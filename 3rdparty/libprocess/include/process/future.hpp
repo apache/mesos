@@ -537,14 +537,16 @@ private:
 
 namespace internal {
 
-  // Helper for executing callbacks that have been registered.
-  template <typename C, typename... Arguments>
-  void run(const std::vector<C>& callbacks, Arguments&&... arguments)
-  {
-    for (size_t i = 0; i < callbacks.size(); ++i) {
-      callbacks[i](std::forward<Arguments>(arguments)...);
-    }
+// Helper for executing callbacks that have been registered.
+//
+// TODO(*): Invoke callbacks in another execution context.
+template <typename C, typename... Arguments>
+void run(const std::vector<C>& callbacks, Arguments&&... arguments)
+{
+  for (size_t i = 0; i < callbacks.size(); ++i) {
+    callbacks[i](std::forward<Arguments>(arguments)...);
   }
+}
 
 } // namespace internal {
 

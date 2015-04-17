@@ -105,6 +105,10 @@ PyObject* MesosSchedulerDriverImpl_killTask(
     MesosSchedulerDriverImpl* self,
     PyObject* args);
 
+PyObject* MesosSchedulerDriverImpl_acceptOffers(
+    MesosSchedulerDriverImpl* self,
+    PyObject* args);
+
 PyObject* MesosSchedulerDriverImpl_declineOffer(
     MesosSchedulerDriverImpl* self,
     PyObject* args);

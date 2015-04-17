@@ -528,6 +528,57 @@ Try<Nothing> disable(
 
 } // namespace oom {
 
+
+// Memory pressure counters.
+namespace pressure {
+
+enum Level {
+  LOW,
+  MEDIUM,
+  CRITICAL
+};
+
+
+std::ostream& operator << (std::ostream& stream, Level level);
+
+
+// Forward declaration.
+class CounterProcess;
+
+
+// Counter is a primitive to listen on events of a given memory
+// pressure level for a cgroup and keep track of the number of
+// occurrence of that event. Use the public 'create' function to
+// create a new counter; see 'value' for how to use.
+class Counter
+{
+public:
+  // Create a memory pressure counter for the given cgroup on the
+  // specified level.
+  static Try<process::Owned<Counter>> create(
+      const std::string& hierarchy,
+      const std::string& cgroup,
+      Level level);
+
+  virtual ~Counter();
+
+  // Returns the current accumulated number of occurrences of the
+  // pressure event. Returns a failure if any error occurs while
+  // monitoring the pressure events, and any subsequent calls to
+  // 'value' will return the same failure. In such case, the user
+  // should consider creating a new Counter.
+  process::Future<uint64_t> value() const;
+
+private:
+  Counter(const std::string& hierarchy,
+          const std::string& cgroup,
+          Level level);
+
+  process::Owned<CounterProcess> process;
+};
+
+} // namespace pressure {
+
 } // namespace memory {
 
 

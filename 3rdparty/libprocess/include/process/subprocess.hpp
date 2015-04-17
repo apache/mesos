@@ -54,10 +54,10 @@ public:
         const Subprocess::IO& out,
         const Subprocess::IO& err,
         const Option<flags::FlagsBase>& flags,
-        const Option<std::map<std::string, std::string> >& environment,
-        const Option<lambda::function<int()> >& setup,
+        const Option<std::map<std::string, std::string>>& environment,
+        const Option<lambda::function<int()>>& setup,
         const Option<lambda::function<
-            pid_t(const lambda::function<int()>&)> >& clone);
+            pid_t(const lambda::function<int()>&)>>& clone);
 
     enum Mode
     {
@@ -100,7 +100,7 @@ public:
 
   // Returns a future from process::reap of this subprocess.
   // Discarding this future has no effect on the subprocess.
-  Future<Option<int> > status() const { return data->status; }
+  Future<Option<int>> status() const { return data->status; }
 
 private:
   friend Try<Subprocess> subprocess(
@@ -110,10 +110,10 @@ private:
       const Subprocess::IO& out,
       const Subprocess::IO& err,
       const Option<flags::FlagsBase>& flags,
-      const Option<std::map<std::string, std::string> >& environment,
-      const Option<lambda::function<int()> >& setup,
+      const Option<std::map<std::string, std::string>>& environment,
+      const Option<lambda::function<int()>>& setup,
       const Option<lambda::function<
-          pid_t(const lambda::function<int()>&)> >& clone);
+          pid_t(const lambda::function<int()>&)>>& clone);
 
   struct Data
   {
@@ -134,7 +134,7 @@ private:
     Option<int> out;
     Option<int> err;
 
-    Future<Option<int> > status;
+    Future<Option<int>> status;
   };
 
   Subprocess() : data(new Data()) {}
@@ -159,20 +159,20 @@ Try<Subprocess> subprocess(
     const Subprocess::IO& out,
     const Subprocess::IO& err,
     const Option<flags::FlagsBase>& flags = None(),
-    const Option<std::map<std::string, std::string> >& environment = None(),
-    const Option<lambda::function<int()> >& setup = None(),
+    const Option<std::map<std::string, std::string>>& environment = None(),
+    const Option<lambda::function<int()>>& setup = None(),
     const Option<lambda::function<
-        pid_t(const lambda::function<int()>&)> >& clone = None());
+        pid_t(const lambda::function<int()>&)>>& clone = None());
 
 
 inline Try<Subprocess> subprocess(
     const std::string& path,
     std::vector<std::string> argv,
     const Option<flags::FlagsBase>& flags = None(),
-    const Option<std::map<std::string, std::string> >& environment = None(),
-    const Option<lambda::function<int()> >& setup = None(),
+    const Option<std::map<std::string, std::string>>& environment = None(),
+    const Option<lambda::function<int()>>& setup = None(),
     const Option<lambda::function<
-        pid_t(const lambda::function<int()>&)> >& clone = None())
+        pid_t(const lambda::function<int()>&)>>& clone = None())
 {
   return subprocess(
       path,
@@ -195,10 +195,10 @@ inline Try<Subprocess> subprocess(
     const Subprocess::IO& in,
     const Subprocess::IO& out,
     const Subprocess::IO& err,
-    const Option<std::map<std::string, std::string> >& environment = None(),
-    const Option<lambda::function<int()> >& setup = None(),
+    const Option<std::map<std::string, std::string>>& environment = None(),
+    const Option<lambda::function<int()>>& setup = None(),
     const Option<lambda::function<
-        pid_t(const lambda::function<int()>&)> >& clone = None())
+        pid_t(const lambda::function<int()>&)>>& clone = None())
 {
   std::vector<std::string> argv(3);
   argv[0] = "sh";
@@ -220,10 +220,10 @@ inline Try<Subprocess> subprocess(
 
 inline Try<Subprocess> subprocess(
     const std::string& command,
-    const Option<std::map<std::string, std::string> >& environment = None(),
-    const Option<lambda::function<int()> >& setup = None(),
+    const Option<std::map<std::string, std::string>>& environment = None(),
+    const Option<lambda::function<int()>>& setup = None(),
     const Option<lambda::function<
-        pid_t(const lambda::function<int()>&)> >& clone = None())
+        pid_t(const lambda::function<int()>&)>>& clone = None())
 {
   return subprocess(
       command,

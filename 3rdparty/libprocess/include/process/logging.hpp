@@ -3,17 +3,10 @@
 
 #include <glog/logging.h>
 
-#include <process/delay.hpp>
 #include <process/future.hpp>
 #include <process/http.hpp>
 #include <process/process.hpp>
 #include <process/timeout.hpp>
-
-#include <stout/duration.hpp>
-#include <stout/numify.hpp>
-#include <stout/option.hpp>
-#include <stout/stringify.hpp>
-#include <stout/try.hpp>
 
 namespace process {
 
@@ -36,56 +29,11 @@ public:
 protected:
   virtual void initialize()
   {
-    route("/toggle", TOGGLE_HELP, &This::toggle);
+    route("/toggle", TOGGLE_HELP(), &This::toggle);
   }
 
 private:
-  Future<http::Response> toggle(const http::Request& request)
-  {
-    Option<std::string> level = request.query.get("level");
-    Option<std::string> duration = request.query.get("duration");
-
-    if (level.isNone() && duration.isNone()) {
-      return http::OK(stringify(FLAGS_v) + "\n");
-    }
-
-    if (level.isSome() && duration.isNone()) {
-      return http::BadRequest("Expecting 'duration=value' in query.\n");
-    } else if (level.isNone() && duration.isSome()) {
-      return http::BadRequest("Expecting 'level=value' in query.\n");
-    }
-
-    Try<int> v = numify<int>(level.get());
-
-    if (v.isError()) {
-      return http::BadRequest(v.error() + ".\n");
-    }
-
-    if (v.get() < 0) {
-      return http::BadRequest(
-          "Invalid level '" + stringify(v.get()) + "'.\n");
-    } else if (v.get() < original) {
-      return http::BadRequest(
-          "'" + stringify(v.get()) + "' < original level.\n");
-    }
-
-    Try<Duration> d = Duration::parse(duration.get());
-
-    if (d.isError()) {
-      return http::BadRequest(d.error() + ".\n");
-    }
-
-    // Set the logging level.
-    set(v.get());
-
-    // Start a revert timer (if necessary).
-    if (v.get() != original) {
-      timeout = d.get();
-      delay(timeout.remaining(), this, &This::revert);
-    }
-
-    return http::OK();
-  }
+  Future<http::Response> toggle(const http::Request& request);
 
   void set(int v)
   {
@@ -103,8 +51,7 @@ private:
     }
   }
 
-  // TODO(dhamon): Convert to static function.
-  static const std::string TOGGLE_HELP;
+  static const std::string TOGGLE_HELP();
 
   Timeout timeout;
 

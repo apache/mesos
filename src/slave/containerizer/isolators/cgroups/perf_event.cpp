@@ -181,7 +181,7 @@ Future<Nothing> CgroupsPerfEventIsolatorProcess::recover(
     cgroups.insert(cgroup);
   }
 
-  Try<vector<string> > orphans = cgroups::get(hierarchy, flags.cgroups_root);
+  Try<vector<string>> orphans = cgroups::get(hierarchy, flags.cgroups_root);
   if (orphans.isError()) {
     foreachvalue (Info* info, infos) {
       delete info;
@@ -208,7 +208,7 @@ Future<Nothing> CgroupsPerfEventIsolatorProcess::recover(
 }
 
 
-Future<Option<CommandInfo> > CgroupsPerfEventIsolatorProcess::prepare(
+Future<Option<CommandInfo>> CgroupsPerfEventIsolatorProcess::prepare(
     const ContainerID& containerId,
     const ExecutorInfo& executorInfo,
     const string& directory,
@@ -354,8 +354,8 @@ Future<Nothing> CgroupsPerfEventIsolatorProcess::_cleanup(
 }
 
 
-Future<hashmap<string, PerfStatistics> > discardSample(
-    Future<hashmap<string, PerfStatistics> > future,
+Future<hashmap<string, PerfStatistics>> discardSample(
+    Future<hashmap<string, PerfStatistics>> future,
     const Duration& duration,
     const Duration& timeout)
 {
@@ -414,7 +414,7 @@ void CgroupsPerfEventIsolatorProcess::sample()
 
 void CgroupsPerfEventIsolatorProcess::_sample(
     const Time& next,
-    const Future<hashmap<string, PerfStatistics> >& statistics)
+    const Future<hashmap<string, PerfStatistics>>& statistics)
 {
   if (!statistics.isReady()) {
     // Failure can occur for many reasons but all are unexpected and

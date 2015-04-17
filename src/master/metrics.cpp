@@ -150,6 +150,8 @@ Metrics::Metrics(const Master& master)
         "master/slave_removals"),
     slave_shutdowns_scheduled(
         "master/slave_shutdowns_scheduled"),
+    slave_shutdowns_completed(
+        "master/slave_shutdowns_completed"),
     slave_shutdowns_canceled(
         "master/slave_shutdowns_canceled")
 {
@@ -224,6 +226,7 @@ Metrics::Metrics(const Master& master)
   process::metrics::add(slave_removals);
 
   process::metrics::add(slave_shutdowns_scheduled);
+  process::metrics::add(slave_shutdowns_completed);
   process::metrics::add(slave_shutdowns_canceled);
 
   // Create resource gauges.
@@ -326,6 +329,7 @@ Metrics::~Metrics()
   process::metrics::remove(slave_removals);
 
   process::metrics::remove(slave_shutdowns_scheduled);
+  process::metrics::remove(slave_shutdowns_completed);
   process::metrics::remove(slave_shutdowns_canceled);
 
   foreach (const process::metrics::Gauge& gauge, resources_total) {

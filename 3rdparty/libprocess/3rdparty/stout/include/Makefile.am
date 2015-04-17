@@ -2,6 +2,7 @@
 nobase_include_HEADERS =		\
   stout/abort.hpp			\
   stout/base64.hpp			\
+  stout/bits.hpp			\
   stout/bytes.hpp			\
   stout/cache.hpp			\
   stout/check.hpp			\
@@ -56,6 +57,7 @@ nobase_include_HEADERS =		\
   stout/os/sendfile.hpp			\
   stout/os/shell.hpp			\
   stout/os/signals.hpp			\
+  stout/os/stat.hpp			\
   stout/os/permissions.hpp		\
   stout/os/pstree.hpp			\
   stout/os/sysctl.hpp			\

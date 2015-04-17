@@ -263,6 +263,8 @@ Try<Nothing> DockerContainerizerProcess::checkpoint(
 
   Container* container = containers_[containerId];
 
+  container->executorPid = pid;
+
   if (container->checkpoint) {
     const string& path =
       slave::paths::getForkedPidPath(
@@ -375,7 +377,7 @@ void DockerContainerizer::destroy(const ContainerID& containerId)
 }
 
 
-Future<hashset<ContainerID> > DockerContainerizer::containers()
+Future<hashset<ContainerID>> DockerContainerizer::containers()
 {
   return dispatch(process.get(), &DockerContainerizerProcess::containers);
 }
@@ -851,6 +853,14 @@ Future<Nothing> DockerContainerizerProcess::update(
     return Nothing();
   }
 
+  if (container->resources == _resources) {
+    LOG(INFO) << "Ignoring updating container '" << containerId
+              << "' with resources passed to update is identical to "
+              << "existing resources";
+    return Nothing();
+  }
+
+
   // Store the resources for usage().
   container->resources = _resources;
 
@@ -1217,11 +1227,29 @@ void DockerContainerizerProcess::destroy(
 
   container->state = Container::DESTROYING;
 
+  if (container->executorPid.isSome()) {
+    LOG(INFO) << "Sending SIGTERM to executor with pid: "
+              << container->executorPid.get();
+    // We need to clean up the executor as the executor might not have
+    // received run task due to a failed containerizer update.
+    // We also kill the executor first since container->status below
+    // is waiting for the executor to finish.
+    Try<std::list<os::ProcessTree>> kill =
+      os::killtree(container->executorPid.get(), SIGTERM);
+
+    if (kill.isError()) {
+      // Ignoring the error from killing executor as it can already
+      // have exited.
+      VLOG(1) << "Ignoring error when killing executor pid "
+                << container->executorPid.get() << " in destroy, error: "
+                << kill.error();
+    }
+  }
+
   // Otherwise, wait for Docker::run to succeed, in which case we'll
   // continue in _destroy (calling Docker::kill) or for Docker::run to
   // fail, in which case we'll re-execute this function and cleanup
   // above.
-
   container->status.future()
     .onAny(defer(self(), &Self::_destroy, containerId, killed));
 }
@@ -1292,7 +1320,7 @@ void DockerContainerizerProcess::__destroy(
 void DockerContainerizerProcess::___destroy(
     const ContainerID& containerId,
     bool killed,
-    const Future<Option<int> >& status)
+    const Future<Option<int>>& status)
 {
   CHECK(containers_.contains(containerId));
 
@@ -1318,7 +1346,7 @@ void DockerContainerizerProcess::___destroy(
 }
 
 
-Future<hashset<ContainerID> > DockerContainerizerProcess::containers()
+Future<hashset<ContainerID>> DockerContainerizerProcess::containers()
 {
   return containers_.keys();
 }

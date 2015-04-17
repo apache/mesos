@@ -32,6 +32,9 @@ TEST_SCRIPT(ExamplesTest, LowLevelSchedulerLibprocess,
 TEST_SCRIPT(ExamplesTest, LowLevelSchedulerPthread,
             "low_level_scheduler_pthread_test.sh")
 
+TEST_SCRIPT(ExamplesTest, PersistentVolumeFramework,
+            "persistent_volume_framework_test.sh");
+
 #ifdef MESOS_HAS_JAVA
 TEST_SCRIPT(ExamplesTest, JavaFramework, "java_framework_test.sh")
 TEST_SCRIPT(ExamplesTest, JavaException, "java_exception_test.sh")

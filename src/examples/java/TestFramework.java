@@ -45,8 +45,8 @@ public class TestFramework {
     }
 
     @Override
-    public void registered(SchedulerDriver driver, 
-                           FrameworkID frameworkId, 
+    public void registered(SchedulerDriver driver,
+                           FrameworkID frameworkId,
                            MasterInfo masterInfo) {
       System.out.println("Registered! ID = " + frameworkId.getValue());
     }
@@ -64,7 +64,7 @@ public class TestFramework {
       double MEM_PER_TASK = 128;
 
       for (Offer offer : offers) {
-        List<TaskInfo> tasks = new ArrayList<TaskInfo>();
+        Offer.Operation.Launch.Builder launch = Offer.Operation.Launch.newBuilder();
         double offerCpus = 0;
         double offerMem = 0;
         for (Resource resource : offer.getResourcesList()) {
@@ -105,13 +105,29 @@ public class TestFramework {
             .setExecutor(ExecutorInfo.newBuilder(executor))
             .build();
 
-          tasks.add(task);
+          launch.addTaskInfos(TaskInfo.newBuilder(task));
 
           remainingCpus -= CPUS_PER_TASK;
           remainingMem -= MEM_PER_TASK;
         }
+
+        // NOTE: We use the new API `acceptOffers` here to launch tasks. The
+        // 'launchTasks' API will be deprecated.
+        List<OfferID> offerIds = new ArrayList<OfferID>();
+        offerIds.add(offer.getId());
+
+        List<Offer.Operation> operations = new ArrayList<Offer.Operation>();
+
+        Offer.Operation operation = Offer.Operation.newBuilder()
+          .setType(Offer.Operation.Type.LAUNCH)
+          .setLaunch(launch)
+          .build();
+
+        operations.add(operation);
+
         Filters filters = Filters.newBuilder().setRefuseSeconds(1).build();
-        driver.launchTasks(offer.getId(), tasks, filters);
+
+        driver.acceptOffers(offerIds, operations, filters);
       }
     }
 

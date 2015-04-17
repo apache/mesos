@@ -21,7 +21,6 @@
 #include <signal.h>
 #include <stdint.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -37,6 +36,7 @@
 #include <gmock/gmock.h>
 
 #include <process/gtest.hpp>
+#include <process/owned.hpp>
 
 #include <stout/gtest.hpp>
 #include <stout/hashmap.hpp>
@@ -51,9 +51,14 @@
 #include "linux/cgroups.hpp"
 #include "linux/perf.hpp"
 
+#include "tests/memory_test_helper.hpp"
 #include "tests/mesos.hpp" // For TEST_CGROUPS_(HIERARCHY|ROOT).
+#include "tests/utils.hpp"
 
 using namespace process;
+
+using cgroups::memory::pressure::Level;
+using cgroups::memory::pressure::Counter;
 
 using std::set;
 
@@ -62,7 +67,7 @@ namespace internal {
 namespace tests {
 
 
-class CgroupsTest : public ::testing::Test
+class CgroupsTest : public TemporaryDirectoryTest
 {
 public:
   static void SetUpTestCase()
@@ -117,6 +122,8 @@ public:
 protected:
   virtual void SetUp()
   {
+    CgroupsTest::SetUp();
+
     foreach (const std::string& subsystem, strings::tokenize(subsystems, ",")) {
       // Establish the base hierarchy if this is the first subsystem checked.
       if (baseHierarchy.empty()) {
@@ -182,6 +189,8 @@ protected:
         }
       }
     }
+
+    CgroupsTest::TearDown();
   }
 
   const std::string subsystems; // Subsystems required to run tests.
@@ -527,17 +536,15 @@ TEST_F(CgroupsAnyHierarchyWithCpuMemoryTest, ROOT_CGROUPS_Listen)
     << "this test.\n"
     << "-------------------------------------------------------------";
 
-  // Disable oom killer.
-  ASSERT_SOME(cgroups::memory::oom::killer::disable(
-        hierarchy, TEST_CGROUPS_ROOT));
+  const Bytes limit =  Megabytes(64);
 
-  // Limit the memory usage of the test cgroup to 64MB.
   ASSERT_SOME(cgroups::memory::limit_in_bytes(
-      hierarchy, TEST_CGROUPS_ROOT, Megabytes(64)));
+      hierarchy, TEST_CGROUPS_ROOT, limit));
 
   // Listen on oom events for test cgroup.
   Future<Nothing> future =
     cgroups::memory::oom::listen(hierarchy, TEST_CGROUPS_ROOT);
+
   ASSERT_FALSE(future.isFailed());
 
   // Test the cancellation.
@@ -547,59 +554,21 @@ TEST_F(CgroupsAnyHierarchyWithCpuMemoryTest, ROOT_CGROUPS_Listen)
   future = cgroups::memory::oom::listen(hierarchy, TEST_CGROUPS_ROOT);
   ASSERT_FALSE(future.isFailed());
 
-  pid_t pid = ::fork();
-  ASSERT_NE(-1, pid);
+  MemoryTestHelper helper;
+  ASSERT_SOME(helper.spawn());
+  ASSERT_SOME(helper.pid());
 
-  if (pid > 0) {
-    // In parent process.
-    future.await(Seconds(5));
+  EXPECT_SOME(cgroups::assign(
+      hierarchy, TEST_CGROUPS_ROOT, helper.pid().get()));
 
-    EXPECT_TRUE(future.isReady());
+  // Request more RSS memory in the subprocess than the limit.
+  // NOTE: We enable the kernel oom killer in this test. If it were
+  // disabled, the subprocess might hang and the following call won't
+  // return. By enabling the oom killer, we let the subprocess get
+  // killed and expect that an error is returned.
+  EXPECT_ERROR(helper.increaseRSS(limit * 2));
 
-    // Kill the child process.
-    EXPECT_NE(-1, ::kill(pid, SIGKILL));
-
-    // Wait for the child process.
-    int status;
-    EXPECT_NE(-1, ::waitpid((pid_t) -1, &status, 0));
-    ASSERT_TRUE(WIFSIGNALED(status));
-    EXPECT_EQ(SIGKILL, WTERMSIG(status));
-  } else {
-    // In child process. We try to trigger an oom here.
-    // Put self into the test cgroup.
-    Try<Nothing> assign =
-      cgroups::assign(hierarchy, TEST_CGROUPS_ROOT, ::getpid());
-
-    if (assign.isError()) {
-      std::cerr << "Failed to assign cgroup: " << assign.error() << std::endl;
-      abort();
-    }
-
-    // Blow up the memory.
-    size_t limit = 1024 * 1024 * 512;
-    void* buffer = NULL;
-
-    if (posix_memalign(&buffer, getpagesize(), limit) != 0) {
-      perror("Failed to allocate page-aligned memory, posix_memalign");
-      abort();
-    }
-
-    // We use mlock and memset here to make sure that the memory
-    // actually gets paged in and thus accounted for.
-    if (mlock(buffer, limit) != 0) {
-      perror("Failed to lock memory, mlock");
-      abort();
-    }
-
-    if (memset(buffer, 1, limit) != buffer) {
-      perror("Failed to fill memory, memset");
-      abort();
-    }
-
-    // Should not reach here.
-    std::cerr << "OOM does not happen!" << std::endl;
-    abort();
-  }
+  AWAIT_READY(future);
 }
 
 
@@ -1031,6 +1000,190 @@ TEST_F(CgroupsAnyHierarchyWithPerfEventTest, ROOT_CGROUPS_Perf)
   // Destroy the cgroup.
   Future<Nothing> destroy = cgroups::destroy(hierarchy, TEST_CGROUPS_ROOT);
   AWAIT_READY(destroy);
+}
+
+
+class CgroupsAnyHierarchyMemoryPressureTest
+  : public CgroupsAnyHierarchyTest
+{
+public:
+  CgroupsAnyHierarchyMemoryPressureTest()
+    : CgroupsAnyHierarchyTest("memory"),
+      cgroup(TEST_CGROUPS_ROOT) {}
+
+protected:
+  virtual void SetUp()
+  {
+    CgroupsAnyHierarchyTest::SetUp();
+
+    hierarchy = path::join(baseHierarchy, "memory");
+
+    ASSERT_SOME(cgroups::create(hierarchy, cgroup));
+  }
+
+  void listen()
+  {
+    const std::vector<Level> levels = {
+      Level::LOW,
+      Level::MEDIUM,
+      Level::CRITICAL
+    };
+
+    foreach (Level level, levels) {
+      Try<Owned<Counter>> counter = Counter::create(hierarchy, cgroup, level);
+      EXPECT_SOME(counter);
+
+      counters[level] = counter.get();
+    }
+  }
+
+  std::string hierarchy;
+  const std::string cgroup;
+
+  hashmap<Level, Owned<Counter>> counters;
+};
+
+
+TEST_F(CgroupsAnyHierarchyMemoryPressureTest, ROOT_IncreaseUnlockedRSS)
+{
+  MemoryTestHelper helper;
+  ASSERT_SOME(helper.spawn());
+  ASSERT_SOME(helper.pid());
+
+  const Bytes limit = Megabytes(16);
+
+  // Move the memory test helper into a cgroup and set the limit.
+  EXPECT_SOME(cgroups::memory::limit_in_bytes(hierarchy, cgroup, limit));
+  EXPECT_SOME(cgroups::assign(hierarchy, cgroup, helper.pid().get()));
+
+  listen();
+
+  // Used to save the counter readings from last iteration.
+  uint64_t previousLow = 0;
+  uint64_t previousMedium = 0;
+  uint64_t previousCritical = 0;
+
+  // Used to save the counter readings from this iteration.
+  uint64_t low;
+  uint64_t medium;
+  uint64_t critical;
+
+  // Use a guard to error out if it's been too long.
+  // TODO(chzhcn): Use a better way to set testing time limit.
+  uint64_t iterationLimit = limit.bytes() / getpagesize() * 10;
+
+  for (uint64_t i = 0; i < iterationLimit; i++) {
+    EXPECT_SOME(helper.increaseRSS(getpagesize()));
+
+    Future<uint64_t> _low = counters[Level::LOW]->value();
+    Future<uint64_t> _medium = counters[Level::MEDIUM]->value();
+    Future<uint64_t> _critical = counters[Level::CRITICAL]->value();
+
+    AWAIT_READY(_low);
+    AWAIT_READY(_medium);
+    AWAIT_READY(_critical);
+
+    low = _low.get();
+    medium = _medium.get();
+    critical = _critical.get();
+
+    // We need to know the readings are the same as last time to be
+    // sure they are stable, because the reading is not atomic. For
+    // example, the medium could turn positive after we read low to be
+    // 0, but this should be fixed by the next read immediately.
+    if ((low == previousLow &&
+         medium == previousMedium &&
+         critical == previousCritical)) {
+      if (low != 0) {
+        EXPECT_LE(medium, low);
+        EXPECT_LE(critical, medium);
+
+        // When child's RSS is full, it will be OOM-kill'ed if we
+        // don't stop it right away.
+        break;
+      } else {
+        EXPECT_EQ(0u, medium);
+        EXPECT_EQ(0u, critical);
+      }
+    }
+
+    previousLow = low;
+    previousMedium = medium;
+    previousCritical = critical;
+  }
+}
+
+
+TEST_F(CgroupsAnyHierarchyMemoryPressureTest, ROOT_IncreasePageCache)
+{
+  MemoryTestHelper helper;
+  ASSERT_SOME(helper.spawn());
+  ASSERT_SOME(helper.pid());
+
+  const Bytes limit = Megabytes(16);
+
+  // Move the memory test helper into a cgroup and set the limit.
+  EXPECT_SOME(cgroups::memory::limit_in_bytes(hierarchy, cgroup, limit));
+  EXPECT_SOME(cgroups::assign(hierarchy, cgroup, helper.pid().get()));
+
+  listen();
+
+  // Used to save the counter readings from last iteration.
+  uint64_t previousLow = 0;
+  uint64_t previousMedium = 0;
+  uint64_t previousCritical = 0;
+
+  // Used to save the counter readings from this iteration.
+  uint64_t low;
+  uint64_t medium;
+  uint64_t critical;
+
+  // Use a guard to error out if it's been too long.
+  // TODO(chzhcn): Use a better way to set testing time limit.
+  uint64_t iterationLimit = limit.bytes() / Megabytes(1).bytes() * 2;
+
+  for (uint64_t i = 0; i < iterationLimit; i++) {
+    EXPECT_SOME(helper.increasePageCache(Megabytes(1)));
+
+    Future<uint64_t> _low = counters[Level::LOW]->value();
+    Future<uint64_t> _medium = counters[Level::MEDIUM]->value();
+    Future<uint64_t> _critical = counters[Level::CRITICAL]->value();
+
+    AWAIT_READY(_low);
+    AWAIT_READY(_medium);
+    AWAIT_READY(_critical);
+
+    low = _low.get();
+    medium = _medium.get();
+    critical = _critical.get();
+
+    // We need to know the readings are the same as last time to be
+    // sure they are stable, because the reading is not atomic. For
+    // example, the medium could turn positive after we read low to be
+    // 0, but this should be fixed by the next read immediately.
+    if ((low == previousLow &&
+         medium == previousMedium &&
+         critical == previousCritical)) {
+      if (low != 0) {
+        EXPECT_LE(medium, low);
+        EXPECT_LE(critical, medium);
+
+        // Different from the RSS test, since the child is only
+        // consuming at a slow rate the page cache, which is evictable
+        // and reclaimable, we could therefore be in this state
+        // forever. Our guard will let us out shortly.
+      } else {
+        EXPECT_EQ(0u, medium);
+        EXPECT_EQ(0u, critical);
+      }
+    }
+
+    previousLow = low;
+    previousMedium = medium;
+    previousCritical = critical;
+  }
+
+  EXPECT_LT(0u, low);
 }
 
 } // namespace tests {

@@ -186,8 +186,10 @@ class SchedulerDriver(object):
       Launches the given set of tasks. Any resources remaining (i.e., not
       used by the tasks or their executors) will be considered declined.
       The specified filters are applied on all unused resources (see
-      mesos.proto for a description of Filters.) Invoking this function with
-      an empty collection of tasks declines the offers in entirety (see
+      mesos.proto for a description of Filters). Available resources are
+      aggregated when multiple offers are provided. Note that all offers
+      must belong to the same slave. Invoking this function with an empty
+      collection of tasks declines the offers in entirety (see
       Scheduler.declineOffer). Note that passing a single offer is also
       supported.
     """
@@ -199,6 +201,17 @@ class SchedulerDriver(object):
       it was attempting to kill a task it will need to retry in the future.
       Likewise, if unregistered / disconnected, the request will be dropped
       dropped (these semantics may be changed in the future).
+    """
+
+  def acceptOffers(self, offerIds, operations, filters=None):
+    """
+      Accepts the given offers and performs a sequence of operations
+      on those accepted offers. See Offer.Operation in mesos.proto for
+      the set of available operations. Available resources are
+      aggregated when multiple offers are provided. Note that all
+      offers must belong to the same slave. Any unused resources will
+      be considered declined. The specified filters are applied on all
+      unused resources (see mesos.proto for a description of Filters).
     """
 
   def declineOffer(self, offerId, filters=None):

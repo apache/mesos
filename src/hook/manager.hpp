@@ -44,9 +44,8 @@ public:
       const FrameworkInfo& frameworkInfo,
       const SlaveInfo& slaveInfo);
 
-  static Environment slaveLaunchExecutorEnvironmentDecorator(
-      const ExecutorInfo& executorInfo,
-      const TaskInfo& taskInfo);
+  static Environment slaveExecutorEnvironmentDecorator(
+      ExecutorInfo executorInfo);
 
   static void slaveRemoveExecutorHook(
       const FrameworkInfo& frameworkInfo,

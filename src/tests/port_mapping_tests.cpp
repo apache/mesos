@@ -33,6 +33,10 @@
 #include <stout/json.hpp>
 #include <stout/mac.hpp>
 #include <stout/net.hpp>
+#include <stout/stopwatch.hpp>
+
+#include <stout/os/stat.hpp>
+#include <stout/os/exists.hpp>
 
 #include "linux/fs.hpp"
 
@@ -117,23 +121,25 @@ static void cleanup(const string& eth0, const string& lo)
   ASSERT_SOME(links);
 
   foreach (const string& name, links.get()) {
-    if (strings::startsWith(name, slave::VETH_PREFIX)) {
+    if (strings::startsWith(name, slave::PORT_MAPPING_VETH_PREFIX())) {
       ASSERT_SOME_TRUE(link::remove(name));
     }
   }
 
-  Try<list<string> > entries = os::ls(slave::BIND_MOUNT_ROOT);
+  Try<list<string> > entries = os::ls(slave::PORT_MAPPING_BIND_MOUNT_ROOT());
   ASSERT_SOME(entries);
 
   foreach (const string& file, entries.get()) {
-    string target = path::join(slave::BIND_MOUNT_ROOT, file);
+    string target = path::join(slave::PORT_MAPPING_BIND_MOUNT_ROOT(), file);
 
     // NOTE: Here, we ignore the unmount errors because previous tests
     // may have created the file and died before mounting.
-    mesos::internal::fs::unmount(target, MNT_DETACH);
+    if (!os::stat::islink(target)) {
+      mesos::internal::fs::unmount(target, MNT_DETACH);
+    }
 
-    // Use best effort to remove the bind mount file, but it is okay
-    // the file can't be removed at this point.
+    // Remove the network namespace handle and the corresponding
+    // symlinks. The removal here is best effort.
     os::rm(target);
   }
 }
@@ -166,6 +172,8 @@ public:
       << "-------------------------------------------------------------";
   }
 
+  PortMappingIsolatorTest() : hostIP(net::IP(INADDR_ANY)) {}
+
 protected:
   virtual void SetUp()
   {
@@ -193,13 +201,14 @@ protected:
     cleanup(eth0, lo);
 
     // Get host IP address.
-    Result<net::IPNetwork> _hostIPNetwork = net::fromLinkDevice(eth0, AF_INET);
+    Result<net::IPNetwork> hostIPNetwork =
+        net::IPNetwork::fromLinkDevice(eth0, AF_INET);
 
-    CHECK_SOME(_hostIPNetwork)
+    CHECK_SOME(hostIPNetwork)
       << "Failed to retrieve the host public IP network from " << eth0 << ": "
-      << _hostIPNetwork.error();
+      << hostIPNetwork.error();
 
-    hostIPNetwork = _hostIPNetwork.get();
+    hostIP = hostIPNetwork.get().address();
 
     // Get all the external name servers for tests that need to talk
     // to an external host, e.g., ping, DNS.
@@ -307,7 +316,6 @@ protected:
     return pid;
   }
 
-
   JSON::Object statisticsHelper(
       pid_t pid,
       bool enable_summary,
@@ -355,7 +363,7 @@ protected:
   string lo;
 
   // Host public IP network.
-  Option<net::IPNetwork> hostIPNetwork;
+  net::IP hostIP;
 
   // 'port' is within the range of ports assigned to one container.
   int port;
@@ -380,6 +388,28 @@ protected:
   string trafficViaPublic;
   string exitStatus;
 };
+
+
+// Wait up to timeout seconds for a file to be created.  If timeout is
+// zero, then wait indefinitely.  Return true if file exists.
+// TODO(pbrett): Consider generalizing this function and moving it to a
+// common header.
+static bool waitForFileCreation(
+    const string& path,
+    const Duration& duration = Seconds(60))
+{
+  Stopwatch timer;
+  timer.start();
+
+  while (!os::exists(path)) {
+    if ((duration > Duration::zero()) && (timer.elapsed() > duration))
+      break;
+
+    os::sleep(Milliseconds(50));
+  }
+
+  return os::exists(path);
+}
 
 
 // This test uses 2 containers: one listens to 'port' and 'errorPort'
@@ -420,8 +450,8 @@ TEST_F(PortMappingIsolatorTest, ROOT_ContainerToContainerTCPTest)
   command1 << "nc -l localhost " << port << " > " << trafficViaLoopback << "& ";
 
   // Listen to 'public ip' and 'port'.
-  command1 << "nc -l " << hostIPNetwork.get().address() << " " << port
-           << " > " << trafficViaPublic << "& ";
+  command1 << "nc -l " << hostIP << " " << port << " > " << trafficViaPublic
+           << "& ";
 
   // Listen to 'errorPort'. This should not get anything.
   command1 << "nc -l " << errorPort << " | tee " << trafficViaLoopback << " "
@@ -456,7 +486,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_ContainerToContainerTCPTest)
   ::close(pipes[1]);
 
   // Wait for the command to start.
-  while (!os::exists(container1Ready));
+  ASSERT_TRUE(waitForFileCreation(container1Ready));
 
   ContainerID containerId2;
   containerId2.set_value("container2");
@@ -478,15 +508,13 @@ TEST_F(PortMappingIsolatorTest, ROOT_ContainerToContainerTCPTest)
   ostringstream command2;
 
   // Send to 'localhost' and 'port'.
-  command2 << "echo -n hello1 | nc localhost " << port << ";";
+  command2 << "printf hello1 | nc localhost " << port << ";";
   // Send to 'localhost' and 'errorPort'. This should fail.
-  command2 << "echo -n hello2 | nc localhost " << errorPort << ";";
+  command2 << "printf hello2 | nc localhost " << errorPort << ";";
   // Send to 'public IP' and 'port'.
-  command2 << "echo -n hello3 | nc " << hostIPNetwork.get().address()
-           << " " << port << ";";
+  command2 << "printf hello3 | nc " << hostIP << " " << port << ";";
   // Send to 'public IP' and 'errorPort'. This should fail.
-  command2 << "echo -n hello4 | nc " << hostIPNetwork.get().address()
-           << " " << errorPort << ";";
+  command2 << "printf hello4 | nc " << hostIP << " " << errorPort << ";";
   // Touch the guard file.
   command2 << "touch " << container2Ready;
 
@@ -514,7 +542,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_ContainerToContainerTCPTest)
   ::close(pipes[1]);
 
   // Wait for the command to start.
-  while (!os::exists(container2Ready));
+  ASSERT_TRUE(waitForFileCreation(container2Ready));
 
   // Wait for the command to complete.
   AWAIT_READY(status1);
@@ -567,16 +595,16 @@ TEST_F(PortMappingIsolatorTest, ROOT_ContainerToContainerUDPTest)
   ostringstream command1;
 
   // Listen to 'localhost' and 'port'.
-  command1 << "nc -u -l localhost " << port << " > "
-           << trafficViaLoopback << "& ";
+  command1 << "nc -u -l localhost " << port << " > " << trafficViaLoopback
+           << "& ";
 
   // Listen to 'public ip' and 'port'.
-  command1 << "nc -u -l " << hostIPNetwork.get().address() << " " << port
-           << " > " << trafficViaPublic << "& ";
+  command1 << "nc -u -l " << hostIP << " " << port << " > " << trafficViaPublic
+           << "& ";
 
   // Listen to 'errorPort'. This should not receive anything.
-  command1 << "nc -u -l " << errorPort << " | tee " << trafficViaLoopback << " "
-           << trafficViaPublic << "& ";
+  command1 << "nc -u -l " << errorPort << " | tee " << trafficViaLoopback
+           << " " << trafficViaPublic << "& ";
 
   // Touch the guard file.
   command1 << "touch " << container1Ready;
@@ -607,7 +635,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_ContainerToContainerUDPTest)
   ::close(pipes[1]);
 
   // Wait for the command to start.
-  while (!os::exists(container1Ready));
+  ASSERT_TRUE(waitForFileCreation(container1Ready));
 
   ContainerID containerId2;
   containerId2.set_value("container2");
@@ -629,15 +657,14 @@ TEST_F(PortMappingIsolatorTest, ROOT_ContainerToContainerUDPTest)
   ostringstream command2;
 
   // Send to 'localhost' and 'port'.
-  command2 << "echo -n hello1 | nc -w1 -u localhost " << port << ";";
+  command2 << "printf hello1 | nc -w1 -u localhost " << port << ";";
   // Send to 'localhost' and 'errorPort'. No data should be sent.
-  command2 << "echo -n hello2 | nc -w1 -u localhost " << errorPort << ";";
+  command2 << "printf hello2 | nc -w1 -u localhost " << errorPort << ";";
   // Send to 'public IP' and 'port'.
-  command2 << "echo -n hello3 | nc -w1 -u " << hostIPNetwork.get().address()
-           << " " << port << ";";
+  command2 << "printf hello3 | nc -w1 -u " << hostIP << " " << port << ";";
   // Send to 'public IP' and 'errorPort'. No data should be sent.
-  command2 << "echo -n hello4 | nc -w1 -u " << hostIPNetwork.get().address()
-           << " " << errorPort << ";";
+  command2 << "printf hello4 | nc -w1 -u " << hostIP << " " << errorPort
+           << ";";
   // Touch the guard file.
   command2 << "touch " << container2Ready;
 
@@ -666,7 +693,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_ContainerToContainerUDPTest)
   ::close(pipes[1]);
 
   // Wait for the command to start.
-  while (!os::exists(container2Ready));
+  ASSERT_TRUE(waitForFileCreation(container2Ready));
 
   // Wait for the command to complete.
   AWAIT_READY(status1);
@@ -720,16 +747,16 @@ TEST_F(PortMappingIsolatorTest, ROOT_HostToContainerUDPTest)
   ostringstream command1;
 
   // Listen to 'localhost' and 'Port'.
-  command1 << "nc -u -l localhost " << port << " > "
-           << trafficViaLoopback << "&";
+  command1 << "nc -u -l localhost " << port << " > " << trafficViaLoopback
+           << "&";
 
   // Listen to 'public IP' and 'Port'.
-  command1 << "nc -u -l " << hostIPNetwork.get().address() << " " << port
-           << " > " << trafficViaPublic << "&";
+  command1 << "nc -u -l " << hostIP << " " << port << " > " << trafficViaPublic
+           << "&";
 
   // Listen to 'public IP' and 'errorPort'. This should not receive anything.
-  command1 << "nc -u -l " << errorPort << " | tee " << trafficViaLoopback << " "
-           << trafficViaPublic << "&";
+  command1 << "nc -u -l " << errorPort << " | tee " << trafficViaLoopback
+           << " " << trafficViaPublic << "&";
 
   // Touch the guard file.
   command1 << "touch " << container1Ready;
@@ -761,35 +788,29 @@ TEST_F(PortMappingIsolatorTest, ROOT_HostToContainerUDPTest)
   ::close(pipes[1]);
 
   // Wait for the command to start.
-  while (!os::exists(container1Ready));
+  ASSERT_TRUE(waitForFileCreation(container1Ready));
 
   // Send to 'localhost' and 'port'.
-  ASSERT_SOME_EQ(0, os::shell(
-      NULL,
-      "echo -n hello1 | nc -w1 -u localhost %s",
-      stringify(port).c_str()));
+  ostringstream command2;
+  command2 << "printf hello1 | nc -w1 -u localhost " << port;
+  ASSERT_SOME_EQ(0, os::shell(NULL, command2.str().c_str()));
 
   // Send to 'localhost' and 'errorPort'. The command should return
   // successfully because UDP is stateless but no data could be sent.
-  ASSERT_SOME_EQ(0, os::shell(
-      NULL,
-      "echo -n hello2 | nc -w1 -u localhost %s",
-      stringify(errorPort).c_str()));
+  ostringstream command3;
+  command3 << "printf hello2 | nc -w1 -u localhost " << errorPort;
+  ASSERT_SOME_EQ(0, os::shell(NULL, command3.str().c_str()));
 
   // Send to 'public IP' and 'port'.
-  ASSERT_SOME_EQ(0, os::shell(
-      NULL,
-      "echo -n hello3 | nc -w1 -u %s %s",
-      stringify(hostIPNetwork.get().address()).c_str(),
-      stringify(port).c_str()));
+  ostringstream command4;
+  command4 << "printf hello3 | nc -w1 -u " << hostIP << " " << port;
+  ASSERT_SOME_EQ(0, os::shell(NULL, command4.str().c_str()));
 
   // Send to 'public IP' and 'errorPort'. The command should return
   // successfully because UDP is stateless but no data could be sent.
-  ASSERT_SOME_EQ(0, os::shell(
-      NULL,
-      "echo -n hello4 | nc -w1 -u %s %s",
-      stringify(hostIPNetwork.get().address()).c_str(),
-      stringify(errorPort).c_str()));
+  ostringstream command5;
+  command5 << "printf hello4 | nc -w1 -u " << hostIP << " " << errorPort;
+  ASSERT_SOME_EQ(0, os::shell(NULL, command5.str().c_str()));
 
   EXPECT_SOME_EQ("hello1", os::read(trafficViaLoopback));
   EXPECT_SOME_EQ("hello3", os::read(trafficViaPublic));
@@ -840,8 +861,8 @@ TEST_F(PortMappingIsolatorTest, ROOT_HostToContainerTCPTest)
   command1 << "nc -l localhost " << port << " > " << trafficViaLoopback << "&";
 
   // Listen to 'public IP' and 'Port'.
-  command1 << "nc -l " << hostIPNetwork.get().address() << " " << port
-           << " > " << trafficViaPublic << "&";
+  command1 << "nc -l " << hostIP << " " << port << " > " << trafficViaPublic
+           << "&";
 
   // Listen to 'public IP' and 'errorPort'. This should fail.
   command1 << "nc -l " << errorPort << " | tee " << trafficViaLoopback << " "
@@ -877,35 +898,29 @@ TEST_F(PortMappingIsolatorTest, ROOT_HostToContainerTCPTest)
   ::close(pipes[1]);
 
   // Wait for the command to start.
-  while (!os::exists(container1Ready));
+  ASSERT_TRUE(waitForFileCreation(container1Ready));
 
   // Send to 'localhost' and 'port'.
-  ASSERT_SOME_EQ(0, os::shell(
-      NULL,
-      "echo -n hello1 | nc localhost %s",
-      stringify(port).c_str()));
+  ostringstream command2;
+  command2 << "printf hello1 | nc localhost " << port;
+  ASSERT_SOME_EQ(0, os::shell(NULL, command2.str().c_str()));
 
   // Send to 'localhost' and 'errorPort'. This should fail because TCP
   // connection couldn't be established..
-  ASSERT_SOME_EQ(256, os::shell(
-      NULL,
-      "echo -n hello2 | nc localhost %s",
-      stringify(errorPort).c_str()));
+  ostringstream command3;
+  command3 << "printf hello2 | nc localhost " << errorPort;
+  ASSERT_SOME_EQ(256, os::shell(NULL, command3.str().c_str()));
 
   // Send to 'public IP' and 'port'.
-  ASSERT_SOME_EQ(0, os::shell(
-      NULL,
-      "echo -n hello3 | nc %s %s",
-      stringify(hostIPNetwork.get().address()).c_str(),
-      stringify(port).c_str()));
+  ostringstream command4;
+  command4 << "printf hello3 | nc " << hostIP << " " << port;
+  ASSERT_SOME_EQ(0, os::shell(NULL, command4.str().c_str()));
 
   // Send to 'public IP' and 'errorPort'. This should fail because TCP
   // connection couldn't be established.
-  ASSERT_SOME_EQ(256, os::shell(
-      NULL,
-      "echo -n hello4 | nc %s %s",
-      stringify(hostIPNetwork.get().address()).c_str(),
-      stringify(errorPort).c_str()));
+  ostringstream command5;
+  command5 << "printf hello4 | nc " << hostIP << " " << errorPort;
+  ASSERT_SOME_EQ(256, os::shell(NULL, command5.str().c_str()));
 
   EXPECT_SOME_EQ("hello1", os::read(trafficViaLoopback));
   EXPECT_SOME_EQ("hello3", os::read(trafficViaPublic));
@@ -966,7 +981,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_ContainerICMPExternalTest)
       command1 << " && ";
     }
   }
-  command1 << "; echo -n $? > " << exitStatus << "; sync";
+  command1 << "; printf $? > " << exitStatus << "; sync";
 
   int pipes[2];
   ASSERT_NE(-1, ::pipe(pipes));
@@ -1039,11 +1054,8 @@ TEST_F(PortMappingIsolatorTest, ROOT_ContainerICMPInternalTest)
   ASSERT_SOME(preparation1.get());
 
   ostringstream command1;
-
-  command1 << "ping -c1 127.0.0.1 && ping -c1 "
-           << stringify(hostIPNetwork.get().address());
-
-  command1 << "; echo -n $? > " << exitStatus << "; sync";
+  command1 << "ping -c1 127.0.0.1 && ping -c1 " << hostIP
+           << "; printf $? > " << exitStatus << "; sync";
 
   int pipes[2];
   ASSERT_NE(-1, ::pipe(pipes));
@@ -1133,7 +1145,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_ContainerARPExternalTest)
       command1 << " && ";
     }
   }
-  command1 << "; echo -n $? > " << exitStatus << "; sync";
+  command1 << "; printf $? > " << exitStatus << "; sync";
 
   int pipes[2];
   ASSERT_NE(-1, ::pipe(pipes));
@@ -1221,7 +1233,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_DNSTest)
       command1 << " && ";
     }
   }
-  command1 << "; echo -n $? > " << exitStatus << "; sync";
+  command1 << "; printf $? > " << exitStatus << "; sync";
 
   int pipes[2];
   ASSERT_NE(-1, ::pipe(pipes));
@@ -1380,9 +1392,9 @@ TEST_F(PortMappingIsolatorTest, ROOT_SmallEgressLimitTest)
   // Open a nc server on the host side. Note that 'errorPort' is in
   // neither 'ports' nor 'ephemeral_ports', which makes it a good port
   // to use on the host.
-  Try<Subprocess> s = subprocess(
-      "nc -l localhost " + stringify(errorPort) + " > /devnull");
-
+  ostringstream command1;
+  command1 << "nc -l localhost " << errorPort << " > /devnull";
+  Try<Subprocess> s = subprocess(command1.str().c_str());
   CHECK_SOME(s);
 
   // Set the executor's resources.
@@ -1407,18 +1419,18 @@ TEST_F(PortMappingIsolatorTest, ROOT_SmallEgressLimitTest)
   // Fill 'size' bytes of data. The actual content does not matter.
   string data(size.bytes(), 'a');
 
-  ostringstream command1;
+  ostringstream command2;
   const string transmissionTime = path::join(os::getcwd(), "transmission_time");
 
-  command1 << "echo 'Sending " << size.bytes()
+  command2 << "echo 'Sending " << size.bytes()
            << " bytes of data under egress rate limit " << rate.bytes()
            << "Bytes/s...';";
 
-  command1 << "{ time -p echo " << data  << " | nc localhost "
+  command2 << "{ time -p echo " << data  << " | nc localhost "
            << errorPort << " ; } 2> " << transmissionTime << " && ";
 
   // Touch the guard file.
-  command1 << "touch " << container1Ready;
+  command2 << "touch " << container1Ready;
 
   int pipes[2];
   ASSERT_NE(-1, ::pipe(pipes));
@@ -1427,7 +1439,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_SmallEgressLimitTest)
       launcher.get(),
       pipes,
       containerId,
-      command1.str(),
+      command2.str(),
       preparation1.get());
 
   ASSERT_SOME(pid);
@@ -1447,7 +1459,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_SmallEgressLimitTest)
   ::close(pipes[1]);
 
   // Wait for the command to finish.
-  while (!os::exists(container1Ready));
+  ASSERT_TRUE(waitForFileCreation(container1Ready));
 
   Try<string> read = os::read(transmissionTime);
   CHECK_SOME(read);
@@ -1536,10 +1548,9 @@ TEST_F(PortMappingIsolatorTest, ROOT_PortMappingStatisticsTest)
   // to use on the host. We use this host's public IP because
   // connections to the localhost IP are filtered out when retrieving
   // the RTT information inside containers.
-  Try<Subprocess> s = subprocess(
-      "nc -l " + stringify(hostIPNetwork.get().address()) + " " +
-      stringify(errorPort) + " > /devnull");
-
+  ostringstream command1;
+  command1 << "nc -l " << hostIP << " " << errorPort << " > /devnull";
+  Try<Subprocess> s = subprocess(command1.str().c_str());
   CHECK_SOME(s);
 
   // Set the executor's resources.
@@ -1564,19 +1575,18 @@ TEST_F(PortMappingIsolatorTest, ROOT_PortMappingStatisticsTest)
   // Fill 'size' bytes of data. The actual content does not matter.
   string data(size.bytes(), 'a');
 
-  ostringstream command1;
+  ostringstream command2;
   const string transmissionTime = path::join(os::getcwd(), "transmission_time");
 
-  command1 << "echo 'Sending " << size.bytes()
+  command2 << "echo 'Sending " << size.bytes()
            << " bytes of data under egress rate limit " << rate.bytes()
            << "Bytes/s...';";
 
-  command1 << "{ time -p echo " << data  << " | nc "
-           << stringify(hostIPNetwork.get().address()) << " "
+  command2 << "{ time -p echo " << data  << " | nc " << hostIP << " "
            << errorPort << " ; } 2> " << transmissionTime << " && ";
 
   // Touch the guard file.
-  command1 << "touch " << container1Ready;
+  command2 << "touch " << container1Ready;
 
   int pipes[2];
   ASSERT_NE(-1, ::pipe(pipes));
@@ -1585,7 +1595,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_PortMappingStatisticsTest)
       launcher.get(),
       pipes,
       containerId,
-      command1.str(),
+      command2.str(),
       preparation1.get());
 
   ASSERT_SOME(pid);
@@ -1641,7 +1651,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_PortMappingStatisticsTest)
   ASSERT_TRUE(!HasTCPSocketsCount(object) && !HasTCPSocketsRTT(object));
 
   // Wait for the command to finish.
-  while (!os::exists(container1Ready));
+  ASSERT_TRUE(waitForFileCreation(container1Ready));
 
   // Make sure the nc server exits normally.
   Future<Option<int> > status = s.get().status();
@@ -1662,19 +1672,6 @@ TEST_F(PortMappingIsolatorTest, ROOT_PortMappingStatisticsTest)
 class PortMappingMesosTest : public ContainerizerTest<MesosContainerizer>
 {
 public:
-  slave::Flags CreateSlaveFlags()
-  {
-    slave::Flags flags =
-      ContainerizerTest<MesosContainerizer>::CreateSlaveFlags();
-
-    // Setup recovery slave flags.
-    flags.checkpoint = true;
-    flags.recover = "reconnect";
-    flags.strict = true;
-
-    return flags;
-  }
-
   virtual void SetUp()
   {
     ContainerizerTest<MesosContainerizer>::SetUp();
@@ -1696,17 +1693,14 @@ public:
     LOG(INFO) << "Using " << lo << " as the loopback interface";
 
     cleanup(eth0, lo);
-
-    flags = CreateSlaveFlags();
   }
 
   virtual void TearDown()
   {
     cleanup(eth0, lo);
+
     ContainerizerTest<MesosContainerizer>::TearDown();
   }
-
-  slave::Flags flags;
 
   Fetcher fetcher;
 
@@ -1721,79 +1715,68 @@ public:
 // by network isolator, and containers that weren't.
 TEST_F(PortMappingMesosTest, ROOT_RecoverMixedContainersTest)
 {
-  slave::Flags flagsNoNetworkIsolator = flags;
+  master::Flags masterFlags = CreateMasterFlags();
 
-  vector<string> isolations = strings::split(flags.isolation, ",");
-  ASSERT_NE(0u, isolations.size());
-
-  vector<string>::iterator it =
-    find(isolations.begin(), isolations.end(), "network/port_mapping");
-
-  ASSERT_NE(it, isolations.end())
-    << "PortMappingMesosTests could not run because network/port_mapping"
-    << "is not supported on this host.";
-
-  // Clear part of flags to disable network isolator, but keep the
-  // rest of the flags the same to share the same settings for the
-  // slave.
-  isolations.erase(it);
-  flagsNoNetworkIsolator.isolation = strings::join(",", isolations);
-
-  Try<PID<Master> > master = StartMaster();
+  Try<PID<Master>> master = StartMaster(masterFlags);
   ASSERT_SOME(master);
 
+  // Start the first slave without the network isolator.
+  slave::Flags slaveFlags = CreateSlaveFlags();
+
+  // NOTE: This is to make sure that we use the linux launcher which
+  // is consistent with the launchers we use for other containerizers
+  // we create in this test. Also, this will bypass MESOS-2554.
+  slaveFlags.isolation = "cgroups/cpu,cgroups/mem";
+
   Try<MesosContainerizer*> containerizer1 =
-    MesosContainerizer::create(flagsNoNetworkIsolator, true, &fetcher);
+    MesosContainerizer::create(slaveFlags, true, &fetcher);
 
   ASSERT_SOME(containerizer1);
 
-  // Start the first slave without network isolator and start a task.
-  Try<PID<Slave> > slave = StartSlave(
-      containerizer1.get(),
-      flagsNoNetworkIsolator);
-
+  Try<PID<Slave> > slave = StartSlave(containerizer1.get(), slaveFlags);
   ASSERT_SOME(slave);
 
-  MockScheduler sched1;
+  MockScheduler sched;
 
   // Enable checkpointing for the framework.
-  FrameworkInfo frameworkInfo1;
-  frameworkInfo1.CopyFrom(DEFAULT_FRAMEWORK_INFO);
-  frameworkInfo1.set_checkpoint(true);
+  FrameworkInfo frameworkInfo;
+  frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
+  frameworkInfo.set_checkpoint(true);
 
   MesosSchedulerDriver driver(
-      &sched1, frameworkInfo1, master.get(), DEFAULT_CREDENTIAL);
+      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(sched1, registered(_, _, _));
+  EXPECT_CALL(sched, registered(_, _, _));
 
+  Filters filters;
+  filters.set_refuse_seconds(0);
+
+  // NOTE: We set filter explicitly here so that the resources will
+  // not be filtered for 5 seconds (by default).
   Future<vector<Offer> > offers1;
-  Future<vector<Offer> > offers2;
-  EXPECT_CALL(sched1, resourceOffers(_, _))
+  EXPECT_CALL(sched, resourceOffers(_, _))
     .WillOnce(FutureArg<1>(&offers1))
-    .WillOnce(FutureArg<1>(&offers2))
-    .WillRepeatedly(DeclineOffers());      // Ignore subsequent offers.
+    .WillRepeatedly(DeclineOffers(filters));      // Ignore subsequent offers.
 
   driver.start();
 
   AWAIT_READY(offers1);
   EXPECT_NE(0u, offers1.get().size());
 
-  // The first task doesn't need network resources.
   Offer offer1 = offers1.get()[0];
-  offer1.mutable_resources()->CopyFrom(
-      Resources::parse("cpus:1;mem:512").get());
 
-  // Start a long running task without using network isolator.
-  TaskInfo task1 = createTask(offer1, "sleep 1000");
-  vector<TaskInfo> tasks1;
-  tasks1.push_back(task1);
+  // Start a long running task without using the network isolator.
+  TaskInfo task1 = createTask(
+      offer1.slave_id(),
+      Resources::parse("cpus:1;mem:512").get(),
+      "sleep 1000");
 
-  EXPECT_CALL(sched1, statusUpdate(_, _));
+  EXPECT_CALL(sched, statusUpdate(_, _));
 
   Future<Nothing> _statusUpdateAcknowledgement1 =
     FUTURE_DISPATCH(_, &Slave::_statusUpdateAcknowledgement);
 
-  driver.launchTasks(offers1.get()[0].id(), tasks1);
+  driver.launchTasks(offers1.get()[0].id(), {task1}, filters);
 
   // Wait for the ACK to be checkpointed.
   AWAIT_READY(_statusUpdateAcknowledgement1);
@@ -1801,53 +1784,55 @@ TEST_F(PortMappingMesosTest, ROOT_RecoverMixedContainersTest)
   Stop(slave.get());
   delete containerizer1.get();
 
-  Future<Nothing> _recover = FUTURE_DISPATCH(_, &Slave::_recover);
+  Future<Nothing> _recover1 = FUTURE_DISPATCH(_, &Slave::_recover);
 
-  Future<SlaveReregisteredMessage> slaveReregisteredMessage =
-      FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
+  Future<SlaveReregisteredMessage> slaveReregisteredMessage1 =
+    FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
 
-  // Restart the slave with a new containerizer that uses network
-  // isolator.
+  Future<vector<Offer> > offers2;
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(FutureArg<1>(&offers2))
+    .WillRepeatedly(DeclineOffers(filters));      // Ignore subsequent offers.
+
+  // Restart the slave with the network isolator.
+  slaveFlags.isolation += ",network/port_mapping";
+
   Try<MesosContainerizer*> containerizer2 =
-    MesosContainerizer::create(flags, true, &fetcher);
+    MesosContainerizer::create(slaveFlags, true, &fetcher);
 
   ASSERT_SOME(containerizer2);
 
-  // Start the second slave with network isolator, recover the first
-  // task without network isolation and start a second task with
-  // network islation.
-  slave = StartSlave(containerizer2.get(), flags);
+  slave = StartSlave(containerizer2.get(), slaveFlags);
   ASSERT_SOME(slave);
 
   Clock::pause();
 
-  // Make sure the new containerizer recovers the task.
-  AWAIT_READY(_recover);
+  AWAIT_READY(_recover1);
 
   Clock::settle(); // Wait for slave to schedule reregister timeout.
-
   Clock::advance(EXECUTOR_REREGISTER_TIMEOUT);
-  Clock::resume();
 
-  // Wait for the slave to re-register.
-  AWAIT_READY(slaveReregisteredMessage);
+  AWAIT_READY(slaveReregisteredMessage1);
+
+  Clock::settle(); // Make sure an allocation is scheduled.
+  Clock::advance(masterFlags.allocation_interval);
+
+  Clock::resume();
 
   AWAIT_READY(offers2);
   EXPECT_NE(0u, offers2.get().size());
 
   Offer offer2 = offers2.get()[0];
 
+  // Start a long running task using the network isolator.
   TaskInfo task2 = createTask(offer2, "sleep 1000");
 
-  vector<TaskInfo> tasks2;
-  tasks2.push_back(task2); // Long-running task.
-
-  EXPECT_CALL(sched1, statusUpdate(_, _));
+  EXPECT_CALL(sched, statusUpdate(_, _));
 
   Future<Nothing> _statusUpdateAcknowledgement2 =
     FUTURE_DISPATCH(_, &Slave::_statusUpdateAcknowledgement);
 
-  driver.launchTasks(offers2.get()[0].id(), tasks2);
+  driver.launchTasks(offers2.get()[0].id(), {task2});
 
   // Wait for the ACK to be checkpointed.
   AWAIT_READY(_statusUpdateAcknowledgement2);
@@ -1858,52 +1843,43 @@ TEST_F(PortMappingMesosTest, ROOT_RecoverMixedContainersTest)
   Future<Nothing> _recover2 = FUTURE_DISPATCH(_, &Slave::_recover);
 
   Future<SlaveReregisteredMessage> slaveReregisteredMessage2 =
-      FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
+    FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
 
-  // Restart the slave with a new containerizer that uses network
-  // isolator. This is to verify the case where one task is running
-  // without network isolator and another task is running with network
-  // isolator.
+  // Restart the slave with the network isolator. This is to verify
+  // the slave recovery case where one task is running with the
+  // network isolator and another task is running without it.
   Try<MesosContainerizer*> containerizer3 =
-    MesosContainerizer::create(flags, true, &fetcher);
+    MesosContainerizer::create(slaveFlags, true, &fetcher);
 
   ASSERT_SOME(containerizer3);
 
-  slave = StartSlave(containerizer3.get(), flags);
+  slave = StartSlave(containerizer3.get(), slaveFlags);
   ASSERT_SOME(slave);
 
   Clock::pause();
 
-  // Make sure the new containerizer recovers the tasks from both runs
-  // previously.
   AWAIT_READY(_recover2);
 
   Clock::settle(); // Wait for slave to schedule reregister timeout.
-
   Clock::advance(EXECUTOR_REREGISTER_TIMEOUT);
-  Clock::resume();
 
-  // Wait for the slave to re-register.
   AWAIT_READY(slaveReregisteredMessage2);
 
-  Future<hashset<ContainerID> > containers = containerizer3.get()->containers();
+  Clock::resume();
+
+  // Ensure that both containers (with and without network isolation)
+  // were recovered.
+  Future<hashset<ContainerID>> containers = containerizer3.get()->containers();
   AWAIT_READY(containers);
   EXPECT_EQ(2u, containers.get().size());
 
-  foreach (ContainerID containerId, containers.get()) {
+  foreach (const ContainerID& containerId, containers.get()) {
     // Do some basic checks to make sure the network isolator can
     // handle mixed types of containers correctly.
     Future<ResourceStatistics> usage = containerizer3.get()->usage(containerId);
     AWAIT_READY(usage);
 
-    // TODO(chzhcn): write a more thorough test for update.
-    Try<Resources> resources = Containerizer::resources(flags);
-    ASSERT_SOME(resources);
-
-    Future<Nothing> update =
-      containerizer3.get()->update(containerId, resources.get());
-
-    AWAIT_READY(update);
+    // TODO(chzhcn): Write a more thorough test for update.
   }
 
   driver.stop();
@@ -1921,12 +1897,12 @@ TEST_F(PortMappingMesosTest, ROOT_CleanUpOrphanTest)
   Try<PID<Master> > master = StartMaster();
   ASSERT_SOME(master);
 
-  Try<MesosContainerizer*> containerizer1 =
-    MesosContainerizer::create(flags, true, &fetcher);
+  slave::Flags flags = CreateSlaveFlags();
 
-  ASSERT_SOME(containerizer1);
+  // NOTE: We add 'cgroups/cpu,cgroups/mem' to bypass MESOS-2554.
+  flags.isolation = "cgroups/cpu,cgroups/mem,network/port_mapping";
 
-  Try<PID<Slave> > slave = StartSlave(containerizer1.get(), flags);
+  Try<PID<Slave> > slave = StartSlave(flags);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -1943,75 +1919,43 @@ TEST_F(PortMappingMesosTest, ROOT_CleanUpOrphanTest)
   EXPECT_CALL(sched, registered(_, _, _))
     .WillOnce(FutureArg<1>(&frameworkId));
 
-  Future<vector<Offer> > offers1;
+  Future<vector<Offer> > offers;
   EXPECT_CALL(sched, resourceOffers(_, _))
-    .WillOnce(FutureArg<1>(&offers1))
+    .WillOnce(FutureArg<1>(&offers))
     .WillRepeatedly(DeclineOffers());      // Ignore subsequent offers.
 
   driver.start();
 
-  AWAIT_READY(offers1);
-  EXPECT_NE(0u, offers1.get().size());
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
 
   // Start a long running task using network islator.
-  TaskInfo task = createTask(offers1.get()[0], "sleep 1000");
-  vector<TaskInfo> tasks;
-  tasks.push_back(task);
+  TaskInfo task = createTask(offers.get()[0], "sleep 1000");
 
   EXPECT_CALL(sched, statusUpdate(_, _));
 
-  Future<Nothing> _statusUpdateAcknowledgement1 =
+  Future<Nothing> _statusUpdateAcknowledgement =
     FUTURE_DISPATCH(_, &Slave::_statusUpdateAcknowledgement);
 
-  driver.launchTasks(offers1.get()[0].id(), tasks);
+  driver.launchTasks(offers.get()[0].id(), {task});
 
   // Wait for the ACK to be checkpointed.
-  AWAIT_READY(_statusUpdateAcknowledgement1);
+  AWAIT_READY(_statusUpdateAcknowledgement);
 
   Stop(slave.get());
-  delete containerizer1.get();
 
-  ExecutorID executorId;
-  executorId.set_value(task.task_id().value());
+  // Wipe the slave meta directory so that the slave will treat the
+  // above running task as an orphan.
+  ASSERT_SOME(os::rmdir(paths::getMetaRootDir(flags.work_dir)));
 
-  // Construct the framework meta directory that needs wiping.
-  string frameworkPath = paths::getFrameworkPath(
-      paths::getMetaRootDir(flags.work_dir),
-      offers1.get()[0].slave_id(),
-      frameworkId.get());
+  Future<SlaveRegisteredMessage> slaveRegisteredMessage =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
 
-  // Remove the framework meta directory, so that the slave will not
-  // recover the task.
-  ASSERT_SOME(os::rmdir(frameworkPath, true));
-
-  Future<Nothing> _recover = FUTURE_DISPATCH(_, &Slave::_recover);
-
-  Future<SlaveReregisteredMessage> slaveReregisteredMessage =
-    FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
-
-  Future<TaskStatus> status;
-  EXPECT_CALL(sched, statusUpdate(_, _))
-    .WillOnce(FutureArg<1>(&status))
-    .WillRepeatedly(Return());        // Ignore subsequent updates.
-
-  // Restart the slave (use same flags) with a new containerizer.
-  Try<MesosContainerizer*> containerizer2 =
-    MesosContainerizer::create(flags, true, &fetcher);
-
-  ASSERT_SOME(containerizer2);
-
-  slave = StartSlave(containerizer2.get(), flags);
+  // Restart the slave.
+  slave = StartSlave(flags);
   ASSERT_SOME(slave);
 
-  // Wait for the slave to recover.
-  AWAIT_READY(_recover);
-
-  // Wait for the slave to re-register.
-  AWAIT_READY(slaveReregisteredMessage);
-
-  // Wait for TASK_LOST update.
-  AWAIT_READY(status);
-  ASSERT_EQ(TASK_LOST, status.get().state());
+  AWAIT_READY(slaveRegisteredMessage);
 
   // Expect that qdiscs still exist on eth0 and lo but with no filters.
   Try<bool> hostEth0ExistsQdisc = ingress::exists(eth0);
@@ -2034,11 +1978,11 @@ TEST_F(PortMappingMesosTest, ROOT_CleanUpOrphanTest)
   Try<set<string> > links = net::links();
   ASSERT_SOME(links);
   foreach (const string& name, links.get()) {
-    EXPECT_FALSE(strings::startsWith(name, slave::VETH_PREFIX));
+    EXPECT_FALSE(strings::startsWith(name, slave::PORT_MAPPING_VETH_PREFIX()));
   }
 
   // Expect no files in bind mount directory.
-  Try<list<string> > files = os::ls(slave::BIND_MOUNT_ROOT);
+  Try<list<string> > files = os::ls(slave::PORT_MAPPING_BIND_MOUNT_ROOT());
   ASSERT_SOME(files);
   EXPECT_EQ(0u, files.get().size());
 
@@ -2046,7 +1990,91 @@ TEST_F(PortMappingMesosTest, ROOT_CleanUpOrphanTest)
   driver.join();
 
   Shutdown();
-  delete containerizer2.get();
+}
+
+
+// This test verfies the creation and destroy of the network namespace
+// handle symlink. The symlink was introduced in 0.23.0.
+TEST_F(PortMappingMesosTest, ROOT_NetworkNamespaceHandleSymlink)
+{
+  Try<PID<Master> > master = StartMaster();
+  ASSERT_SOME(master);
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.isolation = "network/port_mapping";
+
+  Try<MesosContainerizer*> containerizer =
+    MesosContainerizer::create(flags, true, &fetcher);
+
+  ASSERT_SOME(containerizer);
+
+  Try<PID<Slave>> slave = StartSlave(containerizer.get(), flags);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(_, _, _));
+
+  Future<vector<Offer> > offers;
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(DeclineOffers());      // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
+
+  // Start a long running task using network islator.
+  TaskInfo task = createTask(offers.get()[0], "sleep 1000");
+
+  Future<TaskStatus> status1;
+  Future<TaskStatus> status2;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status1))
+    .WillOnce(FutureArg<1>(&status2))
+    .WillRepeatedly(Return());       // Ignore subsequent updates.
+
+  driver.launchTasks(offers.get()[0].id(), {task});
+
+  AWAIT_READY(status1);
+  EXPECT_EQ(task.task_id(), status1.get().task_id());
+  EXPECT_EQ(TASK_RUNNING, status1.get().state());
+
+  Future<hashset<ContainerID>> containers = containerizer.get()->containers();
+  AWAIT_READY(containers);
+  ASSERT_EQ(1u, containers.get().size());
+
+  ContainerID containerId = *(containers.get().begin());
+
+  const string symlink = path::join(
+      slave::PORT_MAPPING_BIND_MOUNT_SYMLINK_ROOT(),
+      stringify(containerId));
+
+  EXPECT_TRUE(os::exists(symlink));
+  EXPECT_TRUE(os::stat::islink(symlink));
+
+  Future<containerizer::Termination> termination =
+    containerizer.get()->wait(containerId);
+
+  driver.killTask(task.task_id());
+
+  AWAIT_READY(status2);
+  EXPECT_EQ(task.task_id(), status2.get().task_id());
+  EXPECT_EQ(TASK_KILLED, status2.get().state());
+
+  AWAIT_READY(termination);
+  EXPECT_FALSE(os::exists(symlink));
+
+  driver.stop();
+  driver.join();
+
+  Shutdown();
+
+  delete containerizer.get();
 }
 
 } // namespace tests {

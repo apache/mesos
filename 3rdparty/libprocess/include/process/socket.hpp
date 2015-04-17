@@ -122,7 +122,7 @@ public:
     return impl->get();
   }
 
-  Try<Address> bind(const Address& address)
+  Try<Address> bind(const Address& address = Address::LOCALHOST_ANY())
   {
     return impl->bind(address);
   }

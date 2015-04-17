@@ -23,17 +23,66 @@
 #include <mntent.h>
 
 #include <sys/mount.h>
+#include <sys/types.h>
 
 #include <string>
 #include <vector>
 
 #include <stout/nothing.hpp>
+#include <stout/option.hpp>
 #include <stout/try.hpp>
 
 
 namespace mesos {
 namespace internal {
 namespace fs {
+
+// TODO(idownes): These three variations on mount information should
+// be consolidated and moved to stout, along with mount and umount.
+
+// Structure describing the per-process mounts as found in
+// /proc/[pid]/mountinfo. In particular, entries in this table specify
+// the propagation properties of mounts, information not present in
+// the MountTable or FileSystemTable. Entry order is preserved when
+// parsing /proc/[pid]/mountinfo.
+struct MountInfoTable {
+  // Structure describing an individual /proc/[pid]/mountinfo entry.
+  // See the /proc/[pid]/mountinfo section in 'man proc' for further
+  // details on each field.
+  struct Entry {
+    Entry() {}
+
+    int id;                     // mountinfo[1]: mount ID.
+    int parent;                 // mountinfo[2]: parent ID.
+    dev_t devno;                // mountinfo[3]: st_dev.
+
+    std::string root;           // mountinfo[4]: root of the mount.
+    std::string target;         // mountinfo[5]: mount point.
+
+    // Filesystem independent (VFS) options, e.g., "rw,noatime".
+    std::string vfsOptions;     // mountinfo[6]: per-mount options.
+    // Filesystem dependent options, e.g., "rw,memory" for a memory
+    // cgroup filesystem.
+    std::string fsOptions;      // mountinfo[11]: per-block options.
+
+    // Current possible optional fields include shared:X, master:X,
+    // propagate_from:X, unbindable.
+    std::string optionalFields; // mountinfo[7]: optional fields.
+
+    // mountinfo[8] is a separator.
+
+    std::string type;           // mountinfo[9]: filesystem type.
+    std::string source;         // mountinfo[10]: source dev, other.
+
+    static Try<Entry> parse(const std::string& s);
+  };
+
+  // If pid is None() the "self" is used, i.e., the mountinfo table
+  // for the calling process.
+  static Try<MountInfoTable> read(const Option<pid_t>& pid = None());
+
+  std::vector<Entry> entries;
+};
 
 
 // Structure describing a mount table (e.g. /etc/mtab or /proc/mounts).
@@ -121,15 +170,26 @@ struct FileSystemTable {
 
 
 // Mount a file system.
-// @param   source    Specify the file system (often a device name).
+// @param   source    Specify the file system (often a device name but
+//                    it can also be a directory for a bind mount).
+//                    If None(), NULL will be passed as a dummy
+//                    argument to mount(), i.e., it is not used for
+//                    the specified mount operation. For example, you
+//                    can mount a filesystem specified in /etc/fstab
+//                    by just specifying the target.
 // @param   target    Directory to be attached to.
 // @param   type      File system type (listed in /proc/filesystems).
+//                    If None(), NULL will be passed as a dummy
+//                    argument to mount(), i.e., it is not used for
+//                    the specified mount operation. For example, it
+//                    should be None() for a bind mount as it will
+//                    inherit the type of the source.
 // @param   flags     Mount flags.
 // @param   data      Extra data interpreted by different file systems.
 // @return  Whether the mount operation succeeds.
-Try<Nothing> mount(const std::string& source,
+Try<Nothing> mount(const Option<std::string>& source,
                    const std::string& target,
-                   const std::string& type,
+                   const Option<std::string>& type,
                    unsigned long flags,
                    const void* data);
 
@@ -139,6 +199,10 @@ Try<Nothing> mount(const std::string& source,
 // @param   flags     Unmount flags.
 // @return  Whether the unmount operation succeeds.
 Try<Nothing> unmount(const std::string& target, int flags = 0);
+
+
+// Change the root filesystem.
+Try<Nothing> pivot_root(const std::string& newRoot, const std::string& putOld);
 
 
 } // namespace fs {

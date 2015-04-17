@@ -489,24 +489,6 @@ protected:
 
   void sendStatusUpdate(const TaskStatus& status)
   {
-    if (status.state() == TASK_STAGING) {
-      LOG(ERROR) << "Executor is not allowed to send "
-                 << "TASK_STAGING status update. Aborting!";
-
-      driver->abort();
-
-      Stopwatch stopwatch;
-      if (FLAGS_v >= 1) {
-        stopwatch.start();
-      }
-
-      executor->error(driver, "Attempted to send TASK_STAGING status update");
-
-      VLOG(1) << "Executor::error took " << stopwatch.elapsed();
-
-      return;
-    }
-
     StatusUpdateMessage message;
     StatusUpdate* update = message.mutable_update();
     update->mutable_framework_id()->MergeFrom(frameworkId);

@@ -221,18 +221,19 @@ Option<Error> validateExecutorInfo(
           "Task has invalid ExecutorInfo: missing field 'framework_id'");
     }
 
-    if (task.executor().framework_id() != framework->id) {
+    if (task.executor().framework_id() != framework->id()) {
       return Error(
           "ExecutorInfo has an invalid FrameworkID"
           " (Actual: " + stringify(task.executor().framework_id()) +
-          " vs Expected: " + stringify(framework->id) + ")");
+          " vs Expected: " + stringify(framework->id()) + ")");
     }
 
     const ExecutorID& executorId = task.executor().executor_id();
     Option<ExecutorInfo> executorInfo = None();
 
-    if (slave->hasExecutor(framework->id, executorId)) {
-      executorInfo = slave->executors.get(framework->id).get().get(executorId);
+    if (slave->hasExecutor(framework->id(), executorId)) {
+      executorInfo =
+        slave->executors.get(framework->id()).get().get(executorId);
     }
 
     if (executorInfo.isSome() && !(task.executor() == executorInfo.get())) {
@@ -349,7 +350,7 @@ Option<Error> validateResourceUsage(
   // Validate if resources needed by the task (and its executor in
   // case the executor is new) are available.
   Resources total = taskResources;
-  if (!slave->hasExecutor(framework->id, task.executor().executor_id())) {
+  if (!slave->hasExecutor(framework->id(), task.executor().executor_id())) {
     total += executorResources;
   }
 
@@ -448,11 +449,11 @@ Option<Error> validateFramework(
       return Error("Offer " + stringify(offerId) + " is no longer valid");
     }
 
-    if (framework->id != offer->framework_id()) {
+    if (framework->id() != offer->framework_id()) {
       return Error(
           "Offer " + stringify(offer->id()) +
           " has invalid framework " + stringify(offer->framework_id()) +
-          " while framework " + stringify(framework->id) + " is expected");
+          " while framework " + stringify(framework->id()) + " is expected");
     }
   }
 

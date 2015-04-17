@@ -71,7 +71,7 @@ Future<Nothing> SharedFilesystemIsolatorProcess::recover(
 }
 
 
-Future<Option<CommandInfo> > SharedFilesystemIsolatorProcess::prepare(
+Future<Option<CommandInfo>> SharedFilesystemIsolatorProcess::prepare(
     const ContainerID& containerId,
     const ExecutorInfo& executorInfo,
     const string& directory,

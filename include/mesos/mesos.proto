@@ -135,11 +135,12 @@ message FrameworkInfo {
 /**
  * Describes a health check for a task or executor (or any arbitrary
  * process/command). A "strategy" is picked by specifying one of the
- * optional fields, currently only 'http' and 'command' are
- * supported. Specifying more than one strategy is an error.
+ * optional fields; currently only 'command' is supported.
+ * Specifying more than one strategy is an error.
  */
 message HealthCheck {
-  // Describes an HTTP health check.
+  // Describes an HTTP health check. This is not fully implemented and not
+  // recommended for use - see MESOS-2533.
   message HTTP {
     // Port to send the HTTP request.
     required uint32 port = 1;
@@ -159,6 +160,7 @@ message HealthCheck {
     // for specific data in the response.
   }
 
+  // HTTP health check - not yet recommended for use, see MESOS-2533.
   optional HTTP http = 1;
 
   // TODO(benh): Consider adding a URL health check strategy which
@@ -166,12 +168,7 @@ message HealthCheck {
   // encapsulates all the details in a single string field.
 
   // TODO(benh): Other possible health check strategies could include
-  // one for TCP/UDP or a "command". A "command" could be running a
-  // (shell) command to check the healthiness. We'd need to determine
-  // what arguments (or environment variables) we'd want to set so
-  // that the command could do it's job (i.e., do we want to expose
-  // the stdout/stderr and/or the pid to make checking for healthiness
-  // easier).
+  // one for TCP/UDP.
 
   // Amount of time to wait until starting the health checks.
   optional double delay_seconds = 2 [default = 15.0];
@@ -318,6 +315,8 @@ message SlaveInfo {
   repeated Resource resources = 3;
   repeated Attribute attributes = 5;
   optional SlaveID id = 6;
+  // TODO(joerg84): Remove checkpoint field as with 0.22.0
+  // slave checkpointing is enabled for all slaves (MESOS-2317).
   optional bool checkpoint = 7 [default = false];
 }
 
@@ -437,6 +436,9 @@ message Resource {
 message ResourceStatistics {
   required double timestamp = 1; // Snapshot time, in seconds since the Epoch.
 
+  optional uint32 processes = 30;
+  optional uint32 threads = 31;
+
   // CPU Usage Information:
   // Total CPU time spent in user mode, and kernel mode.
   optional double cpus_user_time_secs = 2;
@@ -460,6 +462,15 @@ message ResourceStatistics {
   optional uint64 mem_file_bytes = 10;
   optional uint64 mem_anon_bytes = 11;
   optional uint64 mem_mapped_file_bytes = 12;
+
+  // Number of occurrences of different levels of memory pressure
+  // events reported by memory cgroup. Pressure listening (re)starts
+  // with these values set to 0 when slave (re)starts. See
+  // https://www.kernel.org/doc/Documentation/cgroups/memory.txt for
+  // more details.
+  optional uint64 mem_low_pressure_counter = 32;
+  optional uint64 mem_medium_pressure_counter = 33;
+  optional uint64 mem_critical_pressure_counter = 34;
 
   // Disk Usage Information for executor working directory.
   optional uint64 disk_limit_bytes = 26;

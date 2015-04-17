@@ -290,7 +290,7 @@ private:
         flags(flags)
     {
       if (task.isSome()) {
-        resources = task.get().resources();
+        resources = task.get().resources() + executor.resources();
       } else {
         resources = executor.resources();
       }
@@ -432,6 +432,11 @@ private:
     // Once the container is running, this saves the pid of the
     // running container.
     Option<pid_t> pid;
+
+    // The executor pid that was forked to wait on the running
+    // container. This is stored so we can clean up the executor
+    // on destroy.
+    Option<pid_t> executorPid;
   };
 
   hashmap<ContainerID, Container*> containers_;

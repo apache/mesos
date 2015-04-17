@@ -368,7 +368,8 @@ string createExecutorDirectory(
     const SlaveID& slaveId,
     const FrameworkID& frameworkId,
     const ExecutorID& executorId,
-    const ContainerID& containerId)
+    const ContainerID& containerId,
+    const Option<string>& user)
 {
   const string directory =
     getExecutorRunPath(rootDir, slaveId, frameworkId, executorId, containerId);
@@ -393,6 +394,24 @@ string createExecutorDirectory(
   CHECK_SOME(symlink)
     << "Failed to symlink directory '" << directory
     << "' to '" << latest << "'";
+
+  if (user.isSome()) {
+    // Per MESOS-2592, we need to set the ownership of the executor
+    // directory during its creation. We should not rely on subsequent
+    // phases of the executor creation to ensure the ownership as
+    // those may be conditional and in some cases leave the executor
+    // directory owned by the slave user instead of the specified
+    // framework or per-executor user.
+    Try<Nothing> chown = os::chown(user.get(), directory);
+    if (chown.isError()) {
+      // TODO(nnielsen): We currently have tests which depend on using
+      // user names which may not be available on the test machines.
+      // Therefore, we cannot make the chown validation a hard
+      // CHECK().
+      LOG(WARNING) << "Failed to chown executor directory '" << directory
+                   << "': " << chown.error();
+    }
+  }
 
   return directory;
 }

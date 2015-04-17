@@ -82,7 +82,7 @@ Try<ExternalContainerizer*> ExternalContainerizer::create(const Flags& flags)
 
 // Validate the invocation result.
 static Option<Error> validate(
-    const Future<Option<int> >& future)
+    const Future<Option<int>>& future)
 {
   if (!future.isReady()) {
     return Error("Status not ready");
@@ -107,7 +107,7 @@ static Option<Error> validate(
 // message.
 template<typename T>
 static Try<T> result(
-    const Future<tuple<Future<Result<T> >, Future<Option<int> > > >& future)
+    const Future<tuple<Future<Result<T>>, Future<Option<int>>>>& future)
 {
   if (!future.isReady()) {
     return Error("Could not receive any result");
@@ -118,7 +118,7 @@ static Try<T> result(
     return error.get();
   }
 
-  process::Future<Result<T> > result = tuples::get<0>(future.get());
+  Future<Result<T>> result = tuples::get<0>(future.get());
   if (result.isFailed()) {
     return Error("Could not receive any result: " + result.failure());
   }
@@ -136,24 +136,25 @@ static Try<T> result(
 
 
 ExternalContainerizer::ExternalContainerizer(const Flags& flags)
+  : process(new ExternalContainerizerProcess(flags))
 {
-  process = new ExternalContainerizerProcess(flags);
-  spawn(process);
+  spawn(process.get());
 }
 
 
 ExternalContainerizer::~ExternalContainerizer()
 {
-  terminate(process);
-  process::wait(process);
-  delete process;
+  terminate(process.get());
+  process::wait(process.get());
 }
 
 
 Future<Nothing> ExternalContainerizer::recover(
     const Option<state::SlaveState>& state)
 {
-  return dispatch(process, &ExternalContainerizerProcess::recover, state);
+  return dispatch(process.get(),
+                  &ExternalContainerizerProcess::recover,
+                  state);
 }
 
 
@@ -166,16 +167,16 @@ Future<bool> ExternalContainerizer::launch(
     const PID<Slave>& slavePid,
     bool checkpoint)
 {
-  return dispatch(process,
-                  &ExternalContainerizerProcess::launch,
-                  containerId,
-                  None(),
-                  executorInfo,
-                  directory,
-                  user,
-                  slaveId,
-                  slavePid,
-                  checkpoint);
+    return dispatch(process.get(),
+                    &ExternalContainerizerProcess::launch,
+                    containerId,
+                    None(),
+                    executorInfo,
+                    directory,
+                    user,
+                    slaveId,
+                    slavePid,
+                    checkpoint);
 }
 
 
@@ -189,16 +190,16 @@ Future<bool> ExternalContainerizer::launch(
     const PID<Slave>& slavePid,
     bool checkpoint)
 {
-  return dispatch(process,
-                  &ExternalContainerizerProcess::launch,
-                  containerId,
-                  taskInfo,
-                  executorInfo,
-                  directory,
-                  user,
-                  slaveId,
-                  slavePid,
-                  checkpoint);
+    return dispatch(process.get(),
+                    &ExternalContainerizerProcess::launch,
+                    containerId,
+                    taskInfo,
+                    executorInfo,
+                    directory,
+                    user,
+                    slaveId,
+                    slavePid,
+                    checkpoint);
 }
 
 
@@ -206,36 +207,43 @@ Future<Nothing> ExternalContainerizer::update(
     const ContainerID& containerId,
     const Resources& resources)
 {
-  return dispatch(process,
-                  &ExternalContainerizerProcess::update,
-                  containerId,
-                  resources);
+    return dispatch(process.get(),
+                    &ExternalContainerizerProcess::update,
+                    containerId,
+                    resources);
 }
 
 
 Future<ResourceStatistics> ExternalContainerizer::usage(
     const ContainerID& containerId)
 {
-  return dispatch(process, &ExternalContainerizerProcess::usage, containerId);
+  return dispatch(process.get(),
+                  &ExternalContainerizerProcess::usage,
+                  containerId);
 }
 
 
 Future<containerizer::Termination> ExternalContainerizer::wait(
     const ContainerID& containerId)
 {
-  return dispatch(process, &ExternalContainerizerProcess::wait, containerId);
+  return dispatch(process.get(),
+                  &ExternalContainerizerProcess::wait,
+                  containerId);
 }
 
 
 void ExternalContainerizer::destroy(const ContainerID& containerId)
 {
-  dispatch(process, &ExternalContainerizerProcess::destroy, containerId);
+  dispatch(process.get(),
+           &ExternalContainerizerProcess::destroy,
+           containerId);
 }
 
 
-Future<hashset<ContainerID> > ExternalContainerizer::containers()
+Future<hashset<ContainerID>> ExternalContainerizer::containers()
 {
-  return dispatch(process, &ExternalContainerizerProcess::containers);
+  return dispatch(process.get(),
+                  &ExternalContainerizerProcess::containers);
 }
 
 
@@ -266,7 +274,7 @@ Future<Nothing> ExternalContainerizerProcess::recover(
 
 Future<Nothing> ExternalContainerizerProcess::_recover(
     const Option<state::SlaveState>& state,
-    const Future<Option<int> >& future)
+    const Future<Option<int>>& future)
 {
   VLOG(1) << "Recover validation callback triggered";
 
@@ -341,14 +349,6 @@ Future<Nothing> ExternalContainerizerProcess::__recover(
                   << "' for executor '" << executor.id
                   << "' of framework " << framework.id;
 
-        // Re-create the sandbox for this container.
-        const string& directory = paths::createExecutorDirectory(
-            flags.work_dir,
-            state.get().id,
-            framework.id,
-            executor.id,
-            containerId);
-
         Option<string> user = None();
         if (flags.switch_user) {
           // The command (either in form of task or executor command)
@@ -361,6 +361,15 @@ Future<Nothing> ExternalContainerizerProcess::__recover(
             user = framework.info.get().user();
           }
         }
+
+        // Re-create the sandbox for this container.
+        const string directory = paths::createExecutorDirectory(
+            flags.work_dir,
+            state.get().id,
+            framework.id,
+            executor.id,
+            containerId,
+            user);
 
         Sandbox sandbox(directory, user);
 
@@ -385,7 +394,7 @@ Future<Nothing> ExternalContainerizerProcess::__recover(
     return Nothing();
   }
 
-  list<Future<containerizer::Termination> > futures;
+  list<Future<containerizer::Termination>> futures;
 
   // Enforce a 'destroy' on all orphaned containers.
   foreach (const ContainerID& containerId, orphaned) {
@@ -533,7 +542,7 @@ Future<bool> ExternalContainerizerProcess::launch(
 
 Future<bool> ExternalContainerizerProcess::_launch(
     const ContainerID& containerId,
-    const Future<Option<int> >& future)
+    const Future<Option<int>>& future)
 {
   VLOG(1) << "Launch validation callback triggered on container '"
           << containerId << "'";
@@ -627,7 +636,7 @@ Future<containerizer::Termination> ExternalContainerizerProcess::_wait(
   Result<containerizer::Termination>(*read)(int, bool, bool) =
     &::protobuf::read<containerizer::Termination>;
 
-  Future<Result<containerizer::Termination> > future = async(
+  Future<Result<containerizer::Termination>> future = async(
       read, invoked.get().out().get(), false, false);
 
   // Await both, a protobuf Message from the subprocess as well as
@@ -646,8 +655,8 @@ Future<containerizer::Termination> ExternalContainerizerProcess::_wait(
 void ExternalContainerizerProcess::__wait(
     const ContainerID& containerId,
     const Future<tuple<
-        Future<Result<containerizer::Termination> >,
-        Future<Option<int> > > >& future)
+        Future<Result<containerizer::Termination>>,
+        Future<Option<int>>>>& future)
 {
   VLOG(1) << "Wait callback triggered on container '" << containerId << "'";
 
@@ -661,7 +670,7 @@ void ExternalContainerizerProcess::__wait(
   // the result validation below will return an error due to a non 0
   // exit status.
   if (actives[containerId]->destroying && future.isReady()) {
-    Future<Option<int> > statusFuture = tuples::get<1>(future.get());
+    Future<Option<int>> statusFuture = tuples::get<1>(future.get());
     if (statusFuture.isReady()) {
       Option<int> status = statusFuture.get();
       if (status.isSome()) {
@@ -757,7 +766,7 @@ Future<Nothing> ExternalContainerizerProcess::_update(
 
 Future<Nothing> ExternalContainerizerProcess::__update(
     const ContainerID& containerId,
-    const Future<Option<int> >& future)
+    const Future<Option<int>>& future)
 {
   VLOG(1) << "Update callback triggered on container '" << containerId << "'";
 
@@ -818,7 +827,7 @@ Future<ResourceStatistics> ExternalContainerizerProcess::_usage(
   Result<ResourceStatistics>(*read)(int, bool, bool) =
     &::protobuf::read<ResourceStatistics>;
 
-  Future<Result<ResourceStatistics> > future = async(
+  Future<Result<ResourceStatistics>> future = async(
       read, invoked.get().out().get(), false, false);
 
   // Await both, a protobuf Message from the subprocess as well as
@@ -835,8 +844,8 @@ Future<ResourceStatistics> ExternalContainerizerProcess::_usage(
 Future<ResourceStatistics> ExternalContainerizerProcess::__usage(
     const ContainerID& containerId,
     const Future<tuple<
-        Future<Result<ResourceStatistics> >,
-        Future<Option<int> > > >& future)
+        Future<Result<ResourceStatistics>>,
+        Future<Option<int>>>>& future)
 {
   VLOG(1) << "Usage callback triggered on container '" << containerId << "'";
 
@@ -922,7 +931,7 @@ void ExternalContainerizerProcess::_destroy(const ContainerID& containerId)
 
 void ExternalContainerizerProcess::__destroy(
     const ContainerID& containerId,
-    const Future<Option<int> >& future)
+    const Future<Option<int>>& future)
 {
   VLOG(1) << "Destroy callback triggered on container '" << containerId << "'";
 
@@ -943,7 +952,7 @@ void ExternalContainerizerProcess::__destroy(
 }
 
 
-Future<hashset<ContainerID> > ExternalContainerizerProcess::containers()
+Future<hashset<ContainerID>> ExternalContainerizerProcess::containers()
 {
   VLOG(1) << "Containers triggered";
 
@@ -956,7 +965,7 @@ Future<hashset<ContainerID> > ExternalContainerizerProcess::containers()
   Result<containerizer::Containers>(*read)(int, bool, bool) =
     &::protobuf::read<containerizer::Containers>;
 
-  Future<Result<containerizer::Containers> > future = async(
+  Future<Result<containerizer::Containers>> future = async(
       read, invoked.get().out().get(), false, false);
 
   // Await both, a protobuf Message from the subprocess as well as
@@ -969,10 +978,10 @@ Future<hashset<ContainerID> > ExternalContainerizerProcess::containers()
 }
 
 
-Future<hashset<ContainerID> > ExternalContainerizerProcess::_containers(
+Future<hashset<ContainerID>> ExternalContainerizerProcess::_containers(
     const Future<tuple<
-        Future<Result<containerizer::Containers> >,
-        Future<Option<int> > > >& future)
+        Future<Result<containerizer::Containers>>,
+        Future<Option<int>>>>& future)
 {
   VLOG(1) << "Containers callback triggered";
 
@@ -1029,7 +1038,7 @@ void ExternalContainerizerProcess::unwait(const ContainerID& containerId)
 
   // TODO(tillt): Add graceful termination as soon as we have an
   // accepted way to do that in place.
-  Try<list<os::ProcessTree> > trees =
+  Try<list<os::ProcessTree>> trees =
     os::killtree(pid.get(), SIGKILL, true, true);
 
   if (trees.isError()) {
@@ -1078,7 +1087,7 @@ static int setup(const string& directory)
 Try<Subprocess> ExternalContainerizerProcess::invoke(
     const string& command,
     const Option<Sandbox>& sandbox,
-    const Option<map<string, string> >& commandEnvironment)
+    const Option<map<string, string>>& commandEnvironment)
 {
   CHECK_SOME(flags.containerizer_path) << "containerizer_path not set";
 
@@ -1192,7 +1201,7 @@ Try<Subprocess> ExternalContainerizerProcess::invoke(
     const string& command,
     const google::protobuf::Message& message,
     const Option<Sandbox>& sandbox,
-    const Option<map<string, string> >& commandEnvironment)
+    const Option<map<string, string>>& commandEnvironment)
 {
   Try<Subprocess> external = invoke(command, sandbox, commandEnvironment);
   if (external.isError()) {

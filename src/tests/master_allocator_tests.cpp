@@ -511,7 +511,6 @@ TYPED_TEST(MasterAllocatorTest, FrameworkExited)
   TestContainerizer containerizer(execs);
 
   slave::Flags flags = this->CreateSlaveFlags();
-
   flags.resources = Some("cpus:3;mem:1024");
 
   EXPECT_CALL(this->allocator, addSlave(_, _, _, _));
@@ -704,7 +703,9 @@ TYPED_TEST(MasterAllocatorTest, SlaveLost)
 
   EXPECT_CALL(sched, slaveLost(_, _));
 
-  this->ShutdownSlaves();
+  // Stop the checkpointing slave with explicit shutdown message
+  // so that the master does not wait for it to reconnect.
+  this->Stop(slave1.get(), true);
 
   AWAIT_READY(removeSlave);
 

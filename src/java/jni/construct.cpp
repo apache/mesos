@@ -380,3 +380,24 @@ Request construct(JNIEnv* env, jobject jobj)
 
   return request;
 }
+
+
+template <>
+Offer::Operation construct(JNIEnv* env, jobject jobj)
+{
+  jclass clazz = env->GetObjectClass(jobj);
+
+  // byte[] data = obj.toByteArray();
+  jmethodID toByteArray = env->GetMethodID(clazz, "toByteArray", "()[B");
+
+  jbyteArray jdata = (jbyteArray) env->CallObjectMethod(jobj, toByteArray);
+
+  jbyte* data = env->GetByteArrayElements(jdata, NULL);
+  jsize length = env->GetArrayLength(jdata);
+
+  const Offer::Operation& operation = parse<Offer::Operation>(data, length);
+
+  env->ReleaseByteArrayElements(jdata, data, 0);
+
+  return operation;
+}

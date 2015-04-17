@@ -361,7 +361,7 @@ public:
 // complete without waiting for the fetching to finish.
 TEST_F(MesosContainerizerDestroyTest, DestroyWhileFetching)
 {
-  slave::Flags flags;
+  slave::Flags flags = CreateSlaveFlags();
   Try<Launcher*> launcher = PosixLauncher::create(flags);
   ASSERT_SOME(launcher);
   std::vector<process::Owned<Isolator>> isolators;
@@ -426,7 +426,7 @@ ACTION_P(InvokeDestroyAndWait, launcher)
 TEST_F(MesosContainerizerDestroyTest, LauncherDestroyFailure)
 {
   // Create a TestLauncher backed by PosixLauncher.
-  slave::Flags flags;
+  slave::Flags flags = CreateSlaveFlags();
   Try<Launcher*> launcher_ = PosixLauncher::create(flags);
   ASSERT_SOME(launcher_);
   TestLauncher* launcher = new TestLauncher(Owned<Launcher>(launcher_.get()));
@@ -474,6 +474,13 @@ TEST_F(MesosContainerizerDestroyTest, LauncherDestroyFailure)
 
   // The container destroy should fail.
   AWAIT_FAILED(wait);
+
+  // We settle the clock here to ensure that the processing of
+  // 'MesosContainerizerProcess::__destroy()' is complete and the
+  // metric is updated.
+  Clock::pause();
+  Clock::settle();
+  Clock::resume();
 
   // Ensure that the metric is updated.
   JSON::Object metrics = Metrics();

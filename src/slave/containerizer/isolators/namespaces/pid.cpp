@@ -133,7 +133,7 @@ Future<Nothing> NamespacesPidIsolatorProcess::recover(
   }
 
   // Clean up any orphaned bind mounts and empty files.
-  Try<list<string> > entries = os::ls(BIND_MOUNT_ROOT);
+  Try<list<string>> entries = os::ls(BIND_MOUNT_ROOT);
   if (entries.isError()) {
     return Failure("Failed to list existing containers in '" +
                    BIND_MOUNT_ROOT + "': " + entries.error());
@@ -152,7 +152,7 @@ Future<Nothing> NamespacesPidIsolatorProcess::recover(
 }
 
 
-Future<Option<CommandInfo> > NamespacesPidIsolatorProcess::prepare(
+Future<Option<CommandInfo>> NamespacesPidIsolatorProcess::prepare(
     const ContainerID& containerId,
     const ExecutorInfo& executorInfo,
     const string& directory,
@@ -200,7 +200,7 @@ Future<Nothing> NamespacesPidIsolatorProcess::isolate(
     return Failure("Failed to create bind mount target: " + touch.error());
   }
 
-  Try<Nothing> mount = fs::mount(source, target, "none", MS_BIND, NULL);
+  Try<Nothing> mount = fs::mount(source, target, None(), MS_BIND, NULL);
   if (mount.isError()) {
     return Failure(
         "Failed to mount pid namespace handle from " +

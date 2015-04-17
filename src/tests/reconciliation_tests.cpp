@@ -383,9 +383,8 @@ TEST_F(ReconciliationTest, SlaveInTransition)
   Try<PID<Master> > master = StartMaster();
   ASSERT_SOME(master);
 
-  // Start a checkpointing slave.
+  // Reuse slaveFlags so both StartSlave() use the same work_dir.
   slave::Flags slaveFlags = CreateSlaveFlags();
-  slaveFlags.checkpoint = true;
 
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
     FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);

@@ -12,7 +12,7 @@ The Mesos codebase follows the [Google C++ Style Guide](http://google-styleguide
 * We use [lowerCamelCase](http://en.wikipedia.org/wiki/CamelCase#Variations_and_synonyms) for variable names (Google uses snake_case, and their class member variables have trailing underscores).
 
 ### Constant Names
-* We use [lowerCamelCase](http://en.wikipedia.org/wiki/CamelCase#Variations_and_synonyms) for constant names (Google uses a `k` followed by mixed case, e.g. `kDaysInAWeek`).
+* We use [SCREAMING_SNAKE_CASE](http://en.wikipedia.org/wiki/Letter_case#Special_case_styles) for constant names (Google uses a `k` followed by mixed case, e.g. `kDaysInAWeek`).
 
 ### Function Names
 * We use [lowerCamelCase](http://en.wikipedia.org/wiki/CamelCase#Variations_and_synonyms) for function names (Google uses mixed case for regular functions; and their accessors and mutators match the name of the variable).
@@ -92,7 +92,8 @@ We still support older compilers. The whitelist of supported C++11 features is:
 
 * Static assertions.
 * Multiple right angle brackets.
-* Type inference (`auto` and `decltype`). The main goal is to increase code readability. Here are several examples:
+* Type inference (`auto` and `decltype`). The main goal is to increase code readability. This is safely the case if the exact same type omitted on the left is already fully stated on the right.
+* Here are several examples:
 
 <pre>
 // 1: OK.
@@ -100,7 +101,12 @@ const auto& i = values.find(keys.front());
 // Compare with
 const typename map::iterator& i = values.find(keys.front());
 
-// 2: Don't use.
+// 2: OK.
+auto names = shared_ptr<list<string>>(new list<string>());
+// Compare with
+shared_ptr<list<string>> names = shared_ptr<list<string>>(new list<string>());
+
+// 3: Don't use.
 auto authorizer = LocalAuthorizer::create(acls);
 // Compare with
 Try&lt;Owned&lt;LocalAuthorizer>> authorizer = LocalAuthorizer::create();

@@ -610,11 +610,17 @@ Try<TaskState> TaskState::recover(
     }
   }
 
+  off_t offset = lseek(fd.get(), 0, SEEK_CUR);
+
+  if (offset < 0) {
+    return ErrnoError("Failed to lseek status updates file '" + path + "'");
+  }
+
   // Always truncate the file to contain only valid updates.
   // NOTE: This is safe even though we ignore partial protobuf read
   // errors above, because the 'fd' is properly set to the end of the
   // last valid update by 'protobuf::read()'.
-  if (ftruncate(fd.get(), lseek(fd.get(), 0, SEEK_CUR)) != 0) {
+  if (ftruncate(fd.get(), offset) != 0) {
     return ErrnoError(
         "Failed to truncate status updates file '" + path + "'");
   }
@@ -692,11 +698,16 @@ Try<ResourcesState> ResourcesState::recover(
     state.resources += resource.get();
   }
 
+  off_t offset = lseek(fd.get(), 0, SEEK_CUR);
+  if (offset < 0) {
+    return ErrnoError("Failed to lseek resources file '" + path + "'");
+  }
+
   // Always truncate the file to contain only valid resources.
   // NOTE: This is safe even though we ignore partial protobuf read
   // errors above, because the 'fd' is properly set to the end of the
   // last valid resource by 'protobuf::read()'.
-  if (ftruncate(fd.get(), lseek(fd.get(), 0, SEEK_CUR)) != 0) {
+  if (ftruncate(fd.get(), offset) != 0) {
     return ErrnoError("Failed to truncate resources file '" + path + "'");
   }
 

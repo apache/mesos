@@ -52,7 +52,7 @@ process::Future<mesos::PerfStatistics> sample(
 // for duration. The returned hashmap is keyed by cgroup.
 // NOTE: cgroups should be relative to the perf_event subsystem mount,
 // e.g., mesos/test for /sys/fs/cgroup/perf_event/mesos/test.
-process::Future<hashmap<std::string, mesos::PerfStatistics> > sample(
+process::Future<hashmap<std::string, mesos::PerfStatistics>> sample(
     const std::set<std::string>& events,
     const std::set<std::string>& cgroup,
     const Duration& duration);
@@ -75,7 +75,7 @@ bool supported();
 
 
 // Note: Exposed for testing purposes.
-Try<hashmap<std::string, mesos::PerfStatistics> > parse(
+Try<hashmap<std::string, mesos::PerfStatistics>> parse(
     const std::string& output);
 
 } // namespace perf {

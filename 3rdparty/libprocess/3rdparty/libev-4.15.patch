@@ -9,3 +9,15 @@ diff -rupN libev-4.15/ev.h libev-4.15-patched/ev.h
 +#  define EV_CHILD_ENABLE 0
  #endif
  #endif
+
+diff -rupN libev-4.15/ev.c libev-4.15-patched/ev.c
+--- libev-4.15/ev.c 2013-03-01 03:10:48.000000000 -0800
++++ libev-4.15-patched/ev.c 2015-03-31 18:32:07.910991755 -0700
+@@ -967,7 +967,7 @@ ecb_inline uint64_t ecb_rotr64 (uint64_t
+   #define ecb_unreachable() __builtin_unreachable ()
+ #else
+   /* this seems to work fine, but gcc always emits a warning for it :/ */
+-  ecb_inline void ecb_unreachable (void) ecb_noreturn;
++  ecb_inline ecb_noreturn void ecb_unreachable (void);
+   ecb_inline void ecb_unreachable (void) { }
+ #endif

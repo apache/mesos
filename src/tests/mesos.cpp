@@ -165,9 +165,6 @@ slave::Flags MesosTest::CreateSlaveFlags()
 
   flags.credential = path;
 
-  // TODO(vinod): Consider making this true and fixing the tests.
-  flags.checkpoint = false;
-
   flags.resources = "cpus:2;mem:1024;disk:1024;ports:[31000-32000]";
 
   flags.registration_backoff_factor = Milliseconds(10);
@@ -375,7 +372,7 @@ MockSlave::MockSlave(const slave::Flags& flags,
   // Set up default behaviors, calling the original methods.
   EXPECT_CALL(*this, runTask(_, _, _, _, _))
     .WillRepeatedly(Invoke(this, &MockSlave::unmocked_runTask));
-  EXPECT_CALL(*this, _runTask(_, _, _, _, _))
+  EXPECT_CALL(*this, _runTask(_, _, _, _))
     .WillRepeatedly(Invoke(this, &MockSlave::unmocked__runTask));
   EXPECT_CALL(*this, killTask(_, _, _))
     .WillRepeatedly(Invoke(this, &MockSlave::unmocked_killTask));
@@ -406,11 +403,10 @@ void MockSlave::unmocked_runTask(
 void MockSlave::unmocked__runTask(
       const Future<bool>& future,
       const FrameworkInfo& frameworkInfo,
-      const FrameworkID& frameworkId,
       const std::string& pid,
       const TaskInfo& task)
 {
-  slave::Slave::_runTask(future, frameworkInfo, frameworkId, pid, task);
+  slave::Slave::_runTask(future, frameworkInfo, pid, task);
 }
 
 
@@ -541,27 +537,42 @@ void ContainerizerTest<slave::MesosContainerizer>::SetUp()
   EXPECT_SOME(user);
 
   if (cgroups::enabled() && user.get() == "root") {
+    // Determine the base hierarchy.
     foreach (const string& subsystem, subsystems) {
-      // Establish the base hierarchy if this is the first subsystem checked.
-      if (baseHierarchy.empty()) {
-        Result<string> hierarchy = cgroups::hierarchy(subsystem);
-        ASSERT_FALSE(hierarchy.isError());
+      Result<string> hierarchy = cgroups::hierarchy(subsystem);
+      ASSERT_FALSE(hierarchy.isError());
 
-        if (hierarchy.isNone()) {
-          baseHierarchy = TEST_CGROUPS_HIERARCHY;
+      if (hierarchy.isSome()) {
+        Try<string> _baseHierarchy = os::dirname(hierarchy.get());
+        ASSERT_SOME(_baseHierarchy)
+          << "Failed to get the base of hierarchy '" << hierarchy.get() << "'";
+
+        if (baseHierarchy.empty()) {
+          baseHierarchy = _baseHierarchy.get();
         } else {
-          // Strip the subsystem to get the base hierarchy.
-          baseHierarchy = strings::remove(
-              hierarchy.get(),
-              subsystem,
-              strings::SUFFIX);
+          ASSERT_EQ(baseHierarchy, _baseHierarchy.get())
+            << "-------------------------------------------------------------\n"
+            << "Multiple cgroups base hierarchies detected:\n"
+            << "  '" << baseHierarchy << "'\n"
+            << "  '" << _baseHierarchy.get() << "'\n"
+            << "Mesos does not support multiple cgroups base hierarchies.\n"
+            << "Please unmount the corresponding (or all) subsystems.\n"
+            << "-------------------------------------------------------------";
         }
       }
+    }
 
-      // Mount the subsystem if necessary.
-      string hierarchy = path::join(baseHierarchy, subsystem);
+    if (baseHierarchy.empty()) {
+      baseHierarchy = TEST_CGROUPS_HIERARCHY;
+    }
+
+    // Mount the subsystem if necessary.
+    foreach (const string& subsystem, subsystems) {
+      const string& hierarchy = path::join(baseHierarchy, subsystem);
+
       Try<bool> mounted = cgroups::mounted(hierarchy, subsystem);
       ASSERT_SOME(mounted);
+
       if (!mounted.get()) {
         ASSERT_SOME(cgroups::mount(hierarchy, subsystem))
           << "-------------------------------------------------------------\n"

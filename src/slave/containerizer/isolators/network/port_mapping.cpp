@@ -35,10 +35,12 @@
 
 #include <stout/error.hpp>
 #include <stout/foreach.hpp>
+#include <stout/fs.hpp>
 #include <stout/hashset.hpp>
 #include <stout/json.hpp>
 #include <stout/lambda.hpp>
 #include <stout/mac.hpp>
+#include <stout/multihashmap.hpp>
 #include <stout/numify.hpp>
 #include <stout/os.hpp>
 #include <stout/option.hpp>
@@ -46,8 +48,10 @@
 #include <stout/result.hpp>
 #include <stout/stringify.hpp>
 #include <stout/strings.hpp>
+#include <stout/utils.hpp>
 
 #include <stout/os/exists.hpp>
+#include <stout/os/stat.hpp>
 
 #include "common/status_utils.hpp"
 
@@ -95,6 +99,13 @@ using std::vector;
 
 using filter::ip::PortRange;
 
+
+// An old glibc might not have this symbol.
+#ifndef MNT_DETACH
+#define MNT_DETACH 2
+#endif
+
+
 namespace mesos {
 namespace internal {
 namespace slave {
@@ -103,16 +114,6 @@ using mesos::slave::ExecutorRunState;
 using mesos::slave::Isolator;
 using mesos::slave::IsolatorProcess;
 using mesos::slave::Limitation;
-
-const std::string VETH_PREFIX = "mesos";
-
-
-// The root directory where we bind mount all the namespace handles.
-// We choose the directory '/var/run/netns' so that we can use
-// iproute2 suite (e.g., ip netns show/exec) to inspect or enter the
-// network namespace. This is very useful for debugging purposes.
-const string BIND_MOUNT_ROOT = "/var/run/netns";
-
 
 // The minimum number of ephemeral ports a container should have.
 static const uint16_t MIN_EPHEMERAL_PORTS_SIZE = 16;
@@ -131,8 +132,10 @@ static const uint8_t LOW = 3;
 
 
 // The well known ports. Used for sanity check.
-static const Interval<uint16_t> WELL_KNOWN_PORTS =
-  (Bound<uint16_t>::closed(0), Bound<uint16_t>::open(1024));
+static Interval<uint16_t> WELL_KNOWN_PORTS()
+{
+  return (Bound<uint16_t>::closed(0), Bound<uint16_t>::open(1024));
+}
 
 
 /////////////////////////////////////////////////
@@ -178,16 +181,16 @@ static uint32_t roundDownToPowerOfTwo(uint32_t x)
 // executor process.
 static string veth(pid_t pid)
 {
-  return VETH_PREFIX + stringify(pid);
+  return PORT_MAPPING_VETH_PREFIX() + stringify(pid);
 }
 
 
 // Extracts the pid from the given veth name.
-static Option<pid_t> getPid(string veth)
+static Option<pid_t> getPidFromVeth(const string& veth)
 {
-  if (strings::startsWith(veth, VETH_PREFIX)) {
+  if (strings::startsWith(veth, PORT_MAPPING_VETH_PREFIX())) {
     Try<pid_t> pid = numify<pid_t>(
-        strings::remove(veth, VETH_PREFIX, strings::PREFIX));
+        strings::remove(veth, PORT_MAPPING_VETH_PREFIX(), strings::PREFIX));
 
     if (pid.isSome()) {
       return pid.get();
@@ -195,6 +198,91 @@ static Option<pid_t> getPid(string veth)
   }
 
   return None();
+}
+
+
+// Extracts the container ID from the symlink that points to the
+// network namespace handle. The following is the layout of the bind
+// mount root and bind mount symlink root:
+//  <PORT_MAPPING_BIND_MOUNT_ROOT()>
+//    |--- 3945 (pid)                           <-|
+//                                                |
+//  <PORT_MAPPING_BIND_MOUNT_SYMLINK_ROOT()>      |
+//    |--- ecf293e7-e6e8-4cbc-aaee-4d6c958aa276 --|
+//         (symlink: container ID -> pid)
+static Try<ContainerID> getContainerIdFromSymlink(const string& symlink)
+{
+  if (!os::stat::islink(symlink)) {
+    return Error("Not a symlink");
+  }
+
+  Try<string> _containerId = os::basename(symlink);
+  if (_containerId.isError()) {
+    return Error("Failed to get the basename: " + _containerId.error());
+  }
+
+  ContainerID containerId;
+  containerId.set_value(_containerId.get());
+
+  return containerId;
+}
+
+
+// Extracts the pid from the network namespace handle. Returns None if
+// the handle is clearly not created by us.
+static Result<pid_t> getPidFromNamespaceHandle(const string& handle)
+{
+  if (os::stat::islink(handle)) {
+    return Error("Not expecting a symlink");
+  }
+
+  Try<string> _pid = os::basename(handle);
+  if (_pid.isError()) {
+    return Error("Failed to get the basename: " + _pid.error());
+  }
+
+  Try<pid_t> pid = numify<pid_t>(_pid.get());
+  if (pid.isError()) {
+    return None();
+  }
+
+  return pid.get();
+}
+
+
+// Extracts the pid from the symlink that points to the network
+// namespace handle. Returns None if it's a dangling symlink.
+static Result<pid_t> getPidFromSymlink(const string& symlink)
+{
+  if (!os::stat::islink(symlink)) {
+    return Error("Not a symlink");
+  }
+
+  Result<string> target = os::realpath(symlink);
+  if (target.isError()) {
+    return Error("Failed to follow the symlink: " + target.error());
+  } else if (target.isNone()) {
+    // This is a dangling symlink.
+    return None();
+  }
+
+  return getPidFromNamespaceHandle(target.get());
+}
+
+
+static string getSymlinkPath(const ContainerID& containerId)
+{
+  return path::join(
+      PORT_MAPPING_BIND_MOUNT_SYMLINK_ROOT(),
+      stringify(containerId));
+}
+
+
+static string getNamespaceHandlePath(pid_t pid)
+{
+  return path::join(
+      PORT_MAPPING_BIND_MOUNT_ROOT(),
+      stringify(pid));
 }
 
 
@@ -215,7 +303,7 @@ static IntervalSet<uint16_t> getIntervalSet(const Value::Ranges& ranges)
 // Implementation for PortMappingUpdate.
 /////////////////////////////////////////////////
 
-const std::string PortMappingUpdate::NAME = "update";
+const char* PortMappingUpdate::NAME = "update";
 
 
 PortMappingUpdate::Flags::Flags()
@@ -269,7 +357,7 @@ JSON::Object json(const Iterable& ranges)
 }
 
 
-static Try<vector<PortRange> > parse(const JSON::Object& object)
+static Try<vector<PortRange>> parse(const JSON::Object& object)
 {
   Try<Value::Ranges> parsing = protobuf::parse<Value::Ranges>(object);
   if (parsing.isError()) {
@@ -424,11 +512,11 @@ int PortMappingUpdate::execute()
     return 1;
   }
 
-  Option<vector<PortRange> > portsToAdd;
-  Option<vector<PortRange> > portsToRemove;
+  Option<vector<PortRange>> portsToAdd;
+  Option<vector<PortRange>> portsToRemove;
 
   if (flags.ports_to_add.isSome()) {
-    Try<vector<PortRange> > parsing = parse(flags.ports_to_add.get());
+    Try<vector<PortRange>> parsing = parse(flags.ports_to_add.get());
     if (parsing.isError()) {
       cerr << "Parsing 'ports_to_add' failed: " << parsing.error() << endl;
       return 1;
@@ -437,7 +525,7 @@ int PortMappingUpdate::execute()
   }
 
   if (flags.ports_to_remove.isSome()) {
-    Try<vector<PortRange> > parsing = parse(flags.ports_to_remove.get());
+    Try<vector<PortRange>> parsing = parse(flags.ports_to_remove.get());
     if (parsing.isError()) {
       cerr << "Parsing 'ports_to_remove' failed: " << parsing.error() << endl;
       return 1;
@@ -484,7 +572,7 @@ int PortMappingUpdate::execute()
 // Implementation for PortMappingStatistics.
 /////////////////////////////////////////////////
 
-const std::string PortMappingStatistics::NAME = "statistics";
+const char* PortMappingStatistics::NAME = "statistics";
 
 
 PortMappingStatistics::Flags::Flags()
@@ -609,7 +697,7 @@ int PortMappingStatistics::execute()
 
     // NOTE: If the underlying library uses the older version of
     // kernel API, the family argument passed in may not be honored.
-    Try<vector<diagnosis::socket::Info> > infos =
+    Try<vector<diagnosis::socket::Info>> infos =
       diagnosis::socket::infos(AF_INET, diagnosis::socket::state::ALL);
 
     if (infos.isError()) {
@@ -879,10 +967,10 @@ Try<Isolator*> PortMappingIsolatorProcess::create(const Flags& flags)
 
   // This is a sanity check to make sure that the ephemeral ports
   // specified do not intersect with the well known ports.
-  if (ephemeralPorts.intersects(WELL_KNOWN_PORTS)) {
+  if (ephemeralPorts.intersects(WELL_KNOWN_PORTS())) {
     return Error(
         "The specified ephemeral ports " + stringify(ephemeralPorts) +
-        " intersect with well known ports " + stringify(WELL_KNOWN_PORTS));
+        " intersect with well known ports " + stringify(WELL_KNOWN_PORTS()));
   }
 
   // Obtain the host ephemeral port range by reading the proc file
@@ -1056,7 +1144,7 @@ Try<Isolator*> PortMappingIsolatorProcess::create(const Flags& flags)
 
   // Get the host IP network, MAC and default gateway.
   Result<net::IPNetwork> hostIPNetwork =
-    net::fromLinkDevice(eth0.get(), AF_INET);
+    net::IPNetwork::fromLinkDevice(eth0.get(), AF_INET);
 
   if (!hostIPNetwork.isSome()) {
     return Error(
@@ -1239,23 +1327,23 @@ Try<Isolator*> PortMappingIsolatorProcess::create(const Flags& flags)
     }
   }
 
-  // Self bind mount BIND_MOUNT_ROOT. Since we use a new mount
-  // namespace for each container, for this mount point, we set
-  // '--make-rshared' on the host and set '--make-rslave' inside each
-  // container. This is important because when we unmount the network
-  // namespace handles on the host, those handles will be unmounted in
-  // the containers as well, but NOT vice versa.
+  // Self bind mount PORT_MAPPING_BIND_MOUNT_ROOT(). Since we use a
+  // new mount namespace for each container, for this mount point, we
+  // set '--make-rshared' on the host and set '--make-rslave' inside
+  // each container. This is important because when we unmount the
+  // network namespace handles on the host, those handles will be
+  // unmounted in the containers as well, but NOT vice versa.
 
   // We first create the bind mount directory if it does not exist.
-  Try<Nothing> mkdir = os::mkdir(BIND_MOUNT_ROOT);
+  Try<Nothing> mkdir = os::mkdir(PORT_MAPPING_BIND_MOUNT_ROOT());
   if(mkdir.isError()) {
     return Error(
         "Failed to create the bind mount root directory at " +
-        BIND_MOUNT_ROOT + ": " + mkdir.error());
+        PORT_MAPPING_BIND_MOUNT_ROOT() + ": " + mkdir.error());
   }
 
-  // Now, check '/proc/mounts' to see if BIND_MOUNT_ROOT has already
-  // been self mounted.
+  // Now, check '/proc/mounts' to see if
+  // PORT_MAPPING_BIND_MOUNT_ROOT() has already been self mounted.
   Try<fs::MountTable> mountTable = fs::MountTable::read("/proc/mounts");
   if (mountTable.isError()) {
     return Error(
@@ -1265,12 +1353,12 @@ Try<Isolator*> PortMappingIsolatorProcess::create(const Flags& flags)
 
   Option<fs::MountTable::Entry> bindMountRoot;
   foreach (const fs::MountTable::Entry& entry, mountTable.get().entries) {
-    if (entry.dir == BIND_MOUNT_ROOT) {
+    if (entry.dir == PORT_MAPPING_BIND_MOUNT_ROOT()) {
       bindMountRoot = entry;
     }
   }
 
-  // Self bind mount BIND_MOUNT_ROOT.
+  // Self bind mount PORT_MAPPING_BIND_MOUNT_ROOT().
   if (bindMountRoot.isNone()) {
     // NOTE: Instead of using fs::mount to perform the bind mount, we
     // use the shell command here because the syscall 'mount' does not
@@ -1281,34 +1369,48 @@ Try<Isolator*> PortMappingIsolatorProcess::create(const Flags& flags)
     Try<int> mount = os::shell(
         NULL,
         "mount --bind %s %s",
-        BIND_MOUNT_ROOT.c_str(),
-        BIND_MOUNT_ROOT.c_str());
+        PORT_MAPPING_BIND_MOUNT_ROOT().c_str(),
+        PORT_MAPPING_BIND_MOUNT_ROOT().c_str());
 
     if (mount.isError()) {
       return Error(
-          "Failed to self bind mount '" + BIND_MOUNT_ROOT +
+          "Failed to self bind mount '" + PORT_MAPPING_BIND_MOUNT_ROOT() +
           "': " + mount.error());
     } else if (mount.get() != 0) {
       return Error(
-          "Failed to self bind mount '" + BIND_MOUNT_ROOT +
+          "Failed to self bind mount '" + PORT_MAPPING_BIND_MOUNT_ROOT() +
           "': non-zero exit code: " + stringify(mount.get()));
     }
   }
 
-  // Mark the mount point BIND_MOUNT_ROOT as recursively shared.
+  // Mark the mount point PORT_MAPPING_BIND_MOUNT_ROOT() as
+  // recursively shared.
   Try<int> mountShared = os::shell(
       NULL,
       "mount --make-rshared %s",
-      BIND_MOUNT_ROOT.c_str());
+      PORT_MAPPING_BIND_MOUNT_ROOT().c_str());
 
   if (mountShared.isError()) {
     return Error(
-        "Failed to mark '" + BIND_MOUNT_ROOT + "' as recursively shared: " +
-        mountShared.error());
+        "Failed to mark '" + PORT_MAPPING_BIND_MOUNT_ROOT() +
+        "' as recursively shared: " + mountShared.error());
   } else if (mountShared.get() != 0) {
     return Error(
-        "Failed to mark '" + BIND_MOUNT_ROOT + "' as recursively shared: " +
-        "non-zero exit code: " + stringify(mountShared.get()));
+        "Failed to mark '" + PORT_MAPPING_BIND_MOUNT_ROOT() +
+        "' as recursively shared: " + "non-zero exit code: " +
+        stringify(mountShared.get()));
+  }
+
+  // Create the network namespace handle symlink directory if it does
+  // not exist. It is used to host from network namespace handle
+  // symlinks whose basename is a container ID. This allows us to
+  // recover container IDs for orphan containers (i.e., not known by
+  // the slave). This is introduced in 0.23.0.
+  mkdir = os::mkdir(PORT_MAPPING_BIND_MOUNT_SYMLINK_ROOT());
+  if(mkdir.isError()) {
+    return Error(
+        "Failed to create the bind mount root directory at " +
+        PORT_MAPPING_BIND_MOUNT_SYMLINK_ROOT() + ": " + mkdir.error());
   }
 
   return new Isolator(Owned<IsolatorProcess>(
@@ -1330,16 +1432,16 @@ Try<Isolator*> PortMappingIsolatorProcess::create(const Flags& flags)
 Future<Nothing> PortMappingIsolatorProcess::recover(
     const list<ExecutorRunState>& states)
 {
-  // Extract pids from virtual device names.
-  Try<set<string> > links = net::links();
+  // Extract pids from virtual device names (veth). This tells us
+  // about all the potential live containers on this slave.
+  Try<set<string>> links = net::links();
   if (links.isError()) {
     return Failure("Failed to get all the links: " + links.error());
   }
 
-  // The 'pids' here are extracted from veth devices.
   hashset<pid_t> pids;
   foreach (const string& name, links.get()) {
-    Option<pid_t> pid = getPid(name);
+    Option<pid_t> pid = getPidFromVeth(name);
     // Not all links follow the naming: mesos{pid}, so we simply
     // continue, e.g., eth0.
     if (pid.isNone()) {
@@ -1351,6 +1453,149 @@ Future<Nothing> PortMappingIsolatorProcess::recover(
     pids.insert(pid.get());
   }
 
+  // Scan the bind mount root to cleanup all stale network namespace
+  // handles that do not have an active veth associated with.
+  Try<list<string>> entries = os::ls(PORT_MAPPING_BIND_MOUNT_ROOT());
+  if (entries.isError()) {
+    return Failure(
+        "Failed to list bind mount root '" +
+        PORT_MAPPING_BIND_MOUNT_ROOT() +
+        "': " + entries.error());
+  }
+
+  foreach (const string& entry, entries.get()) {
+    const string path = path::join(PORT_MAPPING_BIND_MOUNT_ROOT(), entry);
+
+    // NOTE: We expect all regular files whose names are numbers under
+    // the bind mount root are network namespace handles.
+    Result<pid_t> pid = getPidFromNamespaceHandle(path);
+    if (pid.isError()) {
+      return Failure(
+          "Failed to get pid from network namespace handle '" +
+          path + "': " + pid.error());
+    } else if (pid.isNone()) {
+      // We ignore files that are clearly not network namespace
+      // handles created by us. It's likely that those are created by
+      // users or other tools.
+    }
+
+    // We cleanup the network namespace handle if the associated
+    // containers have clearly exited (i.e., the veth has gone). The
+    // cleanup here is best effort.
+    if (!pids.contains(pid.get())) {
+      LOG(INFO) << "Removing stale network namespace handle '" << path << "'";
+
+      Try<Nothing> unmount = fs::unmount(path, MNT_DETACH);
+      if (unmount.isError()) {
+        LOG(WARNING) << "Failed to unmount stale network namespace handle '"
+                     << path << "': " << unmount.error();
+      }
+
+      Try<Nothing> rm = os::rm(path);
+      if (rm.isError()) {
+        LOG(WARNING) << "Failed to remove stale network namespace handle '"
+                     << path << "': " << rm.error();
+      }
+    }
+  }
+
+  // Scan the bind mount symlink root for container IDs. This allows us
+  // to recover container IDs for orphan containers (i.e., not known
+  // by the slave). This is introduced in 0.23.0.
+  entries = os::ls(PORT_MAPPING_BIND_MOUNT_SYMLINK_ROOT());
+  if (entries.isError()) {
+    return Failure(
+        "Failed to list bind mount symlink root '" +
+        PORT_MAPPING_BIND_MOUNT_SYMLINK_ROOT() +
+        "': " + entries.error());
+  }
+
+  // This map stores the mapping between pids and container IDs
+  // recovered from the bind mount root that have valid veth links. We
+  // use a multihashmap here because multiple container IDs can map to
+  // the same pid if the removal of a symlink fails in '_cleanup()'
+  // and the pid is reused by a new container.
+  multihashmap<pid_t, ContainerID> linkers;
+
+  foreach (const string& entry, entries.get()) {
+    const string path =
+      path::join(PORT_MAPPING_BIND_MOUNT_SYMLINK_ROOT(), entry);
+
+    // We only create symlinks in this directory and assume
+    // non-symlink files are created by other users or tools,
+    // therefore will be ignored.
+    if (!os::stat::islink(path)) {
+      LOG(WARNING) << "Ignored non-symlink file '" << path
+                   << "' under bind mount symlink root '"
+                   << PORT_MAPPING_BIND_MOUNT_SYMLINK_ROOT() << "'";
+      continue;
+    }
+
+    // NOTE: We expect all symlinks under the bind mount symlink root
+    // to be container ID symlinks.
+
+    Try<ContainerID> containerId = getContainerIdFromSymlink(path);
+    if (containerId.isError()) {
+      return Failure(
+          "Failed to get container ID from network namespace handle symlink '" +
+          path + "': " + containerId.error());
+    }
+
+    Result<pid_t> pid = getPidFromSymlink(path);
+    if (pid.isError()) {
+      return Failure(
+          "Failed to get pid from network namespace handle symlink '" + path +
+          "': " + pid.error());
+    }
+
+    // We remove the symlink if it's dangling or the associated
+    // containers have clearly exited (i.e., the veth has gone). The
+    // cleanup here is best effort.
+    if (pid.isNone() || !pids.contains(pid.get())) {
+      LOG(INFO) << "Removing stale network namespace handle symlink '"
+                << path << "'";
+
+      Try<Nothing> rm = os::rm(path);
+      if (rm.isError()) {
+        LOG(WARNING) << "Failed to remove stale network namespace handle "
+                     << " symlink '" << path << "': " << rm.error();
+      }
+    } else {
+      LOG(INFO) << "Discovered network namespace handle symlink "
+                << containerId.get() << " -> " << pid.get();
+
+      linkers.put(pid.get(), containerId.get());
+    }
+  }
+
+  // If multiple container IDs point to the same pid, we remove both
+  // symlinks for safety (as if we cannot derive the container ID for
+  // orphans, which is OK because it'll be treated the same as those
+  // containers that are created by older (pre 0.23.0) versions). Note
+  // that it's possible that multiple container IDs map to the same
+  // pid if the removal of a symlink fails in '_cleanup()' and the pid
+  // is reused by a new container.
+  foreach (pid_t pid, linkers.keys()) {
+    list<ContainerID> containerIds = linkers.get(pid);
+    if (containerIds.size() > 1) {
+      foreach (const ContainerID& containerId, containerIds) {
+        const string linker = getSymlinkPath(containerId);
+
+        LOG(WARNING) << "Removing duplicated network namespace handle symlink '"
+                     << linker << "'";
+
+        Try<Nothing> rm = os::rm(linker);
+        if (rm.isError()) {
+          LOG(WARNING) << "Failed to remove duplicated network namespace "
+                       << "handle symlink '" << linker << "': " << rm.error();
+        }
+      }
+
+      linkers.remove(pid);
+    }
+  }
+
+  // Now, actually recover the isolator from slave's state.
   foreach (const ExecutorRunState& state, states) {
     const ContainerID& containerId = state.id;
     pid_t pid = state.pid;
@@ -1415,8 +1660,17 @@ Future<Nothing> PortMappingIsolatorProcess::recover(
           stringify(pid) + ": " + recover.error());
     }
 
+    // TODO(jieyu): For those orphan containers that have a known
+    // container ID, consider relying on the MesosContainerizer to
+    // clean them up so that we don't block the recovery. See details
+    // in MESOS-2367.
+    Option<ContainerID> containerId;
+    if (linkers.get(pid).size() == 1) {
+      containerId = linkers.get(pid).front();
+    }
+
     // The recovery should fail if we cannot cleanup an orphan.
-    Try<Nothing> cleanup = _cleanup(recover.get());
+    Try<Nothing> cleanup = _cleanup(recover.get(), containerId);
     if (cleanup.isError()) {
       foreachvalue (Info* info, infos) {
         delete info;
@@ -1445,7 +1699,7 @@ PortMappingIsolatorProcess::_recover(pid_t pid)
   // sure that we add filters to veth before adding filters to host
   // eth0 and host lo. Also, we need to make sure we remove filters
   // from host eth0 and host lo before removing filters from veth.
-  Result<vector<ip::Classifier> > classifiers =
+  Result<vector<ip::Classifier>> classifiers =
     ip::classifiers(veth(pid), ingress::HANDLE);
 
   if (classifiers.isError()) {
@@ -1522,7 +1776,7 @@ PortMappingIsolatorProcess::_recover(pid_t pid)
 }
 
 
-Future<Option<CommandInfo> > PortMappingIsolatorProcess::prepare(
+Future<Option<CommandInfo>> PortMappingIsolatorProcess::prepare(
     const ContainerID& containerId,
     const ExecutorInfo& executorInfo,
     const string& directory,
@@ -1566,7 +1820,7 @@ Future<Option<CommandInfo> > PortMappingIsolatorProcess::prepare(
   }
 
   // Allocate the ephemeral ports used by this container.
-  Try<Interval<uint16_t> > ephemeralPorts = ephemeralPortsAllocator->allocate();
+  Try<Interval<uint16_t>> ephemeralPorts = ephemeralPortsAllocator->allocate();
   if (ephemeralPorts.isError()) {
     return Failure(
         "Failed to allocate ephemeral ports: " + ephemeralPorts.error());
@@ -1613,22 +1867,38 @@ Future<Nothing> PortMappingIsolatorProcess::isolate(
   // the process 'pid' is gone, which allows us to explicitly control
   // the network namespace life cycle.
   const string source = path::join("/proc", stringify(pid), "ns", "net");
-  const string target = path::join(BIND_MOUNT_ROOT, stringify(pid));
+  const string target = getNamespaceHandlePath(pid);
 
   Try<Nothing> touch = os::touch(target);
   if (touch.isError()) {
     return Failure("Failed to create the bind mount point: " + touch.error());
   }
 
-  Try<Nothing> mount = fs::mount(source, target, "none", MS_BIND, NULL);
+  Try<Nothing> mount = fs::mount(source, target, None(), MS_BIND, NULL);
   if (mount.isError()) {
     return Failure(
-        "Failed to mount the network namespace handle from " +
-        source + " to " + target + ": " + mount.error());
+        "Failed to mount the network namespace handle from '" +
+        source + "' to '" + target + "': " + mount.error());
   }
 
-  LOG(INFO) << "Bind mounted " << source << " to " << target
-            << " for container " << containerId;
+  LOG(INFO) << "Bind mounted '" << source << "' to '" << target
+            << "' for container " << containerId;
+
+  // Since 0.23.0, we create a symlink to the network namespace handle
+  // using the container ID. This serves two purposes. First, it
+  // allows us to recover the container ID later when slave restarts
+  // even if slave's checkpointed meta data is deleted. Second, it
+  // makes the debugging easier. See MESOS-2528 for details.
+  const string linker = getSymlinkPath(containerId);
+  Try<Nothing> symlink = ::fs::symlink(target, linker);
+  if (symlink.isError()) {
+    return Failure(
+        "Failed to symlink the network namespace handle '" +
+        linker + "' -> '" + target + "': " + symlink.error());
+  }
+
+  LOG(INFO) << "Created network namespace handle symlink '"
+            << linker << "' -> '" << target << "'";
 
   // Create a virtual ethernet pair for this container.
   Try<bool> createVethPair = link::create(veth(pid), eth0, pid);
@@ -1850,7 +2120,7 @@ Future<Limitation> PortMappingIsolatorProcess::watch(
 
 void PortMappingIsolatorProcess::_update(
     const ContainerID& containerId,
-    const Future<Option<int> >& status)
+    const Future<Option<int>>& status)
 {
   if (!status.isReady()) {
     ++metrics.updating_container_ip_filters_errors;
@@ -1933,7 +2203,7 @@ Future<Nothing> PortMappingIsolatorProcess::update(
             << containerId << " from " << info->nonEphemeralPorts
             << " to " << nonEphemeralPorts;
 
-  Result<vector<ip::Classifier> > classifiers =
+  Result<vector<ip::Classifier>> classifiers =
     ip::classifiers(veth(pid), ingress::HANDLE);
 
   if (classifiers.isError()) {
@@ -2058,7 +2328,7 @@ Future<ResourceStatistics> PortMappingIsolatorProcess::usage(
     return result;
   }
 
-  Result<hashmap<string, uint64_t> > stat =
+  Result<hashmap<string, uint64_t>> stat =
     link::statistics(veth(info->pid.get()));
 
   if (stat.isError()) {
@@ -2270,7 +2540,7 @@ Future<Nothing> PortMappingIsolatorProcess::cleanup(
   // hashmap infos before using the helper function to clean it up.
   infos.erase(containerId);
 
-  Try<Nothing> cleanup = _cleanup(info);
+  Try<Nothing> cleanup = _cleanup(info, containerId);
   if (cleanup.isError()) {
     return Failure(cleanup.error());
   }
@@ -2279,13 +2549,14 @@ Future<Nothing> PortMappingIsolatorProcess::cleanup(
 }
 
 
-// An old glibc might not have this symbol.
-#ifndef MNT_DETACH
-#define MNT_DETACH 2
-#endif
-
-
-Try<Nothing> PortMappingIsolatorProcess::_cleanup(Info* _info)
+// TODO(jieyu): We take an optional container ID here because not all
+// the containers we want to cleanup have container IDs available. For
+// instance, we cannot get container IDs for those orphan containers
+// created by older (pre 0.23.0) versions of this isolator (with no
+// associated namespace handle symlinks).
+Try<Nothing> PortMappingIsolatorProcess::_cleanup(
+    Info* _info,
+    const Option<ContainerID>& containerId)
 {
   // Set '_info' to be auto-managed so that it will be deleted when
   // this function returns.
@@ -2425,33 +2696,51 @@ Try<Nothing> PortMappingIsolatorProcess::_cleanup(Info* _info)
     }
   }
 
-  // Release the bind mount for this container.
-  const string target = path::join(BIND_MOUNT_ROOT, stringify(pid));
-
-  Try<Nothing> unmount = fs::unmount(target, MNT_DETACH);
-  if (unmount.isError()) {
-    errors.push_back("Failed to umount: " + unmount.error());
-  }
-
-  // MNT_DETACH does a lazy umount, which means umount will eventually
-  // succeed when the mount point becomes idle, but possiblely not
-  // soon enough every time for this remove to go through, e.g,
-  // someone entered into the container for debugging purpose. In that
-  // case remove will fail, which is okay, because we only leaked an
-  // empty file, which could also be reused later if the pid (the name
-  // of the file) is used again.
-  Try<Nothing> rm = os::rm(target);
-  if (rm.isError()) {
-    LOG(WARNING) << "Failed to remove bind mount '" << target
-                 << "' during cleanup: " << rm.error();
-  }
-
   // We manually remove veth to avoid having to wait for the kernel to
   // do it.
   Try<bool> remove = link::remove(veth(pid));
   if (remove.isError()) {
     errors.push_back(
         "Failed to remove the link " + veth(pid) + ": " + remove.error());
+  }
+
+  // Remove the symlink for the network namespace handle if a
+  // container ID is specified.
+  if (containerId.isSome()) {
+    const string linker = getSymlinkPath(containerId.get());
+
+    // NOTE: Since we introduced the network namespace handle symlink
+    // in 0.23.0, it's likely that the symlink does not exist.
+    if (os::exists(linker)) {
+      Try<Nothing> rm = os::rm(linker);
+      if (rm.isError()) {
+        errors.push_back(
+            "Failed to remove the network namespace symlink '" +
+            linker + "' " + rm.error());
+      }
+    }
+  }
+
+  // Release the bind mount for this container.
+  const string target = getNamespaceHandlePath(pid);
+  Try<Nothing> unmount = fs::unmount(target, MNT_DETACH);
+  if (unmount.isError()) {
+    errors.push_back(
+        "Failed to unmount the network namespace handle '" +
+        target + "': " + unmount.error());
+  }
+
+  // MNT_DETACH does a lazy unmount, which means unmount will
+  // eventually succeed when the mount point becomes idle, but
+  // possiblely not soon enough every time for this remove to go
+  // through, e.g, someone entered into the container for debugging
+  // purpose. In that case remove will fail, which is okay, because we
+  // only leaked an empty file, which could also be reused later if
+  // the pid (the name of the file) is used again.
+  Try<Nothing> rm = os::rm(target);
+  if (rm.isError()) {
+    LOG(WARNING) << "Failed to remove the network namespace handle '"
+                 << target << "' during cleanup: " << rm.error();
   }
 
   // If any error happens along the way, return error.
@@ -2746,9 +3035,10 @@ string PortMappingIsolatorProcess::scripts(Info* info)
   script << "#!/bin/sh\n";
   script << "set -x\n";
 
-  // Mark the mount point BIND_MOUNT_ROOT as slave mount so that
-  // changes in the container will not be propagated to the host.
-  script << "mount --make-rslave " << BIND_MOUNT_ROOT << "\n";
+  // Mark the mount point PORT_MAPPING_BIND_MOUNT_ROOT() as slave
+  // mount so that changes in the container will not be propagated to
+  // the host.
+  script << "mount --make-rslave " << PORT_MAPPING_BIND_MOUNT_ROOT() << "\n";
 
   // Disable IPv6 as IPv6 packets won't be forwarded anyway.
   script << "echo 1 > /proc/sys/net/ipv6/conf/all/disable_ipv6\n";
@@ -2860,6 +3150,14 @@ string PortMappingIsolatorProcess::scripts(Info* info)
     script << "tc class add dev " << eth0 << " parent 1: classid 1:1 htb rate "
            << egressRateLimitPerContainer.get().bytes() * 8 << "bit\n";
 
+    // Packets are buffered at the leaf qdisc if we send them faster
+    // than the HTB rate limit and may be dropped when the queue is
+    // full, so we change the default leaf qdisc from pfifo_fast to
+    // fq_codel, which has a larger buffer and better control on
+    // buffer bloat.
+    // TODO(cwang): Verity that fq_codel qdisc is available.
+    script << "tc qdisc add dev " << eth0 << " parent 1:1 fq_codel\n";
+
     // Display the htb qdisc and class created on eth0.
     script << "tc qdisc show dev " << eth0 << "\n";
     script << "tc class show dev " << eth0 << "\n";
@@ -2882,13 +3180,13 @@ uint32_t EphemeralPortsAllocator::nextMultipleOf(uint32_t x, uint32_t m)
 }
 
 
-Try<Interval<uint16_t> > EphemeralPortsAllocator::allocate()
+Try<Interval<uint16_t>> EphemeralPortsAllocator::allocate()
 {
   if (portsPerContainer_ == 0) {
     return Error("Number of ephemeral ports per container is zero");
   }
 
-  Option<Interval<uint16_t> > allocated;
+  Option<Interval<uint16_t>> allocated;
 
   foreach (const Interval<uint16_t>& interval, free) {
     uint16_t upper = interval.upper();

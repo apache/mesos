@@ -294,12 +294,10 @@ protected:
       Slave* slave,
       const std::vector<Task>& tasks);
 
-  // 'promise' is used to signal finish of authentication.
-  // 'future' is the future returned by the authenticator.
+  // 'authenticate' is the future returned by the authenticator.
   void _authenticate(
       const process::UPID& pid,
-      const process::Owned<process::Promise<Nothing>>& promise,
-      const process::Future<Option<std::string>>& future);
+      const process::Future<Option<std::string>>& authenticate);
 
   void authenticationTimeout(process::Future<Option<std::string>> future);
 
@@ -651,12 +649,13 @@ private:
   // Authenticator names as supplied via flags.
   std::vector<std::string> authenticatorNames;
 
-  // Frameworks/slaves that are currently in the process of authentication.
-  // 'authenticating' future for an authenticatee is ready when it is
-  // authenticated.
-  hashmap<process::UPID, process::Future<Nothing>> authenticating;
+  Option<Authenticator*> authenticator;
 
-  hashmap<process::UPID, process::Owned<Authenticator>> authenticators;
+  // Frameworks/slaves that are currently in the process of authentication.
+  // 'authenticating' future is completed when authenticator
+  // completes authentication.
+  // The future is removed from the map when master completes authentication.
+  hashmap<process::UPID, process::Future<Option<std::string>>> authenticating;
 
   // Principals of authenticated frameworks/slaves keyed by PID.
   hashmap<process::UPID, std::string> authenticated;
@@ -978,11 +977,9 @@ inline std::ostream& operator << (std::ostream& stream, const Slave& slave)
 struct Framework
 {
   Framework(const FrameworkInfo& _info,
-            const FrameworkID& _id,
             const process::UPID& _pid,
             const process::Time& time = process::Clock::now())
-    : id(_id),
-      info(_info),
+    : info(_info),
       pid(_pid),
       connected(true),
       active(true),
@@ -1088,7 +1085,7 @@ struct Framework
   {
     CHECK(hasExecutor(slaveId, executorId))
       << "Unknown executor " << executorId
-      << " of framework " << id
+      << " of framework " << id()
       << " of slave " << slaveId;
 
     usedResources -= executors[slaveId][executorId].resources();
@@ -1098,9 +1095,64 @@ struct Framework
     }
   }
 
-  const FrameworkID id; // TODO(benh): Store this in 'info'.
+  const FrameworkID id() const { return info.id(); }
 
-  const FrameworkInfo info;
+  // Update fields in 'info' using those in 'source'. Currently this
+  // only updates 'name', 'failover_timeout', 'hostname', and
+  // 'webui_url'.
+  void updateFrameworkInfo(const FrameworkInfo& source)
+  {
+    // TODO(jmlvanre): We can't check 'FrameworkInfo.id' yet because
+    // of MESOS-2559. Once this is fixed we can 'CHECK' that we only
+    // merge 'info' from the same framework 'id'.
+
+    // TODO(jmlvanre): Merge other fields as per design doc in
+    // MESOS-703.
+
+    if (source.user() != info.user()) {
+      LOG(WARNING) << "Can not update FrameworkInfo.user to '" << info.user()
+                   << "' for framework " << id() << ". Check MESOS-703";
+    }
+
+    info.set_name(source.name());
+
+    if (source.has_failover_timeout()) {
+      info.set_failover_timeout(source.failover_timeout());
+    } else {
+      info.clear_failover_timeout();
+    }
+
+    if (source.checkpoint() != info.checkpoint()) {
+      LOG(WARNING) << "Can not update FrameworkInfo.checkpoint to '"
+                   << stringify(info.checkpoint()) << "' for framework " << id()
+                   << ". Check MESOS-703";
+    }
+
+    if (source.role() != info.role()) {
+      LOG(WARNING) << "Can not update FrameworkInfo.role to '" << info.role()
+                   << "' for framework " << id() << ". Check MESOS-703";
+    }
+
+    if (source.has_hostname()) {
+      info.set_hostname(source.hostname());
+    } else {
+      info.clear_hostname();
+    }
+
+    if (source.principal() != info.principal()) {
+      LOG(WARNING) << "Can not update FrameworkInfo.principal to '"
+                   << info.principal() << "' for framework " << id()
+                   << ". Check MESOS-703";
+    }
+
+    if (source.has_webui_url()) {
+      info.set_webui_url(source.webui_url());
+    } else {
+      info.clear_webui_url();
+    }
+  }
+
+  FrameworkInfo info;
 
   process::UPID pid;
 
@@ -1148,7 +1200,7 @@ inline std::ostream& operator << (
 {
   // TODO(vinod): Also log the hostname once FrameworkInfo is properly
   // updated on framework failover (MESOS-1784).
-  return stream << framework.id << " (" << framework.info.name()
+  return stream << framework.id() << " (" << framework.info.name()
                 << ") at " << framework.pid;
 }
 
@@ -1161,12 +1213,12 @@ struct Role
 
   void addFramework(Framework* framework)
   {
-    frameworks[framework->id] = framework;
+    frameworks[framework->id()] = framework;
   }
 
   void removeFramework(Framework* framework)
   {
-    frameworks.erase(framework->id);
+    frameworks.erase(framework->id());
   }
 
   Resources resources() const

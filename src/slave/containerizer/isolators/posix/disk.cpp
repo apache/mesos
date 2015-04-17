@@ -18,6 +18,9 @@
 
 #include <signal.h>
 
+#ifdef __linux__
+#include <sys/prctl.h>
+#endif
 #include <sys/types.h>
 
 #include <deque>
@@ -353,6 +356,20 @@ private:
     Promise<Bytes> promise;
   };
 
+  // This function is invoked right before each 'du' is exec'ed. Note
+  // that this function needs to be async signal safe.
+  static int setupChild()
+  {
+#ifdef __linux__
+    // Kill the child process if the parent exits.
+    // NOTE: This function should never returns non-zero because we
+    // are passing in a valid signal.
+    return ::prctl(PR_SET_PDEATHSIG, SIGKILL);
+#else
+    return 0;
+#endif
+  }
+
   void discard(const string& path)
   {
     for (auto it = entries.begin(); it != entries.end(); ++it) {
@@ -387,10 +404,14 @@ private:
     // fs data structures, (b) disk I/O to read those structures, and
     // (c) the cpu time to traverse.
     Try<Subprocess> s = subprocess(
-        "du -k -s " + entry->path,
+        "du",
+        vector<string>({"du", "-k", "-s", entry->path}),
         Subprocess::PATH("/dev/null"),
         Subprocess::PIPE(),
-        Subprocess::PIPE());
+        Subprocess::PIPE(),
+        None(),
+        None(),
+        setupChild);
 
     if (s.isError()) {
       entry->promise.fail("Failed to exec 'du': " + s.error());

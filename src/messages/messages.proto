@@ -195,7 +195,8 @@ message ReviveOffersMessage {
 
 
 message RunTaskMessage {
-  required FrameworkID framework_id = 1;
+  // TODO(karya): Remove framework_id after MESOS-2559 has shipped.
+  optional FrameworkID framework_id = 1 [deprecated = true];
   required FrameworkInfo framework = 2;
   required string pid = 3;
   required TaskInfo task = 4;

@@ -26,7 +26,7 @@
 namespace mesos {
 namespace modules {
 
-template<>
+template <>
 inline const char* kind<mesos::Hook>()
 {
   return "Hook";
@@ -52,8 +52,7 @@ struct Module<mesos::Hook> : ModuleBase
         _authorEmail,
         _description,
         _compatible),
-      create(_create)
-  { }
+      create(_create) {}
 
   mesos::Hook* (*create)(const Parameters& parameters);
 };

@@ -115,10 +115,10 @@ public:
 
   virtual void destroy(const ContainerID& containerId);
 
-  virtual process::Future<hashset<ContainerID> > containers();
+  virtual process::Future<hashset<ContainerID>> containers();
 
 private:
-  ExternalContainerizerProcess* process;
+  process::Owned<ExternalContainerizerProcess> process;
 };
 
 
@@ -159,7 +159,7 @@ public:
   void destroy(const ContainerID& containerId);
 
   // Get all active container-id's.
-  process::Future<hashset<ContainerID> > containers();
+  process::Future<hashset<ContainerID>> containers();
 
 private:
   // Startup flags.
@@ -210,11 +210,11 @@ private:
   };
 
   // Stores all active containers.
-  hashmap<ContainerID, process::Owned<Container> > actives;
+  hashmap<ContainerID, process::Owned<Container>> actives;
 
   process::Future<Nothing> _recover(
       const Option<state::SlaveState>& state,
-      const process::Future<Option<int> >& future);
+      const process::Future<Option<int>>& future);
 
   process::Future<Nothing> __recover(
       const Option<state::SlaveState>& state,
@@ -224,7 +224,7 @@ private:
 
   process::Future<bool> _launch(
       const ContainerID& containerId,
-      const process::Future<Option<int> >& future);
+      const process::Future<Option<int>>& future);
 
   void __launch(
       const ContainerID& containerId,
@@ -236,8 +236,8 @@ private:
   void __wait(
       const ContainerID& containerId,
       const process::Future<tuples::tuple<
-          process::Future<Result<containerizer::Termination> >,
-          process::Future<Option<int> > > >& future);
+          process::Future<Result<containerizer::Termination>>,
+          process::Future<Option<int>>>>& future);
 
   process::Future<Nothing> _update(
       const ContainerID& containerId,
@@ -245,7 +245,7 @@ private:
 
   process::Future<Nothing> __update(
       const ContainerID& containerId,
-      const process::Future<Option<int> >& future);
+      const process::Future<Option<int>>& future);
 
   process::Future<ResourceStatistics> _usage(
       const ContainerID& containerId);
@@ -253,19 +253,19 @@ private:
   process::Future<ResourceStatistics> __usage(
       const ContainerID& containerId,
       const process::Future<tuples::tuple<
-          process::Future<Result<ResourceStatistics> >,
-          process::Future<Option<int> > > >& future);
+          process::Future<Result<ResourceStatistics>>,
+          process::Future<Option<int>>>>& future);
 
   void _destroy(const ContainerID& containerId);
 
   void __destroy(
       const ContainerID& containerId,
-      const process::Future<Option<int> >& future);
+      const process::Future<Option<int>>& future);
 
-  process::Future<hashset<ContainerID> > _containers(
+  process::Future<hashset<ContainerID>> _containers(
       const process::Future<tuples::tuple<
-          process::Future<Result<containerizer::Containers> >,
-          process::Future<Option<int> > > >& future);
+          process::Future<Result<containerizer::Containers>>,
+          process::Future<Option<int>>>>& future);
 
   // Abort a possibly pending "wait" in the external containerizer
   // process.
@@ -279,7 +279,7 @@ private:
   Try<process::Subprocess> invoke(
       const std::string& command,
       const Option<Sandbox>& sandbox = None(),
-      const Option<std::map<std::string, std::string> >& environment = None());
+      const Option<std::map<std::string, std::string>>& environment = None());
 
   // Invoke the external containerizer with the given command and
   // a protobuf message to be piped into its stdin.
@@ -290,7 +290,7 @@ private:
       const std::string& command,
       const google::protobuf::Message& message,
       const Option<Sandbox>& sandbox = None(),
-      const Option<std::map<std::string, std::string> >& environment = None());
+      const Option<std::map<std::string, std::string>>& environment = None());
 };
 
 

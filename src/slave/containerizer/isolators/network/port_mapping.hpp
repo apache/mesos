@@ -53,10 +53,26 @@ namespace internal {
 namespace slave {
 
 // The prefix this isolator uses for the virtual ethernet devices.
-extern const std::string VETH_PREFIX;
+// NOTE: This constant is exposed for testing.
+inline std::string PORT_MAPPING_VETH_PREFIX() { return "mesos"; }
+
 
 // The root directory where we bind mount all the namespace handles.
-extern const std::string BIND_MOUNT_ROOT;
+// We choose the directory '/var/run/netns' so that we can use
+// iproute2 suite (e.g., ip netns show/exec) to inspect or enter the
+// network namespace. This is very useful for debugging purposes.
+// NOTE: This constant is exposed for testing.
+inline std::string PORT_MAPPING_BIND_MOUNT_ROOT() { return "/var/run/netns"; }
+
+
+// The root directory where we keep all the namespace handle
+// symlinks. This is introduced in 0.23.0.
+// NOTE: This constant is exposed for testing.
+inline std::string PORT_MAPPING_BIND_MOUNT_SYMLINK_ROOT()
+{
+  return "/var/run/mesos/netns";
+}
+
 
 // Responsible for allocating ephemeral ports for the port mapping
 // network isolator. This class is exposed mainly for unit testing.
@@ -76,7 +92,7 @@ public:
   // will automatically find one port range with the given container
   // size. Returns error if the allocation cannot be fulfilled (e.g.,
   // exhausting available ephemeral ports).
-  Try<Interval<uint16_t> > allocate();
+  Try<Interval<uint16_t>> allocate();
 
   // Mark the specified ephemeral port range as allocated.
   void allocate(const Interval<uint16_t>& ports);
@@ -133,7 +149,7 @@ public:
   virtual process::Future<Nothing> recover(
       const std::list<mesos::slave::ExecutorRunState>& states);
 
-  virtual process::Future<Option<CommandInfo> > prepare(
+  virtual process::Future<Option<CommandInfo>> prepare(
       const ContainerID& containerId,
       const ExecutorInfo& executorInfo,
       const std::string& directory,
@@ -246,12 +262,12 @@ private:
       ephemeralPortsAllocator(_ephemeralPortsAllocator) {}
 
   // Continuations.
-  Try<Nothing> _cleanup(Info* info);
+  Try<Nothing> _cleanup(Info* info, const Option<ContainerID>& containerId);
   Try<Info*> _recover(pid_t pid);
 
   void _update(
       const ContainerID& containerId,
-      const process::Future<Option<int> >& status);
+      const process::Future<Option<int>>& status);
 
   process::Future<ResourceStatistics> _usage(
       const ResourceStatistics& result,
@@ -310,7 +326,7 @@ private:
 class PortMappingUpdate : public Subcommand
 {
 public:
-  static const std::string NAME;
+  static const char* NAME;
 
   struct Flags : public flags::FlagsBase
   {
@@ -340,7 +356,7 @@ protected:
 class PortMappingStatistics : public Subcommand
 {
 public:
-  static const std::string NAME;
+  static const char* NAME;
 
   struct Flags : public flags::FlagsBase
   {

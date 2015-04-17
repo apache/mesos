@@ -575,6 +575,33 @@ if test "x$CLANG" = "xno"; then
   if test "x$is_gxx47" = "xyes"; then
     AC_MSG_ERROR([Unable to build with g++-4.7 due to missing C++11 features])
   fi
+
+# CLANG=yes
+else
+
+  # Check if -Wno-unused-local-typedef is needed by checking a sample
+  # compilation which contains a local unused typedef.
+  # This is needed because Boost 1.53.0 fails to compile with upstream
+  # Clang 3.6 without -Wno-unused-local-typedef. Apple LLVM based on
+  # Clang 3.6 doesn't have the same behavior.
+  AC_LANG_PUSH([C++])
+  AC_COMPILE_IFELSE(
+  [AC_LANG_SOURCE([[
+    #pragma clang diagnostic error "-Wunused-local-typedef"
+
+    int foo()
+    {
+      typedef int return_type;
+      return 5;
+    }
+  ]])],
+  [warn_local_typedefs=no], [warn_local_typedefs=yes])
+  AC_LANG_POP([C++])
+
+  if test "x$warn_local_typedefs" = "xyes"; then
+    AC_MSG_NOTICE([Disabling warnings about unused local typedefs])
+    CXXFLAGS="${CXXFLAGS} -Wno-unused-local-typedef"
+  fi
 fi
 
 
@@ -708,7 +735,7 @@ libsubversion-1 is required for mesos to build.
 ])])
 
 
-# Check if Sasl2  prefix path was provided, and if so, add it to
+# Check if Sasl2 prefix path was provided, and if so, add it to
 # the CPPFLAGS and LDFLAGS with respective /include and /lib path
 # suffixes.
 if test -n "`echo $with_sasl`" ; then
@@ -716,15 +743,72 @@ if test -n "`echo $with_sasl`" ; then
     LDFLAGS="-L${with_sasl}/lib $LDFLAGS"
 fi
 
-# TODO(benh): Also check for md5 support so we can use the CRAM-MD5
-# mechanism. We can likely do a AC_CHECK_LIB looking for a particular
-# function only provided if md5 support is present.
 AC_CHECK_LIB([sasl2], [sasl_done], [],
              [AC_MSG_ERROR([cannot find libsasl2
 -------------------------------------------------------------------
 We need libsasl2 for authentication!
 -------------------------------------------------------------------
 ])])
+
+AC_MSG_CHECKING([SASL CRAM-MD5 support])
+
+# Render a test binary for checking if the SASL client supports CRAM-MD5.
+cat <<__EOF__ >crammd5_installed.c [
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+
+#include <sasl/sasl.h>
+#include <sasl/saslplug.h>
+#include <sasl/saslutil.h>
+
+static void search_crammd5(
+  client_sasl_mechanism_t *m,
+  sasl_info_callback_stage_t stage,
+  void *rock)
+{
+  if (stage == SASL_INFO_LIST_START || stage == SASL_INFO_LIST_END) {
+    return;
+  }
+  if (m->plug != NULL) {
+    if (!strcmp("CRAM-MD5", m->plug->mech_name)) {
+      printf("found");
+    }
+  }
+}
+
+int main(int argc, char** argv)
+{
+  int result = sasl_client_init(NULL);
+  if (result != SASL_OK) {
+    return 1;
+  }
+  sasl_client_plugin_info(NULL, &search_crammd5, NULL);
+  return 0;
+}]
+__EOF__
+
+# Build the SASL client check test binary. Prevent the use of possibly
+# activated debug symbols in executables (cc -g) as those cause a
+# distcheck failure on OSX by leaking build artefacts (.dsym).
+AS_IF([test "x${ac_cv_env_CFLAGS_set}" = "x"],
+      [SASL_TEST_CFLAGS=""], [SASL_TEST_CFLAGS=$CFLAGS])
+$CC crammd5_installed.c $CPPFLAGS $SASL_TEST_CFLAGS $LDFLAGS -lsasl2  \
+  -o crammd5_installed 2>&1 >/dev/null
+
+# Run the test binary and get its output.
+crammd5test=`./crammd5_installed 2>&1`
+
+# Clean up all leftovers from this test.
+rm -f crammd5_installed.c crammd5_installed
+
+AS_IF([test "x$crammd5test" = "xfound"],
+      [AC_MSG_RESULT([yes])],
+      [AC_MSG_ERROR([no
+-------------------------------------------------------------------
+We need CRAM-MD5 support for SASL authentication.
+-------------------------------------------------------------------])])
+
 
 # Perform necessary configuration for network isolator.
 if test "x$with_network_isolator" = "xyes"; then
@@ -1317,6 +1401,20 @@ AM_CONDITIONAL([WITHOUT_PYTHON_DEPS],
     [test "x$without_python_deps" = "xyes"])
 
 AM_CONDITIONAL([GIT_REPO], [test -d ${srcdir}"/.git"])
+
+
+# Provide more granular version numbers based on the version string,
+# using the format MAJOR.MINOR.PATCH[-SUFFIX], where SUFFIX can itself
+# contain dashes.
+#
+# NOTE: This definition must not be named such that it conflicts with
+# existing definitions, e.g., 'version', 'ver'.
+m4_define([major_minor_patch],
+          m4_split(m4_translit(AC_PACKAGE_VERSION, [-], [.]), [\.]))
+
+AC_SUBST(MESOS_MAJOR_VERSION, m4_car(major_minor_patch))
+AC_SUBST(MESOS_MINOR_VERSION, m4_car(m4_shift(major_minor_patch)))
+AC_SUBST(MESOS_PATCH_VERSION, m4_car(m4_shift2(major_minor_patch)))
 
 
 AC_OUTPUT

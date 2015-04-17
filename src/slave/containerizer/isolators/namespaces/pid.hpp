@@ -59,7 +59,7 @@ public:
   virtual process::Future<Nothing> recover(
       const std::list<mesos::slave::ExecutorRunState>& states);
 
-  virtual process::Future<Option<CommandInfo> > prepare(
+  virtual process::Future<Option<CommandInfo>> prepare(
       const ContainerID& containerId,
       const ExecutorInfo& executorInfo,
       const std::string& directory,

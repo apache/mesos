@@ -24,6 +24,17 @@ namespace os {
 
 namespace signals {
 
+// Installs the given signal handler.
+inline int install(int signal, void(*handler)(int))
+{
+  struct sigaction action;
+  memset(&action, 0, sizeof(action));
+  sigemptyset(&action.sa_mask);
+  action.sa_handler = handler;
+  return sigaction(signal, &action, NULL);
+}
+
+
 // Resets the signal handler to the default handler of the signal.
 inline int reset(int signal)
 {

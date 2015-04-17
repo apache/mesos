@@ -30,7 +30,6 @@
 #include <process/future.hpp>
 #include <process/gmock.hpp>
 #include <process/http.hpp>
-#include <process/owned.hpp>
 #include <process/pid.hpp>
 
 #include <process/metrics/counter.hpp>
@@ -43,6 +42,8 @@
 #include <stout/os.hpp>
 #include <stout/strings.hpp>
 #include <stout/try.hpp>
+
+#include "common/build.hpp"
 
 #include "master/flags.hpp"
 #include "master/master.hpp"
@@ -74,10 +75,8 @@ using mesos::internal::slave::MesosContainerizerProcess;
 
 using process::Clock;
 using process::Future;
-using process::Owned;
 using process::PID;
 using process::Promise;
-using process::UPID;
 
 using std::string;
 using std::vector;
@@ -93,6 +92,8 @@ using testing::SaveArg;
 namespace mesos {
 namespace internal {
 namespace tests {
+
+namespace http = process::http;
 
 // Those of the overall Mesos master/slave/scheduler/driver tests
 // that seem vaguely more master than slave-related are in this file.
@@ -271,8 +272,7 @@ TEST_F(MasterTest, ShutdownFrameworkWhileTaskRunning)
   Clock::resume();
 
   // Request master state.
-  Future<process::http::Response> response =
-    process::http::get(master.get(), "state.json");
+  Future<http::Response> response = http::get(master.get(), "state.json");
   AWAIT_READY(response);
 
   // These checks are not essential for the test, but may help
@@ -456,9 +456,8 @@ TEST_F(MasterTest, KillUnknownTaskSlaveInTransition)
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
 
-  // Start a checkpointing slave.
+  // Reuse slaveFlags so both StartSlave() use the same work_dir.
   slave::Flags slaveFlags = CreateSlaveFlags();
-  slaveFlags.checkpoint = true;
 
   Try<PID<Slave> > slave = StartSlave(&exec, slaveFlags);
   ASSERT_SOME(slave);
@@ -1301,7 +1300,6 @@ TEST_F(MasterTest, LaunchAcrossSlavesTest)
   Resources twoSlaves = fullSlave + fullSlave;
 
   slave::Flags flags = CreateSlaveFlags();
-
   flags.resources = Option<string>(stringify(fullSlave));
 
   Try<PID<Slave> > slave1 = StartSlave(&containerizer, flags);
@@ -1331,7 +1329,11 @@ TEST_F(MasterTest, LaunchAcrossSlavesTest)
     .WillOnce(FutureArg<1>(&offers2))
     .WillRepeatedly(Return()); // Ignore subsequent offers.
 
-  Try<PID<Slave> > slave2 = StartSlave(&containerizer, flags);
+  // Create new Flags as we require another work_dir for checkpoints.
+  slave::Flags flags2 = CreateSlaveFlags();
+  flags2.resources = Option<string>(stringify(fullSlave));
+
+  Try<PID<Slave>> slave2 = StartSlave(&containerizer, flags2);
   ASSERT_SOME(slave2);
 
   AWAIT_READY(offers2);
@@ -1594,8 +1596,7 @@ TEST_F(MasterTest, SlavesEndpointWithoutSlaves)
   ASSERT_SOME(master);
 
   // Query the master.
-  const Future<process::http::Response> response =
-    process::http::get(master.get(), "slaves");
+  Future<http::Response> response = http::get(master.get(), "slaves");
 
   AWAIT_READY(response);
 
@@ -1643,8 +1644,7 @@ TEST_F(MasterTest, SlavesEndpointTwoSlaves)
   AWAIT_READY(slave2RegisteredMessage);
 
   // Query the master.
-  const Future<process::http::Response> response =
-    process::http::get(master.get(), "slaves");
+  Future<http::Response> response = http::get(master.get(), "slaves");
 
   AWAIT_READY(response);
 
@@ -1681,12 +1681,8 @@ TEST_F(MasterTest, RecoveredSlaveDoesNotReregister)
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
     FUTURE_PROTOBUF(SlaveRegisteredMessage(), master.get(), _);
 
+  // Reuse slaveFlags so both StartSlave() use the same work_dir.
   slave::Flags slaveFlags = this->CreateSlaveFlags();
-
-  // Setup recovery slave flags.
-  slaveFlags.checkpoint = true;
-  slaveFlags.recover = "reconnect";
-  slaveFlags.strict = true;
 
   Try<PID<Slave> > slave = StartSlave(slaveFlags);
   ASSERT_SOME(slave);
@@ -1761,12 +1757,8 @@ TEST_F(MasterTest, NonStrictRegistryWriteOnly)
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
     FUTURE_PROTOBUF(SlaveRegisteredMessage(), master.get(), _);
 
+  // Reuse slaveFlags so both StartSlave() use the same work_dir.
   slave::Flags slaveFlags = this->CreateSlaveFlags();
-
-  // Setup recovery slave flags.
-  slaveFlags.checkpoint = true;
-  slaveFlags.recover = "reconnect";
-  slaveFlags.strict = true;
 
   Try<PID<Slave> > slave = StartSlave(slaveFlags);
   ASSERT_SOME(slave);
@@ -1916,11 +1908,9 @@ TEST_F(MasterTest, CancelRecoveredSlaveRemoval)
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
     FUTURE_PROTOBUF(SlaveRegisteredMessage(), master.get(), _);
 
-  // Start a slave with checkpointing.
+  // Reuse slaveFlags so both StartSlave() use the same work_dir.
   slave::Flags slaveFlags = CreateSlaveFlags();
-  slaveFlags.checkpoint = true;
-  slaveFlags.recover = "reconnect";
-  slaveFlags.strict = true;
+
   Try<PID<Slave> > slave = StartSlave(slaveFlags);
   ASSERT_SOME(slave);
 
@@ -2011,12 +2001,8 @@ TEST_F(MasterTest, RecoveredSlaveReregisters)
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
     FUTURE_PROTOBUF(SlaveRegisteredMessage(), master.get(), _);
 
+  // Reuse slaveFlags so both StartSlave() use the same work_dir.
   slave::Flags slaveFlags = this->CreateSlaveFlags();
-
-  // Setup recovery slave flags.
-  slaveFlags.checkpoint = true;
-  slaveFlags.recover = "reconnect";
-  slaveFlags.strict = true;
 
   Try<PID<Slave> > slave = StartSlave(slaveFlags);
   ASSERT_SOME(slave);
@@ -2204,8 +2190,7 @@ TEST_F(MasterTest, OrphanTasks)
   EXPECT_EQ(TASK_RUNNING, status.get().state());
 
   // Get the master's state.
-  Future<process::http::Response> response =
-    process::http::get(master.get(), "state.json");
+  Future<http::Response> response = http::get(master.get(), "state.json");
   AWAIT_READY(response);
 
   EXPECT_SOME_EQ(
@@ -2270,7 +2255,7 @@ TEST_F(MasterTest, OrphanTasks)
   AWAIT_READY(reregisterFrameworkMessage);
 
   // Get the master's state.
-  response = process::http::get(master.get(), "state.json");
+  response = http::get(master.get(), "state.json");
   AWAIT_READY(response);
 
   EXPECT_SOME_EQ(
@@ -2302,7 +2287,7 @@ TEST_F(MasterTest, OrphanTasks)
   AWAIT_READY(frameworkRegisteredMessage);
 
   // Get the master's state.
-  response = process::http::get(master.get(), "state.json");
+  response = http::get(master.get(), "state.json");
   AWAIT_READY(response);
 
   EXPECT_SOME_EQ(
@@ -2755,6 +2740,93 @@ TEST_F(MasterTest, ReleaseResourcesForTerminalTaskWithPendingUpdates)
 }
 
 
+TEST_F(MasterTest, StateEndpoint)
+{
+  master::Flags flags = CreateMasterFlags();
+
+  flags.hostname = "localhost";
+  flags.cluster = "test-cluster";
+
+  // Capture the start time deterministically.
+  Clock::pause();
+
+  Try<PID<Master>> master = StartMaster(flags);
+  ASSERT_SOME(master);
+
+  Future<http::Response> response = http::get(master.get(), "state.json");
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::OK().status, response);
+
+  EXPECT_SOME_EQ(
+      "application/json",
+      response.get().headers.get("Content-Type"));
+
+  Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+  ASSERT_SOME(parse);
+
+  JSON::Object state = parse.get();
+
+  EXPECT_EQ(MESOS_VERSION, state.values["version"]);
+
+  if (build::GIT_SHA.isSome()) {
+    EXPECT_EQ(build::GIT_SHA.get(), state.values["git_sha"]);
+  }
+
+  if (build::GIT_BRANCH.isSome()) {
+    EXPECT_EQ(build::GIT_BRANCH.get(), state.values["git_branch"]);
+  }
+
+  if (build::GIT_TAG.isSome()) {
+    EXPECT_EQ(build::GIT_TAG.get(), state.values["git_tag"]);
+  }
+
+  EXPECT_EQ(build::DATE, state.values["build_date"]);
+  EXPECT_EQ(build::TIME, state.values["build_time"]);
+  EXPECT_EQ(build::USER, state.values["build_user"]);
+
+  ASSERT_TRUE(state.values["start_time"].is<JSON::Number>());
+  EXPECT_EQ(
+      static_cast<int>(Clock::now().secs()),
+      static_cast<int>(state.values["start_time"].as<JSON::Number>().value));
+
+  ASSERT_TRUE(state.values["id"].is<JSON::String>());
+  EXPECT_NE("", state.values["id"].as<JSON::String>().value);
+
+  EXPECT_EQ(stringify(master.get()), state.values["pid"]);
+  EXPECT_EQ(flags.hostname.get(), state.values["hostname"]);
+
+  EXPECT_EQ(0, state.values["activated_slaves"]);
+  EXPECT_EQ(0, state.values["deactivated_slaves"]);
+
+  EXPECT_EQ(flags.cluster.get(), state.values["cluster"]);
+
+  // TODO(bmahler): Test "leader", "log_dir", "external_log_file".
+
+  // TODO(bmahler): Ensure this contains all the flags.
+  ASSERT_TRUE(state.values["flags"].is<JSON::Object>());
+  EXPECT_FALSE(state.values["flags"].as<JSON::Object>().values.empty());
+
+  ASSERT_TRUE(state.values["slaves"].is<JSON::Array>());
+  EXPECT_TRUE(state.values["slaves"].as<JSON::Array>().values.empty());
+
+  ASSERT_TRUE(state.values["orphan_tasks"].is<JSON::Array>());
+  EXPECT_TRUE(state.values["orphan_tasks"].as<JSON::Array>().values.empty());
+
+  ASSERT_TRUE(state.values["frameworks"].is<JSON::Array>());
+  EXPECT_TRUE(state.values["frameworks"].as<JSON::Array>().values.empty());
+
+  ASSERT_TRUE(
+      state.values["completed_frameworks"].is<JSON::Array>());
+  EXPECT_TRUE(
+      state.values["completed_frameworks"].as<JSON::Array>().values.empty());
+
+  ASSERT_TRUE(
+      state.values["unregistered_frameworks"].is<JSON::Array>());
+  EXPECT_TRUE(
+      state.values["unregistered_frameworks"].as<JSON::Array>().values.empty());
+}
+
+
 // This test ensures that the web UI of a framework is included in the
 // state.json endpoint, if provided by the framework.
 TEST_F(MasterTest, FrameworkWebUIUrl)
@@ -2777,9 +2849,8 @@ TEST_F(MasterTest, FrameworkWebUIUrl)
 
   AWAIT_READY(registered);
 
-  Future<process::http::Response> masterState =
-    process::http::get(master.get(), "state.json");
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(process::http::OK().status, masterState);
+  Future<http::Response> masterState = http::get(master.get(), "state.json");
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::OK().status, masterState);
 
   Try<JSON::Object> masterStateObject =
     JSON::parse<JSON::Object>(masterState.get().body);
@@ -2888,8 +2959,7 @@ TEST_F(MasterTest, TaskLabels)
   AWAIT_READY(update);
 
   // Verify label key and value in master state.json.
-  Future<process::http::Response> response =
-    process::http::get(master.get(), "state.json");
+  Future<http::Response> response = http::get(master.get(), "state.json");
   AWAIT_READY(response);
 
   EXPECT_SOME_EQ(
@@ -2960,17 +3030,13 @@ TEST_F(MasterTest, SlaveActiveEndpoint)
   Future<process::Message> slaveRegisteredMessage =
     FUTURE_MESSAGE(Eq(SlaveRegisteredMessage().GetTypeName()), _, _);
 
-  // Start a checkpointing slave.
-  slave::Flags flags = CreateSlaveFlags();
-  flags.checkpoint = true;
-  Try<PID<Slave>> slave = StartSlave(flags);
+  Try<PID<Slave>> slave = StartSlave();
   ASSERT_SOME(slave);
 
   AWAIT_READY(slaveRegisteredMessage);
 
   // Verify slave is active.
-  Future<process::http::Response> response =
-    process::http::get(master.get(), "state.json");
+  Future<http::Response> response = http::get(master.get(), "state.json");
   AWAIT_READY(response);
 
   Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
@@ -2992,7 +3058,7 @@ TEST_F(MasterTest, SlaveActiveEndpoint)
   AWAIT_READY(deactivateSlave);
 
   // Verify slave is inactive.
-  response = process::http::get(master.get(), "state.json");
+  response = http::get(master.get(), "state.json");
   AWAIT_READY(response);
 
   parse = JSON::parse<JSON::Object>(response.get().body);
@@ -3097,8 +3163,7 @@ TEST_F(MasterTest, TaskDiscoveryInfo)
   AWAIT_READY(update);
 
   // Verify label key and value in master state.json.
-  Future<process::http::Response> response =
-    process::http::get(master.get(), "state.json");
+  Future<http::Response> response = http::get(master.get(), "state.json");
   AWAIT_READY(response);
 
   EXPECT_SOME_EQ(
@@ -3194,6 +3259,124 @@ TEST_F(MasterTest, TaskDiscoveryInfo)
       "}");
   ASSERT_SOME(expected);
   EXPECT_EQ(expected.get(), labelsArray_.values[1]);
+
+  EXPECT_CALL(exec, shutdown(_))
+    .Times(AtMost(1));
+
+  driver.stop();
+  driver.join();
+
+  Shutdown(); // Must shutdown before 'containerizer' gets deallocated.
+}
+
+
+// Test verifies that a long lived executor works after master
+// fail-over. The test launches a task, restarts the master and
+// launches another task using the same executor.
+TEST_F(MasterTest, MasterFailoverLongLivedExecutor)
+{
+  // Start master and create detector to inform scheduler and slave
+  // about newly elected master.
+  Try<PID<Master>> master = StartMaster();
+  ASSERT_SOME(master);
+  StandaloneMasterDetector detector (master.get());
+
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+
+  TestContainerizer containerizer(&exec);
+
+  // Compute half of total available resources in order to launch two
+  // tasks on the same executor (and thus slave).
+  Resources halfSlave = Resources::parse("cpus:1;mem:512").get();
+  Resources fullSlave = halfSlave + halfSlave;
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.resources = Option<string>(stringify(fullSlave));
+
+  Try<PID<Slave>> slave = StartSlave(&containerizer, &detector, flags);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  TestingMesosSchedulerDriver driver(&sched, &detector);
+
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .Times(2);
+
+  EXPECT_CALL(sched, disconnected(&driver));
+
+  Future<vector<Offer>> offers1;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers1))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers1);
+  EXPECT_NE(0u, offers1.get().size());
+
+  TaskInfo task1;
+  task1.set_name("");
+  task1.mutable_task_id()->set_value("1");
+  task1.mutable_slave_id()->MergeFrom(offers1.get()[0].slave_id());
+  task1.mutable_resources()->MergeFrom(halfSlave);
+  task1.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
+
+  vector<TaskInfo> tasks1;
+  tasks1.push_back(task1);
+
+  EXPECT_CALL(exec, registered(_, _, _, _));
+
+  // Expect two tasks to eventually be running on the executor.
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING))
+    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
+
+  Future<TaskStatus> status1;
+  EXPECT_CALL(sched, statusUpdate(&driver, TaskStatusEq(task1)))
+    .WillOnce(FutureArg<1>(&status1))
+    .WillRepeatedly(Return());
+
+  driver.launchTasks(offers1.get()[0].id(), tasks1);
+
+  AWAIT_READY(status1);
+  EXPECT_EQ(TASK_RUNNING, status1.get().state());
+
+  // Fail over master.
+  Stop(master.get());
+
+  master = StartMaster();
+  ASSERT_SOME(master);
+
+  // Subsequent offers have been ignored until now, set an expectation
+  // to get offers from the failed over master.
+  Future<vector<Offer>> offers2;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers2))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  detector.appoint(master.get());
+
+  AWAIT_READY(offers2);
+  EXPECT_NE(0u, offers2.get().size());
+
+  // The second task is a just a copy of the first task (using the
+  // same executor and resources). We have to set a new task id.
+  TaskInfo task2 = task1;
+  task2.mutable_task_id()->set_value("2");
+
+  vector<TaskInfo> tasks2;
+  tasks2.push_back(task2);
+
+  Future<TaskStatus> status2;
+  EXPECT_CALL(sched, statusUpdate(&driver, TaskStatusEq(task2)))
+    .WillOnce(FutureArg<1>(&status2))
+    .WillRepeatedly(Return());
+
+  // Start the second task with the new master on the running executor.
+  driver.launchTasks(offers2.get()[0].id(), tasks2);
+
+  AWAIT_READY(status2);
+  EXPECT_EQ(TASK_RUNNING, status2.get().state());
 
   EXPECT_CALL(exec, shutdown(_))
     .Times(AtMost(1));

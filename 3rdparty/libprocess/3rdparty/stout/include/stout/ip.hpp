@@ -38,6 +38,7 @@
 #include <string>
 
 #include "abort.hpp"
+#include "bits.hpp"
 #include "error.hpp"
 #include "none.hpp"
 #include "numify.hpp"
@@ -277,7 +278,17 @@ public:
   // Returns error if the prefix is not valid.
   static Try<IPNetwork> create(const IP& address, int prefix);
 
+  // Returns the first available IP network of a given link device.
+  // The link device is specified using its name (e.g., eth0). Returns
+  // error if the link device is not found. Returns none if the link
+  // device is found, but does not have an IP network.
+  // TODO(jieyu): It is uncommon, but likely that a link device has
+  // multiple IP networks. In that case, consider returning the
+  // primary IP network instead of the first one.
+  static Result<IPNetwork> fromLinkDevice(const std::string& name, int family);
+
   IP address() const { return address_; }
+
   IP netmask() const { return netmask_; }
 
   // Returns the prefix of the subnet defined by the IP netmask.
@@ -285,15 +296,7 @@ public:
   {
     switch (netmask_.family()) {
       case AF_INET: {
-        uint32_t mask = ntohl(netmask_.in().get().s_addr);
-        int value = 0;
-
-        while (mask != 0) {
-          value += mask & 1;
-          mask >>= 1;
-        }
-
-        return value;
+        return bits::countSetBits(ntohl(netmask_.in().get().s_addr));
       }
       default: {
         UNREACHABLE();
@@ -398,14 +401,9 @@ inline Try<IPNetwork> IPNetwork::create(const IP& address, int prefix)
 }
 
 
-// Returns the first available IP network of a given link device. The
-// link device is specified using its name (e.g., eth0). Returns error
-// if the link device is not found. Returns none if the link device is
-// found, but does not have an IP network.
-// TODO(jieyu): It is uncommon, but likely that a link device has
-// multiple IP networks. In that case, consider returning the primary
-// IP network instead of the first one.
-inline Result<IPNetwork> fromLinkDevice(const std::string& name, int family)
+inline Result<IPNetwork> IPNetwork::fromLinkDevice(
+    const std::string& name,
+    int family)
 {
 #if !defined(__linux__) && !defined(__APPLE__)
   return Error("Not implemented");

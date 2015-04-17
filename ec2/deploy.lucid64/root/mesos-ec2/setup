@@ -63,11 +63,11 @@ echo "Running setup-slave on master to mount filesystems, etc..."
 echo "SSH'ing to master machine(s) to approve key(s)..."
 for master in $MASTERS; do
   echo $master
-  ssh $SSH_OPTS $master echo -n &
+  ssh $SSH_OPTS $master true &
   sleep 0.3
 done
-ssh $SSH_OPTS localhost echo -n &
-ssh $SSH_OPTS `hostname` echo -n &
+ssh $SSH_OPTS localhost true &
+ssh $SSH_OPTS `hostname` true &
 wait
 
 if [[ $NUM_ZOOS != 0 ]] ; then
@@ -75,7 +75,7 @@ if [[ $NUM_ZOOS != 0 ]] ; then
   zid=1
   for zoo in $ZOO; do
     echo $zoo
-    ssh $SSH_OPTS $zoo echo -n \; mkdir -p /tmp/zookeeper \; echo $zid \> /tmp/zookeeper/myid &
+    ssh $SSH_OPTS $zoo true \; mkdir -p /tmp/zookeeper \; echo $zid \> /tmp/zookeeper/myid &
     zid=$(($zid+1))
     sleep 0.3
   done
@@ -90,7 +90,7 @@ while [ "e$TODO" != "e" ] && [ $TRIES -lt 4 ] ; do
   NEW_TODO=
   for slave in $TODO; do
     echo $slave
-    ssh $SSH_OPTS $slave echo -n
+    ssh $SSH_OPTS $slave true
     if [ $? != 0 ] ; then
         NEW_TODO="$NEW_TODO $slave"
     fi

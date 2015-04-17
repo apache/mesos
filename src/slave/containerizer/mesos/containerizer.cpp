@@ -131,7 +131,7 @@ Try<MesosContainerizer*> MesosContainerizer::create(
 
   vector<Owned<Isolator>> isolators;
 
-  foreach (const string& type, strings::split(isolation, ",")) {
+  foreach (const string& type, strings::tokenize(isolation, ",")) {
     if (creators.contains(type)) {
       Try<Isolator*> isolator = creators[type](flags_);
       if (isolator.isError()) {

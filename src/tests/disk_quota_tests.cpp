@@ -413,7 +413,6 @@ TEST_F(DiskQuotaTest, SlaveRecovery)
   ASSERT_SOME(master);
 
   slave::Flags flags = CreateSlaveFlags();
-  flags.checkpoint = true;
   flags.isolation = "posix/cpu,posix/mem,posix/disk";
   flags.container_disk_watch_interval = Milliseconds(1);
 

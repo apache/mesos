@@ -28,19 +28,19 @@
 #include <process/future.hpp>
 #include <process/pid.hpp>
 
+#include <stout/nothing.hpp>
 #include <stout/option.hpp>
 
 namespace mesos {
 
-// Note that this interface definition is not hardened yet and will
-// slightly change within the next release. See MESOS-2050.
 class Authenticator
 {
 public:
   Authenticator() {}
+
   virtual ~Authenticator() {}
 
-  virtual void initialize(const process::UPID& clientPid) = 0;
+  virtual Try<Nothing> initialize(const Option<Credentials>& credentials) = 0;
 
   // Returns the principal of the Authenticatee if successfully
   // authenticated otherwise None or an error. Note that we
@@ -50,7 +50,8 @@ public:
   // will cause the future to fail if it hasn't already completed
   // since we have already started the authentication procedure and
   // can't reliably cancel.
-  virtual process::Future<Option<std::string>> authenticate(void) = 0;
+  virtual process::Future<Option<std::string>> authenticate(
+      const process::UPID& pid) = 0;
 };
 
 } // namespace mesos {

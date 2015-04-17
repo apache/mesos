@@ -38,10 +38,19 @@ using testing::EndsWith;
 using testing::Invoke;
 using testing::Return;
 
+
 class HttpProcess : public Process<HttpProcess>
 {
 public:
-  HttpProcess()
+  HttpProcess() {}
+
+  MOCK_METHOD1(body, Future<http::Response>(const http::Request&));
+  MOCK_METHOD1(pipe, Future<http::Response>(const http::Request&));
+  MOCK_METHOD1(get, Future<http::Response>(const http::Request&));
+  MOCK_METHOD1(post, Future<http::Response>(const http::Request&));
+
+protected:
+  virtual void initialize()
   {
     route("/auth", None(), &HttpProcess::auth);
     route("/body", None(), &HttpProcess::body);
@@ -59,24 +68,33 @@ public:
     }
     return http::OK();
   }
+};
 
-  MOCK_METHOD1(body, Future<http::Response>(const http::Request&));
-  MOCK_METHOD1(pipe, Future<http::Response>(const http::Request&));
-  MOCK_METHOD1(get, Future<http::Response>(const http::Request&));
-  MOCK_METHOD1(post, Future<http::Response>(const http::Request&));
+
+class Http
+{
+public:
+  Http() : process(new HttpProcess())
+  {
+    spawn(process.get());
+  }
+
+  ~Http()
+  {
+    terminate(process.get());
+    wait(process.get());
+  }
+
+  Owned<HttpProcess> process;
 };
 
 
 TEST(HTTP, auth)
 {
-  ASSERT_TRUE(GTEST_IS_THREADSAFE);
-
-  HttpProcess process;
-
-  spawn(process);
+  Http http;
 
   // Test the case where there is no auth.
-  Future<http::Response> noAuthFuture = http::get(process.self(), "auth");
+  Future<http::Response> noAuthFuture = http::get(http.process->self(), "auth");
 
   AWAIT_READY(noAuthFuture);
   EXPECT_EQ(http::statuses[401], noAuthFuture.get().status);
@@ -88,7 +106,7 @@ TEST(HTTP, auth)
   headers["Authorization"] = "Basic " + base64::encode("testuser:wrongpass");
 
   Future<http::Response> wrongAuthFuture =
-    http::get(process.self(), "auth", None(), headers);
+    http::get(http.process->self(), "auth", None(), headers);
 
   AWAIT_READY(wrongAuthFuture);
   EXPECT_EQ(http::statuses[401], wrongAuthFuture.get().status);
@@ -99,23 +117,16 @@ TEST(HTTP, auth)
   headers["Authorization"] = "Basic " + base64::encode("testuser:testpass");
 
   Future<http::Response> rightAuthFuture =
-    http::get(process.self(), "auth", None(), headers);
+    http::get(http.process->self(), "auth", None(), headers);
 
   AWAIT_READY(rightAuthFuture);
   EXPECT_EQ(http::statuses[200], rightAuthFuture.get().status);
-
-  terminate(process);
-  wait(process);
 }
 
 
 TEST(HTTP, Endpoints)
 {
-  ASSERT_TRUE(GTEST_IS_THREADSAFE);
-
-  HttpProcess process;
-
-  spawn(process);
+  Http http;
 
   // First hit '/body' (using explicit sockets and HTTP/1.0).
   Try<Socket> create = Socket::create();
@@ -123,17 +134,17 @@ TEST(HTTP, Endpoints)
 
   Socket socket = create.get();
 
-  AWAIT_READY(socket.connect(process.self().address));
+  AWAIT_READY(socket.connect(http.process->self().address));
 
   std::ostringstream out;
-  out << "GET /" << process.self().id << "/body"
+  out << "GET /" << http.process->self().id << "/body"
       << " HTTP/1.0\r\n"
       << "Connection: Keep-Alive\r\n"
       << "\r\n";
 
   const string& data = out.str();
 
-  EXPECT_CALL(process, body(_))
+  EXPECT_CALL(*http.process, body(_))
     .WillOnce(Return(http::OK()));
 
   AWAIT_READY(socket.send(data));
@@ -143,32 +154,145 @@ TEST(HTTP, Endpoints)
   AWAIT_EXPECT_EQ(response, socket.recv(response.size()));
 
   // Now hit '/pipe' (by using http::get).
-  int pipes[2];
-  ASSERT_NE(-1, ::pipe(pipes));
-
+  http::Pipe pipe;
   http::OK ok;
   ok.type = http::Response::PIPE;
-  ok.pipe = pipes[0];
+  ok.reader = pipe.reader();
 
-  Future<Nothing> pipe;
-  EXPECT_CALL(process, pipe(_))
-    .WillOnce(DoAll(FutureSatisfy(&pipe),
+  Future<Nothing> request;
+  EXPECT_CALL(*http.process, pipe(_))
+    .WillOnce(DoAll(FutureSatisfy(&request),
                     Return(ok)));
 
-  Future<http::Response> future = http::get(process.self(), "pipe");
+  Future<http::Response> future = http::get(http.process->self(), "pipe");
 
-  AWAIT_READY(pipe);
+  AWAIT_READY(request);
 
-  ASSERT_SOME(os::write(pipes[1], "Hello World\n"));
-  ASSERT_SOME(os::close(pipes[1]));
+  // Write the response.
+  http::Pipe::Writer writer = pipe.writer();
+  EXPECT_TRUE(writer.write("Hello World\n"));
+  EXPECT_TRUE(writer.close());
 
   AWAIT_READY(future);
   EXPECT_EQ(http::statuses[200], future.get().status);
   EXPECT_SOME_EQ("chunked", future.get().headers.get("Transfer-Encoding"));
   EXPECT_EQ("Hello World\n", future.get().body);
+}
 
-  terminate(process);
-  wait(process);
+
+TEST(HTTP, PipeEOF)
+{
+  http::Pipe pipe;
+  http::Pipe::Reader reader = pipe.reader();
+  http::Pipe::Writer writer = pipe.writer();
+
+  // A 'read' on an empty pipe should block.
+  Future<string> read = reader.read();
+  EXPECT_TRUE(read.isPending());
+
+  // Writing an empty string should have no effect.
+  EXPECT_TRUE(writer.write(""));
+  EXPECT_TRUE(read.isPending());
+
+  // After a 'write' the pending 'read' should complete.
+  EXPECT_TRUE(writer.write("hello"));
+  ASSERT_TRUE(read.isReady());
+  EXPECT_EQ("hello", read.get());
+
+  // After a 'write' a call to 'read' should be completed immediately.
+  ASSERT_TRUE(writer.write("world"));
+
+  read = reader.read();
+  ASSERT_TRUE(read.isReady());
+  EXPECT_EQ("world", read.get());
+
+  // Close the write end of the pipe and ensure the remaining
+  // data can be read.
+  EXPECT_TRUE(writer.write("!"));
+  EXPECT_TRUE(writer.close());
+  AWAIT_EQ("!", reader.read());
+
+  // End of file should be reached.
+  AWAIT_EQ("", reader.read());
+  AWAIT_EQ("", reader.read());
+
+  // Writes to a pipe with the write end closed are ignored.
+  EXPECT_FALSE(writer.write("!"));
+  AWAIT_EQ("", reader.read());
+
+  // The write end cannot be closed twice.
+  EXPECT_FALSE(writer.close());
+
+  // Close the read end, this should not notify the writer
+  // since the write end was already closed.
+  EXPECT_TRUE(reader.close());
+  EXPECT_TRUE(writer.readerClosed().isPending());
+}
+
+
+TEST(HTTP, PipeFailure)
+{
+  http::Pipe pipe;
+  http::Pipe::Reader reader = pipe.reader();
+  http::Pipe::Writer writer = pipe.writer();
+
+  // Fail the writer after writing some data.
+  EXPECT_TRUE(writer.write("hello"));
+  EXPECT_TRUE(writer.write("world"));
+
+  EXPECT_TRUE(writer.fail("disconnected!"));
+
+  // The reader should read the data, followed by the failure.
+  AWAIT_EQ("hello", reader.read());
+  AWAIT_EQ("world", reader.read());
+
+  Future<string> read = reader.read();
+  EXPECT_TRUE(read.isFailed());
+  EXPECT_EQ("disconnected!", read.failure());
+
+  // The writer cannot close or fail an already failed pipe.
+  EXPECT_FALSE(writer.close());
+  EXPECT_FALSE(writer.fail("not again"));
+
+  // The writer shouldn't be notified of the reader closing,
+  // since the writer had already failed.
+  EXPECT_TRUE(reader.close());
+  EXPECT_TRUE(writer.readerClosed().isPending());
+}
+
+
+
+TEST(HTTP, PipeReaderCloses)
+{
+  http::Pipe pipe;
+  http::Pipe::Reader reader = pipe.reader();
+  http::Pipe::Writer writer = pipe.writer();
+
+  // If the read end of the pipe is closed,
+  // it should discard any unread data.
+  EXPECT_TRUE(writer.write("hello"));
+  EXPECT_TRUE(writer.write("world"));
+
+  // The writer should discover the closure.
+  Future<Nothing> closed = writer.readerClosed();
+  EXPECT_TRUE(reader.close());
+  EXPECT_TRUE(closed.isReady());
+
+  // The read end is closed, subsequent reads will fail.
+  AWAIT_FAILED(reader.read());
+
+  // The read end is closed, writes are ignored.
+  EXPECT_FALSE(writer.write("!"));
+  AWAIT_FAILED(reader.read());
+
+  // The read end cannot be closed twice.
+  EXPECT_FALSE(reader.close());
+
+  // Close the write end.
+  EXPECT_TRUE(writer.close());
+
+  // Reads should fail since the read end is closed.
+  AWAIT_FAILED(reader.read());
 }
 
 
@@ -269,31 +393,108 @@ http::Response validateGetWithQuery(const http::Request& request)
 
 TEST(HTTP, Get)
 {
-  ASSERT_TRUE(GTEST_IS_THREADSAFE);
+  Http http;
 
-  HttpProcess process;
-
-  spawn(process);
-
-  EXPECT_CALL(process, get(_))
+  EXPECT_CALL(*http.process, get(_))
     .WillOnce(Invoke(validateGetWithoutQuery));
 
-  Future<http::Response> noQueryFuture = http::get(process.self(), "get");
+  Future<http::Response> noQueryFuture = http::get(http.process->self(), "get");
 
   AWAIT_READY(noQueryFuture);
   ASSERT_EQ(http::statuses[200], noQueryFuture.get().status);
 
-  EXPECT_CALL(process, get(_))
+  EXPECT_CALL(*http.process, get(_))
     .WillOnce(Invoke(validateGetWithQuery));
 
   Future<http::Response> queryFuture =
-    http::get(process.self(), "get", "foo=bar");
+    http::get(http.process->self(), "get", "foo=bar");
 
   AWAIT_READY(queryFuture);
   ASSERT_EQ(http::statuses[200], queryFuture.get().status);
+}
 
-  terminate(process);
-  wait(process);
+
+TEST(HTTP, StreamingGetComplete)
+{
+  Http http;
+
+  http::Pipe pipe;
+  http::OK ok;
+  ok.type = http::Response::PIPE;
+  ok.reader = pipe.reader();
+
+  EXPECT_CALL(*http.process, pipe(_))
+    .WillOnce(Return(ok));
+
+  Future<http::Response> response =
+    http::streaming::get(http.process->self(), "pipe");
+
+  // The response should be ready since the headers were sent.
+  AWAIT_READY(response);
+
+  EXPECT_SOME_EQ("chunked", response.get().headers.get("Transfer-Encoding"));
+  ASSERT_EQ(http::Response::PIPE, response.get().type);
+  ASSERT_SOME(response.get().reader);
+
+  http::Pipe::Reader reader = response.get().reader.get();
+
+  // There is no data to read yet.
+  Future<string> read = reader.read();
+  EXPECT_TRUE(read.isPending());
+
+  // Stream data into the body and read it from the response.
+  http::Pipe::Writer writer = pipe.writer();
+  EXPECT_TRUE(writer.write("hello"));
+  AWAIT_EQ("hello", read);
+
+  EXPECT_TRUE(writer.write("goodbye"));
+  AWAIT_EQ("goodbye", reader.read());
+
+  // Complete the response.
+  EXPECT_TRUE(writer.close());
+  AWAIT_EQ("", reader.read()); // EOF.
+}
+
+
+TEST(HTTP, StreamingGetFailure)
+{
+  Http http;
+
+  http::Pipe pipe;
+  http::OK ok;
+  ok.type = http::Response::PIPE;
+  ok.reader = pipe.reader();
+
+  EXPECT_CALL(*http.process, pipe(_))
+    .WillOnce(Return(ok));
+
+  Future<http::Response> response =
+    http::streaming::get(http.process->self(), "pipe");
+
+  // The response should be ready since the headers were sent.
+  AWAIT_READY(response);
+
+  EXPECT_SOME_EQ("chunked", response.get().headers.get("Transfer-Encoding"));
+  ASSERT_EQ(http::Response::PIPE, response.get().type);
+  ASSERT_SOME(response.get().reader);
+
+  http::Pipe::Reader reader = response.get().reader.get();
+
+  // There is no data to read yet.
+  Future<string> read = reader.read();
+  EXPECT_TRUE(read.isPending());
+
+  // Stream data into the body and read it from the response.
+  http::Pipe::Writer writer = pipe.writer();
+  EXPECT_TRUE(writer.write("hello"));
+  AWAIT_EQ("hello", read);
+
+  EXPECT_TRUE(writer.write("goodbye"));
+  AWAIT_EQ("goodbye", reader.read());
+
+  // Fail the response.
+  EXPECT_TRUE(writer.fail("oops"));
+  AWAIT_FAILED(reader.read());
 }
 
 
@@ -311,23 +512,19 @@ http::Response validatePost(const http::Request& request)
 
 TEST(HTTP, Post)
 {
-  ASSERT_TRUE(GTEST_IS_THREADSAFE);
-
-  HttpProcess process;
-
-  spawn(process);
+  Http http;
 
   // Test the case where there is a content type but no body.
   Future<http::Response> future =
-    http::post(process.self(), "post", None(), None(), "text/plain");
+    http::post(http.process->self(), "post", None(), None(), "text/plain");
 
   AWAIT_EXPECT_FAILED(future);
 
-  EXPECT_CALL(process, post(_))
+  EXPECT_CALL(*http.process, post(_))
     .WillOnce(Invoke(validatePost));
 
   future = http::post(
-      process.self(),
+      http.process->self(),
       "post",
       None(),
       "This is the payload.",
@@ -340,18 +537,16 @@ TEST(HTTP, Post)
   hashmap<string, string> headers;
   headers["Content-Type"] = "text/plain";
 
-  EXPECT_CALL(process, post(_))
+  EXPECT_CALL(*http.process, post(_))
     .WillOnce(Invoke(validatePost));
 
   future =
-    http::post(process.self(), "post", headers, "This is the payload.");
+    http::post(http.process->self(), "post", headers, "This is the payload.");
 
   AWAIT_READY(future);
   ASSERT_EQ(http::statuses[200], future.get().status);
-
-  terminate(process);
-  wait(process);
 }
+
 
 TEST(HTTP, QueryEncodeDecode)
 {

@@ -528,7 +528,15 @@ Try<bool> remove(
 }
 
 
-Result<vector<Classifier> > classifiers(
+Result<vector<Filter<Classifier>>> filters(
+    const string& link,
+    const queueing::Handle& parent)
+{
+  return internal::filters<Classifier>(link, parent);
+}
+
+
+Result<vector<Classifier>> classifiers(
     const string& link,
     const queueing::Handle& parent)
 {

@@ -31,8 +31,6 @@
 #include <process/clock.hpp>
 #include <process/future.hpp>
 #include <process/gmock.hpp>
-#include <process/io.hpp>
-#include <process/owned.hpp>
 #include <process/pid.hpp>
 #include <process/subprocess.hpp>
 
@@ -41,6 +39,7 @@
 #include <stout/os.hpp>
 #include <stout/try.hpp>
 
+#include "common/build.hpp"
 #include "common/http.hpp"
 
 #include "master/flags.hpp"
@@ -64,9 +63,13 @@ using memory::shared_ptr;
 
 using namespace mesos::internal::slave;
 
-using namespace process;
-
 using mesos::internal::master::Master;
+
+using process::Clock;
+using process::Future;
+using process::PID;
+using process::Promise;
+using process::UPID;
 
 using std::map;
 using std::string;
@@ -85,6 +88,8 @@ using testing::Sequence;
 namespace mesos {
 namespace internal {
 namespace tests {
+
+namespace http = process::http;
 
 // Those of the overall Mesos master/slave/scheduler/driver tests
 // that seem vaguely more slave than master-related are in this file.
@@ -176,6 +181,7 @@ TEST_F(SlaveTest, ShutdownUnregisteredExecutor)
 
   AWAIT_READY(status);
   ASSERT_EQ(TASK_FAILED, status.get().state());
+  EXPECT_EQ(TaskStatus::SOURCE_SLAVE, status.get().source());
 
   Clock::resume();
 
@@ -247,6 +253,8 @@ TEST_F(SlaveTest, RemoveUnregisteredTerminatedExecutor)
 
   AWAIT_READY(status);
   EXPECT_EQ(TASK_LOST, status.get().state());
+  EXPECT_EQ(TaskStatus::SOURCE_SLAVE, status.get().source());
+  EXPECT_EQ(TaskStatus::REASON_EXECUTOR_TERMINATED, status.get().reason());
 
   // We use 'gc.schedule' as a signal for the executor being cleaned
   // up by the slave.
@@ -348,10 +356,10 @@ TEST_F(SlaveTest, CommandExecutorWithOverride)
   // Expect two status updates, one for once the mesos-executor says
   // the task is running and one for after our overridden command
   // above finishes.
-  Future<TaskStatus> status1, status2;
+  Future<TaskStatus> statusRunning, statusFinished;
   EXPECT_CALL(sched, statusUpdate(_, _))
-    .WillOnce(FutureArg<1>(&status1))
-    .WillOnce(FutureArg<1>(&status2));
+    .WillOnce(FutureArg<1>(&statusRunning))
+    .WillOnce(FutureArg<1>(&statusFinished));
 
   Try<Subprocess> executor =
     subprocess(
@@ -363,12 +371,15 @@ TEST_F(SlaveTest, CommandExecutorWithOverride)
 
   ASSERT_SOME(executor);
 
-  // Scheduler should receive the TASK_RUNNING update.
-  AWAIT_READY(status1);
-  ASSERT_EQ(TASK_RUNNING, status1.get().state());
+  // Scheduler should first receive TASK_RUNNING followed by the
+  // TASK_FINISHED from the executor.
+  AWAIT_READY(statusRunning);
+  ASSERT_EQ(TASK_RUNNING, statusRunning.get().state());
+  EXPECT_EQ(TaskStatus::SOURCE_EXECUTOR, statusRunning.get().source());
 
-  AWAIT_READY(status2);
-  ASSERT_EQ(TASK_FINISHED, status2.get().state());
+  AWAIT_READY(statusFinished);
+  ASSERT_EQ(TASK_FINISHED, statusFinished.get().state());
+  EXPECT_EQ(TaskStatus::SOURCE_EXECUTOR, statusFinished.get().source());
 
   AWAIT_READY(wait);
 
@@ -461,11 +472,15 @@ TEST_F(SlaveTest, ComamndTaskWithArguments)
 
   driver.launchTasks(offers.get()[0].id(), tasks);
 
+  // Scheduler should first receive TASK_RUNNING followed by the
+  // TASK_FINISHED from the executor.
   AWAIT_READY(statusRunning);
   EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
+  EXPECT_EQ(TaskStatus::SOURCE_EXECUTOR, statusRunning.get().source());
 
   AWAIT_READY(statusFinished);
   EXPECT_EQ(TASK_FINISHED, statusFinished.get().state());
+  EXPECT_EQ(TaskStatus::SOURCE_EXECUTOR, statusFinished.get().source());
 
   driver.stop();
   driver.join();
@@ -592,11 +607,15 @@ TEST_F(SlaveTest, ROOT_RunTaskWithCommandInfoWithoutUser)
 
   driver.launchTasks(offers.get()[0].id(), tasks);
 
+  // Scheduler should first receive TASK_RUNNING followed by the
+  // TASK_FINISHED from the executor.
   AWAIT_READY(statusRunning);
   EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
+  EXPECT_EQ(TaskStatus::SOURCE_EXECUTOR, statusRunning.get().source());
 
   AWAIT_READY(statusFinished);
   EXPECT_EQ(TASK_FINISHED, statusFinished.get().state());
+  EXPECT_EQ(TaskStatus::SOURCE_EXECUTOR, statusFinished.get().source());
 
   driver.stop();
   driver.join();
@@ -684,11 +703,15 @@ TEST_F(SlaveTest, DISABLED_ROOT_RunTaskWithCommandInfoWithUser)
 
   driver.launchTasks(offers.get()[0].id(), tasks);
 
+  // Scheduler should first receive TASK_RUNNING followed by the
+  // TASK_FINISHED from the executor.
   AWAIT_READY(statusRunning);
   EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
+  EXPECT_EQ(TaskStatus::SOURCE_EXECUTOR, statusRunning.get().source());
 
   AWAIT_READY(statusFinished);
   EXPECT_EQ(TASK_FINISHED, statusFinished.get().state());
+  EXPECT_EQ(TaskStatus::SOURCE_EXECUTOR, statusFinished.get().source());
 
   driver.stop();
   driver.join();
@@ -842,6 +865,10 @@ TEST_F(SlaveTest, MetricsInMetricsEndpoint)
   EXPECT_EQ(1u, snapshot.values.count("slave/valid_framework_messages"));
   EXPECT_EQ(1u, snapshot.values.count("slave/invalid_framework_messages"));
 
+  EXPECT_EQ(
+      1u,
+      snapshot.values.count("slave/executor_directory_max_allowed_age_secs"));
+
   EXPECT_EQ(1u, snapshot.values.count("slave/cpus_total"));
   EXPECT_EQ(1u, snapshot.values.count("slave/cpus_used"));
   EXPECT_EQ(1u, snapshot.values.count("slave/cpus_percent"));
@@ -865,16 +892,19 @@ TEST_F(SlaveTest, StateEndpoint)
 
   slave::Flags flags = this->CreateSlaveFlags();
 
+  flags.hostname = "localhost";
   flags.resources = "cpus:4;mem:2048;disk:512;ports:[33000-34000]";
   flags.attributes = "rack:abc;host:myhost";
+
+  // Capture the start time deterministically.
+  Clock::pause();
 
   Try<PID<Slave> > slave = StartSlave(flags);
   ASSERT_SOME(slave);
 
-  Future<http::Response> response =
-    http::get(slave.get(), "state.json");
+  Future<http::Response> response = http::get(slave.get(), "state.json");
 
-  AWAIT_READY(response);
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::OK().status, response);
 
   EXPECT_SOME_EQ(
       "application/json",
@@ -886,20 +916,61 @@ TEST_F(SlaveTest, StateEndpoint)
 
   JSON::Object state = parse.get();
 
-  // Check if 'resources' matches.
+  EXPECT_EQ(MESOS_VERSION, state.values["version"]);
+
+  if (build::GIT_SHA.isSome()) {
+    EXPECT_EQ(build::GIT_SHA.get(), state.values["git_sha"]);
+  }
+
+  if (build::GIT_BRANCH.isSome()) {
+    EXPECT_EQ(build::GIT_BRANCH.get(), state.values["git_branch"]);
+  }
+
+  if (build::GIT_TAG.isSome()) {
+    EXPECT_EQ(build::GIT_TAG.get(), state.values["git_tag"]);
+  }
+
+  EXPECT_EQ(build::DATE, state.values["build_date"]);
+  EXPECT_EQ(build::TIME, state.values["build_time"]);
+  EXPECT_EQ(build::USER, state.values["build_user"]);
+
+  ASSERT_TRUE(state.values["start_time"].is<JSON::Number>());
+  EXPECT_EQ(
+      static_cast<int>(Clock::now().secs()),
+      static_cast<int>(state.values["start_time"].as<JSON::Number>().value));
+
+  // TODO(bmahler): The slave must register for the 'id'
+  // to be non-empty.
+  ASSERT_TRUE(state.values["id"].is<JSON::String>());
+
+  EXPECT_EQ(stringify(slave.get()), state.values["pid"]);
+  EXPECT_EQ(flags.hostname.get(), state.values["hostname"]);
+
   Try<Resources> resources = Resources::parse(
       flags.resources.get(), flags.default_role);
 
   ASSERT_SOME(resources);
 
-  ASSERT_EQ(1u, state.values.count("resources"));
-  EXPECT_EQ(state.values["resources"], JSON::Value(model(resources.get())));
+  EXPECT_EQ(model(resources.get()), state.values["resources"]);
 
-  // Check if 'attributes' matches.
   Attributes attributes = Attributes::parse(flags.attributes.get());
 
-  ASSERT_EQ(1u, state.values.count("attributes"));
-  EXPECT_EQ(state.values["attributes"], JSON::Value(model(attributes)));
+  EXPECT_EQ(model(attributes), state.values["attributes"]);
+
+  // TODO(bmahler): Test "master_hostname", "log_dir",
+  // "external_log_file".
+
+  ASSERT_TRUE(state.values["frameworks"].is<JSON::Array>());
+  EXPECT_TRUE(state.values["frameworks"].as<JSON::Array>().values.empty());
+
+  ASSERT_TRUE(
+      state.values["completed_frameworks"].is<JSON::Array>());
+  EXPECT_TRUE(
+      state.values["completed_frameworks"].as<JSON::Array>().values.empty());
+
+  // TODO(bmahler): Ensure this contains all the flags.
+  ASSERT_TRUE(state.values["flags"].is<JSON::Object>());
+  EXPECT_FALSE(state.values["flags"].as<JSON::Object>().values.empty());
 
   Shutdown();
 }
@@ -1088,9 +1159,12 @@ TEST_F(SlaveTest, TerminalTaskContainerizerUpdateFails)
 
   AWAIT_READY(status3);
   EXPECT_EQ(TASK_KILLED, status3.get().state());
+  EXPECT_EQ(TaskStatus::SOURCE_EXECUTOR, status3.get().source());
 
   AWAIT_READY(status4);
   EXPECT_EQ(TASK_LOST, status4.get().state());
+  EXPECT_EQ(TaskStatus::SOURCE_SLAVE, status4.get().source());
+  EXPECT_EQ(TaskStatus::REASON_EXECUTOR_TERMINATED, status4.get().reason());
 
   driver.stop();
   driver.join();
@@ -1200,6 +1274,8 @@ TEST_F(SlaveTest, TaskLaunchContainerizerUpdateFails)
 
   AWAIT_READY(status);
   EXPECT_EQ(TASK_LOST, status.get().state());
+  EXPECT_EQ(TaskStatus::SOURCE_SLAVE, status.get().source());
+  EXPECT_EQ(TaskStatus::REASON_EXECUTOR_TERMINATED, status.get().reason());
 
   driver.stop();
   driver.join();
@@ -1493,17 +1569,15 @@ TEST_F(SlaveTest, KillTaskBetweenRunTaskParts)
   // Saved arguments from Slave::_runTask().
   Future<bool> future;
   FrameworkInfo frameworkInfo;
-  FrameworkID frameworkId;
 
   // Skip what Slave::_runTask() normally does, save its arguments for
   // later, tie reaching the critical moment when to kill the task to
   // a future.
   Future<Nothing> _runTask;
-  EXPECT_CALL(slave, _runTask(_, _, _, _, _))
+  EXPECT_CALL(slave, _runTask(_, _, _, _))
     .WillOnce(DoAll(FutureSatisfy(&_runTask),
                     SaveArg<0>(&future),
-                    SaveArg<1>(&frameworkInfo),
-                    SaveArg<2>(&frameworkId)));
+                    SaveArg<1>(&frameworkInfo)));
 
   driver.launchTasks(offers.get()[0].id(), tasks);
 
@@ -1526,7 +1600,7 @@ TEST_F(SlaveTest, KillTaskBetweenRunTaskParts)
 
   AWAIT_READY(killTask);
   slave.unmocked__runTask(
-      future, frameworkInfo, frameworkId, master.get(), task);
+      future, frameworkInfo, master.get(), task);
 
   AWAIT_READY(removeFramework);
 
@@ -1722,8 +1796,7 @@ TEST_F(SlaveTest, TaskLabels)
   AWAIT_READY(update);
 
   // Verify label key and value in slave state.json.
-  Future<http::Response> response =
-    http::get(slave.get(), "state.json");
+  Future<http::Response> response = http::get(slave.get(), "state.json");
   AWAIT_READY(response);
 
   EXPECT_SOME_EQ(

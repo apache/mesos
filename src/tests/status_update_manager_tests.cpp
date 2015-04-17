@@ -97,8 +97,9 @@ TEST_F(StatusUpdateManagerTest, CheckpointStatusUpdate)
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
 
+  // Require flags to retrieve work_dir when recovering
+  // the checkpointed data.
   slave::Flags flags = CreateSlaveFlags();
-  flags.checkpoint = true;
 
   Try<PID<Slave> > slave = StartSlave(&exec, flags);
   ASSERT_SOME(slave);
@@ -192,7 +193,6 @@ TEST_F(StatusUpdateManagerTest, RetryStatusUpdate)
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
 
   slave::Flags flags = CreateSlaveFlags();
-  flags.checkpoint = true;
 
   Try<PID<Slave> > slave = StartSlave(&exec, flags);
   ASSERT_SOME(slave);
@@ -266,10 +266,7 @@ TEST_F(StatusUpdateManagerTest, IgnoreDuplicateStatusUpdateAck)
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
 
-  slave::Flags flags = CreateSlaveFlags();
-  flags.checkpoint = true;
-
-  Try<PID<Slave> > slave = StartSlave(&exec, flags);
+  Try<PID<Slave> > slave = StartSlave(&exec);
   ASSERT_SOME(slave);
 
   FrameworkInfo frameworkInfo; // Bug in gcc 4.1.*, must assign on next line.
@@ -382,10 +379,7 @@ TEST_F(StatusUpdateManagerTest, IgnoreUnexpectedStatusUpdateAck)
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
 
-  slave::Flags flags = CreateSlaveFlags();
-  flags.checkpoint = true;
-
-  Try<PID<Slave> > slave = StartSlave(&exec, flags);
+  Try<PID<Slave> > slave = StartSlave(&exec);
   ASSERT_SOME(slave);
 
   FrameworkInfo frameworkInfo; // Bug in gcc 4.1.*, must assign on next line.
@@ -474,10 +468,7 @@ TEST_F(StatusUpdateManagerTest, DuplicateTerminalUpdateBeforeAck)
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
 
-  slave::Flags flags = CreateSlaveFlags();
-  flags.checkpoint = true;
-
-  Try<PID<Slave> > slave = StartSlave(&exec, flags);
+  Try<PID<Slave> > slave = StartSlave(&exec);
   ASSERT_SOME(slave);
 
   FrameworkInfo frameworkInfo; // Bug in gcc 4.1.*, must assign on next line.
@@ -587,7 +578,6 @@ TEST_F(StatusUpdateManagerTest, DuplicateTerminalUpdateAfterAck)
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
 
   slave::Flags flags = CreateSlaveFlags();
-  flags.checkpoint = true;
 
   Try<PID<Slave> > slave = StartSlave(&exec, flags);
   ASSERT_SOME(slave);
@@ -685,10 +675,7 @@ TEST_F(StatusUpdateManagerTest, DuplicateUpdateBeforeAck)
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
 
-  slave::Flags flags = CreateSlaveFlags();
-  flags.checkpoint = true;
-
-  Try<PID<Slave> > slave = StartSlave(&exec, flags);
+  Try<PID<Slave> > slave = StartSlave(&exec);
   ASSERT_SOME(slave);
 
   FrameworkInfo frameworkInfo; // Bug in gcc 4.1.*, must assign on next line.

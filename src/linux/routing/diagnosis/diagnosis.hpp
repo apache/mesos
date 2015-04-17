@@ -102,7 +102,7 @@ struct Info
 // NOTE: 'family' is actually igored here because the older kernel
 // idiag API libnl3 uses only supports TCP and ingores this value. We
 // keep it here to follow libnl3-idiag's suit.
-Try<std::vector<Info> > infos(int familiy, int states);
+Try<std::vector<Info>> infos(int familiy, int states);
 
 } // namespace socket {
 

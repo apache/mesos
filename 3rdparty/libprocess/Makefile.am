@@ -40,10 +40,12 @@ libprocess_la_SOURCES =		\
   src/http.cpp			\
   src/io.cpp			\
   src/latch.cpp			\
+  src/logging.cpp		\
   src/metrics/metrics.cpp	\
   src/pid.cpp			\
   src/poll_socket.cpp		\
   src/poll_socket.hpp		\
+  src/profiler.cpp		\
   src/process.cpp		\
   src/process_reference.hpp	\
   src/reap.cpp			\

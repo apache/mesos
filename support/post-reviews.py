@@ -74,11 +74,18 @@ else:
   print 'Please install RBTools before proceeding'
   sys.exit(1)
 
-# Don't do anything if people have uncommitted changes.
+# Don't do anything if people have unstaged changes.
 diff_stat = execute(['git', 'diff', '--shortstat']).strip()
 
 if diff_stat:
   print 'Please commit or stash any changes before using post-reviews!'
+  sys.exit(1)
+
+# Don't do anything if people have uncommitted changes.
+diff_stat = execute(['git', 'diff', '--shortstat', '--staged']).strip()
+
+if diff_stat:
+  print 'Please commit staged changes before using post-reviews!'
   sys.exit(1)
 
 top_level_dir = execute(['git', 'rev-parse', '--show-toplevel']).strip()

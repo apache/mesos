@@ -186,6 +186,30 @@ public interface SchedulerDriver {
   Status killTask(TaskID taskId);
 
   /**
+   * Accepts the given offers and performs a sequence of operations on
+   * those accepted offers. See Offer.Operation in mesos.proto for the
+   * set of available operations. Available resources are aggregated
+   * when multiple offers are provided. Note that all offers must
+   * belong to the same slave. Any unused resources will be considered
+   * declined. The specified filters are applied on all unused
+   * resources (see mesos.proto for a description of Filters).
+   *
+   * @param offerIds    The collection of offer IDs.
+   * @param operations  The collection of offer operations to perform.
+   * @param filters     The filters to set for any remaining resources.
+   *
+   * @return            The state of the driver after the call.
+   *
+   * @see OfferID
+   * @see Offer.Operation
+   * @see Filters
+   * @see Status
+   */
+  Status acceptOffers(Collection<OfferID> offerIds,
+                      Collection<Offer.Operation> operations,
+                      Filters filters);
+
+  /**
    * Declines an offer in its entirety and applies the specified
    * filters on the resources (see mesos.proto for a description of
    * Filters). Note that this can be done at any time, it is not

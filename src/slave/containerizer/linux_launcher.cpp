@@ -80,7 +80,7 @@ Try<Launcher*> LinuxLauncher::create(const Flags& flags)
   }
 
   // Ensure that no other subsystem is attached to the hierarchy.
-  Try<set<string> > subsystems = cgroups::subsystems(hierarchy.get());
+  Try<set<string>> subsystems = cgroups::subsystems(hierarchy.get());
   if (subsystems.isError()) {
     return Error(
         "Failed to get the list of attached subsystems for hierarchy " +
@@ -119,7 +119,7 @@ Try<Launcher*> LinuxLauncher::create(const Flags& flags)
 }
 
 
-Future<Nothing> _recover(const Future<list<Nothing> >& futures)
+Future<Nothing> _recover(const Future<list<Nothing>>& futures)
 {
   return Nothing();
 }
@@ -167,12 +167,12 @@ Future<Nothing> LinuxLauncher::recover(
     cgroups.insert(cgroup(containerId));
   }
 
-  Try<vector<string> > orphans = cgroups::get(hierarchy, flags.cgroups_root);
+  Try<vector<string>> orphans = cgroups::get(hierarchy, flags.cgroups_root);
   if (orphans.isError()) {
     return Failure(orphans.error());
   }
 
-  list<Future<Nothing> > futures;
+  list<Future<Nothing>> futures;
 
   foreach (const string& orphan, orphans.get()) {
     if (!cgroups.contains(orphan)) {
@@ -222,7 +222,7 @@ static pid_t clone(const lambda::function<int()>& func, int namespaces)
 
 static int childSetup(
     int pipes[2],
-    const Option<lambda::function<int()> >& setup)
+    const Option<lambda::function<int()>>& setup)
 {
   // In child.
   while (::close(pipes[1]) == -1 && errno == EINTR);
@@ -268,8 +268,8 @@ Try<pid_t> LinuxLauncher::fork(
     const process::Subprocess::IO& out,
     const process::Subprocess::IO& err,
     const Option<flags::FlagsBase>& flags,
-    const Option<map<string, string> >& environment,
-    const Option<lambda::function<int()> >& setup)
+    const Option<map<string, string>>& environment,
+    const Option<lambda::function<int()>>& setup)
 {
   // Create a freezer cgroup for this container if necessary.
   Try<bool> exists = cgroups::exists(hierarchy, cgroup(containerId));

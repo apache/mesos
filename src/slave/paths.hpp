@@ -254,7 +254,8 @@ std::string createExecutorDirectory(
     const SlaveID& slaveId,
     const FrameworkID& frameworkId,
     const ExecutorID& executorId,
-    const ContainerID& containerId);
+    const ContainerID& containerId,
+    const Option<std::string>& user = None());
 
 
 std::string createSlaveDirectory(

@@ -206,7 +206,6 @@ TEST_F(CreateOperationValidationTest, InsufficientDiskResource)
   ASSERT_SOME(master);
 
   slave::Flags slaveFlags = CreateSlaveFlags();
-  slaveFlags.checkpoint = true;
   slaveFlags.resources = "disk(role1):1024";
 
   Try<PID<Slave>> slave = StartSlave(slaveFlags);

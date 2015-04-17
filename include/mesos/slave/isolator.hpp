@@ -89,7 +89,7 @@ public:
   // returned in the optional CommandInfo and they will be run by the Launcher.
   // TODO(idownes): Any URIs or Environment in the CommandInfo will be ignored;
   // only the command value is used.
-  process::Future<Option<CommandInfo> > prepare(
+  process::Future<Option<CommandInfo>> prepare(
       const ContainerID& containerId,
       const ExecutorInfo& executorInfo,
       const std::string& directory,
@@ -133,7 +133,7 @@ public:
   virtual process::Future<Nothing> recover(
       const std::list<ExecutorRunState>& state) = 0;
 
-  virtual process::Future<Option<CommandInfo> > prepare(
+  virtual process::Future<Option<CommandInfo>> prepare(
       const ContainerID& containerId,
       const ExecutorInfo& executorInfo,
       const std::string& directory,

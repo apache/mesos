@@ -31,6 +31,11 @@ public:
 
   Address(const net::IP& _ip, uint16_t _port) : ip(_ip), port(_port) {}
 
+  static Address LOCALHOST_ANY()
+  {
+    return Address(net::IP(INADDR_ANY), 0);
+  }
+
   static Try<Address> create(const struct sockaddr_storage& storage)
   {
     switch (storage.ss_family) {

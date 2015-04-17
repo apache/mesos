@@ -75,7 +75,7 @@ Future<Nothing> PosixLauncher::recover(const list<ExecutorRunState>& states)
 
 
 // The setup function in child before the exec.
-static int childSetup(const Option<lambda::function<int()> >& setup)
+static int childSetup(const Option<lambda::function<int()>>& setup)
 {
   // POSIX guarantees a forked child's pid does not match any existing
   // process group id so only a single setsid() is required and the
@@ -105,8 +105,8 @@ Try<pid_t> PosixLauncher::fork(
     const Subprocess::IO& out,
     const Subprocess::IO& err,
     const Option<flags::FlagsBase>& flags,
-    const Option<map<string, string> >& environment,
-    const Option<lambda::function<int()> >& setup)
+    const Option<map<string, string>>& environment,
+    const Option<lambda::function<int()>>& setup)
 {
   if (pids.contains(containerId)) {
     return Error("Process has already been forked for container " +
@@ -138,7 +138,7 @@ Try<pid_t> PosixLauncher::fork(
 
 
 // Forward declaration.
-Future<Nothing> _destroy(const Future<Option<int> >& future);
+Future<Nothing> _destroy(const Future<Option<int>>& future);
 
 
 Future<Nothing> PosixLauncher::destroy(const ContainerID& containerId)
@@ -150,7 +150,7 @@ Future<Nothing> PosixLauncher::destroy(const ContainerID& containerId)
   pid_t pid = pids.get(containerId).get();
 
   // Kill all processes in the session and process group.
-  Try<list<os::ProcessTree> > trees =
+  Try<list<os::ProcessTree>> trees =
     os::killtree(pid, SIGKILL, true, true);
 
   pids.erase(containerId);
@@ -162,7 +162,7 @@ Future<Nothing> PosixLauncher::destroy(const ContainerID& containerId)
 }
 
 
-Future<Nothing> _destroy(const Future<Option<int> >& future)
+Future<Nothing> _destroy(const Future<Option<int>>& future)
 {
   if (future.isReady()) {
     return Nothing();

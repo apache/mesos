@@ -246,7 +246,7 @@ Future<Response> FilesProcess::read(const Request& request)
   }
 
   // Don't read directories.
-  if (os::isdir(resolvedPath.get())) {
+  if (os::stat::isdir(resolvedPath.get())) {
     return BadRequest("Cannot read a directory.\n");
   }
 
@@ -339,7 +339,7 @@ Future<Response> FilesProcess::download(const Request& request)
   }
 
   // Don't download directories.
-  if (os::isdir(resolvedPath.get())) {
+  if (os::stat::isdir(resolvedPath.get())) {
     return BadRequest("Cannot download a directory.\n");
   }
 
@@ -413,7 +413,7 @@ Result<string> FilesProcess::resolve(const string& path)
     // suffix, if it's not a directory and there is a suffix, return
     // 'Not Found'.
     string path = paths[prefix];
-    if (os::isdir(path)) {
+    if (os::stat::isdir(path)) {
       path = path::join(path, suffix);
 
       // Canonicalize the absolute path.

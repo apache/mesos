@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 
+#include <utility>
 #include <vector>
 
 #include <mesos/resources.hpp>
@@ -123,19 +124,27 @@ JSON::Object model(const Task& task)
   object.values["state"] = TaskState_Name(task.state());
   object.values["resources"] = model(task.resources());
 
-  JSON::Array array;
-  foreach (const TaskStatus& status, task.statuses()) {
-    array.values.push_back(model(status));
-  }
-  object.values["statuses"] = array;
+  {
+    JSON::Array array;
+    array.values.reserve(task.statuses().size()); // MESOS-2353.
 
-  JSON::Array labels;
-  if (task.has_labels()) {
-    foreach (const Label& label, task.labels().labels()) {
-      labels.values.push_back(JSON::Protobuf(label));
+    foreach (const TaskStatus& status, task.statuses()) {
+      array.values.push_back(model(status));
     }
+    object.values["statuses"] = std::move(array);
   }
-  object.values["labels"] = labels;
+
+  {
+    JSON::Array array;
+    if (task.has_labels()) {
+      array.values.reserve(task.labels().labels().size()); // MESOS-2353.
+
+      foreach (const Label& label, task.labels().labels()) {
+        array.values.push_back(JSON::Protobuf(label));
+      }
+    }
+    object.values["labels"] = std::move(array);
+  }
 
   if (task.has_discovery()) {
     object.values["discovery"] = JSON::Protobuf(task.discovery());
@@ -167,19 +176,27 @@ JSON::Object model(
   object.values["state"] = TaskState_Name(state);
   object.values["resources"] = model(task.resources());
 
-  JSON::Array array;
-  foreach (const TaskStatus& status, statuses) {
-    array.values.push_back(model(status));
-  }
-  object.values["statuses"] = array;
+  {
+    JSON::Array array;
+    array.values.reserve(statuses.size()); // MESOS-2353.
 
-  JSON::Array labels;
-  if (task.has_labels()) {
-    foreach (const Label& label, task.labels().labels()) {
-      labels.values.push_back(JSON::Protobuf(label));
+    foreach (const TaskStatus& status, statuses) {
+      array.values.push_back(model(status));
     }
+    object.values["statuses"] = std::move(array);
   }
-  object.values["labels"] = labels;
+
+  {
+    JSON::Array array;
+    if (task.has_labels()) {
+      array.values.reserve(task.labels().labels().size()); // MESOS-2353.
+
+      foreach (const Label& label, task.labels().labels()) {
+        array.values.push_back(JSON::Protobuf(label));
+      }
+    }
+    object.values["labels"] = std::move(array);
+  }
 
   if (task.has_discovery()) {
     object.values["discovery"] = JSON::Protobuf(task.discovery());
