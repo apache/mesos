@@ -296,14 +296,14 @@ private:
       // originally. See Framework::launchExecutor in slave.cpp. We
       // check that this is indeed the case here to protect ourselves
       // from when/if this changes in the future (but it's not a
-      // perfect check because an executor might always have more
-      // resources than a task, nevertheless, it's better than
-      // nothing).
-      if (task.isSome()) {
-        CHECK(executor.resources() >= task.get().resources());
-      }
-
+      // perfect check because an executor might always have a subset
+      // of it's resources that match a task, nevertheless, it's
+      // better than nothing).
       resources = executor.resources();
+
+      if (task.isSome()) {
+        CHECK(resources.contains(task.get().resources()));
+      }
     }
 
     ~Container()
