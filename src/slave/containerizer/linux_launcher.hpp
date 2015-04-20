@@ -34,7 +34,7 @@ public:
 
   virtual ~LinuxLauncher() {}
 
-  virtual process::Future<Nothing> recover(
+  virtual process::Future<hashset<ContainerID>> recover(
       const std::list<mesos::slave::ExecutorRunState>& states);
 
   virtual Try<pid_t> fork(
@@ -67,7 +67,6 @@ private:
   // process group id and session id.
   hashmap<ContainerID, pid_t> pids;
 };
-
 
 } // namespace slave {
 } // namespace internal {

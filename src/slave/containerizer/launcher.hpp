@@ -19,9 +19,13 @@
 #ifndef __LAUNCHER_HPP__
 #define __LAUNCHER_HPP__
 
+#include <sys/types.h>
+
 #include <list>
 #include <map>
 #include <string>
+
+#include <mesos/mesos.hpp>
 
 #include <mesos/slave/isolator.hpp>
 
@@ -29,6 +33,8 @@
 #include <process/subprocess.hpp>
 
 #include <stout/flags.hpp>
+#include <stout/hashmap.hpp>
+#include <stout/hashset.hpp>
 #include <stout/lambda.hpp>
 #include <stout/option.hpp>
 #include <stout/try.hpp>
@@ -45,7 +51,9 @@ public:
   virtual ~Launcher() {}
 
   // Recover the necessary state for each container listed in state.
-  virtual process::Future<Nothing> recover(
+  // Return the set of containers that are known to the launcher but
+  // not known to the slave (a.k.a. orphans).
+  virtual process::Future<hashset<ContainerID>> recover(
       const std::list<mesos::slave::ExecutorRunState>& states) = 0;
 
   // Fork a new process in the containerized context. The child will
@@ -82,7 +90,7 @@ public:
 
   virtual ~PosixLauncher() {}
 
-  virtual process::Future<Nothing> recover(
+  virtual process::Future<hashset<ContainerID>> recover(
       const std::list<mesos::slave::ExecutorRunState>& states);
 
   virtual Try<pid_t> fork(

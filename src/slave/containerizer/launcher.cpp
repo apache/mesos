@@ -36,11 +36,11 @@ using std::map;
 using std::string;
 using std::vector;
 
+using mesos::slave::ExecutorRunState;
+
 namespace mesos {
 namespace internal {
 namespace slave {
-
-using mesos::slave::ExecutorRunState;
 
 
 Try<Launcher*> PosixLauncher::create(const Flags& flags)
@@ -49,7 +49,8 @@ Try<Launcher*> PosixLauncher::create(const Flags& flags)
 }
 
 
-Future<Nothing> PosixLauncher::recover(const list<ExecutorRunState>& states)
+Future<hashset<ContainerID>> PosixLauncher::recover(
+    const list<ExecutorRunState>& states)
 {
   foreach (const ExecutorRunState& state, states) {
     const ContainerID& containerId = state.id;
@@ -70,7 +71,7 @@ Future<Nothing> PosixLauncher::recover(const list<ExecutorRunState>& states)
     pids.put(containerId, pid);
   }
 
-  return Nothing();
+  return hashset<ContainerID>();
 }
 
 
@@ -150,8 +151,7 @@ Future<Nothing> PosixLauncher::destroy(const ContainerID& containerId)
   pid_t pid = pids.get(containerId).get();
 
   // Kill all processes in the session and process group.
-  Try<list<os::ProcessTree>> trees =
-    os::killtree(pid, SIGKILL, true, true);
+  Try<list<os::ProcessTree>> trees = os::killtree(pid, SIGKILL, true, true);
 
   pids.erase(containerId);
 
@@ -171,7 +171,6 @@ Future<Nothing> _destroy(const Future<Option<int>>& future)
                    (future.isFailed() ? future.failure() : "unknown error"));
   }
 }
-
 
 } // namespace slave {
 } // namespace internal {

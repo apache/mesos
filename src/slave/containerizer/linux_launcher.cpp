@@ -119,13 +119,14 @@ Try<Launcher*> LinuxLauncher::create(const Flags& flags)
 }
 
 
-Future<Nothing> _recover(const Future<list<Nothing>>& futures)
+static Future<hashset<ContainerID>> _recover(
+    const Future<list<Nothing>>& futures)
 {
-  return Nothing();
+  return hashset<ContainerID>();
 }
 
 
-Future<Nothing> LinuxLauncher::recover(
+Future<hashset<ContainerID>> LinuxLauncher::recover(
     const std::list<ExecutorRunState>& states)
 {
   hashset<string> cgroups;
