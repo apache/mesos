@@ -42,7 +42,8 @@ class PosixIsolatorProcess : public mesos::slave::IsolatorProcess
 {
 public:
   virtual process::Future<Nothing> recover(
-      const std::list<mesos::slave::ExecutorRunState>& state)
+      const std::list<mesos::slave::ExecutorRunState>& state,
+      const hashset<ContainerID>& orphans)
   {
     foreach (const mesos::slave::ExecutorRunState& run, state) {
       // This should (almost) never occur: see comment in

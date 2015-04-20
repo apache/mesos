@@ -124,7 +124,8 @@ Result<ino_t> NamespacesPidIsolatorProcess::getNamespace(
 
 
 Future<Nothing> NamespacesPidIsolatorProcess::recover(
-    const list<ExecutorRunState>& states)
+    const list<ExecutorRunState>& states,
+    const hashset<ContainerID>& orphans)
 {
   hashset<ContainerID> containers;
 

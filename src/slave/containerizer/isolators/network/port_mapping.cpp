@@ -1430,7 +1430,8 @@ Try<Isolator*> PortMappingIsolatorProcess::create(const Flags& flags)
 
 
 Future<Nothing> PortMappingIsolatorProcess::recover(
-    const list<ExecutorRunState>& states)
+    const list<ExecutorRunState>& states,
+    const hashset<ContainerID>& orphans)
 {
   // Extract pids from virtual device names (veth). This tells us
   // about all the potential live containers on this slave.

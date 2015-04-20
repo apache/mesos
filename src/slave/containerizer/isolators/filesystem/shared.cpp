@@ -63,7 +63,8 @@ Try<Isolator*> SharedFilesystemIsolatorProcess::create(const Flags& flags)
 
 
 Future<Nothing> SharedFilesystemIsolatorProcess::recover(
-    const list<ExecutorRunState>& states)
+    const list<ExecutorRunState>& states,
+    const hashset<ContainerID>& orphans)
 {
   // There is nothing to recover because we do not keep any state and
   // do not monitor filesystem usage or perform any action on cleanup.

@@ -40,7 +40,8 @@ public:
   virtual ~SharedFilesystemIsolatorProcess();
 
   virtual process::Future<Nothing> recover(
-      const std::list<mesos::slave::ExecutorRunState>& states);
+      const std::list<mesos::slave::ExecutorRunState>& states,
+      const hashset<ContainerID>& orphans);
 
   virtual process::Future<Option<CommandInfo>> prepare(
       const ContainerID& containerId,

@@ -163,7 +163,8 @@ Try<Isolator*> CgroupsMemIsolatorProcess::create(const Flags& flags)
 
 
 Future<Nothing> CgroupsMemIsolatorProcess::recover(
-    const list<ExecutorRunState>& states)
+    const list<ExecutorRunState>& states,
+    const hashset<ContainerID>& _orphans)
 {
   hashset<string> cgroups;
 

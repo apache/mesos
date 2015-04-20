@@ -28,7 +28,6 @@ using std::list;
 namespace mesos {
 namespace slave {
 
-
 Isolator::Isolator(Owned<IsolatorProcess> _process)
   : process(_process)
 {
@@ -43,9 +42,14 @@ Isolator::~Isolator()
 }
 
 
-Future<Nothing> Isolator::recover(const list<ExecutorRunState>& state)
+Future<Nothing> Isolator::recover(
+    const list<ExecutorRunState>& state,
+    const hashset<ContainerID>& orphans)
 {
-  return dispatch(process.get(), &IsolatorProcess::recover, state);
+  return dispatch(process.get(),
+                  &IsolatorProcess::recover,
+                  state,
+                  orphans);
 }
 
 

@@ -173,7 +173,8 @@ Try<Isolator*> CgroupsCpushareIsolatorProcess::create(const Flags& flags)
 
 
 Future<Nothing> CgroupsCpushareIsolatorProcess::recover(
-    const list<ExecutorRunState>& states)
+    const list<ExecutorRunState>& states,
+    const hashset<ContainerID>& _orphans)
 {
   hashset<string> cgroups;
 

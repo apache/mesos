@@ -29,6 +29,7 @@
 #include <process/owned.hpp>
 #include <process/process.hpp>
 
+#include <stout/hashset.hpp>
 #include <stout/try.hpp>
 
 namespace mesos {
@@ -80,15 +81,19 @@ public:
   explicit Isolator(process::Owned<IsolatorProcess> process);
   ~Isolator();
 
-  // Recover containers from the run states.
+  // Recover containers from the run states and the orphan containers
+  // (known to the launcher but not known to the slave) detected by
+  // the launcher.
   process::Future<Nothing> recover(
-      const std::list<ExecutorRunState>& states);
+      const std::list<ExecutorRunState>& states,
+      const hashset<ContainerID>& orphans);
 
-  // Prepare for isolation of the executor. Any steps that require execution in
-  // the containerized context (e.g. inside a network namespace) can be
-  // returned in the optional CommandInfo and they will be run by the Launcher.
-  // TODO(idownes): Any URIs or Environment in the CommandInfo will be ignored;
-  // only the command value is used.
+  // Prepare for isolation of the executor. Any steps that require
+  // execution in the containerized context (e.g. inside a network
+  // namespace) can be returned in the optional CommandInfo and they
+  // will be run by the Launcher.
+  // TODO(idownes): Any URIs or Environment in the CommandInfo will be
+  // ignored; only the command value is used.
   process::Future<Option<CommandInfo>> prepare(
       const ContainerID& containerId,
       const ExecutorInfo& executorInfo,
@@ -100,8 +105,9 @@ public:
       const ContainerID& containerId,
       pid_t pid);
 
-  // Watch the containerized executor and report if any resource constraint
-  // impacts the container, e.g., the kernel killing some processes.
+  // Watch the containerized executor and report if any resource
+  // constraint impacts the container, e.g., the kernel killing some
+  // processes.
   process::Future<Limitation> watch(const ContainerID& containerId);
 
   // Update the resources allocated to the container.
@@ -113,8 +119,8 @@ public:
   process::Future<ResourceStatistics> usage(
       const ContainerID& containerId) const;
 
-  // Clean up a terminated container. This is called after the executor and all
-  // processes in the container have terminated.
+  // Clean up a terminated container. This is called after the
+  // executor and all processes in the container have terminated.
   process::Future<Nothing> cleanup(const ContainerID& containerId);
 
 private:
@@ -131,7 +137,8 @@ public:
   virtual ~IsolatorProcess() {}
 
   virtual process::Future<Nothing> recover(
-      const std::list<ExecutorRunState>& state) = 0;
+      const std::list<ExecutorRunState>& state,
+      const hashset<ContainerID>& orphans) = 0;
 
   virtual process::Future<Option<CommandInfo>> prepare(
       const ContainerID& containerId,
@@ -155,7 +162,6 @@ public:
 
   virtual process::Future<Nothing> cleanup(const ContainerID& containerId) = 0;
 };
-
 
 } // namespace slave {
 } // namespace mesos {

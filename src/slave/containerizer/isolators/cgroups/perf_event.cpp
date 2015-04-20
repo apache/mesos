@@ -143,7 +143,8 @@ void CgroupsPerfEventIsolatorProcess::initialize()
 
 
 Future<Nothing> CgroupsPerfEventIsolatorProcess::recover(
-    const list<ExecutorRunState>& states)
+    const list<ExecutorRunState>& states,
+    const hashset<ContainerID>& _orphans)
 {
   hashset<string> cgroups;
 

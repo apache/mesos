@@ -85,7 +85,8 @@ PosixDiskIsolatorProcess::~PosixDiskIsolatorProcess() {}
 
 
 Future<Nothing> PosixDiskIsolatorProcess::recover(
-    const list<ExecutorRunState>& states)
+    const list<ExecutorRunState>& states,
+    const hashset<ContainerID>& orphans)
 {
   foreach (const ExecutorRunState& state, states) {
     // Since we checkpoint the executor after we create its working

@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 
+#include <list>
 #include <map>
 #include <string>
 #include <vector>
@@ -49,6 +50,7 @@ using namespace mesos::internal::slave::state;
 
 using namespace mesos::slave;
 
+using std::list;
 using std::map;
 using std::string;
 using std::vector;
@@ -265,6 +267,7 @@ TEST_F(MesosContainerizerIsolatorPreparationTest, MultipleScripts)
 
 class MesosContainerizerExecuteTest : public tests::TemporaryDirectoryTest {};
 
+
 TEST_F(MesosContainerizerExecuteTest, IoRedirection)
 {
   string directory = os::getcwd(); // We're inside a temporary sandbox.
@@ -323,6 +326,7 @@ TEST_F(MesosContainerizerExecuteTest, IoRedirection)
 
 class MesosContainerizerDestroyTest : public MesosTest {};
 
+
 class MockMesosContainerizerProcess : public MesosContainerizerProcess
 {
 public:
@@ -331,7 +335,7 @@ public:
       bool local,
       Fetcher* fetcher,
       const process::Owned<Launcher>& launcher,
-      const std::vector<process::Owned<Isolator>>& isolators)
+      const vector<process::Owned<Isolator>>& isolators)
     : MesosContainerizerProcess(flags, local, fetcher, launcher, isolators)
   {
     // NOTE: See TestContainerizer::setup for why we use
@@ -376,24 +380,25 @@ public:
       .WillRepeatedly(Invoke(this, &MockIsolatorProcess::_prepare));
   }
 
-  MOCK_METHOD1(
+  MOCK_METHOD2(
       recover,
       process::Future<Nothing>(
-          const std::list<mesos::slave::ExecutorRunState>&));
+          const list<mesos::slave::ExecutorRunState>&,
+          const hashset<ContainerID>&));
 
   MOCK_METHOD4(
       prepare,
       process::Future<Option<CommandInfo>>(
           const ContainerID&,
           const ExecutorInfo&,
-          const std::string&,
-          const Option<std::string>&));
+          const string&,
+          const Option<string>&));
 
   virtual process::Future<Option<CommandInfo>> _prepare(
       const ContainerID& containerId,
       const ExecutorInfo& executorInfo,
-      const std::string& directory,
-      const Option<std::string>& user)
+      const string& directory,
+      const Option<string>& user)
   {
     return None();
   }
@@ -429,7 +434,7 @@ TEST_F(MesosContainerizerDestroyTest, DestroyWhileFetching)
   slave::Flags flags = CreateSlaveFlags();
   Try<Launcher*> launcher = PosixLauncher::create(flags);
   ASSERT_SOME(launcher);
-  std::vector<process::Owned<Isolator>> isolators;
+  vector<process::Owned<Isolator>> isolators;
 
   Fetcher fetcher;
 
@@ -574,7 +579,7 @@ TEST_F(MesosContainerizerDestroyTest, LauncherDestroyFailure)
   ASSERT_SOME(launcher_);
   TestLauncher* launcher = new TestLauncher(Owned<Launcher>(launcher_.get()));
 
-  std::vector<process::Owned<Isolator>> isolators;
+  vector<process::Owned<Isolator>> isolators;
   Fetcher fetcher;
 
   MesosContainerizerProcess* process = new MesosContainerizerProcess(

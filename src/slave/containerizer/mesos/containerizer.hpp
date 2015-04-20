@@ -162,7 +162,8 @@ public:
 
 private:
   process::Future<Nothing> _recover(
-      const std::list<mesos::slave::ExecutorRunState>& recoverable);
+      const std::list<mesos::slave::ExecutorRunState>& recoverable,
+      const hashset<ContainerID>& orphans);
 
   process::Future<Nothing> __recover(
       const std::list<mesos::slave::ExecutorRunState>& recovered);

@@ -394,17 +394,18 @@ Future<Nothing> MesosContainerizerProcess::recover(
 
   // Try to recover the launcher first.
   return launcher->recover(recoverable)
-    .then(defer(self(), &Self::_recover, recoverable));
+    .then(defer(self(), &Self::_recover, recoverable, lambda::_1));
 }
 
 
 Future<Nothing> MesosContainerizerProcess::_recover(
-    const list<ExecutorRunState>& recoverable)
+    const list<ExecutorRunState>& recoverable,
+    const hashset<ContainerID>& orphans)
 {
   // Then recover the isolators.
   list<Future<Nothing>> futures;
   foreach (const Owned<Isolator>& isolator, isolators) {
-    futures.push_back(isolator->recover(recoverable));
+    futures.push_back(isolator->recover(recoverable, orphans));
   }
 
   // If all isolators recover then continue.
