@@ -120,6 +120,33 @@ Labels HookManager::masterLaunchTaskLabelDecorator(
 }
 
 
+Labels HookManager::slaveRunTaskLabelDecorator(
+    const TaskInfo& taskInfo,
+    const FrameworkInfo& frameworkInfo,
+    const SlaveInfo& slaveInfo)
+{
+  Lock lock(&mutex);
+
+  TaskInfo taskInfo_ = taskInfo;
+
+  foreachpair (const string& name, Hook* hook, availableHooks) {
+    const Result<Labels>& result =
+      hook->slaveRunTaskLabelDecorator(taskInfo_, frameworkInfo, slaveInfo);
+
+    // NOTE: If the hook returns None(), the task labels won't be
+    // changed.
+    if (result.isSome()) {
+      taskInfo_.mutable_labels()->CopyFrom(result.get());
+    } else if (result.isError()) {
+      LOG(WARNING) << "Slave label decorator hook failed for module '"
+                   << name << "': " << result.error();
+    }
+  }
+
+  return taskInfo_.labels();
+}
+
+
 Environment HookManager::slaveExecutorEnvironmentDecorator(
     ExecutorInfo executorInfo)
 {

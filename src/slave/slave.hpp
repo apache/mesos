@@ -108,7 +108,7 @@ public:
       const FrameworkInfo& frameworkInfo,
       const FrameworkID& frameworkId,
       const std::string& pid,
-      const TaskInfo& task);
+      TaskInfo task);
 
   // Made 'virtual' for Slave mocking.
   virtual void _runTask(

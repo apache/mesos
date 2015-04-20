@@ -45,6 +45,18 @@ public:
     return None();
   }
 
+  // This label decorator hook is called from within the slave when
+  // receiving a run task request from the master. A module
+  // implementing the hook creates and returns a set of labels. These
+  // labels overwrite the existing labels on the task info.
+  virtual Result<Labels> slaveRunTaskLabelDecorator(
+      const TaskInfo& taskInfo,
+      const FrameworkInfo& frameworkInfo,
+      const SlaveInfo& slaveInfo)
+  {
+    return None();
+  }
+
   // This environment decorator hook is called from within slave when
   // launching a new executor. A module implementing the hook creates
   // and returns a set of environment variables. These environment

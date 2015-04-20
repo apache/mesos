@@ -394,7 +394,7 @@ void MockSlave::unmocked_runTask(
     const FrameworkInfo& frameworkInfo,
     const FrameworkID& frameworkId,
     const std::string& pid,
-    const TaskInfo& task)
+    TaskInfo task)
 {
   slave::Slave::runTask(from, frameworkInfo, frameworkId, pid, task);
 }

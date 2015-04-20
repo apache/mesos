@@ -1107,7 +1107,7 @@ void Slave::runTask(
     const FrameworkInfo& frameworkInfo_,
     const FrameworkID& frameworkId_,
     const string& pid,
-    const TaskInfo& task)
+    TaskInfo task)
 {
   if (master != from) {
     LOG(WARNING) << "Ignoring run task message from " << from
@@ -1148,6 +1148,10 @@ void Slave::runTask(
     // ignores updates for unknown frameworks.
     return;
   }
+
+  // Set task labels from run task label decorator.
+  task.mutable_labels()->CopyFrom(
+      HookManager::slaveRunTaskLabelDecorator(task, frameworkInfo, info));
 
   Future<bool> unschedule = true;
 

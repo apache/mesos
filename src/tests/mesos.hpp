@@ -679,14 +679,14 @@ public:
       const FrameworkInfo& frameworkInfo,
       const FrameworkID& frameworkId,
       const std::string& pid,
-      const TaskInfo& task));
+      TaskInfo task));
 
   void unmocked_runTask(
       const process::UPID& from,
       const FrameworkInfo& frameworkInfo,
       const FrameworkID& frameworkId,
       const std::string& pid,
-      const TaskInfo& task);
+      TaskInfo task);
 
   MOCK_METHOD4(_runTask, void(
       const process::Future<bool>& future,
