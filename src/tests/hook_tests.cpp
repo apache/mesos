@@ -61,6 +61,7 @@ using std::string;
 using std::vector;
 
 using testing::_;
+using testing::DoAll;
 using testing::Return;
 
 namespace mesos {
@@ -331,6 +332,101 @@ TEST_F(HookTest, DISABLED_VerifySlaveLaunchExecutorHook)
   // The removeExecutor hook in the test module deletes the temp file.
   // Verify that the file is not present.
   EXPECT_FALSE(os::stat::isfile(path.get()));
+}
+
+
+// This test verifies that the slave run task label decorator can add
+// and remove labels from a task during the launch sequence. A task
+// with two labels ("foo":"bar" and "bar":"baz") is launched and will
+// get modified by the slave hook to strip the "foo":"bar" pair and
+// add a new "baz":"qux" pair.
+TEST_F(HookTest, VerifySlaveRunTaskHook)
+{
+  Try<PID<Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+
+  TestContainerizer containerizer(&exec);
+
+  Try<PID<Slave>> slave = StartSlave(&containerizer);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  ASSERT_EQ(1u, offers.get().size());
+
+  TaskInfo task;
+  task.set_name("");
+  task.mutable_task_id()->set_value("1");
+  task.mutable_slave_id()->CopyFrom(offers.get()[0].slave_id());
+  task.mutable_resources()->CopyFrom(offers.get()[0].resources());
+  task.mutable_executor()->CopyFrom(DEFAULT_EXECUTOR_INFO);
+
+  // Add two labels: (1) will be removed by the hook to ensure that
+  // runTaskHook can remove labels (2) will be preserved to ensure
+  // that the framework can add labels to the task and have those be
+  // available by the end of the launch task sequence when hooks are
+  // used (to protect against hooks removing labels completely).
+  Labels* labels = task.mutable_labels();
+  Label* label1 = labels->add_labels();
+  label1->set_key("foo");
+  label1->set_value("bar");
+
+  Label* label2 = labels->add_labels();
+  label2->set_key("bar");
+  label2->set_value("baz");
+
+  vector<TaskInfo> tasks;
+  tasks.push_back(task);
+
+  EXPECT_CALL(exec, registered(_, _, _, _));
+
+  Future<TaskInfo> taskInfo;
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillOnce(DoAll(
+        FutureArg<1>(&taskInfo),
+        SendStatusUpdateFromTask(TASK_RUNNING)));
+
+  driver.launchTasks(offers.get()[0].id(), tasks);
+
+  AWAIT_READY(taskInfo);
+
+  // The master hook will hang an extra label off.
+  const Labels& labels_ = taskInfo.get().labels();
+
+  ASSERT_EQ(3, labels_.labels_size());
+
+  // The slave run task hook will prepend a new "baz":"qux" label.
+  EXPECT_EQ(labels_.labels(0).key(), "baz");
+  EXPECT_EQ(labels_.labels(0).value(), "qux");
+
+  // Master launch task hook will still hang off test label.
+  EXPECT_EQ(labels_.labels(1).key(), testLabelKey);
+  EXPECT_EQ(labels_.labels(1).value(), testLabelValue);
+
+  // And lastly, we only expect the "foo":"bar" pair to be stripped by
+  // the module. The last pair should be the original "bar":"baz"
+  // pair set by the test.
+  EXPECT_EQ(labels_.labels(2).key(), "bar");
+  EXPECT_EQ(labels_.labels(2).value(), "baz");
+
+  driver.stop();
+  driver.join();
+
+  Shutdown(); // Must shutdown before 'containerizer' gets deallocated.
 }
 
 } // namespace tests {

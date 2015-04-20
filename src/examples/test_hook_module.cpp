@@ -62,6 +62,31 @@ public:
     return labels;
   }
 
+  // TODO(nnielsen): Split hook tests into multiple modules to avoid
+  // interference.
+  virtual Result<Labels> slaveRunTaskLabelDecorator(
+      const TaskInfo& taskInfo,
+      const FrameworkInfo& frameworkInfo,
+      const SlaveInfo& slaveInfo)
+  {
+    LOG(INFO) << "Executing 'slaveRunTaskLabelDecorator' hook";
+
+    Labels labels;
+
+    // Set one known label.
+    Label* newLabel = labels.add_labels();
+    newLabel->set_key("baz");
+    newLabel->set_value("qux");
+
+    // Remove label which was set by test.
+    foreach (const Label& oldLabel, taskInfo.labels().labels()) {
+      if (oldLabel.key() != "foo") {
+        labels.add_labels()->CopyFrom(oldLabel);
+      }
+    }
+
+    return labels;
+  }
 
   // In this hook, we create a new environment variable "FOO" and set
   // it's value to "bar".
