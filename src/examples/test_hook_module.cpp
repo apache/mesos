@@ -71,6 +71,11 @@ public:
     LOG(INFO) << "Executing 'slaveExecutorEnvironmentDecorator' hook";
 
     Environment environment;
+
+    if (executorInfo.command().has_environment()) {
+      environment.CopyFrom(executorInfo.command().environment());
+    }
+
     Environment::Variable* variable = environment.add_variables();
     variable->set_name("FOO");
     variable->set_value("bar");

@@ -128,11 +128,11 @@ Environment HookManager::slaveExecutorEnvironmentDecorator(
   foreachpair (const string& name, Hook* hook, availableHooks) {
     const Result<Environment>& result =
       hook->slaveExecutorEnvironmentDecorator(executorInfo);
+
+    // NOTE: If the hook returns None(), the environment won't be
+    // changed.
     if (result.isSome()) {
-      // Update executorInfo to include newer environment variables
-      // so that the next hook module can extend the environment
-      // variables instead of simply overwriting them.
-      executorInfo.mutable_command()->mutable_environment()->MergeFrom(
+      executorInfo.mutable_command()->mutable_environment()->CopyFrom(
           result.get());
     } else if (result.isError()) {
       LOG(WARNING) << "Slave environment decorator hook failed for module '"
