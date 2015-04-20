@@ -74,6 +74,8 @@ const char* HOOK_MODULE_NAME = "org_apache_mesos_TestHook";
 // examples/test_hook_module.cpp.
 const char* testLabelKey = "MESOS_Test_Label";
 const char* testLabelValue = "ApacheMesos";
+const char* testRemoveLabelKey = "MESOS_Test_Remove_Label";
+const char* testRemoveLabelValue = "FooBar";
 const char* testEnvironmentVariableName = "MESOS_TEST_ENVIRONMENT_VARIABLE";
 
 class HookTest : public MesosTest
@@ -162,6 +164,12 @@ TEST_F(HookTest, VerifyMasterLaunchTaskHook)
   task.mutable_resources()->CopyFrom(offers.get()[0].resources());
   task.mutable_command()->CopyFrom(command);
 
+  // Add label which will be removed by the hook.
+  Labels* labels = task.mutable_labels();
+  Label* label = labels->add_labels();
+  label->set_key(testRemoveLabelKey);
+  label->set_value(testRemoveLabelValue);
+
   vector<TaskInfo> tasks;
   tasks.push_back(task);
 
@@ -175,14 +183,15 @@ TEST_F(HookTest, VerifyMasterLaunchTaskHook)
   AWAIT_READY(taskInfo);
 
   // At launchTasks, the label decorator hook inside should have been
-  // executed and we should see the labels now.
-  Option<string> labelValue;
-  foreach (const Label& label, taskInfo.get().labels().labels()) {
-    if (label.key() == testLabelKey) {
-      labelValue = label.value();
-    }
-  }
-  EXPECT_SOME_EQ(testLabelValue, labelValue);
+  // executed and we should see the labels now. Also, verify that the
+  // hook module has stripped the first 'testRemoveLabelKey' label.
+  // We do this by ensuring that only one label is present and that it
+  // is the new 'testLabelKey' label.
+  const Labels &labels_ = taskInfo.get().labels();
+  ASSERT_EQ(1, labels_.labels_size());
+
+  EXPECT_EQ(labels_.labels().Get(0).key(), testLabelKey);
+  EXPECT_EQ(labels_.labels().Get(0).value(), testLabelValue);
 
   driver.stop();
   driver.join();

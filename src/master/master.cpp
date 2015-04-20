@@ -2619,8 +2619,8 @@ void Master::_accept(
             message.set_pid(framework->pid);
             message.mutable_task()->MergeFrom(task);
 
-            // Merge labels retrieved from label-decorator hooks.
-            message.mutable_task()->mutable_labels()->MergeFrom(
+            // Set labels retrieved from label-decorator hooks.
+            message.mutable_task()->mutable_labels()->CopyFrom(
                 HookManager::masterLaunchTaskLabelDecorator(
                     task,
                     framework->info,

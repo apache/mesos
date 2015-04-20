@@ -96,20 +96,27 @@ Labels HookManager::masterLaunchTaskLabelDecorator(
     const SlaveInfo& slaveInfo)
 {
   Lock lock(&mutex);
-  Labels labels;
+
+  // We need a mutable copy of the task info and set the new
+  // labels after each hook invocation. Otherwise, the last hook
+  // will be the only effective hook setting the labels.
+  TaskInfo taskInfo_ = taskInfo;
 
   foreachpair (const string& name, Hook* hook, availableHooks) {
     const Result<Labels>& result =
-      hook->masterLaunchTaskLabelDecorator(taskInfo, frameworkInfo, slaveInfo);
+      hook->masterLaunchTaskLabelDecorator(taskInfo_, frameworkInfo, slaveInfo);
+
+    // NOTE: If the hook returns None(), the task labels won't be
+    // changed.
     if (result.isSome()) {
-      labels.MergeFrom(result.get());
+      taskInfo_.mutable_labels()->CopyFrom(result.get());
     } else if (result.isError()) {
       LOG(WARNING) << "Master label decorator hook failed for module '"
                    << name << "': " << result.error();
     }
   }
 
-  return labels;
+  return taskInfo_.labels();
 }
 
 

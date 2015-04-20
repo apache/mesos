@@ -32,6 +32,7 @@ using namespace mesos;
 // tests/hook_tests.cpp.
 const char* testLabelKey = "MESOS_Test_Label";
 const char* testLabelValue = "ApacheMesos";
+const char* testRemoveLabelKey = "MESOS_Test_Remove_Label";
 
 
 class TestHook : public Hook
@@ -45,9 +46,18 @@ public:
     LOG(INFO) << "Executing 'masterLaunchTaskLabelDecorator' hook";
 
     Labels labels;
-    Label *label = labels.add_labels();
-    label->set_key(testLabelKey);
-    label->set_value(testLabelValue);
+
+    // Set one known label.
+    Label* newLabel = labels.add_labels();
+    newLabel->set_key(testLabelKey);
+    newLabel->set_value(testLabelValue);
+
+    // Remove the 'testRemoveLabelKey' label which was set by the test.
+    foreach (const Label& oldLabel, taskInfo.labels().labels()) {
+      if (oldLabel.key() != testRemoveLabelKey) {
+        labels.add_labels()->CopyFrom(oldLabel);
+      }
+    }
 
     return labels;
   }
