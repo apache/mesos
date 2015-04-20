@@ -129,20 +129,19 @@ TEST_F(HookTest, VerifyMasterLaunchTaskHook)
   Try<PID<Master>> master = StartMaster(CreateMasterFlags());
   ASSERT_SOME(master);
 
-  TestContainerizer containerizer;
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
 
-  StandaloneMasterDetector detector(master.get());
+  TestContainerizer containerizer(&exec);
 
   // Start a mock slave since we aren't testing the slave hooks yet.
-  MockSlave slave(CreateSlaveFlags(), &detector, &containerizer);
-  process::spawn(slave);
+  Try<PID<Slave>> slave = StartSlave(&containerizer);
+  ASSERT_SOME(slave);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
       &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(sched, registered(&driver, _, _))
-    .Times(1);
+  EXPECT_CALL(sched, registered(&driver, _, _));
 
   Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -154,16 +153,12 @@ TEST_F(HookTest, VerifyMasterLaunchTaskHook)
   AWAIT_READY(offers);
   EXPECT_NE(0u, offers.get().size());
 
-  CommandInfo command;
-  command.set_value("sleep 10");
-
-  // Launch a task with the command executor.
   TaskInfo task;
   task.set_name("");
   task.mutable_task_id()->set_value("1");
   task.mutable_slave_id()->CopyFrom(offers.get()[0].slave_id());
   task.mutable_resources()->CopyFrom(offers.get()[0].resources());
-  task.mutable_command()->CopyFrom(command);
+  task.mutable_executor()->CopyFrom(DEFAULT_EXECUTOR_INFO);
 
   // Add label which will be removed by the hook.
   Labels* labels = task.mutable_labels();
@@ -174,21 +169,31 @@ TEST_F(HookTest, VerifyMasterLaunchTaskHook)
   vector<TaskInfo> tasks;
   tasks.push_back(task);
 
-  Future<TaskInfo> taskInfo;
-  EXPECT_CALL(slave, runTask(_, _, _, _, _))
-    .Times(1)
-    .WillOnce(FutureArg<4>(&taskInfo));
+  Future<RunTaskMessage> runTaskMessage =
+    FUTURE_PROTOBUF(RunTaskMessage(), _, _);
+
+  EXPECT_CALL(exec, registered(_, _, _, _));
+
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
+
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status))
+    .WillRepeatedly(Return());
 
   driver.launchTasks(offers.get()[0].id(), tasks);
 
-  AWAIT_READY(taskInfo);
+  AWAIT_READY(runTaskMessage);
+
+  AWAIT_READY(status);
 
   // At launchTasks, the label decorator hook inside should have been
   // executed and we should see the labels now. Also, verify that the
   // hook module has stripped the first 'testRemoveLabelKey' label.
   // We do this by ensuring that only one label is present and that it
   // is the new 'testLabelKey' label.
-  const Labels &labels_ = taskInfo.get().labels();
+  const Labels &labels_ = runTaskMessage.get().task().labels();
   ASSERT_EQ(1, labels_.labels_size());
 
   EXPECT_EQ(labels_.labels().Get(0).key(), testLabelKey);
@@ -196,9 +201,6 @@ TEST_F(HookTest, VerifyMasterLaunchTaskHook)
 
   driver.stop();
   driver.join();
-
-  process::terminate(slave);
-  process::wait(slave);
 
   Shutdown(); // Must shutdown before 'containerizer' gets deallocated.
 }
