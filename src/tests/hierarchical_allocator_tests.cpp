@@ -44,6 +44,7 @@ using mesos::internal::master::MIN_CPUS;
 using mesos::internal::master::MIN_MEM;
 
 using mesos::master::allocator::Allocator;
+using mesos::master::RoleInfo;
 using mesos::internal::master::allocator::HierarchicalDRFAllocator;
 
 using process::Clock;

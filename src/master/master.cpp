@@ -112,6 +112,7 @@ namespace mesos {
 namespace internal {
 namespace master {
 
+using mesos::master::RoleInfo;
 using mesos::master::allocator::Allocator;
 
 

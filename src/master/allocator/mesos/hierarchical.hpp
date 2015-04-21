@@ -76,7 +76,7 @@ public:
       const lambda::function<
           void(const FrameworkID&,
                const hashmap<SlaveID, Resources>&)>& offerCallback,
-      const hashmap<std::string, RoleInfo>& roles);
+      const hashmap<std::string, mesos::master::RoleInfo>& roles);
 
   void addFramework(
       const FrameworkID& frameworkId,
@@ -191,7 +191,7 @@ protected:
 
   hashmap<SlaveID, Slave> slaves;
 
-  hashmap<std::string, RoleInfo> roles;
+  hashmap<std::string, mesos::master::RoleInfo> roles;
 
   // Slaves to send offers for.
   Option<hashset<std::string> > whitelist;
@@ -267,7 +267,7 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::initialize(
     const lambda::function<
         void(const FrameworkID&,
              const hashmap<SlaveID, Resources>&)>& _offerCallback,
-    const hashmap<std::string, RoleInfo>& _roles)
+    const hashmap<std::string, mesos::master::RoleInfo>& _roles)
 {
   allocationInterval = _allocationInterval;
   offerCallback = _offerCallback;
@@ -275,7 +275,8 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::initialize(
   initialized = true;
 
   roleSorter = new RoleSorter();
-  foreachpair (const std::string& name, const RoleInfo& roleInfo, roles) {
+  foreachpair (
+      const std::string& name, const mesos::master::RoleInfo& roleInfo, roles) {
     roleSorter->add(name, roleInfo.weight());
     frameworkSorters[name] = new FrameworkSorter();
   }

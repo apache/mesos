@@ -59,7 +59,7 @@ public:
       const lambda::function<
           void(const FrameworkID&,
                const hashmap<SlaveID, Resources>&)>& offerCallback,
-      const hashmap<std::string, internal::RoleInfo>& roles) = 0;
+      const hashmap<std::string, RoleInfo>& roles) = 0;
 
   virtual void addFramework(
       const FrameworkID& frameworkId,

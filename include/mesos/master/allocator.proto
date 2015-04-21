@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package mesos.internal;
+package mesos.master;
 
 // Describes a role, which are used to group frameworks for allocation
 // decisions, depending on the allocation policy being used.

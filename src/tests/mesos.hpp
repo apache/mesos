@@ -850,7 +850,7 @@ public:
       const lambda::function<
           void(const FrameworkID&,
                const hashmap<SlaveID, Resources>&)>&,
-      const hashmap<std::string, RoleInfo>&));
+      const hashmap<std::string, mesos::master::RoleInfo>&));
 
   MOCK_METHOD3(addFramework, void(
       const FrameworkID&,
