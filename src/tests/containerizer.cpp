@@ -224,7 +224,7 @@ void TestContainerizer::setup()
   // verbose.
   //
   // TODO(bmahler): Update this to use the same style as the
-  // TestAllocatorProcess, which allows us to have default actions
+  // TestAllocator, which allows us to have default actions
   // 'DoDefault', without requiring each test to put expectations in
   // place.
 

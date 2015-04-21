@@ -44,6 +44,8 @@
 #include "master/detector.hpp"
 #include "master/master.hpp"
 
+#include "master/allocator/mesos/hierarchical.hpp"
+
 #include "slave/gc.hpp"
 #include "slave/paths.hpp"
 #include "slave/slave.hpp"
