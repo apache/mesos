@@ -27,6 +27,8 @@
 
 #include <mesos/master/allocator.hpp>
 
+#include <mesos/module/allocator.hpp>
+
 #include <process/clock.hpp>
 #include <process/future.hpp>
 #include <process/gmock.hpp>
@@ -43,6 +45,7 @@
 
 #include "tests/containerizer.hpp"
 #include "tests/mesos.hpp"
+#include "tests/module.hpp"
 
 using mesos::master::allocator::Allocator;
 using mesos::internal::master::allocator::HierarchicalDRFAllocator;
@@ -74,7 +77,9 @@ namespace tests {
 template <typename T>
 class MasterAllocatorTest : public MesosTest {};
 
-typedef ::testing::Types<HierarchicalDRFAllocator> AllocatorTypes;
+typedef ::testing::Types<HierarchicalDRFAllocator,
+                         tests::Module<Allocator, TestDRFAllocator>>
+  AllocatorTypes;
 
 
 // Causes all TYPED_TEST(MasterAllocatorTest, ...) to be run for
