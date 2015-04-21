@@ -37,7 +37,12 @@ using mesos::internal::master::allocator::HierarchicalDRFAllocator;
 
 static Allocator* createDRFAllocator(const Parameters& parameters)
 {
-  return new HierarchicalDRFAllocator();
+  Try<Allocator*> allocator = HierarchicalDRFAllocator::create();
+  if (allocator.isError()) {
+    return NULL;
+  }
+
+  return allocator.get();
 }
 
 

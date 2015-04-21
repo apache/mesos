@@ -24,6 +24,8 @@
 #include <process/dispatch.hpp>
 #include <process/process.hpp>
 
+#include <stout/try.hpp>
+
 namespace mesos {
 namespace internal {
 namespace master {
@@ -39,7 +41,8 @@ template <typename AllocatorProcess>
 class MesosAllocator : public mesos::master::allocator::Allocator
 {
 public:
-  MesosAllocator();
+  // Factory to allow for typed tests.
+  static Try<mesos::master::allocator::Allocator*> create();
 
   ~MesosAllocator();
 
@@ -101,6 +104,7 @@ public:
       const FrameworkID& frameworkId);
 
 private:
+  MesosAllocator();
   MesosAllocator(const MesosAllocator&); // Not copyable.
   MesosAllocator& operator=(const MesosAllocator&); // Not assignable.
 
@@ -178,6 +182,13 @@ public:
       const FrameworkID& frameworkId) = 0;
 };
 
+
+template <typename AllocatorProcess>
+Try<mesos::master::allocator::Allocator*>
+MesosAllocator<AllocatorProcess>::create()
+{
+  return new MesosAllocator<AllocatorProcess>();
+}
 
 template <typename AllocatorProcess>
 MesosAllocator<AllocatorProcess>::MesosAllocator()

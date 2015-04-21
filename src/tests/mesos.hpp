@@ -859,13 +859,22 @@ ACTION_P(InvokeReviveOffers, allocator)
 
 
 template <typename T = master::allocator::HierarchicalDRFAllocator>
+mesos::master::allocator::Allocator* createAllocator()
+{
+  // T represents the allocator type. It can be a default built-in
+  // allocator, or one provided by an allocator module.
+  Try<mesos::master::allocator::Allocator*> instance = T::create();
+  CHECK_SOME(instance);
+  return CHECK_NOTNULL(instance.get());
+}
+
+template <typename T = master::allocator::HierarchicalDRFAllocator>
 class TestAllocator : public mesos::master::allocator::Allocator
 {
 public:
   // Actual allocation is done by an instance of real allocator,
   // which is specified by the template parameter.
-  TestAllocator()
-    : real(new master::allocator::HierarchicalDRFAllocator())
+  TestAllocator() : real(createAllocator<T>())
   {
     // We use 'ON_CALL' and 'WillByDefault' here to specify the
     // default actions (call in to the real allocator). This allows

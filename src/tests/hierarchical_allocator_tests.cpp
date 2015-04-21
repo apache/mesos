@@ -40,6 +40,8 @@
 
 #include "master/allocator/mesos/hierarchical.hpp"
 
+#include "tests/mesos.hpp"
+
 using mesos::internal::master::MIN_CPUS;
 using mesos::internal::master::MIN_MEM;
 
@@ -71,7 +73,7 @@ class HierarchicalAllocatorTest : public ::testing::Test
 {
 protected:
   HierarchicalAllocatorTest()
-    : allocator(new HierarchicalDRFAllocator),
+    : allocator(createAllocator<HierarchicalDRFAllocator>()),
       nextSlaveId(1),
       nextFrameworkId(1) {}
 

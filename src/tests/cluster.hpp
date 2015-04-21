@@ -271,7 +271,15 @@ inline Try<process::PID<master::Master> > Cluster::Masters::start(
   } else {
     // If allocator is not provided, fall back to the default one,
     // managed by Cluster::Masters.
-    master.allocator = new master::allocator::HierarchicalDRFAllocator();
+    Try<mesos::master::allocator::Allocator*> allocator_ =
+      master::allocator::HierarchicalDRFAllocator::create();
+    if (allocator_.isError()) {
+      return Error(
+          "Failed to create an instance of HierarchicalDRFAllocator: " +
+          allocator_.error());
+    }
+
+    master.allocator = allocator_.get();
     master.createdAllocator = true;
   }
 
