@@ -294,7 +294,11 @@ Future<containerizer::Termination> MesosContainerizer::wait(
 
 void MesosContainerizer::destroy(const ContainerID& containerId)
 {
-  dispatch(process.get(), &MesosContainerizerProcess::destroy, containerId);
+  dispatch(
+      process.get(),
+      &MesosContainerizerProcess::destroy,
+      containerId,
+      true);
 }
 
 
@@ -520,7 +524,7 @@ void MesosContainerizerProcess::__launch(
              << "' of framework '" << executorInfo.framework_id()
              << "': " << failure;
 
-  destroy(containerId);
+  destroy(containerId, false);
 }
 
 
@@ -580,6 +584,8 @@ Future<list<Option<CommandInfo>>> MesosContainerizerProcess::prepare(
     const string& directory,
     const Option<string>& user)
 {
+  CHECK(containers_.contains(containerId));
+
   // We prepare the isolators sequentially according to their ordering
   // to permit basic dependency specification, e.g., preparing a
   // filesystem isolator before other isolators.
@@ -595,6 +601,8 @@ Future<list<Option<CommandInfo>>> MesosContainerizerProcess::prepare(
                             user,
                             lambda::_1));
   }
+
+  containers_[containerId]->preparations = f;
 
   return f;
 }
@@ -933,7 +941,9 @@ Future<ResourceStatistics> MesosContainerizerProcess::usage(
 }
 
 
-void MesosContainerizerProcess::destroy(const ContainerID& containerId)
+void MesosContainerizerProcess::destroy(
+    const ContainerID& containerId,
+    bool killed)
 {
   if (!containers_.contains(containerId)) {
     LOG(WARNING) << "Ignoring destroy of unknown container: " << containerId;
@@ -950,14 +960,23 @@ void MesosContainerizerProcess::destroy(const ContainerID& containerId)
   LOG(INFO) << "Destroying container '" << containerId << "'";
 
   if (container->state == PREPARING) {
-    // We cannot simply terminate the container if it's preparing
-    // since isolator's prepare doesn't need any cleanup.
-    containerizer::Termination termination;
-    termination.set_killed(true);
-    termination.set_message("Container destroyed while preparing isolators");
-    container->promise.set(termination);
+    VLOG(1) << "Waiting for the isolators to complete preparing before "
+            << "destroying the container";
 
-    containers_.erase(containerId);
+    container->state = DESTROYING;
+
+    Future<Option<int>> status = None();
+    // We need to wait for the isolators to finish preparing to prevent
+    // a race that the destroy method calls isolators' cleanup before
+    // it starts preparing.
+    container->preparations
+      .onAny(defer(
+          self(),
+          &Self::___destroy,
+          containerId,
+          status,
+          "Container destroyed while preparing isolators",
+          killed));
 
     return;
   }
@@ -975,27 +994,30 @@ void MesosContainerizerProcess::destroy(const ContainerID& containerId)
     // Wait for the isolators to finish isolating before we start
     // to destroy the container.
     container->isolation
-      .onAny(defer(self(), &Self::_destroy, containerId));
+      .onAny(defer(self(), &Self::_destroy, containerId, killed));
 
     return;
   }
 
   container->state = DESTROYING;
-  _destroy(containerId);
+  _destroy(containerId, killed);
 }
 
 
-void MesosContainerizerProcess::_destroy(const ContainerID& containerId)
+void MesosContainerizerProcess::_destroy(
+    const ContainerID& containerId,
+    bool killed)
 {
   // Kill all processes then continue destruction.
   launcher->destroy(containerId)
-    .onAny(defer(self(), &Self::__destroy, containerId, lambda::_1));
+    .onAny(defer(self(), &Self::__destroy, containerId, lambda::_1, killed));
 }
 
 
 void MesosContainerizerProcess::__destroy(
     const ContainerID& containerId,
-    const Future<Nothing>& future)
+    const Future<Nothing>& future,
+    bool killed)
 {
   CHECK(containers_.contains(containerId));
 
@@ -1021,7 +1043,13 @@ void MesosContainerizerProcess::__destroy(
   // the exit status of the executor when it's ready (it may already
   // be) and continue the destroy.
   containers_[containerId]->status
-    .onAny(defer(self(), &Self::___destroy, containerId, lambda::_1));
+    .onAny(defer(
+        self(),
+        &Self::___destroy,
+        containerId,
+        lambda::_1,
+        None(),
+        killed));
 }
 
 
@@ -1064,7 +1092,9 @@ static T reversed(const T& t)
 
 void MesosContainerizerProcess::___destroy(
     const ContainerID& containerId,
-    const Future<Option<int>>& status)
+    const Future<Option<int>>& status,
+    const Option<string>& message,
+    bool killed)
 {
   // We clean up each isolator in the reverse order they were
   // prepared (see comment in prepare()).
@@ -1084,7 +1114,9 @@ void MesosContainerizerProcess::___destroy(
                 &Self::____destroy,
                 containerId,
                 status,
-                lambda::_1));
+                lambda::_1,
+                message,
+                killed));
 
   return;
 }
@@ -1093,7 +1125,9 @@ void MesosContainerizerProcess::___destroy(
 void MesosContainerizerProcess::____destroy(
     const ContainerID& containerId,
     const Future<Option<int>>& status,
-    const Future<list<Future<Nothing>>>& cleanups)
+    const Future<list<Future<Nothing>>>& cleanups,
+    Option<string> message,
+    bool killed)
 {
   // This should not occur because we only use the Future<list> to
   // facilitate chaining.
@@ -1120,26 +1154,32 @@ void MesosContainerizerProcess::____destroy(
     }
   }
 
-  // A container is 'killed' if any isolator limited it.
+  // If any isolator limited the container then we mark it to killed.
   // Note: We may not see a limitation in time for it to be
   // registered. This could occur if the limitation (e.g., an OOM)
   // killed the executor and we triggered destroy() off the executor
   // exit.
-  bool killed = false;
-  string message;
-  if (container->limitations.size() > 0) {
-    killed = true;
+  if (!killed && container->limitations.size() > 0) {
+    string message_;
     foreach (const Limitation& limitation, container->limitations) {
-      message += limitation.message;
+      message_ += limitation.message;
     }
-    message = strings::trim(message);
-  } else {
+    message = strings::trim(message_);
+  } else if (!killed && message.isNone()) {
     message = "Executor terminated";
   }
 
   containerizer::Termination termination;
+
+  // Killed means that the container was either asked to be destroyed
+  // by the slave or was destroyed because an isolator limited the
+  // container.
   termination.set_killed(killed);
-  termination.set_message(message);
+
+  if (message.isSome()) {
+    termination.set_message(message.get());
+  }
+
   if (status.isReady() && status.get().isSome()) {
     termination.set_status(status.get().get());
   }
@@ -1159,7 +1199,7 @@ void MesosContainerizerProcess::reaped(const ContainerID& containerId)
   LOG(INFO) << "Executor for container '" << containerId << "' has exited";
 
   // The executor has exited so destroy the container.
-  destroy(containerId);
+  destroy(containerId, false);
 }
 
 
@@ -1187,7 +1227,7 @@ void MesosContainerizerProcess::limited(
   }
 
   // The container has been affected by the limitation so destroy it.
-  destroy(containerId);
+  destroy(containerId, true);
 }
 
 

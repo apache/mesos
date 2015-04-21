@@ -156,7 +156,7 @@ public:
       const ContainerID& containerId,
       int pipeWrite);
 
-  virtual void destroy(const ContainerID& containerId);
+  virtual void destroy(const ContainerID& containerId, bool killed);
 
   virtual process::Future<hashset<ContainerID>> containers();
 
@@ -199,24 +199,29 @@ private:
       pid_t _pid);
 
   // Continues 'destroy()' once isolators has completed.
-  void _destroy(const ContainerID& containerId);
+  void _destroy(const ContainerID& containerId, bool killed);
 
   // Continues 'destroy()' once all processes have been killed by the launcher.
   void __destroy(
       const ContainerID& containerId,
-      const process::Future<Nothing>& future);
+      const process::Future<Nothing>& future,
+      bool killed);
 
   // Continues '_destroy()' once we get the exit status of the executor.
   void ___destroy(
       const ContainerID& containerId,
-      const process::Future<Option<int>>& status);
+      const process::Future<Option<int>>& status,
+      const Option<std::string>& message,
+      bool killed);
 
   // Continues (and completes) '__destroy()' once all isolators have completed
   // cleanup.
   void ____destroy(
       const ContainerID& containerId,
       const process::Future<Option<int>>& status,
-      const process::Future<std::list<process::Future<Nothing>>>& cleanups);
+      const process::Future<std::list<process::Future<Nothing>>>& cleanups,
+      Option<std::string> message,
+      bool killed);
 
   // Call back for when an isolator limits a container and impacts the
   // processes. This will trigger container destruction.
@@ -260,8 +265,13 @@ private:
     process::Future<Option<int>> status;
 
     // We keep track of the future that is waiting for all the
-    // isolator's futures, so that destroy will only start calling
-    // cleanup after all isolators has finished isolating.
+    // isolators' prepare futures, so that destroy will only start
+    // calling cleanup after all isolators has finished preparing.
+    process::Future<std::list<Option<CommandInfo>>> preparations;
+
+    // We keep track of the future that is waiting for all the
+    // isolators' isolate futures, so that destroy will only start
+    // calling cleanup after all isolators has finished isolating.
     process::Future<std::list<Nothing>> isolation;
 
     // We keep track of any limitations received from each isolator so we can

@@ -357,6 +357,70 @@ public:
 };
 
 
+class MockIsolatorProcess : public IsolatorProcess
+{
+public:
+  MockIsolatorProcess()
+  {
+    EXPECT_CALL(*this, watch(_))
+      .WillRepeatedly(Return(watchPromise.future()));
+
+    EXPECT_CALL(*this, isolate(_, _))
+      .WillRepeatedly(Return(Nothing()));
+
+    EXPECT_CALL(*this, cleanup(_))
+      .WillRepeatedly(Return(Nothing()));
+
+    EXPECT_CALL(*this, prepare(_, _, _, _))
+      .WillRepeatedly(Invoke(this, &MockIsolatorProcess::_prepare));
+  }
+
+  MOCK_METHOD1(
+      recover,
+      process::Future<Nothing>(
+          const std::list<mesos::slave::ExecutorRunState>&));
+
+  MOCK_METHOD4(
+      prepare,
+      process::Future<Option<CommandInfo>>(
+          const ContainerID&,
+          const ExecutorInfo&,
+          const std::string&,
+          const Option<std::string>&));
+
+  virtual process::Future<Option<CommandInfo>> _prepare(
+      const ContainerID& containerId,
+      const ExecutorInfo& executorInfo,
+      const std::string& directory,
+      const Option<std::string>& user)
+  {
+    return None();
+  }
+
+  MOCK_METHOD2(
+      isolate,
+      process::Future<Nothing>(const ContainerID&, pid_t));
+
+  MOCK_METHOD1(
+      watch,
+      process::Future<mesos::slave::Limitation>(const ContainerID&));
+
+  MOCK_METHOD2(
+      update,
+      process::Future<Nothing>(const ContainerID&, const Resources&));
+
+  MOCK_METHOD1(
+      usage,
+      process::Future<ResourceStatistics>(const ContainerID&));
+
+  MOCK_METHOD1(
+      cleanup,
+      process::Future<Nothing>(const ContainerID&));
+
+  Promise<mesos::slave::Limitation> watchPromise;
+};
+
+
 // Destroying a mesos containerizer while it is fetching should
 // complete without waiting for the fetching to finish.
 TEST_F(MesosContainerizerDestroyTest, DestroyWhileFetching)
@@ -409,6 +473,84 @@ TEST_F(MesosContainerizerDestroyTest, DestroyWhileFetching)
 
   // The container should still exit even if fetch didn't complete.
   AWAIT_READY(wait);
+}
+
+
+// Destroying a mesos containerizer while it is preparing should
+// wait until isolators are finished preparing before destroying.
+TEST_F(MesosContainerizerDestroyTest, DestroyWhilePreparing)
+{
+  slave::Flags flags;
+  Try<Launcher*> launcher = PosixLauncher::create(flags);
+  ASSERT_SOME(launcher);
+  vector<Owned<Isolator>> isolators;
+
+  MockIsolatorProcess* isolatorProcess = new MockIsolatorProcess();
+
+  Owned<Isolator> isolator(
+      new Isolator(Owned<IsolatorProcess>((IsolatorProcess*)isolatorProcess)));
+
+  isolators.push_back(isolator);
+
+  Future<Nothing> prepare;
+  Promise<Option<CommandInfo>> promise;
+  // Simulate a long prepare from the isolator.
+  EXPECT_CALL(*isolatorProcess, prepare(_, _, _, _))
+    .WillOnce(DoAll(FutureSatisfy(&prepare),
+                    Return(promise.future())));
+
+  Fetcher fetcher;
+
+  MockMesosContainerizerProcess* process = new MockMesosContainerizerProcess(
+      flags,
+      true,
+      &fetcher,
+      Owned<Launcher>(launcher.get()),
+      isolators);
+
+  MesosContainerizer containerizer((Owned<MesosContainerizerProcess>(process)));
+
+  ContainerID containerId;
+  containerId.set_value("test_container");
+
+  TaskInfo taskInfo;
+  CommandInfo commandInfo;
+  taskInfo.mutable_command()->MergeFrom(commandInfo);
+
+  containerizer.launch(
+      containerId,
+      taskInfo,
+      CREATE_EXECUTOR_INFO("executor", "exit 0"),
+      os::getcwd(),
+      None(),
+      SlaveID(),
+      process::PID<Slave>(),
+      false);
+
+  Future<containerizer::Termination> wait = containerizer.wait(containerId);
+
+  AWAIT_READY(prepare);
+
+  containerizer.destroy(containerId);
+
+  // The container should not exit until prepare is complete.
+  ASSERT_TRUE(wait.isPending());
+
+  // Need to help the compiler to disambiguate between overloads.
+  Option<CommandInfo> option = commandInfo;
+  promise.set(option);
+
+  AWAIT_READY(wait);
+
+  containerizer::Termination termination = wait.get();
+
+  ASSERT_EQ(
+      "Container destroyed while preparing isolators",
+      termination.message());
+
+  ASSERT_TRUE(termination.killed());
+
+  ASSERT_FALSE(termination.has_status());
 }
 
 
