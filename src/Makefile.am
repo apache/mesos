@@ -1355,6 +1355,12 @@ libtestauthentication_la_SOURCES = examples/test_authentication_modules.cpp
 libtestauthentication_la_CPPFLAGS = $(MESOS_CPPFLAGS)
 libtestauthentication_la_LDFLAGS = $(MESOS_MODULE_LDFLAGS)
 
+# Library containing the test DRF allocator module.
+noinst_LTLIBRARIES += libtestallocator.la
+libtestallocator_la_SOURCES = examples/test_allocator_module.cpp
+libtestallocator_la_CPPFLAGS = $(MESOS_CPPFLAGS)
+libtestallocator_la_LDFLAGS = $(MESOS_MODULE_LDFLAGS)
+
 # Library containing test Hook module.
 noinst_LTLIBRARIES += libtesthook.la
 libtesthook_la_SOURCES = examples/test_hook_module.cpp

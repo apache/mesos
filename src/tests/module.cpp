@@ -53,6 +53,8 @@ static void addModule(
 // Add available Isolator modules.
 static void addIsolatorModules(Modules* modules)
 {
+  CHECK_NOTNULL(modules);
+
   const string libraryPath = path::join(
       tests::flags.build_dir,
       "src",
@@ -73,6 +75,8 @@ static void addIsolatorModules(Modules* modules)
 // Add available Authentication modules.
 static void addAuthenticationModules(Modules* modules)
 {
+  CHECK_NOTNULL(modules);
+
   const string libraryPath = path::join(
       tests::flags.build_dir,
       "src",
@@ -96,6 +100,8 @@ static void addAuthenticationModules(Modules* modules)
 
 static void addHookModules(Modules* modules)
 {
+  CHECK_NOTNULL(modules);
+
   const string libraryPath = path::join(
       tests::flags.build_dir,
       "src",
@@ -114,6 +120,8 @@ static void addHookModules(Modules* modules)
 
 static void addAnonymousModules(Modules* modules)
 {
+  CHECK_NOTNULL(modules);
+
   const string libraryPath = path::join(
       tests::flags.build_dir,
       "src",
@@ -128,6 +136,27 @@ static void addAnonymousModules(Modules* modules)
   // and tie it with a module name.
   addModule(
       library, TestAnonymous, "org_apache_mesos_TestAnonymous");
+}
+
+
+// Add available Allocator modules.
+static void addAllocatorModules(Modules* modules)
+{
+  CHECK_NOTNULL(modules);
+
+  const string libraryPath = path::join(
+      tests::flags.build_dir,
+      "src",
+      ".libs",
+      os::libraries::expandName("testallocator"));
+
+  // Now add our allocator module.
+  Modules::Library* library = modules->add_libraries();
+  library->set_file(libraryPath);
+
+  // To add a new module from this library, create a new ModuleID enum
+  // and tie it with a module name.
+  addModule(library, TestDRFAllocator, "org_apache_mesos_TestDRFAllocator");
 }
 
 
@@ -150,6 +179,9 @@ Try<Nothing> initModules(const Option<Modules>& modules)
 
   // Add anonymous modules from testanonymous library.
   addAnonymousModules(&mergedModules);
+
+  // Add allocator modules from testallocator library.
+  addAllocatorModules(&mergedModules);
 
   return ModuleManager::load(mergedModules);
 }

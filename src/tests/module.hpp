@@ -46,7 +46,8 @@ enum ModuleID
   TestCRAMMD5Authenticatee,
   TestCRAMMD5Authenticator,
   TestHook,
-  TestAnonymous
+  TestAnonymous,
+  TestDRFAllocator
 };
 
 
