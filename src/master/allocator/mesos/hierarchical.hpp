@@ -72,7 +72,7 @@ public:
   process::PID<HierarchicalAllocatorProcess> self();
 
   void initialize(
-      const Flags& flags,
+      const Duration& allocationInterval,
       const lambda::function<
           void(const FrameworkID&,
                const hashmap<SlaveID, Resources>&)>& offerCallback,
@@ -162,7 +162,7 @@ protected:
 
   bool initialized;
 
-  Flags flags;
+  Duration allocationInterval;
 
   lambda::function<
       void(const FrameworkID&,
@@ -263,13 +263,13 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::self()
 template <class RoleSorter, class FrameworkSorter>
 void
 HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::initialize(
-    const Flags& _flags,
+    const Duration& _allocationInterval,
     const lambda::function<
         void(const FrameworkID&,
              const hashmap<SlaveID, Resources>&)>& _offerCallback,
     const hashmap<std::string, RoleInfo>& _roles)
 {
-  flags = _flags;
+  allocationInterval = _allocationInterval;
   offerCallback = _offerCallback;
   roles = _roles;
   initialized = true;
@@ -286,7 +286,7 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::initialize(
 
   VLOG(1) << "Initialized hierarchical allocator process";
 
-  delay(flags.allocation_interval, self(), &Self::batch);
+  delay(allocationInterval, self(), &Self::batch);
 }
 
 
@@ -713,7 +713,7 @@ void
 HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::batch()
 {
   allocate();
-  delay(flags.allocation_interval, self(), &Self::batch);
+  delay(allocationInterval, self(), &Self::batch);
 }
 
 

@@ -24,18 +24,15 @@
 
 #include <mesos/resources.hpp>
 
+#include <stout/duration.hpp>
 #include <stout/hashmap.hpp>
 #include <stout/hashset.hpp>
 #include <stout/lambda.hpp>
 #include <stout/option.hpp>
 
-#include "master/flags.hpp"
-#include "messages/messages.hpp"
-
 namespace mesos {
 namespace internal {
 namespace master {
-
 namespace allocator {
 
 // Basic model of an allocator: resources are allocated to a framework
@@ -56,7 +53,7 @@ public:
   virtual ~Allocator() {}
 
   virtual void initialize(
-      const Flags& flags,
+      const Duration& allocationInterval,
       const lambda::function<
           void(const FrameworkID&,
                const hashmap<SlaveID, Resources>&)>& offerCallback,

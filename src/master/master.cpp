@@ -600,7 +600,7 @@ void Master::initialize()
 
   // Initialize the allocator.
   allocator->initialize(
-      flags,
+      flags.allocation_interval,
       defer(self(), &Master::offer, lambda::_1, lambda::_2),
       roleInfos);
 

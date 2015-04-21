@@ -95,7 +95,7 @@ protected:
     }
 
     allocator->initialize(
-        flags,
+        flags.allocation_interval,
         lambda::bind(&put, &queue, lambda::_1, lambda::_2),
         roles);
   }
