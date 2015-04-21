@@ -757,6 +757,105 @@ public:
 };
 
 
+// The following actions make up for the fact that DoDefault
+// cannot be used inside a DoAll, for example:
+// EXPECT_CALL(allocator, addFramework(_, _, _))
+//   .WillOnce(DoAll(InvokeAddFramework(&allocator),
+//                   FutureSatisfy(&addFramework)));
+
+ACTION_P(InvokeInitialize, allocator)
+{
+  allocator->real.initialize(arg0, arg1, arg2);
+}
+
+
+ACTION_P(InvokeAddFramework, allocator)
+{
+  allocator->real.addFramework(arg0, arg1, arg2);
+}
+
+
+ACTION_P(InvokeRemoveFramework, allocator)
+{
+  allocator->real.removeFramework(arg0);
+}
+
+
+ACTION_P(InvokeActivateFramework, allocator)
+{
+  allocator->real.activateFramework(arg0);
+}
+
+
+ACTION_P(InvokeDeactivateFramework, allocator)
+{
+  allocator->real.deactivateFramework(arg0);
+}
+
+
+ACTION_P(InvokeAddSlave, allocator)
+{
+  allocator->real.addSlave(arg0, arg1, arg2, arg3);
+}
+
+
+ACTION_P(InvokeRemoveSlave, allocator)
+{
+  allocator->real.removeSlave(arg0);
+}
+
+
+ACTION_P(InvokeActivateSlave, allocator)
+{
+  allocator->real.activateSlave(arg0);
+}
+
+
+ACTION_P(InvokeDeactivateSlave, allocator)
+{
+  allocator->real.deactivateSlave(arg0);
+}
+
+
+ACTION_P(InvokeUpdateWhitelist, allocator)
+{
+  allocator->real.updateWhitelist(arg0);
+}
+
+
+ACTION_P(InvokeRequestResources, allocator)
+{
+  allocator->real.requestResources(arg0, arg1);
+}
+
+
+ACTION_P(InvokeUpdateAllocation, allocator)
+{
+  allocator->real.updateAllocation(arg0, arg1, arg2);
+}
+
+
+ACTION_P(InvokeRecoverResources, allocator)
+{
+  allocator->real.recoverResources(arg0, arg1, arg2, arg3);
+}
+
+
+ACTION_P2(InvokeRecoverResourcesWithFilters, allocator, timeout)
+{
+  Filters filters;
+  filters.set_refuse_seconds(timeout);
+
+  allocator->real.recoverResources(arg0, arg1, arg2, filters);
+}
+
+
+ACTION_P(InvokeReviveOffers, allocator)
+{
+  allocator->real.reviveOffers(arg0);
+}
+
+
 template <typename T = mesos::master::allocator::Allocator>
 class TestAllocator : public mesos::master::allocator::Allocator
 {
@@ -903,105 +1002,6 @@ public:
 
   T real;
 };
-
-
-// The following actions make up for the fact that DoDefault
-// cannot be used inside a DoAll, for example:
-// EXPECT_CALL(allocator, addFramework(_, _, _))
-//   .WillOnce(DoAll(InvokeAddFramework(&allocator),
-//                   FutureSatisfy(&addFramework)));
-
-ACTION_P(InvokeInitialize, allocator)
-{
-  allocator->real.initialize(arg0, arg1, arg2);
-}
-
-
-ACTION_P(InvokeAddFramework, allocator)
-{
-  allocator->real.addFramework(arg0, arg1, arg2);
-}
-
-
-ACTION_P(InvokeRemoveFramework, allocator)
-{
-  allocator->real.removeFramework(arg0);
-}
-
-
-ACTION_P(InvokeActivateFramework, allocator)
-{
-  allocator->real.activateFramework(arg0);
-}
-
-
-ACTION_P(InvokeDeactivateFramework, allocator)
-{
-  allocator->real.deactivateFramework(arg0);
-}
-
-
-ACTION_P(InvokeAddSlave, allocator)
-{
-  allocator->real.addSlave(arg0, arg1, arg2, arg3);
-}
-
-
-ACTION_P(InvokeRemoveSlave, allocator)
-{
-  allocator->real.removeSlave(arg0);
-}
-
-
-ACTION_P(InvokeActivateSlave, allocator)
-{
-  allocator->real.activateSlave(arg0);
-}
-
-
-ACTION_P(InvokeDeactivateSlave, allocator)
-{
-  allocator->real.deactivateSlave(arg0);
-}
-
-
-ACTION_P(InvokeUpdateWhitelist, allocator)
-{
-  allocator->real.updateWhitelist(arg0);
-}
-
-
-ACTION_P(InvokeRequestResources, allocator)
-{
-  allocator->real.requestResources(arg0, arg1);
-}
-
-
-ACTION_P(InvokeUpdateAllocation, allocator)
-{
-  allocator->real.updateAllocation(arg0, arg1, arg2);
-}
-
-
-ACTION_P(InvokeRecoverResources, allocator)
-{
-  allocator->real.recoverResources(arg0, arg1, arg2, arg3);
-}
-
-
-ACTION_P2(InvokeRecoverResourcesWithFilters, allocator, timeout)
-{
-  Filters filters;
-  filters.set_refuse_seconds(timeout);
-
-  allocator->real.recoverResources(arg0, arg1, arg2, filters);
-}
-
-
-ACTION_P(InvokeReviveOffers, allocator)
-{
-  allocator->real.reviveOffers(arg0);
-}
 
 
 class OfferEqMatcher
