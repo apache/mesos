@@ -166,7 +166,12 @@ private:
       const hashset<ContainerID>& orphans);
 
   process::Future<Nothing> __recover(
-      const std::list<mesos::slave::ExecutorRunState>& recovered);
+      const std::list<mesos::slave::ExecutorRunState>& recovered,
+      const hashset<ContainerID>& orphans);
+
+  void ___recover(
+      const ContainerID& containerId,
+      const process::Future<std::list<process::Future<Nothing>>>& future);
 
   process::Future<std::list<Option<CommandInfo>>> prepare(
       const ContainerID& containerId,
@@ -239,6 +244,11 @@ private:
   Try<Nothing> updateVolumes(
       const ContainerID& containerId,
       const Resources& updated);
+
+  // TODO(jieyu): Consider introducing an Isolators struct and moving
+  // all isolator related operations to that struct.
+  process::Future<std::list<process::Future<Nothing>>> cleanupIsolators(
+      const ContainerID& containerId);
 
   const Flags flags;
   const bool local;

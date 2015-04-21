@@ -83,7 +83,7 @@ using state::ExecutorState;
 using state::RunState;
 
 // Local function declaration/definitions.
-Future<Nothing> _nothing() { return Nothing(); }
+static Future<Nothing> _nothing() { return Nothing(); }
 
 
 Try<MesosContainerizer*> MesosContainerizer::create(
@@ -410,12 +410,13 @@ Future<Nothing> MesosContainerizerProcess::_recover(
 
   // If all isolators recover then continue.
   return collect(futures)
-    .then(defer(self(), &Self::__recover, recoverable));
+    .then(defer(self(), &Self::__recover, recoverable, orphans));
 }
 
 
 Future<Nothing> MesosContainerizerProcess::__recover(
-    const list<ExecutorRunState>& recovered)
+    const list<ExecutorRunState>& recovered,
+    const hashset<ContainerID>& orphans)
 {
   foreach (const ExecutorRunState& run, recovered) {
     const ContainerID& containerId = run.id;
@@ -441,7 +442,52 @@ Future<Nothing> MesosContainerizerProcess::__recover(
     }
   }
 
+  // Destroy all the orphan containers.
+  // NOTE: We do not fail the recovery if the destroy of orphan
+  // containers failed. See MESOS-2367 for details.
+  foreach (const ContainerID& containerId, orphans) {
+    LOG(INFO) << "Removing orphan container " << containerId;
+
+    launcher->destroy(containerId)
+      .then(defer(self(), &Self::cleanupIsolators, containerId))
+      .onAny(defer(self(), &Self::___recover, containerId, lambda::_1));
+  }
+
   return Nothing();
+}
+
+
+void MesosContainerizerProcess::___recover(
+    const ContainerID& containerId,
+    const Future<list<Future<Nothing>>>& future)
+{
+  // NOTE: If 'future' is not ready, that indicates launcher destroy
+  // has failed because 'cleanupIsolators' should always return a
+  // ready future.
+  if (!future.isReady()) {
+    LOG(ERROR) << "Failed to destroy orphan container " << containerId << ": "
+               << (future.isFailed() ? future.failure() : "discarded");
+
+    ++metrics.container_destroy_errors;
+    return;
+  }
+
+  // Indicates if the isolator cleanups have any failure or not.
+  bool cleanupFailed = false;
+
+  foreach (const Future<Nothing>& cleanup, future.get()) {
+    if (!cleanup.isReady()) {
+      LOG(ERROR) << "Failed to clean up an isolator when destroying "
+                 << "orphan container " << containerId << ": "
+                 << (cleanup.isFailed() ? cleanup.failure() : "discarded");
+
+      cleanupFailed = true;
+    }
+  }
+
+  if (cleanupFailed) {
+    ++metrics.container_destroy_errors;
+  }
 }
 
 
@@ -1066,72 +1112,20 @@ void MesosContainerizerProcess::__destroy(
 }
 
 
-static list<Future<Nothing>> _cleanup(const list<Future<Nothing>>& cleanups)
-{
-  return cleanups;
-}
-
-
-static Future<list<Future<Nothing>>> cleanup(
-    const Owned<Isolator>& isolator,
-    const ContainerID& containerId,
-    list<Future<Nothing>> cleanups)
-{
-  // Accumulate but do not propagate any failure.
-  Future<Nothing> cleanup = isolator->cleanup(containerId);
-  cleanups.push_back(cleanup);
-
-  // Wait for the cleanup to complete/fail before returning the list.
-  // We use await here to asynchronously wait for the isolator to
-  // complete then return cleanups.
-  list<Future<Nothing>> cleanup_;
-  cleanup_.push_back(cleanup);
-
-  return await(cleanup_)
-    .then(lambda::bind(&_cleanup, cleanups));
-}
-
-
-// TODO(idownes): Use a reversed view of the container rather than
-// reversing a copy.
-template <typename T>
-static T reversed(const T& t)
-{
-  T r = t;
-  std::reverse(r.begin(), r.end());
-  return r;
-}
-
-
 void MesosContainerizerProcess::___destroy(
     const ContainerID& containerId,
     const Future<Option<int>>& status,
     const Option<string>& message,
     bool killed)
 {
-  // We clean up each isolator in the reverse order they were
-  // prepared (see comment in prepare()).
-  Future<list<Future<Nothing>>> f = list<Future<Nothing>>();
-
-  foreach (const Owned<Isolator>& isolator, reversed(isolators)) {
-    // We'll try to clean up all isolators, waiting for each to
-    // complete and continuing if one fails.
-    f = f.then(lambda::bind(&cleanup,
-                            isolator,
-                            containerId,
-                            lambda::_1));
-  }
-
-  // Continue destroy when we're done trying to clean up.
-  f.onAny(defer(self(),
-                &Self::____destroy,
-                containerId,
-                status,
-                lambda::_1,
-                message,
-                killed));
-
-  return;
+  cleanupIsolators(containerId)
+    .onAny(defer(self(),
+                 &Self::____destroy,
+                 containerId,
+                 status,
+                 lambda::_1,
+                 message,
+                 killed));
 }
 
 
@@ -1358,6 +1352,57 @@ Try<Nothing> MesosContainerizerProcess::updateVolumes(
   }
 
   return Nothing();
+}
+
+
+static list<Future<Nothing>> __cleanupIsolators(
+    const list<Future<Nothing>>& cleanups)
+{
+  return cleanups;
+}
+
+
+static Future<list<Future<Nothing>>> _cleanupIsolators(
+    const Owned<Isolator>& isolator,
+    const ContainerID& containerId,
+    list<Future<Nothing>> cleanups)
+{
+  // Accumulate but do not propagate any failure.
+  Future<Nothing> cleanup = isolator->cleanup(containerId);
+  cleanups.push_back(cleanup);
+
+  // Wait for the cleanup to complete/fail before returning the list.
+  // We use await here to asynchronously wait for the isolator to
+  // complete then return cleanups.
+  list<Future<Nothing>> cleanup_;
+  cleanup_.push_back(cleanup);
+
+  return await(cleanup_)
+    .then(lambda::bind(&__cleanupIsolators, cleanups));
+}
+
+
+Future<list<Future<Nothing>>> MesosContainerizerProcess::cleanupIsolators(
+    const ContainerID& containerId)
+{
+  Future<list<Future<Nothing>>> f = list<Future<Nothing>>();
+
+  // NOTE: We clean up each isolator in the reverse order they were
+  // prepared (see comment in prepare()).
+  for (auto it = isolators.crbegin(); it != isolators.crend(); ++it) {
+    const Owned<Isolator>& isolator = *it;
+
+    // We'll try to clean up all isolators, waiting for each to
+    // complete and continuing if one fails.
+    // TODO(jieyu): Technically, we cannot bind 'isolator' here
+    // because the ownership will be transferred after the bind.
+    f = f.then(lambda::bind(&_cleanupIsolators,
+                            isolator,
+                            containerId,
+                            lambda::_1));
+  }
+
+  return f;
 }
 
 } // namespace slave {
