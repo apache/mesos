@@ -23,6 +23,8 @@
 #include <mesos/executor.hpp>
 #include <mesos/scheduler.hpp>
 
+#include <mesos/master/allocator.hpp>
+
 #include <process/clock.hpp>
 #include <process/future.hpp>
 #include <process/pid.hpp>
@@ -32,8 +34,6 @@
 #include <stout/try.hpp>
 
 #include "master/master.hpp"
-
-#include "master/allocator/allocator.hpp"
 
 #include "messages/messages.hpp"
 

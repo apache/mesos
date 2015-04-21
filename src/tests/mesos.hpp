@@ -27,6 +27,8 @@
 #include <mesos/executor.hpp>
 #include <mesos/scheduler.hpp>
 
+#include <mesos/master/allocator.hpp>
+
 #include <process/future.hpp>
 #include <process/gmock.hpp>
 #include <process/gtest.hpp>
@@ -50,8 +52,6 @@
 
 #include "master/detector.hpp"
 #include "master/master.hpp"
-
-#include "master/allocator/allocator.hpp"
 
 #include "slave/slave.hpp"
 
@@ -99,7 +99,7 @@ protected:
 
   // Starts a master with the specified allocator process and flags.
   virtual Try<process::PID<master::Master> > StartMaster(
-      master::allocator::Allocator* allocator,
+      mesos::master::allocator::Allocator* allocator,
       const Option<master::Flags>& flags = None());
 
   // Starts a master with the specified authorizer and flags.
@@ -757,8 +757,8 @@ public:
 };
 
 
-template <typename T = master::allocator::Allocator>
-class TestAllocator : public master::allocator::Allocator
+template <typename T = mesos::master::allocator::Allocator>
+class TestAllocator : public mesos::master::allocator::Allocator
 {
 public:
   TestAllocator()

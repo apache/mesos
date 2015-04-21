@@ -140,6 +140,9 @@ endif
 
 MESOS_PROTO = $(top_srcdir)/include/mesos/mesos.proto
 
+ALLOCATOR_PROTO =							\
+  $(top_srcdir)/include/mesos/master/allocator.proto
+
 AUTHENTICATION_PROTO =							\
   $(top_srcdir)/include/mesos/authentication/authentication.proto
 
@@ -164,6 +167,8 @@ CXX_PROTOS =								\
   ../include/mesos/containerizer/containerizer.pb.h			\
   fetcher/fetcher.pb.cc							\
   ../include/mesos/fetcher/fetcher.pb.h					\
+  master/allocator.pb.cc						\
+  ../include/mesos/master/allocator.pb.h				\
   module/module.pb.cc							\
   ../include/mesos/module/module.pb.h					\
   scheduler/scheduler.pb.cc						\
@@ -225,6 +230,12 @@ fetcher/%.pb.cc ../include/mesos/fetcher/%.pb.h: $(FETCHER_PROTO)
 	$(MKDIR_P) ../include/mesos/fetcher
 	$(PROTOC) $(PROTOCFLAGS) --cpp_out=../include $^
 	mv ../include/mesos/fetcher/*.pb.cc $(@D)
+
+master/%.pb.cc ../include/mesos/master/%.pb.h: $(ALLOCATOR_PROTO)
+	$(MKDIR_P) $(@D)
+	$(MKDIR_P) ../include/mesos/master
+	$(PROTOC) $(PROTOCFLAGS) --cpp_out=../include $^
+	mv ../include/mesos/master/*.pb.cc $(@D)
 
 module/%.pb.cc ../include/mesos/module/%.pb.h: $(MODULE_PROTO)
 	$(MKDIR_P) $(@D)
@@ -407,6 +418,14 @@ fetcher_HEADERS =							\
 
 nodist_fetcher_HEADERS = ../include/mesos/fetcher/fetcher.pb.h
 
+masterdir = $(pkgincludedir)/master
+
+master_HEADERS =							\
+  $(top_srcdir)/include/mesos/master/allocator.hpp			\
+  $(top_srcdir)/include/mesos/master/allocator.proto
+
+nodist_master_HEADERS = ../include/mesos/master/allocator.pb.h
+
 moduledir = $(pkgincludedir)/module
 
 module_HEADERS =							\
@@ -526,7 +545,6 @@ libmesos_no_3rdparty_la_SOURCES +=					\
 	master/repairer.hpp						\
 	master/registrar.hpp						\
 	master/validation.hpp						\
-	master/allocator/allocator.hpp					\
 	master/allocator/mesos/allocator.hpp				\
 	master/allocator/mesos/hierarchical.hpp				\
 	master/allocator/sorter/drf/sorter.hpp				\
@@ -692,7 +710,8 @@ libmesos_no_3rdparty_la_LIBADD += libstate.la
 lib_LTLIBRARIES += libmesos.la
 
 # Include as part of the distribution.
-libmesos_la_SOURCES = 							\
+libmesos_la_SOURCES =							\
+  $(ALLOCATOR_PROTO)							\
   $(CONTAINERIZER_PROTO)						\
   $(FETCHER_PROTO)							\
   $(MESOS_PROTO)							\

@@ -18,6 +18,8 @@
 
 #include <gmock/gmock.h>
 
+#include <mesos/master/allocator.hpp>
+
 #include <process/clock.hpp>
 #include <process/future.hpp>
 #include <process/gmock.hpp>
@@ -27,8 +29,6 @@
 
 #include "master/flags.hpp"
 #include "master/master.hpp"
-
-#include "master/allocator/allocator.hpp"
 
 #include "tests/mesos.hpp"
 #include "tests/utils.hpp"

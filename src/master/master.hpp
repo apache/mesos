@@ -32,6 +32,8 @@
 #include <mesos/scheduler.hpp>
 #include <mesos/type_utils.hpp>
 
+#include <mesos/master/allocator.hpp>
+
 #include <mesos/module/authenticator.hpp>
 
 #include <process/limiter.hpp>
@@ -81,11 +83,6 @@ class WhitelistWatcher;
 
 namespace master {
 
-// Forward declarations.
-namespace allocator {
-class Allocator;
-}
-
 class Repairer;
 class SlaveObserver;
 
@@ -98,7 +95,7 @@ struct Slave;
 class Master : public ProtobufProcess<Master>
 {
 public:
-  Master(allocator::Allocator* allocator,
+  Master(mesos::master::allocator::Allocator* allocator,
          Registrar* registrar,
          Repairer* repairer,
          Files* files,
@@ -538,7 +535,7 @@ private:
 
   Option<MasterInfo> leader; // Current leading master.
 
-  allocator::Allocator* allocator;
+  mesos::master::allocator::Allocator* allocator;
   WhitelistWatcher* whitelistWatcher;
   Registrar* registrar;
   Repairer* repairer;

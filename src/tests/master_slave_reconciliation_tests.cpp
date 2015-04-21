@@ -24,6 +24,8 @@
 #include <mesos/mesos.hpp>
 #include <mesos/scheduler.hpp>
 
+#include <mesos/master/allocator.hpp>
+
 #include <process/future.hpp>
 #include <process/gmock.hpp>
 #include <process/pid.hpp>
@@ -33,8 +35,6 @@
 #include "common/protobuf_utils.hpp"
 
 #include "master/master.hpp"
-
-#include "master/allocator/allocator.hpp"
 
 #include "slave/slave.hpp"
 

@@ -26,6 +26,8 @@
 
 #include <mesos/authentication/authentication.hpp>
 
+#include <mesos/master/allocator.hpp>
+
 #include <process/future.hpp>
 #include <process/gmock.hpp>
 #include <process/http.hpp>
@@ -40,8 +42,6 @@
 #include "common/protobuf_utils.hpp"
 
 #include "master/master.hpp"
-
-#include "master/allocator/allocator.hpp"
 
 #include "sched/constants.hpp"
 

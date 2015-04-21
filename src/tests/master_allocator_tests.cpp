@@ -25,6 +25,8 @@
 #include <mesos/executor.hpp>
 #include <mesos/scheduler.hpp>
 
+#include <mesos/master/allocator.hpp>
+
 #include <process/clock.hpp>
 #include <process/future.hpp>
 #include <process/gmock.hpp>
@@ -37,13 +39,12 @@
 #include "master/detector.hpp"
 #include "master/master.hpp"
 
-#include "master/allocator/allocator.hpp"
 #include "master/allocator/mesos/hierarchical.hpp"
 
 #include "tests/containerizer.hpp"
 #include "tests/mesos.hpp"
 
-using mesos::internal::master::allocator::Allocator;
+using mesos::master::allocator::Allocator;
 using mesos::internal::master::allocator::HierarchicalDRFAllocator;
 
 using mesos::internal::master::Master;

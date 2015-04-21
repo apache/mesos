@@ -64,15 +64,6 @@ message Task {
 }
 
 
-// Describes a role, which are used to group frameworks for allocation
-// decisions, depending on the allocation policy being used.
-// The weight field can be used to indicate forms of priority.
-message RoleInfo {
-  required string name = 1;
-  optional double weight = 2 [default = 1];
-}
-
-
 // TODO(vinod): Create a new UUID message type.
 message StatusUpdate {
   required FrameworkID framework_id = 1;
