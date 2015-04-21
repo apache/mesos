@@ -62,6 +62,7 @@ void ModuleManager::initialize()
   // current change.  Typically that should be the version currently
   // under development.
 
+  kindToVersion["Allocator"] = MESOS_VERSION;
   kindToVersion["Anonymous"] = MESOS_VERSION;
   kindToVersion["Authenticatee"] = MESOS_VERSION;
   kindToVersion["Authenticator"] = MESOS_VERSION;
