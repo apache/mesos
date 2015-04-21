@@ -66,6 +66,8 @@ private:
   // The 'pid' is the process id of the child process and also the
   // process group id and session id.
   hashmap<ContainerID, pid_t> pids;
+
+  hashset<ContainerID> orphans;
 };
 
 } // namespace slave {

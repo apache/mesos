@@ -57,14 +57,14 @@ using std::set;
 using std::string;
 using std::vector;
 
-namespace mesos {
-namespace internal {
-namespace slave {
-
 using mesos::slave::ExecutorRunState;
 using mesos::slave::Isolator;
 using mesos::slave::IsolatorProcess;
 using mesos::slave::Limitation;
+
+namespace mesos {
+namespace internal {
+namespace slave {
 
 Try<Isolator*> CgroupsPerfEventIsolatorProcess::create(const Flags& flags)
 {
@@ -144,10 +144,8 @@ void CgroupsPerfEventIsolatorProcess::initialize()
 
 Future<Nothing> CgroupsPerfEventIsolatorProcess::recover(
     const list<ExecutorRunState>& states,
-    const hashset<ContainerID>& _orphans)
+    const hashset<ContainerID>& orphans)
 {
-  hashset<string> cgroups;
-
   foreach (const ExecutorRunState& state, states) {
     const ContainerID& containerId = state.id;
     const string cgroup = path::join(flags.cgroups_root, containerId.value());
@@ -179,30 +177,44 @@ Future<Nothing> CgroupsPerfEventIsolatorProcess::recover(
     }
 
     infos[containerId] = new Info(containerId, cgroup);
-    cgroups.insert(cgroup);
   }
 
-  Try<vector<string>> orphans = cgroups::get(hierarchy, flags.cgroups_root);
-  if (orphans.isError()) {
+  // Remove orphan cgroups.
+  Try<vector<string>> cgroups = cgroups::get(hierarchy, flags.cgroups_root);
+  if (cgroups.isError()) {
     foreachvalue (Info* info, infos) {
       delete info;
     }
     infos.clear();
-    return Failure(orphans.error());
+    return Failure(cgroups.error());
   }
 
-  foreach (const string& orphan, orphans.get()) {
+  foreach (const string& cgroup, cgroups.get()) {
     // Ignore the slave cgroup (see the --slave_subsystems flag).
     // TODO(idownes): Remove this when the cgroups layout is updated,
     // see MESOS-1185.
-    if (orphan == path::join(flags.cgroups_root, "slave")) {
+    if (cgroup == path::join(flags.cgroups_root, "slave")) {
       continue;
     }
 
-    if (!cgroups.contains(orphan)) {
-      LOG(INFO) << "Removing orphaned cgroup '" << orphan << "'";
-      cgroups::destroy(hierarchy, orphan);
+    ContainerID containerId;
+    containerId.set_value(os::basename(cgroup).get());
+
+    if (infos.contains(containerId)) {
+      continue;
     }
+
+    // Known orphan cgroups will be destroyed by the containerizer
+    // using the normal cleanup path. See details in MESOS-2367.
+    if (orphans.contains(containerId)) {
+      infos[containerId] = new Info(containerId, cgroup);
+      continue;
+    }
+
+    LOG(INFO) << "Removing unknown orphaned cgroup '" << cgroup << "'";
+
+    // We don't wait on the destroy as we don't want to block recovery.
+    cgroups::destroy(hierarchy, cgroup, cgroups::DESTROY_TIMEOUT);
   }
 
   return Nothing();

@@ -35,6 +35,7 @@
 #include <stout/hashmap.hpp>
 #include <stout/hashset.hpp>
 #include <stout/nothing.hpp>
+#include <stout/os.hpp>
 #include <stout/stringify.hpp>
 #include <stout/try.hpp>
 
@@ -51,18 +52,21 @@ using std::set;
 using std::string;
 using std::vector;
 
-namespace mesos {
-namespace internal {
-namespace slave {
-
 using mesos::slave::ExecutorRunState;
 using mesos::slave::Isolator;
 using mesos::slave::IsolatorProcess;
 using mesos::slave::Limitation;
 
+namespace mesos {
+namespace internal {
+namespace slave {
 
 template<class T>
 static Future<Option<T>> none() { return None(); }
+
+
+static Future<Nothing> _nothing() { return Nothing(); }
+
 
 CgroupsCpushareIsolatorProcess::CgroupsCpushareIsolatorProcess(
     const Flags& _flags,
@@ -174,10 +178,8 @@ Try<Isolator*> CgroupsCpushareIsolatorProcess::create(const Flags& flags)
 
 Future<Nothing> CgroupsCpushareIsolatorProcess::recover(
     const list<ExecutorRunState>& states,
-    const hashset<ContainerID>& _orphans)
+    const hashset<ContainerID>& orphans)
 {
-  hashset<string> cgroups;
-
   foreach (const ExecutorRunState& state, states) {
     const ContainerID& containerId = state.id;
     const string cgroup = path::join(flags.cgroups_root, containerId.value());
@@ -202,41 +204,52 @@ Future<Nothing> CgroupsCpushareIsolatorProcess::recover(
     }
 
     infos[containerId] = new Info(containerId, cgroup);
-    cgroups.insert(cgroup);
   }
 
-  // Remove orphans.
+  // Remove orphan cgroups.
   foreach (const string& subsystem, subsystems) {
-    Try<vector<string>> orphans = cgroups::get(
+    Try<vector<string>> cgroups = cgroups::get(
         hierarchies[subsystem],
         flags.cgroups_root);
 
-    if (orphans.isError()) {
+    if (cgroups.isError()) {
       foreachvalue (Info* info, infos) {
         delete info;
       }
       infos.clear();
-      return Failure(orphans.error());
+      return Failure(cgroups.error());
     }
 
-    foreach (const string& orphan, orphans.get()) {
+    foreach (const string& cgroup, cgroups.get()) {
       // Ignore the slave cgroup (see the --slave_subsystems flag).
       // TODO(idownes): Remove this when the cgroups layout is
       // updated, see MESOS-1185.
-      if (orphan == path::join(flags.cgroups_root, "slave")) {
+      if (cgroup == path::join(flags.cgroups_root, "slave")) {
         continue;
       }
 
-      if (!cgroups.contains(orphan)) {
-        LOG(INFO) << "Removing orphaned cgroup" << " '"
-                  << path::join(subsystem, orphan) << "'";
+      ContainerID containerId;
+      containerId.set_value(os::basename(cgroup).get());
 
-        // We don't wait on the destroy as we don't want to block recovery.
-        cgroups::destroy(
-            hierarchies[subsystem],
-            orphan,
-            cgroups::DESTROY_TIMEOUT);
+      if (infos.contains(containerId)) {
+        continue;
       }
+
+      // Known orphan cgroups will be destroyed by the containerizer
+      // using the normal cleanup path. See MESOS-2367 for details.
+      if (orphans.contains(containerId)) {
+        infos[containerId] = new Info(containerId, cgroup);
+        continue;
+      }
+
+      LOG(INFO) << "Removing unknown orphaned cgroup '"
+                << path::join(subsystem, cgroup) << "'";
+
+      // We don't wait on the destroy as we don't want to block recovery.
+      cgroups::destroy(
+          hierarchies[subsystem],
+          cgroup,
+          cgroups::DESTROY_TIMEOUT);
     }
   }
 
@@ -501,13 +514,6 @@ Future<ResourceStatistics> CgroupsCpushareIsolatorProcess::usage(
 }
 
 
-namespace {
-
-Future<Nothing> _nothing() { return Nothing(); }
-
-} // namespace {
-
-
 Future<Nothing> CgroupsCpushareIsolatorProcess::cleanup(
     const ContainerID& containerId)
 {
@@ -559,7 +565,6 @@ Future<list<Nothing>> CgroupsCpushareIsolatorProcess::_cleanup(
 
   return future;
 }
-
 
 } // namespace slave {
 } // namespace internal {

@@ -26,6 +26,7 @@
 
 #include <stout/os/exists.hpp>
 #include <stout/os/ls.hpp>
+#include <stout/os/stat.hpp>
 
 #include "linux/fs.hpp"
 #include "linux/ns.hpp"
@@ -38,22 +39,23 @@ using std::list;
 using std::set;
 using std::string;
 
-namespace mesos {
-namespace internal {
-namespace slave {
-
 using mesos::slave::ExecutorRunState;
 using mesos::slave::Isolator;
 using mesos::slave::IsolatorProcess;
 using mesos::slave::Limitation;
 
+namespace mesos {
+namespace internal {
+namespace slave {
+
 // The root directory where we bind mount all the namespace handles.
-const string BIND_MOUNT_ROOT = "/var/run/mesos/pidns";
+static const char PID_NS_BIND_MOUNT_ROOT[] = "/var/run/mesos/pidns";
+
 
 // The empty directory that we'll use to mask the namespace handles
 // inside each container. This mount ensures they cannot determine the
 // namespace of another container.
-const string BIND_MOUNT_MASK_DIR = "/var/empty/mesos";
+static const char PID_NS_BIND_MOUNT_MASK_DIR[] = "/var/empty/mesos";
 
 
 // Helper to construct the path to a pid's namespace file.
@@ -67,8 +69,9 @@ inline string nsProcFile(pid_t pid)
 // for a container's pid namespace.
 inline string nsExtraReference(const ContainerID& containerId)
 {
-  return path::join(BIND_MOUNT_ROOT, stringify(containerId));
+  return path::join(PID_NS_BIND_MOUNT_ROOT, stringify(containerId));
 }
+
 
 Try<Isolator*> NamespacesPidIsolatorProcess::create(const Flags& flags)
 {
@@ -84,20 +87,20 @@ Try<Isolator*> NamespacesPidIsolatorProcess::create(const Flags& flags)
 
   // Create the directory where bind mounts of the pid namespace will
   // be placed.
-  Try<Nothing> mkdir = os::mkdir(BIND_MOUNT_ROOT);
+  Try<Nothing> mkdir = os::mkdir(PID_NS_BIND_MOUNT_ROOT);
   if (mkdir.isError()) {
     return Error(
         "Failed to create the bind mount root directory at " +
-        BIND_MOUNT_ROOT + ": " + mkdir.error());
+        string(PID_NS_BIND_MOUNT_ROOT) + ": " + mkdir.error());
   }
 
   // Create the empty directory that will be used to mask the bind
   // mounts inside each container.
-  mkdir = os::mkdir(BIND_MOUNT_MASK_DIR);
+  mkdir = os::mkdir(PID_NS_BIND_MOUNT_MASK_DIR);
   if (mkdir.isError()) {
     return Error(
         "Failed to create the bind mount mask direcrory at " +
-        BIND_MOUNT_MASK_DIR + ": " + mkdir.error());
+        string(PID_NS_BIND_MOUNT_MASK_DIR) + ": " + mkdir.error());
   }
 
   return new Isolator(Owned<IsolatorProcess>(
@@ -111,12 +114,7 @@ Result<ino_t> NamespacesPidIsolatorProcess::getNamespace(
   const string target = nsExtraReference(containerId);
 
   if (os::exists(target)) {
-    struct stat s;
-    if (::stat(target.c_str(), &s) < 0) {
-      return ErrnoError("Failed to stat namespace reference");
-    }
-
-    return s.st_ino;
+    return os::stat::inode(target);
   }
 
   return None();
@@ -127,24 +125,26 @@ Future<Nothing> NamespacesPidIsolatorProcess::recover(
     const list<ExecutorRunState>& states,
     const hashset<ContainerID>& orphans)
 {
-  hashset<ContainerID> containers;
-
+  hashset<ContainerID> recovered;
   foreach (const ExecutorRunState& state, states) {
-    containers.insert(state.id);
+    recovered.insert(state.id);
   }
 
-  // Clean up any orphaned bind mounts and empty files.
-  Try<list<string>> entries = os::ls(BIND_MOUNT_ROOT);
+  // Clean up any unknown orphaned bind mounts and empty files. Known
+  // orphan bind mounts and empty files will be destroyed by the
+  // containerizer using the normal cleanup path. See MESOS-2367 for
+  // details.
+  Try<list<string>> entries = os::ls(PID_NS_BIND_MOUNT_ROOT);
   if (entries.isError()) {
     return Failure("Failed to list existing containers in '" +
-                   BIND_MOUNT_ROOT + "': " + entries.error());
+                   string(PID_NS_BIND_MOUNT_ROOT) + "': " + entries.error());
   }
 
   foreach (const string& entry, entries.get()) {
     ContainerID containerId;
     containerId.set_value(entry);
 
-    if (!containers.contains(containerId)) {
+    if (!recovered.contains(containerId) && !orphans.contains(containerId)) {
       cleanup(containerId);
     }
   }
@@ -165,7 +165,8 @@ Future<Option<CommandInfo>> NamespacesPidIsolatorProcess::prepare(
   // containers cannot see the namespace bind mount of other
   // containers.
   commands.push_back(
-      "mount -n --bind " + BIND_MOUNT_MASK_DIR + " " + BIND_MOUNT_ROOT);
+      "mount -n --bind " + string(PID_NS_BIND_MOUNT_MASK_DIR) +
+      " " + string(PID_NS_BIND_MOUNT_ROOT));
 
   // Mount /proc for the container's pid namespace to show the
   // container's pids (and other /proc files), not the parent's. We

@@ -3348,6 +3348,7 @@ TEST_F(MesosContainerizerSlaveRecoveryTest, ResourceStatistics)
   delete containerizer2.get();
 }
 
+
 #ifdef __linux__
 // Test that the perf event isolator can be enabled on a new slave.
 // Previously created containers will not report perf statistics but
@@ -3499,10 +3500,8 @@ TEST_F(MesosContainerizerSlaveRecoveryTest, CGROUPS_ROOT_PerfRollForward)
   this->Shutdown();
   delete containerizer2.get();
 }
-#endif // __linux__
 
 
-#ifdef __linux__
 // Test that a container started without namespace/pid isolation can
 // be destroyed correctly with namespace/pid isolation enabled.
 TEST_F(MesosContainerizerSlaveRecoveryTest, CGROUPS_ROOT_PidNamespaceForward)
@@ -3717,7 +3716,6 @@ TEST_F(MesosContainerizerSlaveRecoveryTest, CGROUPS_ROOT_PidNamespaceBackward)
   this->Shutdown();
   delete containerizer2.get();
 }
-
 #endif // __linux__
 
 } // namespace tests {

@@ -109,7 +109,6 @@ namespace mesos {
 namespace internal {
 namespace tests {
 
-
 static int childSetup(int pipes[2])
 {
   // In child process.
@@ -134,6 +133,7 @@ static int childSetup(int pipes[2])
 template <typename T>
 class CpuIsolatorTest : public MesosTest {};
 
+
 typedef ::testing::Types<
     PosixCpuIsolatorProcess,
 #ifdef __linux__
@@ -141,7 +141,9 @@ typedef ::testing::Types<
 #endif // __linux__
     tests::Module<Isolator, TestCpuIsolator>> CpuIsolatorTypes;
 
+
 TYPED_TEST_CASE(CpuIsolatorTest, CpuIsolatorTypes);
+
 
 TYPED_TEST(CpuIsolatorTest, UserCpuUsage)
 {
@@ -364,6 +366,7 @@ TYPED_TEST(CpuIsolatorTest, SystemCpuUsage)
 
 #ifdef __linux__
 class LimitedCpuIsolatorTest : public MesosTest {};
+
 
 TEST_F(LimitedCpuIsolatorTest, ROOT_CGROUPS_Cfs)
 {
@@ -669,11 +672,12 @@ TEST_F(LimitedCpuIsolatorTest, ROOT_CGROUPS_Pids_and_Tids)
   delete isolator.get();
   delete launcher.get();
 }
-
 #endif // __linux__
+
 
 template <typename T>
 class MemIsolatorTest : public MesosTest {};
+
 
 typedef ::testing::Types<
     PosixMemIsolatorProcess,
@@ -681,6 +685,7 @@ typedef ::testing::Types<
     CgroupsMemIsolatorProcess,
 #endif // __linux__
     tests::Module<Isolator, TestMemIsolator>> MemIsolatorTypes;
+
 
 TYPED_TEST_CASE(MemIsolatorTest, MemIsolatorTypes);
 
@@ -743,6 +748,7 @@ TYPED_TEST(MemIsolatorTest, MemUsage)
 
 #ifdef __linux__
 class PerfEventIsolatorTest : public MesosTest {};
+
 
 TEST_F(PerfEventIsolatorTest, ROOT_CGROUPS_Sample)
 {
@@ -817,6 +823,7 @@ TEST_F(PerfEventIsolatorTest, ROOT_CGROUPS_Sample)
 
   delete isolator.get();
 }
+
 
 class SharedFilesystemIsolatorTest : public MesosTest {};
 

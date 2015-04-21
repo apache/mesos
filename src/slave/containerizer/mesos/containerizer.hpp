@@ -160,6 +160,11 @@ public:
 
   virtual process::Future<hashset<ContainerID>> containers();
 
+  // Made public for testing.
+  void ___recover(
+      const ContainerID& containerId,
+      const process::Future<std::list<process::Future<Nothing>>>& future);
+
 private:
   process::Future<Nothing> _recover(
       const std::list<mesos::slave::ExecutorRunState>& recoverable,
@@ -168,10 +173,6 @@ private:
   process::Future<Nothing> __recover(
       const std::list<mesos::slave::ExecutorRunState>& recovered,
       const hashset<ContainerID>& orphans);
-
-  void ___recover(
-      const ContainerID& containerId,
-      const process::Future<std::list<process::Future<Nothing>>>& future);
 
   process::Future<std::list<Option<CommandInfo>>> prepare(
       const ContainerID& containerId,

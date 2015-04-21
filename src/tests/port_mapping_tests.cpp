@@ -417,7 +417,7 @@ static bool waitForFileCreation(
 // connect to the previous container using 'port' and
 // 'errorPort'. Verify that only the connection through 'port' is
 // successful.
-TEST_F(PortMappingIsolatorTest, ROOT_ContainerToContainerTCPTest)
+TEST_F(PortMappingIsolatorTest, ROOT_ContainerToContainerTCP)
 {
   Try<Isolator*> isolator = PortMappingIsolatorProcess::create(flags);
   CHECK_SOME(isolator);
@@ -565,7 +565,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_ContainerToContainerTCPTest)
 
 
 // The same container-to-container test but with UDP.
-TEST_F(PortMappingIsolatorTest, ROOT_ContainerToContainerUDPTest)
+TEST_F(PortMappingIsolatorTest, ROOT_ContainerToContainerUDP)
 {
   Try<Isolator*> isolator = PortMappingIsolatorProcess::create(flags);
   CHECK_SOME(isolator);
@@ -717,7 +717,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_ContainerToContainerUDPTest)
 
 // Test the scenario where a UDP server is in a container while host
 // tries to establish a UDP connection.
-TEST_F(PortMappingIsolatorTest, ROOT_HostToContainerUDPTest)
+TEST_F(PortMappingIsolatorTest, ROOT_HostToContainerUDP)
 {
   Try<Isolator*> isolator = PortMappingIsolatorProcess::create(flags);
   CHECK_SOME(isolator);
@@ -828,7 +828,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_HostToContainerUDPTest)
 
 // Test the scenario where a TCP server is in a container while host
 // tries to establish a TCP connection.
-TEST_F(PortMappingIsolatorTest, ROOT_HostToContainerTCPTest)
+TEST_F(PortMappingIsolatorTest, ROOT_HostToContainerTCP)
 {
   Try<Isolator*> isolator = PortMappingIsolatorProcess::create(flags);
   CHECK_SOME(isolator);
@@ -938,7 +938,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_HostToContainerTCPTest)
 
 // Test the scenario where a container issues ICMP requests to
 // external hosts.
-TEST_F(PortMappingIsolatorTest, ROOT_ContainerICMPExternalTest)
+TEST_F(PortMappingIsolatorTest, ROOT_ContainerICMPExternal)
 {
   // TODO(chzhcn): Even though this is unlikely, consider a better
   // way to get external servers.
@@ -1026,7 +1026,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_ContainerICMPExternalTest)
 
 
 // Test the scenario where a container issues ICMP requests to itself.
-TEST_F(PortMappingIsolatorTest, ROOT_ContainerICMPInternalTest)
+TEST_F(PortMappingIsolatorTest, ROOT_ContainerICMPInternal)
 {
   Try<Isolator*> isolator = PortMappingIsolatorProcess::create(flags);
   CHECK_SOME(isolator);
@@ -1101,7 +1101,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_ContainerICMPInternalTest)
 
 // Test the scenario where a container issues ARP requests to
 // external hosts.
-TEST_F(PortMappingIsolatorTest, ROOT_ContainerARPExternalTest)
+TEST_F(PortMappingIsolatorTest, ROOT_ContainerARPExternal)
 {
   // TODO(chzhcn): Even though this is unlikely, consider a better
   // way to get external servers.
@@ -1190,7 +1190,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_ContainerARPExternalTest)
 
 
 // Test DNS connectivity.
-TEST_F(PortMappingIsolatorTest, ROOT_DNSTest)
+TEST_F(PortMappingIsolatorTest, ROOT_DNS)
 {
   // TODO(chzhcn): Even though this is unlikely, consider a better
   // way to get external servers.
@@ -1279,7 +1279,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_DNSTest)
 
 // Test the scenario where a container has run out of ephemeral ports
 // to use.
-TEST_F(PortMappingIsolatorTest, ROOT_TooManyContainersTest)
+TEST_F(PortMappingIsolatorTest, ROOT_TooManyContainers)
 {
   // Increase the ephemeral ports per container so that we dont have
   // enough ephemeral ports to launch a second container.
@@ -1368,7 +1368,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_TooManyContainersTest)
 
 // Test the scenario where PortMappingIsolator uses a very small
 // egress rate limit.
-TEST_F(PortMappingIsolatorTest, ROOT_SmallEgressLimitTest)
+TEST_F(PortMappingIsolatorTest, ROOT_SmallEgressLimit)
 {
   // Note that the underlying rate limiting mechanism usually has a
   // small allowance for burst. Empirically, as least 10x of the rate
@@ -1525,7 +1525,7 @@ bool HasTCPSocketsRTT(const JSON::Object& object)
 
 // Test that RTT can be returned properly from usage(). This test is
 // very similar to SmallEgressLimitTest in its setup.
-TEST_F(PortMappingIsolatorTest, ROOT_PortMappingStatisticsTest)
+TEST_F(PortMappingIsolatorTest, ROOT_PortMappingStatistics)
 {
   // To-be-tested egress rate limit, in Bytes/s.
   const Bytes rate = 2000;
@@ -1713,7 +1713,7 @@ public:
 // Test the scenario where the network isolator is asked to recover
 // both types of containers: containers that were previously managed
 // by network isolator, and containers that weren't.
-TEST_F(PortMappingMesosTest, ROOT_RecoverMixedContainersTest)
+TEST_F(PortMappingMesosTest, CGROUPS_ROOT_RecoverMixedContainers)
 {
   master::Flags masterFlags = CreateMasterFlags();
 
@@ -1892,7 +1892,9 @@ TEST_F(PortMappingMesosTest, ROOT_RecoverMixedContainersTest)
 
 // Test that all configurations (tc filters etc) is cleaned up for an
 // orphaned container using the network isolator.
-TEST_F(PortMappingMesosTest, ROOT_CleanUpOrphanTest)
+// TODO(jieyu): Consider adding a test to verify that unknown orphans
+// (not known by the launcher) are also cleaned up.
+TEST_F(PortMappingMesosTest, CGROUPS_ROOT_CleanUpOrphan)
 {
   Try<PID<Master> > master = StartMaster();
   ASSERT_SOME(master);
@@ -1951,11 +1953,16 @@ TEST_F(PortMappingMesosTest, ROOT_CleanUpOrphanTest)
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
     FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
 
+  Future<Nothing> orphansDestroyed =
+    FUTURE_DISPATCH(_, &MesosContainerizerProcess::___recover);
+
   // Restart the slave.
   slave = StartSlave(flags);
   ASSERT_SOME(slave);
 
   AWAIT_READY(slaveRegisteredMessage);
+
+  AWAIT_READY(orphansDestroyed);
 
   // Expect that qdiscs still exist on eth0 and lo but with no filters.
   Try<bool> hostEth0ExistsQdisc = ingress::exists(eth0);

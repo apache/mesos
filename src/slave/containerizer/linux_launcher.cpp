@@ -26,7 +26,9 @@
 #include <process/collect.hpp>
 
 #include <stout/abort.hpp>
+#include <stout/check.hpp>
 #include <stout/hashset.hpp>
+#include <stout/os.hpp>
 #include <stout/path.hpp>
 #include <stout/strings.hpp>
 
@@ -47,11 +49,22 @@ using std::set;
 using std::string;
 using std::vector;
 
+using mesos::slave::ExecutorRunState;
+
 namespace mesos {
 namespace internal {
 namespace slave {
 
-using mesos::slave::ExecutorRunState;
+static ContainerID container(const string& cgroup)
+{
+  Try<string> basename = os::basename(cgroup);
+  CHECK_SOME(basename);
+
+  ContainerID containerId;
+  containerId.set_value(basename.get());
+  return containerId;
+}
+
 
 LinuxLauncher::LinuxLauncher(
     const Flags& _flags,
@@ -119,17 +132,10 @@ Try<Launcher*> LinuxLauncher::create(const Flags& flags)
 }
 
 
-static Future<hashset<ContainerID>> _recover(
-    const Future<list<Nothing>>& futures)
-{
-  return hashset<ContainerID>();
-}
-
-
 Future<hashset<ContainerID>> LinuxLauncher::recover(
     const std::list<ExecutorRunState>& states)
 {
-  hashset<string> cgroups;
+  hashset<string> recovered;
 
   foreach (const ExecutorRunState& state, states) {
     const ContainerID& containerId = state.id;
@@ -165,30 +171,22 @@ Future<hashset<ContainerID>> LinuxLauncher::recover(
       continue;
     }
 
-    cgroups.insert(cgroup(containerId));
+    recovered.insert(cgroup(containerId));
   }
 
-  Try<vector<string>> orphans = cgroups::get(hierarchy, flags.cgroups_root);
-  if (orphans.isError()) {
-    return Failure(orphans.error());
+  // Return the set of orphan containers.
+  Try<vector<string>> cgroups = cgroups::get(hierarchy, flags.cgroups_root);
+  if (cgroups.isError()) {
+    return Failure(cgroups.error());
   }
 
-  list<Future<Nothing>> futures;
-
-  foreach (const string& orphan, orphans.get()) {
-    if (!cgroups.contains(orphan)) {
-      LOG(INFO) << "Removing orphaned cgroup"
-                << " '" << path::join("freezer", orphan) << "'";
-      // We must wait for all cgroups to be destroyed; isolators
-      // assume all processes have been terminated for any orphaned
-      // containers before Isolator::recover() is called.
-      futures.push_back(
-          cgroups::destroy(hierarchy, orphan, cgroups::DESTROY_TIMEOUT));
+  foreach (const string& cgroup, cgroups.get()) {
+    if (!recovered.contains(cgroup)) {
+      orphans.insert(container(cgroup));
     }
   }
 
-  return collect(futures)
-    .then(lambda::bind(&_recover, lambda::_1));
+  return orphans;
 }
 
 
@@ -356,11 +354,12 @@ Try<pid_t> LinuxLauncher::fork(
 
 Future<Nothing> LinuxLauncher::destroy(const ContainerID& containerId)
 {
-  if (!pids.contains(containerId)) {
+  if (!pids.contains(containerId) && !orphans.contains(containerId)) {
     return Failure("Unknown container");
   }
 
   pids.erase(containerId);
+  orphans.erase(containerId);
 
   // Just return if the cgroup was destroyed and the slave didn't receive the
   // notification. See comment in recover().
