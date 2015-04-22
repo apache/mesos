@@ -193,13 +193,11 @@ inline Try<std::string> getHostname(const IP& ip)
 // obtained.
 inline Try<IP> getIP(const std::string& hostname, int family)
 {
-  struct addrinfo hints, *result;
+  struct addrinfo hints;
+  struct addrinfo* result = NULL;
   hints = createAddrInfo(SOCK_STREAM, family, 0);
   int error = getaddrinfo(hostname.c_str(), NULL, &hints, &result);
-  if (error != 0 || result == NULL) {
-    if (result != NULL ) {
-      freeaddrinfo(result);
-    }
+  if (error != 0) {
     return Error(gai_strerror(error));
   }
   if (result->ai_addr == NULL) {
