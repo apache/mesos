@@ -18,7 +18,7 @@ layout: documentation
 ### Before you submit
 1. Check out the code from the Apache repository via Git. Instructions are on the [Getting Started](http://mesos.apache.org/gettingstarted/) page.
 
-2. Join the dev@mesos.apache.org mailing list by sending an email to dev-subscribe@mesos.apache.org
+2. Join the dev, issues, reviews and builds mailing lists by sending emails to dev-subscribe@mesos.apache.org, issues-subscribe@mesos.apache.org, reviews-subscribe@mesos.apache.org and builds-subscribe@mesos.apache.org respectively.
 
 3. Find a JIRA that is currently unassigned that you want to work on at [JIRA issue tracker](https://issues.apache.org/jira/browse/MESOS), or create your own (you'll need a JIRA account for this, see below)!
     1. This could be a JIRA representing a bug (possibly a bug that you encountered and reported, e.g. when trying to build) or a new feature
