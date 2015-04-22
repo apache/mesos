@@ -12,8 +12,9 @@ layout: documentation
 ## Running Mesos
 
 * [Configuration](/documentation/latest/configuration/) for command-line arguments.
+* [Mesos Containerizer](/documentation/latest/mesos-containerizer/) default containerizer, supports both Linux and POSIX systems.
 * [Docker Containerizer](/documentation/latest/docker-containerizer/) for launching a Docker image as a Task, or as an Executor.
-* [External Containerizer](/documentation/latest/external-containerizer/)
+* [External Containerizer](/documentation/latest/external-containerizer/) for custom containerization implementations.
 * [Framework Authorization](/documentation/latest/authorization/)
 * [Framework Rate Limiting](/documentation/latest/framework-rate-limiting/)
 * [Logging and Debugging](/documentation/latest/logging-and-debugging/) for viewing Mesos and framework logs.
