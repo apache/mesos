@@ -193,7 +193,7 @@ int MesosSchedulerDriverImpl_init(MesosSchedulerDriverImpl* self,
   PyObject* schedulerObj = NULL;
   PyObject* frameworkObj = NULL;
   const char* master;
-  int implicitAcknowledgements;
+  int implicitAcknowledgements = 1; // Enabled by default.
   PyObject* credentialObj = NULL;
 
   if (!PyArg_ParseTuple(
