@@ -308,6 +308,7 @@ TEST_F(SchedulerTest, ReconcileTask)
   event = events.get();
   AWAIT_READY(event);
   EXPECT_EQ(Event::UPDATE, event.get().type());
+  EXPECT_FALSE(event.get().update().status().has_uuid());
   EXPECT_EQ(TASK_RUNNING, event.get().update().status().state());
   EXPECT_EQ(TaskStatus::REASON_RECONCILIATION,
             event.get().update().status().reason());

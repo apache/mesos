@@ -163,7 +163,7 @@ public:
           cout << endl << "Received an UPDATE event" << endl;
 
           // TODO(zuyu): Do batch processing of UPDATE events.
-          statusUpdate(event.update().uuid(), event.update().status());
+          statusUpdate(event.update().status());
           break;
         }
 
@@ -299,7 +299,7 @@ private:
     }
   }
 
-  void statusUpdate(const string& uuid, const TaskStatus& status)
+  void statusUpdate(const TaskStatus& status)
   {
     cout << "Task " << status.task_id() << " is in state " << status.state();
 
@@ -308,16 +308,18 @@ private:
     }
     cout << endl;
 
-    Call call;
-    call.set_type(Call::ACKNOWLEDGE);
-    call.mutable_framework_info()->CopyFrom(framework);
+    if (status.has_uuid()) {
+      Call call;
+      call.set_type(Call::ACKNOWLEDGE);
+      call.mutable_framework_info()->CopyFrom(framework);
 
-    Call::Acknowledge* ack = call.mutable_acknowledge();
-    ack->mutable_slave_id()->CopyFrom(status.slave_id());
-    ack->mutable_task_id ()->CopyFrom(status.task_id ());
-    ack->set_uuid(uuid);
+      Call::Acknowledge* ack = call.mutable_acknowledge();
+      ack->mutable_slave_id()->CopyFrom(status.slave_id());
+      ack->mutable_task_id ()->CopyFrom(status.task_id ());
+      ack->set_uuid(status.uuid());
 
-    mesos.send(call);
+      mesos.send(call);
+    }
 
     if (status.state() == TASK_FINISHED) {
       ++tasksFinished;

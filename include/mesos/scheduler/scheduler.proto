@@ -57,8 +57,7 @@ message Event {
   }
 
   message Update {
-    required bytes uuid = 1; // TODO(benh): Replace with UpdateID.
-    required TaskStatus status = 2;
+    required TaskStatus status = 1;
   }
 
   message Message {

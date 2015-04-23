@@ -698,9 +698,9 @@ protected:
     // ensure that a 0.22.0 scheduler driver supports explicit
     // acknowledgements, even if running against a 0.21.0 cluster.
     //
-    // TODO(bmahler): Update the slave / executor driver to ensure
-    // that 'uuid' is set accurately by the time it reaches the
-    // scheduler driver. This will be required for pure bindings.
+    // TODO(bmahler): Update master and slave to ensure that 'uuid' is
+    // set accurately by the time it reaches the scheduler driver.
+    // This will be required for pure bindings.
     if (from == UPID() || pid == UPID()) {
       status.clear_uuid();
     } else {
