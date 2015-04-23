@@ -568,13 +568,9 @@ protected:
   {
     // Check if we're disconnected but received an event.
     if (from.isSome() && master.isNone()) {
-      // Ignore the event unless it's a registered or reregistered.
-      if (event.type() != Event::REGISTERED &&
-          event.type() != Event::REREGISTERED) {
-        VLOG(1) << "Ignoring " << stringify(event.type())
-                << " event because we're disconnected";
-        return;
-      }
+      VLOG(1) << "Ignoring " << stringify(event.type())
+              << " event because we're disconnected";
+      return;
     } else if (from.isSome() && master != from) {
       VLOG(1)
         << "Ignoring " << stringify(event.type())
