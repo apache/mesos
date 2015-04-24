@@ -21,6 +21,7 @@
 #include <errno.h>
 #include <fts.h>
 #include <glob.h>
+#include <grp.h>
 #include <libgen.h>
 #include <limits.h>
 #include <netdb.h>
@@ -718,6 +719,13 @@ inline Try<Nothing> su(const std::string& user)
         (gid.isError() ? gid.error() : "unknown user"));
   } else if (::setgid(gid.get())) {
     return ErrnoError("Failed to set gid");
+  }
+
+  // Set the supplementary group list. We ignore EPERM because
+  // performing a no-op call (switching to same group) still
+  // requires being privileged, unlike 'setgid' and 'setuid'.
+  if (::initgroups(user.c_str(), gid.get()) == -1 && errno != EPERM) {
+    return ErrnoError("Failed to set supplementary groups");
   }
 
   Result<uid_t> uid = os::getuid(user);
