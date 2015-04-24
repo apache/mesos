@@ -1326,7 +1326,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_SkipRecoverNonDocker)
 
   // A MesosContainerizer task shouldn't be recovered by
   // DockerContainerizer.
-  EXPECT_EQ(0, containers.get().size());
+  EXPECT_EQ(0u, containers.get().size());
 }
 
 
