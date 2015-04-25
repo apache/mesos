@@ -270,7 +270,7 @@ TEST_F(SchedulerTest, ReconcileTask)
     .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
 
   Offer offer = event.get().offers().offers(0);
-  TaskInfo taskInfo = createTask(offer,"", DEFAULT_EXECUTOR_ID);
+  TaskInfo taskInfo = createTask(offer, "", DEFAULT_EXECUTOR_ID);
 
   {
     Call call;
@@ -378,7 +378,7 @@ TEST_F(SchedulerTest, KillTask)
     .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
 
   Offer offer = event.get().offers().offers(0);
-  TaskInfo taskInfo = createTask(offer,"", DEFAULT_EXECUTOR_ID);
+  TaskInfo taskInfo = createTask(offer, "", DEFAULT_EXECUTOR_ID);
 
   {
     Call call;
@@ -502,7 +502,7 @@ TEST_F(SchedulerTest, ShutdownExecutor)
     .WillOnce(SendStatusUpdateFromTask(TASK_FINISHED));
 
   Offer offer = event.get().offers().offers(0);
-  TaskInfo taskInfo = createTask(offer,"", DEFAULT_EXECUTOR_ID);
+  TaskInfo taskInfo = createTask(offer, "", DEFAULT_EXECUTOR_ID);
 
   {
     Call call;
@@ -614,7 +614,7 @@ TEST_F(SchedulerTest, Teardown)
     .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
 
   Offer offer = event.get().offers().offers(0);
-  TaskInfo taskInfo = createTask(offer,"", DEFAULT_EXECUTOR_ID);
+  TaskInfo taskInfo = createTask(offer, "", DEFAULT_EXECUTOR_ID);
 
   {
     Call call;
