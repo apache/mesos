@@ -212,11 +212,11 @@ AC_CHECK_HEADERS([apr_pools.h],
                  [AC_CHECK_LIB([apr-1], [apr_initialize], [],
                                [AC_MSG_ERROR([cannot find libapr-1
 -------------------------------------------------------------------
-libapr-1 is required for mesos to build.
+libapr-1 is required for libprocess to build.
 -------------------------------------------------------------------
                         ])])], [AC_MSG_ERROR([cannot find libapr-1 headers
 -------------------------------------------------------------------
-libapr-1 is required for mesos to build.
+libapr-1 is required for libprocess to build.
 -------------------------------------------------------------------
 ])])
 
@@ -243,11 +243,11 @@ AC_CHECK_HEADERS([svn_version.h],
                  [AC_CHECK_LIB([svn_subr-1], [svn_stringbuf_create_ensure], [],
                                [AC_MSG_ERROR([cannot find libsvn_subr-1
 -------------------------------------------------------------------
-libsubversion-1 is required for mesos to build.
+libsubversion-1 is required for libprocess to build.
 -------------------------------------------------------------------
                         ])])], [AC_MSG_ERROR([cannot find libsvn_subr-1 headers
 -------------------------------------------------------------------
-libsubversion-1 is required for mesos to build.
+libsubversion-1 is required for libprocess to build.
 -------------------------------------------------------------------
 ])])
 
@@ -255,11 +255,11 @@ AC_CHECK_HEADERS([svn_delta.h],
                  [AC_CHECK_LIB([svn_delta-1], [svn_txdelta], [],
                                [AC_MSG_ERROR([cannot find libsvn_delta-1
 -------------------------------------------------------------------
-libsubversion-1 is required for mesos to build.
+libsubversion-1 is required for libprocess to build.
 -------------------------------------------------------------------
                         ])])], [AC_MSG_ERROR([cannot find libsvn_delta-1 headers
 -------------------------------------------------------------------
-libsubversion-1 is required for mesos to build.
+libsubversion-1 is required for libprocess to build.
 -------------------------------------------------------------------
 ])])
 
@@ -579,11 +579,11 @@ if test "x$enable_libevent" = "xyes"; then
                                  [found_libevent=yes],
                                  [AC_MSG_ERROR([cannot find libevent
 -------------------------------------------------------------------
-libevent is required for mesos to build.
+libevent is required for libprocess to build.
 -------------------------------------------------------------------
                           ])])], [AC_MSG_ERROR([cannot find libevent headers
 -------------------------------------------------------------------
-libevent is required for mesos to build.
+libevent is required for libprocess to build.
 -------------------------------------------------------------------
   ])])
   if test "x$found_libevent" = "xyes"; then
@@ -595,13 +595,13 @@ libevent is required for mesos to build.
                                  [found_libevent_thread=yes],
                                  [AC_MSG_ERROR([cannot find libevent_pthreads
 -------------------------------------------------------------------
-libevent_pthreads is required for mesos to build.
+libevent_pthreads is required for libprocess to build.
 -------------------------------------------------------------------
                           ])],
                                  [-levent])],
                                  [AC_MSG_ERROR([cannot find libevent_pthreads headers
 -------------------------------------------------------------------
-libevent_pthreads is required for mesos to build.
+libevent_pthreads is required for libprocess to build.
 -------------------------------------------------------------------
   ])])
 fi
@@ -619,7 +619,7 @@ AC_LANG_PUSH([C++])
 AC_COMPILE_IFELSE(
 [AC_LANG_PROGRAM([], [[
 #ifndef __clang__
-       not clang
+#error Force the compiler to fail and set CLANG=no.
 #endif
 ]])],
 [CLANG=yes], [CLANG=no])
@@ -629,6 +629,12 @@ AC_MSG_RESULT([$CLANG])
 AC_SUBST([CLANG])
 
 if test "x$CLANG" = "xno"; then
+  # We ASSUME if it's not clang than it's GCC, but that might not be
+  # the case.
+  #
+  # TODO(benh): Have a check which determines if this is really GCC or
+  # something else so we can give people a nicer error message.
+  #
   # Check the version of gcc and add any flags as appropriate. Note
   # that '-dumpversion' works for clang as well but as of clang 3.3 it
   # reports version 4.2.1 (for gcc backwards compatibility).
@@ -636,33 +642,22 @@ if test "x$CLANG" = "xno"; then
   AC_MSG_NOTICE([GCC version: $GCC_VERSION])
   test $? = 0 || AC_MSG_ERROR([failed to determine version of gcc])
 
-  # Check for GCC version 4.8.
-  AX_COMPARE_VERSION([$GCC_VERSION], [eq2], [4.8],
-                     [is_gxx48=yes], [is_gxx48=no])
-  if test "x$is_gxx48" = "xyes"; then
-    AC_MSG_NOTICE([Setting up CXXFLAGS for g++-4.8])
+  # Check for GCC version >= 4.8.
+  AX_COMPARE_VERSION([$GCC_VERSION], [ge], [4.8],
+                     [is_ge_gxx48=yes], [is_ge_gxx48=no])
+  if test "x$is_ge_gxx48" = "xyes"; then
+    AC_MSG_NOTICE([Setting up CXXFLAGS for g++ version >= 4.8])
     # Boost 1.53.0 fails to compile with GCC 4.8 without
     # -Wno-unused-local-typedefs, and automake does not recognize the
     # flag.
     # TODO(brenden): Remove this when Boost has a resolution.
     CFLAGS="${CFLAGS} -Wno-unused-local-typedefs"
     CXXFLAGS="${CXXFLAGS} -Wno-unused-local-typedefs"
+  else
+    # GCC < 4.8 is not supported.
+    AC_MSG_ERROR([GCC 4.8 or higher is required for compiling libprocess])
   fi
-
-  # Check for GCC version == 4.7 and fail. Starting with 4.7 the '#if
-  # __cplusplus >= 201103L' will evaluate to true which means the
-  # C++11 code paths will be compiled but certain C++11 features that
-  # we use are not supported by 4.7. Since we're requiring C++11 going
-  # forward we can't support this compiler.
-  AX_COMPARE_VERSION([$GCC_VERSION], [eq2], [4.7],
-                     [is_gxx47=yes], [is_gxx47=no])
-  if test "x$is_gxx47" = "xyes"; then
-    AC_MSG_ERROR([Unable to build with g++-4.7 due to missing C++11 features])
-  fi
-
-# CLANG=yes
-else
-
+else # CLANG=yes
   # Check if -Wno-unused-local-typedef is needed by checking a sample
   # compilation which contains a local unused typedef.
   # This is needed because Boost 1.53.0 fails to compile with upstream
@@ -688,6 +683,64 @@ else
   fi
 fi
 
+# Ensure we can build the C++11 features we expect, and set the --std=
+# flag and CXXFLAG environment variable as appropriate.
+AX_CXX_COMPILE_STDCXX_11([noext], [mandatory])
+
+# Blacklist known incompatible C++ standard libraries to reduce chance
+# of users accidentally using them.
+#  - libstdc++ (Pre 4.8.0, version datestamp 20130322)
+#  - libc++ (Pre 3.5.0, version string 1101)
+AC_LANG_PUSH([C++])
+AC_COMPILE_IFELSE(
+[AC_LANG_SOURCE([[
+#include <vector>
+
+#ifdef __GLIBCXX__
+#if __GLIBCXX__ < 20130322
+#error Force the compiler to fail and set COMPATIBLE_CXX_STDLIB=no.
+#endif
+#elif _LIBCPP_VERSION < 1101
+#error Force the compiler to fail and set COMPATIBLE_CXX_STDLIB=no.
+#endif
+]])],
+[COMPATIBLE_CXX_STDLIB=yes], [COMPATIBLE_CXX_STDLIB=no])
+AC_LANG_POP([C++])
+
+if test "x$COMPATIBLE_CXX_STDLIB" = "xno"; then
+  AC_MSG_ERROR([known incompatible C++ Standard library in use
+-------------------------------------------------------------------
+libstdc++ from GCC 4.8.0+ or libc++ from LLVM/Clang 3.5+ is required.
+
+If a new enough GCC installed (4.8.0+) it should automatically find
+the right libstdc++. If clang is in use, it will automatically find
+the newest libstdc++ on the host.
+
+If you are trying to use a different compiler from (clang, gcc) or a
+alternate C++ Standard Library implementation, likely the flags being
+passed to the compiler (CXXFLAGS) are not currently correct / being
+picked up.
+-------------------------------------------------------------------
+])
+fi
+
+case "$host_os" in
+  darwin* )
+    # If we're using clang, we need to pass -stdlib=libc++ too.
+    if test "x$CLANG" = "xyes"; then
+      CXXFLAGS="$CXXFLAGS -stdlib=libc++"
+    fi
+
+    # GTEST on OSX needs its own tr1 tuple.
+    # TODO(dhamon): Update to gmock 1.7 and pass GTEST_LANG_CXX11 when
+    # in C++11 mode.
+    CXXFLAGS="$CXXFLAGS -DGTEST_USE_OWN_TR1_TUPLE=1"
+    ;;
+esac
+
+# Also pass the flags to 3rdparty libraries.
+CONFIGURE_ARGS="$CONFIGURE_ARGS CXXFLAGS='$CXXFLAGS'"
+
 
 # Check for pthreads (uses m4/acx_pthread.m4).
 ACX_PTHREAD([], [AC_MSG_ERROR([failed to find pthreads])])
@@ -708,27 +761,6 @@ you can get away without it by doing --without-zlib.
   ])])
 fi
 
-
-# Ensure we can build the C++11 features we expect, and set the std
-# CXXFLAG as appropriate.
-AX_CXX_COMPILE_STDCXX_11([noext], [mandatory])
-
-case "$host_os" in
-  darwin* )
-    # If we're using clang, we need to pass -stdlib=libc++ too.
-    if test "x$CLANG" = "xyes"; then
-      CXXFLAGS="$CXXFLAGS -stdlib=libc++"
-    fi
-
-    # GTEST on OSX needs its own tr1 tuple.
-    # TODO(dhamon): Update to gmock 1.7 and pass GTEST_LANG_CXX11 when
-    # in C++11 mode.
-    CXXFLAGS="$CXXFLAGS -DGTEST_USE_OWN_TR1_TUPLE=1"
-    ;;
-esac
-
-# Also pass the flags to 3rdparty libraries.
-CONFIGURE_ARGS="$CONFIGURE_ARGS CXXFLAGS='$CXXFLAGS'"
 
 AC_CHECK_LIB([dl], [dlopen], [],
 	     [AC_MSG_ERROR([cannot find libdl
