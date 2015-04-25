@@ -9,8 +9,12 @@ Release Notes - Mesos - Version 0.22.1
   * [MESOS-2583] - Tasks getting stuck in staging.
   * [MESOS-2592] - The sandbox directory is not chown'ed if the
                    fetcher doesn't run.
+  * [MESOS-2601] - Tasks are not removed after recovery from slave and mesos
+                   containerizer
   * [MESOS-2614] - Update name, hostname, failover_timeout, and webui_url
                    in master on framework re-registration
+  * [MESOS-2643] - Python scheduler driver disables implicit acknowledgments by
+                   default.
 
 
 Release Notes - Mesos - Version 0.22.0
