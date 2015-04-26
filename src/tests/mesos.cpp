@@ -16,12 +16,12 @@
  * limitations under the License.
  */
 
+#include <memory>
 #include <string>
 
 #include <stout/check.hpp>
 #include <stout/foreach.hpp>
 #include <stout/json.hpp>
-#include <stout/memory.hpp>
 #include <stout/os.hpp>
 #include <stout/path.hpp>
 #include <stout/result.hpp>
@@ -48,8 +48,7 @@
 #include "tests/flags.hpp"
 #include "tests/mesos.hpp"
 
-using memory::shared_ptr;
-
+using std::shared_ptr;
 using std::string;
 using testing::_;
 using testing::Invoke;
@@ -180,7 +179,7 @@ slave::Flags MesosTest::CreateSlaveFlags()
 }
 
 
-Try<PID<master::Master> > MesosTest::StartMaster(
+Try<PID<master::Master>> MesosTest::StartMaster(
     const Option<master::Flags>& flags)
 {
   return cluster.masters.start(
@@ -188,7 +187,7 @@ Try<PID<master::Master> > MesosTest::StartMaster(
 }
 
 
-Try<PID<master::Master> > MesosTest::StartMaster(
+Try<PID<master::Master>> MesosTest::StartMaster(
     mesos::master::allocator::Allocator* allocator,
     const Option<master::Flags>& flags)
 {
@@ -198,7 +197,7 @@ Try<PID<master::Master> > MesosTest::StartMaster(
 }
 
 
-Try<PID<master::Master> > MesosTest::StartMaster(
+Try<PID<master::Master>> MesosTest::StartMaster(
     Authorizer* authorizer,
     const Option<master::Flags>& flags)
 {
@@ -221,7 +220,7 @@ Try<PID<master::Master>> MesosTest::StartMaster(
 }
 
 
-Try<PID<slave::Slave> > MesosTest::StartSlave(
+Try<PID<slave::Slave>> MesosTest::StartSlave(
     const Option<slave::Flags>& flags)
 {
   return cluster.slaves.start(
@@ -229,13 +228,13 @@ Try<PID<slave::Slave> > MesosTest::StartSlave(
 }
 
 
-Try<PID<slave::Slave> > MesosTest::StartSlave(
+Try<PID<slave::Slave>> MesosTest::StartSlave(
     MockExecutor* executor,
     const Option<slave::Flags>& flags)
 {
   slave::Containerizer* containerizer = new TestContainerizer(executor);
 
-  Try<PID<slave::Slave> > pid = StartSlave(containerizer, flags);
+  Try<PID<slave::Slave>> pid = StartSlave(containerizer, flags);
 
   if (pid.isError()) {
     delete containerizer;
@@ -248,7 +247,7 @@ Try<PID<slave::Slave> > MesosTest::StartSlave(
 }
 
 
-Try<PID<slave::Slave> > MesosTest::StartSlave(
+Try<PID<slave::Slave>> MesosTest::StartSlave(
     slave::Containerizer* containerizer,
     const Option<slave::Flags>& flags)
 {
@@ -258,7 +257,7 @@ Try<PID<slave::Slave> > MesosTest::StartSlave(
 }
 
 
-Try<PID<slave::Slave> > MesosTest::StartSlave(
+Try<PID<slave::Slave>> MesosTest::StartSlave(
     slave::Containerizer* containerizer,
     MasterDetector* detector,
     const Option<slave::Flags>& flags)
@@ -270,7 +269,7 @@ Try<PID<slave::Slave> > MesosTest::StartSlave(
 }
 
 
-Try<PID<slave::Slave> > MesosTest::StartSlave(
+Try<PID<slave::Slave>> MesosTest::StartSlave(
     MasterDetector* detector,
     const Option<slave::Flags>& flags)
 {
@@ -281,7 +280,7 @@ Try<PID<slave::Slave> > MesosTest::StartSlave(
 }
 
 
-Try<PID<slave::Slave> > MesosTest::StartSlave(
+Try<PID<slave::Slave>> MesosTest::StartSlave(
     MasterDetector* detector,
     slave::GarbageCollector* gc,
     const Option<slave::Flags>& flags)
@@ -294,14 +293,14 @@ Try<PID<slave::Slave> > MesosTest::StartSlave(
 }
 
 
-Try<PID<slave::Slave> > MesosTest::StartSlave(
+Try<PID<slave::Slave>> MesosTest::StartSlave(
     MockExecutor* executor,
     MasterDetector* detector,
     const Option<slave::Flags>& flags)
 {
   slave::Containerizer* containerizer = new TestContainerizer(executor);
 
-  Try<PID<slave::Slave> > pid = cluster.slaves.start(
+  Try<PID<slave::Slave>> pid = cluster.slaves.start(
       flags.isNone() ? CreateSlaveFlags() : flags.get(),
           containerizer,
       detector);
@@ -494,7 +493,7 @@ void ContainerizerTest<slave::MesosContainerizer>::SetUpTestCase()
 
   if (cgroups::enabled() && user.get() == "root") {
     // Clean up any testing hierarchies.
-    Try<std::set<string> > hierarchies = cgroups::hierarchies();
+    Try<std::set<string>> hierarchies = cgroups::hierarchies();
     ASSERT_SOME(hierarchies);
     foreach (const string& hierarchy, hierarchies.get()) {
       if (strings::startsWith(hierarchy, TEST_CGROUPS_HIERARCHY)) {
@@ -512,7 +511,7 @@ void ContainerizerTest<slave::MesosContainerizer>::TearDownTestCase()
 
   if (cgroups::enabled() && user.get() == "root") {
     // Clean up any testing hierarchies.
-    Try<std::set<string> > hierarchies = cgroups::hierarchies();
+    Try<std::set<string>> hierarchies = cgroups::hierarchies();
     ASSERT_SOME(hierarchies);
     foreach (const string& hierarchy, hierarchies.get()) {
       if (strings::startsWith(hierarchy, TEST_CGROUPS_HIERARCHY)) {
@@ -604,7 +603,7 @@ void ContainerizerTest<slave::MesosContainerizer>::TearDown()
     foreach (const string& subsystem, subsystems) {
       string hierarchy = path::join(baseHierarchy, subsystem);
 
-      Try<std::vector<string> > cgroups = cgroups::get(hierarchy);
+      Try<std::vector<string>> cgroups = cgroups::get(hierarchy);
       CHECK_SOME(cgroups);
 
       foreach (const string& cgroup, cgroups.get()) {

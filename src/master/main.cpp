@@ -18,6 +18,7 @@
 
 #include <stdint.h>
 
+#include <memory>
 #include <set>
 #include <string>
 #include <vector>
@@ -36,7 +37,6 @@
 #include <stout/duration.hpp>
 #include <stout/exit.hpp>
 #include <stout/flags.hpp>
-#include <stout/memory.hpp>
 #include <stout/nothing.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
@@ -78,8 +78,6 @@ using namespace mesos::internal::log;
 using namespace mesos::internal::master;
 using namespace zookeeper;
 
-using memory::shared_ptr;
-
 using mesos::MasterInfo;
 
 using mesos::modules::Anonymous;
@@ -93,6 +91,7 @@ using std::cerr;
 using std::cout;
 using std::endl;
 using std::set;
+using std::shared_ptr;
 using std::string;
 using std::vector;
 

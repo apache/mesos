@@ -30,10 +30,10 @@
 #include <netlink/route/link.h>
 #include <netlink/route/qdisc.h>
 
+#include <memory>
 #include <string>
 
 #include <stout/error.hpp>
-#include <stout/memory.hpp>
 #include <stout/try.hpp>
 
 #include "linux/routing/utils.hpp"
@@ -79,7 +79,7 @@ private:
     T* object;
   };
 
-  memory::shared_ptr<Data> data;
+  std::shared_ptr<Data> data;
 };
 
 

@@ -23,6 +23,7 @@
 #include <fstream>
 #include <iomanip>
 #include <list>
+#include <memory>
 #include <sstream>
 
 #include <mesos/module.hpp>
@@ -49,7 +50,6 @@
 #include <stout/error.hpp>
 #include <stout/ip.hpp>
 #include <stout/lambda.hpp>
-#include <stout/memory.hpp>
 #include <stout/multihashmap.hpp>
 #include <stout/net.hpp>
 #include <stout/nothing.hpp>
@@ -84,6 +84,7 @@
 #include "watcher/whitelist_watcher.hpp"
 
 using std::list;
+using std::shared_ptr;
 using std::string;
 using std::vector;
 
@@ -105,8 +106,6 @@ using process::Timer;
 using process::UPID;
 
 using process::metrics::Counter;
-
-using memory::shared_ptr;
 
 namespace mesos {
 namespace internal {
@@ -1452,7 +1451,7 @@ void Master::detected(const Future<Option<MasterInfo>>& _leader)
 }
 
 
-// Helper to convert authorization result to Future<Option<Error> >.
+// Helper to convert authorization result to Future<Option<Error>>.
 static Future<Option<Error>> _authorize(const string& message, bool authorized)
 {
   if (authorized) {

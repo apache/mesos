@@ -22,6 +22,7 @@
 #include <stdint.h>
 
 #include <list>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -47,7 +48,6 @@
 #include <stout/foreach.hpp>
 #include <stout/hashmap.hpp>
 #include <stout/hashset.hpp>
-#include <stout/memory.hpp>
 #include <stout/multihashmap.hpp>
 #include <stout/option.hpp>
 
@@ -102,7 +102,7 @@ public:
          MasterContender* contender,
          MasterDetector* detector,
          const Option<Authorizer*>& authorizer,
-         const Option<memory::shared_ptr<process::RateLimiter>>&
+         const Option<std::shared_ptr<process::RateLimiter>>&
            slaveRemovalLimiter,
          const Flags& flags = Flags());
 
@@ -607,7 +607,7 @@ private:
     // health checks.
     // NOTE: Using a 'shared_ptr' here is OK because 'RateLimiter' is
     // a wrapper around libprocess process which is thread safe.
-    Option<memory::shared_ptr<process::RateLimiter>> limiter;
+    Option<std::shared_ptr<process::RateLimiter>> limiter;
 
     bool transitioning(const Option<SlaveID>& slaveId)
     {
@@ -628,7 +628,7 @@ private:
     Frameworks() : completed(MAX_COMPLETED_FRAMEWORKS) {}
 
     hashmap<FrameworkID, Framework*> registered;
-    boost::circular_buffer<memory::shared_ptr<Framework>> completed;
+    boost::circular_buffer<std::shared_ptr<Framework>> completed;
 
     // Principals of frameworks keyed by PID.
     // NOTE: Multiple PIDs can map to the same principal. The
@@ -678,7 +678,7 @@ private:
   // thread safe.
   // TODO(dhamon): This does not need to be a shared_ptr. Metrics contains
   // copyable metric types only.
-  memory::shared_ptr<Metrics> metrics;
+  std::shared_ptr<Metrics> metrics;
 
   // Gauge handlers.
   double _uptime_secs()
@@ -1043,7 +1043,7 @@ struct Framework
   void addCompletedTask(const Task& task)
   {
     // TODO(adam-mesos): Check if completed task already exists.
-    completedTasks.push_back(memory::shared_ptr<Task>(new Task(task)));
+    completedTasks.push_back(std::shared_ptr<Task>(new Task(task)));
   }
 
   void removeTask(Task* task)
@@ -1208,7 +1208,7 @@ struct Framework
   // NOTE: We use a shared pointer for Task because clang doesn't like
   // Boost's implementation of circular_buffer with Task (Boost
   // attempts to do some memset's which are unsafe).
-  boost::circular_buffer<memory::shared_ptr<Task>> completedTasks;
+  boost::circular_buffer<std::shared_ptr<Task>> completedTasks;
 
   hashset<Offer*> offers; // Active offers for framework.
 

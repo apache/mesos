@@ -17,6 +17,7 @@
  */
 
 #include <map>
+#include <memory>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -183,7 +184,7 @@ JSON::Object model(const Executor& executor)
   object.values["queued_tasks"] = queued;
 
   JSON::Array completed;
-  foreach (const memory::shared_ptr<Task>& task, executor.completedTasks) {
+  foreach (const std::shared_ptr<Task>& task, executor.completedTasks) {
     completed.values.push_back(model(*task));
   }
 

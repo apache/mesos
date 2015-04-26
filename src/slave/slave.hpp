@@ -22,6 +22,7 @@
 #include <stdint.h>
 
 #include <list>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -192,7 +193,7 @@ public:
   // Continue handling the status update after optionally updating the
   // container's resources.
   void _statusUpdate(
-      const Option<Future<Nothing> >& future,
+      const Option<Future<Nothing>>& future,
       const StatusUpdate& update,
       const UPID& pid,
       const ExecutorID& executorId,
@@ -247,7 +248,7 @@ public:
 
   // Invoked whenever the detector detects a change in masters.
   // Made public for testing purposes.
-  void detected(const process::Future<Option<MasterInfo> >& pid);
+  void detected(const process::Future<Option<MasterInfo>>& pid);
 
   enum State {
     RECOVERING,   // Slave is doing recovery.
@@ -284,7 +285,7 @@ public:
 
   // Triggers a re-detection of the master when the slave does
   // not receive a ping.
-  void pingTimeout(process::Future<Option<MasterInfo> > future);
+  void pingTimeout(process::Future<Option<MasterInfo>> future);
 
   void authenticate();
 
@@ -436,7 +437,7 @@ private:
 
   hashmap<FrameworkID, Framework*> frameworks;
 
-  boost::circular_buffer<process::Owned<Framework> > completedFrameworks;
+  boost::circular_buffer<process::Owned<Framework>> completedFrameworks;
 
   MasterDetector* detector;
 
@@ -458,7 +459,7 @@ private:
   StatusUpdateManager* statusUpdateManager;
 
   // Master detection future.
-  process::Future<Option<MasterInfo> > detection;
+  process::Future<Option<MasterInfo>> detection;
 
   // Timer for triggering re-detection when no ping is received from
   // the master.
@@ -482,7 +483,7 @@ private:
   Authenticatee* authenticatee;
 
   // Indicates if an authentication attempt is in progress.
-  Option<Future<bool> > authenticating;
+  Option<Future<bool>> authenticating;
 
   // Indicates if the authentication is successful.
   bool authenticated;
@@ -566,7 +567,7 @@ struct Executor
   // NOTE: We use a shared pointer for Task because clang doesn't like
   // Boost's implementation of circular_buffer with Task (Boost
   // attempts to do some memset's which are unsafe).
-  boost::circular_buffer<memory::shared_ptr<Task> > completedTasks;
+  boost::circular_buffer<std::shared_ptr<Task>> completedTasks;
 
 private:
   Executor(const Executor&);              // No copying.
@@ -611,13 +612,13 @@ struct Framework
   UPID pid;
 
   // Executors with pending tasks.
-  hashmap<ExecutorID, hashmap<TaskID, TaskInfo> > pending;
+  hashmap<ExecutorID, hashmap<TaskID, TaskInfo>> pending;
 
   // Current running executors.
   hashmap<ExecutorID, Executor*> executors;
 
   // Up to MAX_COMPLETED_EXECUTORS_PER_FRAMEWORK completed executors.
-  boost::circular_buffer<process::Owned<Executor> > completedExecutors;
+  boost::circular_buffer<process::Owned<Executor>> completedExecutors;
 private:
   Framework(const Framework&);              // No copying.
   Framework& operator = (const Framework&); // No assigning.

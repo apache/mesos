@@ -24,6 +24,7 @@
 #include <iomanip>
 #include <list>
 #include <map>
+#include <memory>
 #include <set>
 #include <sstream>
 #include <string>
@@ -233,7 +234,7 @@ void Slave::initialize()
 
       // Exit if there are processes running inside the cgroup - this
       // indicates a prior slave (or child process) is still running.
-      Try<set<pid_t> > processes = cgroups::processes(hierarchy.get(), cgroup);
+      Try<set<pid_t>> processes = cgroups::processes(hierarchy.get(), cgroup);
       if (processes.isError()) {
         EXIT(1) << "Failed to check for existing threads in cgroup " << cgroup
                 << " for subsystem " << subsystem
@@ -598,7 +599,7 @@ Nothing Slave::detachFile(const string& path)
 }
 
 
-void Slave::detected(const Future<Option<MasterInfo> >& _master)
+void Slave::detected(const Future<Option<MasterInfo>>& _master)
 {
   CHECK(state == DISCONNECTED ||
         state == RUNNING ||
@@ -1071,8 +1072,7 @@ void Slave::doReliableRegistration(Duration maxBackoff)
           VLOG(2) << "Reregistering terminated task " << task->task_id();
           completedFramework_->add_tasks()->CopyFrom(*task);
         }
-        foreach (const memory::shared_ptr<Task>& task,
-                 executor->completedTasks) {
+        foreach (const std::shared_ptr<Task>& task, executor->completedTasks) {
           VLOG(2) << "Reregistering completed task " << task->task_id();
           completedFramework_->add_tasks()->CopyFrom(*task);
         }
@@ -1185,7 +1185,7 @@ void Slave::runTask(
     // executors to this framework and remove it from that list.
     // TODO(brenden): Consider using stout/cache.hpp instead of boost
     // circular_buffer.
-    for (boost::circular_buffer<Owned<Framework> >::iterator i =
+    for (boost::circular_buffer<Owned<Framework>>::iterator i =
         completedFrameworks.begin(); i != completedFrameworks.end(); ++i) {
       if ((*i)->id() == frameworkId) {
         framework->completedExecutors = (*i)->completedExecutors;
@@ -2642,7 +2642,7 @@ void Slave::statusUpdate(StatusUpdate update, const UPID& pid)
 
 
 void Slave::_statusUpdate(
-    const Option<Future<Nothing> >& future,
+    const Option<Future<Nothing>>& future,
     const StatusUpdate& update,
     const UPID& pid,
     const ExecutorID& executorId,
@@ -2909,7 +2909,7 @@ void Slave::ping(const UPID& from, bool connected)
 }
 
 
-void Slave::pingTimeout(Future<Option<MasterInfo> > future)
+void Slave::pingTimeout(Future<Option<MasterInfo>> future)
 {
   // It's possible that a new ping arrived since the timeout fired
   // and we were unable to cancel this timeout. If this occurs, don't
@@ -3906,7 +3906,7 @@ void Slave::__recover(const Future<Nothing>& future)
   // in the recovery code, to recover all slaves instead of only
   // the latest slave.
   const string& directory = path::join(flags.work_dir, "slaves");
-  Try<list<string> > entries = os::ls(directory);
+  Try<list<string>> entries = os::ls(directory);
   if (entries.isSome()) {
     foreach (const string& entry, entries.get()) {
       string path = path::join(directory, entry);
@@ -4648,7 +4648,7 @@ void Executor::completeTask(const TaskID& taskId)
     << "Failed to find terminated task " << taskId;
 
   Task* task = terminatedTasks[taskId];
-  completedTasks.push_back(memory::shared_ptr<Task>(task));
+  completedTasks.push_back(std::shared_ptr<Task>(task));
   terminatedTasks.erase(taskId);
 }
 

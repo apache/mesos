@@ -20,6 +20,7 @@
 
 #include <gmock/gmock.h>
 
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -38,7 +39,6 @@
 #include <process/metrics/metrics.hpp>
 
 #include <stout/json.hpp>
-#include <stout/memory.hpp>
 #include <stout/net.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
@@ -62,8 +62,6 @@
 #include "tests/mesos.hpp"
 #include "tests/utils.hpp"
 
-using memory::shared_ptr;
-
 using mesos::internal::master::Master;
 
 using mesos::internal::master::allocator::MesosAllocatorProcess;
@@ -78,6 +76,7 @@ using process::Future;
 using process::PID;
 using process::Promise;
 
+using std::shared_ptr;
 using std::string;
 using std::vector;
 
@@ -104,14 +103,14 @@ class MasterTest : public MesosTest {};
 
 TEST_F(MasterTest, TaskRunning)
 {
-  Try<PID<Master> > master = StartMaster();
+  Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
 
   TestContainerizer containerizer(&exec);
 
-  Try<PID<Slave> > slave = StartSlave(&containerizer);
+  Try<PID<Slave>> slave = StartSlave(&containerizer);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -121,7 +120,7 @@ TEST_F(MasterTest, TaskRunning)
   EXPECT_CALL(sched, registered(&driver, _, _))
     .Times(1);
 
-  Future<vector<Offer> > offers;
+  Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillOnce(FutureArg<1>(&offers))
     .WillRepeatedly(Return()); // Ignore subsequent offers.
@@ -292,12 +291,12 @@ TEST_F(MasterTest, ShutdownFrameworkWhileTaskRunning)
 
 TEST_F(MasterTest, KillTask)
 {
-  Try<PID<Master> > master = StartMaster();
+  Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
 
-  Try<PID<Slave> > slave = StartSlave(&exec);
+  Try<PID<Slave>> slave = StartSlave(&exec);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -307,7 +306,7 @@ TEST_F(MasterTest, KillTask)
   EXPECT_CALL(sched, registered(&driver, _, _))
     .Times(1);
 
-  Future<vector<Offer> > offers;
+  Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillOnce(FutureArg<1>(&offers))
     .WillRepeatedly(Return()); // Ignore subsequent offers.
@@ -370,12 +369,12 @@ TEST_F(MasterTest, KillTask)
 // TASK_LOST when there are no slaves in transitionary states.
 TEST_F(MasterTest, KillUnknownTask)
 {
-  Try<PID<Master> > master = StartMaster();
+  Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
 
-  Try<PID<Slave> > slave = StartSlave(&exec);
+  Try<PID<Slave>> slave = StartSlave(&exec);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -385,7 +384,7 @@ TEST_F(MasterTest, KillUnknownTask)
   EXPECT_CALL(sched, registered(&driver, _, _))
     .Times(1);
 
-  Future<vector<Offer> > offers;
+  Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillOnce(FutureArg<1>(&offers))
     .WillRepeatedly(Return()); // Ignore subsequent offers.
@@ -446,7 +445,7 @@ TEST_F(MasterTest, KillUnknownTask)
 
 TEST_F(MasterTest, KillUnknownTaskSlaveInTransition)
 {
-  Try<PID<Master> > master = StartMaster();
+  Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   StandaloneMasterDetector detector(master.get());
@@ -459,7 +458,7 @@ TEST_F(MasterTest, KillUnknownTaskSlaveInTransition)
   // Reuse slaveFlags so both StartSlave() use the same work_dir.
   slave::Flags slaveFlags = CreateSlaveFlags();
 
-  Try<PID<Slave> > slave = StartSlave(&exec, slaveFlags);
+  Try<PID<Slave>> slave = StartSlave(&exec, slaveFlags);
   ASSERT_SOME(slave);
 
   // Wait for slave registration.
@@ -473,7 +472,7 @@ TEST_F(MasterTest, KillUnknownTaskSlaveInTransition)
   EXPECT_CALL(sched, registered(&driver, _, _))
     .WillOnce(FutureArg<1>(&frameworkId));
 
-  Future<vector<Offer> > offers;
+  Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillOnce(FutureArg<1>(&offers))
     .WillRepeatedly(Return()); // Ignore subsequent offers.
@@ -573,12 +572,12 @@ TEST_F(MasterTest, KillUnknownTaskSlaveInTransition)
 
 TEST_F(MasterTest, StatusUpdateAck)
 {
-  Try<PID<Master> > master = StartMaster();
+  Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
 
-  Try<PID<Slave> > slave = StartSlave(&exec);
+  Try<PID<Slave>> slave = StartSlave(&exec);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -588,7 +587,7 @@ TEST_F(MasterTest, StatusUpdateAck)
   EXPECT_CALL(sched, registered(&driver, _, _))
     .Times(1);
 
-  Future<vector<Offer> > offers;
+  Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillOnce(FutureArg<1>(&offers))
     .WillRepeatedly(Return()); // Ignore subsequent offers.
@@ -641,7 +640,7 @@ TEST_F(MasterTest, StatusUpdateAck)
 
 TEST_F(MasterTest, RecoverResources)
 {
-  Try<PID<Master> > master = StartMaster();
+  Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
@@ -652,7 +651,7 @@ TEST_F(MasterTest, RecoverResources)
   flags.resources = Option<string>(
       "cpus:2;mem:1024;disk:1024;ports:[1-10, 20-30]");
 
-  Try<PID<Slave> > slave = StartSlave(&containerizer, flags);
+  Try<PID<Slave>> slave = StartSlave(&containerizer, flags);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -662,7 +661,7 @@ TEST_F(MasterTest, RecoverResources)
   EXPECT_CALL(sched, registered(&driver, _, _))
     .Times(1);
 
-  Future<vector<Offer> > offers;
+  Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillOnce(FutureArg<1>(&offers));
 
@@ -761,12 +760,12 @@ TEST_F(MasterTest, RecoverResources)
 
 TEST_F(MasterTest, FrameworkMessage)
 {
-  Try<PID<Master> > master = StartMaster();
+  Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
 
-  Try<PID<Slave> > slave = StartSlave(&exec);
+  Try<PID<Slave>> slave = StartSlave(&exec);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -776,7 +775,7 @@ TEST_F(MasterTest, FrameworkMessage)
   EXPECT_CALL(sched, registered(&schedDriver, _, _))
     .Times(1);
 
-  Future<vector<Offer> > offers;
+  Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&schedDriver, _))
     .WillOnce(FutureArg<1>(&offers))
     .WillRepeatedly(Return()); // Ignore subsequent offers.
@@ -843,7 +842,7 @@ TEST_F(MasterTest, FrameworkMessage)
 
 TEST_F(MasterTest, MultipleExecutors)
 {
-  Try<PID<Master> > master = StartMaster();
+  Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   ExecutorInfo executor1; // Bug in gcc 4.1.*, must assign on next line.
@@ -861,7 +860,7 @@ TEST_F(MasterTest, MultipleExecutors)
 
   TestContainerizer containerizer(execs);
 
-  Try<PID<Slave> > slave = StartSlave(&containerizer);
+  Try<PID<Slave>> slave = StartSlave(&containerizer);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -871,7 +870,7 @@ TEST_F(MasterTest, MultipleExecutors)
   EXPECT_CALL(sched, registered(&driver, _, _))
     .Times(1);
 
-  Future<vector<Offer> > offers;
+  Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillOnce(FutureArg<1>(&offers))
     .WillRepeatedly(Return()); // Ignore subsequent offers.
@@ -951,10 +950,10 @@ TEST_F(MasterTest, MultipleExecutors)
 
 TEST_F(MasterTest, MasterInfo)
 {
-  Try<PID<Master> > master = StartMaster();
+  Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
-  Try<PID<Slave> > slave = StartSlave();
+  Try<PID<Slave>> slave = StartSlave();
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -983,12 +982,12 @@ TEST_F(MasterTest, MasterInfo)
 
 TEST_F(MasterTest, MasterInfoOnReElection)
 {
-  Try<PID<Master> > master = StartMaster();
+  Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   StandaloneMasterDetector detector(master.get());
 
-  Try<PID<Slave> > slave = StartSlave(&detector);
+  Try<PID<Slave>> slave = StartSlave(&detector);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -1069,12 +1068,12 @@ TEST_F(WhitelistTest, WhitelistSlave)
   master::Flags flags = CreateMasterFlags();
   flags.whitelist = path;
 
-  Try<PID<Master> > master = StartMaster(flags);
+  Try<PID<Master>> master = StartMaster(flags);
   ASSERT_SOME(master);
 
   slave::Flags slaveFlags = CreateSlaveFlags();
   slaveFlags.hostname = hostname.get();
-  Try<PID<Slave> > slave = StartSlave(slaveFlags);
+  Try<PID<Slave>> slave = StartSlave(slaveFlags);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -1084,7 +1083,7 @@ TEST_F(WhitelistTest, WhitelistSlave)
   EXPECT_CALL(sched, registered(&driver, _, _))
     .Times(1);
 
-  Future<vector<Offer> > offers;
+  Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillOnce(FutureArg<1>(&offers));
 
@@ -1101,12 +1100,12 @@ TEST_F(WhitelistTest, WhitelistSlave)
 
 TEST_F(MasterTest, MasterLost)
 {
-  Try<PID<Master> > master = StartMaster();
+  Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   StandaloneMasterDetector detector(master.get());
 
-  Try<PID<Slave> > slave = StartSlave();
+  Try<PID<Slave>> slave = StartSlave();
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -1149,7 +1148,7 @@ TEST_F(MasterTest, MasterLost)
 // all slave resources and a single task should be able to run on these.
 TEST_F(MasterTest, LaunchCombinedOfferTest)
 {
-  Try<PID<Master> > master = StartMaster();
+  Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
@@ -1163,7 +1162,7 @@ TEST_F(MasterTest, LaunchCombinedOfferTest)
   slave::Flags flags = CreateSlaveFlags();
   flags.resources = Option<string>(stringify(fullSlave));
 
-  Try<PID<Slave> > slave = StartSlave(&containerizer, flags);
+  Try<PID<Slave>> slave = StartSlave(&containerizer, flags);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -1173,7 +1172,7 @@ TEST_F(MasterTest, LaunchCombinedOfferTest)
   EXPECT_CALL(sched, registered(&driver, _, _));
 
   // Get 1st offer and use half of the slave resources to get subsequent offer.
-  Future<vector<Offer> > offers1;
+  Future<vector<Offer>> offers1;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillOnce(FutureArg<1>(&offers1));
 
@@ -1203,7 +1202,7 @@ TEST_F(MasterTest, LaunchCombinedOfferTest)
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillOnce(FutureArg<1>(&status1));
 
-  Future<vector<Offer> > offers2;
+  Future<vector<Offer>> offers2;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillOnce(FutureArg<1>(&offers2));
 
@@ -1231,7 +1230,7 @@ TEST_F(MasterTest, LaunchCombinedOfferTest)
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillOnce(FutureArg<1>(&status2));
 
-  Future<vector<Offer> > offers3;
+  Future<vector<Offer>> offers3;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillOnce(FutureArg<1>(&offers3))
     .WillRepeatedly(Return()); // Ignore subsequent offers.
@@ -1289,7 +1288,7 @@ TEST_F(MasterTest, LaunchCombinedOfferTest)
 // Test ensures offers for launchTasks cannot span multiple slaves.
 TEST_F(MasterTest, LaunchAcrossSlavesTest)
 {
-  Try<PID<Master> > master = StartMaster();
+  Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
@@ -1302,7 +1301,7 @@ TEST_F(MasterTest, LaunchAcrossSlavesTest)
   slave::Flags flags = CreateSlaveFlags();
   flags.resources = Option<string>(stringify(fullSlave));
 
-  Try<PID<Slave> > slave1 = StartSlave(&containerizer, flags);
+  Try<PID<Slave>> slave1 = StartSlave(&containerizer, flags);
   ASSERT_SOME(slave1);
 
   MockScheduler sched;
@@ -1311,7 +1310,7 @@ TEST_F(MasterTest, LaunchAcrossSlavesTest)
 
   EXPECT_CALL(sched, registered(&driver, _, _));
 
-  Future<vector<Offer> > offers1;
+  Future<vector<Offer>> offers1;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillOnce(FutureArg<1>(&offers1));
 
@@ -1324,7 +1323,7 @@ TEST_F(MasterTest, LaunchAcrossSlavesTest)
   EXPECT_EQ(Megabytes(1024), resources1.mem().get());
 
   // Test that offers cannot span multiple slaves.
-  Future<vector<Offer> > offers2;
+  Future<vector<Offer>> offers2;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillOnce(FutureArg<1>(&offers2))
     .WillRepeatedly(Return()); // Ignore subsequent offers.
@@ -1398,7 +1397,7 @@ TEST_F(MasterTest, LaunchAcrossSlavesTest)
 // for launchTasks.
 TEST_F(MasterTest, LaunchDuplicateOfferTest)
 {
-  Try<PID<Master> > master = StartMaster();
+  Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
@@ -1410,7 +1409,7 @@ TEST_F(MasterTest, LaunchDuplicateOfferTest)
   slave::Flags flags = CreateSlaveFlags();
   flags.resources = Option<string>(stringify(fullSlave));
 
-  Try<PID<Slave> > slave = StartSlave(&containerizer, flags);
+  Try<PID<Slave>> slave = StartSlave(&containerizer, flags);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -1421,7 +1420,7 @@ TEST_F(MasterTest, LaunchDuplicateOfferTest)
 
   // Test that same offers cannot be used more than once.
   // Kill 2nd task and get offer for full slave.
-  Future<vector<Offer> > offers;
+  Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillOnce(FutureArg<1>(&offers))
     .WillRepeatedly(Return()); // Ignore subsequent offers.
@@ -1674,7 +1673,7 @@ TEST_F(MasterTest, RecoveredSlaveDoesNotReregister)
 {
   // Step 1: Start a master.
   master::Flags masterFlags = CreateMasterFlags();
-  Try<PID<Master> > master = StartMaster(masterFlags);
+  Try<PID<Master>> master = StartMaster(masterFlags);
   ASSERT_SOME(master);
 
   // Step 2: Start a slave.
@@ -1684,7 +1683,7 @@ TEST_F(MasterTest, RecoveredSlaveDoesNotReregister)
   // Reuse slaveFlags so both StartSlave() use the same work_dir.
   slave::Flags slaveFlags = this->CreateSlaveFlags();
 
-  Try<PID<Slave> > slave = StartSlave(slaveFlags);
+  Try<PID<Slave>> slave = StartSlave(slaveFlags);
   ASSERT_SOME(slave);
 
   AWAIT_READY(slaveRegisteredMessage);
@@ -1750,7 +1749,7 @@ TEST_F(MasterTest, NonStrictRegistryWriteOnly)
   master::Flags masterFlags = CreateMasterFlags();
   masterFlags.registry_strict = false;
 
-  Try<PID<Master> > master = StartMaster(masterFlags);
+  Try<PID<Master>> master = StartMaster(masterFlags);
   ASSERT_SOME(master);
 
   // Step 2: Start a slave.
@@ -1760,7 +1759,7 @@ TEST_F(MasterTest, NonStrictRegistryWriteOnly)
   // Reuse slaveFlags so both StartSlave() use the same work_dir.
   slave::Flags slaveFlags = this->CreateSlaveFlags();
 
-  Try<PID<Slave> > slave = StartSlave(slaveFlags);
+  Try<PID<Slave>> slave = StartSlave(slaveFlags);
   ASSERT_SOME(slave);
 
   AWAIT_READY(slaveRegisteredMessage);
@@ -1827,14 +1826,14 @@ TEST_F(MasterTest, RateLimitRecoveredSlaveRemoval)
 {
   // Start a master.
   master::Flags masterFlags = CreateMasterFlags();
-  Try<PID<Master> > master = StartMaster(masterFlags);
+  Try<PID<Master>> master = StartMaster(masterFlags);
   ASSERT_SOME(master);
 
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
     FUTURE_PROTOBUF(SlaveRegisteredMessage(), master.get(), _);
 
   // Start a slave.
-  Try<PID<Slave> > slave = StartSlave();
+  Try<PID<Slave>> slave = StartSlave();
   ASSERT_SOME(slave);
 
   AWAIT_READY(slaveRegisteredMessage);
@@ -1902,7 +1901,7 @@ TEST_F(MasterTest, CancelRecoveredSlaveRemoval)
 {
   // Start a master.
   master::Flags masterFlags = CreateMasterFlags();
-  Try<PID<Master> > master = StartMaster(masterFlags);
+  Try<PID<Master>> master = StartMaster(masterFlags);
   ASSERT_SOME(master);
 
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
@@ -1911,7 +1910,7 @@ TEST_F(MasterTest, CancelRecoveredSlaveRemoval)
   // Reuse slaveFlags so both StartSlave() use the same work_dir.
   slave::Flags slaveFlags = CreateSlaveFlags();
 
-  Try<PID<Slave> > slave = StartSlave(slaveFlags);
+  Try<PID<Slave>> slave = StartSlave(slaveFlags);
   ASSERT_SOME(slave);
 
   AWAIT_READY(slaveRegisteredMessage);
@@ -1994,7 +1993,7 @@ TEST_F(MasterTest, RecoveredSlaveReregisters)
 {
   // Step 1: Start a master.
   master::Flags masterFlags = CreateMasterFlags();
-  Try<PID<Master> > master = StartMaster(masterFlags);
+  Try<PID<Master>> master = StartMaster(masterFlags);
   ASSERT_SOME(master);
 
   // Step 2: Start a slave.
@@ -2004,7 +2003,7 @@ TEST_F(MasterTest, RecoveredSlaveReregisters)
   // Reuse slaveFlags so both StartSlave() use the same work_dir.
   slave::Flags slaveFlags = this->CreateSlaveFlags();
 
-  Try<PID<Slave> > slave = StartSlave(slaveFlags);
+  Try<PID<Slave>> slave = StartSlave(slaveFlags);
   ASSERT_SOME(slave);
 
   AWAIT_READY(slaveRegisteredMessage);
@@ -2150,14 +2149,14 @@ TEST_F(MasterZooKeeperTest, LostZooKeeperCluster)
 TEST_F(MasterTest, OrphanTasks)
 {
   // Start a master.
-  Try<PID<Master> > master = StartMaster();
+  Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
   StandaloneMasterDetector detector (master.get());
 
   // Start a slave.
-  Try<PID<Slave> > slave = StartSlave(&exec, &detector);
+  Try<PID<Slave>> slave = StartSlave(&exec, &detector);
   ASSERT_SOME(slave);
 
   // Create a task on the slave.
@@ -2318,7 +2317,7 @@ TEST_F(MasterTest, OrphanTasks)
 // resource from offers so that frameworks cannot see it.
 TEST_F(MasterTest, IgnoreEphemeralPortsResource)
 {
-  Try<PID<Master> > master = StartMaster();
+  Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   string resourcesWithoutEphemeralPorts =
@@ -2330,7 +2329,7 @@ TEST_F(MasterTest, IgnoreEphemeralPortsResource)
   slave::Flags flags = CreateSlaveFlags();
   flags.resources = resourcesWithEphemeralPorts;
 
-  Try<PID<Slave> > slave = StartSlave(flags);
+  Try<PID<Slave>> slave = StartSlave(flags);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -2339,7 +2338,7 @@ TEST_F(MasterTest, IgnoreEphemeralPortsResource)
 
   EXPECT_CALL(sched, registered(&driver, _, _));
 
-  Future<vector<Offer> > offers;
+  Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillOnce(FutureArg<1>(&offers));
 
@@ -2365,14 +2364,14 @@ TEST_F(MasterTest, MaxExecutorsPerSlave)
   master::Flags flags = CreateMasterFlags();
   flags.max_executors_per_slave = 0;
 
-  Try<PID<Master> > master = StartMaster(flags);
+  Try<PID<Master>> master = StartMaster(flags);
   ASSERT_SOME(master);
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
 
   TestContainerizer containerizer(&exec);
 
-  Try<PID<Slave> > slave = StartSlave(&containerizer);
+  Try<PID<Slave>> slave = StartSlave(&containerizer);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -2383,7 +2382,7 @@ TEST_F(MasterTest, MaxExecutorsPerSlave)
   EXPECT_CALL(sched, registered(&driver, _, _))
     .WillOnce(FutureArg<2>(&masterInfo));
 
-  Future<vector<Offer> > offers;
+  Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .Times(0);
 
@@ -2407,10 +2406,10 @@ TEST_F(MasterTest, OfferTimeout)
 {
   master::Flags masterFlags = MesosTest::CreateMasterFlags();
   masterFlags.offer_timeout = Seconds(30);
-  Try<PID<Master> > master = StartMaster(masterFlags);
+  Try<PID<Master>> master = StartMaster(masterFlags);
   ASSERT_SOME(master);
 
-  Try<PID<Slave> > slave = StartSlave();
+  Try<PID<Slave>> slave = StartSlave();
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -2421,8 +2420,8 @@ TEST_F(MasterTest, OfferTimeout)
   EXPECT_CALL(sched, registered(&driver, _, _))
     .WillOnce(FutureSatisfy(&registered));
 
-  Future<vector<Offer> > offers1;
-  Future<vector<Offer> > offers2;
+  Future<vector<Offer>> offers1;
+  Future<vector<Offer>> offers2;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillOnce(FutureArg<1>(&offers1))
     .WillOnce(FutureArg<1>(&offers2));
@@ -2470,14 +2469,14 @@ TEST_F(MasterTest, OfferNotRescindedOnceUsed)
 {
   master::Flags masterFlags = MesosTest::CreateMasterFlags();
   masterFlags.offer_timeout = Seconds(30);
-  Try<PID<Master> > master = StartMaster(masterFlags);
+  Try<PID<Master>> master = StartMaster(masterFlags);
   ASSERT_SOME(master);
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
 
   TestContainerizer containerizer(&exec);
 
-  Try<PID<Slave> > slave = StartSlave(&containerizer);
+  Try<PID<Slave>> slave = StartSlave(&containerizer);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -2531,14 +2530,14 @@ TEST_F(MasterTest, OfferNotRescindedOnceDeclined)
 {
   master::Flags masterFlags = MesosTest::CreateMasterFlags();
   masterFlags.offer_timeout = Seconds(30);
-  Try<PID<Master> > master = StartMaster(masterFlags);
+  Try<PID<Master>> master = StartMaster(masterFlags);
   ASSERT_SOME(master);
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
 
   TestContainerizer containerizer(&exec);
 
-  Try<PID<Slave> > slave = StartSlave(&containerizer);
+  Try<PID<Slave>> slave = StartSlave(&containerizer);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -2583,7 +2582,7 @@ TEST_F(MasterTest, OfferNotRescindedOnceDeclined)
 TEST_F(MasterTest, UnacknowledgedTerminalTask)
 {
   master::Flags masterFlags = CreateMasterFlags();
-  Try<PID<Master> > master = StartMaster(masterFlags);
+  Try<PID<Master>> master = StartMaster(masterFlags);
   ASSERT_SOME(master);
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
@@ -2592,7 +2591,7 @@ TEST_F(MasterTest, UnacknowledgedTerminalTask)
 
   slave::Flags slaveFlags = CreateSlaveFlags();
   slaveFlags.resources = "cpus:1;mem:64";
-  Try<PID<Slave> > slave = StartSlave(&containerizer, slaveFlags);
+  Try<PID<Slave>> slave = StartSlave(&containerizer, slaveFlags);
   ASSERT_SOME(slave);
 
   // Launch a framework and get a task into a terminal state.
@@ -2604,8 +2603,8 @@ TEST_F(MasterTest, UnacknowledgedTerminalTask)
   EXPECT_CALL(sched, registered(&driver, _, _))
     .WillOnce(FutureArg<1>(&frameworkId));
 
-  Future<vector<Offer> > offers1;
-  Future<vector<Offer> > offers2;
+  Future<vector<Offer>> offers1;
+  Future<vector<Offer>> offers2;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillOnce(DoAll(FutureArg<1>(&offers1),
                     LaunchTasks(DEFAULT_EXECUTOR_INFO, 1, 1, 64, "*")))
@@ -2662,7 +2661,7 @@ TEST_F(MasterTest, UnacknowledgedTerminalTask)
 // latest state set).
 TEST_F(MasterTest, ReleaseResourcesForTerminalTaskWithPendingUpdates)
 {
-  Try<PID<Master> > master = StartMaster();
+  Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
@@ -2671,7 +2670,7 @@ TEST_F(MasterTest, ReleaseResourcesForTerminalTaskWithPendingUpdates)
 
   slave::Flags slaveFlags = CreateSlaveFlags();
   slaveFlags.resources = "cpus:1;mem:64";
-  Try<PID<Slave> > slave = StartSlave(&containerizer, slaveFlags);
+  Try<PID<Slave>> slave = StartSlave(&containerizer, slaveFlags);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -2831,7 +2830,7 @@ TEST_F(MasterTest, StateEndpoint)
 // state.json endpoint, if provided by the framework.
 TEST_F(MasterTest, FrameworkWebUIUrl)
 {
-  Try<PID<Master> > master = StartMaster();
+  Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   FrameworkInfo framework = DEFAULT_FRAMEWORK_INFO;

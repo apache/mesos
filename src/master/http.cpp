@@ -18,6 +18,7 @@
 
 #include <iomanip>
 #include <map>
+#include <memory>
 #include <sstream>
 #include <string>
 #include <utility>
@@ -35,7 +36,6 @@
 #include <stout/foreach.hpp>
 #include <stout/json.hpp>
 #include <stout/lambda.hpp>
-#include <stout/memory.hpp>
 #include <stout/net.hpp>
 #include <stout/numify.hpp>
 #include <stout/os.hpp>
@@ -160,7 +160,7 @@ JSON::Object model(const Framework& framework)
     JSON::Array array;
     array.values.reserve(framework.completedTasks.size()); // MESOS-2353.
 
-    foreach (const memory::shared_ptr<Task>& task, framework.completedTasks) {
+    foreach (const std::shared_ptr<Task>& task, framework.completedTasks) {
       array.values.push_back(model(*task));
     }
 
@@ -500,7 +500,7 @@ Future<Response> Master::Http::state(const Request& request)
     JSON::Array array;
     array.values.reserve(master->frameworks.completed.size()); // MESOS-2353.
 
-    foreach (const memory::shared_ptr<Framework>& framework,
+    foreach (const std::shared_ptr<Framework>& framework,
              master->frameworks.completed) {
       array.values.push_back(model(*framework));
     }
@@ -747,7 +747,7 @@ Future<Response> Master::Http::tasks(const Request& request)
   foreachvalue (Framework* framework, master->frameworks.registered) {
     frameworks.push_back(framework);
   }
-  foreach (const memory::shared_ptr<Framework>& framework,
+  foreach (const std::shared_ptr<Framework>& framework,
            master->frameworks.completed) {
     frameworks.push_back(framework.get());
   }
@@ -759,7 +759,7 @@ Future<Response> Master::Http::tasks(const Request& request)
       CHECK_NOTNULL(task);
       tasks.push_back(task);
     }
-    foreach (const memory::shared_ptr<Task>& task, framework->completedTasks) {
+    foreach (const std::shared_ptr<Task>& task, framework->completedTasks) {
       tasks.push_back(task.get());
     }
   }

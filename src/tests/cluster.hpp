@@ -20,6 +20,7 @@
 #define __TESTS_CLUSTER_HPP__
 
 #include <map>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -40,7 +41,6 @@
 #include <stout/error.hpp>
 #include <stout/foreach.hpp>
 #include <stout/none.hpp>
-#include <stout/memory.hpp>
 #include <stout/nothing.hpp>
 #include <stout/option.hpp>
 #include <stout/path.hpp>
@@ -104,11 +104,11 @@ public:
     void shutdown();
 
     // Start a new master with the provided flags and injections.
-    Try<process::PID<master::Master> > start(
+    Try<process::PID<master::Master>> start(
         const master::Flags& flags = master::Flags(),
         const Option<mesos::master::allocator::Allocator*>& allocator = None(),
         const Option<Authorizer*>& authorizer = None(),
-        const Option<memory::shared_ptr<process::RateLimiter> >&
+        const Option<std::shared_ptr<process::RateLimiter>>&
           slaveRemovalLimiter = None());
 
     // Stops and cleans up a master at the specified PID.
@@ -145,7 +145,7 @@ public:
 
       process::Owned<Authorizer> authorizer;
 
-      Option<memory::shared_ptr<process::RateLimiter>> slaveRemovalLimiter;
+      Option<std::shared_ptr<process::RateLimiter>> slaveRemovalLimiter;
 
       master::Master* master;
     };
@@ -164,7 +164,7 @@ public:
     void shutdown();
 
     // Start a new slave with the provided flags and injections.
-    Try<process::PID<slave::Slave> > start(
+    Try<process::PID<slave::Slave>> start(
         const slave::Flags& flags = slave::Flags(),
         const Option<slave::Containerizer*>& containerizer = None(),
         const Option<MasterDetector*>& detector = None(),
@@ -253,11 +253,11 @@ inline void Cluster::Masters::shutdown()
 }
 
 
-inline Try<process::PID<master::Master> > Cluster::Masters::start(
+inline Try<process::PID<master::Master>> Cluster::Masters::start(
     const master::Flags& flags,
     const Option<mesos::master::allocator::Allocator*>& allocator,
     const Option<Authorizer*>& authorizer,
-    const Option<memory::shared_ptr<process::RateLimiter>>& slaveRemovalLimiter)
+    const Option<std::shared_ptr<process::RateLimiter>>& slaveRemovalLimiter)
 {
   // Disallow multiple masters when not using ZooKeeper.
   if (!masters.empty() && url.isNone()) {
@@ -383,7 +383,7 @@ inline Try<process::PID<master::Master> > Cluster::Masters::start(
               << ": " << duration.error();
     }
 
-    master.slaveRemovalLimiter = memory::shared_ptr<process::RateLimiter>(
+    master.slaveRemovalLimiter = std::shared_ptr<process::RateLimiter>(
         new process::RateLimiter(permits.get(), duration.get()));
   }
 
@@ -525,7 +525,7 @@ inline void Cluster::Slaves::shutdown()
 }
 
 
-inline Try<process::PID<slave::Slave> > Cluster::Slaves::start(
+inline Try<process::PID<slave::Slave>> Cluster::Slaves::start(
     const slave::Flags& flags,
     const Option<slave::Containerizer*>& containerizer,
     const Option<MasterDetector*>& detector,

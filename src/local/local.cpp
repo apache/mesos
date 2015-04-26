@@ -17,6 +17,7 @@
  */
 
 #include <map>
+#include <memory>
 #include <set>
 #include <sstream>
 #include <string>
@@ -33,7 +34,6 @@
 #include <stout/duration.hpp>
 #include <stout/exit.hpp>
 #include <stout/foreach.hpp>
-#include <stout/memory.hpp>
 #include <stout/os.hpp>
 #include <stout/path.hpp>
 #include <stout/try.hpp>
@@ -71,8 +71,6 @@
 #include "state/protobuf.hpp"
 #include "state/storage.hpp"
 
-using memory::shared_ptr;
-
 using namespace mesos::internal;
 using namespace mesos::internal::log;
 
@@ -100,6 +98,7 @@ using process::UPID;
 
 using std::map;
 using std::set;
+using std::shared_ptr;
 using std::string;
 using std::stringstream;
 using std::vector;

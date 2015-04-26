@@ -18,6 +18,7 @@
 
 #include <gmock/gmock.h>
 
+#include <memory>
 #include <string>
 #include <queue>
 #include <vector>
@@ -39,7 +40,6 @@
 
 #include <stout/json.hpp>
 #include <stout/lambda.hpp>
-#include <stout/memory.hpp>
 #include <stout/try.hpp>
 #include <stout/uuid.hpp>
 

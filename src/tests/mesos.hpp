@@ -20,6 +20,7 @@
 #define __TESTS_MESOS_HPP__
 
 #include <map>
+#include <memory>
 #include <set>
 #include <string>
 #include <vector>
@@ -113,7 +114,7 @@ protected:
 
   // Starts a master with a slave removal rate limiter and flags.
   virtual Try<process::PID<master::Master> > StartMaster(
-      const memory::shared_ptr<MockRateLimiter>& slaveRemovalLimiter,
+      const std::shared_ptr<MockRateLimiter>& slaveRemovalLimiter,
       const Option<master::Flags>& flags = None());
 
   // TODO(bmahler): Consider adding a builder style interface, e.g.
