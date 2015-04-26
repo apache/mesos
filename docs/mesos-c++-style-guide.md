@@ -48,7 +48,7 @@ allocator->resourcesRecovered(frameworkId, slaveId, resources, filters);
 
 // 2: Don't use.
 allocator->resourcesRecovered(frameworkId, slaveId,
-                           resources, filters);
+                              resources, filters);
 
 // 3: Don't use in this case due to "jaggedness".
 allocator->resourcesRecovered(frameworkId,
@@ -92,8 +92,7 @@ We still support older compilers. The whitelist of supported C++11 features is:
 
 * Static assertions.
 * Multiple right angle brackets.
-* Type inference (`auto` and `decltype`). The main goal is to increase code readability. This is safely the case if the exact same type omitted on the left is already fully stated on the right.
-* Here are several examples:
+* Type inference (`auto` and `decltype`). The main goal is to increase code readability. This is safely the case if the exact same type omitted on the left is already fully stated on the right. Here are several examples:
 
 <pre>
 // 1: OK.
@@ -115,9 +114,9 @@ Try&lt;Owned&lt;LocalAuthorizer>> authorizer = LocalAuthorizer::create();
 * Rvalue references.
 * Variadic templates.
 * Mutexes.
-    * std::mutex.
-    * std::lock_guard<std::mutex>.
-    * std::unique_lock<std::mutex>.
+  * `std::mutex`
+  * `std::lock_guard<std::mutex>`
+  * `std::unique_lock<std::mutex>`
 * Shared from this.
-    * class T : public std::enable_shared_from_this<T>.
-    * shared_from_this().
+  * `class T : public std::enable_shared_from_this<T>`
+  * `shared_from_this()`
