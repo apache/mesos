@@ -404,3 +404,7 @@ Try<Owned<LocalAuthorizer>> authorizer = LocalAuthorizer::create();
       ...;
     };
     ```
+
+* Unrestricted Union.
+
+  Like the pre-existing `union`, we can overlap storage allocation for objects that never exist simultaneously. However, with C++11 we are no longer *restricted to having only non-POD types in unions*. Adding non-POD types to unions complicates things, however, because we need to make sure to properly call constructors and destructors. Therefore, only use unrestricted unions (i.e., unions with non-POD types) when the union has only a single field. What does this buy us? Now we can avoid dynamic memory allocations for "container" like types, e.g., `Option`, `Try`, `Result`, etc. In effect, we treat the union like a dynamic allocation, calling *placement new*, `new (&t) T(...)` anyplace we would have just called `new T(...)` and the destructor `t.~T()` anyplace we would have called `delete t`.
