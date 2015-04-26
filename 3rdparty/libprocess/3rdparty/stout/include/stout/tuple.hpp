@@ -14,23 +14,13 @@
 #ifndef __STOUT_TUPLE_HPP__
 #define __STOUT_TUPLE_HPP__
 
-#if __cplusplus >= 201103L
 #include <tuple>
-#else
-#include <tr1/tuple>
-#endif // __cplusplus >= 201103L
 
 namespace tuples {
 
-#if __cplusplus >= 201103L
 using std::tuple;
 using std::make_tuple;
 using std::get;
-#else // __cplusplus >= 201103L
-using std::tr1::tuple;
-using std::tr1::make_tuple;
-using std::tr1::get;
-#endif // __cplusplus >= 201103L
 
 } // namespace tuples {
 
