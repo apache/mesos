@@ -23,7 +23,10 @@ This guide describes the process of doing an official release of Mesos.
 4. Add your GPG fingerprint to your [Apache account](https://id.apache.org/).
 
 5. Create a Maven settings file (`~/.m2/settings.xml`) for the Apache
-   servers. Encrypt your Apache password using `mvn --encrypt-password`.
+   servers where you must copy your encrypted Apache password which
+   you can get from running `mvn --encrypt-password` (NOTE: you may
+   need to first generate a [master
+   password](http://maven.apache.org/guides/mini/guide-encryption.html).
 ```
 <settings>
   <servers>
