@@ -99,7 +99,7 @@ allocator->resourcesRecovered(
 * Newline for an assignment statement: indent with 2 spaces.
 
 ```
-Try&lt;Duration&gt; failoverTimeout =
+Try<Duration> failoverTimeout =
   Duration::create(FrameworkInfo().failover_timeout());
 ```
 
@@ -110,7 +110,7 @@ Try&lt;Duration&gt; failoverTimeout =
 
 ## C++11
 
-We still support older compilers. The whitelist of supported C++11 features is:
+We support C++11 and require GCC 4.8+ or Clang 3.5+ compilers. The whitelist of supported C++11 features is:
 
 * Static assertions.
 * Multiple right angle brackets.
@@ -130,7 +130,7 @@ shared_ptr<list<string>> names = shared_ptr<list<string>>(new list<string>());
 // 3: Don't use.
 auto authorizer = LocalAuthorizer::create(acls);
 // Compare with
-Try&lt;Owned&lt;LocalAuthorizer>> authorizer = LocalAuthorizer::create();
+Try<Owned<LocalAuthorizer>> authorizer = LocalAuthorizer::create();
 ```
 
 * Rvalue references.
@@ -142,3 +142,265 @@ Try&lt;Owned&lt;LocalAuthorizer>> authorizer = LocalAuthorizer::create();
 * Shared from this.
   * `class T : public std::enable_shared_from_this<T>`
   * `shared_from_this()`
+* Lambdas!
+  * Don't put a space between the capture list and the parameter list:
+
+    ```
+    // 1: OK.
+    []() { ...; };
+
+    // 2: Don't use.
+    [] () { ...; };
+    ```
+
+  * Prefer default capture by value, explicit capture by value, then capture by reference. To avoid dangling-pointer bugs, *never* use default capture by reference:
+
+    ```
+    // 1: OK.
+    [=]() { ... }; // Default capture by value.
+    [n]() { ... }; // Explicit capture by value.
+    [&n]() { ... }; // Explicit capture by reference.
+    [=, &n]() { ... }; // Default capture by value, explicit capture by reference.
+
+    // 2: Don't use.
+    [&]() { ... }; // Default capture by reference.
+    ```
+
+  * Use `mutable` only when absolutely necessary.
+
+    ```
+    // 1: OK.
+    []() mutable { ...; };
+    ```
+
+  * Feel free to ignore the return type by default, adding it as necessary to appease the compiler or be more explicit for the reader.
+
+    ```
+    // 1: OK.
+    []() { return true; };
+    []() -> bool { return ambiguous(); };
+    ```
+
+  * Feel free to use `auto` when naming a lambda expression:
+
+    ```
+    // 1: OK.
+    auto lambda = []() { ...; };
+    ```
+
+  * Format lambdas similar to how we format functions and methods. Feel free to let lambdas be one-liners:
+
+    ```
+    // 1: OK.
+    auto lambda = []() {
+      ...;
+    };
+
+    // 2: OK.
+    auto lambda = []() { ...; };
+    ```
+
+    Feel free to inline lambdas within function arguments:
+
+    ```
+    socket.send([]() {
+      ...;
+    });
+    ```
+
+    Chain function calls on a newline after the closing brace of the lambda and the closing parenthesis of function call:
+
+    ```
+    // 1: OK.
+    instance
+      .method([]() {
+        ...;
+      })
+      .then([]() { ...; })
+      .then([]() {
+        ...;
+      });
+
+    // 2: OK (when no chaining, compare to 1).
+    instance.method([]() {
+      ...;
+    });
+
+    // 3: OK (if no 'instance.method').
+    function([]() {
+      ...;
+    })
+    .then([]() { ...; })
+    .then([]() {
+      ...;
+    });
+
+    // 3: OK (but prefer 1).
+    instance.method([]() {
+      ...;
+    })
+    .then([]() { ...; })
+    .then([]() {
+      ...;
+    });
+    ```
+
+    Wrap capture lists indepedently of parameters, *use the same formatting as if the capture list were template parameters*:
+
+
+    ```
+    // 1: OK.
+    function([&capture1, &capture2, &capture3](
+        const T1& p1, const T2& p2, const T3& p3) {
+      ...;
+    });
+
+    function(
+        [&capture1, &capture2, &capture3](
+            const T1& p1, const T2& p2, const T3& p3) {
+      ...;
+    });
+
+    auto lambda = [&capture1, &capture2, &capture3](
+        const T1& p1, const T2& p2, const T3& p3) {
+      ...;
+    };
+
+
+    auto lambda =
+      [&capture1, &capture2, &capture3](
+          const T1& p1, const T2& p2, const T3& p3) {
+      ...;
+    };
+
+    // 2: OK (when capture list is longer than 80 characters).
+    function([
+        &capture1,
+        &capture2,
+        &capture3,
+        &capture4](
+            const T1& p1, const T2& p2) {
+      ...;
+    });
+
+    auto lambda = [
+        &capture1,
+        &capture2,
+        &capture3,
+        &capture4](
+            const T1& p1, const T2& p2) {
+      ...;
+    };
+
+    // 3: OK (but prefer 2).
+    function([
+        &capture1,
+        &capture2,
+        &capture3,
+        &capture4](const T1& p1, const T2& t2) {
+      ...;
+    });
+
+    auto lambda = [
+        &capture1,
+        &capture2,
+        &capture3,
+        &capture4](const T1& p1, const T2& p2) {
+      ...;
+    };
+
+    // 3: Don't use.
+    function([&capture1,
+              &capture2,
+              &capture3,
+              &capture4](const T1& p1, const T2& p2) {
+      ...;
+    });
+
+    auto lambda = [&capture1,
+                   &capture2,
+                   &capture3,
+                   &capture4](const T1& p1, const T2& p2) {
+      ...;
+    };
+
+    // 4: Don't use.
+    function([&capture1,
+              &capture2,
+              &capture3,
+              &capture4](
+        const T1& p1, const T2& p2, const T3& p3) {
+      ...;
+    });
+
+    auto lambda = [&capture1,
+                   &capture2,
+                   &capture3,
+                   &capture4](
+        const T1& p1, const T2& p2, const T3& p3) {
+      ...;
+    };
+
+    // 5: Don't use.
+    function([&capture1,
+              &capture2,
+              &capture3,
+              &capture4](
+        const T1& p1,
+        const T2& p2,
+        const T3& p3) {
+      ...;
+    });
+
+    auto lambda = [&capture1,
+                   &capture2,
+                   &capture3,
+                   &capture4](
+        const T1& p1,
+        const T2& p2,
+        const T3& p3) {
+      ...;
+    };
+
+    // 6: OK (parameter list longer than 80 characters).
+    function([&capture1, &capture2, &capture3](
+        const T1& p1,
+        const T2& p2,
+        const T3& p3,
+        const T4& p4) {
+      ...;
+    });
+
+    auto lambda = [&capture1, &capture2, &capture3](
+        const T1& p1,
+        const T2& p2,
+        const T3& p3,
+        const T4& p4) {
+      ...;
+    };
+
+    // 7: OK (capture and parameter lists longer than 80 characters).
+    function([
+        &capture1,
+        &capture2,
+        &capture3,
+        &capture4](
+            const T1& p1,
+            const T2& p2,
+            const T3& p3,
+            const T4& p4) {
+      ...;
+    });
+
+    auto lambda = [
+        &capture1,
+        &capture2,
+        &capture3,
+        &capture4](
+            const T1& p1,
+            const T2& p2,
+            const T3& p3,
+            const T4& p4) {
+      ...;
+    };
+    ```
