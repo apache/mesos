@@ -22,6 +22,7 @@
 
 #include <iostream>
 #include <map>
+#include <tuple>
 
 #include <process/defer.hpp>
 #include <process/dispatch.hpp>
@@ -34,7 +35,6 @@
 #include <stout/foreach.hpp>
 #include <stout/path.hpp>
 #include <stout/strings.hpp>
-#include <stout/tuple.hpp>
 #include <stout/unreachable.hpp>
 
 #include "zookeeper/zookeeper.hpp"
@@ -43,10 +43,8 @@ using namespace process;
 
 using std::map;
 using std::string;
+using std::tuple;
 using std::vector;
-
-using tuples::tuple;
-
 
 class ZooKeeperProcess : public Process<ZooKeeperProcess>
 {
@@ -408,7 +406,7 @@ private:
     const tuple<Promise<int>*>* args =
       reinterpret_cast<const tuple<Promise<int>*>*>(data);
 
-    Promise<int>* promise = tuples::get<0>(*args);
+    Promise<int>* promise = std::get<0>(*args);
 
     promise->set(ret);
 
@@ -421,8 +419,8 @@ private:
     const tuple<Promise<int>*, string*> *args =
       reinterpret_cast<const tuple<Promise<int>*, string*>*>(data);
 
-    Promise<int>* promise = tuples::get<0>(*args);
-    string* result = tuples::get<1>(*args);
+    Promise<int>* promise = std::get<0>(*args);
+    string* result = std::get<1>(*args);
 
     if (ret == 0) {
       if (result != NULL) {
@@ -441,8 +439,8 @@ private:
     const tuple<Promise<int>*, Stat*>* args =
       reinterpret_cast<const tuple<Promise<int>*, Stat*>*>(data);
 
-    Promise<int>* promise = tuples::get<0>(*args);
-    Stat *stat_result = tuples::get<1>(*args);
+    Promise<int>* promise = std::get<0>(*args);
+    Stat *stat_result = std::get<1>(*args);
 
     if (ret == 0) {
       if (stat_result != NULL) {
@@ -466,9 +464,9 @@ private:
     const tuple<Promise<int>*, string*, Stat*>* args =
       reinterpret_cast<const tuple<Promise<int>*, string*, Stat*>*>(data);
 
-    Promise<int>* promise = tuples::get<0>(*args);
-    string* result = tuples::get<1>(*args);
-    Stat* stat_result = tuples::get<2>(*args);
+    Promise<int>* promise = std::get<0>(*args);
+    string* result = std::get<1>(*args);
+    Stat* stat_result = std::get<2>(*args);
 
     if (ret == 0) {
       if (result != NULL) {
@@ -494,8 +492,8 @@ private:
     const tuple<Promise<int>*, vector<string>*>* args =
       reinterpret_cast<const tuple<Promise<int>*, vector<string>*>*>(data);
 
-    Promise<int>* promise = tuples::get<0>(*args);
-    vector<string>* results = tuples::get<1>(*args);
+    Promise<int>* promise = std::get<0>(*args);
+    vector<string>* results = std::get<1>(*args);
 
     if (ret == 0) {
       if (results != NULL) {

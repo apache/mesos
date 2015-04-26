@@ -24,6 +24,7 @@
 #include <sys/types.h>
 
 #include <deque>
+#include <tuple>
 
 #include <glog/logging.h>
 
@@ -39,7 +40,6 @@
 #include <stout/lambda.hpp>
 #include <stout/numify.hpp>
 #include <stout/strings.hpp>
-#include <stout/tuple.hpp>
 
 #include <stout/os/exists.hpp>
 #include <stout/os/killtree.hpp>
@@ -430,7 +430,7 @@ private:
       .onAny(defer(self(), &Self::_schedule, lambda::_1));
   }
 
-  void _schedule(const Future<tuples::tuple<
+  void _schedule(const Future<std::tuple<
       Future<Option<int>>,
       Future<string>,
       Future<string>>>& future)
@@ -441,7 +441,7 @@ private:
     const Owned<Entry>& entry = entries.front();
     CHECK_SOME(entry->du);
 
-    Future<Option<int>> status = tuples::get<0>(future.get());
+    Future<Option<int>> status = std::get<0>(future.get());
 
     if (!status.isReady()) {
       entry->promise.fail(
@@ -450,7 +450,7 @@ private:
     } else if (status.get().isNone()) {
       entry->promise.fail("Failed to reap the status of 'du'");
     } else if (status.get().get() != 0) {
-      Future<string> error = tuples::get<2>(future.get());
+      Future<string> error = std::get<2>(future.get());
       if (!error.isReady()) {
         entry->promise.fail(
             "Failed to perform 'du'. Reading stderr failed: " +
@@ -459,7 +459,7 @@ private:
         entry->promise.fail("Failed to perform 'du': " + error.get());
       }
     } else {
-      Future<string> output = tuples::get<1>(future.get());
+      Future<string> output = std::get<1>(future.get());
       if (!output.isReady()) {
         entry->promise.fail(
             "Failed to read stdout from 'du': " +

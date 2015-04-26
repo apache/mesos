@@ -22,6 +22,7 @@
 #include <list>
 #include <sstream>
 #include <string>
+#include <tuple>
 
 #include <process/owned.hpp>
 #include <process/subprocess.hpp>
@@ -29,7 +30,6 @@
 #include <stout/hashmap.hpp>
 #include <stout/protobuf.hpp>
 #include <stout/try.hpp>
-#include <stout/tuple.hpp>
 
 #include "slave/state.hpp"
 
@@ -235,7 +235,7 @@ private:
 
   void __wait(
       const ContainerID& containerId,
-      const process::Future<tuples::tuple<
+      const process::Future<std::tuple<
           process::Future<Result<containerizer::Termination>>,
           process::Future<Option<int>>>>& future);
 
@@ -252,7 +252,7 @@ private:
 
   process::Future<ResourceStatistics> __usage(
       const ContainerID& containerId,
-      const process::Future<tuples::tuple<
+      const process::Future<std::tuple<
           process::Future<Result<ResourceStatistics>>,
           process::Future<Option<int>>>>& future);
 
@@ -263,7 +263,7 @@ private:
       const process::Future<Option<int>>& future);
 
   process::Future<hashset<ContainerID>> _containers(
-      const process::Future<tuples::tuple<
+      const process::Future<std::tuple<
           process::Future<Result<containerizer::Containers>>,
           process::Future<Option<int>>>>& future);
 

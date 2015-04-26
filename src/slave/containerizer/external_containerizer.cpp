@@ -19,6 +19,7 @@
 #include <iostream>
 #include <iomanip>
 #include <list>
+#include <tuple>
 
 #include <errno.h>
 #include <poll.h>
@@ -58,9 +59,8 @@ using std::map;
 using std::set;
 using std::string;
 using std::stringstream;
+using std::tuple;
 using std::vector;
-
-using tuples::tuple;
 
 using namespace process;
 
@@ -113,12 +113,12 @@ static Try<T> result(
     return Error("Could not receive any result");
   }
 
-  Option<Error> error = validate(tuples::get<1>(future.get()));
+  Option<Error> error = validate(std::get<1>(future.get()));
   if (error.isSome()) {
     return error.get();
   }
 
-  Future<Result<T>> result = tuples::get<0>(future.get());
+  Future<Result<T>> result = std::get<0>(future.get());
   if (result.isFailed()) {
     return Error("Could not receive any result: " + result.failure());
   }
@@ -670,7 +670,7 @@ void ExternalContainerizerProcess::__wait(
   // the result validation below will return an error due to a non 0
   // exit status.
   if (actives[containerId]->destroying && future.isReady()) {
-    Future<Option<int>> statusFuture = tuples::get<1>(future.get());
+    Future<Option<int>> statusFuture = std::get<1>(future.get());
     if (statusFuture.isReady()) {
       Option<int> status = statusFuture.get();
       if (status.isSome()) {
