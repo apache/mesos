@@ -663,6 +663,11 @@ if test -n "`echo $with_zlib`" ; then
     LDFLAGS="-L${with_zlib}/lib $LDFLAGS"
 fi
 
+AC_CHECK_TOOL([PATCHCOMMAND_TEST], [patch], [], [$PATH])
+if test -z "`echo $PATCHCOMMAND_TEST`"; then
+    AC_MSG_ERROR([patch command not found in PATH])
+fi
+
 
 AC_CHECK_LIB([z], [gzread], [],
              [AC_MSG_ERROR([cannot find libz
