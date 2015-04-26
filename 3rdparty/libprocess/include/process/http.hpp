@@ -4,6 +4,7 @@
 #include <stdint.h>
 
 #include <iosfwd>
+#include <memory>
 #include <queue>
 #include <sstream>
 #include <string>
@@ -17,7 +18,6 @@
 #include <stout/hashmap.hpp>
 #include <stout/ip.hpp>
 #include <stout/json.hpp>
-#include <stout/memory.hpp>
 #include <stout/none.hpp>
 #include <stout/nothing.hpp>
 #include <stout/option.hpp>
@@ -135,9 +135,9 @@ public:
       CLOSED,
     };
 
-    explicit Reader(const memory::shared_ptr<Data>& _data) : data(_data) {}
+    explicit Reader(const std::shared_ptr<Data>& _data) : data(_data) {}
 
-    memory::shared_ptr<Data> data;
+    std::shared_ptr<Data> data;
   };
 
   class Writer
@@ -173,9 +173,9 @@ public:
       FAILED,
     };
 
-    explicit Writer(const memory::shared_ptr<Data>& _data) : data(_data) {}
+    explicit Writer(const std::shared_ptr<Data>& _data) : data(_data) {}
 
-    memory::shared_ptr<Data> data;
+    std::shared_ptr<Data> data;
   };
 
   Pipe() : data(new Data()) {}
@@ -210,7 +210,7 @@ private:
     Option<Failure> failure;
   };
 
-  memory::shared_ptr<Data> data;
+  std::shared_ptr<Data> data;
 };
 
 
@@ -452,7 +452,7 @@ namespace path {
 //   books: "books"
 //   isbn: "0304827484"
 //   chapters: "chapters"
-Try<hashmap<std::string, std::string> > parse(
+Try<hashmap<std::string, std::string>> parse(
     const std::string& pattern,
     const std::string& path);
 

@@ -6,6 +6,7 @@
 #include <sys/types.h>
 
 #include <map>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -13,7 +14,6 @@
 
 #include <stout/flags.hpp>
 #include <stout/lambda.hpp>
-#include <stout/memory.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
 #include <stout/try.hpp>
@@ -139,7 +139,7 @@ private:
 
   Subprocess() : data(new Data()) {}
 
-  memory::shared_ptr<Data> data;
+  std::shared_ptr<Data> data;
 };
 
 

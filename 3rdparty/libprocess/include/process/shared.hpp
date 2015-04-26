@@ -1,11 +1,11 @@
 #ifndef __PROCESS_SHARED_HPP__
 #define __PROCESS_SHARED_HPP__
 
+#include <memory>
+
 #include <glog/logging.h>
 
 #include <process/future.hpp>
-
-#include <stout/memory.hpp>
 
 namespace process {
 
@@ -41,7 +41,7 @@ public:
   // will be reset after this function is invoked. If multiple shared
   // pointers pointing to the same object all want to be upgraded,
   // only one of them may succeed and the rest will get failures.
-  Future<Owned<T> > own();
+  Future<Owned<T>> own();
 
 private:
   struct Data
@@ -51,10 +51,10 @@ private:
 
     T* t;
     volatile bool owned;
-    Promise<Owned<T> > promise;
+    Promise<Owned<T>> promise;
   };
 
-  memory::shared_ptr<Data> data;
+  std::shared_ptr<Data> data;
 };
 
 
@@ -143,7 +143,7 @@ void Shared<T>::swap(Shared<T>& that)
 
 
 template <typename T>
-Future<Owned<T> > Shared<T>::own()
+Future<Owned<T>> Shared<T>::own()
 {
   // If two threads simultaneously access this object and at least one
   // of them is a write, the behavior is undefined. This is similar to
@@ -157,7 +157,7 @@ Future<Owned<T> > Shared<T>::own()
     return Failure("Ownership has already been transferred");
   }
 
-  Future<Owned<T> > future = data->promise.future();
+  Future<Owned<T>> future = data->promise.future();
   data.reset();
   return future;
 }

@@ -1,6 +1,7 @@
 #ifndef __PROCESS_METRICS_TIMER_HPP__
 #define __PROCESS_METRICS_TIMER_HPP__
 
+#include <memory>
 #include <string>
 
 #include <process/clock.hpp>
@@ -116,7 +117,7 @@ private:
     that.push(value);
   }
 
-  memory::shared_ptr<Data> data;
+  std::shared_ptr<Data> data;
 };
 
 } // namespace metrics {

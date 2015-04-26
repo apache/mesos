@@ -10,6 +10,7 @@
 #include <iomanip>
 #include <ostream>
 #include <map>
+#include <memory>
 #include <queue>
 #include <string>
 #include <sstream>
@@ -133,7 +134,7 @@ bool Request::accepts(const string& encoding) const
     foreach (const string& _encoding, strings::tokenize(accepted.get(), ",")) {
       if (strings::startsWith(_encoding, candidate)) {
         // Is there a 0 q value? Ex: 'gzip;q=0.0'.
-        const map<string, vector<string> >& values =
+        const map<string, vector<string>>& values =
           strings::pairs(_encoding, ";", "=");
 
         // Look for { "q": ["0"] }.
@@ -342,7 +343,7 @@ Future<Nothing> Pipe::Writer::readerClosed()
 
 namespace path {
 
-Try<hashmap<string, string> > parse(const string& pattern, const string& path)
+Try<hashmap<string, string>> parse(const string& pattern, const string& path)
 {
   // Split the pattern by '/' into keys.
   vector<string> keys = strings::tokenize(pattern, "/");
@@ -551,7 +552,7 @@ namespace internal {
 // Forward declarations.
 Future<string> _convert(
     Pipe::Reader reader,
-    const memory::shared_ptr<string>& buffer,
+    const std::shared_ptr<string>& buffer,
     const string& read);
 Response __convert(
     const Response& pipeResponse,
@@ -562,7 +563,7 @@ Response __convert(
 // 'PIPE' response can be read completely.
 Future<Response> convert(const Response& pipeResponse)
 {
-  memory::shared_ptr<string> buffer(new string());
+  std::shared_ptr<string> buffer(new string());
 
   CHECK_EQ(Response::PIPE, pipeResponse.type);
   CHECK_SOME(pipeResponse.reader);
@@ -577,7 +578,7 @@ Future<Response> convert(const Response& pipeResponse)
 
 Future<string> _convert(
     Pipe::Reader reader,
-    const memory::shared_ptr<string>& buffer,
+    const std::shared_ptr<string>& buffer,
     const string& read)
 {
   if (read.empty()) { // EOF.

@@ -1,6 +1,7 @@
 #ifndef __PROCESS_METRICS_METRIC_HPP__
 #define __PROCESS_METRICS_METRIC_HPP__
 
+#include <memory>
 #include <string>
 
 #include <process/future.hpp>
@@ -10,7 +11,6 @@
 #include <process/timeseries.hpp>
 
 #include <stout/duration.hpp>
-#include <stout/memory.hpp>
 #include <stout/option.hpp>
 
 namespace process {
@@ -28,9 +28,9 @@ public:
     return data->name;
   }
 
-  Option<Statistics<double> > statistics() const
+  Option<Statistics<double>> statistics() const
   {
-    Option<Statistics<double> > statistics = None();
+    Option<Statistics<double>> statistics = None();
 
     if (data->history.isSome()) {
       internal::acquire(&data->lock);
@@ -70,7 +70,7 @@ private:
     {
       if (window.isSome()) {
         history =
-          Owned<TimeSeries<double> >(new TimeSeries<double>(window.get()));
+          Owned<TimeSeries<double>>(new TimeSeries<double>(window.get()));
       }
     }
 
@@ -78,10 +78,10 @@ private:
 
     int lock;
 
-    Option<Owned<TimeSeries<double> > > history;
+    Option<Owned<TimeSeries<double>>> history;
   };
 
-  memory::shared_ptr<Data> data;
+  std::shared_ptr<Data> data;
 };
 
 } // namespace metrics {

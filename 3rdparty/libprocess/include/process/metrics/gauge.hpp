@@ -1,13 +1,12 @@
 #ifndef __PROCESS_METRICS_GAUGE_HPP__
 #define __PROCESS_METRICS_GAUGE_HPP__
 
+#include <memory>
 #include <string>
 
 #include <process/defer.hpp>
 
 #include <process/metrics/metric.hpp>
-
-#include <stout/memory.hpp>
 
 namespace process {
 namespace metrics {
@@ -38,7 +37,7 @@ private:
     const Deferred<Future<double> (void)> f;
   };
 
-  memory::shared_ptr<Data> data;
+  std::shared_ptr<Data> data;
 };
 
 } // namespace metrics {

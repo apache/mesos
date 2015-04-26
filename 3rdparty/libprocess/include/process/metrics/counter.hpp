@@ -1,11 +1,10 @@
 #ifndef __PROCESS_METRICS_COUNTER_HPP__
 #define __PROCESS_METRICS_COUNTER_HPP__
 
+#include <memory>
 #include <string>
 
 #include <process/metrics/metric.hpp>
-
-#include <stout/memory.hpp>
 
 namespace process {
 namespace metrics {
@@ -64,7 +63,7 @@ private:
     volatile int64_t v;
   };
 
-  memory::shared_ptr<Data> data;
+  std::shared_ptr<Data> data;
 };
 
 } // namespace metrics {

@@ -1,10 +1,11 @@
 #include <ev.h>
 
+#include <memory>
+
 #include <process/future.hpp>
 #include <process/process.hpp> // For process::initialize.
 
 #include <stout/lambda.hpp>
-#include <stout/memory.hpp>
 
 #include "libev.hpp"
 
@@ -24,8 +25,8 @@ struct Poll
   // An I/O watcher for checking for readability or writeability and
   // an async watcher for being able to discard the polling.
   struct {
-    memory::shared_ptr<ev_io> io;
-    memory::shared_ptr<ev_async> async;
+    std::shared_ptr<ev_io> io;
+    std::shared_ptr<ev_async> async;
   } watcher;
 
   Promise<short> promise;
@@ -77,7 +78,7 @@ namespace io {
 namespace internal {
 
 // Helper/continuation of 'poll' on future discard.
-void _poll(const memory::shared_ptr<ev_async>& async)
+void _poll(const std::shared_ptr<ev_async>& async)
 {
   ev_async_send(loop, async.get());
 }

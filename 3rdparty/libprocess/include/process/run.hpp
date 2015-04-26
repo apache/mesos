@@ -1,10 +1,11 @@
 #ifndef __PROCESS_RUN_HPP__
 #define __PROCESS_RUN_HPP__
 
+#include <memory> // TODO(benh): Replace shared_ptr with unique_ptr.
+
 #include <process/process.hpp>
 
 #include <stout/lambda.hpp>
-#include <stout/memory.hpp> // TODO(benh): Replace shared_ptr with unique_ptr.
 #include <stout/preprocessor.hpp>
 
 namespace process {
@@ -12,11 +13,11 @@ namespace process {
 namespace internal {
 
 template <typename R>
-class ThunkProcess : public Process<ThunkProcess<R> >
+class ThunkProcess : public Process<ThunkProcess<R>>
 {
 public:
-  ThunkProcess(memory::shared_ptr<lambda::function<R(void)> > _thunk,
-               memory::shared_ptr<Promise<R> > _promise)
+  ThunkProcess(std::shared_ptr<lambda::function<R(void)>> _thunk,
+               std::shared_ptr<Promise<R>> _promise)
     : thunk(_thunk),
       promise(_promise) {}
 
@@ -29,8 +30,8 @@ protected:
   }
 
 private:
-  memory::shared_ptr<lambda::function<R(void)> > thunk;
-  memory::shared_ptr<Promise<R> > promise;
+  std::shared_ptr<lambda::function<R(void)>> thunk;
+  std::shared_ptr<Promise<R>> promise;
 };
 
 } // namespace internal {
@@ -39,11 +40,11 @@ private:
 template <typename R>
 Future<R> run(R (*method)(void))
 {
-  memory::shared_ptr<lambda::function<R(void)> > thunk(
+  std::shared_ptr<lambda::function<R(void)>> thunk(
       new lambda::function<R(void)>(
           lambda::bind(method)));
 
-  memory::shared_ptr<Promise<R> > promise(new Promise<R>());
+  std::shared_ptr<Promise<R>> promise(new Promise<R>());
   Future<R> future = promise->future();
 
   terminate(spawn(new internal::ThunkProcess<R>(thunk, promise), true));
@@ -60,11 +61,11 @@ Future<R> run(R (*method)(void))
       R (*method)(ENUM_PARAMS(N, P)),                                   \
       ENUM_BINARY_PARAMS(N, A, a))                                      \
   {                                                                     \
-    memory::shared_ptr<lambda::function<R(void)> > thunk(               \
+    std::shared_ptr<lambda::function<R(void)>> thunk(                   \
         new lambda::function<R(void)>(                                  \
             lambda::bind(method, ENUM_PARAMS(N, a))));                  \
                                                                         \
-    memory::shared_ptr<Promise<R> > promise(new Promise<R>());          \
+    std::shared_ptr<Promise<R>> promise(new Promise<R>());              \
     Future<R> future = promise->future();                               \
                                                                         \
     terminate(spawn(new internal::ThunkProcess<R>(thunk, promise), true)); \

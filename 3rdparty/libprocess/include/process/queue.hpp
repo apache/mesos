@@ -2,13 +2,12 @@
 #define __PROCESS_QUEUE_HPP__
 
 #include <deque>
+#include <memory>
 #include <queue>
 
 #include <process/future.hpp>
 #include <process/internal.hpp>
 #include <process/owned.hpp>
-
-#include <stout/memory.hpp>
 
 namespace process {
 
@@ -23,7 +22,7 @@ public:
     // NOTE: We need to grab the promise 'date->promises.front()' but
     // set it outside of the critical section because setting it might
     // trigger callbacks that try to reacquire the lock.
-    Owned<Promise<T> > promise;
+    Owned<Promise<T>> promise;
 
     internal::acquire(&data->lock);
     {
@@ -48,7 +47,7 @@ public:
     internal::acquire(&data->lock);
     {
       if (data->elements.empty()) {
-        data->promises.push_back(Owned<Promise<T> >(new Promise<T>()));
+        data->promises.push_back(Owned<Promise<T>>(new Promise<T>()));
         future = data->promises.back()->future();
       } else {
         future = Future<T>(data->elements.front());
@@ -76,13 +75,13 @@ private:
     int lock;
 
     // Represents "waiters" for elements from the queue.
-    std::deque<Owned<Promise<T> > > promises;
+    std::deque<Owned<Promise<T>>> promises;
 
     // Represents elements already put in the queue.
     std::queue<T> elements;
   };
 
-  memory::shared_ptr<Data> data;
+  std::shared_ptr<Data> data;
 };
 
 } // namespace process {

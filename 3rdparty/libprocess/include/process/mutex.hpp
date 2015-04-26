@@ -1,13 +1,13 @@
 #ifndef __PROCESS_MUTEX_HPP__
 #define __PROCESS_MUTEX_HPP__
 
+#include <memory>
 #include <queue>
 
 #include <process/future.hpp>
 #include <process/internal.hpp>
 #include <process/owned.hpp>
 
-#include <stout/memory.hpp>
 #include <stout/nothing.hpp>
 
 namespace process {
@@ -26,7 +26,7 @@ public:
       if (!data->locked) {
         data->locked = true;
       } else {
-        Owned<Promise<Nothing> > promise(new Promise<Nothing>());
+        Owned<Promise<Nothing>> promise(new Promise<Nothing>());
         data->promises.push(promise);
         future = promise->future();
       }
@@ -41,7 +41,7 @@ public:
     // NOTE: We need to grab the promise 'date->promises.front()' but
     // set it outside of the critical section because setting it might
     // trigger callbacks that try to reacquire the lock.
-    Owned<Promise<Nothing> > promise;
+    Owned<Promise<Nothing>> promise;
 
     internal::acquire(&data->lock);
     {
@@ -79,10 +79,10 @@ private:
     bool locked;
 
     // Represents "waiters" for this lock.
-    std::queue<Owned<Promise<Nothing> > > promises;
+    std::queue<Owned<Promise<Nothing>>> promises;
   };
 
-  memory::shared_ptr<Data> data;
+  std::shared_ptr<Data> data;
 };
 
 } // namespace process {

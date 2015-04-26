@@ -6,6 +6,7 @@
 
 #include <iostream>
 #include <list>
+#include <memory> // TODO(benh): Replace shared_ptr with unique_ptr.
 #include <set>
 #include <type_traits>
 #include <vector>
@@ -23,7 +24,6 @@
 #include <stout/duration.hpp>
 #include <stout/error.hpp>
 #include <stout/lambda.hpp>
-#include <stout/memory.hpp> // TODO(benh): Replace shared_ptr with unique_ptr.
 #include <stout/none.hpp>
 #include <stout/option.hpp>
 #include <stout/preprocessor.hpp>
@@ -404,7 +404,7 @@ private:
   // failed, or discarded, in which case it returns false.
   bool fail(const std::string& _message);
 
-  memory::shared_ptr<Data> data;
+  std::shared_ptr<Data> data;
 };
 
 
@@ -434,10 +434,10 @@ public:
 
   // Converts this weak reference to a concrete future. Returns none
   // if the conversion is not successful.
-  Option<Future<T> > get() const;
+  Option<Future<T>> get() const;
 
 private:
-  memory::weak_ptr<typename Future<T>::Data> data;
+  std::weak_ptr<typename Future<T>::Data> data;
 };
 
 
@@ -447,7 +447,7 @@ WeakFuture<T>::WeakFuture(const Future<T>& future)
 
 
 template <typename T>
-Option<Future<T> > WeakFuture<T>::get() const
+Option<Future<T>> WeakFuture<T>::get() const
 {
   Future<T> future;
   future.data = data.lock();
@@ -527,7 +527,7 @@ namespace internal {
 template <typename T>
 void discard(WeakFuture<T> reference)
 {
-  Option<Future<T> > future = reference.get();
+  Option<Future<T>> future = reference.get();
   if (future.isSome()) {
     Future<T> future_ = future.get();
     future_.discard();
@@ -670,7 +670,7 @@ struct wrap
 
 
 template <typename X>
-struct wrap<Future<X> >
+struct wrap<Future<X>>
 {
   typedef Future<X> type;
 };
@@ -684,7 +684,7 @@ struct unwrap
 
 
 template <typename X>
-struct unwrap<Future<X> >
+struct unwrap<Future<X>>
 {
   typedef X type;
 };
@@ -693,7 +693,7 @@ struct unwrap<Future<X> >
 template <typename T>
 void select(
     const Future<T>& future,
-    memory::shared_ptr<Promise<Future<T > > > promise)
+    std::shared_ptr<Promise<Future<T>>> promise)
 {
   // We never fail the future associated with our promise.
   assert(!promise->future().isFailed());
@@ -713,13 +713,12 @@ void select(
 // Returns a future that captures any ready future in a set. Note that
 // select DOES NOT capture a future that has failed or been discarded.
 template <typename T>
-Future<Future<T> > select(const std::set<Future<T> >& futures)
+Future<Future<T>> select(const std::set<Future<T>>& futures)
 {
-  memory::shared_ptr<Promise<Future<T> > > promise(
-      new Promise<Future<T> >());
+  std::shared_ptr<Promise<Future<T>>> promise(new Promise<Future<T>>());
 
   promise->future().onDiscard(
-      lambda::bind(&internal::discarded<Future<T> >, promise->future()));
+      lambda::bind(&internal::discarded<Future<T>>, promise->future()));
 
   typename std::set<Future<T>>::iterator iterator;
   for (iterator = futures.begin(); iterator != futures.end(); ++iterator) {
@@ -736,9 +735,9 @@ Future<Future<T> > select(const std::set<Future<T> >& futures)
 
 
 template <typename T>
-void discard(const std::set<Future<T> >& futures)
+void discard(const std::set<Future<T>>& futures)
 {
-  typename std::set<Future<T> >::const_iterator iterator;
+  typename std::set<Future<T>>::const_iterator iterator;
   for (iterator = futures.begin(); iterator != futures.end(); ++iterator) {
     Future<T> future = *iterator; // Need a non-const copy to discard.
     future.discard();
@@ -747,9 +746,9 @@ void discard(const std::set<Future<T> >& futures)
 
 
 template <typename T>
-void discard(const std::list<Future<T> >& futures)
+void discard(const std::list<Future<T>>& futures)
 {
-  typename std::list<Future<T> >::const_iterator iterator;
+  typename std::list<Future<T>>::const_iterator iterator;
   for (iterator = futures.begin(); iterator != futures.end(); ++iterator) {
     Future<T> future = *iterator; // Need a non-const copy to discard.
     future.discard();
@@ -760,7 +759,7 @@ void discard(const std::list<Future<T> >& futures)
 template <typename T>
 bool Promise<T>::discard(Future<T> future)
 {
-  memory::shared_ptr<typename Future<T>::Data> data = future.data;
+  std::shared_ptr<typename Future<T>::Data> data = future.data;
 
   bool result = false;
 
@@ -1181,7 +1180,7 @@ namespace internal {
 // Future since the compiler can't properly infer otherwise.
 template <typename T, typename X>
 void thenf(const lambda::function<Future<X>(const T&)>& f,
-           const memory::shared_ptr<Promise<X>>& promise,
+           const std::shared_ptr<Promise<X>>& promise,
            const Future<T>& future)
 {
   if (future.isReady()) {
@@ -1200,7 +1199,7 @@ void thenf(const lambda::function<Future<X>(const T&)>& f,
 
 template <typename T, typename X>
 void then(const lambda::function<X(const T&)>& f,
-          const memory::shared_ptr<Promise<X>>& promise,
+          const std::shared_ptr<Promise<X>>& promise,
           const Future<T>& future)
 {
   if (future.isReady()) {
@@ -1220,7 +1219,7 @@ void then(const lambda::function<X(const T&)>& f,
 template <typename T>
 void repair(
     const lambda::function<Future<T>(const Future<T>&)>& f,
-    const memory::shared_ptr<Promise<T>>& promise,
+    const std::shared_ptr<Promise<T>>& promise,
     const Future<T>& future)
 {
   CHECK(!future.isPending());
@@ -1235,8 +1234,8 @@ void repair(
 template <typename T>
 void expired(
     const lambda::function<Future<T>(const Future<T>&)>& f,
-    const memory::shared_ptr<Latch>& latch,
-    const memory::shared_ptr<Promise<T> >& promise,
+    const std::shared_ptr<Latch>& latch,
+    const std::shared_ptr<Promise<T>>& promise,
     const Future<T>& future)
 {
   if (latch->trigger()) {
@@ -1254,8 +1253,8 @@ void expired(
 
 template <typename T>
 void after(
-    const memory::shared_ptr<Latch>& latch,
-    const memory::shared_ptr<Promise<T> >& promise,
+    const std::shared_ptr<Latch>& latch,
+    const std::shared_ptr<Promise<T>>& promise,
     const Timer& timer,
     const Future<T>& future)
 {
@@ -1273,7 +1272,7 @@ template <typename T>
 template <typename X>
 Future<X> Future<T>::then(const lambda::function<Future<X>(const T&)>& f) const
 {
-  memory::shared_ptr<Promise<X>> promise(new Promise<X>());
+  std::shared_ptr<Promise<X>> promise(new Promise<X>());
 
   lambda::function<void(const Future<T>&)> thenf =
     lambda::bind(&internal::thenf<T, X>, f, promise, lambda::_1);
@@ -1293,7 +1292,7 @@ template <typename T>
 template <typename X>
 Future<X> Future<T>::then(const lambda::function<X(const T&)>& f) const
 {
-  memory::shared_ptr<Promise<X>> promise(new Promise<X>());
+  std::shared_ptr<Promise<X>> promise(new Promise<X>());
 
   lambda::function<void(const Future<T>&)> then =
     lambda::bind(&internal::then<T, X>, f, promise, lambda::_1);
@@ -1313,7 +1312,7 @@ template <typename T>
 Future<T> Future<T>::repair(
     const lambda::function<Future<T>(const Future<T>&)>& f) const
 {
-  memory::shared_ptr<Promise<T>> promise(new Promise<T>());
+  std::shared_ptr<Promise<T>> promise(new Promise<T>());
 
   onAny(lambda::bind(&internal::repair<T>, f, promise, lambda::_1));
 
@@ -1334,8 +1333,8 @@ Future<T> Future<T>::after(
   // TODO(benh): Using a Latch here but Once might be cleaner.
   // Unfortunately, Once depends on Future so we can't easily use it
   // from here.
-  memory::shared_ptr<Latch> latch(new Latch());
-  memory::shared_ptr<Promise<T> > promise(new Promise<T>());
+  std::shared_ptr<Latch> latch(new Latch());
+  std::shared_ptr<Promise<T>> promise(new Promise<T>());
 
   // Set up a timer to invoke the callback if this future has not
   // completed. Note that we do not pass a weak reference for this

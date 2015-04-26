@@ -1,6 +1,8 @@
 #ifndef __PROCESS_EVENT_HPP__
 #define __PROCESS_EVENT_HPP__
 
+#include <memory> // TODO(benh): Replace shared_ptr with unique_ptr.
+
 #include <process/future.hpp>
 #include <process/http.hpp>
 #include <process/message.hpp>
@@ -8,7 +10,6 @@
 
 #include <stout/abort.hpp>
 #include <stout/lambda.hpp>
-#include <stout/memory.hpp> // TODO(benh): Replace shared_ptr with unique_ptr.
 
 namespace process {
 
@@ -129,7 +130,7 @@ struct DispatchEvent : Event
 {
   DispatchEvent(
       const UPID& _pid,
-      const memory::shared_ptr<lambda::function<void(ProcessBase*)> >& _f,
+      const std::shared_ptr<lambda::function<void(ProcessBase*)>>& _f,
       const Option<const std::type_info*>& _functionType)
     : pid(_pid),
       f(_f),
@@ -145,7 +146,7 @@ struct DispatchEvent : Event
   const UPID pid;
 
   // Function to get invoked as a result of this dispatch event.
-  const memory::shared_ptr<lambda::function<void(ProcessBase*)>> f;
+  const std::shared_ptr<lambda::function<void(ProcessBase*)>> f;
 
   const Option<const std::type_info*> functionType;
 

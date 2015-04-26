@@ -1,9 +1,9 @@
 #ifndef __PROCESS_OWNED_HPP__
 #define __PROCESS_OWNED_HPP__
 
-#include <glog/logging.h>
+#include <memory>
 
-#include <stout/memory.hpp>
+#include <glog/logging.h>
 
 namespace process {
 
@@ -53,7 +53,7 @@ private:
     T* volatile t; // The pointer 't' is volatile.
   };
 
-  memory::shared_ptr<Data> data;
+  std::shared_ptr<Data> data;
 };
 
 

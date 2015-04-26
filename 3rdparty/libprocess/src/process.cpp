@@ -33,6 +33,7 @@
 #include <iostream>
 #include <list>
 #include <map>
+#include <memory> // TODO(benh): Replace shared_ptr with unique_ptr.
 #include <queue>
 #include <set>
 #include <sstream>
@@ -68,7 +69,6 @@
 #include <stout/duration.hpp>
 #include <stout/foreach.hpp>
 #include <stout/lambda.hpp>
-#include <stout/memory.hpp> // TODO(benh): Replace shared_ptr with unique_ptr.
 #include <stout/net.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
@@ -328,7 +328,7 @@ private:
   map<Address, int> persists;
 
   // Map from socket to outgoing queue.
-  map<int, queue<Encoder*> > outgoing;
+  map<int, queue<Encoder*>> outgoing;
 
   // HTTP proxies.
   map<int, HttpProxy*> proxies;
@@ -2713,7 +2713,7 @@ void ProcessBase::visit(const HttpEvent& event)
   if (handlers.http.count(name) > 0) {
     // Create the promise to link with whatever gets returned, as well
     // as a future to wait for the response.
-    memory::shared_ptr<Promise<Response> > promise(new Promise<Response>());
+    std::shared_ptr<Promise<Response>> promise(new Promise<Response>());
 
     Future<Response>* future = new Future<Response>(promise->future());
 
@@ -2956,7 +2956,7 @@ namespace internal {
 
 void dispatch(
     const UPID& pid,
-    const memory::shared_ptr<lambda::function<void(ProcessBase*)> >& f,
+    const std::shared_ptr<lambda::function<void(ProcessBase*)>>& f,
     const Option<const std::type_info*>& functionType)
 {
   process::initialize();
