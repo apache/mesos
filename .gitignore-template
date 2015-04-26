@@ -2,6 +2,7 @@
 .gitignore
 
 # Files created by ./bootstrap.
+.clang-format
 .reviewboardrc
 Makefile.in
 aclocal.m4

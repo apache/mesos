@@ -23,6 +23,10 @@ if test ! -e .reviewboardrc; then
   ln -s support/reviewboardrc .reviewboardrc
 fi
 
+if test ! -e .clang-format; then
+  ln -s support/clang-format .clang-format
+fi
+
 if [ -n "$AUTOMAKE" ] || [ -n "$ACLOCAL" ] ; then
     if [ -z "$ACLOCAL" ] || [ -z "$AUTOMAKE" ] ; then
         _present="AUTOMAKE"
