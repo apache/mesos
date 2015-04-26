@@ -711,26 +711,12 @@ TEST(Process, defer3)
   volatile bool bool2 = false;
 
   Deferred<void(bool)> set1 =
-#if __cplusplus >= 201103L
     defer([&bool1] (bool b) { bool1 = b; });
-#else // __cplusplus >= 201103L
-    defer(std::tr1::function<void(bool)>(
-              std::tr1::bind(&set<volatile bool>,
-                             &bool1,
-                             std::tr1::placeholders::_1)));
-#endif // __cplusplus >= 201103L
 
   set1(true);
 
   Deferred<void(bool)> set2 =
-#if __cplusplus >= 201103L
     defer([&bool2] (bool b) { bool2 = b; });
-#else // __cplusplus >= 201103L
-    defer(std::tr1::function<void(bool)>(
-              std::tr1::bind(&set<volatile bool>,
-                             &bool2,
-                             std::tr1::placeholders::_1)));
-#endif // __cplusplus >= 201103L
 
   set2(true);
 
@@ -1686,7 +1672,6 @@ TEST(Process, provide)
 }
 
 
-#if __cplusplus >= 201103L
 int baz(string s) { return 42; }
 
 Future<int> bam(string s) { return 42; }
@@ -1829,7 +1814,6 @@ TEST(Process, defers)
   Future<int> future13 = Future<string>().then(
       defer(functor));
 }
-#endif // __cplusplus >= 201103L
 
 
 TEST(Future, FromTry)

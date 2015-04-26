@@ -162,36 +162,6 @@ private:
 };
 
 
-#if __cplusplus < 201103L
-
-template <typename T>
-void _await(
-    const Future<T>& result,
-    Owned<Promise<Nothing>> promise)
-{
-  promise->set(Nothing());
-}
-
-
-template <typename T1, typename T2>
-Future<tuples::tuple<Future<T1>, Future<T2>>> __await(
-    const tuples::tuple<Future<T1>, Future<T2>>& future)
-{
-  return future;
-}
-
-
-// NOTE: We do not use overload (i.e., '__await') here because gcc-4.4
-// cannot resolve the overload when we call 'bind' below.
-template <typename T1, typename T2, typename T3>
-Future<tuples::tuple<Future<T1>, Future<T2>, Future<T3>>> ___await(
-    const tuples::tuple<Future<T1>, Future<T2>, Future<T3>>& future)
-{
-  return future;
-}
-
-#endif // __cplusplus < 201103L
-
 } // namespace internal {
 
 
@@ -225,8 +195,6 @@ inline Future<std::list<Future<T>>> await(
   return future;
 }
 
-
-#if __cplusplus >= 201103L
 
 template <typename T1, typename T2>
 Future<tuples::tuple<Future<T1>, Future<T2>>> await(
@@ -270,57 +238,6 @@ Future<tuples::tuple<Future<T1>, Future<T2>, Future<T3>>> await(
   return await(futures)
     .then([=] () { return tuples::make_tuple(future1, future2, future3); });
 }
-
-#else // __cplusplus >= 201103L
-
-template <typename T1, typename T2>
-Future<tuples::tuple<Future<T1>, Future<T2>>> await(
-    const Future<T1>& future1,
-    const Future<T2>& future2)
-{
-  Owned<Promise<Nothing>> promise1(new Promise<Nothing>());
-  Owned<Promise<Nothing>> promise2(new Promise<Nothing>());
-
-  future1.onAny(lambda::bind(internal::_await<T1>, lambda::_1, promise1));
-  future2.onAny(lambda::bind(internal::_await<T2>, lambda::_1, promise2));
-
-  std::list<Future<Nothing>> futures;
-  futures.push_back(promise1->future());
-  futures.push_back(promise2->future());
-
-  return await(futures)
-    .then(lambda::bind(
-      internal::__await<T1, T2>,
-      tuples::make_tuple(future1, future2)));
-}
-
-
-template <typename T1, typename T2, typename T3>
-Future<tuples::tuple<Future<T1>, Future<T2>, Future<T3>>> await(
-    const Future<T1>& future1,
-    const Future<T2>& future2,
-    const Future<T3>& future3)
-{
-  Owned<Promise<Nothing>> promise1(new Promise<Nothing>());
-  Owned<Promise<Nothing>> promise2(new Promise<Nothing>());
-  Owned<Promise<Nothing>> promise3(new Promise<Nothing>());
-
-  future1.onAny(lambda::bind(internal::_await<T1>, lambda::_1, promise1));
-  future2.onAny(lambda::bind(internal::_await<T2>, lambda::_1, promise2));
-  future3.onAny(lambda::bind(internal::_await<T3>, lambda::_1, promise3));
-
-  std::list<Future<Nothing>> futures;
-  futures.push_back(promise1->future());
-  futures.push_back(promise2->future());
-  futures.push_back(promise3->future());
-
-  return await(futures)
-    .then(lambda::bind(
-      internal::___await<T1, T2, T3>,
-      tuples::make_tuple(future1, future2, future3)));
-}
-
-#endif // __cplusplus >= 201103L
 
 } // namespace process {
 

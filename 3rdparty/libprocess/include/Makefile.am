@@ -52,11 +52,3 @@ nobase_include_HEADERS =		\
   process/timeout.hpp			\
   process/timer.hpp			\
   process/timeseries.hpp
-
-# C++11 Headers.
-nobase_include_HEADERS +=		\
-  process/c++11/defer.hpp		\
-  process/c++11/deferred.hpp		\
-  process/c++11/delay.hpp		\
-  process/c++11/dispatch.hpp		\
-  process/c++11/executor.hpp

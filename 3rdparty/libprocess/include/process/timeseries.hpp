@@ -215,18 +215,8 @@ private:
         index = 1;
       }
 
-#if __cplusplus >= 201103L
       next = values.erase(next);
       next++; // Skip one element.
-#else
-      // Store the next deletion candidate.
-      typename std::map<Time, T>::iterator copy = next;
-      copy++; // Skip every other element.
-      copy++; // Next deletion candidate.
-
-      values.erase(next);
-      next = copy;
-#endif
       index = index.get() + 1;
     }
   }

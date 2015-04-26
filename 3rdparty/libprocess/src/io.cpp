@@ -232,7 +232,6 @@ Future<size_t> write(int fd, void* data, size_t size)
 
 namespace internal {
 
-#if __cplusplus >= 201103L
 Future<string> _read(
     int fd,
     const memory::shared_ptr<string>& buffer,
@@ -248,45 +247,8 @@ Future<string> _read(
       return _read(fd, buffer, data, length);
     });
 }
-#else
-// Forward declataion.
-Future<string> _read(
-    int fd,
-    const memory::shared_ptr<string>& buffer,
-    const boost::shared_array<char>& data,
-    size_t length);
 
 
-Future<string> __read(
-    size_t size,
-    int fd,
-    const memory::shared_ptr<string>& buffer,
-    const boost::shared_array<char>& data,
-    size_t length)
-{
-  if (size == 0) { // EOF.
-    return string(*buffer);
-  }
-
-  buffer->append(data.get(), size);
-
-  return _read(fd, buffer, data, length);
-}
-
-
-Future<string> _read(
-    int fd,
-    const memory::shared_ptr<string>& buffer,
-    const boost::shared_array<char>& data,
-    size_t length)
-{
-  return io::read(fd, data.get(), length)
-    .then(lambda::bind(&__read, lambda::_1, fd, buffer, data, length));
-}
-#endif // __cplusplus >= 201103L
-
-
-#if __cplusplus >= 201103L
 Future<Nothing> _write(
     int fd,
     Owned<string> data,
@@ -300,39 +262,8 @@ Future<Nothing> _write(
       return _write(fd, data, index + length);
     });
 }
-#else
-// Forward declaration.
-Future<Nothing> _write(
-    int fd,
-    Owned<string> data,
-    size_t index);
 
 
-Future<Nothing> __write(
-    int fd,
-    Owned<string> data,
-    size_t index,
-    size_t length)
-{
-  if (index + length == data->size()) {
-    return Nothing();
-  }
-  return _write(fd, data, index + length);
-}
-
-
-Future<Nothing> _write(
-    int fd,
-    Owned<string> data,
-    size_t index)
-{
-  return io::write(fd, (void*) (data->data() + index), data->size() - index)
-    .then(lambda::bind(&__write, fd, data, index, lambda::_1));
-}
-#endif // __cplusplus >= 201103L
-
-
-#if __cplusplus >= 201103L
 void _splice(
     int from,
     int to,
@@ -378,93 +309,6 @@ void _splice(
     .onFailed([=] (const string& message) { promise->fail(message); })
     .onDiscarded([=] () { promise->discard(); });
 }
-#else
-// Forward declarations.
-void __splice(
-    int from,
-    int to,
-    size_t chunk,
-    boost::shared_array<char> data,
-    memory::shared_ptr<Promise<Nothing> > promise,
-    size_t size);
-
-void ___splice(
-    memory::shared_ptr<Promise<Nothing> > promise,
-    const string& message);
-
-void ____splice(
-    memory::shared_ptr<Promise<Nothing> > promise);
-
-
-void _splice(
-    int from,
-    int to,
-    size_t chunk,
-    boost::shared_array<char> data,
-    memory::shared_ptr<Promise<Nothing> > promise)
-{
-  // Stop splicing if a discard occured on our future.
-  if (promise->future().hasDiscard()) {
-    // TODO(benh): Consider returning the number of bytes already
-    // spliced on discarded, or a failure. Same for the 'onDiscarded'
-    // callbacks below.
-    promise->discard();
-    return;
-  }
-
-  Future<size_t> read = io::read(from, data.get(), chunk);
-
-  // Stop reading (or potentially indefinitely polling) if a discard
-  // occurs on our future.
-  promise->future().onDiscard(
-      lambda::bind(&process::internal::discard<size_t>,
-                   WeakFuture<size_t>(read)));
-
-  read
-    .onReady(
-        lambda::bind(&__splice, from, to, chunk, data, promise, lambda::_1))
-    .onFailed(lambda::bind(&___splice, promise, lambda::_1))
-    .onDiscarded(lambda::bind(&____splice, promise));
-}
-
-
-void __splice(
-    int from,
-    int to,
-    size_t chunk,
-    boost::shared_array<char> data,
-    memory::shared_ptr<Promise<Nothing> > promise,
-    size_t size)
-{
-  if (size == 0) { // EOF.
-    promise->set(Nothing());
-  } else {
-    // Note that we always try and complete the write, even if a
-    // discard has occured on our future, in order to provide
-    // semantics where everything read is written. The promise will
-    // eventually be discarded in the next read.
-    io::write(to, string(data.get(), size))
-      .onReady(lambda::bind(&_splice, from, to, chunk, data, promise))
-      .onFailed(lambda::bind(&___splice, promise, lambda::_1))
-      .onDiscarded(lambda::bind(&____splice, promise));
-  }
-}
-
-
-void ___splice(
-    memory::shared_ptr<Promise<Nothing> > promise,
-    const string& message)
-{
-  promise->fail(message);
-}
-
-
-void ____splice(
-    memory::shared_ptr<Promise<Nothing> > promise)
-{
-  promise->discard();
-}
-#endif // __cplusplus >= 201103L
 
 
 Future<Nothing> splice(int from, int to, size_t chunk)
