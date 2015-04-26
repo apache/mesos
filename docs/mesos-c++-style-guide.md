@@ -10,6 +10,28 @@ The Mesos codebase follows the [Google C++ Style Guide](http://google-styleguide
 
 ### Variable Names
 * We use [lowerCamelCase](http://en.wikipedia.org/wiki/CamelCase#Variations_and_synonyms) for variable names (Google uses snake_case, and their class member variables have trailing underscores).
+* We prepend constructor and function arguments with a leading underscore to avoid ambiguity and / or shadowing:
+
+```
+Try(State _state, T* _t = NULL, const std::string& _message = "")
+  : state(_state), t(_t), message(_message) {}
+```
+
+* Prefer trailing underscores for use as member fields (but not required). Some trailing underscores are used to distinguish between similar variables in the same scope (think prime symbols), *but this should be avoided as much as possible, including removing existing instances in the code base.*
+
+* If you find yourself creating a copy of an argument passed by const reference, consider passing it by value instead (if you don't want to use a leading underscore and copy in the body of the function):
+
+```
+// You can pass-by-value in ProtobufProcess::install() handlers.
+void Slave::statusUpdate(StatusUpdate update, const UPID& pid)
+{
+  ...
+  update.mutable_status()->set_source(
+      pid == UPID() ? TaskStatus::SOURCE_SLAVE : TaskStatus::SOURCE_EXECUTOR);
+  ...
+}
+```
+
 
 ### Constant Names
 * We use [SCREAMING_SNAKE_CASE](http://en.wikipedia.org/wiki/Letter_case#Special_case_styles) for constant names (Google uses a `k` followed by mixed case, e.g. `kDaysInAWeek`).
@@ -42,7 +64,7 @@ The Mesos codebase follows the [Google C++ Style Guide](http://google-styleguide
 * Newline when calling or defining a function: indent with 4 spaces.
 * We do not follow Google's style of wrapping on the open parenthesis, the general goal is to reduce visual "jaggedness" in the code. Prefer (1), (4), (5), sometimes (3), never (2):
 
-<pre>
+```
 // 1: OK.
 allocator->resourcesRecovered(frameworkId, slaveId, resources, filters);
 
@@ -71,15 +93,15 @@ allocator->resourcesRecovered(
 // 5: OK.
 allocator->resourcesRecovered(
     frameworkId, slaveId, resources, filters);
-</pre>
+```
 
 ### Continuation
 * Newline for an assignment statement: indent with 2 spaces.
 
-<pre>
+```
 Try&lt;Duration&gt; failoverTimeout =
   Duration::create(FrameworkInfo().failover_timeout());
-</pre>
+```
 
 ## Empty Lines
 * 1 blank line at the end of the file.
@@ -94,7 +116,7 @@ We still support older compilers. The whitelist of supported C++11 features is:
 * Multiple right angle brackets.
 * Type inference (`auto` and `decltype`). The main goal is to increase code readability. This is safely the case if the exact same type omitted on the left is already fully stated on the right. Here are several examples:
 
-<pre>
+```
 // 1: OK.
 const auto& i = values.find(keys.front());
 // Compare with
@@ -109,7 +131,7 @@ shared_ptr<list<string>> names = shared_ptr<list<string>>(new list<string>());
 auto authorizer = LocalAuthorizer::create(acls);
 // Compare with
 Try&lt;Owned&lt;LocalAuthorizer>> authorizer = LocalAuthorizer::create();
-</pre>
+```
 
 * Rvalue references.
 * Variadic templates.
