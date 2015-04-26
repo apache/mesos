@@ -19,12 +19,7 @@
 #ifndef __MESOS_SCHEDULER_HPP__
 #define __MESOS_SCHEDULER_HPP__
 
-#if __cplusplus >= 201103L
 #include <functional>
-#else // __cplusplus >= 201103L
-#include <tr1/functional>
-#endif // __cplusplus >= 201103L
-
 #include <queue>
 
 #include <pthread.h>
@@ -489,29 +484,17 @@ class Mesos
 {
 public:
   Mesos(const std::string& master,
-#if __cplusplus >= 201103L
         const std::function<void(void)>& connected,
         const std::function<void(void)>& disconnected,
         const std::function<void(const std::queue<Event>&)>& received);
-#else // __cplusplus >= 201103L
-        const std::tr1::function<void(void)>& connected,
-        const std::tr1::function<void(void)>& disconnected,
-        const std::tr1::function<void(const std::queue<Event>&)>& received);
-#endif // __cplusplus >= 201103L
 
   // Same as the above constructor but takes 'credential' as argument.
   // The credential will be used for authenticating with the master.
   Mesos(const std::string& master,
         const Credential& credential,
-#if __cplusplus >= 201103L
         const std::function<void(void)>& connected,
         const std::function<void(void)>& disconnected,
         const std::function<void(const std::queue<Event>&)>& received);
-#else // __cplusplus >= 201103L
-        const std::tr1::function<void(void)>& connected,
-        const std::tr1::function<void(void)>& disconnected,
-        const std::tr1::function<void(const std::queue<Event>&)>& received);
-#endif // __cplusplus >= 201103L
 
   virtual ~Mesos();
 
