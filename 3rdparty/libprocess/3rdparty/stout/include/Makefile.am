@@ -32,7 +32,6 @@ nobase_include_HEADERS =		\
   stout/linkedhashmap.hpp		\
   stout/list.hpp			\
   stout/mac.hpp				\
-  stout/memory.hpp			\
   stout/multihashmap.hpp		\
   stout/multimap.hpp			\
   stout/net.hpp				\

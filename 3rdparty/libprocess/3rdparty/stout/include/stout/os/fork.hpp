@@ -22,6 +22,7 @@
 #include <sys/wait.h>
 
 #include <list>
+#include <memory>
 #include <set>
 #include <string>
 
@@ -29,7 +30,6 @@
 #include <stout/error.hpp>
 #include <stout/exit.hpp>
 #include <stout/foreach.hpp>
-#include <stout/memory.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
 #include <stout/stringify.hpp>
@@ -235,7 +235,7 @@ private:
       bool set; // Has this been initialized?
     };
 
-    memory::shared_ptr<Memory> memory;
+    std::shared_ptr<Memory> memory;
     std::vector<Tree> children;
   };
 
@@ -311,8 +311,7 @@ private:
     SharedMemoryDeleter deleter(fd);
 
     Tree tree;
-    tree.memory = memory::shared_ptr<Tree::Memory>(
-        (Tree::Memory*) memory, deleter);
+    tree.memory = std::shared_ptr<Tree::Memory>((Tree::Memory*)memory, deleter);
     tree.memory->set = false;
 
     for (size_t i = 0; i < children.size(); i++) {

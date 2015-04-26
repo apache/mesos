@@ -22,7 +22,6 @@ Note that the library is designed to completely avoid exceptions. See [exception
 * <a href="#gzip">gzip::</a>
 * <a href="#json">JSON::</a>
 * <a href="#lambda">lambda::</a>
-* <a href="#memory">memory::</a>
 * <a href="#net">net::</a>
 * <a href="#os">os::</a>
 * <a href="#path">path::</a>
@@ -218,13 +217,6 @@ You can "render" a JSON value using `std::ostream operator <<` (or by using `str
 ## `lambda::`
 
 To help deal with compatibility issues between C++98/03 and C++11 we wrap some of the TR1 types from `functional` in `lambda`. That way, when using `lambda::bind` you'll get `std::tr1::bind` where TR1 is available and `std::bind` when C++11 is available.
-
-
-<a href="memory"></a>
-
-## `memory::`
-
-Similiar to `lambda`, we provide a `memory` namespace to help deal with compatibility issues between C++98/03 and C++11 that wraps some of the TR1 types from `memory`.
 
 
 <a href="net"></a>
