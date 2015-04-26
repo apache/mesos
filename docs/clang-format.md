@@ -4,17 +4,13 @@ layout: documentation
 
 # ClangFormat
 
-[ClangFormat](http://llvm.org/releases/3.5.0/tools/clang/docs/ClangFormat.html) is an automatic source code formatting tool which help us focus on the code rather than the formatting.
+[ClangFormat](http://llvm.org/releases/3.5.1/tools/clang/docs/ClangFormat.html) is an automatic source code formatting tool which helps us focus on the code rather than the formatting.
 
-> The provided configurations try to honor the [Mesos C++ Style Guide](http://mesos.apache.org/documentation/latest/mesos-c++-style-guide/) as much as possible, but there are some limitations. Even with these limitations however, ClangFormat will likely be extremely useful for your workflow!
-
-## Quick Start
-
-If you already have an installation of `clang-format` version >= 3.5, follow your editor's [integration instructions](#integrate-with-your-editor) then start formatting!
+> The provided configurations try to honor the [Mesos C++ Style Guide](http://mesos.apache.org/documentation/latest/mesos-c++-style-guide/) as much as possible, but there are some limitations which require manual attention. Even with these limitations however, ClangFormat will be extremely useful for your workflow!
 
 ## Setup
 
-### Install clang 3.5
+### Install `clang-format-3.5`
 
 #### Ubuntu 14.04
 
@@ -29,32 +25,26 @@ sudo apt-get install clang-format-3.5
 #### OS X Yosemite
 
 ```bash
-# Download and extract the clang-3.5 source.
-$ wget http://llvm.org/releases/3.5.0/cfe-3.5.0.src.tar.xz
-$ tar -xzf cfe-3.5.0.src.tar.xz
+# Install clang-3.5. The binaries are suffixed with '-3.5', e.g. 'clang++-3.5'.
+$ brew install llvm35 --with-clang
 
-# Download and extract the clang-3.5 pre-built binaries.
-$ wget http://llvm.org/releases/3.5.0/clang+llvm-3.5.0-macosx-apple-darwin.tar.xz
-$ tar -xzf clang+llvm-3.5.0-macosx-apple-darwin.tar.xz
-
-# Create a directory for clang.
-$ mkdir `brew --cellar`/clang
-
-# Install the pre-built binaries.
-$ mv clang+llvm-3.5.0-macosx-apple-darwin `brew --cellar`/clang/3.5
-
-# Install the clang-format tools.
-$ mkdir `brew --cellar`/clang/3.5/share/clang
-$ cp cfe-3.5.0.src/tools/clang-format/clang-format* `brew --cellar`/clang/3.5/share/clang
-
-# Link!
-$ brew link clang
-Linking /usr/local/Cellar/clang/3.5... 491 symlinks created
-
-# You can delete cleanly by running `brew uninstall clang`
+# Download and install the clang-format scripts.
+$ wget http://llvm.org/releases/3.5.1/cfe-3.5.1.src.tar.xz
+$ tar -xzf cfe-3.5.1.src.tar.xz
+$ cp cfe-3.5.1.src/tools/clang-format/clang-format* `brew --cellar`/llvm35/3.5.1/share/clang-3.5
 ```
 
-### Integrate with your editor
+### Formatting Configuration
+
+By default, ClangFormat uses the configuration defined in a `.clang-format` or
+`_clang-format` file located in the nearest parent directory of the input file.
+The `bootstrap` script creates a `.clang-format` symlink at the top-level
+directory which points to `support/clang-format` for ClangFormat to find.
+
+> NOTE: If you're using `clang-format-3.6`, you'll need to add a new option
+`BinPackArguments: false` to the `.clang-format` file!
+
+### Editor Integration
 
 #### Vim
 
@@ -70,8 +60,8 @@ imap <C-K> <c-o>:pyf /usr/share/vim/addons/syntax/clang-format-3.5.py<cr>
 OS X:
 
 ```
-map <C-K> :pyf /usr/local/share/clang/clang-format.py<cr>
-imap <C-K> <c-o>:pyf /usr/local/share/clang/clang-format.py<cr>
+map <C-K> :pyf /usr/local/share/clang-3.5/clang-format.py<cr>
+imap <C-K> <c-o>:pyf /usr/local/share/clang-3.5/clang-format.py<cr>
 ```
 
 The first line enables clang-format for `NORMAL` and `VISUAL` mode, the second line adds support for `INSERT` mode. Change `C-K` to another binding if you need clang-format on a different key (`C-K` stands for `Ctrl+k`).
@@ -80,7 +70,7 @@ With this integration you can press the bound key and clang-format will format t
 
 It operates on the current, potentially unsaved buffer and does not create or save any files. To revert a formatting, just undo.
 
-> Source: http://llvm.org/releases/3.5.0/tools/clang/docs/ClangFormat.html
+> Source: http://llvm.org/releases/3.5.1/tools/clang/docs/ClangFormat.html
 
 #### Emacs
 
@@ -96,13 +86,13 @@ Ubuntu:
 OS X:
 
 ```
-(load "/usr/local/share/clang/clang-format.el")
+(load "/usr/local/share/clang-3.5/clang-format.el")
 (global-set-key [C-M-tab] 'clang-format-region)
 ```
 
 This binds the function `clang-format-region` to `C-M-tab`, which then formats the current line or selected region.
 
-> Source: http://llvm.org/releases/3.5.0/tools/clang/docs/ClangFormat.html
+> Source: http://llvm.org/releases/3.5.1/tools/clang/docs/ClangFormat.html
 
 ## Known Limitations
 
