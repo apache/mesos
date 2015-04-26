@@ -7,6 +7,7 @@
 
 #include <string>
 #include <sstream>
+#include <tuple>
 
 #include <process/async.hpp>
 #include <process/collect.hpp>
@@ -35,7 +36,6 @@
 #include <stout/stringify.hpp>
 #include <stout/stopwatch.hpp>
 #include <stout/try.hpp>
-#include <stout/tuple.hpp>
 
 #include "encoder.hpp"
 
@@ -1117,7 +1117,7 @@ TEST(Process, select)
   Promise<int> promise3;
   Promise<int> promise4;
 
-  std::set<Future<int> > futures;
+  std::set<Future<int>> futures;
   futures.insert(promise1.future());
   futures.insert(promise2.future());
   futures.insert(promise3.future());
@@ -1125,7 +1125,7 @@ TEST(Process, select)
 
   promise1.set(42);
 
-  Future<Future<int> > future = select(futures);
+  Future<Future<int>> future = select(futures);
 
   AWAIT_READY(future);
   AWAIT_READY(future.get());
@@ -1146,8 +1146,8 @@ TEST(Process, collect)
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
   // First ensure an empty list functions correctly.
-  std::list<Future<int> > empty;
-  Future<std::list<int> > future = collect(empty);
+  std::list<Future<int>> empty;
+  Future<std::list<int>> future = collect(empty);
   AWAIT_ASSERT_READY(future);
   EXPECT_TRUE(future.get().empty());
 
@@ -1156,7 +1156,7 @@ TEST(Process, collect)
   Promise<int> promise3;
   Promise<int> promise4;
 
-  std::list<Future<int> > futures;
+  std::list<Future<int>> futures;
   futures.push_back(promise1.future());
   futures.push_back(promise2.future());
   futures.push_back(promise3.future());
@@ -1189,8 +1189,8 @@ TEST(Process, await1)
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
   // First ensure an empty list functions correctly.
-  std::list<Future<int> > empty;
-  Future<std::list<Future<int> > > future = await(empty);
+  std::list<Future<int>> empty;
+  Future<std::list<Future<int>>> future = await(empty);
   AWAIT_ASSERT_READY(future);
   EXPECT_TRUE(future.get().empty());
 
@@ -1199,7 +1199,7 @@ TEST(Process, await1)
   Promise<int> promise3;
   Promise<int> promise4;
 
-  std::list<Future<int> > futures;
+  std::list<Future<int>> futures;
   futures.push_back(promise1.future());
   futures.push_back(promise2.future());
   futures.push_back(promise3.future());
@@ -1232,7 +1232,7 @@ TEST(Process, await2)
   Promise<int> promise1;
   Promise<bool> promise2;
 
-  Future<tuples::tuple<Future<int>, Future<bool> > > future =
+  Future<std::tuple<Future<int>, Future<bool>>> future =
     await(promise1.future(), promise2.future());
   ASSERT_TRUE(future.isPending());
 
@@ -1244,12 +1244,12 @@ TEST(Process, await2)
 
   AWAIT_READY(future);
 
-  tuples::tuple<Future<int>, Future<bool> > futures = future.get();
+  std::tuple<Future<int>, Future<bool>> futures = future.get();
 
-  ASSERT_TRUE(tuples::get<0>(futures).isReady());
-  ASSERT_EQ(42, tuples::get<0>(futures).get());
+  ASSERT_TRUE(std::get<0>(futures).isReady());
+  ASSERT_EQ(42, std::get<0>(futures).get());
 
-  ASSERT_TRUE(tuples::get<1>(futures).isFailed());
+  ASSERT_TRUE(std::get<1>(futures).isFailed());
 }
 
 
@@ -1258,7 +1258,7 @@ TEST(Process, await3)
   Promise<int> promise1;
   Promise<bool> promise2;
 
-  Future<tuples::tuple<Future<int>, Future<bool> > > future =
+  Future<std::tuple<Future<int>, Future<bool>>> future =
     await(promise1.future(), promise2.future());
   ASSERT_TRUE(future.isPending());
 
@@ -1270,12 +1270,12 @@ TEST(Process, await3)
 
   AWAIT_READY(future);
 
-  tuples::tuple<Future<int>, Future<bool> > futures = future.get();
+  std::tuple<Future<int>, Future<bool>> futures = future.get();
 
-  ASSERT_TRUE(tuples::get<0>(futures).isReady());
-  ASSERT_EQ(42, tuples::get<0>(futures).get());
+  ASSERT_TRUE(std::get<0>(futures).isReady());
+  ASSERT_EQ(42, std::get<0>(futures).get());
 
-  ASSERT_TRUE(tuples::get<1>(futures).isDiscarded());
+  ASSERT_TRUE(std::get<1>(futures).isDiscarded());
 }
 
 
