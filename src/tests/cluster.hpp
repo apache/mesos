@@ -342,14 +342,15 @@ inline Try<process::PID<master::Master> > Cluster::Masters::start(
   if (authorizer.isSome()) {
     CHECK_NOTNULL(authorizer.get());
   } else if (flags.acls.isSome()) {
-    Try<process::Owned<Authorizer> > authorizer_ =
+    Try<process::Owned<Authorizer>> create =
       Authorizer::create(flags.acls.get());
-    if (authorizer_.isError()) {
+
+    if (create.isError()) {
       return Error("Failed to initialize the authorizer: " +
-                   authorizer_.error() + " (see --acls flag)");
+                   create.error() + " (see --acls flag)");
     }
-    process::Owned<Authorizer> authorizer__ = authorizer_.get();
-    master.authorizer = authorizer__;
+
+    master.authorizer = process::Owned<Authorizer>(create.get());
   }
 
   if (slaveRemovalLimiter.isNone() &&
@@ -543,6 +544,7 @@ inline Try<process::PID<slave::Slave> > Cluster::Slaves::start(
 
     Try<slave::Containerizer*> containerizer =
       slave::Containerizer::create(flags, true, slave.fetcher.get());
+
     CHECK_SOME(containerizer);
 
     slave.containerizer = containerizer.get();

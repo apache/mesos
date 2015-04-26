@@ -156,16 +156,16 @@ public:
       local = true;
     }
 
-    Try<MasterDetector*> detector_ =
+    Try<MasterDetector*> create =
       MasterDetector::create(pid.isSome() ? string(pid.get()) : master);
 
-    if (detector_.isError()) {
-      error("Failed to create a master detector:" + detector_.error());
+    if (create.isError()) {
+      error("Failed to create a master detector:" + create.error());
       return;
     }
 
     // Save the detector so we can delete it later.
-    detector = detector_.get();
+    detector = create.get();
   }
 
   virtual ~MesosProcess()

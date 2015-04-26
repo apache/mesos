@@ -357,8 +357,9 @@ void LogProcess::_recover()
   } else {
     VLOG(2) << "Log recovery completed";
 
-    Owned<Replica> replica_ = future.get();
-    replica = replica_.share();
+    // Pull out the replica but need to make a copy since we get a
+    // 'const &' from 'Try::get'.
+    replica = Owned<Replica>(future.get()).share();
 
     // Mark the success of the recovery.
     recovered.set(Nothing());

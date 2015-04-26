@@ -203,10 +203,12 @@ int main(int argc, char** argv)
   // Create an instance of allocator.
   Try<mesos::master::allocator::Allocator*> allocator_ =
     allocator::HierarchicalDRFAllocator::create();
+
   if (allocator_.isError()) {
     EXIT(1) << "Failed to create an instance of HierarchicalDRFAllocator: "
             << allocator_.error();
   }
+
   mesos::master::allocator::Allocator* allocator = allocator_.get();
 
   state::Storage* storage = NULL;
@@ -295,13 +297,16 @@ int main(int argc, char** argv)
 
   Option<Authorizer*> authorizer = None();
   if (flags.acls.isSome()) {
-    Try<Owned<Authorizer> > authorizer_ = Authorizer::create(flags.acls.get());
-    if (authorizer_.isError()) {
+    Try<Owned<Authorizer>> create = Authorizer::create(flags.acls.get());
+
+    if (create.isError()) {
       EXIT(1) << "Failed to initialize the authorizer: "
-              << authorizer_.error() << " (see --acls flag)";
+              << create.error() << " (see --acls flag)";
     }
-    Owned<Authorizer> authorizer__ = authorizer_.get();
-    authorizer = authorizer__.release();
+
+    // Now pull out the authorizer but need to make a copy since we
+    // get a 'const &' from 'Try::get'.
+    authorizer = Owned<Authorizer>(create.get()).release();
   }
 
   Option<shared_ptr<RateLimiter>> slaveRemovalLimiter = None();

@@ -208,15 +208,16 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
     detector = new StandaloneMasterDetector();
 
     if (flags.acls.isSome()) {
-      Try<Owned<Authorizer> > authorizer_ =
-        Authorizer::create(flags.acls.get());
+      Try<Owned<Authorizer>> create = Authorizer::create(flags.acls.get());
 
-      if (authorizer_.isError()) {
+      if (create.isError()) {
         EXIT(1) << "Failed to initialize the authorizer: "
-                << authorizer_.error() << " (see --acls flag)";
+                << create.error() << " (see --acls flag)";
       }
-      Owned<Authorizer> authorizer__ = authorizer_.get();
-      authorizer = authorizer__.release();
+
+      // Now pull out the authorizer but need to make a copy since we
+      // get a 'const &' from 'Try::get'.
+      authorizer = Owned<Authorizer>(create.get()).release();
     }
 
     Option<shared_ptr<RateLimiter>> slaveRemovalLimiter = None();
