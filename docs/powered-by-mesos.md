@@ -7,6 +7,7 @@ layout: documentation
 ## Organizations using Mesos
 
 * [Airbnb](http://www.airbnb.com)
+* [Allegro Group](http://www.allegrogroup.com)
 * [Apple](http://www.apple.com)
 * [Artirix](http://www.artirix.com)
 * [Atigeo](http://www.atigeo.com)
