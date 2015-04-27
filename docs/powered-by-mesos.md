@@ -7,6 +7,7 @@ layout: documentation
 ## Organizations using Mesos
 
 * [Airbnb](http://www.airbnb.com)
+* [Altocloud](http://www.altocloud.com/)
 * [Apple](http://www.apple.com)
 * [Artirix](http://www.artirix.com)
 * [Atigeo](http://www.atigeo.com)
@@ -30,6 +31,7 @@ layout: documentation
 * [Gutefrage.net](http://www.gutefrage.net)
 * [HubSpot](http://www.hubspot.com)
 * [Ignidata](http://www.ignidata.com)
+* [InfoQ](http://www.infoq.com)
 * [iQIYI](http://www.iqiyi.com/)
 * [Learnium](http://www.learnium.net/)
 * [LIFX](http://lifx.co)
