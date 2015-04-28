@@ -1478,6 +1478,8 @@ Future<Nothing> PortMappingIsolatorProcess::recover(
       // We ignore files that are clearly not network namespace
       // handles created by us. It's likely that those are created by
       // users or other tools.
+      LOG(WARNING) << "Unrecognized network namespace handle '" << path << "'";
+      continue;
     }
 
     // We cleanup the network namespace handle if the associated
