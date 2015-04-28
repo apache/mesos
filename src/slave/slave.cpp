@@ -242,9 +242,18 @@ void Slave::initialize()
                 << " for slave: " << processes.error();
       }
 
-      // TODO(idownes): Re-evaluate this behavior if it's observed,
-      // possibly automatically killing any running processes and
-      // moving this code to during recovery.
+      // Log if there are any processes in the slave's cgroup. They
+      // may be transient helper processes like 'perf' or 'du',
+      // ancillary processes like 'docker log' or possibly a stuck
+      // slave.
+      // TODO(idownes): Generally, it's not a problem if there are
+      // processes running in the slave's cgroup, though any resources
+      // consumed by those processes are accounted to the slave. Where
+      // applicable, transient processes should be configured to
+      // terminate if the slave exits; see example usage for perf in
+      // isolators/cgroups/perf.cpp. Consider moving ancillary
+      // processes to a different cgroup, e.g., moving 'docker log' to
+      // the container's cgroup.
       if (!processes.get().empty()) {
         // For each process, we print its pid as well as its command
         // to help triaging.
@@ -260,10 +269,10 @@ void Slave::initialize()
           }
         }
 
-        EXIT(1) << "A slave (or child process) is still running, "
-                << "please check the following process(es) listed in "
-                << path::join(hierarchy.get(), cgroup, "cgroups.proc")
-                << ":\n" << strings::join("\n", infos);
+        LOG(INFO) << "A slave (or child process) is still running, please"
+                  << " consider checking the following process(es) listed in "
+                  << path::join(hierarchy.get(), cgroup, "cgroups.proc")
+                  << ":\n" << strings::join("\n", infos);
       }
 
       // Move all of our threads into the cgroup.
