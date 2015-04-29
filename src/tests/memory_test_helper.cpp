@@ -80,13 +80,13 @@ static Try<void*> allocateRSS(const Bytes& size, bool lock = true)
     return ErrnoError("Failed to increase RSS memory, posix_memalign");
   }
 
+  // Use memset to actually page in the memory in the kernel.
+  memset(rss, 1, size.bytes());
+
   // Locking a page makes it unevictable in the kernel.
   if (lock && mlock(rss, size.bytes()) != 0) {
     return ErrnoError("Failed to lock memory, mlock");
   }
-
-  // Use memset to actually page in the memory in the kernel.
-  memset(rss, 1, size.bytes());
 
   return rss;
 }
