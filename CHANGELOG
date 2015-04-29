@@ -15,6 +15,8 @@ Release Notes - Mesos - Version 0.22.1
                    in master on framework re-registration
   * [MESOS-2643] - Python scheduler driver disables implicit acknowledgments by
                    default.
+  * [MESOS-2668] - Slave fails to recover when there are still processes left in
+                   its cgroup
 
 
 Release Notes - Mesos - Version 0.22.0
