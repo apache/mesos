@@ -52,21 +52,26 @@ public:
     static Try<Container> create(const JSON::Object& json);
 
     // Returns the ID of the container.
-    std::string id;
+    const std::string id;
 
     // Returns the name of the container.
-    std::string name;
+    const std::string name;
 
     // Returns the pid of the container, or None if the container is
     // not running.
-    Option<pid_t> pid;
+    const Option<pid_t> pid;
+
+    // Returns if the container has already started. This field is
+    // needed since pid is empty when the container terminates.
+    const bool started;
 
   private:
     Container(
-        const std::string& _id,
-        const std::string& _name,
-        const Option<pid_t>& _pid)
-      : id(_id), name(_name), pid(_pid) {}
+        const std::string& id,
+        const std::string& name,
+        const Option<pid_t>& pid,
+        bool started)
+      : id(id), name(name), pid(pid), started(started) {}
   };
 
   class Image
@@ -74,26 +79,27 @@ public:
   public:
     static Try<Image> create(const JSON::Object& json);
 
-    Option<std::vector<std::string> > entrypoint;
+    Option<std::vector<std::string>> entrypoint;
 
   private:
-    Image(const Option<std::vector<std::string> >& _entrypoint)
+    Image(const Option<std::vector<std::string>>& _entrypoint)
       : entrypoint(_entrypoint) {}
   };
-
-  // Returns the current docker version.
-  virtual process::Future<Version> version() const;
 
   // Performs 'docker run IMAGE'.
   virtual process::Future<Nothing> run(
       const mesos::ContainerInfo& containerInfo,
       const mesos::CommandInfo& commandInfo,
-      const std::string& name,
+      const std::string& containerName,
       const std::string& sandboxDirectory,
       const std::string& mappedDirectory,
       const Option<mesos::Resources>& resources = None(),
-      const Option<std::map<std::string, std::string> >& env = None(),
-      bool detached = true) const;
+      const Option<std::map<std::string, std::string>>& env = None(),
+      const Option<std::string>& stdoutPath = None(),
+      const Option<std::string>& stderrPath = None()) const;
+
+  // Returns the current docker version.
+  virtual process::Future<Version> version() const;
 
   // Performs 'docker stop -t TIMEOUT CONTAINER'. If remove is true then a rm -f
   // will be called when stop failed, otherwise a failure is returned. The
@@ -102,32 +108,26 @@ public:
   // A value of zero (the default value) is the same as issuing a
   // 'docker kill CONTAINER'.
   virtual process::Future<Nothing> stop(
-      const std::string& container,
+      const std::string& containerName,
       const Duration& timeout = Seconds(0),
       bool remove = false) const;
 
   // Performs 'docker rm (-f) CONTAINER'.
   virtual process::Future<Nothing> rm(
-      const std::string& container,
+      const std::string& containerName,
       bool force = false) const;
 
-  // Performs 'docker inspect CONTAINER'.
+  // Performs 'docker inspect CONTAINER'. If retryInterval is set,
+  // we will keep retrying inspect until the container is started or
+  // the future is discarded.
   virtual process::Future<Container> inspect(
-      const std::string& container) const;
+      const std::string& containerName,
+      const Option<Duration>& retryInterval = None()) const;
 
   // Performs 'docker ps (-a)'.
-  virtual process::Future<std::list<Container> > ps(
+  virtual process::Future<std::list<Container>> ps(
       bool all = false,
       const Option<std::string>& prefix = None()) const;
-
-  // Performs a 'docker logs --follow' and sends the output into a
-  // 'stderr' and 'stdout' file in the specfied directory.
-  //
-  // TODO(benh): Return the file descriptors, or some struct around
-  // them so others can do what they want with stdout/stderr.
-  virtual process::Future<Nothing> logs(
-      const std::string& container,
-      const std::string& directory) const;
 
   virtual process::Future<Image> pull(
       const std::string& directory,
@@ -139,6 +139,9 @@ protected:
   Docker(const std::string& _path) : path(_path) {};
 
 private:
+  static process::Future<Nothing> _run(
+      const Option<int>& status);
+
   static process::Future<Version> _version(
       const std::string& cmd,
       const process::Subprocess& s);
@@ -148,29 +151,36 @@ private:
 
   static process::Future<Nothing> _stop(
       const Docker& docker,
-      const std::string& container,
+      const std::string& containerName,
       const std::string& cmd,
       const process::Subprocess& s,
       bool remove);
 
-  static process::Future<Container> _inspect(
+  static void _inspect(
       const std::string& cmd,
+      const process::Owned<process::Promise<Container>>& promise,
+      const Option<Duration>& retryInterval);
+
+  static void __inspect(
+      const std::string& cmd,
+      const process::Owned<process::Promise<Container>>& promise,
+      const Option<Duration>& retryInterval,
       const process::Subprocess& s);
 
-  static process::Future<Container> __inspect(
-      const std::string& output);
+  static void ___inspect(
+      const std::string& cmd,
+      const process::Owned<process::Promise<Container>>& promise,
+      const Option<Duration>& retryInterval,
+      const process::Future<std::string>& output);
 
-  static process::Future<Nothing> _run(
-      const Option<int>& status);
-
-  static process::Future<std::list<Container> > _ps(
+  static process::Future<std::list<Container>> _ps(
       const Docker& docker,
       const std::string& cmd,
       const process::Subprocess& s,
       const Option<std::string>& prefix,
       process::Future<std::string> output);
 
-  static process::Future<std::list<Container> > __ps(
+  static process::Future<std::list<Container>> __ps(
       const Docker& docker,
       const Option<std::string>& prefix,
       const std::string& output);

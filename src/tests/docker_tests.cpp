@@ -85,7 +85,9 @@ TEST(DockerTest, ROOT_DOCKER_interface)
       "/mnt/mesos/sandbox",
       resources);
 
-  AWAIT_READY(status);
+  Future<Docker::Container> inspect =
+    docker->inspect(containerName, Seconds(1));
+  AWAIT_READY(inspect);
 
   // Should be able to see the container now.
   containers = docker->ps();
@@ -99,13 +101,10 @@ TEST(DockerTest, ROOT_DOCKER_interface)
   }
   EXPECT_TRUE(found);
 
-  Future<Docker::Container> container = docker->inspect(containerName);
-  AWAIT_READY(container);
-
   // Test some fields of the container.
-  EXPECT_NE("", container.get().id);
-  EXPECT_EQ("/" + containerName, container.get().name);
-  EXPECT_SOME(container.get().pid);
+  EXPECT_NE("", inspect.get().id);
+  EXPECT_EQ("/" + containerName, inspect.get().name);
+  EXPECT_SOME(inspect.get().pid);
 
   // Stop the container.
   status = docker->stop(containerName);
@@ -133,20 +132,20 @@ TEST(DockerTest, ROOT_DOCKER_interface)
   // Check the container's info, both id and name should remain the
   // same since we haven't removed it, but the pid should be none
   // since it's not running.
-  container = docker->inspect(containerName);
-  AWAIT_READY(container);
+  inspect = docker->inspect(containerName);
+  AWAIT_READY(inspect);
 
-  EXPECT_NE("", container.get().id);
-  EXPECT_EQ("/" + containerName, container.get().name);
-  EXPECT_NONE(container.get().pid);
+  EXPECT_NE("", inspect.get().id);
+  EXPECT_EQ("/" + containerName, inspect.get().name);
+  EXPECT_NONE(inspect.get().pid);
 
   // Remove the container.
   status = docker->rm(containerName);
   AWAIT_READY(status);
 
   // Should not be able to inspect the container.
-  container = docker->inspect(containerName);
-  AWAIT_FAILED(container);
+  inspect = docker->inspect(containerName);
+  AWAIT_FAILED(inspect);
 
   // Also, now we should not be able to see the container by invoking
   // ps(true).
@@ -166,7 +165,8 @@ TEST(DockerTest, ROOT_DOCKER_interface)
       "/mnt/mesos/sandbox",
       resources);
 
-  AWAIT_READY(status);
+  inspect = docker->inspect(containerName, Seconds(1));
+  AWAIT_READY(inspect);
 
   // Verify that the container is there.
   containers = docker->ps();

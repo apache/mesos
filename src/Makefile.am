@@ -323,6 +323,7 @@ libmesos_no_3rdparty_la_SOURCES =					\
 	common/values.cpp						\
 	docker/docker.hpp						\
 	docker/docker.cpp						\
+        docker/executor.hpp                                             \
 	exec/exec.cpp							\
 	files/files.cpp							\
 	hook/manager.cpp						\

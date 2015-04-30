@@ -97,6 +97,14 @@ extern const uint16_t DEFAULT_EPHEMERAL_PORTS_PER_CONTAINER;
 // Default duration that docker containers will be removed after exit.
 extern const Duration DOCKER_REMOVE_DELAY;
 
+// Default duration to wait before retry inspecting a docker
+// container.
+extern const Duration DOCKER_INSPECT_DELAY;
+
+// Default duration that docker containerizer will wait to check
+// docker version.
+extern const Duration DOCKER_VERSION_WAIT_TIMEOUT;
+
 // Name of the default, CRAM-MD5 authenticatee.
 extern const std::string DEFAULT_AUTHENTICATEE;
 

@@ -35,8 +35,6 @@
 
 #include "common/status_utils.hpp"
 
-#include "docker/docker.hpp"
-
 #ifdef __linux__
 #include "linux/cgroups.hpp"
 #endif // __linux__
@@ -47,7 +45,6 @@
 #include "slave/containerizer/containerizer.hpp"
 #include "slave/containerizer/docker.hpp"
 #include "slave/containerizer/fetcher.hpp"
-
 
 #include "slave/containerizer/isolators/cgroups/constants.hpp"
 
@@ -99,8 +96,8 @@ Option<ContainerID> parse(const Docker::Container& container)
     // was DOCKER_NAME_PREFIX + containerId, and starting with 0.23.0
     // it is changed to DOCKER_NAME_PREFIX + slaveId +
     // DOCKER_NAME_SEPERATOR + containerId.
-    // To be backward compatible during upgrade, we still to support
-    // the previous format.
+    // To be backward compatible during upgrade, we still have to
+    // support the previous format.
     // TODO(tnachen): Remove this check after deprecation cycle.
     if (!strings::contains(name.get(), DOCKER_NAME_SEPERATOR)) {
       ContainerID id;
@@ -124,16 +121,16 @@ Try<DockerContainerizer*> DockerContainerizer::create(
     const Flags& flags,
     Fetcher* fetcher)
 {
-  Try<Docker*> docker = Docker::create(flags.docker);
-  if (docker.isError()) {
-    return Error(docker.error());
+  Try<Docker*> create = Docker::create(flags.docker);
+  if (create.isError()) {
+    return Error("Failed to create docker: " + create.error());
   }
 
-  Shared<Docker> docker_(docker.get());
+  Shared<Docker> docker(create.get());
 
   if (flags.docker_mesos_image.isSome()) {
-    Future<Version> version = docker_->version();
-    if (!version.await(Seconds(5))) {
+    Future<Version> version = docker->version();
+    if (!version.await(DOCKER_VERSION_WAIT_TIMEOUT)) {
       return Error("Timed out waiting for docker version");
     }
 
@@ -148,7 +145,7 @@ Try<DockerContainerizer*> DockerContainerizer::create(
     }
   }
 
-  return new DockerContainerizer(flags, fetcher, docker_);
+  return new DockerContainerizer(flags, fetcher, docker);
 }
 
 
@@ -177,17 +174,18 @@ DockerContainerizer::~DockerContainerizer()
 }
 
 
-string dockerExecutorCommand(
-    const Flags& flags,
-    const string directory,
-    const string container)
+docker::Flags dockerFlags(
+  const Flags& flags,
+  const string& name,
+  const string& directory)
 {
-  string command = "mesos-docker-executor --docker=" + flags.docker +
-                   " --container=" + container +
-                   " --sandbox_directory=" + directory +
-                   " --mapped_directory=" + flags.docker_sandbox_directory;
-
-  return path::join(flags.launcher_dir, command);
+  docker::Flags dockerFlags;
+  dockerFlags.container = name;
+  dockerFlags.docker = flags.docker;
+  dockerFlags.sandbox_directory = directory;
+  dockerFlags.mapped_directory = flags.docker_sandbox_directory;
+  dockerFlags.stop_timeout = flags.docker_stop_timeout;
+  return dockerFlags;
 }
 
 
@@ -254,7 +252,61 @@ DockerContainerizerProcess::Container::create(
     symlinked = true;
   }
 
-  Container* container = new Container(
+  Option<ContainerInfo> containerInfo = None();
+  Option<CommandInfo> commandInfo = None();
+  Option<std::map<string, string>> environment = None();
+  bool launchesExecutorContainer = false;
+  if (taskInfo.isSome() && flags.docker_mesos_image.isSome()) {
+    // Override the container and command to launch an executor
+    // in a docker container.
+    ContainerInfo newContainerInfo;
+
+    // Mounting in the docker socket so the executor can communicate to
+    // the host docker daemon. We are assuming the current instance is
+    // launching docker containers to the host daemon as well.
+    Volume* dockerSockVolume = newContainerInfo.add_volumes();
+    dockerSockVolume->set_host_path(flags.docker_socket);
+    dockerSockVolume->set_container_path(flags.docker_socket);
+    dockerSockVolume->set_mode(Volume::RO);
+
+    // Mounting in sandbox so the logs from the executor can be
+    // persisted over container failures.
+    Volume* sandboxVolume = newContainerInfo.add_volumes();
+    sandboxVolume->set_host_path(containerWorkdir);
+    sandboxVolume->set_container_path(containerWorkdir);
+    sandboxVolume->set_mode(Volume::RW);
+
+    ContainerInfo::DockerInfo dockerInfo;
+    dockerInfo.set_image(flags.docker_mesos_image.get());
+
+    newContainerInfo.mutable_docker()->CopyFrom(dockerInfo);
+
+    docker::Flags dockerExecutorFlags = dockerFlags(
+      flags,
+      Container::name(slaveId, stringify(id)),
+      containerWorkdir);
+
+    CommandInfo newCommandInfo;
+    // TODO(tnachen): Pass flags directly into docker run.
+    newCommandInfo.set_value(
+      path::join(flags.launcher_dir, "mesos-docker-executor") +
+      " " + stringify(dockerExecutorFlags));
+
+    newCommandInfo.set_shell(true);
+
+    containerInfo = newContainerInfo;
+    commandInfo = newCommandInfo;
+    environment = executorEnvironment(
+        executorInfo,
+        containerWorkdir,
+        slaveId,
+        slavePid,
+        checkpoint,
+        flags.recovery_timeout);
+    launchesExecutorContainer = true;
+  }
+
+  return new Container(
       id,
       taskInfo,
       executorInfo,
@@ -264,52 +316,11 @@ DockerContainerizerProcess::Container::create(
       slavePid,
       checkpoint,
       symlinked,
-      flags);
-
-  if (taskInfo.isSome() && flags.docker_mesos_image.isSome()) {
-    // Override the container and command to launch an executor
-    // in a docker container.
-    ContainerInfo containerInfo;
-
-    // Mounting in the docker socket so the executor can communicate to
-    // the host docker daemon. We are assuming the current instance is
-    // launching docker containers to the host daemon as well.
-    Volume* dockerSockVolume = containerInfo.add_volumes();
-    dockerSockVolume->set_host_path(flags.docker_socket);
-    dockerSockVolume->set_container_path(flags.docker_socket);
-    dockerSockVolume->set_mode(Volume::RO);
-
-    // Mounting in sandbox so the logs from the executor can be
-    // persisted over container failures.
-    Volume* sandboxVolume = containerInfo.add_volumes();
-    sandboxVolume->set_host_path(containerWorkdir);
-    sandboxVolume->set_container_path(containerWorkdir);
-    sandboxVolume->set_mode(Volume::RW);
-
-    ContainerInfo::DockerInfo dockerInfo;
-    dockerInfo.set_image(flags.docker_mesos_image.get());
-
-    containerInfo.mutable_docker()->CopyFrom(dockerInfo);
-
-    const string& command = dockerExecutorCommand(
-        flags, containerWorkdir, container->name());
-
-    CommandInfo commandInfo;
-    commandInfo.set_value(command);
-    commandInfo.set_shell(true);
-
-    container->overrideContainer = containerInfo;
-    container->overrideCommand = commandInfo;
-    container->overrideEnvironment = executorEnvironment(
-        executorInfo,
-        containerWorkdir,
-        slaveId,
-        slavePid,
-        checkpoint,
-        flags.recovery_timeout);
-  }
-
-  return container;
+      flags,
+      commandInfo,
+      containerInfo,
+      environment,
+      launchesExecutorContainer);
 }
 
 
@@ -321,7 +332,7 @@ Future<Nothing> DockerContainerizerProcess::fetch(
 
   return fetcher->fetch(
       containerId,
-      container->command(),
+      container->command,
       container->directory,
       None(),
       flags);
@@ -329,21 +340,28 @@ Future<Nothing> DockerContainerizerProcess::fetch(
 
 
 Future<Nothing> DockerContainerizerProcess::pull(
-    const ContainerID& containerId,
-    const string& directory,
-    const string& image,
-    bool forcePullImage)
+    const ContainerID& containerId)
 {
-  Future<Docker::Image> future = docker->pull(directory, image, forcePullImage);
+  if (!containers_.contains(containerId)) {
+    return Failure("Container is already destroyed");
+  }
+
+  Container* container = containers_[containerId];
+  container->state = Container::PULLING;
+
+  string image = container->image();
+
+  Future<Docker::Image> future = docker->pull(
+    container->directory,
+    image,
+    container->forcePullImage());
+
   containers_[containerId]->pull = future;
-  return future.then(defer(self(), &Self::_pull, image));
-}
 
-
-Future<Nothing> DockerContainerizerProcess::_pull(const string& image)
-{
-  VLOG(1) << "Docker pull " << image << " completed";
-  return Nothing();
+  return future.then(defer(self(), [=]() {
+    VLOG(1) << "Docker pull " << image << " completed";
+    return Nothing();
+  }));
 }
 
 
@@ -545,10 +563,16 @@ Future<Nothing> DockerContainerizerProcess::_recover(
   // checkpointed container id.
   // TODO(tnachen): Remove this explicit reconciliation 0.24.
   hashset<ContainerID> existingContainers;
+  // Tracks all the task containers that launched an executor in
+  // a docker container.
+  hashset<ContainerID> executorContainers;
   foreach (const Docker::Container& container, _containers) {
     Option<ContainerID> id = parse(container);
     if (id.isSome()) {
       existingContainers.insert(id.get());
+      if (strings::contains(container.name, ".executor")) {
+        executorContainers.insert(id.get());
+      }
     }
   }
 
@@ -623,6 +647,8 @@ Future<Nothing> DockerContainerizerProcess::_recover(
       containers_[containerId] = container;
       container->slaveId = state.id;
       container->state = Container::RUNNING;
+      container->launchesExecutorContainer =
+        executorContainers.contains(containerId);
 
       pid_t pid = run.get().forkedPid.get();
 
@@ -747,18 +773,19 @@ Future<bool> DockerContainerizerProcess::launch(
   if (taskInfo.isSome() && flags.docker_mesos_image.isNone()) {
     // Launching task by forking a subprocess to run docker executor.
     return container.get()->launch = fetch(containerId)
-      .then(defer(self(), &Self::_launch, containerId))
-      .then(defer(self(), &Self::___launch, containerId))
-      .then(defer(self(), &Self::______launch, containerId, lambda::_1))
-      .onFailed(defer(self(), &Self::destroy, containerId, true));
+      .then(defer(self(), [=]() { return pull(containerId); }))
+      .then(defer(self(), [=]() { return launchExecutorProcess(containerId); }))
+      .then(defer(self(), [=](pid_t pid) {
+        return reapExecutor(containerId, pid);
+      }));
   }
 
   string containerName = container.get()->name();
 
-  if (flags.docker_mesos_image.isSome()) {
+  if (container.get()->executorName().isSome()) {
     // Launch the container with the executor name as we expect the
     // executor will launch the docker container.
-    containerName = container.get()->executorName();
+    containerName = container.get()->executorName().get();
   }
 
   // Launching task or executor by launching a seperate docker
@@ -768,67 +795,76 @@ Future<bool> DockerContainerizerProcess::launch(
   // we want the executor to keep running when the slave container
   // dies.
   return container.get()->launch = fetch(containerId)
-    .then(defer(self(), &Self::_launch, containerId))
-    .then(defer(self(), &Self::__launch, containerId, containerName))
-    .then(defer(self(), &Self::____launch, containerId, containerName))
-    .then(defer(self(), &Self::_____launch, containerId, lambda::_1))
-    .then(defer(self(), &Self::______launch, containerId, lambda::_1));
+    .then(defer(self(), [=]() { return pull(containerId); }))
+    .then(defer(self(), [=]() {
+      return launchExecutorContainer(containerId, containerName);
+    }))
+    .then(defer(self(), [=](const Docker::Container& dockerContainer) {
+      return checkpointExecutor(containerId, dockerContainer);
+    }))
+    .then(defer(self(), [=](pid_t pid) {
+      return reapExecutor(containerId, pid);
+    }));
 }
 
 
-Future<Nothing> DockerContainerizerProcess::_launch(
-    const ContainerID& containerId)
-{
-  // Doing the fetch might have succeded but we were actually asked to
-  // destroy the container, which we did, so don't continue.
-  if (!containers_.contains(containerId)) {
-    return Failure("Container was destroyed while launching");
-  }
-
-  Container* container = containers_[containerId];
-
-  container->state = Container::PULLING;
-
-  return pull(
-      containerId,
-      container->directory,
-      container->image(),
-      container->forcePullImage());
-}
-
-
-Future<Nothing> DockerContainerizerProcess::__launch(
+Future<Docker::Container> DockerContainerizerProcess::launchExecutorContainer(
     const ContainerID& containerId,
-    const string& container)
+    const string& containerName)
 {
   if (!containers_.contains(containerId)) {
-    return Failure("Container was destroyed while pulling image");
+    return Failure("Container is already destroyed");
   }
 
-  Container* container_ = containers_[containerId];
+  Container* container = containers_[containerId];
+  container->state = Container::RUNNING;
 
-  container_->state = Container::RUNNING;
+  // Start the executor in a Docker container.
+  // This executor could either be a custom executor specified by an
+  // ExecutorInfo, or the docker executor.
+  Future<Nothing> run = docker->run(
+    container->container,
+    container->command,
+    containerName,
+    container->directory,
+    flags.docker_sandbox_directory,
+    container->resources,
+    container->environment,
+    path::join(container->directory, "stdout"),
+    path::join(container->directory, "stderr"));
 
-  // Try and start the Docker container.
-  return docker->run(
-      container_->container(),
-      container_->command(),
-      container,
-      container_->directory,
-      flags.docker_sandbox_directory,
-      container_->resources,
-      container_->environment());
+  Owned<Promise<Docker::Container>> promise(new Promise<Docker::Container>());
+  // We like to propogate the run failure when run fails so slave can
+  // send this failure back to the scheduler. Otherwise we return
+  // inspect's result or its failure, which should not fail when
+  // the container isn't launched.
+  Future<Docker::Container> inspect =
+    docker->inspect(containerName, slave::DOCKER_INSPECT_DELAY)
+      .onAny([=](Future<Docker::Container> f) {
+          // We cannot associate the promise outside of the callback
+          // because we like to propagate run's failure when
+          // available.
+          promise->associate(f);
+      });
+
+  run.onFailed([=](const string& failure) mutable {
+    inspect.discard();
+    promise->fail(failure);
+  });
+
+  return promise->future();
 }
 
 
-Future<pid_t> DockerContainerizerProcess::___launch(
+Future<pid_t> DockerContainerizerProcess::launchExecutorProcess(
     const ContainerID& containerId)
 {
-  // After we do Docker::run we shouldn't remove a container until
-  // after we set Container::status.
-  CHECK(containers_.contains(containerId));
+  if (!containers_.contains(containerId)) {
+    return Failure("Container is already destroyed");
+  }
 
   Container* container = containers_[containerId];
+  container->state = Container::RUNNING;
 
   // Prepare environment variables for the executor.
   map<string, string> environment = executorEnvironment(
@@ -850,19 +886,19 @@ Future<pid_t> DockerContainerizerProcess::___launch(
     environment["GLOG_v"] = os::getenv("GLOG_v");
   }
 
-  const string& command = dockerExecutorCommand(
-      flags, container->directory, container->name());
-
-  VLOG(1) << "Launching docker executor with command: " << command;
+  vector<string> argv;
+  argv.push_back("mesos-docker-executor");
 
   // Construct the mesos-docker-executor using the "name" we gave the
   // container (to distinguish it from Docker containers not created
   // by Mesos).
   Try<Subprocess> s = subprocess(
-      command,
+      path::join(flags.launcher_dir, "mesos-docker-executor"),
+      argv,
       Subprocess::PIPE(),
       Subprocess::PATH(path::join(container->directory, "stdout")),
       Subprocess::PATH(path::join(container->directory, "stderr")),
+      dockerFlags(flags, container->name(), container->directory),
       environment,
       lambda::bind(&setup, container->directory));
 
@@ -893,37 +929,23 @@ Future<pid_t> DockerContainerizerProcess::___launch(
   if (length != sizeof(c)) {
     string error = string(strerror(errno));
     os::close(s.get().in().get());
-    Failure failure("Failed to synchronize with child process: " + error);
-
-    container->run = failure;
-    return failure;
+    return Failure("Failed to synchronize with child process: " + error);
   }
 
   return s.get().pid();
 }
 
 
-Future<Docker::Container> DockerContainerizerProcess::____launch(
+
+Future<pid_t> DockerContainerizerProcess::checkpointExecutor(
     const ContainerID& containerId,
-    const std::string& container)
-{
-  CHECK(containers_.contains(containerId));
-
-  return docker->inspect(container);
-}
-
-
-Future<pid_t> DockerContainerizerProcess::_____launch(
-    const ContainerID& containerId,
-    const Docker::Container& container)
+    const Docker::Container& dockerContainer)
 {
   // After we do Docker::run we shouldn't remove a container until
   // after we set Container::status.
   CHECK(containers_.contains(containerId));
 
-  Container* container_ = containers_[containerId];
-
-  Option<int> pid = container.pid;
+  Option<int> pid = dockerContainer.pid;
 
   if (!pid.isSome()) {
     return Failure("Unable to get executor pid after launch");
@@ -936,16 +958,11 @@ Future<pid_t> DockerContainerizerProcess::_____launch(
         "Failed to checkpoint executor's pid: " + checkpointed.error());
   }
 
-  // TODO(tnachen): We need to handle the slave in container scenario.
-  // Instead of forking a log process, launch a log container for
-  // executor.
-  docker->logs(container_->name(), container_->directory);
-
   return pid.get();
 }
 
 
-Future<bool> DockerContainerizerProcess::______launch(
+Future<bool> DockerContainerizerProcess::reapExecutor(
     const ContainerID& containerId,
     pid_t pid)
 {
@@ -1355,6 +1372,25 @@ void DockerContainerizerProcess::destroy(
 
   container->state = Container::DESTROYING;
 
+  if (killed && container->executorPid.isSome()) {
+    LOG(INFO) << "Sending SIGTERM to executor with pid: "
+              << container->executorPid.get();
+    // We need to clean up the executor as the executor might not have
+    // received run task due to a failed containerizer update.
+    // We also kill the executor first since container->status below
+    // is waiting for the executor to finish.
+    Try<std::list<os::ProcessTree>> kill =
+      os::killtree(container->executorPid.get(), SIGTERM);
+
+    if (kill.isError()) {
+      // Ignoring the error from killing executor as it can already
+      // have exited.
+      VLOG(1) << "Ignoring error when killing executor pid "
+              << container->executorPid.get() << " in destroy, error: "
+              << kill.error();
+    }
+  }
+
   // Otherwise, wait for Docker::run to succeed, in which case we'll
   // continue in _destroy (calling Docker::kill) or for Docker::run to
   // fail, in which case we'll re-execute this function and cleanup
@@ -1374,17 +1410,19 @@ void DockerContainerizerProcess::_destroy(
 
   CHECK(container->state == Container::DESTROYING);
 
-  // Do a 'docker rm -f' which we'll then find out about in '_destroy'
+  // Do a 'docker stop' which we'll then find out about in '_destroy'
   // after we've reaped either the container's root process (in the
   // event that we had just launched a container for an executor) or
   // the mesos-docker-executor (in the case we launched a container
   // for a task).
-
   LOG(INFO) << "Running docker stop on container '" << containerId << "'";
 
-  docker->stop(container->name(),
-              flags.docker_stop_timeout)
-    .onAny(defer(self(), &Self::__destroy, containerId, killed, lambda::_1));
+  if (killed) {
+    docker->stop(container->name(), flags.docker_stop_timeout)
+      .onAny(defer(self(), &Self::__destroy, containerId, killed, lambda::_1));
+  } else {
+    __destroy(containerId, killed, Nothing());
+  }
 }
 
 
@@ -1397,7 +1435,7 @@ void DockerContainerizerProcess::__destroy(
 
   Container* container = containers_[containerId];
 
-  if (!kill.isReady()) {
+  if (!kill.isReady() && !container->status.future().isReady()) {
     // TODO(benh): This means we've failed to do a Docker::kill, which
     // means it's possible that the container is still going to be
     // running after we return! We either need to have a periodic
@@ -1422,7 +1460,7 @@ void DockerContainerizerProcess::__destroy(
   }
 
   // Status must be ready since we did a Docker::kill.
-  CHECK_READY(containers_[containerId]->status.future());
+  CHECK_READY(container->status.future());
 
   container->status.future().get()
     .onAny(defer(self(), &Self::___destroy, containerId, killed, lambda::_1));
@@ -1483,11 +1521,13 @@ void DockerContainerizerProcess::reaped(const ContainerID& containerId)
 
 
 void DockerContainerizerProcess::remove(
-    const string& container,
-    const string& executor)
+    const string& containerName,
+    const Option<string>& executor)
 {
-  docker->rm(container, true);
-  docker->rm(executor, true);
+  docker->rm(containerName, true);
+  if (executor.isSome()) {
+    docker->rm(executor.get(), true);
+  }
 }
 
 
