@@ -27,6 +27,7 @@
 
 #include <set>
 #include <string>
+#include <vector>
 
 #include <stout/error.hpp>
 #include <stout/hashmap.hpp>
@@ -35,6 +36,7 @@
 #include <stout/path.hpp>
 #include <stout/proc.hpp>
 #include <stout/stringify.hpp>
+#include <stout/strings.hpp>
 #include <stout/try.hpp>
 
 #include <stout/os/exists.hpp>
@@ -292,13 +294,37 @@ inline process::Future<Nothing> destroy(ino_t inode)
   }
 
   // Wait for all the signalled processes to terminate. The pid
-  // namespace wil then be empty and will be released by the kernel
+  // namespace will then be empty and will be released by the kernel
   // (unless there are additional references).
   return process::collect(futures)
     .then(lambda::bind(&internal::_nothing));
 }
 
 } // namespace pid {
+
+
+// Returns the namespace flags in the string form of bitwise-ORing the
+// flags, e.g., CLONE_NEWNS | CLONE_NEWNET.
+inline std::string stringify(int flags)
+{
+  hashmap<unsigned int, std::string> names = {
+    {CLONE_NEWIPC, "CLONE_NEWIPC"},
+    {CLONE_NEWNET, "CLONE_NEWNET"},
+    {CLONE_NEWNS,  "CLONE_NEWNS"},
+    {CLONE_NEWPID, "CLONE_NEWPID"},
+    {CLONE_NEWUTS, "CLONE_NEWUTS"}
+  };
+
+  std::vector<std::string> namespaces;
+  foreachpair (unsigned int flag, const std::string& name, names) {
+    if (flags & flag) {
+      namespaces.push_back(name);
+    }
+  }
+
+  return strings::join(" | ", namespaces);
+}
+
 } // namespace ns {
 
 #endif // __LINUX_NS_HPP__

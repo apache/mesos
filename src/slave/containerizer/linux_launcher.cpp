@@ -209,7 +209,8 @@ static pid_t clone(const lambda::function<int()>& func, int namespaces)
   // - 8 MiB appears to be the default for "ulimit -s" on OSX and Linux.
   static unsigned long long stack[(8*1024*1024)/sizeof(unsigned long long)];
 
-  LOG(INFO) << "Cloning child process with flags = " << namespaces;
+  LOG(INFO) << "Cloning child process with flags = "
+            << ns::stringify(namespaces);
 
   return ::clone(
       childMain,
