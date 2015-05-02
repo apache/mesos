@@ -711,12 +711,12 @@ TEST(Process, defer3)
   volatile bool bool2 = false;
 
   Deferred<void(bool)> set1 =
-    defer([&bool1] (bool b) { bool1 = b; });
+    defer([&bool1](bool b) { bool1 = b; });
 
   set1(true);
 
   Deferred<void(bool)> set2 =
-    defer([&bool2] (bool b) { bool2 = b; });
+    defer([&bool2](bool b) { bool2 = b; });
 
   set2(true);
 
@@ -1702,34 +1702,34 @@ TEST(Process, defers)
         std::bind(bam, std::placeholders::_1));
 
     std::function<Future<int>(string)> f2 =
-      defer([] (string s) { return baz(s); });
+      defer([](string s) { return baz(s); });
 
     Deferred<Future<int>(string)> d2 =
-      defer([] (string s) { return baz(s); });
+      defer([](string s) { return baz(s); });
 
     Future<int> future2 = Future<string>().then(
-        defer([] (string s) { return baz(s); }));
+        defer([](string s) { return baz(s); }));
 
     Future<int> future4 = Future<string>().then(
-        [] (string s) { return baz(s); });
+        [](string s) { return baz(s); });
 
     Future<int> future5 = Future<string>().then(
-        defer([] (string s) -> Future<int> { return baz(s); }));
+        defer([](string s) -> Future<int> { return baz(s); }));
 
     Future<int> future6 = Future<string>().then(
-        defer([] (string s) { return Future<int>(baz(s)); }));
+        defer([](string s) { return Future<int>(baz(s)); }));
 
     Future<int> future7 = Future<string>().then(
-        defer([] (string s) { return bam(s); }));
+        defer([](string s) { return bam(s); }));
 
     Future<int> future8 = Future<string>().then(
-        [] (string s) { return Future<int>(baz(s)); });
+        [](string s) { return Future<int>(baz(s)); });
 
     Future<int> future9 = Future<string>().then(
-        [] (string s) -> Future<int> { return baz(s); });
+        [](string s) -> Future<int> { return baz(s); });
 
     Future<int> future10 = Future<string>().then(
-        [] (string s) { return bam(s); });
+        [](string s) { return bam(s); });
   }
 
 //   {
@@ -1741,7 +1741,7 @@ TEST(Process, defers)
 //     std::function<void(string)> blam = blah;
 
 //     std::function<void(string)> f2 =
-//       defer([] (string s) { return baz(s); });
+//       defer([](string s) { return baz(s); });
 //   }
 
 //   {
@@ -1755,7 +1755,7 @@ TEST(Process, defers)
       defer(std::bind(baz, "42"));
 
     std::function<Future<int>(void)> f2 =
-      defer([] () { return baz("42"); });
+      defer([]() { return baz("42"); });
   }
 
   {
@@ -1763,7 +1763,7 @@ TEST(Process, defers)
       defer(std::bind(baz, "42"));
 
     std::function<Future<int>(int)> f2 =
-      defer([] (int i) { return baz("42"); });
+      defer([](int i) { return baz("42"); });
   }
 
   // Don't care about value passed from Future::then.
@@ -1781,28 +1781,28 @@ TEST(Process, defers)
         std::bind(bam, "42"));
 
     Future<int> future2 = Future<string>().then(
-        defer([] () { return baz("42"); }));
+        defer([]() { return baz("42"); }));
 
     Future<int> future4 = Future<string>().then(
-        [] () { return baz("42"); });
+        []() { return baz("42"); });
 
     Future<int> future5 = Future<string>().then(
-        defer([] () -> Future<int> { return baz("42"); }));
+        defer([]() -> Future<int> { return baz("42"); }));
 
     Future<int> future6 = Future<string>().then(
-        defer([] () { return Future<int>(baz("42")); }));
+        defer([]() { return Future<int>(baz("42")); }));
 
     Future<int> future7 = Future<string>().then(
-        defer([] () { return bam("42"); }));
+        defer([]() { return bam("42"); }));
 
     Future<int> future8 = Future<string>().then(
-        [] () { return Future<int>(baz("42")); });
+        []() { return Future<int>(baz("42")); });
 
     Future<int> future9 = Future<string>().then(
-        [] () -> Future<int> { return baz("42"); });
+        []() -> Future<int> { return baz("42"); });
 
     Future<int> future10 = Future<string>().then(
-        [] () { return bam("42"); });
+        []() { return bam("42"); });
   }
 
   struct Functor

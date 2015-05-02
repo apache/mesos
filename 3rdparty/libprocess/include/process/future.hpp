@@ -198,7 +198,7 @@ private:
   const Future<T>& onReady(F&& f, Prefer) const
   {
     return onReady(std::function<void(const T&)>(
-        [=] (const T& t) mutable {
+        [=](const T& t) mutable {
           f(t);
         }));
   }
@@ -207,7 +207,7 @@ private:
   const Future<T>& onReady(F&& f, LessPrefer) const
   {
     return onReady(std::function<void(const T&)>(
-        [=] (const T&) mutable {
+        [=](const T&) mutable {
           f();
         }));
   }
@@ -216,7 +216,7 @@ private:
   const Future<T>& onFailed(F&& f, Prefer) const
   {
     return onFailed(std::function<void(const std::string&)>(
-        [=] (const std::string& message) mutable {
+        [=](const std::string& message) mutable {
           f(message);
         }));
   }
@@ -225,7 +225,7 @@ private:
   const Future<T>& onFailed(F&& f, LessPrefer) const
   {
     return onFailed(std::function<void(const std::string&)>(
-        [=] (const std::string&) mutable {
+        [=](const std::string&) mutable {
           f();
         }));
   }
@@ -234,7 +234,7 @@ private:
   const Future<T>& onAny(F&& f, Prefer) const
   {
     return onAny(std::function<void(const Future<T>&)>(
-        [=] (const Future<T>& future) mutable {
+        [=](const Future<T>& future) mutable {
           f(future);
         }));
   }
@@ -243,7 +243,7 @@ private:
   const Future<T>& onAny(F&& f, LessPrefer) const
   {
     return onAny(std::function<void(const Future<T>&)>(
-        [=] (const Future<T>&) mutable {
+        [=](const Future<T>&) mutable {
           f();
         }));
   }
@@ -253,7 +253,7 @@ public:
   const Future<T>& onDiscard(F&& f) const
   {
     return onDiscard(std::function<void()>(
-        [=] () mutable {
+        [=]() mutable {
           f();
         }));
   }
@@ -274,7 +274,7 @@ public:
   const Future<T>& onDiscarded(F&& f) const
   {
     return onDiscarded(std::function<void()>(
-        [=] () mutable {
+        [=]() mutable {
           f();
         }));
   }
@@ -725,7 +725,7 @@ Future<Future<T>> select(const std::set<Future<T>>& futures)
     // NOTE: We can't use std::bind with a std::function with Clang
     // like we do below (see
     // http://stackoverflow.com/questions/20097616/stdbind-to-a-stdfunction-crashes-with-clang).
-    (*iterator).onAny([=] (const Future<T>& future) {
+    (*iterator).onAny([=](const Future<T>& future) {
       internal::select(future, promise);
     });
   }

@@ -204,15 +204,15 @@ Future<std::tuple<Future<T1>, Future<T2>>> await(
   Owned<Promise<Nothing>> promise1(new Promise<Nothing>());
   Owned<Promise<Nothing>> promise2(new Promise<Nothing>());
 
-  future1.onAny([=] () { promise1->set(Nothing()); });
-  future2.onAny([=] () { promise2->set(Nothing()); });
+  future1.onAny([=]() { promise1->set(Nothing()); });
+  future2.onAny([=]() { promise2->set(Nothing()); });
 
   std::list<Future<Nothing>> futures;
   futures.push_back(promise1->future());
   futures.push_back(promise2->future());
 
   return await(futures)
-    .then([=] () { return std::make_tuple(future1, future2); });
+    .then([=]() { return std::make_tuple(future1, future2); });
 }
 
 
@@ -226,9 +226,9 @@ Future<std::tuple<Future<T1>, Future<T2>, Future<T3>>> await(
   Owned<Promise<Nothing>> promise2(new Promise<Nothing>());
   Owned<Promise<Nothing>> promise3(new Promise<Nothing>());
 
-  future1.onAny([=] () { promise1->set(Nothing()); });
-  future2.onAny([=] () { promise2->set(Nothing()); });
-  future3.onAny([=] () { promise3->set(Nothing()); });
+  future1.onAny([=]() { promise1->set(Nothing()); });
+  future2.onAny([=]() { promise2->set(Nothing()); });
+  future3.onAny([=]() { promise3->set(Nothing()); });
 
   std::list<Future<Nothing>> futures;
   futures.push_back(promise1->future());
@@ -236,7 +236,7 @@ Future<std::tuple<Future<T1>, Future<T2>, Future<T3>>> await(
   futures.push_back(promise3->future());
 
   return await(futures)
-    .then([=] () { return std::make_tuple(future1, future2, future3); });
+    .then([=]() { return std::make_tuple(future1, future2, future3); });
 }
 
 } // namespace process {

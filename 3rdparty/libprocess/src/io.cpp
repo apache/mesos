@@ -239,7 +239,7 @@ Future<string> _read(
     size_t length)
 {
   return io::read(fd, data.get(), length)
-    .then([=] (size_t size) -> Future<string> {
+    .then([=](size_t size) -> Future<string> {
       if (size == 0) { // EOF.
         return string(*buffer);
       }
@@ -255,7 +255,7 @@ Future<Nothing> _write(
     size_t index)
 {
   return io::write(fd, (void*) (data->data() + index), data->size() - index)
-    .then([=] (size_t length) -> Future<Nothing> {
+    .then([=](size_t length) -> Future<Nothing> {
       if (index + length == data->size()) {
         return Nothing();
       }
@@ -292,7 +292,7 @@ void _splice(
                    WeakFuture<size_t>(read)));
 
   read
-    .onReady([=] (size_t size) {
+    .onReady([=](size_t size) {
       if (size == 0) { // EOF.
         promise->set(Nothing());
       } else {
@@ -301,13 +301,13 @@ void _splice(
         // semantics where everything read is written. The promise
         // will eventually be discarded in the next read.
         io::write(to, string(data.get(), size))
-          .onReady([=] () { _splice(from, to, chunk, data, promise); })
-          .onFailed([=] (const string& message) { promise->fail(message); })
-          .onDiscarded([=] () { promise->discard(); });
+          .onReady([=]() { _splice(from, to, chunk, data, promise); })
+          .onFailed([=](const string& message) { promise->fail(message); })
+          .onDiscarded([=]() { promise->discard(); });
       }
     })
-    .onFailed([=] (const string& message) { promise->fail(message); })
-    .onDiscarded([=] () { promise->discard(); });
+    .onFailed([=](const string& message) { promise->fail(message); })
+    .onDiscarded([=]() { promise->discard(); });
 }
 
 

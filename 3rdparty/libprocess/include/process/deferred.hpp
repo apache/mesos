@@ -71,7 +71,7 @@ struct _Deferred
     F f_ = f;
 
     return std::function<void()>(
-        [=] () {
+        [=]() {
           dispatch(pid_.get(), std::function<void()>(f_));
         });
   }
@@ -86,7 +86,7 @@ struct _Deferred
     F f_ = f;
 
     return std::function<void()>(
-        [=] () {
+        [=]() {
           dispatch(pid_.get(), std::function<void()>(f_));
         });
   }
@@ -102,7 +102,7 @@ struct _Deferred
     F f_ = f;
 
     return std::function<R()>(
-        [=] () {
+        [=]() {
           return dispatch(pid_.get(), std::function<R()>(f_));
         });
   }
@@ -118,7 +118,7 @@ struct _Deferred
     F f_ = f;
 
     return std::function<R()>(
-        [=] () {
+        [=]() {
           return dispatch(pid_.get(), std::function<R()>(f_));
         });
   }
@@ -141,8 +141,8 @@ struct _Deferred
     F f_ = f;                                                           \
                                                                         \
     return std::function<void(ENUM_PARAMS(N, P))>(                      \
-        [=] (ENUM_BINARY_PARAMS(N, P, p)) {                             \
-          std::function<void()> f__([=] () {                            \
+        [=](ENUM_BINARY_PARAMS(N, P, p)) {                              \
+          std::function<void()> f__([=]() {                             \
             f_(ENUM_PARAMS(N, p));                                      \
           });                                                           \
           dispatch(pid_.get(), f__);                                    \
@@ -160,8 +160,8 @@ struct _Deferred
     F f_ = f;                                                           \
                                                                         \
     return std::function<void(ENUM_PARAMS(N, P))>(                      \
-        [=] (ENUM_BINARY_PARAMS(N, P, p)) {                             \
-          std::function<void()> f__([=] () {                            \
+        [=](ENUM_BINARY_PARAMS(N, P, p)) {                              \
+          std::function<void()> f__([=]() {                             \
             f_(ENUM_PARAMS(N, p));                                      \
           });                                                           \
           dispatch(pid_.get(), f__);                                    \
@@ -183,8 +183,8 @@ struct _Deferred
     F f_ = f;                                                           \
                                                                         \
     return std::function<R(ENUM_PARAMS(N, P))>(                         \
-        [=] (ENUM_BINARY_PARAMS(N, P, p)) {                             \
-          std::function<R()> f__([=] () {                               \
+        [=](ENUM_BINARY_PARAMS(N, P, p)) {                              \
+          std::function<R()> f__([=]() {                                \
             return f_(ENUM_PARAMS(N, p));                               \
           });                                                           \
           return dispatch(pid_.get(), f__);                             \
@@ -202,8 +202,8 @@ struct _Deferred
     F f_ = f;                                                           \
                                                                         \
     return std::function<R(ENUM_PARAMS(N, P))>(                         \
-        [=] (ENUM_BINARY_PARAMS(N, P, p)) {                             \
-          std::function<R()> f__([=] () {                               \
+        [=](ENUM_BINARY_PARAMS(N, P, p)) {                              \
+          std::function<R()> f__([=]() {                                \
             return f_(ENUM_PARAMS(N, p));                               \
           });                                                           \
           return dispatch(pid_.get(), f__);                             \

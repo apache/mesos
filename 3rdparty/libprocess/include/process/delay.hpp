@@ -20,7 +20,7 @@ Timer delay(const Duration& duration,
             const PID<T>& pid,
             void (T::*method)())
 {
-  return Clock::timer(duration, [=] () {
+  return Clock::timer(duration, [=]() {
     dispatch(pid, method);
   });
 }
@@ -53,7 +53,7 @@ Timer delay(const Duration& duration,
               void (T::*method)(ENUM_PARAMS(N, P)),                     \
               ENUM_BINARY_PARAMS(N, A, a))                              \
   {                                                                     \
-    return Clock::timer(duration, [=] () {                              \
+    return Clock::timer(duration, [=]() {                               \
       dispatch(pid, method, ENUM_PARAMS(N, a));                         \
     });                                                                 \
   }                                                                     \

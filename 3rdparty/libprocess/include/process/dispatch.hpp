@@ -71,7 +71,7 @@ void dispatch(
 {
   std::shared_ptr<std::function<void(ProcessBase*)>> f(
       new std::function<void(ProcessBase*)>(
-          [=] (ProcessBase* process) {
+          [=](ProcessBase* process) {
             assert(process != NULL);
             T* t = dynamic_cast<T*>(process);
             assert(t != NULL);
@@ -111,7 +111,7 @@ void dispatch(
   {                                                                     \
     std::shared_ptr<std::function<void(ProcessBase*)>> f(               \
         new std::function<void(ProcessBase*)>(                          \
-            [=] (ProcessBase* process) {                                \
+            [=](ProcessBase* process) {                                 \
               assert(process != NULL);                                  \
               T* t = dynamic_cast<T*>(process);                         \
               assert(t != NULL);                                        \
@@ -158,7 +158,7 @@ Future<R> dispatch(
 
   std::shared_ptr<std::function<void(ProcessBase*)>> f(
       new std::function<void(ProcessBase*)>(
-          [=] (ProcessBase* process) {
+          [=](ProcessBase* process) {
             assert(process != NULL);
             T* t = dynamic_cast<T*>(process);
             assert(t != NULL);
@@ -200,7 +200,7 @@ Future<R> dispatch(
                                                                         \
     std::shared_ptr<std::function<void(ProcessBase*)>> f(               \
         new std::function<void(ProcessBase*)>(                          \
-            [=] (ProcessBase* process) {                                \
+            [=](ProcessBase* process) {                                 \
               assert(process != NULL);                                  \
               T* t = dynamic_cast<T*>(process);                         \
               assert(t != NULL);                                        \
@@ -251,7 +251,7 @@ Future<R> dispatch(
 
   std::shared_ptr<std::function<void(ProcessBase*)>> f(
       new std::function<void(ProcessBase*)>(
-          [=] (ProcessBase* process) {
+          [=](ProcessBase* process) {
             assert(process != NULL);
             T* t = dynamic_cast<T*>(process);
             assert(t != NULL);
@@ -293,7 +293,7 @@ Future<R> dispatch(
                                                                         \
     std::shared_ptr<std::function<void(ProcessBase*)>> f(               \
         new std::function<void(ProcessBase*)>(                          \
-            [=] (ProcessBase* process) {                                \
+            [=](ProcessBase* process) {                                 \
               assert(process != NULL);                                  \
               T* t = dynamic_cast<T*>(process);                         \
               assert(t != NULL);                                        \
@@ -339,7 +339,7 @@ inline void dispatch(
 {
   std::shared_ptr<std::function<void(ProcessBase*)>> f_(
       new std::function<void(ProcessBase*)>(
-          [=] (ProcessBase*) {
+          [=](ProcessBase*) {
             f();
           }));
 
@@ -356,7 +356,7 @@ Future<R> dispatch(
 
   std::shared_ptr<std::function<void(ProcessBase*)>> f_(
       new std::function<void(ProcessBase*)>(
-          [=] (ProcessBase*) {
+          [=](ProcessBase*) {
             promise->associate(f());
           }));
 
@@ -375,7 +375,7 @@ Future<R> dispatch(
 
   std::shared_ptr<std::function<void(ProcessBase*)>> f_(
       new std::function<void(ProcessBase*)>(
-          [=] (ProcessBase*) {
+          [=](ProcessBase*) {
             promise->set(f());
           }));
 

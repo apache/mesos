@@ -24,7 +24,7 @@ Deferred<void(void)> defer(
     const PID<T>& pid,
     void (T::*method)(void))
 {
-  return Deferred<void(void)>([=] () {
+  return Deferred<void(void)>([=]() {
     dispatch(pid, method);
   });
 }
@@ -64,7 +64,7 @@ Deferred<void(void)> defer(
     -> _Deferred<decltype(std::bind(&std::function<void(ENUM_PARAMS(N, P))>::operator(), std::function<void(ENUM_PARAMS(N, P))>(), ENUM_PARAMS(N, a)))> /* NOLINT(whitespace/line_length) */ \
   {                                                                     \
     std::function<void(ENUM_PARAMS(N, P))> f(                           \
-        [=] (ENUM_BINARY_PARAMS(N, P, p)) {                             \
+        [=](ENUM_BINARY_PARAMS(N, P, p)) {                              \
           dispatch(pid, method, ENUM_PARAMS(N, p));                     \
         });                                                             \
     return std::bind(&std::function<void(ENUM_PARAMS(N, P))>::operator(), std::move(f), ENUM_PARAMS(N, a)); /* NOLINT(whitespace/line_length) */ \
@@ -102,7 +102,7 @@ template <typename R, typename T>
 Deferred<Future<R>(void)>
 defer(const PID<T>& pid, Future<R> (T::*method)(void))
 {
-  return Deferred<Future<R>(void)>([=] () {
+  return Deferred<Future<R>(void)>([=]() {
     return dispatch(pid, method);
   });
 }
@@ -132,7 +132,7 @@ defer(const Process<T>* process, Future<R> (T::*method)(void))
     -> _Deferred<decltype(std::bind(&std::function<Future<R>(ENUM_PARAMS(N, P))>::operator(), std::function<Future<R>(ENUM_PARAMS(N, P))>(), ENUM_PARAMS(N, a)))> /* NOLINT(whitespace/line_length) */ \
   {                                                                     \
     std::function<Future<R>(ENUM_PARAMS(N, P))> f(                      \
-        [=] (ENUM_BINARY_PARAMS(N, P, p)) {                             \
+        [=](ENUM_BINARY_PARAMS(N, P, p)) {                              \
           return dispatch(pid, method, ENUM_PARAMS(N, p));              \
         });                                                             \
     return std::bind(&std::function<Future<R>(ENUM_PARAMS(N, P))>::operator(), std::move(f), ENUM_PARAMS(N, a)); /* NOLINT(whitespace/line_length) */ \
@@ -172,7 +172,7 @@ template <typename R, typename T>
 Deferred<Future<R>(void)>
 defer(const PID<T>& pid, R (T::*method)(void))
 {
-  return Deferred<Future<R>(void)>([=] () {
+  return Deferred<Future<R>(void)>([=]() {
     return dispatch(pid, method);
   });
 }
@@ -202,7 +202,7 @@ defer(const Process<T>* process, R (T::*method)(void))
     -> _Deferred<decltype(std::bind(&std::function<Future<R>(ENUM_PARAMS(N, P))>::operator(), std::function<Future<R>(ENUM_PARAMS(N, P))>(), ENUM_PARAMS(N, a)))> /* NOLINT(whitespace/line_length) */ \
   {                                                                     \
     std::function<Future<R>(ENUM_PARAMS(N, P))> f(                      \
-        [=] (ENUM_BINARY_PARAMS(N, P, p)) {                             \
+        [=](ENUM_BINARY_PARAMS(N, P, p)) {                              \
           return dispatch(pid, method, ENUM_PARAMS(N, p));              \
         });                                                             \
     return std::bind(&std::function<Future<R>(ENUM_PARAMS(N, P))>::operator(), std::move(f), ENUM_PARAMS(N, a)); /* NOLINT(whitespace/line_length) */ \
