@@ -107,9 +107,9 @@ inline Try<std::list<ProcessTree> > pstrees(
 
       // Now see if any of the existing process trees are actually
       // contained within the process tree we just created and only
-      // includ the disjoint process trees.
+      // include the disjoint process trees.
       // C++11:
-      // trees = trees.filter([] (const ProcessTree& t) {
+      // trees = trees.filter([](const ProcessTree& t) {
       //   return tree.get().contains(t);
       // });
       std::list<ProcessTree> trees_ = trees;
