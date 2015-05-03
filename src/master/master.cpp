@@ -2367,6 +2367,9 @@ void Master::accept(
   // TODO(jieyu): Currently, we only do authorization for the LAUNCH
   // operation. In the future, we might want to introduce
   // authorizations for other offer operations as well.
+  //
+  // TODO(mpark): Add authorization logic for RESERVE and UNRESERVE
+  // when "reserve" and "unreserve" ACLs are being introduced.
   list<Future<bool>> futures;
   foreach (const Offer::Operation& operation, accept.operations()) {
     if (operation.type() != Offer::Operation::LAUNCH) {
@@ -2478,17 +2481,58 @@ void Master::_accept(
   list<Future<bool>> authorizations = _authorizations.get();
 
   foreach (const Offer::Operation& operation, accept.operations()) {
-    // TODO(jieyu): Validate each operation!
     switch (operation.type()) {
       case Offer::Operation::RESERVE: {
-        // TODO(jieyu): Provide implementation for RESERVE.
-        drop(framework, operation, "Unimplemented");
+        Option<string> principal = framework->info.has_principal()
+          ? framework->info.principal()
+          : Option<string>::none();
+
+        Option<Error> error = validation::operation::validate(
+            operation.reserve(), framework->info.role(), principal);
+
+        if (error.isSome()) {
+          drop(framework, operation, error.get().message);
+          continue;
+        }
+
+        Try<Resources> resources = _offeredResources.apply(operation);
+        if (resources.isError()) {
+          drop(framework, operation, resources.error());
+          continue;
+        }
+
+        _offeredResources = resources.get();
+
+        LOG(INFO) << "Applying RESERVE operation for resources "
+                  << operation.reserve().resources() << " from framework "
+                  << *framework << " to slave " << *slave;
+
+        applyOfferOperation(framework, slave, operation);
         break;
       }
 
       case Offer::Operation::UNRESERVE: {
-        // TODO(jieyu): Provide implementation for UNRESERVE.
-        drop(framework, operation, "Unimplemented");
+        Option<Error> error = validation::operation::validate(
+            operation.unreserve(), framework->info.has_principal());
+
+        if (error.isSome()) {
+          drop(framework, operation, error.get().message);
+          continue;
+        }
+
+        Try<Resources> resources = _offeredResources.apply(operation);
+        if (resources.isError()) {
+          drop(framework, operation, resources.error());
+          continue;
+        }
+
+        _offeredResources = resources.get();
+
+        LOG(INFO) << "Applying UNRESERVE operation for resources "
+                  << operation.unreserve().resources() << " from framework "
+                  << *framework << " to slave " << *slave;
+
+        applyOfferOperation(framework, slave, operation);
         break;
       }
 

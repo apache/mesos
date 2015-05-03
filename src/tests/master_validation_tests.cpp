@@ -77,6 +77,31 @@ protected:
 };
 
 
+TEST_F(ResourceValidationTest, StaticReservation)
+{
+  Resource resource = Resources::parse("cpus", "8", "role").get();
+  EXPECT_NONE(resource::validate(CreateResources(resource)));
+}
+
+
+TEST_F(ResourceValidationTest, DynamicReservation)
+{
+  Resource resource = Resources::parse("cpus", "8", "role").get();
+  resource.mutable_reservation()->CopyFrom(createReservationInfo("principal"));
+
+  EXPECT_NONE(resource::validate(CreateResources(resource)));
+}
+
+
+TEST_F(ResourceValidationTest, InvalidRoleReservationPair)
+{
+  Resource resource = Resources::parse("cpus", "8", "*").get();
+  resource.mutable_reservation()->CopyFrom(createReservationInfo("principal"));
+
+  EXPECT_SOME(resource::validate(CreateResources(resource)));
+}
+
+
 TEST_F(ResourceValidationTest, PersistentVolume)
 {
   Resource volume = Resources::parse("disk", "128", "role1").get();
@@ -138,6 +163,221 @@ TEST_F(ResourceValidationTest, NonPersistentVolume)
   volume.mutable_disk()->CopyFrom(createDiskInfo(None(), "path1"));
 
   EXPECT_SOME(resource::validate(CreateResources(volume)));
+}
+
+
+class ReserveOperationValidationTest : public MesosTest {};
+
+
+// This test verifies that the 'role' specified in the resources of
+// the RESERVE operation needs to match the framework's 'role'.
+TEST_F(ReserveOperationValidationTest, MatchingRole)
+{
+  Resource resource = Resources::parse("cpus", "8", "role").get();
+  resource.mutable_reservation()->CopyFrom(createReservationInfo("principal"));
+
+  Offer::Operation::Reserve reserve;
+  reserve.add_resources()->CopyFrom(resource);
+
+  EXPECT_NONE(operation::validate(reserve, "role", "principal"));
+}
+
+
+// This test verifies that validation fails if the framework has a
+// "*" role even if the role matches.
+TEST_F(ReserveOperationValidationTest, DisallowStarRoleFrameworks)
+{
+  // The role "*" matches, but is invalid since frameworks with
+  // "*" role cannot reserve resources.
+  Resource resource = Resources::parse("cpus", "8", "*").get();
+  resource.mutable_reservation()->CopyFrom(createReservationInfo("principal"));
+
+  Offer::Operation::Reserve reserve;
+  reserve.add_resources()->CopyFrom(resource);
+
+  EXPECT_SOME(operation::validate(reserve, "*", "principal"));
+}
+
+
+// This test verifies that validation fails if the 'role'
+// specified in the resources of the RESERVE operation does not
+// match the framework's 'role'.
+TEST_F(ReserveOperationValidationTest, NonMatchingRole)
+{
+  {
+    // Non-matching role, "role" reserving for "*".
+    Resource resource = Resources::parse("cpus", "8", "*").get();
+    resource.mutable_reservation()->CopyFrom(
+        createReservationInfo("principal"));
+
+    Offer::Operation::Reserve reserve;
+    reserve.add_resources()->CopyFrom(resource);
+
+    EXPECT_SOME(operation::validate(reserve, "role", "principal"));
+  }
+
+  {
+    // Non-matching role, "*" reserving for "role".
+    Resource resource = Resources::parse("cpus", "8", "role").get();
+    resource.mutable_reservation()->CopyFrom(
+        createReservationInfo("principal"));
+
+    Offer::Operation::Reserve reserve;
+    reserve.add_resources()->CopyFrom(resource);
+
+    EXPECT_SOME(operation::validate(reserve, "*", "principal"));
+  }
+
+  {
+    // Non-matching role, "role1" reserving for "role2".
+    Resource resource = Resources::parse("cpus", "8", "role2").get();
+    resource.mutable_reservation()->CopyFrom(
+        createReservationInfo("principal"));
+
+    Offer::Operation::Reserve reserve;
+    reserve.add_resources()->CopyFrom(resource);
+
+    EXPECT_SOME(operation::validate(reserve, "role1", "principal"));
+  }
+}
+
+
+// This test verifies that the 'principal' specified in the resources
+// of the RESERVE operation needs to match the framework's 'principal'.
+TEST_F(ReserveOperationValidationTest, MatchingPrincipal)
+{
+  Resource resource = Resources::parse("cpus", "8", "role").get();
+  resource.mutable_reservation()->CopyFrom(createReservationInfo("principal"));
+
+  Offer::Operation::Reserve reserve;
+  reserve.add_resources()->CopyFrom(resource);
+
+  EXPECT_NONE(operation::validate(reserve, "role", "principal"));
+}
+
+
+// This test verifies that validation fails if the 'principal'
+// specified in the resources of the RESERVE operation do not match
+// the framework's 'principal'.
+TEST_F(ReserveOperationValidationTest, NonMatchingPrincipal)
+{
+  Resource resource = Resources::parse("cpus", "8", "role").get();
+  resource.mutable_reservation()->CopyFrom(createReservationInfo("principal2"));
+
+  Offer::Operation::Reserve reserve;
+  reserve.add_resources()->CopyFrom(resource);
+
+  EXPECT_SOME(operation::validate(reserve, "role", "principal1"));
+}
+
+
+// This test verifies that validation fails if the framework's
+// 'principal' is not set.
+TEST_F(ReserveOperationValidationTest, FrameworkMissingPrincipal)
+{
+  Resource resource = Resources::parse("cpus", "8", "role").get();
+  resource.mutable_reservation()->CopyFrom(createReservationInfo("principal"));
+
+  Offer::Operation::Reserve reserve;
+  reserve.add_resources()->CopyFrom(resource);
+
+  EXPECT_SOME(operation::validate(reserve, "role", None()));
+}
+
+
+// This test verifies that the resources specified in the RESERVE
+// operation cannot be persistent volumes.
+TEST_F(ReserveOperationValidationTest, NoPersistentVolumes)
+{
+  Resource reserved = Resources::parse("cpus", "8", "role").get();
+  reserved.mutable_reservation()->CopyFrom(createReservationInfo("principal"));
+
+  Offer::Operation::Reserve reserve;
+  reserve.add_resources()->CopyFrom(reserved);
+
+  EXPECT_NONE(operation::validate(reserve, "role", "principal"));
+}
+
+
+// This test verifies that validation fails if there are persistent
+// volumes specified in the resources of the RESERVE operation.
+TEST_F(ReserveOperationValidationTest, PersistentVolumes)
+{
+  Resource reserved = Resources::parse("cpus", "8", "role").get();
+  reserved.mutable_reservation()->CopyFrom(createReservationInfo("principal"));
+
+  Resource volume = Resources::parse("disk", "128", "role").get();
+  volume.mutable_disk()->CopyFrom(createDiskInfo("id1", "path1"));
+
+  Offer::Operation::Reserve reserve;
+  reserve.add_resources()->CopyFrom(reserved);
+  reserve.add_resources()->CopyFrom(volume);
+
+  EXPECT_SOME(operation::validate(reserve, "role", "principal"));
+}
+
+
+class UnreserveOperationValidationTest : public MesosTest {};
+
+
+// This test verifies that any resources can be unreserved by any
+// framework with a principal.
+// TODO(mpark): Introduce the "unreserve" ACL to prevent this.
+TEST_F(UnreserveOperationValidationTest, WithoutACL)
+{
+  Resource resource = Resources::parse("cpus", "8", "role").get();
+  resource.mutable_reservation()->CopyFrom(createReservationInfo("principal"));
+
+  Offer::Operation::Unreserve unreserve;
+  unreserve.add_resources()->CopyFrom(resource);
+
+  EXPECT_NONE(operation::validate(unreserve, true));
+}
+
+
+// This test verifies that validation fails if the framework's
+// 'principal' is not set.
+TEST_F(UnreserveOperationValidationTest, FrameworkMissingPrincipal)
+{
+  Resource resource = Resources::parse("cpus", "8", "role").get();
+  resource.mutable_reservation()->CopyFrom(createReservationInfo("principal"));
+
+  Offer::Operation::Unreserve unreserve;
+  unreserve.add_resources()->CopyFrom(resource);
+
+  EXPECT_SOME(operation::validate(unreserve, false));
+}
+
+
+// This test verifies that the resources specified in the UNRESERVE
+// operation cannot be persistent volumes.
+TEST_F(UnreserveOperationValidationTest, NoPersistentVolumes)
+{
+  Resource reserved = Resources::parse("cpus", "8", "role").get();
+  reserved.mutable_reservation()->CopyFrom(createReservationInfo("principal"));
+
+  Offer::Operation::Unreserve unreserve;
+  unreserve.add_resources()->CopyFrom(reserved);
+
+  EXPECT_NONE(operation::validate(unreserve, true));
+}
+
+
+// This test verifies that validation fails if there are persistent
+// volumes specified in the resources of the UNRESERVE operation.
+TEST_F(UnreserveOperationValidationTest, PersistentVolumes)
+{
+  Resource reserved = Resources::parse("cpus", "8", "role").get();
+  reserved.mutable_reservation()->CopyFrom(createReservationInfo("principal"));
+
+  Resource volume = Resources::parse("disk", "128", "role").get();
+  volume.mutable_disk()->CopyFrom(createDiskInfo("id1", "path1"));
+
+  Offer::Operation::Unreserve unreserve;
+  unreserve.add_resources()->CopyFrom(reserved);
+  unreserve.add_resources()->CopyFrom(volume);
+
+  EXPECT_SOME(operation::validate(unreserve, true));
 }
 
 

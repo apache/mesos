@@ -76,7 +76,8 @@ public:
 
   // Validates the given Resource object. Returns Error if it is not
   // valid. A Resource object is valid if it has a name, a valid type,
-  // i.e. scalar, range, or set, and has the appropriate value set.
+  // i.e. scalar, range, or set, has the appropriate value set, and
+  // a valid (role, reservation) pair for dynamic reservation.
   static Option<Error> validate(const Resource& resource);
 
   // Validates the given protobufs.
