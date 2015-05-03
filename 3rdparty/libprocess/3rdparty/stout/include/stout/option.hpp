@@ -27,50 +27,49 @@ class Option
 public:
   static Option<T> none()
   {
-    return Option<T>(NONE);
+    return Option<T>();
   }
 
   static Option<T> some(const T& t)
   {
-    return Option<T>(SOME, new T(t));
+    return Option<T>(t);
   }
 
-  Option() : state(NONE), t(NULL) {}
+  Option() : state(NONE) {}
 
-  Option(const T& _t) : state(SOME), t(new T(_t)) {}
-
-  template <typename U>
-  Option(const U& u) : state(SOME), t(new T(u)) {}
-
-  Option(const None& none) : state(NONE), t(NULL) {}
+  Option(const T& _t) : state(SOME), t(_t) {}
 
   template <typename U>
-  Option(const _Some<U>& some) : state(SOME), t(new T(some.t)) {}
+  Option(const U& u) : state(SOME), t(u) {}
 
-  Option(const Option<T>& that)
+  Option(const None& none) : state(NONE) {}
+
+  template <typename U>
+  Option(const _Some<U>& some) : Option(some.t) {}
+
+  Option(const Option<T>& that) : state(that.state)
   {
-    state = that.state;
-    if (that.t != NULL) {
-      t = new T(*that.t);
-    } else {
-      t = NULL;
+    if (that.isSome()) {
+      new (&t) T(that.t);
     }
   }
 
   ~Option()
   {
-    delete t;
+    if (isSome()) {
+      t.~T();
+    }
   }
 
   Option<T>& operator = (const Option<T>& that)
   {
     if (this != &that) {
-      delete t;
+      if (isSome()) {
+        t.~T();
+      }
       state = that.state;
-      if (that.t != NULL) {
-        t = new T(*that.t);
-      } else {
-        t = NULL;
+      if (that.isSome()) {
+        new (&t) T(that.t);
       }
     }
 
@@ -79,8 +78,8 @@ public:
 
   bool operator == (const Option<T>& that) const
   {
-    return (state == NONE && that.state == NONE) ||
-      (state == SOME && that.state == SOME && *t == *that.t);
+    return (isNone() && that.isNone()) ||
+      (isSome() && that.isSome() && t == that.t);
   }
 
   bool operator != (const Option<T>& that) const
@@ -90,7 +89,7 @@ public:
 
   bool operator == (const T& that) const
   {
-    return state == SOME && *t == that;
+    return isSome() && t == that;
   }
 
   bool operator != (const T& that) const
@@ -101,10 +100,10 @@ public:
   bool isSome() const { return state == SOME; }
   bool isNone() const { return state == NONE; }
 
-  const T& get() const { assert(state == SOME); return *t; }
+  const T& get() const { assert(isSome()); return t; }
 
   // This must return a copy to avoid returning a reference to a temporary.
-  T get(const T& _t) const { return state == NONE ? _t : *t; }
+  T get(const T& _t) const { return isNone() ? _t : t; }
 
 private:
   enum State {
@@ -112,11 +111,15 @@ private:
     NONE,
   };
 
-  Option(State _state, T* _t = NULL)
-    : state(_state), t(_t) {}
-
   State state;
-  T* t;
+
+  union {
+    // We remove the const qualifier (if there is one) from T so that
+    // we can initialize 't' from outside of the initializer list
+    // using placement new. This is necessary because sometimes we
+    // specialize 'Option' as such: 'Option<const T>'.
+    typename std::remove_const<T>::type t;
+  };
 };
 
 
