@@ -90,6 +90,13 @@ public:
 
   // NOTE: The following predicate functions assume that the given
   // resource is validated.
+  //
+  // Valid states of (role, reservation) pair in the Resource object.
+  //   Unreserved         : ("*", None)
+  //   Static reservation : (R, None)
+  //   Dynamic reservation: (R, { principal: <framework_principal> })
+  //
+  // NOTE: ("*", { principal: <framework_principal> }) is invalid.
 
   // Tests if the given Resource object is empty.
   static bool isEmpty(const Resource& resource);
@@ -177,8 +184,14 @@ public:
 
   // Returns a Resources object with the same amount of each resource
   // type as these Resources, but with all Resource objects marked as
-  // the specified role.
-  Resources flatten(const std::string& role = "*") const;
+  // the specified (role, reservation) pair. This is used to cross
+  // reservation boundaries without affecting the actual resources.
+  // If the optional ReservationInfo is given, the resource's
+  // 'reservation' field is set. Otherwise, the resource's
+  // 'reservation' field is cleared.
+  Resources flatten(
+      const std::string& role = "*",
+      const Option<Resource::ReservationInfo>& reservation = None()) const;
 
   // Finds a Resources object with the same amount of each resource
   // type as "targets" from these Resources. The roles specified in

@@ -376,6 +376,15 @@ inline TaskInfo createTask(
 }
 
 
+inline Resource::ReservationInfo createReservationInfo(
+    const std::string& principal)
+{
+  Resource::ReservationInfo info;
+  info.set_principal(principal);
+  return info;
+}
+
+
 // NOTE: We only set the volume in DiskInfo if 'containerPath' is set.
 // If volume mode is not specified, Volume::RW will be used (assuming
 // 'containerPath' is set).
@@ -422,6 +431,26 @@ inline Resource createPersistentVolume(
       createDiskInfo(persistenceId, containerPath));
 
   return volume;
+}
+
+
+// Helpers for creating reserve operations.
+inline Offer::Operation RESERVE(const Resources& resources)
+{
+  Offer::Operation operation;
+  operation.set_type(Offer::Operation::RESERVE);
+  operation.mutable_reserve()->mutable_resources()->CopyFrom(resources);
+  return operation;
+}
+
+
+// Helpers for creating unreserve operations.
+inline Offer::Operation UNRESERVE(const Resources& resources)
+{
+  Offer::Operation operation;
+  operation.set_type(Offer::Operation::UNRESERVE);
+  operation.mutable_unreserve()->mutable_resources()->CopyFrom(resources);
+  return operation;
 }
 
 

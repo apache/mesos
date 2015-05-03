@@ -24,6 +24,7 @@
 
 #include <mesos/resources.hpp>
 #include <mesos/values.hpp>
+#include <mesos/type_utils.hpp>
 
 #include <stout/foreach.hpp>
 #include <stout/lambda.hpp>
@@ -39,6 +40,22 @@ namespace mesos {
 /////////////////////////////////////////////////
 // Helper functions.
 /////////////////////////////////////////////////
+
+bool operator == (
+    const Resource::ReservationInfo& left,
+    const Resource::ReservationInfo& right)
+{
+  return left.principal() == right.principal();
+}
+
+
+bool operator != (
+    const Resource::ReservationInfo& left,
+    const Resource::ReservationInfo& right)
+{
+  return !(left == right);
+}
+
 
 bool operator == (
     const Resource::DiskInfo& left,
@@ -77,9 +94,21 @@ bool operator == (const Resource& left, const Resource& right)
     return false;
   }
 
-  // NOTE: Not setting the DiskInfo is the same as setting an empty
-  // DiskInfo, therefore we just call .disk() even if it's not set.
-  if (left.disk() != right.disk()) {
+  // Check ReservationInfo.
+  if (left.has_reservation() != right.has_reservation()) {
+    return false;
+  }
+
+  if (left.has_reservation() && left.reservation() != right.reservation()) {
+    return false;
+  }
+
+  // Check DiskInfo.
+  if (left.has_disk() != right.has_disk()) {
+    return false;
+  }
+
+  if (left.has_disk() && left.disk() != right.disk()) {
     return false;
   }
 
@@ -104,17 +133,41 @@ bool operator != (const Resource& left, const Resource& right)
 // Tests if we can add two Resource objects together resulting in one
 // valid Resource object. For example, two Resource objects with
 // different name, type or role are not addable.
-// TODO(jieyu): Even if two Resource objects with DiskInfo have the
-// same persistence ID, they cannot be added together. In fact, this
-// shouldn't happen if we do not add resources from different
-// namespaces (e.g., across slave). Consider adding a warning.
 static bool addable(const Resource& left, const Resource& right)
 {
-  return left.name() == right.name() &&
-    left.type() == right.type() &&
-    left.role() == right.role() &&
-    !left.disk().has_persistence() &&
-    !right.disk().has_persistence();
+  if (left.name() != right.name() ||
+      left.type() != right.type() ||
+      left.role() != right.role()) {
+    return false;
+  }
+
+  // Check ReservationInfo.
+  if (left.has_reservation() != right.has_reservation()) {
+    return false;
+  }
+
+  if (left.has_reservation() && left.reservation() != right.reservation()) {
+    return false;
+  }
+
+  // Check DiskInfo.
+  if (left.has_disk() != right.has_disk()) {
+    return false;
+  }
+
+  if (left.has_disk() && left.disk() != right.disk()) {
+    return false;
+  }
+
+  // TODO(jieyu): Even if two Resource objects with DiskInfo have the
+  // same persistence ID, they cannot be added together. In fact, this
+  // shouldn't happen if we do not add resources from different
+  // namespaces (e.g., across slave). Consider adding a warning.
+  if (left.has_disk() && left.disk().has_persistence()) {
+    return false;
+  }
+
+  return true;
 }
 
 
@@ -126,8 +179,6 @@ static bool addable(const Resource& left, const Resource& right)
 // "left = {1, 2}" and "right = {2, 3}", "left" and "right" are
 // subtractable because "left - right = {1}". However, "left" does not
 // contain "right".
-// NOTE: For Resource objects that have DiskInfo, we can only do
-// subtraction if they are equal.
 static bool subtractable(const Resource& left, const Resource& right)
 {
   if (left.name() != right.name() ||
@@ -136,8 +187,28 @@ static bool subtractable(const Resource& left, const Resource& right)
     return false;
   }
 
-  if (left.has_disk() || right.has_disk()) {
-    return left == right;
+  // Check ReservationInfo.
+  if (left.has_reservation() != right.has_reservation()) {
+    return false;
+  }
+
+  if (left.has_reservation() && left.reservation() != right.reservation()) {
+    return false;
+  }
+
+  // Check DiskInfo.
+  if (left.has_disk() != right.has_disk()) {
+    return false;
+  }
+
+  if (left.has_disk() && left.disk() != right.disk()) {
+    return false;
+  }
+
+  // NOTE: For Resource objects that have DiskInfo, we can only do
+  // subtraction if they are equal.
+  if (left.has_disk() && left.disk().has_persistence() && left != right) {
+    return false;
   }
 
   return true;
@@ -148,8 +219,8 @@ static bool subtractable(const Resource& left, const Resource& right)
 static bool contains(const Resource& left, const Resource& right)
 {
   // NOTE: This is a necessary condition for 'contains'.
-  // 'subtractable' will verify name, role, type and DiskInfo
-  // compatibility.
+  // 'subtractable' will verify name, role, type, ReservationInfo
+  // and DiskInfo compatibility.
   if (!subtractable(left, right)) {
     return false;
   }
@@ -367,6 +438,12 @@ Option<Error> Resources::validate(const Resource& resource)
         "DiskInfo should not be set for " + resource.name() + " resource");
   }
 
+  // Checks for the invalid state of (role, reservation) pair.
+  if (resource.role() == "*" && resource.has_reservation()) {
+    return Error(
+        "Invalid reservation: role \"*\" cannot be dynamically reserved");
+  }
+
   return None();
 }
 
@@ -412,16 +489,16 @@ bool Resources::isReserved(
     const Option<std::string>& role)
 {
   if (role.isSome()) {
-    return resource.role() != "*" && role.get() == resource.role();
+    return !isUnreserved(resource) && role.get() == resource.role();
   } else {
-    return resource.role() != "*";
+    return !isUnreserved(resource);
   }
 }
 
 
 bool Resources::isUnreserved(const Resource& resource)
 {
-  return resource.role() == "*";
+  return resource.role() == "*" && !resource.has_reservation();
 }
 
 
@@ -529,12 +606,19 @@ Resources Resources::persistentVolumes() const
 }
 
 
-Resources Resources::flatten(const string& role) const
+Resources Resources::flatten(
+    const string& role,
+    const Option<Resource::ReservationInfo>& reservation) const
 {
   Resources flattened;
 
   foreach (Resource resource, resources) {
     resource.set_role(role);
+    if (reservation.isNone()) {
+      resource.clear_reservation();
+    } else {
+      resource.mutable_reservation()->CopyFrom(reservation.get());
+    }
     flattened += resource;
   }
 
@@ -567,7 +651,12 @@ Option<Resources> Resources::find(const Resource& target) const
 
       if (flattened.contains(remaining)) {
         // Done!
-        return found + remaining.flatten(resource.role());
+        if (!resource.has_reservation()) {
+          return found + remaining.flatten(resource.role());
+        } else {
+          return found +
+                 remaining.flatten(resource.role(), resource.reservation());
+        }
       } else if (remaining.contains(flattened)) {
         found += resource;
         total -= resource;

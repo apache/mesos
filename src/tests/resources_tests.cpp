@@ -831,6 +831,133 @@ TEST(ResourcesTest, Find)
 }
 
 
+// Helper for creating a reserved resource.
+static Resource createReservedResource(
+    const string& name,
+    const string& value,
+    const string& role,
+    const Option<Resource::ReservationInfo>& reservation)
+{
+  Resource resource = Resources::parse(name, value, role).get();
+
+  if (reservation.isSome()) {
+    resource.mutable_reservation()->CopyFrom(reservation.get());
+  }
+
+  return resource;
+}
+
+
+TEST(ReservedResourcesTest, Validation)
+{
+  // Unreserved.
+  EXPECT_NONE(Resources::validate(createReservedResource(
+      "cpus", "8", "*", None())));
+
+  // Statically role reserved.
+  EXPECT_NONE(Resources::validate(createReservedResource(
+      "cpus", "8", "role", None())));
+
+  // Invalid.
+  EXPECT_SOME(Resources::validate(createReservedResource(
+      "cpus", "8", "*", createReservationInfo("principal1"))));
+
+  // Dynamically role reserved.
+  EXPECT_NONE(Resources::validate(createReservedResource(
+      "cpus", "8", "role", createReservationInfo("principal2"))));
+}
+
+
+TEST(ReservedResourcesTest, Equals)
+{
+  std::vector<Resources> unique = {
+    // Unreserved.
+    createReservedResource(
+        "cpus", "8", "*", None()),
+    // Statically reserved for role.
+    createReservedResource(
+        "cpus", "8", "role1", None()),
+    createReservedResource(
+        "cpus", "8", "role2", None()),
+    // Dynamically reserved for role.
+    createReservedResource(
+        "cpus", "8", "role1", createReservationInfo("principal1")),
+    createReservedResource(
+        "cpus", "8", "role2", createReservationInfo("principal2"))
+  };
+
+  // Test that all resources in 'unique' are considered different.
+  for (const Resources& left : unique) {
+    for (const Resources& right : unique) {
+      if (&left == &right) {
+        continue;
+      }
+      EXPECT_NE(left, right);
+    }
+  }
+}
+
+
+TEST(ReservedResourcesTest, AdditionStaticallyReserved)
+{
+  Resources left = createReservedResource("cpus", "8", "role", None());
+  Resources right = createReservedResource("cpus", "4", "role", None());
+  Resources expected = createReservedResource("cpus", "12", "role", None());
+
+  EXPECT_EQ(expected, left + right);
+}
+
+
+TEST(ReservedResourcesTest, AdditionDynamicallyReserved)
+{
+  Resource::ReservationInfo reservationInfo =
+    createReservationInfo("principal");
+
+  Resources left =
+    createReservedResource("cpus", "8", "role", reservationInfo);
+  Resources right =
+    createReservedResource("cpus", "4", "role", reservationInfo);
+  Resources expected =
+    createReservedResource("cpus", "12", "role", reservationInfo);
+
+  EXPECT_EQ(expected, left + right);
+}
+
+
+TEST(ReservedResourcesTest, Subtraction)
+{
+  Resource::ReservationInfo reservationInfo =
+    createReservationInfo("principal");
+
+  Resources r1 = createReservedResource("cpus", "8", "role", None());
+  Resources r2 = createReservedResource("cpus", "8", "role", reservationInfo);
+
+  Resources total = r1 + r2;
+
+  Resources r4 = createReservedResource("cpus", "6", "role", None());
+  Resources r5 = createReservedResource("cpus", "4", "role", reservationInfo);
+
+  Resources expected = r4 + r5;
+
+  Resources r7 = createReservedResource("cpus", "2", "role", None());
+  Resources r8 = createReservedResource("cpus", "4", "role", reservationInfo);
+
+  EXPECT_EQ(expected, total - r7 - r8);
+}
+
+
+TEST(ReservedResourcesTest, Contains)
+{
+  Resources r1 = createReservedResource("cpus", "8", "role", None());
+  Resources r2 = createReservedResource(
+      "cpus", "12", "role", createReservationInfo("principal"));
+
+  EXPECT_FALSE(r1.contains(r1 + r2));
+  EXPECT_FALSE(r2.contains(r1 + r2));
+  EXPECT_TRUE((r1 + r2).contains(r1 + r2));
+}
+
+
 // Helper for creating a disk resource.
 static Resource createDiskResource(
     const string& value,
@@ -840,10 +967,8 @@ static Resource createDiskResource(
 {
   Resource resource = Resources::parse("disk", value, role).get();
 
-  if (persistenceID.isSome() || containerPath.isSome()) {
-    resource.mutable_disk()->CopyFrom(
-        createDiskInfo(persistenceID, containerPath));
-  }
+  resource.mutable_disk()->CopyFrom(
+      createDiskInfo(persistenceID, containerPath));
 
   return resource;
 }
