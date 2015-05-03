@@ -47,11 +47,12 @@ namespace state {
 // Forward declarations.
 struct State;
 struct SlaveState;
+struct ResourcesState;
 struct FrameworkState;
 struct ExecutorState;
 struct RunState;
 struct TaskState;
-struct ResourcesState;
+
 
 // This function performs recovery from the state stored at 'rootDir'.
 // If the 'strict' flag is set, any errors encountered while
@@ -65,6 +66,7 @@ struct ResourcesState;
 // 'State.errors' is the sum total of all recovery errors. If the
 // machine has rebooted since the last slave run, None is returned.
 Result<State> recover(const std::string& rootDir, bool strict);
+
 
 namespace internal {
 
@@ -166,18 +168,90 @@ Try<Nothing> checkpoint(const std::string& path, const T& t)
 }
 
 
-// The top level state. Each of the structs below (recursively)
-// recover the checkpointed state.
-struct State
+// NOTE: The *State structs (e.g., TaskState, RunState, etc) are
+// defined in reverse dependency order because many of them have
+// Option<*State> dependencies which means we need them declared in
+// their entirety in order to compile because things like
+// Option<*State> need to know the final size of the types.
+
+struct TaskState
 {
-  State() : errors(0) {}
+  TaskState () : errors(0) {}
 
-  Option<ResourcesState> resources;
-  Option<SlaveState> slave;
+  static Try<TaskState> recover(
+      const std::string& rootDir,
+      const SlaveID& slaveId,
+      const FrameworkID& frameworkId,
+      const ExecutorID& executorId,
+      const ContainerID& containerId,
+      const TaskID& taskId,
+      bool strict);
 
-  // TODO(jieyu): Consider using a vector of Option<Error> here so
-  // that we can print all the errors. This also applies to all the
-  // State structs below.
+  TaskID id;
+  Option<Task> info;
+  std::vector<StatusUpdate> updates;
+  hashset<UUID> acks;
+  unsigned int errors;
+};
+
+
+struct RunState
+{
+  RunState () : completed(false), errors(0) {}
+
+  static Try<RunState> recover(
+      const std::string& rootDir,
+      const SlaveID& slaveId,
+      const FrameworkID& frameworkId,
+      const ExecutorID& executorId,
+      const ContainerID& containerId,
+      bool strict);
+
+  Option<ContainerID> id;
+  hashmap<TaskID, TaskState> tasks;
+  Option<pid_t> forkedPid;
+  Option<process::UPID> libprocessPid;
+
+  // Executor terminated and all its updates acknowledged.
+  bool completed;
+
+  unsigned int errors;
+};
+
+
+struct ExecutorState
+{
+  ExecutorState () : errors(0) {}
+
+  static Try<ExecutorState> recover(
+      const std::string& rootDir,
+      const SlaveID& slaveId,
+      const FrameworkID& frameworkId,
+      const ExecutorID& executorId,
+      bool strict);
+
+  ExecutorID id;
+  Option<ExecutorInfo> info;
+  Option<ContainerID> latest;
+  hashmap<ContainerID, RunState> runs;
+  unsigned int errors;
+};
+
+
+struct FrameworkState
+{
+  FrameworkState () : errors(0) {}
+
+  static Try<FrameworkState> recover(
+      const std::string& rootDir,
+      const SlaveID& slaveId,
+      const FrameworkID& frameworkId,
+      bool strict);
+
+  FrameworkID id;
+  Option<FrameworkInfo> info;
+  Option<process::UPID> pid;
+  hashmap<ExecutorID, ExecutorState> executors;
   unsigned int errors;
 };
 
@@ -211,84 +285,18 @@ struct SlaveState
 };
 
 
-struct FrameworkState
+// The top level state. The members are child nodes in the tree. Each
+// child node (recursively) recovers the checkpointed state.
+struct State
 {
-  FrameworkState () : errors(0) {}
+  State() : errors(0) {}
 
-  static Try<FrameworkState> recover(
-      const std::string& rootDir,
-      const SlaveID& slaveId,
-      const FrameworkID& frameworkId,
-      bool strict);
+  Option<ResourcesState> resources;
+  Option<SlaveState> slave;
 
-  FrameworkID id;
-  Option<FrameworkInfo> info;
-  Option<process::UPID> pid;
-  hashmap<ExecutorID, ExecutorState> executors;
-  unsigned int errors;
-};
-
-
-struct ExecutorState
-{
-  ExecutorState () : errors(0) {}
-
-  static Try<ExecutorState> recover(
-      const std::string& rootDir,
-      const SlaveID& slaveId,
-      const FrameworkID& frameworkId,
-      const ExecutorID& executorId,
-      bool strict);
-
-  ExecutorID id;
-  Option<ExecutorInfo> info;
-  Option<ContainerID> latest;
-  hashmap<ContainerID, RunState> runs;
-  unsigned int errors;
-};
-
-
-struct RunState
-{
-  RunState () : completed(false), errors(0) {}
-
-  static Try<RunState> recover(
-      const std::string& rootDir,
-      const SlaveID& slaveId,
-      const FrameworkID& frameworkId,
-      const ExecutorID& executorId,
-      const ContainerID& containerId,
-      bool strict);
-
-  Option<ContainerID> id;
-  hashmap<TaskID, TaskState> tasks;
-  Option<pid_t> forkedPid;
-  Option<process::UPID> libprocessPid;
-
-  // Executor terminated and all its updates acknowledged.
-  bool completed;
-
-  unsigned int errors;
-};
-
-
-struct TaskState
-{
-  TaskState () : errors(0) {}
-
-  static Try<TaskState> recover(
-      const std::string& rootDir,
-      const SlaveID& slaveId,
-      const FrameworkID& frameworkId,
-      const ExecutorID& executorId,
-      const ContainerID& containerId,
-      const TaskID& taskId,
-      bool strict);
-
-  TaskID id;
-  Option<Task> info;
-  std::vector<StatusUpdate> updates;
-  hashset<UUID> acks;
+  // TODO(jieyu): Consider using a vector of Option<Error> here so
+  // that we can print all the errors. This also applies to all the
+  // State structs below.
   unsigned int errors;
 };
 
