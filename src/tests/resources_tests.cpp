@@ -1080,6 +1080,49 @@ TEST(DiskResourcesTest, FilterPersistentVolumes)
 }
 
 
+TEST(ResourcesOperationTest, ReserveResources)
+{
+  Resources unreservedCpus = Resources::parse("cpus:1").get();
+  Resources unreservedMem = Resources::parse("mem:512").get();
+
+  Resources unreserved = unreservedCpus + unreservedMem;
+
+  Resources reservedCpus1 =
+    unreservedCpus.flatten("role", createReservationInfo("principal"));
+
+  EXPECT_SOME_EQ(unreservedMem + reservedCpus1,
+                 unreserved.apply(RESERVE(reservedCpus1)));
+
+  // Check the case of insufficient unreserved resources.
+  Resources reservedCpus2 = createReservedResource(
+      "cpus", "2", "role", createReservationInfo("principal"));
+
+  EXPECT_ERROR(unreserved.apply(RESERVE(reservedCpus2)));
+}
+
+
+TEST(ResourcesOperationTest, UnreserveResources)
+{
+  Resources reservedCpus = createReservedResource(
+      "cpus", "1", "role", createReservationInfo("principal"));
+  Resources reservedMem = createReservedResource(
+      "mem", "512", "role", createReservationInfo("principal"));
+
+  Resources reserved = reservedCpus + reservedMem;
+
+  Resources unreservedCpus1 = reservedCpus.flatten();
+
+  EXPECT_SOME_EQ(reservedMem + unreservedCpus1,
+                 reserved.apply(UNRESERVE(reservedCpus)));
+
+  // Check the case of insufficient unreserved resources.
+  Resource reservedCpus2 = createReservedResource(
+      "cpus", "2", "role", createReservationInfo("principal"));
+
+  EXPECT_ERROR(reserved.apply(UNRESERVE(reservedCpus2)));
+}
+
+
 TEST(ResourcesOperationTest, CreatePersistentVolume)
 {
   Resources total = Resources::parse("cpus:1;mem:512;disk(role):1000").get();

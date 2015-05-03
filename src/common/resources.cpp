@@ -698,10 +698,57 @@ Try<Resources> Resources::apply(const Offer::Operation& operation) const
       // Launch operation does not alter the offered resources.
       break;
 
-    case Offer::Operation::RESERVE:
-    case Offer::Operation::UNRESERVE:
-      // TODO(mpark): Provide implementation.
-      return Error("Unimplemented");
+    case Offer::Operation::RESERVE: {
+      Option<Error> error = validate(operation.reserve().resources());
+      if (error.isSome()) {
+        return Error("Invalid RESERVE Operation: " + error.get().message);
+      }
+
+      foreach (const Resource& reserved, operation.reserve().resources()) {
+        if (!Resources::isReserved(reserved)) {
+          return Error("Invalid RESERVE Operation: Resource must be reserved");
+        } else if (!reserved.has_reservation()) {
+          return Error("Invalid RESERVE Operation: Missing 'reservation'");
+        }
+
+        Resources unreserved = Resources(reserved).flatten();
+
+        if (!result.contains(unreserved)) {
+          return Error("Invalid RESERVE Operation: " + stringify(result) +
+                       " does not contain " + stringify(unreserved));
+        }
+
+        result -= unreserved;
+        result += reserved;
+      }
+      break;
+    }
+
+    case Offer::Operation::UNRESERVE: {
+      Option<Error> error = validate(operation.unreserve().resources());
+      if (error.isSome()) {
+        return Error("Invalid UNRESERVE Operation: " + error.get().message);
+      }
+
+      foreach (const Resource& reserved, operation.unreserve().resources()) {
+        if (!Resources::isReserved(reserved)) {
+          return Error("Invalid UNRESERVE Operation: Resource is not reserved");
+        } else if (!reserved.has_reservation()) {
+          return Error("Invalid UNRESERVE Operation: Missing 'reservation'");
+        }
+
+        if (!result.contains(reserved)) {
+          return Error("Invalid UNRESERVE Operation: " + stringify(result) +
+                       " does not contain " + stringify(reserved));
+        }
+
+        Resources unreserved = Resources(reserved).flatten();
+
+        result -= reserved;
+        result += unreserved;
+      }
+      break;
+    }
 
     case Offer::Operation::CREATE: {
       Option<Error> error = validate(operation.create().volumes());
