@@ -113,8 +113,8 @@ message ContainerID {
  * automagically set it to the current hostname.
  * The principal field should match the credential the framework uses
  * in authentication. This field is used for framework API rate
- * exporting and limiting and should be set even if authentication is
- * not enabled if these features are desired.
+ * exporting/limiting and dynamic reservations. It should be set even
+ * if authentication is not enabled if these features are desired.
  * The webui_url field allows a framework to advertise its web UI, so
  * that the Mesos web UI can link to it. It is expected to be a full
  * URL, for example http://my-scheduler.example.com:8080/.
@@ -393,6 +393,28 @@ message Resource {
   optional Value.Ranges ranges = 4;
   optional Value.Set set = 5;
   optional string role = 6 [default = "*"];
+
+  message ReservationInfo {
+    // Describes a dynamic reservation. A dynamic reservation is
+    // acquired by an operator via the '/reserve' HTTP endpoint or by
+    // a framework via the offer cycle by sending back an
+    // 'Offer::Operation::Reserve' message.
+    // NOTE: We currently do not allow frameworks with role "*" to
+    // make dynamic reservations.
+
+    // This field indicates the principal of the operator or framework
+    // that reserved this resource. It is used in conjunction with the
+    // "unreserve" ACL to determine whether the entity attempting to
+    // unreserve this resource is permitted to do so.
+    // NOTE: This field should match the FrameworkInfo.principal of
+    // the framework that reserved this resource.
+    required string principal = 1;
+  }
+
+  // If this is set, this resource was dynamically reserved by an
+  // operator or a framework. Otherwise, this resource is either unreserved
+  // or statically reserved by an operator via the --resources flag.
+  optional ReservationInfo reservation = 8;
 
   message DiskInfo {
     // Describes a persistent disk volume.
