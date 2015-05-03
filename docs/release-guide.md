@@ -104,7 +104,7 @@ This guide describes the process of doing an official release of Mesos.
 ## Voting the release candidate
 
 1. Once a release candidate is deemed worthy to be officially released you should call a vote on
-   the `dev@meosos.apache.org` (and optionally `user@mesos.apache.org`) mailing list.
+   the `dev@mesos.apache.org` (and optionally `user@mesos.apache.org`) mailing list.
 
 2. It is recommended to use the `support/vote.sh` script to vote the release candidate.
 
