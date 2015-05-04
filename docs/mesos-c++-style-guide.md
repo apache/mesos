@@ -203,7 +203,7 @@ Try<Owned<LocalAuthorizer>> authorizer = LocalAuthorizer::create();
     Feel free to inline lambdas within function arguments:
 
     ```
-    socket.send([]() {
+    instance.method([]() {
       ...;
     });
     ```
