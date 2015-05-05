@@ -562,6 +562,12 @@ if test "x$CLANG" = "xno"; then
     # GCC < 4.8 is not supported.
     AC_MSG_ERROR([GCC 4.8 or higher is required for compiling Mesos])
   fi
+
+  # Disable 'maybe-uninitialized' warning when using 'enable-optimize'
+  # flag due to MESOS-2690.
+  if test "x$enable_optimize" = "xyes"; then
+    CXXFLAGS="${CXXFLAGS} -Wno-maybe-uninitialized"
+  fi
 else # CLANG=yes
   # Check if -Wno-unused-local-typedef is needed by checking a sample
   # compilation which contains a local unused typedef.
