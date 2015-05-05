@@ -112,6 +112,11 @@ bool operator == (const Resource& left, const Resource& right)
     return false;
   }
 
+  // Check RevocableInfo.
+  if (left.has_revocable() != right.has_revocable()) {
+    return false;
+  }
+
   if (left.type() == Value::SCALAR) {
     return left.scalar() == right.scalar();
   } else if (left.type() == Value::RANGES) {
@@ -167,6 +172,11 @@ static bool addable(const Resource& left, const Resource& right)
     return false;
   }
 
+  // Check RevocableInfo.
+  if (left.has_revocable() != right.has_revocable()) {
+    return false;
+  }
+
   return true;
 }
 
@@ -211,6 +221,11 @@ static bool subtractable(const Resource& left, const Resource& right)
     return false;
   }
 
+  // Check RevocableInfo.
+  if (left.has_revocable() != right.has_revocable()) {
+    return false;
+  }
+
   return true;
 }
 
@@ -219,8 +234,8 @@ static bool subtractable(const Resource& left, const Resource& right)
 static bool contains(const Resource& left, const Resource& right)
 {
   // NOTE: This is a necessary condition for 'contains'.
-  // 'subtractable' will verify name, role, type, ReservationInfo
-  // and DiskInfo compatibility.
+  // 'subtractable' will verify name, role, type, ReservationInfo,
+  // DiskInfo and RevocableInfo compatibility.
   if (!subtractable(left, right)) {
     return false;
   }
@@ -507,6 +522,11 @@ bool Resources::isDynamicallyReserved(const Resource& resource)
   return resource.has_reservation();
 }
 
+
+bool Resources::isRevocable(const Resource& resource)
+{
+  return resource.has_revocable();
+}
 
 /////////////////////////////////////////////////
 // Public member functions.

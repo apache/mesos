@@ -449,6 +449,16 @@ message Resource {
   }
 
   optional DiskInfo disk = 7;
+
+  message RevocableInfo {}
+
+  // If this is set, the resources are revocable, i.e., any tasks or
+  // executors launched using these resources could get preempted or
+  // throttled at any time. This could be used by frameworks to run
+  // best effort tasks that do not need strict uptime or performance
+  // guarantees. Note that if this is set, 'disk' or 'reservation'
+  // cannot be set.
+  optional RevocableInfo revocable = 9;
 }
 
 

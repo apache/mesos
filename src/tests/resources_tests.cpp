@@ -1147,6 +1147,104 @@ TEST(ResourcesOperationTest, CreatePersistentVolume)
   EXPECT_ERROR(total.apply(create2));
 }
 
+
+// Helper for creating a revocable resource.
+static Resource createRevocableResource(
+    const string& name,
+    const string& value,
+    const string& role,
+    bool revocable)
+{
+  Resource resource = Resources::parse(name, value, role).get();
+
+  if (revocable) {
+    resource.mutable_revocable();
+  }
+
+  return resource;
+}
+
+
+// This test verfies that revocable and non-revocable resources are
+// not considered equal.
+TEST(RevocableResourceTest, Equals)
+{
+  Resources resources1 = createRevocableResource("cpus", "1", "*", true);
+
+  Resources resources2 = resources1;
+  EXPECT_EQ(resources1, resources2);
+
+  Resources resources3 = createRevocableResource("cpus", "1", "*", false);
+  EXPECT_NE(resources1, resources3);
+}
+
+
+// This test verifies that adding revocable resources to revocable
+// resources will merge them but adding to non-revocable resources
+// will not merge.
+TEST(RevocableResourceTest, Addition)
+{
+  Resources r1 = createRevocableResource("cpus", "1", "*", true);
+  Resources r2 = createRevocableResource("cpus", "1", "*", true);
+  Resources r3 = createRevocableResource("cpus", "2", "*", true);
+
+  // Adding revocable resources will merge them.
+  EXPECT_EQ(r3, r1 + r2);
+
+  Resources r4 = createRevocableResource("cpus", "1", "*", true);
+  Resources r5 = createRevocableResource("cpus", "1", "*", false);
+  Resources r6 = createRevocableResource("cpus", "2", "*", false);
+
+  Resources sum = r4 + r5;
+
+  // Adding revocable and non-revocable resources will not merge them.
+  EXPECT_TRUE(sum.contains(r4));
+  EXPECT_TRUE(sum.contains(r5));
+  EXPECT_FALSE(sum.contains(r3));
+  EXPECT_FALSE(sum.contains(r6));
+}
+
+
+// This test verifies that subtracting revocable resources from
+// revocable resources will merge them but subtracting from
+// non-revocable resources will not merge.
+TEST(RevocableResourceTest, Subtraction)
+{
+  Resources r1 = createRevocableResource("cpus", "1", "*", true);
+  Resources r2 = createRevocableResource("cpus", "1", "*", true);
+
+  // Subtracting revocable resources will merge them.
+  EXPECT_TRUE((r1 - r2).empty());
+
+  Resources r3 = createRevocableResource("cpus", "1", "*", true);
+  Resources r4 = createRevocableResource("cpus", "1", "*", false);
+
+  // Subtracting non-revocable resources from revocable resources is
+  // a no-op.
+  EXPECT_EQ(r3, r3 - r4);
+  EXPECT_TRUE((r3 - r3).empty());
+}
+
+
+// This test verifies that adding revocable resources to revocable or
+// non-revocable resources respects the 'contains' logic.
+TEST(RevocableResourceTest, Contains)
+{
+  Resources r1 = createRevocableResource("cpus", "1", "*", true);
+  Resources r2 = createRevocableResource("cpus", "1", "*", true);
+
+  EXPECT_FALSE(r1.contains(r1 + r2));
+  EXPECT_FALSE(r2.contains(r1 + r2));
+  EXPECT_TRUE((r1 + r2).contains(r1));
+  EXPECT_TRUE((r1 + r2).contains(r2));
+  EXPECT_TRUE((r1 + r2).contains(r1 + r2));
+
+  Resources r3 = createRevocableResource("cpus", "1", "*", false);
+
+  EXPECT_TRUE((r1 + r3).contains(r1));
+  EXPECT_TRUE((r1 + r3).contains(r3));
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {

@@ -53,6 +53,27 @@ static bool invalid(char c)
 
 namespace resource {
 
+// Validates the ReservationInfos specified in the given resources (if
+// exist). Returns error if any ReservationInfo is found invalid or
+// unsupported.
+Option<Error> validateDynamicReservationInfo(
+    const RepeatedPtrField<Resource>& resources)
+{
+  foreach (const Resource& resource, resources) {
+    if (!Resources::isDynamicallyReserved(resource)) {
+      continue;
+    }
+
+    if (Resources::isRevocable(resource)) {
+      return Error(
+          "Dynamically reserved resource " + stringify(resource) +
+          " cannot be created from revocable resources");
+    }
+  }
+
+  return None();
+}
+
 
 // Validates the DiskInfos specified in the given resources (if
 // exist). Returns error if any DiskInfo is found invalid or
@@ -65,6 +86,10 @@ Option<Error> validateDiskInfo(const RepeatedPtrField<Resource>& resources)
     }
 
     if (resource.disk().has_persistence()) {
+      if (Resources::isRevocable(resource)) {
+        return Error(
+            "Persistent volumes cannot be created from revocable resources");
+      }
       if (Resources::isUnreserved(resource)) {
         return Error(
             "Persistent volumes cannot be created from unreserved resources");
@@ -147,6 +172,11 @@ Option<Error> validate(const RepeatedPtrField<Resource>& resources)
   error = validateDiskInfo(resources);
   if (error.isSome()) {
     return Error("Invalid DiskInfo: " + error.get().message);
+  }
+
+  error = validateDynamicReservationInfo(resources);
+  if (error.isSome()) {
+      return Error("Invalid ReservationInfo: " + error.get().message);
   }
 
   return None();

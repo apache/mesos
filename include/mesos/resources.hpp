@@ -117,6 +117,9 @@ public:
   // Tests if the given Resource object is dynamically reserved.
   static bool isDynamicallyReserved(const Resource& resource);
 
+  // Tests if the given Resource object is revocable.
+  static bool isRevocable(const Resource& resource);
+
   // Returns the summed up Resources given a hashmap<Key, Resources>.
   //
   // NOTE: While scalar resources such as "cpus" sum correctly,

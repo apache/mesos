@@ -93,6 +93,16 @@ TEST_F(ResourceValidationTest, DynamicReservation)
 }
 
 
+TEST_F(ResourceValidationTest, RevocableDynamicReservation)
+{
+  Resource resource = Resources::parse("cpus", "8", "role").get();
+  resource.mutable_reservation()->CopyFrom(createReservationInfo("principal"));
+  resource.mutable_revocable();
+
+  EXPECT_SOME(resource::validate(CreateResources(resource)));
+}
+
+
 TEST_F(ResourceValidationTest, InvalidRoleReservationPair)
 {
   Resource resource = Resources::parse("cpus", "8", "*").get();
@@ -161,6 +171,16 @@ TEST_F(ResourceValidationTest, NonPersistentVolume)
 {
   Resource volume = Resources::parse("disk", "128", "role1").get();
   volume.mutable_disk()->CopyFrom(createDiskInfo(None(), "path1"));
+
+  EXPECT_SOME(resource::validate(CreateResources(volume)));
+}
+
+
+TEST_F(ResourceValidationTest, RevocablePersistentVolume)
+{
+  Resource volume = Resources::parse("disk", "128", "role1").get();
+  volume.mutable_disk()->CopyFrom(createDiskInfo("id1", "path1"));
+  volume.mutable_revocable();
 
   EXPECT_SOME(resource::validate(CreateResources(volume)));
 }
