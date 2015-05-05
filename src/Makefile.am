@@ -1427,12 +1427,12 @@ mesos_tests_SOURCES =				\
   tests/resources_tests.cpp			\
   tests/scheduler_tests.cpp			\
   tests/script.cpp				\
-  tests/shutdown_tests.cpp			\
   tests/slave_recovery_tests.cpp		\
   tests/slave_tests.cpp				\
   tests/sorter_tests.cpp			\
   tests/state_tests.cpp				\
   tests/status_update_manager_tests.cpp		\
+  tests/teardown_tests.cpp			\
   tests/utils.cpp				\
   tests/values_tests.cpp			\
   tests/zookeeper_url_tests.cpp

@@ -61,14 +61,14 @@ namespace internal {
 namespace tests {
 
 
-class ShutdownTest : public MesosTest {};
+class TeardownTest : public MesosTest {};
 
 
-// Testing /master/shutdown so this endopoint  shuts down
+// Testing /master/teardown so this endopoint  shuts down
 // designated framework or return adequate error.
 
 // Testing route with authorization header and good credentials.
-TEST_F(ShutdownTest, ShutdownEndpoint)
+TEST_F(TeardownTest, TeardownEndpoint)
 {
   Try<PID<Master> > master = StartMaster();
   ASSERT_SOME(master);
@@ -92,7 +92,7 @@ TEST_F(ShutdownTest, ShutdownEndpoint)
 
   Future<Response> response = process::http::post(
       master.get(),
-      "shutdown",
+      "teardown",
       headers,
       "frameworkId=" + frameworkId.get().value());
 
@@ -107,7 +107,7 @@ TEST_F(ShutdownTest, ShutdownEndpoint)
 
 
 // Testing route with bad credentials.
-TEST_F(ShutdownTest, ShutdownEndpointBadCredentials)
+TEST_F(TeardownTest, TeardownEndpointBadCredentials)
 {
   Try<PID<Master> > master = StartMaster();
   ASSERT_SOME(master);
@@ -130,7 +130,7 @@ TEST_F(ShutdownTest, ShutdownEndpointBadCredentials)
 
   Future<Response> response = process::http::post(
       master.get(),
-      "shutdown",
+      "teardown",
       headers,
       "frameworkId=" + frameworkId.get().value());
 
@@ -147,9 +147,9 @@ TEST_F(ShutdownTest, ShutdownEndpointBadCredentials)
 
 
 // Testing route with good ACLs.
-TEST_F(ShutdownTest, ShutdownEndpointGoodACLs)
+TEST_F(TeardownTest, TeardownEndpointGoodACLs)
 {
-  // Setup ACLs so that the default principal can shutdown the
+  // Setup ACLs so that the default principal can teardown the
   // framework.
   ACLs acls;
   mesos::ACL::ShutdownFramework* acl = acls.add_shutdown_frameworks();
@@ -181,7 +181,7 @@ TEST_F(ShutdownTest, ShutdownEndpointGoodACLs)
 
   Future<Response> response = process::http::post(
       master.get(),
-      "shutdown",
+      "teardown",
       headers,
       "frameworkId=" + frameworkId.get().value());
 
@@ -196,9 +196,9 @@ TEST_F(ShutdownTest, ShutdownEndpointGoodACLs)
 
 
 // Testing route with bad ACLs.
-TEST_F(ShutdownTest, ShutdownEndpointBadACLs)
+TEST_F(TeardownTest, TeardownEndpointBadACLs)
 {
-  // Setup ACLs so that no principal can do shutdown the framework.
+  // Setup ACLs so that no principal can do teardown the framework.
   ACLs acls;
   mesos::ACL::ShutdownFramework* acl = acls.add_shutdown_frameworks();
   acl->mutable_principals()->set_type(mesos::ACL::Entity::NONE);
@@ -229,7 +229,7 @@ TEST_F(ShutdownTest, ShutdownEndpointBadACLs)
 
   Future<Response> response = process::http::post(
       master.get(),
-      "shutdown",
+      "teardown",
       headers,
       "frameworkId=" + frameworkId.get().value());
 
@@ -246,7 +246,7 @@ TEST_F(ShutdownTest, ShutdownEndpointBadACLs)
 
 
 // Testing route without frameworkId value.
-TEST_F(ShutdownTest, ShutdownEndpointNoFrameworkId)
+TEST_F(TeardownTest, TeardownEndpointNoFrameworkId)
 {
   Try<PID<Master> > master = StartMaster();
   ASSERT_SOME(master);
@@ -266,7 +266,7 @@ TEST_F(ShutdownTest, ShutdownEndpointNoFrameworkId)
   headers["Authorization"] = "Basic " +
     base64::encode("badPrincipal:badSecret");
   Future<Response> response =
-    process::http::post(master.get(), "shutdown", headers, "");
+    process::http::post(master.get(), "teardown", headers, "");
   AWAIT_READY(response);
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response);
 
@@ -278,7 +278,7 @@ TEST_F(ShutdownTest, ShutdownEndpointNoFrameworkId)
 
 
 // Testing route without authorization header.
-TEST_F(ShutdownTest, ShutdownEndpointNoHeader)
+TEST_F(TeardownTest, TeardownEndpointNoHeader)
 {
   Try<PID<Master> > master = StartMaster();
   ASSERT_SOME(master);
@@ -297,7 +297,7 @@ TEST_F(ShutdownTest, ShutdownEndpointNoHeader)
 
   Future<Response> response = process::http::post(
       master.get(),
-      "shutdown",
+      "teardown",
       None(),
       "frameworkId=" + frameworkId.get().value());
 
