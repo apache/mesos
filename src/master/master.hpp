@@ -497,8 +497,8 @@ private:
     process::Future<process::http::Response> roles(
         const process::http::Request& request) const;
 
-    // /master/shutdown
-    process::Future<process::http::Response> shutdown(
+    // /master/teardown and /master/shutdown (deprecated).
+    process::Future<process::http::Response> teardown(
         const process::http::Request& request) const;
 
     // /master/slaves
@@ -520,7 +520,8 @@ private:
     const static std::string HEALTH_HELP;
     const static std::string OBSERVE_HELP;
     const static std::string REDIRECT_HELP;
-    const static std::string SHUTDOWN_HELP;
+    const static std::string SHUTDOWN_HELP;  // Deprecated.
+    const static std::string TEARDOWN_HELP;
     const static std::string SLAVES_HELP;
     const static std::string TASKS_HELP;
 
@@ -532,7 +533,7 @@ private:
         const process::http::Request& request) const;
 
     // Continuations.
-    process::Future<process::http::Response> _shutdown(
+    process::Future<process::http::Response> _teardown(
         const FrameworkID& id,
         bool authorized = true) const;
 

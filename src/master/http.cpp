@@ -862,16 +862,30 @@ Future<Response> Master::Http::roles(const Request& request) const
 
 const string Master::Http::SHUTDOWN_HELP = HELP(
     TLDR(
-        "Shuts down a running framework."),
+        "Shuts down a running framework by shutting down all tasks/executors "
+        "and removing the framework."),
     USAGE(
         "/master/shutdown"),
     DESCRIPTION(
-        "Please provide a \"frameworkId\" value designating the ",
-        "running framework to shut down.",
+        "NOTE: This endpoint is deprecated in favor of /master/teardown.",
+        "Please provide a \"frameworkId\" value designating the running "
+        "framework to shut down.",
         "Returns 200 OK if the framework was correctly shutdown."));
 
 
-Future<Response> Master::Http::shutdown(const Request& request) const
+const string Master::Http::TEARDOWN_HELP = HELP(
+    TLDR(
+        "Tears down a running framework by shutting down all tasks/executors "
+        "and removing the framework."),
+    USAGE(
+        "/master/teardown"),
+    DESCRIPTION(
+        "Please provide a \"frameworkId\" value designating the running "
+        "framework to tear down.",
+        "Returns 200 OK if the framework was correctly teared down."));
+
+
+Future<Response> Master::Http::teardown(const Request& request) const
 {
   if (request.method != "POST") {
     return BadRequest("Expecting POST");
@@ -909,7 +923,7 @@ Future<Response> Master::Http::shutdown(const Request& request) const
 
   // Skip authorization if no ACLs were provided to the master.
   if (master->authorizer.isNone()) {
-    return _shutdown(id);
+    return _teardown(id);
   }
 
   mesos::ACL::ShutdownFramework shutdown;
@@ -927,15 +941,15 @@ Future<Response> Master::Http::shutdown(const Request& request) const
     shutdown.mutable_framework_principals()->set_type(ACL::Entity::ANY);
   }
 
-  lambda::function<Future<Response>(bool)> _shutdown =
-    lambda::bind(&Master::Http::_shutdown, this, id, lambda::_1);
+  lambda::function<Future<Response>(bool)> _teardown =
+    lambda::bind(&Master::Http::_teardown, this, id, lambda::_1);
 
   return master->authorizer.get()->authorize(shutdown)
-    .then(defer(master->self(), _shutdown));
+    .then(defer(master->self(), _teardown));
 }
 
 
-Future<Response> Master::Http::_shutdown(
+Future<Response> Master::Http::_teardown(
     const FrameworkID& id,
     bool authorized) const
 {
