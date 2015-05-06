@@ -436,4 +436,8 @@ mesos::internal::slave::Flags::Flags()
       "hooks",
       "A comma separated list of hook modules to be\n"
       "installed inside the slave.");
+
+  add(&Flags::resource_estimator,
+      "resource_estimator",
+      "The name of the resource estimator to use for oversubscription.");
 }

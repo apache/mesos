@@ -543,17 +543,10 @@ TEST_F(SlaveTest, ComamndTaskWithArguments)
 // mesos-executor forking. For more details of this see MESOS-1873.
 TEST_F(SlaveTest, GetExecutorInfo)
 {
-  // Create a thin dummy Slave to access underlying getExecutorInfo().
-  // Testing this method should not necessarily require an integration
-  // test as with most other methods here.
-  slave::Flags flags = CreateSlaveFlags();
   TestContainerizer containerizer;
   StandaloneMasterDetector detector;
-  Files files;
-  slave::StatusUpdateManager updateManager(flags);
 
-  slave::GarbageCollector gc;
-  Slave slave(flags, &detector, &containerizer, &files, &gc, &updateManager);
+  MockSlave slave(CreateSlaveFlags(), &detector, &containerizer);
 
   FrameworkID frameworkId;
   frameworkId.set_value("20141010-221431-251662764-60288-32120-0000");
@@ -584,6 +577,7 @@ TEST_F(SlaveTest, GetExecutorInfo)
   EXPECT_EQ(0, executor.command().arguments_size());
   EXPECT_NE(string::npos, executor.command().value().find("mesos-executor"));
 }
+
 
 // This test runs a command without the command user field set. The
 // command will verify the assumption that the command is run as the

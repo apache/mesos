@@ -19,11 +19,15 @@
 #ifndef __MESOS_SLAVE_RESOURCE_ESTIMATOR_HPP__
 #define __MESOS_SLAVE_RESOURCE_ESTIMATOR_HPP__
 
+#include <string>
+
 #include <mesos/resources.hpp>
 
 #include <process/future.hpp>
 
+#include <stout/none.hpp>
 #include <stout/nothing.hpp>
+#include <stout/option.hpp>
 #include <stout/try.hpp>
 
 namespace mesos {
@@ -35,6 +39,11 @@ namespace slave {
 class ResourceEstimator
 {
 public:
+  // Create a resource estimator instance of the given type specified
+  // by the user. If the type is not specified, a default resource
+  // estimator instance will be created.
+  static Try<ResourceEstimator*> create(const Option<std::string>& type);
+
   virtual ~ResourceEstimator() {}
 
   // Initializes this resource estimator. This method needs to be

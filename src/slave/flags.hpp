@@ -97,6 +97,7 @@ public:
   Option<Modules> modules;
   std::string authenticatee;
   Option<std::string> hooks;
+  Option<std::string> resource_estimator;
 };
 
 } // namespace slave {

@@ -174,6 +174,11 @@ protected:
       MasterDetector* detector,
       const Option<slave::Flags>& flags = None());
 
+  // Starts a slave with the specified resource estimator and flags.
+  virtual Try<process::PID<slave::Slave>> StartSlave(
+      mesos::slave::ResourceEstimator* resourceEstimator,
+      const Option<slave::Flags>& flags = None());
+
   // Stop the specified master.
   virtual void Stop(
       const process::PID<master::Master>& pid);
@@ -694,6 +699,31 @@ public:
 };
 
 
+class MockResourceEstimator : public mesos::slave::ResourceEstimator
+{
+public:
+  MockResourceEstimator()
+  {
+    // NOTE: We use 'EXPECT_CALL' and 'WillRepeatedly' here instead of
+    // 'ON_CALL' and 'WillByDefault'. See 'TestContainerizer::SetUp()'
+    // for more details.
+    EXPECT_CALL(*this, initialize())
+      .WillRepeatedly(Return(Nothing()));
+
+    EXPECT_CALL(*this, oversubscribed())
+      .WillRepeatedly(Return(Resources()));
+  }
+
+  MOCK_METHOD0(
+      initialize,
+      Try<Nothing>());
+
+  MOCK_METHOD0(
+      oversubscribed,
+      process::Future<Resources>());
+};
+
+
 // Definition of a mock Slave to be used in tests with gmock, covering
 // potential races between runTask and killTask.
 class MockSlave : public slave::Slave
@@ -757,6 +787,7 @@ public:
 private:
   Files files;
   MockGarbageCollector gc;
+  MockResourceEstimator resourceEstimator;
   slave::StatusUpdateManager* statusUpdateManager;
 };
 

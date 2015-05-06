@@ -70,6 +70,7 @@
 
 #include "slave/flags.hpp"
 #include "slave/gc.hpp"
+#include "slave/resource_estimator.hpp"
 #include "slave/slave.hpp"
 #include "slave/status_update_manager.hpp"
 
@@ -169,7 +170,8 @@ public:
         const Option<slave::Containerizer*>& containerizer = None(),
         const Option<MasterDetector*>& detector = None(),
         const Option<slave::GarbageCollector*>& gc = None(),
-        const Option<slave::StatusUpdateManager*>& statusUpdateManager =
+        const Option<slave::StatusUpdateManager*>& statusUpdateManager = None(),
+        const Option<mesos::slave::ResourceEstimator*>& resourceEstimator =
           None());
 
     // Stops and cleans up a slave at the specified PID. If 'shutdown'
@@ -198,6 +200,7 @@ public:
       slave::Containerizer* containerizer;
       bool createdContainerizer; // Whether we own the containerizer.
 
+      process::Owned<mesos::slave::ResourceEstimator> resourceEstimator;
       process::Owned<slave::Fetcher> fetcher;
       process::Owned<slave::StatusUpdateManager> statusUpdateManager;
       process::Owned<slave::GarbageCollector> gc;
@@ -530,7 +533,8 @@ inline Try<process::PID<slave::Slave>> Cluster::Slaves::start(
     const Option<slave::Containerizer*>& containerizer,
     const Option<MasterDetector*>& detector,
     const Option<slave::GarbageCollector*>& gc,
-    const Option<slave::StatusUpdateManager*>& statusUpdateManager)
+    const Option<slave::StatusUpdateManager*>& statusUpdateManager,
+    const Option<mesos::slave::ResourceEstimator*>& resourceEstimator)
 {
   // TODO(benh): Create a work directory if using the default.
 
@@ -549,6 +553,14 @@ inline Try<process::PID<slave::Slave>> Cluster::Slaves::start(
 
     slave.containerizer = containerizer.get();
     slave.createdContainerizer = true;
+  }
+
+  if (resourceEstimator.isNone()) {
+    Try<mesos::slave::ResourceEstimator*> _resourceEstimator =
+      mesos::slave::ResourceEstimator::create(flags.resource_estimator);
+
+    CHECK_SOME(_resourceEstimator);
+    slave.resourceEstimator.reset(_resourceEstimator.get());
   }
 
   // Get a detector for the master(s) if one wasn't provided.
@@ -574,7 +586,8 @@ inline Try<process::PID<slave::Slave>> Cluster::Slaves::start(
       slave.containerizer,
       &cluster->files,
       gc.get(slave.gc.get()),
-      statusUpdateManager.get(slave.statusUpdateManager.get()));
+      statusUpdateManager.get(slave.statusUpdateManager.get()),
+      resourceEstimator.get(slave.resourceEstimator.get()));
 
   process::PID<slave::Slave> pid = process::spawn(slave.slave);
 

@@ -1418,6 +1418,7 @@ mesos_tests_SOURCES =				\
   tests/module.cpp				\
   tests/module_tests.cpp			\
   tests/monitor_tests.cpp			\
+  tests/oversubscription_tests.cpp		\
   tests/partition_tests.cpp			\
   tests/paths_tests.cpp				\
   tests/persistent_volume_tests.cpp		\

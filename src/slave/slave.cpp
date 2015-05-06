@@ -87,6 +87,8 @@
 #include "slave/slave.hpp"
 #include "slave/status_update_manager.hpp"
 
+using mesos::slave::ResourceEstimator;
+
 using std::list;
 using std::map;
 using std::set;
@@ -115,7 +117,8 @@ Slave::Slave(const slave::Flags& _flags,
              Containerizer* _containerizer,
              Files* _files,
              GarbageCollector* _gc,
-             StatusUpdateManager* _statusUpdateManager)
+             StatusUpdateManager* _statusUpdateManager,
+             ResourceEstimator* _resourceEstimator)
   : ProcessBase(process::ID::generate("slave")),
     state(RECOVERING),
     flags(_flags),
@@ -134,7 +137,8 @@ Slave::Slave(const slave::Flags& _flags,
     authenticating(None()),
     authenticated(false),
     reauthenticate(false),
-    executorDirectoryMaxAllowedAge(age(0)) {}
+    executorDirectoryMaxAllowedAge(age(0)),
+    resourceEstimator(_resourceEstimator) {}
 
 
 Slave::~Slave()
@@ -317,6 +321,13 @@ void Slave::initialize()
   if ((flags.gc_disk_headroom < 0) || (flags.gc_disk_headroom > 1)) {
     EXIT(1) << "Invalid value '" << flags.gc_disk_headroom
             << "' for --gc_disk_headroom. Must be between 0.0 and 1.0.";
+  }
+
+  // TODO(jieyu): Pass ResourceMonitor* to 'initialize'.
+  Try<Nothing> initialize = resourceEstimator->initialize();
+  if (initialize.isError()) {
+    EXIT(1) << "Failed to initialize the resource estimator: "
+            << initialize.error();
   }
 
   // Ensure slave work directory exists.
@@ -3967,6 +3978,9 @@ void Slave::__recover(const Future<Nothing>& future)
   if (flags.recover == "reconnect") {
     state = DISCONNECTED;
 
+    // Start to detect available oversubscribed resources.
+    updateOversubscribedResources();
+
     // Start detecting masters.
     detection = detector->detect()
       .onAny(defer(self(), &Slave::detected, lambda::_1));
@@ -4053,6 +4067,48 @@ Future<Nothing> Slave::garbageCollect(const string& path)
   Duration delay = flags.gc_delay - (Clock::now() - time.get());
 
   return gc->schedule(delay, path);
+}
+
+
+void Slave::updateOversubscribedResources()
+{
+  // TODO(jieyu): Consider switching to a push model in which the
+  // slave registers a callback with the resource estimator, and the
+  // resource estimator invokes the callback whenever a new estimation
+  // is ready (similar to the allocator/master interface).
+
+  if (state != RUNNING) {
+    delay(Seconds(1), self(), &Self::updateOversubscribedResources);
+    return;
+  }
+
+  resourceEstimator->oversubscribed()
+    .onAny(defer(self(), &Slave::_updateOversubscribedResources, lambda::_1));
+}
+
+
+void Slave::_updateOversubscribedResources(const Future<Resources>& future)
+{
+  if (!future.isReady()) {
+    LOG(ERROR) << "Failed to estimate oversubscribed resources: "
+               << (future.isFailed() ? future.failure() : "discarded");
+  } else if (state == RUNNING) {
+    CHECK_SOME(master);
+
+    LOG(INFO) << "Updating available oversubscribed resources to "
+              << future.get();
+
+    UpdateOversubscribedResourcesMessage message;
+    message.mutable_slave_id()->CopyFrom(info.id());
+    message.mutable_resources()->CopyFrom(future.get());
+
+    send(master.get(), message);
+  }
+
+  // TODO(jieyu): Consider making the interval configurable.
+  delay(UPDATE_OVERSUBSCRIBED_RESOURCES_INTERVAL_MIN(),
+        self(),
+        &Self::updateOversubscribedResources);
 }
 
 

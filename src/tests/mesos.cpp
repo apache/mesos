@@ -302,7 +302,7 @@ Try<PID<slave::Slave>> MesosTest::StartSlave(
 
   Try<PID<slave::Slave>> pid = cluster.slaves.start(
       flags.isNone() ? CreateSlaveFlags() : flags.get(),
-          containerizer,
+      containerizer,
       detector);
 
   if (pid.isError()) {
@@ -313,6 +313,20 @@ Try<PID<slave::Slave>> MesosTest::StartSlave(
   containerizers[pid.get()] = containerizer;
 
   return pid;
+}
+
+
+Try<PID<slave::Slave>> MesosTest::StartSlave(
+    mesos::slave::ResourceEstimator* resourceEstimator,
+    const Option<slave::Flags>& flags)
+{
+  return cluster.slaves.start(
+      flags.isNone() ? CreateSlaveFlags() : flags.get(),
+      None(),
+      None(),
+      None(),
+      None(),
+      resourceEstimator);
 }
 
 
@@ -366,7 +380,8 @@ MockSlave::MockSlave(const slave::Flags& flags,
       containerizer,
       &files,
       &gc,
-      statusUpdateManager = new slave::StatusUpdateManager(flags))
+      statusUpdateManager = new slave::StatusUpdateManager(flags),
+      &resourceEstimator)
 {
   // Set up default behaviors, calling the original methods.
   EXPECT_CALL(*this, runTask(_, _, _, _, _))

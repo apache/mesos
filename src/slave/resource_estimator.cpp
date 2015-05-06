@@ -25,6 +25,25 @@
 
 using namespace process;
 
+using std::string;
+
+namespace mesos {
+namespace slave {
+
+Try<ResourceEstimator*> ResourceEstimator::create(const Option<string>& type)
+{
+  // TODO(jieyu): Support loading resource estimator from module.
+  if (type.isNone()) {
+    return new internal::slave::NoopResourceEstimator();
+  }
+
+  return Error("Unsupported resource estimator '" + type.get() + "'");
+}
+
+} // namespace slave {
+} // namespace mesos {
+
+
 namespace mesos {
 namespace internal {
 namespace slave {

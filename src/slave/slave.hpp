@@ -33,6 +33,8 @@
 
 #include <mesos/module/authenticatee.hpp>
 
+#include <mesos/slave/resource_estimator.hpp>
+
 #include <process/http.hpp>
 #include <process/future.hpp>
 #include <process/owned.hpp>
@@ -88,7 +90,8 @@ public:
         Containerizer* containerizer,
         Files* files,
         GarbageCollector* gc,
-        StatusUpdateManager* statusUpdateManager);
+        StatusUpdateManager* statusUpdateManager,
+        mesos::slave::ResourceEstimator* resourceEstimator);
 
   virtual ~Slave();
 
@@ -430,6 +433,11 @@ private:
       const FrameworkID& frameworkId,
       const Executor* executor);
 
+  // Polls oversubscribed resources estimations from resources
+  // estimator and forwards estimations to the master.
+  void updateOversubscribedResources();
+  void _updateOversubscribedResources(const process::Future<Resources>& future);
+
   const Flags flags;
 
   SlaveInfo info;
@@ -458,6 +466,7 @@ private:
   process::Time startTime;
 
   GarbageCollector* gc;
+
   ResourceMonitor monitor;
 
   StatusUpdateManager* statusUpdateManager;
@@ -498,6 +507,8 @@ private:
   // Maximum age of executor directories. Will be recomputed
   // periodically every flags.disk_watch_interval.
   Duration executorDirectoryMaxAllowedAge;
+
+  mesos::slave::ResourceEstimator* resourceEstimator;
 };
 
 

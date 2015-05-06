@@ -42,6 +42,7 @@
 #include "module/manager.hpp"
 
 #include "slave/gc.hpp"
+#include "slave/resource_estimator.hpp"
 #include "slave/slave.hpp"
 #include "slave/status_update_manager.hpp"
 
@@ -50,6 +51,8 @@ using namespace mesos::internal::slave;
 
 using mesos::modules::Anonymous;
 using mesos::modules::ModuleManager;
+
+using mesos::slave::ResourceEstimator;
 
 using mesos::SlaveInfo;
 
@@ -203,18 +206,29 @@ int main(int argc, char** argv)
   GarbageCollector gc;
   StatusUpdateManager statusUpdateManager(flags);
 
+  Try<ResourceEstimator*> resourceEstimator =
+    ResourceEstimator::create(flags.resource_estimator);
+
+  if (resourceEstimator.isError()) {
+    EXIT(1) << "Failed to create resource estimator: "
+            << resourceEstimator.error();
+  }
+
   Slave* slave = new Slave(
       flags,
       detector.get(),
       containerizer.get(),
       &files,
       &gc,
-      &statusUpdateManager);
+      &statusUpdateManager,
+      resourceEstimator.get());
 
   process::spawn(slave);
   process::wait(slave->self());
 
   delete slave;
+
+  delete resourceEstimator.get();
 
   delete detector.get();
 

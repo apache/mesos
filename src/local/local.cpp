@@ -60,6 +60,7 @@
 #include "module/manager.hpp"
 
 #include "slave/gc.hpp"
+#include "slave/resource_estimator.hpp"
 #include "slave/slave.hpp"
 #include "slave/status_update_manager.hpp"
 
@@ -90,6 +91,8 @@ using mesos::internal::slave::StatusUpdateManager;
 
 using mesos::modules::Anonymous;
 using mesos::modules::ModuleManager;
+
+using mesos::slave::ResourceEstimator;
 
 using process::Owned;
 using process::PID;
@@ -123,6 +126,7 @@ static Files* files = NULL;
 static vector<GarbageCollector*>* garbageCollectors = NULL;
 static vector<StatusUpdateManager*>* statusUpdateManagers = NULL;
 static vector<Fetcher*>* fetchers = NULL;
+static vector<ResourceEstimator*>* resourceEstimators = NULL;
 
 
 PID<Master> launch(const Flags& flags, Allocator* _allocator)
@@ -287,6 +291,7 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
   garbageCollectors = new vector<GarbageCollector*>();
   statusUpdateManagers = new vector<StatusUpdateManager*>();
   fetchers = new vector<Fetcher*>();
+  resourceEstimators = new vector<ResourceEstimator*>();
 
   vector<UPID> pids;
 
@@ -306,6 +311,16 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
     statusUpdateManagers->push_back(new StatusUpdateManager(flags));
     fetchers->push_back(new Fetcher());
 
+    Try<ResourceEstimator*> resourceEstimator =
+      ResourceEstimator::create(flags.resource_estimator);
+
+    if (resourceEstimator.isError()) {
+      EXIT(1) << "Failed to create resource estimator: "
+              << resourceEstimator.error();
+    }
+
+    resourceEstimators->push_back(resourceEstimator.get());
+
     Try<Containerizer*> containerizer =
       Containerizer::create(flags, true, fetchers->back());
 
@@ -321,7 +336,8 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
         containerizer.get(),
         files,
         garbageCollectors->back(),
-        statusUpdateManagers->back());
+        statusUpdateManagers->back(),
+        resourceEstimators->back());
 
     slaves[containerizer.get()] = slave;
 
@@ -390,6 +406,13 @@ void shutdown()
 
     delete fetchers;
     fetchers = NULL;
+
+    foreach (ResourceEstimator* estimator, *resourceEstimators) {
+      delete estimator;
+    }
+
+    delete resourceEstimators;
+    resourceEstimators = NULL;
 
     delete registrar;
     registrar = NULL;
