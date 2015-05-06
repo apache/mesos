@@ -102,9 +102,14 @@ public:
         task.mutable_command()->set_value("echo hello");
 
         // Use Docker to run the task.
-        CommandInfo::ContainerInfo* container =
-          task.mutable_command()->mutable_container();
-        container->set_image("docker:///busybox");
+        ContainerInfo containerInfo;
+        containerInfo.set_type(ContainerInfo::DOCKER);
+
+        ContainerInfo::DockerInfo dockerInfo;
+        dockerInfo.set_image("busybox");
+
+        containerInfo.mutable_docker()->CopyFrom(dockerInfo);
+        task.mutable_container()->CopyFrom(containerInfo);
 
         Resource* resource;
 
