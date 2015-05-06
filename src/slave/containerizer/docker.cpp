@@ -632,8 +632,7 @@ Future<bool> DockerContainerizerProcess::launch(
     .then(defer(self(), &Self::_launch, containerId))
     .then(defer(self(), &Self::__launch, containerId))
     .then(defer(self(), &Self::___launch, containerId))
-    .then(defer(self(), &Self::______launch, containerId, lambda::_1))
-    .onFailed(defer(self(), &Self::destroy, containerId, true));
+    .then(defer(self(), &Self::______launch, containerId, lambda::_1));
 }
 
 
@@ -806,8 +805,7 @@ Future<bool> DockerContainerizerProcess::launch(
     .then(defer(self(), &Self::__launch, containerId))
     .then(defer(self(), &Self::____launch, containerId))
     .then(defer(self(), &Self::_____launch, containerId, lambda::_1))
-    .then(defer(self(), &Self::______launch, containerId, lambda::_1))
-    .onFailed(defer(self(), &Self::destroy, containerId, true));
+    .then(defer(self(), &Self::______launch, containerId, lambda::_1));
 }
 
 
@@ -1187,10 +1185,8 @@ void DockerContainerizerProcess::destroy(
   if (container->run.isFailed()) {
     VLOG(1) << "Container '" << containerId << "' run failed";
 
-    // This means we failed to do Docker::run and we're trying to
-    // cleanup (or someone happens to have asked to destroy this
-    // container before the destroy that we enqueued has had a chance
-    // to get executed, which when it does, will just be skipped).
+    // This means we failed to launch the container and we're trying to
+    // cleanup.
     CHECK_PENDING(container->status.future());
     containerizer::Termination termination;
     termination.set_killed(killed);

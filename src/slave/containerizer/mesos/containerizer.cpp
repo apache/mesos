@@ -497,7 +497,7 @@ void MesosContainerizerProcess::___recover(
 //    been isolated.
 // 3. Isolate the executor. Call isolate with the pid for each isolator.
 // 4. Fetch the executor.
-// 4. Exec the executor. The forked child is signalled to continue. It will
+// 5. Exec the executor. The forked child is signalled to continue. It will
 //    first execute any preparation commands from isolators and then exec the
 //    executor.
 Future<bool> MesosContainerizerProcess::launch(
@@ -564,26 +564,7 @@ Future<bool> MesosContainerizerProcess::launch(
                 slaveId,
                 slavePid,
                 checkpoint,
-                lambda::_1))
-    .onFailed(defer(self(),
-                    &Self::__launch,
-                    containerId,
-                    executorInfo,
-                    lambda::_1));
-}
-
-
-void MesosContainerizerProcess::__launch(
-    const ContainerID& containerId,
-    const ExecutorInfo& executorInfo,
-    const string& failure)
-{
-  LOG(ERROR) << "Failed to launch container '" << containerId
-             << "' for executor '" << executorInfo.executor_id()
-             << "' of framework '" << executorInfo.framework_id()
-             << "': " << failure;
-
-  destroy(containerId, false);
+                lambda::_1));
 }
 
 

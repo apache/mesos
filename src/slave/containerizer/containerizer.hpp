@@ -121,8 +121,8 @@ public:
 
   // Destroy a running container, killing all processes and releasing all
   // resources.
-  // NOTE: Containerizers will automatically destroy containers on executor
-  // termination and manual destruction is not necessary. See wait().
+  // NOTE: You cannot wait() on containers that have been destroyed, so you
+  // should always call wait() before destroy().
   virtual void destroy(const ContainerID& containerId) = 0;
 
   virtual process::Future<hashset<ContainerID>> containers() = 0;

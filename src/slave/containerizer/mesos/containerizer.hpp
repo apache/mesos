@@ -196,11 +196,6 @@ private:
       bool checkpoint,
       const std::list<Option<CommandInfo>>& scripts);
 
-  void __launch(
-      const ContainerID& containerId,
-      const ExecutorInfo& executorInfo,
-      const std::string& failure);
-
   process::Future<bool> isolate(
       const ContainerID& containerId,
       pid_t _pid);

@@ -3114,13 +3114,14 @@ void Slave::executorLaunched(
                  lambda::_1));
 
   if (!future.isReady()) {
-    // The containerizer will clean up if the launch fails we'll just log this
-    // and leave the executor registration to timeout.
     LOG(ERROR) << "Container '" << containerId
                << "' for executor '" << executorId
                << "' of framework '" << frameworkId
                << "' failed to start: "
                << (future.isFailed() ? future.failure() : " future discarded");
+
+    containerizer->destroy(containerId);
+
     return;
   } else if (!future.get()) {
     LOG(ERROR) << "Container '" << containerId
@@ -3129,6 +3130,7 @@ void Slave::executorLaunched(
                << "' failed to start: None of the enabled containerizers ("
                << flags.containerizers << ") could create a container for the "
                << "provided TaskInfo/ExecutorInfo message.";
+
     return;
   }
 
@@ -3265,7 +3267,7 @@ void Slave::executorTerminated(
         .onAny(lambda::bind(_unmonitor, lambda::_1, frameworkId, executorId));
 
       // Transition all live tasks to TASK_LOST/TASK_FAILED.
-      // If the containerizer killed  the executor (e.g., due to OOM event)
+      // If the containerizer killed the executor (e.g., due to OOM event)
       // or if this is a command executor, we send TASK_FAILED status updates
       // instead of TASK_LOST.
       // NOTE: We don't send updates if the framework is terminating
