@@ -353,6 +353,7 @@ libmesos_no_3rdparty_la_SOURCES =					\
 	slave/metrics.cpp						\
 	slave/monitor.cpp						\
 	slave/paths.cpp							\
+	slave/resource_estimator.cpp					\
 	slave/state.cpp							\
 	slave/slave.cpp							\
 	slave/containerizer/containerizer.cpp				\
@@ -451,7 +452,8 @@ nodist_scheduler_HEADERS = ../include/mesos/scheduler/scheduler.pb.h
 slavedir = $(pkgincludedir)/slave
 
 slave_HEADERS =								\
-  $(top_srcdir)/include/mesos/slave/isolator.hpp
+  $(top_srcdir)/include/mesos/slave/isolator.hpp			\
+  $(top_srcdir)/include/mesos/slave/resource_estimator.hpp
 
 if OS_LINUX
   libmesos_no_3rdparty_la_SOURCES += linux/cgroups.cpp
@@ -560,6 +562,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
 	slave/metrics.hpp						\
 	slave/monitor.hpp						\
 	slave/paths.hpp							\
+	slave/resource_estimator.hpp					\
 	slave/slave.hpp							\
 	slave/state.hpp							\
 	slave/status_update_manager.hpp					\
