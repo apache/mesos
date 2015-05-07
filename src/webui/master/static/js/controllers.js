@@ -37,9 +37,15 @@
     } else if (num_slaves < 1000) {
       return 20000;
     } else if (num_slaves < 5000) {
-      return 30000;
-    } else {
       return 60000;
+    } else if (num_slaves < 10000) {
+      return 120000;
+    } else if (num_slaves < 15000) {
+      return 240000;
+    } else if (num_slaves < 20000) {
+      return 480000;
+    } else {
+      return 960000;
     }
   }
 
