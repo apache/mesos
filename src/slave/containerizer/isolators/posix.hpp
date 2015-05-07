@@ -66,6 +66,7 @@ public:
       const ContainerID& containerId,
       const ExecutorInfo& executorInfo,
       const std::string& directory,
+      const Option<std::string>& rootfs,
       const Option<std::string>& user)
   {
     if (promises.contains(containerId)) {

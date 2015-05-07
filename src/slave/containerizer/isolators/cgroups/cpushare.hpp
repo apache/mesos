@@ -48,10 +48,11 @@ public:
       const std::list<mesos::slave::ExecutorRunState>& states,
       const hashset<ContainerID>& orphans);
 
-  virtual process::Future<Option<CommandInfo> > prepare(
+  virtual process::Future<Option<CommandInfo>> prepare(
       const ContainerID& containerId,
       const ExecutorInfo& executorInfo,
       const std::string& directory,
+      const Option<std::string>& rootfs,
       const Option<std::string>& user);
 
   virtual process::Future<Nothing> isolate(
@@ -77,9 +78,9 @@ private:
       const hashmap<std::string, std::string>& hierarchies,
       const std::vector<std::string>& subsystems);
 
-  virtual process::Future<std::list<Nothing> > _cleanup(
+  virtual process::Future<std::list<Nothing>> _cleanup(
       const ContainerID& containerId,
-      const process::Future<std::list<Nothing> >& future);
+      const process::Future<std::list<Nothing>>& future);
 
   struct Info
   {

@@ -73,9 +73,9 @@ public:
   // 'prepare' command(s).
   Try<MesosContainerizer*> CreateContainerizer(
       Fetcher* fetcher,
-      const vector<Option<CommandInfo> >& prepares)
+      const vector<Option<CommandInfo>>& prepares)
   {
-    vector<Owned<Isolator> > isolators;
+    vector<Owned<Isolator>> isolators;
 
     foreach (const Option<CommandInfo>& prepare, prepares) {
       Try<Isolator*> isolator = tests::TestIsolatorProcess::create(prepare);
@@ -107,7 +107,7 @@ public:
       Fetcher* fetcher,
       const Option<CommandInfo>& prepare)
   {
-    vector<Option<CommandInfo> > prepares;
+    vector<Option<CommandInfo>> prepares;
     prepares.push_back(prepare);
 
     return CreateContainerizer(fetcher, prepares);
@@ -218,7 +218,7 @@ TEST_F(MesosContainerizerIsolatorPreparationTest, MultipleScripts)
   string file1 = path::join(directory, "child.script.executed.1");
   string file2 = path::join(directory, "child.script.executed.2");
 
-  vector<Option<CommandInfo> > prepares;
+  vector<Option<CommandInfo>> prepares;
   // This isolator prepare command one will succeed if called first, otherwise
   // it won't get run.
   prepares.push_back(CREATE_COMMAND_INFO("touch " + file1 + " && exit 0"));
@@ -376,7 +376,7 @@ public:
     EXPECT_CALL(*this, cleanup(_))
       .WillRepeatedly(Return(Nothing()));
 
-    EXPECT_CALL(*this, prepare(_, _, _, _))
+    EXPECT_CALL(*this, prepare(_, _, _, _, _))
       .WillRepeatedly(Invoke(this, &MockIsolatorProcess::_prepare));
   }
 
@@ -386,18 +386,20 @@ public:
           const list<mesos::slave::ExecutorRunState>&,
           const hashset<ContainerID>&));
 
-  MOCK_METHOD4(
+  MOCK_METHOD5(
       prepare,
       process::Future<Option<CommandInfo>>(
           const ContainerID&,
           const ExecutorInfo&,
           const string&,
+          const Option<string>&,
           const Option<string>&));
 
   virtual process::Future<Option<CommandInfo>> _prepare(
       const ContainerID& containerId,
       const ExecutorInfo& executorInfo,
       const string& directory,
+      const Option<string>& rootfs,
       const Option<string>& user)
   {
     return None();
@@ -501,7 +503,7 @@ TEST_F(MesosContainerizerDestroyTest, DestroyWhilePreparing)
   Future<Nothing> prepare;
   Promise<Option<CommandInfo>> promise;
   // Simulate a long prepare from the isolator.
-  EXPECT_CALL(*isolatorProcess, prepare(_, _, _, _))
+  EXPECT_CALL(*isolatorProcess, prepare(_, _, _, _, _))
     .WillOnce(DoAll(FutureSatisfy(&prepare),
                     Return(promise.future())));
 

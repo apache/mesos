@@ -57,6 +57,7 @@ Future<Option<CommandInfo>> Isolator::prepare(
     const ContainerID& containerId,
     const ExecutorInfo& executorInfo,
     const string& directory,
+    const Option<string>& rootfs,
     const Option<string>& user)
 {
   return dispatch(process.get(),
@@ -64,6 +65,7 @@ Future<Option<CommandInfo>> Isolator::prepare(
                   containerId,
                   executorInfo,
                   directory,
+                  rootfs,
                   user);
 }
 

@@ -45,10 +45,11 @@ public:
           const std::list<mesos::slave::ExecutorRunState>&,
           const hashset<ContainerID>&));
 
-  virtual process::Future<Option<CommandInfo> > prepare(
+  virtual process::Future<Option<CommandInfo>> prepare(
       const ContainerID& containerId,
       const ExecutorInfo& executorInfo,
       const std::string& directory,
+      const Option<std::string>& rootfs,
       const Option<std::string>& user)
   {
     return commandInfo;

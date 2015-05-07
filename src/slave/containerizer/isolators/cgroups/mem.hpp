@@ -48,10 +48,11 @@ public:
       const std::list<mesos::slave::ExecutorRunState>& states,
       const hashset<ContainerID>& orphans);
 
-  virtual process::Future<Option<CommandInfo> > prepare(
+  virtual process::Future<Option<CommandInfo>> prepare(
       const ContainerID& containerId,
       const ExecutorInfo& executorInfo,
       const std::string& directory,
+      const Option<std::string>& rootfs,
       const Option<std::string>& user);
 
   virtual process::Future<Nothing> isolate(

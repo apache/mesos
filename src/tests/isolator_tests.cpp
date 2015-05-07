@@ -172,6 +172,7 @@ TYPED_TEST(CpuIsolatorTest, UserCpuUsage)
       containerId,
       executorInfo,
       dir.get(),
+      None(),
       None()));
 
   const string& file = path::join(dir.get(), "mesos_isolator_test_ready");
@@ -281,6 +282,7 @@ TYPED_TEST(CpuIsolatorTest, SystemCpuUsage)
       containerId,
       executorInfo,
       dir.get(),
+      None(),
       None()));
 
   const string& file = path::join(dir.get(), "mesos_isolator_test_ready");
@@ -392,6 +394,7 @@ TEST_F(RevocableCpuIsolatorTest, ROOT_CGROUPS_RevocableCpu)
         containerId,
         executorInfo,
         os::getcwd(),
+        None(),
         None()));
 
   vector<string> argv{"sleep", "100"};
@@ -463,6 +466,7 @@ TEST_F(LimitedCpuIsolatorTest, ROOT_CGROUPS_Cfs)
       containerId,
       executorInfo,
       dir.get(),
+      None(),
       None()));
 
   // Generate random numbers to max out a single core. We'll run this for 0.5
@@ -573,6 +577,7 @@ TEST_F(LimitedCpuIsolatorTest, ROOT_CGROUPS_Cfs_Big_Quota)
       containerId,
       executorInfo,
       dir.get(),
+      None(),
       None()));
 
   int pipes[2];
@@ -655,6 +660,7 @@ TEST_F(LimitedCpuIsolatorTest, ROOT_CGROUPS_Pids_and_Tids)
       containerId,
       executorInfo,
       dir.get(),
+      None(),
       None()));
 
   // Right after the creation of the cgroup, which happens in
@@ -778,6 +784,7 @@ TYPED_TEST(MemIsolatorTest, MemUsage)
       containerId,
       executorInfo,
       dir.get(),
+      None(),
       None()));
 
   MemoryTestHelper helper;
@@ -840,6 +847,7 @@ TEST_F(PerfEventIsolatorTest, ROOT_CGROUPS_Sample)
       containerId,
       executorInfo,
       dir.get(),
+      None(),
       None()));
 
   // This first sample is likely to be empty because perf hasn't
@@ -931,6 +939,7 @@ TEST_F(SharedFilesystemIsolatorTest, ROOT_RelativeVolume)
         containerId,
         executorInfo,
         flags.work_dir,
+        None(),
         None());
 
   AWAIT_READY(prepare);
@@ -1028,6 +1037,7 @@ TEST_F(SharedFilesystemIsolatorTest, ROOT_AbsoluteVolume)
         containerId,
         executorInfo,
         flags.work_dir,
+        None(),
         None());
 
   AWAIT_READY(prepare);
@@ -1195,6 +1205,7 @@ TYPED_TEST(UserCgroupIsolatorTest, ROOT_CGROUPS_UserCgroup)
       containerId,
       executorInfo,
       os::getcwd(),
+      None(),
       UNPRIVILEGED_USERNAME));
 
   // Isolators don't provide a way to determine the cgroups they use
