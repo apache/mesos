@@ -429,9 +429,9 @@ private:
     // that destroying can chain with it being set.
     Promise<Future<Option<int>>> status;
 
-    // Future that tells us whether or not the run is still pending or
-    // has failed so we know whether or not to wait for 'status'.
-    Future<Nothing> run;
+    // Future that tells us the return value of last launch stage (fetch, pull,
+    // run, etc).
+    Future<bool> launch;
 
     // We keep track of the resources for each container so we can set
     // the ResourceStatistics limits in usage(). Note that this is
