@@ -254,6 +254,22 @@ JSON::Object model(const Role& role)
 }
 
 
+void Master::Http::log(const Request& request)
+{
+  Option<string> userAgent = request.headers.get("User-Agent");
+  Option<string> forwardedFor = request.headers.get("X-Forwarded-For");
+
+  LOG(INFO) << "HTTP " << request.method << " for " << request.path
+            << " from " << request.client
+            << (userAgent.isSome()
+                ? " with User-Agent='" + userAgent.get() + "'"
+                : "")
+            << (forwardedFor.isSome()
+                ? " with X-Forwarded-For='" + forwardedFor.get() + "'"
+                : "");
+}
+
+
 const string Master::Http::HEALTH_HELP = HELP(
     TLDR(
         "Health check of the Master."),
@@ -264,7 +280,7 @@ const string Master::Http::HEALTH_HELP = HELP(
         "Delayed responses are also indicative of poor health."));
 
 
-Future<Response> Master::Http::health(const Request& request)
+Future<Response> Master::Http::health(const Request& request) const
 {
   return OK();
 }
@@ -313,10 +329,8 @@ Try<string> getFormValue(
 }
 
 
-Future<Response> Master::Http::observe(const Request& request)
+Future<Response> Master::Http::observe(const Request& request) const
 {
-  LOG(INFO) << "HTTP request for '" << request.path << "'";
-
   Try<hashmap<string, string>> decode =
     process::http::query::decode(request.body);
 
@@ -384,10 +398,8 @@ const string Master::Http::REDIRECT_HELP = HELP(
         "this will attempt to redirect to the private IP address."));
 
 
-Future<Response> Master::Http::redirect(const Request& request)
+Future<Response> Master::Http::redirect(const Request& request) const
 {
-  LOG(INFO) << "HTTP request for '" << request.path << "'";
-
   // If there's no leader, redirect to this master's base url.
   MasterInfo info = master->leader.isSome()
     ? master->leader.get()
@@ -418,9 +430,8 @@ const string Master::Http::SLAVES_HELP = HELP(
         "this master formated as a json object."));
 
 
-Future<Response> Master::Http::slaves(const Request& request) {
-  LOG(INFO) << "HTTP request for '" << request.path << "'";
-
+Future<Response> Master::Http::slaves(const Request& request) const
+{
   JSON::Object object;
 
   {
@@ -439,10 +450,8 @@ Future<Response> Master::Http::slaves(const Request& request) {
 }
 
 
-Future<Response> Master::Http::state(const Request& request)
+Future<Response> Master::Http::state(const Request& request) const
 {
-  LOG(INFO) << "HTTP request for '" << request.path << "'";
-
   JSON::Object object;
   object.values["version"] = MESOS_VERSION;
 
@@ -725,10 +734,8 @@ private:
 };
 
 
-Future<Response> Master::Http::stateSummary(const Request& request)
+Future<Response> Master::Http::stateSummary(const Request& request) const
 {
-  LOG(INFO) << "HTTP request for '" << request.path << "'";
-
   JSON::Object object;
 
   object.values["hostname"] = master->info().hostname();
@@ -835,10 +842,8 @@ Future<Response> Master::Http::stateSummary(const Request& request)
 }
 
 
-Future<Response> Master::Http::roles(const Request& request)
+Future<Response> Master::Http::roles(const Request& request) const
 {
-  LOG(INFO) << "HTTP request for '" << request.path << "'";
-
   JSON::Object object;
 
   // Model all of the roles.
@@ -866,7 +871,7 @@ const string Master::Http::SHUTDOWN_HELP = HELP(
         "Returns 200 OK if the framework was correctly shutdown."));
 
 
-Future<Response> Master::Http::shutdown(const Request& request)
+Future<Response> Master::Http::shutdown(const Request& request) const
 {
   if (request.method != "POST") {
     return BadRequest("Expecting POST");
@@ -932,7 +937,7 @@ Future<Response> Master::Http::shutdown(const Request& request)
 
 Future<Response> Master::Http::_shutdown(
     const FrameworkID& id,
-    bool authorized)
+    bool authorized) const
 {
   if (!authorized) {
     return Unauthorized("Mesos master");
@@ -1013,10 +1018,8 @@ struct TaskComparator
 };
 
 
-Future<Response> Master::Http::tasks(const Request& request)
+Future<Response> Master::Http::tasks(const Request& request) const
 {
-  LOG(INFO) << "HTTP request for '" << request.path << "'";
-
   // Get list options (limit and offset).
   Result<int> result = numify<int>(request.query.get("limit"));
   size_t limit = result.isSome() ? result.get() : TASK_LIMIT;
@@ -1075,7 +1078,7 @@ Future<Response> Master::Http::tasks(const Request& request)
 }
 
 
-Result<Credential> Master::Http::authenticate(const Request& request)
+Result<Credential> Master::Http::authenticate(const Request& request) const
 {
   // By default, assume everyone is authenticated if no credentials
   // were provided.

@@ -229,6 +229,22 @@ JSON::Object model(const Framework& framework)
 }
 
 
+void Slave::Http::log(const Request& request)
+{
+  Option<string> userAgent = request.headers.get("User-Agent");
+  Option<string> forwardedFor = request.headers.get("X-Forwarded-For");
+
+  LOG(INFO) << "HTTP " << request.method << " for " << request.path
+            << " from " << request.client
+            << (userAgent.isSome()
+                ? " with User-Agent='" + userAgent.get() + "'"
+                : "")
+            << (forwardedFor.isSome()
+                ? " with X-Forwarded-For='" + forwardedFor.get() + "'"
+                : "");
+}
+
+
 const string Slave::Http::HEALTH_HELP = HELP(
     TLDR(
         "Health check of the Slave."),
@@ -239,16 +255,14 @@ const string Slave::Http::HEALTH_HELP = HELP(
         "Delayed responses are also indicative of poor health."));
 
 
-Future<Response> Slave::Http::health(const Request& request)
+Future<Response> Slave::Http::health(const Request& request) const
 {
   return OK();
 }
 
 
-Future<Response> Slave::Http::state(const Request& request)
+Future<Response> Slave::Http::state(const Request& request) const
 {
-  LOG(INFO) << "HTTP request for '" << request.path << "'";
-
   JSON::Object object;
   object.values["version"] = MESOS_VERSION;
 

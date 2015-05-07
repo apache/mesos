@@ -477,41 +477,45 @@ private:
   public:
     explicit Http(Master* _master) : master(_master) {}
 
+    // Logs the request, route handlers can compose this with the
+    // desired request handler to get consistent request logging.
+    static void log(const process::http::Request& request);
+
     // /master/health
     process::Future<process::http::Response> health(
-        const process::http::Request& request);
+        const process::http::Request& request) const;
 
     // /master/observe
     process::Future<process::http::Response> observe(
-        const process::http::Request& request);
+        const process::http::Request& request) const;
 
     // /master/redirect
     process::Future<process::http::Response> redirect(
-        const process::http::Request& request);
+        const process::http::Request& request) const;
 
     // /master/roles.json
     process::Future<process::http::Response> roles(
-        const process::http::Request& request);
+        const process::http::Request& request) const;
 
     // /master/shutdown
     process::Future<process::http::Response> shutdown(
-        const process::http::Request& request);
+        const process::http::Request& request) const;
 
     // /master/slaves
     process::Future<process::http::Response> slaves(
-        const process::http::Request& request);
+        const process::http::Request& request) const;
 
     // /master/state.json
     process::Future<process::http::Response> state(
-        const process::http::Request& request);
+        const process::http::Request& request) const;
 
     // /master/state-summary
     process::Future<process::http::Response> stateSummary(
-        const process::http::Request& request);
+        const process::http::Request& request) const;
 
     // /master/tasks.json
     process::Future<process::http::Response> tasks(
-        const process::http::Request& request);
+        const process::http::Request& request) const;
 
     const static std::string HEALTH_HELP;
     const static std::string OBSERVE_HELP;
@@ -524,15 +528,16 @@ private:
     // Helper for doing authentication, returns the credential used if
     // the authentication was successful (or none if no credentials
     // have been given to the master), otherwise an Error.
-    Result<Credential> authenticate(const process::http::Request& request);
+    Result<Credential> authenticate(
+        const process::http::Request& request) const;
 
     // Continuations.
     process::Future<process::http::Response> _shutdown(
         const FrameworkID& id,
-        bool authorized = true);
+        bool authorized = true) const;
 
     Master* master;
-  } http;
+  };
 
   Master(const Master&);              // No copying.
   Master& operator = (const Master&); // No assigning.

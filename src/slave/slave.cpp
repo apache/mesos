@@ -39,6 +39,7 @@
 #include <process/defer.hpp>
 #include <process/delay.hpp>
 #include <process/dispatch.hpp>
+#include <process/http.hpp>
 #include <process/id.hpp>
 #include <process/time.hpp>
 
@@ -105,6 +106,8 @@ namespace mesos {
 namespace internal {
 namespace slave {
 
+namespace http = process::http;
+
 using namespace state;
 
 Slave::Slave(const slave::Flags& _flags,
@@ -115,7 +118,6 @@ Slave::Slave(const slave::Flags& _flags,
              StatusUpdateManager* _statusUpdateManager)
   : ProcessBase(process::ID::generate("slave")),
     state(RECOVERING),
-    http(this),
     flags(_flags),
     completedFrameworks(MAX_COMPLETED_FRAMEWORKS),
     detector(_detector),
@@ -462,10 +464,19 @@ void Slave::initialize()
       &PingSlaveMessage::connected);
 
   // Setup HTTP routes.
+  Http http = Http(this);
+
   route("/health",
         Http::HEALTH_HELP,
-        lambda::bind(&Http::health, http, lambda::_1));
-  route("/state.json", None(), lambda::bind(&Http::state, http, lambda::_1));
+        [http](const http::Request& request) {
+          return http.health(request);
+        });
+  route("/state.json",
+        None(),
+        [http](const http::Request& request) {
+          Http::log(request);
+          return http.state(request);
+        });
 
   // Expose the log file for the webui. Fall back to 'log_dir' if
   // an explicit file was not specified.

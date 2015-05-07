@@ -373,19 +373,23 @@ private:
   public:
     explicit Http(Slave* _slave) : slave(_slave) {}
 
+    // Logs the request, route handlers can compose this with the
+    // desired request handler to get consistent request logging.
+    static void log(const process::http::Request& request);
+
     // /slave/health
     process::Future<process::http::Response> health(
-        const process::http::Request& request);
+        const process::http::Request& request) const;
 
     // /slave/state.json
     process::Future<process::http::Response> state(
-        const process::http::Request& request);
+        const process::http::Request& request) const;
 
     static const std::string HEALTH_HELP;
 
   private:
     Slave* slave;
-  } http;
+  };
 
   friend struct Framework;
   friend struct Executor;

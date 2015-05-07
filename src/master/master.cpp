@@ -38,6 +38,7 @@
 #include <process/collect.hpp>
 #include <process/defer.hpp>
 #include <process/delay.hpp>
+#include <process/http.hpp>
 #include <process/id.hpp>
 #include <process/limiter.hpp>
 #include <process/owned.hpp>
@@ -110,6 +111,8 @@ using process::metrics::Counter;
 namespace mesos {
 namespace internal {
 namespace master {
+
+namespace http = process::http;
 
 using mesos::master::RoleInfo;
 using mesos::master::allocator::Allocator;
@@ -277,7 +280,6 @@ Master::Master(
     const Option<shared_ptr<RateLimiter>>& _slaveRemovalLimiter,
     const Flags& _flags)
   : ProcessBase("master"),
-    http(this),
     flags(_flags),
     allocator(_allocator),
     registrar(_registrar),
@@ -721,33 +723,60 @@ void Master::initialize()
       &AuthenticateMessage::pid);
 
   // Setup HTTP routes.
+  Http http = Http(this);
+
   route("/health",
         Http::HEALTH_HELP,
-        lambda::bind(&Http::health, http, lambda::_1));
+        [http](const http::Request& request) {
+          return http.health(request);
+        });
   route("/observe",
         Http::OBSERVE_HELP,
-        lambda::bind(&Http::observe, http, lambda::_1));
+        [http](const http::Request& request) {
+          Http::log(request);
+          return http.observe(request);
+        });
   route("/redirect",
         Http::REDIRECT_HELP,
-        lambda::bind(&Http::redirect, http, lambda::_1));
+        [http](const http::Request& request) {
+          return http.redirect(request);
+        });
   route("/roles.json",
         None(),
-        lambda::bind(&Http::roles, http, lambda::_1));
+        [http](const http::Request& request) {
+          Http::log(request);
+          return http.roles(request);
+        });
   route("/shutdown",
         Http::SHUTDOWN_HELP,
-        lambda::bind(&Http::shutdown, http, lambda::_1));
+        [http](const http::Request& request) {
+          Http::log(request);
+          return http.shutdown(request);
+        });
   route("/slaves",
         Http::SLAVES_HELP,
-        lambda::bind(&Http::slaves, http, lambda::_1));
+        [http](const http::Request& request) {
+          Http::log(request);
+          return http.slaves(request);
+        });
   route("/state.json",
         None(),
-        lambda::bind(&Http::state, http, lambda::_1));
+        [http](const http::Request& request) {
+          Http::log(request);
+          return http.state(request);
+        });
   route("/state-summary",
         None(),
-        lambda::bind(&Http::stateSummary, http, lambda::_1));
+        [http](const http::Request& request) {
+          Http::log(request);
+          return http.stateSummary(request);
+        });
   route("/tasks.json",
         Http::TASKS_HELP,
-        lambda::bind(&Http::tasks, http, lambda::_1));
+        [http](const http::Request& request) {
+          Http::log(request);
+          return http.tasks(request);
+        });
 
   // Provide HTTP assets from a "webui" directory. This is either
   // specified via flags (which is necessary for running out of the
