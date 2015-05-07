@@ -244,3 +244,62 @@ TEST(JsonTest, Find)
   // Also test getting JSON::Value when you don't know the type.
   ASSERT_SOME(object.find<JSON::Value>("nested1.nested2.null"));
 }
+
+
+// Test the equality operator between two objects.
+TEST(JsonTest, Equals)
+{
+  // Array checks.
+  Try<JSON::Value> _array = JSON::parse("{\"array\" : [1, 2, 3]}");
+  ASSERT_SOME(_array);
+  const JSON::Value array = _array.get();
+
+  EXPECT_SOME_EQ(array, JSON::parse("{\"array\" : [1, 2, 3]}"));
+  EXPECT_SOME_NE(array, JSON::parse("{\"array\" : [3, 2, 1, 0]}"));
+  EXPECT_SOME_NE(array, JSON::parse("{\"array\" : [1, 2, 3, 4]}"));
+  EXPECT_SOME_NE(array, JSON::parse("{\"array\" : [3, 2, 1]}"));
+  EXPECT_SOME_NE(array, JSON::parse("{\"array\" : [1, 2, 4]}"));
+  EXPECT_SOME_NE(array, JSON::parse("{\"array\" : [1, 2]}"));
+  EXPECT_SOME_NE(array, JSON::parse("{\"array\" : []}"));
+  EXPECT_SOME_NE(array, JSON::parse("{\"array\" : null}"));
+  EXPECT_SOME_NE(array, JSON::parse("{\"array\" : 42}"));
+
+  // Boolean checks.
+  Try<JSON::Value> _boolean = JSON::parse("{\"boolean\" : true}");
+  ASSERT_SOME(_boolean);
+  const JSON::Value boolean = _boolean.get();
+
+  EXPECT_SOME_EQ(boolean, JSON::parse("{\"boolean\" : true}"));
+  EXPECT_SOME_NE(boolean, JSON::parse("{\"boolean\" : false}"));
+  EXPECT_SOME_NE(boolean, JSON::parse("{\"boolean\" : null}"));
+  EXPECT_SOME_NE(boolean, JSON::parse("{\"boolean\" : 42}"));
+
+  // Null checks.
+  Try<JSON::Value> _nullEntry = JSON::parse("{\"null_entry\" : null}");
+  ASSERT_SOME(_nullEntry);
+  const JSON::Value nullEntry = _nullEntry.get();
+
+  EXPECT_SOME_EQ(nullEntry, JSON::parse("{\"null_entry\" : null}"));
+  EXPECT_SOME_NE(nullEntry, JSON::parse("{\"null_entry\" : 42}"));
+
+  // String checks.
+  Try<JSON::Value> _str = JSON::parse("{\"string\" : \"Hello World!\"}");
+  ASSERT_SOME(_str);
+  const JSON::Value str = _str.get();
+
+  EXPECT_SOME_EQ(str, JSON::parse("{\"string\" : \"Hello World!\"}"));
+  EXPECT_SOME_NE(str, JSON::parse("{\"string\" : \"Goodbye World!\"}"));
+  EXPECT_SOME_NE(str, JSON::parse("{\"string\" : \"\"}"));
+  EXPECT_SOME_NE(str, JSON::parse("{\"string\" : null}"));
+  EXPECT_SOME_NE(str, JSON::parse("{\"string\" : 42}"));
+
+  // Object's checks.
+  Try<JSON::Value> _object = JSON::parse("{\"a\" : 1, \"b\" : 2}");
+  ASSERT_SOME(_object);
+  const JSON::Value object = _object.get();
+
+  EXPECT_SOME_EQ(object, JSON::parse("{\"a\" : 1, \"b\" : 2}"));
+  EXPECT_SOME_NE(object, JSON::parse("{\"a\" : 1, \"b\" : []}"));
+  EXPECT_SOME_NE(object, JSON::parse("{\"a\" : 1}"));
+  EXPECT_SOME_NE(object, JSON::parse("{}"));
+}

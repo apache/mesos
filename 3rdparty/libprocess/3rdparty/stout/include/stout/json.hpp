@@ -346,6 +346,12 @@ inline bool operator == (const Value& lhs, const Value& rhs)
 }
 
 
+inline bool operator != (const Value& lhs, const Value& rhs)
+{
+  return !(lhs == rhs);
+}
+
+
 inline std::ostream& operator << (std::ostream& out, const String& string)
 {
   // TODO(benh): This escaping DOES NOT handle unicode, it encodes as ASCII.
