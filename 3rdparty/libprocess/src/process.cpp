@@ -567,11 +567,17 @@ void decode_recv(
     delete socket;
     return;
   }
+
   // Decode as much of the data as possible into HTTP requests.
-  const deque<Request*>& requests = decoder->decode(data, length.get());
+  deque<Request*> requests = decoder->decode(data, length.get());
 
   if (!requests.empty()) {
     foreach (Request* request, requests) {
+      // Augment each Request with the client's address. This should
+      // never fail since there remains a reference to this Socket!
+      Try<Address> address = socket->address();
+      CHECK_SOME(address);
+      request->client = address.get();
       process_manager->handle(decoder->socket(), request);
     }
   } else if (requests.empty() && decoder->failed()) {

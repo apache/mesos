@@ -10,6 +10,7 @@
 #include <string>
 #include <vector>
 
+#include <process/address.hpp>
 #include <process/future.hpp>
 #include <process/owned.hpp>
 #include <process/pid.hpp>
@@ -45,6 +46,10 @@ void initialize();
 
 struct Request
 {
+  // Contains the client's address. Note that this may
+  // correspond to a proxy or load balancer address.
+  network::Address client;
+
   // TODO(benh): Add major/minor version.
   // TODO(bmahler): Header names are not case sensitive! Either make these
   // case-insensitive, or add a variable for each header in HTTP 1.0/1.1 (like
