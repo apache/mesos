@@ -303,3 +303,307 @@ TEST(JsonTest, Equals)
   EXPECT_SOME_NE(object, JSON::parse("{\"a\" : 1}"));
   EXPECT_SOME_NE(object, JSON::parse("{}"));
 }
+
+
+// Test the containment of JSON objects where one is a JSON array.
+TEST(JsonTest, ContainsArray)
+{
+  Try<JSON::Value> _array = JSON::parse("{\"array\" : [1, 2, 3]}");
+  ASSERT_SOME(_array);
+  const JSON::Value array = _array.get();
+
+  Try<JSON::Value> arrayTest = JSON::parse("{\"array\" : [1, 2, 3]}");
+  EXPECT_TRUE(array.contains(arrayTest.get()));
+
+  arrayTest = JSON::parse("{}");
+  EXPECT_TRUE(array.contains(arrayTest.get()));
+
+  arrayTest = JSON::parse("{\"array\" : [3, 2, 1, 0]}");
+  EXPECT_FALSE(array.contains(arrayTest.get()));
+
+  arrayTest = JSON::parse("{\"array\" : [1, 2, 3, 4]}");
+  EXPECT_FALSE(array.contains(arrayTest.get()));
+
+  arrayTest = JSON::parse("{\"array\" : [3, 2, 1]}");
+  EXPECT_FALSE(array.contains(arrayTest.get()));
+
+  arrayTest = JSON::parse("{\"array\" : [1, 2, 4]}");
+  EXPECT_FALSE(array.contains(arrayTest.get()));
+
+  arrayTest = JSON::parse("{\"array\" : [1, 2]}");
+  EXPECT_FALSE(array.contains(arrayTest.get()));
+
+  arrayTest = JSON::parse("{\"array\" : []}");
+  EXPECT_FALSE(array.contains(arrayTest.get()));
+
+  arrayTest = JSON::parse("{\"array\" : null}");
+  EXPECT_FALSE(array.contains(arrayTest.get()));
+
+  arrayTest = JSON::parse("{\"array\" : 42}");
+  EXPECT_FALSE(array.contains(arrayTest.get()));
+
+  arrayTest = JSON::parse("{\"array\" : \"A string\"}");
+  EXPECT_FALSE(array.contains(arrayTest.get()));
+
+
+  // Test arrays of doubles.
+  Try<JSON::Value> _doubleArray =
+    JSON::parse("{\"array_of_doubles\" : [1.0, -22.33, 99.987, 100]}");
+  ASSERT_SOME(_doubleArray);
+  const JSON::Value doubleArray = _doubleArray.get();
+
+  Try<JSON::Value> doubleArrayTest =
+    JSON::parse("{\"array_of_doubles\" : [1.0, -22.33, 99.987, 100]}");
+  EXPECT_TRUE(doubleArray.contains(doubleArrayTest.get()));
+
+  doubleArrayTest =
+    JSON::parse("{\"array_of_doubles\" : [1.0, -22.33, 99.999, 100]}");
+  EXPECT_FALSE(doubleArray.contains(doubleArrayTest.get()));
+
+  doubleArrayTest = JSON::parse("{\"array_of_doubles\" : [1.0, -22.33, 100]}");
+  EXPECT_FALSE(doubleArray.contains(doubleArrayTest.get()));
+
+
+  // Test array of arrays.
+  Try<JSON::Value> _arrayArray =
+    JSON::parse("{\"array_of_arrays\" : [[1.0, -22.33], [1, 2]]}");
+  ASSERT_SOME(_arrayArray);
+  const JSON::Value arrayArray = _arrayArray.get();
+
+  Try<JSON::Value> arrayArrayTest =
+    JSON::parse("{\"array_of_arrays\" : [[1.0, -22.33], [1, 2]]}");
+  EXPECT_TRUE(arrayArray.contains(arrayArrayTest.get()));
+
+  arrayArrayTest =
+    JSON::parse("{\"array_of_arrays\" : [[1.0, -22.33], [1, 3]]}");
+  EXPECT_FALSE(arrayArray.contains(arrayArrayTest.get()));
+
+  arrayArrayTest =
+    JSON::parse("{\"array_of_arrays\" : [[1.0, -33.44], [1, 3]]}");
+  EXPECT_FALSE(arrayArray.contains(arrayArrayTest.get()));
+
+  arrayArrayTest =
+    JSON::parse("{\"array_of_arrays\" : [[1.0, -22.33], [1]]}");
+  EXPECT_FALSE(arrayArray.contains(arrayArrayTest.get()));
+}
+
+
+// Test the containment of JSON objects where one is a JSON boolean.
+TEST(JsonTest, ContainsBoolean)
+{
+  Try<JSON::Value> _boolean = JSON::parse("{\"boolean\" : true}");
+  ASSERT_SOME(_boolean);
+  const JSON::Value boolean = _boolean.get();
+
+  Try<JSON::Value> booleanTest = JSON::parse("{\"boolean\" : true}");
+  EXPECT_TRUE(boolean.contains(booleanTest.get()));
+
+  booleanTest = JSON::parse("{}");
+  EXPECT_TRUE(boolean.contains(booleanTest.get()));
+
+  booleanTest = JSON::parse("{\"boolean\" : false}");
+  EXPECT_FALSE(boolean.contains(booleanTest.get()));
+
+  booleanTest = JSON::parse("{\"boolean\" : null}");
+  EXPECT_FALSE(boolean.contains(booleanTest.get()));
+
+  booleanTest = JSON::parse("{\"boolean\" : 42}");
+  EXPECT_FALSE(boolean.contains(booleanTest.get()));
+
+  booleanTest = JSON::parse("{\"boolean\" : \"A string\"}");
+  EXPECT_FALSE(boolean.contains(booleanTest.get()));
+}
+
+
+// Test the containment of JSON objects where one is a JSON null.
+TEST(JsonTest, ContainsNull)
+{
+  Try<JSON::Value> _nullEntry = JSON::parse("{\"null_entry\" : null}");
+  ASSERT_SOME(_nullEntry);
+  const JSON::Value nullEntry = _nullEntry.get();
+
+  Try<JSON::Value> nullEntryTest = JSON::parse("{\"null_entry\" : null}");
+  EXPECT_TRUE(nullEntry.contains(nullEntryTest.get()));
+
+  nullEntryTest = JSON::parse("{}");
+  EXPECT_TRUE(nullEntry.contains(nullEntryTest.get()));
+
+  nullEntryTest = JSON::parse("{\"null_entry\" : 42}");
+  EXPECT_FALSE(nullEntry.contains(nullEntryTest.get()));
+
+  nullEntryTest = JSON::parse("{\"null_entry\" : \"A string\"}");
+  EXPECT_FALSE(nullEntry.contains(nullEntryTest.get()));
+}
+
+
+// Test the containment of JSON objects where one is a JSON string.
+TEST(JsonTest, ContainsString)
+{
+  Try<JSON::Value> _str = JSON::parse("{\"string\" : \"Hello World!\"}");
+  ASSERT_SOME(_str);
+  const JSON::Value str = _str.get();
+
+  Try<JSON::Value> strTest = JSON::parse("{\"string\" : \"Hello World!\"}");
+  EXPECT_TRUE(str.contains(strTest.get()));
+
+  strTest = JSON::parse("{}");
+  EXPECT_TRUE(str.contains(strTest.get()));
+
+  strTest = JSON::parse("{\"string\" : \"Goodbye World!\"}");
+  EXPECT_FALSE(str.contains(strTest.get()));
+
+  strTest = JSON::parse("{\"string\" : \"\"}");
+  EXPECT_FALSE(str.contains(strTest.get()));
+
+  strTest = JSON::parse("{\"string\" : null}");
+  EXPECT_FALSE(str.contains(strTest.get()));
+
+  strTest = JSON::parse("{\"string\" : 42}");
+  EXPECT_FALSE(str.contains(strTest.get()));
+
+  strTest = JSON::parse("{\"string\" : [42]}");
+  EXPECT_FALSE(str.contains(strTest.get()));
+}
+
+
+// Test the containment of JSON objects to JSON objects.
+TEST(JsonTest, ContainsObject)
+{
+  Try<JSON::Value> _object = JSON::parse("{\"a\" : 1, \"b\" : 2}");
+  ASSERT_SOME(_object);
+  const JSON::Value object = _object.get();
+
+  Try<JSON::Value> objectTest = JSON::parse("{\"a\" : 1, \"b\" : 2}");
+  EXPECT_TRUE(object.contains(objectTest.get()));
+
+  objectTest = JSON::parse("{\"a\" : 1}");
+  EXPECT_TRUE(object.contains(objectTest.get()));
+
+  objectTest = JSON::parse("{\"b\" : 2}");
+  EXPECT_TRUE(object.contains(objectTest.get()));
+
+  objectTest = JSON::parse("{}");
+  EXPECT_TRUE(object.contains(objectTest.get()));
+
+  objectTest = JSON::parse("{\"a\" : 2}");
+  EXPECT_FALSE(object.contains(objectTest.get()));
+
+  objectTest = JSON::parse("{\"a\" : 1, \"b\" : []}");
+  EXPECT_FALSE(object.contains(objectTest.get()));
+
+
+  // Array of objects checks.
+  Try<JSON::Value> _objectArray = JSON::parse(
+      "{"
+      "  \"objectarray\" : ["
+      "    {\"a\" : 1, \"b\" : 2},"
+      "    {\"c\" : 3, \"d\" : 4}"
+      "  ]"
+      "}").get();
+  ASSERT_SOME(_objectArray);
+  const JSON::Value objectArray = _objectArray.get();
+
+  Try<JSON::Value> objectArrayTest = objectArray;
+  EXPECT_TRUE(objectArray.contains(objectArrayTest.get()));
+
+  objectArrayTest = JSON::parse("{}");
+  EXPECT_TRUE(objectArray.contains(objectArrayTest.get()));
+
+  objectArrayTest = JSON::parse(
+      "{"
+      "  \"objectarray\" : ["
+      "    {\"a\" : 1, \"b\" : 2},"
+      "    {\"c\" : 3}"
+      "  ]"
+      "}");
+  EXPECT_TRUE(objectArray.contains(objectArrayTest.get()));
+
+  objectArrayTest = JSON::parse(
+      "{"
+      "  \"objectarray\" : ["
+      "    {\"a\" : 1},"
+      "    {}"
+      "  ]"
+      "}");
+  EXPECT_TRUE(objectArray.contains(objectArrayTest.get()));
+
+  objectArrayTest = JSON::parse(
+      "{"
+      "  \"objectarray\" : ["
+      "    {},"
+      "    {}"
+      "  ]"
+      "}");
+  EXPECT_TRUE(objectArray.contains(objectArrayTest.get()));
+
+  objectArrayTest = JSON::parse(
+      "{"
+      "  \"objectarray\" : ["
+      "    {\"c\" : 3, \"d\" : 4},"
+      "    {\"a\" : 1, \"b\" : 2}"
+      "  ]"
+      "}");
+  EXPECT_FALSE(objectArray.contains(objectArrayTest.get()));
+
+  objectArrayTest = JSON::parse(
+      "{"
+      "  \"objectarray\" : ["
+      "    {\"e\" : 5},"
+      "    {}"
+      "  ]"
+      "}");
+  EXPECT_FALSE(objectArray.contains(objectArrayTest.get()));
+
+  objectArrayTest = JSON::parse(
+      "{"
+      "  \"objectarray\" : []"
+      "}");
+  EXPECT_FALSE(objectArray.contains(objectArrayTest.get()));
+
+  objectArrayTest = JSON::parse(
+      "{"
+      "  \"objectarray\" : ["
+      "    {},"
+      "    {},"
+      "    {}"
+      "  ]"
+      "}");
+  EXPECT_FALSE(objectArray.contains(objectArrayTest.get()));
+
+
+  // Tests on nested objects.
+  Try<JSON::Value> _nested = JSON::parse(
+      "{"
+      "  \"object\" : {"
+      "    \"a\" : 1,"
+      "    \"b\" : 2"
+      "  }"
+      "}");
+  ASSERT_SOME(_nested);
+  const JSON::Value nested = _nested.get();
+
+  Try<JSON::Value> nestedTest = nested;
+  EXPECT_TRUE(nested.contains(nestedTest.get()));
+
+  nestedTest = JSON::parse("{}");
+  EXPECT_TRUE(nested.contains(nestedTest.get()));
+
+  nestedTest = JSON::parse("{\"object\" : {}}");
+  EXPECT_TRUE(nested.contains(nestedTest.get()));
+
+  nestedTest = JSON::parse("{\"object\" : {\"a\" : 1}}");
+  EXPECT_TRUE(nested.contains(nestedTest.get()));
+
+  nestedTest = JSON::parse("{\"object\" : {\"c\" : 1}}");
+  EXPECT_FALSE(nested.contains(nestedTest.get()));
+
+  nestedTest = JSON::parse(
+      "{"
+      "  \"object\" : {"
+      "    \"a\" : 1,"
+      "    \"b\" : 2,"
+      "    \"c\" : 3"
+      "  }"
+      "}");
+  EXPECT_FALSE(nested.contains(nestedTest.get()));
+}

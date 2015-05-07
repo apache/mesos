@@ -181,6 +181,50 @@ struct Value : internal::Variant
 
   template <typename T>
   const T& as() const;
+
+  // Returns true if and only if 'other' is contained by 'this'.
+  // 'Other' is contained by 'this' if the following conditions are
+  // fulfilled:
+  // 1. If 'other' is a JSON object, then 'this' is also a JSON
+  //    object, all keys of 'other' are also present in 'this' and
+  //    the value for each key in 'this' also contain the value for
+  //    the same key in 'other', i.e. for all keys 'k' in 'other',
+  //    'this[k].contains(other[k])' is true.
+  // 2. If 'other' is a JSON array, 'this' is also a JSON array, the
+  //    length of both arrays is the same and each element in 'this'
+  //    also contains the element in 'other' at the same position,
+  //    i.e. it holds that this.length() == other.length() and
+  //    for each i, 0 <= i < this.length,
+  //    'this[i].contains(other[i])'.
+  // 3. For all other types, 'this' is of the same type as 'other' and
+  //    'this == other'.
+  // NOTE: For a given key 'k', if 'this[k] == null' then
+  // 'this.contains(other)' holds if either 'k' is not present in
+  // 'other.keys()' or 'other[k] == null'.
+  // Similarly, if 'other[k] == null', 'this.contains(other)' only if
+  // 'this[k] == null'. This is a consequence of the containment
+  // definition.
+  bool contains(const Value& other) const;
+
+private:
+  // A class which follows the visitor pattern and implements the
+  // containment rules described in the documentation of 'contains'.
+  // See 'bool Value::contains(const Value& other) const'.
+  struct ContainmentComparator : public boost::static_visitor<bool>
+  {
+    explicit ContainmentComparator(const Value& _self)
+      : self(_self) {}
+
+    bool operator () (const Object& other) const;
+    bool operator () (const Array& other) const;
+    bool operator () (const String& other) const;
+    bool operator () (const Number& other) const;
+    bool operator () (const Boolean& other) const;
+    bool operator () (const Null&) const;
+
+  private:
+    const Value& self;
+  };
 };
 
 
@@ -282,6 +326,106 @@ Result<T> Object::find(const std::string& path) const
   }
 
   return value.as<Object>().find<T>(names[1]);
+}
+
+
+inline bool Value::contains(const Value& other) const
+{
+  return boost::apply_visitor(Value::ContainmentComparator(*this), other);
+}
+
+
+inline bool Value::ContainmentComparator::operator () (
+    const Object& other) const
+{
+  if (!self.is<Object>()) {
+    return false;
+  }
+
+  // The empty set is contained in every set.
+  if (other.values.empty()) {
+    return true;
+  }
+
+  const Object& _self = self.as<Object>();
+
+  // All entries in 'other' should exists in 'self', which implies
+  // there should be at most as many entries in other as in self.
+  if (other.values.size() > _self.values.size()) {
+    return false;
+  }
+
+  foreachpair (const std::string& key, const Value& value, other.values) {
+    auto _selfIterator = _self.values.find(key);
+
+    if (_selfIterator == _self.values.end()) {
+      return false;
+    }
+
+    if (!_selfIterator->second.contains(value)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+
+inline bool Value::ContainmentComparator::operator () (
+    const String& other) const
+{
+  if (!self.is<String>()) {
+    return false;
+  }
+  return self.as<String>().value == other.value;
+}
+
+
+inline bool Value::ContainmentComparator::operator () (
+    const Number& other) const
+{
+  if (!self.is<Number>()) {
+    return false;
+  }
+  return self.as<Number>().value == other.value;
+}
+
+
+inline bool Value::ContainmentComparator::operator () (const Array& other) const
+{
+  if (!self.is<Array>()) {
+    return false;
+  }
+
+  const Array& _self = self.as<Array>();
+
+  if (_self.values.size() != other.values.size()) {
+    return false;
+  }
+
+  for (unsigned i = 0; i < other.values.size(); ++i) {
+    if (!_self.values[i].contains(other.values[i])) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+
+inline bool Value::ContainmentComparator::operator () (
+    const Boolean& other) const
+{
+  if (!self.is<Boolean>()) {
+    return false;
+  }
+  return self.as<Boolean>().value == other.value;
+}
+
+
+inline bool Value::ContainmentComparator::operator () (const Null&) const
+{
+  return self.is<Null>();
 }
 
 
