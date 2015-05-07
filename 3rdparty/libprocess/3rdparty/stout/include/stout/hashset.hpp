@@ -30,6 +30,8 @@ template <typename Elem>
 class hashset : public boost::unordered_set<Elem>
 {
 public:
+  static const hashset<Elem>& EMPTY;
+
   // An explicit default constructor is needed so
   // 'const hashset<T> map;' is not an error.
   hashset() {}
@@ -66,6 +68,11 @@ public:
     }
   }
 };
+
+
+// TODO(jmlvanre): Possibly remove this reference as per MESOS-2694.
+template <typename Elem>
+const hashset<Elem>& hashset<Elem>::EMPTY = *new hashset<Elem>();
 
 
 // Union operator.
