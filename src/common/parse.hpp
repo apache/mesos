@@ -29,7 +29,7 @@
 
 namespace flags {
 
-template<>
+template <>
 inline Try<mesos::ACLs> parse(const std::string& value)
 {
   // Convert from string or file to JSON.
@@ -43,7 +43,7 @@ inline Try<mesos::ACLs> parse(const std::string& value)
 }
 
 
-template<>
+template <>
 inline Try<mesos::RateLimits> parse(const std::string& value)
 {
   // Convert from string or file to JSON.
@@ -57,7 +57,7 @@ inline Try<mesos::RateLimits> parse(const std::string& value)
 }
 
 
-template<>
+template <>
 inline Try<mesos::Modules> parse(const std::string& value)
 {
   // Convert from string or file to JSON.
@@ -71,7 +71,7 @@ inline Try<mesos::Modules> parse(const std::string& value)
 }
 
 
-template<>
+template <>
 inline Try<mesos::ContainerInfo> parse(const std::string& value)
 {
   // Convert from string or file to JSON.
