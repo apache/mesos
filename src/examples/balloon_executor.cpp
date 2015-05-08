@@ -57,15 +57,15 @@ static void balloon(size_t limit)
       abort();
     }
 
-    // We use mlock and memset here to make sure that the memory
+    // We use memset and mlock here to make sure that the memory
     // actually gets paged in and thus accounted for.
-    if (mlock(buffer, chunk) != 0) {
-      perror("Failed to lock memory, mlock");
+    if (memset(buffer, 1, chunk) != buffer) {
+      perror("Failed to fill memory, memset");
       abort();
     }
 
-    if (memset(buffer, 1, chunk) != buffer) {
-      perror("Failed to fill memory, memset");
+    if (mlock(buffer, chunk) != 0) {
+      perror("Failed to lock memory, mlock");
       abort();
     }
 
