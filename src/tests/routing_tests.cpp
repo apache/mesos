@@ -43,6 +43,7 @@
 #include "linux/routing/diagnosis/diagnosis.hpp"
 
 #include "linux/routing/filter/arp.hpp"
+#include "linux/routing/filter/basic.hpp"
 #include "linux/routing/filter/icmp.hpp"
 #include "linux/routing/filter/ip.hpp"
 
@@ -434,6 +435,14 @@ TEST_F(RoutingVethTest, ROOT_FqCodelClassifier)
   EXPECT_SOME_TRUE(link::exists(TEST_PEER_LINK));
 
   ASSERT_SOME_TRUE(fq_codel::create(TEST_VETH_LINK));
+
+  EXPECT_SOME_TRUE(basic::create(
+      TEST_VETH_LINK,
+      fq_codel::HANDLE,
+      None(),
+      queueing::Handle(fq_codel::HANDLE, 0)));
+
+  EXPECT_SOME_TRUE(basic::exists(TEST_VETH_LINK, fq_codel::HANDLE));
 
   EXPECT_SOME_TRUE(arp::create(
       TEST_VETH_LINK,
