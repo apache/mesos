@@ -42,7 +42,6 @@
 
 #include "linux/routing/diagnosis/diagnosis.hpp"
 
-#include "linux/routing/filter/arp.hpp"
 #include "linux/routing/filter/basic.hpp"
 #include "linux/routing/filter/icmp.hpp"
 #include "linux/routing/filter/ip.hpp"
@@ -439,14 +438,16 @@ TEST_F(RoutingVethTest, ROOT_FqCodelClassifier)
   EXPECT_SOME_TRUE(basic::create(
       TEST_VETH_LINK,
       fq_codel::HANDLE,
+      ETH_P_ALL,
       None(),
       queueing::Handle(fq_codel::HANDLE, 0)));
 
-  EXPECT_SOME_TRUE(basic::exists(TEST_VETH_LINK, fq_codel::HANDLE));
+  EXPECT_SOME_TRUE(basic::exists(TEST_VETH_LINK, fq_codel::HANDLE, ETH_P_ALL));
 
-  EXPECT_SOME_TRUE(arp::create(
+  EXPECT_SOME_TRUE(basic::create(
       TEST_VETH_LINK,
       fq_codel::HANDLE,
+      ETH_P_ARP,
       None(),
       queueing::Handle(fq_codel::HANDLE, 0)));
 
@@ -455,7 +456,7 @@ TEST_F(RoutingVethTest, ROOT_FqCodelClassifier)
   // b057df24a7536cce6c372efe9d0e3d1558afedf4
   // (https://git.kernel.org/cgit/linux/kernel/git/davem/net.git).
   // Please fix your kernel if you see this failure.
-  EXPECT_SOME_TRUE(arp::exists(TEST_VETH_LINK, fq_codel::HANDLE));
+  EXPECT_SOME_TRUE(basic::exists(TEST_VETH_LINK, fq_codel::HANDLE, ETH_P_ARP));
 
   EXPECT_SOME_TRUE(icmp::create(
       TEST_VETH_LINK,
@@ -509,13 +510,14 @@ TEST_F(RoutingVethTest, ROOT_ARPFilterCreate)
 
   ASSERT_SOME_TRUE(ingress::create(TEST_VETH_LINK));
 
-  EXPECT_SOME_TRUE(arp::create(
+  EXPECT_SOME_TRUE(basic::create(
       TEST_VETH_LINK,
       ingress::HANDLE,
+      ETH_P_ARP,
       None(),
       action::Redirect(TEST_PEER_LINK)));
 
-  EXPECT_SOME_TRUE(arp::exists(TEST_VETH_LINK, ingress::HANDLE));
+  EXPECT_SOME_TRUE(basic::exists(TEST_VETH_LINK, ingress::HANDLE, ETH_P_ARP));
 }
 
 
@@ -531,17 +533,19 @@ TEST_F(RoutingVethTest, ROOT_ARPFilterCreateDuplicated)
   set<string> links;
   links.insert(TEST_PEER_LINK);
 
-  EXPECT_SOME_TRUE(arp::create(
+  EXPECT_SOME_TRUE(basic::create(
       TEST_VETH_LINK,
       ingress::HANDLE,
+      ETH_P_ARP,
       None(),
       action::Mirror(links)));
 
-  EXPECT_SOME_TRUE(arp::exists(TEST_VETH_LINK, ingress::HANDLE));
+  EXPECT_SOME_TRUE(basic::exists(TEST_VETH_LINK, ingress::HANDLE, ETH_P_ARP));
 
-  EXPECT_SOME_FALSE(arp::create(
+  EXPECT_SOME_FALSE(basic::create(
       TEST_VETH_LINK,
       ingress::HANDLE,
+      ETH_P_ARP,
       None(),
       action::Redirect(TEST_PEER_LINK)));
 }
@@ -559,15 +563,16 @@ TEST_F(RoutingVethTest, ROOT_ARPFilterRemove)
   set<string> links;
   links.insert(TEST_PEER_LINK);
 
-  EXPECT_SOME_TRUE(arp::create(
+  EXPECT_SOME_TRUE(basic::create(
       TEST_VETH_LINK,
       ingress::HANDLE,
+      ETH_P_ARP,
       None(),
       action::Mirror(links)));
 
-  EXPECT_SOME_TRUE(arp::exists(TEST_VETH_LINK, ingress::HANDLE));
-  EXPECT_SOME_TRUE(arp::remove(TEST_VETH_LINK, ingress::HANDLE));
-  EXPECT_SOME_FALSE(arp::exists(TEST_VETH_LINK, ingress::HANDLE));
+  EXPECT_SOME_TRUE(basic::exists(TEST_VETH_LINK, ingress::HANDLE, ETH_P_ARP));
+  EXPECT_SOME_TRUE(basic::remove(TEST_VETH_LINK, ingress::HANDLE, ETH_P_ARP));
+  EXPECT_SOME_FALSE(basic::exists(TEST_VETH_LINK, ingress::HANDLE, ETH_P_ARP));
 }
 
 
@@ -583,25 +588,28 @@ TEST_F(RoutingVethTest, ROOT_ARPFilterUpdate)
   set<string> links;
   links.insert(TEST_PEER_LINK);
 
-  EXPECT_SOME_FALSE(arp::update(
+  EXPECT_SOME_FALSE(basic::update(
       TEST_VETH_LINK,
       ingress::HANDLE,
+      ETH_P_ARP,
       action::Mirror(links)));
 
-  EXPECT_SOME_TRUE(arp::create(
+  EXPECT_SOME_TRUE(basic::create(
       TEST_VETH_LINK,
       ingress::HANDLE,
+      ETH_P_ARP,
       None(),
       action::Redirect(TEST_PEER_LINK)));
 
-  EXPECT_SOME_TRUE(arp::exists(TEST_VETH_LINK, ingress::HANDLE));
+  EXPECT_SOME_TRUE(basic::exists(TEST_VETH_LINK, ingress::HANDLE, ETH_P_ARP));
 
-  EXPECT_SOME_TRUE(arp::update(
+  EXPECT_SOME_TRUE(basic::update(
       TEST_VETH_LINK,
       ingress::HANDLE,
+      ETH_P_ARP,
       action::Mirror(links)));
 
-  EXPECT_SOME_TRUE(arp::exists(TEST_VETH_LINK, ingress::HANDLE));
+  EXPECT_SOME_TRUE(basic::exists(TEST_VETH_LINK, ingress::HANDLE, ETH_P_ARP));
 }
 
 

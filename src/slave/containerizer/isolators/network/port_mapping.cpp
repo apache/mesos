@@ -63,7 +63,7 @@
 
 #include "linux/routing/diagnosis/diagnosis.hpp"
 
-#include "linux/routing/filter/arp.hpp"
+#include "linux/routing/filter/basic.hpp"
 #include "linux/routing/filter/icmp.hpp"
 #include "linux/routing/filter/ip.hpp"
 
@@ -1991,9 +1991,10 @@ Future<Nothing> PortMappingIsolatorProcess::isolate(
   }
 
   // Relay ARP packets from veth of the container to host eth0.
-  Try<bool> arpVethToEth0 = filter::arp::create(
+  Try<bool> arpVethToEth0 = filter::basic::create(
       veth(pid),
       ingress::HANDLE,
+      ETH_P_ARP,
       Priority(ARP_FILTER_PRIORITY, NORMAL),
       action::Redirect(eth0));
 
@@ -2043,9 +2044,10 @@ Future<Nothing> PortMappingIsolatorProcess::isolate(
     }
 
     // Create a new ARP filter on host eth0.
-    Try<bool> arpEth0ToVeth = filter::arp::create(
+    Try<bool> arpEth0ToVeth = filter::basic::create(
         eth0,
         ingress::HANDLE,
+        ETH_P_ARP,
         Priority(ARP_FILTER_PRIORITY, NORMAL),
         action::Mirror(targets));
 
@@ -2083,9 +2085,10 @@ Future<Nothing> PortMappingIsolatorProcess::isolate(
     }
 
     // Update the ARP filter on host eth0.
-    Try<bool> arpEth0ToVeth = filter::arp::update(
+    Try<bool> arpEth0ToVeth = filter::basic::update(
         eth0,
         ingress::HANDLE,
+        ETH_P_ARP,
         action::Mirror(targets));
 
     if (arpEth0ToVeth.isError()) {
@@ -2647,9 +2650,10 @@ Try<Nothing> PortMappingIsolatorProcess::_cleanup(
     }
 
     // Remove the ARP filter on host eth0.
-    Try<bool> arpEth0ToVeth = filter::arp::remove(
+    Try<bool> arpEth0ToVeth = filter::basic::remove(
         eth0,
-        ingress::HANDLE);
+        ingress::HANDLE,
+        ETH_P_ARP);
 
     if (arpEth0ToVeth.isError()) {
       ++metrics.removing_eth0_arp_filters_errors;
@@ -2688,9 +2692,10 @@ Try<Nothing> PortMappingIsolatorProcess::_cleanup(
           "The ICMP packet filter on host " + eth0 + " does not exist");
     }
 
-    Try<bool> arpEth0ToVeth = filter::arp::update(
+    Try<bool> arpEth0ToVeth = filter::basic::update(
         eth0,
         ingress::HANDLE,
+        ETH_P_ARP,
         action::Mirror(targets));
 
     if (arpEth0ToVeth.isError()) {

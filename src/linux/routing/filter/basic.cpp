@@ -46,13 +46,6 @@ namespace filter {
 
 namespace internal {
 
-// This is a work around. Including <linux/if_ether.h> causes
-// duplicated definitions on some platforms with old glibc.
-#ifndef ETH_P_ALL
-#define ETH_P_ALL 0x0003
-#endif
-
-
 // Encodes the basic classifier into the libnl filter 'cls'. Each type
 // of classifier needs to implement this function.
 template <>
@@ -92,15 +85,19 @@ Result<basic::Classifier> decode<basic::Classifier>(
 
 namespace basic {
 
-Try<bool> exists(const string& link, const queueing::Handle& parent)
+Try<bool> exists(
+    const string& link,
+    const queueing::Handle& parent,
+    uint16_t protocol)
 {
-  return internal::exists(link, parent, Classifier(ETH_P_ALL));
+  return internal::exists(link, parent, Classifier(protocol));
 }
 
 
 Try<bool> create(
     const string& link,
     const queueing::Handle& parent,
+    uint16_t protocol,
     const Option<Priority>& priority,
     const Option<queueing::Handle>& classid)
 {
@@ -108,16 +105,72 @@ Try<bool> create(
       link,
       Filter<Classifier>(
           parent,
-          Classifier(ETH_P_ALL),
+          Classifier(protocol),
           priority,
           None(),
           classid));
 }
 
 
-Try<bool> remove(const string& link, const queueing::Handle& parent)
+Try<bool> create(
+    const string& link,
+    const queueing::Handle& parent,
+    uint16_t protocol,
+    const Option<Priority>& priority,
+    const action::Redirect& redirect)
 {
-  return internal::remove(link, parent, Classifier(ETH_P_ALL));
+  return internal::create(
+      link,
+      Filter<Classifier>(
+          parent,
+          Classifier(protocol),
+          priority,
+          None(),
+          redirect));
+}
+
+
+Try<bool> create(
+    const string& link,
+    const queueing::Handle& parent,
+    uint16_t protocol,
+    const Option<Priority>& priority,
+    const action::Mirror& mirror)
+{
+  return internal::create(
+      link,
+      Filter<Classifier>(
+          parent,
+          Classifier(protocol),
+          priority,
+          None(),
+          mirror));
+}
+
+
+Try<bool> remove(
+    const string& link,
+    const queueing::Handle& parent,
+    uint16_t protocol)
+{
+  return internal::remove(link, parent, Classifier(protocol));
+}
+
+
+Try<bool> update(
+    const string& link,
+    const queueing::Handle& parent,
+    uint16_t protocol,
+    const action::Mirror& mirror)
+{
+  return internal::update(
+      link,
+      Filter<Classifier>(
+          parent,
+          Classifier(protocol),
+          None(),
+          None(),
+          mirror));
 }
 
 } // namespace basic {

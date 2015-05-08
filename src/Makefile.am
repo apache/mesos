@@ -473,7 +473,6 @@ if WITH_NETWORK_ISOLATOR
 	linux/routing/route.cpp						\
 	linux/routing/utils.cpp						\
 	linux/routing/diagnosis/diagnosis.cpp				\
-	linux/routing/filter/arp.cpp					\
 	linux/routing/filter/basic.cpp					\
 	linux/routing/filter/icmp.cpp					\
 	linux/routing/filter/ip.cpp					\
@@ -488,7 +487,6 @@ if WITH_NETWORK_ISOLATOR
 	linux/routing/utils.hpp						\
 	linux/routing/diagnosis/diagnosis.hpp				\
 	linux/routing/filter/action.hpp					\
-	linux/routing/filter/arp.hpp					\
 	linux/routing/filter/basic.hpp					\
 	linux/routing/filter/filter.hpp					\
 	linux/routing/filter/handle.hpp					\
