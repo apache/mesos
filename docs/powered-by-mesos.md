@@ -15,6 +15,7 @@ layout: documentation
 * [Auchan Ecommerce France](http://www.auchan.fr)
 * [Bol.com](http://www.bol.com)
 * [Branding Brand](http://www.brandingbrand.com)
+* [Brigade](http://www.brigade.com)
 * [Categorize](http://categorize.co)
 * [CloudPhysics](http://cloudphysics.com)
 * [Conviva](http://www.conviva.com)
