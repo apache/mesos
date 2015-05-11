@@ -19,8 +19,20 @@ matrix:
 #      env: BUILD_TYPE=Release
 language: cpp
 before_install:
+  # g++4.8.1
+  - sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
+  # clang 3.4
+  - if [ "$CXX" == "clang++" ]; then sudo add-apt-repository -y ppa:h-rayflood/llvm; fi
   - sudo apt-get update -qq
   - sudo apt-get install -y libapr1-dev libsvn-dev libsasl2-dev
+install:
+  # g++4.8.1
+  - sudo apt-get install -qq g++-4.8
+  - if [ "$CXX" = "g++" ]; then export CXX="g++-4.8"; fi
+  - if [ "$CXX" == "g++" ]; then sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-4.8 50; fi
+  # clang 3.4
+  - if [ "$CXX" == "clang++" ]; then sudo apt-get install --allow-unauthenticated -qq clang-3.4; fi
+  - if [ "$CXX" == "clang++" ]; then export CXX="clang++-3.4"; fi
 before_script:
   - ./bootstrap
   - mkdir build
@@ -29,6 +41,7 @@ script:
   - if [ "$BUILD_TYPE" = "Debug" ]; then ../configure --enable-debug; fi
   - if [ "$BUILD_TYPE" = "Release" ]; then ../configure; fi
   - make
+  - cd src && make mesos-tests
   - make check
 notifications:
   irc:
