@@ -59,6 +59,7 @@ layout: documentation
 * [Sharethrough](http://www.sharethrough.com)
 * [Sigmoid Analytics](http://www.sigmoidanalytics.com/)
 * [SiQueries](https://siqueries.com)
+* [Sloppy.io](http://sloppy.io)
 * [Squarespace](http://squarespace.com)
 * [TellApart](http://www.tellapart.com/)
 * [The Factory](http://www.thefactory.com)
