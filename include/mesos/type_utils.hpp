@@ -29,6 +29,8 @@
 
 #include <mesos/scheduler/scheduler.hpp>
 
+#include <stout/hashmap.hpp>
+#include <stout/stringify.hpp>
 #include <stout/uuid.hpp>
 
 // This file includes definitions for operators on public protobuf
@@ -400,6 +402,15 @@ inline std::ostream& operator << (
     const Modules& modules)
 {
   return stream << modules.DebugString();
+}
+
+
+inline std::ostream& operator << (
+    std::ostream& stream,
+    const hashmap<std::string, std::string>& map)
+{
+  stream << stringify(map);
+  return stream;
 }
 
 } // namespace mesos {

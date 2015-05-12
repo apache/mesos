@@ -19,8 +19,10 @@
 #include <mesos/module/module.hpp>
 
 #include <stout/error.hpp>
+#include <stout/hashmap.hpp>
 #include <stout/json.hpp>
 #include <stout/protobuf.hpp>
+#include <stout/stringify.hpp>
 #include <stout/try.hpp>
 
 #include <stout/flags/parse.hpp>
@@ -82,6 +84,28 @@ inline Try<mesos::ContainerInfo> parse(const std::string& value)
 
   // Convert from JSON to Protobuf.
   return protobuf::parse<mesos::ContainerInfo>(json.get());
+}
+
+
+// When the same variable is listed multiple times,
+// uses only the last value.
+template<>
+inline Try<hashmap<std::string, std::string>> parse(const std::string& value)
+{
+  // Convert from string or file to JSON.
+  Try<JSON::Object> json = parse<JSON::Object>(value);
+  if (json.isError()) {
+    return Error(json.error());
+  }
+
+  // Convert from JSON to Hashmap.
+  hashmap<std::string, std::string> map;
+  foreachpair (const std::string& key,
+               const JSON::Value& value,
+               json.get().values) {
+    map[key] = stringify(value);
+  }
+  return map;
 }
 
 } // namespace flags {
