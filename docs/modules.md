@@ -145,6 +145,19 @@ Similar to Apache Webserver Modules, hooks allows module writers to tie into
 internal components which may not be suitable to be abstracted entirely behind
 modules but rather let's them define actions on so-called hooks.
 
+To load a hook into Mesos, you need to
+
+- introduce it to Mesos by listing it in the `--modules` configuration,
+
+- select it as a hook module via the `--hooks` flag.
+
+For example, the following command will run the Mesos slave with the
+`TestTaskHook` hook:
+
+```
+./bin/mesos-slave.sh --master=<IP>:<PORT> --modules="file://<path-to-modules-config>.json" --hooks=TestTaskHook
+```
+
 ### Isolator
 
 Isolator modules enable experimenting with specialized isolation and monitoring
