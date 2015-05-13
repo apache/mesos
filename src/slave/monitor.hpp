@@ -58,6 +58,13 @@ const extern size_t MONITORING_TIME_SERIES_CAPACITY;
 class ResourceMonitor
 {
 public:
+  struct Usage
+  {
+    ContainerID containerId;
+    ExecutorInfo executorInfo;
+    ResourceStatistics statistics;
+  };
+
   explicit ResourceMonitor(Containerizer* containerizer);
   ~ResourceMonitor();
 
@@ -71,6 +78,8 @@ public:
   // Returns a failure if the container is unknown to the monitor.
   process::Future<Nothing> stop(
       const ContainerID& containerId);
+
+  process::Future<std::list<Usage>> usages();
 
 private:
   ResourceMonitorProcess* process;
@@ -94,6 +103,8 @@ public:
   process::Future<Nothing> stop(
       const ContainerID& containerId);
 
+  process::Future<std::list<ResourceMonitor::Usage>> usages();
+
 protected:
   virtual void initialize()
   {
@@ -103,18 +114,16 @@ protected:
   }
 
 private:
-  // This is a convenience struct for bundling usage information.
-  struct Usage
-  {
-    ContainerID containerId;
-    ExecutorInfo executorInfo;
-    process::Future<ResourceStatistics> statistics;
-  };
-
   // Helper for returning the usage for a particular executor.
-  Usage usage(
-      const ContainerID& containerId,
-      const ExecutorInfo& executorInfo);
+  process::Future<ResourceMonitor::Usage> usage(ContainerID containerId);
+
+  ResourceMonitor::Usage _usage(
+    const ContainerID& containerId,
+    const ExecutorInfo& executorInfo,
+    const ResourceStatistics& statistics);
+
+  std::list<ResourceMonitor::Usage> _usages(
+      std::list<process::Future<ResourceMonitor::Usage>> future);
 
   // HTTP Endpoints.
   // Returns the monitoring statistics. Requests have no parameters.
@@ -123,7 +132,7 @@ private:
   process::Future<process::http::Response> _statistics(
       const process::http::Request& request);
   process::Future<process::http::Response> __statistics(
-      const std::list<Usage>& usages,
+      const process::Future<std::list<ResourceMonitor::Usage>>& futures,
       const process::http::Request& request);
 
   static const std::string STATISTICS_HELP;
