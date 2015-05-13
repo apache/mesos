@@ -58,115 +58,6 @@ namespace internal {
 namespace tests {
 
 
-TEST(MonitorTest, Collection)
-{
-  FrameworkID frameworkId;
-  frameworkId.set_value("framework");
-
-  ExecutorID executorId;
-  executorId.set_value("executor");
-
-  ContainerID containerId;
-  containerId.set_value("container");
-
-  ExecutorInfo executorInfo;
-  executorInfo.mutable_executor_id()->CopyFrom(executorId);
-  executorInfo.mutable_framework_id()->CopyFrom(frameworkId);
-  executorInfo.set_name("name");
-  executorInfo.set_source("source");
-
-  ResourceStatistics statistics1;
-  statistics1.set_cpus_nr_periods(100);
-  statistics1.set_cpus_nr_throttled(2);
-  statistics1.set_cpus_user_time_secs(4);
-  statistics1.set_cpus_system_time_secs(1);
-  statistics1.set_cpus_throttled_time_secs(0.5);
-  statistics1.set_cpus_limit(1.0);
-  statistics1.set_mem_rss_bytes(1024);
-  statistics1.set_mem_file_bytes(0);
-  statistics1.set_mem_anon_bytes(0);
-  statistics1.set_mem_mapped_file_bytes(0);
-  statistics1.set_mem_limit_bytes(2048);
-  statistics1.set_timestamp(0);
-
-  ResourceStatistics statistics2;
-  statistics2.CopyFrom(statistics1);
-  statistics2.set_timestamp(
-      statistics2.timestamp() + slave::RESOURCE_MONITORING_INTERVAL.secs());
-
-  ResourceStatistics statistics3;
-  statistics3.CopyFrom(statistics2);
-  statistics3.set_timestamp(
-      statistics3.timestamp() + slave::RESOURCE_MONITORING_INTERVAL.secs());
-
-  TestContainerizer containerizer;
-
-  Future<Nothing> usage1, usage2, usage3;
-  EXPECT_CALL(containerizer, usage(containerId))
-    .WillOnce(DoAll(FutureSatisfy(&usage1),
-                    Return(statistics1)))
-    .WillOnce(DoAll(FutureSatisfy(&usage2),
-                    Return(statistics2)))
-    .WillOnce(DoAll(FutureSatisfy(&usage3),
-                    Return(statistics3)));
-
-  slave::ResourceMonitor monitor(&containerizer);
-
-  // We pause the clock first in order to make sure that we can
-  // advance time below to force the 'delay' in
-  // ResourceMonitorProcess::start to execute.
-  process::Clock::pause();
-
-  monitor.start(
-      containerId,
-      executorInfo,
-      slave::RESOURCE_MONITORING_INTERVAL);
-
-  // Now wait for ResouorceMonitorProcess::start to finish so we can
-  // advance time to cause collection to begin.
-  process::Clock::settle();
-
-  process::Clock::advance(slave::RESOURCE_MONITORING_INTERVAL);
-  process::Clock::settle();
-
-  AWAIT_READY(usage1);
-
-  // Wait until the containerizer has finished returning the statistics.
-  process::Clock::settle();
-
-  // Expect a second collection to occur after the interval.
-  process::Clock::advance(slave::RESOURCE_MONITORING_INTERVAL);
-  process::Clock::settle();
-
-  AWAIT_READY(usage2);
-
-  // Wait until the containerizer has finished returning the statistics.
-  process::Clock::settle();
-
-  // Expect a third collection to occur after the interval.
-  process::Clock::advance(slave::RESOURCE_MONITORING_INTERVAL);
-  process::Clock::settle();
-
-  AWAIT_READY(usage3);
-
-  // Wait until the containerize has finished returning the statistics.
-  process::Clock::settle();
-
-  // Ensure the monitor stops polling the isolator.
-  monitor.stop(containerId);
-
-  // Wait until ResourceMonitorProcess::stop has completed.
-  process::Clock::settle();
-
-  // This time, Containerizer::usage should not get called.
-  EXPECT_CALL(containerizer, usage(containerId))
-    .Times(0);
-
-  process::Clock::advance(slave::RESOURCE_MONITORING_INTERVAL);
-  process::Clock::settle();
-}
-
-
 TEST(MonitorTest, Statistics)
 {
   FrameworkID frameworkId;
@@ -213,8 +104,7 @@ TEST(MonitorTest, Statistics)
 
   monitor.start(
       containerId,
-      executorInfo,
-      slave::RESOURCE_MONITORING_INTERVAL);
+      executorInfo);
 
   // Now wait for ResouorceMonitorProcess::watch to finish.
   process::Clock::settle();

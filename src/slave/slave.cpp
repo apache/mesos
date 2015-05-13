@@ -2403,8 +2403,7 @@ void Slave::reregisterExecutor(
       // update fails.
       monitor.start(
           executor->containerId,
-          executor->info,
-          flags.resource_monitoring_interval)
+          executor->info)
         .onAny(lambda::bind(_monitor,
                             lambda::_1,
                             framework->id(),
@@ -3180,8 +3179,7 @@ void Slave::executorLaunched(
       // Start monitoring the container's resources.
       monitor.start(
           containerId,
-          executor->info,
-          flags.resource_monitoring_interval)
+          executor->info)
         .onAny(lambda::bind(_monitor,
                             lambda::_1,
                             frameworkId,
