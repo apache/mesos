@@ -26,11 +26,21 @@ namespace mesos {
 
 bool needCheckpointing(const Resource& resource)
 {
-  // TODO(mpark): Consider framework reservations.
-  return Resources::isPersistentVolume(resource);
+  return Resources::isDynamicallyReserved(resource) ||
+         Resources::isPersistentVolume(resource);
 }
 
 
+// NOTE: We effectively duplicate the logic in 'Resources::apply'
+// which is less than ideal. But we can not simply create
+// 'Offer::Operation' and invoke 'Resources::apply' here.
+// 'RESERVE' operation requires that the specified resources are
+// dynamically reserved only, and 'CREATE' requires that the
+// specified resources are already dynamically reserved.
+// These requirements are violated when we try to infer dynamically
+// reserved persistent volumes.
+// TODO(mpark): Consider introducing an atomic 'RESERVE_AND_CREATE'
+// operation to solve this problem.
 Try<Resources> applyCheckpointedResources(
     const Resources& resources,
     const Resources& checkpointedResources)
@@ -42,23 +52,25 @@ Try<Resources> applyCheckpointedResources(
       return Error("Unexpected checkpointed resources " + stringify(resource));
     }
 
-    // TODO(jieyu): Apply RESERVE operation if 'resource' is
-    // dynamically reserved.
+    Resource stripped = resource;
+
+    if (Resources::isDynamicallyReserved(resource)) {
+      stripped.set_role("*");
+      stripped.clear_reservation();
+    }
 
     if (Resources::isPersistentVolume(resource)) {
-      Offer::Operation create;
-      create.set_type(Offer::Operation::CREATE);
-      create.mutable_create()->add_volumes()->CopyFrom(resource);
-
-      Try<Resources> applied = totalResources.apply(create);
-      if (applied.isError()) {
-        return Error(
-            "Cannot find transition for checkpointed resource " +
-            stringify(resource));
-      }
-
-      totalResources = applied.get();
+      stripped.clear_disk();
     }
+
+    if (!totalResources.contains(stripped)) {
+      return Error(
+          "Incompatible slave resources: " + stringify(totalResources) +
+          " does not contain " + stringify(stripped));
+    }
+
+    totalResources -= stripped;
+    totalResources += resource;
   }
 
   return totalResources;

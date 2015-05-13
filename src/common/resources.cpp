@@ -502,6 +502,12 @@ bool Resources::isUnreserved(const Resource& resource)
 }
 
 
+bool Resources::isDynamicallyReserved(const Resource& resource)
+{
+  return resource.has_reservation();
+}
+
+
 /////////////////////////////////////////////////
 // Public member functions.
 /////////////////////////////////////////////////
