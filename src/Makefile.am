@@ -1423,6 +1423,7 @@ mesos_tests_SOURCES =				\
   tests/reconciliation_tests.cpp		\
   tests/registrar_tests.cpp			\
   tests/repair_tests.cpp			\
+  tests/reservation_tests.cpp			\
   tests/resource_offers_tests.cpp		\
   tests/resources_tests.cpp			\
   tests/scheduler_tests.cpp			\

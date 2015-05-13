@@ -285,6 +285,19 @@ TEST_F(ReserveOperationValidationTest, FrameworkMissingPrincipal)
 }
 
 
+// This test verifies that validation fails if there are statically
+// reserved resources specified in the RESERVE operation.
+TEST_F(ReserveOperationValidationTest, StaticReservation)
+{
+  Resource staticallyReserved = Resources::parse("cpus", "8", "role").get();
+
+  Offer::Operation::Reserve reserve;
+  reserve.add_resources()->CopyFrom(staticallyReserved);
+
+  EXPECT_SOME(operation::validate(reserve, "role", "principal"));
+}
+
+
 // This test verifies that the resources specified in the RESERVE
 // operation cannot be persistent volumes.
 TEST_F(ReserveOperationValidationTest, NoPersistentVolumes)
@@ -346,6 +359,19 @@ TEST_F(UnreserveOperationValidationTest, FrameworkMissingPrincipal)
   unreserve.add_resources()->CopyFrom(resource);
 
   EXPECT_SOME(operation::validate(unreserve, false));
+}
+
+
+// This test verifies that validation fails if there are statically
+// reserved resources specified in the UNRESERVE operation.
+TEST_F(UnreserveOperationValidationTest, StaticReservation)
+{
+  Resource staticallyReserved = Resources::parse("cpus", "8", "role").get();
+
+  Offer::Operation::Unreserve unreserve;
+  unreserve.add_resources()->CopyFrom(staticallyReserved);
+
+  EXPECT_SOME(operation::validate(unreserve, true));
 }
 
 
