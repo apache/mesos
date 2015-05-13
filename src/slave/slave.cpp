@@ -152,12 +152,14 @@ Slave::~Slave()
 }
 
 
-lambda::function<void(int, int)> signaledWrapper;
+lambda::function<void(int, int)>* signaledWrapper = NULL;
 
 
 static void signalHandler(int sig, siginfo_t* siginfo, void* context)
 {
-  signaledWrapper(sig, siginfo->si_uid);
+  if (signaledWrapper != NULL) {
+    (*signaledWrapper)(sig, siginfo->si_uid);
+  }
 }
 
 
@@ -514,7 +516,8 @@ void Slave::initialize()
   // the sa_sigaction field, not sa_handler.
   action.sa_flags = SA_SIGINFO;
 
-  signaledWrapper = defer(self(), &Slave::signaled, lambda::_1, lambda::_2);
+  signaledWrapper = new lambda::function<void(int, int)>(
+      defer(self(), &Slave::signaled, lambda::_1, lambda::_2));
 
   action.sa_sigaction = signalHandler;
 
