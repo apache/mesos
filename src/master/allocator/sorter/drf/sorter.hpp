@@ -74,20 +74,23 @@ public:
   virtual void deactivate(const std::string& name);
 
   virtual void allocated(const std::string& name,
+                         const SlaveID& slaveId,
                          const Resources& resources);
 
   virtual void update(const std::string& name,
+                      const SlaveID& slaveId,
                       const Resources& oldAllocation,
                       const Resources& newAllocation);
 
   virtual void unallocated(const std::string& name,
+                           const SlaveID& slaveId,
                            const Resources& resources);
 
-  virtual Resources allocation(const std::string& name);
+  virtual hashmap<SlaveID, Resources> allocation(const std::string& name);
 
-  virtual void add(const Resources& resources);
+  virtual void add(const SlaveID& slaveId, const Resources& resources);
 
-  virtual void remove(const Resources& resources);
+  virtual void remove(const SlaveID& slaveId, const Resources& resources);
 
   virtual std::list<std::string> sort();
 
@@ -114,13 +117,13 @@ private:
   std::set<Client, DRFComparator> clients;
 
   // Maps client names to the resources they have been allocated.
-  hashmap<std::string, Resources> allocations;
+  hashmap<std::string, hashmap<SlaveID, Resources>> allocations;
 
   // Maps client names to the weights that should be applied to their shares.
   hashmap<std::string, double> weights;
 
   // Total resources.
-  Resources resources;
+  hashmap<SlaveID, Resources> resources;
 };
 
 } // namespace allocator {

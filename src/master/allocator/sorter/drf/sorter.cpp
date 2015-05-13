@@ -47,7 +47,7 @@ void DRFSorter::add(const string& name, double weight)
   Client client(name, 0, 0);
   clients.insert(client);
 
-  allocations[name] = Resources();
+  allocations[name] = hashmap<SlaveID, Resources>();
   weights[name] = weight;
 }
 
@@ -90,6 +90,7 @@ void DRFSorter::deactivate(const string& name)
 
 void DRFSorter::allocated(
     const string& name,
+    const SlaveID& slaveId,
     const Resources& resources)
 {
   set<Client, DRFComparator>::iterator it = find(name);
@@ -106,7 +107,7 @@ void DRFSorter::allocated(
     clients.insert(client);
   }
 
-  allocations[name] += resources;
+  allocations[name][slaveId] += resources;
 
   // If the total resources have changed, we're going to
   // recalculate all the shares, so don't bother just
@@ -119,6 +120,7 @@ void DRFSorter::allocated(
 
 void DRFSorter::update(
     const string& name,
+    const SlaveID& slaveId,
     const Resources& oldAllocation,
     const Resources& newAllocation)
 {
@@ -129,23 +131,26 @@ void DRFSorter::update(
   // Otherwise, we need to ensure we re-calculate the shares, as
   // is being currently done, for safety.
 
-  CHECK(resources.contains(oldAllocation));
+  CHECK(resources[slaveId].contains(oldAllocation));
 
-  resources -= oldAllocation;
-  resources += newAllocation;
+  resources[slaveId] -= oldAllocation;
+  resources[slaveId] += newAllocation;
 
-  CHECK(allocations[name].contains(oldAllocation));
+  CHECK(allocations[name][slaveId].contains(oldAllocation));
 
-  allocations[name] -= oldAllocation;
-  allocations[name] += newAllocation;
+  allocations[name][slaveId] -= oldAllocation;
+  if (allocations[name][slaveId].empty()) {
+    allocations[name].erase(slaveId);
+  }
+
+  allocations[name][slaveId] += newAllocation;
 
   // Just assume the total has changed, per the TODO above.
   dirty = true;
 }
 
 
-Resources DRFSorter::allocation(
-    const string& name)
+hashmap<SlaveID, Resources> DRFSorter::allocation(const string& name)
 {
   return allocations[name];
 }
@@ -153,9 +158,13 @@ Resources DRFSorter::allocation(
 
 void DRFSorter::unallocated(
     const string& name,
+    const SlaveID& slaveId,
     const Resources& resources)
 {
-  allocations[name] -= resources;
+  allocations[name][slaveId] -= resources;
+  if (allocations[name][slaveId].empty()) {
+    allocations[name].erase(slaveId);
+  }
 
   if (!dirty) {
     update(name);
@@ -163,9 +172,9 @@ void DRFSorter::unallocated(
 }
 
 
-void DRFSorter::add(const Resources& _resources)
+void DRFSorter::add(const SlaveID& slaveId, const Resources& _resources)
 {
-  resources += _resources;
+  resources[slaveId] += _resources;
 
   // We have to recalculate all shares when the total resources
   // change, but we put it off until sort is called
@@ -175,9 +184,13 @@ void DRFSorter::add(const Resources& _resources)
 }
 
 
-void DRFSorter::remove(const Resources& _resources)
+void DRFSorter::remove(const SlaveID& slaveId, const Resources& _resources)
 {
-  resources -= _resources;
+  resources[slaveId] -= _resources;
+  if (resources[slaveId].empty()) {
+    resources.erase(slaveId);
+  }
+
   dirty = true;
 }
 
@@ -248,22 +261,27 @@ double DRFSorter::calculateShare(const string& name)
   // currently does not take into account resources that are not
   // scalars.
 
+  // NOTE: Summation is incorrect for non-scalars, but since we
+  // only care about scalar resources, this is safe.
+  Resources totalResources = Resources::sum(resources);
+  Resources clientAllocation = Resources::sum(allocations[name]);
+
   // Scalar resources may be spread across multiple 'Resource'
   // objects. E.g. persistent volumes. So we first collect the names
   // of the scalar resources, before computing the totals.
   hashset<string> scalars;
-  foreach (const Resource& resource, resources) {
+  foreach (const Resource& resource, totalResources) {
     if (resource.type() == Value::SCALAR) {
       scalars.insert(resource.name());
     }
   }
 
   foreach (const string& scalar, scalars) {
-    Option<Value::Scalar> total = resources.get<Value::Scalar>(scalar);
+    Option<Value::Scalar> total = totalResources.get<Value::Scalar>(scalar);
 
     if (total.isSome() && total.get().value() > 0) {
       Option<Value::Scalar> allocation =
-        allocations[name].get<Value::Scalar>(scalar);
+        clientAllocation.get<Value::Scalar>(scalar);
 
       if (allocation.isNone()) {
         allocation = Value::Scalar();
