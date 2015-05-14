@@ -38,6 +38,8 @@
 #include "master/allocator/mesos/allocator.hpp"
 #include "master/allocator/sorter/drf/sorter.hpp"
 
+#include "master/constants.hpp"
+
 namespace mesos {
 namespace internal {
 namespace master {

@@ -187,7 +187,9 @@ template <typename AllocatorProcess>
 Try<mesos::master::allocator::Allocator*>
 MesosAllocator<AllocatorProcess>::create()
 {
-  return new MesosAllocator<AllocatorProcess>();
+  mesos::master::allocator::Allocator* allocator =
+    new MesosAllocator<AllocatorProcess>();
+  return CHECK_NOTNULL(allocator);
 }
 
 template <typename AllocatorProcess>

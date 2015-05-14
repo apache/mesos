@@ -108,6 +108,9 @@ extern const Duration ZOOKEEPER_SESSION_TIMEOUT;
 // Name of the default, CRAM-MD5 authenticator.
 extern const std::string DEFAULT_AUTHENTICATOR;
 
+// Name of the default, HierarchicalDRF authenticator.
+extern const std::string DEFAULT_ALLOCATOR;
+
 } // namespace master {
 } // namespace internal {
 } // namespace mesos {

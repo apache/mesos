@@ -16,35 +16,37 @@
  * limitations under the License.
  */
 
-#include <stdint.h>
+#include <mesos/master/allocator.hpp>
 
-#include <string>
-
-#include <stout/bytes.hpp>
+#include <mesos/module/allocator.hpp>
 
 #include "master/constants.hpp"
 
+#include "master/allocator/mesos/hierarchical.hpp"
+
+#include "module/manager.hpp"
+
+using std::string;
+
+using mesos::internal::master::allocator::HierarchicalDRFAllocator;
+
 namespace mesos {
-namespace internal {
 namespace master {
+namespace allocator {
 
-const int MAX_OFFERS_PER_FRAMEWORK = 50;
-const double MIN_CPUS = 0.01;
-const Bytes MIN_MEM = Megabytes(32);
-const Duration SLAVE_PING_TIMEOUT = Seconds(15);
-const uint32_t MAX_SLAVE_PING_TIMEOUTS = 5;
-const Duration MIN_SLAVE_REREGISTER_TIMEOUT = Minutes(10);
-const double RECOVERY_SLAVE_REMOVAL_PERCENT_LIMIT = 1.0; // 100%.
-const size_t MAX_REMOVED_SLAVES = 100000;
-const uint32_t MAX_COMPLETED_FRAMEWORKS = 50;
-const uint32_t MAX_COMPLETED_TASKS_PER_FRAMEWORK = 1000;
-const Duration WHITELIST_WATCH_INTERVAL = Seconds(5);
-const uint32_t TASK_LIMIT = 100;
-const std::string MASTER_INFO_LABEL = "info";
-const Duration ZOOKEEPER_SESSION_TIMEOUT = Seconds(10);
-const std::string DEFAULT_AUTHENTICATOR = "crammd5";
-const std::string DEFAULT_ALLOCATOR = "HierarchicalDRF";
+Try<Allocator*> Allocator::create(const string& name)
+{
+  // Create an instance of the default allocator. If other than the
+  // default allocator is requested, search for it in loaded modules.
+  // NOTE: We do not need an extra not-null check, because both
+  // ModuleManager and built-in allocator factory do that already.
+  if (name == mesos::internal::master::DEFAULT_ALLOCATOR) {
+    return HierarchicalDRFAllocator::create();
+  }
 
+  return modules::ModuleManager::create<Allocator>(name);
+}
+
+} // namespace allocator {
 } // namespace master {
-} // namespace internal {
 } // namespace mesos {

@@ -341,6 +341,7 @@ libmesos_no_3rdparty_la_SOURCES =					\
 	master/registrar.cpp						\
 	master/repairer.cpp						\
 	master/validation.cpp						\
+	master/allocator/allocator.cpp					\
 	master/allocator/sorter/drf/sorter.cpp				\
 	module/manager.cpp						\
 	sched/constants.cpp						\
