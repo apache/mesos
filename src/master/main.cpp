@@ -202,7 +202,7 @@ int main(int argc, char** argv)
   }
 
   // Create an instance of allocator.
-  const std::string allocatorName = DEFAULT_ALLOCATOR;
+  const std::string allocatorName = flags.allocator;
   Try<Allocator*> allocator = Allocator::create(allocatorName);
 
   if (allocator.isError()) {

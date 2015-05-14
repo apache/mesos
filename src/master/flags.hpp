@@ -68,6 +68,7 @@ public:
   Option<Duration> offer_timeout;
   Option<Modules> modules;
   std::string authenticators;
+  std::string allocator;
   Option<std::string> hooks;
 
 #ifdef WITH_NETWORK_ISOLATOR

@@ -342,11 +342,16 @@ mesos::internal::master::Flags::Flags()
   add(&Flags::authenticators,
       "authenticators",
       "Authenticator implementation to use when authenticating frameworks\n"
-      "and/or slaves. Use the default '" +
-        DEFAULT_AUTHENTICATOR +
-        "', or\n"
-        "load an alternate authenticator module using --modules.",
+      "and/or slaves. Use the default '" + DEFAULT_AUTHENTICATOR + "', or\n"
+      "load an alternate authenticator module using --modules.",
       DEFAULT_AUTHENTICATOR);
+
+  add(&Flags::allocator,
+      "allocator",
+      "Allocator to use for resource allocation to frameworks.\n"
+      "Use the default '" + DEFAULT_ALLOCATOR + "' allocator, or\n"
+      "load an alternate allocator module using --modules.",
+      DEFAULT_ALLOCATOR);
 
   add(&Flags::hooks,
       "hooks",
