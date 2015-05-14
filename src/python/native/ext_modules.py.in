@@ -127,6 +127,8 @@ DEPENDS = [
         for source in SOURCES
 ]
 
+EXTRA_COMPILE_ARGS = ['-std=c++11']
+
 # Note that we add EXTRA_OBJECTS to our dependency list to make sure
 # that we rebuild this module when one of them changes (e.g.,
 # libprocess).
@@ -137,6 +139,7 @@ mesos_module = \
               library_dirs = LIBRARY_DIRS,
               extra_objects = EXTRA_OBJECTS,
               extra_link_args = EXTRA_LINK_ARGS,
+              extra_compile_args = EXTRA_COMPILE_ARGS,
               depends = EXTRA_OBJECTS,
               language = 'c++',
               )
