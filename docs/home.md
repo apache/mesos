@@ -45,6 +45,7 @@ layout: documentation
 * [Submitting a Patch](/documentation/latest/submitting-a-patch/) for getting started with ReviewBoard, and our tooling around it.
 * [Effective Code Reviewing](/documentation/latest/effective-code-reviewing/) guidelines, tips, and learnings for how to do effective code reviews.
 * [Committing](/documentation/latest/committing/) guidelines for committing changes.
+* [Committers](/documentation/latest/committers/) a listing of project committers; useful when seeking feedback.
 * [C++ Style Guide](/documentation/latest/mesos-c++-style-guide/)
 * [Development Roadmap](/documentation/latest/mesos-roadmap/)
 * [Release Guide](/documentation/latest/release-guide/)
