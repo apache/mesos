@@ -191,3 +191,110 @@ We'd like to thank the following committers to the Apache Mesos project who have
 </table>
 
 If you're interested in becoming a committer yourself, the best way to do so is by participating in developer discussions and contributing patches to the project.
+
+
+## Component Maintainers
+
+We currently make no distinction between committers and PMC members. As such, **every committer is responsible for the quality of the entire codebase**. Some components are widely maintained (e.g. build and support tooling, tests, etc), whereas some components are inherently more critical / complex and have committers with increased context, interest, and long-term perspective.
+
+We aim to have more than one maintainer for each component, in order to ensure that contributors can obtain timely feedback. To avoid information silos, we encourage committers to learn about areas of the code that they are unfamiliar with.
+
+When sending reviews, it can be valuable to consult the component maintainers, as specified below. Component maintainers do not have any special "ownership" over the code, but merely serve as a resource for obtaining valuable feedback in a timely manner. We trust every committer to use good judgement to determine when to obtain feedback from component maintainers.
+
+<table class="table table-hover table-condensed">
+  <thead>
+    <tr>
+      <th>Component</th>
+      <th>Maintainers (alphabetical)</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Master / Slave</td>
+      <td>Benjamin Hindman, Vinod Kone, Benjamin Mahler, Jie Yu</td>
+    </tr>
+    <tr>
+      <td>Framework API</td>
+      <td>Benjamin Hindman, Vinod Kone, Benjamin Mahler, Jie Yu</td>
+    </tr>
+    <tr>
+      <td>State Libraries</td>
+      <td>Benjamin Hindman, Benjamin Mahler</td>
+    </tr>
+    <tr>
+      <td>Replicated Log</td>
+      <td>Benjamin Hindman, Jie Yu</td>
+    </tr>
+    <tr>
+      <td>ZooKeeper Bindings</td>
+      <td>Benjamin Hindman, Vinod Kone, Benjamin Mahler, Yan Xu</td>
+    </tr>
+    <tr>
+      <td>Authentication / Authorization</td>
+      <td>Adam B, Vinod Kone, Till Toenshoff</td>
+    </tr>
+    <tr>
+      <td>Modules / Hooks</td>
+      <td>Niklas Nielsen, Benjamin Hindman</td>
+    </tr>
+    <tr>
+      <td>CLI</td>
+      <td><i>maintainers needed</i></td>
+    </tr>
+    <tr>
+      <td>WebUI</td>
+      <td><i>maintainers needed</i></td>
+    </tr>
+    <tr>
+      <td>Project Website</td>
+      <td>Dave Lester</td>
+    </tr>
+  </tbody>
+</table>
+
+
+#### Containerization
+
+<table class="table table-hover table-condensed">
+  <thead>
+    <tr>
+      <th>Component</th>
+      <th>Maintainers (alphabetical)</th>
+    </tr>
+    <tbody>
+      <tr>
+        <td>Mesos Containerizer</td>
+        <td>Ian Downes, Jie Yu</td>
+      </tr>
+      <tr>
+        <td>Docker Containerizer</td>
+        <td>Tim Chen, Benjamin Hindman</td>
+      </tr>
+      <tr>
+        <td>External Containerizer</td>
+        <td>Till Toenshoff, Benjamin Hindman</td>
+      </tr>
+    </tbody>
+  </thead>
+</table>
+
+#### C++ Libraries
+
+<table class="table table-hover table-condensed">
+  <thead>
+    <tr>
+      <th>Component</th>
+      <th>Maintainers (alphabetical)</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Libprocess</td>
+      <td>Benjamin Hindman, Benjamin Mahler, Jie Yu</td>
+    </tr>
+    <tr>
+      <td>Stout</td>
+      <td>Benjamin Hindman, Vinod Kone, Benjamin Mahler, Jie Yu</td>
+    </tr>
+  </tbody>
+</table>
