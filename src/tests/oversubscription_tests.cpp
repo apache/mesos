@@ -18,6 +18,9 @@
 
 #include <gmock/gmock.h>
 
+#include <mesos/resources.hpp>
+
+#include <process/clock.hpp>
 #include <process/gtest.hpp>
 
 #include <stout/gtest.hpp>
@@ -45,24 +48,43 @@ class OversubscriptionSlaveTest : public MesosTest {};
 
 
 // This test verifies that slave will forward the estimation of the
-// available oversubscribed resources to the master.
-TEST_F(OversubscriptionSlaveTest, UpdateOversubcribedResourcesMessage)
+// oversubscribable resources to the master.
+TEST_F(OversubscriptionSlaveTest, ForwardOversubcribableResourcesMessage)
 {
   Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
-  Future<UpdateOversubscribedResourcesMessage> message =
-    FUTURE_PROTOBUF(UpdateOversubscribedResourcesMessage(), _, _);
+  Future<SlaveRegisteredMessage> slaveRegistered =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
 
-  MockResourceEstimator resourceEstimator;
+  TestResourceEstimator resourceEstimator;
 
-  EXPECT_CALL(resourceEstimator, oversubscribed())
-    .WillRepeatedly(Return(Resources()));
+  slave::Flags flags = CreateSlaveFlags();
 
-  Try<PID<Slave>> slave = StartSlave(&resourceEstimator);
+  Try<PID<Slave>> slave = StartSlave(&resourceEstimator, flags);
   ASSERT_SOME(slave);
 
-  AWAIT_READY(message);
+  AWAIT_READY(slaveRegistered);
+
+  Future<OversubscribeResourcesMessage> update =
+    FUTURE_PROTOBUF(OversubscribeResourcesMessage(), _, _);
+
+  Clock::pause();
+
+  Clock::settle();
+  Clock::advance(flags.oversubscribe_resources_interval);
+
+  ASSERT_FALSE(update.isReady());
+
+  // Inject an estimation of oversubscribable resources.
+  Resources resources = Resources::parse("cpus:1;mem:32").get();
+  resourceEstimator.estimate(resources);
+
+  Clock::settle();
+  Clock::advance(flags.oversubscribe_resources_interval);
+
+  AWAIT_READY(update);
+  EXPECT_EQ(Resources(update.get().resources()), resources);
 
   Shutdown();
 }

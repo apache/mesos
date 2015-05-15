@@ -324,7 +324,9 @@ void Slave::initialize()
   }
 
   // TODO(jieyu): Pass ResourceMonitor* to 'initialize'.
-  Try<Nothing> initialize = resourceEstimator->initialize();
+  Try<Nothing> initialize = resourceEstimator->initialize(
+      defer(self(), &Self::updateOversubscribableResources, lambda::_1));
+
   if (initialize.isError()) {
     EXIT(1) << "Failed to initialize the resource estimator: "
             << initialize.error();
@@ -3978,8 +3980,8 @@ void Slave::__recover(const Future<Nothing>& future)
   if (flags.recover == "reconnect") {
     state = DISCONNECTED;
 
-    // Start to detect available oversubscribed resources.
-    updateOversubscribedResources();
+    // Start to send updates about oversubscribable resources.
+    forwardOversubscribableResources();
 
     // Start detecting masters.
     detection = detector->detect()
@@ -4070,45 +4072,43 @@ Future<Nothing> Slave::garbageCollect(const string& path)
 }
 
 
-void Slave::updateOversubscribedResources()
+void Slave::updateOversubscribableResources(const Resources& resources)
 {
-  // TODO(jieyu): Consider switching to a push model in which the
-  // slave registers a callback with the resource estimator, and the
-  // resource estimator invokes the callback whenever a new estimation
-  // is ready (similar to the allocator/master interface).
+  LOG(INFO) << "Received a new estimation of the oversubscribable "
+            << "resources " << resources;
 
-  if (state != RUNNING) {
-    delay(Seconds(1), self(), &Self::updateOversubscribedResources);
-    return;
-  }
-
-  resourceEstimator->oversubscribed()
-    .onAny(defer(self(), &Slave::_updateOversubscribedResources, lambda::_1));
+  oversubscribableResources = resources;
 }
 
 
-void Slave::_updateOversubscribedResources(const Future<Resources>& future)
+void Slave::forwardOversubscribableResources()
 {
-  if (!future.isReady()) {
-    LOG(ERROR) << "Failed to estimate oversubscribed resources: "
-               << (future.isFailed() ? future.failure() : "discarded");
-  } else if (state == RUNNING) {
-    CHECK_SOME(master);
-
-    LOG(INFO) << "Updating available oversubscribed resources to "
-              << future.get();
-
-    UpdateOversubscribedResourcesMessage message;
-    message.mutable_slave_id()->CopyFrom(info.id());
-    message.mutable_resources()->CopyFrom(future.get());
-
-    send(master.get(), message);
+  if (state != RUNNING) {
+    delay(Seconds(1), self(), &Self::forwardOversubscribableResources);
+    return;
   }
 
-  // TODO(jieyu): Consider making the interval configurable.
-  delay(UPDATE_OVERSUBSCRIBED_RESOURCES_INTERVAL_MIN(),
+  // We only forward updates after the first estimation is received.
+  if (oversubscribableResources.isNone()) {
+    delay(Seconds(1), self(), &Self::forwardOversubscribableResources);
+    return;
+  }
+
+  CHECK_SOME(master);
+  CHECK_SOME(oversubscribableResources);
+
+  LOG(INFO) << "Forwarding oversubscribable resources "
+            << oversubscribableResources.get();
+
+  OversubscribeResourcesMessage message;
+  message.mutable_slave_id()->CopyFrom(info.id());
+  message.mutable_resources()->CopyFrom(oversubscribableResources.get());
+
+  send(master.get(), message);
+
+  delay(flags.oversubscribe_resources_interval,
         self(),
-        &Self::updateOversubscribedResources);
+        &Self::forwardOversubscribableResources);
 }
 
 

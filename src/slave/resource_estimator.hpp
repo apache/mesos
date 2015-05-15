@@ -39,8 +39,8 @@ class NoopResourceEstimator : public mesos::slave::ResourceEstimator
 public:
   virtual ~NoopResourceEstimator();
 
-  virtual Try<Nothing> initialize();
-  virtual process::Future<Resources> oversubscribed();
+  virtual Try<Nothing> initialize(
+      const lambda::function<void(const Resources&)>& oversubscribe);
 
 protected:
   process::Owned<NoopResourceEstimatorProcess> process;

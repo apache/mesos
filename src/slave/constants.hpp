@@ -104,11 +104,6 @@ extern const std::string DEFAULT_AUTHENTICATEE;
 // trigger a re-detection of the master to cause a re-registration.
 Duration MASTER_PING_TIMEOUT();
 
-
-// To avoid overwhelming the master, we enforce a minimal delay
-// between two subsequent UpdateOversubscribedResourcesMessages.
-Duration UPDATE_OVERSUBSCRIBED_RESOURCES_INTERVAL_MIN();
-
 } // namespace slave {
 } // namespace internal {
 } // namespace mesos {

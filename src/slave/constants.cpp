@@ -57,12 +57,6 @@ Duration MASTER_PING_TIMEOUT()
   return master::SLAVE_PING_TIMEOUT * master::MAX_SLAVE_PING_TIMEOUTS;
 }
 
-
-Duration UPDATE_OVERSUBSCRIBED_RESOURCES_INTERVAL_MIN()
-{
-  return Seconds(5);
-}
-
 } // namespace slave {
 } // namespace internal {
 } // namespace mesos {

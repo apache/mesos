@@ -440,4 +440,11 @@ mesos::internal::slave::Flags::Flags()
   add(&Flags::resource_estimator,
       "resource_estimator",
       "The name of the resource estimator to use for oversubscription.");
+
+  add(&Flags::oversubscribe_resources_interval,
+      "oversubscribe_resources_interval",
+      "The slave periodically updates the master with the current estimation\n"
+      "about the maximum amount of resources that can be oversubscribed. The\n"
+      "interval between updates is controlled by this flag.",
+      Seconds(15));
 }

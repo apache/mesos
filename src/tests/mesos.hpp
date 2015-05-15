@@ -30,6 +30,8 @@
 
 #include <mesos/master/allocator.hpp>
 
+#include <mesos/slave/resource_estimator.hpp>
+
 #include <process/future.hpp>
 #include <process/gmock.hpp>
 #include <process/gtest.hpp>
@@ -699,28 +701,23 @@ public:
 };
 
 
-class MockResourceEstimator : public mesos::slave::ResourceEstimator
+class TestResourceEstimator : public mesos::slave::ResourceEstimator
 {
 public:
-  MockResourceEstimator()
+  virtual Try<Nothing> initialize(
+      const lambda::function<void(const Resources&)>& _oversubscribe)
   {
-    // NOTE: We use 'EXPECT_CALL' and 'WillRepeatedly' here instead of
-    // 'ON_CALL' and 'WillByDefault'. See 'TestContainerizer::SetUp()'
-    // for more details.
-    EXPECT_CALL(*this, initialize())
-      .WillRepeatedly(Return(Nothing()));
-
-    EXPECT_CALL(*this, oversubscribed())
-      .WillRepeatedly(Return(Resources()));
+    oversubscribe = _oversubscribe;
+    return Nothing();
   }
 
-  MOCK_METHOD0(
-      initialize,
-      Try<Nothing>());
+  void estimate(const Resources& resources)
+  {
+    oversubscribe(resources);
+  }
 
-  MOCK_METHOD0(
-      oversubscribed,
-      process::Future<Resources>());
+private:
+  lambda::function<void(const Resources&)> oversubscribe;
 };
 
 
@@ -787,7 +784,7 @@ public:
 private:
   Files files;
   MockGarbageCollector gc;
-  MockResourceEstimator resourceEstimator;
+  TestResourceEstimator resourceEstimator;
   slave::StatusUpdateManager* statusUpdateManager;
 };
 

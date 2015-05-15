@@ -433,10 +433,8 @@ private:
       const FrameworkID& frameworkId,
       const Executor* executor);
 
-  // Polls oversubscribed resources estimations from resources
-  // estimator and forwards estimations to the master.
-  void updateOversubscribedResources();
-  void _updateOversubscribedResources(const process::Future<Resources>& future);
+  void updateOversubscribableResources(const Resources& resources);
+  void forwardOversubscribableResources();
 
   const Flags flags;
 
@@ -509,6 +507,10 @@ private:
   Duration executorDirectoryMaxAllowedAge;
 
   mesos::slave::ResourceEstimator* resourceEstimator;
+
+  // The most recent estimation about the maximum amount of resources
+  // that can be oversubscribed on the slave.
+  Option<Resources> oversubscribableResources;
 };
 
 
