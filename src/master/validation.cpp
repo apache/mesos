@@ -53,21 +53,6 @@ static bool invalid(char c)
 
 namespace resource {
 
-// Validates that all the given resources are dynamically-reserved.
-Option<Error> validateDynamicReservation(
-    const RepeatedPtrField<Resource>& resources)
-{
-  foreach (const Resource& resource, resources) {
-    if (!resource.has_reservation()) {
-      return Error(
-          "Resource " + stringify(resource) +
-          " does not have the 'reservation' field set");
-    }
-  }
-
-  return None();
-}
-
 
 // Validates the DiskInfos specified in the given resources (if
 // exist). Returns error if any DiskInfo is found invalid or
@@ -558,16 +543,16 @@ Option<Error> validate(
     return Error("Invalid resources: " + error.get().message);
   }
 
-  error = resource::validateDynamicReservation(reserve.resources());
-  if (error.isSome()) {
-    return Error("Not a dynamic reservation: " + error.get().message);
-  }
-
   if (principal.isNone()) {
     return Error("A framework without a principal cannot reserve resources.");
   }
 
   foreach (const Resource& resource, reserve.resources()) {
+    if (!Resources::isDynamicallyReserved(resource)) {
+      return Error(
+          "Resource " + stringify(resource) + " is not dynamically reserved");
+    }
+
     if (resource.role() != role) {
       return Error(
           "The reserved resource's role '" + resource.role() +
@@ -605,11 +590,6 @@ Option<Error> validate(
     return Error("Invalid resources: " + error.get().message);
   }
 
-  error = resource::validateDynamicReservation(unreserve.resources());
-  if (error.isSome()) {
-    return Error("Not a dynamic reservation: " + error.get().message);
-  }
-
   if (!hasPrincipal) {
     return Error("A framework without a principal cannot unreserve resources.");
   }
@@ -621,6 +601,11 @@ Option<Error> validate(
   // any 'principal' to unreserve any other 'principal's resources.
 
   foreach (const Resource& resource, unreserve.resources()) {
+    if (!Resources::isDynamicallyReserved(resource)) {
+      return Error(
+          "Resource " + stringify(resource) + " is not dynamically reserved");
+    }
+
     if (Resources::isPersistentVolume(resource)) {
       return Error(
           "A dynamically reserved persistent volume " +
