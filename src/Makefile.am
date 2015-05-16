@@ -550,6 +550,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
 	linux/fs.hpp							\
 	linux/ns.hpp							\
 	linux/perf.hpp							\
+	linux/sched.hpp							\
 	local/flags.hpp							\
 	local/local.hpp							\
 	logging/flags.hpp						\
@@ -1480,6 +1481,7 @@ if OS_LINUX
   mesos_tests_SOURCES += tests/memory_pressure_tests.cpp
   mesos_tests_SOURCES += tests/ns_tests.cpp
   mesos_tests_SOURCES += tests/perf_tests.cpp
+  mesos_tests_SOURCES += tests/sched_tests.cpp
   mesos_tests_SOURCES += tests/setns_test_helper.cpp
 endif
 
