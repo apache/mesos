@@ -141,6 +141,22 @@ message FrameworkInfo {
   // the Mesos web UI can link to it. It is expected to be a full URL,
   // for example http://my-scheduler.example.com:8080/.
   optional string webui_url = 9;
+
+  message Capability {
+    enum Type {
+      // Receive offers with revocable resources. See 'Resource'
+      // message for details.
+      // TODO(vinod): This is currently a no-op.
+      REVOCABLE_RESOURCES = 1;
+    }
+
+    required Type type = 1;
+  }
+
+  // This field allows a framework to advertise its set of
+  // capabilities (e.g., ability to receive offers for revocable
+  // resources).
+  repeated Capability capabilities = 10;
 }
 
 
