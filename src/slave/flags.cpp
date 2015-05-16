@@ -236,6 +236,13 @@ mesos::internal::slave::Flags::Flags()
       "Duration of a perf stat sample. The duration must be less\n"
       "that the perf_interval.",
       Seconds(10));
+
+  add(&Flags::revocable_cpu_low_priority,
+      "revocable_cpu_low_priority",
+      "Run containers with revocable CPU at a lower priority than\n"
+      "normal containers (non-revocable cpu). Currently only\n"
+      "supported by the cgroups/cpu isolator.",
+      true);
 #endif
 
   add(&Flags::credential,

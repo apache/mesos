@@ -89,6 +89,7 @@ private:
     const ContainerID containerId;
     const std::string cgroup;
     Option<pid_t> pid;
+    Option<Resources> resources;
 
     process::Promise<mesos::slave::Limitation> limitation;
   };

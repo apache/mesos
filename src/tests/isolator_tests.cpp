@@ -41,6 +41,7 @@
 
 #ifdef __linux__
 #include "linux/ns.hpp"
+#include "linux/sched.hpp"
 #endif // __linux__
 
 #include "master/master.hpp"
@@ -362,6 +363,70 @@ TYPED_TEST(CpuIsolatorTest, SystemCpuUsage)
   delete isolator.get();
   delete launcher.get();
 }
+
+
+#ifdef __linux__
+class RevocableCpuIsolatorTest : public MesosTest {};
+
+
+TEST_F(RevocableCpuIsolatorTest, ROOT_CGROUPS_RevocableCpu)
+{
+  slave::Flags flags;
+
+  Try<Isolator*> isolator = CgroupsCpushareIsolatorProcess::create(flags);
+  CHECK_SOME(isolator);
+
+  Try<Launcher*> launcher = PosixLauncher::create(flags);
+
+  // Include revocable CPU in the executor's resources.
+  Resource cpu = Resources::parse("cpus", "1", "*").get();
+  cpu.mutable_revocable();
+
+  ExecutorInfo executorInfo;
+  executorInfo.add_resources()->CopyFrom(cpu);
+
+  ContainerID containerId;
+  containerId.set_value(UUID::random().toString());
+
+  AWAIT_READY(isolator.get()->prepare(
+        containerId,
+        executorInfo,
+        os::getcwd(),
+        None()));
+
+  vector<string> argv{"sleep", "100"};
+
+  Try<pid_t> pid = launcher.get()->fork(
+      containerId,
+      "/bin/sleep",
+      argv,
+      Subprocess::PATH("/dev/null"),
+      Subprocess::PATH("/dev/null"),
+      Subprocess::PATH("/dev/null"),
+      None(),
+      None(),
+      None());
+
+  ASSERT_SOME(pid);
+
+  AWAIT_READY(isolator.get()->isolate(containerId, pid.get()));
+
+  // Check the executor has its scheduling policy set to IDLE.
+  EXPECT_SOME_EQ(sched::Policy::IDLE, sched::policy::get(pid.get()));
+
+  // Kill the container and clean up.
+  Future<Option<int>> status = process::reap(pid.get());
+
+  AWAIT_READY(launcher.get()->destroy(containerId));
+
+  AWAIT_READY(status);
+
+  AWAIT_READY(isolator.get()->cleanup(containerId));
+
+  delete isolator.get();
+  delete launcher.get();
+}
+#endif // __linux__
 
 
 #ifdef __linux__

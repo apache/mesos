@@ -74,6 +74,7 @@ public:
   Option<std::string> perf_events;
   Duration perf_interval;
   Duration perf_duration;
+  bool revocable_cpu_low_priority;
 #endif
   Option<Path> credential;
   Option<std::string> containerizer_path;
