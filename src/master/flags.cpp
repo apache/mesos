@@ -218,7 +218,7 @@ mesos::internal::master::Flags::Flags()
       "                   ]\n"
       "}\n"
       "Text file Example:\n"
-      "username secret\n");
+      "username secret");
 
   add(&Flags::acls,
       "acls",

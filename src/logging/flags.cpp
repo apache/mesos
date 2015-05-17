@@ -39,7 +39,7 @@ mesos::internal::logging::Flags::Flags()
       "is written to disk unless specified;\n"
       "does not affect logging to stderr).\n"
       "NOTE: 3rd party log messages (e.g. ZooKeeper) are\n"
-      "only written to stderr!\n");
+      "only written to stderr!");
 
   add(&Flags::logbufsecs,
       "logbufsecs",
