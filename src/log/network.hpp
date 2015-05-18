@@ -119,15 +119,6 @@ public:
 private:
   typedef ZooKeeperNetwork This;
 
-  // Helper for handling time outs when collecting membership
-  // data. For now, a timeout is treated as a failure.
-  static process::Future<std::list<Option<std::string> > > timedout(
-      process::Future<std::list<Option<std::string> > > datas)
-  {
-    datas.discard();
-    return process::Failure("Timed out");
-  }
-
   // Not copyable, not assignable.
   ZooKeeperNetwork(const ZooKeeperNetwork&);
   ZooKeeperNetwork& operator = (const ZooKeeperNetwork&);
@@ -431,7 +422,13 @@ inline void ZooKeeperNetwork::watched(
   }
 
   process::collect(futures)
-    .after(Seconds(5), lambda::bind(&This::timedout, lambda::_1))
+    .after(Seconds(5),
+           [](process::Future<std::list<Option<std::string>>> datas) {
+             // Handling time outs when collecting membership
+             // data. For now, a timeout is treated as a failure.
+             datas.discard();
+             return process::Failure("Timed out");
+           })
     .onAny(executor.defer(lambda::bind(&This::collected, this, lambda::_1)));
 }
 

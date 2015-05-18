@@ -82,10 +82,6 @@ using state::FrameworkState;
 using state::ExecutorState;
 using state::RunState;
 
-// Local function declaration/definitions.
-static Future<Nothing> _nothing() { return Nothing(); }
-
-
 Try<MesosContainerizer*> MesosContainerizer::create(
     const Flags& flags,
     bool local,
@@ -794,12 +790,6 @@ Future<bool> MesosContainerizerProcess::_launch(
 }
 
 
-static Future<bool> _isolate()
-{
-  return true;
-}
-
-
 Future<bool> MesosContainerizerProcess::isolate(
     const ContainerID& containerId,
     pid_t _pid)
@@ -828,7 +818,7 @@ Future<bool> MesosContainerizerProcess::isolate(
 
   containers_[containerId]->isolation = future;
 
-  return future.then(lambda::bind(&_isolate));
+  return future.then([]() { return true; });
 }
 
 
@@ -912,7 +902,7 @@ Future<Nothing> MesosContainerizerProcess::update(
 
   // Wait for all isolators to complete.
   return collect(futures)
-    .then(lambda::bind(&_nothing));
+    .then([]() { return Nothing(); });
 }
 
 

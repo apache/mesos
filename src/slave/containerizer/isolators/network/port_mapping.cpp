@@ -142,9 +142,6 @@ static Interval<uint16_t> WELL_KNOWN_PORTS()
 // Helper functions for the isolator.
 /////////////////////////////////////////////////
 
-static Future<Nothing> _nothing() { return Nothing(); }
-
-
 // Given an integer x, find the largest integer t such that t <= x and
 // t is aligned to power of 2.
 static uint32_t roundDownToPowerOfTwo(uint32_t x)
@@ -2317,7 +2314,7 @@ Future<Nothing> PortMappingIsolatorProcess::update(
         &PortMappingIsolatorProcess::_update,
         containerId,
         lambda::_1))
-    .then(lambda::bind(&_nothing));
+    .then([]() { return Nothing(); });
 }
 
 

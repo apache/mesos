@@ -64,10 +64,6 @@ namespace mesos {
 namespace internal {
 namespace slave {
 
-template<class T>
-static Future<Option<T>> none() { return None(); }
-
-
 static const vector<Level> levels()
 {
   return {Level::LOW, Level::MEDIUM, Level::CRITICAL};
@@ -286,7 +282,9 @@ Future<Option<CommandInfo>> CgroupsMemIsolatorProcess::prepare(
   pressureListen(containerId);
 
   return update(containerId, executorInfo.resources())
-    .then(lambda::bind(none<CommandInfo>));
+    .then([]() -> Future<Option<CommandInfo>> {
+      return None();
+    });
 }
 
 

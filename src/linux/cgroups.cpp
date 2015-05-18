@@ -2151,13 +2151,10 @@ Try<Bytes> max_usage_in_bytes(const string& hierarchy, const string& cgroup)
 
 namespace oom {
 
-static Nothing _nothing() { return Nothing(); }
-
-
 Future<Nothing> listen(const string& hierarchy, const string& cgroup)
 {
   return cgroups::event::listen(hierarchy, cgroup, "memory.oom_control")
-    .then(lambda::bind(&_nothing));
+    .then([]() { return Nothing(); });
 }
 
 

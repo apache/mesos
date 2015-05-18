@@ -61,13 +61,6 @@ namespace mesos {
 namespace internal {
 namespace slave {
 
-template<class T>
-static Future<Option<T>> none() { return None(); }
-
-
-static Future<Nothing> _nothing() { return Nothing(); }
-
-
 CgroupsCpushareIsolatorProcess::CgroupsCpushareIsolatorProcess(
     const Flags& _flags,
     const hashmap<string, string>& _hierarchies,
@@ -304,7 +297,9 @@ Future<Option<CommandInfo>> CgroupsCpushareIsolatorProcess::prepare(
   }
 
   return update(containerId, executorInfo.resources())
-    .then(lambda::bind(none<CommandInfo>));
+    .then([]() -> Future<Option<CommandInfo>> {
+      return None();
+    });
 }
 
 
@@ -540,7 +535,7 @@ Future<Nothing> CgroupsCpushareIsolatorProcess::cleanup(
                 &CgroupsCpushareIsolatorProcess::_cleanup,
                 containerId,
                 lambda::_1))
-    .then(lambda::bind(&_nothing));
+    .then([]() { return Nothing(); });
 }
 
 
