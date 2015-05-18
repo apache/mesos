@@ -337,6 +337,7 @@ struct TemporaryRedirect : Response
   }
 };
 
+
 struct Unauthorized : Response
 {
   Unauthorized(const std::string& realm)
@@ -352,6 +353,7 @@ struct Unauthorized : Response
     headers["WWW-authenticate"] = "Basic realm=\"" + realm + "\"";
   }
 };
+
 
 struct BadRequest : Response
 {
