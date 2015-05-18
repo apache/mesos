@@ -136,7 +136,9 @@ private:
     }
 
     return _run()
-      .then(lambda::bind(&Self::__run, lambda::_1));
+      .then([](const Duration& duration) -> Future<http::Response> {
+        return http::OK(stringify(duration));
+      });
   }
 
   Future<Duration> _run()
@@ -151,12 +153,6 @@ private:
     }
 
     return duration->future();
-  }
-
-  // TODO(jmlvanre): convert to c++11 lambda.
-  static Future<http::Response> __run(const Duration& duration)
-  {
-    return http::OK(stringify(duration));
   }
 
   void pong(const UPID& from, const string& body)

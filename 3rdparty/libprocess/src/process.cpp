@@ -194,17 +194,6 @@ private:
       delete future;
     }
 
-    // Helper for cleaning up a response (i.e., closing any open Pipes
-    // in the event Response::type is PIPE).
-    static void cleanup(const Response& response)
-    {
-      if (response.type == Response::PIPE) {
-        CHECK_SOME(response.reader);
-        http::Pipe::Reader reader = response.reader.get(); // Remove const.
-        reader.close();
-      }
-    }
-
     const Request request; // Make a copy.
     Future<Response>* future;
   };
@@ -960,7 +949,15 @@ HttpProxy::~HttpProxy()
     // But it might have already been ready. In general, we need to
     // wait until this future is potentially ready in order to attempt
     // to close a pipe if one exists.
-    item->future->onReady(lambda::bind(&Item::cleanup, lambda::_1));
+    item->future->onReady([](const Response& response) {
+      // Cleaning up a response (i.e., closing any open Pipes in the
+      // event Response::type is PIPE).
+      if (response.type == Response::PIPE) {
+        CHECK_SOME(response.reader);
+        http::Pipe::Reader reader = response.reader.get(); // Remove const.
+        reader.close();
+      }
+    });
 
     items.pop();
     delete item;
