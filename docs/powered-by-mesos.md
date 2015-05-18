@@ -41,6 +41,7 @@ layout: documentation
 * [Magine TV](https://magine.com)
 * [Medidata Solutions](http://www.mdsol.com)
 * [meemo](http://www.meemo.io)
+* [Medallia](http://www.medallia.com)
 * [MediaCrossing](http://www.mediacrossing.com)
 * [Mesosphere](http://www.mesosphere.io)
 * [Motus](http://www.motus.com)
