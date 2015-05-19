@@ -143,7 +143,45 @@ could be to support PAM (LDAP, MySQL, NIS, UNIX) backed authentication.
 
 Similar to Apache Webserver Modules, hooks allows module writers to tie into
 internal components which may not be suitable to be abstracted entirely behind
-modules but rather let's them define actions on so-called hooks.
+modules but rather lets them define actions on so-called hooks.
+
+The available hooks API is defined in mesos/hook.hpp and for each hook defines
+the insertion point and available context. An example of this context is the
+task information which is passed to masterLaunchTaskHook.
+
+Some hooks take in an object (e.g. TaskInfo) and return all or part of that
+object (e.g. task labels), so that the hook can modify or replace the contents
+in-flight. These hooks are referred to as _decorators_.
+
+In order to enable decorator modules to remove metadata (environment variables
+or labels), the effect of the return value for decorator hooks changed in
+Mesos 0.23.0.
+
+The Result<T> return values before and after Mesos 0.23.0 means:
+
+<table>
+<tr>
+<th>State</th>
+<th>Before (0.22.x)</th>
+<th>After (0.23.0+)</th>
+</tr>
+<tr>
+<td>Error</td>
+<td>Error is propagated to the call-site</td>
+<td>No change</td>
+</tr>
+<tr>
+<td>None</td>
+<td>The result of the decorator is not applied</td>
+<td>No change</td>
+</tr>
+<tr>
+<td>Some</td>
+<td>The result of the decorator is appended</td>
+<td>The result of the decorator overwrites the final labels/environment
+object</td>
+</tr>
+</table>
 
 To load a hook into Mesos, you need to
 

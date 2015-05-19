@@ -6,6 +6,10 @@ layout: documentation
 
 This document serves as a guide for users who wish to upgrade an existing mesos cluster. Some versions require particular upgrade techniques when upgrading a running cluster. Some upgrades will have incompatible changes.
 
+## Upgrading from 0.22.x to 0.23.x
+
+**NOTE** In order to enable decorator modules to remove metadata (environment variables or labels), we changed the meaning of the return value for decorator hooks in Mesos 0.23.0. Please refer to the modules documentation for more details.
+
 ## Upgrading from 0.21.x to 0.22.x
 
 **NOTE** Slave checkpoint flag has been removed as it will be enabled for all
