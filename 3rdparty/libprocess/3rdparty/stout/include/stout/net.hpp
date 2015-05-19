@@ -146,14 +146,11 @@ inline Try<std::string> hostname()
 
   // TODO(evelinad): Add AF_UNSPEC when we will support IPv6
   struct addrinfo hints = createAddrInfo(SOCK_STREAM, AF_INET, AI_CANONNAME);
-  struct addrinfo *result;
+  struct addrinfo* result = NULL;
 
   int error = getaddrinfo(host, NULL, &hints, &result);
 
-  if (error != 0 || result == NULL) {
-    if (result != NULL) {
-      freeaddrinfo(result);
-    }
+  if (error != 0) {
     return Error(gai_strerror(error));
   }
 
