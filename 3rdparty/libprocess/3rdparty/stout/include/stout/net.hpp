@@ -190,22 +190,25 @@ inline Try<std::string> getHostname(const IP& ip)
 // obtained.
 inline Try<IP> getIP(const std::string& hostname, int family)
 {
-  struct addrinfo hints;
+  struct addrinfo hints = createAddrInfo(SOCK_STREAM, family, 0);
   struct addrinfo* result = NULL;
-  hints = createAddrInfo(SOCK_STREAM, family, 0);
+
   int error = getaddrinfo(hostname.c_str(), NULL, &hints, &result);
+
   if (error != 0) {
     return Error(gai_strerror(error));
   }
+
   if (result->ai_addr == NULL) {
     freeaddrinfo(result);
-    return Error("Got no addresses for '" + hostname + "'");
+    return Error("No addresses found");
   }
 
   Try<IP> ip = IP::create(*result->ai_addr);
+
   if (ip.isError()) {
     freeaddrinfo(result);
-    return Error("Unsupported family type: " + stringify(family));
+    return Error("Unsupported family type");
   }
 
   freeaddrinfo(result);
