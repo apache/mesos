@@ -419,3 +419,11 @@ message TaskHealthStatus {
   // This will not be populated if task is healthy.
   optional int32 consecutive_failures = 4;
 }
+
+
+/**
+ * Message to signal completion of an event within a module.
+ */
+message HookExecuted {
+  optional string module = 1;
+}

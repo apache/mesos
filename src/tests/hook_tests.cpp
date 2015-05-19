@@ -28,10 +28,12 @@
 
 #include "hook/manager.hpp"
 
-#include "module/manager.hpp"
-
 #include "master/flags.hpp"
 #include "master/master.hpp"
+
+#include "messages/messages.hpp"
+
+#include "module/manager.hpp"
 
 #include "slave/flags.hpp"
 #include "slave/slave.hpp"
@@ -84,7 +86,7 @@ class HookTest : public MesosTest
 protected:
   // TODO(karya): Replace constructor/destructor with SetUp/TearDown.
   // Currently, using SetUp/TearDown causes VerifySlave* test to
-  // fail with a duplicate slave id message.  However, everything
+  // fail with a duplicate slave id message. However, everything
   // seems normal when using this construction/destructor combo.
   HookTest()
   {
@@ -251,9 +253,9 @@ TEST_F(HookTest, VerifySlaveExecutorEnvironmentDecorator)
 
 
 // Test executor environment decorator hook and remove executor hook
-// for slave.  We expect the environment-decorator hook to create a
+// for slave. We expect the environment-decorator hook to create a
 // temporary file and the remove-executor hook to delete that file.
-TEST_F(HookTest, DISABLED_VerifySlaveLaunchExecutorHook)
+TEST_F(HookTest, VerifySlaveLaunchExecutorHook)
 {
   master::Flags masterFlags = CreateMasterFlags();
 
@@ -302,38 +304,22 @@ TEST_F(HookTest, DISABLED_VerifySlaveLaunchExecutorHook)
   EXPECT_CALL(exec, registered(_, _, _, _))
     .WillOnce(FutureArg<1>(&executorInfo));
 
+  // On successful completion of the "slaveLaunchExecutorHook", the
+  // test hook will send a HookExecuted message to itself. We wait
+  // until that message is intercepted by the testing infrastructure.
+  Future<HookExecuted> hookFuture = FUTURE_PROTOBUF(HookExecuted(), _, _);
+
   driver.launchTasks(offers.get()[0].id(), tasks);
 
   AWAIT_READY(executorInfo);
-
-  // At launchTasks, the label decorator hook inside should have been
-  // executed and we should see the labels now.
-  // Further, the environment decorator hook should also have been
-  // executed.  In that hook, we create a temp file and set the path
-  // as the value of the environment variable.
-  // Here we verify that the environment variable is present and the
-  // file is present on the disk.
-  Option<string> path;
-  foreach (const Environment::Variable& variable,
-           executorInfo.get().command().environment().variables()) {
-    if (variable.name() == testEnvironmentVariableName) {
-      path = variable.value();
-      break;
-    }
-  }
-
-  EXPECT_SOME(path);
-  // The file must have been create by the environment decorator hook.
-  EXPECT_TRUE(os::stat::isfile(path.get()));
 
   driver.stop();
   driver.join();
 
   Shutdown(); // Must shutdown before 'containerizer' gets deallocated.
 
-  // The removeExecutor hook in the test module deletes the temp file.
-  // Verify that the file is not present.
-  EXPECT_FALSE(os::stat::isfile(path.get()));
+  // Now wait for the hook to finish execution.
+  AWAIT_READY(hookFuture);
 }
 
 

@@ -22,17 +22,37 @@
 
 #include <mesos/module/hook.hpp>
 
+#include <process/future.hpp>
+#include <process/process.hpp>
+#include <process/protobuf.hpp>
+
 #include <stout/foreach.hpp>
 #include <stout/os.hpp>
 #include <stout/try.hpp>
 
+#include "messages/messages.hpp"
+
 using namespace mesos;
+
+using process::Future;
 
 // Must be kept in sync with variables of the same name in
 // tests/hook_tests.cpp.
 const char* testLabelKey = "MESOS_Test_Label";
 const char* testLabelValue = "ApacheMesos";
 const char* testRemoveLabelKey = "MESOS_Test_Remove_Label";
+
+class HookProcess : public ProtobufProcess<HookProcess>
+{
+public:
+  Future<Nothing> signal()
+  {
+    internal::HookExecuted message;
+    message.set_module("org_apache_mesos_TestHook");
+    send(self(), message);
+    return Nothing();
+  }
+};
 
 
 class TestHook : public Hook
@@ -117,9 +137,15 @@ public:
   {
     LOG(INFO) << "Executing 'slaveRemoveExecutorHook'";
 
-    // TODO(karya): Need to synchronize VerifySlaveLaunchExecutorHook
-    // test with this hook for validation. The issue is tracked by
-    // MESOS-2226.
+    // Send a HookExecuted message to ourself. The hook test
+    // "VerifySlaveLaunchExecutorHook" will wait for the testing
+    // infrastructure to intercept this message. The intercepted message
+    // indicates successful execution of this hook.
+    HookProcess hookProcess;
+    process::spawn(&hookProcess);
+    process::dispatch(hookProcess, &HookProcess::signal).await();
+    process::terminate(hookProcess);
+    process::wait(hookProcess);
 
     return Nothing();
   }
