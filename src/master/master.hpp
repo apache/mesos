@@ -975,7 +975,6 @@ protected:
   void removeOffer(Offer* offer, bool rescind = false);
 
   Framework* getFramework(const FrameworkID& frameworkId);
-  Slave* getSlave(const SlaveID& slaveId);
   Offer* getOffer(const OfferID& offerId);
 
   FrameworkID newFrameworkId();
@@ -1103,9 +1102,8 @@ private:
 
   friend struct Metrics;
 
-  // NOTE: Since 'getOffer' and 'getSlave' are protected, we need to
-  // make the following functions friends so that validation functions
-  // can get Offer* and Slave*.
+  // NOTE: Since 'getOffer' and 'slaves' are protected,
+  // we need to make the following functions friends.
   friend Offer* validation::offer::getOffer(
       Master* master, const OfferID& offerId);
 

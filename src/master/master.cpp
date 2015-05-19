@@ -2403,7 +2403,8 @@ void Master::accept(
   }
 
   CHECK_SOME(slaveId);
-  Slave* slave = CHECK_NOTNULL(getSlave(slaveId.get()));
+  Slave* slave = slaves.registered.get(slaveId.get());
+  CHECK_NOTNULL(slave);
 
   LOG(INFO) << "Processing ACCEPT call for offers: " << accept.offer_ids()
             << " on slave " << *slave << " for framework " << *framework;
@@ -2477,7 +2478,7 @@ void Master::_accept(
     return;
   }
 
-  Slave* slave = getSlave(slaveId);
+  Slave* slave = slaves.registered.get(slaveId);
 
   if (slave == NULL || !slave->connected) {
     foreach (const Offer::Operation& operation, accept.operations()) {
@@ -2870,7 +2871,7 @@ void Master::kill(Framework* framework, const scheduler::Call::Kill& kill)
     return;
   }
 
-  Slave* slave = getSlave(task->slave_id());
+  Slave* slave = slaves.registered.get(task->slave_id());
   CHECK(slave != NULL) << "Unknown slave " << task->slave_id();
 
   // We add the task to 'killedTasks' here because the slave
@@ -2934,7 +2935,7 @@ void Master::statusUpdateAcknowledgement(
     return;
   }
 
-  Slave* slave = getSlave(slaveId);
+  Slave* slave = slaves.registered.get(slaveId);
 
   if (slave == NULL) {
     LOG(WARNING)
@@ -3030,7 +3031,8 @@ void Master::schedulerMessage(
     return;
   }
 
-  Slave* slave = getSlave(slaveId);
+  Slave* slave = slaves.registered.get(slaveId);
+
   if (slave == NULL) {
     LOG(WARNING) << "Cannot send framework message for framework "
                  << *framework << " to slave " << slaveId
@@ -3256,7 +3258,7 @@ void Master::reregisterSlave(
     return;
   }
 
-  Slave* slave = getSlave(slaveInfo.id());
+  Slave* slave = slaves.registered.get(slaveInfo.id());
 
   if (slave != NULL) {
     slave->reregisteredTime = Clock::now();
@@ -3435,7 +3437,7 @@ void Master::unregisterSlave(const UPID& from, const SlaveID& slaveId)
 
   LOG(INFO) << "Asked to unregister slave " << slaveId;
 
-  Slave* slave = getSlave(slaveId);
+  Slave* slave = slaves.registered.get(slaveId);
 
   if (slave != NULL) {
     if (slave->pid != from) {
@@ -3473,7 +3475,7 @@ void Master::statusUpdate(const StatusUpdate& update, const UPID& pid)
     return;
   }
 
-  Slave* slave = getSlave(update.slave_id());
+  Slave* slave = slaves.registered.get(update.slave_id());
 
   if (slave == NULL) {
     LOG(WARNING) << "Ignoring status update " << update
@@ -4457,7 +4459,8 @@ void Master::removeFramework(Framework* framework)
 
   // Remove pointers to the framework's tasks in slaves.
   foreachvalue (Task* task, utils::copy(framework->tasks)) {
-    Slave* slave = getSlave(task->slave_id());
+    Slave* slave = slaves.registered.get(task->slave_id());
+
     // Since we only find out about tasks when the slave re-registers,
     // it must be the case that the slave exists!
     CHECK(slave != NULL)
@@ -4501,7 +4504,8 @@ void Master::removeFramework(Framework* framework)
 
   // Remove the framework's executors for correct resource accounting.
   foreachkey (const SlaveID& slaveId, utils::copy(framework->executors)) {
-    Slave* slave = getSlave(slaveId);
+    Slave* slave = slaves.registered.get(slaveId);
+
     if (slave != NULL) {
       foreachkey (const ExecutorID& executorId,
                   utils::copy(framework->executors[slaveId])) {
@@ -4896,7 +4900,9 @@ void Master::updateTask(Task* task, const StatusUpdate& update)
         None());
 
     // The slave owns the Task object and cannot be NULL.
-    Slave* slave = CHECK_NOTNULL(getSlave(task->slave_id()));
+    Slave* slave = slaves.registered.get(task->slave_id());
+    CHECK_NOTNULL(slave);
+
     slave->taskTerminated(task);
 
     Framework* framework = getFramework(task->framework_id());
@@ -4928,7 +4934,8 @@ void Master::removeTask(Task* task)
   CHECK_NOTNULL(task);
 
   // The slave owns the Task object and cannot be NULL.
-  Slave* slave = CHECK_NOTNULL(getSlave(task->slave_id()));
+  Slave* slave = slaves.registered.get(task->slave_id());
+  CHECK_NOTNULL(slave);
 
   if (!protobuf::isTerminalState(task->state())) {
     LOG(WARNING) << "Removing task " << task->task_id()
@@ -5040,7 +5047,8 @@ void Master::removeOffer(Offer* offer, bool rescind)
   framework->removeOffer(offer);
 
   // Remove from slave.
-  Slave* slave = getSlave(offer->slave_id());
+  Slave* slave = slaves.registered.get(offer->slave_id());
+
   CHECK(slave != NULL)
     << "Unknown slave " << offer->slave_id()
     << " in the offer " << offer->id();
@@ -5071,15 +5079,6 @@ Framework* Master::getFramework(const FrameworkID& frameworkId)
 {
   return frameworks.registered.contains(frameworkId)
     ? frameworks.registered[frameworkId]
-    : NULL;
-}
-
-
-// TODO(bmahler): Consider killing this.
-Slave* Master::getSlave(const SlaveID& slaveId)
-{
-  return slaves.registered.contains(slaveId)
-    ? slaves.registered[slaveId]
     : NULL;
 }
 

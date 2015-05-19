@@ -447,7 +447,7 @@ Offer* getOffer(Master* master, const OfferID& offerId)
 Slave* getSlave(Master* master, const SlaveID& slaveId)
 {
   CHECK_NOTNULL(master);
-  return master->getSlave(slaveId);
+  return master->slaves.registered.get(slaveId);
 }
 
 
