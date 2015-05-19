@@ -1154,7 +1154,70 @@ private:
     // these slaves until the registrar determines their fate.
     hashset<SlaveID> reregistering;
 
-    hashmap<SlaveID, Slave*> registered;
+    // Registered slaves are indexed by SlaveID and UPID. Note that
+    // iteration is supported but is exposed as iteration over a
+    // hashmap<SlaveID, Slave*> since it is tedious to convert
+    // the map's key/value iterator into a value iterator.
+    //
+    // TODO(bmahler): Consider pulling in boost's multi_index,
+    // or creating a simpler indexing abstraction in stout.
+    struct
+    {
+      bool contains(const SlaveID& slaveId) const
+      {
+        return ids.contains(slaveId);
+      }
+
+      bool contains(const process::UPID& pid) const
+      {
+        return pids.contains(pid);
+      }
+
+      Slave* get(const SlaveID& slaveId) const
+      {
+        return ids.get(slaveId).get(NULL);
+      }
+
+      Slave* get(const process::UPID& pid) const
+      {
+        return pids.get(pid).get(NULL);
+      }
+
+      void put(Slave* slave)
+      {
+        CHECK_NOTNULL(slave);
+        ids[slave->id] = slave;
+        pids[slave->pid] = slave;
+      }
+
+      void remove(Slave* slave)
+      {
+        CHECK_NOTNULL(slave);
+        ids.erase(slave->id);
+        pids.erase(slave->pid);
+      }
+
+      void clear()
+      {
+        ids.clear();
+        pids.clear();
+      }
+
+      size_t size() const { return ids.size(); }
+
+      typedef hashmap<SlaveID, Slave*>::iterator iterator;
+      typedef hashmap<SlaveID, Slave*>::const_iterator const_iterator;
+
+      iterator begin() { return ids.begin(); }
+      iterator end()   { return ids.end();   }
+
+      const_iterator begin() const { return ids.begin(); }
+      const_iterator end()   const { return ids.end();   }
+
+    private:
+      hashmap<SlaveID, Slave*> ids;
+      hashmap<process::UPID, Slave*> pids;
+    } registered;
 
     // Slaves that are in the process of being removed from the
     // registrar. Think of these as being partially removed: we must
