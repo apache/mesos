@@ -140,7 +140,7 @@ for line in log.split('\n'):
     shas.append(sha)
 
 
-previous = 'master'
+previous = parent_branch
 for i in range(len(shas)):
     sha = shas[i]
 
