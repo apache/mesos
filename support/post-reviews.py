@@ -85,7 +85,7 @@ if diff_stat:
 
 top_level_dir = execute(['git', 'rev-parse', '--show-toplevel']).strip()
 
-parent_branch = 'master'
+tracking_branch = 'master'
 
 branch_ref = execute(['git', 'symbolic-ref', 'HEAD']).strip()
 branch = branch_ref.replace('refs/heads/', '', 1)
@@ -103,7 +103,7 @@ atexit.register(lambda: execute(['git', 'branch', '-D', temporary_branch], True)
 # Always put us back on the original branch.
 atexit.register(lambda: execute(['git', 'checkout', branch]))
 
-merge_base = execute(['git', 'merge-base', parent_branch, branch_ref]).strip()
+merge_base = execute(['git', 'merge-base', tracking_branch, branch_ref]).strip()
 
 
 print 'Running \'%s\' across all of ...' % " ".join(post_review)
@@ -133,7 +133,7 @@ for line in log.split('\n'):
     shas.append(sha)
 
 
-previous = parent_branch
+previous = tracking_branch 
 parent_review_request_id = None
 for i in range(len(shas)):
     sha = shas[i]
@@ -175,7 +175,7 @@ for i in range(len(shas)):
           '--no-pager',
           'log',
           '--pretty=format:%Cred%H%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr)%Creset',
-          parent_branch + '..' + previous])
+          tracking_branch + '..' + previous])
 
     try:
         raw_input('\nPress enter to continue or \'Ctrl-C\' to skip.\n')
@@ -188,7 +188,7 @@ for i in range(len(shas)):
     revision_range = previous + ':' + sha
 
     # Build the post-review/rbt command up to the point where they are common.
-    command = post_review + ['--tracking-branch=' + parent_branch]
+    command = post_review + ['--tracking-branch=' + tracking_branch]
     if review_request_id:
         command = command + ['--review-request-id=' + review_request_id]
 
