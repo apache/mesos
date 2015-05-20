@@ -26,15 +26,9 @@ import atexit
 import os
 import sys
 
-from subprocess import *
+from distutils.version import LooseVersion
 
-
-def readline(prompt):
-    try:
-        return raw_input(prompt)
-    except KeyboardInterrupt:
-        sys.exit(1)
-
+from subprocess import call, Popen, PIPE, STDOUT
 
 def execute(command, ignore_errors=False):
     process = None
@@ -67,6 +61,7 @@ def execute(command, ignore_errors=False):
 post_review = None
 rbt_version = execute(['rbt', '--version'], ignore_errors=True)
 if rbt_version:
+  rbt_version = LooseVersion(rbt_version)
   post_review = ['rbt', 'post']
 elif execute(['post-review', '--version'], ignore_errors=True):
   post_review = ['post-review']
@@ -141,6 +136,7 @@ for line in log.split('\n'):
 
 
 previous = parent_branch
+parent_review_request_id = None
 for i in range(len(shas)):
     sha = shas[i]
 
@@ -188,6 +184,7 @@ for i in range(len(shas)):
     except KeyboardInterrupt:
         i = i + 1
         previous = sha
+        parent_review_request_id = review_request_id
         continue
 
     revision_range = previous + ':' + sha
@@ -199,9 +196,14 @@ for i in range(len(shas)):
         command = command + ['--review-request-id=' + review_request_id]
 
     # Determine how to specify the revision range.
-    if 'rbt' in post_review and not rbt_version.startswith('RBTools 0.5'):
-        # rbt >= 0.6 revisions are passed in as args.
-        command = command + sys.argv[1:] + [previous, sha]
+    if 'rbt' in post_review and rbt_version >= LooseVersion('RBTools 0.6'):
+       # rbt >= 0.6.1 supports '--depends-on' argument.
+       # Only set the "depends on" if this is not the first review in the chain.
+       if rbt_version >= LooseVersion('RBTools 0.6.1') and parent_review_request_id:
+         command = command + ['--depends-on=' + parent_review_request_id]
+
+       # rbt >= 0.6 revisions are passed in as args.
+       command = command + sys.argv[1:] + [previous, sha]
     else:
         # post-review and rbt < 0.6 revisions are passed in using the revision
         # range option.
@@ -213,9 +215,11 @@ for i in range(len(shas)):
 
     print output
 
+
     if review_request_id is not None:
         i = i + 1
         previous = sha
+        parent_review_request_id = review_request_id
         continue
 
     lines = output.split('\n')
@@ -263,3 +267,4 @@ for i in range(len(shas)):
     execute(['git', 'update-ref', 'refs/heads/' + branch, new_sha, old_sha])
 
     i = i + 1
+    parent_review_request_id = review_request_id
