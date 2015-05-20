@@ -22,6 +22,7 @@
 # NOTE: post-reviews is currently specific to Mesos development,
 # but can easily be adapted for other projects.
 
+import argparse
 import atexit
 import os
 import sys
@@ -85,7 +86,13 @@ if diff_stat:
 
 top_level_dir = execute(['git', 'rev-parse', '--show-toplevel']).strip()
 
-tracking_branch = 'master'
+# Use the tracking_branch specified by the user if exists.
+# TODO(jieyu): Parse .reviewboardrc as well.
+parser = argparse.ArgumentParser(add_help=False)
+parser.add_argument('--tracking-branch')
+args, _ = parser.parse_known_args()
+
+tracking_branch = args.tracking_branch if args.tracking_branch else 'master'
 
 branch_ref = execute(['git', 'symbolic-ref', 'HEAD']).strip()
 branch = branch_ref.replace('refs/heads/', '', 1)
@@ -188,7 +195,11 @@ for i in range(len(shas)):
     revision_range = previous + ':' + sha
 
     # Build the post-review/rbt command up to the point where they are common.
-    command = post_review + ['--tracking-branch=' + tracking_branch]
+    command = post_review
+
+    if args.tracking_branch is None:
+        command = command + ['--tracking-branch=' + tracking_branch]
+
     if review_request_id:
         command = command + ['--review-request-id=' + review_request_id]
 
