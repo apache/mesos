@@ -85,8 +85,6 @@ if diff_stat:
 
 top_level_dir = execute(['git', 'rev-parse', '--show-toplevel']).strip()
 
-repository = 'git://git.apache.org/mesos.git'
-
 parent_branch = 'master'
 
 branch_ref = execute(['git', 'symbolic-ref', 'HEAD']).strip()
@@ -190,8 +188,7 @@ for i in range(len(shas)):
     revision_range = previous + ':' + sha
 
     # Build the post-review/rbt command up to the point where they are common.
-    command = post_review + ['--repository-url=' + repository,
-                             '--tracking-branch=' + parent_branch]
+    command = post_review + ['--tracking-branch=' + parent_branch]
     if review_request_id:
         command = command + ['--review-request-id=' + review_request_id]
 

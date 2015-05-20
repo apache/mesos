@@ -1,3 +1,4 @@
 REVIEWBOARD_URL = "https://reviews.apache.org/"
-TARGET_GROUPS = "mesos"
+REPOSITORY_URL = "git://git.apache.org/mesos.git"
 REPOSITORY = "mesos"
+TARGET_GROUPS = "mesos"
