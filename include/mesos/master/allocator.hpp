@@ -96,6 +96,15 @@ public:
   virtual void removeSlave(
       const SlaveID& slaveId) = 0;
 
+  // Note that 'oversubscribed' resources include the total amount of
+  // oversubscribed resources that are allocated and available.
+  // TODO(vinod): Instead of just oversubscribed resources have this
+  // method take total resources. We can then reuse this method to
+  // update slave's total resources in the future.
+  virtual void updateSlave(
+      const SlaveID& slave,
+      const Resources& oversubscribed) = 0;
+
   // Offers are sent only for activated slaves.
   virtual void activateSlave(
       const SlaveID& slaveId) = 0;

@@ -103,6 +103,10 @@ public:
   void removeSlave(
       const SlaveID& slaveId);
 
+  void updateSlave(
+      const SlaveID& slave,
+      const Resources& oversubscribed);
+
   void deactivateSlave(
       const SlaveID& slaveId);
 
@@ -478,6 +482,22 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::removeSlave(
   // that applied the filters gets removed).
 
   LOG(INFO) << "Removed slave " << slaveId;
+}
+
+
+template <class RoleSorter, class FrameworkSorter>
+void
+HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::updateSlave(
+    const SlaveID& slaveId,
+    const Resources& oversubscribed)
+{
+  CHECK(initialized);
+  CHECK(slaves.contains(slaveId));
+
+  LOG(INFO) << "Slave " << slaveId << " updated with oversubscribed resources "
+            << oversubscribed;
+
+  // TODO(vinod): Implement this.
 }
 
 

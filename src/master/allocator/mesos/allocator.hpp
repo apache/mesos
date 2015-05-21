@@ -76,6 +76,10 @@ public:
   void removeSlave(
       const SlaveID& slaveId);
 
+  void updateSlave(
+      const SlaveID& slave,
+      const Resources& oversubscribed);
+
   void activateSlave(
       const SlaveID& slaveId);
 
@@ -153,6 +157,10 @@ public:
 
   virtual void removeSlave(
       const SlaveID& slaveId) = 0;
+
+  virtual void updateSlave(
+      const SlaveID& slave,
+      const Resources& oversubscribed) = 0;
 
   virtual void activateSlave(
       const SlaveID& slaveId) = 0;
@@ -299,6 +307,19 @@ inline void MesosAllocator<AllocatorProcess>::removeSlave(
       process,
       &MesosAllocatorProcess::removeSlave,
       slaveId);
+}
+
+
+template <typename AllocatorProcess>
+inline void MesosAllocator<AllocatorProcess>::updateSlave(
+    const SlaveID& slaveId,
+    const Resources& oversubscribed)
+{
+  process::dispatch(
+      process,
+      &MesosAllocatorProcess::updateSlave,
+      slaveId,
+      oversubscribed);
 }
 
 
