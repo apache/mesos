@@ -255,7 +255,7 @@ TEST_F(HookTest, VerifySlaveExecutorEnvironmentDecorator)
 // Test executor environment decorator hook and remove executor hook
 // for slave. We expect the environment-decorator hook to create a
 // temporary file and the remove-executor hook to delete that file.
-TEST_F(HookTest, VerifySlaveLaunchExecutorHook)
+TEST_F(HookTest, DISABLED_VerifySlaveLaunchExecutorHook)
 {
   master::Flags masterFlags = CreateMasterFlags();
 
