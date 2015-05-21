@@ -324,9 +324,7 @@ void Slave::initialize()
   }
 
   // TODO(jieyu): Pass ResourceMonitor* to 'initialize'.
-  Try<Nothing> initialize = resourceEstimator->initialize(
-      defer(self(), &Self::updateOversubscribableResources, lambda::_1));
-
+  Try<Nothing> initialize = resourceEstimator->initialize();
   if (initialize.isError()) {
     EXIT(1) << "Failed to initialize the resource estimator: "
             << initialize.error();
@@ -3980,8 +3978,11 @@ void Slave::__recover(const Future<Nothing>& future)
   if (flags.recover == "reconnect") {
     state = DISCONNECTED;
 
-    // Start to send updates about oversubscribable resources.
-    forwardOversubscribableResources();
+    // Start to get estimations from the resource estimator and
+    // forward the estimations to the master.
+    resourceEstimator->oversubscribable()
+      .onAny(defer(self(), &Self::updateOversubscribableResources, lambda::_1))
+      .onAny(defer(self(), &Self::forwardOversubscribableResources));
 
     // Start detecting masters.
     detection = detector->detect()
@@ -4072,12 +4073,20 @@ Future<Nothing> Slave::garbageCollect(const string& path)
 }
 
 
-void Slave::updateOversubscribableResources(const Resources& resources)
+void Slave::updateOversubscribableResources(const Future<Resources>& future)
 {
-  LOG(INFO) << "Received a new estimation of the oversubscribable "
-            << "resources " << resources;
+  if (!future.isReady()) {
+    LOG(ERROR) << "Failed to estimate oversubscribable resources: "
+               << (future.isFailed() ? future.failure() : "discarded");
+  } else {
+    LOG(INFO) << "Received a new estimation of the oversubscribable "
+              << "resources " << future.get();
 
-  oversubscribableResources = resources;
+    oversubscribableResources = future.get();
+  }
+
+  resourceEstimator->oversubscribable()
+    .onAny(defer(self(), &Self::updateOversubscribableResources, lambda::_1));
 }
 
 

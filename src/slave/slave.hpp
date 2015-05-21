@@ -433,7 +433,7 @@ private:
       const FrameworkID& frameworkId,
       const Executor* executor);
 
-  void updateOversubscribableResources(const Resources& resources);
+  void updateOversubscribableResources(const Future<Resources>& future);
   void forwardOversubscribableResources();
 
   const Flags flags;

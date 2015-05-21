@@ -38,6 +38,7 @@
 #include <process/owned.hpp>
 #include <process/pid.hpp>
 #include <process/process.hpp>
+#include <process/queue.hpp>
 
 #include <stout/bytes.hpp>
 #include <stout/foreach.hpp>
@@ -704,20 +705,23 @@ public:
 class TestResourceEstimator : public mesos::slave::ResourceEstimator
 {
 public:
-  virtual Try<Nothing> initialize(
-      const lambda::function<void(const Resources&)>& _oversubscribe)
+  virtual Try<Nothing> initialize()
   {
-    oversubscribe = _oversubscribe;
     return Nothing();
+  }
+
+  virtual process::Future<Resources> oversubscribable()
+  {
+    return queue.get();
   }
 
   void estimate(const Resources& resources)
   {
-    oversubscribe(resources);
+    queue.put(resources);
   }
 
 private:
-  lambda::function<void(const Resources&)> oversubscribe;
+  process::Queue<Resources> queue;
 };
 
 

@@ -25,7 +25,6 @@
 
 #include <process/future.hpp>
 
-#include <stout/lambda.hpp>
 #include <stout/nothing.hpp>
 #include <stout/option.hpp>
 #include <stout/try.hpp>
@@ -46,17 +45,21 @@ public:
 
   virtual ~ResourceEstimator() {}
 
-  // Initializes this resource estimator. It registers a callback with
-  // the resource estimator. The callback allows the resource
-  // estimator to tell the slave about the current estimation of the
-  // *maximum* amount of resources that can be oversubscribed on the
-  // slave. A new estimation will invalidate all the previously
-  // returned estimations. The slave will keep track of the most
-  // recent estimation and periodically send it to the master.
-  //
+  // Initializes this resource estimator. This method needs to be
+  // called before any other member method is called.
   // TODO(jieyu): Pass ResourceMonitor* once it's exposed.
-  virtual Try<Nothing> initialize(
-      const lambda::function<void(const Resources&)>& oversubscribe) = 0;
+  virtual Try<Nothing> initialize() = 0;
+
+  // Returns the current estimation about the *maximum* amount of
+  // resources that can be oversubscribed on the slave. A new
+  // estimation will invalidate all the previously returned
+  // estimations. The slave will be calling this method continuously
+  // to keep track of the most up-to-date estimation and periodically
+  // forward it to the master. As a result, to avoid overwhelming the
+  // slave, it is recommended that the resource estimator should
+  // return an estimation only if the current estimation is
+  // significantly different from the previous one.
+  virtual process::Future<Resources> oversubscribable() = 0;
 };
 
 } // namespace slave {

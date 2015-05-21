@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-#include <process/delay.hpp>
 #include <process/dispatch.hpp>
 #include <process/process.hpp>
 
@@ -53,25 +52,20 @@ class NoopResourceEstimatorProcess :
   public Process<NoopResourceEstimatorProcess>
 {
 public:
-  NoopResourceEstimatorProcess(
-      const lambda::function<void(const Resources&)>& _oversubscribe)
-    : oversubscribe(_oversubscribe) {}
+  NoopResourceEstimatorProcess() : sent(false) {}
 
-protected:
-  virtual void initialize()
+  Future<Resources> oversubscribable()
   {
-    notify();
+    if (!sent) {
+      sent = true;
+      return Resources();
+    }
+
+    return Future<Resources>();
   }
 
-  // Periodically notify the slave about oversubscribable resources.
-  void notify()
-  {
-    oversubscribe(Resources());
-
-    delay(Seconds(1), self(), &Self::notify);
-  }
-
-  const lambda::function<void(const Resources&)> oversubscribe;
+private:
+  bool sent;
 };
 
 
@@ -84,17 +78,28 @@ NoopResourceEstimator::~NoopResourceEstimator()
 }
 
 
-Try<Nothing> NoopResourceEstimator::initialize(
-    const lambda::function<void(const Resources&)>& oversubscribe)
+Try<Nothing> NoopResourceEstimator::initialize()
 {
   if (process.get() != NULL) {
     return Error("Noop resource estimator has already been initialized");
   }
 
-  process.reset(new NoopResourceEstimatorProcess(oversubscribe));
+  process.reset(new NoopResourceEstimatorProcess());
   spawn(process.get());
 
   return Nothing();
+}
+
+
+Future<Resources> NoopResourceEstimator::oversubscribable()
+{
+  if (process.get() == NULL) {
+    return Failure("Noop resource estimator is not initialized");
+  }
+
+  return dispatch(
+      process.get(),
+      &NoopResourceEstimatorProcess::oversubscribable);
 }
 
 } // namespace slave {
