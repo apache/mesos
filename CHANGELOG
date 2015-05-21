@@ -1,3 +1,18 @@
+(WIP) Release Notes - Mesos - Version 0.23.0
+--------------------------------------------
+This release contains several new features:
+
+* Support for launching tasks/executors on revocable resources. These
+  resources can be revoked by Mesos at any time, causing the tasks
+  using them to be throttled or preempted.
+
+
+* API Changes:
+  * [MESOS-2654] - A new 'capabilities' field has been addd to FrameworkInfo
+                   to opt in to revocable resources.
+
+
+
 Release Notes - Mesos - Version 0.22.1
 --------------------------------------
 
