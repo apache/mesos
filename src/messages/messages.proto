@@ -334,10 +334,11 @@ message CheckpointResourcesMessage {
 
 
 // This message is sent by the slave to the master to inform the
-// master about the currently oversubscribable resources.
-message OversubscribeResourcesMessage {
+// master about the total amount of oversubscribed (allocated and
+// allocatable) resources.
+message UpdateSlaveMessage {
   required SlaveID slave_id = 1;
-  repeated Resource resources = 2;
+  repeated Resource oversubscribed_resources = 2;
 }
 
 

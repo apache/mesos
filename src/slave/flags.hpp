@@ -101,7 +101,7 @@ public:
   std::string authenticatee;
   Option<std::string> hooks;
   Option<std::string> resource_estimator;
-  Duration oversubscribe_resources_interval;
+  Duration oversubscribed_resources_interval;
 };
 
 } // namespace slave {

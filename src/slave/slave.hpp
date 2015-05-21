@@ -434,7 +434,7 @@ private:
       const Executor* executor);
 
   void updateOversubscribableResources(const Future<Resources>& future);
-  void forwardOversubscribableResources();
+  void forwardOversubscribedResources();
 
   const Flags flags;
 
@@ -510,7 +510,11 @@ private:
 
   // The most recent estimation about the maximum amount of resources
   // that can be oversubscribed on the slave.
-  Option<Resources> oversubscribableResources;
+  Resources oversubscribableResources;
+
+  // The total amount of oversubscribed (allocated and
+  // oversubscribable) resources.
+  Resources oversubscribedResources;
 };
 
 

@@ -48,8 +48,8 @@ class OversubscriptionSlaveTest : public MesosTest {};
 
 
 // This test verifies that slave will forward the estimation of the
-// oversubscribable resources to the master.
-TEST_F(OversubscriptionSlaveTest, ForwardOversubcribableResourcesMessage)
+// oversubscribed resources to the master.
+TEST_F(OversubscriptionSlaveTest, ForwardUpdateSlaveMessage)
 {
   Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -66,13 +66,13 @@ TEST_F(OversubscriptionSlaveTest, ForwardOversubcribableResourcesMessage)
 
   AWAIT_READY(slaveRegistered);
 
-  Future<OversubscribeResourcesMessage> update =
-    FUTURE_PROTOBUF(OversubscribeResourcesMessage(), _, _);
+  Future<UpdateSlaveMessage> update =
+    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
 
   Clock::pause();
 
   Clock::settle();
-  Clock::advance(flags.oversubscribe_resources_interval);
+  Clock::advance(flags.oversubscribed_resources_interval);
 
   ASSERT_FALSE(update.isReady());
 
@@ -81,10 +81,10 @@ TEST_F(OversubscriptionSlaveTest, ForwardOversubcribableResourcesMessage)
   resourceEstimator.estimate(resources);
 
   Clock::settle();
-  Clock::advance(flags.oversubscribe_resources_interval);
+  Clock::advance(flags.oversubscribed_resources_interval);
 
   AWAIT_READY(update);
-  EXPECT_EQ(Resources(update.get().resources()), resources);
+  EXPECT_EQ(Resources(update.get().oversubscribed_resources()), resources);
 
   Shutdown();
 }
