@@ -1245,6 +1245,19 @@ TEST(RevocableResourceTest, Contains)
   EXPECT_TRUE((r1 + r3).contains(r3));
 }
 
+
+// This test verifies that revocable resources can be filtered.
+TEST(RevocableResourceTest, Filter)
+{
+  Resources r1 = createRevocableResource("cpus", "1", "*", true);
+  EXPECT_EQ(r1, r1.revocable());
+
+  Resources r2 = createRevocableResource("cpus", "1", "*", false);
+  EXPECT_TRUE(r2.revocable().empty());
+
+  EXPECT_EQ(r1, (r1 + r2).revocable());
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {

@@ -632,6 +632,12 @@ Resources Resources::persistentVolumes() const
 }
 
 
+Resources Resources::revocable() const
+{
+  return filter(isRevocable);
+}
+
+
 Resources Resources::flatten(
     const string& role,
     const Option<Resource::ReservationInfo>& reservation) const

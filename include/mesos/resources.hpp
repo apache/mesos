@@ -189,6 +189,9 @@ public:
   // Returns the persistent volumes.
   Resources persistentVolumes() const;
 
+  // Returns the revocable resources.
+  Resources revocable() const;
+
   // Returns a Resources object with the same amount of each resource
   // type as these Resources, but with all Resource objects marked as
   // the specified (role, reservation) pair. This is used to cross
