@@ -33,6 +33,7 @@
 #include "slave/slave.hpp"
 
 #include "tests/mesos.hpp"
+#include "tests/utils.hpp"
 
 using namespace process;
 
@@ -44,12 +45,12 @@ namespace mesos {
 namespace internal {
 namespace tests {
 
-class OversubscriptionSlaveTest : public MesosTest {};
+class OversubscriptionTest : public MesosTest {};
 
 
 // This test verifies that slave will forward the estimation of the
 // oversubscribed resources to the master.
-TEST_F(OversubscriptionSlaveTest, ForwardUpdateSlaveMessage)
+TEST_F(OversubscriptionTest, ForwardUpdateSlaveMessage)
 {
   Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -71,8 +72,9 @@ TEST_F(OversubscriptionSlaveTest, ForwardUpdateSlaveMessage)
 
   Clock::pause();
 
-  Clock::settle();
+  // No update should be sent until there is an estimate.
   Clock::advance(flags.oversubscribed_resources_interval);
+  Clock::settle();
 
   ASSERT_FALSE(update.isReady());
 
@@ -80,11 +82,17 @@ TEST_F(OversubscriptionSlaveTest, ForwardUpdateSlaveMessage)
   Resources resources = Resources::parse("cpus:1;mem:32").get();
   resourceEstimator.estimate(resources);
 
-  Clock::settle();
-  Clock::advance(flags.oversubscribed_resources_interval);
-
   AWAIT_READY(update);
   EXPECT_EQ(Resources(update.get().oversubscribed_resources()), resources);
+
+  // Ensure the metric is updated.
+  JSON::Object metrics = Metrics();
+  ASSERT_EQ(
+      1u,
+      metrics.values.count("master/messages_update_slave"));
+  ASSERT_EQ(
+      1u,
+      metrics.values["master/messages_update_slave"]);
 
   Shutdown();
 }

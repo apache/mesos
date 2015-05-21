@@ -750,6 +750,10 @@ public:
       const ExecutorID& executorId,
       int32_t status);
 
+  void updateSlave(
+      const SlaveID& slaveId,
+      const std::vector<Resource>& oversubscribedResources);
+
   void shutdownSlave(
       const SlaveID& slaveId,
       const std::string& message);

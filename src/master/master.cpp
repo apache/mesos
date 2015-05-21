@@ -718,6 +718,11 @@ void Master::initialize()
       &ExitedExecutorMessage::executor_id,
       &ExitedExecutorMessage::status);
 
+  install<UpdateSlaveMessage>(
+      &Master::updateSlave,
+      &UpdateSlaveMessage::slave_id,
+      &UpdateSlaveMessage::oversubscribed_resources);
+
   install<AuthenticateMessage>(
       &Master::authenticate,
       &AuthenticateMessage::pid);
@@ -3449,6 +3454,20 @@ void Master::unregisterSlave(const UPID& from, const SlaveID& slaveId)
                 "the slave unregistered",
                 metrics->slave_removals_reason_unregistered);
   }
+}
+
+
+void Master::updateSlave(
+    const SlaveID& slaveId,
+    const vector<Resource>& oversubscribedResources)
+{
+  ++metrics->messages_update_slave;
+
+  LOG(INFO) << "Received update of slave " << slaveId
+            << " with oversubscribed resources " <<  oversubscribedResources;
+
+  // TODO(vinod): Rescind any oustanding revocable offers from this
+  // slave and update the allocator.
 }
 
 
