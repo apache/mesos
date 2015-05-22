@@ -20,11 +20,10 @@
 #include "foreach.hpp"
 
 
-// Provides a hash set via Boost's 'unordered_set'. For most intensive
-// purposes this could be accomplished with a templated typedef, but
-// those don't exist (until C++-11). Also, doing it this way allows us
-// to add functionality, or better naming of existing functionality,
-// etc.
+// Provides a hash set via Boost's 'unordered_set'. For most purposes
+// this could be accomplished with a templated typedef, but those
+// don't exist (until C++-11). Also, doing it this way allows us to
+// add functionality, or better naming of existing functionality, etc.
 
 template <typename Elem>
 class hashset : public boost::unordered_set<Elem>
