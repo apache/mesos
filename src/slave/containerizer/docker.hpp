@@ -152,7 +152,9 @@ public:
       const ContainerID& containerId,
       bool killed = true); // process is either killed or reaped.
 
-  virtual process::Future<Nothing> fetch(const ContainerID& containerId);
+  virtual process::Future<Nothing> fetch(
+      const ContainerID& containerId,
+      const SlaveID& slaveId);
 
   virtual process::Future<Nothing> pull(const ContainerID& containerId);
 

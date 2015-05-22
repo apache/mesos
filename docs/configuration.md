@@ -1231,6 +1231,24 @@ file:///path/to/file (where file contains one of the above)</code></pre>
   </tr>
   <tr>
     <td>
+      --fetcher_cache_size=VALUE
+    </td>
+    <td>
+      Size of the fetcher cache in Bytes.
+      (default: 2 GB)
+    </td>
+  </tr>
+  <tr>
+    <td>
+      --fetcher_cache_dir=VALUE
+    </td>
+    <td>
+      Parent directory for fetcher cache directories (one subdirectory per slave). By default this directory is held inside the work directory, so everything can be deleted or archived in one swoop, in particular during testing. However, a typical production scenario is to use a separate cache volume. First, it is not meant to be backed up. Second, you want to avoid that sandbox directories and the cache directory can interfere with each other in unpredictable ways by occupying shared space. So it is recommended to set the cache directory explicitly.
+      (default: /tmp/mesos/fetch)
+    </td>
+  </tr>
+  <tr>
+    <td>
       --work_dir=VALUE
     </td>
     <td>

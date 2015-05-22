@@ -325,7 +325,8 @@ DockerContainerizerProcess::Container::create(
 
 
 Future<Nothing> DockerContainerizerProcess::fetch(
-    const ContainerID& containerId)
+    const ContainerID& containerId,
+    const SlaveID& slaveId)
 {
   CHECK(containers_.contains(containerId));
   Container* container = containers_[containerId];
@@ -335,6 +336,7 @@ Future<Nothing> DockerContainerizerProcess::fetch(
       container->command,
       container->directory,
       None(),
+      slaveId,
       flags);
 }
 
@@ -772,7 +774,7 @@ Future<bool> DockerContainerizerProcess::launch(
 
   if (taskInfo.isSome() && flags.docker_mesos_image.isNone()) {
     // Launching task by forking a subprocess to run docker executor.
-    return container.get()->launch = fetch(containerId)
+    return container.get()->launch = fetch(containerId, slaveId)
       .then(defer(self(), [=]() { return pull(containerId); }))
       .then(defer(self(), [=]() { return launchExecutorProcess(containerId); }))
       .then(defer(self(), [=](pid_t pid) {
@@ -794,7 +796,7 @@ Future<bool> DockerContainerizerProcess::launch(
   // is running in a container (via docker_mesos_image flag)
   // we want the executor to keep running when the slave container
   // dies.
-  return container.get()->launch = fetch(containerId)
+  return container.get()->launch = fetch(containerId, slaveId)
     .then(defer(self(), [=]() { return pull(containerId); }))
     .then(defer(self(), [=]() {
       return launchExecutorContainer(containerId, containerName);
@@ -934,7 +936,6 @@ Future<pid_t> DockerContainerizerProcess::launchExecutorProcess(
 
   return s.get().pid();
 }
-
 
 
 Future<pid_t> DockerContainerizerProcess::checkpointExecutor(

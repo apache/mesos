@@ -188,6 +188,23 @@ inline bool operator < (const TaskID& left, const TaskID& right)
 }
 
 
+inline std::size_t hash_value(const CommandInfo::URI& uri)
+{
+  size_t seed = 0;
+
+  if (uri.extract()) {
+    seed += 11;
+  }
+
+  if (uri.executable()) {
+    seed += 2003;
+  }
+
+  boost::hash_combine(seed, uri.value());
+  return seed;
+}
+
+
 inline std::size_t hash_value(const ContainerID& containerId)
 {
   size_t seed = 0;

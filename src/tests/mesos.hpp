@@ -30,6 +30,8 @@
 
 #include <mesos/master/allocator.hpp>
 
+#include <mesos/fetcher/fetcher.hpp>
+
 #include <mesos/slave/resource_estimator.hpp>
 
 #include <process/future.hpp>
@@ -44,6 +46,7 @@
 #include <stout/foreach.hpp>
 #include <stout/gtest.hpp>
 #include <stout/lambda.hpp>
+#include <stout/memory.hpp>
 #include <stout/none.hpp>
 #include <stout/option.hpp>
 #include <stout/stringify.hpp>
@@ -796,6 +799,52 @@ private:
   MockGarbageCollector gc;
   TestResourceEstimator resourceEstimator;
   slave::StatusUpdateManager* statusUpdateManager;
+};
+
+
+// Definition of a mock FetcherProcess to be used in tests with gmock.
+class MockFetcherProcess : public slave::FetcherProcess
+{
+public:
+  MockFetcherProcess();
+
+  virtual ~MockFetcherProcess() {}
+
+  MOCK_METHOD7(_fetch, process::Future<Nothing>(
+      const std::list<process::Future<std::shared_ptr<Cache::Entry>>>
+        futures,
+      const hashmap<
+          CommandInfo::URI,
+          Option<process::Future<std::shared_ptr<Cache::Entry>>>>&
+        entries,
+      const ContainerID& containerId,
+      const std::string& sandboxDirectory,
+      const std::string& cacheDirectory,
+      const Option<std::string>& user,
+      const slave::Flags& flags));
+
+  process::Future<Nothing> unmocked__fetch(
+      const std::list<process::Future<std::shared_ptr<Cache::Entry>>>
+        futures,
+      const hashmap<
+          CommandInfo::URI,
+          Option<process::Future<std::shared_ptr<Cache::Entry>>>>&
+        entries,
+      const ContainerID& containerId,
+      const std::string& sandboxDirectory,
+      const std::string& cacheDirectory,
+      const Option<std::string>& user,
+      const slave::Flags& flags);
+
+  MOCK_METHOD3(run, process::Future<Nothing>(
+      const ContainerID& containerId,
+      const FetcherInfo& info,
+      const slave::Flags& flags));
+
+  process::Future<Nothing> unmocked_run(
+      const ContainerID& containerId,
+      const FetcherInfo& info,
+      const slave::Flags& flags);
 };
 
 

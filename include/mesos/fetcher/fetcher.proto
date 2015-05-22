@@ -23,14 +23,45 @@ package mesos.fetcher;
 option java_package = "org.apache.mesos.fetcher";
 option java_outer_classname = "Protos";
 
-
 /**
  * Encodes the fetcher environment variable sent to the external fetcher
- * program.
+ * program. See also "docs/fetcher.md" and
+ * "docs/fetcher-cache-internals.md". Note that part of these
+ * definitions are quoted verbatim in "docs/fetcher.md" and must be
+ * updated there whenever they change here.
  */
 message FetcherInfo {
-  required CommandInfo command_info = 1;
-  required string work_directory = 2;
-  optional string user = 3;
-  optional string frameworks_home = 4;
+  message Item
+  {
+    // What action the fetcher program is supposed to perform for a
+    // given URI.
+    enum Action
+    {
+      // Bypass the cache, download directly into the sandbox directory.
+      BYPASS_CACHE = 0;
+
+      // Download a resource at the given URI to the fetcher's file cache.
+      // Then retrieve the resource from the cache into the sandbox
+      // directory.
+      DOWNLOAD_AND_CACHE = 1;
+
+      // Copy or extract the resource from the cache, without downloading.
+      RETRIEVE_FROM_CACHE = 2;
+    }
+
+    required CommandInfo.URI uri = 1;
+    required Action action = 2;
+    optional string cache_filename = 3;
+  }
+
+  // Must be present when fetching into the sandbox in any way.
+  required string sandbox_directory = 1;
+
+  // Optional so that fetch requests that only use BYPASS_CACHE do not
+  // need to specify an unused cache directory.
+  optional string cache_directory = 2;
+
+  repeated Item items = 3;
+  optional string user = 4;
+  optional string frameworks_home = 5;
 }

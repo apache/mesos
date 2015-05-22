@@ -48,6 +48,7 @@
 #include "tests/flags.hpp"
 #include "tests/mesos.hpp"
 
+using std::list;
 using std::shared_ptr;
 using std::string;
 using testing::_;
@@ -140,6 +141,7 @@ slave::Flags MesosTest::CreateSlaveFlags()
   CHECK_SOME(directory) << "Failed to create temporary directory";
 
   flags.work_dir = directory.get();
+  flags.fetcher_cache_dir = path::join(directory.get(), "fetch");
 
   flags.launcher_dir = path::join(tests::flags.build_dir, "src");
 
@@ -442,6 +444,47 @@ void MockSlave::unmocked_removeFramework(slave::Framework* framework)
 void MockSlave::unmocked___recover(const Future<Nothing>& future)
 {
   slave::Slave::__recover(future);
+}
+
+
+MockFetcherProcess::MockFetcherProcess()
+{
+  // Set up default behaviors, calling the original methods.
+  EXPECT_CALL(*this, _fetch(_, _, _, _, _, _, _)).
+    WillRepeatedly(
+        Invoke(this, &MockFetcherProcess::unmocked__fetch));
+  EXPECT_CALL(*this, run(_, _, _)).
+    WillRepeatedly(Invoke(this, &MockFetcherProcess::unmocked_run));
+}
+
+
+process::Future<Nothing> MockFetcherProcess::unmocked__fetch(
+  const list<Future<shared_ptr<Cache::Entry>>> futures,
+  const hashmap<CommandInfo::URI, Option<Future<shared_ptr<Cache::Entry>>>>&
+    entries,
+  const ContainerID& containerId,
+  const string& sandboxDirectory,
+  const string& cacheDirectory,
+  const Option<string>& user,
+  const slave::Flags& flags)
+{
+  return slave::FetcherProcess::_fetch(
+      futures,
+      entries,
+      containerId,
+      sandboxDirectory,
+      cacheDirectory,
+      user,
+      flags);
+}
+
+
+process::Future<Nothing> MockFetcherProcess::unmocked_run(
+    const ContainerID& containerId,
+    const FetcherInfo& info,
+    const slave::Flags& flags)
+{
+  return slave::FetcherProcess::run(containerId, info, flags);
 }
 
 

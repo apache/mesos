@@ -650,7 +650,8 @@ Future<Nothing> MesosContainerizerProcess::fetch(
     const ContainerID& containerId,
     const CommandInfo& commandInfo,
     const string& directory,
-    const Option<string>& user)
+    const Option<string>& user,
+    const SlaveID& slaveId)
 {
   if (!containers_.contains(containerId)) {
     return Failure("Container is already destroyed");
@@ -661,6 +662,7 @@ Future<Nothing> MesosContainerizerProcess::fetch(
       commandInfo,
       directory,
       user,
+      slaveId,
       flags);
 }
 
@@ -785,7 +787,8 @@ Future<bool> MesosContainerizerProcess::_launch(
                 containerId,
                 executorInfo.command(),
                 directory,
-                user))
+                user,
+                slaveId))
     .then(defer(self(), &Self::exec, containerId, pipes[1]))
     .onAny(lambda::bind(&os::close, pipes[0]))
     .onAny(lambda::bind(&os::close, pipes[1]));

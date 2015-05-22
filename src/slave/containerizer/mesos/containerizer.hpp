@@ -186,7 +186,8 @@ private:
       const ContainerID& containerId,
       const CommandInfo& commandInfo,
       const std::string& directory,
-      const Option<std::string>& user);
+      const Option<std::string>& user,
+      const SlaveID& slaveId);
 
   process::Future<bool> _launch(
       const ContainerID& containerId,

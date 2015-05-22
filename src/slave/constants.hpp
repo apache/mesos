@@ -108,6 +108,9 @@ extern const Duration DOCKER_VERSION_WAIT_TIMEOUT;
 // Name of the default, CRAM-MD5 authenticatee.
 extern const std::string DEFAULT_AUTHENTICATEE;
 
+// Default maximum storage space to be used by the fetcher cache.
+const Bytes DEFAULT_FETCHER_CACHE_SIZE = Gigabytes(2);
+
 // If no pings received within this timeout, then the slave will
 // trigger a re-detection of the master to cause a re-registration.
 Duration MASTER_PING_TIMEOUT();

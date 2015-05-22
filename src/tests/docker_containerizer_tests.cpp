@@ -379,24 +379,28 @@ public:
       const Shared<Docker>& docker)
     : DockerContainerizerProcess(flags, fetcher, docker)
   {
-    EXPECT_CALL(*this, fetch(_))
+    EXPECT_CALL(*this, fetch(_, _))
       .WillRepeatedly(Invoke(this, &MockDockerContainerizerProcess::_fetch));
 
     EXPECT_CALL(*this, pull(_))
       .WillRepeatedly(Invoke(this, &MockDockerContainerizerProcess::_pull));
   }
 
-  MOCK_METHOD1(
+  MOCK_METHOD2(
       fetch,
-      process::Future<Nothing>(const ContainerID& containerId));
+      process::Future<Nothing>(
+          const ContainerID& containerId,
+          const SlaveID& slaveId));
 
   MOCK_METHOD1(
       pull,
       process::Future<Nothing>(const ContainerID& containerId));
 
-  process::Future<Nothing> _fetch(const ContainerID& containerId)
+  process::Future<Nothing> _fetch(
+      const ContainerID& containerId,
+      const SlaveID& slaveId)
   {
-    return DockerContainerizerProcess::fetch(containerId);
+    return DockerContainerizerProcess::fetch(containerId, slaveId);
   }
 
   process::Future<Nothing> _pull(const ContainerID& containerId)
@@ -2381,7 +2385,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_DestroyWhileFetching)
   Future<Nothing> fetch;
 
   // We want to pause the fetch call to simulate a long fetch time.
-  EXPECT_CALL(*process, fetch(_))
+  EXPECT_CALL(*process, fetch(_, _))
     .WillOnce(DoAll(FutureSatisfy(&fetch),
                     Return(promise.future())));
 
@@ -2486,7 +2490,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_DestroyWhilePulling)
       (Owned<DockerContainerizerProcess>(process)));
 
   Future<Nothing> fetch;
-  EXPECT_CALL(*process, fetch(_))
+  EXPECT_CALL(*process, fetch(_, _))
     .WillOnce(DoAll(FutureSatisfy(&fetch),
                     Return(Nothing())));
 
@@ -2754,7 +2758,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_FetchFailure)
                     Invoke(&dockerContainerizer,
                            &MockDockerContainerizer::_launch)));
 
-  EXPECT_CALL(*process, fetch(_))
+  EXPECT_CALL(*process, fetch(_, _))
     .WillOnce(Return(Failure("some error from fetch")));
 
   vector<TaskInfo> tasks;

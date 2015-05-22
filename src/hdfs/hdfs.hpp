@@ -2,6 +2,7 @@
 #define __HDFS_HPP__
 
 #include <sstream>
+#include <vector>
 
 #include <stout/check.hpp>
 #include <stout/error.hpp>
@@ -76,6 +77,40 @@ struct HDFS
     }
 
     return status.get() == 0;
+  }
+
+  Try<Bytes> du(std::string path)
+  {
+    // Make sure 'path' starts with a '/'.
+    path = path::join("", path);
+
+    Try<std::string> command = strings::format(
+        "%s fs -du -h '%s'", hadoop, path);
+
+    CHECK_SOME(command);
+
+    std::ostringstream output;
+
+    Try<int> status = os::shell(&output, command.get() + " 2>&1");
+
+    if (status.isError()) {
+      return Error("HDFS du failed: " + status.error());
+    }
+
+    const std::vector<std::string>& s = strings::split(output.str(), " ");
+    if (s.size() != 2) {
+      return Error("HDFS du returned an unexpected number of results: '" +
+                   output.str() + "'");
+    }
+
+    Result<size_t> size = numify<size_t>(s[0]);
+    if (size.isError()) {
+      return Error("HDFS du returned unexpected format: " + size.error());
+    } else if (size.isNone()) {
+      return Error("HDFS du returned unexpected format");
+    }
+
+    return Bytes(size.get());
   }
 
   Try<Nothing> rm(std::string path)

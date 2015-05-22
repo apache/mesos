@@ -67,6 +67,23 @@ mesos::internal::slave::Flags::Flags()
       "Attributes of machine, in the form:\n"
       "rack:2 or 'rack:2;u:1'");
 
+  add(&Flags::fetcher_cache_size, "fetcher_cache_size",
+      "Size of the fetcher cache in Bytes.",
+      DEFAULT_FETCHER_CACHE_SIZE);
+
+  // By default the fetcher cache directory is held inside the work
+  // directory, so everything can be deleted or archived in one swoop,
+  // in particular during testing. However, a typical production
+  // scenario is to use a separate cache volume. First, it is not meant
+  // to be backed up. Second, you want to avoid that sandbox directories
+  // and the cache directory can interfere with each other in
+  // unpredictable ways by occupying shared space. So it is recommended
+  // to set the cache directory explicitly.
+  add(&Flags::fetcher_cache_dir, "fetcher_cache_dir",
+      "Parent directory for fetcher cache directories\n"
+      "(one subdirectory per slave).",
+      "/tmp/mesos/fetch");
+
   add(&Flags::work_dir,
       "work_dir",
       "Directory path to place framework work directories\n", "/tmp/mesos");

@@ -1418,6 +1418,7 @@ mesos_tests_SOURCES =				\
   tests/external_containerizer_test.cpp		\
   tests/health_check_tests.cpp                  \
   tests/fault_tolerance_tests.cpp		\
+  tests/fetcher_cache_tests.cpp            \
   tests/fetcher_tests.cpp                       \
   tests/files_tests.cpp				\
   tests/flags.cpp				\

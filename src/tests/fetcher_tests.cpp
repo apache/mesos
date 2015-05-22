@@ -48,278 +48,24 @@
 #include "tests/mesos.hpp"
 #include "tests/utils.hpp"
 
+using namespace mesos::slave;
+
 using namespace process;
+
+using mesos::fetcher::FetcherInfo;
+
+using mesos::internal::slave::Fetcher;
 
 using process::Subprocess;
 using process::Future;
 
-using mesos::internal::slave::Fetcher;
-
-using std::string;
 using std::map;
+using std::string;
 
-using mesos::fetcher::FetcherInfo;
 
 namespace mesos {
 namespace internal {
 namespace tests {
-
-class FetcherEnvironmentTest : public ::testing::Test {};
-
-
-TEST_F(FetcherEnvironmentTest, Simple)
-{
-  CommandInfo commandInfo;
-  CommandInfo::URI* uri = commandInfo.add_uris();
-  uri->set_value("hdfs:///uri");
-  uri->set_executable(false);
-
-  string directory = "/tmp/directory";
-  Option<string> user = "user";
-
-  slave::Flags flags;
-  flags.frameworks_home = "/tmp/frameworks";
-  flags.hadoop_home = "/tmp/hadoop";
-
-  map<string, string> environment =
-    Fetcher::environment(commandInfo, directory, user, flags);
-
-  EXPECT_EQ(2u, environment.size());
-
-  EXPECT_EQ(flags.hadoop_home, environment["HADOOP_HOME"]);
-
-  Try<JSON::Object> parse =
-    JSON::parse<JSON::Object>(environment["MESOS_FETCHER_INFO"]);
-  ASSERT_SOME(parse);
-
-  Try<FetcherInfo> fetcherInfo = ::protobuf::parse<FetcherInfo>(parse.get());
-  ASSERT_SOME(fetcherInfo);
-
-  EXPECT_EQ(stringify(JSON::Protobuf(commandInfo)),
-            stringify(JSON::Protobuf(fetcherInfo.get().command_info())));
-  EXPECT_EQ(directory, fetcherInfo.get().work_directory());
-  EXPECT_EQ(user.get(), fetcherInfo.get().user());
-  EXPECT_EQ(flags.frameworks_home, fetcherInfo.get().frameworks_home());
-}
-
-
-TEST_F(FetcherEnvironmentTest, MultipleURIs)
-{
-  CommandInfo commandInfo;
-  CommandInfo::URI uri;
-  uri.set_value("hdfs:///uri1");
-  uri.set_executable(false);
-  commandInfo.add_uris()->MergeFrom(uri);
-  uri.set_value("hdfs:///uri2");
-  uri.set_executable(true);
-  commandInfo.add_uris()->MergeFrom(uri);
-
-  string directory = "/tmp/directory";
-  Option<string> user("user");
-
-  slave::Flags flags;
-  flags.frameworks_home = "/tmp/frameworks";
-  flags.hadoop_home = "/tmp/hadoop";
-
-  map<string, string> environment =
-    Fetcher::environment(commandInfo, directory, user, flags);
-
-  EXPECT_EQ(2u, environment.size());
-
-  EXPECT_EQ(flags.hadoop_home, environment["HADOOP_HOME"]);
-
-  Try<JSON::Object> parse =
-    JSON::parse<JSON::Object>(environment["MESOS_FETCHER_INFO"]);
-  ASSERT_SOME(parse);
-
-  Try<FetcherInfo> fetcherInfo = ::protobuf::parse<FetcherInfo>(parse.get());
-  ASSERT_SOME(fetcherInfo);
-
-  EXPECT_EQ(stringify(JSON::Protobuf(commandInfo)),
-            stringify(JSON::Protobuf(fetcherInfo.get().command_info())));
-  EXPECT_EQ(directory, fetcherInfo.get().work_directory());
-  EXPECT_EQ(user.get(), fetcherInfo.get().user());
-  EXPECT_EQ(flags.frameworks_home, fetcherInfo.get().frameworks_home());
-}
-
-
-TEST_F(FetcherEnvironmentTest, NoUser)
-{
-  CommandInfo commandInfo;
-  CommandInfo::URI* uri = commandInfo.add_uris();
-  uri->set_value("hdfs:///uri");
-  uri->set_executable(false);
-
-  string directory = "/tmp/directory";
-
-  slave::Flags flags;
-  flags.frameworks_home = "/tmp/frameworks";
-  flags.hadoop_home = "/tmp/hadoop";
-
-  map<string, string> environment =
-    Fetcher::environment(commandInfo, directory, None(), flags);
-
-  EXPECT_EQ(2u, environment.size());
-
-  EXPECT_EQ(flags.hadoop_home, environment["HADOOP_HOME"]);
-
-  Try<JSON::Object> parse =
-    JSON::parse<JSON::Object>(environment["MESOS_FETCHER_INFO"]);
-  ASSERT_SOME(parse);
-
-  Try<FetcherInfo> fetcherInfo = ::protobuf::parse<FetcherInfo>(parse.get());
-  ASSERT_SOME(fetcherInfo);
-
-  EXPECT_EQ(stringify(JSON::Protobuf(commandInfo)),
-            stringify(JSON::Protobuf(fetcherInfo.get().command_info())));
-  EXPECT_EQ(directory, fetcherInfo.get().work_directory());
-  EXPECT_FALSE(fetcherInfo.get().has_user());
-  EXPECT_EQ(flags.frameworks_home, fetcherInfo.get().frameworks_home());
-}
-
-
-TEST_F(FetcherEnvironmentTest, EmptyHadoop)
-{
-  CommandInfo commandInfo;
-  CommandInfo::URI* uri = commandInfo.add_uris();
-  uri->set_value("hdfs:///uri");
-  uri->set_executable(false);
-
-  string directory = "/tmp/directory";
-  Option<string> user = "user";
-
-  slave::Flags flags;
-  flags.frameworks_home = "/tmp/frameworks";
-  flags.hadoop_home = "";
-
-  map<string, string> environment =
-    Fetcher::environment(commandInfo, directory, user, flags);
-
-  EXPECT_EQ(0u, environment.count("HADOOP_HOME"));
-  EXPECT_EQ(1u, environment.size());
-
-  Try<JSON::Object> parse =
-    JSON::parse<JSON::Object>(environment["MESOS_FETCHER_INFO"]);
-  ASSERT_SOME(parse);
-
-  Try<FetcherInfo> fetcherInfo = ::protobuf::parse<FetcherInfo>(parse.get());
-  ASSERT_SOME(fetcherInfo);
-
-  EXPECT_EQ(stringify(JSON::Protobuf(commandInfo)),
-            stringify(JSON::Protobuf(fetcherInfo.get().command_info())));
-  EXPECT_EQ(directory, fetcherInfo.get().work_directory());
-  EXPECT_EQ(user.get(), fetcherInfo.get().user());
-  EXPECT_EQ(flags.frameworks_home, fetcherInfo.get().frameworks_home());
-}
-
-
-TEST_F(FetcherEnvironmentTest, NoHadoop)
-{
-  CommandInfo commandInfo;
-  CommandInfo::URI* uri = commandInfo.add_uris();
-  uri->set_value("hdfs:///uri");
-  uri->set_executable(false);
-
-  string directory = "/tmp/directory";
-  Option<string> user = "user";
-
-  slave::Flags flags;
-  flags.frameworks_home = "/tmp/frameworks";
-
-  map<string, string> environment =
-    Fetcher::environment(commandInfo, directory, user, flags);
-
-  EXPECT_EQ(0u, environment.count("HADOOP_HOME"));
-  EXPECT_EQ(1u, environment.size());
-
-  Try<JSON::Object> parse =
-    JSON::parse<JSON::Object>(environment["MESOS_FETCHER_INFO"]);
-  ASSERT_SOME(parse);
-
-  Try<FetcherInfo> fetcherInfo = ::protobuf::parse<FetcherInfo>(parse.get());
-  ASSERT_SOME(fetcherInfo);
-
-  EXPECT_EQ(stringify(JSON::Protobuf(commandInfo)),
-            stringify(JSON::Protobuf(fetcherInfo.get().command_info())));
-  EXPECT_EQ(directory, fetcherInfo.get().work_directory());
-  EXPECT_EQ(user.get(), fetcherInfo.get().user());
-  EXPECT_EQ(flags.frameworks_home, fetcherInfo.get().frameworks_home());
-}
-
-
-TEST_F(FetcherEnvironmentTest, NoExtractNoExecutable)
-{
-  CommandInfo commandInfo;
-  CommandInfo::URI* uri = commandInfo.add_uris();
-  uri->set_value("hdfs:///uri");
-  uri->set_executable(false);
-  uri->set_extract(false);
-
-  string directory = "/tmp/directory";
-  Option<string> user = "user";
-
-  slave::Flags flags;
-  flags.frameworks_home = "/tmp/frameworks";
-  flags.hadoop_home = "/tmp/hadoop";
-
-  map<string, string> environment =
-    Fetcher::environment(commandInfo, directory, user, flags);
-
-  EXPECT_EQ(2u, environment.size());
-
-  EXPECT_EQ(flags.hadoop_home, environment["HADOOP_HOME"]);
-
-  Try<JSON::Object> parse =
-    JSON::parse<JSON::Object>(environment["MESOS_FETCHER_INFO"]);
-  ASSERT_SOME(parse);
-
-  Try<FetcherInfo> fetcherInfo = ::protobuf::parse<FetcherInfo>(parse.get());
-  ASSERT_SOME(fetcherInfo);
-
-  EXPECT_EQ(stringify(JSON::Protobuf(commandInfo)),
-            stringify(JSON::Protobuf(fetcherInfo.get().command_info())));
-  EXPECT_EQ(directory, fetcherInfo.get().work_directory());
-  EXPECT_EQ(user.get(), fetcherInfo.get().user());
-  EXPECT_EQ(flags.frameworks_home, fetcherInfo.get().frameworks_home());
-}
-
-
-TEST_F(FetcherEnvironmentTest, NoExtractExecutable)
-{
-  CommandInfo commandInfo;
-  CommandInfo::URI* uri = commandInfo.add_uris();
-  uri->set_value("hdfs:///uri");
-  uri->set_executable(true);
-  uri->set_extract(false);
-
-  string directory = "/tmp/directory";
-  Option<string> user = "user";
-
-  slave::Flags flags;
-  flags.frameworks_home = "/tmp/frameworks";
-  flags.hadoop_home = "/tmp/hadoop";
-
-  map<string, string> environment =
-    Fetcher::environment(commandInfo, directory, user, flags);
-
-  EXPECT_EQ(2u, environment.size());
-
-  EXPECT_EQ(flags.hadoop_home, environment["HADOOP_HOME"]);
-
-  Try<JSON::Object> parse =
-    JSON::parse<JSON::Object>(environment["MESOS_FETCHER_INFO"]);
-  ASSERT_SOME(parse);
-
-  Try<FetcherInfo> fetcherInfo = ::protobuf::parse<FetcherInfo>(parse.get());
-  ASSERT_SOME(fetcherInfo);
-
-  EXPECT_EQ(stringify(JSON::Protobuf(commandInfo)),
-            stringify(JSON::Protobuf(fetcherInfo.get().command_info())));
-  EXPECT_EQ(directory, fetcherInfo.get().work_directory());
-  EXPECT_EQ(user.get(), fetcherInfo.get().user());
-  EXPECT_EQ(flags.frameworks_home, fetcherInfo.get().frameworks_home());
-}
-
 
 class FetcherTest : public TemporaryDirectoryTest {};
 
@@ -329,33 +75,127 @@ TEST_F(FetcherTest, FileURI)
   string fromDir = path::join(os::getcwd(), "from");
   ASSERT_SOME(os::mkdir(fromDir));
   string testFile = path::join(fromDir, "test");
-  EXPECT_FALSE(os::write(testFile, "data").isError());
+  EXPECT_SOME(os::write(testFile, "data"));
 
   string localFile = path::join(os::getcwd(), "test");
   EXPECT_FALSE(os::exists(localFile));
 
   slave::Flags flags;
+  flags.launcher_dir = path::join(tests::flags.build_dir, "src");
+
+  ContainerID containerId;
+  containerId.set_value(UUID::random().toString());
 
   CommandInfo commandInfo;
   CommandInfo::URI* uri = commandInfo.add_uris();
   uri->set_value("file://" + testFile);
 
-  map<string, string> environment =
-    Fetcher::environment(commandInfo, os::getcwd(), None(), flags);
+  Fetcher fetcher;
+  SlaveID slaveId;
 
-  Try<Subprocess> fetcherSubprocess =
-    process::subprocess(
-      path::join(mesos::internal::tests::flags.build_dir, "src/mesos-fetcher"),
-      environment);
-
-  ASSERT_SOME(fetcherSubprocess);
-  Future<Option<int>> status = fetcherSubprocess.get().status();
-
-  AWAIT_READY(status);
-  ASSERT_SOME(status.get());
-  EXPECT_EQ(0, status.get().get());
+  Future<Nothing> fetch = fetcher.fetch(
+      containerId, commandInfo, os::getcwd(), None(), slaveId, flags);
+  AWAIT_READY(fetch);
 
   EXPECT_TRUE(os::exists(localFile));
+}
+
+
+// Negative test: invalid user name. Copied from FileTest, so this
+// normally would succeed, but here a bogus user name is specified.
+// So we check for fetch failure.
+TEST_F(FetcherTest, InvalidUser)
+{
+  string fromDir = path::join(os::getcwd(), "from");
+  ASSERT_SOME(os::mkdir(fromDir));
+  string testFile = path::join(fromDir, "test");
+  EXPECT_SOME(os::write(testFile, "data"));
+
+  string localFile = path::join(os::getcwd(), "test");
+  EXPECT_FALSE(os::exists(localFile));
+
+  slave::Flags flags;
+  flags.launcher_dir = path::join(tests::flags.build_dir, "src");
+  flags.frameworks_home = "/tmp/frameworks";
+
+  ContainerID containerId;
+  containerId.set_value(UUID::random().toString());
+
+  CommandInfo commandInfo;
+  commandInfo.set_user(UUID::random().toString());
+
+  CommandInfo::URI* uri = commandInfo.add_uris();
+  uri->set_value("file://" + testFile);
+
+  Fetcher fetcher;
+  SlaveID slaveId;
+
+  Future<Nothing> fetch = fetcher.fetch(
+      containerId, commandInfo, os::getcwd(), None(), slaveId, flags);
+  AWAIT_FAILED(fetch);
+
+  // See FetcherProcess::fetch(), the message must mention "chown" in
+  // this case.
+  EXPECT_TRUE(strings::contains(fetch.failure(), "chown"));
+
+  EXPECT_FALSE(os::exists(localFile));
+}
+
+
+// Negative test: URI leading to non-existing file. Copied from FileTest,
+// but here the resource is missing. So we check for fetch failure.
+TEST_F(FetcherTest, NonExistingFile)
+{
+  string fromDir = path::join(os::getcwd(), "from");
+  ASSERT_SOME(os::mkdir(fromDir));
+  string testFile = path::join(fromDir, "nonExistingFile");
+
+  slave::Flags flags;
+  flags.launcher_dir = path::join(tests::flags.build_dir, "src");
+  flags.frameworks_home = "/tmp/frameworks";
+
+  ContainerID containerId;
+  containerId.set_value(UUID::random().toString());
+
+  CommandInfo commandInfo;
+  CommandInfo::URI* uri = commandInfo.add_uris();
+  uri->set_value("file://" + testFile);
+
+  Fetcher fetcher;
+  SlaveID slaveId;
+
+  Future<Nothing> fetch = fetcher.fetch(
+      containerId, commandInfo, os::getcwd(), None(), slaveId, flags);
+  AWAIT_FAILED(fetch);
+
+  // See FetcherProcess::run().
+  EXPECT_TRUE(strings::contains(fetch.failure(), "Failed to fetch"));
+}
+
+
+// Negative test: malformed URI, missing path.
+TEST_F(FetcherTest, MalformedURI)
+{
+  slave::Flags flags;
+  flags.launcher_dir = path::join(tests::flags.build_dir, "src");
+  flags.frameworks_home = "/tmp/frameworks";
+
+  ContainerID containerId;
+  containerId.set_value(UUID::random().toString());
+
+  CommandInfo commandInfo;
+  CommandInfo::URI* uri = commandInfo.add_uris();
+  uri->set_value("lala://nopath");
+
+  Fetcher fetcher;
+  SlaveID slaveId;
+
+  Future<Nothing> fetch = fetcher.fetch(
+      containerId, commandInfo, os::getcwd(), None(), slaveId, flags);
+  AWAIT_FAILED(fetch);
+
+  // See Fetcher::basename().
+  EXPECT_TRUE(strings::contains(fetch.failure(), "Malformed"));
 }
 
 
@@ -364,31 +204,27 @@ TEST_F(FetcherTest, AbsoluteFilePath)
   string fromDir = path::join(os::getcwd(), "from");
   ASSERT_SOME(os::mkdir(fromDir));
   string testPath = path::join(fromDir, "test");
-  EXPECT_FALSE(os::write(testPath, "data").isError());
+  EXPECT_SOME(os::write(testPath, "data"));
 
   string localFile = path::join(os::getcwd(), "test");
   EXPECT_FALSE(os::exists(localFile));
 
   slave::Flags flags;
+  flags.launcher_dir = path::join(tests::flags.build_dir, "src");
+
+  ContainerID containerId;
+  containerId.set_value(UUID::random().toString());
 
   CommandInfo commandInfo;
   CommandInfo::URI* uri = commandInfo.add_uris();
   uri->set_value(testPath);
 
-  map<string, string> environment =
-    Fetcher::environment(commandInfo, os::getcwd(), None(), flags);
+  Fetcher fetcher;
+  SlaveID slaveId;
 
-  Try<Subprocess> fetcherSubprocess =
-    process::subprocess(
-      path::join(mesos::internal::tests::flags.build_dir, "src/mesos-fetcher"),
-      environment);
-
-  ASSERT_SOME(fetcherSubprocess);
-  Future<Option<int>> status = fetcherSubprocess.get().status();
-
-  AWAIT_READY(status);
-  ASSERT_SOME(status.get());
-  EXPECT_EQ(0, status.get().get());
+  Future<Nothing> fetch = fetcher.fetch(
+      containerId, commandInfo, os::getcwd(), None(), slaveId, flags);
+  AWAIT_READY(fetch);
 
   EXPECT_TRUE(os::exists(localFile));
 }
@@ -399,55 +235,38 @@ TEST_F(FetcherTest, RelativeFilePath)
   string fromDir = path::join(os::getcwd(), "from");
   ASSERT_SOME(os::mkdir(fromDir));
   string testPath = path::join(fromDir, "test");
-  EXPECT_FALSE(os::write(testPath, "data").isError());
+  EXPECT_SOME(os::write(testPath, "data"));
 
   string localFile = path::join(os::getcwd(), "test");
   EXPECT_FALSE(os::exists(localFile));
 
   slave::Flags flags;
+  flags.launcher_dir = path::join(tests::flags.build_dir, "src");
+
+  ContainerID containerId;
+  containerId.set_value(UUID::random().toString());
 
   CommandInfo commandInfo;
   CommandInfo::URI* uri = commandInfo.add_uris();
   uri->set_value("test");
 
+  Fetcher fetcher;
+  SlaveID slaveId;
+
   // The first run must fail, because we have not set frameworks_home yet.
 
-  map<string, string> environment1 =
-    Fetcher::environment(commandInfo, os::getcwd(), None(), flags);
-
-  Try<Subprocess> fetcherSubprocess1 =
-    process::subprocess(
-      path::join(mesos::internal::tests::flags.build_dir, "src/mesos-fetcher"),
-      environment1);
-
-  ASSERT_SOME(fetcherSubprocess1);
-  Future<Option<int>> status1 = fetcherSubprocess1.get().status();
-
-  AWAIT_READY(status1);
-  ASSERT_SOME(status1.get());
-
-  // mesos-fetcher always exits with EXIT(1) on failure.
-  EXPECT_EQ(1, WIFEXITED(status1.get().get()));
+  Future<Nothing> fetch1 = fetcher.fetch(
+      containerId, commandInfo, os::getcwd(), None(), slaveId, flags);
+  AWAIT_FAILED(fetch1);
 
   EXPECT_FALSE(os::exists(localFile));
 
   // The next run must succeed due to this flag.
   flags.frameworks_home = fromDir;
 
-  map<string, string> environment2 =
-    Fetcher::environment(commandInfo, os::getcwd(), None(), flags);
-
-  Try<Subprocess> fetcherSubprocess2 =
-    process::subprocess(
-      path::join(mesos::internal::tests::flags.build_dir, "src/mesos-fetcher"),
-      environment2);
-
-  ASSERT_SOME(fetcherSubprocess2);
-  Future<Option<int>> status2 = fetcherSubprocess2.get().status();
-
-  AWAIT_READY(status2);
-  ASSERT_SOME(status2.get());
-  EXPECT_EQ(0, status2.get().get());
+  Future<Nothing> fetch2 = fetcher.fetch(
+      containerId, commandInfo, os::getcwd(), None(), slaveId, flags);
+  AWAIT_READY(fetch2);
 
   EXPECT_TRUE(os::exists(localFile));
 }
@@ -481,26 +300,22 @@ TEST_F(FetcherTest, OSNetUriTest)
   EXPECT_FALSE(os::exists(localFile));
 
   slave::Flags flags;
+  flags.launcher_dir = path::join(tests::flags.build_dir, "src");
   flags.frameworks_home = "/tmp/frameworks";
+
+  ContainerID containerId;
+  containerId.set_value(UUID::random().toString());
 
   CommandInfo commandInfo;
   CommandInfo::URI* uri = commandInfo.add_uris();
   uri->set_value(url);
 
-  map<string, string> environment =
-    Fetcher::environment(commandInfo, os::getcwd(), None(), flags);
+  Fetcher fetcher;
+  SlaveID slaveId;
 
-  Try<Subprocess> fetcherSubprocess =
-    process::subprocess(
-      path::join(mesos::internal::tests::flags.build_dir, "src/mesos-fetcher"),
-      environment);
-
-  ASSERT_SOME(fetcherSubprocess);
-  Future<Option<int>> status = fetcherSubprocess.get().status();
-
-  AWAIT_READY(status);
-  ASSERT_SOME(status.get());
-  EXPECT_EQ(0, status.get().get());
+  Future<Nothing> fetch = fetcher.fetch(
+      containerId, commandInfo, os::getcwd(), None(), slaveId, flags);
+  AWAIT_READY(fetch);
 
   EXPECT_TRUE(os::exists(localFile));
 }
@@ -511,32 +326,27 @@ TEST_F(FetcherTest, FileLocalhostURI)
   string fromDir = path::join(os::getcwd(), "from");
   ASSERT_SOME(os::mkdir(fromDir));
   string testFile = path::join(fromDir, "test");
-  EXPECT_FALSE(os::write(testFile, "data").isError());
+  EXPECT_SOME(os::write(testFile, "data"));
 
   string localFile = path::join(os::getcwd(), "test");
   EXPECT_FALSE(os::exists(localFile));
 
   slave::Flags flags;
-  flags.frameworks_home = "/tmp/frameworks";
+  flags.launcher_dir = path::join(tests::flags.build_dir, "src");
+
+  ContainerID containerId;
+  containerId.set_value(UUID::random().toString());
 
   CommandInfo commandInfo;
   CommandInfo::URI* uri = commandInfo.add_uris();
   uri->set_value(path::join("file://localhost", testFile));
 
-  map<string, string> environment =
-    Fetcher::environment(commandInfo, os::getcwd(), None(), flags);
+  Fetcher fetcher;
+  SlaveID slaveId;
 
-  Try<Subprocess> fetcherSubprocess =
-    process::subprocess(
-      path::join(mesos::internal::tests::flags.build_dir, "src/mesos-fetcher"),
-      environment);
-
-  ASSERT_SOME(fetcherSubprocess);
-  Future<Option<int>> status = fetcherSubprocess.get().status();
-
-  AWAIT_READY(status);
-  ASSERT_SOME(status.get());
-  EXPECT_EQ(0, status.get().get());
+  Future<Nothing> fetch = fetcher.fetch(
+      containerId, commandInfo, os::getcwd(), None(), slaveId, flags);
+  AWAIT_READY(fetch);
 
   EXPECT_TRUE(os::exists(localFile));
 }
@@ -561,20 +371,11 @@ TEST_F(FetcherTest, NoExtractNotExecutable)
   slave::Flags flags;
   flags.launcher_dir = path::join(tests::flags.build_dir, "src");
 
-  Option<int> stdout = None();
-  Option<int> stderr = None();
-
-  // Redirect mesos-fetcher output if running the tests verbosely.
-  if (tests::flags.verbose) {
-    stdout = STDOUT_FILENO;
-    stderr = STDERR_FILENO;
-  }
-
   Fetcher fetcher;
+  SlaveID slaveId;
 
   Future<Nothing> fetch = fetcher.fetch(
-      containerId, commandInfo, os::getcwd(), None(), flags, stdout, stderr);
-
+      containerId, commandInfo, os::getcwd(), None(), slaveId, flags);
   AWAIT_READY(fetch);
 
   Try<string> basename = os::basename(path.get());
@@ -611,19 +412,11 @@ TEST_F(FetcherTest, NoExtractExecutable)
   slave::Flags flags;
   flags.launcher_dir = path::join(tests::flags.build_dir, "src");
 
-  Option<int> stdout = None();
-  Option<int> stderr = None();
-
-  // Redirect mesos-fetcher output if running the tests verbosely.
-  if (tests::flags.verbose) {
-    stdout = STDOUT_FILENO;
-    stderr = STDERR_FILENO;
-  }
-
   Fetcher fetcher;
+  SlaveID slaveId;
 
   Future<Nothing> fetch = fetcher.fetch(
-      containerId, commandInfo, os::getcwd(), None(), flags, stdout, stderr);
+      containerId, commandInfo, os::getcwd(), None(), slaveId, flags);
 
   AWAIT_READY(fetch);
 
@@ -669,19 +462,11 @@ TEST_F(FetcherTest, ExtractNotExecutable)
   slave::Flags flags;
   flags.launcher_dir = path::join(tests::flags.build_dir, "src");
 
-  Option<int> stdout = None();
-  Option<int> stderr = None();
-
-  // Redirect mesos-fetcher output if running the tests verbosely.
-  if (tests::flags.verbose) {
-    stdout = STDOUT_FILENO;
-    stderr = STDERR_FILENO;
-  }
-
   Fetcher fetcher;
+  SlaveID slaveId;
 
   Future<Nothing> fetch = fetcher.fetch(
-      containerId, commandInfo, os::getcwd(), None(), flags, stdout, stderr);
+      containerId, commandInfo, os::getcwd(), None(), slaveId, flags);
 
   AWAIT_READY(fetch);
 
@@ -768,19 +553,11 @@ TEST_F(FetcherTest, HdfsURI)
   CommandInfo::URI* uri = commandInfo.add_uris();
   uri->set_value(path::join("hdfs://localhost", testFile));
 
-  Option<int> stdout = None();
-  Option<int> stderr = None();
-
-  // Redirect mesos-fetcher output if running the tests verbosely.
-  if (tests::flags.verbose) {
-    stdout = STDOUT_FILENO;
-    stderr = STDERR_FILENO;
-  }
-
   Fetcher fetcher;
+  SlaveID slaveId;
 
   Future<Nothing> fetch = fetcher.fetch(
-      containerId, commandInfo, os::getcwd(), None(), flags, stdout, stderr);
+      containerId, commandInfo, os::getcwd(), None(), slaveId, flags);
 
   AWAIT_READY(fetch);
 
