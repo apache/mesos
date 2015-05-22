@@ -19,7 +19,9 @@
 
 #include <string>
 
+#include <stout/bytes.hpp>
 #include <stout/try.hpp>
+#include <stout/unreachable.hpp>
 
 namespace os {
 namespace stat {
@@ -55,6 +57,47 @@ inline bool islink(const std::string& path)
     return false;
   }
   return S_ISLNK(s.st_mode);
+}
+
+
+// Describes the different semantics supported for the implementation
+// of `size` defined below.
+enum FollowSymlink
+{
+  DO_NOT_FOLLOW_SYMLINK,
+  FOLLOW_SYMLINK
+};
+
+
+// Returns the size in Bytes of a given file system entry. When
+// applied to a symbolic link with `follow` set to
+// `DO_NOT_FOLLOW_SYMLINK`, this will return the length of the entry
+// name (strlen).
+inline Try<Bytes> size(
+    const std::string& path,
+    const FollowSymlink follow = FOLLOW_SYMLINK)
+{
+  struct stat s;
+
+  switch (follow) {
+    case DO_NOT_FOLLOW_SYMLINK: {
+      if (::lstat(path.c_str(), &s) < 0) {
+        return ErrnoError("Error invoking lstat for '" + path + "'");
+      }
+      break;
+    }
+    case FOLLOW_SYMLINK: {
+      if (::stat(path.c_str(), &s) < 0) {
+        return ErrnoError("Error invoking stat for '" + path + "'");
+      }
+      break;
+    }
+    default: {
+      UNREACHABLE();
+    }
+  }
+
+  return Bytes(s.st_size);
 }
 
 

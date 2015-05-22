@@ -16,6 +16,7 @@
 
 #include <stout/duration.hpp>
 #include <stout/foreach.hpp>
+#include <stout/fs.hpp>
 #include <stout/gtest.hpp>
 #include <stout/hashmap.hpp>
 #include <stout/hashset.hpp>
@@ -202,6 +203,38 @@ TEST_F(OsTest, readWriteString)
 
   ASSERT_SOME(readstr);
   EXPECT_EQ(teststr, readstr.get());
+}
+
+
+// Tests whether a file's size is reported by os::stat::size as expected.
+// Tests all four combinations of following a link or not and of a file
+// or a link as argument. Also tests that an error is returned for a
+// non-existing file.
+TEST_F(OsTest, size)
+{
+  const string& file = path::join(os::getcwd(), UUID::random().toString());
+
+  const Bytes size = 1053;
+
+  ASSERT_SOME(os::write(file, string(size.bytes(), 'X')));
+
+  // The reported file size should be the same whether following links
+  // or not, given that the input parameter is not a link.
+  EXPECT_SOME_EQ(size, os::stat::size(file, os::stat::FOLLOW_SYMLINK));
+  EXPECT_SOME_EQ(size, os::stat::size(file, os::stat::DO_NOT_FOLLOW_SYMLINK));
+
+  EXPECT_ERROR(os::stat::size("aFileThatDoesNotExist"));
+
+  const string& link = path::join(os::getcwd(), UUID::random().toString());
+
+  ASSERT_SOME(fs::symlink(file, link));
+
+  // Following links we expect the file's size, not the link's.
+  EXPECT_SOME_EQ(size, os::stat::size(link, os::stat::FOLLOW_SYMLINK));
+
+  // Not following links, we expect the string length of the linked path.
+  EXPECT_SOME_EQ(Bytes(file.size()),
+                 os::stat::size(link, os::stat::DO_NOT_FOLLOW_SYMLINK));
 }
 
 
