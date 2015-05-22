@@ -179,6 +179,9 @@ protected:
     std::string role;
     bool checkpoint;  // Whether the framework desires checkpointing.
 
+    // Whether the framework desires revocable resources.
+    bool revocable;
+
     hashset<Filter*> filters; // Active filters for the framework.
   };
 
@@ -186,7 +189,10 @@ protected:
 
   struct Slave
   {
+    // Total amount of regular *and* oversubscribed resources.
     Resources total;
+
+    // Available regular *and* oversubscribed resources.
     Resources available;
 
     bool activated;  // Whether to offer resources.
@@ -210,6 +216,11 @@ protected:
   //   Both reserved resources and unreserved resources are used
   //   in the fairness calculation. This is because reserved
   //   resources can be allocated to any framework in the role.
+  //
+  // Note that the hierarchical allocator considers oversubscribed
+  // resources as regular resources when doing fairness calculations.
+  // TODO(vinod): Consider using a different fairness algorithm for
+  // oversubscribed resources.
   RoleSorter* roleSorter;
   hashmap<std::string, FrameworkSorter*> frameworkSorters;
 };
@@ -326,6 +337,15 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::addFramework(
   frameworks[frameworkId] = Framework();
   frameworks[frameworkId].role = frameworkInfo.role();
   frameworks[frameworkId].checkpoint = frameworkInfo.checkpoint();
+
+  // Check if the framework desires revocable resources.
+  frameworks[frameworkId].revocable = false;
+  foreach (const FrameworkInfo::Capability& capability,
+           frameworkInfo.capabilities()) {
+    if (capability.type() == FrameworkInfo::Capability::REVOCABLE_RESOURCES) {
+      frameworks[frameworkId].revocable = true;
+    }
+  }
 
   LOG(INFO) << "Added framework " << frameworkId;
 
@@ -494,10 +514,42 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::updateSlave(
   CHECK(initialized);
   CHECK(slaves.contains(slaveId));
 
-  LOG(INFO) << "Slave " << slaveId << " updated with oversubscribed resources "
-            << oversubscribed;
+  // Check that all the oversubscribed resources are revocable.
+  CHECK_EQ(oversubscribed, oversubscribed.revocable());
 
-  // TODO(vinod): Implement this.
+  // Update the total resources.
+
+  // First remove the old oversubscribed resources from the total.
+  slaves[slaveId].total -= slaves[slaveId].total.revocable();
+
+  // Now add the new estimate of oversubscribed resources.
+  slaves[slaveId].total += oversubscribed;
+
+  // Now, update the total resources in the role sorter.
+  roleSorter->update(
+      slaveId,
+      slaves[slaveId].total.unreserved());
+
+  // Calculate the current allocation of oversubscribed resources.
+  Resources allocation;
+  foreachkey (const std::string& role, roles) {
+    allocation += roleSorter->allocation(role)[slaveId].revocable();
+  }
+
+  // Update the available resources.
+
+  // First remove the old oversubscribed resources from available.
+  slaves[slaveId].available -= slaves[slaveId].available.revocable();
+
+  // Now add the new estimate of available oversubscribed resources.
+  slaves[slaveId].available += oversubscribed - allocation;
+
+  LOG(INFO) << "Slave " << slaveId << " (" << slaves[slaveId].hostname
+            << ") updated with oversubscribed resources " << oversubscribed
+            << " (total: " << slaves[slaveId].total
+            << ", available: " << slaves[slaveId].available << ")";
+
+  allocate(slaveId);
 }
 
 
@@ -818,6 +870,12 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::allocate(
         Resources resources =
           slaves[slaveId].available.unreserved() +
           slaves[slaveId].available.reserved(role);
+
+        // Remove revocable resources if the framework has not opted
+        // for them.
+        if (!frameworks[frameworkId].revocable) {
+          resources -= resources.revocable();
+        }
 
         // If the resources are not allocatable, ignore.
         if (!allocatable(resources)) {

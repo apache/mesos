@@ -128,6 +128,16 @@ protected:
     return frameworkInfo;
   }
 
+  Resources createRevocableResources(
+      const string& name,
+      const string& value,
+      const string& role = "*")
+  {
+    Resource resource = Resources::parse(name, value, role).get();
+    resource.mutable_revocable();
+    return resource;
+  }
+
 private:
   static void put(
       process::Queue<Allocation>* queue,
@@ -746,6 +756,149 @@ TEST_F(HierarchicalAllocatorTest, UpdateAllocation)
             Resources::sum(allocation.get().resources));
 
   EXPECT_EQ(updated.get(), Resources::sum(allocation.get().resources));
+}
+
+
+// This test ensures that when oversubscribed resources are updated
+// subsequent allocations properly account for that.
+TEST_F(HierarchicalAllocatorTest, UpdateSlave)
+{
+  // Pause clock to disable periodic allocation.
+  Clock::pause();
+  initialize(vector<string>{"role1"});
+
+  hashmap<FrameworkID, Resources> EMPTY;
+
+  SlaveInfo slave = createSlaveInfo("cpus:100;mem:100;disk:100");
+  allocator->addSlave(slave.id(), slave, slave.resources(), EMPTY);
+
+  // Add a framework that can accept revocable resources.
+  FrameworkInfo framework = createFrameworkInfo("role1");
+  framework.add_capabilities()->set_type(
+      FrameworkInfo::Capability::REVOCABLE_RESOURCES);
+
+  allocator->addFramework(
+      framework.id(), framework, hashmap<SlaveID, Resources>());
+
+  // Initially, all the resources are allocated.
+  Future<Allocation> allocation = queue.get();
+  AWAIT_READY(allocation);
+  EXPECT_EQ(slave.resources(), Resources::sum(allocation.get().resources));
+
+  // Update the slave with 10 oversubscribed cpus.
+  Resources oversubscribed = createRevocableResources("cpus", "10");
+  allocator->updateSlave(slave.id(), oversubscribed);
+
+  // The next allocation should be for 10 oversubscribed resources.
+  allocation = queue.get();
+  AWAIT_READY(allocation);
+  EXPECT_EQ(oversubscribed, Resources::sum(allocation.get().resources));
+
+  // Update the slave again with 12 oversubscribed cpus.
+  Resources oversubscribed2 = createRevocableResources("cpus", "12");
+  allocator->updateSlave(slave.id(), oversubscribed2);
+
+  // The next allocation should be for 2 oversubscribed cpus.
+  allocation = queue.get();
+  AWAIT_READY(allocation);
+  EXPECT_EQ(oversubscribed2 - oversubscribed,
+            Resources::sum(allocation.get().resources));
+
+  // Update the slave again with 5 oversubscribed cpus.
+  Resources oversubscribed3 = createRevocableResources("cpus", "5");
+  allocator->updateSlave(slave.id(), oversubscribed3);
+
+  // Since there are no more available oversubscribed resources there
+  // shouldn't be an allocation.
+  Clock::settle();
+  allocation = queue.get();
+  ASSERT_TRUE(allocation.isPending());
+}
+
+
+// This test verifies that a framework that has not opted in for
+// revocable resources do not get allocated oversubscribed resources.
+TEST_F(HierarchicalAllocatorTest, OversubscribedNotAllocated)
+{
+  // Pause clock to disable periodic allocation.
+  Clock::pause();
+  initialize(vector<string>{"role1"});
+
+  hashmap<FrameworkID, Resources> EMPTY;
+
+  SlaveInfo slave = createSlaveInfo("cpus:100;mem:100;disk:100");
+  allocator->addSlave(slave.id(), slave, slave.resources(), EMPTY);
+
+  // Add a framework that does *not* accept revocable resources.
+  FrameworkInfo framework = createFrameworkInfo("role1");
+  allocator->addFramework(
+      framework.id(), framework, hashmap<SlaveID, Resources>());
+
+  // Initially, all the resources are allocated.
+  Future<Allocation> allocation = queue.get();
+  AWAIT_READY(allocation);
+  EXPECT_EQ(slave.resources(), Resources::sum(allocation.get().resources));
+
+  // Update the slave with 10 oversubscribed cpus.
+  Resources oversubscribed = createRevocableResources("cpus", "10");
+  allocator->updateSlave(slave.id(), oversubscribed);
+
+  // No allocation should be made for oversubscribed resources because
+  // the framework has not opted in for them.
+  Clock::settle();
+  allocation = queue.get();
+  ASSERT_TRUE(allocation.isPending());
+}
+
+
+// This test verifies that when oversubscribed resources are partially
+// recovered subsequent allocation properly accounts for that.
+TEST_F(HierarchicalAllocatorTest, RecoverOversubscribedResources)
+{
+  // Pause clock to disable periodic allocation.
+  Clock::pause();
+  initialize(vector<string>{"role1"});
+
+  hashmap<FrameworkID, Resources> EMPTY;
+
+  SlaveInfo slave = createSlaveInfo("cpus:100;mem:100;disk:100");
+  allocator->addSlave(slave.id(), slave, slave.resources(), EMPTY);
+
+  // Add a framework that can accept revocable resources.
+  FrameworkInfo framework = createFrameworkInfo("role1");
+  framework.add_capabilities()->set_type(
+      FrameworkInfo::Capability::REVOCABLE_RESOURCES);
+
+  allocator->addFramework(
+      framework.id(), framework, hashmap<SlaveID, Resources>());
+
+  // Initially, all the resources are allocated.
+  Future<Allocation> allocation = queue.get();
+  AWAIT_READY(allocation);
+  EXPECT_EQ(slave.resources(), Resources::sum(allocation.get().resources));
+
+  // Update the slave with 10 oversubscribed cpus.
+  Resources oversubscribed = createRevocableResources("cpus", "10");
+  allocator->updateSlave(slave.id(), oversubscribed);
+
+  // The next allocation should be for 10 oversubscribed cpus.
+  allocation = queue.get();
+  AWAIT_READY(allocation);
+  EXPECT_EQ(oversubscribed, Resources::sum(allocation.get().resources));
+
+  // Recover 6 oversubscribed cpus and 2 regular cpus.
+  Resources recovered = createRevocableResources("cpus", "6");
+  recovered += Resources::parse("cpus:2").get();
+
+  allocator->recoverResources(framework.id(), slave.id(), recovered, None());
+
+  Clock::advance(flags.allocation_interval);
+
+  // The next allocation should be for 6 oversubscribed and 2 regular
+  // cpus.
+  allocation = queue.get();
+  AWAIT_READY(allocation);
+  EXPECT_EQ(recovered, Resources::sum(allocation.get().resources));
 }
 
 
