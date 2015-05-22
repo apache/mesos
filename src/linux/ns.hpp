@@ -92,41 +92,12 @@ inline Try<int> nstype(const std::string& ns)
 {
   hashmap<std::string, int> nstypes;
 
-#ifdef CLONE_NEWNS
   nstypes["mnt"] = CLONE_NEWNS;
-#else
-  nstypes["mnt"] = 0x00020000;
-#endif
-
-#ifdef CLONE_NEWUTS
   nstypes["uts"] = CLONE_NEWUTS;
-#else
-  nstypes["uts"] = 0x04000000;
-#endif
-
-#ifdef CLONE_NEWIPC
   nstypes["ipc"] = CLONE_NEWIPC;
-#else
-  nstypes["ipc"] = 0x08000000;
-#endif
-
-#ifdef CLONE_NEWNET
   nstypes["net"] = CLONE_NEWNET;
-#else
-  nstypes["net"] = 0x40000000;
-#endif
-
-#ifdef CLONE_NEWUSER
   nstypes["user"] = CLONE_NEWUSER;
-#else
-  nstypes["user"] = 0x10000000;
-#endif
-
-#ifdef CLONE_NEWPID
   nstypes["pid"] = CLONE_NEWPID;
-#else
-  nstypes["pid"] = 0x20000000;
-#endif
 
   if (!nstypes.contains(ns)) {
     return Error("Unknown namespace '" + ns + "'");
