@@ -73,7 +73,7 @@ protected:
       size_t length = 0);
 
   // Links with the specified PID. Linking with a process from within
-  // the same "operating system process" is gauranteed to give you
+  // the same "operating system process" is guaranteed to give you
   // perfect monitoring of that process. However, linking with a
   // process on another machine might result in receiving lost
   // callbacks due to the nature of a distributed environment.
