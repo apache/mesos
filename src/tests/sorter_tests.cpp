@@ -214,7 +214,7 @@ TEST(SorterTest, SplitResourceShares)
 }
 
 
-TEST(SorterTest, Update)
+TEST(SorterTest, UpdateAllocation)
 {
   DRFSorter sorter;
 
@@ -324,6 +324,87 @@ TEST(SorterTest, MultipleSlaveUpdates)
   EXPECT_EQ(2u, allocation.size());
   EXPECT_EQ(newAllocation.get(), allocation[slaveA]);
   EXPECT_EQ(newAllocation.get(), allocation[slaveB]);
+}
+
+
+// This test verifies that when the total pool of resources is updated
+// the sorting order of clients reflects the new total.
+TEST(SorterTest, UpdateTotal)
+{
+  DRFSorter sorter;
+
+  SlaveID slaveId;
+  slaveId.set_value("slaveId");
+
+  sorter.add("a");
+  sorter.add("b");
+
+  sorter.add(slaveId, Resources::parse("cpus:10;mem:100").get());
+
+  // Dominant share of "a" is 0.2 (cpus).
+  sorter.allocated(
+      "a", slaveId, Resources::parse("cpus:2;mem:1").get());
+
+  // Dominant share of "b" is 0.1 (cpus).
+  sorter.allocated(
+      "b", slaveId, Resources::parse("cpus:1;mem:2").get());
+
+  list<string> sorted = sorter.sort();
+  ASSERT_EQ(2, sorted.size());
+  EXPECT_EQ("b", sorted.front());
+  EXPECT_EQ("a", sorted.back());
+
+  // Update the total resources.
+  sorter.update(slaveId, Resources::parse("cpus:100;mem:10").get());
+
+  // Now the dominant share of "a" is 0.1 (mem) and "b" is 0.2 (mem),
+  // which should change the sort order.
+  sorted = sorter.sort();
+  ASSERT_EQ(2, sorted.size());
+  EXPECT_EQ("a", sorted.front());
+  EXPECT_EQ("b", sorted.back());
+}
+
+
+// This test verifies that revocable resources are properly accounted
+// for in the DRF sorter.
+TEST(SorterTest, RevocableResources)
+{
+  DRFSorter sorter;
+
+  SlaveID slaveId;
+  slaveId.set_value("slaveId");
+
+  sorter.add("a");
+  sorter.add("b");
+
+  // Create a total resource pool of 10 revocable cpus and 10 cpus and
+  // 10 MB mem.
+  Resource revocable = Resources::parse("cpus", "10", "*").get();
+  revocable.mutable_revocable();
+  Resources total = Resources::parse("cpus:10;mem:100").get() + revocable;
+
+  sorter.add(slaveId, revocable);
+
+  // Dominant share of "a" is 0.1 (cpus).
+  Resources a = Resources::parse("cpus:2;mem:1").get();
+  sorter.allocated("a", slaveId, a);
+
+  // Dominant share of "b" is 0.5 (cpus).
+  revocable = Resources::parse("cpus", "9", "*").get();
+  revocable.mutable_revocable();
+  Resources b = Resources::parse("cpus:1;mem:1").get() + revocable;
+  sorter.allocated("b", slaveId, b);
+
+  // Check that the allocations are correct.
+  ASSERT_EQ(a, sorter.allocation("a")[slaveId]);
+  ASSERT_EQ(b, sorter.allocation("b")[slaveId]);
+
+  // Check that the sort is correct.
+  list<string> sorted = sorter.sort();
+  ASSERT_EQ(2, sorted.size());
+  EXPECT_EQ("a", sorted.front());
+  EXPECT_EQ("b", sorted.back());
 }
 
 } // namespace tests {

@@ -56,23 +56,26 @@ public:
   virtual void deactivate(const std::string& client) = 0;
 
   // Specify that resources have been allocated to the given client.
-  virtual void allocated(const std::string& client,
-                         const SlaveID& slaveId,
-                         const Resources& resources) = 0;
+  virtual void allocated(
+      const std::string& client,
+      const SlaveID& slaveId,
+      const Resources& resources) = 0;
 
   // Updates a portion of the allocation for the client, in order to
   // augment the resources with additional metadata (e.g., volumes)
   // This means that the new allocation must not affect the static
   // roles, or the overall quantities of resources!
-  virtual void update(const std::string& client,
-                      const SlaveID& slaveId,
-                      const Resources& oldAllocation,
-                      const Resources& newAllocation) = 0;
+  virtual void update(
+      const std::string& client,
+      const SlaveID& slaveId,
+      const Resources& oldAllocation,
+      const Resources& newAllocation) = 0;
 
   // Specify that resources have been unallocated from the given client.
-  virtual void unallocated(const std::string& client,
-                           const SlaveID& slaveId,
-                           const Resources& resources) = 0;
+  virtual void unallocated(
+      const std::string& client,
+      const SlaveID& slaveId,
+      const Resources& resources) = 0;
 
   // Returns the resources that have been allocated to this client.
   virtual hashmap<SlaveID, Resources> allocation(const std::string& client) = 0;
@@ -83,6 +86,9 @@ public:
 
   // Remove resources from the total pool.
   virtual void remove(const SlaveID& slaveId, const Resources& resources) = 0;
+
+  // Updates the total pool of resources.
+  virtual void update(const SlaveID& slaveId, const Resources& resources) = 0;
 
   // Returns a list of all clients, in the order that they
   // should be allocated to, according to this Sorter's policy.

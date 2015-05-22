@@ -186,7 +186,23 @@ void DRFSorter::add(const SlaveID& slaveId, const Resources& _resources)
 
 void DRFSorter::remove(const SlaveID& slaveId, const Resources& _resources)
 {
+  CHECK(resources.contains(slaveId));
+
   resources[slaveId] -= _resources;
+  if (resources[slaveId].empty()) {
+    resources.erase(slaveId);
+  }
+
+  dirty = true;
+}
+
+
+void DRFSorter::update(const SlaveID& slaveId, const Resources& _resources)
+{
+  CHECK(resources.contains(slaveId));
+
+  resources[slaveId] = _resources;
+
   if (resources[slaveId].empty()) {
     resources.erase(slaveId);
   }

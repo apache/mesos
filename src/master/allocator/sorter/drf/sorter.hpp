@@ -73,24 +73,29 @@ public:
 
   virtual void deactivate(const std::string& name);
 
-  virtual void allocated(const std::string& name,
-                         const SlaveID& slaveId,
-                         const Resources& resources);
+  virtual void allocated(
+      const std::string& name,
+      const SlaveID& slaveId,
+      const Resources& resources);
 
-  virtual void update(const std::string& name,
-                      const SlaveID& slaveId,
-                      const Resources& oldAllocation,
-                      const Resources& newAllocation);
+  virtual void update(
+      const std::string& name,
+      const SlaveID& slaveId,
+      const Resources& oldAllocation,
+      const Resources& newAllocation);
 
-  virtual void unallocated(const std::string& name,
-                           const SlaveID& slaveId,
-                           const Resources& resources);
+  virtual void unallocated(
+      const std::string& name,
+      const SlaveID& slaveId,
+      const Resources& resources);
 
   virtual hashmap<SlaveID, Resources> allocation(const std::string& name);
 
   virtual void add(const SlaveID& slaveId, const Resources& resources);
 
   virtual void remove(const SlaveID& slaveId, const Resources& resources);
+
+  virtual void update(const SlaveID& slaveId, const Resources& resources);
 
   virtual std::list<std::string> sort();
 
