@@ -350,7 +350,7 @@ TEST(SorterTest, UpdateTotal)
       "b", slaveId, Resources::parse("cpus:1;mem:2").get());
 
   list<string> sorted = sorter.sort();
-  ASSERT_EQ(2, sorted.size());
+  ASSERT_EQ(2u, sorted.size());
   EXPECT_EQ("b", sorted.front());
   EXPECT_EQ("a", sorted.back());
 
@@ -360,7 +360,7 @@ TEST(SorterTest, UpdateTotal)
   // Now the dominant share of "a" is 0.1 (mem) and "b" is 0.2 (mem),
   // which should change the sort order.
   sorted = sorter.sort();
-  ASSERT_EQ(2, sorted.size());
+  ASSERT_EQ(2u, sorted.size());
   EXPECT_EQ("a", sorted.front());
   EXPECT_EQ("b", sorted.back());
 }
@@ -402,7 +402,7 @@ TEST(SorterTest, RevocableResources)
 
   // Check that the sort is correct.
   list<string> sorted = sorter.sort();
-  ASSERT_EQ(2, sorted.size());
+  ASSERT_EQ(2u, sorted.size());
   EXPECT_EQ("a", sorted.front());
   EXPECT_EQ("b", sorted.back());
 }
