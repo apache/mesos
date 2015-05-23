@@ -8,7 +8,7 @@ The logic that the Mesos master uses to determine which frameworks to make offer
 
 ## Allocation Module API
 
-Mesos is implemented in C++, so allocation modules are implemented in C++, and inherit the @AllocatorProcess@ class defined in @MESOS_HOME/src/master/allocator.hpp@. As of the time of this writing (5/29/13), the API for allocation modules is as follows:
+Mesos is implemented in C++, so allocation modules are implemented in C++, and inherit the `AllocatorProcess` class defined in `MESOS_HOME/src/master/allocator/allocator.hpp`. As of the time of this writing (5/29/13), the API for allocation modules is as follows:
 
 ```
   virtual ~AllocatorProcess() {}
@@ -64,15 +64,15 @@ Mesos is implemented in C++, so allocation modules are implemented in C++, and i
       const FrameworkID& frameworkId) = 0;
 ```
 
-The default allocation module is the HierarchicalAllocatorProcess, which can be found in @MESOS_HOME/src/master/hierarchical_allocator_process.hpp@. You can reference this as a starting place if you choose to write your own allocation module.
+The default allocation module is the HierarchicalAllocatorProcess, which can be found in `MESOS_HOME/src/master/hierarchical_allocator_process.hpp`. You can reference this as a starting place if you choose to write your own allocation module.
 
 ## Sorter API
 
-Additionally, the hierarchical allocator module can be extended without the need to reimplement the entirety of the allocation logic through the use of the @Sorter@ abstraction.
+Additionally, the hierarchical allocator module can be extended without the need to reimplement the entirety of the allocation logic through the use of the `Sorter` abstraction.
 
 Sorters define the order that roles or frameworks should be offered resources in by taking "client" objects and some information about those clients and returning an ordered list of clients.
 
-Sorters are implemented in C++ and inherit the @Sorter@ class defined in @MESOS_HOME/src/master/sorter.hpp@. As of the time of this writing, the API for Sorters is as follows:
+Sorters are implemented in C++ and inherit the `Sorter` class defined in `MESOS_HOME/src/master/allocator/sorter/sorter.hpp`. As of the time of this writing, the API for Sorters is as follows:
 
 ```
   virtual ~Sorter() {}
@@ -121,6 +121,6 @@ Sorters are implemented in C++ and inherit the @Sorter@ class defined in @MESOS_
   virtual int count() = 0;
 ```
 
-The default @Sorter@ is the DRFSorter, which implements fair sharing and can be found at @MESOS_HOME/src/master/drf_sorter.hpp@.
+The default `Sorter` is the DRFSorter, which implements fair sharing and can be found at `MESOS_HOME/src/master/drf_sorter.hpp`.
 
 For DRF, if weights are specified in Sorter::add, a client's share will be divided by the weight, creating a form of priority. For example, a role that has a weight of 2 will be offered twice as many resources as a role with weight 1.
