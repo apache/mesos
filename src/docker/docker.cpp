@@ -204,8 +204,24 @@ Future<Version> Docker::__version(const Future<string>& output)
 }
 
 
-Try<Docker::Container> Docker::Container::create(const JSON::Object& json)
+Try<Docker::Container> Docker::Container::create(const string& output)
 {
+  Try<JSON::Array> parse = JSON::parse<JSON::Array>(output);
+  if (parse.isError()) {
+    return Error("Failed to parse JSON: " + parse.error());
+  }
+
+  // TODO(benh): Handle the case where the short container ID was
+  // not sufficiently unique and 'array.values.size() > 1'.
+  JSON::Array array = parse.get();
+  if (array.values.size() != 1) {
+    return Error("Failed to find container");
+  }
+
+  CHECK(array.values.front().is<JSON::Object>());
+
+  JSON::Object json = array.values.front().as<JSON::Object>();
+
   Result<JSON::String> idValue = json.find<JSON::String>("Id");
   if (idValue.isNone()) {
     return Error("Unable to find Id in container");
@@ -255,7 +271,7 @@ Try<Docker::Container> Docker::Container::create(const JSON::Object& json)
 
   bool started = startedAtValue.get().value != "0001-01-01T00:00:00Z";
 
-  return Docker::Container(id, name, optionalPid, started);
+  return Docker::Container(output, id, name, optionalPid, started);
 }
 
 
@@ -725,41 +741,23 @@ void Docker::___inspect(
     return;
   }
 
-  Try<JSON::Array> parse = JSON::parse<JSON::Array>(output.get());
+  Try<Docker::Container> container = Docker::Container::create(
+      output.get());
 
-  if (parse.isError()) {
-    promise->fail("Failed to parse JSON: " + parse.error());
+  if (container.isError()) {
+    promise->fail("Unable to create container: " + container.error());
     return;
   }
 
-  JSON::Array array = parse.get();
-  // Only return if only one container identified with name.
-  if (array.values.size() == 1) {
-    CHECK(array.values.front().is<JSON::Object>());
-    Try<Docker::Container> container =
-      Docker::Container::create(array.values.front().as<JSON::Object>());
-
-    if (container.isError()) {
-      promise->fail("Unable to create container: " + container.error());
-      return;
-    }
-
-    if (retryInterval.isSome() && !container.get().started) {
-      VLOG(1) << "Retrying inspect since container not yet started. cmd: '"
-              << cmd << "', interval: " << stringify(retryInterval.get());
-      Clock::timer(retryInterval.get(),
-                   [=]() { _inspect(cmd, promise, retryInterval); } );
-      return;
-    }
-
-    promise->set(container.get());
+  if (retryInterval.isSome() && !container.get().started) {
+    VLOG(1) << "Retrying inspect since container not yet started. cmd: '"
+            << cmd << "', interval: " << stringify(retryInterval.get());
+    Clock::timer(retryInterval.get(),
+                 [=]() { _inspect(cmd, promise, retryInterval); } );
     return;
   }
 
-  // TODO(benh): Handle the case where the short container ID was
-  // not sufficiently unique and 'array.values.size() > 1'.
-
-  promise->fail("Failed to find container");
+  promise->set(container.get());
 }
 
 

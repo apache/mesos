@@ -713,6 +713,10 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Launch)
   AWAIT_READY_FOR(containerId, Seconds(60));
   AWAIT_READY_FOR(statusRunning, Seconds(60));
   EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
+  ASSERT_TRUE(statusRunning.get().has_data());
+
+  Try<JSON::Array> parse = JSON::parse<JSON::Array>(statusRunning.get().data());
+  ASSERT_SOME(parse);
 
   ASSERT_TRUE(exists(docker, slaveId, containerId.get()));
 

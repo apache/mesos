@@ -49,7 +49,11 @@ public:
   class Container
   {
   public:
-    static Try<Container> create(const JSON::Object& json);
+    static Try<Container> create(
+        const std::string& output);
+
+    // Returns the docker inspect output.
+    const std::string output;
 
     // Returns the ID of the container.
     const std::string id;
@@ -67,11 +71,12 @@ public:
 
   private:
     Container(
+        const std::string& output,
         const std::string& id,
         const std::string& name,
         const Option<pid_t>& pid,
         bool started)
-      : id(id), name(name), pid(pid), started(started) {}
+      : output(output), id(id), name(name), pid(pid), started(started) {}
   };
 
   class Image

@@ -52,6 +52,8 @@ namespace docker {
 using namespace mesos;
 using namespace process;
 
+const Duration DOCKER_INSPECT_DELAY = Milliseconds(500);
+const Duration DOCKER_INSPECT_TIMEOUT = Seconds(5);
 
 // Executor that is responsible to execute a docker container, and
 // redirect log output to configured stdout and stderr files.
@@ -65,17 +67,18 @@ class DockerExecutorProcess : public ProtobufProcess<DockerExecutorProcess>
 public:
   DockerExecutorProcess(
       const Owned<Docker>& docker,
-      const string& container,
+      const string& containerName,
       const string& sandboxDirectory,
       const string& mappedDirectory,
       const Duration& stopTimeout)
     : killed(false),
       docker(docker),
-      container(container),
+      containerName(containerName),
       sandboxDirectory(sandboxDirectory),
       mappedDirectory(mappedDirectory),
       stopTimeout(stopTimeout),
-      stop(Nothing()) {}
+      stop(Nothing()),
+      inspect(Nothing()) {}
 
   virtual ~DockerExecutorProcess() {}
 
@@ -114,7 +117,9 @@ public:
       return;
     }
 
-    cout << "Starting task " << task.task_id().value() << endl;
+    TaskID taskId = task.task_id();
+
+    cout << "Starting task " << taskId.value() << endl;
 
     CHECK(task.has_container());
     CHECK(task.has_command());
@@ -130,7 +135,7 @@ public:
     run = docker->run(
         task.container(),
         task.command(),
-        container,
+        containerName,
         sandboxDirectory,
         mappedDirectory,
         task.resources() + task.executor().resources(),
@@ -141,13 +146,23 @@ public:
         self(),
         &Self::reaped,
         driver,
-        task.task_id(),
+        taskId,
         lambda::_1));
 
-    TaskStatus status;
-    status.mutable_task_id()->CopyFrom(task.task_id());
-    status.set_state(TASK_RUNNING);
-    driver->sendStatusUpdate(status);
+    // Delay sending TASK_RUNNING status update until we receive
+    // inspect output.
+    inspect = docker->inspect(containerName, DOCKER_INSPECT_DELAY)
+      .then(defer(self(), [=](const Docker::Container& container) {
+        if (!killed) {
+          TaskStatus status;
+          status.mutable_task_id()->CopyFrom(taskId);
+          status.set_state(TASK_RUNNING);
+          status.set_data(container.output);
+          driver->sendStatusUpdate(status);
+        }
+
+        return Nothing();
+      }));
   }
 
   void killTask(ExecutorDriver* driver, const TaskID& taskId)
@@ -169,7 +184,7 @@ public:
 
       // Making a mutable copy of the future so we can call discard.
       Future<Nothing>(run.get()).discard();
-      stop = docker->stop(container, stopTimeout);
+      stop = docker->stop(containerName, stopTimeout);
       killed = true;
     }
   }
@@ -178,59 +193,64 @@ public:
 
 private:
   void reaped(
-      ExecutorDriver* driver,
+      ExecutorDriver* _driver,
       const TaskID& taskId,
       const Future<Nothing>& run)
   {
-    stop.onAny(defer(self(), &Self::_reaped, driver, taskId, run, lambda::_1));
-  }
+    // Wait for docker->stop to finish, and best effort wait for the
+    // inspect future to complete with a timeout.
+    stop.onAny(defer(self(), [=](const Future<Nothing>&) {
+      inspect
+        .after(DOCKER_INSPECT_TIMEOUT, [=](const Future<Nothing>&) {
+          inspect.discard();
+          return inspect;
+        })
+        .onAny(defer(self(), [=](const Future<Nothing>&) {
+          CHECK_SOME(driver);
+          TaskState state;
+          string message;
+          if (!stop.isReady()) {
+            state = TASK_FAILED;
+            message = "Unable to stop docker container, error: " +
+                      (stop.isFailed() ? stop.failure() : "future discarded");
+          } else if (killed) {
+            state = TASK_KILLED;
+          } else if (!run.isReady()) {
+            state = TASK_FAILED;
+            message = "Docker container run error: " +
+                      (run.isFailed() ?
+                       run.failure() : "future discarded");
+          } else {
+            state = TASK_FINISHED;
+          }
 
-  void _reaped(
-      ExecutorDriver* driver,
-      const TaskID& taskId,
-      const Future<Nothing>& run,
-      const Future<Nothing>& stop)
-  {
-    TaskState state;
-    string message;
-    if (!stop.isReady()) {
-      state = TASK_FAILED;
-      message = "Unable to stop docker container, error: " +
-                (stop.isFailed() ? stop.failure() : "future discarded");
-    } else if (killed) {
-      state = TASK_KILLED;
-    } else if (!run.isReady()) {
-      state = TASK_FAILED;
-      message = "Docker container run error: " +
-                (run.isFailed() ? run.failure() : "future discarded");
-    } else {
-      state = TASK_FINISHED;
-    }
+          TaskStatus taskStatus;
+          taskStatus.mutable_task_id()->CopyFrom(taskId);
+          taskStatus.set_state(state);
+          taskStatus.set_message(message);
 
-    TaskStatus taskStatus;
-    taskStatus.mutable_task_id()->CopyFrom(taskId);
-    taskStatus.set_state(state);
-    taskStatus.set_message(message);
+          driver.get()->sendStatusUpdate(taskStatus);
 
-    driver->sendStatusUpdate(taskStatus);
-
-    // A hack for now ... but we need to wait until the status update
-    // is sent to the slave before we shut ourselves down.
-    // TODO(tnachen): Remove this hack and also the same hack in the
-    // command executor when we have the new HTTP APIs to wait until
-    // an ack.
-    os::sleep(Seconds(1));
-    driver->stop();
+          // A hack for now ... but we need to wait until the status update
+          // is sent to the slave before we shut ourselves down.
+          // TODO(tnachen): Remove this hack and also the same hack in the
+          // command executor when we have the new HTTP APIs to wait until
+          // an ack.
+          os::sleep(Seconds(1));
+          driver.get()->stop();
+        }));
+    }));
   }
 
   bool killed;
   Owned<Docker> docker;
-  string container;
+  string containerName;
   string sandboxDirectory;
   string mappedDirectory;
   Duration stopTimeout;
   Option<Future<Nothing>> run;
   Future<Nothing> stop;
+  Future<Nothing> inspect;
   Option<ExecutorDriver*> driver;
 };
 
