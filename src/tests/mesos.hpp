@@ -810,9 +810,7 @@ public:
 
   virtual ~MockFetcherProcess() {}
 
-  MOCK_METHOD7(_fetch, process::Future<Nothing>(
-      const std::list<process::Future<std::shared_ptr<Cache::Entry>>>
-        futures,
+  MOCK_METHOD6(_fetch, process::Future<Nothing>(
       const hashmap<
           CommandInfo::URI,
           Option<process::Future<std::shared_ptr<Cache::Entry>>>>&
@@ -824,8 +822,6 @@ public:
       const slave::Flags& flags));
 
   process::Future<Nothing> unmocked__fetch(
-      const std::list<process::Future<std::shared_ptr<Cache::Entry>>>
-        futures,
       const hashmap<
           CommandInfo::URI,
           Option<process::Future<std::shared_ptr<Cache::Entry>>>>&

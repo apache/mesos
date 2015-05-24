@@ -113,7 +113,10 @@ static const string ARCHIVED_COMMAND_SCRIPT =
 class FetcherCacheTest : public MesosTest
 {
 public:
-  struct Task {
+  // A helper struct that captures useful information for each of the
+  // tasks that we have launched to help test expectations.
+  struct Task
+  {
     Path runDirectory;
     Queue<TaskStatus> statusQueue;
   };
@@ -386,7 +389,7 @@ FetcherCacheTest::Task FetcherCacheTest::launchTask(
       offer.framework_id(),
       executorId));
 
-  return Task {path, taskStatusQueue};
+  return Task{path, taskStatusQueue};
 }
 
 
@@ -439,7 +442,7 @@ vector<FetcherCacheTest::Task> FetcherCacheTest::launchTasks(
   // When _fetch() is called, notify us by satisfying a promise that
   // a task has passed the code stretch in which it competes for cache
   // entries.
-  EXPECT_CALL(*fetcherProcess, _fetch(_, _, _, _, _, _, _))
+  EXPECT_CALL(*fetcherProcess, _fetch(_, _, _, _, _, _))
     .WillRepeatedly(
         DoAll(SatisfyOne(&fetchContentionWaypoints),
               Invoke(fetcherProcess, &MockFetcherProcess::unmocked__fetch)));
@@ -708,10 +711,17 @@ TEST_F(FetcherCacheTest, LocalCachedExtract)
 class FetcherCacheHttpTest : public FetcherCacheTest
 {
 public:
-  // A minimal HTTP server (not intended as an actor) just reusing what
-  // is already implemented somewhere to serve some HTTP requests for
-  // file downloads. Plus counting how many requests are made. Plus the
-  // ability to pause answering requests, stalling them.
+  // A minimal HTTP server (NOTE: not written as an actor, but this is
+  // deprecated, see below) just reusing what is already implemented
+  // somewhere to serve some HTTP requests for file downloads. Plus
+  // counting how many requests are made. Plus the ability to pause
+  // answering requests, stalling them.
+  //
+  // TODO(bernd-mesos): This class follows a dangerous style of mixing
+  // actors and non-actors, DO NOT REPLICATE. Ultimately we want to
+  // replace this with a generic HTTP server that can be used by other
+  // tests as well and enables things like pausing requests,
+  // manipulating requests, mocking, etc.
   class HttpServer : public Process<HttpServer>
   {
   public:
@@ -722,15 +732,11 @@ public:
     {
       provide(COMMAND_NAME, test->commandPath);
       provide(ARCHIVE_NAME, test->archivePath);
-
-      spawn(this);
     }
 
     string url()
     {
-      return "http://127.0.0.1:" +
-             stringify(self().address.port) +
-             "/" + self().id + "/";
+      return "http://" + stringify(self().address) + "/" + self().id + "/";
     }
 
     // Stalls the execution of HTTP requests inside visit().
@@ -746,6 +752,14 @@ public:
 
     virtual void visit(const HttpEvent& event)
     {
+      // TODO(bernd-mesos): Don't use locks here because we'll
+      // actually block libprocess threads which could cause a
+      // deadlock if we have a test with too many requests that we
+      // don't have enough threads to run other actors! Instead,
+      // consider asynchronously deferring the actual execution of
+      // this function via a Queue. This is currently non-trivial
+      // because we can't copy an HttpEvent so we're _forced_ to block
+      // the thread synchronously.
       std::lock_guard<std::mutex> lock(mutex);
 
       countRequests++;
@@ -776,12 +790,12 @@ public:
     std::mutex mutex;
   };
 
-
   virtual void SetUp()
   {
     FetcherCacheTest::SetUp();
 
     httpServer = new HttpServer(this);
+    spawn(httpServer);
   }
 
   virtual void TearDown()

@@ -376,27 +376,20 @@ Future<Nothing> FetcherProcess::fetch(
 
       newEntry->reference();
 
-      entries[uri] = async(&fetchSize, uri.value(), flags.frameworks_home)
-        .then(defer(self(),
-                    &FetcherProcess::reserveCacheSpace,
-                    lambda::_1,
-                    newEntry));
+      entries[uri] =
+        async([=]() {
+          return fetchSize(uri.value(), flags.frameworks_home);
+        })
+        .then(defer(self(), [=](const Try<Bytes>& requestedSpace) {
+          return reserveCacheSpace(requestedSpace, newEntry);
+        }));
     }
   }
 
-  list<Future<shared_ptr<Cache::Entry>>> futures;
-
-  // Get out all of the futures we need to wait for so we can wait on them
-  // together via 'await'.
-  foreachvalue (const Option<Future<shared_ptr<Cache::Entry>>>& entry,
-                entries) {
-    if (entry.isSome()) {
-      futures.push_back(entry.get());
-    }
-  }
-
-  return _fetch(futures,
-                entries,
+  // NOTE: We explicitly call the continuation '_fetch' even though it
+  // looks like we could easily inline it here because we want to be
+  // able to mock the function for testing! Don't remove this!
+  return _fetch(entries,
                 containerId,
                 sandboxDirectory,
                 cacheDirectory,
@@ -406,7 +399,6 @@ Future<Nothing> FetcherProcess::fetch(
 
 
 Future<Nothing> FetcherProcess::_fetch(
-    const list<Future<shared_ptr<Cache::Entry>>> futures,
     const hashmap<CommandInfo::URI, Option<Future<shared_ptr<Cache::Entry>>>>&
       entries,
     const ContainerID& containerId,
@@ -415,57 +407,61 @@ Future<Nothing> FetcherProcess::_fetch(
     const Option<string>& user,
     const Flags& flags)
 {
-  return await(futures)
-    .then(defer(self(),
-                &FetcherProcess::__fetch,
-                entries))
-    .then(defer(self(),
-                &FetcherProcess::___fetch,
-                lambda::_1,
-                containerId,
-                sandboxDirectory,
-                cacheDirectory,
-                user,
-                flags));
-}
+  // Get out all of the futures we need to wait for so we can wait on
+  // them together via 'await'.
+  list<Future<shared_ptr<Cache::Entry>>> futures;
 
-
-// For each URI, if there is a cache entry and waiting for it was
-// successful, extract it and add it to the resulting map. Otherwise
-// we'll assume we are not using or cannot use the cache for this URI.
-Future<hashmap<CommandInfo::URI,
-               Option<shared_ptr<FetcherProcess::Cache::Entry>>>>
-FetcherProcess::__fetch(
-    const hashmap<CommandInfo::URI,
-                  Option<Future<shared_ptr<Cache::Entry>>>>& entries)
-{
-  hashmap<CommandInfo::URI, Option<shared_ptr<Cache::Entry>>> result;
-
-  foreachpair (const CommandInfo::URI& uri,
-               const Option<Future<shared_ptr<Cache::Entry>>>& entry,
-               entries) {
+  foreachvalue (const Option<Future<shared_ptr<Cache::Entry>>>& entry,
+                entries) {
     if (entry.isSome()) {
-      if (entry.get().isReady()) {
-        result[uri] = entry.get().get();
-      } else {
-        LOG(WARNING) << "Reverting to fetching directly into the sandbox for '"
-                     << uri.value()
-                     << "', due to failure to fetch through the cache, "
-                     << "with error: " << entry.get().failure();
-
-        result[uri] = None();
-      }
-    } else {
-      // No entry means bypassing the cache.
-      result[uri] = None();
+      futures.push_back(entry.get());
     }
   }
 
-  return result;
+  return await(futures)
+    .then(defer(self(), [=]() {
+      // For each URI, if there is a potential cache entry and waiting
+      // for its associated future was successful, extract the entry
+      // from the future and store it in 'result'. Otherwise we assume
+      // we are not using or cannot use the cache for this URI.
+      hashmap<CommandInfo::URI, Option<shared_ptr<Cache::Entry>>> result;
+
+      foreachpair (const CommandInfo::URI& uri,
+                   const Option<Future<shared_ptr<Cache::Entry>>>& entry,
+                   entries) {
+        if (entry.isSome()) {
+          if (entry.get().isReady()) {
+            result[uri] = entry.get().get();
+          } else {
+            LOG(WARNING)
+              << "Reverting to fetching directly into the sandbox for '"
+              << uri.value()
+              << "', due to failure to fetch through the cache, "
+              << "with error: " << entry.get().failure();
+
+            result[uri] = None();
+          }
+        } else {
+          // No entry means bypassing the cache.
+          result[uri] = None();
+        }
+      }
+
+      // NOTE: While we could inline '__fetch' we've explicitly kept
+      // it as a separate function to minimize complexity. Like with
+      // '_fetch', this also enables this phase of the fetcher cache
+      // to easily be mocked for testing!
+      return __fetch(result,
+                     containerId,
+                     sandboxDirectory,
+                     cacheDirectory,
+                     user,
+                     flags);
+    }));
 }
 
 
-Future<Nothing> FetcherProcess::___fetch(
+Future<Nothing> FetcherProcess::__fetch(
     const hashmap<CommandInfo::URI, Option<shared_ptr<Cache::Entry>>>& entries,
     const ContainerID& containerId,
     const string& sandboxDirectory,
@@ -515,61 +511,50 @@ Future<Nothing> FetcherProcess::___fetch(
   }
 
   return run(containerId, info, flags)
-    .repair(defer(self(), &FetcherProcess::__runFail, lambda::_1, entries))
-    .then(defer(self(), &FetcherProcess::__runSucceed, entries));
-}
+    .repair(defer(self(), [=](const Future<Nothing>& future) {
+      LOG(ERROR) << "Failed to run mesos-fetcher: " << future.failure();
 
+      foreachvalue (const Option<shared_ptr<Cache::Entry>>& entry, entries) {
+        if (entry.isSome()) {
+          entry.get()->unreference();
 
-Future<Nothing> FetcherProcess::__runFail(
-    const Future<Nothing>& future,
-    const hashmap<CommandInfo::URI, Option<shared_ptr<Cache::Entry>>>& entries)
-{
-  LOG(ERROR) << "Failed to run mesos-fetcher: " << future.failure();
-
-  foreachvalue (const Option<shared_ptr<Cache::Entry>>& entry, entries) {
-    if (entry.isSome()) {
-      entry.get()->unreference();
-
-      if (entry.get()->completion().isPending()) {
-        // Unsuccessfully (or partially) downloaded! Remove from the cache.
-        entry.get()->fail();
-        cache.remove(entry.get()); // Might delete partial download.
-      }
-    }
-  }
-
-  return future; // Always propagate the failure!
-}
-
-
-Future<Nothing> FetcherProcess::__runSucceed(
-    const hashmap<CommandInfo::URI, Option<shared_ptr<Cache::Entry>>>& entries)
-{
-  foreachvalue (const Option<shared_ptr<Cache::Entry>>& entry, entries) {
-    if (entry.isSome()) {
-      entry.get()->unreference();
-
-      if (entry.get()->completion().isPending()) {
-        // Successfully downloaded and cached!
-
-        Try<Nothing> adjust = cache.adjust(entry.get());
-        if (adjust.isSome()) {
-          entry.get()->complete();
-        } else {
-          LOG(WARNING) << "Failed to adjust the cache size for entry '"
-                       << entry.get()->key << "' with error: "
-                       << adjust.error();
-
-          // Successfully fetched, but not reusable from the cache,
-          // because we are deleting the entry now.
-          entry.get()->fail();
-          cache.remove(entry.get());
+          if (entry.get()->completion().isPending()) {
+            // Unsuccessfully (or partially) downloaded! Remove from the cache.
+            entry.get()->fail();
+            cache.remove(entry.get()); // Might delete partial download.
+          }
         }
       }
-    }
-  }
 
-  return Nothing();
+      return future; // Always propagate the failure!
+    }))
+    .then(defer(self(), [=]() {
+      foreachvalue (const Option<shared_ptr<Cache::Entry>>& entry, entries) {
+        if (entry.isSome()) {
+          entry.get()->unreference();
+
+          if (entry.get()->completion().isPending()) {
+            // Successfully downloaded and cached!
+
+            Try<Nothing> adjust = cache.adjust(entry.get());
+            if (adjust.isSome()) {
+              entry.get()->complete();
+            } else {
+              LOG(WARNING) << "Failed to adjust the cache size for entry '"
+                           << entry.get()->key << "' with error: "
+                           << adjust.error();
+
+              // Successfully fetched, but not reusable from the
+              // cache, because we are deleting the entry now.
+              entry.get()->fail();
+              cache.remove(entry.get());
+            }
+          }
+        }
+      }
+
+      return Nothing();
+    }));
 }
 
 
@@ -647,12 +632,10 @@ Bytes FetcherProcess::availableCacheSpace()
 
 Future<shared_ptr<FetcherProcess::Cache::Entry>>
 FetcherProcess::reserveCacheSpace(
-    const Future<Try<Bytes>>& requestedSpace,
+    const Try<Bytes>& requestedSpace,
     const shared_ptr<FetcherProcess::Cache::Entry>& entry)
 {
-  CHECK_READY(requestedSpace);
-
-  if (requestedSpace.get().isError()) {
+  if (requestedSpace.isError()) {
     // Let anyone waiting on this future know that we've
     // failed to download and they should bypass the cache
     // (any new requests will try again).
@@ -661,10 +644,10 @@ FetcherProcess::reserveCacheSpace(
 
     return Failure("Could not determine size of cache file for '" +
                    entry->key + "' with error: " +
-                   requestedSpace.get().error());
+                   requestedSpace.error());
   }
 
-  Try<Nothing> reservation = cache.reserve(requestedSpace.get().get());
+  Try<Nothing> reservation = cache.reserve(requestedSpace.get());
 
   if (reservation.isError()) {
     // Let anyone waiting on this future know that we've
@@ -679,12 +662,12 @@ FetcherProcess::reserveCacheSpace(
 
   VLOG(1) << "Claiming fetcher cache space for: " << entry->key;
 
-  cache.claimSpace(requestedSpace.get().get());
+  cache.claimSpace(requestedSpace.get());
 
-  // NOTE: We must set the entry size only when are also claiming the
-  // space! Other functions rely on this dependency (see
+  // NOTE: We must set the entry size only when we are also claiming
+  // the space! Other functions rely on this dependency (see
   // Cache::remove()).
-  entry->size = requestedSpace.get().get();
+  entry->size = requestedSpace.get();
 
   return entry;
 }
@@ -735,6 +718,9 @@ Future<Nothing> FetcherProcess::run(
                << (realpath.isError() ? realpath.error()
                                       : "No such file or directory");
 
+    os::close(out.get());
+    os::close(err.get());
+
     return Failure("Could not fetch URIs: failed to find mesos-fetcher");
   }
 
@@ -761,12 +747,15 @@ Future<Nothing> FetcherProcess::run(
       environment);
 
   if (fetcherSubprocess.isError()) {
+    os::close(out.get());
+    os::close(err.get());
     return Failure("Failed to execute mesos-fetcher: " +
                    fetcherSubprocess.error());
   }
 
-  // Remember this PID in case we need to kill the subprocess. See kill().
-  // This value gets reset in __run().
+  // Remember this PID in case we need to kill the subprocess. See
+  // FetcherProcess::kill(). This value gets removed after we wait on
+  // the subprocess.
   subprocessPids[containerId] = fetcherSubprocess.get().pid();
 
   return fetcherSubprocess.get().status()
@@ -784,7 +773,7 @@ Future<Nothing> FetcherProcess::run(
 
       return Nothing();
     }))
-    .onAny(defer(self(), [=](const Future<Nothing>& result) {
+    .onAny(defer(self(), [=](const Future<Nothing>&) {
       // Clear the subprocess PID remembered from running mesos-fetcher.
       subprocessPids.erase(containerId);
 
@@ -1058,7 +1047,7 @@ void FetcherProcess::Cache::setSpace(const Bytes& bytes)
 {
   if (space > 0) {
     // Dynamic cache size changes not supported.
-    CHECK(space == bytes);
+    CHECK_EQ(space, bytes);
   } else {
     space = bytes;
   }

@@ -284,8 +284,6 @@ public:
 
   // Public and virtual for mock testing.
   virtual process::Future<Nothing> _fetch(
-      const std::list<process::Future<std::shared_ptr<Cache::Entry>>>
-        futures,
       const hashmap<
           CommandInfo::URI,
           Option<process::Future<std::shared_ptr<Cache::Entry>>>>&
@@ -311,14 +309,7 @@ public:
   Bytes availableCacheSpace();
 
 private:
-  process::Future<hashmap<
-      CommandInfo::URI,
-      Option<std::shared_ptr<Cache::Entry>>>>
-  __fetch(const hashmap<
-      CommandInfo::URI,
-      Option<process::Future<std::shared_ptr<Cache::Entry>>>>& entries);
-
-  process::Future<Nothing> ___fetch(
+  process::Future<Nothing> __fetch(
       const hashmap<CommandInfo::URI,
       Option<std::shared_ptr<Cache::Entry>>>& entries,
       const ContainerID& containerId,
@@ -327,26 +318,11 @@ private:
       const Option<std::string>& user,
       const Flags& flags);
 
-  process::Future<Nothing> _run(
-      const Option<int>& status,
-      const ContainerID& containerId);
-
-  void __run(const ContainerID& containerId, const int out, const int err);
-
-  process::Future<Nothing> __runFail(
-      const process::Future<Nothing>& future,
-      const hashmap<CommandInfo::URI,
-                    Option<std::shared_ptr<Cache::Entry>>>& entries);
-
-  process::Future<Nothing> __runSucceed(
-      const hashmap<CommandInfo::URI,
-                    Option<std::shared_ptr<Cache::Entry>>>& entries);
-
   // Calls Cache::reserve() and returns a ready entry future if successful,
   // else Failure. Claims the space and assigns the entry's size to this
   // amount if and only if successful.
   process::Future<std::shared_ptr<Cache::Entry>> reserveCacheSpace(
-      const process::Future<Try<Bytes>>& requestedSpace,
+      const Try<Bytes>& requestedSpace,
       const std::shared_ptr<Cache::Entry>& entry);
 
   Cache cache;

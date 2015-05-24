@@ -450,7 +450,7 @@ void MockSlave::unmocked___recover(const Future<Nothing>& future)
 MockFetcherProcess::MockFetcherProcess()
 {
   // Set up default behaviors, calling the original methods.
-  EXPECT_CALL(*this, _fetch(_, _, _, _, _, _, _)).
+  EXPECT_CALL(*this, _fetch(_, _, _, _, _, _)).
     WillRepeatedly(
         Invoke(this, &MockFetcherProcess::unmocked__fetch));
   EXPECT_CALL(*this, run(_, _, _)).
@@ -459,7 +459,6 @@ MockFetcherProcess::MockFetcherProcess()
 
 
 process::Future<Nothing> MockFetcherProcess::unmocked__fetch(
-  const list<Future<shared_ptr<Cache::Entry>>> futures,
   const hashmap<CommandInfo::URI, Option<Future<shared_ptr<Cache::Entry>>>>&
     entries,
   const ContainerID& containerId,
@@ -469,7 +468,6 @@ process::Future<Nothing> MockFetcherProcess::unmocked__fetch(
   const slave::Flags& flags)
 {
   return slave::FetcherProcess::_fetch(
-      futures,
       entries,
       containerId,
       sandboxDirectory,
