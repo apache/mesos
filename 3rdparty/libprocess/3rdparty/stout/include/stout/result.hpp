@@ -26,109 +26,99 @@
 #include <stout/some.hpp>
 #include <stout/try.hpp>
 
+// This class is equivalent to Try<Option<T>> and can represent only
+// one of these states at a time:
+//   1) A value of T.
+//   2) No value of T.
+//   3) An error state, with a corresponding error string.
+// Calling 'isSome' will return true if it stores a value, in which
+// case calling 'get' will return a constant reference to the T
+// stored. Calling 'isNone' returns true if no value is stored and
+// there is no error. Calling 'isError' will return true if it stores
+// an error, in which case calling 'error' will return the error
+// string.
 template <typename T>
 class Result
 {
 public:
   static Result<T> none()
   {
-    return Result<T>(NONE);
+    return Result<T>(None());
   }
 
   static Result<T> some(const T& t)
   {
-    return Result<T>(SOME, new T(t));
+    return Result<T>(t);
   }
 
   static Result<T> error(const std::string& message)
   {
-    return Result<T>(ERROR, NULL, message);
+    return Result<T>(Error(message));
   }
 
   Result(const T& _t)
-    : state(SOME), t(new T(_t)) {}
+    : data(Some(_t)) {}
 
   template <typename U>
   Result(const U& u)
-    : state(SOME), t(new T(u)) {}
+    : data(Some(u)) {}
 
   Result(const Option<T>& option)
-    : state(option.isSome() ? SOME : NONE),
-      t(option.isSome() ? new T(option.get()) : NULL) {}
+    : data(option.isSome() ?
+           Try<Option<T>>(Some(option.get())) :
+           Try<Option<T>>(None())) {}
+
+  Result(const Try<T>& _try)
+    : data(_try.isSome() ?
+           Try<Option<T>>(Some(_try.get())) :
+           Try<Option<T>>(Error(_try.error()))) {}
 
   Result(const None& none)
-    : state(NONE), t(NULL) {}
+    : data(none) {}
 
   template <typename U>
   Result(const _Some<U>& some)
-    : state(SOME), t(new T(some.t)) {}
+    : data(some) {}
 
   Result(const Error& error)
-    : state(ERROR), t(NULL), message(error.message) {}
+    : data(error) {}
 
   Result(const ErrnoError& error)
-    : state(ERROR), t(NULL), message(error.message) {}
+    : data(error) {}
 
-  Result(const Result<T>& that)
-    : state(that.state),
-      t(that.t == NULL ? NULL : new T(*that.t)),
-      message(that.message) {}
+  // We don't need to implement these because we are leveraging
+  // Try<Option<T>>.
+  Result(const Result<T>& that) = default;
+  ~Result() = default;
+  Result<T>& operator = (const Result<T>& that) = default;
 
-  Result(const Try<T>& _try)
-    : state(_try.isSome() ? SOME : ERROR),
-      t(_try.isSome() ? new T(_try.get()) : NULL),
-      message(_try.isSome() ? "" : _try.error()) {}
-
-  ~Result()
-  {
-    delete t;
-  }
-
-  Result<T>& operator = (const Result<T>& that)
-  {
-    if (this != &that) {
-      delete t;
-      state = that.state;
-      t = (that.t == NULL ? NULL : new T(*that.t));
-      message = that.message;
-    }
-
-    return *this;
-  }
-
-  bool isSome() const { return state == SOME; }
-  bool isNone() const { return state == NONE; }
-  bool isError() const { return state == ERROR; }
+  // 'isSome', 'isNone', and 'isError' are mutually exclusive. They
+  // correspond to the underlying unioned state of the Option and Try.
+  bool isSome() const { return data.isSome() && data.get().isSome(); }
+  bool isNone() const { return data.isSome() && data.get().isNone(); }
+  bool isError() const { return data.isError(); }
 
   const T& get() const
   {
-    if (state != SOME) {
+    if (!isSome()) {
       std::string errorMessage = "Result::get() but state == ";
-      if (state == ERROR) {
-        errorMessage += "ERROR: " + message;
-      } else if (state == NONE) {
+      if (isError()) {
+        errorMessage += "ERROR: " + data.error();
+      } else if (isNone()) {
         errorMessage += "NONE";
       }
       ABORT(errorMessage);
     }
-    return *t;
+    return data.get().get();
   }
 
-  const std::string& error() const { assert(state == ERROR); return message; }
+  const std::string& error() const { assert(isError()); return data.error(); }
 
 private:
-  enum State {
-    SOME,
-    NONE,
-    ERROR
-  };
-
-  Result(State _state, T* _t = NULL, const std::string& _message = "")
-    : state(_state), t(_t), message(_message) {}
-
-  State state;
-  T* t;
-  std::string message;
+  // We leverage Try<Option<T>> to avoid dynamic allocation of T. This
+  // means we can take advantage of all the RAII features of 'Try' and
+  // makes the implementation of this class much simpler!
+  Try<Option<T>> data;
 };
 
 #endif // __STOUT_RESULT_HPP__
