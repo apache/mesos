@@ -45,7 +45,7 @@ public:
   Option(const None& none) : state(NONE) {}
 
   template <typename U>
-  Option(const _Some<U>& some) : Option(some.t) {}
+  Option(const _Some<U>& some) : state(SOME), t(some.t) {}
 
   Option(const Option<T>& that) : state(that.state)
   {
