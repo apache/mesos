@@ -21,92 +21,75 @@
 
 #include <stout/abort.hpp>
 #include <stout/error.hpp>
+#include <stout/option.hpp>
+#include <stout/some.hpp>
 
+// This class can represent only one of these states at a time:
+//   1) A value of T.
+//   2) An error state, with a corresponding error string.
+// Calling 'isSome' will return true if it stores a value, in which
+// case calling 'get' will return a constant reference to the T
+// stored. Calling 'isError' will return true if it stores an error,
+// in which case calling 'error' will return the error string.
 template <typename T>
 class Try
 {
 public:
   static Try<T> some(const T& t)
   {
-    return Try<T>(SOME, new T(t));
+    return Try<T>(t);
   }
 
   static Try<T> error(const std::string& message)
   {
-    return Try<T>(ERROR, NULL, message);
+    return Try<T>(Error(message));
   }
 
-  Try(const T& _t)
-    : state(SOME), t(new T(_t)) {}
+  Try(const T& t)
+    : data(Some(t)) {}
 
   template <typename U>
   Try(const U& u)
-    : state(SOME), t(new T(u)) {}
+    : data(Some(u)) {}
 
   Try(const Error& error)
-    : state(ERROR), t(NULL), message(error.message) {}
+    : message(error.message) {}
 
   Try(const ErrnoError& error)
-    : state(ERROR), t(NULL), message(error.message) {}
-
-  Try(const Try<T>& that)
-  {
-    state = that.state;
-    if (that.t != NULL) {
-      t = new T(*that.t);
-    } else {
-      t = NULL;
-    }
-    message = that.message;
-  }
+    : message(error.message) {}
 
   // TODO(bmahler): Add move constructor.
 
-  ~Try()
-  {
-    delete t;
-  }
+  // We don't need to implement these because we are leveraging
+  // Option<T>.
+  Try(const Try<T>& that) = default;
+  ~Try() = default;
+  Try<T>& operator = (const Try<T>& that) = default;
 
-  Try<T>& operator = (const Try<T>& that)
-  {
-    if (this != &that) {
-      delete t;
-      state = that.state;
-      if (that.t != NULL) {
-        t = new T(*that.t);
-      } else {
-        t = NULL;
-      }
-      message = that.message;
-    }
-
-    return *this;
-  }
-
-  bool isSome() const { return state == SOME; }
-  bool isError() const { return state == ERROR; }
+  // 'isSome' and 'isError' are mutually exclusive. They correspond
+  // to the underlying state of the Option.
+  bool isSome() const { return data.isSome(); }
+  bool isError() const { return data.isNone(); }
 
   const T& get() const
   {
-    if (state != SOME) {
+    if (!data.isSome()) {
       ABORT("Try::get() but state == ERROR: " + message);
     }
-    return *t;
+    return data.get();
   }
 
-  const std::string& error() const { assert(state == ERROR); return message; }
+  const std::string& error() const { assert(data.isNone()); return message; }
 
 private:
-  enum State {
-    SOME,
-    ERROR
-  };
-
-  Try(State _state, T* _t = NULL, const std::string& _message = "")
-    : state(_state), t(_t), message(_message) {}
-
-  State state;
-  T* t;
+  // We leverage Option<T> to avoid dynamic allocation of T. This
+  // means that the storage for T will be included in this object
+  // (Try<T>). Since Option<T> keeps track of whether a value is
+  // stored, we just ask it when we want to know whether we are
+  // storing a value or an error. Another advantage of leveraging
+  // Option<T> is that it takes care of all the manual construction
+  // and destruction. This makes the code for Try<T> really simple!
+  Option<T> data;
   std::string message;
 };
 

@@ -24,6 +24,9 @@ TEST(Stout, Some)
   ASSERT_SOME(t1);
   EXPECT_SOME(t1.get());
   EXPECT_EQ(42, t1.get().get());
+  t1 = None();
+  ASSERT_SOME(t1);
+  EXPECT_NONE(t1.get());
 
   Try<Result<int> > t2 = Some(42);
   ASSERT_SOME(t2);
