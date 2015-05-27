@@ -4,7 +4,7 @@ layout: documentation
 
 # Mesos Allocation Module
 
-The logic that the Mesos master uses to determine which frameworks to make offer resource offers to is encapsulated in the Master's _allocation module_.  The allocation module is a pluggable component that organizations can use to implement their own sharing policy, e.g. fair-sharing, Dominant Resource Fairness (see [the DRF paper](http://www.eecs.berkeley.edu/Pubs/TechRpts/2010/EECS-2010-55.pdf)), priority, etc.
+The logic that the Mesos master uses to determine which frameworks to make resource offers to, is encapsulated in the Master's _allocation module_.  The allocation module is a pluggable component that organizations can use to implement their own sharing policy, e.g. fair-sharing, Dominant Resource Fairness (see [the DRF paper](http://www.eecs.berkeley.edu/Pubs/TechRpts/2010/EECS-2010-55.pdf)), priority, etc.
 
 ## Allocation Module API
 
