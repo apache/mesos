@@ -38,6 +38,8 @@ namespace mesos {
 namespace internal {
 namespace slave {
 
+extern const char MESOS_CONTAINERIZER[];
+
 // Forward declaration.
 class MesosContainerizerProcess;
 

@@ -299,12 +299,12 @@ protected:
     launchFlags.commands = commands;
 
     vector<string> argv(2);
-    argv[0] = "mesos-containerizer";
+    argv[0] = MESOS_CONTAINERIZER;
     argv[1] = MesosContainerizerLaunch::NAME;
 
     Try<pid_t> pid = launcher->fork(
         containerId,
-        path::join(flags.launcher_dir, "mesos-containerizer"),
+        path::join(flags.launcher_dir, MESOS_CONTAINERIZER),
         argv,
         Subprocess::FD(STDIN_FILENO),
         Subprocess::FD(STDOUT_FILENO),
@@ -1496,21 +1496,21 @@ TEST_F(PortMappingIsolatorTest, ROOT_SmallEgressLimit)
 
 bool HasTCPSocketsCount(const JSON::Object& object)
 {
-  return object.find<JSON::Number>("net_tcp_active_connections").isSome() &&
-    object.find<JSON::Number>("net_tcp_time_wait_connections").isSome();
+  return object.find<JSON::Number>(NET_TCP_ACTIVE_CONNECTIONS).isSome() &&
+    object.find<JSON::Number>(NET_TCP_TIME_WAIT_CONNECTIONS).isSome();
 }
 
 
 bool HasTCPSocketsRTT(const JSON::Object& object)
 {
   Result<JSON::Number> p50 =
-    object.find<JSON::Number>("net_tcp_rtt_microsecs_p50");
+    object.find<JSON::Number>(NET_TCP_RTT_MICROSECS_P50);
   Result<JSON::Number> p90 =
-    object.find<JSON::Number>("net_tcp_rtt_microsecs_p90");
+    object.find<JSON::Number>(NET_TCP_RTT_MICROSECS_P90);
   Result<JSON::Number> p95 =
-    object.find<JSON::Number>("net_tcp_rtt_microsecs_p95");
+    object.find<JSON::Number>(NET_TCP_RTT_MICROSECS_P95);
   Result<JSON::Number> p99 =
-    object.find<JSON::Number>("net_tcp_rtt_microsecs_p99");
+    object.find<JSON::Number>(NET_TCP_RTT_MICROSECS_P99);
 
   // We either have all of the following metrics or we have nothing.
   if (!p50.isSome() && !p90.isSome() && !p95.isSome() && !p99.isSome()) {

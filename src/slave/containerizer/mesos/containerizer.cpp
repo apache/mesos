@@ -82,6 +82,8 @@ using state::FrameworkState;
 using state::ExecutorState;
 using state::RunState;
 
+const char MESOS_CONTAINERIZER[] = "mesos-containerizer";
+
 Try<MesosContainerizer*> MesosContainerizer::create(
     const Flags& flags,
     bool local,
@@ -727,12 +729,12 @@ Future<bool> MesosContainerizerProcess::_launch(
 
   // Fork the child using launcher.
   vector<string> argv(2);
-  argv[0] = "mesos-containerizer";
+  argv[0] = MESOS_CONTAINERIZER;
   argv[1] = MesosContainerizerLaunch::NAME;
 
   Try<pid_t> forked = launcher->fork(
       containerId,
-      path::join(flags.launcher_dir, "mesos-containerizer"),
+      path::join(flags.launcher_dir, MESOS_CONTAINERIZER),
       argv,
       Subprocess::FD(STDIN_FILENO),
       (local ? Subprocess::FD(STDOUT_FILENO)

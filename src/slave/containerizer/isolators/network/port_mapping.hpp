@@ -64,6 +64,14 @@ inline std::string PORT_MAPPING_VETH_PREFIX() { return "mesos"; }
 // NOTE: This constant is exposed for testing.
 inline std::string PORT_MAPPING_BIND_MOUNT_ROOT() { return "/var/run/netns"; }
 
+// These field names are used in the output of the mesos network helper
+// and in the port mapping tests to read the output.
+extern const char NET_TCP_ACTIVE_CONNECTIONS[];
+extern const char NET_TCP_TIME_WAIT_CONNECTIONS[];
+extern const char NET_TCP_RTT_MICROSECS_P50[];
+extern const char NET_TCP_RTT_MICROSECS_P90[];
+extern const char NET_TCP_RTT_MICROSECS_P95[];
+extern const char NET_TCP_RTT_MICROSECS_P99[];
 
 // The root directory where we keep all the namespace handle
 // symlinks. This is introduced in 0.23.0.
