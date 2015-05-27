@@ -123,14 +123,14 @@ Future<ResourceMonitor::Usage> ResourceMonitorProcess::usage(
         containerId,
         executorInfo,
         lambda::_1))
-    .onFailed([&containerId, &executorInfo](const string& failure) {
+    .onFailed([containerId, executorInfo](const string& failure) {
       LOG(WARNING) << "Failed to get resource usage for "
                    << " container " << containerId
                    << " for executor " << executorInfo.executor_id()
                    << " of framework " << executorInfo.framework_id()
                    << ": " << failure;
     })
-    .onDiscarded([&containerId, &executorInfo]() {
+    .onDiscarded([containerId, executorInfo]() {
       LOG(WARNING) << "Failed to get resource usage for "
                    << " container " << containerId
                    << " for executor " << executorInfo.executor_id()
