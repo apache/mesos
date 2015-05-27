@@ -26,7 +26,8 @@
 #include <stout/nothing.hpp>
 #include <stout/result.hpp>
 
-#include "linux/routing/queueing/handle.hpp"
+#include "linux/routing/handle.hpp"
+
 #include "linux/routing/queueing/ingress.hpp"
 #include "linux/routing/queueing/internal.hpp"
 
@@ -36,6 +37,9 @@ namespace routing {
 namespace queueing {
 
 namespace ingress {
+
+const Handle ROOT = Handle(TC_H_INGRESS);
+const Handle HANDLE = Handle(0xffff, 0);
 
 // The ingress queueing discipline is not exposed to the user.
 struct Discipline
@@ -69,7 +73,7 @@ Try<Nothing> encode<ingress::Discipline>(
         string(nl_geterror(error)));
   }
 
-  rtnl_tc_set_parent(TC_CAST(qdisc.get()), INGRESS_ROOT.get());
+  rtnl_tc_set_parent(TC_CAST(qdisc.get()), ingress::ROOT.get());
   rtnl_tc_set_handle(TC_CAST(qdisc.get()), ingress::HANDLE.get());
 
   return Nothing();
@@ -85,7 +89,7 @@ Result<ingress::Discipline> decode<ingress::Discipline>(
     const Netlink<struct rtnl_qdisc>& qdisc)
 {
   if (rtnl_tc_get_kind(TC_CAST(qdisc.get())) != string("ingress") ||
-      rtnl_tc_get_parent(TC_CAST(qdisc.get())) != INGRESS_ROOT.get() ||
+      rtnl_tc_get_parent(TC_CAST(qdisc.get())) != ingress::ROOT.get() ||
       rtnl_tc_get_handle(TC_CAST(qdisc.get())) != ingress::HANDLE.get()) {
     return None();
   }
@@ -100,9 +104,6 @@ Result<ingress::Discipline> decode<ingress::Discipline>(
 /////////////////////////////////////////////////
 
 namespace ingress {
-
-const Handle HANDLE = Handle(0xffff, 0);
-
 
 Try<bool> exists(const string& link)
 {

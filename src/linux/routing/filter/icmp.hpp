@@ -27,11 +27,11 @@
 #include <stout/result.hpp>
 #include <stout/try.hpp>
 
+#include "linux/routing/handle.hpp"
+
 #include "linux/routing/filter/action.hpp"
 #include "linux/routing/filter/filter.hpp"
 #include "linux/routing/filter/priority.hpp"
-
-#include "linux/routing/queueing/handle.hpp"
 
 namespace routing {
 namespace filter {
@@ -61,7 +61,7 @@ private:
 // given parent on the link which matches the specified classifier.
 Try<bool> exists(
     const std::string& link,
-    const queueing::Handle& parent,
+    const Handle& parent,
     const Classifier& classifier);
 
 
@@ -73,7 +73,7 @@ Try<bool> exists(
 // an optional priority for the filter.
 Try<bool> create(
     const std::string& link,
-    const queueing::Handle& parent,
+    const Handle& parent,
     const Classifier& classifier,
     const Option<Priority>& priority,
     const action::Redirect& redirect);
@@ -88,7 +88,7 @@ Try<bool> create(
 // filter.
 Try<bool> create(
     const std::string& link,
-    const queueing::Handle& parent,
+    const Handle& parent,
     const Classifier& classifier,
     const Option<Priority>& priority,
     const action::Mirror& mirror);
@@ -102,10 +102,10 @@ Try<bool> create(
 // for the filter.
 Try<bool> create(
     const std::string& link,
-    const queueing::Handle& parent,
+    const Handle& parent,
     const Classifier& classifier,
     const Option<Priority>& priority,
-    const Option<queueing::Handle>& classid);
+    const Option<Handle>& classid);
 
 
 // Removes the ICMP packet filter attached to the given parent that
@@ -113,7 +113,7 @@ Try<bool> create(
 // such a filter is not found.
 Try<bool> remove(
     const std::string& link,
-    const queueing::Handle& parent,
+    const Handle& parent,
     const Classifier& classifier);
 
 
@@ -122,7 +122,7 @@ Try<bool> remove(
 // false if such a filter is not found.
 Try<bool> update(
     const std::string& link,
-    const queueing::Handle& parent,
+    const Handle& parent,
     const Classifier& classifier,
     const action::Mirror& mirror);
 
@@ -132,7 +132,7 @@ Try<bool> update(
 // parent is not found.
 Result<std::vector<Classifier>> classifiers(
     const std::string& link,
-    const queueing::Handle& parent);
+    const Handle& parent);
 
 } // namespace icmp {
 } // namespace filter {

@@ -25,11 +25,10 @@
 
 #include <stout/option.hpp>
 
-#include "linux/routing/filter/action.hpp"
-#include "linux/routing/filter/handle.hpp"
-#include "linux/routing/filter/priority.hpp"
+#include "linux/routing/handle.hpp"
 
-#include "linux/routing/queueing/handle.hpp"
+#include "linux/routing/filter/action.hpp"
+#include "linux/routing/filter/priority.hpp"
 
 namespace routing {
 namespace filter {
@@ -50,7 +49,7 @@ class Filter
 {
 public:
   // Creates a filter with no action.
-  Filter(const queueing::Handle& _parent,
+  Filter(const Handle& _parent,
          const Classifier& _classifier,
          const Option<Priority>& _priority,
          const Option<Handle>& _handle)
@@ -60,11 +59,11 @@ public:
       handle_(_handle) {}
 
   // Creates a filter with specified classid.
-  Filter(const queueing::Handle& _parent,
+  Filter(const Handle& _parent,
          const Classifier& _classifier,
          const Option<Priority>& _priority,
          const Option<Handle>& _handle,
-         const Option<queueing::Handle>& _classid)
+         const Option<Handle>& _classid)
     : parent_(_parent),
       classifier_(_classifier),
       priority_(_priority),
@@ -73,7 +72,7 @@ public:
 
   // TODO(jieyu): Support arbitrary number of actions.
   template <typename Action>
-  Filter(const queueing::Handle& _parent,
+  Filter(const Handle& _parent,
          const Classifier& _classifier,
          const Option<Priority>& _priority,
          const Option<Handle>& _handle,
@@ -93,11 +92,11 @@ public:
     actions_.push_back(process::Shared<action::Action>(new A(action)));
   }
 
-  const queueing::Handle& parent() const { return parent_; }
+  const Handle& parent() const { return parent_; }
   const Classifier& classifier() const { return classifier_; }
   const Option<Priority>& priority() const { return priority_; }
   const Option<Handle>& handle() const { return handle_; }
-  const Option<queueing::Handle>& classid() const { return classid_; }
+  const Option<Handle>& classid() const { return classid_; }
 
   // Returns all the actions attached to this filter.
   const std::vector<process::Shared<action::Action>>& actions() const
@@ -108,7 +107,7 @@ public:
 private:
   // Each filter is attached to a queueing object (either a queueing
   // discipline or a queueing class).
-  queueing::Handle parent_;
+  Handle parent_;
 
   // The filter specific classifier.
   Classifier classifier_;
@@ -132,7 +131,7 @@ private:
   //
   // Kernel uses classid and flowid interchangeably. However, in our
   // code base, we use classid consistently.
-  Option<queueing::Handle> classid_;
+  Option<Handle> classid_;
 
   // The set of actions attached to this filer. Note that we use
   // Shared here to make Filter copyable.

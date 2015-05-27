@@ -25,6 +25,7 @@
 #include <stout/error.hpp>
 #include <stout/none.hpp>
 
+#include "linux/routing/handle.hpp"
 #include "linux/routing/internal.hpp"
 
 #include "linux/routing/filter/action.hpp"
@@ -32,8 +33,6 @@
 #include "linux/routing/filter/internal.hpp"
 #include "linux/routing/filter/ip.hpp"
 #include "linux/routing/filter/priority.hpp"
-
-#include "linux/routing/queueing/handle.hpp"
 
 using std::string;
 using std::vector;
@@ -457,7 +456,7 @@ Try<PortRange> PortRange::fromBeginMask(uint16_t begin, uint16_t mask)
 
 Try<bool> exists(
     const string& link,
-    const queueing::Handle& parent,
+    const Handle& parent,
     const Classifier& classifier)
 {
   return internal::exists(link, parent, classifier);
@@ -466,7 +465,7 @@ Try<bool> exists(
 
 Try<bool> create(
     const string& link,
-    const queueing::Handle& parent,
+    const Handle& parent,
     const Classifier& classifier,
     const Option<Priority>& priority,
     const action::Redirect& redirect)
@@ -484,7 +483,7 @@ Try<bool> create(
 
 Try<bool> create(
     const string& link,
-    const queueing::Handle& parent,
+    const Handle& parent,
     const Classifier& classifier,
     const Option<Priority>& priority,
     const Option<Handle>& handle,
@@ -503,7 +502,7 @@ Try<bool> create(
 
 Try<bool> create(
     const string& link,
-    const queueing::Handle& parent,
+    const Handle& parent,
     const Classifier& classifier,
     const Option<Priority>& priority,
     const action::Terminal& terminal)
@@ -520,10 +519,10 @@ Try<bool> create(
 
 Try<bool> create(
     const string& link,
-    const queueing::Handle& parent,
+    const Handle& parent,
     const Classifier& classifier,
     const Option<Priority>& priority,
-    const Option<queueing::Handle>& classid)
+    const Option<Handle>& classid)
 {
   return internal::create(
       link,
@@ -537,7 +536,7 @@ Try<bool> create(
 
 Try<bool> remove(
     const string& link,
-    const queueing::Handle& parent,
+    const Handle& parent,
     const Classifier& classifier)
 {
   return internal::remove(link, parent, classifier);
@@ -546,7 +545,7 @@ Try<bool> remove(
 
 Result<vector<Filter<Classifier>>> filters(
     const string& link,
-    const queueing::Handle& parent)
+    const Handle& parent)
 {
   return internal::filters<Classifier>(link, parent);
 }
@@ -554,7 +553,7 @@ Result<vector<Filter<Classifier>>> filters(
 
 Result<vector<Classifier>> classifiers(
     const string& link,
-    const queueing::Handle& parent)
+    const Handle& parent)
 {
   return internal::classifiers<Classifier>(link, parent);
 }

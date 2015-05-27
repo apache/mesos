@@ -23,7 +23,7 @@
 
 #include <stout/try.hpp>
 
-#include "linux/routing/queueing/handle.hpp"
+#include "linux/routing/handle.hpp"
 
 namespace routing {
 namespace queueing {

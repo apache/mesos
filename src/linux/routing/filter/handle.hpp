@@ -21,30 +21,22 @@
 
 #include <stdint.h>
 
+#include "linux/routing/handle.hpp"
+
 namespace routing {
 namespace filter {
 
-// Represents the handle for a traffic control (tc) filter. Different
-// types of filters have different types of handles. This is the base
-// class of all types of filters.
-class Handle
-{
-public:
-  explicit Handle(uint32_t _handle) : handle(_handle) {}
-  virtual ~Handle() {}
-
-  uint32_t get() const { return handle; }
-
-protected:
-  uint32_t handle;
-};
-
-
-// Represents a u32 filter handle. A u32 filter handle has three
-// parts. The first number identifies a hash table, the second number
-// identifies a bucket within the hash table, and the third number
-// identifies the filter item within the bucket.
-// http://ace-host.stuart.id.au/russell/files/tc/doc/cls_u32.txt
+// When the number of Linux kernel Traffic Control (TC) objects
+// attached to an interface is high, the kernel can spend a
+// significant amount of time looking up TC filters (an operation that
+// must be performed for every packet on the interface). To speed up
+// these lookups, an alternative interpretation of the handle bits,
+// the U32Handle, can be used breaking down the identifier into hash
+// table id (htid), bucket (hash) and filter item (node) within the
+// bucket. Careful selection of the handles by the administrator
+// allows for the construction of hash tables that can significantly
+// reduce lookup times.
+// See http://ace-host.stuart.id.au/russell/files/tc/doc/cls_u32.txt
 class U32Handle : public Handle
 {
 public:

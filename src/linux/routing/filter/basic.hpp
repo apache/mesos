@@ -26,11 +26,11 @@
 #include <stout/option.hpp>
 #include <stout/try.hpp>
 
+#include "linux/routing/handle.hpp"
+
 #include "linux/routing/filter/action.hpp"
 #include "linux/routing/filter/filter.hpp"
 #include "linux/routing/filter/priority.hpp"
-
-#include "linux/routing/queueing/handle.hpp"
 
 // This is a work around. Including <linux/if_ether.h> causes
 // duplicated definitions on some platforms with old glibc.
@@ -71,7 +71,7 @@ private:
 // to the given parent exists on the link.
 Try<bool> exists(
     const std::string& link,
-    const queueing::Handle& parent,
+    const Handle& parent,
     uint16_t protocol);
 
 
@@ -82,10 +82,10 @@ Try<bool> exists(
 // can choose to specify an optional priority for the filter.
 Try<bool> create(
     const std::string& link,
-    const queueing::Handle& parent,
+    const Handle& parent,
     uint16_t protocol,
     const Option<Priority>& priority,
-    const Option<queueing::Handle>& classid);
+    const Option<Handle>& classid);
 
 
 // Creates a basic packet filter with given protocol attached to the
@@ -96,7 +96,7 @@ Try<bool> create(
 // filter.
 Try<bool> create(
     const std::string& link,
-    const queueing::Handle& parent,
+    const Handle& parent,
     uint16_t protocol,
     const Option<Priority>& priority,
     const action::Redirect& redirect);
@@ -110,7 +110,7 @@ Try<bool> create(
 // an optional priority for the filter.
 Try<bool> create(
     const std::string& link,
-    const queueing::Handle& parent,
+    const Handle& parent,
     uint16_t protocol,
     const Option<Priority>& priority,
     const action::Mirror& mirror);
@@ -122,7 +122,7 @@ Try<bool> create(
 // the link.
 Try<bool> remove(
     const std::string& link,
-    const queueing::Handle& parent,
+    const Handle& parent,
     uint16_t protocol);
 
 
@@ -132,7 +132,7 @@ Try<bool> remove(
 // is found on the link.
 Try<bool> update(
     const std::string& link,
-    const queueing::Handle& parent,
+    const Handle& parent,
     uint16_t protocol,
     const action::Mirror& mirror);
 

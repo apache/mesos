@@ -23,13 +23,32 @@
 
 #include <stout/try.hpp>
 
-#include "linux/routing/queueing/handle.hpp"
+#include "linux/routing/handle.hpp"
 
 namespace routing {
 namespace queueing {
 namespace ingress {
 
-// The handle of the ingress queueing discipline is fixed.
+// Packets flowing from the device driver to the network stack are
+// called ingress traffic, and packets flowing from the network stack
+// to the device driver are called egress traffic (shown below).
+//
+//        +---------+
+//        | Network |
+//        |  Stack  |
+//        |---------|
+//        |  eth0   |
+//        +---------+
+//           ^   |
+//   Ingress |   | Egress
+//           |   |
+//    -------+   +------>
+//
+// For the ingress traffic, there are two immutable handles defined
+// for the interface which specify the root handle under which a
+// queueing discipline can be created, and the handle of any created
+// ingress filter.
+extern const Handle ROOT;
 extern const Handle HANDLE;
 
 

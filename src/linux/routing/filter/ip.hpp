@@ -34,11 +34,11 @@
 #include <stout/result.hpp>
 #include <stout/try.hpp>
 
+#include "linux/routing/handle.hpp"
+
 #include "linux/routing/filter/action.hpp"
 #include "linux/routing/filter/filter.hpp"
 #include "linux/routing/filter/priority.hpp"
-
-#include "linux/routing/queueing/handle.hpp"
 
 namespace routing {
 namespace filter {
@@ -147,7 +147,7 @@ private:
 // that matches the specified classifier exists on the link.
 Try<bool> exists(
     const std::string& link,
-    const queueing::Handle& parent,
+    const Handle& parent,
     const Classifier& classifier);
 
 
@@ -158,7 +158,7 @@ Try<bool> exists(
 // same classifier already exists.
 Try<bool> create(
     const std::string& link,
-    const queueing::Handle& parent,
+    const Handle& parent,
     const Classifier& classifier,
     const Option<Priority>& priority,
     const action::Redirect& redirect);
@@ -169,7 +169,7 @@ Try<bool> create(
 // TODO(jieyu): Revisit this once the kernel bug is fixed.
 Try<bool> create(
     const std::string& link,
-    const queueing::Handle& parent,
+    const Handle& parent,
     const Classifier& classifier,
     const Option<Priority>& priority,
     const Option<Handle>& handle,
@@ -182,7 +182,7 @@ Try<bool> create(
 // parent with the same classifier already exists.
 Try<bool> create(
     const std::string& link,
-    const queueing::Handle& parent,
+    const Handle& parent,
     const Classifier& classifier,
     const Option<Priority>& priority,
     const action::Terminal& terminal);
@@ -194,10 +194,10 @@ Try<bool> create(
 // already exists.
 Try<bool> create(
     const std::string& link,
-    const queueing::Handle& parent,
+    const Handle& parent,
     const Classifier& classifier,
     const Option<Priority>& priority,
-    const Option<queueing::Handle>& classid);
+    const Option<Handle>& classid);
 
 
 // Removes the IP packet filter attached to the given parent that
@@ -205,7 +205,7 @@ Try<bool> create(
 // such a filter is not found.
 Try<bool> remove(
     const std::string& link,
-    const queueing::Handle& parent,
+    const Handle& parent,
     const Classifier& classifier);
 
 
@@ -213,7 +213,7 @@ Try<bool> remove(
 // the link. Returns none if the link or the parent is not found.
 Result<std::vector<Filter<Classifier>>> filters(
     const std::string& link,
-    const queueing::Handle& parent);
+    const Handle& parent);
 
 
 // Returns the classifiers of all the IP packet filters attached to
@@ -221,7 +221,7 @@ Result<std::vector<Filter<Classifier>>> filters(
 // parent is not found.
 Result<std::vector<Classifier>> classifiers(
     const std::string& link,
-    const queueing::Handle& parent);
+    const Handle& parent);
 
 } // namespace ip {
 } // namespace filter {

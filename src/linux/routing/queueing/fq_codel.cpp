@@ -26,8 +26,9 @@
 #include <stout/nothing.hpp>
 #include <stout/result.hpp>
 
+#include "linux/routing/handle.hpp"
+
 #include "linux/routing/queueing/fq_codel.hpp"
-#include "linux/routing/queueing/handle.hpp"
 #include "linux/routing/queueing/internal.hpp"
 
 using std::string;
@@ -70,7 +71,7 @@ Try<Nothing> encode<fq_codel::Discipline>(
         string(nl_geterror(error)));
   }
 
-  rtnl_tc_set_parent(TC_CAST(qdisc.get()), EGRESS_ROOT.get());
+  rtnl_tc_set_parent(TC_CAST(qdisc.get()), EGRESS_ROOT().get());
   rtnl_tc_set_handle(TC_CAST(qdisc.get()), fq_codel::HANDLE.get());
 
   // We don't set fq_codel parameters here, use the default:
@@ -94,7 +95,7 @@ Result<fq_codel::Discipline> decode<fq_codel::Discipline>(
     const Netlink<struct rtnl_qdisc>& qdisc)
 {
   if (rtnl_tc_get_kind(TC_CAST(qdisc.get())) != string("fq_codel") ||
-      rtnl_tc_get_parent(TC_CAST(qdisc.get())) != EGRESS_ROOT.get() ||
+      rtnl_tc_get_parent(TC_CAST(qdisc.get())) != EGRESS_ROOT().get() ||
       rtnl_tc_get_handle(TC_CAST(qdisc.get())) != fq_codel::HANDLE.get()) {
     return None();
   }

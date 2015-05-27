@@ -37,19 +37,20 @@
 #include <stout/net.hpp>
 #include <stout/stringify.hpp>
 
+#include "linux/routing/handle.hpp"
 #include "linux/routing/route.hpp"
 #include "linux/routing/utils.hpp"
 
 #include "linux/routing/diagnosis/diagnosis.hpp"
 
 #include "linux/routing/filter/basic.hpp"
+#include "linux/routing/filter/handle.hpp"
 #include "linux/routing/filter/icmp.hpp"
 #include "linux/routing/filter/ip.hpp"
 
 #include "linux/routing/link/link.hpp"
 
 #include "linux/routing/queueing/fq_codel.hpp"
-#include "linux/routing/queueing/handle.hpp"
 #include "linux/routing/queueing/ingress.hpp"
 
 using namespace process;
@@ -440,7 +441,7 @@ TEST_F(RoutingVethTest, ROOT_FqCodelClassifier)
       fq_codel::HANDLE,
       ETH_P_ALL,
       None(),
-      queueing::Handle(fq_codel::HANDLE, 0)));
+      Handle(fq_codel::HANDLE, 0)));
 
   EXPECT_SOME_TRUE(basic::exists(TEST_VETH_LINK, fq_codel::HANDLE, ETH_P_ALL));
 
@@ -449,7 +450,7 @@ TEST_F(RoutingVethTest, ROOT_FqCodelClassifier)
       fq_codel::HANDLE,
       ETH_P_ARP,
       None(),
-      queueing::Handle(fq_codel::HANDLE, 0)));
+      Handle(fq_codel::HANDLE, 0)));
 
   // There is a kernel bug which could cause this test fail. Please
   // make sure your kernel, if newer than 3.14, has commit:
@@ -463,7 +464,7 @@ TEST_F(RoutingVethTest, ROOT_FqCodelClassifier)
       fq_codel::HANDLE,
       icmp::Classifier(None()),
       None(),
-      queueing::Handle(fq_codel::HANDLE, 0)));
+      Handle(fq_codel::HANDLE, 0)));
 
   EXPECT_SOME_TRUE(icmp::exists(
       TEST_VETH_LINK,
@@ -495,7 +496,7 @@ TEST_F(RoutingVethTest, ROOT_FqCodelClassifier)
       fq_codel::HANDLE,
       classifier,
       None(),
-      queueing::Handle(fq_codel::HANDLE, 1)));
+      Handle(fq_codel::HANDLE, 1)));
 
   EXPECT_SOME_TRUE(ip::exists(TEST_VETH_LINK, fq_codel::HANDLE, classifier));
 }

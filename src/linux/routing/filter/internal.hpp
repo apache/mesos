@@ -50,15 +50,15 @@
 #include <stout/result.hpp>
 #include <stout/try.hpp>
 
+#include "linux/routing/handle.hpp"
 #include "linux/routing/internal.hpp"
 
 #include "linux/routing/filter/action.hpp"
 #include "linux/routing/filter/filter.hpp"
+#include "linux/routing/filter/handle.hpp"
 #include "linux/routing/filter/priority.hpp"
 
 #include "linux/routing/link/internal.hpp"
-
-#include "linux/routing/queueing/handle.hpp"
 
 namespace routing {
 namespace filter {
@@ -441,7 +441,7 @@ Result<Filter<Classifier>> decodeFilter(const Netlink<struct rtnl_cls>& cls)
   }
 
   // Decode the parent.
-  queueing::Handle parent(rtnl_tc_get_parent(TC_CAST(cls.get())));
+  Handle parent(rtnl_tc_get_parent(TC_CAST(cls.get())));
 
   // Decode the priority. If the priority is not specified by the
   // user, kernel will assign a priority to the filter. So we should
@@ -461,7 +461,7 @@ Result<Filter<Classifier>> decodeFilter(const Netlink<struct rtnl_cls>& cls)
     return None();
   }
 
-  Option<queueing::Handle> classid;
+  Option<Handle> classid;
   if (rtnl_tc_get_kind(TC_CAST(cls.get())) == std::string("u32")) {
     uint32_t _classid;
     if (rtnl_u32_get_classid(cls.get(), &_classid) == 0) {
@@ -489,7 +489,7 @@ Result<Filter<Classifier>> decodeFilter(const Netlink<struct rtnl_cls>& cls)
 // parent on the link.
 inline Try<std::vector<Netlink<struct rtnl_cls>>> getClses(
     const Netlink<struct rtnl_link>& link,
-    const queueing::Handle& parent)
+    const Handle& parent)
 {
   Try<Netlink<struct nl_sock>> socket = routing::socket();
   if (socket.isError()) {
@@ -532,7 +532,7 @@ inline Try<std::vector<Netlink<struct rtnl_cls>>> getClses(
 template <typename Classifier>
 Result<Netlink<struct rtnl_cls>> getCls(
     const Netlink<struct rtnl_link>& link,
-    const queueing::Handle& parent,
+    const Handle& parent,
     const Classifier& classifier)
 {
   Try<std::vector<Netlink<struct rtnl_cls>>> clses = getClses(link, parent);
@@ -565,7 +565,7 @@ Result<Netlink<struct rtnl_cls>> getCls(
 template <typename Classifier>
 Try<bool> exists(
     const std::string& _link,
-    const queueing::Handle& parent,
+    const Handle& parent,
     const Classifier& classifier)
 {
   Result<Netlink<struct rtnl_link>> link = link::internal::get(_link);
@@ -645,7 +645,7 @@ Try<bool> create(const std::string& _link, const Filter<Classifier>& filter)
 template <typename Classifier>
 Try<bool> remove(
     const std::string& _link,
-    const queueing::Handle& parent,
+    const Handle& parent,
     const Classifier& classifier)
 {
   Result<Netlink<struct rtnl_link>> link = link::internal::get(_link);
@@ -766,7 +766,7 @@ Try<bool> update(const std::string& _link, const Filter<Classifier>& filter)
 template <typename Classifier>
 Result<std::vector<Filter<Classifier>>> filters(
     const std::string& _link,
-    const queueing::Handle& parent)
+    const Handle& parent)
 {
   Result<Netlink<struct rtnl_link>> link = link::internal::get(_link);
   if (link.isError()) {
@@ -806,7 +806,7 @@ Result<std::vector<Filter<Classifier>>> filters(
 template <typename Classifier>
 Result<std::vector<Classifier>> classifiers(
     const std::string& link,
-    const queueing::Handle& parent)
+    const Handle& parent)
 {
   Result<std::vector<Filter<Classifier>>> _filters =
     filters<Classifier>(link, parent);

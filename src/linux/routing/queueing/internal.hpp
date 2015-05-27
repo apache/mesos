@@ -38,11 +38,10 @@
 #include <stout/result.hpp>
 #include <stout/try.hpp>
 
+#include "linux/routing/handle.hpp"
 #include "linux/routing/internal.hpp"
 
 #include "linux/routing/link/internal.hpp"
-
-#include "linux/routing/queueing/handle.hpp"
 
 namespace routing {
 namespace queueing {
