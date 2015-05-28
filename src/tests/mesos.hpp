@@ -330,6 +330,12 @@ protected:
       DEFAULT_EXECUTOR_INFO.executor_id()
 
 
+#define DEFAULT_CONTAINER_ID                                          \
+     ({ ContainerID containerId;                                      \
+        containerId.set_value("container");                           \
+        containerId; })
+
+
 #define CREATE_COMMAND_INFO(command)                                  \
   ({ CommandInfo commandInfo;                                         \
      commandInfo.set_value(command);                                  \

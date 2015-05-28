@@ -37,6 +37,7 @@
 #include "slave/monitor.hpp"
 
 #include "tests/containerizer.hpp"
+#include "tests/mesos.hpp"
 
 using process::Clock;
 using process::Future;
@@ -179,6 +180,51 @@ TEST(MonitorTest, Statistics)
   // Ensure the rate limiter acquires its permit.
   process::Clock::advance(slave::RESOURCE_MONITORING_INTERVAL);
   process::Clock::settle();
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  AWAIT_EXPECT_RESPONSE_HEADER_EQ(
+      "application/json",
+      "Content-Type",
+      response);
+  AWAIT_EXPECT_RESPONSE_BODY_EQ("[]", response);
+}
+
+
+// Test for correct handling of the statistics.json endpoint when
+// monitoring of a container is stopped.
+TEST(MonitorTest, UsageFailure)
+{
+  TestContainerizer containerizer;
+
+  // Test containerizer is set up to:
+  // 1) Synchronize test with Containerizer::usage()
+  // 2) After that, stop monitoring the container.
+  Future<Nothing> usage;
+  process::Promise<ResourceStatistics> failPromise;
+  EXPECT_CALL(containerizer, usage(DEFAULT_CONTAINER_ID))
+    .WillOnce(DoAll(FutureSatisfy(&usage),
+                    Return(failPromise.future())));
+
+  slave::ResourceMonitor monitor(&containerizer);
+
+  AWAIT_READY(monitor.start(DEFAULT_CONTAINER_ID, DEFAULT_EXECUTOR_INFO));
+
+  // Induce a call to usage().
+  process::UPID upid("monitor", process::address());
+  Future<Response> response = process::http::get(upid, "statistics.json");
+
+  // Usage was called, but Future<ResourceStatistics> is still
+  // unsatisfied and monitor is blocked.
+  AWAIT_READY(usage);
+
+  // Stop monitoring the container.
+  AWAIT_READY(monitor.stop(DEFAULT_CONTAINER_ID));
+
+  // Fail the future to the collected container statistic.
+  failPromise.set(process::Failure("Injected failure"));
+
+  // Verify an empty response.
+  AWAIT_READY(response);
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
   AWAIT_EXPECT_RESPONSE_HEADER_EQ(
