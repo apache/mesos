@@ -99,6 +99,37 @@ namespace tests {
 #endif
 
 
+// Each test container works with a common specification of 2 CPUs,
+// 1GB of memory and 1GB of disk space, which experience has shown
+// to be sufficient to not encounter resource starvation issues when
+// running the test suite.
+const char* const containerCPU = "cpus:2";
+const char* const containerMemory = "mem:1024";
+const char* const containerDisk = "disk:1024";
+
+// We configure ephemeral and persistent port ranges outside the
+// default linux ip_local_port_range [32768-61000] in order to reduce
+// the probability of a conflict which could result in spurious
+// results (positive or negative) from these tests.
+const char* const ephemeralPorts = "ephemeral_ports:[30001-30999]";
+const char* const persistentPorts = "ports:[31000-32000]";
+
+// To keep things simple, we used fixed port ranges for our containers
+// in these tests rather than try to dynamically track port usage.
+// Note that container ports must be contained in the persistent port
+// range.
+const char* const container1Ports = "ports:[31000-31499]";
+const char* const container2Ports = "ports:[31500-32000]";
+
+// We define a validPort in the container1 assigned range which can
+// therefore accept incoming traffic.
+const int validPort = 31001;
+
+// We also define a port outside the persistent port range; containers
+// connecting to this port will never receive incoming traffic.
+const int invalidPort = 32502;
+
+
 static void cleanup(const string& eth0, const string& lo)
 {
   // Clean up the ingress qdisc on eth0 and lo if exists.
@@ -227,14 +258,6 @@ protected:
       }
     }
 
-    container1Ports = "ports:[31000-31499]";
-    container2Ports = "ports:[31500-32000]";
-
-    port = 31001;
-
-    // 'errorPort' is not in 'ports' or 'ephemeral_ports'.
-    errorPort = 32502;
-
     container1Ready = path::join(os::getcwd(), "container1_ready");
     container2Ready = path::join(os::getcwd(), "container2_ready");
     trafficViaLoopback = path::join(os::getcwd(), "traffic_via_loopback");
@@ -254,12 +277,12 @@ protected:
 
     flags.launcher_dir = path::join(tests::flags.build_dir, "src");
 
-    // NOTE: By default, Linux sets host ip local port range to
-    // [32768, 61000]. We set 'ephemeral_ports' resource so that it
-    // does not overlap with the host ip local port range.
-    flags.resources =
-      "cpus:2;mem:1024;disk:1024;ports:[31000-32000];"
-      "ephemeral_ports:[30001-30999]";
+    flags.resources = strings::join(";", vector<string>({
+        containerCPU,
+        containerMemory,
+        containerDisk,
+        ephemeralPorts,
+        persistentPorts }));
 
     // NOTE: '16' should be enough for all our tests.
     flags.ephemeral_ports_per_container = 16;
@@ -365,19 +388,6 @@ protected:
   // Host public IP network.
   net::IP hostIP;
 
-  // 'port' is within the range of ports assigned to one container.
-  int port;
-
-  // 'errorPort' is outside the range of ports assigned to the
-  // container. Connecting to a container using this port will fail.
-  int errorPort;
-
-  // Ports assigned to container1.
-  string container1Ports;
-
-  // Ports assigned to container2.
-  string container2Ports;
-
   // All the external name servers as read from /etc/resolv.conf.
   vector<string> nameServers;
 
@@ -390,33 +400,32 @@ protected:
 };
 
 
-// Wait up to timeout seconds for a file to be created.  If timeout is
-// zero, then wait indefinitely.  Return true if file exists.
-// TODO(pbrett): Consider generalizing this function and moving it to a
-// common header.
+// Wait up to timeout seconds for a file to be created. If timeout is
+// zero, then wait indefinitely. Return true if file exists.
+//
+// TODO(pbrett): Consider generalizing this function and moving it to
+// a common header.
 static bool waitForFileCreation(
     const string& path,
     const Duration& duration = Seconds(60))
 {
   Stopwatch timer;
   timer.start();
-
   while (!os::exists(path)) {
     if ((duration > Duration::zero()) && (timer.elapsed() > duration))
       break;
-
     os::sleep(Milliseconds(50));
   }
-
   return os::exists(path);
 }
 
 
-// This test uses 2 containers: one listens to 'port' and 'errorPort'
-// and writes data received to files; the other container attemptes to
-// connect to the previous container using 'port' and
-// 'errorPort'. Verify that only the connection through 'port' is
-// successful.
+// This test uses two containers: one listens to 'validPort' and
+// 'invalidPort' and writes data received to files; the other
+// container attempts to connect to the previous container using
+// 'validPort' and 'invalidPort'. Verify that only the connection
+// through 'validPort' is successful by confirming that the expected
+// data has been written to its output file.
 TEST_F(PortMappingIsolatorTest, ROOT_ContainerToContainerTCP)
 {
   Try<Isolator*> isolator = PortMappingIsolatorProcess::create(flags);
@@ -447,14 +456,15 @@ TEST_F(PortMappingIsolatorTest, ROOT_ContainerToContainerTCP)
   ostringstream command1;
 
   // Listen to 'localhost' and 'port'.
-  command1 << "nc -l localhost " << port << " > " << trafficViaLoopback << "& ";
-
-  // Listen to 'public ip' and 'port'.
-  command1 << "nc -l " << hostIP << " " << port << " > " << trafficViaPublic
+  command1 << "nc -l localhost " << validPort << " > " << trafficViaLoopback
            << "& ";
 
-  // Listen to 'errorPort'. This should not get anything.
-  command1 << "nc -l " << errorPort << " | tee " << trafficViaLoopback << " "
+  // Listen to 'public ip' and 'port'.
+  command1 << "nc -l " << hostIP << " " << validPort << " > "
+           << trafficViaPublic << "& ";
+
+  // Listen to 'invalidPort'.  This should not receive any data.
+  command1 << "nc -l " << invalidPort << " | tee " << trafficViaLoopback << " "
            << trafficViaPublic << "& ";
 
   // Touch the guard file.
@@ -508,13 +518,13 @@ TEST_F(PortMappingIsolatorTest, ROOT_ContainerToContainerTCP)
   ostringstream command2;
 
   // Send to 'localhost' and 'port'.
-  command2 << "printf hello1 | nc localhost " << port << ";";
-  // Send to 'localhost' and 'errorPort'. This should fail.
-  command2 << "printf hello2 | nc localhost " << errorPort << ";";
+  command2 << "printf hello1 | nc localhost " << validPort << ";";
+  // Send to 'localhost' and 'invalidPort'. This should fail.
+  command2 << "printf hello2 | nc localhost " << invalidPort << ";";
   // Send to 'public IP' and 'port'.
-  command2 << "printf hello3 | nc " << hostIP << " " << port << ";";
-  // Send to 'public IP' and 'errorPort'. This should fail.
-  command2 << "printf hello4 | nc " << hostIP << " " << errorPort << ";";
+  command2 << "printf hello3 | nc " << hostIP << " " << validPort << ";";
+  // Send to 'public IP' and 'invalidPort'. This should fail.
+  command2 << "printf hello4 | nc " << hostIP << " " << invalidPort << ";";
   // Touch the guard file.
   command2 << "touch " << container2Ready;
 
@@ -595,15 +605,15 @@ TEST_F(PortMappingIsolatorTest, ROOT_ContainerToContainerUDP)
   ostringstream command1;
 
   // Listen to 'localhost' and 'port'.
-  command1 << "nc -u -l localhost " << port << " > " << trafficViaLoopback
+  command1 << "nc -u -l localhost " << validPort << " > " << trafficViaLoopback
            << "& ";
 
   // Listen to 'public ip' and 'port'.
-  command1 << "nc -u -l " << hostIP << " " << port << " > " << trafficViaPublic
-           << "& ";
+  command1 << "nc -u -l " << hostIP << " " << validPort << " > "
+           << trafficViaPublic << "& ";
 
-  // Listen to 'errorPort'. This should not receive anything.
-  command1 << "nc -u -l " << errorPort << " | tee " << trafficViaLoopback
+  // Listen to 'invalidPort'. This should not receive anything.
+  command1 << "nc -u -l " << invalidPort << " | tee " << trafficViaLoopback
            << " " << trafficViaPublic << "& ";
 
   // Touch the guard file.
@@ -657,13 +667,13 @@ TEST_F(PortMappingIsolatorTest, ROOT_ContainerToContainerUDP)
   ostringstream command2;
 
   // Send to 'localhost' and 'port'.
-  command2 << "printf hello1 | nc -w1 -u localhost " << port << ";";
-  // Send to 'localhost' and 'errorPort'. No data should be sent.
-  command2 << "printf hello2 | nc -w1 -u localhost " << errorPort << ";";
+  command2 << "printf hello1 | nc -w1 -u localhost " << validPort << ";";
+  // Send to 'localhost' and 'invalidPort'. No data should be sent.
+  command2 << "printf hello2 | nc -w1 -u localhost " << invalidPort << ";";
   // Send to 'public IP' and 'port'.
-  command2 << "printf hello3 | nc -w1 -u " << hostIP << " " << port << ";";
-  // Send to 'public IP' and 'errorPort'. No data should be sent.
-  command2 << "printf hello4 | nc -w1 -u " << hostIP << " " << errorPort
+  command2 << "printf hello3 | nc -w1 -u " << hostIP << " " << validPort << ";";
+  // Send to 'public IP' and 'invalidPort'. No data should be sent.
+  command2 << "printf hello4 | nc -w1 -u " << hostIP << " " << invalidPort
            << ";";
   // Touch the guard file.
   command2 << "touch " << container2Ready;
@@ -702,7 +712,6 @@ TEST_F(PortMappingIsolatorTest, ROOT_ContainerToContainerUDP)
   EXPECT_SOME_EQ("hello1", os::read(trafficViaLoopback));
   EXPECT_SOME_EQ("hello3", os::read(trafficViaPublic));
 
-  // Ensure all processes are killed.
   AWAIT_READY(launcher.get()->destroy(containerId1));
   AWAIT_READY(launcher.get()->destroy(containerId2));
 
@@ -747,15 +756,15 @@ TEST_F(PortMappingIsolatorTest, ROOT_HostToContainerUDP)
   ostringstream command1;
 
   // Listen to 'localhost' and 'Port'.
-  command1 << "nc -u -l localhost " << port << " > " << trafficViaLoopback
+  command1 << "nc -u -l localhost " << validPort << " > " << trafficViaLoopback
            << "&";
 
   // Listen to 'public IP' and 'Port'.
-  command1 << "nc -u -l " << hostIP << " " << port << " > " << trafficViaPublic
-           << "&";
+  command1 << "nc -u -l " << hostIP << " " << validPort << " > "
+           << trafficViaPublic << "&";
 
-  // Listen to 'public IP' and 'errorPort'. This should not receive anything.
-  command1 << "nc -u -l " << errorPort << " | tee " << trafficViaLoopback
+  // Listen to 'public IP' and 'invalidPort'. This should not receive anything.
+  command1 << "nc -u -l " << invalidPort << " | tee " << trafficViaLoopback
            << " " << trafficViaPublic << "&";
 
   // Touch the guard file.
@@ -792,24 +801,24 @@ TEST_F(PortMappingIsolatorTest, ROOT_HostToContainerUDP)
 
   // Send to 'localhost' and 'port'.
   ostringstream command2;
-  command2 << "printf hello1 | nc -w1 -u localhost " << port;
+  command2 << "printf hello1 | nc -w1 -u localhost " << validPort;
   ASSERT_SOME_EQ(0, os::shell(NULL, command2.str().c_str()));
 
-  // Send to 'localhost' and 'errorPort'. The command should return
+  // Send to 'localhost' and 'invalidPort'. The command should return
   // successfully because UDP is stateless but no data could be sent.
   ostringstream command3;
-  command3 << "printf hello2 | nc -w1 -u localhost " << errorPort;
+  command3 << "printf hello2 | nc -w1 -u localhost " << invalidPort;
   ASSERT_SOME_EQ(0, os::shell(NULL, command3.str().c_str()));
 
   // Send to 'public IP' and 'port'.
   ostringstream command4;
-  command4 << "printf hello3 | nc -w1 -u " << hostIP << " " << port;
+  command4 << "printf hello3 | nc -w1 -u " << hostIP << " " << validPort;
   ASSERT_SOME_EQ(0, os::shell(NULL, command4.str().c_str()));
 
-  // Send to 'public IP' and 'errorPort'. The command should return
+  // Send to 'public IP' and 'invalidPort'. The command should return
   // successfully because UDP is stateless but no data could be sent.
   ostringstream command5;
-  command5 << "printf hello4 | nc -w1 -u " << hostIP << " " << errorPort;
+  command5 << "printf hello4 | nc -w1 -u " << hostIP << " " << invalidPort;
   ASSERT_SOME_EQ(0, os::shell(NULL, command5.str().c_str()));
 
   EXPECT_SOME_EQ("hello1", os::read(trafficViaLoopback));
@@ -858,14 +867,15 @@ TEST_F(PortMappingIsolatorTest, ROOT_HostToContainerTCP)
   ostringstream command1;
 
   // Listen to 'localhost' and 'Port'.
-  command1 << "nc -l localhost " << port << " > " << trafficViaLoopback << "&";
-
-  // Listen to 'public IP' and 'Port'.
-  command1 << "nc -l " << hostIP << " " << port << " > " << trafficViaPublic
+  command1 << "nc -l localhost " << validPort << " > " << trafficViaLoopback
            << "&";
 
-  // Listen to 'public IP' and 'errorPort'. This should fail.
-  command1 << "nc -l " << errorPort << " | tee " << trafficViaLoopback << " "
+  // Listen to 'public IP' and 'Port'.
+  command1 << "nc -l " << hostIP << " " << validPort << " > "
+           << trafficViaPublic << "&";
+
+  // Listen to 'public IP' and 'invalidPort'. This should fail.
+  command1 << "nc -l " << invalidPort << " | tee " << trafficViaLoopback << " "
            << trafficViaPublic << "&";
 
   // Touch the guard file.
@@ -902,24 +912,24 @@ TEST_F(PortMappingIsolatorTest, ROOT_HostToContainerTCP)
 
   // Send to 'localhost' and 'port'.
   ostringstream command2;
-  command2 << "printf hello1 | nc localhost " << port;
+  command2 << "printf hello1 | nc localhost " << validPort;
   ASSERT_SOME_EQ(0, os::shell(NULL, command2.str().c_str()));
 
-  // Send to 'localhost' and 'errorPort'. This should fail because TCP
+  // Send to 'localhost' and 'invalidPort'. This should fail because TCP
   // connection couldn't be established..
   ostringstream command3;
-  command3 << "printf hello2 | nc localhost " << errorPort;
+  command3 << "printf hello2 | nc localhost " << invalidPort;
   ASSERT_SOME_EQ(256, os::shell(NULL, command3.str().c_str()));
 
   // Send to 'public IP' and 'port'.
   ostringstream command4;
-  command4 << "printf hello3 | nc " << hostIP << " " << port;
+  command4 << "printf hello3 | nc " << hostIP << " " << validPort;
   ASSERT_SOME_EQ(0, os::shell(NULL, command4.str().c_str()));
 
-  // Send to 'public IP' and 'errorPort'. This should fail because TCP
+  // Send to 'public IP' and 'invalidPort'. This should fail because TCP
   // connection couldn't be established.
   ostringstream command5;
-  command5 << "printf hello4 | nc " << hostIP << " " << errorPort;
+  command5 << "printf hello4 | nc " << hostIP << " " << invalidPort;
   ASSERT_SOME_EQ(256, os::shell(NULL, command5.str().c_str()));
 
   EXPECT_SOME_EQ("hello1", os::read(trafficViaLoopback));
@@ -1389,11 +1399,11 @@ TEST_F(PortMappingIsolatorTest, ROOT_SmallEgressLimit)
   Try<Launcher*> launcher = LinuxLauncher::create(flags);
   CHECK_SOME(launcher);
 
-  // Open a nc server on the host side. Note that 'errorPort' is in
+  // Open an nc server on the host side. Note that 'invalidPort' is in
   // neither 'ports' nor 'ephemeral_ports', which makes it a good port
   // to use on the host.
   ostringstream command1;
-  command1 << "nc -l localhost " << errorPort << " > /devnull";
+  command1 << "nc -l localhost " << invalidPort << " > /devnull";
   Try<Subprocess> s = subprocess(command1.str().c_str());
   CHECK_SOME(s);
 
@@ -1427,7 +1437,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_SmallEgressLimit)
            << "Bytes/s...';";
 
   command2 << "{ time -p echo " << data  << " | nc localhost "
-           << errorPort << " ; } 2> " << transmissionTime << " && ";
+           << invalidPort << " ; } 2> " << transmissionTime << " && ";
 
   // Touch the guard file.
   command2 << "touch " << container1Ready;
@@ -1543,13 +1553,13 @@ TEST_F(PortMappingIsolatorTest, ROOT_PortMappingStatistics)
   Try<Launcher*> launcher = LinuxLauncher::create(flags);
   CHECK_SOME(launcher);
 
-  // Open a nc server on the host side. Note that 'errorPort' is in
-  // neither 'ports' nor 'ephemeral_ports', which makes it a good port
-  // to use on the host. We use this host's public IP because
+  // Open an nc server on the host side. Note that 'invalidPort' is
+  // in neither 'ports' nor 'ephemeral_ports', which makes it a good
+  // port to use on the host. We use this host's public IP because
   // connections to the localhost IP are filtered out when retrieving
   // the RTT information inside containers.
   ostringstream command1;
-  command1 << "nc -l " << hostIP << " " << errorPort << " > /devnull";
+  command1 << "nc -l " << hostIP << " " << invalidPort << " > /devnull";
   Try<Subprocess> s = subprocess(command1.str().c_str());
   CHECK_SOME(s);
 
@@ -1583,7 +1593,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_PortMappingStatistics)
            << "Bytes/s...';";
 
   command2 << "{ time -p echo " << data  << " | nc " << hostIP << " "
-           << errorPort << " ; } 2> " << transmissionTime << " && ";
+           << invalidPort << " ; } 2> " << transmissionTime << " && ";
 
   // Touch the guard file.
   command2 << "touch " << container1Ready;
