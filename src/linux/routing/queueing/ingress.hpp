@@ -48,8 +48,8 @@ namespace ingress {
 // for the interface which specify the root handle under which a
 // queueing discipline can be created, and the handle of any created
 // ingress filter.
-extern const Handle ROOT;
-extern const Handle HANDLE;
+constexpr Handle ROOT(Handle(TC_H_INGRESS));
+constexpr Handle HANDLE(Handle(0xffff, 0));
 
 
 // Returns true if there exists an ingress qdisc on the link.

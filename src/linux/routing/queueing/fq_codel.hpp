@@ -29,8 +29,12 @@ namespace routing {
 namespace queueing {
 namespace fq_codel {
 
-// The handle of the fq_codel queueing discipline is fixed.
-extern const Handle HANDLE;
+// NOTE: Root queueing discipline handle has to be X:0, so handle's
+// secondary number has to be 0 here. There can be only one root
+// queueing discipline on the egress side of a link and fq_codel is
+// classless and hence there is only one instance of fq_codel per
+// link. This allows us to fix the fq_codel handle.
+constexpr Handle HANDLE(1, 0);
 
 
 // The default number of flows for the fq_codel queueing discipline.

@@ -38,9 +38,6 @@ namespace queueing {
 
 namespace ingress {
 
-const Handle ROOT = Handle(TC_H_INGRESS);
-const Handle HANDLE = Handle(0xffff, 0);
-
 // The ingress queueing discipline is not exposed to the user.
 struct Discipline
 {

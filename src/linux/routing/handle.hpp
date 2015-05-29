@@ -36,34 +36,30 @@ namespace routing {
 class Handle
 {
 public:
-  explicit Handle(uint32_t _handle) : handle(_handle) {}
+  explicit constexpr Handle(uint32_t _handle) : handle(_handle) {}
 
-  Handle(uint16_t primary, uint16_t secondary)
-  {
-    handle = (((uint32_t)primary) << 16) + secondary;
-  }
+  constexpr Handle(uint16_t primary, uint16_t secondary) :
+    handle((((uint32_t)primary) << 16) + secondary) {}
 
   // NOTE: This is used to construct a classid. The higher 16 bits of
   // the given 'parent' will be the primary and the lower 16 bits is
   // specified by the given 'id'.
-  Handle(Handle parent, uint16_t id)
-  {
-    handle = (((uint32_t)parent.primary()) << 16) + id;
-  }
+  constexpr Handle(const Handle& parent, uint16_t id) :
+    handle((((uint32_t)parent.primary()) << 16) + id) {}
 
-  bool operator==(const Handle& that) const
+  constexpr bool operator==(const Handle& that) const
   {
     return handle == that.handle;
   }
 
-  bool operator!=(const Handle& that) const
+  constexpr bool operator!=(const Handle& that) const
   {
     return handle != that.handle;
   }
 
-  uint16_t primary() const { return handle >> 16; }
-  uint16_t secondary() const { return handle & 0x0000ffff; }
-  uint32_t get() const { return handle; }
+  constexpr uint16_t primary() const { return handle >> 16; }
+  constexpr uint16_t secondary() const { return handle & 0x0000ffff; }
+  constexpr uint32_t get() const { return handle; }
 
 protected:
   uint32_t handle;

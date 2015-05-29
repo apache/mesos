@@ -111,12 +111,6 @@ Result<fq_codel::Discipline> decode<fq_codel::Discipline>(
 
 namespace fq_codel {
 
-// NOTE: Root queueing discipline handle has to be X:0, so handle's
-// secondary number has to be 0 here. There can be only one root
-// queueing discipline on the egress side of a link.
-const Handle HANDLE = Handle(0x1, 0);
-
-
 const int DEFAULT_FLOWS = 1024;
 
 
