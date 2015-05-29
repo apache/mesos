@@ -25,6 +25,10 @@
 #endif
 
 #include <sched.h>
+// Some old distributions, e.g., Redhat 5.5, do not correctly include
+// linux/sched.h.
+#include <linux/sched.h>
+
 
 #include <sys/types.h>
 
