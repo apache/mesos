@@ -215,6 +215,17 @@ file:///path/to/file (where file contains one of the above)</code></pre>
   </tr>
   <tr>
     <td>
+      --allocator=VALUE
+    </td>
+    <td>
+      Allocator to use for resource allocation to frameworks.
+      Use the default <code>HierarchicalDRF</code> allocator, or load
+      an alternate allocator module using <code>--modules</code>.
+      (default: HierarchicalDRF)
+    </td>
+  </tr>
+  <tr>
+    <td>
       --[no-]authenticate
     </td>
     <td>
