@@ -4511,6 +4511,7 @@ Executor* Framework::launchExecutor(
 
   LOG(INFO) << "Launching executor " << executorInfo.executor_id()
             << " of framework " << id()
+            << " with resources " << executorInfo.resources()
             << " in work directory '" << directory << "'";
 
   slave->files->attach(executor->directory, executor->directory)

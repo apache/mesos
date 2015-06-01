@@ -63,6 +63,7 @@ using std::string;
 using std::vector;
 
 using testing::_;
+using testing::AtMost;
 using testing::Return;
 using testing::Invoke;
 
@@ -203,15 +204,17 @@ TEST_F(OversubscriptionTest, ForwardUpdateSlaveMessage)
 }
 
 
-// This test verifies that a framework that desires revocable
-// resources gets an offer with revocable resources.
+// This test verifies that a framework that accepts revocable
+// resources can launch a task with revocable resources.
 TEST_F(OversubscriptionTest, RevocableOffer)
 {
   // Start the master.
   Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
-  // Start the slave with test resource estimator.
+  // Start the slave with mock executor and test resource estimator.
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+
   MockResourceEstimator resourceEstimator;
 
   EXPECT_CALL(resourceEstimator, initialize(_));
@@ -222,10 +225,10 @@ TEST_F(OversubscriptionTest, RevocableOffer)
 
   slave::Flags flags = CreateSlaveFlags();
 
-  Try<PID<Slave>> slave = StartSlave(&resourceEstimator, flags);
+  Try<PID<Slave>> slave = StartSlave(&exec, &resourceEstimator, flags);
   ASSERT_SOME(slave);
 
-  // Start the framework which desires revocable resources.
+  // Start the framework which accepts revocable resources.
   FrameworkInfo framework = DEFAULT_FRAMEWORK_INFO;
   framework.add_capabilities()->set_type(
       FrameworkInfo::Capability::REVOCABLE_RESOURCES);
@@ -252,14 +255,40 @@ TEST_F(OversubscriptionTest, RevocableOffer)
     .WillOnce(FutureArg<1>(&offers2))
     .WillRepeatedly(Return()); // Ignore subsequent offers.
 
-  // Inject an estimation of oversubscribable resources.
-  Resources resources = createRevocableResources("cpus", "1");
-  estimations.put(resources);
+  // Inject an estimation of oversubscribable cpu resources.
+  Resources taskResources = createRevocableResources("cpus", "1");
+  Resources executorResources = createRevocableResources("cpus", "1");
+  estimations.put(taskResources + executorResources);
 
   // Now the framework will get revocable resources.
   AWAIT_READY(offers2);
   EXPECT_NE(0u, offers2.get().size());
-  EXPECT_EQ(resources, Resources(offers2.get()[0].resources()));
+  EXPECT_EQ(
+      taskResources + executorResources,
+      Resources(offers2.get()[0].resources()));
+
+  // Now launch a task that uses revocable resources.
+  TaskInfo task =
+    createTask(offers2.get()[0].slave_id(), taskResources, "", exec.id);
+
+  task.mutable_executor()->mutable_resources()->CopyFrom(executorResources);
+
+  EXPECT_CALL(exec, registered(_, _, _, _));
+
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
+
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status));
+
+  driver.launchTasks({offers1.get()[0].id(), offers2.get()[0].id()}, {task});
+
+  AWAIT_READY(status);
+  EXPECT_EQ(TASK_RUNNING, status.get().state());
+
+  EXPECT_CALL(exec, shutdown(_))
+    .Times(AtMost(1));
 
   driver.stop();
   driver.join();

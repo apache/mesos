@@ -299,7 +299,7 @@ Option<Error> validateCheckpoint(Framework* framework, Slave* slave)
 
 
 // Validates that the task and the executor are using proper amount of
-// resources. For instance, the used resources by a task on each slave
+// resources. For instance, the used resources by a task on a slave
 // should not exceed the total resources offered on that slave.
 Option<Error> validateResourceUsage(
     const TaskInfo& task,

@@ -332,6 +332,32 @@ Try<PID<slave::Slave>> MesosTest::StartSlave(
 }
 
 
+Try<PID<slave::Slave>> MesosTest::StartSlave(
+    MockExecutor* executor,
+    mesos::slave::ResourceEstimator* resourceEstimator,
+    const Option<slave::Flags>& flags)
+{
+  slave::Containerizer* containerizer = new TestContainerizer(executor);
+
+  Try<PID<slave::Slave>> pid = cluster.slaves.start(
+      flags.isNone() ? CreateSlaveFlags() : flags.get(),
+      containerizer,
+      None(),
+      None(),
+      None(),
+      resourceEstimator);
+
+  if (pid.isError()) {
+    delete containerizer;
+    return pid;
+  }
+
+  containerizers[pid.get()] = containerizer;
+
+  return pid;
+}
+
+
 void MesosTest::Stop(const PID<master::Master>& pid)
 {
   cluster.masters.stop(pid);

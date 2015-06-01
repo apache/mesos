@@ -185,6 +185,13 @@ protected:
       mesos::slave::ResourceEstimator* resourceEstimator,
       const Option<slave::Flags>& flags = None());
 
+  // Starts a slave with the specified mock executor, resource
+  // estimator and flags.
+  virtual Try<process::PID<slave::Slave>> StartSlave(
+      MockExecutor* executor,
+      mesos::slave::ResourceEstimator* resourceEstimator,
+      const Option<slave::Flags>& flags = None());
+
   // Stop the specified master.
   virtual void Stop(
       const process::PID<master::Master>& pid);
