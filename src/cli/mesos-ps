@@ -106,11 +106,11 @@ def data_size(bytes, format):
     if bytes < 1024:
         return (format % bytes) + ' B'
     elif bytes < (1024 * 1024):
-        return (format % (bytes / 1024)) + ' KB'
+        return (format % (bytes / 1024.0)) + ' KB'
     elif bytes < (1024 * 1024 * 1024):
-        return (format % (bytes / (1024 * 1024))) + ' MB'
+        return (format % (bytes / (1024.0 * 1024.0))) + ' MB'
     else:
-        return (format % (bytes / (1024 * 1024 * 1024))) + ' GB'
+        return (format % (bytes / (1024.0 * 1024.0 * 1024.0))) + ' GB'
 
 
 # Helper for formatting the TIME column for a task.
