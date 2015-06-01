@@ -69,6 +69,7 @@
 
 #include "linux/routing/link/link.hpp"
 
+#include "linux/routing/queueing/fq_codel.hpp"
 #include "linux/routing/queueing/ingress.hpp"
 
 #include "mesos/resources.hpp"
@@ -130,12 +131,23 @@ static const uint16_t MIN_EPHEMERAL_PORTS_SIZE = 16;
 static const uint8_t ARP_FILTER_PRIORITY = 1;
 static const uint8_t ICMP_FILTER_PRIORITY = 2;
 static const uint8_t IP_FILTER_PRIORITY = 3;
+static const uint8_t DEFAULT_FILTER_PRIORITY = 4;
 
 
 // The secondary priorities used by filters.
 static const uint8_t HIGH = 1;
 static const uint8_t NORMAL = 2;
 static const uint8_t LOW = 3;
+
+
+// We assign a separate flow on host eth0 egress for each container
+// (See MESOS-2422 for details). Host egress traffic is assigned to a
+// reserved flow (HOST_FLOWID). ARP and ICMP traffic from containers
+// are not heavy, so they can share the same flow.
+static const uint16_t HOST_FLOWID = 1;
+static const uint16_t ARP_FLOWID = 2;
+static const uint16_t ICMP_FLOWID = 2;
+static const uint16_t CONTAINER_MIN_FLOWID = 3;
 
 
 // The well known ports. Used for sanity check.
@@ -748,6 +760,10 @@ PortMappingIsolatorProcess::Metrics::Metrics()
         "port_mapping/adding_eth0_ip_filters_errors"),
     adding_eth0_ip_filters_already_exist(
         "port_mapping/adding_eth0_ip_filters_already_exist"),
+    adding_eth0_egress_filters_errors(
+        "port_mapping/adding_eth0_egress_filters_errors"),
+    adding_eth0_egress_filters_already_exist(
+        "port_mapping/adding_eth0_egress_filters_already_exist"),
     adding_lo_ip_filters_errors(
         "port_mapping/adding_lo_ip_filters_errors"),
     adding_lo_ip_filters_already_exist(
@@ -776,6 +792,10 @@ PortMappingIsolatorProcess::Metrics::Metrics()
         "port_mapping/removing_eth0_ip_filters_errors"),
     removing_eth0_ip_filters_do_not_exist(
         "port_mapping/removing_eth0_ip_filters_do_not_exist"),
+    removing_eth0_egress_filters_errors(
+        "port_mapping/removing_eth0_egress_filters_errors"),
+    removing_eth0_egress_filters_do_not_exist(
+        "port_mapping/removinging_eth0_egress_filters_do_not_exist"),
     removing_lo_ip_filters_errors(
         "port_mapping/removing_lo_ip_filters_errors"),
     removing_lo_ip_filters_do_not_exist(
@@ -1196,11 +1216,34 @@ Try<Isolator*> PortMappingIsolatorProcess::create(const Flags& flags)
 
   // Prepare the ingress queueing disciplines on host public interface
   // (eth0) and host loopback interface (lo).
-  Try<bool> createHostEth0Qdisc = ingress::create(eth0.get());
-  if (createHostEth0Qdisc.isError()) {
+  Try<bool> createHostEth0IngressQdisc = ingress::create(eth0.get());
+  if (createHostEth0IngressQdisc.isError()) {
     return Error(
         "Failed to create the ingress qdisc on " + eth0.get() +
-        ": " + createHostEth0Qdisc.error());
+        ": " + createHostEth0IngressQdisc.error());
+  }
+
+  set<uint16_t> freeFlowIds;
+  if (flags.egress_unique_flow_per_container) {
+    // Prepare a fq_codel queueing discipline on host public interface
+    // (eth0) for egress flow classification.
+    //
+    // TODO(cwang): Maybe we can continue when some other egress qdisc
+    // exists because this is not a necessary qdisc for network
+    // isolation, but we don't want inconsistency, so we just fail in
+    // this case. See details in MESOS-2370.
+    Try<bool> createHostEth0EgressQdisc = fq_codel::create(eth0.get());
+    if (createHostEth0EgressQdisc.isError()) {
+      return Error(
+          "Failed to create the egress qdisc on " + eth0.get() +
+          ": " + createHostEth0EgressQdisc.error());
+    }
+
+    // TODO(cwang): Make sure DEFAULT_FLOWS is large enough so that
+    // it's unlikely to run out of free flow IDs.
+    for(uint16_t i = CONTAINER_MIN_FLOWID; i < fq_codel::DEFAULT_FLOWS; i++) {
+      freeFlowIds.insert(i);
+    }
   }
 
   Try<bool> createHostLoQdisc = ingress::create(lo.get());
@@ -1419,7 +1462,8 @@ Try<Isolator*> PortMappingIsolatorProcess::create(const Flags& flags)
           hostNetworkConfigurations,
           egressRateLimitPerContainer,
           nonEphemeralPorts,
-          ephemeralPortsAllocator)));
+          ephemeralPortsAllocator,
+          freeFlowIds)));
 }
 
 
@@ -1628,8 +1672,6 @@ Future<Nothing> PortMappingIsolatorProcess::recover(
       foreachvalue (Info* info, infos) {
         delete info;
       }
-      infos.clear();
-      unmanaged.clear();
 
       return Failure(
           "Failed to recover container " + stringify(containerId) +
@@ -1651,8 +1693,6 @@ Future<Nothing> PortMappingIsolatorProcess::recover(
       foreachvalue (Info* info, infos) {
         delete info;
       }
-      infos.clear();
-      unmanaged.clear();
 
       return Failure(
           "Failed to recover orphaned container with pid " +
@@ -1680,14 +1720,15 @@ Future<Nothing> PortMappingIsolatorProcess::recover(
       foreachvalue (Info* info, infos) {
         delete info;
       }
-      infos.clear();
-      unmanaged.clear();
 
       return Failure(
           "Failed to cleanup orphaned container with pid " +
           stringify(pid) + ": " + cleanup.error());
     }
   }
+
+  // TODO(cwang): Consider removing unrecognized flow classifiers from
+  // host eth0 egress.
 
   LOG(INFO) << "Network isolator recovery complete";
 
@@ -1704,29 +1745,90 @@ PortMappingIsolatorProcess::_recover(pid_t pid)
   // sure that we add filters to veth before adding filters to host
   // eth0 and host lo. Also, we need to make sure we remove filters
   // from host eth0 and host lo before removing filters from veth.
-  Result<vector<ip::Classifier>> classifiers =
+  Result<vector<ip::Classifier>> vethIngressClassifiers =
     ip::classifiers(veth(pid), ingress::HANDLE);
 
-  if (classifiers.isError()) {
+  if (vethIngressClassifiers.isError()) {
     return Error(
         "Failed to get all the IP filters on " + veth(pid) +
-        ": " + classifiers.error());
-  } else if (classifiers.isNone()) {
+        ": " + vethIngressClassifiers.error());
+  } else if (vethIngressClassifiers.isNone()) {
     return Error(
         "Failed to get all the IP filters on " + veth(pid) +
         ": link does not exist");
   }
 
+  hashmap<PortRange, uint16_t> flowIds;
+
+  if (flags.egress_unique_flow_per_container) {
+    // Get all egress IP flow classifiers on eth0.
+    Result<vector<filter::Filter<ip::Classifier>>> eth0EgressFilters =
+      ip::filters(eth0, fq_codel::HANDLE);
+
+    if (eth0EgressFilters.isError()) {
+      return Error(
+          "Failed to get all the IP flow classifiers on " + eth0 +
+          ": " + eth0EgressFilters.error());
+    } else if (eth0EgressFilters.isNone()) {
+      return Error(
+          "Failed to get all the IP flow classifiers on " + eth0 +
+          ": link does not exist");
+    }
+
+    // Construct a port range to flow ID mapping from host eth0
+    // egress. This map will be used later.
+    foreach (const filter::Filter<ip::Classifier>& filter,
+             eth0EgressFilters.get()) {
+      const Option<PortRange> sourcePorts = filter.classifier().sourcePorts();
+      const Option<Handle> classid = filter.classid();
+
+      if (sourcePorts.isNone()) {
+        return Error("Missing source ports for filters on egress of " + eth0);
+      }
+
+      if (classid.isNone()) {
+        return Error("Missing classid for filters on egress of " + eth0);
+      }
+
+      if (flowIds.contains(sourcePorts.get())) {
+        return Error(
+          "Duplicated port range " + stringify(sourcePorts.get()) +
+          " detected on egress of " + eth0);
+      }
+
+      flowIds[sourcePorts.get()] = classid.get().secondary();
+    }
+  }
+
   IntervalSet<uint16_t> nonEphemeralPorts;
   IntervalSet<uint16_t> ephemeralPorts;
+  Option<uint16_t> flowId;
 
-  foreach (const ip::Classifier& classifier, classifiers.get()) {
-    Option<PortRange> sourcePorts = classifier.sourcePorts();
-    Option<PortRange> destinationPorts = classifier.destinationPorts();
+  foreach (const ip::Classifier& classifier, vethIngressClassifiers.get()) {
+    const Option<PortRange> sourcePorts = classifier.sourcePorts();
+    const Option<PortRange> destinationPorts = classifier.destinationPorts();
 
     // All the IP filters on veth used by us only have source ports.
     if (sourcePorts.isNone() || destinationPorts.isSome()) {
       return Error("Unexpected IP filter detected on " + veth(pid));
+    }
+
+    if (flowIds.contains(sourcePorts.get())) {
+      if (flowId.isNone()) {
+        flowId = flowIds.get(sourcePorts.get());
+      } else if (flowId != flowIds.get(sourcePorts.get())) {
+        return Error(
+            "A container is associated with multiple flows "
+            "on egress of " + eth0);
+      }
+    } else if (flowId.isSome()) {
+      // This is the case where some port range of a container is
+      // assigned to a flow while some isn't. This could happen if
+      // slave crashes while those filters are created. However, this
+      // is OK for us because packets by default go to the host flow.
+      LOG(WARNING) << "Container port range " << sourcePorts.get()
+                   << " does not have flow id " << flowId.get()
+                   << " assigned";
     }
 
     Interval<uint16_t> ports =
@@ -1775,6 +1877,11 @@ PortMappingIsolatorProcess::_recover(pid_t pid)
     VLOG(1) << "Recovered network isolator for container with pid " << pid
             << " non-ephemeral port ranges " << nonEphemeralPorts
             << " and ephemeral port range " << *ephemeralPorts.begin();
+  }
+
+  if (flowId.isSome()) {
+    freeFlowIds.erase(flowId.get());
+    info->flowId = flowId.get();
   }
 
   return CHECK_NOTNULL(info);
@@ -1866,6 +1973,10 @@ Future<Nothing> PortMappingIsolatorProcess::isolate(
 
   info->pid = pid;
 
+  if (flags.egress_unique_flow_per_container) {
+    info->flowId = getNextFlowId();
+  }
+
   // Bind mount the network namespace handle of the process 'pid' to a
   // directory to hold an extra reference to the network namespace
   // which will be released in 'cleanup'. By holding the extra
@@ -1951,10 +2062,16 @@ Future<Nothing> PortMappingIsolatorProcess::isolate(
   // redirect IP traffic to/from containers.
   foreach (const PortRange& range,
            getPortRanges(info->nonEphemeralPorts + info->ephemeralPorts)) {
-    LOG(INFO) << "Adding IP packet filters with ports " << range
-              << " for container " << containerId;
+    if (info->flowId.isSome()) {
+      LOG(INFO) << "Adding IP packet filters with ports " << range
+                << " with flow ID " << info->flowId.get()
+                << " for container " << containerId;
+    } else {
+      LOG(INFO) << "Adding IP packet filters with ports " << range
+                << " for container " << containerId;
+    }
 
-    Try<Nothing> add = addHostIPFilters(range, veth(pid));
+    Try<Nothing> add = addHostIPFilters(range, info->flowId, veth(pid));
     if (add.isError()) {
       return Failure(
           "Failed to add IP packet filter with ports " +
@@ -2007,8 +2124,9 @@ Future<Nothing> PortMappingIsolatorProcess::isolate(
         " to host " + eth0 + " already exists");
   }
 
-  // Mirror ICMP and ARP packets from host eth0 to veths of all the
-  // containers.
+  // Setup filters for ICMP and ARP packets. We mirror ICMP and ARP
+  // packets from host eth0 to veths of all the containers. We also
+  // setup flow classifiers for host eth0 egress.
   set<string> targets;
   foreachvalue (Info* info, infos) {
     if (info->pid.isSome()) {
@@ -2017,7 +2135,11 @@ Future<Nothing> PortMappingIsolatorProcess::isolate(
   }
 
   if (targets.size() == 1) {
-    // Create a new ICMP filter on host eth0.
+    // We just create the first container in which case we should
+    // create filters for ICMP and ARP packets.
+
+    // Create a new ICMP filter on host eth0 ingress for mirroring
+    // packets from host eth0 to veth.
     Try<bool> icmpEth0ToVeth = filter::icmp::create(
         eth0,
         ingress::HANDLE,
@@ -2038,7 +2160,8 @@ Future<Nothing> PortMappingIsolatorProcess::isolate(
           "The ICMP packet filter on host " + eth0 + " already exists");
     }
 
-    // Create a new ARP filter on host eth0.
+    // Create a new ARP filter on host eth0 ingress for mirroring
+    // packets from host eth0 to veth.
     Try<bool> arpEth0ToVeth = filter::basic::create(
         eth0,
         ingress::HANDLE,
@@ -2058,8 +2181,77 @@ Future<Nothing> PortMappingIsolatorProcess::isolate(
       return Failure(
           "The ARP packet filter on host " + eth0 + " already exists");
     }
+
+    if (flags.egress_unique_flow_per_container) {
+      // Create a new ICMP filter on host eth0 egress for classifying
+      // packets into a reserved flow.
+      Try<bool> icmpEth0Egress = filter::icmp::create(
+          eth0,
+          fq_codel::HANDLE,
+          icmp::Classifier(None()),
+          Priority(ICMP_FILTER_PRIORITY, NORMAL),
+          Handle(fq_codel::HANDLE, ICMP_FLOWID));
+
+      if (icmpEth0Egress.isError()) {
+        ++metrics.adding_eth0_egress_filters_errors;
+
+        return Failure(
+            "Failed to create the ICMP flow classifier on host " +
+            eth0 + ": " + icmpEth0Egress.error());
+      } else if (!icmpEth0Egress.get()) {
+        ++metrics.adding_eth0_egress_filters_already_exist;
+
+        return Failure(
+            "The ICMP flow classifier on host " + eth0 + " already exists");
+      }
+
+      // Create a new ARP filter on host eth0 egress for classifying
+      // packets into a reserved flow.
+      Try<bool> arpEth0Egress = filter::basic::create(
+          eth0,
+          fq_codel::HANDLE,
+          ETH_P_ARP,
+          Priority(ARP_FILTER_PRIORITY, NORMAL),
+          Handle(fq_codel::HANDLE, ARP_FLOWID));
+
+      if (arpEth0Egress.isError()) {
+        ++metrics.adding_eth0_egress_filters_errors;
+
+        return Failure(
+            "Failed to create the ARP flow classifier on host " +
+            eth0 + ": " + arpEth0Egress.error());
+      } else if (!arpEth0Egress.get()) {
+        ++metrics.adding_eth0_egress_filters_already_exist;
+
+        return Failure(
+            "The ARP flow classifier on host " + eth0 + " already exists");
+      }
+
+      // Rest of the host packets go to a reserved flow.
+      Try<bool> defaultEth0Egress = filter::basic::create(
+          eth0,
+          fq_codel::HANDLE,
+          ETH_P_ALL,
+          Priority(DEFAULT_FILTER_PRIORITY, NORMAL),
+          Handle(fq_codel::HANDLE, HOST_FLOWID));
+
+      if (defaultEth0Egress.isError()) {
+        ++metrics.adding_eth0_egress_filters_errors;
+
+        return Failure(
+            "Failed to create the default flow classifier on host " +
+            eth0 + ": " + defaultEth0Egress.error());
+      } else if (!defaultEth0Egress.get()) {
+        // NOTE: Since we don't remove this filter on purpose in
+        // _cleanup() (see the comments there), we just continue even
+        // if it already exists, so do nothing here.
+      }
+    }
   } else {
-    // Update the ICMP filter on host eth0.
+    // This is not the first container in which case we should update
+    // filters for ICMP and ARP packets.
+
+    // Update the ICMP filter on host eth0 ingress.
     Try<bool> icmpEth0ToVeth = filter::icmp::update(
         eth0,
         ingress::HANDLE,
@@ -2079,7 +2271,7 @@ Future<Nothing> PortMappingIsolatorProcess::isolate(
           "The ICMP packet filter on host " + eth0 + " already exists");
     }
 
-    // Update the ARP filter on host eth0.
+    // Update the ARP filter on host eth0 ingress.
     Try<bool> arpEth0ToVeth = filter::basic::update(
         eth0,
         ingress::HANDLE,
@@ -2257,10 +2449,18 @@ Future<Nothing> PortMappingIsolatorProcess::update(
   vector<PortRange> portsToAdd = getPortRanges(nonEphemeralPorts - remaining);
 
   foreach (const PortRange& range, portsToAdd) {
-    LOG(INFO) << "Adding IP packet filters with ports " << range
-              << " for container " << containerId;
+    if (info->flowId.isSome()) {
+      LOG(INFO) << "Adding IP packet filters with ports " << range
+                << " with flow ID " << info->flowId.get()
+                << " for container " << containerId;
+    } else {
+      LOG(INFO) << "Adding IP packet filters with ports " << range
+                << " for container " << containerId;
+    }
 
-    Try<Nothing> add = addHostIPFilters(range, veth(pid));
+    // All IP packets from a container will be assigned a single flow
+    // on host eth0.
+    Try<Nothing> add = addHostIPFilters(range, info->flowId, veth(pid));
     if (add.isError()) {
       return Failure(
           "Failed to add IP packet filter with ports " +
@@ -2614,6 +2814,13 @@ Try<Nothing> PortMappingIsolatorProcess::_cleanup(
   LOG(INFO) << "Freed ephemeral ports " << info->ephemeralPorts
             << " for container with pid " << pid;
 
+  if (info->flowId.isSome()) {
+    freeFlowIds.insert(info->flowId.get());
+
+    LOG(INFO) << "Freed flow ID " << info->flowId.get()
+              << " used by container with pid " << pid;
+  }
+
   set<string> targets;
   foreachvalue (Info* info, infos) {
     if (info->pid.isSome()) {
@@ -2623,7 +2830,7 @@ Try<Nothing> PortMappingIsolatorProcess::_cleanup(
 
   if (targets.empty()) {
     // This is the last container, remove the ARP and ICMP filters on
-    // host eth0.
+    // host eth0, remove the flow classifiers on eth0 egress too.
 
     // Remove the ICMP filter on host eth0.
     Try<bool> icmpEth0ToVeth = filter::icmp::remove(
@@ -2663,6 +2870,64 @@ Try<Nothing> PortMappingIsolatorProcess::_cleanup(
                  << " does not exist";
     }
 
+    if (flags.egress_unique_flow_per_container) {
+      // Remove the ICMP flow classifier on host eth0.
+      Try<bool> icmpEth0Egress = filter::icmp::remove(
+          eth0,
+          fq_codel::HANDLE,
+          icmp::Classifier(None()));
+
+      if (icmpEth0Egress.isError()) {
+        ++metrics.removing_eth0_egress_filters_errors;
+
+        errors.push_back(
+            "Failed to remove the ICMP flow classifier on host " + eth0 +
+            ": " + icmpEth0Egress.error());
+      } else if (!icmpEth0Egress.get()) {
+        ++metrics.removing_eth0_egress_filters_do_not_exist;
+
+        LOG(ERROR) << "The ICMP flow classifier on host " << eth0
+                   << " does not exist";
+      }
+
+      // Remove the ARP flow classifier on host eth0.
+      Try<bool> arpEth0Egress = filter::basic::remove(
+          eth0,
+          fq_codel::HANDLE,
+          ETH_P_ARP);
+
+      if (arpEth0Egress.isError()) {
+        ++metrics.removing_eth0_egress_filters_errors;
+
+        errors.push_back(
+            "Failed to remove the ARP flow classifier on host " + eth0 +
+            ": " + arpEth0Egress.error());
+      } else if (!arpEth0Egress.get()) {
+        ++metrics.removing_eth0_egress_filters_do_not_exist;
+
+        LOG(ERROR) << "The ARP flow classifier on host " << eth0
+                   << " does not exist";
+      }
+
+      // Kernel creates a place-holder filter, with handle 0, for each
+      // tuple (protocol, priority, kind). Our current implementation
+      // doesn't remove them, so all these filters are left. Packets
+      // will be dropped because these filters don't set a valid flow
+      // ID. We have to work around this situation for egress. The
+      // long term solution is removing all these filters after our
+      // own filters are all gone, see the upstream commit
+      // 1e052be69d045c8d0f82ff1116fd3e5a79661745 from:
+      // http://git.kernel.org/cgit/linux/kernel/git/davem/net-next.git.
+      //
+      // So, here we do NOT remove the default flow classifier on host
+      // eth0 on purpose so that after all containers are gone the
+      // host traffic still goes into this flow, this guarantees no
+      // traffic will be dropped by fq_codel qdisc.
+      //
+      // Maybe we need to remove the fq_codel qdisc on host eth0.
+      // TODO(cwang): Revise this in MESOS-2370, we don't remove
+      // ingress qdisc either.
+    }
   } else {
     // This is not the last container. Replace the ARP and ICMP
     // filters. The reason we do this is that we don't have an easy
@@ -2768,6 +3033,7 @@ Try<Nothing> PortMappingIsolatorProcess::_cleanup(
 // port range.
 Try<Nothing> PortMappingIsolatorProcess::addHostIPFilters(
     const PortRange& range,
+    const Option<uint16_t>& flowId,
     const string& veth)
 {
   // NOTE: The order in which these filters are added is important!
@@ -2906,6 +3172,32 @@ Try<Nothing> PortMappingIsolatorProcess::addHostIPFilters(
         veth + " already exists");
   }
 
+  if (flowId.isSome()) {
+    // Add IP packet filters to classify traffic sending to eth0
+    // in the same way so that traffic of each container will be
+    // classified to different flows defined by fq_codel.
+    Try<bool> hostEth0Egress = filter::ip::create(
+        eth0,
+        fq_codel::HANDLE,
+        ip::Classifier(None(), None(), range, None()),
+        Priority(IP_FILTER_PRIORITY, LOW),
+        Handle(fq_codel::HANDLE, flowId.get()));
+
+    if (hostEth0Egress.isError()) {
+      ++metrics.adding_eth0_egress_filters_errors;
+
+      return Error(
+          "Failed to create a flow classifier for " + veth +
+          " on host " + eth0 + ": " + hostEth0Egress.error());
+    } else if (!hostEth0Egress.get()) {
+      ++metrics.adding_eth0_egress_filters_already_exist;
+
+      return Error(
+          "The flow classifier for veth " + veth +
+          " on host " + eth0 + " already exists");
+    }
+  }
+
   return Nothing();
 }
 
@@ -2958,6 +3250,27 @@ Try<Nothing> PortMappingIsolatorProcess::removeHostIPFilters(
 
     LOG(ERROR) << "The IP packet filter from host " << lo
                << " to " << veth << " does not exist";
+  }
+
+  if (flags.egress_unique_flow_per_container) {
+    // Remove the egress flow classifier on host eth0.
+    Try<bool> hostEth0Egress = filter::ip::remove(
+        eth0,
+        fq_codel::HANDLE,
+        ip::Classifier(None(), None(), range, None()));
+
+    if (hostEth0Egress.isError()) {
+      ++metrics.removing_eth0_egress_filters_errors;
+
+      return Error(
+          "Failed to remove the flow classifier from host " +
+          eth0 + " for " + veth + ": " + hostEth0Egress.error());
+    } else if (!hostEth0Egress.get()) {
+      ++metrics.removing_eth0_egress_filters_do_not_exist;
+
+      LOG(ERROR) << "The flow classifier from host " << eth0
+                 << " for " << range << " does not exist";
+    }
   }
 
   // Now, we try to remove filters on veth. No need to proceed if the
@@ -3176,6 +3489,20 @@ string PortMappingIsolatorProcess::scripts(Info* info)
 
   return script.str();
 }
+
+
+uint16_t PortMappingIsolatorProcess::getNextFlowId()
+{
+  // NOTE: It is very unlikely that we exhaust all the flow IDs.
+  CHECK(freeFlowIds.begin() != freeFlowIds.end());
+
+  uint16_t flowId = *freeFlowIds.begin();
+
+  freeFlowIds.erase(freeFlowIds.begin());
+
+  return flowId;
+}
+
 
 ////////////////////////////////////////////////////
 // Implementation for the ephemeral ports allocator.

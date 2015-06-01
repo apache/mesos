@@ -477,6 +477,7 @@ Try<bool> create(
           classifier,
           priority,
           None(),
+          None(),
           redirect));
 }
 
@@ -496,6 +497,7 @@ Try<bool> create(
           classifier,
           priority,
           handle,
+          None(),
           redirect));
 }
 
@@ -514,6 +516,7 @@ Try<bool> create(
           classifier,
           priority,
           None(),
+          None(),
           terminal));
 }
 
@@ -531,7 +534,8 @@ Try<bool> create(
           classifier,
           priority,
           None(),
-          classid));
+          classid,
+          action::Terminal()));
 }
 
 Try<bool> remove(

@@ -189,8 +189,9 @@ Try<bool> create(
 
 
 // Creates an IP packet filter attached to the given parent on the
-// link which will set the classid for packets. Returns false if an IP
-// packet filter attached to the given parent with the same classifier
+// link which will set the classid for packets and stop the IP packets
+// from being sent to the next filter. Returns false if an IP packet
+// filter attached to the given parent with the same classifier
 // already exists.
 Try<bool> create(
     const std::string& link,

@@ -397,6 +397,13 @@ mesos::internal::slave::Flags::Flags()
       "This flag uses the Bytes type (defined in stout) and is used for\n"
       "the 'network/port_mapping' isolator.");
 
+  add(&Flags::egress_unique_flow_per_container,
+      "egress_unique_flow_per_container",
+      "Whether to assign an individual flow for each container for the\n"
+      "egress traffic. This flag is used for the 'network/port_mapping'\n"
+      "isolator.",
+      false);
+
   add(&Flags::network_enable_socket_statistics_summary,
       "network_enable_socket_statistics_summary",
       "Whether to collect socket statistics summary for each container.\n"

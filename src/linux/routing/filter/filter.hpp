@@ -52,16 +52,6 @@ public:
   Filter(const Handle& _parent,
          const Classifier& _classifier,
          const Option<Priority>& _priority,
-         const Option<Handle>& _handle)
-    : parent_(_parent),
-      classifier_(_classifier),
-      priority_(_priority),
-      handle_(_handle) {}
-
-  // Creates a filter with specified classid.
-  Filter(const Handle& _parent,
-         const Classifier& _classifier,
-         const Option<Priority>& _priority,
          const Option<Handle>& _handle,
          const Option<Handle>& _classid)
     : parent_(_parent),
@@ -76,11 +66,13 @@ public:
          const Classifier& _classifier,
          const Option<Priority>& _priority,
          const Option<Handle>& _handle,
+         const Option<Handle>& _classid,
          const Action& action)
     : parent_(_parent),
       classifier_(_classifier),
       priority_(_priority),
-      handle_(_handle)
+      handle_(_handle),
+      classid_(_classid)
   {
     attach(action);
   }

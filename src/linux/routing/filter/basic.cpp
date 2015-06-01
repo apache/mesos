@@ -125,6 +125,7 @@ Try<bool> create(
           Classifier(protocol),
           priority,
           None(),
+          None(),
           redirect));
 }
 
@@ -142,6 +143,7 @@ Try<bool> create(
           parent,
           Classifier(protocol),
           priority,
+          None(),
           None(),
           mirror));
 }
@@ -167,6 +169,7 @@ Try<bool> update(
       Filter<Classifier>(
           parent,
           Classifier(protocol),
+          None(),
           None(),
           None(),
           mirror));
