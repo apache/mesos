@@ -1100,6 +1100,98 @@ TEST_F(TaskValidationTest, ExecutorInfoDiffersOnDifferentSlaves)
   Shutdown();
 }
 
+
+// This test verifies that a task is not allowed to mix revocable and
+// non-revocable resources.
+TEST_F(TaskValidationTest, TaskUsesRevocableResources)
+{
+  TaskInfo task;
+  task.set_name("");
+  task.mutable_task_id()->set_value("task");
+  task.mutable_slave_id()->set_value("slave");
+
+  // Non-revocable cpus.
+  Resource cpus;
+  cpus.set_name("cpus");
+  cpus.set_type(Value::SCALAR);
+  cpus.mutable_scalar()->set_value(2);
+
+  // A task with only non-revocable cpus is valid.
+  task.add_resources()->CopyFrom(cpus);
+  EXPECT_NONE(task::internal::validateResources(task));
+
+  // Revocable cpus.
+  Resource revocableCpus = cpus;
+  revocableCpus.mutable_revocable();
+
+  // A task with only revocable cpus is valid.
+  task.clear_resources();
+  task.add_resources()->CopyFrom(revocableCpus);
+  EXPECT_NONE(task::internal::validateResources(task));
+
+  // A task with both revocable and non-revocable cpus is invalid.
+  task.clear_resources();
+  task.add_resources()->CopyFrom(cpus);
+  task.add_resources()->CopyFrom(revocableCpus);
+  EXPECT_SOME(task::internal::validateResources(task));
+}
+
+
+// This test verifies that a task and its executor are not allowed to
+// mix revocable and non-revocable resources.
+TEST_F(TaskValidationTest, TaskAndExecutorUseRevocableResources)
+{
+  TaskInfo task;
+  task.set_name("");
+  task.mutable_task_id()->set_value("task");
+  task.mutable_slave_id()->set_value("slave");
+
+  ExecutorInfo executor = DEFAULT_EXECUTOR_INFO;
+
+  // Non-revocable cpus.
+  Resource cpus;
+  cpus.set_name("cpus");
+  cpus.set_type(Value::SCALAR);
+  cpus.mutable_scalar()->set_value(2);
+
+  // A task and executor with only non-revocable cpus is valid.
+  task.add_resources()->CopyFrom(cpus);
+  executor.add_resources()->CopyFrom(cpus);
+  task.mutable_executor()->CopyFrom(executor);
+  EXPECT_NONE(task::internal::validateResources(task));
+
+  // Revocable cpus.
+  Resource revocableCpus = cpus;
+  revocableCpus.mutable_revocable();
+
+  // A task and executor with only revocable cpus is valid.
+  task.clear_resources();
+  task.add_resources()->CopyFrom(revocableCpus);
+  executor.clear_resources();
+  executor.add_resources()->CopyFrom(revocableCpus);
+  task.mutable_executor()->CopyFrom(executor);
+  EXPECT_NONE(task::internal::validateResources(task));
+
+  // A task with revocable cpus and its executor with non-revocable
+  // cpus is invalid.
+  task.clear_resources();
+  task.add_resources()->CopyFrom(revocableCpus);
+  executor.clear_resources();
+  executor.add_resources()->CopyFrom(cpus);
+  task.mutable_executor()->CopyFrom(executor);
+  EXPECT_SOME(task::internal::validateResources(task));
+
+  // A task with non-revocable cpus and its executor with
+  // non-revocable cpus is invalid.
+  task.clear_resources();
+  task.add_resources()->CopyFrom(cpus);
+  executor.clear_resources();
+  executor.add_resources()->CopyFrom(revocableCpus);
+  task.mutable_executor()->CopyFrom(executor);
+  EXPECT_SOME(task::internal::validateResources(task));
+}
+
+
 // TODO(jieyu): Add tests for checking duplicated persistence ID
 // against offered resources.
 

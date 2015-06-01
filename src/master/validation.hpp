@@ -59,6 +59,15 @@ Option<Error> validate(
     Slave* slave,
     const Resources& offered);
 
+
+// Functions in this namespace are only exposed for testing.
+namespace internal {
+
+// Validates resources of the task and executor (if present).
+Option<Error> validateResources(const TaskInfo& task);
+
+} // namespace internal {
+
 } // namespace task {
 
 

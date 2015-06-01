@@ -3098,9 +3098,11 @@ ExecutorInfo Slave::getExecutorInfo(
 
     // Add an allowance for the command executor. This does lead to a
     // small overcommit of resources.
-    //
-    // TODO(bmahler): If revocable resources are used, this leads to
-    // mixing of resources.
+    // TODO(vinod): If a task is using revocable resources, mark the
+    // corresponding executor resource (e.g., cpus) to be also
+    // revocable. Currently, it is OK because the containerizer is
+    // given task + executor resources on task launch resulting in
+    // the container being correctly marked as revocable.
     executor.mutable_resources()->MergeFrom(
         Resources::parse(
           "cpus:" + stringify(DEFAULT_EXECUTOR_CPUS) + ";" +

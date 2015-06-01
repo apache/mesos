@@ -187,6 +187,8 @@ Option<Error> validate(const RepeatedPtrField<Resource>& resources)
 
 namespace task {
 
+namespace internal {
+
 // Validates that a task id is valid, i.e., contains only valid
 // characters.
 Option<Error> validateTaskID(const TaskInfo& task)
@@ -295,33 +297,6 @@ Option<Error> validateCheckpoint(Framework* framework, Slave* slave)
   return None();
 }
 
-// Validates that the resources specified by the framework are valid.
-Option<Error> validateResources(const TaskInfo& task)
-{
-  Option<Error> error = resource::validate(task.resources());
-  if (error.isSome()) {
-    return Error("Task uses invalid resources: " + error.get().message);
-  }
-
-  Resources total = task.resources();
-
-  if (task.has_executor()) {
-    error = resource::validate(task.executor().resources());
-    if (error.isSome()) {
-      return Error("Executor uses invalid resources: " + error.get().message);
-    }
-
-    total += task.executor().resources();
-  }
-
-  error = resource::validateUniquePersistenceID(total);
-  if (error.isSome()) {
-    return error;
-  }
-
-  return None();
-}
-
 
 // Validates that the task and the executor are using proper amount of
 // resources. For instance, the used resources by a task on each slave
@@ -390,6 +365,47 @@ Option<Error> validateResourceUsage(
 }
 
 
+// Validates that the resources specified by the task are valid.
+Option<Error> validateResources(const TaskInfo& task)
+{
+  Option<Error> error = resource::validate(task.resources());
+  if (error.isSome()) {
+    return Error("Task uses invalid resources: " + error.get().message);
+  }
+
+  Resources total = task.resources();
+
+  if (task.has_executor()) {
+    error = resource::validate(task.executor().resources());
+    if (error.isSome()) {
+      return Error("Executor uses invalid resources: " + error.get().message);
+    }
+
+    total += task.executor().resources();
+  }
+
+  // A task and its executor can either use non-revocable resources
+  // or revocable resources of a given name but not both.
+  foreach (const string& name, total.names()) {
+    Resources resources = total.get(name);
+    if (!resources.revocable().empty() &&
+        resources != resources.revocable()) {
+      return Error("Task (and its executor, if exists) uses both revocable and"
+                   " non-revocable " + name);
+    }
+  }
+
+  error = resource::validateUniquePersistenceID(total);
+  if (error.isSome()) {
+    return error;
+  }
+
+  return None();
+}
+
+} // namespace internal {
+
+
 Option<Error> validate(
     const TaskInfo& task,
     Framework* framework,
@@ -404,13 +420,14 @@ Option<Error> validate(
   // assumes that ExecutorInfo is valid which is verified by
   // 'validateExecutorInfo'.
   vector<lambda::function<Option<Error>(void)>> validators = {
-    lambda::bind(validateTaskID, task),
-    lambda::bind(validateUniqueTaskID, task, framework),
-    lambda::bind(validateSlaveID, task, slave),
-    lambda::bind(validateExecutorInfo, task, framework, slave),
-    lambda::bind(validateCheckpoint, framework, slave),
-    lambda::bind(validateResources, task),
-    lambda::bind(validateResourceUsage, task, framework, slave, offered)
+    lambda::bind(internal::validateTaskID, task),
+    lambda::bind(internal::validateUniqueTaskID, task, framework),
+    lambda::bind(internal::validateSlaveID, task, slave),
+    lambda::bind(internal::validateExecutorInfo, task, framework, slave),
+    lambda::bind(internal::validateCheckpoint, framework, slave),
+    lambda::bind(internal::validateResources, task),
+    lambda::bind(
+        internal::validateResourceUsage, task, framework, slave, offered)
   };
 
   // TODO(benh): Add a validateHealthCheck function.
