@@ -338,6 +338,9 @@ Try<Resource> Resources::parse(
 }
 
 
+// TODO(wickman) It is possible for Resources::ostream<< to produce
+// unparseable resources, i.e.  those with
+// ReservationInfo/DiskInfo/RevocableInfo.
 Try<Resources> Resources::parse(
     const string& text,
     const string& defaultRole)
@@ -1113,9 +1116,65 @@ Resources& Resources::operator -= (const Resources& that)
 }
 
 
+ostream& operator << (ostream& stream, const Volume& volume) {
+  string volumeConfig = volume.container_path();
+
+  if (volume.has_host_path()) {
+    volumeConfig = volume.host_path() + ":" + volumeConfig;
+
+    if (volume.has_mode()) {
+      switch (volume.mode()) {
+        case Volume::RW: volumeConfig += ":rw"; break;
+        case Volume::RO: volumeConfig += ":ro"; break;
+        default:
+          LOG(FATAL) << "Unknown Volume mode: " << volume.mode();
+          break;
+      }
+    }
+  }
+
+  stream << volumeConfig;
+
+  return stream;
+}
+
+
+ostream& operator << (ostream& stream, const Resource::DiskInfo& disk) {
+  if (disk.has_persistence()) {
+    stream << disk.persistence().id();
+  }
+
+  if (disk.has_volume()) {
+    stream << ":" << disk.volume();
+  }
+
+  return stream;
+}
+
+
 ostream& operator << (ostream& stream, const Resource& resource)
 {
-  stream << resource.name() << "(" << resource.role() << "):";
+  stream << resource.name();
+
+  stream << "(" << resource.role();
+
+  if (resource.has_reservation()) {
+    stream << ", " << resource.reservation().principal();
+  }
+
+  stream << ")";
+
+  if (resource.has_disk()) {
+    stream << "[" << resource.disk() << "]";
+  }
+
+  // Once extended revocable attributes are available, change this to a more
+  // meaningful value.
+  if (resource.has_revocable()) {
+    stream << "{REV}";
+  }
+
+  stream << ":";
 
   switch (resource.type()) {
     case Value::SCALAR: stream << resource.scalar(); break;

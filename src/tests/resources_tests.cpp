@@ -180,6 +180,60 @@ TEST(ResourcesTest, Printing)
 }
 
 
+TEST(ResourcesTest, PrintingExtendedAttributes)
+{
+  Resource disk;
+  disk.set_name("disk");
+  disk.set_type(Value::SCALAR);
+  disk.mutable_scalar()->set_value(1);
+
+  // Standard resource.
+  ostringstream stream;
+  stream << disk;
+  EXPECT_EQ(stream.str(), "disk(*):1");
+
+  // Standard resource with role.
+  stream.str("");
+  disk.set_role("alice");
+  stream << disk;
+  EXPECT_EQ(stream.str(), "disk(alice):1");
+
+  // Standard revocable resource.
+  stream.str("");
+  disk.mutable_revocable();
+  stream << disk;
+  EXPECT_EQ(stream.str(), "disk(alice){REV}:1");
+  disk.clear_revocable();
+
+  // Disk resource with persistent volume.
+  stream.str("");
+  disk.mutable_disk()->mutable_persistence()->set_id("hadoop");
+  disk.mutable_disk()->mutable_volume()->set_container_path("/data");
+  stream << disk;
+  EXPECT_EQ(stream.str(), "disk(alice)[hadoop:/data]:1");
+
+  // Ensure {REV} comes after [disk].
+  stream.str("");
+  disk.mutable_revocable();
+  stream << disk;
+  EXPECT_EQ(stream.str(), "disk(alice)[hadoop:/data]{REV}:1");
+  disk.clear_revocable();
+
+  // Disk resource with host path.
+  stream.str("");
+  disk.mutable_disk()->mutable_volume()->set_host_path("/hdfs");
+  disk.mutable_disk()->mutable_volume()->set_mode(Volume::RW);
+  stream << disk;
+  EXPECT_EQ(stream.str(), "disk(alice)[hadoop:/hdfs:/data:rw]:1");
+
+  // Disk resource with host path and reservation.
+  stream.str("");
+  disk.mutable_reservation()->set_principal("hdfs-1234-4321");
+  stream << disk;
+  EXPECT_EQ(stream.str(), "disk(alice, hdfs-1234-4321)[hadoop:/hdfs:/data:rw]:1");
+}
+
+
 TEST(ResourcesTest, InitializedIsEmpty)
 {
   Resources r;
