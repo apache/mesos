@@ -16,9 +16,6 @@
  * limitations under the License.
  */
 
-#include <iostream>
-#include <sstream>
-
 #include <process/process.hpp>
 #include <process/timeout.hpp>
 
@@ -31,8 +28,6 @@
 
 using namespace process;
 
-using std::endl;
-using std::ostringstream;
 using std::string;
 
 namespace mesos {
@@ -50,40 +45,26 @@ Initialize::Flags::Flags()
       "timeout",
       "Maximum time allowed for the command to finish\n"
       "(e.g., 500ms, 1sec, etc.)");
-
-  add(&Flags::help,
-      "help",
-      "Prints the help message",
-      false);
-}
-
-
-string Initialize::usage(const string& argv0) const
-{
-  ostringstream out;
-
-  out << "Usage: " << argv0 << " " << name() << " [OPTIONS]" << endl
-      << endl
-      << "This command is used to initialize the log" << endl
-      << endl
-      << "Supported OPTIONS:" << endl
-      << flags.usage();
-
-  return out.str();
 }
 
 
 Try<Nothing> Initialize::execute(int argc, char** argv)
 {
+  flags.setUsageMessage(
+      "Usage: " + name() + " [option]\n"
+      "\n"
+      "This command is used to initialize the log.\n"
+      "\n");
+
   // Configure the tool by parsing command line arguments.
   if (argc > 0 && argv != NULL) {
     Try<Nothing> load = flags.load(None(), argc, argv);
     if (load.isError()) {
-      return Error(load.error() + "\n\n" + usage(argv[0]));
+      return Error(flags.usage(load.error()));
     }
 
     if (flags.help) {
-      return Error(usage(argv[0]));
+      return Error(flags.usage());
     }
 
     process::initialize();
@@ -91,7 +72,7 @@ Try<Nothing> Initialize::execute(int argc, char** argv)
   }
 
   if (flags.path.isNone()) {
-    return Error("Missing flag: '--path'");
+    return Error(flags.usage("Missing required option --path"));
   }
 
   // Setup the timeout if specified.

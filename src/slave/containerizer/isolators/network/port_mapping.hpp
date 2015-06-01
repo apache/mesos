@@ -342,7 +342,6 @@ public:
   {
     Flags();
 
-    bool help;
     Option<std::string> eth0_name;
     Option<std::string> lo_name;
     Option<pid_t> pid;
@@ -372,7 +371,6 @@ public:
   {
     Flags();
 
-    bool help;
     Option<pid_t> pid;
     bool enable_socket_statistics_summary;
     bool enable_socket_statistics_details;

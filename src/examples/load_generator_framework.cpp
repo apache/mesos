@@ -270,30 +270,15 @@ public:
         "Run LoadGenerator for the specified duration.\n"
         "Without this option this framework would keep generating load\n"
         "forever as long as it is connected to the master");
-
-    add(&Flags::help,
-        "help",
-        "Print this help message",
-        false);
   }
 
   Option<string> master;
   string principal;
   Option<string> secret;
   bool authenticate;
-  bool help;
   Option<double> qps;
   Option<Duration> duration;
 };
-
-
-void usage(const char* argv0, const flags::FlagsBase& flags)
-{
-  cerr << "Usage: " << os::basename(argv0).get() << " [...]" << endl
-       << endl
-       << "Supported options:" << endl
-       << flags.usage();
-}
 
 
 int main(int argc, char** argv)
@@ -303,26 +288,28 @@ int main(int argc, char** argv)
   Try<Nothing> load = flags.load("MESOS_", argc, argv);
 
   if (load.isError()) {
-    cerr << load.error() << endl;
-    usage(argv[0], flags);
-    exit(1);
+    cerr << flags.usage(load.error()) << endl;
+    return EXIT_FAILURE;
   }
 
   if (flags.help) {
-    usage(argv[0], flags);
-    exit(1);
+    cout << flags.usage() << endl;
+    return EXIT_SUCCESS;
   }
 
   if (flags.master.isNone()) {
-    EXIT(1) << "Missing required option --master. See --help";
+    cerr << flags.usage( "Missing required option --master") << endl;
+    return EXIT_FAILURE;
   }
 
   if (flags.qps.isNone()) {
-    EXIT(1) << "Missing required option --qps. See --help";
+    cerr << flags.usage("Missing required option --qps") << endl;
+    return EXIT_FAILURE;
   }
 
   if (flags.qps.get() <= 0) {
-    EXIT(1) << "--qps needs to be greater than zero";
+    cerr << flags.usage("--qps needs to be greater than zero") << endl;
+    return EXIT_FAILURE;
   }
 
   // We want the logger to catch failure signals.
@@ -344,7 +331,8 @@ int main(int argc, char** argv)
     cout << "Enabling authentication for the framework" << endl;
 
     if (flags.secret.isNone()) {
-      EXIT(1) << "Expecting --secret when --authenticate is set";
+      cerr << "Expecting --secret when --authenticate is set" << endl;
+      return EXIT_FAILURE;
     }
 
     string secret = flags.secret.get();
@@ -364,7 +352,7 @@ int main(int argc, char** argv)
         &scheduler, framework, flags.master.get());
   }
 
-  int status = driver->run() == DRIVER_STOPPED ? 0 : 1;
+  int status = driver->run() == DRIVER_STOPPED ? EXIT_SUCCESS : EXIT_SUCCESS;
 
   // Ensure that the driver process terminates.
   driver->stop();

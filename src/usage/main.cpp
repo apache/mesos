@@ -60,62 +60,45 @@ public:
 };
 
 
-void usage(const char* argv0, const flags::FlagsBase& flags)
-{
-  cerr << "Usage: " << os::basename(argv0).get() << " [...]" << endl
-       << endl
-       << "Supported options:" << endl
-       << flags.usage();
-}
-
-
 int main(int argc, char** argv)
 {
   GOOGLE_PROTOBUF_VERIFY_VERSION;
 
   Flags flags;
 
-  bool help;
-  flags.add(&help,
-            "help",
-            "Prints this help message",
-            false);
-
   Try<Nothing> load = flags.load(None(), argc, argv);
 
   if (load.isError()) {
-    cerr << load.error() << endl;
-    usage(argv[0], flags);
-    return -1;
+    cerr << flags.usage(load.error()) << endl;
+    return EXIT_FAILURE;
   }
 
-  if (help) {
-    usage(argv[0], flags);
-    return 0;
+  if (flags.help) {
+    cout << flags.usage() << endl;
+    return EXIT_SUCCESS;
   }
 
   if (flags.pid.isNone()) {
-    cerr << "Missing pid" << endl;
-    usage(argv[0], flags);
-    return -1;
+    cerr << flags.usage("Missing required option --pid") << endl;
+    return EXIT_FAILURE;
   }
 
   Try<ResourceStatistics> statistics = mesos::internal::usage(flags.pid.get());
 
   if (statistics.isError()) {
     cerr << "Failed to get usage: " << statistics.error() << endl;
-    return -1;
+    return EXIT_FAILURE;
   }
 
   if (flags.recordio) {
     Try<Nothing> write = protobuf::write(STDOUT_FILENO, statistics.get());
     if (write.isError()) {
       cerr << "Failed to write record: " << write.error() << endl;
-      return -1;
+      return EXIT_FAILURE;
     }
   } else {
     cout << stringify(JSON::Protobuf(statistics.get())) << endl;
   }
 
-  return 0;
+  return EXIT_SUCCESS;
 }

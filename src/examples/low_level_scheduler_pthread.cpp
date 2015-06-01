@@ -483,5 +483,5 @@ int main(int argc, char** argv)
   scheduler->wait();
   delete scheduler;
 
-  return 0;
+  return EXIT_SUCCESS;
 }

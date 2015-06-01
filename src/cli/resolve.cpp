@@ -43,24 +43,10 @@ using std::endl;
 using std::string;
 
 
-void usage(const char* argv0, const flags::FlagsBase& flags)
-{
-  cerr << "Usage: " << os::basename(argv0).get() << " <master>" << endl
-       << endl
-       << "Supported options:" << endl
-       << flags.usage();
-}
-
-
 int main(int argc, char** argv)
 {
   flags::FlagsBase flags;
-
-  bool help;
-  flags.add(&help,
-            "help",
-            "Prints this help message",
-            false);
+  flags.setUsageMessage("Usage: " + os::basename(argv[0]).get() + " <master>");
 
   Duration timeout;
   flags.add(&timeout,
@@ -68,75 +54,54 @@ int main(int argc, char** argv)
             "How long to wait to resolve master",
             Seconds(5));
 
+  // TODO(marco): `verbose` is also a great candidate for FlagsBase.
   bool verbose;
   flags.add(&verbose,
             "verbose",
             "Be verbose",
             false);
 
-  // Load flags from environment and command line.
-  Try<Nothing> load = flags.load(None(), argc, argv);
+  // Load flags from environment and command line, and remove
+  // them from argv.
+  Try<Nothing> load = flags.load(None(), &argc, &argv);
 
   if (load.isError()) {
-    cerr << load.error() << endl;
-    usage(argv[0], flags);
-    return -1;
+    cerr << flags.usage(load.error()) << endl;
+    return EXIT_FAILURE;
   }
 
-  if (help) {
-    usage(argv[0], flags);
-    return -1;
+  if (flags.help) {
+    cout << flags.usage() << endl;
+    return EXIT_SUCCESS;
   }
 
-  if (argc < 2) {
-    usage(argv[0], flags);
-    return -1;
+  // 'master' argument must be the only argument left after parsing.
+  if (argc != 2) {
+    cerr << flags.usage("There must be only one argument: <master>") << endl;
+    return EXIT_FAILURE;
   }
 
-  Option<string> master = None();
-
-  // Find 'master' argument (the only argument not prefixed by '--').
-  for (int i = 1; i < argc; i++) {
-    const std::string arg(strings::trim(argv[i]));
-    if (arg.find("--") != 0) {
-      if (master.isSome()) {
-        // There should only be one non-flag argument.
-        cerr << "Ambiguous 'master': "
-             << master.get() << " and " << arg << endl;
-        usage(argv[0], flags);
-        return -1;
-      } else {
-        master = arg;
-      }
-    }
-  }
-
-  if (master.isNone()) {
-    cerr << "Missing 'master'" << endl;
-    usage(argv[0], flags);
-    return -1;
-  }
-
-  Try<MasterDetector*> detector = MasterDetector::create(master.get());
+  string master = argv[1];
+  Try<MasterDetector*> detector = MasterDetector::create(master);
 
   if (detector.isError()) {
     cerr << "Failed to create a master detector: " << detector.error() << endl;
-    return -1;
+    return EXIT_FAILURE;
   }
 
   Future<Option<MasterInfo> > masterInfo = detector.get()->detect();
 
   if (!masterInfo.await(timeout)) {
-    cerr << "Failed to detect master from '" << master.get()
+    cerr << "Failed to detect master from '" << master
          << "' within " << timeout << endl;
     return -1;
   } else {
     CHECK(!masterInfo.isDiscarded());
 
     if (masterInfo.isFailed()) {
-      cerr << "Failed to detect master from '" << master.get()
+      cerr << "Failed to detect master from '" << master
            << "': " << masterInfo.failure() << endl;
-      return -1;
+      return EXIT_FAILURE;
     }
   }
 
@@ -144,5 +109,5 @@ int main(int argc, char** argv)
   CHECK_SOME(masterInfo.get());
   cout << strings::remove(masterInfo.get().get().pid(), "master@") << endl;
 
-  return 0;
+  return EXIT_SUCCESS;
 }

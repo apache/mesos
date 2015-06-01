@@ -581,15 +581,6 @@ private:
 } // namespace mesos {
 
 
-void usage(const char* argv0, const flags::FlagsBase& flags)
-{
-  cerr << "Usage: " << os::basename(argv0).get() << " [...]" << endl
-       << endl
-       << "Supported options:" << endl
-       << flags.usage();
-}
-
-
 class Flags : public flags::FlagsBase
 {
 public:
@@ -615,24 +606,17 @@ int main(int argc, char** argv)
 {
   Flags flags;
 
-  bool help;
-  flags.add(&help,
-            "help",
-            "Prints this help message",
-            false);
-
   // Load flags from command line.
   Try<Nothing> load = flags.load(None(), &argc, &argv);
 
   if (load.isError()) {
-    cerr << load.error() << endl;
-    usage(argv[0], flags);
-    return -1;
+    cerr << flags.usage(load.error()) << endl;
+    return EXIT_FAILURE;
   }
 
-  if (help) {
-    usage(argv[0], flags);
-    return -1;
+  if (flags.help) {
+    cout << flags.usage() << endl;
+    return EXIT_SUCCESS;
   }
 
   // After flags.load(..., &argc, &argv) all flags will have been
@@ -653,5 +637,5 @@ int main(int argc, char** argv)
   }
   mesos::internal::CommandExecutor executor(override, path);
   mesos::MesosExecutorDriver driver(&executor);
-  return driver.run() == mesos::DRIVER_STOPPED ? 0 : 1;
+  return driver.run() == mesos::DRIVER_STOPPED ? EXIT_SUCCESS : EXIT_FAILURE;
 }

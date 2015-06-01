@@ -427,5 +427,5 @@ int main(int argc, char** argv)
   process::wait(scheduler);
   delete scheduler;
 
-  return 0;
+  return EXIT_SUCCESS;
 }

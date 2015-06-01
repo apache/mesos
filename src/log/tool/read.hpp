@@ -54,9 +54,6 @@ public:
 
   // Users can change the default configuration by setting this flags.
   Flags flags;
-
-private:
-  std::string usage(const std::string& argv0) const;
 };
 
 } // namespace tool {

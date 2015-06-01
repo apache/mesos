@@ -47,7 +47,6 @@ using std::cout;
 using std::endl;
 using std::ifstream;
 using std::ofstream;
-using std::ostringstream;
 using std::string;
 using std::vector;
 
@@ -95,44 +94,30 @@ Benchmark::Flags::Flags()
       "initialize",
       "Whether to initialize the log",
       true);
-
-  add(&Flags::help,
-      "help",
-      "Prints the help message",
-      false);
-}
-
-
-string Benchmark::usage(const string& argv0) const
-{
-  ostringstream out;
-
-  out << "Usage: " << argv0 << " " << name() << " [OPTIONS]" << endl
-      << endl
-      << "This command is used to do performance test on the" << endl
-      << "replicated log. It takes a trace file of write sizes" << endl
-      << "and replay that trace to measure the latency of each" << endl
-      << "write. The data to be written for each write can be" << endl
-      << "specified using the '--type' flag." << endl
-      << endl
-      << "Supported OPTIONS:" << endl
-      << flags.usage();
-
-  return out.str();
 }
 
 
 Try<Nothing> Benchmark::execute(int argc, char** argv)
 {
+  flags.setUsageMessage(
+      "Usage: " + name() + " [options]\n"
+      "\n"
+      "This command is used to do performance test on the\n"
+      "replicated log. It takes a trace file of write sizes\n"
+      "and replay that trace to measure the latency of each\n"
+      "write. The data to be written for each write can be\n"
+      "specified using the --type flag.\n"
+      "\n");
+
   // Configure the tool by parsing command line arguments.
   if (argc > 0 && argv != NULL) {
     Try<Nothing> load = flags.load(None(), argc, argv);
     if (load.isError()) {
-      return Error(load.error() + "\n\n" + usage(argv[0]));
+      return Error(flags.usage(load.error()));
     }
 
     if (flags.help) {
-      return Error(usage(argv[0]));
+      return Error(flags.usage());
     }
 
     process::initialize();
@@ -140,27 +125,27 @@ Try<Nothing> Benchmark::execute(int argc, char** argv)
   }
 
   if (flags.quorum.isNone()) {
-    return Error("Missing flag '--quorum'");
+    return Error(flags.usage("Missing required option --quorum"));
   }
 
   if (flags.path.isNone()) {
-    return Error("Missing flag '--path'");
+    return Error(flags.usage("Missing required option --path"));
   }
 
   if (flags.servers.isNone()) {
-    return Error("Missing flag '--servers'");
+    return Error(flags.usage("Missing required option --servers"));
   }
 
   if (flags.znode.isNone()) {
-    return Error("Missing flag '--znode'");
+    return Error(flags.usage("Missing required option --znode"));
   }
 
   if (flags.input.isNone()) {
-    return Error("Missing flag '--input'");
+    return Error(flags.usage("Missing required option --input"));
   }
 
   if (flags.output.isNone()) {
-    return Error("Missing flag '--output'");
+    return Error(flags.usage("Missing required option --output"));
   }
 
   // Initialize the log.

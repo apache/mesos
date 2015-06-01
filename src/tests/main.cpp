@@ -43,17 +43,9 @@ using namespace mesos::internal;
 using namespace mesos::internal::tests;
 
 using std::cerr;
+using std::cout;
 using std::endl;
 using std::string;
-
-
-void usage(const char* argv0, const flags::FlagsBase& flags)
-{
-  cerr << "Usage: " << os::basename(argv0).get() << " [...]" << endl
-       << endl
-       << "Supported options:" << endl
-       << flags.usage();
-}
 
 
 int main(int argc, char** argv)
@@ -62,33 +54,26 @@ int main(int argc, char** argv)
 
   using mesos::internal::tests::flags; // Needed to disabmiguate.
 
-  bool help;
-  flags.add(&help,
-            "help",
-            "Prints this help message",
-            false);
-
   // Load flags from environment and command line but allow unknown
   // flags (since we might have gtest/gmock flags as well).
   Try<Nothing> load = flags.load("MESOS_", argc, argv, true);
 
   if (load.isError()) {
-    cerr << load.error() << endl;
-    usage(argv[0], flags);
-    exit(1);
+    cerr << flags.usage(load.error()) << endl;
+    return EXIT_FAILURE;
   }
 
-  if (help) {
-    usage(argv[0], flags);
-    cerr << endl;
+  if (flags.help) {
+    cout << flags.usage() << endl;
     testing::InitGoogleTest(&argc, argv); // Get usage from gtest too.
-    exit(1);
+    return EXIT_SUCCESS;
   }
 
   // Initialize Modules.
   Try<Nothing> result = tests::initModules(flags.modules);
   if (result.isError()) {
-    EXIT(1) << "Error initializing modules: " << result.error();
+    cerr << "Error initializing modules: " << result.error() << endl;
+    return EXIT_FAILURE;
   }
 
   // Initialize libprocess.
@@ -114,8 +99,8 @@ int main(int argc, char** argv)
   testing::InitGoogleTest(&argc, argv);
   testing::FLAGS_gtest_death_test_style = "threadsafe";
 
-  std::cout << "Source directory: " << flags.source_dir << std::endl;
-  std::cout << "Build directory: " << flags.build_dir << std::endl;
+  cout << "Source directory: " << flags.source_dir << endl;
+  cout << "Build directory: " << flags.build_dir << endl;
 
   // Instantiate our environment. Note that it will be managed by
   // gtest after we add it via testing::AddGlobalTestEnvironment.

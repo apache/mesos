@@ -348,75 +348,54 @@ private:
 } // namespace mesos {
 
 
-void usage(const char* argv0, const flags::FlagsBase& flags)
-{
-  cerr << "Usage: " << os::basename(argv0).get() << " [...]" << endl
-       << endl
-       << "Supported options:" << endl
-       << flags.usage();
-}
-
-
 int main(int argc, char** argv)
 {
   GOOGLE_PROTOBUF_VERIFY_VERSION;
 
   mesos::internal::docker::Flags flags;
 
-  bool help;
-  flags.add(&help,
-            "help",
-            "Prints this help message",
-            false);
-
   // Load flags from environment and command line.
   Try<Nothing> load = flags.load(None(), &argc, &argv);
 
   if (load.isError()) {
-    cerr << load.error() << endl;
-    usage(argv[0], flags);
-    return -1;
+    cerr << flags.usage(load.error()) << endl;
+    return EXIT_FAILURE;
   }
 
   std::cout << stringify(flags) << std::endl;
 
   mesos::internal::logging::initialize(argv[0], flags, true); // Catch signals.
 
-  if (help) {
-    usage(argv[0], flags);
-    return -1;
+  if (flags.help) {
+    cout << flags.usage() << endl;
+    return EXIT_SUCCESS;
   }
 
   std::cout << stringify(flags) << std::endl;
 
   if (flags.docker.isNone()) {
-    LOG(WARNING) << "Expected docker executable path";
-    usage(argv[0], flags);
-    return 0;
+    cerr << flags.usage("Missing required option --docker") << endl;
+    return EXIT_FAILURE;
   }
 
   if (flags.container.isNone()) {
-    LOG(WARNING) << "Expected container name";
-    usage(argv[0], flags);
-    return 0;
+    cerr << flags.usage("Missing required option --container") << endl;
+    return EXIT_FAILURE;
   }
 
   if (flags.sandbox_directory.isNone()) {
-    LOG(WARNING) << "Expected sandbox directory path";
-    usage(argv[0], flags);
-    return 0;
+    cerr << flags.usage("Missing required option --sandbox_directory") << endl;
+    return EXIT_FAILURE;
   }
 
   if (flags.mapped_directory.isNone()) {
-    LOG(WARNING) << "Expected mapped sandbox directory path";
-    usage(argv[0], flags);
-    return 0;
+    cerr << flags.usage("Missing required option --mapped_directory") << endl;
+    return EXIT_FAILURE;
   }
 
   if (flags.stop_timeout.isNone()) {
-    LOG(WARNING) << "Expected stop timeout";
-    usage(argv[0], flags);
-    return 0;
+    cerr << flags.usage("Missing required option --stop_timeout") << endl;
+    return EXIT_FAILURE;
   }
 
   // The 2nd argument for docker create is set to false so we skip
@@ -424,8 +403,8 @@ int main(int argc, char** argv)
   // should have already validated docker.
   Try<Docker*> docker = Docker::create(flags.docker.get(), false);
   if (docker.isError()) {
-    LOG(WARNING) << "Unable to create docker abstraction: " << docker.error();
-    return -1;
+    cerr << "Unable to create docker abstraction: " << docker.error() << endl;
+    return EXIT_FAILURE;
   }
 
   mesos::internal::docker::DockerExecutor executor(
@@ -436,5 +415,5 @@ int main(int argc, char** argv)
       flags.stop_timeout.get());
 
   mesos::MesosExecutorDriver driver(&executor);
-  return driver.run() == mesos::DRIVER_STOPPED ? 0 : 1;
+  return driver.run() == mesos::DRIVER_STOPPED ? EXIT_SUCCESS : EXIT_FAILURE;
 }

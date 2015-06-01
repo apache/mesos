@@ -50,15 +50,6 @@ using std::string;
 using std::vector;
 
 
-void usage(const char* argv0, const flags::FlagsBase& flags)
-{
-  cerr << "Usage: " << os::basename(argv0).get() << " [...]" << endl
-       << endl
-       << "Supported options:" << endl
-       << flags.usage();
-}
-
-
 class Flags : public flags::FlagsBase
 {
 public:
@@ -287,50 +278,43 @@ int main(int argc, char** argv)
 {
   Flags flags;
 
-  bool help;
-  flags.add(&help,
-            "help",
-            "Prints this help message",
-            false);
-
   // Load flags from environment and command line.
   Try<Nothing> load = flags.load(None(), argc, argv);
 
   if (load.isError()) {
-    cerr << load.error() << endl;
-    usage(argv[0], flags);
-    return -1;
+    cerr << flags.usage(load.error()) << endl;
+    return EXIT_FAILURE;
   }
 
-  if (help) {
-    usage(argv[0], flags);
-    return -1;
+  // TODO(marco): this should be encapsulated entirely into the
+  // FlagsBase API - possibly with a 'guard' that prevents FlagsBase
+  // from calling ::exit(EXIT_FAILURE) after calling usage() (which
+  // would be the default behavior); see MESOS-2766.
+  if (flags.help) {
+    cout << flags.usage() << endl;
+    return EXIT_SUCCESS;
   }
 
   if (flags.master.isNone()) {
-    cerr << "Missing --master=IP:PORT" << endl;
-    usage(argv[0], flags);
-    return -1;
+    cerr << flags.usage("Missing required option --master") << endl;
+    return EXIT_FAILURE;
   }
 
   UPID master("master@" + flags.master.get());
-
   if (!master) {
-    cerr << "Could not parse --master=" << flags.master.get() << endl;
-    usage(argv[0], flags);
-    return -1;
+    cerr << flags.usage("Could not parse --master=" + flags.master.get())
+         << endl;
+    return EXIT_FAILURE;
   }
 
   if (flags.name.isNone()) {
-    cerr << "Missing --name=NAME" << endl;
-    usage(argv[0], flags);
-    return -1;
+    cerr << flags.usage("Missing required option --name") << endl;
+    return EXIT_FAILURE;
   }
 
   if (flags.command.isNone()) {
-    cerr << "Missing --command=COMMAND" << endl;
-    usage(argv[0], flags);
-    return -1;
+    cerr << flags.usage("Missing required option --command") << endl;
+    return EXIT_FAILURE;
   }
 
   Result<string> user = os::user();
@@ -340,10 +324,10 @@ int main(int argc, char** argv)
     } else {
       cerr << "No username for uid " << ::getuid() << endl;
     }
-    return -1;
+    return EXIT_FAILURE;
   }
 
-  Option<hashmap<string, string>> environment;
+  Option<hashmap<string, string>> environment = None();
 
   if (flags.environment.isSome()) {
     environment = flags.environment.get();
@@ -370,22 +354,22 @@ int main(int argc, char** argv)
     Try<bool> exists = hdfs.exists(path);
     if (exists.isError()) {
       cerr << "Failed to check if file exists: " << exists.error() << endl;
-      return -1;
+      return EXIT_FAILURE;
     } else if (exists.get() && flags.overwrite) {
       Try<Nothing> rm = hdfs.rm(path);
       if (rm.isError()) {
         cerr << "Failed to remove existing file: " << rm.error() << endl;
-        return -1;
+        return EXIT_FAILURE;
       }
     } else if (exists.get()) {
       cerr << "File already exists (see --overwrite)" << endl;
-      return -1;
+      return EXIT_FAILURE;
     }
 
     Try<Nothing> copy = hdfs.copyFromLocal(flags.package.get(), path);
     if (copy.isError()) {
       cerr << "Failed to copy package: " << copy.error() << endl;
-      return -1;
+      return EXIT_FAILURE;
     }
 
     // Now save the URI.
@@ -413,5 +397,5 @@ int main(int argc, char** argv)
 
   MesosSchedulerDriver driver(&scheduler, framework, flags.master.get());
 
-  return driver.run() == DRIVER_STOPPED ? 0 : 1;
+  return driver.run() == DRIVER_STOPPED ? EXIT_SUCCESS : EXIT_FAILURE;
 }

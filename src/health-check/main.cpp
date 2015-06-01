@@ -294,66 +294,60 @@ int main(int argc, char** argv)
 
   Flags flags;
 
-  bool help;
-  flags.add(&help,
-            "help",
-            "Prints this help message",
-            false);
-
   Try<Nothing> load = flags.load(None(), argc, argv);
 
   if (load.isError()) {
-    LOG(WARNING) << load.error();
-    usage(argv[0], flags);
-    return -1;
+    cerr << flags.usage(load.error()) << endl;
+    return EXIT_FAILURE;
   }
 
-  if (help) {
-    usage(argv[0], flags);
-    return 0;
+  if (flags.help) {
+    cout << flags.usage() << endl;
+    return EXIT_SUCCESS;
   }
 
   if (flags.health_check_json.isNone()) {
-    LOG(WARNING) << "Expected JSON with health check description";
-    usage(argv[0], flags);
-    return 0;
+    cerr << flags.usage("Expected JSON with health check description") << endl;
+    return EXIT_FAILURE;
   }
 
   Try<JSON::Object> parse =
     JSON::parse<JSON::Object>(flags.health_check_json.get());
-  if (parse.isError()) {
-    LOG(WARNING) << "JSON parse error: " << parse.error();
-    usage(argv[0], flags);
-    return 0;
-  }
 
-  if (flags.executor.isNone()) {
-    LOG(WARNING) << "Expected UPID for health check";
-    usage(argv[0], flags);
-    return 0;
+  if (parse.isError()) {
+    cerr << flags.usage("Failed to parse --health_check_json: " + parse.error())
+         << endl;
+    return EXIT_FAILURE;
   }
 
   Try<HealthCheck> check = protobuf::parse<HealthCheck>(parse.get());
+
   if (check.isError()) {
-    LOG(WARNING) << "JSON error: " << check.error();
-    usage(argv[0], flags);
-    return 0;
+    cerr << flags.usage("Failed to parse --health_check_json: " + check.error())
+         << endl;
+    return EXIT_SUCCESS;
+  }
+
+  if (flags.executor.isNone()) {
+    cerr << flags.usage("Missing required option --executor") << endl;
+    return EXIT_FAILURE;
   }
 
   if (check.get().has_http() && check.get().has_command()) {
-    LOG(WARNING) << "Both HTTP and Command check passed in";
-    return -1;
+    cerr << flags.usage("Both 'http' and 'command' health check requested")
+         << endl;
+    return EXIT_FAILURE;
   }
 
   if (!check.get().has_http() && !check.get().has_command()) {
-    LOG(WARNING) << "No health check found";
-    return -1;
+    cerr << flags.usage("Expecting one of 'http' or 'command' health check")
+         << endl;
+    return EXIT_FAILURE;
   }
 
   if (flags.task_id.isNone()) {
-    LOG(WARNING) << "TaskID error: " << check.error();
-    usage(argv[0], flags);
-    return 0;
+    cerr << flags.usage("Missing required option --task_id") << endl;
+    return EXIT_FAILURE;
   }
 
   TaskID taskID;
@@ -377,8 +371,8 @@ int main(int argc, char** argv)
 
   if (checking.isFailed()) {
     LOG(WARNING) << "Health check failed " << checking.failure();
-    return 1;
+    return EXIT_FAILURE;
   }
 
-  return 0;
+  return EXIT_SUCCESS;
 }

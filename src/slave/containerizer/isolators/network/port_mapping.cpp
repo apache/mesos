@@ -312,11 +312,6 @@ const char* PortMappingUpdate::NAME = "update";
 
 PortMappingUpdate::Flags::Flags()
 {
-  add(&help,
-      "help",
-      "Prints this help message",
-      false);
-
   add(&eth0_name,
       "eth0_name",
       "The name of the public network interface (e.g., eth0)");
@@ -581,11 +576,6 @@ const char* PortMappingStatistics::NAME = "statistics";
 
 PortMappingStatistics::Flags::Flags()
 {
-  add(&help,
-      "help",
-      "Prints this help message",
-      false);
-
   add(&pid,
       "pid",
       "The pid of the process whose namespaces we will enter");

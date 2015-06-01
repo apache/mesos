@@ -39,19 +39,9 @@ using mesos::internal::master::Master;
 using mesos::internal::slave::Slave;
 
 using std::cerr;
+using std::cout;
 using std::endl;
 using std::string;
-
-
-void usage(const char* argv0, const flags::FlagsBase& flags)
-{
-  cerr << "Usage: " << os::basename(argv0).get() << " [...]" << endl
-       << endl
-       << "Launches an in-memory cluster within a single process."
-       << endl
-       << "Supported options:" << endl
-       << flags.usage();
-}
 
 
 int main(int argc, char **argv)
@@ -64,6 +54,10 @@ int main(int argc, char **argv)
   // master::flags, then slave::Flags, then local::Flags.
   local::Flags flags;
 
+  flags.setUsageMessage(
+      "Usage: " + os::basename(argv[0]).get() + " [...]\n\n" +
+      "Launches an in-memory cluster within a single process.");
+
   // The following flags are executable specific (e.g., since we only
   // have one instance of libprocess per execution, we only want to
   // advertise the port and ip option once, here).
@@ -73,25 +67,18 @@ int main(int argc, char **argv)
   Option<string> ip;
   flags.add(&ip, "ip", "IP address to listen on");
 
-  bool help;
-  flags.add(&help,
-            "help",
-            "Prints this help message",
-            false);
-
   // Load flags from environment and command line but allow unknown
   // flags since we might have some master/slave flags as well.
   Try<Nothing> load = flags.load("MESOS_", argc, argv, true);
 
   if (load.isError()) {
-    cerr << load.error() << endl;
-    usage(argv[0], flags);
-    exit(1);
+    cerr << flags.usage(load.error()) << endl;
+    return EXIT_FAILURE;
   }
 
-  if (help) {
-    usage(argv[0], flags);
-    exit(1);
+  if (flags.help) {
+    cout << flags.usage() << endl;
+    return EXIT_SUCCESS;
   }
 
   // Initialize libprocess.
@@ -107,5 +94,5 @@ int main(int argc, char **argv)
 
   process::wait(local::launch(flags));
 
-  return 0;
+  return EXIT_SUCCESS;
 }

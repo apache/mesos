@@ -98,15 +98,6 @@ using std::string;
 using std::vector;
 
 
-void usage(const char* argv0, const flags::FlagsBase& flags)
-{
-  cerr << "Usage: " << os::basename(argv0).get() << " [...]" << endl
-       << endl
-       << "Supported options:" << endl
-       << flags.usage();
-}
-
-
 void version()
 {
   cout << "mesos" << " " << MESOS_VERSION << endl;
@@ -137,28 +128,21 @@ int main(int argc, char** argv)
             "  zk://username:password@host1:port1,host2:port2,.../path\n"
             "  file:///path/to/file (where file contains one of the above)");
 
-  bool help;
-  flags.add(&help,
-            "help",
-            "Prints this help message",
-            false);
-
   Try<Nothing> load = flags.load("MESOS_", argc, argv);
 
   if (load.isError()) {
-    cerr << load.error() << endl;
-    usage(argv[0], flags);
-    exit(1);
+    cerr << flags.usage(load.error()) << endl;
+    return EXIT_FAILURE;
   }
 
   if (flags.version) {
     version();
-    exit(0);
+    return EXIT_SUCCESS;
   }
 
-  if (help) {
-    usage(argv[0], flags);
-    exit(1);
+  if (flags.help) {
+    cout << flags.usage() << endl;
+    return EXIT_SUCCESS;
   }
 
   // Initialize modules. Note that since other subsystems may depend
@@ -166,7 +150,7 @@ int main(int argc, char** argv)
   if (flags.modules.isSome()) {
     Try<Nothing> result = ModuleManager::load(flags.modules.get());
     if (result.isError()) {
-      EXIT(1) << "Error loading modules: " << result.error();
+      EXIT(EXIT_FAILURE) << "Error loading modules: " << result.error();
     }
   }
 
@@ -174,7 +158,7 @@ int main(int argc, char** argv)
   if (flags.hooks.isSome()) {
     Try<Nothing> result = HookManager::initialize(flags.hooks.get());
     if (result.isError()) {
-      EXIT(1) << "Error installing hooks: " << result.error();
+      EXIT(EXIT_FAILURE) << "Error installing hooks: " << result.error();
     }
   }
 
@@ -206,8 +190,9 @@ int main(int argc, char** argv)
   Try<Allocator*> allocator = Allocator::create(allocatorName);
 
   if (allocator.isError()) {
-    EXIT(1) << "Failed to create '" << allocatorName << "' allocator: "
-            << allocator.error();
+    EXIT(EXIT_FAILURE)
+      << "Failed to create '" << allocatorName
+      << "' allocator: " << allocator.error();
   }
 
   CHECK_NOTNULL(allocator.get());
@@ -218,8 +203,9 @@ int main(int argc, char** argv)
 
   if (flags.registry == "in_memory") {
     if (flags.registry_strict) {
-      EXIT(1) << "Cannot use '--registry_strict' when using in-memory storage"
-              << " based registry";
+      EXIT(EXIT_FAILURE)
+        << "Cannot use '--registry_strict' when using in-memory storage"
+        << " based registry";
     }
     storage = new state::InMemoryStorage();
   } else if (flags.registry == "replicated_log" ||
@@ -227,25 +213,28 @@ int main(int argc, char** argv)
     // TODO(bmahler): "log_storage" is present for backwards
     // compatibility, can be removed before 0.19.0.
     if (flags.work_dir.isNone()) {
-      EXIT(1) << "--work_dir needed for replicated log based registry";
+      EXIT(EXIT_FAILURE)
+        << "--work_dir needed for replicated log based registry";
     }
 
     Try<Nothing> mkdir = os::mkdir(flags.work_dir.get());
     if (mkdir.isError()) {
-      EXIT(1) << "Failed to create work directory '" << flags.work_dir.get()
-              << "': " << mkdir.error();
+      EXIT(EXIT_FAILURE)
+        << "Failed to create work directory '" << flags.work_dir.get()
+        << "': " << mkdir.error();
     }
 
     if (zk.isSome()) {
       // Use replicated log with ZooKeeper.
       if (flags.quorum.isNone()) {
-        EXIT(1) << "Need to specify --quorum for replicated log based"
-                << " registry when using ZooKeeper";
+        EXIT(EXIT_FAILURE)
+          << "Need to specify --quorum for replicated log based"
+          << " registry when using ZooKeeper";
       }
 
       Try<zookeeper::URL> url = zookeeper::URL::parse(zk.get());
       if (url.isError()) {
-        EXIT(1) << "Error parsing ZooKeeper URL: " << url.error();
+        EXIT(EXIT_FAILURE) << "Error parsing ZooKeeper URL: " << url.error();
       }
 
       log = new Log(
@@ -266,8 +255,9 @@ int main(int argc, char** argv)
     }
     storage = new state::LogStorage(log);
   } else {
-    EXIT(1) << "'" << flags.registry << "' is not a supported"
-            << " option for registry persistence";
+    EXIT(EXIT_FAILURE)
+      << "'" << flags.registry << "' is not a supported"
+      << " option for registry persistence";
   }
 
   CHECK_NOTNULL(storage);
@@ -285,7 +275,8 @@ int main(int argc, char** argv)
   // Option<string>.
   Try<MasterContender*> contender_ = MasterContender::create(zk.get(""));
   if (contender_.isError()) {
-    EXIT(1) << "Failed to create a master contender: " << contender_.error();
+    EXIT(EXIT_FAILURE)
+      << "Failed to create a master contender: " << contender_.error();
   }
   contender = contender_.get();
 
@@ -293,7 +284,8 @@ int main(int argc, char** argv)
   // Option<string>.
   Try<MasterDetector*> detector_ = MasterDetector::create(zk.get(""));
   if (detector_.isError()) {
-    EXIT(1) << "Failed to create a master detector: " << detector_.error();
+    EXIT(EXIT_FAILURE)
+      << "Failed to create a master detector: " << detector_.error();
   }
   detector = detector_.get();
 
@@ -302,8 +294,9 @@ int main(int argc, char** argv)
     Try<Owned<Authorizer>> create = Authorizer::create(flags.acls.get());
 
     if (create.isError()) {
-      EXIT(1) << "Failed to initialize the authorizer: "
-              << create.error() << " (see --acls flag)";
+      EXIT(EXIT_FAILURE)
+        << "Failed to initialize the authorizer: "
+        << create.error() << " (see --acls flag)";
     }
 
     // Now pull out the authorizer but need to make a copy since we
@@ -320,25 +313,28 @@ int main(int argc, char** argv)
       strings::tokenize(flags.slave_removal_rate_limit.get(), "/");
 
     if (tokens.size() != 2) {
-      EXIT(1) << "Invalid slave_removal_rate_limit: "
-              << flags.slave_removal_rate_limit.get()
-              << ". Format is <Number of slaves>/<Duration>";
+      EXIT(EXIT_FAILURE)
+        << "Invalid slave_removal_rate_limit: "
+        << flags.slave_removal_rate_limit.get()
+        << ". Format is <Number of slaves>/<Duration>";
     }
 
     Try<int> permits = numify<int>(tokens[0]);
     if (permits.isError()) {
-      EXIT(1) << "Invalid slave_removal_rate_limit: "
-              << flags.slave_removal_rate_limit.get()
-              << ". Format is <Number of slaves>/<Duration>"
-              << ": " << permits.error();
+      EXIT(EXIT_FAILURE)
+        << "Invalid slave_removal_rate_limit: "
+        << flags.slave_removal_rate_limit.get()
+        << ". Format is <Number of slaves>/<Duration>"
+        << ": " << permits.error();
     }
 
     Try<Duration> duration = Duration::parse(tokens[1]);
     if (duration.isError()) {
-      EXIT(1) << "Invalid slave_removal_rate_limit: "
-              << flags.slave_removal_rate_limit.get()
-              << ". Format is <Number of slaves>/<Duration>"
-              << ": " << duration.error();
+      EXIT(EXIT_FAILURE)
+        << "Invalid slave_removal_rate_limit: "
+        << flags.slave_removal_rate_limit.get()
+        << ". Format is <Number of slaves>/<Duration>"
+        << ": " << duration.error();
     }
 
     slaveRemovalLimiter = new RateLimiter(permits.get(), duration.get());
@@ -348,7 +344,8 @@ int main(int argc, char** argv)
   foreach (const string& name, ModuleManager::find<Anonymous>()) {
     Try<Anonymous*> create = ModuleManager::create<Anonymous>(name);
     if (create.isError()) {
-      EXIT(1) << "Failed to create anonymous module named '" << name << "'";
+      EXIT(EXIT_FAILURE)
+        << "Failed to create anonymous module named '" << name << "'";
     }
 
     // We don't bother keeping around the pointer to this anonymous
@@ -399,5 +396,5 @@ int main(int argc, char** argv)
     delete authorizer.get();
   }
 
-  return 0;
+  return EXIT_SUCCESS;
 }

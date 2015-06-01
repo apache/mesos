@@ -65,7 +65,7 @@ int main(int argc, char** argv)
 
   if (argc < 2) {
     usage(argv[0]);
-    exit(1);
+    return EXIT_FAILURE;
   }
 
   // Update PYTHONPATH to include path to installed 'mesos' module.
@@ -78,7 +78,7 @@ int main(int argc, char** argv)
   if (string(argv[1]) == "help") {
     if (argc == 2) {
       usage(argv[0]);
-      return 0;
+      return EXIT_SUCCESS;
     } else {
       // 'mesos help command' => 'mesos command --help'
       argv[1] = argv[2];
@@ -88,7 +88,7 @@ int main(int argc, char** argv)
   } else if (string(argv[1]).find("--") == 0) {
     cerr << "Not expecting '" << argv[1] << "' before command" << endl;
     usage(argv[0]);
-    return -1;
+    return EXIT_FAILURE;
   } else {
     string command = argv[1];
     string executable = "mesos-" + command;
@@ -101,8 +101,8 @@ int main(int argc, char** argv)
       cerr << "Failed to execute " << command
            << ": " << strerror(errno) << endl;
     }
-    return -1;
+    return EXIT_FAILURE;
   }
 
-  return 0;
+  return EXIT_SUCCESS;
 }
