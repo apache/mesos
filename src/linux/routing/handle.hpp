@@ -83,7 +83,7 @@ protected:
 //
 // The parent of the root egress queueing discipline has an immutable
 // handle.
-const inline Handle EGRESS_ROOT() { return Handle(TC_H_ROOT); }
+constexpr Handle EGRESS_ROOT(TC_H_ROOT);
 
 } // namespace routing {
 
