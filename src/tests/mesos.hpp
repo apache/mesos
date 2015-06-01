@@ -46,7 +46,6 @@
 #include <stout/foreach.hpp>
 #include <stout/gtest.hpp>
 #include <stout/lambda.hpp>
-#include <stout/memory.hpp>
 #include <stout/none.hpp>
 #include <stout/option.hpp>
 #include <stout/stringify.hpp>
