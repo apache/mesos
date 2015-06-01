@@ -101,6 +101,7 @@ public:
   bool isNone() const { return state == NONE; }
 
   const T& get() const { assert(isSome()); return t; }
+  T& get() { assert(isSome()); return t; }
 
   // This must return a copy to avoid returning a reference to a temporary.
   T get(const T& _t) const { return isNone() ? _t : t; }

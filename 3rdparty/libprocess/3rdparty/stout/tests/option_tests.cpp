@@ -1,8 +1,11 @@
 #include <gmock/gmock.h>
 
+#include <string>
 #include <stout/gtest.hpp>
 #include <stout/none.hpp>
 #include <stout/option.hpp>
+
+using std::string;
 
 TEST(OptionTest, Min)
 {
@@ -89,4 +92,12 @@ TEST(OptionTest, Comparison)
   Option<Option<int> > noneNone = Option<Option<int> >::none();
   EXPECT_NE(someNone, noneNone);
   EXPECT_NE(noneNone, someNone);
+}
+
+
+TEST(OptionTest, NonConstReference)
+{
+  Option<string> s = string("hello");
+  s.get() += " world";
+  EXPECT_EQ("hello world", s.get());
 }
