@@ -609,8 +609,8 @@ TEST_F(FetcherCacheTest, CachedFallback)
 
   // Bring back the asset just before running mesos-fetcher to fetch it.
   Future<FetcherInfo> fetcherInfo;
-  EXPECT_CALL(*fetcherProcess, run(_, _, _))
-    .WillOnce(DoAll(FutureArg<1>(&fetcherInfo),
+  EXPECT_CALL(*fetcherProcess, run(_, _, _, _, _))
+    .WillOnce(DoAll(FutureArg<3>(&fetcherInfo),
                     InvokeWithoutArgs(this,
                                       &FetcherCacheTest::setupCommandFileAsset),
                     Invoke(fetcherProcess,
@@ -1221,14 +1221,14 @@ TEST_F(FetcherCacheTest, FallbackFromEviction)
   Future<FetcherInfo> fetcherInfo0;
   Future<FetcherInfo> fetcherInfo1;
   Future<FetcherInfo> fetcherInfo2;
-  EXPECT_CALL(*fetcherProcess, run(_, _, _))
-    .WillOnce(DoAll(FutureArg<1>(&fetcherInfo0),
+  EXPECT_CALL(*fetcherProcess, run(_, _, _, _, _))
+    .WillOnce(DoAll(FutureArg<3>(&fetcherInfo0),
                     Invoke(fetcherProcess,
                            &MockFetcherProcess::unmocked_run)))
-    .WillOnce(DoAll(FutureArg<1>(&fetcherInfo1),
+    .WillOnce(DoAll(FutureArg<3>(&fetcherInfo1),
                     Invoke(fetcherProcess,
                            &MockFetcherProcess::unmocked_run)))
-    .WillOnce(DoAll(FutureArg<1>(&fetcherInfo2),
+    .WillOnce(DoAll(FutureArg<3>(&fetcherInfo2),
                     Invoke(fetcherProcess,
                            &MockFetcherProcess::unmocked_run)));
 

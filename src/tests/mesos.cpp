@@ -453,7 +453,7 @@ MockFetcherProcess::MockFetcherProcess()
   EXPECT_CALL(*this, _fetch(_, _, _, _, _, _)).
     WillRepeatedly(
         Invoke(this, &MockFetcherProcess::unmocked__fetch));
-  EXPECT_CALL(*this, run(_, _, _)).
+  EXPECT_CALL(*this, run(_, _, _, _, _)).
     WillRepeatedly(Invoke(this, &MockFetcherProcess::unmocked_run));
 }
 
@@ -479,10 +479,17 @@ process::Future<Nothing> MockFetcherProcess::unmocked__fetch(
 
 process::Future<Nothing> MockFetcherProcess::unmocked_run(
     const ContainerID& containerId,
+    const string& sandboxDirectory,
+    const Option<string>& user,
     const FetcherInfo& info,
     const slave::Flags& flags)
 {
-  return slave::FetcherProcess::run(containerId, info, flags);
+  return slave::FetcherProcess::run(
+      containerId,
+      sandboxDirectory,
+      user,
+      info,
+      flags);
 }
 
 

@@ -510,7 +510,7 @@ Future<Nothing> FetcherProcess::__fetch(
     info.set_frameworks_home(flags.frameworks_home);
   }
 
-  return run(containerId, info, flags)
+  return run(containerId, sandboxDirectory, user, info, flags)
     .repair(defer(self(), [=](const Future<Nothing>& future) {
       LOG(ERROR) << "Failed to run mesos-fetcher: " << future.failure();
 
@@ -675,6 +675,8 @@ FetcherProcess::reserveCacheSpace(
 
 Future<Nothing> FetcherProcess::run(
     const ContainerID& containerId,
+    const string& sandboxDirectory,
+    const Option<string>& user,
     const FetcherInfo& info,
     const Flags& flags)
 {
@@ -705,6 +707,20 @@ Future<Nothing> FetcherProcess::run(
   if (err.isError()) {
     os::close(out.get());
     return Failure("Failed to create 'stderr' file: " + err.error());
+  }
+
+  if (user.isSome()) {
+    // This is a recursive chown that both checks if we have a valid user
+    // and also chowns the files we just opened.
+    Try<Nothing> chown = os::chown(user.get(), sandboxDirectory, true);
+    if (chown.isError()) {
+      os::close(out.get());
+      os::close(err.get());
+
+      return Failure("Failed to chown directory: '" + sandboxDirectory +
+                     "' to user '" + user.get() +
+                     "' with error: " + chown.error());
+    }
   }
 
   string fetcherPath = path::join(flags.launcher_dir, "mesos-fetcher");

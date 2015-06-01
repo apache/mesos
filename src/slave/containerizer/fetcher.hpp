@@ -132,6 +132,8 @@ public:
   // in the given directory, using these for trace output.
   virtual process::Future<Nothing> run(
       const ContainerID& containerId,
+      const std::string& sandboxDirectory,
+      const Option<std::string>& user,
       const FetcherInfo& info,
       const Flags& flags);
 

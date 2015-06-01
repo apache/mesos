@@ -831,13 +831,17 @@ public:
       const Option<std::string>& user,
       const slave::Flags& flags);
 
-  MOCK_METHOD3(run, process::Future<Nothing>(
+  MOCK_METHOD5(run, process::Future<Nothing>(
       const ContainerID& containerId,
+      const std::string& sandboxDirectory,
+      const Option<std::string>& user,
       const FetcherInfo& info,
       const slave::Flags& flags));
 
   process::Future<Nothing> unmocked_run(
       const ContainerID& containerId,
+      const std::string& sandboxDirectory,
+      const Option<std::string>& user,
       const FetcherInfo& info,
       const slave::Flags& flags);
 };
