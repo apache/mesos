@@ -38,21 +38,21 @@ class Handle
 public:
   explicit constexpr Handle(uint32_t _handle) : handle(_handle) {}
 
-  constexpr Handle(uint16_t primary, uint16_t secondary) :
-    handle((((uint32_t)primary) << 16) + secondary) {}
+  constexpr Handle(uint16_t primary, uint16_t secondary)
+    : handle((((uint32_t) primary) << 16) + secondary) {}
 
   // NOTE: This is used to construct a classid. The higher 16 bits of
   // the given 'parent' will be the primary and the lower 16 bits is
   // specified by the given 'id'.
-  constexpr Handle(const Handle& parent, uint16_t id) :
-    handle((((uint32_t)parent.primary()) << 16) + id) {}
+  constexpr Handle(const Handle& parent, uint16_t id)
+    : handle((((uint32_t) parent.primary()) << 16) + id) {}
 
-  constexpr bool operator==(const Handle& that) const
+  constexpr bool operator == (const Handle& that) const
   {
     return handle == that.handle;
   }
 
-  constexpr bool operator!=(const Handle& that) const
+  constexpr bool operator != (const Handle& that) const
   {
     return handle != that.handle;
   }
@@ -64,6 +64,7 @@ public:
 protected:
   uint32_t handle;
 };
+
 
 // Packets flowing from the device driver to the network stack are
 // called ingress traffic, and packets flowing from the network stack
