@@ -19,8 +19,16 @@
 
 using namespace flags;
 
+using std::cout;
+using std::endl;
 using std::string;
 using std::map;
+
+
+// Just used to test that the default implementation
+// of --help and 'usage()' works as intended.
+class EmptyFlags : public FlagsBase {};
+
 
 class TestFlags : public virtual FlagsBase
 {
@@ -478,17 +486,77 @@ TEST(FlagsTest, Errors)
 }
 
 
-TEST(FlagsTest, Usage)
+TEST(FlagsTest, UsageMessage)
 {
   TestFlags flags;
+  flags.setUsageMessage("This is a test");
 
   EXPECT_EQ(
+      "This is a test\n"
+      "\n"
+      "  --[no-]help       Prints this help message (default: false)\n"
       "  --name1=VALUE     Set name1 (default: ben folds)\n"
       "  --name2=VALUE     Set name2 (default: 42)\n"
       "  --[no-]name3      Set name3 (default: false)\n"
       "  --[no-]name4      Set name4\n"
       "  --[no-]name5      Set name5\n",
       flags.usage());
+}
+
+
+TEST(FlagsTest, EmptyUsage)
+{
+  EmptyFlags flags;
+
+  EXPECT_EQ(
+      "Usage:  [options]\n"
+      "\n"
+      "  --[no-]help     Prints this help message (default: false)\n",
+      flags.usage());
+}
+
+
+TEST(FlagsTest, ProgramName)
+{
+  // To test with a custom program name.
+  class MyTestFlags : public TestFlags
+  {
+  public:
+    MyTestFlags() { programName_ = "TestProgram"; }
+  };
+
+
+  MyTestFlags flags;
+
+  EXPECT_EQ(
+      "Usage: TestProgram [options]\n"
+      "\n"
+      "  --[no-]help       Prints this help message (default: false)\n"
+      "  --name1=VALUE     Set name1 (default: ben folds)\n"
+      "  --name2=VALUE     Set name2 (default: 42)\n"
+      "  --[no-]name3      Set name3 (default: false)\n"
+      "  --[no-]name4      Set name4\n"
+      "  --[no-]name5      Set name5\n",
+      flags.usage());
+}
+
+
+TEST(FlagsTest, OptionalMessage)
+{
+  TestFlags flags;
+
+  EXPECT_EQ(
+      "Good news: this test passed!\n"
+      "\n"
+      "Usage:  [options]\n"
+      "\n"
+      "  --[no-]help       Prints this help message (default: false)\n"
+      "  --name1=VALUE     Set name1 (default: ben folds)\n"
+      "  --name2=VALUE     Set name2 (default: 42)\n"
+      "  --[no-]name3      Set name3 (default: false)\n"
+      "  --[no-]name4      Set name4\n"
+      "  --[no-]name5      Set name5\n",
+      flags.usage("Good news: this test passed!"));
 }
 
 

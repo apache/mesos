@@ -42,6 +42,7 @@ namespace flags {
 class FlagsBase
 {
 public:
+  FlagsBase() { add(&help, "help", "Prints this help message", false); }
   virtual ~FlagsBase() {}
 
   // Load any flags from the environment given the variable prefix,
@@ -64,11 +65,11 @@ public:
   // Load any flags from the environment as above but remove processed
   // flags from 'argv' and update 'argc' appropriately. For example:
   //
-  // argv = ["/path/to/program", "--arg1", "hello", "--arg2", "--", "world"]
+  // argv = ["/path/program", "--arg1", "hi", "--arg2", "--", "bye"]
   //
   // Becomes:
   //
-  // argv = ["/path/to/program", "hello", "world"]
+  // argv = ["/path/program", "hi", "bye"]
   virtual Try<Nothing> load(
       const Option<std::string>& prefix,
       int* argc,
@@ -84,18 +85,57 @@ public:
       const std::map<std::string, std::string>& values,
       bool unknowns = false);
 
-  // Returns a string describing the flags.
-  std::string usage() const;
+  // Returns a string describing the flags, preceded by a "usage
+  // message" that will be prepended to that description (see
+  // 'FlagsBase::usageMessage_').
+  //
+  // The optional 'message' passed to this function will be prepended
+  // to the generated string returned from this function.
+  //
+  // Derived classes and clients can modify the standard usage message
+  // by setting it before calling this method via 'setUsageMessage()'.
+  //
+  // This allows one to set a generic message that will be used for
+  // each invocation of this method, and to additionally add one for
+  // the particular invocation:
+  //
+  //    MyFlags flags;
+  //    flags.setUsageMessage("Custom Usage Message");
+  //    ...
+  //    if (flags.foo.isNone()) {
+  //      std::cerr << flags.usage("Missing required --foo flag");
+  //    }
+  //
+  // The 'message' would be emitted first, followed by a blank line,
+  // then the 'usageMessage_', finally followed by the flags'
+  // description, for example:
+  //
+  //    Missing required --foo flag
+  //
+  //    Custom Usage Message
+  //
+  //      --[no-]help       Prints this help message. (default: false)
+  //      --foo=VALUE       Description about 'foo' here.
+  //      --bar=VALUE       Description about 'bar' here. (default: 42)
+  //
+  std::string usage(const Option<std::string>& message = None()) const;
+
+  // Sets the default message that is prepended to the flags'
+  // description in 'usage()'.
+  void setUsageMessage(const std::string& message)
+  {
+    usageMessage_ = Some(message);
+  }
 
   typedef std::map<std::string, Flag>::const_iterator const_iterator;
 
-  const_iterator begin() const { return flags.begin(); }
-  const_iterator end() const { return flags.end(); }
+  const_iterator begin() const { return flags_.begin(); }
+  const_iterator end() const { return flags_.end(); }
 
   typedef std::map<std::string, Flag>::iterator iterator;
 
-  iterator begin() { return flags.begin(); }
-  iterator end() { return flags.end(); }
+  iterator begin() { return flags_.begin(); }
+  iterator end() { return flags_.end(); }
 
   template <typename T1, typename T2>
   void add(T1* t1,
@@ -122,12 +162,31 @@ protected:
 
   void add(const Flag& flag);
 
+public:
+  // TODO(marco): IMO the entire --help functionality should be
+  // encapsulated inside the FlagsBase class.
+  // For now, exposing this for the caller(s) to decide what to
+  // do when the user asks for help.
+  bool help;
+
+protected:
+  // The program's name, extracted from argv[0] by default;
+  // declared 'protected' so that derived classes can alter this
+  // behavior.
+  std::string programName_;
+
+  // An optional custom usage message, will be printed 'as is'
+  // just above the list of flags and their explanation.
+  // It is 'None' by default, in which case the default
+  // behavior is to print "Usage:" followed by the 'programName_'.
+  Option<std::string> usageMessage_;
+
 private:
   // Extract environment variable "flags" with the specified prefix.
   std::map<std::string, Option<std::string> > extract(
       const std::string& prefix);
 
-  std::map<std::string, Flag> flags;
+  std::map<std::string, Flag> flags_;
 };
 
 
@@ -141,7 +200,7 @@ class _Flags4 : public virtual FlagsBase {};
 class _Flags5 : public virtual FlagsBase {};
 
 
-// TODO(benh): Add some "type constraints" for template paramters to
+// TODO(benh): Add some "type constraints" for template parameters to
 // make sure they are all of type FlagsBase.
 template <typename Flags1 = _Flags1,
           typename Flags2 = _Flags2,
@@ -287,14 +346,14 @@ void FlagsBase::add(
 
 inline void FlagsBase::add(const Flag& flag)
 {
-  if (flags.count(flag.name) > 0) {
+  if (flags_.count(flag.name) > 0) {
     EXIT(1) << "Attempted to add duplicate flag '" << flag.name << "'";
   } else if (flag.name.find("no-") == 0) {
     EXIT(1) << "Attempted to add flag '" << flag.name
             << "' that starts with the reserved 'no-' prefix";
   }
 
-  flags[flag.name] = flag;
+  flags_[flag.name] = flag;
 }
 
 
@@ -312,8 +371,8 @@ inline std::map<std::string, Option<std::string> > FlagsBase::extract(
       name = strings::lower(name); // Allow PREFIX_NAME or PREFIX_name.
 
       // Only add if it's a known flag.
-      if (flags.count(name) > 0 ||
-          (name.find("no-") == 0 && flags.count(name.substr(3)) > 0)) {
+      if (flags_.count(name) > 0 ||
+          (name.find("no-") == 0 && flags_.count(name.substr(3)) > 0)) {
         values[name] = Some(value);
       }
     }
@@ -338,9 +397,14 @@ inline Try<Nothing> FlagsBase::load(
 {
   std::map<std::string, Option<std::string> > values;
 
+  // Grab the program name from argv[0].
+  programName_ = argc > 0 ? os::basename(argv[0]).get() : "";
+
   if (prefix.isSome()) {
     values = extract(prefix.get());
   }
+
+
 
   // Read flags from the command line.
   for (int i = 1; i < argc; i++) {
@@ -397,6 +461,9 @@ inline Try<Nothing> FlagsBase::load(
   if (prefix.isSome()) {
     values = extract(prefix.get());
   }
+
+  // Grab the program name from argv, without removing it.
+  programName_ = argc > 0 ? os::basename(*(argv[0])).get() : "";
 
   // Keep the arguments that are not being processed as flags.
   std::vector<char*> args;
@@ -477,30 +544,30 @@ inline Try<Nothing> FlagsBase::load(
     const std::string& name = iterator->first;
     const Option<std::string>& value = iterator->second;
 
-    if (flags.count(name) > 0) {
+    if (flags_.count(name) > 0) {
       if (value.isSome()) {                        // --name=value
-        if (flags[name].boolean && value.get() == "") {
-          flags[name].loader(this, "true"); // Should never fail.
+        if (flags_[name].boolean && value.get() == "") {
+          flags_[name].loader(this, "true"); // Should never fail.
         } else {
-          Try<Nothing> loader = flags[name].loader(this, value.get());
+          Try<Nothing> loader = flags_[name].loader(this, value.get());
           if (loader.isError()) {
             return Error(
                 "Failed to load flag '" + name + "': " + loader.error());
           }
         }
       } else {                                     // --name
-        if (flags[name].boolean) {
-          flags[name].loader(this, "true"); // Should never fail.
+        if (flags_[name].boolean) {
+          flags_[name].loader(this, "true"); // Should never fail.
         } else {
           return Error(
               "Failed to load non-boolean flag '" + name + "': Missing value");
         }
       }
     } else if (name.find("no-") == 0) {
-      if (flags.count(name.substr(3)) > 0) {       // --no-name
-        if (flags[name.substr(3)].boolean) {
+      if (flags_.count(name.substr(3)) > 0) {       // --no-name
+        if (flags_[name.substr(3)].boolean) {
           if (value.isNone() || value.get() == "") {
-            flags[name.substr(3)].loader(this, "false"); // Should never fail.
+            flags_[name.substr(3)].loader(this, "false"); // Should never fail.
           } else {
             return Error(
                 "Failed to load boolean flag '" + name.substr(3) +
@@ -540,11 +607,21 @@ inline Try<Nothing> FlagsBase::load(
 }
 
 
-inline std::string FlagsBase::usage() const
+inline std::string FlagsBase::usage( const Option<std::string>& message) const
 {
   const int PAD = 5;
 
   std::string usage;
+
+  if (message.isSome()) {
+    usage = message.get() + "\n\n";
+  }
+
+  if (usageMessage_.isNone()) {
+    usage += "Usage: " + programName_ + " [options]\n\n";
+  } else {
+    usage += usageMessage_.get() + "\n\n";
+  }
 
   std::map<std::string, std::string> col1; // key -> col 1 string.
 
@@ -581,6 +658,7 @@ inline std::string FlagsBase::usage() const
       usage += line;
     }
   }
+
   return usage;
 }
 
