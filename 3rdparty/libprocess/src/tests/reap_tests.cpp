@@ -146,7 +146,7 @@ TEST(Reap, TerminatedChildProcess)
   // Make sure the process is transitioned into the zombie
   // state before we reap it.
   while (true) {
-    const Result<os::Process>& process = os::process(child);
+    const Result<os::Process> process = os::process(child);
     ASSERT_SOME(process) << "Process " << child << " reaped unexpectedly";
 
     if (process.get().zombie) {

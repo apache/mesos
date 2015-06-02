@@ -162,7 +162,7 @@ private:
     virtual typename ::testing::ActionInterface<F>::Result Perform(
         const typename ::testing::ActionInterface<F>::ArgumentTuple& args)
     {
-      const typename ::testing::ActionInterface<F>::Result& result =
+      const typename ::testing::ActionInterface<F>::Result result =
         action.Perform(args);
       promise.set(result);
       return result;

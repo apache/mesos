@@ -558,7 +558,7 @@ void decode_recv(
   }
 
   // Decode as much of the data as possible into HTTP requests.
-  deque<Request*> requests = decoder->decode(data, length.get());
+  const deque<Request*> requests = decoder->decode(data, length.get());
 
   if (!requests.empty()) {
     foreach (Request* request, requests) {

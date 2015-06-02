@@ -134,7 +134,7 @@ bool Request::accepts(const string& encoding) const
     foreach (const string& _encoding, strings::tokenize(accepted.get(), ",")) {
       if (strings::startsWith(_encoding, candidate)) {
         // Is there a 0 q value? Ex: 'gzip;q=0.0'.
-        const map<string, vector<string>>& values =
+        const map<string, vector<string>> values =
           strings::pairs(_encoding, ";", "=");
 
         // Look for { "q": ["0"] }.
@@ -474,9 +474,9 @@ Try<hashmap<std::string, std::string>> decode(const std::string& query)
 {
   hashmap<std::string, std::string> result;
 
-  const std::vector<std::string>& tokens = strings::tokenize(query, ";&");
+  const std::vector<std::string> tokens = strings::tokenize(query, ";&");
   foreach (const std::string& token, tokens) {
-    const std::vector<std::string>& pairs = strings::split(token, "=", 2);
+    const std::vector<std::string> pairs = strings::split(token, "=", 2);
     if (pairs.size() == 0) {
       continue;
     }

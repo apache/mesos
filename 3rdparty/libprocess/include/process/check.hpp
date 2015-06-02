@@ -25,25 +25,25 @@
 // This appends the error if possible to the end of the log message, so there's
 // no need to append the error message explicitly.
 #define CHECK_PENDING(expression)                                       \
-  for (const Option<std::string>& _error = _checkPending(expression);   \
+  for (const Option<std::string> _error = _checkPending(expression);    \
        _error.isSome();)                                                \
     _CheckFatal(__FILE__, __LINE__, "CHECK_PENDING",                    \
                 #expression, _error.get()).stream()
 
 #define CHECK_READY(expression)                                         \
-  for (const Option<std::string>& _error = _checkReady(expression);     \
+  for (const Option<std::string> _error = _checkReady(expression);      \
        _error.isSome();)                                                \
     _CheckFatal(__FILE__, __LINE__, "CHECK_READY",                      \
                 #expression, _error.get()).stream()
 
 #define CHECK_DISCARDED(expression)                                     \
-  for (const Option<std::string>& _error = _checkDiscarded(expression); \
+  for (const Option<std::string> _error = _checkDiscarded(expression);  \
        _error.isSome();)                                                \
     _CheckFatal(__FILE__, __LINE__, "CHECK_DISCARDED",                  \
                 #expression, _error.get()).stream()
 
 #define CHECK_FAILED(expression)                                        \
-  for (const Option<std::string>& _error = _checkFailed(expression);    \
+  for (const Option<std::string> _error = _checkFailed(expression);     \
        _error.isSome();)                                                \
     _CheckFatal(__FILE__, __LINE__, "CHECK_FAILED",                     \
                 #expression, _error.get()).stream()

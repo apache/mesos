@@ -1641,7 +1641,7 @@ public:
 
 TEST(Process, provide)
 {
-  const Try<string>& mkdtemp = os::mkdtemp();
+  const Try<string> mkdtemp = os::mkdtemp();
   ASSERT_SOME(mkdtemp);
 
   const string LOREM_IPSUM =
