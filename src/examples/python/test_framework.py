@@ -185,13 +185,11 @@ if __name__ == "__main__":
             print "Expecting authentication principal in the environment"
             sys.exit(1);
 
-        if not os.getenv("DEFAULT_SECRET"):
-            print "Expecting authentication secret in the environment"
-            sys.exit(1);
-
         credential = mesos_pb2.Credential()
         credential.principal = os.getenv("DEFAULT_PRINCIPAL")
-        credential.secret = os.getenv("DEFAULT_SECRET")
+
+        if os.getenv("DEFAULT_SECRET"):
+            credential.secret = os.getenv("DEFAULT_SECRET")
 
         framework.principal = os.getenv("DEFAULT_PRINCIPAL")
 

@@ -242,15 +242,12 @@ public class TestFramework {
         System.exit(1);
       }
 
-      if (System.getenv("DEFAULT_SECRET") == null) {
-        System.err.println("Expecting authentication secret in the environment");
-        System.exit(1);
-      }
+      Credential.Builder credentialBuilder = Credential.newBuilder()
+        .setPrincipal(System.getenv("DEFAULT_PRINCIPAL"));
 
-      Credential credential = Credential.newBuilder()
-        .setPrincipal(System.getenv("DEFAULT_PRINCIPAL"))
-        .setSecret(ByteString.copyFrom(System.getenv("DEFAULT_SECRET").getBytes()))
-        .build();
+      if (System.getenv("DEFAULT_SECRET") != null) {
+          credentialBuilder.setSecret(ByteString.copyFrom(System.getenv("DEFAULT_SECRET").getBytes()));
+      }
 
       frameworkBuilder.setPrincipal(System.getenv("DEFAULT_PRINCIPAL"));
 
@@ -259,7 +256,7 @@ public class TestFramework {
           frameworkBuilder.build(),
           args[0],
           implicitAcknowledgements,
-          credential);
+          credentialBuilder.build());
     } else {
       frameworkBuilder.setPrincipal("test-framework-java");
 

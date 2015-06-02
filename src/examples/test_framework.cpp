@@ -261,13 +261,11 @@ int main(int argc, char** argv)
       EXIT(1) << "Expecting authentication principal in the environment";
     }
 
-    if (!os::hasenv("DEFAULT_SECRET")) {
-      EXIT(1) << "Expecting authentication secret in the environment";
-    }
-
     Credential credential;
     credential.set_principal(getenv("DEFAULT_PRINCIPAL"));
-    credential.set_secret(getenv("DEFAULT_SECRET"));
+    if (os::hasenv("DEFAULT_SECRET")) {
+      credential.set_secret(getenv("DEFAULT_SECRET"));
+    }
 
     framework.set_principal(getenv("DEFAULT_PRINCIPAL"));
 
