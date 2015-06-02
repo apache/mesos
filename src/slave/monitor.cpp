@@ -80,9 +80,9 @@ Future<Nothing> ResourceMonitorProcess::stop(
 }
 
 
-Future<list<ResourceMonitor::Usage>> ResourceMonitorProcess::usages()
+Future<list<ResourceUsage>> ResourceMonitorProcess::usages()
 {
-  list<Future<ResourceMonitor::Usage>> futures;
+  list<Future<ResourceUsage>> futures;
 
   foreachkey (const ContainerID& containerId, monitored) {
     futures.push_back(usage(containerId));
@@ -93,11 +93,11 @@ Future<list<ResourceMonitor::Usage>> ResourceMonitorProcess::usages()
 }
 
 
-list<ResourceMonitor::Usage> ResourceMonitorProcess::_usages(
-    list<Future<ResourceMonitor::Usage>> futures)
+list<ResourceUsage> ResourceMonitorProcess::_usages(
+    list<Future<ResourceUsage>> futures)
 {
-  list<ResourceMonitor::Usage> result;
-  foreach(const Future<ResourceMonitor::Usage>& future, futures) {
+  list<ResourceUsage> result;
+  foreach(const Future<ResourceUsage>& future, futures) {
     if (future.isReady()) {
       result.push_back(future.get());
     }
@@ -107,7 +107,7 @@ list<ResourceMonitor::Usage> ResourceMonitorProcess::_usages(
 }
 
 
-Future<ResourceMonitor::Usage> ResourceMonitorProcess::usage(
+Future<ResourceUsage> ResourceMonitorProcess::usage(
     ContainerID containerId)
 {
   if (!monitored.contains(containerId)) {
@@ -120,7 +120,6 @@ Future<ResourceMonitor::Usage> ResourceMonitorProcess::usage(
     .then(defer(
         self(),
         &ResourceMonitorProcess::_usage,
-        containerId,
         executorInfo,
         lambda::_1))
     .onFailed([containerId, executorInfo](const string& failure) {
@@ -140,15 +139,13 @@ Future<ResourceMonitor::Usage> ResourceMonitorProcess::usage(
 }
 
 
-ResourceMonitor::Usage ResourceMonitorProcess::_usage(
-    const ContainerID& containerId,
+ResourceUsage ResourceMonitorProcess::_usage(
     const ExecutorInfo& executorInfo,
     const ResourceStatistics& statistics)
 {
-  ResourceMonitor::Usage usage;
-  usage.containerId = containerId;
-  usage.executorInfo = executorInfo;
-  usage.statistics = statistics;
+  ResourceUsage usage;
+  usage.mutable_executor_info()->CopyFrom(executorInfo);
+  usage.mutable_statistics()->CopyFrom(statistics);
 
   return usage;
 }
@@ -171,7 +168,7 @@ Future<http::Response> ResourceMonitorProcess::_statistics(
 
 
 Future<http::Response> ResourceMonitorProcess::__statistics(
-    const Future<list<ResourceMonitor::Usage>>& futures,
+    const Future<list<ResourceUsage>>& futures,
     const http::Request& request)
 {
   if (!futures.isReady()) {
@@ -181,13 +178,13 @@ Future<http::Response> ResourceMonitorProcess::__statistics(
 
   JSON::Array result;
 
-  foreach (const ResourceMonitor::Usage& usage, futures.get()) {
+  foreach (const ResourceUsage& usage, futures.get()) {
     JSON::Object entry;
-    entry.values["framework_id"] = usage.executorInfo.framework_id().value();
-    entry.values["executor_id"] = usage.executorInfo.executor_id().value();
-    entry.values["executor_name"] = usage.executorInfo.name();
-    entry.values["source"] = usage.executorInfo.source();
-    entry.values["statistics"] = JSON::Protobuf(usage.statistics);
+    entry.values["framework_id"] = usage.executor_info().framework_id().value();
+    entry.values["executor_id"] = usage.executor_info().executor_id().value();
+    entry.values["executor_name"] = usage.executor_info().name();
+    entry.values["source"] = usage.executor_info().source();
+    entry.values["statistics"] = JSON::Protobuf(usage.statistics());
 
     result.values.push_back(entry);
   }
@@ -266,7 +263,7 @@ Future<Nothing> ResourceMonitor::stop(
 }
 
 
-Future<list<ResourceMonitor::Usage>> ResourceMonitor::usages()
+Future<list<ResourceUsage>> ResourceMonitor::usages()
 {
   return dispatch(process, &ResourceMonitorProcess::usages);
 }

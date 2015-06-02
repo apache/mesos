@@ -58,13 +58,6 @@ const extern size_t MONITORING_TIME_SERIES_CAPACITY;
 class ResourceMonitor
 {
 public:
-  struct Usage
-  {
-    ContainerID containerId;
-    ExecutorInfo executorInfo;
-    ResourceStatistics statistics;
-  };
-
   explicit ResourceMonitor(Containerizer* containerizer);
   ~ResourceMonitor();
 
@@ -79,7 +72,7 @@ public:
   process::Future<Nothing> stop(
       const ContainerID& containerId);
 
-  process::Future<std::list<Usage>> usages();
+  process::Future<std::list<ResourceUsage>> usages();
 
 private:
   ResourceMonitorProcess* process;
@@ -103,7 +96,7 @@ public:
   process::Future<Nothing> stop(
       const ContainerID& containerId);
 
-  process::Future<std::list<ResourceMonitor::Usage>> usages();
+  process::Future<std::list<ResourceUsage>> usages();
 
 protected:
   virtual void initialize()
@@ -115,15 +108,14 @@ protected:
 
 private:
   // Helper for returning the usage for a particular executor.
-  process::Future<ResourceMonitor::Usage> usage(ContainerID containerId);
+  process::Future<ResourceUsage> usage(ContainerID containerId);
 
-  ResourceMonitor::Usage _usage(
-    const ContainerID& containerId,
+  ResourceUsage _usage(
     const ExecutorInfo& executorInfo,
     const ResourceStatistics& statistics);
 
-  std::list<ResourceMonitor::Usage> _usages(
-      std::list<process::Future<ResourceMonitor::Usage>> future);
+  std::list<ResourceUsage> _usages(
+      std::list<process::Future<ResourceUsage>> future);
 
   // HTTP Endpoints.
   // Returns the monitoring statistics. Requests have no parameters.
@@ -132,7 +124,7 @@ private:
   process::Future<process::http::Response> _statistics(
       const process::http::Request& request);
   process::Future<process::http::Response> __statistics(
-      const process::Future<std::list<ResourceMonitor::Usage>>& futures,
+      const process::Future<std::list<ResourceUsage>>& futures,
       const process::http::Request& request);
 
   static const std::string STATISTICS_HELP;
