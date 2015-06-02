@@ -43,6 +43,8 @@
 #include <stout/os.hpp>
 #include <stout/stringify.hpp>
 
+#include "common/status_utils.hpp"
+
 #include "logging/flags.hpp"
 #include "logging/logging.hpp"
 
@@ -186,13 +188,9 @@ public:
             }
 
             if (event.failure().has_status()) {
-              int status = event.failure().status();
-              if (WIFEXITED(status)) {
-                cout << ", and exited with status " << WEXITSTATUS(status);
-              } else {
-                cout << ", and terminated with signal " << WTERMSIG(status);
-              }
+              cout << ", and " << WSTRINGIFY(event.failure().status());
             }
+
             cout << endl;
           } else {
             // Slave failed.

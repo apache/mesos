@@ -37,6 +37,8 @@
 #include <stout/stringify.hpp>
 #include <stout/uuid.hpp>
 
+#include "common/status_utils.hpp"
+
 #include "logging/flags.hpp"
 #include "logging/logging.hpp"
 
@@ -313,7 +315,7 @@ public:
       int status)
   {
     LOG(INFO) << "Lost executor '" << executorId << "' on slave "
-              << slaveId << ", status " << status;
+              << slaveId << ", " << WSTRINGIFY(status);
   }
 
   virtual void error(
