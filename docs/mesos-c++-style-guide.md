@@ -219,6 +219,7 @@ Try<Owned<LocalAuthorizer>> authorizer = LocalAuthorizer::create();
 ```
 
 * Rvalue references.
+* Explicitly-defaulted functions.
 * Variadic templates.
 * Delegating constructors.
 * Mutexes.
