@@ -160,6 +160,30 @@ static void addAllocatorModules(Modules* modules)
 }
 
 
+// Add available ResourceEstimator modules.
+static void addResourceEstimatorModules(Modules* modules)
+{
+  CHECK_NOTNULL(modules);
+
+  const string libraryPath = path::join(
+      tests::flags.build_dir,
+      "src",
+      ".libs",
+      os::libraries::expandName("testresource_estimator"));
+
+  // Now add our resource_estimator module.
+  Modules::Library* library = modules->add_libraries();
+  library->set_file(libraryPath);
+
+  // To add a new module from this library, create a new ModuleID enum
+  // and tie it with a module name.
+  addModule(
+      library,
+      TestNoopResourceEstimator,
+      "org_apache_mesos_TestNoopResourceEstimator");
+}
+
+
 Try<Nothing> initModules(const Option<Modules>& modules)
 {
   // First get the user provided modules.
@@ -182,6 +206,9 @@ Try<Nothing> initModules(const Option<Modules>& modules)
 
   // Add allocator modules from testallocator library.
   addAllocatorModules(&mergedModules);
+
+  // Add resource estimator modules from testresource_estimator library.
+  addResourceEstimatorModules(&mergedModules);
 
   return ModuleManager::load(mergedModules);
 }

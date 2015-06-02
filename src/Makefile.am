@@ -472,7 +472,8 @@ module_HEADERS =							\
   $(top_srcdir)/include/mesos/module/hook.hpp				\
   $(top_srcdir)/include/mesos/module/isolator.hpp			\
   $(top_srcdir)/include/mesos/module/module.hpp				\
-  $(top_srcdir)/include/mesos/module/module.proto
+  $(top_srcdir)/include/mesos/module/module.proto			\
+  $(top_srcdir)/include/mesos/module/resource_estimator.hpp
 
 nodist_module_HEADERS = ../include/mesos/module/module.pb.h
 
@@ -1428,6 +1429,13 @@ noinst_LTLIBRARIES += libtestisolator.la
 libtestisolator_la_SOURCES = examples/test_isolator_module.cpp
 libtestisolator_la_CPPFLAGS = $(MESOS_CPPFLAGS)
 libtestisolator_la_LDFLAGS = $(MESOS_MODULE_LDFLAGS)
+
+# Library containing example test noop resource estimator module.
+noinst_LTLIBRARIES += libtestresource_estimator.la
+libtestresource_estimator_la_SOURCES =		\
+  examples/test_resource_estimator_module.cpp
+libtestresource_estimator_la_CPPFLAGS = $(MESOS_CPPFLAGS)
+libtestresource_estimator_la_LDFLAGS = $(MESOS_MODULE_LDFLAGS)
 
 mesos_tests_SOURCES =				\
   tests/anonymous_tests.cpp			\

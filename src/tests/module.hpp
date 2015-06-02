@@ -47,7 +47,8 @@ enum ModuleID
   TestCRAMMD5Authenticator,
   TestHook,
   TestAnonymous,
-  TestDRFAllocator
+  TestDRFAllocator,
+  TestNoopResourceEstimator
 };
 
 
@@ -71,7 +72,7 @@ public:
     return mesos::modules::ModuleManager::create<T>(moduleName.get());
   }
 
-  static Try<T*> create(logging::Flags flags)
+  static Try<T*> create(const logging::Flags& flags)
   {
     return create();
   }
