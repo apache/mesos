@@ -75,8 +75,8 @@ TEST_F(OsTest, environment)
     if (position == std::string::npos) {
       continue; // Skip malformed environment entries.
     }
-    const string& key = entry.substr(0, position);
-    const string& value = entry.substr(position + 1);
+    const string key = entry.substr(0, position);
+    const string value = entry.substr(position + 1);
     EXPECT_TRUE(environment.contains(key));
     EXPECT_EQ(value, environment[key]);
   }
@@ -86,7 +86,7 @@ TEST_F(OsTest, environment)
 TEST_F(OsTest, rmdir)
 {
   const hashset<string> EMPTY;
-  const string& tmpdir = os::getcwd();
+  const string tmpdir = os::getcwd();
 
   hashset<string> expectedListing = EMPTY;
   EXPECT_EQ(expectedListing, listfiles(tmpdir));
@@ -185,7 +185,7 @@ TEST_F(OsTest, nonblock)
 
 TEST_F(OsTest, touch)
 {
-  const string& testfile  = path::join(os::getcwd(), UUID::random().toString());
+  const string testfile  = path::join(os::getcwd(), UUID::random().toString());
 
   ASSERT_SOME(os::touch(testfile));
   ASSERT_TRUE(os::exists(testfile));
@@ -194,8 +194,8 @@ TEST_F(OsTest, touch)
 
 TEST_F(OsTest, readWriteString)
 {
-  const string& testfile  = path::join(os::getcwd(), UUID::random().toString());
-  const string& teststr = "line1\nline2";
+  const string testfile  = path::join(os::getcwd(), UUID::random().toString());
+  const string teststr = "line1\nline2";
 
   ASSERT_SOME(os::write(testfile, teststr));
 
@@ -240,14 +240,14 @@ TEST_F(OsTest, size)
 
 TEST_F(OsTest, find)
 {
-  const string& testdir = path::join(os::getcwd(), UUID::random().toString());
-  const string& subdir = testdir + "/test1";
+  const string testdir = path::join(os::getcwd(), UUID::random().toString());
+  const string subdir = testdir + "/test1";
   ASSERT_SOME(os::mkdir(subdir)); // Create the directories.
 
   // Now write some files.
-  const string& file1 = testdir + "/file1.txt";
-  const string& file2 = subdir + "/file2.txt";
-  const string& file3 = subdir + "/file3.jpg";
+  const string file1 = testdir + "/file1.txt";
+  const string file2 = subdir + "/file2.txt";
+  const string file3 = subdir + "/file3.jpg";
 
   ASSERT_SOME(os::touch(file1));
   ASSERT_SOME(os::touch(file2));
@@ -943,9 +943,9 @@ TEST_F(OsTest, Mknod)
     return;
   }
 
-  const string& device = "null";
+  const string device = "null";
 
-  const string& existing = path::join("/dev", device);
+  const string existing = path::join("/dev", device);
   ASSERT_TRUE(os::exists(existing));
 
   Try<mode_t> mode = os::stat::mode(existing);
@@ -954,7 +954,7 @@ TEST_F(OsTest, Mknod)
   Try<dev_t> rdev = os::stat::rdev(existing);
   ASSERT_SOME(rdev);
 
-  const string& another = path::join(os::getcwd(), device);
+  const string another = path::join(os::getcwd(), device);
   ASSERT_FALSE(os::exists(another));
 
   EXPECT_SOME(os::mknod(another, mode.get(), rdev.get()));

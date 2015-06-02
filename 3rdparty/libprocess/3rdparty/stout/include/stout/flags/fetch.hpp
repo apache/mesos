@@ -44,7 +44,7 @@ Try<T> fetch(const std::string& value)
   // TODO(cmaloney): Introduce fetching for things beyond just file://
   // such as http:// as well!
   if (strings::startsWith(value, "file://")) {
-    const std::string& path = value.substr(7);
+    const std::string path = value.substr(7);
 
     Try<std::string> read = os::read(path);
     if (read.isError()) {

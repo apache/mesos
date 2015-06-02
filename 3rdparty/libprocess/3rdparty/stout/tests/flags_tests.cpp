@@ -645,7 +645,7 @@ TEST_F(FlagsFileTest, JSONFile)
   object.values["nested"] = nested;
 
   // Write the JSON to a file.
-  const string& file = path::join(os::getcwd(), "file.json");
+  const string file = path::join(os::getcwd(), "file.json");
   ASSERT_SOME(os::write(file, stringify(object)));
 
   // Read the JSON from the file.
@@ -669,7 +669,7 @@ TEST_F(FlagsFileTest, FilePrefix)
             "arg to be loaded from file");
 
   // Write the JSON to a file.
-  const string& file = path::join(os::getcwd(), "file");
+  const string file = path::join(os::getcwd(), "file");
   ASSERT_SOME(os::write(file, "testing"));
 
   // Read the JSON from the file.

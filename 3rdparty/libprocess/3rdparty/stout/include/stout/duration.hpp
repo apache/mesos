@@ -45,7 +45,7 @@ public:
         return Error(value.error());
       }
 
-      const std::string& unit = s.substr(index);
+      const std::string unit = s.substr(index);
 
       if (unit == "ns") {
         return Duration(value.get(), NANOSECONDS);

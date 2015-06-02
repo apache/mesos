@@ -49,7 +49,7 @@ public:
         return Error(value.error());
       }
 
-      const std::string& unit = strings::upper(s.substr(index));
+      const std::string unit = strings::upper(s.substr(index));
 
       if (unit == "B") {
         return Bytes(value.get(), BYTES);
