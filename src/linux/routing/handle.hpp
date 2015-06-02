@@ -81,9 +81,9 @@ protected:
 //           |   |
 //    -------+   +------>
 //
-// The parent of the root egress queueing discipline has an immutable
-// handle.
-constexpr Handle EGRESS_ROOT(TC_H_ROOT);
+// The root handles for both ingress and egress are immutable.
+constexpr Handle EGRESS_ROOT = Handle(TC_H_ROOT);
+constexpr Handle INGRESS_ROOT = Handle(TC_H_INGRESS);
 
 } // namespace routing {
 

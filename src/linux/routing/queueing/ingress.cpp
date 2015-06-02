@@ -87,7 +87,7 @@ namespace ingress {
 
 Try<bool> exists(const string& link)
 {
-  return internal::exists(link, ROOT, KIND);
+  return internal::exists(link, INGRESS_ROOT, KIND);
 }
 
 
@@ -97,7 +97,7 @@ Try<bool> create(const string& link)
       link,
       Discipline<Config>(
           KIND,
-          ROOT,
+          INGRESS_ROOT,
           HANDLE,
           Config()));
 }
@@ -105,7 +105,7 @@ Try<bool> create(const string& link)
 
 Try<bool> remove(const string& link)
 {
-  return internal::remove(link, ROOT, KIND);
+  return internal::remove(link, INGRESS_ROOT, KIND);
 }
 
 } // namespace ingress {
