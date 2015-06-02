@@ -389,8 +389,9 @@ libmesos_no_3rdparty_la_SOURCES =					\
 	slave/monitor.cpp						\
 	slave/paths.cpp							\
 	slave/resource_estimator.cpp					\
-	slave/state.cpp							\
 	slave/slave.cpp							\
+	slave/state.cpp							\
+	slave/status_update_manager.cpp					\
 	slave/containerizer/containerizer.cpp				\
 	slave/containerizer/composing.cpp				\
 	slave/containerizer/composing.hpp				\
@@ -403,7 +404,7 @@ libmesos_no_3rdparty_la_SOURCES =					\
 	slave/containerizer/launcher.cpp				\
 	slave/containerizer/mesos/containerizer.cpp			\
 	slave/containerizer/mesos/launch.cpp				\
-	slave/status_update_manager.cpp					\
+	slave/resource_estimators/noop.cpp				\
 	usage/usage.cpp							\
 	watcher/whitelist_watcher.cpp					\
 	zookeeper/contender.cpp						\
@@ -610,7 +611,6 @@ libmesos_no_3rdparty_la_SOURCES +=					\
 	slave/metrics.hpp						\
 	slave/monitor.hpp						\
 	slave/paths.hpp							\
-	slave/resource_estimator.hpp					\
 	slave/slave.hpp							\
 	slave/state.hpp							\
 	slave/status_update_manager.hpp					\
@@ -629,6 +629,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
 	slave/containerizer/isolators/cgroups/perf_event.hpp		\
 	slave/containerizer/isolators/namespaces/pid.hpp		\
 	slave/containerizer/isolators/filesystem/shared.hpp		\
+	slave/resource_estimators/noop.hpp				\
 	tests/cluster.hpp						\
 	tests/containerizer.hpp						\
 	tests/environment.hpp						\

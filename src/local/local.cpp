@@ -27,6 +27,8 @@
 
 #include <mesos/module/anonymous.hpp>
 
+#include <mesos/slave/resource_estimator.hpp>
+
 #include <process/limiter.hpp>
 #include <process/owned.hpp>
 #include <process/pid.hpp>
@@ -60,7 +62,6 @@
 #include "module/manager.hpp"
 
 #include "slave/gc.hpp"
-#include "slave/resource_estimator.hpp"
 #include "slave/slave.hpp"
 #include "slave/status_update_manager.hpp"
 

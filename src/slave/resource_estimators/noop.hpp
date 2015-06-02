@@ -16,8 +16,8 @@
  * limitations under the License.
  */
 
-#ifndef __SLAVE_RESOURCE_ESTIMATOR_HPP__
-#define __SLAVE_RESOURCE_ESTIMATOR_HPP__
+#ifndef __SLAVE_RESOURCE_ESTIMATORS_NOOP_HPP__
+#define __SLAVE_RESOURCE_ESTIMATORS_NOOP_HPP__
 
 #include <mesos/slave/resource_estimator.hpp>
 
@@ -51,4 +51,4 @@ protected:
 } // namespace internal {
 } // namespace mesos {
 
-#endif // __SLAVE_RESOURCE_ESTIMATOR_HPP__
+#endif // __SLAVE_RESOURCE_ESTIMATORS_NOOP_HPP__

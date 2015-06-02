@@ -28,6 +28,8 @@
 
 #include <mesos/master/allocator.hpp>
 
+#include <mesos/slave/resource_estimator.hpp>
+
 #include <process/clock.hpp>
 #include <process/future.hpp>
 #include <process/gmock.hpp>
@@ -70,7 +72,6 @@
 
 #include "slave/flags.hpp"
 #include "slave/gc.hpp"
-#include "slave/resource_estimator.hpp"
 #include "slave/slave.hpp"
 #include "slave/status_update_manager.hpp"
 

@@ -16,14 +16,9 @@
  * limitations under the License.
  */
 
-#include <process/dispatch.hpp>
-#include <process/process.hpp>
-
 #include <stout/error.hpp>
 
-#include "slave/resource_estimator.hpp"
-
-using namespace process;
+#include "slave/resource_estimators/noop.hpp"
 
 using std::string;
 
@@ -41,67 +36,4 @@ Try<ResourceEstimator*> ResourceEstimator::create(const Option<string>& type)
 }
 
 } // namespace slave {
-} // namespace mesos {
-
-
-namespace mesos {
-namespace internal {
-namespace slave {
-
-class NoopResourceEstimatorProcess :
-  public Process<NoopResourceEstimatorProcess>
-{
-public:
-  NoopResourceEstimatorProcess() : sent(false) {}
-
-  Future<Resources> oversubscribable()
-  {
-    if (!sent) {
-      sent = true;
-      return Resources();
-    }
-
-    return Future<Resources>();
-  }
-
-private:
-  bool sent;
-};
-
-
-NoopResourceEstimator::~NoopResourceEstimator()
-{
-  if (process.get() != NULL) {
-    terminate(process.get());
-    wait(process.get());
-  }
-}
-
-
-Try<Nothing> NoopResourceEstimator::initialize()
-{
-  if (process.get() != NULL) {
-    return Error("Noop resource estimator has already been initialized");
-  }
-
-  process.reset(new NoopResourceEstimatorProcess());
-  spawn(process.get());
-
-  return Nothing();
-}
-
-
-Future<Resources> NoopResourceEstimator::oversubscribable()
-{
-  if (process.get() == NULL) {
-    return Failure("Noop resource estimator is not initialized");
-  }
-
-  return dispatch(
-      process.get(),
-      &NoopResourceEstimatorProcess::oversubscribable);
-}
-
-} // namespace slave {
-} // namespace internal {
 } // namespace mesos {

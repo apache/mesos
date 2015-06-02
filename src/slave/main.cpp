@@ -22,6 +22,8 @@
 
 #include <mesos/module/anonymous.hpp>
 
+#include <mesos/slave/resource_estimator.hpp>
+
 #include <stout/check.hpp>
 #include <stout/flags.hpp>
 #include <stout/nothing.hpp>
@@ -42,7 +44,6 @@
 #include "module/manager.hpp"
 
 #include "slave/gc.hpp"
-#include "slave/resource_estimator.hpp"
 #include "slave/slave.hpp"
 #include "slave/status_update_manager.hpp"
 

@@ -26,7 +26,8 @@
 #include <mesos/slave/resource_estimator.hpp>
 
 #include <stout/try.hpp>
-#include <slave/resource_estimator.hpp>
+
+#include "slave/resource_estimators/noop.hpp"
 
 using namespace mesos;
 
