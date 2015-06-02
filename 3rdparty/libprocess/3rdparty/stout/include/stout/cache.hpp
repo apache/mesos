@@ -125,7 +125,7 @@ private:
   // Evict the least-recently used element from the cache.
   void evict()
   {
-    const typename map::iterator& i = values.find(keys.front());
+    const typename map::iterator i = values.find(keys.front());
     CHECK(i != values.end());
     values.erase(i);
     keys.pop_front();

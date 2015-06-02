@@ -984,8 +984,7 @@ inline Try<Memory> memory()
   return memory;
 
 #elif defined __APPLE__
-  const Try<int64_t>& totalMemory =
-    os::sysctl(CTL_HW, HW_MEMSIZE).integer();
+  const Try<int64_t> totalMemory = os::sysctl(CTL_HW, HW_MEMSIZE).integer();
 
   if (totalMemory.isError()) {
     return Error(totalMemory.error());
@@ -1110,7 +1109,7 @@ inline Try<Version> release()
 
 inline Try<std::list<Process> > processes()
 {
-  const Try<std::set<pid_t> >& pids = os::pids();
+  const Try<std::set<pid_t>> pids = os::pids();
 
   if (pids.isError()) {
     return Error(pids.error());
@@ -1118,7 +1117,7 @@ inline Try<std::list<Process> > processes()
 
   std::list<Process> result;
   foreach (pid_t pid, pids.get()) {
-    const Result<Process>& process = os::process(pid);
+    const Result<Process> process = os::process(pid);
 
     // Ignore any processes that disappear.
     if (process.isSome()) {
@@ -1173,7 +1172,7 @@ inline std::set<pid_t> children(
 
 inline Try<std::set<pid_t> > children(pid_t pid, bool recursive = true)
 {
-  const Try<std::list<Process> >& processes = os::processes();
+  const Try<std::list<Process>> processes = os::processes();
 
   if (processes.isError()) {
     return Error(processes.error());
@@ -1196,7 +1195,7 @@ inline Try<std::set<pid_t> > pids(Option<pid_t> group, Option<pid_t> session)
     return Error("Invalid session");
   }
 
-  const Try<std::list<Process> >& processes = os::processes();
+  const Try<std::list<Process>> processes = os::processes();
 
   if (processes.isError()) {
     return Error(processes.error());

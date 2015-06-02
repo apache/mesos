@@ -28,10 +28,10 @@
 #include <stout/try.hpp>
 
 // Provides a CHECK_SOME macro, akin to CHECK.
-// This appends the error if possible to the end of the log message, so there's
-// no need to append the error message explicitly.
+// This appends the error if possible to the end of the log message,
+// so there's no need to append the error message explicitly.
 #define CHECK_SOME(expression)                                          \
-  for (const Option<std::string>& _error = _check(expression);          \
+  for (const Option<std::string> _error = _check(expression);           \
        _error.isSome();)                                                \
     _CheckFatal(__FILE__, __LINE__, "CHECK_SOME",                       \
                 #expression, _error.get()).stream()

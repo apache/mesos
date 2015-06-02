@@ -668,7 +668,7 @@ inline std::ostream& operator << (std::ostream& stream, const FlagsBase& flags)
   std::vector<std::string> _flags;
 
   foreachvalue (const flags::Flag& flag, flags) {
-    const Option<std::string>& value = flag.stringify(flags);
+    const Option<std::string> value = flag.stringify(flags);
     if (value.isSome()) {
       _flags.push_back("--" + flag.name + "=\"" + value.get() + '"');
     }

@@ -113,7 +113,7 @@ bool Multimap<K, V>::contains(const K& key) const
 template <typename K, typename V>
 bool Multimap<K, V>::contains(const K& key, const V& value) const
 {
-  const std::list<V>& values = get(key);
+  const std::list<V> values = get(key);
   return std::find(values.begin(), values.end(), value) != values.end();
 }
 

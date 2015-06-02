@@ -51,7 +51,7 @@ inline Result<Process> process(pid_t pid)
     return Error("Failed to get sysconf(_SC_CLK_TCK)");
   }
 
-  const Result<proc::ProcessStatus>& status = proc::status(pid);
+  const Result<proc::ProcessStatus> status = proc::status(pid);
 
   if (status.isError()) {
     return Error(status.error());

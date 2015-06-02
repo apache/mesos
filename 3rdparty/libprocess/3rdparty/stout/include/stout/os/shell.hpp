@@ -34,7 +34,7 @@ inline Try<int> shell(std::ostream* os, const std::string fmt, ...)
   va_list args;
   va_start(args, fmt);
 
-  const Try<std::string>& command = strings::internal::format(fmt, args);
+  const Try<std::string> command = strings::internal::format(fmt, args);
 
   va_end(args);
 

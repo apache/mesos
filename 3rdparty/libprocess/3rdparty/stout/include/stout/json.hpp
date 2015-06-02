@@ -261,7 +261,7 @@ inline const Value& Value::as<Value>() const
 template <typename T>
 Result<T> Object::find(const std::string& path) const
 {
-  const std::vector<std::string>& names = strings::split(path, ".", 2);
+  const std::vector<std::string> names = strings::split(path, ".", 2);
 
   if (names.empty()) {
     return None();

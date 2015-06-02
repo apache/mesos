@@ -38,7 +38,7 @@ namespace os {
 
 inline Result<Process> process(pid_t pid)
 {
-  const Try<std::vector<kinfo_proc> >& processes =
+  const Try<std::vector<kinfo_proc>> processes =
     os::sysctl(CTL_KERN, KERN_PROC, KERN_PROC_PID, pid).table(1);
 
   if (processes.isError()) {
@@ -166,13 +166,13 @@ inline Result<Process> process(pid_t pid)
 
 inline Try<std::set<pid_t> > pids()
 {
-  const Try<int>& maxproc = os::sysctl(CTL_KERN, KERN_MAXPROC).integer();
+  const Try<int> maxproc = os::sysctl(CTL_KERN, KERN_MAXPROC).integer();
 
   if (maxproc.isError()) {
     return Error(maxproc.error());
   }
 
-  const Try<std::vector<kinfo_proc> >& processes =
+  const Try<std::vector<kinfo_proc>> processes =
     os::sysctl(CTL_KERN, KERN_PROC, KERN_PROC_ALL).table(maxproc.get());
 
   if (processes.isError()) {

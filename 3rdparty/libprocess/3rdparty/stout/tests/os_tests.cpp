@@ -294,7 +294,7 @@ TEST_F(OsTest, bootId)
 
 TEST_F(OsTest, uname)
 {
-  const Try<os::UTSInfo>& info = os::uname();
+  const Try<os::UTSInfo> info = os::uname();
 
   ASSERT_SOME(info);
 #ifdef __linux__
@@ -308,7 +308,7 @@ TEST_F(OsTest, uname)
 
 TEST_F(OsTest, sysname)
 {
-  const Try<string>& name = os::sysname();
+  const Try<string> name = os::sysname();
 
   ASSERT_SOME(name);
 #ifdef __linux__
@@ -322,7 +322,7 @@ TEST_F(OsTest, sysname)
 
 TEST_F(OsTest, release)
 {
-  const Try<Version>& info = os::release();
+  const Try<Version> info = os::release();
 
   ASSERT_SOME(info);
 }
@@ -466,7 +466,7 @@ TEST_F(OsTest, children)
 
 TEST_F(OsTest, process)
 {
-  const Result<Process>& process = os::process(getpid());
+  const Result<Process> process = os::process(getpid());
 
   ASSERT_SOME(process);
   EXPECT_EQ(getpid(), process.get().pid);
@@ -490,7 +490,7 @@ TEST_F(OsTest, process)
 
 TEST_F(OsTest, processes)
 {
-  const Try<list<Process> >& processes = os::processes();
+  const Try<list<Process>> processes = os::processes();
 
   ASSERT_SOME(processes);
   ASSERT_GT(processes.get().size(), 2);

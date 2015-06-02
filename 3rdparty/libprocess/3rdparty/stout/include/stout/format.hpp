@@ -77,7 +77,7 @@ inline Try<std::string> format(const std::string fmt, ...)
 {
   va_list args;
   va_start(args, fmt);
-  const Try<std::string>& result = format(fmt, args);
+  const Try<std::string> result = format(fmt, args);
   va_end(args);
   return result;
 }

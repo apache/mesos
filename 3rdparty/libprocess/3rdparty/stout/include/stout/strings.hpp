@@ -177,9 +177,9 @@ inline std::map<std::string, std::vector<std::string> > pairs(
 {
   std::map<std::string, std::vector<std::string> > result;
 
-  const std::vector<std::string>& tokens = tokenize(s, delims1);
+  const std::vector<std::string> tokens = tokenize(s, delims1);
   foreach (const std::string& token, tokens) {
-    const std::vector<std::string>& pairs = tokenize(token, delims2);
+    const std::vector<std::string> pairs = tokenize(token, delims2);
     if (pairs.size() == 2) {
       result[pairs[0]].push_back(pairs[1]);
     }
