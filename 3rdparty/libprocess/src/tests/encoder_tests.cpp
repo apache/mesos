@@ -26,7 +26,7 @@ TEST(Encoder, Response)
   const OK response("body");
 
   // Encode the response.
-  const string& encoded = HttpResponseEncoder::encode(response, request);
+  const string encoded = HttpResponseEncoder::encode(response, request);
 
   // Now decode it back, and verify the encoding was correct.
   ResponseDecoder decoder;

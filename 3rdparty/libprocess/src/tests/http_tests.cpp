@@ -143,7 +143,7 @@ TEST(HTTP, Endpoints)
       << "Connection: Keep-Alive\r\n"
       << "\r\n";
 
-  const string& data = out.str();
+  const string data = out.str();
 
   EXPECT_CALL(*http.process, body(_))
     .WillOnce(Return(http::OK()));

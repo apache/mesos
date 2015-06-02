@@ -486,7 +486,7 @@ static Message* parse(Request* request)
   } else {
     // Try and get 'from' from the User-Agent.
     const string& agent = request->headers["User-Agent"];
-    const string& identifier = "libprocess/";
+    const string identifier = "libprocess/";
     size_t index = agent.find(identifier);
     if (index != string::npos) {
       from = UPID(agent.substr(index + identifier.size(), agent.size()));
@@ -513,7 +513,7 @@ static Message* parse(Request* request)
 
   // And now determine 'name'.
   index = index != string::npos ? index + 2: request->path.size();
-  const string& name = request->path.substr(index);
+  const string name = request->path.substr(index);
 
   VLOG(2) << "Parsed message name '" << name
           << "' for " << to << " from " << from.get();
@@ -2711,7 +2711,7 @@ void ProcessBase::visit(const HttpEvent& event)
   CHECK(tokens.size() >= 1);
   CHECK_EQ(pid.id, http::decode(tokens[0]).get());
 
-  const string& name = tokens.size() > 1 ? tokens[1] : "";
+  const string name = tokens.size() > 1 ? tokens[1] : "";
 
   if (handlers.http.count(name) > 0) {
     // Create the promise to link with whatever gets returned, as well

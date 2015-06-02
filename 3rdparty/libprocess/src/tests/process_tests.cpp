@@ -1462,7 +1462,7 @@ TEST(Process, remote)
   message.from = UPID();
   message.to = process.self();
 
-  const string& data = MessageEncoder::encode(&message);
+  const string data = MessageEncoder::encode(&message);
 
   AWAIT_READY(socket.send(data));
 

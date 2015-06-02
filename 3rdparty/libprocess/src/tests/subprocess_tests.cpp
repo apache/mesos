@@ -828,7 +828,7 @@ TEST_F(SubprocessTest, Setup)
   ASSERT_SOME(s.get().status().get());
 
   // Make sure 'file' is there and contains 'hello world'.
-  const string& path = path::join(directory.get(), "file");
+  const string path = path::join(directory.get(), "file");
   EXPECT_TRUE(os::exists(path));
   EXPECT_SOME_EQ("hello world\n", os::read(path));
 

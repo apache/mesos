@@ -135,7 +135,7 @@ Future<http::Response> Help::help(const http::Request& request)
 
     document += "## `/" + id.get() + "` ##\n";
     foreachkey (const string& name, helps[id.get()]) {
-      const string& path = id.get() + name;
+      const string path = id.get() + name;
       document += "> [/" +  path + "][" + path + "]\n";
       references += "[" + path + "]: " + path + "\n";
     }

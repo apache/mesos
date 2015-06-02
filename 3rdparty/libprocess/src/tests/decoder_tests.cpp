@@ -23,7 +23,7 @@ TEST(Decoder, Request)
   ASSERT_SOME(socket);
   DataDecoder decoder = DataDecoder(socket.get());
 
-  const string& data =
+  const string data =
     "GET /path/file.json?key1=value1&key2=value2#fragment HTTP/1.1\r\n"
     "Host: localhost\r\n"
     "Connection: close\r\n"
@@ -61,7 +61,7 @@ TEST(Decoder, RequestHeaderContinuation)
   ASSERT_SOME(socket);
   DataDecoder decoder = DataDecoder(socket.get());
 
-  const string& data =
+  const string data =
     "GET /path/file.json HTTP/1.1\r\n"
     "Host: localhost\r\n"
     "Connection: close\r\n"
@@ -87,7 +87,7 @@ TEST(Decoder, DISABLED_RequestHeaderCaseInsensitive)
   ASSERT_SOME(socket);
   DataDecoder decoder = DataDecoder(socket.get());
 
-  const string& data =
+  const string data =
     "GET /path/file.json HTTP/1.1\r\n"
     "Host: localhost\r\n"
     "cOnnECtioN: close\r\n"
@@ -111,7 +111,7 @@ TEST(Decoder, Response)
 {
   ResponseDecoder decoder;
 
-  const string& data =
+  const string data =
     "HTTP/1.1 200 OK\r\n"
     "Date: Fri, 31 Dec 1999 23:59:59 GMT\r\n"
     "Content-Type: text/plain\r\n"
@@ -139,14 +139,14 @@ TEST(Decoder, StreamingResponse)
 {
   StreamingResponseDecoder decoder;
 
-  const string& headers =
+  const string headers =
     "HTTP/1.1 200 OK\r\n"
     "Date: Fri, 31 Dec 1999 23:59:59 GMT\r\n"
     "Content-Type: text/plain\r\n"
     "Content-Length: 2\r\n"
     "\r\n";
 
-  const string& body = "hi";
+  const string body = "hi";
 
   deque<Response*> responses = decoder.decode(headers.data(), headers.length());
   ASSERT_FALSE(decoder.failed());
@@ -183,7 +183,7 @@ TEST(Decoder, StreamingResponseFailure)
 {
   StreamingResponseDecoder decoder;
 
-  const string& headers =
+  const string headers =
     "HTTP/1.1 200 OK\r\n"
     "Date: Fri, 31 Dec 1999 23:59:59 GMT\r\n"
     "Content-Type: text/plain\r\n"
@@ -191,7 +191,7 @@ TEST(Decoder, StreamingResponseFailure)
     "\r\n";
 
   // The body is shorter than the content length!
-  const string& body = "1";
+  const string body = "1";
 
   deque<Response*> responses = decoder.decode(headers.data(), headers.length());
   ASSERT_FALSE(decoder.failed());
