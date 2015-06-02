@@ -50,6 +50,10 @@ using mesos::internal::slave::Slave;
 using std::string;
 using std::vector;
 
+using testing::_;
+using testing::Return;
+using testing::Invoke;
+
 namespace mesos {
 namespace internal {
 namespace tests {
@@ -81,11 +85,22 @@ TEST_F(OversubscriptionTest, ForwardUpdateSlaveMessage)
   Future<SlaveRegisteredMessage> slaveRegistered =
     FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
 
-  TestResourceEstimator resourceEstimator;
+  MockResourceEstimator resourceEstimator;
+
+  EXPECT_CALL(resourceEstimator, initialize());
+
+  Queue<Resources> estimations;
+  // We expect 2 calls:
+  // - First for some slack estimation.
+  // - Second ensures that slave will wait
+  //   asynchronously for next estimation.
+  EXPECT_CALL(resourceEstimator, oversubscribable())
+    .Times(2)
+    .WillRepeatedly(Invoke(&estimations, &Queue<Resources>::get));
 
   slave::Flags flags = CreateSlaveFlags();
-
   Try<PID<Slave>> slave = StartSlave(&resourceEstimator, flags);
+
   ASSERT_SOME(slave);
 
   AWAIT_READY(slaveRegistered);
@@ -94,7 +109,6 @@ TEST_F(OversubscriptionTest, ForwardUpdateSlaveMessage)
     FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
 
   Clock::pause();
-
   // No update should be sent until there is an estimate.
   Clock::advance(flags.oversubscribed_resources_interval);
   Clock::settle();
@@ -103,9 +117,10 @@ TEST_F(OversubscriptionTest, ForwardUpdateSlaveMessage)
 
   // Inject an estimation of oversubscribable resources.
   Resources resources = createRevocableResources("cpus", "1");
-  resourceEstimator.estimate(resources);
+  estimations.put(resources);
 
   AWAIT_READY(update);
+
   EXPECT_EQ(Resources(update.get().oversubscribed_resources()), resources);
 
   // Ensure the metric is updated.
@@ -130,7 +145,19 @@ TEST_F(OversubscriptionTest, RevocableOffer)
   ASSERT_SOME(master);
 
   // Start the slave with test resource estimator.
-  TestResourceEstimator resourceEstimator;
+  MockResourceEstimator resourceEstimator;
+
+  EXPECT_CALL(resourceEstimator, initialize());
+
+  Queue<Resources> estimations;
+  // We expect 2 calls:
+  // - First for some slack estimation.
+  // - Second ensures that slave will wait
+  //   asynchronously for next estimation.
+  EXPECT_CALL(resourceEstimator, oversubscribable())
+    .Times(2)
+    .WillRepeatedly(Invoke(&estimations, &Queue<Resources>::get));
+
   slave::Flags flags = CreateSlaveFlags();
 
   Try<PID<Slave>> slave = StartSlave(&resourceEstimator, flags);
@@ -165,7 +192,7 @@ TEST_F(OversubscriptionTest, RevocableOffer)
 
   // Inject an estimation of oversubscribable resources.
   Resources resources = createRevocableResources("cpus", "1");
-  resourceEstimator.estimate(resources);
+  estimations.put(resources);
 
   // Now the framework will get revocable resources.
   AWAIT_READY(offers2);
@@ -188,7 +215,20 @@ TEST_F(OversubscriptionTest, RescindRevocableOffer)
   ASSERT_SOME(master);
 
   // Start the slave with test resource estimator.
-  TestResourceEstimator resourceEstimator;
+  MockResourceEstimator resourceEstimator;
+
+  EXPECT_CALL(resourceEstimator, initialize());
+
+  Queue<Resources> estimations;
+  // We expect 3 calls:
+  // - First for some slack estimation.
+  // - Second for extended slack resources.
+  // - Third ensures that slave will wait
+  //   asynchronously for next estimation.
+  EXPECT_CALL(resourceEstimator, oversubscribable())
+    .Times(3)
+    .WillRepeatedly(Invoke(&estimations, &Queue<Resources>::get));
+
   slave::Flags flags = CreateSlaveFlags();
 
   Try<PID<Slave>> slave = StartSlave(&resourceEstimator, flags);
@@ -222,7 +262,7 @@ TEST_F(OversubscriptionTest, RescindRevocableOffer)
 
   // Inject an estimation of oversubscribable resources.
   Resources resources = createRevocableResources("cpus", "1");
-  resourceEstimator.estimate(resources);
+  estimations.put(resources);
 
   // Now the framework will get revocable resources.
   AWAIT_READY(offers2);
@@ -241,7 +281,7 @@ TEST_F(OversubscriptionTest, RescindRevocableOffer)
   // Inject another estimation of oversubscribable resources while the
   // previous revocable offer is oustanding.
   Resources resources2 = createRevocableResources("cpus", "2");
-  resourceEstimator.estimate(resources2);
+  estimations.put(resources2);
 
   // Advance the clock for the slave to send the new estimate.
   Clock::pause();

@@ -710,26 +710,29 @@ public:
 };
 
 
-class TestResourceEstimator : public mesos::slave::ResourceEstimator
+class MockResourceEstimator : public mesos::slave::ResourceEstimator
 {
 public:
-  virtual Try<Nothing> initialize()
+  MockResourceEstimator()
   {
-    return Nothing();
+    ON_CALL(*this, initialize())
+      .WillByDefault(Return(Nothing()));
+    EXPECT_CALL(*this, initialize())
+      .WillRepeatedly(DoDefault());
+
+    ON_CALL(*this, oversubscribable())
+      .WillByDefault(Return(process::Future<Resources>()));
+    EXPECT_CALL(*this, oversubscribable())
+      .WillRepeatedly(DoDefault());
   }
 
-  virtual process::Future<Resources> oversubscribable()
-  {
-    return queue.get();
-  }
+  virtual ~MockResourceEstimator() {}
 
-  void estimate(const Resources& resources)
-  {
-    queue.put(resources);
-  }
+  MOCK_METHOD0(initialize,
+               Try<Nothing>());
 
-private:
-  process::Queue<Resources> queue;
+  MOCK_METHOD0(oversubscribable,
+               process::Future<Resources>());
 };
 
 
@@ -796,7 +799,7 @@ public:
 private:
   Files files;
   MockGarbageCollector gc;
-  TestResourceEstimator resourceEstimator;
+  MockResourceEstimator resourceEstimator;
   slave::StatusUpdateManager* statusUpdateManager;
 };
 
