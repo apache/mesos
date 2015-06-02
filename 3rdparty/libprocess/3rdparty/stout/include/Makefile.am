@@ -15,9 +15,7 @@ nobase_include_HEADERS =		\
   stout/flags/fetch.hpp			\
   stout/flags/flag.hpp			\
   stout/flags/flags.hpp			\
-  stout/flags/loader.hpp		\
   stout/flags/parse.hpp			\
-  stout/flags/stringifier.hpp		\
   stout/foreach.hpp			\
   stout/format.hpp			\
   stout/fs.hpp				\

@@ -34,8 +34,6 @@
 
 #include <stout/flags/fetch.hpp>
 #include <stout/flags/flag.hpp>
-#include <stout/flags/loader.hpp>
-#include <stout/flags/stringifier.hpp>
 
 namespace flags {
 
@@ -78,7 +76,7 @@ public:
       bool duplicates = false);
 
   virtual Try<Nothing> load(
-      const std::map<std::string, Option<std::string> >& values,
+      const std::map<std::string, Option<std::string>>& values,
       bool unknowns = false);
 
   virtual Try<Nothing> load(
@@ -137,28 +135,74 @@ public:
   iterator begin() { return flags_.begin(); }
   iterator end() { return flags_.end(); }
 
+  template <typename T1, typename T2, typename F>
+  void add(
+      T1* t1,
+      const std::string& name,
+      const std::string& help,
+      const T2& t2,
+      F validate);
+
   template <typename T1, typename T2>
-  void add(T1* t1,
-           const std::string& name,
-           const std::string& help,
-           const T2& t2);
+  void add(
+      T1* t1,
+      const std::string& name,
+      const std::string& help,
+      const T2& t2)
+  {
+    add(t1, name, help, t2, [](const T1&) { return None(); });
+  }
+
+  template <typename T, typename F>
+  void add(
+      Option<T>* option,
+      const std::string& name,
+      const std::string& help,
+      F validate);
 
   template <typename T>
-  void add(Option<T>* option,
-           const std::string& name,
-           const std::string& help);
+  void add(
+      Option<T>* option,
+      const std::string& name,
+      const std::string& help)
+  {
+    add(option, name, help, [](const Option<T>&) { return None(); });
+  }
 
 protected:
+  template <typename Flags, typename T1, typename T2, typename F>
+  void add(
+      T1 Flags::*t1,
+      const std::string& name,
+      const std::string& help,
+      const T2& t2,
+      F validate);
+
   template <typename Flags, typename T1, typename T2>
-  void add(T1 Flags::*t1,
-           const std::string& name,
-           const std::string& help,
-           const T2& t2);
+  void add(
+      T1 Flags::*t1,
+      const std::string& name,
+      const std::string& help,
+      const T2& t2)
+  {
+    add(t1, name, help, t2, [](const T1&) { return None(); });
+  }
+
+  template <typename Flags, typename T, typename F>
+  void add(
+      Option<T> Flags::*option,
+      const std::string& name,
+      const std::string& help,
+      F validate);
 
   template <typename Flags, typename T>
-  void add(Option<T> Flags::*option,
-           const std::string& name,
-           const std::string& help);
+  void add(
+      Option<T> Flags::*option,
+      const std::string& name,
+      const std::string& help)
+  {
+    add(option, name, help, [](const Option<T>&) { return None(); });
+  }
 
   void add(const Flag& flag);
 
@@ -183,7 +227,7 @@ protected:
 
 private:
   // Extract environment variable "flags" with the specified prefix.
-  std::map<std::string, Option<std::string> > extract(
+  std::map<std::string, Option<std::string>> extract(
       const std::string& prefix);
 
   std::map<std::string, Flag> flags_;
@@ -214,92 +258,51 @@ class Flags : public virtual Flags1,
               public virtual Flags5 {};
 
 
-template <typename T1, typename T2>
+template <typename T1, typename T2, typename F>
 void FlagsBase::add(
     T1* t1,
     const std::string& name,
     const std::string& help,
-    const T2& t2)
+    const T2& t2,
+    F validate)
 {
+  // Don't bother adding anything if the pointer is NULL.
+  if (t1 == NULL) {
+    return;
+  }
+
   *t1 = t2; // Set the default.
 
   Flag flag;
   flag.name = name;
   flag.help = help;
   flag.boolean = typeid(T1) == typeid(bool);
-  flag.loader = lambda::bind(
-      &Loader<T1>::load,
-      t1,
-      lambda::function<Try<T1>(const std::string&)>(
-          lambda::bind(&fetch<T1>, lambda::_1)),
-      name,
-      lambda::_2); // Use _2 because ignore FlagsBase*.
-  flag.stringify = lambda::bind(&Stringifier<T1>, t1);
 
-  // Update the help string to include the default value.
-  flag.help += help.size() > 0 && help.find_last_of("\n\r") != help.size() - 1
-    ? " (default: " // On same line, add space.
-    : "(default: "; // On newline.
-  flag.help += stringify(t2);
-  flag.help += ")";
+  // NOTE: We need to take FlagsBase* (or const FlagsBase&) as the
+  // first argument to match the function signature of the 'load',
+  // 'stringify', and 'validate' lambdas used in other overloads of
+  // FlagsBase::add. Since we don't need to use the pointer here we
+  // don't name it as a parameter.
 
-  FlagsBase::add(flag);
-}
+  flag.load = [t1](FlagsBase*, const std::string& value) -> Try<Nothing> {
+    // NOTE: 'fetch' "retrieves" the value if necessary and then
+    // invokes 'parse'. See 'fetch' for more details.
+    Try<T1> t = fetch<T1>(value);
+    if (t.isSome()) {
+      *t1 = t.get();
+    } else {
+      return Error("Failed to load value '" + value + "': " + t.error());
+    }
+    return Nothing();
+  };
 
+  flag.stringify = [t1](const FlagsBase&) -> Option<std::string> {
+    return stringify(*t1);
+  };
 
-template <typename T>
-void FlagsBase::add(
-    Option<T>* option,
-    const std::string& name,
-    const std::string& help)
-{
-  Flag flag;
-  flag.name = name;
-  flag.help = help;
-  flag.boolean = typeid(T) == typeid(bool);
-  flag.loader = lambda::bind(
-      &OptionLoader<T>::load,
-      option,
-      lambda::function<Try<T>(const std::string&)>(
-          lambda::bind(&fetch<T>, lambda::_1)),
-      name,
-      lambda::_2); // Use _2 because ignore FlagsBase*.
-  flag.stringify = lambda::bind(&OptionStringifier<T>, option);
-
-  FlagsBase::add(flag);
-}
-
-
-template <typename Flags, typename T1, typename T2>
-void FlagsBase::add(
-    T1 Flags::*t1,
-    const std::string& name,
-    const std::string& help,
-    const T2& t2)
-{
-  Flags* flags = dynamic_cast<Flags*>(this);
-  if (flags == NULL) {
-    ABORT("Attempted to add flag '" + name + "' with incompatible type");
-  } else {
-    flags->*t1 = t2; // Set the default.
-  }
-
-  Flag flag;
-  flag.name = name;
-  flag.help = help;
-  flag.boolean = typeid(T1) == typeid(bool);
-  flag.loader = lambda::bind(
-      &MemberLoader<Flags, T1>::load,
-      lambda::_1,
-      t1,
-      lambda::function<Try<T1>(const std::string&)>(
-          lambda::bind(&fetch<T1>, lambda::_1)),
-      name,
-      lambda::_2);
-  flag.stringify = lambda::bind(
-      &MemberStringifier<Flags, T1>,
-      lambda::_1,
-      t1);
+  flag.validate = [t1, validate](const FlagsBase&) -> Option<Error> {
+    return validate(*t1);
+  };
 
   // Update the help string to include the default value.
   flag.help += help.size() > 0 && help.find_last_of("\n\r") != help.size() - 1
@@ -312,12 +315,140 @@ void FlagsBase::add(
 }
 
 
-template <typename Flags, typename T>
+template <typename T, typename F>
+void FlagsBase::add(
+    Option<T>* option,
+    const std::string& name,
+    const std::string& help,
+    F validate)
+{
+  // Don't bother adding anything if the pointer is NULL.
+  if (option == NULL) {
+    return;
+  }
+
+  Flag flag;
+  flag.name = name;
+  flag.help = help;
+  flag.boolean = typeid(T) == typeid(bool);
+
+  // NOTE: See comment above in T* overload of FlagsBase::add for why
+  // we need to take the FlagsBase* parameter.
+
+  flag.load = [option](FlagsBase*, const std::string& value) -> Try<Nothing> {
+    // NOTE: 'fetch' "retrieves" the value if necessary and then
+    // invokes 'parse'. See 'fetch' for more details.
+    Try<T> t = fetch<T>(value);
+    if (t.isSome()) {
+      *option = Some(t.get());
+    } else {
+      return Error("Failed to load value '" + value + "': " + t.error());
+    }
+    return Nothing();
+  };
+
+  flag.stringify = [option](const FlagsBase&) -> Option<std::string> {
+    if (option->isSome()) {
+      return stringify(option->get());
+    }
+    return None();
+  };
+
+  flag.validate = [option, validate](const FlagsBase&) -> Option<Error> {
+    return validate(*option);
+  };
+
+  add(flag);
+}
+
+
+template <typename Flags, typename T1, typename T2, typename F>
+void FlagsBase::add(
+    T1 Flags::*t1,
+    const std::string& name,
+    const std::string& help,
+    const T2& t2,
+    F validate)
+{
+  // Don't bother adding anything if the pointer is NULL.
+  if (t1 == NULL) {
+    return;
+  }
+
+  Flags* flags = dynamic_cast<Flags*>(this);
+  if (flags == NULL) {
+    ABORT("Attempted to add flag '" + name + "' with incompatible type");
+  } else {
+    flags->*t1 = t2; // Set the default.
+  }
+
+  Flag flag;
+  flag.name = name;
+  flag.help = help;
+  flag.boolean = typeid(T1) == typeid(bool);
+
+  // NOTE: We need to take FlagsBase* (or const FlagsBase&) as the
+  // first argument to 'load', 'stringify', and 'validate' so that we
+  // use the correct instance of FlagsBase. In other words, we can't
+  // capture 'this' here because it's possible that the FlagsBase
+  // object that we're working with when we invoke FlagsBase::add is
+  // not the same instance as 'this' when the these lambdas get
+  // invoked.
+
+  flag.load = [t1](FlagsBase* base, const std::string& value) -> Try<Nothing> {
+    Flags* flags = dynamic_cast<Flags*>(base);
+    if (base != NULL) {
+      // NOTE: 'fetch' "retrieves" the value if necessary and then
+      // invokes 'parse'. See 'fetch' for more details.
+      Try<T1> t = fetch<T1>(value);
+      if (t.isSome()) {
+        flags->*t1 = t.get();
+      } else {
+        return Error("Failed to load value '" + value + "': " + t.error());
+      }
+    }
+    return Nothing();
+  };
+
+  flag.stringify = [t1](const FlagsBase& base) -> Option<std::string> {
+    const Flags* flags = dynamic_cast<const Flags*>(&base);
+    if (flags != NULL) {
+      return stringify(flags->*t1);
+    }
+    return None();
+  };
+
+  flag.validate = [t1, validate](const FlagsBase& base) -> Option<Error> {
+    const Flags* flags = dynamic_cast<const Flags*>(&base);
+    if (flags != NULL) {
+      return validate(flags->*t1);
+    }
+    return None();
+  };
+
+  // Update the help string to include the default value.
+  flag.help += help.size() > 0 && help.find_last_of("\n\r") != help.size() - 1
+    ? " (default: " // On same line, add space.
+    : "(default: "; // On newline.
+  flag.help += stringify(t2);
+  flag.help += ")";
+
+  add(flag);
+}
+
+
+template <typename Flags, typename T, typename F>
 void FlagsBase::add(
     Option<T> Flags::*option,
     const std::string& name,
-    const std::string& help)
+    const std::string& help,
+    F validate)
 {
+  // Don't bother adding anything if the pointer is NULL.
+  if (option == NULL) {
+    return;
+  }
+
   Flags* flags = dynamic_cast<Flags*>(this);
   if (flags == NULL) {
     ABORT("Attempted to add flag '" + name + "' with incompatible type");
@@ -327,18 +458,44 @@ void FlagsBase::add(
   flag.name = name;
   flag.help = help;
   flag.boolean = typeid(T) == typeid(bool);
-  flag.loader = lambda::bind(
-      &OptionMemberLoader<Flags, T>::load,
-      lambda::_1,
-      option,
-      lambda::function<Try<T>(const std::string&)>(
-          lambda::bind(&fetch<T>, lambda::_1)),
-      name,
-      lambda::_2);
-  flag.stringify = lambda::bind(
-      &OptionMemberStringifier<Flags, T>,
-      lambda::_1,
-      option);
+
+  // NOTE: See comment above in Flags::T* overload of FLagsBase::add
+  // for why we need to pass FlagsBase* (or const FlagsBase&) as a
+  // parameter.
+
+  flag.load =
+    [option](FlagsBase* base, const std::string& value) -> Try<Nothing> {
+      Flags* flags = dynamic_cast<Flags*>(base);
+      if (flags != NULL) {
+        // NOTE: 'fetch' "retrieves" the value if necessary and then
+        // invokes 'parse'. See 'fetch' for more details.
+        Try<T> t = fetch<T>(value);
+        if (t.isSome()) {
+          flags->*option = Some(t.get());
+        } else {
+          return Error("Failed to load value '" + value + "': " + t.error());
+        }
+      }
+      return Nothing();
+    };
+
+  flag.stringify = [option](const FlagsBase& base) -> Option<std::string> {
+    const Flags* flags = dynamic_cast<const Flags*>(&base);
+    if (flags != NULL) {
+      if ((flags->*option).isSome()) {
+        return stringify((flags->*option).get());
+      }
+    }
+    return None();
+  };
+
+  flag.validate = [option, validate](const FlagsBase& base) -> Option<Error> {
+    const Flags* flags = dynamic_cast<const Flags*>(&base);
+    if (flags != NULL) {
+      return validate(flags->*option);
+    }
+    return None();
+  };
 
   add(flag);
 }
@@ -358,10 +515,10 @@ inline void FlagsBase::add(const Flag& flag)
 
 
 // Extract environment variable "flags" with the specified prefix.
-inline std::map<std::string, Option<std::string> > FlagsBase::extract(
+inline std::map<std::string, Option<std::string>> FlagsBase::extract(
     const std::string& prefix)
 {
-  std::map<std::string, Option<std::string> > values;
+  std::map<std::string, Option<std::string>> values;
 
   foreachpair (const std::string& key,
                const std::string& value,
@@ -395,7 +552,7 @@ inline Try<Nothing> FlagsBase::load(
     bool unknowns,
     bool duplicates)
 {
-  std::map<std::string, Option<std::string> > values;
+  std::map<std::string, Option<std::string>> values;
 
   // Grab the program name from argv[0].
   programName_ = argc > 0 ? os::basename(argv[0]).get() : "";
@@ -456,7 +613,7 @@ inline Try<Nothing> FlagsBase::load(
     bool unknowns,
     bool duplicates)
 {
-  std::map<std::string, Option<std::string> > values;
+  std::map<std::string, Option<std::string>> values;
 
   if (prefix.isSome()) {
     values = extract(prefix.get());
@@ -535,10 +692,10 @@ inline Try<Nothing> FlagsBase::load(
 
 
 inline Try<Nothing> FlagsBase::load(
-    const std::map<std::string, Option<std::string> >& values,
+    const std::map<std::string, Option<std::string>>& values,
     bool unknowns)
 {
-  std::map<std::string, Option<std::string> >::const_iterator iterator;
+  std::map<std::string, Option<std::string>>::const_iterator iterator;
 
   for (iterator = values.begin(); iterator != values.end(); ++iterator) {
     const std::string& name = iterator->first;
@@ -547,17 +704,17 @@ inline Try<Nothing> FlagsBase::load(
     if (flags_.count(name) > 0) {
       if (value.isSome()) {                        // --name=value
         if (flags_[name].boolean && value.get() == "") {
-          flags_[name].loader(this, "true"); // Should never fail.
+          flags_[name].load(this, "true"); // Should never fail.
         } else {
-          Try<Nothing> loader = flags_[name].loader(this, value.get());
-          if (loader.isError()) {
+          Try<Nothing> load = flags_[name].load(this, value.get());
+          if (load.isError()) {
             return Error(
-                "Failed to load flag '" + name + "': " + loader.error());
+                "Failed to load flag '" + name + "': " + load.error());
           }
         }
       } else {                                     // --name
         if (flags_[name].boolean) {
-          flags_[name].loader(this, "true"); // Should never fail.
+          flags_[name].load(this, "true"); // Should never fail.
         } else {
           return Error(
               "Failed to load non-boolean flag '" + name + "': Missing value");
@@ -567,7 +724,7 @@ inline Try<Nothing> FlagsBase::load(
       if (flags_.count(name.substr(3)) > 0) {       // --no-name
         if (flags_[name.substr(3)].boolean) {
           if (value.isNone() || value.get() == "") {
-            flags_[name.substr(3)].loader(this, "false"); // Should never fail.
+            flags_[name.substr(3)].load(this, "false"); // Should never fail.
           } else {
             return Error(
                 "Failed to load boolean flag '" + name.substr(3) +
@@ -588,6 +745,18 @@ inline Try<Nothing> FlagsBase::load(
     }
   }
 
+  // Validate the flags value.
+  //
+  // TODO(benh): Consider validating all flags at the same time in
+  // order to provide more feedback rather than requiring a user to
+  // fix one at a time.
+  foreachvalue (const Flag& flag, flags_) {
+    Option<Error> error = flag.validate(*this);
+    if (error.isSome()) {
+      return error.get();
+    }
+  }
+
   return Nothing();
 }
 
@@ -596,7 +765,7 @@ inline Try<Nothing> FlagsBase::load(
     const std::map<std::string, std::string>& _values,
     bool unknowns)
 {
-  std::map<std::string, Option<std::string> > values;
+  std::map<std::string, Option<std::string>> values;
   std::map<std::string, std::string>::const_iterator iterator;
   for (iterator = _values.begin(); iterator != _values.end(); ++iterator) {
     const std::string& name = iterator->first;

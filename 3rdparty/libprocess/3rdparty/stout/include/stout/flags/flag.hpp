@@ -16,6 +16,7 @@
 
 #include <string>
 
+#include <stout/error.hpp>
 #include <stout/lambda.hpp>
 #include <stout/nothing.hpp>
 #include <stout/try.hpp>
@@ -30,8 +31,9 @@ struct Flag
   std::string name;
   std::string help;
   bool boolean;
-  lambda::function<Try<Nothing>(FlagsBase*, const std::string&)> loader;
+  lambda::function<Try<Nothing>(FlagsBase*, const std::string&)> load;
   lambda::function<Option<std::string>(const FlagsBase&)> stringify;
+  lambda::function<Option<Error>(const FlagsBase&)> validate;
 };
 
 } // namespace flags {

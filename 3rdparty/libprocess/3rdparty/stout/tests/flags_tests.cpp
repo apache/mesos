@@ -486,6 +486,44 @@ TEST(FlagsTest, Errors)
 }
 
 
+TEST(FlagsTest, Validate)
+{
+  // To provide validation functions.
+  class ValidatingTestFlags : public TestFlags
+  {
+  public:
+    ValidatingTestFlags()
+    {
+      add(&duration,
+          "duration",
+          "Duration to test validation",
+          Seconds(10),
+          [](const Duration& value) -> Option<Error> {
+            if (value > Hours(1)) {
+              return Error("Expected --duration to be less than 1 hour");
+            }
+            return None();
+          });
+    }
+
+    Duration duration;
+  };
+
+  ValidatingTestFlags flags;
+
+  int argc = 2;
+  char* argv[argc];
+
+  argv[0] = (char*) "/path/to/program";
+  argv[1] = (char*) "--duration=2hrs";
+
+  Try<Nothing> load = flags.load("FLAGSTEST_", argc, argv);
+  EXPECT_ERROR(load);
+
+  EXPECT_EQ("Expected --duration to be less than 1 hour", load.error());
+}
+
+
 TEST(FlagsTest, UsageMessage)
 {
   TestFlags flags;
