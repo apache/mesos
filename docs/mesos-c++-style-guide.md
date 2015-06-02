@@ -108,6 +108,91 @@ Try<Duration> failoverTimeout =
 * Elements outside classes (classes, structs, global functions, etc.) should be spaced apart by 2 blank lines.
 * Elements inside classes (member variables and functions) should not be spaced apart by more than 1 blank line.
 
+## Capture by Reference
+
+We disallow capturing **temporaries** by reference. See [MESOS-2629](https://issues.apache.org/jira/browse/MESOS-2629) for the rationale.
+
+```
+Future<Nothing> f() { return Nothing(); }
+Future<bool> g() { return false; }
+
+struct T
+{
+  T(const char* data) : data(data) {}
+  const T& member() const { return *this; }
+  const char* data;
+};
+
+// 1: Don't use.
+const Future<Nothing>& future = f();
+
+// 1: Instead use.
+const Future<Nothing> future = f();
+
+// 2: Don't use.
+const Future<Nothing>& future = Future<Nothing>(Nothing());
+
+// 2: Instead use.
+const Future<Nothing> future = Future<Nothing>(Nothing());
+
+// 3: Don't use.
+const Future<bool>& future = f().then(lambda::bind(g));
+
+// 3: Instead use.
+const Future<bool> future = f().then(lambda::bind(g));
+
+// 4: Don't use (since the T that got constructed is a temporary!).
+const T& t = T("Hello").member();
+
+// 4: Preferred alias pattern (see below).
+const T t("Hello");
+const T& t_ = t.member();
+
+// 4: Can also use.
+const T t = T("Hello").member();
+```
+
+We allow capturing non-temporaries by *constant reference* when the intent is to **alias**.
+
+The goal is to make code more concise and improve readability. Use this if an expression referencing a field by `const` is:
+
+* Used repeatedly.
+* Would benefit from a concise name to provide context for readability.
+* Will **not** be invalidated during the lifetime of the alias. Otherwise document this explicitly.
+
+```
+hashmap<int, hashset<int>> index;
+
+struct T
+{
+  int number;
+  string name;
+};
+
+// 1: Ok.
+const hashset<int>& values = index[2];
+
+// 2: Ok.
+for (auto iterator = index.begin(); iterator != index.end(); ++iterator) {
+  const hashset<int>& values = iterator->second;
+}
+
+// 3: Ok.
+foreachpair (const int& key, hashset<int>& values, index) {}
+foreachvalue (const hashset<int>& values, index) {}
+foreachkey (const int& key, index) {}
+
+// 4: Avoid aliases in most circumstances as they can be dangerous.
+//    This is an example of a dangling alias!
+vector<string> strings{"hello"};
+
+string& s = strings[0];
+
+strings.erase(strings.begin());
+
+s += "world"; // THIS IS A DANGLING REFERENCE!
+```
+
 ## C++11
 
 We support C++11 and require GCC 4.8+ or Clang 3.5+ compilers. The whitelist of supported C++11 features is:
