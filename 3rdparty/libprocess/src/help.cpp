@@ -125,7 +125,7 @@ Future<http::Response> Help::help(const http::Request& request)
     document += "## HELP\n";
     foreachkey (const string& id, helps) {
       document += "> [/" + id + "][" + id + "]\n";
-      references += "[" + id + "]: /help/" + id + "\n";
+      references += "[" + id + "]: help/" + id + "\n";
     }
   } else if (name.isNone()) {    // http://ip:port/help/id
     if (helps.count(id.get()) == 0) {
@@ -137,7 +137,7 @@ Future<http::Response> Help::help(const http::Request& request)
     foreachkey (const string& name, helps[id.get()]) {
       const string& path = id.get() + name;
       document += "> [/" +  path + "][" + path + "]\n";
-      references += "[" + path + "]: /help/" + path + "\n";
+      references += "[" + path + "]: " + path + "\n";
     }
   } else {                       // http://ip:port/help/id/name
     if (helps.count(id.get()) == 0) {
