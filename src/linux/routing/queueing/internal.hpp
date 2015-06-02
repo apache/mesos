@@ -139,8 +139,14 @@ inline Try<std::vector<Netlink<struct rtnl_qdisc>>> getQdiscs(
 
   for (struct nl_object* o = nl_cache_get_first(cache.get());
        o != NULL; o = nl_cache_get_next(o)) {
-    nl_object_get(o); // Increment the reference counter.
-    results.push_back(Netlink<struct rtnl_qdisc>((struct rtnl_qdisc*) o));
+    if (rtnl_tc_get_ifindex(TC_CAST(o)) == rtnl_link_get_ifindex(link.get())) {
+      // NOTE: We increment the reference counter here because 'cache'
+      // will be freed when this function finishes and we want this
+      // object's life to be longer than this function.
+      nl_object_get(o);
+
+      results.push_back(Netlink<struct rtnl_qdisc>((struct rtnl_qdisc*) o));
+    }
   }
 
   return results;
