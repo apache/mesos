@@ -428,7 +428,7 @@ const string Master::Http::SLAVES_HELP = HELP(
         "/master/slaves"),
     DESCRIPTION(
         "This endpoint shows information about the slaves registered in",
-        "this master formated as a json object."));
+        "this master formatted as a JSON object."));
 
 
 Future<Response> Master::Http::slaves(const Request& request) const
@@ -449,6 +449,16 @@ Future<Response> Master::Http::slaves(const Request& request) const
 
   return OK(object, request.query.get("jsonp"));
 }
+
+
+const string Master::Http::STATE_HELP = HELP(
+    TLDR(
+        "Information about state of master."),
+    USAGE(
+        "/master/state"),
+    DESCRIPTION(
+        "This endpoint shows information about the frameworks, tasks,",
+        "executors and slaves running in the cluster as a JSON object."));
 
 
 Future<Response> Master::Http::state(const Request& request) const
@@ -688,7 +698,7 @@ const TaskStateSummary TaskStateSummary::EMPTY;
 
 
 // This abstraction has no side-effects. It factors out computing the
-// 'TaskState' sumaries for frameworks and slaves. This answers the
+// 'TaskState' summaries for frameworks and slaves. This answers the
 // questions 'How many tasks are in each state for a given framework?'
 // and 'How many tasks are in each state for a given slave?'.
 class TaskStateSummaries
@@ -733,6 +743,16 @@ private:
   hashmap<FrameworkID, TaskStateSummary> frameworkTaskSummaries;
   hashmap<SlaveID, TaskStateSummary> slaveTaskSummaries;
 };
+
+
+const string Master::Http::STATESUMMARY_HELP = HELP(
+    TLDR(
+        "Summary of state of all tasks and registered frameworks in cluster."),
+    USAGE(
+        "/master/state-summary"),
+    DESCRIPTION(
+        "This endpoint gives a summary of the state of all tasks and",
+        "registered frameworks in the cluster as a JSON object."));
 
 
 Future<Response> Master::Http::stateSummary(const Request& request) const
@@ -841,6 +861,16 @@ Future<Response> Master::Http::stateSummary(const Request& request) const
 
   return OK(object, request.query.get("jsonp"));
 }
+
+
+const string Master::Http::ROLES_HELP = HELP(
+    TLDR(
+        "Information about roles that the master is configured with."),
+    USAGE(
+        "/master/roles"),
+    DESCRIPTION(
+        "This endpoint gives information about the roles that are assigned",
+        "to frameworks and resources as a JSON object."));
 
 
 Future<Response> Master::Http::roles(const Request& request) const
@@ -1068,7 +1098,7 @@ Future<Response> Master::Http::tasks(const Request& request) const
   }
 
   // Sort tasks by task status timestamp. Default order is descending.
-  // The earlist timestamp is chosen for comparison when multiple are present.
+  // The earliest timestamp is chosen for comparison when multiple are present.
   Option<string> order = request.query.get("order");
   if (order.isSome() && (order.get() == "asc")) {
     sort(tasks.begin(), tasks.end(), TaskComparator::ascending);

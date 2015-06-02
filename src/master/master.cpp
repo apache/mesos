@@ -747,7 +747,7 @@ void Master::initialize()
           return http.redirect(request);
         });
   route("/roles.json",
-        None(),
+        Http::ROLES_HELP,
         [http](const http::Request& request) {
           Http::log(request);
           return http.roles(request);
@@ -775,13 +775,13 @@ void Master::initialize()
           return http.slaves(request);
         });
   route("/state.json",
-        None(),
+        Http::STATE_HELP,
         [http](const http::Request& request) {
           Http::log(request);
           return http.state(request);
         });
   route("/state-summary",
-        None(),
+        Http::STATESUMMARY_HELP,
         [http](const http::Request& request) {
           Http::log(request);
           return http.stateSummary(request);
