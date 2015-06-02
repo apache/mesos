@@ -230,7 +230,8 @@ TEST(ResourcesTest, PrintingExtendedAttributes)
   stream.str("");
   disk.mutable_reservation()->set_principal("hdfs-1234-4321");
   stream << disk;
-  EXPECT_EQ(stream.str(), "disk(alice, hdfs-1234-4321)[hadoop:/hdfs:/data:rw]:1");
+  EXPECT_EQ(stream.str(),
+            "disk(alice, hdfs-1234-4321)[hadoop:/hdfs:/data:rw]:1");
 }
 
 
