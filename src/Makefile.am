@@ -158,6 +158,9 @@ MODULE_PROTO =								\
 SCHEDULER_PROTO =							\
   $(top_srcdir)/include/mesos/scheduler/scheduler.proto
 
+EXECUTOR_PROTO =							\
+  $(top_srcdir)/include/mesos/executor/executor.proto
+
 OVERSUBSCRIPTION_PROTO =						\
   $(top_srcdir)/include/mesos/slave/oversubscription.proto
 
@@ -176,6 +179,8 @@ CXX_PROTOS =								\
   ../include/mesos/module/module.pb.h					\
   scheduler/scheduler.pb.cc						\
   ../include/mesos/scheduler/scheduler.pb.h				\
+  executor/executor.pb.cc						\
+  ../include/mesos/executor/executor.pb.h				\
   slave/oversubscription.pb.cc						\
   ../include/mesos/slave/oversubscription.pb.h
 
@@ -254,6 +259,12 @@ scheduler/%.pb.cc ../include/mesos/scheduler/%.pb.h: $(SCHEDULER_PROTO)
 	$(PROTOC) $(PROTOCFLAGS) --cpp_out=../include $^
 	mv ../include/mesos/scheduler/*.pb.cc $(@D)
 
+executor/%.pb.cc ../include/mesos/executor/%.pb.h: $(EXECUTOR_PROTO)
+	$(MKDIR_P) $(@D)
+	$(MKDIR_P) ../include/mesos/executor
+	$(PROTOC) $(PROTOCFLAGS) --cpp_out=../include $^
+	mv ../include/mesos/executor/*.pb.cc $(@D)
+
 slave/%.pb.cc ../include/mesos/slave/%.pb.h: $(OVERSUBSCRIPTION_PROTO)
 	$(MKDIR_P) $(@D)
 	$(MKDIR_P) ../include/mesos/slave
@@ -281,6 +292,10 @@ java/generated/org/apache/mesos/scheduler/Protos.java: $(SCHEDULER_PROTO)
 	$(MKDIR_P)  $(@D)
 	$(PROTOC) $(PROTOCFLAGS) --java_out=java/generated $^
 
+java/generated/org/apache/mesos/executor/Protos.java: $(EXECUTOR_PROTO)
+	$(MKDIR_P)  $(@D)
+	$(PROTOC) $(PROTOCFLAGS) --java_out=java/generated $^
+
 python/interface/src/mesos/interface/mesos_pb2.py: $(MESOS_PROTO)
 	$(MKDIR_P) $(@D)
 	$(PROTOC) -I$(top_srcdir)/include/mesos				\
@@ -301,6 +316,13 @@ python/interface/src/mesos/interface/containerizer_pb2.py:		\
 python/interface/src/mesos/interface/scheduler_pb2.py: $(SCHEDULER_PROTO)
 	$(MKDIR_P) $(@D)
 	$(PROTOC) -I$(top_srcdir)/include/mesos/scheduler		\
+		$(PROTOCFLAGS)						\
+		--python_out=python/interface/src/mesos/interface $^
+	sed -e 's/mesos\.mesos_pb2/mesos_pb2/' <$@ >$@
+
+python/interface/src/mesos/interface/executor_pb2.py: $(EXECUTOR_PROTO)
+	$(MKDIR_P) $(@D)
+	$(PROTOC) -I$(top_srcdir)/include/mesos/executor		\
 		$(PROTOCFLAGS)						\
 		--python_out=python/interface/src/mesos/interface $^
 	sed -e 's/mesos\.mesos_pb2/mesos_pb2/' <$@ >$@
@@ -461,6 +483,14 @@ scheduler_HEADERS =							\
   $(top_srcdir)/include/mesos/scheduler/scheduler.proto
 
 nodist_scheduler_HEADERS = ../include/mesos/scheduler/scheduler.pb.h
+
+executordir = $(pkgincludedir)/executor
+
+executor_HEADERS =							\
+  $(top_srcdir)/include/mesos/executor/executor.hpp			\
+  $(top_srcdir)/include/mesos/executor/executor.proto
+
+nodist_executor_HEADERS = ../include/mesos/executor/executor.pb.h
 
 slavedir = $(pkgincludedir)/slave
 
@@ -737,6 +767,7 @@ libmesos_la_SOURCES =							\
   $(MESOS_PROTO)							\
   $(MODULE_PROTO)							\
   $(SCHEDULER_PROTO)							\
+  $(EXECUTOR_PROTO)							\
   $(OVERSUBSCRIPTION_PROTO)
 
 libmesos_la_LDFLAGS = -release $(PACKAGE_VERSION)
