@@ -135,6 +135,7 @@ Try<Owned<LocalAuthorizer>> authorizer = LocalAuthorizer::create();
 
 * Rvalue references.
 * Variadic templates.
+* Delegating constructors.
 * Mutexes.
   * `std::mutex`
   * `std::lock_guard<std::mutex>`
