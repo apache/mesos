@@ -38,14 +38,9 @@ namespace queueing {
 
 namespace ingress {
 
-// The ingress queueing discipline is not exposed to the user.
-struct Discipline
-{
-  bool operator == (const Discipline& that) const
-  {
-    return true;
-  }
-};
+// The ingress queueing discipline configuration is not currently
+// exposed to the user.
+struct Config {};
 
 } // namespace ingress {
 
@@ -55,43 +50,31 @@ struct Discipline
 
 namespace internal {
 
-// Encodes an ingress queueing discipline into the libnl queueing
-// discipline 'qdisc'. Each type of queueing discipline needs to
-// implement this function.
+// Encodes an ingress queueing discipline configuration into the libnl
+// queueing discipline 'qdisc'. Each type of queueing discipline needs
+// to implement this function.
 template <>
-Try<Nothing> encode<ingress::Discipline>(
+Try<Nothing> encode<ingress::Config>(
     const Netlink<struct rtnl_qdisc>& qdisc,
-    const ingress::Discipline& discipline)
+    const ingress::Config& config)
 {
-  int error = rtnl_tc_set_kind(TC_CAST(qdisc.get()), "ingress");
-  if (error != 0) {
-    return Error(
-        "Failed to set the kind of the queueing discipline: " +
-        string(nl_geterror(error)));
-  }
-
-  rtnl_tc_set_parent(TC_CAST(qdisc.get()), ingress::ROOT.get());
-  rtnl_tc_set_handle(TC_CAST(qdisc.get()), ingress::HANDLE.get());
-
   return Nothing();
 }
 
 
-// Decodes the ingress queue discipline from the libnl queueing
-// discipline 'qdisc'. Each type of queueing discipline needs to
-// implement this function. Returns None if the libnl queueing
+// Decodes the ingress queue discipline configuration from the libnl
+// queueing discipline 'qdisc'. Each type of queueing discipline needs
+// to implement this function. Returns None if the libnl queueing
 // discipline is not an ingress queueing discipline.
 template <>
-Result<ingress::Discipline> decode<ingress::Discipline>(
+Result<ingress::Config> decode<ingress::Config>(
     const Netlink<struct rtnl_qdisc>& qdisc)
 {
-  if (rtnl_tc_get_kind(TC_CAST(qdisc.get())) != string("ingress") ||
-      rtnl_tc_get_parent(TC_CAST(qdisc.get())) != ingress::ROOT.get() ||
-      rtnl_tc_get_handle(TC_CAST(qdisc.get())) != ingress::HANDLE.get()) {
+  if (rtnl_tc_get_kind(TC_CAST(qdisc.get())) != ingress::KIND) {
     return None();
   }
 
-  return ingress::Discipline();
+  return ingress::Config();
 }
 
 } // namespace internal {
@@ -104,19 +87,25 @@ namespace ingress {
 
 Try<bool> exists(const string& link)
 {
-  return internal::exists(link, Discipline());
+  return internal::exists(link, ROOT, KIND);
 }
 
 
 Try<bool> create(const string& link)
 {
-  return internal::create(link, Discipline());
+  return internal::create(
+      link,
+      Discipline<Config>(
+          KIND,
+          ROOT,
+          HANDLE,
+          Config()));
 }
 
 
 Try<bool> remove(const string& link)
 {
-  return internal::remove(link, Discipline());
+  return internal::remove(link, ROOT, KIND);
 }
 
 } // namespace ingress {

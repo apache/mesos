@@ -38,15 +38,10 @@ namespace queueing {
 
 namespace fq_codel {
 
-// TODO(cwang): The fq_codel queueing discipline is not exposed to the
-// user because we use all the default parameters currently.
-struct Discipline
-{
-  bool operator == (const Discipline& that) const
-  {
-    return true;
-  }
-};
+// TODO(cwang): The fq_codel queueing discipline configuration is not
+// exposed to the user because we use all the default parameters
+// currently.
+struct Config {};
 
 } // namespace fq_codel {
 
@@ -56,24 +51,14 @@ struct Discipline
 
 namespace internal {
 
-// Encodes an fq_codel queueing discipline into the libnl queueing
-// discipline 'qdisc'. Each type of queueing discipline needs to
-// implement this function.
+// Encodes an fq_codel queueing discipline configuration into the
+// libnl queueing discipline 'qdisc'. Each type of queueing discipline
+// needs to implement this function.
 template <>
-Try<Nothing> encode<fq_codel::Discipline>(
+Try<Nothing> encode<fq_codel::Config>(
     const Netlink<struct rtnl_qdisc>& qdisc,
-    const fq_codel::Discipline& discipline)
+    const fq_codel::Config& config)
 {
-  int error = rtnl_tc_set_kind(TC_CAST(qdisc.get()), "fq_codel");
-  if (error != 0) {
-    return Error(
-        "Failed to set the kind of the queueing discipline: " +
-        string(nl_geterror(error)));
-  }
-
-  rtnl_tc_set_parent(TC_CAST(qdisc.get()), EGRESS_ROOT.get());
-  rtnl_tc_set_handle(TC_CAST(qdisc.get()), fq_codel::HANDLE.get());
-
   // We don't set fq_codel parameters here, use the default:
   //   limit 10240p
   //   flows 1024
@@ -86,21 +71,19 @@ Try<Nothing> encode<fq_codel::Discipline>(
 }
 
 
-// Decodes the fq_codel queue discipline from the libnl queueing
-// discipline 'qdisc'. Each type of queueing discipline needs to
-// implement this function. Returns None if the libnl queueing
+// Decodes the fq_codel queue discipline configuration from the libnl
+// queueing discipline 'qdisc'. Each type of queueing discipline needs
+// to implement this function. Returns None if the libnl queueing
 // discipline is not an fq_codel queueing discipline.
 template <>
-Result<fq_codel::Discipline> decode<fq_codel::Discipline>(
+Result<fq_codel::Config> decode<fq_codel::Config>(
     const Netlink<struct rtnl_qdisc>& qdisc)
 {
-  if (rtnl_tc_get_kind(TC_CAST(qdisc.get())) != string("fq_codel") ||
-      rtnl_tc_get_parent(TC_CAST(qdisc.get())) != EGRESS_ROOT.get() ||
-      rtnl_tc_get_handle(TC_CAST(qdisc.get())) != fq_codel::HANDLE.get()) {
+  if (rtnl_tc_get_kind(TC_CAST(qdisc.get())) != fq_codel::KIND) {
     return None();
   }
 
-  return fq_codel::Discipline();
+  return fq_codel::Config();
 }
 
 } // namespace internal {
@@ -116,19 +99,25 @@ const int DEFAULT_FLOWS = 1024;
 
 Try<bool> exists(const string& link)
 {
-  return internal::exists(link, Discipline());
+  return internal::exists(link, EGRESS_ROOT, KIND);
 }
 
 
 Try<bool> create(const string& link)
 {
-  return internal::create(link, Discipline());
+  return internal::create(
+      link,
+      Discipline<Config>(
+          KIND,
+          EGRESS_ROOT,
+          HANDLE,
+          Config()));
 }
 
 
 Try<bool> remove(const string& link)
 {
-  return internal::remove(link, Discipline());
+  return internal::remove(link, EGRESS_ROOT, KIND);
 }
 
 } // namespace fq_codel {

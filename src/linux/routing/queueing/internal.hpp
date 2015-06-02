@@ -43,6 +43,8 @@
 
 #include "linux/routing/link/internal.hpp"
 
+#include "linux/routing/queueing/discipline.hpp"
+
 namespace routing {
 namespace queueing {
 namespace internal {
@@ -52,29 +54,30 @@ namespace internal {
 /////////////////////////////////////////////////
 
 // Forward declaration. Each type of queueing discipline needs to
-// implement this function to encode itself into the libnl queueing
-// discipline (rtnl_qdisc).
-template <typename Discipline>
+// implement this function to encode its type specific configurations
+// into the libnl queueing discipline (rtnl_qdisc).
+template <typename Config>
 Try<Nothing> encode(
     const Netlink<struct rtnl_qdisc>& qdisc,
-    const Discipline& discipline);
+    const Config& config);
 
 
 // Forward declaration. Each type of queueing discipline needs to
-// implement this function to decode itself from the libnl queueing
-// discipline (rtnl_qdisc). Returns None if the libnl queueing
-// discipline does not match the specified queueing discipline type.
-template <typename Discipline>
-Result<Discipline> decode(const Netlink<struct rtnl_qdisc>& qdisc);
+// implement this function to decode its type specific configurations
+// from the libnl queueing discipline (rtnl_qdisc). Returns None if
+// the libnl queueing discipline does not match the specified queueing
+// discipline type.
+template <typename Config>
+Result<Config> decode(const Netlink<struct rtnl_qdisc>& qdisc);
 
 
 // Encodes a queueing discipline (in our representation) to a libnl
 // queueing discipline (rtnl_qdisc). We use template here so that it
 // works for any type of queueing discipline.
-template <typename Discipline>
-Try<Netlink<struct rtnl_qdisc>> encode(
+template <typename Config>
+Try<Netlink<struct rtnl_qdisc>> encodeDiscipline(
     const Netlink<struct rtnl_link>& link,
-    const Discipline& discipline)
+    const Discipline<Config>& discipline)
 {
   struct rtnl_qdisc* q = rtnl_qdisc_alloc();
   if (q == NULL) {
@@ -84,9 +87,21 @@ Try<Netlink<struct rtnl_qdisc>> encode(
   Netlink<struct rtnl_qdisc> qdisc(q);
 
   rtnl_tc_set_link(TC_CAST(qdisc.get()), link.get());
+  rtnl_tc_set_parent(TC_CAST(qdisc.get()), discipline.parent().get());
+
+  if (discipline.handle().isSome()) {
+    rtnl_tc_set_handle(TC_CAST(qdisc.get()), discipline.handle().get().get());
+  }
+
+  int error = rtnl_tc_set_kind(TC_CAST(qdisc.get()), discipline.kind().c_str());
+  if (error != 0) {
+    return Error(
+        "Failed to set the kind of the queueing discipline: " +
+        std::string(nl_geterror(error)));
+  }
 
   // Perform queue discipline specific encoding.
-  Try<Nothing> encoding = encode(qdisc, discipline);
+  Try<Nothing> encoding = encode(qdisc, discipline.config());
   if (encoding.isError()) {
     return Error(
         "Failed to encode the queueing discipline: " +
@@ -132,14 +147,13 @@ inline Try<std::vector<Netlink<struct rtnl_qdisc>>> getQdiscs(
 }
 
 
-// Returns the libnl queueing discipline (rtnl_qdisc) that matches the
-// specified queueing discipline on the link. Return None if no match
-// has been found. We use template here so that it works for any type
-// of queueing discipline.
-template <typename Discipline>
-Result<Netlink<struct rtnl_qdisc>> getQdisc(
+// Returns the libnl queueing discipline (rtnl_qdisc) attached to the
+// given parent that matches the specified queueing discipline kind on
+// the link. Return None if no match has been found.
+inline Result<Netlink<struct rtnl_qdisc>> getQdisc(
     const Netlink<struct rtnl_link>& link,
-    const Discipline& discipline)
+    const Handle& parent,
+    const std::string& kind)
 {
   Try<std::vector<Netlink<struct rtnl_qdisc>>> qdiscs = getQdiscs(link);
   if (qdiscs.isError()) {
@@ -147,13 +161,8 @@ Result<Netlink<struct rtnl_qdisc>> getQdisc(
   }
 
   foreach (const Netlink<struct rtnl_qdisc>& qdisc, qdiscs.get()) {
-    // The decode function will return None if 'qdisc' does not match
-    // the specified queueing discipline. In that case, we just move
-    // on to the next libnl queueing discipline.
-    Result<Discipline> result = decode<Discipline>(qdisc);
-    if (result.isError()) {
-      return Error("Failed to decode: " + result.error());
-    } else if (result.isSome() && result.get() == discipline) {
+    if (rtnl_tc_get_parent(TC_CAST(qdisc.get())) == parent.get() &&
+        rtnl_tc_get_kind(TC_CAST(qdisc.get())) == kind) {
       return qdisc;
     }
   }
@@ -165,11 +174,13 @@ Result<Netlink<struct rtnl_qdisc>> getQdisc(
 // Internal queueing APIs.
 /////////////////////////////////////////////////
 
-// Returns true if the specified queueing discipline exists on the
-// link. We use template here so that it works for any type of
-// queueing discipline.
-template <typename Discipline>
-Try<bool> exists(const std::string& _link, const Discipline& discipline)
+// Returns true if there exists a queueing discipline attached to the
+// given parent that matches the specified queueing discipline kind on
+// the link.
+inline Try<bool> exists(
+    const std::string& _link,
+    const Handle& parent,
+    const std::string& kind)
 {
   Result<Netlink<struct rtnl_link>> link = link::internal::get(_link);
   if (link.isError()) {
@@ -178,19 +189,23 @@ Try<bool> exists(const std::string& _link, const Discipline& discipline)
     return false;
   }
 
-  Result<Netlink<struct rtnl_qdisc>> qdisc = getQdisc(link.get(), discipline);
+  Result<Netlink<struct rtnl_qdisc>> qdisc = getQdisc(link.get(), parent, kind);
   if (qdisc.isError()) {
     return Error(qdisc.error());
   }
+
   return qdisc.isSome();
 }
 
 
-// Creates a new queueing discipline on the link. Returns false if the
-// same queueing discipline already exists on the link. We use
-// template here so that it works for any type of queueing discipline.
-template <typename Discipline>
-Try<bool> create(const std::string& _link, const Discipline& discipline)
+// Creates a new queueing discipline on the link. Returns false if a
+// queueing discipline attached to the same parent with the same
+// configuration already exists on the link. We use template here so
+// that it works for any type of queueing discipline.
+template <typename Config>
+Try<bool> create(
+    const std::string& _link,
+    const Discipline<Config>& discipline)
 {
   Result<Netlink<struct rtnl_link>> link = link::internal::get(_link);
   if (link.isError()) {
@@ -199,7 +214,9 @@ Try<bool> create(const std::string& _link, const Discipline& discipline)
     return Error("Link '" + _link + "' is not found");
   }
 
-  Try<Netlink<struct rtnl_qdisc>> qdisc = encode(link.get(), discipline);
+  Try<Netlink<struct rtnl_qdisc>> qdisc =
+    encodeDiscipline(link.get(), discipline);
+
   if (qdisc.isError()) {
     return Error("Failed to encode the queueing discipline: " + qdisc.error());
   }
@@ -229,11 +246,13 @@ Try<bool> create(const std::string& _link, const Discipline& discipline)
 }
 
 
-// Removes the specified queueing discipline on the link. Return false
-// if the queueing discipline is not found. We use template here so
-// that it works for any type of queueing discipline.
-template <typename Discipline>
-Try<bool> remove(const std::string& _link, const Discipline& discipline)
+// Removes the specified discipline attached to the given parent that
+// matches the specified queueing discipline kind on the link. Return
+// false if such a queueing discipline is not found.
+inline Try<bool> remove(
+    const std::string& _link,
+    const Handle& parent,
+    const std::string& kind)
 {
   Result<Netlink<struct rtnl_link>> link = link::internal::get(_link);
   if (link.isError()) {
@@ -242,7 +261,7 @@ Try<bool> remove(const std::string& _link, const Discipline& discipline)
     return false;
   }
 
-  Result<Netlink<struct rtnl_qdisc>> qdisc = getQdisc(link.get(), discipline);
+  Result<Netlink<struct rtnl_qdisc>> qdisc = getQdisc(link.get(), parent, kind);
   if (qdisc.isError()) {
     return Error(qdisc.error());
   } else if (qdisc.isNone()) {

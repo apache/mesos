@@ -545,6 +545,7 @@ if WITH_NETWORK_ISOLATOR
 	linux/routing/filter/priority.hpp				\
 	linux/routing/link/internal.hpp					\
 	linux/routing/link/link.hpp					\
+	linux/routing/queueing/discipline.hpp				\
 	linux/routing/queueing/fq_codel.hpp				\
 	linux/routing/queueing/ingress.hpp				\
 	linux/routing/queueing/internal.hpp
