@@ -28,6 +28,8 @@
 #include <process/gtest.hpp>
 
 #include <stout/gtest.hpp>
+#include <stout/os.hpp>
+#include <stout/path.hpp>
 
 #include "common/resources_utils.hpp"
 
@@ -35,9 +37,12 @@
 
 #include "messages/messages.hpp"
 
+#include "module/manager.hpp"
+
 #include "slave/flags.hpp"
 #include "slave/slave.hpp"
 
+#include "tests/flags.hpp"
 #include "tests/mesos.hpp"
 #include "tests/utils.hpp"
 
@@ -58,9 +63,58 @@ namespace mesos {
 namespace internal {
 namespace tests {
 
+const char FIXED_RESOURCE_ESTIMATOR_NAME[] =
+  "org_apache_mesos_FixedResourceEstimator";
+
+
 class OversubscriptionTest : public MesosTest
 {
 protected:
+  virtual void SetUp()
+  {
+    MesosTest::SetUp();
+
+    // Get the current value of LD_LIBRARY_PATH.
+    originalLDLibraryPath = os::libraries::paths();
+
+    // Append our library path to LD_LIBRARY_PATH so that dlopen can
+    // search the library directory for module libraries.
+    os::libraries::appendPaths(
+        path::join(tests::flags.build_dir, "src", ".libs"));
+  }
+
+  virtual void TearDown()
+  {
+    // Unload modules.
+    foreach (const Modules::Library& library, modules.libraries()) {
+      foreach (const Modules::Library::Module& module, library.modules()) {
+        if (module.has_name()) {
+          ASSERT_SOME(modules::ModuleManager::unload(module.name()));
+        }
+      }
+    }
+
+    // Restore LD_LIBRARY_PATH environment variable.
+    os::libraries::setPaths(originalLDLibraryPath);
+
+    MesosTest::TearDown();
+  }
+
+  void loadFixedResourceEstimatorModule(const string& resources)
+  {
+    Modules::Library* library = modules.add_libraries();
+    library->set_name("fixed_resource_estimator");
+
+    Modules::Library::Module* module = library->add_modules();
+    module->set_name(FIXED_RESOURCE_ESTIMATOR_NAME);
+
+    Parameter* parameter = module->add_parameters();
+    parameter->set_key("resources");
+    parameter->set_value(resources);
+
+    ASSERT_SOME(modules::ModuleManager::load(modules));
+  }
+
   // TODO(vinod): Make this a global helper that other tests (e.g.,
   // hierarchical allocator tests) can use.
   Resources createRevocableResources(
@@ -72,6 +126,10 @@ protected:
     resource.mutable_revocable();
     return resource;
   }
+
+private:
+  string originalLDLibraryPath;
+  Modules modules;
 };
 
 
@@ -287,6 +345,45 @@ TEST_F(OversubscriptionTest, RescindRevocableOffer)
 
   driver.stop();
   driver.join();
+
+  Shutdown();
+}
+
+
+// This test verifies the functionality of the fixed resource
+// estimator. The total oversubscribed resources on the slave that
+// uses a fixed resource estimator should stay the same.
+TEST_F(OversubscriptionTest, FixedResourceEstimator)
+{
+  Try<PID<Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  Future<SlaveRegisteredMessage> slaveRegistered =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
+
+  Future<UpdateSlaveMessage> update =
+    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
+
+  loadFixedResourceEstimatorModule("cpus(*):2");
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.resource_estimator = FIXED_RESOURCE_ESTIMATOR_NAME;
+
+  Try<PID<Slave>> slave = StartSlave(flags);
+  ASSERT_SOME(slave);
+
+  AWAIT_READY(slaveRegistered);
+
+  // Advance the clock for the slave to send the estimate.
+  Clock::pause();
+  Clock::advance(flags.oversubscribed_resources_interval);
+  Clock::settle();
+
+  AWAIT_READY(update);
+
+  Resources resources = update.get().oversubscribed_resources();
+
+  EXPECT_SOME_EQ(2.0, resources.cpus());
 
   Shutdown();
 }

@@ -18,6 +18,12 @@
 
 #include <stout/error.hpp>
 
+#include <mesos/module/resource_estimator.hpp>
+
+#include <mesos/slave/resource_estimator.hpp>
+
+#include "module/manager.hpp"
+
 #include "slave/resource_estimators/noop.hpp"
 
 using std::string;
@@ -27,12 +33,21 @@ namespace slave {
 
 Try<ResourceEstimator*> ResourceEstimator::create(const Option<string>& type)
 {
-  // TODO(jieyu): Support loading resource estimator from module.
   if (type.isNone()) {
     return new internal::slave::NoopResourceEstimator();
   }
 
-  return Error("Unsupported resource estimator '" + type.get() + "'");
+  // Try to load resource estimator from module.
+  Try<ResourceEstimator*> module =
+    modules::ModuleManager::create<ResourceEstimator>(type.get());
+
+  if (module.isError()) {
+    return Error(
+        "Failed to create resource estimator module '" + type.get() +
+        "': " + module.error());
+  }
+
+  return module.get();
 }
 
 } // namespace slave {
