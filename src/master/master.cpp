@@ -5367,7 +5367,7 @@ double Master::_resources_used(const std::string& name)
 
   foreachvalue (Slave* slave, slaves.registered) {
     foreachvalue (const Resources& resources, slave->usedResources) {
-      foreach (const Resource& resource, resources) {
+      foreach (const Resource& resource, resources - resources.revocable()) {
         if (resource.name() == name && resource.type() == Value::SCALAR) {
           used += resource.scalar().value();
         }
