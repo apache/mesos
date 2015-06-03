@@ -1035,7 +1035,7 @@ file:///path/to/file (where file contains one of the above)</code></pre>
       'cgroups/cpu,cgroups/mem', or network/port_mapping
       (configure with flag: --with-network-isolator to enable),
       or 'external', or load an alternate isolator module using
-      the <code>--modules</code> flag. (default: posix/cpu,posix/mem)
+      the <code>--modules</code> flag. Note that this flag is only relevant for the Mesos Containerizer. (default: posix/cpu,posix/mem)
     </td>
   </tr>
   <tr>
