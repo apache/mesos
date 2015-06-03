@@ -1,4 +1,4 @@
-## User Guide
+## Stout User Guide
 
 Stout is a header-only C++ library. Simply add the `include` folder to your include path (i.e., `-I/path/to/stout/include`) during compilation (eventually we plan to support installation).
 
