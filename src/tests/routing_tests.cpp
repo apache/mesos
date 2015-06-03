@@ -415,15 +415,91 @@ TEST_F(RoutingVethTest, ROOT_LinkMTU)
 }
 
 
-TEST_F(RoutingVethTest, ROOT_FqCodelCreate)
+TEST_F(RoutingVethTest, ROOT_IngressQdisc)
 {
-  ASSERT_SOME(link::create(TEST_VETH_LINK, TEST_PEER_LINK, None()));
+  // Test for a qdisc on a non-existant interface should fail.
+  EXPECT_SOME_FALSE(ingress::exists("noSuchInterface"));
+
+  EXPECT_SOME(link::create(TEST_VETH_LINK, TEST_PEER_LINK, None()));
 
   EXPECT_SOME_TRUE(link::exists(TEST_VETH_LINK));
   EXPECT_SOME_TRUE(link::exists(TEST_PEER_LINK));
 
-  ASSERT_SOME_TRUE(fq_codel::create(TEST_VETH_LINK));
+  // Interface exists but does not have an ingress filter.
+  EXPECT_SOME_FALSE(ingress::exists(TEST_VETH_LINK));
+  EXPECT_SOME_FALSE(ingress::exists(TEST_PEER_LINK));
+
+  // Try to create an ingress filter on an non-existant interface.
+  EXPECT_ERROR(ingress::create("noSuchInterface"));
+
+  // Create an ingress filter on an existing interface.
+  EXPECT_SOME_TRUE(ingress::create(TEST_VETH_LINK));
+
+  // Interface exists and has an ingress filter.
+  EXPECT_SOME_TRUE(ingress::exists(TEST_VETH_LINK));
+  EXPECT_SOME_FALSE(ingress::exists(TEST_PEER_LINK));
+
+  // Try to create a second ingress filter on an existing interface.
+  EXPECT_SOME_FALSE(ingress::create(TEST_VETH_LINK));
+  EXPECT_SOME_TRUE(ingress::exists(TEST_VETH_LINK));
+  EXPECT_SOME_FALSE(ingress::exists(TEST_PEER_LINK));
+
+  // Remove the ingress filter.
+  EXPECT_SOME_TRUE(ingress::remove(TEST_VETH_LINK));
+  EXPECT_SOME_FALSE(ingress::exists(TEST_VETH_LINK));
+  EXPECT_SOME_FALSE(ingress::exists(TEST_PEER_LINK));
+
+  // Try to remove it from the non-existant interface.
+  EXPECT_SOME_FALSE(ingress::remove("noSuchInterface"));
+
+  // Remove the ingress filter when it does not exist.
+  EXPECT_SOME_FALSE(ingress::remove(TEST_VETH_LINK));
+  EXPECT_SOME_FALSE(ingress::exists(TEST_VETH_LINK));
+  EXPECT_SOME_FALSE(ingress::exists(TEST_PEER_LINK));
+}
+
+
+TEST_F(RoutingVethTest, ROOT_FqCodeQdisc)
+{
+  // Test for a qdisc on a non-existant interface should fail.
+  EXPECT_SOME_FALSE(fq_codel::exists("noSuchInterface"));
+
+  EXPECT_SOME(link::create(TEST_VETH_LINK, TEST_PEER_LINK, None()));
+
+  EXPECT_SOME_TRUE(link::exists(TEST_VETH_LINK));
+  EXPECT_SOME_TRUE(link::exists(TEST_PEER_LINK));
+
+  // Interface exists but does not have an fq_codel filter.
+  EXPECT_SOME_FALSE(fq_codel::exists(TEST_VETH_LINK));
+  EXPECT_SOME_FALSE(fq_codel::exists(TEST_PEER_LINK));
+
+  // Try to create an fq_codel filter on an non-existant interface.
+  EXPECT_ERROR(fq_codel::create("noSuchInterface"));
+
+  // Create an fq_codel filter on an existing interface.
+  EXPECT_SOME_TRUE(fq_codel::create(TEST_VETH_LINK));
+
+  // Interface exists and has an fq_codel filter.
   EXPECT_SOME_TRUE(fq_codel::exists(TEST_VETH_LINK));
+  EXPECT_SOME_FALSE(fq_codel::exists(TEST_PEER_LINK));
+
+  // Try to create a second fq_codel filter on an existing interface.
+  EXPECT_SOME_FALSE(fq_codel::create(TEST_VETH_LINK));
+  EXPECT_SOME_TRUE(fq_codel::exists(TEST_VETH_LINK));
+  EXPECT_SOME_FALSE(fq_codel::exists(TEST_PEER_LINK));
+
+  // Remove the fq_codel filter.
+  EXPECT_SOME_TRUE(fq_codel::remove(TEST_VETH_LINK));
+  EXPECT_SOME_FALSE(fq_codel::exists(TEST_VETH_LINK));
+  EXPECT_SOME_FALSE(fq_codel::exists(TEST_PEER_LINK));
+
+  // Try to remove it from the non-existant interface.
+  EXPECT_SOME_FALSE(fq_codel::remove("noSuchInterface"));
+
+  // Remove the fq_codel filter when it does not exist.
+  EXPECT_SOME_FALSE(fq_codel::remove(TEST_VETH_LINK));
+  EXPECT_SOME_FALSE(fq_codel::exists(TEST_VETH_LINK));
+  EXPECT_SOME_FALSE(fq_codel::exists(TEST_PEER_LINK));
 }
 
 
