@@ -32,6 +32,123 @@
 #include <stout/option.hpp>
 #include <stout/try.hpp>
 
+// Define relevant MS_* flags for old includes.
+// This is taken from the enum in sys/mount.h.
+#ifndef MS_RDONLY
+#define MS_RDONLY 1
+#endif
+
+#ifndef MS_NOSUID
+#define MS_NOSUID 2
+#endif
+
+#ifndef MS_NODEV
+#define MS_NODEV 4
+#endif
+
+#ifndef MS_NOEXEC
+#define MS_NOEXEC 8
+#endif
+
+#ifndef MS_SYNCHRONOUS
+#define MS_SYNCHRONOUS 16
+#endif
+
+#ifndef MS_REMOUNT
+#define MS_REMOUNT 32
+#endif
+
+#ifndef MS_MANDLOCK
+#define MS_MANDLOCK 64
+#endif
+
+#ifndef MS_DIRSYNC
+#define MS_DIRSYNC 128
+#endif
+
+#ifndef MS_NOATIME
+#define MS_NOATIME 1024
+#endif
+
+#ifndef MS_NODIRATIME
+#define MS_NODIRATIME 2048
+#endif
+
+#ifndef MS_BIND
+#define MS_BIND 4096
+#endif
+
+#ifndef MS_MOVE
+#define MS_MOVE 8192
+#endif
+
+#ifndef MS_REC
+#define MS_REC 16384
+#endif
+
+#ifndef MS_SILENT
+#define MS_SILENT 32768
+#endif
+
+#ifndef MS_POSIXACL
+#define MS_POSIXACL (1 << 16)
+#endif
+
+#ifndef MS_UNBINDABLE
+#define MS_UNBINDABLE (1 << 17)
+#endif
+
+#ifndef MS_PRIVATE
+#define MS_PRIVATE (1 << 18)
+#endif
+
+#ifndef MS_SLAVE
+#define MS_SLAVE (1 << 19)
+#endif
+
+#ifndef MS_SHARED
+#define MS_SHARED (1 << 20)
+#endif
+
+#ifndef MS_RELATIME
+#define MS_RELATIME (1 << 21)
+#endif
+
+#ifndef MS_KERNMOUNT
+#define MS_KERNMOUNT (1 << 22)
+#endif
+
+#ifndef MS_I_VERSION
+#define MS_I_VERSION (1 << 23)
+#endif
+
+#ifndef MS_STRICTATIME
+#define MS_STRICTATIME (1 << 24)
+#endif
+
+#ifndef MS_ACTIVE
+#define MS_ACTIVE (1 << 30)
+#endif
+
+#ifndef MS_NOUSER
+#define MS_NOUSER (1 << 31)
+#endif
+
+#ifndef MNT_FORCE
+#define MNT_FORCE 1
+#endif
+
+#ifndef MNT_DETACH
+#define MNT_DETACH 2
+#endif
+
+#ifndef MNT_EXPIRE
+#define MNT_EXPIRE 4
+#endif
+
+#ifndef UMOUNT_NOFOLLOW
+#define UMOUNT_NOFOLLOW 8
+#endif
 
 namespace mesos {
 namespace internal {
