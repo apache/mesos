@@ -28,4 +28,4 @@ export MESOS_NUM_SLAVES=3
 export MESOS_RESOURCES="cpus:2;mem:10240"
 
 # Check that the C++ test framework executes without crashing (returns 0).
-exec ${MESOS_BUILD_DIR}/src/no-executor-framework local
+exec ${MESOS_BUILD_DIR}/src/no-executor-framework --master=local --num_tasks=5

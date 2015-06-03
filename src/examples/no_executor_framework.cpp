@@ -16,195 +16,373 @@
  * limitations under the License.
  */
 
-#include <libgen.h>
-
-#include <iostream>
 #include <string>
-
-#include <boost/lexical_cast.hpp>
+#include <vector>
 
 #include <mesos/resources.hpp>
 #include <mesos/scheduler.hpp>
 #include <mesos/type_utils.hpp>
 
-#include <stout/check.hpp>
 #include <stout/exit.hpp>
-#include <stout/numify.hpp>
+#include <stout/flags.hpp>
+#include <stout/foreach.hpp>
+#include <stout/hashset.hpp>
 #include <stout/option.hpp>
-#include <stout/os.hpp>
 #include <stout/stringify.hpp>
+#include <stout/try.hpp>
+
+#include "common/protobuf_utils.hpp"
+#include "common/status_utils.hpp"
+
+#include "logging/flags.hpp"
+#include "logging/logging.hpp"
 
 using namespace mesos;
+using namespace mesos::internal;
 
-using boost::lexical_cast;
-
-using std::cout;
-using std::cerr;
-using std::endl;
-using std::flush;
 using std::string;
 using std::vector;
 
 using mesos::Resources;
 
-const int32_t CPUS_PER_TASK = 1;
-const int32_t MEM_PER_TASK = 128;
+
+static Offer::Operation LAUNCH(const vector<TaskInfo>& tasks)
+{
+  Offer::Operation operation;
+  operation.set_type(Offer::Operation::LAUNCH);
+
+  foreach (const TaskInfo& task, tasks) {
+    operation.mutable_launch()->add_task_infos()->CopyFrom(task);
+  }
+
+  return operation;
+}
+
 
 class NoExecutorScheduler : public Scheduler
 {
 public:
-  NoExecutorScheduler()
-    : tasksLaunched(0), tasksFinished(0), totalTasks(5) {}
+  NoExecutorScheduler(
+      const FrameworkInfo& _frameworkInfo,
+      const string& _command,
+      const Resources& _taskResources,
+      const Option<size_t>& _totalTasks)
+    : frameworkInfo(_frameworkInfo),
+      command(_command),
+      taskResources(_taskResources),
+      tasksLaunched(0u),
+      tasksFinished(0u),
+      tasksTerminated(0u),
+      totalTasks(_totalTasks) {}
 
-  virtual ~NoExecutorScheduler() {}
-
-  virtual void registered(SchedulerDriver*,
-                          const FrameworkID&,
-                          const MasterInfo&)
+  virtual void registered(
+      SchedulerDriver* driver,
+      const FrameworkID& frameworkId,
+      const MasterInfo& masterInfo)
   {
-    cout << "Registered!" << endl;
+    LOG(INFO) << "Registered with master " << masterInfo
+              << " and got framework ID " << frameworkId;
+
+    frameworkInfo.mutable_id()->CopyFrom(frameworkId);
   }
 
-  virtual void reregistered(SchedulerDriver*, const MasterInfo& masterInfo) {}
+  virtual void reregistered(
+      SchedulerDriver* driver,
+      const MasterInfo& masterInfo)
+  {
+    LOG(INFO) << "Reregistered with master " << masterInfo;
+  }
 
-  virtual void disconnected(SchedulerDriver* driver) {}
+  virtual void disconnected(
+      SchedulerDriver* driver)
+  {
+    LOG(INFO) << "Disconnected!";
+  }
 
-  virtual void resourceOffers(SchedulerDriver* driver,
-                              const vector<Offer>& offers)
+  virtual void resourceOffers(
+      SchedulerDriver* driver,
+      const vector<Offer>& offers)
   {
     foreach (const Offer& offer, offers) {
-      cout << "Received offer " << offer.id() << " with " << offer.resources()
-           << endl;
-
-      static const Resources TASK_RESOURCES = Resources::parse(
-          "cpus:" + stringify(CPUS_PER_TASK) +
-          ";mem:" + stringify(MEM_PER_TASK)).get();
+      LOG(INFO) << "Received offer " << offer.id() << " from slave "
+                << offer.slave_id() << " (" << offer.hostname() << ") "
+                << "with " << offer.resources();
 
       Resources remaining = offer.resources();
-
-      // Launch tasks.
       vector<TaskInfo> tasks;
-      while (tasksLaunched < totalTasks &&
-             remaining.flatten().contains(TASK_RESOURCES)) {
-        int taskId = tasksLaunched++;
 
-        cout << "Launching task " << taskId << " using offer "
-             << offer.id() << endl;
-
+      while (remaining.contains(taskResources) &&
+             (totalTasks.isNone() || tasksLaunched < totalTasks.get())) {
         TaskInfo task;
-        task.set_name("Task " + lexical_cast<string>(taskId));
-        task.mutable_task_id()->set_value(lexical_cast<string>(taskId));
-        task.mutable_slave_id()->MergeFrom(offer.slave_id());
-        task.mutable_command()->set_value("echo hello");
+        task.mutable_task_id()->set_value(stringify(tasksLaunched));
+        task.set_name(command);
+        task.mutable_slave_id()->CopyFrom(offer.slave_id());
+        task.mutable_resources()->CopyFrom(taskResources);
+        task.mutable_command()->set_shell(true);
+        task.mutable_command()->set_value(command);
 
-        Option<Resources> resources = remaining.find(TASK_RESOURCES);
-        CHECK_SOME(resources);
-        task.mutable_resources()->MergeFrom(resources.get());
-        remaining -= resources.get();
+        remaining -= taskResources;
 
         tasks.push_back(task);
+        activeTasks.insert(task.task_id());
+        tasksLaunched++;
       }
 
-      driver->launchTasks(offer.id(), tasks);
+      driver->acceptOffers({offer.id()}, {LAUNCH(tasks)});
     }
   }
 
-  virtual void offerRescinded(SchedulerDriver* driver,
-                              const OfferID& offerId) {}
-
-  virtual void statusUpdate(SchedulerDriver* driver, const TaskStatus& status)
+  virtual void offerRescinded(
+      SchedulerDriver* driver,
+      const OfferID& offerId)
   {
-    int taskId = lexical_cast<int>(status.task_id().value());
+    LOG(INFO) << "Offer " << offerId << " has been rescinded";
+  }
 
-    cout << "Task " << taskId << " is in state " << status.state() << endl;
-
-    if (status.state() == TASK_FINISHED)
-      tasksFinished++;
+  virtual void statusUpdate(
+      SchedulerDriver* driver,
+      const TaskStatus& status)
+  {
+    if (!activeTasks.contains(status.task_id())) {
+      LOG(WARNING) << "Unknown task '" << status.task_id() << "'"
+                   << " is in state " << status.state();
+      return;
+    }
 
     if (status.state() == TASK_LOST ||
         status.state() == TASK_KILLED ||
         status.state() == TASK_FAILED) {
-      cout << "Aborting because task " << taskId
-           << " is in unexpected state " << status.state()
-           << " with reason " << status.reason()
-           << " from source " << status.source()
-           << " with message '" << status.message() << "'"
-           << endl;
-      driver->abort();
+      LOG(ERROR) << "Task '" << status.task_id() << "'"
+                 << " is in unexpected state " << status.state()
+                 << (status.has_reason()
+                     ? " with reason " + stringify(status.reason()) : "")
+                 << " from source " << status.source()
+                 << " with message '" << status.message() << "'";
+    } else {
+      LOG(INFO) << "Task '" << status.task_id() << "'"
+                << " is in state " << status.state();
     }
 
-    if (tasksFinished == totalTasks)
-      driver->stop();
+    if (internal::protobuf::isTerminalState(status.state())) {
+      if (status.state() == TASK_FINISHED) {
+        tasksFinished++;
+      }
+
+      tasksTerminated++;
+      activeTasks.erase(status.task_id());
+    }
+
+    if (totalTasks.isSome() && tasksTerminated == totalTasks.get()) {
+      if (tasksTerminated - tasksFinished > 0) {
+        EXIT(EXIT_FAILURE)
+          << "Failed to complete successfully: "
+          << stringify(tasksTerminated - tasksFinished)
+          << " of " << stringify(totalTasks.get()) << " terminated abnormally";
+      } else {
+        driver->stop();
+      }
+    }
   }
 
-  virtual void frameworkMessage(SchedulerDriver* driver,
-                                const ExecutorID& executorId,
-                                const SlaveID& slaveId,
-                                const string& data) {}
+  virtual void frameworkMessage(
+      SchedulerDriver* driver,
+      const ExecutorID& executorId,
+      const SlaveID& slaveId,
+      const string& data)
+  {
+    LOG(FATAL) << "Received framework message from executor '" << executorId
+               << "' on slave " << slaveId << ": '" << data << "'";
+  }
 
-  virtual void slaveLost(SchedulerDriver* driver, const SlaveID& slaveId) {}
+  virtual void slaveLost(
+      SchedulerDriver* driver,
+      const SlaveID& slaveId)
+  {
+    LOG(INFO) << "Lost slave " << slaveId;
+  }
 
-  virtual void executorLost(SchedulerDriver* driver,
-                            const ExecutorID& executorId,
-                            const SlaveID& slaveId,
-                            int status) {}
+  virtual void executorLost(
+      SchedulerDriver* driver,
+      const ExecutorID& executorId,
+      const SlaveID& slaveId,
+      int status)
+  {
+    LOG(INFO) << "Lost executor '" << executorId << "' on slave "
+              << slaveId << ", " << WSTRINGIFY(status);
+  }
 
-  virtual void error(SchedulerDriver* driver, const string& message) {}
+  virtual void error(
+      SchedulerDriver* driver,
+      const string& message)
+  {
+    LOG(ERROR) << message;
+  }
 
 private:
-  int tasksLaunched;
-  int tasksFinished;
-  int totalTasks;
+  FrameworkInfo frameworkInfo;
+
+  string command;
+  Resources taskResources;
+
+  hashset<TaskID> activeTasks;
+  size_t tasksLaunched;
+  size_t tasksFinished;
+  size_t tasksTerminated;
+
+  Option<size_t> totalTasks;
+};
+
+
+class Flags : public logging::Flags
+{
+public:
+  Flags()
+  {
+    add(&master,
+        "master",
+        "The master to connect to. May be one of:\n"
+        "  master@addr:port (The PID of the master)\n"
+        "  zk://host1:port1,host2:port2,.../path\n"
+        "  zk://username:password@host1:port1,host2:port2,.../path\n"
+        "  file://path/to/file (where file contains one of the above)");
+
+    add(&checkpoint,
+        "checkpoint",
+        "Whether to enable checkpointing (true by default).",
+        true);
+
+    add(&principal,
+        "principal",
+        "To enable authentication, both --principal and --secret\n"
+        "must be supplied.");
+
+    add(&secret,
+        "secret",
+        "To enable authentication, both --principal and --secret\n"
+        "must be supplied.");
+
+    add(&command,
+        "command",
+        "The command to run for each task.",
+        "echo hello");
+
+    add(&task_resources,
+        "task_resources",
+        "The resources that the task uses.",
+        "cpus:0.1;mem:32;disk:32");
+
+    // TODO(bmahler): We need to take a separate flag for
+    // revocable resources because there is no support yet
+    // for specifying revocable resources in a resource string.
+    add(&task_revocable_resources,
+        "task_revocable_resources",
+        "The revocable resources that the task uses.");
+
+    add(&num_tasks,
+        "num_tasks",
+        "Optionally, the number of tasks to run to completion before exiting.\n"
+        "If unset, as many tasks as possible will be launched.");
+  }
+
+  Option<string> master;
+  bool checkpoint;
+  Option<string> principal;
+  Option<string> secret;
+  string command;
+  string task_resources;
+  Option<string> task_revocable_resources;
+  Option<size_t> num_tasks;
 };
 
 
 int main(int argc, char** argv)
 {
-  if (argc != 2) {
-    cerr << "Usage: " << argv[0] << " <master>" << endl;
-    return -1;
+  Flags flags;
+
+  Try<Nothing> load = flags.load("MESOS_", argc, argv);
+
+  if (load.isError()) {
+    EXIT(EXIT_FAILURE)
+      << flags.usage(load.error());
   }
 
-  NoExecutorScheduler scheduler;
+  if (flags.help) {
+    EXIT(EXIT_SUCCESS)
+      << flags.usage();
+  }
+
+  if (flags.master.isNone()) {
+    EXIT(EXIT_FAILURE)
+      << flags.usage("Missing required option --master");
+  }
+
+  if (flags.principal.isSome() != flags.secret.isSome()) {
+    EXIT(EXIT_FAILURE)
+      << flags.usage("Both --principal and --secret are required"
+                     " to enable authentication");
+  }
+
+  Try<Resources> resources =
+    Resources::parse(flags.task_resources);
+
+  if (resources.isError()) {
+    EXIT(EXIT_FAILURE)
+      << flags.usage("Invalid --task_resources: " +
+                     resources.error());
+  }
+
+  Resources taskResources = resources.get();
+
+  if (flags.task_revocable_resources.isSome()) {
+    Try<Resources> revocableResources =
+      Resources::parse(flags.task_revocable_resources.get());
+
+    if (revocableResources.isError()) {
+      EXIT(EXIT_FAILURE)
+        << flags.usage("Invalid --task_revocable_resources: " +
+                       revocableResources.error());
+    }
+
+    foreach (Resource revocable, revocableResources.get()) {
+      revocable.mutable_revocable();
+      taskResources += revocable;
+    }
+  }
+
+  logging::initialize(argv[0], flags, true); // Catch signals.
 
   FrameworkInfo framework;
   framework.set_user(""); // Have Mesos fill in the current user.
-  framework.set_name("No Executor Framework (C++)");
+  framework.set_name("No Executor Framework");
+  framework.set_checkpoint(flags.checkpoint);
 
-  Option<string> value = os::getenv("MESOS_CHECKPOINT");
-  if (value.isSome()) {
-    framework.set_checkpoint(
-        numify<bool>(value.get()).get());
+  if (flags.task_revocable_resources.isSome()) {
+    framework.add_capabilities()->set_type(
+        FrameworkInfo::Capability::REVOCABLE_RESOURCES);
   }
 
+  if (flags.principal.isSome()) {
+    framework.set_principal(flags.principal.get());
+  }
+
+  NoExecutorScheduler scheduler(
+      framework,
+      flags.command,
+      taskResources,
+      flags.num_tasks);
+
   MesosSchedulerDriver* driver;
-  if (os::getenv("MESOS_AUTHENTICATE").isSome()) {
-    cout << "Enabling authentication for the framework" << endl;
 
-    value = os::getenv("DEFAULT_PRINCIPAL");
-    if (value.isNone()) {
-      EXIT(1) << "Expecting authentication principal in the environment";
-    }
-
+  if (flags.principal.isSome() && flags.secret.isSome()) {
     Credential credential;
-    credential.set_principal(value.get());
-
-    framework.set_principal(value.get());
-
-    value = os::getenv("DEFAULT_SECRET");
-    if (value.isNone()) {
-      EXIT(1) << "Expecting authentication secret in the environment";
-    }
-
-    credential.set_secret(value.get());
+    credential.set_principal(flags.principal.get());
+    credential.set_secret(flags.secret.get());
 
     driver = new MesosSchedulerDriver(
-        &scheduler, framework, argv[1], credential);
+        &scheduler, framework, flags.master.get(), credential);
   } else {
-    framework.set_principal("no-executor-framework-cpp");
-
     driver = new MesosSchedulerDriver(
-        &scheduler, framework, argv[1]);
+        &scheduler, framework, flags.master.get());
   }
 
   int status = driver->run() == DRIVER_STOPPED ? 0 : 1;

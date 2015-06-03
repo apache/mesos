@@ -131,6 +131,11 @@ void execute(const string& script)
     os::setenv("DEFAULT_PRINCIPAL", DEFAULT_CREDENTIAL.principal());
     os::setenv("DEFAULT_SECRET", DEFAULT_CREDENTIAL.secret());
 
+    // TODO(bmahler): Update the example frameworks to use flags and
+    // remove the special DEFAULT_* environment variables above.
+    os::setenv("MESOS_PRINCIPAL", DEFAULT_CREDENTIAL.principal());
+    os::setenv("MESOS_SECRET", DEFAULT_CREDENTIAL.secret());
+
     // Create test ACLs.
     ACLs acls;
     acls.set_permissive(false);
