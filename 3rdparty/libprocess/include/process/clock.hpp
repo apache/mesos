@@ -28,11 +28,10 @@ public:
   /**
    * Initialize the clock with the specified callback that will be
    * invoked whenever a batch of timers has expired.
-   *
-   * TODO(benh): Introduce a "channel" or listener pattern for getting
-   * the expired Timers rather than passing in a callback. This might
-   * mean we don't need 'initialize' or 'shutdown'.
    */
+  // TODO(benh): Introduce a "channel" or listener pattern for getting
+  // the expired Timers rather than passing in a callback. This might
+  // mean we don't need 'initialize' or 'shutdown'.
   static void initialize(
       lambda::function<void(const std::list<Timer>&)>&& callback);
 
