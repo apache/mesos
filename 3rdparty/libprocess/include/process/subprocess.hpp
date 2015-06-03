@@ -20,23 +20,27 @@
 
 namespace process {
 
-// Represents a fork() exec()ed subprocess. Access is provided to
-// the input / output of the process, as well as the exit status.
-// The input / output file descriptors are only closed after both:
-//   1. The subprocess has terminated, and
-//   2. There are no longer any references to the associated
-//      Subprocess object.
+/**
+ * Represents a fork() exec()ed subprocess. Access is provided to the
+ * input / output of the process, as well as the exit status. The
+ * input / output file descriptors are only closed after:
+ *   1. The subprocess has terminated.
+ *   2. There are no longer any references to the associated
+ *      Subprocess object.
+ */
 class Subprocess
 {
 public:
-  // Describes how the I/O is redirected for stdin/stdout/stderr.
-  // One of the following three modes are supported:
-  //   1. PIPE: Redirect to a pipe. The pipe will be created
-  //      automatically and the user can read/write the parent side of
-  //      the pipe from in()/out()/err().
-  //   2. PATH: Redirect to a file. The file will be created if it
-  //      does not exist. If the file exists, it will be appended.
-  //   3. FD: Redirect to an open file descriptor.
+  /**
+   * Describes how the I/O is redirected for stdin/stdout/stderr.
+   * One of the following three modes are supported:
+   *   1. PIPE: Redirect to a pipe. The pipe will be created
+   *      automatically and the user can read/write the parent side of
+   *      the pipe from in()/out()/err().
+   *   2. PATH: Redirect to a file. The file will be created if it
+   *      does not exist. If the file exists, it will be appended.
+   *   3. FD: Redirect to an open file descriptor.
+   */
   class IO
   {
   public:
@@ -74,32 +78,74 @@ public:
     Option<std::string> path;
   };
 
-  // Syntactic sugar to create IO descriptors.
+  /**
+   * Provides some syntactic sugar to create an IO::PIPE redirector.
+   *
+   * @return An IO::PIPE redirector.
+   */
   static IO PIPE()
   {
     return IO(IO::PIPE, None(), None());
   }
 
+  /**
+   * Provides some syntactic sugar to create an IO::PATH redirector.
+   *
+   * @return An IO::PATH redirector.
+   */
   static IO PATH(const std::string& path)
   {
     return IO(IO::PATH, None(), path);
   }
 
+  /**
+   * Provides some syntactic sugar to create an IO::FD redirector.
+   *
+   * @return An IO::FD redirector.
+   */
   static IO FD(int fd)
   {
     return IO(IO::FD, fd, None());
   }
 
-  // Returns the pid for the subprocess.
+  /**
+   * @return The operating system PID for this subprocess.
+   */
   pid_t pid() const { return data->pid; }
 
-  // The parent side of the pipe for stdin/stdout/stderr.
+  /**
+   * @return File descriptor representing the parent side (i.e.,
+   *     write side) of this subprocess' stdin pipe or None if no pipe
+   *     was requested.
+   */
   Option<int> in()  const { return data->in;  }
+
+  /**
+   * @return File descriptor representing the parent side (i.e., write
+   *     side) of this subprocess' stdout pipe or None if no pipe was
+   *     requested.
+   */
   Option<int> out() const { return data->out; }
+
+  /**
+   * @return File descriptor representing the parent side (i.e., write
+   *     side) of this subprocess' stderr pipe or None if no pipe was
+   *     requested.
+   */
   Option<int> err() const { return data->err; }
 
-  // Returns a future from process::reap of this subprocess.
-  // Discarding this future has no effect on the subprocess.
+  /**
+   * Exit status of this subprocess captured as a Future (completed
+   * when the subprocess exits).
+   *
+   * The exit status is propagated from an underlying call to
+   * 'waitpid' and can be used with macros defined in wait.h, i.e.,
+   * 'WIFEXITED(status)'.
+   *
+   * NOTE: Discarding this future has no effect on the subprocess!
+   *
+   * @return Future from doing a process::reap of this subprocess.
+   */
   Future<Option<int>> status() const { return data->status; }
 
 private:
@@ -143,21 +189,38 @@ private:
 };
 
 
-// The Environment is combined with the OS environment and overrides
-// where necessary.
-// The setup function is run after forking but before executing the
-// command. If the return value of that setup function is non-zero,
-// then that is what the subprocess status will be;
-// status = setup && command.
-// NOTE: Take extra care about the design of the setup function as it
-// must not contain any async unsafe code.
+/**
+ * Forks a subprocess and execs the specified 'path' with the
+ * specified 'argv', redirecting stdin, stdout, and stderr as
+ * specified by 'in', 'out', and 'err' respectively.
+ *
+ * If 'setup' is not None, runs the specified function after forking
+ * but before exec'ing. If the return value of 'setup' is non-zero
+ * then that gets returned in 'status()' and we will not exec.
+ *
+ * @param path Relative or absolute path in the filesytem to the
+ *     executable.
+ * @param argv Argument vector to pass to exec.
+ * @param in Redirection specification for stdin.
+ * @param out Redirection specification for stdout.
+ * @param err Redirection specification for stderr.
+ * @param flags Flags to be stringified and appended to 'argv'.
+ * @param environment Environment variables to add or overwrite
+ *     existing environment variables.
+ * @param setup Function to be invoked after forking but before
+ *     exec'ing. NOTE: Take extra care not to invoke any
+ *     async unsafe code in the body of this function.
+ * @param clone Function to be invoked in order to fork/clone the
+ *     subprocess.
+ * @return The subprocess or an error if one occured.
+ */
 // TODO(dhamon): Add an option to not combine the two environments.
 Try<Subprocess> subprocess(
     const std::string& path,
     std::vector<std::string> argv,
-    const Subprocess::IO& in,
-    const Subprocess::IO& out,
-    const Subprocess::IO& err,
+    const Subprocess::IO& in = Subprocess::FD(STDIN_FILENO),
+    const Subprocess::IO& out = Subprocess::FD(STDOUT_FILENO),
+    const Subprocess::IO& err = Subprocess::FD(STDERR_FILENO),
     const Option<flags::FlagsBase>& flags = None(),
     const Option<std::map<std::string, std::string>>& environment = None(),
     const Option<lambda::function<int()>>& setup = None(),
@@ -165,45 +228,37 @@ Try<Subprocess> subprocess(
         pid_t(const lambda::function<int()>&)>>& clone = None());
 
 
-inline Try<Subprocess> subprocess(
-    const std::string& path,
-    std::vector<std::string> argv,
-    const Option<flags::FlagsBase>& flags = None(),
-    const Option<std::map<std::string, std::string>>& environment = None(),
-    const Option<lambda::function<int()>>& setup = None(),
-    const Option<lambda::function<
-        pid_t(const lambda::function<int()>&)>>& clone = None())
-{
-  return subprocess(
-      path,
-      argv,
-      Subprocess::FD(STDIN_FILENO),
-      Subprocess::FD(STDOUT_FILENO),
-      Subprocess::FD(STDERR_FILENO),
-      flags,
-      environment,
-      setup,
-      clone);
-}
-
-
-// Overloads for launching a shell command. Currently, we do not
-// support flags for shell command variants due to the complexity
-// involved in escaping quotes in flags.
+/**
+ * Overload of 'subprocess' for launching a shell command, i.e., 'sh
+ * -c command'.
+ *
+ * Currently, we do not support flags for shell command variants due
+ * to the complexity involved in escaping quotes in flags.
+ *
+ * @param command Shell command to execute.
+ * @param in Redirection specification for stdin.
+ * @param out Redirection specification for stdout.
+ * @param err Redirection specification for stderr.
+ * @param environment Environment variables to add or overwrite
+ *     existing environment variables.
+ * @param setup Function to be invoked after forking but before
+ *     exec'ing. NOTE: Take extra care not to invoke any
+ *     async unsafe code in the body of this function.
+ * @param clone Function to be invoked in order to fork/clone the
+ *     subprocess.
+ * @return The subprocess or an error if one occured.
+ */
 inline Try<Subprocess> subprocess(
     const std::string& command,
-    const Subprocess::IO& in,
-    const Subprocess::IO& out,
-    const Subprocess::IO& err,
+    const Subprocess::IO& in = Subprocess::FD(STDIN_FILENO),
+    const Subprocess::IO& out = Subprocess::FD(STDOUT_FILENO),
+    const Subprocess::IO& err = Subprocess::FD(STDERR_FILENO),
     const Option<std::map<std::string, std::string>>& environment = None(),
     const Option<lambda::function<int()>>& setup = None(),
     const Option<lambda::function<
         pid_t(const lambda::function<int()>&)>>& clone = None())
 {
-  std::vector<std::string> argv(3);
-  argv[0] = "sh";
-  argv[1] = "-c";
-  argv[2] = command;
+  std::vector<std::string> argv = {"sh", "-c", command};
 
   return subprocess(
       "/bin/sh",
@@ -212,24 +267,6 @@ inline Try<Subprocess> subprocess(
       out,
       err,
       None(),
-      environment,
-      setup,
-      clone);
-}
-
-
-inline Try<Subprocess> subprocess(
-    const std::string& command,
-    const Option<std::map<std::string, std::string>>& environment = None(),
-    const Option<lambda::function<int()>>& setup = None(),
-    const Option<lambda::function<
-        pid_t(const lambda::function<int()>&)>>& clone = None())
-{
-  return subprocess(
-      command,
-      Subprocess::FD(STDIN_FILENO),
-      Subprocess::FD(STDOUT_FILENO),
-      Subprocess::FD(STDERR_FILENO),
       environment,
       setup,
       clone);
