@@ -41,29 +41,30 @@ Note that the library is designed to completely avoid exceptions. See [exception
 
 The `Option` type provides a safe alternative to using `NULL`. An `Option` can be constructed explicitely or implicitely:
 
-```
+~~~{.cpp}
     Option<bool> o(true);
     Option<bool> o = true;
-```
+~~~
 
 You can check if a value is present using `Option::isSome()` and `Option::isNone()` and retrieve the value using `Option::get()`:
 
-```
+~~~{.cpp}
     if (!o.isNone()) {
       ... o.get() ...
     }
-```
+~~~
 
 Note that the current implementation *copies* the underlying values (see [Philosophy](#philosophy) for more discussion). Nothing prevents you from using pointers, however, *the pointer will not be deleted when the Option is destructed*:
 
-```
+~~~{.cpp}
     Option<std::string*> o = new std::string("hello world");
-```
+~~~
 
 The `None` type acts as "syntactic sugar" to make using [Option](#option) less verbose. For example:
 
-```
-    Option<T> foo(const Option<T>& o) {
+~~~{.cpp}
+    Option<T> foo(const Option<T>& o)
+    {
       return None(); // Can use 'None' here.
     }
 
@@ -74,17 +75,17 @@ The `None` type acts as "syntactic sugar" to make using [Option](#option) less v
     ...
     
     Option<int> o = None(); // Or here.
-```
+~~~
 
 Similar to `None`, the `Some` type can be used to construct an `Option` as well. In most circumstances `Some` is unnecessary due to the implicit `Option` constructor, however, it can still be useful to remove any ambiguities as well as when embedded within collections:
 
-```
+~~~{.cpp}
     Option<Option<std::string>> o = Some("42");
     
     std::map<std::string, Option<std::string>> values;
     values["value1"] = None();
     values["value2"] = Some("42");
-```
+~~~
 
 
 <a href="try"></a>
@@ -93,41 +94,46 @@ Similar to `None`, the `Some` type can be used to construct an `Option` as well.
 
 A `Try` provides a mechanism to return a value or an error without throwing exceptions. Like `Option`, you can explicitely or implicitely construct a `Try`:
 
-```
+~~~{.cpp}
     Try<bool> t(true);
     Try<bool> t = true;
-```
+~~~
 
 You can check if a value is present using `Try::isSome()` and `Try::isError()` and retrieve the value using `Try::get()` or the error via `Try::error`:
 
-```
+~~~{.cpp}
     if (!t.isError()) {
       ... t.get() ...
     } else {
       ... t.error() ...
     }
-```
+~~~
 
 A `Result` is a combination of a `Try` and an `Option`; you can think of a `Result` as semantically being equivalant to `Try<Option<T>>`. In addition to `isSome()` and `isError()` a `Result` includes `isNone()`.
 
 The `Error` type acts as "syntactic sugar" for implicitly constructing a `Try` or `Result`. For example:
 
-```
-    Try<bool> parse(const std::string& s) {
-      if (s == "true") return true;
-      else if (s == "false") return false;
-      else return Error("Failed to parse string as boolean");
+~~~{.cpp}
+    Try<bool> parse(const std::string& s)
+    {
+      if (s == "true") {
+        return true;
+      } else if (s == "false") {
+        return false;
+      } else {
+        return Error("Failed to parse string as boolean");
+      }
     }
 
     Try<bool> t = parse("false");
-```
+~~~
 
 You can also use `None` and `Some` with `Result` just like with `Option`:
 
-```
+~~~{.cpp}
     Result<bool> r = None();
     Result<bool> r = Some(true);
-``` 
+~~~
 
 
 
@@ -155,9 +161,9 @@ A collection of utilities for working with a filesystem. Currently we provide `f
 
 A collection of utilities for doing gzip compression and decompression using `gzip::compress` and `gzip::decompress`.
 
-```
+~~~{.cpp}
   gzip::decompress(gzip::compress("hello world"));
-```
+~~~
 
 
 <a href="json"></a>
@@ -172,7 +178,7 @@ We explicitly define 'true' (`JSON::True`), 'false' (`JSON::False`), and 'null' 
 
 We could have avoided using `JSON::String` or `JSON::Number` and just used `std::string` and `double` respectively, but we choose to include them for completeness (although, this does slow compilation due to the extra template instantiations). That being said, you can use the native types in place of constructing the `JSON` wrapper. For example:
 
-```
+~~~{.cpp}
   // {
   //   "foo": "value1",
   //   "bar": "value2",
@@ -184,11 +190,11 @@ We could have avoided using `JSON::String` or `JSON::Number` and just used `std:
   object.values["bar"] = "value2";
   object.values["baz"] = JSON::Number(42.0);
   object.values["bam"] = 0.42;
-```
+~~~
 
 Of course, nesting of a `JSON::Value` is also permitted as per the JSON specification:
 
-```
+~~~{.cpp}
   // An array of objects:
   // [
   //   { "first": "Benjamin", "last": "Hindman" },
@@ -207,7 +213,7 @@ Of course, nesting of a `JSON::Value` is also permitted as per the JSON specific
   object2.values["last"] = "Hindman";
 
   array.values.push_back(object2);
-```
+~~~
 
 You can "render" a JSON value using `std::ostream operator <<` (or by using `stringify` (see [here](#stringify)).
 
@@ -252,14 +258,14 @@ There is an `os::sysctl` abstraction for getting and setting kernel state on OS 
 
 There are a handful of wrappers that make working with signals easier, including `os::pending`, `os::block`, and `os::unblock`. In addition, there is a suppression abstraction that enables executing a block a code while blocking a signal. Consider writing to a pipe which may raise a SIGPIPE if the pipe has been closed. Using `suppress` you can do:
 
-```
+~~~{.cpp}
     suppress (SIGPIPE) {
       write(fd, data, size);
       if (errno == EPIPE) {
         // The pipe has been closed!
       }
     }
-```
+~~~
 
 
 <a href="path"></a>
@@ -288,11 +294,11 @@ Helpers for reading and writing protobufs from files and file descriptors are pr
 
 There is also a protobuf to JSON converter via `JSON::Protobuf` that enables serializing a protobuf into JSON:
 
-```
+~~~{.cpp}
     google::protobuf::Message message;
     ... fill in message ...
     JSON::Object o = JSON::Protobuf(message);
-```
+~~~
 
 
 <a href="strings"></a>
@@ -311,9 +317,11 @@ String formatting is provided via `strings::format`. The `strings::format` funct
 
 One frustration with existing command line flags libraries was the burden they put on writing tests that attempted to have many different instantiations of the flags. For example, running two instances of the same component within a test where each instance was started with different command line flags. To solve this, we provide a command line flags abstraction called `Flags` (in the `flags` namespace) that you can extend to define your own flags:
 
-```
-    struct MyFlags : flags::Flags {
-      MyFlags() {
+~~~{.cpp}
+    struct MyFlags : flags::Flags
+    {
+      MyFlags()
+      {
         // A flag with a default value.
         add(&MyFlags::foo,
             "foo",
@@ -330,11 +338,11 @@ One frustration with existing command line flags libraries was the burden they p
       int foo;
       Option<std::string> bar;
     };
-```
+~~~
 
 You can then load the flags via `argc` and `argv` via:
 
-```
+~~~{.cpp}
     MyFlags flags;
     Try<Nothing> load = flags.load(None(), argc, argv);
 
@@ -342,14 +350,14 @@ You can then load the flags via `argc` and `argv` via:
 
     ... flags.foo ...
     ... flags.bar.isSome() ... flags.bar.get() ...
-```
+~~~
 
 You can load flags from the environment in addition to `argc` and `argv` by specifying a prefix to use when looking for flags:
 
-```
+~~~{.cpp}
     MyFlags flags;
     Try<Nothing> load = flags.load("PREFIX_", argc, argv);
-```
+~~~
 
 Then both PREFIX_foo and PREFIX_bar will be loaded from the environemnt as well as possibly from on the command line.
 
@@ -384,44 +392,44 @@ There are a handful of types and utilties that fall into the miscellaneous categ
 
 Used to represent some magnitude of bytes, i.e., kilobytes, megabytes, gigabytes, etc. The main way to construct a `Bytes` is to invoke `Bytes::parse` which expects a string made up of a number and a unit, i.e., `42B`, `42MB`, `42GB`, `42TB`. For each of the supported units there are associated types: `Megabytes`, `Gigabytes`, `Terabytes`. Each of these types inherit from `Bytes` and can be used anywhere a `Bytes` is expected, for example:
 
-```
+~~~{.cpp}
     Try<Bytes> bytes = Bytes::parse("32MB");
     
     Bytes bytes = Megabytes(10);
-```
+~~~
 
 There are operators for comparing (equal to, greater than or less than, etc) and manipulating (addition, subtraction, etc) `Bytes` objects, as well as a `std::ostream operator <<` overload (thus making them stringifiable, see [here](#stringify)). For example:
 
-```
+~~~{.cpp}
     Try<Bytes> bytes = Bytes::parse("32MB");
 
     Bytes tengb = Gigabytes(10);
     Bytes onegb = Megabytes(1024);
     
     stringify(tengb + onegb); // Yields "11GB".
-```
+~~~
 
 #### `Duration`
 
 Used to represent some duration of time. The main way to construct a `Duration` is to invoke `Duration::parse` which expects a string made up of a number and a unit, i.e., `42ns`, `42us`, `42ms`, `42secs`, `42mins`, `42hrs`, `42days`, `42weeks`. For each of the supported units there are associated types: `Nanoseconds`, `Microseconds`, `Milliseconds`, `Seconds`, `Minutes`, `Hours`, `Days`, `Weeks`. Each of these types inherit from `Duration` and can be used anywhere a `Duration` is expected, for example:
 
-```
+~~~{.cpp}
     Duration d = Seconds(5);
-```
+~~~
 
 There are operators for comparing (equal to, greater than or less than, etc) and manipulating (addition, subtraction, etc) `Duration` objects, as well as a `std::ostream operator <<` overload (thus making them stringifiable, see [here](#stringify)). Note that the `std::ostream operator <<` overload formats the output (including the unit) based on the magnitude, for example:
 
-```
+~~~{.cpp}
     stringify(Seconds(42)); // Yields "42secs". 
     stringify(Seconds(120)); // Yields "2mins".
-```
+~~~
 
 
 #### `Stopwatch`
 
-A datastructure for recording elapsed time (according to the underlying operating system clock):
+A data structure for recording elapsed time (according to the underlying operating system clock):
 
-```
+~~~{.cpp}
     Stopwatch stopwatch;
     stopwatch.start();
     
@@ -430,7 +438,7 @@ A datastructure for recording elapsed time (according to the underlying operatin
     stopwatch.stop();
     
     assert(elapsed <= stopwatch.elapsed());
-```
+~~~
 
 
 #### `UUID`
@@ -444,9 +452,9 @@ A wrapper around `boost::uuid` with a simpler interface.
 
 A macro for exiting an application without generating a signal (such as from `assert`) or a stack trace (such as from Google logging's `CHECK` family of macros). This is useful if you want to exit the program with an error message:
 
-```
+~~~{.cpp}
     EXIT(42) << "You've provided us bad input ...";
-```
+~~~
 
 Note that a newline is automatically appended and the processes exit status is set to 42.
 
@@ -457,7 +465,7 @@ Note that a newline is automatically appended and the processes exit status is s
 
 Macros for looping over collections:
 
-```
+~~~{.cpp}
     std::list<std::string> l;
 
     foreach (std::string s, l) {}
@@ -470,7 +478,7 @@ Macros for looping over collections:
     
     foreachkey (const std::string& s, m) {}
     foreachvalue (int i, m) {}
-```
+~~~
 
 
 #### `numify`
@@ -493,13 +501,13 @@ Converts arbitrary types into strings by attempting to use an overloaded `std::o
 
 You can give every thread it's own copy of some data using the `ThreadLocal` abstraction:
 
-```
+~~~{.cpp}
     ThreadLocal<std::string> local;
     local = new std::string("hello");
     local->append(" world");
     std::string* s = local;
     assert(*s == "hello world");
-```
+~~~
 
 
 <a href="testing"></a>
@@ -509,7 +517,7 @@ You can give every thread it's own copy of some data using the `ThreadLocal` abs
 
 There are some macros provided for integration with gtest that make the tests less verbose while providing better messages when tests do fail:
 
-```
+~~~{.cpp}
     Try<int> t = foo();
     
     // Rather than:
@@ -517,7 +525,7 @@ There are some macros provided for integration with gtest that make the tests le
     
     // Just do:
     ASSERT_SOME(t);
-```
+~~~
 
 There available macros include `ASSERT_SOME`, `EXPECT_SOME`, `ASSERT_NONE`, `EXPECT_NONE`, `ASSERT_ERROR`, `EXPECT_ERROR`, `ASSERT_SOME_EQ`, `EXPECT_SOME_EQ`, `ASSERT_SOME_TRUE`, `EXPECT_SOME_TRUE`, `ASSERT_SOME_FALSE`, `EXPECT_SOME_FALSE`.
 
