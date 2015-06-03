@@ -90,13 +90,8 @@ TEST_F(OversubscriptionTest, ForwardUpdateSlaveMessage)
   EXPECT_CALL(resourceEstimator, initialize(_));
 
   Queue<Resources> estimations;
-  // We expect 2 calls:
-  // - First for some slack estimation.
-  // - Second ensures that slave will wait
-  //   asynchronously for next estimation.
   EXPECT_CALL(resourceEstimator, oversubscribable())
-    .Times(2)
-    .WillRepeatedly(Invoke(&estimations, &Queue<Resources>::get));
+    .WillOnce(Invoke(&estimations, &Queue<Resources>::get));
 
   slave::Flags flags = CreateSlaveFlags();
   Try<PID<Slave>> slave = StartSlave(&resourceEstimator, flags);
@@ -150,13 +145,8 @@ TEST_F(OversubscriptionTest, RevocableOffer)
   EXPECT_CALL(resourceEstimator, initialize(_));
 
   Queue<Resources> estimations;
-  // We expect 2 calls:
-  // - First for some slack estimation.
-  // - Second ensures that slave will wait
-  //   asynchronously for next estimation.
   EXPECT_CALL(resourceEstimator, oversubscribable())
-    .Times(2)
-    .WillRepeatedly(Invoke(&estimations, &Queue<Resources>::get));
+    .WillOnce(Invoke(&estimations, &Queue<Resources>::get));
 
   slave::Flags flags = CreateSlaveFlags();
 
@@ -220,13 +210,9 @@ TEST_F(OversubscriptionTest, RescindRevocableOffer)
   EXPECT_CALL(resourceEstimator, initialize(_));
 
   Queue<Resources> estimations;
-  // We expect 3 calls:
-  // - First for some slack estimation.
-  // - Second for extended slack resources.
-  // - Third ensures that slave will wait
-  //   asynchronously for next estimation.
+  // We expect 2 calls for 2 estimations.
   EXPECT_CALL(resourceEstimator, oversubscribable())
-    .Times(3)
+    .Times(2)
     .WillRepeatedly(Invoke(&estimations, &Queue<Resources>::get));
 
   slave::Flags flags = CreateSlaveFlags();

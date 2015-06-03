@@ -3993,15 +3993,12 @@ void Slave::__recover(const Future<Nothing>& future)
   if (flags.recover == "reconnect") {
     state = DISCONNECTED;
 
-    // Start to get estimations from the resource estimator and
-    // forward the estimations to the master.
-    resourceEstimator->oversubscribable()
-      .onAny(defer(self(), &Self::updateOversubscribableResources, lambda::_1))
-      .onAny(defer(self(), &Self::forwardOversubscribedResources));
-
     // Start detecting masters.
     detection = detector->detect()
       .onAny(defer(self(), &Slave::detected, lambda::_1));
+
+    // Forward oversubscribed resources.
+    forwardOversubscribed();
   } else {
     // Slave started in cleanup mode.
     CHECK_EQ("cleanup", flags.recover);
@@ -4088,27 +4085,40 @@ Future<Nothing> Slave::garbageCollect(const string& path)
 }
 
 
-void Slave::updateOversubscribableResources(const Future<Resources>& future)
+void Slave::forwardOversubscribed()
 {
-  if (!future.isReady()) {
-    LOG(ERROR) << "Failed to estimate oversubscribable resources: "
-               << (future.isFailed() ? future.failure() : "discarded");
-  } else {
-    LOG(INFO) << "Received a new estimation of the oversubscribable "
-              << "resources " << future.get();
-
-    oversubscribableResources = future.get();
-  }
+  LOG(INFO) << "Querying resource estimator for oversubscribable resources";
 
   resourceEstimator->oversubscribable()
-    .onAny(defer(self(), &Self::updateOversubscribableResources, lambda::_1));
+    .onAny(defer(self(), &Self::_forwardOversubscribed, lambda::_1));
 }
 
 
-void Slave::forwardOversubscribedResources()
+void Slave::_forwardOversubscribed(const Future<Resources>& oversubscribable)
 {
+  if (!oversubscribable.isReady()) {
+    LOG(ERROR) << "Failed to get oversubscribable resources: "
+               << (oversubscribable.isFailed()
+                   ? oversubscribable.failure() : "future discarded");
+
+    delay(flags.oversubscribed_resources_interval,
+          self(),
+          &Self::forwardOversubscribed);
+
+    return;
+  }
+
+  LOG(INFO) << "Received oversubscribable resources " << oversubscribable.get()
+            << " from the resource estimator";
+
   if (state != RUNNING) {
-    delay(Seconds(1), self(), &Self::forwardOversubscribedResources);
+    LOG(INFO) << "No master detected. Re-querying resource estimator after "
+              << flags.oversubscribed_resources_interval;
+
+    delay(flags.oversubscribed_resources_interval,
+          self(),
+          &Self::forwardOversubscribed);
+
     return;
   }
 
@@ -4126,29 +4136,27 @@ void Slave::forwardOversubscribedResources()
   }
 
   // Add oversubscribable resources to the total.
-  oversubscribed += oversubscribableResources;
+  oversubscribed += oversubscribable.get();
 
-  if (oversubscribed == oversubscribedResources) {
-    VLOG(1) << "Not forwarding total oversubscribed resources because the"
-            << " previous estimate " << oversubscribed << " hasn't changed";
-    return;
+  // Only forward the estimate if it's different from the previous
+  // estimate.
+  if (oversubscribed != oversubscribedResources) {
+    LOG(INFO) << "Forwarding total oversubscribed resources " << oversubscribed;
+
+    UpdateSlaveMessage message;
+    message.mutable_slave_id()->CopyFrom(info.id());
+    message.mutable_oversubscribed_resources()->CopyFrom(oversubscribed);
+
+    CHECK_SOME(master);
+    send(master.get(), message);
+
+    // Update the estimate.
+    oversubscribedResources = oversubscribed;
   }
-
-  LOG(INFO) << "Forwarding total oversubscribed resources " << oversubscribed;
-
-  UpdateSlaveMessage message;
-  message.mutable_slave_id()->CopyFrom(info.id());
-  message.mutable_oversubscribed_resources()->CopyFrom(oversubscribed);
-
-  CHECK_SOME(master);
-  send(master.get(), message);
 
   delay(flags.oversubscribed_resources_interval,
         self(),
-        &Self::forwardOversubscribedResources);
-
-  // Update the estimate.
-  oversubscribedResources = oversubscribed;
+        &Self::forwardOversubscribed);
 }
 
 

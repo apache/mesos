@@ -433,8 +433,10 @@ private:
       const FrameworkID& frameworkId,
       const Executor* executor);
 
-  void updateOversubscribableResources(const Future<Resources>& future);
-  void forwardOversubscribedResources();
+  // Forwards the current total of oversubscribed resources.
+  void forwardOversubscribed();
+  void _forwardOversubscribed(
+      const process::Future<Resources>& oversubscribable);
 
   const Flags flags;
 
@@ -508,12 +510,8 @@ private:
 
   mesos::slave::ResourceEstimator* resourceEstimator;
 
-  // The most recent estimation about the maximum amount of resources
-  // that can be oversubscribed on the slave.
-  Resources oversubscribableResources;
-
-  // The total amount of oversubscribed (allocated and
-  // oversubscribable) resources.
+  // The most recent estimate of the total amount of oversubscribed
+  // (allocated and oversubscribable) resources.
   Resources oversubscribedResources;
 };
 

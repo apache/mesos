@@ -58,12 +58,9 @@ public:
   // Returns the current estimation about the *maximum* amount of
   // resources that can be oversubscribed on the slave. A new
   // estimation will invalidate all the previously returned
-  // estimations. The slave will be calling this method continuously
-  // to keep track of the most up-to-date estimation and periodically
-  // forward it to the master. As a result, to avoid overwhelming the
-  // slave, it is recommended that the resource estimator should
-  // return an estimation only if the current estimation is
-  // significantly different from the previous one.
+  // estimations. The slave will be calling this method periodically
+  // to forward it to the master. As a result, the estimator should
+  // respond with an estimate every time this method is called.
   virtual process::Future<Resources> oversubscribable() = 0;
 };
 
