@@ -37,9 +37,11 @@ public:
       lambda::function<void(const std::list<Timer>&)>&& callback);
 
   /**
-   * The current clock time for the current process that makes this call.
+   * The current clock time for either the current process that makes
+   * this call or the global clock time if not invoked from a process.
    *
-   * @return This process' current clock time.
+   * @return This process' current clock time or the global clock time
+   *         if not invoked from a process.
    */
   static Time now();
 
