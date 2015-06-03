@@ -23,6 +23,14 @@ namespace internal {
 
 MetricsProcess* MetricsProcess::instance()
 {
+  // To prevent a deadlock, we must ensure libprocess is
+  // initialized. Otherwise, libprocess will be implicitly
+  // initialized inside the 'once' block below, which in
+  // turns initializes metrics, and we arrive back here
+  // and deadlock by calling 'once()' without allowing
+  // 'done()' to ever be called.
+  process::initialize();
+
   static MetricsProcess* singleton = NULL;
   static Once* initialized = new Once();
 
