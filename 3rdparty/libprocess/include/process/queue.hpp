@@ -1,13 +1,15 @@
 #ifndef __PROCESS_QUEUE_HPP__
 #define __PROCESS_QUEUE_HPP__
 
+#include <atomic>
 #include <deque>
 #include <memory>
 #include <queue>
 
 #include <process/future.hpp>
-#include <process/internal.hpp>
 #include <process/owned.hpp>
+
+#include <stout/synchronized.hpp>
 
 namespace process {
 
@@ -24,8 +26,7 @@ public:
     // trigger callbacks that try to reacquire the lock.
     Owned<Promise<T>> promise;
 
-    internal::acquire(&data->lock);
-    {
+    synchronized (data->lock) {
       if (data->promises.empty()) {
         data->elements.push(t);
       } else {
@@ -33,7 +34,6 @@ public:
         data->promises.pop_front();
       }
     }
-    internal::release(&data->lock);
 
     if (promise.get() != NULL) {
       promise->set(t);
@@ -44,8 +44,7 @@ public:
   {
     Future<T> future;
 
-    internal::acquire(&data->lock);
-    {
+    synchronized (data->lock) {
       if (data->elements.empty()) {
         data->promises.push_back(Owned<Promise<T>>(new Promise<T>()));
         future = data->promises.back()->future();
@@ -54,7 +53,6 @@ public:
         data->elements.pop();
       }
     }
-    internal::release(&data->lock);
 
     return future;
   }
@@ -62,7 +60,7 @@ public:
 private:
   struct Data
   {
-    Data() : lock(0) {}
+    Data() : lock(ATOMIC_FLAG_INIT) {}
 
     ~Data()
     {
@@ -70,9 +68,8 @@ private:
     }
 
     // Rather than use a process to serialize access to the queue's
-    // internal data we use a low-level "lock" which we acquire and
-    // release using atomic builtins.
-    int lock;
+    // internal data we use a 'std::atomic_flag'.
+    std::atomic_flag lock;
 
     // Represents "waiters" for elements from the queue.
     std::deque<Owned<Promise<T>>> promises;
