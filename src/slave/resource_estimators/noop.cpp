@@ -16,6 +16,8 @@
  * limitations under the License.
  */
 
+#include <list>
+
 #include <process/dispatch.hpp>
 #include <process/process.hpp>
 
@@ -25,6 +27,8 @@
 
 using namespace process;
 
+using std::list;
+
 namespace mesos {
 namespace internal {
 namespace slave {
@@ -33,20 +37,10 @@ class NoopResourceEstimatorProcess :
   public Process<NoopResourceEstimatorProcess>
 {
 public:
-  NoopResourceEstimatorProcess() : sent(false) {}
-
   Future<Resources> oversubscribable()
   {
-    if (!sent) {
-      sent = true;
-      return Resources();
-    }
-
-    return Future<Resources>();
+    return Resources();
   }
-
-private:
-  bool sent;
 };
 
 
@@ -60,7 +54,7 @@ NoopResourceEstimator::~NoopResourceEstimator()
 
 
 Try<Nothing> NoopResourceEstimator::initialize(
-    const lambda::function<Future<std::list<ResourceUsage>>()>& usages)
+    const lambda::function<Future<list<ResourceUsage>>()>& usages)
 {
   if (process.get() != NULL) {
     return Error("Noop resource estimator has already been initialized");
