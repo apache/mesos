@@ -1,18 +1,19 @@
 #ifndef __PROCESS_METRICS_TIMER_HPP__
 #define __PROCESS_METRICS_TIMER_HPP__
 
+#include <atomic>
 #include <memory>
 #include <string>
 
 #include <process/clock.hpp>
 #include <process/future.hpp>
-#include <process/internal.hpp>
 
 #include <process/metrics/metric.hpp>
 
 #include <stout/duration.hpp>
 #include <stout/hashmap.hpp>
 #include <stout/option.hpp>
+#include <stout/synchronized.hpp>
 #include <stout/try.hpp>
 
 namespace process {
@@ -33,15 +34,13 @@ public:
   {
     Future<double> value;
 
-    process::internal::acquire(&data->lock);
-    {
+    synchronized (data->lock) {
       if (data->lastValue.isSome()) {
         value = data->lastValue.get();
       } else {
         value = Failure("No value");
       }
     }
-    process::internal::release(&data->lock);
 
     return value;
   }
@@ -49,11 +48,9 @@ public:
   // Start the Timer.
   void start()
   {
-    process::internal::acquire(&data->lock);
-    {
+    synchronized (data->lock) {
       data->start = Clock::now();
     }
-    process::internal::release(&data->lock);
   }
 
   // Stop the Timer.
@@ -65,15 +62,13 @@ public:
 
     double value;
 
-    process::internal::acquire(&data->lock);
-    {
+    synchronized (data->lock) {
       t = T(stop - data->start);
 
       data->lastValue = t.value();
 
       value = data->lastValue.get();
     }
-    process::internal::release(&data->lock);
 
     push(value);
 
@@ -94,9 +89,8 @@ public:
 
 private:
   struct Data {
-    Data() : lock(0) {}
-
-    int lock;
+    Data() : lock(ATOMIC_FLAG_INIT) {}
+    std::atomic_flag lock;
     Time start;
     Option<double> lastValue;
   };
@@ -107,12 +101,10 @@ private:
 
     double value;
 
-    process::internal::acquire(&that.data->lock);
-    {
+    synchronized (that.data->lock) {
       that.data->lastValue = T(stop - start).value();
       value = that.data->lastValue.get();
     }
-    process::internal::release(&that.data->lock);
 
     that.push(value);
   }
