@@ -19,7 +19,6 @@ nobase_include_HEADERS =		\
   process/help.hpp			\
   process/http.hpp			\
   process/id.hpp			\
-  process/internal.hpp			\
   process/io.hpp			\
   process/latch.hpp			\
   process/limiter.hpp			\
