@@ -1,14 +1,15 @@
 #ifndef __PROCESS_MUTEX_HPP__
 #define __PROCESS_MUTEX_HPP__
 
+#include <atomic>
 #include <memory>
 #include <queue>
 
 #include <process/future.hpp>
-#include <process/internal.hpp>
 #include <process/owned.hpp>
 
 #include <stout/nothing.hpp>
+#include <stout/synchronized.hpp>
 
 namespace process {
 
@@ -21,8 +22,7 @@ public:
   {
     Future<Nothing> future = Nothing();
 
-    internal::acquire(&data->lock);
-    {
+    synchronized (data->lock) {
       if (!data->locked) {
         data->locked = true;
       } else {
@@ -31,7 +31,6 @@ public:
         future = promise->future();
       }
     }
-    internal::release(&data->lock);
 
     return future;
   }
@@ -43,8 +42,7 @@ public:
     // trigger callbacks that try to reacquire the lock.
     Owned<Promise<Nothing>> promise;
 
-    internal::acquire(&data->lock);
-    {
+    synchronized (data->lock) {
       if (!data->promises.empty()) {
         // TODO(benh): Skip a future that has been discarded?
         promise = data->promises.front();
@@ -53,7 +51,6 @@ public:
         data->locked = false;
       }
     }
-    internal::release(&data->lock);
 
     if (promise.get() != NULL) {
       promise->set(Nothing());
@@ -63,7 +60,7 @@ public:
 private:
   struct Data
   {
-    Data() : lock(0), locked(false) {}
+    Data() : lock(ATOMIC_FLAG_INIT), locked(false) {}
 
     ~Data()
     {
@@ -71,9 +68,8 @@ private:
     }
 
     // Rather than use a process to serialize access to the mutex's
-    // internal data we use a low-level "lock" which we acquire and
-    // release using atomic builtins.
-    int lock;
+    // internal data we use a 'std::atomic_flag'.
+    std::atomic_flag lock;
 
     // Describes the state of this mutex.
     bool locked;
