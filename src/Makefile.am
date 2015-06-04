@@ -498,8 +498,9 @@ slavedir = $(pkgincludedir)/slave
 
 slave_HEADERS =								\
   $(top_srcdir)/include/mesos/slave/isolator.hpp			\
-  $(top_srcdir)/include/mesos/slave/resource_estimator.hpp		\
-  $(top_srcdir)/include/mesos/slave/oversubscription.proto
+  $(top_srcdir)/include/mesos/slave/oversubscription.hpp		\
+  $(top_srcdir)/include/mesos/slave/oversubscription.proto		\
+  $(top_srcdir)/include/mesos/slave/resource_estimator.hpp
 
 nodist_slave_HEADERS = ../include/mesos/slave/oversubscription.pb.h
 
