@@ -486,7 +486,7 @@ void Slave::initialize()
           return http.health(request);
         });
   route("/state.json",
-        None(),
+        Http::STATE_HELP,
         [http](const http::Request& request) {
           Http::log(request);
           return http.state(request);

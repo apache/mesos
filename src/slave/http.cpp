@@ -261,6 +261,16 @@ Future<Response> Slave::Http::health(const Request& request) const
 }
 
 
+const string Slave::Http::STATE_HELP = HELP(
+    TLDR(
+        "Information about state of the Slave."),
+    USAGE(
+        "/state.json"),
+    DESCRIPTION(
+        "This endpoint shows information about the frameworks, executors",
+        "and the slave's master as a JSON object."));
+
+
 Future<Response> Slave::Http::state(const Request& request) const
 {
   JSON::Object object;

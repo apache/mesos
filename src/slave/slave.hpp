@@ -389,6 +389,7 @@ private:
         const process::http::Request& request) const;
 
     static const std::string HEALTH_HELP;
+    static const std::string STATE_HELP;
 
   private:
     Slave* slave;
