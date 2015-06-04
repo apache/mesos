@@ -26,11 +26,15 @@
 #include <stout/hashset.hpp>
 #include <stout/lambda.hpp>
 #include <stout/option.hpp>
+#include <stout/os.hpp>
 #include <stout/protobuf.hpp>
+#include <stout/stringify.hpp>
 #include <stout/utils.hpp>
 #include <stout/uuid.hpp>
 
 #include "common/protobuf_utils.hpp"
+
+#include "logging/logging.hpp"
 
 #include "slave/constants.hpp"
 #include "slave/flags.hpp"
@@ -631,6 +635,240 @@ void StatusUpdateManager::resume()
 void StatusUpdateManager::cleanup(const FrameworkID& frameworkId)
 {
   dispatch(process, &StatusUpdateManagerProcess::cleanup, frameworkId);
+}
+
+
+StatusUpdateStream::StatusUpdateStream(
+    const TaskID& _taskId,
+    const FrameworkID& _frameworkId,
+    const SlaveID& _slaveId,
+    const Flags& _flags,
+    bool _checkpoint,
+    const Option<ExecutorID>& executorId,
+    const Option<ContainerID>& containerId)
+    : checkpoint(_checkpoint),
+      terminated(false),
+      taskId(_taskId),
+      frameworkId(_frameworkId),
+      slaveId(_slaveId),
+      flags(_flags),
+      error(None())
+{
+  if (checkpoint) {
+    CHECK_SOME(executorId);
+    CHECK_SOME(containerId);
+
+    path = paths::getTaskUpdatesPath(
+        paths::getMetaRootDir(flags.work_dir),
+        slaveId,
+        frameworkId,
+        executorId.get(),
+        containerId.get(),
+        taskId);
+
+    // Create the base updates directory, if it doesn't exist.
+    Try<Nothing> directory = os::mkdir(os::dirname(path.get()).get());
+    if (directory.isError()) {
+      error = "Failed to create " + os::dirname(path.get()).get();
+      return;
+    }
+
+    // Open the updates file.
+    Try<int> result = os::open(
+        path.get(),
+        O_CREAT | O_WRONLY | O_APPEND | O_SYNC | O_CLOEXEC,
+        S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+
+    if (result.isError()) {
+      error = "Failed to open '" + path.get() + "' for status updates";
+      return;
+    }
+
+    // We keep the file open through the lifetime of the task, because it
+    // makes it easy to append status update records to the file.
+    fd = result.get();
+  }
+}
+
+
+StatusUpdateStream::~StatusUpdateStream()
+{
+  if (fd.isSome()) {
+    Try<Nothing> close = os::close(fd.get());
+    if (close.isError()) {
+      CHECK_SOME(path);
+      LOG(ERROR) << "Failed to close file '" << path.get() << "': "
+                 << close.error();
+    }
+  }
+}
+
+
+Try<bool> StatusUpdateStream::update(const StatusUpdate& update)
+{
+  if (error.isSome()) {
+    return Error(error.get());
+  }
+
+  // Check that this status update has not already been acknowledged.
+  // This could happen in the rare case when the slave received the ACK
+  // from the framework, died, but slave's ACK to the executor never made it!
+  if (acknowledged.contains(UUID::fromBytes(update.uuid()))) {
+    LOG(WARNING) << "Ignoring status update " << update
+                 << " that has already been acknowledged by the framework!";
+    return false;
+  }
+
+  // Check that this update hasn't already been received.
+  // This could happen if the slave receives a status update from an executor,
+  // then crashes after it writes it to disk but before it sends an ack.
+  if (received.contains(UUID::fromBytes(update.uuid()))) {
+    LOG(WARNING) << "Ignoring duplicate status update " << update;
+    return false;
+  }
+
+  // Handle the update, checkpointing if necessary.
+  Try<Nothing> result = handle(update, StatusUpdateRecord::UPDATE);
+  if (result.isError()) {
+    return Error(result.error());
+  }
+
+  return true;
+}
+
+
+Try<bool> StatusUpdateStream::acknowledgement(
+    const TaskID& taskId,
+    const FrameworkID& frameworkId,
+    const UUID& uuid,
+    const StatusUpdate& update)
+{
+  if (error.isSome()) {
+    return Error(error.get());
+  }
+
+  if (acknowledged.contains(uuid)) {
+    LOG(WARNING) << "Duplicate status update acknowledgment (UUID: "
+                  << uuid << ") for update " << update;
+    return false;
+  }
+
+  // This might happen if we retried a status update and got back
+  // acknowledgments for both the original and the retried update.
+  if (uuid != UUID::fromBytes(update.uuid())) {
+    LOG(WARNING) << "Unexpected status update acknowledgement (received "
+                 << uuid << ", expecting " << UUID::fromBytes(update.uuid())
+                 << ") for update " << update;
+    return false;
+  }
+
+  // Handle the ACK, checkpointing if necessary.
+  Try<Nothing> result = handle(update, StatusUpdateRecord::ACK);
+  if (result.isError()) {
+    return Error(result.error());
+  }
+
+  return true;
+}
+
+
+Result<StatusUpdate> StatusUpdateStream::next()
+{
+  if (error.isSome()) {
+    return Error(error.get());
+  }
+
+  if (!pending.empty()) {
+    return pending.front();
+  }
+
+  return None();
+}
+
+
+Try<Nothing> StatusUpdateStream::replay(
+    const std::vector<StatusUpdate>& updates,
+    const hashset<UUID>& acks)
+{
+  if (error.isSome()) {
+    return Error(error.get());
+  }
+
+  VLOG(1) << "Replaying status update stream for task " << taskId;
+
+  foreach (const StatusUpdate& update, updates) {
+    // Handle the update.
+    _handle(update, StatusUpdateRecord::UPDATE);
+
+    // Check if the update has an ACK too.
+    if (acks.contains(UUID::fromBytes(update.uuid()))) {
+      _handle(update, StatusUpdateRecord::ACK);
+    }
+  }
+
+  return Nothing();
+}
+
+
+Try<Nothing> StatusUpdateStream::handle(
+    const StatusUpdate& update,
+    const StatusUpdateRecord::Type& type)
+{
+  CHECK(error.isNone());
+
+  // Checkpoint the update if necessary.
+  if (checkpoint) {
+    LOG(INFO) << "Checkpointing " << type << " for status update " << update;
+
+    CHECK_SOME(fd);
+
+    StatusUpdateRecord record;
+    record.set_type(type);
+
+    if (type == StatusUpdateRecord::UPDATE) {
+      record.mutable_update()->CopyFrom(update);
+    } else {
+      record.set_uuid(update.uuid());
+    }
+
+    Try<Nothing> write = ::protobuf::write(fd.get(), record);
+    if (write.isError()) {
+      error = "Failed to write status update " + stringify(update) +
+              " to '" + path.get() + "': " + write.error();
+      return Error(error.get());
+    }
+  }
+
+  // Now actually handle the update.
+  _handle(update, type);
+
+  return Nothing();
+}
+
+
+void StatusUpdateStream::_handle(
+    const StatusUpdate& update,
+    const StatusUpdateRecord::Type& type)
+{
+  CHECK(error.isNone());
+
+  if (type == StatusUpdateRecord::UPDATE) {
+    // Record this update.
+    received.insert(UUID::fromBytes(update.uuid()));
+
+    // Add it to the pending updates queue.
+    pending.push(update);
+  } else {
+    // Record this ACK.
+    acknowledged.insert(UUID::fromBytes(update.uuid()));
+
+    // Remove the corresponding update from the pending queue.
+    pending.pop();
+
+    if (!terminated) {
+      terminated = protobuf::isTerminalState(update.status().state());
+    }
+  }
 }
 
 } // namespace slave {
