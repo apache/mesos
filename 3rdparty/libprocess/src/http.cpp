@@ -18,7 +18,6 @@
 
 #include <process/future.hpp>
 #include <process/http.hpp>
-#include <process/internal.hpp>
 #include <process/owned.hpp>
 #include <process/socket.hpp>
 
@@ -30,6 +29,7 @@
 #include <stout/numify.hpp>
 #include <stout/option.hpp>
 #include <stout/strings.hpp>
+#include <stout/synchronized.hpp>
 #include <stout/try.hpp>
 
 #include "decoder.hpp"
@@ -179,8 +179,7 @@ Future<string> Pipe::Reader::read()
 {
   Future<string> future;
 
-  process::internal::acquire(&data->lock);
-  {
+  synchronized (data->lock) {
     if (data->readEnd == Reader::CLOSED) {
       future = Failure("closed");
     } else if (!data->writes.empty()) {
@@ -196,7 +195,6 @@ Future<string> Pipe::Reader::read()
       future = data->reads.back()->future();
     }
   }
-  process::internal::release(&data->lock);
 
   return future;
 }
@@ -208,8 +206,7 @@ bool Pipe::Reader::close()
   bool notify = false;
   queue<Owned<Promise<string>>> reads;
 
-  process::internal::acquire(&data->lock);
-  {
+  synchronized (data->lock) {
     if (data->readEnd == Reader::OPEN) {
       // Throw away outstanding data.
       while (!data->writes.empty()) {
@@ -226,7 +223,6 @@ bool Pipe::Reader::close()
       notify = data->writeEnd == Writer::OPEN;
     }
   }
-  process::internal::release(&data->lock);
 
   // NOTE: We transition the promises outside the critical section
   // to avoid triggering callbacks that try to reacquire the lock.
@@ -250,8 +246,7 @@ bool Pipe::Writer::write(const string& s)
   bool written = false;
   Owned<Promise<string>> read;
 
-  process::internal::acquire(&data->lock);
-  {
+  synchronized (data->lock) {
     // Ignore writes if either end of the pipe is closed or failed!
     if (data->writeEnd == Writer::OPEN && data->readEnd == Reader::OPEN) {
       // Don't bother surfacing empty writes to the readers.
@@ -266,7 +261,6 @@ bool Pipe::Writer::write(const string& s)
       written = true;
     }
   }
-  process::internal::release(&data->lock);
 
   // NOTE: We set the promise outside the critical section to avoid
   // triggering callbacks that try to reacquire the lock.
@@ -283,8 +277,7 @@ bool Pipe::Writer::close()
   bool closed = false;
   queue<Owned<Promise<string>>> reads;
 
-  process::internal::acquire(&data->lock);
-  {
+  synchronized (data->lock) {
     if (data->writeEnd == Writer::OPEN) {
       // Extract all the pending reads so we can complete them.
       std::swap(data->reads, reads);
@@ -293,7 +286,6 @@ bool Pipe::Writer::close()
       closed = true;
     }
   }
-  process::internal::release(&data->lock);
 
   // NOTE: We set the promises outside the critical section to avoid
   // triggering callbacks that try to reacquire the lock.
@@ -311,8 +303,7 @@ bool Pipe::Writer::fail(const string& message)
   bool failed = false;
   queue<Owned<Promise<string>>> reads;
 
-  process::internal::acquire(&data->lock);
-  {
+  synchronized (data->lock) {
     if (data->writeEnd == Writer::OPEN) {
       // Extract all the pending reads so we can fail them.
       std::swap(data->reads, reads);
@@ -322,7 +313,6 @@ bool Pipe::Writer::fail(const string& message)
       failed = true;
     }
   }
-  process::internal::release(&data->lock);
 
   // NOTE: We set the promises outside the critical section to avoid
   // triggering callbacks that try to reacquire the lock.

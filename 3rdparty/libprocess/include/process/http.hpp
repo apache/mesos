@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 
+#include <atomic>
 #include <iosfwd>
 #include <memory>
 #include <queue>
@@ -191,12 +192,14 @@ public:
 private:
   struct Data
   {
-    Data() : lock(0), readEnd(Reader::OPEN), writeEnd(Writer::OPEN) {}
+    Data()
+      : lock(ATOMIC_FLAG_INIT),
+        readEnd(Reader::OPEN),
+        writeEnd(Writer::OPEN) {}
 
     // Rather than use a process to serialize access to the pipe's
-    // internal data we use a low-level "lock" which we acquire and
-    // release using atomic builtins.
-    int lock;
+    // internal data we use a 'std::atomic_flag'.
+    std::atomic_flag lock;
 
     Reader::State readEnd;
     Writer::State writeEnd;
