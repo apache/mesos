@@ -742,8 +742,8 @@ esac
 CONFIGURE_ARGS="$CONFIGURE_ARGS CXXFLAGS='$CXXFLAGS'"
 
 
-# Check for pthreads (uses m4/acx_pthread.m4).
-ACX_PTHREAD([], [AC_MSG_ERROR([failed to find pthreads])])
+# Check for pthreads (uses m4/ax_pthread.m4).
+AX_PTHREAD([], [AC_MSG_ERROR([failed to find pthreads])])
 
 
 AM_CONDITIONAL([HAS_GPERFTOOLS], [test "x$gperftools" = "xyes"])
