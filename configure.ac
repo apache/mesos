@@ -655,8 +655,8 @@ esac
 CONFIGURE_ARGS="$CONFIGURE_ARGS CXXFLAGS='$CXXFLAGS'"
 
 
-# Check for pthreads (uses m4/acx_pthread.m4).
-ACX_PTHREAD([], [AC_MSG_ERROR([failed to find pthreads])])
+# Check for pthreads (uses m4/ax_pthread.m4).
+AX_PTHREAD([], [AC_MSG_ERROR([failed to find pthreads])])
 
 
 # Check for libunwind, and link it in if present.
@@ -1147,7 +1147,7 @@ set to an older version of Python.
   ])])
 
   # Next we ensure we have the Python development libraries.
-  AC_PYTHON_DEVEL([>= '2.6'])
+  AX_PYTHON_DEVEL([>= '2.6'])
 
   # Ensure that we can build a native Python egg linking against a
   # static library that imports from the standard C++ library.
