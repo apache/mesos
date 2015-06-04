@@ -60,7 +60,7 @@ public:
 
     T t(0);
 
-    double value;
+    double value = 0.0;
 
     synchronized (data->lock) {
       t = T(stop - data->start);
