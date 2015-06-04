@@ -16,12 +16,15 @@
  * limitations under the License.
  */
 
+#include <list>
 #include <string>
 #include <vector>
 
 #include <gmock/gmock.h>
 
 #include <mesos/resources.hpp>
+
+#include <mesos/slave/qos_controller.hpp>
 
 #include <process/clock.hpp>
 #include <process/future.hpp>
@@ -43,6 +46,7 @@
 #include "slave/slave.hpp"
 
 #include "tests/flags.hpp"
+#include "tests/containerizer.hpp"
 #include "tests/mesos.hpp"
 #include "tests/utils.hpp"
 
@@ -52,6 +56,9 @@ using mesos::internal::master::Master;
 
 using mesos::internal::slave::Slave;
 
+using mesos::slave::QoSCorrection;
+
+using std::list;
 using std::string;
 using std::vector;
 
@@ -386,6 +393,43 @@ TEST_F(OversubscriptionTest, FixedResourceEstimator)
   EXPECT_SOME_EQ(2.0, resources.cpus());
 
   Shutdown();
+}
+
+
+// Tests interactions between QoS Controller and slave. The
+// TestQoSController's correction queue is filled and a mocked slave
+// is checked for receiving the given correction.
+TEST_F(OversubscriptionTest, ReceiveQoSCorrection)
+{
+  StandaloneMasterDetector detector;
+  TestContainerizer containerizer;
+
+  MockQoSController controller;
+
+  Queue<list<QoSCorrection>> corrections;
+
+  EXPECT_CALL(controller, corrections())
+    .WillRepeatedly(Invoke(&corrections, &Queue<list<QoSCorrection>>::get));
+
+  MockSlave slave(CreateSlaveFlags(), &detector, &containerizer, &controller);
+
+  Future<list<QoSCorrection>> qosCorrections;
+  EXPECT_CALL(slave, qosCorrections(_))
+    .WillOnce(FutureArg<0>(&qosCorrections));
+
+  spawn(slave);
+
+  list<QoSCorrection> expected = { QoSCorrection() };
+  corrections.put(expected);
+
+  AWAIT_READY(qosCorrections);
+
+  ASSERT_EQ(qosCorrections.get().size(), 1u);
+
+  // TODO(nnielsen): Test for equality of QoSCorrections.
+
+  terminate(slave);
+  wait(slave);
 }
 
 } // namespace tests {
