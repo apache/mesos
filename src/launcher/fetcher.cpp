@@ -384,13 +384,13 @@ int main(int argc, char* argv[])
 
   logging::initialize(argv[0], flags, true); // Catch signals.
 
-  CHECK(os::hasenv("MESOS_FETCHER_INFO"))
+  const Option<std::string> jsonFetcherInfo = os::getenv("MESOS_FETCHER_INFO");
+  CHECK(jsonFetcherInfo.isSome())
     << "Missing MESOS_FETCHER_INFO environment variable";
 
-  string jsonFetcherInfo = os::getenv("MESOS_FETCHER_INFO");
-  LOG(INFO) << "Fetcher Info: " << jsonFetcherInfo;
+  LOG(INFO) << "Fetcher Info: " << jsonFetcherInfo.get();
 
-  Try<JSON::Object> parse = JSON::parse<JSON::Object>(jsonFetcherInfo);
+  Try<JSON::Object> parse = JSON::parse<JSON::Object>(jsonFetcherInfo.get());
   CHECK_SOME(parse) << "Failed to parse MESOS_FETCHER_INFO: " << parse.error();
 
   Try<FetcherInfo> fetcherInfo = ::protobuf::parse<FetcherInfo>(parse.get());

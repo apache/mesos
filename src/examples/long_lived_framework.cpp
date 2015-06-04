@@ -26,6 +26,7 @@
 #include <mesos/scheduler.hpp>
 
 #include <stout/numify.hpp>
+#include <stout/option.hpp>
 #include <stout/os.hpp>
 #include <stout/stringify.hpp>
 
@@ -161,10 +162,13 @@ int main(int argc, char** argv)
   }
 
   // Find this executable's directory to locate executor.
-  string path = os::realpath(dirname(argv[0])).get();
-  string uri = path + "/long-lived-executor";
-  if (getenv("MESOS_BUILD_DIR")) {
-    uri = string(getenv("MESOS_BUILD_DIR")) + "/src/long-lived-executor";
+  string uri;
+  Option<string> value = os::getenv("MESOS_BUILD_DIR");
+  if (value.isSome()) {
+    uri = path::join(value.get(), "src", "long-lived-executor");
+  } else {
+    uri =
+      path::join(os::realpath(dirname(argv[0])).get(), "long-lived-executor");
   }
 
   ExecutorInfo executor;
@@ -179,28 +183,32 @@ int main(int argc, char** argv)
   framework.set_user(""); // Have Mesos fill in the current user.
   framework.set_name("Long Lived Framework (C++)");
 
-  if (os::hasenv("MESOS_CHECKPOINT")) {
+  value = os::getenv("MESOS_CHECKPOINT");
+  if (value.isSome()) {
     framework.set_checkpoint(
-        numify<bool>(os::getenv("MESOS_CHECKPOINT")).get());
+        numify<bool>(value.get()).get());
   }
 
   MesosSchedulerDriver* driver;
-  if (os::hasenv("MESOS_AUTHENTICATE")) {
+  if (os::getenv("MESOS_AUTHENTICATE").isSome()) {
     cout << "Enabling authentication for the framework" << endl;
 
-    if (!os::hasenv("DEFAULT_PRINCIPAL")) {
+    value = os::getenv("DEFAULT_PRINCIPAL");
+    if (value.isNone()) {
       EXIT(1) << "Expecting authentication principal in the environment";
     }
 
-    if (!os::hasenv("DEFAULT_SECRET")) {
+    Credential credential;
+    credential.set_principal(value.get());
+
+    framework.set_principal(value.get());
+
+    value = os::getenv("DEFAULT_SECRET");
+    if (value.isNone()) {
       EXIT(1) << "Expecting authentication secret in the environment";
     }
 
-    Credential credential;
-    credential.set_principal(getenv("DEFAULT_PRINCIPAL"));
-    credential.set_secret(getenv("DEFAULT_SECRET"));
-
-    framework.set_principal(getenv("DEFAULT_PRINCIPAL"));
+    credential.set_secret(value.get());
 
     driver = new MesosSchedulerDriver(
         &scheduler, framework, argv[1], credential);

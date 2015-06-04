@@ -29,6 +29,7 @@
 #include <stout/dynamiclibrary.hpp>
 #include <stout/exit.hpp>
 #include <stout/foreach.hpp>
+#include <stout/option.hpp>
 #include <stout/os.hpp>
 
 #include "common/build.hpp"
@@ -75,14 +76,14 @@ Try<Jvm*> Jvm::create(
 
   JavaVM* jvm = NULL;
   JNIEnv* env = NULL;
-  std::string libJvmPath = os::getenv("JAVA_JVM_LIBRARY", false);
+  Option<std::string> libJvmPath = os::getenv("JAVA_JVM_LIBRARY");
 
-  if (libJvmPath.empty()) {
+  if (libJvmPath.isNone()) {
     libJvmPath = mesos::internal::build::JAVA_JVM_LIBRARY;
   }
 
   static DynamicLibrary* libJvm = new DynamicLibrary();
-  Try<Nothing> openResult = libJvm->open(libJvmPath);
+  Try<Nothing> openResult = libJvm->open(libJvmPath.get());
 
   if (openResult.isError()) {
     return Error(openResult.error());

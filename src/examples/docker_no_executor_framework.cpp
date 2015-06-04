@@ -26,6 +26,7 @@
 #include <mesos/scheduler.hpp>
 
 #include <stout/exit.hpp>
+#include <stout/option.hpp>
 #include <stout/os.hpp>
 
 using namespace mesos;
@@ -185,28 +186,31 @@ int main(int argc, char** argv)
 
   // TODO(vinod): Make checkpointing the default when it is default
   // on the slave.
-  if (os::hasenv("MESOS_CHECKPOINT")) {
+  if (os::getenv("MESOS_CHECKPOINT").isSome()) {
     cout << "Enabling checkpoint for the framework" << endl;
     framework.set_checkpoint(true);
   }
 
   MesosSchedulerDriver* driver;
-  if (os::hasenv("MESOS_AUTHENTICATE")) {
+  if (os::getenv("MESOS_AUTHENTICATE").isSome()) {
     cout << "Enabling authentication for the framework" << endl;
 
-    if (!os::hasenv("DEFAULT_PRINCIPAL")) {
+    Option<string> value = os::getenv("DEFAULT_PRINCIPAL");
+    if (value.isNone()) {
       EXIT(1) << "Expecting authentication principal in the environment";
     }
 
-    if (!os::hasenv("DEFAULT_SECRET")) {
+    Credential credential;
+    credential.set_principal(value.get());
+
+    framework.set_principal(value.get());
+
+    value = os::getenv("DEFAULT_SECRET");
+    if (value.isNone()) {
       EXIT(1) << "Expecting authentication secret in the environment";
     }
 
-    Credential credential;
-    credential.set_principal(getenv("DEFAULT_PRINCIPAL"));
-    credential.set_secret(getenv("DEFAULT_SECRET"));
-
-    framework.set_principal(getenv("DEFAULT_PRINCIPAL"));
+    credential.set_secret(value.get());
 
     driver = new MesosSchedulerDriver(
         &scheduler, framework, argv[1], credential);

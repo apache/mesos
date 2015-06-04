@@ -3,6 +3,7 @@
 #include <iostream>
 #include <list>
 
+#include <stout/option.hpp>
 #include <stout/os.hpp>
 #include <stout/path.hpp>
 #include <stout/strings.hpp>
@@ -18,19 +19,21 @@ using std::string;
 void usage(const char* argv0)
 {
   // Get a list of available commands.
-  const string& PATH = os::getenv("PATH");
+  const Option<string> PATH = os::getenv("PATH");
 
   list<string> commands;
 
-  foreach (const string& path, strings::split(PATH, ":")) {
-    Try<list<string> > matches = os::glob(path::join(path, "mesos-*"));
-    if (matches.isSome()) {
-      foreach (const string& match, matches.get()) {
-        Try<bool> access = os::access(match, X_OK);
-        if (access.isSome() && access.get()) {
-          Try<string> basename = os::basename(match);
-          if (basename.isSome()) {
-            commands.push_back(basename.get().substr(6));
+  if (PATH.isSome()) {
+    foreach (const string& path, strings::split(PATH.get(), ":")) {
+      Try<list<string> > matches = os::glob(path::join(path, "mesos-*"));
+      if (matches.isSome()) {
+        foreach (const string& match, matches.get()) {
+          Try<bool> access = os::access(match, X_OK);
+          if (access.isSome() && access.get()) {
+            Try<string> basename = os::basename(match);
+            if (basename.isSome()) {
+              commands.push_back(basename.get().substr(6));
+            }
           }
         }
       }
@@ -52,6 +55,8 @@ void usage(const char* argv0)
 
 int main(int argc, char** argv)
 {
+  Option<string> value;
+
   // Try and add the absolute dirname of argv[0] to PATH so we can
   // find commands (since our installation directory might not be on
   // the path).
@@ -59,7 +64,12 @@ int main(int argc, char** argv)
   if (dirname.isSome()) {
     Result<string> realpath = os::realpath(dirname.get());
     if (realpath.isSome()) {
-      os::setenv("PATH", realpath.get() + ":" + os::getenv("PATH"));
+      value = os::getenv("PATH");
+      if (value.isSome()) {
+        os::setenv("PATH", realpath.get() + ":" + value.get());
+      } else {
+        os::setenv("PATH", realpath.get());
+      }
     }
   }
 
@@ -72,7 +82,12 @@ int main(int argc, char** argv)
   // TODO(benh): Remove this if/when we install the 'mesos' module via
   // PIP and setuptools.
   string path = path::join(PKGLIBEXECDIR, "python");
-  os::setenv("PYTHONPATH", os::getenv("PYTHONPATH", false) + ":" + path);
+  value = os::getenv("PYTHONPATH");
+  if (value.isSome()) {
+    os::setenv("PYTHONPATH", value.get() + ":" + path);
+  } else {
+    os::setenv("PYTHONPATH", path);
+  }
 
   // Now dispatch to any mesos-'command' on PATH.
   if (string(argv[1]) == "help") {

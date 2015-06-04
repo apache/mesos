@@ -402,10 +402,13 @@ void usage(const char* argv0, const flags::FlagsBase& flags)
 int main(int argc, char** argv)
 {
   // Find this executable's directory to locate executor.
-  string uri =
-    path::join(os::realpath(dirname(argv[0])).get(), "src", "test-executor");
-  if (getenv("MESOS_BUILD_DIR")) {
-    uri = path::join(os::getenv("MESOS_BUILD_DIR"), "src", "test-executor");
+  string uri;
+  Option<string> value = os::getenv("MESOS_BUILD_DIR");
+  if (value.isSome()) {
+    uri = path::join(value.get(), "src", "test-executor");
+  } else {
+    uri =
+      path::join(os::realpath(dirname(argv[0])).get(), "src", "test-executor");
   }
 
   mesos::internal::logging::Flags flags;
@@ -440,9 +443,10 @@ int main(int argc, char** argv)
   framework.set_name("Low-Level Scheduler using pthread (C++)");
   framework.set_role(role);
 
-  if (os::hasenv("MESOS_CHECKPOINT")) {
+  value = os::getenv("MESOS_CHECKPOINT");
+  if (value.isSome()) {
     framework.set_checkpoint(
-        numify<bool>(os::getenv("MESOS_CHECKPOINT")).get());
+        numify<bool>(value.get()).get());
   }
 
   ExecutorInfo executor;
@@ -452,22 +456,25 @@ int main(int argc, char** argv)
   executor.set_source("cpp_test");
 
   LowLevelScheduler* scheduler;
-  if (os::hasenv("MESOS_AUTHENTICATE")) {
+  if (os::getenv("MESOS_AUTHENTICATE").isSome()) {
     cout << "Enabling authentication for the scheduler" << endl;
 
-    if (!os::hasenv("DEFAULT_PRINCIPAL")) {
+    value = os::getenv("DEFAULT_PRINCIPAL");
+    if (value.isNone()) {
       EXIT(1) << "Expecting authentication principal in the environment";
     }
 
-    if (!os::hasenv("DEFAULT_SECRET")) {
+    Credential credential;
+    credential.set_principal(value.get());
+
+    framework.set_principal(value.get());
+
+    value = os::getenv("DEFAULT_SECRET");
+    if (value.isNone()) {
       EXIT(1) << "Expecting authentication secret in the environment";
     }
 
-    Credential credential;
-    credential.set_principal(getenv("DEFAULT_PRINCIPAL"));
-    credential.set_secret(getenv("DEFAULT_SECRET"));
-
-    framework.set_principal(getenv("DEFAULT_PRINCIPAL"));
+    credential.set_secret(value.get());
 
     scheduler =
       new LowLevelScheduler(framework, executor, master.get(), credential);

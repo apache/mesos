@@ -631,59 +631,64 @@ Status MesosExecutorDriver::start()
   string workDirectory;
   bool checkpoint;
 
-  string value;
+  Option<string> value;
   std::istringstream iss;
 
   // Check if this is local (for example, for testing).
-  value = os::getenv("MESOS_LOCAL", false);
-
-  if (!value.empty()) {
-    local = true;
-  } else {
-    local = false;
-  }
+  local = os::getenv("MESOS_LOCAL").isSome();
 
   // Get slave PID from environment.
   value = os::getenv("MESOS_SLAVE_PID");
-  slave = UPID(value);
-  CHECK(slave) << "Cannot parse MESOS_SLAVE_PID '" << value << "'";
+  if (value.isNone()) {
+    EXIT(1) << "Expecting 'MESOS_SLAVE_PID' to be set in the environment.";
+  }
+
+  slave = UPID(value.get());
+  CHECK(slave) << "Cannot parse MESOS_SLAVE_PID '" << value.get() << "'";
 
   // Get slave ID from environment.
   value = os::getenv("MESOS_SLAVE_ID");
-  slaveId.set_value(value);
+  if (value.isNone()) {
+    EXIT(1) << "Expecting 'MESOS_SLAVE_ID' to be set in the environment.";
+  }
+  slaveId.set_value(value.get());
 
   // Get framework ID from environment.
   value = os::getenv("MESOS_FRAMEWORK_ID");
-  frameworkId.set_value(value);
+  if (value.isNone()) {
+    EXIT(1) << "Expecting 'MESOS_FRAMEWORK_ID' to be set in the environment.";
+  }
+  frameworkId.set_value(value.get());
 
   // Get executor ID from environment.
   value = os::getenv("MESOS_EXECUTOR_ID");
-  executorId.set_value(value);
+  if (value.isNone()) {
+    EXIT(1) << "Expecting 'MESOS_EXECUTOR_ID' to be set in the environment.";
+  }
+  executorId.set_value(value.get());
 
   // Get working directory from environment.
   value = os::getenv("MESOS_DIRECTORY");
-  workDirectory = value;
+  if (value.isNone()) {
+    EXIT(1) << "Expecting 'MESOS_DIRECTORY' to be set in the environment.";
+  }
+  workDirectory = value.get();
 
   // Get checkpointing status from environment.
-  value = os::getenv("MESOS_CHECKPOINT", false);
-
-  if (!value.empty()) {
-    checkpoint = value == "1";
-  } else {
-    checkpoint = false;
-  }
+  value = os::getenv("MESOS_CHECKPOINT");
+  checkpoint = value.isSome() && value.get() == "1";
 
   Duration recoveryTimeout = slave::RECOVERY_TIMEOUT;
 
   // Get the recovery timeout if checkpointing is enabled.
   if (checkpoint) {
-    value = os::getenv("MESOS_RECOVERY_TIMEOUT", false);
+    value = os::getenv("MESOS_RECOVERY_TIMEOUT");
 
-    if (!value.empty()) {
-      Try<Duration> _recoveryTimeout = Duration::parse(value);
+    if (value.isSome()) {
+      Try<Duration> _recoveryTimeout = Duration::parse(value.get());
 
       CHECK_SOME(_recoveryTimeout)
-          << "Cannot parse MESOS_RECOVERY_TIMEOUT '" << value << "': "
+          << "Cannot parse MESOS_RECOVERY_TIMEOUT '" << value.get() << "': "
           << _recoveryTimeout.error();
 
       recoveryTimeout = _recoveryTimeout.get();

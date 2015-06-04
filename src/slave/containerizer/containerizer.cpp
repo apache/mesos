@@ -24,6 +24,7 @@
 
 #include <stout/fs.hpp>
 #include <stout/hashmap.hpp>
+#include <stout/os.hpp>
 #include <stout/stringify.hpp>
 #include <stout/strings.hpp>
 #include <stout/uuid.hpp>
@@ -252,7 +253,7 @@ map<string, string> executorEnvironment(
   // case the framework wants to override).
   // TODO(tillt): Adapt library towards JNI specific name once libmesos
   // has been split.
-  if (!os::hasenv("MESOS_NATIVE_JAVA_LIBRARY")) {
+  if (os::getenv("MESOS_NATIVE_JAVA_LIBRARY").isNone()) {
     string path =
 #ifdef __APPLE__
       LIBDIR "/libmesos-" VERSION ".dylib";
@@ -267,7 +268,7 @@ map<string, string> executorEnvironment(
   // Also add MESOS_NATIVE_LIBRARY if it's not already present.
   // This environment variable is kept for offering non JVM-based
   // frameworks a more compact and JNI independent library.
-  if (!os::hasenv("MESOS_NATIVE_LIBRARY")) {
+  if (os::getenv("MESOS_NATIVE_LIBRARY").isNone()) {
     string path =
 #ifdef __APPLE__
       LIBDIR "/libmesos-" VERSION ".dylib";

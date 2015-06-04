@@ -884,8 +884,9 @@ Future<pid_t> DockerContainerizerProcess::launchExecutorProcess(
   }
 
   // Pass GLOG flag to the executor.
-  if (os::hasenv("GLOG_v")) {
-    environment["GLOG_v"] = os::getenv("GLOG_v");
+  const Option<string> glog = os::getenv("GLOG_v");
+  if (glog.isSome()) {
+    environment["GLOG_v"] = glog.get();
   }
 
   vector<string> argv;

@@ -67,7 +67,7 @@ TEST_F(AnonymousTest, Running)
 
   // Test if the environment variables have been created by the
   // anonymous module.
-  EXPECT_EQ("42", os::getenv(TEST_ANONYMOUS_ENVIRONMENT_VARIABLE));
+  EXPECT_EQ("42", os::getenv(TEST_ANONYMOUS_ENVIRONMENT_VARIABLE).get());
 
   // Clear test relevant environment.
   os::unsetenv(TEST_ANONYMOUS_ENVIRONMENT_VARIABLE);

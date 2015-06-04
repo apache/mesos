@@ -33,14 +33,14 @@ struct HDFS
   explicit HDFS(const std::string& _hadoop)
     : hadoop(os::exists(_hadoop)
              ? _hadoop
-             : (os::hasenv("HADOOP_HOME")
-                ? path::join(os::getenv("HADOOP_HOME"), "bin/hadoop")
+             : (os::getenv("HADOOP_HOME").isSome()
+                ? path::join(os::getenv("HADOOP_HOME").get(), "bin/hadoop")
                 : "hadoop")) {}
 
   // Look for `hadoop' in HADOOP_HOME or assume it's on the PATH.
   HDFS()
-    : hadoop(os::hasenv("HADOOP_HOME")
-             ? path::join(os::getenv("HADOOP_HOME"), "bin/hadoop")
+    : hadoop(os::getenv("HADOOP_HOME").isSome()
+             ? path::join(os::getenv("HADOOP_HOME").get(), "bin/hadoop")
              : "hadoop") {}
 
   // Check if hadoop client is available at the path that was set.
