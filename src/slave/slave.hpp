@@ -33,6 +33,7 @@
 
 #include <mesos/module/authenticatee.hpp>
 
+#include <mesos/slave/qos_controller.hpp>
 #include <mesos/slave/resource_estimator.hpp>
 
 #include <process/http.hpp>
@@ -91,7 +92,8 @@ public:
         Files* files,
         GarbageCollector* gc,
         StatusUpdateManager* statusUpdateManager,
-        mesos::slave::ResourceEstimator* resourceEstimator);
+        mesos::slave::ResourceEstimator* resourceEstimator,
+        mesos::slave::QoSController* qosController);
 
   virtual ~Slave();
 
@@ -351,6 +353,11 @@ public:
   // Called when the slave was signaled from the specified user.
   void signaled(int signal, int uid);
 
+  // Made 'virtual' for Slave mocking.
+  virtual void qosCorrections(
+      const process::Future<std::list<
+          mesos::slave::QoSCorrection>>& correction);
+
 private:
   void _authenticate();
   void authenticationTimeout(process::Future<bool> future);
@@ -510,6 +517,8 @@ private:
   Duration executorDirectoryMaxAllowedAge;
 
   mesos::slave::ResourceEstimator* resourceEstimator;
+
+  mesos::slave::QoSController* qosController;
 
   // The most recent estimate of the total amount of oversubscribed
   // (allocated and oversubscribable) resources.

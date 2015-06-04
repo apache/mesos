@@ -87,6 +87,7 @@
 #include "slave/slave.hpp"
 #include "slave/status_update_manager.hpp"
 
+using mesos::slave::QoSController;
 using mesos::slave::ResourceEstimator;
 
 using std::list;
@@ -118,7 +119,8 @@ Slave::Slave(const slave::Flags& _flags,
              Files* _files,
              GarbageCollector* _gc,
              StatusUpdateManager* _statusUpdateManager,
-             ResourceEstimator* _resourceEstimator)
+             ResourceEstimator* _resourceEstimator,
+             QoSController* _qosController)
   : ProcessBase(process::ID::generate("slave")),
     state(RECOVERING),
     flags(_flags),
@@ -138,7 +140,8 @@ Slave::Slave(const slave::Flags& _flags,
     authenticated(false),
     reauthenticate(false),
     executorDirectoryMaxAllowedAge(age(0)),
-    resourceEstimator(_resourceEstimator) {}
+    resourceEstimator(_resourceEstimator),
+    qosController(_qosController) {}
 
 
 Slave::~Slave()
@@ -328,6 +331,13 @@ void Slave::initialize()
 
   if (initialize.isError()) {
     EXIT(1) << "Failed to initialize the resource estimator: "
+            << initialize.error();
+  }
+
+  // TODO(nnielsen): Pass ResourceMonitor* to 'initialize'.
+  initialize = qosController->initialize();
+  if (initialize.isError()) {
+    EXIT(1) << "Failed to initialize the QoS Controller: "
             << initialize.error();
   }
 
@@ -3999,6 +4009,10 @@ void Slave::__recover(const Future<Nothing>& future)
 
     // Forward oversubscribed resources.
     forwardOversubscribed();
+
+    // Start acting on correction from QoS Controller.
+    qosController->corrections()
+      .onAny(defer(self(), &Self::qosCorrections, lambda::_1));
   } else {
     // Slave started in cleanup mode.
     CHECK_EQ("cleanup", flags.recover);
@@ -4157,6 +4171,23 @@ void Slave::_forwardOversubscribed(const Future<Resources>& oversubscribable)
   delay(flags.oversubscribed_resources_interval,
         self(),
         &Self::forwardOversubscribed);
+}
+
+
+void Slave::qosCorrections(
+    const Future<list<mesos::slave::QoSCorrection>>& future)
+{
+  if (!future.isReady()) {
+    LOG(WARNING) << "Failed to get corrections from QoS Controller: "
+                  << (future.isFailed() ? future.failure() : "discarded");
+  } else {
+    // TODO(nnielsen): Print correction, once the operator overload
+    // for QoSCorrection has been implemented.
+    LOG(INFO) << "Received new QoS corrections";
+  }
+
+  qosController->corrections()
+    .onAny(defer(self(), &Self::qosCorrections, lambda::_1));
 }
 
 

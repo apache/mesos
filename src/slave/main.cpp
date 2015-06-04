@@ -53,6 +53,7 @@ using namespace mesos::internal::slave;
 using mesos::modules::Anonymous;
 using mesos::modules::ModuleManager;
 
+using mesos::slave::QoSController;
 using mesos::slave::ResourceEstimator;
 
 using mesos::SlaveInfo;
@@ -203,6 +204,16 @@ int main(int argc, char** argv)
     return EXIT_FAILURE;
   }
 
+  Try<QoSController*> qosController =
+    QoSController::create(flags.qos_controller);
+
+  if (qosController.isError()) {
+    cerr << "Failed to create QoS Controller: "
+         << qosController.error() << endl;
+    return EXIT_FAILURE;
+  }
+
+
   LOG(INFO) << "Starting Mesos slave";
 
   Slave* slave = new Slave(
@@ -212,7 +223,8 @@ int main(int argc, char** argv)
       &files,
       &gc,
       &statusUpdateManager,
-      resourceEstimator.get());
+      resourceEstimator.get(),
+      qosController.get());
 
   process::spawn(slave);
   process::wait(slave->self());
@@ -220,6 +232,8 @@ int main(int argc, char** argv)
   delete slave;
 
   delete resourceEstimator.get();
+
+  delete qosController.get();
 
   delete detector.get();
 

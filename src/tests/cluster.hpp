@@ -173,6 +173,8 @@ public:
         const Option<slave::GarbageCollector*>& gc = None(),
         const Option<slave::StatusUpdateManager*>& statusUpdateManager = None(),
         const Option<mesos::slave::ResourceEstimator*>& resourceEstimator =
+          None(),
+        const Option<mesos::slave::QoSController*>& qosController =
           None());
 
     // Stops and cleans up a slave at the specified PID. If 'shutdown'
@@ -202,6 +204,7 @@ public:
       bool createdContainerizer; // Whether we own the containerizer.
 
       process::Owned<mesos::slave::ResourceEstimator> resourceEstimator;
+      process::Owned<mesos::slave::QoSController> qosController;
       process::Owned<slave::Fetcher> fetcher;
       process::Owned<slave::StatusUpdateManager> statusUpdateManager;
       process::Owned<slave::GarbageCollector> gc;
@@ -535,7 +538,8 @@ inline Try<process::PID<slave::Slave>> Cluster::Slaves::start(
     const Option<MasterDetector*>& detector,
     const Option<slave::GarbageCollector*>& gc,
     const Option<slave::StatusUpdateManager*>& statusUpdateManager,
-    const Option<mesos::slave::ResourceEstimator*>& resourceEstimator)
+    const Option<mesos::slave::ResourceEstimator*>& resourceEstimator,
+    const Option<mesos::slave::QoSController*>& qosController)
 {
   // TODO(benh): Create a work directory if using the default.
 
@@ -564,6 +568,14 @@ inline Try<process::PID<slave::Slave>> Cluster::Slaves::start(
     slave.resourceEstimator.reset(_resourceEstimator.get());
   }
 
+  if (qosController.isNone()) {
+    Try<mesos::slave::QoSController*> _qosController =
+      mesos::slave::QoSController::create(flags.qos_controller);
+
+    CHECK_SOME(_qosController);
+    slave.qosController.reset(_qosController.get());
+  }
+
   // Get a detector for the master(s) if one wasn't provided.
   if (detector.isNone()) {
     slave.detector = masters->detector();
@@ -588,7 +600,8 @@ inline Try<process::PID<slave::Slave>> Cluster::Slaves::start(
       &cluster->files,
       gc.get(slave.gc.get()),
       statusUpdateManager.get(slave.statusUpdateManager.get()),
-      resourceEstimator.get(slave.resourceEstimator.get()));
+      resourceEstimator.get(slave.resourceEstimator.get()),
+      qosController.get(slave.qosController.get()));
 
   process::PID<slave::Slave> pid = process::spawn(slave.slave);
 

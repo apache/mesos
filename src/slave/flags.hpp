@@ -105,6 +105,7 @@ public:
   std::string authenticatee;
   Option<std::string> hooks;
   Option<std::string> resource_estimator;
+  Option<std::string> qos_controller;
   Duration oversubscribed_resources_interval;
 };
 

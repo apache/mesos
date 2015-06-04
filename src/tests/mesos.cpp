@@ -375,7 +375,8 @@ void MesosTest::ShutdownSlaves()
 
 MockSlave::MockSlave(const slave::Flags& flags,
                      MasterDetector* detector,
-                     slave::Containerizer* containerizer)
+                     slave::Containerizer* containerizer,
+                     const Option<mesos::slave::QoSController*>& _qosController)
   : slave::Slave(
       flags,
       detector,
@@ -383,7 +384,8 @@ MockSlave::MockSlave(const slave::Flags& flags,
       &files,
       &gc,
       statusUpdateManager = new slave::StatusUpdateManager(flags),
-      &resourceEstimator)
+      &resourceEstimator,
+      _qosController.isSome() ? _qosController.get() : &qosController)
 {
   // Set up default behaviors, calling the original methods.
   EXPECT_CALL(*this, runTask(_, _, _, _, _))

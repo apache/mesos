@@ -93,6 +93,7 @@ using mesos::internal::slave::StatusUpdateManager;
 using mesos::modules::Anonymous;
 using mesos::modules::ModuleManager;
 
+using mesos::slave::QoSController;
 using mesos::slave::ResourceEstimator;
 
 using process::Owned;
@@ -128,6 +129,7 @@ static vector<GarbageCollector*>* garbageCollectors = NULL;
 static vector<StatusUpdateManager*>* statusUpdateManagers = NULL;
 static vector<Fetcher*>* fetchers = NULL;
 static vector<ResourceEstimator*>* resourceEstimators = NULL;
+static vector<QoSController*>* qosControllers = NULL;
 
 
 PID<Master> launch(const Flags& flags, Allocator* _allocator)
@@ -293,6 +295,7 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
   statusUpdateManagers = new vector<StatusUpdateManager*>();
   fetchers = new vector<Fetcher*>();
   resourceEstimators = new vector<ResourceEstimator*>();
+  qosControllers = new vector<QoSController*>();
 
   vector<UPID> pids;
 
@@ -322,6 +325,16 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
 
     resourceEstimators->push_back(resourceEstimator.get());
 
+    Try<QoSController*> qosController =
+      QoSController::create(flags.qos_controller);
+
+    if (qosController.isError()) {
+      EXIT(1) << "Failed to create QoS Controller: "
+              << qosController.error();
+    }
+
+    qosControllers->push_back(qosController.get());
+
     Try<Containerizer*> containerizer =
       Containerizer::create(flags, true, fetchers->back());
 
@@ -338,7 +351,8 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
         files,
         garbageCollectors->back(),
         statusUpdateManagers->back(),
-        resourceEstimators->back());
+        resourceEstimators->back(),
+        qosControllers->back());
 
     slaves[containerizer.get()] = slave;
 
@@ -414,6 +428,13 @@ void shutdown()
 
     delete resourceEstimators;
     resourceEstimators = NULL;
+
+    foreach (QoSController* controller, *qosControllers) {
+      delete controller;
+    }
+
+    delete qosControllers;
+    qosControllers = NULL;
 
     delete registrar;
     registrar = NULL;
