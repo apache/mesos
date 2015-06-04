@@ -56,7 +56,7 @@ public:
     return resources;
   }
 
-private:
+protected:
   const lambda::function<Future<list<ResourceUsage>>()>& usages;
   const Resources resources;
 };
