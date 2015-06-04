@@ -52,6 +52,7 @@
 
 #include "linux/routing/queueing/fq_codel.hpp"
 #include "linux/routing/queueing/ingress.hpp"
+#include "linux/routing/queueing/statistics.hpp"
 
 using namespace process;
 
@@ -429,6 +430,10 @@ TEST_F(RoutingVethTest, ROOT_IngressQdisc)
   EXPECT_SOME_FALSE(ingress::exists(TEST_VETH_LINK));
   EXPECT_SOME_FALSE(ingress::exists(TEST_PEER_LINK));
 
+  // Interfaces without qdisc established no data.
+  EXPECT_NONE(ingress::statistics(TEST_VETH_LINK));
+  EXPECT_NONE(ingress::statistics(TEST_PEER_LINK));
+
   // Try to create an ingress filter on an non-existant interface.
   EXPECT_ERROR(ingress::create("noSuchInterface"));
 
@@ -438,6 +443,22 @@ TEST_F(RoutingVethTest, ROOT_IngressQdisc)
   // Interface exists and has an ingress filter.
   EXPECT_SOME_TRUE(ingress::exists(TEST_VETH_LINK));
   EXPECT_SOME_FALSE(ingress::exists(TEST_PEER_LINK));
+
+  // Interfaces which exist return at least the core statisitcs.
+  Result<hashmap<string, uint64_t>> stats = ingress::statistics(TEST_VETH_LINK);
+  ASSERT_SOME(stats);
+  EXPECT_TRUE(stats.get().contains(statistics::PACKETS));
+  EXPECT_TRUE(stats.get().contains(statistics::BYTES));
+  EXPECT_TRUE(stats.get().contains(statistics::RATE_BPS));
+  EXPECT_TRUE(stats.get().contains(statistics::RATE_PPS));
+  EXPECT_TRUE(stats.get().contains(statistics::QLEN));
+  EXPECT_TRUE(stats.get().contains(statistics::BACKLOG));
+  EXPECT_TRUE(stats.get().contains(statistics::DROPS));
+  EXPECT_TRUE(stats.get().contains(statistics::REQUEUES));
+  EXPECT_TRUE(stats.get().contains(statistics::OVERLIMITS));
+
+  // Interface without qdisc returns no data.
+  EXPECT_NONE(ingress::statistics(TEST_PEER_LINK));
 
   // Try to create a second ingress filter on an existing interface.
   EXPECT_SOME_FALSE(ingress::create(TEST_VETH_LINK));
@@ -473,6 +494,10 @@ TEST_F(RoutingVethTest, ROOT_FqCodeQdisc)
   EXPECT_SOME_FALSE(fq_codel::exists(TEST_VETH_LINK));
   EXPECT_SOME_FALSE(fq_codel::exists(TEST_PEER_LINK));
 
+  // Interfaces without qdisc established no data.
+  EXPECT_NONE(fq_codel::statistics(TEST_VETH_LINK));
+  EXPECT_NONE(fq_codel::statistics(TEST_PEER_LINK));
+
   // Try to create an fq_codel filter on an non-existant interface.
   EXPECT_ERROR(fq_codel::create("noSuchInterface"));
 
@@ -482,6 +507,23 @@ TEST_F(RoutingVethTest, ROOT_FqCodeQdisc)
   // Interface exists and has an fq_codel filter.
   EXPECT_SOME_TRUE(fq_codel::exists(TEST_VETH_LINK));
   EXPECT_SOME_FALSE(fq_codel::exists(TEST_PEER_LINK));
+
+  // Interfaces which exist return at least the core statisitcs.
+  Result<hashmap<string, uint64_t>> stats =
+      fq_codel::statistics(TEST_VETH_LINK);
+  ASSERT_SOME(stats);
+  EXPECT_TRUE(stats.get().contains(statistics::PACKETS));
+  EXPECT_TRUE(stats.get().contains(statistics::BYTES));
+  EXPECT_TRUE(stats.get().contains(statistics::RATE_BPS));
+  EXPECT_TRUE(stats.get().contains(statistics::RATE_PPS));
+  EXPECT_TRUE(stats.get().contains(statistics::QLEN));
+  EXPECT_TRUE(stats.get().contains(statistics::BACKLOG));
+  EXPECT_TRUE(stats.get().contains(statistics::DROPS));
+  EXPECT_TRUE(stats.get().contains(statistics::REQUEUES));
+  EXPECT_TRUE(stats.get().contains(statistics::OVERLIMITS));
+
+  // Interface without qdisc returns no data.
+  EXPECT_NONE(fq_codel::statistics(TEST_PEER_LINK));
 
   // Try to create a second fq_codel filter on an existing interface.
   EXPECT_SOME_FALSE(fq_codel::create(TEST_VETH_LINK));
