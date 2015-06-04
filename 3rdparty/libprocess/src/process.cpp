@@ -774,25 +774,23 @@ void initialize(const string& delegate)
 
   __address__ = Address::LOCALHOST_ANY();
 
-  char* value;
-
   // Check environment for ip.
-  value = getenv("LIBPROCESS_IP");
-  if (value != NULL) {
-    Try<net::IP> ip = net::IP::parse(value, AF_INET);
+  Option<string> value = os::getenv("LIBPROCESS_IP");
+  if (value.isSome()) {
+    Try<net::IP> ip = net::IP::parse(value.get(), AF_INET);
     if (ip.isError()) {
-      LOG(FATAL) << "Parsing LIBPROCESS_IP=" << value
+      LOG(FATAL) << "Parsing LIBPROCESS_IP=" << value.get()
                  << " failed: " << ip.error();
     }
     __address__.ip = ip.get();
   }
 
   // Check environment for port.
-  value = getenv("LIBPROCESS_PORT");
-  if (value != NULL) {
-    int result = atoi(value);
+  value = os::getenv("LIBPROCESS_PORT");
+  if (value.isSome()) {
+    const int result = atoi(value.get().c_str());
     if (result < 0 || result > USHRT_MAX) {
-      LOG(FATAL) << "LIBPROCESS_PORT=" << value << " is not a valid port";
+      LOG(FATAL) << "LIBPROCESS_PORT=" << value.get() << " is not a valid port";
     }
     __address__.port = result;
   }
@@ -872,11 +870,11 @@ void initialize(const string& delegate)
 
   // Create the global statistics.
   // TODO(dhamon): Plumb this through to metrics.
-  // value = getenv("LIBPROCESS_STATISTICS_WINDOW");
-  // if (value != NULL) {
-  //   Try<Duration> window = Duration::parse(string(value));
+  // value = os::getenv("LIBPROCESS_STATISTICS_WINDOW");
+  // if (value.isSome()) {
+  //   Try<Duration> window = Duration::parse(value.get());
   //   if (window.isError()) {
-  //     LOG(FATAL) << "LIBPROCESS_STATISTICS_WINDOW=" << value
+  //     LOG(FATAL) << "LIBPROCESS_STATISTICS_WINDOW=" << value.get()
   //                << " is not a valid duration: " << window.error();
   //   }
   //   statistics = new Statistics(window.get());

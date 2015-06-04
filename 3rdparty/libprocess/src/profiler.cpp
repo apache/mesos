@@ -12,6 +12,7 @@
 #include "process/profiler.hpp"
 
 #include "stout/format.hpp"
+#include "stout/option.hpp"
 #include "stout/os.hpp"
 
 namespace process {
@@ -57,7 +58,9 @@ const std::string Profiler::STOP_HELP()
 Future<http::Response> Profiler::start(const http::Request& request)
 {
 #ifdef HAS_GPERFTOOLS
-  if (os::getenv("LIBPROCESS_ENABLE_PROFILER", false) != "1") {
+  const Option<std::string>
+    enableProfiler = os::getenv("LIBPROCESS_ENABLE_PROFILER");
+  if (enableProfiler.isNone() || enableProfiler.get() != "1") {
     return http::BadRequest(
         "The profiler is not enabled. To enable the profiler, libprocess "
         "must be started with LIBPROCESS_ENABLE_PROFILER=1 in the "
