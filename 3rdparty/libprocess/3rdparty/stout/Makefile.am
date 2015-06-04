@@ -1,7 +1,5 @@
 # Makefile for stout.
 
-ACLOCAL_AMFLAGS = -I m4
-
 AUTOMAKE_OPTIONS = foreign
 
 # NOTE: The stout headers were moved to the Makefile in "include"
