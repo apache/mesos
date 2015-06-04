@@ -21,6 +21,8 @@
 
 #include <mesos/slave/resource_estimator.hpp>
 
+#include <stout/lambda.hpp>
+
 #include <process/owned.hpp>
 
 namespace mesos {
@@ -39,7 +41,10 @@ class NoopResourceEstimator : public mesos::slave::ResourceEstimator
 public:
   virtual ~NoopResourceEstimator();
 
-  virtual Try<Nothing> initialize();
+  virtual Try<Nothing> initialize(
+      const lambda::function<
+          process::Future<std::list<ResourceUsage>>()>& usages);
+
   virtual process::Future<Resources> oversubscribable();
 
 protected:

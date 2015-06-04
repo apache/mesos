@@ -87,7 +87,7 @@ TEST_F(OversubscriptionTest, ForwardUpdateSlaveMessage)
 
   MockResourceEstimator resourceEstimator;
 
-  EXPECT_CALL(resourceEstimator, initialize());
+  EXPECT_CALL(resourceEstimator, initialize(_));
 
   Queue<Resources> estimations;
   // We expect 2 calls:
@@ -147,7 +147,7 @@ TEST_F(OversubscriptionTest, RevocableOffer)
   // Start the slave with test resource estimator.
   MockResourceEstimator resourceEstimator;
 
-  EXPECT_CALL(resourceEstimator, initialize());
+  EXPECT_CALL(resourceEstimator, initialize(_));
 
   Queue<Resources> estimations;
   // We expect 2 calls:
@@ -217,7 +217,7 @@ TEST_F(OversubscriptionTest, RescindRevocableOffer)
   // Start the slave with test resource estimator.
   MockResourceEstimator resourceEstimator;
 
-  EXPECT_CALL(resourceEstimator, initialize());
+  EXPECT_CALL(resourceEstimator, initialize(_));
 
   Queue<Resources> estimations;
   // We expect 3 calls:

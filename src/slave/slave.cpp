@@ -323,8 +323,9 @@ void Slave::initialize()
             << "' for --gc_disk_headroom. Must be between 0.0 and 1.0.";
   }
 
-  // TODO(jieyu): Pass ResourceMonitor* to 'initialize'.
-  Try<Nothing> initialize = resourceEstimator->initialize();
+  Try<Nothing> initialize = resourceEstimator->initialize(
+      lambda::bind(&ResourceMonitor::usages, &monitor));
+
   if (initialize.isError()) {
     EXIT(1) << "Failed to initialize the resource estimator: "
             << initialize.error();

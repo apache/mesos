@@ -59,7 +59,8 @@ NoopResourceEstimator::~NoopResourceEstimator()
 }
 
 
-Try<Nothing> NoopResourceEstimator::initialize()
+Try<Nothing> NoopResourceEstimator::initialize(
+    const lambda::function<Future<std::list<ResourceUsage>>()>& usages)
 {
   if (process.get() != NULL) {
     return Error("Noop resource estimator has already been initialized");

@@ -715,9 +715,9 @@ class MockResourceEstimator : public mesos::slave::ResourceEstimator
 public:
   MockResourceEstimator()
   {
-    ON_CALL(*this, initialize())
+    ON_CALL(*this, initialize(_))
       .WillByDefault(Return(Nothing()));
-    EXPECT_CALL(*this, initialize())
+    EXPECT_CALL(*this, initialize(_))
       .WillRepeatedly(DoDefault());
 
     ON_CALL(*this, oversubscribable())
@@ -728,11 +728,15 @@ public:
 
   virtual ~MockResourceEstimator() {}
 
-  MOCK_METHOD0(initialize,
-               Try<Nothing>());
+  MOCK_METHOD1(
+      initialize,
+      Try<Nothing>(
+          const lambda::function<
+              process::Future<std::list<ResourceUsage>>()>&));
 
-  MOCK_METHOD0(oversubscribable,
-               process::Future<Resources>());
+  MOCK_METHOD0(
+      oversubscribable,
+      process::Future<Resources>());
 };
 
 
