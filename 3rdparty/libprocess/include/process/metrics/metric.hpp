@@ -1,17 +1,18 @@
 #ifndef __PROCESS_METRICS_METRIC_HPP__
 #define __PROCESS_METRICS_METRIC_HPP__
 
+#include <atomic>
 #include <memory>
 #include <string>
 
 #include <process/future.hpp>
-#include <process/internal.hpp>
 #include <process/owned.hpp>
 #include <process/statistics.hpp>
 #include <process/timeseries.hpp>
 
 #include <stout/duration.hpp>
 #include <stout/option.hpp>
+#include <stout/synchronized.hpp>
 
 namespace process {
 namespace metrics {
@@ -33,11 +34,9 @@ public:
     Option<Statistics<double>> statistics = None();
 
     if (data->history.isSome()) {
-      internal::acquire(&data->lock);
-      {
+      synchronized (data->lock) {
         statistics = Statistics<double>::from(*data->history.get());
       }
-      internal::release(&data->lock);
     }
 
     return statistics;
@@ -53,11 +52,9 @@ protected:
     if (data->history.isSome()) {
       Time now = Clock::now();
 
-      internal::acquire(&data->lock);
-      {
+      synchronized (data->lock) {
         data->history.get()->set(value, now);
       }
-      internal::release(&data->lock);
     }
   }
 
@@ -65,7 +62,7 @@ private:
   struct Data {
     Data(const std::string& _name, const Option<Duration>& window)
       : name(_name),
-        lock(0),
+        lock(ATOMIC_FLAG_INIT),
         history(None())
     {
       if (window.isSome()) {
@@ -76,7 +73,7 @@ private:
 
     const std::string name;
 
-    int lock;
+    std::atomic_flag lock;
 
     Option<Owned<TimeSeries<double>>> history;
   };
