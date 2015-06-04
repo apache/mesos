@@ -19,8 +19,11 @@
 #ifndef __LINUX_ROUTING_QUEUEING_INGRESS_HPP__
 #define __LINUX_ROUTING_QUEUEING_INGRESS_HPP__
 
+#include <stdint.h>
+
 #include <string>
 
+#include <stout/hashmap.hpp>
 #include <stout/try.hpp>
 
 #include "linux/routing/handle.hpp"
@@ -48,6 +51,12 @@ Try<bool> create(const std::string& link);
 // Removes the ingress qdisc on the link. Return false if the ingress
 // qdisc is not found.
 Try<bool> remove(const std::string& link);
+
+// Returns the set of common Traffic Control statistics for the
+// ingress queueing discipline on the link, None() if the link or
+// qdisc does not exist or an error if we cannot cannot determine the
+// result.
+Result<hashmap<std::string, uint64_t>> statistics(const std::string& link);
 
 } // namespace ingress {
 } // namespace queueing {

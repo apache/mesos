@@ -549,7 +549,8 @@ if WITH_NETWORK_ISOLATOR
 	linux/routing/queueing/discipline.hpp				\
 	linux/routing/queueing/fq_codel.hpp				\
 	linux/routing/queueing/ingress.hpp				\
-	linux/routing/queueing/internal.hpp
+	linux/routing/queueing/internal.hpp				\
+	linux/routing/queueing/statistics.hpp
 
   libmesos_no_3rdparty_la_SOURCES +=					\
 	slave/containerizer/isolators/network/port_mapping.cpp		\

@@ -44,6 +44,7 @@
 #include "linux/routing/link/internal.hpp"
 
 #include "linux/routing/queueing/discipline.hpp"
+#include "linux/routing/queueing/statistics.hpp"
 
 namespace routing {
 namespace queueing {
@@ -287,6 +288,44 @@ inline Try<bool> remove(
   }
 
   return true;
+}
+
+
+// Returns the set of common Traffic Control statistics for the
+// queueing discipline on the link, None() if the link or qdisc does
+// not exist or an error if we cannot cannot determine the result.
+inline Result<hashmap<std::string, uint64_t>> statistics(
+    const std::string& _link,
+    const Handle& parent,
+    const std::string& kind)
+{
+  Result<Netlink<struct rtnl_link>> link = link::internal::get(_link);
+  if (link.isError()) {
+    return Error(link.error());
+  } else if (link.isNone()) {
+    return None();
+  }
+
+  Result<Netlink<struct rtnl_qdisc>> qdisc = getQdisc(link.get(), parent, kind);
+  if (qdisc.isError()) {
+    return Error(qdisc.error());
+  } else if (qdisc.isNone()) {
+    return None();
+  }
+
+  hashmap<std::string, uint64_t> results;
+  char name[32];
+
+  // NOTE: We use '<=' here because RTNL_TC_STATS_MAX is set to be the
+  // value of the last enum entry.
+  for(size_t i = 0; i <= static_cast<size_t>(RTNL_TC_STATS_MAX); i++) {
+    if(rtnl_tc_stat2str(static_cast<rtnl_tc_stat>(i), name, sizeof(name))) {
+      results[name] = rtnl_tc_get_stat(
+          TC_CAST(qdisc.get().get()),
+          static_cast<rtnl_tc_stat>(i));
+    }
+  }
+  return results;
 }
 
 } // namespace internal {

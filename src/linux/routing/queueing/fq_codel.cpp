@@ -120,6 +120,13 @@ Try<bool> remove(const string& link)
   return internal::remove(link, EGRESS_ROOT, KIND);
 }
 
+
+Result<hashmap<std::string, uint64_t>> statistics(const std::string& link)
+{
+  return internal::statistics(link, EGRESS_ROOT, KIND);
+}
+
+
 } // namespace fq_codel {
 } // namespace queueing {
 } // namespace routing {

@@ -108,6 +108,12 @@ Try<bool> remove(const string& link)
   return internal::remove(link, INGRESS_ROOT, KIND);
 }
 
+
+Result<hashmap<std::string, uint64_t>> statistics(const std::string& link)
+{
+  return internal::statistics(link, INGRESS_ROOT, KIND);
+}
+
 } // namespace ingress {
 } // namespace queueing {
 } // namespace routing {
