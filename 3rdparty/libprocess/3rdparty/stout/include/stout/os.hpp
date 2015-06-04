@@ -153,31 +153,18 @@ inline hashmap<std::string, std::string> environment()
 }
 
 
-// Checks if the specified key is in the environment variables.
-inline bool hasenv(const std::string& key)
-{
-  char* value = ::getenv(key.c_str());
-
-  return value != NULL;
-}
-
 // Looks in the environment variables for the specified key and
-// returns a string representation of it's value. If 'expected' is
-// true (default) and no environment variable matching key is found,
-// this function will exit the process.
-inline std::string getenv(const std::string& key, bool expected = true)
+// returns a string representation of its value. If no environment
+// variable matching key is found, None() is returned.
+inline Option<std::string> getenv(const std::string& key)
 {
   char* value = ::getenv(key.c_str());
 
-  if (expected && value == NULL) {
-    LOG(FATAL) << "Expecting '" << key << "' in environment variables";
+  if (value == NULL) {
+    return None();
   }
 
-  if (value != NULL) {
-    return std::string(value);
-  }
-
-  return std::string();
+  return std::string(value);
 }
 
 
@@ -1257,7 +1244,8 @@ inline std::string paths()
 #else
     "DYLD_LIBRARY_PATH";
 #endif
-  return getenv(environmentVariable, false);
+  const Option<std::string> path = getenv(environmentVariable);
+  return path.isSome() ? path.get() : std::string();
 }
 
 
