@@ -195,7 +195,7 @@ s += "world"; // THIS IS A DANGLING REFERENCE!
 
 ## File Headers
 
-Mesos source files should contain the "ASF" header:
+* Mesos source files must contain the "ASF" header:
 
 ```
 /**
@@ -217,7 +217,7 @@ Mesos source files should contain the "ASF" header:
  */
 ```
 
-stout & libprocess source files should contain the "Apache License Version 2.0" header:
+* Stout and libprocess source files must contain the "Apache License Version 2.0" header:
 
 ```
 /**
