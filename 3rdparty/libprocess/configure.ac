@@ -644,7 +644,7 @@ AS_CASE($ax_cv_cxx_compiler_vendor,
     # Check for GCC version >= 4.8.
     AX_COMPARE_VERSION([$ax_cv_cxx_compiler_version], [ge], [4.8],
                         [is_ge_gxx48=yes], [is_ge_gxx48=no])
-    if test "x$is_ge_gxx48" = "xyes"; then
+    if test "x$is_ge_gxx48" != "xyes"; then
       # GCC < 4.8 is not supported.
       AC_MSG_ERROR([GCC 4.8 or higher required (found $ax_cv_cxx_compiler_version)])
     fi
