@@ -1,111 +1,61 @@
 #ifndef __SYNCHRONIZABLE_HPP__
 #define __SYNCHRONIZABLE_HPP__
 
-#include <pthread.h>
+#include <atomic>
+#include <mutex>
+#include <type_traits>
 
-#include <iostream>
-
-
-class Synchronizable
-{
-public:
-  Synchronizable()
-    : initialized(false) {}
-
-  explicit Synchronizable(int _type)
-    : type(_type), initialized(false)
-  {
-    initialize();
-  }
-
-  Synchronizable(const Synchronizable &that)
-  {
-    type = that.type;
-    initialize();
-  }
-
-  Synchronizable & operator = (const Synchronizable &that)
-  {
-    type = that.type;
-    initialize();
-    return *this;
-  }
-
-  void acquire()
-  {
-    if (!initialized) {
-      ABORT("synchronizable not initialized");
-    }
-    pthread_mutex_lock(&mutex);
-  }
-
-  void release()
-  {
-    if (!initialized) {
-      ABORT("synchronizable not initialized");
-    }
-    pthread_mutex_unlock(&mutex);
-  }
-
-private:
-  void initialize()
-  {
-    if (!initialized) {
-      pthread_mutexattr_t attr;
-      pthread_mutexattr_init(&attr);
-      pthread_mutexattr_settype(&attr, type);
-      pthread_mutex_init(&mutex, &attr);
-      pthread_mutexattr_destroy(&attr);
-      initialized = true;
-    } else {
-      ABORT("synchronizable already initialized");
-    }
-  }
-
-  int type;
-  bool initialized;
-  pthread_mutex_t mutex;
-};
-
-
+// A helper class for the synchronized(m) macro. It is an RAII 'guard'
+// for a synchronization primitive 'T'. The general template handles
+// cases such as 'std::mutex' and 'std::recursive_mutex'.
+template <typename T>
 class Synchronized
 {
 public:
-  explicit Synchronized(Synchronizable *_synchronizable)
-    : synchronizable(_synchronizable)
-  {
-    synchronizable->acquire();
-  }
+  Synchronized(T* _lock) : lock(CHECK_NOTNULL(_lock)) { lock->lock(); }
+  Synchronized(T** _lock) : Synchronized(*CHECK_NOTNULL(_lock)) {}
 
-  ~Synchronized()
-  {
-    synchronizable->release();
-  }
+  ~Synchronized() { lock->unlock(); }
 
-  operator bool () { return true; }
-
+  operator bool() const { return true; }
 private:
-  Synchronizable *synchronizable;
+  T* lock;
 };
 
 
-#define synchronized(s)                                                 \
-  if (Synchronized __synchronized ## s = Synchronized(&__synchronizable_ ## s))
+// A specialization of the Synchronized class for 'std::atomic_flag'.
+// This is necessary as the locking functions are different.
+template <>
+class Synchronized<std::atomic_flag>
+{
+public:
+  Synchronized(std::atomic_flag* _flag) : flag(CHECK_NOTNULL(_flag))
+  {
+    while (flag->test_and_set(std::memory_order_acquire)) {}
+  }
+  Synchronized(std::atomic_flag** _flag)
+    : Synchronized(*CHECK_NOTNULL(_flag)) {}
 
-#define synchronizable(s)                       \
-  Synchronizable __synchronizable_ ## s
+  ~Synchronized()
+  {
+    flag->clear(std::memory_order_release);
+  }
 
-#define synchronizer(s)                         \
-  (__synchronizable_ ## s)
+  operator bool() const { return true; }
+private:
+  std::atomic_flag* flag;
+};
 
 
-#define SYNCHRONIZED_INITIALIZER                \
-  Synchronizable(PTHREAD_MUTEX_NORMAL)
-
-#define SYNCHRONIZED_INITIALIZER_DEBUG          \
-  Synchronizable(PTHREAD_MUTEX_ERRORCHECK)
-
-#define SYNCHRONIZED_INITIALIZER_RECURSIVE      \
-  Synchronizable(PTHREAD_MUTEX_RECURSIVE)
+// A macro for acquiring a scoped 'guard' on any type that can satisfy
+// the 'Synchronized' interface. Currently this includes 'std::mutex',
+// 'std::recursive_mutex' and 'std::atomic_flag'.
+// Example:
+//   std::mutex m;
+//   synchronized (m) {
+//     // Do something under the lock.
+//   }
+#define synchronized(m)                                                 \
+  if (auto __ ## __file__ ## _ ## __line__ ## __lock = Synchronized<typename std::remove_pointer<decltype(m)>::type>(&m)) // NOLINT(whitespace/line_length)
 
 #endif // __SYNCHRONIZABLE_HPP__

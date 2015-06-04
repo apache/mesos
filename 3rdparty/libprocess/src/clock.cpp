@@ -2,6 +2,7 @@
 
 #include <list>
 #include <map>
+#include <mutex>
 #include <set>
 
 #include <process/clock.hpp>
@@ -21,6 +22,7 @@
 
 using std::list;
 using std::map;
+using std::recursive_mutex;
 using std::set;
 
 namespace process {
@@ -29,7 +31,7 @@ namespace process {
 // timer so that we can have two timers that have the same timeout. We
 // exploit that the map is SORTED!
 static map<Time, list<Timer>>* timers = new map<Time, list<Timer>>();
-static synchronizable(timers) = SYNCHRONIZED_INITIALIZER_RECURSIVE;
+static recursive_mutex* timers_mutex = new recursive_mutex();
 
 
 // We namespace the clock related variables to keep them well
@@ -126,7 +128,7 @@ void tick(const Time& time)
 {
   list<Timer> timedout;
 
-  synchronized (timers) {
+  synchronized (timers_mutex) {
     // We pass NULL to be explicit about the fact that we want the
     // global clock time, even though it's unnecessary ('tick' is
     // called from the event loop, not a Process context).
@@ -173,7 +175,7 @@ void tick(const Time& time)
   // Mark 'settling' as false since there are not any more timers
   // that will expire before the paused time and we've finished
   // executing expired timers.
-  synchronized (timers) {
+  synchronized (timers_mutex) {
     if (clock::paused &&
         (timers->size() == 0 ||
          timers->begin()->first > *clock::current)) {
@@ -200,7 +202,7 @@ Time Clock::now()
 
 Time Clock::now(ProcessBase* process)
 {
-  synchronized (timers) {
+  synchronized (timers_mutex) {
     if (Clock::paused()) {
       if (process != NULL) {
         if (clock::currents->count(process) != 0) {
@@ -244,7 +246,7 @@ Timer Clock::timer(
           << " in the future (" << timeout.time() << ")";
 
   // Add the timer.
-  synchronized (timers) {
+  synchronized (timers_mutex) {
     if (timers->size() == 0 ||
         timer.timeout().time() < timers->begin()->first) {
       // Need to interrupt the loop to update/set timer repeat.
@@ -266,7 +268,7 @@ Timer Clock::timer(
 bool Clock::cancel(const Timer& timer)
 {
   bool canceled = false;
-  synchronized (timers) {
+  synchronized (timers_mutex) {
     // Check if the timeout is still pending, and if so, erase it. In
     // addition, erase an empty list if we just removed the last
     // timeout.
@@ -288,7 +290,7 @@ void Clock::pause()
 {
   process::initialize(); // To make sure the event loop is ready.
 
-  synchronized (timers) {
+  synchronized (timers_mutex) {
     if (!clock::paused) {
       *clock::initial = *clock::current = now();
       clock::paused = true;
@@ -320,7 +322,7 @@ void Clock::resume()
 {
   process::initialize(); // To make sure the event loop is ready.
 
-  synchronized (timers) {
+  synchronized (timers_mutex) {
     if (clock::paused) {
       VLOG(2) << "Clock resumed at " << clock::current;
 
@@ -337,7 +339,7 @@ void Clock::resume()
 
 void Clock::advance(const Duration& duration)
 {
-  synchronized (timers) {
+  synchronized (timers_mutex) {
     if (clock::paused) {
       *clock::advanced += duration;
       *clock::current += duration;
@@ -355,7 +357,7 @@ void Clock::advance(const Duration& duration)
 
 void Clock::advance(ProcessBase* process, const Duration& duration)
 {
-  synchronized (timers) {
+  synchronized (timers_mutex) {
     if (clock::paused) {
       Time current = now(process);
       current += duration;
@@ -374,7 +376,7 @@ void Clock::advance(ProcessBase* process, const Duration& duration)
 
 void Clock::update(const Time& time)
 {
-  synchronized (timers) {
+  synchronized (timers_mutex) {
     if (clock::paused) {
       if (*clock::current < time) {
         *clock::advanced += (time - *clock::current);
@@ -393,7 +395,7 @@ void Clock::update(const Time& time)
 
 void Clock::update(ProcessBase* process, const Time& time, Update update)
 {
-  synchronized (timers) {
+  synchronized (timers_mutex) {
     if (clock::paused) {
       if (now(process) < time || update == Clock::FORCE) {
         VLOG(2) << "Clock of " << process->self() << " updated to " << time;
@@ -418,7 +420,7 @@ void Clock::order(ProcessBase* from, ProcessBase* to)
 
 bool Clock::settled()
 {
-  synchronized (timers) {
+  synchronized (timers_mutex) {
     CHECK(clock::paused);
 
     if (clock::settling) {

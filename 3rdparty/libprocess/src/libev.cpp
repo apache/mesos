@@ -1,5 +1,6 @@
 #include <ev.h>
 
+#include <mutex>
 #include <queue>
 
 #include <stout/duration.hpp>
@@ -19,7 +20,7 @@ ev_async async_watcher;
 
 std::queue<ev_io*>* watchers = new std::queue<ev_io*>();
 
-synchronizable(watchers);
+std::mutex* watchers_mutex = new std::mutex();
 
 std::queue<lambda::function<void(void)>>* functions =
   new std::queue<lambda::function<void(void)>>();
@@ -29,7 +30,7 @@ ThreadLocal<bool>* _in_event_loop_ = new ThreadLocal<bool>();
 
 void handle_async(struct ev_loop* loop, ev_async* _, int revents)
 {
-  synchronized (watchers) {
+  synchronized (watchers_mutex) {
     // Start all the new I/O watchers.
     while (!watchers->empty()) {
       ev_io* watcher = watchers->front();
@@ -47,8 +48,6 @@ void handle_async(struct ev_loop* loop, ev_async* _, int revents)
 
 void EventLoop::initialize()
 {
-  synchronizer(watchers) = SYNCHRONIZED_INITIALIZER;
-
   loop = ev_default_loop(EVFLAG_AUTO);
 
   ev_async_init(&async_watcher, handle_async);
