@@ -276,6 +276,9 @@ AM_CONDITIONAL([OS_LINUX], [test "x$OS_NAME" = "xlinux"])
 AC_PROG_CXX([g++])
 AC_PROG_CC([gcc])
 
+AX_COMPILER_VERSION
+AX_COMPILER_VENDOR
+
 # Check if we should enable debugging, optimization. Note we only
 # update CFLAGS and CXXFLAGS if none are provided.
 AM_CONDITIONAL([DEBUG], [test x"$enable_debug" = "xyes"])
@@ -516,41 +519,40 @@ AM_CONDITIONAL([WITH_BUNDLED_PROTOBUF],
 AC_SUBST([PROTOBUF_JAR])
 AC_SUBST([PROTOCOMPILER])
 
+AS_CASE($ax_cv_cxx_compiler_vendor,
+  [clang], [
+    # Check if -Wno-unused-local-typedef is needed by checking a sample
+    # compilation which contains a local unused typedef.
+    # This is needed because Boost 1.53.0 fails to compile with upstream
+    # Clang 3.6 without -Wno-unused-local-typedef. Apple LLVM based on
+    # Clang 3.6 doesn't have the same behavior.
+    AC_LANG_PUSH([C++])
+    AC_COMPILE_IFELSE(
+    [AC_LANG_SOURCE([[
+      #pragma clang diagnostic error "-Wunused-local-typedef"
 
-# Check if we're using clang.
-AC_MSG_CHECKING([if compiling with clang])
+      int foo()
+      {
+        typedef int return_type;
+        return 5;
+      }
+    ]])],
+    [warn_local_typedefs=no], [warn_local_typedefs=yes])
+    AC_LANG_POP([C++])
 
-AC_LANG_PUSH([C++])
-AC_COMPILE_IFELSE(
-[AC_LANG_PROGRAM([], [[
-#ifndef __clang__
-#error Force the compiler to fail and set CLANG=no.
-#endif
-]])],
-[CLANG=yes], [CLANG=no])
-AC_LANG_POP([C++])
+    if test "x$warn_local_typedefs" = "xyes"; then
+      AC_MSG_NOTICE([Disabling warnings about unused local typedefs])
+      CXXFLAGS="${CXXFLAGS} -Wno-unused-local-typedef"
+    fi
+  ], [gnu], [
+    # Check for GCC version >= 4.8.
+    AX_COMPARE_VERSION([$ax_cv_cxx_compiler_version], [ge], [4.8],
+                       [is_ge_gxx48=yes], [is_ge_gxx48=no])
+    if test "x$is_ge_gxx48" != "xyes"; then
+      # GCC < 4.8 is not supported.
+      AC_MSG_ERROR([GCC 4.8 or higher required (found $ax_cv_cxx_compiler_version)])
+    fi
 
-AC_MSG_RESULT([$CLANG])
-AC_SUBST([CLANG])
-
-if test "x$CLANG" = "xno"; then
-  # We ASSUME if it's not clang than it's GCC, but that might not be
-  # the case.
-  #
-  # TODO(benh): Have a check which determines if this is really GCC or
-  # something else so we can give people a nicer error message.
-  #
-  # Check the version of gcc and add any flags as appropriate. Note
-  # that '-dumpversion' works for clang as well but as of clang 3.3 it
-  # reports version 4.2.1 (for gcc backwards compatibility).
-  GCC_VERSION="`${CC} -dumpversion`"
-  AC_MSG_NOTICE([GCC version: $GCC_VERSION])
-  test $? = 0 || AC_MSG_ERROR([failed to determine version of gcc])
-
-  # Check for GCC version >= 4.8.
-  AX_COMPARE_VERSION([$GCC_VERSION], [ge], [4.8],
-                     [is_ge_gxx48=yes], [is_ge_gxx48=no])
-  if test "x$is_ge_gxx48" = "xyes"; then
     AC_MSG_NOTICE([Setting up CXXFLAGS for g++ version >= 4.8])
     # Boost 1.53.0 fails to compile with GCC 4.8 without
     # -Wno-unused-local-typedefs, and automake does not recognize the
@@ -558,43 +560,17 @@ if test "x$CLANG" = "xno"; then
     # TODO(brenden): Remove this when Boost has a resolution.
     CFLAGS="${CFLAGS} -Wno-unused-local-typedefs"
     CXXFLAGS="${CXXFLAGS} -Wno-unused-local-typedefs"
-  else
-    # GCC < 4.8 is not supported.
-    AC_MSG_ERROR([GCC 4.8 or higher is required for compiling Mesos])
-  fi
 
-  # Disable 'maybe-uninitialized' warning when "-O2" is enabled due
-  # to MESOS-2690. This is short term fix until the GCC bug is fixed.
-  case $CXXFLAGS in
-    *-O2*) CXXFLAGS="${CXXFLAGS} -Wno-maybe-uninitialized" ;;
-    *) ;;
-  esac
-
-else # CLANG=yes
-  # Check if -Wno-unused-local-typedef is needed by checking a sample
-  # compilation which contains a local unused typedef.
-  # This is needed because Boost 1.53.0 fails to compile with upstream
-  # Clang 3.6 without -Wno-unused-local-typedef. Apple LLVM based on
-  # Clang 3.6 doesn't have the same behavior.
-  AC_LANG_PUSH([C++])
-  AC_COMPILE_IFELSE(
-  [AC_LANG_SOURCE([[
-    #pragma clang diagnostic error "-Wunused-local-typedef"
-
-    int foo()
-    {
-      typedef int return_type;
-      return 5;
-    }
-  ]])],
-  [warn_local_typedefs=no], [warn_local_typedefs=yes])
-  AC_LANG_POP([C++])
-
-  if test "x$warn_local_typedefs" = "xyes"; then
-    AC_MSG_NOTICE([Disabling warnings about unused local typedefs])
-    CXXFLAGS="${CXXFLAGS} -Wno-unused-local-typedef"
-  fi
-fi
+    # Disable 'maybe-uninitialized' warning when "-O2" is enabled due
+    # to MESOS-2690. This is short term fix until the GCC bug is fixed.
+    case $CXXFLAGS in
+      *-O2*) CXXFLAGS="${CXXFLAGS} -Wno-maybe-uninitialized" ;;
+      *) ;;
+    esac
+  ], [
+    AC_MSG_WARN([$ax_cv_cxx_compiler_vendor is an unsupported compiler])
+  ]
+)
 
 # Ensure we can build the C++11 features we expect, and set the --std=
 # flag and CXXFLAG environment variable as appropriate.
@@ -640,7 +616,7 @@ fi
 case "$host_os" in
   darwin* )
    # If we're using clang, we need to pass -stdlib=libc++ too.
-    if test "x$CLANG" = "xyes"; then
+    if test "x$ax_cv_cxx_compiler_vendor" = "xclang"; then
       CXXFLAGS="$CXXFLAGS -stdlib=libc++"
     fi
 
@@ -1315,7 +1291,7 @@ There are two possible workarounds for this issue:
   PYTHON_CFLAGS="$CFLAGS $CXXFLAGS" # distutils requires we embed CXXFLAGS.
   PYTHON_LDFLAGS="$LDFLAGS"
 
-  AS_IF([test "x$CLANG" = "xyes"],
+  AS_IF([test "x$ax_cv_cxx_compiler_vendor" = "xclang"],
 	[PYTHON_CPPFLAGS="$PYTHON_CPPFLAGS -Qunused-arguments"
          PYTHON_CFLAGS="$PYTHON_CFLAGS -Qunused-arguments"])
 
