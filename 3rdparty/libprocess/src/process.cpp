@@ -74,6 +74,7 @@
 #include <stout/option.hpp>
 #include <stout/os.hpp>
 #include <stout/strings.hpp>
+#include <stout/synchronized.hpp>
 #include <stout/thread.hpp>
 #include <stout/unreachable.hpp>
 
@@ -83,7 +84,6 @@
 #include "event_loop.hpp"
 #include "gate.hpp"
 #include "process_reference.hpp"
-#include "synchronized.hpp"
 
 using namespace process::metrics::internal;
 

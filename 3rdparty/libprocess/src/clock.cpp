@@ -14,11 +14,11 @@
 #include <stout/duration.hpp>
 #include <stout/foreach.hpp>
 #include <stout/lambda.hpp>
+#include <stout/synchronized.hpp>
 #include <stout/try.hpp>
 #include <stout/unreachable.hpp>
 
 #include "event_loop.hpp"
-#include "synchronized.hpp"
 
 using std::list;
 using std::map;

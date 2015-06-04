@@ -10,9 +10,8 @@
 #include <process/owned.hpp>
 
 #include <stout/lambda.hpp>
+#include <stout/synchronized.hpp>
 #include <stout/thread.hpp>
-
-#include "synchronized.hpp"
 
 namespace process {
 

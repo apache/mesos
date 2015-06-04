@@ -5,9 +5,10 @@
 
 #include <process/logging.hpp>
 
+#include <stout/synchronized.hpp>
+
 #include "event_loop.hpp"
 #include "libevent.hpp"
-#include "synchronized.hpp"
 
 namespace process {
 
