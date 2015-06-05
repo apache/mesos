@@ -289,7 +289,7 @@ TEST_F(ZooKeeperMasterContenderDetectorTest, ContenderPendingElection)
   EXPECT_CALL(filter->mock, filter(testing::A<const process::DispatchEvent&>()))
     .With(DispatchMatcher(_, &GroupProcess::join))
     .Times(0);
-  pthread_mutex_lock(&filter->mutex);
+  pthread_mutex_unlock(&filter->mutex);
 
   // Recontend and settle so that if ZooKeeperMasterContender is not
   // directly returning, GroupProcess::join is dispatched.
