@@ -94,6 +94,10 @@ public:
   void deactivateFramework(
       const FrameworkID& frameworkId);
 
+  void updateFramework(
+      const FrameworkID& frameworkId,
+      const FrameworkInfo& frameworkInfo);
+
   void addSlave(
       const SlaveID& slaveId,
       const SlaveInfo& slaveInfo,
@@ -431,6 +435,25 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::deactivateFramework(
   frameworks[frameworkId].filters.clear();
 
   LOG(INFO) << "Deactivated framework " << frameworkId;
+}
+
+
+template <class RoleSorter, class FrameworkSorter>
+void
+HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::updateFramework(
+    const FrameworkID& frameworkId,
+    const FrameworkInfo& frameworkInfo)
+{
+  CHECK(initialized);
+
+  CHECK(frameworks.contains(frameworkId));
+
+  // TODO(jmlvanre): Once we allow frameworks to re-register with a
+  // new 'role' or 'checkpoint' flag, we need to update our internal
+  // 'frameworks' structure. See MESOS-703 for progress on allowing
+  // these fields to be updated.
+  CHECK_EQ(frameworks[frameworkId].role, frameworkInfo.role());
+  CHECK_EQ(frameworks[frameworkId].checkpoint, frameworkInfo.checkpoint());
 }
 
 

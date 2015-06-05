@@ -82,6 +82,10 @@ public:
   virtual void deactivateFramework(
       const FrameworkID& frameworkId) = 0;
 
+  virtual void updateFramework(
+      const FrameworkID& frameworkId,
+      const FrameworkInfo& frameworkInfo) = 0;
+
   // Note that the 'total' resources are passed explicitly because it
   // includes resources that are dynamically "checkpointed" on the
   // slave (e.g. persistent volumes, dynamic reservations, etc). The

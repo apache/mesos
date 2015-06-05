@@ -951,6 +951,12 @@ ACTION_P(InvokeDeactivateFramework, allocator)
 }
 
 
+ACTION_P(InvokeUpdateFramework, allocator)
+{
+  allocator->real->updateFramework(arg0, arg1);
+}
+
+
 ACTION_P(InvokeAddSlave, allocator)
 {
   allocator->real->addSlave(arg0, arg1, arg2, arg3);
@@ -1072,6 +1078,11 @@ public:
     EXPECT_CALL(*this, deactivateFramework(_))
       .WillRepeatedly(DoDefault());
 
+    ON_CALL(*this, updateFramework(_, _))
+      .WillByDefault(InvokeUpdateFramework(this));
+    EXPECT_CALL(*this, updateFramework(_, _))
+      .WillRepeatedly(DoDefault());
+
     ON_CALL(*this, addSlave(_, _, _, _))
       .WillByDefault(InvokeAddSlave(this));
     EXPECT_CALL(*this, addSlave(_, _, _, _))
@@ -1145,6 +1156,10 @@ public:
 
   MOCK_METHOD1(deactivateFramework, void(
       const FrameworkID&));
+
+  MOCK_METHOD2(updateFramework, void(
+      const FrameworkID&,
+      const FrameworkInfo&));
 
   MOCK_METHOD4(addSlave, void(
       const SlaveID&,

@@ -1926,6 +1926,8 @@ void Master::_reregisterFramework(
     LOG(INFO) << "Updating info for framework " << framework->id();
     framework->updateFrameworkInfo(frameworkInfo);
 
+    allocator->updateFramework(framework->id(), framework->info);
+
     framework->reregisteredTime = Clock::now();
 
     if (failover) {

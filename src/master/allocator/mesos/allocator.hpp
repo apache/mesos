@@ -67,6 +67,10 @@ public:
   void deactivateFramework(
       const FrameworkID& frameworkId);
 
+  void updateFramework(
+      const FrameworkID& frameworkId,
+      const FrameworkInfo& frameworkInfo);
+
   void addSlave(
       const SlaveID& slaveId,
       const SlaveInfo& slaveInfo,
@@ -148,6 +152,10 @@ public:
 
   virtual void deactivateFramework(
       const FrameworkID& frameworkId) = 0;
+
+  virtual void updateFramework(
+      const FrameworkID& frameworkId,
+      const FrameworkInfo& frameworkInfo) = 0;
 
   virtual void addSlave(
       const SlaveID& slaveId,
@@ -279,6 +287,19 @@ inline void MesosAllocator<AllocatorProcess>::deactivateFramework(
       process,
       &MesosAllocatorProcess::deactivateFramework,
       frameworkId);
+}
+
+
+template <typename AllocatorProcess>
+inline void MesosAllocator<AllocatorProcess>::updateFramework(
+    const FrameworkID& frameworkId,
+    const FrameworkInfo& frameworkInfo)
+{
+  process::dispatch(
+      process,
+      &MesosAllocatorProcess::updateFramework,
+      frameworkId,
+      frameworkInfo);
 }
 
 
