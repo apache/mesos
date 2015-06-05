@@ -12,6 +12,7 @@
 #include <process/deferred.hpp> // TODO(benh): This is required by Clang.
 #include <process/dispatch.hpp>
 #include <process/future.hpp>
+#include <process/help.hpp>
 #include <process/http.hpp>
 #include <process/io.hpp>
 #include <process/mime.hpp>
@@ -37,6 +38,10 @@
 
 using namespace process;
 
+using process::DESCRIPTION;
+using process::HELP;
+using process::TLDR;
+using process::USAGE;
 using process::wait; // Necessary on some OS's to disambiguate.
 
 using process::http::BadRequest;
@@ -95,6 +100,11 @@ private:
   // Returns the internal virtual path mapping.
   Future<Response> debug(const Request& request);
 
+  const static std::string BROWSE_HELP;
+  const static std::string READ_HELP;
+  const static std::string DOWNLOAD_HELP;
+  const static std::string DEBUG_HELP;
+
   hashmap<string, string> paths;
 };
 
@@ -106,10 +116,18 @@ FilesProcess::FilesProcess()
 
 void FilesProcess::initialize()
 {
-  route("/browse.json", None(), &FilesProcess::browse);
-  route("/read.json", None(), &FilesProcess::read);
-  route("/download.json", None(), &FilesProcess::download);
-  route("/debug.json", None(), &FilesProcess::debug);
+  route("/browse.json",
+        FilesProcess::BROWSE_HELP,
+        &FilesProcess::browse);
+  route("/read.json",
+        FilesProcess::READ_HELP,
+        &FilesProcess::read);
+  route("/download.json",
+        FilesProcess::DOWNLOAD_HELP,
+        &FilesProcess::download);
+  route("/debug.json",
+        FilesProcess::DEBUG_HELP,
+        &FilesProcess::debug);
 }
 
 
@@ -147,6 +165,20 @@ void FilesProcess::detach(const string& name)
 {
   paths.erase(name);
 }
+
+
+const string FilesProcess::BROWSE_HELP = HELP(
+    TLDR(
+        "Returns a file listing for a directory."),
+    USAGE(
+        "/files/browse.json"),
+    DESCRIPTION(
+        "Lists files and directories contained in the path as",
+        "a JSON object.",
+        "",
+        "Query parameters:",
+        "",
+        ">        path=VALUE          The path of directory to browse."));
 
 
 Future<Response> FilesProcess::browse(const Request& request)
@@ -207,6 +239,23 @@ Future<Response> _read(int fd,
 
   return OK(object, jsonp);
 }
+
+
+const string FilesProcess::READ_HELP = HELP(
+    TLDR(
+        "Reads data from a file."),
+    USAGE(
+        "/files/read.json"),
+    DESCRIPTION(
+        "This endpoint reads data from a file at a given offset and for",
+        "a given length."
+        "",
+        "Query parameters:",
+        "",
+        ">        path=VALUE          The path of directory to browse.",
+        ">        offset=VALUE        Value added to base address to obtain "
+        "a second address",
+        ">        length=VALUE        Length of file to read."));
 
 
 Future<Response> FilesProcess::read(const Request& request)
@@ -322,6 +371,20 @@ Future<Response> FilesProcess::read(const Request& request)
 }
 
 
+const string FilesProcess::DOWNLOAD_HELP = HELP(
+    TLDR(
+        "Returns the raw file contents for a given path."),
+    USAGE(
+        "/files/download.json"),
+    DESCRIPTION(
+        "This endpoint will return the raw file contents for the",
+        "given path.",
+        "",
+        "Query parameters:",
+        "",
+        ">        path=VALUE          The path of directory to browse."));
+
+
 Future<Response> FilesProcess::download(const Request& request)
 {
   Option<string> path = request.query.get("path");
@@ -367,6 +430,16 @@ Future<Response> FilesProcess::download(const Request& request)
 
   return response;
 }
+
+
+const string FilesProcess::DEBUG_HELP = HELP(
+    TLDR(
+        "Returns the internal virtual path mapping."),
+    USAGE(
+        "/files/debug.json"),
+    DESCRIPTION(
+        "This endpoint shows the internal virtual path map as a",
+        "JSON object."));
 
 
 Future<Response> FilesProcess::debug(const Request& request)
