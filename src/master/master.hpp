@@ -310,8 +310,9 @@ struct Slave
   Resources checkpointedResources;
 
   // The current total resources of the slave. Note that this is
-  // different from 'info.resources()' because this also consider
-  // operations (e.g., CREATE, RESERVE) that have been applied.
+  // different from 'info.resources()' because this also considers
+  // operations (e.g., CREATE, RESERVE) that have been applied and
+  // includes revocable resources as well.
   Resources totalResources;
 
   SlaveObserver* observer;
@@ -752,7 +753,7 @@ public:
 
   void updateSlave(
       const SlaveID& slaveId,
-      const std::vector<Resource>& oversubscribedResources);
+      const Resources& oversubscribedResources);
 
   void shutdownSlave(
       const SlaveID& slaveId,

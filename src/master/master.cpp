@@ -3461,7 +3461,7 @@ void Master::unregisterSlave(const UPID& from, const SlaveID& slaveId)
 
 void Master::updateSlave(
     const SlaveID& slaveId,
-    const vector<Resource>& oversubscribedResources)
+    const Resources& oversubscribedResources)
 {
   ++metrics->messages_update_slave;
 
@@ -3508,6 +3508,12 @@ void Master::updateSlave(
       removeOffer(offer, true); // Rescind.
     }
   }
+
+  // Check that all the oversubscribed resources are revocable.
+  CHECK_EQ(oversubscribedResources, oversubscribedResources.revocable());
+
+  slave->totalResources -= slave->totalResources.revocable();
+  slave->totalResources += oversubscribedResources;
 
   // Now, update the allocator with the new estimate.
   allocator->updateSlave(slaveId, oversubscribedResources);
