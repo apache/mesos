@@ -246,6 +246,7 @@ Metrics::Metrics(const Master& master)
   // resources the slave exposes.
   const std::string resources[] = {"cpus", "mem", "disk"};
 
+  // Regular (non-revocable) resources.
   foreach (const std::string& resource, resources) {
     process::metrics::Gauge totalGauge(
         "master/" + resource + "_total",
@@ -263,6 +264,27 @@ Metrics::Metrics(const Master& master)
         "master/" + resource + "_percent",
         defer(master, &Master::_resources_percent, resource));
     resources_percent.push_back(percentGauge);
+    process::metrics::add(percentGauge);
+  }
+
+  // Revocable resources.
+  foreach (const std::string& resource, resources) {
+    process::metrics::Gauge totalGauge(
+        "master/" + resource + "_revocable_total",
+        defer(master, &Master::_resources_revocable_total, resource));
+    resources_revocable_total.push_back(totalGauge);
+    process::metrics::add(totalGauge);
+
+    process::metrics::Gauge usedGauge(
+        "master/" + resource + "_revocable_used",
+        defer(master, &Master::_resources_revocable_used, resource));
+    resources_revocable_used.push_back(usedGauge);
+    process::metrics::add(usedGauge);
+
+    process::metrics::Gauge percentGauge(
+        "master/" + resource + "_revocable_percent",
+        defer(master, &Master::_resources_revocable_percent, resource));
+    resources_revocable_percent.push_back(percentGauge);
     process::metrics::add(percentGauge);
   }
 }
@@ -362,6 +384,21 @@ Metrics::~Metrics()
     process::metrics::remove(gauge);
   }
   resources_percent.clear();
+
+  foreach (const process::metrics::Gauge& gauge, resources_revocable_total) {
+    process::metrics::remove(gauge);
+  }
+  resources_revocable_total.clear();
+
+  foreach (const process::metrics::Gauge& gauge, resources_revocable_used) {
+    process::metrics::remove(gauge);
+  }
+  resources_revocable_used.clear();
+
+  foreach (const process::metrics::Gauge& gauge, resources_revocable_percent) {
+    process::metrics::remove(gauge);
+  }
+  resources_revocable_percent.clear();
 
   foreachvalue (const auto& source_reason, tasks_states) {
     foreachvalue (const auto& reason_counter, source_reason) {

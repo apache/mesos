@@ -1366,6 +1366,10 @@ private:
   double _resources_used(const std::string& name);
   double _resources_percent(const std::string& name);
 
+  double _resources_revocable_total(const std::string& name);
+  double _resources_revocable_used(const std::string& name);
+  double _resources_revocable_percent(const std::string& name);
+
   process::Time startTime; // Start time used to calculate uptime.
 
   Option<process::Time> electedTime; // Time when this master is elected.

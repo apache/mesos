@@ -181,7 +181,7 @@ TEST_F(OversubscriptionTest, ForwardUpdateSlaveMessage)
 
   AWAIT_READY(update);
 
-  EXPECT_EQ(Resources(update.get().oversubscribed_resources()), resources);
+  EXPECT_EQ(update.get().oversubscribed_resources(), resources);
 
   // Ensure the metric is updated.
   JSON::Object metrics = Metrics();
@@ -191,6 +191,13 @@ TEST_F(OversubscriptionTest, ForwardUpdateSlaveMessage)
   ASSERT_EQ(
       1u,
       metrics.values["master/messages_update_slave"]);
+
+  ASSERT_EQ(
+      1u,
+      metrics.values.count("master/cpus_revocable_total"));
+  ASSERT_EQ(
+      1.0,
+      metrics.values["master/cpus_revocable_total"]);
 
   Shutdown();
 }

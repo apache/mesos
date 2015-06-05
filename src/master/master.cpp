@@ -5398,6 +5398,52 @@ double Master::_resources_percent(const std::string& name)
   }
 }
 
+
+double Master::_resources_revocable_total(const std::string& name)
+{
+  double total = 0.0;
+
+  foreachvalue (Slave* slave, slaves.registered) {
+    foreach (const Resource& resource, slave->totalResources.revocable()) {
+      if (resource.name() == name && resource.type() == Value::SCALAR) {
+        total += resource.scalar().value();
+      }
+    }
+  }
+
+  return total;
+}
+
+
+double Master::_resources_revocable_used(const std::string& name)
+{
+  double used = 0.0;
+
+  foreachvalue (Slave* slave, slaves.registered) {
+    foreachvalue (const Resources& resources, slave->usedResources) {
+      foreach (const Resource& resource, resources.revocable()) {
+        if (resource.name() == name && resource.type() == Value::SCALAR) {
+          used += resource.scalar().value();
+        }
+      }
+    }
+  }
+
+  return used;
+}
+
+
+double Master::_resources_revocable_percent(const std::string& name)
+{
+  double total = _resources_revocable_total(name);
+
+  if (total == 0.0) {
+    return total;
+  } else {
+    return _resources_revocable_used(name) / total;
+  }
+}
+
 } // namespace master {
 } // namespace internal {
 } // namespace mesos {
