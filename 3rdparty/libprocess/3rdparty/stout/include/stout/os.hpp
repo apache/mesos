@@ -19,7 +19,15 @@
 #endif
 #include <dirent.h>
 #include <errno.h>
+#ifdef __sun
+#include <sys/loadavg.h>
+#define dirfd(dir) ((dir)->d_fd)
+#ifndef NAME_MAX
+#define NAME_MAX MAXNAMLEN
+#endif // NAME_MAX
+#else
 #include <fts.h>
+#endif // __sun
 #include <glob.h>
 #include <grp.h>
 #include <libgen.h>
@@ -79,6 +87,9 @@
 #include <stout/os/osx.hpp>
 #endif // __APPLE__
 #include <stout/os/permissions.hpp>
+#ifdef __sun
+#include <stout/os/sunos.hpp>
+#endif // __sun
 #include <stout/os/pstree.hpp>
 #include <stout/os/read.hpp>
 #include <stout/os/rename.hpp>
@@ -90,11 +101,15 @@
 #include <stout/os/sysctl.hpp>
 #endif // __APPLE__
 
-#ifdef __APPLE__
+#if defined(__APPLE__)
 // Assigning the result pointer to ret silences an unused var warning.
 #define gethostbyname2_r(name, af, ret, buf, buflen, result, h_errnop)  \
   ({ (void)ret; *(result) = gethostbyname2(name, af); 0; })
-#endif // __APPLE__
+#elif defined(__sun)
+#define gethostbyname2_r(name, af, ret, buf, buflen, result, h_errnop)  \
+  ({ (void)af; *(result) = \
+    gethostbyname_r(name, ret, buf, buflen, h_errnop); 0; })
+#endif
 
 // Need to declare 'environ' pointer for non OS X platforms.
 #ifndef __APPLE__
@@ -403,6 +418,7 @@ inline Try<std::string> mkdtemp(const std::string& path = "/tmp/XXXXXX")
 // By default, recursively deletes a directory akin to: 'rm -r'. If the
 // programmer sets recursive to false, it deletes a directory akin to: 'rmdir'.
 // Note that this function expects an absolute path.
+#ifndef __sun // FTS is not available on Solaris.
 inline Try<Nothing> rmdir(const std::string& directory, bool recursive = true)
 {
   if (!recursive) {
@@ -447,6 +463,7 @@ inline Try<Nothing> rmdir(const std::string& directory, bool recursive = true)
 
   return Nothing();
 }
+#endif // __sun
 
 
 // Executes a command by calling "/bin/sh -c <command>", and returns

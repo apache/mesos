@@ -17,6 +17,10 @@
 #include <stdio.h>
 #include <unistd.h>
 
+#ifdef __sun
+#include <fstream>
+#endif // __sun
+
 #include <stout/error.hpp>
 #include <stout/result.hpp>
 #include <stout/try.hpp>
@@ -64,6 +68,18 @@ inline Result<std::string> read(int fd, size_t size)
 
 
 // Returns the contents of the file.
+#ifdef __sun // getline is not available on Solaris, using STL.
+inline Try<std::string> read(const std::string& path)
+{
+  std::ifstream ifs(path.c_str());
+  if (!ifs.is_open())
+  {
+    return ErrnoError("Failed to open file '" + path + "'");
+  }
+  return std::string((std::istreambuf_iterator<char>(ifs)),
+                     (std::istreambuf_iterator<char>()));
+}
+#else
 inline Try<std::string> read(const std::string& path)
 {
   FILE* file = fopen(path.c_str(), "r");
@@ -103,6 +119,7 @@ inline Try<std::string> read(const std::string& path)
   fclose(file);
   return result;
 }
+#endif // __sun
 
 } // namespace os {
 
