@@ -170,6 +170,7 @@ private:
       const std::string& cmd,
       const process::Owned<process::Promise<Container>>& promise,
       const Option<Duration>& retryInterval,
+      process::Future<std::string> output,
       const process::Subprocess& s);
 
   static void ___inspect(
@@ -195,7 +196,8 @@ private:
       const process::Subprocess& s,
       const std::string& directory,
       const std::string& image,
-      const std::string& path);
+      const std::string& path,
+      process::Future<std::string> output);
 
   static process::Future<Image> __pull(
       const Docker& docker,

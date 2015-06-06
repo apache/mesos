@@ -670,8 +670,13 @@ void Docker::_inspect(
     return;
   }
 
+  // Start reading from stdout so writing to the pipe won't block
+  // to handle cases where the output is larger than the pipe
+  // capacity.
+  const Future<string> output = io::read(s.get().out().get());
+
   s.get().status()
-    .onAny([=]() { __inspect(cmd, promise, retryInterval, s.get()); });
+    .onAny([=]() { __inspect(cmd, promise, retryInterval, output, s.get()); });
 }
 
 
@@ -679,10 +684,12 @@ void Docker::__inspect(
     const string& cmd,
     const Owned<Promise<Docker::Container>>& promise,
     const Option<Duration>& retryInterval,
+    Future<string> output,
     const Subprocess& s)
 {
   if (promise->future().hasDiscard()) {
     promise->discard();
+    output.discard();
     return;
   }
 
@@ -694,6 +701,8 @@ void Docker::__inspect(
   if (!status.isSome()) {
     promise->fail("No status found from '" + cmd + "'");
   } else if (status.get() != 0) {
+    output.discard();
+
     if (retryInterval.isSome()) {
       VLOG(1) << "Retrying inspect with non-zero status code. cmd: '"
               << cmd << "', interval: " << stringify(retryInterval.get());
@@ -718,7 +727,7 @@ void Docker::__inspect(
 
   // Read to EOF.
   CHECK_SOME(s.out());
-  io::read(s.out().get())
+  output
     .onAny([=](const Future<string>& output) {
       ___inspect(cmd, promise, retryInterval, output);
     });
@@ -892,6 +901,11 @@ Future<Docker::Image> Docker::pull(
     return Failure("Failed to execute '" + cmd + "': " + s.error());
   }
 
+  // Start reading from stdout so writing to the pipe won't block
+  // to handle cases where the output is larger than the pipe
+  // capacity.
+  const Future<string> output = io::read(s.get().out().get());
+
   // We assume docker inspect to exit quickly and do not need to be
   // discarded.
   return s.get().status()
@@ -901,7 +915,8 @@ Future<Docker::Image> Docker::pull(
         s.get(),
         directory,
         dockerImage,
-        path));
+        path,
+        output));
 }
 
 
@@ -910,13 +925,16 @@ Future<Docker::Image> Docker::_pull(
     const Subprocess& s,
     const string& directory,
     const string& image,
-    const string& path)
+    const string& path,
+    Future<string> output)
 {
   Option<int> status = s.status().get();
   if (status.isSome() && status.get() == 0) {
-    return io::read(s.out().get())
+    return output
       .then(lambda::bind(&Docker::____pull, lambda::_1));
   }
+
+  output.discard();
 
   return Docker::__pull(docker, directory, image, path);
 }
