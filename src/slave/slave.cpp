@@ -3703,7 +3703,7 @@ void Slave::registerExecutorTimeout(
     return;
   }
 
-  if (executor->containerId != containerId ) {
+  if (executor->containerId != containerId) {
     LOG(INFO) << "A new executor '" << executorId
               << "' of framework " << frameworkId
               << " with run " << executor->containerId
