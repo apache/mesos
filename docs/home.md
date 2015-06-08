@@ -33,6 +33,7 @@ layout: documentation
 * [Framework Development Guide](/documentation/latest/app-framework-development-guide/) describes how to build applications on top of Mesos.
 * [Reconciliation](/documentation/latest/reconciliation/) for ensuring a framework's state remains eventually consistent in the face of failures.
 * [Javadoc](/api/latest/java/) documents the Mesos Java API.
+* [Doxygen](/api/latest/c++/namespacemesos.html) documents the Mesos C++ API.
 * [Developer Tools](/documentation/latest/tools/) for hacking on Mesos or writing frameworks.
 
 ## Mesos Modules
@@ -47,6 +48,7 @@ layout: documentation
 * [Committing](/documentation/latest/committing/) guidelines for committing changes.
 * [Committers and Maintainers](/documentation/latest/committers/) a listing of project committers and component maintainers; useful when seeking feedback.
 * [C++ Style Guide](/documentation/latest/mesos-c++-style-guide/)
+* [Doxygen](/api/latest/c++/) documents the internal Mesos APIs.
 * [Development Roadmap](/documentation/latest/mesos-roadmap/)
 * [Release Guide](/documentation/latest/release-guide/)
 
