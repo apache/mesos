@@ -40,7 +40,6 @@ constexpr char KIND[] = "fq_codel";
 // queueing discipline on the egress side of a link and fq_codel is
 // classless and hence there is only one instance of fq_codel per
 // link. This allows us to fix the fq_codel handle.
-constexpr Handle HANDLE = Handle(1, 0);
 
 
 // The default number of flows for the fq_codel queueing discipline.
@@ -49,24 +48,36 @@ extern const int DEFAULT_FLOWS;
 
 // Returns true if there exists an fq_codel queueing discipline on the
 // egress side of the link.
-Try<bool> exists(const std::string& link);
+Try<bool> exists(
+    const std::string& link,
+    const Handle& parent);
 
 
 // Creates a new fq_codel queueing discipline on the egress side of
 // the link. Returns false if a queueing discipline already exists.
-Try<bool> create(const std::string& link);
+// NOTE: The root queueing discipline handle has to be X:0, so
+// handle's secondary number must be zero if the parent is attached to
+// EGRESS_ROOT.
+Try<bool> create(
+    const std::string& link,
+    const Handle& parent,
+    const Option<Handle>& handle);
 
 
 // Removes the fq_codel queueing discipline from the link. Return
 // false if the fq_codel queueing discipline is not found.
-Try<bool> remove(const std::string& link);
+Try<bool> remove(
+    const std::string& link,
+    const Handle& parent);
 
 
 // Returns the set of common Traffic Control statistics for the
 // fq_codel queueing discipline on the link, None() if the link or
 // qdisc does not exist or an error if we cannot cannot determine the
 // result.
-Result<hashmap<std::string, uint64_t>> statistics(const std::string& link);
+Result<hashmap<std::string, uint64_t>> statistics(
+    const std::string& link,
+    const Handle& parent);
 
 
 } // namespace fq_codel {

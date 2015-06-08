@@ -480,37 +480,40 @@ TEST_F(RoutingVethTest, ROOT_IngressQdisc)
 }
 
 
-TEST_F(RoutingVethTest, ROOT_FqCodeQdisc)
+TEST_F(RoutingVethTest, ROOT_FqCodelQdisc)
 {
   // Test for a qdisc on a nonexistent interface should fail.
-  EXPECT_SOME_FALSE(fq_codel::exists("noSuchInterface"));
+  EXPECT_SOME_FALSE(fq_codel::exists("noSuchInterface", EGRESS_ROOT));
 
   EXPECT_SOME(link::create(TEST_VETH_LINK, TEST_PEER_LINK, None()));
 
   EXPECT_SOME_TRUE(link::exists(TEST_VETH_LINK));
   EXPECT_SOME_TRUE(link::exists(TEST_PEER_LINK));
 
+  // This test uses a common handle throughout
+  const Handle handle = Handle(1, 0);
+
   // Interface exists but does not have an fq_codel qdisc.
-  EXPECT_SOME_FALSE(fq_codel::exists(TEST_VETH_LINK));
-  EXPECT_SOME_FALSE(fq_codel::exists(TEST_PEER_LINK));
+  EXPECT_SOME_FALSE(fq_codel::exists(TEST_VETH_LINK, EGRESS_ROOT));
+  EXPECT_SOME_FALSE(fq_codel::exists(TEST_PEER_LINK, EGRESS_ROOT));
 
   // Interfaces without qdisc established no data.
-  EXPECT_NONE(fq_codel::statistics(TEST_VETH_LINK));
-  EXPECT_NONE(fq_codel::statistics(TEST_PEER_LINK));
+  EXPECT_NONE(fq_codel::statistics(TEST_VETH_LINK, EGRESS_ROOT));
+  EXPECT_NONE(fq_codel::statistics(TEST_PEER_LINK, EGRESS_ROOT));
 
   // Try to create an fq_codel qdisc on a nonexistent interface.
-  EXPECT_ERROR(fq_codel::create("noSuchInterface"));
+  EXPECT_ERROR(fq_codel::create("noSuchInterface", EGRESS_ROOT, handle));
 
   // Create an fq_codel qdisc on an existing interface.
-  EXPECT_SOME_TRUE(fq_codel::create(TEST_VETH_LINK));
+  EXPECT_SOME_TRUE(fq_codel::create(TEST_VETH_LINK, EGRESS_ROOT, handle));
 
   // Interface exists and has an fq_codel qdisc.
-  EXPECT_SOME_TRUE(fq_codel::exists(TEST_VETH_LINK));
-  EXPECT_SOME_FALSE(fq_codel::exists(TEST_PEER_LINK));
+  EXPECT_SOME_TRUE(fq_codel::exists(TEST_VETH_LINK, EGRESS_ROOT));
+  EXPECT_SOME_FALSE(fq_codel::exists(TEST_PEER_LINK, EGRESS_ROOT));
 
   // Interfaces which exist return at least the core statisitcs.
   Result<hashmap<string, uint64_t>> stats =
-      fq_codel::statistics(TEST_VETH_LINK);
+      fq_codel::statistics(TEST_VETH_LINK, EGRESS_ROOT);
   ASSERT_SOME(stats);
   EXPECT_TRUE(stats.get().contains(statistics::PACKETS));
   EXPECT_TRUE(stats.get().contains(statistics::BYTES));
@@ -523,25 +526,41 @@ TEST_F(RoutingVethTest, ROOT_FqCodeQdisc)
   EXPECT_TRUE(stats.get().contains(statistics::OVERLIMITS));
 
   // Interface without fq_codel qdisc returns no data.
-  EXPECT_NONE(fq_codel::statistics(TEST_PEER_LINK));
+  EXPECT_NONE(fq_codel::statistics(TEST_PEER_LINK, EGRESS_ROOT));
 
   // Try to create a second fq_codel qdisc on an existing interface.
-  EXPECT_SOME_FALSE(fq_codel::create(TEST_VETH_LINK));
-  EXPECT_SOME_TRUE(fq_codel::exists(TEST_VETH_LINK));
-  EXPECT_SOME_FALSE(fq_codel::exists(TEST_PEER_LINK));
+  EXPECT_SOME_FALSE(fq_codel::create(TEST_VETH_LINK, EGRESS_ROOT, handle));
+  EXPECT_SOME_TRUE(fq_codel::exists(TEST_VETH_LINK, EGRESS_ROOT));
+  EXPECT_SOME_FALSE(fq_codel::exists(TEST_PEER_LINK, EGRESS_ROOT));
 
   // Remove the fq_codel qdisc.
-  EXPECT_SOME_TRUE(fq_codel::remove(TEST_VETH_LINK));
-  EXPECT_SOME_FALSE(fq_codel::exists(TEST_VETH_LINK));
-  EXPECT_SOME_FALSE(fq_codel::exists(TEST_PEER_LINK));
+  EXPECT_SOME_TRUE(fq_codel::remove(TEST_VETH_LINK, EGRESS_ROOT));
+  EXPECT_SOME_FALSE(fq_codel::exists(TEST_VETH_LINK, EGRESS_ROOT));
+  EXPECT_SOME_FALSE(fq_codel::exists(TEST_PEER_LINK, EGRESS_ROOT));
 
   // Try to remove it from a nonexistent interface.
-  EXPECT_SOME_FALSE(fq_codel::remove("noSuchInterface"));
+  EXPECT_SOME_FALSE(fq_codel::remove("noSuchInterface", EGRESS_ROOT));
 
   // Remove the fq_codel qdisc when it does not exist.
-  EXPECT_SOME_FALSE(fq_codel::remove(TEST_VETH_LINK));
-  EXPECT_SOME_FALSE(fq_codel::exists(TEST_VETH_LINK));
-  EXPECT_SOME_FALSE(fq_codel::exists(TEST_PEER_LINK));
+  EXPECT_SOME_FALSE(fq_codel::remove(TEST_VETH_LINK, EGRESS_ROOT));
+  EXPECT_SOME_FALSE(fq_codel::exists(TEST_VETH_LINK, EGRESS_ROOT));
+  EXPECT_SOME_FALSE(fq_codel::exists(TEST_PEER_LINK, EGRESS_ROOT));
+
+  // Try to create an fq_codel qdisc on a nonexistent interface and
+  // default handle.
+  EXPECT_ERROR(fq_codel::create("noSuchInterface", EGRESS_ROOT, None()));
+
+  // Create an fq_codel qdisc on an existing interface.
+  EXPECT_SOME_TRUE(fq_codel::create(TEST_VETH_LINK, EGRESS_ROOT, None()));
+
+  // Interface exists and has an fq_codel qdisc.
+  EXPECT_SOME_TRUE(fq_codel::exists(TEST_VETH_LINK, EGRESS_ROOT));
+  EXPECT_SOME_FALSE(fq_codel::exists(TEST_PEER_LINK, EGRESS_ROOT));
+
+  // Remove the fq_codel qdisc.
+  EXPECT_SOME_TRUE(fq_codel::remove(TEST_VETH_LINK, EGRESS_ROOT));
+  EXPECT_SOME_FALSE(fq_codel::exists(TEST_VETH_LINK, EGRESS_ROOT));
+  EXPECT_SOME_FALSE(fq_codel::exists(TEST_PEER_LINK, EGRESS_ROOT));
 }
 
 
@@ -552,41 +571,42 @@ TEST_F(RoutingVethTest, ROOT_FqCodelClassifier)
   EXPECT_SOME_TRUE(link::exists(TEST_VETH_LINK));
   EXPECT_SOME_TRUE(link::exists(TEST_PEER_LINK));
 
-  ASSERT_SOME_TRUE(fq_codel::create(TEST_VETH_LINK));
+  const Handle handle = Handle(1, 0);
+  ASSERT_SOME_TRUE(fq_codel::create(TEST_VETH_LINK, EGRESS_ROOT, handle));
 
   EXPECT_SOME_TRUE(basic::create(
       TEST_VETH_LINK,
-      fq_codel::HANDLE,
+      handle,
       ETH_P_ALL,
       None(),
-      Handle(fq_codel::HANDLE, 0)));
+      Handle(handle, 0)));
 
-  EXPECT_SOME_TRUE(basic::exists(TEST_VETH_LINK, fq_codel::HANDLE, ETH_P_ALL));
+  EXPECT_SOME_TRUE(basic::exists(TEST_VETH_LINK, handle, ETH_P_ALL));
 
   EXPECT_SOME_TRUE(basic::create(
       TEST_VETH_LINK,
-      fq_codel::HANDLE,
+      handle,
       ETH_P_ARP,
       None(),
-      Handle(fq_codel::HANDLE, 0)));
+      Handle(handle, 0)));
 
   // There is a kernel bug which could cause this test fail. Please
   // make sure your kernel, if newer than 3.14, has commit:
   // b057df24a7536cce6c372efe9d0e3d1558afedf4
   // (https://git.kernel.org/cgit/linux/kernel/git/davem/net.git).
   // Please fix your kernel if you see this failure.
-  EXPECT_SOME_TRUE(basic::exists(TEST_VETH_LINK, fq_codel::HANDLE, ETH_P_ARP));
+  EXPECT_SOME_TRUE(basic::exists(TEST_VETH_LINK, handle, ETH_P_ARP));
 
   EXPECT_SOME_TRUE(icmp::create(
       TEST_VETH_LINK,
-      fq_codel::HANDLE,
+      handle,
       icmp::Classifier(None()),
       None(),
-      Handle(fq_codel::HANDLE, 0)));
+      Handle(handle, 0)));
 
   EXPECT_SOME_TRUE(icmp::exists(
       TEST_VETH_LINK,
-      fq_codel::HANDLE,
+      handle,
       icmp::Classifier(None())));
 
   Result<net::MAC> mac = net::mac(TEST_VETH_LINK);
@@ -611,12 +631,12 @@ TEST_F(RoutingVethTest, ROOT_FqCodelClassifier)
 
   EXPECT_SOME_TRUE(ip::create(
       TEST_VETH_LINK,
-      fq_codel::HANDLE,
+      handle,
       classifier,
       None(),
-      Handle(fq_codel::HANDLE, 1)));
+      Handle(handle, 1)));
 
-  EXPECT_SOME_TRUE(ip::exists(TEST_VETH_LINK, fq_codel::HANDLE, classifier));
+  EXPECT_SOME_TRUE(ip::exists(TEST_VETH_LINK, handle, classifier));
 }
 
 

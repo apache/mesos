@@ -97,33 +97,38 @@ namespace fq_codel {
 const int DEFAULT_FLOWS = 1024;
 
 
-Try<bool> exists(const string& link)
+Try<bool> exists(const string& link, const Handle& parent)
 {
-  return internal::exists(link, EGRESS_ROOT, KIND);
+  return internal::exists(link, parent, KIND);
 }
 
 
-Try<bool> create(const string& link)
+Try<bool> create(
+    const string& link,
+    const Handle& parent,
+    const Option<Handle>& handle)
 {
   return internal::create(
       link,
       Discipline<Config>(
           KIND,
-          EGRESS_ROOT,
-          HANDLE,
+          parent,
+          handle,
           Config()));
 }
 
 
-Try<bool> remove(const string& link)
+Try<bool> remove(const string& link, const Handle& parent)
 {
-  return internal::remove(link, EGRESS_ROOT, KIND);
+  return internal::remove(link, parent, KIND);
 }
 
 
-Result<hashmap<std::string, uint64_t>> statistics(const std::string& link)
+Result<hashmap<std::string, uint64_t>> statistics(
+    const std::string& link,
+    const Handle& parent)
 {
-  return internal::statistics(link, EGRESS_ROOT, KIND);
+  return internal::statistics(link, parent, KIND);
 }
 
 
