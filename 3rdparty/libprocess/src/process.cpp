@@ -40,6 +40,7 @@
 #include <sstream>
 #include <stack>
 #include <stdexcept>
+#include <utility>
 #include <vector>
 
 #include <process/address.hpp>
@@ -85,12 +86,14 @@
 #include "gate.hpp"
 #include "process_reference.hpp"
 
+using namespace process::firewall;
 using namespace process::metrics::internal;
 
 using process::wait; // Necessary on some OS's to disambiguate.
 
 using process::http::Accepted;
 using process::http::BadRequest;
+using process::http::Forbidden;
 using process::http::InternalServerError;
 using process::http::NotFound;
 using process::http::OK;
@@ -357,6 +360,8 @@ public:
   void terminate(const UPID& pid, bool inject, ProcessBase* sender = NULL);
   bool wait(const UPID& pid);
 
+  void installFirewall(std::vector<Owned<FirewallRule>>&& rules);
+
   void enqueue(ProcessBase* process);
   ProcessBase* dequeue();
 
@@ -382,6 +387,10 @@ private:
 
   // Number of running processes, to support Clock::settle operation.
   int running;
+
+  // List of rules applied to all incoming HTTP connections.
+  std::vector<Owned<FirewallRule>> firewallRules;
+  std::recursive_mutex firewall_mutex;
 };
 
 
@@ -673,6 +682,17 @@ void on_accept(const Future<Socket>& socket)
 
 } // namespace internal {
 
+
+namespace firewall {
+
+void install(std::vector<Owned<FirewallRule>>&& rules)
+{
+  process::initialize();
+
+  process_manager->installFirewall(std::move(rules));
+}
+
+} // namespace firewall {
 
 void initialize(const string& delegate)
 {
@@ -1962,6 +1982,31 @@ bool ProcessManager::handle(
     return false;
   }
 
+  synchronized (firewall_mutex) {
+    foreach (Owned<FirewallRule>& rule, firewallRules) {
+      Try<Nothing> applied = rule->apply(socket, *request);
+      if (applied.isError()) {
+        VLOG(1) << "Returning '403 Forbidden' for '" << request->path
+                << "' (firewall rule forbids connection): "
+                << applied.error();
+        // TODO(arojas): Get rid of the duplicated code to return an
+        // error.
+
+        // Get the HttpProxy pid for this socket.
+        PID<HttpProxy> proxy = socket_manager->proxy(socket);
+
+        // Enqueue the response with the HttpProxy so that it respects
+        // the order of requests to account for HTTP/1.1 pipelining.
+        dispatch(
+            proxy, &HttpProxy::enqueue, Forbidden(applied.error()), *request);
+
+        // Cleanup request.
+        delete request;
+        return false;
+      }
+    }
+  }
+
   // Split the path by '/'.
   vector<string> tokens = strings::tokenize(request->path, "/");
 
@@ -2411,6 +2456,14 @@ bool ProcessManager::wait(const UPID& pid)
   }
 
   return false;
+}
+
+
+void ProcessManager::installFirewall(std::vector<Owned<FirewallRule>>&& rules)
+{
+  synchronized (firewall_mutex) {
+    firewallRules = std::move(rules);
+  }
 }
 
 

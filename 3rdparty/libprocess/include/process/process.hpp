@@ -11,6 +11,7 @@
 #include <process/clock.hpp>
 #include <process/event.hpp>
 #include <process/filter.hpp>
+#include <process/firewall.hpp>
 #include <process/http.hpp>
 #include <process/message.hpp>
 #include <process/mime.hpp>
@@ -22,6 +23,22 @@
 #include <stout/thread.hpp>
 
 namespace process {
+
+namespace firewall {
+/**
+ * Installs the list of firewall rules to be used to allow or reject
+ * incoming connections. Each incoming connection will be tested
+ * against each rule in the order in which they appear in the vector
+ * 'rules'. As soon as any of the tests (calling the apply method)
+ * fails, the connection is rejected. If no test fails, the connection
+ * is allowed.
+ *
+ * @param rules List of rules which will be applied to incoming
+ * connections.
+ */
+void install(std::vector<Owned<FirewallRule>>&& rules);
+
+} // namespace firewall {
 
 class ProcessBase : public EventVisitor
 {

@@ -30,6 +30,7 @@
 #include <stout/duration.hpp>
 #include <stout/gtest.hpp>
 #include <stout/hashmap.hpp>
+#include <stout/hashset.hpp>
 #include <stout/lambda.hpp>
 #include <stout/nothing.hpp>
 #include <stout/os.hpp>
@@ -40,6 +41,9 @@
 #include "encoder.hpp"
 
 using namespace process;
+
+using process::firewall::DisabledEndpointsFirewallRule;
+using process::firewall::FirewallRule;
 
 using process::network::Address;
 using process::network::Socket;
@@ -1869,6 +1873,158 @@ TEST(Process, PercentEncodedURLs)
   AWAIT_READY(handler1);
 
   // Now an HTTP request.
+  EXPECT_CALL(process, handler2(_))
+    .WillOnce(Return(http::OK()));
+
+  response = http::get(pid, "handler2");
+
+  AWAIT_READY(response);
+  EXPECT_EQ(http::statuses[200], response.get().status);
+
+  terminate(process);
+  wait(process);
+}
+
+
+class HTTPEndpointProcess : public Process<HTTPEndpointProcess>
+{
+public:
+  explicit HTTPEndpointProcess(const std::string& id)
+    : ProcessBase(id) {}
+
+  virtual void initialize()
+  {
+    route(
+        "/handler1",
+        None(),
+        &HTTPEndpointProcess::handler1);
+    route(
+        "/handler2",
+        None(),
+        &HTTPEndpointProcess::handler2);
+    route(
+        "/handler3",
+        None(),
+        &HTTPEndpointProcess::handler3);
+  }
+
+  MOCK_METHOD1(handler1, Future<http::Response>(const http::Request&));
+  MOCK_METHOD1(handler2, Future<http::Response>(const http::Request&));
+  MOCK_METHOD1(handler3, Future<http::Response>(const http::Request&));
+};
+
+
+// Sets firewall rules which disable endpoints on a process and then
+// attempts to connect to those endpoints.
+TEST(Process, FirewallDisablePaths)
+{
+  const string processId = "testprocess";
+
+  hashset<string> endpoints;
+  endpoints.insert(path::join("", processId, "handler1"));
+  endpoints.insert(path::join("", processId, "handler2/nested"));
+  // Patterns are not supported, so this should do nothing.
+  endpoints.insert(path::join("", processId, "handler3/*"));
+
+  std::vector<Owned<FirewallRule>> rules;
+  rules.emplace_back(new DisabledEndpointsFirewallRule(endpoints));
+  process::firewall::install(std::move(rules));
+
+  HTTPEndpointProcess process(processId);
+
+  PID<HTTPEndpointProcess> pid = spawn(process);
+
+  // Test call to a disabled endpoint.
+  Future<http::Response> response = http::get(pid, "handler1");
+
+  AWAIT_READY(response);
+  EXPECT_EQ(http::statuses[403], response.get().status);
+
+  // Test call to a non disabled endpoint.
+  // Substrings should not match.
+  EXPECT_CALL(process, handler2(_))
+    .WillOnce(Return(http::OK()));
+
+  response = http::get(pid, "handler2");
+
+  AWAIT_READY(response);
+  EXPECT_EQ(http::statuses[200], response.get().status);
+
+  // Test nested endpoints. Full paths needed for match.
+  response = http::get(pid, "handler2/nested");
+
+  AWAIT_READY(response);
+  EXPECT_EQ(http::statuses[403], response.get().status);
+
+  EXPECT_CALL(process, handler2(_))
+    .WillOnce(Return(http::OK()));
+
+  response = http::get(pid, "handler2/nested/path");
+
+  AWAIT_READY(response);
+  EXPECT_EQ(http::statuses[200], response.get().status);
+
+  EXPECT_CALL(process, handler3(_))
+    .WillOnce(Return(http::OK()));
+
+  // Test a wildcard rule. Since they are not supported, it must have
+  // no effect at all.
+  response = http::get(pid, "handler3");
+
+  AWAIT_READY(response);
+  EXPECT_EQ(http::statuses[200], response.get().status);
+
+  EXPECT_CALL(process, handler3(_))
+    .WillOnce(Return(http::OK()));
+
+  response = http::get(pid, "handler3/nested");
+
+  AWAIT_READY(response);
+  EXPECT_EQ(http::statuses[200], response.get().status);
+
+  terminate(process);
+  wait(process);
+}
+
+
+// Test that firewall rules can be changed by changing the vector.
+// An empty vector should allow all paths.
+TEST(Process, FirewallUninstall)
+{
+  const string processId = "testprocess";
+
+  hashset<string> endpoints;
+  endpoints.insert(path::join("", processId, "handler1"));
+  endpoints.insert(path::join("", processId, "handler2"));
+
+  std::vector<Owned<FirewallRule>> rules;
+  rules.emplace_back(new DisabledEndpointsFirewallRule(endpoints));
+  process::firewall::install(std::move(rules));
+
+  HTTPEndpointProcess process(processId);
+
+  PID<HTTPEndpointProcess> pid = spawn(process);
+
+  Future<http::Response> response = http::get(pid, "handler1");
+
+  AWAIT_READY(response);
+  EXPECT_EQ(http::statuses[403], response.get().status);
+
+  response = http::get(pid, "handler2");
+
+  AWAIT_READY(response);
+  EXPECT_EQ(http::statuses[403], response.get().status);
+
+  process::firewall::install(std::vector<Owned<FirewallRule>>());
+
+  EXPECT_CALL(process, handler1(_))
+    .WillOnce(Return(http::OK()));
+
+  response = http::get(pid, "handler1");
+
+  AWAIT_READY(response);
+  EXPECT_EQ(http::statuses[200], response.get().status);
+
   EXPECT_CALL(process, handler2(_))
     .WillOnce(Return(http::OK()));
 

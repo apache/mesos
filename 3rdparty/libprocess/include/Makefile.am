@@ -12,6 +12,7 @@ nobase_include_HEADERS =		\
   process/event.hpp			\
   process/executor.hpp			\
   process/filter.hpp			\
+  process/firewall.hpp			\
   process/future.hpp			\
   process/gc.hpp			\
   process/gmock.hpp			\
