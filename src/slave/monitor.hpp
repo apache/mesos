@@ -48,10 +48,6 @@ class Containerizer;
 class ResourceMonitorProcess;
 
 
-const extern Duration MONITORING_TIME_SERIES_WINDOW;
-const extern size_t MONITORING_TIME_SERIES_CAPACITY;
-
-
 // Provides resource monitoring for containers. Usage information is
 // also exported via a JSON endpoint.
 // TODO(bmahler): Forward usage information to the master.
