@@ -126,6 +126,86 @@ using mesos::slave::Limitation;
 // The minimum number of ephemeral ports a container should have.
 static const uint16_t MIN_EPHEMERAL_PORTS_SIZE = 16;
 
+// Linux traffic control is a combination of queueing disciplines,
+// filters and classes organized as a tree for the ingress (tx) and
+// egress (rx) flows for each interface. Each container provides two
+// networking interfaces, a virtual eth0 and a loopback interface. The
+// flow of packets from the external network to container is shown
+// below:
+//
+//   +----------------------+----------------------+
+//   |                   Container                 |
+//   |----------------------|----------------------|
+//   |       eth0           |          lo          |
+//   +----------------------+----------------------+
+//          ^   |         ^           |
+//      [3] |   | [4]     |           |
+//          |   |     [7] +-----------+ [10]
+//          |   |
+//          |   |     [8] +-----------+ [9]
+//      [2] |   | [5]     |           |
+//          |   v         v           v
+//   +----------------------+----------------------+
+//   |      veth0           |          lo          |
+//   +----------------------|----------------------+
+//   |                     Host                    |
+//   |----------------------|----------------------|
+//   |                    eth0                     |
+//   +----------------------+----------------------|
+//                    ^           |
+//                [1] |           | [6]
+//                    |           v
+//
+// Traffic flowing from outside the network into a container enters
+// the system via the host ingress interface [1] and is routed based
+// on destination port to the outbound interface for the matching
+// container [2], which forwards the packet to the container's inbound
+// virtual interface. Outbound traffic destined for the external
+// network flows along the reverse path [4,5,6]. Loopback traffic is
+// directed to the corresponding Ethernet interface, either [7,10] or
+// [8,9] where the same destination port routing can be applied as to
+// external traffic. We use traffic control filters at several of the
+// interfaces to create these packet paths.
+//
+// Linux provides only a very simple topology for ingress interfaces.
+// A root is provided on a fixed handle (handle::INGRESS_ROOT) under
+// which a single qdisc can be installed, with handle ingress::HANDLE.
+// Traffic control filters can then be attached to the ingress qdisc.
+// We install one or more ingress filters on the host eth0 [1] to
+// direct traffic to the correct container, and on the container
+// virtual eth0 [5] to direct traffic to other containers or out of
+// the box. Since we know the ip port assignments for each container,
+// we can direct traffic directly to the appropriate container.
+// However, for ICMP and ARP traffic where no equivalent to a port
+// exists, we send a copy of the packet to every container and rely on
+// the network stack to drop unexpected packets.
+//
+// We install a Hierarchical Token Bucket (HTB) qdisc and class to
+// limit the outbound traffic bandwidth as the egress qdisc inside the
+// container [4] and then add a fq_codel qdisc to limit head of line
+// blocking on the egress filter. The egress traffic control chain is
+// thus:
+//
+// root device: handle::EGRESS_ROOT ->
+//    htb egress qdisc: CONTAINER_TX_HTB_HANDLE ->
+//        htb rate limiting class: CONTAINER_TX_HTB_CLASS_ID ->
+//            buffer-bloat reduction: FQ_CODEL
+constexpr Handle CONTAINER_TX_HTB_HANDLE = Handle(1, 0);
+constexpr Handle CONTAINER_TX_HTB_CLASS_ID =
+    Handle(CONTAINER_TX_HTB_HANDLE, 1);
+
+
+// Finally we create a second fq_codel qdisc on the public interface
+// of the host [6] to reduce performance interference between
+// containers. We create independent flows for each container, and
+// one for the host, which ensures packets from each container are
+// guaranteed fair access to the host interface. This egress traffic
+// control chain for the host interface is thus:
+//
+// root device: handle::EGRESS_ROOT ->
+//    buffer-bloat reduction: FQ_CODEL
+constexpr Handle HOST_TX_FQ_CODEL_HANDLE = Handle(1, 0);
+
 
 // The primary priority used by each type of filter.
 static const uint8_t ARP_FILTER_PRIORITY = 1;
@@ -3409,13 +3489,15 @@ string PortMappingIsolatorProcess::scripts(Info* info)
 
   // Allow talking between containers and from container to host.
   // TODO(chzhcn): Consider merging the following two filters.
-  script << "tc filter add dev " << lo << " parent ffff: protocol ip"
+  script << "tc filter add dev " << lo << " parent " << ingress::HANDLE
+         << " protocol ip"
          << " prio " << Priority(IP_FILTER_PRIORITY, NORMAL).get() << " u32"
          << " flowid ffff:0"
          << " match ip dst " << hostIPNetwork.address()
          << " action mirred egress redirect dev " << eth0 << "\n";
 
-  script << "tc filter add dev " << lo << " parent ffff: protocol ip"
+  script << "tc filter add dev " << lo << " parent " << ingress::HANDLE
+         << " protocol ip"
          << " prio " << Priority(IP_FILTER_PRIORITY, NORMAL).get() << " u32"
          << " flowid ffff:0"
          << " match ip dst "
@@ -3425,7 +3507,8 @@ string PortMappingIsolatorProcess::scripts(Info* info)
   foreach (const PortRange& range,
            getPortRanges(info->nonEphemeralPorts + info->ephemeralPorts)) {
     // Local traffic inside a container will not be redirected to eth0.
-    script << "tc filter add dev " << lo << " parent ffff: protocol ip"
+    script << "tc filter add dev " << lo << " parent " << ingress::HANDLE
+           << " protocol ip"
            << " prio " << Priority(IP_FILTER_PRIORITY, HIGH).get() << " u32"
            << " flowid ffff:0"
            << " match ip dport " << range.begin() << " "
@@ -3433,7 +3516,8 @@ string PortMappingIsolatorProcess::scripts(Info* info)
 
     // Traffic going to host loopback IP and ports assigned to this
     // container will be redirected to lo.
-    script << "tc filter add dev " << eth0 << " parent ffff: protocol ip"
+    script << "tc filter add dev " << eth0 << " parent " << ingress::HANDLE
+           << " protocol ip"
            << " prio " << Priority(IP_FILTER_PRIORITY, NORMAL).get() << " u32"
            << " flowid ffff:0"
            << " match ip dst "
@@ -3444,13 +3528,15 @@ string PortMappingIsolatorProcess::scripts(Info* info)
   }
 
   // Do not forward the ICMP packet if the destination IP is self.
-  script << "tc filter add dev " << lo << " parent ffff: protocol ip"
+  script << "tc filter add dev " << lo << " parent " << ingress::HANDLE
+         << " protocol ip"
          << " prio " << Priority(ICMP_FILTER_PRIORITY, NORMAL).get() << " u32"
          << " flowid ffff:0"
          << " match ip protocol 1 0xff"
          << " match ip dst " << hostIPNetwork.address() << "\n";
 
-  script << "tc filter add dev " << lo << " parent ffff: protocol ip"
+  script << "tc filter add dev " << lo << " parent " << ingress::HANDLE
+         << " protocol ip"
          << " prio " << Priority(ICMP_FILTER_PRIORITY, NORMAL).get() << " u32"
          << " flowid ffff:0"
          << " match ip protocol 1 0xff"
@@ -3458,8 +3544,10 @@ string PortMappingIsolatorProcess::scripts(Info* info)
          << net::IPNetwork::LOOPBACK_V4().address() << "\n";
 
   // Display the filters created on eth0 and lo.
-  script << "tc filter show dev " << eth0 << " parent ffff:\n";
-  script << "tc filter show dev " << lo << " parent ffff:\n";
+  script << "tc filter show dev " << eth0
+         << " parent " << ingress::HANDLE << "\n";
+  script << "tc filter show dev " << lo
+         << " parent " << ingress::HANDLE << "\n";
 
   // If throughput limit for container egress traffic exists, use HTB
   // qdisc to achieve traffic shaping.
@@ -3470,8 +3558,11 @@ string PortMappingIsolatorProcess::scripts(Info* info)
   // throughput. TBF requires other parameters such as 'burst' that
   // HTB already has default values for.
   if (egressRateLimitPerContainer.isSome()) {
-    script << "tc qdisc add dev " << eth0 << " root handle 1: htb default 1\n";
-    script << "tc class add dev " << eth0 << " parent 1: classid 1:1 htb rate "
+    script << "tc qdisc add dev " << eth0 << " root handle "
+           << CONTAINER_TX_HTB_HANDLE << " htb default 1\n";
+    script << "tc class add dev " << eth0 << " parent "
+           << CONTAINER_TX_HTB_HANDLE << " classid "
+           << CONTAINER_TX_HTB_CLASS_ID << " htb rate "
            << egressRateLimitPerContainer.get().bytes() * 8 << "bit\n";
 
     // Packets are buffered at the leaf qdisc if we send them faster
@@ -3480,7 +3571,8 @@ string PortMappingIsolatorProcess::scripts(Info* info)
     // fq_codel, which has a larger buffer and better control on
     // buffer bloat.
     // TODO(cwang): Verity that fq_codel qdisc is available.
-    script << "tc qdisc add dev " << eth0 << " parent 1:1 fq_codel\n";
+    script << "tc qdisc add dev " << eth0
+           << " parent " << CONTAINER_TX_HTB_CLASS_ID << " fq_codel\n";
 
     // Display the htb qdisc and class created on eth0.
     script << "tc qdisc show dev " << eth0 << "\n";
