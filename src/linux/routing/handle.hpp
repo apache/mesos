@@ -21,6 +21,8 @@
 
 #include <stdint.h>
 
+#include <ostream>
+
 #include <netlink/route/tc.h>
 
 namespace routing {
@@ -64,6 +66,13 @@ public:
 protected:
   uint32_t handle;
 };
+
+
+inline std::ostream& operator << (std::ostream& out, const Handle& handle)
+{
+  out << std::hex << handle.primary() << ":" << handle.secondary() << std::dec;
+  return out;
+}
 
 
 // Packets flowing from the device driver to the network stack are
