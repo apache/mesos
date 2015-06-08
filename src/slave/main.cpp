@@ -26,6 +26,7 @@
 
 #include <stout/check.hpp>
 #include <stout/flags.hpp>
+#include <stout/hashset.hpp>
 #include <stout/nothing.hpp>
 #include <stout/os.hpp>
 #include <stout/stringify.hpp>
@@ -39,6 +40,7 @@
 
 #include "master/detector.hpp"
 
+#include "messages/flags.hpp"
 #include "messages/messages.hpp"
 
 #include "module/manager.hpp"
@@ -57,6 +59,9 @@ using mesos::slave::QoSController;
 using mesos::slave::ResourceEstimator;
 
 using mesos::SlaveInfo;
+
+using process::firewall::DisabledEndpointsFirewallRule;
+using process::firewall::FirewallRule;
 
 using std::cerr;
 using std::cout;
@@ -172,6 +177,24 @@ int main(int argc, char** argv)
   if (detector.isError()) {
     EXIT(EXIT_FAILURE)
       << "Failed to create a master detector: " << detector.error();
+  }
+
+  if (flags.firewall_rules.isSome()) {
+    const Firewall rules = flags.firewall_rules.get();
+
+    std::vector<Owned<FirewallRule>> _rules;
+
+    if (rules.has_disabled_endpoints()) {
+      hashset<string> paths;
+
+      for (int i = 0; i < rules.disabled_endpoints().paths_size(); ++i) {
+        paths.insert(rules.disabled_endpoints().paths(i));
+      }
+
+      _rules.emplace_back(new DisabledEndpointsFirewallRule(paths));
+    }
+
+    process::firewall::install(std::move(_rules));
   }
 
   // Create anonymous modules.

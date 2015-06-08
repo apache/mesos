@@ -195,6 +195,11 @@ PYTHON_PROTOS =								\
 BUILT_SOURCES += $(CXX_PROTOS) $(JAVA_PROTOS) $(PYTHON_PROTOS)
 CLEANFILES += $(CXX_PROTOS) $(JAVA_PROTOS) $(PYTHON_PROTOS)
 
+FLAGS_PROTOS = messages/flags.pb.cc messages/flags.pb.h
+
+BUILT_SOURCES += $(FLAGS_PROTOS)
+CLEANFILES += $(FLAGS_PROTOS)
+
 MESSAGES_PROTOS = messages/messages.pb.cc messages/messages.pb.h
 
 BUILT_SOURCES += $(MESSAGES_PROTOS)
@@ -335,6 +340,7 @@ noinst_LTLIBRARIES += libmesos_no_3rdparty.la
 
 nodist_libmesos_no_3rdparty_la_SOURCES =				\
   $(CXX_PROTOS)								\
+  $(FLAGS_PROTOS)							\
   $(MESSAGES_PROTOS)							\
   $(REGISTRY_PROTOS)
 
@@ -413,6 +419,7 @@ libmesos_no_3rdparty_la_SOURCES =					\
 	zookeeper/zookeeper.cpp						\
 	zookeeper/authentication.cpp					\
 	zookeeper/group.cpp						\
+	messages/flags.proto						\
 	messages/messages.proto
 
 pkginclude_HEADERS =							\
@@ -605,6 +612,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
 	master/allocator/mesos/hierarchical.hpp				\
 	master/allocator/sorter/drf/sorter.hpp				\
 	master/allocator/sorter/sorter.hpp				\
+	messages/flags.hpp						\
 	messages/messages.hpp						\
 	module/manager.hpp						\
 	sched/constants.hpp						\

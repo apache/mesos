@@ -89,6 +89,9 @@ using process::Owned;
 using process::RateLimiter;
 using process::UPID;
 
+using process::firewall::DisabledEndpointsFirewallRule;
+using process::firewall::FirewallRule;
+
 using std::cerr;
 using std::cout;
 using std::endl;
@@ -338,6 +341,24 @@ int main(int argc, char** argv)
     }
 
     slaveRemovalLimiter = new RateLimiter(permits.get(), duration.get());
+  }
+
+  if (flags.firewall_rules.isSome()) {
+    const Firewall rules = flags.firewall_rules.get();
+
+    std::vector<Owned<FirewallRule>> _rules;
+
+    if (rules.has_disabled_endpoints()) {
+      hashset<string> paths;
+
+      for (int i = 0; i < rules.disabled_endpoints().paths_size(); ++i) {
+        paths.insert(rules.disabled_endpoints().paths(i));
+      }
+
+      _rules.emplace_back(new DisabledEndpointsFirewallRule(paths));
+    }
+
+    process::firewall::install(std::move(_rules));
   }
 
   // Create anonymous modules.

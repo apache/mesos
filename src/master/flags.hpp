@@ -30,6 +30,8 @@
 
 #include "logging/flags.hpp"
 
+#include "messages/flags.hpp"
+
 namespace mesos {
 namespace internal {
 namespace master {
@@ -64,6 +66,7 @@ public:
   bool authenticate_slaves;
   Option<Path> credentials;
   Option<ACLs> acls;
+  Option<Firewall> firewall_rules;
   Option<RateLimits> rate_limits;
   Option<Duration> offer_timeout;
   Option<Modules> modules;

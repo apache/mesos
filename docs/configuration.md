@@ -42,6 +42,29 @@ If you have special compilation requirements, please refer to `./configure --hel
   </tr>
   <tr>
     <td>
+      --firewall_rules=VALUE
+    </td>
+    <td>
+      The value could be a JSON formatted string of rules or a file path
+      containing the JSON formated rules used in the endpoints firewall. Path
+      could be of the form <code>file:///path/to/file</code> or
+      <code>/path/to/file</code>.
+      <p/>
+      See the Firewall message in flags.proto for the expected format.
+      <p/>
+      Example:
+<pre><code>{
+  "disabled_endpoints" : {
+    "paths" : [
+      "/files/browse.json",
+      "/slave(0)/stats.json",
+    ]
+  }
+}</code></pre>
+    </td>
+  </tr>
+  <tr>
+    <td>
       --[no-]help
     </td>
     <td>

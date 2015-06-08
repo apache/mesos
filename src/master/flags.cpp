@@ -251,6 +251,25 @@ mesos::internal::master::Flags::Flags()
       "              ]\n"
       "}");
 
+  add(&Flags::firewall_rules,
+      "firewall_rules",
+      "The value could be a JSON formatted string of rules or a\n"
+      "file path containing the JSON formated rules used in the endpoints\n"
+      "firewall. Path must be of the form 'file:///path/to/file'\n"
+      "or '/path/to/file'.\n"
+      "\n"
+      "See the Firewall message in flags.proto for the expected format.\n"
+      "\n"
+      "Example:\n"
+      "{\n"
+      "  \"disabled_endpoints\" : {\n"
+      "    \"paths\" : [\n"
+      "      \"/files/browse.json\",\n"
+      "      \"/slave(0)/stats.json\",\n"
+      "    ]\n"
+      "  }\n"
+      "}");
+
   add(&Flags::rate_limits,
       "rate_limits",
       "The value could be a JSON formatted string of rate limits\n"

@@ -30,6 +30,8 @@
 
 #include "logging/flags.hpp"
 
+#include "messages/flags.hpp"
+
 namespace mesos {
 namespace internal {
 namespace slave {
@@ -78,6 +80,7 @@ public:
   Duration perf_duration;
   bool revocable_cpu_low_priority;
 #endif
+  Option<Firewall> firewall_rules;
   Option<Path> credential;
   Option<std::string> containerizer_path;
   std::string containerizers;
