@@ -1412,17 +1412,16 @@ TEST(Process, executor)
   Executor executor;
 
   Deferred<void(int)> event1 =
-    executor.defer(lambda::function<void(int)>(
-                       lambda::bind(&EventReceiver::event1,
-                                    &receiver,
-                                    lambda::_1)));
+    executor.defer([&receiver](int i) {
+      return receiver.event1(i);
+    });
+
   event1(42);
 
   Deferred<void(const string&)> event2 =
-    executor.defer(lambda::function<void(const string&)>(
-                       lambda::bind(&EventReceiver::event2,
-                                    &receiver,
-                                    lambda::_1)));
+    executor.defer([&receiver](const string& s) {
+      return receiver.event2(s);
+    });
 
   event2("event2");
 
