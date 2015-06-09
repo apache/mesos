@@ -94,13 +94,13 @@ Try<Nothing> encode<ip::Classifier>(
         string(nl_geterror(error)));
   }
 
-  if (classifier.destinationMAC().isSome()) {
+  if (classifier.destinationMAC.isSome()) {
     // Since we set the protocol of this classifier to be ETH_P_IP
     // above, all IP packets that contain 802.1Q tag (i.e., VLAN tag)
     // will not match this classifier (those packets have protocol
     // ETH_P_8021Q). Therefore, the offset of the start of the MAC
     // destination address is at -14 (0xfffffff2).
-    net::MAC mac = classifier.destinationMAC().get();
+    net::MAC mac = classifier.destinationMAC.get();
 
     // To avoid confusion, we only use u32 selectors which are used to
     // match arbitrary 32-bit content in a packet.
@@ -154,8 +154,8 @@ Try<Nothing> encode<ip::Classifier>(
     }
   }
 
-  if (classifier.destinationIP().isSome()) {
-    Try<struct in_addr> in = classifier.destinationIP().get().in();
+  if (classifier.destinationIP.isSome()) {
+    Try<struct in_addr> in = classifier.destinationIP.get().in();
     if (in.isError()) {
       return Error(in.error());
     }
@@ -180,14 +180,14 @@ Try<Nothing> encode<ip::Classifier>(
   // source port and the destination ports to be 20 and 22
   // respectively. Users can choose to add a high priority filter to
   // filter all the IP packets that have IP options.
-  if (classifier.sourcePorts().isSome()) {
+  if (classifier.sourcePorts.isSome()) {
     // Format of an IP packet at offset 20:
     //        +--------+--------+--------+--------+
     //        |   Source Port   |   X    |   X    |
     //        +--------+--------+--------+--------+
     // Offset:    20       21       22       23
-    uint32_t value = ((uint32_t) classifier.sourcePorts().get().begin()) << 16;
-    uint32_t mask = ((uint32_t) classifier.sourcePorts().get().mask()) << 16;
+    uint32_t value = ((uint32_t) classifier.sourcePorts.get().begin()) << 16;
+    uint32_t mask = ((uint32_t) classifier.sourcePorts.get().mask()) << 16;
 
     // To match IP packets that have the given source ports.
     error = rtnl_u32_add_key(
@@ -204,14 +204,14 @@ Try<Nothing> encode<ip::Classifier>(
     }
   }
 
-  if (classifier.destinationPorts().isSome()) {
+  if (classifier.destinationPorts.isSome()) {
     // Format of an IP packet at offset 20:
     //        +--------+--------+--------+--------+
     //        |   X    |   X    |    Dest. Port   |
     //        +--------+--------+--------+--------+
     // Offset:    20       21       22       23
-    uint32_t value = (uint32_t) classifier.destinationPorts().get().begin();
-    uint32_t mask = (uint32_t) classifier.destinationPorts().get().mask();
+    uint32_t value = (uint32_t) classifier.destinationPorts.get().begin();
+    uint32_t mask = (uint32_t) classifier.destinationPorts.get().mask();
 
     // To match IP packets that have the given destination ports.
     error = rtnl_u32_add_key(

@@ -1864,8 +1864,8 @@ PortMappingIsolatorProcess::_recover(pid_t pid)
     // egress. This map will be used later.
     foreach (const filter::Filter<ip::Classifier>& filter,
              eth0EgressFilters.get()) {
-      const Option<PortRange> sourcePorts = filter.classifier().sourcePorts();
-      const Option<Handle> classid = filter.classid();
+      const Option<PortRange> sourcePorts = filter.classifier.sourcePorts;
+      const Option<Handle> classid = filter.classid;
 
       if (sourcePorts.isNone()) {
         return Error("Missing source ports for filters on egress of " + eth0);
@@ -1890,8 +1890,8 @@ PortMappingIsolatorProcess::_recover(pid_t pid)
   Option<uint16_t> flowId;
 
   foreach (const ip::Classifier& classifier, vethIngressClassifiers.get()) {
-    const Option<PortRange> sourcePorts = classifier.sourcePorts();
-    const Option<PortRange> destinationPorts = classifier.destinationPorts();
+    const Option<PortRange> sourcePorts = classifier.sourcePorts;
+    const Option<PortRange> destinationPorts = classifier.destinationPorts;
 
     // All the IP filters on veth used by us only have source ports.
     if (sourcePorts.isNone() || destinationPorts.isSome()) {
@@ -2507,8 +2507,8 @@ Future<Nothing> PortMappingIsolatorProcess::update(
   IntervalSet<uint16_t> remaining = info->nonEphemeralPorts;
 
   foreach (const ip::Classifier& classifier, classifiers.get()) {
-    Option<PortRange> sourcePorts = classifier.sourcePorts();
-    Option<PortRange> destinationPorts = classifier.destinationPorts();
+    Option<PortRange> sourcePorts = classifier.sourcePorts;
+    Option<PortRange> destinationPorts = classifier.destinationPorts;
 
     // All the IP filters on veth used by us only have source ports.
     if (sourcePorts.isNone() || destinationPorts.isSome()) {

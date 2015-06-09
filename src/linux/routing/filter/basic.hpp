@@ -46,24 +46,17 @@ namespace filter {
 namespace basic {
 
 // The classifier for the basic filter only contains a protocol.
-class Classifier
+struct Classifier
 {
-public:
   explicit Classifier(uint16_t _protocol)
-    : protocol_(_protocol) {}
+    : protocol(_protocol) {}
 
   bool operator == (const Classifier& that) const
   {
-    return protocol_ == that.protocol_;
+    return protocol == that.protocol;
   }
 
-  uint16_t protocol() const
-  {
-    return protocol_;
-  }
-
-private:
-  uint16_t protocol_;
+  uint16_t protocol;
 };
 
 

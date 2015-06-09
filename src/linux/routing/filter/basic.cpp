@@ -52,7 +52,7 @@ Try<Nothing> encode<basic::Classifier>(
     const Netlink<struct rtnl_cls>& cls,
     const basic::Classifier& classifier)
 {
-  rtnl_cls_set_protocol(cls.get(), classifier.protocol());
+  rtnl_cls_set_protocol(cls.get(), classifier.protocol);
 
   int error = rtnl_tc_set_kind(TC_CAST(cls.get()), "basic");
   if (error != 0) {

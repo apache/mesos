@@ -45,7 +45,7 @@ namespace filter {
 // associated with a filter. In other words, the list of actions
 // obtained from the filter might not be the complete list.
 template <typename Classifier>
-class Filter
+struct Filter
 {
 public:
   // Creates a filter with no action.
@@ -54,11 +54,11 @@ public:
          const Option<Priority>& _priority,
          const Option<Handle>& _handle,
          const Option<Handle>& _classid)
-    : parent_(_parent),
-      classifier_(_classifier),
-      priority_(_priority),
-      handle_(_handle),
-      classid_(_classid) {}
+    : parent(_parent),
+      classifier(_classifier),
+      priority(_priority),
+      handle(_handle),
+      classid(_classid) {}
 
   // TODO(jieyu): Support arbitrary number of actions.
   template <typename Action>
@@ -68,11 +68,11 @@ public:
          const Option<Handle>& _handle,
          const Option<Handle>& _classid,
          const Action& action)
-    : parent_(_parent),
-      classifier_(_classifier),
-      priority_(_priority),
-      handle_(_handle),
-      classid_(_classid)
+    : parent(_parent),
+      classifier(_classifier),
+      priority(_priority),
+      handle(_handle),
+      classid(_classid)
   {
     attach(action);
   }
@@ -81,34 +81,21 @@ public:
   template <typename A>
   void attach(const A& action)
   {
-    actions_.push_back(process::Shared<action::Action>(new A(action)));
+    actions.push_back(process::Shared<action::Action>(new A(action)));
   }
 
-  const Handle& parent() const { return parent_; }
-  const Classifier& classifier() const { return classifier_; }
-  const Option<Priority>& priority() const { return priority_; }
-  const Option<Handle>& handle() const { return handle_; }
-  const Option<Handle>& classid() const { return classid_; }
-
-  // Returns all the actions attached to this filter.
-  const std::vector<process::Shared<action::Action>>& actions() const
-  {
-    return actions_;
-  }
-
-private:
   // Each filter is attached to a queueing object (either a queueing
   // discipline or a queueing class).
-  Handle parent_;
+  Handle parent;
 
   // The filter specific classifier.
-  Classifier classifier_;
+  Classifier classifier;
 
   // The priority of this filter.
-  Option<Priority> priority_;
+  Option<Priority> priority;
 
   // The handle of this filter.
-  Option<Handle> handle_;
+  Option<Handle> handle;
 
   // The classid of this filter.
   //
@@ -123,11 +110,11 @@ private:
   //
   // Kernel uses classid and flowid interchangeably. However, in our
   // code base, we use classid consistently.
-  Option<Handle> classid_;
+  Option<Handle> classid;
 
   // The set of actions attached to this filer. Note that we use
   // Shared here to make Filter copyable.
-  std::vector<process::Shared<action::Action>> actions_;
+  std::vector<process::Shared<action::Action>> actions;
 };
 
 } // namespace filter {

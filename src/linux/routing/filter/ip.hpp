@@ -101,45 +101,34 @@ inline size_t hash_value(const PortRange& range)
 }
 
 
-class Classifier
+struct Classifier
 {
-public:
   Classifier(
     const Option<net::MAC>& _destinationMAC,
     const Option<net::IP>& _destinationIP,
     const Option<PortRange>& _sourcePorts,
     const Option<PortRange>& _destinationPorts)
-    : destinationMAC_(_destinationMAC),
-      destinationIP_(_destinationIP),
-      sourcePorts_(_sourcePorts),
-      destinationPorts_(_destinationPorts) {}
+    : destinationMAC(_destinationMAC),
+      destinationIP(_destinationIP),
+      sourcePorts(_sourcePorts),
+      destinationPorts(_destinationPorts) {}
 
   bool operator == (const Classifier& that) const
   {
-    return (destinationMAC_ == that.destinationMAC_ &&
-        destinationIP_ == that.destinationIP_ &&
-        destinationPorts_ == that.destinationPorts_ &&
-        sourcePorts_ == that.sourcePorts_);
+    return (destinationMAC == that.destinationMAC &&
+        destinationIP == that.destinationIP &&
+        destinationPorts == that.destinationPorts &&
+        sourcePorts == that.sourcePorts);
   }
 
-  const Option<net::MAC>& destinationMAC() const { return destinationMAC_; }
-  const Option<net::IP>& destinationIP() const { return destinationIP_; }
-  const Option<PortRange>& sourcePorts() const { return sourcePorts_; }
-
-  const Option<PortRange>& destinationPorts() const
-  {
-    return destinationPorts_;
-  }
-
-private:
-  Option<net::MAC> destinationMAC_;
+  Option<net::MAC> destinationMAC;
 
   // TODO(evelinad): Replace net::IP with net::IPNetwork when we will
   // support classifiers for the entire subnet.
-  Option<net::IP> destinationIP_;
+  Option<net::IP> destinationIP;
 
-  Option<PortRange> sourcePorts_;
-  Option<PortRange> destinationPorts_;
+  Option<PortRange> sourcePorts;
+  Option<PortRange> destinationPorts;
 };
 
 

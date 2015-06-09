@@ -37,23 +37,19 @@ namespace routing {
 namespace filter {
 namespace icmp {
 
-class Classifier
+struct Classifier
 {
-public:
   explicit Classifier(const Option<net::IP>& _destinationIP)
-    : destinationIP_(_destinationIP) {}
+    : destinationIP(_destinationIP) {}
 
   bool operator == (const Classifier& that) const
   {
-    return destinationIP_ == that.destinationIP_;
+    return destinationIP == that.destinationIP;
   }
 
-  const Option<net::IP>& destinationIP() const { return destinationIP_; }
-
-private:
   // TODO(evelinad): Replace net::IP with net::IPNetwork when we will
   // support classifiers for the entire subnet.
-  Option<net::IP> destinationIP_;
+  Option<net::IP> destinationIP;
 };
 
 

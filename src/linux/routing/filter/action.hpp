@@ -40,40 +40,32 @@ protected:
 // Represents an action that redirects a packet to a given link.
 // Currently, kernel only supports redirecting to the egress of a
 // given link.
-class Redirect : public Action
+struct Redirect : public Action
 {
-public:
   explicit Redirect(const std::string& _link)
-    : link_(_link) {}
+    : link(_link) {}
 
-  const std::string& link() const { return link_; }
-
-private:
   // The link to which the packet will be redirected.
-  std::string link_;
+  std::string link;
 };
 
 
 // Represents an action that mirrors a packet to a set of links.
 // Currently, kernel only supports mirroring to the egress of each
 // link.
-class Mirror : public Action
+struct Mirror : public Action
 {
-public:
   explicit Mirror(const std::set<std::string>& _links)
-    : links_(_links) {}
+    : links(_links) {}
 
-  const std::set<std::string>& links() const { return links_; }
-
-private:
   // The set of links to which the packet will be mirrored.
-  std::set<std::string> links_;
+  std::set<std::string> links;
 };
 
 
 // Represents an action that stops the packet from being sent to the
 // next filter.
-class Terminal : public Action {};
+struct Terminal : public Action {};
 
 } // namespace action {
 } // namespace routing {

@@ -100,8 +100,8 @@ Try<Nothing> encode<icmp::Classifier>(
         string(nl_geterror(error)));
   }
 
-  if (classifier.destinationIP().isSome()) {
-    Try<struct in_addr> in = classifier.destinationIP().get().in();
+  if (classifier.destinationIP.isSome()) {
+    Try<struct in_addr> in = classifier.destinationIP.get().in();
     if (in.isError()) {
       return Error("Destination IP is not an IPv4 address");
     }

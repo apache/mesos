@@ -865,7 +865,7 @@ TEST_F(RoutingVethTest, ROOT_ICMPFilterCreate)
 
   ASSERT_SOME(classifiers);
   ASSERT_EQ(1u, classifiers.get().size());
-  EXPECT_SOME_EQ(ip, classifiers.get().front().destinationIP());
+  EXPECT_SOME_EQ(ip, classifiers.get().front().destinationIP);
 }
 
 
@@ -933,8 +933,8 @@ TEST_F(RoutingVethTest, ROOT_ICMPFilterCreateMultiple)
 
   ASSERT_SOME(classifiers);
   ASSERT_EQ(2u, classifiers.get().size());
-  EXPECT_SOME_EQ(ip1, classifiers.get().front().destinationIP());
-  EXPECT_SOME_EQ(ip2, classifiers.get().back().destinationIP());
+  EXPECT_SOME_EQ(ip1, classifiers.get().front().destinationIP);
+  EXPECT_SOME_EQ(ip2, classifiers.get().back().destinationIP);
 }
 
 
@@ -1073,16 +1073,16 @@ TEST_F(RoutingVethTest, ROOT_IPFilterCreate)
 
   ASSERT_SOME(classifiers);
   ASSERT_EQ(1u, classifiers.get().size());
-  EXPECT_SOME_EQ(mac.get(), classifiers.get().front().destinationMAC());
-  EXPECT_SOME_EQ(ip, classifiers.get().front().destinationIP());
+  EXPECT_SOME_EQ(mac.get(), classifiers.get().front().destinationMAC);
+  EXPECT_SOME_EQ(ip, classifiers.get().front().destinationIP);
 
   EXPECT_SOME_EQ(
       sourcePorts.get(),
-      classifiers.get().front().sourcePorts());
+      classifiers.get().front().sourcePorts);
 
   EXPECT_SOME_EQ(
       destinationPorts.get(),
-      classifiers.get().front().destinationPorts());
+      classifiers.get().front().destinationPorts);
 }
 
 
@@ -1114,10 +1114,10 @@ TEST_F(RoutingVethTest, ROOT_IPFilterCreate2)
 
   ASSERT_SOME(classifiers);
   ASSERT_EQ(1u, classifiers.get().size());
-  EXPECT_NONE(classifiers.get().front().destinationMAC());
-  EXPECT_SOME_EQ(ip, classifiers.get().front().destinationIP());
-  EXPECT_NONE(classifiers.get().front().sourcePorts());
-  EXPECT_NONE(classifiers.get().front().destinationPorts());
+  EXPECT_NONE(classifiers.get().front().destinationMAC);
+  EXPECT_SOME_EQ(ip, classifiers.get().front().destinationIP);
+  EXPECT_NONE(classifiers.get().front().sourcePorts);
+  EXPECT_NONE(classifiers.get().front().destinationPorts);
 }
 
 
@@ -1238,27 +1238,27 @@ TEST_F(RoutingVethTest, ROOT_IPFilterCreateMultiple)
   ASSERT_SOME(classifiers);
   ASSERT_EQ(2u, classifiers.get().size());
 
-  EXPECT_SOME_EQ(mac.get(), classifiers.get().front().destinationMAC());
-  EXPECT_SOME_EQ(ip, classifiers.get().front().destinationIP());
+  EXPECT_SOME_EQ(mac.get(), classifiers.get().front().destinationMAC);
+  EXPECT_SOME_EQ(ip, classifiers.get().front().destinationIP);
 
   EXPECT_SOME_EQ(
       sourcePorts1.get(),
-      classifiers.get().front().sourcePorts());
+      classifiers.get().front().sourcePorts);
 
   EXPECT_SOME_EQ(
       destinationPorts1.get(),
-      classifiers.get().front().destinationPorts());
+      classifiers.get().front().destinationPorts);
 
-  EXPECT_SOME_EQ(mac.get(), classifiers.get().back().destinationMAC());
-  EXPECT_SOME_EQ(ip, classifiers.get().back().destinationIP());
+  EXPECT_SOME_EQ(mac.get(), classifiers.get().back().destinationMAC);
+  EXPECT_SOME_EQ(ip, classifiers.get().back().destinationIP);
 
   EXPECT_SOME_EQ(
       sourcePorts2.get(),
-      classifiers.get().back().sourcePorts());
+      classifiers.get().back().sourcePorts);
 
   EXPECT_SOME_EQ(
       destinationPorts2.get(),
-      classifiers.get().back().destinationPorts());
+      classifiers.get().back().destinationPorts);
 }
 
 
