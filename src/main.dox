@@ -1,0 +1,12 @@
+/**
+ * @mainpage Mesos API Documentation
+ *
+ * The following Apache Mesos API documention is part of the overall [Apache Mesos documenation](http://mesos.apache.org/documentation/latest/).
+ *
+ * @section style-guide Style Guide
+ *  * [Style Guide](http://mesos.apache.org/documentation/latest/mesos-c++-style-guide/) for adding and updating doxygen documentation.
+ *
+ * @section user-guide User Guides
+ *   * [Libprocess User Guide](http://mesos.apache.org/api/latest/c++/md_3rdparty_libprocess_README.html)
+ *   * [Stout User Guide](http://mesos.apache.org/api/latest/c++/md_3rdparty_libprocess_3rdparty_stout_README.html)
+ */
