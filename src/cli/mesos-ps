@@ -65,7 +65,7 @@ def cpus(task, statistics):
     for entry in statistics:
         if (entry['framework_id'] == framework_id and
             entry['executor_id'] == executor_id):
-            cpus_limit = entry['statistics']['cpus_limit']
+            cpus_limit = entry['statistics'].get('cpus_limit', None)
             break
 
     if cpus_limit is not None:
@@ -90,11 +90,11 @@ def mem(task, statistics):
     for entry in statistics:
         if (entry['framework_id'] == framework_id and
             entry['executor_id'] == executor_id):
-            mem_rss_bytes = entry['statistics']['mem_rss_bytes']
-            mem_limit_bytes = entry['statistics']['mem_limit_bytes']
+            mem_rss_bytes = entry['statistics'].get('mem_rss_bytes', None)
+            mem_limit_bytes = entry['statistics'].get('mem_limit_bytes', None)
             break
 
-    if mem_rss_bytes is not None:
+    if mem_rss_bytes is not None and mem_limit_bytes is not None:
         MB = 1024.0 * 1024.0
         return '{usage}/{limit}' \
                 .format(usage = data_size(mem_rss_bytes, "%.1f"),
@@ -129,13 +129,13 @@ def time(task, statistics):
     for entry in statistics:
         if (entry['framework_id'] == framework_id and
             entry['executor_id'] == executor_id):
-            cpus_time_secs = (entry['statistics']['cpus_system_time_secs'] +
-                              entry['statistics']['cpus_user_time_secs'])
+            cpus_system_time_secs = entry['statistics'].get('cpus_system_time_secs', None)
+            cpus_user_time_secs = entry['statistics'].get('cpus_user_time_secs', None)
             break
 
-    if cpus_time_secs is not None:
+    if cpus_system_time_secs is not None and cpus_user_time_secs is not None:
         return (datetime.datetime
-                .utcfromtimestamp(cpus_time_secs)
+                .utcfromtimestamp(cpus_system_time_secs + cpus_user_time_secs)
                 .strftime('%H:%M:%S.%f'))
 
     return None
