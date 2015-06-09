@@ -17,6 +17,9 @@
  */
 
 #include <limits>
+#include <vector>
+
+#include <gmock/gmock.h>
 
 #include <mesos/mesos.hpp>
 #include <mesos/resources.hpp>
@@ -28,16 +31,25 @@
 #include <process/pid.hpp>
 #include <process/process.hpp>
 
+#include <stout/bytes.hpp>
+#include <stout/json.hpp>
 #include <stout/nothing.hpp>
 
+#include "slave/constants.hpp"
 #include "slave/monitor.hpp"
+
+#include "tests/mesos.hpp"
 
 using namespace process;
 
+using mesos::internal::master::Master;
+
 using mesos::internal::slave::ResourceMonitor;
+using mesos::internal::slave::Slave;
 
 using std::numeric_limits;
 using std::string;
+using std::vector;
 
 namespace mesos {
 namespace internal {
@@ -83,7 +95,7 @@ TEST(MonitorTest, Statistics)
     return usage;
   });
 
-  UPID upid("monitor", address());
+  UPID upid("monitor", process::address());
 
   Future<http::Response> response = http::get(upid, "statistics.json");
   AWAIT_READY(response);
@@ -143,7 +155,7 @@ TEST(MonitorTest, NoExecutor)
     return ResourceUsage();
   });
 
-  UPID upid("monitor", address());
+  UPID upid("monitor", process::address());
 
   Future<http::Response> response = http::get(upid, "statistics.json");
   AWAIT_READY(response);
@@ -184,7 +196,7 @@ TEST(MonitorTest, MissingStatistics)
     return usage;
   });
 
-  UPID upid("monitor", address());
+  UPID upid("monitor", process::address());
 
   Future<http::Response> response = http::get(upid, "statistics.json");
   AWAIT_READY(response);
@@ -195,6 +207,92 @@ TEST(MonitorTest, MissingStatistics)
       "Content-Type",
       response);
   AWAIT_EXPECT_RESPONSE_BODY_EQ("[]", response);
+}
+
+
+class MonitorIntegrationTest : public MesosTest {};
+
+
+// This is an end-to-end test that verfies that the slave returns the
+// correct ResourceUsage based on the currently running executors, and
+// the values get from the statistics endpoint are as expected.
+TEST_F(MonitorIntegrationTest, RunningExecutor)
+{
+  Try<PID<Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  Try<PID<Slave>> slave = StartSlave();
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return());        // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  EXPECT_FALSE(offers.get().empty());
+
+  const Offer& offer = offers.get()[0];
+
+  // Launch a task and wait until it is in RUNNING status.
+  TaskInfo task = createTask(
+      offer.slave_id(),
+      Resources::parse("cpus:1;mem:32").get(),
+      "sleep 1000");
+
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status));
+
+  driver.launchTasks(offer.id(), {task});
+
+  AWAIT_READY(status);
+  EXPECT_EQ(task.task_id(), status.get().task_id());
+  EXPECT_EQ(TASK_RUNNING, status.get().state());
+
+  // Hit the statistics endpoint and expect the response contains the
+  // resource statistics for the running container.
+  UPID upid("monitor", process::address());
+
+  Future<http::Response> response = http::get(upid, "statistics.json");
+  AWAIT_READY(response);
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::OK().status, response);
+  AWAIT_EXPECT_RESPONSE_HEADER_EQ(
+      "application/json",
+      "Content-Type",
+      response);
+
+  // Verify that the statistics in the response contains the proper
+  // resource limits for the container.
+  Try<JSON::Value> value = JSON::parse(response.get().body);
+  ASSERT_SOME(value);
+
+  Try<JSON::Value> expected = JSON::parse(strings::format(
+      "[{"
+          "\"statistics\":{"
+              "\"cpus_limit\":%g,"
+              "\"mem_limit_bytes\":%lu"
+          "}"
+      "}]",
+      1 + slave::DEFAULT_EXECUTOR_CPUS,
+      (Megabytes(32) + slave::DEFAULT_EXECUTOR_MEM).bytes()).get());
+
+  ASSERT_SOME(expected);
+  EXPECT_TRUE(value.get().contains(expected.get()));
+
+  driver.stop();
+  driver.join();
+
+  Shutdown();
 }
 
 } // namespace tests {
