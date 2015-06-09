@@ -16,8 +16,6 @@
  * limitations under the License.
  */
 
-#include <list>
-
 #include <process/dispatch.hpp>
 #include <process/process.hpp>
 
@@ -26,8 +24,6 @@
 #include "slave/resource_estimators/noop.hpp"
 
 using namespace process;
-
-using std::list;
 
 namespace mesos {
 namespace internal {
@@ -54,7 +50,7 @@ NoopResourceEstimator::~NoopResourceEstimator()
 
 
 Try<Nothing> NoopResourceEstimator::initialize(
-    const lambda::function<Future<list<ResourceUsage>>()>& usages)
+    const lambda::function<Future<ResourceUsage>()>& usage)
 {
   if (process.get() != NULL) {
     return Error("Noop resource estimator has already been initialized");

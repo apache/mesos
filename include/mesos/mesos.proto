@@ -620,14 +620,24 @@ message ResourceStatistics {
 
 
 /**
- * Describes a snapshot of the resource usage for an executor.
+ * Describes a snapshot of the resource usage for executors.
  */
 message ResourceUsage {
-  // Source of the collected statistics.
-  optional ExecutorInfo executor_info = 1;
-  // Current resource usage.
-  // If missing, the isolation module cannot provide resource usage.
-  optional ResourceStatistics statistics = 2;
+  message Executor {
+    required ExecutorInfo executor_info = 1;
+
+    // This includes resources used by the executor itself
+    // as well as its active tasks.
+    repeated Resource allocated = 2;
+
+    // Current resource usage. If absent, the containerizer
+    // cannot provide resource usage.
+    optional ResourceStatistics statistics = 3;
+  }
+
+  repeated Executor executors = 1;
+
+  // TODO(jieyu): Include slave's total resources here.
 }
 
 

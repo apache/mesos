@@ -36,6 +36,7 @@
 
 #include <process/async.hpp>
 #include <process/check.hpp>
+#include <process/collect.hpp>
 #include <process/defer.hpp>
 #include <process/delay.hpp>
 #include <process/dispatch.hpp>
@@ -130,7 +131,7 @@ Slave::Slave(const slave::Flags& _flags,
     files(_files),
     metrics(*this),
     gc(_gc),
-    monitor(containerizer),
+    monitor(defer(self(), &Self::usage)),
     statusUpdateManager(_statusUpdateManager),
     metaDir(paths::getMetaRootDir(flags.work_dir)),
     recoveryErrors(0),
@@ -327,7 +328,7 @@ void Slave::initialize()
   }
 
   Try<Nothing> initialize = resourceEstimator->initialize(
-      lambda::bind(&ResourceMonitor::usages, &monitor));
+      defer(self(), &Self::usage));
 
   if (initialize.isError()) {
     EXIT(1) << "Failed to initialize the resource estimator: "
@@ -2327,21 +2328,6 @@ void Slave::registerExecutor(
 }
 
 
-void _monitor(
-    const Future<Nothing>& monitor,
-    const FrameworkID& frameworkId,
-    const ExecutorID& executorId,
-    const ContainerID& containerId)
-{
-  if (!monitor.isReady()) {
-    LOG(ERROR) << "Failed to monitor container '" << containerId
-               << "' for executor '" << executorId
-               << "' of framework '" << frameworkId
-               << ":" << (monitor.isFailed() ? monitor.failure() : "discarded");
-  }
-}
-
-
 void Slave::reregisterExecutor(
     const UPID& from,
     const FrameworkID& frameworkId,
@@ -2427,18 +2413,6 @@ void Slave::reregisterExecutor(
             frameworkId,
             executorId,
             executor->containerId));
-
-      // Monitor the executor.
-      // TODO(jieyu): Do not start the monitor if the containerizer
-      // update fails.
-      monitor.start(
-          executor->containerId,
-          executor->info)
-        .onAny(lambda::bind(_monitor,
-                            lambda::_1,
-                            framework->id(),
-                            executor->id,
-                            executor->containerId));
 
       hashmap<TaskID, TaskInfo> unackedTasks;
       foreach (const TaskInfo& task, tasks) {
@@ -3208,18 +3182,6 @@ void Slave::executorLaunched(
       break;
     case Executor::REGISTERING:
     case Executor::RUNNING:
-      LOG(INFO) << "Monitoring executor '" << executorId
-                << "' of framework '" << frameworkId
-                << "' in container '" << containerId << "'";
-      // Start monitoring the container's resources.
-      monitor.start(
-          containerId,
-          executor->info)
-        .onAny(lambda::bind(_monitor,
-                            lambda::_1,
-                            frameworkId,
-                            executorId,
-                            containerId));
       break;
     case Executor::TERMINATED:
     default:
@@ -3229,12 +3191,6 @@ void Slave::executorLaunched(
       break;
   }
 }
-
-
-void _unmonitor(
-    const Future<Nothing>& watch,
-    const FrameworkID& frameworkId,
-    const ExecutorID& executorId);
 
 
 // Called by the isolator when an executor process terminates.
@@ -3297,10 +3253,6 @@ void Slave::executorTerminated(
       ++metrics.executors_terminated;
 
       executor->state = Executor::TERMINATED;
-
-      // Stop monitoring the executor's container.
-      monitor.stop(executor->containerId)
-        .onAny(lambda::bind(_unmonitor, lambda::_1, frameworkId, executorId));
 
       // Transition all live tasks to TASK_LOST/TASK_FAILED.
       // If the containerizer killed the executor (e.g., due to OOM event)
@@ -3502,19 +3454,6 @@ void Slave::removeFramework(Framework* framework)
 
   if (state == TERMINATING && frameworks.empty()) {
     terminate(self());
-  }
-}
-
-
-void _unmonitor(
-    const Future<Nothing>& unmonitor,
-    const FrameworkID& frameworkId,
-    const ExecutorID& executorId)
-{
-  if (!unmonitor.isReady()) {
-    LOG(ERROR) << "Failed to unmonitor container for executor " << executorId
-               << " of framework " << frameworkId << ": "
-               << (unmonitor.isFailed() ? unmonitor.failure() : "discarded");
   }
 }
 
@@ -4196,6 +4135,54 @@ void Slave::qosCorrections(
 }
 
 
+Future<ResourceUsage> Slave::usage()
+{
+  // NOTE: We use 'Owned' here trying to avoid the expensive copy.
+  // C++11 lambda only supports capturing variables that have copy
+  // constructors. Revisit once we remove the copy constructor for
+  // Owned (or C++14 lambda generalized capture is supported).
+  Owned<ResourceUsage> usage(new ResourceUsage());
+  list<Future<ResourceStatistics>> futures;
+
+  foreachvalue (const Framework* framework, frameworks) {
+    foreachvalue (const Executor* executor, framework->executors) {
+      ResourceUsage::Executor* entry = usage->add_executors();
+      entry->mutable_executor_info()->CopyFrom(executor->info);
+      entry->mutable_allocated()->CopyFrom(executor->resources);
+
+      futures.push_back(containerizer->usage(executor->containerId));
+    }
+  }
+
+  return await(futures).then(
+      [usage](const list<Future<ResourceStatistics>>& futures)
+        -> Future<ResourceUsage> {
+        // NOTE: We add ResourceUsage::Executor to 'usage' the same
+        // order as we push future to 'futures'. So the variables
+        // 'future' and 'executor' below should be in sync.
+        CHECK_EQ(futures.size(), usage->executors_size());
+
+        size_t i = 0;
+        foreach (const Future<ResourceStatistics>& future, futures) {
+          ResourceUsage::Executor* executor = usage->mutable_executors(i++);
+
+          if (future.isReady()) {
+            executor->mutable_statistics()->CopyFrom(future.get());
+          } else {
+            LOG(WARNING) << "Failed to get resource statistics for executor '"
+                         << executor->executor_info().executor_id() << "'"
+                         << " of framework "
+                         << executor->executor_info().framework_id() << ": "
+                         << (future.isFailed() ? future.failure()
+                                               : "discarded");
+          }
+        }
+
+        return *usage;
+      });
+}
+
+
 // TODO(dhamon): Move these to their own metrics.hpp|cpp.
 double Slave::_tasks_staging()
 {
@@ -4465,9 +4452,9 @@ Executor* Framework::launchExecutor(
     const TaskInfo& taskInfo)
 {
   // Generate an ID for the executor's container.
-  // TODO(idownes) This should be done by the containerizer but we need the
-  // ContainerID to create the executor's directory and to set up monitoring.
-  // Fix this when 'launchExecutor()' is handled asynchronously.
+  // TODO(idownes) This should be done by the containerizer but we
+  // need the ContainerID to create the executor's directory. Fix
+  // this when 'launchExecutor()' is handled asynchronously.
   ContainerID containerId;
   containerId.set_value(UUID::random().toString());
 

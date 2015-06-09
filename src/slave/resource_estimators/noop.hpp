@@ -42,8 +42,7 @@ public:
   virtual ~NoopResourceEstimator();
 
   virtual Try<Nothing> initialize(
-      const lambda::function<
-          process::Future<std::list<ResourceUsage>>()>& usages);
+      const lambda::function<process::Future<ResourceUsage>()>& usage);
 
   virtual process::Future<Resources> oversubscribable();
 

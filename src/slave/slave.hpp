@@ -358,6 +358,9 @@ public:
       const process::Future<std::list<
           mesos::slave::QoSCorrection>>& correction);
 
+  // Returns the resource usage information for all executors.
+  process::Future<ResourceUsage> usage();
+
 private:
   void _authenticate();
   void authenticationTimeout(process::Future<bool> future);

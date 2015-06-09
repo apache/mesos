@@ -16,10 +16,6 @@
  * limitations under the License.
  */
 
-#include <list>
-
-#include <mesos/resources.hpp>
-
 #include <mesos/module/resource_estimator.hpp>
 
 #include <mesos/slave/resource_estimator.hpp>
@@ -37,17 +33,15 @@ using mesos::modules::Module;
 
 using mesos::slave::ResourceEstimator;
 
-using std::list;
-
 
 class FixedResourceEstimatorProcess
   : public Process<FixedResourceEstimatorProcess>
 {
 public:
   FixedResourceEstimatorProcess(
-      const lambda::function<Future<list<ResourceUsage>>()>& _usages,
+      const lambda::function<Future<ResourceUsage>()>& _usage,
       const Resources& _resources)
-    : usages(_usages),
+    : usage(_usage),
       resources(_resources) {}
 
   Future<Resources> oversubscribable()
@@ -57,7 +51,7 @@ public:
   }
 
 protected:
-  const lambda::function<Future<list<ResourceUsage>>()>& usages;
+  const lambda::function<Future<ResourceUsage>()>& usage;
   const Resources resources;
 };
 
@@ -83,13 +77,13 @@ public:
   }
 
   virtual Try<Nothing> initialize(
-      const lambda::function<Future<list<ResourceUsage>>()>& usages)
+      const lambda::function<Future<ResourceUsage>()>& usage)
   {
     if (process.get() != NULL) {
       return Error("Fixed resource estimator has already been initialized");
     }
 
-    process.reset(new FixedResourceEstimatorProcess(usages, resources));
+    process.reset(new FixedResourceEstimatorProcess(usage, resources));
     spawn(process.get());
 
     return Nothing();

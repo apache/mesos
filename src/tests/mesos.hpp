@@ -738,9 +738,7 @@ public:
 
   MOCK_METHOD1(
       initialize,
-      Try<Nothing>(
-          const lambda::function<
-              process::Future<std::list<ResourceUsage>>()>&));
+      Try<Nothing>(const lambda::function<process::Future<ResourceUsage>()>&));
 
   MOCK_METHOD0(
       oversubscribable,

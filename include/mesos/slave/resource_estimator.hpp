@@ -52,8 +52,7 @@ public:
   // resource estimator to fetch the current resource usage for each
   // executor on slave.
   virtual Try<Nothing> initialize(
-      const lambda::function<
-          process::Future<std::list<ResourceUsage>>()>& usages) = 0;
+      const lambda::function<process::Future<ResourceUsage>()>& usage) = 0;
 
   // Returns the current estimation about the *maximum* amount of
   // resources that can be oversubscribed on the slave. A new
