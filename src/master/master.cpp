@@ -1780,7 +1780,10 @@ void Master::_registerFramework(
 
   Framework* framework = new Framework(frameworkInfo_, from);
 
-  LOG(INFO) << "Registering framework " << *framework;
+  LOG(INFO) << "Registering framework " << *framework
+            << " with checkpointing "
+            << (framework->info.checkpoint() ? "enabled" : "disabled")
+            << " and capabilities " << framework->info.capabilities();
 
   // TODO(vinod): Deprecate this in favor of authorization.
   bool rootSubmissions = flags.root_submissions;
@@ -1907,7 +1910,10 @@ void Master::_reregisterFramework(
   }
 
   LOG(INFO) << "Re-registering framework " << frameworkInfo.id()
-            << " (" << frameworkInfo.name() << ") " << " at " << from;
+            << " (" << frameworkInfo.name() << ") " << " at " << from
+            << " with checkpointing "
+            << (frameworkInfo.checkpoint() ? "enabled" : "disabled")
+            << " and capabilities " << frameworkInfo.capabilities();
 
   if (frameworks.registered.count(frameworkInfo.id()) > 0) {
     // Using the "failover" of the scheduler allows us to keep a

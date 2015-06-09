@@ -397,6 +397,14 @@ inline std::ostream& operator << (
 }
 
 
+inline std::ostream& operator << (
+    std::ostream& stream,
+    const FrameworkInfo::Capability& capability)
+{
+  return stream << FrameworkInfo::Capability::Type_Name(capability.type());
+}
+
+
 template <typename T>
 inline std::ostream& operator << (
     std::ostream& stream,
