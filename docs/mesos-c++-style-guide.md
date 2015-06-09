@@ -161,13 +161,7 @@ The goal is to make code more concise and improve readability. Use this if an ex
 * Will **not** be invalidated during the lifetime of the alias. Otherwise document this explicitly.
 
 ```
-hashmap<int, hashset<int>> index;
-
-struct T
-{
-  int number;
-  string name;
-};
+hashmap<string, hashset<int>> index;
 
 // 1: Ok.
 const hashset<int>& values = index[2];
@@ -178,9 +172,9 @@ for (auto iterator = index.begin(); iterator != index.end(); ++iterator) {
 }
 
 // 3: Ok.
-foreachpair (const int& key, hashset<int>& values, index) {}
+foreachpair (const string& key, const hashset<int>& values, index) {}
 foreachvalue (const hashset<int>& values, index) {}
-foreachkey (const int& key, index) {}
+foreachkey (const string& key, index) {}
 
 // 4: Avoid aliases in most circumstances as they can be dangerous.
 //    This is an example of a dangling alias!
