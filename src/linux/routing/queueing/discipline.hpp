@@ -29,31 +29,24 @@ namespace routing {
 namespace queueing {
 
 template <typename Config>
-class Discipline
+struct Discipline
 {
-public:
   Discipline(
       const std::string& _kind,
       const Handle& _parent,
       const Option<Handle>& _handle,
       const Config& _config)
-    : kind_(_kind),
-      parent_(_parent),
-      handle_(_handle),
-      config_(_config) {}
+    : kind(_kind),
+      parent(_parent),
+      handle(_handle),
+      config(_config) {}
 
-  const std::string& kind() const { return kind_; }
-  const Handle& parent() const { return parent_; }
-  const Option<Handle>& handle() const { return handle_; }
-  const Config& config() const { return config_; }
-
-private:
-  std::string kind_;
-  Handle parent_;
-  Option<Handle> handle_;
+  std::string kind;
+  Handle parent;
+  Option<Handle> handle;
 
   // TODO(jieyu): Consider making it optional.
-  Config config_;
+  Config config;
 };
 
 } // namespace queueing {

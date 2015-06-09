@@ -88,13 +88,13 @@ Try<Netlink<struct rtnl_qdisc>> encodeDiscipline(
   Netlink<struct rtnl_qdisc> qdisc(q);
 
   rtnl_tc_set_link(TC_CAST(qdisc.get()), link.get());
-  rtnl_tc_set_parent(TC_CAST(qdisc.get()), discipline.parent().get());
+  rtnl_tc_set_parent(TC_CAST(qdisc.get()), discipline.parent.get());
 
-  if (discipline.handle().isSome()) {
-    rtnl_tc_set_handle(TC_CAST(qdisc.get()), discipline.handle().get().get());
+  if (discipline.handle.isSome()) {
+    rtnl_tc_set_handle(TC_CAST(qdisc.get()), discipline.handle.get().get());
   }
 
-  int error = rtnl_tc_set_kind(TC_CAST(qdisc.get()), discipline.kind().c_str());
+  int error = rtnl_tc_set_kind(TC_CAST(qdisc.get()), discipline.kind.c_str());
   if (error != 0) {
     return Error(
         "Failed to set the kind of the queueing discipline: " +
@@ -102,7 +102,7 @@ Try<Netlink<struct rtnl_qdisc>> encodeDiscipline(
   }
 
   // Perform queue discipline specific encoding.
-  Try<Nothing> encoding = encode(qdisc, discipline.config());
+  Try<Nothing> encoding = encode(qdisc, discipline.config);
   if (encoding.isError()) {
     return Error(
         "Failed to encode the queueing discipline: " +
