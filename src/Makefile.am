@@ -538,6 +538,7 @@ if WITH_NETWORK_ISOLATOR
 	linux/routing/filter/ip.cpp					\
 	linux/routing/link/link.cpp					\
 	linux/routing/queueing/fq_codel.cpp				\
+	linux/routing/queueing/htb.cpp					\
 	linux/routing/queueing/ingress.cpp
 
   libmesos_no_3rdparty_la_SOURCES +=					\
@@ -558,6 +559,7 @@ if WITH_NETWORK_ISOLATOR
 	linux/routing/link/link.hpp					\
 	linux/routing/queueing/discipline.hpp				\
 	linux/routing/queueing/fq_codel.hpp				\
+	linux/routing/queueing/htb.hpp					\
 	linux/routing/queueing/ingress.hpp				\
 	linux/routing/queueing/internal.hpp				\
 	linux/routing/queueing/statistics.hpp

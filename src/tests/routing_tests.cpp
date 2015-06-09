@@ -51,6 +51,7 @@
 #include "linux/routing/link/link.hpp"
 
 #include "linux/routing/queueing/fq_codel.hpp"
+#include "linux/routing/queueing/htb.hpp"
 #include "linux/routing/queueing/ingress.hpp"
 #include "linux/routing/queueing/statistics.hpp"
 
@@ -480,7 +481,91 @@ TEST_F(RoutingVethTest, ROOT_IngressQdisc)
 }
 
 
-TEST_F(RoutingVethTest, ROOT_FqCodelQdisc)
+TEST_F(RoutingVethTest, ROOT_HTBQdisc)
+{
+  // Test for a qdisc on a nonexistent interface should fail.
+  EXPECT_SOME_FALSE(htb::exists("noSuchInterface", EGRESS_ROOT));
+
+  EXPECT_SOME(link::create(TEST_VETH_LINK, TEST_PEER_LINK, None()));
+
+  EXPECT_SOME_TRUE(link::exists(TEST_VETH_LINK));
+  EXPECT_SOME_TRUE(link::exists(TEST_PEER_LINK));
+
+  // This test uses a common handle throughout
+  const Handle handle = Handle(1, 0);
+
+  // Interface exists but does not have an htb qdisc.
+  EXPECT_SOME_FALSE(htb::exists(TEST_VETH_LINK, EGRESS_ROOT));
+  EXPECT_SOME_FALSE(htb::exists(TEST_PEER_LINK, EGRESS_ROOT));
+
+  // Interfaces without qdisc established no data.
+  EXPECT_NONE(htb::statistics(TEST_VETH_LINK, EGRESS_ROOT));
+  EXPECT_NONE(htb::statistics(TEST_PEER_LINK, EGRESS_ROOT));
+
+  // Try to create an htb qdisc on a nonexistent interface.
+  EXPECT_ERROR(htb::create("noSuchInterface", EGRESS_ROOT, handle));
+
+  // Create an htb qdisc on an existing interface.
+  EXPECT_SOME_TRUE(htb::create(TEST_VETH_LINK, EGRESS_ROOT, handle));
+
+  // Interface exists and has an htb qdisc.
+  EXPECT_SOME_TRUE(htb::exists(TEST_VETH_LINK, EGRESS_ROOT));
+  EXPECT_SOME_FALSE(htb::exists(TEST_PEER_LINK, EGRESS_ROOT));
+
+  // Interfaces which exist return at least the core statisitcs.
+  Result<hashmap<string, uint64_t>> stats =
+      htb::statistics(TEST_VETH_LINK, EGRESS_ROOT);
+  ASSERT_SOME(stats);
+  EXPECT_TRUE(stats.get().contains(statistics::PACKETS));
+  EXPECT_TRUE(stats.get().contains(statistics::BYTES));
+  EXPECT_TRUE(stats.get().contains(statistics::RATE_BPS));
+  EXPECT_TRUE(stats.get().contains(statistics::RATE_PPS));
+  EXPECT_TRUE(stats.get().contains(statistics::QLEN));
+  EXPECT_TRUE(stats.get().contains(statistics::BACKLOG));
+  EXPECT_TRUE(stats.get().contains(statistics::DROPS));
+  EXPECT_TRUE(stats.get().contains(statistics::REQUEUES));
+  EXPECT_TRUE(stats.get().contains(statistics::OVERLIMITS));
+
+  // Interface without htb qdisc returns no data.
+  EXPECT_NONE(htb::statistics(TEST_PEER_LINK, EGRESS_ROOT));
+
+  // Try to create a second htb qdisc on an existing interface.
+  EXPECT_SOME_FALSE(htb::create(TEST_VETH_LINK, EGRESS_ROOT, handle));
+  EXPECT_SOME_TRUE(htb::exists(TEST_VETH_LINK, EGRESS_ROOT));
+  EXPECT_SOME_FALSE(htb::exists(TEST_PEER_LINK, EGRESS_ROOT));
+
+  // Remove the htb qdisc.
+  EXPECT_SOME_TRUE(htb::remove(TEST_VETH_LINK, EGRESS_ROOT));
+  EXPECT_SOME_FALSE(htb::exists(TEST_VETH_LINK, EGRESS_ROOT));
+  EXPECT_SOME_FALSE(htb::exists(TEST_PEER_LINK, EGRESS_ROOT));
+
+  // Try to remove it from a nonexistent interface.
+  EXPECT_SOME_FALSE(htb::remove("noSuchInterface", EGRESS_ROOT));
+
+  // Remove the htb qdisc when it does not exist.
+  EXPECT_SOME_FALSE(htb::remove(TEST_VETH_LINK, EGRESS_ROOT));
+  EXPECT_SOME_FALSE(htb::exists(TEST_VETH_LINK, EGRESS_ROOT));
+  EXPECT_SOME_FALSE(htb::exists(TEST_PEER_LINK, EGRESS_ROOT));
+
+  // Try to create an htb qdisc on a nonexistent interface and
+  // default handle.
+  EXPECT_ERROR(htb::create("noSuchInterface", EGRESS_ROOT, None()));
+
+  // Create an htb qdisc on an existing interface.
+  EXPECT_SOME_TRUE(htb::create(TEST_VETH_LINK, EGRESS_ROOT, None()));
+
+  // Interface exists and has an htb qdisc.
+  EXPECT_SOME_TRUE(htb::exists(TEST_VETH_LINK, EGRESS_ROOT));
+  EXPECT_SOME_FALSE(htb::exists(TEST_PEER_LINK, EGRESS_ROOT));
+
+  // Remove the htb qdisc.
+  EXPECT_SOME_TRUE(htb::remove(TEST_VETH_LINK, EGRESS_ROOT));
+  EXPECT_SOME_FALSE(htb::exists(TEST_VETH_LINK, EGRESS_ROOT));
+  EXPECT_SOME_FALSE(htb::exists(TEST_PEER_LINK, EGRESS_ROOT));
+}
+
+
+TEST_F(RoutingVethTest, ROOT_FqCodeQdisc)
 {
   // Test for a qdisc on a nonexistent interface should fail.
   EXPECT_SOME_FALSE(fq_codel::exists("noSuchInterface", EGRESS_ROOT));
