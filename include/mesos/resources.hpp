@@ -20,6 +20,7 @@
 #define __RESOURCES_HPP__
 
 #include <iostream>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -242,6 +243,12 @@ public:
   // Helpers to get resource values. We consider all roles here.
   template <typename T>
   Option<T> get(const std::string& name) const;
+
+  // Get resources of the given name.
+  Resources get(const std::string& name) const;
+
+  // Get the set of unique resource names.
+  std::set<std::string> names() const;
 
   // Helpers to get known resource types.
   // TODO(vinod): Fix this when we make these types as first class

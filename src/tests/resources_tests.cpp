@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 
+#include <set>
 #include <sstream>
 #include <string>
 
@@ -32,6 +33,7 @@ using namespace mesos::internal::master;
 
 using std::ostringstream;
 using std::pair;
+using std::set;
 using std::string;
 
 namespace mesos {
@@ -887,6 +889,33 @@ TEST(ResourcesTest, Find)
   Resources targets4 = Resources::parse("cpus(role1):2;mem(role1):2").get();
 
   EXPECT_NONE(resources4.find(targets4));
+}
+
+
+// This test verifies that we can filter resources of a given name
+// from Resources.
+TEST(ResourcesTest, Get)
+{
+  Resources cpus = Resources::parse("cpus(role1):2;cpus:4").get();
+  Resources mem = Resources::parse("mem(role1):10;mem:10").get();
+
+  // Filter "cpus" resources.
+  EXPECT_EQ(cpus, (cpus + mem).get("cpus"));
+
+  // Filter "mem" resources.
+  EXPECT_EQ(mem, (cpus + mem).get("mem"));
+}
+
+
+// This test verifies that we can get the set of unique names from
+// Resources.
+TEST(ResourcesTest, Names)
+{
+  Resources resources =
+    Resources::parse("cpus(role1):2;cpus:4;mem(role1):10;mem:10").get();
+
+  set<string> names = {"cpus", "mem"};
+  ASSERT_EQ(names, resources.names());
 }
 
 

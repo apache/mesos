@@ -18,6 +18,8 @@
 
 #include <stdint.h>
 
+#include <set>
+#include <string>
 #include <vector>
 
 #include <glog/logging.h>
@@ -32,6 +34,7 @@
 #include <stout/strings.hpp>
 
 using std::ostream;
+using std::set;
 using std::string;
 using std::vector;
 
@@ -934,6 +937,25 @@ Option<Value::Ranges> Resources::get(const string& name) const
   }
 
   return None();
+}
+
+
+Resources Resources::get(const string& name) const
+{
+  return filter([=](const Resource& resource) {
+    return resource.name() == name;
+  });
+}
+
+
+set<string> Resources::names() const
+{
+  set<string> result;
+  foreach(const Resource& resource, resources) {
+    result.insert(resource.name());
+  }
+
+  return result;
 }
 
 
