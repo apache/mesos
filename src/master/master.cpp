@@ -614,7 +614,9 @@ void Master::initialize()
   whitelistWatcher = new WhitelistWatcher(
       flags.whitelist,
       WHITELIST_WATCH_INTERVAL,
-      lambda::bind(&Allocator::updateWhitelist, allocator, lambda::_1));
+      [this](const Option<hashset<string>>& whitelist) {
+        return allocator->updateWhitelist(whitelist);
+      });
   spawn(whitelistWatcher);
 
   nextFrameworkId = 0;
