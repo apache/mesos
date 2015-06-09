@@ -31,24 +31,18 @@ namespace routing {
 namespace route {
 
 // Represents a rule in the routing table (for IPv4).
-class Rule
+struct Rule
 {
-public:
   Rule(const Option<net::IPNetwork>& _destination,
        const Option<net::IP>& _gateway,
        const std::string& _link)
-    : destination_(_destination),
-      gateway_(_gateway),
-      link_(_link) {}
+    : destination(_destination),
+      gateway(_gateway),
+      link(_link) {}
 
-  const Option<net::IPNetwork>& destination() const { return destination_; }
-  const Option<net::IP>& gateway() const { return gateway_; }
-  const std::string& link() const { return link_; }
-
-private:
-  Option<net::IPNetwork> destination_;
-  Option<net::IP> gateway_;
-  std::string link_;
+  Option<net::IPNetwork> destination;
+  Option<net::IP> gateway;
+  std::string link;
 };
 
 

@@ -72,18 +72,18 @@ Result<string> eth0()
   }
 
   foreach (const route::Rule& rule, mainRoutingTable.get()) {
-    if (rule.destination().isNone()) {
+    if (rule.destination.isNone()) {
       // Check if the public interface exists.
-      Try<bool> exists = link::exists(rule.link());
+      Try<bool> exists = link::exists(rule.link);
       if (exists.isError()) {
         return Error(
-            "Failed to check if " + rule.link() + " exists: " + exists.error());
+            "Failed to check if " + rule.link + " exists: " + exists.error());
       } else if (!exists.get()) {
         return Error(
-            rule.link() + " is in the routing table but not in the system");
+            rule.link + " is in the routing table but not in the system");
       }
 
-      return rule.link();
+      return rule.link;
     }
   }
 

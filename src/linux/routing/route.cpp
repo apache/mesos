@@ -128,8 +128,8 @@ Result<net::IP> defaultGateway()
   }
 
   foreach (const Rule& rule, rules.get()) {
-    if (rule.destination().isNone() && rule.gateway().isSome()) {
-      return rule.gateway().get();
+    if (rule.destination.isNone() && rule.gateway.isSome()) {
+      return rule.gateway.get();
     }
   }
 
