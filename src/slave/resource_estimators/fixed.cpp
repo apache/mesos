@@ -20,6 +20,7 @@
 
 #include <mesos/slave/resource_estimator.hpp>
 
+#include <process/defer.hpp>
 #include <process/dispatch.hpp>
 #include <process/owned.hpp>
 #include <process/process.hpp>
@@ -40,30 +41,39 @@ class FixedResourceEstimatorProcess
 public:
   FixedResourceEstimatorProcess(
       const lambda::function<Future<ResourceUsage>()>& _usage,
-      const Resources& _resources)
+      const Resources& _totalRevocable)
     : usage(_usage),
-      resources(_resources) {}
+      totalRevocable(_totalRevocable) {}
 
   Future<Resources> oversubscribable()
   {
-    // TODO(jieyu): This is a stub implementation.
-    return resources;
+    return usage().then(defer(self(), &Self::_oversubscribable, lambda::_1));
+  }
+
+  Future<Resources> _oversubscribable(const ResourceUsage& usage)
+  {
+    Resources allocatedRevocable;
+    foreach (const ResourceUsage::Executor& executor, usage.executors()) {
+      allocatedRevocable += Resources(executor.allocated()).revocable();
+    }
+
+    return totalRevocable - allocatedRevocable;
   }
 
 protected:
   const lambda::function<Future<ResourceUsage>()> usage;
-  const Resources resources;
+  const Resources totalRevocable;
 };
 
 
 class FixedResourceEstimator : public ResourceEstimator
 {
 public:
-  FixedResourceEstimator(const Resources& _resources)
-    : resources(_resources)
+  FixedResourceEstimator(const Resources& _totalRevocable)
+    : totalRevocable(_totalRevocable)
   {
     // Mark all resources as revocable.
-    foreach (Resource& resource, resources) {
+    foreach (Resource& resource, totalRevocable) {
       resource.mutable_revocable();
     }
   }
@@ -83,7 +93,7 @@ public:
       return Error("Fixed resource estimator has already been initialized");
     }
 
-    process.reset(new FixedResourceEstimatorProcess(usage, resources));
+    process.reset(new FixedResourceEstimatorProcess(usage, totalRevocable));
     spawn(process.get());
 
     return Nothing();
@@ -101,7 +111,7 @@ public:
   }
 
 private:
-  Resources resources;
+  Resources totalRevocable;
   Owned<FixedResourceEstimatorProcess> process;
 };
 

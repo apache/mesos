@@ -425,8 +425,71 @@ TEST_F(OversubscriptionTest, FixedResourceEstimator)
   AWAIT_READY(update);
 
   Resources resources = update.get().oversubscribed_resources();
-
   EXPECT_SOME_EQ(2.0, resources.cpus());
+
+  Clock::resume();
+
+  // Launch a task that uses revocable resources and verify that the
+  // total oversubscribed resources does not change.
+
+  // We don't expect to receive an UpdateSlaveMessage because the
+  // total oversubscribed resources does not change.
+  EXPECT_NO_FUTURE_PROTOBUFS(UpdateSlaveMessage(), _, _);
+
+  // Start the framework which desires revocable resources.
+  FrameworkInfo framework = DEFAULT_FRAMEWORK_INFO;
+  framework.add_capabilities()->set_type(
+      FrameworkInfo::Capability::REVOCABLE_RESOURCES);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, framework, master.get(), DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(_, _, _));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
+  const Offer offer = offers.get()[0];
+
+  // The offer should contain revocable resources.
+  ASSERT_SOME_EQ(2.0, Resources(offer.resources()).revocable().cpus());
+
+  // Now, launch a task that uses revocable resources.
+  Resources taskResources = createRevocableResources("cpus", "1");
+  taskResources += Resources::parse("mem:32").get();
+
+  TaskInfo task = createTask(
+      offer.slave_id(),
+      taskResources,
+      "sleep 1000");
+
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status));
+
+  driver.launchTasks(offer.id(), {task});
+
+  AWAIT_READY(status);
+  EXPECT_EQ(task.task_id(), status.get().task_id());
+  EXPECT_EQ(TASK_RUNNING, status.get().state());
+
+  // Advance the clock for the slave to trigger the calculation of the
+  // total oversubscribed resources. As we described above, we don't
+  // expect a new UpdateSlaveMessage being generated.
+  Clock::pause();
+  Clock::advance(flags.oversubscribed_resources_interval);
+  Clock::settle();
+  Clock::resume();
+
+  driver.stop();
+  driver.join();
 
   Shutdown();
 }
