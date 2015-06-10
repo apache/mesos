@@ -132,6 +132,10 @@ TEST(ResourcesTest, ParseError)
   // Mismatched parentheses.
   EXPECT_ERROR(Resources::parse("cpus(role1:1"));
   EXPECT_ERROR(Resources::parse("cpus)(role1:1"));
+
+  // Resources with the same name but different types are not
+  // allowed.
+  EXPECT_ERROR(Resources::parse("foo(role1):1;foo(role2):[0-1]"));
 }
 
 

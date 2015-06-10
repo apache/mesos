@@ -27,6 +27,7 @@
 #include <mesos/type_utils.hpp>
 
 #include <stout/foreach.hpp>
+#include <stout/hashmap.hpp>
 #include <stout/lambda.hpp>
 #include <stout/strings.hpp>
 
@@ -346,6 +347,7 @@ Try<Resources> Resources::parse(
     const string& defaultRole)
 {
   Resources resources;
+  hashmap<string, Value_Type> nameTypes;
 
   foreach (const string& token, strings::tokenize(text, ";")) {
     vector<string> pair = strings::tokenize(token, ":");
@@ -376,6 +378,14 @@ Try<Resources> Resources::parse(
     Try<Resource> resource = Resources::parse(name, pair[1], role);
     if (resource.isError()) {
       return Error(resource.error());
+    }
+
+    if (nameTypes.contains(name) && nameTypes[name] != resource.get().type()) {
+      return Error(
+          "Resources with the same name ('" + name + "') but different types "
+          "are not allowed");
+    } else if (!nameTypes.contains(name)) {
+      nameTypes[name] = resource.get().type();
     }
 
     resources += resource.get();
