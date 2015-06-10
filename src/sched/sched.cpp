@@ -934,6 +934,7 @@ protected:
     }
 
     // Set TaskInfo.executor.framework_id, if it's missing.
+    // TODO(ijimenez): Remove this validation in 0.24.0.
     vector<TaskInfo> result;
     foreach (TaskInfo task, tasks) {
       if (task.has_executor() && !task.executor().has_framework_id()) {
@@ -1032,6 +1033,7 @@ protected:
       }
 
       // Set TaskInfo.executor.framework_id, if it's missing.
+      // TODO(ijimenez): Remove this validation in 0.24.0.
       foreach (TaskInfo& task,
                *operation->mutable_launch()->mutable_task_infos()) {
         if (task.has_executor() && !task.executor().has_framework_id()) {

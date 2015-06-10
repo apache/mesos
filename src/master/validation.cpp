@@ -245,12 +245,7 @@ Option<Error> validateExecutorInfo(
     // set even though it is an optional field. Currently, the
     // scheduler driver ensures that the field is set. For schedulers
     // not using the driver, we need to do the validation here.
-    // TODO(bmahler): Set this field in the master instead of
-    // depending on the scheduler driver do it.
-    if (!task.executor().has_framework_id()) {
-      return Error(
-          "Task has invalid ExecutorInfo: missing field 'framework_id'");
-    }
+    CHECK(task.executor().has_framework_id());
 
     if (task.executor().framework_id() != framework->id()) {
       return Error(

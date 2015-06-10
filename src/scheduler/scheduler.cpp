@@ -253,25 +253,6 @@ public:
           drop(call, "Expecting 'accept' to be present");
           return;
         }
-        // We do some local validation here, but really this should
-        // all happen in the master so it's only implemented once.
-        foreach (Offer::Operation& operation,
-                 *call.mutable_accept()->mutable_operations()) {
-          if (operation.type() != Offer::Operation::LAUNCH) {
-            continue;
-          }
-
-          foreach (TaskInfo& task,
-                   *operation.mutable_launch()->mutable_task_infos()) {
-            // Set ExecutorInfo::framework_id if missing since this
-            // field was added to the API later and thus was made
-            // optional.
-            if (task.has_executor() && !task.executor().has_framework_id()) {
-              task.mutable_executor()->mutable_framework_id()->CopyFrom(
-                  call.framework_info().id());
-            }
-          }
-        }
         send(master.get(), call);
         break;
       }
