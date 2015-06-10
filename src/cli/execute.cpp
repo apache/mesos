@@ -343,7 +343,7 @@ int main(int argc, char** argv)
     // TODO(benh): If HDFS is not properly configured with
     // 'fs.default.name' then we'll copy to the local
     // filesystem. Currently this will silently fail on our end (i.e.,
-    // the 'copyFromLocal' will be sucessful) but we'll fail to
+    // the 'copyFromLocal' will be successful) but we'll fail to
     // download the URI when we launch the executor (unless it's
     // already been uploaded before ...).
 

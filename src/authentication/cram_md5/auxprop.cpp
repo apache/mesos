@@ -84,7 +84,7 @@ int InMemoryAuxiliaryPropertyPlugin::initialize(
 
   // We determine the properties we should be looking up by doing a
   // 'prop_get' on the property context. Note that some of the
-  // properties we get might might need to be skipped depending on the
+  // properties we get might need to be skipped depending on the
   // flags (see below).
   const propval* properties = utils->prop_get(sparams->propctx);
 

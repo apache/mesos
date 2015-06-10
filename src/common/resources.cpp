@@ -184,7 +184,7 @@ static bool addable(const Resource& left, const Resource& right)
 // Tests if we can subtract "right" from "left" resulting in one valid
 // Resource object. For example, two Resource objects with different
 // name, type or role are not subtractable.
-// NOTE: Set substraction is always well defined, it does not require
+// NOTE: Set subtraction is always well defined, it does not require
 // 'right' to be contained within 'left'. For example, assuming that
 // "left = {1, 2}" and "right = {2, 3}", "left" and "right" are
 // subtractable because "left - right = {1}". However, "left" does not

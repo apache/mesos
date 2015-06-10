@@ -174,7 +174,7 @@ TEST(ResourcesTest, Printing)
   // TODO(benh): This test is a bit strict because it implies the
   // ordering of things (e.g., the ordering of resources and the
   // ordering of ranges). We should really just be checking for the
-  // existance of certain substrings in the output.
+  // existence of certain substrings in the output.
 
   EXPECT_EQ(output, oss.str());
 }

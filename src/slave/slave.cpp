@@ -563,7 +563,7 @@ void Slave::finalize()
   // can potentially remove a framework from 'frameworks'.
   foreach (const FrameworkID& frameworkId, frameworks.keys()) {
     // TODO(benh): Because a shut down isn't instantaneous (but has
-    // a shut down/kill phases) we might not actually propogate all
+    // a shut down/kill phases) we might not actually propagate all
     // the status updates appropriately here. Consider providing
     // an alternative function which skips the shut down phase and
     // simply does a kill (sending all status updates

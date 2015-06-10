@@ -742,7 +742,7 @@ TEST_F(StatusUpdateManagerTest, DuplicateUpdateBeforeAck)
   AWAIT_READY(__statusUpdate);
 
   // After we advance the clock, the status update manager should
-  // retry the TASK_RUNING update and the scheduler should receive
+  // retry the TASK_RUNNING update and the scheduler should receive
   // and acknowledge it.
   Future<TaskStatus> update;
   EXPECT_CALL(sched, statusUpdate(_, _))

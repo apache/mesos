@@ -248,7 +248,7 @@ static void remove(Value::Ranges* ranges, const Value::Range& range)
 
     // Note that these if/else if conditionals are in a particular
     // order. In particular, the last two assume that the "subsumes"
-    // checks have already occured.
+    // checks have already occurred.
     if (range.begin() <= current.begin() && range.end() >= current.end()) {
       // Range subsumes current.
       // current:  |     |
