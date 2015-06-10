@@ -51,7 +51,7 @@ public:
   }
 
 protected:
-  const lambda::function<Future<ResourceUsage>()>& usage;
+  const lambda::function<Future<ResourceUsage>()> usage;
   const Resources resources;
 };
 
