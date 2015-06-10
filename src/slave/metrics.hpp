@@ -65,10 +65,15 @@ struct Metrics
 
   process::metrics::Gauge executor_directory_max_allowed_age_secs;
 
-  // Resource metrics.
+  // Non-revocable resources.
   std::vector<process::metrics::Gauge> resources_total;
   std::vector<process::metrics::Gauge> resources_used;
   std::vector<process::metrics::Gauge> resources_percent;
+
+  // Revocable resources.
+  std::vector<process::metrics::Gauge> resources_revocable_total;
+  std::vector<process::metrics::Gauge> resources_revocable_used;
+  std::vector<process::metrics::Gauge> resources_revocable_percent;
 };
 
 } // namespace slave {

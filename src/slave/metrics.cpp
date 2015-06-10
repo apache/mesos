@@ -141,6 +141,28 @@ Metrics::Metrics(const Slave& slave)
     process::metrics::add(used);
     process::metrics::add(percent);
   }
+
+  foreach (const string& resource, resources) {
+    Gauge total(
+        "slave/" + resource + "_revocable_total",
+        defer(slave, &Slave::_resources_revocable_total, resource));
+
+    Gauge used(
+        "slave/" + resource + "_revocable_used",
+        defer(slave, &Slave::_resources_revocable_used, resource));
+
+    Gauge percent(
+        "slave/" + resource + "_revocable_percent",
+        defer(slave, &Slave::_resources_revocable_percent, resource));
+
+    resources_revocable_total.push_back(total);
+    resources_revocable_used.push_back(used);
+    resources_revocable_percent.push_back(percent);
+
+    process::metrics::add(total);
+    process::metrics::add(used);
+    process::metrics::add(percent);
+  }
 }
 
 
@@ -189,6 +211,21 @@ Metrics::~Metrics()
     process::metrics::remove(gauge);
   }
   resources_percent.clear();
+
+  foreach (const Gauge& gauge, resources_revocable_total) {
+    process::metrics::remove(gauge);
+  }
+  resources_revocable_total.clear();
+
+  foreach (const Gauge& gauge, resources_revocable_used) {
+    process::metrics::remove(gauge);
+  }
+  resources_revocable_used.clear();
+
+  foreach (const Gauge& gauge, resources_revocable_percent) {
+    process::metrics::remove(gauge);
+  }
+  resources_revocable_percent.clear();
 }
 
 } // namespace slave {

@@ -3098,6 +3098,9 @@ ExecutorInfo Slave::getExecutorInfo(
 
     // Add an allowance for the command executor. This does lead to a
     // small overcommit of resources.
+    //
+    // TODO(bmahler): If revocable resources are used, this leads to
+    // mixing of resources.
     executor.mutable_resources()->MergeFrom(
         Resources::parse(
           "cpus:" + stringify(DEFAULT_EXECUTOR_CPUS) + ";" +
@@ -4347,7 +4350,8 @@ double Slave::_resources_used(const string& name)
 
   foreachvalue (Framework* framework, frameworks) {
     foreachvalue (Executor* executor, framework->executors) {
-      foreach (const Resource& resource, executor->resources) {
+      foreach (const Resource& resource,
+               executor->resources - executor->resources.revocable()) {
         if (resource.name() == name && resource.type() == Value::SCALAR) {
           used += resource.scalar().value();
         }
@@ -4368,6 +4372,50 @@ double Slave::_resources_percent(const string& name)
   }
 
   return _resources_used(name) / total;
+}
+
+
+double Slave::_resources_revocable_total(const string& name)
+{
+  double total = 0.0;
+
+  foreach (const Resource& resource, oversubscribedResources) {
+    if (resource.name() == name && resource.type() == Value::SCALAR) {
+      total += resource.scalar().value();
+    }
+  }
+
+  return total;
+}
+
+
+double Slave::_resources_revocable_used(const string& name)
+{
+  double used = 0.0;
+
+  foreachvalue (Framework* framework, frameworks) {
+    foreachvalue (Executor* executor, framework->executors) {
+      foreach (const Resource& resource, executor->resources.revocable()) {
+        if (resource.name() == name && resource.type() == Value::SCALAR) {
+          used += resource.scalar().value();
+        }
+      }
+    }
+  }
+
+  return used;
+}
+
+
+double Slave::_resources_revocable_percent(const string& name)
+{
+  double total = _resources_revocable_total(name);
+
+  if (total == 0.0) {
+    return 0.0;
+  }
+
+  return _resources_revocable_used(name) / total;
 }
 
 
