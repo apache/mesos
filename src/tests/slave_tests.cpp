@@ -1760,6 +1760,81 @@ TEST_F(SlaveTest, ReregisterWithStatusUpdateTaskState)
 }
 
 
+// This test verifies that the slave should properly handle the case
+// where the containerizer usage call fails when getting the usage
+// information.
+TEST_F(SlaveTest, ContainerizerUsageFailure)
+{
+  Try<PID<Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+  TestContainerizer containerizer(&exec);
+  StandaloneMasterDetector detector(master.get());
+
+  MockSlave slave(CreateSlaveFlags(), &detector, &containerizer);
+  spawn(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(_, _, _));
+  EXPECT_CALL(exec, registered(_, _, _, _));
+
+  Future<vector<Offer>> offers;
+
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
+
+  const Offer& offer = offers.get()[0];
+
+  TaskInfo task = createTask(
+      offer.slave_id(),
+      Resources::parse("cpus:0.1;mem:32").get(),
+      "sleep 1000",
+      exec.id);
+
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
+
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status));
+
+  driver.launchTasks(offer.id(), {task});
+
+  AWAIT_READY(status);
+  EXPECT_EQ(TASK_RUNNING, status.get().state());
+
+  // Set up the containerizer so the next usage() will fail.
+  EXPECT_CALL(containerizer, usage(_))
+    .WillOnce(Return(Failure("Injected failure")));
+
+  // We expect that the slave will still returns ResourceUsage but no
+  // statistics will be found.
+  Future<ResourceUsage> usage = slave.usage();
+
+  AWAIT_READY(usage);
+  ASSERT_EQ(1u, usage.get().executors_size());
+  EXPECT_FALSE(usage.get().executors(0).has_statistics());
+
+  driver.stop();
+  driver.join();
+
+  terminate(slave);
+  wait(slave);
+
+  Shutdown();
+}
+
+
 // This test verifies that label values can be set for tasks and that
 // they are exposed over the slave state endpoint.
 TEST_F(SlaveTest, TaskLabels)
