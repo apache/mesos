@@ -103,14 +103,17 @@ def mem(task, statistics):
     return None
 
 def data_size(bytes, format):
+    # Ensure bytes is treated as floating point for the math below.
+    bytes = float(bytes)
+
     if bytes < 1024:
         return (format % bytes) + ' B'
     elif bytes < (1024 * 1024):
-        return (format % (bytes / 1024.0)) + ' KB'
+        return (format % (bytes / 1024)) + ' KB'
     elif bytes < (1024 * 1024 * 1024):
-        return (format % (bytes / (1024.0 * 1024.0))) + ' MB'
+        return (format % (bytes / (1024 * 1024))) + ' MB'
     else:
-        return (format % (bytes / (1024.0 * 1024.0 * 1024.0))) + ' GB'
+        return (format % (bytes / (1024 * 1024 * 1024))) + ' GB'
 
 
 # Helper for formatting the TIME column for a task.
