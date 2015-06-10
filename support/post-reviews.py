@@ -243,6 +243,7 @@ for i in range(len(shas)):
     # the reviewboard entry to edit.
     url = url.replace('diff/','')
     url = url.strip('/')
+    review_request_id = os.path.basename(url)
 
     # Construct new commit message.
     message = message + '\n' + 'Review: ' + url + '\n'
