@@ -16,10 +16,21 @@
  * limitations under the License.
  */
 
+#include <string>
+
+#include <process/metrics/counter.hpp>
+#include <process/metrics/gauge.hpp>
+#include <process/metrics/metrics.hpp>
+
 #include <stout/foreach.hpp>
 
 #include "master/master.hpp"
 #include "master/metrics.hpp"
+
+using process::metrics::Counter;
+using process::metrics::Gauge;
+
+using std::string;
 
 namespace mesos {
 namespace internal {
@@ -244,48 +255,50 @@ Metrics::Metrics(const Master& master)
   // Create resource gauges.
   // TODO(dhamon): Set these up dynamically when adding a slave based on the
   // resources the slave exposes.
-  const std::string resources[] = {"cpus", "mem", "disk"};
+  const string resources[] = {"cpus", "mem", "disk"};
 
-  // Regular (non-revocable) resources.
-  foreach (const std::string& resource, resources) {
-    process::metrics::Gauge totalGauge(
+  foreach (const string& resource, resources) {
+    Gauge total(
         "master/" + resource + "_total",
         defer(master, &Master::_resources_total, resource));
-    resources_total.push_back(totalGauge);
-    process::metrics::add(totalGauge);
 
-    process::metrics::Gauge usedGauge(
+    Gauge used(
         "master/" + resource + "_used",
         defer(master, &Master::_resources_used, resource));
-    resources_used.push_back(usedGauge);
-    process::metrics::add(usedGauge);
 
-    process::metrics::Gauge percentGauge(
+    Gauge percent(
         "master/" + resource + "_percent",
         defer(master, &Master::_resources_percent, resource));
-    resources_percent.push_back(percentGauge);
-    process::metrics::add(percentGauge);
+
+    resources_total.push_back(total);
+    resources_used.push_back(used);
+    resources_percent.push_back(percent);
+
+    process::metrics::add(total);
+    process::metrics::add(used);
+    process::metrics::add(percent);
   }
 
-  // Revocable resources.
-  foreach (const std::string& resource, resources) {
-    process::metrics::Gauge totalGauge(
+  foreach (const string& resource, resources) {
+    Gauge total(
         "master/" + resource + "_revocable_total",
         defer(master, &Master::_resources_revocable_total, resource));
-    resources_revocable_total.push_back(totalGauge);
-    process::metrics::add(totalGauge);
 
-    process::metrics::Gauge usedGauge(
+    Gauge used(
         "master/" + resource + "_revocable_used",
         defer(master, &Master::_resources_revocable_used, resource));
-    resources_revocable_used.push_back(usedGauge);
-    process::metrics::add(usedGauge);
 
-    process::metrics::Gauge percentGauge(
+    Gauge percent(
         "master/" + resource + "_revocable_percent",
         defer(master, &Master::_resources_revocable_percent, resource));
-    resources_revocable_percent.push_back(percentGauge);
-    process::metrics::add(percentGauge);
+
+    resources_revocable_total.push_back(total);
+    resources_revocable_used.push_back(used);
+    resources_revocable_percent.push_back(percent);
+
+    process::metrics::add(total);
+    process::metrics::add(used);
+    process::metrics::add(percent);
   }
 }
 
@@ -370,39 +383,39 @@ Metrics::~Metrics()
   process::metrics::remove(slave_shutdowns_completed);
   process::metrics::remove(slave_shutdowns_canceled);
 
-  foreach (const process::metrics::Gauge& gauge, resources_total) {
+  foreach (const Gauge& gauge, resources_total) {
     process::metrics::remove(gauge);
   }
   resources_total.clear();
 
-  foreach (const process::metrics::Gauge& gauge, resources_used) {
+  foreach (const Gauge& gauge, resources_used) {
     process::metrics::remove(gauge);
   }
   resources_used.clear();
 
-  foreach (const process::metrics::Gauge& gauge, resources_percent) {
+  foreach (const Gauge& gauge, resources_percent) {
     process::metrics::remove(gauge);
   }
   resources_percent.clear();
 
-  foreach (const process::metrics::Gauge& gauge, resources_revocable_total) {
+  foreach (const Gauge& gauge, resources_revocable_total) {
     process::metrics::remove(gauge);
   }
   resources_revocable_total.clear();
 
-  foreach (const process::metrics::Gauge& gauge, resources_revocable_used) {
+  foreach (const Gauge& gauge, resources_revocable_used) {
     process::metrics::remove(gauge);
   }
   resources_revocable_used.clear();
 
-  foreach (const process::metrics::Gauge& gauge, resources_revocable_percent) {
+  foreach (const Gauge& gauge, resources_revocable_percent) {
     process::metrics::remove(gauge);
   }
   resources_revocable_percent.clear();
 
   foreachvalue (const auto& source_reason, tasks_states) {
     foreachvalue (const auto& reason_counter, source_reason) {
-      foreachvalue (const process::metrics::Counter& counter, reason_counter) {
+      foreachvalue (const Counter& counter, reason_counter) {
         process::metrics::remove(counter);
       }
     }
@@ -412,27 +425,30 @@ Metrics::~Metrics()
 
 
 void Metrics::incrementTasksStates(
-    TaskState state, TaskStatus::Source source, TaskStatus::Reason reason)
+    const TaskState& state,
+    const TaskStatus::Source& source,
+    const TaskStatus::Reason& reason)
 {
   if (!tasks_states.contains(state)) {
     tasks_states[state] = SourcesReasons();
   }
+
   if (!tasks_states[state].contains(source)) {
     tasks_states[state][source] = Reasons();
   }
+
   if (!tasks_states[state][source].contains(reason)) {
-    process::metrics::Counter counter =
-        process::metrics::Counter(
-            "master/" +
-            strings::lower(TaskState_Name(state)) + "/" +
-            strings::lower(TaskStatus::Source_Name(source)) + "/" +
-            strings::lower(TaskStatus::Reason_Name(reason)));
+    Counter counter = Counter(
+        "master/" +
+        strings::lower(TaskState_Name(state)) + "/" +
+        strings::lower(TaskStatus::Source_Name(source)) + "/" +
+        strings::lower(TaskStatus::Reason_Name(reason)));
+
     tasks_states[state][source].put(reason, counter);
     process::metrics::add(counter);
   }
 
-  process::metrics::Counter counter =
-    tasks_states[state][source].get(reason).get();
+  Counter counter = tasks_states[state][source].get(reason).get();
   counter++;
 }
 

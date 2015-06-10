@@ -18,6 +18,7 @@
 
 #include <string>
 
+#include <process/metrics/gauge.hpp>
 #include <process/metrics/metrics.hpp>
 
 #include <stout/foreach.hpp>
@@ -25,6 +26,9 @@
 #include "slave/metrics.hpp"
 #include "slave/slave.hpp"
 
+using process::metrics::Gauge;
+
+using std::string;
 
 namespace mesos {
 namespace internal {
@@ -114,26 +118,28 @@ Metrics::Metrics(const Slave& slave)
   // Create resource gauges.
   // TODO(dhamon): Set these up dynamically when creating a slave
   // based on the resources it exposes.
-  const std::string resources[] = {"cpus", "mem", "disk"};
+  const string resources[] = {"cpus", "mem", "disk"};
 
-  foreach (const std::string& resource, resources) {
-    process::metrics::Gauge totalGauge(
+  foreach (const string& resource, resources) {
+    Gauge total(
         "slave/" + resource + "_total",
         defer(slave, &Slave::_resources_total, resource));
-    resources_total.push_back(totalGauge);
-    process::metrics::add(totalGauge);
 
-    process::metrics::Gauge usedGauge(
+    Gauge used(
         "slave/" + resource + "_used",
         defer(slave, &Slave::_resources_used, resource));
-    resources_used.push_back(usedGauge);
-    process::metrics::add(usedGauge);
 
-    process::metrics::Gauge percentGauge(
+    Gauge percent(
         "slave/" + resource + "_percent",
         defer(slave, &Slave::_resources_percent, resource));
-    resources_percent.push_back(percentGauge);
-    process::metrics::add(percentGauge);
+
+    resources_total.push_back(total);
+    resources_used.push_back(used);
+    resources_percent.push_back(percent);
+
+    process::metrics::add(total);
+    process::metrics::add(used);
+    process::metrics::add(percent);
   }
 }
 
@@ -169,17 +175,17 @@ Metrics::~Metrics()
 
   process::metrics::remove(executor_directory_max_allowed_age_secs);
 
-  foreach (const process::metrics::Gauge& gauge, resources_total) {
+  foreach (const Gauge& gauge, resources_total) {
     process::metrics::remove(gauge);
   }
   resources_total.clear();
 
-  foreach (const process::metrics::Gauge& gauge, resources_used) {
+  foreach (const Gauge& gauge, resources_used) {
     process::metrics::remove(gauge);
   }
   resources_used.clear();
 
-  foreach (const process::metrics::Gauge& gauge, resources_percent) {
+  foreach (const Gauge& gauge, resources_percent) {
     process::metrics::remove(gauge);
   }
   resources_percent.clear();

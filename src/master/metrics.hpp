@@ -173,8 +173,7 @@ struct Metrics
   process::metrics::Counter slave_shutdowns_completed;
   process::metrics::Counter slave_shutdowns_canceled;
 
-  // Resource metrics.
-  // Regular (non-revocable) resources.
+  // Non-revocable resources.
   std::vector<process::metrics::Gauge> resources_total;
   std::vector<process::metrics::Gauge> resources_used;
   std::vector<process::metrics::Gauge> resources_percent;
@@ -185,7 +184,9 @@ struct Metrics
   std::vector<process::metrics::Gauge> resources_revocable_percent;
 
   void incrementTasksStates(
-      TaskState state, TaskStatus::Source source, TaskStatus::Reason reason);
+      const TaskState& state,
+      const TaskStatus::Source& source,
+      const TaskStatus::Reason& reason);
 };
 
 } // namespace master {

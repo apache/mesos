@@ -4327,7 +4327,7 @@ void Slave::sendExecutorTerminatedStatusUpdate(
 }
 
 
-double Slave::_resources_total(const std::string& name)
+double Slave::_resources_total(const string& name)
 {
   double total = 0.0;
 
@@ -4341,7 +4341,7 @@ double Slave::_resources_total(const std::string& name)
 }
 
 
-double Slave::_resources_used(const std::string& name)
+double Slave::_resources_used(const string& name)
 {
   double used = 0.0;
 
@@ -4359,15 +4359,15 @@ double Slave::_resources_used(const std::string& name)
 }
 
 
-double Slave::_resources_percent(const std::string& name)
+double Slave::_resources_percent(const string& name)
 {
   double total = _resources_total(name);
 
   if (total == 0.0) {
-    return total;
-  } else {
-    return _resources_used(name) / total;
+    return 0.0;
   }
+
+  return _resources_used(name) / total;
 }
 
 

@@ -5372,7 +5372,7 @@ double Master::_tasks_running()
 }
 
 
-double Master::_resources_total(const std::string& name)
+double Master::_resources_total(const string& name)
 {
   double total = 0.0;
 
@@ -5388,7 +5388,7 @@ double Master::_resources_total(const std::string& name)
 }
 
 
-double Master::_resources_used(const std::string& name)
+double Master::_resources_used(const string& name)
 {
   double used = 0.0;
 
@@ -5406,19 +5406,19 @@ double Master::_resources_used(const std::string& name)
 }
 
 
-double Master::_resources_percent(const std::string& name)
+double Master::_resources_percent(const string& name)
 {
   double total = _resources_total(name);
 
   if (total == 0.0) {
-    return total;
-  } else {
-    return _resources_used(name) / total;
+    return 0.0;
   }
+
+  return _resources_used(name) / total;
 }
 
 
-double Master::_resources_revocable_total(const std::string& name)
+double Master::_resources_revocable_total(const string& name)
 {
   double total = 0.0;
 
@@ -5434,7 +5434,7 @@ double Master::_resources_revocable_total(const std::string& name)
 }
 
 
-double Master::_resources_revocable_used(const std::string& name)
+double Master::_resources_revocable_used(const string& name)
 {
   double used = 0.0;
 
@@ -5452,15 +5452,15 @@ double Master::_resources_revocable_used(const std::string& name)
 }
 
 
-double Master::_resources_revocable_percent(const std::string& name)
+double Master::_resources_revocable_percent(const string& name)
 {
   double total = _resources_revocable_total(name);
 
   if (total == 0.0) {
-    return total;
-  } else {
-    return _resources_revocable_used(name) / total;
+    return 0.0;
   }
+
+  return _resources_revocable_used(name) / total;
 }
 
 } // namespace master {
