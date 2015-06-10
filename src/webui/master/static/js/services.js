@@ -271,7 +271,7 @@
       return;
     }
 
-    this.endpoint = 'http://' + host + '/monitor/statistics.json?jsonp=JSON_CALLBACK';
+    this.endpoint = window.location.protocol + '//' + host + '/monitor/statistics.json?jsonp=JSON_CALLBACK';
     this.scope = scope;
 
     // Initial poll is immediate.
