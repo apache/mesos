@@ -2704,15 +2704,15 @@ void Master::_accept(
 
           // Validate the task.
 
-	  // Make a copy of the original task so that we can
-	  // fill the missing `framework_id` in ExecutorInfo
-	  // if needed. This field was added to the API later
-	  // and thus was made optional.
-	  TaskInfo task_(task);
-	  if (task.has_executor() && !task.executor().has_framework_id()) {
-	    task_.mutable_executor()
-	      ->mutable_framework_id()->CopyFrom(framework->id());
-	  }
+          // Make a copy of the original task so that we can
+          // fill the missing `framework_id` in ExecutorInfo
+          // if needed. This field was added to the API later
+          // and thus was made optional.
+          TaskInfo task_(task);
+          if (task.has_executor() && !task.executor().has_framework_id()) {
+            task_.mutable_executor()
+                ->mutable_framework_id()->CopyFrom(framework->id());
+          }
 
           const Option<Error>& validationError = validation::task::validate(
               task_,
