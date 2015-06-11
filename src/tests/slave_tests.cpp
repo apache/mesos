@@ -1822,7 +1822,7 @@ TEST_F(SlaveTest, ContainerizerUsageFailure)
   Future<ResourceUsage> usage = slave.usage();
 
   AWAIT_READY(usage);
-  ASSERT_EQ(1u, usage.get().executors_size());
+  ASSERT_EQ(1, usage.get().executors_size());
   EXPECT_FALSE(usage.get().executors(0).has_statistics());
 
   driver.stop();
