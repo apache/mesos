@@ -4160,7 +4160,7 @@ Future<ResourceUsage> Slave::usage()
         // NOTE: We add ResourceUsage::Executor to 'usage' the same
         // order as we push future to 'futures'. So the variables
         // 'future' and 'executor' below should be in sync.
-        CHECK_EQ(futures.size(), usage->executors_size());
+        CHECK_EQ(futures.size(), (size_t) usage->executors_size());
 
         size_t i = 0;
         foreach (const Future<ResourceStatistics>& future, futures) {
