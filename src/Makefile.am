@@ -1463,6 +1463,13 @@ libtestresource_estimator_la_SOURCES =		\
 libtestresource_estimator_la_CPPFLAGS = $(MESOS_CPPFLAGS)
 libtestresource_estimator_la_LDFLAGS = $(MESOS_TEST_MODULE_LDFLAGS)
 
+# Library containing example test noop qos controller module.
+noinst_LTLIBRARIES += libtestqos_controller.la
+libtestqos_controller_la_SOURCES =		\
+  examples/test_qos_controller_module.cpp
+libtestqos_controller_la_CPPFLAGS = $(MESOS_CPPFLAGS)
+libtestqos_controller_la_LDFLAGS = $(MESOS_TEST_MODULE_LDFLAGS)
+
 mesos_tests_SOURCES =				\
   tests/anonymous_tests.cpp			\
   tests/attributes_tests.cpp			\
