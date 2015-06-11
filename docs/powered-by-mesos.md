@@ -68,6 +68,7 @@ layout: documentation
 * [The Factory](http://www.thefactory.com)
 * [Time Warner Cable](http://www.timewarnercable.com)
 * [Twitter](http://www.twitter.com)
+* [Uber](http://www.uber.com)
 * [UCSF](http://www.ucsf.edu)
 * [UC Berkeley](http://www.berkeley.edu)
 * [Uninett AS](http://www.uninett.no)
