@@ -3528,11 +3528,8 @@ void Master::updateSlave(
     }
   }
 
-  // Check that all the oversubscribed resources are revocable.
-  CHECK_EQ(oversubscribedResources, oversubscribedResources.revocable());
-
   slave->totalResources -= slave->totalResources.revocable();
-  slave->totalResources += oversubscribedResources;
+  slave->totalResources += oversubscribedResources.revocable();
 
   // Now, update the allocator with the new estimate.
   allocator->updateSlave(slaveId, oversubscribedResources);
