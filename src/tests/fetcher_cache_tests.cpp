@@ -74,8 +74,8 @@ using process::Future;
 using process::HttpEvent;
 using process::Owned;
 using process::PID;
-using process::Promise;
 using process::Process;
+using process::Promise;
 using process::Queue;
 using process::Subprocess;
 
@@ -198,6 +198,13 @@ void FetcherCacheTest::SetUp()
 
   EXPECT_CALL(scheduler, registered(driver, _, _))
     .Times(1);
+
+  // This installs a temporary reaction to resourceOffers calls, which
+  // must be in place BEFORE starting the scheduler driver. This
+  // "cover" is necessary, because we only add relevant mock actions
+  // in launchTask() and launchTasks() AFTER starting the driver.
+  EXPECT_CALL(scheduler, resourceOffers(driver, _))
+    .WillRepeatedly(Return());
 }
 
 
@@ -338,8 +345,8 @@ ACTION_P(PushTaskStatus, taskStatusQueue)
 
 // Launches a task as described by its CommandInfo and returns its sandbox
 // run directory path. Its completion will be indicated by the result of
-// awaitFinished(task), where `task` is the return value of this method..
-// TODO(bernd-mesos): Make this abstractions as generic and generally
+// awaitFinished(task), where `task` is the return value of this method.
+// TODO(bernd-mesos): Make this abstraction as generic and generally
 // available for all testing as possible.
 FetcherCacheTest::Task FetcherCacheTest::launchTask(
     const CommandInfo& commandInfo,
@@ -432,7 +439,7 @@ ACTION_P(SatisfyOne, promises)
 // concurrently. Their completion will be indicated by the result of
 // awaitFinished(tasks), where `tasks` is the return value of this
 // method.
-// TODO(bernd-mesos): Make this abstractions as generic and generally
+// TODO(bernd-mesos): Make this abstraction as generic and generally
 // available for all testing as possible.
 vector<FetcherCacheTest::Task> FetcherCacheTest::launchTasks(
     const vector<CommandInfo>& commandInfos)
