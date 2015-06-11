@@ -482,6 +482,7 @@ module_HEADERS =							\
   $(top_srcdir)/include/mesos/module/isolator.hpp			\
   $(top_srcdir)/include/mesos/module/module.hpp				\
   $(top_srcdir)/include/mesos/module/module.proto			\
+  $(top_srcdir)/include/mesos/module/qos_controller.hpp			\
   $(top_srcdir)/include/mesos/module/resource_estimator.hpp
 
 nodist_module_HEADERS = ../include/mesos/module/module.pb.h
