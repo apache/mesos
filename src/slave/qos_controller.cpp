@@ -22,24 +22,37 @@
 
 #include <stout/error.hpp>
 
+#include <mesos/module/qos_controller.hpp>
+
+#include "module/manager.hpp"
+
 #include "slave/qos_controller.hpp"
 
 using namespace process;
 
-using std::string;
 using std::list;
+using std::string;
 
 namespace mesos {
 namespace slave {
 
 Try<QoSController*> QoSController::create(const Option<string>& type)
 {
-  // TODO(nnielsen): Support loading QoS Controller from module.
   if (type.isNone()) {
     return new internal::slave::NoopQoSController();
   }
 
-  return Error("Unsupported QoS Controller '" + type.get() + "'");
+  // Try to load QoS Controller from module.
+  Try<QoSController*> module =
+    modules::ModuleManager::create<QoSController>(type.get());
+
+  if (module.isError()) {
+    return Error(
+        "Failed to create QoS Controller module '" + type.get() +
+        "': " + module.error());
+  }
+
+  return module.get();
 }
 
 } // namespace slave {
