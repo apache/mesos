@@ -2,15 +2,20 @@
 --------------------------------------------
 This release contains several new features:
 
-* Support for launching tasks/executors on revocable resources. These
-  resources can be revoked by Mesos at any time, causing the tasks
+* (Experimental) Support for launching tasks/executors on revocable resources.
+  These resources can be revoked by Mesos at any time, causing the tasks
   using them to be throttled or preempted.
 
-
 * API Changes:
-  * [MESOS-2654] - A new 'capabilities' field has been addd to FrameworkInfo
-                   to opt in to revocable resources.
+  * [MESOS-2485] - Added master metrics for slave removal reasons.
+  * [MESOS-2654] - A new 'capabilities' field has been addd to FrameworkInfo to
+                   opt in to revocable resources.
+  * [MESOS-2775] - Added slave metrics for revocable resources.
+  * [MESOS-2776] - Added master metrics for revocable resources.
 
+* Deprecations:
+  * [MESOS-2697] - '/master/shutdown' endpoint is deprecated in favor of
+                   the new '/master/teardown' endpoint.
 
 
 Release Notes - Mesos - Version 0.22.1
