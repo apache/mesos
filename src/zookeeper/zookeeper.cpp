@@ -18,11 +18,11 @@
 
 #include <stdint.h>
 
-#include <glog/logging.h>
-
 #include <iostream>
 #include <map>
 #include <tuple>
+
+#include <glog/logging.h>
 
 #include <process/defer.hpp>
 #include <process/dispatch.hpp>
