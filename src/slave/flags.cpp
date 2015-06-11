@@ -518,6 +518,10 @@ mesos::internal::slave::Flags::Flags()
       "resource_estimator",
       "The name of the resource estimator to use for oversubscription.");
 
+  add(&Flags::qos_controller,
+      "qos_controller",
+      "The name of the QoS Controller to use for oversubscription.");
+
   add(&Flags::oversubscribed_resources_interval,
       "oversubscribed_resources_interval",
       "The slave periodically updates the master with the current estimation\n"
