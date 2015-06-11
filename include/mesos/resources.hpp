@@ -19,6 +19,7 @@
 #ifndef __RESOURCES_HPP__
 #define __RESOURCES_HPP__
 
+#include <map>
 #include <iostream>
 #include <set>
 #include <string>
@@ -249,6 +250,11 @@ public:
 
   // Get the set of unique resource names.
   std::set<std::string> names() const;
+
+  // Get the types of resources associated with each resource name.
+  // NOTE: Resources of the same name must have the same type, as
+  // enforced by Resources::parse().
+  std::map<std::string, Value_Type> types() const;
 
   // Helpers to get known resource types.
   // TODO(vinod): Fix this when we make these types as first class

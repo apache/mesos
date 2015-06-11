@@ -16,6 +16,9 @@
  * limitations under the License.
  */
 
+#include <map>
+#include <set>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -30,6 +33,9 @@
 
 #include "messages/messages.hpp"
 
+using std::map;
+using std::set;
+using std::string;
 using std::vector;
 
 namespace mesos {
@@ -45,21 +51,29 @@ JSON::Object model(const Resources& resources)
   object.values["mem"] = 0;
   object.values["disk"] = 0;
 
-  foreach (const Resource& resource, resources)
-  {
-    switch(resource.type())
+  // To maintain backwards compatibility we exclude revocable
+  // resources in the reporting.
+  Resources nonRevocable = resources - resources.revocable();
+
+  map<string, Value_Type> types = nonRevocable.types();
+
+  foreachpair (const string& name, const Value_Type& type, types) {
+    switch(type)
     {
       case Value::SCALAR:
-        object.values[resource.name()] = resource.scalar().value();
+        object.values[name] =
+          nonRevocable.get<Value::Scalar>(name).get().value();
         break;
       case Value::RANGES:
-        object.values[resource.name()] = stringify(resource.ranges());
+        object.values[name] =
+          stringify(nonRevocable.get<Value::Ranges>(name).get());
         break;
       case Value::SET:
-        object.values[resource.name()] = stringify(resource.set());
+        object.values[name] =
+          stringify(nonRevocable.get<Value::Set>(name).get());
         break;
       default:
-        LOG(FATAL) << "Unexpected Value type: " << resource.type();
+        LOG(FATAL) << "Unexpected Value type: " << type;
     }
   }
 

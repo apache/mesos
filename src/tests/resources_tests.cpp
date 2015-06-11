@@ -31,6 +31,7 @@
 
 using namespace mesos::internal::master;
 
+using std::map;
 using std::ostringstream;
 using std::pair;
 using std::set;
@@ -916,6 +917,19 @@ TEST(ResourcesTest, Names)
 
   set<string> names = {"cpus", "mem"};
   ASSERT_EQ(names, resources.names());
+}
+
+
+TEST(ResourcesTest, Types)
+{
+  Resources resources =
+    Resources::parse("cpus(role1):2;cpus:4;ports:[1-10];ports:[11-20]").get();
+
+  map<string, Value_Type> types{
+    {"cpus", Value::SCALAR},
+    {"ports", Value::RANGES}
+  };
+  ASSERT_EQ(types, resources.types());
 }
 
 

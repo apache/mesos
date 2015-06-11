@@ -33,6 +33,7 @@
 #include <stout/lambda.hpp>
 #include <stout/strings.hpp>
 
+using std::map;
 using std::ostream;
 using std::set;
 using std::string;
@@ -953,6 +954,17 @@ set<string> Resources::names() const
   set<string> result;
   foreach(const Resource& resource, resources) {
     result.insert(resource.name());
+  }
+
+  return result;
+}
+
+
+map<string, Value_Type> Resources::types() const
+{
+  map<string, Value_Type> result;
+  foreach(const Resource& resource, resources) {
+    result[resource.name()] = resource.type();
   }
 
   return result;

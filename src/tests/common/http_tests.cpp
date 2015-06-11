@@ -21,6 +21,7 @@
 #include <vector>
 
 #include <mesos/mesos.hpp>
+#include <mesos/resources.hpp>
 
 #include <stout/gtest.hpp>
 #include <stout/json.hpp>
@@ -111,4 +112,39 @@ TEST(HTTP, ModelTask)
 
   // Ensure both are modeled the same.
   EXPECT_EQ(object, object_);
+}
+
+
+// This test verifies that Resources model combines all resources of different
+// roles and filters out revocable resources.
+TEST(HTTP, ModelResources)
+{
+  // Resources of mixed types, roles, duplicate names; standard (
+  // e.g., 'cpus') and custom (i.e., 'bar').
+  Resources nonRevocable = Resources::parse(
+      "cpus:1;cpus(foo):1;mem:512;disk:1024;ports(foo):[1-10];bar:1").get();
+
+  Resource revocableCpus = Resources::parse("cpus", "1.1", "*").get();
+  revocableCpus.mutable_revocable();
+  Resource revocableMem = Resources::parse("mem", "513", "*").get();
+  revocableMem.mutable_revocable();
+  Resource revocableDisk = Resources::parse("disk", "1025", "*").get();
+  revocableDisk.mutable_revocable();
+
+  Resources total =
+    nonRevocable + revocableCpus + revocableMem + revocableDisk;
+
+  JSON::Value object = model(total);
+
+  Try<JSON::Value> expected = JSON::parse(
+      "{"
+      "  \"bar\":1,"
+      "  \"cpus\":2,"
+      "  \"disk\":1024,"
+      "  \"mem\":512,"
+      "  \"ports\":\"[1-10]\""
+      "}");
+
+  ASSERT_SOME(expected);
+  EXPECT_EQ(expected.get(), object);
 }
