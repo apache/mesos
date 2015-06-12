@@ -234,10 +234,9 @@ TEST_F(OversubscriptionTest, FetchResourceUsageFromMonitor)
   AWAIT_READY(usage);
 
   // Expecting the same statistics as these returned by mocked containerizer.
-  ASSERT_EQ(1u, usage.get().executors().size());
-  EXPECT_EQ(
-      usage.get().executors(0).executor_info().executor_id(),
-      DEFAULT_EXECUTOR_ID);
+  ASSERT_EQ(1, usage.get().executors_size());
+  EXPECT_EQ(usage.get().executors(0).executor_info().executor_id(),
+            DEFAULT_EXECUTOR_ID);
   ASSERT_EQ(usage.get().executors(0).statistics(), statistics);
 
   driver.stop();
@@ -671,10 +670,9 @@ TEST_F(OversubscriptionTest, QoSFetchResourceUsageFromMonitor)
   AWAIT_READY(usage);
 
   // Expecting the same statistics as these returned by mocked containerizer.
-  ASSERT_EQ(1u, usage.get().executors().size());
-  EXPECT_EQ(
-      usage.get().executors(0).executor_info().executor_id(),
-      DEFAULT_EXECUTOR_ID);
+  ASSERT_EQ(1, usage.get().executors_size());
+  EXPECT_EQ(usage.get().executors(0).executor_info().executor_id(),
+            DEFAULT_EXECUTOR_ID);
   ASSERT_EQ(usage.get().executors(0).statistics(), statistics);
 
   driver.stop();
