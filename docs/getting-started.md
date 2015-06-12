@@ -21,44 +21,45 @@ There are different ways you can get Mesos:
 
 -  Mesos runs on Linux (64 Bit) and Mac OSX (64 Bit).
 
-### Ubuntu 12.04
+### Ubuntu
 
--  Following are the instructions for stock Ubuntu 12.04 64 Bit. If you are using a different OS please install the packages accordingly.
+The following assumes a stock install of Ubuntu 14.04 LTS, to which you should add a current
+Java JDK (for example, OpenJDK):
 
-        # Ensure apt-get is up to date.
+        # Update the packages
         $ sudo apt-get update
 
-        # Install build tools.
-        $ sudo apt-get install build-essential
+        # Installs the latest OpenJDK (***Only required if you don't already have a working JDK***)
+        $ sudo apt-get install -y openjdk-7-jdk
 
-        # Install OpenJDK java.
-        $ sudo apt-get install openjdk-6-jdk
+If you are building from git repository, you will need to additionally install the following packages:
 
-        # Install devel python.
-        $ sudo apt-get install python-dev python-boto
+        # Only necessary if building from git repository
+        $ sudo apt-get install -y autoconf libtool
 
-        # Install devel libcurl
-        $ sudo apt-get install libcurl4-nss-dev
+The following are the necessary dependencies for `Mesos 0.22`:
 
-        # Install devel libsasl (***Only required for Mesos 0.14.0 or newer***).
-        $ sudo apt-get install libsasl2-dev
+        $ sudo apt-get -y install build-essential python-dev python-boto \
+            libcurl4-nss-dev libsasl2-dev \
+            maven libapr1-dev libsvn-dev
 
-        # Install Maven (***Only required for Mesos 0.18.1 or newer***).
-        $ sudo apt-get install maven
 
-        # Install devel libapr1 (***Only required for Mesos 0.21.0 or newer***)
-        $ sudo apt-get install libapr1-dev
+### Mac OSX (Yosemite)
 
-        # Install devel libsvn (***Only required for Mesos 0.21.0 or newer***)
-        $ sudo apt-get install libsvn-dev
+Before starting, you will need to install [XCode](https://developer.apple.com/xcode/) and
+the Command Line Tools via the AppStore.
 
--  If you are building from git repository, you will need to additionally install the following packages.
+Use [homebrew](http://brew.sh/) to install the additional dependencies:
 
-        # Install autotoconf and automake.
-        $ sudo apt-get install autoconf
+        # If you don't already have `brew` installed
+        $ ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
 
-        # Install libtool.
-        $ sudo apt-get install libtool
+        # Install libraries
+        brew install autoconf automake libtool subversion maven
+
+You may (optionally) also need [Python 3](https://www.python.org/downloads) as it's not installed by default
+on OSX.
+
 
 ### CentOS 6.5
 
@@ -97,6 +98,9 @@ There are different ways you can get Mesos:
         $ cd build
         $ ../configure
         $ make
+
+to speed up the build and reduce verbosity of the logs, you can append `-j=<number of cores> V=0`
+to `make`.
 
         # Run test suite.
         $ make check
