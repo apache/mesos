@@ -566,15 +566,42 @@ message ResourceStatistics {
   optional double cpus_throttled_time_secs = 9;
 
   // Memory Usage Information:
-  optional uint64 mem_rss_bytes = 5; // Resident Set Size.
 
-  // Amount of memory resources allocated.
+  // mem_total_bytes was added in 0.23.0 to represent the total memory
+  // of a process in RAM (as opposed to in Swap). This was previously
+  // reported as mem_rss_bytes, which was also changed in 0.23.0 to
+  // represent only the anonymous memory usage, to keep in sync with
+  // Linux kernel's (arguably erroneous) use of terminology.
+  optional uint64 mem_total_bytes = 36;
+
+  // Total memory + swap usage. This is set if swap is enabled.
+  optional uint64 mem_total_memsw_bytes = 37;
+
+  // Hard memory limit for a container.
   optional uint64 mem_limit_bytes = 6;
 
-  // Broken out memory usage information (files, anonymous, and mmaped files)
+  // Soft memory limit for a container.
+  optional uint64 mem_soft_limit_bytes = 38;
+
+  // Broken out memory usage information: pagecache, rss (anonymous),
+  // mmaped files and swap.
+
+  // TODO(chzhcn) mem_file_bytes and mem_anon_bytes are deprecated in
+  // 0.23.0 and will be removed in 0.24.0.
   optional uint64 mem_file_bytes = 10;
   optional uint64 mem_anon_bytes = 11;
+
+  // mem_cache_bytes is added in 0.23.0 to represent page cache usage.
+  optional uint64 mem_cache_bytes = 39;
+
+  // Since 0.23.0, mem_rss_bytes is changed to represent only
+  // anonymous memory usage. Note that neither its requiredness, type,
+  // name nor numeric tag has been changed.
+  optional uint64 mem_rss_bytes = 5;
+
   optional uint64 mem_mapped_file_bytes = 12;
+  // This is only set if swap is enabled.
+  optional uint64 mem_swap_bytes = 40;
 
   // Number of occurrences of different levels of memory pressure
   // events reported by memory cgroup. Pressure listening (re)starts

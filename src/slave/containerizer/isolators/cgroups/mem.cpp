@@ -429,30 +429,53 @@ Future<ResourceStatistics> CgroupsMemIsolatorProcess::usage(
     return Failure("Failed to parse memory.usage_in_bytes: " + usage.error());
   }
 
+  result.set_mem_total_bytes(usage.get().bytes());
+
+  if (limitSwap) {
+    Try<Bytes> usage =
+      cgroups::memory::memsw_usage_in_bytes(hierarchy, info->cgroup);
+    if (usage.isError()) {
+      return Failure(
+        "Failed to parse memory.memsw.usage_in_bytes: " + usage.error());
+    }
+
+    result.set_mem_total_memsw_bytes(usage.get().bytes());
+  }
+
   // TODO(bmahler): Add namespacing to cgroups to enforce the expected
   // structure, e.g, cgroups::memory::stat.
-  result.set_mem_rss_bytes(usage.get().bytes());
-
   Try<hashmap<string, uint64_t>> stat =
     cgroups::stat(hierarchy, info->cgroup, "memory.stat");
-
   if (stat.isError()) {
     return Failure("Failed to read memory.stat: " + stat.error());
   }
 
   Option<uint64_t> total_cache = stat.get().get("total_cache");
   if (total_cache.isSome()) {
+    // TODO(chzhcn): mem_file_bytes is deprecated in 0.23.0 and will
+    // be removed in 0.24.0.
     result.set_mem_file_bytes(total_cache.get());
+
+    result.set_mem_cache_bytes(total_cache.get());
   }
 
   Option<uint64_t> total_rss = stat.get().get("total_rss");
   if (total_rss.isSome()) {
+    // TODO(chzhcn): mem_anon_bytes is deprecated in 0.23.0 and will
+    // be removed in 0.24.0.
     result.set_mem_anon_bytes(total_rss.get());
+
+    result.set_mem_rss_bytes(total_rss.get());
   }
 
   Option<uint64_t> total_mapped_file = stat.get().get("total_mapped_file");
   if (total_mapped_file.isSome()) {
     result.set_mem_mapped_file_bytes(total_mapped_file.get());
+  }
+
+  Option<uint64_t> total_swap = stat.get().get("total_swap");
+  if (total_swap.isSome()) {
+    result.set_mem_swap_bytes(total_swap.get());
   }
 
   // Get pressure counter readings.
