@@ -358,6 +358,37 @@ Try<PID<slave::Slave>> MesosTest::StartSlave(
 }
 
 
+Try<PID<slave::Slave>> MesosTest::StartSlave(
+  slave::Containerizer* containerizer,
+  mesos::slave::ResourceEstimator* resourceEstimator,
+  const Option<slave::Flags>& flags)
+{
+  return cluster.slaves.start(
+      flags.isNone() ? CreateSlaveFlags() : flags.get(),
+      containerizer,
+      None(),
+      None(),
+      None(),
+      resourceEstimator);
+}
+
+
+Try<PID<slave::Slave>> MesosTest::StartSlave(
+    slave::Containerizer* containerizer,
+    mesos::slave::QoSController* qoSController,
+    const Option<slave::Flags>& flags)
+{
+  return cluster.slaves.start(
+      flags.isNone() ? CreateSlaveFlags() : flags.get(),
+      containerizer,
+      None(),
+      None(),
+      None(),
+      None(),
+      qoSController);
+}
+
+
 void MesosTest::Stop(const PID<master::Master>& pid)
 {
   cluster.masters.stop(pid);

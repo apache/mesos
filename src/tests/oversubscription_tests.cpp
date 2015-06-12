@@ -43,6 +43,7 @@
 #include "module/manager.hpp"
 
 #include "slave/flags.hpp"
+#include "slave/monitor.hpp"
 #include "slave/slave.hpp"
 
 #include "tests/flags.hpp"
@@ -54,6 +55,7 @@ using namespace process;
 
 using mesos::internal::master::Master;
 
+using mesos::internal::slave::ResourceMonitor;
 using mesos::internal::slave::Slave;
 
 using mesos::slave::QoSCorrection;
@@ -64,8 +66,10 @@ using std::vector;
 
 using testing::_;
 using testing::AtMost;
-using testing::Return;
+using testing::DoAll;
+using testing::Eq;
 using testing::Invoke;
+using testing::Return;
 
 namespace mesos {
 namespace internal {
@@ -135,10 +139,112 @@ protected:
     return resource;
   }
 
+  ResourceStatistics createResourceStatistics()
+  {
+    ResourceStatistics statistics;
+    statistics.set_cpus_nr_periods(100);
+    statistics.set_cpus_nr_throttled(2);
+    statistics.set_cpus_user_time_secs(4);
+    statistics.set_cpus_system_time_secs(1);
+    statistics.set_cpus_throttled_time_secs(0.5);
+    statistics.set_cpus_limit(1.0);
+    statistics.set_mem_file_bytes(0);
+    statistics.set_mem_anon_bytes(0);
+    statistics.set_mem_mapped_file_bytes(0);
+    statistics.set_mem_rss_bytes(1024);
+    statistics.set_mem_limit_bytes(2048);
+    statistics.set_timestamp(0);
+
+    return statistics;
+  }
+
 private:
   string originalLDLibraryPath;
   Modules modules;
 };
+
+
+// This test verifies that the ResourceEstimator is able to fetch
+// ResourceUsage statistics about running executor from
+// the ResourceMonitor.
+TEST_F(OversubscriptionTest, FetchResourceUsageFromMonitor)
+{
+  Try<PID<Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+  TestContainerizer containerizer(&exec);
+
+  const ResourceStatistics statistics = createResourceStatistics();
+
+  // Make sure that containerizer will report stub statistics.
+  EXPECT_CALL(containerizer, usage(_))
+    .WillOnce(Return(statistics));
+
+  MockResourceEstimator resourceEstimator;
+
+  Future<lambda::function<Future<ResourceUsage>()>> usageCallback;
+
+  // Catching callback which is passed to the ResourceEstimator.
+  EXPECT_CALL(resourceEstimator, initialize(_))
+    .WillOnce(DoAll(FutureArg<0>(&usageCallback), Return(Nothing())));
+
+  Try<PID<Slave>> slave = StartSlave(
+      &containerizer,
+      &resourceEstimator,
+      CreateSlaveFlags());
+
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
+
+  TaskInfo task = createTask(offers.get()[0], "sleep 10", DEFAULT_EXECUTOR_ID);
+
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status));
+
+  EXPECT_CALL(exec, registered(_, _, _, _));
+
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
+
+  driver.launchTasks(offers.get()[0].id(), {task});
+
+  AWAIT_READY(status);
+  EXPECT_EQ(TASK_RUNNING, status.get().state());
+
+  AWAIT_READY(usageCallback);
+
+  Future<ResourceUsage> usage = usageCallback.get()();
+  AWAIT_READY(usage);
+
+  // Expecting the same statistics as these returned by mocked containerizer.
+  ASSERT_EQ(1u, usage.get().executors().size());
+  EXPECT_EQ(
+      usage.get().executors(0).executor_info().executor_id(),
+      DEFAULT_EXECUTOR_ID);
+  ASSERT_EQ(usage.get().executors(0).statistics(), statistics);
+
+  driver.stop();
+  driver.join();
+
+  Shutdown();
+}
 
 
 // This test verifies that slave will forward the estimation of the
@@ -487,6 +593,89 @@ TEST_F(OversubscriptionTest, FixedResourceEstimator)
   Clock::advance(flags.oversubscribed_resources_interval);
   Clock::settle();
   Clock::resume();
+
+  driver.stop();
+  driver.join();
+
+  Shutdown();
+}
+
+
+// This test verifies that the QoS Controller is able to fetch
+// ResourceUsage statistics about running executor from
+// the ResourceMonitor.
+TEST_F(OversubscriptionTest, QoSFetchResourceUsageFromMonitor)
+{
+  Try<PID<Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+  TestContainerizer containerizer(&exec);
+
+  const ResourceStatistics statistics = createResourceStatistics();
+
+  // Make sure that containerizer will report stub statistics.
+  EXPECT_CALL(containerizer, usage(_))
+    .WillOnce(Return(statistics));
+
+  MockQoSController controller;
+
+  Future<lambda::function<Future<ResourceUsage>()>> usageCallback;
+
+  // Catching callback which is passed to QoS Controller.
+  EXPECT_CALL(controller, initialize(_))
+    .WillOnce(DoAll(FutureArg<0>(&usageCallback), Return(Nothing())));
+
+  Try<PID<Slave>> slave = StartSlave(
+      &containerizer,
+      &controller,
+      CreateSlaveFlags());
+
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
+
+  TaskInfo task = createTask(offers.get()[0], "sleep 10", DEFAULT_EXECUTOR_ID);
+
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status));
+
+  EXPECT_CALL(exec, registered(_, _, _, _));
+
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
+
+  driver.launchTasks(offers.get()[0].id(), {task});
+
+  AWAIT_READY(status);
+  EXPECT_EQ(TASK_RUNNING, status.get().state());
+
+  AWAIT_READY(usageCallback);
+
+  Future<ResourceUsage> usage = usageCallback.get()();
+  AWAIT_READY(usage);
+
+  // Expecting the same statistics as these returned by mocked containerizer.
+  ASSERT_EQ(1u, usage.get().executors().size());
+  EXPECT_EQ(
+      usage.get().executors(0).executor_info().executor_id(),
+      DEFAULT_EXECUTOR_ID);
+  ASSERT_EQ(usage.get().executors(0).statistics(), statistics);
 
   driver.stop();
   driver.join();

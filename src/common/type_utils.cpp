@@ -313,6 +313,12 @@ bool operator == (const MasterInfo& left, const MasterInfo& right)
 }
 
 
+bool operator == (const ResourceStatistics& left, const ResourceStatistics& right)
+{
+  return left.SerializeAsString() == right.SerializeAsString();
+}
+
+
 bool operator == (const SlaveInfo& left, const SlaveInfo& right)
 {
   return left.hostname() == right.hostname() &&
