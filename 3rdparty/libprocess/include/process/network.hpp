@@ -78,8 +78,8 @@ inline Try<int> connect(int s, const Address& address)
 
 
 // Returns the Address with the assigned ip and assigned port.
-// Returns an error if the getsockname system call fails or the family
-// type is not supported.
+// Returns an error if the getsockname system call fails or the
+// family type is not supported.
 inline Try<Address> address(int s)
 {
   struct sockaddr_storage storage;
@@ -87,6 +87,22 @@ inline Try<Address> address(int s)
 
   if(::getsockname(s, (struct sockaddr*) &storage, &storagelen) < 0) {
     return ErrnoError("Failed to getsockname");
+  }
+
+  return Address::create(storage);
+}
+
+
+// Returns the peer's Address for the accepted or connected socket.
+// Returns an error if the getpeername system call fails or the
+// family type is not supported.
+inline Try<Address> peer(int s)
+{
+  struct sockaddr_storage storage;
+  socklen_t storagelen = sizeof(storage);
+
+  if(::getpeername(s, (struct sockaddr*) &storage, &storagelen) < 0) {
+    return ErrnoError("Failed to getpeername");
   }
 
   return Address::create(storage);

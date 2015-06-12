@@ -62,6 +62,7 @@ public:
 
     // Interface functions implemented by this base class.
     Try<Address> address() const;
+    Try<Address> peer() const;
     Try<Address> bind(const Address& address);
 
     // Socket::Impl interface.
@@ -153,6 +154,11 @@ public:
   Try<Address> address() const
   {
     return impl->address();
+  }
+
+  Try<Address> peer() const
+  {
+    return impl->peer();
   }
 
   int get() const

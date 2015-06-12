@@ -97,6 +97,14 @@ Try<Address> Socket::Impl::address() const
 }
 
 
+Try<Address> Socket::Impl::peer() const
+{
+  // TODO(benh): Cache this result so that we don't have to make
+  // unnecessary system calls each time.
+  return network::peer(get());
+}
+
+
 Try<Address> Socket::Impl::bind(const Address& address)
 {
   Try<int> bind = network::bind(get(), address);
