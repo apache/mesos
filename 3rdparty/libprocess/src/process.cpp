@@ -792,7 +792,7 @@ void initialize(const string& delegate)
     LOG(FATAL) << "Failed to initialize, pthread_create";
   }
 
-  __address__ = Address::LOCALHOST_ANY();
+  Address address_to_bind = Address::LOCALHOST_ANY();
 
   // Check environment for ip.
   Option<string> value = os::getenv("LIBPROCESS_IP");
@@ -802,7 +802,7 @@ void initialize(const string& delegate)
       LOG(FATAL) << "Parsing LIBPROCESS_IP=" << value.get()
                  << " failed: " << ip.error();
     }
-    __address__.ip = ip.get();
+    address_to_bind.ip = ip.get();
   }
 
   // Check environment for port.
@@ -812,7 +812,7 @@ void initialize(const string& delegate)
     if (result < 0 || result > USHRT_MAX) {
       LOG(FATAL) << "LIBPROCESS_PORT=" << value.get() << " is not a valid port";
     }
-    __address__.port = result;
+    address_to_bind.port = result;
   }
 
   // Create a "server" socket for communicating.
@@ -828,12 +828,32 @@ void initialize(const string& delegate)
     PLOG(FATAL) << "Failed to initialize, setsockopt(SO_REUSEADDR)";
   }
 
-  Try<Address> bind = __s__->bind(__address__);
+  Try<Address> bind = __s__->bind(address_to_bind);
   if (bind.isError()) {
     PLOG(FATAL) << "Failed to initialize: " << bind.error();
   }
 
   __address__ = bind.get();
+
+  // If public ip and port are present, use them instead
+  value = getenv("LIBPROCESS_PUBLIC_IP");
+  if (value.isSome()) {
+    Try<net::IP> ip = net::IP::parse(value.get(), AF_INET);
+    if (ip.isError()) {
+      LOG(FATAL) << "Parsing LIBPROCESS_PUBLIC_IP=" << value.get()
+                 << " failed: " << ip.error();
+    }
+    __address__.ip = ip.get();
+  }
+
+  value = getenv("LIBPROCESS_PUBLIC_PORT");
+  if (value.isSome()) {
+    int result = atoi(value.get().c_str());
+    if (result < 0 || result > USHRT_MAX) {
+      LOG(FATAL) << "LIBPROCESS_PUBLIC_PORT=" << value.get() << " is not a valid port";
+    }
+    __address__.port = result;
+  }
 
   // Lookup hostname if missing ip or if ip is 0.0.0.0 in case we
   // actually have a valid external ip address. Note that we need only
