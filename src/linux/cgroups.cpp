@@ -2136,6 +2136,19 @@ Try<Bytes> usage_in_bytes(const string& hierarchy, const string& cgroup)
 }
 
 
+Try<Bytes> memsw_usage_in_bytes(const string& hierarchy, const string& cgroup)
+{
+  Try<string> read = cgroups::read(
+      hierarchy, cgroup, "memory.memsw.usage_in_bytes");
+
+  if (read.isError()) {
+    return Error(read.error());
+  }
+
+  return Bytes::parse(strings::trim(read.get()) + "B");
+}
+
+
 Try<Bytes> max_usage_in_bytes(const string& hierarchy, const string& cgroup)
 {
   Try<string> read = cgroups::read(
