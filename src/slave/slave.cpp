@@ -335,8 +335,9 @@ void Slave::initialize()
             << initialize.error();
   }
 
-  // TODO(nnielsen): Pass ResourceMonitor* to 'initialize'.
-  initialize = qosController->initialize();
+  initialize = qosController->initialize(
+      defer(self(), &Self::usage));
+
   if (initialize.isError()) {
     EXIT(1) << "Failed to initialize the QoS Controller: "
             << initialize.error();

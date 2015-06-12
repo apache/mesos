@@ -21,6 +21,8 @@
 
 #include <mesos/slave/qos_controller.hpp>
 
+#include <stout/lambda.hpp>
+
 #include <process/owned.hpp>
 
 namespace mesos {
@@ -39,7 +41,8 @@ class NoopQoSController : public mesos::slave::QoSController
 public:
   virtual ~NoopQoSController();
 
-  virtual Try<Nothing> initialize();
+  virtual Try<Nothing> initialize(
+      const lambda::function<process::Future<ResourceUsage>()>& usage);
 
   virtual process::Future<std::list<mesos::slave::QoSCorrection>> corrections();
 

@@ -753,9 +753,9 @@ class MockQoSController : public mesos::slave::QoSController
 public:
   MockQoSController()
   {
-    ON_CALL(*this, initialize())
+    ON_CALL(*this, initialize(_))
       .WillByDefault(Return(Nothing()));
-    EXPECT_CALL(*this, initialize())
+    EXPECT_CALL(*this, initialize(_))
       .WillRepeatedly(DoDefault());
 
     ON_CALL(*this, corrections())
@@ -765,7 +765,9 @@ public:
       .WillRepeatedly(DoDefault());
   }
 
-  MOCK_METHOD0(initialize, Try<Nothing>());
+  MOCK_METHOD1(
+      initialize,
+      Try<Nothing>(const lambda::function<process::Future<ResourceUsage>()>&));
 
   MOCK_METHOD0(
       corrections, process::Future<std::list<mesos::slave::QoSCorrection>>());

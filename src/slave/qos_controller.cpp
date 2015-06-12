@@ -81,7 +81,8 @@ NoopQoSController::~NoopQoSController()
 }
 
 
-Try<Nothing> NoopQoSController::initialize()
+Try<Nothing> NoopQoSController::initialize(
+    const lambda::function<Future<ResourceUsage>()>& usage)
 {
   if (process.get() != NULL) {
     return Error("Noop QoS Controller has already been initialized");
@@ -94,8 +95,7 @@ Try<Nothing> NoopQoSController::initialize()
 }
 
 
-process::Future<list<mesos::slave::QoSCorrection>>
-NoopQoSController::corrections()
+Future<list<mesos::slave::QoSCorrection>> NoopQoSController::corrections()
 {
   return Future<list<mesos::slave::QoSCorrection>>();
 }

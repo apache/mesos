@@ -29,6 +29,7 @@
 #include <process/future.hpp>
 #include <process/queue.hpp>
 
+#include <stout/lambda.hpp>
 #include <stout/nothing.hpp>
 #include <stout/option.hpp>
 #include <stout/try.hpp>
@@ -52,9 +53,13 @@ public:
 
   virtual ~QoSController() {}
 
-  // Initializes this QoS Controller.
-  // TODO(nnielsen): Pass ResourceMonitor* once it's exposed.
-  virtual Try<Nothing> initialize() = 0;
+  // Initializes this QoS Controller. This method needs to be
+  // called before any other member method is called. It registers
+  // a callback in the QoS Controller. The callback allows the
+  // QoS Controller to fetch the current resource usage for each
+  // executor on slave.
+  virtual Try<Nothing> initialize(
+      const lambda::function<process::Future<ResourceUsage>()>& usage) = 0;
 
   // A QoS Controller informs the slave about corrections to carry
   // out, but returning futures to QoSCorrection objects. For more
