@@ -45,3 +45,6 @@ To decrease the quorum by N, repeat this process to decrement the quorum size N 
 
 ### Replacing a master
 Please see the NOTE section above. So long as the failed master is guaranteed to not re-join the ensemble, it is safe to start a new master _with an empty log_ and allow it to catch up.
+
+## External access for mesos master
+If the default ip (or the command line arg `--ip`) points to an internal IP, then external entities such as zookeeper would not be able to reach the master. To address that scenario, an externally accessible IP:port can be setup via the `--public_ip` and `--public_port` command line arguments of mesos master. If configured, external entities such as zookeeper interact with the public_ip:public_port from where the request needs to be proxied to the internal IP:Port on which mesos master is listening.
