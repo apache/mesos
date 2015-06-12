@@ -52,7 +52,11 @@ bool operator == (const Credential& left, const Credential& right);
 bool operator == (const Environment& left, const Environment& right);
 bool operator == (const ExecutorInfo& left, const ExecutorInfo& right);
 bool operator == (const MasterInfo& left, const MasterInfo& right);
-bool operator == (const ResourceStatistics& left, const ResourceStatistics& right);
+
+bool operator == (
+    const ResourceStatistics& left,
+    const ResourceStatistics& right);
+
 bool operator == (const SlaveInfo& left, const SlaveInfo& right);
 bool operator == (const Volume& left, const Volume& right);
 

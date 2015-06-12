@@ -313,7 +313,9 @@ bool operator == (const MasterInfo& left, const MasterInfo& right)
 }
 
 
-bool operator == (const ResourceStatistics& left, const ResourceStatistics& right)
+bool operator == (
+    const ResourceStatistics& left,
+    const ResourceStatistics& right)
 {
   return left.SerializeAsString() == right.SerializeAsString();
 }
