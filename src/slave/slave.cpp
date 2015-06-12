@@ -840,9 +840,10 @@ void Slave::registered(const UPID& from, const SlaveID& slaveId)
     return;
   }
 
+  CHECK_SOME(master);
+
   switch(state) {
     case DISCONNECTED: {
-      CHECK_SOME(master);
       LOG(INFO) << "Registered with master " << master.get()
                 << "; given slave ID " << slaveId;
 
@@ -888,7 +889,6 @@ void Slave::registered(const UPID& from, const SlaveID& slaveId)
        EXIT(1) << "Registered but got wrong id: " << slaveId
                << "(expected: " << info.id() << "). Committing suicide";
       }
-      CHECK_SOME(master);
       LOG(WARNING) << "Already registered with master " << master.get();
       break;
     case TERMINATING:
@@ -914,16 +914,20 @@ void Slave::reregistered(
     return;
   }
 
+  CHECK_SOME(master);
+
+  if (!(info.id() == slaveId)) {
+    EXIT(1) << "Re-registered but got wrong id: " << slaveId
+            << "(expected: " << info.id() << "). Committing suicide";
+  }
+
   switch(state) {
     case DISCONNECTED:
-      CHECK_SOME(master);
       LOG(INFO) << "Re-registered with master " << master.get();
       state = RUNNING;
-
       statusUpdateManager->resume(); // Resume status updates.
       break;
     case RUNNING:
-      CHECK_SOME(master);
       LOG(WARNING) << "Already re-registered with master " << master.get();
       break;
     case TERMINATING:
@@ -939,11 +943,6 @@ void Slave::reregistered(
     default:
       LOG(FATAL) << "Unexpected slave state " << state;
       return;
-  }
-
-  if (!(info.id() == slaveId)) {
-    EXIT(1) << "Re-registered but got wrong id: " << slaveId
-            << "(expected: " << info.id() << "). Committing suicide";
   }
 
   // Reconcile any tasks per the master's request.
