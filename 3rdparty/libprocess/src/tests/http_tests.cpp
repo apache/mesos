@@ -369,7 +369,7 @@ TEST(HTTP, PathParse)
 
 http::Response validateGetWithoutQuery(const http::Request& request)
 {
-  EXPECT_NE(network::Address(), request.client);
+  EXPECT_NE(process::address(), request.client);
   EXPECT_EQ("GET", request.method);
   EXPECT_THAT(request.path, EndsWith("get"));
   EXPECT_EQ("", request.body);
@@ -382,7 +382,7 @@ http::Response validateGetWithoutQuery(const http::Request& request)
 
 http::Response validateGetWithQuery(const http::Request& request)
 {
-  EXPECT_NE(network::Address(), request.client);
+  EXPECT_NE(process::address(), request.client);
   EXPECT_EQ("GET", request.method);
   EXPECT_THAT(request.path, EndsWith("get"));
   EXPECT_EQ("", request.body);

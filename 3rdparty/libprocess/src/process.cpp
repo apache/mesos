@@ -570,22 +570,33 @@ void decode_recv(
   // Decode as much of the data as possible into HTTP requests.
   const deque<Request*> requests = decoder->decode(data, length.get());
 
+  if (requests.empty() && decoder->failed()) {
+     VLOG(1) << "Decoder error while receiving";
+     socket_manager->close(*socket);
+     delete[] data;
+     delete decoder;
+     delete socket;
+     return;
+  }
+
   if (!requests.empty()) {
+    // Get the peer address to augment the requests.
+    Try<Address> address = socket->peer();
+
+    if (address.isError()) {
+      VLOG(1) << "Failed to get peer address while receiving: "
+              << address.error();
+      socket_manager->close(*socket);
+      delete[] data;
+      delete decoder;
+      delete socket;
+      return;
+    }
+
     foreach (Request* request, requests) {
-      // Augment each Request with the client's address. This should
-      // never fail since there remains a reference to this Socket!
-      Try<Address> address = socket->address();
-      CHECK_SOME(address);
       request->client = address.get();
       process_manager->handle(decoder->socket(), request);
     }
-  } else if (requests.empty() && decoder->failed()) {
-    VLOG(1) << "Decoder error while receiving";
-    socket_manager->close(*socket);
-    delete[] data;
-    delete decoder;
-    delete socket;
-    return;
   }
 
   socket->recv(data, size)
