@@ -899,6 +899,19 @@ void Slave::registered(const UPID& from, const SlaveID& slaveId)
       LOG(FATAL) << "Unexpected slave state " << state;
       break;
   }
+
+  // Send the latest estimate for oversubscribed resources.
+  if (oversubscribedResources.isSome()) {
+    LOG(INFO) << "Forwarding total oversubscribed resources "
+              << oversubscribedResources.get();
+
+    UpdateSlaveMessage message;
+    message.mutable_slave_id()->CopyFrom(info.id());
+    message.mutable_oversubscribed_resources()->CopyFrom(
+        oversubscribedResources.get());
+
+    send(master.get(), message);
+  }
 }
 
 
@@ -943,6 +956,19 @@ void Slave::reregistered(
     default:
       LOG(FATAL) << "Unexpected slave state " << state;
       return;
+  }
+
+  // Send the latest estimate for oversubscribed resources.
+  if (oversubscribedResources.isSome()) {
+    LOG(INFO) << "Forwarding total oversubscribed resources "
+              << oversubscribedResources.get();
+
+    UpdateSlaveMessage message;
+    message.mutable_slave_id()->CopyFrom(info.id());
+    message.mutable_oversubscribed_resources()->CopyFrom(
+        oversubscribedResources.get());
+
+    send(master.get(), message);
   }
 
   // Reconcile any tasks per the master's request.
@@ -4056,55 +4082,40 @@ void Slave::_forwardOversubscribed(const Future<Resources>& oversubscribable)
     LOG(ERROR) << "Failed to get oversubscribable resources: "
                << (oversubscribable.isFailed()
                    ? oversubscribable.failure() : "future discarded");
+  } else {
+    LOG(INFO) << "Received oversubscribable resources "
+              << oversubscribable.get() << " from the resource estimator";
 
-    delay(flags.oversubscribed_resources_interval,
-          self(),
-          &Self::forwardOversubscribed);
-
-    return;
-  }
-
-  LOG(INFO) << "Received oversubscribable resources " << oversubscribable.get()
-            << " from the resource estimator";
-
-  if (state != RUNNING) {
-    LOG(INFO) << "No master detected. Re-querying resource estimator after "
-              << flags.oversubscribed_resources_interval;
-
-    delay(flags.oversubscribed_resources_interval,
-          self(),
-          &Self::forwardOversubscribed);
-
-    return;
-  }
-
-  // Calculate the latest allocation of oversubscribed resources.
-  // Note that this allocation value might be different from the
-  // master's view because new task/executor might be in flight from
-  // the master or pending on the slave etc. This is ok because the
-  // allocator only considers the slave's view of allocation when
-  // calculating the available oversubscribed resources to offer.
-  Resources oversubscribed;
-  foreachvalue (Framework* framework, frameworks) {
-    foreachvalue (Executor* executor, framework->executors) {
-      oversubscribed += executor->resources.revocable();
+    // Calculate the latest allocation of oversubscribed resources.
+    // Note that this allocation value might be different from the
+    // master's view because new task/executor might be in flight from
+    // the master or pending on the slave etc. This is ok because the
+    // allocator only considers the slave's view of allocation when
+    // calculating the available oversubscribed resources to offer.
+    Resources oversubscribed;
+    foreachvalue (Framework* framework, frameworks) {
+      foreachvalue (Executor* executor, framework->executors) {
+        oversubscribed += executor->resources.revocable();
+      }
     }
-  }
 
-  // Add oversubscribable resources to the total.
-  oversubscribed += oversubscribable.get();
+    // Add oversubscribable resources to the total.
+    oversubscribed += oversubscribable.get();
 
-  // Only forward the estimate if it's different from the previous
-  // estimate.
-  if (oversubscribed != oversubscribedResources) {
-    LOG(INFO) << "Forwarding total oversubscribed resources " << oversubscribed;
+    // Only forward the estimate if it's different from the previous
+    // estimate. We also send this whenever we get (re-)registered
+    // (i.e. whenever we transition into the RUNNING state).
+    if (state == RUNNING && oversubscribedResources != oversubscribed) {
+      LOG(INFO) << "Forwarding total oversubscribed resources "
+                << oversubscribed;
 
-    UpdateSlaveMessage message;
-    message.mutable_slave_id()->CopyFrom(info.id());
-    message.mutable_oversubscribed_resources()->CopyFrom(oversubscribed);
+      UpdateSlaveMessage message;
+      message.mutable_slave_id()->CopyFrom(info.id());
+      message.mutable_oversubscribed_resources()->CopyFrom(oversubscribed);
 
-    CHECK_SOME(master);
-    send(master.get(), message);
+      CHECK_SOME(master);
+      send(master.get(), message);
+    }
 
     // Update the estimate.
     oversubscribedResources = oversubscribed;
@@ -4366,9 +4377,11 @@ double Slave::_resources_revocable_total(const string& name)
 {
   double total = 0.0;
 
-  foreach (const Resource& resource, oversubscribedResources) {
-    if (resource.name() == name && resource.type() == Value::SCALAR) {
-      total += resource.scalar().value();
+  if (oversubscribedResources.isSome()) {
+    foreach (const Resource& resource, oversubscribedResources.get()) {
+      if (resource.name() == name && resource.type() == Value::SCALAR) {
+        total += resource.scalar().value();
+      }
     }
   }
 

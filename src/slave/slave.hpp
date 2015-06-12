@@ -529,7 +529,7 @@ private:
 
   // The most recent estimate of the total amount of oversubscribed
   // (allocated and oversubscribable) resources.
-  Resources oversubscribedResources;
+  Option<Resources> oversubscribedResources;
 };
 
 
