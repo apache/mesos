@@ -30,8 +30,11 @@
 // don't exist (until C++-11). Also, doing it this way allows us to
 // add functionality, or better naming of existing functionality, etc.
 
-template <typename Key, typename Value>
-class hashmap : public boost::unordered_map<Key, Value>
+template <typename Key,
+          typename Value,
+          typename Hash = boost::hash<Key>,
+          typename Equal = std::equal_to<Key>>
+class hashmap : public boost::unordered_map<Key, Value, Hash, Equal>
 {
 public:
   // An explicit default constructor is needed so
@@ -41,12 +44,13 @@ public:
   // Allow simple construction via initializer list.
   hashmap(std::initializer_list<std::pair<Key, Value>> list)
   {
-    boost::unordered_map<Key, Value>::reserve(list.size());
+    boost::unordered_map<Key, Value, Hash, Equal>::reserve(list.size());
 
     // TODO(cmaloney): Use 'foreach*' once supported.
     auto it = list.begin();
     while (it != list.end()) {
-      boost::unordered_map<Key, Value>::emplace(it->first, it->second);
+      boost::unordered_map<Key, Value, Hash, Equal>::emplace(
+          it->first, it->second);
       ++it;
     }
   }
@@ -54,7 +58,7 @@ public:
   // Checks whether this map contains a binding for a key.
   bool contains(const Key& key) const
   {
-    return boost::unordered_map<Key, Value>::count(key) > 0;
+    return boost::unordered_map<Key, Value, Hash, Equal>::count(key) > 0;
   }
 
   // Checks whether there exists a bound value in this map.
@@ -72,15 +76,16 @@ public:
   // if the key is already present.
   void put(const Key& key, const Value& value)
   {
-    boost::unordered_map<Key, Value>::erase(key);
-    boost::unordered_map<Key, Value>::insert(std::pair<Key, Value>(key, value));
+    boost::unordered_map<Key, Value, Hash, Equal>::erase(key);
+    boost::unordered_map<Key, Value, Hash, Equal>::insert(
+        std::pair<Key, Value>(key, value));
   }
 
   // Returns an Option for the binding to the key.
   Option<Value> get(const Key& key) const
   {
-    auto it = boost::unordered_map<Key, Value>::find(key);
-    if (it == boost::unordered_map<Key, Value>::end()) {
+    auto it = boost::unordered_map<Key, Value, Hash, Equal>::find(key);
+    if (it == boost::unordered_map<Key, Value, Hash, Equal>::end()) {
       return None();
     }
     return it->second;

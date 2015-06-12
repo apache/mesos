@@ -1,6 +1,7 @@
 #ifndef __PROCESS_HTTP_HPP__
 #define __PROCESS_HTTP_HPP__
 
+#include <ctype.h>
 #include <stdint.h>
 
 #include <atomic>
@@ -10,6 +11,8 @@
 #include <sstream>
 #include <string>
 #include <vector>
+
+#include <boost/functional/hash.hpp>
 
 #include <process/address.hpp>
 #include <process/future.hpp>
@@ -45,6 +48,36 @@ extern hashmap<uint16_t, std::string> statuses;
 void initialize();
 
 
+struct CaseInsensitiveHash
+{
+  size_t operator () (const std::string& key) const
+  {
+    size_t seed = 0;
+    foreach (char c, key) {
+      boost::hash_combine(seed, ::tolower(c));
+    }
+    return seed;
+  }
+};
+
+
+struct CaseInsensitiveEqual
+{
+  bool operator () (const std::string& left, const std::string& right) const
+  {
+    if (left.size() != right.size()) {
+      return false;
+    }
+    for (size_t i = 0; i < left.size(); ++i) {
+      if (::tolower(left[i]) != ::tolower(right[i])) {
+        return false;
+      }
+    }
+    return true;
+  }
+};
+
+
 struct Request
 {
   // Contains the client's address. Note that this may
@@ -52,11 +85,11 @@ struct Request
   network::Address client;
 
   // TODO(benh): Add major/minor version.
-  // TODO(bmahler): Header names are not case sensitive! Either make these
-  // case-insensitive, or add a variable for each header in HTTP 1.0/1.1 (like
-  // we've done here with keepAlive).
-  // Tracked by: https://issues.apache.org/jira/browse/MESOS-328.
-  hashmap<std::string, std::string> headers;
+  hashmap<std::string,
+          std::string,
+          CaseInsensitiveHash,
+          CaseInsensitiveEqual> headers;
+
   std::string method;
 
   // TODO(benh): Replace 'url', 'path', 'query', and 'fragment' with URL.
@@ -237,7 +270,11 @@ struct Response
 
   // TODO(benh): Add major/minor version.
   std::string status;
-  hashmap<std::string, std::string> headers;
+
+  hashmap<std::string,
+          std::string,
+          CaseInsensitiveHash,
+          CaseInsensitiveEqual> headers;
 
   // Either provide a 'body', an absolute 'path' to a file, or a
   // 'pipe' for streaming a response. Distinguish between the cases
