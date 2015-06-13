@@ -3,6 +3,8 @@
 
 // TODO(benh): Build implementation directly on-top-of futex's for Linux.
 
+#include <stout/synchronized.hpp>
+
 class Gate
 {
 public:
@@ -31,21 +33,21 @@ public:
   // all (if 'all' is true) of the threads waiting on it.
   void open(bool all = true)
   {
-    pthread_mutex_lock(&mutex);
-    {
+    synchronized (mutex) {
       state++;
-      if (all) pthread_cond_broadcast(&cond);
-      else pthread_cond_signal(&cond);
+      if (all) {
+        pthread_cond_broadcast(&cond);
+      } else {
+        pthread_cond_signal(&cond);
+      }
     }
-    pthread_mutex_unlock(&mutex);
   }
 
   // Blocks the current thread until the gate's state changes from
   // the current state.
   void wait()
   {
-    pthread_mutex_lock(&mutex);
-    {
+    synchronized (mutex) {
       waiters++;
       state_t old = state;
       while (old == state) {
@@ -53,7 +55,6 @@ public:
       }
       waiters--;
     }
-    pthread_mutex_unlock(&mutex);
   }
 
   // Gets the current state of the gate and notifies the gate about
@@ -61,14 +62,10 @@ public:
   // Call 'leave()' if no longer interested in the state change.
   state_t approach()
   {
-    state_t old;
-    pthread_mutex_lock(&mutex);
-    {
+    synchronized (mutex) {
       waiters++;
-      old = state;
+      return state;
     }
-    pthread_mutex_unlock(&mutex);
-    return old;
   }
 
   // Blocks the current thread until the gate's state changes from
@@ -76,25 +73,22 @@ public:
   // calling 'approach()'.
   void arrive(state_t old)
   {
-    pthread_mutex_lock(&mutex);
-    {
+    synchronized (mutex) {
       while (old == state) {
         pthread_cond_wait(&cond, &mutex);
       }
+
       waiters--;
     }
-    pthread_mutex_unlock(&mutex);
   }
 
   // Notifies the gate that a waiter (the current thread) is no
   // longer waiting for the gate's state change.
   void leave()
   {
-    pthread_mutex_lock(&mutex);
-    {
+    synchronized (mutex) {
       waiters--;
     }
-    pthread_mutex_unlock(&mutex);
   }
 
   // Returns true if there is no one waiting on the gate's state
@@ -102,11 +96,9 @@ public:
   bool empty()
   {
     bool occupied = true;
-    pthread_mutex_lock(&mutex);
-    {
+    synchronized (mutex) {
       occupied = waiters > 0 ? true : false;
     }
-    pthread_mutex_unlock(&mutex);
     return !occupied;
   }
 };
