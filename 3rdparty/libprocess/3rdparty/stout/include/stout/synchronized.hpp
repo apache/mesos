@@ -19,6 +19,8 @@
 #include <mutex>
 #include <type_traits>
 
+#include <glog/logging.h>
+
 #include <stout/preprocessor.hpp>
 
 // An RAII class for the 'synchronized(m)' macro.
