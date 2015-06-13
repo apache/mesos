@@ -14,6 +14,9 @@
 #ifndef __STOUT_SOME_HPP__
 #define __STOUT_SOME_HPP__
 
+#include <type_traits>
+#include <utility>
+
 // A useful type that can be used to represent an Option or Result.
 //
 // Examples:
@@ -30,16 +33,16 @@
 template <typename T>
 struct _Some
 {
-  _Some(T _t) : t(_t) {}
+  _Some(T _t) : t(std::move(_t)) {}
 
-  const T t;
+  T t;
 };
 
 
 template <typename T>
-_Some<T> Some(T t)
+_Some<typename std::decay<T>::type> Some(T&& t)
 {
-  return _Some<T>(t);
+  return _Some<typename std::decay<T>::type>(std::forward<T>(t));
 }
 
 #endif // __STOUT_SOME_HPP__
