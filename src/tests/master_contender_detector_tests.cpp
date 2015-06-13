@@ -282,14 +282,16 @@ TEST_F(ZooKeeperMasterContenderDetectorTest, ContenderPendingElection)
 
   process::TestsFilter* filter =
     process::FilterTestEventListener::instance()->install();
-  pthread_mutex_lock(&filter->mutex);
 
-  // Expect GroupProcess::join not getting called because
-  // ZooKeeperMasterContender directly returns.
-  EXPECT_CALL(filter->mock, filter(testing::A<const process::DispatchEvent&>()))
-    .With(DispatchMatcher(_, &GroupProcess::join))
-    .Times(0);
-  pthread_mutex_unlock(&filter->mutex);
+  synchronized (filter->mutex) {
+    // Expect GroupProcess::join not getting called because
+    // ZooKeeperMasterContender directly returns.
+    EXPECT_CALL(
+        filter->mock,
+        filter(testing::A<const process::DispatchEvent&>()))
+      .With(DispatchMatcher(_, &GroupProcess::join))
+      .Times(0);
+  }
 
   // Recontend and settle so that if ZooKeeperMasterContender is not
   // directly returning, GroupProcess::join is dispatched.
