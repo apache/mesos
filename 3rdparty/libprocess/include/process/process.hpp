@@ -2,7 +2,6 @@
 #define __PROCESS_PROCESS_HPP__
 
 #include <stdint.h>
-#include <pthread.h>
 
 #include <map>
 #include <queue>
@@ -20,6 +19,7 @@
 #include <stout/duration.hpp>
 #include <stout/lambda.hpp>
 #include <stout/option.hpp>
+#include <stout/synchronized.hpp>
 #include <stout/thread.hpp>
 
 namespace process {
@@ -180,24 +180,14 @@ protected:
     assets[name] = asset;
   }
 
-  void lock()
-  {
-    pthread_mutex_lock(&m);
-  }
-
-  void unlock()
-  {
-    pthread_mutex_unlock(&m);
-  }
-
   template<typename T>
   size_t eventCount()
   {
     size_t count = 0U;
 
-    lock();
-    count = std::count_if(events.begin(), events.end(), isEventType<T>);
-    unlock();
+    synchronized (mutex) {
+      count = std::count_if(events.begin(), events.end(), isEventType<T>);
+    }
 
     return count;
   }
@@ -226,7 +216,7 @@ private:
 
   // Mutex protecting internals.
   // TODO(benh): Consider replacing with a spinlock, on multi-core systems.
-  pthread_mutex_t m;
+  std::recursive_mutex mutex;
 
   // Enqueue the specified message, request, or function call.
   void enqueue(Event* event, bool inject = false);
