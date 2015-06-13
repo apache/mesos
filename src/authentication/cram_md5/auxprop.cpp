@@ -18,6 +18,8 @@
 
 #include "authentication/cram_md5/auxprop.hpp"
 
+#include <mutex>
+
 #include "logging/logging.hpp"
 
 using std::list;
@@ -30,8 +32,7 @@ namespace cram_md5 {
 // Storage for the static members.
 Multimap<string, Property> InMemoryAuxiliaryPropertyPlugin::properties;
 sasl_auxprop_plug_t InMemoryAuxiliaryPropertyPlugin::plugin;
-pthread_mutex_t InMemoryAuxiliaryPropertyPlugin::mutex =
-  PTHREAD_MUTEX_INITIALIZER;
+std::mutex InMemoryAuxiliaryPropertyPlugin::mutex;
 
 
 int InMemoryAuxiliaryPropertyPlugin::initialize(
