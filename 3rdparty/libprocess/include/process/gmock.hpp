@@ -1,8 +1,6 @@
 #ifndef __PROCESS_GMOCK_HPP__
 #define __PROCESS_GMOCK_HPP__
 
-#include <pthread.h>
-
 #include <gmock/gmock.h>
 
 #include <process/dispatch.hpp>
@@ -12,6 +10,7 @@
 
 #include <stout/exit.hpp>
 #include <stout/nothing.hpp>
+#include <stout/synchronized.hpp>
 
 // NOTE: The gmock library relies on std::tr1::tuple. The gmock
 // library provides multiple possible 'tuple' implementations but it
@@ -222,19 +221,7 @@ public:
 class TestsFilter : public Filter
 {
 public:
-  TestsFilter()
-  {
-    // We use a recursive mutex here in the event that satisfying the
-    // future created in FutureMessage or FutureDispatch via the
-    // FutureArgField or FutureSatisfy actions invokes callbacks (from
-    // Future::then or Future::onAny, etc) that themselves invoke
-    // FutureDispatch or FutureMessage.
-    pthread_mutexattr_t attr;
-    pthread_mutexattr_init(&attr);
-    pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
-    pthread_mutex_init(&mutex, &attr);
-    pthread_mutexattr_destroy(&attr);
-  }
+  TestsFilter() = default;
 
   virtual bool filter(const MessageEvent& event) { return handle(event); }
   virtual bool filter(const DispatchEvent& event) { return handle(event); }
@@ -244,14 +231,19 @@ public:
   template <typename T>
   bool handle(const T& t)
   {
-    pthread_mutex_lock(&mutex);
-    bool drop = mock.filter(t);
-    pthread_mutex_unlock(&mutex);
-    return drop;
+    synchronized (mutex) {
+      return mock.filter(t);
+    }
   }
 
   MockFilter mock;
-  pthread_mutex_t mutex;
+
+  // We use a recursive mutex here in the event that satisfying the
+  // future created in FutureMessage or FutureDispatch via the
+  // FutureArgField or FutureSatisfy actions invokes callbacks (from
+  // Future::then or Future::onAny, etc) that themselves invoke
+  // FutureDispatch or FutureMessage.
+  std::recursive_mutex mutex;
 };
 
 
@@ -337,14 +329,17 @@ template <typename Name, typename From, typename To>
 Future<Message> FutureMessage(Name name, From from, To to, bool drop = false)
 {
   TestsFilter* filter = FilterTestEventListener::instance()->install();
-  pthread_mutex_lock(&filter->mutex);
   Future<Message> future;
-  EXPECT_CALL(filter->mock, filter(testing::A<const MessageEvent&>()))
-    .With(MessageMatcher(name, from, to))
-    .WillOnce(testing::DoAll(FutureArgField<0>(&MessageEvent::message, &future),
-                             testing::Return(drop)))
-    .RetiresOnSaturation(); // Don't impose any subsequent expectations.
-  pthread_mutex_unlock(&filter->mutex);
+  synchronized (filter->mutex) {
+    EXPECT_CALL(filter->mock, filter(testing::A<const MessageEvent&>()))
+      .With(MessageMatcher(name, from, to))
+      .WillOnce(testing::DoAll(FutureArgField<0>(
+                                   &MessageEvent::message,
+                                   &future),
+                               testing::Return(drop)))
+      .RetiresOnSaturation(); // Don't impose any subsequent expectations.
+  }
+
   return future;
 }
 
@@ -353,14 +348,15 @@ template <typename PID, typename Method>
 Future<Nothing> FutureDispatch(PID pid, Method method, bool drop = false)
 {
   TestsFilter* filter = FilterTestEventListener::instance()->install();
-  pthread_mutex_lock(&filter->mutex);
   Future<Nothing> future;
-  EXPECT_CALL(filter->mock, filter(testing::A<const DispatchEvent&>()))
-    .With(DispatchMatcher(pid, method))
-    .WillOnce(testing::DoAll(FutureSatisfy(&future),
-                             testing::Return(drop)))
-    .RetiresOnSaturation(); // Don't impose any subsequent expectations.
-  pthread_mutex_unlock(&filter->mutex);
+  synchronized (filter->mutex) {
+    EXPECT_CALL(filter->mock, filter(testing::A<const DispatchEvent&>()))
+      .With(DispatchMatcher(pid, method))
+      .WillOnce(testing::DoAll(FutureSatisfy(&future),
+                              testing::Return(drop)))
+      .RetiresOnSaturation(); // Don't impose any subsequent expectations.
+  }
+
   return future;
 }
 
@@ -369,11 +365,11 @@ template <typename Name, typename From, typename To>
 void DropMessages(Name name, From from, To to)
 {
   TestsFilter* filter = FilterTestEventListener::instance()->install();
-  pthread_mutex_lock(&filter->mutex);
-  EXPECT_CALL(filter->mock, filter(testing::A<const MessageEvent&>()))
-    .With(MessageMatcher(name, from, to))
-    .WillRepeatedly(testing::Return(true));
-  pthread_mutex_unlock(&filter->mutex);
+  synchronized (filter->mutex) {
+    EXPECT_CALL(filter->mock, filter(testing::A<const MessageEvent&>()))
+      .With(MessageMatcher(name, from, to))
+      .WillRepeatedly(testing::Return(true));
+  }
 }
 
 
@@ -381,11 +377,11 @@ template <typename Name, typename From, typename To>
 void ExpectNoFutureMessages(Name name, From from, To to)
 {
   TestsFilter* filter = FilterTestEventListener::instance()->install();
-  pthread_mutex_lock(&filter->mutex);
-  EXPECT_CALL(filter->mock, filter(testing::A<const MessageEvent&>()))
-    .With(MessageMatcher(name, from, to))
-    .Times(0);
-  pthread_mutex_unlock(&filter->mutex);
+  synchronized (filter->mutex) {
+    EXPECT_CALL(filter->mock, filter(testing::A<const MessageEvent&>()))
+      .With(MessageMatcher(name, from, to))
+      .Times(0);
+  }
 }
 
 
@@ -393,11 +389,11 @@ template <typename PID, typename Method>
 void DropDispatches(PID pid, Method method)
 {
   TestsFilter* filter = FilterTestEventListener::instance()->install();
-  pthread_mutex_lock(&filter->mutex);
-  EXPECT_CALL(filter->mock, filter(testing::A<const DispatchEvent&>()))
-    .With(DispatchMatcher(pid, method))
-    .WillRepeatedly(testing::Return(true));
-  pthread_mutex_unlock(&filter->mutex);
+  synchronized (filter->mutex) {
+    EXPECT_CALL(filter->mock, filter(testing::A<const DispatchEvent&>()))
+      .With(DispatchMatcher(pid, method))
+      .WillRepeatedly(testing::Return(true));
+  }
 }
 
 } // namespace process {
