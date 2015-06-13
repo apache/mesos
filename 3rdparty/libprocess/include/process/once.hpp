@@ -4,6 +4,7 @@
 #include <process/future.hpp>
 
 #include <stout/nothing.hpp>
+#include <stout/synchronized.hpp>
 
 namespace process {
 
@@ -32,8 +33,7 @@ public:
   {
     bool result = false;
 
-    pthread_mutex_lock(&mutex);
-    {
+    synchronized (mutex) {
       if (started) {
         while (!finished) {
           pthread_cond_wait(&cond, &mutex);
@@ -43,7 +43,6 @@ public:
         started = true;
       }
     }
-    pthread_mutex_unlock(&mutex);
 
     return result;
   }
@@ -51,14 +50,12 @@ public:
   // Transitions this Once instance to a 'done' state.
   void done()
   {
-    pthread_mutex_lock(&mutex);
-    {
+    synchronized (mutex) {
       if (started && !finished) {
         finished = true;
         pthread_cond_broadcast(&cond);
       }
     }
-    pthread_mutex_unlock(&mutex);
   }
 
 private:
