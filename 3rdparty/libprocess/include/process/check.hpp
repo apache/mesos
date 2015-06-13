@@ -25,89 +25,80 @@
 // This appends the error if possible to the end of the log message, so there's
 // no need to append the error message explicitly.
 #define CHECK_PENDING(expression)                                       \
-  for (const Option<std::string> _error = _checkPending(expression);    \
-       _error.isSome();)                                                \
-    _CheckFatal(__FILE__, __LINE__, "CHECK_PENDING",                    \
-                #expression, _error.get()).stream()
+  CHECK_STATE(CHECK_PENDING, _check_pending, expression)
 
 #define CHECK_READY(expression)                                         \
-  for (const Option<std::string> _error = _checkReady(expression);      \
-       _error.isSome();)                                                \
-    _CheckFatal(__FILE__, __LINE__, "CHECK_READY",                      \
-                #expression, _error.get()).stream()
+  CHECK_STATE(CHECK_READY, _check_ready, expression)
 
 #define CHECK_DISCARDED(expression)                                     \
-  for (const Option<std::string> _error = _checkDiscarded(expression);  \
-       _error.isSome();)                                                \
-    _CheckFatal(__FILE__, __LINE__, "CHECK_DISCARDED",                  \
-                #expression, _error.get()).stream()
+  CHECK_STATE(CHECK_DISCARDED, _check_discarded, expression)
 
 #define CHECK_FAILED(expression)                                        \
-  for (const Option<std::string> _error = _checkFailed(expression);     \
-       _error.isSome();)                                                \
-    _CheckFatal(__FILE__, __LINE__, "CHECK_FAILED",                     \
-                #expression, _error.get()).stream()
-
+  CHECK_STATE(CHECK_FAILED, _check_failed, expression)
 
 // Private structs/functions used for CHECK_*.
 
 template <typename T>
-Option<std::string> _checkPending(const process::Future<T>& f)
+Option<Error> _check_pending(const process::Future<T>& f)
 {
   if (f.isReady()) {
-    return Some("is READY");
+    return Error("is READY");
   } else if (f.isDiscarded()) {
-    return Some("is DISCARDED");
+    return Error("is DISCARDED");
   } else if (f.isFailed()) {
-    return Some("is FAILED: " + f.failure());
+    return Error("is FAILED: " + f.failure());
+  } else {
+    CHECK(f.isPending());
+    return None();
   }
-  CHECK(f.isPending());
-  return None();
 }
 
 
 template <typename T>
-Option<std::string> _checkReady(const process::Future<T>& f)
+Option<Error> _check_ready(const process::Future<T>& f)
 {
   if (f.isPending()) {
-    return Some("is PENDING");
+    return Error("is PENDING");
   } else if (f.isDiscarded()) {
-    return Some("is DISCARDED");
+    return Error("is DISCARDED");
   } else if (f.isFailed()) {
-    return Some("is FAILED: " + f.failure());
+    return Error("is FAILED: " + f.failure());
+  } else {
+    CHECK(f.isReady());
+    return None();
   }
-  CHECK(f.isReady());
-  return None();
 }
 
 
 template <typename T>
-Option<std::string> _checkDiscarded(const process::Future<T>& f)
+Option<Error> _check_discarded(const process::Future<T>& f)
+{
+  if (f.isPending()) {
+    return Error("is PENDING");
+  } else if (f.isReady()) {
+    return Error("is READY");
+  } else if (f.isFailed()) {
+    return Error("is FAILED: " + f.failure());
+  } else {
+    CHECK(f.isDiscarded());
+    return None();
+  }
+}
+
+
+template <typename T>
+Option<Error> _check_failed(const process::Future<T>& f)
 {
   if (f.isPending()) {
     return Some("is PENDING");
   } else if (f.isReady()) {
     return Some("is READY");
-  } else if (f.isFailed()) {
-    return Some("is FAILED: " + f.failure());
-  }
-  CHECK(f.isDiscarded());
-  return None();
-}
-
-
-template <typename T>
-Option<std::string> _checkFailed(const process::Future<T>& f)
-{
-  if (f.isPending()) {
-    return Some("is PENDING");
-  } else if (f.isReady()) {
-    return Some("is READY");
   } else if (f.isDiscarded()) {
     return Some("is DISCARDED");
+  } else {
+    CHECK(f.isFailed());
+    return None();
   }
-  CHECK(f.isFailed());
-  return None();
 }
 
 // TODO(dhamon): CHECK_NPENDING, CHECK_NREADY, etc.
