@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 
+#include <mutex>
 #include <string>
 #include <vector>
 
@@ -31,8 +32,6 @@
 #include <stout/stringify.hpp>
 #include <stout/version.hpp>
 
-#include "common/lock.hpp"
-
 #include "messages/messages.hpp"
 
 #include "module/manager.hpp"
@@ -46,7 +45,7 @@ using namespace mesos;
 using namespace mesos::internal;
 using namespace mesos::modules;
 
-pthread_mutex_t ModuleManager::mutex = PTHREAD_MUTEX_INITIALIZER;
+std::mutex ModuleManager::mutex;
 hashmap<const string, string> ModuleManager::kindToVersion;
 hashmap<const string, ModuleBase*> ModuleManager::moduleBases;
 hashmap<const string, Owned<DynamicLibrary>> ModuleManager::dynamicLibraries;
@@ -104,15 +103,16 @@ void ModuleManager::initialize()
 // of ModuleBases.
 Try<Nothing> ModuleManager::unload(const string& moduleName)
 {
-  Lock lock(&mutex);
-  if (!moduleBases.contains(moduleName)) {
-    return Error(
-        "Error unloading module '" + moduleName + "': module not loaded");
-  }
+  synchronized (mutex) {
+    if (!moduleBases.contains(moduleName)) {
+      return Error(
+          "Error unloading module '" + moduleName + "': module not loaded");
+    }
 
-  // Do not remove the dynamiclibrary as it could result in unloading
-  // the library from the process memory.
-  moduleBases.erase(moduleName);
+    // Do not remove the dynamiclibrary as it could result in
+    // unloading the library from the process memory.
+    moduleBases.erase(moduleName);
+  }
   return Nothing();
 }
 
@@ -189,64 +189,67 @@ Try<Nothing> ModuleManager::verifyModule(
 
 Try<Nothing> ModuleManager::load(const Modules& modules)
 {
-  Lock lock(&mutex);
-  initialize();
+  synchronized (mutex) {
+    initialize();
 
-  foreach (const Modules::Library& library, modules.libraries()) {
-    string libraryName;
-    if (library.has_file()) {
-      libraryName = library.file();
-    } else if (library.has_name()) {
-      libraryName = os::libraries::expandName(library.name());
-    } else {
-      return Error("Library name or path not provided");
-    }
-
-    if (!dynamicLibraries.contains(libraryName)) {
-      Owned<DynamicLibrary> dynamicLibrary(new DynamicLibrary());
-      Try<Nothing> result = dynamicLibrary->open(libraryName);
-      if (!result.isSome()) {
-        return Error(
-            "Error opening library: '" + libraryName + "': " + result.error());
+    foreach (const Modules::Library& library, modules.libraries()) {
+      string libraryName;
+      if (library.has_file()) {
+        libraryName = library.file();
+      } else if (library.has_name()) {
+        libraryName = os::libraries::expandName(library.name());
+      } else {
+        return Error("Library name or path not provided");
       }
 
-      dynamicLibraries[libraryName] = dynamicLibrary;
-    }
+      if (!dynamicLibraries.contains(libraryName)) {
+        Owned<DynamicLibrary> dynamicLibrary(new DynamicLibrary());
+        Try<Nothing> result = dynamicLibrary->open(libraryName);
+        if (!result.isSome()) {
+          return Error(
+              "Error opening library: '" + libraryName +
+              "': " + result.error());
+        }
 
-    // Load module manifests.
-    foreach (const Modules::Library::Module& module, library.modules()) {
-      if (!module.has_name()) {
-        return Error(
-            "Error: module name not provided with library '" + libraryName +
-            "'");
+        dynamicLibraries[libraryName] = dynamicLibrary;
       }
 
-      // Check for possible duplicate module names.
-      const std::string moduleName = module.name();
-      if (moduleBases.contains(moduleName)) {
-        return Error("Error loading duplicate module '" + moduleName + "'");
+      // Load module manifests.
+      foreach (const Modules::Library::Module& module, library.modules()) {
+        if (!module.has_name()) {
+          return Error(
+              "Error: module name not provided with library '" + libraryName +
+              "'");
+        }
+
+        // Check for possible duplicate module names.
+        const std::string moduleName = module.name();
+        if (moduleBases.contains(moduleName)) {
+          return Error("Error loading duplicate module '" + moduleName + "'");
+        }
+
+        // Load ModuleBase.
+        Try<void*> symbol =
+          dynamicLibraries[libraryName]->loadSymbol(moduleName);
+        if (symbol.isError()) {
+          return Error(
+              "Error loading module '" + moduleName + "': " + symbol.error());
+        }
+        ModuleBase* moduleBase = (ModuleBase*) symbol.get();
+
+        // Verify module compatibility including version, etc.
+        Try<Nothing> result = verifyModule(moduleName, moduleBase);
+        if (result.isError()) {
+          return Error(
+              "Error verifying module '" + moduleName + "': " + result.error());
+        }
+
+        moduleBases[moduleName] = (ModuleBase*) symbol.get();
+
+        // Now copy the supplied module-specific parameters.
+        moduleParameters[moduleName].mutable_parameter()->CopyFrom(
+            module.parameters());
       }
-
-      // Load ModuleBase.
-      Try<void*> symbol = dynamicLibraries[libraryName]->loadSymbol(moduleName);
-      if (symbol.isError()) {
-        return Error(
-            "Error loading module '" + moduleName + "': " + symbol.error());
-      }
-      ModuleBase* moduleBase = (ModuleBase*) symbol.get();
-
-      // Verify module compatibility including version, etc.
-      Try<Nothing> result = verifyModule(moduleName, moduleBase);
-      if (result.isError()) {
-        return Error(
-            "Error verifying module '" + moduleName + "': " + result.error());
-      }
-
-      moduleBases[moduleName] = (ModuleBase*) symbol.get();
-
-      // Now copy the supplied module-specific parameters.
-      moduleParameters[moduleName].mutable_parameter()->CopyFrom(
-          module.parameters());
     }
   }
 

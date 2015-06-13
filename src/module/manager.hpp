@@ -19,9 +19,8 @@
 #ifndef __MODULE_MANAGER_HPP__
 #define __MODULE_MANAGER_HPP__
 
-#include <pthread.h>
-
 #include <list>
+#include <mutex>
 #include <string>
 #include <vector>
 
@@ -37,8 +36,8 @@
 #include <stout/check.hpp>
 #include <stout/dynamiclibrary.hpp>
 #include <stout/hashmap.hpp>
+#include <stout/synchronized.hpp>
 
-#include "common/lock.hpp"
 #include "messages/messages.hpp"
 
 namespace mesos {
@@ -71,40 +70,42 @@ public:
   template <typename T>
   static Try<T*> create(const std::string& moduleName)
   {
-    mesos::internal::Lock lock(&mutex);
-    if (!moduleBases.contains(moduleName)) {
-      return Error(
-          "Module '" + moduleName + "' unknown");
-    }
+    synchronized (mutex) {
+      if (!moduleBases.contains(moduleName)) {
+        return Error(
+            "Module '" + moduleName + "' unknown");
+      }
 
-    Module<T>* module = (Module<T>*) moduleBases[moduleName];
-    if (module->create == NULL) {
-      return Error(
-          "Error creating module instance for '" + moduleName + "': "
-          "create() method not found");
-    }
+      Module<T>* module = (Module<T>*) moduleBases[moduleName];
+      if (module->create == NULL) {
+        return Error(
+            "Error creating module instance for '" + moduleName + "': "
+            "create() method not found");
+      }
 
-    std::string expectedKind = kind<T>();
-    if (expectedKind != module->kind) {
-      return Error(
-          "Error creating module instance for '" + moduleName + "': "
-          "module is of kind '" + module->kind + "', but the requested "
-          "kind is '" + expectedKind + "'");
-    }
+      std::string expectedKind = kind<T>();
+      if (expectedKind != module->kind) {
+        return Error(
+            "Error creating module instance for '" + moduleName + "': "
+            "module is of kind '" + module->kind + "', but the requested "
+            "kind is '" + expectedKind + "'");
+      }
 
-    T* instance = module->create(moduleParameters[moduleName]);
-    if (instance == NULL) {
-      return Error("Error creating Module instance for '" + moduleName + "'");
+      T* instance = module->create(moduleParameters[moduleName]);
+      if (instance == NULL) {
+        return Error("Error creating Module instance for '" + moduleName + "'");
+      }
+      return instance;
     }
-    return instance;
   }
 
   template <typename T>
   static bool contains(const std::string& moduleName)
   {
-    mesos::internal::Lock lock(&mutex);
-    return (moduleBases.contains(moduleName) &&
-            moduleBases[moduleName]->kind == stringify(kind<T>()));
+    synchronized (mutex) {
+      return (moduleBases.contains(moduleName) &&
+              moduleBases[moduleName]->kind == stringify(kind<T>()));
+    }
   }
 
   // Returns all module names that have been loaded that implement the
@@ -117,13 +118,13 @@ public:
   template <typename T>
   static std::vector<std::string> find()
   {
-    mesos::internal::Lock lock(&mutex);
-
     std::vector<std::string> names;
 
-    foreachpair (const std::string& name, ModuleBase* base, moduleBases) {
-      if (base->kind == stringify(kind<T>())) {
-        names.push_back(name);
+    synchronized (mutex) {
+      foreachpair (const std::string& name, ModuleBase* base, moduleBases) {
+        if (base->kind == stringify(kind<T>())) {
+          names.push_back(name);
+        }
       }
     }
 
@@ -141,9 +142,7 @@ private:
       const std::string& moduleName,
       const ModuleBase* moduleBase);
 
-  // TODO(karya): Replace pthread_mutex_t with std::mutex in
-  // common/lock.hpp and other places that refer to it.
-  static pthread_mutex_t mutex;
+  static std::mutex mutex;
 
   static hashmap<const std::string, std::string> kindToVersion;
 
