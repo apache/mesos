@@ -19,7 +19,6 @@
 #ifndef __TESTS_ZOOKEEPER_HPP__
 #define __TESTS_ZOOKEEPER_HPP__
 
-#include <pthread.h>
 #include <stdint.h>
 
 #include <gtest/gtest.h>

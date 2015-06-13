@@ -33,8 +33,7 @@
 #include <stout/lambda.hpp>
 #include <stout/path.hpp>
 #include <stout/os.hpp>
-
-#include "common/lock.hpp"
+#include <stout/synchronized.hpp>
 
 #include "logging/logging.hpp"
 
@@ -121,9 +120,10 @@ void ZooKeeperTest::TestWatcher::process(
     int64_t sessionId,
     const string& path)
 {
-  Lock lock(&mutex);
-  events.push(Event(type, state, path));
-  pthread_cond_signal(&cond);
+  synchronized (mutex) {
+    events.push(Event(type, state, path));
+    pthread_cond_signal(&cond);
+  }
 }
 
 
@@ -158,14 +158,15 @@ void ZooKeeperTest::TestWatcher::awaitCreated(const string& path)
 ZooKeeperTest::TestWatcher::Event
 ZooKeeperTest::TestWatcher::awaitEvent()
 {
-  Lock lock(&mutex);
-  while (true) {
-    while (events.empty()) {
-      pthread_cond_wait(&cond, &mutex);
+  synchronized (mutex) {
+    while (true) {
+      while (events.empty()) {
+        pthread_cond_wait(&cond, &mutex);
+      }
+      Event event = events.front();
+      events.pop();
+      return event;
     }
-    Event event = events.front();
-    events.pop();
-    return event;
   }
 }
 

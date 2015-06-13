@@ -121,8 +121,6 @@ Labels HookManager::masterLaunchTaskLabelDecorator(
 
     return taskInfo_.labels();
   }
-
-  UNREACHABLE();
 }
 
 
@@ -150,8 +148,6 @@ Labels HookManager::slaveRunTaskLabelDecorator(
 
     return taskInfo_.labels();
   }
-
-  UNREACHABLE();
 }
 
 
@@ -176,8 +172,6 @@ Environment HookManager::slaveExecutorEnvironmentDecorator(
 
     return executorInfo.command().environment();
   }
-
-  UNREACHABLE();
 }
 
 
