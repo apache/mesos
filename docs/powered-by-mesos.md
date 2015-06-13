@@ -25,6 +25,7 @@ layout: documentation
 * [Coursera](https://www.coursera.org)
 * [CRP-Gabriel Lippmann](http://www.crpgl.lu)
 * [Daemon](http://www.daemon.com.au)
+* [DataMan](http://www.dataman-inc.com)
 * [Devicescape](http://www.devicescape.com)
 * [DueDil](http://www.duedil.com)
 * [eBay](http://www.ebay.com)
