@@ -26,11 +26,10 @@
 #include <stout/numify.hpp>
 #include <stout/path.hpp>
 #include <stout/strings.hpp>
+#include <stout/synchronized.hpp>
 
 #include <stout/os/read.hpp>
 #include <stout/os/stat.hpp>
-
-#include "common/lock.hpp"
 
 #include "linux/fs.hpp"
 
@@ -188,10 +187,9 @@ Try<MountTable> MountTable::read(const string& path)
     // Mutex for guarding calls into non-reentrant mount table
     // functions. We use a static local variable to avoid unused
     // variable warnings.
-    static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+    static std::mutex mutex;
 
-    {
-      Lock lock(&mutex);
+    synchronized (mutex) {
       struct mntent* mntent = ::getmntent(file);
       if (mntent == NULL) {
         // NULL means the end of enties.
@@ -219,14 +217,12 @@ Try<FileSystemTable> FileSystemTable::read()
 {
   // Mutex for guarding calls into non-reentrant fstab functions. We
   // use a static local variable to avoid unused variable warnings.
-  static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+  static std::mutex mutex;
 
   FileSystemTable table;
 
   // Use locks since fstab functions are not thread-safe.
-  {
-    Lock lock(&mutex);
-
+  synchronized (mutex) {
     // Open file _PATH_FSTAB (/etc/fstab).
     if (::setfsent() == 0) {
       return Error("Failed to open file system table");
