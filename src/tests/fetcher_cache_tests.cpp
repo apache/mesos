@@ -44,8 +44,6 @@
 #include <stout/os.hpp>
 #include <stout/try.hpp>
 
-#include "common/lock.hpp"
-
 #include "master/flags.hpp"
 #include "master/master.hpp"
 
@@ -767,19 +765,19 @@ public:
       // this function via a Queue. This is currently non-trivial
       // because we can't copy an HttpEvent so we're _forced_ to block
       // the thread synchronously.
-      std::lock_guard<std::mutex> lock(mutex);
+      synchronized (mutex) {
+        countRequests++;
 
-      countRequests++;
+        if (strings::contains(event.request->path, COMMAND_NAME)) {
+          countCommandRequests++;
+        }
 
-      if (strings::contains(event.request->path, COMMAND_NAME)) {
-        countCommandRequests++;
+        if (strings::contains(event.request->path, ARCHIVE_NAME)) {
+          countArchiveRequests++;
+        }
+
+        ProcessBase::visit(event);
       }
-
-      if (strings::contains(event.request->path, ARCHIVE_NAME)) {
-        countArchiveRequests++;
-      }
-
-      ProcessBase::visit(event);
     }
 
     void resetCounts()
