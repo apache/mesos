@@ -385,7 +385,7 @@ int main(int argc, char* argv[])
   logging::initialize(argv[0], flags, true); // Catch signals.
 
   const Option<std::string> jsonFetcherInfo = os::getenv("MESOS_FETCHER_INFO");
-  CHECK(jsonFetcherInfo.isSome())
+  CHECK_SOME(jsonFetcherInfo)
     << "Missing MESOS_FETCHER_INFO environment variable";
 
   LOG(INFO) << "Fetcher Info: " << jsonFetcherInfo.get();

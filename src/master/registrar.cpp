@@ -419,7 +419,7 @@ void RegistrarProcess::update()
   }
 
   CHECK(!updating);
-  CHECK(error.isNone());
+  CHECK_NONE(error);
   CHECK_SOME(variable);
 
   // Time how long it takes to apply the operations.

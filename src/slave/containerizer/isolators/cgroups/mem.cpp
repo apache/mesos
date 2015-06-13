@@ -299,7 +299,7 @@ Future<Nothing> CgroupsMemIsolatorProcess::isolate(
 
   Info* info = CHECK_NOTNULL(infos[containerId]);
 
-  CHECK(info->pid.isNone());
+  CHECK_NONE(info->pid);
   info->pid = pid;
 
   Try<Nothing> assign = cgroups::assign(hierarchy, info->cgroup, pid);

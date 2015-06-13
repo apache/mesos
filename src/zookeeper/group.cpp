@@ -267,7 +267,7 @@ Future<set<Group::Membership> > GroupProcess::watch(
       // Non-retryable error.
       return Failure(cached.error());
     } else if (!cached.get()) {
-      CHECK(memberships.isNone());
+      CHECK_NONE(memberships);
 
       // Try again later.
       if (!retrying) {
@@ -430,7 +430,7 @@ void GroupProcess::reconnecting(int64_t sessionId)
   // we create a local timer and "expire" our session prematurely if
   // we haven't reconnected within the session expiration time out.
   // The timer can be reset if the connection is restored.
-  CHECK(timer.isNone());
+  CHECK_NONE(timer);
 
   // Use the negotiated session timeout for the reconnect timer.
   timer = delay(zk->getSessionTimeout(),
@@ -533,7 +533,7 @@ void GroupProcess::updated(int64_t sessionId, const string& path)
   if (cached.isError()) {
     abort(cached.error()); // Cancel everything pending.
   } else if (!cached.get()) {
-    CHECK(memberships.isNone());
+    CHECK_NONE(memberships);
 
     // Try again later.
     if (!retrying) {
@@ -868,7 +868,7 @@ Try<bool> GroupProcess::sync()
   if (memberships.isNone()) {
     Try<bool> cached = cache();
     if (cached.isError() || !cached.get()) {
-      CHECK(memberships.isNone());
+      CHECK_NONE(memberships);
       return cached;
     } else {
       update(); // Update any pending watches.
@@ -889,7 +889,7 @@ void GroupProcess::retry(const Duration& duration)
   // We cancel the retries when the group aborts and when its ZK
   // session expires so 'retrying' should be false in the condition
   // check above.
-  CHECK(error.isNone());
+  CHECK_NONE(error);
 
   // In order to be retrying, we should be at least CONNECTED.
   CHECK(state == CONNECTED || state == AUTHENTICATED || state == READY)

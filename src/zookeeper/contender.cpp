@@ -226,7 +226,7 @@ void LeaderContenderProcess::joined()
   CHECK(!candidacy.isDiscarded());
 
   // Cannot be watching because the candidacy is not obtained yet.
-  CHECK(watching.isNone());
+  CHECK_NONE(watching);
 
   CHECK_SOME(contending);
 

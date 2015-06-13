@@ -206,7 +206,7 @@ Future<bool> LevelDBStorageProcess::expunge(const Entry& entry)
 
 Try<Option<Entry> > LevelDBStorageProcess::read(const string& name)
 {
-  CHECK(error.isNone());
+  CHECK_NONE(error);
 
   leveldb::ReadOptions options;
 
@@ -234,7 +234,7 @@ Try<Option<Entry> > LevelDBStorageProcess::read(const string& name)
 
 Try<bool> LevelDBStorageProcess::write(const Entry& entry)
 {
-  CHECK(error.isNone());
+  CHECK_NONE(error);
 
   leveldb::WriteOptions options;
   options.sync = true;

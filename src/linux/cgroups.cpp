@@ -2320,7 +2320,7 @@ private:
 
   void _listen(const process::Future<uint64_t>& future)
   {
-    CHECK(error.isNone());
+    CHECK_NONE(error);
 
     if (future.isReady()) {
       value_ += future.get();

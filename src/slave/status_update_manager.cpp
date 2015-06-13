@@ -352,7 +352,7 @@ Future<Nothing> StatusUpdateManagerProcess::_update(
   // Forward the status update to the master if this is the first in the stream.
   // Subsequent status updates will get sent in 'acknowledgement()'.
   if (!paused && stream->pending.size() == 1) {
-    CHECK(stream->timeout.isNone());
+    CHECK_NONE(stream->timeout);
     const Result<StatusUpdate>& next = stream->next();
     if (next.isError()) {
       return Failure(next.error());
@@ -470,7 +470,7 @@ void StatusUpdateManagerProcess::timeout(const Duration& duration)
     foreachvalue (StatusUpdateStream* stream, streams[frameworkId]) {
       CHECK_NOTNULL(stream);
       if (!stream->pending.empty()) {
-        CHECK(stream->timeout.isSome());
+        CHECK_SOME(stream->timeout);
         if (stream->timeout.get().expired()) {
           const StatusUpdate& update = stream->pending.front();
           LOG(WARNING) << "Resending status update " << update;
@@ -814,7 +814,7 @@ Try<Nothing> StatusUpdateStream::handle(
     const StatusUpdate& update,
     const StatusUpdateRecord::Type& type)
 {
-  CHECK(error.isNone());
+  CHECK_NONE(error);
 
   // Checkpoint the update if necessary.
   if (checkpoint) {
@@ -850,7 +850,7 @@ void StatusUpdateStream::_handle(
     const StatusUpdate& update,
     const StatusUpdateRecord::Type& type)
 {
-  CHECK(error.isNone());
+  CHECK_NONE(error);
 
   if (type == StatusUpdateRecord::UPDATE) {
     // Record this update.

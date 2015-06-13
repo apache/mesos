@@ -315,7 +315,7 @@ Future<Nothing> CgroupsCpushareIsolatorProcess::isolate(
 
   Info* info = CHECK_NOTNULL(infos[containerId]);
 
-  CHECK(info->pid.isNone());
+  CHECK_NONE(info->pid);
   info->pid = pid;
 
   foreach (const string& subsystem, subsystems) {

@@ -426,7 +426,7 @@ Result<std::set<string> > ZooKeeperStorageProcess::doNames()
 
 Result<Option<Entry> > ZooKeeperStorageProcess::doGet(const string& name)
 {
-  CHECK(error.isNone()) << ": " << error.get();
+  CHECK_NONE(error) << ": " << error.get();
   CHECK(state == CONNECTED);
 
   string result;
@@ -460,7 +460,7 @@ Result<Option<Entry> > ZooKeeperStorageProcess::doGet(const string& name)
 Result<bool> ZooKeeperStorageProcess::doSet(const Entry& entry,
                                             const UUID& uuid)
 {
-  CHECK(error.isNone()) << ": " << error.get();
+  CHECK_NONE(error) << ": " << error.get();
   CHECK(state == CONNECTED);
 
   // Serialize to make sure we're under the 1 MB limit.
@@ -558,7 +558,7 @@ Result<bool> ZooKeeperStorageProcess::doSet(const Entry& entry,
 
 Result<bool> ZooKeeperStorageProcess::doExpunge(const Entry& entry)
 {
-  CHECK(error.isNone()) << ": " << error.get();
+  CHECK_NONE(error) << ": " << error.get();
   CHECK(state == CONNECTED);
 
   string result;
