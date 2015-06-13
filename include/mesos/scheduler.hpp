@@ -19,11 +19,10 @@
 #ifndef __MESOS_SCHEDULER_HPP__
 #define __MESOS_SCHEDULER_HPP__
 
-#include <functional>
-#include <queue>
-
 #include <pthread.h>
 
+#include <functional>
+#include <queue>
 #include <string>
 #include <vector>
 
