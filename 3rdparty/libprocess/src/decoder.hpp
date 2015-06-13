@@ -555,7 +555,7 @@ private:
     decoder->value.clear();
 
     CHECK(decoder->response == NULL);
-    CHECK(decoder->writer.isNone());
+    CHECK_NONE(decoder->writer);
 
     decoder->response = new http::Response();
     decoder->response->type = http::Response::PIPE;
@@ -642,7 +642,7 @@ private:
       return 1;
     }
 
-    CHECK(decoder->writer.isNone());
+    CHECK_NONE(decoder->writer);
 
     http::Pipe pipe;
     decoder->writer = pipe.writer();
