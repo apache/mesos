@@ -16,8 +16,7 @@
  * limitations under the License.
  */
 
-#include <pthread.h>
-
+#include <mutex>
 #include <string>
 #include <vector>
 
@@ -31,7 +30,6 @@
 #include <stout/strings.hpp>
 #include <stout/try.hpp>
 
-#include "common/lock.hpp"
 #include "hook/manager.hpp"
 #include "module/manager.hpp"
 
@@ -43,49 +41,52 @@ using mesos::modules::ModuleManager;
 namespace mesos {
 namespace internal {
 
-static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+static std::mutex mutex;
 static hashmap<string, Hook*> availableHooks;
 
 
 Try<Nothing> HookManager::initialize(const string& hookList)
 {
-  Lock lock(&mutex);
+  synchronized (mutex) {
+    const vector<string> hooks = strings::split(hookList, ",");
+    foreach (const string& hook, hooks) {
+      if (availableHooks.contains(hook)) {
+        return Error("Hook module '" + hook + "' already loaded");
+      }
 
-  const vector<string> hooks = strings::split(hookList, ",");
-  foreach (const string& hook, hooks) {
-    if (availableHooks.contains(hook)) {
-      return Error("Hook module '" + hook + "' already loaded");
+      if (!ModuleManager::contains<Hook>(hook)) {
+        return Error("No hook module named '" + hook + "' available");
+      }
+
+      // Let's create an instance of the hook module.
+      Try<Hook*> module = ModuleManager::create<Hook>(hook);
+      if (module.isError()) {
+        return Error(
+            "Failed to instantiate hook module '" + hook + "': " +
+            module.error());
+      }
+
+      // Add the hook module to the list of available hooks.
+      availableHooks[hook] = module.get();
     }
-
-    if (!ModuleManager::contains<Hook>(hook)) {
-      return Error("No hook module named '" + hook + "' available");
-    }
-
-    // Let's create an instance of the hook module.
-    Try<Hook*> module = ModuleManager::create<Hook>(hook);
-    if (module.isError()) {
-      return Error(
-          "Failed to instantiate hook module '" + hook + "': " +
-          module.error());
-    }
-
-    // Add the hook module to the list of available hooks.
-    availableHooks[hook] = module.get();
   }
+
   return Nothing();
 }
 
 
 Try<Nothing> HookManager::unload(const std::string& hookName)
 {
-  Lock lock(&mutex);
-  if (!availableHooks.contains(hookName)) {
-    return Error(
-        "Error unloading hook module '" + hookName + "': module not loaded");
+  synchronized (mutex) {
+    if (!availableHooks.contains(hookName)) {
+      return Error(
+          "Error unloading hook module '" + hookName + "': module not loaded");
+    }
+
+    // Now remove the hook from the list of available hooks.
+    availableHooks.erase(hookName);
   }
 
-  // Now remove the hook from the list of available hooks.
-  availableHooks.erase(hookName);
   return Nothing();
 }
 
@@ -95,28 +96,33 @@ Labels HookManager::masterLaunchTaskLabelDecorator(
     const FrameworkInfo& frameworkInfo,
     const SlaveInfo& slaveInfo)
 {
-  Lock lock(&mutex);
+  synchronized (mutex) {
+    // We need a mutable copy of the task info and set the new
+    // labels after each hook invocation. Otherwise, the last hook
+    // will be the only effective hook setting the labels.
+    TaskInfo taskInfo_ = taskInfo;
 
-  // We need a mutable copy of the task info and set the new
-  // labels after each hook invocation. Otherwise, the last hook
-  // will be the only effective hook setting the labels.
-  TaskInfo taskInfo_ = taskInfo;
+    foreachpair (const string& name, Hook* hook, availableHooks) {
+      const Result<Labels>& result =
+        hook->masterLaunchTaskLabelDecorator(
+            taskInfo_,
+            frameworkInfo,
+            slaveInfo);
 
-  foreachpair (const string& name, Hook* hook, availableHooks) {
-    const Result<Labels>& result =
-      hook->masterLaunchTaskLabelDecorator(taskInfo_, frameworkInfo, slaveInfo);
-
-    // NOTE: If the hook returns None(), the task labels won't be
-    // changed.
-    if (result.isSome()) {
-      taskInfo_.mutable_labels()->CopyFrom(result.get());
-    } else if (result.isError()) {
-      LOG(WARNING) << "Master label decorator hook failed for module '"
-                   << name << "': " << result.error();
+      // NOTE: If the hook returns None(), the task labels won't be
+      // changed.
+      if (result.isSome()) {
+        taskInfo_.mutable_labels()->CopyFrom(result.get());
+      } else if (result.isError()) {
+        LOG(WARNING) << "Master label decorator hook failed for module '"
+                    << name << "': " << result.error();
+      }
     }
+
+    return taskInfo_.labels();
   }
 
-  return taskInfo_.labels();
+  UNREACHABLE();
 }
 
 
@@ -125,49 +131,53 @@ Labels HookManager::slaveRunTaskLabelDecorator(
     const FrameworkInfo& frameworkInfo,
     const SlaveInfo& slaveInfo)
 {
-  Lock lock(&mutex);
+  synchronized (mutex) {
+    TaskInfo taskInfo_ = taskInfo;
 
-  TaskInfo taskInfo_ = taskInfo;
+    foreachpair (const string& name, Hook* hook, availableHooks) {
+      const Result<Labels>& result =
+        hook->slaveRunTaskLabelDecorator(taskInfo_, frameworkInfo, slaveInfo);
 
-  foreachpair (const string& name, Hook* hook, availableHooks) {
-    const Result<Labels>& result =
-      hook->slaveRunTaskLabelDecorator(taskInfo_, frameworkInfo, slaveInfo);
-
-    // NOTE: If the hook returns None(), the task labels won't be
-    // changed.
-    if (result.isSome()) {
-      taskInfo_.mutable_labels()->CopyFrom(result.get());
-    } else if (result.isError()) {
-      LOG(WARNING) << "Slave label decorator hook failed for module '"
-                   << name << "': " << result.error();
+      // NOTE: If the hook returns None(), the task labels won't be
+      // changed.
+      if (result.isSome()) {
+        taskInfo_.mutable_labels()->CopyFrom(result.get());
+      } else if (result.isError()) {
+        LOG(WARNING) << "Slave label decorator hook failed for module '"
+                    << name << "': " << result.error();
+      }
     }
+
+    return taskInfo_.labels();
   }
 
-  return taskInfo_.labels();
+  UNREACHABLE();
 }
 
 
 Environment HookManager::slaveExecutorEnvironmentDecorator(
     ExecutorInfo executorInfo)
 {
-  Lock lock(&mutex);
+  synchronized (mutex) {
+    foreachpair (const string& name, Hook* hook, availableHooks) {
+      const Result<Environment>& result =
+        hook->slaveExecutorEnvironmentDecorator(executorInfo);
 
-  foreachpair (const string& name, Hook* hook, availableHooks) {
-    const Result<Environment>& result =
-      hook->slaveExecutorEnvironmentDecorator(executorInfo);
-
-    // NOTE: If the hook returns None(), the environment won't be
-    // changed.
-    if (result.isSome()) {
-      executorInfo.mutable_command()->mutable_environment()->CopyFrom(
-          result.get());
-    } else if (result.isError()) {
-      LOG(WARNING) << "Slave environment decorator hook failed for module '"
-                   << name << "': " << result.error();
+      // NOTE: If the hook returns None(), the environment won't be
+      // changed.
+      if (result.isSome()) {
+        executorInfo.mutable_command()->mutable_environment()->CopyFrom(
+            result.get());
+      } else if (result.isError()) {
+        LOG(WARNING) << "Slave environment decorator hook failed for module '"
+                    << name << "': " << result.error();
+      }
     }
+
+    return executorInfo.command().environment();
   }
 
-  return executorInfo.command().environment();
+  UNREACHABLE();
 }
 
 
