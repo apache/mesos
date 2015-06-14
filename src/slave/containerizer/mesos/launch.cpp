@@ -20,14 +20,11 @@
 #include <unistd.h>
 
 #include <iostream>
-#include <map>
 
 #include <stout/foreach.hpp>
 #include <stout/os.hpp>
 #include <stout/protobuf.hpp>
 #include <stout/unreachable.hpp>
-
-#include <stout/os/execenv.hpp>
 
 #include "mesos/mesos.hpp"
 
@@ -35,7 +32,6 @@
 
 using std::cerr;
 using std::endl;
-using std::map;
 using std::string;
 
 namespace mesos {
@@ -217,20 +213,11 @@ int MesosContainerizerLaunch::execute()
     }
   }
 
-  // Relay the environment variables.
   // TODO(jieyu): Consider using a clean environment.
-  map<string, string> env;
-  os::ExecEnv envp(env);
 
   if (command.get().shell()) {
     // Execute the command using shell.
-    execle(
-        "/bin/sh",
-        "sh",
-        "-c",
-        command.get().value().c_str(),
-        (char*) NULL,
-        envp());
+    execl("/bin/sh", "sh", "-c", command.get().value().c_str(), (char*) NULL);
   } else {
     // Use os::execvpe to launch the command.
     char** argv = new char*[command.get().arguments().size() + 1];
@@ -239,7 +226,7 @@ int MesosContainerizerLaunch::execute()
     }
     argv[command.get().arguments().size()] = NULL;
 
-    os::execvpe(command.get().value().c_str(), argv, envp());
+    execvp(command.get().value().c_str(), argv);
   }
 
   // If we get here, the execle call failed.
