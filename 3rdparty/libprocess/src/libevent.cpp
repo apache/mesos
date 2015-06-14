@@ -1,10 +1,14 @@
+#include <signal.h>
 #include <unistd.h>
+
+#include <mutex>
 
 #include <event2/event.h>
 #include <event2/thread.h>
 
 #include <process/logging.hpp>
 
+#include <stout/os/signals.hpp>
 #include <stout/synchronized.hpp>
 
 #include "event_loop.hpp"
@@ -12,24 +16,100 @@
 
 namespace process {
 
-struct event_base* base = NULL;
+event_base* base = NULL;
+
+
+static std::mutex* functions_mutex = new std::mutex();
+std::queue<lambda::function<void(void)>>* functions =
+  new std::queue<lambda::function<void(void)>>();
+
+
+ThreadLocal<bool>* _in_event_loop_ = new ThreadLocal<bool>();
+
+
+void async_function(int socket, short which, void* arg)
+{
+  event* ev = reinterpret_cast<event*>(arg);
+  event_free(ev);
+
+  std::queue<lambda::function<void(void)>> q;
+
+  synchronized (functions_mutex) {
+    std::swap(q, *functions);
+  }
+
+  while (!q.empty()) {
+    q.front()();
+    q.pop();
+  }
+}
+
+
+void run_in_event_loop(
+    const lambda::function<void(void)>& f,
+    EventLoopLogicFlow event_loop_logic_flow)
+{
+  if (__in_event_loop__ && event_loop_logic_flow == ALLOW_SHORT_CIRCUIT) {
+    f();
+    return;
+  }
+
+  synchronized (functions_mutex) {
+    functions->push(f);
+
+    // Add an event and activate it to interrupt the event loop.
+    // TODO(jmlvanre): after libevent v 2.1 we can use
+    // event_self_cbarg instead of re-assigning the event. For now we
+    // manually re-assign the event to pass in the pointer to the
+    // event itself as the callback argument.
+    event* ev = evtimer_new(base, async_function, NULL);
+
+    // 'event_assign' is only valid on non-pending AND non-active
+    // events. This means we have to assign the callback before
+    // calling 'event_active'.
+    if (evtimer_assign(ev, base, async_function, ev) < 0) {
+      LOG(FATAL) << "Failed to assign callback on event";
+    }
+
+    event_active(ev, EV_TIMEOUT, 0);
+  }
+}
 
 
 void* EventLoop::run(void*)
 {
+  __in_event_loop__ = true;
+
+  // Block SIGPIPE in the event loop because we can not force
+  // underlying implementations such as SSL bufferevents to use
+  // MSG_NOSIGNAL.
+  bool unblock = os::signals::block(SIGPIPE);
+
   do {
     int result = event_base_loop(base, EVLOOP_ONCE);
     if (result < 0) {
       LOG(FATAL) << "Failed to run event loop";
-    } else if (result == 1) {
-      VLOG(1) << "All events handled, continuing event loop";
+    } else if (result > 0) {
+      // All events are handled, continue event loop.
       continue;
-    } else if (event_base_got_break(base)) {
-      break;
-    } else if (event_base_got_exit(base)) {
-      break;
+    } else {
+      CHECK_EQ(0, result);
+      if (event_base_got_break(base)) {
+        break;
+      } else if (event_base_got_exit(base)) {
+        break;
+      }
     }
   } while (true);
+
+  __in_event_loop__ = false;
+
+  if (unblock) {
+    if (!os::signals::unblock(SIGPIPE)) {
+      LOG(FATAL) << "Failure to unblock SIGPIPE";
+    }
+  }
+
   return NULL;
 }
 

@@ -14,6 +14,7 @@
 
 #include <stout/abort.hpp>
 #include <stout/ip.hpp>
+#include <stout/net.hpp>
 #include <stout/stringify.hpp>
 
 namespace process {
@@ -54,6 +55,26 @@ public:
   int family() const
   {
     return ip.family();
+  }
+
+  /**
+   * Returns the hostname of this address's IP.
+   *
+   * @returns the hostname of this address's IP.
+   */
+  // TODO(jmlvanre): Consider making this return a Future in order to
+  // deal with slow name resolution.
+  Try<std::string> hostname() const
+  {
+    const Try<std::string> hostname = ip == net::IP(INADDR_ANY)
+      ? net::hostname()
+      : net::getHostname(ip);
+
+    if (hostname.isError()) {
+      return Error(hostname.error());
+    }
+
+    return hostname.get();
   }
 
   // Returns the storage size (i.e., either sizeof(sockaddr_in) or

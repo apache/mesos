@@ -53,6 +53,22 @@ libprocess_la_SOURCES =		\
   src/subprocess.cpp		\
   src/timeseries.cpp
 
+if ENABLE_LIBEVENT
+else
+if WITH_BUNDLED_LIBEV
+  EVENT_LIB = $(LIBEV)/libev.la
+else
+  EVENT_LIB = -lev
+endif
+endif
+
+if ENABLE_SSL
+libprocess_la_SOURCES +=	\
+    src/libevent_ssl_socket.cpp	\
+    src/openssl.cpp		\
+    src/openssl.hpp
+endif
+
 libprocess_la_CPPFLAGS =		\
   -I$(srcdir)/include			\
   -I$(srcdir)/$(STOUT)/include		\
@@ -87,16 +103,6 @@ if WITH_BUNDLED_HTTP_PARSER
   HTTP_PARSER_LIB = 3rdparty/libry_http_parser.la
 else
   HTTP_PARSER_LIB = -lhttp_parser
-endif
-
-if ENABLE_LIBEVENT
-  EVENT_LIB = -levent -levent_pthreads
-else
-if WITH_BUNDLED_LIBEV
-  EVENT_LIB = $(LIBEV)/libev.la
-else
-  EVENT_LIB = -lev
-endif
 endif
 
 libprocess_la_LIBADD =			\

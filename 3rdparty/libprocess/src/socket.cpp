@@ -9,6 +9,10 @@
 #include <process/owned.hpp>
 #include <process/socket.hpp>
 
+#ifdef USE_SSL_SOCKET
+#include "libevent_ssl_socket.hpp"
+#include "openssl.hpp"
+#endif
 #include "poll_socket.hpp"
 
 using std::string;
@@ -55,6 +59,16 @@ Try<Socket> Socket::create(Kind kind, int s)
       }
       return Socket(socket.get());
     }
+#ifdef USE_SSL_SOCKET
+    case SSL: {
+      Try<std::shared_ptr<Socket::Impl>> socket =
+        LibeventSSLSocketImpl::create(s);
+      if (socket.isError()) {
+        return Error(socket.error());
+      }
+      return Socket(socket.get());
+    }
+#endif
     // By not setting a default we leverage the compiler errors when
     // the enumeration is augmented to find all the cases we need to
     // provide.
@@ -64,9 +78,13 @@ Try<Socket> Socket::create(Kind kind, int s)
 
 const Socket::Kind& Socket::DEFAULT_KIND()
 {
-  // TODO(jmlvanre): Change the default based on configure or
-  // environment flags.
-  static const Kind DEFAULT = POLL;
+  static const Kind DEFAULT =
+#ifdef USE_SSL_SOCKET
+      network::openssl::flags().enabled ? Socket::SSL : Socket::POLL;
+#else
+      Socket::POLL;
+#endif
+
   return DEFAULT;
 }
 

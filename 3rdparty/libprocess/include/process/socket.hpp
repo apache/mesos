@@ -24,7 +24,9 @@ public:
   // Available kinds of implementations.
   enum Kind {
     POLL,
-    // TODO(jmlvanre): Add libevent SSL socket.
+#ifdef USE_SSL_SOCKET
+    SSL
+#endif
   };
 
   // Returns an instance of a Socket using the specified kind of
@@ -58,9 +60,11 @@ public:
       return s;
     }
 
+    // Interface functions implemented by this base class.
+    Try<Address> address() const;
+    Try<Address> bind(const Address& address);
+
     // Socket::Impl interface.
-    virtual Try<Address> address() const;
-    virtual Try<Address> bind(const Address& address);
     virtual Try<Nothing> listen(int backlog) = 0;
     virtual Future<Socket> accept() = 0;
     virtual Future<Nothing> connect(const Address& address) = 0;
@@ -93,11 +97,45 @@ public:
     // enabling reuse of a pool of preallocated strings/buffers.
     virtual Future<Nothing> send(const std::string& data);
 
+    virtual void shutdown()
+    {
+      if (::shutdown(s, SHUT_RD) < 0) {
+        PLOG(ERROR) << "Shutdown failed on fd=" << s;
+      }
+    }
+
+    // Construct a new Socket from the given impl. This is a proxy
+    // function, as Impls derived from this won't have access to the
+    // Socket::Socket(...) constructors.
+    //
+    // TODO(jmlvanre): These should be protected; however, gcc
+    // complains when using them from within a lambda of a derived
+    // class.
+    static Socket socket(std::shared_ptr<Impl>&& that)
+    {
+      return Socket(std::move(that));
+    }
+
+    static Socket socket(const std::shared_ptr<Impl>& that)
+    {
+      return Socket(that);
+    }
+
   protected:
     explicit Impl(int _s) : s(_s) { CHECK(s >= 0); }
 
     // Construct a Socket wrapper from this implementation.
     Socket socket() { return Socket(shared_from_this()); }
+
+    // Returns a std::shared_ptr<T> from this implementation.
+    template <typename T>
+    static std::shared_ptr<T> shared(T* t)
+    {
+      std::shared_ptr<T> pointer =
+        std::dynamic_pointer_cast<T>(CHECK_NOTNULL(t)->shared_from_this());
+      CHECK(pointer);
+      return pointer;
+    }
 
     int s;
   };
@@ -165,6 +203,11 @@ public:
   Future<Nothing> send(const std::string& data)
   {
     return impl->send(data);
+  }
+
+  void shutdown()
+  {
+    impl->shutdown();
   }
 
 private:
