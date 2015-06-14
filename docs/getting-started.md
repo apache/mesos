@@ -85,6 +85,39 @@ on OSX.
         $ sudo tar -zxf apache-maven-3.0.5-bin.tar.gz -C /opt/
         $ sudo ln -s /opt/apache-maven-3.0.5/bin/mvn /usr/bin/mvn
 
+        # Install devtoolset-2 because we require GCC 4.8+.
+        $ sudo wget http://people.centos.org/tru/devtools-2/devtools-2.repo -O /etc/yum.repos.d/devtools-2.repo
+        $ sudo yum install devtoolset-2-gcc devtoolset-2-binutils devtoolset-2-gcc-gfortran
+
+        # Build using devtoolset-2 by first entering a shell with devtoolset-2 enabled.
+        $ scl enable devtoolset-2 'bash'
+        $ g++ --version # Make sure you've got g++ 4.8+!
+
+### CentOS 7
+
+- Following are the instructions for stock CentOS 7. If you are using a different OS, please install the packages accordingly.
+
+        Mesos 0.21.0+ requires subversion 1.8+ devel package which is not available by default by yum.
+        Add one of the repo that has subversion-devel 1.9 available (we've noticed that 1.8 requires some other packages that aren't easy to install but 1.9 works great), i.e:
+
+        Add new repo /etc/yum.repos.d/wandisco-svn.repo, with:
+
+        [WandiscoSVN]
+        name=Wandisco SVN Repo
+        baseurl=http://opensource.wandisco.com/centos/7/svn-1.9/RPMS/$basearch/
+        enabled=1
+        gpgcheck=0
+
+        $ sudo yum groupinstall -y "Development Tools"
+
+        $ sudo yum install -y python-devel java-1.7.0-openjdk-devel zlib-devel libcurl-devel openssl-devel cyrus-sasl-devel cyrus-sasl-md5 apr-devel subversion-devel apr-util-devel
+
+        # Install maven.
+        $ wget http://mirror.nexcess.net/apache/maven/maven-3/3.0.5/binaries/apache-maven-3.0.5-bin.tar.gz
+        $ sudo tar -zxf apache-maven-3.0.5-bin.tar.gz -C /opt/
+        $ sudo ln -s /opt/apache-maven-3.0.5/bin/mvn /usr/bin/mvn
+
+
 ## Building Mesos
 
         # Change working directory.
