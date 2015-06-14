@@ -43,7 +43,6 @@ The following are the necessary dependencies for `Mesos 0.22`:
             libcurl4-nss-dev libsasl2-dev \
             maven libapr1-dev libsvn-dev
 
-
 ### Mac OSX (Yosemite)
 
 Before starting, you will need to install [XCode](https://developer.apple.com/xcode/) and
@@ -60,24 +59,38 @@ Use [homebrew](http://brew.sh/) to install the additional dependencies:
 You may (optionally) also need [Python 3](https://www.python.org/downloads) as it's not installed by default
 on OSX.
 
+### CentOS 6.6
 
-### CentOS 6.5
+- Following are the instructions for stock CentOS 6.6. If you are using a different OS, please install the packages accordingly.
 
-- Following are the instructions for stock CentOS 6.5. If you are using a different OS, please install the packages accordingly.
+        # Install a few utility tools
+        $ sudo yum install -y wget tar
 
-        Mesos 0.21.0+ requires subversion 1.8+ devel package which is not available by default by yum.
-        Add one of the repo that has subversion-devel 1.8 available, i.e:
+        # 'Mesos > 0.21.0' requires 'subversion > 1.8' devel package, which is
+        # not available in the default repositories.
+        # Add the Wandisco SVN repo file: '/etc/yum.repos.d/wandisco-svn.repo' with content:
 
-        Add new repo /etc/yum.repos.d/wandisco-svn.repo, with:
+          [WandiscoSVN]
+          name=Wandisco SVN Repo
+          baseurl=http://opensource.wandisco.com/centos/6/svn-1.8/RPMS/$basearch/
+          enabled=1
+          gpgcheck=0
 
-        [WandiscoSVN]
-        name=Wandisco SVN Repo
-        baseurl=http://opensource.wandisco.com/centos/6/svn-1.8/RPMS/$basearch/
-        enabled=1
-        gpgcheck=0
+        # 'Mesos > 0.21.0' requires a C++ compiler with full C++11 support,
+        # (e.g. GCC > 4.8) which is available via 'devtoolset-2'.
+        # Fetch the Scientific Linux CERN devtoolset repo file: '/etc/yum.repos.d/slc6-devtoolset.repo':
+        $ sudo wget -O /etc/yum.repos.d/slc6-devtoolset.repo http://linuxsoft.cern.ch/cern/devtoolset/slc6-devtoolset.repo
 
+        # Import the CERN GPG key.
+        $ sudo rpm --import http://linuxsoft.cern.ch/cern/centos/7/os/x86_64/RPM-GPG-KEY-cern
+
+        # Install essential development tools.
         $ sudo yum groupinstall -y "Development Tools"
 
+        # Install 'devtoolset-2-toolchain' which includes GCC 4.8.2 and related packages.
+        $ sudo yum install -y devtoolset-2-toolchain
+
+        # Install other Mesos dependencies.
         $ sudo yum install -y python-devel java-1.7.0-openjdk-devel zlib-devel libcurl-devel openssl-devel cyrus-sasl-devel cyrus-sasl-md5 apr-devel subversion-devel apr-util-devel
 
         # Install maven.
@@ -85,38 +98,37 @@ on OSX.
         $ sudo tar -zxf apache-maven-3.0.5-bin.tar.gz -C /opt/
         $ sudo ln -s /opt/apache-maven-3.0.5/bin/mvn /usr/bin/mvn
 
-        # Install devtoolset-2 because we require GCC 4.8+.
-        $ sudo wget http://people.centos.org/tru/devtools-2/devtools-2.repo -O /etc/yum.repos.d/devtools-2.repo
-        $ sudo yum install devtoolset-2-gcc devtoolset-2-binutils devtoolset-2-gcc-gfortran
+        # Enter a shell with 'devtoolset-2' enabled.
+        $ scl enable devtoolset-2 bash
+        $ g++ --version  # Make sure you've got GCC > 4.8!
 
-        # Build using devtoolset-2 by first entering a shell with devtoolset-2 enabled.
-        $ scl enable devtoolset-2 'bash'
-        $ g++ --version # Make sure you've got g++ 4.8+!
+### CentOS 7.1
 
-### CentOS 7
+- Following are the instructions for stock CentOS 7.1. If you are using a different OS, please install the packages accordingly.
 
-- Following are the instructions for stock CentOS 7. If you are using a different OS, please install the packages accordingly.
+        # Install a few utility tools
+        $ sudo yum install -y wget tar
 
-        Mesos 0.21.0+ requires subversion 1.8+ devel package which is not available by default by yum.
-        Add one of the repo that has subversion-devel 1.9 available (we've noticed that 1.8 requires some other packages that aren't easy to install but 1.9 works great), i.e:
+        # 'Mesos > 0.21.0' requires 'subversion > 1.8' devel package, which is
+        # not available in the default repositories.
+        # Add the Wandisco SVN repo file: '/etc/yum.repos.d/wandisco-svn.repo' with content:
 
-        Add new repo /etc/yum.repos.d/wandisco-svn.repo, with:
+          [WandiscoSVN]
+          name=Wandisco SVN Repo
+          baseurl=http://opensource.wandisco.com/centos/7/svn-1.9/RPMS/$basearch/
+          enabled=1
+          gpgcheck=0
 
-        [WandiscoSVN]
-        name=Wandisco SVN Repo
-        baseurl=http://opensource.wandisco.com/centos/7/svn-1.9/RPMS/$basearch/
-        enabled=1
-        gpgcheck=0
-
+        # Install essential development tools.
         $ sudo yum groupinstall -y "Development Tools"
 
+        # Install other Mesos dependencies.
         $ sudo yum install -y python-devel java-1.7.0-openjdk-devel zlib-devel libcurl-devel openssl-devel cyrus-sasl-devel cyrus-sasl-md5 apr-devel subversion-devel apr-util-devel
 
         # Install maven.
         $ wget http://mirror.nexcess.net/apache/maven/maven-3/3.0.5/binaries/apache-maven-3.0.5-bin.tar.gz
         $ sudo tar -zxf apache-maven-3.0.5-bin.tar.gz -C /opt/
         $ sudo ln -s /opt/apache-maven-3.0.5/bin/mvn /usr/bin/mvn
-
 
 ## Building Mesos
 
