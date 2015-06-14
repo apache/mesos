@@ -795,22 +795,22 @@ void initialize(const string& delegate)
   Address address_to_bind = Address::LOCALHOST_ANY();
 
   // Check environment for ip.
-  Option<string> value = os::getenv("LIBPROCESS_IP");
-  if (value.isSome()) {
-    Try<net::IP> ip = net::IP::parse(value.get(), AF_INET);
+  const char * env_ip = os::getenv("LIBPROCESS_IP");
+  if (env_ip != NULL) {
+    Try<net::IP> ip = net::IP::parse(env_ip, AF_INET);
     if (ip.isError()) {
-      LOG(FATAL) << "Parsing LIBPROCESS_IP=" << value.get()
+      LOG(FATAL) << "Parsing LIBPROCESS_IP=" << env_ip
                  << " failed: " << ip.error();
     }
     address_to_bind.ip = ip.get();
   }
 
   // Check environment for port.
-  value = os::getenv("LIBPROCESS_PORT");
-  if (value.isSome()) {
-    const int result = atoi(value.get().c_str());
+  const char * env_port = os::getenv("LIBPROCESS_PORT");
+  if (env_port != NULL) {
+    const int result = atoi(env_port);
     if (result < 0 || result > USHRT_MAX) {
-      LOG(FATAL) << "LIBPROCESS_PORT=" << value.get() << " is not a valid port";
+      LOG(FATAL) << "LIBPROCESS_PORT=" << env_port << " is not a valid port";
     }
     address_to_bind.port = result;
   }
