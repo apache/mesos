@@ -1094,7 +1094,8 @@ Try<Subprocess> ExternalContainerizerProcess::invoke(
   VLOG(1) << "Invoking external containerizer for method '" << command << "'";
 
   // Prepare a default environment.
-  map<string, string> environment;
+  map<string, string> environment = os::environment();
+
   environment["MESOS_LIBEXEC_DIRECTORY"] = flags.launcher_dir;
   environment["MESOS_WORK_DIRECTORY"] = flags.work_dir;
 

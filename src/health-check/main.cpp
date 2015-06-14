@@ -152,14 +152,15 @@ private:
 
     const CommandInfo& command = check.command();
 
-    map<string, string> environment;
-    foreach (const Environment_Variable& variable,
+    map<string, string> environment = os::environment();
+
+    foreach (const Environment::Variable& variable,
              command.environment().variables()) {
       environment[variable.name()] = variable.value();
     }
 
     // Launch the subprocess.
-    Option<Try<Subprocess> > external;
+    Option<Try<Subprocess>> external = None();
 
     if (command.shell()) {
       // Use the shell variant.

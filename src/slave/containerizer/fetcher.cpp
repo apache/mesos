@@ -745,7 +745,7 @@ Future<Nothing> FetcherProcess::run(
 
   // We pass arguments to the fetcher program by means of an
   // environment variable.
-  map<string, string> environment;
+  map<string, string> environment = os::environment();
 
   environment["MESOS_FETCHER_INFO"] = stringify(JSON::Protobuf(info));
 

@@ -503,7 +503,7 @@ Future<Nothing> Docker::run(
 
   VLOG(1) << "Running " << cmd;
 
-  map<string, string> environment;
+  map<string, string> environment = os::environment();
 
   // Currently the Docker CLI picks up dockerconfig by looking for
   // the config file in the $HOME directory. If one of the URIs
@@ -956,7 +956,7 @@ Future<Docker::Image> Docker::__pull(
   VLOG(1) << "Running " << cmd;
 
   // Set HOME variable to pick up .dockercfg.
-  map<string, string> environment;
+  map<string, string> environment = os::environment();
 
   environment["HOME"] = directory;
 

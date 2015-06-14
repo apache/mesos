@@ -383,7 +383,7 @@ TEST_F(SlaveTest, CommandExecutorWithOverride)
   AWAIT_READY(launch);
 
   // Set up fake environment for executor.
-  map<string, string> environment;
+  map<string, string> environment = os::environment();
   environment["MESOS_SLAVE_PID"] = stringify(slave.get());
   environment["MESOS_SLAVE_ID"] = stringify(offers.get()[0].slave_id());
   environment["MESOS_FRAMEWORK_ID"] = stringify(offers.get()[0].framework_id());

@@ -692,7 +692,7 @@ Future<bool> MesosContainerizerProcess::_launch(
   }
 
   // Prepare environment variables for the executor.
-  map<string, string> env = executorEnvironment(
+  map<string, string> environment = executorEnvironment(
       executorInfo,
       directory,
       slaveId,
@@ -703,7 +703,7 @@ Future<bool> MesosContainerizerProcess::_launch(
   // Include any enviroment variables from CommandInfo.
   foreach (const Environment::Variable& variable,
            executorInfo.command().environment().variables()) {
-    env[variable.name()] = variable.value();
+    environment[variable.name()] = variable.value();
   }
 
   // Use a pipe to block the child until it's been isolated.
@@ -750,7 +750,7 @@ Future<bool> MesosContainerizerProcess::_launch(
       (local ? Subprocess::FD(STDERR_FILENO)
              : Subprocess::PATH(path::join(directory, "stderr"))),
       launchFlags,
-      env,
+      environment,
       None());
 
   if (forked.isError()) {
