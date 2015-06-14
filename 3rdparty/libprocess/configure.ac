@@ -152,6 +152,15 @@ AC_ARG_WITH([svn],
                            [specify where to locate the svn-1 library]),
             [], [])
 
+AC_ARG_WITH([libevent],
+            AS_HELP_STRING([--with-libevent=@<:@=DIR@:>@],
+                           [specify where to locate the libevent library]),
+            [], [])
+
+AC_ARG_WITH([ssl],
+            AS_HELP_STRING([--with-ssl=@<:@=DIR@:>@],
+                           [specify where to locate the ssl library]),
+            [], [])
 
 # There is no prefix installation of the JAR.
 AC_ARG_VAR([PROTOBUF_JAR], [full path to protobuf jar on prefixed builds])
@@ -193,8 +202,8 @@ if test -n "`echo $with_libev`"; then
 fi
 
 if test -n "`echo $with_curl`" ; then
-    CPPFLAGS="$CPPFLAGS -I${with_curl}/include"
-    LDFLAGS="$LDFLAGS -L${with_curl}/lib"
+  CPPFLAGS="$CPPFLAGS -I${with_curl}/include"
+  LDFLAGS="$LDFLAGS -L${with_curl}/lib"
 fi
 
 if test -n "`echo $with_glog`"; then
@@ -208,10 +217,10 @@ fi
 # suffixes. We include /include/apr-1 because we include <apr*>
 # headers directly.
 if test -n "`echo $with_apr`" ; then
-    CPPFLAGS="-I${with_apr}/include/apr-1 -I${with_apr}/include/apr-1.0 $CPPFLAGS"
-    LDFLAGS="-L${with_apr}/lib $LDFLAGS"
+  CPPFLAGS="-I${with_apr}/include/apr-1 -I${with_apr}/include/apr-1.0 $CPPFLAGS"
+  LDFLAGS="-L${with_apr}/lib $LDFLAGS"
 else
-    CPPFLAGS="-I/usr/include/apr-1 -I/usr/include/apr-1.0 $CPPFLAGS"
+  CPPFLAGS="-I/usr/include/apr-1 -I/usr/include/apr-1.0 $CPPFLAGS"
 fi
 
 AC_CHECK_HEADERS([apr_pools.h],
@@ -235,14 +244,14 @@ if test -z "`echo $with_svn`" &&
    test "$OS_NAME" = "darwin" &&
    test -n "`command -v brew`" &&
    test -n "`brew list --versions subversion`"; then
-    with_svn=`brew --prefix subversion`
+  with_svn=`brew --prefix subversion`
 fi
 
 if test -n "`echo $with_svn`"; then
-    CPPFLAGS="-I${with_svn}/include/subversion-1 $CPPFLAGS"
-    LDFLAGS="-L${with_svn}/lib $LDFLAGS"
+  CPPFLAGS="-I${with_svn}/include/subversion-1 $CPPFLAGS"
+  LDFLAGS="-L${with_svn}/lib $LDFLAGS"
 else
-    CPPFLAGS="-I/usr/include/subversion-1 $CPPFLAGS"
+  CPPFLAGS="-I/usr/include/subversion-1 $CPPFLAGS"
 fi
 
 AC_CHECK_HEADERS([svn_version.h],
@@ -583,6 +592,21 @@ AM_CONDITIONAL([ENABLE_LIBEVENT], [test x"$enable_libevent" = "xyes"])
 
 AM_CONDITIONAL([ENABLE_SSL], [test x"$enable_ssl" = "xyes"])
 
+# Check if libevent prefix path was provided, and if so, add it to
+# the CPPFLAGS and LDFLAGS with respective /include and /lib path
+# suffixes.
+if test -z "`echo $with_libevent`" &&
+   test "$OS_NAME" = "darwin" &&
+   test -n "`command -v brew`" &&
+   test -n "`brew list --versions libevent`"; then
+  with_libevent=`brew --prefix libevent`
+fi
+
+if test -n "`echo $with_libevent`"; then
+  CPPFLAGS="-I${with_libevent}/include $CPPFLAGS"
+  LDFLAGS="-L${with_libevent}/lib $LDFLAGS"
+fi
+
 if test "x$enable_libevent" = "xyes"; then
   AC_CHECK_HEADERS([event2/event.h],
                    [AC_CHECK_LIB([event],
@@ -613,6 +637,21 @@ libevent_pthreads is required for libprocess to build.
 libevent_pthreads is required for libprocess to build.
 -------------------------------------------------------------------
   ])])
+fi
+
+# Check if libssl prefix path was provided, and if so, add it to
+# the CPPFLAGS and LDFLAGS with respective /include and /lib path
+# suffixes.
+if test -z "`echo $with_ssl`" &&
+   test "$OS_NAME" = "darwin" &&
+   test -n "`command -v brew`" &&
+   test -n "`brew list --versions openssl`"; then
+  with_ssl=`brew --prefix openssl`
+fi
+
+if test -n "`echo $with_ssl`"; then
+  CPPFLAGS="-I${with_ssl}/include $CPPFLAGS"
+  LDFLAGS="-L${with_ssl}/lib $LDFLAGS"
 fi
 
 if test "x$enable_ssl" = "xyes"; then
