@@ -10,6 +10,7 @@
 #include <memory> // TODO(benh): Replace shared_ptr with unique_ptr.
 #include <set>
 #include <type_traits>
+#include <utility>
 #include <vector>
 
 #include <glog/logging.h>
@@ -87,6 +88,8 @@ public:
   /*implicit*/ Future(const Failure& failure);
 
   /*implicit*/ Future(const Future<T>& that);
+
+  /*implicit*/ Future(Future<T>&& that);
 
   /*implicit*/ Future(const Try<T>& t);
 
@@ -487,6 +490,8 @@ public:
   explicit Promise(const T& t);
   virtual ~Promise();
 
+  Promise(Promise<T>&& that);
+
   bool discard();
   bool set(const T& _t);
   bool set(const Future<T>& future); // Alias for associate.
@@ -565,6 +570,11 @@ Promise<T>::~Promise()
   // finished) in the event that computation is "visible" by other
   // means.
 }
+
+
+template <typename T>
+Promise<T>::Promise(Promise<T>&& that)
+  : f(std::move(that.f)) {}
 
 
 template <typename T>
@@ -854,6 +864,11 @@ Future<T>::Future(const Failure& failure)
 template <typename T>
 Future<T>::Future(const Future<T>& that)
   : data(that.data) {}
+
+
+template <typename T>
+Future<T>::Future(Future<T>&& that)
+  : data(std::move(that.data)) {}
 
 
 template <typename T>
