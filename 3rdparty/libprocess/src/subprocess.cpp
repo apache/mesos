@@ -20,8 +20,6 @@
 #include <stout/try.hpp>
 #include <stout/unreachable.hpp>
 
-#include <stout/os/execenv.hpp>
-
 using std::map;
 using std::string;
 using std::vector;
@@ -110,7 +108,7 @@ static int childMain(
     const Subprocess::IO& in,
     const Subprocess::IO& out,
     const Subprocess::IO& err,
-    os::ExecEnv* envp,
+    char** envp,
     const Option<lambda::function<int()>>& setup,
     int stdinFd[2],
     int stdoutFd[2],
@@ -160,7 +158,7 @@ static int childMain(
     }
   }
 
-  os::execvpe(path.c_str(), argv, (*envp)());
+  os::execvpe(path.c_str(), argv, envp);
 
   ABORT(string("Failed to os::execvpe in childMain: ") + strerror(errno));
 }
@@ -315,19 +313,32 @@ Try<Subprocess> subprocess(
 
   // The real arguments that will be passed to 'os::execvpe'. We need
   // to construct them here before doing the clone as it might not be
-  // async signal safe.
+  // async signal safe to perform the memory allocation.
   char** _argv = new char*[argv.size() + 1];
   for (int i = 0; i < argv.size(); i++) {
     _argv[i] = (char*) argv[i].c_str();
   }
   _argv[argv.size()] = NULL;
 
-  // We need to do this construction before doing the clone as it
-  // might not be async-safe.
-  // TODO(tillt): Consider optimizing this to not pass an empty map
-  // into the constructor or even further to use execl instead of
-  // execle once we have no user supplied environment.
-  os::ExecEnv envp(environment.get(map<string, string>()));
+  // Like above, we need to construct the environment that we'll pass
+  // to 'os::execvpe' as it might not be async-safe to perform the
+  // memory allocations.
+  char** envp = os::environ();
+
+  if (environment.isSome()) {
+    // NOTE: We add 1 to the size for a NULL terminator.
+    envp = new char*[environment.get().size() + 1];
+
+    size_t index = 0;
+    foreachpair (const string& key, const string& value, environment.get()) {
+      string entry = key + "=" + value;
+      envp[index] = new char[entry.size() + 1];
+      strncpy(envp[index], entry.c_str(), entry.size() + 1);
+      ++index;
+    }
+
+    envp[index] = NULL;
+  }
 
   // Determine the function to clone the child process. If the user
   // does not specify the clone function, we will use the default.
@@ -342,13 +353,20 @@ Try<Subprocess> subprocess(
       in,
       out,
       err,
-      &envp,
+      envp,
       setup,
       stdinFd,
       stdoutFd,
       stderrFd));
 
   delete[] _argv;
+
+  // Need to delete 'envp' if we had environment variables passed to
+  // us and we needed to allocate the space.
+  if (environment.isSome()) {
+    CHECK_NE(os::environ(), envp);
+    delete[] envp;
+  }
 
   if (pid == -1) {
     // Save the errno as 'close' below might overwrite it.

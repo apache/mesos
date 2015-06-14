@@ -205,8 +205,9 @@ private:
  * @param out Redirection specification for stdout.
  * @param err Redirection specification for stderr.
  * @param flags Flags to be stringified and appended to 'argv'.
- * @param environment Environment variables to add or overwrite
- *     existing environment variables.
+ * @param environment Environment variables to use for the new
+ *     subprocess or if None (the default) then the new subprocess
+ *     will inherit the environment of the current process.
  * @param setup Function to be invoked after forking but before
  *     exec'ing. NOTE: Take extra care not to invoke any
  *     async unsafe code in the body of this function.
@@ -214,7 +215,6 @@ private:
  *     subprocess.
  * @return The subprocess or an error if one occured.
  */
-// TODO(dhamon): Add an option to not combine the two environments.
 Try<Subprocess> subprocess(
     const std::string& path,
     std::vector<std::string> argv,
@@ -239,8 +239,9 @@ Try<Subprocess> subprocess(
  * @param in Redirection specification for stdin.
  * @param out Redirection specification for stdout.
  * @param err Redirection specification for stderr.
- * @param environment Environment variables to add or overwrite
- *     existing environment variables.
+ * @param environment Environment variables to use for the new
+ *     subprocess or if None (the default) then the new subprocess
+ *     will inherit the environment of the current process.
  * @param setup Function to be invoked after forking but before
  *     exec'ing. NOTE: Take extra care not to invoke any
  *     async unsafe code in the body of this function.

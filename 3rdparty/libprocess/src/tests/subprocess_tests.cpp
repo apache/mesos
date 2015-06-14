@@ -756,13 +756,14 @@ TEST_F(SubprocessTest, EnvironmentOverride)
   Clock::pause();
 
   // Ensure we override an existing environment variable.
-  os::setenv("MESSAGE", "hello");
+  os::setenv("MESSAGE1", "hello");
+  os::setenv("MESSAGE2", "world");
 
   map<string, string> environment;
-  environment["MESSAGE"] = "goodbye";
+  environment["MESSAGE2"] = "goodbye";
 
   Try<Subprocess> s = subprocess(
-      "echo $MESSAGE",
+      "echo $MESSAGE1 $MESSAGE2",
       Subprocess::PIPE(),
       Subprocess::PIPE(),
       Subprocess::PIPE(),
