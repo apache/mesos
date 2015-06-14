@@ -709,14 +709,14 @@ if test -z "`echo $with_svn`" &&
    test "$OS_NAME" = "darwin" &&
    test -n "`command -v brew`" &&
    test -n "`brew list --versions subversion`"; then
-    with_svn=`brew --prefix subversion`
+  with_svn=`brew --prefix subversion`
 fi
 
 if test -n "`echo $with_svn`"; then
-    CPPFLAGS="-I${with_svn}/include/subversion-1 $CPPFLAGS"
-    LDFLAGS="-L${with_svn}/lib $LDFLAGS"
+  CPPFLAGS="-I${with_svn}/include/subversion-1 $CPPFLAGS"
+  LDFLAGS="-L${with_svn}/lib $LDFLAGS"
 else
-    CPPFLAGS="-I/usr/include/subversion-1 $CPPFLAGS"
+  CPPFLAGS="-I/usr/include/subversion-1 $CPPFLAGS"
 fi
 
 AC_CHECK_HEADERS([svn_version.h],
@@ -748,8 +748,8 @@ libsubversion-1 is required for mesos to build.
 # the CPPFLAGS and LDFLAGS with respective /include and /lib path
 # suffixes.
 if test -n "`echo $with_sasl`" ; then
-    CPPFLAGS="-I${with_sasl}/include $CPPFLAGS"
-    LDFLAGS="-L${with_sasl}/lib $LDFLAGS"
+  CPPFLAGS="-I${with_sasl}/include $CPPFLAGS"
+  LDFLAGS="-L${with_sasl}/lib $LDFLAGS"
 fi
 
 AC_CHECK_LIB([sasl2], [sasl_done], [],
