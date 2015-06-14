@@ -101,3 +101,42 @@ TEST(OptionTest, NonConstReference)
   s.get() += " world";
   EXPECT_EQ("hello world", s.get());
 }
+
+
+struct NonCopyable
+{
+  NonCopyable() = default;
+  NonCopyable(NonCopyable&&) = default;
+  NonCopyable(const NonCopyable& that) = delete;
+};
+
+
+TEST(OptionTest, NonCopyable)
+{
+  Option<NonCopyable> o1(NonCopyable{});
+  ASSERT_SOME(o1);
+
+  o1 = NonCopyable();
+  ASSERT_SOME(o1);
+
+  o1 = None();
+  ASSERT_NONE(o1);
+
+  Option<NonCopyable> o2 = NonCopyable();
+  ASSERT_SOME(o2);
+
+  o2 = NonCopyable();
+  ASSERT_SOME(o2);
+
+  o2 = None();
+  ASSERT_NONE(o2);
+
+  Option<NonCopyable> o3 = None();
+  ASSERT_NONE(o3);
+
+  Option<NonCopyable> o4 = Some(NonCopyable());
+  ASSERT_SOME(o4);
+
+  o4 = Some(NonCopyable());
+  ASSERT_SOME(o4);
+}

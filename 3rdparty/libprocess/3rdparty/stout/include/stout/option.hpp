@@ -39,6 +39,8 @@ public:
 
   Option(const T& _t) : state(SOME), t(_t) {}
 
+  Option(T&& _t) : state(SOME), t(std::move(_t)) {}
+
   template <typename U>
   Option(const U& u) : state(SOME), t(u) {}
 
@@ -47,10 +49,20 @@ public:
   template <typename U>
   Option(const _Some<U>& some) : state(SOME), t(some.t) {}
 
+  template <typename U>
+  Option(_Some<U>&& some) : state(SOME), t(std::move(some.t)) {}
+
   Option(const Option<T>& that) : state(that.state)
   {
     if (that.isSome()) {
       new (&t) T(that.t);
+    }
+  }
+
+  Option(Option<T>&& that) : state(std::move(that.state))
+  {
+    if (that.isSome()) {
+      new (&t) T(std::move(that.t));
     }
   }
 
@@ -70,6 +82,21 @@ public:
       state = that.state;
       if (that.isSome()) {
         new (&t) T(that.t);
+      }
+    }
+
+    return *this;
+  }
+
+  Option<T>& operator = (Option<T>&& that)
+  {
+    if (this != &that) {
+      if (isSome()) {
+        t.~T();
+      }
+      state = std::move(that.state);
+      if (that.isSome()) {
+        new (&t) T(std::move(that.t));
       }
     }
 
