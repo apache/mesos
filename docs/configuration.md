@@ -143,6 +143,22 @@ If you have special compilation requirements, please refer to `./configure --hel
         Explanation
       </th>
   </thead>
+   <tr>
+     <td>
+      --public_ip=VALUE
+    </td>
+    <td>
+      Public IP address to reach mesos.
+    </td>
+  </tr>
+  <tr>
+    <td>
+      --public_port=VALUE
+    </td>
+    <td>
+      Public port to reach mesos.
+    </td>
+  </tr>
   <tr>
     <td>
       --quorum=VALUE

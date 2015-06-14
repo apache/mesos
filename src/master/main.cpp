@@ -122,6 +122,12 @@ int main(int argc, char** argv)
   uint16_t port;
   flags.add(&port, "port", "Port to listen on", MasterInfo().port());
 
+  Option<string> public_ip;
+  flags.add(&public_ip, "public_ip", "Public IP address to reach mesos");
+
+  Option<string> public_port;
+  flags.add(&public_port, "public_port", "Public port to reach mesos");
+
   Option<string> zk;
   flags.add(&zk,
             "zk",
@@ -171,6 +177,14 @@ int main(int argc, char** argv)
   }
 
   os::setenv("LIBPROCESS_PORT", stringify(port));
+
+  if (public_ip.isSome()) {
+    os::setenv("LIBPROCESS_PUBLIC_IP", public_ip.get());
+  }
+
+  if (public_port.isSome()) {
+    os::setenv("LIBPROCESS_PUBLIC_PORT", public_port.get());
+  }
 
   process::initialize("master");
 
