@@ -101,16 +101,6 @@
 #include <stout/os/sysctl.hpp>
 #endif // __APPLE__
 
-#if defined(__APPLE__)
-// Assigning the result pointer to ret silences an unused var warning.
-#define gethostbyname2_r(name, af, ret, buf, buflen, result, h_errnop)  \
-  ({ (void)ret; *(result) = gethostbyname2(name, af); 0; })
-#elif defined(__sun)
-#define gethostbyname2_r(name, af, ret, buf, buflen, result, h_errnop)  \
-  ({ (void)af; *(result) = \
-    gethostbyname_r(name, ret, buf, buflen, h_errnop); 0; })
-#endif
-
 // Need to declare 'environ' pointer for non OS X platforms.
 #ifndef __APPLE__
 extern char** environ;
