@@ -302,7 +302,7 @@ DockerContainerizerProcess::Container::create(
         slaveId,
         slavePid,
         checkpoint,
-        flags.recovery_timeout);
+        flags);
     launchesExecutorContainer = true;
   }
 
@@ -875,7 +875,7 @@ Future<pid_t> DockerContainerizerProcess::launchExecutorProcess(
       container->slaveId,
       container->slavePid,
       container->checkpoint,
-      flags.recovery_timeout);
+      flags);
 
   // Include any enviroment variables from ExecutorInfo.
   foreach (const Environment::Variable& variable,

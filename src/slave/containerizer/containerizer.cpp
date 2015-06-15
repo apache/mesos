@@ -240,7 +240,7 @@ map<string, string> executorEnvironment(
     const SlaveID& slaveId,
     const PID<Slave>& slavePid,
     bool checkpoint,
-    const Duration& recoveryTimeout)
+    const Flags& flags)
 {
   map<string, string> environment = os::environment();
 
@@ -289,7 +289,7 @@ map<string, string> executorEnvironment(
   environment["MESOS_CHECKPOINT"] = checkpoint ? "1" : "0";
 
   if (checkpoint) {
-    environment["MESOS_RECOVERY_TIMEOUT"] = stringify(recoveryTimeout);
+    environment["MESOS_RECOVERY_TIMEOUT"] = stringify(flags.recovery_timeout);
   }
 
   if (HookManager::hooksAvailable()) {

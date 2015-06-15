@@ -129,14 +129,26 @@ public:
 };
 
 
-// Executor environment variables returned as (name, value) map.
+/**
+ * Returns a map of environment variables necessary in order to launch
+ * an executor.
+ *
+ * @param executorInfo ExecutorInfo being launched.
+ * @param directory Path to the sandbox directory.
+ * @param slaveId SlaveID where this executor is being launched.
+ * @param slavePid PID of the slave launching the executor.
+ * @param checkpoint Whether or not the slave is checkpointing.
+ * @param flags Flags used to launch the slave.
+ *
+ * @return Map of environment variables (name, value).
+ */
 std::map<std::string, std::string> executorEnvironment(
     const ExecutorInfo& executorInfo,
     const std::string& directory,
     const SlaveID& slaveId,
     const process::PID<Slave>& slavePid,
     bool checkpoint,
-    const Duration& recoveryTimeout);
+    const Flags& flags);
 
 } // namespace slave {
 } // namespace internal {

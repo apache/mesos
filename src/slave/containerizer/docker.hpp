@@ -332,7 +332,7 @@ private:
             slaveId,
             slavePid,
             checkpoint,
-            flags.recovery_timeout);
+            flags);
       }
     }
 

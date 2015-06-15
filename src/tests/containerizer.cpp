@@ -103,39 +103,44 @@ Future<bool> TestContainerizer::_launch(
   drivers[containerId] = driver;
 
   // Prepare additional environment variables for the executor.
-  const map<string, string>& env = executorEnvironment(
+  // TODO(benh): Need to get flags passed into the TestContainerizer
+  // in order to properly use here.
+  slave::Flags flags;
+  flags.recovery_timeout = Duration::zero();
+
+  const map<string, string> environment = executorEnvironment(
       executorInfo,
       directory,
       slaveId,
       slavePid,
       checkpoint,
-      Duration::zero());
+      flags);
 
-  foreachpair (const string& name, const string variable, env) {
+  foreachpair (const string& name, const string variable, environment) {
     os::setenv(name, variable);
   }
 
-  foreach (const Environment_Variable& variable,
-      executorInfo.command().environment().variables()) {
+  foreach (const Environment::Variable& variable,
+           executorInfo.command().environment().variables()) {
     os::setenv(variable.name(), variable.value());
   }
   os::setenv("MESOS_LOCAL", "1");
 
   driver->start();
 
-  foreachkey (const string& name, env) {
+  foreachkey (const string& name, environment) {
     os::unsetenv(name);
   }
 
-  foreach(const Environment_Variable& variable,
-      executorInfo.command().environment().variables()) {
+  foreach (const Environment::Variable& variable,
+           executorInfo.command().environment().variables()) {
     os::unsetenv(variable.name());
   }
   os::unsetenv("MESOS_LOCAL");
 
-  Owned<Promise<containerizer::Termination> > promise(
+  promises[containerId] =
+    Owned<Promise<containerizer::Termination>>(
       new Promise<containerizer::Termination>());
-  promises[containerId] = promise;
 
   return true;
 }
