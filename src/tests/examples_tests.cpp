@@ -32,8 +32,7 @@ TEST_SCRIPT(ExamplesTest, LowLevelSchedulerPthread,
             "low_level_scheduler_pthread_test.sh")
 
 
-// TODO(bmahler): Temporary disabled until MESOS-2627 is fixed.
-TEST_SCRIPT(DISABLED_ExamplesTest, PersistentVolumeFramework,
+TEST_SCRIPT(ExamplesTest, PersistentVolumeFramework,
             "persistent_volume_framework_test.sh")
 
 

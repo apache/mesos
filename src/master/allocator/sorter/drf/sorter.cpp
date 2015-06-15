@@ -174,33 +174,36 @@ void DRFSorter::unallocated(
 
 void DRFSorter::add(const SlaveID& slaveId, const Resources& _resources)
 {
-  resources[slaveId] += _resources;
+  if (!_resources.empty()) {
+    resources[slaveId] += _resources;
 
-  // We have to recalculate all shares when the total resources
-  // change, but we put it off until sort is called
-  // so that if something else changes before the next allocation
-  // we don't recalculate everything twice.
-  dirty = true;
+    // We have to recalculate all shares when the total resources
+    // change, but we put it off until sort is called so that if
+    // something else changes before the next allocation we don't
+    // recalculate everything twice.
+    dirty = true;
+  }
 }
 
 
 void DRFSorter::remove(const SlaveID& slaveId, const Resources& _resources)
 {
-  CHECK(resources.contains(slaveId));
+  if (!_resources.empty()) {
+    CHECK(resources.contains(slaveId));
 
-  resources[slaveId] -= _resources;
-  if (resources[slaveId].empty()) {
-    resources.erase(slaveId);
+    resources[slaveId] -= _resources;
+
+    if (resources[slaveId].empty()) {
+      resources.erase(slaveId);
+    }
+
+    dirty = true;
   }
-
-  dirty = true;
 }
 
 
 void DRFSorter::update(const SlaveID& slaveId, const Resources& _resources)
 {
-  CHECK(resources.contains(slaveId));
-
   resources[slaveId] = _resources;
 
   if (resources[slaveId].empty()) {
