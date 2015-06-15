@@ -216,7 +216,8 @@ TEST_F(OversubscriptionTest, FetchResourceUsageFromMonitor)
 
   Future<TaskStatus> status;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
-    .WillOnce(FutureArg<1>(&status));
+    .WillOnce(FutureArg<1>(&status))
+    .WillRepeatedly(Return());       // Ignore subsequent updates.
 
   EXPECT_CALL(exec, registered(_, _, _, _));
 
@@ -385,7 +386,8 @@ TEST_F(OversubscriptionTest, RevocableOffer)
 
   Future<TaskStatus> status;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
-    .WillOnce(FutureArg<1>(&status));
+    .WillOnce(FutureArg<1>(&status))
+    .WillRepeatedly(Return());       // Ignore subsequent updates.
 
   driver.launchTasks({offers1.get()[0].id(), offers2.get()[0].id()}, {task});
 
@@ -577,7 +579,8 @@ TEST_F(OversubscriptionTest, FixedResourceEstimator)
 
   Future<TaskStatus> status;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
-    .WillOnce(FutureArg<1>(&status));
+    .WillOnce(FutureArg<1>(&status))
+    .WillRepeatedly(Return());       // Ignore subsequent updates.
 
   driver.launchTasks(offer.id(), {task});
 
@@ -652,7 +655,8 @@ TEST_F(OversubscriptionTest, QoSFetchResourceUsageFromMonitor)
 
   Future<TaskStatus> status;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
-    .WillOnce(FutureArg<1>(&status));
+    .WillOnce(FutureArg<1>(&status))
+    .WillRepeatedly(Return());       // Ignore subsequent updates.
 
   EXPECT_CALL(exec, registered(_, _, _, _));
 
