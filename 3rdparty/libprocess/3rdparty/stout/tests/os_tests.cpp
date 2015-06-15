@@ -10,6 +10,7 @@
 
 #include <cstdlib> // For rand.
 #include <list>
+#include <map>
 #include <set>
 #include <sstream>
 #include <string>
@@ -18,7 +19,6 @@
 #include <stout/foreach.hpp>
 #include <stout/fs.hpp>
 #include <stout/gtest.hpp>
-#include <stout/hashmap.hpp>
 #include <stout/hashset.hpp>
 #include <stout/numify.hpp>
 #include <stout/os.hpp>

@@ -54,6 +54,7 @@
 #include <sys/wait.h>
 
 #include <list>
+#include <map>
 #include <set>
 #include <string>
 
@@ -61,7 +62,6 @@
 #include <stout/duration.hpp>
 #include <stout/error.hpp>
 #include <stout/foreach.hpp>
-#include <stout/hashmap.hpp>
 #include <stout/none.hpp>
 #include <stout/nothing.hpp>
 #include <stout/option.hpp>
@@ -138,11 +138,11 @@ inline char*** environp()
 }
 
 
-inline hashmap<std::string, std::string> environment()
+inline std::map<std::string, std::string> environment()
 {
   char** environ = os::environ();
 
-  hashmap<std::string, std::string> result;
+  std::map<std::string, std::string> result;
 
   for (size_t index = 0; environ[index] != NULL; index++) {
     std::string entry(environ[index]);
