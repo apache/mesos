@@ -31,14 +31,18 @@ TEST_SCRIPT(ExamplesTest, LowLevelSchedulerLibprocess,
 TEST_SCRIPT(ExamplesTest, LowLevelSchedulerPthread,
             "low_level_scheduler_pthread_test.sh")
 
-TEST_SCRIPT(ExamplesTest, PersistentVolumeFramework,
-            "persistent_volume_framework_test.sh");
+
+// TODO(bmahler): Temporary disabled until MESOS-2627 is fixed.
+TEST_SCRIPT(DISABLED_ExamplesTest, PersistentVolumeFramework,
+            "persistent_volume_framework_test.sh")
+
 
 #ifdef MESOS_HAS_JAVA
 TEST_SCRIPT(ExamplesTest, JavaFramework, "java_framework_test.sh")
 TEST_SCRIPT(ExamplesTest, JavaException, "java_exception_test.sh")
 TEST_SCRIPT(ExamplesTest, JavaLog, "java_log_test.sh")
 #endif
+
 
 #ifdef MESOS_HAS_PYTHON
 TEST_SCRIPT(ExamplesTest, PythonFramework, "python_framework_test.sh")
