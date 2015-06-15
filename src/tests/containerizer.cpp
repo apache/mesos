@@ -108,6 +108,10 @@ Future<bool> TestContainerizer::_launch(
   slave::Flags flags;
   flags.recovery_timeout = Duration::zero();
 
+  // We need to save the original set of environment variables so we
+  // can reset the environment after calling 'driver->start()' below.
+  hashmap<string, string> original = os::environment();
+
   const map<string, string> environment = executorEnvironment(
       executorInfo,
       directory,
@@ -120,23 +124,33 @@ Future<bool> TestContainerizer::_launch(
     os::setenv(name, variable);
   }
 
+  // TODO(benh): Can this be removed and done exlusively in the
+  // 'executorEnvironment()' function? There are other places in the
+  // code where we do this as well and it's likely we can do this once
+  // in 'executorEnvironment()'.
   foreach (const Environment::Variable& variable,
            executorInfo.command().environment().variables()) {
     os::setenv(variable.name(), variable.value());
   }
+
   os::setenv("MESOS_LOCAL", "1");
 
   driver->start();
 
-  foreachkey (const string& name, environment) {
-    os::unsetenv(name);
+  os::unsetenv("MESOS_LOCAL");
+
+  // Unset the environment variables we set by resetting them to their
+  // original values and also removing any that were not part of the
+  // original environment.
+  foreachpair (const string& name, const string& value, original) {
+    os::setenv(name, value);
   }
 
-  foreach (const Environment::Variable& variable,
-           executorInfo.command().environment().variables()) {
-    os::unsetenv(variable.name());
+  foreachkey (const string& name, environment) {
+    if (!original.contains(name)) {
+      os::unsetenv(name);
+    }
   }
-  os::unsetenv("MESOS_LOCAL");
 
   promises[containerId] =
     Owned<Promise<containerizer::Termination>>(

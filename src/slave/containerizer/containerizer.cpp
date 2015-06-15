@@ -244,6 +244,17 @@ map<string, string> executorEnvironment(
 {
   map<string, string> environment = os::environment();
 
+  if (flags.executor_environment_variables.isSome()) {
+    environment.clear();
+    foreachpair (const string& key,
+                 const JSON::Value& value,
+                 flags.executor_environment_variables.get().values) {
+      // See slave/flags.cpp where we validate each value is a string.
+      CHECK(value.is<JSON::String>());
+      environment[key] = value.as<JSON::String>().value;
+    }
+  }
+
   // Set LIBPROCESS_PORT so that we bind to a random free port (since
   // this might have been set via --port option). We do this before
   // the environment variables below in case it is included.

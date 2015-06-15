@@ -23,6 +23,7 @@
 
 #include <stout/bytes.hpp>
 #include <stout/duration.hpp>
+#include <stout/json.hpp>
 #include <stout/option.hpp>
 #include <stout/path.hpp>
 
@@ -40,6 +41,7 @@ class Flags : public logging::Flags
 {
 public:
   Flags();
+
   bool version;
   Option<std::string> hostname;
   Option<std::string> resources;
@@ -54,6 +56,7 @@ public:
   bool switch_user;
   std::string frameworks_home;  // TODO(benh): Make an Option.
   Duration registration_backoff_factor;
+  Option<JSON::Object> executor_environment_variables;
   Duration executor_registration_timeout;
   Duration executor_shutdown_grace_period;
   Duration gc_delay;

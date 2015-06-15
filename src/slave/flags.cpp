@@ -16,13 +16,18 @@
  * limitations under the License.
  */
 
+#include "slave/flags.hpp"
+
+#include <stout/error.hpp>
 #include <stout/flags.hpp>
+#include <stout/json.hpp>
+#include <stout/option.hpp>
 
 #include <mesos/type_utils.hpp>
 
 #include "common/parse.hpp"
+
 #include "slave/constants.hpp"
-#include "slave/flags.hpp"
 
 
 mesos::internal::slave::Flags::Flags()
@@ -123,6 +128,30 @@ mesos::internal::slave::Flags::Flags()
       "up to a maximum of " +
         stringify(REGISTER_RETRY_INTERVAL_MAX),
       REGISTRATION_BACKOFF_FACTOR);
+
+  add(&Flags::executor_environment_variables,
+      "executor_environment_variables",
+      "JSON object representing the environment\n"
+      "variables that should be passed to the\n"
+      "executor, and thus subsequently task(s).\n"
+      "By default the executor will inherit the\n"
+      "slave's environment variables.\n"
+      "Example:\n"
+      "{\n"
+      "  \"PATH\": \"/bin:/usr/bin\",\n"
+      "  \"LD_LIBRARY_PATH\": \"/usr/local/lib\"\n"
+      "}",
+      [](const Option<JSON::Object>& object) -> Option<Error> {
+        if (object.isSome()) {
+          foreachvalue (const JSON::Value& value, object.get().values) {
+            if (!value.is<JSON::String>()) {
+              return Error("'executor_environment_variables' must "
+                           "only contain string values");
+            }
+          }
+        }
+        return None();
+      });
 
   add(&Flags::executor_registration_timeout,
       "executor_registration_timeout",
@@ -274,8 +303,8 @@ mesos::internal::slave::Flags::Flags()
       "\n"
       "Example:\n"
       "{\n"
-      "  \"disabled_endpoints\" : {\n"
-      "    \"paths\" : [\n"
+      "  \"disabled_endpoints\": {\n"
+      "    \"paths\": [\n"
       "      \"/files/browse.json\",\n"
       "      \"/slave(0)/stats.json\",\n"
       "    ]\n"
