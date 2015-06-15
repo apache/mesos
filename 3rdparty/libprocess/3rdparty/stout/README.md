@@ -256,7 +256,7 @@ There is an `os::sysctl` abstraction for getting and setting kernel state on OS 
 
 #### Signals
 
-There are a handful of wrappers that make working with signals easier, including `os::pending`, `os::block`, and `os::unblock`. In addition, there is a suppression abstraction that enables executing a block a code while blocking a signal. Consider writing to a pipe which may raise a SIGPIPE if the pipe has been closed. Using `suppress` you can do:
+There are a handful of wrappers that make working with signals easier, including `os::signals::pending`, `os::signals::block`, and `os::signals::unblock`. In addition, there is a suppression abstraction that enables executing a block of code while blocking a signal. Consider writing to a pipe which may raise a SIGPIPE if the pipe has been closed. Using `suppress` you can do:
 
 ~~~{.cpp}
     suppress (SIGPIPE) {
