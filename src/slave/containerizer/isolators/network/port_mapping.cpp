@@ -2585,6 +2585,9 @@ Future<Nothing> PortMappingIsolatorProcess::update(
   Try<Subprocess> s = subprocess(
       path::join(flags.launcher_dir, "mesos-network-helper"),
       argv,
+      Subprocess::PATH("/dev/null"),
+      Subprocess::FD(STDOUT_FILENO),
+      Subprocess::FD(STDERR_FILENO),
       update.flags);
 
   if (s.isError()) {
