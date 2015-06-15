@@ -88,8 +88,6 @@ namespace mesos {
 namespace internal {
 namespace tests {
 
-namespace http = process::http;
-
 // Those of the overall Mesos master/slave/scheduler/driver tests
 // that seem vaguely more slave than master-related are in this file.
 // The others are in "master_tests.cpp".
@@ -946,9 +944,10 @@ TEST_F(SlaveTest, StateEndpoint)
   Try<PID<Slave>> slave = StartSlave(flags);
   ASSERT_SOME(slave);
 
-  Future<http::Response> response = http::get(slave.get(), "state.json");
+  Future<process::http::Response> response =
+    process::http::get(slave.get(), "state.json");
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::OK().status, response);
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(process::http::OK().status, response);
 
   EXPECT_SOME_EQ(
       "application/json",
@@ -1915,7 +1914,8 @@ TEST_F(SlaveTest, TaskLabels)
   AWAIT_READY(update);
 
   // Verify label key and value in slave state.json.
-  Future<http::Response> response = http::get(slave.get(), "state.json");
+  Future<process::http::Response> response =
+    process::http::get(slave.get(), "state.json");
   AWAIT_READY(response);
 
   EXPECT_SOME_EQ(

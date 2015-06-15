@@ -112,8 +112,6 @@ namespace mesos {
 namespace internal {
 namespace master {
 
-namespace http = process::http;
-
 using mesos::master::RoleInfo;
 using mesos::master::allocator::Allocator;
 
@@ -734,23 +732,23 @@ void Master::initialize()
 
   route("/health",
         Http::HEALTH_HELP,
-        [http](const http::Request& request) {
+        [http](const process::http::Request& request) {
           return http.health(request);
         });
   route("/observe",
         Http::OBSERVE_HELP,
-        [http](const http::Request& request) {
+        [http](const process::http::Request& request) {
           Http::log(request);
           return http.observe(request);
         });
   route("/redirect",
         Http::REDIRECT_HELP,
-        [http](const http::Request& request) {
+        [http](const process::http::Request& request) {
           return http.redirect(request);
         });
   route("/roles.json",
         Http::ROLES_HELP,
-        [http](const http::Request& request) {
+        [http](const process::http::Request& request) {
           Http::log(request);
           return http.roles(request);
         });
@@ -759,38 +757,38 @@ void Master::initialize()
   // "/teardown". Remove this endpoint in 0.24.0.
   route("/shutdown",
         Http::SHUTDOWN_HELP,
-        [http](const http::Request& request) {
+        [http](const process::http::Request& request) {
           Http::log(request);
           return http.teardown(request);
         });
   route("/teardown",
         Http::TEARDOWN_HELP,
-        [http](const http::Request& request) {
+        [http](const process::http::Request& request) {
           Http::log(request);
           return http.teardown(request);
         });
 
   route("/slaves",
         Http::SLAVES_HELP,
-        [http](const http::Request& request) {
+        [http](const process::http::Request& request) {
           Http::log(request);
           return http.slaves(request);
         });
   route("/state.json",
         Http::STATE_HELP,
-        [http](const http::Request& request) {
+        [http](const process::http::Request& request) {
           Http::log(request);
           return http.state(request);
         });
   route("/state-summary",
         Http::STATESUMMARY_HELP,
-        [http](const http::Request& request) {
+        [http](const process::http::Request& request) {
           Http::log(request);
           return http.stateSummary(request);
         });
   route("/tasks.json",
         Http::TASKS_HELP,
-        [http](const http::Request& request) {
+        [http](const process::http::Request& request) {
           Http::log(request);
           return http.tasks(request);
         });

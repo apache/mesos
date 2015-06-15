@@ -92,8 +92,6 @@ namespace mesos {
 namespace internal {
 namespace tests {
 
-namespace http = process::http;
-
 // Those of the overall Mesos master/slave/scheduler/driver tests
 // that seem vaguely more master than slave-related are in this file.
 // The others are in "slave_tests.cpp".
@@ -271,7 +269,8 @@ TEST_F(MasterTest, ShutdownFrameworkWhileTaskRunning)
   Clock::resume();
 
   // Request master state.
-  Future<http::Response> response = http::get(master.get(), "state.json");
+  Future<process::http::Response> response =
+    process::http::get(master.get(), "state.json");
   AWAIT_READY(response);
 
   // These checks are not essential for the test, but may help
@@ -1594,7 +1593,8 @@ TEST_F(MasterTest, SlavesEndpointWithoutSlaves)
   ASSERT_SOME(master);
 
   // Query the master.
-  Future<http::Response> response = http::get(master.get(), "slaves");
+  Future<process::http::Response> response =
+    process::http::get(master.get(), "slaves");
 
   AWAIT_READY(response);
 
@@ -1642,7 +1642,8 @@ TEST_F(MasterTest, SlavesEndpointTwoSlaves)
   AWAIT_READY(slave2RegisteredMessage);
 
   // Query the master.
-  Future<http::Response> response = http::get(master.get(), "slaves");
+  Future<process::http::Response> response =
+    process::http::get(master.get(), "slaves");
 
   AWAIT_READY(response);
 
@@ -2192,7 +2193,8 @@ TEST_F(MasterTest, OrphanTasks)
   EXPECT_EQ(TASK_RUNNING, status.get().state());
 
   // Get the master's state.
-  Future<http::Response> response = http::get(master.get(), "state.json");
+  Future<process::http::Response> response =
+    process::http::get(master.get(), "state.json");
   AWAIT_READY(response);
 
   EXPECT_SOME_EQ(
@@ -2257,7 +2259,7 @@ TEST_F(MasterTest, OrphanTasks)
   AWAIT_READY(reregisterFrameworkMessage);
 
   // Get the master's state.
-  response = http::get(master.get(), "state.json");
+  response = process::http::get(master.get(), "state.json");
   AWAIT_READY(response);
 
   EXPECT_SOME_EQ(
@@ -2289,7 +2291,7 @@ TEST_F(MasterTest, OrphanTasks)
   AWAIT_READY(frameworkRegisteredMessage);
 
   // Get the master's state.
-  response = http::get(master.get(), "state.json");
+  response = process::http::get(master.get(), "state.json");
   AWAIT_READY(response);
 
   EXPECT_SOME_EQ(
@@ -2755,9 +2757,10 @@ TEST_F(MasterTest, StateEndpoint)
   Try<PID<Master>> master = StartMaster(flags);
   ASSERT_SOME(master);
 
-  Future<http::Response> response = http::get(master.get(), "state.json");
+  Future<process::http::Response> response =
+    process::http::get(master.get(), "state.json");
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::OK().status, response);
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(process::http::OK().status, response);
 
   EXPECT_SOME_EQ(
       "application/json",
@@ -2903,10 +2906,10 @@ TEST_F(MasterTest, StateSummaryEndpoint)
   EXPECT_CALL(exec, shutdown(_))
     .Times(AtMost(1));
 
-  Future<http::Response> response =
-    http::get(master.get(), "state-summary");
+  Future<process::http::Response> response =
+    process::http::get(master.get(), "state-summary");
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::OK().status, response);
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(process::http::OK().status, response);
 
   EXPECT_SOME_EQ(
       "application/json",
@@ -2960,8 +2963,9 @@ TEST_F(MasterTest, FrameworkWebUIUrl)
 
   AWAIT_READY(registered);
 
-  Future<http::Response> masterState = http::get(master.get(), "state.json");
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::OK().status, masterState);
+  Future<process::http::Response> masterState =
+    process::http::get(master.get(), "state.json");
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(process::http::OK().status, masterState);
 
   Try<JSON::Object> masterStateObject =
     JSON::parse<JSON::Object>(masterState.get().body);
@@ -3070,7 +3074,8 @@ TEST_F(MasterTest, TaskLabels)
   AWAIT_READY(update);
 
   // Verify label key and value in master state.json.
-  Future<http::Response> response = http::get(master.get(), "state.json");
+  Future<process::http::Response> response =
+    process::http::get(master.get(), "state.json");
   AWAIT_READY(response);
 
   EXPECT_SOME_EQ(
@@ -3147,7 +3152,8 @@ TEST_F(MasterTest, SlaveActiveEndpoint)
   AWAIT_READY(slaveRegisteredMessage);
 
   // Verify slave is active.
-  Future<http::Response> response = http::get(master.get(), "state.json");
+  Future<process::http::Response> response =
+    process::http::get(master.get(), "state.json");
   AWAIT_READY(response);
 
   Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
@@ -3169,7 +3175,7 @@ TEST_F(MasterTest, SlaveActiveEndpoint)
   AWAIT_READY(deactivateSlave);
 
   // Verify slave is inactive.
-  response = http::get(master.get(), "state.json");
+  response = process::http::get(master.get(), "state.json");
   AWAIT_READY(response);
 
   parse = JSON::parse<JSON::Object>(response.get().body);
@@ -3274,7 +3280,8 @@ TEST_F(MasterTest, TaskDiscoveryInfo)
   AWAIT_READY(update);
 
   // Verify label key and value in master state.json.
-  Future<http::Response> response = http::get(master.get(), "state.json");
+  Future<process::http::Response> response =
+    process::http::get(master.get(), "state.json");
   AWAIT_READY(response);
 
   EXPECT_SOME_EQ(

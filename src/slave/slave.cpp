@@ -110,8 +110,6 @@ namespace mesos {
 namespace internal {
 namespace slave {
 
-namespace http = process::http;
-
 using namespace state;
 
 Slave::Slave(const slave::Flags& _flags,
@@ -494,12 +492,12 @@ void Slave::initialize()
 
   route("/health",
         Http::HEALTH_HELP,
-        [http](const http::Request& request) {
+        [http](const process::http::Request& request) {
           return http.health(request);
         });
   route("/state.json",
         Http::STATE_HELP,
-        [http](const http::Request& request) {
+        [http](const process::http::Request& request) {
           Http::log(request);
           return http.state(request);
         });
