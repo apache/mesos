@@ -140,7 +140,7 @@ for line in log.split('\n'):
     shas.append(sha)
 
 
-previous = tracking_branch 
+previous = tracking_branch
 parent_review_request_id = None
 for i in range(len(shas)):
     sha = shas[i]
@@ -162,14 +162,14 @@ for i in range(len(shas)):
 
     # Show the commit.
     if review_request_id is None:
-        print '\nCreating diff of:\n'
+        print '\n\nCreating diff of:'
         call(['git',
               '--no-pager',
               'log',
               '--pretty=format:%Cred%H%Creset -%C(yellow)%d%Creset %s',
               previous + '..' + sha])
     else:
-        print '\nUpdating diff of:\n'
+        print '\n\nUpdating diff of:'
         call(['git',
               '--no-pager',
               'log',
@@ -177,7 +177,7 @@ for i in range(len(shas)):
               previous + '..' + sha])
 
     # Show the "parent" commit(s).
-    print '\n... with parent diff created from:\n'
+    print '\n\n... with parent diff created from:'
     call(['git',
           '--no-pager',
           'log',
