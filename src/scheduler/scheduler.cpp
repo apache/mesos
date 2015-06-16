@@ -703,24 +703,6 @@ protected:
     receive(None(), event);
   }
 
-  // Helper for "dropping" a task that was launched.
-  void drop(const TaskInfo& task, const string& message)
-  {
-    Event event;
-
-    event.set_type(Event::UPDATE);
-
-    Event::Update* update = event.mutable_update();
-
-    TaskStatus* status = update->mutable_status();
-    status->mutable_task_id()->CopyFrom(task.task_id());
-    status->set_state(TASK_LOST);
-    status->set_message(message);
-    status->set_timestamp(Clock::now().secs());
-
-    receive(None(), event);
-  }
-
   void drop(const Call& call, const string& message)
   {
     LOG(WARNING) << "Dropping " << call.type() << ": " << message;
