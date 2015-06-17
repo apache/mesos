@@ -2757,12 +2757,14 @@ void Master::_accept(
             message.set_pid(framework->pid);
             message.mutable_task()->MergeFrom(task_);
 
-            // Set labels retrieved from label-decorator hooks.
-            message.mutable_task()->mutable_labels()->CopyFrom(
-                HookManager::masterLaunchTaskLabelDecorator(
-                    task_,
-                    framework->info,
-                    slave->info));
+            if (HookManager::hooksAvailable()) {
+              // Set labels retrieved from label-decorator hooks.
+              message.mutable_task()->mutable_labels()->CopyFrom(
+                  HookManager::masterLaunchTaskLabelDecorator(
+                      task_,
+                      framework->info,
+                      slave->info));
+            }
 
             send(slave->pid, message);
           }

@@ -38,6 +38,7 @@ public:
   // hook and remove it from the list of available hooks.
   static Try<Nothing> unload(const std::string& hookName);
 
+  static bool hooksAvailable();
 
   static Labels masterLaunchTaskLabelDecorator(
       const TaskInfo& taskInfo,

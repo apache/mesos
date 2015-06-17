@@ -91,6 +91,14 @@ Try<Nothing> HookManager::unload(const std::string& hookName)
 }
 
 
+bool HookManager::hooksAvailable()
+{
+  synchronized (mutex) {
+    return !availableHooks.empty();
+  }
+}
+
+
 Labels HookManager::masterLaunchTaskLabelDecorator(
     const TaskInfo& taskInfo,
     const FrameworkInfo& frameworkInfo,

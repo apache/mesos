@@ -1233,9 +1233,11 @@ void Slave::runTask(
     return;
   }
 
-  // Set task labels from run task label decorator.
-  task.mutable_labels()->CopyFrom(
-      HookManager::slaveRunTaskLabelDecorator(task, frameworkInfo, info));
+  if (HookManager::hooksAvailable()) {
+    // Set task labels from run task label decorator.
+    task.mutable_labels()->CopyFrom(
+        HookManager::slaveRunTaskLabelDecorator(task, frameworkInfo, info));
+  }
 
   Future<bool> unschedule = true;
 
@@ -3429,7 +3431,9 @@ void Slave::removeExecutor(Framework* framework, Executor* executor)
     }
   }
 
-  HookManager::slaveRemoveExecutorHook(framework->info, executor->info);
+  if (HookManager::hooksAvailable()) {
+    HookManager::slaveRemoveExecutorHook(framework->info, executor->info);
+  }
 
   framework->destroyExecutor(executor->id);
 }
