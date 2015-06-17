@@ -889,7 +889,7 @@ mesos_usage_LDADD = libmesos.la $(LDADD)
 pkglibexec_PROGRAMS += mesos-docker-executor
 mesos_docker_executor_SOURCES = docker/executor.cpp
 mesos_docker_executor_CPPFLAGS = $(MESOS_CPPFLAGS)
-mesos_docker_executor_LDADD = libmesos.la
+mesos_docker_executor_LDADD = libmesos.la $(LDADD)
 
 bin_PROGRAMS += mesos-log
 mesos_log_SOURCES = log/main.cpp
