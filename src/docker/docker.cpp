@@ -376,7 +376,13 @@ Future<Nothing> Docker::run(
   foreach (const Volume& volume, containerInfo.volumes()) {
     string volumeConfig = volume.container_path();
     if (volume.has_host_path()) {
-      volumeConfig = volume.host_path() + ":" + volumeConfig;
+      if (!strings::startsWith(volume.host_path(), "/")) {
+        // Support mapping relative paths from the sandbox.
+        volumeConfig =
+          path::join(sandboxDirectory, volume.host_path()) + ":" + volumeConfig;
+      } else {
+        volumeConfig = volume.host_path() + ":" + volumeConfig;
+      }
       if (volume.has_mode()) {
         switch (volume.mode()) {
           case Volume::RW: volumeConfig += ":rw"; break;

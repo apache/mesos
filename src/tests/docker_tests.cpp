@@ -33,6 +33,7 @@
 
 #include "tests/environment.hpp"
 #include "tests/flags.hpp"
+#include "tests/mesos.hpp"
 
 using namespace process;
 
@@ -44,17 +45,37 @@ namespace internal {
 namespace tests {
 
 
-// This test tests the functionality of the docker's interfaces.
-TEST(DockerTest, ROOT_DOCKER_interface)
+static const string NAME_PREFIX="mesos-docker";
+
+
+class DockerTest : public MesosTest
 {
-  string containerName = "mesos-docker-test";
+  virtual void TearDown()
+  {
+    Try<Docker*> docker = Docker::create(tests::flags.docker, false);
+    ASSERT_SOME(docker);
+
+    Future<list<Docker::Container>> containers =
+      docker.get()->ps(true, NAME_PREFIX);
+
+    AWAIT_READY(containers);
+
+    // Cleanup all mesos launched containers.
+    foreach (const Docker::Container& container, containers.get()) {
+      AWAIT_READY_FOR(docker.get()->rm(container.id, true), Seconds(30));
+    }
+
+    delete docker.get();
+  }
+};
+
+// This test tests the functionality of the docker's interfaces.
+TEST_F(DockerTest, ROOT_DOCKER_interface)
+{
+  const string containerName = NAME_PREFIX + "-test";
   Resources resources = Resources::parse("cpus:1;mem:512").get();
 
   Owned<Docker> docker(Docker::create(tests::flags.docker, false).get());
-
-  // Cleaning up the container first if it exists.
-  Future<Nothing> status = docker->rm(containerName, true);
-  ASSERT_TRUE(status.await(Seconds(10)));
 
   // Verify that we do not see the container.
   Future<list<Docker::Container> > containers = docker->ps(true, containerName);
@@ -77,7 +98,7 @@ TEST(DockerTest, ROOT_DOCKER_interface)
   commandInfo.set_value("sleep 120");
 
   // Start the container.
-  status = docker->run(
+  Future<Nothing> status = docker->run(
       containerInfo,
       commandInfo,
       containerName,
@@ -199,7 +220,7 @@ TEST(DockerTest, ROOT_DOCKER_interface)
 }
 
 
-TEST(DockerTest, ROOT_DOCKER_CheckCommandWithShell)
+TEST_F(DockerTest, ROOT_DOCKER_CheckCommandWithShell)
 {
   Owned<Docker> docker(Docker::create(tests::flags.docker, false).get());
 
@@ -224,9 +245,9 @@ TEST(DockerTest, ROOT_DOCKER_CheckCommandWithShell)
 }
 
 
-TEST(DockerTest, ROOT_DOCKER_CheckPortResource)
+TEST_F(DockerTest, ROOT_DOCKER_CheckPortResource)
 {
-  string containerName = "mesos-docker-port-resource-test";
+  const string containerName = NAME_PREFIX + "-port-resource-test";
   Owned<Docker> docker(Docker::create(tests::flags.docker, false).get());
 
   // Make sure the container is removed.
@@ -280,13 +301,10 @@ TEST(DockerTest, ROOT_DOCKER_CheckPortResource)
       resources);
 
   AWAIT_READY(run);
-
-  Future<Nothing> status = docker->rm(containerName, true);
-  ASSERT_TRUE(process::internal::await(status, Seconds(10)));
 }
 
 
-TEST(DockerTest, ROOT_DOCKER_CancelPull)
+TEST_F(DockerTest, ROOT_DOCKER_CancelPull)
 {
   // Delete the test image if it exists.
 
@@ -316,6 +334,87 @@ TEST(DockerTest, ROOT_DOCKER_CancelPull)
 
   AWAIT_DISCARDED(future);
 }
+
+
+// This test verifies mounting in a relative path when running a
+// docker container works.
+TEST_F(DockerTest, ROOT_DOCKER_MountRelative)
+{
+  Owned<Docker> docker(Docker::create(tests::flags.docker, false).get());
+
+  ContainerInfo containerInfo;
+  containerInfo.set_type(ContainerInfo::DOCKER);
+
+  Volume* volume = containerInfo.add_volumes();
+  volume->set_host_path("test_file");
+  volume->set_container_path("/tmp/test_file");
+  volume->set_mode(Volume::RO);
+
+  ContainerInfo::DockerInfo dockerInfo;
+  dockerInfo.set_image("busybox");
+
+  containerInfo.mutable_docker()->CopyFrom(dockerInfo);
+
+  CommandInfo commandInfo;
+  commandInfo.set_shell(true);
+  commandInfo.set_value("ls /tmp/test_file");
+
+  Try<string> directory = environment->mkdtemp();
+  CHECK_SOME(directory) << "Failed to create temporary directory";
+
+  const string testFile = path::join(directory.get(), "test_file");
+  EXPECT_SOME(os::write(testFile, "data"));
+
+  Future<Nothing> run = docker->run(
+      containerInfo,
+      commandInfo,
+      NAME_PREFIX + "-mount-relative-test",
+      directory.get(),
+      directory.get());
+
+  AWAIT_READY(run);
+}
+
+
+// This test verifies mounting in a absolute path when running a
+// docker container works.
+TEST_F(DockerTest, ROOT_DOCKER_MountAbsolute)
+{
+  Owned<Docker> docker(Docker::create(tests::flags.docker, false).get());
+
+  ContainerInfo containerInfo;
+  containerInfo.set_type(ContainerInfo::DOCKER);
+
+  Try<string> directory = environment->mkdtemp();
+  CHECK_SOME(directory) << "Failed to create temporary directory";
+
+  const string testFile = path::join(directory.get(), "test_file");
+  EXPECT_SOME(os::write(testFile, "data"));
+
+  Volume* volume = containerInfo.add_volumes();
+  volume->set_host_path(testFile);
+  volume->set_container_path("/tmp/test_file");
+  volume->set_mode(Volume::RO);
+
+  ContainerInfo::DockerInfo dockerInfo;
+  dockerInfo.set_image("busybox");
+
+  containerInfo.mutable_docker()->CopyFrom(dockerInfo);
+
+  CommandInfo commandInfo;
+  commandInfo.set_shell(true);
+  commandInfo.set_value("ls /tmp/test_file");
+
+  Future<Nothing> run = docker->run(
+      containerInfo,
+      commandInfo,
+      NAME_PREFIX + "-mount-absolute-test",
+      directory.get(),
+      directory.get());
+
+  AWAIT_READY(run);
+}
+
 
 } // namespace tests {
 } // namespace internal {
