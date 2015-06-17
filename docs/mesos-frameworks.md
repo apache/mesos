@@ -26,8 +26,6 @@ layout: documentation
 * [Chronos](https://github.com/airbnb/chronos) is a distributed job scheduler that supports complex job topologies. It can be used as a more fault-tolerant replacement for Cron.
 * [Jenkins](https://github.com/jenkinsci/mesos-plugin) is a continuous integration server. The mesos-jenkins plugin allows it to dynamically launch workers on a Mesos cluster depending on the workload.
 * [JobServer](http://www.grandlogic.com/content/html_docs/jobserver.html) is a distributed job scheduler and processor  which allows developers to build custom batch processing Tasklets using point and click web UI.
-* [Torque](http://mesos.apache.org/documentation/latest/running-torque-or-mpi-on-mesos/) is a distributed resource manager providing control over batch jobs and distributed compute nodes.
-
 
 ## Data Storage
 
