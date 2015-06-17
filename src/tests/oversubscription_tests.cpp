@@ -68,7 +68,7 @@ using testing::_;
 using testing::AtMost;
 using testing::DoAll;
 using testing::Eq;
-using testing::Invoke;
+using testing::InvokeWithoutArgs;
 using testing::Return;
 
 namespace mesos {
@@ -263,7 +263,7 @@ TEST_F(OversubscriptionTest, ForwardUpdateSlaveMessage)
 
   Queue<Resources> estimations;
   EXPECT_CALL(resourceEstimator, oversubscribable())
-    .WillOnce(Invoke(&estimations, &Queue<Resources>::get));
+    .WillOnce(InvokeWithoutArgs(&estimations, &Queue<Resources>::get));
 
   slave::Flags flags = CreateSlaveFlags();
   Try<PID<Slave>> slave = StartSlave(&resourceEstimator, flags);
@@ -327,7 +327,7 @@ TEST_F(OversubscriptionTest, RevocableOffer)
 
   Queue<Resources> estimations;
   EXPECT_CALL(resourceEstimator, oversubscribable())
-    .WillOnce(Invoke(&estimations, &Queue<Resources>::get));
+    .WillOnce(InvokeWithoutArgs(&estimations, &Queue<Resources>::get));
 
   slave::Flags flags = CreateSlaveFlags();
 
@@ -421,7 +421,7 @@ TEST_F(OversubscriptionTest, RescindRevocableOffer)
   // We expect 2 calls for 2 estimations.
   EXPECT_CALL(resourceEstimator, oversubscribable())
     .Times(2)
-    .WillRepeatedly(Invoke(&estimations, &Queue<Resources>::get));
+    .WillRepeatedly(InvokeWithoutArgs(&estimations, &Queue<Resources>::get));
 
   slave::Flags flags = CreateSlaveFlags();
 
@@ -759,7 +759,9 @@ TEST_F(OversubscriptionTest, ReceiveQoSCorrection)
   Queue<list<QoSCorrection>> corrections;
 
   EXPECT_CALL(controller, corrections())
-    .WillRepeatedly(Invoke(&corrections, &Queue<list<QoSCorrection>>::get));
+    .WillRepeatedly(InvokeWithoutArgs(
+        &corrections,
+        &Queue<list<QoSCorrection>>::get));
 
   MockSlave slave(CreateSlaveFlags(), &detector, &containerizer, &controller);
 
@@ -782,6 +784,83 @@ TEST_F(OversubscriptionTest, ReceiveQoSCorrection)
   wait(slave);
 }
 
+
+// This test verifies that a QoS controller can kill a running task
+// and that a TASK_LOST with REASON_EXECUTOR_PREEMPTED is sent to the
+// framework.
+TEST_F(OversubscriptionTest, QoSCorrectionKill)
+{
+  Try<PID<Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  MockQoSController controller;
+
+  Queue<list<mesos::slave::QoSCorrection>> corrections;
+
+  EXPECT_CALL(controller, corrections())
+    .WillRepeatedly(InvokeWithoutArgs(
+        &corrections,
+        &Queue<list<mesos::slave::QoSCorrection>>::get));
+
+  Try<PID<Slave>> slave = StartSlave(&controller, CreateSlaveFlags());
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  Future<FrameworkID> frameworkId;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(frameworkId);
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
+
+  TaskInfo task = createTask(offers.get()[0], "sleep 10");
+
+  Future<TaskStatus> status1;
+  Future<TaskStatus> status2;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status1))
+    .WillOnce(FutureArg<1>(&status2))
+    .WillRepeatedly(Return());       // Ignore subsequent updates.
+
+  driver.launchTasks(offers.get()[0].id(), {task});
+
+  AWAIT_READY(status1);
+  ASSERT_EQ(TASK_RUNNING, status1.get().state());
+
+  // Carry out kill correction.
+  QoSCorrection killCorrection;
+
+  QoSCorrection::Kill* kill = killCorrection.mutable_kill();
+  kill->mutable_framework_id()->CopyFrom(frameworkId.get());
+
+  // As we use a command executor to launch an actual sleep command,
+  // the executor id will be the task id.
+  kill->mutable_executor_id()->set_value(task.task_id().value());
+
+  corrections.put({killCorrection});
+
+  // Verify task status is TASK_LOST.
+  AWAIT_READY(status2);
+  ASSERT_EQ(TASK_LOST, status2.get().state());
+  ASSERT_EQ(TaskStatus::REASON_EXECUTOR_PREEMPTED, status2.get().reason());
+
+  driver.stop();
+  driver.join();
+
+  Shutdown();
+}
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {

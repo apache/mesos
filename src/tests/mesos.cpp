@@ -374,6 +374,21 @@ Try<PID<slave::Slave>> MesosTest::StartSlave(
 
 
 Try<PID<slave::Slave>> MesosTest::StartSlave(
+    mesos::slave::QoSController* qoSController,
+    const Option<slave::Flags>& flags)
+{
+  return cluster.slaves.start(
+      flags.isNone() ? CreateSlaveFlags() : flags.get(),
+      None(),
+      None(),
+      None(),
+      None(),
+      None(),
+      qoSController);
+}
+
+
+Try<PID<slave::Slave>> MesosTest::StartSlave(
     slave::Containerizer* containerizer,
     mesos::slave::QoSController* qoSController,
     const Option<slave::Flags>& flags)

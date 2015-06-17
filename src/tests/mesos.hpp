@@ -199,6 +199,11 @@ protected:
       mesos::slave::ResourceEstimator* resourceEstimator,
       const Option<slave::Flags>& flags = None());
 
+  // Starts a slave with the specified QoS Controller and flags.
+  virtual Try<process::PID<slave::Slave>> StartSlave(
+      mesos::slave::QoSController* qosController,
+      const Option<slave::Flags>& flags = None());
+
   // Starts a slave with the specified QoS Controller,
   // containerizer and flags.
   virtual Try<process::PID<slave::Slave>> StartSlave(
