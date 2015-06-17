@@ -455,6 +455,8 @@ MockSlave::MockSlave(const slave::Flags& flags,
     .WillRepeatedly(Invoke(this, &MockSlave::unmocked_removeFramework));
   EXPECT_CALL(*this, __recover(_))
     .WillRepeatedly(Invoke(this, &MockSlave::unmocked___recover));
+  EXPECT_CALL(*this, qosCorrections())
+    .WillRepeatedly(Invoke(this, &MockSlave::unmocked_qosCorrections));
 }
 
 
@@ -503,6 +505,12 @@ void MockSlave::unmocked_removeFramework(slave::Framework* framework)
 void MockSlave::unmocked___recover(const Future<Nothing>& future)
 {
   slave::Slave::__recover(future);
+}
+
+
+void MockSlave::unmocked_qosCorrections()
+{
+  slave::Slave::qosCorrections();
 }
 
 

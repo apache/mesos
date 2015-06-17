@@ -89,6 +89,7 @@
 #include "slave/status_update_manager.hpp"
 
 using mesos::slave::QoSController;
+using mesos::slave::QoSCorrection;
 using mesos::slave::ResourceEstimator;
 
 using std::list;
@@ -3979,8 +3980,7 @@ void Slave::__recover(const Future<Nothing>& future)
     forwardOversubscribed();
 
     // Start acting on correction from QoS Controller.
-    qosController->corrections()
-      .onAny(defer(self(), &Self::qosCorrections, lambda::_1));
+    qosCorrections();
   } else {
     // Slave started in cleanup mode.
     CHECK_EQ("cleanup", flags.recover);
@@ -4127,20 +4127,127 @@ void Slave::_forwardOversubscribed(const Future<Resources>& oversubscribable)
 }
 
 
-void Slave::qosCorrections(
-    const Future<list<mesos::slave::QoSCorrection>>& future)
+void Slave::qosCorrections()
 {
+  qosController->corrections()
+    .onAny(defer(self(), &Self::_qosCorrections, lambda::_1));
+}
+
+
+void Slave::_qosCorrections(const Future<list<QoSCorrection>>& future)
+{
+  // Make sure correction handler is scheduled again.
+  delay(flags.qos_correction_interval_min,
+        self(),
+        &Self::qosCorrections);
+
+  // Verify slave state.
+  CHECK(state == RECOVERING || state == DISCONNECTED ||
+        state == RUNNING || state == TERMINATING)
+    << state;
+
+  if (state == RECOVERING || state == TERMINATING) {
+    LOG(WARNING) << "Cannot perform QoS corrections because the slave is "
+                 << state;
+    return;
+  }
+
   if (!future.isReady()) {
     LOG(WARNING) << "Failed to get corrections from QoS Controller: "
                   << (future.isFailed() ? future.failure() : "discarded");
-  } else {
-    // TODO(nnielsen): Print correction, once the operator overload
-    // for QoSCorrection has been implemented.
-    LOG(INFO) << "Received new QoS corrections";
+    return;
   }
 
-  qosController->corrections()
-    .onAny(defer(self(), &Self::qosCorrections, lambda::_1));
+  const list<QoSCorrection>& corrections = future.get();
+
+  LOG(INFO) << "Received " << corrections.size() << " QoS corrections";
+
+  foreach (const QoSCorrection& correction, corrections) {
+    // TODO(nnielsen): Print correction, once the operator overload
+    // for QoSCorrection has been implemented.
+    if (correction.type() == QoSCorrection::KILL) {
+      const QoSCorrection::Kill& kill = correction.kill();
+
+      if (!kill.has_framework_id()) {
+        LOG(WARNING) << "Ignoring QoS correction KILL: "
+                     << "framework id not specified.";
+        continue;
+      }
+
+      const FrameworkID& frameworkId = kill.framework_id();
+
+      if (!kill.has_executor_id()) {
+        // TODO(nnielsen): For now, only executor killing is supported. Check
+        // can be removed when task killing is supported as well.
+        LOG(WARNING) << "Ignoring QoS correction KILL on framework "
+                     << frameworkId << ": executor id not specified";
+        continue;
+      }
+
+      const ExecutorID& executorId = kill.executor_id();
+
+      Framework* framework = getFramework(frameworkId);
+      if (framework == NULL) {
+        LOG(WARNING) << "Ignoring QoS correction KILL on framework "
+                     << frameworkId << ": framework cannot be found";
+        continue;
+      }
+
+      // Verify framework state.
+      CHECK(framework->state == Framework::RUNNING ||
+            framework->state == Framework::TERMINATING)
+        << framework->state;
+
+      if (framework->state == Framework::TERMINATING) {
+        LOG(WARNING) << "Ignoring QoS correction KILL on framework "
+                     << frameworkId << ": framework is terminating.";
+        continue;
+      }
+
+      Executor* executor = framework->getExecutor(executorId);
+      if (executor == NULL) {
+        LOG(WARNING) << "Ignoring QoS correction KILL on executor '"
+                     << executorId << "' of framework " << frameworkId
+                     << ": executor cannot be found";
+        continue;
+      }
+
+      switch (executor->state) {
+        case Executor::REGISTERING:
+        case Executor::RUNNING: {
+          LOG(INFO) << "Killing executor '" << executorId
+                    << "' of framework " << frameworkId
+                    << " as QoS correction";
+
+          // TODO(nnielsen): We should ensure that we are addressing
+          // the _container_ which the QoS controller intended to
+          // kill. Without this check, we may run into a scenario
+          // where the executor has terminated and one with the same
+          // id has started in the interim i.e. running in a different
+          // container than the one the QoS controller targeted
+          // (MESOS-2875).
+          executor->state = Executor::TERMINATING;
+          executor->reason = TaskStatus::REASON_EXECUTOR_PREEMPTED;
+          containerizer->destroy(executor->containerId);
+          break;
+        }
+        case Executor::TERMINATING:
+        case Executor::TERMINATED:
+          LOG(WARNING) << "Ignoring QoS correction KILL on executor '"
+                       << executorId << "' of framework " << frameworkId
+                       << ": executor is " << executor->state;
+          break;
+        default:
+          LOG(FATAL) << " Executor '" << executor->id
+                     << "' of framework " << framework->id()
+                     << " is in unexpected state " << executor->state;
+          break;
+      }
+    } else {
+      LOG(WARNING) << "QoS correction type " << correction.type()
+                   << " is not supported";
+    }
+  }
 }
 
 
@@ -4305,7 +4412,18 @@ void Slave::sendExecutorTerminatedStatusUpdate(
   mesos::TaskState taskState = TASK_LOST;
   TaskStatus::Reason reason = TaskStatus::REASON_EXECUTOR_TERMINATED;
 
-  if (termination.isReady() && termination.get().killed()) {
+  CHECK_NOTNULL(executor);
+
+  if (executor->reason.isSome()) {
+    // TODO(nnielsen): We want to dispatch the task status and reason
+    // from the termination reason (MESOS-2035) and the executor
+    // reason based on a specific policy i.e. if the termination
+    // reason is set, this overrides executor->reason. At the moment,
+    // we infer the containerizer reason for killing from 'killed'
+    // field in 'termination' and are explicitly overriding the task
+    // status and reason.
+    reason = executor->reason.get();
+  } else if (termination.isReady() && termination.get().killed()) {
     taskState = TASK_FAILED;
     // TODO(dhamon): MESOS-2035: Add 'reason' to containerizer::Termination.
     reason = TaskStatus::REASON_MEMORY_LIMIT;

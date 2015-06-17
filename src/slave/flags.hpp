@@ -109,6 +109,7 @@ public:
   Option<std::string> hooks;
   Option<std::string> resource_estimator;
   Option<std::string> qos_controller;
+  Duration qos_correction_interval_min;
   Duration oversubscribed_resources_interval;
 };
 

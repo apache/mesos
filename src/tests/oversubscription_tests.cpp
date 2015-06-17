@@ -764,7 +764,7 @@ TEST_F(OversubscriptionTest, ReceiveQoSCorrection)
   MockSlave slave(CreateSlaveFlags(), &detector, &containerizer, &controller);
 
   Future<list<QoSCorrection>> qosCorrections;
-  EXPECT_CALL(slave, qosCorrections(_))
+  EXPECT_CALL(slave, _qosCorrections(_))
     .WillOnce(FutureArg<0>(&qosCorrections));
 
   spawn(slave);

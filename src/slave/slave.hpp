@@ -354,7 +354,10 @@ public:
   void signaled(int signal, int uid);
 
   // Made 'virtual' for Slave mocking.
-  virtual void qosCorrections(
+  virtual void qosCorrections();
+
+  // Made 'virtual' for Slave mocking.
+  virtual void _qosCorrections(
       const process::Future<std::list<
           mesos::slave::QoSCorrection>>& correction);
 
@@ -604,6 +607,11 @@ struct Executor
   // Boost's implementation of circular_buffer with Task (Boost
   // attempts to do some memset's which are unsafe).
   boost::circular_buffer<std::shared_ptr<Task>> completedTasks;
+
+  // The 'reason' is for the slave to encode the reason behind a
+  // terminal status update for those pending/unterminated tasks when
+  // the executor is terminated.
+  Option<TaskStatus::Reason> reason;
 
 private:
   Executor(const Executor&);              // No copying.

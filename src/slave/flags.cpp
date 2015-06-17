@@ -522,6 +522,14 @@ mesos::internal::slave::Flags::Flags()
       "qos_controller",
       "The name of the QoS Controller to use for oversubscription.");
 
+  add(&Flags::qos_correction_interval_min,
+      "qos_correction_interval_min",
+      "The slave polls and carries out QoS corrections from the QoS\n"
+      "Controller based on its observed performance of running tasks.\n"
+      "The smallest interval between these corrections is controlled by\n"
+      "this flag.",
+      Seconds(0));
+
   add(&Flags::oversubscribed_resources_interval,
       "oversubscribed_resources_interval",
       "The slave periodically updates the master with the current estimation\n"

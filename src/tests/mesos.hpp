@@ -849,7 +849,11 @@ public:
   void unmocked___recover(
       const process::Future<Nothing>& future);
 
-  MOCK_METHOD1(qosCorrections, void(
+  MOCK_METHOD0(qosCorrections, void());
+
+  void unmocked_qosCorrections();
+
+  MOCK_METHOD1(_qosCorrections, void(
       const process::Future<std::list<
           mesos::slave::QoSCorrection>>& correction));
 
