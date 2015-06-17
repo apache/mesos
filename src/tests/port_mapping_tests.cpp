@@ -349,6 +349,7 @@ protected:
     // Retrieve the socket information from inside the container.
     PortMappingStatistics statistics;
     statistics.flags.pid = pid;
+    statistics.flags.eth0_name = eth0;
     statistics.flags.enable_socket_statistics_summary = enable_summary;
     statistics.flags.enable_socket_statistics_details = enable_details;
 

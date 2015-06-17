@@ -72,7 +72,9 @@
 #include "linux/routing/link/link.hpp"
 
 #include "linux/routing/queueing/fq_codel.hpp"
+#include "linux/routing/queueing/htb.hpp"
 #include "linux/routing/queueing/ingress.hpp"
+#include "linux/routing/queueing/statistics.hpp"
 
 #include "mesos/resources.hpp"
 
@@ -87,6 +89,7 @@ using namespace process;
 using namespace routing;
 using namespace routing::filter;
 using namespace routing::queueing;
+using namespace routing::queueing::statistics;
 
 using std::cerr;
 using std::cout;
@@ -663,6 +666,10 @@ const char* PortMappingStatistics::NAME = "statistics";
 
 PortMappingStatistics::Flags::Flags()
 {
+  add(&eth0_name,
+      "eth0_name",
+      "The name of the public network interface (e.g., eth0)");
+
   add(&pid,
       "pid",
       "The pid of the process whose namespaces we will enter");
@@ -680,6 +687,48 @@ PortMappingStatistics::Flags::Flags()
 }
 
 
+// A helper that copies the traffic control statistics from the
+// statistics hashmap into the ResourceStatistics protocol buffer.
+static void addTrafficControlStatistics(
+    const string& id,
+    const hashmap<string, uint64_t>& statistics,
+    ResourceStatistics* result)
+{
+  TrafficControlStatistics *tc = result->add_net_traffic_control_statistics();
+
+  tc->set_id(id);
+
+  // TODO(pbrett) Use protobuf reflection here.
+  if (statistics.contains(BACKLOG)) {
+    tc->set_backlog(statistics.at(BACKLOG));
+  }
+  if (statistics.contains(BYTES)) {
+    tc->set_bytes(statistics.at(BYTES));
+  }
+  if (statistics.contains(DROPS)) {
+    tc->set_drops(statistics.at(DROPS));
+  }
+  if (statistics.contains(OVERLIMITS)) {
+    tc->set_overlimits(statistics.at(OVERLIMITS));
+  }
+  if (statistics.contains(PACKETS)) {
+    tc->set_packets(statistics.at(PACKETS));
+  }
+  if (statistics.contains(QLEN)) {
+    tc->set_qlen(statistics.at(QLEN));
+  }
+  if (statistics.contains(RATE_BPS)) {
+    tc->set_ratebps(statistics.at(RATE_BPS));
+  }
+  if (statistics.contains(RATE_PPS)) {
+    tc->set_ratepps(statistics.at(RATE_PPS));
+  }
+  if (statistics.contains(REQUEUES)) {
+    tc->set_requeues(statistics.at(REQUEUES));
+  }
+}
+
+
 int PortMappingStatistics::execute()
 {
   if (flags.help) {
@@ -691,6 +740,11 @@ int PortMappingStatistics::execute()
 
   if (flags.pid.isNone()) {
     cerr << "The pid is not specified" << endl;
+    return 1;
+  }
+
+  if (flags.eth0_name.isNone()) {
+    cerr << "The public interface name (e.g., eth0) is not specified" << endl;
     return 1;
   }
 
@@ -823,6 +877,36 @@ int PortMappingStatistics::execute()
       result.set_net_tcp_rtt_microsecs_p95(RTTs[p95]);
       result.set_net_tcp_rtt_microsecs_p99(RTTs[p99]);
     }
+  }
+
+  // Collect traffic statistics for the container from the container
+  // virtual interface and export them in JSON.
+  const string& eth0 = flags.eth0_name.get();
+
+  // Overlimits are reported on the HTB qdisc at the egress root.
+  Result<hashmap<string, uint64_t>> statistics =
+    htb::statistics(eth0, EGRESS_ROOT);
+
+  if (statistics.isSome()) {
+    addTrafficControlStatistics(
+        NET_ISOLATOR_BW_LIMIT,
+        statistics.get(),
+        &result);
+  } else {
+    cerr << "Failed to get the network statistics for "
+         << "the htb qdisc on " << eth0 << endl;
+  }
+
+  // Drops due to the bandwidth limit should be reported at the leaf.
+  statistics = fq_codel::statistics(eth0, CONTAINER_TX_HTB_CLASS_ID);
+  if (statistics.isSome()) {
+    addTrafficControlStatistics(
+        NET_ISOLATOR_BLOAT_REDUCTION,
+        statistics.get(),
+        &result);
+  } else {
+    cerr << "Failed to get the network statistics for "
+         << "the fq_codel qdisc on " << eth0 << endl;
   }
 
   cout << stringify(JSON::Protobuf(result));
@@ -2696,6 +2780,7 @@ Future<ResourceStatistics> PortMappingIsolatorProcess::usage(
   // Retrieve the socket information from inside the container.
   PortMappingStatistics statistics;
   statistics.flags.pid = info->pid.get();
+  statistics.flags.eth0_name = eth0;
   statistics.flags.enable_socket_statistics_summary =
     flags.network_enable_socket_statistics_summary;
   statistics.flags.enable_socket_statistics_details =

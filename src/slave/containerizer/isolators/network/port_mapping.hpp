@@ -74,6 +74,12 @@ inline std::string PORT_MAPPING_BIND_MOUNT_SYMLINK_ROOT()
 }
 
 
+// These names are used to identify the traffic control statistics
+// output for each of the Linux Traffic Control Qdiscs we report.
+constexpr char NET_ISOLATOR_BW_LIMIT[] = "bw_limit";
+constexpr char NET_ISOLATOR_BLOAT_REDUCTION[] = "bloat_reduction";
+
+
 // Responsible for allocating ephemeral ports for the port mapping
 // network isolator. This class is exposed mainly for unit testing.
 class EphemeralPortsAllocator
@@ -376,6 +382,7 @@ public:
   {
     Flags();
 
+    Option<std::string> eth0_name;
     Option<pid_t> pid;
     bool enable_socket_statistics_summary;
     bool enable_socket_statistics_details;
