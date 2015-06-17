@@ -4056,7 +4056,7 @@ Future<Nothing> Slave::garbageCollect(const string& path)
 
   // It is unsafe for testing to use unix time directly, we must use
   // Time::create to convert into a Time object that reflects the
-  // possibly advanced state state of the libprocess Clock.
+  // possibly advanced state of the libprocess Clock.
   Try<Time> time = Time::create(mtime.get());
   CHECK_SOME(time);
 
