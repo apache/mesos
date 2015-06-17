@@ -50,6 +50,8 @@
 
 #include "master/master.hpp"
 
+#include "mesos/mesos.hpp"
+
 #include "slave/flags.hpp"
 #include "slave/slave.hpp"
 
@@ -339,7 +341,7 @@ protected:
     return pid;
   }
 
-  JSON::Object statisticsHelper(
+  Result<ResourceStatistics> statisticsHelper(
       pid_t pid,
       bool enable_summary,
       bool enable_details)
@@ -376,7 +378,7 @@ protected:
     Try<JSON::Object> object = JSON::parse<JSON::Object>(out.get());
     CHECK_SOME(object);
 
-    return object.get();
+    return ::protobuf::parse<ResourceStatistics>(object.get());
   }
 
   slave::Flags flags;
@@ -1569,32 +1571,24 @@ TEST_F(PortMappingIsolatorTest, ROOT_SmallEgressLimit)
 }
 
 
-bool HasTCPSocketsCount(const JSON::Object& object)
+bool HasTCPSocketsCount(const ResourceStatistics& statistics)
 {
-  return object.find<JSON::Number>(NET_TCP_ACTIVE_CONNECTIONS).isSome() &&
-    object.find<JSON::Number>(NET_TCP_TIME_WAIT_CONNECTIONS).isSome();
+  return statistics.has_net_tcp_active_connections() &&
+    statistics.has_net_tcp_time_wait_connections();
 }
 
 
-bool HasTCPSocketsRTT(const JSON::Object& object)
+bool HasTCPSocketsRTT(const ResourceStatistics& statistics)
 {
-  Result<JSON::Number> p50 =
-    object.find<JSON::Number>(NET_TCP_RTT_MICROSECS_P50);
-  Result<JSON::Number> p90 =
-    object.find<JSON::Number>(NET_TCP_RTT_MICROSECS_P90);
-  Result<JSON::Number> p95 =
-    object.find<JSON::Number>(NET_TCP_RTT_MICROSECS_P95);
-  Result<JSON::Number> p99 =
-    object.find<JSON::Number>(NET_TCP_RTT_MICROSECS_P99);
-
   // We either have all of the following metrics or we have nothing.
-  if (!p50.isSome() && !p90.isSome() && !p95.isSome() && !p99.isSome()) {
+  if (statistics.has_net_tcp_rtt_microsecs_p50() &&
+      statistics.has_net_tcp_rtt_microsecs_p90() &&
+      statistics.has_net_tcp_rtt_microsecs_p95() &&
+      statistics.has_net_tcp_rtt_microsecs_p99()) {
+    return true;
+  } else {
     return false;
   }
-
-  EXPECT_TRUE(p50.isSome() && p90.isSome() && p95.isSome() && p99.isSome());
-
-  return true;
 }
 
 
@@ -1718,17 +1712,26 @@ TEST_F(PortMappingIsolatorTest, ROOT_PortMappingStatistics)
 
   // While the connection is still active, try out different flag
   // combinations.
-  JSON::Object object = statisticsHelper(pid.get(), true, true);
-  ASSERT_TRUE(HasTCPSocketsCount(object) && HasTCPSocketsRTT(object));
+  Result<ResourceStatistics> statistics =
+      statisticsHelper(pid.get(), true, true);
+  ASSERT_SOME(statistics);
+  EXPECT_TRUE(HasTCPSocketsCount(statistics.get()));
+  EXPECT_TRUE(HasTCPSocketsRTT(statistics.get()));
 
-  object = statisticsHelper(pid.get(), true, false);
-  ASSERT_TRUE(HasTCPSocketsCount(object) && !HasTCPSocketsRTT(object));
+  statistics = statisticsHelper(pid.get(), true, false);
+  ASSERT_SOME(statistics);
+  EXPECT_TRUE(HasTCPSocketsCount(statistics.get()));
+  EXPECT_FALSE(HasTCPSocketsRTT(statistics.get()));
 
-  object = statisticsHelper(pid.get(), false, true);
-  ASSERT_TRUE(!HasTCPSocketsCount(object) && HasTCPSocketsRTT(object));
+  statistics = statisticsHelper(pid.get(), false, true);
+  ASSERT_SOME(statistics);
+  EXPECT_FALSE(HasTCPSocketsCount(statistics.get()));
+  EXPECT_TRUE(HasTCPSocketsRTT(statistics.get()));
 
-  object = statisticsHelper(pid.get(), false, false);
-  ASSERT_TRUE(!HasTCPSocketsCount(object) && !HasTCPSocketsRTT(object));
+  statistics = statisticsHelper(pid.get(), false, false);
+  ASSERT_SOME(statistics);
+  EXPECT_FALSE(HasTCPSocketsCount(statistics.get()));
+  EXPECT_FALSE(HasTCPSocketsRTT(statistics.get()));
 
   // Wait for the command to finish.
   ASSERT_TRUE(waitForFileCreation(container1Ready));

@@ -113,13 +113,6 @@ namespace mesos {
 namespace internal {
 namespace slave {
 
-const char NET_TCP_ACTIVE_CONNECTIONS[] = "net_tcp_active_connections";
-const char NET_TCP_TIME_WAIT_CONNECTIONS[] = "net_tcp_time_wait_connections";
-const char NET_TCP_RTT_MICROSECS_P50[] = "net_tcp_rtt_microsecs_p50";
-const char NET_TCP_RTT_MICROSECS_P90[] = "net_tcp_rtt_microsecs_p90";
-const char NET_TCP_RTT_MICROSECS_P95[] = "net_tcp_rtt_microsecs_p95";
-const char NET_TCP_RTT_MICROSECS_P99[] = "net_tcp_rtt_microsecs_p99";
-
 using mesos::slave::ExecutorRunState;
 using mesos::slave::Isolator;
 using mesos::slave::IsolatorProcess;
@@ -709,7 +702,11 @@ int PortMappingStatistics::execute()
     return 1;
   }
 
-  JSON::Object object;
+  ResourceStatistics result;
+
+  // NOTE: We use a dummy value here since this field will be cleared
+  // before the result is sent to the containerizer.
+  result.set_timestamp(0);
 
   if (flags.enable_socket_statistics_summary) {
     // Collections for socket statistics summary are below.
@@ -757,7 +754,7 @@ int PortMappingStatistics::execute()
             continue;
           }
 
-          object.values[NET_TCP_ACTIVE_CONNECTIONS] = inuse.get();
+          result.set_net_tcp_active_connections(inuse.get());
         } else if (tokens[i] == "tw") {
           if (i + 1 >= tokens.size()) {
             cerr << "Unexpected output from /proc/net/sockstat" << endl;
@@ -774,7 +771,7 @@ int PortMappingStatistics::execute()
             continue;
           }
 
-          object.values[NET_TCP_TIME_WAIT_CONNECTIONS] = tw.get();
+          result.set_net_tcp_time_wait_connections(tw.get());
         }
       }
     }
@@ -821,14 +818,14 @@ int PortMappingStatistics::execute()
       size_t p95 = RTTs.size() * 95 / 100;
       size_t p99 = RTTs.size() * 99 / 100;
 
-      object.values[NET_TCP_RTT_MICROSECS_P50] = RTTs[p50];
-      object.values[NET_TCP_RTT_MICROSECS_P90] = RTTs[p90];
-      object.values[NET_TCP_RTT_MICROSECS_P95] = RTTs[p95];
-      object.values[NET_TCP_RTT_MICROSECS_P99] = RTTs[p99];
+      result.set_net_tcp_rtt_microsecs_p50(RTTs[p50]);
+      result.set_net_tcp_rtt_microsecs_p90(RTTs[p90]);
+      result.set_net_tcp_rtt_microsecs_p95(RTTs[p95]);
+      result.set_net_tcp_rtt_microsecs_p99(RTTs[p99]);
     }
   }
 
-  cout << stringify(object);
+  cout << stringify(JSON::Protobuf(result));
   return 0;
 }
 
@@ -2774,45 +2771,25 @@ Future<ResourceStatistics> PortMappingIsolatorProcess::__usage(
 
   Try<JSON::Object> object = JSON::parse<JSON::Object>(out.get());
   if (object.isError()) {
-    return Failure("Failed to parse the output from the process that gets the "
-       "network statistics: " + object.error());
+    return Failure(
+        "Failed to parse the output from the process that gets the "
+        "network statistics: " + object.error());
   }
 
-  Result<JSON::Number> active =
-    object.get().find<JSON::Number>(NET_TCP_ACTIVE_CONNECTIONS);
-  if (active.isSome()) {
-    result.set_net_tcp_active_connections(active.get().value);
+  Result<ResourceStatistics> _result =
+      protobuf::parse<ResourceStatistics>(object.get());
+
+  if (_result.isError()) {
+    return Failure(
+        "Failed to parse the output from the process that gets the "
+        "network statistics: " + object.error());
   }
 
-  Result<JSON::Number> tw =
-    object.get().find<JSON::Number>(NET_TCP_TIME_WAIT_CONNECTIONS);
-  if (tw.isSome()) {
-    result.set_net_tcp_time_wait_connections(tw.get().value);
-  }
+  result.MergeFrom(_result.get());
 
-  Result<JSON::Number> p50 =
-    object.get().find<JSON::Number>(NET_TCP_RTT_MICROSECS_P50);
-  if (p50.isSome()) {
-    result.set_net_tcp_rtt_microsecs_p50(p50.get().value);
-  }
-
-  Result<JSON::Number> p90 =
-    object.get().find<JSON::Number>(NET_TCP_RTT_MICROSECS_P90);
-  if (p90.isSome()) {
-    result.set_net_tcp_rtt_microsecs_p90(p90.get().value);
-  }
-
-  Result<JSON::Number> p95 =
-    object.get().find<JSON::Number>(NET_TCP_RTT_MICROSECS_P95);
-  if (p95.isSome()) {
-    result.set_net_tcp_rtt_microsecs_p95(p95.get().value);
-  }
-
-  Result<JSON::Number> p99 =
-    object.get().find<JSON::Number>(NET_TCP_RTT_MICROSECS_P99);
-  if (p99.isSome()) {
-    result.set_net_tcp_rtt_microsecs_p99(p99.get().value);
-  }
+  // NOTE: We unset the 'timestamp' field here because otherwise it
+  // will overwrite the timestamp set in the containerizer.
+  result.clear_timestamp();
 
   return result;
 }
