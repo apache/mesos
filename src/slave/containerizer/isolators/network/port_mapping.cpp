@@ -2772,11 +2772,6 @@ Future<ResourceStatistics> PortMappingIsolatorProcess::usage(
     result.set_net_tx_dropped(tx_dropped.get());
   }
 
-  if (!flags.network_enable_socket_statistics_summary &&
-      !flags.network_enable_socket_statistics_details) {
-    return result;
-  }
-
   // Retrieve the socket information from inside the container.
   PortMappingStatistics statistics;
   statistics.flags.pid = info->pid.get();
