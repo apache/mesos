@@ -883,6 +883,7 @@ message TaskStatus {
   // (e.g. unhealthy vs. unregistered for maintenance).
   enum Reason {
     REASON_COMMAND_EXECUTOR_FAILED = 0;
+    REASON_EXECUTOR_PREEMPTED = 17;
     REASON_EXECUTOR_TERMINATED = 1;
     REASON_EXECUTOR_UNREGISTERED = 2;
     REASON_FRAMEWORK_REMOVED = 3;
