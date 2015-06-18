@@ -1573,11 +1573,15 @@ TEST_F(MasterTest, MetricsInMetricsEndpoint)
   EXPECT_EQ(1u, snapshot.values.count("master/disk_used"));
   EXPECT_EQ(1u, snapshot.values.count("master/disk_percent"));
 
+  // Registrar Metrics.
   EXPECT_EQ(1u, snapshot.values.count("registrar/queued_operations"));
   EXPECT_EQ(1u, snapshot.values.count("registrar/registry_size_bytes"));
 
   EXPECT_EQ(1u, snapshot.values.count("registrar/state_fetch_ms"));
   EXPECT_EQ(1u, snapshot.values.count("registrar/state_store_ms"));
+
+  // Allocator Metrics.
+  EXPECT_EQ(1u, snapshot.values.count("allocator/event_queue_dispatches"));
 
   Shutdown();
 }

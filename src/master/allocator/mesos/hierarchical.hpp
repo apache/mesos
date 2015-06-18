@@ -25,8 +25,11 @@
 #include <mesos/resources.hpp>
 #include <mesos/type_utils.hpp>
 
+#include <process/event.hpp>
 #include <process/delay.hpp>
 #include <process/id.hpp>
+#include <process/metrics/gauge.hpp>
+#include <process/metrics/metrics.hpp>
 #include <process/timeout.hpp>
 
 #include <stout/check.hpp>
@@ -67,11 +70,18 @@ template <typename RoleSorter, typename FrameworkSorter>
 class HierarchicalAllocatorProcess : public MesosAllocatorProcess
 {
 public:
-  HierarchicalAllocatorProcess();
+  HierarchicalAllocatorProcess()
+    : ProcessBase(process::ID::generate("hierarchical-allocator")),
+      initialized(false),
+      metrics(*this),
+      roleSorter(NULL) {}
 
-  virtual ~HierarchicalAllocatorProcess();
+  virtual ~HierarchicalAllocatorProcess() {}
 
-  process::PID<HierarchicalAllocatorProcess> self();
+  process::PID<HierarchicalAllocatorProcess> self() const
+  {
+    return process::PID<Self>(this);
+  }
 
   void initialize(
       const Duration& allocationInterval,
@@ -178,6 +188,24 @@ protected:
       void(const FrameworkID&,
            const hashmap<SlaveID, Resources>&)> offerCallback;
 
+  struct Metrics
+  {
+    explicit Metrics(const Self& process)
+      : event_queue_dispatches(
+            "allocator/event_queue_dispatches",
+            process::defer(process.self(), &Self::_event_queue_dispatches))
+    {
+      process::metrics::add(event_queue_dispatches);
+    }
+
+    ~Metrics()
+    {
+      process::metrics::remove(event_queue_dispatches);
+    }
+
+    process::metrics::Gauge event_queue_dispatches;
+  } metrics;
+
   struct Framework
   {
     std::string role;
@@ -188,6 +216,11 @@ protected:
 
     hashset<Filter*> filters; // Active filters for the framework.
   };
+
+  double _event_queue_dispatches()
+  {
+    return static_cast<double>(eventCount<process::DispatchEvent>());
+  }
 
   hashmap<FrameworkID, Framework> frameworks;
 
@@ -260,25 +293,6 @@ public:
   const Resources resources;
   const process::Timeout timeout;
 };
-
-
-template <class RoleSorter, class FrameworkSorter>
-HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::HierarchicalAllocatorProcess() // NOLINT(whitespace/line_length)
-  : ProcessBase(process::ID::generate("hierarchical-allocator")),
-    initialized(false) {}
-
-
-template <class RoleSorter, class FrameworkSorter>
-HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::~HierarchicalAllocatorProcess() // NOLINT(whitespace/line_length)
-{}
-
-
-template <class RoleSorter, class FrameworkSorter>
-process::PID<HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter> >
-HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::self()
-{
-  return process::PID<HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter> >(this); // NOLINT(whitespace/line_length)
-}
 
 
 template <class RoleSorter, class FrameworkSorter>
