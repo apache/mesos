@@ -36,6 +36,10 @@ TEST(PathTest, Join)
   // Interesting corner cases around being the first, middle, last.
   EXPECT_EQ("/asdf", path::join("/", "asdf"));
   EXPECT_EQ("/", path::join("", "/", ""));
+  EXPECT_EQ("ab/", path::join("ab/", "", "/"));
+  EXPECT_EQ("/ab", path::join("/", "/", "ab"));
+  EXPECT_EQ("ab/", path::join("ab", "/", "/"));
+  EXPECT_EQ("/ab", path::join("/", "", "/ab"));
 
   // Check trailing and leading slashes get cleaned up.
   EXPECT_EQ("a/b/c/", path::join("a/", "b/", "c/"));

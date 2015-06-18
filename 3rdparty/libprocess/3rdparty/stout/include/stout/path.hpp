@@ -15,6 +15,7 @@
 #define __STOUT_PATH_HPP__
 
 #include <string>
+#include <utility>
 
 #include <stout/strings.hpp>
 
@@ -42,96 +43,21 @@ inline std::ostream& operator << (
 
 namespace path {
 
+// Base case.
 inline std::string join(const std::string& path1, const std::string& path2)
 {
-  return
-    strings::remove(path1, "/", strings::SUFFIX) + "/" +
-    strings::remove(path2, "/", strings::PREFIX);
+  return strings::remove(path1, "/", strings::SUFFIX) + "/" +
+         strings::remove(path2, "/", strings::PREFIX);
 }
 
 
+template <typename... Paths>
 inline std::string join(
     const std::string& path1,
     const std::string& path2,
-    const std::string& path3)
+    Paths&&... paths)
 {
-  return join(path1, join(path2, path3));
-}
-
-
-inline std::string join(
-    const std::string& path1,
-    const std::string& path2,
-    const std::string& path3,
-    const std::string& path4)
-{
-  return join(path1, join(path2, path3, path4));
-}
-
-
-inline std::string join(
-    const std::string& path1,
-    const std::string& path2,
-    const std::string& path3,
-    const std::string& path4,
-    const std::string& path5)
-{
-  return join(path1, join(path2, path3, path4, path5));
-}
-
-
-inline std::string join(
-    const std::string& path1,
-    const std::string& path2,
-    const std::string& path3,
-    const std::string& path4,
-    const std::string& path5,
-    const std::string& path6)
-{
-  return join(path1, join(path2, path3, path4, path5, path6));
-}
-
-
-inline std::string join(
-    const std::string& path1,
-    const std::string& path2,
-    const std::string& path3,
-    const std::string& path4,
-    const std::string& path5,
-    const std::string& path6,
-    const std::string& path7)
-{
-  return join(path1, join(path2, path3, path4, path5, path6, path7));
-}
-
-
-inline std::string join(
-    const std::string& path1,
-    const std::string& path2,
-    const std::string& path3,
-    const std::string& path4,
-    const std::string& path5,
-    const std::string& path6,
-    const std::string& path7,
-    const std::string& path8)
-{
-  return join(path1, join(path2, path3, path4, path5, path6, path7, path8));
-}
-
-
-inline std::string join(
-    const std::string& path1,
-    const std::string& path2,
-    const std::string& path3,
-    const std::string& path4,
-    const std::string& path5,
-    const std::string& path6,
-    const std::string& path7,
-    const std::string& path8,
-    const std::string& path9)
-{
-  return join(path1, join(
-      path2, path3, path4, path5, path6, path7, path8, path9));
+  return join(path1, join(path2, std::forward<Paths>(paths)...));
 }
 
 
