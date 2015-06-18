@@ -17,6 +17,7 @@
  */
 
 #include <algorithm>
+#include <iostream>
 #include <map>
 #include <set>
 #include <string>
@@ -60,6 +61,8 @@ using namespace process;
 using mesos::internal::log::Log;
 using mesos::internal::log::Replica;
 
+using std::cout;
+using std::endl;
 using std::map;
 using std::set;
 using std::string;
@@ -525,7 +528,7 @@ TEST_P(Registrar_BENCHMARK_Test, performance)
     result = registrar2.apply(Owned<Operation>(new RemoveSlave(info)));
   }
   AWAIT_READY_FOR(result, Minutes(5));
-  LOG(INFO) << "Removed " << slaveCount << " slaves in " << watch.elapsed();
+  cout << "Removed " << slaveCount << " slaves in " << watch.elapsed() << endl;
 }
 
 } // namespace tests {

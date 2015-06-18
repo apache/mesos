@@ -18,6 +18,8 @@
 
 #include <gmock/gmock.h>
 
+#include <atomic>
+#include <iostream>
 #include <string>
 #include <queue>
 #include <vector>
@@ -30,9 +32,12 @@
 #include <process/shared.hpp>
 #include <process/queue.hpp>
 
+#include <stout/duration.hpp>
 #include <stout/gtest.hpp>
 #include <stout/hashmap.hpp>
 #include <stout/hashset.hpp>
+#include <stout/os.hpp>
+#include <stout/stopwatch.hpp>
 #include <stout/utils.hpp>
 
 #include "master/constants.hpp"
@@ -53,9 +58,14 @@ using process::Clock;
 using process::Future;
 using process::Shared;
 
+using std::atomic;
+using std::cout;
+using std::endl;
 using std::queue;
 using std::string;
 using std::vector;
+
+using testing::WithParamInterface;
 
 namespace mesos {
 namespace internal {
@@ -69,22 +79,25 @@ struct Allocation
 };
 
 
-class HierarchicalAllocatorTest : public ::testing::Test
+class HierarchicalAllocatorTestBase : public ::testing::Test
 {
 protected:
-  HierarchicalAllocatorTest()
+  HierarchicalAllocatorTestBase()
     : allocator(createAllocator<HierarchicalDRFAllocator>()),
       nextSlaveId(1),
       nextFrameworkId(1) {}
 
-  ~HierarchicalAllocatorTest()
+  ~HierarchicalAllocatorTestBase()
   {
     delete allocator;
   }
 
   void initialize(
       const vector<string>& _roles,
-      const master::Flags& _flags = master::Flags())
+      const master::Flags& _flags = master::Flags(),
+      const Option<lambda::function<
+          void(const FrameworkID&,
+               const hashmap<SlaveID, Resources>&)>>& offerCallback = None())
   {
     flags = _flags;
 
@@ -98,10 +111,17 @@ protected:
       roles[role] = info;
     }
 
-    allocator->initialize(
-        flags.allocation_interval,
-        lambda::bind(&put, &queue, lambda::_1, lambda::_2),
-        roles);
+    if (offerCallback.isSome()) {
+      allocator->initialize(
+          flags.allocation_interval,
+          offerCallback.get(),
+          roles);
+    } else {
+      allocator->initialize(
+          flags.allocation_interval,
+          lambda::bind(&put, &queue, lambda::_1, lambda::_2),
+          roles);
+    }
   }
 
   SlaveInfo createSlaveInfo(const string& resources)
@@ -164,6 +184,9 @@ private:
   int nextSlaveId;
   int nextFrameworkId;
 };
+
+
+class HierarchicalAllocatorTest : public HierarchicalAllocatorTestBase {};
 
 
 // TODO(bmahler): These tests were transformed directly from
@@ -946,6 +969,70 @@ TEST_F(HierarchicalAllocatorTest, Whitelist)
   EXPECT_EQ(1u, allocation.get().resources.size());
   EXPECT_TRUE(allocation.get().resources.contains(slave.id()));
   EXPECT_EQ(slave.resources(), Resources::sum(allocation.get().resources));
+}
+
+
+class HierarchicalAllocator_BENCHMARK_Test
+  : public HierarchicalAllocatorTestBase,
+    public WithParamInterface<size_t>
+{};
+
+
+// The Hierarchical Allocator benchmark tests are parameterized
+// by the number of slaves.
+INSTANTIATE_TEST_CASE_P(
+    SlaveCount,
+    HierarchicalAllocator_BENCHMARK_Test,
+    ::testing::Values(1000U, 5000U, 10000U, 20000U, 30000U, 50000U));
+
+
+TEST_P(HierarchicalAllocator_BENCHMARK_Test, AddSlave)
+{
+  Clock::pause();
+
+  // How many 'addSlave' that have been processed. This is used to
+  // determine the termination condition.
+  atomic<size_t> finished(0);
+
+  auto offerCallback = [&finished](
+      const FrameworkID& frameworkId,
+      const hashmap<SlaveID, Resources>& resources) {
+    finished++;
+  };
+
+  initialize({}, master::Flags(), offerCallback);
+
+  FrameworkInfo framework = createFrameworkInfo("*");
+  allocator->addFramework(framework.id(), framework, {});
+
+  size_t slaveCount = GetParam();
+
+  // Create slaves.
+  vector<SlaveInfo> slaves;
+  for (size_t i = 0; i < slaveCount; i++) {
+    slaves.push_back(createSlaveInfo(
+        "cpus:2;mem:1024;disk:4096;ports:[31000-32000]"));
+  }
+
+  // Used resources on each slave.
+  hashmap<FrameworkID, Resources> used;
+  used[framework.id()] = Resources::parse(
+      "cpus:1;mem:128;disk:1024;"
+      "ports:[31126-31510,31512-31623,31810-31852,31854-31964]").get();
+
+  Stopwatch watch;
+  watch.start();
+
+  foreach (const SlaveInfo& slave, slaves) {
+    allocator->addSlave(slave.id(), slave, slave.resources(), used);
+  }
+
+  // Wait for all the 'addSlave' to be processed.
+  while (finished.load() != slaveCount) {
+    os::sleep(Milliseconds(10));
+  }
+
+  cout << "Added " << slaveCount << " slaves in " << watch.elapsed() << endl;
 }
 
 } // namespace tests {
