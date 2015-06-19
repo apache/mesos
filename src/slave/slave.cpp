@@ -1332,6 +1332,16 @@ void Slave::_runTask(
     framework->pending[executorId].erase(task.task_id());
     if (framework->pending[executorId].empty()) {
       framework->pending.erase(executorId);
+      // NOTE: Ideally we would perform the following check here:
+      //
+      //   if (framework->executors.empty() &&
+      //       framework->pending.empty()) {
+      //     removeFramework(framework);
+      //   }
+      //
+      // However, we need 'framework' to stay valid for the rest of
+      // this function. As such, we perform the check before each of
+      // the 'return' statements below.
     }
   } else {
     LOG(WARNING) << "Ignoring run task " << task.task_id()
@@ -1347,9 +1357,12 @@ void Slave::_runTask(
                  << " of framework " << frameworkId
                  << " because the framework is terminating";
 
+    // Refer to the comment after 'framework->pending.erase' above
+    // for why we need this.
     if (framework->executors.empty() && framework->pending.empty()) {
       removeFramework(framework);
     }
+
     return;
   }
 
@@ -1373,6 +1386,8 @@ void Slave::_runTask(
     // manager to stop retrying for its un-acked updates.
     statusUpdate(update, UPID());
 
+    // Refer to the comment after 'framework->pending.erase' above
+    // for why we need this.
     if (framework->executors.empty() && framework->pending.empty()) {
       removeFramework(framework);
     }
@@ -1380,28 +1395,75 @@ void Slave::_runTask(
     return;
   }
 
-  // NOTE: If the task or executor uses persistent volumes, the slave
-  // should already know about it. In case the slave doesn't know
-  // about them (e.g., CheckpointResourcesMessage was dropped or came
-  // out of order), we simply fail the slave to be safe.
-  Resources volumes = Resources(task.resources()).persistentVolumes();
+  // NOTE: If the task or executor uses resources that are
+  // checkpointed on the slave (e.g. persistent volumes), we should
+  // already know about it. If the slave doesn't know about them (e.g.
+  // CheckpointResourcesMessage was dropped or came out of order),
+  // we send TASK_LOST status updates here since restarting the task
+  // may succeed in the event that CheckpointResourcesMessage arrives
+  // out of order.
+  Resources checkpointedTaskResources =
+    Resources(task.resources()).filter(needCheckpointing);
 
-  foreach (const Resource& volume, volumes) {
-    CHECK(checkpointedResources.contains(volume))
-      << "Unknown persistent volume " << volume
-      << " for task " << task.task_id()
-      << " of framework " << frameworkId;
+  foreach (const Resource& resource, checkpointedTaskResources) {
+    if (!checkpointedResources.contains(resource)) {
+      LOG(WARNING) << "Unknown checkpointed resource " << resource
+                   << " for task " << task.task_id()
+                   << " of framework " << frameworkId;
+
+      const StatusUpdate update = protobuf::createStatusUpdate(
+          frameworkId,
+          info.id(),
+          task.task_id(),
+          TASK_LOST,
+          TaskStatus::SOURCE_SLAVE,
+          "The checkpointed resources being used by the task are unknown to "
+          "the slave",
+          TaskStatus::REASON_RESOURCES_UNKNOWN);
+
+      statusUpdate(update, UPID());
+
+      // Refer to the comment after 'framework->pending.erase' above
+      // for why we need this.
+      if (framework->executors.empty() && framework->pending.empty()) {
+        removeFramework(framework);
+      }
+
+      return;
+    }
   }
 
   if (task.has_executor()) {
-    Resources volumes =
-      Resources(task.executor().resources()).persistentVolumes();
+    Resources checkpointedExecutorResources =
+      Resources(task.executor().resources()).filter(needCheckpointing);
 
-    foreach (const Resource& volume, volumes) {
-      CHECK(checkpointedResources.contains(volume))
-        << "Unknown persistent volume " << volume
-        << " for executor " << task.executor().executor_id()
-        << " of framework " << frameworkId;
+    foreach (const Resource& resource, checkpointedExecutorResources) {
+      if (!checkpointedResources.contains(resource)) {
+        LOG(WARNING) << "Unknown checkpointed resource " << resource
+                     << " for executor " << task.executor().executor_id()
+                     << " of framework " << frameworkId;
+
+        const StatusUpdate update = protobuf::createStatusUpdate(
+            frameworkId,
+            info.id(),
+            task.task_id(),
+            TASK_LOST,
+            TaskStatus::SOURCE_SLAVE,
+            "The checkpointed resources being used by the executor are unknown "
+            "to the slave",
+            TaskStatus::REASON_RESOURCES_UNKNOWN,
+            task.executor().executor_id());
+
+        statusUpdate(update, UPID());
+
+        // Refer to the comment after 'framework->pending.erase' above
+        // for why we need this.
+        if (framework->executors.empty() && framework->pending.empty()) {
+          removeFramework(framework);
+        }
+
+        return;
+      }
     }
   }
 
@@ -1414,6 +1476,12 @@ void Slave::_runTask(
     LOG(WARNING) << "Ignoring run task " << task.task_id()
                  << " of framework " << frameworkId
                  << " because the slave is terminating";
+
+    // Refer to the comment after 'framework->pending.erase' above
+    // for why we need this.
+    if (framework->executors.empty() && framework->pending.empty()) {
+      removeFramework(framework);
+    }
 
     // We don't send a TASK_LOST here because the slave is
     // terminating.
@@ -1506,6 +1574,12 @@ void Slave::_runTask(
                  << "' of framework " << framework->id()
                  << " is in unexpected state " << executor->state;
       break;
+  }
+
+  // Refer to the comment after 'framework->pending.erase' above
+  // for why we need this.
+  if (framework->executors.empty() && framework->pending.empty()) {
+    removeFramework(framework);
   }
 }
 
