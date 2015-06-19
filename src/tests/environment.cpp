@@ -236,8 +236,10 @@ public:
   bool disable(const ::testing::TestInfo* test) const
   {
 #ifdef WITH_NETWORK_ISOLATOR
-    // PortMappingIsolatorProcess doesn't suport multiple slaves.
-    if (matches(test, "MultipleSlaves")) {
+    // PortMappingIsolatorProcess doesn't suport test
+    // 'SlaveRecoveryTest.MultipleSlaves'.
+    if (matches(test, "SlaveRecoveryTest") &&
+        matches(test, "MultipleSlaves")) {
       return true;
     }
 #endif
