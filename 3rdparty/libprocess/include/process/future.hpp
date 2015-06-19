@@ -28,6 +28,7 @@
 #include <stout/none.hpp>
 #include <stout/option.hpp>
 #include <stout/preprocessor.hpp>
+#include <stout/result.hpp>
 #include <stout/synchronized.hpp>
 #include <stout/try.hpp>
 
@@ -93,7 +94,7 @@ public:
 
   /*implicit*/ Future(const Try<T>& t);
 
-  ~Future();
+  ~Future() = default;
 
   // Futures are assignable (and copyable). This results in the
   // reference to the previous future data being decremented and a
@@ -383,7 +384,7 @@ private:
   struct Data
   {
     Data();
-    ~Data();
+    ~Data() = default;
 
     void clearAllCallbacks();
 
@@ -391,8 +392,13 @@ private:
     State state;
     bool discard;
     bool associated;
-    T* t;
-    std::string* message; // Message associated with failure.
+
+    // One of:
+    //   1. None, the state is PENDING or DISCARDED.
+    //   2. Some, the state is READY.
+    //   3. Error, the state is FAILED; 'error()' stores the message.
+    Result<T> result;
+
     std::vector<DiscardCallback> onDiscardCallbacks;
     std::vector<ReadyCallback> onReadyCallbacks;
     std::vector<FailedCallback> onFailedCallbacks;
@@ -808,16 +814,7 @@ Future<T>::Data::Data()
     state(PENDING),
     discard(false),
     associated(false),
-    t(NULL),
-    message(NULL) {}
-
-
-template <typename T>
-Future<T>::Data::~Data()
-{
-  delete t;
-  delete message;
-}
+    result(None()) {}
 
 
 template <typename T>
@@ -881,10 +878,6 @@ Future<T>::Future(const Try<T>& t)
     fail(t.error());
   }
 }
-
-
-template <typename T>
-Future<T>::~Future() {}
 
 
 template <typename T>
@@ -1046,8 +1039,8 @@ const T& Future<T>::get() const
     CHECK(!isDiscarded()) << "Future::get() but state == DISCARDED";
   }
 
-  assert(data->t != NULL);
-  return *data->t;
+  assert(data->result.isSome());
+  return data->result.get();
 }
 
 
@@ -1057,7 +1050,9 @@ const std::string& Future<T>::failure() const
   if (data->state != FAILED) {
     ABORT("Future::failure() but state != FAILED");
   }
-  return *(CHECK_NOTNULL(data->message));
+
+  CHECK_ERROR(data->result);
+  return data->result.error();
 }
 
 
@@ -1098,7 +1093,7 @@ const Future<T>& Future<T>::onReady(ReadyCallback&& callback) const
 
   // TODO(*): Invoke callback in another execution context.
   if (run) {
-    callback(*data->t);
+    callback(data->result.get());
   }
 
   return *this;
@@ -1120,7 +1115,7 @@ const Future<T>& Future<T>::onFailed(FailedCallback&& callback) const
 
   // TODO(*): Invoke callback in another execution context.
   if (run) {
-    callback(*data->message);
+    callback(data->result.error());
   }
 
   return *this;
@@ -1359,7 +1354,7 @@ bool Future<T>::set(const T& _t)
 
   synchronized (data->lock) {
     if (data->state == PENDING) {
-      data->t = new T(_t);
+      data->result = _t;
       data->state = READY;
       result = true;
     }
@@ -1369,7 +1364,7 @@ bool Future<T>::set(const T& _t)
   // don't need a lock because the state is now in READY so there
   // should not be any concurrent modications.
   if (result) {
-    internal::run(data->onReadyCallbacks, *data->t);
+    internal::run(data->onReadyCallbacks, data->result.get());
     internal::run(data->onAnyCallbacks, *this);
 
     data->clearAllCallbacks();
@@ -1386,7 +1381,7 @@ bool Future<T>::fail(const std::string& _message)
 
   synchronized (data->lock) {
     if (data->state == PENDING) {
-      data->message = new std::string(_message);
+      data->result = Result<T>(Error(_message));
       data->state = FAILED;
       result = true;
     }
@@ -1396,7 +1391,7 @@ bool Future<T>::fail(const std::string& _message)
   // don't need a lock because the state is now in FAILED so there
   // should not be any concurrent modications.
   if (result) {
-    internal::run(data->onFailedCallbacks, *data->message);
+    internal::run(data->onFailedCallbacks, data->result.error());
     internal::run(data->onAnyCallbacks, *this);
 
     data->clearAllCallbacks();
