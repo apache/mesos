@@ -862,7 +862,7 @@ void Slave::registered(const UPID& from, const SlaveID& slaveId)
       paths::createSlaveDirectory(metaDir, slaveId);
 
       // Checkpoint slave info.
-      const string& path = paths::getSlaveInfoPath(metaDir, slaveId);
+      const string path = paths::getSlaveInfoPath(metaDir, slaveId);
 
       VLOG(1) << "Checkpointing SlaveInfo to '" << path << "'";
       CHECK_SOME(state::checkpoint(path, info));
@@ -998,7 +998,7 @@ void Slave::reregistered(
                      << " of framework " << reconcile.framework_id()
                      << " in state TASK_LOST: task unknown to the slave";
 
-        const StatusUpdate& update = protobuf::createStatusUpdate(
+        const StatusUpdate update = protobuf::createStatusUpdate(
             reconcile.framework_id(),
             info.id(),
             taskId,
@@ -1270,7 +1270,7 @@ void Slave::runTask(
     }
   }
 
-  const ExecutorInfo& executorInfo = getExecutorInfo(frameworkId, task);
+  const ExecutorInfo executorInfo = getExecutorInfo(frameworkId, task);
   const ExecutorID& executorId = executorInfo.executor_id();
 
   // We add the task to 'pending' to ensure the framework is not
@@ -1324,7 +1324,7 @@ void Slave::_runTask(
     return;
   }
 
-  const ExecutorInfo& executorInfo = getExecutorInfo(frameworkId, task);
+  const ExecutorInfo executorInfo = getExecutorInfo(frameworkId, task);
   const ExecutorID& executorId = executorInfo.executor_id();
 
   if (framework->pending.contains(executorId) &&
@@ -1370,7 +1370,7 @@ void Slave::_runTask(
     LOG(ERROR) << "Failed to unschedule directories scheduled for gc: "
                << (future.isFailed() ? future.failure() : "future discarded");
 
-    const StatusUpdate& update = protobuf::createStatusUpdate(
+    const StatusUpdate update = protobuf::createStatusUpdate(
         frameworkId,
         info.id(),
         task.task_id(),
@@ -1508,7 +1508,7 @@ void Slave::_runTask(
                    << " with executor '" << executorId
                    << "' which is terminating/terminated";
 
-      const StatusUpdate& update = protobuf::createStatusUpdate(
+      const StatusUpdate update = protobuf::createStatusUpdate(
           frameworkId,
           info.id(),
           task.task_id(),
@@ -1755,7 +1755,7 @@ void Slave::killTask(
                    << " of framework " << frameworkId
                    << " before it was launched";
 
-      const StatusUpdate& update = protobuf::createStatusUpdate(
+      const StatusUpdate update = protobuf::createStatusUpdate(
           frameworkId,
           info.id(),
           taskId,
@@ -1782,7 +1782,7 @@ void Slave::killTask(
                  << " because no corresponding executor is running";
     // We send a TASK_LOST update because this task has never
     // been launched on this slave.
-    const StatusUpdate& update = protobuf::createStatusUpdate(
+    const StatusUpdate update = protobuf::createStatusUpdate(
         frameworkId,
         info.id(),
         taskId,
@@ -1798,7 +1798,7 @@ void Slave::killTask(
   switch (executor->state) {
     case Executor::REGISTERING: {
       // The executor hasn't registered yet.
-      const StatusUpdate& update = protobuf::createStatusUpdate(
+      const StatusUpdate update = protobuf::createStatusUpdate(
           frameworkId,
           info.id(),
           taskId,
@@ -1845,7 +1845,7 @@ void Slave::killTask(
         // This is the case where the task has not yet been sent to
         // the executor (e.g., waiting for containerizer update to
         // finish).
-        const StatusUpdate& update = protobuf::createStatusUpdate(
+        const StatusUpdate update = protobuf::createStatusUpdate(
             frameworkId,
             info.id(),
             taskId,
@@ -2072,7 +2072,7 @@ void Slave::updateFramework(const FrameworkID& frameworkId, const string& pid)
       framework->pid = pid;
       if (framework->info.checkpoint()) {
         // Checkpoint the framework pid.
-        const string& path = paths::getFrameworkPidPath(
+        const string path = paths::getFrameworkPidPath(
             metaDir, info.id(), frameworkId);
 
         VLOG(1) << "Checkpointing framework pid '"
@@ -2524,7 +2524,7 @@ void Slave::reregisterExecutor(
                     << " to LOST because it is unknown to the executor "
                     << executorId;
 
-          const StatusUpdate& update = protobuf::createStatusUpdate(
+          const StatusUpdate update = protobuf::createStatusUpdate(
               frameworkId,
               info.id(),
               task->task_id(),
@@ -3412,7 +3412,7 @@ void Slave::removeExecutor(Framework* framework, Executor* executor)
   // Write a sentinel file to indicate that this executor
   // is completed.
   if (executor->checkpoint) {
-    const string& path = paths::getExecutorSentinelPath(
+    const string path = paths::getExecutorSentinelPath(
         metaDir,
         info.id(),
         framework->id(),
@@ -3425,7 +3425,7 @@ void Slave::removeExecutor(Framework* framework, Executor* executor)
   // Executor struct.
 
   // Schedule the executor run work directory to get garbage collected.
-  const string& path = paths::getExecutorRunPath(
+  const string path = paths::getExecutorRunPath(
       flags.work_dir,
       info.id(),
       framework->id(),
@@ -3439,7 +3439,7 @@ void Slave::removeExecutor(Framework* framework, Executor* executor)
   // Schedule the top level executor work directory, only if the
   // framework doesn't have any 'pending' tasks for this executor.
   if (!framework->pending.contains(executor->id)) {
-    const string& path = paths::getExecutorPath(
+    const string path = paths::getExecutorPath(
         flags.work_dir, info.id(), framework->id(), executor->id);
 
     os::utime(path); // Update the modification time.
@@ -3448,7 +3448,7 @@ void Slave::removeExecutor(Framework* framework, Executor* executor)
 
   if (executor->checkpoint) {
     // Schedule the executor run meta directory to get garbage collected.
-    const string& path = paths::getExecutorRunPath(
+    const string path = paths::getExecutorRunPath(
         metaDir,
         info.id(),
         framework->id(),
@@ -3461,7 +3461,7 @@ void Slave::removeExecutor(Framework* framework, Executor* executor)
     // Schedule the top level executor meta directory, only if the
     // framework doesn't have any 'pending' tasks for this executor.
     if (!framework->pending.contains(executor->id)) {
-      const string& path = paths::getExecutorPath(
+      const string path = paths::getExecutorPath(
           metaDir, info.id(), framework->id(), executor->id);
 
       os::utime(path); // Update the modification time.
@@ -3499,7 +3499,7 @@ void Slave::removeFramework(Framework* framework)
   // TODO(vinod): Move the responsibility of gc'ing to the
   // Framework struct.
 
-  const string& path = paths::getFrameworkPath(
+  const string path = paths::getFrameworkPath(
       flags.work_dir, info.id(), framework->id());
 
   os::utime(path); // Update the modification time.
@@ -3507,7 +3507,7 @@ void Slave::removeFramework(Framework* framework)
 
   if (framework->info.checkpoint()) {
     // Schedule the framework meta directory to get garbage collected.
-    const string& path = paths::getFrameworkPath(
+    const string path = paths::getFrameworkPath(
         metaDir, info.id(), framework->id());
 
     os::utime(path); // Update the modification time.
@@ -3967,7 +3967,7 @@ void Slave::__recover(const Future<Nothing>& future)
   if (bootId.isError()) {
     LOG(ERROR) << "Could not retrieve boot id: " << bootId.error();
   } else {
-    const string& path = paths::getBootIdPath(metaDir);
+    const string path = paths::getBootIdPath(metaDir);
     CHECK_SOME(state::checkpoint(path, bootId.get()));
   }
 
@@ -3975,7 +3975,7 @@ void Slave::__recover(const Future<Nothing>& future)
   // TODO(vinod): Do this as part of recovery. This needs a fix
   // in the recovery code, to recover all slaves instead of only
   // the latest slave.
-  const string& directory = path::join(flags.work_dir, "slaves");
+  const string directory = path::join(flags.work_dir, "slaves");
   Try<list<string>> entries = os::ls(directory);
   if (entries.isSome()) {
     foreach (const string& entry, entries.get()) {
@@ -4644,7 +4644,7 @@ Executor* Framework::launchExecutor(
   }
 
   // Create a directory for the executor.
-  const string& directory = paths::createExecutorDirectory(
+  const string directory = paths::createExecutorDirectory(
       slave->flags.work_dir,
       slave->info.id(),
       id(),
@@ -4823,7 +4823,7 @@ void Framework::recoverExecutor(const ExecutorState& state)
       << " of framework " << id();
 
   // Create executor.
-  const string& directory = paths::getExecutorRunPath(
+  const string directory = paths::getExecutorRunPath(
       slave->flags.work_dir, slave->info.id(), id(), state.id, latest);
 
   Executor* executor = new Executor(
@@ -4867,7 +4867,7 @@ void Framework::recoverExecutor(const ExecutorState& state)
     const ContainerID& runId = run.get().id.get();
 
     // GC the executor run's work directory.
-    const string& path = paths::getExecutorRunPath(
+    const string path = paths::getExecutorRunPath(
         slave->flags.work_dir, slave->info.id(), id(), state.id, runId);
 
     slave->garbageCollect(path)
@@ -5018,7 +5018,7 @@ void Executor::checkpointExecutor()
   CHECK_NE(slave->state, slave->RECOVERING);
 
   // Checkpoint the executor info.
-  const string& path = paths::getExecutorInfoPath(
+  const string path = paths::getExecutorInfoPath(
       slave->metaDir, slave->info.id(), frameworkId, id);
 
   VLOG(1) << "Checkpointing ExecutorInfo to '" << path << "'";
@@ -5035,8 +5035,8 @@ void Executor::checkpointTask(const TaskInfo& task)
 {
   CHECK(checkpoint);
 
-  const Task& t = protobuf::createTask(task, TASK_STAGING, frameworkId);
-  const string& path = paths::getTaskInfoPath(
+  const Task t = protobuf::createTask(task, TASK_STAGING, frameworkId);
+  const string path = paths::getTaskInfoPath(
       slave->metaDir,
       slave->info.id(),
       frameworkId,
