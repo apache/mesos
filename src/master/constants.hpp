@@ -98,8 +98,19 @@ extern const Duration WHITELIST_WATCH_INTERVAL;
 // Default number of tasks (limit) for /master/tasks.json endpoint.
 extern const uint32_t TASK_LIMIT;
 
-// Label used by the Leader Contender and Detector.
+/**
+ * Label used by the Leader Contender and Detector.
+ *
+ * \deprecated Will be deprecated as of Mesos 0.24: see MESOS-2340.
+ */
 extern const std::string MASTER_INFO_LABEL;
+
+/**
+ * Label used by the Leader Contender and Detector, for JSON content.
+ *
+ * \since Mesos 0.23 (see MESOS-2340).
+ */
+extern const std::string MASTER_INFO_JSON_LABEL;
 
 // Timeout used for ZooKeeper related operations.
 // TODO(vinod): Master detector/contender should use this timeout.

@@ -31,6 +31,7 @@
 #include <stout/duration.hpp>
 #include <stout/foreach.hpp>
 #include <stout/lambda.hpp>
+#include <stout/protobuf.hpp>
 
 #include "common/protobuf_utils.hpp"
 
@@ -440,7 +441,35 @@ void ZooKeeperMasterDetectorProcess::fetched(
       promises::fail(&promises, "Failed to parse data into MasterInfo");
       return;
     }
+    LOG(WARNING) << "Leading master " << info.pid()
+                 << " is using a Protobuf binary format when registering with "
+                 << "ZooKeeper (" << label.get() << "): this will be deprecated"
+                 << " as of Mesos 0.24 (see MESOS-2340)";
     leader = info;
+  } else if (label.isSome() && label.get() == master::MASTER_INFO_JSON_LABEL) {
+    Try<JSON::Object> object = JSON::parse<JSON::Object>(data.get().get());
+
+    if (object.isError()) {
+      leader = None();
+      promises::fail(
+          &promises,
+          "Failed to parse data into valid JSON: " + object.error());
+      return;
+    }
+
+    Try<mesos::MasterInfo> info =
+        ::protobuf::parse<mesos::MasterInfo>(object.get());
+
+    if (info.isError()) {
+      leader = None();
+      promises::fail(
+          &promises,
+          "Failed to parse JSON into a valid MasterInfo protocol buffer: " +
+          info.error());
+      return;
+    }
+
+    leader = info.get();
   } else {
     leader = None();
     promises::fail(
