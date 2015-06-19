@@ -248,6 +248,9 @@ public:
   // Get resources of the given name.
   Resources get(const std::string& name) const;
 
+  // Get all the resources that are scalars.
+  Resources scalars() const;
+
   // Get the set of unique resource names.
   std::set<std::string> names() const;
 

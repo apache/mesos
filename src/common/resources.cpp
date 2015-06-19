@@ -949,6 +949,14 @@ Resources Resources::get(const string& name) const
 }
 
 
+Resources Resources::scalars() const
+{
+  return filter([=](const Resource& resource) {
+    return resource.type() == Value::SCALAR;
+  });
+}
+
+
 set<string> Resources::names() const
 {
   set<string> result;
