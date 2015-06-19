@@ -986,12 +986,12 @@ INSTANTIATE_TEST_CASE_P(
     ::testing::Values(1000U, 5000U, 10000U, 20000U, 30000U, 50000U));
 
 
-TEST_P(HierarchicalAllocator_BENCHMARK_Test, AddSlave)
+TEST_P(HierarchicalAllocator_BENCHMARK_Test, AddAndUpdateSlave)
 {
   Clock::pause();
 
-  // How many 'addSlave' that have been processed. This is used to
-  // determine the termination condition.
+  // Number of allocations. This is used to determine the termination
+  // condition.
   atomic<size_t> finished(0);
 
   auto offerCallback = [&finished](
@@ -1002,7 +1002,11 @@ TEST_P(HierarchicalAllocator_BENCHMARK_Test, AddSlave)
 
   initialize({}, master::Flags(), offerCallback);
 
+  // Add a framework that can accept revocable resources.
   FrameworkInfo framework = createFrameworkInfo("*");
+  framework.add_capabilities()->set_type(
+      FrameworkInfo::Capability::REVOCABLE_RESOURCES);
+
   allocator->addFramework(framework.id(), framework, {});
 
   size_t slaveCount = GetParam();
@@ -1027,12 +1031,29 @@ TEST_P(HierarchicalAllocator_BENCHMARK_Test, AddSlave)
     allocator->addSlave(slave.id(), slave, slave.resources(), used);
   }
 
-  // Wait for all the 'addSlave' to be processed.
+  // Wait for all the 'addSlave' operations to be processed.
   while (finished.load() != slaveCount) {
     os::sleep(Milliseconds(10));
   }
 
   cout << "Added " << slaveCount << " slaves in " << watch.elapsed() << endl;
+
+  // Oversubscribed resources on each slave.
+  Resource oversubscribed = Resources::parse("cpus", "10", "*").get();
+  oversubscribed.mutable_revocable();
+
+  watch.start(); // Reset.
+
+  foreach (const SlaveInfo& slave, slaves) {
+    allocator->updateSlave(slave.id(), oversubscribed);
+  }
+
+  // Wait for all the 'updateSlave' operations to be processed.
+  while (finished.load() != 2 * slaveCount) {
+    os::sleep(Milliseconds(10));
+  }
+
+  cout << "Updated " << slaveCount << " slaves in " << watch.elapsed() << endl;
 }
 
 } // namespace tests {
