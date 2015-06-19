@@ -121,14 +121,29 @@ private:
   // A set of Clients (names and shares) sorted by share.
   std::set<Client, DRFComparator> clients;
 
-  // Maps client names to the resources they have been allocated.
-  hashmap<std::string, hashmap<SlaveID, Resources>> allocations;
-
   // Maps client names to the weights that should be applied to their shares.
   hashmap<std::string, double> weights;
 
   // Total resources.
-  hashmap<SlaveID, Resources> resources;
+  struct Total {
+    hashmap<SlaveID, Resources> resources;
+
+    // NOTE: Scalars can be safely aggregated across slaves. We keep
+    // that to speed up the calculation of shares. See MESOS-2891 for
+    // the reasons why we want to do that.
+    Resources scalars;
+  } total;
+
+  // Allocation for a client.
+  struct Allocation {
+    hashmap<SlaveID, Resources> resources;
+
+    // Similarly, we aggregated scalars across slaves. See note above.
+    Resources scalars;
+  };
+
+  // Maps client names to the resources they have been allocated.
+  hashmap<std::string, Allocation> allocations;
 };
 
 } // namespace allocator {

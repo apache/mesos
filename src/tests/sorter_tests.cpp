@@ -281,12 +281,12 @@ TEST(SorterTest, MultipleSlaves)
 }
 
 
-// We aggregate resources from multiple slaves into the sorter.
-// Since non-scalar resources don't aggregate well across slaves,
-// we need to keep track of the SlaveIDs of the resources.
-// This tests that no resources vanish in the process of aggregation
-// by performing a updates from unreserved to reserved resources.
-TEST(SorterTest, MultipleSlaveUpdates)
+// We aggregate resources from multiple slaves into the sorter. Since
+// non-scalar resources don't aggregate well across slaves, we need to
+// keep track of the SlaveIDs of the resources. This tests that no
+// resources vanish in the process of aggregation by performing update
+// allocations from unreserved to reserved resources.
+TEST(SorterTest, MultipleSlavesUpdateAllocation)
 {
   DRFSorter sorter;
 
@@ -359,6 +359,49 @@ TEST(SorterTest, UpdateTotal)
 
   // Now the dominant share of "a" is 0.1 (mem) and "b" is 0.2 (mem),
   // which should change the sort order.
+  sorted = sorter.sort();
+  ASSERT_EQ(2u, sorted.size());
+  EXPECT_EQ("a", sorted.front());
+  EXPECT_EQ("b", sorted.back());
+}
+
+
+// Similar to the above 'UpdateTotal' test, but tests the scenario
+// when there are multiple slaves.
+TEST(SorterTest, MultipleSlavesUpdateTotal)
+{
+  DRFSorter sorter;
+
+  SlaveID slaveA;
+  slaveA.set_value("slaveA");
+
+  SlaveID slaveB;
+  slaveB.set_value("slaveB");
+
+  sorter.add("a");
+  sorter.add("b");
+
+  sorter.add(slaveA, Resources::parse("cpus:5;mem:50").get());
+  sorter.add(slaveB, Resources::parse("cpus:5;mem:50").get());
+
+  // Dominant share of "a" is 0.2 (cpus).
+  sorter.allocated(
+      "a", slaveA, Resources::parse("cpus:2;mem:1").get());
+
+  // Dominant share of "b" is 0.1 (cpus).
+  sorter.allocated(
+      "b", slaveB, Resources::parse("cpus:1;mem:3").get());
+
+  list<string> sorted = sorter.sort();
+  ASSERT_EQ(2u, sorted.size());
+  EXPECT_EQ("b", sorted.front());
+  EXPECT_EQ("a", sorted.back());
+
+  // Update the total resources of slaveA.
+  sorter.update(slaveA, Resources::parse("cpus:95;mem:50").get());
+
+  // Now the dominant share of "a" is 0.02 (cpus) and "b" is 0.03
+  // (mem), which should change the sort order.
   sorted = sorter.sort();
   ASSERT_EQ(2u, sorted.size());
   EXPECT_EQ("a", sorted.front());
