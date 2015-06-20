@@ -192,6 +192,28 @@ JSON::Object model(const Framework& framework)
     object.values["offers"] = std::move(array);
   }
 
+  // Model all of the executors of a framework.
+  {
+    JSON::Array executors;
+    int executorSize = 0;
+    foreachvalue (const auto& executorsMap,
+                  framework.executors) {
+      executorSize += executorsMap.size();
+    }
+    executors.values.reserve(executorSize); // MESOS-2353
+    foreachpair (const SlaveID& slaveId,
+                 const auto& executorsMap,
+                 framework.executors) {
+      foreachvalue (const ExecutorInfo& executor, executorsMap) {
+        JSON::Object executorJson = model(executor);
+        executorJson.values["slave_id"] = slaveId.value();
+        executors.values.push_back(executorJson);
+      }
+    }
+
+    object.values["executors"] = std::move(executors);
+  }
+
   return object;
 }
 

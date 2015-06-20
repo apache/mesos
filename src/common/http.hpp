@@ -37,6 +37,8 @@ class Task;
 
 JSON::Object model(const Resources& resources);
 JSON::Object model(const Attributes& attributes);
+JSON::Object model(const CommandInfo& command);
+JSON::Object model(const ExecutorInfo& executorInfo);
 
 // These are the two identical ways to model a task, depending on
 // whether you have a 'Task' or a 'TaskInfo' available.

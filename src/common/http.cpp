@@ -168,6 +168,65 @@ JSON::Object model(const Task& task)
 }
 
 
+JSON::Object model(const CommandInfo& command)
+{
+  JSON::Object object;
+
+  if (command.has_shell()) {
+    object.values["shell"] = command.shell();
+  }
+
+  if (command.has_value()) {
+    object.values["value"] = command.value();
+  }
+
+  JSON::Array argv;
+  foreach (const string& arg, command.arguments()) {
+    argv.values.push_back(arg);
+  }
+  object.values["argv"] = argv;
+
+  if (command.has_environment()) {
+    JSON::Object environment;
+    JSON::Array variables;
+    foreach(const Environment_Variable& variable,
+            command.environment().variables()) {
+      JSON::Object variableObject;
+      variableObject.values["name"] = variable.name();
+      variableObject.values["value"] = variable.value();
+      variables.values.push_back(variableObject);
+    }
+    environment.values["variables"] = variables;
+    object.values["environment"] = environment;
+  }
+
+  JSON::Array uris;
+  foreach(const CommandInfo_URI& uri, command.uris()) {
+    JSON::Object uriObject;
+    uriObject.values["value"] = uri.value();
+    uriObject.values["executable"] = uri.executable();
+
+    uris.values.push_back(uriObject);
+  }
+  object.values["uris"] = uris;
+
+  return object;
+}
+
+
+JSON::Object model(const ExecutorInfo& executorInfo)
+{
+  JSON::Object object;
+  object.values["executor_id"] = executorInfo.executor_id().value();
+  object.values["name"] = executorInfo.name();
+  object.values["data"] = executorInfo.data();
+  object.values["framework_id"] = executorInfo.framework_id().value();
+  object.values["command"] = model(executorInfo.command());
+  object.values["resources"] = model(executorInfo.resources());
+  return object;
+}
+
+
 // TODO(bmahler): Expose the executor name / source.
 JSON::Object model(
     const TaskInfo& task,
