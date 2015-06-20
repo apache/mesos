@@ -35,7 +35,7 @@ source_dirs = ['src',
 # Add file paths and patterns which should not be checked
 # This should include 3rdparty libraries, includes and machine generated
 # source.
-exclude_files = '(protobuf\-2\.4\.1|gmock\-1\.6\.0|glog\-0\.3\.3|boost\-1\.53\.0|libev\-4\.15|java/jni|\.pb\.cc|\.pb\.h)'
+exclude_files = '(protobuf\-2\.4\.1|gmock\-1\.6\.0|glog\-0\.3\.3|boost\-1\.53\.0|libev\-4\.15|java/jni|\.pb\.cc|\.pb\.h|\.md)'
 
 source_files = '\.(cpp|hpp|cc|h)$'
 
