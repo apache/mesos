@@ -91,6 +91,8 @@ public:
 
   virtual hashmap<SlaveID, Resources> allocation(const std::string& name);
 
+  virtual Resources allocation(const std::string& name, const SlaveID& slaveId);
+
   virtual void add(const SlaveID& slaveId, const Resources& resources);
 
   virtual void remove(const SlaveID& slaveId, const Resources& resources);

@@ -235,7 +235,7 @@ TEST(SorterTest, UpdateAllocation)
   volume.mutable_disk()->mutable_volume()->set_container_path("data");
 
   // Compute the updated allocation.
-  Resources oldAllocation = sorter.allocation("a")[slaveId];
+  Resources oldAllocation = sorter.allocation("a", slaveId);
   Try<Resources> newAllocation = oldAllocation.apply(CREATE(volume));
   ASSERT_SOME(newAllocation);
 
@@ -245,6 +245,7 @@ TEST(SorterTest, UpdateAllocation)
   hashmap<SlaveID, Resources> allocation = sorter.allocation("a");
   EXPECT_EQ(1u, allocation.size());
   EXPECT_EQ(newAllocation.get(), allocation[slaveId]);
+  EXPECT_EQ(newAllocation.get(), sorter.allocation("a", slaveId));
 }
 
 
@@ -274,10 +275,9 @@ TEST(SorterTest, MultipleSlaves)
   sorter.allocated("framework", slaveA, slaveResources);
   sorter.allocated("framework", slaveB, slaveResources);
 
-  hashmap<SlaveID, Resources> allocation = sorter.allocation("framework");
-  EXPECT_EQ(2u, allocation.size());
-  EXPECT_EQ(slaveResources, allocation[slaveA]);
-  EXPECT_EQ(slaveResources, allocation[slaveB]);
+  EXPECT_EQ(2u, sorter.allocation("framework").size());
+  EXPECT_EQ(slaveResources, sorter.allocation("framework", slaveA));
+  EXPECT_EQ(slaveResources, sorter.allocation("framework", slaveB));
 }
 
 
@@ -320,10 +320,9 @@ TEST(SorterTest, MultipleSlavesUpdateAllocation)
   sorter.update("framework", slaveA, slaveResources, newAllocation.get());
   sorter.update("framework", slaveB, slaveResources, newAllocation.get());
 
-  hashmap<SlaveID, Resources> allocation = sorter.allocation("framework");
-  EXPECT_EQ(2u, allocation.size());
-  EXPECT_EQ(newAllocation.get(), allocation[slaveA]);
-  EXPECT_EQ(newAllocation.get(), allocation[slaveB]);
+  EXPECT_EQ(2u, sorter.allocation("framework").size());
+  EXPECT_EQ(newAllocation.get(), sorter.allocation("framework", slaveA));
+  EXPECT_EQ(newAllocation.get(), sorter.allocation("framework", slaveB));
 }
 
 
@@ -440,8 +439,8 @@ TEST(SorterTest, RevocableResources)
   sorter.allocated("b", slaveId, b);
 
   // Check that the allocations are correct.
-  ASSERT_EQ(a, sorter.allocation("a")[slaveId]);
-  ASSERT_EQ(b, sorter.allocation("b")[slaveId]);
+  ASSERT_EQ(a, sorter.allocation("a", slaveId));
+  ASSERT_EQ(b, sorter.allocation("b", slaveId));
 
   // Check that the sort is correct.
   list<string> sorted = sorter.sort();

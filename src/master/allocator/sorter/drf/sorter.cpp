@@ -156,7 +156,21 @@ void DRFSorter::update(
 
 hashmap<SlaveID, Resources> DRFSorter::allocation(const string& name)
 {
+  CHECK(contains(name));
+
   return allocations[name].resources;
+}
+
+
+Resources DRFSorter::allocation(const string& name, const SlaveID& slaveId)
+{
+  CHECK(contains(name));
+
+  if (allocations[name].resources.contains(slaveId)) {
+    return allocations[name].resources[slaveId];
+  }
+
+  return Resources();
 }
 
 

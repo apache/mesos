@@ -80,6 +80,12 @@ public:
   // Returns the resources that have been allocated to this client.
   virtual hashmap<SlaveID, Resources> allocation(const std::string& client) = 0;
 
+  // Returns the given slave's resources that have been allocated to
+  // this client.
+  virtual Resources allocation(
+      const std::string& client,
+      const SlaveID& slaveId) = 0;
+
   // Add resources to the total pool of resources this
   // Sorter should consider.
   virtual void add(const SlaveID& slaveId, const Resources& resources) = 0;
