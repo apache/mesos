@@ -29,6 +29,37 @@ TEST(HashMapTest, InitializerList)
 }
 
 
+TEST(HashMapTest, FromStdMap)
+{
+  std::map<int, int> map1{{1, 2}, {2, 3}};
+
+  hashmap<int, int> map2(map1);
+
+  EXPECT_EQ(2, map1.size());
+  EXPECT_EQ(2, map2.size());
+
+  EXPECT_EQ(2, map1[1]);
+  EXPECT_SOME_EQ(2, map2.get(1));
+
+  EXPECT_EQ(3, map1[2]);
+  EXPECT_SOME_EQ(3, map2.get(2));
+}
+
+
+TEST(HashMapTest, FromRValueStdMap)
+{
+  std::map<int, int> map1{{1, 2}, {2, 3}};
+
+  hashmap<int, int> map2(std::move(map1));
+
+  EXPECT_EQ(2, map1.size());
+
+  EXPECT_EQ(2, map1[1]);
+
+  EXPECT_EQ(3, map1[2]);
+}
+
+
 TEST(HashMapTest, Insert)
 {
   hashmap<string, int> map;
