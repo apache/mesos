@@ -570,7 +570,7 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::updateSlave(
   // Calculate the current allocation of oversubscribed resources.
   Resources allocation;
   foreachkey (const std::string& role, roles) {
-    allocation += roleSorter->allocation(role)[slaveId].revocable();
+    allocation += roleSorter->allocation(role, slaveId).revocable();
   }
 
   // Update the available resources.
@@ -675,7 +675,7 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::updateAllocation(
     frameworkSorters[frameworks[frameworkId].role];
 
   Resources allocation =
-    frameworkSorter->allocation(frameworkId.value())[slaveId];
+    frameworkSorter->allocation(frameworkId.value(), slaveId);
 
   // Update the allocated resources.
   Try<Resources> updatedAllocation = allocation.apply(operations);
