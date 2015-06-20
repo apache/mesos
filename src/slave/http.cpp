@@ -91,7 +91,7 @@ JSON::Object model(const TaskInfo& task)
     object.values["command"] = model(task.command());
   }
   if (task.has_executor()) {
-    object.values["executor_id"] = model(task.executor());
+    object.values["executor_id"] = task.executor().executor_id().value();
   }
 
   return object;

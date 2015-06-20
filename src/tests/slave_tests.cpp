@@ -938,10 +938,14 @@ TEST_F(SlaveTest, StateEndpoint)
   flags.resources = "cpus:4;mem:2048;disk:512;ports:[33000-34000]";
   flags.attributes = "rack:abc;host:myhost";
 
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+
+  TestContainerizer containerizer(&exec);
+
   // Capture the start time deterministically.
   Clock::pause();
 
-  Try<PID<Slave>> slave = StartSlave(flags);
+  Try<PID<Slave>> slave = StartSlave(&containerizer, flags);
   ASSERT_SOME(slave);
 
   Future<process::http::Response> response =
@@ -1014,6 +1018,73 @@ TEST_F(SlaveTest, StateEndpoint)
   // TODO(bmahler): Ensure this contains all the flags.
   ASSERT_TRUE(state.values["flags"].is<JSON::Object>());
   EXPECT_FALSE(state.values["flags"].as<JSON::Object>().values.empty());
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .Times(1);
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
+
+  TaskID taskId;
+  taskId.set_value("1");
+
+  TaskInfo task;
+  task.set_name("");
+  task.mutable_task_id()->MergeFrom(taskId);
+  task.mutable_slave_id()->MergeFrom(offers.get()[0].slave_id());
+  task.mutable_resources()->MergeFrom(offers.get()[0].resources());
+  task.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
+
+  const vector<TaskInfo> tasks = {task};
+
+  EXPECT_CALL(exec, registered(_, _, _, _))
+    .Times(1);
+
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
+
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status));
+
+  driver.launchTasks(offers.get()[0].id(), tasks);
+
+  AWAIT_READY(status);
+  EXPECT_EQ(TASK_RUNNING, status.get().state());
+
+  response = http::get(slave.get(), "state.json");
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::OK().status, response);
+
+  EXPECT_SOME_EQ(
+      "application/json",
+      response.get().headers.get("Content-Type"));
+
+  parse = JSON::parse<JSON::Object>(response.get().body);
+  ASSERT_SOME(parse);
+
+  // Check that executor_id is in the right format.
+  ASSERT_SOME_EQ(
+      "default",
+      parse.get().find<JSON::String>(
+          "frameworks[0].executors[0].tasks[0].executor_id"));
+
+  EXPECT_CALL(exec, shutdown(_))
+    .Times(AtMost(1));
+
+  driver.stop();
+  driver.join();
 
   Shutdown();
 }
