@@ -270,6 +270,24 @@ TYPED_TEST(CRAMMD5Authentication, AuthenticatorDestructionRace)
   delete authenticatee.get();
 }
 
+
+// This test verifies that a missing secret fails the authenticatee.
+TYPED_TEST(CRAMMD5Authentication, AuthenticateeSecretMissing)
+{
+  Credential credential;
+  credential.set_principal("benh");
+
+  Try<Authenticatee*> authenticatee = TypeParam::TypeAuthenticatee::create();
+  CHECK_SOME(authenticatee);
+
+  Future<bool> future =
+    authenticatee.get()->authenticate(UPID(), UPID(), credential);
+
+  AWAIT_EQ(false, future);
+
+  delete authenticatee.get();
+}
+
 } // namespace cram_md5 {
 } // namespace internal {
 } // namespace mesos {

@@ -388,6 +388,12 @@ Future<bool> CRAMMD5Authenticatee::authenticate(
   const UPID& client,
   const mesos::Credential& credential)
 {
+  if (!credential.has_secret()) {
+    LOG(WARNING) << "Authentication failed; secret needed by CRAM-MD5 "
+                 << "authenticatee";
+    return false;
+  }
+
   CHECK(process == NULL);
   process = new CRAMMD5AuthenticateeProcess(credential, client);
   spawn(process);
