@@ -803,9 +803,9 @@ void Slave::_authenticate()
   }
 
   if (!future.get()) {
-    LOG(ERROR) << "Master " << master.get() << " refused authentication";
-    shutdown(UPID(), "Master refused authentication");
-    return;
+    // For refused authentication, we exit instead of doing a shutdown
+    // to keep possibly active executors running.
+    EXIT(1) << "Master " << master.get() << " refused authentication";
   }
 
   LOG(INFO) << "Successfully authenticated with master " << master.get();
