@@ -699,12 +699,8 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::updateAllocation(
 
   slaves[slaveId].total = updatedTotal.get();
 
-  // TODO(bmahler): Validate that the available resources are
-  // unaffected. This requires augmenting the sorters with
-  // SlaveIDs for allocations, so that we can do:
-  //
-  //   CHECK_EQ(slaves[slaveId].total - updatedAllocation,
-  //            slaves[slaveId].available);
+  CHECK_EQ(slaves[slaveId].total - updatedAllocation.get(),
+           slaves[slaveId].available);
 
   // TODO(jieyu): Do not log if there is no update.
   LOG(INFO) << "Updated allocation of framework " << frameworkId
