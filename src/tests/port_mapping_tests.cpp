@@ -1976,8 +1976,6 @@ TEST_F(PortMappingMesosTest, CGROUPS_ROOT_RecoverMixedContainers)
 
 // Test that all configurations (tc filters etc) is cleaned up for an
 // orphaned container using the network isolator.
-// TODO(jieyu): Consider adding a test to verify that unknown orphans
-// (not known by the launcher) are also cleaned up.
 TEST_F(PortMappingMesosTest, CGROUPS_ROOT_CleanUpOrphan)
 {
   Try<PID<Master> > master = StartMaster();
@@ -2166,6 +2164,123 @@ TEST_F(PortMappingMesosTest, ROOT_NetworkNamespaceHandleSymlink)
   Shutdown();
 
   delete containerizer.get();
+}
+
+
+// This test verfies that the isolator is able to recover a mix of
+// known and unkonwn orphans. This is used to capture the regression
+// described in MESOS-2914.
+TEST_F(PortMappingMesosTest, CGROUPS_ROOT_RecoverMixedKnownAndUnKnownOrphans)
+{
+  Try<PID<Master>> master = StartMaster(CreateMasterFlags());
+  ASSERT_SOME(master);
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.isolation = "network/port_mapping";
+
+  Try<MesosContainerizer*> containerizer =
+    MesosContainerizer::create(flags, true, &fetcher);
+
+  ASSERT_SOME(containerizer);
+
+  Try<PID<Slave> > slave = StartSlave(containerizer.get(), flags);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+
+  FrameworkInfo frameworkInfo;
+  frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
+  frameworkInfo.set_checkpoint(true);
+
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(_, _, _));
+
+  Future<vector<Offer> > offers;
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(DeclineOffers());      // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
+
+  Offer offer = offers.get()[0];
+
+  TaskInfo task1 = createTask(
+      offer.slave_id(),
+      Resources::parse("cpus:1;mem:64").get(),
+      "sleep 1000");
+
+  TaskInfo task2 = createTask(
+      offer.slave_id(),
+      Resources::parse("cpus:1;mem:64").get(),
+      "sleep 1000");
+
+  Future<TaskStatus> status1;
+  Future<TaskStatus> status2;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status1))
+    .WillOnce(FutureArg<1>(&status2))
+    .WillRepeatedly(Return());       // Ignore subsequent updates.
+
+  driver.launchTasks(offers.get()[0].id(), {task1, task2});
+
+  AWAIT_READY(status1);
+  ASSERT_EQ(TASK_RUNNING, status1.get().state());
+
+  AWAIT_READY(status2);
+  ASSERT_EQ(TASK_RUNNING, status2.get().state());
+
+  // Obtain the container IDs.
+  Future<hashset<ContainerID>> containers = containerizer.get()->containers();
+  AWAIT_READY(containers);
+  ASSERT_EQ(2u, containers.get().size());
+
+  Stop(slave.get());
+  delete containerizer.get();
+
+  // Wipe the slave meta directory so that the slave will treat the
+  // above running tasks as orphans.
+  ASSERT_SOME(os::rmdir(paths::getMetaRootDir(flags.work_dir)));
+
+  // Remove the network namespace symlink for one container so that it
+  // becomes an unknown orphan.
+  const ContainerID containerId = *(containers.get().begin());
+  const string symlink = path::join(
+      slave::PORT_MAPPING_BIND_MOUNT_SYMLINK_ROOT(),
+      stringify(containerId));
+
+  ASSERT_TRUE(os::exists(symlink));
+  ASSERT_TRUE(os::stat::islink(symlink));
+  ASSERT_SOME(os::rm(symlink));
+
+  Future<SlaveRegisteredMessage> slaveRegisteredMessage =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
+
+  Future<Nothing> knownOrphansDestroyed =
+    FUTURE_DISPATCH(_, &MesosContainerizerProcess::___recover);
+
+  // Restart the slave.
+  slave = StartSlave(flags);
+  ASSERT_SOME(slave);
+
+  AWAIT_READY(slaveRegisteredMessage);
+  AWAIT_READY(knownOrphansDestroyed);
+
+  // We settle the clock here to ensure that the processing of
+  // 'MesosContainerizerProcess::___destroy()' is complete and the
+  // metric is updated.
+  Clock::pause();
+  Clock::settle();
+  Clock::resume();
+
+  JSON::Object metrics = Metrics();
+  EXPECT_EQ(
+      0u,
+      metrics.values["containerizer/mesos/container_destroy_errors"]);
 }
 
 } // namespace tests {
