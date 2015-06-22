@@ -1578,11 +1578,10 @@ void Slave::_runTask(
       break;
   }
 
-  // Refer to the comment after 'framework->pending.erase' above
-  // for why we need this.
-  if (framework->executors.empty() && framework->pending.empty()) {
-    removeFramework(framework);
-  }
+  // We don't perform the checks for 'removeFramework' here since
+  // we're guaranteed by 'launchExecutor' that 'framework->executors'
+  // will be non-empty.
+  CHECK(!framework->executors.empty());
 }
 
 
