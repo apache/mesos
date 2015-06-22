@@ -507,7 +507,7 @@ protected:
           break;
         }
 
-        drop(event, "Unimplemented");
+        error(event.error().message());
         break;
       }
 

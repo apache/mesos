@@ -1517,6 +1517,7 @@ mesos_tests_SOURCES =				\
   tests/resource_offers_tests.cpp		\
   tests/resources_tests.cpp			\
   tests/scheduler_tests.cpp			\
+  tests/scheduler_event_call_tests.cpp		\
   tests/script.cpp				\
   tests/slave_recovery_tests.cpp		\
   tests/slave_tests.cpp				\
