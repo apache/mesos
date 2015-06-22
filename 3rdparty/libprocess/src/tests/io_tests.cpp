@@ -277,7 +277,7 @@ TEST(IO, DISABLED_BlockingWrite)
 }
 
 
-TEST(IO, redirect)
+TEST(IO, Redirect)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 

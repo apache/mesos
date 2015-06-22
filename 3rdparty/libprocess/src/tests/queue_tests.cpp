@@ -9,7 +9,7 @@ using namespace process;
 
 using std::string;
 
-TEST(Queue, block)
+TEST(Queue, Block)
 {
   Queue<string> q;
 
@@ -26,7 +26,7 @@ TEST(Queue, block)
 }
 
 
-TEST(Queue, noblock)
+TEST(Queue, Noblock)
 {
   Queue<string> q;
 
@@ -40,7 +40,7 @@ TEST(Queue, noblock)
 }
 
 
-TEST(Queue, queue)
+TEST(Queue, Queue)
 {
   Queue<string> q;
 

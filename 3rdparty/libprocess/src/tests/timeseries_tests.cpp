@@ -20,7 +20,7 @@ List<int> toList(const TimeSeries<int>& series)
 }
 
 
-TEST(TimeSeries, set)
+TEST(TimeSeries, Set)
 {
   TimeSeries<int> series;
 
@@ -36,7 +36,7 @@ TEST(TimeSeries, set)
   ASSERT_EQ(1, latest.get().data);
 }
 
-TEST(TimeSeries, sparsify)
+TEST(TimeSeries, Sparsify)
 {
   // We have to pause the clock because this test often results
   // in to set() operations occurring at the same time according
@@ -97,7 +97,7 @@ TEST(TimeSeries, sparsify)
 }
 
 
-TEST(TimeSeries, truncate)
+TEST(TimeSeries, Truncate)
 {
   // Test simple truncation first.
   Clock::pause();

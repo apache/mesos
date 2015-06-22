@@ -90,7 +90,7 @@ public:
 };
 
 
-TEST(HTTP, auth)
+TEST(HTTP, Auth)
 {
   Http http;
 
@@ -619,7 +619,7 @@ TEST(HTTP, CaseInsensitiveHeaders)
 
 
 // TODO(evelinad): Add URLTest for IPv6.
-TEST(URLTest, stringification)
+TEST(URLTest, Stringification)
 {
   EXPECT_EQ("http://mesos.apache.org:80/",
             stringify(URL("http", "mesos.apache.org")));

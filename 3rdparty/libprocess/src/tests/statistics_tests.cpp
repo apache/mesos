@@ -9,7 +9,7 @@
 using namespace process;
 
 
-TEST(Statistics, empty)
+TEST(Statistics, Empty)
 {
   TimeSeries<double> timeseries;
 
@@ -17,7 +17,7 @@ TEST(Statistics, empty)
 }
 
 
-TEST(Statistics, single)
+TEST(Statistics, Single)
 {
   TimeSeries<double> timeseries;
 
@@ -27,7 +27,7 @@ TEST(Statistics, single)
 }
 
 
-TEST(Statistics, statistics)
+TEST(Statistics, Statistics)
 {
   // Create a distribution of 10 values from -5 to 4.
   TimeSeries<double> timeseries;

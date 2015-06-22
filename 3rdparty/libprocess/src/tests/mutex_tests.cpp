@@ -5,7 +5,7 @@
 
 using namespace process;
 
-TEST(Mutex, lock)
+TEST(Mutex, Lock)
 {
   Mutex mutex;
 
@@ -19,7 +19,7 @@ TEST(Mutex, lock)
 }
 
 
-TEST(Mutex, block)
+TEST(Mutex, Block)
 {
   Mutex mutex;
 
@@ -38,7 +38,7 @@ TEST(Mutex, block)
 }
 
 
-TEST(Mutex, queue)
+TEST(Mutex, Queue)
 {
   Mutex mutex;
 
