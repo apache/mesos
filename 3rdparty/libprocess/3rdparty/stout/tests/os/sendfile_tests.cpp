@@ -38,7 +38,7 @@ protected:
 };
 
 
-TEST_F(OsSendfileTest, sendfile)
+TEST_F(OsSendfileTest, Sendfile)
 {
   Try<int> fd = os::open(filename, O_RDONLY | O_CLOEXEC);
   ASSERT_SOME(fd);

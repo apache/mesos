@@ -13,7 +13,7 @@ using std::string;
 class OsSignalsTest : public ::testing::Test {};
 
 
-TEST_F(OsSignalsTest, suppress)
+TEST_F(OsSignalsTest, Suppress)
 {
   int pipes[2];
 

@@ -9,7 +9,7 @@
 using std::string;
 
 
-TEST(UUIDTest, test)
+TEST(UUIDTest, Test)
 {
   UUID uuid1 = UUID::random();
   UUID uuid2 = UUID::fromBytes(uuid1.toBytes());

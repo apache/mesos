@@ -148,7 +148,7 @@ TEST(JsonTest, NumericAssignment)
 }
 
 
-TEST(JsonTest, parse)
+TEST(JsonTest, Parse)
 {
   JSON::Object object;
 

@@ -22,7 +22,7 @@ using std::set;
 using std::string;
 
 
-TEST(ProcTest, pids)
+TEST(ProcTest, Pids)
 {
   Try<set<pid_t> > pids = proc::pids();
 
@@ -33,7 +33,7 @@ TEST(ProcTest, pids)
 }
 
 
-TEST(ProcTest, cpus)
+TEST(ProcTest, Cpus)
 {
   Try<std::list<CPU> > cpus = proc::cpus();
 

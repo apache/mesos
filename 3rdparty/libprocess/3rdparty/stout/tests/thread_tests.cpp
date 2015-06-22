@@ -4,7 +4,7 @@
 
 #include <stout/thread.hpp>
 
-TEST(Thread, local)
+TEST(Thread, Local)
 {
   ThreadLocal<std::string>* _s_ = new ThreadLocal<std::string>();
 

@@ -18,7 +18,7 @@ using std::string;
 using std::vector;
 
 
-TEST(NetTest, mac)
+TEST(NetTest, Mac)
 {
   Try<set<string> > links = net::links();
   ASSERT_SOME(links);

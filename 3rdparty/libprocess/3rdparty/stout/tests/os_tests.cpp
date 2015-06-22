@@ -60,7 +60,7 @@ static hashset<string> listfiles(const string& directory)
 class OsTest : public TemporaryDirectoryTest {};
 
 
-TEST_F(OsTest, environment)
+TEST_F(OsTest, Environment)
 {
   // Make sure the environment has some entries with '=' in the value.
   os::setenv("SOME_SPECIAL_FLAG", "--flag=foobar");
@@ -83,7 +83,7 @@ TEST_F(OsTest, environment)
 }
 
 
-TEST_F(OsTest, rmdir)
+TEST_F(OsTest, Rmdir)
 {
   const hashset<string> EMPTY;
   const string tmpdir = os::getcwd();
@@ -121,7 +121,7 @@ TEST_F(OsTest, rmdir)
 }
 
 
-TEST_F(OsTest, system)
+TEST_F(OsTest, System)
 {
   EXPECT_EQ(0, os::system("exit 0"));
   EXPECT_EQ(0, os::system("sleep 0"));
@@ -134,7 +134,7 @@ TEST_F(OsTest, system)
 }
 
 
-TEST_F(OsTest, cloexec)
+TEST_F(OsTest, Cloexec)
 {
   Try<int> fd = os::open(
       "cloexec",
@@ -158,7 +158,7 @@ TEST_F(OsTest, cloexec)
 }
 
 
-TEST_F(OsTest, nonblock)
+TEST_F(OsTest, Nonblock)
 {
   int pipes[2];
   ASSERT_NE(-1, pipe(pipes));
@@ -183,7 +183,7 @@ TEST_F(OsTest, nonblock)
 }
 
 
-TEST_F(OsTest, touch)
+TEST_F(OsTest, Touch)
 {
   const string testfile  = path::join(os::getcwd(), UUID::random().toString());
 
@@ -192,7 +192,7 @@ TEST_F(OsTest, touch)
 }
 
 
-TEST_F(OsTest, readWriteString)
+TEST_F(OsTest, ReadWriteString)
 {
   const string testfile  = path::join(os::getcwd(), UUID::random().toString());
   const string teststr = "line1\nline2";
@@ -210,7 +210,7 @@ TEST_F(OsTest, readWriteString)
 // Tests all four combinations of following a link or not and of a file
 // or a link as argument. Also tests that an error is returned for a
 // non-existing file.
-TEST_F(OsTest, size)
+TEST_F(OsTest, Size)
 {
   const string& file = path::join(os::getcwd(), UUID::random().toString());
 
@@ -238,7 +238,7 @@ TEST_F(OsTest, size)
 }
 
 
-TEST_F(OsTest, find)
+TEST_F(OsTest, Find)
 {
   const string testdir = path::join(os::getcwd(), UUID::random().toString());
   const string subdir = testdir + "/test1";
@@ -268,7 +268,7 @@ TEST_F(OsTest, find)
 }
 
 
-TEST_F(OsTest, bootId)
+TEST_F(OsTest, BootId)
 {
   Try<string> bootId = os::bootId();
   ASSERT_SOME(bootId);
@@ -292,7 +292,7 @@ TEST_F(OsTest, bootId)
 }
 
 
-TEST_F(OsTest, uname)
+TEST_F(OsTest, Uname)
 {
   const Try<os::UTSInfo> info = os::uname();
 
@@ -306,7 +306,7 @@ TEST_F(OsTest, uname)
 }
 
 
-TEST_F(OsTest, sysname)
+TEST_F(OsTest, Sysname)
 {
   const Try<string> name = os::sysname();
 
@@ -320,7 +320,7 @@ TEST_F(OsTest, sysname)
 }
 
 
-TEST_F(OsTest, release)
+TEST_F(OsTest, Release)
 {
   const Try<Version> info = os::release();
 
@@ -328,7 +328,7 @@ TEST_F(OsTest, release)
 }
 
 
-TEST_F(OsTest, sleep)
+TEST_F(OsTest, Sleep)
 {
   Duration duration = Milliseconds(10);
   Stopwatch stopwatch;
@@ -341,7 +341,7 @@ TEST_F(OsTest, sleep)
 
 
 #ifdef __APPLE__
-TEST_F(OsTest, sysctl)
+TEST_F(OsTest, Sysctl)
 {
   // String test.
   Try<os::UTSInfo> uname = os::uname();
@@ -390,7 +390,7 @@ TEST_F(OsTest, sysctl)
 #endif // __APPLE__
 
 
-TEST_F(OsTest, pids)
+TEST_F(OsTest, Pids)
 {
   Try<set<pid_t> > pids = os::pids();
   ASSERT_SOME(pids);
@@ -414,7 +414,7 @@ TEST_F(OsTest, pids)
 }
 
 
-TEST_F(OsTest, children)
+TEST_F(OsTest, Children)
 {
   Try<set<pid_t> > children = os::children(getpid());
 
@@ -464,7 +464,7 @@ TEST_F(OsTest, children)
 }
 
 
-TEST_F(OsTest, process)
+TEST_F(OsTest, Process)
 {
   const Result<Process> process = os::process(getpid());
 
@@ -488,7 +488,7 @@ TEST_F(OsTest, process)
 }
 
 
-TEST_F(OsTest, processes)
+TEST_F(OsTest, Processes)
 {
   const Try<list<Process>> processes = os::processes();
 
@@ -533,7 +533,7 @@ void dosetsid(void)
 }
 
 
-TEST_F(OsTest, killtree)
+TEST_F(OsTest, Killtree)
 {
   Try<ProcessTree> tree =
     Fork(dosetsid,                         // Child.
@@ -656,7 +656,7 @@ TEST_F(OsTest, killtree)
 }
 
 
-TEST_F(OsTest, killtreeNoRoot)
+TEST_F(OsTest, KilltreeNoRoot)
 {
   Try<ProcessTree> tree =
     Fork(dosetsid,        // Child.
@@ -765,7 +765,7 @@ TEST_F(OsTest, killtreeNoRoot)
 }
 
 
-TEST_F(OsTest, pstree)
+TEST_F(OsTest, Pstree)
 {
   Try<ProcessTree> tree = os::pstree(getpid());
 
@@ -865,7 +865,7 @@ TEST_F(OsTest, ProcessExists)
 }
 
 
-TEST_F(OsTest, user)
+TEST_F(OsTest, User)
 {
   std::ostringstream user_;
   EXPECT_SOME_EQ(0, os::shell(&user_ , "id -un"));
