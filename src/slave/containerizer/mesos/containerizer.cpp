@@ -111,27 +111,27 @@ Try<MesosContainerizer*> MesosContainerizer::create(
   LOG(INFO) << "Using isolation: " << isolation;
 
   // Create a MesosContainerizerProcess using isolators and a launcher.
-  hashmap<string, Try<Isolator*> (*)(const Flags&)> creators;
-
-  creators["posix/cpu"]   = &PosixCpuIsolatorProcess::create;
-  creators["posix/mem"]   = &PosixMemIsolatorProcess::create;
-  creators["posix/disk"]  = &PosixDiskIsolatorProcess::create;
+  static const hashmap<string, Try<Isolator*> (*)(const Flags&)> creators = {
+    {"posix/cpu", &PosixCpuIsolatorProcess::create},
+    {"posix/mem", &PosixMemIsolatorProcess::create},
+    {"posix/disk", &PosixDiskIsolatorProcess::create},
 #ifdef __linux__
-  creators["cgroups/cpu"] = &CgroupsCpushareIsolatorProcess::create;
-  creators["cgroups/mem"] = &CgroupsMemIsolatorProcess::create;
-  creators["cgroups/perf_event"] = &CgroupsPerfEventIsolatorProcess::create;
-  creators["filesystem/shared"] = &SharedFilesystemIsolatorProcess::create;
-  creators["namespaces/pid"] = &NamespacesPidIsolatorProcess::create;
+    {"cgroups/cpu", &CgroupsCpushareIsolatorProcess::create},
+    {"cgroups/mem", &CgroupsMemIsolatorProcess::create},
+    {"cgroups/perf_event", &CgroupsPerfEventIsolatorProcess::create},
+    {"filesystem/shared", &SharedFilesystemIsolatorProcess::create},
+    {"namespaces/pid", &NamespacesPidIsolatorProcess::create},
 #endif // __linux__
 #ifdef WITH_NETWORK_ISOLATOR
-  creators["network/port_mapping"] = &PortMappingIsolatorProcess::create;
+    {"network/port_mapping", &PortMappingIsolatorProcess::create},
 #endif
+  };
 
   vector<Owned<Isolator>> isolators;
 
   foreach (const string& type, strings::tokenize(isolation, ",")) {
     if (creators.contains(type)) {
-      Try<Isolator*> isolator = creators[type](flags_);
+      Try<Isolator*> isolator = creators.at(type)(flags_);
       if (isolator.isError()) {
         return Error(
             "Could not create isolator " + type + ": " + isolator.error());
