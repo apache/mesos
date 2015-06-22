@@ -78,7 +78,7 @@ typedef ::testing::Types<
 
 TYPED_TEST_CASE(CRAMMD5Authentication, AuthenticationTypes);
 
-TYPED_TEST(CRAMMD5Authentication, success)
+TYPED_TEST(CRAMMD5Authentication, Success)
 {
   // Launch a dummy process (somebody to send the AuthenticateMessage).
   UPID pid = spawn(new ProcessBase(), true);
@@ -123,7 +123,7 @@ TYPED_TEST(CRAMMD5Authentication, success)
 
 
 // Bad password should return an authentication failure.
-TYPED_TEST(CRAMMD5Authentication, failed1)
+TYPED_TEST(CRAMMD5Authentication, Failed1)
 {
   // Launch a dummy process (somebody to send the AuthenticateMessage).
   UPID pid = spawn(new ProcessBase(), true);
@@ -168,7 +168,7 @@ TYPED_TEST(CRAMMD5Authentication, failed1)
 
 
 // No user should return an authentication failure.
-TYPED_TEST(CRAMMD5Authentication, failed2)
+TYPED_TEST(CRAMMD5Authentication, Failed2)
 {
   // Launch a dummy process (somebody to send the AuthenticateMessage).
   UPID pid = spawn(new ProcessBase(), true);

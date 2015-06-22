@@ -50,7 +50,7 @@ class CredentialsTest : public MesosTest {};
 
 // This test verifies that an authenticated slave is
 // granted registration by the master.
-TEST_F(CredentialsTest, authenticatedSlave)
+TEST_F(CredentialsTest, AuthenticatedSlave)
 {
   Try<PID<Master> > master = StartMaster();
   ASSERT_SOME(master);
@@ -71,7 +71,7 @@ TEST_F(CredentialsTest, authenticatedSlave)
 // Test verifing well executed credential authentication
 // using text formatted credentials so as to test
 // backwards compatibility.
-TEST_F(CredentialsTest, authenticatedSlaveText)
+TEST_F(CredentialsTest, AuthenticatedSlaveText)
 {
   master::Flags flags = CreateMasterFlags();
 
