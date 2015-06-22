@@ -1854,12 +1854,15 @@ Future<Nothing> PortMappingIsolatorProcess::recover(
   // using the normal cleanup path (refer to MESOS-2367 for details).
   // Unknown orphans will be cleaned up immediately. The recovery will
   // fail if there is some unknown orphan that cannot be cleaned up.
-  vector<Owned<Info>> unknownOrphans;
+  vector<Info*> unknownOrphans;
 
   foreach (pid_t pid, pids) {
     Try<Info*> recover = _recover(pid);
     if (recover.isError()) {
       foreachvalue (Info* info, infos) {
+        delete info;
+      }
+      foreach (Info* info, unknownOrphans) {
         delete info;
       }
 
@@ -1878,10 +1881,10 @@ Future<Nothing> PortMappingIsolatorProcess::recover(
       }
     }
 
-    unknownOrphans.push_back(Owned<Info>(recover.get()));
+    unknownOrphans.push_back(recover.get());
   }
 
-  foreach (const Owned<Info>& info, unknownOrphans) {
+  foreach (Info* info, unknownOrphans) {
     CHECK_SOME(info->pid);
     pid_t pid = info->pid.get();
 
@@ -1898,11 +1901,15 @@ Future<Nothing> PortMappingIsolatorProcess::recover(
     // it'll try to remove the remaining unknown orphans.
     // TODO(jieyu): Consider call '_cleanup' for all the unknown
     // orphans before returning even if error occurs.
-    Try<Nothing> cleanup = _cleanup(info.get(), containerId);
+    Try<Nothing> cleanup = _cleanup(info, containerId);
     if (cleanup.isError()) {
       foreachvalue (Info* info, infos) {
         delete info;
       }
+
+      // TODO(jieyu): Also delete 'info' in unknownOrphans. Notice
+      // that some 'info' in unknownOrphans might have already been
+      // deleted in '_cleanup' above.
 
       return Failure(
           "Failed to cleanup orphaned container with pid " +
