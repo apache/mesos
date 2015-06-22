@@ -1850,9 +1850,12 @@ Future<Nothing> PortMappingIsolatorProcess::recover(
     pids.erase(pid);
   }
 
-  // Cleanup unknown orphan containers. Known orphan cgroups will be
-  // destroyed by the containerizer using the normal cleanup path. See
-  // MESOS-2367 for details.
+  // Recover orphans. Known orphans will be destroyed by containerizer
+  // using the normal cleanup path (refer to MESOS-2367 for details).
+  // Unknown orphans will be cleaned up immediately. The recovery will
+  // fail if there is some unknown orphan that cannot be cleaned up.
+  vector<Owned<Info>> unknownOrphans;
+
   foreach (pid_t pid, pids) {
     Try<Info*> recover = _recover(pid);
     if (recover.isError()) {
@@ -1865,23 +1868,37 @@ Future<Nothing> PortMappingIsolatorProcess::recover(
           stringify(pid) + ": " + recover.error());
     }
 
-    // Clean up unknown orphan containers. Known orphan containers
-    // will be cleaned up by the containerizer using the normal
-    // cleanup path. See MESOS-2367 for details.
-    Option<ContainerID> containerId;
-
     if (linkers.get(pid).size() == 1) {
-      containerId = linkers.get(pid).front();
-      CHECK(!infos.contains(containerId.get()));
+      const ContainerID containerId = linkers.get(pid).front();
+      CHECK(!infos.contains(containerId));
 
-      if (orphans.contains(containerId.get())) {
-        infos[containerId.get()] = recover.get();
+      if (orphans.contains(containerId)) {
+        infos[containerId] = recover.get();
         continue;
       }
     }
 
-    // The recovery should fail if we cannot cleanup an orphan.
-    Try<Nothing> cleanup = _cleanup(recover.get(), containerId);
+    unknownOrphans.push_back(Owned<Info>(recover.get()));
+  }
+
+  foreach (const Owned<Info>& info, unknownOrphans) {
+    CHECK_SOME(info->pid);
+    pid_t pid = info->pid.get();
+
+    Option<ContainerID> containerId;
+    if (linkers.get(pid).size() == 1) {
+      containerId = linkers.get(pid).front();
+    }
+
+    // NOTE: If 'infos' is empty (means there is no regular container
+    // or known orphan), the '_cleanup' below will remove the ICMP and
+    // ARP packet filters on host eth0. This will cause subsequent
+    // calls to '_cleanup' for unknown orphans to fail. However, this
+    // is OK because when slave restarts and tries to recover again,
+    // it'll try to remove the remaining unknown orphans.
+    // TODO(jieyu): Consider call '_cleanup' for all the unknown
+    // orphans before returning even if error occurs.
+    Try<Nothing> cleanup = _cleanup(info.get(), containerId);
     if (cleanup.isError()) {
       foreachvalue (Info* info, infos) {
         delete info;
