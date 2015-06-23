@@ -255,7 +255,7 @@ TEST_F(HookTest, VerifySlaveExecutorEnvironmentDecorator)
 // Test executor environment decorator hook and remove executor hook
 // for slave. We expect the environment-decorator hook to create a
 // temporary file and the remove-executor hook to delete that file.
-TEST_F(HookTest, DISABLED_VerifySlaveLaunchExecutorHook)
+TEST_F(HookTest, VerifySlaveLaunchExecutorHook)
 {
   master::Flags masterFlags = CreateMasterFlags();
 
@@ -298,11 +298,19 @@ TEST_F(HookTest, DISABLED_VerifySlaveLaunchExecutorHook)
   vector<TaskInfo> tasks;
   tasks.push_back(task);
 
-  EXPECT_CALL(exec, launchTask(_, _));
+  EXPECT_CALL(exec, registered(_, _, _, _));
 
-  Future<ExecutorInfo> executorInfo;
-  EXPECT_CALL(exec, registered(_, _, _, _))
-    .WillOnce(FutureArg<1>(&executorInfo));
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
+
+  // Executor shutdown would force the Slave to execute the
+  // remove-executor hook.
+  EXPECT_CALL(exec, shutdown(_));
+
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status))
+    .WillRepeatedly(Return());
 
   // On successful completion of the "slaveLaunchExecutorHook", the
   // test hook will send a HookExecuted message to itself. We wait
@@ -311,15 +319,18 @@ TEST_F(HookTest, DISABLED_VerifySlaveLaunchExecutorHook)
 
   driver.launchTasks(offers.get()[0].id(), tasks);
 
-  AWAIT_READY(executorInfo);
+  AWAIT_READY(status);
 
   driver.stop();
   driver.join();
 
-  Shutdown(); // Must shutdown before 'containerizer' gets deallocated.
-
-  // Now wait for the hook to finish execution.
+  // The scheduler shutdown from above forces the executor to
+  // shutdown. This in turn should force the Slave to execute
+  // the remove-executor hook.
+  // Here, we wait for the hook to finish execution.
   AWAIT_READY(hookFuture);
+
+  Shutdown(); // Must shutdown before 'containerizer' gets deallocated.
 }
 
 
