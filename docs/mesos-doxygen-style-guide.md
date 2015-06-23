@@ -53,6 +53,21 @@ This page must be located in the top directory of the library/component and name
 The first line in such a document must be a section heading bearing the title which will appear in the generated Doxygen index.
 Example: "# Libprocess User Guide"
 
+#### Example Code
+
+Code examples must be enclosed by '~~~{.Language}'
+
+
+Example:
+~~~
+    ~~~{.cpp}
+    int main(int argc, char** argv)
+    {
+      ....
+    }
+    ~~~
+~~~
+
 ## In Source Code
 
 Doxygen documentation needs only to be applied to source code parts that
@@ -63,27 +78,30 @@ enhanced by source code comments as appropriate, but these comments should not f
 We follow the [Javadoc syntax](http://en.wikipedia.org/wiki/Javadoc) to mark comment blocks.
 These have the general form:
 
-    /**
-     * Brief summary.
-     *
-     * Detailed description. More detail.
-     * @see Some reference
-     *
-     * @param <name> Parameter description.
-     * @return Return value description.
-     */
+~~~{.cpp}
+/**
+ * Brief summary.
+ *
+ * Detailed description. More detail.
+ * @see Some reference
+ *
+ * @param <name> Parameter description.
+ * @return Return value description.
+ */
+~~~
 
 Example:
-
-    /**
-     * Returns a compressed version of a string.
-     *
-     * Compresses an input string using the foobar algorithm.
-     *
-     * @param uncompressed The input string.
-     * @return A compressed version of the input string.
-     */
-     std::string compress(const std::string& uncompressed);
+~~~{.cpp}
+/**
+ * Returns a compressed version of a string.
+ *
+ * Compresses an input string using the foobar algorithm.
+ *
+ * @param uncompressed The input string.
+ * @return A compressed version of the input string.
+ */
+ std::string compress(const std::string& uncompressed);
+~~~
 
 ### Constants and Variables
 
