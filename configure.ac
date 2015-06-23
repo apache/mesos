@@ -204,6 +204,12 @@ AC_ARG_WITH([svn],
                            [specify where to locate the svn-1 library]),
             [], [])
 
+AC_ARG_WITH([nl],
+            AS_HELP_STRING([--with-nl=@<:@DIR@:>@],
+                           [specify where to locate the libnl3 library
+                            (required for network-isolator). [default: /usr]]),
+            [], [])
+
 AC_ARG_ENABLE([bundled-distribute],
               AS_HELP_STRING([--disable-bundled-distribute],
                              [excludes building and using the bundled distribute
@@ -821,6 +827,13 @@ We need CRAM-MD5 support for SASL authentication.
 
 # Perform necessary configuration for network isolator.
 if test "x$with_network_isolator" = "xyes"; then
+  if test -n "`echo $with_nl`"; then
+    CPPFLAGS="-I${with_nl}/include/libnl3 $CPPFLAGS"
+    LDFLAGS="-L${with_nl}/lib $LDFLAGS"
+  else
+    CPPFLAGS="-I/usr/include/libnl3 $CPPFLAGS"
+  fi
+
   # Check for OS support.
   AS_IF([test "$OS_NAME" = "linux"],
         [],
@@ -884,12 +897,6 @@ Please install libnl3 (version 3.2.26 or higher):
 http://www.infradead.org/~tgr/libnl/
 -------------------------------------------------------------------
   ])])
-
-  # TODO(jieyu): Automatically detect the location where the libnl
-  # headers are installed.
-  LIBNL_CFLAGS=-I/usr/include/libnl3
-
-  AC_SUBST([LIBNL_CFLAGS])
 
   AC_DEFINE([WITH_NETWORK_ISOLATOR])
 fi
