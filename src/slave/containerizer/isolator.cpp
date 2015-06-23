@@ -42,6 +42,12 @@ Isolator::~Isolator()
 }
 
 
+Future<Option<int>> Isolator::namespaces()
+{
+  return dispatch(process.get(), &IsolatorProcess::namespaces);
+}
+
+
 Future<Nothing> Isolator::recover(
     const list<ExecutorRunState>& state,
     const hashset<ContainerID>& orphans)

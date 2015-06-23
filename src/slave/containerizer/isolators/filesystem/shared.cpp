@@ -18,6 +18,8 @@
 
 #include <set>
 
+#include "linux/ns.hpp"
+
 #include "slave/containerizer/isolators/filesystem/shared.hpp"
 
 using namespace process;
@@ -59,6 +61,12 @@ Try<Isolator*> SharedFilesystemIsolatorProcess::create(const Flags& flags)
       new SharedFilesystemIsolatorProcess(flags));
 
   return new Isolator(process);
+}
+
+
+process::Future<Option<int>> SharedFilesystemIsolatorProcess::namespaces()
+{
+  return CLONE_NEWNS;
 }
 
 

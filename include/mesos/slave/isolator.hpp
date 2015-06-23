@@ -30,6 +30,7 @@
 #include <process/process.hpp>
 
 #include <stout/hashset.hpp>
+#include <stout/option.hpp>
 #include <stout/try.hpp>
 
 namespace mesos {
@@ -80,6 +81,15 @@ class Isolator
 public:
   explicit Isolator(process::Owned<IsolatorProcess> process);
   ~Isolator();
+
+  // Returns the namespaces required by the isolator. The namespaces
+  // are created while launching the executor. Isolators may return
+  // a None() to indicate that they don't require any namespaces
+  // (e.g., Isolators for OS X).
+  // TODO(karya): Since namespaces are Linux-only, create a separate
+  // LinuxIsolator (and corresponding LinuxIsolatorProcess) class
+  // for Linux-specific isolators.
+  process::Future<Option<int>> namespaces();
 
   // Recover containers from the run states and the orphan containers
   // (known to the launcher but not known to the slave) detected by
@@ -136,6 +146,8 @@ class IsolatorProcess : public process::Process<IsolatorProcess>
 {
 public:
   virtual ~IsolatorProcess() {}
+
+  virtual process::Future<Option<int>> namespaces() { return None(); }
 
   virtual process::Future<Nothing> recover(
       const std::list<ExecutorRunState>& state,

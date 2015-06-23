@@ -121,6 +121,12 @@ Result<ino_t> NamespacesPidIsolatorProcess::getNamespace(
 }
 
 
+process::Future<Option<int>> NamespacesPidIsolatorProcess::namespaces()
+{
+  return CLONE_NEWPID | CLONE_NEWNS;
+}
+
+
 Future<Nothing> NamespacesPidIsolatorProcess::recover(
     const list<ExecutorRunState>& states,
     const hashset<ContainerID>& orphans)

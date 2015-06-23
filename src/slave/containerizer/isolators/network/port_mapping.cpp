@@ -1633,6 +1633,12 @@ Try<Isolator*> PortMappingIsolatorProcess::create(const Flags& flags)
 }
 
 
+process::Future<Option<int>> PortMappingIsolatorProcess::namespaces()
+{
+  return CLONE_NEWNET;
+}
+
+
 Future<Nothing> PortMappingIsolatorProcess::recover(
     const list<ExecutorRunState>& states,
     const hashset<ContainerID>& orphans)
