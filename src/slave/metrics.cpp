@@ -84,7 +84,9 @@ Metrics::Metrics(const Slave& slave)
         "slave/invalid_framework_messages"),
     executor_directory_max_allowed_age_secs(
         "slave/executor_directory_max_allowed_age_secs",
-        defer(slave, &Slave::_executor_directory_max_allowed_age_secs))
+        defer(slave, &Slave::_executor_directory_max_allowed_age_secs)),
+    container_launch_errors(
+        "slave/container_launch_errors")
 {
   // TODO(dhamon): Check return values for metric registration.
   process::metrics::add(uptime_secs);
@@ -114,6 +116,8 @@ Metrics::Metrics(const Slave& slave)
   process::metrics::add(invalid_framework_messages);
 
   process::metrics::add(executor_directory_max_allowed_age_secs);
+
+  process::metrics::add(container_launch_errors);
 
   // Create resource gauges.
   // TODO(dhamon): Set these up dynamically when creating a slave
@@ -196,6 +200,8 @@ Metrics::~Metrics()
   process::metrics::remove(invalid_framework_messages);
 
   process::metrics::remove(executor_directory_max_allowed_age_secs);
+
+  process::metrics::remove(container_launch_errors);
 
   foreach (const Gauge& gauge, resources_total) {
     process::metrics::remove(gauge);

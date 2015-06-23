@@ -182,7 +182,7 @@ void TestContainerizer::destroy(
   std::pair<FrameworkID, ExecutorID> key(frameworkId, executorId);
   if (!containers_.contains(key)) {
     LOG(WARNING) << "Ignoring destroy of unknown container for executor '"
-                  << executorId << "' of framework '" << frameworkId << "'";
+                 << executorId << "' of framework " << frameworkId;
     return;
   }
   destroy(containers_[key]);
@@ -191,21 +191,22 @@ void TestContainerizer::destroy(
 
 void TestContainerizer::destroy(const ContainerID& containerId)
 {
-  CHECK(drivers.contains(containerId))
-    << "Failed to terminate container " << containerId
-    << " because it is has not been started";
+  if (drivers.contains(containerId)) {
+    Owned<MesosExecutorDriver> driver = drivers[containerId];
+    driver->stop();
+    driver->join();
+    drivers.erase(containerId);
+  }
 
-  Owned<MesosExecutorDriver> driver = drivers[containerId];
-  driver->stop();
-  driver->join();
-  drivers.erase(containerId);
+  if (promises.contains(containerId)) {
+    containerizer::Termination termination;
+    termination.set_killed(false);
+    termination.set_message("Killed executor");
+    termination.set_status(0);
 
-  containerizer::Termination termination;
-  termination.set_killed(false);
-  termination.set_message("Killed executor");
-  termination.set_status(0);
-  promises[containerId]->set(termination);
-  promises.erase(containerId);
+    promises[containerId]->set(termination);
+    promises.erase(containerId);
+  }
 }
 
 

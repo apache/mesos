@@ -201,6 +201,8 @@ TEST_F(MetricsTest, Slave)
   EXPECT_EQ(1u, stats.values.count("slave/valid_framework_messages"));
   EXPECT_EQ(1u, stats.values.count("slave/invalid_framework_messages"));
 
+  EXPECT_EQ(1u, stats.values.count("slave/container_launch_errors"));
+
   EXPECT_EQ(1u, stats.values.count("slave/cpus_total"));
   EXPECT_EQ(1u, stats.values.count("slave/cpus_used"));
   EXPECT_EQ(1u, stats.values.count("slave/cpus_percent"));

@@ -3197,8 +3197,9 @@ void Slave::executorLaunched(
                << "' failed to start: "
                << (future.isFailed() ? future.failure() : " future discarded");
 
-    containerizer->destroy(containerId);
+    ++metrics.container_launch_errors;
 
+    containerizer->destroy(containerId);
     return;
   } else if (!future.get()) {
     LOG(ERROR) << "Container '" << containerId
@@ -3208,6 +3209,7 @@ void Slave::executorLaunched(
                << flags.containerizers << ") could create a container for the "
                << "provided TaskInfo/ExecutorInfo message.";
 
+     ++metrics.container_launch_errors;
     return;
   }
 

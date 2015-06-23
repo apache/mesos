@@ -65,6 +65,8 @@ struct Metrics
 
   process::metrics::Gauge executor_directory_max_allowed_age_secs;
 
+  process::metrics::Counter container_launch_errors;
+
   // Non-revocable resources.
   std::vector<process::metrics::Gauge> resources_total;
   std::vector<process::metrics::Gauge> resources_used;
