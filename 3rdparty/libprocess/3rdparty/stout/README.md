@@ -1,4 +1,4 @@
-## Stout User Guide
+## Stout Developer Guide
 
 Stout is a header-only C++ library. Simply add the `include` folder to your include path (i.e., `-I/path/to/stout/include`) during compilation (eventually we plan to support installation).
 
@@ -69,11 +69,11 @@ The `None` type acts as "syntactic sugar" to make using [Option](#option) less v
     }
 
     ...
-    
+
     foo(None()); // Or here.
-    
+
     ...
-    
+
     Option<int> o = None(); // Or here.
 ~~~
 
@@ -81,7 +81,7 @@ Similar to `None`, the `Some` type can be used to construct an `Option` as well.
 
 ~~~{.cpp}
     Option<Option<std::string>> o = Some("42");
-    
+
     std::map<std::string, Option<std::string>> values;
     values["value1"] = None();
     values["value2"] = Some("42");
@@ -201,13 +201,13 @@ Of course, nesting of a `JSON::Value` is also permitted as per the JSON specific
   //   { "first": "Michael", "last": "Hindman" }
   // ]
   JSON::Array array;
-  
+
   JSON::Object object1;
   object1.values["first"] = "Benjamin";
   object1.values["last"] = "Hindman";
-  
+
   array.values.push_back(object1);
-  
+
   JSON::Object object2;
   object2.values["first"] = "Michael";
   object2.values["last"] = "Hindman";
@@ -327,14 +327,14 @@ One frustration with existing command line flags libraries was the burden they p
             "foo",
             "Some information about foo",
             DEFAULT_VALUE_FOR_FOO);
-            
+
         // A flag with out a default value,
         // defined below with an `Option`.
         add(&MyFlags::bar,
             "bar",
             "Some information about bar");
       }
-      
+
       int foo;
       Option<std::string> bar;
     };
@@ -394,7 +394,7 @@ Used to represent some magnitude of bytes, i.e., kilobytes, megabytes, gigabytes
 
 ~~~{.cpp}
     Try<Bytes> bytes = Bytes::parse("32MB");
-    
+
     Bytes bytes = Megabytes(10);
 ~~~
 
@@ -405,7 +405,7 @@ There are operators for comparing (equal to, greater than or less than, etc) and
 
     Bytes tengb = Gigabytes(10);
     Bytes onegb = Megabytes(1024);
-    
+
     stringify(tengb + onegb); // Yields "11GB".
 ~~~
 
@@ -420,7 +420,7 @@ Used to represent some duration of time. The main way to construct a `Duration` 
 There are operators for comparing (equal to, greater than or less than, etc) and manipulating (addition, subtraction, etc) `Duration` objects, as well as a `std::ostream operator <<` overload (thus making them stringifiable, see [here](#stringify)). Note that the `std::ostream operator <<` overload formats the output (including the unit) based on the magnitude, for example:
 
 ~~~{.cpp}
-    stringify(Seconds(42)); // Yields "42secs". 
+    stringify(Seconds(42)); // Yields "42secs".
     stringify(Seconds(120)); // Yields "2mins".
 ~~~
 
@@ -432,11 +432,11 @@ A data structure for recording elapsed time (according to the underlying operati
 ~~~{.cpp}
     Stopwatch stopwatch;
     stopwatch.start();
-    
+
     Duration elapsed = stopwatch.elapsed();
-    
+
     stopwatch.stop();
-    
+
     assert(elapsed <= stopwatch.elapsed());
 ~~~
 
@@ -470,12 +470,12 @@ Macros for looping over collections:
 
     foreach (std::string s, l) {}
     foreach (const std::string& s, l) {}
-    
+
     std::map<std::string, int> m;
 
     foreachpair (std::string s, int i, m) {}
     foreachpair (const std::string& s, int i, m) {}
-    
+
     foreachkey (const std::string& s, m) {}
     foreachvalue (int i, m) {}
 ~~~
@@ -519,10 +519,10 @@ There are some macros provided for integration with gtest that make the tests le
 
 ~~~{.cpp}
     Try<int> t = foo();
-    
+
     // Rather than:
     ASSERT(t.isSome()) << "Error: " << t.error();
-    
+
     // Just do:
     ASSERT_SOME(t);
 ~~~
