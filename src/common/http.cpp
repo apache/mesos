@@ -58,8 +58,7 @@ JSON::Object model(const Resources& resources)
   map<string, Value_Type> types = nonRevocable.types();
 
   foreachpair (const string& name, const Value_Type& type, types) {
-    switch(type)
-    {
+    switch (type) {
       case Value::SCALAR:
         object.values[name] =
           nonRevocable.get<Value::Scalar>(name).get().value();

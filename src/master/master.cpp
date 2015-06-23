@@ -969,10 +969,10 @@ void Master::exited(const UPID& pid)
 
       // Delay dispatching a message to ourselves for the timeout.
       delay(failoverTimeout,
-          self(),
-          &Master::frameworkFailoverTimeout,
-          framework->id(),
-          framework->reregisteredTime);
+            self(),
+            &Master::frameworkFailoverTimeout,
+            framework->id(),
+            framework->reregisteredTime);
 
       return;
     }
@@ -1010,7 +1010,7 @@ void Master::exited(const UPID& pid)
 
       // Remove all non-checkpointing frameworks.
       hashset<FrameworkID> frameworkIds =
-          slave->tasks.keys() | slave->executors.keys();
+        slave->tasks.keys() | slave->executors.keys();
 
       foreach (const FrameworkID& frameworkId, frameworkIds) {
         Framework* framework = getFramework(frameworkId);
@@ -1550,9 +1550,8 @@ Future<Option<Error>> Master::validate(
     return None();
   }
 
-  LOG(INFO)
-    << "Authorizing framework principal '" << frameworkInfo.principal()
-    << "' to receive offers for role '" << frameworkInfo.role() << "'";
+  LOG(INFO) << "Authorizing framework principal '" << frameworkInfo.principal()
+            << "' to receive offers for role '" << frameworkInfo.role() << "'";
 
   mesos::ACL::RegisterFramework request;
   if (frameworkInfo.has_principal()) {
