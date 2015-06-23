@@ -44,12 +44,20 @@ def execute(command, ignore_errors=False):
             raise
         return None
 
-    data = process.stdout.read()
+    data, error = process.communicate()
     status = process.wait()
     if status != 0 and not ignore_errors:
         cmdline = ' '.join(command) if isinstance(command, list) else command
-        print 'Failed to execute: \'' + cmdline + '\':'
-        print data
+        need_login = \
+          'Please log in to the Review Board server at reviews.apache.org.'
+        if need_login in data:
+          print need_login, '\n'
+          print "You can either:"
+          print "  (1) Run 'rbt login', or"
+          print "  (2) Set the default USERNAME/PASSWORD in '.reviewboardrc'"
+        else:
+          print 'Failed to execute: \'' + cmdline + '\':'
+          print data
         sys.exit(1)
     elif status != 0:
         return None
