@@ -1,6 +1,6 @@
-# Libprocess User Guide
+# Libprocess Developer Guide
 
-*Note* This User Guide is Work in Progress.
+*Note* This Developer Guide is Work in Progress.
 
 The library _libprocess_ provides high level elements for an actor programming
 style with asynchronous message-handling and a variety of related basic system
