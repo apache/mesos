@@ -6,11 +6,11 @@ layout: documentation
 
 In this document we refer to Mesos applications as "frameworks".
 
-See one of the example framework schedulers in `MESOS_HOME/src/examples/` to get an idea of what a Mesos framework scheduler and executor in the language of your choice looks like.
+See one of the example framework schedulers in `MESOS_HOME/src/examples/` to get an idea of what a Mesos framework scheduler and executor in the language of your choice looks like. [RENDLER](https://github.com/mesosphere/RENDLER) provides example framework implementations in C++, Go, Haskell, Java, Python and Scala.
 
 ## Create your Framework Scheduler
 
-You can write a framework scheduler in C, C++, Java/Scala, or Python. Your framework scheduler should inherit from the `Scheduler` class (see API below). Your scheduler should create a SchedulerDriver (which will mediate communication between your scheduler and the Mesos master) and then call `SchedulerDriver.run()`
+You can write a framework scheduler in C, C++, Java/Scala, or Python. Your framework scheduler should inherit from the `Scheduler` class (see API below). Your scheduler should create a SchedulerDriver (which will mediate communication between your scheduler and the Mesos master) and then call `SchedulerDriver.run()`.
 
 ### Scheduler API
 
