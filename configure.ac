@@ -836,7 +836,7 @@ Network isolator is only supported on Linux!
 -------------------------------------------------------------------
 We need libnl-3 for building network isolator!
 
-Please install libnl3 (version 3.2.24 or higher):
+Please install libnl3 (version 3.2.26 or higher):
 http://www.infradead.org/~tgr/libnl/
 -------------------------------------------------------------------
   ])])
@@ -847,18 +847,18 @@ http://www.infradead.org/~tgr/libnl/
 -------------------------------------------------------------------
 We need libnl-3 headers for building network isolator!
 
-Please install libnl3 (version 3.2.24 or higher):
+Please install libnl3 (version 3.2.26 or higher):
 http://www.infradead.org/~tgr/libnl/
 -------------------------------------------------------------------
   ])])
 
   # Check for libnl-route (both headers and libraries).
-  AC_CHECK_LIB([nl-route-3], [rtnl_link_veth_add], [],
+  AC_CHECK_LIB([nl-route-3], [rtnl_u32_get_classid], [],
                [AC_MSG_ERROR([cannot find libnl-route-3
 -------------------------------------------------------------------
 We need libnl-route-3 for building network isolator!
 
-Please install libnl3 (version 3.2.24 or higher):
+Please install libnl3 (version 3.2.26 or higher):
 http://www.infradead.org/~tgr/libnl/
 -------------------------------------------------------------------
   ])])
@@ -869,7 +869,7 @@ http://www.infradead.org/~tgr/libnl/
 -------------------------------------------------------------------
 We need libnl-route-3 headers for building network isolator!
 
-Please install libnl3 (version 3.2.24 or higher):
+Please install libnl3 (version 3.2.26 or higher):
 http://www.infradead.org/~tgr/libnl/
 -------------------------------------------------------------------
   ])])
@@ -880,7 +880,7 @@ http://www.infradead.org/~tgr/libnl/
 -------------------------------------------------------------------
 We need libnl-idiag-3 for building network isolator!
 
-Please install libnl3 (version 3.2.24 or higher):
+Please install libnl3 (version 3.2.26 or higher):
 http://www.infradead.org/~tgr/libnl/
 -------------------------------------------------------------------
   ])])
