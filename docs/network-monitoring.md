@@ -23,12 +23,12 @@ Currently, network monitoring is only supported on Linux. Make sure your kernel 
 
 Make sure the following packages are installed on the slave:
 
-* [libnl3](http://www.infradead.org/~tgr/libnl/) >= 3.2.25
+* [libnl3](http://www.infradead.org/~tgr/libnl/) >= 3.2.26
 * [iproute](http://www.linuxfoundation.org/collaborate/workgroups/networking/iproute2) (>= 2.6.39 is advised but not required for debugging purpose)
 
 On the build machine, you need to install the following packages:
 
-* [libnl3-devel](http://www.infradead.org/~tgr/libnl/) >= 3.2.25
+* [libnl3-devel](http://www.infradead.org/~tgr/libnl/) >= 3.2.26
 
 ### Configure and build
 
