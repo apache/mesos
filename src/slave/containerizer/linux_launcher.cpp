@@ -75,13 +75,9 @@ LinuxLauncher::LinuxLauncher(
     hierarchy(_hierarchy) {}
 
 
-// An old glibc might not have this symbol.
-#ifndef CLONE_NEWNET
-#define CLONE_NEWNET 0x40000000
-#endif
-
-
-Try<Launcher*> LinuxLauncher::create(const Flags& flags)
+Try<Launcher*> LinuxLauncher::create(
+    const Flags& flags,
+    const Option<int>& namespaces)
 {
   Try<string> hierarchy = cgroups::prepare(
       flags.cgroups_hierarchy,
@@ -107,28 +103,10 @@ Try<Launcher*> LinuxLauncher::create(const Flags& flags)
   LOG(INFO) << "Using " << hierarchy.get()
             << " as the freezer hierarchy for the Linux launcher";
 
-  int namespaces = 0;
-
-#ifdef WITH_NETWORK_ISOLATOR
-  // The network port mapping isolator requires network namespaces
-  // (CLONE_NEWNET).
-  if (strings::contains(flags.isolation, "network/port_mapping")) {
-    namespaces |= CLONE_NEWNET;
-  }
-#endif
-
-  if (strings::contains(flags.isolation, "filesystem/shared")) {
-    namespaces |= CLONE_NEWNS;
-  }
-
-  // The pid namespace isolator requires pid and mount namespaces (CLONE_NEWPID
-  // and CLONE_NEWNS).
-  if (strings::contains(flags.isolation, "namespaces/pid")) {
-    namespaces |= CLONE_NEWPID;
-    namespaces |= CLONE_NEWNS;
-  }
-
-  return new LinuxLauncher(flags, namespaces, hierarchy.get());
+  return new LinuxLauncher(
+      flags,
+      namespaces.isSome() ? namespaces.get() : 0,
+      hierarchy.get());
 }
 
 
