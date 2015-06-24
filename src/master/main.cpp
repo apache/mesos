@@ -21,6 +21,7 @@
 #include <memory>
 #include <set>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include <mesos/mesos.hpp>
@@ -95,6 +96,7 @@ using process::firewall::FirewallRule;
 using std::cerr;
 using std::cout;
 using std::endl;
+using std::move;
 using std::set;
 using std::shared_ptr;
 using std::string;
@@ -344,21 +346,21 @@ int main(int argc, char** argv)
   }
 
   if (flags.firewall_rules.isSome()) {
-    const Firewall rules = flags.firewall_rules.get();
+    vector<Owned<FirewallRule>> rules;
 
-    std::vector<Owned<FirewallRule>> _rules;
+    const Firewall firewall = flags.firewall_rules.get();
 
-    if (rules.has_disabled_endpoints()) {
+    if (firewall.has_disabled_endpoints()) {
       hashset<string> paths;
 
-      for (int i = 0; i < rules.disabled_endpoints().paths_size(); ++i) {
-        paths.insert(rules.disabled_endpoints().paths(i));
+      foreach (const string& path, firewall.disabled_endpoints().paths()) {
+        paths.insert(path);
       }
 
-      _rules.emplace_back(new DisabledEndpointsFirewallRule(paths));
+      rules.emplace_back(new DisabledEndpointsFirewallRule(paths));
     }
 
-    process::firewall::install(std::move(_rules));
+    process::firewall::install(move(rules));
   }
 
   // Create anonymous modules.

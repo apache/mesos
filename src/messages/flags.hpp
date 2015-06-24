@@ -20,6 +20,7 @@
 #define __MESSAGES_FLAGS_HPP__
 
 #include <string>
+#include <ostream>
 
 #include <stout/error.hpp>
 #include <stout/json.hpp>
@@ -43,7 +44,6 @@ inline Try<mesos::internal::Firewall> parse(const std::string& value)
     return Error(json.error());
   }
 
-  // Convert from JSON to Protobuf.
   return protobuf::parse<mesos::internal::Firewall>(json.get());
 }
 
