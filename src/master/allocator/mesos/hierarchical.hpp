@@ -297,6 +297,11 @@ public:
 
   virtual bool filter(const SlaveID& _slaveId, const Resources& _resources)
   {
+    // TODO(jieyu): Consider separating the superset check for regular
+    // and revocable resources. For example, frameworks might want
+    // more revocable resources only or non-revocable resources only,
+    // but currently the filter only expires if there is more of both
+    // revocable and non-revocable resources.
     return slaveId == _slaveId &&
            resources.contains(_resources) && // Refused resources are superset.
            timeout.remaining() > Seconds(0);
