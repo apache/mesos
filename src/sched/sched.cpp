@@ -466,7 +466,9 @@ protected:
           break;
         }
 
-        drop(event, "Unimplemented");
+        // TODO(bmahler): Rename 'rescindOffer' to 'rescind'
+        // to match the Event naming scheme.
+        rescindOffer(from, event.rescind().offer_id());
         break;
       }
 

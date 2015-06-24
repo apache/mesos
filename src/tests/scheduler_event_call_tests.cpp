@@ -56,6 +56,40 @@ namespace tests {
 class SchedulerDriverEventTest : public MesosTest {};
 
 
+// Ensures that the driver can handle the RESCIND event.
+TEST_F(SchedulerDriverEventTest, Rescind)
+{
+  Try<PID<Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<Message> frameworkRegisteredMessage =
+    FUTURE_MESSAGE(Eq(FrameworkRegisteredMessage().GetTypeName()), _, _);
+
+  driver.start();
+
+  AWAIT_READY(frameworkRegisteredMessage);
+  UPID frameworkPid = frameworkRegisteredMessage.get().to;
+
+  Event event;
+  event.set_type(Event::RESCIND);
+  event.mutable_rescind()->mutable_offer_id()->set_value("O");
+
+  Future<Nothing> offerRescinded;
+  EXPECT_CALL(sched, offerRescinded(&driver, event.rescind().offer_id()))
+    .WillOnce(FutureSatisfy(&offerRescinded));
+
+  process::post(master.get(), frameworkPid, event);
+
+  AWAIT_READY(offerRescinded);
+}
+
+
 // Ensures that the driver can handle the MESSAGE event.
 TEST_F(SchedulerDriverEventTest, Message)
 {
