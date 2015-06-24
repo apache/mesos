@@ -933,6 +933,18 @@ TEST(ResourcesTest, Types)
 }
 
 
+// NOTE: This is disabled due to MESOS-1187.
+TEST(ResourcesTest, DISABLED_Precision)
+{
+  Resources cpu = Resources::parse("cpus:0.1").get();
+
+  Resources r1 = cpu + cpu + cpu - cpu - cpu;
+  Resources r2 = cpu;
+
+  EXPECT_EQ(r1, r2);
+}
+
+
 // Helper for creating a reserved resource.
 static Resource createReservedResource(
     const string& name,
