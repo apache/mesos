@@ -1,6 +1,5 @@
 #include <errno.h>
 #include <limits.h>
-#include <libgen.h>
 #include <netdb.h>
 #include <pthread.h>
 #include <signal.h>
