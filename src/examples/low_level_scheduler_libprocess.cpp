@@ -43,6 +43,7 @@
 #include <stout/option.hpp>
 #include <stout/os.hpp>
 #include <stout/option.hpp>
+#include <stout/path.hpp>
 #include <stout/stringify.hpp>
 
 #include "common/status_utils.hpp"
@@ -335,7 +336,7 @@ private:
 
 void usage(const char* argv0, const flags::FlagsBase& flags)
 {
-  cerr << "Usage: " << os::basename(argv0).get() << " [...]" << endl
+  cerr << "Usage: " << Path(argv0).basename() << " [...]" << endl
        << endl
        << "Supported options:" << endl
        << flags.usage();
@@ -350,8 +351,10 @@ int main(int argc, char** argv)
   if (value.isSome()) {
     uri = path::join(value.get(), "src", "test-executor");
   } else {
-    uri =
-      path::join(os::realpath(dirname(argv[0])).get(), "src", "test-executor");
+    uri = path::join(
+        os::realpath(Path(argv[0]).dirname()).get(),
+        "src",
+        "test-executor");
   }
 
   mesos::internal::logging::Flags flags;

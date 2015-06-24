@@ -44,6 +44,7 @@
 #include <stout/numify.hpp>
 #include <stout/os.hpp>
 #include <stout/option.hpp>
+#include <stout/path.hpp>
 #include <stout/protobuf.hpp>
 #include <stout/result.hpp>
 #include <stout/stringify.hpp>
@@ -310,13 +311,10 @@ static Try<ContainerID> getContainerIdFromSymlink(const string& symlink)
     return Error("Not a symlink");
   }
 
-  Try<string> _containerId = os::basename(symlink);
-  if (_containerId.isError()) {
-    return Error("Failed to get the basename: " + _containerId.error());
-  }
+  string _containerId = Path(symlink).basename();
 
   ContainerID containerId;
-  containerId.set_value(_containerId.get());
+  containerId.set_value(_containerId);
 
   return containerId;
 }
@@ -330,12 +328,9 @@ static Result<pid_t> getPidFromNamespaceHandle(const string& handle)
     return Error("Not expecting a symlink");
   }
 
-  Try<string> _pid = os::basename(handle);
-  if (_pid.isError()) {
-    return Error("Failed to get the basename: " + _pid.error());
-  }
+  string _pid = Path(handle).basename();
 
-  Try<pid_t> pid = numify<pid_t>(_pid.get());
+  Try<pid_t> pid = numify<pid_t>(_pid);
   if (pid.isError()) {
     return None();
   }

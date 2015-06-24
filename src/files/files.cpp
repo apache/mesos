@@ -406,23 +406,19 @@ Future<Response> FilesProcess::download(const Request& request)
     return BadRequest("Cannot download a directory.\n");
   }
 
-  Try<string> basename = os::basename(resolvedPath.get());
-  if (basename.isError()) {
-    LOG(ERROR) << basename.error();
-    return InternalServerError(basename.error() + ".\n");
-  }
+  string basename = Path(resolvedPath.get()).basename();
 
   OK response;
   response.type = response.PATH;
   response.path = resolvedPath.get();
   response.headers["Content-Type"] = "application/octet-stream";
   response.headers["Content-Disposition"] =
-    strings::format("attachment; filename=%s", basename.get()).get();
+    strings::format("attachment; filename=%s", basename).get();
 
   // Attempt to detect the mime type.
-  size_t index = basename.get().find_last_of('.');
+  size_t index = basename.find_last_of('.');
   if (index != string::npos) {
-    string extension = basename.get().substr(index);
+    string extension = basename.substr(index);
     if (mime::types.count(extension) > 0) {
       response.headers["Content-Type"] = mime::types[extension];
     }

@@ -41,6 +41,7 @@
 #include <stout/json.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
+#include <stout/path.hpp>
 #include <stout/protobuf.hpp>
 #include <stout/strings.hpp>
 
@@ -281,7 +282,7 @@ public:
 
 void usage(const char* argv0, const flags::FlagsBase& flags)
 {
-  cerr << "Usage: " << os::basename(argv0).get() << " [...]" << endl
+  cerr << "Usage: " << Path(argv0).basename() << " [...]" << endl
        << endl
        << "Supported options:" << endl
        << flags.usage();

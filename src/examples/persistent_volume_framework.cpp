@@ -33,6 +33,7 @@
 #include <stout/json.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
+#include <stout/path.hpp>
 #include <stout/protobuf.hpp>
 #include <stout/stringify.hpp>
 #include <stout/uuid.hpp>
@@ -461,7 +462,7 @@ int main(int argc, char** argv)
     // Configure slave.
     os::setenv("MESOS_DEFAULT_ROLE", flags.role);
 
-    const string launcherDir = os::dirname(os::realpath(argv[0]).get()).get();
+    const string launcherDir = Path(os::realpath(argv[0]).get()).dirname();
     os::setenv("MESOS_LAUNCHER_DIR", launcherDir);
     os::libraries::appendPaths(launcherDir);
   }

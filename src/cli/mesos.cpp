@@ -30,10 +30,8 @@ void usage(const char* argv0)
         foreach (const string& match, matches.get()) {
           Try<bool> access = os::access(match, X_OK);
           if (access.isSome() && access.get()) {
-            Try<string> basename = os::basename(match);
-            if (basename.isSome()) {
-              commands.push_back(basename.get().substr(6));
-            }
+            string basename = Path(match).basename();
+            commands.push_back(basename.substr(6));
           }
         }
       }
@@ -41,7 +39,7 @@ void usage(const char* argv0)
   }
 
   cerr
-    << "Usage: " << os::basename(argv0).get() << " <command> [OPTIONS]"
+    << "Usage: " << Path(argv0).basename() << " <command> [OPTIONS]"
     << endl
     << endl
     << "Available commands:" << endl
@@ -60,16 +58,13 @@ int main(int argc, char** argv)
   // Try and add the absolute dirname of argv[0] to PATH so we can
   // find commands (since our installation directory might not be on
   // the path).
-  Try<string> dirname = os::dirname(argv[0]);
-  if (dirname.isSome()) {
-    Result<string> realpath = os::realpath(dirname.get());
-    if (realpath.isSome()) {
-      value = os::getenv("PATH");
-      if (value.isSome()) {
-        os::setenv("PATH", realpath.get() + ":" + value.get());
-      } else {
-        os::setenv("PATH", realpath.get());
-      }
+  Result<string> realpath = os::realpath(Path(argv[0]).dirname());
+  if (realpath.isSome()) {
+    value = os::getenv("PATH");
+    if (value.isSome()) {
+      os::setenv("PATH", realpath.get() + ":" + value.get());
+    } else {
+      os::setenv("PATH", realpath.get());
     }
   }
 

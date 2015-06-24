@@ -27,6 +27,7 @@
 #include <stout/lambda.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
+#include <stout/path.hpp>
 #include <stout/protobuf.hpp>
 #include <stout/stringify.hpp>
 #include <stout/utils.hpp>
@@ -667,9 +668,9 @@ StatusUpdateStream::StatusUpdateStream(
         taskId);
 
     // Create the base updates directory, if it doesn't exist.
-    Try<Nothing> directory = os::mkdir(os::dirname(path.get()).get());
+    Try<Nothing> directory = os::mkdir(Path(path.get()).dirname());
     if (directory.isError()) {
-      error = "Failed to create " + os::dirname(path.get()).get();
+      error = "Failed to create " + Path(path.get()).dirname();
       return;
     }
 

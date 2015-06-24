@@ -37,6 +37,7 @@
 #include <stout/hashset.hpp>
 #include <stout/lambda.hpp>
 #include <stout/nothing.hpp>
+#include <stout/path.hpp>
 #include <stout/stringify.hpp>
 #include <stout/try.hpp>
 
@@ -209,7 +210,7 @@ Future<Nothing> CgroupsMemIsolatorProcess::recover(
     }
 
     ContainerID containerId;
-    containerId.set_value(os::basename(cgroup).get());
+    containerId.set_value(Path(cgroup).basename());
 
     if (infos.contains(containerId)) {
       continue;

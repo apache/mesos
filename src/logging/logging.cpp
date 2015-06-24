@@ -218,18 +218,12 @@ Try<string> getLogFile(google::LogSeverity severity)
     return Error("The 'log_dir' option was not specified");
   }
 
-  Try<string> basename = os::basename(argv0);
-  if (basename.isError()) {
-    return Error(basename.error());
-  }
-
   if (severity < 0 || google::NUM_SEVERITIES <= severity) {
     return Error("Unknown log severity: " + stringify(severity));
   }
 
-  string suffix(google::GetLogSeverityName(severity));
-
-  return path::join(FLAGS_log_dir, basename.get()) + "." + suffix;
+  return path::join(FLAGS_log_dir, Path(argv0).basename()) + "." +
+         google::GetLogSeverityName(severity);
 }
 
 } // namespace logging {

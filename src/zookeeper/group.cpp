@@ -590,15 +590,12 @@ Result<Group::Membership> GroupProcess::doJoin(
 
   // Save the sequence number but only grab the basename. Example:
   // "/path/to/znode/label_0000000131" => "0000000131".
-  Try<string> basename = os::basename(result);
-  if (basename.isError()) {
-    return Error("Failed to get the sequence number: " + basename.error());
-  }
+  string basename = Path(result).basename();
 
   // Strip the label before grabbing the sequence number.
   string node = label.isSome()
-      ? strings::remove(basename.get(), label.get() + "_")
-      : basename.get();
+      ? strings::remove(basename, label.get() + "_")
+      : basename;
 
   Try<int32_t> sequence = numify<int32_t>(node);
   CHECK_SOME(sequence);

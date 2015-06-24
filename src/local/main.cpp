@@ -22,6 +22,7 @@
 #include <string>
 
 #include <stout/os.hpp>
+#include <stout/path.hpp>
 #include <stout/stringify.hpp>
 
 #include "local/flags.hpp"
@@ -55,7 +56,7 @@ int main(int argc, char **argv)
   local::Flags flags;
 
   flags.setUsageMessage(
-      "Usage: " + os::basename(argv[0]).get() + " [...]\n\n" +
+      "Usage: " + Path(argv[0]).basename() + " [...]\n\n" +
       "Launches an in-memory cluster within a single process.");
 
   // The following flags are executable specific (e.g., since we only

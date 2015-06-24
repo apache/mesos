@@ -687,7 +687,7 @@ void ContainerizerTest<slave::MesosContainerizer>::SetUp()
       ASSERT_FALSE(hierarchy.isError());
 
       if (hierarchy.isSome()) {
-        Try<string> _baseHierarchy = os::dirname(hierarchy.get());
+        Try<string> _baseHierarchy = Path(hierarchy.get()).dirname();
         ASSERT_SOME(_baseHierarchy)
           << "Failed to get the base of hierarchy '" << hierarchy.get() << "'";
 

@@ -34,6 +34,7 @@
 #include <stout/net.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
+#include <stout/path.hpp>
 #include <stout/protobuf.hpp>
 #include <stout/strings.hpp>
 #include <stout/try.hpp>
@@ -378,11 +379,9 @@ TEST_F(FetcherTest, NoExtractNotExecutable)
       containerId, commandInfo, os::getcwd(), None(), slaveId, flags);
   AWAIT_READY(fetch);
 
-  Try<string> basename = os::basename(path.get());
+  string basename = Path(path.get()).basename();
 
-  ASSERT_SOME(basename);
-
-  Try<os::Permissions> permissions = os::permissions(basename.get());
+  Try<os::Permissions> permissions = os::permissions(basename);
 
   ASSERT_SOME(permissions);
   EXPECT_FALSE(permissions.get().owner.x);
@@ -420,11 +419,9 @@ TEST_F(FetcherTest, NoExtractExecutable)
 
   AWAIT_READY(fetch);
 
-  Try<string> basename = os::basename(path.get());
+  string basename = Path(path.get()).basename();
 
-  ASSERT_SOME(basename);
-
-  Try<os::Permissions> permissions = os::permissions(basename.get());
+  Try<os::Permissions> permissions = os::permissions(basename);
 
   ASSERT_SOME(permissions);
   EXPECT_TRUE(permissions.get().owner.x);

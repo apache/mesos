@@ -57,11 +57,10 @@ namespace slave {
 
 static ContainerID container(const string& cgroup)
 {
-  Try<string> basename = os::basename(cgroup);
-  CHECK_SOME(basename);
+  string basename = Path(cgroup).basename();
 
   ContainerID containerId;
-  containerId.set_value(basename.get());
+  containerId.set_value(basename);
   return containerId;
 }
 

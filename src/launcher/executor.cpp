@@ -46,6 +46,7 @@
 #include <stout/lambda.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
+#include <stout/path.hpp>
 #include <stout/strings.hpp>
 
 #include "common/http.hpp"
@@ -632,8 +633,9 @@ int main(int argc, char** argv)
   }
 
   const Option<string> envPath = os::getenv("MESOS_LAUNCHER_DIR");
-  string path = envPath.isSome() ? envPath.get()
-                                 : os::realpath(dirname(argv[0])).get();
+  string path =
+    envPath.isSome() ? envPath.get()
+                     : os::realpath(Path(argv[0]).dirname()).get();
   mesos::internal::CommandExecutor executor(override, path);
   mesos::MesosExecutorDriver driver(&executor);
   return driver.run() == mesos::DRIVER_STOPPED ? EXIT_SUCCESS : EXIT_FAILURE;

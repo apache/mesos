@@ -304,13 +304,8 @@ static Try<Nothing> create(
         "Failed to determine if hierarchy '" + hierarchy +
         "' has the 'cpuset' subsystem attached: " + attached.error());
   } else if (attached.get().count("cpuset") > 0) {
-    Try<string> parent = os::dirname(path::join("/", cgroup));
-    if (parent.isError()) {
-      return Error(
-          "Failed to determine parent cgroup of " + cgroup +
-          ": " + parent.error());
-    }
-    return cloneCpusetCpusMems(hierarchy, parent.get(), cgroup);
+    string parent = Path(path::join("/", cgroup)).dirname();
+    return cloneCpusetCpusMems(hierarchy, parent, cgroup);
   }
 
   return Nothing();

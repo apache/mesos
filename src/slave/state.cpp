@@ -12,6 +12,7 @@
 #include <stout/none.hpp>
 #include <stout/numify.hpp>
 #include <stout/os.hpp>
+#include <stout/path.hpp>
 #include <stout/protobuf.hpp>
 #include <stout/try.hpp>
 
@@ -89,7 +90,7 @@ Result<State> recover(const string& rootDir, bool strict)
   }
 
   SlaveID slaveId;
-  slaveId.set_value(os::basename(directory.get()).get());
+  slaveId.set_value(Path(directory.get()).basename());
 
   Try<SlaveState> slave = SlaveState::recover(rootDir, slaveId, strict);
   if (slave.isError()) {
@@ -153,7 +154,7 @@ Try<SlaveState> SlaveState::recover(
   // Recover each of the frameworks.
   foreach (const string& path, frameworks.get()) {
     FrameworkID frameworkId;
-    frameworkId.set_value(os::basename(path).get());
+    frameworkId.set_value(Path(path).basename());
 
     Try<FrameworkState> framework =
       FrameworkState::recover(rootDir, slaveId, frameworkId, strict);
@@ -262,7 +263,7 @@ Try<FrameworkState> FrameworkState::recover(
   // Recover the executors.
   foreach (const string& path, executors.get()) {
     ExecutorID executorId;
-    executorId.set_value(os::basename(path).get());
+    executorId.set_value(Path(path).basename());
 
     Try<ExecutorState> executor =
       ExecutorState::recover(rootDir, slaveId, frameworkId, executorId, strict);
@@ -305,7 +306,7 @@ Try<ExecutorState> ExecutorState::recover(
 
   // Recover the runs.
   foreach (const string& path, runs.get()) {
-    if (os::basename(path).get() == paths::LATEST_SYMLINK) {
+    if (Path(path).basename() == paths::LATEST_SYMLINK) {
       const Result<string>& latest = os::realpath(path);
       if (!latest.isSome()) {
         return Error(
@@ -318,11 +319,11 @@ Try<ExecutorState> ExecutorState::recover(
 
       // Store the ContainerID of the latest executor run.
       ContainerID containerId;
-      containerId.set_value(os::basename(latest.get()).get());
+      containerId.set_value(Path(latest.get()).basename());
       state.latest = containerId;
     } else {
       ContainerID containerId;
-      containerId.set_value(os::basename(path).get());
+      containerId.set_value(Path(path).basename());
 
       Try<RunState> run = RunState::recover(
           rootDir, slaveId, frameworkId, executorId, containerId, strict);
@@ -425,7 +426,7 @@ Try<RunState> RunState::recover(
   // Recover tasks.
   foreach (const string& path, tasks.get()) {
     TaskID taskId;
-    taskId.set_value(os::basename(path).get());
+    taskId.set_value(Path(path).basename());
 
     Try<TaskState> task = TaskState::recover(
         rootDir, slaveId, frameworkId, executorId, containerId, taskId, strict);

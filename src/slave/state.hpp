@@ -32,6 +32,7 @@
 #include <stout/hashmap.hpp>
 #include <stout/hashset.hpp>
 #include <stout/os.hpp>
+#include <stout/path.hpp>
 #include <stout/protobuf.hpp>
 #include <stout/strings.hpp>
 #include <stout/utils.hpp>
@@ -122,15 +123,11 @@ template <typename T>
 Try<Nothing> checkpoint(const std::string& path, const T& t)
 {
   // Create the base directory.
-  Try<std::string> base = os::dirname(path);
-  if (base.isError()) {
-    return Error("Failed to get the base directory path: " + base.error());
-  }
+  std::string base = Path(path).dirname();
 
-  Try<Nothing> mkdir = os::mkdir(base.get());
+  Try<Nothing> mkdir = os::mkdir(base);
   if (mkdir.isError()) {
-    return Error("Failed to create directory '" + base.get() +
-                 "': " + mkdir.error());
+    return Error("Failed to create directory '" + base + "': " + mkdir.error());
   }
 
   // NOTE: We create the temporary file at 'base/XXXXXX' to make sure
@@ -139,7 +136,7 @@ Try<Nothing> checkpoint(const std::string& path, const T& t)
   // TODO(jieyu): It's possible that the temporary file becomes
   // dangling if slave crashes or restarts while checkpointing.
   // Consider adding a way to garbage collect them.
-  Try<std::string> temp = os::mktemp(path::join(base.get(), "XXXXXX"));
+  Try<std::string> temp = os::mktemp(path::join(base, "XXXXXX"));
   if (temp.isError()) {
     return Error("Failed to create temporary file: " + temp.error());
   }

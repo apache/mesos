@@ -126,7 +126,7 @@ Try<string> Fetcher::basename(const string& uri)
 
     return path.substr(path.find_last_of("/") + 1);
   }
-  return os::basename(uri);
+  return Path(uri).basename();
 }
 
 

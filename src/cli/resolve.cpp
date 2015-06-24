@@ -24,7 +24,7 @@
 #include <stout/flags.hpp>
 #include <stout/none.hpp>
 #include <stout/nothing.hpp>
-#include <stout/os.hpp>
+#include <stout/path.hpp>
 #include <stout/strings.hpp>
 #include <stout/try.hpp>
 
@@ -46,7 +46,7 @@ using std::string;
 int main(int argc, char** argv)
 {
   flags::FlagsBase flags;
-  flags.setUsageMessage("Usage: " + os::basename(argv[0]).get() + " <master>");
+  flags.setUsageMessage("Usage: " + Path(argv[0]).basename() + " <master>");
 
   Duration timeout;
   flags.add(&timeout,
