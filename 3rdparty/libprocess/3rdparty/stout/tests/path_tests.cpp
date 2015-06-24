@@ -22,6 +22,76 @@ using std::string;
 using std::vector;
 
 
+// Test many corner cases of Path::basename.
+TEST(PathTest, Basename)
+{
+  // Empty path check.
+  EXPECT_EQ(".", Path("").basename());
+
+  // Check common path patterns.
+  EXPECT_EQ("/", Path("/").basename());
+  EXPECT_EQ(".", Path(".").basename());
+  EXPECT_EQ("..", Path("..").basename());
+
+  EXPECT_EQ("a", Path("a").basename());
+  EXPECT_EQ("b", Path("a/b").basename());
+  EXPECT_EQ("c", Path("a/b/c").basename());
+
+  // Check leading slashes get cleaned up properly.
+  EXPECT_EQ("a", Path("/a").basename());
+  EXPECT_EQ("a", Path("//a").basename());
+  EXPECT_EQ("a", Path("/a/").basename());
+  EXPECT_EQ("c", Path("/a/b/c").basename());
+  EXPECT_EQ("b", Path("/a/b").basename());
+  EXPECT_EQ("b", Path("//a//b").basename());
+
+  // Check trailing slashes get cleaned up properly.
+  EXPECT_EQ("a", Path("a/").basename());
+  EXPECT_EQ("c", Path("/a/b/c//").basename());
+  EXPECT_EQ("c", Path("/a/b/c///").basename());
+  EXPECT_EQ("/", Path("//").basename());
+  EXPECT_EQ("/", Path("///").basename());
+}
+
+
+// Test many corner cases of Path::dirname.
+TEST(PathTest, Dirname)
+{
+  // Empty path check.
+  EXPECT_EQ(".", Path("").dirname());
+
+  // Check common path patterns.
+  EXPECT_EQ("/", Path("/").dirname());
+  EXPECT_EQ(".", Path(".").dirname());
+  EXPECT_EQ(".", Path("..").dirname());
+
+  EXPECT_EQ(".", Path("a").dirname());
+  EXPECT_EQ("a", Path("a/b").dirname());
+  EXPECT_EQ("a/b", Path("a/b/c/").dirname());
+
+  // Check leading slashes get cleaned up properly.
+  EXPECT_EQ("/", Path("/a").dirname());
+  EXPECT_EQ("/", Path("//a").dirname());
+  EXPECT_EQ("/", Path("/a/").dirname());
+  EXPECT_EQ("/a", Path("/a/b").dirname());
+  EXPECT_EQ("//a", Path("//a//b").dirname());
+  EXPECT_EQ("/a/b", Path("/a/b/c").dirname());
+
+  // Check intermittent slashes get handled just like ::dirname does.
+  EXPECT_EQ("/a//b", Path("/a//b//c//").dirname());
+  EXPECT_EQ("//a/b", Path("//a/b//c").dirname());
+
+  // Check trailing slashes get cleaned up properly.
+  EXPECT_EQ(".", Path("a/").dirname());
+  EXPECT_EQ("a/b", Path("a/b/c").dirname());
+  EXPECT_EQ("/a/b", Path("/a/b/c/").dirname());
+  EXPECT_EQ("/a/b", Path("/a/b/c//").dirname());
+  EXPECT_EQ("/a/b", Path("/a/b/c///").dirname());
+  EXPECT_EQ("/", Path("//").dirname());
+  EXPECT_EQ("/", Path("///").dirname());
+}
+
+
 TEST(PathTest, Join)
 {
   EXPECT_EQ("a/b/c", path::join("a", "b", "c"));
