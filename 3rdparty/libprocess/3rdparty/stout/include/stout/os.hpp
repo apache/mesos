@@ -30,7 +30,6 @@
 #endif // __sun
 #include <glob.h>
 #include <grp.h>
-#include <libgen.h>
 #include <limits.h>
 #include <netdb.h>
 #include <pwd.h>
