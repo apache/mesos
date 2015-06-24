@@ -5,6 +5,7 @@
 
 #include <map>
 #include <queue>
+#include <vector>
 
 #include <process/address.hpp>
 #include <process/clock.hpp>
@@ -14,6 +15,7 @@
 #include <process/http.hpp>
 #include <process/message.hpp>
 #include <process/mime.hpp>
+#include <process/owned.hpp>
 #include <process/pid.hpp>
 
 #include <stout/duration.hpp>
@@ -25,16 +27,18 @@
 namespace process {
 
 namespace firewall {
+
 /**
- * Installs the list of firewall rules to be used to allow or reject
- * incoming connections. Each incoming connection will be tested
- * against each rule in the order in which they appear in the vector
- * 'rules'. As soon as any of the tests (calling the apply method)
- * fails, the connection is rejected. If no test fails, the connection
- * is allowed.
+ * Install a list of firewall rules which are used to forbid incoming
+ * HTTP requests. The rules will be applied in the provided order to
+ * each incoming request. If any rule forbids the request, no more
+ * rules are applied and a "403 Forbidden" response will be returned
+ * containing the reason from the rule. Note that if a request is
+ * forbidden, the request's handler is not notified.
+ * @see process#firewall#FirewallRule
  *
- * @param rules List of rules which will be applied to incoming
- * connections.
+ * @param rules List of rules which will be applied to all incoming
+ *     HTTP requests.
  */
 void install(std::vector<Owned<FirewallRule>>&& rules);
 

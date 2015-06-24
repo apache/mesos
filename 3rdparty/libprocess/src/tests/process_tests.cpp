@@ -8,6 +8,7 @@
 #include <string>
 #include <sstream>
 #include <tuple>
+#include <vector>
 
 #include <process/async.hpp>
 #include <process/collect.hpp>
@@ -22,6 +23,7 @@
 #include <process/gmock.hpp>
 #include <process/gtest.hpp>
 #include <process/network.hpp>
+#include <process/owned.hpp>
 #include <process/process.hpp>
 #include <process/run.hpp>
 #include <process/socket.hpp>
@@ -48,7 +50,9 @@ using process::firewall::FirewallRule;
 using process::network::Address;
 using process::network::Socket;
 
+using std::move;
 using std::string;
+using std::vector;
 
 using testing::_;
 using testing::Assign;
@@ -1917,19 +1921,19 @@ public:
 // attempts to connect to those endpoints.
 TEST(Process, FirewallDisablePaths)
 {
-  const string processId = "testprocess";
+  const string id = "testprocess";
 
+  // TODO(arojas): Add initilization list construction when available.
   hashset<string> endpoints;
-  endpoints.insert(path::join("", processId, "handler1"));
-  endpoints.insert(path::join("", processId, "handler2/nested"));
+  endpoints.insert(path::join("", id, "handler1"));
+  endpoints.insert(path::join("", id, "handler2/nested"));
   // Patterns are not supported, so this should do nothing.
-  endpoints.insert(path::join("", processId, "handler3/*"));
+  endpoints.insert(path::join("", id, "handler3/*"));
 
-  std::vector<Owned<FirewallRule>> rules;
-  rules.emplace_back(new DisabledEndpointsFirewallRule(endpoints));
-  process::firewall::install(std::move(rules));
+  process::firewall::install(
+      {Owned<FirewallRule>(new DisabledEndpointsFirewallRule(endpoints))});
 
-  HTTPEndpointProcess process(processId);
+  HTTPEndpointProcess process(id);
 
   PID<HTTPEndpointProcess> pid = spawn(process);
 
@@ -1990,17 +1994,17 @@ TEST(Process, FirewallDisablePaths)
 // An empty vector should allow all paths.
 TEST(Process, FirewallUninstall)
 {
-  const string processId = "testprocess";
+  const string id = "testprocess";
 
+  // TODO(arojas): Add initilization list construction when available.
   hashset<string> endpoints;
-  endpoints.insert(path::join("", processId, "handler1"));
-  endpoints.insert(path::join("", processId, "handler2"));
+  endpoints.insert(path::join("", id, "handler1"));
+  endpoints.insert(path::join("", id, "handler2"));
 
-  std::vector<Owned<FirewallRule>> rules;
-  rules.emplace_back(new DisabledEndpointsFirewallRule(endpoints));
-  process::firewall::install(std::move(rules));
+  process::firewall::install(
+      {Owned<FirewallRule>(new DisabledEndpointsFirewallRule(endpoints))});
 
-  HTTPEndpointProcess process(processId);
+  HTTPEndpointProcess process(id);
 
   PID<HTTPEndpointProcess> pid = spawn(process);
 
@@ -2014,7 +2018,7 @@ TEST(Process, FirewallUninstall)
   AWAIT_READY(response);
   EXPECT_EQ(http::statuses[403], response.get().status);
 
-  process::firewall::install(std::vector<Owned<FirewallRule>>());
+  process::firewall::install({});
 
   EXPECT_CALL(process, handler1(_))
     .WillOnce(Return(http::OK()));
