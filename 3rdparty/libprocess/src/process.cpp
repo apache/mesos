@@ -75,6 +75,7 @@
 #include <stout/net.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
+#include <stout/path.hpp>
 #include <stout/strings.hpp>
 #include <stout/synchronized.hpp>
 #include <stout/thread.hpp>
@@ -2802,14 +2803,12 @@ void ProcessBase::visit(const HttpEvent& event)
     }
 
     // Try and determine the Content-Type from an extension.
-    Try<string> basename = os::basename(response.path);
-    if (!basename.isError()) {
-      size_t index = basename.get().find_last_of('.');
-      if (index != string::npos) {
-        string extension = basename.get().substr(index);
-        if (assets[name].types.count(extension) > 0) {
-          response.headers["Content-Type"] = assets[name].types[extension];
-        }
+    string basename = Path(response.path).basename();
+    size_t index = basename.find_last_of('.');
+    if (index != string::npos) {
+      string extension = basename.substr(index);
+      if (assets[name].types.count(extension) > 0) {
+        response.headers["Content-Type"] = assets[name].types[extension];
       }
     }
 
