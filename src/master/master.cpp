@@ -1643,49 +1643,70 @@ void Master::receive(
   // framework id is set and non-empty except for SUBSCRIBE call.
 
   switch (call.type()) {
-    case scheduler::Call::REVIVE:
-    case scheduler::Call::DECLINE:
-      drop(from, call, "Unimplemented");
+    case scheduler::Call::TEARDOWN: {
+      removeFramework(framework);
       break;
+    }
 
-    case scheduler::Call::ACCEPT:
+    case scheduler::Call::ACCEPT: {
       if (!call.has_accept()) {
         drop(from, call, "Expecting 'accept' to be present");
         return;
       }
       accept(framework, call.accept());
       break;
+    }
 
-    case scheduler::Call::RECONCILE:
+    case scheduler::Call::DECLINE: {
+      if (!call.has_decline()) {
+        drop(from, call, "Expecting 'decline' to be present");
+        return;
+      }
+      decline(framework, call.decline());
+      break;
+    }
+
+    case scheduler::Call::REVIVE: {
+      drop(from, call, "Unimplemented");
+      break;
+    }
+
+    case scheduler::Call::KILL: {
+      if (!call.has_kill()) {
+        drop(from, call, "Expecting 'kill' to be present");
+        return;
+      }
+      kill(framework, call.kill());
+      break;
+    }
+
+    case scheduler::Call::SHUTDOWN: {
+      if (!call.has_shutdown()) {
+        drop(from, call, "Expecting 'shutdown' to be present");
+        return;
+      }
+      shutdown(framework, call.shutdown());
+      break;
+    }
+
+    case scheduler::Call::ACKNOWLEDGE: {
+      drop(from, call, "Unimplemented");
+      break;
+    }
+
+    case scheduler::Call::RECONCILE: {
       if (!call.has_reconcile()) {
         drop(from, call, "Expecting 'reconcile' to be present");
         return;
       }
       reconcile(framework, call.reconcile());
       break;
+    }
 
-    case scheduler::Call::SHUTDOWN:
-      if (!call.has_shutdown()) {
-        drop(from, call, "Expecting 'shutdown' to be present");
-      }
-      shutdown(framework, call.shutdown());
-      break;
-
-    case scheduler::Call::KILL:
-      if (!call.has_kill()) {
-        drop(from, call, "Expecting 'kill' to be present");
-      }
-      kill(framework, call.kill());
-      break;
-
-    case scheduler::Call::ACKNOWLEDGE:
-    case scheduler::Call::MESSAGE:
+    case scheduler::Call::MESSAGE: {
       drop(from, call, "Unimplemented");
       break;
-
-    case scheduler::Call::TEARDOWN:
-      removeFramework(framework);
-      break;
+    }
 
     default:
       drop(from, call, "Unknown call type");
@@ -2232,21 +2253,34 @@ void Master::launchTasks(
     return;
   }
 
-  scheduler::Call::Accept message;
-  message.mutable_filters()->CopyFrom(filters);
+  // Currently when no tasks are specified in the launchTasks message
+  // it is implicitly considered a decline of the offers.
+  if (!tasks.empty()) {
+    scheduler::Call::Accept message;
+    message.mutable_filters()->CopyFrom(filters);
 
-  Offer::Operation* operation = message.add_operations();
-  operation->set_type(Offer::Operation::LAUNCH);
+    Offer::Operation* operation = message.add_operations();
+    operation->set_type(Offer::Operation::LAUNCH);
 
-  foreach (const TaskInfo& task, tasks) {
-    operation->mutable_launch()->add_task_infos()->CopyFrom(task);
+    foreach (const TaskInfo& task, tasks) {
+      operation->mutable_launch()->add_task_infos()->CopyFrom(task);
+    }
+
+    foreach (const OfferID& offerId, offerIds) {
+      message.add_offer_ids()->CopyFrom(offerId);
+    }
+
+    accept(framework, message);
+  } else {
+    scheduler::Call::Decline message;
+    message.mutable_filters()->CopyFrom(filters);
+
+    foreach (const OfferID& offerId, offerIds) {
+      message.add_offer_ids()->CopyFrom(offerId);
+    }
+
+    decline(framework, message);
   }
-
-  foreach (const OfferID& offerId, offerIds) {
-    message.add_offer_ids()->CopyFrom(offerId);
-  }
-
-  accept(framework, message);
 }
 
 
@@ -2793,6 +2827,34 @@ void Master::_accept(
         slaveId,
         _offeredResources,
         accept.filters());
+  }
+}
+
+
+void Master::decline(
+    Framework* framework,
+    const scheduler::Call::Decline& decline)
+{
+  CHECK_NOTNULL(framework);
+
+  LOG(INFO) << "Processing DECLINE call for offers: " << decline.offer_ids()
+            << " for framework " << *framework;
+
+  //  Return resources to the allocator.
+  foreach (const OfferID& offerId, decline.offer_ids()) {
+    Offer* offer = getOffer(offerId);
+    if (offer != NULL) {
+      allocator->recoverResources(
+          offer->framework_id(),
+          offer->slave_id(),
+          offer->resources(),
+          decline.filters());
+
+      removeOffer(offer);
+    } else {
+      LOG(WARNING) << "Ignoring decline of offer " << offerId
+                   << " since it is no longer valid";
+    }
   }
 }
 

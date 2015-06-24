@@ -246,22 +246,18 @@ public:
         break;
       }
 
-      case Call::DECLINE: {
-        if (!call.has_decline()) {
-          drop(call, "Expecting 'decline' to be present");
-          return;
-        }
-        LaunchTasksMessage message;
-        message.mutable_framework_id()->CopyFrom(call.framework_id());
-        message.mutable_filters()->CopyFrom(call.decline().filters());
-        message.mutable_offer_ids()->CopyFrom(call.decline().offer_ids());
-        send(master.get(), message);
-        break;
-      }
-
       case Call::ACCEPT: {
         if (!call.has_accept()) {
           drop(call, "Expecting 'accept' to be present");
+          return;
+        }
+        send(master.get(), call);
+        break;
+      }
+
+      case Call::DECLINE: {
+        if (!call.has_decline()) {
+          drop(call, "Expecting 'decline' to be present");
           return;
         }
         send(master.get(), call);
