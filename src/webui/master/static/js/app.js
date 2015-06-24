@@ -96,7 +96,7 @@
         if ((new Date(date)).getFullYear() == (new Date()).getFullYear()) {
           return $filter('date')(date, 'MMM dd HH:mm');
         } else {
-          return $filter('date')(date, 'MMM dd YYYY');
+          return $filter('date')(date, 'MMM dd yyyy');
         }
       };
     })
