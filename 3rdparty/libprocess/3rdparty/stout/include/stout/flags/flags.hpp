@@ -27,6 +27,7 @@
 #include <stout/nothing.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
+#include <stout/path.hpp>
 #include <stout/some.hpp>
 #include <stout/stringify.hpp>
 #include <stout/strings.hpp>
@@ -555,13 +556,11 @@ inline Try<Nothing> FlagsBase::load(
   std::map<std::string, Option<std::string>> values;
 
   // Grab the program name from argv[0].
-  programName_ = argc > 0 ? os::basename(argv[0]).get() : "";
+  programName_ = argc > 0 ? Path(argv[0]).basename() : "";
 
   if (prefix.isSome()) {
     values = extract(prefix.get());
   }
-
-
 
   // Read flags from the command line.
   for (int i = 1; i < argc; i++) {
@@ -620,7 +619,7 @@ inline Try<Nothing> FlagsBase::load(
   }
 
   // Grab the program name from argv, without removing it.
-  programName_ = argc > 0 ? os::basename(*(argv[0])).get() : "";
+  programName_ = argc > 0 ? Path(*(argv[0])).basename() : "";
 
   // Keep the arguments that are not being processed as flags.
   std::vector<char*> args;
