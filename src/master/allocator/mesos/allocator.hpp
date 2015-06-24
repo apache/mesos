@@ -91,7 +91,7 @@ public:
       const SlaveID& slaveId);
 
   void updateWhitelist(
-      const Option<hashset<std::string> >& whitelist);
+      const Option<hashset<std::string>>& whitelist);
 
   void requestResources(
       const FrameworkID& frameworkId,
@@ -177,7 +177,7 @@ public:
       const SlaveID& slaveId) = 0;
 
   virtual void updateWhitelist(
-      const Option<hashset<std::string> >& whitelist) = 0;
+      const Option<hashset<std::string>>& whitelist) = 0;
 
   virtual void requestResources(
       const FrameworkID& frameworkId,
@@ -368,7 +368,7 @@ inline void MesosAllocator<AllocatorProcess>::deactivateSlave(
 
 template <typename AllocatorProcess>
 inline void MesosAllocator<AllocatorProcess>::updateWhitelist(
-    const Option<hashset<std::string> >& whitelist)
+    const Option<hashset<std::string>>& whitelist)
 {
   process::dispatch(
       process,

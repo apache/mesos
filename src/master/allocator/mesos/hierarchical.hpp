@@ -128,7 +128,7 @@ public:
       const SlaveID& slaveId);
 
   void updateWhitelist(
-      const Option<hashset<std::string> >& whitelist);
+      const Option<hashset<std::string>>& whitelist);
 
   void requestResources(
       const FrameworkID& frameworkId,
@@ -256,7 +256,7 @@ protected:
   hashmap<std::string, mesos::master::RoleInfo> roles;
 
   // Slaves to send offers for.
-  Option<hashset<std::string> > whitelist;
+  Option<hashset<std::string>> whitelist;
 
   // There are two levels of sorting, hence "hierarchical".
   // Level 1 sorts across roles:
@@ -620,7 +620,7 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::deactivateSlave(
 template <class RoleSorter, class FrameworkSorter>
 void
 HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::updateWhitelist(
-    const Option<hashset<std::string> >& _whitelist)
+    const Option<hashset<std::string>>& _whitelist)
 {
   CHECK(initialized);
 
@@ -885,7 +885,7 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::allocate(
   //       framework having the corresponding role.
   //   (2) For unreserved resources on the slave, allocate these
   //       to a framework of any role.
-  hashmap<FrameworkID, hashmap<SlaveID, Resources> > offerable;
+  hashmap<FrameworkID, hashmap<SlaveID, Resources>> offerable;
 
   // Randomize the order in which slaves' resources are allocated.
   // TODO(vinod): Implement a smarter sorting algorithm.
