@@ -29,7 +29,7 @@ import sys
 
 from distutils.version import LooseVersion
 
-from subprocess import call, Popen, PIPE, STDOUT
+from subprocess import check_output, Popen, PIPE, STDOUT
 
 def execute(command, ignore_errors=False):
     process = None
@@ -121,13 +121,15 @@ atexit.register(lambda: execute(['git', 'checkout', branch]))
 merge_base = execute(['git', 'merge-base', tracking_branch, branch_ref]).strip()
 
 
-print 'Running \'%s\' across all of ...' % " ".join(post_review)
 
-call(['git',
-      '--no-pager',
-      'log',
-      '--pretty=format:%Cred%H%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr)%Creset',
-      merge_base + '..HEAD'])
+output = check_output([
+    'git',
+    '--no-pager',
+    'log',
+    '--pretty=format:%Cred%H%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr)%Creset',
+    merge_base + '..HEAD'])
+print 'Running \'%s\' across all of ...' % " ".join(post_review)
+print output
 
 log = execute(['git',
                '--no-pager',
@@ -170,27 +172,35 @@ for i in range(len(shas)):
 
     # Show the commit.
     if review_request_id is None:
-        print '\n\nCreating diff of:'
-        call(['git',
-              '--no-pager',
-              'log',
-              '--pretty=format:%Cred%H%Creset -%C(yellow)%d%Creset %s',
-              previous + '..' + sha])
+        output = check_output([
+            'git',
+            '--no-pager',
+            'log',
+            '--pretty=format:%Cred%H%Creset -%C(yellow)%d%Creset %s',
+            previous + '..' + sha])
+        print '\nCreating diff of:'
+        print output
     else:
-        print '\n\nUpdating diff of:'
-        call(['git',
-              '--no-pager',
-              'log',
-              '--pretty=format:%Cred%H%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr)%Creset',
-              previous + '..' + sha])
+        output = check_output([
+            'git',
+            '--no-pager',
+            'log',
+            '--pretty=format:%Cred%H%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr)%Creset',
+            previous + '..' + sha])
+        print '\nUpdating diff of:'
+        print output
 
     # Show the "parent" commit(s).
-    print '\n\n... with parent diff created from:'
-    call(['git',
-          '--no-pager',
-          'log',
-          '--pretty=format:%Cred%H%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr)%Creset',
-          tracking_branch + '..' + previous])
+    output = check_output([
+        'git',
+        '--no-pager',
+        'log',
+        '--pretty=format:%Cred%H%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr)%Creset',
+        tracking_branch + '..' + previous])
+
+    if output:
+        print '\n... with parent diff created from:'
+        print output
 
     try:
         raw_input('\nPress enter to continue or \'Ctrl-C\' to skip.\n')
