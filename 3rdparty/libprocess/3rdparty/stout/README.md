@@ -236,7 +236,7 @@ A collection of utilities for working with the networking subsystem. Currently w
 
 ## `os::`
 
-The `os` namespace provides numerous utilities for working with the operating system. Most of these utilities are simple wrappers around C-style functions that don't cleanly take or return C++ types, for example `os::getenv`, `os::setenv`, `os::basename`, `os::dirname`, `os::realpath`, etc. The library also includes a handful of "shell familiars", such as `os::chown`, `os::touch`, `os::ls`, `os::find`, `os::su`, `os::glob`, etc. We call out a few of the special abstractions below.
+The `os` namespace provides numerous utilities for working with the operating system. Most of these utilities are simple wrappers around C-style functions that don't cleanly take or return C++ types, for example `os::getenv`, `os::setenv`, `os::realpath`, etc. The library also includes a handful of "shell familiars", such as `os::chown`, `os::touch`, `os::ls`, `os::find`, `os::su`, `os::glob`, etc. We call out a few of the special abstractions below.
 
 #### Reading and Writing `std::string`
 
