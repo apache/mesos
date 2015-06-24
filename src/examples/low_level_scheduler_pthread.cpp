@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-#include <libgen.h>
 #include <pthread.h>
 #include <unistd.h>
 

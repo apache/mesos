@@ -17,7 +17,6 @@
  */
 
 #include <assert.h>
-#include <libgen.h>
 #include <stdlib.h>
 
 #include <sys/param.h>

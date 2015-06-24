@@ -16,8 +16,6 @@
  * limitations under the License.
  */
 
-#include <libgen.h>
-
 #include <iostream>
 #include <string>
 
