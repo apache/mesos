@@ -1667,7 +1667,7 @@ void Master::receive(
     }
 
     case scheduler::Call::REVIVE: {
-      drop(from, call, "Unimplemented");
+      revive(framework);
       break;
     }
 
@@ -2879,7 +2879,15 @@ void Master::reviveOffers(const UPID& from, const FrameworkID& frameworkId)
     return;
   }
 
-  LOG(INFO) << "Reviving offers for framework " << *framework;
+  revive(framework);
+}
+
+
+void Master::revive(Framework* framework)
+{
+  CHECK_NOTNULL(framework);
+
+  LOG(INFO) << "Processing REVIVE call for framework " << *framework;
   allocator->reviveOffers(framework->id());
 }
 

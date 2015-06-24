@@ -265,9 +265,7 @@ public:
       }
 
       case Call::REVIVE: {
-        ReviveOffersMessage message;
-        message.mutable_framework_id()->CopyFrom(call.framework_id());
-        send(master.get(), message);
+        send(master.get(), call);
         break;
       }
 

@@ -1019,6 +1019,8 @@ private:
       Framework* framework,
       const scheduler::Call::Decline& decline);
 
+  void revive(Framework* framework);
+
   void reconcile(
       Framework* framework,
       const scheduler::Call::Reconcile& reconcile);
