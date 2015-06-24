@@ -1021,10 +1021,6 @@ private:
 
   void revive(Framework* framework);
 
-  void reconcile(
-      Framework* framework,
-      const scheduler::Call::Reconcile& reconcile);
-
   void kill(
       Framework* framework,
       const scheduler::Call::Kill& kill);
@@ -1032,6 +1028,14 @@ private:
   void shutdown(
       Framework* framework,
       const scheduler::Call::Shutdown& shutdown);
+
+  void acknowledge(
+      Framework* framework,
+      const scheduler::Call::Acknowledge& acknowledge);
+
+  void reconcile(
+      Framework* framework,
+      const scheduler::Call::Reconcile& reconcile);
 
   bool elected() const
   {

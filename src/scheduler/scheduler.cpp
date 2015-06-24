@@ -292,12 +292,7 @@ public:
           drop(call, "Expecting 'acknowledge' to be present");
           return;
         }
-        StatusUpdateAcknowledgementMessage message;
-        message.mutable_framework_id()->CopyFrom(call.framework_id());
-        message.mutable_slave_id()->CopyFrom(call.acknowledge().slave_id());
-        message.mutable_task_id()->CopyFrom(call.acknowledge().task_id());
-        message.set_uuid(call.acknowledge().uuid());
-        send(master.get(), message);
+        send(master.get(), call);
         break;
       }
 
