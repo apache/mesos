@@ -56,6 +56,46 @@ namespace tests {
 class SchedulerDriverEventTest : public MesosTest {};
 
 
+// Ensures that the driver can handle the MESSAGE event.
+TEST_F(SchedulerDriverEventTest, Message)
+{
+  Try<PID<Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<Message> frameworkRegisteredMessage =
+    FUTURE_MESSAGE(Eq(FrameworkRegisteredMessage().GetTypeName()), _, _);
+
+  driver.start();
+
+  AWAIT_READY(frameworkRegisteredMessage);
+  UPID frameworkPid = frameworkRegisteredMessage.get().to;
+
+  Event event;
+  event.set_type(Event::MESSAGE);
+  event.mutable_message()->mutable_slave_id()->set_value("S");
+  event.mutable_message()->mutable_executor_id()->set_value("E");
+  event.mutable_message()->set_data("data");
+
+  Future<Nothing> frameworkMessage;
+  EXPECT_CALL(sched, frameworkMessage(
+      &driver,
+      event.message().executor_id(),
+      event.message().slave_id(),
+      event.message().data()))
+    .WillOnce(FutureSatisfy(&frameworkMessage));
+
+  process::post(master.get(), frameworkPid, event);
+
+  AWAIT_READY(frameworkMessage);
+}
+
+
 // Ensures that the driver can handle the ERROR event.
 TEST_F(SchedulerDriverEventTest, Error)
 {

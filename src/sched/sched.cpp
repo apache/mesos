@@ -205,7 +205,6 @@ protected:
     install<ExecutorToFrameworkMessage>(
         &SchedulerProcess::frameworkMessage,
         &ExecutorToFrameworkMessage::slave_id,
-        &ExecutorToFrameworkMessage::framework_id,
         &ExecutorToFrameworkMessage::executor_id,
         &ExecutorToFrameworkMessage::data);
 
@@ -487,7 +486,12 @@ protected:
           break;
         }
 
-        drop(event, "Unimplemented");
+        // TODO(bmahler): Rename 'frameworkMessage' to 'message'
+        // to match the Event naming scheme.
+        frameworkMessage(
+            event.message().slave_id(),
+            event.message().executor_id(),
+            event.message().data());
         break;
       }
 
@@ -884,10 +888,10 @@ protected:
     VLOG(1) << "Scheduler::slaveLost took " << stopwatch.elapsed();
   }
 
-  void frameworkMessage(const SlaveID& slaveId,
-                        const FrameworkID& frameworkId,
-                        const ExecutorID& executorId,
-                        const string& data)
+  void frameworkMessage(
+      const SlaveID& slaveId,
+      const ExecutorID& executorId,
+      const string& data)
   {
     if (!running) {
       VLOG(1)
