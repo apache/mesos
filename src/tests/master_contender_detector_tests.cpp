@@ -37,6 +37,7 @@
 #include <stout/nothing.hpp>
 #include <stout/os.hpp>
 #include <stout/path.hpp>
+#include <stout/protobuf.hpp>
 #include <stout/try.hpp>
 
 #include "common/protobuf_utils.hpp"
@@ -755,7 +756,7 @@ TEST_F(ZooKeeperMasterContenderDetectorTest,
        MasterDetectorExpireSlaveZKSessionNewMaster)
 {
   Try<zookeeper::URL> url = zookeeper::URL::parse(
-        "zk://" + server->connectString() + "/mesos");
+      "zk://" + server->connectString() + "/mesos");
 
   ASSERT_SOME(url);
 
@@ -834,6 +835,42 @@ TEST_F(ZooKeeperMasterContenderDetectorTest,
   detected = nonContenderDetector.detect(detected.get());
   AWAIT_READY(detected);
   EXPECT_SOME_EQ(follower, detected.get());
+}
+
+
+TEST_F(ZooKeeperMasterContenderDetectorTest, MasterDetectorUsesJson)
+{
+  Try<zookeeper::URL> url = zookeeper::URL::parse(
+      "zk://" + server->connectString() + "/mesos");
+
+  ASSERT_SOME(url);
+
+  // Construct a known MasterInfo & convert into JSON.
+  PID<Master> pid;
+  pid.address.ip = net::IP::parse("10.10.1.22", AF_INET).get();
+  pid.address.port = 8080;
+
+  MasterInfo leader = internal::protobuf::createMasterInfo(pid);
+  JSON::Object masterInfo = JSON::Protobuf(leader);
+
+  // Simulate a leading master.
+  Owned<zookeeper::Group> group(
+      new Group(url.get(), MASTER_CONTENDER_ZK_SESSION_TIMEOUT));
+
+  // Simulate a leading contender: we need to force-write JSON
+  // here, as this is still not supported in Mesos 0.23.
+  LeaderContender contender(
+      group.get(), stringify(masterInfo), master::MASTER_INFO_JSON_LABEL);
+  Option<Future<Future<Nothing>>> candidacy = contender.contend();
+  ASSERT_SOME(candidacy);
+
+  // Our detector should now "discover" the JSON, parse it
+  // and derive the correct MasterInfo PB.
+  ZooKeeperMasterDetector leaderDetector(url.get());
+  Future<Option<MasterInfo> > detected = leaderDetector.detect(None());
+  AWAIT_READY(detected);
+
+  ASSERT_SOME_EQ(leader, detected.get());
 }
 
 #endif // MESOS_HAS_JAVA
