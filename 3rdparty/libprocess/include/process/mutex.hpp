@@ -60,7 +60,7 @@ public:
 private:
   struct Data
   {
-    Data() : lock(ATOMIC_FLAG_INIT), locked(false) {}
+    Data() : locked(false) {}
 
     ~Data()
     {
@@ -69,7 +69,7 @@ private:
 
     // Rather than use a process to serialize access to the mutex's
     // internal data we use a 'std::atomic_flag'.
-    std::atomic_flag lock;
+    std::atomic_flag lock = ATOMIC_FLAG_INIT;
 
     // Describes the state of this mutex.
     bool locked;

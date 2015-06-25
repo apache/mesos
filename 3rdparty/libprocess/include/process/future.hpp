@@ -388,7 +388,7 @@ private:
 
     void clearAllCallbacks();
 
-    std::atomic_flag lock;
+    std::atomic_flag lock = ATOMIC_FLAG_INIT;
     State state;
     bool discard;
     bool associated;
@@ -810,8 +810,7 @@ Future<T> Future<T>::failed(const std::string& message)
 
 template <typename T>
 Future<T>::Data::Data()
-  : lock(ATOMIC_FLAG_INIT),
-    state(PENDING),
+  : state(PENDING),
     discard(false),
     associated(false),
     result(None()) {}

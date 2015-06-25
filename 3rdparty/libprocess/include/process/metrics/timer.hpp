@@ -89,8 +89,8 @@ public:
 
 private:
   struct Data {
-    Data() : lock(ATOMIC_FLAG_INIT) {}
-    std::atomic_flag lock;
+    Data() = default;
+    std::atomic_flag lock = ATOMIC_FLAG_INIT;
     Time start;
     Option<double> lastValue;
   };

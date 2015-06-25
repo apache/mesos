@@ -62,7 +62,6 @@ private:
   struct Data {
     Data(const std::string& _name, const Option<Duration>& window)
       : name(_name),
-        lock(ATOMIC_FLAG_INIT),
         history(None())
     {
       if (window.isSome()) {
@@ -73,7 +72,7 @@ private:
 
     const std::string name;
 
-    std::atomic_flag lock;
+    std::atomic_flag lock = ATOMIC_FLAG_INIT;
 
     Option<Owned<TimeSeries<double>>> history;
   };
