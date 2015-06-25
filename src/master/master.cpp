@@ -1708,7 +1708,11 @@ void Master::receive(
     }
 
     case scheduler::Call::MESSAGE: {
-      drop(from, call, "Unimplemented");
+      if (!call.has_message()) {
+        drop(from, call, "Expecting 'message' to be present");
+        return;
+      }
+      message(framework, call.message());
       break;
     }
 
@@ -3159,11 +3163,26 @@ void Master::schedulerMessage(
     return;
   }
 
-  Slave* slave = slaves.registered.get(slaveId);
+  scheduler::Call::Message message_;
+  message_.mutable_slave_id()->CopyFrom(slaveId);
+  message_.mutable_executor_id()->CopyFrom(executorId);
+  message_.set_data(data);
+
+  message(framework, message_);
+}
+
+
+void Master::message(
+    Framework* framework,
+    const scheduler::Call::Message& message)
+{
+  CHECK_NOTNULL(framework);
+
+  Slave* slave = slaves.registered.get(message.slave_id());
 
   if (slave == NULL) {
     LOG(WARNING) << "Cannot send framework message for framework "
-                 << *framework << " to slave " << slaveId
+                 << *framework << " to slave " << message.slave_id()
                  << " because slave is not registered";
     metrics->invalid_framework_to_executor_messages++;
     return;
@@ -3177,15 +3196,15 @@ void Master::schedulerMessage(
     return;
   }
 
-  LOG(INFO) << "Sending framework message for framework "
+  LOG(INFO) << "Processing MESSAGE call from framework "
             << *framework << " to slave " << *slave;
 
-  FrameworkToExecutorMessage message;
-  message.mutable_slave_id()->MergeFrom(slaveId);
-  message.mutable_framework_id()->MergeFrom(frameworkId);
-  message.mutable_executor_id()->MergeFrom(executorId);
-  message.set_data(data);
-  send(slave->pid, message);
+  FrameworkToExecutorMessage message_;
+  message_.mutable_slave_id()->MergeFrom(message.slave_id());
+  message_.mutable_framework_id()->MergeFrom(framework->id());
+  message_.mutable_executor_id()->MergeFrom(message.executor_id());
+  message_.set_data(message.data());
+  send(slave->pid, message_);
 
   metrics->valid_framework_to_executor_messages++;
 }

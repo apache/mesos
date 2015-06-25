@@ -311,12 +311,10 @@ public:
           drop(call, "Expecting 'message' to be present");
           return;
         }
-        FrameworkToExecutorMessage message;
-        message.mutable_slave_id()->CopyFrom(call.message().slave_id());
-        message.mutable_framework_id()->CopyFrom(call.framework_id());
-        message.mutable_executor_id()->CopyFrom(call.message().executor_id());
-        message.set_data(call.message().data());
-        send(master.get(), message);
+        // TODO(vinod): Add support for sending the call directly to
+        // the slave, instead of relaying it through the master, as
+        // the scheduler driver does.
+        send(master.get(), call);
         break;
       }
 

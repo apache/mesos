@@ -1037,6 +1037,10 @@ private:
       Framework* framework,
       const scheduler::Call::Reconcile& reconcile);
 
+  void message(
+      Framework* framework,
+      const scheduler::Call::Message& message);
+
   bool elected() const
   {
     return leader.isSome() && leader.get() == info_;
