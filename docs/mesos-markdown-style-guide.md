@@ -23,15 +23,14 @@ These should be reflected in `configuration.md`!
 
 Code examples should be specified as follows:
 
-~~~{.txt}
     ~~~{.cpp}
     int main(int argc, char** argv)
     {
       ....
     }
     ~~~
-~~~
 
+**NOTE**: Because of shortcomings of Doxygen's markdown parser we currently use indentation for wrapping all non C++ code blocks.
 
 ## Notes/Emphasis
 

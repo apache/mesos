@@ -47,57 +47,53 @@ Use `--modules="{...}"` to specify the list of modules inline.
 1. Load a library `libfoo.so` with two modules `org_apache_mesos_bar` and
    `org_apache_mesos_baz`.
 
-   ```
-   {
-     "libraries": [
-       {
-         "file": "/path/to/libfoo.so",
-         "modules": [
-           {
-             "name": "org_apache_mesos_bar",
-           },
-           {
-             "name": "org_apache_mesos_baz"
-           }
-         ]
-       }
-     ]
-   }
-   ```
+        {
+          "libraries": [
+            {
+              "file": "/path/to/libfoo.so",
+              "modules": [
+                {
+                  "name": "org_apache_mesos_bar",
+                },
+                {
+                  "name": "org_apache_mesos_baz"
+                }
+              ]
+            }
+          ]
+        }
+
 
 2. Load the module `org_apache_mesos_bar` from the library `foo` and pass
    the command-line argument `X` with value `Y` (module `org_apache_mesos_baz`
    is loaded without any command-line parameters):
 
-   ```
-   {
-     "libraries": [
-       {
-         "name": "foo",
-         "modules": [
-           {
-             "name": "org_apache_mesos_bar"
-             "parameters": [
-               {
-                 "key": "X",
-                 "value": "Y",
-               }
-             ]
-           },
-           {
-             "name": "org_apache_mesos_bar"
-           }
-         ]
-       }
-     ]
-   }
-   ```
+        {
+          "libraries": [
+            {
+              "name": "foo",
+              "modules": [
+                {
+                  "name": "org_apache_mesos_bar"
+                  "parameters": [
+                    {
+                      "key": "X",
+                      "value": "Y",
+                    }
+                  ]
+                },
+                {
+                  "name": "org_apache_mesos_bar"
+                }
+              ]
+            }
+          ]
+        }
 
 3. Specifying modules inline:
 
-   ```
-   --modules='{"libraries":[{"file":"/path/to/libfoo.so", "modules":[{"name":"org_apache_mesos_bar"}]}]}'
-   ```
+        --modules='{"libraries":[{"file":"/path/to/libfoo.so", "modules":[{"name":"org_apache_mesos_bar"}]}]}'
+
 
 ### Library names
 
@@ -131,9 +127,8 @@ To load a custom allocator into Mesos master, you need to:
 
 For example, the following command will run the Mesos master with `ExternalAllocatorModule` (see [this section](#Example-JSON-strings) for JSON format):
 
-```
-./bin/mesos-master.sh --work_dir=m/work --modules="file://<modules-including-allocator>.json" --allocator=ExternalAllocatorModule
-```
+    ./bin/mesos-master.sh --work_dir=m/work --modules="file://<modules-including-allocator>.json" --allocator=ExternalAllocatorModule
+
 
 ### Anonymous
 
@@ -208,9 +203,8 @@ To load a hook into Mesos, you need to
 For example, the following command will run the Mesos slave with the
 `TestTaskHook` hook:
 
-```
-./bin/mesos-slave.sh --master=<IP>:<PORT> --modules="file://<path-to-modules-config>.json" --hooks=TestTaskHook
-```
+    ./bin/mesos-slave.sh --master=<IP>:<PORT> --modules="file://<path-to-modules-config>.json" --hooks=TestTaskHook
+
 
 ### Isolator
 
@@ -225,62 +219,61 @@ for GPGPU hardware, networking, etc.
 The following snippet describes the implementation of a module named
 "org_apache_mesos_bar" of "TestModule" kind:
 
-```
-  #include <iostream>
-  #include "test_module.hpp"
+~~~{.cpp}
+#include <iostream>
+#include "test_module.hpp"
 
-  class TestModuleImpl : public TestModule
+class TestModuleImpl : public TestModule
+{
+public:
+  TestModuleImpl()
   {
-  public:
-    TestModuleImpl()
-    {
-      std::cout << "HelloWorld!" << std::endl;
-    }
-
-    virtual int foo(char a, long b)
-    {
-      return a + b;
-    }
-
-    virtual int bar(float a, double b)
-    {
-      return a * b;
-    }
-  };
-
-  static TestModule* create()
-  {
-      return new TestModule();
+    std::cout << "HelloWorld!" << std::endl;
   }
 
-  static bool compatible()
+  virtual int foo(char a, long b)
   {
-    return true;
+    return a + b;
   }
 
-  // Declares a module named 'org_apache_mesos_TestModule' of
-  // 'TestModule' kind.
-  // Mesos core binds the module instance pointer as needed.
-  // The compatible() hook is provided by the module for compatibility checks.
-  // The create() hook returns an object of type 'TestModule'.
-  mesos::modules::Module<TestModule> org_apache_mesos_TestModule(
-      MESOS_MODULE_API_VERSION,
-      MESOS_VERSION,
-      "Apache Mesos",
-      "modules@mesos.apache.org",
-      "This is a test module.",
-      compatible,
-      create);
-```
+  virtual int bar(float a, double b)
+  {
+    return a * b;
+  }
+};
+
+static TestModule* create()
+{
+    return new TestModule();
+}
+
+static bool compatible()
+{
+  return true;
+}
+
+// Declares a module named 'org_apache_mesos_TestModule' of
+// 'TestModule' kind.
+// Mesos core binds the module instance pointer as needed.
+// The compatible() hook is provided by the module for compatibility checks.
+// The create() hook returns an object of type 'TestModule'.
+mesos::modules::Module<TestModule> org_apache_mesos_TestModule(
+    MESOS_MODULE_API_VERSION,
+    MESOS_VERSION,
+    "Apache Mesos",
+    "modules@mesos.apache.org",
+    "This is a test module.",
+    compatible,
+    create);
+~~~
 
 ### Building a module
 
   The following assumes that Mesos is installed in the standard location, i.e.
   the Mesos dynamic library and header files are available.
-```
-  g++ -lmesos -fpic -o test_module.o test_module.cpp
-  $ gcc -shared -o libtest_module.so test_module.o
-```
+
+    g++ -lmesos -fpic -o test_module.o test_module.cpp
+    $ gcc -shared -o libtest_module.so test_module.o
 
 ### Testing a modules
 
@@ -288,9 +281,9 @@ Apart from testing the module by hand with explicit use of --modules flag, one
 can run the entire mesos test suite with the given module. For example, the
 following command will run the mesos test suite with the
 `org_apache_mesos_TestCpuIsolator` module selected for isolation:
-```
-./bin/mesos-tests.sh --modules="/home/kapil/mesos/isolator-module/modules.json" --isolation="org_apache_mesos_TestCpuIsolator"
-```
+
+    ./bin/mesos-tests.sh --modules="/home/kapil/mesos/isolator-module/modules.json" --isolation="org_apache_mesos_TestCpuIsolator"
+
 
 ### Module naming convention
 Each module name should be unique.  Having duplicate module names in the Json
@@ -371,7 +364,6 @@ must exist between the various versions:
 
 <tr>
 <td>0.29.0 </td> <td> 0.21.0 </td> <td> 0.18.0  </td> <td> NO </td> <td> Module/Library older than the kind version supported by Mesos. </td>
-<tr>
 </tr>
 
 <tr>
@@ -394,54 +386,51 @@ Initial version of the modules API.
 ## Appendix:
 ### JSON Schema:
 
-```
-  {
-    "type":"object",
-    "required":false,
-    "properties":{
-      "libraries": {
-        "type":"array",
-        "required":false,
-        "items":
-        {
-          "type":"object",
+    {
+      "type":"object",
+      "required":false,
+      "properties":{
+        "libraries":{
+          "type":"array",
           "required":false,
-          "properties":{
-            "file": {
-              "type":"string",
-              "required":false
-            },
-            "name": {
-              "type":"string",
-              "required":false
-            },
-            "modules": {
-              "type":"array",
-              "required":false,
-              "items":
-              {
-                "type":"object",
+          "items":{
+            "type":"object",
+            "required":false,
+            "properties":{
+              "file":{
+                "type":"string",
+                "required":false
+              },
+              "name":{
+                "type":"string",
+                "required":false
+              },
+              "modules":{
+                "type":"array",
                 "required":false,
-                "properties":{
-                  "name": {
-                    "type":"string",
-                    "required":true
-                  },
-                  "parameters": {
-                    "type":"array",
-                    "required":false,
-                    "items":
-                    {
-                      "type":"object",
+                "items":{
+                  "type":"object",
+                  "required":false,
+                  "properties":{
+                    "name":{
+                      "type":"string",
+                      "required":true
+                    },
+                    "parameters":{
+                      "type":"array",
                       "required":false,
-                      "properties":{
-                        "key": {
-                          "type":"string",
-                          "required":true
-                        },
-                        "value": {
-                          "type":"string",
-                          "required":true
+                      "items":{
+                        "type":"object",
+                        "required":false,
+                        "properties":{
+                          "key":{
+                            "type":"string",
+                            "required":true
+                          },
+                          "value":{
+                            "type":"string",
+                            "required":true
+                          }
                         }
                       }
                     }
@@ -453,5 +442,3 @@ Initial version of the modules API.
         }
       }
     }
-  }
-```

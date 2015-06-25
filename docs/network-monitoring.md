@@ -34,10 +34,9 @@ On the build machine, you need to install the following packages:
 
 Network monitoring will NOT be built in by default. To build Mesos with network monitoring support, you need to add a configure option:
 
-```
-$ ./configure --with-network-isolator
-$ make
-```
+    $ ./configure --with-network-isolator
+    $ make
+
 
 ### Host ephemeral ports squeeze
 
@@ -47,24 +46,22 @@ For non-ephemeral ports (e.g, listening ports), Mesos already exposes that to th
 
 For ephemeral ports, without network monitoring, all executors/tasks running on the slave share the same ephemeral port range of the host. The default ephemeral port range on most Linux distributions is [32768, 61000]. With network monitoring, for each container, we need to reserve a range for ports on the host which will be used as the ephemeral port range for the container network stack (these ports are directly mapped into the container). We need to ensure none of the host processes are using those ports. Because of that, you may want to squeeze the host ephemeral port range in order to support more containers on each slave. To do that, you can use the following command (need root permission). A host reboot is required to ensure there are no connections using ports outside the new ephemeral range.
 
-```
-# This sets the host ephemeral port range to [57345, 61000].
-$ echo "57345 61000" > /proc/sys/net/ipv4/ip_local_port_range
-```
+    # This sets the host ephemeral port range to [57345, 61000].
+    $ echo "57345 61000" > /proc/sys/net/ipv4/ip_local_port_range
+
 
 ### Turn on network monitoring
 
 After the host ephemeral ports squeeze and reboot, you can turn on network monitoring by appending `network/port_mapping` to the isolation flag. Notice that you need specify the `ephemeral_ports` resource (via --resources flag). It tells the slave which ports on the host are reserved for containers. It must NOT overlap with the host ephemeral port range. You can also specify how many ephemeral ports you want to allocate to each container. It is recommended but not required that this number is power of 2 aligned (e.g., 512, 1024). If not, there will be some performance impact for classifying packets. The maximum number of containers on the slave will be limited by approximately |ephemeral_ports|/ephemeral_ports_per_container, subject to alignment etc.
 
-```
-mesos-slave \
-	--checkpoint \
-	--log_dir=/var/log/mesos \
-	--work_dir=/var/lib/mesos \
-	--isolation=cgroups/cpu,cgroups/mem,network/port_mapping \
-	--resources=cpus:22;mem:62189;ports:[31000-32000];disk:400000;ephemeral_ports:[32768-57344] \
-	--ephemeral_ports_per_container=1024
-```
+    mesos-slave \
+        --checkpoint \
+        --log_dir=/var/log/mesos \
+        --work_dir=/var/lib/mesos \
+        --isolation=cgroups/cpu,cgroups/mem,network/port_mapping \
+        --resources=cpus:22;mem:62189;ports:[31000-32000];disk:400000;ephemeral_ports:[32768-57344] \
+        --ephemeral_ports_per_container=1024
+
 
 ## How to get statistics?
 
@@ -81,40 +78,39 @@ Currently, we report the following network statistics:
 
 For example, these are the statistics you will get by hitting the `/monitor/statistics.json` endpoint on a slave with network monitoring turned on:
 
-```
-$ curl -s http://localhost:5051/monitor/statistics.json | python2.6
--mjson.tool
-[
-    {
-        "executor_id": "sample_executor_id-ebd8fa62-757d-489e-9e23-678a21d078d6",
-        "executor_name": "sample_executor",
-        "framework_id": "201103282247-0000000019-0000",
-        "source": "sample_executor",
-        "statistics": {
-            "cpus_limit": 0.35,
-            "cpus_nr_periods": 520883,
-            "cpus_nr_throttled": 2163,
-            "cpus_system_time_secs": 154.42,
-            "cpus_throttled_time_secs": 145.96,
-            "cpus_user_time_secs": 258.74,
-            "mem_anon_bytes": 109137920,
-            "mem_file_bytes": 30613504,
-            "mem_limit_bytes": 167772160,
-            "mem_mapped_file_bytes": 8192,
-            "mem_rss_bytes": 140341248,
-            "net_rx_bytes": 2402099,
-            "net_rx_dropped": 0,
-            "net_rx_errors": 0,
-            "net_rx_packets": 33273,
-            "net_tx_bytes": 1507798,
-            "net_tx_dropped": 0,
-            "net_tx_errors": 0,
-            "net_tx_packets": 17726,
-            "timestamp": 1408043826.91626
+    $ curl -s http://localhost:5051/monitor/statistics.json | python2.6
+    -mjson.tool
+    [
+        {
+            "executor_id": "sample_executor_id-ebd8fa62-757d-489e-9e23-678a21d078d6",
+            "executor_name": "sample_executor",
+            "framework_id": "201103282247-0000000019-0000",
+            "source": "sample_executor",
+            "statistics": {
+                "cpus_limit": 0.35,
+                "cpus_nr_periods": 520883,
+                "cpus_nr_throttled": 2163,
+                "cpus_system_time_secs": 154.42,
+                "cpus_throttled_time_secs": 145.96,
+                "cpus_user_time_secs": 258.74,
+                "mem_anon_bytes": 109137920,
+                "mem_file_bytes": 30613504,
+                "mem_limit_bytes": 167772160,
+                "mem_mapped_file_bytes": 8192,
+                "mem_rss_bytes": 140341248,
+                "net_rx_bytes": 2402099,
+                "net_rx_dropped": 0,
+                "net_rx_errors": 0,
+                "net_rx_packets": 33273,
+                "net_tx_bytes": 1507798,
+                "net_tx_dropped": 0,
+                "net_tx_errors": 0,
+                "net_tx_packets": 17726,
+                "timestamp": 1408043826.91626
+            }
         }
-    }
-]
-```
+    ]
+
 
 # Network Egress Rate Limit
 
@@ -124,13 +120,11 @@ Mesos 0.21.0 adds an optional feature to limit the egress network bandwidth for 
 
 Egress Rate Limit requires Network Monitoring. To enable it, please follow all the steps in the [previous section](#Network_Monitoring) to enable the Network Monitoring first, and then use the newly introduced `egress_rate_limit_per_container` flag to specify the rate limit for each container. Note that this flag expects a `Bytes` type like the following:
 
-```
-mesos-slave \
-	--checkpoint \
-	--log_dir=/var/log/mesos \
-	--work_dir=/var/lib/mesos \
-	--isolation=cgroups/cpu,cgroups/mem,network/port_mapping \
-	--resources=cpus:22;mem:62189;ports:[31000-32000];disk:400000;ephemeral_ports:[32768-57344] \
-	--ephemeral_ports_per_container=1024 \
-	--egress_rate_limit_per_container=37500KB # Convert to ~300Mbits/s.
-```
+    mesos-slave \
+        --checkpoint \
+        --log_dir=/var/log/mesos \
+        --work_dir=/var/lib/mesos \
+        --isolation=cgroups/cpu,cgroups/mem,network/port_mapping \
+        --resources=cpus:22;mem:62189;ports:[31000-32000];disk:400000;ephemeral_ports:[32768-57344] \
+        --ephemeral_ports_per_container=1024 \
+        --egress_rate_limit_per_container=37500KB # Convert to ~300Mbits/s.

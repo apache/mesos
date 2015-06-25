@@ -12,16 +12,16 @@ The Mesos codebase follows the [Google C++ Style Guide](http://google-styleguide
 * We use [lowerCamelCase](http://en.wikipedia.org/wiki/CamelCase#Variations_and_synonyms) for variable names (Google uses snake_case, and their class member variables have trailing underscores).
 * We prepend constructor and function arguments with a leading underscore to avoid ambiguity and / or shadowing:
 
-```
+~~~{.cpp}
 Try(State _state, T* _t = NULL, const std::string& _message = "")
   : state(_state), t(_t), message(_message) {}
-```
+~~~
 
 * Prefer trailing underscores for use as member fields (but not required). Some trailing underscores are used to distinguish between similar variables in the same scope (think prime symbols), *but this should be avoided as much as possible, including removing existing instances in the code base.*
 
 * If you find yourself creating a copy of an argument passed by const reference, consider passing it by value instead (if you don't want to use a leading underscore and copy in the body of the function):
 
-```
+~~~{.cpp}
 // You can pass-by-value in ProtobufProcess::install() handlers.
 void Slave::statusUpdate(StatusUpdate update, const UPID& pid)
 {
@@ -30,8 +30,7 @@ void Slave::statusUpdate(StatusUpdate update, const UPID& pid)
       pid == UPID() ? TaskStatus::SOURCE_SLAVE : TaskStatus::SOURCE_EXECUTOR);
   ...
 }
-```
-
+~~~
 
 ### Constant Names
 * We use [SCREAMING_SNAKE_CASE](http://en.wikipedia.org/wiki/Letter_case#Special_case_styles) for constant names (Google uses a `k` followed by mixed case, e.g. `kDaysInAWeek`).
@@ -64,7 +63,7 @@ void Slave::statusUpdate(StatusUpdate update, const UPID& pid)
 * Newline when calling or defining a function: indent with 4 spaces.
 * We do not follow Google's style of wrapping on the open parenthesis, the general goal is to reduce visual "jaggedness" in the code. Prefer (1), (4), (5), sometimes (3), never (2):
 
-```
+~~~{.cpp}
 // 1: OK.
 allocator->resourcesRecovered(frameworkId, slaveId, resources, filters);
 
@@ -93,15 +92,15 @@ allocator->resourcesRecovered(
 // 5: OK.
 allocator->resourcesRecovered(
     frameworkId, slaveId, resources, filters);
-```
+~~~
 
 ### Continuation
 * Newline for an assignment statement: indent with 2 spaces.
 
-```
+~~~{.cpp}
 Try<Duration> failoverTimeout =
   Duration::create(FrameworkInfo().failover_timeout());
-```
+~~~
 
 ## Empty Lines
 * 1 blank line at the end of the file.
@@ -112,7 +111,7 @@ Try<Duration> failoverTimeout =
 
 We disallow capturing **temporaries** by reference. See [MESOS-2629](https://issues.apache.org/jira/browse/MESOS-2629) for the rationale.
 
-```
+~~~{.cpp}
 Future<Nothing> f() { return Nothing(); }
 Future<bool> g() { return false; }
 
@@ -150,7 +149,7 @@ const T& t_ = t.member();
 
 // 4: Can also use.
 const T t = T("Hello").member();
-```
+~~~
 
 We allow capturing non-temporaries by *constant reference* when the intent is to **alias**.
 
@@ -160,7 +159,7 @@ The goal is to make code more concise and improve readability. Use this if an ex
 * Would benefit from a concise name to provide context for readability.
 * Will **not** be invalidated during the lifetime of the alias. Otherwise document this explicitly.
 
-```
+~~~{.cpp}
 hashmap<string, hashset<int>> index;
 
 // 1: Ok.
@@ -185,49 +184,46 @@ string& s = strings[0];
 strings.erase(strings.begin());
 
 s += "world"; // THIS IS A DANGLING REFERENCE!
-```
+~~~
 
 ## File Headers
 
 * Mesos source files must contain the "ASF" header:
 
-```
-/**
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-```
+        /**
+         * Licensed to the Apache Software Foundation (ASF) under one
+         * or more contributor license agreements.  See the NOTICE file
+         * distributed with this work for additional information
+         * regarding copyright ownership.  The ASF licenses this file
+         * to you under the Apache License, Version 2.0 (the
+         * "License"); you may not use this file except in compliance
+         * with the License.  You may obtain a copy of the License at
+         *
+         *     http://www.apache.org/licenses/LICENSE-2.0
+         *
+         * Unless required by applicable law or agreed to in writing, software
+         * distributed under the License is distributed on an "AS IS" BASIS,
+         * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+         * See the License for the specific language governing permissions and
+         * limitations under the License.
+         */
+
 
 * Stout and libprocess source files must contain the "Apache License Version 2.0" header:
 
-```
-/**
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License
- */
-```
+        /**
+         * Licensed under the Apache License, Version 2.0 (the "License");
+         * you may not use this file except in compliance with the License.
+         * You may obtain a copy of the License at
+         *
+         *     http://www.apache.org/licenses/LICENSE-2.0
+         *
+         * Unless required by applicable law or agreed to in writing, software
+         * distributed under the License is distributed on an "AS IS" BASIS,
+         * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+         * See the License for the specific language governing permissions and
+         * limitations under the License
+         */
 
 ## C++11
 
@@ -237,7 +233,7 @@ We support C++11 and require GCC 4.8+ or Clang 3.5+ compilers. The whitelist of 
 * Multiple right angle brackets.
 * Type inference (`auto` and `decltype`). The main goal is to increase code readability. This is safely the case if the exact same type omitted on the left is already fully stated on the right. Here are several examples:
 
-```
+~~~{.cpp}
 // 1: OK.
 const auto& i = values.find(keys.front());
 // Compare with
@@ -252,7 +248,7 @@ shared_ptr<list<string>> names = shared_ptr<list<string>>(new list<string>());
 auto authorizer = LocalAuthorizer::create(acls);
 // Compare with
 Try<Owned<LocalAuthorizer>> authorizer = LocalAuthorizer::create();
-```
+~~~
 
 * Rvalue references.
 * Explicitly-defaulted functions.
@@ -268,265 +264,263 @@ Try<Owned<LocalAuthorizer>> authorizer = LocalAuthorizer::create();
 * Lambdas!
   * Don't put a space between the capture list and the parameter list:
 
-    ```
-    // 1: OK.
-    []() { ...; };
+~~~{.cpp}
+// 1: OK.
+[]() { ...; };
 
-    // 2: Don't use.
-    [] () { ...; };
-    ```
+// 2: Don't use.
+[] () { ...; };
+~~~
 
   * Prefer default capture by value, explicit capture by value, then capture by reference. To avoid dangling-pointer bugs, *never* use default capture by reference:
 
-    ```
-    // 1: OK.
-    [=]() { ... }; // Default capture by value.
-    [n]() { ... }; // Explicit capture by value.
-    [&n]() { ... }; // Explicit capture by reference.
-    [=, &n]() { ... }; // Default capture by value, explicit capture by reference.
+~~~{.cpp}
+// 1: OK.
+[=]() { ... }; // Default capture by value.
+[n]() { ... }; // Explicit capture by value.
+[&n]() { ... }; // Explicit capture by reference.
+[=, &n]() { ... }; // Default capture by value, explicit capture by reference.
 
-    // 2: Don't use.
-    [&]() { ... }; // Default capture by reference.
-    ```
+// 2: Don't use.
+[&]() { ... }; // Default capture by reference.
+~~~
 
   * Use `mutable` only when absolutely necessary.
 
-    ```
-    // 1: OK.
-    []() mutable { ...; };
-    ```
+~~~{.cpp}
+// 1: OK.
+[]() mutable { ...; };
+~~~
 
   * Feel free to ignore the return type by default, adding it as necessary to appease the compiler or be more explicit for the reader.
 
-    ```
-    // 1: OK.
-    []() { return true; };
-    []() -> bool { return ambiguous(); };
-    ```
+~~~{.cpp}
+// 1: OK.
+[]() { return true; };
+[]() -> bool { return ambiguous(); };
+~~~
 
   * Feel free to use `auto` when naming a lambda expression:
 
-    ```
-    // 1: OK.
-    auto lambda = []() { ...; };
-    ```
+~~~{.cpp}
+// 1: OK.
+auto lambda = []() { ...; };
+~~~
 
   * Format lambdas similar to how we format functions and methods. Feel free to let lambdas be one-liners:
 
-    ```
-    // 1: OK.
-    auto lambda = []() {
-      ...;
-    };
+~~~{.cpp}
+// 1: OK.
+auto lambda = []() {
+  ...;
+};
 
-    // 2: OK.
-    auto lambda = []() { ...; };
-    ```
+// 2: OK.
+auto lambda = []() { ...; };
+~~~
 
-    Feel free to inline lambdas within function arguments:
+  * Feel free to inline lambdas within function arguments:
 
-    ```
-    instance.method([]() {
-      ...;
-    });
-    ```
+~~~{.cpp}
+instance.method([]() {
+  ...;
+});
+~~~
 
-    Chain function calls on a newline after the closing brace of the lambda and the closing parenthesis of function call:
+  * Chain function calls on a newline after the closing brace of the lambda and the closing parenthesis of function call:
 
-    ```
-    // 1: OK.
-    instance
-      .method([]() {
-        ...;
-      })
-      .then([]() { ...; })
-      .then([]() {
-        ...;
-      });
+~~~{.cpp}
+// 1: OK.
+instance
+  .method([]() {
+    ...;
+  })
+  .then([]() { ...; })
+  .then([]() {
+    ...;
+  });
 
-    // 2: OK (when no chaining, compare to 1).
-    instance.method([]() {
-      ...;
-    });
+// 2: OK (when no chaining, compare to 1).
+instance.method([]() {
+  ...;
+});
 
-    // 3: OK (if no 'instance.method').
-    function([]() {
-      ...;
-    })
-    .then([]() { ...; })
-    .then([]() {
-      ...;
-    });
+// 3: OK (if no 'instance.method').
+function([]() {
+  ...;
+})
+.then([]() { ...; })
+.then([]() {
+  ...;
+});
 
-    // 3: OK (but prefer 1).
-    instance.method([]() {
-      ...;
-    })
-    .then([]() { ...; })
-    .then([]() {
-      ...;
-    });
-    ```
+// 3: OK (but prefer 1).
+instance.method([]() {
+  ...;
+})
+.then([]() { ...; })
+.then([]() {
+  ...;
+});
+~~~
 
-    Wrap capture lists indepedently of parameters, *use the same formatting as if the capture list were template parameters*:
+  * Wrap capture lists indepedently of parameters, *use the same formatting as if the capture list were template parameters*:
 
+~~~{.cpp}
+// 1: OK.
+function([&capture1, &capture2, &capture3](
+    const T1& p1, const T2& p2, const T3& p3) {
+  ...;
+});
 
-    ```
-    // 1: OK.
-    function([&capture1, &capture2, &capture3](
+function(
+    [&capture1, &capture2, &capture3](
         const T1& p1, const T2& p2, const T3& p3) {
-      ...;
-    });
+  ...;
+});
 
-    function(
-        [&capture1, &capture2, &capture3](
-            const T1& p1, const T2& p2, const T3& p3) {
-      ...;
-    });
+auto lambda = [&capture1, &capture2, &capture3](
+    const T1& p1, const T2& p2, const T3& p3) {
+  ...;
+};
 
-    auto lambda = [&capture1, &capture2, &capture3](
-        const T1& p1, const T2& p2, const T3& p3) {
-      ...;
-    };
+auto lambda =
+  [&capture1, &capture2, &capture3](
+      const T1& p1, const T2& p2, const T3& p3) {
+  ...;
+};
 
+// 2: OK (when capture list is longer than 80 characters).
+function([
+    &capture1,
+    &capture2,
+    &capture3,
+    &capture4](
+        const T1& p1, const T2& p2) {
+  ...;
+});
 
-    auto lambda =
-      [&capture1, &capture2, &capture3](
-          const T1& p1, const T2& p2, const T3& p3) {
-      ...;
-    };
+auto lambda = [
+    &capture1,
+    &capture2,
+    &capture3,
+    &capture4](
+        const T1& p1, const T2& p2) {
+  ...;
+};
 
-    // 2: OK (when capture list is longer than 80 characters).
-    function([
-        &capture1,
-        &capture2,
-        &capture3,
-        &capture4](
-            const T1& p1, const T2& p2) {
-      ...;
-    });
+// 3: OK (but prefer 2).
+function([
+    &capture1,
+    &capture2,
+    &capture3,
+    &capture4](const T1& p1, const T2& t2) {
+  ...;
+});
 
-    auto lambda = [
-        &capture1,
-        &capture2,
-        &capture3,
-        &capture4](
-            const T1& p1, const T2& p2) {
-      ...;
-    };
+auto lambda = [
+    &capture1,
+    &capture2,
+    &capture3,
+    &capture4](const T1& p1, const T2& p2) {
+  ...;
+};
 
-    // 3: OK (but prefer 2).
-    function([
-        &capture1,
-        &capture2,
-        &capture3,
-        &capture4](const T1& p1, const T2& t2) {
-      ...;
-    });
+// 3: Don't use.
+function([&capture1,
+          &capture2,
+          &capture3,
+          &capture4](const T1& p1, const T2& p2) {
+  ...;
+});
 
-    auto lambda = [
-        &capture1,
-        &capture2,
-        &capture3,
-        &capture4](const T1& p1, const T2& p2) {
-      ...;
-    };
+auto lambda = [&capture1,
+               &capture2,
+               &capture3,
+               &capture4](const T1& p1, const T2& p2) {
+  ...;
+  };
 
-    // 3: Don't use.
-    function([&capture1,
-              &capture2,
-              &capture3,
-              &capture4](const T1& p1, const T2& p2) {
-      ...;
-    });
+// 4: Don't use.
+function([&capture1,
+           &capture2,
+           &capture3,
+           &capture4](
+    const T1& p1, const T2& p2, const T3& p3) {
+  ...;
+});
 
-    auto lambda = [&capture1,
-                   &capture2,
-                   &capture3,
-                   &capture4](const T1& p1, const T2& p2) {
-      ...;
-    };
+auto lambda = [&capture1,
+               &capture2,
+               &capture3,
+               &capture4](
+    const T1& p1, const T2& p2, const T3& p3) {
+  ...;
+};
 
-    // 4: Don't use.
-    function([&capture1,
-              &capture2,
-              &capture3,
-              &capture4](
-        const T1& p1, const T2& p2, const T3& p3) {
-      ...;
-    });
+// 5: Don't use.
+function([&capture1,
+          &capture2,
+          &capture3,
+          &capture4](
+    const T1& p1,
+    const T2& p2,
+    const T3& p3) {
+  ...;
+  });
 
-    auto lambda = [&capture1,
-                   &capture2,
-                   &capture3,
-                   &capture4](
-        const T1& p1, const T2& p2, const T3& p3) {
-      ...;
-    };
+auto lambda = [&capture1,
+               &capture2,
+               &capture3,
+               &capture4](
+    const T1& p1,
+    const T2& p2,
+    const T3& p3) {
+  ...;
+};
 
-    // 5: Don't use.
-    function([&capture1,
-              &capture2,
-              &capture3,
-              &capture4](
-        const T1& p1,
-        const T2& p2,
-        const T3& p3) {
-      ...;
-    });
+// 6: OK (parameter list longer than 80 characters).
+function([&capture1, &capture2, &capture3](
+    const T1& p1,
+    const T2& p2,
+    const T3& p3,
+    const T4& p4) {
+  ...;
+});
 
-    auto lambda = [&capture1,
-                   &capture2,
-                   &capture3,
-                   &capture4](
-        const T1& p1,
-        const T2& p2,
-        const T3& p3) {
-      ...;
-    };
+auto lambda = [&capture1, &capture2, &capture3](
+    const T1& p1,
+    const T2& p2,
+    const T3& p3,
+    const T4& p4) {
+  ...;
+};
 
-    // 6: OK (parameter list longer than 80 characters).
-    function([&capture1, &capture2, &capture3](
+// 7: OK (capture and parameter lists longer than 80 characters).
+function([
+    &capture1,
+    &capture2,
+    &capture3,
+    &capture4](
         const T1& p1,
         const T2& p2,
         const T3& p3,
         const T4& p4) {
-      ...;
-    });
+  ...;
+});
 
-    auto lambda = [&capture1, &capture2, &capture3](
+auto lambda = [
+    &capture1,
+    &capture2,
+    &capture3,
+    &capture4](
         const T1& p1,
         const T2& p2,
         const T3& p3,
         const T4& p4) {
-      ...;
-    };
-
-    // 7: OK (capture and parameter lists longer than 80 characters).
-    function([
-        &capture1,
-        &capture2,
-        &capture3,
-        &capture4](
-            const T1& p1,
-            const T2& p2,
-            const T3& p3,
-            const T4& p4) {
-      ...;
-    });
-
-    auto lambda = [
-        &capture1,
-        &capture2,
-        &capture3,
-        &capture4](
-            const T1& p1,
-            const T2& p2,
-            const T3& p3,
-            const T4& p4) {
-      ...;
-    };
-    ```
+  ...;
+};
+~~~
 
 * Unrestricted Union.
 

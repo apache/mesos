@@ -54,17 +54,16 @@ reconciliation in a framework scheduler.
 
 Frameworks send a list of `TaskStatus` messages to the master:
 
-```
-  // Allows the framework to query the status for non-terminal tasks.
-  // This causes the master to send back the latest task status for
-  // each task in 'statuses', if possible. Tasks that are no longer
-  // known will result in a TASK_LOST update. If statuses is empty,
-  // then the master will send the latest status for each task
-  // currently known.
-  message Reconcile {
-    repeated TaskStatus statuses = 1; // Should be non-terminal only.
-  }
-```
+    // Allows the framework to query the status for non-terminal tasks.
+    // This causes the master to send back the latest task status for
+    // each task in 'statuses', if possible. Tasks that are no longer
+    // known will result in a TASK_LOST update. If statuses is empty,
+    // then the master will send the latest status for each task
+    // currently known.
+    message Reconcile {
+      repeated TaskStatus statuses = 1; // Should be non-terminal only.
+    }
+
 
 Currently, the master will only examine two fields in `TaskStatus`:
 

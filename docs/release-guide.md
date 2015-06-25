@@ -27,22 +27,21 @@ This guide describes the process of doing an official release of Mesos.
    you can get from running `mvn --encrypt-password` (NOTE: you may
    need to first generate a [master
    password](http://maven.apache.org/guides/mini/guide-encryption.html).
-```
-<settings>
-  <servers>
-    <server>
-      <id>apache.snapshots.https</id>
-      <username>APACHE USERNAME</username>
-      <password>APACHE ENCRYPTED PASSWORD</password>
-    </server>
-    <server>
-      <id>apache.releases.https</id>
-      <username>APACHE USERNAME</username>
-      <password>APACHE ENCRYPTED PASSWORD</password>
-    </server>
-  </servers>
-</settings>
-```
+
+        <settings>
+          <servers>
+            <server>
+              <id>apache.snapshots.https</id>
+              <username>APACHE USERNAME</username>
+              <password>APACHE ENCRYPTED PASSWORD</password>
+            </server>
+            <server>
+              <id>apache.releases.https</id>
+              <username>APACHE USERNAME</username>
+              <password>APACHE ENCRYPTED PASSWORD</password>
+            </server>
+          </servers>
+        </settings>
 
 6. Use `gpg-agent` to avoid typing your passphrase repeatedly.
 
