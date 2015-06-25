@@ -58,7 +58,7 @@ set the HOME environment variable pointing to the sandbox so docker cli will aut
 
 ## CommandInfo to run Docker images
 
-A docker image currently supports having a entrypoint and/or a default command.
+A docker image currently supports having an entrypoint and/or a default command.
 
 To run a docker image with the default command (ie: docker run image), the CommandInfo's value must not be set. If the value is set then it will override the default command.
 
