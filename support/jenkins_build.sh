@@ -53,7 +53,7 @@ case $OS in
     # Install dependencies.
     append_dockerfile "RUN apt-get update"
     append_dockerfile "RUN apt-get -y install build-essential clang git maven autoconf libtool"
-    append_dockerfile "RUN apt-get -y install openjdk-7-jdk python-dev python-boto libcurl4-nss-dev libsasl2-dev libapr1-dev libsvn-dev"
+    append_dockerfile "RUN apt-get -y install openjdk-7-jdk python-dev python-boto libcurl4-openssl-dev libsasl2-dev libapr1-dev libsvn-dev"
 
     # Add an unpriviliged user.
     append_dockerfile "RUN adduser --disabled-password --gecos '' mesos"
