@@ -118,7 +118,7 @@ private:
   evconnlistener* listener;
 
   // Protects the following instance variables.
-  std::atomic_flag lock = ATOMIC_LOCK_INIT;
+  std::atomic_flag lock = ATOMIC_FLAG_INIT;
   Owned<RecvRequest> recv_request;
   Owned<SendRequest> send_request;
   Owned<ConnectRequest> connect_request;
