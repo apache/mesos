@@ -434,6 +434,17 @@ void initialize()
     EXIT(EXIT_FAILURE) << "Could not set ciphers: " << ssl_flags->ciphers;
   }
 
+  // Clear all the protocol options. They will be reset if needed
+  // below. We do this because 'SSL_CTX_set_options' only augments, it
+  // does not do an overwrite.
+  SSL_CTX_clear_options(
+      ctx,
+      SSL_OP_NO_SSLv2 |
+      SSL_OP_NO_SSLv3 |
+      SSL_OP_NO_TLSv1 |
+      SSL_OP_NO_TLSv1_1 |
+      SSL_OP_NO_TLSv1_2);
+
   // Use server preference for cipher.
   long ssl_options = SSL_OP_CIPHER_SERVER_PREFERENCE;
   // Disable SSLv2.
