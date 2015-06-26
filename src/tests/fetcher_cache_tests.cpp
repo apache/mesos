@@ -1086,7 +1086,9 @@ TEST_F(FetcherCacheHttpTest, HttpMixed)
 
 // Tests slave recovery of the fetcher cache. The cache must be
 // wiped clean on recovery, causing renewed downloads.
-TEST_F(FetcherCacheHttpTest, HttpCachedRecovery)
+// TODO(bernd-mesos): Debug flaky behavior reported in MESOS-2871,
+// then reenable this test.
+TEST_F(FetcherCacheHttpTest, DISABLED_HttpCachedRecovery)
 {
   startSlave();
   driver->start();
