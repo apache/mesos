@@ -920,7 +920,8 @@ message TaskStatus {
   // driver implicitly acknowledge (default).
   //
   // TODO(bmahler): This is currently overwritten in the scheduler
-  // driver, even if executors set this.
+  // driver and executor driver, but executors will need to set this
+  // to a valid RFC-4122 UUID if using the HTTP API.
   optional bytes uuid = 11;
 
   // Describes whether the task has been determined to be healthy

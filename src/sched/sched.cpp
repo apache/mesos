@@ -71,6 +71,8 @@
 
 #include "authentication/cram_md5/authenticatee.hpp"
 
+#include "common/protobuf_utils.hpp"
+
 #include "local/flags.hpp"
 #include "local/local.hpp"
 
@@ -690,16 +692,19 @@ protected:
 
     TaskStatus status = update.status();
 
-    // If the update is driver-generated or master-generated, it
-    // does not require acknowledgement and so we unset the 'uuid'
-    // field of TaskStatus. Otherwise, we overwrite the field to
-    // ensure that a 0.22.0 scheduler driver supports explicit
-    // acknowledgements, even if running against a 0.21.0 cluster.
+    // If the update does not have a 'uuid', it does not need
+    // acknowledging. However, prior to 0.23.0, the update uuid
+    // was required and always set. In 0.24.0, we can rely on the
+    // update uuid check here, until then we must still check for
+    // this being sent from the driver (from == UPID()) or from
+    // the master (pid == UPID()).
     //
-    // TODO(bmahler): Update master and slave to ensure that 'uuid' is
-    // set accurately by the time it reaches the scheduler driver.
-    // This will be required for pure bindings.
-    if (from == UPID() || pid == UPID()) {
+    // TODO(bmahler): For the HTTP API, we will have to update the
+    // master and slave to ensure the 'uuid' in TaskStatus is set
+    // correctly.
+    if (!update.has_uuid()) {
+      status.clear_uuid();
+    } else if (from == UPID() || pid == UPID()) {
       status.clear_uuid();
     } else {
       status.set_uuid(update.uuid());
@@ -724,8 +729,8 @@ protected:
         return;
       }
 
-      // Don't acknowledge updates created by the driver or master.
-      if (from != UPID() && pid != UPID()) {
+      // See above for when we don't need to acknowledge.
+      if (update.has_uuid() && from != UPID() && pid != UPID()) {
         // We drop updates while we're disconnected.
         CHECK(connected);
         CHECK_SOME(master);
@@ -915,16 +920,14 @@ protected:
       // master failover etc). The correct way for schedulers to deal
       // with this situation is to use 'reconcileTasks()'.
       foreach (const TaskInfo& task, tasks) {
-        StatusUpdate update;
-        update.mutable_framework_id()->MergeFrom(framework.id());
-        TaskStatus* status = update.mutable_status();
-        status->mutable_task_id()->MergeFrom(task.task_id());
-        status->set_state(TASK_LOST);
-        status->set_source(TaskStatus::SOURCE_MASTER);
-        status->set_reason(TaskStatus::REASON_MASTER_DISCONNECTED);
-        status->set_message("Master Disconnected");
-        update.set_timestamp(Clock::now().secs());
-        update.set_uuid(UUID::random().toBytes());
+        StatusUpdate update = protobuf::createStatusUpdate(
+            framework.id(),
+            None(),
+            task.task_id(),
+            TASK_LOST,
+            TaskStatus::SOURCE_MASTER,
+            "Master disconnected",
+            TaskStatus::REASON_MASTER_DISCONNECTED);
 
         statusUpdate(UPID(), update, UPID());
       }
@@ -996,16 +999,14 @@ protected:
         }
 
         foreach (const TaskInfo& task, operation.launch().task_infos()) {
-          StatusUpdate update;
-          update.mutable_framework_id()->MergeFrom(framework.id());
-          TaskStatus* status = update.mutable_status();
-          status->mutable_task_id()->MergeFrom(task.task_id());
-          status->set_state(TASK_LOST);
-          status->set_source(TaskStatus::SOURCE_MASTER);
-          status->set_reason(TaskStatus::REASON_MASTER_DISCONNECTED);
-          status->set_message("Master Disconnected");
-          update.set_timestamp(Clock::now().secs());
-          update.set_uuid(UUID::random().toBytes());
+          StatusUpdate update = protobuf::createStatusUpdate(
+              framework.id(),
+              None(),
+              task.task_id(),
+              TASK_LOST,
+              TaskStatus::SOURCE_MASTER,
+              "Master disconnected",
+              TaskStatus::REASON_MASTER_DISCONNECTED);
 
           statusUpdate(UPID(), update, UPID());
         }

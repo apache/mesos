@@ -71,7 +71,11 @@ message StatusUpdate {
   optional SlaveID slave_id = 3;
   required TaskStatus status = 4;
   required double timestamp = 5;
-  required bytes uuid = 6;
+
+  // This is being deprecated in favor of TaskStatus.uuid. In 0.23.0,
+  // we set the TaskStatus 'uuid' in the executor driver for all
+  // retryable status updates.
+  optional bytes uuid = 6;
 
   // This corresponds to the latest state of the task according to the
   // slave. Note that this state might be different than the state in

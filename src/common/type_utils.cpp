@@ -388,19 +388,18 @@ std::ostream& operator << (
     std::ostream& stream,
     const StatusUpdate& update)
 {
-  stream
-    << update.status().state()
-    << " (UUID: " << UUID::fromBytes(update.uuid())
-    << ") for task " << update.status().task_id();
+  stream << update.status().state()
+         << (update.has_uuid()
+             ? " (UUID: " + stringify(UUID::fromBytes(update.uuid()))
+             : "")
+         << ") for task " << update.status().task_id();
 
   if (update.status().has_healthy()) {
-    stream
-      << " in health state "
-      << (update.status().healthy() ? "healthy" : "unhealthy");
+    stream << " in health state "
+           << (update.status().healthy() ? "healthy" : "unhealthy");
   }
 
-  return stream
-    << " of framework " << update.framework_id();
+  return stream << " of framework " << update.framework_id();
 }
 
 } // namespace internal {

@@ -4990,9 +4990,13 @@ void Master::updateTask(Task* task, const StatusUpdate& update)
     task->set_state(status.state());
   }
 
-  // Set the status update state and uuid for the task.
-  task->set_status_update_state(status.state());
-  task->set_status_update_uuid(update.uuid());
+  // Set the status update state and uuid for the task. Note that
+  // master-generated updates are terminal and do not have a uuid
+  // (in which case the master also calls removeTask()).
+  if (update.has_uuid()) {
+    task->set_status_update_state(status.state());
+    task->set_status_update_uuid(update.uuid());
+  }
 
   // TODO(brenden) Consider wiping the `message` field?
   if (task->statuses_size() > 0 &&

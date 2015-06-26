@@ -2663,6 +2663,15 @@ void Slave::statusUpdate(StatusUpdate update, const UPID& pid)
         state == RUNNING || state == TERMINATING)
     << state;
 
+  // TODO(bmahler): With the HTTP API, we must validate the UUID
+  // inside the TaskStatus. For now, we only care about the UUID
+  // inside the StatusUpdate, as the scheduler driver overwrites it.
+  if (!update.has_uuid()) {
+    LOG(WARNING) << "Ignoring status update " << update << " without 'uuid'";
+    metrics.invalid_status_updates++;
+    return;
+  }
+
   // Set the source before forwarding the status update.
   update.mutable_status()->set_source(
       pid == UPID() ? TaskStatus::SOURCE_SLAVE : TaskStatus::SOURCE_EXECUTOR);
@@ -2880,6 +2889,9 @@ void Slave::forward(StatusUpdate update)
       }
 
       if (task != NULL) {
+        CHECK(update.has_uuid())
+          << "Expecting updates without 'uuid' to have been rejected";
+
         // We set the status update state of the task here because in
         // steady state master updates the status update state of the
         // task when it receives this update. If the master fails over,
@@ -5119,6 +5131,9 @@ void Executor::recoverTask(const TaskState& state)
     if (protobuf::isTerminalState(update.status().state()) &&
         launchedTasks.contains(state.id)) {
       terminateTask(state.id, update.status());
+
+      CHECK(update.has_uuid())
+        << "Expecting updates without 'uuid' to have been rejected";
 
       // If the terminal update has been acknowledged, remove it.
       if (state.acks.contains(UUID::fromBytes(update.uuid()))) {

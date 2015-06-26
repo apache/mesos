@@ -711,6 +711,10 @@ Try<bool> StatusUpdateStream::update(const StatusUpdate& update)
     return Error(error.get());
   }
 
+  if (!update.has_uuid()) {
+    return Error("Status update is missing 'uuid'");
+  }
+
   // Check that this status update has not already been acknowledged.
   // This could happen in the rare case when the slave received the ACK
   // from the framework, died, but slave's ACK to the executor never made it!
