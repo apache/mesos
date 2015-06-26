@@ -389,7 +389,8 @@ void initialize()
         EXIT(EXIT_FAILURE) << "Could not load default CA file and/or directory";
       }
 
-      VLOG(2) << "Using default CA file and/or directory";
+      VLOG(2) << "Using default CA file '" << X509_get_default_cert_file()
+              << "' and/or directory '" << X509_get_default_cert_dir() << "'";
     }
 
     // Set SSL peer verification callback.
@@ -488,44 +489,46 @@ Try<Nothing> verify(const SSL* const ssl, const Option<string>& hostname)
       : Try<Nothing>(Nothing());
   }
 
-  int extcount = X509_get_ext_count(cert);
-  if (extcount <= 0) {
-    X509_free(cert);
-    return Error("X509_get_ext_count failed: " + stringify(extcount));
-  }
+  // From https://wiki.openssl.org/index.php/Hostname_validation.
+  // Check the Subject Alternate Name extension (SAN). This is useful
+  // for certificates that serve multiple physical hosts.
+  STACK_OF(GENERAL_NAME)* san_names =
+    reinterpret_cast<STACK_OF(GENERAL_NAME)*>(X509_get_ext_d2i(
+        reinterpret_cast<X509*>(cert),
+        NID_subject_alt_name,
+        NULL,
+        NULL));
 
-  for (int i = 0; i < extcount; i++) {
-    X509_EXTENSION* ext = X509_get_ext(cert, i);
+  if (san_names != NULL) {
+    int san_names_num = sk_GENERAL_NAME_num(san_names);
 
-    const string extstr =
-      OBJ_nid2sn(OBJ_obj2nid(X509_EXTENSION_get_object(ext)));
+    // Check each name within the extension.
+    for (int i = 0; i < san_names_num; i++) {
+      const GENERAL_NAME* current_name = sk_GENERAL_NAME_value(san_names, i);
 
-    if (extstr == "subjectAltName") {
-#if OPENSSL_VERSION_NUMBER <= 0x00909000L
-      X509V3_EXT_METHOD* method = X509V3_EXT_get(ext);
-#else
-      const X509V3_EXT_METHOD* method = X509V3_EXT_get(ext);
-#endif
-      if (method == NULL) {
-        break;
-      }
+      if (current_name->type == GEN_DNS) {
+        // Current name is a DNS name, let's check it.
+        const string dns_name =
+          reinterpret_cast<char*>(ASN1_STRING_data(current_name->d.dNSName));
 
-      const unsigned char* data = ext->value->data;
-
-      STACK_OF(CONF_VALUE)* values = method->i2v(
-          method,
-          method->d2i(NULL, &data, ext->value->length),
-          NULL);
-
-      for (int j = 0; j < sk_CONF_VALUE_num(values); j++) {
-        CONF_VALUE* value = sk_CONF_VALUE_value(values, j);
-        if ((strcmp(value->name, "DNS") == 0) &&
-            (value->value == hostname.get())) {
+        // Make sure there isn't an embedded NUL character in the DNS name.
+        const size_t length = ASN1_STRING_length(current_name->d.dNSName);
+        if (length != dns_name.length()) {
+          sk_GENERAL_NAME_pop_free(san_names, GENERAL_NAME_free);
           X509_free(cert);
-          return Nothing();
+          return Error(
+            "X509 certificate malformed: embedded NUL character in DNS name");
+        } else { // Compare expected hostname with the DNS name.
+          if (hostname.get() == dns_name) {
+            sk_GENERAL_NAME_pop_free(san_names, GENERAL_NAME_free);
+            X509_free(cert);
+            return Nothing();
+          }
         }
       }
     }
+
+    sk_GENERAL_NAME_pop_free(san_names, GENERAL_NAME_free);
   }
 
   // If we still haven't verified the hostname, try doing it via
