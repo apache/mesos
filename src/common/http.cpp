@@ -80,6 +80,18 @@ JSON::Object model(const Resources& resources)
 }
 
 
+JSON::Object model(const hashmap<string, Resources>& resourcesMap)
+{
+  JSON::Object object;
+
+  foreachpair (const string& key, const Resources& resources, resourcesMap) {
+    object.values[key] = model(resources);
+  }
+
+  return object;
+}
+
+
 JSON::Object model(const Attributes& attributes)
 {
   JSON::Object object;

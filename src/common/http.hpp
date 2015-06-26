@@ -23,6 +23,7 @@
 
 #include <mesos/mesos.hpp>
 
+#include <stout/hashmap.hpp>
 #include <stout/json.hpp>
 
 namespace mesos {
@@ -36,6 +37,7 @@ class Task;
 
 
 JSON::Object model(const Resources& resources);
+JSON::Object model(const hashmap<std::string, Resources>& resourcesMap);
 JSON::Object model(const Attributes& attributes);
 JSON::Object model(const CommandInfo& command);
 JSON::Object model(const ExecutorInfo& executorInfo);

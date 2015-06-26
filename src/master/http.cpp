@@ -231,9 +231,12 @@ JSON::Object summarize(const Slave& slave)
     object.values["reregistered_time"] = slave.reregisteredTime.get().secs();
   }
 
-  object.values["resources"] = model(slave.info.resources());
+  const Resources& totalResources = slave.totalResources;
+  object.values["resources"] = model(totalResources);
   object.values["used_resources"] = model(Resources::sum(slave.usedResources));
   object.values["offered_resources"] = model(slave.offeredResources);
+  object.values["reserved_resources"] = model(totalResources.reserved());
+  object.values["unreserved_resources"] = model(totalResources.unreserved());
 
   object.values["attributes"] = model(slave.info.attributes());
   object.values["active"] = slave.active;
