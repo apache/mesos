@@ -75,6 +75,11 @@ namespace network {
 Try<std::shared_ptr<Socket::Impl>> LibeventSSLSocketImpl::create(int s)
 {
   openssl::initialize();
+
+  if (!openssl::flags().enabled) {
+    return Error("SSL is disabled");
+  }
+
   auto socket = std::make_shared<LibeventSSLSocketImpl>(s);
   // See comment at 'initialize' declaration for why we call this.
   socket->initialize();
