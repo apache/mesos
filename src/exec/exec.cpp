@@ -499,17 +499,23 @@ protected:
     update->mutable_status()->MergeFrom(status);
     update->set_timestamp(Clock::now().secs());
     update->mutable_status()->set_timestamp(update->timestamp());
-    update->set_uuid(UUID::random().toBytes());
     message.set_pid(self());
 
-    // Incoming status update might come from an executor which has not set
-    // slave id in TaskStatus. Set/overwrite slave id.
+    // We overwrite the UUID for this status update, however with
+    // the HTTP API, the executor will have to generate a UUID
+    // (which needs to be validated to be RFC-4122 compliant).
+    UUID uuid = UUID::random();
+    update->set_uuid(uuid.toBytes());
+    update->mutable_status()->set_uuid(uuid.toBytes());
+
+    // We overwrite the SlaveID for this status update, however with
+    // the HTTP API, this can be overwritten by the slave instead.
     update->mutable_status()->mutable_slave_id()->CopyFrom(slaveId);
 
     VLOG(1) << "Executor sending status update " << *update;
 
     // Capture the status update.
-    updates[UUID::fromBytes(update->uuid())] = *update;
+    updates[uuid] = *update;
 
     send(slave, message);
   }
