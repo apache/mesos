@@ -38,6 +38,7 @@
 
 #include <stout/json.hpp>
 #include <stout/stringify.hpp>
+#include <stout/uuid.hpp>
 
 #include "common/protobuf_utils.hpp"
 
@@ -1133,6 +1134,7 @@ TEST_F(FaultToleranceTest, ForwardStatusUpdateUnknownExecutor)
       taskId,
       TASK_RUNNING,
       TaskStatus::SOURCE_SLAVE,
+      UUID::random(),
       "Dummy update");
 
   process::dispatch(slave.get(), &Slave::statusUpdate, statusUpdate2, UPID());
@@ -1694,7 +1696,8 @@ TEST_F(FaultToleranceTest, SplitBrainMasters)
       runningStatus.get().slave_id(),
       runningStatus.get().task_id(),
       TASK_LOST,
-      TaskStatus::SOURCE_SLAVE));
+      TaskStatus::SOURCE_SLAVE,
+      UUID::random()));
 
   // Spoof a message from a random master; this should be dropped by
   // the scheduler driver. Since this is delivered locally, it is

@@ -926,6 +926,7 @@ protected:
             task.task_id(),
             TASK_LOST,
             TaskStatus::SOURCE_MASTER,
+            None(),
             "Master disconnected",
             TaskStatus::REASON_MASTER_DISCONNECTED);
 
@@ -1005,6 +1006,7 @@ protected:
               task.task_id(),
               TASK_LOST,
               TaskStatus::SOURCE_MASTER,
+              None(),
               "Master disconnected",
               TaskStatus::REASON_MASTER_DISCONNECTED);
 

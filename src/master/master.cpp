@@ -2403,6 +2403,7 @@ void Master::accept(
             task.task_id(),
             TASK_LOST,
             TaskStatus::SOURCE_MASTER,
+            None(),
             "Task launched with invalid offers: " + error.get().message,
             TaskStatus::REASON_INVALID_OFFERS);
 
@@ -2514,6 +2515,7 @@ void Master::_accept(
             task.task_id(),
             TASK_LOST,
             TaskStatus::SOURCE_MASTER,
+            None(),
             slave == NULL ? "Slave removed" : "Slave disconnected",
             reason);
 
@@ -2688,6 +2690,7 @@ void Master::_accept(
                 task.task_id(),
                 TASK_ERROR,
                 TaskStatus::SOURCE_MASTER,
+                None(),
                 authorization.isFailed() ?
                     "Authorization failure: " + authorization.failure() :
                     "Not authorized to launch as user '" + user + "'",
@@ -2730,6 +2733,7 @@ void Master::_accept(
                 task_.task_id(),
                 TASK_ERROR,
                 TaskStatus::SOURCE_MASTER,
+                None(),
                 validationError.get().message,
                 TaskStatus::REASON_TASK_INVALID);
 
@@ -2870,6 +2874,7 @@ void Master::kill(Framework* framework, const scheduler::Call::Kill& kill)
         taskId,
         TASK_KILLED,
         TaskStatus::SOURCE_MASTER,
+        None(),
         "Killed pending task");
 
     forward(update, UPID(), framework);
@@ -3835,6 +3840,7 @@ void Master::_reconcileTasks(
           task.task_id(),
           TASK_STAGING,
           TaskStatus::SOURCE_MASTER,
+          None(),
           "Reconciliation: Latest task state",
           TaskStatus::REASON_RECONCILIATION);
 
@@ -3865,6 +3871,7 @@ void Master::_reconcileTasks(
           task->task_id(),
           state,
           TaskStatus::SOURCE_MASTER,
+          None(),
           "Reconciliation: Latest task state",
           TaskStatus::REASON_RECONCILIATION,
           executorId,
@@ -3920,6 +3927,7 @@ void Master::_reconcileTasks(
           task_.task_id(),
           TASK_STAGING,
           TaskStatus::SOURCE_MASTER,
+          None(),
           "Reconciliation: Latest task state",
           TaskStatus::REASON_RECONCILIATION);
     } else if (task != NULL) {
@@ -3938,6 +3946,7 @@ void Master::_reconcileTasks(
           task->task_id(),
           state,
           TaskStatus::SOURCE_MASTER,
+          None(),
           "Reconciliation: Latest task state",
           TaskStatus::REASON_RECONCILIATION,
           executorId,
@@ -3950,6 +3959,7 @@ void Master::_reconcileTasks(
           status.task_id(),
           TASK_LOST,
           TaskStatus::SOURCE_MASTER,
+          None(),
           "Reconciliation: Task is unknown to the slave",
           TaskStatus::REASON_RECONCILIATION);
     } else if (slaves.transitioning(slaveId)) {
@@ -3965,6 +3975,7 @@ void Master::_reconcileTasks(
           status.task_id(),
           TASK_LOST,
           TaskStatus::SOURCE_MASTER,
+          None(),
           "Reconciliation: Task is unknown",
           TaskStatus::REASON_RECONCILIATION);
     }
@@ -4339,6 +4350,7 @@ void Master::reconcile(
               task->task_id(),
               TASK_LOST,
               TaskStatus::SOURCE_MASTER,
+              None(),
               "Task is unknown to the slave",
               TaskStatus::REASON_TASK_UNKNOWN);
 
@@ -4600,6 +4612,7 @@ void Master::removeFramework(Framework* framework)
         task->task_id(),
         TASK_KILLED,
         TaskStatus::SOURCE_MASTER,
+        None(),
         "Framework " + framework->id().value() + " removed",
         TaskStatus::REASON_FRAMEWORK_REMOVED,
         (task->has_executor_id()
@@ -4695,6 +4708,7 @@ void Master::removeFramework(Slave* slave, Framework* framework)
         task->task_id(),
         TASK_LOST,
         TaskStatus::SOURCE_MASTER,
+        None(),
         "Slave " + slave->info.hostname() + " disconnected",
         TaskStatus::REASON_SLAVE_DISCONNECTED,
         (task->has_executor_id()
@@ -4834,6 +4848,7 @@ void Master::removeSlave(
           task->task_id(),
           TASK_LOST,
           TaskStatus::SOURCE_MASTER,
+          None(),
           "Slave " + slave->info.hostname() + " removed: " + message,
           TaskStatus::REASON_SLAVE_REMOVED,
           (task->has_executor_id() ?

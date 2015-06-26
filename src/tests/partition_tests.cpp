@@ -26,6 +26,7 @@
 #include <process/pid.hpp>
 
 #include <stout/try.hpp>
+#include <stout/uuid.hpp>
 
 #include "common/protobuf_utils.hpp"
 
@@ -389,7 +390,8 @@ TEST_F(PartitionTest, PartitionedSlaveStatusUpdates)
       slaveId,
       taskId,
       TASK_RUNNING,
-      TaskStatus::SOURCE_SLAVE);
+      TaskStatus::SOURCE_SLAVE,
+      UUID::random());
 
   StatusUpdateMessage message;
   message.mutable_update()->CopyFrom(update);

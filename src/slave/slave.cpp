@@ -61,6 +61,7 @@
 #include <stout/stringify.hpp>
 #include <stout/strings.hpp>
 #include <stout/try.hpp>
+#include <stout/uuid.hpp>
 #include <stout/utils.hpp>
 
 #ifdef __linux__
@@ -1041,6 +1042,7 @@ void Slave::reregistered(
             taskId,
             TASK_LOST,
             TaskStatus::SOURCE_SLAVE,
+            UUID::random(),
             "Reconciliation: task unknown to the slave",
             TaskStatus::REASON_RECONCILIATION);
 
@@ -1413,6 +1415,7 @@ void Slave::_runTask(
         task.task_id(),
         TASK_LOST,
         TaskStatus::SOURCE_SLAVE,
+        UUID::random(),
         "Could not launch the task because we failed to unschedule directories"
         " scheduled for gc",
         TaskStatus::REASON_GC_ERROR);
@@ -1454,7 +1457,8 @@ void Slave::_runTask(
           task.task_id(),
           TASK_LOST,
           TaskStatus::SOURCE_SLAVE,
-          "The checkpointed resources being used by the task are unknown to "
+          UUID::random(),
+         "The checkpointed resources being used by the task are unknown to "
           "the slave",
           TaskStatus::REASON_RESOURCES_UNKNOWN);
 
@@ -1486,6 +1490,7 @@ void Slave::_runTask(
             task.task_id(),
             TASK_LOST,
             TaskStatus::SOURCE_SLAVE,
+            UUID::random(),
             "The checkpointed resources being used by the executor are unknown "
             "to the slave",
             TaskStatus::REASON_RESOURCES_UNKNOWN,
@@ -1551,6 +1556,7 @@ void Slave::_runTask(
           task.task_id(),
           TASK_LOST,
           TaskStatus::SOURCE_SLAVE,
+          UUID::random(),
           "Executor terminating/terminated",
           TaskStatus::REASON_EXECUTOR_TERMINATED);
 
@@ -1797,6 +1803,7 @@ void Slave::killTask(
           taskId,
           TASK_KILLED,
           TaskStatus::SOURCE_SLAVE,
+          UUID::random(),
           "Task killed before it was launched");
       statusUpdate(update, UPID());
 
@@ -1824,6 +1831,7 @@ void Slave::killTask(
         taskId,
         TASK_LOST,
         TaskStatus::SOURCE_SLAVE,
+        UUID::random(),
         "Cannot find executor",
         TaskStatus::REASON_EXECUTOR_TERMINATED);
 
@@ -1840,6 +1848,7 @@ void Slave::killTask(
           taskId,
           TASK_KILLED,
           TaskStatus::SOURCE_SLAVE,
+          UUID::random(),
           "Unregistered executor",
           TaskStatus::REASON_EXECUTOR_UNREGISTERED,
           executor->id);
@@ -1887,6 +1896,7 @@ void Slave::killTask(
             taskId,
             TASK_KILLED,
             TaskStatus::SOURCE_SLAVE,
+            UUID::random(),
             "Task killed when it was queued",
             None(),
             executor->id);
@@ -2566,6 +2576,7 @@ void Slave::reregisterExecutor(
               task->task_id(),
               TASK_LOST,
               TaskStatus::SOURCE_SLAVE,
+              UUID::random(),
               "Task launched during slave restart",
               TaskStatus::REASON_SLAVE_RESTARTED,
               executorId);
@@ -4531,6 +4542,7 @@ void Slave::sendExecutorTerminatedStatusUpdate(
       taskId,
       taskState,
       TaskStatus::SOURCE_SLAVE,
+      UUID::random(),
       termination.isReady() ? termination.get().message()
                             : "Abnormal executor termination",
       reason,

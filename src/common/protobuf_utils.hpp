@@ -23,6 +23,7 @@
 
 #include <stout/ip.hpp>
 #include <stout/option.hpp>
+#include <stout/uuid.hpp>
 
 #include "messages/messages.hpp"
 
@@ -38,12 +39,18 @@ namespace protobuf {
 bool isTerminalState(const TaskState& state);
 
 
+// See TaskStatus for more information about these fields. Note
+// that the 'uuid' must be provided for updates that need
+// acknowledgement. Currently, all slave and executor generated
+// updates require acknowledgement, whereas master generated
+// and scheduler driver generated updates do not.
 StatusUpdate createStatusUpdate(
     const FrameworkID& frameworkId,
     const Option<SlaveID>& slaveId,
     const TaskID& taskId,
     const TaskState& state,
     const TaskStatus::Source& source,
+    const Option<UUID>& uuid,
     const std::string& message = "",
     const Option<TaskStatus::Reason>& reason = None(),
     const Option<ExecutorID>& executorId = None(),

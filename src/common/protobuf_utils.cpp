@@ -49,6 +49,7 @@ StatusUpdate createStatusUpdate(
     const TaskID& taskId,
     const TaskState& state,
     const TaskStatus::Source& source,
+    const Option<UUID>& uuid,
     const string& message = "",
     const Option<TaskStatus::Reason>& reason = None(),
     const Option<ExecutorID>& executorId = None(),
@@ -57,7 +58,6 @@ StatusUpdate createStatusUpdate(
   StatusUpdate update;
 
   update.set_timestamp(process::Clock::now().secs());
-  update.set_uuid(UUID::random().toBytes());
   update.mutable_framework_id()->MergeFrom(frameworkId);
 
   if (slaveId.isSome()) {
@@ -79,6 +79,11 @@ StatusUpdate createStatusUpdate(
   status->set_source(source);
   status->set_message(message);
   status->set_timestamp(update.timestamp());
+
+  if (uuid.isSome()) {
+    update.set_uuid(uuid.get().toBytes());
+    status->set_uuid(uuid.get().toBytes());
+  }
 
   if (reason.isSome()) {
     status->set_reason(reason.get());
