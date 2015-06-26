@@ -151,18 +151,18 @@ TEST(HTTP, ModelResources)
 
 
 // This test verifies that ResourcesMap model are divided by keys.
-TEST(HTTP, ModelResourcesMap)
+TEST(HTTP, ModelRoleResources)
 {
   Resources fooResources = Resources::parse(
       "cpus(foo):1;ports(foo):[1-10]").get();
   Resources barResources = Resources::parse(
       "mem(bar):512;disk(bar):1024").get();
 
-  hashmap<std::string, Resources> resourcesMap;
-  resourcesMap["foo"] = fooResources;
-  resourcesMap["bar"] = barResources;
+  hashmap<std::string, Resources> roleResources;
+  roleResources["foo"] = fooResources;
+  roleResources["bar"] = barResources;
 
-  JSON::Value object = model(resourcesMap);
+  JSON::Value object = model(roleResources);
 
   Try<JSON::Value> expected = JSON::parse(
       "{"
