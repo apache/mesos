@@ -914,8 +914,6 @@ protected:
       // sends it but the master never receives it (message lost,
       // master failover etc). The correct way for schedulers to deal
       // with this situation is to use 'reconcileTasks()'.
-      // TODO(vinod): Kill this optimization in 0.22.0, to give
-      // frameworks time to implement reconciliation.
       foreach (const TaskInfo& task, tasks) {
         StatusUpdate update;
         update.mutable_framework_id()->MergeFrom(framework.id());
@@ -992,8 +990,6 @@ protected:
 
       // NOTE: Reply to the framework with TASK_LOST messages for each
       // task launch. See details from notes in launchTasks.
-      // TODO(vinod): Kill this optimization in 0.22.0, to give
-      // frameworks time to implement reconciliation.
       foreach (const Offer::Operation& operation, operations) {
         if (operation.type() != Offer::Operation::LAUNCH) {
           continue;
