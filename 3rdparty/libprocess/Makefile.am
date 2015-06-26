@@ -66,7 +66,9 @@ if ENABLE_SSL
 libprocess_la_SOURCES +=	\
     src/libevent_ssl_socket.cpp	\
     src/openssl.cpp		\
-    src/openssl.hpp
+    src/openssl.hpp		\
+    src/openssl_util.cpp	\
+    src/openssl_util.hpp
 endif
 
 libprocess_la_CPPFLAGS =		\
