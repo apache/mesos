@@ -1,6 +1,8 @@
+#include <algorithm>
+#include <string>
+
 #include <gmock/gmock.h>
 
-#include <string>
 #include <stout/gtest.hpp>
 #include <stout/none.hpp>
 #include <stout/option.hpp>

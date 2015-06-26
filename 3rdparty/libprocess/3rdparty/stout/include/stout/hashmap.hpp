@@ -14,13 +14,16 @@
 #ifndef __STOUT_HASHMAP_HPP__
 #define __STOUT_HASHMAP_HPP__
 
+#include <functional>
+#include <list>
+#include <map>
 #include <utility>
 
 #include <boost/get_pointer.hpp>
 #include <boost/unordered_map.hpp>
 
-#include "hashset.hpp"
 #include "foreach.hpp"
+#include "hashset.hpp"
 #include "none.hpp"
 #include "option.hpp"
 

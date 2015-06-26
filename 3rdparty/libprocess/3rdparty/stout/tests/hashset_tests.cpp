@@ -1,10 +1,10 @@
-#include <gtest/gtest.h>
-
-#include <gmock/gmock.h>
-
 #include <string>
 
 #include <stout/hashset.hpp>
+
+#include <gtest/gtest.h>
+
+#include <gmock/gmock.h>
 
 using std::string;
 

@@ -14,10 +14,12 @@
 #ifndef __STOUT_FLAGS_FLAGS_HPP__
 #define __STOUT_FLAGS_FLAGS_HPP__
 
+#include <algorithm>
 #include <map>
 #include <ostream>
 #include <string>
 #include <typeinfo> // For typeid.
+#include <vector>
 
 #include <stout/error.hpp>
 #include <stout/exit.hpp>

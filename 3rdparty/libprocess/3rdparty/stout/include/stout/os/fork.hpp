@@ -25,6 +25,7 @@
 #include <memory>
 #include <set>
 #include <string>
+#include <vector>
 
 #include <stout/abort.hpp>
 #include <stout/error.hpp>

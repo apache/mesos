@@ -14,6 +14,8 @@
 #ifndef __STOUT_UTILS_HPP__
 #define __STOUT_UTILS_HPP__
 
+#include <algorithm>
+
 namespace utils {
 
 template <typename T>

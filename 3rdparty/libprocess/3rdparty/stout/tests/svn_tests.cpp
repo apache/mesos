@@ -12,10 +12,10 @@
  * limitations under the License.
  */
 
-#include <gtest/gtest.h>
-
 #include <cstdlib> // For rand().
 #include <string>
+
+#include <gtest/gtest.h>
 
 #include <stout/bytes.hpp>
 #include <stout/gtest.hpp>

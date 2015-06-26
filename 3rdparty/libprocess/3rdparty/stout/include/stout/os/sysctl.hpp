@@ -19,12 +19,12 @@
 #error "stout/os/sysctl.hpp is only available on OS X."
 #endif
 
-#include <string>
-#include <vector>
-
+#include <sys/sysctl.h>
 #include <sys/time.h>
 #include <sys/types.h>
-#include <sys/sysctl.h>
+
+#include <string>
+#include <vector>
 
 #include <stout/error.hpp>
 #include <stout/none.hpp>

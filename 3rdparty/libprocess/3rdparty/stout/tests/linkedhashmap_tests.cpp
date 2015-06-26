@@ -1,9 +1,9 @@
 #include <stdint.h>
 
-#include <gtest/gtest.h>
-
 #include <list>
 #include <string>
+
+#include <gtest/gtest.h>
 
 #include <stout/gtest.hpp>
 #include <stout/linkedhashmap.hpp>

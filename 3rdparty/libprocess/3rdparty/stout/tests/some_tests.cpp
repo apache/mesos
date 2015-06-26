@@ -1,7 +1,7 @@
-#include <gtest/gtest.h>
-
 #include <map>
 #include <string>
+
+#include <gtest/gtest.h>
 
 #include <stout/gtest.hpp>
 #include <stout/none.hpp>

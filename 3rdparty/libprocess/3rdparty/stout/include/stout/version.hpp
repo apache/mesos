@@ -15,6 +15,8 @@
 #define __STOUT_VERSION_HPP__
 
 #include <ostream>
+#include <string>
+#include <vector>
 
 #include <stout/error.hpp>
 #include <stout/numify.hpp>

@@ -20,6 +20,8 @@
 #include <string.h>
 #include <unistd.h>
 
+#include <string>
+
 // Signal safe abort which prints a message.
 #define __STRINGIZE(x) #x
 #define _STRINGIZE(x) __STRINGIZE(x)

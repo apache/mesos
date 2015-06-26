@@ -14,14 +14,15 @@
 #ifndef __STOUT_CACHE_HPP__
 #define __STOUT_CACHE_HPP__
 
-#include <glog/logging.h>
-
 #include <functional>
 #include <iostream>
 #include <list>
 #include <map>
+#include <utility>
 
 #include <boost/unordered_map.hpp>
+
+#include <glog/logging.h>
 
 #include "none.hpp"
 #include "option.hpp"

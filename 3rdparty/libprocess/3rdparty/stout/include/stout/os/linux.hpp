@@ -24,6 +24,7 @@
 #include <list>
 #include <queue>
 #include <set>
+#include <string>
 
 #include <stout/error.hpp>
 #include <stout/foreach.hpp>

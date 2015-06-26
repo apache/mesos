@@ -1,3 +1,5 @@
+#include <set>
+
 #include <gtest/gtest.h>
 
 #include <stout/set.hpp>

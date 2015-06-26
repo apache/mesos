@@ -17,6 +17,8 @@
 #include <stdio.h>
 #include <unistd.h>
 
+#include <string>
+
 #ifdef __sun
 #include <fstream>
 #endif // __sun

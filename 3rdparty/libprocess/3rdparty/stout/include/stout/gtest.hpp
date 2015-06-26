@@ -14,9 +14,9 @@
 #ifndef __STOUT_GTEST_HPP__
 #define __STOUT_GTEST_HPP__
 
-#include <gtest/gtest.h>
-
 #include <string>
+
+#include <gtest/gtest.h>
 
 #include <stout/option.hpp>
 #include <stout/result.hpp>

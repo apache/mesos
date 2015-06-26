@@ -21,8 +21,8 @@
 #include <type_traits> // For 'is_pod'.
 
 #include "error.hpp"
-#include "try.hpp"
 #include "stringify.hpp"
+#include "try.hpp"
 
 
 // The 'strings::format' functions produces strings based on the

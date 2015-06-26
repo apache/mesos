@@ -20,6 +20,7 @@
 
 #include <iomanip>
 #include <iostream>
+#include <limits>
 #include <string>
 
 #include "error.hpp"

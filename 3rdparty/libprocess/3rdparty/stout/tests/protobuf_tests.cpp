@@ -1,8 +1,8 @@
+#include <string>
+
 #include <gtest/gtest.h>
 
 #include <gmock/gmock.h>
-
-#include <string>
 
 #include <stout/gtest.hpp>
 #include <stout/json.hpp>

@@ -26,6 +26,8 @@
 
 #include <queue>
 #include <set>
+#include <string>
+#include <vector>
 
 #include <stout/error.hpp>
 #include <stout/none.hpp>

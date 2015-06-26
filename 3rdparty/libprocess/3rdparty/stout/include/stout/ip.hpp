@@ -14,14 +14,14 @@
 #ifndef __STOUT_IP_HPP__
 #define __STOUT_IP_HPP__
 
+#include <arpa/inet.h>
+
 #if defined(__linux__) || defined(__APPLE__)
 #include <ifaddrs.h>
 #endif
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
-
-#include <arpa/inet.h>
 
 #ifdef __APPLE__
 #include <net/if.h>
@@ -36,6 +36,8 @@
 
 #include <iostream>
 #include <string>
+#include <vector>
+
 
 #include "abort.hpp"
 #include "bits.hpp"

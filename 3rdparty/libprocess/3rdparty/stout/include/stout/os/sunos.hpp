@@ -19,11 +19,13 @@
 #error "stout/os/sunos.hpp is only available on Solaris systems."
 #endif
 
-#include <sys/types.h> // For pid_t.
 #include <fcntl.h>
 #include <procfs.h>
+#include <sys/types.h> // For pid_t.
 
+#include <list>
 #include <set>
+#include <string>
 
 #include <stout/error.hpp>
 #include <stout/foreach.hpp>
@@ -31,8 +33,8 @@
 #include <stout/result.hpp>
 #include <stout/try.hpp>
 
-#include <stout/os/process.hpp>
 #include <stout/os/open.hpp>
+#include <stout/os/process.hpp>
 
 namespace os {
 

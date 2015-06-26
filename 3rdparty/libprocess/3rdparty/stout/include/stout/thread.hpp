@@ -18,6 +18,8 @@
 #include <pthread.h>
 #include <stdio.h> // For perror.
 
+#include <string>
+
 #include <stout/abort.hpp>
 
 template <typename T>

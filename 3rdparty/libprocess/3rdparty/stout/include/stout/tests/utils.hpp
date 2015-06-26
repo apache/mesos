@@ -15,9 +15,9 @@
 #ifndef __STOUT_TESTS_UTILS_HPP__
 #define __STOUT_TESTS_UTILS_HPP__
 
-#include <gtest/gtest.h>
-
 #include <string>
+
+#include <gtest/gtest.h>
 
 #include <stout/gtest.hpp>
 #include <stout/os.hpp>

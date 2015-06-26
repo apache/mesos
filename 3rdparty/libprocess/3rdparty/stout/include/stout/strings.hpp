@@ -15,9 +15,9 @@
 #define __STOUT_STRINGS_HPP__
 
 #include <algorithm>
+#include <map>
 #include <sstream>
 #include <string>
-#include <map>
 #include <vector>
 
 #include "foreach.hpp"

@@ -1,5 +1,6 @@
 #include <ctype.h>
 
+#include <map>
 #include <string>
 
 #include <gmock/gmock.h>

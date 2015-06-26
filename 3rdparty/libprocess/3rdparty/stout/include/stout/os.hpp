@@ -55,8 +55,10 @@
 
 #include <list>
 #include <map>
+#include <queue>
 #include <set>
 #include <string>
+#include <vector>
 
 #include <stout/bytes.hpp>
 #include <stout/duration.hpp>

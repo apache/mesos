@@ -1,5 +1,7 @@
 #include <errno.h>
 
+#include <string>
+
 #include <gmock/gmock.h>
 
 #include <gtest/gtest.h>

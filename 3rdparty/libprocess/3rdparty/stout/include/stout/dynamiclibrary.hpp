@@ -16,6 +16,8 @@
 
 #include <dlfcn.h>
 
+#include <string>
+
 #include <stout/nothing.hpp>
 #include <stout/option.hpp>
 #include <stout/try.hpp>

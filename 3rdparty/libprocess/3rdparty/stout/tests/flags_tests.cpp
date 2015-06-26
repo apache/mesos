@@ -1,7 +1,7 @@
-#include <gmock/gmock.h>
-
 #include <map>
 #include <string>
+
+#include <gmock/gmock.h>
 
 #include <stout/duration.hpp>
 #include <stout/flags.hpp>

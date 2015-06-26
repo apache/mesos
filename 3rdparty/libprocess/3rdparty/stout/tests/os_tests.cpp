@@ -1,7 +1,3 @@
-#include <gmock/gmock.h>
-
-#include <gtest/gtest.h>
-
 #include <stdint.h>
 
 #ifndef __linux__
@@ -14,6 +10,11 @@
 #include <set>
 #include <sstream>
 #include <string>
+#include <vector>
+
+#include <gmock/gmock.h>
+
+#include <gtest/gtest.h>
 
 #include <stout/duration.hpp>
 #include <stout/foreach.hpp>

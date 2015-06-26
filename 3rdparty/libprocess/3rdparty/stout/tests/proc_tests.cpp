@@ -1,11 +1,12 @@
-#include <iostream>
-
 #include <pthread.h>
 #include <unistd.h> // For getpid, getppid.
 
-#include <gmock/gmock.h>
-
+#include <iostream>
+#include <list>
 #include <set>
+#include <string>
+
+#include <gmock/gmock.h>
 
 #include <stout/abort.hpp>
 #include <stout/gtest.hpp>

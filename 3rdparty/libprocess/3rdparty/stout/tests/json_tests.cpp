@@ -1,12 +1,12 @@
-#include <gtest/gtest.h>
-
-#include <gmock/gmock.h>
-
 #include <stdint.h>
 
 #include <sys/stat.h>
 
 #include <string>
+
+#include <gtest/gtest.h>
+
+#include <gmock/gmock.h>
 
 #include <stout/gtest.hpp>
 #include <stout/json.hpp>

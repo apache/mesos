@@ -1,10 +1,11 @@
+#include <map>
+#include <set>
+#include <string>
+#include <vector>
+
 #include <gtest/gtest.h>
 
 #include <gmock/gmock.h>
-
-#include <map>
-#include <string>
-#include <vector>
 
 #include <stout/format.hpp>
 #include <stout/gtest.hpp>

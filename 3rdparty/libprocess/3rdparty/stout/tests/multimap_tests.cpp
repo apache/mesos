@@ -1,13 +1,13 @@
 #include <stdint.h>
 
-#include <gtest/gtest.h>
-
 #include <set>
 #include <string>
 
+#include <gtest/gtest.h>
+
 #include <stout/foreach.hpp>
-#include <stout/multimap.hpp>
 #include <stout/multihashmap.hpp>
+#include <stout/multimap.hpp>
 
 using std::set;
 using std::string;

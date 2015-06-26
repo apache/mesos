@@ -21,6 +21,11 @@
 
 #include <sys/types.h>
 
+#include <string>
+#include <vector>
+
+#include <boost/lexical_cast.hpp>
+
 #include <glog/logging.h>
 
 #include <google/protobuf/descriptor.h>
@@ -28,10 +33,6 @@
 #include <google/protobuf/repeated_field.h>
 
 #include <google/protobuf/io/zero_copy_stream_impl.h>
-
-#include <string>
-
-#include <boost/lexical_cast.hpp>
 
 #include "abort.hpp"
 #include "error.hpp"
