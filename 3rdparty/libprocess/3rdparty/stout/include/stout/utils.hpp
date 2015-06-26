@@ -21,6 +21,13 @@ namespace utils {
 template <typename T>
 T copy(const T& t) { return t; }
 
+
+template <typename T, size_t N>
+static constexpr size_t arraySize(T(&)[N])
+{
+  return N;
+}
+
 } // namespace utils {
 
 #endif // __STOUT_UTILS_HPP__

@@ -59,7 +59,7 @@ public:
   virtual Try<Nothing> load(
       const Option<std::string>& prefix,
       int argc,
-      char** argv,
+      const char* const* argv,
       bool unknowns = false,
       bool duplicates = false);
 
@@ -551,7 +551,7 @@ inline Try<Nothing> FlagsBase::load(const std::string& prefix)
 inline Try<Nothing> FlagsBase::load(
     const Option<std::string>& prefix,
     int argc,
-    char** argv,
+    const char* const *argv,
     bool unknowns,
     bool duplicates)
 {

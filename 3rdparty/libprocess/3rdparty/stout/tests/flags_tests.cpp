@@ -14,6 +14,7 @@
 #include <stout/os.hpp>
 #include <stout/path.hpp>
 #include <stout/some.hpp>
+#include <stout/utils.hpp>
 
 #include <stout/tests/utils.hpp>
 
@@ -24,6 +25,7 @@ using std::endl;
 using std::string;
 using std::map;
 
+using utils::arraySize;
 
 // Just used to test that the default implementation
 // of --help and 'usage()' works as intended.
@@ -71,13 +73,13 @@ TEST(FlagsTest, Load)
 {
   TestFlags flags;
 
-  map<string, Option<string> > values;
-
-  values["name1"] = Some("billy joel");
-  values["name2"] = Some("43");
-  values["name3"] = Some("false");
-  values["no-name4"] = None();
-  values["name5"] = None();
+  const map<string, Option<string> > values = {
+    {"name1", Some("billy joel")},
+    {"name2", Some("43")},
+    {"name3", Some("false")},
+    {"no-name4", None()},
+    {"name5", None()}
+  };
 
   flags.load(values);
 
@@ -114,10 +116,10 @@ TEST(FlagsTest, Add)
             "name8",
             "Also set name8");
 
-  map<string, Option<string> > values;
-
-  values["name6"] = Some("ben folds");
-  values["no-name7"] = None();
+  const map<string, Option<string> > values = {
+    {"name6", Some("ben folds")},
+    {"no-name7", None()}
+  };
 
   flags.load(values);
 
@@ -134,13 +136,13 @@ TEST(FlagsTest, Flags)
 {
   TestFlags flags;
 
-  map<string, Option<string> > values;
-
-  values["name1"] = Some("billy joel");
-  values["name2"] = Some("43");
-  values["name3"] = Some("false");
-  values["no-name4"] = None();
-  values["name5"] = None();
+  const map<string, Option<string> > values = {
+    {"name1", Some("billy joel")},
+    {"name2", Some("43")},
+    {"name3", Some("false")},
+    {"no-name4", None()},
+    {"name5", None()}
+  };
 
   flags.load(values);
 
@@ -187,17 +189,16 @@ TEST(FlagsTest, LoadFromCommandLine)
 {
   TestFlags flags;
 
-  int argc = 6;
-  char* argv[argc];
+  const char* argv[] = {
+    "/path/to/program",
+    "--name1=billy joel",
+    "--name2=43",
+    "--no-name3",
+    "--no-name4",
+    "--name5"
+  };
 
-  argv[0] = (char*) "/path/to/program";
-  argv[1] = (char*) "--name1=billy joel";
-  argv[2] = (char*) "--name2=43";
-  argv[3] = (char*) "--no-name3";
-  argv[4] = (char*) "--no-name4";
-  argv[5] = (char*) "--name5";
-
-  Try<Nothing> load = flags.load("FLAGSTEST_", argc, argv);
+  Try<Nothing> load = flags.load("FLAGSTEST_", arraySize(argv), argv);
   EXPECT_SOME(load);
 
   EXPECT_EQ("billy joel", flags.name1);
@@ -214,22 +215,21 @@ TEST(FlagsTest, LoadFromCommandLineWithNonFlags)
 {
   TestFlags flags;
 
-  int argc = 11;
-  char* argv[argc];
+  const char* argv[] = {
+    "/path/to/program",
+    "more",
+    "--name1=billy joel",
+    "stuff",
+    "at",
+    "--name2=43",
+    "--no-name3",
+    "--no-name4",
+    "--name5",
+    "the",
+    "end"
+  };
 
-  argv[0] = (char*) "/path/to/program";
-  argv[1] = (char*) "more";
-  argv[2] = (char*) "--name1=billy joel";
-  argv[3] = (char*) "stuff";
-  argv[4] = (char*) "at";
-  argv[5] = (char*) "--name2=43";
-  argv[6] = (char*) "--no-name3";
-  argv[7] = (char*) "--no-name4";
-  argv[8] = (char*) "--name5";
-  argv[9] = (char*) "the";
-  argv[10] = (char*) "end";
-
-  Try<Nothing> load = flags.load("FLAGSTEST_", argc, argv);
+  Try<Nothing> load = flags.load("FLAGSTEST_", arraySize(argv), argv);
   EXPECT_SOME(load);
 
   EXPECT_EQ("billy joel", flags.name1);
@@ -246,22 +246,21 @@ TEST(FlagsTest, LoadFromCommandLineWithDashDash)
 {
   TestFlags flags;
 
-  int argc = 11;
-  char* argv[argc];
+  const char* argv[] = {
+    "/path/to/program",
+    "more",
+    "--name1=billy joel",
+    "stuff",
+    "at",
+    "--name2=43",
+    "--no-name3",
+    "--",
+    "--no-name4",
+    "--name5",
+    "the"
+  };
 
-  argv[0] = (char*) "/path/to/program";
-  argv[1] = (char*) "more";
-  argv[2] = (char*) "--name1=billy joel";
-  argv[3] = (char*) "stuff";
-  argv[4] = (char*) "at";
-  argv[5] = (char*) "--name2=43";
-  argv[6] = (char*) "--no-name3";
-  argv[7] = (char*) "--";
-  argv[8] = (char*) "--no-name4";
-  argv[9] = (char*) "--name5";
-  argv[10] = (char*) "the";
-
-  Try<Nothing> load = flags.load("FLAGSTEST_", argc, argv);
+  Try<Nothing> load = flags.load("FLAGSTEST_", arraySize(argv), argv);
   EXPECT_SOME(load);
 
   EXPECT_EQ("billy joel", flags.name1);
@@ -276,20 +275,20 @@ TEST(FlagsTest, LoadFromCommandLineAndUpdateArgcArgv)
 {
   TestFlags flags;
 
-  int argc = 11;
-  char* argv[argc];
-
-  argv[0] = (char*) "/path/to/program";
-  argv[1] = (char*) "more";
-  argv[2] = (char*) "--name1=billy joel";
-  argv[3] = (char*) "stuff";
-  argv[4] = (char*) "at";
-  argv[5] = (char*) "--name2=43";
-  argv[6] = (char*) "--no-name3";
-  argv[7] = (char*) "--";
-  argv[8] = (char*) "--no-name4";
-  argv[9] = (char*) "--name5";
-  argv[10] = (char*) "the";
+  char* argv[] = {
+    (char*)"/path/to/program",
+    (char*)"more",
+    (char*)"--name1=billy joel",
+    (char*)"stuff",
+    (char*)"at",
+    (char*)"--name2=43",
+    (char*)"--no-name3",
+    (char*)"--",
+    (char*)"--no-name4",
+    (char*)"--name5",
+    (char*)"the"
+  };
+  int argc = arraySize(argv);
 
   // Need a temporary since some compilers want to treat the type of
   // 'argv' as 'char *(*)[argc]' since the size of the array is known.
@@ -339,11 +338,11 @@ TEST(FlagsTest, Stringification)
             "name8",
             "Optional name8");
 
-  map<string, Option<string> > values;
-
-  values["name2"] = Some("43");
-  values["no-name4"] = None();
-  values["name5"] = None();
+  const map<string, Option<string> > values = {
+    {"name2", Some("43")},
+    {"no-name4", None()},
+    {"name5", None()}
+  };
 
   flags.load(values);
 
@@ -382,13 +381,12 @@ TEST(FlagsTest, DuplicatesFromEnvironment)
 
   os::setenv("FLAGSTEST_name1", "ben folds");
 
-  int argc = 2;
-  char* argv[argc];
+  const char* argv[] = {
+    "/path/to/program",
+    "--name1=billy joel"
+  };
 
-  argv[0] = (char*) "/path/to/program";
-  argv[1] = (char*) "--name1=billy joel";
-
-  Try<Nothing> load = flags.load("FLAGSTEST_", argc, argv);
+  Try<Nothing> load = flags.load("FLAGSTEST_", arraySize(argv), argv);
   EXPECT_ERROR(load);
 
   EXPECT_EQ("Duplicate flag 'name1' on command line", load.error());
@@ -401,14 +399,13 @@ TEST(FlagsTest, DuplicatesFromCommandLine)
 {
   TestFlags flags;
 
-  int argc = 3;
-  char* argv[argc];
+  const char* argv[] = {
+    "/path/to/program",
+    "--name1=billy joel",
+    "--name1=ben folds"
+  };
 
-  argv[0] = (char*) "/path/to/program";
-  argv[1] = (char*) "--name1=billy joel";
-  argv[2] = (char*) "--name1=ben folds";
-
-  Try<Nothing> load = flags.load("FLAGSTEST_", argc, argv);
+  Try<Nothing> load = flags.load("FLAGSTEST_", arraySize(argv), argv);
   EXPECT_ERROR(load);
 
   EXPECT_EQ("Duplicate flag 'name1' on command line", load.error());
@@ -511,13 +508,12 @@ TEST(FlagsTest, Validate)
 
   ValidatingTestFlags flags;
 
-  int argc = 2;
-  char* argv[argc];
+  const char* argv[] = {
+    "/path/to/program",
+    "--duration=2hrs"
+  };
 
-  argv[0] = (char*) "/path/to/program";
-  argv[1] = (char*) "--duration=2hrs";
-
-  Try<Nothing> load = flags.load("FLAGSTEST_", argc, argv);
+  Try<Nothing> load = flags.load("FLAGSTEST_", arraySize(argv), argv);
   EXPECT_ERROR(load);
 
   EXPECT_EQ("Expected --duration to be less than 1 hour", load.error());
@@ -615,10 +611,10 @@ TEST(FlagsTest, Duration)
             "name7",
             "Also some amount of time");
 
-  map<string, Option<string> > values;
-
-  values["name6"] = Some("2mins");
-  values["name7"] = Some("3hrs");
+  const map<string, Option<string> > values = {
+    {"name6", Some("2mins")},
+    {"name7", Some("3hrs")}
+  };
 
   ASSERT_SOME(flags.load(values));
 
