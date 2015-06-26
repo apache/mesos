@@ -3332,8 +3332,6 @@ void Slave::executorTerminated(
       // the status update manager should have already cleaned up all the
       // status update streams for a framework that is terminating.
       if (framework->state != Framework::TERMINATING) {
-        StatusUpdate update;
-
         // Transition all live launched tasks.
         // TODO(vinod): Use foreachvalue instead once LinkedHashmap
         // supports it.
