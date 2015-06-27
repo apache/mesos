@@ -1004,6 +1004,10 @@ private:
       const process::UPID& from,
       const scheduler::Call& call);
 
+  void subscribe(
+      const process::UPID& from,
+      const scheduler::Call::Subscribe& subscribe);
+
   void accept(
       Framework* framework,
       const scheduler::Call::Accept& accept);

@@ -1611,17 +1611,29 @@ void Master::receive(
     const scheduler::Call& call)
 {
   // TODO(vinod): Add metrics for calls.
-  // TODO(vinod): Implement the unimplemented calls.
 
-  // For SUBSCRIBE call, no need to look up the framework. Therefore,
-  // we handle them first and separately from other types of calls.
-  switch (call.type()) {
-    case scheduler::Call::SUBSCRIBE:
-      drop(from, call, "Unimplemented");
+  if (call.type() == scheduler::Call::SUBSCRIBE) {
+    if (!call.has_subscribe()) {
+      drop(from, call, "Expecting 'subscribe' to be present");
       return;
+    }
 
-    default:
-      break;
+    if (!(call.subscribe().framework_info().id() == call.framework_id())) {
+      drop(from,
+           call,
+           "Framework id in the call doesn't match the framework id"
+           " in the 'subscribe' message");
+      return;
+    }
+
+    subscribe(from, call.subscribe());
+    return;
+  }
+
+  // All calls except SUBSCRIBE should have framework id set.
+  if (!call.has_framework_id()) {
+    drop(from, call, "Expecting framework id to be present");
+    return;
   }
 
   // We consolidate the framework lookup and pid validation logic here
@@ -1637,10 +1649,6 @@ void Master::receive(
     drop(from, call, "Call is not from registered framework");
     return;
   }
-
-  // TODO(jieyu): Validate frameworkInfo to make sure it's the same as
-  // the one that the framework used during registration and that the
-  // framework id is set and non-empty except for SUBSCRIBE call.
 
   switch (call.type()) {
     case scheduler::Call::TEARDOWN: {
@@ -2073,6 +2081,22 @@ void Master::_reregisterFramework(
   }
 
   return;
+}
+
+
+void Master::subscribe(
+    const UPID& from,
+    const scheduler::Call::Subscribe& subscribe)
+{
+  const FrameworkInfo& frameworkInfo = subscribe.framework_info();
+
+  // TODO(vinod): Instead of calling '(re-)registerFramework()' from
+  // here refactor those methods to call 'subscribe()'.
+  if (frameworkInfo.has_id() || frameworkInfo.id() == "") {
+    registerFramework(from, frameworkInfo);
+  } else {
+    reregisterFramework(from, frameworkInfo, subscribe.force());
+  }
 }
 
 

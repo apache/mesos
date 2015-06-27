@@ -220,24 +220,13 @@ public:
           return;
         }
 
-        const FrameworkInfo frameworkInfo = call.subscribe().framework_info();
-
-        if (!(frameworkInfo.id() == call.framework_id())) {
+        if (!(call.subscribe().framework_info().id() == call.framework_id())) {
           drop(call, "Framework id in the call doesn't match the framework id"
                      " in the 'subscribe' message");
           return;
         }
 
-        if (!frameworkInfo.has_id() || frameworkInfo.id() == "") {
-          RegisterFrameworkMessage message;
-          message.mutable_framework()->CopyFrom(frameworkInfo);
-          send(master.get(), message);
-        } else {
-          ReregisterFrameworkMessage message;
-          message.mutable_framework()->CopyFrom(frameworkInfo);
-          message.set_failover(failover);
-          send(master.get(), message);
-        }
+        send(master.get(), call);
         break;
       }
 
@@ -301,7 +290,6 @@ public:
           drop(call, "Expecting 'reconcile' to be present");
           return;
         }
-
         send(master.get(), call);
         break;
       }
