@@ -30,8 +30,8 @@
 #define ABORT(...) _Abort(_ABORT_PREFIX, __VA_ARGS__)
 
 inline __attribute__((noreturn)) void _Abort(
-    const char *prefix,
-    const char *msg)
+    const char* prefix,
+    const char* message)
 {
   // Write the failure message in an async-signal safe manner,
   // assuming strlen is async-signal safe or optimized out.
@@ -40,16 +40,17 @@ inline __attribute__((noreturn)) void _Abort(
   // http://austingroupbugs.net/view.php?id=692
   while (write(STDERR_FILENO, prefix, strlen(prefix)) == -1 &&
          errno == EINTR);
-  while (msg != NULL &&
-         write(STDERR_FILENO, msg, strlen(msg)) == -1 &&
+  while (message != NULL &&
+         write(STDERR_FILENO, message, strlen(message)) == -1 &&
          errno == EINTR);
   abort();
 }
 
+
 inline __attribute__((noreturn)) void _Abort(
-  const char *prefix,
-  const std::string &msg) {
-  _Abort(prefix, msg.c_str());
+  const char* prefix,
+  const std::string& message) {
+  _Abort(prefix, message.c_str());
 }
 
 #endif // __STOUT_ABORT_HPP__
