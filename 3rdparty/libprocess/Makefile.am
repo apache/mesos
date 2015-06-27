@@ -4,6 +4,7 @@
 ACLOCAL_AMFLAGS = -I m4
 
 AUTOMAKE_OPTIONS = foreign
+LIBPROCESS_BUILD_DIR=@abs_top_builddir@
 
 # NOTE: The libprocess headers were moved to the Makefile in "include"
 # subdirectory to make it easy to preserve the directory structure of
@@ -71,12 +72,13 @@ libprocess_la_SOURCES +=	\
     src/openssl_util.hpp
 endif
 
-libprocess_la_CPPFLAGS =		\
-  -I$(srcdir)/include			\
-  -I$(srcdir)/$(STOUT)/include		\
-  -I$(BOOST)				\
-  -I$(LIBEV)				\
-  -I$(PICOJSON)				\
+libprocess_la_CPPFLAGS =			\
+  -DBUILD_DIR=\"$(LIBPROCESS_BUILD_DIR)\"	\
+  -I$(srcdir)/include				\
+  -I$(srcdir)/$(STOUT)/include			\
+  -I$(BOOST)					\
+  -I$(LIBEV)					\
+  -I$(PICOJSON)					\
   $(AM_CPPFLAGS)
 
 if ENABLE_LIBEVENT
@@ -153,6 +155,16 @@ tests_LDADD =				\
   $(LIBGLOG)				\
   $(HTTP_PARSER_LIB)			\
   $(EVENT_LIB)
+
+if ENABLE_SSL
+check_PROGRAMS += ssl-client
+ssl_client_SOURCES = src/tests/ssl_client.cpp
+ssl_client_CPPFLAGS = $(tests_CPPFLAGS)
+ssl_client_LDADD = $(tests_LDADD)
+
+tests_SOURCES +=						\
+  src/tests/ssl_tests.cpp
+endif
 
 benchmarks_SOURCES =			\
   src/tests/benchmarks.cpp

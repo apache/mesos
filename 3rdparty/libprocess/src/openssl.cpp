@@ -250,14 +250,13 @@ string error_string(unsigned long code)
 }
 
 
-void initialize()
+// Tests can declare this function and use it to re-configure the SSL
+// environment variables programatically. Without explicitly declaring
+// this function, it is not visible. This is the preferred behavior as
+// we do not want applications changing these settings while they are
+// running (this would be undefined behavior).
+void reinitialize()
 {
-  static Once* initialized = new Once();
-
-  if (initialized->once()) {
-    return;
-  }
-
   // Load all the flags prefixed by SSL_ from the environment. See
   // comment at top of openssl.hpp for a full list.
   Try<Nothing> load = ssl_flags->load("SSL_");
@@ -269,33 +268,42 @@ void initialize()
 
   // Exit early if SSL is not enabled.
   if (!ssl_flags->enabled) {
-    initialized->done();
     return;
   }
 
-  // We MUST have entropy, or else there's no point to crypto.
-  if (!RAND_poll()) {
-    EXIT(EXIT_FAILURE) << "SSL socket requires entropy";
+  static Once* initialized_single_entry = new Once();
+
+  // We don't want to initialize everything multiple times, as we
+  // don't clean up some of these structures. The things we DO tend
+  // to re-initialize are things that are overwrites of settings,
+  // rather than allocations of new data structures.
+  if (!initialized_single_entry->once()) {
+    // We MUST have entropy, or else there's no point to crypto.
+    if (!RAND_poll()) {
+      EXIT(EXIT_FAILURE) << "SSL socket requires entropy";
+    }
+
+    // Initialize the OpenSSL library.
+    SSL_library_init();
+    SSL_load_error_strings();
+
+    // Prepare mutexes for threading callbacks.
+    mutexes = new std::mutex[CRYPTO_num_locks()];
+
+    // Install SSL threading callbacks.
+    // TODO(jmlvanre): the id mechanism is deprecated in OpenSSL.
+    CRYPTO_set_id_callback(&id_function);
+    CRYPTO_set_locking_callback(&locking_function);
+    CRYPTO_set_dynlock_create_callback(&dyn_create_function);
+    CRYPTO_set_dynlock_lock_callback(&dyn_lock_function);
+    CRYPTO_set_dynlock_destroy_callback(&dyn_destroy_function);
+
+    ctx = SSL_CTX_new(SSLv23_method());
+    CHECK(ctx) << "Failed to create SSL context: "
+                << ERR_error_string(ERR_get_error(), NULL);
+
+    initialized_single_entry->done();
   }
-
-  // Initialize the OpenSSL library.
-  SSL_library_init();
-  SSL_load_error_strings();
-
-  // Prepare mutexes for threading callbacks.
-  mutexes = new std::mutex[CRYPTO_num_locks()];
-
-  // Install SSL threading callbacks.
-  // TODO(jmlvanre): the id mechanism is deprecated in OpenSSL.
-  CRYPTO_set_id_callback(&id_function);
-  CRYPTO_set_locking_callback(&locking_function);
-  CRYPTO_set_dynlock_create_callback(&dyn_create_function);
-  CRYPTO_set_dynlock_lock_callback(&dyn_lock_function);
-  CRYPTO_set_dynlock_destroy_callback(&dyn_destroy_function);
-
-  ctx = SSL_CTX_new(SSLv23_method());
-  CHECK(ctx) << "Failed to create SSL context: "
-             << ERR_error_string(ERR_get_error(), NULL);
 
   // Disable SSL session caching.
   SSL_CTX_set_session_cache_mode(ctx, SSL_SESS_CACHE_OFF);
@@ -459,6 +467,20 @@ void initialize()
   if (!ssl_flags->enable_tls_v1_2) { ssl_options |= SSL_OP_NO_TLSv1_2; }
 
   SSL_CTX_set_options(ctx, ssl_options);
+}
+
+
+void initialize()
+{
+  static Once* initialized = new Once();
+
+  if (initialized->once()) {
+    return;
+  }
+
+  // We delegate to 'reinitialize()' so that tests can change the SSL
+  // configuration programatically.
+  reinitialize();
 
   initialized->done();
 }

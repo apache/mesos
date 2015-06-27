@@ -1,6 +1,8 @@
 #ifndef __LIBEVENT_HPP__
 #define __LIBEVENT_HPP__
 
+#include <event2/event.h>
+
 #include <stout/lambda.hpp>
 #include <stout/thread.hpp>
 
