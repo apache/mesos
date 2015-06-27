@@ -79,6 +79,14 @@ public:
     return data.get();
   }
 
+  T& get()
+  {
+    if (!data.isSome()) {
+      ABORT("Try::get() but state == ERROR: " + message);
+    }
+    return data.get();
+  }
+
   const std::string& error() const { assert(data.isNone()); return message; }
 
 private:
