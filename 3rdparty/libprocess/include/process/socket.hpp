@@ -201,7 +201,7 @@ public:
     return impl->sendfile(fd, offset, size);
   }
 
-  Future<std::string> recv(const Option<ssize_t>& size)
+  Future<std::string> recv(const Option<ssize_t>& size = None())
   {
     return impl->recv(size);
   }
