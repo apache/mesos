@@ -38,7 +38,6 @@ libprocess = os.path.join('3rdparty', 'libprocess')
 # include them here (or more precisely, down where we actually include
 # libev.a and libprofiler.a).
 glog = os.path.join(libprocess, '3rdparty', 'glog-0.3.3')
-libev = os.path.join(libprocess, '3rdparty', 'libev-4.15')
 gperftools = os.path.join(libprocess, '3rdparty', 'gperftools-2.0')
 protobuf = os.path.join(libprocess, '3rdparty', 'protobuf-2.5.0')
 
@@ -69,7 +68,6 @@ EXTRA_OBJECTS = [
 
 # For leveldb, we need to check for the presence of libleveldb.a, since
 # it is possible to disable leveldb inside mesos.
-libev = os.path.join(abs_top_builddir, libev, '.libs', 'libev.a')
 libglog = os.path.join(abs_top_builddir, glog, '.libs', 'libglog.a')
 libleveldb = os.path.join(abs_top_builddir, leveldb, 'libleveldb.a')
 libzookeeper = os.path.join(
@@ -87,11 +85,6 @@ if os.path.exists(libzookeeper):
 else:
     EXTRA_OBJECTS.append('-lzookeeper_mt')
 
-if os.path.exists(libev):
-    EXTRA_OBJECTS.append(libev)
-else:
-    EXTRA_OBJECTS.append('-lev')
-
 if os.path.exists(libglog):
     EXTRA_OBJECTS.append(libglog)
 else:
@@ -101,6 +94,22 @@ if os.path.exists(libprotobuf):
   EXTRA_OBJECTS.append(libprotobuf)
 else:
   EXTRA_OBJECTS.append('-lprotobuf')
+
+
+# libev is a special case because it needs to be enabled only when
+# libevent *is not* enabled through the top level ./configure.
+#
+# TODO(hartem): this entire block MUST be removed once libev is deprecated
+# in favor of libevent.
+if '@ENABLE_LIBEVENT_TRUE@' == '#':
+    libev = os.path.join(libprocess, '3rdparty', 'libev-4.15')
+    libev = os.path.join(abs_top_builddir, libev, '.libs', 'libev.a')
+
+    if os.path.exists(libev):
+        EXTRA_OBJECTS.append(libev)
+    else:
+        EXTRA_OBJECTS.append('-lev')
+
 
 # For gperftools, we need to check for the presence of libprofiler.a, since
 # it is possible to disable perftools inside libprocess.
