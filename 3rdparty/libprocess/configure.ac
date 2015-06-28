@@ -588,9 +588,6 @@ else
   optimize_flags="-O0"
 fi
 
-AM_CONDITIONAL([ENABLE_LIBEVENT], [test x"$enable_libevent" = "xyes"])
-
-AM_CONDITIONAL([ENABLE_SSL], [test x"$enable_ssl" = "xyes"])
 
 # Check if libevent prefix path was provided, and if so, add it to
 # the CPPFLAGS and LDFLAGS with respective /include and /lib path
@@ -638,6 +635,9 @@ libevent_pthreads is required for libprocess to build.
 -------------------------------------------------------------------
   ])])
 fi
+
+AM_CONDITIONAL([ENABLE_LIBEVENT], [test x"$enable_libevent" = "xyes"])
+
 
 # Check if libssl prefix path was provided, and if so, add it to
 # the CPPFLAGS and LDFLAGS with respective /include and /lib path
@@ -696,6 +696,9 @@ libevent_openssl is required for an SSL-enabled build.
   fi
   AC_DEFINE([USE_SSL_SOCKET], [1])
 fi
+
+AM_CONDITIONAL([ENABLE_SSL], [test x"$enable_ssl" = "xyes"])
+
 
 AS_IF([test "x${ac_cv_env_CFLAGS_set}" = "x"],
       [CFLAGS="$debug_flags $optimize_flags"])
