@@ -1331,6 +1331,27 @@ Try<Nothing> MesosContainerizerProcess::updateVolumes(
           "Failed to symlink persistent volume from '" +
           original + "' to '" + link + "'");
     }
+
+    // Set the ownership of persistent volume to match the sandbox
+    // directory. Currently, persistent volumes in mesos are
+    // exclusive. If one persistent volume is used by one
+    // task/executor, it cannot be concurrently used by other
+    // task/executor. But if we allow multiple executors use same
+    // persistent volume at the same time in the future, the ownership
+    // of persistent volume may conflict here.
+    // TODO(haosdent): We need to update this after we have a proposed
+    // plan to adding user/group to persistent volumes.
+    struct stat s;
+    if (::stat(container->directory.c_str(), &s) < 0) {
+      return Error("Failed to get permissions on '" + container->directory +
+                   "': " + strerror(errno));
+    }
+
+    Try<Nothing> chown = os::chown(s.st_uid, s.st_gid, original, true);
+    if (chown.isError()) {
+      return Error("Failed to chown persistent volume '" + original +
+                   "': " + chown.error());
+    }
   }
 
   return Nothing();
