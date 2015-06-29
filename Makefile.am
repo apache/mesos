@@ -18,7 +18,7 @@ ACLOCAL_AMFLAGS = -I m4
 
 AUTOMAKE_OPTIONS = foreign
 
-SUBDIRS = . 3rdparty src ec2
+SUBDIRS = . 3rdparty src
 
 EXTRA_DIST =
 
