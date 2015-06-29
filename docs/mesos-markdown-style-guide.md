@@ -3,7 +3,7 @@
 This guide introduces a consistent documentation style to be used across the entire non-code documentation.
 User guides and non-code technical documentation are stored in markdown files in the `docs/` folder. These files get rendered for the [online documentation](http://mesos.apache.org/documentation/latest/).
 
-**Note:** As of right now this is work in progress and the existing documentation might not yet comply to this style.
+**NOTE:** As of right now this is work in progress and the existing documentation might not yet comply to this style.
 
 
 ## What to document?
@@ -30,14 +30,14 @@ Code examples should be specified as follows:
     }
     ~~~
 
-**NOTE**: Because of shortcomings of Doxygen's markdown parser we currently use indentation for wrapping all non C++ code blocks.
+**NOTE:** Because of shortcomings of Doxygen's markdown parser we currently use indentation for wrapping all non C++ code blocks.
 
 ## Notes/Emphasis
 
 Notes are used to highlight important parts of the text and should be specified as follows.
 
 ~~~{.txt}
-**Note:**  Short note.
+**NOTE:**  Short note.
 Continued longer note.
 ~~~
 
