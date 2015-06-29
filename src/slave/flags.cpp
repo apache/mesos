@@ -281,7 +281,7 @@ mesos::internal::slave::Flags::Flags()
   add(&Flags::perf_duration,
       "perf_duration",
       "Duration of a perf stat sample. The duration must be less\n"
-      "that the perf_interval.",
+      "than the perf_interval.",
       Seconds(10));
 
   add(&Flags::revocable_cpu_low_priority,
