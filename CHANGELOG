@@ -12,6 +12,8 @@ This release contains several new features:
                    opt in to revocable resources.
   * [MESOS-2775] - Added slave metrics for revocable resources.
   * [MESOS-2776] - Added master metrics for revocable resources.
+  * [MESOS-2955] - Introduce acceptOffers scheduler driver API for performing
+                   operations on Offers
 
 * Deprecations:
   * [MESOS-2697] - '/master/shutdown' endpoint is deprecated in favor of
