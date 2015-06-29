@@ -66,7 +66,7 @@ def execute(command, ignore_errors=False):
 
 # TODO(benh): Make sure this is a git repository, apologize if not.
 
-# Choose 'post-review' if available, otherwise choose 'rbt'.
+# Choose 'rbt' if available, otherwise choose 'post-review'.
 post_review = None
 rbt_version = execute(['rbt', '--version'], ignore_errors=True)
 if rbt_version:
