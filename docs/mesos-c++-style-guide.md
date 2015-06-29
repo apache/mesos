@@ -525,3 +525,45 @@ auto lambda = [
 * Unrestricted Union.
 
   Like the pre-existing `union`, we can overlap storage allocation for objects that never exist simultaneously. However, with C++11 we are no longer *restricted to having only non-POD types in unions*. Adding non-POD types to unions complicates things, however, because we need to make sure to properly call constructors and destructors. Therefore, only use unrestricted unions (i.e., unions with non-POD types) when the union has only a single field. What does this buy us? Now we can avoid dynamic memory allocations for "container" like types, e.g., `Option`, `Try`, `Result`, etc. In effect, we treat the union like a dynamic allocation, calling *placement new*, `new (&t) T(...)` anyplace we would have just called `new T(...)` and the destructor `t.~T()` anyplace we would have called `delete t`.
+
+* Constant expressions.
+
+  Constant expressions allow the declaration of static non-POD objects while eliminating the unpredictable runtime initialization and destruction issues normally encountered, helping eliminate macros and hard-coded literals without sacrificing performance and type safety.  Changes which require converting from `constexpr` to `const` can propagate through the dependency tree requiring that dependent `constexpr` uses also be converted to `const`, hence we avoid using `constexpr` in complex functions.
+
+  `constexpr` behaves as a combination of `inline` and `const` and hence must be defined before use in another `constexpr`.
+
+  Prefer `constexpr to `const` for all constant POD declarations, `constexpr` `char` arrays are preferred to `const` `string` literals.
+  ```
+  // OK
+  constexpr char LITERAL[] = "value";
+
+  // Not OK - not available at compile time for optimization and
+  // definition required in a separate compilation module.
+  const char LITERAL[];
+
+  // Not OK - uncertain initialization order, cannot be used in other
+  // constexpr statements.
+  const string LITERAL("value");
+
+  ```
+  `constexpr` functions are evaluated at compile time if all their arguments are constant expressions. Otherwise they default to initialization at runtime. However `constexpr` functions are limited in that they cannot perform dynamic casts, memory allocation or calls to non-constexpr functions.  Prefer `constexpr` over const inline functions.
+
+  ```
+  constexpr size_t MIN = 200;
+  constexpr size_t MAX = 1000;
+  constexpr size_t SPAN() { return MAX-MIN; }
+  int array[SPAN()];
+  ```
+  Const expression constructors allow object initialization at compile time provided that all the constructor arguments are constexpr and the constuctor body is empty, i.e. all initialization is performed in the initialization list.  Classes which provide constexpr constructors should normally also provide constexpr copy constructors to allow the class to be used in the return value from a constexpr function.
+  ```
+  class C
+  {
+  public:
+    constexpr C(int _i) : i(_i) {};
+    constexpr C(const C& c) : i(c.i) {}
+  private:
+    const int i;
+  };
+
+  ```
+  C++11 does not provide constexpr string or containers in the STL and hence constexpr cannot be used for any class using stout's Error() class.
