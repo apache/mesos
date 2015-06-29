@@ -7,9 +7,12 @@ This release contains several new features:
   using them to be throttled or preempted.
 
 * API Changes:
+  * [MESOS-2097] - Update Resource protobuf with DiskInfo.
+  * [MESOS-2475] - Add the Resource::ReservationInfo protobuf message.
   * [MESOS-2485] - Added master metrics for slave removal reasons.
   * [MESOS-2654] - A new 'capabilities' field has been addd to FrameworkInfo to
                    opt in to revocable resources.
+  * [MESOS-2691] - Update Resource message to include revocable resources.
   * [MESOS-2775] - Added slave metrics for revocable resources.
   * [MESOS-2776] - Added master metrics for revocable resources.
   * [MESOS-2955] - Introduce acceptOffers scheduler driver API for performing
