@@ -449,7 +449,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Launch_Executor)
   AWAIT_READY(frameworkId);
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  ASSERT_NE(0u, offers.get().size());
 
   const Offer& offer = offers.get()[0];
 
@@ -562,7 +562,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Launch_Executor_Bridged)
   AWAIT_READY(frameworkId);
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  ASSERT_NE(0u, offers.get().size());
 
   const Offer& offer = offers.get()[0];
 
@@ -672,7 +672,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Launch)
   AWAIT_READY(frameworkId);
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  ASSERT_NE(0u, offers.get().size());
 
   const Offer& offer = offers.get()[0];
 
@@ -774,7 +774,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Kill)
   AWAIT_READY(frameworkId);
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  ASSERT_NE(0u, offers.get().size());
 
   const Offer& offer = offers.get()[0];
 
@@ -883,7 +883,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Usage)
   AWAIT_READY(frameworkId);
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  ASSERT_NE(0u, offers.get().size());
 
   const Offer& offer = offers.get()[0];
 
@@ -1018,7 +1018,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Update)
   AWAIT_READY(frameworkId);
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  ASSERT_NE(0u, offers.get().size());
 
   const Offer& offer = offers.get()[0];
 
@@ -1347,7 +1347,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Logs)
   AWAIT_READY(frameworkId);
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  ASSERT_NE(0u, offers.get().size());
 
   const Offer& offer = offers.get()[0];
 
@@ -1468,7 +1468,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Default_CMD)
   AWAIT_READY(frameworkId);
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  ASSERT_NE(0u, offers.get().size());
 
   const Offer& offer = offers.get()[0];
 
@@ -1592,7 +1592,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Default_CMD_Override)
   AWAIT_READY(frameworkId);
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  ASSERT_NE(0u, offers.get().size());
 
   const Offer& offer = offers.get()[0];
 
@@ -1719,7 +1719,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Default_CMD_Args)
   AWAIT_READY(frameworkId);
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  ASSERT_NE(0u, offers.get().size());
 
   const Offer& offer = offers.get()[0];
 
@@ -1850,7 +1850,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_SlaveRecoveryTaskContainer)
   AWAIT_READY(frameworkId);
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  ASSERT_NE(0u, offers.get().size());
 
   const Offer& offer = offers.get()[0];
 
@@ -2001,7 +2001,7 @@ TEST_F(DockerContainerizerTest,
   AWAIT_READY(frameworkId);
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  ASSERT_NE(0u, offers.get().size());
 
   const Offer& offer = offers.get()[0];
 
@@ -2163,7 +2163,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_PortMapping)
   AWAIT_READY(frameworkId);
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  ASSERT_NE(0u, offers.get().size());
 
   const Offer& offer = offers.get()[0];
 
@@ -2301,7 +2301,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_LaunchSandboxWithColon)
   AWAIT_READY(frameworkId);
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  ASSERT_NE(0u, offers.get().size());
 
   const Offer& offer = offers.get()[0];
 
@@ -2410,7 +2410,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_DestroyWhileFetching)
   AWAIT_READY(frameworkId);
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  ASSERT_NE(0u, offers.get().size());
 
   const Offer& offer = offers.get()[0];
 
@@ -2521,7 +2521,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_DestroyWhilePulling)
   AWAIT_READY(frameworkId);
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  ASSERT_NE(0u, offers.get().size());
 
   const Offer& offer = offers.get()[0];
 
@@ -2625,7 +2625,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_ExecutorCleanupWhenLaunchFailed)
   AWAIT_READY(frameworkId);
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  ASSERT_NE(0u, offers.get().size());
 
   const Offer& offer = offers.get()[0];
 
@@ -2725,7 +2725,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_FetchFailure)
   AWAIT_READY(frameworkId);
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  ASSERT_NE(0u, offers.get().size());
 
   const Offer& offer = offers.get()[0];
 
@@ -2829,7 +2829,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_DockerPullFailure)
   AWAIT_READY(frameworkId);
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  ASSERT_NE(0u, offers.get().size());
 
   const Offer& offer = offers.get()[0];
 
@@ -2942,7 +2942,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_DockerInspectDiscard)
   AWAIT_READY(frameworkId);
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  ASSERT_NE(0u, offers.get().size());
 
   const Offer& offer = offers.get()[0];
 
