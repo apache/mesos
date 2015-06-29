@@ -12,6 +12,7 @@ This document serves as a guide for users who wish to upgrade an existing mesos 
 
 **NOTE** Slave ping timeouts are now configurable on the master via `--slave_ping_timeout` and `--max_slave_ping_timeouts`. Slaves should be upgraded to 0.23.x before changing these flags.
 
+**NOTE** A new scheduler driver API, `acceptOffers`, has been introduced. This is a more general version of the `launchTasks` API, which allows the scheduler to accept an offer and specify a list of operations (Offer.Operation) to perform using the resources in the offer. Currently, the supported operations include LAUNCH (launching tasks), RESERVE (making dynamic reservations), UNRESERVE (releasing dynamic reservations), CREATE (creating persistent volumes) and DESTROY (releasing persistent volumes). Similar to the `launchTasks` API, any unused resources will be considered declined, and the specified filters will be applied on all unused resources.
 
 ## Upgrading from 0.21.x to 0.22.x
 
