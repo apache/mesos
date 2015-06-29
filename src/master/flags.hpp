@@ -73,6 +73,8 @@ public:
   std::string authenticators;
   std::string allocator;
   Option<std::string> hooks;
+  Duration slave_ping_timeout;
+  size_t max_slave_ping_timeouts;
 
 #ifdef WITH_NETWORK_ISOLATOR
   Option<size_t> max_executors_per_slave;

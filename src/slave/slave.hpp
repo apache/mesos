@@ -99,12 +99,16 @@ public:
 
   void shutdown(const process::UPID& from, const std::string& message);
 
-  void registered(const process::UPID& from, const SlaveID& slaveId);
+  void registered(
+      const process::UPID& from,
+      const SlaveID& slaveId,
+      const MasterSlaveConnection& connection);
 
   void reregistered(
       const process::UPID& from,
       const SlaveID& slaveId,
-      const std::vector<ReconcileTasksMessage>& reconciliations);
+      const std::vector<ReconcileTasksMessage>& reconciliations,
+      const MasterSlaveConnection& connection);
 
   void doReliableRegistration(Duration maxBackoff);
 
@@ -491,6 +495,9 @@ private:
 
   // Master detection future.
   process::Future<Option<MasterInfo>> detection;
+
+  // Master's ping timeout value, updated on reregistration.
+  Duration masterPingTimeout;
 
   // Timer for triggering re-detection when no ping is received from
   // the master.

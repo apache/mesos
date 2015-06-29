@@ -132,6 +132,7 @@ Slave::Slave(const slave::Flags& _flags,
     gc(_gc),
     monitor(defer(self(), &Self::usage)),
     statusUpdateManager(_statusUpdateManager),
+    masterPingTimeout(DEFAULT_MASTER_PING_TIMEOUT()),
     metaDir(paths::getMetaRootDir(flags.work_dir)),
     recoveryErrors(0),
     credential(None()),
@@ -399,12 +400,14 @@ void Slave::initialize()
   // Install protobuf handlers.
   install<SlaveRegisteredMessage>(
       &Slave::registered,
-      &SlaveRegisteredMessage::slave_id);
+      &SlaveRegisteredMessage::slave_id,
+      &SlaveRegisteredMessage::connection);
 
   install<SlaveReregisteredMessage>(
       &Slave::reregistered,
       &SlaveReregisteredMessage::slave_id,
-      &SlaveReregisteredMessage::reconciliations);
+      &SlaveReregisteredMessage::reconciliations,
+      &SlaveReregisteredMessage::connection);
 
   install<RunTaskMessage>(
       &Slave::runTask,
@@ -830,7 +833,10 @@ void Slave::authenticationTimeout(Future<bool> future)
 }
 
 
-void Slave::registered(const UPID& from, const SlaveID& slaveId)
+void Slave::registered(
+    const UPID& from,
+    const SlaveID& slaveId,
+    const MasterSlaveConnection& connection)
 {
   if (master != from) {
     LOG(WARNING) << "Ignoring registration message from " << from
@@ -841,7 +847,13 @@ void Slave::registered(const UPID& from, const SlaveID& slaveId)
 
   CHECK_SOME(master);
 
-  switch (state) {
+  if (connection.has_total_ping_timeout_seconds()) {
+    masterPingTimeout = Seconds(connection.total_ping_timeout_seconds());
+  } else {
+    masterPingTimeout = DEFAULT_MASTER_PING_TIMEOUT();
+  }
+
+  switch(state) {
     case DISCONNECTED: {
       LOG(INFO) << "Registered with master " << master.get()
                 << "; given slave ID " << slaveId;
@@ -874,8 +886,11 @@ void Slave::registered(const UPID& from, const SlaveID& slaveId)
       // in case we never receive an initial ping.
       Clock::cancel(pingTimer);
 
-      pingTimer =
-        delay(MASTER_PING_TIMEOUT(), self(), &Slave::pingTimeout, detection);
+      pingTimer = delay(
+          masterPingTimeout,
+          self(),
+          &Slave::pingTimeout,
+          detection);
 
       break;
     }
@@ -886,6 +901,7 @@ void Slave::registered(const UPID& from, const SlaveID& slaveId)
                << "(expected: " << info.id() << "). Committing suicide";
       }
       LOG(WARNING) << "Already registered with master " << master.get();
+
       break;
     case TERMINATING:
       LOG(WARNING) << "Ignoring registration because slave is terminating";
@@ -914,7 +930,8 @@ void Slave::registered(const UPID& from, const SlaveID& slaveId)
 void Slave::reregistered(
     const UPID& from,
     const SlaveID& slaveId,
-    const vector<ReconcileTasksMessage>& reconciliations)
+    const vector<ReconcileTasksMessage>& reconciliations,
+    const MasterSlaveConnection& connection)
 {
   if (master != from) {
     LOG(WARNING) << "Ignoring re-registration message from " << from
@@ -930,11 +947,29 @@ void Slave::reregistered(
             << "(expected: " << info.id() << "). Committing suicide";
   }
 
-  switch (state) {
+  if (connection.has_total_ping_timeout_seconds()) {
+    masterPingTimeout = Seconds(connection.total_ping_timeout_seconds());
+  } else {
+    masterPingTimeout = DEFAULT_MASTER_PING_TIMEOUT();
+  }
+
+  switch(state) {
     case DISCONNECTED:
       LOG(INFO) << "Re-registered with master " << master.get();
       state = RUNNING;
       statusUpdateManager->resume(); // Resume status updates.
+
+      // If we don't get a ping from the master, trigger a
+      // re-registration. This needs to be done once re-registered,
+      // in case we never receive an initial ping.
+      Clock::cancel(pingTimer);
+
+      pingTimer = delay(
+          masterPingTimeout,
+          self(),
+          &Slave::pingTimeout,
+          detection);
+
       break;
     case RUNNING:
       LOG(WARNING) << "Already re-registered with master " << master.get();
@@ -2968,8 +3003,11 @@ void Slave::pingOld(const UPID& from, const string& body)
   // when this occurs.
   Clock::cancel(pingTimer);
 
-  pingTimer =
-    delay(MASTER_PING_TIMEOUT(), self(), &Slave::pingTimeout, detection);
+  pingTimer = delay(
+      masterPingTimeout,
+      self(),
+      &Slave::pingTimeout,
+      detection);
 
   send(from, "PONG");
 }
@@ -2997,8 +3035,11 @@ void Slave::ping(const UPID& from, bool connected)
   // when this occurs.
   Clock::cancel(pingTimer);
 
-  pingTimer =
-    delay(MASTER_PING_TIMEOUT(), self(), &Slave::pingTimeout, detection);
+  pingTimer = delay(
+      masterPingTimeout,
+      self(),
+      &Slave::pingTimeout,
+      detection);
 
   send(from, PongSlaveMessage());
 }
@@ -3011,7 +3052,7 @@ void Slave::pingTimeout(Future<Option<MasterInfo>> future)
   // bother trying to re-detect.
   if (pingTimer.timeout().expired()) {
     LOG(INFO) << "No pings from master received within "
-              << MASTER_PING_TIMEOUT();
+              << masterPingTimeout;
 
     future.discard();
   }

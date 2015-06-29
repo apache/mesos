@@ -113,7 +113,7 @@ const Bytes DEFAULT_FETCHER_CACHE_SIZE = Gigabytes(2);
 
 // If no pings received within this timeout, then the slave will
 // trigger a re-detection of the master to cause a re-registration.
-Duration MASTER_PING_TIMEOUT();
+Duration DEFAULT_MASTER_PING_TIMEOUT();
 
 } // namespace slave {
 } // namespace internal {

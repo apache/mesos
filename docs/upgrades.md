@@ -10,6 +10,9 @@ This document serves as a guide for users who wish to upgrade an existing mesos 
 
 **NOTE** In order to enable decorator modules to remove metadata (environment variables or labels), we changed the meaning of the return value for decorator hooks in Mesos 0.23.0. Please refer to the modules documentation for more details.
 
+**NOTE** Slave ping timeouts are now configurable on the master via `--slave_ping_timeout` and `--max_slave_ping_timeouts`. Slaves should be upgraded to 0.23.x before changing these flags.
+
+
 ## Upgrading from 0.21.x to 0.22.x
 
 **NOTE** Slave checkpoint flag has been removed as it will be enabled for all
@@ -40,6 +43,7 @@ In order to upgrade a running cluster:
   * For Python schedulers, upgrade to use a 0.22.0 egg. If constructing `MesosSchedulerDriverImpl` with `Credentials`, your code must be updated to pass the `implicitAcknowledgements` argument before `Credentials`. You may run a 0.21.0 Python scheduler against a 0.22.0 master, and vice versa.
 * Restart the schedulers.
 * Upgrade the executors by linking the latest native library / jar / egg.
+
 
 ## Upgrading from 0.20.x to 0.21.x
 

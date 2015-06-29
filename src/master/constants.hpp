@@ -60,10 +60,10 @@ extern const Bytes MIN_MEM;
 // configurable, then we'll need to rely on upper/lower bounds
 // to ensure that the slave is not unnecessarily triggering
 // re-registrations.
-extern const Duration SLAVE_PING_TIMEOUT;
+extern const Duration DEFAULT_SLAVE_PING_TIMEOUT;
 
 // Maximum number of ping timeouts until slave is considered failed.
-extern const uint32_t MAX_SLAVE_PING_TIMEOUTS;
+extern const size_t DEFAULT_MAX_SLAVE_PING_TIMEOUTS;
 
 // The minimum timeout that can be used by a newly elected leader to
 // allow re-registration of slaves. Any slaves that do not re-register

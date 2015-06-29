@@ -376,4 +376,35 @@ mesos::internal::master::Flags::Flags()
       "hooks",
       "A comma separated list of hook modules to be\n"
       "installed inside master.");
+
+  add(&Flags::slave_ping_timeout,
+      "slave_ping_timeout",
+      "The timeout within which each slave is expected to respond to a\n"
+      "ping from the master. Slaves that do not respond within\n"
+      "max_slave_ping_timeouts ping retries will be asked to shutdown.\n"
+      "NOTE: The total ping timeout (slave_ping_timeout multiplied by\n"
+      "max_slave_ping_timeouts) should be greater than the ZooKeeper\n"
+      "session timeout to prevent useless re-registration attempts.\n",
+      DEFAULT_SLAVE_PING_TIMEOUT,
+      [](const Duration& value) -> Option<Error> {
+        if (value < Seconds(1) || value > Minutes(15)) {
+          return Error("Expected --slave_ping_timeout to be between " +
+                       stringify(Seconds(1)) + " and " +
+                       stringify(Minutes(15)));
+        }
+        return None();
+      });
+
+  add(&Flags::max_slave_ping_timeouts,
+      "max_slave_ping_timeouts",
+      "The number of times a slave can fail to respond to a\n"
+      "ping from the master. Slaves that do not respond within\n"
+      "max_slave_ping_timeouts ping retries will be asked to shutdown.\n",
+      DEFAULT_MAX_SLAVE_PING_TIMEOUTS,
+      [](size_t value) -> Option<Error> {
+        if (value < 1) {
+          return Error("Expected --max_slave_ping_timeouts to be at least 1");
+        }
+        return None();
+      });
 }

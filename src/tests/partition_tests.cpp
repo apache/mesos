@@ -69,7 +69,8 @@ class PartitionTest : public MesosTest {};
 // message for a partitioned slave.
 TEST_F(PartitionTest, PartitionedSlave)
 {
-  Try<PID<Master> > master = StartMaster();
+  master::Flags masterFlags = CreateMasterFlags();
+  Try<PID<Master>> master = StartMaster(masterFlags);
   ASSERT_SOME(master);
 
   // Set these expectations up before we spawn the slave so that we
@@ -79,7 +80,7 @@ TEST_F(PartitionTest, PartitionedSlave)
   // Drop all the PONGs to simulate slave partition.
   DROP_MESSAGES(Eq("PONG"), _, _);
 
-  Try<PID<Slave> > slave = StartSlave();
+  Try<PID<Slave>> slave = StartSlave();
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -109,18 +110,18 @@ TEST_F(PartitionTest, PartitionedSlave)
     .WillOnce(FutureSatisfy(&slaveLost));
 
   // Now advance through the PINGs.
-  uint32_t pings = 0;
+  size_t pings = 0;
   while (true) {
     AWAIT_READY(ping);
     pings++;
-    if (pings == master::MAX_SLAVE_PING_TIMEOUTS) {
+    if (pings == masterFlags.max_slave_ping_timeouts) {
      break;
     }
     ping = FUTURE_MESSAGE(Eq("PING"), _, _);
-    Clock::advance(master::SLAVE_PING_TIMEOUT);
+    Clock::advance(masterFlags.slave_ping_timeout);
   }
 
-  Clock::advance(master::SLAVE_PING_TIMEOUT);
+  Clock::advance(masterFlags.slave_ping_timeout);
 
   AWAIT_READY(slaveLost);
 
@@ -150,7 +151,8 @@ TEST_F(PartitionTest, PartitionedSlave)
 // slave shut down.
 TEST_F(PartitionTest, PartitionedSlaveReregistration)
 {
-  Try<PID<Master> > master = StartMaster();
+  master::Flags masterFlags = CreateMasterFlags();
+  Try<PID<Master>> master = StartMaster(masterFlags);
   ASSERT_SOME(master);
 
   // Allow the master to PING the slave, but drop all PONG messages
@@ -164,7 +166,7 @@ TEST_F(PartitionTest, PartitionedSlaveReregistration)
 
   StandaloneMasterDetector detector(master.get());
 
-  Try<PID<Slave> > slave = StartSlave(&exec, &detector);
+  Try<PID<Slave>> slave = StartSlave(&exec, &detector);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -173,7 +175,7 @@ TEST_F(PartitionTest, PartitionedSlaveReregistration)
 
   EXPECT_CALL(sched, registered(&driver, _, _));
 
-  Future<vector<Offer> > offers;
+  Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillOnce(FutureArg<1>(&offers))
     .WillRepeatedly(Return());
@@ -238,19 +240,19 @@ TEST_F(PartitionTest, PartitionedSlaveReregistration)
 
   // Now, induce a partition of the slave by having the master
   // timeout the slave.
-  uint32_t pings = 0;
+  size_t pings = 0;
   while (true) {
     AWAIT_READY(ping);
     pings++;
-    if (pings == master::MAX_SLAVE_PING_TIMEOUTS) {
+    if (pings == masterFlags.max_slave_ping_timeouts) {
      break;
     }
     ping = FUTURE_MESSAGE(Eq("PING"), _, _);
-    Clock::advance(master::SLAVE_PING_TIMEOUT);
+    Clock::advance(masterFlags.slave_ping_timeout);
     Clock::settle();
   }
 
-  Clock::advance(master::SLAVE_PING_TIMEOUT);
+  Clock::advance(masterFlags.slave_ping_timeout);
   Clock::settle();
 
   // The master will have notified the framework of the lost task.
@@ -301,7 +303,8 @@ TEST_F(PartitionTest, PartitionedSlaveReregistration)
 // tasks were LOST, so we have to have the slave shut down.
 TEST_F(PartitionTest, PartitionedSlaveStatusUpdates)
 {
-  Try<PID<Master> > master = StartMaster();
+  master::Flags masterFlags = CreateMasterFlags();
+  Try<PID<Master>> master = StartMaster(masterFlags);
   ASSERT_SOME(master);
 
   // Allow the master to PING the slave, but drop all PONG messages
@@ -316,7 +319,7 @@ TEST_F(PartitionTest, PartitionedSlaveStatusUpdates)
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
 
-  Try<PID<Slave> > slave = StartSlave(&exec);
+  Try<PID<Slave>> slave = StartSlave(&exec);
   ASSERT_SOME(slave);
 
   AWAIT_READY(slaveRegisteredMessage);
@@ -354,19 +357,19 @@ TEST_F(PartitionTest, PartitionedSlaveStatusUpdates)
 
   // Now, induce a partition of the slave by having the master
   // timeout the slave.
-  uint32_t pings = 0;
+  size_t pings = 0;
   while (true) {
     AWAIT_READY(ping);
     pings++;
-    if (pings == master::MAX_SLAVE_PING_TIMEOUTS) {
+    if (pings == masterFlags.max_slave_ping_timeouts) {
      break;
     }
     ping = FUTURE_MESSAGE(Eq("PING"), _, _);
-    Clock::advance(master::SLAVE_PING_TIMEOUT);
+    Clock::advance(masterFlags.slave_ping_timeout);
     Clock::settle();
   }
 
-  Clock::advance(master::SLAVE_PING_TIMEOUT);
+  Clock::advance(masterFlags.slave_ping_timeout);
   Clock::settle();
 
   // Wait for the master to attempt to shut down the slave.
@@ -417,7 +420,8 @@ TEST_F(PartitionTest, PartitionedSlaveStatusUpdates)
 // so we have to have the slave shut down.
 TEST_F(PartitionTest, PartitionedSlaveExitedExecutor)
 {
-  Try<PID<Master> > master = StartMaster();
+  master::Flags masterFlags = CreateMasterFlags();
+  Try<PID<Master>> master = StartMaster(masterFlags);
   ASSERT_SOME(master);
 
   // Allow the master to PING the slave, but drop all PONG messages
@@ -430,7 +434,7 @@ TEST_F(PartitionTest, PartitionedSlaveExitedExecutor)
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
   TestContainerizer containerizer(&exec);
 
-  Try<PID<Slave> > slave = StartSlave(&containerizer);
+  Try<PID<Slave>> slave = StartSlave(&containerizer);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -441,7 +445,7 @@ TEST_F(PartitionTest, PartitionedSlaveExitedExecutor)
   EXPECT_CALL(sched, registered(&driver, _, _))
     .WillOnce(FutureArg<1>(&frameworkId));\
 
-  Future<vector<Offer> > offers;
+  Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillOnce(FutureArg<1>(&offers))
     .WillRepeatedly(Return());
@@ -499,19 +503,19 @@ TEST_F(PartitionTest, PartitionedSlaveExitedExecutor)
 
   // Now, induce a partition of the slave by having the master
   // timeout the slave.
-  uint32_t pings = 0;
+  size_t pings = 0;
   while (true) {
     AWAIT_READY(ping);
     pings++;
-    if (pings == master::MAX_SLAVE_PING_TIMEOUTS) {
+    if (pings == masterFlags.max_slave_ping_timeouts) {
      break;
     }
     ping = FUTURE_MESSAGE(Eq("PING"), _, _);
-    Clock::advance(master::SLAVE_PING_TIMEOUT);
+    Clock::advance(masterFlags.slave_ping_timeout);
     Clock::settle();
   }
 
-  Clock::advance(master::SLAVE_PING_TIMEOUT);
+  Clock::advance(masterFlags.slave_ping_timeout);
   Clock::settle();
 
   // The master will have notified the framework of the lost task.
@@ -548,7 +552,8 @@ TEST_F(PartitionTest, PartitionedSlaveExitedExecutor)
 TEST_F(PartitionTest, OneWayPartitionMasterToSlave)
 {
   // Start a master.
-  Try<PID<Master> > master = StartMaster();
+  master::Flags masterFlags = CreateMasterFlags();
+  Try<PID<Master>> master = StartMaster(masterFlags);
   ASSERT_SOME(master);
 
   Future<Message> slaveRegisteredMessage =
@@ -583,10 +588,12 @@ TEST_F(PartitionTest, OneWayPartitionMasterToSlave)
   Clock::settle();
 
   // Let the slave observer send the next ping.
-  Clock::advance(slave::MASTER_PING_TIMEOUT());
+  Clock::advance(masterFlags.slave_ping_timeout);
 
   // Slave should re-register.
   AWAIT_READY(slaveReregisteredMessage);
+
+  Shutdown();
 }
 
 } // namespace tests {

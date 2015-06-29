@@ -55,9 +55,10 @@ const Duration DOCKER_INSPECT_DELAY = Seconds(1);
 const Duration DOCKER_VERSION_WAIT_TIMEOUT = Seconds(5);
 const std::string DEFAULT_AUTHENTICATEE = "crammd5";
 
-Duration MASTER_PING_TIMEOUT()
+Duration DEFAULT_MASTER_PING_TIMEOUT()
 {
-  return master::SLAVE_PING_TIMEOUT * master::MAX_SLAVE_PING_TIMEOUTS;
+  return master::DEFAULT_SLAVE_PING_TIMEOUT *
+    master::DEFAULT_MAX_SLAVE_PING_TIMEOUTS;
 }
 
 } // namespace slave {

@@ -365,6 +365,17 @@ file:///path/to/file (where file contains one of the above)</code></pre>
   </tr>
   <tr>
     <td>
+      --max_slave_ping_timeouts=VALUE
+    </td>
+    <td>
+      The number of times a slave can fail to respond to a
+      ping from the master. Slaves that incur more than
+      `max_slave_ping_timeouts` timeouts will be removed.
+      (default: 5)
+    </td>
+  </tr>
+  <tr>
+    <td>
       --modules=VALUE
     </td>
     <td>
@@ -478,18 +489,6 @@ file:///path/to/file (where file contains one of the above)</code></pre>
   </tr>
   <tr>
     <td>
-      --slave_removal_rate_limit=VALUE
-    </td>
-    <td>
-      The maximum rate (e.g., 1/10mins, 2/3hrs, etc) at which slaves will
-      be removed from the master when they fail health checks. By default
-      slaves will be removed as soon as they fail the health checks.
-      <p/>
-      The value is of the form 'Number of slaves'/'Duration'
-    </td>
-  </tr>
-  <tr>
-    <td>
       --registry=VALUE
     </td>
     <td>
@@ -547,6 +546,29 @@ file:///path/to/file (where file contains one of the above)</code></pre>
     </td>
     <td>
       Can root submit frameworks? (default: true)
+    </td>
+  </tr>
+  <tr>
+    <td>
+      --slave_ping_timeout=VALUE
+    </td>
+    <td>
+      The timeout within which each slave is expected to respond to a
+      ping from the master. Slaves that do not respond within
+      `max_slave_ping_timeouts` ping retries will be removed.
+      (default: 15secs)
+    </td>
+  </tr>
+  <tr>
+    <td>
+      --slave_removal_rate_limit=VALUE
+    </td>
+    <td>
+      The maximum rate (e.g., 1/10mins, 2/3hrs, etc) at which slaves will
+      be removed from the master when they fail health checks. By default
+      slaves will be removed as soon as they fail the health checks.
+      <p/>
+      The value is of the form 'Number of slaves'/'Duration'
     </td>
   </tr>
   <tr>

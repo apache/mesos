@@ -2519,7 +2519,8 @@ TYPED_TEST(SlaveRecoveryTest, SchedulerFailover)
 // register itself with the master and get a new slave id.
 TYPED_TEST(SlaveRecoveryTest, PartitionedSlave)
 {
-  Try<PID<Master> > master = this->StartMaster();
+  master::Flags masterFlags = this->CreateMasterFlags();
+  Try<PID<Master>> master = this->StartMaster(masterFlags);
   ASSERT_SOME(master);
 
   // Set these expectations up before we spawn the slave so that we
@@ -2593,19 +2594,19 @@ TYPED_TEST(SlaveRecoveryTest, PartitionedSlave)
 
   // Now, induce a partition of the slave by having the master
   // timeout the slave.
-  uint32_t pings = 0;
+  size_t pings = 0;
   while (true) {
     AWAIT_READY(ping);
     pings++;
-    if (pings == master::MAX_SLAVE_PING_TIMEOUTS) {
+    if (pings == masterFlags.max_slave_ping_timeouts) {
      break;
     }
     ping = FUTURE_MESSAGE(Eq("PING"), _, _);
-    Clock::advance(master::SLAVE_PING_TIMEOUT);
+    Clock::advance(masterFlags.slave_ping_timeout);
     Clock::settle();
   }
 
-  Clock::advance(master::SLAVE_PING_TIMEOUT);
+  Clock::advance(masterFlags.slave_ping_timeout);
   Clock::settle();
 
   // The master will notify the framework that the slave was lost.

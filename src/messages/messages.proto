@@ -276,6 +276,7 @@ message ReregisterSlaveMessage {
 
 message SlaveRegisteredMessage {
   required SlaveID slave_id = 1;
+  optional MasterSlaveConnection connection = 2;
 }
 
 
@@ -283,11 +284,20 @@ message SlaveReregisteredMessage {
   required SlaveID slave_id = 1;
 
   repeated ReconcileTasksMessage reconciliations = 2;
+  optional MasterSlaveConnection connection = 3;
 }
 
 
 message UnregisterSlaveMessage {
   required SlaveID slave_id = 1;
+}
+
+
+message MasterSlaveConnection {
+  // Product of max_slave_ping_timeouts * slave_ping_timeout.
+  // If no pings are received within the total timeout,
+  // the master will remove the slave.
+  optional double total_ping_timeout_seconds = 1;
 }
 
 

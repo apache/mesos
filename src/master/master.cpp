@@ -124,7 +124,9 @@ public:
                 const SlaveID& _slaveId,
                 const PID<Master>& _master,
                 const Option<shared_ptr<RateLimiter>>& _limiter,
-                const shared_ptr<Metrics> _metrics)
+                const shared_ptr<Metrics> _metrics,
+                const Duration& _slavePingTimeout,
+                const size_t _maxSlavePingTimeouts)
     : ProcessBase(process::ID::generate("slave-observer")),
       slave(_slave),
       slaveInfo(_slaveInfo),
@@ -132,6 +134,8 @@ public:
       master(_master),
       limiter(_limiter),
       metrics(_metrics),
+      slavePingTimeout(_slavePingTimeout),
+      maxSlavePingTimeouts(_maxSlavePingTimeouts),
       timeouts(0),
       pinged(false),
       connected(true)
@@ -170,7 +174,7 @@ protected:
     send(slave, "PING", data.data(), data.size());
 
     pinged = true;
-    delay(SLAVE_PING_TIMEOUT, self(), &SlaveObserver::timeout);
+    delay(slavePingTimeout, self(), &SlaveObserver::timeout);
   }
 
   void pong(const UPID& from, const string& body)
@@ -190,9 +194,9 @@ protected:
   {
     if (pinged) {
       timeouts++; // No pong has been received before the timeout.
-      if (timeouts >= MAX_SLAVE_PING_TIMEOUTS) {
+      if (timeouts >= maxSlavePingTimeouts) {
         // No pong has been received for the last
-        // 'MAX_SLAVE_PING_TIMEOUTS' pings.
+        // 'maxSlavePingTimeouts' pings.
         shutdown();
       }
     }
@@ -261,6 +265,8 @@ private:
   const Option<shared_ptr<RateLimiter>> limiter;
   shared_ptr<Metrics> metrics;
   Option<Future<Nothing>> shuttingDown;
+  const Duration slavePingTimeout;
+  const size_t maxSlavePingTimeouts;
   uint32_t timeouts;
   bool pinged;
   bool connected;
@@ -1313,7 +1319,7 @@ void Master::recoveredSlavesTimeout(const Registry& registry)
 
   if (removalPercentage > limit) {
     EXIT(1) << "Post-recovery slave removal limit exceeded! After "
-            << SLAVE_PING_TIMEOUT * MAX_SLAVE_PING_TIMEOUTS
+            << flags.slave_reregister_timeout
             << " there were " << slaves.recovered.size()
             << " (" << removalPercentage * 100 << "%) slaves recovered from the"
             << " registry that did not re-register: \n"
@@ -3143,8 +3149,15 @@ void Master::registerSlave(
 
       LOG(INFO) << "Slave " << *slave << " already registered,"
                 << " resending acknowledgement";
+
+      Duration pingTimeout =
+        flags.slave_ping_timeout * flags.max_slave_ping_timeouts;
+      MasterSlaveConnection connection;
+      connection.set_total_ping_timeout_seconds(pingTimeout.secs());
+
       SlaveRegisteredMessage message;
-      message.mutable_slave_id()->MergeFrom(slave->id);
+      message.mutable_slave_id()->CopyFrom(slave->id);
+      message.mutable_connection()->CopyFrom(connection);
       send(from, message);
       return;
     }
@@ -3217,8 +3230,14 @@ void Master::_registerSlave(
 
     addSlave(slave);
 
+    Duration pingTimeout =
+      flags.slave_ping_timeout * flags.max_slave_ping_timeouts;
+    MasterSlaveConnection connection;
+    connection.set_total_ping_timeout_seconds(pingTimeout.secs());
+
     SlaveRegisteredMessage message;
-    message.mutable_slave_id()->MergeFrom(slave->id);
+    message.mutable_slave_id()->CopyFrom(slave->id);
+    message.mutable_connection()->CopyFrom(connection);
     send(slave->pid, message);
 
     LOG(INFO) << "Registered slave " << *slave
@@ -3413,8 +3432,14 @@ void Master::_reregisterSlave(
 
     addSlave(slave, completedFrameworks);
 
+    Duration pingTimeout =
+      flags.slave_ping_timeout * flags.max_slave_ping_timeouts;
+    MasterSlaveConnection connection;
+    connection.set_total_ping_timeout_seconds(pingTimeout.secs());
+
     SlaveReregisteredMessage message;
-    message.mutable_slave_id()->MergeFrom(slave->id);
+    message.mutable_slave_id()->CopyFrom(slave->id);
+    message.mutable_connection()->CopyFrom(connection);
     send(slave->pid, message);
 
     LOG(INFO) << "Re-registered slave " << *slave
@@ -4266,8 +4291,14 @@ void Master::reconcile(
   // To resolve both cases correctly, we must reconcile through the
   // slave. For slaves that do not support reconciliation, we keep
   // the old semantics and cover only case (1) via TASK_LOST.
+  Duration pingTimeout =
+    flags.slave_ping_timeout * flags.max_slave_ping_timeouts;
+  MasterSlaveConnection connection;
+  connection.set_total_ping_timeout_seconds(pingTimeout.secs());
+
   SlaveReregisteredMessage reregistered;
-  reregistered.mutable_slave_id()->MergeFrom(slave->id);
+  reregistered.mutable_slave_id()->CopyFrom(slave->id);
+  reregistered.mutable_connection()->CopyFrom(connection);
 
   // NOTE: copies are needed because removeTask modified slave->tasks.
   foreachkey (const FrameworkID& frameworkId, utils::copy(slave->tasks)) {
@@ -4699,7 +4730,14 @@ void Master::addSlave(
 
   // Set up an observer for the slave.
   slave->observer = new SlaveObserver(
-      slave->pid, slave->info, slave->id, self(), slaves.limiter, metrics);
+      slave->pid,
+      slave->info,
+      slave->id,
+      self(),
+      slaves.limiter,
+      metrics,
+      flags.slave_ping_timeout,
+      flags.max_slave_ping_timeouts);
 
   spawn(slave->observer);
 

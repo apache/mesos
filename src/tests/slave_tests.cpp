@@ -1545,7 +1545,7 @@ TEST_F(SlaveTest, PingTimeoutNoPings)
   Future<SlaveReregisteredMessage> slaveReregisteredMessage =
     FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
 
-  Clock::advance(slave::MASTER_PING_TIMEOUT());
+  Clock::advance(slave::DEFAULT_MASTER_PING_TIMEOUT());
 
   AWAIT_READY(detected);
   AWAIT_READY(slaveReregisteredMessage);
@@ -1557,7 +1557,8 @@ TEST_F(SlaveTest, PingTimeoutNoPings)
 TEST_F(SlaveTest, PingTimeoutSomePings)
 {
   // Start a master.
-  Try<PID<Master>> master = StartMaster();
+  master::Flags masterFlags = CreateMasterFlags();
+  Try<PID<Master>> master = StartMaster(masterFlags);
   ASSERT_SOME(master);
 
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
@@ -1574,7 +1575,7 @@ TEST_F(SlaveTest, PingTimeoutSomePings)
   // Ensure a ping reaches the slave.
   Future<Message> ping = FUTURE_MESSAGE(Eq("PING"), _, _);
 
-  Clock::advance(master::SLAVE_PING_TIMEOUT);
+  Clock::advance(masterFlags.slave_ping_timeout);
 
   AWAIT_READY(ping);
 
@@ -1588,7 +1589,7 @@ TEST_F(SlaveTest, PingTimeoutSomePings)
   Future<SlaveReregisteredMessage> slaveReregisteredMessage =
     FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
 
-  Clock::advance(slave::MASTER_PING_TIMEOUT());
+  Clock::advance(slave::DEFAULT_MASTER_PING_TIMEOUT());
 
   AWAIT_READY(detected);
   AWAIT_READY(slaveReregisteredMessage);
@@ -1602,7 +1603,8 @@ TEST_F(SlaveTest, RateLimitSlaveShutdown)
 {
   // Start a master.
   shared_ptr<MockRateLimiter> slaveRemovalLimiter(new MockRateLimiter());
-  Try<PID<Master>> master = StartMaster(slaveRemovalLimiter);
+  master::Flags masterFlags = CreateMasterFlags();
+  Try<PID<Master>> master = StartMaster(slaveRemovalLimiter, masterFlags);
   ASSERT_SOME(master);
 
   // Set these expectations up before we spawn the slave so that we
@@ -1632,16 +1634,16 @@ TEST_F(SlaveTest, RateLimitSlaveShutdown)
 
   // Induce a health check failure of the slave.
   Clock::pause();
-  uint32_t pings = 0;
+  size_t pings = 0;
   while (true) {
     AWAIT_READY(ping);
     pings++;
-    if (pings == master::MAX_SLAVE_PING_TIMEOUTS) {
-      Clock::advance(master::SLAVE_PING_TIMEOUT);
+    if (pings == masterFlags.max_slave_ping_timeouts) {
+      Clock::advance(masterFlags.slave_ping_timeout);
       break;
     }
     ping = FUTURE_MESSAGE(Eq("PING"), _, _);
-    Clock::advance(master::SLAVE_PING_TIMEOUT);
+    Clock::advance(masterFlags.slave_ping_timeout);
   }
 
   // The master should attempt to acquire a permit.
@@ -1665,7 +1667,8 @@ TEST_F(SlaveTest, CancelSlaveShutdown)
 {
   // Start a master.
   shared_ptr<MockRateLimiter> slaveRemovalLimiter(new MockRateLimiter());
-  Try<PID<Master>> master = StartMaster(slaveRemovalLimiter);
+  master::Flags masterFlags = CreateMasterFlags();
+  Try<PID<Master>> master = StartMaster(slaveRemovalLimiter, masterFlags);
   ASSERT_SOME(master);
 
   // Set these expectations up before we spawn the slave so that we
@@ -1696,16 +1699,16 @@ TEST_F(SlaveTest, CancelSlaveShutdown)
 
   // Induce a health check failure of the slave.
   Clock::pause();
-  uint32_t pings = 0;
+  size_t pings = 0;
   while (true) {
     AWAIT_READY(ping);
     pings++;
-    if (pings == master::MAX_SLAVE_PING_TIMEOUTS) {
-      Clock::advance(master::SLAVE_PING_TIMEOUT);
+    if (pings == masterFlags.max_slave_ping_timeouts) {
+      Clock::advance(masterFlags.slave_ping_timeout);
       break;
     }
     ping = FUTURE_MESSAGE(Eq("PING"), _, _);
-    Clock::advance(master::SLAVE_PING_TIMEOUT);
+    Clock::advance(masterFlags.slave_ping_timeout);
   }
 
   // The master should attempt to acquire a permit.
@@ -1718,7 +1721,7 @@ TEST_F(SlaveTest, CancelSlaveShutdown)
   filter(NULL);
 
   // Advance clock enough to do a ping pong.
-  Clock::advance(master::SLAVE_PING_TIMEOUT);
+  Clock::advance(masterFlags.slave_ping_timeout);
   Clock::settle();
 
   // The master should have tried to cancel the removal.
