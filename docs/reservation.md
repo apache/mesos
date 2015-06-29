@@ -68,22 +68,22 @@ A framework is able to reserve resources through the resource offer cycle.
 Suppose we receive a resource offer with 12 CPUs and 6144 MB of RAM unreserved.
 
         {
-          "id" : <offer_id>,
-          "framework_id" : <framework_id>,
-          "slave_id" : <slave_id>,
-          "hostname" : <hostname>,
-          "resources" : [
+          "id": <offer_id>,
+          "framework_id": <framework_id>,
+          "slave_id": <slave_id>,
+          "hostname": <hostname>,
+          "resources": [
             {
-              "name" : "cpus",
-              "type" : "SCALAR",
-              "scalar" : { "value" : 12 },
-              "role" : "*",
+              "name": "cpus",
+              "type": "SCALAR",
+              "scalar": { "value": 12 },
+              "role": "*",
             },
             {
-              "name" : "mem",
-              "type" : "SCALAR",
-              "scalar" : { "value" : 6144 },
-              "role" : "*",
+              "name": "mem",
+              "type": "SCALAR",
+              "scalar": { "value": 6144 },
+              "role": "*",
             }
           ]
         }
@@ -94,25 +94,25 @@ which we specify with the resources to be reserved. We need to expicitly set
 the `role` and `principal` fields with the framework's role and principal.
 
         {
-          "type" : Offer::Operation::RESERVE,
+          "type": Offer::Operation::RESERVE,
           "reserve": {
-            "resources" : [
+            "resources": [
               {
-                "name" : "cpus",
-                "type" : "SCALAR",
-                "scalar" : { "value" : 8 },
-                "role" : <framework_role>,
-                "reservation" : {
-                  "principal" : <framework_principal>
+                "name": "cpus",
+                "type": "SCALAR",
+                "scalar": { "value": 8 },
+                "role": <framework_role>,
+                "reservation": {
+                  "principal": <framework_principal>
                 }
               },
               {
-                "name" : "mem",
-                "type" : "SCALAR",
-                "scalar" : { "value" : 4096 },
-                "role" : <framework_role>,
-                "reservation" : {
-                  "principal" : <framework_principal>
+                "name": "mem",
+                "type": "SCALAR",
+                "scalar": { "value": 4096 },
+                "role": <framework_role>,
+                "reservation": {
+                  "principal": <framework_principal>
                 }
               }
             ]
@@ -122,27 +122,27 @@ the `role` and `principal` fields with the framework's role and principal.
 The subsequent resource offer will __contain__ the following reserved resources:
 
         {
-          "id" : <offer_id>,
-          "framework_id" : <framework_id>,
-          "slave_id" : <slave_id>,
-          "hostname" : <hostname>,
-          "resources" : [
+          "id": <offer_id>,
+          "framework_id": <framework_id>,
+          "slave_id": <slave_id>,
+          "hostname": <hostname>,
+          "resources": [
             {
-              "name" : "cpus",
-              "type" : "SCALAR",
-              "scalar" : { "value" : 8 },
-              "role" : <framework_role>,
-              "reservation" : {
-                "principal" : <framework_principal>
+              "name": "cpus",
+              "type": "SCALAR",
+              "scalar": { "value": 8 },
+              "role": <framework_role>,
+              "reservation": {
+                "principal": <framework_principal>
               }
             },
             {
-              "name" : "mem",
-              "type" : "SCALAR",
-              "scalar" : { "value" : 4096 },
-              "role" : <framework_role>,
-              "reservation" : {
-                "principal" : <framework_principal>
+              "name": "mem",
+              "type": "SCALAR",
+              "scalar": { "value": 4096 },
+              "role": <framework_role>,
+              "reservation": {
+                "principal": <framework_principal>
               }
             },
           ]
@@ -158,27 +158,27 @@ resources to our `role`. Suppose we would like to unreserve these resources.
 First, we receive a resource offer (copy/pasted from above):
 
         {
-          "id" : <offer_id>,
-          "framework_id" : <framework_id>,
-          "slave_id" : <slave_id>,
-          "hostname" : <hostname>,
-          "resources" : [
+          "id": <offer_id>,
+          "framework_id": <framework_id>,
+          "slave_id": <slave_id>,
+          "hostname": <hostname>,
+          "resources": [
             {
-              "name" : "cpus",
-              "type" : "SCALAR",
-              "scalar" : { "value" : 8 },
-              "role" : <framework_role>,
-              "reservation" : {
-                "principal" : <framework_principal>
+              "name": "cpus",
+              "type": "SCALAR",
+              "scalar": { "value": 8 },
+              "role": <framework_role>,
+              "reservation": {
+                "principal": <framework_principal>
               }
             },
             {
-              "name" : "mem",
-              "type" : "SCALAR",
-              "scalar" : { "value" : 4096 },
-              "role" : <framework_role>,
-              "reservation" : {
-                "principal" : <framework_principal>
+              "name": "mem",
+              "type": "SCALAR",
+              "scalar": { "value": 4096 },
+              "role": <framework_role>,
+              "reservation": {
+                "principal": <framework_principal>
               }
             },
           ]
@@ -189,25 +189,25 @@ We unreserve the 8 CPUs and 4096 MB of RAM by sending the following
 which we specify with the resources to be unreserved.
 
         {
-          "type" : Offer::Operation::UNRESERVE,
-          "unreserve" : {
-            "resources" : [
+          "type": Offer::Operation::UNRESERVE,
+          "unreserve": {
+            "resources": [
               {
-                "name" : "cpus",
-                "type" : "SCALAR",
-                "scalar" : { "value" : 8 },
-                "role" : <framework_role>,
-                "reservation" : {
-                  "principal" : <framework_principal>
+                "name": "cpus",
+                "type": "SCALAR",
+                "scalar": { "value": 8 },
+                "role": <framework_role>,
+                "reservation": {
+                  "principal": <framework_principal>
                 }
               },
               {
-                "name" : "mem",
-                "type" : "SCALAR",
-                "scalar" : { "value" : 4096 },
-                "role" : <framework_role>,
-                "reservation" : {
-                  "principal" : <framework_principal>
+                "name": "mem",
+                "type": "SCALAR",
+                "scalar": { "value": 4096 },
+                "role": <framework_role>,
+                "reservation": {
+                  "principal": <framework_principal>
                 }
               }
             ]
@@ -228,21 +228,21 @@ HTTP endpoint like so:
           -d slaveId=<slave_id> \
           -d resources='[ \
             { \
-              "name" : "cpus", \
-              "type" : "SCALAR", \
-              "scalar" : { "value" : 8 }, \
-              "role" : "ads", \
-              "reservation" : { \
-                "principal" : <operator_principal> \
+              "name": "cpus", \
+              "type": "SCALAR", \
+              "scalar": { "value": 8 }, \
+              "role": "ads", \
+              "reservation": { \
+                "principal": <operator_principal> \
               } \
             }, \
             { \
-              "name" : "mem", \
-              "type" : "SCALAR", \
-              "scalar" : { "value" : 4096 }, \
-              "role" : "ads", \
-              "reservation" : { \
-                "principal" : <operator_principal> \
+              "name": "mem", \
+              "type": "SCALAR", \
+              "scalar": { "value": 4096 }, \
+              "role": "ads", \
+              "reservation": { \
+                "principal": <operator_principal> \
               } \
             } \
           ]' \
@@ -266,21 +266,21 @@ We can send an HTTP POST request to the `/unreserve` HTTP endpoint like so:
           -d slaveId=<slave_id> \
           -d resources='[ \
             { \
-              "name" : "cpus", \
-              "type" : "SCALAR", \
-              "scalar" : { "value" : 8 }, \
-              "role" : "ads", \
-              "reservation" : { \
-                "principal" : <operator_principal> \
+              "name": "cpus", \
+              "type": "SCALAR", \
+              "scalar": { "value": 8 }, \
+              "role": "ads", \
+              "reservation": { \
+                "principal": <operator_principal> \
               } \
             }, \
             { \
-              "name" : "mem", \
-              "type" : "SCALAR", \
-              "scalar" : { "value" : 4096 }, \
-              "role" : "ads", \
-              "reservation" : { \
-                "principal" : <operator_principal> \
+              "name": "mem", \
+              "type": "SCALAR", \
+              "scalar": { "value": 4096 }, \
+              "role": "ads", \
+              "reservation": { \
+                "principal": <operator_principal> \
               } \
             } \
           ]' \
