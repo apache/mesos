@@ -834,7 +834,7 @@ TEST_F(PerfEventIsolatorTest, ROOT_CGROUPS_Sample)
   flags.perf_interval = Milliseconds(500);
 
   Try<Isolator*> isolator = CgroupsPerfEventIsolatorProcess::create(flags);
-  CHECK_SOME(isolator);
+  ASSERT_SOME(isolator);
 
   ExecutorInfo executorInfo;
 
@@ -1197,7 +1197,7 @@ TYPED_TEST(UserCgroupIsolatorTest, ROOT_CGROUPS_UserCgroup)
   flags.perf_events = "cpu-cycles"; // Needed for CgroupsPerfEventIsolator.
 
   Try<Isolator*> isolator = TypeParam::create(flags);
-  CHECK_SOME(isolator);
+  ASSERT_SOME(isolator);
 
   ExecutorInfo executorInfo;
   executorInfo.mutable_resources()->CopyFrom(
