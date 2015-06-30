@@ -436,8 +436,14 @@ Future<Response> Master::Http::redirect(const Request& request) const
     return InternalServerError(hostname.error());
   }
 
+  // NOTE: We can use a protocol-relative URL here in order to allow
+  // the browser (or other HTTP client) to prefix with 'http:' or
+  // 'https:' depending on the original request. See
+  // https://tools.ietf.org/html/rfc7231#section-7.1.2 as well as
+  // http://stackoverflow.com/questions/12436669/using-protocol-relative-uris-within-location-headers
+  // which discusses this.
   return TemporaryRedirect(
-      "http://" + hostname.get() + ":" + stringify(info.port()));
+      "//" + hostname.get() + ":" + stringify(info.port()));
 }
 
 
