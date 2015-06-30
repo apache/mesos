@@ -28,11 +28,12 @@ import org.apache.mesos.Protos.*;
  * <p>
  * The driver is responsible for invoking the Executor callbacks as it
  * communicates with the Mesos slave.
+ * </p>
  * <p>
  * Note that blocking on the MesosExecutorDriver (e.g., via {@link
  * #join}) doesn't affect the executor callbacks in anyway because
  * they are handled by a different thread.
- * <p>
+ * </p>
  * <p>
  * Note that the driver uses GLOG to do its own logging. GLOG flags can
  * be set via environment variables, prefixing the flag name with
@@ -40,9 +41,11 @@ import org.apache.mesos.Protos.*;
  * src/logging/flags.hpp. Mesos flags can also be set via environment
  * variables, prefixing the flag name with "MESOS_", e.g.,
  * "MESOS_QUIET=1".
+ * </p>
  * <p>
  * See src/examples/java/TestExecutor.java for an example of using the
  * MesosExecutorDriver.
+ * </p>
  */
 public class MesosExecutorDriver implements ExecutorDriver {
   static {

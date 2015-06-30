@@ -131,7 +131,7 @@
       <plugin>
         <artifactId>maven-javadoc-plugin</artifactId>
         <configuration>
-          <sourcepath>@abs_top_srcdir@/src/java/src</sourcepath>
+          <sourcepath>@abs_top_srcdir@/src/java/src:@abs_top_builddir@/src/java/generated</sourcepath>
           <subpackages>org.apache.mesos</subpackages>
         </configuration>
         <executions>

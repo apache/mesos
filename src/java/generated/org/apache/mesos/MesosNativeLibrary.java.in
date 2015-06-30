@@ -23,6 +23,8 @@ public class MesosNativeLibrary {
    * Represent a 'libmesos' version with Major, Minor, and Patch versions. We
    * use a class here to make it easier to do version compatibility checking.
    * For example:
+   * <pre>
+   * {@code
    * static Version BugFixVersion = new Version(0, 22, 1);
    * public static void myFunction() {
    *   if (version().compareTo(BugFixVersion) >= 0) {
@@ -31,6 +33,8 @@ public class MesosNativeLibrary {
    *     // Old behavior for backwards compatibility.
    *   }
    * }
+   * }
+   * </pre>
    */
   public static class Version implements Comparable<Version> {
     public Version(long major, long minor, long patch) {
