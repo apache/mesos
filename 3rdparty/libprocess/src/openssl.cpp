@@ -41,6 +41,13 @@ Flags::Flags()
       "Whether SSL is enabled.",
       false);
 
+  add(&Flags::support_downgrade,
+      "support_downgrade",
+      "Enable downgrading SSL accepting sockets to non-SSL traffic. When this "
+      "is enabled, no protocol may be used on non-SSL connections that "
+      "conflics with the protocol headers for SSL.",
+      false);
+
   add(&Flags::cert_file,
       "cert_file",
       "Path to certifcate.");
@@ -321,6 +328,13 @@ void reinitialize()
           session_id,
           sizeof(session_ctx)) != 1) {
     LOG(FATAL) << "Session id context size exceeds maximum";
+  }
+
+  // Notify users of the 'SSL_SUPPORT_DOWNGRADE' flag that this
+  // setting allows insecure connections.
+  if (ssl_flags->support_downgrade) {
+    LOG(WARNING) <<
+      "Failed SSL connections will be downgraded to a non-SSL socket";
   }
 
   // Now do some validation of the flags/environment variables.

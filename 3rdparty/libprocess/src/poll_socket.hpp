@@ -23,6 +23,8 @@ public:
   virtual Future<size_t> recv(char* data, size_t size);
   virtual Future<size_t> send(const char* data, size_t size);
   virtual Future<size_t> sendfile(int fd, off_t offset, size_t size);
+
+  virtual Socket::Kind kind() const { return Socket::POLL; }
 };
 
 } // namespace network {

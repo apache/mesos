@@ -705,4 +705,175 @@ TEST_F(SSLTest, ProtocolMismatch)
   }
 }
 
+
+// Ensure we can communicate between a POLL based socket and an SSL
+// socket if 'SSL_SUPPORT_DOWNGRADE' is enabled.
+TEST_F(SSLTest, ValidDowngrade)
+{
+  Try<Socket> server = setup_server({
+      {"SSL_ENABLED", "true"},
+      {"SSL_SUPPORT_DOWNGRADE", "true"},
+      {"SSL_KEY_FILE", key_path().value},
+      {"SSL_CERT_FILE", certificate_path().value},
+      {"SSL_REQUIRE_CERT", "true"}});
+  ASSERT_SOME(server);
+
+  Try<Subprocess> client = launch_client({
+      {"SSL_ENABLED", "false"}},
+      server.get(),
+      false);
+  ASSERT_SOME(client);
+
+  Future<Socket> socket = server.get().accept();
+  AWAIT_ASSERT_READY(socket);
+
+  // TODO(jmlvanre): Remove const copy.
+  AWAIT_ASSERT_EQ(data, Socket(socket.get()).recv());
+  AWAIT_ASSERT_READY(Socket(socket.get()).send(data));
+
+  AWAIT_ASSERT_READY(await_subprocess(client.get(), 0));
+}
+
+
+// Ensure we can NOT communicate between a POLL based socket and an
+// SSL socket if 'SSL_SUPPORT_DOWNGRADE' is not enabled.
+TEST_F(SSLTest, NoValidDowngrade)
+{
+  Try<Socket> server = setup_server({
+      {"SSL_ENABLED", "true"},
+      {"SSL_SUPPORT_DOWNGRADE", "false"},
+      {"SSL_KEY_FILE", key_path().value},
+      {"SSL_CERT_FILE", certificate_path().value},
+      {"SSL_REQUIRE_CERT", "true"}});
+  ASSERT_SOME(server);
+
+  Try<Subprocess> client = launch_client({
+      {"SSL_ENABLED", "false"}},
+      server.get(),
+      false);
+  ASSERT_SOME(client);
+
+  Future<Socket> socket = server.get().accept();
+  AWAIT_ASSERT_FAILED(socket);
+
+  AWAIT_ASSERT_READY(await_subprocess(client.get(), None()));
+}
+
+
+// For each protocol: ensure we can communicate between a POLL based
+// socket and an SSL socket if 'SSL_SUPPORT_DOWNGRADE' is enabled.
+TEST_F(SSLTest, ValidDowngradeEachProtocol)
+{
+  const vector<string> protocols = {
+    // Openssl can be compiled with SSLV2 and/or SSLV3 disabled
+    // completely, so we conditionally test these protocol.
+#ifndef OPENSSL_NO_SSL2
+    "SSL_ENABLE_SSL_V2",
+#endif
+#ifndef OPENSSL_NO_SSL3
+    "SSL_ENABLE_SSL_V3",
+#endif
+    "SSL_ENABLE_TLS_V1_0",
+    "SSL_ENABLE_TLS_V1_1",
+    "SSL_ENABLE_TLS_V1_2"
+  };
+
+  // For each protocol.
+  foreach (const string& server_protocol, protocols) {
+    LOG(INFO) << "Testing server protocol '" << server_protocol << "'\n";
+
+    // Set up the default server environment variables.
+    map<string, string> server_environment = {
+      {"SSL_ENABLED", "true"},
+      {"SSL_SUPPORT_DOWNGRADE", "true"},
+      {"SSL_KEY_FILE", key_path().value},
+      {"SSL_CERT_FILE", certificate_path().value}
+    };
+
+    // Disable all protocols except for the one we're testing.
+    foreach (const string& protocol, protocols) {
+      server_environment.emplace(
+          protocol,
+          stringify(protocol == server_protocol));
+    }
+
+    // Set up the server.
+    Try<Socket> server = setup_server(server_environment);
+    ASSERT_SOME(server);
+
+    // Launch the client with a POLL socket.
+    Try<Subprocess> client = launch_client({
+        {"SSL_ENABLED", "false"}},
+        server.get(),
+        false);
+    ASSERT_SOME(client);
+
+    Future<Socket> socket = server.get().accept();
+    AWAIT_ASSERT_READY(socket);
+
+    // TODO(jmlvanre): Remove const copy.
+    AWAIT_ASSERT_EQ(data, Socket(socket.get()).recv());
+    AWAIT_ASSERT_READY(Socket(socket.get()).send(data));
+
+    AWAIT_ASSERT_READY(await_subprocess(client.get(), 0));
+  }
+}
+
+
+// For each protocol: ensure we can NOT communicate between a POLL
+// based socket and an SSL socket if 'SSL_SUPPORT_DOWNGRADE' is not
+// enabled.
+TEST_F(SSLTest, NoValidDowngradeEachProtocol)
+{
+  const vector<string> protocols = {
+    // Openssl can be compiled with SSLV2 and/or SSLV3 disabled
+    // completely, so we conditionally test these protocol.
+#ifndef OPENSSL_NO_SSL2
+    "SSL_ENABLE_SSL_V2",
+#endif
+#ifndef OPENSSL_NO_SSL3
+    "SSL_ENABLE_SSL_V3",
+#endif
+    "SSL_ENABLE_TLS_V1_0",
+    "SSL_ENABLE_TLS_V1_1",
+    "SSL_ENABLE_TLS_V1_2"
+  };
+
+  // For each protocol.
+  foreach (const string& server_protocol, protocols) {
+    LOG(INFO) << "Testing server protocol '" << server_protocol << "'\n";
+
+    // Set up the default server environment variables.
+    map<string, string> server_environment = {
+      {"SSL_ENABLED", "true"},
+      {"SSL_SUPPORT_DOWNGRADE", "false"},
+      {"SSL_KEY_FILE", key_path().value},
+      {"SSL_CERT_FILE", certificate_path().value}
+    };
+
+    // Disable all protocols except for the one we're testing.
+    foreach (const string& protocol, protocols) {
+      server_environment.emplace(
+          protocol,
+          stringify(protocol == server_protocol));
+    }
+
+    // Set up the server.
+    Try<Socket> server = setup_server(server_environment);
+    ASSERT_SOME(server);
+
+    // Launch the client with a POLL socket.
+    Try<Subprocess> client = launch_client({
+        {"SSL_ENABLED", "false"}},
+        server.get(),
+        false);
+    ASSERT_SOME(client);
+
+    Future<Socket> socket = server.get().accept();
+    AWAIT_ASSERT_FAILED(socket);
+
+    AWAIT_ASSERT_READY(await_subprocess(client.get(), None()));
+  }
+}
+
 #endif // USE_SSL_SOCKET

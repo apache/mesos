@@ -57,9 +57,11 @@ private:
         int _socket,
         evconnlistener* _listener,
         const Option<net::IP>& _ip)
-      : listener(_listener),
+      : peek_event(NULL),
+        listener(_listener),
         socket(_socket),
         ip(_ip) {}
+    event* peek_event;
     Promise<Socket> promise;
     evconnlistener* listener;
     int socket;
@@ -96,8 +98,20 @@ private:
       Option<std::string>&& peer_hostname);
 
   // This is called when the equivalent of 'accept' returns. The role
-  // of this function is to set up the SSL object and bev.
+  // of this function is to set up the SSL object and bev. If we
+  // support both SSL and non-SSL traffic simultaneously then we first
+  // wait for data to be ready and test the hello handshake to
+  // disambiguate between the kinds of traffic.
   void accept_callback(AcceptRequest* request);
+
+  // This is the continuation of 'accept_callback' that handles an SSL
+  // connection.
+  static void accept_SSL_callback(AcceptRequest* request);
+
+  // This function peeks at the data on an accepted socket to see if
+  // there is an SSL handshake or not. It then dispatches to the
+  // SSL handling function or creates a non-SSL socket.
+  static void peek_callback(evutil_socket_t fd, short what, void* arg);
 
   // The following are function pairs of static functions to member
   // functions. The static functions test and hold the weak pointer to

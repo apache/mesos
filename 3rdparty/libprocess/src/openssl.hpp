@@ -22,6 +22,7 @@ public:
   Flags();
 
   bool enabled;
+  bool support_downgrade;
   Option<std::string> cert_file;
   Option<std::string> key_file;
   bool verify_cert;
@@ -44,6 +45,7 @@ const Flags& flags();
 // context gets initialized using the environment variables:
 //
 //    SSL_ENABLED=(false|0,true|1)
+//    SSL_SUPPORT_DOWNGRADE=(false|0,true|1)
 //    SSL_CERT_FILE=(path to certificate)
 //    SSL_KEY_FILE=(path to key)
 //    SSL_VERIFY_CERT=(false|0,true|1)

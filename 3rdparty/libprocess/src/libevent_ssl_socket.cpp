@@ -776,7 +776,73 @@ Future<Socket> LibeventSSLSocketImpl::accept()
 }
 
 
-// Only runs in event loop.
+void LibeventSSLSocketImpl::peek_callback(
+    evutil_socket_t fd,
+    short what,
+    void* arg)
+{
+  CHECK(__in_event_loop__);
+
+  CHECK(what & EV_READ);
+  char data[6];
+
+  // Try to peek the first 6 bytes of the message.
+  ssize_t size = ::recv(fd, data, 6, MSG_PEEK);
+
+  // Based on the function 'ssl23_get_client_hello' in openssl, we
+  // test whether to dispatch to the SSL or non-SSL based accept based
+  // on the following rules:
+  //   1. If there are fewer than 3 bytes: non-SSL.
+  //   2. If the 1st bit of the 1st byte is set AND the 3rd byte is
+  //          equal to SSL2_MT_CLIENT_HELLO: SSL.
+  //   3. If the 1st byte is equal to SSL3_RT_HANDSHAKE AND the 2nd
+  //      byte is equal to SSL3_VERSION_MAJOR and the 6th byte is
+  //      equal to SSL3_MT_CLIENT_HELLO: SSL.
+  //   4. Otherwise: non-SSL.
+
+  // For an ascii based protocol to falsely get dispatched to SSL it
+  // needs to:
+  //   1. Start with an invalid ascii character (0x80).
+  //   2. OR have the first 2 characters be a SYN followed by ETX, and
+  //          then the 6th character be SOH.
+  // These conditions clearly do not constitute valid HTTP requests,
+  // and are unlikely to collide with other existing protocols.
+
+  bool ssl = false; // Default to rule 4.
+
+  if (size < 2) { // Rule 1.
+    ssl = false;
+  } else if ((data[0] & 0x80) && data[2] == SSL2_MT_CLIENT_HELLO) { // Rule 2.
+    ssl = true;
+  } else if (data[0] == SSL3_RT_HANDSHAKE &&
+             data[1] == SSL3_VERSION_MAJOR &&
+             data[5] == SSL3_MT_CLIENT_HELLO) { // Rule 3.
+    ssl = true;
+  }
+
+  AcceptRequest* request = reinterpret_cast<AcceptRequest*>(arg);
+
+  // We call 'event_free()' here because it ensures the event is made
+  // non-pending and inactive before it gets deallocated.
+  event_free(request->peek_event);
+  request->peek_event = NULL;
+
+  if (ssl) {
+    accept_SSL_callback(request);
+  } else {
+    // Downgrade to a non-SSL socket.
+    Try<Socket> create = Socket::create(Socket::POLL, fd);
+    if (create.isError()) {
+      request->promise.fail(create.error());
+    } else {
+      request->promise.set(create.get());
+    }
+
+    delete request;
+  }
+}
+
+
 void LibeventSSLSocketImpl::accept_callback(AcceptRequest* request)
 {
   CHECK(__in_event_loop__);
@@ -784,6 +850,27 @@ void LibeventSSLSocketImpl::accept_callback(AcceptRequest* request)
   // Enqueue a potential socket that we will set up SSL state for and
   // verify.
   accept_queue.put(request->promise.future());
+
+  // If we support downgrading the connection, first wait for this
+  // socket to become readable. We will then MSG_PEEK it to test
+  // whether we want to dispatch as SSL or non-SSL.
+  if (openssl::flags().support_downgrade) {
+    request->peek_event = event_new(
+        base,
+        request->socket,
+        EV_READ,
+        &LibeventSSLSocketImpl::peek_callback,
+        request);
+    event_add(request->peek_event, NULL);
+  } else {
+    accept_SSL_callback(request);
+  }
+}
+
+
+void LibeventSSLSocketImpl::accept_SSL_callback(AcceptRequest* request)
+{
+  CHECK(__in_event_loop__);
 
   // Set up SSL object.
   SSL* ssl = SSL_new(openssl::context());

@@ -85,6 +85,9 @@
 #include "encoder.hpp"
 #include "event_loop.hpp"
 #include "gate.hpp"
+#ifdef USE_SSL_SOCKET
+#include "openssl.hpp"
+#endif
 #include "process_reference.hpp"
 
 using namespace process::firewall;
@@ -267,7 +270,9 @@ public:
 
   void accepted(const Socket& socket);
 
-  void link(ProcessBase* process, const UPID& to);
+  void link(ProcessBase* process,
+            const UPID& to,
+            const Socket::Kind& kind = Socket::DEFAULT_KIND());
 
   PID<HttpProxy> proxy(const Socket& socket);
 
@@ -275,7 +280,8 @@ public:
   void send(const Response& response,
             const Request& request,
             const Socket& socket);
-  void send(Message* message);
+  void send(Message* message,
+            const Socket::Kind& kind = Socket::DEFAULT_KIND());
 
   Encoder* next(int s);
 
@@ -298,6 +304,24 @@ private:
     hashmap<ProcessBase*, hashset<UPID>> linkees;
     hashmap<Address, hashset<UPID>> remotes;
   } links;
+
+  // Switch the underlying socket that a remote end is talking to.
+  // This manipulates the datastructures below by swapping all data
+  // mapped to 'from' to being mapped to 'to'. This is useful for
+  // downgrading a socket from SSL to POLL based.
+  void swap_implementing_socket(const Socket& from, Socket* to);
+
+  // Helper function for link().
+  void link_connect(
+      const Future<Nothing>& future,
+      Socket* socket,
+      const UPID& to);
+
+  // Helper function for send().
+  void send_connect(
+      const Future<Nothing>& future,
+      Socket* socket,
+      Message* message);
 
   // Collection of all actice sockets.
   map<int, Socket*> sockets;
@@ -756,6 +780,15 @@ void initialize(const string& delegate)
   /* Need to ignore this since we can't do MSG_NOSIGNAL on Solaris. */
   signal(SIGPIPE, SIG_IGN);
 #endif // __sun__
+
+#ifdef USE_SSL_SOCKET
+  // Notify users of the 'SSL_SUPPORT_DOWNGRADE' flag that this
+  // setting allows insecure connections.
+  if (network::openssl::flags().support_downgrade) {
+    LOG(WARNING) <<
+      "Failed SSL connections will be downgraded to a non-SSL socket";
+  }
+#endif
 
   // Create a new ProcessManager and SocketManager.
   process_manager = new ProcessManager(delegate);
@@ -1233,14 +1266,71 @@ void ignore_recv_data(
 void send(Encoder* encoder, Socket* socket);
 
 
-void link_connect(const Future<Nothing>& future, Socket* socket)
+} // namespace internal {
+
+
+void SocketManager::link_connect(
+    const Future<Nothing>& future,
+    Socket* socket,
+    const UPID& to)
 {
   if (future.isDiscarded() || future.isFailed()) {
     if (future.isFailed()) {
       VLOG(1) << "Failed to link, connect: " << future.failure();
     }
+
+    // Check if SSL is enabled, and whether we allow a downgrade to
+    // non-SSL traffic.
+#ifdef USE_SSL_SOCKET
+    bool attempt_downgrade =
+      future.isFailed() &&
+      network::openssl::flags().enabled &&
+      network::openssl::flags().support_downgrade &&
+      socket->kind() == Socket::SSL;
+
+    Option<Socket> poll_socket = None();
+
+    // If we allow downgrading from SSL to non-SSL, then retry as a
+    // POLL socket.
+    if (attempt_downgrade) {
+      synchronized (mutex) {
+        Try<Socket> create = Socket::create(Socket::POLL);
+        if (create.isError()) {
+          VLOG(1) << "Failed to link, create socket: " << create.error();
+          socket_manager->close(*socket);
+          delete socket;
+          return;
+        }
+
+        poll_socket = create.get();
+
+        // Update all the datastructures that are mapped to the socket
+        // that just failed to connect. They will now point to the new
+        // POLL socket we are about to try to connect. Even if the
+        // process has exited, persistent links will stay around, and
+        // temporary links will get cleaned up as they would otherwise.
+        swap_implementing_socket(*socket, new Socket(poll_socket.get()));
+      }
+
+      CHECK_SOME(poll_socket);
+      poll_socket.get().connect(to.address)
+        .onAny(lambda::bind(
+            &SocketManager::link_connect,
+            this,
+            lambda::_1,
+            new Socket(poll_socket.get()),
+            to));
+
+      // We don't need to 'shutdown()' the socket as it was never
+      // connected.
+      delete socket;
+      return;
+    }
+#endif
+
     socket_manager->close(*socket);
     delete socket;
+
     return;
   }
 
@@ -1249,7 +1339,7 @@ void link_connect(const Future<Nothing>& future, Socket* socket)
 
   socket->recv(data, size)
     .onAny(lambda::bind(
-        &ignore_recv_data,
+        &internal::ignore_recv_data,
         lambda::_1,
         socket,
         data,
@@ -1269,15 +1359,15 @@ void link_connect(const Future<Nothing>& future, Socket* socket)
   Encoder* encoder = socket_manager->next(*socket);
 
   if (encoder != NULL) {
-    send(encoder, new Socket(*socket));
+    internal::send(encoder, new Socket(*socket));
   }
 }
 
 
-} // namespace internal {
-
-
-void SocketManager::link(ProcessBase* process, const UPID& to)
+void SocketManager::link(
+    ProcessBase* process,
+    const UPID& to,
+    const Socket::Kind& kind)
 {
   // TODO(benh): The semantics we want to support for link are such
   // that if there is nobody to link to (local or remote) then an
@@ -1287,7 +1377,7 @@ void SocketManager::link(ProcessBase* process, const UPID& to)
   // work remotely ... but if there is someone listening remotely just
   // not at that id, then it will silently continue executing.
 
-  CHECK(process != NULL);
+  CHECK_NOTNULL(process);
 
   Option<Socket> socket = None();
   bool connect = false;
@@ -1296,7 +1386,10 @@ void SocketManager::link(ProcessBase* process, const UPID& to)
     // Check if the socket address is remote and there isn't a persistant link.
     if (to.address != __address__  && persists.count(to.address) == 0) {
       // Okay, no link, let's create a socket.
-      Try<Socket> create = Socket::create();
+      // The kind of socket we create is passed in as an argument.
+      // This allows us to support downgrading the connection type
+      // from SSL to POLL if enabled.
+      Try<Socket> create = Socket::create(kind);
       if (create.isError()) {
         VLOG(1) << "Failed to link, create socket: " << create.error();
         return;
@@ -1330,9 +1423,11 @@ void SocketManager::link(ProcessBase* process, const UPID& to)
     CHECK_SOME(socket);
     Socket(socket.get()).connect(to.address) // Copy to drop const.
       .onAny(lambda::bind(
-          &internal::link_connect,
+          &SocketManager::link_connect,
+          this,
           lambda::_1,
-          new Socket(socket.get())));
+          new Socket(socket.get()),
+          to));
   }
 }
 
@@ -1496,9 +1591,7 @@ void SocketManager::send(
 }
 
 
-namespace internal {
-
-void send_connect(
+void SocketManager::send_connect(
     const Future<Nothing>& future,
     Socket* socket,
     Message* message)
@@ -1508,8 +1601,60 @@ void send_connect(
       VLOG(1) << "Failed to send '" << message->name << "' to '"
               << message->to.address << "', connect: " << future.failure();
     }
+
+    // Check if SSL is enabled, and whether we allow a downgrade to
+    // non-SSL traffic.
+#ifdef USE_SSL_SOCKET
+    bool attempt_downgrade =
+      future.isFailed() &&
+      network::openssl::flags().enabled &&
+      network::openssl::flags().support_downgrade &&
+      socket->kind() == Socket::SSL;
+
+    Option<Socket> poll_socket = None();
+
+    // If we allow downgrading from SSL to non-SSL, then retry as a
+    // POLL socket.
+    if (attempt_downgrade) {
+      synchronized (mutex) {
+        Try<Socket> create = Socket::create(Socket::POLL);
+        if (create.isError()) {
+          VLOG(1) << "Failed to link, create socket: " << create.error();
+          socket_manager->close(*socket);
+          delete message;
+          delete socket;
+          return;
+        }
+
+        poll_socket = create.get();
+
+        // Update all the datastructures that are mapped to the socket
+        // that just failed to connect. They will now point to the new
+        // POLL socket we are about to try to connect. Even if the
+        // process has exited, persistent links will stay around, and
+        // temporary links will get cleaned up as they would otherwise.
+        swap_implementing_socket(*socket, new Socket(poll_socket.get()));
+      }
+
+      CHECK_SOME(poll_socket);
+      poll_socket.get().connect(message->to.address)
+        .onAny(lambda::bind(
+            &SocketManager::send_connect,
+            this,
+            lambda::_1,
+            new Socket(poll_socket.get()),
+            message));
+
+      // We don't need to 'shutdown()' the socket as it was never
+      // connected.
+      delete socket;
+      return;
+    }
+#endif
+
     socket_manager->close(*socket);
     delete socket;
+
     delete message;
     return;
   }
@@ -1524,7 +1669,7 @@ void send_connect(
 
   socket->recv(data, size)
     .onAny(lambda::bind(
-        &ignore_recv_data,
+        &internal::ignore_recv_data,
         lambda::_1,
         new Socket(*socket),
         data,
@@ -1533,10 +1678,8 @@ void send_connect(
   internal::send(encoder, socket);
 }
 
-} // namespace internal {
 
-
-void SocketManager::send(Message* message)
+void SocketManager::send(Message* message, const Socket::Kind& kind)
 {
   CHECK(message != NULL);
 
@@ -1569,9 +1712,12 @@ void SocketManager::send(Message* message)
       }
 
     } else {
-      // No peristent or temporary socket to the socket address
+      // No persistent or temporary socket to the socket address
       // currently exists, so we create a temporary one.
-      Try<Socket> create = Socket::create();
+      // The kind of socket we create is passed in as an argument.
+      // This allows us to support downgrading the connection type
+      // from SSL to POLL if enabled.
+      Try<Socket> create = Socket::create(kind);
       if (create.isError()) {
         VLOG(1) << "Failed to send, create socket: " << create.error();
         delete message;
@@ -1595,9 +1741,10 @@ void SocketManager::send(Message* message)
 
   if (connect) {
     CHECK_SOME(socket);
-    Socket(socket.get()).connect(address) // Copy to drop const.
+    socket.get().connect(address)
       .onAny(lambda::bind(
-          &internal::send_connect,
+          &SocketManager::send_connect,
+          this,
           lambda::_1,
           new Socket(socket.get()),
           message));
@@ -1878,6 +2025,56 @@ void SocketManager::exited(ProcessBase* process)
     }
 
     links.linkers.erase(pid);
+  }
+}
+
+
+void SocketManager::swap_implementing_socket(const Socket& from, Socket* to)
+{
+  const int from_fd = from.get();
+  const int to_fd = to->get();
+
+  // Make sure the 'from' and 'to' are valid to swap.
+  CHECK(sockets.count(from_fd) > 0);
+  CHECK(sockets.count(to_fd) == 0);
+
+  synchronized (mutex) {
+    sockets.erase(from_fd);
+    sockets[to_fd] = to;
+
+    // Update the dispose set if this is a temporary link.
+    if (dispose.count(from_fd) > 0) {
+      dispose.insert(to_fd);
+      dispose.erase(from_fd);
+    }
+
+    // Update the fd that this address is associated with. Once we've
+    // done this we can update the 'temps' and 'persists'
+    // datastructures using this updated address.
+    addresses[to_fd] = addresses[from_fd];
+    addresses.erase(from_fd);
+
+    // If this address is a temporary link.
+    if (temps.count(addresses[to_fd]) > 0) {
+      temps[addresses[to_fd]] = to_fd;
+      // No need to erase as we're changing the value, not the key.
+    }
+
+    // If this address is a persistent link.
+    if (persists.count(addresses[to_fd]) > 0) {
+      persists[addresses[to_fd]] = to_fd;
+      // No need to erase as we're changing the value, not the key.
+    }
+
+    // Move any encoders queued against this link to the new socket.
+    outgoing[to_fd] = std::move(outgoing[from_fd]);
+    outgoing.erase(from_fd);
+
+    // Update the fd any proxies are associated with.
+    if (proxies.count(from_fd) > 0) {
+      proxies[to_fd] = proxies[from_fd];
+      proxies.erase(from_fd);
+    }
   }
 }
 

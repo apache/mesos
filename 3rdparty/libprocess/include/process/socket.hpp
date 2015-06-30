@@ -37,6 +37,9 @@ public:
   // Returns the default kind of implementation of Socket.
   static const Kind& DEFAULT_KIND();
 
+  // The kind representing the underlying implementation.
+  Kind kind() const { return impl->kind(); }
+
   // Each socket is a reference counted, shared by default, concurrent
   // object. However, since we want to support multiple
   // implementations we use the Pimpl pattern (often called the
@@ -104,6 +107,8 @@ public:
         PLOG(ERROR) << "Shutdown failed on fd=" << s;
       }
     }
+
+    virtual Socket::Kind kind() const = 0;
 
     // Construct a new Socket from the given impl. This is a proxy
     // function, as Impls derived from this won't have access to the
