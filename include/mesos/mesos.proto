@@ -506,29 +506,31 @@ message Resource {
   optional RevocableInfo revocable = 9;
 }
 
-// When the network bandwidth caps are enabled and the container
-// is over its limit, outbound packets may be either delayed or
-// dropped completely either because it exceeds the maximum bandwidth
-// allocation for a single container (the cap) or because the combined
-// network traffic of multiple containers on the host exceeds the
-// transmit capacity of the host (the share). We can report the
-// following statistics for each of these conditions exported directly
-// from the Linux Traffic Control Queueing Discipline.
-//
-// id         : name of the limiter, e.g. 'tx_bw_cap'
-// backlog    : number of packets currently delayed
-// bytes      : total bytes seen
-// drops      : number of packets dropped in total
-// overlimits : number of packets which exceeded allocation
-// packets    : total packets seen
-// qlen       : number of packets currently queued
-// rate_bps   : throughput in bytes/sec
-// rate_pps   : throughput in packets/sec
-// requeues   : number of times a packet has been delayed due to
-//              locking or device contention issues
-//
-// More information on the operation of Linux Traffic Control can be
-// found at http://www.lartc.org/lartc.html.
+/**
+ * When the network bandwidth caps are enabled and the container
+ * is over its limit, outbound packets may be either delayed or
+ * dropped completely either because it exceeds the maximum bandwidth
+ * allocation for a single container (the cap) or because the combined
+ * network traffic of multiple containers on the host exceeds the
+ * transmit capacity of the host (the share). We can report the
+ * following statistics for each of these conditions exported directly
+ * from the Linux Traffic Control Queueing Discipline.
+ *
+ * id         : name of the limiter, e.g. 'tx_bw_cap'
+ * backlog    : number of packets currently delayed
+ * bytes      : total bytes seen
+ * drops      : number of packets dropped in total
+ * overlimits : number of packets which exceeded allocation
+ * packets    : total packets seen
+ * qlen       : number of packets currently queued
+ * rate_bps   : throughput in bytes/sec
+ * rate_pps   : throughput in packets/sec
+ * requeues   : number of times a packet has been delayed due to
+ *              locking or device contention issues
+ *
+ * More information on the operation of Linux Traffic Control can be
+ * found at http://www.lartc.org/lartc.html.
+ */
 message TrafficControlStatistics {
   required string id = 1;
   optional uint64 backlog = 2;
@@ -543,7 +545,7 @@ message TrafficControlStatistics {
 }
 
 
-/*
+/**
  * A snapshot of resource usage statistics.
  */
 message ResourceStatistics {
