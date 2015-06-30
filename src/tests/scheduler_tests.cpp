@@ -141,8 +141,11 @@ TEST_F(SchedulerTest, TaskRunning)
 
   {
     Call call;
-    call.mutable_framework_info()->CopyFrom(DEFAULT_FRAMEWORK_INFO);
     call.set_type(Call::SUBSCRIBE);
+
+    Call::Subscribe* subscribe = call.mutable_subscribe();
+    subscribe->mutable_framework_info()->CopyFrom(DEFAULT_FRAMEWORK_INFO);
+    subscribe->set_force(true);
 
     mesos.send(call);
   }
@@ -184,8 +187,7 @@ TEST_F(SchedulerTest, TaskRunning)
 
   {
     Call call;
-    call.mutable_framework_info()->CopyFrom(DEFAULT_FRAMEWORK_INFO);
-    call.mutable_framework_info()->mutable_id()->CopyFrom(id);
+    call.mutable_framework_id()->CopyFrom(id);
     call.set_type(Call::ACCEPT);
 
     Call::Accept* accept = call.mutable_accept();
@@ -246,8 +248,11 @@ TEST_F(SchedulerTest, ReconcileTask)
 
   {
     Call call;
-    call.mutable_framework_info()->CopyFrom(DEFAULT_FRAMEWORK_INFO);
     call.set_type(Call::SUBSCRIBE);
+
+    Call::Subscribe* subscribe = call.mutable_subscribe();
+    subscribe->mutable_framework_info()->CopyFrom(DEFAULT_FRAMEWORK_INFO);
+    subscribe->set_force(true);
 
     mesos.send(call);
   }
@@ -274,8 +279,7 @@ TEST_F(SchedulerTest, ReconcileTask)
 
   {
     Call call;
-    call.mutable_framework_info()->CopyFrom(DEFAULT_FRAMEWORK_INFO);
-    call.mutable_framework_info()->mutable_id()->CopyFrom(id);
+    call.mutable_framework_id()->CopyFrom(id);
     call.set_type(Call::ACCEPT);
 
     Call::Accept* accept = call.mutable_accept();
@@ -295,8 +299,7 @@ TEST_F(SchedulerTest, ReconcileTask)
 
   {
     Call call;
-    call.mutable_framework_info()->CopyFrom(DEFAULT_FRAMEWORK_INFO);
-    call.mutable_framework_info()->mutable_id()->CopyFrom(id);
+    call.mutable_framework_id()->CopyFrom(id);
     call.set_type(Call::RECONCILE);
 
     Call::Reconcile::Task* task = call.mutable_reconcile()->add_tasks();
@@ -354,8 +357,11 @@ TEST_F(SchedulerTest, KillTask)
 
   {
     Call call;
-    call.mutable_framework_info()->CopyFrom(DEFAULT_FRAMEWORK_INFO);
     call.set_type(Call::SUBSCRIBE);
+
+    Call::Subscribe* subscribe = call.mutable_subscribe();
+    subscribe->mutable_framework_info()->CopyFrom(DEFAULT_FRAMEWORK_INFO);
+    subscribe->set_force(true);
 
     mesos.send(call);
   }
@@ -382,8 +388,7 @@ TEST_F(SchedulerTest, KillTask)
 
   {
     Call call;
-    call.mutable_framework_info()->CopyFrom(DEFAULT_FRAMEWORK_INFO);
-    call.mutable_framework_info()->mutable_id()->CopyFrom(id);
+    call.mutable_framework_id()->CopyFrom(id);
     call.set_type(Call::ACCEPT);
 
     Call::Accept* accept = call.mutable_accept();
@@ -404,8 +409,7 @@ TEST_F(SchedulerTest, KillTask)
   {
     // Acknowledge TASK_RUNNING update.
     Call call;
-    call.mutable_framework_info()->CopyFrom(DEFAULT_FRAMEWORK_INFO);
-    call.mutable_framework_info()->mutable_id()->CopyFrom(id);
+    call.mutable_framework_id()->CopyFrom(id);
     call.set_type(Call::ACKNOWLEDGE);
 
     Call::Acknowledge* acknowledge = call.mutable_acknowledge();
@@ -421,8 +425,7 @@ TEST_F(SchedulerTest, KillTask)
 
   {
     Call call;
-    call.mutable_framework_info()->CopyFrom(DEFAULT_FRAMEWORK_INFO);
-    call.mutable_framework_info()->mutable_id()->CopyFrom(id);
+    call.mutable_framework_id()->CopyFrom(id);
     call.set_type(Call::KILL);
 
     Call::Kill* kill = call.mutable_kill();
@@ -478,8 +481,11 @@ TEST_F(SchedulerTest, ShutdownExecutor)
 
   {
     Call call;
-    call.mutable_framework_info()->CopyFrom(DEFAULT_FRAMEWORK_INFO);
     call.set_type(Call::SUBSCRIBE);
+
+    Call::Subscribe* subscribe = call.mutable_subscribe();
+    subscribe->mutable_framework_info()->CopyFrom(DEFAULT_FRAMEWORK_INFO);
+    subscribe->set_force(true);
 
     mesos.send(call);
   }
@@ -506,8 +512,7 @@ TEST_F(SchedulerTest, ShutdownExecutor)
 
   {
     Call call;
-    call.mutable_framework_info()->CopyFrom(DEFAULT_FRAMEWORK_INFO);
-    call.mutable_framework_info()->mutable_id()->CopyFrom(id);
+    call.mutable_framework_id()->CopyFrom(id);
     call.set_type(Call::ACCEPT);
 
     Call::Accept* accept = call.mutable_accept();
@@ -531,8 +536,7 @@ TEST_F(SchedulerTest, ShutdownExecutor)
 
   {
     Call call;
-    call.mutable_framework_info()->CopyFrom(DEFAULT_FRAMEWORK_INFO);
-    call.mutable_framework_info()->mutable_id()->CopyFrom(id);
+    call.mutable_framework_id()->CopyFrom(id);
     call.set_type(Call::SHUTDOWN);
 
     Call::Shutdown* shutdown = call.mutable_shutdown();
@@ -590,8 +594,11 @@ TEST_F(SchedulerTest, Teardown)
 
   {
     Call call;
-    call.mutable_framework_info()->CopyFrom(DEFAULT_FRAMEWORK_INFO);
     call.set_type(Call::SUBSCRIBE);
+
+    Call::Subscribe* subscribe = call.mutable_subscribe();
+    subscribe->mutable_framework_info()->CopyFrom(DEFAULT_FRAMEWORK_INFO);
+    subscribe->set_force(true);
 
     mesos.send(call);
   }
@@ -618,8 +625,7 @@ TEST_F(SchedulerTest, Teardown)
 
   {
     Call call;
-    call.mutable_framework_info()->CopyFrom(DEFAULT_FRAMEWORK_INFO);
-    call.mutable_framework_info()->mutable_id()->CopyFrom(id);
+    call.mutable_framework_id()->CopyFrom(id);
     call.set_type(Call::ACCEPT);
 
     Call::Accept* accept = call.mutable_accept();
@@ -643,8 +649,7 @@ TEST_F(SchedulerTest, Teardown)
 
   {
     Call call;
-    call.mutable_framework_info()->CopyFrom(DEFAULT_FRAMEWORK_INFO);
-    call.mutable_framework_info()->mutable_id()->CopyFrom(id);
+    call.mutable_framework_id()->CopyFrom(id);
     call.set_type(Call::TEARDOWN);
 
     mesos.send(call);

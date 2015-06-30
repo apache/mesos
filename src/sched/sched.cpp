@@ -1017,7 +1017,8 @@ protected:
     }
 
     Call message;
-    message.mutable_framework_info()->CopyFrom(framework);
+    CHECK(framework.has_id());
+    message.mutable_framework_id()->CopyFrom(framework.id());
     message.set_type(Call::ACCEPT);
 
     Call::Accept* accept = message.mutable_accept();

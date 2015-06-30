@@ -144,7 +144,7 @@ message Call {
   // Possible call types, followed by message definitions if
   // applicable.
   enum Type {
-    SUBSCRIBE = 1;   // See 'framework_info' below.
+    SUBSCRIBE = 1;   // See 'Subscribe' below.
     TEARDOWN = 2;    // Shuts down all tasks/executors and removes framework.
     ACCEPT = 3;      // See 'Accept' below.
     DECLINE = 4;     // See 'Decline' below.
@@ -162,6 +162,28 @@ message Call {
     // SchedulerDriver::abort which was only necessary to handle
     // exceptions getting thrown from within Scheduler callbacks,
     // something that is not an issue with the Event/Call API.
+  }
+
+  // Subscribes the scheduler with the master to receive events. A
+  // scheduler must send other calls only after it has received the
+  // SUBCRIBED event.
+  message Subscribe {
+    // See the comments below on 'framework_id' on the semantics for
+    // 'framework_info.id'.
+    required FrameworkInfo framework_info = 1;
+
+    // 'force' tells the master what to do in case an instance of the
+    // scheduler attempts to subscribe when another instance of it
+    // is already connected (e.g., split brain due to network
+    // partition). If 'force' is true, the newly subscribing scheduler
+    // instance is allowed and the old connected scheduler instance
+    // is disconnected. If false, the newly subscribing scheduler
+    // instance is disallowed subscription in favor of the already
+    // connected scheduler instance. It is recommended to set this to
+    // true only when a scheduler instance is (just) elected but not
+    // when it is retrying subscription (disconnection or master
+    // failover; see sched/sched.cpp for an example).
+    required bool force = 2;
   }
 
   // Accepts an offer, performing the specified operations
@@ -260,22 +282,24 @@ message Call {
     required bytes data = 3;
   }
 
-  // Identifies who generated this call. Always necessary, but the
-  // only thing that needs to be set for certain calls, e.g.,
-  // SUBSCRIBE and TEARDOWN. 'framework_info.id()' must be always
-  // set except when a brand new scheduler SUBSCRIBEs for the very
-  // first time.
-  required FrameworkInfo framework_info = 1;
+  // Identifies who generated this call. Master assigns a framework id
+  // when a new scheduler subscribes for the first time. Once assigned,
+  // the scheduler must set the 'framework_id' here and within its
+  // FrameworkInfo (in any further 'Subscribe' calls). This allows the
+  // master to identify a scheduler correctly across disconnections,
+  // failovers, etc.
+  optional FrameworkID framework_id = 1;
 
   // Type of the call, indicates which optional field below should be
   // present if that type has a nested message definition.
   required Type type = 2;
 
-  optional Accept accept = 3;
-  optional Decline decline = 4;
-  optional Kill kill = 5;
-  optional Shutdown shutdown = 6;
-  optional Acknowledge acknowledge = 7;
-  optional Reconcile reconcile = 8;
-  optional Message message = 9;
+  optional Subscribe subscribe = 3;
+  optional Accept accept = 4;
+  optional Decline decline = 5;
+  optional Kill kill = 6;
+  optional Shutdown shutdown = 7;
+  optional Acknowledge acknowledge = 8;
+  optional Reconcile reconcile = 9;
+  optional Message message = 10;
 }

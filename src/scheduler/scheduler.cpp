@@ -191,21 +191,20 @@ public:
       return;
     }
 
+    // Only a SUBSCRIBE call may not have set the framework ID.
+    if (call.type() != Call::SUBSCRIBE && !call.has_framework_id()) {
+      drop(call, "Expecting 'framework_id' to be present");
+      return;
+    }
+
     // If no user was specified in FrameworkInfo, use the current user.
-    // TODO(benh): Make FrameworkInfo.user be optional and add a
-    // 'user' to either TaskInfo or CommandInfo.
-    if (call.framework_info().user() == "") {
+    // TODO(benh): Make FrameworkInfo.user be optional.
+    if (call.type() == Call::SUBSCRIBE &&
+        call.subscribe().framework_info().user() == "") {
       Result<string> user = os::user();
       CHECK_SOME(user);
 
-      call.mutable_framework_info()->set_user(user.get());
-    }
-
-    // Only a SUBSCRIBE call may not have set the framework ID.
-    if (call.type() != Call::SUBSCRIBE &&
-        (!call.framework_info().has_id() || call.framework_info().id() == "")) {
-      drop(call, "Call is missing FrameworkInfo.id");
-      return;
+      call.mutable_subscribe()->mutable_framework_info()->set_user(user.get());
     }
 
     if (!call.IsInitialized()) {
@@ -216,14 +215,26 @@ public:
 
     switch (call.type()) {
       case Call::SUBSCRIBE: {
-        if (!call.framework_info().has_id() ||
-            call.framework_info().id() == "") {
+        if (!call.has_subscribe()) {
+          drop(call, "Expecting 'subscribe' to be present");
+          return;
+        }
+
+        const FrameworkInfo frameworkInfo = call.subscribe().framework_info();
+
+        if (!(frameworkInfo.id() == call.framework_id())) {
+          drop(call, "Framework id in the call doesn't match the framework id"
+                     " in the 'subscribe' message");
+          return;
+        }
+
+        if (!frameworkInfo.has_id() || frameworkInfo.id() == "") {
           RegisterFrameworkMessage message;
-          message.mutable_framework()->CopyFrom(call.framework_info());
+          message.mutable_framework()->CopyFrom(frameworkInfo);
           send(master.get(), message);
         } else {
           ReregisterFrameworkMessage message;
-          message.mutable_framework()->CopyFrom(call.framework_info());
+          message.mutable_framework()->CopyFrom(frameworkInfo);
           message.set_failover(failover);
           send(master.get(), message);
         }
@@ -241,7 +252,7 @@ public:
           return;
         }
         LaunchTasksMessage message;
-        message.mutable_framework_id()->CopyFrom(call.framework_info().id());
+        message.mutable_framework_id()->CopyFrom(call.framework_id());
         message.mutable_filters()->CopyFrom(call.decline().filters());
         message.mutable_offer_ids()->CopyFrom(call.decline().offer_ids());
         send(master.get(), message);
@@ -259,7 +270,7 @@ public:
 
       case Call::REVIVE: {
         ReviveOffersMessage message;
-        message.mutable_framework_id()->CopyFrom(call.framework_info().id());
+        message.mutable_framework_id()->CopyFrom(call.framework_id());
         send(master.get(), message);
         break;
       }
@@ -288,7 +299,7 @@ public:
           return;
         }
         StatusUpdateAcknowledgementMessage message;
-        message.mutable_framework_id()->CopyFrom(call.framework_info().id());
+        message.mutable_framework_id()->CopyFrom(call.framework_id());
         message.mutable_slave_id()->CopyFrom(call.acknowledge().slave_id());
         message.mutable_task_id()->CopyFrom(call.acknowledge().task_id());
         message.set_uuid(call.acknowledge().uuid());
@@ -313,7 +324,7 @@ public:
         }
         FrameworkToExecutorMessage message;
         message.mutable_slave_id()->CopyFrom(call.message().slave_id());
-        message.mutable_framework_id()->CopyFrom(call.framework_info().id());
+        message.mutable_framework_id()->CopyFrom(call.framework_id());
         message.mutable_executor_id()->CopyFrom(call.message().executor_id());
         message.set_data(call.message().data());
         send(master.get(), message);

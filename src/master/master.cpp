@@ -1584,9 +1584,8 @@ void Master::drop(
   // TODO(bmahler): Increment a metric.
 
   LOG(ERROR) << "Dropping " << call.type() << " call"
-             << " from framework " << call.framework_info().id()
-             << " (" << call.framework_info().name()
-             << ") at " << from << ": " << message;
+             << " from framework " << call.framework_id()
+             << " at " << from << ": " << message;
 }
 
 
@@ -1613,7 +1612,6 @@ void Master::receive(
 {
   // TODO(vinod): Add metrics for calls.
   // TODO(vinod): Implement the unimplemented calls.
-  const FrameworkInfo& frameworkInfo = call.framework_info();
 
   // For SUBSCRIBE call, no need to look up the framework. Therefore,
   // we handle them first and separately from other types of calls.
@@ -1628,7 +1626,7 @@ void Master::receive(
 
   // We consolidate the framework lookup and pid validation logic here
   // because they are common for all the call handlers.
-  Framework* framework = getFramework(frameworkInfo.id());
+  Framework* framework = getFramework(call.framework_id());
 
   if (framework == NULL) {
     drop(from, call, "Framework cannot be found");

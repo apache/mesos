@@ -233,7 +233,8 @@ private:
       }
 
       Call call;
-      call.mutable_framework_info()->CopyFrom(framework);
+      CHECK(framework.has_id());
+      call.mutable_framework_id()->CopyFrom(framework.id());
       call.set_type(Call::ACCEPT);
 
       Call::Accept* accept = call.mutable_accept();
@@ -260,7 +261,8 @@ private:
 
     if (status.has_uuid()) {
       Call call;
-      call.mutable_framework_info()->CopyFrom(framework);
+      CHECK(framework.has_id());
+      call.mutable_framework_id()->CopyFrom(framework.id());
       call.set_type(Call::ACKNOWLEDGE);
 
       Call::Acknowledge* ack = call.mutable_acknowledge();
@@ -297,8 +299,14 @@ private:
     }
 
     Call call;
-    call.mutable_framework_info()->CopyFrom(framework);
+    if (framework.has_id()) {
+      call.mutable_framework_id()->CopyFrom(framework.id());
+    }
     call.set_type(Call::SUBSCRIBE);
+
+    Call::Subscribe* subscribe = call.mutable_subscribe();
+    subscribe->mutable_framework_info()->CopyFrom(framework);
+    subscribe->set_force(true);
 
     mesos.send(call);
 
@@ -310,7 +318,8 @@ private:
   void finalize()
   {
     Call call;
-    call.mutable_framework_info()->CopyFrom(framework);
+    CHECK(framework.has_id());
+    call.mutable_framework_id()->CopyFrom(framework.id());
     call.set_type(Call::TEARDOWN);
 
     mesos.send(call);
