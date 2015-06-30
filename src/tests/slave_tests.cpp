@@ -1517,8 +1517,15 @@ TEST_F(SlaveTest, TaskLaunchContainerizerUpdateFails)
 // if it does not receive any pings after registering.
 TEST_F(SlaveTest, PingTimeoutNoPings)
 {
+  // Set shorter ping timeout values.
+  master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.slave_ping_timeout = Seconds(5);
+  masterFlags.max_slave_ping_timeouts = 2u;
+  Duration totalTimeout =
+    masterFlags.slave_ping_timeout * masterFlags.max_slave_ping_timeouts;
+
   // Start a master.
-  Try<PID<Master>> master = StartMaster();
+  Try<PID<Master>> master = StartMaster(masterFlags);
   ASSERT_SOME(master);
 
   // Block all pings to the slave.
@@ -1532,6 +1539,9 @@ TEST_F(SlaveTest, PingTimeoutNoPings)
   ASSERT_SOME(slave);
 
   AWAIT_READY(slaveRegisteredMessage);
+  ASSERT_TRUE(slaveRegisteredMessage.get().has_connection());
+  MasterSlaveConnection connection = slaveRegisteredMessage.get().connection();
+  EXPECT_EQ(totalTimeout, Seconds(connection.total_ping_timeout_seconds()));
 
   // Ensure the slave processes the registration message and schedules
   // the ping timeout, before we advance the clock.
@@ -1545,7 +1555,7 @@ TEST_F(SlaveTest, PingTimeoutNoPings)
   Future<SlaveReregisteredMessage> slaveReregisteredMessage =
     FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
 
-  Clock::advance(slave::DEFAULT_MASTER_PING_TIMEOUT());
+  Clock::advance(totalTimeout);
 
   AWAIT_READY(detected);
   AWAIT_READY(slaveReregisteredMessage);
