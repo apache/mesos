@@ -377,6 +377,21 @@ struct TemporaryRedirect : Response
 };
 
 
+struct BadRequest : Response
+{
+  BadRequest()
+  {
+    status = "400 Bad Request";
+  }
+
+  explicit BadRequest(const std::string& body)
+    : Response(body)
+  {
+    status = "400 Bad Request";
+  }
+};
+
+
 struct Unauthorized : Response
 {
   Unauthorized(const std::string& realm)
@@ -390,21 +405,6 @@ struct Unauthorized : Response
   {
     status = "401 Unauthorized";
     headers["WWW-authenticate"] = "Basic realm=\"" + realm + "\"";
-  }
-};
-
-
-struct BadRequest : Response
-{
-  BadRequest()
-  {
-    status = "400 Bad Request";
-  }
-
-  explicit BadRequest(const std::string& body)
-    : Response(body)
-  {
-    status = "400 Bad Request";
   }
 };
 
@@ -433,6 +433,21 @@ struct NotFound : Response
   explicit NotFound(const std::string& body) : Response(body)
   {
     status = "404 Not Found";
+  }
+};
+
+
+struct NotAcceptable : Response
+{
+  NotAcceptable()
+  {
+    status = "406 Not Acceptable";
+  }
+
+  explicit NotAcceptable(const std::string& body)
+    : Response(body)
+  {
+    status = "406 Not Acceptable";
   }
 };
 
