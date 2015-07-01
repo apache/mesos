@@ -67,12 +67,12 @@ using mesos::scheduler::Event;
 const int32_t CPUS_PER_TASK = 1;
 const int32_t MEM_PER_TASK = 128;
 
-class LowLevelScheduler : public process::Process<LowLevelScheduler>
+class EventCallScheduler : public process::Process<EventCallScheduler>
 {
 public:
-  LowLevelScheduler(const FrameworkInfo& _framework,
-                    const ExecutorInfo& _executor,
-                    const string& master)
+  EventCallScheduler(const FrameworkInfo& _framework,
+                     const ExecutorInfo& _executor,
+                     const string& master)
     : framework(_framework),
       executor(_executor),
       mesos(master,
@@ -84,10 +84,10 @@ public:
       tasksFinished(0),
       totalTasks(5) {}
 
-  LowLevelScheduler(const FrameworkInfo& _framework,
-                    const ExecutorInfo& _executor,
-                    const string& master,
-                    const Credential& credential)
+  EventCallScheduler(const FrameworkInfo& _framework,
+                     const ExecutorInfo& _executor,
+                     const string& master,
+                     const Credential& credential)
     : framework(_framework),
       executor(_executor),
       mesos(master,
@@ -100,7 +100,7 @@ public:
       tasksFinished(0),
       totalTasks(5) {}
 
-  ~LowLevelScheduler() {}
+  ~EventCallScheduler() {}
 
   void connected()
   {
@@ -385,7 +385,7 @@ int main(int argc, char** argv)
 
   FrameworkInfo framework;
   framework.set_user(""); // Have Mesos fill in the current user.
-  framework.set_name("Low-Level Scheduler using libprocess (C++)");
+  framework.set_name("Event Call Scheduler using libprocess (C++)");
   framework.set_role(role);
 
   value = os::getenv("MESOS_CHECKPOINT");
@@ -400,7 +400,7 @@ int main(int argc, char** argv)
   executor.set_name("Test Executor (C++)");
   executor.set_source("cpp_test");
 
-  LowLevelScheduler* scheduler;
+  EventCallScheduler* scheduler;
   if (os::getenv("MESOS_AUTHENTICATE").isSome()) {
     cout << "Enabling authentication for the scheduler" << endl;
 
@@ -422,12 +422,12 @@ int main(int argc, char** argv)
     credential.set_secret(value.get());
 
     scheduler =
-      new LowLevelScheduler(framework, executor, master.get(), credential);
+      new EventCallScheduler(framework, executor, master.get(), credential);
   } else {
-    framework.set_principal("low-level-scheduler-cpp");
+    framework.set_principal("event-call-scheduler-cpp");
 
     scheduler =
-      new LowLevelScheduler(framework, executor, master.get());
+      new EventCallScheduler(framework, executor, master.get());
   }
 
   process::spawn(scheduler);

@@ -1311,15 +1311,10 @@ clean-python:
 PHONY_TARGETS += clean-python
 
 # Test (make check) binaries.
-check_PROGRAMS += low-level-scheduler-libprocess
-low_level_scheduler_libprocess_SOURCES = examples/low_level_scheduler_libprocess.cpp
-low_level_scheduler_libprocess_CPPFLAGS = $(MESOS_CPPFLAGS)
-low_level_scheduler_libprocess_LDADD = libmesos.la $(LDADD)
-
-check_PROGRAMS += low-level-scheduler-pthread
-low_level_scheduler_pthread_SOURCES = examples/low_level_scheduler_pthread.cpp
-low_level_scheduler_pthread_CPPFLAGS = $(MESOS_CPPFLAGS)
-low_level_scheduler_pthread_LDADD = libmesos.la $(LDADD)
+check_PROGRAMS += event-call-framework
+event_call_framework_SOURCES = examples/event_call_framework.cpp
+event_call_framework_CPPFLAGS = $(MESOS_CPPFLAGS)
+event_call_framework_LDADD = libmesos.la $(LDADD)
 
 check_PROGRAMS += test-framework
 test_framework_SOURCES = examples/test_framework.cpp
@@ -1601,8 +1596,7 @@ EXTRA_DIST += examples/python/test_containerizer.py			\
 
 dist_check_SCRIPTS +=							\
   tests/balloon_framework_test.sh					\
-  tests/low_level_scheduler_libprocess_test.sh				\
-  tests/low_level_scheduler_pthread_test.sh				\
+  tests/event_call_framework_test.sh					\
   tests/java_exception_test.sh						\
   tests/java_framework_test.sh						\
   tests/java_log_test.sh						\

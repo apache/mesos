@@ -26,10 +26,7 @@ TEST_SCRIPT(ExamplesTest, TestFramework, "test_framework_test.sh")
 TEST_SCRIPT(ExamplesTest, NoExecutorFramework, "no_executor_framework_test.sh")
 
 
-TEST_SCRIPT(ExamplesTest, LowLevelSchedulerLibprocess,
-            "low_level_scheduler_libprocess_test.sh")
-TEST_SCRIPT(ExamplesTest, LowLevelSchedulerPthread,
-            "low_level_scheduler_pthread_test.sh")
+TEST_SCRIPT(ExamplesTest, EventCallFramework, "event_call_framework_test.sh")
 
 
 TEST_SCRIPT(ExamplesTest, PersistentVolumeFramework,
