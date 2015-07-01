@@ -437,6 +437,20 @@ struct NotFound : Response
 };
 
 
+struct MethodNotAllowed : Response
+{
+  MethodNotAllowed()
+  {
+    status = "405 Method Not Allowed";
+  }
+
+  explicit MethodNotAllowed(const std::string& body) : Response(body)
+  {
+    status = "405 Method Not Allowed";
+  }
+};
+
+
 struct NotAcceptable : Response
 {
   NotAcceptable()
