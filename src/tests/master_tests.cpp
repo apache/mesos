@@ -1029,6 +1029,7 @@ TEST_F(MasterTest, MasterInfoOnReElection)
   AWAIT_READY(masterInfo);
   EXPECT_EQ(master.get().address.port, masterInfo.get().port());
   EXPECT_EQ(master.get().address.ip, net::IP(ntohl(masterInfo.get().ip())));
+  EXPECT_EQ(MESOS_VERSION, masterInfo.get().version());
 
   // The re-registered framework should get offers.
   AWAIT_READY(resourceOffers2);

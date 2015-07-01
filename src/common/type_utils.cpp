@@ -309,7 +309,8 @@ bool operator == (const MasterInfo& left, const MasterInfo& right)
     left.ip() == right.ip() &&
     left.port() == right.port() &&
     left.pid() == right.pid() &&
-    left.hostname() == right.hostname();
+    left.hostname() == right.hostname() &&
+    left.version() == right.version();
 }
 
 

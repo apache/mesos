@@ -140,7 +140,22 @@ Option<bool> getTaskHealth(const Task& task)
   return healthy;
 }
 
-
+/**
+ * Creates a MasterInfo protobuf from the process's UPID.
+ *
+ * This is only used by the `StandaloneMasterDetector` (used in tests
+ * and outside tests when ZK is not used).
+ *
+ * For example, when we start a slave with
+ * `--master=master@127.0.0.1:5050`, since the slave (and consequently
+ * its detector) doesn't have enough information about `MasterInfo`, it
+ * tries to construct it based on the only available information
+ * (`UPID`).
+ *
+ * @param pid The process's assigned untyped PID.
+ * @return A fully formed `MasterInfo` with the IP/hostname information
+ *    as derived from the `UPID`.
+ */
 MasterInfo createMasterInfo(const process::UPID& pid)
 {
   MasterInfo info;

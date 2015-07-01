@@ -320,6 +320,7 @@ Master::Master(
 
   info_.set_port(self().address.port);
   info_.set_pid(self());
+  info_.set_version(MESOS_VERSION);
 
   // Determine our hostname or use the hostname provided.
   string hostname;
