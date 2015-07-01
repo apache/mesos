@@ -18,6 +18,7 @@
 #include <string>
 
 #include <process/http.hpp>
+#include <process/owned.hpp>
 #include <process/socket.hpp>
 
 #include <stout/error.hpp>
@@ -51,10 +52,11 @@ public:
    * @param socket Socket used to deliver the HTTP request.
    * @param request HTTP request made by the client to libprocess.
    * @return If the rule verification fails, i.e. the rule didn't
-   *     match, the returned error is set with an explanation for the
-   *     failure. Otherwise None is returned.
+   *     match, a pointer to a 'http::Response' object containing the
+   *     HTTP error code and possibly a message indicating the reason
+   *     for failure. Otherwise an unset 'Option' object.
    */
-  virtual Option<Error> apply(
+  virtual Option<Owned<http::Response>> apply(
       const network::Socket& socket,
       const http::Request& request) = 0;
 };
@@ -75,12 +77,13 @@ public:
 
   virtual ~DisabledEndpointsFirewallRule() {}
 
-  virtual Option<Error> apply(
+  virtual Option<Owned<http::Response>> apply(
       const network::Socket&,
       const http::Request& request)
   {
     if (paths.contains(request.path)) {
-      return Error("'" + request.path + "' is disabled");
+      return Owned<http::Response>(
+          new http::Forbidden("Endpoint '" + request.path + "' is disabled"));
     }
 
     return None();
