@@ -305,12 +305,19 @@ void reinitialize()
     CRYPTO_set_dynlock_lock_callback(&dyn_lock_function);
     CRYPTO_set_dynlock_destroy_callback(&dyn_destroy_function);
 
-    ctx = SSL_CTX_new(SSLv23_method());
-    CHECK(ctx) << "Failed to create SSL context: "
-                << ERR_error_string(ERR_get_error(), NULL);
-
     initialized_single_entry->done();
   }
+
+  // Clean up if we had a previous SSL context object. We want to
+  // re-initialize this to get rid of any non-default settings.
+  if (ctx != NULL) {
+    SSL_CTX_free(ctx);
+    ctx = NULL;
+  }
+
+  ctx = SSL_CTX_new(SSLv23_method());
+  CHECK(ctx) << "Failed to create SSL context: "
+             << ERR_error_string(ERR_get_error(), NULL);
 
   // Disable SSL session caching.
   SSL_CTX_set_session_cache_mode(ctx, SSL_SESS_CACHE_OFF);

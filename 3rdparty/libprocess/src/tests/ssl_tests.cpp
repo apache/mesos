@@ -255,6 +255,7 @@ protected:
     // This unsets all the SSL environment variables. Necessary for
     // ensuring a clean starting slate between tests.
     os::unsetenv("SSL_ENABLED");
+    os::unsetenv("SSL_SUPPORT_DOWNGRADE");
     os::unsetenv("SSL_CERT_FILE");
     os::unsetenv("SSL_KEY_FILE");
     os::unsetenv("SSL_VERIFY_CERT");
