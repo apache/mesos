@@ -179,7 +179,13 @@ void EventLoop::initialize()
   // when the implementation settles and after we gain confidence.
   event_enable_debug_mode();
 
-  base = event_base_new();
+  // TODO(jmlvanre): Allow support for 'epoll' once SSL related
+  // issues are resolved.
+  struct event_config* config = event_config_new();
+  event_config_avoid_method(config, "epoll");
+
+  base = event_base_new_with_config(config);
+
   if (base == NULL) {
     LOG(FATAL) << "Failed to initialize, event_base_new";
   }
