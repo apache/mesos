@@ -877,4 +877,41 @@ TEST_F(SSLTest, NoValidDowngradeEachProtocol)
   }
 }
 
+
+// Verify that the 'peer()' address call works correctly.
+TEST_F(SSLTest, PeerAddress)
+{
+  Try<Socket> server = setup_server({
+      {"SSL_ENABLED", "true"},
+      {"SSL_KEY_FILE", key_path().value},
+      {"SSL_CERT_FILE", certificate_path().value}});
+  ASSERT_SOME(server);
+
+  const Try<Socket> client_create = Socket::create(Socket::SSL);
+  ASSERT_SOME(client_create);
+
+  Socket client = client_create.get();
+
+  Future<Socket> socket = server.get().accept();
+
+  const Try<Address> server_address = server.get().address();
+  ASSERT_SOME(server_address);
+
+  const Future<Nothing> connect = client.connect(server_address.get());
+
+  AWAIT_ASSERT_READY(socket);
+  AWAIT_ASSERT_READY(connect);
+
+  const Try<Address> socket_address = socket.get().address();
+  ASSERT_SOME(socket_address);
+
+  // Ensure the client thinks its peer is the server.
+  ASSERT_SOME_EQ(socket_address.get(), client.peer());
+
+  // Ensure the client has an address, and that the server thinks its
+  // peer is the client.
+  ASSERT_SOME(client.address());
+  ASSERT_SOME_EQ(client.address().get(), socket.get().peer());
+}
+
 #endif // USE_SSL_SOCKET
