@@ -473,14 +473,6 @@ Future<Nothing> LibeventSSLSocketImpl::connect(const Address& address)
   // From this point on, as long as 'bev' is freed properly, it will
   // free 'ssl' along with it due to the BEV_OPT_CLOSE_ON_FREE' flag.
 
-  // Assign the callbacks for the bufferevent.
-  bufferevent_setcb(
-      bev,
-      &LibeventSSLSocketImpl::recv_callback,
-      &LibeventSSLSocketImpl::send_callback,
-      &LibeventSSLSocketImpl::event_callback,
-      CHECK_NOTNULL(event_loop_handle));
-
   // Try and determine the 'peer_hostname' from the address we're
   // connecting to in order to properly verify the SSL connection later.
   const Try<string> hostname = address.hostname();
@@ -506,16 +498,51 @@ Future<Nothing> LibeventSSLSocketImpl::connect(const Address& address)
     std::swap(request, connect_request);
   }
 
-  sockaddr_storage addr = net::createSockaddrStorage(address.ip, address.port);
+  // Extend the life-time of 'this' through the execution of the
+  // lambda in the event loop. Note: The 'self' needs to be explicitly
+  // captured because we're not using it in the body of the lambda. We
+  // can use a 'shared_ptr' because run_in_event_loop is guaranteed to
+  // execute.
+  auto self = shared(this);
 
-  if (bufferevent_socket_connect(
-          bev,
-          reinterpret_cast<sockaddr*>(&addr),
-          sizeof(addr)) < 0) {
-    bufferevent_free(bev);
-    bev = NULL;
-    return Failure("Failed to connect: bufferevent_socket_connect");
-  }
+  run_in_event_loop(
+      [self, address]() {
+        sockaddr_storage addr =
+          net::createSockaddrStorage(address.ip, address.port);
+
+          // Assign the callbacks for the bufferevent. We do this
+          // before the 'bufferevent_socket_connect()' call to avoid
+          // any race on the underlying buffer events becoming ready.
+          bufferevent_setcb(
+              self->bev,
+              &LibeventSSLSocketImpl::recv_callback,
+              &LibeventSSLSocketImpl::send_callback,
+              &LibeventSSLSocketImpl::event_callback,
+              CHECK_NOTNULL(self->event_loop_handle));
+
+          if (bufferevent_socket_connect(
+                  self->bev,
+                  reinterpret_cast<sockaddr*>(&addr),
+                  sizeof(addr)) < 0) {
+            bufferevent_free(self->bev);
+            self->bev = NULL;
+
+            Owned<ConnectRequest> request;
+
+            // Swap out the 'connect_request' so we can destroy it
+            // outside of the lock.
+            synchronized (self->lock) {
+              std::swap(request, self->connect_request);
+            }
+
+            CHECK_NOTNULL(request.get());
+
+            // Fail the promise since we failed to connect.
+            request->promise.fail(
+                "Failed to connect: bufferevent_socket_connect");
+          }
+      },
+      DISALLOW_SHORT_CIRCUIT);
 
   return future;
 }
