@@ -896,7 +896,9 @@ void initialize(const string& delegate)
     Try<net::IP> ip = net::getIP(hostname, __address__.ip.family());
 
     if (ip.isError()) {
-      LOG(FATAL) << ip.error();
+      EXIT(EXIT_FAILURE) << "Failed to obtain the IP address for '" << hostname
+                         << "'; the DNS service may not be able to resolve it: "
+                         << ip.error();
     }
 
     __address__.ip = ip.get();
