@@ -481,6 +481,21 @@ struct Conflict : Response
 };
 
 
+struct UnsupportedMediaType : Response
+{
+  UnsupportedMediaType()
+  {
+    status = "415 Unsupported Media Type";
+  }
+
+  explicit UnsupportedMediaType(const std::string& body)
+    : Response(body)
+  {
+    status = "415 Unsupported Media Type";
+  }
+};
+
+
 struct InternalServerError : Response
 {
   InternalServerError()
