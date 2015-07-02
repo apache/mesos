@@ -165,11 +165,6 @@ private:
   // futures as well.
   Queue<Future<Socket>> accept_queue;
 
-  // This bool represents whether this socket was created through an
-  // 'accept' flow. We use this in the destructor to change
-  // the clean-up behavior for the SSL context object.
-  bool accepted;
-
   Option<std::string> peer_hostname;
 };
 

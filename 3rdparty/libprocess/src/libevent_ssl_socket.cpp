@@ -42,14 +42,6 @@
 // loop). To avoid this we run all bufferevent manipulation logic in
 // continuations that are executed within the event loop.
 
-// Connection Extra FD:
-//
-// In libevent-openssl (v 2.0.21) we've had issues using the
-// 'bufferevent_openssl_socket_new' call with the CONNECTING state and
-// an existing socket. Therefore we allow it to construct its own
-// fd and clean it up along with the Impl object when the bev is
-// freed using the BEV_OPT_CLOSE_ON_FREE option.
-
 // DISALLOW_SHORT_CIRCUIT:
 //
 // We disallow short-circuiting in 'run_in_event_loop' due to a bug in
@@ -101,11 +93,10 @@ LibeventSSLSocketImpl::~LibeventSSLSocketImpl()
   // below.
   evconnlistener* _listener = listener;
   bufferevent* _bev = bev;
-  bool _accepted = accepted;
   std::weak_ptr<LibeventSSLSocketImpl>* _event_loop_handle = event_loop_handle;
 
   run_in_event_loop(
-      [_listener, _bev, _accepted, _event_loop_handle]() {
+      [_listener, _bev, _event_loop_handle]() {
         // Once this lambda is called, it should not be possible for
         // more event loop callbacks to be triggered with 'this->bev'.
         // This is important because we delete event_loop_handle which
@@ -129,18 +120,12 @@ LibeventSSLSocketImpl::~LibeventSSLSocketImpl()
           // NOTE: Removes all future callbacks using 'this->bev'.
           bufferevent_disable(_bev, EV_READ | EV_WRITE);
 
-          // Since we are using a separate fd for the connecting socket we
-          // end up using BEV_OPT_CLOSE_ON_FREE for the connecting, but
-          // not for the accepting side. since the BEV_OPT_CLOSE_ON_FREE
-          // also frees the SSL object, we need to manually free it for
-          // the accepting case. See the 'Connection Extra FD' note at top
-          // of file.
-          if (_accepted) {
-            SSL_free(ssl);
-          }
+          // Clean up the ssl object.
+          SSL_free(ssl);
 
-          // For the connecting socket BEV_OPT_CLOSE_ON_FREE will close
-          // the fd. See note below.
+          // Clean up the buffer event. Since we don't set
+          // 'BEV_OPT_CLOSE_ON_FREE' we rely on the base class
+          // 'Socket::Impl' to clean up the fd.
           bufferevent_free(_bev);
         }
 
@@ -345,6 +330,8 @@ void LibeventSSLSocketImpl::event_callback(short events)
     }
 
     if (current_connect_request.get() != NULL) {
+      SSL* ssl = bufferevent_openssl_get_ssl(CHECK_NOTNULL(bev));
+      SSL_free(ssl);
       bufferevent_free(CHECK_NOTNULL(bev));
       bev = NULL;
       current_connect_request->promise.fail(
@@ -367,6 +354,7 @@ void LibeventSSLSocketImpl::event_callback(short events)
     Try<Nothing> verify = openssl::verify(ssl, peer_hostname);
     if (verify.isError()) {
       VLOG(1) << "Failed connect, verification error: " << verify.error();
+      SSL_free(ssl);
       bufferevent_free(bev);
       bev = NULL;
       current_connect_request->promise.fail(verify.error());
@@ -395,6 +383,8 @@ void LibeventSSLSocketImpl::event_callback(short events)
     }
 
     if (current_connect_request.get() != NULL) {
+      SSL* ssl = bufferevent_openssl_get_ssl(CHECK_NOTNULL(bev));
+      SSL_free(ssl);
       bufferevent_free(CHECK_NOTNULL(bev));
       bev = NULL;
       current_connect_request->promise.fail(
@@ -405,8 +395,6 @@ void LibeventSSLSocketImpl::event_callback(short events)
 }
 
 
-// For the connecting socket we currently don't use the fd associated
-// with 'Socket'. See the 'Connection Extra FD' note at top of file.
 LibeventSSLSocketImpl::LibeventSSLSocketImpl(int _s)
   : Socket::Impl(_s),
     bev(NULL),
@@ -415,12 +403,9 @@ LibeventSSLSocketImpl::LibeventSSLSocketImpl(int _s)
     recv_request(NULL),
     send_request(NULL),
     connect_request(NULL),
-    event_loop_handle(NULL),
-    accepted(false) {}
+    event_loop_handle(NULL) {}
 
 
-// For the connecting socket we currently don't use the fd associated
-// with 'Socket'. See the 'Connection Extra FD' note at top of file.
 LibeventSSLSocketImpl::LibeventSSLSocketImpl(
     int _s,
     bufferevent* _bev,
@@ -433,7 +418,6 @@ LibeventSSLSocketImpl::LibeventSSLSocketImpl(
     send_request(NULL),
     connect_request(NULL),
     event_loop_handle(NULL),
-    accepted(true),
     peer_hostname(std::move(_peer_hostname)) {}
 
 
@@ -452,16 +436,14 @@ Future<Nothing> LibeventSSLSocketImpl::connect(const Address& address)
     return Failure("Failed to connect: SSL_new");
   }
 
-  // Construct the bufferevent in the connecting state. We don't use
-  // the existing FD due to an issue in libevent-openssl. See the
-  // 'Connection Extra FD' note at top of file.
+  // Construct the bufferevent in the connecting state.
   CHECK(bev == NULL);
   bev = bufferevent_openssl_socket_new(
       base,
-      -1,
+      get(),
       ssl,
       BUFFEREVENT_SSL_CONNECTING,
-      BEV_OPT_CLOSE_ON_FREE | BEV_OPT_THREADSAFE);
+      BEV_OPT_THREADSAFE);
 
   if (bev == NULL) {
     // We need to free 'ssl' here because the bev won't clean it up
@@ -469,9 +451,6 @@ Future<Nothing> LibeventSSLSocketImpl::connect(const Address& address)
     SSL_free(ssl);
     return Failure("Failed to connect: bufferevent_openssl_socket_new");
   }
-
-  // From this point on, as long as 'bev' is freed properly, it will
-  // free 'ssl' along with it due to the BEV_OPT_CLOSE_ON_FREE' flag.
 
   // Try and determine the 'peer_hostname' from the address we're
   // connecting to in order to properly verify the SSL connection later.
@@ -491,6 +470,7 @@ Future<Nothing> LibeventSSLSocketImpl::connect(const Address& address)
   // Assign 'connect_request' under lock, fail on error.
   synchronized (lock) {
     if (connect_request.get() != NULL) {
+      SSL_free(ssl);
       bufferevent_free(bev);
       bev = NULL;
       return Failure("Socket is already connecting");
@@ -524,6 +504,8 @@ Future<Nothing> LibeventSSLSocketImpl::connect(const Address& address)
                   self->bev,
                   reinterpret_cast<sockaddr*>(&addr),
                   sizeof(addr)) < 0) {
+            SSL* ssl = bufferevent_openssl_get_ssl(CHECK_NOTNULL(self->bev));
+            SSL_free(ssl);
             bufferevent_free(self->bev);
             self->bev = NULL;
 
