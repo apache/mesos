@@ -147,7 +147,7 @@ void commandDiscarded(const Subprocess& s, const string& cmd)
 
 Future<Version> Docker::version() const
 {
-  string cmd = path + " version";
+  string cmd = path + " --version";
 
   Try<Subprocess> s = subprocess(
       cmd,
@@ -186,14 +186,17 @@ Future<Version> Docker::_version(const string& cmd, const Subprocess& s)
 
 Future<Version> Docker::__version(const Future<string>& output)
 {
-  foreach (string line, strings::split(output.get(), "\n")) {
-    line = strings::trim(line);
-    if (strings::startsWith(line, "Client version: ")) {
-      line = line.substr(strlen("Client version: "));
-      Try<Version> version = Version::parse(line);
+  vector<string> parts = strings::split(output.get(), ",");
+
+  if (!parts.empty()) {
+    vector<string> subParts = strings::split(parts.front(), " ");
+
+    if (!subParts.empty()) {
+      Try<Version> version = Version::parse(subParts.back());
 
       if (version.isError()) {
-        return Failure("Failed to parse docker version: " + version.error());
+        return Failure("Failed to parse docker version: " +
+                       version.error());
       }
 
       return version;
