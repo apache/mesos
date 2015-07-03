@@ -16,6 +16,16 @@ This document serves as a guide for users who wish to upgrade an existing mesos 
 
 **NOTE** The Resource protobuf has been extended to include more metadata for supporting persistence (DiskInfo), dynamic reservations (ReservationInfo) and oversubscription (RevocableInfo). You must not combine two Resource objects if they have different metadata.
 
+In order to upgrade a running cluster:
+
+* Rebuild and install any modules so that upgraded masters/slaves can use them.
+* Install the new master binaries and restart the masters.
+* Install the new slave binaries and restart the slaves.
+* Upgrade the schedulers by linking the latest native library / jar / egg (if necessary).
+* Restart the schedulers.
+* Upgrade the executors by linking the latest native library / jar / egg (if necessary).
+
+
 ## Upgrading from 0.21.x to 0.22.x
 
 **NOTE** Slave checkpoint flag has been removed as it will be enabled for all
