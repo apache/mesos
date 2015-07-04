@@ -369,6 +369,11 @@ Future<Nothing> Docker::run(
 
   foreach (const Environment::Variable& variable,
            commandInfo.environment().variables()) {
+    if (env.isSome() &&
+        env.get().find(variable.name()) != env.get().end()) {
+      // Skip to avoid duplicate environment variables.
+      continue;
+    }
     argv.push_back("-e");
     argv.push_back(variable.name() + "=" + variable.value());
   }
