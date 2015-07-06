@@ -9,9 +9,12 @@
 namespace process {
 namespace network {
 
-// Returns a socket file descriptor for the specified options. Note
-// that on OS X, the returned socket will have the SO_NOSIGPIPE option
-// set.
+/**
+ * Returns a socket file descriptor for the specified options.
+ *
+ * **NOTE:** on OS X, the returned socket will have the SO_NOSIGPIPE
+ * option set.
+ */
 inline Try<int> socket(int family, int type, int protocol)
 {
   int s;
@@ -77,9 +80,12 @@ inline Try<int> connect(int s, const Address& address)
 }
 
 
-// Returns the Address with the assigned ip and assigned port.
-// Returns an error if the getsockname system call fails or the
-// family type is not supported.
+/**
+ * Returns the `Address` with the assigned ip and assigned port.
+ *
+ * @return An `Address` or an error if the `getsockname` system call
+ *     fails or the family type is not supported.
+ */
 inline Try<Address> address(int s)
 {
   struct sockaddr_storage storage;
@@ -93,9 +99,12 @@ inline Try<Address> address(int s)
 }
 
 
-// Returns the peer's Address for the accepted or connected socket.
-// Returns an error if the getpeername system call fails or the
-// family type is not supported.
+/**
+ * Returns the peer's `Address` for the accepted or connected socket.
+ *
+ * @return An `Address` or an error if the `getpeername` system call
+ *     fails or the family type is not supported.
+ */
 inline Try<Address> peer(int s)
 {
   struct sockaddr_storage storage;
