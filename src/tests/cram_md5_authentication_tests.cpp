@@ -51,7 +51,7 @@ namespace internal {
 namespace cram_md5 {
 
 template <typename T>
-class CRAMMD5Authentication : public MesosTest {};
+class CRAMMD5AuthenticationTest : public MesosTest {};
 
 template <typename T, typename U>
 class Authentication
@@ -76,9 +76,9 @@ typedef ::testing::Types<
                  tests::Module<Authenticator, TestCRAMMD5Authenticator>>>
   AuthenticationTypes;
 
-TYPED_TEST_CASE(CRAMMD5Authentication, AuthenticationTypes);
+TYPED_TEST_CASE(CRAMMD5AuthenticationTest, AuthenticationTypes);
 
-TYPED_TEST(CRAMMD5Authentication, Success)
+TYPED_TEST(CRAMMD5AuthenticationTest, Success)
 {
   // Launch a dummy process (somebody to send the AuthenticateMessage).
   UPID pid = spawn(new ProcessBase(), true);
@@ -123,7 +123,7 @@ TYPED_TEST(CRAMMD5Authentication, Success)
 
 
 // Bad password should return an authentication failure.
-TYPED_TEST(CRAMMD5Authentication, Failed1)
+TYPED_TEST(CRAMMD5AuthenticationTest, Failed1)
 {
   // Launch a dummy process (somebody to send the AuthenticateMessage).
   UPID pid = spawn(new ProcessBase(), true);
@@ -168,7 +168,7 @@ TYPED_TEST(CRAMMD5Authentication, Failed1)
 
 
 // No user should return an authentication failure.
-TYPED_TEST(CRAMMD5Authentication, Failed2)
+TYPED_TEST(CRAMMD5AuthenticationTest, Failed2)
 {
   // Launch a dummy process (somebody to send the AuthenticateMessage).
   UPID pid = spawn(new ProcessBase(), true);
@@ -215,7 +215,7 @@ TYPED_TEST(CRAMMD5Authentication, Failed2)
 // This test verifies that the pending future returned by
 // 'Authenticator::authenticate()' is properly failed when the
 // Authenticator Session is destroyed in the middle of authentication.
-TYPED_TEST(CRAMMD5Authentication, AuthenticatorDestructionRace)
+TYPED_TEST(CRAMMD5AuthenticationTest, AuthenticatorDestructionRace)
 {
   // Launch a dummy process (somebody to send the AuthenticateMessage).
   UPID pid = spawn(new ProcessBase(), true);
@@ -272,7 +272,7 @@ TYPED_TEST(CRAMMD5Authentication, AuthenticatorDestructionRace)
 
 
 // This test verifies that a missing secret fails the authenticatee.
-TYPED_TEST(CRAMMD5Authentication, AuthenticateeSecretMissing)
+TYPED_TEST(CRAMMD5AuthenticationTest, AuthenticateeSecretMissing)
 {
   Credential credential;
   credential.set_principal("benh");

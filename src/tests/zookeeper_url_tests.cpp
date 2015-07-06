@@ -23,7 +23,7 @@
 
 #include "zookeeper/url.hpp"
 
-TEST(ZooKeeper, URL)
+TEST(ZooKeeperURLTest, URL)
 {
   Try<zookeeper::URL> url =
     zookeeper::URL::parse("zk://host1:port1");

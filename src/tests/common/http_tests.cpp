@@ -42,7 +42,7 @@ using namespace mesos::internal;
 // This test ensures we don't break the API when it comes to JSON
 // representation of tasks. Also, we want to ensure that tasks are
 // modeled the same way when using 'Task' vs. 'TaskInfo'.
-TEST(HTTP, ModelTask)
+TEST(HTTPTest, ModelTask)
 {
   TaskID taskId;
   taskId.set_value("t");
@@ -117,7 +117,7 @@ TEST(HTTP, ModelTask)
 
 // This test verifies that Resources model combines all resources of different
 // roles and filters out revocable resources.
-TEST(HTTP, ModelResources)
+TEST(HTTPTest, ModelResources)
 {
   // Resources of mixed types, roles, duplicate names; standard (
   // e.g., 'cpus') and custom (i.e., 'bar').
