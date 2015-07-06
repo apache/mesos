@@ -363,7 +363,7 @@ TEST_F(ReservationTest, ReserveShareWithinRole)
 
   // The filter to decline the offer "forever".
   Filters filtersForever;
-  filters.set_refuse_seconds(std::numeric_limits<double>::max());
+  filtersForever.set_refuse_seconds(std::numeric_limits<double>::max());
 
   // Decline the offer "forever" in order to force framework2 to
   // receive the resources.
