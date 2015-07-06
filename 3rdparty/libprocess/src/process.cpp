@@ -2211,11 +2211,9 @@ bool ProcessManager::handle(
     // Don't use a const reference, since it cannot be guaranteed
     // that the rules don't keep an internal state.
     foreach (Owned<FirewallRule>& rule, firewallRules) {
-      Option<Owned<Response>> rejection = rule->apply(socket, *request);
+      Option<Response> rejection = rule->apply(socket, *request);
       if (rejection.isSome()) {
-        CHECK(rejection.get().get() != NULL);
-
-        VLOG(1) << "Returning '"<< rejection.get()->status << "' for '"
+        VLOG(1) << "Returning '"<< rejection.get().status << "' for '"
                 << request->path << "' (firewall rule forbids request)";
 
         // TODO(arojas): Get rid of the duplicated code to return an
@@ -2229,7 +2227,7 @@ bool ProcessManager::handle(
         dispatch(
             proxy,
             &HttpProxy::enqueue,
-            *rejection.get(),
+            rejection.get(),
             *request);
 
         // Cleanup request.

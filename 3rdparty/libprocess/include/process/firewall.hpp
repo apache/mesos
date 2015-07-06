@@ -56,7 +56,7 @@ public:
    *     HTTP error code and possibly a message indicating the reason
    *     for failure. Otherwise an unset 'Option' object.
    */
-  virtual Option<Owned<http::Response>> apply(
+  virtual Option<http::Response> apply(
       const network::Socket& socket,
       const http::Request& request) = 0;
 };
@@ -77,13 +77,12 @@ public:
 
   virtual ~DisabledEndpointsFirewallRule() {}
 
-  virtual Option<Owned<http::Response>> apply(
+  virtual Option<http::Response> apply(
       const network::Socket&,
       const http::Request& request)
   {
     if (paths.contains(request.path)) {
-      return Owned<http::Response>(
-          new http::Forbidden("Endpoint '" + request.path + "' is disabled"));
+      return http::Forbidden("Endpoint '" + request.path + "' is disabled");
     }
 
     return None();
