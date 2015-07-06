@@ -72,6 +72,16 @@ TEST(StringsTest, Trim)
   EXPECT_EQ("hello world", strings::trim("  hello world  ", " "));
   EXPECT_EQ("hello world", strings::trim(" \t hello world\t  ", " \t"));
   EXPECT_EQ("hello world", strings::trim(" \t hello world\t \n\r "));
+
+  // Also test trimming from just the prefix or suffix.
+  EXPECT_EQ("hello world\t \n\r ",
+            strings::trim(" \t hello world\t \n\r ", strings::PREFIX));
+  EXPECT_EQ(" \t hello world",
+            strings::trim(" \t hello world\t \n\r ", strings::SUFFIX));
+  EXPECT_EQ("\t hello world\t \n\r ",
+            strings::trim(" \t hello world\t \n\r ", strings::PREFIX, " "));
+  EXPECT_EQ(" \t hello world\t \n",
+            strings::trim(" \t hello world\t \n\r ", strings::SUFFIX, " \r"));
 }
 
 

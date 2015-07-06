@@ -27,7 +27,7 @@
 
 namespace strings {
 
-// Flags indicating how remove should operate.
+// Flags indicating how 'remove' or 'trim' should operate.
 enum Mode {
   PREFIX,
   SUFFIX,
@@ -63,15 +63,46 @@ inline std::string remove(
 
 inline std::string trim(
     const std::string& from,
+    Mode mode = ANY,
     const std::string& chars = " \t\n\r")
 {
-  size_t start = from.find_first_not_of(chars);
-  size_t end = from.find_last_not_of(chars);
-  if (start == std::string::npos) { // Contains only characters in chars.
+  size_t start = 0;
+  Option<size_t> end = None();
+
+  if (mode == ANY) {
+    start = from.find_first_not_of(chars);
+    end = from.find_last_not_of(chars);
+  } else if (mode == PREFIX) {
+    start = from.find_first_not_of(chars);
+  } else if (mode == SUFFIX) {
+    end = from.find_last_not_of(chars);
+  }
+
+  // Bail early if 'from' contains only characters in 'chars'.
+  if (start == std::string::npos) {
     return "";
   }
 
-  return from.substr(start, end + 1 - start);
+  // Calculate the length of the substring, defaulting to the "end" of
+  // string if there were no characters to remove from the suffix.
+  size_t length = std::string::npos;
+
+  // Found characters to trim at the end.
+  if (end.isSome() && end.get() != std::string::npos) {
+    length = end.get() + 1 - start;
+  }
+
+  return from.substr(start, length);
+}
+
+
+// Helper providing some syntactic sugar for when 'mode' is ANY but
+// the 'chars' are specified.
+inline std::string trim(
+    const std::string& from,
+    const std::string& chars)
+{
+  return trim(from, ANY, chars);
 }
 
 
