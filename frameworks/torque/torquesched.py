@@ -72,7 +72,7 @@ class MyScheduler(mesos.Scheduler):
     return mesos.ExecutorInfo(execPath, initArg)
 
   def registered(self, driver, fid):
-    driverlog.info("Mesos torque framwork registered with frameworkID %s" % fid)
+    driverlog.info("Mesos torque framework registered with frameworkID %s" % fid)
 
   def resourceOffer(self, driver, oid, slave_offers):
     self.driver = driver

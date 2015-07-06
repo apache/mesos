@@ -80,7 +80,7 @@ class Scheduler(object):
       Invoked when an offer is no longer valid (e.g., the slave was lost or
       another framework used resources in the offer.) If for whatever reason
       an offer is never rescinded (e.g., dropped message, failing over
-      framework, etc.), a framwork that attempts to launch tasks using an
+      framework, etc.), a framework that attempts to launch tasks using an
       invalid offer will receive TASK_LOST status updats for those tasks
       (see Scheduler.resourceOffers).
     """

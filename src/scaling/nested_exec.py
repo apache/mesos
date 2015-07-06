@@ -26,7 +26,7 @@ class NestedExecutor(mesos.Executor):
     mesos.Executor.__init__(self)
     self.tid = -1
 
-  def registered(self, driver, executorInfo, framworkInfo, slaveInfo):
+  def registered(self, driver, executorInfo, frameworkInfo, slaveInfo):
     self.frameworkId = frameworkInfo.id;
 
   def launchTask(self, driver, task):
