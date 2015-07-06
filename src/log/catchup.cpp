@@ -300,7 +300,7 @@ static Future<Nothing> catchup(
         quorum,
         replica,
         network,
-        proposal.get(0),
+        proposal.getOrElse(0),
         positions,
         timeout);
 

@@ -595,13 +595,13 @@ inline Try<process::PID<slave::Slave>> Cluster::Slaves::start(
 
   slave.slave = new slave::Slave(
       flags,
-      detector.get(slave.detector.get()),
+      detector.getOrElse(slave.detector.get()),
       slave.containerizer,
       &cluster->files,
-      gc.get(slave.gc.get()),
-      statusUpdateManager.get(slave.statusUpdateManager.get()),
-      resourceEstimator.get(slave.resourceEstimator.get()),
-      qosController.get(slave.qosController.get()));
+      gc.getOrElse(slave.gc.get()),
+      statusUpdateManager.getOrElse(slave.statusUpdateManager.get()),
+      resourceEstimator.getOrElse(slave.resourceEstimator.get()),
+      qosController.getOrElse(slave.qosController.get()));
 
   process::PID<slave::Slave> pid = process::spawn(slave.slave);
 

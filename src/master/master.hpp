@@ -1199,12 +1199,12 @@ private:
 
       Slave* get(const SlaveID& slaveId) const
       {
-        return ids.get(slaveId).get(NULL);
+        return ids.get(slaveId).getOrElse(NULL);
       }
 
       Slave* get(const process::UPID& pid) const
       {
-        return pids.get(pid).get(NULL);
+        return pids.get(pid).getOrElse(NULL);
       }
 
       void put(Slave* slave)
