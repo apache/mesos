@@ -150,7 +150,7 @@ inline Result<Process> process(pid_t pid)
                    None(),
                    None(),
                    None(),
-                   command.get(std::string(process.kp_proc.p_comm)),
+                   command.getOrElse(std::string(process.kp_proc.p_comm)),
                    process.kp_proc.p_stat & SZOMB);
   } else {
     return Process(process.kp_proc.p_pid,
@@ -160,7 +160,7 @@ inline Result<Process> process(pid_t pid)
                    Bytes(task.pti_resident_size),
                    Nanoseconds(task.pti_total_user),
                    Nanoseconds(task.pti_total_system),
-                   command.get(std::string(process.kp_proc.p_comm)),
+                   command.getOrElse(std::string(process.kp_proc.p_comm)),
                    process.kp_proc.p_stat & SZOMB);
   }
 }

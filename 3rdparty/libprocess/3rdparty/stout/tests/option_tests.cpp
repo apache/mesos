@@ -142,3 +142,12 @@ TEST(OptionTest, NonCopyable)
   o4 = Some(NonCopyable());
   ASSERT_SOME(o4);
 }
+
+
+TEST(OptionTest, GetOrElse)
+{
+  Option<string> something = string("Something");
+  Option<string> none = None();
+  EXPECT_EQ("Something", something.getOrElse("Else"));
+  EXPECT_EQ("Else", none.getOrElse("Else"));
+}
