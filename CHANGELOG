@@ -1,14 +1,17 @@
 Release Notes - Mesos - Version 0.23.0
 --------------------------------------------
-This release contains several new features:
+This release contains new features:
 
 * [MESOS-1585] - Per-container network isolation: bandwidth capping and unique
                  egress flow to reduce buffer bloat. Refer to the network
                  monitoring documentation for more information.
 * [MESOS-2115] - Dockerized slaves will properly recover Docker containers upon failover.
+
+Plus an upgrade to the minimum required compiler versions:
+
 * [MESOS-2604] - Upgrade minimum required compilers to GCC 4.8+ or clang 3.5+.
 
-And experimental support for the following features;
+And experimental support for the following features:
 
 * [MESOS-336] - Fetcher Caching of executor/task binaries. Refer to the fetcher
                 documentation for more information.
@@ -35,13 +38,8 @@ This release also includes API changes, new modules, and deprecations.
   * [MESOS-1127] - Implement the protobufs for the scheduler API
   * [MESOS-2097] - Update Resource protobuf with DiskInfo.
   * [MESOS-2191] - Add ContainerId to the TaskStatus message
-  * [MESOS-2290] - Move all scheduler driver validations to master
-  * [MESOS-2291] - Move executor driver validations to slave
   * [MESOS-2292] - Implement Call/Event protobufs for Executor
-  * [MESOS-2427] - Add Java binding for the acceptOffers API.
-  * [MESOS-2428] - Add Python bindings for the acceptOffers API.
   * [MESOS-2475] - Add the Resource::ReservationInfo protobuf message.
-  * [MESOS-2551] - C++ Scheduler library should send Call messages to Master
   * [MESOS-2614] - Update name, hostname, failover_timeout, and webui_url in
                    master on framework re-registration
   * [MESOS-2654] - A new 'capabilities' field has been addd to FrameworkInfo to
@@ -77,262 +75,267 @@ This release also includes API changes, new modules, and deprecations.
 This release also includes several bug fixes and stability improvements.
 
 ** Bug
-    * [MESOS-328] - HTTP headers should be considered case-insensitive.
-    * [MESOS-719] - missing-call-to-setgroups
-    * [MESOS-757] - The post-reviews.py script hangs if HTTP authentication has expired
-    * [MESOS-1303] - ExamplesTest.{TestFramework, NoExecutorFramework} flaky
-    * [MESOS-1690] - Expose metric for container destroy failures
-    * [MESOS-1795] - Assertion failure in state abstraction crashes JVM
-    * [MESOS-1825] - Support the webui over HTTPS.
-    * [MESOS-2016] - docker_name_prefix is too generic
-    * [MESOS-2020] - mesos should send docker failure messages to scheduler
-    * [MESOS-2161] - AbstractState JNI check fails for Marathon framework
-    * [MESOS-2165] - When cyrus sasl MD5 isn't installed configure passes,
-                     tests fail without any output
-    * [MESOS-2183] - docker containerizer doesn't work when mesos-slave is
-                     running in a container
-    * [MESOS-2199] - Failing test: SlaveTest.ROOT_RunTaskWithCommandInfoWithUser
-    * [MESOS-2309] - Mesos rejects ExecutorInfo as incompatible when there is no
-                     functional difference
-    * [MESOS-2367] - Improve slave resiliency in the face of orphan containers
-    * [MESOS-2373] - DRFSorter needs to distinguish resources from different slaves.
-    * [MESOS-2387] - SlaveTest.TaskLaunchContainerizerUpdateFails is flaky
-    * [MESOS-2401] - MasterTest.ShutdownFrameworkWhileTaskRunning is flaky
-    * [MESOS-2402] - MesosContainerizerDestroyTest.LauncherDestroyFailure is flaky
-    * [MESOS-2403] - MasterAllocatorTest/0.FrameworkReregistersFirst is flaky
-    * [MESOS-2412] - Potential memleak(s) in stout/os.hpp
-    * [MESOS-2426] - Developer Guide improvements
-    * [MESOS-2436] - Adapt unit test relying on non-checkpointing slaves
-    * [MESOS-2450] - Hardcoded constants in libprocess should be replaced by
-                     their INADDR_XXX equivalents
-    * [MESOS-2457] - Update post-reviews to rbtools in 'submit your patch' of
-                     developer's guide
-    * [MESOS-2464] - Authentication failure may lead to slave crash
-    * [MESOS-2469] - Mesos master/slave should be able to bind to 127.0.0.1 if
-                     explicitly requested
-    * [MESOS-2479] - Task filter input disappears entirely once the search query
-                     yields no results
-    * [MESOS-2481] - Update CHANGELOG and upgrades doc about the new acceptOffers API.
-    * [MESOS-2494] - Clang build broken with "expression result unused" warning
-    * [MESOS-2514] - Change the default leaf qdisc to fq_codel inside containers
-    * [MESOS-2530] -  Alloc-dealloc-mismatch in OsSendfileTest.sendfile
-    * [MESOS-2534] - PerfTest.ROOT_SampleInit test fails.
-    * [MESOS-2538] - Remove unnecessary default flags from PortMappingMesosTest.
-    * [MESOS-2548] - new `make distcheck` failures inside a docker container
-    * [MESOS-2557] - Do not pass FrameworkID to Framework constructor for Master/Slave.
-    * [MESOS-2558] - Mark RunTaskMessage.framework_id as optional
-    * [MESOS-2566] - Fix the Attributes and Resources documentation
-    * [MESOS-2592] - The sandbox directory is not chown'ed if the fetcher doesn't run
-    * [MESOS-2598] - Slave state.json frameworks.executors.queued_tasks wrong format?
-    * [MESOS-2601] - Tasks are not removed after recovery from slave and mesos containerizer
-    * [MESOS-2603] - Permissions and ownership of persistent volumes are not set correctly.
-    * [MESOS-2611] - Get Started about CentOS 6.5 is wrong
-    * [MESOS-2627] - ExamplesTest.PersistentVolumeFramework is flaky
-    * [MESOS-2636] - Segfault in inline Try<IP> getIP(const std::string& hostname, int family)
-    * [MESOS-2656] - Slave should send status update immediately when container
-                     launch fails.
-    * [MESOS-2659] - update pthread and python autoconf macros
-    * [MESOS-2660] - ROOT_CGROUPS_Listen test is flaky
-    * [MESOS-2668] - Slave fails to recover when there are still processes left
-                     in its cgroup
-    * [MESOS-2671] - Port mapping isolator causes SIGABRT during slave recovery.
-    * [MESOS-2672] - ContainerizerTest.ROOT_CGROUPS_BalloonFramework flaky
-    * [MESOS-2690] - --enable-optimize build fails with maybe-uninitialized
-    * [MESOS-2748] - /help generated links point to wrong URLs
-    * [MESOS-2764] - Allow Resource Estimator to get Resource Usage information.
-    * [MESOS-2778] - Non-POD static variables used in fq_codel and ingress.
-    * [MESOS-2781] - getQdisc function in routing::queueing::internal.cpp returns
-                     incorrect qdisc
-    * [MESOS-2787] - mesos-ps fails with "KeyError: 'mem_rss_bytes'"
-    * [MESOS-2788] - mesos-ps truncates memory statistics
-    * [MESOS-2792] - Remove duplicate literals in ingress & fq_codel queueing disciplines
-    * [MESOS-2808] - Slave should call into resource estimator whenever it wants
-                     to forward oversubscribed resources
-    * [MESOS-2809] - Mesos fails to launch Docker images built with large Dockerfiles
-    * [MESOS-2815] - Flaky test: FetcherCacheHttpTest.HttpCachedSerialized
-    * [MESOS-2835] - Fix typos in source comments
-    * [MESOS-2866] - Slave should send oversubscribed resource information after
-                     master failover.
-    * [MESOS-2869] - OversubscriptionTest.FixedResourceEstimator is flaky
-    * [MESOS-2873] - style hook prevent's valid markdown files from getting committed
-    * [MESOS-2874] - Convert PortMappingStatistics to use automatic JSON encoding/decoding
-    * [MESOS-2877] - Allow libprocess firewall to have more control over the
-                     responses sent on failures
-    * [MESOS-2881] - Linker error when building Mesos with unbundled dependencies
-    * [MESOS-2889] - Add SSL switch to python configuration
-    * [MESOS-2890] - Sandbox URL doesn't work in web-ui when using SSL
-    * [MESOS-2891] - Performance regression in hierarchical allocator.
-    * [MESOS-2894] - web UI shows "YYYY" for year instead of year
-    * [MESOS-2904] - Add slave metric to count container launch failures
-    * [MESOS-2914] - Port mapping isolator should cleanup unknown orphan containers
-                     after all known orphan containers are recovered during recovery.
-    * [MESOS-2917] - Specify correct libnl version for configure check
-    * [MESOS-2919] - Framework can overcommit oversubscribable resources during
-                     master failover.
-    * [MESOS-2925] - Invalid usage of ATOMIC_FLAG_INIT in member initialization
-    * [MESOS-2932] - There is a typo in docs/docker-containerizer.md file
-    * [MESOS-2962] - Slave fails with Abort stacktrace when DNS cannot resolve hostname
-    * [MESOS-2973] - SSL tests don't work with --gtest_repeat
-    * [MESOS-2975] - SSL tests don't work with --gtest_shuffle
-    * [MESOS-2986] - Docker version output is not compatible with Mesos
+  * [MESOS-328] - HTTP headers should be considered case-insensitive.
+  * [MESOS-719] - missing-call-to-setgroups
+  * [MESOS-757] - The post-reviews.py script hangs if HTTP authentication has expired
+  * [MESOS-1303] - ExamplesTest.{TestFramework, NoExecutorFramework} flaky
+  * [MESOS-1690] - Expose metric for container destroy failures
+  * [MESOS-1795] - Assertion failure in state abstraction crashes JVM
+  * [MESOS-1825] - Support the webui over HTTPS.
+  * [MESOS-2016] - docker_name_prefix is too generic
+  * [MESOS-2020] - mesos should send docker failure messages to scheduler
+  * [MESOS-2161] - AbstractState JNI check fails for Marathon framework
+  * [MESOS-2165] - When cyrus sasl MD5 isn't installed configure passes,
+                   tests fail without any output
+  * [MESOS-2183] - docker containerizer doesn't work when mesos-slave is
+                   running in a container
+  * [MESOS-2199] - Failing test: SlaveTest.ROOT_RunTaskWithCommandInfoWithUser
+  * [MESOS-2309] - Mesos rejects ExecutorInfo as incompatible when there is no
+                   functional difference
+  * [MESOS-2367] - Improve slave resiliency in the face of orphan containers
+  * [MESOS-2373] - DRFSorter needs to distinguish resources from different slaves.
+  * [MESOS-2387] - SlaveTest.TaskLaunchContainerizerUpdateFails is flaky
+  * [MESOS-2401] - MasterTest.ShutdownFrameworkWhileTaskRunning is flaky
+  * [MESOS-2402] - MesosContainerizerDestroyTest.LauncherDestroyFailure is flaky
+  * [MESOS-2403] - MasterAllocatorTest/0.FrameworkReregistersFirst is flaky
+  * [MESOS-2412] - Potential memleak(s) in stout/os.hpp
+  * [MESOS-2426] - Developer Guide improvements
+  * [MESOS-2436] - Adapt unit test relying on non-checkpointing slaves
+  * [MESOS-2450] - Hardcoded constants in libprocess should be replaced by
+                   their INADDR_XXX equivalents
+  * [MESOS-2457] - Update post-reviews to rbtools in 'submit your patch' of
+                   developer's guide
+  * [MESOS-2464] - Authentication failure may lead to slave crash
+  * [MESOS-2469] - Mesos master/slave should be able to bind to 127.0.0.1 if
+                   explicitly requested
+  * [MESOS-2479] - Task filter input disappears entirely once the search query
+                   yields no results
+  * [MESOS-2481] - Update CHANGELOG and upgrades doc about the new acceptOffers API.
+  * [MESOS-2494] - Clang build broken with "expression result unused" warning
+  * [MESOS-2514] - Change the default leaf qdisc to fq_codel inside containers
+  * [MESOS-2530] -  Alloc-dealloc-mismatch in OsSendfileTest.sendfile
+  * [MESOS-2534] - PerfTest.ROOT_SampleInit test fails.
+  * [MESOS-2538] - Remove unnecessary default flags from PortMappingMesosTest.
+  * [MESOS-2548] - new `make distcheck` failures inside a docker container
+  * [MESOS-2557] - Do not pass FrameworkID to Framework constructor for Master/Slave.
+  * [MESOS-2558] - Mark RunTaskMessage.framework_id as optional
+  * [MESOS-2566] - Fix the Attributes and Resources documentation
+  * [MESOS-2592] - The sandbox directory is not chown'ed if the fetcher doesn't run
+  * [MESOS-2598] - Slave state.json frameworks.executors.queued_tasks wrong format?
+  * [MESOS-2601] - Tasks are not removed after recovery from slave and mesos containerizer
+  * [MESOS-2603] - Permissions and ownership of persistent volumes are not set correctly.
+  * [MESOS-2611] - Get Started about CentOS 6.5 is wrong
+  * [MESOS-2627] - ExamplesTest.PersistentVolumeFramework is flaky
+  * [MESOS-2636] - Segfault in inline Try<IP> getIP(const std::string& hostname, int family)
+  * [MESOS-2656] - Slave should send status update immediately when container
+                   launch fails.
+  * [MESOS-2659] - update pthread and python autoconf macros
+  * [MESOS-2660] - ROOT_CGROUPS_Listen test is flaky
+  * [MESOS-2668] - Slave fails to recover when there are still processes left
+                   in its cgroup
+  * [MESOS-2671] - Port mapping isolator causes SIGABRT during slave recovery.
+  * [MESOS-2672] - ContainerizerTest.ROOT_CGROUPS_BalloonFramework flaky
+  * [MESOS-2690] - --enable-optimize build fails with maybe-uninitialized
+  * [MESOS-2748] - /help generated links point to wrong URLs
+  * [MESOS-2764] - Allow Resource Estimator to get Resource Usage information.
+  * [MESOS-2778] - Non-POD static variables used in fq_codel and ingress.
+  * [MESOS-2781] - getQdisc function in routing::queueing::internal.cpp returns
+                   incorrect qdisc
+  * [MESOS-2787] - mesos-ps fails with "KeyError: 'mem_rss_bytes'"
+  * [MESOS-2788] - mesos-ps truncates memory statistics
+  * [MESOS-2792] - Remove duplicate literals in ingress & fq_codel queueing disciplines
+  * [MESOS-2808] - Slave should call into resource estimator whenever it wants
+                   to forward oversubscribed resources
+  * [MESOS-2809] - Mesos fails to launch Docker images built with large Dockerfiles
+  * [MESOS-2815] - Flaky test: FetcherCacheHttpTest.HttpCachedSerialized
+  * [MESOS-2835] - Fix typos in source comments
+  * [MESOS-2866] - Slave should send oversubscribed resource information after
+                   master failover.
+  * [MESOS-2869] - OversubscriptionTest.FixedResourceEstimator is flaky
+  * [MESOS-2873] - style hook prevent's valid markdown files from getting committed
+  * [MESOS-2874] - Convert PortMappingStatistics to use automatic JSON encoding/decoding
+  * [MESOS-2877] - Allow libprocess firewall to have more control over the
+                   responses sent on failures
+  * [MESOS-2881] - Linker error when building Mesos with unbundled dependencies
+  * [MESOS-2889] - Add SSL switch to python configuration
+  * [MESOS-2890] - Sandbox URL doesn't work in web-ui when using SSL
+  * [MESOS-2891] - Performance regression in hierarchical allocator.
+  * [MESOS-2894] - web UI shows "YYYY" for year instead of year
+  * [MESOS-2904] - Add slave metric to count container launch failures
+  * [MESOS-2914] - Port mapping isolator should cleanup unknown orphan containers
+                   after all known orphan containers are recovered during recovery.
+  * [MESOS-2917] - Specify correct libnl version for configure check
+  * [MESOS-2919] - Framework can overcommit oversubscribable resources during
+                   master failover.
+  * [MESOS-2925] - Invalid usage of ATOMIC_FLAG_INIT in member initialization
+  * [MESOS-2932] - There is a typo in docs/docker-containerizer.md file
+  * [MESOS-2962] - Slave fails with Abort stacktrace when DNS cannot resolve hostname
+  * [MESOS-2973] - SSL tests don't work with --gtest_repeat
+  * [MESOS-2975] - SSL tests don't work with --gtest_shuffle
+  * [MESOS-2986] - Docker version output is not compatible with Mesos
 
 ** Documentation
-    * [MESOS-2205] - Add user documentation for reservations
-    * [MESOS-2395] - Slave recovery documentation shows incorrect recover flag
-    * [MESOS-2416] - Update or delete release guide in confluence wiki
-    * [MESOS-2525] - Missing information in Python interface launchTasks scheduler method
-    * [MESOS-2616] - Update C++ style guide on variable naming.
-    * [MESOS-2621] - Create documentation for observability metrics
-    * [MESOS-2622] - Document the semantic change in decorator return values
-    * [MESOS-2783] - document the fetcher
-    * [MESOS-2886] - Capture some testing patterns we use in a doc
-    * [MESOS-2942] - Create documentation for using SSL
+  * [MESOS-2205] - Add user documentation for reservations
+  * [MESOS-2395] - Slave recovery documentation shows incorrect recover flag
+  * [MESOS-2416] - Update or delete release guide in confluence wiki
+  * [MESOS-2525] - Missing information in Python interface launchTasks scheduler method
+  * [MESOS-2616] - Update C++ style guide on variable naming.
+  * [MESOS-2621] - Create documentation for observability metrics
+  * [MESOS-2622] - Document the semantic change in decorator return values
+  * [MESOS-2783] - document the fetcher
+  * [MESOS-2886] - Capture some testing patterns we use in a doc
+  * [MESOS-2942] - Create documentation for using SSL
 
 ** Improvement
-    * [MESOS-692] - Reservations are not reported in master's state.json
-    * [MESOS-994] - Add an Option<string> os::getenv() to stout
-    * [MESOS-1733] - Change the stout path utility to declare a single, variadic
-                     'join' function instead of several separate declarations of
-                     various discrete arities
-    * [MESOS-1991] - Remove dynamic allocation from Option
-    * [MESOS-2023] - mesos-execute should allow setting environment variables
-    * [MESOS-2057] - Concurrency control for fetcher cache
-    * [MESOS-2069] - Basic fetcher cache functionality
-    * [MESOS-2070] - Implement simple slave recovery behavior for fetcher cache
-    * [MESOS-2072] - Fetcher cache eviction
-    * [MESOS-2074] - Fetcher cache test fixture
-    * [MESOS-2103] - Expose number of processes and threads in a container
-    * [MESOS-2111] - Add build instructions for OSX in getting started
-    * [MESOS-2136] - Expose per-cgroup memory pressure
-    * [MESOS-2277] - Document undocumented HTTP endpoints
-    * [MESOS-2323] - write flags to log at startup
-    * [MESOS-2332] - Report per-container metrics for network bandwidth throttling
-    * [MESOS-2333] - Securing Sandboxes via Filebrowser Access Control
-    * [MESOS-2340] - Add ability to decode JSON serialized MasterInfo from ZK
-    * [MESOS-2374] - Support relative host paths for container volumes
-    * [MESOS-2392] - Rate limit slaves removals during master recovery.
-    * [MESOS-2400] - Improve NsTest.ROOT_setns
-    * [MESOS-2438] - Improve support for streaming HTTP Responses in libprocess.
-    * [MESOS-2454] - Add support for /proc/self/mountinfo on Linux
-    * [MESOS-2461] - Slave should provide details on processes running in its cgroups
-    * [MESOS-2462] - Add option for Subprocess to set a death signal for the forked child
-    * [MESOS-2507] - Performance issue in the master when a large number of
-                     slaves are registering.
-    * [MESOS-2519] - Log IP addresses from HTTP requests
-    * [MESOS-2527] - Add default bind to socket
-    * [MESOS-2528] - Symlink the namespace handle with ContainerID for the port
-                     mapping isolator.
-    * [MESOS-2547] - Cleanup stale bind mounts for port mapping isolator during
-                     slave recovery.
-    * [MESOS-2549] - Remove non-variadic strings::format
-    * [MESOS-2550] - Mesos doesn't compile with clang 3.6
-    * [MESOS-2565] - Clean up style and comments in modules.
-    * [MESOS-2571] - Expose Memory Pressure in MemIsolator
-    * [MESOS-2573] - Use Memory Test Helper to improve some test code.
-    * [MESOS-2595] - Create docker executor
-    * [MESOS-2608] - test-framework should support principal only credential
-    * [MESOS-2609] - Move StatusUpdateStream implementation to a compilation unit
-    * [MESOS-2624] - "configure" should fail when "patch" is not available.
-    * [MESOS-2653] - Slave should act on correction events from QoS controller
-    * [MESOS-2666] - use standard compiler detection macros
-    * [MESOS-2680] - Update modules doc with hook usage example
-    * [MESOS-2693] - Printing a resource should show information about
-                     reservation, disk etc
-    * [MESOS-2709] - Design Master discovery functionality for HTTP-only clients
-    * [MESOS-2716] - Add non-const reference version of Option<T>::get.
-    * [MESOS-2729] - Update DRF sorter to update total resources
-    * [MESOS-2745] - Add 'Path' to stout's user guide
-    * [MESOS-2752] - Add HTB queueing discipline wrapper class
-    * [MESOS-2784] - Added constexpr to C++11 whitelist.
-    * [MESOS-2793] - Add support for container rootfs to Mesos isolators
-    * [MESOS-2801] - Remove dynamic allocation from Future<T>
-    * [MESOS-2804] - Log framework capabilities in the master.
-    * [MESOS-2805] - Make synchronized as primary form of synchronization.
-    * [MESOS-2836] - Report per-container metrics for network bandwidth
-                     throttling to the slave
-    * [MESOS-2837] - Decode network statistics from mesos-network-helper
-    * [MESOS-2870] - Add validation capability to stout Flags
-    * [MESOS-2888] - Add SSL socket tests
-    * [MESOS-2928] - Update stout #include headers
-    * [MESOS-2940] - Reconciliation is expensive for large numbers of tasks.
-    * [MESOS-2958] - Update Call protobuf to move top level FrameworkInfo inside Subscribe
-    * [MESOS-2966] - socket::peer() and socket::address() might fail with SSL enabled
+  * [MESOS-692] - Reservations are not reported in master's state.json
+  * [MESOS-994] - Add an Option<string> os::getenv() to stout
+  * [MESOS-1733] - Change the stout path utility to declare a single, variadic
+                   'join' function instead of several separate declarations of
+                   various discrete arities
+  * [MESOS-1991] - Remove dynamic allocation from Option
+  * [MESOS-2023] - mesos-execute should allow setting environment variables
+  * [MESOS-2057] - Concurrency control for fetcher cache
+  * [MESOS-2069] - Basic fetcher cache functionality
+  * [MESOS-2070] - Implement simple slave recovery behavior for fetcher cache
+  * [MESOS-2072] - Fetcher cache eviction
+  * [MESOS-2074] - Fetcher cache test fixture
+  * [MESOS-2103] - Expose number of processes and threads in a container
+  * [MESOS-2111] - Add build instructions for OSX in getting started
+  * [MESOS-2136] - Expose per-cgroup memory pressure
+  * [MESOS-2277] - Document undocumented HTTP endpoints
+  * [MESOS-2323] - write flags to log at startup
+  * [MESOS-2332] - Report per-container metrics for network bandwidth throttling
+  * [MESOS-2333] - Securing Sandboxes via Filebrowser Access Control
+  * [MESOS-2340] - Add ability to decode JSON serialized MasterInfo from ZK
+  * [MESOS-2374] - Support relative host paths for container volumes
+  * [MESOS-2392] - Rate limit slaves removals during master recovery.
+  * [MESOS-2400] - Improve NsTest.ROOT_setns
+  * [MESOS-2438] - Improve support for streaming HTTP Responses in libprocess.
+  * [MESOS-2454] - Add support for /proc/self/mountinfo on Linux
+  * [MESOS-2461] - Slave should provide details on processes running in its cgroups
+  * [MESOS-2462] - Add option for Subprocess to set a death signal for the forked child
+  * [MESOS-2507] - Performance issue in the master when a large number of
+                   slaves are registering.
+  * [MESOS-2519] - Log IP addresses from HTTP requests
+  * [MESOS-2527] - Add default bind to socket
+  * [MESOS-2528] - Symlink the namespace handle with ContainerID for the port
+                   mapping isolator.
+  * [MESOS-2547] - Cleanup stale bind mounts for port mapping isolator during
+                   slave recovery.
+  * [MESOS-2549] - Remove non-variadic strings::format
+  * [MESOS-2550] - Mesos doesn't compile with clang 3.6
+  * [MESOS-2565] - Clean up style and comments in modules.
+  * [MESOS-2571] - Expose Memory Pressure in MemIsolator
+  * [MESOS-2573] - Use Memory Test Helper to improve some test code.
+  * [MESOS-2595] - Create docker executor
+  * [MESOS-2608] - test-framework should support principal only credential
+  * [MESOS-2609] - Move StatusUpdateStream implementation to a compilation unit
+  * [MESOS-2624] - "configure" should fail when "patch" is not available.
+  * [MESOS-2653] - Slave should act on correction events from QoS controller
+  * [MESOS-2666] - use standard compiler detection macros
+  * [MESOS-2680] - Update modules doc with hook usage example
+  * [MESOS-2693] - Printing a resource should show information about
+                   reservation, disk etc
+  * [MESOS-2709] - Design Master discovery functionality for HTTP-only clients
+  * [MESOS-2716] - Add non-const reference version of Option<T>::get.
+  * [MESOS-2729] - Update DRF sorter to update total resources
+  * [MESOS-2745] - Add 'Path' to stout's user guide
+  * [MESOS-2752] - Add HTB queueing discipline wrapper class
+  * [MESOS-2784] - Added constexpr to C++11 whitelist.
+  * [MESOS-2793] - Add support for container rootfs to Mesos isolators
+  * [MESOS-2801] - Remove dynamic allocation from Future<T>
+  * [MESOS-2804] - Log framework capabilities in the master.
+  * [MESOS-2805] - Make synchronized as primary form of synchronization.
+  * [MESOS-2836] - Report per-container metrics for network bandwidth
+                   throttling to the slave
+  * [MESOS-2837] - Decode network statistics from mesos-network-helper
+  * [MESOS-2870] - Add validation capability to stout Flags
+  * [MESOS-2888] - Add SSL socket tests
+  * [MESOS-2928] - Update stout #include headers
+  * [MESOS-2940] - Reconciliation is expensive for large numbers of tasks.
+  * [MESOS-2958] - Update Call protobuf to move top level FrameworkInfo inside Subscribe
+  * [MESOS-2966] - socket::peer() and socket::address() might fail with SSL enabled
 
 ** Story
-    * [MESOS-1552] - Mesos javadoc should include .proto javadoc
-    * [MESOS-2746] - As a Framework User I want to be able to discover my Task's IP
+  * [MESOS-1552] - Mesos javadoc should include .proto javadoc
+  * [MESOS-2551] - C++ Scheduler library should send Call messages to Master
+  * [MESOS-2746] - As a Framework User I want to be able to discover my Task's IP
 
 ** Task
-    * [MESOS-1598] - Add advanced shaping controls to routing library
-    * [MESOS-1856] - Support specifying libnl3 install location.
-    * [MESOS-2031] - Manage persistent directories on slave.
-    * [MESOS-2085] - Add support encrypted and non-encrypted communication in
-                     parallel for cluster upgrade
-    * [MESOS-2108] - Add configure flag or environment variable to enable
-                     SSL/libevent Socket
-    * [MESOS-2123] - Document changes in C++ Resources API in CHANGELOG.
-    * [MESOS-2139] - Enable the master to handle reservation operations
-    * [MESOS-2213] - Custom allocators should implement Allocator instead of
-                     AllocatorProcess
-    * [MESOS-2233] - Run ASF CI mesos builds inside docker
-    * [MESOS-2289] - Design doc for the HTTP API
-    * [MESOS-2348] - Introduce a new filter abstraction for Resources.
-    * [MESOS-2366] - MasterSlaveReconciliationTest.ReconcileLostTask is flaky
-    * [MESOS-2375] - Remove the checkpoint variable entirely from slave/flags.hpp
-    * [MESOS-2404] - Add an example framework to test persistent volumes.
-    * [MESOS-2422] - Use fq_codel qdisc for egress network traffic isolation
-    * [MESOS-2476] - Enable Resources to handle Resource::ReservationInfo
-    * [MESOS-2477] - Enable Resources::apply to handle reservation operations.
-    * [MESOS-2489] - Enable a framework to perform reservation operations.
-    * [MESOS-2491] - Persist the reservation state on the slave
-    * [MESOS-2496] - Make description consistent when adding flags
-    * [MESOS-2563] - Add license blobs to Java JNI cpp files
-    * [MESOS-2596] - Update allocator docs
-    * [MESOS-2597] - Choose allocator based on master flag and loaded modules
-    * [MESOS-2615] - Pipe 'updateFramework' path from master to Allocator to
-                     support framework re-registration
-    * [MESOS-2629] - Update style guide to disallow capture by reference of temporaries
-    * [MESOS-2630] - Remove capture by reference of temporaries in Stout
-    * [MESOS-2631] - Remove capture by reference of temporaries in libprocess
-    * [MESOS-2649] - Implement Resource Estimator
-    * [MESOS-2652] - Update Mesos containerizer to understand revocable cpu resources
-    * [MESOS-2655] - Implement a stand alone test framework that uses revocable
-                     cpu resources
-    * [MESOS-2661] - Remove pre-C++11 codepaths
-    * [MESOS-2662] - Remove <stout/memory.hpp> and switch from memory:: to std::
-    * [MESOS-2663] - Remove <stout/tuple.hpp> and switch from tuples:: to std::
-    * [MESOS-2670] - Update existing lambdas to meet style guide
-    * [MESOS-2677] - Add unrestricted unions to style guide
-    * [MESOS-2689] - Slave should forward oversubscribable resources to the master
-    * [MESOS-2730] - Add a new API call to the allocator to update
-                     oversubscribed resources
-    * [MESOS-2733] - Update master to handle oversubscribed resource estimate
-                     from the slave
-    * [MESOS-2734] - Update allocator to allocate revocable resources
-    * [MESOS-2739] - Remove dynamic allocation from Stout Try<T>
-    * [MESOS-2740] - Remove dynamic allocation from Stout Result<T>
-    * [MESOS-2753] - Master should validate tasks using oversubscribed resources
-    * [MESOS-2761] - Delegating constructors are not allowed by styleguide
-    * [MESOS-2762] - Explicitly-defaulted functions are not allowed by styleguide
-    * [MESOS-2770] - Slave should forward total amount of oversubscribed
-                     resources to the master
-    * [MESOS-2773] - Pass callback to the resource estimator to retrieve
-                     ResourceUsage from Resource Monitor on demand.
-    * [MESOS-2791] - Create a FixedResourceEstimator to return fixed amount of
-                     oversubscribable resources.
-    * [MESOS-2807] - As a developer I need an easy way to convert MasterInfo
-                     protobuf to/from JSON
-    * [MESOS-2818] - Pass 'allocated' resources for each executor to the
-                     resource estimator.
-    * [MESOS-2823] - Pass callback to the QoS Controller to retrieve
-                     ResourceUsage from Resource Monitor on demand.
-    * [MESOS-2892] - Add benchmark for hierarchical allocator.
-    * [MESOS-2893] - Add queue size metrics for the allocator.
-    * [MESOS-2898] - Write tests for new JSON (ZooKeeper) functionality
+  * [MESOS-1598] - Add advanced shaping controls to routing library
+  * [MESOS-1856] - Support specifying libnl3 install location.
+  * [MESOS-2031] - Manage persistent directories on slave.
+  * [MESOS-2085] - Add support encrypted and non-encrypted communication in
+                   parallel for cluster upgrade
+  * [MESOS-2108] - Add configure flag or environment variable to enable
+                   SSL/libevent Socket
+  * [MESOS-2123] - Document changes in C++ Resources API in CHANGELOG.
+  * [MESOS-2139] - Enable the master to handle reservation operations
+  * [MESOS-2213] - Custom allocators should implement Allocator instead of
+                   AllocatorProcess
+  * [MESOS-2233] - Run ASF CI mesos builds inside docker
+  * [MESOS-2289] - Design doc for the HTTP API
+  * [MESOS-2290] - Move all scheduler driver validations to master
+  * [MESOS-2291] - Move executor driver validations to slave
+  * [MESOS-2348] - Introduce a new filter abstraction for Resources.
+  * [MESOS-2366] - MasterSlaveReconciliationTest.ReconcileLostTask is flaky
+  * [MESOS-2375] - Remove the checkpoint variable entirely from slave/flags.hpp
+  * [MESOS-2404] - Add an example framework to test persistent volumes.
+  * [MESOS-2422] - Use fq_codel qdisc for egress network traffic isolation
+  * [MESOS-2427] - Add Java binding for the acceptOffers API.
+  * [MESOS-2428] - Add Python bindings for the acceptOffers API.
+  * [MESOS-2476] - Enable Resources to handle Resource::ReservationInfo
+  * [MESOS-2477] - Enable Resources::apply to handle reservation operations.
+  * [MESOS-2489] - Enable a framework to perform reservation operations.
+  * [MESOS-2491] - Persist the reservation state on the slave
+  * [MESOS-2496] - Make description consistent when adding flags
+  * [MESOS-2563] - Add license blobs to Java JNI cpp files
+  * [MESOS-2596] - Update allocator docs
+  * [MESOS-2597] - Choose allocator based on master flag and loaded modules
+  * [MESOS-2615] - Pipe 'updateFramework' path from master to Allocator to
+                   support framework re-registration
+  * [MESOS-2629] - Update style guide to disallow capture by reference of temporaries
+  * [MESOS-2630] - Remove capture by reference of temporaries in Stout
+  * [MESOS-2631] - Remove capture by reference of temporaries in libprocess
+  * [MESOS-2649] - Implement Resource Estimator
+  * [MESOS-2652] - Update Mesos containerizer to understand revocable cpu resources
+  * [MESOS-2655] - Implement a stand alone test framework that uses revocable
+                   cpu resources
+  * [MESOS-2661] - Remove pre-C++11 codepaths
+  * [MESOS-2662] - Remove <stout/memory.hpp> and switch from memory:: to std::
+  * [MESOS-2663] - Remove <stout/tuple.hpp> and switch from tuples:: to std::
+  * [MESOS-2670] - Update existing lambdas to meet style guide
+  * [MESOS-2677] - Add unrestricted unions to style guide
+  * [MESOS-2689] - Slave should forward oversubscribable resources to the master
+  * [MESOS-2730] - Add a new API call to the allocator to update
+                   oversubscribed resources
+  * [MESOS-2733] - Update master to handle oversubscribed resource estimate
+                   from the slave
+  * [MESOS-2734] - Update allocator to allocate revocable resources
+  * [MESOS-2739] - Remove dynamic allocation from Stout Try<T>
+  * [MESOS-2740] - Remove dynamic allocation from Stout Result<T>
+  * [MESOS-2753] - Master should validate tasks using oversubscribed resources
+  * [MESOS-2761] - Delegating constructors are not allowed by styleguide
+  * [MESOS-2762] - Explicitly-defaulted functions are not allowed by styleguide
+  * [MESOS-2770] - Slave should forward total amount of oversubscribed
+                   resources to the master
+  * [MESOS-2773] - Pass callback to the resource estimator to retrieve
+                   ResourceUsage from Resource Monitor on demand.
+  * [MESOS-2791] - Create a FixedResourceEstimator to return fixed amount of
+                   oversubscribable resources.
+  * [MESOS-2807] - As a developer I need an easy way to convert MasterInfo
+                   protobuf to/from JSON
+  * [MESOS-2818] - Pass 'allocated' resources for each executor to the
+                   resource estimator.
+  * [MESOS-2823] - Pass callback to the QoS Controller to retrieve
+                   ResourceUsage from Resource Monitor on demand.
+  * [MESOS-2892] - Add benchmark for hierarchical allocator.
+  * [MESOS-2893] - Add queue size metrics for the allocator.
+  * [MESOS-2898] - Write tests for new JSON (ZooKeeper) functionality
 
 ** Wish
-    * [MESOS-2510] - Add a function which test if a JSON object is contained in
-                     another JSON object
+  * [MESOS-2510] - Add a function which test if a JSON object is contained in
+                   another JSON object
 
 
 Release Notes - Mesos - Version 0.22.1
