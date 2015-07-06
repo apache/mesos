@@ -692,6 +692,7 @@ if OS_LINUX
   libmesos_no_3rdparty_la_SOURCES += slave/containerizer/isolators/filesystem/shared.cpp
   libmesos_no_3rdparty_la_SOURCES += slave/containerizer/linux_launcher.cpp
   libmesos_no_3rdparty_la_SOURCES += slave/containerizer/provisioner/backends/bind.cpp
+  libmesos_no_3rdparty_la_SOURCES += slave/containerizer/provisioner/docker/store.cpp
 else
   EXTRA_DIST += linux/cgroups.cpp
   EXTRA_DIST += linux/fs.cpp
@@ -816,6 +817,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
 	slave/containerizer/provisioner/backends/bind.hpp		\
 	slave/containerizer/provisioner/backends/copy.hpp		\
 	slave/containerizer/provisioner/docker/registry_client.hpp	\
+	slave/containerizer/provisioner/docker/store.hpp		\
 	slave/containerizer/provisioner/docker/token_manager.hpp	\
 	slave/containerizer/isolators/posix.hpp				\
 	slave/containerizer/isolators/posix/disk.hpp			\
