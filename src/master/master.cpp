@@ -737,6 +737,11 @@ void Master::initialize()
   // Setup HTTP routes.
   Http http = Http(this);
 
+  route("/call",
+        Http::CALL_HELP,
+        [http](const process::http::Request& request) {
+          return http.call(request);
+        });
   route("/health",
         Http::HEALTH_HELP,
         [http](const process::http::Request& request) {

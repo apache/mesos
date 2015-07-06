@@ -63,6 +63,7 @@ using process::HELP;
 using process::TLDR;
 using process::USAGE;
 
+using process::http::Accepted;
 using process::http::BadRequest;
 using process::http::InternalServerError;
 using process::http::NotFound;
@@ -288,6 +289,23 @@ void Master::Http::log(const Request& request)
             << (forwardedFor.isSome()
                 ? " with X-Forwarded-For='" + forwardedFor.get() + "'"
                 : "");
+}
+
+
+// TODO(ijiminez): Add some information or pointers to help
+// users understand the HTTP Event/Call API.
+const string Master::Http::CALL_HELP = HELP(
+    TLDR(
+        "Endpoint for schedulers to make Calls against the master."),
+    USAGE(
+        "/master/call"),
+    DESCRIPTION(
+        "Returns 202 Accepted iff the request is accepted."));
+
+
+Future<Response> Master::Http::call(const Request& request) const
+{
+  return Accepted();
 }
 
 
