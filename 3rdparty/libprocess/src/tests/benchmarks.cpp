@@ -220,7 +220,7 @@ private:
 
 // Launches many clients against a central server and measures
 // client throughput.
-TEST(Process, Process_BENCHMARK_ClientServer)
+TEST(ProcessTest, Process_BENCHMARK_ClientServer)
 {
   const size_t numRequests = 10000;
   const size_t concurrency = 250;
@@ -316,7 +316,7 @@ public:
 // large number of links by creating many linker-linkee pairs. And
 // then, we introduce a large amount of ephemeral process exits as
 // well as event dispatches.
-TEST(Process, Process_BENCHMARK_LargeNumberOfLinks)
+TEST(ProcessTest, Process_BENCHMARK_LargeNumberOfLinks)
 {
   int links = 5000;
   int iterations = 10000;

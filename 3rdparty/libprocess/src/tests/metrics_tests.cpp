@@ -52,7 +52,7 @@ public:
 };
 
 
-TEST(Metrics, Counter)
+TEST(MetricsTest, Counter)
 {
   Counter counter("test/counter");
 
@@ -78,7 +78,7 @@ TEST(Metrics, Counter)
 }
 
 
-TEST(Metrics, Gauge)
+TEST(MetricsTest, Gauge)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
@@ -109,7 +109,7 @@ TEST(Metrics, Gauge)
 }
 
 
-TEST(Metrics, Statistics)
+TEST(MetricsTest, Statistics)
 {
   Counter counter("test/counter", process::TIME_SERIES_WINDOW);
 
@@ -143,7 +143,7 @@ TEST(Metrics, Statistics)
 }
 
 
-TEST(Metrics, Snapshot)
+TEST(MetricsTest, Snapshot)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
@@ -215,7 +215,7 @@ TEST(Metrics, Snapshot)
 }
 
 
-TEST(Metrics, SnapshotTimeout)
+TEST(MetricsTest, SnapshotTimeout)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
@@ -318,7 +318,7 @@ TEST(Metrics, SnapshotTimeout)
 
 
 // Ensures that the aggregate statistics are correct in the snapshot.
-TEST(Metrics, SnapshotStatistics)
+TEST(MetricsTest, SnapshotStatistics)
 {
   UPID upid("metrics", process::address());
 
@@ -381,7 +381,7 @@ TEST(Metrics, SnapshotStatistics)
 }
 
 
-TEST(Metrics, Timer)
+TEST(MetricsTest, Timer)
 {
   metrics::Timer<Nanoseconds> timer("test/timer");
   EXPECT_EQ("test/timer_ns", timer.name());
@@ -415,7 +415,7 @@ static Future<int> advanceAndReturn()
 }
 
 
-TEST(Metrics, AsyncTimer)
+TEST(MetricsTest, AsyncTimer)
 {
   metrics::Timer<Microseconds> t("test/timer");
   EXPECT_EQ("test/timer_us", t.name());

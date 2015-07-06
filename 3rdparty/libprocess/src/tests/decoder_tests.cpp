@@ -17,7 +17,7 @@ using std::string;
 
 using process::network::Socket;
 
-TEST(Decoder, Request)
+TEST(DecoderTest, Request)
 {
   Try<Socket> socket = Socket::create();
   ASSERT_SOME(socket);
@@ -55,7 +55,7 @@ TEST(Decoder, Request)
 }
 
 
-TEST(Decoder, RequestHeaderContinuation)
+TEST(DecoderTest, RequestHeaderContinuation)
 {
   Try<Socket> socket = Socket::create();
   ASSERT_SOME(socket);
@@ -81,7 +81,7 @@ TEST(Decoder, RequestHeaderContinuation)
 
 
 // This is expected to fail for now, see my TODO(bmahler) on http::Request.
-TEST(Decoder, DISABLED_RequestHeaderCaseInsensitive)
+TEST(DecoderTest, DISABLED_RequestHeaderCaseInsensitive)
 {
   Try<Socket> socket = Socket::create();
   ASSERT_SOME(socket);
@@ -107,7 +107,7 @@ TEST(Decoder, DISABLED_RequestHeaderCaseInsensitive)
 }
 
 
-TEST(Decoder, Response)
+TEST(DecoderTest, Response)
 {
   ResponseDecoder decoder;
 
@@ -135,7 +135,7 @@ TEST(Decoder, Response)
 }
 
 
-TEST(Decoder, StreamingResponse)
+TEST(DecoderTest, StreamingResponse)
 {
   StreamingResponseDecoder decoder;
 
@@ -179,7 +179,7 @@ TEST(Decoder, StreamingResponse)
 }
 
 
-TEST(Decoder, StreamingResponseFailure)
+TEST(DecoderTest, StreamingResponseFailure)
 {
   StreamingResponseDecoder decoder;
 

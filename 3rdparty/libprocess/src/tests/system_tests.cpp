@@ -38,7 +38,7 @@ using process::metrics::internal::MetricsProcess;
 // metrics. If in the future we put the error message from the Failure
 // in the endpoint, or the memory metric is always available, we
 // should reenable this test.
-TEST(System, DISABLED_Metrics)
+TEST(SystemTest, DISABLED_Metrics)
 {
   Future<http::Response> response =
     http::get(MetricsProcess::instance()->self(), "snapshot");

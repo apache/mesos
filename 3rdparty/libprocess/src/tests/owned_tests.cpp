@@ -17,7 +17,7 @@ private:
 };
 
 
-TEST(Owned, Access)
+TEST(OwnedTest, Access)
 {
   Foo* foo = new Foo();
   foo->set(42);
@@ -36,7 +36,7 @@ TEST(Owned, Access)
 }
 
 
-TEST(Owned, Null)
+TEST(OwnedTest, Null)
 {
   Owned<Foo> owned;
   Owned<Foo> owned2(NULL);
@@ -46,7 +46,7 @@ TEST(Owned, Null)
 }
 
 
-TEST(Owned, Share)
+TEST(OwnedTest, Share)
 {
   Foo* foo = new Foo();
   foo->set(42);
@@ -80,7 +80,7 @@ TEST(Owned, Share)
 }
 
 
-TEST(Owned, Release)
+TEST(OwnedTest, Release)
 {
   Foo* foo = new Foo();
   foo->set(42);

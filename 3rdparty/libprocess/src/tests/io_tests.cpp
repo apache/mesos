@@ -16,7 +16,7 @@ using namespace process;
 using std::string;
 
 
-TEST(IO, Poll)
+TEST(IOTest, Poll)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
@@ -40,7 +40,7 @@ TEST(IO, Poll)
 }
 
 
-TEST(IO, Read)
+TEST(IOTest, Read)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
@@ -108,7 +108,7 @@ TEST(IO, Read)
 }
 
 
-TEST(IO, BufferedRead)
+TEST(IOTest, BufferedRead)
 {
   // 128 Bytes.
   string data =
@@ -161,7 +161,7 @@ TEST(IO, BufferedRead)
 }
 
 
-TEST(IO, Write)
+TEST(IOTest, Write)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
@@ -202,7 +202,7 @@ TEST(IO, Write)
 }
 
 
-TEST(IO, DISABLED_BlockingWrite)
+TEST(IOTest, DISABLED_BlockingWrite)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
@@ -277,7 +277,7 @@ TEST(IO, DISABLED_BlockingWrite)
 }
 
 
-TEST(IO, Redirect)
+TEST(IOTest, Redirect)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 

@@ -29,7 +29,7 @@ using testing::DoDefault;
 
 // This test checks that we can reap a non-child process, in terms
 // of receiving the termination notification.
-TEST(Reap, NonChildProcess)
+TEST(ReapTest, NonChildProcess)
 {
   // The child process creates a grandchild and then exits. The
   // grandchild sleeps for 10 seconds. The process tree looks like:
@@ -92,7 +92,7 @@ TEST(Reap, NonChildProcess)
 
 // This test checks that the we can reap a child process and obtain
 // the correct exit status.
-TEST(Reap, ChildProcess)
+TEST(ReapTest, ChildProcess)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
@@ -130,7 +130,7 @@ TEST(Reap, ChildProcess)
 
 
 // Check that we can reap a child process that is already exited.
-TEST(Reap, TerminatedChildProcess)
+TEST(ReapTest, TerminatedChildProcess)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 

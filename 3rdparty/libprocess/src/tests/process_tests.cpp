@@ -62,7 +62,7 @@ using testing::ReturnArg;
 
 // TODO(bmahler): Move tests into their own files as appropriate.
 
-TEST(Process, Event)
+TEST(ProcessTest, Event)
 {
   Event* event = new TerminateEvent(UPID());
   EXPECT_FALSE(event->is<MessageEvent>());
@@ -72,7 +72,7 @@ TEST(Process, Event)
 }
 
 
-TEST(Process, Future)
+TEST(ProcessTest, Future)
 {
   Promise<bool> promise;
   promise.set(true);
@@ -81,7 +81,7 @@ TEST(Process, Future)
 }
 
 
-TEST(Process, Associate)
+TEST(ProcessTest, Associate)
 {
   Promise<bool> promise1;
   Future<bool> future1(true);
@@ -126,7 +126,7 @@ void onAny(const Future<bool>& future, bool* b)
 }
 
 
-TEST(Process, OnAny)
+TEST(ProcessTest, OnAny)
 {
   bool b = false;
   Future<bool>(true)
@@ -151,7 +151,7 @@ string itoa2(int* const& i)
 }
 
 
-TEST(Process, Then)
+TEST(ProcessTest, Then)
 {
   Promise<int*> promise;
 
@@ -183,7 +183,7 @@ Future<int> repair(const Future<int>& future)
 
 // Checks that 'repair' callback gets executed if the future failed
 // and not executed if the future is completed successfully.
-TEST(Process, Repair)
+TEST(ProcessTest, Repair)
 {
   // Check that the 'repair' callback _does not_ get executed by
   // making sure that when we complete the promise with a value that's
@@ -225,7 +225,7 @@ Future<Nothing> after(volatile bool* executed, const Future<Nothing>& future)
 
 // Checks that the 'after' callback gets executed if the future is not
 // completed.
-TEST(Process, After1)
+TEST(ProcessTest, After1)
 {
   Clock::pause();
 
@@ -261,7 +261,7 @@ TEST(Process, After1)
 
 // Checks that completing a promise will keep the 'after' callback
 // from executing.
-TEST(Process, After2)
+TEST(ProcessTest, After2)
 {
   Clock::pause();
 
@@ -330,7 +330,7 @@ Future<string> third(const string& s)
 }
 
 
-TEST(Process, Chain)
+TEST(ProcessTest, Chain)
 {
   Future<string> s = readyFuture()
     .then(lambda::bind(&second, lambda::_1))
@@ -378,7 +378,7 @@ Future<int> inner2(volatile bool* executed, const Future<int>& future)
 
 // Tests that Future::discard does not complete the future unless
 // Promise::discard is invoked.
-TEST(Process, Discard1)
+TEST(ProcessTest, Discard1)
 {
   Promise<bool> promise1;
   Promise<int> promise2;
@@ -419,7 +419,7 @@ TEST(Process, Discard1)
 
 // Tests that Future::discard does not complete the future and
 // Promise::set can still be invoked to complete the future.
-TEST(Process, Discard2)
+TEST(ProcessTest, Discard2)
 {
   Promise<bool> promise1;
   Promise<int> promise2;
@@ -462,7 +462,7 @@ TEST(Process, Discard2)
 
 // Tests that Future::discard does not complete the future and
 // Promise::fail can still be invoked to complete the future.
-TEST(Process, Discard3)
+TEST(ProcessTest, Discard3)
 {
   Promise<bool> promise1;
   Promise<int> promise2;
@@ -509,7 +509,7 @@ public:
 };
 
 
-TEST(Process, Spawn)
+TEST(ProcessTest, Spawn)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
@@ -543,7 +543,7 @@ public:
 };
 
 
-TEST(Process, Dispatch)
+TEST(ProcessTest, Dispatch)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
@@ -579,7 +579,7 @@ TEST(Process, Dispatch)
 }
 
 
-TEST(Process, Defer1)
+TEST(ProcessTest, Defer1)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
@@ -677,7 +677,7 @@ private:
 };
 
 
-TEST(Process, Defer2)
+TEST(ProcessTest, Defer2)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
@@ -711,7 +711,7 @@ void set(T* t1, const T& t2)
 }
 
 
-TEST(Process, Defer3)
+TEST(ProcessTest, Defer3)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
@@ -745,7 +745,7 @@ public:
 };
 
 
-TEST(Process, Handlers)
+TEST(ProcessTest, Handlers)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
@@ -767,7 +767,7 @@ TEST(Process, Handlers)
 
 // Tests DROP_MESSAGE and DROP_DISPATCH and in particular that an
 // event can get dropped before being processed.
-TEST(Process, Expect)
+TEST(ProcessTest, Expect)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
@@ -798,7 +798,7 @@ TEST(Process, Expect)
 
 
 // Tests the FutureArg<N> action.
-TEST(Process, Action)
+TEST(ProcessTest, Action)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
@@ -845,7 +845,7 @@ public:
 };
 
 
-TEST(Process, Inheritance)
+TEST(ProcessTest, Inheritance)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
@@ -876,7 +876,7 @@ TEST(Process, Inheritance)
 }
 
 
-TEST(Process, Thunk)
+TEST(ProcessTest, Thunk)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
@@ -921,7 +921,7 @@ public:
 };
 
 
-TEST(Process, Delegate)
+TEST(ProcessTest, Delegate)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
@@ -951,7 +951,7 @@ public:
 };
 
 
-TEST(Process, Delay)
+TEST(ProcessTest, Delay)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
@@ -990,7 +990,7 @@ public:
 };
 
 
-TEST(Process, Order)
+TEST(ProcessTest, Order)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
@@ -1045,7 +1045,7 @@ public:
 };
 
 
-TEST(Process, Donate)
+TEST(ProcessTest, Donate)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
@@ -1068,7 +1068,7 @@ public:
 };
 
 
-TEST(Process, Exited)
+TEST(ProcessTest, Exited)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
@@ -1092,7 +1092,7 @@ TEST(Process, Exited)
 }
 
 
-TEST(Process, InjectExited)
+TEST(ProcessTest, InjectExited)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
@@ -1116,7 +1116,7 @@ TEST(Process, InjectExited)
 }
 
 
-TEST(Process, Select)
+TEST(ProcessTest, Select)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
@@ -1149,7 +1149,7 @@ TEST(Process, Select)
 }
 
 
-TEST(Process, Collect)
+TEST(ProcessTest, Collect)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
@@ -1192,7 +1192,7 @@ TEST(Process, Collect)
 }
 
 
-TEST(Process, Await1)
+TEST(ProcessTest, Await1)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
@@ -1235,7 +1235,7 @@ TEST(Process, Await1)
 }
 
 
-TEST(Process, Await2)
+TEST(ProcessTest, Await2)
 {
   Promise<int> promise1;
   Promise<bool> promise2;
@@ -1261,7 +1261,7 @@ TEST(Process, Await2)
 }
 
 
-TEST(Process, Await3)
+TEST(ProcessTest, Await3)
 {
   Promise<int> promise1;
   Promise<bool> promise2;
@@ -1318,7 +1318,7 @@ public:
 };
 
 
-TEST(Process, Settle)
+TEST(ProcessTest, Settle)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
@@ -1333,7 +1333,7 @@ TEST(Process, Settle)
 }
 
 
-TEST(Process, Pid)
+TEST(ProcessTest, Pid)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
@@ -1368,7 +1368,7 @@ public:
 };
 
 
-TEST(Process, Listener)
+TEST(ProcessTest, Listener)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
@@ -1398,7 +1398,7 @@ public:
 };
 
 
-TEST(Process, Executor)
+TEST(ProcessTest, Executor)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
@@ -1446,7 +1446,7 @@ public:
 };
 
 
-TEST(Process, Remote)
+TEST(ProcessTest, Remote)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
@@ -1481,7 +1481,7 @@ TEST(Process, Remote)
 
 
 // Like the 'remote' test but uses http::post.
-TEST(Process, Http1)
+TEST(ProcessTest, Http1)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
@@ -1512,7 +1512,7 @@ TEST(Process, Http1)
 
 
 // Like 'http1' but using a 'Libprocess-From' header.
-TEST(Process, Http2)
+TEST(ProcessTest, Http2)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
@@ -1611,7 +1611,7 @@ void bar(int a)
 }
 
 
-TEST(Process, Async)
+TEST(ProcessTest, Async)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
@@ -1646,7 +1646,7 @@ public:
 };
 
 
-TEST(Process, Provide)
+TEST(ProcessTest, Provide)
 {
   const Try<string> mkdtemp = os::mkdtemp();
   ASSERT_SOME(mkdtemp);
@@ -1684,7 +1684,7 @@ int baz(string s) { return 42; }
 Future<int> bam(string s) { return 42; }
 
 
-TEST(Process, Defers)
+TEST(ProcessTest, Defers)
 {
   {
     std::function<Future<int>(string)> f =
@@ -1823,7 +1823,7 @@ TEST(Process, Defers)
 }
 
 
-TEST(Future, FromTry)
+TEST(ProcessTest, FromTry)
 {
   Try<int> t = 1;
   Future<int> future = t;
@@ -1855,7 +1855,7 @@ public:
 };
 
 
-TEST(Process, PercentEncodedURLs)
+TEST(ProcessTest, PercentEncodedURLs)
 {
   PercentEncodedIDProcess process;
   spawn(process);
@@ -1919,7 +1919,7 @@ public:
 
 // Sets firewall rules which disable endpoints on a process and then
 // attempts to connect to those endpoints.
-TEST(Process, FirewallDisablePaths)
+TEST(ProcessTest, FirewallDisablePaths)
 {
   const string id = "testprocess";
 
@@ -1992,7 +1992,7 @@ TEST(Process, FirewallDisablePaths)
 
 // Test that firewall rules can be changed by changing the vector.
 // An empty vector should allow all paths.
-TEST(Process, FirewallUninstall)
+TEST(ProcessTest, FirewallUninstall)
 {
   const string id = "testprocess";
 

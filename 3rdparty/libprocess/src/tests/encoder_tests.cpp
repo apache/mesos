@@ -20,7 +20,7 @@ using std::string;
 using std::vector;
 
 
-TEST(Encoder, Response)
+TEST(EncoderTest, Response)
 {
   Request request;
   const OK response("body");
@@ -47,7 +47,7 @@ TEST(Encoder, Response)
 }
 
 
-TEST(Encoder, AcceptableEncodings)
+TEST(EncoderTest, AcceptableEncodings)
 {
   // Create requests that do not accept gzip encoding.
   vector<Request> requests(7);

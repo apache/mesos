@@ -90,7 +90,7 @@ public:
 };
 
 
-TEST(HTTP, Auth)
+TEST(HTTPTest, Auth)
 {
   Http http;
 
@@ -125,7 +125,7 @@ TEST(HTTP, Auth)
 }
 
 
-TEST(HTTP, Endpoints)
+TEST(HTTPTest, Endpoints)
 {
   Http http;
 
@@ -181,7 +181,7 @@ TEST(HTTP, Endpoints)
 }
 
 
-TEST(HTTP, PipeEOF)
+TEST(HTTPTest, PipeEOF)
 {
   http::Pipe pipe;
   http::Pipe::Reader reader = pipe.reader();
@@ -231,7 +231,7 @@ TEST(HTTP, PipeEOF)
 }
 
 
-TEST(HTTP, PipeFailure)
+TEST(HTTPTest, PipeFailure)
 {
   http::Pipe pipe;
   http::Pipe::Reader reader = pipe.reader();
@@ -263,7 +263,7 @@ TEST(HTTP, PipeFailure)
 
 
 
-TEST(HTTP, PipeReaderCloses)
+TEST(HTTPTest, PipeReaderCloses)
 {
   http::Pipe pipe;
   http::Pipe::Reader reader = pipe.reader();
@@ -297,7 +297,7 @@ TEST(HTTP, PipeReaderCloses)
 }
 
 
-TEST(HTTP, Encode)
+TEST(HTTPTest, Encode)
 {
   string unencoded = "a$&+,/:;=?@ \"<>#%{}|\\^~[]`\x19\x80\xFF";
   unencoded += string("\x00", 1); // Add a null byte to the end.
@@ -321,7 +321,7 @@ TEST(HTTP, Encode)
 }
 
 
-TEST(HTTP, PathParse)
+TEST(HTTPTest, PathParse)
 {
   const string pattern = "/books/{isbn}/chapters/{chapter}";
 
@@ -394,7 +394,7 @@ http::Response validateGetWithQuery(const http::Request& request)
 }
 
 
-TEST(HTTP, Get)
+TEST(HTTPTest, Get)
 {
   Http http;
 
@@ -417,7 +417,7 @@ TEST(HTTP, Get)
 }
 
 
-TEST(HTTP, StreamingGetComplete)
+TEST(HTTPTest, StreamingGetComplete)
 {
   Http http;
 
@@ -459,7 +459,7 @@ TEST(HTTP, StreamingGetComplete)
 }
 
 
-TEST(HTTP, StreamingGetFailure)
+TEST(HTTPTest, StreamingGetFailure)
 {
   Http http;
 
@@ -513,7 +513,7 @@ http::Response validatePost(const http::Request& request)
 }
 
 
-TEST(HTTP, Post)
+TEST(HTTPTest, Post)
 {
   Http http;
 
@@ -551,7 +551,7 @@ TEST(HTTP, Post)
 }
 
 
-TEST(HTTP, QueryEncodeDecode)
+TEST(HTTPTest, QueryEncodeDecode)
 {
   // If we use Type<a, b> directly inside a macro without surrounding
   // parenthesis the comma will be eaten by the macro rather than the
@@ -592,7 +592,7 @@ TEST(HTTP, QueryEncodeDecode)
 }
 
 
-TEST(HTTP, CaseInsensitiveHeaders)
+TEST(HTTPTest, CaseInsensitiveHeaders)
 {
   http::Request request;
   request.headers["Content-Length"] = "20";

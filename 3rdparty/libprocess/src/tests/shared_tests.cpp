@@ -17,7 +17,7 @@ private:
 };
 
 
-TEST(Shared, ConstAccess)
+TEST(SharedTest, ConstAccess)
 {
   Foo* foo = new Foo();
   foo->set(10);
@@ -31,7 +31,7 @@ TEST(Shared, ConstAccess)
 }
 
 
-TEST(Shared, Null)
+TEST(SharedTest, Null)
 {
   Shared<Foo> shared(NULL);
   Shared<Foo> shared2(shared);
@@ -41,7 +41,7 @@ TEST(Shared, Null)
 }
 
 
-TEST(Shared, Reset)
+TEST(SharedTest, Reset)
 {
   Foo* foo = new Foo();
   foo->set(42);
@@ -64,7 +64,7 @@ TEST(Shared, Reset)
 }
 
 
-TEST(Shared, Own)
+TEST(SharedTest, Own)
 {
   Foo* foo = new Foo();
   foo->set(42);

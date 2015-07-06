@@ -12,7 +12,7 @@
 
 using namespace process;
 
-TEST(Limiter, Acquire)
+TEST(LimiterTest, Acquire)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
@@ -42,7 +42,7 @@ TEST(Limiter, Acquire)
 // In this test 4 permits are given, but the 2nd permit's acquire
 // is immediately discarded. So, 1st, 3rd and 4th permits should
 // be acquired according to the rate limit.
-TEST(Limiter, DiscardMiddle)
+TEST(LimiterTest, DiscardMiddle)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
@@ -80,7 +80,7 @@ TEST(Limiter, DiscardMiddle)
 // In this test 2 permits are initially given, but the 2nd permit's
 // future is immediately discarded. Then the 3rd permit is given. So,
 // 1st and 3rd permits should be acquired according to the rate limit.
-TEST(Limiter, DiscardLast)
+TEST(LimiterTest, DiscardLast)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
