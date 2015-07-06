@@ -27,7 +27,7 @@ TEST(BytesTest, Parse)
 }
 
 
-TEST(Stout, Arithmetic)
+TEST(BytesTest, Arithmetic)
 {
   EXPECT_EQ(Terabytes(1), Gigabytes(512) + Gigabytes(512));
   EXPECT_EQ(Terabytes(1), Terabytes(2) - Terabytes(1));

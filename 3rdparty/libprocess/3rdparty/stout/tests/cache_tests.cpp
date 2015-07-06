@@ -6,7 +6,7 @@
 #include <stout/gtest.hpp>
 
 
-TEST(Cache, Insert)
+TEST(CacheTest, Insert)
 {
   Cache<int, std::string> cache(1);
   EXPECT_EQ(0, cache.size());
@@ -16,7 +16,7 @@ TEST(Cache, Insert)
 }
 
 
-TEST(Cache, Update)
+TEST(CacheTest, Update)
 {
   Cache<int, std::string> cache(1);
   cache.put(1, "a");
@@ -26,7 +26,7 @@ TEST(Cache, Update)
 }
 
 
-TEST(Cache, Erase)
+TEST(CacheTest, Erase)
 {
   Cache<int, std::string> cache(2);
   cache.put(1, "a");
@@ -45,7 +45,7 @@ TEST(Cache, Erase)
 }
 
 
-TEST(Cache, LRUEviction)
+TEST(CacheTest, LRUEviction)
 {
   Cache<int, std::string> cache(2);
   cache.put(1, "a");

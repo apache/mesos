@@ -24,7 +24,7 @@
 using std::string;
 
 
-TEST(SVN, DiffPatch)
+TEST(SVNTest, DiffPatch)
 {
   string source;
 
@@ -52,7 +52,7 @@ TEST(SVN, DiffPatch)
 }
 
 
-TEST(SVN, EmptyDiffPatch)
+TEST(SVNTest, EmptyDiffPatch)
 {
   string source;
 

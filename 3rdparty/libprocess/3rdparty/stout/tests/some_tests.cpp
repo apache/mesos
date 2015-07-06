@@ -10,7 +10,7 @@
 #include <stout/some.hpp>
 #include <stout/try.hpp>
 
-TEST(Stout, Some)
+TEST(SomeTest, Some)
 {
   Option<int> o1 = Some(42);
   EXPECT_SOME(o1);

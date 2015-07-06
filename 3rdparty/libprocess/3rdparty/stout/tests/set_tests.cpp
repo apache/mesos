@@ -4,7 +4,7 @@
 
 #include <stout/set.hpp>
 
-TEST(Stout, Set)
+TEST(SetTest, Set)
 {
   EXPECT_EQ(Set<int>(1, 2), Set<int>(1) | Set<int>(2));
   EXPECT_EQ(Set<int>(1, 2), Set<int>(1, 2) | Set<int>(1));

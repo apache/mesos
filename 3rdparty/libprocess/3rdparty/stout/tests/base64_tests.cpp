@@ -16,13 +16,13 @@
 #include <stout/base64.hpp>
 
 
-TEST(Base64, Encode)
+TEST(Base64Test, Encode)
 {
   EXPECT_EQ("dGVzdHVzZXI6dGVzdHBhc3M=", base64::encode("testuser:testpass"));
 }
 
 
-TEST(Base64, Decode)
+TEST(Base64Test, Decode)
 {
   EXPECT_EQ("testuser:testpass", base64::decode("dGVzdHVzZXI6dGVzdHBhc3M="));
 }
