@@ -98,6 +98,22 @@ mesos::internal::slave::Flags::Flags()
       "Directory the docker provisioner will store images in",
       "/tmp/mesos/store/docker");
 
+  add(&Flags::docker_backend,
+      "docker_backend",
+      "Strategy for docker provisioning container rootfs from images",
+      "copy");
+
+  add(&Flags::docker_rootfs_dir,
+      "docker_rootfs_dir",
+      "Directory the docker provisioner will store container root\n"
+      "filesystems in",
+      "/tmp/mesos/containers/docker");
+
+  add(&Flags::docker_discovery_local_dir,
+      "docker_discovery_local_dir",
+      "Directory for docker provisioner to look in for local images",
+      "/tmp/mesos/images/docker");
+
   add(&Flags::default_role,
       "default_role",
       "Any resources in the --resources flag that\n"

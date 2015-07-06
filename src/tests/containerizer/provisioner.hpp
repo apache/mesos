@@ -67,11 +67,12 @@ public:
           const std::list<mesos::slave::ContainerState>& states,
           const hashset<ContainerID>& orphans));
 
-  MOCK_METHOD2(
+  MOCK_METHOD3(
       provision,
       process::Future<std::string>(
           const ContainerID& containerId,
-          const Image& image));
+          const Image& image,
+          const std::string& sandbox));
 
   MOCK_METHOD1(
       destroy,
@@ -87,7 +88,8 @@ public:
 
   process::Future<std::string> unmocked_provision(
       const ContainerID& containerId,
-      const Image& image)
+      const Image& image,
+      const std::string& sandbox)
   {
     if (image.type() != Image::APPC) {
       return process::Failure(
