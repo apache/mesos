@@ -2149,7 +2149,7 @@ bool ProcessManager::handle(
       // fail thus causing the socket to get closed (but now
       // libprocess will ignore responses, see ignore_data).
       Option<string> agent = request->headers.get("User-Agent");
-      if (agent.get("").find("libprocess/") == string::npos) {
+      if (agent.getOrElse("").find("libprocess/") == string::npos) {
         if (accepted) {
           VLOG(2) << "Accepted libprocess message to " << request->path;
           dispatch(proxy, &HttpProxy::enqueue, Accepted(), *request);
