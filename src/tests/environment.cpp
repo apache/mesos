@@ -204,6 +204,41 @@ private:
 };
 
 
+class PerfFilter : public TestFilter
+{
+public:
+  PerfFilter()
+  {
+#ifdef __linux__
+    perfError = os::system("perf help >&-") != 0;
+    if (perfError) {
+      std::cerr
+        << "-------------------------------------------------------------\n"
+        << "No 'perf' command found so no 'perf' tests will be run\n"
+        << "-------------------------------------------------------------"
+        << std::endl;
+    }
+#else
+      perfError = true;
+#endif // __linux__
+  }
+
+  bool disable(const ::testing::TestInfo* test) const
+  {
+    // Currently all tests that require 'perf' are part of the
+    // 'PerfTest' test fixture, hence we check for 'Perf' here.
+    //
+    //  TODO(ijimenez): Replace all tests which require 'perf' with
+    //  the prefix 'PERF_' to be more consistent with the filter
+    //  naming we've done (i.e., ROOT_, CGROUPS_, etc).
+    return matches(test, "Perf") && perfError;
+  }
+
+private:
+  bool perfError;
+};
+
+
 class BenchmarkFilter : public TestFilter
 {
 public:
@@ -332,6 +367,7 @@ Environment::Environment(const Flags& _flags) : flags(_flags)
   filters.push_back(Owned<TestFilter>(new DockerFilter()));
   filters.push_back(Owned<TestFilter>(new BenchmarkFilter()));
   filters.push_back(Owned<TestFilter>(new NetworkIsolatorTestFilter()));
+  filters.push_back(Owned<TestFilter>(new PerfFilter()));
 
   // Construct the filter string to handle system or platform specific tests.
   ::testing::UnitTest* unitTest = ::testing::UnitTest::GetInstance();
