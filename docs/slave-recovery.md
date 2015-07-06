@@ -63,6 +63,21 @@ As part of this feature, `FrameworkInfo` has been updated to include an optional
 > NOTE: Frameworks that have enabled checkpointing will only get offers from checkpointing slaves. So, before setting `checkpoint=True` on FrameworkInfo, ensure that there are slaves in your cluster that have enabled checkpointing.
 > Because, if there are no checkpointing slaves, the framework would not get any offers and hence cannot launch any tasks/executors!
 
+## Known issues with `systemd` and POSIX isolation
+
+There is a known issue when using `systemd` to launch the `mesos-slave` while also using only `posix` isolation mechanisms that prevents tasks from recovering. The problem is that the default [KillMode](http://www.freedesktop.org/software/systemd/man/systemd.kill.html) for systemd processes is `cgroup` and hence all child processes are killed when the slave stops. Explicitly setting `KillMode` to `process` allows the executors to survive and reconnect.
+
+The following excerpt of a `systemd` unit configuration file shows how to set the flag:
+
+```
+[Service]
+ExecStart=/usr/bin/mesos-slave
+KillMode=process
+```
+
+> NOTE: There are also known issues with using `systemd` and raw `cgroups` based isolation, for now the suggested non-Posix isolation mechanism is to use Docker containerization.
+
+
 ## Upgrading to 0.14.0
 
 If you want to upgrade a running Mesos cluster to 0.14.0 to take advantage of slave recovery please follow the [upgrade instructions](upgrades.md).
