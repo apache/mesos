@@ -101,6 +101,12 @@ public:
     return value.substr(0, end + 1);
   }
 
+  // Implicit conversion from Path to string.
+  operator std::string () const
+  {
+    return value;
+  }
+
   const std::string value;
 };
 

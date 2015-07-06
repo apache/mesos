@@ -18,6 +18,8 @@
 
 #include <stout/path.hpp>
 
+#include <stout/tests/utils.hpp>
+
 using std::string;
 using std::vector;
 
@@ -116,4 +118,29 @@ TEST(PathTest, Join)
   EXPECT_EQ("/a/b/c", path::join("/a", "/b", "/c"));
   EXPECT_EQ("/a/b/c/", path::join("/a/", "/b/", "/c/"));
   EXPECT_EQ("a/b/c/", path::join("a/", "/b/", "/c/"));
+}
+
+
+class PathFileTest : public TemporaryDirectoryTest {};
+
+
+TEST_F(PathFileTest, ImplicitConversion)
+{
+  // Should be implicitly converted to string for the various os::_ calls.
+  const Path testfile(path::join(os::getcwd(), "file.txt"));
+
+  // Create the test file.
+  ASSERT_SOME(os::touch(testfile));
+  ASSERT_TRUE(os::exists(testfile));
+
+  // Open and close the file.
+  Try<int> fd = os::open(
+      testfile,
+      O_RDONLY,
+      S_IRUSR | S_IRGRP | S_IROTH);
+  ASSERT_SOME(fd);
+  close(fd.get());
+
+  // Delete the file.
+  EXPECT_SOME(os::rm(testfile));
 }
