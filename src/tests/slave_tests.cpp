@@ -671,7 +671,7 @@ TEST_F(SlaveTest, ROOT_RunTaskWithCommandInfoWithoutUser)
 // specified user. We use (and assume the presence) of the
 // unprivileged 'nobody' user which should be available on both Linux
 // and Mac OS X.
-TEST_F(SlaveTest, ROOT_RunTaskWithCommandInfoWithUser)
+TEST_F(SlaveTest, DISABLED_ROOT_RunTaskWithCommandInfoWithUser)
 {
   // TODO(nnielsen): Introduce STOUT abstraction for user verification
   // instead of flat getpwnam call.
