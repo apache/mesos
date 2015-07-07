@@ -467,7 +467,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Launch_Executor)
   executorInfo.mutable_executor_id()->CopyFrom(executorId);
 
   CommandInfo command;
-  command.set_value("test-executor");
+  command.set_value("/bin/test-executor");
   executorInfo.mutable_command()->CopyFrom(command);
 
   ContainerInfo containerInfo;
@@ -580,7 +580,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Launch_Executor_Bridged)
   executorInfo.mutable_executor_id()->CopyFrom(executorId);
 
   CommandInfo command;
-  command.set_value("test-executor");
+  command.set_value("/bin/test-executor");
   executorInfo.mutable_command()->CopyFrom(command);
 
   ContainerInfo containerInfo;
@@ -2958,7 +2958,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_DockerInspectDiscard)
   executorInfo.mutable_executor_id()->CopyFrom(executorId);
 
   CommandInfo command;
-  command.set_value("test-executor");
+  command.set_value("/bin/test-executor");
   executorInfo.mutable_command()->CopyFrom(command);
 
   ContainerInfo containerInfo;
