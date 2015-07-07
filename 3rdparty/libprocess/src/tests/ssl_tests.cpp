@@ -173,8 +173,24 @@ protected:
       ABORT("Could not generate private key: " + private_key.error());
     }
 
+    // Figure out the hostname that 'INADDR_LOOPBACK' will bind to.
+    // Set the hostname of the certificate to this hostname so that
+    // hostname verification of the certificate will pass.
+    Try<string> hostname = net::getHostname(net::IP(INADDR_LOOPBACK));
+    if (hostname.isError()) {
+      cleanup();
+      ABORT("Could not determine hostname of 'INADDR_LOOPBACK': " +
+            hostname.error());
+    }
+
     // Generate an authorized certificate.
-    certificate = openssl::generate_x509(private_key.get(), private_key.get());
+    certificate = openssl::generate_x509(
+        private_key.get(),
+        private_key.get(),
+        None(),
+        1,
+        365,
+        hostname.get());
 
     if (certificate.isError()) {
       cleanup();
@@ -293,6 +309,13 @@ protected:
 
     Socket server = create.get();
 
+    // We need to explicitly bind to INADDR_LOOPBACK so the
+    // certificate we create in this test fixture can be verified.
+    Try<Address> bind = server.bind(Address(net::IP(INADDR_LOOPBACK), 0));
+    if (bind.isError()) {
+      return Error(bind.error());
+    }
+
     const Try<Nothing> listen = server.listen(BACKLOG);
     if (listen.isError()) {
       return Error(listen.error());
@@ -384,6 +407,10 @@ TEST_F(SSLTest, BasicSameProcess)
 
   Socket server = server_create.get();
   Socket client = client_create.get();
+
+  // We need to explicitly bind to INADDR_LOOPBACK so the certificate
+  // we create in this test fixture can be verified.
+  ASSERT_SOME(server.bind(Address(net::IP(INADDR_LOOPBACK), 0)));
 
   const Try<Nothing> listen = server.listen(BACKLOG);
   ASSERT_SOME(listen);
