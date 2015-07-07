@@ -2120,7 +2120,7 @@ TEST_F(DockerContainerizerTest,
 // exposing the host port to the container port, by sending data
 // to the host port and receiving it in the container by listening
 // to the mapped container port.
-TEST_F(DockerContainerizerTest, ROOT_DOCKER_PortMapping)
+TEST_F(DockerContainerizerTest, ROOT_DOCKER_NC_PortMapping)
 {
   Try<PID<Master> > master = StartMaster();
   ASSERT_SOME(master);

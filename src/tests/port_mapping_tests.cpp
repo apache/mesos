@@ -429,7 +429,7 @@ static bool waitForFileCreation(
 // 'validPort' and 'invalidPort'. Verify that only the connection
 // through 'validPort' is successful by confirming that the expected
 // data has been written to its output file.
-TEST_F(PortMappingIsolatorTest, ROOT_ContainerToContainerTCP)
+TEST_F(PortMappingIsolatorTest, ROOT_NC_ContainerToContainerTCP)
 {
   Try<Isolator*> isolator = PortMappingIsolatorProcess::create(flags);
   CHECK_SOME(isolator);
@@ -589,7 +589,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_ContainerToContainerTCP)
 
 
 // The same container-to-container test but with UDP.
-TEST_F(PortMappingIsolatorTest, ROOT_ContainerToContainerUDP)
+TEST_F(PortMappingIsolatorTest, ROOT_NC_ContainerToContainerUDP)
 {
   Try<Isolator*> isolator = PortMappingIsolatorProcess::create(flags);
   CHECK_SOME(isolator);
@@ -751,7 +751,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_ContainerToContainerUDP)
 
 // Test the scenario where a UDP server is in a container while host
 // tries to establish a UDP connection.
-TEST_F(PortMappingIsolatorTest, ROOT_HostToContainerUDP)
+TEST_F(PortMappingIsolatorTest, ROOT_NC_HostToContainerUDP)
 {
   Try<Isolator*> isolator = PortMappingIsolatorProcess::create(flags);
   CHECK_SOME(isolator);
@@ -868,7 +868,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_HostToContainerUDP)
 
 // Test the scenario where a TCP server is in a container while host
 // tries to establish a TCP connection.
-TEST_F(PortMappingIsolatorTest, ROOT_HostToContainerTCP)
+TEST_F(PortMappingIsolatorTest, ROOT_NC_HostToContainerTCP)
 {
   Try<Isolator*> isolator = PortMappingIsolatorProcess::create(flags);
   CHECK_SOME(isolator);
@@ -1450,7 +1450,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_TooManyContainers)
 
 // Test the scenario where PortMappingIsolator uses a very small
 // egress rate limit.
-TEST_F(PortMappingIsolatorTest, ROOT_SmallEgressLimit)
+TEST_F(PortMappingIsolatorTest, ROOT_NC_SmallEgressLimit)
 {
   // Note that the underlying rate limiting mechanism usually has a
   // small allowance for burst. Empirically, as least 10x of the rate
@@ -1605,7 +1605,7 @@ bool HasTCPSocketsRTT(const ResourceStatistics& statistics)
 
 // Test that RTT can be returned properly from usage(). This test is
 // very similar to SmallEgressLimitTest in its setup.
-TEST_F(PortMappingIsolatorTest, ROOT_PortMappingStatistics)
+TEST_F(PortMappingIsolatorTest, ROOT_NC_PortMappingStatistics)
 {
   // To-be-tested egress rate limit, in Bytes/s.
   const Bytes rate = 2000;
