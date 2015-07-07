@@ -59,6 +59,9 @@ void Slave::statusUpdate(StatusUpdate update, const UPID& pid)
 * Access modifiers are not indented (Google uses one space indentation).
 * Constructor initializers are indented by 2 spaces (Google indents by 4).
 
+### Templates
+* Leave one space after the `template` keyword, e.g. `template <typename T>` rather than `template<typename T>`.
+
 ### Function Definition/Invocation
 * Newline when calling or defining a function: indent with 4 spaces.
 * We do not follow Google's style of wrapping on the open parenthesis, the general goal is to reduce visual "jaggedness" in the code. Prefer (1), (4), (5), sometimes (3), never (2):
