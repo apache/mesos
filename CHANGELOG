@@ -68,7 +68,7 @@ This release also includes API changes, new modules, and deprecations.
   * [MESOS-2650] - Modularize the Resource Estimator
 
 * Deprecations:
-  * [MESOS-2058] - Deprecate stats.json endpoints for Master and Slave
+  * [MESOS-2058] - Remove stats.json endpoints for Master and Slave
   * [MESOS-2697] - '/master/shutdown' endpoint is deprecated in favor of
                    the new '/master/teardown' endpoint.
 
