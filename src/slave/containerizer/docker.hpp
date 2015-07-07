@@ -332,7 +332,8 @@ private:
             slaveId,
             slavePid,
             checkpoint,
-            flags);
+            flags,
+            false);
       }
     }
 

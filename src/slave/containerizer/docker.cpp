@@ -302,7 +302,8 @@ DockerContainerizerProcess::Container::create(
         slaveId,
         slavePid,
         checkpoint,
-        flags);
+        flags,
+        false);
     launchesExecutorContainer = true;
   }
 
@@ -875,7 +876,8 @@ Future<pid_t> DockerContainerizerProcess::launchExecutorProcess(
       container->slaveId,
       container->slavePid,
       container->checkpoint,
-      flags);
+      flags,
+      false);
 
   // Include any enviroment variables from ExecutorInfo.
   foreach (const Environment::Variable& variable,
