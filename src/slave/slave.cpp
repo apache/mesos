@@ -4375,6 +4375,17 @@ Future<ResourceUsage> Slave::usage()
     }
   }
 
+  Try<Resources> totalResources = applyCheckpointedResources(
+      info.resources(),
+      checkpointedResources);
+
+  CHECK_SOME(totalResources)
+    << "Failed to apply checkpointed resources "
+    << checkpointedResources << " to slave's resources "
+    << info.resources();
+
+  usage->mutable_total()->CopyFrom(totalResources.get());
+
   return await(futures).then(
       [usage](const list<Future<ResourceStatistics>>& futures) {
         // NOTE: We add ResourceUsage::Executor to 'usage' the same

@@ -669,7 +669,9 @@ message ResourceUsage {
 
   repeated Executor executors = 1;
 
-  // TODO(jieyu): Include slave's total resources here.
+  // Slave's total resources including checkpointed dynamic
+  // reservations and persistent volumes.
+  repeated Resource total = 2;
 }
 
 
