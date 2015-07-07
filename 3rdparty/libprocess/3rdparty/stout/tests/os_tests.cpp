@@ -537,10 +537,10 @@ void dosetsid(void)
 TEST_F(OsTest, Killtree)
 {
   Try<ProcessTree> tree =
-    Fork(dosetsid,                         // Child.
+    Fork(&dosetsid,                        // Child.
          Fork(None(),                      // Grandchild.
               Fork(None(),                 // Great-grandchild.
-                   Fork(dosetsid,          // Great-great-granchild.
+                   Fork(&dosetsid,         // Great-great-granchild.
                         Exec("sleep 10")),
                    Exec("sleep 10")),
               Exec("exit 0")),
@@ -660,7 +660,7 @@ TEST_F(OsTest, Killtree)
 TEST_F(OsTest, KilltreeNoRoot)
 {
   Try<ProcessTree> tree =
-    Fork(dosetsid,        // Child.
+    Fork(&dosetsid,       // Child.
          Fork(None(),     // Grandchild.
               Fork(None(),
                    Exec("sleep 100")),
