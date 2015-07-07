@@ -505,7 +505,7 @@ Future<Nothing> LibeventSSLSocketImpl::connect(const Address& address)
           if (bufferevent_socket_connect(
                   self->bev,
                   reinterpret_cast<sockaddr*>(&addr),
-                  sizeof(addr)) < 0) {
+                  address.size()) < 0) {
             SSL* ssl = bufferevent_openssl_get_ssl(CHECK_NOTNULL(self->bev));
             SSL_free(ssl);
             bufferevent_free(self->bev);
