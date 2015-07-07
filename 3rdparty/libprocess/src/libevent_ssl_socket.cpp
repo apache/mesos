@@ -780,6 +780,8 @@ Try<Nothing> LibeventSSLSocketImpl::listen(int backlog)
 
 Future<Socket> LibeventSSLSocketImpl::accept()
 {
+  // We explicitly specify the return type to avoid a type deduction
+  // issue in some versions of clang. See MESOS-2943.
   return accept_queue.get()
     .then([](const Future<Socket>& future) -> Future<Socket> {
       return future;
