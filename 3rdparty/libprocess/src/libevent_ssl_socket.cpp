@@ -783,7 +783,9 @@ Try<Nothing> LibeventSSLSocketImpl::listen(int backlog)
 Future<Socket> LibeventSSLSocketImpl::accept()
 {
   return accept_queue.get()
-    .then([](const Future<Socket>& future) { return future; });
+    .then([](const Future<Socket>& future) -> Future<Socket> {
+      return future;
+    });
 }
 
 
