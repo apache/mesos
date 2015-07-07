@@ -1100,7 +1100,7 @@ Try<Isolator*> PortMappingIsolatorProcess::create(const Flags& flags)
   }
 
   Try<Resources> resources = Resources::parse(
-      flags.resources.get(""),
+      flags.resources.getOrElse(""),
       flags.default_role);
 
   if (resources.isError()) {
