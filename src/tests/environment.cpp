@@ -239,6 +239,31 @@ private:
 };
 
 
+class NetcatFilter : public TestFilter
+{
+public:
+  NetcatFilter()
+  {
+    netcatError = os::system("which nc") != 0;
+    if (netcatError) {
+      std::cerr
+        << "-------------------------------------------------------------\n"
+        << "No 'nc' command found so no tests depending on 'nc' will run\n"
+        << "-------------------------------------------------------------"
+        << std::endl;
+    }
+  }
+
+  bool disable(const ::testing::TestInfo* test) const
+  {
+    return matches(test, "NC_") && netcatError;
+  }
+
+private:
+  bool netcatError;
+};
+
+
 class BenchmarkFilter : public TestFilter
 {
 public:
@@ -368,6 +393,7 @@ Environment::Environment(const Flags& _flags) : flags(_flags)
   filters.push_back(Owned<TestFilter>(new BenchmarkFilter()));
   filters.push_back(Owned<TestFilter>(new NetworkIsolatorTestFilter()));
   filters.push_back(Owned<TestFilter>(new PerfFilter()));
+  filters.push_back(Owned<TestFilter>(new NetcatFilter()));
 
   // Construct the filter string to handle system or platform specific tests.
   ::testing::UnitTest* unitTest = ::testing::UnitTest::GetInstance();
