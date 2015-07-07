@@ -292,6 +292,14 @@ template <typename T1, typename T2>
   AWAIT_EXPECT_EQ_FOR(expected, actual, Seconds(15))
 
 
+#define AWAIT_EXPECT_TRUE(actual)               \
+  AWAIT_EXPECT_EQ_FOR(true, actual, Seconds(15))
+
+
+#define AWAIT_EXPECT_FALSE(actual)               \
+  AWAIT_EXPECT_EQ_FOR(false, actual, Seconds(15))
+
+
 inline ::testing::AssertionResult AwaitAssertResponseStatusEq(
     const char* expectedExpr,
     const char* actualExpr,
