@@ -503,7 +503,21 @@ protected:
           break;
         }
 
-        drop(event, "Unimplemented");
+        // TODO(bmahler): Add a 'failure' method and have the
+        // lost slave handler call into it.
+
+        if (event.failure().has_slave_id() &&
+            event.failure().has_executor_id()) {
+          // NOTE: We silently drop executor FAILURE messages
+          // because this matches the existing behavior of the
+          // scheduler driver: there is currently no install
+          // handler for ExitedExecutorMessage.
+        } else if (event.failure().has_slave_id()) {
+          lostSlave(from, event.failure().slave_id());
+        } else {
+          drop(event, "Expecting 'slave_id' to be present");
+        }
+
         break;
       }
 

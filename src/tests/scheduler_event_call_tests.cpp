@@ -130,6 +130,51 @@ TEST_F(SchedulerDriverEventTest, Message)
 }
 
 
+// Ensures that the driver can handle the FAILURE event.
+TEST_F(SchedulerDriverEventTest, Failure)
+{
+  Try<PID<Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<Message> frameworkRegisteredMessage =
+    FUTURE_MESSAGE(Eq(FrameworkRegisteredMessage().GetTypeName()), _, _);
+
+  driver.start();
+
+  AWAIT_READY(frameworkRegisteredMessage);
+  UPID frameworkPid = frameworkRegisteredMessage.get().to;
+
+  // Send a failure for an executor, this should be dropped
+  // to match the existing behavior of the scheduler driver.
+  SlaveID slaveId;
+  slaveId.set_value("S");
+
+  Event event;
+  event.set_type(Event::FAILURE);
+  event.mutable_failure()->mutable_slave_id()->CopyFrom(slaveId);
+  event.mutable_failure()->mutable_executor_id()->set_value("E");
+
+  process::post(master.get(), frameworkPid, event);
+
+  // Now, post a failure for a slave and expect a 'slaveLost'.
+  event.mutable_failure()->clear_executor_id();
+
+  Future<Nothing> slaveLost;
+  EXPECT_CALL(sched, slaveLost(&driver, slaveId))
+    .WillOnce(FutureSatisfy(&slaveLost));
+
+  process::post(master.get(), frameworkPid, event);
+
+  AWAIT_READY(slaveLost);
+}
+
+
 // Ensures that the driver can handle the ERROR event.
 TEST_F(SchedulerDriverEventTest, Error)
 {
