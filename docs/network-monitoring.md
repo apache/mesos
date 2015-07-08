@@ -2,129 +2,359 @@
 layout: documentation
 ---
 
-# Network Monitoring
+# Per-container Network Monitoring and Isolation
 
-Mesos 0.20.0 adds the support for per container network monitoring. Network statistics for each active container can be retrieved through the `/monitor/statistics.json` endpoint on the slave.
+Mesos on Linux provides support for per-container network monitoring and
+isolation. The network isolation prevents a single container from exhausting the
+available network ports, consuming an unfair share of the network bandwidth or
+significantly delaying packet transmission for others. Network statistics for
+each active container are published through the `/monitor/statistics.json`
+endpoint on the slave. The network isolation is transparent for the majority of
+tasks running on a slave (those that bind to port 0 and let the kernel allocate
+their port).
 
-The current solution is completely transparent to the tasks running on the slave. In other words, tasks will not notice any difference as if they were running on a slave without network monitoring turned on and were sharing the network of the slave.
+## Installation
 
-## How to setup?
-
-To turn on network monitoring on your mesos cluster, you need to follow the following procedures.
+Per-container network monitoring and isolation is __not__ supported by default.
+To enable it you need to install additional dependencies and configure it during
+the build process.
 
 ### Prerequisites
 
-Currently, network monitoring is only supported on Linux. Make sure your kernel is at least 3.6. Also, check your kernel to make sure that the following upstream patches are merged in (Mesos will automatically check for those kernel functionalities and will abort if they are not supported):
+Per-container network monitoring and isolation is only supported on Linux kernel
+versions 3.6 and above. Additionally, the kernel must include these patches
+(merged in kernel version 3.15).
 
 * [6a662719c9868b3d6c7d26b3a085f0cd3cc15e64](https://github.com/torvalds/linux/commit/6a662719c9868b3d6c7d26b3a085f0cd3cc15e64)
 * [0d5edc68739f1c1e0519acbea1d3f0c1882a15d7](https://github.com/torvalds/linux/commit/0d5edc68739f1c1e0519acbea1d3f0c1882a15d7)
 * [e374c618b1465f0292047a9f4c244bd71ab5f1f0](https://github.com/torvalds/linux/commit/e374c618b1465f0292047a9f4c244bd71ab5f1f0)
 * [25f929fbff0d1bcebf2e92656d33025cd330cbf8](https://github.com/torvalds/linux/commit/25f929fbff0d1bcebf2e92656d33025cd330cbf8)
 
-Make sure the following packages are installed on the slave:
+The following packages are required on the slave:
 
 * [libnl3](http://www.infradead.org/~tgr/libnl/) >= 3.2.26
-* [iproute](http://www.linuxfoundation.org/collaborate/workgroups/networking/iproute2) (>= 2.6.39 is advised but not required for debugging purpose)
+* [iproute](http://www.linuxfoundation.org/collaborate/workgroups/networking/iproute2) >= 2.6.39 is advised for debugging purpose but not required.
 
-On the build machine, you need to install the following packages:
+Additionally, if you are building from source, you need will also need the
+libnl3 development package to compile Mesos:
 
-* [libnl3-devel](http://www.infradead.org/~tgr/libnl/) >= 3.2.26
+* [libnl3-devel / libnl3-dev](http://www.infradead.org/~tgr/libnl/) >= 3.2.26
 
-### Configure and build
+### Build
 
-Network monitoring will NOT be built in by default. To build Mesos with network monitoring support, you need to add a configure option:
+To build Mesos with per-container network monitoring and isolation support, you
+need to add a configure option:
 
     $ ./configure --with-network-isolator
     $ make
 
+## Configuration
 
-### Host ephemeral ports squeeze
+Per-container network monitoring and isolation is enabled on the slave by adding
+`network/port_mapping` to the slave command line `--isolation` flag.
 
-With network monitoring being turned on, each container on the slave will have a separate network stack (via Linux [network namespaces](http://lwn.net/Articles/580893/)). All containers share the same public IP of the slave (so that service discovery mechanism does not need to be changed). Each container will be assigned a subset of the ports from the host, and is only allowed to use those ports to make connections with other hosts.
+    --isolation="network/port_mapping"
 
-For non-ephemeral ports (e.g, listening ports), Mesos already exposes that to the scheduler (resource: 'ports'). The scheduler is responsible for allocating those ports to executors/tasks.
+If the slave has not been compiled with per-container network monitoring and
+isolation support, it will refuse to start and print an error:
 
-For ephemeral ports, without network monitoring, all executors/tasks running on the slave share the same ephemeral port range of the host. The default ephemeral port range on most Linux distributions is [32768, 61000]. With network monitoring, for each container, we need to reserve a range for ports on the host which will be used as the ephemeral port range for the container network stack (these ports are directly mapped into the container). We need to ensure none of the host processes are using those ports. Because of that, you may want to squeeze the host ephemeral port range in order to support more containers on each slave. To do that, you can use the following command (need root permission). A host reboot is required to ensure there are no connections using ports outside the new ephemeral range.
+    I0708 00:17:08.080271 44267 containerizer.cpp:111] Using isolation: network/port_mapping
+    Failed to create a containerizer: Could not create MesosContainerizer: Unknown or unsupported
+        isolator: network/port_mapping
 
-    # This sets the host ephemeral port range to [57345, 61000].
-    $ echo "57345 61000" > /proc/sys/net/ipv4/ip_local_port_range
+## Configuring network ports
 
+Without network isolation, all the containers on a host share the public IP
+address of the slave and can bind to any port allowed by the OS.
 
-### Turn on network monitoring
+When network isolation is enabled, each container on the slave has a separate
+network stack (via Linux [network namespaces](http://lwn.net/Articles/580893/)).
+All containers still share the same public IP of the slave (so that the service
+discovery mechanism does not need to be changed). The slave assigns each
+container a non-overlapping range of the ports and only packets to/from these
+assigned port ranges will be delivered. Applications requesting the kernel
+assign a port (by binding to port 0) will be given ports from the container
+assigned range. Applications can bind to ports outside the container assigned
+ranges but packets from to/from these ports will be silently dropped by the
+host.
 
-After the host ephemeral ports squeeze and reboot, you can turn on network monitoring by appending `network/port_mapping` to the isolation flag. Notice that you need specify the `ephemeral_ports` resource (via --resources flag). It tells the slave which ports on the host are reserved for containers. It must NOT overlap with the host ephemeral port range. You can also specify how many ephemeral ports you want to allocate to each container. It is recommended but not required that this number is power of 2 aligned (e.g., 512, 1024). If not, there will be some performance impact for classifying packets. The maximum number of containers on the slave will be limited by approximately |ephemeral_ports|/ephemeral_ports_per_container, subject to alignment etc.
+Mesos provides two ranges of ports to containers:
+
++ OS allocated "[ephemeral](https://en.wikipedia.org/wiki/Ephemeral_port)" ports
+are assigned by the OS in a range specified for each container by Mesos.
+
++ Mesos allocated "non-ephemeral" ports are acquired by a framework using the
+same Mesos resource offer mechanism used for cpu, memory etc. for allocation to
+executors/tasks as required.
+
+Additionally, the host itself will require ephemeral ports for network
+communication. You need to configure these three __non-overlapping__ port ranges
+on the host.
+
+### Host ephemeral port range
+
+The currently configured host ephemeral port range can be discovered at any time
+using the command `sysctl net.ipv4.ip_local_port_range`. If ports need to be set
+aside for slave containers, the ephemeral port range can be updated in
+`/etc/sysctl.conf`. Rebooting after the update will apply the change and
+eliminate the possibility that ports are already in use by other processes. For
+example, by adding the following:
+
+    # net.ipv4.ip_local_port_range defines the host ephemeral port range, by
+    # default 32768-61000.  We reduce this range to allow the Mesos slave to
+    # allocate ports 32768-57344
+    # net.ipv4.ip_local_port_range = 32768 61000
+    net.ipv4.ip_local_port_range = 57345 61000
+
+### Container port ranges
+
+The container ephemeral and non-ephemeral port ranges are configured using the
+slave `--resources` flag. The non-ephemeral port range is provided to the
+master, which will then offer it to frameworks for allocation.
+
+The ephemeral port range is sub-divided by the slave, giving
+`ephemeral_ports_per_container` (default 1024) to each container. The maximum
+number of containers on the slave will therefore be limited to approximately:
+
+    number of ephemeral_ports / ephemeral_ports_per_container
+
+The master `--max_executors_per_slave` flag is be used to prevent allocation of
+more executors on a slave when the ephemeral port range has been exhausted.
+
+It is recommended (but not required) that `ephemeral_ports_per_container` be set
+to a power of 2 (e.g., 512, 1024) and the lower bound of the ephemeral port
+range be a multiple of `ephemeral_ports_per_container` to minimize CPU overhead
+in packet processing. For example:
+
+    --resources=ports:[31000-32000];ephemeral_ports:[32768-57344] \
+    --ephemeral_ports_per_container=512
+
+### Rate limiting container traffic
+
+Outbound traffic from a container to the network can be rate limited to prevent
+a single container from consuming all available network resources with
+detrimental effects to the other containers on the host. The
+`--egress_rate_limit_per_container` flag specifies that each container launched
+on the host be limited to the specified bandwidth (in bytes per second).
+Network traffic which would cause this limit to be exceeded is delayed for later
+transmission. The TCP protocol will adjust to the increased latency and reduce
+the transmission rate ensuring no packets need be dropped.
+
+    --egress_rate_limit_per_container=100MB
+
+We do not rate limit inbound traffic since we can only modify the network flows
+after they have been received by the host and any congestion has already
+occurred.
+
+### Egress traffic isolation
+
+Delaying network data for later transmission can increase latency and jitter
+(variability) for all traffic on the interface. Mesos can reduce the impact on
+other containers on the same host by using flow classification and isolation
+using the containers port ranges to maintain unique flows for each container and
+sending traffic from these flows fairly (using the
+[FQ_Codel](https://tools.ietf.org/html/draft-hoeiland-joergensen-aqm-fq-codel-00)
+algorithm). Use the `--egress_unique_flow_per_container` flag to enable.
+
+    --egress_unique_flow_per_container
+
+### Putting it all together
+
+A complete slave command line enabling network isolation, reserving ports
+57345-61000 for host ephemeral ports, 32768-57344 for container ephemeral ports,
+31000-32000 for non-ephemeral ports allocated by the framework, limiting
+container transmit bandwidth to 300 Mbits/second (37.5MBytes) with unique flows
+enabled would thus be:
 
     mesos-slave \
-        --checkpoint \
-        --log_dir=/var/log/mesos \
-        --work_dir=/var/lib/mesos \
-        --isolation=cgroups/cpu,cgroups/mem,network/port_mapping \
-        --resources=cpus:22;mem:62189;ports:[31000-32000];disk:400000;ephemeral_ports:[32768-57344] \
-        --ephemeral_ports_per_container=1024
+    --isolation=network/port_mapping \
+    --resources=ports:[31000-32000];ephemeral_ports:[32768-57344] \
+    --ephemeral_ports_per_container=1024 \
+    --egress_rate_limit_per_container=37500KB \
+    --egress_unique_flow_per_container
 
+## Monitoring container network statistics
 
-## How to get statistics?
+Mesos exposes statistics from the Linux network stack for each container network
+on the `/monitor/statistics.json` slave endpoint.
 
-Currently, we report the following network statistics:
+From the network interface inside the container, we report the following
+counters (since container creation) under the `statistics` key:
 
-* _net_rx_bytes_
-* _net_rx_dropped_
-* _net_rx_errors_
-* _net_rx_packets_
-* _net_tx_bytes_
-* _net_tx_dropped_
-* _net_tx_errors_
-* _net_tx_packets_
+<table>
+<thead>
+<tr><th>Metric</th><th>Description</th><th>Type</th>
+</thead>
+<tr>
+  <td><code>net_rx_bytes</code></td>
+  <td>Received bytes</td>
+  <td>Counter</td>
+</tr>
+<tr>
+  <td><code>net_rx_dropped</code></td>
+  <td>Packets dropped on receive</td>
+  <td>Counter</td>
+</tr>
+<tr>
+  <td><code>net_rx_errors</code></td>
+  <td>Errors reported on receive</td>
+  <td>Counter</td>
+</tr>
+<tr>
+  <td><code>net_rx_packets</code></td>
+  <td>Packets received</td>
+  <td>Counter</td>
+</tr>
+<tr>
+  <td><code>net_tx_bytes</code></td>
+  <td>Sent bytes</td>
+  <td>Counter</td>
+</tr>
+<tr>
+  <td><code>net_tx_dropped</code></td>
+  <td>Packets dropped on send</td>
+  <td>Counter</td>
+</tr>
+<tr>
+  <td><code>net_tx_errors</code></td>
+  <td>Errors reported on send</td>
+  <td>Counter</td>
+</tr>
+<tr>
+  <td><code>net_tx_packets</code></td>
+  <td>Packets sent</td>
+  <td>Counter</td>
+</tr>
+</table>
+
+Additionally, [Linux Traffic Control](
+http://tldp.org/HOWTO/Traffic-Control-HOWTO/intro.html) can report the following
+statistics for the elements which implement bandwidth limiting and bloat
+reduction under the `statistics/net_traffic_control_statistics` key. The entry
+for each of these elements includes:
+
+<table>
+<thead>
+<tr><th>Metric</th><th>Description</th><th>Type</th>
+</thead>
+<tr>
+  <td><code>backlog</code></td>
+  <td>Bytes queued for transmission [1]</td>
+  <td>Gauge</td>
+</tr>
+<tr>
+  <td><code>bytes</code></td>
+  <td>Sent bytes</td>
+  <td>Counter</td>
+</tr>
+<tr>
+  <td><code>drops</code></td>
+  <td>Packets dropped on send</td>
+  <td>Counter</td>
+</tr>
+<tr>
+  <td><code>overlimits</code></td>
+  <td>Count of times the interface was over its transmit limit when it attempted to send a packet.  Since the normal action when the network is overlimit is to delay the packet, the overlimit counter can be incremented many times for each packet sent on a heavily congested interface. [2]</td>
+  <td>Counter</td>
+</tr>
+<tr>
+  <td><code>packets</code></td>
+  <td>Packets sent</td>
+  <td>Counter</td>
+</tr>
+<tr>
+  <td><code>qlen</code></td>
+  <td>Packets queued for transmission</td>
+  <td>Gauge</td>
+</tr>
+<tr>
+  <td><code>ratebps</code></td>
+  <td>Transmit rate in bytes/second [3]</td>
+  <td>Gauge</td>
+</tr>
+<tr>
+  <td><code>ratepps</code></td>
+  <td>Transmit rate in packets/second [3]</td>
+  <td>Gauge</td>
+</tr>
+<tr>
+  <td><code>requeues</code></td>
+  <td>Packets failed to send due to resource contention (such as kernel locking) [3]</td>
+  <td>Counter</td>
+</tr>
+</table>
+
+[1] Backlog is only reported on the bloat_reduction interface
+
+[2] Overlimits are only reported on the bw_limit interface
+
+[3] Currently always reported as 0 by the underlying Traffic Control element.
 
 For example, these are the statistics you will get by hitting the `/monitor/statistics.json` endpoint on a slave with network monitoring turned on:
 
-    $ curl -s http://localhost:5051/monitor/statistics.json | python2.6
-    -mjson.tool
+    $ curl -s http://localhost:5051/monitor/statistics.json | python2.6 -mjson.tool
     [
         {
-            "executor_id": "sample_executor_id-ebd8fa62-757d-489e-9e23-678a21d078d6",
-            "executor_name": "sample_executor",
-            "framework_id": "201103282247-0000000019-0000",
-            "source": "sample_executor",
+            "executor_id": "job.1436298853",
+            "executor_name": "Command Executor (Task: job.1436298853) (Command: sh -c 'iperf ....')",
+            "framework_id": "20150707-195256-1740121354-5150-29801-0000",
+            "source": "job.1436298853",
             "statistics": {
-                "cpus_limit": 0.35,
-                "cpus_nr_periods": 520883,
-                "cpus_nr_throttled": 2163,
-                "cpus_system_time_secs": 154.42,
-                "cpus_throttled_time_secs": 145.96,
-                "cpus_user_time_secs": 258.74,
-                "mem_anon_bytes": 109137920,
-                "mem_file_bytes": 30613504,
+                "cpus_limit": 1.1,
+                "cpus_nr_periods": 16314,
+                "cpus_nr_throttled": 16313,
+                "cpus_system_time_secs": 2667.06,
+                "cpus_throttled_time_secs": 8036.840845388,
+                "cpus_user_time_secs": 123.49,
+                "mem_anon_bytes": 8388608,
+                "mem_cache_bytes": 16384,
+                "mem_critical_pressure_counter": 0,
+                "mem_file_bytes": 16384,
                 "mem_limit_bytes": 167772160,
-                "mem_mapped_file_bytes": 8192,
-                "mem_rss_bytes": 140341248,
-                "net_rx_bytes": 2402099,
+                "mem_low_pressure_counter": 0,
+                "mem_mapped_file_bytes": 0,
+                "mem_medium_pressure_counter": 0,
+                "mem_rss_bytes": 8388608,
+                "mem_total_bytes": 9945088,
+                "net_rx_bytes": 10847,
                 "net_rx_dropped": 0,
                 "net_rx_errors": 0,
-                "net_rx_packets": 33273,
-                "net_tx_bytes": 1507798,
+                "net_rx_packets": 143,
+                "net_traffic_control_statistics": [
+                    {
+                        "backlog": 0,
+                        "bytes": 163206809152,
+                        "drops": 77147,
+                        "id": "bw_limit",
+                        "overlimits": 210693719,
+                        "packets": 107941027,
+                        "qlen": 10236,
+                        "ratebps": 0,
+                        "ratepps": 0,
+                        "requeues": 0
+                    },
+                    {
+                        "backlog": 15481368,
+                        "bytes": 163206874168,
+                        "drops": 27081494,
+                        "id": "bloat_reduction",
+                        "overlimits": 0,
+                        "packets": 107941070,
+                        "qlen": 10239,
+                        "ratebps": 0,
+                        "ratepps": 0,
+                        "requeues": 0
+                    }
+                ],
+                "net_tx_bytes": 163200529816,
                 "net_tx_dropped": 0,
                 "net_tx_errors": 0,
-                "net_tx_packets": 17726,
-                "timestamp": 1408043826.91626
+                "net_tx_packets": 107936874,
+                "perf": {
+                    "duration": 0,
+                    "timestamp": 1436298855.82807
+                },
+                "timestamp": 1436300487.41595
             }
         }
     ]
-
-
-# Network Egress Rate Limit
-
-Mesos 0.21.0 adds an optional feature to limit the egress network bandwidth for each container. With this feature enabled, each container's egress traffic is limited to the specified rate. This can prevent a single container from dominating the entire network.
-
-## How to enable it?
-
-Egress Rate Limit requires Network Monitoring. To enable it, please follow all the steps in the [previous section](#Network_Monitoring) to enable the Network Monitoring first, and then use the newly introduced `egress_rate_limit_per_container` flag to specify the rate limit for each container. Note that this flag expects a `Bytes` type like the following:
-
-    mesos-slave \
-        --checkpoint \
-        --log_dir=/var/log/mesos \
-        --work_dir=/var/lib/mesos \
-        --isolation=cgroups/cpu,cgroups/mem,network/port_mapping \
-        --resources=cpus:22;mem:62189;ports:[31000-32000];disk:400000;ephemeral_ports:[32768-57344] \
-        --ephemeral_ports_per_container=1024 \
-        --egress_rate_limit_per_container=37500KB # Convert to ~300Mbits/s.
