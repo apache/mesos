@@ -4,7 +4,7 @@ This release contains new features:
 
 * [MESOS-1585] - Per-container network isolation: bandwidth capping and unique
                  egress flow to reduce buffer bloat. Refer to the network
-                 monitoring documentation for more information.
+                 monitoring and isolation documentation for more information.
 * [MESOS-2115] - Dockerized slaves will properly recover Docker containers upon failover.
 
 Plus an upgrade to the minimum required compiler versions:
@@ -169,10 +169,16 @@ This release also includes several bug fixes and stability improvements.
                    master failover.
   * [MESOS-2925] - Invalid usage of ATOMIC_FLAG_INIT in member initialization
   * [MESOS-2932] - There is a typo in docs/docker-containerizer.md file
+  * [MESOS-2943] - mesos fails to compile under mac when libssl and libevent are enabled
   * [MESOS-2962] - Slave fails with Abort stacktrace when DNS cannot resolve hostname
   * [MESOS-2973] - SSL tests don't work with --gtest_repeat
   * [MESOS-2975] - SSL tests don't work with --gtest_shuffle
   * [MESOS-2986] - Docker version output is not compatible with Mesos
+  * [MESOS-2991] - Compilation Error on Mac OS 10.10.4 with clang 3.5.0
+  * [MESOS-2993] - Document per container unique egress flow and network queueing statistics
+  * [MESOS-2996] - Failing Docker tests on CentOS Linux release 7.1.1503.
+  * [MESOS-2997] - SSL connection failure causes failed CHECK.
+  * [MESOS-3005] - SSL tests can fail depending on hostname configuration
 
 ** Documentation
   * [MESOS-2205] - Add user documentation for reservations
@@ -185,6 +191,7 @@ This release also includes several bug fixes and stability improvements.
   * [MESOS-2783] - document the fetcher
   * [MESOS-2886] - Capture some testing patterns we use in a doc
   * [MESOS-2942] - Create documentation for using SSL
+  * [MESOS-2992] - Improve attribute documentation to reflect current state
 
 ** Improvement
   * [MESOS-692] - Reservations are not reported in master's state.json
@@ -281,6 +288,7 @@ This release also includes several bug fixes and stability improvements.
   * [MESOS-2366] - MasterSlaveReconciliationTest.ReconcileLostTask is flaky
   * [MESOS-2375] - Remove the checkpoint variable entirely from slave/flags.hpp
   * [MESOS-2404] - Add an example framework to test persistent volumes.
+  * [MESOS-2405] - Add user doc for using persistent volumes.
   * [MESOS-2422] - Use fq_codel qdisc for egress network traffic isolation
   * [MESOS-2427] - Add Java binding for the acceptOffers API.
   * [MESOS-2428] - Add Python bindings for the acceptOffers API.
