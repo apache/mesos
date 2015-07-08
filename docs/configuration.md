@@ -14,7 +14,7 @@ Configuration values are searched for first in the environment, then on the comm
 
 **Important Options**
 
-If you have special compilation requirements, please refer to `./configure --help` when configuring Mesos. Additionally, the documentation lists only a subset of the options. A definitive source for which flags your version of Mesos supports can be found by running the binary with the flag `--help`, for example `mesos-master --help`.
+If you have special compilation requirements, please refer to `./configure --help` when configuring Mesos. Additionally, this documentation lists only a recent snapshot of the options in Mesos. A definitive source for which flags your version of Mesos supports can be found by running the binary with the flag `--help`, for example `mesos-master --help`.
 
 ## Master and Slave Options
 
@@ -33,11 +33,12 @@ If you have special compilation requirements, please refer to `./configure --hel
 
   <tr>
     <td>
-      --ip=VALUE
+      --external_log_file=VALUE
     </td>
     <td>
-      IP address to listen on
-
+      Specified the externally managed log file. This file will be
+      exposed in the webui and HTTP api. This is useful when using
+      stderr logging as the log file is otherwise unknown to Mesos.
     </td>
   </tr>
   <tr>
@@ -69,6 +70,24 @@ If you have special compilation requirements, please refer to `./configure --hel
     </td>
     <td>
       Prints this help message (default: false)
+
+    </td>
+  </tr>
+  <tr>
+    <td>
+      --[no-]initialize_driver_logging
+    </td>
+    <td>
+      Whether to automatically initialize Google logging of scheduler
+      and/or executor drivers. (default: true)
+    </td>
+  </tr>
+  <tr>
+    <td>
+      --ip=VALUE
+    </td>
+    <td>
+      IP address to listen on
 
     </td>
   </tr>
@@ -312,16 +331,6 @@ file:///path/to/file (where file contains one of the above)</code></pre>
       Text file Example:
 <pre><code>    username secret </code></pre>
 
-    </td>
-  </tr>
-  <tr>
-    <td>
-      --external_log_file=VALUE
-    </td>
-    <td>
-      Specified the externally managed log file. This file will be
-      exposed in the webui and HTTP api. This is useful when using
-      stderr logging as the log file is otherwise unknown to Mesos.
     </td>
   </tr>
   <tr>
@@ -744,6 +753,15 @@ file:///path/to/file (where file contains one of the above)</code></pre>
   </tr>
   <tr>
     <td>
+      --[no-]cgroups_cpu_enable_pids_and_tids_count
+    </td>
+    <td>
+      Cgroups feature flag to enable counting of processes and threads
+      inside a container. (default: false)
+    </td>
+  </tr>
+  <tr>
+    <td>
       --[no-]cgroups_enable_cfs
     </td>
     <td>
@@ -980,6 +998,21 @@ file:///path/to/file (where file contains one of the above)</code></pre>
   </tr>
   <tr>
     <td>
+      --executor_environment_variables
+    </td>
+    <td>
+      JSON object representing the environment variables that should be
+      passed to the executor, and thus subsequently task(s).
+      By default the executor will inherit the slave's environment variables.
+      Example:
+<pre><code>{
+  "PATH": "/bin:/usr/bin",
+  "LD_LIBRARY_PATH": "/usr/local/lib"
+}</code></pre>
+    </td>
+  </tr>
+  <tr>
+    <td>
       --executor_registration_timeout=VALUE
     </td>
     <td>
@@ -995,16 +1028,6 @@ file:///path/to/file (where file contains one of the above)</code></pre>
     <td>
       Amount of time to wait for an executor
       to shut down (e.g., 60secs, 3mins, etc) (default: 5secs)
-    </td>
-  </tr>
-  <tr>
-    <td>
-      --external_log_file=VALUE
-    </td>
-    <td>
-      Specified the externally managed log file. This file will be
-      exposed in the webui and HTTP api. This is useful when using
-      stderr logging as the log file is otherwise unknown to Mesos.
     </td>
   </tr>
   <tr>
@@ -1139,6 +1162,17 @@ file:///path/to/file (where file contains one of the above)</code></pre>
   </tr>
   <tr>
     <td>
+      --oversubscribed_resources_interval=VALUE
+    </td>
+    <td>
+      The slave periodically updates the master with the current estimation
+      about the total amount of oversubscribed resources that are allocated
+      and available. The interval between updates is controlled by this flag.
+      (default: 15secs)
+    </td>
+  </tr>
+  <tr>
+    <td>
       --perf_duration=VALUE
     </td>
     <td>
@@ -1170,6 +1204,25 @@ file:///path/to/file (where file contains one of the above)</code></pre>
       recently obtained sample is returned rather than sampling on
       demand. For this reason, perf_interval is independent of the
       resource monitoring interval (default: 1mins)
+    </td>
+  </tr>
+  <tr>
+    <td>
+      --qos_controller=VALUE
+    </td>
+    <td>
+      The name of the QoS Controller to use for oversubscription.
+    </td>
+  </tr>
+  <tr>
+    <td>
+      --qos_correction_interval_min=VALUE
+    </td>
+    <td>
+      The slave polls and carries out QoS corrections from the QoS
+      Controller based on its observed performance of running tasks.
+      The smallest interval between these corrections is controlled by
+      this flag. (default: 0secs)
     </td>
   </tr>
   <tr>
@@ -1221,6 +1274,14 @@ file:///path/to/file (where file contains one of the above)</code></pre>
   </tr>
   <tr>
     <td>
+      --resource_estimator=VALUE
+    </td>
+    <td>
+      The name of the resource estimator to use for oversubscription.
+    </td>
+  </tr>
+  <tr>
+    <td>
       --resource_monitoring_interval=VALUE
     </td>
     <td>
@@ -1236,6 +1297,16 @@ file:///path/to/file (where file contains one of the above)</code></pre>
       Total consumable resources per slave, in the form
       </p>
       <code>name(role):value;name(role):value...</code>.
+    </td>
+  </tr>
+  <tr>
+    <td>
+      --[no-]revocable_cpu_low_priority
+    </td>
+    <td>
+      Run containers with revocable CPU at a lower priority than
+      normal containers (non-revocable cpu). Currently only
+      supported by the cgroups/cpu isolator. (default: true)
     </td>
   </tr>
   <tr>
@@ -1357,11 +1428,22 @@ file:///path/to/file (where file contains one of the above)</code></pre>
   </tr>
   <tr>
     <td>
-      --[no-]network_enable_socket_statistics
+      --[no-]network_enable_socket_statistics_summary
     </td>
     <td>
-      Whether to collect socket statistics (e.g., TCP RTT) for
-      each container. (default: false)
+      Whether to collect socket statistics summary for each container.
+      This flag is used for the 'network/port_mapping' isolator.
+      (default: false)
+    </td>
+  </tr>
+  <tr>
+    <td>
+      --[no-]network_enable_socket_statistics_details
+    </td>
+    <td>
+      Whether to collect socket statistics details (e.g., TCP RTT) for
+      each container. This flag is used for the 'network/port_mapping'
+      isolator. (default: false)
     </td>
   </tr>
 </table>
