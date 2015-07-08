@@ -48,7 +48,7 @@ mesos::internal::logging::Flags::Flags()
 
   add(&Flags::initialize_driver_logging,
       "initialize_driver_logging",
-      "Whether to automatically initialize google logging of scheduler\n"
+      "Whether to automatically initialize Google logging of scheduler\n"
       "and/or executor drivers.",
       true);
 
