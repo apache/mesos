@@ -52,6 +52,7 @@ libprocess_la_SOURCES =		\
   src/reap.cpp			\
   src/socket.cpp		\
   src/subprocess.cpp		\
+  src/time.cpp			\
   src/timeseries.cpp
 
 if ENABLE_LIBEVENT

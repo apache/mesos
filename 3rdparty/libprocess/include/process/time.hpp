@@ -1,11 +1,7 @@
 #ifndef __PROCESS_TIME_HPP__
 #define __PROCESS_TIME_HPP__
 
-#include <time.h>
-
 #include <iomanip>
-
-#include <glog/logging.h>
 
 #include <stout/duration.hpp>
 
@@ -80,39 +76,51 @@ inline Time Time::epoch() { return Time(Duration::zero()); }
 inline Time Time::max() { return Time(Duration::max()); }
 
 
+// Stream manipulator class which serializes Time objects in RFC 1123
+// format (Also known as HTTP Date format).
+// The serialization is independent from the locale and ready to be
+// used in HTTP Headers.
+// Example: Wed, 15 Nov 1995 04:58:08 GMT
+// See http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html
+// section 14.18.
+// See https://www.ietf.org/rfc/rfc1123.txt section 5.2.14
+class RFC1123
+{
+public:
+  explicit RFC1123(const Time& _time) : time(_time) {}
+
+private:
+  friend std::ostream& operator << (std::ostream& out, const RFC1123& format);
+
+  const Time time;
+};
+
+
+std::ostream& operator << (std::ostream& out, const RFC1123& formatter);
+
+
+// Stream manipulator class which serializes Time objects in RFC 3339
+// format.
+// Example: 1996-12-19T16:39:57-08:00,234
+class RFC3339
+{
+public:
+  explicit RFC3339(const Time& _time) : time(_time) {}
+
+private:
+  friend std::ostream& operator << (std::ostream& out, const RFC3339& format);
+
+  const Time time;
+};
+
+
+std::ostream& operator << (std::ostream& out, const RFC3339& formatter);
+
+
 // Outputs the time in RFC 3339 Format.
 inline std::ostream& operator << (std::ostream& stream, const Time& time)
 {
-  // Round down the secs to use it with strftime and then append the
-  // fraction part.
-  long secs = static_cast<long>(time.secs());
-  char date[64];
-
-  // The RFC 3339 Format.
-  tm tm_;
-  if (gmtime_r(&secs, &tm_) == NULL) {
-    PLOG(ERROR)
-      << "Failed to convert the 'time' to a tm struct using gmtime_r()";
-    return stream;
-  }
-
-  strftime(date, 64, "%Y-%m-%d %H:%M:%S", &tm_);
-  stream << date;
-
-  // Append the fraction part in nanoseconds.
-  int64_t nsecs = (time.duration() - Seconds(secs)).ns();
-
-  if (nsecs != 0) {
-    char prev = stream.fill();
-
-    // 9 digits for nanosecond level precision.
-    stream << "." << std::setfill('0') << std::setw(9) << nsecs;
-
-    // Return the stream to original formatting state.
-    stream.fill(prev);
-  }
-
-  stream << "+00:00";
+  stream << RFC3339(time);
   return stream;
 }
 
