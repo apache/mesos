@@ -83,6 +83,15 @@ StatusUpdate createStatusUpdate(
   if (uuid.isSome()) {
     update.set_uuid(uuid.get().toBytes());
     status->set_uuid(uuid.get().toBytes());
+  } else {
+    // Note that in 0.22.x, the StatusUpdate.uuid was required
+    // even though the scheduler driver ignores it for master
+    // and scheduler driver generated updates. So we continue
+    // to "set" it here so that updates coming from a 0.23.x
+    // master can be parsed by a 0.22.x scheduler driver.
+    //
+    // TODO(bmahler): In 0.24.x, leave the uuid unset.
+    update.set_uuid("");
   }
 
   if (reason.isSome()) {

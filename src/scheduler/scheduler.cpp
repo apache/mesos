@@ -620,7 +620,7 @@ protected:
     // TODO(bmahler): For the HTTP API, we will have to update the
     // master and slave to ensure the 'uuid' in TaskStatus is set
     // correctly.
-    if (!message.update().has_uuid()) {
+    if (!message.update().has_uuid() || message.update().uuid() == "") {
       update->mutable_status()->clear_uuid();
     } else if (UPID(message.pid()) == UPID()) {
       update->mutable_status()->clear_uuid();
