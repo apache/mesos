@@ -44,12 +44,17 @@ namespace firewall {
 
 /**
  * Install a list of firewall rules which are used to forbid incoming
- * HTTP requests. The rules will be applied in the provided order to
- * each incoming request. If any rule forbids the request, no more
- * rules are applied and a "403 Forbidden" response will be returned
- * containing the reason from the rule. Note that if a request is
- * forbidden, the request's handler is not notified.
- * @see process#firewall#FirewallRule
+ * HTTP requests.
+ *
+ * The rules will be applied in the provided order to each incoming
+ * request. If any rule forbids the request, no more rules are applied
+ * and a "403 Forbidden" response will be returned containing the reason
+ * from the rule.
+ *
+ * **NOTE**: if a request is forbidden, the request's handler is
+ * not notified.
+ *
+ * @see process::firewall::FirewallRule
  *
  * @param rules List of rules which will be applied to all incoming
  *     HTTP requests.
@@ -68,7 +73,9 @@ public:
   UPID self() const { return pid; }
 
 protected:
-  // Invoked when an event is serviced.
+  /**
+   * Invoked when an event is serviced.
+   */
   virtual void serve(const Event& event)
   {
     event.visit(this);
@@ -81,49 +88,83 @@ protected:
   virtual void visit(const ExitedEvent& event);
   virtual void visit(const TerminateEvent& event);
 
-  // Invoked when a process gets spawned.
+  /**
+   * Invoked when a process gets spawned.
+   */
   virtual void initialize() {}
 
-  // Invoked when a process is terminated (unless visit is overriden).
+  /**
+   * Invoked when a process is terminated.
+   *
+   * **NOTE**: this does not get invoked automatically if
+   * `process::ProcessBase::visit(const TerminateEvent&)` is overriden.
+   */
   virtual void finalize() {}
 
-  // Invoked when a linked process has exited (see link).
+  /**
+   * Invoked when a linked process has exited.
+   *
+   * @see process::ProcessBase::link
+   */
   virtual void exited(const UPID& pid) {}
 
-  // Invoked when a linked process can no longer be monitored (see link).
+  /**
+   * Invoked when a linked process can no longer be monitored.
+   *
+   * @see process::ProcessBase::link
+   */
   virtual void lost(const UPID& pid) {}
 
-  // Puts a message at front of queue.
+  /**
+   * Puts the message at front of this process's message queue.
+   *
+   * @see process::Message
+   */
   void inject(
       const UPID& from,
       const std::string& name,
       const char* data = NULL,
       size_t length = 0);
 
-  // Sends a message with data to PID.
+  /**
+   * Sends the message to the specified `UPID`.
+   *
+   * @see process::Message
+   */
   void send(
       const UPID& to,
       const std::string& name,
       const char* data = NULL,
       size_t length = 0);
 
-  // Links with the specified PID. Linking with a process from within
-  // the same "operating system process" is guaranteed to give you
-  // perfect monitoring of that process. However, linking with a
-  // process on another machine might result in receiving lost
-  // callbacks due to the nature of a distributed environment.
+  /**
+   * Links with the specified `UPID`.
+   *
+   * Linking with a process from within the same "operating system
+   * process" is guaranteed to give you perfect monitoring of that
+   * process. However, linking with a process on another machine might
+   * result in receiving lost callbacks due to the nature of a distributed
+   * environment.
+   */
   UPID link(const UPID& pid);
 
-  // The default visit implementation for message events invokes
-  // installed message handlers, or delegates the message to another
-  // process (a delegate can be installed below but a message handler
-  // always takes precedence over delegating). A message handler is
-  // any function which takes two arguments, the "from" pid and the
-  // message body.
+  /**
+   * Any function which takes a "from" `UPID` and a message body as
+   * arguments.
+   *
+   * The default visit implementation for message events invokes
+   * installed message handlers, or delegates the message to another
+   * process. A message handler always takes precedence over delegating.
+   *
+   * @see process::ProcessBase::install
+   * @see process::ProcessBase::delegate
+   */
   typedef lambda::function<void(const UPID&, const std::string&)>
   MessageHandler;
 
-  // Setup a handler for a message.
+  /**
+   * Sets up a handler for messages with the specified name.
+   */
   void install(
       const std::string& name,
       const MessageHandler& handler)
@@ -131,6 +172,9 @@ protected:
     handlers.message[name] = handler;
   }
 
+  /**
+   * @copydoc process::ProcessBase::install
+   */
   template <typename T>
   void install(
       const std::string& name,
@@ -144,24 +188,40 @@ protected:
     install(name, handler);
   }
 
-  // Delegate incoming message's with the specified name to pid.
+  /**
+   * Delegates incoming messages, with the specified name, to the `UPID`.
+   */
   void delegate(const std::string& name, const UPID& pid)
   {
     delegates[name] = pid;
   }
 
-  // The default visit implementation for HTTP events invokes
-  // installed HTTP handlers. A HTTP handler is any function which
-  // takes an http::Request object and returns an http::Response.
+  /**
+   * Any function which takes a `process::http::Request` and returns a
+   * `process::http::Response`.
+   *
+   * The default visit implementation for HTTP events invokes
+   * installed HTTP handlers.
+   *
+   * @see process::ProcessBase::route
+   */
   typedef lambda::function<Future<http::Response>(const http::Request&)>
   HttpRequestHandler;
 
-  // Setup a handler for an HTTP request.
+  /**
+   * Sets up a handler for HTTP requests with the specified name.
+   *
+   * @param name The endpoint or URL to route.
+   *     Must begin with a `/`.
+   */
   void route(
       const std::string& name,
       const Option<std::string>& help,
       const HttpRequestHandler& handler);
 
+  /**
+   * @copydoc process::ProcessBase::route
+   */
   template <typename T>
   void route(
       const std::string& name,
@@ -176,15 +236,20 @@ protected:
     route(name, help, handler);
   }
 
-  // Provide the static asset(s) at the specified _absolute_ path for
-  // the specified name. For example, assuming the process named
-  // "server" invoked 'provide("name", "path")' then an HTTP request
-  // for '/server/name' would return the asset found at 'path'. If the
-  // specified path is a directory then an HTTP request for
-  // '/server/name/file' would return the asset found at
-  // '/path/file'. The 'Content-Type' header of the HTTP response will
-  // be set to the specified type given the file extension (you can
-  // manipulate this via the optional 'types' parameter).
+  /**
+   * Sets up the default HTTP request handler to provide the static
+   * asset(s) at the specified _absolute_ path for the specified name.
+   *
+   * For example, assuming the process named "server" invoked
+   * `provide("name", "path")`, then an HTTP request for `/server/name`
+   * would return the asset found at "path". If the specified path is a
+   * directory then an HTTP request for `/server/name/file` would return
+   * the asset found at `/path/file`.
+   *
+   * The `Content-Type` header of the HTTP response will be set to the
+   * specified type given the file extension, which can be changed via
+   * the optional `types` parameter.
+   */
   void provide(
       const std::string& name,
       const std::string& path,
@@ -198,6 +263,10 @@ protected:
     assets[name] = asset;
   }
 
+  /**
+   * Returns the number of events of the given type currently on the event
+   * queue.
+   */
   template<typename T>
   size_t eventCount()
   {
@@ -274,7 +343,11 @@ class Process : public virtual ProcessBase {
 public:
   virtual ~Process() {}
 
-  // Returns pid of process; valid even before calling spawn.
+  /**
+   * Returns the `PID` of the process.
+   *
+   * Valid even before calling spawn.
+   */
   PID<T> self() const { return PID<T>(dynamic_cast<const T*>(this)); }
 
 protected:
@@ -285,12 +358,14 @@ protected:
 
 
 /**
- * Initialize the library. Note that libprocess uses Google's glog and
- * you can specify options for it (e.g., a logging directory) via
- * environment variables (see the glog documentation for more
- * information).
+ * Initialize the library.
  *
- * @param delegate process to receive root HTTP requests
+ * **NOTE**: `libprocess` uses Google's `glog` and you can specify options
+ * for it (e.g., a logging directory) via environment variables.
+ *
+ * @param delegate Process to receive root HTTP requests.
+ *
+ * @see [glog](https://google-glog.googlecode.com/svn/trunk/doc/glog.html)
  */
 void initialize(const std::string& delegate = "");
 
@@ -310,8 +385,8 @@ network::Address address();
 /**
  * Spawn a new process.
  *
- * @param process process to be spawned
- * @param manage boolean whether process should get garbage collected
+ * @param process Process to be spawned.
+ * @param manage Whether process should get garbage collected.
  */
 UPID spawn(ProcessBase* process, bool manage = false);
 
@@ -343,13 +418,17 @@ PID<T> spawn(T& t, bool manage = false)
 
 
 /**
- * Send a TERMINATE message to a process, injecting the message ahead
- * of all other messages queued up for that process if requested. Note
- * that currently terminate only works for local processes (in the
- * future we plan to make this more explicit via the use of a PID
- * instead of a UPID).
+ * Sends a `TerminateEvent` to the given process.
  *
- * @param inject if true message will be put on front of message queue
+ * **NOTE**: currently, terminate only works for local processes (in the
+ * future we plan to make this more explicit via the use of a `PID`
+ * instead of a `UPID`).
+ *
+ * @param pid The process to terminate.
+ * @param inject Whether the message should be injected ahead of all other
+ *     messages queued up for that process.
+ *
+ * @see process::TerminateEvent
  */
 void terminate(const UPID& pid, bool inject = true);
 void terminate(const ProcessBase& process, bool inject = true);
@@ -357,11 +436,12 @@ void terminate(const ProcessBase* process, bool inject = true);
 
 
 /**
- * Wait for process to exit no more than specified seconds (returns
- * true if actually waited on a process).
+ * Wait for the process to exit for no more than the specified seconds.
  *
- * @param PID id of the process
- * @param secs max time to wait, 0 implies wait for ever
+ * @param PID ID of the process.
+ * @param secs Max time to wait, 0 implies wait forever.
+ *
+ * @return true if a process was actually waited upon.
  */
 bool wait(const UPID& pid, const Duration& duration = Seconds(-1));
 bool wait(const ProcessBase& process, const Duration& duration = Seconds(-1));
@@ -371,10 +451,10 @@ bool wait(const ProcessBase* process, const Duration& duration = Seconds(-1));
 /**
  * Sends a message with data without a return address.
  *
- * @param to receiver
- * @param name message name
- * @param data data to send (gets copied)
- * @param length length of data
+ * @param to Receiver of the message.
+ * @param name Name of the message.
+ * @param data Data to send (gets copied).
+ * @param length Length of data.
  */
 void post(const UPID& to,
           const std::string& name,
@@ -389,25 +469,36 @@ void post(const UPID& from,
           size_t length = 0);
 
 
-// Inline implementations of above.
+/**
+ * @copydoc process::terminate
+ */
 inline void terminate(const ProcessBase& process, bool inject)
 {
   terminate(process.self(), inject);
 }
 
 
+/**
+ * @copydoc process::terminate
+ */
 inline void terminate(const ProcessBase* process, bool inject)
 {
   terminate(process->self(), inject);
 }
 
 
+/**
+ * @copydoc process::wait
+ */
 inline bool wait(const ProcessBase& process, const Duration& duration)
 {
   return process::wait(process.self(), duration); // Explicit to disambiguate.
 }
 
 
+/**
+ * @copydoc process::wait
+ */
 inline bool wait(const ProcessBase* process, const Duration& duration)
 {
   return process::wait(process->self(), duration); // Explicit to disambiguate.
@@ -424,9 +515,15 @@ extern ThreadLocal<ProcessBase>* _process_;
 // NOTE: Methods in this namespace should only be used in tests to
 // inject arbitrary events.
 namespace inject {
-// Simulates disconnection of the link between 'from' and 'to' by
-// sending an 'ExitedEvent' to 'to'.
+
+/**
+ * Simulates disconnection of the link between 'from' and 'to' by
+ * sending an `ExitedEvent` to 'to'.
+ *
+ * @see process::ExitedEvent
+ */
 bool exited(const UPID& from, const UPID& to);
+
 } // namespace inject {
 
 } // namespace process {
