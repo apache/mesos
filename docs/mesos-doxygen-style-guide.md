@@ -98,7 +98,7 @@ Example:
     /**
      * The parent side of the pipe for stdin.
      * If the mode is not PIPE, None will be stored.
-     * @note: stdin is a macro on some systems, hence this name instead.
+     * **NOTE**: stdin is a macro on some systems, hence this name instead.
      */
     Option<int> in;
 
@@ -170,7 +170,7 @@ stout, libprocess, master, slave, containerizer, allocator, and others
 should have an overview page in markdown format that explains their
 purpose, overall structure, and general use. This can even be a complete developer guide.
 
-This page must be located in the top directory of the library/component and named "REAMDE.md".
+This page must be located in the top directory of the library/component and named "README.md".
 
 The first line in such a document must be a section heading bearing the title which will appear in the generated Doxygen index.
 Example: "# Libprocess Developer Guide"
