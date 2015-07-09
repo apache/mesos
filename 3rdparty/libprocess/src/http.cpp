@@ -101,7 +101,7 @@ void initialize()
 }
 
 
-bool Request::accepts(const string& encoding) const
+bool Request::acceptsEncoding(const string& encoding) const
 {
   // See RFC 2616, section 14.3 for the details.
   Option<string> accepted = headers.get("Accept-Encoding");

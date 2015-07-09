@@ -189,7 +189,7 @@ public:
     if (response.type == http::Response::BODY &&
         response.body.length() >= GZIP_MINIMUM_BODY_LENGTH &&
         !headers.contains("Content-Encoding") &&
-        request.accepts("gzip")) {
+        request.acceptsEncoding("gzip")) {
       Try<std::string> compressed = gzip::compress(body);
       if (compressed.isError()) {
         LOG(WARNING) << "Failed to gzip response body: " << compressed.error();

@@ -106,7 +106,7 @@ struct Request
   // Returns whether the encoding is considered acceptable in the request.
   // TODO(bmahler): Consider this logic being in decoder.hpp, and having the
   // Request contain a member variable for each popular HTTP 1.0/1.1 header.
-  bool accepts(const std::string& encoding) const;
+  bool acceptsEncoding(const std::string& encoding) const;
 };
 
 
