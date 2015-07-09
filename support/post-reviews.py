@@ -24,7 +24,9 @@
 
 import argparse
 import atexit
+import imp
 import os
+import re
 import sys
 
 from distutils.version import LooseVersion
@@ -95,12 +97,26 @@ if diff_stat:
 top_level_dir = execute(['git', 'rev-parse', '--show-toplevel']).strip()
 
 # Use the tracking_branch specified by the user if exists.
-# TODO(jieyu): Parse .reviewboardrc as well.
 parser = argparse.ArgumentParser(add_help=False)
+parser.add_argument('--reviewboard-url')
 parser.add_argument('--tracking-branch')
 args, _ = parser.parse_known_args()
 
-tracking_branch = args.tracking_branch if args.tracking_branch else 'master'
+# Try to read the .reviewboardrc in the top-level directory.
+reviewboardrc_filepath = os.path.join(top_level_dir, '.reviewboardrc')
+if os.path.exists(reviewboardrc_filepath):
+    sys.dont_write_bytecode = True  # Prevent generation of '.reviewboardrcc'.
+    reviewboardrc = imp.load_source('reviewboardrc', reviewboardrc_filepath)
+
+reviewboard_url = (
+    args.reviewboard_url if args.reviewboard_url else
+    reviewboardrc.REVIEWBOARD_URL if 'REVIEWBOARD_URL' in dir(reviewboardrc) else
+    'https://reviews.apache.org')
+
+tracking_branch = (
+    args.tracking_branch if args.tracking_branch else
+    reviewboardrc.TRACKING_BRANCH if 'TRACKING_BRANCH' in dir(reviewboardrc) else
+    'master')
 
 branch_ref = execute(['git', 'symbolic-ref', 'HEAD']).strip()
 branch = branch_ref.replace('refs/heads/', '', 1)
@@ -165,10 +181,17 @@ for i in range(len(shas)):
 
     review_request_id = None
 
-    if message.find('Review: ') != -1:
-        url = message[(message.index('Review: ') + len('Review: ')):].strip()
-        # TODO(benh): Handle bad (or not Review Board) URLs.
-        review_request_id = os.path.basename(url.strip('/'))
+    pos = message.find('Review:')
+    if pos != -1:
+        pattern = re.compile('Review: ({url})$'.format(
+            url=os.path.join(reviewboard_url, 'r', '[0-9]+')))
+        match = pattern.search(message.strip().strip('/'))
+        if match is None:
+            print "\nInvalid ReviewBoard URL: '{}'".format(message[pos:])
+            sys.exit(1)
+
+        url = match.group(1)
+        review_request_id = os.path.basename(url)
 
     # Show the commit.
     if review_request_id is None:
