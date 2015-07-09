@@ -30,7 +30,13 @@ namespace process {
 // Forward declaration to break cyclic dependencies.
 class ProcessBase;
 
-
+/**
+ * An "untyped" `PID`, used to encapsulate the process ID for
+ * lower-layer abstractions (eg, when receiving incoming requests)
+ * in the dispatching mechanism.
+ *
+ * @see process::PID
+ */
 struct UPID
 {
   UPID() = default;
@@ -92,6 +98,32 @@ struct UPID
 };
 
 
+/**
+ * A "process identifier" used to uniquely identify a process when
+ * dispatching messages.
+ *
+ * Typed with the actual process class's type, which must be
+ * derived from `process::ProcessBase`.
+ *
+ * Use it like this:
+ *
+ *    using namespace process;
+ *
+ *    class SimpleProcess : public Process<SimpleProcess>
+ *    {
+ *       // ...
+ *    };
+ *
+ *
+ *    SimpleProcess process;
+ *    PID<SimpleProcess> pid = spawn(process);
+ *
+ *    // ...
+ *
+ *    dispatchpid, &SimpleProcess::method, "argument");
+ *
+ * @see process::ProcessBase
+ */
 template <typename T = ProcessBase>
 struct PID : UPID
 {
