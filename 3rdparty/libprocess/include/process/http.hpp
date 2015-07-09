@@ -18,6 +18,7 @@
 #include <process/future.hpp>
 #include <process/owned.hpp>
 #include <process/pid.hpp>
+#include <process/time.hpp>
 
 #include <stout/error.hpp>
 #include <stout/hashmap.hpp>
@@ -363,6 +364,21 @@ struct Accepted : Response
   explicit Accepted(const std::string& body) : Response(body)
   {
     status = "202 Accepted";
+  }
+};
+
+
+struct NotModified : Response
+{
+  explicit NotModified(const Time& lastModified)
+  {
+    status = "304 Not Modified";
+
+    std::string mtime = stringify(RFC1123(lastModified));
+
+    if (!mtime.empty()) {
+      headers["Last-Modified"] = mtime;
+    }
   }
 };
 

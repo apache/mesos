@@ -1,3 +1,5 @@
+#include <time.h>
+
 #include <arpa/inet.h>
 
 #include <gmock/gmock.h>
@@ -1671,6 +1673,100 @@ TEST(ProcessTest, Provide)
   AWAIT_READY(response);
 
   ASSERT_EQ(LOREM_IPSUM, response.get().body);
+
+  terminate(server);
+  wait(server);
+
+  ASSERT_SOME(os::rmdir(path));
+}
+
+
+// Requests a static resource via HTTP and validates if proper answers
+// are returned for both cache hits and misses.
+TEST(ProcessTest, Cache)
+{
+  const Try<string>& mkdtemp = os::mkdtemp();
+  ASSERT_SOME(mkdtemp);
+
+  const string LOREM_IPSUM =
+      "Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do "
+      "eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad "
+      "minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip "
+      "ex ea commodo consequat. Duis aute irure dolor in reprehenderit in "
+      "voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur "
+      "sint occaecat cupidatat non proident, sunt in culpa qui officia "
+      "deserunt mollit anim id est laborum.";
+
+  const string path = path::join(mkdtemp.get(), "lorem.txt");
+  ASSERT_SOME(os::write(path, LOREM_IPSUM));
+
+  FileServer server(path);
+  PID<FileServer> pid = spawn(server);
+
+  // First request.
+  Future<http::Response> response = http::get(pid);
+
+  AWAIT_READY(response);
+
+  // First request had no information about the served file, so a 200
+  // code is expected as well as the full body.
+  EXPECT_EQ("200 OK", response.get().status);
+  ASSERT_TRUE(response.get().headers.contains("Last-Modified"));
+
+  // Request includes proper cache headers.
+  const std::string mtime = response.get().headers.get("Last-Modified").get();
+
+  hashmap<std::string, std::string> headers;
+  headers.put("Cache-Control", "max-age=0");
+  headers.put("If-Modified-Since", mtime);
+
+  response = http::get(pid, None(), None(), headers);
+
+  AWAIT_READY(response);
+  ASSERT_EQ("304 Not Modified", response.get().status);
+  ASSERT_TRUE(response.get().headers.contains("Last-Modified"));
+  EXPECT_SOME_EQ(mtime, response.get().headers.get("Last-Modified"));
+
+  static const char HTTP_DATE[] = "%a, %d %b %Y %T %Z";
+
+  // Use a different modification time for the request. The whole file
+  // should be served.
+  tm tmTime = {};
+  strptime(mtime.c_str(), HTTP_DATE, &tmTime);
+  time_t earlierTime = mktime(&tmTime);
+  ASSERT_NE(-1, earlierTime);
+
+  // Just an arbitrary earlier time than the mtime. In this case, 100
+  // seconds.
+  earlierTime -= 100;
+
+  // Transform the time back to a string.
+  ASSERT_TRUE(NULL != gmtime_r(&earlierTime, &tmTime));
+  static const size_t BUFFER_SIZE = 200;
+  char buffer[BUFFER_SIZE] = {0};
+  ASSERT_NE(0, strftime(buffer, BUFFER_SIZE, HTTP_DATE, &tmTime));
+  std::string strTime = buffer;
+  headers.put("If-Modified-Since", strTime);
+
+  response = http::get(pid, None(), None(), headers);
+
+  AWAIT_READY(response);
+
+  // Request 'If-Modified-Since' header doesn't match the server's
+  // mtime. Full file expected.
+  EXPECT_EQ("200 OK", response.get().status);
+  EXPECT_TRUE(response.get().headers.contains("Last-Modified"));
+  EXPECT_EQ(LOREM_IPSUM, response.get().body);
+
+  // Finally, test with an unparseable date.
+  headers.put("If-Modified-Since", "XXX-YYY-ZZZ PPP");
+  response = http::get(pid, None(), None(), headers);
+
+  // Request 'If-Modified-Since' header doesn't match the server's
+  // mtime. Full file expected.
+  EXPECT_EQ("200 OK", response.get().status);
+  EXPECT_TRUE(response.get().headers.contains("Last-Modified"));
+  EXPECT_EQ(LOREM_IPSUM, response.get().body);
 
   terminate(server);
   wait(server);
