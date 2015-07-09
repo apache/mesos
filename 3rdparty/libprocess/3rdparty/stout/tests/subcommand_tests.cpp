@@ -143,7 +143,7 @@ TEST(SubcommandTest, Flags)
   for (int i = 2; i < argc; i++) {
     ::free(argv[i]);
   }
-  delete argv;
+  delete[] argv;
 }
 
 
