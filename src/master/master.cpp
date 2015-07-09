@@ -5148,7 +5148,7 @@ void Master::updateTask(Task* task, const StatusUpdate& update)
   // Set the status update state and uuid for the task. Note that
   // master-generated updates are terminal and do not have a uuid
   // (in which case the master also calls removeTask()).
-  if (update.has_uuid()) {
+  if (update.has_uuid() && update.uuid() != "") {
     task->set_status_update_state(status.state());
     task->set_status_update_uuid(update.uuid());
   }

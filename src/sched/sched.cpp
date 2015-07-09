@@ -702,7 +702,7 @@ protected:
     // TODO(bmahler): For the HTTP API, we will have to update the
     // master and slave to ensure the 'uuid' in TaskStatus is set
     // correctly.
-    if (!update.has_uuid()) {
+    if (!update.has_uuid() || update.uuid() == "") {
       status.clear_uuid();
     } else if (from == UPID() || pid == UPID()) {
       status.clear_uuid();
@@ -730,7 +730,8 @@ protected:
       }
 
       // See above for when we don't need to acknowledge.
-      if (update.has_uuid() && from != UPID() && pid != UPID()) {
+      if (update.has_uuid() && update.uuid() != "" &&
+          from != UPID() && pid != UPID()) {
         // We drop updates while we're disconnected.
         CHECK(connected);
         CHECK_SOME(master);
