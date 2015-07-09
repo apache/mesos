@@ -15,6 +15,7 @@ You can write a framework scheduler in C, C++, Java/Scala, or Python. Your frame
 ### Scheduler API
 
 Declared in `MESOS_HOME/include/mesos/scheduler.hpp`
+
 ~~~{.cpp}
 /*
  * Empty virtual destructor (necessary to instantiate subclasses).
