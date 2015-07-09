@@ -54,10 +54,18 @@ This is the allowed set of doxygen tags that can be used.
  * [\@param](http://doxygen.org/manual/commands.html#cmdparam) Describes function parameters.
  * [\@return](http://doxygen.org/manual/commands.html#cmdreturn) Describes return values.
  * [\@see](http://doxygen.org/manual/commands.html#cmdsa) Describes a cross-reference to classes, functions, methods, variables, files or URL.
+
+Example:
+
+    /**
+     * Available kinds of implementations.
+     *
+     * @see process::network::PollSocketImpl
+     */
+
  * [\@file](http://doxygen.org/manual/commands.html#cmdfile) Describes a refence to a file. It is required when documenting global functions, variables, typedefs, or enums in separate files.
  * [\@link](http://doxygen.org/manual/commands.html#cmdlink) and [\@endlink](http://doxygen.org/manual/commands.html#cmdendlink) Describes a link to a file, class, or member.
  * [\@example](http://doxygen.org/manual/commands.html#cmdexample) Describes source code examples.
- * [\@todo](http://doxygen.org/manual/commands.html#cmdtodo) Describes a TODO item.
  * [\@image](http://doxygen.org/manual/commands.html#cmdimage) Describes an image.
 
  * When following these links be aware that the doxygen documentation is using another syntax in that \@param is explained as \\param.
