@@ -25,13 +25,18 @@
 #include <stout/try.hpp>
 
 // This class provides convenience routines for version checks.
-// TODO(karya): Consider adding support for more than 3 components,
-// and compatibility operators.
+//
+// Ideally, the components would be called simply major, minor and
+// patch. However, GNU libstdc++ already defines these as macros for
+// compatibility reasons (man 3 makedev for more information) implicitly
+// included in every compilation.
+//
+// TODO(karya): Consider adding support for more than 3 components, and
+// compatibility operators.
 // TODO(karya): Add support for labels and build metadata. Consider
 // semantic versioning (http://semvar.org/) for specs.
-class Version
+struct Version
 {
-public:
   // Expect the string in the following format:
   //   <major>[.<minor>[.<patch>]]
   // Missing components are treated as zero.
@@ -66,14 +71,16 @@ public:
     return Version(components[0], components[1], components[2]);
   }
 
-  Version(int major, int minor, int patch)
-    : major_(major), minor_(minor), patch_(patch) {}
+  Version(int _majorVersion, int _minorVersion, int _patchVersion)
+    : majorVersion(_majorVersion),
+      minorVersion(_minorVersion),
+      patchVersion(_patchVersion) {}
 
   bool operator == (const Version &other) const
   {
-    return major_ == other.major_ &&
-      minor_ == other.minor_ &&
-      patch_ == other.patch_;
+    return majorVersion == other.majorVersion &&
+      minorVersion == other.minorVersion &&
+      patchVersion == other.patchVersion;
   }
 
   bool operator != (const Version &other) const
@@ -84,24 +91,24 @@ public:
   bool operator < (const Version &other) const
   {
     // Lexicographic ordering.
-    if (major_ != other.major_) {
-      return major_ < other.major_;
-    } else if (minor_ != other.minor_) {
-      return minor_ < other.minor_;
+    if (majorVersion != other.majorVersion) {
+      return majorVersion < other.majorVersion;
+    } else if (minorVersion != other.minorVersion) {
+      return minorVersion < other.minorVersion;
     } else {
-      return patch_ < other.patch_;
+      return patchVersion < other.patchVersion;
     }
   }
 
   bool operator > (const Version &other) const
   {
     // Lexicographic ordering.
-    if (major_ != other.major_) {
-      return major_ > other.major_;
-    } else if (minor_ != other.minor_) {
-      return minor_ > other.minor_;
+    if (majorVersion != other.majorVersion) {
+      return majorVersion > other.majorVersion;
+    } else if (minorVersion != other.minorVersion) {
+      return minorVersion > other.minorVersion;
     } else {
-      return patch_ > other.patch_;
+      return patchVersion > other.patchVersion;
     }
   }
 
@@ -117,16 +124,15 @@ public:
 
   friend inline std::ostream& operator << (std::ostream& s, const Version& v);
 
-private:
-  const int major_;
-  const int minor_;
-  const int patch_;
+  const int majorVersion;
+  const int minorVersion;
+  const int patchVersion;
 };
 
 
 inline std::ostream& operator << (std::ostream& s, const Version& v)
 {
-  return s << v.major_ << "." << v.minor_ << "." << v.patch_;
+  return s << v.majorVersion << "." << v.minorVersion << "." << v.patchVersion;
 }
 
 #endif // __STOUT_VERSION_HPP__
