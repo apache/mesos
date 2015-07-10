@@ -1167,10 +1167,14 @@ protected:
       return;
     }
 
-    ReviveOffersMessage message;
-    message.mutable_framework_id()->MergeFrom(framework.id());
+    Call call;
+
+    CHECK(framework.has_id());
+    call.mutable_framework_id()->CopyFrom(framework.id());
+    call.set_type(Call::REVIVE);
+
     CHECK_SOME(master);
-    send(master.get(), message);
+    send(master.get(), call);
   }
 
   void acknowledgeStatusUpdate(
