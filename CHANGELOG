@@ -42,7 +42,7 @@ This release also includes API changes, new modules, and deprecations.
   * [MESOS-2475] - Add the Resource::ReservationInfo protobuf message.
   * [MESOS-2614] - Update name, hostname, failover_timeout, and webui_url in
                    master on framework re-registration
-  * [MESOS-2654] - A new 'capabilities' field has been addd to FrameworkInfo to
+  * [MESOS-2654] - A new 'capabilities' field has been added to FrameworkInfo to
                    opt in to revocable resources.
   * [MESOS-2691] - Update Resource message to include revocable resources.
   * [MESOS-2955] - Introduce acceptOffers scheduler driver API for performing
