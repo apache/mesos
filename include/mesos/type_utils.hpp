@@ -61,6 +61,9 @@ bool operator == (const SlaveInfo& left, const SlaveInfo& right);
 bool operator == (const Volume& left, const Volume& right);
 
 
+bool operator == (const TaskStatus& left, const TaskStatus& right);
+bool operator != (const TaskStatus& left, const TaskStatus& right);
+
 inline bool operator == (const ContainerID& left, const ContainerID& right)
 {
   return left.value() == right.value();

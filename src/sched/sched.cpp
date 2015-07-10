@@ -478,7 +478,33 @@ protected:
           break;
         }
 
-        drop(event, "Unimplemented");
+        const TaskStatus& status = event.update().status();
+
+        // Create a StatusUpdate based on the TaskStatus.
+        StatusUpdate update;
+        update.mutable_framework_id()->CopyFrom(framework.id());
+        update.mutable_status()->CopyFrom(status);
+        update.set_timestamp(status.timestamp());
+
+        if (status.has_executor_id()) {
+          update.mutable_executor_id()->CopyFrom(status.executor_id());
+        }
+
+        if (status.has_slave_id()) {
+          update.mutable_slave_id()->CopyFrom(status.slave_id());
+        }
+
+        if (status.has_uuid()) {
+          update.set_uuid(status.uuid());
+        }
+
+        // Note that we do not need to set the 'pid' now that
+        // the driver uses 'uuid' absence to skip acknowledgement.
+        //
+        // TODO(bmahler): Implement an 'update' method to match
+        // the Event naming scheme, and have 'statusUpdate' call
+        // into it.
+        statusUpdate(from, update, UPID());
         break;
       }
 
@@ -848,8 +874,8 @@ protected:
       }
 
       // See above for when we don't need to acknowledge.
-      if (update.has_uuid() && update.uuid() != "" &&
-          from != UPID() && pid != UPID()) {
+      if ((update.has_uuid() && update.uuid() != "") ||
+          (from != UPID() && pid != UPID())) {
         // We drop updates while we're disconnected.
         CHECK(connected);
         CHECK_SOME(master);

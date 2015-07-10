@@ -90,6 +90,78 @@ TEST_F(SchedulerDriverEventTest, Rescind)
 }
 
 
+// Ensures the scheduler driver can handle the UPDATE event.
+TEST_F(SchedulerDriverEventTest, Update)
+{
+  Try<PID<Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<Message> frameworkRegisteredMessage =
+    FUTURE_MESSAGE(Eq(FrameworkRegisteredMessage().GetTypeName()), _, _);
+
+  driver.start();
+
+  AWAIT_READY(frameworkRegisteredMessage);
+  UPID frameworkPid = frameworkRegisteredMessage.get().to;
+
+  FrameworkRegisteredMessage message;
+  ASSERT_TRUE(message.ParseFromString(frameworkRegisteredMessage.get().body));
+
+  FrameworkID frameworkId = message.framework_id();
+
+  SlaveID slaveId;
+  slaveId.set_value("S");
+
+  TaskID taskId;
+  taskId.set_value("T");
+
+  ExecutorID executorId;
+  executorId.set_value("E");
+
+  // Generate an update that needs no acknowledgement.
+  Event event;
+  event.set_type(Event::UPDATE);
+  event.mutable_update()->mutable_status()->CopyFrom(
+      protobuf::createStatusUpdate(
+          frameworkId,
+          slaveId,
+          taskId,
+          TASK_RUNNING,
+          TaskStatus::SOURCE_MASTER,
+          None(),
+          "message",
+          None(),
+          executorId).status());
+
+  Future<Nothing> statusUpdate;
+  Future<Nothing> statusUpdate2;
+  EXPECT_CALL(sched, statusUpdate(&driver, event.update().status()))
+    .WillOnce(FutureSatisfy(&statusUpdate))
+    .WillOnce(FutureSatisfy(&statusUpdate2));
+
+  process::post(master.get(), frameworkPid, event);
+
+  AWAIT_READY(statusUpdate);
+
+  // Generate an update that requires acknowledgement.
+  event.mutable_update()->mutable_status()->set_uuid(UUID::random().toBytes());
+
+  Future<StatusUpdateAcknowledgementMessage> statusUpdateAcknowledgement =
+    DROP_PROTOBUF(StatusUpdateAcknowledgementMessage(), _, _);
+
+  process::post(master.get(), frameworkPid, event);
+
+  AWAIT_READY(statusUpdate2);
+  AWAIT_READY(statusUpdateAcknowledgement);
+}
+
+
 // Ensures that the driver can handle the MESSAGE event.
 TEST_F(SchedulerDriverEventTest, Message)
 {

@@ -334,6 +334,7 @@ bool operator == (const SlaveInfo& left, const SlaveInfo& right)
 }
 
 
+// TODO(bmahler): Use SerializeToString here?
 bool operator == (const TaskStatus& left, const TaskStatus& right)
 {
   return left.task_id() == right.task_id() &&
