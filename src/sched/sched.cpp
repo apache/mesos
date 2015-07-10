@@ -1060,65 +1060,15 @@ protected:
                    const vector<TaskInfo>& tasks,
                    const Filters& filters)
   {
-    if (!connected) {
-      VLOG(1) << "Ignoring launch tasks message as master is disconnected";
-      // NOTE: Reply to the framework with TASK_LOST messages for each
-      // task. This is a hack for now, to not let the scheduler
-      // believe the tasks are launched, when actually the master
-      // never received the launchTasks message. Also, realize that
-      // this hack doesn't capture the case when the scheduler process
-      // sends it but the master never receives it (message lost,
-      // master failover etc). The correct way for schedulers to deal
-      // with this situation is to use 'reconcileTasks()'.
-      foreach (const TaskInfo& task, tasks) {
-        StatusUpdate update = protobuf::createStatusUpdate(
-            framework.id(),
-            None(),
-            task.task_id(),
-            TASK_LOST,
-            TaskStatus::SOURCE_MASTER,
-            None(),
-            "Master disconnected",
-            TaskStatus::REASON_MASTER_DISCONNECTED);
+    Offer::Operation operation;
+    operation.set_type(Offer::Operation::LAUNCH);
 
-        statusUpdate(UPID(), update, UPID());
-      }
-      return;
-    }
-
-    LaunchTasksMessage message;
-    message.mutable_framework_id()->MergeFrom(framework.id());
-    message.mutable_filters()->MergeFrom(filters);
-
-    foreach (const OfferID& offerId, offerIds) {
-      message.add_offer_ids()->MergeFrom(offerId);
-
-      foreach (const TaskInfo& task, tasks) {
-        // Keep only the slave PIDs where we run tasks so we can send
-        // framework messages directly.
-        if (savedOffers.contains(offerId)) {
-          if (savedOffers[offerId].count(task.slave_id()) > 0) {
-            savedSlavePids[task.slave_id()] =
-              savedOffers[offerId][task.slave_id()];
-          } else {
-            LOG(WARNING) << "Attempting to launch task " << task.task_id()
-                         << " with the wrong slave id " << task.slave_id();
-          }
-        } else {
-          LOG(WARNING) << "Attempting to launch task " << task.task_id()
-                       << " with an unknown offer " << offerId;
-        }
-      }
-      // Remove the offer since we saved all the PIDs we might use.
-      savedOffers.erase(offerId);
-    }
-
+    Offer::Operation::Launch* launch = operation.mutable_launch();
     foreach (const TaskInfo& task, tasks) {
-      message.add_tasks()->MergeFrom(task);
+      launch->add_task_infos()->CopyFrom(task);
     }
 
-    CHECK_SOME(master);
-    send(master.get(), message);
+    acceptOffers(offerIds, {operation}, filters);
   }
 
   void acceptOffers(
