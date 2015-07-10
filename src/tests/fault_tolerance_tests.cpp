@@ -28,6 +28,8 @@
 
 #include <mesos/master/allocator.hpp>
 
+#include <mesos/scheduler/scheduler.hpp>
+
 #include <process/future.hpp>
 #include <process/gmock.hpp>
 #include <process/http.hpp>
@@ -1354,12 +1356,12 @@ TEST_F(FaultToleranceTest, IgnoreKillTaskFromUnregisteredFramework)
   EXPECT_CALL(sched2, statusUpdate(&driver2, _))
     .WillOnce(FutureArg<1>(&status2));
 
-  Future<KillTaskMessage> killTaskMessage =
-    FUTURE_PROTOBUF(KillTaskMessage(), _, _);
+  Future<mesos::scheduler::Call> killCall = FUTURE_CALL(
+      mesos::scheduler::Call(), mesos::scheduler::Call::KILL, _, _);
 
   driver1.killTask(status.get().task_id());
 
-  AWAIT_READY(killTaskMessage);
+  AWAIT_READY(killCall);
 
   // By this point the master must have processed and ignored the
   // 'killTask' message from the first framework. To verify this,

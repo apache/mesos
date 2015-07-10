@@ -29,6 +29,8 @@
 
 #include <mesos/master/allocator.hpp>
 
+#include <mesos/scheduler/scheduler.hpp>
+
 #include <process/clock.hpp>
 #include <process/future.hpp>
 #include <process/gmock.hpp>
@@ -540,9 +542,8 @@ TEST_F(MasterTest, KillUnknownTaskSlaveInTransition)
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .Times(0);
 
-  // Set expectation that Master receives killTask message.
-  Future<KillTaskMessage> killTaskMessage =
-    FUTURE_PROTOBUF(KillTaskMessage(), _, master.get());
+  Future<mesos::scheduler::Call> killCall = FUTURE_CALL(
+      mesos::scheduler::Call(), mesos::scheduler::Call::KILL, _, _);
 
   // Attempt to kill unknown task while slave is transitioning.
   TaskID unknownTaskId;
@@ -554,7 +555,7 @@ TEST_F(MasterTest, KillUnknownTaskSlaveInTransition)
 
   driver.killTask(unknownTaskId);
 
-  AWAIT_READY(killTaskMessage);
+  AWAIT_READY(killCall);
 
   // Wait for all messages to be dispatched and processed completely to satisfy
   // the expectation that we didn't receive a status update.
