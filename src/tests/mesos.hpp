@@ -1324,6 +1324,39 @@ ACTION_P(SendStatusUpdateFromTaskID, state)
 #define EXPECT_NO_FUTURE_PROTOBUFS(message, from, to)              \
   ExpectNoFutureProtobufs(message, from, to)
 
+
+// These are specialized versions of {FUTURE,DROP}_PROTOBUF that
+// capture a scheduler/executor Call protobuf of the given 'type'.
+// Note that we name methods as '*ProtobufUnion()' because these could
+// be reused for macros that capture any protobufs that are described
+// using the standard protocol buffer "union" trick (e.g.,
+// FUTURE_EVENT to capture scheduler::Event), see
+// https://developers.google.com/protocol-buffers/docs/techniques#union.
+
+#define FUTURE_CALL(message, unionType, from, to)              \
+  FutureUnionProtobuf(message, unionType, from, to)
+
+
+#define DROP_CALL(message, unionType, from, to)                \
+  FutureUnionProtobuf(message, unionType, from, to, true)
+
+
+#define DROP_CALLS(message, unionType, from, to)               \
+  DropUnionProtobufs(message, unionType, from, to)
+
+
+#define EXPECT_NO_FUTURE_CALLS(message, unionType, from, to)   \
+  ExpectNoFutureUnionProtobufs(message, unionType, from, to)
+
+
+#define FUTURE_CALL_MESSAGE(message, unionType, from, to)          \
+  process::FutureUnionMessage(message, unionType, from, to)
+
+
+#define DROP_CALL_MESSAGE(message, unionType, from, to)            \
+  process::FutureUnionMessage(message, unionType, from, to, true)
+
+
 // Forward declaration.
 template <typename T>
 T _FutureProtobuf(const process::Message& message);
@@ -1337,6 +1370,18 @@ process::Future<T> FutureProtobuf(T t, From from, To to, bool drop = false)
 
   return process::FutureMessage(testing::Eq(t.GetTypeName()), from, to, drop)
     .then(lambda::bind(&_FutureProtobuf<T>, lambda::_1));
+}
+
+
+template <typename Message, typename UnionType, typename From, typename To>
+process::Future<Message> FutureUnionProtobuf(
+    Message message, UnionType unionType, From from, To to, bool drop = false)
+{
+  // Help debugging by adding some "type constraints".
+  { google::protobuf::Message* m = &message; (void) m; }
+
+  return process::FutureUnionMessage(message, unionType, from, to, drop)
+    .then(lambda::bind(&_FutureProtobuf<Message>, lambda::_1));
 }
 
 
@@ -1359,6 +1404,16 @@ void DropProtobufs(T t, From from, To to)
 }
 
 
+template <typename Message, typename UnionType, typename From, typename To>
+void DropUnionProtobufs(Message message, UnionType unionType, From from, To to)
+{
+  // Help debugging by adding some "type constraints".
+  { google::protobuf::Message* m = &message; (void) m; }
+
+  process::DropUnionMessages(message, unionType, from, to);
+}
+
+
 template <typename T, typename From, typename To>
 void ExpectNoFutureProtobufs(T t, From from, To to)
 {
@@ -1366,6 +1421,17 @@ void ExpectNoFutureProtobufs(T t, From from, To to)
   { google::protobuf::Message* m = &t; (void) m; }
 
   process::ExpectNoFutureMessages(testing::Eq(t.GetTypeName()), from, to);
+}
+
+
+template <typename Message, typename UnionType, typename From, typename To>
+void ExpectNoFutureUnionProtobufs(
+    Message message, UnionType unionType, From from, To to)
+{
+  // Help debugging by adding some "type constraints".
+  { google::protobuf::Message* m = &message; (void) m; }
+
+  process::ExpectNoFutureUnionMessages(message, unionType, from, to);
 }
 
 
