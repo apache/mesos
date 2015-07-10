@@ -394,8 +394,18 @@ Future<Nothing> CgroupsCpushareIsolatorProcess::update(
   double cpus = resources.cpus().get();
 
   // Always set cpu.shares.
-  uint64_t shares =
-    std::max((uint64_t) (CPU_SHARES_PER_CPU * cpus), MIN_CPU_SHARES);
+  uint64_t shares;
+
+  if (flags.revocable_cpu_low_priority &&
+      resources.revocable().cpus().isSome()) {
+    shares = std::max(
+        (uint64_t) (CPU_SHARES_PER_CPU_REVOCABLE * cpus),
+        MIN_CPU_SHARES);
+  } else {
+    shares = std::max(
+        (uint64_t) (CPU_SHARES_PER_CPU * cpus),
+        MIN_CPU_SHARES);
+  }
 
   Try<Nothing> write = cgroups::cpu::shares(
       hierarchy.get(),
