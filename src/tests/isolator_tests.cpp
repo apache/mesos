@@ -51,6 +51,7 @@
 #include "slave/slave.hpp"
 
 #ifdef __linux__
+#include "slave/containerizer/isolators/cgroups/constants.hpp"
 #include "slave/containerizer/isolators/cgroups/cpushare.hpp"
 #include "slave/containerizer/isolators/cgroups/mem.hpp"
 #include "slave/containerizer/isolators/cgroups/perf_event.hpp"
@@ -80,18 +81,17 @@ using mesos::internal::master::Master;
 using mesos::internal::slave::CgroupsCpushareIsolatorProcess;
 using mesos::internal::slave::CgroupsMemIsolatorProcess;
 using mesos::internal::slave::CgroupsPerfEventIsolatorProcess;
+using mesos::internal::slave::CPU_SHARES_PER_CPU_REVOCABLE;
 using mesos::internal::slave::Fetcher;
+using mesos::internal::slave::LinuxLauncher;
 using mesos::internal::slave::SharedFilesystemIsolatorProcess;
 #endif // __linux__
 using mesos::internal::slave::Launcher;
 using mesos::internal::slave::MesosContainerizer;
-using mesos::internal::slave::Slave;
-#ifdef __linux__
-using mesos::internal::slave::LinuxLauncher;
-#endif // __linux__
 using mesos::internal::slave::PosixLauncher;
 using mesos::internal::slave::PosixCpuIsolatorProcess;
 using mesos::internal::slave::PosixMemIsolatorProcess;
+using mesos::internal::slave::Slave;
 
 using mesos::slave::Isolator;
 using mesos::slave::IsolatorProcess;
@@ -416,6 +416,17 @@ TEST_F(RevocableCpuIsolatorTest, ROOT_CGROUPS_RevocableCpu)
 
   // Check the executor has its scheduling policy set to IDLE.
   EXPECT_SOME_EQ(sched::Policy::IDLE, sched::policy::get(pid.get()));
+
+  // Executor should have proper cpu.shares for revocable containers.
+  Result<string> cpuHierarchy = cgroups::hierarchy("cpu");
+  ASSERT_SOME(cpuHierarchy);
+
+  Result<string> cpuCgroup = cgroups::cpu::cgroup(pid.get());
+  ASSERT_SOME(cpuCgroup);
+
+  EXPECT_SOME_EQ(
+      CPU_SHARES_PER_CPU_REVOCABLE,
+      cgroups::cpu::shares(cpuHierarchy.get(), cpuCgroup.get()));
 
   // Kill the container and clean up.
   Future<Option<int>> status = process::reap(pid.get());
