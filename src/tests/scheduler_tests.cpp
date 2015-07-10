@@ -27,6 +27,8 @@
 #include <mesos/scheduler.hpp>
 #include <mesos/type_utils.hpp>
 
+#include <mesos/scheduler/scheduler.hpp>
+
 #include <process/clock.hpp>
 #include <process/future.hpp>
 #include <process/gmock.hpp>
@@ -1087,8 +1089,11 @@ TEST_F(MesosSchedulerDriverTest, DropAckIfStopCalledBeforeAbort)
 
   // Ensure no status update acknowledgements are sent from the driver
   // to the master.
-  EXPECT_NO_FUTURE_PROTOBUFS(
-      StatusUpdateAcknowledgementMessage(), _ , master.get());
+  EXPECT_NO_FUTURE_CALLS(
+      mesos::scheduler::Call(),
+      mesos::scheduler::Call::ACKNOWLEDGE,
+      _ ,
+      master.get());
 
   EXPECT_CALL(exec, registered(_, _, _, _));
 
@@ -1144,8 +1149,11 @@ TEST_F(MesosSchedulerDriverTest, ExplicitAcknowledgements)
 
   // Ensure no status update acknowledgements are sent from the driver
   // to the master until the explicit acknowledgement is sent.
-  EXPECT_NO_FUTURE_PROTOBUFS(
-      StatusUpdateAcknowledgementMessage(), _ , master.get());
+  EXPECT_NO_FUTURE_CALLS(
+      mesos::scheduler::Call(),
+      mesos::scheduler::Call::ACKNOWLEDGE,
+      _ ,
+      master.get());
 
   EXPECT_CALL(exec, registered(_, _, _, _));
 
@@ -1166,8 +1174,11 @@ TEST_F(MesosSchedulerDriverTest, ExplicitAcknowledgements)
   Clock::settle();
 
   // Now send the acknowledgement.
-  Future<StatusUpdateAcknowledgementMessage> acknowledgement =
-    FUTURE_PROTOBUF(StatusUpdateAcknowledgementMessage(), _ , master.get());
+  Future<mesos::scheduler::Call> acknowledgement = FUTURE_CALL(
+      mesos::scheduler::Call(),
+      mesos::scheduler::Call::ACKNOWLEDGE,
+      _,
+      master.get());
 
   driver.acknowledgeStatusUpdate(status.get());
 
@@ -1204,8 +1215,11 @@ TEST_F(MesosSchedulerDriverTest, ExplicitAcknowledgementsMasterGeneratedUpdate)
     .WillRepeatedly(Return()); // Ignore subsequent offers.
 
   // Ensure no status update acknowledgements are sent to the master.
-  EXPECT_NO_FUTURE_PROTOBUFS(
-      StatusUpdateAcknowledgementMessage(), _ , master.get());
+  EXPECT_NO_FUTURE_CALLS(
+      mesos::scheduler::Call(),
+      mesos::scheduler::Call::ACKNOWLEDGE,
+      _ ,
+      master.get());
 
   driver.start();
 
@@ -1266,8 +1280,11 @@ TEST_F(MesosSchedulerDriverTest, ExplicitAcknowledgementsUnsetSlaveID)
     .WillOnce(FutureSatisfy(&registered));
 
   // Ensure no status update acknowledgements are sent to the master.
-  EXPECT_NO_FUTURE_PROTOBUFS(
-      StatusUpdateAcknowledgementMessage(), _ , master.get());
+  EXPECT_NO_FUTURE_CALLS(
+      mesos::scheduler::Call(),
+      mesos::scheduler::Call::ACKNOWLEDGE,
+      _ ,
+      master.get());
 
   driver.start();
 

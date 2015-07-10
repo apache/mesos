@@ -745,7 +745,10 @@ TEST_F(ReconciliationTest, UnacknowledgedTerminalTask)
 
   // Drop the status update acknowledgements to ensure that the
   // task remains terminal and unacknowledged in the master.
-  DROP_PROTOBUFS(StatusUpdateAcknowledgementMessage(), _, _);
+  DROP_CALLS(mesos::scheduler::Call(),
+             mesos::scheduler::Call::ACKNOWLEDGE,
+             _,
+             master.get());
 
   driver.start();
 

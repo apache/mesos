@@ -27,6 +27,8 @@
 #include <mesos/resources.hpp>
 #include <mesos/scheduler.hpp>
 
+#include <mesos/scheduler/scheduler.hpp>
+
 #include <process/dispatch.hpp>
 #include <process/gmock.hpp>
 #include <process/owned.hpp>
@@ -211,8 +213,8 @@ TYPED_TEST(SlaveRecoveryTest, RecoverSlaveState)
   Future<StatusUpdateMessage> update =
     FUTURE_PROTOBUF(StatusUpdateMessage(), Eq(master.get()), _);
 
-  Future<StatusUpdateAcknowledgementMessage> ack =
-    FUTURE_PROTOBUF(StatusUpdateAcknowledgementMessage(), _, _);
+  Future<mesos::scheduler::Call> ack = FUTURE_CALL(
+      mesos::scheduler::Call(), mesos::scheduler::Call::ACKNOWLEDGE, _, _);
 
   Future<Nothing> _ack =
     FUTURE_DISPATCH(_, &Slave::_statusUpdateAcknowledgement);
@@ -313,7 +315,8 @@ TYPED_TEST(SlaveRecoveryTest, RecoverSlaveState)
                 .executors[executorId]
                 .runs[containerId.get()]
                 .tasks[task.task_id()]
-                .acks.contains(UUID::fromBytes(ack.get().uuid())));
+                .acks.contains(
+                    UUID::fromBytes(ack.get().acknowledge().uuid())));
 
   // Shut down the executor manually so that it doesn't hang around
   // after the test finishes.

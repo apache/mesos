@@ -1296,8 +1296,8 @@ TEST_F(FaultToleranceTest, IgnoreKillTaskFromUnregisteredFramework)
   EXPECT_CALL(sched1, statusUpdate(&driver1, _))
     .WillOnce(FutureArg<1>(&status));
 
-  Future<StatusUpdateAcknowledgementMessage> statusUpdateAcknowledgementMessage
-    = FUTURE_PROTOBUF(StatusUpdateAcknowledgementMessage(), _, _);
+  Future<mesos::scheduler::Call> acknowledgeCall = FUTURE_CALL(
+      mesos::scheduler::Call(), mesos::scheduler::Call::ACKNOWLEDGE, _, _);
 
   ExecutorDriver* execDriver;
   EXPECT_CALL(exec, registered(_, _, _, _))
@@ -1314,7 +1314,7 @@ TEST_F(FaultToleranceTest, IgnoreKillTaskFromUnregisteredFramework)
   // Wait for the status update acknowledgement to be sent. This
   // ensures the slave doesn't resend the TASK_RUNNING update to the
   // failed over scheduler (below).
-  AWAIT_READY(statusUpdateAcknowledgementMessage);
+  AWAIT_READY(acknowledgeCall);
 
   // Now start the second failed over scheduler.
   MockScheduler sched2;

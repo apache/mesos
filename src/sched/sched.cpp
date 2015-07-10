@@ -883,12 +883,19 @@ protected:
         VLOG(2) << "Sending ACK for status update " << update
             << " to " << master.get();
 
-        StatusUpdateAcknowledgementMessage message;
-        message.mutable_framework_id()->MergeFrom(framework.id());
-        message.mutable_slave_id()->MergeFrom(update.slave_id());
-        message.mutable_task_id()->MergeFrom(update.status().task_id());
-        message.set_uuid(update.uuid());
-        send(master.get(), message);
+        Call call;
+
+        CHECK(framework.has_id());
+        call.mutable_framework_id()->CopyFrom(framework.id());
+        call.set_type(Call::ACKNOWLEDGE);
+
+        Call::Acknowledge* acknowledge = call.mutable_acknowledge();
+        acknowledge->mutable_slave_id()->CopyFrom(update.slave_id());
+        acknowledge->mutable_task_id()->CopyFrom(update.status().task_id());
+        acknowledge->set_uuid(update.uuid());
+
+        CHECK_SOME(master);
+        send(master.get(), call);
       }
     }
   }
@@ -1191,8 +1198,6 @@ protected:
       return;
     }
 
-    CHECK_SOME(master);
-
     // NOTE: By ignoring the volatile 'running' here, we ensure that
     // all acknowledgements requested before the driver was stopped
     // or aborted are processed. Any acknowledgement that is requested
@@ -1204,17 +1209,25 @@ protected:
     // ensures that master-generated and driver-generated updates
     // will not have a 'uuid' set.
     if (status.has_uuid() && status.has_slave_id()) {
+      CHECK_SOME(master);
+
       VLOG(2) << "Sending ACK for status update " << status.uuid()
               << " of task " << status.task_id()
               << " on slave " << status.slave_id()
               << " to " << master.get();
 
-      StatusUpdateAcknowledgementMessage message;
-      message.mutable_framework_id()->CopyFrom(framework.id());
-      message.mutable_slave_id()->CopyFrom(status.slave_id());
-      message.mutable_task_id()->CopyFrom(status.task_id());
-      message.set_uuid(status.uuid());
-      send(master.get(), message);
+      Call call;
+
+      CHECK(framework.has_id());
+      call.mutable_framework_id()->CopyFrom(framework.id());
+      call.set_type(Call::ACKNOWLEDGE);
+
+      Call::Acknowledge* acknowledge = call.mutable_acknowledge();
+      acknowledge->mutable_slave_id()->CopyFrom(status.slave_id());
+      acknowledge->mutable_task_id()->CopyFrom(status.task_id());
+      acknowledge->set_uuid(status.uuid());
+
+      send(master.get(), call);
     } else {
       VLOG(2) << "Received ACK for status update"
               << (status.has_uuid() ? " " + status.uuid() : "")

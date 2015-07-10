@@ -420,7 +420,10 @@ TEST_F(StatusUpdateManagerTest, IgnoreUnexpectedStatusUpdateAck)
 
   // Drop the ACKs, so that status update manager
   // retries the update.
-  DROP_PROTOBUFS(StatusUpdateAcknowledgementMessage(), _, _);
+  DROP_CALLS(mesos::scheduler::Call(),
+             mesos::scheduler::Call::ACKNOWLEDGE,
+             _,
+             master.get());
 
   driver.launchTasks(offers.get()[0].id(), createTasks(offers.get()[0]));
 

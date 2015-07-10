@@ -20,6 +20,8 @@
 
 #include <mesos/scheduler.hpp>
 
+#include <mesos/scheduler/scheduler.hpp>
+
 #include <process/future.hpp>
 #include <process/gmock.hpp>
 #include <process/gtest.hpp>
@@ -152,13 +154,13 @@ TEST_F(SchedulerDriverEventTest, Update)
   // Generate an update that requires acknowledgement.
   event.mutable_update()->mutable_status()->set_uuid(UUID::random().toBytes());
 
-  Future<StatusUpdateAcknowledgementMessage> statusUpdateAcknowledgement =
-    DROP_PROTOBUF(StatusUpdateAcknowledgementMessage(), _, _);
+  Future<mesos::scheduler::Call> acknowledgement = DROP_CALL(
+      mesos::scheduler::Call(), mesos::scheduler::Call::ACKNOWLEDGE, _, _);
 
   process::post(master.get(), frameworkPid, event);
 
   AWAIT_READY(statusUpdate2);
-  AWAIT_READY(statusUpdateAcknowledgement);
+  AWAIT_READY(acknowledgement);
 }
 
 
