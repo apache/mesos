@@ -1273,15 +1273,24 @@ protected:
      return;
     }
 
-    ReconcileTasksMessage message;
-    message.mutable_framework_id()->MergeFrom(framework.id());
+    Call call;
+
+    CHECK(framework.has_id());
+    call.mutable_framework_id()->CopyFrom(framework.id());
+    call.set_type(Call::RECONCILE);
+
+    Call::Reconcile* reconcile = call.mutable_reconcile();
 
     foreach (const TaskStatus& status, statuses) {
-      message.add_statuses()->MergeFrom(status);
+      Call::Reconcile::Task* task = reconcile->add_tasks();
+      task->mutable_task_id()->CopyFrom(status.task_id());
+      if (status.has_slave_id()) {
+        task->mutable_slave_id()->CopyFrom(status.slave_id());
+      }
     }
 
     CHECK_SOME(master);
-    send(master.get(), message);
+    send(master.get(), call);
   }
 
 private:

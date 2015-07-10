@@ -26,6 +26,8 @@
 #include <mesos/mesos.hpp>
 #include <mesos/scheduler.hpp>
 
+#include <mesos/scheduler/scheduler.hpp>
+
 #include <process/clock.hpp>
 #include <process/future.hpp>
 #include <process/pid.hpp>
@@ -446,15 +448,15 @@ TEST_F(ReconciliationTest, SlaveInTransition)
 
   statuses.push_back(status);
 
-  Future<ReconcileTasksMessage> reconcileTasksMessage =
-    FUTURE_PROTOBUF(ReconcileTasksMessage(), _ , _);
+  Future<mesos::scheduler::Call> reconcileCall = FUTURE_CALL(
+      mesos::scheduler::Call(), mesos::scheduler::Call::RECONCILE, _ , _);
 
   Clock::pause();
 
   driver.reconcileTasks(statuses);
 
-  // Make sure the master received the reconcile tasks message.
-  AWAIT_READY(reconcileTasksMessage);
+  // Make sure the master received the reconcile call.
+  AWAIT_READY(reconcileCall);
 
   // The Clock::settle() will ensure that framework would receive
   // a status update if it is sent by the master. In this test it
@@ -587,8 +589,8 @@ TEST_F(ReconciliationTest, ImplicitTerminalTask)
   EXPECT_CALL(exec, shutdown(_))
     .Times(AtMost(1));
 
-  Future<ReconcileTasksMessage> reconcileTasksMessage =
-    FUTURE_PROTOBUF(ReconcileTasksMessage(), _ , _);
+  Future<mesos::scheduler::Call> reconcileCall = FUTURE_CALL(
+      mesos::scheduler::Call(), mesos::scheduler::Call::RECONCILE, _ , _);
 
   Clock::pause();
 
@@ -597,8 +599,8 @@ TEST_F(ReconciliationTest, ImplicitTerminalTask)
   vector<TaskStatus> statuses;
   driver.reconcileTasks(statuses);
 
-  // Make sure the master received the reconcile tasks message.
-  AWAIT_READY(reconcileTasksMessage);
+  // Make sure the master received the reconcile call.
+  AWAIT_READY(reconcileCall);
 
   // The Clock::settle() will ensure that framework would receive
   // a status update if it is sent by the master. In this test it
