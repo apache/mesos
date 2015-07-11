@@ -41,7 +41,6 @@
 #include <stout/try.hpp>
 
 #include "linux/cgroups.hpp"
-#include "linux/sched.hpp"
 
 #include "slave/flags.hpp"
 
@@ -333,25 +332,6 @@ Future<Nothing> CgroupsCpushareIsolatorProcess::isolate(
 
       return Failure("Failed to isolate container: " + assign.error());
     }
-  }
-
-  // NOTE: This only sets the executor and descendants to IDLE policy
-  // if the initial CPU resource is revocable and not if initial CPU
-  // is non-revocable but subsequent updates include revocable CPU.
-  if (info->resources.isSome() &&
-      info->resources.get().revocable().cpus().isSome() &&
-      flags.revocable_cpu_low_priority) {
-    Try<Nothing> set = sched::policy::set(sched::Policy::IDLE, pid);
-    if (set.isError()) {
-      return Failure("Failed to set SCHED_IDLE for pid " + stringify(pid) +
-                     " in container '" + stringify(containerId) + "'" +
-                     " with revocable CPU: " + set.error());
-    }
-
-    LOG(INFO) << "Set scheduling policy to SCHED_IDLE for pid " << pid
-              << " in container '" << containerId << "' because it includes '"
-              << info->resources.get().revocable().cpus().get()
-              << "' revocable CPU";
   }
 
   return Nothing();

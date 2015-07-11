@@ -41,7 +41,6 @@
 
 #ifdef __linux__
 #include "linux/ns.hpp"
-#include "linux/sched.hpp"
 #endif // __linux__
 
 #include "master/master.hpp"
@@ -413,9 +412,6 @@ TEST_F(RevocableCpuIsolatorTest, ROOT_CGROUPS_RevocableCpu)
   ASSERT_SOME(pid);
 
   AWAIT_READY(isolator.get()->isolate(containerId, pid.get()));
-
-  // Check the executor has its scheduling policy set to IDLE.
-  EXPECT_SOME_EQ(sched::Policy::IDLE, sched::policy::get(pid.get()));
 
   // Executor should have proper cpu.shares for revocable containers.
   Result<string> cpuHierarchy = cgroups::hierarchy("cpu");
