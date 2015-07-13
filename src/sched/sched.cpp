@@ -480,7 +480,29 @@ protected:
           break;
         }
 
-        drop(event, "Unimplemented");
+        const vector<Offer> offers =
+          google::protobuf::convert(event.offers().offers());
+
+        vector<string> pids;
+
+        foreach (const Offer& offer, offers) {
+          CHECK(offer.has_url())
+            << "Offer.url required for Event support";
+          CHECK(offer.url().has_path())
+            << "Offer.url.path required for Event support";
+
+          string id = offer.url().path();
+          id = strings::trim(id, "/");
+
+          Try<net::IP> ip =
+            net::IP::parse(offer.url().address().ip(), AF_INET);
+
+          CHECK_SOME(ip) << "Failed to parse Offer.url.address.ip";
+
+          pids.push_back(UPID(id, ip.get(), offer.url().address().port()));
+        }
+
+        resourceOffers(from, offers, pids);
         break;
       }
 
