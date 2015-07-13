@@ -617,7 +617,7 @@ TEST_F(ReservationTest, SendingCheckpointResourcesMessage)
   // The expectation for the first offer.
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillOnce(FutureArg<1>(&offers))
-    .WillRepeatedly(Return());
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
 
   EXPECT_CALL(sched, registered(&driver, _, _));
 
@@ -714,7 +714,7 @@ TEST_F(ReservationTest, ResourcesCheckpointing)
   // The expectation for the offer.
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillOnce(FutureArg<1>(&offers))
-    .WillRepeatedly(Return());
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
 
   EXPECT_CALL(sched, registered(&driver, _, _));
 
@@ -805,7 +805,7 @@ TEST_F(ReservationTest, MasterFailover)
   // The expectation for the first offer.
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillOnce(FutureArg<1>(&offers))
-    .WillRepeatedly(Return());
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
 
   EXPECT_CALL(sched, registered(&driver, _, _));
 
@@ -924,7 +924,8 @@ TEST_F(ReservationTest, CompatibleCheckpointedResources)
 
   // The expectation for the first offer.
   EXPECT_CALL(sched, resourceOffers(&driver, _))
-    .WillOnce(FutureArg<1>(&offers));
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
 
   EXPECT_CALL(sched, registered(&driver, _, _));
 
@@ -1039,7 +1040,7 @@ TEST_F(ReservationTest, CompatibleCheckpointedResourcesWithPersistentVolumes)
 
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillOnce(FutureArg<1>(&offers))
-    .WillRepeatedly(Return());
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
 
   EXPECT_CALL(sched, registered(&driver, _, _));
 
@@ -1154,7 +1155,7 @@ TEST_F(ReservationTest, IncompatibleCheckpointedResources)
 
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillOnce(FutureArg<1>(&offers))
-    .WillRepeatedly(Return());
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
 
   EXPECT_CALL(sched, registered(&driver, _, _));
 
