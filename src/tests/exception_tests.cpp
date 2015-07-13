@@ -21,6 +21,8 @@
 #include <mesos/executor.hpp>
 #include <mesos/scheduler.hpp>
 
+#include <mesos/scheduler/scheduler.hpp>
+
 #include <process/gmock.hpp>
 #include <process/pid.hpp>
 #include <process/process.hpp>
@@ -190,13 +192,13 @@ TEST_F(ExceptionTest, DisallowSchedulerCallbacksOnAbort)
 
   AWAIT_READY(rescindMsg);
 
-  Future<UnregisterFrameworkMessage> unregisterMsg =
-    FUTURE_PROTOBUF(UnregisterFrameworkMessage(), _, _);
+  Future<mesos::scheduler::Call> teardownCall = FUTURE_CALL(
+      mesos::scheduler::Call(), mesos::scheduler::Call::TEARDOWN, _, _);
 
   driver.stop();
 
-  //Ensures reception of RescindResourceOfferMessage.
-  AWAIT_READY(unregisterMsg);
+  // Ensures reception of RescindResourceOfferMessage.
+  AWAIT_READY(teardownCall);
 
   Shutdown();
 }

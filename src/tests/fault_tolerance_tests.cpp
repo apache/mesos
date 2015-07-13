@@ -1310,8 +1310,7 @@ TEST_F(FaultToleranceTest, SchedulerFailoverFrameworkToExecutorMessage)
 
   MockScheduler sched2;
 
-  FrameworkInfo framework2; // Bug in gcc 4.1.*, must assign on next line.
-  framework2 = DEFAULT_FRAMEWORK_INFO;
+  FrameworkInfo framework2 = DEFAULT_FRAMEWORK_INFO;
   framework2.mutable_id()->MergeFrom(frameworkId);
 
   MesosSchedulerDriver driver2(
@@ -1335,8 +1334,18 @@ TEST_F(FaultToleranceTest, SchedulerFailoverFrameworkToExecutorMessage)
   EXPECT_CALL(exec, frameworkMessage(_, _))
     .WillOnce(FutureArg<1>(&frameworkMessage));
 
+  // Since 'sched2' doesn't receive any offers the framework message
+  // should go through the master.
+  Future<mesos::scheduler::Call> messageCall = FUTURE_CALL(
+      mesos::scheduler::Call(),
+      mesos::scheduler::Call::MESSAGE,
+      _,
+      master.get());
+
   driver2.sendFrameworkMessage(
       DEFAULT_EXECUTOR_ID, offers.get()[0].slave_id(), "hello world");
+
+  AWAIT_READY(messageCall);
 
   AWAIT_EQ("hello world", frameworkMessage);
 

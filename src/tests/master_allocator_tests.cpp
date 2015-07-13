@@ -29,6 +29,8 @@
 
 #include <mesos/module/allocator.hpp>
 
+#include <mesos/scheduler/scheduler.hpp>
+
 #include <process/clock.hpp>
 #include <process/future.hpp>
 #include <process/gmock.hpp>
@@ -440,7 +442,7 @@ TYPED_TEST(MasterAllocatorTest, SchedulerFailover)
   // When we shut down the first framework, we don't want it to tell
   // the master it's shutting down so that the master will wait to see
   // if it fails over.
-  DROP_PROTOBUFS(UnregisterFrameworkMessage(), _, _);
+  DROP_CALLS(mesos::scheduler::Call(), mesos::scheduler::Call::TEARDOWN, _, _);
 
   Future<Nothing> deactivateFramework;
   EXPECT_CALL(allocator, deactivateFramework(_))

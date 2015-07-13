@@ -2151,15 +2151,15 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileShutdownFramework)
   this->Stop(slave.get());
   delete containerizer1.get();
 
-  Future<UnregisterFrameworkMessage> unregisterFrameworkMessage =
-    FUTURE_PROTOBUF(UnregisterFrameworkMessage(), _, _);
+  Future<mesos::scheduler::Call> teardownCall = FUTURE_CALL(
+      mesos::scheduler::Call(), mesos::scheduler::Call::TEARDOWN, _, _);
 
   // Now stop the framework.
   driver.stop();
   driver.join();
 
-  // Wait util the framework is removed.
-  AWAIT_READY(unregisterFrameworkMessage);
+  // Wait until the framework is removed.
+  AWAIT_READY(teardownCall);
 
   Future<ShutdownFrameworkMessage> shutdownFrameworkMessage =
     FUTURE_PROTOBUF(ShutdownFrameworkMessage(), _, _);

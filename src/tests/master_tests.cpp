@@ -241,13 +241,10 @@ TEST_F(MasterTest, ShutdownFrameworkWhileTaskRunning)
 
   AWAIT_READY(update);
 
-  // Set expectation that Master receives UnregisterFrameworkMessage,
-  // which triggers marking running tasks as killed.
-  UnregisterFrameworkMessage message;
-  message.mutable_framework_id()->MergeFrom(offer.framework_id());
-
-  Future<UnregisterFrameworkMessage> unregisterFrameworkMessage =
-    FUTURE_PROTOBUF(message, _, master.get());
+  // Set expectation that Master receives teardown call, which
+  // triggers marking running tasks as killed.
+  Future<mesos::scheduler::Call> teardownCall = FUTURE_CALL(
+      mesos::scheduler::Call(), mesos::scheduler::Call::TEARDOWN, _, _);
 
   // Set expectation that Executor's shutdown callback is invoked.
   Future<Nothing> shutdown;
@@ -258,14 +255,14 @@ TEST_F(MasterTest, ShutdownFrameworkWhileTaskRunning)
   driver.stop();
   driver.join();
 
-  // Wait for UnregisterFrameworkMessage message to be dispatched and
-  // executor's shutdown callback to be called.
-  AWAIT_READY(unregisterFrameworkMessage);
+  // Wait for teardown call to be dispatched and executor's shutdown
+  // callback to be called.
+  AWAIT_READY(teardownCall);
   AWAIT_READY(shutdown);
 
-  // We have to be sure the UnregisterFrameworkMessage is processed
-  // completely and running tasks enter a terminal state before we
-  // request the master state.
+  // We have to be sure the teardown call is processed completely and
+  // running tasks enter a terminal state before we request the master
+  // state.
   Clock::pause();
   Clock::settle();
   Clock::resume();

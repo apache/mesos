@@ -178,10 +178,10 @@ TEST_F(RateLimitingTest, NoRateLimiting)
   driver->join();
   delete driver;
 
-  // The fact that UnregisterFrameworkMessage (the 2nd message from
-  // 'sched' that reaches Master after its registration) gets
-  // processed without Clock advances proves that the framework is
-  // given unlimited rate.
+  // The fact that the teardown call (the 2nd call from the scheduler
+  // that reaches Master after its registration) gets processed
+  // without Clock advances proves that the framework is given
+  // unlimited rate.
   AWAIT_READY(removeFramework);
 
   // For metrics endpoint.
@@ -724,7 +724,7 @@ TEST_F(RateLimitingTest, SamePrincipalFrameworks)
   driver1->join();
   delete driver1;
 
-  // Advance to let UnregisterFrameworkMessage come through.
+  // Advance to let the teardown call come through.
   Clock::settle();
   Clock::advance(Seconds(1));
 
