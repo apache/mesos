@@ -94,6 +94,32 @@ message ContainerID {
 
 
 /**
+ * A network address.
+ *
+ * TODO(bmahler): Use this more widely (e.g. MasterInfo).
+ */
+message Address {
+  // May contain a hostname, IP address, or both.
+  optional string hostname = 1;
+  optional string ip = 2;
+
+  required int32 port = 3;
+}
+
+
+/**
+ * Represents a URL.
+ */
+message URL {
+  required string scheme = 1;
+  required Address address = 2;
+  optional string path = 3;
+  repeated Parameter query = 4;
+  optional string fragment = 5;
+}
+
+
+/**
  * Describes a framework.
  */
 message FrameworkInfo {
@@ -773,6 +799,10 @@ message Offer {
   required FrameworkID framework_id = 2;
   required SlaveID slave_id = 3;
   required string hostname = 4;
+
+  // URL for reaching the slave running on the host.
+  optional URL url = 8;
+
   repeated Resource resources = 5;
   repeated Attribute attributes = 7;
   repeated ExecutorID executor_ids = 6;

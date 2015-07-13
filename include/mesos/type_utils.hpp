@@ -60,6 +60,7 @@ bool operator == (
 bool operator == (const SlaveInfo& left, const SlaveInfo& right);
 bool operator == (const Volume& left, const Volume& right);
 
+bool operator == (const URL& left, const URL& right);
 
 bool operator == (const TaskStatus& left, const TaskStatus& right);
 bool operator != (const TaskStatus& left, const TaskStatus& right);

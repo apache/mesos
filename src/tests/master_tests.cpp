@@ -130,6 +130,18 @@ TEST_F(MasterTest, TaskRunning)
   AWAIT_READY(offers);
   EXPECT_NE(0u, offers.get().size());
 
+  // Ensure the hostname and url are set correctly.
+  EXPECT_EQ(slave.get().address.hostname().get(), offers.get()[0].hostname());
+
+  mesos::URL url;
+  url.set_scheme("http");
+  url.mutable_address()->set_ip(stringify(slave.get().address.ip));
+  url.mutable_address()->set_hostname(slave.get().address.hostname().get());
+  url.mutable_address()->set_port(slave.get().address.port);
+  url.set_path("/" + slave.get().id);
+
+  EXPECT_EQ(url, offers.get()[0].url());
+
   TaskInfo task;
   task.set_name("");
   task.mutable_task_id()->set_value("1");

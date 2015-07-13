@@ -4240,11 +4240,20 @@ void Master::offer(const FrameworkID& frameworkId,
     // separate offers, so that rescinding offers with revocable
     // resources does not affect offers with regular resources.
 
+    // TODO(bmahler): Set "https" if only "https" is supported.
+    mesos::URL url;
+    url.set_scheme("http");
+    url.mutable_address()->set_hostname(slave->info.hostname());
+    url.mutable_address()->set_ip(stringify(slave->pid.address.ip));
+    url.mutable_address()->set_port(slave->pid.address.port);
+    url.set_path("/" + slave->pid.id);
+
     Offer* offer = new Offer();
     offer->mutable_id()->MergeFrom(newOfferId());
     offer->mutable_framework_id()->MergeFrom(framework->id());
     offer->mutable_slave_id()->MergeFrom(slave->id);
     offer->set_hostname(slave->info.hostname());
+    offer->mutable_url()->MergeFrom(url);
     offer->mutable_resources()->MergeFrom(offered);
     offer->mutable_attributes()->MergeFrom(slave->info.attributes());
 

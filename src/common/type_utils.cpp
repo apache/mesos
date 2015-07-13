@@ -126,6 +126,13 @@ bool operator == (const Volume& left, const Volume& right)
 }
 
 
+// TODO(bmahler): Leverage process::http::URL for equality.
+bool operator == (const URL& left, const URL& right)
+{
+  return left.SerializeAsString() == right.SerializeAsString();
+}
+
+
 bool operator == (
     const ContainerInfo::DockerInfo::PortMapping& left,
     const ContainerInfo::DockerInfo::PortMapping& right)
