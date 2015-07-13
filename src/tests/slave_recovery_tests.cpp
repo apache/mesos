@@ -310,13 +310,13 @@ TYPED_TEST(SlaveRecoveryTest, RecoverSlaveState)
         .tasks[task.task_id()]
         .updates.front().uuid());
 
+  const UUID& uuid = UUID::fromBytes(ack.get().acknowledge().uuid());
   ASSERT_TRUE(state
                 .frameworks[frameworkId]
                 .executors[executorId]
                 .runs[containerId.get()]
                 .tasks[task.task_id()]
-                .acks.contains(
-                    UUID::fromBytes(ack.get().acknowledge().uuid())));
+                .acks.contains(uuid));
 
   // Shut down the executor manually so that it doesn't hang around
   // after the test finishes.

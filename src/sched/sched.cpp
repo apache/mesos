@@ -1259,6 +1259,8 @@ protected:
       UPID slave = savedSlavePids[slaveId];
       CHECK(slave != UPID());
 
+      // TODO(vinod): Send a Call directly to the slave once that
+      // support is added.
       FrameworkToExecutorMessage message;
       message.mutable_slave_id()->MergeFrom(slaveId);
       message.mutable_framework_id()->MergeFrom(framework.id());
@@ -1269,13 +1271,19 @@ protected:
       VLOG(1) << "Cannot send directly to slave " << slaveId
               << "; sending through master";
 
-      FrameworkToExecutorMessage message;
-      message.mutable_slave_id()->MergeFrom(slaveId);
-      message.mutable_framework_id()->MergeFrom(framework.id());
-      message.mutable_executor_id()->MergeFrom(executorId);
-      message.set_data(data);
+      Call call;
+
+      CHECK(framework.has_id());
+      call.mutable_framework_id()->CopyFrom(framework.id());
+      call.set_type(Call::MESSAGE);
+
+      Call::Message* message = call.mutable_message();
+      message->mutable_slave_id()->CopyFrom(slaveId);
+      message->mutable_executor_id()->CopyFrom(executorId);
+      message->set_data(data);
+
       CHECK_SOME(master);
-      send(master.get(), message);
+      send(master.get(), call);
     }
   }
 

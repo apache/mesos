@@ -18,6 +18,7 @@
 
 #include <gmock/gmock.h>
 
+#include <string>
 #include <vector>
 
 #include <mesos/executor.hpp>
@@ -70,6 +71,7 @@ using process::UPID;
 using process::http::OK;
 using process::http::Response;
 
+using std::string;
 using std::vector;
 
 using testing::_;
@@ -1156,7 +1158,7 @@ TEST_F(FaultToleranceTest, ForwardStatusUpdateUnknownExecutor)
 }
 
 
-TEST_F(FaultToleranceTest, SchedulerFailoverFrameworkMessage)
+TEST_F(FaultToleranceTest, SchedulerFailoverExecutorToFrameworkMessage)
 {
   Try<PID<Master> > master = StartMaster();
   ASSERT_SOME(master);
@@ -1246,6 +1248,97 @@ TEST_F(FaultToleranceTest, SchedulerFailoverFrameworkMessage)
   execDriver->sendFrameworkMessage("Executor to Framework message");
 
   AWAIT_READY(frameworkMessage);
+
+  EXPECT_CALL(exec, shutdown(_))
+    .Times(AtMost(1));
+
+  driver1.stop();
+  driver2.stop();
+
+  driver1.join();
+  driver2.join();
+
+  Shutdown();
+}
+
+
+TEST_F(FaultToleranceTest, SchedulerFailoverFrameworkToExecutorMessage)
+{
+  Try<PID<Master> > master = StartMaster();
+  ASSERT_SOME(master);
+
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+
+  Try<PID<Slave> > slave = StartSlave(&exec);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched1;
+  MesosSchedulerDriver driver1(
+      &sched1, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  FrameworkID frameworkId;
+  EXPECT_CALL(sched1, registered(&driver1, _, _))
+    .WillOnce(SaveArg<1>(&frameworkId));
+
+  Future<vector<Offer> > offers;
+  EXPECT_CALL(sched1, resourceOffers(&driver1, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver1.start();
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
+
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched1, statusUpdate(&driver1, _))
+    .WillOnce(FutureArg<1>(&status));
+
+  ExecutorDriver* execDriver;
+  EXPECT_CALL(exec, registered(_, _, _, _))
+    .WillOnce(SaveArg<0>(&execDriver));
+
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
+
+  TaskInfo task = createTask(offers.get()[0], "", DEFAULT_EXECUTOR_ID);
+
+  driver1.launchTasks(offers.get()[0].id(), {task});
+
+  AWAIT_READY(status);
+  EXPECT_EQ(TASK_RUNNING, status.get().state());
+
+  MockScheduler sched2;
+
+  FrameworkInfo framework2; // Bug in gcc 4.1.*, must assign on next line.
+  framework2 = DEFAULT_FRAMEWORK_INFO;
+  framework2.mutable_id()->MergeFrom(frameworkId);
+
+  MesosSchedulerDriver driver2(
+      &sched2, framework2, master.get(), DEFAULT_CREDENTIAL);
+
+  Future<Nothing> registered;
+  EXPECT_CALL(sched2, registered(&driver2, frameworkId, _))
+    .WillOnce(FutureSatisfy(&registered));
+
+  Future<Nothing> error;
+  EXPECT_CALL(sched1, error(&driver1, "Framework failed over"))
+    .WillOnce(FutureSatisfy(&error));
+
+  driver2.start();
+
+  AWAIT_READY(error);
+
+  AWAIT_READY(registered);
+
+  Future<string> frameworkMessage;
+  EXPECT_CALL(exec, frameworkMessage(_, _))
+    .WillOnce(FutureArg<1>(&frameworkMessage));
+
+  driver2.sendFrameworkMessage(
+      DEFAULT_EXECUTOR_ID, offers.get()[0].slave_id(), "hello world");
+
+  AWAIT_EQ("hello world", frameworkMessage);
 
   EXPECT_CALL(exec, shutdown(_))
     .Times(AtMost(1));
