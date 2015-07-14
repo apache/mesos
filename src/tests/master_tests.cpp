@@ -2252,13 +2252,14 @@ TEST_F(MasterTest, OrphanTasks)
   Future<SlaveReregisteredMessage> slaveReregisteredMessage =
     FUTURE_PROTOBUF(SlaveReregisteredMessage(), master.get(), _);
 
-  // Drop the reregisterFrameworkMessage to delay the framework
-  // from re-registration.
-  Future<ReregisterFrameworkMessage> reregisterFrameworkMessage =
-    DROP_PROTOBUF(ReregisterFrameworkMessage(), _, master.get());
-
-  Future<FrameworkRegisteredMessage> frameworkRegisteredMessage =
-    FUTURE_PROTOBUF(FrameworkRegisteredMessage(), master.get(), _);
+  // Drop the subscribe call to delay the framework from
+  // re-registration.
+  // Grab the stuff we need to replay the subscribe call.
+  Future<mesos::scheduler::Call> subscribeCall = DROP_CALL(
+      mesos::scheduler::Call(),
+      mesos::scheduler::Call::SUBSCRIBE,
+      _,
+      _);
 
   Clock::pause();
 
@@ -2274,7 +2275,7 @@ TEST_F(MasterTest, OrphanTasks)
   detector.appoint(master.get());
 
   AWAIT_READY(slaveReregisteredMessage);
-  AWAIT_READY(reregisterFrameworkMessage);
+  AWAIT_READY(subscribeCall);
 
   // Get the master's state.
   response = process::http::get(master.get(), "state.json");
@@ -2300,6 +2301,9 @@ TEST_F(MasterTest, OrphanTasks)
   JSON::String unknownFrameworkId =
     unknownFrameworksArray.values.front().as<JSON::String>();
   EXPECT_EQ(activeFrameworkId, unknownFrameworkId);
+
+  Future<FrameworkRegisteredMessage> frameworkRegisteredMessage =
+    FUTURE_PROTOBUF(FrameworkRegisteredMessage(), _, _);
 
   // Advance the clock to let the framework re-register with the master.
   Clock::advance(Seconds(1));

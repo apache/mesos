@@ -184,14 +184,14 @@ TYPED_TEST(SlaveRecoveryTest, RecoverSlaveState)
     .WillOnce(FutureArg<1>(&offers))
     .WillRepeatedly(Return());      // Ignore subsequent offers.
 
-  Future<Message> registerFrameworkMessage =
-    FUTURE_MESSAGE(Eq(RegisterFrameworkMessage().GetTypeName()), _, _);
+  Future<Message> subscribeMessage = FUTURE_CALL_MESSAGE(
+      mesos::scheduler::Call(), mesos::scheduler::Call::SUBSCRIBE, _, _);
 
   driver.start();
 
   // Capture the framework pid.
-  AWAIT_READY(registerFrameworkMessage);
-  UPID frameworkPid = registerFrameworkMessage.get().from;
+  AWAIT_READY(subscribeMessage);
+  UPID frameworkPid = subscribeMessage.get().from;
 
   AWAIT_READY(offers);
   EXPECT_NE(0u, offers.get().size());

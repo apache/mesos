@@ -708,20 +708,20 @@ protected:
       return;
     }
 
-    VLOG(1) << "Sending registration request to " << master.get().pid();
+    VLOG(1) << "Sending SUBSCRIBE call to " << master.get().pid();
 
-    if (!framework.has_id() || framework.id() == "") {
-      // Touched for the very first time.
-      RegisterFrameworkMessage message;
-      message.mutable_framework()->MergeFrom(framework);
-      send(master.get().pid(), message);
-    } else {
-      // Not the first time, or failing over.
-      ReregisterFrameworkMessage message;
-      message.mutable_framework()->MergeFrom(framework);
-      message.set_failover(failover);
-      send(master.get().pid(), message);
+    Call call;
+    call.set_type(Call::SUBSCRIBE);
+
+    Call::Subscribe* subscribe = call.mutable_subscribe();
+    subscribe->mutable_framework_info()->CopyFrom(framework);
+
+    if (framework.has_id() && !framework.id().value().empty()) {
+      subscribe->set_force(failover);
+      call.mutable_framework_id()->CopyFrom(framework.id());
     }
+
+    send(master.get().pid(), call);
 
     // Bound the maximum backoff by 'REGISTRATION_RETRY_INTERVAL_MAX'.
     maxBackoff =
