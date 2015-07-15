@@ -119,6 +119,17 @@ JSON::Object summarize(const Framework& framework)
   object.values["used_resources"] = model(framework.totalUsedResources);
   object.values["offered_resources"] = model(framework.totalOfferedResources);
 
+  {
+      JSON::Array array;
+      array.values.reserve(framework.info.capabilities_size());
+      foreach (const FrameworkInfo::Capability& capability,
+               framework.info.capabilities()) {
+        array.values.push_back(
+              FrameworkInfo::Capability::Type_Name(capability.type()));
+      }
+      object.values["capabilities"] = std::move(array);
+  }
+
   object.values["hostname"] = framework.info.hostname();
   object.values["webui_url"] = framework.info.webui_url();
 

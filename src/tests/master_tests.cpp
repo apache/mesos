@@ -2946,15 +2946,18 @@ TEST_F(MasterTest, StateSummaryEndpoint)
 }
 
 
-// This test ensures that the web UI of a framework is included in the
-// state.json endpoint, if provided by the framework.
-TEST_F(MasterTest, FrameworkWebUIUrl)
+// This test ensures that the web UI and capabilities of a framework
+// are included in the state.json endpoint, if provided by the
+// framework.
+TEST_F(MasterTest, FrameworkWebUIUrlandCapabilities)
 {
   Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   FrameworkInfo framework = DEFAULT_FRAMEWORK_INFO;
   framework.set_webui_url("http://localhost:8080/");
+  auto capabilityType = FrameworkInfo::Capability::REVOCABLE_RESOURCES;
+  framework.add_capabilities()->set_type(capabilityType);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
@@ -2991,6 +2994,14 @@ TEST_F(MasterTest, FrameworkWebUIUrl)
     framework_.values["webui_url"].as<JSON::String>();
 
   EXPECT_EQ("http://localhost:8080/", webui_url.value);
+
+  EXPECT_EQ(1u, framework_.values.count("capabilities"));
+  JSON::Array capabilities =
+    framework_.values["capabilities"].as<JSON::Array>();
+  JSON::String capability = capabilities.values.front().as<JSON::String>();
+
+  EXPECT_EQ(FrameworkInfo::Capability::Type_Name(capabilityType),
+            capability.value);
 
   driver.stop();
   driver.join();
