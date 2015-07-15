@@ -35,6 +35,8 @@ namespace internal {
 class Attributes;
 class Task;
 
+extern const char APPLICATION_JSON[];
+extern const char APPLICATION_PROTOBUF[];
 
 JSON::Object model(const Resources& resources);
 JSON::Object model(const hashmap<std::string, Resources>& roleResources);

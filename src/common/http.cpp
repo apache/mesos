@@ -41,6 +41,10 @@ using std::vector;
 namespace mesos {
 namespace internal {
 
+const char APPLICATION_JSON[] = "application/json";
+const char APPLICATION_PROTOBUF[] = "application/x-protobuf";
+
+
 // TODO(bmahler): Kill these in favor of automatic Proto->JSON
 // Conversion (when it becomes available).
 
