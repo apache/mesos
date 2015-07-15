@@ -1202,71 +1202,135 @@ Future<ResourceStatistics> DockerContainerizerProcess::usage(
     return Failure("Container is being removed: " + stringify(containerId));
   }
 
+  auto collectUsage = [this, containerId](
+      pid_t pid) -> Future<ResourceStatistics> {
+    // First make sure container is still there.
+    if (!containers_.contains(containerId)) {
+      return Failure("Container has been destroyed: " + stringify(containerId));
+    }
+
+    Container* container = containers_[containerId];
+
+    if (container->state == Container::DESTROYING) {
+      return Failure("Container is being removed: " + stringify(containerId));
+    }
+
+    const Try<ResourceStatistics> cgroupStats = cgroupsStatistics(pid);
+    if (cgroupStats.isError()) {
+      return Failure("Failed to collect cgroup stats: " + cgroupStats.error());
+    }
+
+    ResourceStatistics result = cgroupStats.get();
+
+    // Set the resource allocations.
+    const Resources& resource = container->resources;
+    const Option<Bytes> mem = resource.mem();
+    if (mem.isSome()) {
+      result.set_mem_limit_bytes(mem.get().bytes());
+    }
+
+    const Option<double> cpus = resource.cpus();
+    if (cpus.isSome()) {
+      result.set_cpus_limit(cpus.get());
+    }
+
+    return result;
+  };
+
   // Skip inspecting the docker container if we already have the pid.
   if (container->pid.isSome()) {
-    return __usage(containerId, container->pid.get());
+    return collectUsage(container->pid.get());
   }
 
   return docker->inspect(container->name())
-    .then(defer(self(), &Self::_usage, containerId, lambda::_1));
+    .then(defer(
+      self(),
+      [this, containerId, collectUsage]
+        (const Docker::Container& _container) -> Future<ResourceStatistics> {
+        const Option<pid_t> pid = _container.pid;
+        if (pid.isNone()) {
+          return Failure("Container is not running");
+        }
+
+        if (!containers_.contains(containerId)) {
+          return Failure(
+            "Container has been destroyed:" + stringify(containerId));
+        }
+
+        Container* container = containers_[containerId];
+
+        // Update the container's pid now. We ran inspect because we didn't have
+        // a pid for the container.
+        container->pid = pid;
+
+        return collectUsage(pid.get());
+      }));
 #endif // __linux__
 }
 
 
-Future<ResourceStatistics> DockerContainerizerProcess::_usage(
-    const ContainerID& containerId,
-    const Docker::Container& _container)
+Try<ResourceStatistics> DockerContainerizerProcess::cgroupsStatistics(
+    pid_t pid) const
 {
-  if (!containers_.contains(containerId)) {
-    return Failure("Container has been destroyed:" + stringify(containerId));
+#ifndef __linux__
+  return Error("Does not support cgroups on non-linux platform");
+#else
+  const Result<string> cpuHierarchy = cgroups::hierarchy("cpuacct");
+  const Result<string> memHierarchy = cgroups::hierarchy("memory");
+
+  if (cpuHierarchy.isError()) {
+    return Error(
+        "Failed to determine the cgroup 'cpu' subsystem hierarchy: " +
+        cpuHierarchy.error());
   }
 
-  Container* container = containers_[containerId];
-
-  if (container->state == Container::DESTROYING) {
-    return Failure("Container is being removed: " + stringify(containerId));
+  if (memHierarchy.isError()) {
+    return Error(
+        "Failed to determine the cgroup 'memory' subsystem hierarchy: " +
+        memHierarchy.error());
   }
 
-  Option<pid_t> pid = _container.pid;
-  if (pid.isNone()) {
-    return Failure("Container is not running");
+  const Result<string> cpuCgroup = cgroups::cpuacct::cgroup(pid);
+  if (cpuCgroup.isError()) {
+    return Error(
+        "Failed to determine cgroup for the 'cpu' subsystem: " +
+        cpuCgroup.error());
   }
 
-  container->pid = pid;
-
-  return __usage(containerId, pid.get());
-}
-
-
-Future<ResourceStatistics> DockerContainerizerProcess::__usage(
-    const ContainerID& containerId,
-    pid_t pid)
-{
-  Container* container = containers_[containerId];
-
-  // Note that here getting the root pid is enough because
-  // the root process acts as an 'init' process in the docker
-  // container, so no other child processes will escape it.
-  Try<ResourceStatistics> statistics = mesos::internal::usage(pid, true, true);
-  if (statistics.isError()) {
-    return Failure(statistics.error());
+  const Result<string> memCgroup = cgroups::memory::cgroup(pid);
+  if (memCgroup.isError()) {
+    return Error(
+        "Failed to determine cgroup for the 'memory' subsystem: " +
+        memCgroup.error());
   }
 
-  ResourceStatistics result = statistics.get();
+  const Try<cgroups::cpuacct::Stats> cpuAcctStat =
+    cgroups::cpuacct::stat(cpuHierarchy.get(), cpuCgroup.get());
 
-  // Set the resource allocations.
-  const Resources& resource = container->resources;
-  Option<Bytes> mem = resource.mem();
-  if (mem.isSome()) {
-    result.set_mem_limit_bytes(mem.get().bytes());
+  if (cpuAcctStat.isError()) {
+    return Error("Failed to get cpu.stat: " + cpuAcctStat.error());
   }
 
-  Option<double> cpus = resource.cpus();
-  if (cpus.isSome()) {
-    result.set_cpus_limit(cpus.get());
+  const Try<hashmap<string, uint64_t>> memStats =
+    cgroups::stat(memHierarchy.get(), memCgroup.get(), "memory.stat");
+
+  if (memStats.isError()) {
+    return Error(
+        "Error getting memory statistics from cgroups memory subsystem: " +
+        memStats.error());
   }
+
+  if (!memStats.get().contains("rss")) {
+    return Error("cgroups memory stats does not contain 'rss' data");
+  }
+
+  ResourceStatistics result;
+  result.set_cpus_system_time_secs(cpuAcctStat.get().system.secs());
+  result.set_cpus_user_time_secs(cpuAcctStat.get().user.secs());
+  result.set_mem_rss_bytes(memStats.get().at("rss"));
 
   return result;
+#endif // __linux__
 }
 
 

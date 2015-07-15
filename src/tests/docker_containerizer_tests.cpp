@@ -961,6 +961,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Usage)
             statistics.mem_limit_bytes());
   EXPECT_LT(0, statistics.cpus_user_time_secs());
   EXPECT_LT(0, statistics.cpus_system_time_secs());
+  EXPECT_GT(statistics.mem_rss_bytes(), 0);
 
   Future<containerizer::Termination> termination =
     dockerContainerizer.wait(containerId.get());

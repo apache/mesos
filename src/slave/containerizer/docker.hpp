@@ -219,13 +219,7 @@ private:
       const Resources& resources,
       pid_t pid);
 
-  Future<ResourceStatistics> _usage(
-      const ContainerID& containerId,
-      const Docker::Container& container);
-
-  Future<ResourceStatistics> __usage(
-      const ContainerID& containerId,
-      pid_t pid);
+  Try<ResourceStatistics> cgroupsStatistics(pid_t pid) const;
 
   // Call back for when the executor exits. This will trigger
   // container destroy.
