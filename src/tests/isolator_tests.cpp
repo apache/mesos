@@ -908,7 +908,12 @@ class SharedFilesystemIsolatorTest : public MesosTest {};
 // directory (/var/tmp). Check that a file written by a process inside
 // the container doesn't appear on the host filesystem but does appear
 // under the container's work directory.
-TEST_F(SharedFilesystemIsolatorTest, ROOT_RelativeVolume)
+// This test is disabled since we're planning to remove the shared
+// filesystem isolator and this test is not working on other distros
+// such as CentOS 7.1
+// TODO(tnachen): Remove this test when shared filesystem isolator
+// is removed.
+TEST_F(SharedFilesystemIsolatorTest, DISABLED_ROOT_RelativeVolume)
 {
   slave::Flags flags = CreateSlaveFlags();
   flags.isolation = "filesystem/shared";
@@ -1009,7 +1014,12 @@ TEST_F(SharedFilesystemIsolatorTest, ROOT_RelativeVolume)
 }
 
 
-TEST_F(SharedFilesystemIsolatorTest, ROOT_AbsoluteVolume)
+// This test is disabled since we're planning to remove the shared
+// filesystem isolator and this test is not working on other distros
+// such as CentOS 7.1
+// TODO(tnachen): Remove this test when shared filesystem isolator
+// is removed.
+TEST_F(SharedFilesystemIsolatorTest, DISABLED_ROOT_AbsoluteVolume)
 {
   slave::Flags flags = CreateSlaveFlags();
   flags.isolation = "filesystem/shared";
