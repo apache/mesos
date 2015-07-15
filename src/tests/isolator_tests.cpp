@@ -1237,9 +1237,9 @@ TYPED_TEST(UserCgroupIsolatorTest, ROOT_CGROUPS_UserCgroup)
   AWAIT_READY(isolator.get()->isolate(containerId, pid));
 
   // Get the container's cgroups from /proc/$PID/cgroup. We're only
-  // interested in the non-root cgroups, i.e., we exclude those with
-  // paths "/", e.g., only cpu and cpuacct from this example:
-  // 6:blkio:/
+  // interested in the cgroups path that is setup by the isolator,
+  // which sets up cgroup under /mesos.
+  // 6:blkio:/user.slice
   // 5:perf_event:/
   // 4:memory:/
   // 3:freezer:/
@@ -1249,7 +1249,7 @@ TYPED_TEST(UserCgroupIsolatorTest, ROOT_CGROUPS_UserCgroup)
   ostringstream output;
   Try<int> status = os::shell(
       &output,
-      "grep -v '/$' /proc/" +
+      "grep '/mesos' /proc/" +
       stringify(pid) +
       "/cgroup | awk -F ':' '{print $2$3}'");
 
