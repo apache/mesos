@@ -107,6 +107,73 @@ ACTION_P(Enqueue, queue)
 }
 
 
+// This test verifies that when a scheduler resubscribes it receives
+// SUBSCRIBED event with the previously assigned framework id.
+TEST_F(SchedulerTest, Subscribe)
+{
+  Try<PID<Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  Callbacks callbacks;
+
+  Future<Nothing> connected;
+  EXPECT_CALL(callbacks, connected())
+    .WillOnce(FutureSatisfy(&connected));
+
+  scheduler::Mesos mesos(
+      master.get(),
+      DEFAULT_CREDENTIAL,
+      lambda::bind(&Callbacks::connected, lambda::ref(callbacks)),
+      lambda::bind(&Callbacks::disconnected, lambda::ref(callbacks)),
+      lambda::bind(&Callbacks::received, lambda::ref(callbacks), lambda::_1));
+
+  AWAIT_READY(connected);
+
+  Queue<Event> events;
+
+  EXPECT_CALL(callbacks, received(_))
+    .WillRepeatedly(Enqueue(&events));
+
+  {
+    Call call;
+    call.set_type(Call::SUBSCRIBE);
+
+    Call::Subscribe* subscribe = call.mutable_subscribe();
+    subscribe->mutable_framework_info()->CopyFrom(DEFAULT_FRAMEWORK_INFO);
+    subscribe->set_force(true);
+
+    mesos.send(call);
+  }
+
+  Future<Event> event = events.get();
+  AWAIT_READY(event);
+  EXPECT_EQ(Event::SUBSCRIBED, event.get().type());
+
+  FrameworkID id(event.get().subscribed().framework_id());
+
+  // Resubscribe with the same framework id.
+  {
+    Call call;
+    call.mutable_framework_id()->CopyFrom(id);
+    call.set_type(Call::SUBSCRIBE);
+
+    Call::Subscribe* subscribe = call.mutable_subscribe();
+    subscribe->mutable_framework_info()->CopyFrom(DEFAULT_FRAMEWORK_INFO);
+    subscribe->mutable_framework_info()->mutable_id()->CopyFrom(id);
+    subscribe->set_force(true);
+
+    mesos.send(call);
+  }
+
+  event = events.get();
+  AWAIT_READY(event);
+  EXPECT_EQ(Event::SUBSCRIBED, event.get().type());
+  EXPECT_EQ(id, event.get().subscribed().framework_id());
+
+  Shutdown();
+}
+
+
 TEST_F(SchedulerTest, TaskRunning)
 {
   Try<PID<Master>> master = StartMaster();

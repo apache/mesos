@@ -1742,6 +1742,18 @@ void Master::registerFramework(
 {
   ++metrics->messages_register_framework;
 
+  // A framework with a valid id should re-register instead of
+  // register with the master.
+  // TODO(vinod): Add "!=" operator for FrameworkID.
+  if (frameworkInfo.has_id() && !(frameworkInfo.id() == "")) {
+    LOG(ERROR) << "Framework '" << frameworkInfo.name() << "' at " << from
+               << " registering with an id!";
+    FrameworkErrorMessage message;
+    message.set_message("Framework registering with a framework id");
+    send(from, message);
+    return;
+  }
+
   if (authenticating.contains(from)) {
     // TODO(vinod): Consider dropping this request and fix the tests
     // to deal with the drop. Currently there is a race between master
@@ -2097,7 +2109,7 @@ void Master::subscribe(
 
   // TODO(vinod): Instead of calling '(re-)registerFramework()' from
   // here refactor those methods to call 'subscribe()'.
-  if (frameworkInfo.has_id() || frameworkInfo.id() == "") {
+  if (!frameworkInfo.has_id() || frameworkInfo.id() == "") {
     registerFramework(from, frameworkInfo);
   } else {
     reregisterFramework(from, frameworkInfo, subscribe.force());
