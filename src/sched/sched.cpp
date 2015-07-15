@@ -93,7 +93,12 @@ using namespace mesos::internal;
 using namespace mesos::internal::master;
 using namespace mesos::scheduler;
 
-using namespace process;
+using process::Clock;
+using process::DispatchEvent;
+using process::Future;
+using process::MessageEvent;
+using process::Process;
+using process::UPID;
 
 using std::map;
 using std::string;
@@ -165,6 +170,8 @@ public:
 protected:
   virtual void initialize()
   {
+    install<Event>(&SchedulerProcess::receive);
+
     // TODO(benh): Get access to flags so that we can decide whether
     // or not to make ZooKeeper verbose.
     install<FrameworkRegisteredMessage>(
@@ -417,6 +424,97 @@ protected:
     // corresponds to the original authenticator that started the timer.
     if (future.discard()) { // This is a no-op if the future is already ready.
       LOG(WARNING) << "Authentication timed out";
+    }
+  }
+
+  void drop(const Event& event, const string& message)
+  {
+    // TODO(bmahler): Increment a metric.
+
+    // NOTE: The << operator for 'event.type()' from
+    // type_utils.hpp does not resolve here.
+    LOG(WARNING) << "Dropping "
+                 << mesos::scheduler::Event_Type_Name(event.type())
+                 << ": " << message;
+  }
+
+  void receive(const UPID& from, const Event& event)
+  {
+    switch (event.type()) {
+      case Event::SUBSCRIBED: {
+        if (!event.has_subscribed()) {
+          drop(event, "Expecting 'subscribed' to be present");
+          break;
+        }
+
+        drop(event, "Unimplemented");
+        break;
+      }
+
+      case Event::OFFERS: {
+        if (!event.has_offers()) {
+          drop(event, "Expecting 'offers' to be present");
+          break;
+        }
+
+        drop(event, "Unimplemented");
+        break;
+      }
+
+      case Event::RESCIND: {
+        if (!event.has_rescind()) {
+          drop(event, "Expecting 'rescind' to be present");
+          break;
+        }
+
+        drop(event, "Unimplemented");
+        break;
+      }
+
+      case Event::UPDATE: {
+        if (!event.has_update()) {
+          drop(event, "Expecting 'update' to be present");
+          break;
+        }
+
+        drop(event, "Unimplemented");
+        break;
+      }
+
+      case Event::MESSAGE: {
+        if (!event.has_message()) {
+          drop(event, "Expecting 'message' to be present");
+          break;
+        }
+
+        drop(event, "Unimplemented");
+        break;
+      }
+
+      case Event::FAILURE: {
+        if (!event.has_failure()) {
+          drop(event, "Expecting 'failure' to be present");
+          break;
+        }
+
+        drop(event, "Unimplemented");
+        break;
+      }
+
+      case Event::ERROR: {
+        if (!event.has_error()) {
+          drop(event, "Expecting 'error' to be present");
+          break;
+        }
+
+        drop(event, "Unimplemented");
+        break;
+      }
+
+      default: {
+        drop(event, "Unknown event");
+        break;
+      }
     }
   }
 
