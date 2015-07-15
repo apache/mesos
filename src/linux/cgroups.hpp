@@ -432,6 +432,41 @@ Try<Nothing> cfs_quota_us(
 } // namespace cpu {
 
 
+// Cpuacct subsystem.
+namespace cpuacct {
+
+// Returns the cgroup that the specified pid is a member of within the
+// hierarchy that the 'cpuacct' subsytem is mounted or None if the
+// subsystem is not mounted or the pid is not a member of a cgroup.
+//
+// @param   pid   process id for which cgroup is queried within the cpuacct
+//                subsytem.
+// @return  Some cgroup in case there was a valid cgroup found for the pid.
+//          Error if there was any error in processing.
+Result<std::string> cgroup(pid_t pid);
+
+
+// Encapsulates the 'stat' information exposed by the cpuacct subsystem.
+struct Stats
+{
+  const Duration user;
+  const Duration system;
+};
+
+
+// Returns 'Stats' for a given hierarchy and cgroup.
+//
+// @param   hierarchy   hierarchy for the 'cpuacct' subsystem.
+// @param   cgroup      cgroup for a given process.
+// @return  Some<Stats> if sucessful.
+//          Error in case of any error during processing.
+Try<Stats> stat(
+    const std::string& hierarchy,
+    const std::string& cgroup);
+
+} // namespace cpuacct {
+
+
 // Memory controls.
 namespace memory {
 

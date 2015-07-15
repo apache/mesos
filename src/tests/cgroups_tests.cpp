@@ -1186,6 +1186,20 @@ TEST_F(CgroupsAnyHierarchyMemoryPressureTest, ROOT_IncreasePageCache)
   EXPECT_LT(0u, low);
 }
 
+// Tests the cpuacct::stat API. This test just tests for ANY value returned by
+// the API.
+TEST_F(CgroupsAnyHierarchyWithCpuAcctMemoryTest, ROOT_CGROUPS_CpuAcctsStats)
+{
+  const std::string hierarchy = path::join(baseHierarchy, "cpuacct");
+  ASSERT_SOME(cgroups::create(hierarchy, TEST_CGROUPS_ROOT));
+
+  CHECK_SOME(cgroups::assign(hierarchy, TEST_CGROUPS_ROOT, ::getpid()));
+
+  ASSERT_SOME(cgroups::cpuacct::stat(hierarchy, TEST_CGROUPS_ROOT));
+
+  AWAIT_READY(cgroups::destroy(hierarchy, TEST_CGROUPS_ROOT));
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {

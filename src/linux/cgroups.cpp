@@ -1991,6 +1991,57 @@ Try<Nothing> cfs_quota_us(
 
 } // namespace cpu {
 
+namespace cpuacct {
+
+Result<string> cgroup(pid_t pid)
+{
+  return internal::cgroup(pid, "cpuacct");
+}
+
+
+Try<Stats> stat(
+    const string& hierarchy,
+    const string& cgroup)
+{
+  const Try<hashmap<string, uint64_t>> stats =
+    cgroups::stat(hierarchy, cgroup, "cpuacct.stat");
+
+  if (!stats.isSome()) {
+    return Error(stats.error());
+  }
+
+  if (!stats.get().contains("user") || !stats.get().contains("system")) {
+    return Error("Failed to get user/system value from cpuacct.stat");
+  }
+
+  // Get user ticks per second. This value is constant for the lifetime of a
+  // process.
+  // TODO(Jojy): Move system constants to a separate compilation unit.
+  static long userTicks = sysconf(_SC_CLK_TCK);
+  if (userTicks <= 0) {
+    return ErrnoError("Failed to get _SC_CLK_TCK");
+  }
+
+  Try<Duration> user =
+    Duration::create((double) stats.get().at("user") / userTicks);
+
+  if (user.isError()) {
+    return Error(
+        "Failed to convert user ticks to Duration: " + user.error());
+  }
+
+  Try<Duration> system =
+    Duration::create((double) stats.get().at("system") / userTicks);
+
+  if (system.isError()) {
+    return Error(
+        "Failed to convert system ticks to Duration: " + system.error());
+  }
+
+  return Stats({user.get(), system.get()});
+}
+
+} // namespace cpuacct {
 
 namespace memory {
 
