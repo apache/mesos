@@ -1178,7 +1178,7 @@ public:
   {
     // Remove the user in case it wasn't cleaned up from a previous
     // test.
-    os::system("userdel -r " + UNPRIVILEGED_USERNAME);
+    os::system("userdel -r " + UNPRIVILEGED_USERNAME + " > /dev/null");
 
     ASSERT_EQ(0, os::system("useradd " + UNPRIVILEGED_USERNAME));
   }
