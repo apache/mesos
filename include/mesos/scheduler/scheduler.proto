@@ -172,18 +172,20 @@ message Call {
     // 'framework_info.id'.
     required FrameworkInfo framework_info = 1;
 
-    // 'force' tells the master what to do in case an instance of the
-    // scheduler attempts to subscribe when another instance of it
-    // is already connected (e.g., split brain due to network
-    // partition). If 'force' is true, the newly subscribing scheduler
-    // instance is allowed and the old connected scheduler instance
-    // is disconnected. If false, the newly subscribing scheduler
-    // instance is disallowed subscription in favor of the already
-    // connected scheduler instance. It is recommended to set this to
-    // true only when a scheduler instance is (just) elected but not
-    // when it is retrying subscription (disconnection or master
-    // failover; see sched/sched.cpp for an example).
-    required bool force = 2;
+    // 'force' field is only relevant when 'framework_info.id' is set.
+    // It tells the master what to do in case an instance of the
+    // scheduler attempts to subscribe when another instance of it is
+    // already connected (e.g., split brain due to network partition).
+    // If 'force' is true, this scheduler instance is allowed and the
+    // old connected scheduler instance is disconnected. If false,
+    // this scheduler instance is disallowed subscription in favor of
+    // the already connected scheduler instance.
+    //
+    // It is recommended to set this to true only when a newly elected
+    // scheduler instance is attempting to subscribe but not when a
+    // scheduler is retrying subscription (e.g., disconnection or
+    // master failover; see sched/sched.cpp for an example).
+    optional bool force = 2;
   }
 
   // Accepts an offer, performing the specified operations

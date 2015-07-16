@@ -306,7 +306,10 @@ private:
 
     Call::Subscribe* subscribe = call.mutable_subscribe();
     subscribe->mutable_framework_info()->CopyFrom(framework);
-    subscribe->set_force(true);
+
+    if (framework.has_id()) {
+      subscribe->set_force(true);
+    }
 
     mesos.send(call);
 
