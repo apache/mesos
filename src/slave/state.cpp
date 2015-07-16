@@ -534,6 +534,30 @@ Try<RunState> RunState::recover(
 
   state.libprocessPid = process::UPID(pid.get());
 
+  // Read the location of the container's root filesystem, if used.
+  path = paths::getContainerRootfsPath(
+      rootDir, slaveId, frameworkId, executorId, containerId);
+
+  // Because a container root filesystem is optional we'll recover the
+  // path if present but continue to recover normally if it's not.
+  if (os::exists(path)) {
+    Try<string> rootfs = os::read(path);
+    if (rootfs.isError()) {
+      message = "Failed to recover container rootfs from '" + path +
+                "': " + rootfs.error();
+
+      if (strict) {
+        return Error(message);
+      } else {
+        LOG(WARNING) << message;
+        state.errors++;
+        return state;
+      }
+    }
+
+    state.rootfs = rootfs.get();
+  }
+
   return state;
 }
 

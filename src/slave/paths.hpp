@@ -204,6 +204,14 @@ std::string getForkedPidPath(
     const ContainerID& containerId);
 
 
+std::string getContainerRootfsPath(
+    const std::string& rootDir,
+    const SlaveID& slaveId,
+    const FrameworkID& frameworkId,
+    const ExecutorID& executorId,
+    const ContainerID& containerId);
+
+
 Try<std::list<std::string>> getTaskPaths(
     const std::string& rootDir,
     const SlaveID& slaveId,

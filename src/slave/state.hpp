@@ -208,6 +208,7 @@ struct RunState
   hashmap<TaskID, TaskState> tasks;
   Option<pid_t> forkedPid;
   Option<process::UPID> libprocessPid;
+  Option<std::string> rootfs;
 
   // Executor terminated and all its updates acknowledged.
   bool completed;

@@ -46,6 +46,7 @@ public:
   Option<std::string> hostname;
   Option<std::string> resources;
   std::string isolation;
+  Option<std::string> provisioners;
   std::string default_role;
   Option<std::string> attributes;
   Bytes fetcher_cache_size;
