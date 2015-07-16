@@ -51,6 +51,7 @@ const char LIBPROCESS_PID_FILE[] = "libprocess.pid";
 const char EXECUTOR_INFO_FILE[] = "executor.info";
 const char EXECUTOR_SENTINEL_FILE[] = "executor.sentinel";
 const char FORKED_PID_FILE[] = "forked.pid";
+const char CONTAINER_ROOTFS_FILE[] = "rootfs";
 const char TASK_INFO_FILE[] = "task.info";
 const char TASK_UPDATES_FILE[] = "task.updates";
 const char RESOURCES_INFO_FILE[] = "resources.info";
@@ -227,6 +228,24 @@ string getExecutorLatestRunPath(
       getExecutorPath(rootDir, slaveId, frameworkId, executorId),
       "runs",
       LATEST_SYMLINK);
+}
+
+
+string getContainerRootfsPath(
+    const string& rootDir,
+    const SlaveID& slaveId,
+    const FrameworkID& frameworkId,
+    const ExecutorID& executorId,
+    const ContainerID& containerId)
+{
+  return path::join(
+      getExecutorRunPath(
+          rootDir,
+          slaveId,
+          frameworkId,
+          executorId,
+          containerId),
+      CONTAINER_ROOTFS_FILE);
 }
 
 

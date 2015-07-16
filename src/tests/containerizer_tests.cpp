@@ -94,12 +94,15 @@ public:
       return Error(launcher.error());
     }
 
+    hashmap<ContainerInfo::Image::Type, Owned<Provisioner>> provisioners;
+
     return new MesosContainerizer(
         flags,
         false,
         fetcher,
         Owned<Launcher>(launcher.get()),
-        isolators);
+        isolators,
+        provisioners);
   }
 
 
@@ -335,8 +338,16 @@ public:
       bool local,
       Fetcher* fetcher,
       const process::Owned<Launcher>& launcher,
-      const vector<process::Owned<Isolator>>& isolators)
-    : MesosContainerizerProcess(flags, local, fetcher, launcher, isolators)
+      const vector<process::Owned<Isolator>>& isolators,
+      const hashmap<ContainerInfo::Image::Type,
+                    Owned<Provisioner>>& provisioners)
+    : MesosContainerizerProcess(
+        flags,
+        local,
+        fetcher,
+        launcher,
+        isolators,
+        provisioners)
   {
     // NOTE: See TestContainerizer::setup for why we use
     // 'EXPECT_CALL' and 'WillRepeatedly' here instead of
@@ -440,12 +451,15 @@ TEST_F(MesosContainerizerDestroyTest, DestroyWhileFetching)
 
   Fetcher fetcher;
 
+  hashmap<ContainerInfo::Image::Type, Owned<Provisioner>> provisioners;
+
   MockMesosContainerizerProcess* process = new MockMesosContainerizerProcess(
       flags,
       true,
       &fetcher,
       Owned<Launcher>(launcher.get()),
-      isolators);
+      isolators,
+      provisioners);
 
   Future<Nothing> exec;
   Promise<bool> promise;
@@ -509,12 +523,15 @@ TEST_F(MesosContainerizerDestroyTest, DestroyWhilePreparing)
 
   Fetcher fetcher;
 
+  hashmap<ContainerInfo::Image::Type, Owned<Provisioner>> provisioners;
+
   MockMesosContainerizerProcess* process = new MockMesosContainerizerProcess(
       flags,
       true,
       &fetcher,
       Owned<Launcher>(launcher.get()),
-      isolators);
+      isolators,
+      provisioners);
 
   MesosContainerizer containerizer((Owned<MesosContainerizerProcess>(process)));
 
@@ -584,12 +601,15 @@ TEST_F(MesosContainerizerDestroyTest, LauncherDestroyFailure)
   vector<process::Owned<Isolator>> isolators;
   Fetcher fetcher;
 
+  hashmap<ContainerInfo::Image::Type, Owned<Provisioner>> provisioners;
+
   MesosContainerizerProcess* process = new MesosContainerizerProcess(
       flags,
       true,
       &fetcher,
       Owned<Launcher>(launcher),
-      isolators);
+      isolators,
+      provisioners);
 
   MesosContainerizer containerizer((Owned<MesosContainerizerProcess>(process)));
 

@@ -188,6 +188,14 @@ std::string getExecutorLatestRunPath(
     const ExecutorID& executorId);
 
 
+std::string getContainerRootfsPath(
+    const std::string& rootDir,
+    const SlaveID& slaveId,
+    const FrameworkID& frameworkId,
+    const ExecutorID& executorId,
+    const ContainerID& containerId);
+
+
 std::string getLibprocessPidPath(
     const std::string& rootDir,
     const SlaveID& slaveId,

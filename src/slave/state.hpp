@@ -206,6 +206,7 @@ struct RunState
 
   Option<ContainerID> id;
   hashmap<TaskID, TaskState> tasks;
+  Option<std::string> rootfs;
   Option<pid_t> forkedPid;
   Option<process::UPID> libprocessPid;
 
