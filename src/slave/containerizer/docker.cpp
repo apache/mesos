@@ -183,7 +183,7 @@ docker::Flags dockerFlags(
   dockerFlags.container = name;
   dockerFlags.docker = flags.docker;
   dockerFlags.sandbox_directory = directory;
-  dockerFlags.mapped_directory = flags.docker_sandbox_directory;
+  dockerFlags.mapped_directory = flags.sandbox_directory;
   dockerFlags.stop_timeout = flags.docker_stop_timeout;
   return dockerFlags;
 }
@@ -830,7 +830,7 @@ Future<Docker::Container> DockerContainerizerProcess::launchExecutorContainer(
     container->command,
     containerName,
     container->directory,
-    flags.docker_sandbox_directory,
+    flags.sandbox_directory,
     container->resources,
     container->environment,
     path::join(container->directory, "stdout"),

@@ -90,8 +90,8 @@ public:
   Option<std::string> default_container_image;
   std::string docker;
   Option<std::string> docker_mesos_image;
-  std::string docker_sandbox_directory;
   Duration docker_remove_delay;
+  std::string sandbox_directory;
   Option<ContainerInfo> default_container_info;
   Duration docker_stop_timeout;
   bool docker_kill_orphans;
