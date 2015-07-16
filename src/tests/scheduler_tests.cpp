@@ -145,7 +145,6 @@ TEST_F(SchedulerTest, TaskRunning)
 
     Call::Subscribe* subscribe = call.mutable_subscribe();
     subscribe->mutable_framework_info()->CopyFrom(DEFAULT_FRAMEWORK_INFO);
-    subscribe->set_force(true);
 
     mesos.send(call);
   }
@@ -252,7 +251,6 @@ TEST_F(SchedulerTest, ReconcileTask)
 
     Call::Subscribe* subscribe = call.mutable_subscribe();
     subscribe->mutable_framework_info()->CopyFrom(DEFAULT_FRAMEWORK_INFO);
-    subscribe->set_force(true);
 
     mesos.send(call);
   }
@@ -361,7 +359,6 @@ TEST_F(SchedulerTest, KillTask)
 
     Call::Subscribe* subscribe = call.mutable_subscribe();
     subscribe->mutable_framework_info()->CopyFrom(DEFAULT_FRAMEWORK_INFO);
-    subscribe->set_force(true);
 
     mesos.send(call);
   }
@@ -485,7 +482,6 @@ TEST_F(SchedulerTest, ShutdownExecutor)
 
     Call::Subscribe* subscribe = call.mutable_subscribe();
     subscribe->mutable_framework_info()->CopyFrom(DEFAULT_FRAMEWORK_INFO);
-    subscribe->set_force(true);
 
     mesos.send(call);
   }
@@ -598,7 +594,6 @@ TEST_F(SchedulerTest, Teardown)
 
     Call::Subscribe* subscribe = call.mutable_subscribe();
     subscribe->mutable_framework_info()->CopyFrom(DEFAULT_FRAMEWORK_INFO);
-    subscribe->set_force(true);
 
     mesos.send(call);
   }
@@ -695,7 +690,6 @@ TEST_F(SchedulerTest, Decline)
 
     Call::Subscribe* subscribe = call.mutable_subscribe();
     subscribe->mutable_framework_info()->CopyFrom(DEFAULT_FRAMEWORK_INFO);
-    subscribe->set_force(true);
 
     mesos.send(call);
   }
@@ -774,7 +768,6 @@ TEST_F(SchedulerTest, Revive)
 
     Call::Subscribe* subscribe = call.mutable_subscribe();
     subscribe->mutable_framework_info()->CopyFrom(DEFAULT_FRAMEWORK_INFO);
-    subscribe->set_force(true);
 
     mesos.send(call);
   }
@@ -873,7 +866,6 @@ TEST_F(SchedulerTest, Message)
 
     Call::Subscribe* subscribe = call.mutable_subscribe();
     subscribe->mutable_framework_info()->CopyFrom(DEFAULT_FRAMEWORK_INFO);
-    subscribe->set_force(true);
 
     mesos.send(call);
   }
