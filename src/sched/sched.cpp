@@ -448,7 +448,29 @@ protected:
           break;
         }
 
-        drop(event, "Unimplemented");
+        // The scheduler API requires a MasterInfo be passed during
+        // (re-)registration, so we rely on the MasterInfo provided
+        // by the detector. If it's None, the driver would have
+        // dropped the message.
+        if (master.isNone()) {
+          drop(event, "No master detected");
+          break;
+        }
+
+        const FrameworkID& frameworkId = event.subscribed().framework_id();
+
+        // We match the existing registration semantics of the
+        // driver, except for the 3rd case in MESOS-786 (since
+        // it requires non-local knowledge and schedulers could
+        // not have possibly relied on this case).
+        if (!framework.has_id() || framework.id().value().empty()) {
+          registered(from, frameworkId, master.get());
+        } else if (failover) {
+          registered(from, frameworkId, master.get());
+        } else {
+          reregistered(from, frameworkId, master.get());
+        }
+
         break;
       }
 
