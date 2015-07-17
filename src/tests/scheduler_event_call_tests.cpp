@@ -359,7 +359,7 @@ TEST_F(SchedulerDriverEventTest, Offers)
   google::protobuf::RepeatedPtrField<Offer> offers =
     resourceOffersMessage.get().offers();
 
-  ASSERT_EQ(1u, offers.size());
+  ASSERT_EQ(1, offers.size());
 
   // Ignore future offer messages.
   DROP_PROTOBUFS(ResourceOffersMessage(), _, _);
