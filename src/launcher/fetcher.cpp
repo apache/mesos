@@ -117,15 +117,33 @@ static Try<string> downloadWithNet(
     const string& sourceUri,
     const string& destinationPath)
 {
-  LOG(INFO) <<  "Downloading resource from '" << sourceUri
+  // The net::download function only supports these protocols.
+  CHECK(strings::startsWith(sourceUri, "http://")  ||
+        strings::startsWith(sourceUri, "https://") ||
+        strings::startsWith(sourceUri, "ftp://")   ||
+        strings::startsWith(sourceUri, "ftps://"));
+
+  LOG(INFO) << "Downloading resource from '" << sourceUri
             << "' to '" << destinationPath << "'";
 
   Try<int> code = net::download(sourceUri, destinationPath);
   if (code.isError()) {
     return Error("Error downloading resource: " + code.error());
-  } else if (code.get() != 200) {
-    return Error("Error downloading resource, received HTTP/FTP return code " +
-                 stringify(code.get()));
+  } else {
+    // The status code for successful HTTP requests is 200, the status code
+    // for successful FTP file transfers is 226.
+    if (strings::startsWith(sourceUri, "ftp://") ||
+        strings::startsWith(sourceUri, "ftps://")) {
+      if (code.get() != 226) {
+        return Error("Error downloading resource, received FTP return code " +
+                     stringify(code.get()));
+      }
+    } else {
+      if (code.get() != 200) {
+        return Error("Error downloading resource, received HTTP return code " +
+                     stringify(code.get()));
+      }
+    }
   }
 
   return destinationPath;
