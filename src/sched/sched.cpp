@@ -1080,17 +1080,6 @@ protected:
       return;
     }
 
-    // Set TaskInfo.executor.framework_id, if it's missing.
-    // TODO(ijimenez): Remove this validation in 0.24.0.
-    vector<TaskInfo> result;
-    foreach (TaskInfo task, tasks) {
-      if (task.has_executor() && !task.executor().has_framework_id()) {
-        task.mutable_executor()->mutable_framework_id()->CopyFrom(
-            framework.id());
-      }
-      result.push_back(task);
-    }
-
     LaunchTasksMessage message;
     message.mutable_framework_id()->MergeFrom(framework.id());
     message.mutable_filters()->MergeFrom(filters);
@@ -1098,7 +1087,7 @@ protected:
     foreach (const OfferID& offerId, offerIds) {
       message.add_offer_ids()->MergeFrom(offerId);
 
-      foreach (const TaskInfo& task, result) {
+      foreach (const TaskInfo& task, tasks) {
         // Keep only the slave PIDs where we run tasks so we can send
         // framework messages directly.
         if (savedOffers.contains(offerId)) {
@@ -1118,7 +1107,7 @@ protected:
       savedOffers.erase(offerId);
     }
 
-    foreach (const TaskInfo& task, result) {
+    foreach (const TaskInfo& task, tasks) {
       message.add_tasks()->MergeFrom(task);
     }
 
@@ -1172,20 +1161,6 @@ protected:
     foreach (const Offer::Operation& _operation, operations) {
       Offer::Operation* operation = accept->add_operations();
       operation->CopyFrom(_operation);
-
-      if (operation->type() != Offer::Operation::LAUNCH) {
-        continue;
-      }
-
-      // Set TaskInfo.executor.framework_id, if it's missing.
-      // TODO(ijimenez): Remove this validation in 0.24.0.
-      foreach (TaskInfo& task,
-               *operation->mutable_launch()->mutable_task_infos()) {
-        if (task.has_executor() && !task.executor().has_framework_id()) {
-          task.mutable_executor()->mutable_framework_id()->CopyFrom(
-              framework.id());
-        }
-      }
     }
 
     // Setting accept.offer_ids.
