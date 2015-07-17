@@ -181,6 +181,9 @@ This release also includes several bug fixes and stability improvements.
   * [MESOS-3005] - SSL tests can fail depending on hostname configuration
   * [MESOS-3025] - 0.22.x scheduler driver drops 0.23.x reconciliation status
                    updates due to missing StatusUpdate.uuid.
+  * [MESOS-3034] - ReservationTest.CompatibleCheckpointedResources is flaky
+  * [MESOS-3055] - Master doesn't properly handle SUBSCRIBE call
+  * [MESOS-3060] - FTP response code for success not recognized by fetcher.
 
 ** Documentation
   * [MESOS-2205] - Add user documentation for reservations
@@ -194,6 +197,7 @@ This release also includes several bug fixes and stability improvements.
   * [MESOS-2886] - Capture some testing patterns we use in a doc
   * [MESOS-2942] - Create documentation for using SSL
   * [MESOS-2992] - Improve attribute documentation to reflect current state
+  * [MESOS-3033] - Add user guide for oversubscription
 
 ** Improvement
   * [MESOS-692] - Reservations are not reported in master's state.json
