@@ -25,3 +25,11 @@ missing
 # Recommended build directory.
 /build/
 
+# Intermediate build artifacts
+*.la
+*.lo
+*.o
+.dirstamp
+.deps/
+.libs/
+*-stamp
