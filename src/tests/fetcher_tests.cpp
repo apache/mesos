@@ -278,13 +278,10 @@ class HttpProcess : public Process<HttpProcess>
 public:
   HttpProcess()
   {
-    route("/help", None(), &HttpProcess::index);
+    route("/test", None(), &HttpProcess::test);
   }
 
-  Future<http::Response> index(const http::Request& request)
-  {
-    return http::OK();
-  }
+  MOCK_METHOD1(test, Future<http::Response>(const http::Request&));
 };
 
 
@@ -295,9 +292,10 @@ TEST_F(FetcherTest, OSNetUriTest)
   spawn(process);
 
   string url = "http://" + net::getHostname(process.self().address.ip).get() +
-                ":" + stringify(process.self().address.port) + "/help";
+               ":" + stringify(process.self().address.port) +
+               "/" + process.self().id + "/test";
 
-  string localFile = path::join(os::getcwd(), "help");
+  string localFile = path::join(os::getcwd(), "test");
   EXPECT_FALSE(os::exists(localFile));
 
   slave::Flags flags;
@@ -314,8 +312,59 @@ TEST_F(FetcherTest, OSNetUriTest)
   Fetcher fetcher;
   SlaveID slaveId;
 
+  EXPECT_CALL(process, test(_))
+    .WillOnce(Return(http::OK()));
+
   Future<Nothing> fetch = fetcher.fetch(
       containerId, commandInfo, os::getcwd(), None(), slaveId, flags);
+
+  AWAIT_READY(fetch);
+
+  EXPECT_TRUE(os::exists(localFile));
+}
+
+
+// Tests whether fetcher can process URIs that contain leading whitespace
+// characters. This was added as a verification for MESOS-2862.
+//
+// TODO(hartem): This test case should be merged with the previous one.
+TEST_F(FetcherTest, OSNetUriSpaceTest)
+{
+  HttpProcess process;
+
+  spawn(process);
+
+  // A URL with a bunch of leading whitespace characters.
+  string url = " \t \n  http://" +
+               net::getHostname(process.self().address.ip).get() + ":" +
+               stringify(process.self().address.port) +
+               "/" + process.self().id + "/test";
+
+  string localFile = path::join(os::getcwd(), "test");
+  EXPECT_FALSE(os::exists(localFile));
+
+  slave::Flags flags;
+  flags.launcher_dir = path::join(tests::flags.build_dir, "src");
+  flags.frameworks_home = "/tmp/frameworks";
+
+  ContainerID containerId;
+  containerId.set_value(UUID::random().toString());
+
+  CommandInfo commandInfo;
+  CommandInfo::URI* uri = commandInfo.add_uris();
+
+  uri->set_value(url);
+
+  Fetcher fetcher;
+  SlaveID slaveId;
+
+  // Verify that the intended endpoint is hit.
+  EXPECT_CALL(process, test(_))
+    .WillOnce(Return(http::OK()));
+
+  Future<Nothing> fetch = fetcher.fetch(
+      containerId, commandInfo, os::getcwd(), None(), slaveId, flags);
+
   AWAIT_READY(fetch);
 
   EXPECT_TRUE(os::exists(localFile));

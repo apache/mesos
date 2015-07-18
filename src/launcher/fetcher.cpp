@@ -169,11 +169,15 @@ static Try<string> copyFile(
 
 
 static Try<string> download(
-    const string& sourceUri,
+    const string& _sourceUri,
     const string& destinationPath,
     const Option<string>& frameworksHome)
 {
+  // Trim leading whitespace for 'sourceUri'.
+  const string sourceUri = strings::trim(_sourceUri, strings::PREFIX);
+
   LOG(INFO) << "Fetching URI '" << sourceUri << "'";
+
   Try<Nothing> validation = Fetcher::validateUri(sourceUri);
   if (validation.isError()) {
     return Error(validation.error());
@@ -193,7 +197,7 @@ static Try<string> download(
   // 2. Try to fetch URI using os::net / libcurl implementation.
   // We consider http, https, ftp, ftps compatible with libcurl.
   if (Fetcher::isNetUri(sourceUri)) {
-     return downloadWithNet(sourceUri, destinationPath);
+    return downloadWithNet(sourceUri, destinationPath);
   }
 
   // 3. Try to fetch the URI using hadoop client.
