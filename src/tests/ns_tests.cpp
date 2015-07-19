@@ -92,6 +92,13 @@ TEST(NsTest, ROOT_setns)
   int flags = 0;
 
   foreach (const string& ns, namespaces) {
+    // Skip 'user' namespace because it causes 'clone' to change us
+    // from being user 'root' to user 'nobody', but these tests
+    // require root. See MESOS-3083.
+    if (ns == "user") {
+      continue;
+    }
+
     Try<int> nstype = ns::nstype(ns);
     ASSERT_SOME(nstype);
 

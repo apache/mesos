@@ -40,13 +40,17 @@ int SetnsTestHelper::execute()
   // Note: /proc has not been remounted so we can look up pid 1's
   // namespaces, even if we're in a separate pid namespace.
   foreach (const string& ns, namespaces) {
-    // ns::setns() does not (currently) support pid namespaces so this
-    // should return an error.
     if (ns == "pid") {
+      // ns::setns() does not (currently) support pid namespaces so
+      // this should return an error.
       Try<Nothing> setns = ns::setns(1, ns);
       if (!setns.isError()) {
         return 1;
       }
+    } else if (ns == "user") {
+      // ns::setns() will also fail with user namespaces, so we skip
+      // for now. See MESOS-3083.
+      continue;
     } else {
       Try<Nothing> setns = ns::setns(1, ns);
       if (!setns.isSome()) {
