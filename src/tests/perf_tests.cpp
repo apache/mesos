@@ -168,7 +168,11 @@ TEST_F(PerfTest, ROOT_SamplePid)
   EXPECT_EQ(duration.secs(), statistics.get().duration());
 
   ASSERT_TRUE(statistics.get().has_cycles());
-  EXPECT_LT(0u, statistics.get().cycles());
+
+  // TODO(benh): Some Linux distributions (Ubuntu 14.04) fail to
+  // properly sample 'cycles' with 'perf', so we don't explicitly
+  // check the value here. See MESOS-3082.
+  // EXPECT_LT(0u, statistics.get().cycles());
 
   ASSERT_TRUE(statistics.get().has_task_clock());
   EXPECT_LT(0.0, statistics.get().task_clock());
