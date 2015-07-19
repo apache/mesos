@@ -369,11 +369,13 @@ TEST_F(CgroupsAnyHierarchyTest, ROOT_CGROUPS_Get)
   ASSERT_SOME(cgroups::create(hierarchy, "mesos_test1"));
   ASSERT_SOME(cgroups::create(hierarchy, "mesos_test2"));
 
-  Try<std::vector<std::string> > cgroups = cgroups::get(hierarchy);
+  Try<std::vector<std::string>> cgroups = cgroups::get(hierarchy);
   ASSERT_SOME(cgroups);
 
-  EXPECT_EQ(cgroups.get()[0], "mesos_test2");
-  EXPECT_EQ(cgroups.get()[1], "mesos_test1");
+  EXPECT_NE(cgroups.get().end(),
+            find(cgroups.get().begin(), cgroups.get().end(), "mesos_test2"));
+  EXPECT_NE(cgroups.get().end(),
+            find(cgroups.get().begin(), cgroups.get().end(), "mesos_test1"));
 
   ASSERT_SOME(cgroups::remove(hierarchy, "mesos_test1"));
   ASSERT_SOME(cgroups::remove(hierarchy, "mesos_test2"));
@@ -384,7 +386,10 @@ TEST_F(CgroupsAnyHierarchyTest, ROOT_CGROUPS_NestedCgroups)
 {
   std::string hierarchy = path::join(baseHierarchy, "cpu");
   ASSERT_SOME(cgroups::create(hierarchy, TEST_CGROUPS_ROOT));
-  ASSERT_SOME(cgroups::create(hierarchy, path::join(TEST_CGROUPS_ROOT, "1")))
+  std::string cgroup1 = path::join(TEST_CGROUPS_ROOT, "1");
+  std::string cgroup2 = path::join(TEST_CGROUPS_ROOT, "2");
+
+  ASSERT_SOME(cgroups::create(hierarchy, cgroup1))
     << "-------------------------------------------------------------\n"
     << "We cannot run this test because it appears you do not have\n"
     << "a modern enough version of the Linux kernel. You won't be\n"
@@ -392,19 +397,21 @@ TEST_F(CgroupsAnyHierarchyTest, ROOT_CGROUPS_NestedCgroups)
     << "this test.\n"
     << "-------------------------------------------------------------";
 
-  ASSERT_SOME(cgroups::create(hierarchy, path::join(TEST_CGROUPS_ROOT, "2")));
+  ASSERT_SOME(cgroups::create(hierarchy, cgroup2));
 
-  Try<std::vector<std::string> > cgroups =
+  Try<std::vector<std::string>> cgroups =
     cgroups::get(hierarchy, TEST_CGROUPS_ROOT);
-
   ASSERT_SOME(cgroups);
+
   ASSERT_EQ(2u, cgroups.get().size());
 
-  EXPECT_EQ(cgroups.get()[0], path::join(TEST_CGROUPS_ROOT, "2"));
-  EXPECT_EQ(cgroups.get()[1], path::join(TEST_CGROUPS_ROOT, "1"));
+  EXPECT_NE(cgroups.get().end(),
+            find(cgroups.get().begin(), cgroups.get().end(), cgroup2));
+  EXPECT_NE(cgroups.get().end(),
+            find(cgroups.get().begin(), cgroups.get().end(), cgroup1));
 
-  ASSERT_SOME(cgroups::remove(hierarchy, path::join(TEST_CGROUPS_ROOT, "1")));
-  ASSERT_SOME(cgroups::remove(hierarchy, path::join(TEST_CGROUPS_ROOT, "2")));
+  ASSERT_SOME(cgroups::remove(hierarchy, cgroup1));
+  ASSERT_SOME(cgroups::remove(hierarchy, cgroup2));
 }
 
 
