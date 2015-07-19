@@ -1244,21 +1244,25 @@ TYPED_TEST(UserCgroupIsolatorTest, ROOT_CGROUPS_UserCgroup)
   AWAIT_READY(isolator.get()->isolate(containerId, pid));
 
   // Get the container's cgroups from /proc/$PID/cgroup. We're only
-  // interested in the cgroups path that is setup by the isolator,
-  // which sets up cgroup under /mesos.
-  // 6:blkio:/user.slice
-  // 5:perf_event:/
-  // 4:memory:/
-  // 3:freezer:/
-  // 2:cpuacct:/mesos
-  // 1:cpu:/mesos
-  // awk will then output "cpuacct/mesos\ncpu/mesos" as the cgroup(s).
+  // interested in the cgroups that this isolator has created which we
+  // can do explicitly by selecting those that have the path that
+  // corresponds to the 'cgroups_root' slave flag. For example:
+  //
+  //   $ cat /proc/pid/cgroup
+  //   6:blkio:/
+  //   5:perf_event:/
+  //   4:memory:/mesos/b7410ed8-c85b-445e-b50e-3a1698d0e18c
+  //   3:freezer:/
+  //   2:cpuacct:/
+  //   1:cpu:/
+  //
+  // Our 'grep' will only select the 'memory' line and then 'awk' will
+  // output 'memory/mesos/b7410ed8-c85b-445e-b50e-3a1698d0e18c'.
   ostringstream output;
   Try<int> status = os::shell(
       &output,
-      "grep '/mesos' /proc/" +
-      stringify(pid) +
-      "/cgroup | awk -F ':' '{print $2$3}'");
+      "grep '" + path::join("/", flags.cgroups_root) + "' /proc/" +
+      stringify(pid) + "/cgroup | awk -F ':' '{print $2$3}'");
 
   ASSERT_SOME(status);
 
