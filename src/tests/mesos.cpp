@@ -732,28 +732,28 @@ void ContainerizerTest<slave::MesosContainerizer>::SetUp()
               ->test_case_name() << ".*).\n"
           << "-------------------------------------------------------------";
       } else {
-	// If the subsystem is already mounted in the hierarchy make
-	// sure that we don't have any existing cgroups that have
-	// persisted that match our TEST_CGROUPS_ROOT (because
-	// otherwise our tests will fail when we try and clean them up
-	// later).
-	Try<std::vector<string>> cgroups = cgroups::get(hierarchy);
-	CHECK_SOME(cgroups);
+        // If the subsystem is already mounted in the hierarchy make
+        // sure that we don't have any existing cgroups that have
+        // persisted that match our TEST_CGROUPS_ROOT (because
+        // otherwise our tests will fail when we try and clean them up
+        // later).
+        Try<std::vector<string>> cgroups = cgroups::get(hierarchy);
+        CHECK_SOME(cgroups);
 
-	foreach (const string& cgroup, cgroups.get()) {
-	  // Remove any cgroups that start with TEST_CGROUPS_ROOT.
-	  if (strings::startsWith(cgroup, TEST_CGROUPS_ROOT)) {
-	    AWAIT_READY(cgroups::destroy(hierarchy, cgroup))
-              << "-------------------------------------------------------------\n"
+        foreach (const string& cgroup, cgroups.get()) {
+          // Remove any cgroups that start with TEST_CGROUPS_ROOT.
+          if (strings::startsWith(cgroup, TEST_CGROUPS_ROOT)) {
+            AWAIT_READY(cgroups::destroy(hierarchy, cgroup))
+              << "-----------------------------------------------------------\n"
               << "We're very sorry but we can't seem to destroy existing\n"
               << "cgroups that we likely created as part of an earlier\n"
               << "invocation of the tests. Please manually destroy the cgroup\n"
-              << "at '" << path::join(hierarchy, cgroup) << "' by first manually\n"
-              << "killing all the processes found in the file at '"
+              << "at '" << path::join(hierarchy, cgroup) << "' by first\n"
+              << "manually killing all the processes found in the file at '"
               << path::join(hierarchy, cgroup, "tasks") << "'\n"
-              << "-------------------------------------------------------------";
-	  }
-	}
+              << "-----------------------------------------------------------";
+          }
+        }
       }
     }
   }
