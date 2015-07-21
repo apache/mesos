@@ -69,14 +69,24 @@ public:
     // needed since pid is empty when the container terminates.
     const bool started;
 
+    // Returns the IPAddress of the container, or None if no IP has
+    // been not been assigned.
+    const Option<std::string> ipAddress;
+
   private:
     Container(
         const std::string& output,
         const std::string& id,
         const std::string& name,
         const Option<pid_t>& pid,
-        bool started)
-      : output(output), id(id), name(name), pid(pid), started(started) {}
+        bool started,
+        const Option<std::string>& ipAddress)
+      : output(output),
+        id(id),
+        name(name),
+        pid(pid),
+        started(started),
+        ipAddress(ipAddress) {}
   };
 
   class Image

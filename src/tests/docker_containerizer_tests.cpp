@@ -722,6 +722,13 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Launch)
   Try<JSON::Array> parse = JSON::parse<JSON::Array>(statusRunning.get().data());
   ASSERT_SOME(parse);
 
+  // Now verify that the Docker.NetworkSettings.IPAddress label is
+  // present.
+  ASSERT_TRUE(statusRunning.get().has_labels());
+  EXPECT_EQ(1, statusRunning.get().labels().labels().size());
+  EXPECT_EQ("Docker.NetworkSettings.IPAddress",
+            statusRunning.get().labels().labels(0).key());
+
   ASSERT_TRUE(exists(docker, slaveId, containerId.get()));
 
   Future<containerizer::Termination> termination =

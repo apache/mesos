@@ -274,7 +274,19 @@ Try<Docker::Container> Docker::Container::create(const string& output)
 
   bool started = startedAtValue.get().value != "0001-01-01T00:00:00Z";
 
-  return Docker::Container(output, id, name, optionalPid, started);
+  Result<JSON::String> ipAddressValue =
+    json.find<JSON::String>("NetworkSettings.IPAddress");
+  if (ipAddressValue.isNone()) {
+    return Error("Unable to find NetworkSettings.IPAddress in container");
+  } else if (ipAddressValue.isError()) {
+    return Error(
+        "Error finding NetworkSettings.Name in container: " +
+        ipAddressValue.error());
+  }
+
+  string ipAddress = ipAddressValue.get().value;
+
+  return Docker::Container(output, id, name, optionalPid, started, ipAddress);
 }
 
 

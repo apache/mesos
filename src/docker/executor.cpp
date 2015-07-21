@@ -158,6 +158,11 @@ public:
           status.mutable_task_id()->CopyFrom(taskId);
           status.set_state(TASK_RUNNING);
           status.set_data(container.output);
+          if (container.ipAddress.isSome()) {
+            Label* label = status.mutable_labels()->add_labels();
+            label->set_key("Docker.NetworkSettings.IPAddress");
+            label->set_value(container.ipAddress.get());
+          }
           driver->sendStatusUpdate(status);
         }
 
