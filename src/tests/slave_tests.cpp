@@ -2076,17 +2076,9 @@ TEST_F(SlaveTest, TaskLabels)
   // Add three labels to the task (two of which share the same key).
   Labels* labels = task.mutable_labels();
 
-  Label* label1 = labels->add_labels();
-  label1->set_key("foo");
-  label1->set_value("bar");
-
-  Label* label2 = labels->add_labels();
-  label2->set_key("bar");
-  label2->set_value("baz");
-
-  Label* label3 = labels->add_labels();
-  label3->set_key("bar");
-  label3->set_value("qux");
+  labels->add_labels()->CopyFrom(createLabel("foo", "bar"));
+  labels->add_labels()->CopyFrom(createLabel("bar", "baz"));
+  labels->add_labels()->CopyFrom(createLabel("bar", "qux"));
 
   vector<TaskInfo> tasks;
   tasks.push_back(task);
@@ -2132,37 +2124,13 @@ TEST_F(SlaveTest, TaskLabels)
 
   JSON::Array labelsObject_ = labelsObject.get();
 
-  // Verify the content of 'foo:bar' pair.
-  Try<JSON::Value> expected = JSON::parse(
-      "{"
-      "  \"key\":\"foo\","
-      "  \"value\":\"bar\""
-      "}");
-
-  ASSERT_SOME(expected);
-  EXPECT_EQ(labelsObject_.values[0], expected.get());
-
-
-  // Verify the content of 'bar:baz' pair.
-  expected = JSON::parse(
-      "{"
-      "  \"key\":\"bar\","
-      "  \"value\":\"baz\""
-      "}");
-
-  ASSERT_SOME(expected);
-  EXPECT_EQ(labelsObject_.values[1], expected.get());
-
-
-  // Verify the content of 'bar:qux' pair.
-  expected = JSON::parse(
-      "{"
-      "  \"key\":\"bar\","
-      "  \"value\":\"qux\""
-      "}");
-
-  ASSERT_SOME(expected);
-  EXPECT_EQ(labelsObject_.values[2], expected.get());
+  // Verify the contents of 'foo:bar', 'bar:baz', and 'bar:qux' pairs.
+  EXPECT_EQ(labelsObject_.values[0],
+            JSON::Value(JSON::Protobuf(createLabel("foo", "bar"))));
+  EXPECT_EQ(labelsObject_.values[1],
+            JSON::Value(JSON::Protobuf(createLabel("bar", "baz"))));
+  EXPECT_EQ(labelsObject_.values[2],
+            JSON::Value(JSON::Protobuf(createLabel("bar", "qux"))));
 
   EXPECT_CALL(exec, shutdown(_))
     .Times(AtMost(1));

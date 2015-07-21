@@ -46,6 +46,7 @@
 #include <stout/bytes.hpp>
 #include <stout/foreach.hpp>
 #include <stout/gtest.hpp>
+#include <stout/json.hpp>
 #include <stout/lambda.hpp>
 #include <stout/none.hpp>
 #include <stout/option.hpp>
@@ -1442,6 +1443,15 @@ void ExpectNoFutureUnionProtobufs(
 // We use this matcher to only satisfy the StatusUpdate future if the
 // StatusUpdate came from the corresponding task.
 MATCHER_P(TaskStatusEq, task, "") { return arg.task_id() == task.task_id(); }
+
+
+inline Label createLabel(const std::string& key, const std::string& value)
+{
+  Label label;
+  label.set_key(key);
+  label.set_value(value);
+  return label;
+}
 
 } // namespace tests {
 } // namespace internal {

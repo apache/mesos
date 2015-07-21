@@ -164,9 +164,8 @@ TEST_F(HookTest, VerifyMasterLaunchTaskHook)
 
   // Add label which will be removed by the hook.
   Labels* labels = task.mutable_labels();
-  Label* label = labels->add_labels();
-  label->set_key(testRemoveLabelKey);
-  label->set_value(testRemoveLabelValue);
+  labels->add_labels()->CopyFrom(createLabel(
+        testRemoveLabelKey, testRemoveLabelValue));
 
   vector<TaskInfo> tasks;
   tasks.push_back(task);
@@ -380,13 +379,8 @@ TEST_F(HookTest, VerifySlaveRunTaskHook)
   // available by the end of the launch task sequence when hooks are
   // used (to protect against hooks removing labels completely).
   Labels* labels = task.mutable_labels();
-  Label* label1 = labels->add_labels();
-  label1->set_key("foo");
-  label1->set_value("bar");
-
-  Label* label2 = labels->add_labels();
-  label2->set_key("bar");
-  label2->set_value("baz");
+  labels->add_labels()->CopyFrom(createLabel("foo", "bar"));
+  labels->add_labels()->CopyFrom(createLabel("bar", "baz"));
 
   vector<TaskInfo> tasks;
   tasks.push_back(task);
