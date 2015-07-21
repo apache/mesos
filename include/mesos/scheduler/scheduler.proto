@@ -154,6 +154,7 @@ message Call {
     ACKNOWLEDGE = 8; // See 'Acknowledge' below.
     RECONCILE = 9;   // See 'Reconcile' below.
     MESSAGE = 10;    // See 'Message' below.
+    REQUEST = 11;    // See 'Request' below.
 
     // TODO(benh): Consider adding an 'ACTIVATE' and 'DEACTIVATE' for
     // already subscribed frameworks as a way of stopping offers from
@@ -284,6 +285,16 @@ message Call {
     required bytes data = 3;
   }
 
+  // Requests a specific set of resources from Mesos's allocator. If
+  // the allocator has support for this, corresponding offers will be
+  // sent asynchronously via the OFFERS event(s).
+  //
+  // NOTE: The built-in hierarchical allocator doesn't have support
+  // for this call and hence simply ignores it.
+  message Request {
+    repeated mesos.Request requests = 1;
+  }
+
   // Identifies who generated this call. Master assigns a framework id
   // when a new scheduler subscribes for the first time. Once assigned,
   // the scheduler must set the 'framework_id' here and within its
@@ -304,4 +315,5 @@ message Call {
   optional Acknowledge acknowledge = 8;
   optional Reconcile reconcile = 9;
   optional Message message = 10;
+  optional Request request = 11;
 }

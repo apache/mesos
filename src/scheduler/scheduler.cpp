@@ -306,8 +306,17 @@ public:
         break;
       }
 
+      case Call::REQUEST: {
+        if (!call.has_request()) {
+          drop(call, "Expecting 'request' to be present");
+          return;
+        }
+        send(master.get(), call);
+        break;
+      }
+
       default:
-        VLOG(1) << "Unexpected call " << stringify(call.type());
+        LOG(ERROR) << "Unexpected call " << stringify(call.type());
         break;
     }
   }

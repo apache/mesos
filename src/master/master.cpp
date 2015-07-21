@@ -1729,6 +1729,15 @@ void Master::receive(
       break;
     }
 
+    case scheduler::Call::REQUEST: {
+      if (!call.has_request()) {
+        drop(from, call, "Expecting 'request' to be present");
+        return;
+      }
+      request(framework, call.request());
+      break;
+    }
+
     default:
       drop(from, call, "Unknown call type");
       break;
@@ -2263,8 +2272,26 @@ void Master::resourceRequest(
     return;
   }
 
-  LOG(INFO) << "Requesting resources for framework " << *framework;
-  allocator->requestResources(frameworkId, requests);
+  scheduler::Call::Request call;
+  foreach (const Request& request, requests) {
+    call.add_requests()->CopyFrom(request);
+  }
+
+  request(framework, call);
+}
+
+
+void Master::request(
+    Framework* framework,
+    const scheduler::Call::Request& request)
+{
+  CHECK_NOTNULL(framework);
+
+  LOG(INFO) << "Processing REQUEST call for framework " << *framework;
+
+  allocator->requestResources(
+      framework->id(),
+      google::protobuf::convert(request.requests()));
 }
 
 

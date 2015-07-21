@@ -781,8 +781,6 @@ message PerfStatistics {
  * to proactively influence the allocator.  If 'slave_id' is provided
  * then this request is assumed to only apply to resources on that
  * slave.
- *
- * TODO(vinod): Remove this once the old driver is removed.
  */
 message Request {
   optional SlaveID slave_id = 1;

@@ -1045,6 +1045,10 @@ private:
       Framework* framework,
       const scheduler::Call::Message& message);
 
+  void request(
+      Framework* framework,
+      const scheduler::Call::Request& request);
+
   bool elected() const
   {
     return leader.isSome() && leader.get() == info_;
