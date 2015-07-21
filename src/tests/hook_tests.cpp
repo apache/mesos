@@ -65,6 +65,7 @@ using std::vector;
 using testing::_;
 using testing::DoAll;
 using testing::Return;
+using testing::SaveArg;
 
 namespace mesos {
 namespace internal {
@@ -415,6 +416,104 @@ TEST_F(HookTest, VerifySlaveRunTaskHook)
   // pair set by the test.
   EXPECT_EQ(labels_.labels(2).key(), "bar");
   EXPECT_EQ(labels_.labels(2).value(), "baz");
+
+  driver.stop();
+  driver.join();
+
+  Shutdown(); // Must shutdown before 'containerizer' gets deallocated.
+}
+
+
+// This test verifies that the slave task status label decorator can
+// add and remove labels from a TaskStatus during the status update
+// sequence. A TaskStatus with two labels ("foo":"bar" and
+// "bar":"baz") is sent from the executor. The labels get modified by
+// the slave hook to strip the "foo":"bar" pair and/ add a new
+// "baz":"qux" pair.
+TEST_F(HookTest, VerifySlaveTaskStatusLabelDecorator)
+{
+  Try<PID<Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+
+  TestContainerizer containerizer(&exec);
+
+  Try<PID<Slave>> slave = StartSlave(&containerizer);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  ASSERT_EQ(1u, offers.get().size());
+
+  // Start a task.
+  TaskInfo task = createTask(offers.get()[0], "", DEFAULT_EXECUTOR_ID);
+
+  vector<TaskInfo> tasks;
+  tasks.push_back(task);
+
+  ExecutorDriver* execDriver;
+  EXPECT_CALL(exec, registered(_, _, _, _))
+    .WillOnce(SaveArg<0>(&execDriver));
+
+  Future<TaskInfo> execTask;
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillOnce(FutureArg<1>(&execTask));
+
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status));
+
+  driver.launchTasks(offers.get()[0].id(), tasks);
+
+  AWAIT_READY(execTask);
+
+  // Now send TASK_RUNNING update with two labels. The first label
+  // ("foo:bar") will be removed by the task status hook to ensure
+  // that it can remove labels. The second label will be preserved
+  // and forwarded to Master (and eventually to the framework).
+  // The hook also adds a new label with the same key but a different
+  // value ("bar:quz").
+  TaskStatus runningStatus;
+  runningStatus.mutable_task_id()->MergeFrom(execTask.get().task_id());
+  runningStatus.set_state(TASK_RUNNING);
+
+  // Add two labels to the TaskStatus
+  Labels* labels = runningStatus.mutable_labels();
+
+  labels->add_labels()->CopyFrom(createLabel("foo", "bar"));
+  labels->add_labels()->CopyFrom(createLabel("bar", "baz"));
+
+  execDriver->sendStatusUpdate(runningStatus);
+
+  AWAIT_READY(status);
+
+  // The master hook will hang an extra label off.
+  const Labels& labels_ = status.get().labels();
+
+  EXPECT_EQ(2, labels_.labels_size());
+
+  // The test hook will prepend a new "baz":"qux" label.
+  EXPECT_EQ(labels_.labels(0).key(), "bar");
+  EXPECT_EQ(labels_.labels(0).value(), "qux");
+
+  // And lastly, we only expect the "foo":"bar" pair to be stripped by
+  // the module. The last pair should be the original "bar":"baz"
+  // pair set by the test.
+  EXPECT_EQ(labels_.labels(1).key(), "bar");
+  EXPECT_EQ(labels_.labels(1).value(), "baz");
 
   driver.stop();
   driver.join();

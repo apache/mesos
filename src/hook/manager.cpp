@@ -111,7 +111,7 @@ Labels HookManager::masterLaunchTaskLabelDecorator(
     TaskInfo taskInfo_ = taskInfo;
 
     foreachpair (const string& name, Hook* hook, availableHooks) {
-      const Result<Labels>& result =
+      const Result<Labels> result =
         hook->masterLaunchTaskLabelDecorator(
             taskInfo_,
             frameworkInfo,
@@ -141,7 +141,7 @@ Labels HookManager::slaveRunTaskLabelDecorator(
     TaskInfo taskInfo_ = taskInfo;
 
     foreachpair (const string& name, Hook* hook, availableHooks) {
-      const Result<Labels>& result =
+      const Result<Labels> result =
         hook->slaveRunTaskLabelDecorator(taskInfo_, frameworkInfo, slaveInfo);
 
       // NOTE: If the hook returns None(), the task labels won't be
@@ -164,7 +164,7 @@ Environment HookManager::slaveExecutorEnvironmentDecorator(
 {
   synchronized (mutex) {
     foreachpair (const string& name, Hook* hook, availableHooks) {
-      const Result<Environment>& result =
+      const Result<Environment> result =
         hook->slaveExecutorEnvironmentDecorator(executorInfo);
 
       // NOTE: If the hook returns None(), the environment won't be
@@ -188,12 +188,35 @@ void HookManager::slaveRemoveExecutorHook(
     const ExecutorInfo& executorInfo)
 {
   foreachpair (const string& name, Hook* hook, availableHooks) {
-    const Try<Nothing>& result =
+    const Try<Nothing> result =
       hook->slaveRemoveExecutorHook(frameworkInfo, executorInfo);
     if (result.isError()) {
       LOG(WARNING) << "Slave remove executor hook failed for module '"
                    << name << "': " << result.error();
     }
+  }
+}
+
+
+Labels HookManager::slaveTaskStatusLabelDecorator(
+    const FrameworkID& frameworkId,
+    TaskStatus status)
+{
+  synchronized (mutex) {
+    foreachpair (const string& name, Hook* hook, availableHooks) {
+      const Result<Labels> result =
+        hook->slaveTaskStatusLabelDecorator(frameworkId, status);
+
+      // NOTE: Labels remain unchanged if the hook returns None().
+      if (result.isSome()) {
+        status.mutable_labels()->CopyFrom(result.get());
+      } else if (result.isError()) {
+        LOG(WARNING) << "Slave TaskStatus label decorator hook failed for "
+                     << "module '" << name << "': " << result.error();
+      }
+    }
+
+    return status.labels();
   }
 }
 

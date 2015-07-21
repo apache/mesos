@@ -56,6 +56,10 @@ public:
   static void slaveRemoveExecutorHook(
       const FrameworkInfo& frameworkInfo,
       const ExecutorInfo& executorInfo);
+
+  static Labels slaveTaskStatusLabelDecorator(
+      const FrameworkID& frameworkId,
+      TaskStatus status);
 };
 
 } // namespace internal {

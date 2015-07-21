@@ -128,7 +128,6 @@ public:
     return environment;
   }
 
-
   // This hook locates the file created by environment decorator hook
   // and deletes it.
   virtual Try<Nothing> slaveRemoveExecutorHook(
@@ -148,6 +147,30 @@ public:
     process::wait(hookProcess);
 
     return Nothing();
+  }
+
+
+  virtual Result<Labels> slaveTaskStatusLabelDecorator(
+      const FrameworkID& frameworkId,
+      const TaskStatus& status)
+  {
+    LOG(INFO) << "Executing 'slaveTaskStatusLabelDecorator' hook";
+
+    Labels labels;
+
+    // Set one known label.
+    Label* newLabel = labels.add_labels();
+    newLabel->set_key("bar");
+    newLabel->set_value("qux");
+
+    // Remove label which was set by test.
+    foreach (const Label& oldLabel, status.labels().labels()) {
+      if (oldLabel.key() != "foo") {
+        labels.add_labels()->CopyFrom(oldLabel);
+      }
+    }
+
+    return labels;
   }
 };
 

@@ -2708,6 +2708,13 @@ void Slave::statusUpdate(StatusUpdate update, const UPID& pid)
     return;
   }
 
+  if (HookManager::hooksAvailable()) {
+    // Set TaskStatus labels from run task label decorator.
+    update.mutable_status()->mutable_labels()->CopyFrom(
+        HookManager::slaveTaskStatusLabelDecorator(
+            update.framework_id(), update.status()));
+  }
+
   TaskStatus status = update.status();
 
   Executor* executor = framework->getExecutor(status.task_id());
