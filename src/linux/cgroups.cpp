@@ -110,7 +110,7 @@ struct SubsystemInfo
 // subsystem.
 // @return A map from subsystem names to SubsystemInfo instances if
 //         succeeds.  Error if anything unexpected happens.
-static Try<map<string, SubsystemInfo> > subsystems()
+static Try<map<string, SubsystemInfo>> subsystems()
 {
   // TODO(benh): Use os::read to get better error information.
   ifstream file("/proc/cgroups");
@@ -298,7 +298,7 @@ static Try<Nothing> create(
 
   // Now clone 'cpuset.cpus' and 'cpuset.mems' if the 'cpuset'
   // subsystem is attached to the hierarchy.
-  Try<set<string> > attached = cgroups::subsystems(hierarchy);
+  Try<set<string>> attached = cgroups::subsystems(hierarchy);
   if (attached.isError()) {
     return Error(
         "Failed to determine if hierarchy '" + hierarchy +
@@ -562,7 +562,7 @@ bool enabled()
 }
 
 
-Try<set<string> > hierarchies()
+Try<set<string>> hierarchies()
 {
   // Read currently mounted file systems from /proc/mounts.
   Try<fs::MountTable> table = fs::MountTable::read("/proc/mounts");
@@ -592,7 +592,7 @@ Try<set<string> > hierarchies()
 Result<string> hierarchy(const string& subsystems)
 {
   Result<string> hierarchy = None();
-  Try<set<string> > hierarchies = cgroups::hierarchies();
+  Try<set<string>> hierarchies = cgroups::hierarchies();
   if (hierarchies.isError()) {
     return Error(hierarchies.error());
   }
@@ -619,7 +619,7 @@ Result<string> hierarchy(const string& subsystems)
 
 Try<bool> enabled(const string& subsystems)
 {
-  Try<map<string, internal::SubsystemInfo> > infosResult =
+  Try<map<string, internal::SubsystemInfo>> infosResult =
     internal::subsystems();
   if (infosResult.isError()) {
     return Error(infosResult.error());
@@ -645,7 +645,7 @@ Try<bool> enabled(const string& subsystems)
 
 Try<bool> busy(const string& subsystems)
 {
-  Try<map<string, internal::SubsystemInfo> > infosResult =
+  Try<map<string, internal::SubsystemInfo>> infosResult =
     internal::subsystems();
   if (infosResult.isError()) {
     return Error(infosResult.error());
@@ -669,9 +669,9 @@ Try<bool> busy(const string& subsystems)
 }
 
 
-Try<set<string> > subsystems()
+Try<set<string>> subsystems()
 {
-  Try<map<string, internal::SubsystemInfo> > infos = internal::subsystems();
+  Try<map<string, internal::SubsystemInfo>> infos = internal::subsystems();
   if (infos.isError()) {
     return Error(infos.error());
   }
@@ -687,7 +687,7 @@ Try<set<string> > subsystems()
 }
 
 
-Try<set<string> > subsystems(const string& hierarchy)
+Try<set<string>> subsystems(const string& hierarchy)
 {
   // We compare the canonicalized absolute paths.
   Result<string> hierarchyAbsPath = os::realpath(hierarchy);
@@ -735,7 +735,7 @@ Try<set<string> > subsystems(const string& hierarchy)
   // Get the intersection of the currently enabled subsystems and
   // mount options. Notice that mount options may contain somethings
   // (e.g. rw) that are not in the set of enabled subsystems.
-  Try<set<string> > names = subsystems();
+  Try<set<string>> names = subsystems();
   if (names.isError()) {
     return Error(names.error());
   }
@@ -807,7 +807,7 @@ Try<bool> mounted(const string& hierarchy, const string& subsystems)
          : "No such file or directory"));
   }
 
-  Try<set<string> > hierarchies = cgroups::hierarchies();
+  Try<set<string>> hierarchies = cgroups::hierarchies();
   if (hierarchies.isError()) {
     return Error(
         "Failed to get mounted hierarchies: " + hierarchies.error());
@@ -818,7 +818,7 @@ Try<bool> mounted(const string& hierarchy, const string& subsystems)
   }
 
   // Now make sure all the specified subsytems are attached.
-  Try<set<string> > attached = cgroups::subsystems(hierarchy);
+  Try<set<string>> attached = cgroups::subsystems(hierarchy);
   if (attached.isError()) {
     return Error(
         "Failed to get subsystems attached to hierarchy '" +
@@ -856,7 +856,7 @@ Try<Nothing> remove(const string& hierarchy, const string& cgroup)
     return error.get();
   }
 
-  Try<vector<string> > cgroups = cgroups::get(hierarchy, cgroup);
+  Try<vector<string>> cgroups = cgroups::get(hierarchy, cgroup);
   if (cgroups.isError()) {
     return Error("Failed to get nested cgroups: " + cgroups.error());
   }
@@ -880,7 +880,7 @@ Try<bool> exists(const string& hierarchy, const string& cgroup)
 }
 
 
-Try<vector<string> > get(const string& hierarchy, const string& cgroup)
+Try<vector<string>> get(const string& hierarchy, const string& cgroup)
 {
   Option<Error> error = verify(hierarchy, cgroup);
   if (error.isSome()) {
@@ -950,7 +950,7 @@ Try<Nothing> kill(
     return error.get();
   }
 
-  Try<set<pid_t> > pids = processes(hierarchy, cgroup);
+  Try<set<pid_t>> pids = processes(hierarchy, cgroup);
   if (pids.isError()) {
     return Error("Failed to get processes of cgroup: " + pids.error());
   }
@@ -1020,7 +1020,7 @@ namespace internal {
 // Return a set of tasks (schedulable entities) for the cgroup.
 // If control == "cgroup.procs" these are processes else
 // if control == "tasks" they are all tasks, roughly equivalent to threads.
-Try<set<pid_t> > tasks(
+Try<set<pid_t>> tasks(
     const string& hierarchy,
     const string& cgroup,
     const string& control)
@@ -1061,13 +1061,13 @@ Try<set<pid_t> > tasks(
 
 // NOTE: It is possible for a process pid to be in more than one cgroup if it
 // has separate threads (tasks) in different cgroups.
-Try<set<pid_t> > processes(const string& hierarchy, const string& cgroup)
+Try<set<pid_t>> processes(const string& hierarchy, const string& cgroup)
 {
   return internal::tasks(hierarchy, cgroup, "cgroup.procs");
 }
 
 
-Try<set<pid_t> > threads(const string& hierarchy, const string& cgroup)
+Try<set<pid_t>> threads(const string& hierarchy, const string& cgroup)
 {
   return internal::tasks(hierarchy, cgroup, "tasks");
 }
@@ -1558,7 +1558,7 @@ private:
 
   Future<Nothing> kill()
   {
-    Try<set<pid_t> > processes = cgroups::processes(hierarchy, cgroup);
+    Try<set<pid_t>> processes = cgroups::processes(hierarchy, cgroup);
     if (processes.isError()) {
       return Failure(processes.error());
     }
@@ -1582,13 +1582,13 @@ private:
     return cgroups::freezer::thaw(hierarchy, cgroup);
   }
 
-  Future<list<Option<int> > > reap()
+  Future<list<Option<int>>> reap()
   {
     // Wait until we've reaped all processes.
     return collect(statuses);
   }
 
-  void finished(const Future<list<Option<int> > >& future)
+  void finished(const Future<list<Option<int>>>& future)
   {
     if (future.isDiscarded()) {
       promise.fail("Unexpected discard of future");
@@ -1601,7 +1601,7 @@ private:
     }
 
     // Verify the cgroup is now empty.
-    Try<set<pid_t> > processes = cgroups::processes(hierarchy, cgroup);
+    Try<set<pid_t>> processes = cgroups::processes(hierarchy, cgroup);
     if (processes.isError() || !processes.get().empty()) {
       promise.fail("Failed to kill all processes in cgroup: " +
                    (processes.isError() ? processes.error()
@@ -1617,8 +1617,8 @@ private:
   const string hierarchy;
   const string cgroup;
   Promise<Nothing> promise;
-  list<Future<Option<int> > > statuses; // List of statuses for processes.
-  Future<list<Option<int> > > chain; // Used to discard all operations.
+  list<Future<Option<int>>> statuses; // List of statuses for processes.
+  Future<list<Option<int>>> chain; // Used to discard all operations.
 };
 
 
@@ -1662,7 +1662,7 @@ protected:
   }
 
 private:
-  void killed(const Future<list<Nothing> >& kill)
+  void killed(const Future<list<Nothing>>& kill)
   {
     if (kill.isReady()) {
       remove();
@@ -1697,7 +1697,7 @@ private:
   Promise<Nothing> promise;
 
   // The killer processes used to atomically kill tasks in each cgroup.
-  list<Future<Nothing> > killers;
+  list<Future<Nothing>> killers;
 };
 
 } // namespace internal {
@@ -1706,7 +1706,7 @@ private:
 Future<Nothing> destroy(const string& hierarchy, const string& cgroup)
 {
   // Construct the vector of cgroups to destroy.
-  Try<vector<string> > cgroups = cgroups::get(hierarchy, cgroup);
+  Try<vector<string>> cgroups = cgroups::get(hierarchy, cgroup);
   if (cgroups.isError()) {
     return Failure(
         "Failed to get nested cgroups: " + cgroups.error());
@@ -1745,7 +1745,7 @@ Future<Nothing> destroy(const string& hierarchy, const string& cgroup)
 
 static void __destroy(
     const Future<Nothing>& future,
-    const Owned<Promise<Nothing> >& promise,
+    const Owned<Promise<Nothing>>& promise,
     const Duration& timeout)
 {
   if (future.isReady()) {
@@ -1762,7 +1762,7 @@ static Future<Nothing> _destroy(
     Future<Nothing> future,
     const Duration& timeout)
 {
-  Owned<Promise<Nothing> > promise(new Promise<Nothing>());
+  Owned<Promise<Nothing>> promise(new Promise<Nothing>());
   Future<Nothing> _future = promise->future();
 
   future.discard();
@@ -1831,7 +1831,7 @@ Future<bool> _cleanup(const string& hierarchy)
 }
 
 
-Try<hashmap<string, uint64_t> > stat(
+Try<hashmap<string, uint64_t>> stat(
     const string& hierarchy,
     const string& cgroup,
     const string& file)
@@ -2235,7 +2235,7 @@ Try<bool> enabled(const string& hierarchy, const string& cgroup)
                  read.error());
   }
 
-  map<string, vector<string> > pairs = strings::pairs(read.get(), "\n", " ");
+  map<string, vector<string>> pairs = strings::pairs(read.get(), "\n", " ");
 
   if (pairs.count("oom_kill_disable") != 1 ||
       pairs["oom_kill_disable"].size() != 1) {
