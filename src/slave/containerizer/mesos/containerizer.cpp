@@ -44,14 +44,24 @@
 #endif // __linux__
 
 #include "slave/containerizer/isolators/posix.hpp"
+
 #include "slave/containerizer/isolators/posix/disk.hpp"
+
 #ifdef __linux__
 #include "slave/containerizer/isolators/cgroups/cpushare.hpp"
 #include "slave/containerizer/isolators/cgroups/mem.hpp"
 #include "slave/containerizer/isolators/cgroups/perf_event.hpp"
+#endif
+
+#include "slave/containerizer/isolators/filesystem/posix.hpp"
+#ifdef __linux__
 #include "slave/containerizer/isolators/filesystem/shared.hpp"
+#endif
+
+#ifdef __linux__
 #include "slave/containerizer/isolators/namespaces/pid.hpp"
-#endif // __linux__
+#endif
+
 #ifdef WITH_NETWORK_ISOLATOR
 #include "slave/containerizer/isolators/network/port_mapping.hpp"
 #endif
@@ -104,6 +114,12 @@ Try<MesosContainerizer*> MesosContainerizer::create(
     isolation = flags.isolation;
   }
 
+  // A filesystem isolator is required for persistent volumes; use the
+  // filesystem/posix isolator if necessary.
+  if (!strings::contains(isolation, "filesystem/")) {
+    isolation += ",filesystem/posix";
+  }
+
   // Modify the flags to include any changes to isolation.
   Flags flags_ = flags;
   flags_.isolation = isolation;
@@ -112,6 +128,7 @@ Try<MesosContainerizer*> MesosContainerizer::create(
 
   // Create a MesosContainerizerProcess using isolators and a launcher.
   static const hashmap<string, Try<Isolator*> (*)(const Flags&)> creators = {
+    {"filesystem/posix", &PosixFilesystemIsolatorProcess::create},
     {"posix/cpu", &PosixCpuIsolatorProcess::create},
     {"posix/mem", &PosixMemIsolatorProcess::create},
     {"posix/disk", &PosixDiskIsolatorProcess::create},
@@ -565,23 +582,9 @@ Future<bool> MesosContainerizerProcess::launch(
   container->executorInfo = executorInfo;
   container->directory = directory;
   container->state = PREPARING;
-  containers_[containerId] = Owned<Container>(container);
-
-  // Prepare volumes for the container.
-  // TODO(jieyu): Consider decoupling file system isolation from
-  // runtime isolation. The existing isolators are actually for
-  // runtime isolation. For file system isolation, the interface might
-  // be different and we always need a file system isolator. The
-  // following logic should be moved to the file system isolator.
-  Try<Nothing> update = updateVolumes(containerId, executorInfo.resources());
-  if (update.isError()) {
-    return Failure("Failed to prepare volumes: " + update.error());
-  }
-
-  // NOTE: We do not update 'container->resources' until volumes are
-  // prepared because 'updateVolumes' above depends on the current
-  // container resources.
   container->resources = executorInfo.resources();
+
+  containers_.put(containerId, Owned<Container>(container));
 
   return provision(containerId, executorInfo, slaveId, directory, checkpoint)
     .then(defer(self(),
@@ -1011,13 +1014,6 @@ Future<Nothing> MesosContainerizerProcess::update(
     return Nothing();
   }
 
-  // Update volumes for the container.
-  // TODO(jieyu): See comments above 'updateVolumes' in 'launch'.
-  Try<Nothing> update = updateVolumes(containerId, resources);
-  if (update.isError()) {
-    return Failure("Failed to update volumes: " + update.error());
-  }
-
   // NOTE: We update container's resources before isolators are updated
   // so that subsequent containerizer->update can be handled properly.
   container->resources = resources;
@@ -1412,131 +1408,6 @@ MesosContainerizerProcess::Metrics::~Metrics()
 }
 
 
-Try<Nothing> MesosContainerizerProcess::updateVolumes(
-    const ContainerID& containerId,
-    const Resources& updated)
-{
-  CHECK(containers_.contains(containerId));
-  const Owned<Container>& container = containers_[containerId];
-
-  // TODO(jieyu): Currently, we only allow non-nested relative
-  // container paths for volumes. This is enforced by the master. For
-  // those volumes, we create symlinks in the executor directory. No
-  // need to proceed if the container change the file system root
-  // because the symlinks will become invalid if the file system root
-  // is changed. Consider moving this logic to the file system
-  // isolator and let the file system isolator decide how to mount
-  // those volumes (by either creating symlinks or doing bind mounts).
-  if (container->rootfs.isSome()) {
-    LOG(WARNING) << "Cannot update volumes for container " << containerId
-                 << " because it changes the file system root";
-    return Nothing();
-  }
-
-  Resources current = container->resources;
-
-  // We first remove unneeded persistent volumes.
-  foreach (const Resource& resource, current.persistentVolumes()) {
-    // This is enforced by the master.
-    CHECK(resource.disk().has_volume());
-
-    // Ignore absolute and nested paths.
-    const string& containerPath = resource.disk().volume().container_path();
-    if (strings::contains(containerPath, "/")) {
-      LOG(WARNING) << "Skipping updating symlink for persistent volume "
-                   << resource << " of container " << containerId
-                   << " because the container path '" << containerPath
-                   << "' contains slash";
-      continue;
-    }
-
-    if (updated.contains(resource)) {
-      continue;
-    }
-
-    string link = path::join(container->directory, containerPath);
-
-    LOG(INFO) << "Removing symlink '" << link << "' for persistent volume "
-              << resource << " of container " << containerId;
-
-    Try<Nothing> rm = os::rm(link);
-    if (rm.isError()) {
-      return Error(
-          "Failed to remove the symlink for the unneeded "
-          "persistent volume at '" + link + "'");
-    }
-  }
-
-  // We then link additional persistent volumes.
-  foreach (const Resource& resource, updated.persistentVolumes()) {
-    // This is enforced by the master.
-    CHECK(resource.disk().has_volume());
-
-    // Ignore absolute and nested paths.
-    const string& containerPath = resource.disk().volume().container_path();
-    if (strings::contains(containerPath, "/")) {
-      LOG(WARNING) << "Skipping updating symlink for persistent volume "
-                   << resource << " of container " << containerId
-                   << " because the container path '" << containerPath
-                   << "' contains slash";
-      continue;
-    }
-
-    if (current.contains(resource)) {
-      continue;
-    }
-
-    string link = path::join(container->directory, containerPath);
-
-    string original = paths::getPersistentVolumePath(
-        flags.work_dir,
-        resource.role(),
-        resource.disk().persistence().id());
-
-    LOG(INFO) << "Adding symlink from '" << original << "' to '"
-              << link << "' for persistent volume " << resource
-              << " of container " << containerId;
-
-    Try<Nothing> symlink = fs::symlink(original, link);
-    if (symlink.isError()) {
-      return Error(
-          "Failed to symlink persistent volume from '" +
-          original + "' to '" + link + "'");
-    }
-
-    // Set the ownership of persistent volume to match the sandbox
-    // directory. Currently, persistent volumes in mesos are
-    // exclusive. If one persistent volume is used by one
-    // task/executor, it cannot be concurrently used by other
-    // task/executor. But if we allow multiple executors use same
-    // persistent volume at the same time in the future, the ownership
-    // of persistent volume may conflict here.
-    // TODO(haosdent): We need to update this after we have a proposed
-    // plan to adding user/group to persistent volumes.
-    struct stat s;
-    if (::stat(container->directory.c_str(), &s) < 0) {
-      return Error("Failed to get permissions on '" + container->directory +
-                   "': " + strerror(errno));
-    }
-
-    Try<Nothing> chown = os::chown(s.st_uid, s.st_gid, original, true);
-    if (chown.isError()) {
-      return Error("Failed to chown persistent volume '" + original +
-                   "': " + chown.error());
-    }
-  }
-
-  return Nothing();
-}
-
-
-static list<Future<Nothing>> __cleanupIsolators(
-    const list<Future<Nothing>>& cleanups)
-{
-  return cleanups;
-}
-
-
 static Future<list<Future<Nothing>>> _cleanupIsolators(
     const Owned<Isolator>& isolator,
     const ContainerID& containerId,
@@ -1553,7 +1424,7 @@ static Future<list<Future<Nothing>>> _cleanupIsolators(
   cleanup_.push_back(cleanup);
 
   return await(cleanup_)
-    .then(lambda::bind(&__cleanupIsolators, cleanups));
+    .then([cleanups]() -> list<Future<Nothing>> { return cleanups; });
 }
 
 

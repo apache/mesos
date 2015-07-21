@@ -268,12 +268,6 @@ private:
   // destroy.
   void reaped(const ContainerID& containerId);
 
-  // Updates volumes for the given container according to its current
-  // resources and the given updated resources.
-  Try<Nothing> updateVolumes(
-      const ContainerID& containerId,
-      const Resources& updated);
-
   // TODO(jieyu): Consider introducing an Isolators struct and moving
   // all isolator related operations to that struct.
   process::Future<std::list<process::Future<Nothing>>> cleanupIsolators(
