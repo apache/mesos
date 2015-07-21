@@ -131,6 +131,16 @@ JSON::Object model(const TaskStatus& status)
   object.values["state"] = TaskState_Name(status.state());
   object.values["timestamp"] = status.timestamp();
 
+  if (status.has_labels()) {
+    JSON::Array array;
+    array.values.reserve(status.labels().labels().size()); // MESOS-2353.
+
+    foreach (const Label& label, status.labels().labels()) {
+      array.values.push_back(JSON::Protobuf(label));
+    }
+    object.values["labels"] = std::move(array);
+  }
+
   return object;
 }
 

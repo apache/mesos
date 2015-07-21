@@ -965,6 +965,14 @@ message TaskStatus {
   // (true) or unhealthy (false) according to the HealthCheck field in
   // the command info.
   optional bool healthy = 8;
+
+  // Labels are free-form key value pairs which are exposed through
+  // master and slave endpoints. Labels will not be interpreted or
+  // acted upon by Mesos itself. As opposed to the data field, labels
+  // will be kept in memory on master and slave processes. Therefore,
+  // labels should be used to tag TaskStatus message with light-weight
+  // meta-data.
+  optional Labels labels = 12;
 }
 
 

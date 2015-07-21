@@ -54,7 +54,8 @@ StatusUpdate createStatusUpdate(
     const std::string& message = "",
     const Option<TaskStatus::Reason>& reason = None(),
     const Option<ExecutorID>& executorId = None(),
-    const Option<bool>& healthy = None());
+    const Option<bool>& healthy = None(),
+    const Option<Labels>& labels = None());
 
 
 Task createTask(
