@@ -202,8 +202,8 @@ TEST_F(HookTest, VerifyMasterLaunchTaskHook)
   const Labels &labels_ = runTaskMessage.get().task().labels();
   ASSERT_EQ(1, labels_.labels_size());
 
-  EXPECT_EQ(labels_.labels().Get(0).key(), testLabelKey);
-  EXPECT_EQ(labels_.labels().Get(0).value(), testLabelValue);
+  EXPECT_EQ(testLabelKey, labels_.labels().Get(0).key());
+  EXPECT_EQ(testLabelValue, labels_.labels().Get(0).value());
 
   driver.stop();
   driver.join();
@@ -408,18 +408,18 @@ TEST_F(HookTest, VerifySlaveRunTaskHook)
   ASSERT_EQ(3, labels_.labels_size());
 
   // The slave run task hook will prepend a new "baz":"qux" label.
-  EXPECT_EQ(labels_.labels(0).key(), "baz");
-  EXPECT_EQ(labels_.labels(0).value(), "qux");
+  EXPECT_EQ("baz", labels_.labels(0).key());
+  EXPECT_EQ("qux", labels_.labels(0).value());
 
   // Master launch task hook will still hang off test label.
-  EXPECT_EQ(labels_.labels(1).key(), testLabelKey);
-  EXPECT_EQ(labels_.labels(1).value(), testLabelValue);
+  EXPECT_EQ(testLabelKey, labels_.labels(1).key());
+  EXPECT_EQ(testLabelValue, labels_.labels(1).value());
 
   // And lastly, we only expect the "foo":"bar" pair to be stripped by
   // the module. The last pair should be the original "bar":"baz"
   // pair set by the test.
-  EXPECT_EQ(labels_.labels(2).key(), "bar");
-  EXPECT_EQ(labels_.labels(2).value(), "baz");
+  EXPECT_EQ("bar", labels_.labels(2).key());
+  EXPECT_EQ("baz", labels_.labels(2).value());
 
   driver.stop();
   driver.join();
@@ -510,14 +510,14 @@ TEST_F(HookTest, VerifySlaveTaskStatusLabelDecorator)
   EXPECT_EQ(2, labels_.labels_size());
 
   // The test hook will prepend a new "baz":"qux" label.
-  EXPECT_EQ(labels_.labels(0).key(), "bar");
-  EXPECT_EQ(labels_.labels(0).value(), "qux");
+  EXPECT_EQ("bar", labels_.labels(0).key());
+  EXPECT_EQ("qux", labels_.labels(0).value());
 
   // And lastly, we only expect the "foo":"bar" pair to be stripped by
   // the module. The last pair should be the original "bar":"baz"
   // pair set by the test.
-  EXPECT_EQ(labels_.labels(1).key(), "bar");
-  EXPECT_EQ(labels_.labels(1).value(), "baz");
+  EXPECT_EQ("bar", labels_.labels(1).key());
+  EXPECT_EQ("baz", labels_.labels(1).value());
 
   driver.stop();
   driver.join();

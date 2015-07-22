@@ -3112,12 +3112,15 @@ TEST_F(MasterTest, TaskLabels)
   JSON::Array labelsObject = find.get();
 
   // Verify the contents of 'foo:bar', 'bar:baz', and 'bar:qux' pairs.
-  EXPECT_EQ(labelsObject.values[0],
-            JSON::Value(JSON::Protobuf(createLabel("foo", "bar"))));
-  EXPECT_EQ(labelsObject.values[1],
-            JSON::Value(JSON::Protobuf(createLabel("bar", "baz"))));
-  EXPECT_EQ(labelsObject.values[2],
-            JSON::Value(JSON::Protobuf(createLabel("bar", "qux"))));
+  EXPECT_EQ(
+      JSON::Value(JSON::Protobuf(createLabel("foo", "bar"))),
+      labelsObject.values[0]);
+  EXPECT_EQ(
+      JSON::Value(JSON::Protobuf(createLabel("bar", "baz"))),
+      labelsObject.values[1]);
+  EXPECT_EQ(
+      JSON::Value(JSON::Protobuf(createLabel("bar", "qux"))),
+      labelsObject.values[2]);
 
   EXPECT_CALL(exec, shutdown(_))
     .Times(AtMost(1));
@@ -3214,12 +3217,15 @@ TEST_F(MasterTest, TaskStatusLabels)
   JSON::Array labelsObject = find.get();
 
   // Verify the content of 'foo:bar' pair.
-  EXPECT_EQ(labelsObject.values[0],
-            JSON::Value(JSON::Protobuf(createLabel("foo", "bar"))));
-  EXPECT_EQ(labelsObject.values[1],
-            JSON::Value(JSON::Protobuf(createLabel("bar", "baz"))));
-  EXPECT_EQ(labelsObject.values[2],
-            JSON::Value(JSON::Protobuf(createLabel("bar", "qux"))));
+  EXPECT_EQ(
+      JSON::Value(JSON::Protobuf(createLabel("foo", "bar"))),
+      labelsObject.values[0]);
+  EXPECT_EQ(
+      JSON::Value(JSON::Protobuf(createLabel("bar", "baz"))),
+      labelsObject.values[1]);
+  EXPECT_EQ(
+      JSON::Value(JSON::Protobuf(createLabel("bar", "qux"))),
+      labelsObject.values[2]);
 
   EXPECT_CALL(exec, shutdown(_))
     .Times(AtMost(1));
@@ -3454,12 +3460,14 @@ TEST_F(MasterTest, TaskDiscoveryInfo)
   EXPECT_EQ(2u, labelsArray.values.size());
 
   // Verify the content of 'clearance:high' pair.
-  EXPECT_EQ(labelsArray.values[0],
-            JSON::Value(JSON::Protobuf(createLabel("clearance", "high"))));
+  EXPECT_EQ(
+      JSON::Value(JSON::Protobuf(createLabel("clearance", "high"))),
+      labelsArray.values[0]);
 
   // Verify the content of 'RPC:yes' pair.
-  EXPECT_EQ(labelsArray.values[1],
-            JSON::Value(JSON::Protobuf(createLabel("RPC", "yes"))));
+  EXPECT_EQ(
+      JSON::Value(JSON::Protobuf(createLabel("RPC", "yes"))),
+      labelsArray.values[1]);
 
   EXPECT_CALL(exec, shutdown(_))
     .Times(AtMost(1));
