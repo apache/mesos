@@ -417,24 +417,35 @@ TEST_F(CgroupsAnyHierarchyTest, ROOT_CGROUPS_NestedCgroups)
 
 TEST_F(CgroupsAnyHierarchyTest, ROOT_CGROUPS_Tasks)
 {
+  pid_t pid = ::getpid();
+
+  Result<std::string> cgroup = cgroups::cpu::cgroup(pid);
+  ASSERT_SOME(cgroup);
+
   std::string hierarchy = path::join(baseHierarchy, "cpu");
-  Try<std::set<pid_t> > pids = cgroups::processes(hierarchy, "/");
+
+  Try<std::set<pid_t>> pids = cgroups::processes(hierarchy, cgroup.get());
   ASSERT_SOME(pids);
-  EXPECT_NE(0u, pids.get().count(1));
-  EXPECT_NE(0u, pids.get().count(::getpid()));
+
+  EXPECT_NE(0u, pids.get().count(pid));
 }
 
 
 TEST_F(CgroupsAnyHierarchyTest, ROOT_CGROUPS_Read)
 {
   std::string hierarchy = path::join(baseHierarchy, "cpu");
-  EXPECT_ERROR(cgroups::read(hierarchy, TEST_CGROUPS_ROOT, "invalid"));
 
-  std::string pid = stringify(::getpid());
+  EXPECT_ERROR(cgroups::read(hierarchy, TEST_CGROUPS_ROOT, "invalid42"));
 
-  Try<std::string> result = cgroups::read(hierarchy, "/", "tasks");
-  ASSERT_SOME(result);
-  EXPECT_TRUE(strings::contains(result.get(), pid));
+  pid_t pid = ::getpid();
+
+  Result<std::string> cgroup = cgroups::cpu::cgroup(pid);
+  ASSERT_SOME(cgroup);
+
+  Try<std::string> read = cgroups::read(hierarchy, cgroup.get(), "tasks");
+  ASSERT_SOME(read);
+
+  EXPECT_TRUE(strings::contains(read.get(), stringify(pid)));
 }
 
 
