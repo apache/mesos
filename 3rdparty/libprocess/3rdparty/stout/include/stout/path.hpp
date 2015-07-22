@@ -20,17 +20,42 @@
 
 #include <stout/strings.hpp>
 
-// Basic abstraction for representing a path in a filesystem.
+/**
+ * Represents a POSIX file systems path and offers common path
+ * manipulations.
+ */
 class Path
 {
 public:
   explicit Path(const std::string& path)
     : value(strings::remove(path, "file://", strings::PREFIX)) {}
 
-  // TODO(cmaloney): Add more useful operations such as 'absolute()'
-  // etc.
+  // TODO(cmaloney): Add more useful operations such as 'absolute()',
+  // 'directoryname()', 'filename()', etc.
 
-  // Like the standard '::basename()' except it is thread safe.
+  /**
+   * Extracts the component following the final '/'. Trailing '/'
+   * characters are not counted as part of the pathname.
+   *
+   * Like the standard '::basename()' except it is thread safe.
+   *
+   * The following list of examples (taken from SUSv2) shows the
+   * strings returned by basename() for different paths:
+   *
+   * path        | basename
+   * ----------- | -----------
+   * "/usr/lib"  | "lib"
+   * "/usr/"     | "usr"
+   * "usr"       | "usr"
+   * "/"         | "/"
+   * "."         | "."
+   * ".."        | ".."
+   *
+   * @return The component following the final '/'. If Path does not
+   *   contain a '/', this returns a copy of Path. If Path is the
+   *   string "/", then this returns the string "/". If Path is an
+   *   empty string, then it returns the string ".".
+   */
   inline std::string basename()
   {
     if (value.empty()) {
@@ -62,7 +87,29 @@ public:
     return value.substr(start, end + 1 - start);
   }
 
-  // Like the standard '::dirname()' except it is thread safe.
+  /**
+   * Extracts the component up to, but not including, the final '/'.
+   * Trailing '/' characters are not counted as part of the pathname.
+   *
+   * Like the standard '::dirname()' except it is thread safe.
+   *
+   * The following list of examples (taken from SUSv2) shows the
+   * strings returned by dirname() for different paths:
+   *
+   * path        | dirname
+   * ----------- | -----------
+   * "/usr/lib"  | "/usr"
+   * "/usr/"     | "/"
+   * "usr"       | "."
+   * "/"         | "/"
+   * "."         | "."
+   * ".."        | "."
+   *
+   * @return The component up to, but not including, the final '/'. If
+   *   Path does not contain a '/', then this returns the string ".".
+   *   If Path is the string "/", then this returns the string "/".
+   *   If Path is an empty string, then this returns the string ".".
+   */
   inline std::string dirname()
   {
     if (value.empty()) {
