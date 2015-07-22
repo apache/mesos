@@ -2988,16 +2988,15 @@ TEST_F(MasterTest, FrameworkWebUIUrlandCapabilities)
     process::http::get(master.get(), "state.json");
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(process::http::OK().status, masterState);
 
-  Try<JSON::Object> masterStateObject =
-    JSON::parse<JSON::Object>(masterState.get().body);
-  ASSERT_SOME(masterStateObject);
+  Try<JSON::Object> parse = JSON::parse<JSON::Object>(masterState.get().body);
+  ASSERT_SOME(parse);
 
-  // We need a mutable copy of masterStateObject to use [].
-  JSON::Object masterStateObject_ = masterStateObject.get();
+  // We need a mutable copy of parse to use [].
+  JSON::Object masterStateObject = parse.get();
 
-  EXPECT_EQ(1u, masterStateObject_.values.count("frameworks"));
+  EXPECT_EQ(1u, masterStateObject.values.count("frameworks"));
   JSON::Array frameworks =
-    masterStateObject_.values["frameworks"].as<JSON::Array>();
+    masterStateObject.values["frameworks"].as<JSON::Array>();
 
   EXPECT_EQ(1u, frameworks.values.size());
   JSON::Object framework_ = frameworks.values.front().as<JSON::Object>();
@@ -3106,18 +3105,18 @@ TEST_F(MasterTest, TaskLabels)
   Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
   ASSERT_SOME(parse);
 
-  Result<JSON::Array> labelsObject = parse.get().find<JSON::Array>(
+  Result<JSON::Array> find = parse.get().find<JSON::Array>(
       "frameworks[0].tasks[0].labels");
-  EXPECT_SOME(labelsObject);
+  EXPECT_SOME(find);
 
-  JSON::Array labelsObject_ = labelsObject.get();
+  JSON::Array labelsObject = find.get();
 
   // Verify the contents of 'foo:bar', 'bar:baz', and 'bar:qux' pairs.
-  EXPECT_EQ(labelsObject_.values[0],
+  EXPECT_EQ(labelsObject.values[0],
             JSON::Value(JSON::Protobuf(createLabel("foo", "bar"))));
-  EXPECT_EQ(labelsObject_.values[1],
+  EXPECT_EQ(labelsObject.values[1],
             JSON::Value(JSON::Protobuf(createLabel("bar", "baz"))));
-  EXPECT_EQ(labelsObject_.values[2],
+  EXPECT_EQ(labelsObject.values[2],
             JSON::Value(JSON::Protobuf(createLabel("bar", "qux"))));
 
   EXPECT_CALL(exec, shutdown(_))
@@ -3208,18 +3207,18 @@ TEST_F(MasterTest, TaskStatusLabels)
   Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
   ASSERT_SOME(parse);
 
-  Result<JSON::Array> labelsObject = parse.get().find<JSON::Array>(
+  Result<JSON::Array> find = parse.get().find<JSON::Array>(
       "frameworks[0].tasks[0].statuses[0].labels");
-  EXPECT_SOME(labelsObject);
+  EXPECT_SOME(find);
 
-  JSON::Array labelsObject_ = labelsObject.get();
+  JSON::Array labelsObject = find.get();
 
   // Verify the content of 'foo:bar' pair.
-  EXPECT_EQ(labelsObject_.values[0],
+  EXPECT_EQ(labelsObject.values[0],
             JSON::Value(JSON::Protobuf(createLabel("foo", "bar"))));
-  EXPECT_EQ(labelsObject_.values[1],
+  EXPECT_EQ(labelsObject.values[1],
             JSON::Value(JSON::Protobuf(createLabel("bar", "baz"))));
-  EXPECT_EQ(labelsObject_.values[2],
+  EXPECT_EQ(labelsObject.values[2],
             JSON::Value(JSON::Protobuf(createLabel("bar", "qux"))));
 
   EXPECT_CALL(exec, shutdown(_))
@@ -3419,12 +3418,12 @@ TEST_F(MasterTest, TaskDiscoveryInfo)
   ASSERT_EQ("v0.1.1", version.get());
 
   // Verify content of two named ports.
-  Result<JSON::Array> portsArray = parse.get().find<JSON::Array>(
+  Result<JSON::Array> find1 = parse.get().find<JSON::Array>(
       "frameworks[0].tasks[0].discovery.ports.ports");
-  EXPECT_SOME(portsArray);
+  EXPECT_SOME(find1);
 
-  JSON::Array portsArray_ = portsArray.get();
-  EXPECT_EQ(2u, portsArray_.values.size());
+  JSON::Array portsArray = find1.get();
+  EXPECT_EQ(2u, portsArray.values.size());
 
   // Verify the content of '8888:myport1:tcp' port.
   Try<JSON::Value> expected = JSON::parse(
@@ -3434,7 +3433,7 @@ TEST_F(MasterTest, TaskDiscoveryInfo)
       "  \"protocol\":\"tcp\""
       "}");
   ASSERT_SOME(expected);
-  EXPECT_EQ(expected.get(), portsArray_.values[0]);
+  EXPECT_EQ(expected.get(), portsArray.values[0]);
 
   // Verify the content of '9999:myport2:udp' port.
   expected = JSON::parse(
@@ -3444,22 +3443,22 @@ TEST_F(MasterTest, TaskDiscoveryInfo)
       "  \"protocol\":\"udp\""
       "}");
   ASSERT_SOME(expected);
-  EXPECT_EQ(expected.get(), portsArray_.values[1]);
+  EXPECT_EQ(expected.get(), portsArray.values[1]);
 
   // Verify content of two labels.
-  Result<JSON::Array> labelsArray = parse.get().find<JSON::Array>(
+  Result<JSON::Array> find2 = parse.get().find<JSON::Array>(
       "frameworks[0].tasks[0].discovery.labels.labels");
-  EXPECT_SOME(labelsArray);
+  EXPECT_SOME(find2);
 
-  JSON::Array labelsArray_ = labelsArray.get();
-  EXPECT_EQ(2u, labelsArray_.values.size());
+  JSON::Array labelsArray = find2.get();
+  EXPECT_EQ(2u, labelsArray.values.size());
 
   // Verify the content of 'clearance:high' pair.
-  EXPECT_EQ(labelsArray_.values[0],
+  EXPECT_EQ(labelsArray.values[0],
             JSON::Value(JSON::Protobuf(createLabel("clearance", "high"))));
 
   // Verify the content of 'RPC:yes' pair.
-  EXPECT_EQ(labelsArray_.values[1],
+  EXPECT_EQ(labelsArray.values[1],
             JSON::Value(JSON::Protobuf(createLabel("RPC", "yes"))));
 
   EXPECT_CALL(exec, shutdown(_))
