@@ -1444,15 +1444,6 @@ void ExpectNoFutureUnionProtobufs(
 // StatusUpdate came from the corresponding task.
 MATCHER_P(TaskStatusEq, task, "") { return arg.task_id() == task.task_id(); }
 
-
-inline Label createLabel(const std::string& key, const std::string& value)
-{
-  Label label;
-  label.set_key(key);
-  label.set_value(value);
-  return label;
-}
-
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {

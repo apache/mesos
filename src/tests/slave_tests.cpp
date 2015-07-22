@@ -43,6 +43,7 @@
 
 #include "common/build.hpp"
 #include "common/http.hpp"
+#include "common/protobuf_utils.hpp"
 
 #include "master/flags.hpp"
 #include "master/master.hpp"
@@ -64,6 +65,8 @@
 using namespace mesos::internal::slave;
 
 using mesos::internal::master::Master;
+
+using mesos::internal::protobuf::createLabel;
 
 using process::Clock;
 using process::Future;

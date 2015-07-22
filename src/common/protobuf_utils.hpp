@@ -70,6 +70,9 @@ Option<bool> getTaskHealth(const Task& task);
 // Helper function that creates a MasterInfo from UPID.
 MasterInfo createMasterInfo(const process::UPID& pid);
 
+
+Label createLabel(const std::string& key, const std::string& value);
+
 } // namespace protobuf {
 } // namespace internal {
 } // namespace mesos {

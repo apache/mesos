@@ -26,6 +26,8 @@
 #include <stout/os.hpp>
 #include <stout/try.hpp>
 
+#include "common/protobuf_utils.hpp"
+
 #include "hook/manager.hpp"
 
 #include "master/flags.hpp"
@@ -51,6 +53,8 @@ using std::string;
 using namespace mesos::modules;
 
 using mesos::internal::master::Master;
+
+using mesos::internal::protobuf::createLabel;
 
 using mesos::internal::slave::Fetcher;
 using mesos::internal::slave::MesosContainerizer;

@@ -48,6 +48,7 @@
 #include <stout/try.hpp>
 
 #include "common/build.hpp"
+#include "common/protobuf_utils.hpp"
 
 #include "master/flags.hpp"
 #include "master/master.hpp"
@@ -67,6 +68,8 @@
 using mesos::internal::master::Master;
 
 using mesos::internal::master::allocator::MesosAllocatorProcess;
+
+using mesos::internal::protobuf::createLabel;
 
 using mesos::internal::slave::GarbageCollectorProcess;
 using mesos::internal::slave::Slave;

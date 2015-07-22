@@ -190,6 +190,15 @@ MasterInfo createMasterInfo(const process::UPID& pid)
   return info;
 }
 
+
+Label createLabel(const std::string& key, const std::string& value)
+{
+  Label label;
+  label.set_key(key);
+  label.set_value(value);
+  return label;
+}
+
 } // namespace protobuf {
 } // namespace internal {
 } // namespace mesos {
