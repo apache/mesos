@@ -230,7 +230,7 @@ Future<Nothing> PosixFilesystemIsolatorProcess::update(
             (realpath.isError() ? realpath.error() : "No such directory"));
       }
 
-      // NOTE: A sanity check which we don't expect it to happen.
+      // NOTE: A sanity check which we don't expect to happen.
       if (realpath.get() != original) {
         return Failure(
             "The existing symlink '" + link + "' points to '" + original +
