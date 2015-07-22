@@ -218,15 +218,35 @@ Future<Nothing> PosixFilesystemIsolatorProcess::update(
 
     string link = path::join(info->directory, containerPath);
 
-    LOG(INFO) << "Adding symlink from '" << original << "' to '"
-              << link << "' for persistent volume " << resource
-              << " of container " << containerId;
+    if (os::exists(link)) {
+      // NOTE: This is possible because 'info->resources' will be
+      // reset when slave restarts and recovers. When the slave calls
+      // 'containerizer->update' after the executor re-registers,
+      // we'll try to relink all the already symlinked volumes.
+      Result<string> realpath = os::realpath(link);
+      if (!realpath.isSome()) {
+        return Failure(
+            "Failed to get the realpath of symlink '" + link + "': " +
+            (realpath.isError() ? realpath.error() : "No such directory"));
+      }
 
-    Try<Nothing> symlink = ::fs::symlink(original, link);
-    if (symlink.isError()) {
-      return Failure(
-          "Failed to symlink persistent volume from '" +
-          original + "' to '" + link + "'");
+      // NOTE: A sanity check which we don't expect it to happen.
+      if (realpath.get() != original) {
+        return Failure(
+            "The existing symlink '" + link + "' points to '" + original +
+            "' and the new target is '" + realpath.get() + "'");
+      }
+    } else {
+      LOG(INFO) << "Adding symlink from '" << original << "' to '"
+                << link << "' for persistent volume " << resource
+                << " of container " << containerId;
+
+      Try<Nothing> symlink = ::fs::symlink(original, link);
+      if (symlink.isError()) {
+        return Failure(
+            "Failed to symlink persistent volume from '" +
+            original + "' to '" + link + "'");
+      }
     }
   }
 
