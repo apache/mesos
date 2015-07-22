@@ -42,11 +42,26 @@ message Event {
     MESSAGE = 5;    // See 'Message' below.
     FAILURE = 6;    // See 'Failure' below.
     ERROR = 7;      // See 'Error' below.
+
+    // Periodic message sent by the Mesos master according to
+    // 'Subscribed.heartbeat_interval_seconds'. If the scheduler does
+    // not receive any events (including heartbeats) for an extended
+    // period of time (e.g., 5 x heartbeat_interval_seconds), there is
+    // likely a network partition. In such a case the scheduler should
+    // close the existing subscription connection and resubscribe
+    // using a backoff strategy.
+    HEARTBEAT = 8;
   }
 
   // First event received when the scheduler subscribes.
   message Subscribed {
     required FrameworkID framework_id = 1;
+
+    // This value will be set if the master is sending heartbeats. See
+    // the comment above on 'HEARTBEAT' for more details.
+    // TODO(vinod): Implement heartbeats in the master once the master
+    // can send HTTP events.
+    optional double heartbeat_interval_seconds = 2;
   }
 
   // Received whenever there are new resources that are offered to the
