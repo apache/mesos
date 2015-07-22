@@ -45,6 +45,11 @@
 
 namespace protobuf {
 
+// TODO(bmahler): Re-use stout's 'recordio' facilities here. Note
+// that these use a fixed size length header, whereas stout's
+// currently uses a base-10 newline delimited header for language
+// portability, which makes changing these a bit tricky.
+
 // Write out the given protobuf to the specified file descriptor by
 // first writing out the length of the protobuf followed by the
 // contents.
