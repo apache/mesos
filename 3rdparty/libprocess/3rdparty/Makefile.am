@@ -182,6 +182,7 @@ stout_tests_SOURCES =				\
   $(STOUT)/tests/protobuf_tests.pb.cc		\
   $(STOUT)/tests/protobuf_tests.pb.h		\
   $(STOUT)/tests/protobuf_tests.proto		\
+  $(STOUT)/tests/recordio_tests.cpp		\
   $(STOUT)/tests/result_tests.cpp		\
   $(STOUT)/tests/os/sendfile_tests.cpp		\
   $(STOUT)/tests/os/signals_tests.cpp		\
