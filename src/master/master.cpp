@@ -5042,8 +5042,9 @@ void Master::addSlave(
   // TODO(vinod): Reconcile the notion of a completed framework across the
   // master and slave.
   foreach (const Archive::Framework& completedFramework, completedFrameworks) {
-    const FrameworkID& frameworkId = completedFramework.framework_info().id();
-    Framework* framework = getFramework(frameworkId);
+    Framework* framework = getFramework(
+        completedFramework.framework_info().id());
+
     foreach (const Task& task, completedFramework.tasks()) {
       if (framework != NULL) {
         VLOG(2) << "Re-adding completed task " << task.task_id()

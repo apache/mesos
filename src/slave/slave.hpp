@@ -117,14 +117,13 @@ public:
       const process::UPID& from,
       const FrameworkInfo& frameworkInfo,
       const FrameworkID& frameworkId,
-      const std::string& pid,
+      const process::UPID& pid,
       TaskInfo task);
 
   // Made 'virtual' for Slave mocking.
   virtual void _runTask(
       const process::Future<bool>& future,
       const FrameworkInfo& frameworkInfo,
-      const std::string& pid,
       const TaskInfo& task);
 
   process::Future<bool> unschedule(const std::string& path);
@@ -150,7 +149,9 @@ public:
       const ExecutorID& executorId,
       const std::string& data);
 
-  void updateFramework(const FrameworkID& frameworkId, const std::string& pid);
+  void updateFramework(
+      const FrameworkID& frameworkId,
+      const process::UPID& pid);
 
   void checkpointResources(const std::vector<Resource>& checkpointedResources);
 
@@ -634,7 +635,7 @@ struct Framework
   Framework(
       Slave* slave,
       const FrameworkInfo& info,
-      const process::UPID& pid);
+      const Option<process::UPID>& pid);
 
   ~Framework();
 
@@ -660,7 +661,12 @@ struct Framework
 
   const FrameworkInfo info;
 
-  UPID pid;
+  // Frameworks using the scheduler driver will have a 'pid',
+  // which allows us to send executor messages directly to the
+  // driver. Frameworks using the HTTP API (in 0.24.0) will
+  // not have a 'pid', in which case executor messages are
+  // sent through the master.
+  Option<UPID> pid;
 
   // Executors with pending tasks.
   hashmap<ExecutorID, hashmap<TaskID, TaskInfo>> pending;

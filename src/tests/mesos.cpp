@@ -462,7 +462,7 @@ MockSlave::MockSlave(const slave::Flags& flags,
   // Set up default behaviors, calling the original methods.
   EXPECT_CALL(*this, runTask(_, _, _, _, _))
     .WillRepeatedly(Invoke(this, &MockSlave::unmocked_runTask));
-  EXPECT_CALL(*this, _runTask(_, _, _, _))
+  EXPECT_CALL(*this, _runTask(_, _, _))
     .WillRepeatedly(Invoke(this, &MockSlave::unmocked__runTask));
   EXPECT_CALL(*this, killTask(_, _, _))
     .WillRepeatedly(Invoke(this, &MockSlave::unmocked_killTask));
@@ -485,7 +485,7 @@ void MockSlave::unmocked_runTask(
     const UPID& from,
     const FrameworkInfo& frameworkInfo,
     const FrameworkID& frameworkId,
-    const std::string& pid,
+    const UPID& pid,
     TaskInfo task)
 {
   slave::Slave::runTask(from, frameworkInfo, frameworkId, pid, task);
@@ -495,10 +495,9 @@ void MockSlave::unmocked_runTask(
 void MockSlave::unmocked__runTask(
       const Future<bool>& future,
       const FrameworkInfo& frameworkInfo,
-      const std::string& pid,
       const TaskInfo& task)
 {
-  slave::Slave::_runTask(future, frameworkInfo, pid, task);
+  slave::Slave::_runTask(future, frameworkInfo, task);
 }
 
 

@@ -1793,7 +1793,7 @@ TEST_F(SlaveTest, KillTaskBetweenRunTaskParts)
   // later, tie reaching the critical moment when to kill the task to
   // a future.
   Future<Nothing> _runTask;
-  EXPECT_CALL(slave, _runTask(_, _, _, _))
+  EXPECT_CALL(slave, _runTask(_, _, _))
     .WillOnce(DoAll(FutureSatisfy(&_runTask),
                     SaveArg<0>(&future),
                     SaveArg<1>(&frameworkInfo)));
@@ -1818,8 +1818,7 @@ TEST_F(SlaveTest, KillTaskBetweenRunTaskParts)
   driver.killTask(task.task_id());
 
   AWAIT_READY(killTask);
-  slave.unmocked__runTask(
-      future, frameworkInfo, master.get(), task);
+  slave.unmocked__runTask(future, frameworkInfo, task);
 
   AWAIT_READY(removeFramework);
 

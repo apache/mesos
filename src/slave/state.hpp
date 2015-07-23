@@ -248,7 +248,11 @@ struct FrameworkState
 
   FrameworkID id;
   Option<FrameworkInfo> info;
+
+  // Note that HTTP frameworks (supported in 0.24.0) do not have a
+  // PID, in which case 'pid' is Some(UPID()) rather than None().
   Option<process::UPID> pid;
+
   hashmap<ExecutorID, ExecutorState> executors;
   unsigned int errors;
 };

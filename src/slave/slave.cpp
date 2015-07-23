@@ -1165,13 +1165,16 @@ void Slave::doReliableRegistration(Duration maxBackoff)
     foreach (const Owned<Framework>& completedFramework, completedFrameworks) {
       VLOG(1) << "Reregistering completed framework "
                 << completedFramework->id();
+
       Archive::Framework* completedFramework_ =
         message.add_completed_frameworks();
-      FrameworkInfo* frameworkInfo =
-        completedFramework_->mutable_framework_info();
-      frameworkInfo->CopyFrom(completedFramework->info);
 
-      completedFramework_->set_pid(completedFramework->pid);
+      completedFramework_->mutable_framework_info()->CopyFrom(
+          completedFramework->info);
+
+      if (completedFramework->pid.isSome()) {
+        completedFramework_->set_pid(completedFramework->pid.get());
+      }
 
       foreach (const Owned<Executor>& executor,
                completedFramework->completedExecutors) {
@@ -1179,10 +1182,12 @@ void Slave::doReliableRegistration(Duration maxBackoff)
                 << " with " << executor->terminatedTasks.size()
                 << " terminated tasks, " << executor->completedTasks.size()
                 << " completed tasks";
+
         foreach (const Task* task, executor->terminatedTasks.values()) {
           VLOG(2) << "Reregistering terminated task " << task->task_id();
           completedFramework_->add_tasks()->CopyFrom(*task);
         }
+
         foreach (const std::shared_ptr<Task>& task, executor->completedTasks) {
           VLOG(2) << "Reregistering completed task " << task->task_id();
           completedFramework_->add_tasks()->CopyFrom(*task);
@@ -1222,7 +1227,7 @@ void Slave::runTask(
     const UPID& from,
     const FrameworkInfo& frameworkInfo_,
     const FrameworkID& frameworkId_,
-    const string& pid,
+    const UPID& pid,
     TaskInfo task)
 {
   if (master != from) {
@@ -1291,7 +1296,13 @@ void Slave::runTask(
       unschedule = unschedule.then(defer(self(), &Self::unschedule, path));
     }
 
-    framework = new Framework(this, frameworkInfo, pid);
+    Option<UPID> frameworkPid = None();
+
+    if (pid != UPID()) {
+      frameworkPid = pid;
+    }
+
+    framework = new Framework(this, frameworkInfo, frameworkPid);
     frameworks[frameworkId] = framework;
 
     // Is this same framework in completedFrameworks? If so, move the completed
@@ -1340,14 +1351,13 @@ void Slave::runTask(
 
   // Run the task after the unschedules are done.
   unschedule.onAny(
-      defer(self(), &Self::_runTask, lambda::_1, frameworkInfo, pid, task));
+      defer(self(), &Self::_runTask, lambda::_1, frameworkInfo, task));
 }
 
 
 void Slave::_runTask(
     const Future<bool>& future,
     const FrameworkInfo& frameworkInfo,
-    const string& pid,
     const TaskInfo& task)
 {
   const FrameworkID frameworkId = frameworkInfo.id();
@@ -1733,8 +1743,12 @@ void Slave::runTasks(
     RunTaskMessage message;
     message.mutable_framework_id()->MergeFrom(framework->id());
     message.mutable_framework()->MergeFrom(framework->info);
-    message.set_pid(framework->pid);
     message.mutable_task()->MergeFrom(task);
+
+    // Note that 0.23.x executors require the 'pid' to be set
+    // to decode the message, but do not use the field.
+    message.set_pid(framework->pid.getOrElse(UPID()));
+
     send(executor->pid, message);
   }
 }
@@ -2087,7 +2101,9 @@ void Slave::schedulerMessage(
 }
 
 
-void Slave::updateFramework(const FrameworkID& frameworkId, const string& pid)
+void Slave::updateFramework(
+    const FrameworkID& frameworkId,
+    const UPID& pid)
 {
   CHECK(state == RECOVERING || state == DISCONNECTED ||
         state == RUNNING || state == TERMINATING)
@@ -2115,15 +2131,25 @@ void Slave::updateFramework(const FrameworkID& frameworkId, const string& pid)
     case Framework::RUNNING: {
       LOG(INFO) << "Updating framework " << frameworkId << " pid to " << pid;
 
-      framework->pid = pid;
+      if (pid == UPID()) {
+        framework->pid = None();
+      } else {
+        framework->pid = pid;
+      }
+
       if (framework->info.checkpoint()) {
-        // Checkpoint the framework pid.
+        // Checkpoint the framework pid, note that when the 'pid'
+        // is None, we checkpoint a default UPID() because
+        // 0.23.x slaves consider a missing pid file to be an
+        // error.
         const string path = paths::getFrameworkPidPath(
             metaDir, info.id(), frameworkId);
 
-        VLOG(1) << "Checkpointing framework pid '"
-                << framework->pid << "' to '" << path << "'";
-        CHECK_SOME(state::checkpoint(path, framework->pid));
+        VLOG(1) << "Checkpointing framework pid"
+                << " '" << framework->pid.getOrElse(UPID()) << "'"
+                << " to '" << path << "'";
+
+        CHECK_SOME(state::checkpoint(path, framework->pid.getOrElse(UPID())));
       }
 
       // Inform status update manager to immediately resend any pending
@@ -2989,15 +3015,23 @@ void Slave::executorMessage(
     return;
   }
 
-  LOG(INFO) << "Sending message for framework " << frameworkId
-            << " to " << framework->pid;
-
   ExecutorToFrameworkMessage message;
   message.mutable_slave_id()->MergeFrom(slaveId);
   message.mutable_framework_id()->MergeFrom(frameworkId);
   message.mutable_executor_id()->MergeFrom(executorId);
   message.set_data(data);
-  send(framework->pid, message);
+
+  CHECK_SOME(master);
+
+  if (framework->pid.isSome()) {
+    LOG(INFO) << "Sending message for framework " << frameworkId
+              << " to " << framework->pid.get();
+    send(framework->pid.get(), message);
+  } else {
+    LOG(INFO) << "Sending message for framework " << frameworkId
+              << " through the master " << master.get();
+    send(master.get(), message);
+  }
 
   metrics.valid_framework_messages++;
 }
@@ -4142,8 +4176,17 @@ void Slave::recoverFramework(const FrameworkState& state)
     CHECK_EQ(frameworkInfo.id(), state.id);
   }
 
+  // In 0.24.0, HTTP schedulers are supported and these do not
+  // have a 'pid'. In this case, the slave will checkpoint UPID().
   CHECK_SOME(state.pid);
-  Framework* framework = new Framework(this, frameworkInfo, state.pid.get());
+
+  Option<UPID> pid = state.pid.get();
+
+  if (pid.get() == UPID()) {
+    pid = None();
+  }
+
+  Framework* framework = new Framework(this, frameworkInfo, pid);
   frameworks[framework->id()] = framework;
 
   // Now recover the executors for this framework.
@@ -4662,7 +4705,7 @@ double Slave::_resources_revocable_percent(const string& name)
 Framework::Framework(
     Slave* _slave,
     const FrameworkInfo& _info,
-    const UPID& _pid)
+    const Option<UPID>& _pid)
   : state(RUNNING),
     slave(_slave),
     info(_info),
@@ -4675,15 +4718,21 @@ Framework::Framework(
         slave->metaDir, slave->info.id(), id());
 
     VLOG(1) << "Checkpointing FrameworkInfo to '" << path << "'";
+
     CHECK_SOME(state::checkpoint(path, info));
 
-    // Checkpoint the framework pid.
+    // Checkpoint the framework pid, note that we checkpoint a
+    // UPID() when it is None (for HTTP schedulers) because
+    // 0.23.x slaves consider a missing pid file to be an
+    // error.
     path = paths::getFrameworkPidPath(
         slave->metaDir, slave->info.id(), id());
 
-    VLOG(1) << "Checkpointing framework pid '"
-            << pid << "' to '" << path << "'";
-    CHECK_SOME(state::checkpoint(path, pid));
+    VLOG(1) << "Checkpointing framework pid"
+            << " '" << pid.getOrElse(UPID()) << "'"
+            << " to '" << path << "'";
+
+    CHECK_SOME(state::checkpoint(path, pid.getOrElse(UPID())));
   }
 }
 
