@@ -52,23 +52,37 @@ public:
 
   virtual ~Store() {}
 
-  // Put an image into to the store. Returns the DockerImage containing
-  // the manifest, hash of the image, and the path to the extracted
-  // image.
+  /**
+   * Put an image into the store. Returns the DockerImage containing
+   * the manifest, hash of the image, and the path to the extracted
+   * image.
+   *
+   * @param name The name of the Docker image being stored.
+   * @param sandbox The path of the directory in which the stderr and
+   *     stdout logs will be placed.
+   *
+   * @return The DockerImage placed in the store.
+   */
   virtual process::Future<DockerImage> put(
-      const std::string& uri,
       const std::string& name,
-      const std::string& directory) = 0;
+      const std::string& sandbox) = 0;
 
-  // Get image by name.
+  /**
+  * Get image by name.
+  *
+  * @param name The name of the Docker image to retrieve from store.
+  *
+  * @return The DockerImage or none if image is not in the store.
+  */
   virtual process::Future<Option<DockerImage>> get(const std::string& name) = 0;
+
+  // TODO(chenlily): Implement removing an image.
 
 protected:
   Store() {}
 };
 
-
-// Forward declaration.
+// Forward Declaration.
 class LocalStoreProcess;
 
 class LocalStore : public Store
@@ -80,10 +94,13 @@ public:
       const Flags& flags,
       Fetcher* fetcher);
 
+  /**
+   * Put assumes the image tar archive is located in the directory specified in
+   * the slave flag docker_discovery_local_dir and is named with <name>.tar .
+   */
   virtual process::Future<DockerImage> put(
-      const std::string& uri,
       const std::string& name,
-      const std::string& directory);
+      const std::string& sandbox);
 
   virtual process::Future<Option<DockerImage>> get(const std::string& name);
 
@@ -91,6 +108,7 @@ private:
   explicit LocalStore(process::Owned<LocalStoreProcess> process);
 
   LocalStore(const LocalStore&); // Not copyable.
+
   LocalStore& operator=(const LocalStore&); // Not assignable.
 
   process::Owned<LocalStoreProcess> process;
@@ -107,43 +125,49 @@ public:
       Fetcher* fetcher);
 
   process::Future<DockerImage> put(
-      const std::string& uri,
       const std::string& name,
-      const std::string& directory);
+      const std::string& sandbox);
 
   process::Future<Option<DockerImage>> get(const std::string& name);
 
 private:
-  LocalStoreProcess(
-      const Flags& flags,
-      Fetcher* fetcher);
+  LocalStoreProcess(const Flags& flags);
 
-  Try<Nothing> restore();
+  Try<Nothing> restore(const Flags& flags);
 
-  process::Future<process::Shared<DockerLayer>> putLayer(
-      const std::string& uri,
-      const std::string& directory);
+  process::Future<Nothing> untarImage(
+      const std::string& tarPath,
+      const std::string& staging);
+
+  process::Future<DockerImage> putImage(
+      const std::string& name,
+      const std::string& staging,
+      const std::string& sandbox);
+
+  Result<std::string> getParentId(
+      const std::string& staging,
+      const std::string& layerId);
+
+  process::Future<Nothing> putLayers(
+      const std::string& staging,
+      const std::list<std::string>& layers,
+      const std::string& sandbox);
 
   process::Future<Nothing> untarLayer(
-      const std::string& uri);
+      const std::string& staging,
+      const std::string& id,
+      const std::string& sandbox);
 
-  process::Future<process::Shared<DockerLayer>> storeLayer(
-      const std::string& hash,
-      const std::string& uri,
-      const std::string& directory);
-
-  process::Future<process::Shared<DockerLayer>> entry(
-      const std::string& uri,
-      const std::string& directory);
+  process::Future<Nothing> moveLayer(
+      const std::string& staging,
+      const std::string& id,
+      const std::string& sandbox);
 
   const Flags flags;
 
-  // name -> DockerImage
+  // This hashmap maps a Docker image by name to its corresponding DockerImage
+  // object.
   hashmap<std::string, DockerImage> images;
-  // hash -> DockerLayer
-  hashmap<std::string, process::Shared<DockerLayer>> layers;
-
-  Fetcher* fetcher;
 };
 
 } // namespace docker {

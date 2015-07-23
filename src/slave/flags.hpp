@@ -53,6 +53,7 @@ public:
   std::string image_provisioner_backend;
   std::string appc_store_dir;
 
+  std::string docker_store;
   std::string docker_store_dir;
   std::string docker_backend;
   std::string docker_rootfs_dir;

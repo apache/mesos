@@ -47,6 +47,24 @@ namespace internal {
 namespace slave {
 namespace docker {
 
+ImageName::ImageName(const std::string& name)
+{
+  registry = None();
+  std::vector<std::string> components = strings::split(name, "/");
+  if (components.size() > 2) {
+    registry = name.substr(0, name.find_last_of("/"));
+  }
+
+  std::size_t found = components.back().find_last_of(':');
+  if (found == std::string::npos) {
+    repo = components.back();
+    tag = "latest";
+  } else {
+    repo = components.back().substr(0, found);
+    tag = components.back().substr(found + 1);
+  }
+}
+
 Try<Owned<Provisioner>> DockerProvisioner::create(
     const Flags& flags,
     Fetcher* fetcher)
@@ -199,7 +217,7 @@ Future<string> DockerProvisionerProcess::_provision(
   }
 
   return backend->provision(layerPaths, base)
-    .then([=]() -> Future<string> {
+    .then([rootfs]() -> Future<string> {
       // Bind mount the rootfs to itself so we can pivot_root. We do
       // it now so any subsequent mounts by the containerizer or
       // isolators are correctly handled by pivot_root.
@@ -224,15 +242,7 @@ Future<DockerImage> DockerProvisionerProcess::fetch(
       if (image.isSome()) {
         return image.get();
       }
-
-      Try<string> uri = path::join(
-          "file:///",
-          flags.docker_discovery_local_dir,
-          name);
-      if (uri.isError()) {
-        return Failure("Unable to join discovery local path: " + uri.error());
-      }
-      return store->put(uri.get(), name, sandbox);
+      return store->put(name, sandbox);
     });
 }
 
@@ -256,7 +266,11 @@ Future<bool> DockerProvisionerProcess::destroy(
 
   foreach (const fs::MountInfoTable::Entry& entry, mountTable.get().entries) {
     if (strings::startsWith(entry.target, base)) {
-      fs::unmount(entry.target, MNT_DETACH);
+      Try<Nothing> unmount = fs::unmount(entry.target, MNT_DETACH);
+      if (unmount.isError()) {
+        return Failure("Failed to unmount mount table target: " +
+                        unmount.error());
+      }
     }
   }
 
