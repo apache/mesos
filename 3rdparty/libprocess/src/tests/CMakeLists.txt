@@ -14,6 +14,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+set(PROCESS_TESTS_TARGET process_tests)
+
+# PROCESS TESTS.
+################
 set(PROCESS_TESTS_SRC
   ${PROCESS_TESTS_SRC}
   decoder_tests.cpp
@@ -37,21 +41,28 @@ set(PROCESS_TESTS_SRC
   time_tests.cpp
   )
 
-include_directories(
-  ../   # includes, e.g., decoder.hpp
-  ${PROCESS_INCLUDE_DIRS}
-  ${GMOCK_ROOT}/include
-  ${GTEST_SRC}/include
-  src
-  )
+# INCLUDE DIRECTIVES FOR PROCESS TEST BINARY (generates, e.g., -I/path/to/thing
+# on Linux).
+###############################################################################
+include_directories(${PROCESS_TEST_INCLUDE_DIRS})
 
-link_directories(
-  ${PROCESS_LIB_DIRS}
-  ${GMOCK_ROOT}-build/lib/.libs
-  ${GMOCK_ROOT}-build/gtest/lib/.libs
-  )
+# LINKING LIBRARIES BY DIRECTORY (might generate, e.g., -L/path/to/thing on
+# Linux).
+###########################################################################
+link_directories(${PROCESS_TEST_LIB_DIRS})
 
-add_executable(tests ${PROCESS_TESTS_SRC})
-target_link_libraries(tests ${PROCESS_LIBS} gmock gtest)
-add_dependencies(tests ${PROCESS_TEST_DEPENDENCIES})
-add_test(NAME ProcessTests COMMAND ./tests)
+# THE PROCESS TEST EXECUTABLE (generates, e.g., process_tests, etc., on Linux).
+###############################################################################
+add_executable(${PROCESS_TESTS_TARGET} ${PROCESS_TESTS_SRC})
+
+# ADD LINKER FLAGS (generates, e.g., -lglog on Linux).
+######################################################
+target_link_libraries(${PROCESS_TESTS_TARGET} ${PROCESS_TEST_LIBS})
+
+# ADD BINARY DEPENDENCIES (tells CMake what to compile/build first).
+####################################################################
+add_dependencies(${PROCESS_TESTS_TARGET} ${PROCESS_TEST_DEPENDENCIES})
+
+# ADD TEST TARGET (runs when you do, e.g., `make check`).
+#########################################################
+add_test(NAME ProcessTests COMMAND ./${PROCESS_TESTS_TARGET})

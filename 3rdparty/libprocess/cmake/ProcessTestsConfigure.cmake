@@ -32,8 +32,9 @@
 #     export the variables for the dependencies that only the test package has.
 
 # DIRECTORY STRUCTURE FOR THIRD-PARTY LIBS REQUIRED FOR TEST INFRASTRUCTURE.
-###########################################################################
-EXTERNAL("gmock" "1.6.0" "${PROCESS_3RD_BIN}")
+############################################################################
+EXTERNAL("gmock"    "1.6.0" "${PROCESS_3RD_BIN}")
+EXTERNAL("protobuf" "2.5.0" "${PROCESS_3RD_BIN}")
 
 set(GTEST_SRC          ${GMOCK_ROOT}/gtest)
 set(GPERFTOOLS_VERSION 2.0)
@@ -46,5 +47,39 @@ set(GPERFTOOLS         ${PROCESS_3RD_BIN}/gperftools-${GPERFTOOLS_VERSION})
 set(PROCESS_TEST_DEPENDENCIES
   ${PROCESS_TEST_DEPENDENCIES}
   ${PROCESS_DEPENDENCIES}
+  ${PROTOBUF_TARGET}
   ${GMOCK_TARGET}
+  )
+
+# DEFINE THIRD-PARTY INCLUDE DIRECTORIES. Tells compiler toolchain where to get
+# headers for our third party libs (e.g., -I/path/to/glog on Linux).
+###############################################################################
+set(PROCESS_TEST_INCLUDE_DIRS
+  ${PROCESS_TEST_INCLUDE_DIRS}
+  ../   # includes, e.g., decoder.hpp
+  ${PROCESS_INCLUDE_DIRS}
+  ${GMOCK_ROOT}/include
+  ${GTEST_SRC}/include
+  src
+  )
+
+# DEFINE THIRD-PARTY LIB INSTALL DIRECTORIES. Used to tell the compiler
+# toolchain where to find our third party libs (e.g., -L/path/to/glog on
+# Linux).
+########################################################################
+set(PROCESS_TEST_LIB_DIRS
+  ${PROCESS_TEST_LIB_DIRS}
+  ${PROCESS_LIB_DIRS}
+  ${GMOCK_ROOT}-build/lib/.libs
+  ${GMOCK_ROOT}-build/gtest/lib/.libs
+  )
+
+# DEFINE THIRD-PARTY LIBS. Used to generate flags that the linker uses to
+# include our third-party libs (e.g., -lglog on Linux).
+#########################################################################
+set(PROCESS_TEST_LIBS
+  ${PROCESS_TEST_LIBS}
+  ${PROCESS_LIBS}
+  gmock
+  gtest
   )

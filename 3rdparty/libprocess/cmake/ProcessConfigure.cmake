@@ -44,10 +44,6 @@ set(PROCESS_PACKAGE_VERSION 0.0.1)
 set(PROCESS_PACKAGE_SOVERSION 0)
 set(PROCESS_TARGET process-${PROCESS_PACKAGE_VERSION})
 
-# VARIABLES REQUIRED TO RUN CONFIG SCRIPTS.
-###########################################
-set(PROTOBUF_VERSION       2.5.0)
-
 # DEFINE DIRECTORY STRUCTURE FOR THIRD-PARTY LIBS.
 ##################################################
 set(PROCESS_3RD_SRC ${CMAKE_SOURCE_DIR}/3rdparty/libprocess/3rdparty/)

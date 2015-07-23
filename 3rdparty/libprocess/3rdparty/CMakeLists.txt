@@ -13,6 +13,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 include(ExternalProject)
 
 # Downloads, configures, and compiles the third party libraries for the process
@@ -57,6 +58,22 @@ if (NOT WIN32)
   set(LIBEV_BUILD_CMD  make)
   # Patch libev to keep it from reaping child processes.
   PATCH_CMD(${PROCESS_3RD_SRC}/libev-4.15.patch LIBEV_PATCH_CMD)
+else (NOT WIN32)
+  # Quotes are important in the following commands. Building glog on WIN32
+  # must be done in Visual Studio, and in that case, these commands must be
+  # nops. But if you take out the quote marks, CMake will treat this as an
+  # empty build command, and will attempt to build glog as a CMake project.
+  set(GLOG_CONFIG_CMD  "")
+  set(GLOG_BUILD_CMD   "")
+  set(GLOG_INSTALL_CMD "")
+  set(GLOG_PATCH_CMD   "")
+
+  set(RY_BUILD_CMD   "")
+  set(RY_INSTALL_CMD "")
+
+  set(LIBEV_CONFIG_CMD "")
+  set(LIBEV_BUILD_CMD  "")
+  set(LIBEV_PATCH_CMD  "")
 endif (NOT WIN32)
 
 # THIRD-PARTY LIBRARIES. Tell the build system how to pull in and build third-
@@ -68,21 +85,17 @@ ExternalProject_Add(
   CONFIGURE_COMMAND ""
   BUILD_COMMAND     ""
   INSTALL_COMMAND   ""
-  URL               "${BOOST_URL}"
+  URL               ${BOOST_URL}
   )
 
 ExternalProject_Add(
   ${GLOG_TARGET}
   PREFIX            ${GLOG_CMAKE_ROOT}
-  # Quotes are important in the following commands. Building glog on WIN32
-  # must be done in Visual Studio, and in that case, these commands must be
-  # nops. But if you take out the quote marks, CMake will treat this as an
-  # empty build command, and will attempt to build glog as a CMake project.
-  PATCH_COMMAND     "${GLOG_PATCH_CMD}"
-  CONFIGURE_COMMAND "${GLOG_CONFIG_CMD}"
-  BUILD_COMMAND     "${GLOG_BUILD_CMD}"
-  INSTALL_COMMAND   "${GLOG_INSTALL_CMD}"
-  URL               "${GLOG_URL}"
+  PATCH_COMMAND     ${GLOG_PATCH_CMD}
+  CONFIGURE_COMMAND ${GLOG_CONFIG_CMD}
+  BUILD_COMMAND     ${GLOG_BUILD_CMD}
+  INSTALL_COMMAND   ${GLOG_INSTALL_CMD}
+  URL               ${GLOG_URL}
   )
 
 ExternalProject_Add(
@@ -92,47 +105,74 @@ ExternalProject_Add(
   CONFIGURE_COMMAND ""
   BUILD_COMMAND     ""
   INSTALL_COMMAND   ""
-  URL               "${PICOJSON_URL}"
+  URL               ${PICOJSON_URL}
   )
 
 ExternalProject_Add(
   ${HTTP_PARSER_TARGET}
   PREFIX            ${HTTP_PARSER_CMAKE_ROOT}
   CONFIGURE_COMMAND ""
-  BUILD_COMMAND     "${RY_BUILD_CMD}"
-  INSTALL_COMMAND   "${RY_INSTALL_CMD}"
-  URL               "${HTTP_PARSER_URL}"
+  BUILD_COMMAND     ${RY_BUILD_CMD}
+  INSTALL_COMMAND   ${RY_INSTALL_CMD}
+  URL               ${HTTP_PARSER_URL}
   )
 
 ExternalProject_Add(
   ${LIBEV_TARGET}
   PREFIX            ${LIBEV_CMAKE_ROOT}
-  PATCH_COMMAND     "${LIBEV_PATCH_CMD}"
-  CONFIGURE_COMMAND "${LIBEV_CONFIG_CMD}"
-  BUILD_COMMAND     "${LIBEV_BUILD_CMD}"
+  PATCH_COMMAND     ${LIBEV_PATCH_CMD}
+  CONFIGURE_COMMAND ${LIBEV_CONFIG_CMD}
+  BUILD_COMMAND     ${LIBEV_BUILD_CMD}
   INSTALL_COMMAND   ""
-  URL               "${LIBEV_URL}"
+  URL               ${LIBEV_URL}
   )
 
 # THIRD-PARTY LIBRARIES FOR TESTS.
 ##################################
 if (REBUNDLED)
-  set(GMOCK_URL       ${REBUNDLED_DIR}/gmock-${GMOCK_VERSION}.tar.gz)
+  set(GMOCK_URL    ${REBUNDLED_DIR}/gmock-${GMOCK_VERSION}.tar.gz)
+  set(PROTOBUF_URL ${REBUNDLED_DIR}/protobuf-${PROTOBUF_VERSION}.tar.gz)
 else (REBUNDLED)
   # TODO(hausdorff): depends on the github mirror, should remove when possible.
-  set(GMOCK_URL       https://github.com/apache/mesos/raw/master/3rdparty/libprocess/3rdparty/gmock-${GMOCK_VERSION}.tar.gz)
+  set(GMOCK_URL    https://github.com/apache/mesos/raw/master/3rdparty/libprocess/3rdparty/gmock-${GMOCK_VERSION}.tar.gz)
+  # TODO(hausdorff): depends on the github mirror, should remove when possible.
+  set(PROTOBUF_URL https://github.com/hausdorff/mesos/raw/test_cmake/3rdparty/libprocess/3rdparty/protobuf-${PROTOBUF_VERSION}.tar.gz)
 endif (REBUNDLED)
 
 if (NOT WIN32)
-  set(GMOCK_CONFIG_CMD  ${GMOCK_ROOT}/configure --prefix=${GMOCK_ROOT}-lib/lib)
-  set(GMOCK_BUILD_CMD   make)
+  set(GMOCK_CONFIG_CMD ${GMOCK_ROOT}/configure --prefix=${GMOCK_ROOT}-lib/lib)
+  set(GMOCK_BUILD_CMD  make)
+
+  set(PROTOBUF_CONFIG_CMD  ${PROTOBUF_ROOT}/src/../configure --prefix=${PROTOBUF_LIB})
+  set(PROTOBUF_BUILD_CMD   make)
+  set(PROTOBUF_INSTALL_CMD make install)
+
 endif (NOT WIN32)
 
 ExternalProject_Add(
   ${GMOCK_TARGET}
   PREFIX            ${GMOCK_CMAKE_ROOT}
-  CONFIGURE_COMMAND "${GMOCK_CONFIG_CMD}"
-  BUILD_COMMAND     "${GMOCK_BUILD_CMD}"
+  CONFIGURE_COMMAND ${GMOCK_CONFIG_CMD}
+  BUILD_COMMAND     ${GMOCK_BUILD_CMD}
   INSTALL_COMMAND   ""
-  URL               "${GMOCK_URL}"
+  URL               ${GMOCK_URL}
   )
+
+ExternalProject_Add(
+  ${PROTOBUF_TARGET}
+  PREFIX            ${PROTOBUF_CMAKE_ROOT}
+  PATCH_COMMAND     ${PROTOBUF_PATCH_CMD}
+  CONFIGURE_COMMAND ${PROTOBUF_CONFIG_CMD}
+  BUILD_COMMAND     ${PROTOBUF_BUILD_CMD}
+  INSTALL_COMMAND   ${PROTOBUF_INSTALL_CMD}
+  URL               ${PROTOBUF_URL}
+  )
+
+# STOUT TESTING INFRASTRUCTURE.
+###############################
+list(
+  APPEND CMAKE_MODULE_PATH
+  ${CMAKE_SOURCE_DIR}/3rdparty/libprocess/3rdparty/stout/cmake
+  )
+include(StoutTestsConfigure)
+add_subdirectory(stout/tests)
