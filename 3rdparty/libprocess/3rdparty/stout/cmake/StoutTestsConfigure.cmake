@@ -17,6 +17,15 @@
 find_package(Apr REQUIRED)
 find_package(Svn REQUIRED)
 
+# COMPILER CONFIGURATION.
+#########################
+if (APPLE)
+  # GTEST on OSX needs its own tr1 tuple.
+  # TODO(dhamon): Update to gmock 1.7 and pass GTEST_LANG_CXX11 when
+  # in C++11 mode.
+  add_definitions(-DGTEST_USE_OWN_TR1_TUPLE=1)
+endif (APPLE)
+
 # DEFINE PROCESS LIBRARY DEPENDENCIES. Tells the process library build targets
 # download/configure/build all third-party libraries before attempting to build.
 ################################################################################
@@ -83,11 +92,10 @@ set(STOUT_TEST_LIBS
   ${SVN_LIBS}
   )
 
-if (NOT WIN32)
-  find_library(LIBRT_LIBRARIES rt REQUIRED)
-
-  set(STOUT_TEST_LIBS
-    ${STOUT_TEST_LIBS}
-    ${LIBRT_LIBRARIES}
-    )
-endif (NOT WIN32)
+# TODO(hausdorff): The `LINUX` flag comes from MesosConfigure; when we
+# port the bootstrap script to CMake, we should also copy this logic
+# into .cmake files in the Stout and Process libraries' folders
+# individually.
+if (LINUX)
+  set(STOUT_TEST_LIBS ${STOUT_TEST_LIBS} rt)
+endif (LINUX)

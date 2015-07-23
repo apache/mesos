@@ -47,7 +47,6 @@ set(SVN_LIB_NAMES
   svn_delta-1
   svn_diff-1
   svn_fs-1
-  svn_fs_base-1
   svn_fs_fs-1
   svn_fs_util-1
   svn_ra-1
