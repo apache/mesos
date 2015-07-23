@@ -39,6 +39,16 @@ EXTERNAL("protobuf" "2.5.0" "${PROCESS_3RD_BIN}")
 set(GTEST_SRC          ${GMOCK_ROOT}/gtest)
 set(GPERFTOOLS_VERSION 2.0)
 set(GPERFTOOLS         ${PROCESS_3RD_BIN}/gperftools-${GPERFTOOLS_VERSION})
+set(PROTOBUF_LIB       ${PROTOBUF_ROOT}-lib/lib)
+
+# COMPILER CONFIGURATION.
+#########################
+if (APPLE)
+  # GTEST on OSX needs its own tr1 tuple.
+  # TODO(dhamon): Update to gmock 1.7 and pass GTEST_LANG_CXX11 when
+  # in C++11 mode.
+  add_definitions(-DGTEST_USE_OWN_TR1_TUPLE=1)
+endif (APPLE)
 
 # DEFINE PROCESS TEST LIBRARY DEPENDENCIES. Tells the process library build
 # tests target download/configure/build all third-party libraries before

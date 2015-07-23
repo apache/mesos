@@ -134,11 +134,17 @@ set(PROCESS_LIBS
 
 if (NOT WIN32)
   find_package(ZLIB REQUIRED)
-  find_library(LIBRT_LIBRARIES rt REQUIRED)
+
+  # TODO(hausdorff): The `LINUX` flag comes from MesosConfigure; when
+  # we port the bootstrap script to CMake, we should also copy this
+  # logic into .cmake files in the Stout and Process libraries'
+  # folders individually.
+  if (LINUX)
+    set(PROCESS_LIBS ${PROCESS_LIBS} rt)
+  endif (LINUX)
 
   set(PROCESS_LIBS
     ${PROCESS_LIBS}
     ${ZLIB_LIBRARIES}
-    ${LIBRT_LIBRARIES}
     )
 endif (NOT WIN32)
