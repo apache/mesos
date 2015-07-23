@@ -538,6 +538,20 @@ struct InternalServerError : Response
 };
 
 
+struct NotImplemented : Response
+{
+  NotImplemented()
+  {
+    status = "501 Not Implemented";
+  }
+
+  explicit NotImplemented(const std::string& body) : Response(body)
+  {
+    status = "501 Not Implemented";
+  }
+};
+
+
 struct ServiceUnavailable : Response
 {
   ServiceUnavailable()
