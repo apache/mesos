@@ -41,6 +41,8 @@ enable_testing()
 
 # CONFIGURE COMPILATION.
 ########################
+string(COMPARE EQUAL ${CMAKE_SYSTEM_NAME} "Linux" LINUX)
+
 if (_DEBUG)
   set(CMAKE_BUILD_TYPE Debug)
 endif (_DEBUG)
@@ -51,9 +53,9 @@ if (COMPILER_SUPPORTS_CXX11)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 else (COMPILER_SUPPORTS_CXX11)
   message(
-    STATUS
-    The compiler ${CMAKE_CXX_COMPILER} does not support the `-std=c++11` flag.
-    Please use a different C++ compiler.)
+    FATAL_ERROR
+    "The compiler ${CMAKE_CXX_COMPILER} does not support the `-std=c++11` flag. "
+    "Please use a different C++ compiler.")
 endif (COMPILER_SUPPORTS_CXX11)
 
 # Convenience flags to simplify Windows support in C++ source.
