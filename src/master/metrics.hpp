@@ -131,6 +131,7 @@ struct Metrics
   process::metrics::Counter messages_revive_offers;
   process::metrics::Counter messages_reconcile_tasks;
   process::metrics::Counter messages_framework_to_executor;
+  process::metrics::Counter messages_executor_to_framework;
 
   // Messages from slaves.
   process::metrics::Counter messages_register_slave;
@@ -145,6 +146,8 @@ struct Metrics
 
   process::metrics::Counter valid_framework_to_executor_messages;
   process::metrics::Counter invalid_framework_to_executor_messages;
+  process::metrics::Counter valid_executor_to_framework_messages;
+  process::metrics::Counter invalid_executor_to_framework_messages;
 
   process::metrics::Counter valid_status_updates;
   process::metrics::Counter invalid_status_updates;

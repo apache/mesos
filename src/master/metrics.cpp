@@ -118,6 +118,8 @@ Metrics::Metrics(const Master& master)
         "master/messages_reconcile_tasks"),
     messages_framework_to_executor(
         "master/messages_framework_to_executor"),
+    messages_executor_to_framework(
+        "master/messages_executor_to_framework"),
     messages_register_slave(
         "master/messages_register_slave"),
     messages_reregister_slave(
@@ -136,6 +138,10 @@ Metrics::Metrics(const Master& master)
         "master/valid_framework_to_executor_messages"),
     invalid_framework_to_executor_messages(
         "master/invalid_framework_to_executor_messages"),
+    valid_executor_to_framework_messages(
+        "master/valid_executor_to_framework_messages"),
+    invalid_executor_to_framework_messages(
+        "master/invalid_executor_to_framework_messages"),
     valid_status_updates(
         "master/valid_status_updates"),
     invalid_status_updates(
@@ -214,6 +220,7 @@ Metrics::Metrics(const Master& master)
   process::metrics::add(messages_revive_offers);
   process::metrics::add(messages_reconcile_tasks);
   process::metrics::add(messages_framework_to_executor);
+  process::metrics::add(messages_executor_to_framework);
 
   // Messages from slaves.
   process::metrics::add(messages_register_slave);
@@ -228,6 +235,9 @@ Metrics::Metrics(const Master& master)
 
   process::metrics::add(valid_framework_to_executor_messages);
   process::metrics::add(invalid_framework_to_executor_messages);
+
+  process::metrics::add(valid_executor_to_framework_messages);
+  process::metrics::add(invalid_executor_to_framework_messages);
 
   process::metrics::add(valid_status_updates);
   process::metrics::add(invalid_status_updates);
@@ -345,6 +355,7 @@ Metrics::~Metrics()
   process::metrics::remove(messages_revive_offers);
   process::metrics::remove(messages_reconcile_tasks);
   process::metrics::remove(messages_framework_to_executor);
+  process::metrics::remove(messages_executor_to_framework);
 
   // Messages from slaves.
   process::metrics::remove(messages_register_slave);
@@ -359,6 +370,9 @@ Metrics::~Metrics()
 
   process::metrics::remove(valid_framework_to_executor_messages);
   process::metrics::remove(invalid_framework_to_executor_messages);
+
+  process::metrics::remove(valid_executor_to_framework_messages);
+  process::metrics::remove(invalid_executor_to_framework_messages);
 
   process::metrics::remove(valid_status_updates);
   process::metrics::remove(invalid_status_updates);

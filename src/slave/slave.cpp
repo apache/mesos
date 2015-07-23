@@ -2989,7 +2989,6 @@ void Slave::executorMessage(
     return;
   }
 
-
   LOG(INFO) << "Sending message for framework " << frameworkId
             << " to " << framework->pid;
 

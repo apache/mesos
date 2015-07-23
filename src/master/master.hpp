@@ -716,6 +716,13 @@ public:
       const ExecutorID& executorId,
       const std::string& data);
 
+  void executorMessage(
+      const process::UPID& from,
+      const SlaveID& slaveId,
+      const FrameworkID& frameworkId,
+      const ExecutorID& executorId,
+      const std::string& data);
+
   void registerSlave(
       const process::UPID& from,
       const SlaveInfo& slaveInfo,

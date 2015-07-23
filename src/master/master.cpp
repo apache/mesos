@@ -713,6 +713,16 @@ void Master::initialize()
       &StatusUpdateMessage::update,
       &StatusUpdateMessage::pid);
 
+  // Added in 0.24.0 to support HTTP schedulers. Since
+  // these do not have a pid, the slave must forward
+  // messages through the master.
+  install<ExecutorToFrameworkMessage>(
+      &Master::executorMessage,
+      &ExecutorToFrameworkMessage::slave_id,
+      &ExecutorToFrameworkMessage::framework_id,
+      &ExecutorToFrameworkMessage::executor_id,
+      &ExecutorToFrameworkMessage::data);
+
   install<ReconcileTasksMessage>(
       &Master::reconcileTasks,
       &ReconcileTasksMessage::framework_id,
@@ -3199,24 +3209,24 @@ void Master::schedulerMessage(
     const ExecutorID& executorId,
     const string& data)
 {
-  ++metrics->messages_framework_to_executor;
+  metrics->messages_framework_to_executor++;
 
   Framework* framework = getFramework(frameworkId);
 
   if (framework == NULL) {
-    LOG(WARNING)
-      << "Ignoring framework message for executor " << executorId
-      << " of framework " << frameworkId
-      << " because the framework cannot be found";
+    LOG(WARNING) << "Ignoring framework message"
+                 << " for executor '" << executorId << "'"
+                 << " of framework " << frameworkId
+                 << " because the framework cannot be found";
     metrics->invalid_framework_to_executor_messages++;
     return;
   }
 
   if (from != framework->pid) {
-    LOG(WARNING)
-      << "Ignoring framework message for executor " << executorId
-      << " of framework " << *framework
-      << " because it is not expected from " << from;
+    LOG(WARNING) << "Ignoring framework message"
+                 << " for executor '" << executorId << "'"
+                 << " of framework " << *framework
+                 << " because it is not expected from " << from;
     metrics->invalid_framework_to_executor_messages++;
     return;
   }
@@ -3227,6 +3237,69 @@ void Master::schedulerMessage(
   message_.set_data(data);
 
   message(framework, message_);
+}
+
+
+void Master::executorMessage(
+    const UPID& from,
+    const SlaveID& slaveId,
+    const FrameworkID& frameworkId,
+    const ExecutorID& executorId,
+    const string& data)
+{
+  metrics->messages_executor_to_framework++;
+
+  if (slaves.removed.get(slaveId).isSome()) {
+    // If the slave is removed, we have already informed
+    // frameworks that its tasks were LOST, so the slave
+    // should shut down.
+    LOG(WARNING) << "Ignoring executor message"
+                 << " from executor" << " '" << executorId << "'"
+                 << " of framework " << frameworkId
+                 << " on removed slave " << slaveId
+                 << " ; asking slave to shutdown";
+
+    ShutdownMessage message;
+    message.set_message("Executor message from unknown slave");
+    reply(message);
+    metrics->invalid_executor_to_framework_messages++;
+    return;
+  }
+
+  // The slave should (re-)register with the master before
+  // forwarding executor messages.
+  if (!slaves.registered.contains(slaveId)) {
+    LOG(WARNING) << "Ignoring executor message"
+                 << " from executor '" << executorId << "'"
+                 << " of framework " << frameworkId
+                 << " on unknown slave " << slaveId;
+    metrics->invalid_executor_to_framework_messages++;
+    return;
+  }
+
+  Slave* slave = slaves.registered.get(slaveId);
+  CHECK_NOTNULL(slave);
+
+  Framework* framework = getFramework(frameworkId);
+
+  if (framework == NULL) {
+    LOG(WARNING) << "Not forwarding executor message"
+                 << " for executor '" << executorId << "'"
+                 << " of framework " << frameworkId
+                 << " on slave " << *slave
+                 << " because the framework is unknown";
+    metrics->invalid_executor_to_framework_messages++;
+    return;
+  }
+
+  ExecutorToFrameworkMessage message;
+  message.mutable_slave_id()->MergeFrom(slaveId);
+  message.mutable_framework_id()->MergeFrom(frameworkId);
+  message.mutable_executor_id()->MergeFrom(executorId);
+  message.set_data(data);
+  send(framework->pid, message);
+
+  metrics->valid_executor_to_framework_messages++;
 }
 
 
@@ -3850,14 +3923,15 @@ void Master::exitedExecutor(
     return;
   }
 
-  // Only update master's internal data structures here for proper
-  // accounting. The TASK_LOST updates are handled by the slave.
   if (!slaves.registered.contains(slaveId)) {
     LOG(WARNING) << "Ignoring exited executor '" << executorId
                  << "' of framework " << frameworkId
                  << " on unknown slave " << slaveId;
     return;
   }
+
+  // Only update master's internal data structures here for proper
+  // accounting. The TASK_LOST updates are handled by the slave.
 
   Slave* slave = slaves.registered.get(slaveId);
   CHECK_NOTNULL(slave);
