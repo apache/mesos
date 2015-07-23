@@ -19,13 +19,19 @@
 #ifndef __CPUSHARE_ISOLATOR_HPP__
 #define __CPUSHARE_ISOLATOR_HPP__
 
-#include <string>
+#include <sys/types.h>
 
-#include <mesos/slave/isolator.hpp>
+#include <string>
+#include <vector>
+
+#include <process/future.hpp>
 
 #include <stout/hashmap.hpp>
+#include <stout/option.hpp>
 
 #include "slave/flags.hpp"
+
+#include "slave/containerizer/isolator.hpp"
 
 #include "slave/containerizer/isolators/cgroups/constants.hpp"
 
@@ -37,7 +43,7 @@ namespace slave {
 // Completely Fair Scheduler (CFS).
 // - cpushare implements proportionally weighted scheduling.
 // - cfs implements hard quota based scheduling.
-class CgroupsCpushareIsolatorProcess : public mesos::slave::IsolatorProcess
+class CgroupsCpushareIsolatorProcess : public MesosIsolatorProcess
 {
 public:
   static Try<mesos::slave::Isolator*> create(const Flags& flags);

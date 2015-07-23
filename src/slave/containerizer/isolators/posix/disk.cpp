@@ -55,21 +55,20 @@ using std::list;
 using std::string;
 using std::vector;
 
-namespace mesos {
-namespace internal {
-namespace slave {
-
 using mesos::slave::ExecutorLimitation;
 using mesos::slave::ExecutorRunState;
 using mesos::slave::Isolator;
-using mesos::slave::IsolatorProcess;
+
+namespace mesos {
+namespace internal {
+namespace slave {
 
 Try<Isolator*> PosixDiskIsolatorProcess::create(const Flags& flags)
 {
   // TODO(jieyu): Check the availability of command 'du'.
 
-  return new Isolator(
-      process::Owned<IsolatorProcess>(new PosixDiskIsolatorProcess(flags)));
+  return new MesosIsolator(process::Owned<MesosIsolatorProcess>(
+        new PosixDiskIsolatorProcess(flags)));
 }
 
 

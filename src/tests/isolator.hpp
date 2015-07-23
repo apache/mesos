@@ -21,22 +21,22 @@
 
 #include <gmock/gmock.h>
 
-#include <mesos/slave/isolator.hpp>
+#include "slave/containerizer/isolator.hpp"
 
 namespace mesos {
 namespace internal {
 namespace tests {
 
-class TestIsolatorProcess : public mesos::slave::IsolatorProcess
+class TestIsolatorProcess : public slave::MesosIsolatorProcess
 {
 public:
   static Try<mesos::slave::Isolator*> create(
       const Option<CommandInfo>& commandInfo)
   {
-    process::Owned<mesos::slave::IsolatorProcess> process(
+    process::Owned<MesosIsolatorProcess> process(
         new TestIsolatorProcess(commandInfo));
 
-    return new mesos::slave::Isolator(process);
+    return new slave::MesosIsolator(process);
   }
 
   MOCK_METHOD2(
@@ -88,7 +88,6 @@ private:
     EXPECT_CALL(*this, cleanup(testing::_))
       .WillRepeatedly(testing::Return(Nothing()));
   }
-
 
   const Option<CommandInfo> commandInfo;
 

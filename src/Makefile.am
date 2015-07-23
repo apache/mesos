@@ -636,12 +636,12 @@ libmesos_no_3rdparty_la_SOURCES +=					\
 	slave/state.hpp							\
 	slave/status_update_manager.hpp					\
 	slave/containerizer/containerizer.hpp				\
-	slave/containerizer/fetcher.hpp					\
 	slave/containerizer/external_containerizer.hpp			\
+	slave/containerizer/fetcher.hpp					\
+	slave/containerizer/isolator.hpp				\
 	slave/containerizer/launcher.hpp				\
 	slave/containerizer/linux_launcher.hpp				\
-	slave/containerizer/mesos/containerizer.hpp			\
-	slave/containerizer/mesos/launch.hpp				\
+	slave/containerizer/provisioner.hpp				\
 	slave/containerizer/isolators/posix.hpp				\
 	slave/containerizer/isolators/posix/disk.hpp			\
 	slave/containerizer/isolators/cgroups/constants.hpp		\
@@ -651,7 +651,8 @@ libmesos_no_3rdparty_la_SOURCES +=					\
 	slave/containerizer/isolators/namespaces/pid.hpp		\
 	slave/containerizer/isolators/filesystem/posix.hpp		\
 	slave/containerizer/isolators/filesystem/shared.hpp		\
-	slave/containerizer/provisioner.hpp				\
+	slave/containerizer/mesos/containerizer.hpp			\
+	slave/containerizer/mesos/launch.hpp				\
 	slave/resource_estimators/noop.hpp				\
 	tests/cluster.hpp						\
 	tests/containerizer.hpp						\

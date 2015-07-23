@@ -42,11 +42,11 @@ namespace slave {
 // Forward declaration.
 class IsolatorProcess;
 
+
 class Isolator
 {
 public:
-  explicit Isolator(process::Owned<IsolatorProcess> process);
-  ~Isolator();
+  virtual ~Isolator() {}
 
   // Returns the namespaces required by the isolator. The namespaces
   // are created while launching the executor. Isolators may return
@@ -55,14 +55,14 @@ public:
   // TODO(karya): Since namespaces are Linux-only, create a separate
   // LinuxIsolator (and corresponding LinuxIsolatorProcess) class
   // for Linux-specific isolators.
-  process::Future<Option<int>> namespaces();
+  virtual process::Future<Option<int>> namespaces() { return None(); }
 
   // Recover containers from the run states and the orphan containers
   // (known to the launcher but not known to the slave) detected by
   // the launcher.
-  process::Future<Nothing> recover(
+  virtual process::Future<Nothing> recover(
       const std::list<ExecutorRunState>& states,
-      const hashset<ContainerID>& orphans);
+      const hashset<ContainerID>& orphans) = 0;
 
   // Prepare for isolation of the executor. Any steps that require
   // execution in the containerized context (e.g. inside a network
@@ -70,55 +70,6 @@ public:
   // will be run by the Launcher.
   // TODO(idownes): Any URIs or Environment in the CommandInfo will be
   // ignored; only the command value is used.
-  process::Future<Option<CommandInfo>> prepare(
-      const ContainerID& containerId,
-      const ExecutorInfo& executorInfo,
-      const std::string& directory,
-      const Option<std::string>& rootfs,
-      const Option<std::string>& user);
-
-  // Isolate the executor.
-  process::Future<Nothing> isolate(
-      const ContainerID& containerId,
-      pid_t pid);
-
-  // Watch the containerized executor and report if any resource
-  // constraint impacts the container, e.g., the kernel killing some
-  // processes.
-  process::Future<ExecutorLimitation> watch(const ContainerID& containerId);
-
-  // Update the resources allocated to the container.
-  process::Future<Nothing> update(
-      const ContainerID& containerId,
-      const Resources& resources);
-
-  // Gather resource usage statistics for the container.
-  process::Future<ResourceStatistics> usage(
-      const ContainerID& containerId) const;
-
-  // Clean up a terminated container. This is called after the
-  // executor and all processes in the container have terminated.
-  process::Future<Nothing> cleanup(const ContainerID& containerId);
-
-private:
-  Isolator(const Isolator&); // Not copyable.
-  Isolator& operator=(const Isolator&); // Not assignable.
-
-  process::Owned<IsolatorProcess> process;
-};
-
-
-class IsolatorProcess : public process::Process<IsolatorProcess>
-{
-public:
-  virtual ~IsolatorProcess() {}
-
-  virtual process::Future<Option<int>> namespaces() { return None(); }
-
-  virtual process::Future<Nothing> recover(
-      const std::list<ExecutorRunState>& state,
-      const hashset<ContainerID>& orphans) = 0;
-
   virtual process::Future<Option<CommandInfo>> prepare(
       const ContainerID& containerId,
       const ExecutorInfo& executorInfo,
@@ -126,21 +77,30 @@ public:
       const Option<std::string>& rootfs,
       const Option<std::string>& user) = 0;
 
+  // Isolate the executor.
   virtual process::Future<Nothing> isolate(
       const ContainerID& containerId,
       pid_t pid) = 0;
 
+  // Watch the containerized executor and report if any resource
+  // constraint impacts the container, e.g., the kernel killing some
+  // processes.
   virtual process::Future<ExecutorLimitation> watch(
       const ContainerID& containerId) = 0;
 
+  // Update the resources allocated to the container.
   virtual process::Future<Nothing> update(
       const ContainerID& containerId,
       const Resources& resources) = 0;
 
+  // Gather resource usage statistics for the container.
   virtual process::Future<ResourceStatistics> usage(
       const ContainerID& containerId) = 0;
 
-  virtual process::Future<Nothing> cleanup(const ContainerID& containerId) = 0;
+  // Clean up a terminated container. This is called after the
+  // executor and all processes in the container have terminated.
+  virtual process::Future<Nothing> cleanup(
+      const ContainerID& containerId) = 0;
 };
 
 } // namespace slave {

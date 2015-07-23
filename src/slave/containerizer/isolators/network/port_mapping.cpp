@@ -106,6 +106,10 @@ using std::vector;
 
 using filter::ip::PortRange;
 
+using mesos::slave::ExecutorLimitation;
+using mesos::slave::ExecutorRunState;
+using mesos::slave::Isolator;
+
 
 // An old glibc might not have this symbol.
 #ifndef MNT_DETACH
@@ -116,11 +120,6 @@ using filter::ip::PortRange;
 namespace mesos {
 namespace internal {
 namespace slave {
-
-using mesos::slave::ExecutorLimitation;
-using mesos::slave::ExecutorRunState;
-using mesos::slave::Isolator;
-using mesos::slave::IsolatorProcess;
 
 // The minimum number of ephemeral ports a container should have.
 static const uint16_t MIN_EPHEMERAL_PORTS_SIZE = 16;
@@ -1611,7 +1610,7 @@ Try<Isolator*> PortMappingIsolatorProcess::create(const Flags& flags)
         PORT_MAPPING_BIND_MOUNT_SYMLINK_ROOT() + ": " + mkdir.error());
   }
 
-  return new Isolator(Owned<IsolatorProcess>(
+  return new MesosIsolator(Owned<MesosIsolatorProcess>(
       new PortMappingIsolatorProcess(
           flags,
           eth0.get(),

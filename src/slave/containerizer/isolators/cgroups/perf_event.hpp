@@ -21,21 +21,20 @@
 
 #include <set>
 
-#include <mesos/slave/isolator.hpp>
-
 #include <process/time.hpp>
 
 #include <stout/hashmap.hpp>
-
-#include "linux/perf.hpp"
+#include <stout/nothing.hpp>
 
 #include "slave/flags.hpp"
+
+#include "slave/containerizer/isolator.hpp"
 
 namespace mesos {
 namespace internal {
 namespace slave {
 
-class CgroupsPerfEventIsolatorProcess : public mesos::slave::IsolatorProcess
+class CgroupsPerfEventIsolatorProcess : public MesosIsolatorProcess
 {
 public:
   static Try<mesos::slave::Isolator*> create(const Flags& flags);
@@ -110,9 +109,11 @@ private:
 
   // The path to the cgroups subsystem hierarchy root.
   const std::string hierarchy;
+
   // Set of events to sample.
   std::set<std::string> events;
 
+  // TODO(jieyu): Use Owned<Info>.
   hashmap<ContainerID, Info*> infos;
 };
 

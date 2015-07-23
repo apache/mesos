@@ -87,7 +87,6 @@ using mesos::modules::ModuleManager;
 using mesos::slave::ExecutorLimitation;
 using mesos::slave::ExecutorRunState;
 using mesos::slave::Isolator;
-using mesos::slave::IsolatorProcess;
 
 using state::SlaveState;
 using state::FrameworkState;

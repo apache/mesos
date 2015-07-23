@@ -16,50 +16,54 @@
  * limitations under the License.
  */
 
-#include <mesos/slave/isolator.hpp>
-
 #include <process/dispatch.hpp>
+
+#include "slave/containerizer/isolator.hpp"
 
 using namespace process;
 
 using std::string;
 using std::list;
 
+using mesos::slave::ExecutorLimitation;
+using mesos::slave::ExecutorRunState;
+
 namespace mesos {
+namespace internal {
 namespace slave {
 
-Isolator::Isolator(Owned<IsolatorProcess> _process)
+MesosIsolator::MesosIsolator(Owned<MesosIsolatorProcess> _process)
   : process(_process)
 {
-  process::spawn(CHECK_NOTNULL(process.get()));
+  spawn(CHECK_NOTNULL(process.get()));
 }
 
 
-Isolator::~Isolator()
+MesosIsolator::~MesosIsolator()
 {
-  process::terminate(process.get());
-  process::wait(process.get());
+  terminate(process.get());
+  wait(process.get());
 }
 
 
-Future<Option<int>> Isolator::namespaces()
+Future<Option<int>> MesosIsolator::namespaces()
 {
-  return dispatch(process.get(), &IsolatorProcess::namespaces);
+  return dispatch(process.get(), &MesosIsolatorProcess::namespaces);
 }
 
 
-Future<Nothing> Isolator::recover(
+Future<Nothing> MesosIsolator::recover(
     const list<ExecutorRunState>& state,
     const hashset<ContainerID>& orphans)
 {
   return dispatch(process.get(),
-                  &IsolatorProcess::recover,
+                  &MesosIsolatorProcess::recover,
                   state,
                   orphans);
 }
 
 
-Future<Option<CommandInfo>> Isolator::prepare(
+Future<Option<CommandInfo>> MesosIsolator::prepare(
     const ContainerID& containerId,
     const ExecutorInfo& executorInfo,
     const string& directory,
@@ -67,7 +71,7 @@ Future<Option<CommandInfo>> Isolator::prepare(
     const Option<string>& user)
 {
   return dispatch(process.get(),
-                  &IsolatorProcess::prepare,
+                  &MesosIsolatorProcess::prepare,
                   containerId,
                   executorInfo,
                   directory,
@@ -76,43 +80,54 @@ Future<Option<CommandInfo>> Isolator::prepare(
 }
 
 
-Future<Nothing> Isolator::isolate(
+Future<Nothing> MesosIsolator::isolate(
     const ContainerID& containerId,
     pid_t pid)
 {
-  return dispatch(process.get(), &IsolatorProcess::isolate, containerId, pid);
+  return dispatch(process.get(),
+                  &MesosIsolatorProcess::isolate,
+                  containerId,
+                  pid);
 }
 
 
-Future<ExecutorLimitation> Isolator::watch(const ContainerID& containerId)
+Future<ExecutorLimitation> MesosIsolator::watch(
+    const ContainerID& containerId)
 {
-  return dispatch(process.get(), &IsolatorProcess::watch, containerId);
+  return dispatch(process.get(),
+                  &MesosIsolatorProcess::watch,
+                  containerId);
 }
 
 
-Future<Nothing> Isolator::update(
+Future<Nothing> MesosIsolator::update(
     const ContainerID& containerId,
     const Resources& resources)
 {
-  return dispatch(
-      process.get(),
-      &IsolatorProcess::update,
-      containerId,
-      resources);
+  return dispatch(process.get(),
+                  &MesosIsolatorProcess::update,
+                  containerId,
+                  resources);
 }
 
 
-Future<ResourceStatistics> Isolator::usage(
-    const ContainerID& containerId) const
+Future<ResourceStatistics> MesosIsolator::usage(
+    const ContainerID& containerId)
 {
-  return dispatch(process.get(), &IsolatorProcess::usage, containerId);
+  return dispatch(process.get(),
+                  &MesosIsolatorProcess::usage,
+                  containerId);
 }
 
 
-Future<Nothing> Isolator::cleanup(const ContainerID& containerId)
+Future<Nothing> MesosIsolator::cleanup(
+    const ContainerID& containerId)
 {
-  return dispatch(process.get(), &IsolatorProcess::cleanup, containerId);
+  return dispatch(process.get(),
+                  &MesosIsolatorProcess::cleanup,
+                  containerId);
 }
 
 } // namespace slave {
+} // namespace internal {
 } // namespace mesos {

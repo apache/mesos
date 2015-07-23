@@ -19,15 +19,15 @@
 #ifndef __NAMESPACES_PID_ISOLATOR_HPP__
 #define __NAMESPACES_PID_ISOLATOR_HPP__
 
-#include <mesos/slave/isolator.hpp>
-
-#include "slave/flags.hpp"
-
 #include <sys/types.h>
 
 #include <string>
 
 #include <stout/result.hpp>
+
+#include "slave/flags.hpp"
+
+#include "slave/containerizer/isolator.hpp"
 
 namespace mesos {
 namespace internal {
@@ -37,7 +37,7 @@ namespace slave {
 // (see the LinuxLauncher for that) but it is used to keep track of a
 // container's pid namespace through a bind mount and exposed by
 // getNamespace().
-class NamespacesPidIsolatorProcess : public mesos::slave::IsolatorProcess
+class NamespacesPidIsolatorProcess : public MesosIsolatorProcess
 {
 public:
   static Try<mesos::slave::Isolator*> create(const Flags& flags);

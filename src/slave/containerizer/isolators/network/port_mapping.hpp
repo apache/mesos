@@ -27,8 +27,6 @@
 #include <string>
 #include <vector>
 
-#include <mesos/slave/isolator.hpp>
-
 #include <process/owned.hpp>
 #include <process/subprocess.hpp>
 
@@ -48,6 +46,8 @@
 #include "linux/routing/filter/ip.hpp"
 
 #include "slave/flags.hpp"
+
+#include "slave/containerizer/isolator.hpp"
 
 namespace mesos {
 namespace internal {
@@ -145,7 +145,7 @@ std::vector<routing::filter::ip::PortRange> getPortRanges(
 // isolator is useful when the operator wants to reuse the host IP for
 // all containers running on the host (e.g., there are insufficient
 // IPs).
-class PortMappingIsolatorProcess : public mesos::slave::IsolatorProcess
+class PortMappingIsolatorProcess : public MesosIsolatorProcess
 {
 public:
   static Try<mesos::slave::Isolator*> create(const Flags& flags);

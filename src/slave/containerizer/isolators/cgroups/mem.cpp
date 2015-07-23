@@ -21,7 +21,6 @@
 #include <list>
 #include <vector>
 
-#include <mesos/resources.hpp>
 #include <mesos/type_utils.hpp>
 #include <mesos/values.hpp>
 
@@ -33,18 +32,15 @@
 #include <stout/check.hpp>
 #include <stout/error.hpp>
 #include <stout/foreach.hpp>
-#include <stout/hashmap.hpp>
 #include <stout/hashset.hpp>
 #include <stout/lambda.hpp>
-#include <stout/nothing.hpp>
 #include <stout/path.hpp>
 #include <stout/stringify.hpp>
 #include <stout/try.hpp>
 
 #include "common/protobuf_utils.hpp"
 
-#include "linux/cgroups.hpp"
-
+#include "slave/containerizer/isolators/cgroups/constants.hpp"
 #include "slave/containerizer/isolators/cgroups/mem.hpp"
 
 using namespace process;
@@ -61,7 +57,6 @@ using std::vector;
 using mesos::slave::ExecutorLimitation;
 using mesos::slave::ExecutorRunState;
 using mesos::slave::Isolator;
-using mesos::slave::IsolatorProcess;
 
 namespace mesos {
 namespace internal {
@@ -153,10 +148,10 @@ Try<Isolator*> CgroupsMemIsolatorProcess::create(const Flags& flags)
     limitSwap = true;
   }
 
-  process::Owned<IsolatorProcess> process(
+  process::Owned<MesosIsolatorProcess> process(
       new CgroupsMemIsolatorProcess(flags, hierarchy.get(), limitSwap));
 
-  return new Isolator(process);
+  return new MesosIsolator(process);
 }
 
 

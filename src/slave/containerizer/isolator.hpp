@@ -16,25 +16,31 @@
  * limitations under the License.
  */
 
-#ifndef __POSIX_FILESYSTEM_ISOLATOR_HPP__
-#define __POSIX_FILESYSTEM_ISOLATOR_HPP__
+#ifndef __ISOLATOR_HPP__
+#define __ISOLATOR_HPP__
 
-#include <mesos/resources.hpp>
+#include <mesos/slave/isolator.hpp>
 
-#include "slave/flags.hpp"
+#include <process/owned.hpp>
+#include <process/process.hpp>
 
-#include "slave/containerizer/isolator.hpp"
+#include <stout/none.hpp>
 
 namespace mesos {
 namespace internal {
 namespace slave {
 
-class PosixFilesystemIsolatorProcess : public MesosIsolatorProcess
+// Forward declaration.
+class MesosIsolatorProcess;
+
+
+class MesosIsolator : public mesos::slave::Isolator
 {
 public:
-  static Try<mesos::slave::Isolator*> create(const Flags& flags);
+  explicit MesosIsolator(process::Owned<MesosIsolatorProcess> process);
+  virtual ~MesosIsolator();
 
-  virtual ~PosixFilesystemIsolatorProcess();
+  virtual process::Future<Option<int>> namespaces();
 
   virtual process::Future<Nothing> recover(
       const std::list<mesos::slave::ExecutorRunState>& states,
@@ -65,26 +71,48 @@ public:
       const ContainerID& containerId);
 
 private:
-  PosixFilesystemIsolatorProcess(const Flags& flags);
+  process::Owned<MesosIsolatorProcess> process;
+};
 
-  const Flags flags;
 
-  struct Info
-  {
-    explicit Info(const std::string& _directory)
-      : directory(_directory) {}
+class MesosIsolatorProcess : public process::Process<MesosIsolatorProcess>
+{
+public:
+  virtual ~MesosIsolatorProcess() {}
 
-    const std::string directory;
+  virtual process::Future<Option<int>> namespaces() { return None(); }
 
-    // Track resources so we can unlink unneeded persistent volumes.
-    Resources resources;
-  };
+  virtual process::Future<Nothing> recover(
+      const std::list<mesos::slave::ExecutorRunState>& states,
+      const hashset<ContainerID>& orphans) = 0;
 
-  hashmap<ContainerID, process::Owned<Info>> infos;
+  virtual process::Future<Option<CommandInfo>> prepare(
+      const ContainerID& containerId,
+      const ExecutorInfo& executorInfo,
+      const std::string& directory,
+      const Option<std::string>& rootfs,
+      const Option<std::string>& user) = 0;
+
+  virtual process::Future<Nothing> isolate(
+      const ContainerID& containerId,
+      pid_t pid) = 0;
+
+  virtual process::Future<mesos::slave::ExecutorLimitation> watch(
+      const ContainerID& containerId) = 0;
+
+  virtual process::Future<Nothing> update(
+      const ContainerID& containerId,
+      const Resources& resources) = 0;
+
+  virtual process::Future<ResourceStatistics> usage(
+      const ContainerID& containerId) = 0;
+
+  virtual process::Future<Nothing> cleanup(
+      const ContainerID& containerId) = 0;
 };
 
 } // namespace slave {
 } // namespace internal {
 } // namespace mesos {
 
-#endif // __POSIX_FILESYSTEM_ISOLATOR_HPP__
+#endif // __ISOLATOR_HPP__

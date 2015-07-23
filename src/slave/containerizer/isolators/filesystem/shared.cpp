@@ -28,14 +28,13 @@ using std::list;
 using std::set;
 using std::string;
 
-namespace mesos {
-namespace internal {
-namespace slave {
-
 using mesos::slave::ExecutorLimitation;
 using mesos::slave::ExecutorRunState;
 using mesos::slave::Isolator;
-using mesos::slave::IsolatorProcess;
+
+namespace mesos {
+namespace internal {
+namespace slave {
 
 SharedFilesystemIsolatorProcess::SharedFilesystemIsolatorProcess(
     const Flags& _flags)
@@ -57,10 +56,10 @@ Try<Isolator*> SharedFilesystemIsolatorProcess::create(const Flags& flags)
     return Error("SharedFilesystemIsolator requires root privileges");
   }
 
-  process::Owned<IsolatorProcess> process(
+  process::Owned<MesosIsolatorProcess> process(
       new SharedFilesystemIsolatorProcess(flags));
 
-  return new Isolator(process);
+  return new MesosIsolator(process);
 }
 
 

@@ -19,15 +19,15 @@
 #ifndef __POSIX_ISOLATOR_HPP__
 #define __POSIX_ISOLATOR_HPP__
 
-#include <mesos/slave/isolator.hpp>
+#include <process/future.hpp>
 
 #include <stout/hashmap.hpp>
 
 #include <stout/os/pstree.hpp>
 
-#include <process/future.hpp>
-
 #include "slave/flags.hpp"
+
+#include "slave/containerizer/isolator.hpp"
 
 #include "usage/usage.hpp"
 
@@ -35,10 +35,10 @@ namespace mesos {
 namespace internal {
 namespace slave {
 
-// A basic IsolatorProcess that keeps track of the pid but doesn't do any
-// resource isolation. Subclasses must implement usage() for their appropriate
-// resource(s).
-class PosixIsolatorProcess : public mesos::slave::IsolatorProcess
+// A basic MesosIsolatorProcess that keeps track of the pid but
+// doesn't do any resource isolation. Subclasses must implement
+// usage() for their appropriate resource(s).
+class PosixIsolatorProcess : public MesosIsolatorProcess
 {
 public:
   virtual process::Future<Nothing> recover(
@@ -144,10 +144,10 @@ class PosixCpuIsolatorProcess : public PosixIsolatorProcess
 public:
   static Try<mesos::slave::Isolator*> create(const Flags& flags)
   {
-    process::Owned<mesos::slave::IsolatorProcess> process(
+    process::Owned<MesosIsolatorProcess> process(
         new PosixCpuIsolatorProcess());
 
-    return new mesos::slave::Isolator(process);
+    return new MesosIsolator(process);
   }
 
   virtual process::Future<ResourceStatistics> usage(
@@ -178,10 +178,10 @@ class PosixMemIsolatorProcess : public PosixIsolatorProcess
 public:
   static Try<mesos::slave::Isolator*> create(const Flags& flags)
   {
-    process::Owned<mesos::slave::IsolatorProcess> process(
+    process::Owned<MesosIsolatorProcess> process(
         new PosixMemIsolatorProcess());
 
-    return new mesos::slave::Isolator(process);
+    return new MesosIsolator(process);
   }
 
   virtual process::Future<ResourceStatistics> usage(
@@ -205,7 +205,6 @@ public:
 private:
   PosixMemIsolatorProcess() {}
 };
-
 
 } // namespace slave {
 } // namespace internal {

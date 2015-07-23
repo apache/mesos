@@ -18,9 +18,6 @@
 
 #include <stdint.h>
 
-#include <vector>
-
-#include <mesos/resources.hpp>
 #include <mesos/type_utils.hpp>
 #include <mesos/values.hpp>
 
@@ -32,7 +29,6 @@
 #include <stout/check.hpp>
 #include <stout/error.hpp>
 #include <stout/foreach.hpp>
-#include <stout/hashmap.hpp>
 #include <stout/hashset.hpp>
 #include <stout/nothing.hpp>
 #include <stout/os.hpp>
@@ -41,8 +37,6 @@
 #include <stout/try.hpp>
 
 #include "linux/cgroups.hpp"
-
-#include "slave/flags.hpp"
 
 #include "slave/containerizer/isolators/cgroups/cpushare.hpp"
 
@@ -56,7 +50,6 @@ using std::vector;
 using mesos::slave::ExecutorLimitation;
 using mesos::slave::ExecutorRunState;
 using mesos::slave::Isolator;
-using mesos::slave::IsolatorProcess;
 
 namespace mesos {
 namespace internal {
@@ -163,10 +156,10 @@ Try<Isolator*> CgroupsCpushareIsolatorProcess::create(const Flags& flags)
     }
   }
 
-  process::Owned<IsolatorProcess> process(
+  process::Owned<MesosIsolatorProcess> process(
       new CgroupsCpushareIsolatorProcess(flags, hierarchies, subsystems));
 
-  return new Isolator(process);
+  return new MesosIsolator(process);
 }
 
 

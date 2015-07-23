@@ -19,25 +19,26 @@
 #ifndef __MEM_ISOLATOR_HPP__
 #define __MEM_ISOLATOR_HPP__
 
-#include <list>
+#include <sys/types.h>
 
-#include <mesos/slave/isolator.hpp>
-
+#include <process/future.hpp>
 #include <process/owned.hpp>
 
 #include <stout/hashmap.hpp>
+#include <stout/nothing.hpp>
+#include <stout/option.hpp>
 
 #include "linux/cgroups.hpp"
 
 #include "slave/flags.hpp"
 
-#include "slave/containerizer/isolators/cgroups/constants.hpp"
+#include "slave/containerizer/isolator.hpp"
 
 namespace mesos {
 namespace internal {
 namespace slave {
 
-class CgroupsMemIsolatorProcess : public mesos::slave::IsolatorProcess
+class CgroupsMemIsolatorProcess : public MesosIsolatorProcess
 {
 public:
   static Try<mesos::slave::Isolator*> create(const Flags& flags);

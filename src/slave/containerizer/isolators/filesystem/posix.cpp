@@ -23,9 +23,6 @@
 #include <stout/os.hpp>
 #include <stout/path.hpp>
 
-#include <mesos/mesos.hpp>
-#include <mesos/resources.hpp>
-
 #include "slave/paths.hpp"
 
 #include "slave/containerizer/isolators/filesystem/posix.hpp"
@@ -38,7 +35,6 @@ using std::string;
 using mesos::slave::ExecutorLimitation;
 using mesos::slave::ExecutorRunState;
 using mesos::slave::Isolator;
-using mesos::slave::IsolatorProcess;
 
 namespace mesos {
 namespace internal {
@@ -54,10 +50,10 @@ PosixFilesystemIsolatorProcess::~PosixFilesystemIsolatorProcess() {}
 
 Try<Isolator*> PosixFilesystemIsolatorProcess::create(const Flags& flags)
 {
-  process::Owned<IsolatorProcess> process(
+  process::Owned<MesosIsolatorProcess> process(
       new PosixFilesystemIsolatorProcess(flags));
 
-  return new Isolator(process);
+  return new MesosIsolator(process);
 }
 
 

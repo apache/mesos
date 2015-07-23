@@ -94,7 +94,7 @@ public:
     vector<Owned<Isolator>> isolators;
 
     foreach (const Option<CommandInfo>& prepare, prepares) {
-      Try<Isolator*> isolator = tests::TestIsolatorProcess::create(prepare);
+      Try<Isolator*> isolator = TestIsolatorProcess::create(prepare);
       if (isolator.isError()) {
         return Error(isolator.error());
       }
@@ -288,7 +288,7 @@ TEST_F(MesosContainerizerIsolatorPreparationTest, MultipleScripts)
 }
 
 
-class MesosContainerizerExecuteTest : public tests::TemporaryDirectoryTest {};
+class MesosContainerizerExecuteTest : public TemporaryDirectoryTest {};
 
 
 TEST_F(MesosContainerizerExecuteTest, IoRedirection)
@@ -395,10 +395,10 @@ public:
 };
 
 
-class MockIsolatorProcess : public IsolatorProcess
+class MockIsolator : public mesos::slave::Isolator
 {
 public:
-  MockIsolatorProcess()
+  MockIsolator()
   {
     EXPECT_CALL(*this, watch(_))
       .WillRepeatedly(Return(watchPromise.future()));
@@ -410,7 +410,7 @@ public:
       .WillRepeatedly(Return(Nothing()));
 
     EXPECT_CALL(*this, prepare(_, _, _, _, _))
-      .WillRepeatedly(Invoke(this, &MockIsolatorProcess::_prepare));
+      .WillRepeatedly(Invoke(this, &MockIsolator::_prepare));
   }
 
   MOCK_METHOD2(
@@ -528,13 +528,13 @@ TEST_F(MesosContainerizerDestroyTest, DestroyWhilePreparing)
   Try<Launcher*> launcher = PosixLauncher::create(flags);
   ASSERT_SOME(launcher);
 
-  MockIsolatorProcess* isolatorProcess = new MockIsolatorProcess();
+  MockIsolator* isolator = new MockIsolator();
 
   Future<Nothing> prepare;
   Promise<Option<CommandInfo>> promise;
 
   // Simulate a long prepare from the isolator.
-  EXPECT_CALL(*isolatorProcess, prepare(_, _, _, _, _))
+  EXPECT_CALL(*isolator, prepare(_, _, _, _, _))
     .WillOnce(DoAll(FutureSatisfy(&prepare),
                     Return(promise.future())));
 
@@ -545,7 +545,7 @@ TEST_F(MesosContainerizerDestroyTest, DestroyWhilePreparing)
       true,
       &fetcher,
       Owned<Launcher>(launcher.get()),
-      {Owned<Isolator>(new Isolator(Owned<IsolatorProcess>(isolatorProcess)))},
+      {Owned<Isolator>(isolator)},
       hashmap<ContainerInfo::Image::Type, Owned<Provisioner>>());
 
   MesosContainerizer containerizer((Owned<MesosContainerizerProcess>(process)));

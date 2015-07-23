@@ -42,7 +42,6 @@ using std::string;
 using mesos::slave::ExecutorLimitation;
 using mesos::slave::ExecutorRunState;
 using mesos::slave::Isolator;
-using mesos::slave::IsolatorProcess;
 
 namespace mesos {
 namespace internal {
@@ -103,7 +102,7 @@ Try<Isolator*> NamespacesPidIsolatorProcess::create(const Flags& flags)
         string(PID_NS_BIND_MOUNT_MASK_DIR) + ": " + mkdir.error());
   }
 
-  return new Isolator(Owned<IsolatorProcess>(
+  return new MesosIsolator(Owned<MesosIsolatorProcess>(
       new NamespacesPidIsolatorProcess()));
 }
 

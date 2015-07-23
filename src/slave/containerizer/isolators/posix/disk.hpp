@@ -21,8 +21,6 @@
 
 #include <string>
 
-#include <mesos/slave/isolator.hpp>
-
 #include <process/owned.hpp>
 
 #include <stout/bytes.hpp>
@@ -31,6 +29,8 @@
 
 #include "slave/flags.hpp"
 #include "slave/state.hpp"
+
+#include "slave/containerizer/isolator.hpp"
 
 namespace mesos {
 namespace internal {
@@ -71,7 +71,7 @@ private:
 // TODO(jieyu): Consider handling each container independently, or
 // triggering an initial collection when the container starts, to
 // ensure that we have usage statistics without a large delay.
-class PosixDiskIsolatorProcess : public mesos::slave::IsolatorProcess
+class PosixDiskIsolatorProcess : public MesosIsolatorProcess
 {
 public:
   static Try<mesos::slave::Isolator*> create(const Flags& flags);
