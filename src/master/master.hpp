@@ -1110,7 +1110,6 @@ private:
     const static std::string OBSERVE_HELP;
     const static std::string REDIRECT_HELP;
     const static std::string ROLES_HELP;
-    const static std::string SHUTDOWN_HELP;  // Deprecated.
     const static std::string TEARDOWN_HELP;
     const static std::string SLAVES_HELP;
     const static std::string STATE_HELP;

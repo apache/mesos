@@ -946,19 +946,6 @@ Future<Response> Master::Http::roles(const Request& request) const
 }
 
 
-const string Master::Http::SHUTDOWN_HELP = HELP(
-    TLDR(
-        "Shuts down a running framework by shutting down all tasks/executors "
-        "and removing the framework."),
-    USAGE(
-        "/master/shutdown"),
-    DESCRIPTION(
-        "NOTE: This endpoint is deprecated in favor of /master/teardown.",
-        "Please provide a \"frameworkId\" value designating the running "
-        "framework to shut down.",
-        "Returns 200 OK if the framework was correctly shutdown."));
-
-
 const string Master::Http::TEARDOWN_HELP = HELP(
     TLDR(
         "Tears down a running framework by shutting down all tasks/executors "

@@ -764,22 +764,12 @@ void Master::initialize()
           Http::log(request);
           return http.roles(request);
         });
-
-  // TODO(vinod): "/shutdown" endpoint is deprecated in favor of
-  // "/teardown". Remove this endpoint in 0.24.0.
-  route("/shutdown",
-        Http::SHUTDOWN_HELP,
-        [http](const process::http::Request& request) {
-          Http::log(request);
-          return http.teardown(request);
-        });
   route("/teardown",
         Http::TEARDOWN_HELP,
         [http](const process::http::Request& request) {
           Http::log(request);
           return http.teardown(request);
         });
-
   route("/slaves",
         Http::SLAVES_HELP,
         [http](const process::http::Request& request) {
