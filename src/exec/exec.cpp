@@ -31,6 +31,7 @@
 #include <process/delay.hpp>
 #include <process/dispatch.hpp>
 #include <process/id.hpp>
+#include <process/latch.hpp>
 #include <process/process.hpp>
 #include <process/protobuf.hpp>
 
@@ -64,6 +65,7 @@ using namespace process;
 
 using std::string;
 
+using process::Latch;
 using process::wait; // Necessary on some OS's to disambiguate.
 
 
@@ -110,8 +112,8 @@ public:
                   const string& _directory,
                   bool _checkpoint,
                   Duration _recoveryTimeout,
-                  pthread_mutex_t* _mutex,
-                  pthread_cond_t* _cond)
+                  std::recursive_mutex* _mutex,
+                  Latch* _latch)
     : ProcessBase(ID::generate("executor")),
       slave(_slave),
       driver(_driver),
@@ -124,7 +126,7 @@ public:
       local(_local),
       aborted(false),
       mutex(_mutex),
-      cond(_cond),
+      latch(_latch),
       directory(_directory),
       checkpoint(_checkpoint),
       recoveryTimeout(_recoveryTimeout)
@@ -405,7 +407,7 @@ protected:
     terminate(self());
 
     synchronized (mutex) {
-      pthread_cond_signal(cond);
+      CHECK_NOTNULL(latch)->trigger();
     }
   }
 
@@ -415,7 +417,7 @@ protected:
     CHECK(aborted);
 
     synchronized (mutex) {
-      pthread_cond_signal(cond);
+      CHECK_NOTNULL(latch)->trigger();
     }
   }
 
@@ -543,8 +545,8 @@ private:
   UUID connection; // UUID to identify the connection instance.
   bool local;
   volatile bool aborted;
-  pthread_mutex_t* mutex;
-  pthread_cond_t* cond;
+  std::recursive_mutex* mutex;
+  Latch* latch;
   const string directory;
   bool checkpoint;
   Duration recoveryTimeout;
@@ -583,13 +585,8 @@ MesosExecutorDriver::MesosExecutorDriver(Executor* _executor)
     return;
   }
 
-  // Create mutex and condition variable.
-  pthread_mutexattr_t attr;
-  pthread_mutexattr_init(&attr);
-  pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
-  pthread_mutex_init(&mutex, &attr);
-  pthread_mutexattr_destroy(&attr);
-  pthread_cond_init(&cond, 0);
+  // Initialize Latch.
+  latch = new Latch();
 
   // Initialize libprocess.
   process::initialize();
@@ -612,8 +609,7 @@ MesosExecutorDriver::~MesosExecutorDriver()
   wait(process);
   delete process;
 
-  pthread_mutex_destroy(&mutex);
-  pthread_cond_destroy(&cond);
+  delete latch;
 }
 
 
@@ -717,7 +713,7 @@ Status MesosExecutorDriver::start()
         checkpoint,
         recoveryTimeout,
         &mutex,
-        &cond);
+        latch);
 
     spawn(process);
 
@@ -774,15 +770,20 @@ Status MesosExecutorDriver::abort()
 
 Status MesosExecutorDriver::join()
 {
+  // Exit early if the driver is not running.
   synchronized (mutex) {
     if (status != DRIVER_RUNNING) {
       return status;
     }
+  }
 
-    while (status == DRIVER_RUNNING) {
-      pthread_cond_wait(&cond, &mutex);
-    }
+  // If the driver was running, the latch will be triggered regardless
+  // of the current `status`. Wait for this to happen to signify
+  // termination.
+  CHECK_NOTNULL(latch)->await();
 
+  // Now return the current `status` of the driver.
+  synchronized (mutex) {
     CHECK(status == DRIVER_ABORTED || status == DRIVER_STOPPED);
 
     return status;

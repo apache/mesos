@@ -19,8 +19,7 @@
 #ifndef __MESOS_EXECUTOR_HPP__
 #define __MESOS_EXECUTOR_HPP__
 
-#include <pthread.h>
-
+#include <mutex>
 #include <string>
 
 #include <mesos/mesos.hpp>
@@ -45,6 +44,11 @@
 // IF YOU FIND YOURSELF MODIFYING COMMENTS HERE PLEASE CONSIDER MAKING
 // THE SAME MODIFICATIONS FOR OTHER LANGUAGE BINDINGS (e.g., Java:
 // src/java/src/org/apache/mesos, Python: src/python/src, etc.).
+
+// Forward declaration.
+namespace process {
+class Latch;
+} // namespace process {
 
 namespace mesos {
 
@@ -236,11 +240,11 @@ private:
   // Libprocess process for communicating with slave.
   internal::ExecutorProcess* process;
 
-  // Mutex to enforce all non-callbacks are execute serially.
-  pthread_mutex_t mutex;
+  // Mutex for enforcing serial execution of all non-callbacks.
+  std::recursive_mutex mutex;
 
-  // Condition variable for waiting until driver terminates.
-  pthread_cond_t cond;
+  // Latch for waiting until driver terminates.
+  process::Latch* latch;
 
   // Current status of the driver.
   Status status;
