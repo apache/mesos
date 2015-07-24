@@ -1836,8 +1836,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_SlaveRecoveryTaskContainer)
   ASSERT_SOME(slave1);
 
   // Enable checkpointing for the framework.
-  FrameworkInfo frameworkInfo;
-  frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_checkpoint(true);
 
   MockScheduler sched;
@@ -1987,8 +1986,7 @@ TEST_F(DockerContainerizerTest,
   ASSERT_SOME(slave1);
 
   // Enable checkpointing for the framework.
-  FrameworkInfo frameworkInfo;
-  frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_checkpoint(true);
 
   MockScheduler sched;

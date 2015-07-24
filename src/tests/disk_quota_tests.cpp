@@ -429,8 +429,7 @@ TEST_F(DiskQuotaTest, SlaveRecovery)
   MockScheduler sched;
 
   // Enable checkpointing for the framework.
-  FrameworkInfo frameworkInfo;
-  frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_checkpoint(true);
 
   MesosSchedulerDriver driver(

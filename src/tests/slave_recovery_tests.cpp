@@ -168,8 +168,7 @@ TYPED_TEST(SlaveRecoveryTest, RecoverSlaveState)
   MockScheduler sched;
 
   // Enable checkpointing for the framework.
-  FrameworkInfo frameworkInfo;
-  frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_checkpoint(true);
 
   MesosSchedulerDriver driver(
@@ -351,8 +350,7 @@ TYPED_TEST(SlaveRecoveryTest, RecoverStatusUpdateManager)
   MockScheduler sched;
 
   // Enable checkpointing for the framework.
-  FrameworkInfo frameworkInfo;
-  frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_checkpoint(true);
 
   MesosSchedulerDriver driver(
@@ -438,8 +436,7 @@ TYPED_TEST(SlaveRecoveryTest, ReconnectExecutor)
   MockScheduler sched;
 
   // Enable checkpointing for the framework.
-  FrameworkInfo frameworkInfo;
-  frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_checkpoint(true);
 
   MesosSchedulerDriver driver(
@@ -534,8 +531,7 @@ TYPED_TEST(SlaveRecoveryTest, RecoverUnregisteredExecutor)
   MockScheduler sched;
 
   // Enable checkpointing for the framework.
-  FrameworkInfo frameworkInfo;
-  frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_checkpoint(true);
 
   MesosSchedulerDriver driver(
@@ -647,8 +643,7 @@ TYPED_TEST(SlaveRecoveryTest, RecoverTerminatedExecutor)
   MockScheduler sched;
 
   // Enable checkpointing for the framework.
-  FrameworkInfo frameworkInfo;
-  frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_checkpoint(true);
 
   MesosSchedulerDriver driver(
@@ -775,8 +770,7 @@ TYPED_TEST(SlaveRecoveryTest, DISABLED_RecoveryTimeout)
   MockScheduler sched;
 
   // Enable checkpointing for the framework.
-  FrameworkInfo frameworkInfo;
-  frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_checkpoint(true);
 
   MesosSchedulerDriver driver(
@@ -870,8 +864,7 @@ TYPED_TEST(SlaveRecoveryTest, RecoverCompletedExecutor)
   MockScheduler sched;
 
   // Enable checkpointing for the framework.
-  FrameworkInfo frameworkInfo;
-  frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_checkpoint(true);
 
   MesosSchedulerDriver driver(
@@ -962,8 +955,7 @@ TYPED_TEST(SlaveRecoveryTest, CleanupExecutor)
   MockScheduler sched;
 
   // Enable checkpointing for the framework.
-  FrameworkInfo frameworkInfo;
-  frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_checkpoint(true);
 
   MesosSchedulerDriver driver(
@@ -1063,8 +1055,7 @@ TYPED_TEST(SlaveRecoveryTest, RemoveNonCheckpointingFramework)
   MockScheduler sched;
 
   // Disable checkpointing for the framework.
-  FrameworkInfo frameworkInfo;
-  frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_checkpoint(false);
 
   MesosSchedulerDriver driver(
@@ -1170,8 +1161,7 @@ TYPED_TEST(SlaveRecoveryTest, NonCheckpointingFramework)
   MockScheduler sched;
 
   // Disable checkpointing for the framework.
-  FrameworkInfo frameworkInfo;
-  frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_checkpoint(false);
 
   MesosSchedulerDriver driver(
@@ -1257,8 +1247,7 @@ TYPED_TEST(SlaveRecoveryTest, KillTask)
   MockScheduler sched;
 
   // Enable checkpointing for the framework.
-  FrameworkInfo frameworkInfo;
-  frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_checkpoint(true);
 
   MesosSchedulerDriver driver(
@@ -1380,8 +1369,7 @@ TYPED_TEST(SlaveRecoveryTest, Reboot)
   MockScheduler sched;
 
   // Enable checkpointing for the framework.
-  FrameworkInfo frameworkInfo;
-  frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_checkpoint(true);
 
   MesosSchedulerDriver driver(
@@ -1518,8 +1506,7 @@ TYPED_TEST(SlaveRecoveryTest, GCExecutor)
   MockScheduler sched;
 
   // Enable checkpointing for the framework.
-  FrameworkInfo frameworkInfo;
-  frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_checkpoint(true);
 
   MesosSchedulerDriver driver(
@@ -1670,8 +1657,7 @@ TYPED_TEST(SlaveRecoveryTest, ShutdownSlave)
   MockScheduler sched;
 
   // Enable checkpointing for the framework.
-  FrameworkInfo frameworkInfo;
-  frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_checkpoint(true);
 
   MesosSchedulerDriver driver(
@@ -1791,8 +1777,7 @@ TYPED_TEST(SlaveRecoveryTest, ShutdownSlaveSIGUSR1)
   MockScheduler sched;
 
   // Enable checkpointing for the framework.
-  FrameworkInfo frameworkInfo;
-  frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_checkpoint(true);
 
   MesosSchedulerDriver driver(
@@ -1895,8 +1880,7 @@ TYPED_TEST(SlaveRecoveryTest, RegisterDisconnectedSlave)
   MockScheduler sched;
 
   // Enable checkpointing for the framework.
-  FrameworkInfo frameworkInfo;
-  frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_checkpoint(true);
 
   MesosSchedulerDriver driver(
@@ -2007,8 +1991,7 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileKillTask)
   MockScheduler sched;
 
   // Enable checkpointing for the framework.
-  FrameworkInfo frameworkInfo;
-  frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_checkpoint(true);
 
   MesosSchedulerDriver driver(
@@ -2110,8 +2093,7 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileShutdownFramework)
   MockScheduler sched;
 
   // Enable checkpointing for the framework.
-  FrameworkInfo frameworkInfo;
-  frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_checkpoint(true);
 
   MesosSchedulerDriver driver(
@@ -2215,8 +2197,7 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileTasksMissingFromSlave)
   MockScheduler sched;
 
   // Enable checkpointing for the framework.
-  FrameworkInfo frameworkInfo;
-  frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_checkpoint(true);
 
   MesosSchedulerDriver driver(
@@ -2381,8 +2362,7 @@ TYPED_TEST(SlaveRecoveryTest, SchedulerFailover)
   // Launch the first (i.e., failing) scheduler.
   MockScheduler sched1;
 
-  FrameworkInfo framework1;
-  framework1.CopyFrom(DEFAULT_FRAMEWORK_INFO);
+  FrameworkInfo framework1 = DEFAULT_FRAMEWORK_INFO;
   framework1.set_checkpoint(true);
 
   MesosSchedulerDriver driver1(
@@ -2424,8 +2404,7 @@ TYPED_TEST(SlaveRecoveryTest, SchedulerFailover)
   // framework id recorded from the first scheduler.
   MockScheduler sched2;
 
-  FrameworkInfo framework2;
-  framework2.CopyFrom(DEFAULT_FRAMEWORK_INFO);
+  FrameworkInfo framework2 = DEFAULT_FRAMEWORK_INFO;
   framework2.mutable_id()->MergeFrom(frameworkId.get());
   framework2.set_checkpoint(true);
 
@@ -2544,8 +2523,7 @@ TYPED_TEST(SlaveRecoveryTest, PartitionedSlave)
   ASSERT_SOME(slave);
 
   // Enable checkpointing for the framework.
-  FrameworkInfo frameworkInfo;
-  frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_checkpoint(true);
 
   MockScheduler sched;
@@ -2678,8 +2656,7 @@ TYPED_TEST(SlaveRecoveryTest, MasterFailover)
   MockScheduler sched;
 
   // Enable checkpointing for the framework.
-  FrameworkInfo frameworkInfo;
-  frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_checkpoint(true);
 
   Owned<StandaloneMasterDetector> detector(
@@ -2822,8 +2799,7 @@ TYPED_TEST(SlaveRecoveryTest, MultipleFrameworks)
   MockScheduler sched1;
 
   // Enable checkpointing for the framework.
-  FrameworkInfo frameworkInfo1;
-  frameworkInfo1.CopyFrom(DEFAULT_FRAMEWORK_INFO);
+  FrameworkInfo frameworkInfo1 = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo1.set_checkpoint(true);
 
   MesosSchedulerDriver driver1(
@@ -2866,8 +2842,7 @@ TYPED_TEST(SlaveRecoveryTest, MultipleFrameworks)
   MockScheduler sched2;
 
   // Enable checkpointing for the framework.
-  FrameworkInfo frameworkInfo2;
-  frameworkInfo2.CopyFrom(DEFAULT_FRAMEWORK_INFO);
+  FrameworkInfo frameworkInfo2 = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo2.set_checkpoint(true);
 
   MesosSchedulerDriver driver2(
@@ -2985,8 +2960,7 @@ TYPED_TEST(SlaveRecoveryTest, MultipleSlaves)
   ASSERT_SOME(master);
 
   // Enable checkpointing for the framework.
-  FrameworkInfo frameworkInfo;
-  frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_checkpoint(true);
 
   MockScheduler sched;
@@ -3171,8 +3145,7 @@ TYPED_TEST(SlaveRecoveryTest, RestartBeforeContainerizerLaunch)
   MockScheduler sched;
 
   // Enable checkpointing for the framework.
-  FrameworkInfo frameworkInfo;
-  frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_checkpoint(true);
 
   MesosSchedulerDriver driver(
@@ -3274,8 +3247,7 @@ TEST_F(MesosContainerizerSlaveRecoveryTest, ResourceStatistics)
   MockScheduler sched;
 
   // Enable checkpointing for the framework.
-  FrameworkInfo frameworkInfo;
-  frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_checkpoint(true);
 
   MesosSchedulerDriver driver(
@@ -3384,8 +3356,7 @@ TEST_F(MesosContainerizerSlaveRecoveryTest, CGROUPS_ROOT_PerfRollForward)
     .WillRepeatedly(Return());
 
   // Enable checkpointing for the framework.
-  FrameworkInfo frameworkInfo;
-  frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_checkpoint(true);
 
   MesosSchedulerDriver driver(
@@ -3535,8 +3506,7 @@ TEST_F(MesosContainerizerSlaveRecoveryTest, CGROUPS_ROOT_PidNamespaceForward)
     .WillRepeatedly(Return());
 
   // Enable checkpointing for the framework.
-  FrameworkInfo frameworkInfo;
-  frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_checkpoint(true);
 
   MesosSchedulerDriver driver(
@@ -3642,8 +3612,7 @@ TEST_F(MesosContainerizerSlaveRecoveryTest, CGROUPS_ROOT_PidNamespaceBackward)
     .WillRepeatedly(Return());
 
   // Enable checkpointing for the framework.
-  FrameworkInfo frameworkInfo;
-  frameworkInfo.CopyFrom(DEFAULT_FRAMEWORK_INFO);
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_checkpoint(true);
 
   MesosSchedulerDriver driver(
