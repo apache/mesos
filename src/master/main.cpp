@@ -97,6 +97,7 @@ using std::cerr;
 using std::cout;
 using std::endl;
 using std::move;
+using std::ostringstream;
 using std::set;
 using std::shared_ptr;
 using std::string;
@@ -133,6 +134,15 @@ int main(int argc, char** argv)
             "  zk://username:password@host1:port1,host2:port2,.../path\n"
             "  file:///path/to/file (where file contains one of the above)");
 
+  // Optional IP discover script that will set the Master IP.
+  // If set, its output is expected to be a valid parseable IP string.
+  Option<string> ip_discovery_command;
+  flags.add(&ip_discovery_command,
+      "ip_discovery_command",
+      "Optional IP discovery binary: if set, it is expected to emit\n"
+      "the IP address which Master will try to bind to.\n"
+      "Cannot be used in conjunction with --ip.");
+
   Try<Nothing> load = flags.load("MESOS_", argc, argv);
 
   if (load.isError()) {
@@ -167,13 +177,49 @@ int main(int argc, char** argv)
     }
   }
 
-  // Initialize libprocess.
-  if (ip.isSome()) {
+  if (ip_discovery_command.isSome() && ip.isSome()) {
+    EXIT(EXIT_FAILURE) << flags.usage(
+        "Only one of --ip or --ip_discovery_command should be specified");
+  }
+
+  if (ip_discovery_command.isSome()) {
+    ostringstream out;
+
+    // TODO(marco): Modify os::shell to be used in a less verbose
+    // fashion, see MESOS-3142.
+    Try<int> status = os::shell(&out, ip_discovery_command.get());
+
+    if (status.isError()) {
+      EXIT(EXIT_FAILURE)
+          << "Could not execute '" << ip_discovery_command.get()
+          << "': " << status.error();
+    } else if (WIFSIGNALED(status.get())) {
+      EXIT(EXIT_FAILURE)
+          << "Running '" << ip_discovery_command.get()
+          << "' was interruped by signal '"
+          << strsignal(WTERMSIG(status.get())) << "'";
+    } else if (WEXITSTATUS(status.get()) != EXIT_SUCCESS) {
+      EXIT(EXIT_FAILURE)
+          << "Failed to discover Master IP using '"
+          << ip_discovery_command.get() << "'; the script was either not found "
+          << "or exited with an error code.\n"
+          << "Error code (127 typically indicates command not found): "
+          << stringify(WEXITSTATUS(status.get()));
+    }
+
+    const string ipAddress = strings::trim(out.str());
+
+    LOG(INFO) << "Configuring Mesos master to listen on IP '"
+              << ipAddress << "'";
+
+    os::setenv("LIBPROCESS_IP", ipAddress);
+  } else if (ip.isSome()) {
     os::setenv("LIBPROCESS_IP", ip.get());
   }
 
   os::setenv("LIBPROCESS_PORT", stringify(port));
 
+  // Initialize libprocess.
   process::initialize("master");
 
   logging::initialize(argv[0], flags, true); // Catch signals.

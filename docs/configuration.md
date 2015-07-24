@@ -87,11 +87,20 @@ If you have special compilation requirements, please refer to `./configure --hel
       --ip=VALUE
     </td>
     <td>
-      IP address to listen on
-
+      IP address to listen on; this cannot be used in conjunction
+      with --ip_discovery_command.
     </td>
   </tr>
   <tr>
+    <td>
+      --ip_discovery_command=VALUE
+    </td>
+    <td>
+      Optional IP discovery command: if set, it is expected to emit
+      the IP address which Master will try to bind to.  Cannot be used
+      in conjunction with --ip.
+    </td>
+  </tr>  <tr>
     <td>
       --log_dir=VALUE
     </td>
