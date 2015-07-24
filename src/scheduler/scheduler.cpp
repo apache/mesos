@@ -61,6 +61,7 @@
 
 #include "authentication/cram_md5/authenticatee.hpp"
 
+#include "common/protobuf_utils.hpp"
 
 #include "master/detector.hpp"
 
@@ -549,147 +550,51 @@ protected:
 
   void receive(const UPID& from, const FrameworkRegisteredMessage& message)
   {
-    subscribed(from, message.framework_id());
+    failover = false;
+
+    receive(from, protobuf::scheduler::event(message));
   }
 
   void receive(const UPID& from, const FrameworkReregisteredMessage& message)
   {
-    subscribed(from, message.framework_id());
-  }
-
-  void subscribed(const UPID& from, const FrameworkID& frameworkId)
-  {
-    // We've now registered at least once with the master so we're no
-    // longer failing over. See the comment where 'failover' is
-    // declared for further details.
     failover = false;
 
-    Event event;
-    event.set_type(Event::SUBSCRIBED);
-
-    Event::Subscribed* subscribed = event.mutable_subscribed();
-
-    subscribed->mutable_framework_id()->CopyFrom(frameworkId);
-
-    receive(from, event);
+    receive(from, protobuf::scheduler::event(message));
   }
 
   void receive(const UPID& from, const ResourceOffersMessage& message)
   {
-    Event event;
-    event.set_type(Event::OFFERS);
-
-    Event::Offers* offers = event.mutable_offers();
-
-    offers->mutable_offers()->CopyFrom(message.offers());
-
-    receive(from, event);
+    receive(from, protobuf::scheduler::event(message));
   }
 
   void receive(const UPID& from, const RescindResourceOfferMessage& message)
   {
-    Event event;
-    event.set_type(Event::RESCIND);
-
-    Event::Rescind* rescind = event.mutable_rescind();
-
-    rescind->mutable_offer_id()->CopyFrom(message.offer_id());
-
-    receive(from, event);
+    receive(from, protobuf::scheduler::event(message));
   }
 
   void receive(const UPID& from, const StatusUpdateMessage& message)
   {
-    Event event;
-    event.set_type(Event::UPDATE);
-
-    Event::Update* update = event.mutable_update();
-
-    update->mutable_status()->CopyFrom(message.update().status());
-
-    if (message.update().has_slave_id()) {
-      update->mutable_status()->mutable_slave_id()->CopyFrom(
-          message.update().slave_id());
-    }
-
-    if (message.update().has_executor_id()) {
-      update->mutable_status()->mutable_executor_id()->CopyFrom(
-          message.update().executor_id());
-    }
-
-    update->mutable_status()->set_timestamp(message.update().timestamp());
-
-    // If the update does not have a 'uuid', it does not need
-    // acknowledging. However, prior to 0.23.0, the update uuid
-    // was required and always set. In 0.24.0, we can rely on the
-    // update uuid check here, until then we must still check for
-    // this being sent from the driver (from == UPID()) or from
-    // the master (pid == UPID()).
-    //
-    // TODO(bmahler): For the HTTP API, we will have to update the
-    // master and slave to ensure the 'uuid' in TaskStatus is set
-    // correctly.
-    if (!message.update().has_uuid() || message.update().uuid() == "") {
-      update->mutable_status()->clear_uuid();
-    } else if (UPID(message.pid()) == UPID()) {
-      update->mutable_status()->clear_uuid();
-    } else {
-      update->mutable_status()->set_uuid(message.update().uuid());
-    }
-
-    receive(from, event);
+    receive(from, protobuf::scheduler::event(message));
   }
 
   void receive(const UPID& from, const LostSlaveMessage& message)
   {
-    Event event;
-    event.set_type(Event::FAILURE);
-
-    Event::Failure* failure = event.mutable_failure();
-
-    failure->mutable_slave_id()->CopyFrom(message.slave_id());
-
-    receive(from, event);
+    receive(from, protobuf::scheduler::event(message));
   }
 
   void receive(const UPID& from, const ExitedExecutorMessage& message)
   {
-    Event event;
-    event.set_type(Event::FAILURE);
-
-    Event::Failure* failure = event.mutable_failure();
-
-    failure->mutable_slave_id()->CopyFrom(message.slave_id());
-    failure->mutable_executor_id()->CopyFrom(message.executor_id());
-    failure->set_status(message.status());
-
-    receive(from, event);
+    receive(from, protobuf::scheduler::event(message));
   }
 
-  void receive(const UPID& from, const ExecutorToFrameworkMessage& _message)
+  void receive(const UPID& from, const ExecutorToFrameworkMessage& message)
   {
-    Event event;
-    event.set_type(Event::MESSAGE);
-
-    Event::Message* message = event.mutable_message();
-
-    message->mutable_slave_id()->CopyFrom(_message.slave_id());
-    message->mutable_executor_id()->CopyFrom(_message.executor_id());
-    message->set_data(_message.data());
-
-    receive(from, event);
+    receive(from, protobuf::scheduler::event(message));
   }
 
   void receive(const UPID& from, const FrameworkErrorMessage& message)
   {
-    Event event;
-    event.set_type(Event::ERROR);
-
-    Event::Error* error = event.mutable_error();
-
-    error->set_message(message.message());
-
-    receive(from, event);
+    receive(from, protobuf::scheduler::event(message));
   }
 
   // Helper for injecting an ERROR event.
