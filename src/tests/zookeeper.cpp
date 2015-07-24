@@ -96,24 +96,6 @@ void ZooKeeperTest::SetUp()
 }
 
 
-ZooKeeperTest::TestWatcher::TestWatcher()
-{
-  pthread_mutexattr_t attr;
-  pthread_mutexattr_init(&attr);
-  pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_ERRORCHECK);
-  pthread_mutex_init(&mutex, &attr);
-  pthread_mutexattr_destroy(&attr);
-  pthread_cond_init(&cond, 0);
-}
-
-
-ZooKeeperTest::TestWatcher::~TestWatcher()
-{
-  pthread_mutex_destroy(&mutex);
-  pthread_cond_destroy(&cond);
-}
-
-
 void ZooKeeperTest::TestWatcher::process(
     int type,
     int state,
@@ -122,7 +104,7 @@ void ZooKeeperTest::TestWatcher::process(
 {
   synchronized (mutex) {
     events.push(Event(type, state, path));
-    pthread_cond_signal(&cond);
+    cond.notify_one();
   }
 }
 
@@ -161,7 +143,7 @@ ZooKeeperTest::TestWatcher::awaitEvent()
   synchronized (mutex) {
     while (true) {
       while (events.empty()) {
-        pthread_cond_wait(&cond, &mutex);
+        synchronized_wait(&cond, &mutex);
       }
       Event event = events.front();
       events.pop();

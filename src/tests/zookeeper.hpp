@@ -23,6 +23,8 @@
 
 #include <gtest/gtest.h>
 
+#include <condition_variable>
+#include <mutex>
 #include <queue>
 
 #include <stout/duration.hpp>
@@ -86,8 +88,8 @@ public:
       const std::string path;
     };
 
-    TestWatcher();
-    virtual ~TestWatcher();
+    TestWatcher() = default;
+    virtual ~TestWatcher() = default;
 
     virtual void process(
         int type,
@@ -109,8 +111,8 @@ public:
 
   private:
     std::queue<Event> events;
-    pthread_mutex_t mutex;
-    pthread_cond_t cond;
+    std::mutex mutex;
+    std::condition_variable cond;
   };
 
   static void SetUpTestCase();
