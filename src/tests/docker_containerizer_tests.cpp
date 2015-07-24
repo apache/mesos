@@ -482,9 +482,6 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Launch_Executor)
 
   task.mutable_executor()->CopyFrom(executorInfo);
 
-  vector<TaskInfo> tasks;
-  tasks.push_back(task);
-
   Future<ContainerID> containerId;
   EXPECT_CALL(dockerContainerizer, launch(_, _, _, _, _, _, _))
     .WillOnce(DoAll(FutureArg<0>(&containerId),
@@ -497,7 +494,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Launch_Executor)
     .WillOnce(FutureArg<1>(&statusRunning))
     .WillOnce(FutureArg<1>(&statusFinished));
 
-  driver.launchTasks(offers.get()[0].id(), tasks);
+  driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY_FOR(containerId, Seconds(60));
   AWAIT_READY_FOR(statusRunning, Seconds(60));
@@ -596,9 +593,6 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Launch_Executor_Bridged)
 
   task.mutable_executor()->CopyFrom(executorInfo);
 
-  vector<TaskInfo> tasks;
-  tasks.push_back(task);
-
   Future<ContainerID> containerId;
   EXPECT_CALL(dockerContainerizer, launch(_, _, _, _, _, _, _))
     .WillOnce(DoAll(FutureArg<0>(&containerId),
@@ -611,7 +605,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Launch_Executor_Bridged)
     .WillOnce(FutureArg<1>(&statusRunning))
     .WillOnce(FutureArg<1>(&statusFinished));
 
-  driver.launchTasks(offers.get()[0].id(), tasks);
+  driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY_FOR(containerId, Seconds(60));
   AWAIT_READY_FOR(statusRunning, Seconds(60));
@@ -698,9 +692,6 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Launch)
   task.mutable_command()->CopyFrom(command);
   task.mutable_container()->CopyFrom(containerInfo);
 
-  vector<TaskInfo> tasks;
-  tasks.push_back(task);
-
   Future<ContainerID> containerId;
   EXPECT_CALL(dockerContainerizer, launch(_, _, _, _, _, _, _, _))
     .WillOnce(DoAll(FutureArg<0>(&containerId),
@@ -712,7 +703,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Launch)
     .WillOnce(FutureArg<1>(&statusRunning))
     .WillRepeatedly(DoDefault());
 
-  driver.launchTasks(offers.get()[0].id(), tasks);
+  driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY_FOR(containerId, Seconds(60));
   AWAIT_READY_FOR(statusRunning, Seconds(60));
@@ -807,9 +798,6 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Kill)
   task.mutable_command()->CopyFrom(command);
   task.mutable_container()->CopyFrom(containerInfo);
 
-  vector<TaskInfo> tasks;
-  tasks.push_back(task);
-
   Future<ContainerID> containerId;
   EXPECT_CALL(dockerContainerizer, launch(_, _, _, _, _, _, _, _))
     .WillOnce(DoAll(FutureArg<0>(&containerId),
@@ -820,7 +808,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Kill)
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillOnce(FutureArg<1>(&statusRunning));
 
-  driver.launchTasks(offers.get()[0].id(), tasks);
+  driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY_FOR(containerId, Seconds(60));
   AWAIT_READY_FOR(statusRunning, Seconds(60));
@@ -915,9 +903,6 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Usage)
   task.mutable_command()->CopyFrom(command);
   task.mutable_container()->CopyFrom(containerInfo);
 
-  vector<TaskInfo> tasks;
-  tasks.push_back(task);
-
   Future<ContainerID> containerId;
   EXPECT_CALL(dockerContainerizer, launch(_, _, _, _, _, _, _, _))
     .WillOnce(DoAll(FutureArg<0>(&containerId),
@@ -933,7 +918,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Usage)
     .WillOnce(FutureArg<1>(&statusRunning))
     .WillRepeatedly(DoDefault());
 
-  driver.launchTasks(offers.get()[0].id(), tasks);
+  driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY_FOR(containerId, Seconds(60));
   AWAIT_READY_FOR(statusRunning, Seconds(60));
@@ -1052,9 +1037,6 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Update)
   task.mutable_command()->CopyFrom(command);
   task.mutable_container()->CopyFrom(containerInfo);
 
-  vector<TaskInfo> tasks;
-  tasks.push_back(task);
-
   Future<ContainerID> containerId;
   EXPECT_CALL(dockerContainerizer, launch(_, _, _, _, _, _, _, _))
     .WillOnce(DoAll(FutureArg<0>(&containerId),
@@ -1066,7 +1048,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Update)
     .WillOnce(FutureArg<1>(&statusRunning))
     .WillRepeatedly(DoDefault());
 
-  driver.launchTasks(offers.get()[0].id(), tasks);
+  driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY(containerId);
 
@@ -1381,9 +1363,6 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Logs)
   task.mutable_command()->CopyFrom(command);
   task.mutable_container()->CopyFrom(containerInfo);
 
-  vector<TaskInfo> tasks;
-  tasks.push_back(task);
-
   Future<ContainerID> containerId;
   Future<string> directory;
   EXPECT_CALL(dockerContainerizer, launch(_, _, _, _, _, _, _, _))
@@ -1399,7 +1378,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Logs)
     .WillOnce(FutureArg<1>(&statusFinished))
     .WillRepeatedly(DoDefault());
 
-  driver.launchTasks(offers.get()[0].id(), tasks);
+  driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY_FOR(containerId, Seconds(60));
   AWAIT_READY(directory);
@@ -1506,9 +1485,6 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Default_CMD)
   task.mutable_command()->CopyFrom(command);
   task.mutable_container()->CopyFrom(containerInfo);
 
-  vector<TaskInfo> tasks;
-  tasks.push_back(task);
-
   Future<ContainerID> containerId;
   Future<string> directory;
   EXPECT_CALL(dockerContainerizer, launch(_, _, _, _, _, _, _, _))
@@ -1524,7 +1500,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Default_CMD)
     .WillOnce(FutureArg<1>(&statusFinished))
     .WillRepeatedly(DoDefault());
 
-  driver.launchTasks(offers.get()[0].id(), tasks);
+  driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY_FOR(containerId, Seconds(60));
   AWAIT_READY(directory);
@@ -1630,9 +1606,6 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Default_CMD_Override)
   task.mutable_command()->CopyFrom(command);
   task.mutable_container()->CopyFrom(containerInfo);
 
-  vector<TaskInfo> tasks;
-  tasks.push_back(task);
-
   Future<ContainerID> containerId;
   Future<string> directory;
   EXPECT_CALL(dockerContainerizer, launch(_, _, _, _, _, _, _, _))
@@ -1648,7 +1621,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Default_CMD_Override)
     .WillOnce(FutureArg<1>(&statusFinished))
     .WillRepeatedly(DoDefault());
 
-  driver.launchTasks(offers.get()[0].id(), tasks);
+  driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY_FOR(containerId, Seconds(60));
   AWAIT_READY(directory);
@@ -1758,9 +1731,6 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Default_CMD_Args)
   task.mutable_command()->CopyFrom(command);
   task.mutable_container()->CopyFrom(containerInfo);
 
-  vector<TaskInfo> tasks;
-  tasks.push_back(task);
-
   Future<ContainerID> containerId;
   Future<string> directory;
   EXPECT_CALL(dockerContainerizer, launch(_, _, _, _, _, _, _, _))
@@ -1776,7 +1746,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Default_CMD_Args)
     .WillOnce(FutureArg<1>(&statusFinished))
     .WillRepeatedly(DoDefault());
 
-  driver.launchTasks(offers.get()[0].id(), tasks);
+  driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY_FOR(containerId, Seconds(60));
   AWAIT_READY(directory);
@@ -1883,9 +1853,6 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_SlaveRecoveryTaskContainer)
   task.mutable_command()->CopyFrom(command);
   task.mutable_container()->CopyFrom(containerInfo);
 
-  vector<TaskInfo> tasks;
-  tasks.push_back(task);
-
   Future<ContainerID> containerId;
   EXPECT_CALL(*dockerContainerizer1, launch(_, _, _, _, _, _, _, _))
     .WillOnce(DoAll(FutureArg<0>(&containerId),
@@ -1896,7 +1863,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_SlaveRecoveryTaskContainer)
   Future<StatusUpdateMessage> statusUpdateMessage =
     DROP_PROTOBUF(StatusUpdateMessage(), _, _);
 
-  driver.launchTasks(offers.get()[0].id(), tasks);
+  driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY(containerId);
 
@@ -2038,9 +2005,6 @@ TEST_F(DockerContainerizerTest,
 
   task.mutable_executor()->CopyFrom(executorInfo);
 
-  vector<TaskInfo> tasks;
-  tasks.push_back(task);
-
   Future<ContainerID> containerId;
   Future<SlaveID> slaveId;
   EXPECT_CALL(*dockerContainerizer1, launch(_, _, _, _, _, _, _))
@@ -2069,7 +2033,7 @@ TEST_F(DockerContainerizerTest,
   Future<StatusUpdateMessage> statusUpdateMessage2 =
     DROP_PROTOBUF(StatusUpdateMessage(), _, _);
 
-  driver.launchTasks(offers.get()[0].id(), tasks);
+  driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY(containerId);
   AWAIT_READY(slaveId);
@@ -2206,9 +2170,6 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_NC_PortMapping)
   task.mutable_command()->CopyFrom(command);
   task.mutable_container()->CopyFrom(containerInfo);
 
-  vector<TaskInfo> tasks;
-  tasks.push_back(task);
-
   Future<ContainerID> containerId;
   Future<string> directory;
   EXPECT_CALL(dockerContainerizer, launch(_, _, _, _, _, _, _, _))
@@ -2224,7 +2185,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_NC_PortMapping)
     .WillOnce(FutureArg<1>(&statusFinished))
     .WillRepeatedly(DoDefault());
 
-  driver.launchTasks(offers.get()[0].id(), tasks);
+  driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY_FOR(containerId, Seconds(60));
   AWAIT_READY(directory);
@@ -2333,9 +2294,6 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_LaunchSandboxWithColon)
   task.mutable_command()->CopyFrom(command);
   task.mutable_container()->CopyFrom(containerInfo);
 
-  vector<TaskInfo> tasks;
-  tasks.push_back(task);
-
   Future<ContainerID> containerId;
   EXPECT_CALL(dockerContainerizer, launch(_, _, _, _, _, _, _, _))
     .WillOnce(DoAll(FutureArg<0>(&containerId),
@@ -2347,7 +2305,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_LaunchSandboxWithColon)
     .WillOnce(FutureArg<1>(&statusRunning))
     .WillRepeatedly(DoDefault());
 
-  driver.launchTasks(offers.get()[0].id(), tasks);
+  driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY_FOR(containerId, Seconds(60));
   AWAIT_READY_FOR(statusRunning, Seconds(60));
@@ -2440,9 +2398,6 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_DestroyWhileFetching)
   task.mutable_command()->CopyFrom(command);
   task.mutable_container()->CopyFrom(containerInfo);
 
-  vector<TaskInfo> tasks;
-  tasks.push_back(task);
-
   Future<TaskStatus> statusFailed;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillOnce(FutureArg<1>(&statusFailed));
@@ -2453,7 +2408,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_DestroyWhileFetching)
                     Invoke(&dockerContainerizer,
                            &MockDockerContainerizer::_launch)));
 
-  driver.launchTasks(offers.get()[0].id(), tasks);
+  driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY_FOR(containerId, Seconds(60));
 
@@ -2561,10 +2516,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_DestroyWhilePulling)
                     Invoke(&dockerContainerizer,
                            &MockDockerContainerizer::_launch)));
 
-  vector<TaskInfo> tasks;
-  tasks.push_back(task);
-
-  driver.launchTasks(offers.get()[0].id(), tasks);
+  driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY_FOR(containerId, Seconds(60));
 
@@ -2668,10 +2620,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_ExecutorCleanupWhenLaunchFailed)
   EXPECT_CALL(dockerContainerizer, update(_, _))
     .WillRepeatedly(Return(Failure("Fail resource update")));
 
-  vector<TaskInfo> tasks;
-  tasks.push_back(task);
-
-  driver.launchTasks(offers.get()[0].id(), tasks);
+  driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY_FOR(containerId, Seconds(60));
 
@@ -2767,10 +2716,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_FetchFailure)
   EXPECT_CALL(*process, fetch(_, _))
     .WillOnce(Return(Failure("some error from fetch")));
 
-  vector<TaskInfo> tasks;
-  tasks.push_back(task);
-
-  driver.launchTasks(offers.get()[0].id(), tasks);
+  driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY_FOR(containerId, Seconds(60));
 
@@ -2871,10 +2817,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_DockerPullFailure)
   EXPECT_CALL(*mockDocker, pull(_, _, _))
     .WillOnce(Return(Failure("some error from docker pull")));
 
-  vector<TaskInfo> tasks;
-  tasks.push_back(task);
-
-  driver.launchTasks(offers.get()[0].id(), tasks);
+  driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY_FOR(containerId, Seconds(60));
 
@@ -2989,10 +2932,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_DockerInspectDiscard)
                     Invoke(&dockerContainerizer,
                            &MockDockerContainerizer::_launchExecutor)));
 
-  vector<TaskInfo> tasks;
-  tasks.push_back(task);
-
-  driver.launchTasks(offers.get()[0].id(), tasks);
+  driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY_FOR(containerId, Seconds(60));
 

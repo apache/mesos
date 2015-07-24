@@ -152,9 +152,6 @@ TEST_F(MasterTest, TaskRunning)
   task.mutable_resources()->MergeFrom(offers.get()[0].resources());
   task.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
 
-  vector<TaskInfo> tasks;
-  tasks.push_back(task);
-
   EXPECT_CALL(exec, registered(_, _, _, _))
     .Times(1);
 
@@ -171,7 +168,7 @@ TEST_F(MasterTest, TaskRunning)
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillOnce(FutureArg<1>(&status));
 
-  driver.launchTasks(offers.get()[0].id(), tasks);
+  driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY(status);
   EXPECT_EQ(TASK_RUNNING, status.get().state());
@@ -230,9 +227,6 @@ TEST_F(MasterTest, ShutdownFrameworkWhileTaskRunning)
   task.mutable_resources()->MergeFrom(offer.resources());
   task.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
 
-  vector<TaskInfo> tasks;
-  tasks.push_back(task);
-
   EXPECT_CALL(exec, registered(_, _, _, _))
     .Times(1);
 
@@ -249,7 +243,7 @@ TEST_F(MasterTest, ShutdownFrameworkWhileTaskRunning)
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillOnce(FutureArg<1>(&status));
 
-  driver.launchTasks(offer.id(), tasks);
+  driver.launchTasks(offer.id(), {task});
 
   AWAIT_READY(status);
   EXPECT_EQ(TASK_RUNNING, status.get().state());
@@ -339,9 +333,6 @@ TEST_F(MasterTest, KillTask)
   task.mutable_resources()->MergeFrom(offers.get()[0].resources());
   task.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
 
-  vector<TaskInfo> tasks;
-  tasks.push_back(task);
-
   EXPECT_CALL(exec, registered(_, _, _, _))
     .Times(1);
 
@@ -352,7 +343,7 @@ TEST_F(MasterTest, KillTask)
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillOnce(FutureArg<1>(&status));
 
-  driver.launchTasks(offers.get()[0].id(), tasks);
+  driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY(status);
   EXPECT_EQ(TASK_RUNNING, status.get().state());
@@ -417,9 +408,6 @@ TEST_F(MasterTest, KillUnknownTask)
   task.mutable_resources()->MergeFrom(offers.get()[0].resources());
   task.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
 
-  vector<TaskInfo> tasks;
-  tasks.push_back(task);
-
   EXPECT_CALL(exec, registered(_, _, _, _))
     .Times(1);
 
@@ -430,7 +418,7 @@ TEST_F(MasterTest, KillUnknownTask)
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillOnce(FutureArg<1>(&status));
 
-  driver.launchTasks(offers.get()[0].id(), tasks);
+  driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY(status);
   EXPECT_EQ(TASK_RUNNING, status.get().state());
@@ -498,9 +486,6 @@ TEST_F(MasterTest, KillUnknownTaskSlaveInTransition)
   // Start a task.
   TaskInfo task = createTask(offers.get()[0], "", DEFAULT_EXECUTOR_ID);
 
-  vector<TaskInfo> tasks;
-  tasks.push_back(task);
-
   EXPECT_CALL(exec, registered(_, _, _, _))
     .Times(1);
 
@@ -511,7 +496,7 @@ TEST_F(MasterTest, KillUnknownTaskSlaveInTransition)
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillOnce(FutureArg<1>(&status));
 
-  driver.launchTasks(offers.get()[0].id(), tasks);
+  driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY(status);
   EXPECT_EQ(TASK_RUNNING, status.get().state());
@@ -616,9 +601,6 @@ TEST_F(MasterTest, StatusUpdateAck)
   task.mutable_resources()->MergeFrom(offers.get()[0].resources());
   task.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
 
-  vector<TaskInfo> tasks;
-  tasks.push_back(task);
-
   EXPECT_CALL(exec, registered(_, _, _, _))
     .Times(1);
 
@@ -632,7 +614,7 @@ TEST_F(MasterTest, StatusUpdateAck)
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillOnce(FutureArg<1>(&status));
 
-  driver.launchTasks(offers.get()[0].id(), tasks);
+  driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY(status);
   EXPECT_EQ(TASK_RUNNING, status.get().state());
@@ -701,9 +683,6 @@ TEST_F(MasterTest, RecoverResources)
   task.mutable_resources()->MergeFrom(taskResources);
   task.mutable_executor()->MergeFrom(executorInfo);
 
-  vector<TaskInfo> tasks;
-  tasks.push_back(task);
-
   EXPECT_CALL(exec, registered(_, _, _, _))
     .Times(1);
 
@@ -714,7 +693,7 @@ TEST_F(MasterTest, RecoverResources)
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillOnce(FutureArg<1>(&status));
 
-  driver.launchTasks(offers.get()[0].id(), tasks);
+  driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY(status);
   EXPECT_EQ(TASK_RUNNING, status.get().state());
@@ -804,9 +783,6 @@ TEST_F(MasterTest, FrameworkMessage)
   task.mutable_resources()->MergeFrom(offers.get()[0].resources());
   task.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
 
-  vector<TaskInfo> tasks;
-  tasks.push_back(task);
-
   Future<ExecutorDriver*> execDriver;
   EXPECT_CALL(exec, registered(_, _, _, _))
     .WillOnce(FutureArg<0>(&execDriver));
@@ -818,7 +794,7 @@ TEST_F(MasterTest, FrameworkMessage)
   EXPECT_CALL(sched, statusUpdate(&schedDriver, _))
     .WillOnce(FutureArg<1>(&status));
 
-  schedDriver.launchTasks(offers.get()[0].id(), tasks);
+  schedDriver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY(status);
   EXPECT_EQ(TASK_RUNNING, status.get().state());
@@ -1203,8 +1179,6 @@ TEST_F(MasterTest, LaunchCombinedOfferTest)
   task1.mutable_slave_id()->MergeFrom(offers1.get()[0].slave_id());
   task1.mutable_resources()->MergeFrom(halfSlave);
   task1.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
-  vector<TaskInfo> tasks1;
-  tasks1.push_back(task1);
 
   EXPECT_CALL(exec, registered(_, _, _, _));
 
@@ -1223,7 +1197,7 @@ TEST_F(MasterTest, LaunchCombinedOfferTest)
   Filters filters;
   filters.set_refuse_seconds(0);
 
-  driver.launchTasks(offers1.get()[0].id(), tasks1, filters);
+  driver.launchTasks(offers1.get()[0].id(), {task1}, filters);
 
   AWAIT_READY(status1);
   EXPECT_EQ(TASK_RUNNING, status1.get().state());
@@ -1269,9 +1243,6 @@ TEST_F(MasterTest, LaunchCombinedOfferTest)
   task2.mutable_resources()->MergeFrom(fullSlave);
   task2.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
 
-  vector<TaskInfo> tasks2;
-  tasks2.push_back(task2);
-
   EXPECT_CALL(exec, launchTask(_, _))
     .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
 
@@ -1283,7 +1254,7 @@ TEST_F(MasterTest, LaunchCombinedOfferTest)
   combinedOffers.push_back(offers2.get()[0].id());
   combinedOffers.push_back(offers3.get()[0].id());
 
-  driver.launchTasks(combinedOffers, tasks2);
+  driver.launchTasks(combinedOffers, {task2});
 
   AWAIT_READY(status3);
   EXPECT_EQ(TASK_RUNNING, status3.get().state());
@@ -1360,8 +1331,6 @@ TEST_F(MasterTest, LaunchAcrossSlavesTest)
   task.mutable_slave_id()->MergeFrom(offers1.get()[0].slave_id());
   task.mutable_resources()->MergeFrom(twoSlaves);
   task.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
-  vector<TaskInfo> tasks;
-  tasks.push_back(task);
 
   Future<TaskStatus> status;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
@@ -1374,7 +1343,7 @@ TEST_F(MasterTest, LaunchAcrossSlavesTest)
   Future<Nothing> recoverResources =
     FUTURE_DISPATCH(_, &MesosAllocatorProcess::recoverResources);
 
-  driver.launchTasks(combinedOffers, tasks);
+  driver.launchTasks(combinedOffers, {task});
 
   AWAIT_READY(status);
   EXPECT_EQ(TASK_LOST, status.get().state());
@@ -1455,8 +1424,6 @@ TEST_F(MasterTest, LaunchDuplicateOfferTest)
   task.mutable_slave_id()->MergeFrom(offers.get()[0].slave_id());
   task.mutable_resources()->MergeFrom(fullSlave);
   task.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
-  vector<TaskInfo> tasks;
-  tasks.push_back(task);
 
   Future<TaskStatus> status;
 
@@ -1466,7 +1433,7 @@ TEST_F(MasterTest, LaunchDuplicateOfferTest)
   Future<Nothing> recoverResources =
     FUTURE_DISPATCH(_, &MesosAllocatorProcess::recoverResources);
 
-  driver.launchTasks(combinedOffers, tasks);
+  driver.launchTasks(combinedOffers, {task});
 
   AWAIT_READY(status);
   EXPECT_EQ(TASK_LOST, status.get().state());
@@ -2896,9 +2863,6 @@ TEST_F(MasterTest, StateSummaryEndpoint)
   task.mutable_resources()->MergeFrom(offers.get()[0].resources());
   task.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
 
-  vector<TaskInfo> tasks;
-  tasks.push_back(task);
-
   EXPECT_CALL(exec, registered(_, _, _, _))
     .Times(1);
 
@@ -2909,7 +2873,7 @@ TEST_F(MasterTest, StateSummaryEndpoint)
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillOnce(FutureArg<1>(&status));
 
-  driver.launchTasks(offers.get()[0].id(), tasks);
+  driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY(status);
   EXPECT_EQ(TASK_RUNNING, status.get().state());
@@ -3071,9 +3035,6 @@ TEST_F(MasterTest, TaskLabels)
   labels->add_labels()->CopyFrom(createLabel("bar", "baz"));
   labels->add_labels()->CopyFrom(createLabel("bar", "qux"));
 
-  vector<TaskInfo> tasks;
-  tasks.push_back(task);
-
   EXPECT_CALL(exec, registered(_, _, _, _))
     .Times(1);
 
@@ -3090,7 +3051,7 @@ TEST_F(MasterTest, TaskLabels)
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillOnce(FutureArg<1>(&status));
 
-  driver.launchTasks(offers.get()[0].id(), tasks);
+  driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY(status);
   EXPECT_EQ(TASK_RUNNING, status.get().state());
@@ -3167,9 +3128,6 @@ TEST_F(MasterTest, TaskStatusLabels)
 
   TaskInfo task = createTask(offers.get()[0], "sleep 100", DEFAULT_EXECUTOR_ID);
 
-  vector<TaskInfo> tasks;
-  tasks.push_back(task);
-
   ExecutorDriver* execDriver;
   EXPECT_CALL(exec, registered(_, _, _, _))
     .WillOnce(SaveArg<0>(&execDriver));
@@ -3182,7 +3140,7 @@ TEST_F(MasterTest, TaskStatusLabels)
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillOnce(FutureArg<1>(&status));
 
-  driver.launchTasks(offers.get()[0].id(), tasks);
+  driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY(execTask);
 
@@ -3357,9 +3315,6 @@ TEST_F(MasterTest, TaskDiscoveryInfo)
   labels->add_labels()->CopyFrom(createLabel("clearance", "high"));
   labels->add_labels()->CopyFrom(createLabel("RPC", "yes"));
 
-  vector<TaskInfo> tasks;
-  tasks.push_back(task);
-
   EXPECT_CALL(exec, registered(_, _, _, _));
 
   EXPECT_CALL(exec, launchTask(_, _))
@@ -3375,7 +3330,7 @@ TEST_F(MasterTest, TaskDiscoveryInfo)
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillOnce(FutureArg<1>(&status));
 
-  driver.launchTasks(offers.get()[0].id(), tasks);
+  driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY(status);
   EXPECT_EQ(TASK_RUNNING, status.get().state());
@@ -3534,9 +3489,6 @@ TEST_F(MasterTest, MasterFailoverLongLivedExecutor)
   task1.mutable_resources()->MergeFrom(halfSlave);
   task1.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
 
-  vector<TaskInfo> tasks1;
-  tasks1.push_back(task1);
-
   EXPECT_CALL(exec, registered(_, _, _, _));
 
   // Expect two tasks to eventually be running on the executor.
@@ -3549,7 +3501,7 @@ TEST_F(MasterTest, MasterFailoverLongLivedExecutor)
     .WillOnce(FutureArg<1>(&status1))
     .WillRepeatedly(Return());
 
-  driver.launchTasks(offers1.get()[0].id(), tasks1);
+  driver.launchTasks(offers1.get()[0].id(), {task1});
 
   AWAIT_READY(status1);
   EXPECT_EQ(TASK_RUNNING, status1.get().state());
@@ -3577,16 +3529,13 @@ TEST_F(MasterTest, MasterFailoverLongLivedExecutor)
   TaskInfo task2 = task1;
   task2.mutable_task_id()->set_value("2");
 
-  vector<TaskInfo> tasks2;
-  tasks2.push_back(task2);
-
   Future<TaskStatus> status2;
   EXPECT_CALL(sched, statusUpdate(&driver, TaskStatusEq(task2)))
     .WillOnce(FutureArg<1>(&status2))
     .WillRepeatedly(Return());
 
   // Start the second task with the new master on the running executor.
-  driver.launchTasks(offers2.get()[0].id(), tasks2);
+  driver.launchTasks(offers2.get()[0].id(), {task2});
 
   AWAIT_READY(status2);
   EXPECT_EQ(TASK_RUNNING, status2.get().state());

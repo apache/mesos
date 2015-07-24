@@ -209,8 +209,6 @@ TEST_F(FaultToleranceTest, ReregisterCompletedFrameworks)
   // Step 3. Create/launch a task.
   TaskInfo task =
     createTask(offers.get()[0], "sleep 10000", DEFAULT_EXECUTOR_ID);
-  vector<TaskInfo> tasks;
-  tasks.push_back(task); // Long lasting task.
 
   EXPECT_CALL(executor, registered(_, _, _, _));
   EXPECT_CALL(executor, launchTask(_, _))
@@ -220,7 +218,7 @@ TEST_F(FaultToleranceTest, ReregisterCompletedFrameworks)
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillOnce(FutureArg<1>(&statusRunning));
 
-  driver.launchTasks(offers.get()[0].id(), tasks);
+  driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY(statusRunning);
   EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
@@ -832,14 +830,11 @@ TEST_F(FaultToleranceTest, TaskLost)
   task.mutable_resources()->MergeFrom(offers.get()[0].resources());
   task.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
 
-  vector<TaskInfo> tasks;
-  tasks.push_back(task);
-
   Future<TaskStatus> status;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillOnce(FutureArg<1>(&status));
 
-  driver.launchTasks(offers.get()[0].id(), tasks);
+  driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY(status);
   EXPECT_EQ(TASK_LOST, status.get().state());
@@ -890,9 +885,6 @@ TEST_F(FaultToleranceTest, SchedulerFailoverStatusUpdate)
   task.mutable_resources()->MergeFrom(offers.get()[0].resources());
   task.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
 
-  vector<TaskInfo> tasks;
-  tasks.push_back(task);
-
   EXPECT_CALL(exec, registered(_, _, _, _));
 
   EXPECT_CALL(exec, launchTask(_, _))
@@ -905,7 +897,7 @@ TEST_F(FaultToleranceTest, SchedulerFailoverStatusUpdate)
                   _,
                   Not(AnyOf(Eq(master.get()), Eq(slave.get()))));
 
-  driver1.launchTasks(offers.get()[0].id(), tasks);
+  driver1.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY(statusUpdateMessage);
 
@@ -1106,9 +1098,6 @@ TEST_F(FaultToleranceTest, ForwardStatusUpdateUnknownExecutor)
   task.mutable_resources()->MergeFrom(offer.resources());
   task.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
 
-  vector<TaskInfo> tasks;
-  tasks.push_back(task);
-
   Future<Nothing> statusUpdate;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillOnce(FutureSatisfy(&statusUpdate));    // TASK_RUNNING of task1.
@@ -1118,7 +1107,7 @@ TEST_F(FaultToleranceTest, ForwardStatusUpdateUnknownExecutor)
   EXPECT_CALL(exec, launchTask(_, _))
     .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
 
-  driver.launchTasks(offer.id(), tasks);
+  driver.launchTasks(offer.id(), {task});
 
   // Wait until TASK_RUNNING of task1 is received.
   AWAIT_READY(statusUpdate);
@@ -1193,9 +1182,6 @@ TEST_F(FaultToleranceTest, SchedulerFailoverExecutorToFrameworkMessage)
   task.mutable_resources()->MergeFrom(offers.get()[0].resources());
   task.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
 
-  vector<TaskInfo> tasks;
-  tasks.push_back(task);
-
   Future<TaskStatus> status;
   EXPECT_CALL(sched1, statusUpdate(&driver1, _))
     .WillOnce(FutureArg<1>(&status));
@@ -1207,7 +1193,7 @@ TEST_F(FaultToleranceTest, SchedulerFailoverExecutorToFrameworkMessage)
   EXPECT_CALL(exec, launchTask(_, _))
     .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
 
-  driver1.launchTasks(offers.get()[0].id(), tasks);
+  driver1.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY(status);
   EXPECT_EQ(TASK_RUNNING, status.get().state());
@@ -1527,9 +1513,6 @@ TEST_F(FaultToleranceTest, SchedulerExit)
   task.mutable_resources()->MergeFrom(offers.get()[0].resources());
   task.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
 
-  vector<TaskInfo> tasks;
-  tasks.push_back(task);
-
   Future<TaskStatus> status;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillOnce(FutureArg<1>(&status));
@@ -1539,7 +1522,7 @@ TEST_F(FaultToleranceTest, SchedulerExit)
   EXPECT_CALL(exec, launchTask(_, _))
     .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
 
-  driver.launchTasks(offers.get()[0].id(), tasks);
+  driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY(status);
   EXPECT_EQ(TASK_RUNNING, status.get().state());

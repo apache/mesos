@@ -197,15 +197,12 @@ TEST_F(MasterSlaveReconciliationTest, ReconcileLostTask)
   task.mutable_resources()->MergeFrom(offers.get()[0].resources());
   task.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
 
-  vector<TaskInfo> tasks;
-  tasks.push_back(task);
-
   // We now launch a task and drop the corresponding RunTaskMessage on
   // the slave, to ensure that only the master knows about this task.
   Future<RunTaskMessage> runTaskMessage =
     DROP_PROTOBUF(RunTaskMessage(), _, _);
 
-  driver.launchTasks(offers.get()[0].id(), tasks);
+  driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY(runTaskMessage);
 
@@ -314,9 +311,6 @@ TEST_F(MasterSlaveReconciliationTest, ReconcileRace)
   task.mutable_resources()->MergeFrom(offers.get()[0].resources());
   task.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
 
-  vector<TaskInfo> tasks;
-  tasks.push_back(task);
-
   ExecutorDriver* executorDriver;
   EXPECT_CALL(exec, registered(_, _, _, _))
     .WillOnce(SaveArg<0>(&executorDriver));
@@ -329,7 +323,7 @@ TEST_F(MasterSlaveReconciliationTest, ReconcileRace)
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .Times(0);
 
-  driver.launchTasks(offers.get()[0].id(), tasks);
+  driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY(launchTask);
 
@@ -421,10 +415,7 @@ TEST_F(MasterSlaveReconciliationTest, SlaveReregisterPendingTask)
   task1.mutable_resources()->MergeFrom(offers.get()[0].resources());
   task1.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
 
-  vector<TaskInfo> tasks1;
-  tasks1.push_back(task1);
-
-  driver.launchTasks(offers.get()[0].id(), tasks1);
+  driver.launchTasks(offers.get()[0].id(), {task1});
 
   AWAIT_READY(_runTask);
 
@@ -486,9 +477,6 @@ TEST_F(MasterSlaveReconciliationTest, SlaveReregisterTerminalTask)
   task.mutable_resources()->MergeFrom(offers.get()[0].resources());
   task.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
 
-  vector<TaskInfo> tasks;
-  tasks.push_back(task);
-
   EXPECT_CALL(exec, registered(_, _, _, _));
 
   // Send a terminal update right away.
@@ -506,7 +494,7 @@ TEST_F(MasterSlaveReconciliationTest, SlaveReregisterTerminalTask)
     .WillOnce(FutureArg<1>(&status))
     .WillRepeatedly(Return()); // Ignore retried update due to update framework.
 
-  driver.launchTasks(offers.get()[0].id(), tasks);
+  driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY(_statusUpdate);
 

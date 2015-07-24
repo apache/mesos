@@ -199,9 +199,6 @@ TEST_F(PartitionTest, PartitionedSlaveReregistration)
   task.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
   task.mutable_executor()->mutable_command()->set_value("sleep 60");
 
-  vector<TaskInfo> tasks;
-  tasks.push_back(task);
-
   // Set up the expectations for launching the task.
   EXPECT_CALL(exec, registered(_, _, _, _));
   EXPECT_CALL(exec, launchTask(_, _))
@@ -214,7 +211,7 @@ TEST_F(PartitionTest, PartitionedSlaveReregistration)
   Future<Nothing> statusUpdateAck = FUTURE_DISPATCH(
       slave.get(), &Slave::_statusUpdateAcknowledgement);
 
-  driver.launchTasks(offers.get()[0].id(), tasks);
+  driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY(runningStatus);
   EXPECT_EQ(TASK_RUNNING, runningStatus.get().state());
@@ -471,9 +468,6 @@ TEST_F(PartitionTest, PartitionedSlaveExitedExecutor)
   task.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
   task.mutable_executor()->mutable_command()->set_value("sleep 60");
 
-  vector<TaskInfo> tasks;
-  tasks.push_back(task);
-
   // Set up the expectations for launching the task.
   EXPECT_CALL(exec, registered(_, _, _, _));
 
@@ -485,7 +479,7 @@ TEST_F(PartitionTest, PartitionedSlaveExitedExecutor)
   // shutdown.
   DROP_PROTOBUFS(StatusUpdateMessage(), _, master.get());
 
-  driver.launchTasks(offers.get()[0].id(), tasks);
+  driver.launchTasks(offers.get()[0].id(), {task});
 
   // Drop the first shutdown message from the master (simulated
   // partition) and allow the second shutdown message to pass when

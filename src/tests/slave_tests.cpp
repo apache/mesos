@@ -199,14 +199,11 @@ TEST_F(SlaveTest, ShutdownUnregisteredExecutor)
 
   task.mutable_command()->MergeFrom(command);
 
-  vector<TaskInfo> tasks;
-  tasks.push_back(task);
-
   // Drop the registration message from the executor to the slave.
   Future<Message> registerExecutor =
     DROP_MESSAGE(Eq(RegisterExecutorMessage().GetTypeName()), _, _);
 
-  driver.launchTasks(offers.get()[0].id(), tasks);
+  driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY(registerExecutor);
 
@@ -283,14 +280,11 @@ TEST_F(SlaveTest, RemoveUnregisteredTerminatedExecutor)
   task.mutable_resources()->MergeFrom(offers.get()[0].resources());
   task.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
 
-  vector<TaskInfo> tasks;
-  tasks.push_back(task);
-
   // Drop the registration message from the executor to the slave.
   Future<Message> registerExecutorMessage =
     DROP_MESSAGE(Eq(RegisterExecutorMessage().GetTypeName()), _, _);
 
-  driver.launchTasks(offers.get()[0].id(), tasks);
+  driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY(registerExecutorMessage);
 
@@ -364,9 +358,6 @@ TEST_F(SlaveTest, CommandExecutorWithOverride)
 
   task.mutable_command()->MergeFrom(command);
 
-  vector<TaskInfo> tasks;
-  tasks.push_back(task);
-
   // Expect the launch and just assume it was sucessful since we'll be
   // launching the executor ourselves manually below.
   Future<Nothing> launch;
@@ -382,7 +373,7 @@ TEST_F(SlaveTest, CommandExecutorWithOverride)
     .WillOnce(DoAll(FutureSatisfy(&wait),
                     Return(promise.future())));
 
-  driver.launchTasks(offers.get()[0].id(), tasks);
+  driver.launchTasks(offers.get()[0].id(), {task});
 
   // Once we get the launch the mesos-executor with --override.
   AWAIT_READY(launch);
@@ -514,16 +505,13 @@ TEST_F(SlaveTest, ComamndTaskWithArguments)
 
   task.mutable_command()->MergeFrom(command);
 
-  vector<TaskInfo> tasks;
-  tasks.push_back(task);
-
   Future<TaskStatus> statusRunning;
   Future<TaskStatus> statusFinished;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillOnce(FutureArg<1>(&statusRunning))
     .WillOnce(FutureArg<1>(&statusFinished));
 
-  driver.launchTasks(offers.get()[0].id(), tasks);
+  driver.launchTasks(offers.get()[0].id(), {task});
 
   // Scheduler should first receive TASK_RUNNING followed by the
   // TASK_FINISHED from the executor.
@@ -643,16 +631,13 @@ TEST_F(SlaveTest, ROOT_RunTaskWithCommandInfoWithoutUser)
 
   task.mutable_command()->MergeFrom(command);
 
-  vector<TaskInfo> tasks;
-  tasks.push_back(task);
-
   Future<TaskStatus> statusRunning;
   Future<TaskStatus> statusFinished;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillOnce(FutureArg<1>(&statusRunning))
     .WillOnce(FutureArg<1>(&statusFinished));
 
-  driver.launchTasks(offers.get()[0].id(), tasks);
+  driver.launchTasks(offers.get()[0].id(), {task});
 
   // Scheduler should first receive TASK_RUNNING followed by the
   // TASK_FINISHED from the executor.
@@ -752,14 +737,11 @@ TEST_F(SlaveTest, DISABLED_ROOT_RunTaskWithCommandInfoWithUser)
   prepareCommand.add_arguments(user.get());
   prepareTask.mutable_command()->CopyFrom(prepareCommand);
 
-  vector<TaskInfo> prepareTasks;
-  prepareTasks.push_back(prepareTask);
-
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillOnce(FutureArg<1>(&statusRunning))
     .WillOnce(FutureArg<1>(&statusFinished));
 
-  driver.launchTasks(offers.get()[0].id(), prepareTasks);
+  driver.launchTasks(offers.get()[0].id(), {prepareTask});
 
   // Scheduler should first receive TASK_RUNNING followed by the
   // TASK_FINISHED from the executor.
@@ -794,14 +776,12 @@ TEST_F(SlaveTest, DISABLED_ROOT_RunTaskWithCommandInfoWithUser)
   command.add_arguments(testUser);
 
   task.mutable_command()->CopyFrom(command);
-  vector<TaskInfo> tasks;
-  tasks.push_back(task);
 
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillOnce(FutureArg<1>(&statusRunning))
     .WillOnce(FutureArg<1>(&statusFinished));
 
-  driver.launchTasks(offers.get()[0].id(), tasks);
+  driver.launchTasks(offers.get()[0].id(), {task});
 
   // Scheduler should first receive TASK_RUNNING followed by the
   // TASK_FINISHED from the executor.
@@ -858,9 +838,6 @@ TEST_F(SlaveTest, IgnoreNonLeaderStatusUpdateAcknowledgement)
 
   TaskInfo task = createTask(offers.get()[0], "", DEFAULT_EXECUTOR_ID);
 
-  vector<TaskInfo> tasks;
-  tasks.push_back(task);
-
   Future<ExecutorDriver*> execDriver;
   EXPECT_CALL(exec, registered(_, _, _, _))
     .WillOnce(FutureArg<0>(&execDriver));
@@ -885,7 +862,7 @@ TEST_F(SlaveTest, IgnoreNonLeaderStatusUpdateAcknowledgement)
   Future<Nothing> _statusUpdateAcknowledgement =
     FUTURE_DISPATCH(slave.get(), &Slave::_statusUpdateAcknowledgement);
 
-  schedDriver.launchTasks(offers.get()[0].id(), tasks);
+  schedDriver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY(update);
   EXPECT_EQ(TASK_RUNNING, update.get().state());
@@ -1166,8 +1143,6 @@ TEST_F(SlaveTest, StateEndpoint)
   task.mutable_resources()->MergeFrom(offers.get()[0].resources());
   task.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
 
-  const vector<TaskInfo> tasks = {task};
-
   EXPECT_CALL(exec, registered(_, _, _, _))
     .Times(1);
 
@@ -1178,7 +1153,7 @@ TEST_F(SlaveTest, StateEndpoint)
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillOnce(FutureArg<1>(&status));
 
-  driver.launchTasks(offers.get()[0].id(), tasks);
+  driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY(status);
   EXPECT_EQ(TASK_RUNNING, status.get().state());
@@ -1794,9 +1769,6 @@ TEST_F(SlaveTest, KillTaskBetweenRunTaskParts)
   task.mutable_resources()->MergeFrom(offers.get()[0].resources());
   task.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
 
-  vector<TaskInfo> tasks;
-  tasks.push_back(task);
-
   EXPECT_CALL(exec, registered(_, _, _, _))
     .Times(0);
 
@@ -1826,7 +1798,7 @@ TEST_F(SlaveTest, KillTaskBetweenRunTaskParts)
                     SaveArg<0>(&future),
                     SaveArg<1>(&frameworkInfo)));
 
-  driver.launchTasks(offers.get()[0].id(), tasks);
+  driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY(_runTask);
 
@@ -2083,9 +2055,6 @@ TEST_F(SlaveTest, TaskLabels)
   labels->add_labels()->CopyFrom(createLabel("bar", "baz"));
   labels->add_labels()->CopyFrom(createLabel("bar", "qux"));
 
-  vector<TaskInfo> tasks;
-  tasks.push_back(task);
-
   EXPECT_CALL(exec, registered(_, _, _, _))
     .Times(1);
 
@@ -2102,7 +2071,7 @@ TEST_F(SlaveTest, TaskLabels)
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillOnce(FutureArg<1>(&status));
 
-  driver.launchTasks(offers.get()[0].id(), tasks);
+  driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY(status);
   EXPECT_EQ(TASK_RUNNING, status.get().state());
@@ -2179,9 +2148,6 @@ TEST_F(SlaveTest, TaskStatusLabels)
 
   TaskInfo task = createTask(offers.get()[0], "sleep 100", DEFAULT_EXECUTOR_ID);
 
-  vector<TaskInfo> tasks;
-  tasks.push_back(task);
-
   ExecutorDriver* execDriver;
   EXPECT_CALL(exec, registered(_, _, _, _))
     .WillOnce(SaveArg<0>(&execDriver));
@@ -2194,7 +2160,7 @@ TEST_F(SlaveTest, TaskStatusLabels)
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillOnce(FutureArg<1>(&status));
 
-  driver.launchTasks(offers.get()[0].id(), tasks);
+  driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY(execTask);
 
@@ -2303,16 +2269,13 @@ TEST_F(SlaveTest, ExecutorEnvironmentVariables)
 
   task.mutable_command()->MergeFrom(command);
 
-  vector<TaskInfo> tasks;
-  tasks.push_back(task);
-
   Future<TaskStatus> statusRunning;
   Future<TaskStatus> statusFinished;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillOnce(FutureArg<1>(&statusRunning))
     .WillOnce(FutureArg<1>(&statusFinished));
 
-  driver.launchTasks(offers.get()[0].id(), tasks);
+  driver.launchTasks(offers.get()[0].id(), {task});
 
   // Scheduler should first receive TASK_RUNNING followed by the
   // TASK_FINISHED from the executor.

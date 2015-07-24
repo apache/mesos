@@ -187,9 +187,6 @@ TEST_F(ExternalContainerizerTest, DISABLED_Launch)
       "touch " + file +  "; " // Signals that the top command is running.
       "sleep 60");
 
-  vector<TaskInfo> tasks;
-  tasks.push_back(task);
-
   Future<TaskStatus> status;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillOnce(FutureArg<1>(&status))
@@ -201,7 +198,7 @@ TEST_F(ExternalContainerizerTest, DISABLED_Launch)
                     Invoke(&containerizer,
                            &MockExternalContainerizer::_launch)));
 
-  driver.launchTasks(offers.get()[0].id(), tasks);
+  driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY(containerId);
 

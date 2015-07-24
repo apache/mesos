@@ -89,8 +89,6 @@ TEST_F(RegistrarZooKeeperTest, TaskRunning)
   EXPECT_NE(0u, offers.get().size());
 
   TaskInfo task = createTask(offers.get()[0], "dummy", DEFAULT_EXECUTOR_ID);
-  vector<TaskInfo> tasks;
-  tasks.push_back(task);
 
   EXPECT_CALL(exec, registered(_, _, _, _))
     .Times(1);
@@ -108,7 +106,7 @@ TEST_F(RegistrarZooKeeperTest, TaskRunning)
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillOnce(FutureArg<1>(&status));
 
-  driver.launchTasks(offers.get()[0].id(), tasks);
+  driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY(status);
   EXPECT_EQ(TASK_RUNNING, status.get().state());

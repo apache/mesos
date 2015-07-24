@@ -172,9 +172,6 @@ TEST_F(HookTest, VerifyMasterLaunchTaskHook)
   labels->add_labels()->CopyFrom(createLabel(
         testRemoveLabelKey, testRemoveLabelValue));
 
-  vector<TaskInfo> tasks;
-  tasks.push_back(task);
-
   Future<RunTaskMessage> runTaskMessage =
     FUTURE_PROTOBUF(RunTaskMessage(), _, _);
 
@@ -188,7 +185,7 @@ TEST_F(HookTest, VerifyMasterLaunchTaskHook)
     .WillOnce(FutureArg<1>(&status))
     .WillRepeatedly(Return());
 
-  driver.launchTasks(offers.get()[0].id(), tasks);
+  driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY(runTaskMessage);
 
@@ -299,9 +296,6 @@ TEST_F(HookTest, DISABLED_VerifySlaveLaunchExecutorHook)
   task.mutable_resources()->CopyFrom(offers.get()[0].resources());
   task.mutable_executor()->CopyFrom(DEFAULT_EXECUTOR_INFO);
 
-  vector<TaskInfo> tasks;
-  tasks.push_back(task);
-
   EXPECT_CALL(exec, registered(_, _, _, _));
 
   EXPECT_CALL(exec, launchTask(_, _))
@@ -321,7 +315,7 @@ TEST_F(HookTest, DISABLED_VerifySlaveLaunchExecutorHook)
   // until that message is intercepted by the testing infrastructure.
   Future<HookExecuted> hookFuture = FUTURE_PROTOBUF(HookExecuted(), _, _);
 
-  driver.launchTasks(offers.get()[0].id(), tasks);
+  driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY(status);
 
@@ -387,9 +381,6 @@ TEST_F(HookTest, VerifySlaveRunTaskHook)
   labels->add_labels()->CopyFrom(createLabel("foo", "bar"));
   labels->add_labels()->CopyFrom(createLabel("bar", "baz"));
 
-  vector<TaskInfo> tasks;
-  tasks.push_back(task);
-
   EXPECT_CALL(exec, registered(_, _, _, _));
 
   Future<TaskInfo> taskInfo;
@@ -398,7 +389,7 @@ TEST_F(HookTest, VerifySlaveRunTaskHook)
         FutureArg<1>(&taskInfo),
         SendStatusUpdateFromTask(TASK_RUNNING)));
 
-  driver.launchTasks(offers.get()[0].id(), tasks);
+  driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY(taskInfo);
 
@@ -465,9 +456,6 @@ TEST_F(HookTest, VerifySlaveTaskStatusLabelDecorator)
   // Start a task.
   TaskInfo task = createTask(offers.get()[0], "", DEFAULT_EXECUTOR_ID);
 
-  vector<TaskInfo> tasks;
-  tasks.push_back(task);
-
   ExecutorDriver* execDriver;
   EXPECT_CALL(exec, registered(_, _, _, _))
     .WillOnce(SaveArg<0>(&execDriver));
@@ -480,7 +468,7 @@ TEST_F(HookTest, VerifySlaveTaskStatusLabelDecorator)
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillOnce(FutureArg<1>(&status));
 
-  driver.launchTasks(offers.get()[0].id(), tasks);
+  driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY(execTask);
 

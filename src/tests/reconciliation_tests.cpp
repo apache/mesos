@@ -659,10 +659,8 @@ TEST_F(ReconciliationTest, PendingTask)
                     Return(promise.future())));
 
   TaskInfo task = createTask(offers.get()[0], "", DEFAULT_EXECUTOR_ID);
-  vector<TaskInfo> tasks;
-  tasks.push_back(task);
 
-  driver.launchTasks(offers.get()[0].id(), tasks);
+  driver.launchTasks(offers.get()[0].id(), {task});
 
   // Wait until authorization is in progress.
   AWAIT_READY(authorize);

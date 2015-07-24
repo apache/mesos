@@ -682,10 +682,7 @@ TEST_F(TaskValidationTest, TaskUsesCommandInfoAndExecutorInfo)
   TaskInfo task = createTask(offers.get()[0], ""); // Command task.
   task.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO); // Executor task.
 
-  vector<TaskInfo> tasks;
-  tasks.push_back(task);
-
-  driver.launchTasks(offers.get()[0].id(), tasks);
+  driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY(status);
   EXPECT_EQ(TASK_ERROR, status.get().state());
@@ -730,14 +727,11 @@ TEST_F(TaskValidationTest, TaskUsesNoResources)
   task.mutable_slave_id()->MergeFrom(offers.get()[0].slave_id());
   task.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
 
-  vector<TaskInfo> tasks;
-  tasks.push_back(task);
-
   Future<TaskStatus> status;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillOnce(FutureArg<1>(&status));
 
-  driver.launchTasks(offers.get()[0].id(), tasks);
+  driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY(status);
   EXPECT_EQ(task.task_id(), status.get().task_id());
@@ -789,14 +783,11 @@ TEST_F(TaskValidationTest, TaskUsesMoreResourcesThanOffered)
   cpus->set_type(Value::SCALAR);
   cpus->mutable_scalar()->set_value(2.01);
 
-  vector<TaskInfo> tasks;
-  tasks.push_back(task);
-
   Future<TaskStatus> status;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillOnce(FutureArg<1>(&status));
 
-  driver.launchTasks(offers.get()[0].id(), tasks);
+  driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY(status);
 
@@ -1029,9 +1020,6 @@ TEST_F(TaskValidationTest, ExecutorInfoDiffersOnDifferentSlaves)
   TaskInfo task1 = createTask(
       offers1.get()[0], executor1.command().value(), executor1.executor_id());
 
-  vector<TaskInfo> tasks1;
-  tasks1.push_back(task1);
-
   EXPECT_CALL(exec1, registered(_, _, _, _))
     .Times(1);
 
@@ -1042,7 +1030,7 @@ TEST_F(TaskValidationTest, ExecutorInfoDiffersOnDifferentSlaves)
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillOnce(FutureArg<1>(&status1));
 
-  driver.launchTasks(offers1.get()[0].id(), tasks1);
+  driver.launchTasks(offers1.get()[0].id(), {task1});
 
   AWAIT_READY(status1);
   ASSERT_EQ(TASK_RUNNING, status1.get().state());
@@ -1070,9 +1058,6 @@ TEST_F(TaskValidationTest, ExecutorInfoDiffersOnDifferentSlaves)
   TaskInfo task2 = createTask(
       offers2.get()[0], executor2.command().value(), executor2.executor_id());
 
-  vector<TaskInfo> tasks2;
-  tasks2.push_back(task2);
-
   EXPECT_CALL(exec2, registered(_, _, _, _))
     .Times(1);
 
@@ -1083,7 +1068,7 @@ TEST_F(TaskValidationTest, ExecutorInfoDiffersOnDifferentSlaves)
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillOnce(FutureArg<1>(&status2));
 
-  driver.launchTasks(offers2.get()[0].id(), tasks2);
+  driver.launchTasks(offers2.get()[0].id(), {task2});
 
   AWAIT_READY(status2);
   ASSERT_EQ(TASK_RUNNING, status2.get().state());
