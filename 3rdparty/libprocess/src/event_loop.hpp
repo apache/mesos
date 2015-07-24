@@ -40,7 +40,7 @@ public:
   static double time();
 
   // Runs the event loop.
-  static void* run(void*);
+  static void run();
 };
 
 } // namespace process {

@@ -90,7 +90,7 @@ void run_in_event_loop(
 }
 
 
-void* EventLoop::run(void*)
+void EventLoop::run()
 {
   __in_event_loop__ = true;
 
@@ -123,8 +123,6 @@ void* EventLoop::run(void*)
       LOG(FATAL) << "Failure to unblock SIGPIPE";
     }
   }
-
-  return NULL;
 }
 
 

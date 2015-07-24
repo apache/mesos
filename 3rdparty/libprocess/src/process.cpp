@@ -15,7 +15,6 @@
 #include <errno.h>
 #include <limits.h>
 #include <netdb.h>
-#include <pthread.h>
 #include <signal.h>
 #include <stdarg.h>
 #include <stdint.h>
@@ -53,6 +52,7 @@
 #include <sstream>
 #include <stack>
 #include <stdexcept>
+#include <thread>
 #include <utility>
 #include <vector>
 
@@ -641,10 +641,8 @@ void decode_recv(
     .onAny(lambda::bind(&decode_recv, lambda::_1, data, size, socket, decoder));
 }
 
-} // namespace internal {
 
-
-void* schedule(void* arg)
+void schedule()
 {
   do {
     ProcessBase* process = process_manager->dequeue();
@@ -661,6 +659,8 @@ void* schedule(void* arg)
     process_manager->resume(process);
   } while (true);
 }
+
+} // namespace internal {
 
 
 void timedout(const list<Timer>& timers)
@@ -820,10 +820,10 @@ void initialize(const string& delegate)
   long cpus = std::max(8L, sysconf(_SC_NPROCESSORS_ONLN));
 
   for (int i = 0; i < cpus; i++) {
-    pthread_t thread; // For now, not saving handles on our threads.
-    if (pthread_create(&thread, NULL, schedule, NULL) != 0) {
-      LOG(FATAL) << "Failed to initialize, pthread_create";
-    }
+    // We detach and forget the thread handle as we are not joining it
+    // for a clean shutdown.
+    std::thread* thread = new std::thread(&internal::schedule);
+    thread->detach();
   }
 
   // Initialize the event loop.
@@ -845,10 +845,10 @@ void initialize(const string& delegate)
 //   sigaddset (&sa.sa_mask, w->signum);
 //   sigprocmask (SIG_UNBLOCK, &sa.sa_mask, 0);
 
-  pthread_t thread; // For now, not saving handles on our threads.
-  if (pthread_create(&thread, NULL, &EventLoop::run, NULL) != 0) {
-    LOG(FATAL) << "Failed to initialize, pthread_create";
-  }
+  // We detach and forget the thread handle as we are not joining it
+  // for a clean shutdown.
+  std::thread* thread = new std::thread(&EventLoop::run);
+  thread->detach();
 
   __address__ = Address::LOCALHOST_ANY();
 

@@ -127,15 +127,13 @@ double EventLoop::time()
 }
 
 
-void* EventLoop::run(void*)
+void EventLoop::run()
 {
   __in_event_loop__ = true;
 
   ev_loop(loop, 0);
 
   __in_event_loop__ = false;
-
-  return NULL;
 }
 
 } // namespace process {
