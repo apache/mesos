@@ -38,7 +38,7 @@ std::queue<lambda::function<void(void)>>* functions =
   new std::queue<lambda::function<void(void)>>();
 
 
-ThreadLocal<bool>* _in_event_loop_ = new ThreadLocal<bool>();
+thread_local bool* _in_event_loop_ = NULL;
 
 
 void async_function(int socket, short which, void* arg)

@@ -190,7 +190,6 @@ stout_tests_SOURCES =				\
   $(STOUT)/tests/some_tests.cpp			\
   $(STOUT)/tests/strings_tests.cpp		\
   $(STOUT)/tests/subcommand_tests.cpp		\
-  $(STOUT)/tests/thread_tests.cpp		\
   $(STOUT)/tests/uuid_tests.cpp			\
   $(STOUT)/tests/version_tests.cpp
 
