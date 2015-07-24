@@ -262,7 +262,7 @@ private:
   // processes. This will trigger container destruction.
   void limited(
       const ContainerID& containerId,
-      const process::Future<mesos::slave::Limitation>& future);
+      const process::Future<mesos::slave::ExecutorLimitation>& future);
 
   // Call back for when the executor exits. This will trigger container
   // destroy.
@@ -311,7 +311,7 @@ private:
 
     // We keep track of any limitations received from each isolator so we can
     // determine the cause of an executor termination.
-    std::vector<mesos::slave::Limitation> limitations;
+    std::vector<mesos::slave::ExecutorLimitation> limitations;
 
     // We keep track of the resources for each container so we can set the
     // ResourceStatistics limits in usage().

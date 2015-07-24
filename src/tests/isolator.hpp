@@ -61,7 +61,7 @@ public:
 
   MOCK_METHOD1(
       watch,
-      process::Future<mesos::slave::Limitation>(const ContainerID&));
+      process::Future<mesos::slave::ExecutorLimitation>(const ContainerID&));
 
   MOCK_METHOD2(
       update,
@@ -92,7 +92,7 @@ private:
 
   const Option<CommandInfo> commandInfo;
 
-  process::Promise<mesos::slave::Limitation> promise;
+  process::Promise<mesos::slave::ExecutorLimitation> promise;
 };
 
 } // namespace tests {

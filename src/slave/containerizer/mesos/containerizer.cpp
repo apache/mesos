@@ -31,6 +31,8 @@
 #include <stout/os.hpp>
 #include <stout/path.hpp>
 
+#include "common/protobuf_utils.hpp"
+
 #include "module/manager.hpp"
 
 #include "slave/paths.hpp"
@@ -82,10 +84,10 @@ namespace slave {
 
 using mesos::modules::ModuleManager;
 
+using mesos::slave::ExecutorLimitation;
 using mesos::slave::ExecutorRunState;
 using mesos::slave::Isolator;
 using mesos::slave::IsolatorProcess;
-using mesos::slave::Limitation;
 
 using state::SlaveState;
 using state::FrameworkState;
@@ -415,12 +417,13 @@ Future<Nothing> MesosContainerizerProcess::recover(
 
         CHECK(os::exists(directory));
 
-        ExecutorRunState executorRunState(
-            executorInfo,
-            run.get().id.get(),
-            run.get().forkedPid.get(),
-            directory,
-            run.get().rootfs);
+        ExecutorRunState executorRunState =
+          protobuf::slave::createExecutorRunState(
+              executorInfo,
+              run.get().id.get(),
+              run.get().forkedPid.get(),
+              directory,
+              run.get().rootfs);
 
         recoverable.push_back(executorRunState);
       }
@@ -460,24 +463,26 @@ Future<Nothing> MesosContainerizerProcess::__recover(
     const hashset<ContainerID>& orphans)
 {
   foreach (const ExecutorRunState& run, recovered) {
-    const ContainerID& containerId = run.id;
+    const ContainerID& containerId = run.container_id();
 
     Container* container = new Container();
 
-    Future<Option<int>> status = process::reap(run.pid);
+    Future<Option<int>> status = process::reap(run.pid());
     status.onAny(defer(self(), &Self::reaped, containerId));
     container->status = status;
 
-    container->directory = run.directory;
+    container->directory = run.directory();
 
-    container->rootfs = run.rootfs;
+    if (run.has_rootfs()) {
+      container->rootfs = run.rootfs();
+    }
 
     // We only checkpoint the containerizer pid after the container
     // successfully launched, therefore we can assume checkpointed
     // containers should be running after recover.
     container->state = RUNNING;
 
-    container->executorInfo = run.executorInfo;
+    container->executorInfo = run.executor_info();
 
     containers_[containerId] = Owned<Container>(container);
 
@@ -1318,8 +1323,8 @@ void MesosContainerizerProcess::_____destroy(
   // exit.
   if (!killed && container->limitations.size() > 0) {
     string message_;
-    foreach (const Limitation& limitation, container->limitations) {
-      message_ += limitation.message;
+    foreach (const ExecutorLimitation& limitation, container->limitations) {
+      message_ += limitation.message();
     }
     message = strings::trim(message_);
   } else if (!killed && message.isNone()) {
@@ -1362,7 +1367,7 @@ void MesosContainerizerProcess::reaped(const ContainerID& containerId)
 
 void MesosContainerizerProcess::limited(
     const ContainerID& containerId,
-    const Future<Limitation>& future)
+    const Future<ExecutorLimitation>& future)
 {
   if (!containers_.contains(containerId) ||
       containers_[containerId]->state == DESTROYING) {
@@ -1371,7 +1376,7 @@ void MesosContainerizerProcess::limited(
 
   if (future.isReady()) {
     LOG(INFO) << "Container " << containerId << " has reached its limit for"
-              << " resource " << future.get().resources
+              << " resource " << future.get().resources()
               << " and will be terminated";
 
     containers_[containerId]->limitations.push_back(future.get());

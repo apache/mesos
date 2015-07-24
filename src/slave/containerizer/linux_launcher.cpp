@@ -115,8 +115,8 @@ Future<hashset<ContainerID>> LinuxLauncher::recover(
   hashset<string> recovered;
 
   foreach (const ExecutorRunState& state, states) {
-    const ContainerID& containerId = state.id;
-    pid_t pid = state.pid;
+    const ContainerID& containerId = state.container_id();
+    pid_t pid = state.pid();
 
     if (pids.containsValue(pid)) {
       // This should (almost) never occur. There is the possibility

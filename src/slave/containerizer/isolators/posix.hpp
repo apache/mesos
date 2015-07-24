@@ -48,15 +48,15 @@ public:
     foreach (const mesos::slave::ExecutorRunState& run, state) {
       // This should (almost) never occur: see comment in
       // PosixLauncher::recover().
-      if (pids.contains(run.id)) {
+      if (pids.contains(run.container_id())) {
         return process::Failure("Container already recovered");
       }
 
-      pids.put(run.id, run.pid);
+      pids.put(run.container_id(), run.pid());
 
-      process::Owned<process::Promise<mesos::slave::Limitation>> promise(
-          new process::Promise<mesos::slave::Limitation>());
-      promises.put(run.id, promise);
+      process::Owned<process::Promise<mesos::slave::ExecutorLimitation>>
+        promise(new process::Promise<mesos::slave::ExecutorLimitation>());
+      promises.put(run.container_id(), promise);
     }
 
     return Nothing();
@@ -74,8 +74,8 @@ public:
                               " has already been prepared");
     }
 
-    process::Owned<process::Promise<mesos::slave::Limitation>> promise(
-        new process::Promise<mesos::slave::Limitation>());
+    process::Owned<process::Promise<mesos::slave::ExecutorLimitation>> promise(
+        new process::Promise<mesos::slave::ExecutorLimitation>());
     promises.put(containerId, promise);
 
     return None();
@@ -94,7 +94,7 @@ public:
     return Nothing();
   }
 
-  virtual process::Future<mesos::slave::Limitation> watch(
+  virtual process::Future<mesos::slave::ExecutorLimitation> watch(
       const ContainerID& containerId)
   {
     if (!promises.contains(containerId)) {
@@ -133,9 +133,9 @@ public:
 
 protected:
   hashmap<ContainerID, pid_t> pids;
-  hashmap<
-      ContainerID,
-      process::Owned<process::Promise<mesos::slave::Limitation>>> promises;
+  hashmap<ContainerID,
+          process::Owned<process::Promise<mesos::slave::ExecutorLimitation>>>
+    promises;
 };
 
 

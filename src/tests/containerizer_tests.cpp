@@ -62,10 +62,10 @@ using mesos::internal::slave::state::FrameworkState;
 using mesos::internal::slave::state::RunState;
 using mesos::internal::slave::state::SlaveState;
 
+using mesos::slave::ExecutorLimitation;
 using mesos::slave::ExecutorRunState;
 using mesos::slave::Isolator;
 using mesos::slave::IsolatorProcess;
-using mesos::slave::Limitation;
 
 using std::list;
 using std::map;
@@ -444,7 +444,7 @@ public:
 
   MOCK_METHOD1(
       watch,
-      Future<Limitation>(const ContainerID&));
+      Future<mesos::slave::ExecutorLimitation>(const ContainerID&));
 
   MOCK_METHOD2(
       update,
@@ -458,7 +458,7 @@ public:
       cleanup,
       Future<Nothing>(const ContainerID&));
 
-  Promise<Limitation> watchPromise;
+  Promise<mesos::slave::ExecutorLimitation> watchPromise;
 };
 
 

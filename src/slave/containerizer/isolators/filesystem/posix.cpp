@@ -35,10 +35,10 @@ using namespace process;
 using std::list;
 using std::string;
 
+using mesos::slave::ExecutorLimitation;
 using mesos::slave::ExecutorRunState;
 using mesos::slave::Isolator;
 using mesos::slave::IsolatorProcess;
-using mesos::slave::Limitation;
 
 namespace mesos {
 namespace internal {
@@ -66,7 +66,7 @@ Future<Nothing> PosixFilesystemIsolatorProcess::recover(
     const hashset<ContainerID>& orphans)
 {
   foreach (const ExecutorRunState& state, states) {
-    infos.put(state.id, Owned<Info>(new Info(state.directory)));
+    infos.put(state.container_id(), Owned<Info>(new Info(state.directory())));
   }
 
   return Nothing();
@@ -106,11 +106,11 @@ Future<Nothing> PosixFilesystemIsolatorProcess::isolate(
 }
 
 
-Future<Limitation> PosixFilesystemIsolatorProcess::watch(
+Future<ExecutorLimitation> PosixFilesystemIsolatorProcess::watch(
     const ContainerID& containerId)
 {
   // No-op.
-  return Future<Limitation>();
+  return Future<ExecutorLimitation>();
 }
 
 

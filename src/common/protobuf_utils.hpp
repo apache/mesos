@@ -21,6 +21,8 @@
 
 #include <string>
 
+#include <mesos/slave/isolator.hpp>
+
 #include <stout/ip.hpp>
 #include <stout/option.hpp>
 #include <stout/uuid.hpp>
@@ -73,6 +75,21 @@ MasterInfo createMasterInfo(const process::UPID& pid);
 
 Label createLabel(const std::string& key, const std::string& value);
 
+namespace slave {
+
+mesos::slave::ExecutorLimitation createExecutorLimitation(
+    const Resources& resources,
+    const std::string& message);
+
+
+mesos::slave::ExecutorRunState createExecutorRunState(
+    const ExecutorInfo& executorInfo,
+    const ContainerID& id,
+    pid_t pid,
+    const std::string& directory,
+    const Option<std::string>& rootfs);
+
+} // namespace slave {
 } // namespace protobuf {
 } // namespace internal {
 } // namespace mesos {

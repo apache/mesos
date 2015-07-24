@@ -686,7 +686,7 @@ Status MesosExecutorDriver::start()
     value = os::getenv("MESOS_CHECKPOINT");
     checkpoint = value.isSome() && value.get() == "1";
 
-    Duration recoveryTimeout = slave::RECOVERY_TIMEOUT;
+    Duration recoveryTimeout = RECOVERY_TIMEOUT;
 
     // Get the recovery timeout if checkpointing is enabled.
     if (checkpoint) {

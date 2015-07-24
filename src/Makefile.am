@@ -136,17 +136,20 @@ endif
 
 MESOS_PROTO = $(top_srcdir)/include/mesos/mesos.proto
 
-ALLOCATOR_PROTO =							\
-  $(top_srcdir)/include/mesos/master/allocator.proto
-
 AUTHENTICATION_PROTO =							\
   $(top_srcdir)/include/mesos/authentication/authentication.proto
 
 CONTAINERIZER_PROTO =							\
   $(top_srcdir)/include/mesos/containerizer/containerizer.proto
 
+EXECUTOR_PROTO =							\
+  $(top_srcdir)/include/mesos/executor/executor.proto
+
 FETCHER_PROTO =								\
   $(top_srcdir)/include/mesos/fetcher/fetcher.proto
+
+ALLOCATOR_PROTO =							\
+  $(top_srcdir)/include/mesos/master/allocator.proto
 
 MODULE_PROTO =								\
   $(top_srcdir)/include/mesos/module/module.proto
@@ -154,8 +157,8 @@ MODULE_PROTO =								\
 SCHEDULER_PROTO =							\
   $(top_srcdir)/include/mesos/scheduler/scheduler.proto
 
-EXECUTOR_PROTO =							\
-  $(top_srcdir)/include/mesos/executor/executor.proto
+ISOLATOR_PROTO =							\
+  $(top_srcdir)/include/mesos/slave/isolator.proto
 
 OVERSUBSCRIPTION_PROTO =						\
   $(top_srcdir)/include/mesos/slave/oversubscription.proto
@@ -167,6 +170,8 @@ CXX_PROTOS =								\
   ../include/mesos/authentication/authentication.pb.h			\
   containerizer/containerizer.pb.cc					\
   ../include/mesos/containerizer/containerizer.pb.h			\
+  executor/executor.pb.cc						\
+  ../include/mesos/executor/executor.pb.h				\
   fetcher/fetcher.pb.cc							\
   ../include/mesos/fetcher/fetcher.pb.h					\
   master/allocator.pb.cc						\
@@ -175,8 +180,8 @@ CXX_PROTOS =								\
   ../include/mesos/module/module.pb.h					\
   scheduler/scheduler.pb.cc						\
   ../include/mesos/scheduler/scheduler.pb.h				\
-  executor/executor.pb.cc						\
-  ../include/mesos/executor/executor.pb.h				\
+  slave/isolator.pb.cc							\
+  ../include/mesos/slave/isolator.pb.h					\
   slave/oversubscription.pb.cc						\
   ../include/mesos/slave/oversubscription.pb.h
 
@@ -236,6 +241,12 @@ containerizer/%.pb.cc ../include/mesos/containerizer/%.pb.h: $(CONTAINERIZER_PRO
 	$(PROTOC) $(PROTOCFLAGS) --cpp_out=../include $^
 	mv ../include/mesos/containerizer/*.pb.cc $(@D)
 
+executor/%.pb.cc ../include/mesos/executor/%.pb.h: $(EXECUTOR_PROTO)
+	$(MKDIR_P) $(@D)
+	$(MKDIR_P) ../include/mesos/executor
+	$(PROTOC) $(PROTOCFLAGS) --cpp_out=../include $^
+	mv ../include/mesos/executor/*.pb.cc $(@D)
+
 fetcher/%.pb.cc ../include/mesos/fetcher/%.pb.h: $(FETCHER_PROTO)
 	$(MKDIR_P) $(@D)
 	$(MKDIR_P) ../include/mesos/fetcher
@@ -260,17 +271,11 @@ scheduler/%.pb.cc ../include/mesos/scheduler/%.pb.h: $(SCHEDULER_PROTO)
 	$(PROTOC) $(PROTOCFLAGS) --cpp_out=../include $^
 	mv ../include/mesos/scheduler/*.pb.cc $(@D)
 
-executor/%.pb.cc ../include/mesos/executor/%.pb.h: $(EXECUTOR_PROTO)
-	$(MKDIR_P) $(@D)
-	$(MKDIR_P) ../include/mesos/executor
-	$(PROTOC) $(PROTOCFLAGS) --cpp_out=../include $^
-	mv ../include/mesos/executor/*.pb.cc $(@D)
-
-slave/%.pb.cc ../include/mesos/slave/%.pb.h: $(OVERSUBSCRIPTION_PROTO)
+slave/%.pb.cc ../include/mesos/slave/%.pb.h: $(top_srcdir)/include/mesos/slave/%.proto
 	$(MKDIR_P) $(@D)
 	$(MKDIR_P) ../include/mesos/slave
 	$(PROTOC) $(PROTOCFLAGS) --cpp_out=../include $^
-	mv ../include/mesos/slave/*.pb.cc $(@D)
+	mv ../include/mesos/slave/$(*F).pb.cc $(@D)
 
 %.pb.cc %.pb.h: %.proto
 	$(MKDIR_P) $(@D)
@@ -505,12 +510,15 @@ slavedir = $(pkgincludedir)/slave
 
 slave_HEADERS =								\
   $(top_srcdir)/include/mesos/slave/isolator.hpp			\
+  $(top_srcdir)/include/mesos/slave/isolator.proto			\
   $(top_srcdir)/include/mesos/slave/oversubscription.hpp		\
   $(top_srcdir)/include/mesos/slave/oversubscription.proto		\
   $(top_srcdir)/include/mesos/slave/qos_controller.hpp			\
   $(top_srcdir)/include/mesos/slave/resource_estimator.hpp
 
-nodist_slave_HEADERS = ../include/mesos/slave/oversubscription.pb.h
+nodist_slave_HEADERS =							\
+  ../include/mesos/slave/isolator.pb.h					\
+  ../include/mesos/slave/oversubscription.pb.h
 
 if OS_LINUX
   libmesos_no_3rdparty_la_SOURCES += linux/cgroups.cpp
@@ -786,6 +794,7 @@ libmesos_la_SOURCES =							\
   $(MODULE_PROTO)							\
   $(SCHEDULER_PROTO)							\
   $(EXECUTOR_PROTO)							\
+  $(ISOLATOR_PROTO)							\
   $(OVERSUBSCRIPTION_PROTO)
 
 libmesos_la_LDFLAGS = -release $(PACKAGE_VERSION)

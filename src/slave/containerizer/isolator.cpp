@@ -84,7 +84,7 @@ Future<Nothing> Isolator::isolate(
 }
 
 
-Future<Limitation> Isolator::watch(const ContainerID& containerId)
+Future<ExecutorLimitation> Isolator::watch(const ContainerID& containerId)
 {
   return dispatch(process.get(), &IsolatorProcess::watch, containerId);
 }

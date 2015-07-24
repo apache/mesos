@@ -59,7 +59,7 @@ public:
       const ContainerID& containerId,
       pid_t pid);
 
-  virtual process::Future<mesos::slave::Limitation> watch(
+  virtual process::Future<mesos::slave::ExecutorLimitation> watch(
       const ContainerID& containerId);
 
   virtual process::Future<Nothing> update(
@@ -97,7 +97,7 @@ private:
     const std::string cgroup;
     Option<pid_t> pid;
 
-    process::Promise<mesos::slave::Limitation> limitation;
+    process::Promise<mesos::slave::ExecutorLimitation> limitation;
 
     // Used to cancel the OOM listening.
     process::Future<Nothing> oomNotifier;

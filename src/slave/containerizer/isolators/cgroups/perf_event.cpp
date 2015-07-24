@@ -58,10 +58,10 @@ using std::set;
 using std::string;
 using std::vector;
 
+using mesos::slave::ExecutorLimitation;
 using mesos::slave::ExecutorRunState;
 using mesos::slave::Isolator;
 using mesos::slave::IsolatorProcess;
-using mesos::slave::Limitation;
 
 namespace mesos {
 namespace internal {
@@ -148,7 +148,7 @@ Future<Nothing> CgroupsPerfEventIsolatorProcess::recover(
     const hashset<ContainerID>& orphans)
 {
   foreach (const ExecutorRunState& state, states) {
-    const ContainerID& containerId = state.id;
+    const ContainerID& containerId = state.container_id();
     const string cgroup = path::join(flags.cgroups_root, containerId.value());
 
     Try<bool> exists = cgroups::exists(hierarchy, cgroup);
@@ -298,11 +298,11 @@ Future<Nothing> CgroupsPerfEventIsolatorProcess::isolate(
 }
 
 
-Future<Limitation> CgroupsPerfEventIsolatorProcess::watch(
+Future<ExecutorLimitation> CgroupsPerfEventIsolatorProcess::watch(
     const ContainerID& containerId)
 {
   // No resources are limited.
-  return Future<Limitation>();
+  return Future<ExecutorLimitation>();
 }
 
 

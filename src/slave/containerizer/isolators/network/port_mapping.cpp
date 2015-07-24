@@ -117,10 +117,10 @@ namespace mesos {
 namespace internal {
 namespace slave {
 
+using mesos::slave::ExecutorLimitation;
 using mesos::slave::ExecutorRunState;
 using mesos::slave::Isolator;
 using mesos::slave::IsolatorProcess;
-using mesos::slave::Limitation;
 
 // The minimum number of ephemeral ports a container should have.
 static const uint16_t MIN_EPHEMERAL_PORTS_SIZE = 16;
@@ -1805,8 +1805,8 @@ Future<Nothing> PortMappingIsolatorProcess::recover(
 
   // Now, actually recover the isolator from slave's state.
   foreach (const ExecutorRunState& state, states) {
-    const ContainerID& containerId = state.id;
-    pid_t pid = state.pid;
+    const ContainerID& containerId = state.id();
+    pid_t pid = state.pid();
 
     VLOG(1) << "Recovering network isolator for container "
             << containerId << " with pid " << pid;
@@ -2495,7 +2495,7 @@ Future<Nothing> PortMappingIsolatorProcess::isolate(
 }
 
 
-Future<Limitation> PortMappingIsolatorProcess::watch(
+Future<ExecutorLimitation> PortMappingIsolatorProcess::watch(
     const ContainerID& containerId)
 {
   if (unmanaged.contains(containerId)) {
@@ -2506,7 +2506,7 @@ Future<Limitation> PortMappingIsolatorProcess::watch(
 
   // Currently, we always return a pending future because limitation
   // is never reached.
-  return Future<Limitation>();
+  return Future<ExecutorLimitation>();
 }
 
 

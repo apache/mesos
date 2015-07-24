@@ -32,10 +32,10 @@ namespace mesos {
 namespace internal {
 namespace slave {
 
+using mesos::slave::ExecutorLimitation;
 using mesos::slave::ExecutorRunState;
 using mesos::slave::Isolator;
 using mesos::slave::IsolatorProcess;
-using mesos::slave::Limitation;
 
 SharedFilesystemIsolatorProcess::SharedFilesystemIsolatorProcess(
     const Flags& _flags)
@@ -236,12 +236,12 @@ Future<Nothing> SharedFilesystemIsolatorProcess::isolate(
 }
 
 
-Future<Limitation> SharedFilesystemIsolatorProcess::watch(
+Future<ExecutorLimitation> SharedFilesystemIsolatorProcess::watch(
     const ContainerID& containerId)
 {
   // No-op, for now.
 
-  return Future<Limitation>();
+  return Future<ExecutorLimitation>();
 }
 
 

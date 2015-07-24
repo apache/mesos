@@ -39,10 +39,10 @@ using std::list;
 using std::set;
 using std::string;
 
+using mesos::slave::ExecutorLimitation;
 using mesos::slave::ExecutorRunState;
 using mesos::slave::Isolator;
 using mesos::slave::IsolatorProcess;
-using mesos::slave::Limitation;
 
 namespace mesos {
 namespace internal {
@@ -133,7 +133,7 @@ Future<Nothing> NamespacesPidIsolatorProcess::recover(
 {
   hashset<ContainerID> recovered;
   foreach (const ExecutorRunState& state, states) {
-    recovered.insert(state.id);
+    recovered.insert(state.container_id());
   }
 
   // Clean up any unknown orphaned bind mounts and empty files. Known
@@ -220,10 +220,10 @@ Future<Nothing> NamespacesPidIsolatorProcess::isolate(
 }
 
 
-Future<Limitation> NamespacesPidIsolatorProcess::watch(
+Future<ExecutorLimitation> NamespacesPidIsolatorProcess::watch(
     const ContainerID& containerId)
 {
-  return Future<Limitation>();
+  return Future<ExecutorLimitation>();
 }
 
 

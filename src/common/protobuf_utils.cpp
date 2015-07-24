@@ -16,6 +16,8 @@
  * limitations under the License.
  */
 
+#include <mesos/slave/isolator.hpp>
+
 #include <mesos/type_utils.hpp>
 
 #include <process/clock.hpp>
@@ -28,6 +30,9 @@
 #include "messages/messages.hpp"
 
 using std::string;
+
+using mesos::slave::ExecutorLimitation;
+using mesos::slave::ExecutorRunState;
 
 namespace mesos {
 namespace internal {
@@ -199,6 +204,40 @@ Label createLabel(const std::string& key, const std::string& value)
   return label;
 }
 
+namespace slave {
+
+ExecutorLimitation createExecutorLimitation(
+    const Resources& resources,
+    const std::string& message)
+{
+  ExecutorLimitation limitation;
+  foreach (Resource resource, resources) {
+    limitation.add_resources()->CopyFrom(resource);
+  }
+  limitation.set_message(message);
+  return limitation;
+}
+
+
+ExecutorRunState createExecutorRunState(
+    const ExecutorInfo& executorInfo,
+    const ContainerID& container_id,
+    pid_t pid,
+    const std::string& directory,
+    const Option<std::string>& rootfs)
+{
+  ExecutorRunState state;
+  state.mutable_executor_info()->CopyFrom(executorInfo);
+  state.mutable_container_id()->CopyFrom(container_id);
+  state.set_pid(pid);
+  state.set_directory(directory);
+  if (rootfs.isSome()) {
+    state.set_rootfs(rootfs.get());
+  }
+  return state;
+}
+
+} // namespace slave {
 } // namespace protobuf {
 } // namespace internal {
 } // namespace mesos {

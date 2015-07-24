@@ -24,6 +24,9 @@
 
 #include <mesos/resources.hpp>
 
+// ONLY USEFUL AFTER RUNNING PROTOC.
+#include <mesos/slave/isolator.pb.h>
+
 #include <process/dispatch.hpp>
 #include <process/future.hpp>
 #include <process/owned.hpp>
@@ -38,54 +41,6 @@ namespace slave {
 
 // Forward declaration.
 class IsolatorProcess;
-
-// Information when an executor is impacted by a resource limitation
-// and should be terminated. Intended to support resources like memory
-// where the Linux kernel may invoke the OOM killer, killing some/all
-// of a container's processes.
-struct Limitation
-{
-  Limitation(
-      const Resources& _resources,
-      const std::string& _message)
-    : resources(_resources),
-      message(_message) {}
-
-  // Resources that triggered the limitation.
-  // NOTE: 'Resources' is used here because the resource may span
-  // multiple roles (e.g. `"mem(*):1;mem(role):2"`).
-  Resources resources;
-
-  // Description of the limitation.
-  std::string message;
-};
-
-
-// This struct is derived from slave::state::RunState. It contains
-// only those fields that are needed by Isolators for recovering the
-// containers. The reason for not using RunState instead is to avoid
-// any dependency on RunState and in turn on internal protobufs.
-struct ExecutorRunState
-{
-  ExecutorRunState(
-      const ExecutorInfo& executorInfo_,
-      const ContainerID& id_,
-      pid_t pid_,
-      const std::string& directory_,
-      const Option<std::string>& rootfs_)
-    : executorInfo(executorInfo_),
-      id(id_),
-      pid(pid_),
-      directory(directory_),
-      rootfs(rootfs_) {}
-
-  ExecutorInfo executorInfo;
-  ContainerID id;        // Container id of the last executor run.
-  pid_t pid;             // Executor pid.
-  std::string directory; // Executor work directory.
-  Option<std::string> rootfs; // Optional container rootfs.
-};
-
 
 class Isolator
 {
@@ -130,7 +85,7 @@ public:
   // Watch the containerized executor and report if any resource
   // constraint impacts the container, e.g., the kernel killing some
   // processes.
-  process::Future<Limitation> watch(const ContainerID& containerId);
+  process::Future<ExecutorLimitation> watch(const ContainerID& containerId);
 
   // Update the resources allocated to the container.
   process::Future<Nothing> update(
@@ -175,7 +130,7 @@ public:
       const ContainerID& containerId,
       pid_t pid) = 0;
 
-  virtual process::Future<Limitation> watch(
+  virtual process::Future<ExecutorLimitation> watch(
       const ContainerID& containerId) = 0;
 
   virtual process::Future<Nothing> update(

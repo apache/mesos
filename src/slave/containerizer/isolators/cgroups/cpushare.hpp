@@ -59,7 +59,7 @@ public:
       const ContainerID& containerId,
       pid_t pid);
 
-  virtual process::Future<mesos::slave::Limitation> watch(
+  virtual process::Future<mesos::slave::ExecutorLimitation> watch(
       const ContainerID& containerId);
 
   virtual process::Future<Nothing> update(
@@ -92,7 +92,7 @@ private:
     Option<pid_t> pid;
     Option<Resources> resources;
 
-    process::Promise<mesos::slave::Limitation> limitation;
+    process::Promise<mesos::slave::ExecutorLimitation> limitation;
   };
 
   const Flags flags;

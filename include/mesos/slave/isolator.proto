@@ -1,0 +1,58 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+import "mesos/mesos.proto";
+
+package mesos.slave;
+
+
+/**
+ * Information when an executor is impacted by a resource limitation
+ * and should be terminated. Intended to support resources like memory
+ * where the Linux kernel may invoke the OOM killer, killing some/all
+ * of a container's processes.
+ */
+message ExecutorLimitation
+{
+  // Resources that triggered the limitation.
+  // NOTE: 'Resources' is used here because the resource may span
+  // multiple roles (e.g. `"mem(*):1;mem(role):2"`).
+  repeated Resource resources = 1;
+
+  // Description of the limitation.
+  optional string message = 2;
+}
+
+
+/**
+ * This message is derived from slave::state::RunState. It contains
+ * only those fields that are needed by Isolators for recovering the
+ * containers. The reason for not using RunState instead is to avoid
+ * any dependency on RunState and in turn on internal protobufs.
+ */
+message ExecutorRunState
+{
+  required ExecutorInfo executor_info = 1;
+
+  // Container id of the last executor run.
+  required ContainerID container_id = 2;
+
+  required uint64 pid = 3;            // Executor pid.
+  required string directory = 4;      // Executor work directory.
+  optional string rootfs = 5;         // Optional container rootfs.
+}
