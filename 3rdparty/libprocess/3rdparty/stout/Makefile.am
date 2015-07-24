@@ -56,6 +56,5 @@ EXTRA_DIST =					\
   tests/strings_tests.cpp			\
   tests/subcommand_tests.cpp			\
   tests/svn_tests.cpp				\
-  tests/thread_tests.cpp			\
   tests/uuid_tests.cpp				\
   tests/version_tests.cpp
