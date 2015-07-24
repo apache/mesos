@@ -156,7 +156,8 @@ message FrameworkInfo {
 
   // Used to indicate the current host from which the scheduler is
   // registered in the Mesos Web UI. If set to an empty string Mesos
-  // will automagically set it to the current hostname.
+  // will automagically set it to the current hostname if one is
+  // available.
   optional string hostname = 7;
 
   // This field should match the credential's principal the framework
