@@ -87,7 +87,7 @@ The implementation is oriented at this control flow but its code structure canno
 - b) Wait for size fetching combined and then space reservation for new cache entries.
 
 2. After making fetcher cache items and running mesos-fetcher.
-- Complete new cache items with success/failure, which as an important side-effect informs concurrent fetch runs’ futures in phase 1/a.
+- Complete new cache items with success/failure, which as an important side-effect informs concurrent fetch runs' futures in phase 1/a.
 
 The futures for phase 1 are not shared outside one fetch run. They exclusively guard asynchronous operations for the same fetch run. Their type parameter does not really matter. But each needs to correspond to one URI and eventual fetch item somehow. Multiple variants have been proposed for this. The complexity remains about the same.
 
