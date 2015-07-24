@@ -27,6 +27,8 @@
 #include <stout/stringify.hpp>
 #include <stout/uuid.hpp>
 
+#include "common/protobuf_utils.hpp"
+
 #include "messages/messages.hpp"
 
 using std::string;
@@ -55,11 +57,11 @@ StatusUpdate createStatusUpdate(
     const TaskState& state,
     const TaskStatus::Source& source,
     const Option<UUID>& uuid,
-    const string& message = "",
-    const Option<TaskStatus::Reason>& reason = None(),
-    const Option<ExecutorID>& executorId = None(),
-    const Option<bool>& healthy = None(),
-    const Option<Labels>& labels = None())
+    const string& message,
+    const Option<TaskStatus::Reason>& reason,
+    const Option<ExecutorID>& executorId,
+    const Option<bool>& healthy,
+    const Option<Labels>& labels)
 {
   StatusUpdate update;
 
