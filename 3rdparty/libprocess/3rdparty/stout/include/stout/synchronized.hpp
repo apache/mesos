@@ -16,6 +16,7 @@
 #define __STOUT_SYNCHRONIZED_HPP__
 
 #include <atomic>
+#include <condition_variable>
 #include <mutex>
 #include <type_traits>
 
@@ -157,5 +158,84 @@ T* synchronized_get_pointer(T* t)
         SYNCHRONIZED_VAR = ::synchronize(::synchronized_get_pointer(&m))) { \
     goto SYNCHRONIZED_LABEL;                                                \
   } else SYNCHRONIZED_LABEL:
+
+
+/**
+ * Waits on the condition variable associated with 'lock' which has
+ * already been synchronized. Currently, the only supported
+ * implementation is for 'std::condition_variable' associated with a
+ * 'std::mutex'.
+ *
+ * @param cv The condition variable.
+ * @param lock The lock associated with the condition variable.
+ *
+ * @pre 'lock' is already owned by the calling thread.
+ * @post 'lock' is still owned by the calling thread.
+ *
+ * @return Nothing.
+ */
+template <typename CV, typename Lock>
+void synchronized_wait(CV* cv, Lock* lock);
+
+
+/**
+ * Waits on the 'std::condition_variable' associated with 'std::mutex'
+ * which has already been synchronized. We provide this specialization
+ * since 'std::condition_variable::wait' only works with
+ * 'std::unique_lock<std::mutex>'.
+ *
+ * @example
+ *   std::condition_variable cv;
+ *   std::mutex m;
+ *   synchronized (m) {  // lock 'm'.
+ *     // ...
+ *     synchronized_wait(cv, m);  // unlock/lock 'm'.
+ *     // ...
+ *   }  // unlock 'm'.
+ *
+ * @param cv The 'std::condition_variable'.
+ * @param mutex The 'std::mutex' associated with the
+ *     'std::condition_variable'.
+ *
+ * @pre 'mutex' is already owned by the calling thread.
+ * @post 'mutex' is still owned by the calling thread.
+ *
+ * @return Nothing.
+ */
+template <>
+inline void synchronized_wait(std::condition_variable* cv, std::mutex* mutex)
+{
+  CHECK_NOTNULL(cv);
+  CHECK_NOTNULL(mutex);
+
+  // Since the pre-condition is that 'mutex' is already owned by the
+  // calling thread, we use 'std::adopt_lock' to adopt the mutex
+  // rather than trying to lock it ourselves.
+  std::unique_lock<std::mutex> lock(*mutex, std::adopt_lock);
+
+  // On entrance, 'std::condition_variable::wait' releases 'mutex'.
+  // On exit, 'std::condition_variable::wait' re-acquires 'mutex'.
+  cv->wait(lock);
+
+  // At this point, the 'mutex' has been acquired. Since the
+  // post-condition is that 'mutex' is still owned by the calling
+  // thread, we use 'release' in order to prevent 'std::unique_lock'
+  // from unlocking the 'mutex'.
+  lock.release();
+}
+
+
+/**
+ * There is a known bug around 'std::condition_variable_any' in
+ * 'libstdc++' distributed 'devtoolset-2', and also general issues
+ * around the use of 'std::condition_variable_any' with
+ * 'std::recursive_mutex'. Hence, this function is currently deleted
+ * until both issues are resolved.
+ *
+ * @see https://rhn.redhat.com/errata/RHBA-2014-1035.html
+ * @see http://stackoverflow.com/questions/11752155/behavior-of-condition-variable-any-when-used-with-a-recursive-mutex
+ */
+template <typename Lock>
+void synchronized_wait(std::condition_variable_any* cv, Lock* lock) = delete;
 
 #endif // __STOUT_SYNCHRONIZED_HPP__
