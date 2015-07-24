@@ -26,7 +26,7 @@ read -p "Hit enter to continue ... "
 WORK_DIR=`mktemp -d /tmp/mesos-tag-XXXX`
 atexit "rm -rf ${WORK_DIR}"
 
-# Get the absolulte path of the local git clone.
+# Get the absolute path of the local git clone.
 MESOS_GIT_LOCAL=$(cd "$(dirname $0)"/..; pwd)
 
 pushd ${WORK_DIR}
