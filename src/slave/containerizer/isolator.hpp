@@ -34,6 +34,9 @@ namespace slave {
 class MesosIsolatorProcess;
 
 
+// A wrapper class that implements the 'Isolator' interface which is
+// backed by an 'MesosIsolatorProcess'. This helper class is useful
+// for programmers to write asynchronous isolators.
 class MesosIsolator : public mesos::slave::Isolator
 {
 public:
