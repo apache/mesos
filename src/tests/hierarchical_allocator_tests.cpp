@@ -782,6 +782,86 @@ TEST_F(HierarchicalAllocatorTest, UpdateAllocation)
 }
 
 
+// This test ensures that a call to 'updateAvailable' succeeds when the
+// allocator has sufficient available resources.
+TEST_F(HierarchicalAllocatorTest, UpdateAvailableSuccess)
+{
+  initialize(vector<string>{"role1"});
+
+  hashmap<FrameworkID, Resources> EMPTY;
+
+  SlaveInfo slave = createSlaveInfo("cpus:100;mem:100;disk:100");
+  allocator->addSlave(slave.id(), slave, slave.resources(), EMPTY);
+
+  // Construct an offer operation for the framework's allocation.
+  Resources unreserved = Resources::parse("cpus:25;mem:50").get();
+  Resources dynamicallyReserved =
+    unreserved.flatten("role1", createReservationInfo("ops"));
+
+  Offer::Operation reserve = RESERVE(dynamicallyReserved);
+
+  // Update the allocation in the allocator.
+  Future<Nothing> update = allocator->updateAvailable(slave.id(), {reserve});
+  AWAIT_EXPECT_READY(update);
+
+  // Expect to receive the updated available resources.
+  FrameworkInfo framework = createFrameworkInfo("role1");
+  allocator->addFramework(
+      framework.id(), framework, hashmap<SlaveID, Resources>());
+
+  Future<Allocation> allocation = queue.get();
+  AWAIT_READY(allocation);
+  EXPECT_EQ(framework.id(), allocation.get().frameworkId);
+  EXPECT_EQ(1u, allocation.get().resources.size());
+  EXPECT_TRUE(allocation.get().resources.contains(slave.id()));
+
+  // The allocation should be the slave's resources with the offer
+  // operation applied.
+  Try<Resources> updated = Resources(slave.resources()).apply(reserve);
+  ASSERT_SOME(updated);
+
+  EXPECT_NE(Resources(slave.resources()),
+            Resources::sum(allocation.get().resources));
+
+  EXPECT_EQ(updated.get(), Resources::sum(allocation.get().resources));
+}
+
+
+// This test ensures that a call to 'updateAvailable' fails when the
+// allocator has insufficient available resources.
+TEST_F(HierarchicalAllocatorTest, UpdateAvailableFail)
+{
+  initialize(vector<string>{"role1"});
+
+  hashmap<FrameworkID, Resources> EMPTY;
+
+  SlaveInfo slave = createSlaveInfo("cpus:100;mem:100;disk:100");
+  allocator->addSlave(slave.id(), slave, slave.resources(), EMPTY);
+
+  // Expect to receive the all of the available resources.
+  FrameworkInfo framework = createFrameworkInfo("role1");
+  allocator->addFramework(
+      framework.id(), framework, hashmap<SlaveID, Resources>());
+
+  Future<Allocation> allocation = queue.get();
+  AWAIT_READY(allocation);
+  EXPECT_EQ(framework.id(), allocation.get().frameworkId);
+  EXPECT_EQ(1u, allocation.get().resources.size());
+  EXPECT_TRUE(allocation.get().resources.contains(slave.id()));
+  EXPECT_EQ(slave.resources(), Resources::sum(allocation.get().resources));
+
+  // Construct an offer operation for the framework's allocation.
+  Resources unreserved = Resources::parse("cpus:25;mem:50").get();
+  Resources dynamicallyReserved =
+    unreserved.flatten("role1", createReservationInfo("ops"));
+
+  Offer::Operation reserve = RESERVE(dynamicallyReserved);
+
+  // Update the allocation in the allocator.
+  Future<Nothing> update = allocator->updateAvailable(slave.id(), {reserve});
+  AWAIT_EXPECT_FAILED(update);
+}
+
 // This test ensures that when oversubscribed resources are updated
 // subsequent allocations properly account for that.
 TEST_F(HierarchicalAllocatorTest, UpdateSlave)

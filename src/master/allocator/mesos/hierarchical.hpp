@@ -27,6 +27,7 @@
 
 #include <process/event.hpp>
 #include <process/delay.hpp>
+#include <process/future.hpp>
 #include <process/id.hpp>
 #include <process/metrics/gauge.hpp>
 #include <process/metrics/metrics.hpp>
@@ -136,6 +137,10 @@ public:
 
   void updateAllocation(
       const FrameworkID& frameworkId,
+      const SlaveID& slaveId,
+      const std::vector<Offer::Operation>& operations);
+
+  process::Future<Nothing> updateAvailable(
       const SlaveID& slaveId,
       const std::vector<Offer::Operation>& operations);
 
@@ -712,6 +717,47 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::updateAllocation(
             << " on slave " << slaveId
             << " from " << frameworkAllocation
             << " to " << updatedFrameworkAllocation.get();
+}
+
+
+template <class RoleSorter, class FrameworkSorter>
+process::Future<Nothing>
+HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::updateAvailable(
+    const SlaveID& slaveId,
+    const std::vector<Offer::Operation>& operations)
+{
+  CHECK(initialized);
+  CHECK(slaves.contains(slaveId));
+
+  Resources available = slaves[slaveId].total - slaves[slaveId].allocated;
+
+  // It's possible for this 'apply' to fail here because a call to
+  // 'allocate' could have been enqueued by the allocator itself
+  // just before master's request to enqueue 'updateAvailable'
+  // arrives to the allocator.
+  //
+  //   Master -------R------------
+  //                  \___
+  //                      \
+  //   Allocator --A-----A-U---A--
+  //                \___/ \___/
+  //
+  //   where A = allocate, R = reserve, U = updateAvailable
+  Try<Resources> updatedAvailable = available.apply(operations);
+  if (updatedAvailable.isError()) {
+    return process::Failure(updatedAvailable.error());
+  }
+
+  // Update the total resources.
+  Try<Resources> updatedTotal = slaves[slaveId].total.apply(operations);
+  CHECK_SOME(updatedTotal);
+
+  slaves[slaveId].total = updatedTotal.get();
+
+  // Now, update the total resources in the role sorter.
+  roleSorter->update(slaveId, slaves[slaveId].total.unreserved());
+
+  return Nothing();
 }
 
 

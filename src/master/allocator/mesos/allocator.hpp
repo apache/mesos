@@ -22,6 +22,7 @@
 #include <mesos/master/allocator.hpp>
 
 #include <process/dispatch.hpp>
+#include <process/future.hpp>
 #include <process/process.hpp>
 
 #include <stout/try.hpp>
@@ -99,6 +100,10 @@ public:
 
   void updateAllocation(
       const FrameworkID& frameworkId,
+      const SlaveID& slaveId,
+      const std::vector<Offer::Operation>& operations);
+
+  process::Future<Nothing> updateAvailable(
       const SlaveID& slaveId,
       const std::vector<Offer::Operation>& operations);
 
@@ -185,6 +190,10 @@ public:
 
   virtual void updateAllocation(
       const FrameworkID& frameworkId,
+      const SlaveID& slaveId,
+      const std::vector<Offer::Operation>& operations) = 0;
+
+  virtual process::Future<Nothing> updateAvailable(
       const SlaveID& slaveId,
       const std::vector<Offer::Operation>& operations) = 0;
 
@@ -400,6 +409,20 @@ inline void MesosAllocator<AllocatorProcess>::updateAllocation(
       process,
       &MesosAllocatorProcess::updateAllocation,
       frameworkId,
+      slaveId,
+      operations);
+}
+
+
+template <typename AllocatorProcess>
+inline process::Future<Nothing>
+MesosAllocator<AllocatorProcess>::updateAvailable(
+    const SlaveID& slaveId,
+    const std::vector<Offer::Operation>& operations)
+{
+  return process::dispatch(
+      process,
+      &MesosAllocatorProcess::updateAvailable,
       slaveId,
       operations);
 }

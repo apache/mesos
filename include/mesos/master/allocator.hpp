@@ -27,6 +27,8 @@
 
 #include <mesos/resources.hpp>
 
+#include <process/future.hpp>
+
 #include <stout/duration.hpp>
 #include <stout/hashmap.hpp>
 #include <stout/hashset.hpp>
@@ -125,6 +127,10 @@ public:
 
   virtual void updateAllocation(
       const FrameworkID& frameworkId,
+      const SlaveID& slaveId,
+      const std::vector<Offer::Operation>& operations) = 0;
+
+  virtual process::Future<Nothing> updateAvailable(
       const SlaveID& slaveId,
       const std::vector<Offer::Operation>& operations) = 0;
 
