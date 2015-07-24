@@ -16,16 +16,16 @@
  * limitations under the License.
  */
 
+#include <set>
+#include <string>
+
 #include <stout/foreach.hpp>
 #include <stout/subcommand.hpp>
 #include <stout/try.hpp>
 
 #include "linux/ns.hpp"
 
-#include "tests/setns_test_helper.hpp"
-
-#include <set>
-#include <string>
+#include "tests/containerizer/setns_test_helper.hpp"
 
 using std::set;
 using std::string;

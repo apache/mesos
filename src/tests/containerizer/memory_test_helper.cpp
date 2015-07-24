@@ -38,7 +38,8 @@
 #include <stout/try.hpp>
 
 #include "tests/flags.hpp"
-#include "tests/memory_test_helper.hpp"
+
+#include "tests/containerizer/memory_test_helper.hpp"
 
 using process::Subprocess;
 

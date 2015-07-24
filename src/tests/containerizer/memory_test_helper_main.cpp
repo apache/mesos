@@ -18,7 +18,7 @@
 
 #include <stout/subcommand.hpp>
 
-#include "tests/memory_test_helper.hpp"
+#include "tests/containerizer/memory_test_helper.hpp"
 
 using mesos::internal::tests::MemoryTestHelperMain;
 

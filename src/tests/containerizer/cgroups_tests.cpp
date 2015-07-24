@@ -51,9 +51,10 @@
 #include "linux/cgroups.hpp"
 #include "linux/perf.hpp"
 
-#include "tests/memory_test_helper.hpp"
 #include "tests/mesos.hpp" // For TEST_CGROUPS_(HIERARCHY|ROOT).
 #include "tests/utils.hpp"
+
+#include "tests/containerizer/memory_test_helper.hpp"
 
 using namespace process;
 

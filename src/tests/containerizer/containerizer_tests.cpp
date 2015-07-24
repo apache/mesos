@@ -40,10 +40,11 @@
 #include "slave/containerizer/mesos/containerizer.hpp"
 
 #include "tests/flags.hpp"
-#include "tests/isolator.hpp"
-#include "tests/launcher.hpp"
 #include "tests/mesos.hpp"
 #include "tests/utils.hpp"
+
+#include "tests/containerizer/isolator.hpp"
+#include "tests/containerizer/launcher.hpp"
 
 using namespace process;
 

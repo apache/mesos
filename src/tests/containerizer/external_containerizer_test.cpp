@@ -34,10 +34,11 @@
 #include "master/master.hpp"
 #include "master/detector.hpp"
 
-#include "slave/containerizer/containerizer.hpp"
-#include "slave/containerizer/external_containerizer.hpp"
 #include "slave/flags.hpp"
 #include "slave/slave.hpp"
+
+#include "slave/containerizer/containerizer.hpp"
+#include "slave/containerizer/external_containerizer.hpp"
 
 #include "tests/mesos.hpp"
 #include "tests/flags.hpp"

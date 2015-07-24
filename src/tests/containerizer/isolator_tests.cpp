@@ -68,10 +68,11 @@
 #endif // __linux__
 
 #include "tests/flags.hpp"
-#include "tests/memory_test_helper.hpp"
 #include "tests/mesos.hpp"
 #include "tests/module.hpp"
 #include "tests/utils.hpp"
+
+#include "tests/containerizer/memory_test_helper.hpp"
 
 using namespace process;
 

@@ -18,7 +18,7 @@
 
 #include <stout/subcommand.hpp>
 
-#include "tests/setns_test_helper.hpp"
+#include "tests/containerizer/setns_test_helper.hpp"
 
 int main(int argc, char** argv)
 {

@@ -39,7 +39,8 @@
 #include "linux/ns.hpp"
 
 #include "tests/flags.hpp"
-#include "tests/setns_test_helper.hpp"
+
+#include "tests/containerizer/setns_test_helper.hpp"
 
 using namespace process;
 

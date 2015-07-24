@@ -658,17 +658,17 @@ libmesos_no_3rdparty_la_SOURCES +=					\
 	tests/containerizer.hpp						\
 	tests/environment.hpp						\
 	tests/flags.hpp							\
-	tests/isolator.hpp						\
-	tests/launcher.hpp						\
 	tests/limiter.hpp						\
-	tests/memory_test_helper.hpp					\
 	tests/mesos.hpp							\
 	tests/module.hpp						\
 	tests/script.hpp						\
-	tests/setns_test_helper.hpp					\
 	tests/utils.hpp							\
 	tests/zookeeper.hpp						\
 	tests/zookeeper_test_server.hpp					\
+	tests/containerizer/isolator.hpp				\
+	tests/containerizer/launcher.hpp				\
+	tests/containerizer/memory_test_helper.hpp			\
+	tests/containerizer/setns_test_helper.hpp			\
 	usage/usage.hpp							\
 	watcher/whitelist_watcher.hpp					\
 	zookeeper/authentication.hpp					\
@@ -1383,8 +1383,8 @@ persistent_volume_framework_LDADD = libmesos.la $(LDADD)
 if OS_LINUX
   check_PROGRAMS += setns-test-helper
   setns_test_helper_SOURCES =					\
-    tests/setns_test_helper_main.cpp				\
-    tests/setns_test_helper.cpp
+    tests/containerizer/setns_test_helper_main.cpp		\
+    tests/containerizer/setns_test_helper.cpp
   setns_test_helper_CPPFLAGS = $(MESOS_CPPFLAGS)
   setns_test_helper_LDADD = libmesos.la $(LDADD)
 
@@ -1393,8 +1393,8 @@ endif
 check_PROGRAMS += memory-test-helper
 memory_test_helper_SOURCES =					\
   tests/flags.cpp						\
-  tests/memory_test_helper_main.cpp				\
-  tests/memory_test_helper.cpp
+  tests/containerizer/memory_test_helper_main.cpp		\
+  tests/containerizer/memory_test_helper.cpp
 memory_test_helper_CPPFLAGS = $(mesos_tests_CPPFLAGS)
 memory_test_helper_LDADD = libmesos.la $(LDADD)
 
@@ -1474,74 +1474,74 @@ libtestqos_controller_la_SOURCES =		\
 libtestqos_controller_la_CPPFLAGS = $(MESOS_CPPFLAGS)
 libtestqos_controller_la_LDFLAGS = $(MESOS_TEST_MODULE_LDFLAGS)
 
-mesos_tests_SOURCES =				\
-  tests/anonymous_tests.cpp			\
-  tests/attributes_tests.cpp			\
-  tests/authentication_tests.cpp		\
-  tests/authorization_tests.cpp		        \
-  tests/common/http_tests.cpp			\
-  tests/composing_containerizer_tests.cpp       \
-  tests/containerizer.cpp			\
-  tests/containerizer_tests.cpp			\
-  tests/cram_md5_authentication_tests.cpp	\
-  tests/credentials_tests.cpp			\
-  tests/disk_quota_tests.cpp			\
-  tests/docker_containerizer_tests.cpp          \
-  tests/docker_tests.cpp			\
-  tests/environment.cpp				\
-  tests/examples_tests.cpp			\
-  tests/exception_tests.cpp			\
-  tests/external_containerizer_test.cpp		\
-  tests/health_check_tests.cpp                  \
-  tests/fault_tolerance_tests.cpp		\
-  tests/fetcher_cache_tests.cpp			\
-  tests/fetcher_tests.cpp                       \
-  tests/files_tests.cpp				\
-  tests/flags.cpp				\
-  tests/gc_tests.cpp				\
-  tests/hierarchical_allocator_tests.cpp	\
-  tests/hook_tests.cpp				\
-  tests/http_api_tests.cpp			\
-  tests/isolator_tests.cpp			\
-  tests/log_tests.cpp				\
-  tests/logging_tests.cpp			\
-  tests/main.cpp				\
-  tests/master_allocator_tests.cpp		\
-  tests/master_authorization_tests.cpp		\
-  tests/master_contender_detector_tests.cpp	\
-  tests/master_slave_reconciliation_tests.cpp	\
-  tests/master_tests.cpp			\
-  tests/master_validation_tests.cpp		\
-  tests/memory_test_helper.cpp			\
-  tests/mesos.cpp				\
-  tests/metrics_tests.cpp			\
-  tests/module.cpp				\
-  tests/module_tests.cpp			\
-  tests/monitor_tests.cpp			\
-  tests/oversubscription_tests.cpp		\
-  tests/partition_tests.cpp			\
-  tests/paths_tests.cpp				\
-  tests/persistent_volume_tests.cpp		\
-  tests/protobuf_io_tests.cpp			\
-  tests/rate_limiting_tests.cpp			\
-  tests/reconciliation_tests.cpp		\
-  tests/registrar_tests.cpp			\
-  tests/repair_tests.cpp			\
-  tests/reservation_tests.cpp			\
-  tests/resource_offers_tests.cpp		\
-  tests/resources_tests.cpp			\
-  tests/scheduler_tests.cpp			\
-  tests/scheduler_event_call_tests.cpp		\
-  tests/script.cpp				\
-  tests/slave_recovery_tests.cpp		\
-  tests/slave_tests.cpp				\
-  tests/sorter_tests.cpp			\
-  tests/state_tests.cpp				\
-  tests/status_update_manager_tests.cpp		\
-  tests/teardown_tests.cpp			\
-  tests/utils.cpp				\
-  tests/values_tests.cpp			\
-  tests/zookeeper_url_tests.cpp
+mesos_tests_SOURCES =						\
+  tests/anonymous_tests.cpp					\
+  tests/attributes_tests.cpp					\
+  tests/authentication_tests.cpp				\
+  tests/authorization_tests.cpp					\
+  tests/containerizer.cpp					\
+  tests/cram_md5_authentication_tests.cpp			\
+  tests/credentials_tests.cpp					\
+  tests/disk_quota_tests.cpp					\
+  tests/environment.cpp						\
+  tests/examples_tests.cpp					\
+  tests/exception_tests.cpp					\
+  tests/health_check_tests.cpp					\
+  tests/fault_tolerance_tests.cpp				\
+  tests/fetcher_cache_tests.cpp					\
+  tests/fetcher_tests.cpp					\
+  tests/files_tests.cpp						\
+  tests/flags.cpp						\
+  tests/gc_tests.cpp						\
+  tests/hierarchical_allocator_tests.cpp			\
+  tests/hook_tests.cpp						\
+  tests/http_api_tests.cpp					\
+  tests/log_tests.cpp						\
+  tests/logging_tests.cpp					\
+  tests/main.cpp						\
+  tests/master_allocator_tests.cpp				\
+  tests/master_authorization_tests.cpp				\
+  tests/master_contender_detector_tests.cpp			\
+  tests/master_slave_reconciliation_tests.cpp			\
+  tests/master_tests.cpp					\
+  tests/master_validation_tests.cpp				\
+  tests/mesos.cpp						\
+  tests/metrics_tests.cpp					\
+  tests/module.cpp						\
+  tests/module_tests.cpp					\
+  tests/monitor_tests.cpp					\
+  tests/oversubscription_tests.cpp				\
+  tests/partition_tests.cpp					\
+  tests/paths_tests.cpp						\
+  tests/persistent_volume_tests.cpp				\
+  tests/protobuf_io_tests.cpp					\
+  tests/rate_limiting_tests.cpp					\
+  tests/reconciliation_tests.cpp				\
+  tests/registrar_tests.cpp					\
+  tests/repair_tests.cpp					\
+  tests/reservation_tests.cpp					\
+  tests/resource_offers_tests.cpp				\
+  tests/resources_tests.cpp					\
+  tests/scheduler_tests.cpp					\
+  tests/scheduler_event_call_tests.cpp				\
+  tests/script.cpp						\
+  tests/slave_recovery_tests.cpp				\
+  tests/slave_tests.cpp						\
+  tests/sorter_tests.cpp					\
+  tests/state_tests.cpp						\
+  tests/status_update_manager_tests.cpp				\
+  tests/teardown_tests.cpp					\
+  tests/utils.cpp						\
+  tests/values_tests.cpp					\
+  tests/zookeeper_url_tests.cpp					\
+  tests/common/http_tests.cpp					\
+  tests/containerizer/composing_containerizer_tests.cpp		\
+  tests/containerizer/containerizer_tests.cpp			\
+  tests/containerizer/docker_containerizer_tests.cpp		\
+  tests/containerizer/docker_tests.cpp				\
+  tests/containerizer/external_containerizer_test.cpp		\
+  tests/containerizer/isolator_tests.cpp			\
+  tests/containerizer/memory_test_helper.cpp
 
 mesos_tests_CPPFLAGS = $(MESOS_CPPFLAGS)
 mesos_tests_CPPFLAGS += -DSOURCE_DIR=\"$(abs_top_srcdir)\"
@@ -1554,20 +1554,20 @@ mesos_tests_LDADD = ../$(LIBPROCESS)/3rdparty/libgmock.la libmesos.la -ldl $(LDA
 mesos_tests_DEPENDENCIES = # Initialized to allow += below.
 
 if OS_LINUX
-  mesos_tests_SOURCES += tests/cgroups_isolator_tests.cpp
-  mesos_tests_SOURCES += tests/cgroups_tests.cpp
-  mesos_tests_SOURCES += tests/fs_tests.cpp
-  mesos_tests_SOURCES += tests/launch_tests.cpp
-  mesos_tests_SOURCES += tests/memory_pressure_tests.cpp
-  mesos_tests_SOURCES += tests/ns_tests.cpp
-  mesos_tests_SOURCES += tests/perf_tests.cpp
-  mesos_tests_SOURCES += tests/sched_tests.cpp
-  mesos_tests_SOURCES += tests/setns_test_helper.cpp
+  mesos_tests_SOURCES += tests/containerizer/cgroups_isolator_tests.cpp
+  mesos_tests_SOURCES += tests/containerizer/cgroups_tests.cpp
+  mesos_tests_SOURCES += tests/containerizer/fs_tests.cpp
+  mesos_tests_SOURCES += tests/containerizer/launch_tests.cpp
+  mesos_tests_SOURCES += tests/containerizer/memory_pressure_tests.cpp
+  mesos_tests_SOURCES += tests/containerizer/ns_tests.cpp
+  mesos_tests_SOURCES += tests/containerizer/perf_tests.cpp
+  mesos_tests_SOURCES += tests/containerizer/sched_tests.cpp
+  mesos_tests_SOURCES += tests/containerizer/setns_test_helper.cpp
 endif
 
 if WITH_NETWORK_ISOLATOR
-  mesos_tests_SOURCES += tests/routing_tests.cpp
-  mesos_tests_SOURCES += tests/port_mapping_tests.cpp
+  mesos_tests_SOURCES += tests/containerizer/routing_tests.cpp
+  mesos_tests_SOURCES += tests/containerizer/port_mapping_tests.cpp
 endif
 
 if HAS_JAVA
