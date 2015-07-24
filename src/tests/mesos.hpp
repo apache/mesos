@@ -1303,7 +1303,6 @@ const ::testing::Matcher<const std::vector<Offer>& > OfferEq(int cpus, int mem)
 }
 
 
-// Definition of the SendStatusUpdateFromTask action to be used with gmock.
 ACTION_P(SendStatusUpdateFromTask, state)
 {
   TaskStatus status;
@@ -1313,13 +1312,18 @@ ACTION_P(SendStatusUpdateFromTask, state)
 }
 
 
-// Definition of the SendStatusUpdateFromTaskID action to be used with gmock.
 ACTION_P(SendStatusUpdateFromTaskID, state)
 {
   TaskStatus status;
   status.mutable_task_id()->MergeFrom(arg1);
   status.set_state(state);
   arg0->sendStatusUpdate(status);
+}
+
+
+ACTION_P(SendFrameworkMessage, data)
+{
+  arg0->sendFrameworkMessage(data);
 }
 
 
