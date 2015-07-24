@@ -76,21 +76,6 @@ inline Synchronized<std::atomic_flag> synchronize(std::atomic_flag* lock)
 }
 
 
-// An overload of the 'synchronize' function for 'pthread_mutex_t'.
-inline Synchronized<pthread_mutex_t> synchronize(pthread_mutex_t* mutex)
-{
-  return Synchronized<pthread_mutex_t>(
-    mutex,
-    [](pthread_mutex_t* mutex) {
-      pthread_mutex_lock(mutex);
-    },
-    [](pthread_mutex_t* mutex) {
-      pthread_mutex_unlock(mutex);
-    }
-  );
-}
-
-
 template <typename T>
 T* synchronized_get_pointer(T** t)
 {
