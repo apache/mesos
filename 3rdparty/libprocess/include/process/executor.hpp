@@ -20,6 +20,8 @@
 #include <process/id.hpp>
 #include <process/process.hpp>
 
+#include <stout/thread.hpp>
+
 namespace process {
 
 // Provides an abstraction that can take a standard function object
@@ -66,12 +68,14 @@ private:
 };
 
 
-// Per thread executor pointer. We use a pointer to lazily construct the
-// actual executor.
-extern thread_local Executor* _executor_;
+// Per thread executor pointer. The extra level of indirection from
+// _executor_ to __executor__ is used in order to take advantage of
+// the ThreadLocal operators without needing the extra dereference as
+// well as lazily construct the actual executor.
+extern ThreadLocal<Executor>* _executor_;
 
 #define __executor__                                                    \
-  (_executor_ == NULL ? _executor_ = new Executor() : _executor_)
+  (*_executor_ == NULL ? *_executor_ = new Executor() : *_executor_)
 
 } // namespace process {
 

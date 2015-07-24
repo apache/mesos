@@ -91,6 +91,7 @@
 #include <stout/path.hpp>
 #include <stout/strings.hpp>
 #include <stout/synchronized.hpp>
+#include <stout/thread.hpp>
 #include <stout/unreachable.hpp>
 
 #include "config.hpp"
@@ -466,10 +467,10 @@ PID<GarbageCollector> gc;
 PID<Help> help;
 
 // Per thread process pointer.
-thread_local ProcessBase* __process__ = NULL;
+ThreadLocal<ProcessBase>* _process_ = new ThreadLocal<ProcessBase>();
 
 // Per thread executor pointer.
-thread_local Executor* _executor_ = NULL;
+ThreadLocal<Executor>* _executor_ = new ThreadLocal<Executor>();
 
 // TODO(dhamon): Reintroduce this when it is plumbed through to Statistics.
 // const Duration LIBPROCESS_STATISTICS_WINDOW = Days(1);
