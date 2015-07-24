@@ -737,8 +737,8 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::updateAvailable(
   // arrives to the allocator.
   //
   //   Master -------R------------
-  //                  \___
-  //                      \
+  //                  \----+
+  //                       |
   //   Allocator --A-----A-U---A--
   //                \___/ \___/
   //
