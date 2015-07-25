@@ -182,6 +182,28 @@ TEST(BasicMasterContenderDetectorTest, Detector)
 }
 
 
+TEST(BasicMasterContenderDetectorTest, MasterInfo)
+{
+  PID<Master> master;
+  master.address.ip = net::IP::parse("10.10.1.105", AF_INET).get();
+  master.address.port = 8088;
+
+  StandaloneMasterDetector detector;
+
+  Future<Option<MasterInfo> > detected = detector.detect();
+
+  detector.appoint(master);
+
+  AWAIT_READY(detected);
+  ASSERT_SOME(detected.get());
+  const MasterInfo& info = detected.get().get();
+
+  ASSERT_TRUE(info.has_address());
+  EXPECT_EQ("10.10.1.105", info.address().ip());
+  ASSERT_EQ(8088, info.address().port());
+}
+
+
 #ifdef MESOS_HAS_JAVA
 class ZooKeeperMasterContenderDetectorTest : public ZooKeeperTest {};
 

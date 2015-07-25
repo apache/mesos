@@ -85,6 +85,7 @@
 #include "watcher/whitelist_watcher.hpp"
 
 using std::list;
+using std::ostringstream;
 using std::shared_ptr;
 using std::string;
 using std::vector;
@@ -316,6 +317,9 @@ Master::Master(
 
   // NOTE: Currently, we store ip in MasterInfo in network order,
   // which should be fixed. See MESOS-1201 for details.
+  // TODO(marco): The ip, port, hostname fields above are
+  //     being deprecated; the code should be removed once
+  //     the deprecation cycle is complete.
   info_.set_ip(self().address.ip.in().get().s_addr);
 
   info_.set_port(self().address.port);
@@ -338,6 +342,11 @@ Master::Master(
   }
 
   info_.set_hostname(hostname);
+
+  // This uses the new `Address` message in `MasterInfo`.
+  info_.mutable_address()->set_ip(stringify(self().address.ip));
+  info_.mutable_address()->set_port(self().address.port);
+  info_.mutable_address()->set_hostname(hostname);
 }
 
 

@@ -190,14 +190,23 @@ MasterInfo createMasterInfo(const UPID& pid)
 
   // NOTE: Currently, we store the ip in network order, which should
   // be fixed. See MESOS-1201 for more details.
+  // TODO(marco): `ip` and `port` are deprecated in favor of `address`;
+  //     remove them both after the deprecation cycle.
   info.set_ip(pid.address.ip.in().get().s_addr);
-
   info.set_port(pid.address.port);
+
+  info.mutable_address()->set_ip(stringify(pid.address.ip));
+  info.mutable_address()->set_port(pid.address.port);
+
   info.set_pid(pid);
 
   Try<string> hostname = net::getHostname(pid.address.ip);
   if (hostname.isSome()) {
+    // Hostname is deprecated; but we need to update it
+    // to maintain backward compatibility.
+    // TODO(marco): Remove once we deprecate it.
     info.set_hostname(hostname.get());
+    info.mutable_address()->set_hostname(hostname.get());
   }
 
   return info;

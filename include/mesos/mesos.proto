@@ -96,7 +96,7 @@ message ContainerID {
 /**
  * A network address.
  *
- * TODO(bmahler): Use this more widely (e.g. MasterInfo).
+ * TODO(bmahler): Use this more widely.
  */
 message Address {
   // May contain a hostname, IP address, or both.
@@ -369,11 +369,35 @@ message ExecutorInfo {
  */
 message MasterInfo {
   required string id = 1;
+
+  // The IP address (only IPv4) as a packed 4-bytes integer,
+  // stored in network order.  Deprecated, use `address.ip` instead.
   required uint32 ip = 2;
+
+  // The TCP port the Master is listening on for incoming
+  // HTTP requests; deprecated, use `address.port` instead.
   required uint32 port = 3 [default = 5050];
+
+  // In the default implementation, this will contain information
+  // about both the IP address, port and Master name; it should really
+  // not be relied upon by external tooling/frameworks and be
+  // considered an "internal" implementation field.
   optional string pid = 4;
+
+  // The server's hostname, if available; it may be unreliable
+  // in environments where the DNS configuration does not resolve
+  // internal hostnames (eg, some public cloud providers).
+  // Deprecated, use `address.hostname` instead.
   optional string hostname = 5;
+
+  // The running Master version, as a string; taken from the
+  // generated "master/version.hpp".
   optional string version = 6;
+
+  // The full IP address (supports both IPv4 and IPv6 formats)
+  // and supersedes the use of `ip`, `port` and `hostname`.
+  // Since Mesos 0.24.
+  optional Address address = 7;
 }
 
 
