@@ -2700,16 +2700,19 @@ void Slave::statusUpdate(StatusUpdate update, const UPID& pid)
         state == RUNNING || state == TERMINATING)
     << state;
 
-  // TODO(bmahler): With the HTTP API, we must validate the UUID
-  // inside the TaskStatus. For now, we only care about the UUID
-  // inside the StatusUpdate, as the scheduler driver overwrites it.
   if (!update.has_uuid()) {
     LOG(WARNING) << "Ignoring status update " << update << " without 'uuid'";
     metrics.invalid_status_updates++;
     return;
   }
 
-  // Set the source before forwarding the status update.
+  // TODO(bmahler): With the HTTP API, we must validate the UUID
+  // inside the TaskStatus. For now, we ensure that the uuid of task
+  // status matches the update's uuid, in case the executor is using
+  // pre 0.23.x driver.
+  update.mutable_status()->set_uuid(update.uuid());
+
+  // Set the source and UUID before forwarding the status update.
   update.mutable_status()->set_source(
       pid == UPID() ? TaskStatus::SOURCE_SLAVE : TaskStatus::SOURCE_EXECUTOR);
 

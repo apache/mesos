@@ -890,10 +890,8 @@ protected:
     // update uuid check here, until then we must still check for
     // this being sent from the driver (from == UPID()) or from
     // the master (pid == UPID()).
-    //
-    // TODO(bmahler): For the HTTP API, we will have to update the
-    // master and slave to ensure the 'uuid' in TaskStatus is set
-    // correctly.
+    // TODO(vinod): Get rid of this logic in 0.25.0 because master
+    // and slave correctly set task status in 0.24.0.
     if (!update.has_uuid() || update.uuid() == "") {
       status.clear_uuid();
     } else if (from == UPID() || pid == UPID()) {
