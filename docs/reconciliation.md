@@ -77,10 +77,10 @@ The technique for performing reconciliation should reconcile all non-terminal
 tasks, until an update is received for each task, using exponential backoff:
 
 1. let `start = now()`
-2. let `remaining = { T ϵ tasks | T is non-terminal }`
+2. let `remaining = { T in tasks | T is non-terminal }`
 3. Perform reconciliation: `reconcile(remaining)`
 4. Wait for status updates to arrive (use truncated exponential backoff). For each update, note the time of arrival.
-5. let `remaining = { T ϵ remaining | T.last_update_arrival() < start }`
+5. let `remaining = { T in remaining | T.last_update_arrival() < start }`
 6. If `remaining` is non-empty, go to 3.
 
 This reconciliation algorithm **must** be run after each (re-)registration.

@@ -23,7 +23,7 @@ For online reconfiguration of the log, see: [MESOS-683](https://issues.apache.or
 ### Increasing the quorum size
 As the size of a cluster grows, it may be desired to increase the quorum size for additional fault tolerance.
 
-The following steps indicate how to increment the quorum size, using 3 → 5 masters as an example (quorum size 2 → 3):
+The following steps indicate how to increment the quorum size, using 3 -> 5 masters as an example (quorum size 2 -> 3):
 
 1. Initially, 3 masters are running with `--quorum=2`
 2. Restart the original 3 masters with `--quorum=3`
@@ -34,7 +34,7 @@ To increase the quorum by N, repeat this process to increment the quorum size N 
 
 ### Decreasing the quorum size
 
-The following steps indicate how to decrement the quorum size, using 5 → 3 masters as an example (quorum size 3 → 2):
+The following steps indicate how to decrement the quorum size, using 5 -> 3 masters as an example (quorum size 3 -> 2):
 
 1. Initially, 5 masters are running with `--quorum=3`
 2. Remove 2 masters from the cluster, ensure they will not be restarted (See NOTE section above). Now 3 masters are running with `--quorum=3`
