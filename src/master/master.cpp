@@ -1805,6 +1805,7 @@ void Master::_registerFramework(
     const Future<Option<Error>>& validationError)
 {
   CHECK_READY(validationError);
+
   if (validationError.get().isSome()) {
     LOG(INFO) << "Refusing registration of framework '"
               << frameworkInfo.name() << "' at " << from
