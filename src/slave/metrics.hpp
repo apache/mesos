@@ -56,6 +56,7 @@ struct Metrics
   process::metrics::Gauge executors_running;
   process::metrics::Gauge executors_terminating;
   process::metrics::Counter executors_terminated;
+  process::metrics::Counter executors_preempted;
 
   process::metrics::Counter valid_status_updates;
   process::metrics::Counter invalid_status_updates;

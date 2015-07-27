@@ -935,6 +935,7 @@ TEST_F(SlaveTest, MetricsInMetricsEndpoint)
   EXPECT_EQ(1u, snapshot.values.count("slave/executors_running"));
   EXPECT_EQ(1u, snapshot.values.count("slave/executors_terminating"));
   EXPECT_EQ(1u, snapshot.values.count("slave/executors_terminated"));
+  EXPECT_EQ(1u, snapshot.values.count("slave/executors_preempted"));
 
   EXPECT_EQ(1u, snapshot.values.count("slave/valid_status_updates"));
   EXPECT_EQ(1u, snapshot.values.count("slave/invalid_status_updates"));

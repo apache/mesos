@@ -805,6 +805,12 @@ TEST_F(OversubscriptionTest, QoSCorrectionKill)
   Try<PID<Slave>> slave = StartSlave(&controller, CreateSlaveFlags());
   ASSERT_SOME(slave);
 
+  // Verify presence and initial value of counter for preempted
+  // executors.
+  JSON::Object snapshot = Metrics();
+  EXPECT_EQ(1u, snapshot.values.count("slave/executors_preempted"));
+  EXPECT_EQ(0u, snapshot.values["slave/executors_preempted"]);
+
   MockScheduler sched;
   MesosSchedulerDriver driver(
       &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
@@ -855,6 +861,10 @@ TEST_F(OversubscriptionTest, QoSCorrectionKill)
   AWAIT_READY(status2);
   ASSERT_EQ(TASK_LOST, status2.get().state());
   ASSERT_EQ(TaskStatus::REASON_EXECUTOR_PREEMPTED, status2.get().reason());
+
+  // Verify that slave incremented counter for preempted executors.
+  snapshot = Metrics();
+  EXPECT_EQ(1u, snapshot.values["slave/executors_preempted"]);
 
   driver.stop();
   driver.join();

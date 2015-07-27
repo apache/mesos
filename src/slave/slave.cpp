@@ -4386,6 +4386,8 @@ void Slave::_qosCorrections(const Future<list<QoSCorrection>>& future)
           executor->state = Executor::TERMINATING;
           executor->reason = TaskStatus::REASON_EXECUTOR_PREEMPTED;
           containerizer->destroy(executor->containerId);
+
+          ++metrics.executors_preempted;
           break;
         }
         case Executor::TERMINATING:

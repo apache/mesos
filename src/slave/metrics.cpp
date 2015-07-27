@@ -74,6 +74,8 @@ Metrics::Metrics(const Slave& slave)
         defer(slave, &Slave::_executors_terminating)),
     executors_terminated(
         "slave/executors_terminated"),
+    executors_preempted(
+        "slave/executors_preempted"),
     valid_status_updates(
         "slave/valid_status_updates"),
     invalid_status_updates(
@@ -108,6 +110,7 @@ Metrics::Metrics(const Slave& slave)
   process::metrics::add(executors_running);
   process::metrics::add(executors_terminating);
   process::metrics::add(executors_terminated);
+  process::metrics::add(executors_preempted);
 
   process::metrics::add(valid_status_updates);
   process::metrics::add(invalid_status_updates);
@@ -192,6 +195,7 @@ Metrics::~Metrics()
   process::metrics::remove(executors_running);
   process::metrics::remove(executors_terminating);
   process::metrics::remove(executors_terminated);
+  process::metrics::remove(executors_preempted);
 
   process::metrics::remove(valid_status_updates);
   process::metrics::remove(invalid_status_updates);
