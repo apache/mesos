@@ -40,6 +40,15 @@ task state reconciliation.
 
 ## Task Reconciliation
 
+Mesos provides two forms of reconciliation:
+
+* "Explicit" reconciliation: the scheduler sends some of its non-terminal
+tasks and the master responds with the latest state for each task, if
+possible.
+* "Implicit" reconciliation: the scheduler sends an empty list of tasks
+and the master responds with the latest state for all currently known
+non-terminal tasks.
+
 **Tasks must be reconciled explicitly by the framework after a failure.**
 
 This is because the scheduler driver does not persist any task information.
@@ -49,6 +58,7 @@ framework.
 
 So, for now, let's look at how one needs to implement task state
 reconciliation in a framework scheduler.
+
 
 ### API
 
@@ -73,25 +83,37 @@ slaves that are transitioning between states.
 
 ### Algorithm
 
-The technique for performing reconciliation should reconcile all non-terminal
-tasks, until an update is received for each task, using exponential backoff:
+This technique for explicit reconciliation reconciles all non-terminal tasks,
+until an update is received for each task, using exponential backoff to retry
+tasks that remain unreconciled. Retries are needed because the master temporarily
+may not be able to reply for a particular task. For example, during master
+failover the master must re-register all of the slaves to rebuild its
+set of known tasks (this process can take minutes for large clusters, and
+is bounded by the `--slave_reregister_timeout` flag on the master).
+
+Steps:
 
 1. let `start = now()`
 2. let `remaining = { T in tasks | T is non-terminal }`
 3. Perform reconciliation: `reconcile(remaining)`
 4. Wait for status updates to arrive (use truncated exponential backoff). For each update, note the time of arrival.
-5. let `remaining = { T in remaining | T.last_update_arrival() < start }`
+5. let `remaining = { T ϵ remaining | T.last_update_arrival() < start }`
 6. If `remaining` is non-empty, go to 3.
 
 This reconciliation algorithm **must** be run after each (re-)registration.
+
+Implicit reconciliation (passing an empty list) should also be used
+periodically, as a defense against data loss in the framework. Unless a
+strict registry is in use on the master, its possible for tasks to resurrect
+from a LOST state (without a strict registry the master does not enforce
+slave removal across failovers). When an unknown task is encountered, the
+scheduler should kill or recover the task.
 
 Notes:
 
 * When waiting for updates to arrive, **use a truncated exponential backoff**.
 This will avoid a snowball effect in the case of the driver or master being
 backed up.
-* Implicit reconciliation (passing an empty list) can also be used
-periodically, As a defense against data loss in the framework.
 * It is beneficial to ensure that only 1 reconciliation is in progress at a
 time, to avoid a snowball effect in the face of many re-registrations.
 If another reconciliation should be started while one is in-progress,
