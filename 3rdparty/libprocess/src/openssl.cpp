@@ -105,10 +105,9 @@ Flags::Flags()
       "AES128-SHA:AES256-SHA:RC4-SHA:DHE-RSA-AES128-SHA:DHE-DSS-AES128-SHA:"
       "DHE-RSA-AES256-SHA:DHE-DSS-AES256-SHA");
 
-  add(&Flags::enable_ssl_v2,
-      "enable_ssl_v2",
-      "Enable SSLV2.",
-      false);
+  // We purposely don't have a flag for SSLv2. We do this because most
+  // systems have disabled SSLv2 at compilation due to having so many
+  // security vulnerabilities.
 
   add(&Flags::enable_ssl_v3,
       "enable_ssl_v3",
@@ -329,6 +328,8 @@ void reinitialize()
     ctx = NULL;
   }
 
+  // Replace with `TLS_method` once our minimum OpenSSL version
+  // supports it.
   ctx = SSL_CTX_new(SSLv23_method());
   CHECK(ctx) << "Failed to create SSL context: "
              << ERR_error_string(ERR_get_error(), NULL);
@@ -490,8 +491,12 @@ void reinitialize()
 
   // Use server preference for cipher.
   long ssl_options = SSL_OP_CIPHER_SERVER_PREFERENCE;
-  // Disable SSLv2.
-  if (!ssl_flags->enable_ssl_v2) { ssl_options |= SSL_OP_NO_SSLv2; }
+
+  // Always disable SSLv2. We do this because most systems have
+  // disabled SSLv2 at compilation due to having so many security
+  // vulnerabilities.
+  ssl_options |= SSL_OP_NO_SSLv2;
+
   // Disable SSLv3.
   if (!ssl_flags->enable_ssl_v3) { ssl_options |= SSL_OP_NO_SSLv3; }
   // Disable TLSv1.

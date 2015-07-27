@@ -294,7 +294,6 @@ protected:
     os::unsetenv("SSL_CA_DIR");
     os::unsetenv("SSL_CA_FILE");
     os::unsetenv("SSL_CIPHERS");
-    os::unsetenv("SSL_ENABLE_SSL_V2");
     os::unsetenv("SSL_ENABLE_SSL_V3");
     os::unsetenv("SSL_ENABLE_TLS_V1_0");
     os::unsetenv("SSL_ENABLE_TLS_V1_1");
@@ -666,25 +665,24 @@ TEST_F(SSLTest, RequireCertificate)
 }
 
 
+// The SSL protocols that we support through configuration flags.
+static const vector<string> protocols = {
+  // OpenSSL can be compiled with SSLV3 disabled completely, so we
+  // conditionally test for this protocol.
+#ifndef OPENSSL_NO_SSL3
+  "SSL_ENABLE_SSL_V3",
+#endif
+  "SSL_ENABLE_TLS_V1_0",
+  "SSL_ENABLE_TLS_V1_1",
+  "SSL_ENABLE_TLS_V1_2"
+};
+
+
 // Test all the combinations of protocols. Ensure that they can only
 // communicate if the opposing end allows the given protocol, and not
 // otherwise.
 TEST_F(SSLTest, ProtocolMismatch)
 {
-  const vector<string> protocols = {
-    // Openssl can be compiled with SSLV2 and/or SSLV3 disabled
-    // completely, so we conditionally test these protocol.
-#ifndef OPENSSL_NO_SSL2
-    "SSL_ENABLE_SSL_V2",
-#endif
-#ifndef OPENSSL_NO_SSL3
-    "SSL_ENABLE_SSL_V3",
-#endif
-    "SSL_ENABLE_TLS_V1_0",
-    "SSL_ENABLE_TLS_V1_1",
-    "SSL_ENABLE_TLS_V1_2"
-  };
-
   // For each server protocol.
   foreach (const string& server_protocol, protocols) {
     // For each client protocol.
@@ -806,20 +804,6 @@ TEST_F(SSLTest, NoValidDowngrade)
 // socket and an SSL socket if 'SSL_SUPPORT_DOWNGRADE' is enabled.
 TEST_F(SSLTest, ValidDowngradeEachProtocol)
 {
-  const vector<string> protocols = {
-    // Openssl can be compiled with SSLV2 and/or SSLV3 disabled
-    // completely, so we conditionally test these protocol.
-#ifndef OPENSSL_NO_SSL2
-    "SSL_ENABLE_SSL_V2",
-#endif
-#ifndef OPENSSL_NO_SSL3
-    "SSL_ENABLE_SSL_V3",
-#endif
-    "SSL_ENABLE_TLS_V1_0",
-    "SSL_ENABLE_TLS_V1_1",
-    "SSL_ENABLE_TLS_V1_2"
-  };
-
   // For each protocol.
   foreach (const string& server_protocol, protocols) {
     LOG(INFO) << "Testing server protocol '" << server_protocol << "'\n";
@@ -867,20 +851,6 @@ TEST_F(SSLTest, ValidDowngradeEachProtocol)
 // enabled.
 TEST_F(SSLTest, NoValidDowngradeEachProtocol)
 {
-  const vector<string> protocols = {
-    // Openssl can be compiled with SSLV2 and/or SSLV3 disabled
-    // completely, so we conditionally test these protocol.
-#ifndef OPENSSL_NO_SSL2
-    "SSL_ENABLE_SSL_V2",
-#endif
-#ifndef OPENSSL_NO_SSL3
-    "SSL_ENABLE_SSL_V3",
-#endif
-    "SSL_ENABLE_TLS_V1_0",
-    "SSL_ENABLE_TLS_V1_1",
-    "SSL_ENABLE_TLS_V1_2"
-  };
-
   // For each protocol.
   foreach (const string& server_protocol, protocols) {
     LOG(INFO) << "Testing server protocol '" << server_protocol << "'\n";

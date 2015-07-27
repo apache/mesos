@@ -45,7 +45,6 @@ public:
   Option<std::string> ca_dir;
   Option<std::string> ca_file;
   std::string ciphers;
-  bool enable_ssl_v2;
   bool enable_ssl_v3;
   bool enable_tls_v1_0;
   bool enable_tls_v1_1;
@@ -68,7 +67,6 @@ const Flags& flags();
 //    SSL_CA_DIR=(path to CA directory)
 //    SSL_CA_FILE=(path to CA file)
 //    SSL_CIPHERS=(accepted ciphers separated by ':')
-//    SSL_ENABLE_SSL_V2=(false|0,true|1)
 //    SSL_ENABLE_SSL_V3=(false|0,true|1)
 //    SSL_ENABLE_TLS_V1_0=(false|0,true|1)
 //    SSL_ENABLE_TLS_V1_1=(false|0,true|1)
