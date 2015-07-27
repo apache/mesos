@@ -89,6 +89,8 @@ class Repairer;
 class SlaveObserver;
 
 struct BoundedRateLimiter;
+struct Framework;
+struct Role;
 
 
 struct Slave
@@ -328,319 +330,6 @@ inline std::ostream& operator << (std::ostream& stream, const Slave& slave)
   return stream << slave.id << " at " << slave.pid
                 << " (" << slave.info.hostname() << ")";
 }
-
-
-// Information about a connected or completed framework.
-// TODO(bmahler): Keeping the task and executor information in sync
-// across the Slave and Framework structs is error prone!
-struct Framework
-{
-  Framework(const FrameworkInfo& _info,
-            const process::UPID& _pid,
-            const process::Time& time = process::Clock::now())
-    : info(_info),
-      pid(_pid),
-      connected(true),
-      active(true),
-      registeredTime(time),
-      reregisteredTime(time),
-      completedTasks(MAX_COMPLETED_TASKS_PER_FRAMEWORK) {}
-
-  ~Framework() {}
-
-  Task* getTask(const TaskID& taskId)
-  {
-    if (tasks.count(taskId) > 0) {
-      return tasks[taskId];
-    } else {
-      return NULL;
-    }
-  }
-
-  void addTask(Task* task)
-  {
-    CHECK(!tasks.contains(task->task_id()))
-      << "Duplicate task " << task->task_id()
-      << " of framework " << task->framework_id();
-
-    tasks[task->task_id()] = task;
-
-    if (!protobuf::isTerminalState(task->state())) {
-      totalUsedResources += task->resources();
-      usedResources[task->slave_id()] += task->resources();
-    }
-  }
-
-  // Notification of task termination, for resource accounting.
-  // TODO(bmahler): This is a hack for performance. We need to
-  // maintain resource counters because computing task resources
-  // functionally for all tasks is expensive, for now.
-  void taskTerminated(Task* task)
-  {
-    CHECK(protobuf::isTerminalState(task->state()));
-    CHECK(tasks.contains(task->task_id()))
-      << "Unknown task " << task->task_id()
-      << " of framework " << task->framework_id();
-
-    totalUsedResources -= task->resources();
-    usedResources[task->slave_id()] -= task->resources();
-    if (usedResources[task->slave_id()].empty()) {
-      usedResources.erase(task->slave_id());
-    }
-  }
-
-  void addCompletedTask(const Task& task)
-  {
-    // TODO(adam-mesos): Check if completed task already exists.
-    completedTasks.push_back(std::shared_ptr<Task>(new Task(task)));
-  }
-
-  void removeTask(Task* task)
-  {
-    CHECK(tasks.contains(task->task_id()))
-      << "Unknown task " << task->task_id()
-      << " of framework " << task->framework_id();
-
-    if (!protobuf::isTerminalState(task->state())) {
-      totalUsedResources -= task->resources();
-      usedResources[task->slave_id()] -= task->resources();
-      if (usedResources[task->slave_id()].empty()) {
-        usedResources.erase(task->slave_id());
-      }
-    }
-
-    addCompletedTask(*task);
-
-    tasks.erase(task->task_id());
-  }
-
-  void addOffer(Offer* offer)
-  {
-    CHECK(!offers.contains(offer)) << "Duplicate offer " << offer->id();
-    offers.insert(offer);
-    totalOfferedResources += offer->resources();
-    offeredResources[offer->slave_id()] += offer->resources();
-  }
-
-  void removeOffer(Offer* offer)
-  {
-    CHECK(offers.find(offer) != offers.end())
-      << "Unknown offer " << offer->id();
-
-    totalOfferedResources -= offer->resources();
-    offeredResources[offer->slave_id()] -= offer->resources();
-    if (offeredResources[offer->slave_id()].empty()) {
-      offeredResources.erase(offer->slave_id());
-    }
-
-    offers.erase(offer);
-  }
-
-  bool hasExecutor(const SlaveID& slaveId,
-                   const ExecutorID& executorId)
-  {
-    return executors.contains(slaveId) &&
-      executors[slaveId].contains(executorId);
-  }
-
-  void addExecutor(const SlaveID& slaveId,
-                   const ExecutorInfo& executorInfo)
-  {
-    CHECK(!hasExecutor(slaveId, executorInfo.executor_id()))
-      << "Duplicate executor " << executorInfo.executor_id()
-      << " on slave " << slaveId;
-
-    executors[slaveId][executorInfo.executor_id()] = executorInfo;
-    totalUsedResources += executorInfo.resources();
-    usedResources[slaveId] += executorInfo.resources();
-  }
-
-  void removeExecutor(const SlaveID& slaveId,
-                      const ExecutorID& executorId)
-  {
-    CHECK(hasExecutor(slaveId, executorId))
-      << "Unknown executor " << executorId
-      << " of framework " << id()
-      << " of slave " << slaveId;
-
-    totalUsedResources -= executors[slaveId][executorId].resources();
-    usedResources[slaveId] -= executors[slaveId][executorId].resources();
-    if (usedResources[slaveId].empty()) {
-      usedResources.erase(slaveId);
-    }
-
-    executors[slaveId].erase(executorId);
-    if (executors[slaveId].empty()) {
-      executors.erase(slaveId);
-    }
-  }
-
-  const FrameworkID id() const { return info.id(); }
-
-  // Update fields in 'info' using those in 'source'. Currently this
-  // only updates 'name', 'failover_timeout', 'hostname', and
-  // 'webui_url'.
-  void updateFrameworkInfo(const FrameworkInfo& source)
-  {
-    // TODO(jmlvanre): We can't check 'FrameworkInfo.id' yet because
-    // of MESOS-2559. Once this is fixed we can 'CHECK' that we only
-    // merge 'info' from the same framework 'id'.
-
-    // TODO(jmlvanre): Merge other fields as per design doc in
-    // MESOS-703.
-
-    if (source.user() != info.user()) {
-      LOG(WARNING) << "Can not update FrameworkInfo.user to '" << info.user()
-                   << "' for framework " << id() << ". Check MESOS-703";
-    }
-
-    info.set_name(source.name());
-
-    if (source.has_failover_timeout()) {
-      info.set_failover_timeout(source.failover_timeout());
-    } else {
-      info.clear_failover_timeout();
-    }
-
-    if (source.checkpoint() != info.checkpoint()) {
-      LOG(WARNING) << "Can not update FrameworkInfo.checkpoint to '"
-                   << stringify(info.checkpoint()) << "' for framework " << id()
-                   << ". Check MESOS-703";
-    }
-
-    if (source.role() != info.role()) {
-      LOG(WARNING) << "Can not update FrameworkInfo.role to '" << info.role()
-                   << "' for framework " << id() << ". Check MESOS-703";
-    }
-
-    if (source.has_hostname()) {
-      info.set_hostname(source.hostname());
-    } else {
-      info.clear_hostname();
-    }
-
-    if (source.principal() != info.principal()) {
-      LOG(WARNING) << "Can not update FrameworkInfo.principal to '"
-                   << info.principal() << "' for framework " << id()
-                   << ". Check MESOS-703";
-    }
-
-    if (source.has_webui_url()) {
-      info.set_webui_url(source.webui_url());
-    } else {
-      info.clear_webui_url();
-    }
-  }
-
-  FrameworkInfo info;
-
-  process::UPID pid;
-
-  // Framework becomes disconnected when the socket closes.
-  bool connected;
-
-  // Framework becomes deactivated when it is disconnected or
-  // the master receives a DeactivateFrameworkMessage.
-  // No offers will be made to a deactivated framework.
-  bool active;
-
-  process::Time registeredTime;
-  process::Time reregisteredTime;
-  process::Time unregisteredTime;
-
-  // Tasks that have not yet been launched because they are currently
-  // being authorized.
-  hashmap<TaskID, TaskInfo> pendingTasks;
-
-  hashmap<TaskID, Task*> tasks;
-
-  // NOTE: We use a shared pointer for Task because clang doesn't like
-  // Boost's implementation of circular_buffer with Task (Boost
-  // attempts to do some memset's which are unsafe).
-  boost::circular_buffer<std::shared_ptr<Task>> completedTasks;
-
-  hashset<Offer*> offers; // Active offers for framework.
-
-  hashmap<SlaveID, hashmap<ExecutorID, ExecutorInfo>> executors;
-
-  // NOTE: For the used and offered resources below, we keep the
-  // total as well as partitioned by SlaveID.
-  // We expose the total resources via the HTTP endpoint, and we
-  // keep a running total of the resources because looping over the
-  // slaves to sum the resources has led to perf issues (MESOS-1862).
-  // We keep the resources partitioned by SlaveID because non-scalar
-  // resources can be lost when summing them up across multiple
-  // slaves (MESOS-2373).
-  //
-  // Also note that keeping the totals is safe even though it yields
-  // incorrect results for non-scalar resources.
-  //   (1) For overlapping set items / ranges across slaves, these
-  //       will get added N times but only represented once.
-  //   (2) When an initial subtraction occurs (N-1), the resource is
-  //       no longer represented. (This is the source of the bug).
-  //   (3) When any further subtractions occur (N-(1+M)), the
-  //       Resources simply ignores the subtraction since there's
-  //       nothing to remove, so this is safe for now.
-
-  // TODO(mpark): Strip the non-scalar resources out of the totals
-  // in order to avoid reporting incorrect statistics (MESOS-2623).
-
-  // Active task / executor resources.
-  Resources totalUsedResources;
-  hashmap<SlaveID, Resources> usedResources;
-
-  // Offered resources.
-  Resources totalOfferedResources;
-  hashmap<SlaveID, Resources> offeredResources;
-
-private:
-  Framework(const Framework&);              // No copying.
-  Framework& operator = (const Framework&); // No assigning.
-};
-
-
-inline std::ostream& operator << (
-    std::ostream& stream,
-    const Framework& framework)
-{
-  // TODO(vinod): Also log the hostname once FrameworkInfo is properly
-  // updated on framework failover (MESOS-1784).
-  return stream << framework.id() << " (" << framework.info.name()
-                << ") at " << framework.pid;
-}
-
-
-// Information about an active role.
-struct Role
-{
-  explicit Role(const mesos::master::RoleInfo& _info)
-    : info(_info) {}
-
-  void addFramework(Framework* framework)
-  {
-    frameworks[framework->id()] = framework;
-  }
-
-  void removeFramework(Framework* framework)
-  {
-    frameworks.erase(framework->id());
-  }
-
-  Resources resources() const
-  {
-    Resources resources;
-    foreachvalue (Framework* framework, frameworks) {
-      resources += framework->totalUsedResources;
-      resources += framework->totalOfferedResources;
-    }
-
-    return resources;
-  }
-
-  mesos::master::RoleInfo info;
-
-  hashmap<FrameworkID, Framework*> frameworks;
-};
 
 
 class Master : public ProtobufProcess<Master>
@@ -1519,6 +1208,319 @@ protected:
 
 private:
   const SlaveInfo info;
+};
+
+
+// Information about a connected or completed framework.
+// TODO(bmahler): Keeping the task and executor information in sync
+// across the Slave and Framework structs is error prone!
+struct Framework
+{
+  Framework(const FrameworkInfo& _info,
+            const process::UPID& _pid,
+            const process::Time& time = process::Clock::now())
+    : info(_info),
+      pid(_pid),
+      connected(true),
+      active(true),
+      registeredTime(time),
+      reregisteredTime(time),
+      completedTasks(MAX_COMPLETED_TASKS_PER_FRAMEWORK) {}
+
+  ~Framework() {}
+
+  Task* getTask(const TaskID& taskId)
+  {
+    if (tasks.count(taskId) > 0) {
+      return tasks[taskId];
+    } else {
+      return NULL;
+    }
+  }
+
+  void addTask(Task* task)
+  {
+    CHECK(!tasks.contains(task->task_id()))
+      << "Duplicate task " << task->task_id()
+      << " of framework " << task->framework_id();
+
+    tasks[task->task_id()] = task;
+
+    if (!protobuf::isTerminalState(task->state())) {
+      totalUsedResources += task->resources();
+      usedResources[task->slave_id()] += task->resources();
+    }
+  }
+
+  // Notification of task termination, for resource accounting.
+  // TODO(bmahler): This is a hack for performance. We need to
+  // maintain resource counters because computing task resources
+  // functionally for all tasks is expensive, for now.
+  void taskTerminated(Task* task)
+  {
+    CHECK(protobuf::isTerminalState(task->state()));
+    CHECK(tasks.contains(task->task_id()))
+      << "Unknown task " << task->task_id()
+      << " of framework " << task->framework_id();
+
+    totalUsedResources -= task->resources();
+    usedResources[task->slave_id()] -= task->resources();
+    if (usedResources[task->slave_id()].empty()) {
+      usedResources.erase(task->slave_id());
+    }
+  }
+
+  void addCompletedTask(const Task& task)
+  {
+    // TODO(adam-mesos): Check if completed task already exists.
+    completedTasks.push_back(std::shared_ptr<Task>(new Task(task)));
+  }
+
+  void removeTask(Task* task)
+  {
+    CHECK(tasks.contains(task->task_id()))
+      << "Unknown task " << task->task_id()
+      << " of framework " << task->framework_id();
+
+    if (!protobuf::isTerminalState(task->state())) {
+      totalUsedResources -= task->resources();
+      usedResources[task->slave_id()] -= task->resources();
+      if (usedResources[task->slave_id()].empty()) {
+        usedResources.erase(task->slave_id());
+      }
+    }
+
+    addCompletedTask(*task);
+
+    tasks.erase(task->task_id());
+  }
+
+  void addOffer(Offer* offer)
+  {
+    CHECK(!offers.contains(offer)) << "Duplicate offer " << offer->id();
+    offers.insert(offer);
+    totalOfferedResources += offer->resources();
+    offeredResources[offer->slave_id()] += offer->resources();
+  }
+
+  void removeOffer(Offer* offer)
+  {
+    CHECK(offers.find(offer) != offers.end())
+      << "Unknown offer " << offer->id();
+
+    totalOfferedResources -= offer->resources();
+    offeredResources[offer->slave_id()] -= offer->resources();
+    if (offeredResources[offer->slave_id()].empty()) {
+      offeredResources.erase(offer->slave_id());
+    }
+
+    offers.erase(offer);
+  }
+
+  bool hasExecutor(const SlaveID& slaveId,
+                   const ExecutorID& executorId)
+  {
+    return executors.contains(slaveId) &&
+      executors[slaveId].contains(executorId);
+  }
+
+  void addExecutor(const SlaveID& slaveId,
+                   const ExecutorInfo& executorInfo)
+  {
+    CHECK(!hasExecutor(slaveId, executorInfo.executor_id()))
+      << "Duplicate executor " << executorInfo.executor_id()
+      << " on slave " << slaveId;
+
+    executors[slaveId][executorInfo.executor_id()] = executorInfo;
+    totalUsedResources += executorInfo.resources();
+    usedResources[slaveId] += executorInfo.resources();
+  }
+
+  void removeExecutor(const SlaveID& slaveId,
+                      const ExecutorID& executorId)
+  {
+    CHECK(hasExecutor(slaveId, executorId))
+      << "Unknown executor " << executorId
+      << " of framework " << id()
+      << " of slave " << slaveId;
+
+    totalUsedResources -= executors[slaveId][executorId].resources();
+    usedResources[slaveId] -= executors[slaveId][executorId].resources();
+    if (usedResources[slaveId].empty()) {
+      usedResources.erase(slaveId);
+    }
+
+    executors[slaveId].erase(executorId);
+    if (executors[slaveId].empty()) {
+      executors.erase(slaveId);
+    }
+  }
+
+  const FrameworkID id() const { return info.id(); }
+
+  // Update fields in 'info' using those in 'source'. Currently this
+  // only updates 'name', 'failover_timeout', 'hostname', and
+  // 'webui_url'.
+  void updateFrameworkInfo(const FrameworkInfo& source)
+  {
+    // TODO(jmlvanre): We can't check 'FrameworkInfo.id' yet because
+    // of MESOS-2559. Once this is fixed we can 'CHECK' that we only
+    // merge 'info' from the same framework 'id'.
+
+    // TODO(jmlvanre): Merge other fields as per design doc in
+    // MESOS-703.
+
+    if (source.user() != info.user()) {
+      LOG(WARNING) << "Can not update FrameworkInfo.user to '" << info.user()
+                   << "' for framework " << id() << ". Check MESOS-703";
+    }
+
+    info.set_name(source.name());
+
+    if (source.has_failover_timeout()) {
+      info.set_failover_timeout(source.failover_timeout());
+    } else {
+      info.clear_failover_timeout();
+    }
+
+    if (source.checkpoint() != info.checkpoint()) {
+      LOG(WARNING) << "Can not update FrameworkInfo.checkpoint to '"
+                   << stringify(info.checkpoint()) << "' for framework " << id()
+                   << ". Check MESOS-703";
+    }
+
+    if (source.role() != info.role()) {
+      LOG(WARNING) << "Can not update FrameworkInfo.role to '" << info.role()
+                   << "' for framework " << id() << ". Check MESOS-703";
+    }
+
+    if (source.has_hostname()) {
+      info.set_hostname(source.hostname());
+    } else {
+      info.clear_hostname();
+    }
+
+    if (source.principal() != info.principal()) {
+      LOG(WARNING) << "Can not update FrameworkInfo.principal to '"
+                   << info.principal() << "' for framework " << id()
+                   << ". Check MESOS-703";
+    }
+
+    if (source.has_webui_url()) {
+      info.set_webui_url(source.webui_url());
+    } else {
+      info.clear_webui_url();
+    }
+  }
+
+  FrameworkInfo info;
+
+  process::UPID pid;
+
+  // Framework becomes disconnected when the socket closes.
+  bool connected;
+
+  // Framework becomes deactivated when it is disconnected or
+  // the master receives a DeactivateFrameworkMessage.
+  // No offers will be made to a deactivated framework.
+  bool active;
+
+  process::Time registeredTime;
+  process::Time reregisteredTime;
+  process::Time unregisteredTime;
+
+  // Tasks that have not yet been launched because they are currently
+  // being authorized.
+  hashmap<TaskID, TaskInfo> pendingTasks;
+
+  hashmap<TaskID, Task*> tasks;
+
+  // NOTE: We use a shared pointer for Task because clang doesn't like
+  // Boost's implementation of circular_buffer with Task (Boost
+  // attempts to do some memset's which are unsafe).
+  boost::circular_buffer<std::shared_ptr<Task>> completedTasks;
+
+  hashset<Offer*> offers; // Active offers for framework.
+
+  hashmap<SlaveID, hashmap<ExecutorID, ExecutorInfo>> executors;
+
+  // NOTE: For the used and offered resources below, we keep the
+  // total as well as partitioned by SlaveID.
+  // We expose the total resources via the HTTP endpoint, and we
+  // keep a running total of the resources because looping over the
+  // slaves to sum the resources has led to perf issues (MESOS-1862).
+  // We keep the resources partitioned by SlaveID because non-scalar
+  // resources can be lost when summing them up across multiple
+  // slaves (MESOS-2373).
+  //
+  // Also note that keeping the totals is safe even though it yields
+  // incorrect results for non-scalar resources.
+  //   (1) For overlapping set items / ranges across slaves, these
+  //       will get added N times but only represented once.
+  //   (2) When an initial subtraction occurs (N-1), the resource is
+  //       no longer represented. (This is the source of the bug).
+  //   (3) When any further subtractions occur (N-(1+M)), the
+  //       Resources simply ignores the subtraction since there's
+  //       nothing to remove, so this is safe for now.
+
+  // TODO(mpark): Strip the non-scalar resources out of the totals
+  // in order to avoid reporting incorrect statistics (MESOS-2623).
+
+  // Active task / executor resources.
+  Resources totalUsedResources;
+  hashmap<SlaveID, Resources> usedResources;
+
+  // Offered resources.
+  Resources totalOfferedResources;
+  hashmap<SlaveID, Resources> offeredResources;
+
+private:
+  Framework(const Framework&);              // No copying.
+  Framework& operator = (const Framework&); // No assigning.
+};
+
+
+inline std::ostream& operator << (
+    std::ostream& stream,
+    const Framework& framework)
+{
+  // TODO(vinod): Also log the hostname once FrameworkInfo is properly
+  // updated on framework failover (MESOS-1784).
+  return stream << framework.id() << " (" << framework.info.name()
+                << ") at " << framework.pid;
+}
+
+
+// Information about an active role.
+struct Role
+{
+  explicit Role(const mesos::master::RoleInfo& _info)
+    : info(_info) {}
+
+  void addFramework(Framework* framework)
+  {
+    frameworks[framework->id()] = framework;
+  }
+
+  void removeFramework(Framework* framework)
+  {
+    frameworks.erase(framework->id());
+  }
+
+  Resources resources() const
+  {
+    Resources resources;
+    foreachvalue (Framework* framework, frameworks) {
+      resources += framework->totalUsedResources;
+      resources += framework->totalOfferedResources;
+    }
+
+    return resources;
+  }
+
+  mesos::master::RoleInfo info;
+
+  hashmap<FrameworkID, Framework*> frameworks;
 };
 
 } // namespace master {
