@@ -46,7 +46,7 @@ For example, when a framework (re-)registers with the master, the "register_fram
 
 Similarly, when a framework launches a task(s), "run_tasks" ACLs are checked to see if the framework (`FrameworkInfo.principal`) is authorized to run the task/executor as the given `user`. If not authorized, the launch is rejected and the framework gets a TASK_LOST.
 
-In the same vein, when a user/principal attempts to shutdown a framework through the "/shutdown" HTTP endpoint on the master, "shutdown_frameworks" ACLs are checked to see if the `principal` is authorized to shutdown the given framework. If not authorized, the shutdown is rejected and the user receives an `Unauthorized` HTTP response.
+In the same vein, when a user/principal attempts to shutdown a framework through the "/teardown" HTTP endpoint on the master, "shutdown_frameworks" ACLs are checked to see if the `principal` is authorized to shutdown the given framework. If not authorized, the shutdown is rejected and the user receives an `Unauthorized` HTTP response.
 
 
 There are couple of important things to note:
@@ -151,7 +151,7 @@ There are couple of important things to note:
             }
 
 
-8. Only `ops` principal can shutdown any frameworks through "/shutdown" HTTP endpoint.
+8. Only `ops` principal can shutdown any frameworks through "/teardown" HTTP endpoint.
 
             {
               "permissive" : false,
