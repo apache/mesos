@@ -48,7 +48,7 @@ resources such as cpu shares, bandwidth, etc.
    the regular launchTasks() API. To safe-guard frameworks that are not
 designed to deal with preemption, only frameworks registering with the
 `REVOCABLE_RESOURCES` capability set in its framework info will receive offers
-with revocable resources.  Further more, recovable resources cannot be
+with revocable resources.  Further more, revocable resources cannot be
 dynamically reserved and persistent volumes should not be created on revocable
 disk resources.
 
@@ -92,8 +92,8 @@ instructions how to configure Mesos for oversubscription.
 
 ### Launching tasks using revocable resources
 
-Launching tasks using recovable resources is done through the existing
-`launchTasks` API. Revocable resources will have the `recovable` field set. See
+Launching tasks using revocable resources is done through the existing
+`launchTasks` API. Revocable resources will have the `revocable` field set. See
 below for an example offer with regular and revocable resources.
 
 ~~~{.json}
@@ -301,5 +301,5 @@ The `fixed` resource estimator is enabled as follows:
 In the example above, a fixed amount of 14 cpus will be offered as revocable
 resources.
 
-To select custom a resource estimator and QoS controller, please refer to the
+To install a custom resource estimator and QoS controller, please refer to the
 [modules documentation](modules.md).
