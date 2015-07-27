@@ -314,11 +314,11 @@ TEST_F(SchedulerDriverEventTest, SubscribedSchedulerFailover)
   AWAIT_READY(frameworkRegisteredMessage);
   UPID frameworkPid2 = frameworkRegisteredMessage.get().to;
 
-  process::post(master.get(), frameworkPid2, event);
-
   Future<Nothing> registered2;
   EXPECT_CALL(sched2, registered(&driver2, frameworkId, _))
     .WillOnce(FutureSatisfy(&registered2));
+
+  process::post(master.get(), frameworkPid2, event);
 
   AWAIT_READY(registered2);
 }
