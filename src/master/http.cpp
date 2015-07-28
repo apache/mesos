@@ -113,7 +113,11 @@ JSON::Object summarize(const Framework& framework)
   JSON::Object object;
   object.values["id"] = framework.id().value();
   object.values["name"] = framework.info.name();
-  object.values["pid"] = string(framework.pid);
+
+  // Omit pid for http frameworks.
+  if (framework.pid.isSome()) {
+    object.values["pid"] = string(framework.pid.get());
+  }
 
   // TODO(bmahler): Use these in the webui.
   object.values["used_resources"] = model(framework.totalUsedResources);

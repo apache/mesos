@@ -52,7 +52,9 @@
 #include <stout/hashset.hpp>
 #include <stout/multihashmap.hpp>
 #include <stout/option.hpp>
+#include <stout/recordio.hpp>
 
+#include "common/http.hpp"
 #include "common/protobuf_utils.hpp"
 #include "common/resources_utils.hpp"
 
@@ -830,6 +832,7 @@ private:
   Master(const Master&);              // No copying.
   Master& operator = (const Master&); // No assigning.
 
+  friend struct Framework;
   friend struct Metrics;
 
   // NOTE: Since 'getOffer' and 'slaves' are protected,
@@ -1211,15 +1214,22 @@ private:
 };
 
 
+inline std::ostream& operator << (
+    std::ostream& stream,
+    const Framework& framework);
+
+
 // Information about a connected or completed framework.
 // TODO(bmahler): Keeping the task and executor information in sync
 // across the Slave and Framework structs is error prone!
 struct Framework
 {
-  Framework(const FrameworkInfo& _info,
+  Framework(Master* const _master,
+            const FrameworkInfo& _info,
             const process::UPID& _pid,
             const process::Time& time = process::Clock::now())
-    : info(_info),
+    : master(_master),
+      info(_info),
       pid(_pid),
       connected(true),
       active(true),
@@ -1227,7 +1237,49 @@ struct Framework
       reregisteredTime(time),
       completedTasks(MAX_COMPLETED_TASKS_PER_FRAMEWORK) {}
 
-  ~Framework() {}
+  Framework(Master* const _master,
+            const FrameworkInfo& _info,
+            const process::http::Pipe::Writer& writer,
+            ContentType contentType,
+            const process::Time& time = process::Clock::now())
+    : master(_master),
+      info(_info),
+      connected(true),
+      active(true),
+      registeredTime(time),
+      reregisteredTime(time),
+      completedTasks(MAX_COMPLETED_TASKS_PER_FRAMEWORK)
+  {
+    // TODO(anand): This logic needs to be invoked each
+    // time the framework connects via http. Move it to
+    // a method instead, that gets invoked from
+    // addFramework and failoverFrameowrk.
+
+    auto serialize = [contentType](const scheduler::Event& event) {
+      switch (contentType) {
+        case ContentType::PROTOBUF: {
+          return event.SerializeAsString();
+        }
+        case ContentType::JSON: {
+          JSON::Object object = JSON::Protobuf(event);
+          return stringify(object);
+        }
+      }
+    };
+
+    auto encoder = recordio::Encoder<scheduler::Event>(serialize);
+
+    http = Http {writer, encoder};
+  }
+
+  ~Framework()
+  {
+    if (http.isSome() && connected) {
+      if (!http.get().writer.close()) {
+        LOG(WARNING) << "Failed to close HTTP pipe for " << *this;
+      }
+    }
+  }
 
   Task* getTask(const TaskID& taskId)
   {
@@ -1267,6 +1319,29 @@ struct Framework
     usedResources[task->slave_id()] -= task->resources();
     if (usedResources[task->slave_id()].empty()) {
       usedResources.erase(task->slave_id());
+    }
+  }
+
+  // Sends a message to the connected framework.
+  template <typename Message>
+  void send(const Message& message)
+  {
+    if (!connected) {
+      LOG(WARNING) << "Master attempted to send message to disconnected"
+                   << " framework " << *this;
+      return;
+    }
+
+    if (http.isSome()) {
+      const scheduler::Event event = protobuf::scheduler::event(message);
+
+      if (!http.get().writer.write(http.get().encoder.encode(event))) {
+        LOG(WARNING) << "Unable to send event to framework " << *this << ":"
+                     << " connection closed";
+      }
+    } else {
+      CHECK_SOME(pid);
+      master->send(pid.get(), message);
     }
   }
 
@@ -1420,9 +1495,22 @@ struct Framework
     }
   }
 
+  Master* const master;
+
   FrameworkInfo info;
 
-  process::UPID pid;
+  struct Http
+  {
+    process::http::Pipe::Writer writer;
+    recordio::Encoder<scheduler::Event> encoder;
+  };
+
+  // Frameworks can either be connected via HTTP or by message
+  // passing (scheduler driver). Exactly one of 'http' and 'pid'
+  // will be set according to the last connection made by the
+  // framework.
+  Option<Http> http;
+  Option<process::UPID> pid;
 
   // Framework becomes disconnected when the socket closes.
   bool connected;
@@ -1493,8 +1581,13 @@ inline std::ostream& operator << (
 {
   // TODO(vinod): Also log the hostname once FrameworkInfo is properly
   // updated on framework failover (MESOS-1784).
-  return stream << framework.id() << " (" << framework.info.name()
-                << ") at " << framework.pid;
+  stream << framework.id() << " (" << framework.info.name() << ")";
+
+  if (framework.pid.isSome()) {
+    stream << " at " << framework.pid.get();
+  }
+
+  return stream;
 }
 
 

@@ -38,6 +38,14 @@ class Task;
 extern const char APPLICATION_JSON[];
 extern const char APPLICATION_PROTOBUF[];
 
+// Possible content-types that can be used as responses for
+// the mesos Http API.
+enum class ContentType
+{
+  PROTOBUF,
+  JSON
+};
+
 JSON::Object model(const Resources& resources);
 JSON::Object model(const hashmap<std::string, Resources>& roleResources);
 JSON::Object model(const Attributes& attributes);
