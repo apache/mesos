@@ -1411,6 +1411,13 @@ struct Framework
     } else {
       info.clear_webui_url();
     }
+
+    // TODO(aditidixit): Add the case where the capabilities are
+    // previously set but now being unset. (MESOS-2880)
+
+    if (source.capabilities_size() > 0) {
+      info.mutable_capabilities()->CopyFrom(source.capabilities());
+    }
   }
 
   FrameworkInfo info;

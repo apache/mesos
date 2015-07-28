@@ -491,6 +491,13 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::updateFramework(
   // these fields to be updated.
   CHECK_EQ(frameworks[frameworkId].role, frameworkInfo.role());
   CHECK_EQ(frameworks[frameworkId].checkpoint, frameworkInfo.checkpoint());
+
+  foreach (const FrameworkInfo::Capability& capability,
+           frameworkInfo.capabilities()) {
+    if (capability.type() == FrameworkInfo::Capability::REVOCABLE_RESOURCES) {
+      frameworks[frameworkId].revocable = true;
+    }
+  }
 }
 
 

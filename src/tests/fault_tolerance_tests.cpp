@@ -1814,6 +1814,138 @@ TEST_F(FaultToleranceTest, SplitBrainMasters)
   Shutdown();
 }
 
+// This test verifies that when a framework re-registers with updated
+// FrameworkInfo, it gets updated in the master. The steps involved
+// are:
+//   1. Launch a master, slave and scheduler.
+//   2. Record FrameworkID of launched scheduler.
+//   3. Launch a second scheduler which has the same FrameworkID as
+//      the first scheduler and also has updated FrameworkInfo.
+//   4. Verify that the state of the master is updated with the new
+//      FrameworkInfo object.
+TEST_F(FaultToleranceTest, UpdateFrameworkInfoOnSchedulerFailover)
+{
+  Try<PID<Master> > master = StartMaster();
+  ASSERT_SOME(master);
+
+  Try<PID<Slave> > slave = StartSlave();
+  ASSERT_SOME(slave);
+
+  // Launch the first (i.e., failing) scheduler and wait until
+  // registered gets called to launch the second (i.e., failover)
+  // scheduler with updated information.
+
+  FrameworkInfo framework1 = DEFAULT_FRAMEWORK_INFO;
+  framework1.set_name("Framework 1");
+  framework1.set_failover_timeout(1000);
+
+  MockScheduler sched1;
+  MesosSchedulerDriver driver1(
+      &sched1, framework1, master.get(), DEFAULT_CREDENTIAL);
+
+  Future<FrameworkID> frameworkId;
+  EXPECT_CALL(sched1, registered(&driver1, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId));
+
+  EXPECT_CALL(sched1, resourceOffers(&driver1, _))
+    .WillRepeatedly(Return());
+
+  driver1.start();
+
+  AWAIT_READY(frameworkId);
+
+  // Now launch the second (i.e., failover) scheduler using the
+  // framework id recorded from the first scheduler, along with the
+  // updated FrameworkInfo and wait until it gets a registered
+  // callback.
+
+  MockScheduler sched2;
+
+  FrameworkInfo framework2 = DEFAULT_FRAMEWORK_INFO;
+  framework2.mutable_id()->MergeFrom(frameworkId.get());
+  auto capabilityType = FrameworkInfo::Capability::REVOCABLE_RESOURCES;
+  framework2.add_capabilities()->set_type(capabilityType);
+  framework2.set_name("Framework 2");
+  framework2.set_webui_url("http://localhost:8080/");
+  framework2.set_failover_timeout(100);
+  framework2.set_hostname("myHostname");
+
+  MesosSchedulerDriver driver2(
+      &sched2, framework2, master.get(), DEFAULT_CREDENTIAL);
+
+  Future<Nothing> sched2Registered;
+  EXPECT_CALL(sched2, registered(&driver2, frameworkId.get(), _))
+    .WillOnce(FutureSatisfy(&sched2Registered));
+
+  EXPECT_CALL(sched2, resourceOffers(&driver2, _))
+    .WillRepeatedly(Return());
+
+  EXPECT_CALL(sched2, offerRescinded(&driver2, _))
+    .Times(AtMost(1));
+
+  // Scheduler1's expectations.
+  EXPECT_CALL(sched1, offerRescinded(&driver1, _))
+    .Times(AtMost(1));
+
+  Future<Nothing> sched1Error;
+  EXPECT_CALL(sched1, error(&driver1, "Framework failed over"))
+    .WillOnce(FutureSatisfy(&sched1Error));
+
+  driver2.start();
+
+  AWAIT_READY(sched2Registered);
+
+  AWAIT_READY(sched1Error);
+
+  Future<process::http::Response> response = process::http::get(
+    master.get(), "state.json");
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(process::http::OK().status, response);
+
+  Try<JSON::Object> parse =
+    JSON::parse<JSON::Object>(response.get().body);
+  ASSERT_SOME(parse);
+
+  JSON::Object state = parse.get();
+  EXPECT_EQ(1u, state.values.count("frameworks"));
+  JSON::Array frameworks =
+    state.values["frameworks"].as<JSON::Array>();
+  EXPECT_EQ(1u, frameworks.values.size());
+  JSON::Object framework = frameworks.values.front().as<JSON::Object>();
+
+  EXPECT_EQ(1u, framework.values.count("name"));
+  JSON::String name = framework.values["name"].as<JSON::String>();
+  EXPECT_EQ(framework2.name(), name.value);
+
+  EXPECT_EQ(1u, framework.values.count("webui_url"));
+  JSON::String webuiUrl = framework.values["webui_url"].as<JSON::String>();
+  EXPECT_EQ(framework2.webui_url(), webuiUrl.value);
+
+  EXPECT_EQ(1u, framework.values.count("failover_timeout"));
+  JSON::Number failoverTimeout =
+    framework.values["failover_timeout"].as<JSON::Number>();
+  EXPECT_EQ(framework2.failover_timeout(), failoverTimeout.value);
+
+  EXPECT_EQ(1u, framework.values.count("hostname"));
+  JSON::String hostname = framework.values["hostname"].as<JSON::String>();
+  EXPECT_EQ(framework2.hostname(), hostname.value);
+
+  EXPECT_EQ(1u, framework.values.count("capabilities"));
+  JSON::Array capabilities =
+    framework.values["capabilities"].as<JSON::Array>();
+  EXPECT_EQ(1u, capabilities.values.size());
+  JSON::String capability = capabilities.values.front().as<JSON::String>();
+  EXPECT_EQ(FrameworkInfo::Capability::Type_Name(capabilityType),
+            capability.value);
+
+  EXPECT_EQ(DRIVER_STOPPED, driver2.stop());
+  EXPECT_EQ(DRIVER_STOPPED, driver2.join());
+
+  EXPECT_EQ(DRIVER_ABORTED, driver1.stop());
+  EXPECT_EQ(DRIVER_STOPPED, driver1.join());
+
+  Shutdown();
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {
