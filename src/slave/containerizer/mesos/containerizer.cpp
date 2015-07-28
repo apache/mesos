@@ -84,10 +84,10 @@ namespace slave {
 
 using mesos::modules::ModuleManager;
 
+using mesos::slave::ContainerPrepareInfo;
 using mesos::slave::ExecutorLimitation;
 using mesos::slave::ExecutorRunState;
 using mesos::slave::Isolator;
-using mesos::slave::ContainerPrepareInfo;
 
 using state::SlaveState;
 using state::FrameworkState;
@@ -825,6 +825,17 @@ Future<bool> MesosContainerizerProcess::_launch(
   foreach (const Environment::Variable& variable,
            executorInfo.command().environment().variables()) {
     environment[variable.name()] = variable.value();
+  }
+
+  // Include any environment variables returned from
+  // Isolator::prepare().
+  foreach (const Option<ContainerPrepareInfo>& prepareInfo, prepareInfos) {
+    if (prepareInfo.isSome() && prepareInfo.get().has_environment()) {
+      foreach (const Environment::Variable& variable,
+               prepareInfo.get().environment().variables()) {
+        environment[variable.name()] = variable.value();
+      }
+    }
   }
 
   // Use a pipe to block the child until it's been isolated.

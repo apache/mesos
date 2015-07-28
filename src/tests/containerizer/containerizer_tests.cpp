@@ -63,10 +63,10 @@ using mesos::internal::slave::state::FrameworkState;
 using mesos::internal::slave::state::RunState;
 using mesos::internal::slave::state::SlaveState;
 
+using mesos::slave::ContainerPrepareInfo;
 using mesos::slave::ExecutorLimitation;
 using mesos::slave::ExecutorRunState;
 using mesos::slave::Isolator;
-using mesos::slave::ContainerPrepareInfo;
 
 using std::list;
 using std::map;
@@ -289,6 +289,66 @@ TEST_F(MesosContainerizerIsolatorPreparationTest, MultipleScripts)
 
   // Check the failing preparation script has actually ran.
   EXPECT_TRUE(os::exists(file2));
+
+  // Destroy the container.
+  containerizer.get()->destroy(containerId);
+
+  delete containerizer.get();
+}
+
+
+// The isolator sets an environment variable for the Executor. The
+// Executor then creates a file as pointed to by environment
+// varialble. Finally, after the executor has terminated, we check for
+// the existence of the file.
+TEST_F(MesosContainerizerIsolatorPreparationTest, ExecutorEnvironmentVariable)
+{
+  string directory = os::getcwd(); // We're inside a temporary sandbox.
+  string file = path::join(directory, "child.script.executed");
+
+  Fetcher fetcher;
+
+  ContainerPrepareInfo prepareInfo;
+
+  Environment::Variable* variable =
+    prepareInfo.mutable_environment()->add_variables();
+
+  variable->set_name("TEST_ENVIRONMENT");
+  variable->set_value(file);
+
+  Try<MesosContainerizer*> containerizer = CreateContainerizer(
+      &fetcher,
+      prepareInfo);
+
+  CHECK_SOME(containerizer);
+
+  ContainerID containerId;
+  containerId.set_value("test_container");
+
+  Future<bool> launch = containerizer.get()->launch(
+      containerId,
+      CREATE_EXECUTOR_INFO("executor", "touch $TEST_ENVIRONMENT"),
+      directory,
+      None(),
+      SlaveID(),
+      PID<Slave>(),
+      false);
+
+  // Wait until the launch completes.
+  AWAIT_READY(launch);
+
+  // Wait for the child (preparation script + executor) to complete.
+  Future<containerizer::Termination> wait =
+    containerizer.get()->wait(containerId);
+
+  AWAIT_READY(wait);
+
+  // Check the child exited correctly.
+  EXPECT_TRUE(wait.get().has_status());
+  EXPECT_EQ(0, wait.get().status());
+
+  // Check the preparation script actually ran.
+  EXPECT_TRUE(os::exists(file));
 
   // Destroy the container.
   containerizer.get()->destroy(containerId);
