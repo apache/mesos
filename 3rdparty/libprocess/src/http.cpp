@@ -703,11 +703,19 @@ Future<Response> request(
     const Option<string>& body,
     const Option<string>& contentType)
 {
-  if (url.scheme != "http") {
-    return Failure("Unsupported URL scheme");
-  }
+  auto create = [&url]() -> Try<Socket> {
+    if (url.scheme == "http") {
+      return Socket::create(Socket::POLL);
+    }
 
-  Try<Socket> create = Socket::create();
+#ifdef USE_SSL_SOCKET
+    if (url.scheme == "https") {
+      return Socket::create(Socket::SSL);
+    }
+#endif
+
+    return Error("Unsupported URL scheme");
+  }();
 
   if (create.isError()) {
     return Failure("Failed to create socket: " + create.error());

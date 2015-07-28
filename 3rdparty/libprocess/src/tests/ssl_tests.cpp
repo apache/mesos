@@ -925,4 +925,85 @@ TEST_F(SSLTest, PeerAddress)
   ASSERT_SOME_EQ(client.address().get(), socket.get().peer());
 }
 
+
+// Basic Https GET test.
+TEST_F(SSLTest, HTTPSGet)
+{
+  Try<Socket> server = setup_server({
+      {"SSL_ENABLED", "true"},
+      {"SSL_KEY_FILE", key_path().value},
+      {"SSL_CERT_FILE", certificate_path().value}});
+
+  ASSERT_SOME(server);
+  ASSERT_SOME(server.get().address());
+  ASSERT_SOME(server.get().address().get().hostname());
+
+  Future<Socket> socket = server.get().accept();
+
+  // Create URL from server hostname and port.
+  const http::URL url(
+      "https",
+      server.get().address().get().hostname().get(),
+      server.get().address().get().port);
+
+  // Send GET request.
+  Future<http::Response> response = http::get(url);
+
+  AWAIT_ASSERT_READY(socket);
+
+  // Construct response and send(server side).
+  const string buffer =
+    string("HTTP/1.1 200 OK\r\n") +
+    "Content-Length : " +
+    stringify(data.length()) + "\r\n" +
+    "\r\n" +
+    data;
+  AWAIT_ASSERT_READY(Socket(socket.get()).send(buffer));
+
+  AWAIT_ASSERT_READY(response);
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::OK().status, response);
+  ASSERT_EQ(data, response.get().body);
+}
+
+
+// Basic Https POST test.
+TEST_F(SSLTest, HTTPSPost)
+{
+  Try<Socket> server = setup_server({
+      {"SSL_ENABLED", "true"},
+      {"SSL_KEY_FILE", key_path().value},
+      {"SSL_CERT_FILE", certificate_path().value}});
+
+  ASSERT_SOME(server);
+  ASSERT_SOME(server.get().address());
+  ASSERT_SOME(server.get().address().get().hostname());
+
+  Future<Socket> socket = server.get().accept();
+
+  // Create URL from server hostname and port.
+  const http::URL url(
+      "https",
+      server.get().address().get().hostname().get(),
+      server.get().address().get().port);
+
+  // Send POST request.
+  Future<http::Response> response =
+    http::post(url, None(), "payload", "text/plain");
+
+  AWAIT_ASSERT_READY(socket);
+
+  // Construct response and send(server side).
+  const string buffer =
+    string("HTTP/1.1 200 OK\r\n") +
+    "Content-Length : " +
+    stringify(data.length()) + "\r\n" +
+    "\r\n" +
+    data;
+  AWAIT_ASSERT_READY(Socket(socket.get()).send(buffer));
+
+  AWAIT_ASSERT_READY(response);
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::OK().status, response);
+  ASSERT_EQ(data, response.get().body);
+}
+
 #endif // USE_SSL_SOCKET
