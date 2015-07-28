@@ -108,7 +108,7 @@ Future<Option<ContainerPrepareInfo>> SharedFilesystemIsolatorProcess::prepare(
   set<string> containerPaths;
   containerPaths.insert(directory);
 
-  list<string> commands;
+  ContainerPrepareInfo prepareInfo;
 
   foreach (const Volume& volume, executorInfo.container().volumes()) {
     // Because the filesystem is shared we require the container path
@@ -213,14 +213,9 @@ Future<Option<ContainerPrepareInfo>> SharedFilesystemIsolatorProcess::prepare(
       }
     }
 
-    commands.push_back("mount -n --bind " +
-                       hostPath +
-                       " " +
-                       volume.container_path());
+    prepareInfo.add_commands()->set_value(
+        "mount -n --bind " + hostPath + " " + volume.container_path());
   }
-
-  ContainerPrepareInfo prepareInfo;
-  prepareInfo.mutable_command()->set_value(strings::join(" && ", commands));
 
   return prepareInfo;
 }

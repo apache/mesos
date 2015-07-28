@@ -864,8 +864,10 @@ Future<bool> MesosContainerizerProcess::_launch(
   JSON::Object object;
   JSON::Array array;
   foreach (const Option<ContainerPrepareInfo>& prepareInfo, prepareInfos) {
-    if (prepareInfo.isSome() && prepareInfo.get().has_command()) {
-      array.values.push_back(JSON::Protobuf(prepareInfo.get().command()));
+    if (prepareInfo.isSome()) {
+      foreach (const CommandInfo& command, prepareInfo.get().commands()) {
+        array.values.push_back(JSON::Protobuf(command));
+      }
     }
   }
   object.values["commands"] = array;

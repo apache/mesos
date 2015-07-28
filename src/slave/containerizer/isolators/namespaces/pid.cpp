@@ -166,12 +166,12 @@ Future<Option<ContainerPrepareInfo>> NamespacesPidIsolatorProcess::prepare(
     const Option<string>& rootfs,
     const Option<string>& user)
 {
-  list<string> commands;
+  ContainerPrepareInfo prepareInfo;
 
   // Mask the bind mount root directory in each container so
   // containers cannot see the namespace bind mount of other
   // containers.
-  commands.push_back(
+  prepareInfo.add_commands()->set_value(
       "mount -n --bind " + string(PID_NS_BIND_MOUNT_MASK_DIR) +
       " " + string(PID_NS_BIND_MOUNT_ROOT));
 
@@ -184,11 +184,10 @@ Future<Option<ContainerPrepareInfo>> NamespacesPidIsolatorProcess::prepare(
   // taken from unshare.c in utils-linux for --mount-proc. We use the
   // -n flag so the mount is not added to the mtab where it will not
   // be correctly removed with the namespace terminates.
-  commands.push_back("mount none /proc --make-private -o rec");
-  commands.push_back("mount -n -t proc proc /proc -o nosuid,noexec,nodev");
-
-  ContainerPrepareInfo prepareInfo;
-  prepareInfo.mutable_command()->set_value(strings::join(" && ", commands));
+  prepareInfo.add_commands()->set_value(
+      "mount none /proc --make-private -o rec");
+  prepareInfo.add_commands()->set_value(
+      "mount -n -t proc proc /proc -o nosuid,noexec,nodev");
 
   return prepareInfo;
 }

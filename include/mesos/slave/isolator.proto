@@ -67,6 +67,6 @@ message ContainerState
  */
 message ContainerPrepareInfo
 {
-  optional CommandInfo command = 1;
+  repeated CommandInfo commands = 1;
   optional Environment environment = 2;
 }

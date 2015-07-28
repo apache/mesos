@@ -2136,7 +2136,7 @@ Future<Option<ContainerPrepareInfo>> PortMappingIsolatorProcess::prepare(
             << executorInfo.executor_id();
 
   ContainerPrepareInfo prepareInfo;
-  prepareInfo.mutable_command()->set_value(scripts(infos[containerId]));
+  prepareInfo.add_commands()->set_value(scripts(infos[containerId]));
 
   return prepareInfo;
 }
