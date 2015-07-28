@@ -31,6 +31,13 @@ The following steps indicate how to increment the quorum size, using 3 -> 5 mast
 
 To increase the quorum by N, repeat this process to increment the quorum size N times.
 
+NOTE: Currently, moving out of a single master setup requires wiping the replicated log
+state and starting fresh. This will wipe all persistent data (e.g. slaves, maintenance
+information, quota information, etc). To move from 1 master to 3 masters:
+
+1. Stop the standalone master.
+2. Remove the replicated log data (`replicated_log` under the `--work_dir`).
+3. Start the original master and two new masters with `--quorum=2`
 
 ### Decreasing the quorum size
 
@@ -41,7 +48,6 @@ The following steps indicate how to decrement the quorum size, using 5 -> 3 mast
 3. Restart the 3 masters with `--quorum=2`
 
 To decrease the quorum by N, repeat this process to decrement the quorum size N times.
-
 
 ### Replacing a master
 Please see the NOTE section above. So long as the failed master is guaranteed to not re-join the ensemble, it is safe to start a new master _with an empty log_ and allow it to catch up.
