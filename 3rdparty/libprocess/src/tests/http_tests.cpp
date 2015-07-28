@@ -515,6 +515,26 @@ TEST(HTTPTest, StreamingGetFailure)
 }
 
 
+TEST(HTTPTest, PipeEquality)
+{
+  // Pipes are shared objects, like Futures. Copies are considered
+  // equal as they point to the same underlying object.
+  http::Pipe pipe1;
+  http::Pipe copy = pipe1;
+
+  EXPECT_EQ(pipe1, copy);
+
+  http::Pipe pipe2;
+  EXPECT_NE(pipe2, pipe1);
+
+  EXPECT_EQ(pipe1.reader(), pipe1.reader());
+  EXPECT_EQ(pipe1.writer(), pipe1.writer());
+
+  EXPECT_NE(pipe1.reader(), pipe2.reader());
+  EXPECT_NE(pipe1.writer(), pipe2.writer());
+}
+
+
 http::Response validatePost(const http::Request& request)
 {
   EXPECT_EQ("POST", request.method);

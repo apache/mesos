@@ -179,6 +179,10 @@ public:
     // interested. Returns false if the read-end was already closed.
     bool close();
 
+    // Comparison operators useful for checking connection equality.
+    bool operator == (const Reader& other) const { return data == other.data; }
+    bool operator != (const Reader& other) const { return !(*this == other); }
+
   private:
     friend class Pipe;
 
@@ -216,6 +220,10 @@ public:
     // was unable to continue reading!
     Future<Nothing> readerClosed();
 
+    // Comparison operators useful for checking connection equality.
+    bool operator == (const Writer& other) const { return data == other.data; }
+    bool operator != (const Writer& other) const { return !(*this == other); }
+
   private:
     friend class Pipe;
 
@@ -235,6 +243,10 @@ public:
 
   Reader reader() const;
   Writer writer() const;
+
+  // Comparison operators useful for checking connection equality.
+  bool operator == (const Pipe& other) const { return data == other.data; }
+  bool operator != (const Pipe& other) const { return !(*this == other); }
 
 private:
   struct Data
