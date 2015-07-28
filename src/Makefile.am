@@ -1536,12 +1536,12 @@ mesos_tests_SOURCES =						\
   tests/zookeeper_url_tests.cpp					\
   tests/common/http_tests.cpp					\
   tests/containerizer/composing_containerizer_tests.cpp		\
-  tests/containerizer/containerizer_tests.cpp			\
   tests/containerizer/docker_containerizer_tests.cpp		\
   tests/containerizer/docker_tests.cpp				\
   tests/containerizer/external_containerizer_test.cpp		\
   tests/containerizer/isolator_tests.cpp			\
-  tests/containerizer/memory_test_helper.cpp
+  tests/containerizer/memory_test_helper.cpp			\
+  tests/containerizer/mesos_containerizer_tests.cpp
 
 mesos_tests_CPPFLAGS = $(MESOS_CPPFLAGS)
 mesos_tests_CPPFLAGS += -DSOURCE_DIR=\"$(abs_top_srcdir)\"
