@@ -1246,7 +1246,8 @@ TEST(ProcessTest, Await1)
   int i = 1;
   foreach (const Future<int>& result, future.get()) {
     ASSERT_TRUE(result.isReady());
-    ASSERT_EQ(i++, result.get());
+    ASSERT_EQ(i, result.get());
+    ++i;
   }
 }
 
