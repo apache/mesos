@@ -87,6 +87,7 @@ using mesos::modules::ModuleManager;
 using mesos::slave::ExecutorLimitation;
 using mesos::slave::ExecutorRunState;
 using mesos::slave::Isolator;
+using mesos::slave::ContainerPrepareInfo;
 
 using state::SlaveState;
 using state::FrameworkState;
@@ -714,31 +715,31 @@ Future<bool> MesosContainerizerProcess::launch(
 }
 
 
-static list<Option<CommandInfo>> accumulate(
-    list<Option<CommandInfo>> l,
-    const Option<CommandInfo>& e)
+static list<Option<ContainerPrepareInfo>> accumulate(
+    list<Option<ContainerPrepareInfo>> l,
+    const Option<ContainerPrepareInfo>& e)
 {
   l.push_back(e);
   return l;
 }
 
 
-static Future<list<Option<CommandInfo>>> _prepare(
+static Future<list<Option<ContainerPrepareInfo>>> _prepare(
     const Owned<Isolator>& isolator,
     const ContainerID& containerId,
     const ExecutorInfo& executorInfo,
     const string& directory,
     const Option<string>& rootfs,
     const Option<string>& user,
-    const list<Option<CommandInfo>> commands)
+    const list<Option<ContainerPrepareInfo>> prepareInfos)
 {
   // Propagate any failure.
   return isolator->prepare(containerId, executorInfo, directory, rootfs, user)
-    .then(lambda::bind(&accumulate, commands, lambda::_1));
+    .then(lambda::bind(&accumulate, prepareInfos, lambda::_1));
 }
 
 
-Future<list<Option<CommandInfo>>> MesosContainerizerProcess::prepare(
+Future<list<Option<ContainerPrepareInfo>>> MesosContainerizerProcess::prepare(
     const ContainerID& containerId,
     const ExecutorInfo& executorInfo,
     const string& directory,
@@ -749,7 +750,8 @@ Future<list<Option<CommandInfo>>> MesosContainerizerProcess::prepare(
   // We prepare the isolators sequentially according to their ordering
   // to permit basic dependency specification, e.g., preparing a
   // filesystem isolator before other isolators.
-  Future<list<Option<CommandInfo>>> f = list<Option<CommandInfo>>();
+  Future<list<Option<ContainerPrepareInfo>>> f =
+    list<Option<ContainerPrepareInfo>>();
 
   foreach (const Owned<Isolator>& isolator, isolators) {
     // Chain together preparing each isolator.
@@ -763,7 +765,7 @@ Future<list<Option<CommandInfo>>> MesosContainerizerProcess::prepare(
                             lambda::_1));
   }
 
-  containers_[containerId]->preparations = f;
+  containers_[containerId]->prepareInfos = f;
 
   return f;
 }
@@ -798,7 +800,7 @@ Future<bool> MesosContainerizerProcess::_launch(
     const SlaveID& slaveId,
     const PID<Slave>& slavePid,
     bool checkpoint,
-    const list<Option<CommandInfo>>& commands)
+    const list<Option<ContainerPrepareInfo>>& prepareInfos)
 {
   if (!containers_.contains(containerId)) {
     return Failure("Container has been destroyed");
@@ -846,13 +848,13 @@ Future<bool> MesosContainerizerProcess::_launch(
   launchFlags.pipe_read = pipes[0];
   launchFlags.pipe_write = pipes[1];
 
-  // Prepare the additional preparation commands.
+  // Prepare the additional prepareInfo commands.
   // TODO(jieyu): Use JSON::Array once we have generic parse support.
   JSON::Object object;
   JSON::Array array;
-  foreach (const Option<CommandInfo>& command, commands) {
-    if (command.isSome()) {
-      array.values.push_back(JSON::Protobuf(command.get()));
+  foreach (const Option<ContainerPrepareInfo>& prepareInfo, prepareInfos) {
+    if (prepareInfo.isSome() && prepareInfo.get().has_command()) {
+      array.values.push_back(JSON::Protobuf(prepareInfo.get().command()));
     }
   }
   object.values["commands"] = array;
@@ -1127,7 +1129,7 @@ void MesosContainerizerProcess::destroy(
     // We need to wait for the isolators to finish preparing to prevent
     // a race that the destroy method calls isolators' cleanup before
     // it starts preparing.
-    container->preparations
+    container->prepareInfos
       .onAny(defer(
           self(),
           &Self::___destroy,

@@ -47,6 +47,7 @@ using std::set;
 using std::string;
 using std::vector;
 
+using mesos::slave::ContainerPrepareInfo;
 using mesos::slave::ExecutorLimitation;
 using mesos::slave::ExecutorRunState;
 using mesos::slave::Isolator;
@@ -244,7 +245,7 @@ Future<Nothing> CgroupsCpushareIsolatorProcess::recover(
 }
 
 
-Future<Option<CommandInfo>> CgroupsCpushareIsolatorProcess::prepare(
+Future<Option<ContainerPrepareInfo>> CgroupsCpushareIsolatorProcess::prepare(
     const ContainerID& containerId,
     const ExecutorInfo& executorInfo,
     const string& directory,
@@ -292,7 +293,7 @@ Future<Option<CommandInfo>> CgroupsCpushareIsolatorProcess::prepare(
   }
 
   return update(containerId, executorInfo.resources())
-    .then([]() -> Future<Option<CommandInfo>> {
+    .then([]() -> Future<Option<ContainerPrepareInfo>> {
       return None();
     });
 }

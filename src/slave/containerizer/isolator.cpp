@@ -25,6 +25,7 @@ using namespace process;
 using std::string;
 using std::list;
 
+using mesos::slave::ContainerPrepareInfo;
 using mesos::slave::ExecutorLimitation;
 using mesos::slave::ExecutorRunState;
 
@@ -63,7 +64,7 @@ Future<Nothing> MesosIsolator::recover(
 }
 
 
-Future<Option<CommandInfo>> MesosIsolator::prepare(
+Future<Option<ContainerPrepareInfo>> MesosIsolator::prepare(
     const ContainerID& containerId,
     const ExecutorInfo& executorInfo,
     const string& directory,

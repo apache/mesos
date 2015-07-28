@@ -56,3 +56,17 @@ message ExecutorRunState
   required string directory = 4;      // Executor work directory.
   optional string rootfs = 5;         // Optional container rootfs.
 }
+
+
+/**
+ * Protobuf returned by Isolator::prepare(). The command is executed
+ * by the Launcher in the containerized context.
+ * Note: Currently, any URIs or Environment in the CommandInfo will be
+ * ignored; only the command value is used. Further, we only accept
+ * shell commands for the preparation commands.
+ */
+message ContainerPrepareInfo
+{
+  optional CommandInfo command = 1;
+  optional Environment environment = 2;
+}

@@ -197,7 +197,7 @@ private:
       bool checkpoint,
       const std::string& rootfs);
 
-  process::Future<std::list<Option<CommandInfo>>> prepare(
+  process::Future<std::list<Option<mesos::slave::ContainerPrepareInfo>>> prepare(
       const ContainerID& containerId,
       const ExecutorInfo& executorInfo,
       const std::string& directory,
@@ -218,7 +218,7 @@ private:
       const SlaveID& slaveId,
       const process::PID<Slave>& slavePid,
       bool checkpoint,
-      const std::list<Option<CommandInfo>>& scripts);
+      const std::list<Option<mesos::slave::ContainerPrepareInfo>>& scripts);
 
   process::Future<bool> isolate(
       const ContainerID& containerId,
@@ -302,7 +302,8 @@ private:
     // We keep track of the future that is waiting for all the
     // isolators' prepare futures, so that destroy will only start
     // calling cleanup after all isolators has finished preparing.
-    process::Future<std::list<Option<CommandInfo>>> preparations;
+    process::Future<std::list<Option<mesos::slave::ContainerPrepareInfo>>>
+      prepareInfos;
 
     // We keep track of the future that is waiting for all the
     // isolators' isolate futures, so that destroy will only start

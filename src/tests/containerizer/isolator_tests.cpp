@@ -93,8 +93,8 @@ using mesos::internal::slave::PosixCpuIsolatorProcess;
 using mesos::internal::slave::PosixMemIsolatorProcess;
 using mesos::internal::slave::Slave;
 
+using mesos::slave::ContainerPrepareInfo;
 using mesos::slave::Isolator;
-using mesos::slave::IsolatorProcess;
 
 using std::ostringstream;
 using std::set;
@@ -951,7 +951,7 @@ TEST_F(SharedFilesystemIsolatorTest, DISABLED_ROOT_RelativeVolume)
   ContainerID containerId;
   containerId.set_value(UUID::random().toString());
 
-  Future<Option<CommandInfo> > prepare =
+  Future<Option<ContainerPrepareInfo> > prepare =
     isolator.get()->prepare(
         containerId,
         executorInfo,
@@ -961,6 +961,7 @@ TEST_F(SharedFilesystemIsolatorTest, DISABLED_ROOT_RelativeVolume)
 
   AWAIT_READY(prepare);
   ASSERT_SOME(prepare.get());
+  ASSERT_TRUE(prepare.get().get().has_command());
 
   // The test will touch a file in container path.
   const string file = path::join(containerPath, UUID::random().toString());
@@ -972,7 +973,7 @@ TEST_F(SharedFilesystemIsolatorTest, DISABLED_ROOT_RelativeVolume)
   args.push_back("/bin/sh");
   args.push_back("-x");
   args.push_back("-c");
-  args.push_back(prepare.get().get().value() + " && touch " + file);
+  args.push_back(prepare.get().get().command().value() + " && touch " + file);
 
   Try<pid_t> pid = launcher.get()->fork(
       containerId,
@@ -1055,7 +1056,7 @@ TEST_F(SharedFilesystemIsolatorTest, DISABLED_ROOT_AbsoluteVolume)
   ContainerID containerId;
   containerId.set_value(UUID::random().toString());
 
-  Future<Option<CommandInfo> > prepare =
+  Future<Option<ContainerPrepareInfo> > prepare =
     isolator.get()->prepare(
         containerId,
         executorInfo,
@@ -1065,6 +1066,7 @@ TEST_F(SharedFilesystemIsolatorTest, DISABLED_ROOT_AbsoluteVolume)
 
   AWAIT_READY(prepare);
   ASSERT_SOME(prepare.get());
+  ASSERT_TRUE(prepare.get().get().has_command());
 
   // Test the volume mounting by touching a file in the container's
   // /tmp, which should then be in flags.work_dir.
@@ -1075,7 +1077,7 @@ TEST_F(SharedFilesystemIsolatorTest, DISABLED_ROOT_AbsoluteVolume)
   args.push_back("/bin/sh");
   args.push_back("-x");
   args.push_back("-c");
-  args.push_back(prepare.get().get().value() +
+  args.push_back(prepare.get().get().command().value() +
                  " && touch " +
                  path::join(containerPath, filename));
 

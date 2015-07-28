@@ -54,6 +54,7 @@ using std::set;
 using std::string;
 using std::vector;
 
+using mesos::slave::ContainerPrepareInfo;
 using mesos::slave::ExecutorLimitation;
 using mesos::slave::ExecutorRunState;
 using mesos::slave::Isolator;
@@ -230,7 +231,7 @@ Future<Nothing> CgroupsMemIsolatorProcess::recover(
 }
 
 
-Future<Option<CommandInfo>> CgroupsMemIsolatorProcess::prepare(
+Future<Option<ContainerPrepareInfo>> CgroupsMemIsolatorProcess::prepare(
     const ContainerID& containerId,
     const ExecutorInfo& executorInfo,
     const string& directory,
@@ -281,7 +282,7 @@ Future<Option<CommandInfo>> CgroupsMemIsolatorProcess::prepare(
   pressureListen(containerId);
 
   return update(containerId, executorInfo.resources())
-    .then([]() -> Future<Option<CommandInfo>> {
+    .then([]() -> Future<Option<ContainerPrepareInfo>> {
       return None();
     });
 }

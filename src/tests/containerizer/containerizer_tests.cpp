@@ -66,7 +66,7 @@ using mesos::internal::slave::state::SlaveState;
 using mesos::slave::ExecutorLimitation;
 using mesos::slave::ExecutorRunState;
 using mesos::slave::Isolator;
-using mesos::slave::IsolatorProcess;
+using mesos::slave::ContainerPrepareInfo;
 
 using std::list;
 using std::map;
@@ -90,11 +90,11 @@ public:
   // 'prepare' command(s).
   Try<MesosContainerizer*> CreateContainerizer(
       Fetcher* fetcher,
-      const vector<Option<CommandInfo>>& prepares)
+      const vector<Option<ContainerPrepareInfo>>& prepares)
   {
     vector<Owned<Isolator>> isolators;
 
-    foreach (const Option<CommandInfo>& prepare, prepares) {
+    foreach (const Option<ContainerPrepareInfo>& prepare, prepares) {
       Try<Isolator*> isolator = TestIsolatorProcess::create(prepare);
       if (isolator.isError()) {
         return Error(isolator.error());
@@ -122,9 +122,9 @@ public:
 
   Try<MesosContainerizer*> CreateContainerizer(
       Fetcher* fetcher,
-      const Option<CommandInfo>& prepare)
+      const Option<ContainerPrepareInfo>& prepare)
   {
-    vector<Option<CommandInfo>> prepares;
+    vector<Option<ContainerPrepareInfo>> prepares;
     prepares.push_back(prepare);
 
     return CreateContainerizer(fetcher, prepares);
@@ -140,10 +140,12 @@ TEST_F(MesosContainerizerIsolatorPreparationTest, ScriptSucceeds)
 
   Fetcher fetcher;
 
+  ContainerPrepareInfo prepareInfo;
+  prepareInfo.mutable_command()->set_value("touch " + file);
+
   Try<MesosContainerizer*> containerizer = CreateContainerizer(
       &fetcher,
-      CREATE_COMMAND_INFO("touch " + file));
-
+      prepareInfo);
   CHECK_SOME(containerizer);
 
   ContainerID containerId;
@@ -189,10 +191,12 @@ TEST_F(MesosContainerizerIsolatorPreparationTest, ScriptFails)
 
   Fetcher fetcher;
 
+  ContainerPrepareInfo prepareInfo;
+  prepareInfo.mutable_command()->set_value("touch " + file + " && exit 1");
+
   Try<MesosContainerizer*> containerizer = CreateContainerizer(
       &fetcher,
-      CREATE_COMMAND_INFO("touch " + file + " && exit 1"));
-
+      prepareInfo);
   CHECK_SOME(containerizer);
 
   ContainerID containerId;
@@ -239,14 +243,18 @@ TEST_F(MesosContainerizerIsolatorPreparationTest, MultipleScripts)
   string file1 = path::join(directory, "child.script.executed.1");
   string file2 = path::join(directory, "child.script.executed.2");
 
-  vector<Option<CommandInfo>> prepares;
+  vector<Option<ContainerPrepareInfo>> prepares;
 
-  // This isolator prepare command one will succeed if called first,
-  // otherwise it won't get run.
-  prepares.push_back(CREATE_COMMAND_INFO("touch " + file1 + " && exit 0"));
+  // This isolator prepare command one will succeed if called first, otherwise
+  // it won't get run.
+  ContainerPrepareInfo prepare1;
+  prepare1.mutable_command()->set_value("touch " + file1 + " && exit 0");
+  prepares.push_back(prepare1);
 
   // This will fail, either first or after the successful command.
-  prepares.push_back(CREATE_COMMAND_INFO("touch " + file2 + " && exit 1"));
+  ContainerPrepareInfo prepare2;
+  prepare2.mutable_command()->set_value("touch " + file2 + " && exit 1");
+  prepares.push_back(prepare2);
 
   Fetcher fetcher;
 
@@ -422,14 +430,14 @@ public:
 
   MOCK_METHOD5(
       prepare,
-      Future<Option<CommandInfo>>(
+      Future<Option<ContainerPrepareInfo>>(
           const ContainerID&,
           const ExecutorInfo&,
           const string&,
           const Option<string>&,
           const Option<string>&));
 
-  virtual Future<Option<CommandInfo>> _prepare(
+  virtual Future<Option<ContainerPrepareInfo>> _prepare(
       const ContainerID& containerId,
       const ExecutorInfo& executorInfo,
       const string& directory,
@@ -532,7 +540,7 @@ TEST_F(MesosContainerizerDestroyTest, DestroyWhilePreparing)
   MockIsolator* isolator = new MockIsolator();
 
   Future<Nothing> prepare;
-  Promise<Option<CommandInfo>> promise;
+  Promise<Option<ContainerPrepareInfo>> promise;
 
   // Simulate a long prepare from the isolator.
   EXPECT_CALL(*isolator, prepare(_, _, _, _, _))
@@ -578,7 +586,9 @@ TEST_F(MesosContainerizerDestroyTest, DestroyWhilePreparing)
   ASSERT_TRUE(wait.isPending());
 
   // Need to help the compiler to disambiguate between overloads.
-  Option<CommandInfo> option = commandInfo;
+  ContainerPrepareInfo prepareInfo;
+  prepareInfo.mutable_command()->CopyFrom(commandInfo);
+  Option<ContainerPrepareInfo> option = prepareInfo;
   promise.set(option);
 
   AWAIT_READY(wait);

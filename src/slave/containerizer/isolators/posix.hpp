@@ -62,7 +62,7 @@ public:
     return Nothing();
   }
 
-  virtual process::Future<Option<CommandInfo>> prepare(
+  virtual process::Future<Option<mesos::slave::ContainerPrepareInfo>> prepare(
       const ContainerID& containerId,
       const ExecutorInfo& executorInfo,
       const std::string& directory,

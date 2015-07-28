@@ -28,6 +28,7 @@ using std::list;
 using std::set;
 using std::string;
 
+using mesos::slave::ContainerPrepareInfo;
 using mesos::slave::ExecutorLimitation;
 using mesos::slave::ExecutorRunState;
 using mesos::slave::Isolator;
@@ -79,7 +80,7 @@ Future<Nothing> SharedFilesystemIsolatorProcess::recover(
 }
 
 
-Future<Option<CommandInfo>> SharedFilesystemIsolatorProcess::prepare(
+Future<Option<ContainerPrepareInfo>> SharedFilesystemIsolatorProcess::prepare(
     const ContainerID& containerId,
     const ExecutorInfo& executorInfo,
     const string& directory,
@@ -218,10 +219,10 @@ Future<Option<CommandInfo>> SharedFilesystemIsolatorProcess::prepare(
                        volume.container_path());
   }
 
-  CommandInfo command;
-  command.set_value(strings::join(" && ", commands));
+  ContainerPrepareInfo prepareInfo;
+  prepareInfo.mutable_command()->set_value(strings::join(" && ", commands));
 
-  return command;
+  return prepareInfo;
 }
 
 

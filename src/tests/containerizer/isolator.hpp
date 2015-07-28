@@ -31,10 +31,10 @@ class TestIsolatorProcess : public slave::MesosIsolatorProcess
 {
 public:
   static Try<mesos::slave::Isolator*> create(
-      const Option<CommandInfo>& commandInfo)
+      const Option<mesos::slave::ContainerPrepareInfo>& prepare)
   {
     process::Owned<MesosIsolatorProcess> process(
-        new TestIsolatorProcess(commandInfo));
+        new TestIsolatorProcess(prepare));
 
     return new slave::MesosIsolator(process);
   }
@@ -45,14 +45,14 @@ public:
           const std::list<mesos::slave::ExecutorRunState>&,
           const hashset<ContainerID>&));
 
-  virtual process::Future<Option<CommandInfo>> prepare(
+  virtual process::Future<Option<mesos::slave::ContainerPrepareInfo>> prepare(
       const ContainerID& containerId,
       const ExecutorInfo& executorInfo,
       const std::string& directory,
       const Option<std::string>& rootfs,
       const Option<std::string>& user)
   {
-    return commandInfo;
+    return prepareInfo;
   }
 
   MOCK_METHOD2(
@@ -76,8 +76,8 @@ public:
       process::Future<Nothing>(const ContainerID&));
 
 private:
-  TestIsolatorProcess(const Option<CommandInfo>& _commandInfo)
-    : commandInfo(_commandInfo)
+  TestIsolatorProcess( const Option<mesos::slave::ContainerPrepareInfo>& info)
+    : prepareInfo(info)
   {
     EXPECT_CALL(*this, watch(testing::_))
       .WillRepeatedly(testing::Return(promise.future()));
@@ -89,7 +89,7 @@ private:
       .WillRepeatedly(testing::Return(Nothing()));
   }
 
-  const Option<CommandInfo> commandInfo;
+  const Option<mesos::slave::ContainerPrepareInfo> prepareInfo;
 
   process::Promise<mesos::slave::ExecutorLimitation> promise;
 };

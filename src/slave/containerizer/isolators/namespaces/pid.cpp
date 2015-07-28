@@ -39,6 +39,7 @@ using std::list;
 using std::set;
 using std::string;
 
+using mesos::slave::ContainerPrepareInfo;
 using mesos::slave::ExecutorLimitation;
 using mesos::slave::ExecutorRunState;
 using mesos::slave::Isolator;
@@ -158,7 +159,7 @@ Future<Nothing> NamespacesPidIsolatorProcess::recover(
 }
 
 
-Future<Option<CommandInfo>> NamespacesPidIsolatorProcess::prepare(
+Future<Option<ContainerPrepareInfo>> NamespacesPidIsolatorProcess::prepare(
     const ContainerID& containerId,
     const ExecutorInfo& executorInfo,
     const string& directory,
@@ -186,10 +187,10 @@ Future<Option<CommandInfo>> NamespacesPidIsolatorProcess::prepare(
   commands.push_back("mount none /proc --make-private -o rec");
   commands.push_back("mount -n -t proc proc /proc -o nosuid,noexec,nodev");
 
-  CommandInfo command;
-  command.set_value(strings::join(" && ", commands));
+  ContainerPrepareInfo prepareInfo;
+  prepareInfo.mutable_command()->set_value(strings::join(" && ", commands));
 
-  return command;
+  return prepareInfo;
 }
 
 

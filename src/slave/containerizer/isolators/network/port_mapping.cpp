@@ -106,16 +106,15 @@ using std::vector;
 
 using filter::ip::PortRange;
 
+using mesos::slave::ContainerPrepareInfo;
 using mesos::slave::ExecutorLimitation;
 using mesos::slave::ExecutorRunState;
 using mesos::slave::Isolator;
-
 
 // An old glibc might not have this symbol.
 #ifndef MNT_DETACH
 #define MNT_DETACH 2
 #endif
-
 
 namespace mesos {
 namespace internal {
@@ -2078,7 +2077,7 @@ PortMappingIsolatorProcess::_recover(pid_t pid)
 }
 
 
-Future<Option<CommandInfo>> PortMappingIsolatorProcess::prepare(
+Future<Option<ContainerPrepareInfo>> PortMappingIsolatorProcess::prepare(
     const ContainerID& containerId,
     const ExecutorInfo& executorInfo,
     const string& directory,
@@ -2136,10 +2135,10 @@ Future<Option<CommandInfo>> PortMappingIsolatorProcess::prepare(
             << " for container " << containerId << " of executor "
             << executorInfo.executor_id();
 
-  CommandInfo command;
-  command.set_value(scripts(infos[containerId]));
+  ContainerPrepareInfo prepareInfo;
+  prepareInfo.mutable_command()->set_value(scripts(infos[containerId]));
 
-  return command;
+  return prepareInfo;
 }
 
 
