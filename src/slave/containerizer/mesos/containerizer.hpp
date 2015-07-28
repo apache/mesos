@@ -197,11 +197,11 @@ private:
       bool checkpoint,
       const std::string& rootfs);
 
-  process::Future<std::list<Option<mesos::slave::ContainerPrepareInfo>>> prepare(
-      const ContainerID& containerId,
-      const ExecutorInfo& executorInfo,
-      const std::string& directory,
-      const Option<std::string>& user);
+  process::Future<std::list<Option<mesos::slave::ContainerPrepareInfo>>>
+      prepare(const ContainerID& containerId,
+              const ExecutorInfo& executorInfo,
+              const std::string& directory,
+              const Option<std::string>& user);
 
   process::Future<Nothing> fetch(
       const ContainerID& containerId,
