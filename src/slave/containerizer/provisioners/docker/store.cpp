@@ -107,20 +107,12 @@ Try<Owned<LocalStoreProcess>> LocalStoreProcess::create(
     const Flags& flags,
     Fetcher* fetcher)
 {
-  Owned<LocalStoreProcess> store =
-    Owned<LocalStoreProcess>(new LocalStoreProcess(flags));
-
-  Try<Nothing> restore = store->restore(flags);
-  if (restore.isError()) {
-    return Error("Failed to restore store: " + restore.error());
-  }
-
-  return store;
+  return Owned<LocalStoreProcess>(new LocalStoreProcess(flags));
 }
 
 
 LocalStoreProcess::LocalStoreProcess(const Flags& flags)
-  : flags(flags) {}
+  : flags(flags), refStore(ReferenceStore::create(flags).get()) {}
 
 
 Future<DockerImage> LocalStoreProcess::put(
@@ -263,10 +255,7 @@ Future<DockerImage> LocalStoreProcess::putImage(
 
   return putLayers(staging, layers, sandbox)
     .then([=]() -> Future<DockerImage> {
-      images[name] = DockerImage(name, layers);
-
-      // TODO(chenlily): update reference store or replace with reference store
-      return images[name];
+      return refStore->put(name, layers);
     });
 }
 
@@ -415,19 +404,7 @@ Future<Nothing> LocalStoreProcess::moveLayer(
 
 Future<Option<DockerImage>> LocalStoreProcess::get(const string& name)
 {
-  if (!images.contains(name)) {
-    return None();
-  }
-
-  return images[name];
-}
-
-
-// Recover stored image layers and update layers map.
-// TODO(chenlily): Implement restore.
-Try<Nothing> LocalStoreProcess::restore(const Flags& flags)
-{
-  return Nothing();
+  return refStore->get(name);
 }
 
 } // namespace docker {
