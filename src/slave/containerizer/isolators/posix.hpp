@@ -42,10 +42,10 @@ class PosixIsolatorProcess : public MesosIsolatorProcess
 {
 public:
   virtual process::Future<Nothing> recover(
-      const std::list<mesos::slave::ExecutorRunState>& state,
+      const std::list<mesos::slave::ContainerState>& state,
       const hashset<ContainerID>& orphans)
   {
-    foreach (const mesos::slave::ExecutorRunState& run, state) {
+    foreach (const mesos::slave::ContainerState& run, state) {
       // This should (almost) never occur: see comment in
       // PosixLauncher::recover().
       if (pids.contains(run.container_id())) {
@@ -54,8 +54,8 @@ public:
 
       pids.put(run.container_id(), run.pid());
 
-      process::Owned<process::Promise<mesos::slave::ExecutorLimitation>>
-        promise(new process::Promise<mesos::slave::ExecutorLimitation>());
+      process::Owned<process::Promise<mesos::slave::ContainerLimitation>>
+        promise(new process::Promise<mesos::slave::ContainerLimitation>());
       promises.put(run.container_id(), promise);
     }
 
@@ -74,8 +74,8 @@ public:
                               " has already been prepared");
     }
 
-    process::Owned<process::Promise<mesos::slave::ExecutorLimitation>> promise(
-        new process::Promise<mesos::slave::ExecutorLimitation>());
+    process::Owned<process::Promise<mesos::slave::ContainerLimitation>> promise(
+        new process::Promise<mesos::slave::ContainerLimitation>());
     promises.put(containerId, promise);
 
     return None();
@@ -94,7 +94,7 @@ public:
     return Nothing();
   }
 
-  virtual process::Future<mesos::slave::ExecutorLimitation> watch(
+  virtual process::Future<mesos::slave::ContainerLimitation> watch(
       const ContainerID& containerId)
   {
     if (!promises.contains(containerId)) {
@@ -134,7 +134,7 @@ public:
 protected:
   hashmap<ContainerID, pid_t> pids;
   hashmap<ContainerID,
-          process::Owned<process::Promise<mesos::slave::ExecutorLimitation>>>
+          process::Owned<process::Promise<mesos::slave::ContainerLimitation>>>
     promises;
 };
 

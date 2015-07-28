@@ -49,7 +49,7 @@ using std::set;
 using std::string;
 using std::vector;
 
-using mesos::slave::ExecutorRunState;
+using mesos::slave::ContainerState;
 
 namespace mesos {
 namespace internal {
@@ -110,11 +110,11 @@ Try<Launcher*> LinuxLauncher::create(
 
 
 Future<hashset<ContainerID>> LinuxLauncher::recover(
-    const std::list<ExecutorRunState>& states)
+    const std::list<ContainerState>& states)
 {
   hashset<string> recovered;
 
-  foreach (const ExecutorRunState& state, states) {
+  foreach (const ContainerState& state, states) {
     const ContainerID& containerId = state.container_id();
     pid_t pid = state.pid();
 

@@ -46,7 +46,7 @@ public:
   virtual ~CgroupsMemIsolatorProcess();
 
   virtual process::Future<Nothing> recover(
-      const std::list<mesos::slave::ExecutorRunState>& states,
+      const std::list<mesos::slave::ContainerState>& states,
       const hashset<ContainerID>& orphans);
 
   virtual process::Future<Option<mesos::slave::ContainerPrepareInfo>> prepare(
@@ -60,7 +60,7 @@ public:
       const ContainerID& containerId,
       pid_t pid);
 
-  virtual process::Future<mesos::slave::ExecutorLimitation> watch(
+  virtual process::Future<mesos::slave::ContainerLimitation> watch(
       const ContainerID& containerId);
 
   virtual process::Future<Nothing> update(
@@ -98,7 +98,7 @@ private:
     const std::string cgroup;
     Option<pid_t> pid;
 
-    process::Promise<mesos::slave::ExecutorLimitation> limitation;
+    process::Promise<mesos::slave::ContainerLimitation> limitation;
 
     // Used to cancel the OOM listening.
     process::Future<Nothing> oomNotifier;

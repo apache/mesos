@@ -37,8 +37,8 @@ using std::string;
 
 using mesos::scheduler::Event;
 
-using mesos::slave::ExecutorLimitation;
-using mesos::slave::ExecutorRunState;
+using mesos::slave::ContainerLimitation;
+using mesos::slave::ContainerState;
 
 using process::UPID;
 
@@ -223,11 +223,11 @@ Label createLabel(const std::string& key, const std::string& value)
 
 namespace slave {
 
-ExecutorLimitation createExecutorLimitation(
+ContainerLimitation createContainerLimitation(
     const Resources& resources,
     const std::string& message)
 {
-  ExecutorLimitation limitation;
+  ContainerLimitation limitation;
   foreach (Resource resource, resources) {
     limitation.add_resources()->CopyFrom(resource);
   }
@@ -236,14 +236,14 @@ ExecutorLimitation createExecutorLimitation(
 }
 
 
-ExecutorRunState createExecutorRunState(
+ContainerState createContainerState(
     const ExecutorInfo& executorInfo,
     const ContainerID& container_id,
     pid_t pid,
     const std::string& directory,
     const Option<std::string>& rootfs)
 {
-  ExecutorRunState state;
+  ContainerState state;
   state.mutable_executor_info()->CopyFrom(executorInfo);
   state.mutable_container_id()->CopyFrom(container_id);
   state.set_pid(pid);

@@ -54,9 +54,9 @@ using std::set;
 using std::string;
 using std::vector;
 
+using mesos::slave::ContainerLimitation;
 using mesos::slave::ContainerPrepareInfo;
-using mesos::slave::ExecutorLimitation;
-using mesos::slave::ExecutorRunState;
+using mesos::slave::ContainerState;
 using mesos::slave::Isolator;
 
 namespace mesos {
@@ -157,10 +157,10 @@ Try<Isolator*> CgroupsMemIsolatorProcess::create(const Flags& flags)
 
 
 Future<Nothing> CgroupsMemIsolatorProcess::recover(
-    const list<ExecutorRunState>& states,
+    const list<ContainerState>& states,
     const hashset<ContainerID>& orphans)
 {
-  foreach (const ExecutorRunState& state, states) {
+  foreach (const ContainerState& state, states) {
     const ContainerID& containerId = state.container_id();
     const string cgroup = path::join(flags.cgroups_root, containerId.value());
 
@@ -313,7 +313,7 @@ Future<Nothing> CgroupsMemIsolatorProcess::isolate(
 }
 
 
-Future<ExecutorLimitation> CgroupsMemIsolatorProcess::watch(
+Future<ContainerLimitation> CgroupsMemIsolatorProcess::watch(
     const ContainerID& containerId)
 {
   if (!infos.contains(containerId)) {
@@ -690,7 +690,7 @@ void CgroupsMemIsolatorProcess::oom(const ContainerID& containerId)
       stringify(usage.isSome() ? usage.get().megabytes() : 0),
       "*").get();
 
-  info->limitation.set(protobuf::slave::createExecutorLimitation(
+  info->limitation.set(protobuf::slave::createContainerLimitation(
         mem, message.str()));
 }
 

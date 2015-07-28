@@ -61,7 +61,7 @@ public:
   // (known to the launcher but not known to the slave) detected by
   // the launcher.
   virtual process::Future<Nothing> recover(
-      const std::list<ExecutorRunState>& states,
+      const std::list<ContainerState>& states,
       const hashset<ContainerID>& orphans) = 0;
 
   // Prepare for isolation of the executor. Any steps that require
@@ -85,7 +85,7 @@ public:
   // Watch the containerized executor and report if any resource
   // constraint impacts the container, e.g., the kernel killing some
   // processes.
-  virtual process::Future<ExecutorLimitation> watch(
+  virtual process::Future<ContainerLimitation> watch(
       const ContainerID& containerId) = 0;
 
   // Update the resources allocated to the container.

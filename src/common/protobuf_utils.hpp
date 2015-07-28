@@ -79,12 +79,12 @@ Label createLabel(const std::string& key, const std::string& value);
 
 namespace slave {
 
-mesos::slave::ExecutorLimitation createExecutorLimitation(
+mesos::slave::ContainerLimitation createContainerLimitation(
     const Resources& resources,
     const std::string& message);
 
 
-mesos::slave::ExecutorRunState createExecutorRunState(
+mesos::slave::ContainerState createContainerState(
     const ExecutorInfo& executorInfo,
     const ContainerID& id,
     pid_t pid,

@@ -106,9 +106,9 @@ using std::vector;
 
 using filter::ip::PortRange;
 
+using mesos::slave::ContainerLimitation;
 using mesos::slave::ContainerPrepareInfo;
-using mesos::slave::ExecutorLimitation;
-using mesos::slave::ExecutorRunState;
+using mesos::slave::ContainerState;
 using mesos::slave::Isolator;
 
 // An old glibc might not have this symbol.
@@ -1633,7 +1633,7 @@ process::Future<Option<int>> PortMappingIsolatorProcess::namespaces()
 
 
 Future<Nothing> PortMappingIsolatorProcess::recover(
-    const list<ExecutorRunState>& states,
+    const list<ContainerState>& states,
     const hashset<ContainerID>& orphans)
 {
   // Extract pids from virtual device names (veth). This tells us
@@ -1802,7 +1802,7 @@ Future<Nothing> PortMappingIsolatorProcess::recover(
   }
 
   // Now, actually recover the isolator from slave's state.
-  foreach (const ExecutorRunState& state, states) {
+  foreach (const ContainerState& state, states) {
     const ContainerID& containerId = state.container_id();
     pid_t pid = state.pid();
 
@@ -2493,7 +2493,7 @@ Future<Nothing> PortMappingIsolatorProcess::isolate(
 }
 
 
-Future<ExecutorLimitation> PortMappingIsolatorProcess::watch(
+Future<ContainerLimitation> PortMappingIsolatorProcess::watch(
     const ContainerID& containerId)
 {
   if (unmanaged.contains(containerId)) {
@@ -2504,7 +2504,7 @@ Future<ExecutorLimitation> PortMappingIsolatorProcess::watch(
 
   // Currently, we always return a pending future because limitation
   // is never reached.
-  return Future<ExecutorLimitation>();
+  return Future<ContainerLimitation>();
 }
 
 

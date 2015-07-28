@@ -58,7 +58,7 @@ private:
 
 
 // This isolator monitors the disk usage for containers, and reports
-// ExecutorLimitation when a container exceeds its disk quota. This
+// ContainerLimitation when a container exceeds its disk quota. This
 // leverages the DiskUsageCollector to ensure that we don't induce too
 // much CPU usage and disk caching effects from running 'du' too
 // often.
@@ -79,7 +79,7 @@ public:
   virtual ~PosixDiskIsolatorProcess();
 
   virtual process::Future<Nothing> recover(
-      const std::list<mesos::slave::ExecutorRunState>& states,
+      const std::list<mesos::slave::ContainerState>& states,
       const hashset<ContainerID>& orphans);
 
   virtual process::Future<Option<mesos::slave::ContainerPrepareInfo>> prepare(
@@ -93,7 +93,7 @@ public:
       const ContainerID& containerId,
       pid_t pid);
 
-  virtual process::Future<mesos::slave::ExecutorLimitation> watch(
+  virtual process::Future<mesos::slave::ContainerLimitation> watch(
       const ContainerID& containerId);
 
   virtual process::Future<Nothing> update(
@@ -125,7 +125,7 @@ private:
     // to collect disk usage for disk resources without DiskInfo.
     const std::string directory;
 
-    process::Promise<mesos::slave::ExecutorLimitation> limitation;
+    process::Promise<mesos::slave::ContainerLimitation> limitation;
 
     // The keys of the hashmaps contain the executor working directory
     // above, and optionally paths of volumes used by the container.

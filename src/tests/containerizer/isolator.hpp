@@ -42,7 +42,7 @@ public:
   MOCK_METHOD2(
       recover,
       process::Future<Nothing>(
-          const std::list<mesos::slave::ExecutorRunState>&,
+          const std::list<mesos::slave::ContainerState>&,
           const hashset<ContainerID>&));
 
   virtual process::Future<Option<mesos::slave::ContainerPrepareInfo>> prepare(
@@ -61,7 +61,7 @@ public:
 
   MOCK_METHOD1(
       watch,
-      process::Future<mesos::slave::ExecutorLimitation>(const ContainerID&));
+      process::Future<mesos::slave::ContainerLimitation>(const ContainerID&));
 
   MOCK_METHOD2(
       update,
@@ -91,7 +91,7 @@ private:
 
   const Option<mesos::slave::ContainerPrepareInfo> prepareInfo;
 
-  process::Promise<mesos::slave::ExecutorLimitation> promise;
+  process::Promise<mesos::slave::ContainerLimitation> promise;
 };
 
 } // namespace tests {

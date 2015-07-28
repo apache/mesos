@@ -92,7 +92,7 @@ public:
   MOCK_METHOD1(
       recover,
       process::Future<hashset<ContainerID>>(
-          const std::list<mesos::slave::ExecutorRunState>& states));
+          const std::list<mesos::slave::ContainerState>& states));
 
   MOCK_METHOD9(
       fork,

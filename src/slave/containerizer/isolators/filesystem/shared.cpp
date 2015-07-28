@@ -28,9 +28,9 @@ using std::list;
 using std::set;
 using std::string;
 
+using mesos::slave::ContainerLimitation;
 using mesos::slave::ContainerPrepareInfo;
-using mesos::slave::ExecutorLimitation;
-using mesos::slave::ExecutorRunState;
+using mesos::slave::ContainerState;
 using mesos::slave::Isolator;
 
 namespace mesos {
@@ -71,7 +71,7 @@ process::Future<Option<int>> SharedFilesystemIsolatorProcess::namespaces()
 
 
 Future<Nothing> SharedFilesystemIsolatorProcess::recover(
-    const list<ExecutorRunState>& states,
+    const list<ContainerState>& states,
     const hashset<ContainerID>& orphans)
 {
   // There is nothing to recover because we do not keep any state and
@@ -236,12 +236,12 @@ Future<Nothing> SharedFilesystemIsolatorProcess::isolate(
 }
 
 
-Future<ExecutorLimitation> SharedFilesystemIsolatorProcess::watch(
+Future<ContainerLimitation> SharedFilesystemIsolatorProcess::watch(
     const ContainerID& containerId)
 {
   // No-op, for now.
 
-  return Future<ExecutorLimitation>();
+  return Future<ContainerLimitation>();
 }
 
 

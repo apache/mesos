@@ -23,7 +23,7 @@
 
 #include <mesos/resources.hpp>
 
-#include <mesos/slave/isolator.hpp> // For ExecutorRunState.
+#include <mesos/slave/isolator.hpp> // For ContainerState.
 
 #include <stout/hashmap.hpp>
 #include <stout/nothing.hpp>
@@ -54,7 +54,7 @@ public:
   // responsible for cleaning up any intermediate artifacts (e.g.
   // directories) to not leak anything.
   virtual process::Future<Nothing> recover(
-      const std::list<mesos::slave::ExecutorRunState>& states,
+      const std::list<mesos::slave::ContainerState>& states,
       const hashset<ContainerID>& orphans) = 0;
 
   // Provision a root filesystem for the container using the specified

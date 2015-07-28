@@ -51,7 +51,7 @@ public:
   virtual ~CgroupsCpushareIsolatorProcess();
 
   virtual process::Future<Nothing> recover(
-      const std::list<mesos::slave::ExecutorRunState>& states,
+      const std::list<mesos::slave::ContainerState>& states,
       const hashset<ContainerID>& orphans);
 
   virtual process::Future<Option<mesos::slave::ContainerPrepareInfo>> prepare(
@@ -65,7 +65,7 @@ public:
       const ContainerID& containerId,
       pid_t pid);
 
-  virtual process::Future<mesos::slave::ExecutorLimitation> watch(
+  virtual process::Future<mesos::slave::ContainerLimitation> watch(
       const ContainerID& containerId);
 
   virtual process::Future<Nothing> update(
@@ -98,7 +98,7 @@ private:
     Option<pid_t> pid;
     Option<Resources> resources;
 
-    process::Promise<mesos::slave::ExecutorLimitation> limitation;
+    process::Promise<mesos::slave::ContainerLimitation> limitation;
   };
 
   const Flags flags;

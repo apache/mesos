@@ -27,7 +27,7 @@ package mesos.slave;
  * where the Linux kernel may invoke the OOM killer, killing some/all
  * of a container's processes.
  */
-message ExecutorLimitation
+message ContainerLimitation
 {
   // Resources that triggered the limitation.
   // NOTE: 'Resources' is used here because the resource may span
@@ -45,7 +45,7 @@ message ExecutorLimitation
  * containers. The reason for not using RunState instead is to avoid
  * any dependency on RunState and in turn on internal protobufs.
  */
-message ExecutorRunState
+message ContainerState
 {
   required ExecutorInfo executor_info = 1;
 

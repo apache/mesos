@@ -39,9 +39,9 @@ using std::list;
 using std::set;
 using std::string;
 
+using mesos::slave::ContainerLimitation;
 using mesos::slave::ContainerPrepareInfo;
-using mesos::slave::ExecutorLimitation;
-using mesos::slave::ExecutorRunState;
+using mesos::slave::ContainerState;
 using mesos::slave::Isolator;
 
 namespace mesos {
@@ -128,11 +128,11 @@ process::Future<Option<int>> NamespacesPidIsolatorProcess::namespaces()
 
 
 Future<Nothing> NamespacesPidIsolatorProcess::recover(
-    const list<ExecutorRunState>& states,
+    const list<ContainerState>& states,
     const hashset<ContainerID>& orphans)
 {
   hashset<ContainerID> recovered;
-  foreach (const ExecutorRunState& state, states) {
+  foreach (const ContainerState& state, states) {
     recovered.insert(state.container_id());
   }
 
@@ -220,10 +220,10 @@ Future<Nothing> NamespacesPidIsolatorProcess::isolate(
 }
 
 
-Future<ExecutorLimitation> NamespacesPidIsolatorProcess::watch(
+Future<ContainerLimitation> NamespacesPidIsolatorProcess::watch(
     const ContainerID& containerId)
 {
-  return Future<ExecutorLimitation>();
+  return Future<ContainerLimitation>();
 }
 
 

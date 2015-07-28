@@ -84,9 +84,9 @@ namespace slave {
 
 using mesos::modules::ModuleManager;
 
+using mesos::slave::ContainerLimitation;
 using mesos::slave::ContainerPrepareInfo;
-using mesos::slave::ExecutorLimitation;
-using mesos::slave::ExecutorRunState;
+using mesos::slave::ContainerState;
 using mesos::slave::Isolator;
 
 using state::SlaveState;
@@ -349,7 +349,7 @@ Future<Nothing> MesosContainerizerProcess::recover(
   LOG(INFO) << "Recovering containerizer";
 
   // Gather the executor run states that we will attempt to recover.
-  list<ExecutorRunState> recoverable;
+  list<ContainerState> recoverable;
   if (state.isSome()) {
     foreachvalue (const FrameworkState& framework, state.get().frameworks) {
       foreachvalue (const ExecutorState& executor, framework.executors) {
@@ -417,8 +417,8 @@ Future<Nothing> MesosContainerizerProcess::recover(
 
         CHECK(os::exists(directory));
 
-        ExecutorRunState executorRunState =
-          protobuf::slave::createExecutorRunState(
+        ContainerState executorRunState =
+          protobuf::slave::createContainerState(
               executorInfo,
               run.get().id.get(),
               run.get().forkedPid.get(),
@@ -437,7 +437,7 @@ Future<Nothing> MesosContainerizerProcess::recover(
 
 
 Future<Nothing> MesosContainerizerProcess::_recover(
-    const list<ExecutorRunState>& recoverable,
+    const list<ContainerState>& recoverable,
     const hashset<ContainerID>& orphans)
 {
   list<Future<Nothing>> futures;
@@ -459,10 +459,10 @@ Future<Nothing> MesosContainerizerProcess::_recover(
 
 
 Future<Nothing> MesosContainerizerProcess::__recover(
-    const list<ExecutorRunState>& recovered,
+    const list<ContainerState>& recovered,
     const hashset<ContainerID>& orphans)
 {
-  foreach (const ExecutorRunState& run, recovered) {
+  foreach (const ContainerState& run, recovered) {
     const ContainerID& containerId = run.container_id();
 
     Container* container = new Container();
@@ -1335,7 +1335,7 @@ void MesosContainerizerProcess::_____destroy(
   // exit.
   if (!killed && container->limitations.size() > 0) {
     string message_;
-    foreach (const ExecutorLimitation& limitation, container->limitations) {
+    foreach (const ContainerLimitation& limitation, container->limitations) {
       message_ += limitation.message();
     }
     message = strings::trim(message_);
@@ -1379,7 +1379,7 @@ void MesosContainerizerProcess::reaped(const ContainerID& containerId)
 
 void MesosContainerizerProcess::limited(
     const ContainerID& containerId,
-    const Future<ExecutorLimitation>& future)
+    const Future<ContainerLimitation>& future)
 {
   if (!containers_.contains(containerId) ||
       containers_[containerId]->state == DESTROYING) {
