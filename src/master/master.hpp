@@ -1329,7 +1329,6 @@ struct Framework
     if (!connected) {
       LOG(WARNING) << "Master attempted to send message to disconnected"
                    << " framework " << *this;
-      return;
     }
 
     if (http.isSome()) {

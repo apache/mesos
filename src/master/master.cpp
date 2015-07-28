@@ -4817,6 +4817,7 @@ void Master::failoverFramework(Framework* framework, const UPID& newPid)
 
   framework->pid = newPid;
   link(newPid);
+  framework->connected = true;
 
   // The scheduler driver safely ignores any duplicate registration
   // messages, so we don't need to compare the old and new pids here.
@@ -4834,8 +4835,6 @@ void Master::failoverFramework(Framework* framework, const UPID& newPid)
         offer->framework_id(), offer->slave_id(), offer->resources(), None());
     removeOffer(offer);
   }
-
-  framework->connected = true;
 
   // Reactivate the framework.
   // NOTE: We do this after recovering resources (above) so that
