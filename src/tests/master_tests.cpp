@@ -2128,6 +2128,47 @@ TEST_F(MasterZooKeeperTest, LostZooKeeperCluster)
   Shutdown();
 }
 
+
+// This test verifies that the Address inside MasterInfo
+// is populated correctly, during master initialization.
+TEST_F(MasterZooKeeperTest, MasterInfoAddress)
+{
+  Try<PID<Master>> master_ = StartMaster();
+  ASSERT_SOME(master_);
+
+  auto master = master_.get();
+
+  ASSERT_SOME(StartSlave());
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master, DEFAULT_CREDENTIAL);
+
+  Future<MasterInfo> masterInfo;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureArg<2>(&masterInfo));
+
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillRepeatedly(Return()); // Ignore offers.
+
+  driver.start();
+  AWAIT_READY(masterInfo);
+
+  const Address& address = masterInfo.get().address();
+  EXPECT_EQ(stringify(master.address.ip), address.ip());
+  EXPECT_EQ(master.address.port, address.port());
+
+  // Protect from failures on those hosts where
+  // hostname cannot be resolved.
+  if (master.address.hostname().isSome()) {
+    ASSERT_EQ(master.address.hostname().get(), address.hostname());
+  }
+
+  driver.stop();
+  driver.join();
+  Shutdown();
+}
+
 #endif // MESOS_HAS_JAVA
 
 
