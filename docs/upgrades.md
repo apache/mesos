@@ -8,6 +8,10 @@ This document serves as a guide for users who wish to upgrade an existing mesos 
 
 ## Upgrading from 0.22.x to 0.23.x
 
+**NOTE** The 'stats.json' endpoints for masters and slaves have been removed. Please use the 'metrics/snapshot' endpoints instead.
+
+**NOTE** The '/master/shutdown' endpoint is deprecated in favor of the new '/master/teardown' endpoint.
+
 **NOTE** In order to enable decorator modules to remove metadata (environment variables or labels), we changed the meaning of the return value for decorator hooks in Mesos 0.23.0. Please refer to the modules documentation for more details.
 
 **NOTE** Slave ping timeouts are now configurable on the master via `--slave_ping_timeout` and `--max_slave_ping_timeouts`. Slaves should be upgraded to 0.23.x before changing these flags.
