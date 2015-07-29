@@ -20,11 +20,11 @@
 
 #include <iostream>
 
-#include <pthread.h>
 #include <unistd.h>
 
 #include <list>
 #include <set>
+#include <thread>
 #include <vector>
 
 #include <gtest/gtest.h>
@@ -34,6 +34,8 @@
 #include <stout/os.hpp>
 
 #include <process/gtest.hpp>
+#include <process/latch.hpp>
+#include <process/owned.hpp>
 #include <process/subprocess.hpp>
 
 #include "linux/ns.hpp"
@@ -134,16 +136,6 @@ TEST(NsTest, ROOT_setns)
 }
 
 
-static void* childThread(void* arg)
-{
-  // Newly created threads have PTHREAD_CANCEL_ENABLE and
-  // PTHREAD_CANCEL_DEFERRED so they can be cancelled.
-  while (true) { os::sleep(Seconds(1)); }
-
-  return NULL;
-}
-
-
 // Test that setns correctly refuses to re-associate to a namespace if
 // the caller is multi-threaded.
 TEST(NsTest, ROOT_setnsMultipleThreads)
@@ -151,17 +143,24 @@ TEST(NsTest, ROOT_setnsMultipleThreads)
   set<string> namespaces = ns::namespaces();
   EXPECT_LT(0u, namespaces.size());
 
+  Latch* latch = new Latch();
+
   // Do not allow multi-threaded environment.
-  pthread_t pthread;
-  ASSERT_EQ(0, pthread_create(&pthread, NULL, childThread, NULL));
+  std::thread thread([=]() {
+    // Wait until the main thread tells us to exit.
+    latch->await();
+  });
 
   foreach (const string& ns, namespaces) {
     EXPECT_ERROR(ns::setns(::getpid(), ns));
   }
 
-  // Terminate the threads.
-  EXPECT_EQ(0, pthread_cancel(pthread));
-  EXPECT_EQ(0, pthread_join(pthread, NULL));
+  // Terminate the thread.
+  latch->trigger();
+
+  thread.join();
+
+  delete latch;
 }
 
 
