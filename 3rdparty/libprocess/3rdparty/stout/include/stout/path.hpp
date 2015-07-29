@@ -56,7 +56,7 @@ public:
    *   string "/", then this returns the string "/". If Path is an
    *   empty string, then it returns the string ".".
    */
-  inline std::string basename()
+  inline std::string basename() const
   {
     if (value.empty()) {
       return std::string(".");
@@ -110,7 +110,7 @@ public:
    *   If Path is the string "/", then this returns the string "/".
    *   If Path is an empty string, then this returns the string ".".
    */
-  inline std::string dirname()
+  inline std::string dirname() const
   {
     if (value.empty()) {
       return std::string(".");
