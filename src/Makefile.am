@@ -583,7 +583,6 @@ libmesos_no_3rdparty_la_SOURCES +=					\
 	common/attributes.hpp						\
 	common/build.hpp						\
 	common/date_utils.hpp						\
-	common/factory.hpp						\
 	common/http.hpp							\
 	common/parse.hpp						\
 	common/protobuf_utils.hpp					\
