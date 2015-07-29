@@ -183,9 +183,19 @@ double EventLoop::time()
 
 void EventLoop::initialize()
 {
+  // We need to initialize Libevent differently depending on the
+  // operating system threading support.
+#if defined(EVTHREAD_USE_PTHREADS_IMPLEMENTED)
   if (evthread_use_pthreads() < 0) {
     LOG(FATAL) << "Failed to initialize, evthread_use_pthreads";
   }
+#elif defined(EVTHREAD_USE_WINDOWS_THREADS_IMPLEMENTED)
+  if (evthread_use_windows_threads() < 0) {
+    LOG(FATAL) << "Failed to initialize, evthread_use_windows_threads";
+  }
+#else
+#error "Libevent must be compiled with either pthread or Windows thread support"
+#endif
 
   // This enables debugging of libevent calls. We can remove this
   // when the implementation settles and after we gain confidence.

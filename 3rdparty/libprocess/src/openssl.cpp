@@ -23,6 +23,7 @@
 
 #include <mutex>
 #include <string>
+#include <thread>
 
 #include <process/once.hpp>
 
@@ -167,13 +168,14 @@ void locking_function(int mode, int n, const char* /*file*/, int /*line*/)
 // OpenSSL threading.
 unsigned long id_function()
 {
-  pthread_t pthread = pthread_self();
-#ifdef __APPLE__
-  mach_port_t id = pthread_mach_thread_np(pthread);
-#else
-  pthread_t id = pthread;
-#endif // __APPLE__
-  return static_cast<unsigned long>(id);
+  static_assert(sizeof(std::thread::id) == sizeof(unsigned long),
+                "sizeof(std::thread::id) must be equal to sizeof(unsigned long)"
+                " for std::thread::id to be used as a function for determining "
+                "a thread id");
+
+  // We use the std::thread id and convert it to an unsigned long.
+  const std::thread::id id = std::this_thread::get_id();
+  return *reinterpret_cast<const unsigned long*>(&id);
 }
 
 
