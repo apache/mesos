@@ -306,6 +306,16 @@ public:
     server = NULL;
   }
 
+  virtual void SetUp()
+  {
+    server->startNetwork();
+  }
+
+  virtual void TearDown()
+  {
+    server->shutdownNetwork();
+  }
+
 protected:
   MesosZooKeeperTest() : MesosTest(url) {}
 
