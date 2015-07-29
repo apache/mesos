@@ -26,6 +26,7 @@
 
 #include <set>
 #include <string>
+#include <thread>
 #include <vector>
 
 #include <sys/mman.h>
@@ -36,6 +37,7 @@
 #include <gmock/gmock.h>
 
 #include <process/gtest.hpp>
+#include <process/latch.hpp>
 #include <process/owned.hpp>
 
 #include <stout/gtest.hpp>
@@ -798,26 +800,20 @@ TEST_F(CgroupsAnyHierarchyWithFreezerTest, ROOT_CGROUPS_Destroy)
 }
 
 
-void* threadFunction(void*)
-{
-  // Newly created threads have PTHREAD_CANCEL_ENABLE and
-  // PTHREAD_CANCEL_DEFERRED so they can be cancelled from the main thread.
-  while (true) { sleep(1); }
-
-  return NULL;
-}
-
-
 TEST_F(CgroupsAnyHierarchyWithFreezerTest, ROOT_CGROUPS_AssignThreads)
 {
-  size_t numThreads = 5;
+  const size_t numThreads = 5;
 
-  pthread_t pthreads[numThreads];
+  std::thread* runningThreads[numThreads];
+
+  Latch* latch = new Latch();
 
   // Create additional threads.
-  for (size_t i = 0; i < numThreads; i++)
-  {
-    EXPECT_EQ(0, pthread_create(&pthreads[i], NULL, threadFunction, NULL));
+  for (size_t i = 0; i < numThreads; i++) {
+    runningThreads[i] = new std::thread([=]() {
+      // Wait until the main thread tells us to exit.
+      latch->await();
+    });
   }
 
   std::string hierarchy = path::join(baseHierarchy, "freezer");
@@ -843,11 +839,14 @@ TEST_F(CgroupsAnyHierarchyWithFreezerTest, ROOT_CGROUPS_AssignThreads)
   EXPECT_SOME_EQ(threads.get(), cgroupThreads);
 
   // Terminate the additional threads.
-  for (size_t i = 0; i < numThreads; i++)
-  {
-    EXPECT_EQ(0, pthread_cancel(pthreads[i]));
-    EXPECT_EQ(0, pthread_join(pthreads[i], NULL));
+  latch->trigger();
+
+  for (size_t i = 0; i < numThreads; i++) {
+    runningThreads[i]->join();
+    delete runningThreads[i];
   }
+
+  delete latch;
 
   // Move ourselves to the root cgroup.
   CHECK_SOME(cgroups::assign(hierarchy, "", ::getpid()));
