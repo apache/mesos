@@ -175,6 +175,8 @@ This guide describes the process of doing an official release of Mesos.
 
 2. Write a blog post announcing the new release and its features and major bug fixes.
 
+3. Update the Getting Started guide to use the latest release link.
+
 ## Remove old releases from svn
 
 Per the guidelines [when to archive](http://www.apache.org/dev/release.html#when-to-archive), we should only keep the latest release in each version under development.
