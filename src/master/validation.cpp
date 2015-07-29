@@ -51,6 +51,97 @@ static bool invalid(char c)
   return iscntrl(c) || c == '/' || c == '\\';
 }
 
+
+namespace scheduler {
+namespace call {
+
+Option<Error> validate(const mesos::scheduler::Call& call)
+{
+  if (!call.IsInitialized()) {
+    return Error("Not initialized: " + call.InitializationErrorString());
+  }
+
+  if (call.type() == mesos::scheduler::Call::SUBSCRIBE) {
+    if (!call.has_subscribe()) {
+      return Error("Expecting 'subscribe' to be present");
+    }
+
+    if (!(call.subscribe().framework_info().id() == call.framework_id())) {
+      return Error("'framework_id' differs from 'subscribe.framework_info.id'");
+    }
+
+    return None();
+  }
+
+  // All calls except SUBSCRIBE should have framework id set.
+  if (!call.has_framework_id()) {
+    return Error("Expecting 'framework_id' to be present");
+  }
+
+  switch (call.type()) {
+    case mesos::scheduler::Call::TEARDOWN:
+      return None();
+
+    case mesos::scheduler::Call::ACCEPT:
+      if (!call.has_accept()) {
+        return Error("Expecting 'accept' to be present");
+      }
+      return None();
+
+    case mesos::scheduler::Call::DECLINE:
+      if (!call.has_decline()) {
+        return Error("Expecting 'decline' to be present");
+      }
+      return None();
+
+    case mesos::scheduler::Call::REVIVE:
+      return None();
+
+    case mesos::scheduler::Call::KILL:
+      if (!call.has_kill()) {
+        return Error("Expecting 'kill' to be present");
+      }
+      return None();
+
+    case mesos::scheduler::Call::SHUTDOWN:
+      if (!call.has_shutdown()) {
+        return Error("Expecting 'shutdown' to be present");
+      }
+      return None();
+
+    case mesos::scheduler::Call::ACKNOWLEDGE:
+      if (!call.has_acknowledge()) {
+        return Error("Expecting 'acknowledge' to be present");
+      }
+      return None();
+
+    case mesos::scheduler::Call::RECONCILE:
+      if (!call.has_reconcile()) {
+        return Error("Expecting 'reconcile' to be present");
+      }
+      return None();
+
+    case mesos::scheduler::Call::MESSAGE:
+      if (!call.has_message()) {
+        return Error("Expecting 'message' to be present");
+      }
+      return None();
+
+    case mesos::scheduler::Call::REQUEST:
+      if (!call.has_request()) {
+        return Error("Expecting 'request' to be present");
+      }
+      return None();
+
+    default:
+      return Error("Unknown call type");
+  }
+}
+
+} // namespace call {
+} // namespace scheduler {
+
+
 namespace resource {
 
 // Validates the ReservationInfos specified in the given resources (if

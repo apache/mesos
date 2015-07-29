@@ -20,6 +20,7 @@
 
 #include <mesos/mesos.hpp>
 #include <mesos/resources.hpp>
+#include <mesos/scheduler/scheduler.hpp>
 
 #include <stout/error.hpp>
 #include <stout/option.hpp>
@@ -34,6 +35,16 @@ struct Framework;
 struct Slave;
 
 namespace validation {
+
+namespace scheduler {
+namespace call {
+
+// Validates that a scheduler call is well-formed.
+// TODO(bmahler): Add unit tests.
+Option<Error> validate(const mesos::scheduler::Call& call);
+
+} // namespace call {
+} // namespace scheduler {
 
 namespace resource {
 

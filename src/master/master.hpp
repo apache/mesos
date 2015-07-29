@@ -30,7 +30,7 @@
 
 #include <mesos/mesos.hpp>
 #include <mesos/resources.hpp>
-#include <mesos/scheduler.hpp>
+#include <mesos/scheduler/scheduler.hpp>
 #include <mesos/type_utils.hpp>
 
 #include <mesos/master/allocator.hpp>

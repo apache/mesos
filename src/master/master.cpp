@@ -1626,27 +1626,15 @@ void Master::receive(
 {
   // TODO(vinod): Add metrics for calls.
 
-  if (call.type() == scheduler::Call::SUBSCRIBE) {
-    if (!call.has_subscribe()) {
-      drop(from, call, "Expecting 'subscribe' to be present");
-      return;
-    }
+  Option<Error> error = validation::scheduler::call::validate(call);
 
-    if (!(call.subscribe().framework_info().id() == call.framework_id())) {
-      drop(from,
-           call,
-           "Framework id in the call doesn't match the framework id"
-           " in the 'subscribe' message");
-      return;
-    }
-
-    subscribe(from, call.subscribe());
+  if (error.isSome()) {
+    drop(from, call, error.get().message);
     return;
   }
 
-  // All calls except SUBSCRIBE should have framework id set.
-  if (!call.has_framework_id()) {
-    drop(from, call, "Expecting framework id to be present");
+  if (call.type() == scheduler::Call::SUBSCRIBE) {
+    subscribe(from, call.subscribe());
     return;
   }
 
@@ -1665,90 +1653,50 @@ void Master::receive(
   }
 
   switch (call.type()) {
-    case scheduler::Call::TEARDOWN: {
+    case scheduler::Call::TEARDOWN:
       removeFramework(framework);
       break;
-    }
 
-    case scheduler::Call::ACCEPT: {
-      if (!call.has_accept()) {
-        drop(from, call, "Expecting 'accept' to be present");
-        return;
-      }
+    case scheduler::Call::ACCEPT:
       accept(framework, call.accept());
       break;
-    }
 
-    case scheduler::Call::DECLINE: {
-      if (!call.has_decline()) {
-        drop(from, call, "Expecting 'decline' to be present");
-        return;
-      }
+    case scheduler::Call::DECLINE:
       decline(framework, call.decline());
       break;
-    }
 
-    case scheduler::Call::REVIVE: {
+    case scheduler::Call::REVIVE:
       revive(framework);
       break;
-    }
 
-    case scheduler::Call::KILL: {
-      if (!call.has_kill()) {
-        drop(from, call, "Expecting 'kill' to be present");
-        return;
-      }
+    case scheduler::Call::KILL:
       kill(framework, call.kill());
       break;
-    }
 
-    case scheduler::Call::SHUTDOWN: {
-      if (!call.has_shutdown()) {
-        drop(from, call, "Expecting 'shutdown' to be present");
-        return;
-      }
+    case scheduler::Call::SHUTDOWN:
       shutdown(framework, call.shutdown());
       break;
-    }
 
-    case scheduler::Call::ACKNOWLEDGE: {
-      if (!call.has_acknowledge()) {
-        drop(from, call, "Expecting 'acknowledge' to be present");
-        return;
-      }
+    case scheduler::Call::ACKNOWLEDGE:
       acknowledge(framework, call.acknowledge());
       break;
-    }
 
-    case scheduler::Call::RECONCILE: {
-      if (!call.has_reconcile()) {
-        drop(from, call, "Expecting 'reconcile' to be present");
-        return;
-      }
+    case scheduler::Call::RECONCILE:
       reconcile(framework, call.reconcile());
       break;
-    }
 
-    case scheduler::Call::MESSAGE: {
-      if (!call.has_message()) {
-        drop(from, call, "Expecting 'message' to be present");
-        return;
-      }
+    case scheduler::Call::MESSAGE:
       message(framework, call.message());
       break;
-    }
 
-    case scheduler::Call::REQUEST: {
-      if (!call.has_request()) {
-        drop(from, call, "Expecting 'request' to be present");
-        return;
-      }
+    case scheduler::Call::REQUEST:
       request(framework, call.request());
       break;
-    }
 
     default:
-      drop(from, call, "Unknown call type");
+      // Should be caught during call validation above.
+      LOG(FATAL) << "Unexpected " << call.type() << " call"
+                 << " from framework " << call.framework_id() << " at " << from;
       break;
   }
 }

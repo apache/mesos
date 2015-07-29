@@ -64,6 +64,7 @@
 #include "common/protobuf_utils.hpp"
 
 #include "master/detector.hpp"
+#include "master/validation.hpp"
 
 #include "local/local.hpp"
 
@@ -192,12 +193,6 @@ public:
       return;
     }
 
-    // Only a SUBSCRIBE call may not have set the framework ID.
-    if (call.type() != Call::SUBSCRIBE && !call.has_framework_id()) {
-      drop(call, "Expecting 'framework_id' to be present");
-      return;
-    }
-
     // If no user was specified in FrameworkInfo, use the current user.
     // TODO(benh): Make FrameworkInfo.user be optional.
     if (call.type() == Call::SUBSCRIBE &&
@@ -208,118 +203,17 @@ public:
       call.mutable_subscribe()->mutable_framework_info()->set_user(user.get());
     }
 
-    if (!call.IsInitialized()) {
-      drop(call, "Call is not properly initialized: " +
-           call.InitializationErrorString());
+    Option<Error> error = validation::scheduler::call::validate(call);
+
+    if (error.isSome()) {
+      drop(call, error.get().message);
       return;
     }
 
-    switch (call.type()) {
-      case Call::SUBSCRIBE: {
-        if (!call.has_subscribe()) {
-          drop(call, "Expecting 'subscribe' to be present");
-          return;
-        }
-
-        if (!(call.subscribe().framework_info().id() == call.framework_id())) {
-          drop(call, "Framework id in the call doesn't match the framework id"
-                     " in the 'subscribe' message");
-          return;
-        }
-
-        send(master.get(), call);
-        break;
-      }
-
-      case Call::TEARDOWN: {
-        send(master.get(), call);
-        break;
-      }
-
-      case Call::ACCEPT: {
-        if (!call.has_accept()) {
-          drop(call, "Expecting 'accept' to be present");
-          return;
-        }
-        send(master.get(), call);
-        break;
-      }
-
-      case Call::DECLINE: {
-        if (!call.has_decline()) {
-          drop(call, "Expecting 'decline' to be present");
-          return;
-        }
-        send(master.get(), call);
-        break;
-      }
-
-      case Call::REVIVE: {
-        send(master.get(), call);
-        break;
-      }
-
-      case Call::KILL: {
-        if (!call.has_kill()) {
-          drop(call, "Expecting 'kill' to be present");
-          return;
-        }
-        send(master.get(), call);
-        break;
-      }
-
-      case Call::SHUTDOWN: {
-        if (!call.has_shutdown()) {
-          drop(call, "Expecting 'shutdown' to be present");
-          return;
-        }
-        send(master.get(), call);
-        break;
-      }
-
-      case Call::ACKNOWLEDGE: {
-        if (!call.has_acknowledge()) {
-          drop(call, "Expecting 'acknowledge' to be present");
-          return;
-        }
-        send(master.get(), call);
-        break;
-      }
-
-      case Call::RECONCILE: {
-        if (!call.has_reconcile()) {
-          drop(call, "Expecting 'reconcile' to be present");
-          return;
-        }
-        send(master.get(), call);
-        break;
-      }
-
-      case Call::MESSAGE: {
-        if (!call.has_message()) {
-          drop(call, "Expecting 'message' to be present");
-          return;
-        }
-        // TODO(vinod): Add support for sending the call directly to
-        // the slave, instead of relaying it through the master, as
-        // the scheduler driver does.
-        send(master.get(), call);
-        break;
-      }
-
-      case Call::REQUEST: {
-        if (!call.has_request()) {
-          drop(call, "Expecting 'request' to be present");
-          return;
-        }
-        send(master.get(), call);
-        break;
-      }
-
-      default:
-        LOG(ERROR) << "Unexpected call " << stringify(call.type());
-        break;
-    }
+    // TODO(vinod): Add support for sending MESSAGE calls directly
+    // to the slave, instead of relaying it through the master, as
+    // the scheduler driver does.
+    send(master.get(), call);
   }
 
 protected:
