@@ -837,7 +837,7 @@ __EOF__
 # distcheck failure on OSX by leaking build artefacts (.dsym).
 AS_IF([test "x${ac_cv_env_CFLAGS_set}" = "x"],
       [SASL_TEST_CFLAGS=""], [SASL_TEST_CFLAGS=$CFLAGS])
-$CC crammd5_installed.c $CPPFLAGS $SASL_TEST_CFLAGS $LDFLAGS -lsasl2  \
+$CC crammd5_installed.c $CPPFLAGS $SASL_TEST_CFLAGS $LDFLAGS -lsasl2 $LIBS \
   -o crammd5_installed 2>&1 >/dev/null
 
 # Run the test binary and get its output.
