@@ -365,7 +365,7 @@ Try<FetcherCacheTest::Task> FetcherCacheTest::launchTask(
            (offers.isFailed() ? offers.failure() : "discarded"));
   }
 
-  EXPECT_NE(0u, offers.get().size());
+  CHECK_NE(0u, offers.get().size());
   const Offer offer = offers.get()[0];
 
   TaskInfo task;
@@ -560,12 +560,12 @@ TEST_F(FetcherCacheTest, LocalUncached)
     commandInfo.add_uris()->CopyFrom(uri);
 
     const Try<Task> task = launchTask(commandInfo, i);
-    EXPECT_SOME(task);
+    ASSERT_SOME(task);
 
     AWAIT_READY(awaitFinished(task.get()));
 
     EXPECT_EQ(0u, fetcherProcess->cacheSize());
-    EXPECT_SOME(fetcherProcess->cacheFiles(slaveId, flags));
+    ASSERT_SOME(fetcherProcess->cacheFiles(slaveId, flags));
     EXPECT_EQ(0u, fetcherProcess->cacheFiles(slaveId, flags).get().size());
 
     const string path = path::join(task.get().runDirectory.value, COMMAND_NAME);
@@ -594,7 +594,7 @@ TEST_F(FetcherCacheTest, LocalCached)
     commandInfo.add_uris()->CopyFrom(uri);
 
     const Try<Task> task = launchTask(commandInfo, i);
-    EXPECT_SOME(task);
+    ASSERT_SOME(task);
 
     AWAIT_READY(awaitFinished(task.get()));
 
@@ -603,7 +603,7 @@ TEST_F(FetcherCacheTest, LocalCached)
     EXPECT_TRUE(os::exists(path + taskName(i)));
 
     EXPECT_EQ(1u, fetcherProcess->cacheSize());
-    EXPECT_SOME(fetcherProcess->cacheFiles(slaveId, flags));
+    ASSERT_SOME(fetcherProcess->cacheFiles(slaveId, flags));
     EXPECT_EQ(1u, fetcherProcess->cacheFiles(slaveId, flags).get().size());
   }
 }
@@ -638,7 +638,7 @@ TEST_F(FetcherCacheTest, CachedFallback)
                            &MockFetcherProcess::unmocked_run)));
 
   const Try<Task> task = launchTask(commandInfo, 0);
-  EXPECT_SOME(task);
+  ASSERT_SOME(task);
 
   AWAIT_READY(awaitFinished(task.get()));
 
@@ -648,12 +648,12 @@ TEST_F(FetcherCacheTest, CachedFallback)
 
   AWAIT_READY(fetcherInfo);
 
-  EXPECT_EQ(1, fetcherInfo.get().items_size());
+  ASSERT_EQ(1, fetcherInfo.get().items_size());
   EXPECT_EQ(FetcherInfo::Item::BYPASS_CACHE,
             fetcherInfo.get().items(0).action());
 
   EXPECT_EQ(0u, fetcherProcess->cacheSize());
-  EXPECT_SOME(fetcherProcess->cacheFiles(slaveId, flags));
+  ASSERT_SOME(fetcherProcess->cacheFiles(slaveId, flags));
   EXPECT_EQ(0u, fetcherProcess->cacheFiles(slaveId, flags).get().size());
 }
 
@@ -675,7 +675,7 @@ TEST_F(FetcherCacheTest, LocalUncachedExtract)
     commandInfo.add_uris()->CopyFrom(uri);
 
     const Try<Task> task = launchTask(commandInfo, i);
-    EXPECT_SOME(task);
+    ASSERT_SOME(task);
 
     AWAIT_READY(awaitFinished(task.get()));
 
@@ -690,7 +690,7 @@ TEST_F(FetcherCacheTest, LocalUncachedExtract)
     EXPECT_TRUE(os::exists(path + taskName(i)));
 
     EXPECT_EQ(0u, fetcherProcess->cacheSize());
-    EXPECT_SOME(fetcherProcess->cacheFiles(slaveId, flags));
+    ASSERT_SOME(fetcherProcess->cacheFiles(slaveId, flags));
     EXPECT_EQ(0u, fetcherProcess->cacheFiles(slaveId, flags).get().size());
   }
 }
@@ -713,7 +713,7 @@ TEST_F(FetcherCacheTest, LocalCachedExtract)
     commandInfo.add_uris()->CopyFrom(uri);
 
     const Try<Task> task = launchTask(commandInfo, i);
-    EXPECT_SOME(task);
+    ASSERT_SOME(task);
 
     AWAIT_READY(awaitFinished(task.get()));
 
@@ -726,7 +726,7 @@ TEST_F(FetcherCacheTest, LocalCachedExtract)
     EXPECT_TRUE(os::exists(path + taskName(i)));
 
     EXPECT_EQ(1u, fetcherProcess->cacheSize());
-    EXPECT_SOME(fetcherProcess->cacheFiles(slaveId, flags));
+    ASSERT_SOME(fetcherProcess->cacheFiles(slaveId, flags));
     EXPECT_EQ(1u, fetcherProcess->cacheFiles(slaveId, flags).get().size());
   }
 }
@@ -854,7 +854,7 @@ TEST_F(FetcherCacheHttpTest, HttpCachedSerialized)
     commandInfo.add_uris()->CopyFrom(uri);
 
     const Try<Task> task = launchTask(commandInfo, i);
-    EXPECT_SOME(task);
+    ASSERT_SOME(task);
 
     AWAIT_READY(awaitFinished(task.get()));
 
@@ -864,7 +864,7 @@ TEST_F(FetcherCacheHttpTest, HttpCachedSerialized)
     EXPECT_TRUE(os::exists(path + taskName(i)));
 
     EXPECT_EQ(1u, fetcherProcess->cacheSize());
-    EXPECT_SOME(fetcherProcess->cacheFiles(slaveId, flags));
+    ASSERT_SOME(fetcherProcess->cacheFiles(slaveId, flags));
     EXPECT_EQ(1u, fetcherProcess->cacheFiles(slaveId, flags).get().size());
 
     // 2 requests: 1 for content-length, 1 for download.
@@ -912,7 +912,7 @@ TEST_F(FetcherCacheHttpTest, HttpCachedConcurrent)
   }
 
   Try<vector<Task>> tasks = launchTasks(commandInfos);
-  EXPECT_SOME(tasks);
+  ASSERT_SOME(tasks);
 
   CHECK_EQ(countTasks, tasks.get().size());
 
@@ -927,7 +927,7 @@ TEST_F(FetcherCacheHttpTest, HttpCachedConcurrent)
   AWAIT_READY(awaitFinished(tasks.get()));
 
   EXPECT_EQ(1u, fetcherProcess->cacheSize());
-  EXPECT_SOME(fetcherProcess->cacheFiles(slaveId, flags));
+  ASSERT_SOME(fetcherProcess->cacheFiles(slaveId, flags));
   EXPECT_EQ(1u, fetcherProcess->cacheFiles(slaveId, flags).get().size());
 
   // HTTP requests regarding the archive asset as follows. Archive
@@ -1019,7 +1019,7 @@ TEST_F(FetcherCacheHttpTest, HttpMixed)
   commandInfos.push_back(commandInfo2);
 
   Try<vector<Task>> tasks = launchTasks(commandInfos);
-  EXPECT_SOME(tasks);
+  ASSERT_SOME(tasks);
 
   CHECK_EQ(3u, tasks.get().size());
 
@@ -1034,7 +1034,7 @@ TEST_F(FetcherCacheHttpTest, HttpMixed)
   AWAIT_READY(awaitFinished(tasks.get()));
 
   EXPECT_EQ(1u, fetcherProcess->cacheSize());
-  EXPECT_SOME(fetcherProcess->cacheFiles(slaveId, flags));
+  ASSERT_SOME(fetcherProcess->cacheFiles(slaveId, flags));
   EXPECT_EQ(1u, fetcherProcess->cacheFiles(slaveId, flags).get().size());
 
   // HTTP requests regarding the command asset as follows. Command
@@ -1104,7 +1104,7 @@ TEST_F(FetcherCacheHttpTest, DISABLED_HttpCachedRecovery)
     commandInfo.add_uris()->CopyFrom(uri);
 
     const Try<Task> task = launchTask(commandInfo, i);
-    EXPECT_SOME(task);
+    ASSERT_SOME(task);
 
     AWAIT_READY(awaitFinished(task.get()));
 
@@ -1113,7 +1113,7 @@ TEST_F(FetcherCacheHttpTest, DISABLED_HttpCachedRecovery)
     EXPECT_TRUE(os::exists(path + taskName(i)));
 
     EXPECT_EQ(1u, fetcherProcess->cacheSize());
-    EXPECT_SOME(fetcherProcess->cacheFiles(slaveId, flags));
+    ASSERT_SOME(fetcherProcess->cacheFiles(slaveId, flags));
     EXPECT_EQ(1u, fetcherProcess->cacheFiles(slaveId, flags).get().size());
 
     // content-length requests: 1
@@ -1162,7 +1162,7 @@ TEST_F(FetcherCacheHttpTest, DISABLED_HttpCachedRecovery)
     commandInfo.add_uris()->CopyFrom(uri);
 
     const Try<Task> task = launchTask(commandInfo, i);
-    EXPECT_SOME(task);
+    ASSERT_SOME(task);
 
     AWAIT_READY(awaitFinished(task.get()));
 
@@ -1172,7 +1172,7 @@ TEST_F(FetcherCacheHttpTest, DISABLED_HttpCachedRecovery)
     EXPECT_TRUE(os::exists(path + taskName(i)));
 
     EXPECT_EQ(1u, fetcherProcess->cacheSize());
-    EXPECT_SOME(fetcherProcess->cacheFiles(slaveId, flags));
+    ASSERT_SOME(fetcherProcess->cacheFiles(slaveId, flags));
     EXPECT_EQ(1u, fetcherProcess->cacheFiles(slaveId, flags).get().size());
 
     // content-length requests: 1
@@ -1212,7 +1212,7 @@ TEST_F(FetcherCacheTest, SimpleEviction)
     commandInfo.add_uris()->CopyFrom(uri);
 
     const Try<Task> task = launchTask(commandInfo, i);
-    EXPECT_SOME(task);
+    ASSERT_SOME(task);
 
     AWAIT_READY(awaitFinished(task.get()));
 
@@ -1224,11 +1224,11 @@ TEST_F(FetcherCacheTest, SimpleEviction)
 
     if (i < countCacheEntries) {
       EXPECT_EQ(i + 1, fetcherProcess->cacheSize());
-      EXPECT_SOME(fetcherProcess->cacheFiles(slaveId, flags));
+      ASSERT_SOME(fetcherProcess->cacheFiles(slaveId, flags));
       EXPECT_EQ(i+1u, fetcherProcess->cacheFiles(slaveId, flags).get().size());
     } else {
       EXPECT_EQ(countCacheEntries, fetcherProcess->cacheSize());
-      EXPECT_SOME(fetcherProcess->cacheFiles(slaveId, flags));
+      ASSERT_SOME(fetcherProcess->cacheFiles(slaveId, flags));
       EXPECT_EQ(countCacheEntries,
                 fetcherProcess->cacheFiles(slaveId, flags).get().size());
     }
@@ -1290,7 +1290,7 @@ TEST_F(FetcherCacheTest, FallbackFromEviction)
   commandInfo0.add_uris()->CopyFrom(uri0);
 
   const Try<Task> task0 = launchTask(commandInfo0, 0);
-  EXPECT_SOME(task0) << task0.error();
+  ASSERT_SOME(task0) << task0.error();
 
   AWAIT_READY(awaitFinished(task0.get()));
 
@@ -1302,7 +1302,7 @@ TEST_F(FetcherCacheTest, FallbackFromEviction)
 
   AWAIT_READY(fetcherInfo0);
 
-  EXPECT_EQ(1, fetcherInfo0.get().items_size());
+  ASSERT_EQ(1, fetcherInfo0.get().items_size());
   EXPECT_EQ(FetcherInfo::Item::DOWNLOAD_AND_CACHE,
             fetcherInfo0.get().items(0).action());
 
@@ -1312,7 +1312,7 @@ TEST_F(FetcherCacheTest, FallbackFromEviction)
   CHECK_EQ(Bytes(growth), fetcherProcess->availableCacheSpace());
 
   EXPECT_EQ(1u, fetcherProcess->cacheSize());
-  EXPECT_SOME(fetcherProcess->cacheFiles(slaveId, flags));
+  ASSERT_SOME(fetcherProcess->cacheFiles(slaveId, flags));
   EXPECT_EQ(1u, fetcherProcess->cacheFiles(slaveId, flags).get().size());
 
 
@@ -1339,7 +1339,7 @@ TEST_F(FetcherCacheTest, FallbackFromEviction)
   commandInfo1.add_uris()->CopyFrom(uri1);
 
   const Try<Task> task1 = launchTask(commandInfo1, 1);
-  EXPECT_SOME(task1) << task1.error();
+  ASSERT_SOME(task1) << task1.error();
 
   AWAIT_READY(awaitFinished(task1.get()));
 
@@ -1351,7 +1351,7 @@ TEST_F(FetcherCacheTest, FallbackFromEviction)
 
   AWAIT_READY(fetcherInfo1);
 
-  EXPECT_EQ(1, fetcherInfo1.get().items_size());
+  ASSERT_EQ(1, fetcherInfo1.get().items_size());
   EXPECT_EQ(FetcherInfo::Item::DOWNLOAD_AND_CACHE,
             fetcherInfo1.get().items(0).action());
 
@@ -1359,7 +1359,7 @@ TEST_F(FetcherCacheTest, FallbackFromEviction)
   CHECK_EQ(Bytes(0u), fetcherProcess->availableCacheSpace());
 
   EXPECT_EQ(1u, fetcherProcess->cacheSize());
-  EXPECT_SOME(fetcherProcess->cacheFiles(slaveId, flags));
+  ASSERT_SOME(fetcherProcess->cacheFiles(slaveId, flags));
   EXPECT_EQ(1u, fetcherProcess->cacheFiles(slaveId, flags).get().size());
 
 
@@ -1387,7 +1387,7 @@ TEST_F(FetcherCacheTest, FallbackFromEviction)
   commandInfo2.add_uris()->CopyFrom(uri2);
 
   const Try<Task> task2 = launchTask(commandInfo2, 2);
-  EXPECT_SOME(task2) << task2.error();
+  ASSERT_SOME(task2) << task2.error();
 
   AWAIT_READY(awaitFinished(task2.get()));
 
@@ -1399,12 +1399,12 @@ TEST_F(FetcherCacheTest, FallbackFromEviction)
 
   AWAIT_READY(fetcherInfo2);
 
-  EXPECT_EQ(1, fetcherInfo2.get().items_size());
+  ASSERT_EQ(1, fetcherInfo2.get().items_size());
   EXPECT_EQ(FetcherInfo::Item::BYPASS_CACHE,
             fetcherInfo2.get().items(0).action());
 
   EXPECT_EQ(1u, fetcherProcess->cacheSize());
-  EXPECT_SOME(fetcherProcess->cacheFiles(slaveId, flags));
+  ASSERT_SOME(fetcherProcess->cacheFiles(slaveId, flags));
   EXPECT_EQ(1u, fetcherProcess->cacheFiles(slaveId, flags).get().size());
 }
 
