@@ -16,11 +16,11 @@
  * limitations under the License.
  */
 
-#include <pthread.h>
 #include <stdlib.h> // For random.
 
 #include <cstdlib>
 #include <iostream>
+#include <thread>
 
 #include <mesos/executor.hpp>
 
@@ -44,15 +44,6 @@ void run(ExecutorDriver* driver, const TaskInfo& task)
   status.set_state(TASK_FINISHED);
 
   driver->sendStatusUpdate(status);
-}
-
-
-void* start(void* arg)
-{
-  lambda::function<void(void)>* thunk = (lambda::function<void(void)>*) arg;
-  (*thunk)();
-  delete thunk;
-  return NULL;
 }
 
 
@@ -81,25 +72,17 @@ public:
   {
     cout << "Starting task " << task.task_id().value() << endl;
 
-    lambda::function<void(void)>* thunk =
-      new lambda::function<void(void)>(lambda::bind(&run, driver, task));
+    std::thread* thread = new std::thread([=]() {
+      run(driver, task);
+    });
 
-    pthread_t pthread;
-    if (pthread_create(&pthread, NULL, &start, thunk) != 0) {
-      TaskStatus status;
-      status.mutable_task_id()->MergeFrom(task.task_id());
-      status.set_state(TASK_FAILED);
+    thread->detach();
 
-      driver->sendStatusUpdate(status);
-    } else {
-      pthread_detach(pthread);
+    TaskStatus status;
+    status.mutable_task_id()->MergeFrom(task.task_id());
+    status.set_state(TASK_RUNNING);
 
-      TaskStatus status;
-      status.mutable_task_id()->MergeFrom(task.task_id());
-      status.set_state(TASK_RUNNING);
-
-      driver->sendStatusUpdate(status);
-    }
+    driver->sendStatusUpdate(status);
   }
 
   virtual void killTask(ExecutorDriver* driver, const TaskID& taskId) {}
