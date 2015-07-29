@@ -314,8 +314,8 @@ public:
 
   virtual void TearDown()
   {
-    MesosTest::TearDown();
     server->shutdownNetwork();
+    MesosTest::TearDown();
   }
 
 protected:
