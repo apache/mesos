@@ -1524,51 +1524,11 @@ void Master::detected(const Future<Option<MasterInfo>>& _leader)
 }
 
 
-// Helper to convert authorization result to Future<Option<Error>>.
-static Future<Option<Error>> _authorize(const string& message, bool authorized)
+Future<bool> Master::authorizeFramework(
+    const FrameworkInfo& frameworkInfo)
 {
-  if (authorized) {
-    return None();
-  }
-
-  return Error(message);
-}
-
-
-Future<Option<Error>> Master::validate(
-    const FrameworkInfo& frameworkInfo,
-    const UPID& from)
-{
-  if (flags.authenticate_frameworks) {
-    if (!authenticated.contains(from)) {
-      // This could happen if another authentication request came
-      // through before we are here or if a framework tried to
-      // (re-)register without authentication.
-      return Error("Framework at " + stringify(from) + " is not authenticated");
-    } else if (frameworkInfo.has_principal() &&
-               frameworkInfo.principal() != authenticated[from]) {
-      return Error(
-          "Framework principal '" + frameworkInfo.principal() +
-          "' does not match authenticated principal '" + authenticated[from]  +
-          "'");
-    } else if (!frameworkInfo.has_principal()) {
-      // We allow an authenticated framework to not specify a
-      // principal in FrameworkInfo but we'd prefer if it did so we log
-      // a WARNING here when this happens.
-      LOG(WARNING) << "Framework at " << from << " (authenticated as '"
-                   << authenticated[from]
-                   << "') does not specify principal in its FrameworkInfo";
-    }
-  }
-
-  // TODO(vinod): Deprecate this in favor of ACLs.
-  if (!roles.contains(frameworkInfo.role())) {
-    return Error("Role '" + frameworkInfo.role() + "' is invalid");
-  }
-
   if (authorizer.isNone()) {
-    // Authorization is disabled.
-    return None();
+    return true; // Authorization is disabled.
   }
 
   LOG(INFO) << "Authorizing framework principal '" << frameworkInfo.principal()
@@ -1583,10 +1543,37 @@ Future<Option<Error>> Master::validate(
   }
   request.mutable_roles()->add_values(frameworkInfo.role());
 
-  return authorizer.get()->authorize(request).then(
-      lambda::bind(&_authorize,
-                   "Not authorized to use role '" + frameworkInfo.role() + "'",
-                   lambda::_1));
+  return authorizer.get()->authorize(request);
+}
+
+
+Option<Error> Master::validateFrameworkAuthentication(
+    const FrameworkInfo& frameworkInfo,
+    const UPID& from)
+{
+  if (authenticating.contains(from)) {
+    return Error("Re-authentication in progress");
+  }
+
+  if (flags.authenticate_frameworks) {
+    if (!authenticated.contains(from)) {
+      // This could happen if another authentication request came
+      // through before we are here or if a framework tried to
+      // (re-)register without authentication.
+      return Error("Framework at " + stringify(from) + " is not authenticated");
+    }
+
+    // TODO(bmahler): Currently the scheduler driver does not
+    // set 'principal', so we allow framweworks to omit it.
+    if (frameworkInfo.has_principal() &&
+        frameworkInfo.principal() != authenticated[from]) {
+      return Error("Framework principal '" + frameworkInfo.principal() + "'"
+                   " does not match authenticated principal"
+                   " '" + authenticated[from]  + "'");
+    }
+  }
+
+  return None();
 }
 
 
@@ -1708,18 +1695,6 @@ void Master::registerFramework(
 {
   ++metrics->messages_register_framework;
 
-  // A framework with a valid id should re-register instead of
-  // register with the master.
-  // TODO(vinod): Add "!=" operator for FrameworkID.
-  if (frameworkInfo.has_id() && !(frameworkInfo.id() == "")) {
-    LOG(ERROR) << "Framework '" << frameworkInfo.name() << "' at " << from
-               << " registering with an id!";
-    FrameworkErrorMessage message;
-    message.set_message("Framework registering with a framework id");
-    send(from, message);
-    return;
-  }
-
   if (authenticating.contains(from)) {
     // TODO(vinod): Consider dropping this request and fix the tests
     // to deal with the drop. Currently there is a race between master
@@ -1735,10 +1710,56 @@ void Master::registerFramework(
     return;
   }
 
+  Option<Error> validationError = None();
+
+  // TODO(vinod): Add "!=" operator for FrameworkID.
+  if (frameworkInfo.has_id() && !(frameworkInfo.id() == "")) {
+    validationError = Error("Registering with 'id' already set");
+  }
+
+  // TODO(vinod): Deprecate this in favor of ACLs.
+  if (validationError.isNone() && !roles.contains(frameworkInfo.role())) {
+    validationError = Error("Role '" + frameworkInfo.role() + "' is not" +
+                            " present in the master's --roles");
+  }
+
+  // TODO(vinod): Deprecate this in favor of authorization.
+  if (validationError.isNone()) {
+    if (frameworkInfo.user() == "root" && !flags.root_submissions) {
+      validationError = Error("User 'root' is not allowed to run frameworks"
+                              " without --root_submissions set");
+    }
+  }
+
+  // Note that re-authentication errors are already handled above.
+  if (validationError.isNone()) {
+    validationError = validateFrameworkAuthentication(frameworkInfo, from);
+  }
+
+  if (validationError.isSome()) {
+    LOG(INFO) << "Refusing registration of framework"
+              << " '" << frameworkInfo.name() << "' at " << from << ": "
+              << validationError.get().message;
+
+    FrameworkErrorMessage message;
+    message.set_message(validationError.get().message);
+    send(from, message);
+    return;
+  }
+
   LOG(INFO) << "Received registration request for"
             << " framework '" << frameworkInfo.name() << "' at " << from;
 
-  validate(frameworkInfo, from)
+  // We allow an authenticated framework to not specify a principal
+  // in FrameworkInfo but we'd prefer if it did so we log a WARNING
+  // here when it happens.
+  if (!frameworkInfo.has_principal() && authenticated.contains(from)) {
+    LOG(WARNING) << "Framework at " << from
+                 << " (authenticated as '" << authenticated[from] << "')"
+                 << " does not set 'principal' in FrameworkInfo";
+  }
+
+  authorizeFramework(frameworkInfo)
     .onAny(defer(self(),
                  &Master::_registerFramework,
                  from,
@@ -1750,37 +1771,41 @@ void Master::registerFramework(
 void Master::_registerFramework(
     const UPID& from,
     const FrameworkInfo& frameworkInfo,
-    const Future<Option<Error>>& validationError)
+    const Future<bool>& authorized)
 {
-  CHECK_READY(validationError);
+  CHECK(!authorized.isDiscarded());
 
-  if (validationError.get().isSome()) {
-    LOG(INFO) << "Refusing registration of framework '"
-              << frameworkInfo.name() << "' at " << from
-              << ": " << validationError.get().get().message;
+  Option<Error> authorizationError = None();
+
+  if (authorized.isFailed()) {
+    authorizationError =
+      Error("Authorization failure: " + authorized.failure());
+  } else if (!authorized.get()) {
+    authorizationError =
+      Error("Not authorized to use role '" + frameworkInfo.role() + "'");
+  }
+
+  if (authorizationError.isSome()) {
+    LOG(INFO) << "Refusing registration of framework"
+              << " '" << frameworkInfo.name() << "' at " << from
+              << ": " << authorizationError.get().message;
 
     FrameworkErrorMessage message;
-    message.set_message(validationError.get().get().message);
+    message.set_message(authorizationError.get().message);
     send(from, message);
     return;
   }
 
-  if (authenticating.contains(from)) {
-    // This could happen if a new authentication request came from the
-    // same framework while validation was in progress.
+  // At this point, authentications errors will be due to
+  // re-authentication during the authorization process,
+  // so we drop the registration.
+  Option<Error> authenticationError =
+    validateFrameworkAuthentication(frameworkInfo, from);
+
+  if (authenticationError.isSome()) {
     LOG(INFO) << "Dropping registration request for framework"
               << " '" << frameworkInfo.name() << "' at " << from
-              << " because new authentication attempt is in progress";
-
-    return;
-  }
-
-  if (flags.authenticate_frameworks && !authenticated.contains(from)) {
-    // This could happen if another (failed over) framework
-    // authenticated while validation was in progress.
-    LOG(INFO)
-      << "Dropping registration request for framework '" << frameworkInfo.name()
-      << "' at " << from << " because it is not authenticated";
+              << ": " << authenticationError.get().message;
     return;
   }
 
@@ -1795,19 +1820,6 @@ void Master::_registerFramework(
       framework->send(message);
       return;
     }
-  }
-
-  // TODO(vinod): Deprecate this in favor of authorization.
-  bool rootSubmissions = flags.root_submissions;
-
-  if (frameworkInfo.user() == "root" && rootSubmissions == false) {
-    LOG(INFO) << "Framework " << frameworkInfo.name() << " at " << from
-              << " registering as root, but root submissions are disabled"
-              << " on this cluster";
-    FrameworkErrorMessage message;
-    message.set_message("User 'root' is not allowed to run frameworks");
-    send(from, message);
-    return;
   }
 
   // Assign a new FrameworkID.
@@ -1837,15 +1849,6 @@ void Master::reregisterFramework(
 {
   ++metrics->messages_reregister_framework;
 
-  if (!frameworkInfo.has_id() || frameworkInfo.id() == "") {
-    LOG(ERROR) << "Framework '" << frameworkInfo.name() << "' at " << from
-               << " re-registering without an id!";
-    FrameworkErrorMessage message;
-    message.set_message("Framework reregistering without a framework id");
-    send(from, message);
-    return;
-  }
-
   if (authenticating.contains(from)) {
     LOG(INFO) << "Queuing up re-registration request for framework "
               << frameworkInfo.id() << " (" << frameworkInfo.name() << ") at "
@@ -1863,27 +1866,70 @@ void Master::reregisterFramework(
     return;
   }
 
-  foreach (const shared_ptr<Framework>& framework, frameworks.completed) {
-    if (framework->id() == frameworkInfo.id()) {
-      // This could happen if a framework tries to re-register after
-      // its failover timeout has elapsed or it unregistered itself
-      // by calling 'stop()' on the scheduler driver.
-      // TODO(vinod): Master should persist admitted frameworks to the
-      // registry and remove them from it after failover timeout.
-      LOG(WARNING) << "Completed framework " << *framework
-                   << " attempted to re-register";
-      FrameworkErrorMessage message;
-      message.set_message("Completed framework attempted to re-register");
-      send(from, message);
-      return;
+  Option<Error> validationError = None();
+
+  if (!frameworkInfo.has_id() || frameworkInfo.id() == "") {
+    validationError = Error("Re-registering without 'id' set");
+  }
+
+  // TODO(vinod): Deprecate this in favor of ACLs.
+  if (validationError.isNone() && !roles.contains(frameworkInfo.role())) {
+    validationError = Error("Role '" + frameworkInfo.role() + "' is not" +
+                            " present in the master's --roles");
+  }
+
+  // TODO(vinod): Deprecate this in favor of authorization.
+  if (validationError.isNone()) {
+    if (frameworkInfo.user() == "root" && !flags.root_submissions) {
+      validationError = Error("User 'root' is not allowed to run frameworks"
+                              " without --root_submissions set");
     }
+  }
+
+  if (validationError.isNone()) {
+    foreach (const shared_ptr<Framework>& framework, frameworks.completed) {
+      if (framework->id() == frameworkInfo.id()) {
+        // This could happen if a framework tries to re-register after
+        // its failover timeout has elapsed or it unregistered itself
+        // by calling 'stop()' on the scheduler driver.
+        // TODO(vinod): Master should persist admitted frameworks to the
+        // registry and remove them from it after failover timeout.
+        validationError = Error("Framework has been removed");
+        break;
+      }
+    }
+  }
+
+  // Note that re-authentication errors are already handled above.
+  if (validationError.isNone()) {
+    validationError = validateFrameworkAuthentication(frameworkInfo, from);
+  }
+
+  if (validationError.isSome()) {
+    LOG(INFO) << "Refusing re-registration of framework"
+              << " '" << frameworkInfo.name() << "' at " << from << ": "
+              << validationError.get().message;
+
+    FrameworkErrorMessage message;
+    message.set_message(validationError.get().message);
+    send(from, message);
+    return;
   }
 
   LOG(INFO) << "Received re-registration request from framework "
             << frameworkInfo.id() << " (" << frameworkInfo.name()
             << ") at " << from;
 
-  validate(frameworkInfo, from)
+  // We allow an authenticated framework to not specify a principal
+  // in FrameworkInfo but we'd prefer if it did so we log a WARNING
+  // here when it happens.
+  if (!frameworkInfo.has_principal() && authenticated.contains(from)) {
+    LOG(WARNING) << "Framework at " << from
+                 << " (authenticated as '" << authenticated[from] << "')"
+                 << " does not set 'principal' in FrameworkInfo";
+  }
+
+  authorizeFramework(frameworkInfo)
     .onAny(defer(self(),
                  &Master::_reregisterFramework,
                  from,
@@ -1897,39 +1943,44 @@ void Master::_reregisterFramework(
     const UPID& from,
     const FrameworkInfo& frameworkInfo,
     bool failover,
-    const Future<Option<Error>>& validationError)
+    const Future<bool>& authorized)
 {
-  CHECK_READY(validationError);
+  CHECK(!authorized.isDiscarded());
 
-  if (validationError.get().isSome()) {
-    LOG(INFO) << "Refusing re-registration of framework " << frameworkInfo.id()
-              << " (" << frameworkInfo.name() << ") " << " at " << from
-              << ": " << validationError.get().get().message;
+  Option<Error> authorizationError = None();
+
+  if (authorized.isFailed()) {
+    authorizationError =
+      Error("Authorization failure: " + authorized.failure());
+  } else if (!authorized.get()) {
+    authorizationError =
+      Error("Not authorized to use role '" + frameworkInfo.role() + "'");
+  }
+
+  if (authorizationError.isSome()) {
+    LOG(INFO) << "Refusing re-registration of framework"
+              << " '" << frameworkInfo.name() << "' at " << from
+              << ": " << authorizationError.get().message;
 
     FrameworkErrorMessage message;
-    message.set_message(validationError.get().get().message);
+    message.set_message(authorizationError.get().message);
     send(from, message);
     return;
   }
 
-  if (authenticating.contains(from)) {
-    // This could happen if a new authentication request came from the
-    // same framework while validation was in progress.
-    LOG(INFO) << "Dropping re-registration request of framework "
-              << frameworkInfo.id() << " (" << frameworkInfo.name() << ") at "
-              << from << " because new authentication attempt is in progress";
-    return;
-  }
+  // At this point, authentications errors will be due to
+  // re-authentication during the authorization process,
+  // so we drop the re-registration. It is important to
+  // drop this because if this request is from a failing
+  // over framework (pid = from) we don't want to failover
+  // the already registered framework (pid = framework->pid).
+  Option<Error> authenticationError =
+    validateFrameworkAuthentication(frameworkInfo, from);
 
-  if (flags.authenticate_frameworks && !authenticated.contains(from)) {
-    // This could happen if another (failed over) framework
-    // authenticated while validation was in progress. It is important
-    // to drop this because if this request is from a failing over
-    // framework (pid = from) we don't want to failover the already
-    // registered framework (pid = framework->pid).
-    LOG(INFO) << "Dropping re-registration request of framework "
-              << frameworkInfo.id() << " (" << frameworkInfo.name() << ") "
-              << " at " << from << " because it is not authenticated";
+  if (authenticationError.isSome()) {
+    LOG(INFO) << "Dropping re-registration request for framework"
+              << " '" << frameworkInfo.name() << "' at " << from
+              << ": " << authenticationError.get().message;
     return;
   }
 
@@ -2331,8 +2382,7 @@ Future<bool> Master::authorizeTask(
     Framework* framework)
 {
   if (authorizer.isNone()) {
-    // Authorization is disabled.
-    return true;
+    return true; // Authorization is disabled.
   }
 
   // Authorize the task.

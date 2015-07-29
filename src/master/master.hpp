@@ -575,14 +575,14 @@ protected:
   void _registerFramework(
       const process::UPID& from,
       const FrameworkInfo& frameworkInfo,
-      const process::Future<Option<Error>>& validationError);
+      const process::Future<bool>& authorized);
 
   // 'reregisterFramework()' continuation.
   void _reregisterFramework(
       const process::UPID& from,
       const FrameworkInfo& frameworkInfo,
       bool failover,
-      const process::Future<Option<Error>>& validationError);
+      const process::Future<bool>& authorized);
 
   // Add a framework.
   void addFramework(Framework* framework);
@@ -630,9 +630,17 @@ protected:
       const std::string& message,
       Option<process::metrics::Counter> reason = None());
 
-  // Authorizes the task.
-  // Returns true if task is authorized.
-  // Returns false if task is not authorized.
+  // Validates that the framework is authenticated, if required.
+  Option<Error> validateFrameworkAuthentication(
+      const FrameworkInfo& frameworkInfo,
+      const process::UPID& from);
+
+  // Returns whether the framework is authorized.
+  // Returns failure for transient authorization failures.
+  process::Future<bool> authorizeFramework(
+      const FrameworkInfo& frameworkInfo);
+
+  // Returns whether the task is authorized.
   // Returns failure for transient authorization failures.
   process::Future<bool> authorizeTask(
       const TaskInfo& task,
