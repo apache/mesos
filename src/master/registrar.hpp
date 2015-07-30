@@ -58,7 +58,7 @@ public:
       hashset<SlaveID>* slaveIDs,
       bool strict)
   {
-    const Try<bool>& result = perform(registry, slaveIDs, strict);
+    const Try<bool> result = perform(registry, slaveIDs, strict);
 
     success = !result.isError();
 
