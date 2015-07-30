@@ -115,7 +115,7 @@ Attribute Attributes::parse(const std::string& name, const std::string& text)
     LOG(FATAL) << "Failed to parse attribute " << name
                << " text " << text
                << " error " << result.error();
-  } else{
+  } else {
     Value value = result.get();
     attribute.set_name(name);
 
@@ -147,9 +147,9 @@ Attributes Attributes::parse(const string& s)
   vector<string> tokens = strings::tokenize(s, ";\n");
 
   for (size_t i = 0; i < tokens.size(); i++) {
-    const vector<string>& pairs = strings::tokenize(tokens[i], ":");
-    if (pairs.size() != 2) {
-      LOG(FATAL) << "Bad value for attributes, missing ':' within " << pairs[0];
+    const vector<string>& pairs = strings::split(tokens[i], ":", 2);
+    if (pairs.size() != 2 || pairs[0].empty() || pairs[1].empty()) {
+      LOG(FATAL) << "Invalid attribute key:value pair '" << tokens[i] << "'";
     }
 
     attributes.add(parse(pairs[0], pairs[1]));

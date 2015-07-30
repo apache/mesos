@@ -51,6 +51,14 @@ TEST(AttributesTest, Parsing)
   ASSERT_EQ(Value::TEXT, a.get(2).type());
   ASSERT_EQ("rack", a.get(2).name());
   ASSERT_EQ("rack1,rack2", a.get(2).text().value());
+
+  Attributes b = Attributes::parse("attr1:foo:bar;attr2:baz:qux:");
+  ASSERT_EQ(Value::TEXT, b.get(0).type());
+  ASSERT_EQ("attr1", b.get(0).name());
+  ASSERT_EQ("foo:bar", b.get(0).text().value());
+  ASSERT_EQ(Value::TEXT, b.get(1).type());
+  ASSERT_EQ("attr2", b.get(1).name());
+  ASSERT_EQ("baz:qux:", b.get(1).text().value());
 }
 
 
