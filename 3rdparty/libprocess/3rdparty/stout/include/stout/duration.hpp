@@ -16,7 +16,13 @@
 
 #include <ctype.h> // For 'isdigit'.
 #include <limits.h> // For 'LLONG_(MAX|MIN)'.
-#include <time.h> // For 'timeval'.
+
+// For 'timeval'.
+#ifdef __WINDOWS__
+#include <Winsock2.h>
+#else
+#include <time.h>
+#endif // __WINDOWS__
 
 #include <iomanip>
 #include <iostream>

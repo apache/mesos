@@ -15,14 +15,20 @@
 #define __STOUT_FORMAT_HPP__
 
 #include <stdarg.h> // For 'va_list', 'va_start', 'va_end'.
-#include <stdio.h> // For 'vasprintf'.
+
+// For 'vasprintf'.
+#ifdef __WINDOWS__
+#include <stout/windows/format.hpp>
+#else
+#include <stdio.h>
+#endif // __WINDOWS__
 
 #include <string>
 #include <type_traits> // For 'is_pod'.
 
-#include "error.hpp"
-#include "stringify.hpp"
-#include "try.hpp"
+#include <stout/error.hpp>
+#include <stout/stringify.hpp>
+#include <stout/try.hpp>
 
 
 // The 'strings::format' functions produces strings based on the

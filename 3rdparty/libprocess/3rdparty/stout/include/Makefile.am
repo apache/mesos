@@ -13,6 +13,7 @@
 # Headers.
 nobase_include_HEADERS =		\
   stout/abort.hpp			\
+  stout/attributes.hpp			\
   stout/base64.hpp			\
   stout/bits.hpp			\
   stout/bytes.hpp			\
@@ -40,6 +41,8 @@ nobase_include_HEADERS =		\
   stout/json.hpp			\
   stout/lambda.hpp			\
   stout/linkedhashmap.hpp		\
+  stout/posix/gzip.hpp			\
+  stout/posix/net.hpp			\
   stout/list.hpp			\
   stout/mac.hpp				\
   stout/multihashmap.hpp		\
@@ -89,4 +92,8 @@ nobase_include_HEADERS =		\
   stout/unreachable.hpp			\
   stout/utils.hpp			\
   stout/uuid.hpp			\
-  stout/version.hpp
+  stout/version.hpp			\
+  stout/windows/format.hpp		\
+  stout/windows/gzip.hpp		\
+  stout/windows/net.hpp			\
+  stout/windows/preprocessor.hpp	\

@@ -18,9 +18,17 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#ifdef __WINDOWS__
+#include <stout/windows/preprocessor.hpp>
+#else
 #include <unistd.h>
+#endif // __WINDOWS__
 
 #include <string>
+
+#include <stout/attributes.hpp>
+
 
 // Signal safe abort which prints a message.
 #define __STRINGIZE(x) #x
@@ -29,9 +37,8 @@
 
 #define ABORT(...) _Abort(_ABORT_PREFIX, __VA_ARGS__)
 
-inline __attribute__((noreturn)) void _Abort(
-    const char* prefix,
-    const char* message)
+
+inline NORETURN void _Abort(const char* prefix, const char* message)
 {
   // Write the failure message in an async-signal safe manner,
   // assuming strlen is async-signal safe or optimized out.
@@ -47,10 +54,10 @@ inline __attribute__((noreturn)) void _Abort(
 }
 
 
-inline __attribute__((noreturn)) void _Abort(
-  const char* prefix,
-  const std::string& message) {
+inline NORETURN void _Abort(const char* prefix, const std::string& message)
+{
   _Abort(prefix, message.c_str());
 }
+
 
 #endif // __STOUT_ABORT_HPP__

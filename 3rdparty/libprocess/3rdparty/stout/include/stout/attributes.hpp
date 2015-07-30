@@ -11,17 +11,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef __STOUT_GZIP_HPP__
-#define __STOUT_GZIP_HPP__
+#ifndef __STOUT_ATTRIBUTES_HPP__
+#define __STOUT_ATTRIBUTES_HPP__
 
 
-// For readability, we minimize the number of #ifdef blocks in the code by
-// splitting platform specifc system calls into separate directories.
 #ifdef __WINDOWS__
-#include <stout/windows/gzip.hpp>
+#define NORETURN __declspec(noreturn)
 #else
-#include <stout/posix/gzip.hpp>
+#define NORETURN __attribute__((noreturn))
 #endif // __WINDOWS__
 
 
-#endif // __STOUT_GZIP_HPP__
+#endif // __STOUT_ATTRIBUTES_HPP__

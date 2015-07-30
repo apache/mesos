@@ -14,11 +14,16 @@
 #ifndef __STOUT_IP_HPP__
 #define __STOUT_IP_HPP__
 
+// For 'sockaddr'.
+#ifdef __WINDOWS__
+#include <Winsock2.h>
+#else
 #include <arpa/inet.h>
+#endif // __WINDOWS__
 
 #if defined(__linux__) || defined(__APPLE__)
 #include <ifaddrs.h>
-#endif
+#endif // __linux__ || __APPLE__
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
@@ -27,11 +32,18 @@
 #include <net/if.h>
 #include <net/if_dl.h>
 #include <net/if_types.h>
-#endif
+#endif // __APPLE__
 
+// Note: Header grouping and ordering is considered before
+// inclusion/exclusion by platform.
+// For 'inet_pton', 'inet_ntop'.
+#ifdef __WINDOWS__
+#include <Ws2tcpip.h>
+#else
 #include <netinet/in.h>
-
 #include <sys/socket.h>
+#endif // __WINDOWS__
+
 #include <sys/types.h>
 
 #include <iostream>
@@ -39,17 +51,21 @@
 #include <vector>
 
 
-#include "abort.hpp"
-#include "bits.hpp"
-#include "error.hpp"
-#include "none.hpp"
-#include "numify.hpp"
-#include "option.hpp"
-#include "result.hpp"
-#include "stringify.hpp"
-#include "strings.hpp"
-#include "try.hpp"
-#include "unreachable.hpp"
+#include <stout/abort.hpp>
+#include <stout/bits.hpp>
+#include <stout/error.hpp>
+#include <stout/none.hpp>
+#include <stout/numify.hpp>
+#include <stout/option.hpp>
+#include <stout/result.hpp>
+#include <stout/stringify.hpp>
+#include <stout/strings.hpp>
+#include <stout/try.hpp>
+#include <stout/unreachable.hpp>
+
+#ifdef __WINDOWS__
+#include <stout/windows/preprocessor.hpp>
+#endif // __WINDOWS__
 
 
 namespace net {

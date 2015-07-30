@@ -16,12 +16,19 @@
 
 #include <iostream>
 
+#include <stout/abort.hpp>
+#include <stout/attributes.hpp>
+
+
 #define UNREACHABLE() Unreachable(__FILE__, __LINE__)
 
-inline __attribute__((noreturn)) void Unreachable(const char *file, int line) {
+
+inline NORETURN void Unreachable(const char* file, int line)
+{
   std::cerr << "Reached unreachable statement at " << file << ':'
             << line << std::endl;
   abort();
 }
+
 
 #endif // __STOUT_UNREACHABLE_HPP__
