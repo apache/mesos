@@ -665,6 +665,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
 	tests/containerizer/isolator.hpp				\
 	tests/containerizer/launcher.hpp				\
 	tests/containerizer/memory_test_helper.hpp			\
+	tests/containerizer/rootfs.hpp					\
 	tests/containerizer/setns_test_helper.hpp			\
 	usage/usage.hpp							\
 	watcher/whitelist_watcher.hpp					\

@@ -21,24 +21,22 @@
 
 #include <gmock/gmock.h>
 
-#include <stout/foreach.hpp>
 #include <stout/gtest.hpp>
+#include <stout/none.hpp>
+#include <stout/option.hpp>
 #include <stout/os.hpp>
 #include <stout/try.hpp>
 
 #include <process/gtest.hpp>
-#include <process/io.hpp>
 #include <process/reap.hpp>
 #include <process/subprocess.hpp>
 
-#include "mesos/resources.hpp"
-
 #include "slave/containerizer/mesos/launch.hpp"
-
-#include "linux/fs.hpp"
 
 #include "tests/flags.hpp"
 #include "tests/utils.hpp"
+
+#include "tests/containerizer/rootfs.hpp"
 
 using namespace process;
 
@@ -49,62 +47,15 @@ namespace mesos {
 namespace internal {
 namespace tests {
 
-class Chroot
+// TODO(jieyu): Move this test to mesos_containerizer_tests.cpp once
+// we have a filesystem isolator that supports changing rootfs.
+
+class MesosContainerizerLaunchTest : public TemporaryDirectoryTest
 {
 public:
-  Chroot(const string& _rootfs)
-    : rootfs(_rootfs) {}
-
-  virtual ~Chroot() {}
-
-  virtual Try<Subprocess> run(const string& command) = 0;
-
-  const string rootfs;
-};
-
-
-class BasicLinuxChroot : public Chroot
-{
-public:
-  static Try<Owned<Chroot>> create(const string& rootfs)
-  {
-    if (!os::exists(rootfs)) {
-      return Error("rootfs does not exist");
-    }
-
-    if (os::system("cp -r /bin " + rootfs + "/") != 0) {
-      return ErrnoError("Failed to copy /bin to chroot");
-    }
-
-    if (os::system("cp -r /lib " + rootfs + "/") != 0) {
-      return ErrnoError("Failed to copy /lib to chroot");
-    }
-
-    if (os::system("cp -r /lib64 " + rootfs + "/") != 0) {
-      return ErrnoError("Failed to copy /lib64 to chroot");
-    }
-
-    vector<string> directories = {"proc", "sys", "dev", "tmp"};
-    foreach (const string& directory, directories) {
-      Try<Nothing> mkdir = os::mkdir(path::join(rootfs, directory));
-      if (mkdir.isError()) {
-        return Error("Failed to create /" + directory + " in chroot: " +
-                     mkdir.error());
-      }
-    }
-
-    // We need to bind mount the rootfs so we can pivot on it.
-    Try<Nothing> mount =
-      fs::mount(rootfs, rootfs, None(), MS_BIND | MS_SLAVE, NULL);
-
-    if (mount.isError()) {
-      return Error("Failed to bind mount chroot rootfs: " + mount.error());
-    }
-
-    return Owned<Chroot>(new BasicLinuxChroot(rootfs));
-  }
-
-  virtual Try<Subprocess> run(const string& _command)
+  Try<Subprocess> run(
+      const string& _command,
+      const Option<string>& rootfs = None())
   {
     slave::MesosContainerizerLaunch::Flags launchFlags;
 
@@ -125,23 +76,15 @@ public:
         path::join(tests::flags.build_dir, "src", "mesos-containerizer"),
         argv,
         Subprocess::PATH("/dev/null"),
-        Subprocess::PIPE(),
+        Subprocess::FD(STDOUT_FILENO),
         Subprocess::FD(STDERR_FILENO),
         launchFlags,
         None(),
         None(),
         lambda::bind(&clone, lambda::_1));
 
-    if (s.isError()) {
-      close(launchFlags.pipe_read.get());
-      close(launchFlags.pipe_write.get());
-    } else {
-      s.get().status().onAny([=]() {
-        // Close when the subprocess terminates.
-        close(launchFlags.pipe_read.get());
-        close(launchFlags.pipe_write.get());
-      });
-    }
+    close(launchFlags.pipe_read.get());
+    close(launchFlags.pipe_write.get());
 
     return s;
   }
@@ -165,47 +108,26 @@ private:
 
     return (*_f)();
   }
-
-  BasicLinuxChroot(const string& rootfs) : Chroot(rootfs) {}
-
-  ~BasicLinuxChroot()
-  {
-    // Because the test process has the rootfs as its cwd the umount
-    // won't actually happen until the
-    // TemporaryDirectoryTest::TearDown() changes back to the original
-    // directory.
-    fs::unmount(rootfs, MNT_DETACH);
-  }
 };
 
 
-template <typename T>
-class LaunchChrootTest : public TemporaryDirectoryTest {};
-
-
-// TODO(idownes): Add tests for OSX chroots.
-typedef ::testing::Types<BasicLinuxChroot> ChrootTypes;
-
-
-TYPED_TEST_CASE(LaunchChrootTest, ChrootTypes);
-
-
-TYPED_TEST(LaunchChrootTest, ROOT_DifferentRoot)
+TEST_F(MesosContainerizerLaunchTest, ROOT_ChangeRootfs)
 {
-  Try<Owned<Chroot>> chroot = TypeParam::create(os::getcwd());
-  ASSERT_SOME(chroot);
+  Try<Owned<Rootfs>> rootfs =
+    LinuxRootfs::create(path::join(os::getcwd(), "rootfs"));
 
-  // Add /usr/bin/stat into the chroot.
-  const string usrbin = path::join(chroot.get()->rootfs, "usr", "bin");
-  ASSERT_SOME(os::mkdir(usrbin));
-  ASSERT_EQ(0, os::system("cp /usr/bin/stat " + path::join(usrbin, "stat")));
+  ASSERT_SOME(rootfs);
+
+  // Add /usr/bin/stat into the rootfs.
+  ASSERT_SOME(rootfs.get()->add("/usr/bin/stat"));
 
   Clock::pause();
 
-  Try<Subprocess> s = chroot.get()->run(
-      "/usr/bin/stat -c %i / >" + path::join("/", "stat.output"));
+  Try<Subprocess> s = run(
+      "/usr/bin/stat -c %i / >" + path::join("/", "stat.output"),
+      rootfs.get()->root);
 
-  CHECK_SOME(s);
+  ASSERT_SOME(s);
 
   // Advance time until the internal reaper reaps the subprocess.
   while (s.get().status().isPending()) {
@@ -220,12 +142,12 @@ TYPED_TEST(LaunchChrootTest, ROOT_DifferentRoot)
   ASSERT_TRUE(WIFEXITED(status));
   ASSERT_EQ(0, WEXITSTATUS(status));
 
-  // Check the chroot has a different root by comparing the inodes.
+  // Check the rootfs has a different root by comparing the inodes.
   Try<ino_t> self = os::stat::inode("/");
   ASSERT_SOME(self);
 
-  Try<string> read = os::read(path::join(chroot.get()->rootfs, "stat.output"));
-  CHECK_SOME(read);
+  Try<string> read = os::read(path::join(rootfs.get()->root, "stat.output"));
+  ASSERT_SOME(read);
 
   Try<ino_t> other = numify<ino_t>(strings::trim(read.get()));
   ASSERT_SOME(other);
