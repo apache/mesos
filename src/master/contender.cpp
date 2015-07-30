@@ -22,6 +22,7 @@
 
 #include <stout/check.hpp>
 #include <stout/lambda.hpp>
+#include <stout/protobuf.hpp>
 
 #include "master/constants.hpp"
 #include "master/contender.hpp"
@@ -234,13 +235,13 @@ Future<Future<Nothing> > ZooKeeperMasterContenderProcess::contend()
     delete contender;
   }
 
-  // Serialize the MasterInfo to string.
-  string data;
-  if (!masterInfo.get().SerializeToString(&data)) {
-    return Failure("Failed to serialize data to MasterInfo");
-  }
+  // Serialize the MasterInfo to JSON.
+  JSON::Object json = JSON::Protobuf(masterInfo.get());
 
-  contender = new LeaderContender(group.get(), data, master::MASTER_INFO_LABEL);
+  contender = new LeaderContender(
+      group.get(),
+      stringify(json),
+      master::MASTER_INFO_JSON_LABEL);
   candidacy = contender->contend();
   return candidacy.get();
 }
