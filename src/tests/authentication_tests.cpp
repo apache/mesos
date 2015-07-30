@@ -161,10 +161,48 @@ TEST_F(AuthenticationTest, DisableSlaveAuthentication)
 
 // This test verifies that an authenticated framework is denied
 // registration by the master if it uses a different
-// FrameworkInfo::principal.
+// FrameworkInfo.principal than Credential.principal.
 TEST_F(AuthenticationTest, MismatchedFrameworkInfoPrincipal)
 {
   Try<PID<Master> > master = StartMaster();
+  ASSERT_SOME(master);
+
+  MockScheduler sched;
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_principal("mismatched-principal");
+
+  MesosSchedulerDriver driver(
+      &sched,
+      frameworkInfo,
+      master.get(),
+      DEFAULT_CREDENTIAL);
+
+  Future<Nothing> error;
+  EXPECT_CALL(sched, error(&driver, _))
+    .WillOnce(FutureSatisfy(&error));
+
+  driver.start();
+
+  // Scheduler should get error message from the master.
+  AWAIT_READY(error);
+
+  driver.stop();
+  driver.join();
+
+  Shutdown();
+}
+
+
+// This test verifies that an authenticated framework is denied
+// registration by the master if it uses a different
+// FrameworkInfo::principal than Credential.principal, even
+// when authentication is not required.
+TEST_F(AuthenticationTest, DisabledFrameworkAuthenticationPrincipalMismatch)
+{
+  master::Flags flags = CreateMasterFlags();
+  flags.authenticate_frameworks = false; // Authentication not required.
+
+  Try<PID<Master> > master = StartMaster(flags);
   ASSERT_SOME(master);
 
   MockScheduler sched;

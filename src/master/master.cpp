@@ -1555,22 +1555,21 @@ Option<Error> Master::validateFrameworkAuthentication(
     return Error("Re-authentication in progress");
   }
 
-  if (flags.authenticate_frameworks) {
-    if (!authenticated.contains(from)) {
-      // This could happen if another authentication request came
-      // through before we are here or if a framework tried to
-      // (re-)register without authentication.
-      return Error("Framework at " + stringify(from) + " is not authenticated");
-    }
+  if (flags.authenticate_frameworks && !authenticated.contains(from)) {
+    // This could happen if another authentication request came
+    // through before we are here or if a framework tried to
+    // (re-)register without authentication.
+    return Error("Framework at " + stringify(from) + " is not authenticated");
+  }
 
-    // TODO(bmahler): Currently the scheduler driver does not
-    // set 'principal', so we allow framweworks to omit it.
-    if (frameworkInfo.has_principal() &&
-        frameworkInfo.principal() != authenticated[from]) {
-      return Error("Framework principal '" + frameworkInfo.principal() + "'"
-                   " does not match authenticated principal"
-                   " '" + authenticated[from]  + "'");
-    }
+  // TODO(bmahler): Currently the scheduler driver does not
+  // set 'principal', so we allow frameworks to omit it.
+  if (frameworkInfo.has_principal() &&
+      authenticated.contains(from) &&
+      frameworkInfo.principal() != authenticated[from]) {
+    return Error("Framework principal '" + frameworkInfo.principal() + "'"
+                 " does not match authenticated principal"
+                 " '" + authenticated[from]  + "'");
   }
 
   return None();
