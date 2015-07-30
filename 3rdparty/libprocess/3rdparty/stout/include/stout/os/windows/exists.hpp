@@ -11,17 +11,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef __STOUT_OS_PERMISSIONS_HPP__
-#define __STOUT_OS_PERMISSIONS_HPP__
+#ifndef __STOUT_OS_WINDOWS_EXISTS_HPP__
+#define __STOUT_OS_WINDOWS_EXISTS_HPP__
+
+#include <string>
 
 
-// For readability, we minimize the number of #ifdef blocks in the code by
-// splitting platform specifc system calls into separate directories.
-#ifdef __WINDOWS__
-#include <stout/os/windows/permissions.hpp>
-#else
-#include <stout/os/posix/permissions.hpp>
-#endif // __WINDOWS__
+namespace os {
+
+inline bool exists(const std::string& path)
+{
+  UNIMPLEMENTED;
+}
 
 
-#endif // __STOUT_OS_PERMISSIONS_HPP__
+// Determine if the process identified by pid exists.
+// NOTE: Zombie processes have a pid and therefore exist. See os::process(pid)
+// to get details of a process.
+inline bool exists(pid_t pid)
+{
+  UNIMPLEMENTED;
+}
+
+} // namespace os {
+
+#endif // __STOUT_OS_WINDOWS_EXISTS_HPP__

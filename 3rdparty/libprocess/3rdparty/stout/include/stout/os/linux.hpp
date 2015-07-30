@@ -11,8 +11,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef __STOUT_OS_LINUX_HPP__
-#define __STOUT_OS_LINUX_HPP__
+#ifndef __STOUT_OS_POSIX_HPP__
+#define __STOUT_OS_POSIX_HPP__
 
 // This file contains Linux-only OS utilities.
 #ifndef __linux__
@@ -98,4 +98,4 @@ inline Try<std::set<pid_t> > pids()
 
 } // namespace os {
 
-#endif // __STOUT_OS_LINUX_HPP__
+#endif // __STOUT_OS_POSIX_HPP__

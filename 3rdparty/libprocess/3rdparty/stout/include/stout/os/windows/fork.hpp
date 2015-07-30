@@ -11,17 +11,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef __STOUT_OS_PERMISSIONS_HPP__
-#define __STOUT_OS_PERMISSIONS_HPP__
+#ifndef __STOUT_OS_WINDOWS_FORK_HPP__
+#define __STOUT_OS_WINDOWS_FORK_HPP__
 
 
-// For readability, we minimize the number of #ifdef blocks in the code by
-// splitting platform specifc system calls into separate directories.
-#ifdef __WINDOWS__
-#include <stout/os/windows/permissions.hpp>
-#else
-#include <stout/os/posix/permissions.hpp>
-#endif // __WINDOWS__
+struct Exec
+{
+  UNIMPLEMENTED;
+};
 
 
-#endif // __STOUT_OS_PERMISSIONS_HPP__
+struct Wait {};
+
+
+struct Fork
+{
+  UNIMPLEMENTED;
+};
+
+} // namespace os {
+
+#endif // __STOUT_OS_WINDOWS_FORK_HPP__

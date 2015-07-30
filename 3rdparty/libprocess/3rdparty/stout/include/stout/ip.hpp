@@ -64,7 +64,7 @@
 #include <stout/unreachable.hpp>
 
 #ifdef __WINDOWS__
-#include <stout/windows/preprocessor.hpp>
+#include <stout/windows.hpp>
 #endif // __WINDOWS__
 
 

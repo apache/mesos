@@ -11,17 +11,31 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef __STOUT_OS_PERMISSIONS_HPP__
-#define __STOUT_OS_PERMISSIONS_HPP__
+#ifndef __STOUT_OS_WINDOWS_PERMISSIONS_HPP__
+#define __STOUT_OS_WINDOWS_PERMISSIONS_HPP__
+
+#include <sys/stat.h>
+
+#include <string>
 
 
-// For readability, we minimize the number of #ifdef blocks in the code by
-// splitting platform specifc system calls into separate directories.
-#ifdef __WINDOWS__
-#include <stout/os/windows/permissions.hpp>
-#else
-#include <stout/os/posix/permissions.hpp>
-#endif // __WINDOWS__
+namespace os {
+
+// Forward declaration.
+struct Permissions
+{
+  explicit Permissions(mode_t mode)
+  {
+    UNIMPLEMENTED;
+  }
+};
 
 
-#endif // __STOUT_OS_PERMISSIONS_HPP__
+inline Try<Permissions> permissions(const std::string& path)
+{
+  UNIMPLEMENTED;
+}
+
+} // namespace os {
+
+#endif // __STOUT_OS_WINDOWS_PERMISSIONS_HPP__

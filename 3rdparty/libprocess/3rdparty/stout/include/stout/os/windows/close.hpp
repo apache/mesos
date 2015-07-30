@@ -11,17 +11,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef __STOUT_OS_PERMISSIONS_HPP__
-#define __STOUT_OS_PERMISSIONS_HPP__
+
+#ifndef __STOUT_OS_WINDOWS_CLOSE_HPP__
+#define __STOUT_OS_WINDOWS_CLOSE_HPP__
+
+#include <stout/nothing.hpp>
+#include <stout/try.hpp>
 
 
-// For readability, we minimize the number of #ifdef blocks in the code by
-// splitting platform specifc system calls into separate directories.
-#ifdef __WINDOWS__
-#include <stout/os/windows/permissions.hpp>
-#else
-#include <stout/os/posix/permissions.hpp>
-#endif // __WINDOWS__
+namespace os {
 
+inline Try<Nothing> close(int fd)
+{
+  UNIMPLEMENTED;
+}
 
-#endif // __STOUT_OS_PERMISSIONS_HPP__
+} // namespace os {
+
+#endif // __STOUT_OS_WINDOWS_CLOSE_HPP__

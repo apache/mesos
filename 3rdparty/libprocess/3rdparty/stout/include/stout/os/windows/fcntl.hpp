@@ -11,17 +11,39 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef __STOUT_OS_PERMISSIONS_HPP__
-#define __STOUT_OS_PERMISSIONS_HPP__
+
+#ifndef __STOUT_OS_WINDOWS_FCNTL_HPP__
+#define __STOUT_OS_WINDOWS_FCNTL_HPP__
+
+#include <stout/nothing.hpp>
+#include <stout/try.hpp>
 
 
-// For readability, we minimize the number of #ifdef blocks in the code by
-// splitting platform specifc system calls into separate directories.
-#ifdef __WINDOWS__
-#include <stout/os/windows/permissions.hpp>
-#else
-#include <stout/os/posix/permissions.hpp>
-#endif // __WINDOWS__
+namespace os {
+
+inline Try<Nothing> cloexec(int fd)
+{
+  UNIMPLEMENTED;
+}
 
 
-#endif // __STOUT_OS_PERMISSIONS_HPP__
+inline Try<bool> isCloexec(int fd)
+{
+  UNIMPLEMENTED;
+}
+
+
+inline Try<Nothing> nonblock(int fd)
+{
+  UNIMPLEMENTED;
+}
+
+
+inline Try<bool> isNonblock(int fd)
+{
+  UNIMPLEMENTED;
+}
+
+} // namespace os {
+
+#endif // __STOUT_OS_WINDOWS_FCNTL_HPP__

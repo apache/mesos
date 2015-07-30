@@ -20,7 +20,7 @@
 #include <string.h>
 
 #ifdef __WINDOWS__
-#include <stout/windows/preprocessor.hpp>
+#include <stout/windows.hpp>
 #else
 #include <unistd.h>
 #endif // __WINDOWS__
