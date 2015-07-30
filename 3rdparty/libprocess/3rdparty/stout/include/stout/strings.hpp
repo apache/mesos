@@ -269,7 +269,7 @@ std::stringstream& join(
 }
 
 
-template <typename THead, typename ...TTail>
+template <typename THead, typename... TTail>
 std::stringstream& join(
     std::stringstream& stream,
     const std::string& separator,
@@ -284,7 +284,7 @@ std::stringstream& join(
 } // namespace internal {
 
 
-template <typename ...T>
+template <typename... T>
 std::stringstream& join(
     std::stringstream& stream,
     const std::string& separator,
@@ -299,7 +299,7 @@ std::stringstream& join(
 // templatized Iterable join below. This means this implementation of
 // strings::join() is only activated if there are 2 or more things to
 // join.
-template <typename THead1, typename THead2, typename ...TTail>
+template <typename THead1, typename THead2, typename... TTail>
 std::string join(
     const std::string& separator,
     THead1&& head1,

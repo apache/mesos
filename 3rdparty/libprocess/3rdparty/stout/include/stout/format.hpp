@@ -55,8 +55,8 @@ struct stringify;
 } // namespace internal {
 
 
-template <typename ...T>
-Try<std::string> format(const std::string& s, const T& ...t)
+template <typename... T>
+Try<std::string> format(const std::string& s, const T&... t)
 {
   return internal::format(
       s,
