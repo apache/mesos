@@ -36,7 +36,7 @@
 #include <stout/lambda.hpp>
 #include <stout/option.hpp>
 #include <stout/synchronized.hpp>
-#include <stout/thread.hpp>
+#include <stout/thread_local.hpp>
 
 namespace process {
 
@@ -505,12 +505,8 @@ inline bool wait(const ProcessBase* process, const Duration& duration)
 }
 
 
-// Per thread process pointer. The extra level of indirection from
-// _process_ to __process__ is used in order to take advantage of the
-// ThreadLocal operators without needing the extra dereference.
-extern ThreadLocal<ProcessBase>* _process_;
-
-#define __process__ (*_process_)
+// Per thread process pointer.
+extern THREAD_LOCAL ProcessBase* __process__;
 
 // NOTE: Methods in this namespace should only be used in tests to
 // inject arbitrary events.

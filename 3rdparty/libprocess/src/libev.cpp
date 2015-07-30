@@ -20,6 +20,7 @@
 #include <stout/duration.hpp>
 #include <stout/lambda.hpp>
 #include <stout/nothing.hpp>
+#include <stout/thread_local.hpp>
 
 #include "event_loop.hpp"
 #include "libev.hpp"
@@ -39,7 +40,7 @@ std::mutex* watchers_mutex = new std::mutex();
 std::queue<lambda::function<void(void)>>* functions =
   new std::queue<lambda::function<void(void)>>();
 
-ThreadLocal<bool>* _in_event_loop_ = new ThreadLocal<bool>();
+THREAD_LOCAL bool* _in_event_loop_ = NULL;
 
 
 void handle_async(struct ev_loop* loop, ev_async* _, int revents)
