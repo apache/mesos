@@ -31,4 +31,31 @@
 // TODO(aclemmer): Not defined on Windows.  This value is temporary.
 #define MAXHOSTNAMELEN 64
 
+// Macros associated with ::access, usually defined in unistd.h.
+#define access(path, how) _access(path, how)
+#define R_OK 0x4
+#define W_OK 0x2
+#define X_OK 0x0 // No such permission on Windows
+#define F_OK 0x0
+
+// Aliases for file access modes (defined in fcntl.h).
+#define O_RDONLY _O_RDONLY
+#define O_WRONLY _O_WRONLY
+#define O_RDWR _O_RDWR
+#define O_CREAT _O_CREAT
+#define O_TRUNC _O_TRUNC
+#define O_APPEND _O_APPEND
+// TODO(josephw): No equivalent for O_NONBLOCK or O_SYNC
+
+// Alias for mkstemp (requires io.h).
+#define mkstemp(path) _mktemp_s(path, strlen(path) + 1)
+
+// Alias for realpath.
+#define PATH_MAX MAX_PATH
+#define realpath(path, resolved) _fullpath(resolved, path, PATH_MAX)
+
+// Alias for mkdir (requires direct.h).
+#define mkdir(path, mode) _mkdir(path)
+
+
 #endif // __STOUT_WINDOWS_PREPROCESSOR_HPP__
