@@ -616,7 +616,7 @@ TEST_F(SubprocessTest, Flags)
   for (int i = 1; i < argc; i++) {
     ::free(argv[i]);
   }
-  delete argv;
+  delete[] argv;
 }
 
 
