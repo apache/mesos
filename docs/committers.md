@@ -4,9 +4,15 @@ layout: documentation
 
 # Committers
 
+An Apache Mesos committer is a contributor who has been given write access to the Apache Mesos code repository and related Apache infrastructure. In the Mesos project, each committer is also a voting member of the PMC.
+
+## Becoming a committer
+
+Every new committer has to be proposed by a current committer and then voted in by the members of the Mesos PMC. For details about this process and for candidate requirements see the general [Apache guidelines for assessing new candidates for committership](https://community.apache.org/newcommitter.html). Candidates prepare for their nomination as committer by contributing to the Mesos project and its community, by acting according to the [Apache Way](http://theapacheway.com), and by generally following the path [from contributor to committer](https://community.apache.org/contributors/) for Apache projects. Specifically for the Mesos project, you can make use of the [Apache Mesos Committer Candidate Checklist](https://community.apache.org/committer-candidate-checklist/) for suggestions of what kind of contributions and demonstrated behaviors can be instrumental, and to keep track of your progress.
+
 ## Current Committers
 
-We'd like to thank the following committers to the Apache Mesos project who have helped get the project to where it is today. Committers are voted on by members of the Mesos PMC. This list might be stale, the canonical list is located on [Apache's website](http://people.apache.org/committers-by-project.html#mesos).
+We'd like to thank the following committers to the Apache Mesos project who have helped get the project to where it is today. This list might be stale, the canonical list is located on [Apache's website](http://people.apache.org/committers-by-project.html#mesos).
 
 <table class="table table-hover table-condensed">
   <thead>
