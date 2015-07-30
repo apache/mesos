@@ -512,6 +512,13 @@ Try<Nothing> enter(const string& root)
     return Error("Failed to make slave mounts: " + mount.error());
   }
 
+  // Bind mount 'root' itself. This is because pivot_root requires
+  // 'root' to be not on the same filesystem as process' current root.
+  mount = fs::mount(root, root, None(), MS_REC | MS_BIND, NULL);
+  if (mount.isError()) {
+    return Error("Failed to bind mount root itself: " + mount.error());
+  }
+
   // Mount special filesystems.
   mount = internal::mountSpecialFilesystems(root);
   if (mount.isError()) {
