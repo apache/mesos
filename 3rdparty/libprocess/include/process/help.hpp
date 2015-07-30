@@ -67,14 +67,14 @@ inline std::string USAGE(const std::string& usage)
 }
 
 
-template <typename ...T>
+template <typename... T>
 inline std::string DESCRIPTION(T&&... args)
 {
   return strings::join("\n", std::forward<T>(args)..., "\n");
 }
 
 
-template <typename ...T>
+template <typename... T>
 inline std::string REFERENCES(T&&... args)
 {
   return strings::join("\n", std::forward<T>(args)..., "\n");
