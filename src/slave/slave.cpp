@@ -1225,7 +1225,7 @@ Future<bool> Slave::unschedule(const string& path)
 // send TASK_LOST to the framework.
 void Slave::runTask(
     const UPID& from,
-    const FrameworkInfo& frameworkInfo_,
+    const FrameworkInfo& frameworkInfo,
     const FrameworkID& frameworkId_,
     const UPID& pid,
     TaskInfo task)
@@ -1237,10 +1237,10 @@ void Slave::runTask(
     return;
   }
 
-  // Merge frameworkId_ into frameworkInfo.
-  FrameworkInfo frameworkInfo = frameworkInfo_;
   if (!frameworkInfo.has_id()) {
-    frameworkInfo.mutable_id()->CopyFrom(frameworkId_);
+    LOG(ERROR) << "Ignoring run task message from " << from
+               << " because it does not have a framework ID";
+    return;
   }
 
   // Create frameworkId alias to use in the rest of the function.
@@ -1741,7 +1741,6 @@ void Slave::runTasks(
               << "' of framework " << framework->id();
 
     RunTaskMessage message;
-    message.mutable_framework_id()->MergeFrom(framework->id());
     message.mutable_framework()->MergeFrom(framework->info);
     message.mutable_task()->MergeFrom(task);
 
@@ -4170,14 +4169,9 @@ void Slave::recoverFramework(const FrameworkState& state)
 
   CHECK(!frameworks.contains(state.id));
 
-  // Merge state.id into state.info.
   CHECK_SOME(state.info);
   FrameworkInfo frameworkInfo = state.info.get();
-  if (!frameworkInfo.has_id()) {
-    frameworkInfo.mutable_id()->MergeFrom(state.id);
-  } else {
-    CHECK_EQ(frameworkInfo.id(), state.id);
-  }
+  CHECK(frameworkInfo.has_id());
 
   // In 0.24.0, HTTP schedulers are supported and these do not
   // have a 'pid'. In this case, the slave will checkpoint UPID().

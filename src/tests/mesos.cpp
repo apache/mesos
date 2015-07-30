@@ -488,7 +488,7 @@ void MockSlave::unmocked_runTask(
     const UPID& pid,
     TaskInfo task)
 {
-  slave::Slave::runTask(from, frameworkInfo, frameworkId, pid, task);
+  slave::Slave::runTask(from, frameworkInfo, frameworkInfo.id(), pid, task);
 }
 
 

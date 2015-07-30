@@ -2837,7 +2837,6 @@ void Master::_accept(
 
             RunTaskMessage message;
             message.mutable_framework()->MergeFrom(framework->info);
-            message.mutable_framework_id()->MergeFrom(framework->id());
 
             // TODO(anand): We set 'pid' to UPID() for http frameworks
             // as 'pid' was made optional in 0.24.0. In 0.25.0, we
