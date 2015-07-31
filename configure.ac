@@ -256,6 +256,12 @@ AC_ARG_ENABLE([ssl],
                              default: no]),
               [enable_ssl=yes], [])
 
+AC_ARG_ENABLE([static-unimplemented],
+              AS_HELP_STRING([--enable-static-unimplemented],
+                             [generate static assertion errors for unimplemented
+                             functions default: no]),
+              [enable_static_unimplemented=yes], [])
+
 AC_ARG_WITH([libevent],
             AS_HELP_STRING([--with-libevent=@<:@=DIR@:>@],
                            [specify where to locate the libevent library]),
@@ -1551,6 +1557,10 @@ libevent_openssl is required for an SSL-enabled build.
 fi
 
 AM_CONDITIONAL([ENABLE_SSL], [test x"$enable_ssl" = "xyes"])
+
+if test "x$enable_static_unimplemented" = "xyes"; then
+  AC_DEFINE([ENABLE_STATIC_UNIMPLEMENTED], [1])
+fi
 
 
 # Provide more granular version numbers based on the version string,
