@@ -121,6 +121,7 @@ nobase_include_HEADERS =		\
   stout/tests/utils.hpp			\
   stout/thread_local.hpp		\
   stout/try.hpp				\
+  stout/unimplemented.hpp		\
   stout/unreachable.hpp			\
   stout/utils.hpp			\
   stout/uuid.hpp			\
