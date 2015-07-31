@@ -16,6 +16,9 @@
  * limitations under the License.
  */
 
+#ifndef __TEST_LAUNCHER_HPP__
+#define __TEST_LAUNCHER_HPP__
+
 #include <list>
 #include <map>
 #include <string>
@@ -117,3 +120,5 @@ public:
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {
+
+#endif // __TEST_LAUNCHER_HPP__
