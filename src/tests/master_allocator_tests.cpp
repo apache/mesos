@@ -197,8 +197,7 @@ TYPED_TEST(MasterAllocatorTest, ResourcesUnused)
   // expected offer.
   AWAIT_READY(recoverResources);
 
-  FrameworkInfo frameworkInfo2; // Bug in gcc 4.1.*, must assign on next line.
-  frameworkInfo2 = DEFAULT_FRAMEWORK_INFO;
+  FrameworkInfo frameworkInfo2 = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo2.set_user("user2");
   frameworkInfo2.set_name("framework2");
 
@@ -260,8 +259,7 @@ TYPED_TEST(MasterAllocatorTest, OutOfOrderDispatch)
   Try<PID<Slave> > slave1 = this->StartSlave(flags1);
   ASSERT_SOME(slave1);
 
-  FrameworkInfo frameworkInfo1; // Bug in gcc 4.1.*, must assign on next line.
-  frameworkInfo1 = DEFAULT_FRAMEWORK_INFO;
+  FrameworkInfo frameworkInfo1 = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo1.set_user("user1");
   frameworkInfo1.set_name("framework1");
 
@@ -329,8 +327,7 @@ TYPED_TEST(MasterAllocatorTest, OutOfOrderDispatch)
   // TODO(benh): Seems like we should wait for the above
   // recoverResources to be executed.
 
-  FrameworkInfo frameworkInfo2; // Bug in gcc 4.1.*, must assign on next line.
-  frameworkInfo2 = DEFAULT_FRAMEWORK_INFO;
+  FrameworkInfo frameworkInfo2 = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo2.set_user("user2");
   frameworkInfo2.set_name("framework2");
 
@@ -392,8 +389,7 @@ TYPED_TEST(MasterAllocatorTest, SchedulerFailover)
   Try<PID<Slave> > slave = this->StartSlave(&exec, flags);
   ASSERT_SOME(slave);
 
-  FrameworkInfo frameworkInfo1; // Bug in gcc 4.1.*, must assign on next line.
-  frameworkInfo1 = DEFAULT_FRAMEWORK_INFO;
+  FrameworkInfo frameworkInfo1 = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo1.set_name("framework1");
   frameworkInfo1.set_user("user1");
   frameworkInfo1.set_failover_timeout(10);
@@ -453,8 +449,7 @@ TYPED_TEST(MasterAllocatorTest, SchedulerFailover)
 
   AWAIT_READY(deactivateFramework);
 
-  FrameworkInfo frameworkInfo2; // Bug in gcc 4.1.*, must assign on next line.
-  frameworkInfo2 = DEFAULT_FRAMEWORK_INFO;
+  FrameworkInfo frameworkInfo2 = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo2.mutable_id()->MergeFrom(frameworkId);
 
   // Now launch the second (i.e., failover) scheduler using the
@@ -508,11 +503,8 @@ TYPED_TEST(MasterAllocatorTest, FrameworkExited)
   Try<PID<Master>> master = this->StartMaster(&allocator, masterFlags);
   ASSERT_SOME(master);
 
-  ExecutorInfo executor1; // Bug in gcc 4.1.*, must assign on next line.
-  executor1 = CREATE_EXECUTOR_INFO("executor-1", "exit 1");
-
-  ExecutorInfo executor2; // Bug in gcc 4.1.*, must assign on next line.
-  executor2 = CREATE_EXECUTOR_INFO("executor-2", "exit 1");
+  ExecutorInfo executor1 = CREATE_EXECUTOR_INFO("executor-1", "exit 1");
+  ExecutorInfo executor2 = CREATE_EXECUTOR_INFO("executor-2", "exit 1");
 
   MockExecutor exec1(executor1.executor_id());
   MockExecutor exec2(executor2.executor_id());
@@ -1178,8 +1170,7 @@ TYPED_TEST(MasterAllocatorTest, RoleTest)
 
   // Launch a framework with a role that doesn't exist to see that it
   // receives an error message.
-  FrameworkInfo frameworkInfo1; // Bug in gcc 4.1.*, must assign on next line.
-  frameworkInfo1 = DEFAULT_FRAMEWORK_INFO;
+  FrameworkInfo frameworkInfo1 = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo1.set_name("framework1");
   frameworkInfo1.set_user("user1");
   frameworkInfo1.set_role("role1");
@@ -1198,8 +1189,7 @@ TYPED_TEST(MasterAllocatorTest, RoleTest)
   AWAIT_READY(errorMessage);
 
   // Launch a framework under an existing role to see that it registers.
-  FrameworkInfo frameworkInfo2; // Bug in gcc 4.1.*, must assign on next line.
-  frameworkInfo2 = DEFAULT_FRAMEWORK_INFO;
+  FrameworkInfo frameworkInfo2 = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo2.set_name("framework2");
   frameworkInfo2.set_user("user2");
   frameworkInfo2.set_role("role2");

@@ -85,8 +85,7 @@ TEST_F(MasterAuthorizationTest, AuthorizedTask)
   ASSERT_SOME(master);
 
   // Create an authorized executor.
-  ExecutorInfo executor; // Bug in gcc 4.1.*, must assign on next line.
-  executor = CREATE_EXECUTOR_INFO("test-executor", "exit 1");
+  ExecutorInfo executor = CREATE_EXECUTOR_INFO("test-executor", "exit 1");
   executor.mutable_command()->set_user("foo");
 
   MockExecutor exec(executor.executor_id());
@@ -160,8 +159,7 @@ TEST_F(MasterAuthorizationTest, UnauthorizedTask)
   ASSERT_SOME(master);
 
   // Create an unauthorized executor.
-  ExecutorInfo executor; // Bug in gcc 4.1.*, must assign on next line.
-  executor = CREATE_EXECUTOR_INFO("test-executor", "exit 1");
+  ExecutorInfo executor = CREATE_EXECUTOR_INFO("test-executor", "exit 1");
   executor.mutable_command()->set_user("foo");
 
   MockExecutor exec(executor.executor_id());
@@ -672,8 +670,7 @@ TEST_F(MasterAuthorizationTest, AuthorizedRole)
   Try<PID<Master> > master = StartMaster(flags);
   ASSERT_SOME(master);
 
-  FrameworkInfo frameworkInfo; // Bug in gcc 4.1.*, must assign on next line.
-  frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_role("foo");
 
   MockScheduler sched;
@@ -713,8 +710,7 @@ TEST_F(MasterAuthorizationTest, UnauthorizedRole)
   Try<PID<Master> > master = StartMaster(flags);
   ASSERT_SOME(master);
 
-  FrameworkInfo frameworkInfo; // Bug in gcc 4.1.*, must assign on next line.
-  frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_role("foo");
 
   MockScheduler sched;

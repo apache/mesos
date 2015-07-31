@@ -104,8 +104,7 @@ TEST_F(StatusUpdateManagerTest, CheckpointStatusUpdate)
   Try<PID<Slave> > slave = StartSlave(&exec, flags);
   ASSERT_SOME(slave);
 
-  FrameworkInfo frameworkInfo; // Bug in gcc 4.1.*, must assign on next line.
-  frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_checkpoint(true); // Enable checkpointing.
 
   MockScheduler sched;
@@ -197,8 +196,7 @@ TEST_F(StatusUpdateManagerTest, RetryStatusUpdate)
   Try<PID<Slave> > slave = StartSlave(&exec, flags);
   ASSERT_SOME(slave);
 
-  FrameworkInfo frameworkInfo; // Bug in gcc 4.1.*, must assign on next line.
-  frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_checkpoint(true); // Enable checkpointing.
 
   MockScheduler sched;
@@ -269,8 +267,7 @@ TEST_F(StatusUpdateManagerTest, IgnoreDuplicateStatusUpdateAck)
   Try<PID<Slave> > slave = StartSlave(&exec);
   ASSERT_SOME(slave);
 
-  FrameworkInfo frameworkInfo; // Bug in gcc 4.1.*, must assign on next line.
-  frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_checkpoint(true); // Enable checkpointing.
 
   MockScheduler sched;
@@ -382,8 +379,7 @@ TEST_F(StatusUpdateManagerTest, IgnoreUnexpectedStatusUpdateAck)
   Try<PID<Slave> > slave = StartSlave(&exec);
   ASSERT_SOME(slave);
 
-  FrameworkInfo frameworkInfo; // Bug in gcc 4.1.*, must assign on next line.
-  frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_checkpoint(true); // Enable checkpointing.
 
   MockScheduler sched;
@@ -474,8 +470,7 @@ TEST_F(StatusUpdateManagerTest, DuplicateTerminalUpdateBeforeAck)
   Try<PID<Slave> > slave = StartSlave(&exec);
   ASSERT_SOME(slave);
 
-  FrameworkInfo frameworkInfo; // Bug in gcc 4.1.*, must assign on next line.
-  frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_checkpoint(true); // Enable checkpointing.
 
   MockScheduler sched;
@@ -585,8 +580,7 @@ TEST_F(StatusUpdateManagerTest, DuplicateTerminalUpdateAfterAck)
   Try<PID<Slave> > slave = StartSlave(&exec, flags);
   ASSERT_SOME(slave);
 
-  FrameworkInfo frameworkInfo; // Bug in gcc 4.1.*, must assign on next line.
-  frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_checkpoint(true); // Enable checkpointing.
 
   MockScheduler sched;
@@ -681,8 +675,7 @@ TEST_F(StatusUpdateManagerTest, DuplicateUpdateBeforeAck)
   Try<PID<Slave> > slave = StartSlave(&exec);
   ASSERT_SOME(slave);
 
-  FrameworkInfo frameworkInfo; // Bug in gcc 4.1.*, must assign on next line.
-  frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_checkpoint(true); // Enable checkpointing.
 
   MockScheduler sched;

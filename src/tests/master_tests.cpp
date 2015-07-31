@@ -833,11 +833,8 @@ TEST_F(MasterTest, MultipleExecutors)
   Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
-  ExecutorInfo executor1; // Bug in gcc 4.1.*, must assign on next line.
-  executor1 = CREATE_EXECUTOR_INFO("executor-1", "exit 1");
-
-  ExecutorInfo executor2; // Bug in gcc 4.1.*, must assign on next line.
-  executor2 = CREATE_EXECUTOR_INFO("executor-2", "exit 1");
+  ExecutorInfo executor1 = CREATE_EXECUTOR_INFO("executor-1", "exit 1");
+  ExecutorInfo executor2 = CREATE_EXECUTOR_INFO("executor-2", "exit 1");
 
   MockExecutor exec1(executor1.executor_id());
   MockExecutor exec2(executor2.executor_id());

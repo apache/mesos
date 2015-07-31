@@ -371,8 +371,7 @@ TEST_F(RateLimitingTest, DifferentPrincipalFrameworks)
   // 1. Register two frameworks.
 
   // 1.1. Create the first framework.
-  FrameworkInfo frameworkInfo1; // Bug in gcc 4.1.*, must assign on next line.
-  frameworkInfo1 = DEFAULT_FRAMEWORK_INFO;
+  FrameworkInfo frameworkInfo1 = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo1.set_principal("framework1");
 
   MockScheduler sched1;
@@ -399,8 +398,7 @@ TEST_F(RateLimitingTest, DifferentPrincipalFrameworks)
   const process::UPID sched1Pid = frameworkRegisteredMessage1.get().to;
 
   // 1.2. Create the second framework.
-  FrameworkInfo frameworkInfo2; // Bug in gcc 4.1.*, must assign on next line.
-  frameworkInfo2 = DEFAULT_FRAMEWORK_INFO;
+  FrameworkInfo frameworkInfo2 = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo2.set_principal("framework2");
 
   MockScheduler sched2;
@@ -844,8 +842,7 @@ TEST_F(RateLimitingTest, SchedulerFailover)
 
   MockScheduler sched2;
 
-  FrameworkInfo framework2; // Bug in gcc 4.1.*, must assign on next line.
-  framework2 = DEFAULT_FRAMEWORK_INFO;
+  FrameworkInfo framework2 = DEFAULT_FRAMEWORK_INFO;
   framework2.mutable_id()->MergeFrom(frameworkId.get());
 
   MesosSchedulerDriver driver2(
@@ -966,8 +963,7 @@ TEST_F(RateLimitingTest, CapacityReached)
 
   MockScheduler sched;
 
-  FrameworkInfo frameworkInfo; // Bug in gcc 4.1.*, must assign on next line.
-  frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
 
   // Use a long failover timeout so the master doesn't unregister the
   // framework right away when it aborts.
