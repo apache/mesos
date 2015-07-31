@@ -21,6 +21,7 @@
 #include <event2/thread.h>
 
 #include <process/logging.hpp>
+#include <process/once.hpp>
 
 #include <stout/os/signals.hpp>
 #include <stout/synchronized.hpp>
@@ -184,6 +185,12 @@ double EventLoop::time()
 
 void EventLoop::initialize()
 {
+  static Once* initialized = new Once();
+
+  if (initialized->once()) {
+    return;
+  }
+
   // We need to initialize Libevent differently depending on the
   // operating system threading support.
 #if defined(EVTHREAD_USE_PTHREADS_IMPLEMENTED)
@@ -212,6 +219,8 @@ void EventLoop::initialize()
   if (base == NULL) {
     LOG(FATAL) << "Failed to initialize, event_base_new";
   }
+
+  initialized->done();
 }
 
 } // namespace process {
