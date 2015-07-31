@@ -8,6 +8,7 @@ set -xe
 # Require the following environment variables to be set.
 : ${OS:?"Environment variable 'OS' must be set"}
 : ${COMPILER:?"Environment variable 'COMPILER' must be set"}
+: ${CONFIGURATION:?"Environment variable 'CONFIGURATION' must be set"}
 
 # Change to the root of Mesos repo for docker build context.
 MESOS_DIRECTORY=$( cd "$( dirname "$0" )/.." && pwd )
@@ -39,7 +40,7 @@ case $OS in
     append_dockerfile "RUN yum groupinstall -y 'Development Tools'"
     append_dockerfile "RUN yum install -y epel-release" # Needed for clang.
     append_dockerfile "RUN yum install -y clang git maven"
-    append_dockerfile "RUN yum install -y java-1.7.0-openjdk-devel python-devel zlib-devel libcurl-devel openssl-devel cyrus-sasl-devel cyrus-sasl-md5 apr-devel subversion-devel apr-utils-devel"
+    append_dockerfile "RUN yum install -y java-1.7.0-openjdk-devel python-devel zlib-devel libcurl-devel openssl-devel cyrus-sasl-devel cyrus-sasl-md5 apr-devel subversion-devel apr-utils-devel libevent-devel"
 
     # Add an unprivileged user.
     append_dockerfile "RUN adduser mesos"
@@ -53,7 +54,7 @@ case $OS in
     # Install dependencies.
     append_dockerfile "RUN apt-get update"
     append_dockerfile "RUN apt-get -y install build-essential clang git maven autoconf libtool"
-    append_dockerfile "RUN apt-get -y install openjdk-7-jdk python-dev python-boto libcurl4-nss-dev libsasl2-dev libapr1-dev libsvn-dev"
+    append_dockerfile "RUN apt-get -y install openjdk-7-jdk python-dev python-boto libcurl4-nss-dev libsasl2-dev libapr1-dev libsvn-dev libevent-dev"
 
     # Add an unpriviliged user.
     append_dockerfile "RUN adduser --disabled-password --gecos '' mesos"
@@ -97,8 +98,7 @@ append_dockerfile "RUN chown -R mesos /mesos"
 append_dockerfile "USER mesos"
 
 # Build and check Mesos.
-# TODO(vinod): Add support for non-default configuration options.
-append_dockerfile "CMD ./bootstrap && ./configure && GLOG_v=1 MESOS_VERBOSE=1 make -j8 distcheck"
+append_dockerfile "CMD ./bootstrap && ./configure $CONFIGURATION && DISTCHECK_CONFIGURE_FLAGS=\"$CONFIGURATION\" GLOG_v=1 MESOS_VERBOSE=1 make -j8 distcheck"
 
 # Generate a random image tag.
 TAG=mesos-`date +%s`-$RANDOM
