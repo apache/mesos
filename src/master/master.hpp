@@ -571,19 +571,6 @@ protected:
       const std::vector<ExecutorInfo>& executors,
       const std::vector<Task>& tasks);
 
-  // 'registerFramework()' continuation.
-  void _registerFramework(
-      const process::UPID& from,
-      const FrameworkInfo& frameworkInfo,
-      const process::Future<bool>& authorized);
-
-  // 'reregisterFramework()' continuation.
-  void _reregisterFramework(
-      const process::UPID& from,
-      const FrameworkInfo& frameworkInfo,
-      bool failover,
-      const process::Future<bool>& authorized);
-
   // Add a framework.
   void addFramework(Framework* framework);
 
@@ -713,6 +700,11 @@ private:
   void subscribe(
       const process::UPID& from,
       const scheduler::Call::Subscribe& subscribe);
+
+  void _subscribe(
+      const process::UPID& from,
+      const scheduler::Call::Subscribe& subscribe,
+      const process::Future<bool>& authorized);
 
   void accept(
       Framework* framework,
