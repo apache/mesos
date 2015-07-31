@@ -14,6 +14,7 @@
 #ifndef __STOUT_OS_WINDOWS_FORK_HPP__
 #define __STOUT_OS_WINDOWS_FORK_HPP__
 
+namespace os {
 
 struct Exec
 {
