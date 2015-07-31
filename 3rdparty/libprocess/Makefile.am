@@ -79,6 +79,7 @@ endif
 if ENABLE_SSL
 libprocess_la_SOURCES +=	\
     src/libevent_ssl_socket.cpp	\
+    src/libevent_ssl_socket.hpp	\
     src/openssl.cpp		\
     src/openssl.hpp		\
     src/openssl_util.cpp	\
