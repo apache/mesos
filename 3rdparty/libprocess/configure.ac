@@ -94,6 +94,12 @@ AC_ARG_ENABLE([ssl],
                              default: no]),
               [enable_ssl=yes], [])
 
+AC_ARG_ENABLE([static-unimplemented],
+              AS_HELP_STRING([--enable-static-unimplemented],
+                             [generate static assertion errors for unimplemented
+                             functions default: no]),
+              [enable_static_unimplemented=yes], [])
+
 AC_ARG_WITH([boost],
             AS_HELP_STRING([--with-boost@<:@=DIR@:>@],
                            [excludes building and using the bundled Boost
@@ -710,6 +716,10 @@ libevent_openssl is required for an SSL-enabled build.
 fi
 
 AM_CONDITIONAL([ENABLE_SSL], [test x"$enable_ssl" = "xyes"])
+
+if test "x$enable_static_unimplemented" = "xyes"; then
+  AC_DEFINE([ENABLE_STATIC_UNIMPLEMENTED], [1])
+fi
 
 
 AS_IF([test "x${ac_cv_env_CFLAGS_set}" = "x"],
