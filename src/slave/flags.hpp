@@ -97,6 +97,7 @@ public:
   Duration docker_stop_timeout;
   bool docker_kill_orphans;
   std::string docker_socket;
+  std::string docker_host;
 #ifdef WITH_NETWORK_ISOLATOR
   uint16_t ephemeral_ports_per_container;
   Option<std::string> eth0_name;

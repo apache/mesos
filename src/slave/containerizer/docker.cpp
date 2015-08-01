@@ -121,10 +121,11 @@ Try<DockerContainerizer*> DockerContainerizer::create(
     const Flags& flags,
     Fetcher* fetcher)
 {
-  Try<Docker*> create = Docker::create(flags.docker);
+  Try<Docker*> create = Docker::create(flags.docker, true, flags.docker_host);
   if (create.isError()) {
     return Error("Failed to create docker: " + create.error());
   }
+
 
   Shared<Docker> docker(create.get());
 
@@ -185,6 +186,7 @@ docker::Flags dockerFlags(
   dockerFlags.sandbox_directory = directory;
   dockerFlags.mapped_directory = flags.sandbox_directory;
   dockerFlags.stop_timeout = flags.docker_stop_timeout;
+  dockerFlags.docker_host = flags.docker_host;
   return dockerFlags;
 }
 
@@ -821,6 +823,8 @@ Future<Docker::Container> DockerContainerizerProcess::launchExecutorContainer(
 
   Container* container = containers_[containerId];
   container->state = Container::RUNNING;
+
+  LOG(ERROR) << "The docker host is " << docker->host  << std::endl;
 
   // Start the executor in a Docker container.
   // This executor could either be a custom executor specified by an
