@@ -59,6 +59,12 @@ EXTERNAL("libev"       "4.15"    "${PROCESS_3RD_BIN}")
 
 set(GLOG_LIB ${GLOG_ROOT}-lib/lib)
 
+# DIRECTORY STRUCTURE FOR WINDOWS-ONLY THIRD-PARTY LIBS.
+########################################################
+if (WIN32)
+  EXTERNAL("curl" "7.43.0" "${PROCESS_3RD_BIN}")
+endif (WIN32)
+
 # DEFINE PROCESS LIBRARY DEPENDENCIES. Tells the process library build targets
 # download/configure/build all third-party libraries before attempting to build.
 ################################################################################
