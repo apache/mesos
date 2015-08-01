@@ -48,12 +48,20 @@ endif (WIN32)
 # download/configure/build all third-party libraries before attempting to build.
 ################################################################################
 set(STOUT_TEST_DEPENDENCIES
+  ${STOUT_TEST_DEPENDENCIES}
   ${BOOST_TARGET}
   ${GLOG_TARGET}
   ${GMOCK_TARGET}
   ${GTEST_TARGET}
   ${PROTOBUF_TARGET}
   )
+
+if (WIN32)
+  set(STOUT_TEST_DEPENDENCIES
+    ${STOUT_TEST_DEPENDENCIES}
+    ${CURL_TARGET}
+  )
+endif(WIN32)
 
 # DEFINE THIRD-PARTY INCLUDE DIRECTORIES. Tells compiler toolchain where to get
 # headers for our third party libs (e.g., -I/path/to/glog on Linux)..
@@ -75,6 +83,7 @@ if (WIN32)
   set(STOUT_TEST_INCLUDE_DIRS
     ${STOUT_TEST_INCLUDE_DIRS}
     ${GLOG_ROOT}/src/windows
+    ${CURL_ROOT}/include
     )
 else (WIN32)
   set(STOUT_TEST_INCLUDE_DIRS
@@ -106,6 +115,7 @@ if (WIN32)
     ${GLOG_ROOT}/Debug
     ${GMOCK_ROOT}/msvc/2010/Debug
     ${PROTOBUF_ROOT}/vsprojects/Debug
+    ${CURL_ROOT}/lib
     )
 else (WIN32)
   set(STOUT_TEST_LIB_DIRS
@@ -135,6 +145,7 @@ if (WIN32)
     ${STOUT_TEST_LIBS}
     libglog
     libprotobuf
+    libcurl_a
     )
 else (WIN32)
   set(STOUT_TEST_LIBS
