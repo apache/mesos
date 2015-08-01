@@ -1070,7 +1070,7 @@ protected:
 };
 
 
-TEST_F(CgroupsAnyHierarchyMemoryPressureTest, ROOT_IncreaseUnlockedRSS)
+TEST_F(CgroupsAnyHierarchyMemoryPressureTest, ROOT_IncreaseRSS)
 {
   MemoryTestHelper helper;
   ASSERT_SOME(helper.spawn());
@@ -1096,10 +1096,13 @@ TEST_F(CgroupsAnyHierarchyMemoryPressureTest, ROOT_IncreaseUnlockedRSS)
 
   // Use a guard to error out if it's been too long.
   // TODO(chzhcn): Use a better way to set testing time limit.
-  uint64_t iterationLimit = limit.bytes() / getpagesize() * 10;
-
-  for (uint64_t i = 0; i < iterationLimit; i++) {
-    EXPECT_SOME(helper.increaseRSS(getpagesize()));
+  uint64_t iterationLimit = (limit.bytes() / getpagesize()) * 10;
+  uint64_t i = 0;
+  bool stable = true;
+  while (i < iterationLimit) {
+    if (stable) {
+      EXPECT_SOME(helper.increaseRSS(getpagesize()));
+    }
 
     Future<uint64_t> _low = counters[Level::LOW]->value();
     Future<uint64_t> _medium = counters[Level::MEDIUM]->value();
@@ -1131,6 +1134,18 @@ TEST_F(CgroupsAnyHierarchyMemoryPressureTest, ROOT_IncreaseUnlockedRSS)
         EXPECT_EQ(0u, medium);
         EXPECT_EQ(0u, critical);
       }
+
+      // Counters are stable. Increment iteration count.
+      ++i;
+      stable = true;
+    } else {
+      // Counters appear to be unstable. Set the flag to avoid
+      // increasing the loop counter and calling increaseRSS()
+      // because at this point it is likely to return a failure.
+      // The counters should stabilize once we read them again at the
+      // next iteratrion (see comment above), so this should never
+      // cause an infinite loop.
+      stable = false;
     }
 
     previousLow = low;
