@@ -41,6 +41,12 @@ else (REBUNDLED)
   set(LIBEV_URL       https://github.com/apache/mesos/raw/master/3rdparty/libprocess/3rdparty/libev-${LIBEV_VERSION}.tar.gz)
 endif (REBUNDLED)
 
+if (WIN32)
+  # TODO(hausdorff): points at a random tarball in my (hausdorff's) repository.
+  # We need a more permanent solution for this eventually.
+  set(CURL_URL https://github.com/hausdorff/3rdparty/raw/master/curl-static-${CURL_VERSION}.tar.gz)
+endif (WIN32)
+
 # DEFINE BUILD/PATCH/CONFIGURE COMMANDS FOR THIRD-PARTY LIBS.
 #############################################################
 if (NOT WIN32)
@@ -126,6 +132,22 @@ ExternalProject_Add(
   INSTALL_COMMAND   ""
   URL               ${LIBEV_URL}
   )
+
+# WINDOWS THIRD-PARTY LIBRARIES. Windows has no package manager, so we download
+# them here.
+###############################################################################
+if (WIN32)
+  # TODO(hausdorff): maybe try to incorporate this into findpackage for Windows
+  ExternalProject_Add(
+    ${CURL_TARGET}
+    PREFIX            "${CURL_CMAKE_ROOT}"
+    PATCH_COMMAND     ""
+    CONFIGURE_COMMAND ""
+    BUILD_COMMAND     ""
+    INSTALL_COMMAND   ""
+    URL               ${CURL_URL}
+  )
+endif (WIN32)
 
 # THIRD-PARTY LIBRARIES FOR TESTS.
 ##################################
