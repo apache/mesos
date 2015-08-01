@@ -21,8 +21,14 @@ add_subdirectory(3rdparty)
 
 # BUILD THE PROCESS LIBRARY.
 ############################
-add_subdirectory(src)
+if (NOT WIN32)
+  # TODO(hausdorff): add support for building the process library properly.
+  add_subdirectory(src)
+endif (NOT WIN32)
 
 # PROCESS TESTING INFRASTRUCTURE.
 #################################
-add_subdirectory(src/tests)
+if (NOT WIN32)
+  # TODO(hausdorff): add support for building the process lib tests properly.
+  add_subdirectory(src/tests)
+endif (NOT WIN32)
