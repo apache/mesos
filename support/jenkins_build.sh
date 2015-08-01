@@ -12,7 +12,7 @@ set -xe
 
 # Change to the root of Mesos repo for docker build context.
 MESOS_DIRECTORY=$( cd "$( dirname "$0" )/.." && pwd )
-cd $MESOS_DIRECTORY
+cd "$MESOS_DIRECTORY"
 
 # TODO(vinod): Once ASF CI supports Docker 1.5 use a custom name for
 # Dockerfile to avoid overwriting Dockerfile (if it exists) at the root
