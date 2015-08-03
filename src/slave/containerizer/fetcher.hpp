@@ -19,6 +19,7 @@
 #ifndef __SLAVE_CONTAINERIZER_FETCHER_HPP__
 #define __SLAVE_CONTAINERIZER_FETCHER_HPP__
 
+#include <list>
 #include <string>
 
 #include <mesos/mesos.hpp>
@@ -282,6 +283,9 @@ public:
     // Maps keys (cache directory / URI combinations) to cache file
     // entries.
     hashmap<std::string, std::shared_ptr<Entry>> table;
+
+    // Stores cache file entries sorted from LRU to MRU.
+    std::list<std::shared_ptr<Entry>> lruSortedEntries;
   };
 
   // Public and virtual for mock testing.

@@ -869,6 +869,7 @@ shared_ptr<FetcherProcess::Cache::Entry> FetcherProcess::Cache::create(
       new Cache::Entry(key, cacheDirectory, filename));
 
   table.put(key, entry);
+  lruSortedEntries.push_back(entry);
 
   VLOG(1) << "Created cache entry '" << key << "' with file: " << filename;
 
@@ -883,7 +884,14 @@ FetcherProcess::Cache::get(
 {
   const string key = cacheKey(user, uri);
 
-  return table.get(key);
+  Option<shared_ptr<Entry>> entry = table.get(key);
+  if (entry.isSome()) {
+    // Refresh the cache entry by moving it to the back of lruSortedEntries.
+    lruSortedEntries.remove(entry.get());
+    lruSortedEntries.push_back(entry.get());
+  }
+
+  return entry;
 }
 
 
@@ -891,7 +899,8 @@ bool FetcherProcess::Cache::contains(
     const Option<string>& user,
     const string& uri)
 {
-  return get(user, uri).isSome();
+  const string key = cacheKey(user, uri);
+  return table.get(key).isSome();
 }
 
 
@@ -947,6 +956,7 @@ Try<Nothing> FetcherProcess::Cache::remove(
   CHECK(contains(entry));
 
   table.erase(entry->key);
+  lruSortedEntries.remove(entry);
 
   // We may or may not have started downloading. The download may or may
   // not have been partial. In any case, clean up whatever is there.
@@ -973,23 +983,21 @@ Try<Nothing> FetcherProcess::Cache::remove(
 }
 
 
+// Select LRU cache entries for cache eviction.
 Try<list<shared_ptr<FetcherProcess::Cache::Entry>>>
 FetcherProcess::Cache::selectVictims(const Bytes& requiredSpace)
 {
-  // TODO(bernd-mesos): Implement more elaborate selection criteria
-  // (LRU/MRU, etc.).
-
-  list<shared_ptr<FetcherProcess::Cache::Entry>> result;
+  list<shared_ptr<FetcherProcess::Cache::Entry>> victims;
 
   Bytes space = 0;
 
-  foreachvalue (const shared_ptr<Cache::Entry>& entry, table) {
+  foreach (const shared_ptr<Cache::Entry>& entry, lruSortedEntries) {
     if (!entry->isReferenced()) {
-      result.push_back(entry);
+      victims.push_back(entry);
 
       space += entry->size;
       if (space >= requiredSpace) {
-        return result;
+        return victims;
       }
     }
   }
