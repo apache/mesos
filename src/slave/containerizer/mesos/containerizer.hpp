@@ -58,8 +58,7 @@ public:
       Fetcher* fetcher,
       const process::Owned<Launcher>& launcher,
       const std::vector<process::Owned<mesos::slave::Isolator>>& isolators,
-      const hashmap<ContainerInfo::Image::Type,
-                    process::Owned<Provisioner>>& provisioners);
+      const hashmap<Image::Type, process::Owned<Provisioner>>& provisioners);
 
 
   // Used for testing.
@@ -118,8 +117,7 @@ public:
       Fetcher* _fetcher,
       const process::Owned<Launcher>& _launcher,
       const std::vector<process::Owned<mesos::slave::Isolator>>& _isolators,
-      const hashmap<ContainerInfo::Image::Type,
-                    process::Owned<Provisioner>>& _provisioners)
+      const hashmap<Image::Type, process::Owned<Provisioner>>& _provisioners)
     : flags(_flags),
       local(_local),
       fetcher(_fetcher),
@@ -278,7 +276,7 @@ private:
   Fetcher* fetcher;
   const process::Owned<Launcher> launcher;
   const std::vector<process::Owned<mesos::slave::Isolator>> isolators;
-  hashmap<ContainerInfo::Image::Type, process::Owned<Provisioner>> provisioners;
+  hashmap<Image::Type, process::Owned<Provisioner>> provisioners;
 
   enum State
   {

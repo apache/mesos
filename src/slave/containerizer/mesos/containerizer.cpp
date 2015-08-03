@@ -197,7 +197,7 @@ Try<MesosContainerizer*> MesosContainerizer::create(
     return Error("Failed to create launcher: " + launcher.error());
   }
 
-  Try<hashmap<ContainerInfo::Image::Type, Owned<Provisioner>>> provisioners =
+  Try<hashmap<Image::Type, Owned<Provisioner>>> provisioners =
     Provisioner::create(flags, fetcher);
 
   if (provisioners.isError()) {
@@ -220,7 +220,7 @@ MesosContainerizer::MesosContainerizer(
     Fetcher* fetcher,
     const Owned<Launcher>& launcher,
     const vector<Owned<Isolator>>& isolators,
-    const hashmap<ContainerInfo::Image::Type, Owned<Provisioner>>& provisioners)
+    const hashmap<Image::Type, Owned<Provisioner>>& provisioners)
   : process(new MesosContainerizerProcess(
       flags,
       local,
@@ -634,7 +634,7 @@ Future<Nothing> MesosContainerizerProcess::provision(
     return Nothing();
   }
 
-  ContainerInfo::Image image = executorInfo.container().mesos().image();
+  Image image = executorInfo.container().mesos().image();
 
   if (!provisioners.contains(image.type())) {
     return Failure("ExecutorInfo specifies container image type '" +
@@ -1281,8 +1281,7 @@ void MesosContainerizerProcess::____destroy(
     return;
   }
 
-  ContainerInfo::Image::Type type =
-    container->executorInfo.container().mesos().image().type();
+  Image::Type type = container->executorInfo.container().mesos().image().type();
 
   if (!provisioners.contains(type)) {
     // We should have a provisioner to handle cleaning up the rootfs

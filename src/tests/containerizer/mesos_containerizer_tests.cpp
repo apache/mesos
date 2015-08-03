@@ -117,7 +117,7 @@ public:
         fetcher,
         Owned<Launcher>(launcher.get()),
         isolators,
-        hashmap<ContainerInfo::Image::Type, Owned<Provisioner>>());
+        hashmap<Image::Type, Owned<Provisioner>>());
   }
 
   Try<MesosContainerizer*> CreateContainerizer(
@@ -430,8 +430,7 @@ public:
       Fetcher* fetcher,
       const Owned<Launcher>& launcher,
       const vector<Owned<Isolator>>& isolators,
-      const hashmap<ContainerInfo::Image::Type,
-                    Owned<Provisioner>>& provisioners)
+      const hashmap<Image::Type, Owned<Provisioner>>& provisioners)
     : MesosContainerizerProcess(
           flags,
           local,
@@ -548,7 +547,7 @@ TEST_F(MesosContainerizerDestroyTest, DestroyWhileFetching)
       &fetcher,
       Owned<Launcher>(launcher.get()),
       vector<Owned<Isolator>>(),
-      hashmap<ContainerInfo::Image::Type, Owned<Provisioner>>());
+      hashmap<Image::Type, Owned<Provisioner>>());
 
   Future<Nothing> exec;
   Promise<bool> promise;
@@ -615,7 +614,7 @@ TEST_F(MesosContainerizerDestroyTest, DestroyWhilePreparing)
       &fetcher,
       Owned<Launcher>(launcher.get()),
       {Owned<Isolator>(isolator)},
-      hashmap<ContainerInfo::Image::Type, Owned<Provisioner>>());
+      hashmap<Image::Type, Owned<Provisioner>>());
 
   MesosContainerizer containerizer((Owned<MesosContainerizerProcess>(process)));
 
@@ -693,7 +692,7 @@ TEST_F(MesosContainerizerDestroyTest, LauncherDestroyFailure)
       &fetcher,
       Owned<Launcher>(launcher),
       vector<Owned<Isolator>>(),
-      hashmap<ContainerInfo::Image::Type, Owned<Provisioner>>());
+      hashmap<Image::Type, Owned<Provisioner>>());
 
   MesosContainerizer containerizer((Owned<MesosContainerizerProcess>(process)));
 

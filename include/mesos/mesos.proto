@@ -1191,6 +1191,39 @@ message RateLimits {
 
 
 /**
+ * Describe an image used by tasks or executors. Note that it's only
+ * for tasks or executors launched by MesosContainerizer currently.
+ */
+message Image {
+  enum Type {
+    APPC = 1;
+  }
+
+  // Protobuf for specifying an Appc container image. See:
+  // https://github.com/appc/spec/blob/master/spec/aci.md
+  message AppC {
+    // The name of the image.
+    required string name = 1;
+
+    // An image ID is a string of the format "hash-value", where
+    // "hash" is the hash algorithm used and "value" is the hex
+    // encoded string of the digest. Currently the only permitted
+    // hash algorithm is sha512.
+    required string id = 2;
+
+    // Optional labels. Suggested labels: "version", "os", and "arch".
+    optional Labels labels = 3;
+  }
+
+  required Type type = 1;
+
+  // Only one of the following image messages should be set to match
+  // the type.
+  optional AppC appc = 2;
+}
+
+
+/**
  * Describes a volume mapping either from host to container or vice
  * versa. Both paths can either refer to a directory or a file.
  */
@@ -1256,32 +1289,6 @@ message ContainerInfo {
     // pull the docker image from the registry even if the image
     // is already downloaded on the slave.
     optional bool force_pull_image = 6;
-  }
-
-  message Image {
-    enum Type {
-      APPC = 1;
-    }
-
-    // Protobuf for specifying an Appc container image. See:
-    // https://github.com/appc/spec/blob/master/spec/aci.md
-    message AppC {
-      // The name of the image.
-      required string name = 1;
-
-      // An image ID is a string of the format "hash-value", where "hash"
-      // is the hash algorithm used and "value" is the hex encoded string of
-      // the digest. Currently the only permitted hash algorithm is sha512.
-      required string id = 2;
-
-      // Optional labels. Suggested labels: "version", "os", and "arch".
-      optional Labels labels = 3;
-    }
-
-    required Type type = 1;
-    // Only one of the following image messages should be set to match
-    // the type.
-    optional AppC appc = 2;
   }
 
   message MesosInfo {

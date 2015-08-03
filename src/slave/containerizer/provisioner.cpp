@@ -24,11 +24,12 @@ namespace mesos {
 namespace internal {
 namespace slave {
 
-Try<hashmap<ContainerInfo::Image::Type, Owned<Provisioner>>>
-  Provisioner::create(const Flags& flags, Fetcher* fetcher)
+Try<hashmap<Image::Type, Owned<Provisioner>>> Provisioner::create(
+    const Flags& flags,
+    Fetcher* fetcher)
 {
   // TODO(tnachen): Load provisioners when one of them is available.
-  return hashmap<ContainerInfo::Image::Type, Owned<Provisioner>>();
+  return hashmap<Image::Type, Owned<Provisioner>>();
 }
 
 } // namespace slave {

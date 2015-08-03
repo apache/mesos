@@ -45,7 +45,7 @@ class Provisioner
 public:
   virtual ~Provisioner() {}
 
-  static Try<hashmap<ContainerInfo::Image::Type, process::Owned<Provisioner>>>
+  static Try<hashmap<Image::Type, process::Owned<Provisioner>>>
     create(const Flags& flags, Fetcher* fetcher);
 
   // Recover root filesystems for containers from the run states and
@@ -61,7 +61,7 @@ public:
   // image and return the absolute path to the root filesystem.
   virtual process::Future<std::string> provision(
       const ContainerID& containerId,
-      const ContainerInfo::Image& image) = 0;
+      const Image& image) = 0;
 
   // Destroy a previously provisioned root filesystem. Assumes that
   // all references (e.g., mounts, open files) to the provisioned
