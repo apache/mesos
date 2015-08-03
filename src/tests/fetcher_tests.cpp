@@ -338,11 +338,13 @@ TEST_F(FetcherTest, OSNetUriSpaceTest)
 
   spawn(process);
 
-  // A URL with a bunch of leading whitespace characters.
-  string url = " \t \n  http://" +
-               net::getHostname(process.self().address.ip).get() + ":" +
-               stringify(process.self().address.port) +
-               "/" + process.self().id + "/test";
+  const network::Address& address = process.self().address;
+
+  process::http::URL url(
+      "http",
+      address.ip,
+      address.port,
+      path::join(process.self().id, "test"));
 
   string localFile = path::join(os::getcwd(), "test");
   EXPECT_FALSE(os::exists(localFile));
@@ -357,7 +359,8 @@ TEST_F(FetcherTest, OSNetUriSpaceTest)
   CommandInfo commandInfo;
   CommandInfo::URI* uri = commandInfo.add_uris();
 
-  uri->set_value(url);
+  // Add whitespace characters to the beginning of the URL.
+  uri->set_value("\r\n\t " + stringify(url));
 
   Fetcher fetcher;
   SlaveID slaveId;
