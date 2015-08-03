@@ -1228,19 +1228,26 @@ message Image {
  * versa. Both paths can either refer to a directory or a file.
  */
 message Volume {
-  // Absolute path pointing to a directory or file in the container.
-  required string container_path = 1;
-
-  // Absolute path pointing to a directory or file on the host or a path
-  // relative to the container work directory.
-  optional string host_path = 2;
-
   enum Mode {
     RW = 1; // read-write.
     RO = 2; // read-only.
   }
 
   required Mode mode = 3;
+
+  // Absolute path pointing to a directory or file in the container.
+  required string container_path = 1;
+
+  // The following specifies the source of this volume. At most one of
+  // the following should be set.
+
+  // Absolute path pointing to a directory or file on the host or a
+  // path relative to the container work directory.
+  optional string host_path = 2;
+
+  // The source of the volume is an Image which describes a root
+  // filesystem which will be provisioned by Mesos.
+  optional Image image = 4;
 }
 
 
