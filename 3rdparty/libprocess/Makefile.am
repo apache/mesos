@@ -48,6 +48,7 @@ libprocess_la_SOURCES =		\
   src/decoder.hpp		\
   src/encoder.hpp		\
   src/event_loop.hpp		\
+  src/firewall.cpp		\
   src/gate.hpp			\
   src/help.cpp			\
   src/http.cpp			\

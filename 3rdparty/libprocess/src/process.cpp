@@ -400,6 +400,7 @@ public:
   bool wait(const UPID& pid);
 
   void installFirewall(vector<Owned<FirewallRule>>&& rules);
+  string absolutePath(const string& path);
 
   void enqueue(ProcessBase* process);
   ProcessBase* dequeue();
@@ -995,6 +996,14 @@ void finalize()
 
   // TODO(benh): Finialize/shutdown Clock so that it doesn't attempt
   // to dereference 'process_manager' in the 'timedout' callback.
+}
+
+
+string absolutePath(const string& path)
+{
+  process::initialize();
+
+  return process_manager->absolutePath(path);
 }
 
 
@@ -2221,6 +2230,31 @@ bool ProcessManager::handle(
     return false;
   }
 
+  // Split the path by '/'.
+  vector<string> tokens = strings::tokenize(request->path, "/");
+
+  // Try and determine a receiver, otherwise try and delegate.
+  ProcessReference receiver;
+
+  if (tokens.size() == 0 && delegate != "") {
+    request->path = "/" + delegate;
+    receiver = use(UPID(delegate, __address__));
+  } else if (tokens.size() > 0) {
+    // Decode possible percent-encoded path.
+    Try<string> decode = http::decode(tokens[0]);
+    if (!decode.isError()) {
+      receiver = use(UPID(decode.get(), __address__));
+    } else {
+      VLOG(1) << "Failed to decode URL path: " << decode.error();
+    }
+  }
+
+  if (!receiver && delegate != "") {
+    // Try and delegate the request.
+    request->path = "/" + delegate + request->path;
+    receiver = use(UPID(delegate, __address__));
+  }
+
   synchronized (firewall_mutex) {
     // Don't use a const reference, since it cannot be guaranteed
     // that the rules don't keep an internal state.
@@ -2249,31 +2283,6 @@ bool ProcessManager::handle(
         return false;
       }
     }
-  }
-
-  // Split the path by '/'.
-  vector<string> tokens = strings::tokenize(request->path, "/");
-
-  // Try and determine a receiver, otherwise try and delegate.
-  ProcessReference receiver;
-
-  if (tokens.size() == 0 && delegate != "") {
-    request->path = "/" + delegate;
-    receiver = use(UPID(delegate, __address__));
-  } else if (tokens.size() > 0) {
-    // Decode possible percent-encoded path.
-    Try<string> decode = http::decode(tokens[0]);
-    if (!decode.isError()) {
-      receiver = use(UPID(decode.get(), __address__));
-    } else {
-      VLOG(1) << "Failed to decode URL path: " << decode.error();
-    }
-  }
-
-  if (!receiver && delegate != "") {
-    // Try and delegate the request.
-    request->path = "/" + delegate + request->path;
-    receiver = use(UPID(delegate, __address__));
   }
 
   if (receiver) {
@@ -2701,6 +2710,37 @@ void ProcessManager::installFirewall(vector<Owned<FirewallRule>>&& rules)
 {
   synchronized (firewall_mutex) {
     firewallRules = std::move(rules);
+  }
+}
+
+
+string ProcessManager::absolutePath(const string& path)
+{
+  // Return directly when delegate is empty.
+  if (delegate.empty()) {
+    return path;
+  }
+
+  vector<string> tokens = strings::tokenize(path, "/");
+
+  // Return delegate when path is root.
+  if (tokens.size() == 0) {
+    return "/" + delegate;
+  }
+
+  Try<string> decode = http::decode(tokens[0]);
+
+  // Return path when decode failed
+  if (decode.isError()) {
+    VLOG(1) << "Failed to decode URL path: " << decode.error();
+    return path;
+  }
+
+  if (processes.find(decode.get()) != processes.end()) {
+    // Return path when the first token is a process id.
+    return path;
+  } else {
+    return "/" + delegate + path;
   }
 }
 

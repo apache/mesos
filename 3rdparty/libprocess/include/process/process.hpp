@@ -377,6 +377,12 @@ void finalize();
 
 
 /**
+ * Get the request absolutePath path with delegate prefix.
+ */
+std::string absolutePath(const std::string& path);
+
+
+/**
  * Returns the socket address associated with this instance of the library.
  */
 network::Address address();

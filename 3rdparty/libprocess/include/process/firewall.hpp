@@ -72,8 +72,7 @@ public:
 class DisabledEndpointsFirewallRule : public FirewallRule
 {
 public:
-  explicit DisabledEndpointsFirewallRule(const hashset<std::string>& _paths)
-    : paths(_paths) {}
+  explicit DisabledEndpointsFirewallRule(const hashset<std::string>& _paths);
 
   virtual ~DisabledEndpointsFirewallRule() {}
 
