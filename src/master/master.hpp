@@ -507,9 +507,15 @@ public:
 protected:
   virtual void initialize();
   virtual void finalize();
-  virtual void exited(const process::UPID& pid);
+
   virtual void visit(const process::MessageEvent& event);
   virtual void visit(const process::ExitedEvent& event);
+
+  virtual void exited(const process::UPID& pid);
+  void exited(
+      const FrameworkID& frameworkId,
+      process::http::Pipe::Writer writer);
+  void _exited(Framework* framework);
 
   // Invoked when the message is ready to be executed after
   // being throttled.
@@ -1270,6 +1276,9 @@ struct Framework
     auto encoder = recordio::Encoder<scheduler::Event>(serialize);
 
     http = Http {writer, encoder};
+
+    http.get().writer.readerClosed().
+      onAny(defer(master->self(), &Master::exited, id(), writer));
   }
 
   ~Framework()

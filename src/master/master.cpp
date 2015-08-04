@@ -107,6 +107,8 @@ using process::Time;
 using process::Timer;
 using process::UPID;
 
+using process::http::Pipe;
+
 using process::metrics::Counter;
 
 namespace mesos {
@@ -959,42 +961,31 @@ void Master::finalize()
 }
 
 
+void Master::exited(const FrameworkID& frameworkId, Pipe::Writer writer)
+{
+  foreachvalue (Framework* framework, frameworks.registered) {
+    if (framework->http.isSome() && framework->http.get().writer == writer) {
+      CHECK_EQ(frameworkId, framework->id());
+      _exited(framework);
+      return;
+    }
+
+    // If the framework has reconnected, the writer will not match
+    // above, and we will have a framework with a matching id.
+    if (frameworkId == framework->id()) {
+      LOG(INFO) << "Ignoring disconnection for framework "
+                << *framework << " as it has already reconnected";
+      return;
+    }
+  }
+}
+
+
 void Master::exited(const UPID& pid)
 {
   foreachvalue (Framework* framework, frameworks.registered) {
     if (framework->pid == pid) {
-      LOG(INFO) << "Framework " << *framework << " disconnected";
-
-      // Disconnect the framework.
-      disconnect(framework);
-
-      // Set 'failoverTimeout' to the default and update only if the
-      // input is valid.
-      Try<Duration> failoverTimeout_ =
-        Duration::create(FrameworkInfo().failover_timeout());
-      CHECK_SOME(failoverTimeout_);
-      Duration failoverTimeout = failoverTimeout_.get();
-
-      failoverTimeout_ =
-        Duration::create(framework->info.failover_timeout());
-      if (failoverTimeout_.isSome()) {
-        failoverTimeout = failoverTimeout_.get();
-      } else {
-        LOG(WARNING) << "Using the default value for 'failover_timeout' because"
-                     << "the input value is invalid: "
-                     << failoverTimeout_.error();
-      }
-
-      LOG(INFO) << "Giving framework " << *framework << " "
-                << failoverTimeout << " to failover";
-
-      // Delay dispatching a message to ourselves for the timeout.
-      delay(failoverTimeout,
-            self(),
-            &Master::frameworkFailoverTimeout,
-            framework->id(),
-            framework->reregisteredTime);
-
+      _exited(framework);
       return;
     }
   }
@@ -1051,6 +1042,44 @@ void Master::exited(const UPID& pid)
                    << "checkpointing slave " << *slave;
     }
   }
+}
+
+
+void Master::_exited(Framework* framework)
+{
+  LOG(INFO) << "Framework " << *framework << " disconnected";
+
+  // Disconnect the framework.
+  disconnect(framework);
+
+  // Set 'failoverTimeout' to the default and update only if the
+  // input is valid.
+  Try<Duration> failoverTimeout_ =
+    Duration::create(FrameworkInfo().failover_timeout());
+
+  CHECK_SOME(failoverTimeout_);
+  Duration failoverTimeout = failoverTimeout_.get();
+
+  failoverTimeout_ =
+    Duration::create(framework->info.failover_timeout());
+
+  if (failoverTimeout_.isSome()) {
+    failoverTimeout = failoverTimeout_.get();
+  } else {
+    LOG(WARNING) << "Using the default value for 'failover_timeout' because"
+                 << "the input value is invalid: "
+                 << failoverTimeout_.error();
+  }
+
+  LOG(INFO) << "Giving framework " << *framework << " "
+            << failoverTimeout << " to failover";
+
+  // Delay dispatching a message to ourselves for the timeout.
+  delay(failoverTimeout,
+        self(),
+        &Master::frameworkFailoverTimeout,
+        framework->id(),
+        framework->reregisteredTime);
 }
 
 
