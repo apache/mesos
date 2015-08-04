@@ -52,6 +52,7 @@
 #include "logging/logging.hpp"
 
 #include "master/master.hpp"
+#include "master/validation.hpp"
 
 #include "mesos/mesos.hpp"
 #include "mesos/resources.hpp"
@@ -355,6 +356,13 @@ Future<Response> Master::Http::call(const Request& request) const
     return UnsupportedMediaType(
         string("Expecting 'Content-Type' of ") +
         APPLICATION_JSON + " or " + APPLICATION_PROTOBUF);
+  }
+
+  Option<Error> error = validation::scheduler::call::validate(call);
+
+  if (error.isSome()) {
+    return BadRequest("Failed to validate Scheduler::Call: " +
+                      error.get().message);
   }
 
   // Default to sending back JSON.
