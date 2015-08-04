@@ -482,7 +482,17 @@ Future<Nothing> MesosContainerizerProcess::__recover(
     // containers should be running after recover.
     container->state = RUNNING;
 
-    container->executorInfo = run.executor_info();
+    // Add the default container info to the executor info.
+    // TODO(jieyu): Checkpoint the default container info in case the
+    // slave changes the default container info flag.
+    ExecutorInfo executorInfo = run.executor_info();
+    if (!executorInfo.has_container() &&
+        flags.default_container_info.isSome()) {
+      executorInfo.mutable_container()->CopyFrom(
+          flags.default_container_info.get());
+    }
+
+    container->executorInfo = executorInfo;
 
     containers_[containerId] = Owned<Container>(container);
 
@@ -552,7 +562,7 @@ void MesosContainerizerProcess::___recover(
 //    executor.
 Future<bool> MesosContainerizerProcess::launch(
     const ContainerID& containerId,
-    const ExecutorInfo& executorInfo,
+    const ExecutorInfo& _executorInfo,
     const string& directory,
     const Option<string>& user,
     const SlaveID& slaveId,
@@ -560,22 +570,28 @@ Future<bool> MesosContainerizerProcess::launch(
     bool checkpoint)
 {
   if (containers_.contains(containerId)) {
-    LOG(ERROR) << "Cannot start already running container '"
-               << containerId << "'";
     return Failure("Container already started");
   }
 
-  // We support MESOS containers or ExecutorInfos with no
-  // ContainerInfo given.
+  // NOTE: We make a copy of the executor info because we may mutate
+  // it with default container info.
+  ExecutorInfo executorInfo = _executorInfo;
+
   if (executorInfo.has_container() &&
       executorInfo.container().type() != ContainerInfo::MESOS) {
     return false;
   }
 
-  const CommandInfo& command = executorInfo.command();
-  if (command.has_container()) {
-    // We return false as this containerizer does not support
-    // handling ContainerInfo.
+  // Add the default container info to the executor info.
+  // TODO(jieyu): Rename the flag to be default_mesos_container_info.
+  if (!executorInfo.has_container() &&
+      flags.default_container_info.isSome()) {
+    executorInfo.mutable_container()->CopyFrom(
+        flags.default_container_info.get());
+  }
+
+  // MesosContainerizer does not support ContainerInfo in CommandInfo.
+  if (executorInfo.command().has_container()) {
     return false;
   }
 

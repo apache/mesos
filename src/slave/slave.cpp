@@ -3269,23 +3269,10 @@ ExecutorInfo Slave::getExecutorInfo(
           "cpus:" + stringify(DEFAULT_EXECUTOR_CPUS) + ";" +
           "mem:" + stringify(DEFAULT_EXECUTOR_MEM.megabytes())).get());
 
-    // Add in any default ContainerInfo.
-    if (!executor.has_container() && flags.default_container_info.isSome()) {
-      executor.mutable_container()->CopyFrom(
-          flags.default_container_info.get());
-    }
-
     return executor;
   }
 
-  ExecutorInfo executor = task.executor();
-
-  // Add in any default ContainerInfo.
-  if (!executor.has_container() && flags.default_container_info.isSome()) {
-    executor.mutable_container()->CopyFrom(flags.default_container_info.get());
-  }
-
-  return executor;
+  return task.executor();
 }
 
 
