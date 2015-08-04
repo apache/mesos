@@ -206,10 +206,10 @@ Future<Option<ContainerPrepareInfo>> SharedFilesystemIsolatorProcess::prepare(
 
       if (!os::exists(hostPath)) {
         return Failure("Volume with container path '" +
-                      volume.container_path() +
-                      "' must have host path '" +
-                      hostPath +
-                      "' present on host for shared filesystem isolator");
+                       volume.container_path() +
+                       "' must have host path '" +
+                       hostPath +
+                       "' present on host for shared filesystem isolator");
       }
     }
 
