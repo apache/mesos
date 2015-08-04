@@ -67,9 +67,11 @@ using process::http::Accepted;
 using process::http::BadRequest;
 using process::http::InternalServerError;
 using process::http::NotFound;
+using process::http::NotImplemented;
 using process::http::OK;
 using process::http::TemporaryRedirect;
 using process::http::Unauthorized;
+using process::http::UnsupportedMediaType;
 
 using process::metrics::internal::MetricsProcess;
 
@@ -320,7 +322,57 @@ const string Master::Http::CALL_HELP = HELP(
 
 Future<Response> Master::Http::call(const Request& request) const
 {
-  return Accepted();
+  scheduler::Call call;
+
+  // TODO(anand): Content type values are case-insensitive.
+  Option<string> contentType = request.headers.get("Content-Type");
+
+  if (contentType.isNone()) {
+    return BadRequest("Expecting 'Content-Type' to be present");
+  }
+
+  if (contentType.get() == APPLICATION_PROTOBUF) {
+    if (!call.ParseFromString(request.body)) {
+      return BadRequest("Failed to parse body into Call protobuf");
+    }
+  } else if (contentType.get() == APPLICATION_JSON) {
+    Try<JSON::Value> value = JSON::parse(request.body);
+
+    if (value.isError()) {
+      return BadRequest("Failed to parse body into JSON: " + value.error());
+    }
+
+    Try<scheduler::Call> parse =
+      ::protobuf::parse<scheduler::Call>(value.get());
+
+    if (parse.isError()) {
+      return BadRequest("Failed to convert JSON into Call protobuf: " +
+                        parse.error());
+    }
+
+    call = parse.get();
+  } else {
+    return UnsupportedMediaType(
+        string("Expecting 'Content-Type' of ") +
+        APPLICATION_JSON + " or " + APPLICATION_PROTOBUF);
+  }
+
+  // Default to sending back JSON.
+  ContentType responseContentType = ContentType::JSON;
+
+  // TODO(anand): Use request.acceptsMediaType() once available.
+  Option<string> acceptType = request.headers.get("Accept");
+
+  if (acceptType.get() == APPLICATION_PROTOBUF) {
+    responseContentType = ContentType::PROTOBUF;
+  }
+
+  // Silence unused warning for now.
+  (void)responseContentType;
+
+  // TODO(anand): Handle the call.
+
+  return NotImplemented();
 }
 
 

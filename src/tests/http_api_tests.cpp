@@ -32,7 +32,7 @@ using mesos::internal::master::Master;
 using process::Future;
 using process::PID;
 
-using process::http::Accepted;
+using process::http::BadRequest;
 using process::http::Response;
 
 namespace mesos {
@@ -43,19 +43,23 @@ namespace tests {
 class HttpApiTest : public MesosTest {};
 
 
-// Ensures that the master returns 202 from the /call stub.
-TEST_F(HttpApiTest, Call)
+// TODO(anand): Add additional tests for validation.
+TEST_F(HttpApiTest, NoContentType)
 {
   Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
+  // Expect a BadRequest when 'Content-Type' is omitted.
+  //
+  // TODO(anand): Send a valid call here to ensure that
+  // the BadRequest is only due to the missing header.
   Future<Response> response = process::http::post(
       master.get(),
       "call",
       None(),
       None());
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Accepted().status, response);
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response);
 }
 
 } // namespace tests {
