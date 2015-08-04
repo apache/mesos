@@ -65,8 +65,9 @@ public:
 
   // Destroy a previously provisioned root filesystem. Assumes that
   // all references (e.g., mounts, open files) to the provisioned
-  // filesystem have been removed.
-  virtual process::Future<Nothing> destroy(const ContainerID& containerId) = 0;
+  // filesystem have been removed. Return false if there is no
+  // provisioned root filesystem for the given container.
+  virtual process::Future<bool> destroy(const ContainerID& containerId) = 0;
 };
 
 } // namespace slave {

@@ -181,25 +181,16 @@ private:
       const std::list<mesos::slave::ContainerState>& recovered,
       const hashset<ContainerID>& orphans);
 
-  process::Future<Nothing> provision(
+  process::Future<Option<std::string>> provision(
       const ContainerID& containerId,
-      const ExecutorInfo& executorInfo,
-      const SlaveID& slaveId,
-      const std::string& directory,
-      bool checkpoint);
-
-  process::Future<Nothing> _provision(
-      const ContainerID& containerId,
-      const ExecutorInfo& executorInfo,
-      const SlaveID& slaveId,
-      bool checkpoint,
-      const std::string& rootfs);
+      const ExecutorInfo& executorInfo);
 
   process::Future<std::list<Option<mesos::slave::ContainerPrepareInfo>>>
     prepare(const ContainerID& containerId,
             const ExecutorInfo& executorInfo,
             const std::string& directory,
-            const Option<std::string>& user);
+            const Option<std::string>& user,
+            const Option<std::string>& rootfs);
 
   process::Future<Nothing> fetch(
       const ContainerID& containerId,
@@ -213,6 +204,17 @@ private:
       const ExecutorInfo& executorInfo,
       const std::string& directory,
       const Option<std::string>& user,
+      const Option<std::string>& rootfs,
+      const SlaveID& slaveId,
+      const process::PID<Slave>& slavePid,
+      bool checkpoint);
+
+  process::Future<bool> __launch(
+      const ContainerID& containerId,
+      const ExecutorInfo& executorInfo,
+      const std::string& directory,
+      const Option<std::string>& user,
+      const Option<std::string>& rootfs,
       const SlaveID& slaveId,
       const process::PID<Slave>& slavePid,
       bool checkpoint,
@@ -225,20 +227,20 @@ private:
   // Continues 'destroy()' once isolators has completed.
   void _destroy(const ContainerID& containerId, bool killed);
 
-  // Continues 'destroy()' once all processes have been killed by the launcher.
+  // Continues '_destroy()' once all processes have been killed by the launcher.
   void __destroy(
       const ContainerID& containerId,
       const process::Future<Nothing>& future,
       bool killed);
 
-  // Continues '_destroy()' once we get the exit status of the executor.
+  // Continues '__destroy()' once we get the exit status of the executor.
   void ___destroy(
       const ContainerID& containerId,
       const process::Future<Option<int>>& status,
       const Option<std::string>& message,
       bool killed);
 
-  // Continues '__destroy()' once all isolators have completed
+  // Continues '___destroy()' once all isolators have completed
   // cleanup.
   void ____destroy(
       const ContainerID& containerId,
@@ -247,14 +249,14 @@ private:
       Option<std::string> message,
       bool killed);
 
-  // Continues (and completes) '__destroy()' once any root filessystem
+  // Continues (and completes) '____destroy()' once any root filessystem
   // has been cleaned up.
   void _____destroy(
       const ContainerID& containerId,
       const process::Future<Option<int>>& status,
       Option<std::string> message,
       bool killed,
-      const process::Future<Nothing>& cleanup);
+      const process::Future<std::list<process::Future<bool>>>& futures);
 
   // Call back for when an isolator limits a container and impacts the
   // processes. This will trigger container destruction.
@@ -321,10 +323,6 @@ private:
 
     // The executor's working directory on the host.
     std::string directory;
-
-    // The path to the container's rootfs, if full filesystem
-    // isolation is used.
-    Option<std::string> rootfs;
 
     State state;
   };

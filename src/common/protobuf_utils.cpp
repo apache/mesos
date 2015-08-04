@@ -240,17 +240,13 @@ ContainerState createContainerState(
     const ExecutorInfo& executorInfo,
     const ContainerID& container_id,
     pid_t pid,
-    const std::string& directory,
-    const Option<std::string>& rootfs)
+    const std::string& directory)
 {
   ContainerState state;
   state.mutable_executor_info()->CopyFrom(executorInfo);
   state.mutable_container_id()->CopyFrom(container_id);
   state.set_pid(pid);
   state.set_directory(directory);
-  if (rootfs.isSome()) {
-    state.set_rootfs(rootfs.get());
-  }
   return state;
 }
 

@@ -54,7 +54,6 @@ message ContainerState
 
   required uint64 pid = 3;            // Executor pid.
   required string directory = 4;      // Executor work directory.
-  optional string rootfs = 5;         // Optional container rootfs.
 }
 
 
