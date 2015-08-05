@@ -1245,10 +1245,12 @@ $(PYTHON_SOURCE):
 # the PYTHONPATH and imported. These end up being used for the tests. Wheels
 # can be easily uninstalled. They end up being what gets installed/uninstalled.
 MESOS_EGGS =										\
+	python/dist/mesos-$(PACKAGE_VERSION)$(PYTHON_EGG_PUREPY_POSTFIX).egg		\
 	python/dist/mesos.interface-$(PACKAGE_VERSION)$(PYTHON_EGG_PUREPY_POSTFIX).egg	\
 	python/dist/mesos.native-$(PACKAGE_VERSION)$(PYTHON_EGG_POSTFIX).egg
 
 MESOS_WHLS =										\
+	python/dist/mesos-$(PACKAGE_VERSION)$(PYTHON_WHL_PUREPY_POSTFIX).whl		\
 	python/dist/mesos.interface-$(PACKAGE_VERSION)$(PYTHON_WHL_PUREPY_POSTFIX).whl	\
 	python/dist/mesos.native-$(PACKAGE_VERSION)$(PYTHON_WHL_POSTFIX).whl
 
@@ -1266,8 +1268,8 @@ $(MESOS_EGGS) $(MESOS_WHLS):								\
 	CFLAGS="$(PYTHON_CFLAGS)" CPPFLAGS="$(PYTHON_CPPFLAGS)"				\
 	LDFLAGS="$(PYTHON_LDFLAGS)"							\
 	PYTHONPATH=$(abs_top_builddir)/$(DISTRIBUTE):$(abs_top_builddir)/$(WHEEL)	\
-	$(PYTHON) setup.py bdist_egg --dist-dir=../dist					\
-	bdist_wheel --dist-dir=../dist
+	$(PYTHON) setup.py bdist_egg --dist-dir=$(abs_top_builddir)/src/python/dist	\
+	bdist_wheel --dist-dir=$(abs_top_builddir)/src/python/dist
 
 CLEANFILES += $(MESOS_EGGS) $(MESOS_WHLS) python/*/build python/*/dist $(PYTHON_SOURCE)
 
