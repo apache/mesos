@@ -23,7 +23,6 @@ nobase_include_HEADERS =		\
   stout/dynamiclibrary.hpp		\
   stout/error.hpp			\
   stout/exit.hpp			\
-  stout/fatal.hpp			\
   stout/flags.hpp			\
   stout/flags/fetch.hpp			\
   stout/flags/flag.hpp			\
