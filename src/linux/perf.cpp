@@ -26,6 +26,7 @@
 
 #include <list>
 #include <ostream>
+#include <tuple>
 #include <vector>
 
 #include <process/clock.hpp>
@@ -40,14 +41,19 @@
 
 #include <stout/os/signals.hpp>
 
+#include "common/status_utils.hpp"
+
 #include "linux/perf.hpp"
 
 using namespace process;
+
+using process::await;
 
 using std::list;
 using std::ostringstream;
 using std::set;
 using std::string;
+using std::tuple;
 using std::vector;
 
 namespace perf {
@@ -171,7 +177,7 @@ protected:
 
     if (duration < Seconds(0)) {
       promise.fail("Perf sample duration cannot be negative: '" +
-                    stringify(duration.secs()) + "'");
+                   stringify(duration.secs()) + "'");
       terminate(self());
       return;
     }
@@ -183,8 +189,6 @@ protected:
 
   virtual void finalize()
   {
-    discard(output);
-
     // Kill the perf process if it's still running.
     if (perf.isSome() && perf.get().status().isPending()) {
       kill(perf.get().pid(), SIGTERM);
@@ -288,75 +292,67 @@ private:
     }
     perf = _perf.get();
 
-    // Start reading from stdout and stderr now. We don't use stderr
-    // but must read from it to avoid the subprocess blocking on the
-    // pipe.
-    output.push_back(io::read(perf.get().out().get()));
-    output.push_back(io::read(perf.get().err().get()));
-
     // Wait for the process to exit.
-    perf.get().status()
-      .onAny(defer(self(), &Self::_sample, lambda::_1));
-  }
+    await(perf.get().status(),
+          io::read(perf.get().out().get()),
+          io::read(perf.get().err().get()))
+    .onReady(defer(self(), [this](const tuple<
+        Future<Option<int>>,
+        Future<string>,
+        Future<string>>& results) {
+      Future<Option<int>> status = std::get<0>(results);
+      Future<string> output = std::get<1>(results);
 
-  void _sample(const Future<Option<int>>& status)
-  {
-    if (!status.isReady()) {
-      promise.fail("Failed to get exit status of perf process: " +
-                   (status.isFailed() ? status.failure() : "discarded"));
+      Option<Error> error = None();
+
+      if (!status.isReady()) {
+        error = Error("Failed to execute perf: " +
+                      (status.isFailed() ? status.failure() : "discarded"));
+      } else if (status.get().isNone()) {
+        error = Error("Failed to execute perf: failed to reap");
+      } else if (status.get().get() != 0) {
+        error = Error("Failed to collect perf statistics: " +
+                      WSTRINGIFY(status.get().get()));
+      } else if (!output.isReady()) {
+        error = Error("Failed to read perf output: " +
+                      (output.isFailed() ? output.failure() : "discarded"));
+      }
+
+      if (error.isSome()) {
+        promise.fail(error.get().message);
+        terminate(self());
+        return;
+      }
+
+      // Parse output from stdout.
+      Try<hashmap<string, mesos::PerfStatistics>> parse =
+          perf::parse(output.get());
+
+      if (parse.isError()) {
+        promise.fail("Failed to parse perf output: " + parse.error());
+        terminate(self());
+        return;
+      }
+
+      // Create a non-const copy from the Try<> so we can set the
+      // timestamp and duration.
+      hashmap<string, mesos::PerfStatistics> statistics = parse.get();
+      foreachvalue (mesos::PerfStatistics& s, statistics) {
+        s.set_timestamp(start.secs());
+        s.set_duration(duration.secs());
+      }
+
+      promise.set(statistics);
       terminate(self());
       return;
-    }
-
-    if (status.get().get() != 0) {
-      promise.fail("Failed to execute perf, exit status: " +
-                    stringify(WEXITSTATUS(status.get().get())));
-
-      terminate(self());
-      return;
-    }
-
-    // Wait until we collect all output.
-    collect(output).onAny(defer(self(), &Self::__sample, lambda::_1));
-  }
-
-  void  __sample(const Future<list<string>>& future)
-  {
-    if (!future.isReady()) {
-      promise.fail("Failed to collect output of perf process: " +
-                   (future.isFailed() ? future.failure() : "discarded"));
-      terminate(self());
-      return;
-    }
-
-    // Parse output from stdout.
-    Try<hashmap<string, mesos::PerfStatistics>> parse =
-      perf::parse(output.front().get());
-    if (parse.isError()) {
-      promise.fail("Failed to parse perf output: " + parse.error());
-      terminate(self());
-      return;
-    }
-
-    // Create a non-const copy from the Try<> so we can set the
-    // timestamp and duration.
-    hashmap<string, mesos::PerfStatistics> statistics = parse.get();
-    foreachvalue (mesos::PerfStatistics& s, statistics) {
-      s.set_timestamp(start.secs());
-      s.set_duration(duration.secs());
-    }
-
-    promise.set(statistics);
-    terminate(self());
-    return;
-  }
+  }));
+}
 
   const vector<string> argv;
   const Duration duration;
   Time start;
   Option<Subprocess> perf;
   Promise<hashmap<string, mesos::PerfStatistics>> promise;
-  list<Future<string>> output;
 };
 
 
