@@ -780,6 +780,11 @@ void Master::initialize()
         [http](const process::http::Request& request) {
           return http.redirect(request);
         });
+  route("/reserve",
+        None(),  // TODO(mpark): Add an Http::RESERVE_HELP,
+        [http](const process::http::Request& request) {
+          return http.reserve(request);
+        });
   route("/roles.json",
         Http::ROLES_HELP,
         [http](const process::http::Request& request) {
@@ -2921,7 +2926,7 @@ void Master::_accept(
                   << operation.reserve().resources() << " from framework "
                   << *framework << " to slave " << *slave;
 
-        applyOfferOperation(framework, slave, operation);
+        apply(framework, slave, operation);
         break;
       }
 
@@ -2946,7 +2951,7 @@ void Master::_accept(
                   << operation.unreserve().resources() << " from framework "
                   << *framework << " to slave " << *slave;
 
-        applyOfferOperation(framework, slave, operation);
+        apply(framework, slave, operation);
         break;
       }
 
@@ -2972,7 +2977,7 @@ void Master::_accept(
                   << operation.create().volumes() << " from framework "
                   << *framework << " to slave " << *slave;
 
-        applyOfferOperation(framework, slave, operation);
+        apply(framework, slave, operation);
         break;
       }
 
@@ -2998,7 +3003,7 @@ void Master::_accept(
                   << operation.create().volumes() << " from framework "
                   << *framework << " to slave " << *slave;
 
-        applyOfferOperation(framework, slave, operation);
+        apply(framework, slave, operation);
         break;
       }
 
@@ -5721,7 +5726,7 @@ void Master::removeExecutor(
 }
 
 
-void Master::applyOfferOperation(
+void Master::apply(
     Framework* framework,
     Slave* slave,
     const Offer::Operation& operation)
@@ -5729,10 +5734,23 @@ void Master::applyOfferOperation(
   CHECK_NOTNULL(framework);
   CHECK_NOTNULL(slave);
 
-  allocator->updateAllocation(
-      framework->id(),
-      slave->id,
-      {operation});
+  allocator->updateAllocation(framework->id(), slave->id, {operation});
+
+  _apply(slave, operation);
+}
+
+
+Future<Nothing> Master::apply(Slave* slave, const Offer::Operation& operation)
+{
+  CHECK_NOTNULL(slave);
+
+  return allocator->updateAvailable(slave->id, {operation})
+    .onReady(defer(self(), &Master::_apply, slave, operation));
+}
+
+
+void Master::_apply(Slave* slave, const Offer::Operation& operation) {
+  CHECK_NOTNULL(slave);
 
   slave->apply(operation);
 

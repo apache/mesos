@@ -672,11 +672,21 @@ protected:
       const FrameworkID& frameworkId,
       const ExecutorID& executorId);
 
-  // Updates slave's resources by applying the given operation. It
-  // also updates the allocator and sends a CheckpointResourcesMessage
-  // to the slave with slave's current checkpointed resources.
-  void applyOfferOperation(
+  // Updates the allocator and updates the slave's resources by
+  // applying the given operation. It also sends a
+  // 'CheckpointResourcesMessage' to the slave with the updated
+  // checkpointed resources.
+  void apply(
       Framework* framework,
+      Slave* slave,
+      const Offer::Operation& operation);
+
+  // Attempts to update the allocator by applying the given operation.
+  // If successful, updates the slave's resources, sends a
+  // 'CheckpointResourcesMessage' to the slave with the updated
+  // checkpointed resources, and returns a 'Future' with 'Nothing'.
+  // Otherwise, no action is taken and returns a failed 'Future'.
+  process::Future<Nothing> apply(
       Slave* slave,
       const Offer::Operation& operation);
 
@@ -702,6 +712,8 @@ protected:
   Option<Credentials> credentials;
 
 private:
+  void _apply(Slave* slave, const Offer::Operation& operation);
+
   void drop(
       const process::UPID& from,
       const scheduler::Call& call,
@@ -808,6 +820,10 @@ private:
 
     // /master/redirect
     process::Future<process::http::Response> redirect(
+        const process::http::Request& request) const;
+
+    // /master/reserve
+    process::Future<process::http::Response> reserve(
         const process::http::Request& request) const;
 
     // /master/roles.json

@@ -104,7 +104,7 @@ namespace operation {
 // Validates the RESERVE operation.
 Option<Error> validate(
     const Offer::Operation::Reserve& reserve,
-    const std::string& role,
+    const Option<std::string>& role,
     const Option<std::string>& principal);
 
 

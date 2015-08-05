@@ -668,7 +668,7 @@ namespace operation {
 
 Option<Error> validate(
     const Offer::Operation::Reserve& reserve,
-    const string& role,
+    const Option<string>& role,
     const Option<string>& principal)
 {
   Option<Error> error = resource::validate(reserve.resources());
@@ -677,7 +677,7 @@ Option<Error> validate(
   }
 
   if (principal.isNone()) {
-    return Error("A framework without a principal cannot reserve resources.");
+    return Error("Cannot reserve resources without a principal.");
   }
 
   foreach (const Resource& resource, reserve.resources()) {
@@ -686,18 +686,18 @@ Option<Error> validate(
           "Resource " + stringify(resource) + " is not dynamically reserved");
     }
 
-    if (resource.role() != role) {
+    if (role.isSome() && resource.role() != role.get()) {
       return Error(
           "The reserved resource's role '" + resource.role() +
-          "' does not match the framework's role '" + role + "'");
+          "' does not match the framework's role '" + role.get() + "'");
     }
 
     if (resource.reservation().principal() != principal.get()) {
       return Error(
           "The reserved resource's principal '" +
-          stringify(resource.reservation().principal()) +
-          "' does not match the framework's principal '" +
-          stringify(principal.get()) + "'");
+          resource.reservation().principal() +
+          "' does not match the principal '" +
+          principal.get() + "'");
     }
 
     // NOTE: This check would be covered by 'contains' since there
