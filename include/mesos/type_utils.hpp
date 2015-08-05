@@ -149,6 +149,12 @@ inline bool operator != (const ContainerID& left, const ContainerID& right)
 }
 
 
+inline bool operator != (const ExecutorID& left, const ExecutorID& right)
+{
+  return left.value() != right.value();
+}
+
+
 inline bool operator != (const FrameworkID& left, const FrameworkID& right)
 {
   return left.value() != right.value();

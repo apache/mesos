@@ -172,6 +172,8 @@ TEST_F(MasterTest, TaskRunning)
 
   AWAIT_READY(status);
   EXPECT_EQ(TASK_RUNNING, status.get().state());
+  EXPECT_TRUE(status.get().has_executor_id());
+  EXPECT_EQ(exec.id, status.get().executor_id());
 
   AWAIT_READY(update);
 

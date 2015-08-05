@@ -276,6 +276,8 @@ TEST_F(SchedulerTest, TaskRunning)
   AWAIT_READY(event);
   EXPECT_EQ(Event::UPDATE, event.get().type());
   EXPECT_EQ(TASK_RUNNING, event.get().update().status().state());
+  EXPECT_TRUE(event.get().update().status().has_executor_id());
+  EXPECT_EQ(exec.id, event.get().update().status().executor_id());
 
   AWAIT_READY(update);
 

@@ -2715,6 +2715,20 @@ void Slave::statusUpdate(StatusUpdate update, const UPID& pid)
   update.mutable_status()->set_source(
       pid == UPID() ? TaskStatus::SOURCE_SLAVE : TaskStatus::SOURCE_EXECUTOR);
 
+  // Set TaskStatus.executor_id if not already set; overwrite existing
+  // value if already set.
+  if (update.has_executor_id()) {
+    if (update.status().has_executor_id() &&
+        update.status().executor_id() != update.executor_id()) {
+      LOG(WARNING) << "Executor ID mismatch in status update from " << pid
+                   << "; overwriting received '"
+                   << update.status().executor_id() << "' with expected'"
+                   << update.executor_id() << "'";
+    }
+    update.mutable_status()->mutable_executor_id()->CopyFrom(
+        update.executor_id());
+  }
+
   Framework* framework = getFramework(update.framework_id());
   if (framework == NULL) {
     LOG(WARNING) << "Ignoring status update " << update
