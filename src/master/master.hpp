@@ -1294,9 +1294,9 @@ struct Framework
   {
     if (tasks.count(taskId) > 0) {
       return tasks[taskId];
-    } else {
-      return NULL;
     }
+
+    return NULL;
   }
 
   void addTask(Task* task)
