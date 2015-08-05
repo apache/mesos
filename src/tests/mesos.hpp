@@ -364,6 +364,7 @@ protected:
 #define DEFAULT_FRAMEWORK_INFO                                          \
      ({ FrameworkInfo framework;                                        \
         framework.set_name("default");                                  \
+        framework.set_user("");                                         \
         framework.set_principal(DEFAULT_CREDENTIAL.principal());        \
         framework; })
 
