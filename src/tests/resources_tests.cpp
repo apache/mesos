@@ -1001,8 +1001,8 @@ TEST(ReservedResourcesTest, Equals)
   };
 
   // Test that all resources in 'unique' are considered different.
-  for (const Resources& left : unique) {
-    for (const Resources& right : unique) {
+  foreach (const Resources& left, unique) {
+    foreach (const Resources& right, unique) {
       if (&left == &right) {
         continue;
       }
