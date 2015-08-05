@@ -38,7 +38,6 @@
 #include <stout/duration.hpp>
 #include <stout/linkedhashmap.hpp>
 #include <stout/hashset.hpp>
-#include <stout/fatal.hpp>
 #include <stout/numify.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>

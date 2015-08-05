@@ -31,7 +31,6 @@
 #include <process/timeout.hpp>
 
 #include <stout/duration.hpp>
-#include <stout/fatal.hpp>
 #include <stout/foreach.hpp>
 #include <stout/path.hpp>
 #include <stout/strings.hpp>
