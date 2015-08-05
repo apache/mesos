@@ -845,6 +845,11 @@ void Master::initialize()
           Http::log(request);
           return http.machineUp(request);
         });
+  route("/unreserve",
+        None(),  // TODO(mpark): Add an Http::UNRESERVE_HELP,
+        [http](const process::http::Request& request) {
+          return http.unreserve(request);
+        });
 
   // Provide HTTP assets from a "webui" directory. This is either
   // specified via flags (which is necessary for running out of the

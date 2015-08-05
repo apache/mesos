@@ -724,7 +724,7 @@ Option<Error> validate(
   }
 
   if (!hasPrincipal) {
-    return Error("A framework without a principal cannot unreserve resources.");
+    return Error("Resources cannot be unreserved without a principal.");
   }
 
   // NOTE: We don't check that 'FrameworkInfo.principal' matches

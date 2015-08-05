@@ -355,7 +355,6 @@ class UnreserveOperationValidationTest : public MesosTest {};
 
 // This test verifies that any resources can be unreserved by any
 // framework with a principal.
-// TODO(mpark): Introduce the "unreserve" ACL to prevent this.
 TEST_F(UnreserveOperationValidationTest, WithoutACL)
 {
   Resource resource = Resources::parse("cpus", "8", "role").get();

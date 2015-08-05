@@ -866,6 +866,10 @@ private:
     process::Future<process::http::Response> machineUp(
         const process::http::Request& request) const;
 
+    // /master/unreserve
+    process::Future<process::http::Response> unreserve(
+        const process::http::Request& request) const;
+
     const static std::string SCHEDULER_HELP;
     const static std::string HEALTH_HELP;
     const static std::string OBSERVE_HELP;
@@ -892,6 +896,29 @@ private:
     process::Future<process::http::Response> _teardown(
         const FrameworkID& id,
         bool authorized = true) const;
+
+    /**
+     * Continuation for operations: /reserve, /unreserve, /create and
+     * /destroy. First tries to recover 'remaining' amount of
+     * resources by rescinding outstanding offers, then tries to apply
+     * the operation by calling 'master->apply' and propagates the
+     * 'Future<Nothing>' as 'Future<Response>' where 'Nothing' -> 'OK'
+     * and Failed -> 'Conflict'.
+     *
+     * @param slaveId The ID of the slave that the operation is
+     *     updating.
+     * @param remaining The resources needed to satisfy the operation.
+     *     This is used for an optimization where we try to only
+     *     rescind offers that would contribute to satisfying the
+     *     operation.
+     * @param operation The operation to be performed.
+     *
+     * @return Returns 'OK' if successful, 'Conflict' otherwise.
+     */
+    process::Future<process::http::Response> _operation(
+        const SlaveID& slaveId,
+        Resources remaining,
+        const Offer::Operation& operation) const;
 
     Master* master;
   };

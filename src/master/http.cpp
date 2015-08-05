@@ -745,56 +745,7 @@ Future<Response> Master::Http::reserve(const Request& request) const
 
   // TODO(mpark): Add a reserve ACL for authorization.
 
-  // The resources recovered by rescinding outstanding offers.
-  Resources recovered;
-
-  // The unreserved resources needed to satisfy the RESERVE operation.
-  // This is used in an optimization where we try to only rescind
-  // offers that would contribute to satisfying the Reserve operation.
-  Resources remaining = resources.flatten();
-
-  // We pessimistically assume that what seems like "available"
-  // resources in the allocator will be gone. This can happen due to
-  // the race between the allocator scheduling an 'allocate' call to
-  // itself vs master's request to schedule 'updateAvailable'.
-  // We greedily rescind one offer at time until we've rescinded
-  // enough offers to cover for 'resources'.
-  foreach (Offer* offer, utils::copy(slave->offers)) {
-    // If rescinding the offer would not contribute to satisfying
-    // the remaining resources, skip it.
-    if (remaining == remaining - offer->resources()) {
-      continue;
-    }
-
-    recovered += offer->resources();
-    remaining -= offer->resources();
-
-    // We explicitly pass 'Filters()' which has a default 'refuse_sec'
-    // of 5 seconds rather than 'None()' here, so that we can
-    // virtually always win the race against 'allocate'.
-    master->allocator->recoverResources(
-        offer->framework_id(),
-        offer->slave_id(),
-        offer->resources(),
-        Filters());
-
-    master->removeOffer(offer, true); // Rescind!
-
-    // If we've rescinded enough offers to cover for 'resources',
-    // we're done.
-    Try<Resources> updatedRecovered = recovered.apply(operation);
-    if (updatedRecovered.isSome()) {
-      break;
-    }
-  }
-
-  // Propogate the 'Future<Nothing>' as 'Future<Response>' where
-  // 'Nothing' -> 'OK' and Failed -> 'Conflict'.
-  return master->apply(slave, operation)
-    .then([]() -> Response { return OK(); })
-    .repair([](const Future<Response>& result) {
-       return Conflict(result.failure());
-    });
+  return _operation(slaveId, resources.flatten(), operation);
 }
 
 
@@ -1818,6 +1769,79 @@ Future<Response> Master::Http::maintenanceStatus(const Request& request) const
 }
 
 
+Future<Response> Master::Http::unreserve(const Request& request) const
+{
+  if (request.method != "POST") {
+    return BadRequest("Expecting POST");
+  }
+
+  // Parse the query string in the request body.
+  Try<hashmap<string, string>> decode =
+    process::http::query::decode(request.body);
+
+  if (decode.isError()) {
+    return BadRequest("Unable to decode query string: " + decode.error());
+  }
+
+  const hashmap<string, string>& values = decode.get();
+
+  if (values.get("slaveId").isNone()) {
+    return BadRequest("Missing 'slaveId' query parameter");
+  }
+
+  SlaveID slaveId;
+  slaveId.set_value(values.get("slaveId").get());
+
+  Slave* slave = master->slaves.registered.get(slaveId);
+  if (slave == NULL) {
+    return BadRequest("No slave found with specified ID");
+  }
+
+  if (values.get("resources").isNone()) {
+    return BadRequest("Missing 'resources' query parameter");
+  }
+
+  Try<JSON::Array> parse =
+    JSON::parse<JSON::Array>(values.get("resources").get());
+
+  if (parse.isError()) {
+    return BadRequest(
+        "Error in parsing 'resources' query parameter: " + parse.error());
+  }
+
+  Resources resources;
+  foreach (const JSON::Value& value, parse.get().values) {
+    Try<Resource> resource = ::protobuf::parse<Resource>(value);
+    if (resource.isError()) {
+      return BadRequest(
+          "Error in parsing 'resources' query parameter: " + resource.error());
+    }
+    resources += resource.get();
+  }
+
+  Result<Credential> credential = authenticate(request);
+  if (credential.isError()) {
+    return Unauthorized("Mesos master", credential.error());
+  }
+
+  // Create an offer operation.
+  Offer::Operation operation;
+  operation.set_type(Offer::Operation::UNRESERVE);
+  operation.mutable_unreserve()->mutable_resources()->CopyFrom(resources);
+
+  Option<Error> validate =
+    validation::operation::validate(operation.unreserve(), credential.isSome());
+
+  if (validate.isSome()) {
+    return BadRequest("Invalid UNRESERVE operation: " + validate.get().message);
+  }
+
+  // TODO(mpark): Add a unreserve ACL for authorization.
+
+  return _operation(slaveId, resources, operation);
+}
+
+
 Result<Credential> Master::Http::authenticate(const Request& request) const
 {
   // By default, assume everyone is authenticated if no credentials
@@ -1859,6 +1883,63 @@ Result<Credential> Master::Http::authenticate(const Request& request) const
   return Error("Could not authenticate '" + username + "'");
 }
 
+
+Future<Response> Master::Http::_operation(
+    const SlaveID& slaveId,
+    Resources remaining,
+    const Offer::Operation& operation) const
+{
+  Slave* slave = master->slaves.registered.get(slaveId);
+  if (slave == NULL) {
+    return BadRequest("No slave found with specified ID");
+  }
+
+  // The resources recovered by rescinding outstanding offers.
+  Resources recovered;
+
+  // We pessimistically assume that what seems like "available"
+  // resources in the allocator will be gone. This can happen due to
+  // the race between the allocator scheduling an 'allocate' call to
+  // itself vs master's request to schedule 'updateAvailable'.
+  // We greedily rescind one offer at time until we've rescinded
+  // enough offers to cover for 'resources'.
+  foreach (Offer* offer, utils::copy(slave->offers)) {
+    // If rescinding the offer would not contribute to satisfying
+    // the remaining resources, skip it.
+    if (remaining == remaining - offer->resources()) {
+      continue;
+    }
+
+    recovered += offer->resources();
+    remaining -= offer->resources();
+
+    // We explicitly pass 'Filters()' which has a default 'refuse_sec'
+    // of 5 seconds rather than 'None()' here, so that we can
+    // virtually always win the race against 'allocate'.
+    master->allocator->recoverResources(
+        offer->framework_id(),
+        offer->slave_id(),
+        offer->resources(),
+        Filters());
+
+    master->removeOffer(offer, true); // Rescind!
+
+    // If we've rescinded enough offers to cover for 'resources',
+    // we're done.
+    Try<Resources> updatedRecovered = recovered.apply(operation);
+    if (updatedRecovered.isSome()) {
+      break;
+    }
+  }
+
+  // Propogate the 'Future<Nothing>' as 'Future<Response>' where
+  // 'Nothing' -> 'OK' and Failed -> 'Conflict'.
+  return master->apply(slave, operation)
+    .then([]() -> Response { return OK(); })
+    .repair([](const Future<Response>& result) {
+       return Conflict(result.failure());
+    });
+}
 
 } // namespace master {
 } // namespace internal {
