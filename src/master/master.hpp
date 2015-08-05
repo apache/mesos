@@ -584,6 +584,14 @@ protected:
   // the event of a scheduler failover.
   void failoverFramework(Framework* framework, const process::UPID& newPid);
 
+  // Failover the old framework. Copies various attributes from the
+  // new framework passed as argument.
+  void failoverFramework(Framework* framework, Framework* newFramework);
+
+  // Rescinds the framework's offers and reactivates the framework
+  // marking it as connected.
+  void rescindOffersAndReactivate(Framework* framework);
+
   // Kill all of a framework's tasks, delete the framework object, and
   // reschedule offers that were assigned to this framework.
   void removeFramework(Framework* framework);
@@ -698,11 +706,23 @@ private:
       const Offer::Operation& operation,
       const std::string& message);
 
+  // Subscribes a http framework.
+  void subscribe(
+      const scheduler::Call::Subscribe& subscribe,
+      ContentType contentType,
+      process::http::Pipe::Writer writer);
+
+  // Continuation of subscribe().
+  void _subscribe(
+      Framework* framework,
+      const scheduler::Call::Subscribe& subscribe);
+
   // Call handlers.
   void receive(
       const process::UPID& from,
       const scheduler::Call& call);
 
+  // Subscribes a pid framework.
   void subscribe(
       const process::UPID& from,
       const scheduler::Call::Subscribe& subscribe);
@@ -1501,6 +1521,22 @@ struct Framework
     if (source.capabilities_size() > 0) {
       info.mutable_capabilities()->CopyFrom(source.capabilities());
     }
+  }
+
+  void updateWriter(process::http::Pipe::Writer writer)
+  {
+    // Don't update with the same writer.
+    if (http.get().writer == writer) {
+      return;
+    }
+
+    // Close the existing connection and update the writer.
+    http.get().writer.close();
+    http.get().writer = writer;
+
+    // Set up the reader closed callback.
+    http.get().writer.readerClosed()
+      .onAny(defer(master->self(), &Master::exited, id(), writer));
   }
 
   Master* const master;
