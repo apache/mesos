@@ -85,7 +85,6 @@
 #include "watcher/whitelist_watcher.hpp"
 
 using std::list;
-using std::ostringstream;
 using std::shared_ptr;
 using std::string;
 using std::vector;
