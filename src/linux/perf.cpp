@@ -296,56 +296,56 @@ private:
     await(perf.get().status(),
           io::read(perf.get().out().get()),
           io::read(perf.get().err().get()))
-    .onReady(defer(self(), [this](const tuple<
-        Future<Option<int>>,
-        Future<string>,
-        Future<string>>& results) {
-      Future<Option<int>> status = std::get<0>(results);
-      Future<string> output = std::get<1>(results);
+      .onReady(defer(self(), [this](const tuple<
+          Future<Option<int>>,
+          Future<string>,
+          Future<string>>& results) {
+        Future<Option<int>> status = std::get<0>(results);
+        Future<string> output = std::get<1>(results);
 
-      Option<Error> error = None();
+        Option<Error> error = None();
 
-      if (!status.isReady()) {
-        error = Error("Failed to execute perf: " +
-                      (status.isFailed() ? status.failure() : "discarded"));
-      } else if (status.get().isNone()) {
-        error = Error("Failed to execute perf: failed to reap");
-      } else if (status.get().get() != 0) {
-        error = Error("Failed to collect perf statistics: " +
-                      WSTRINGIFY(status.get().get()));
-      } else if (!output.isReady()) {
-        error = Error("Failed to read perf output: " +
-                      (output.isFailed() ? output.failure() : "discarded"));
-      }
+        if (!status.isReady()) {
+          error = Error("Failed to execute perf: " +
+                        (status.isFailed() ? status.failure() : "discarded"));
+        } else if (status.get().isNone()) {
+          error = Error("Failed to execute perf: failed to reap");
+        } else if (status.get().get() != 0) {
+          error = Error("Failed to collect perf statistics: " +
+                        WSTRINGIFY(status.get().get()));
+        } else if (!output.isReady()) {
+          error = Error("Failed to read perf output: " +
+                        (output.isFailed() ? output.failure() : "discarded"));
+        }
 
-      if (error.isSome()) {
-        promise.fail(error.get().message);
+        if (error.isSome()) {
+          promise.fail(error.get().message);
+          terminate(self());
+          return;
+        }
+
+        // Parse output from stdout.
+        Try<hashmap<string, mesos::PerfStatistics>> parse =
+            perf::parse(output.get());
+
+        if (parse.isError()) {
+          promise.fail("Failed to parse perf output: " + parse.error());
+          terminate(self());
+          return;
+        }
+
+        // Create a non-const copy from the Try<> so we can set the
+        // timestamp and duration.
+        hashmap<string, mesos::PerfStatistics> statistics = parse.get();
+        foreachvalue (mesos::PerfStatistics& s, statistics) {
+          s.set_timestamp(start.secs());
+          s.set_duration(duration.secs());
+        }
+
+        promise.set(statistics);
         terminate(self());
         return;
-      }
-
-      // Parse output from stdout.
-      Try<hashmap<string, mesos::PerfStatistics>> parse =
-          perf::parse(output.get());
-
-      if (parse.isError()) {
-        promise.fail("Failed to parse perf output: " + parse.error());
-        terminate(self());
-        return;
-      }
-
-      // Create a non-const copy from the Try<> so we can set the
-      // timestamp and duration.
-      hashmap<string, mesos::PerfStatistics> statistics = parse.get();
-      foreachvalue (mesos::PerfStatistics& s, statistics) {
-        s.set_timestamp(start.secs());
-        s.set_duration(duration.secs());
-      }
-
-      promise.set(statistics);
-      terminate(self());
-      return;
-  }));
+    }));
 }
 
   const vector<string> argv;
