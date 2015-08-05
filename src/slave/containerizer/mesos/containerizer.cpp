@@ -477,18 +477,6 @@ Future<Nothing> MesosContainerizerProcess::__recover(
     // containers should be running after recover.
     container->state = RUNNING;
 
-    // Add the default container info to the executor info.
-    // TODO(jieyu): Checkpoint the default container info in case the
-    // slave changes the default container info flag.
-    ExecutorInfo executorInfo = run.executor_info();
-    if (!executorInfo.has_container() &&
-        flags.default_container_info.isSome()) {
-      executorInfo.mutable_container()->CopyFrom(
-          flags.default_container_info.get());
-    }
-
-    container->executorInfo = executorInfo;
-
     containers_[containerId] = Owned<Container>(container);
 
     foreach (const Owned<Isolator>& isolator, isolators) {
@@ -622,7 +610,6 @@ Future<bool> MesosContainerizerProcess::launch(
             << "' of framework '" << executorInfo.framework_id() << "'";
 
   Container* container = new Container();
-  container->executorInfo = executorInfo;
   container->directory = directory;
   container->state = PREPARING;
   container->resources = executorInfo.resources();

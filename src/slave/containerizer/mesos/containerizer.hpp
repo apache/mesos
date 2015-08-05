@@ -318,9 +318,6 @@ private:
     // ResourceStatistics limits in usage().
     Resources resources;
 
-    // We keep track of the ExecutorInfo so we have the optional ContainerInfo.
-    ExecutorInfo executorInfo;
-
     // The executor's working directory on the host.
     std::string directory;
 
