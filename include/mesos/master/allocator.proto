@@ -18,9 +18,12 @@
 
 package mesos.master;
 
-// Describes a role, which are used to group frameworks for allocation
-// decisions, depending on the allocation policy being used.
-// The weight field can be used to indicate forms of priority.
+
+/**
+ * Describes a role, which is used to group frameworks for allocation
+ * decisions, depending on the allocation policy being used.
+ * The weight field can be used to indicate forms of priority.
+ */
 message RoleInfo {
   required string name = 1;
   optional double weight = 2 [default = 1];
