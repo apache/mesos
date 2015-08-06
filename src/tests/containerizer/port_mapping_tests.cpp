@@ -461,7 +461,6 @@ TEST_F(PortMappingIsolatorTest, ROOT_NC_ContainerToContainerTCP)
         containerId1,
         executorInfo,
         dir1.get(),
-        None(),
         None());
 
   AWAIT_READY(preparation1);
@@ -529,7 +528,6 @@ TEST_F(PortMappingIsolatorTest, ROOT_NC_ContainerToContainerTCP)
         containerId2,
         executorInfo,
         dir2.get(),
-        None(),
         None());
 
   AWAIT_READY(preparation2);
@@ -623,7 +621,6 @@ TEST_F(PortMappingIsolatorTest, ROOT_NC_ContainerToContainerUDP)
         containerId1,
         executorInfo,
         dir1.get(),
-        None(),
         None());
 
   AWAIT_READY(preparation1);
@@ -691,7 +688,6 @@ TEST_F(PortMappingIsolatorTest, ROOT_NC_ContainerToContainerUDP)
         containerId2,
         executorInfo,
         dir2.get(),
-        None(),
         None());
 
   AWAIT_READY(preparation2);
@@ -787,7 +783,6 @@ TEST_F(PortMappingIsolatorTest, ROOT_NC_HostToContainerUDP)
         containerId,
         executorInfo,
         dir.get(),
-        None(),
         None());
 
   AWAIT_READY(preparation1);
@@ -905,7 +900,6 @@ TEST_F(PortMappingIsolatorTest, ROOT_NC_HostToContainerTCP)
         containerId,
         executorInfo,
         dir.get(),
-        None(),
         None());
 
   AWAIT_READY(preparation1);
@@ -1031,7 +1025,6 @@ TEST_F(PortMappingIsolatorTest, ROOT_ContainerICMPExternal)
         containerId,
         executorInfo,
         dir.get(),
-        None(),
         None());
 
   AWAIT_READY(preparation1);
@@ -1118,7 +1111,6 @@ TEST_F(PortMappingIsolatorTest, ROOT_ContainerICMPInternal)
         containerId,
         executorInfo,
         dir.get(),
-        None(),
         None());
 
   AWAIT_READY(preparation1);
@@ -1208,7 +1200,6 @@ TEST_F(PortMappingIsolatorTest, ROOT_ContainerARPExternal)
         containerId,
         executorInfo,
         dir.get(),
-        None(),
         None());
 
   AWAIT_READY(preparation1);
@@ -1304,7 +1295,6 @@ TEST_F(PortMappingIsolatorTest, ROOT_DNS)
         containerId,
         executorInfo,
         dir.get(),
-        None(),
         None());
 
   AWAIT_READY(preparation1);
@@ -1396,7 +1386,6 @@ TEST_F(PortMappingIsolatorTest, ROOT_TooManyContainers)
         containerId1,
         executorInfo,
         dir1.get(),
-        None(),
         None());
 
   AWAIT_READY(preparation1);
@@ -1448,7 +1437,6 @@ TEST_F(PortMappingIsolatorTest, ROOT_TooManyContainers)
         containerId2,
         executorInfo,
         dir2.get(),
-        None(),
         None());
 
   AWAIT_FAILED(preparation2);
@@ -1514,7 +1502,6 @@ TEST_F(PortMappingIsolatorTest, ROOT_NC_SmallEgressLimit)
         containerId,
         executorInfo,
         dir.get(),
-        None(),
         None());
 
   AWAIT_READY(preparation1);
@@ -1669,7 +1656,6 @@ TEST_F(PortMappingIsolatorTest, ROOT_NC_PortMappingStatistics)
         containerId,
         executorInfo,
         dir1.get(),
-        None(),
         None());
 
   AWAIT_READY(preparation1);

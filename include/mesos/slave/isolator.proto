@@ -68,4 +68,7 @@ message ContainerPrepareInfo
 {
   repeated CommandInfo commands = 1;
   optional Environment environment = 2;
+
+  // The root filesystem for the container.
+  optional string rootfs = 3;
 }

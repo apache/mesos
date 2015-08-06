@@ -74,7 +74,6 @@ Future<Option<ContainerPrepareInfo>> PosixFilesystemIsolatorProcess::prepare(
     const ContainerID& containerId,
     const ExecutorInfo& executorInfo,
     const string& directory,
-    const Option<string>& rootfs,
     const Option<string>& user)
 {
   if (infos.contains(containerId)) {
@@ -83,8 +82,15 @@ Future<Option<ContainerPrepareInfo>> PosixFilesystemIsolatorProcess::prepare(
 
   // Return failure if the container change the filesystem root
   // because the symlinks will become invalid in the new root.
-  if (rootfs.isSome()) {
-    return Failure("Container root filesystems not supported");
+  if (executorInfo.has_container()) {
+    CHECK_EQ(executorInfo.container().type(), ContainerInfo::MESOS);
+
+    if (executorInfo.container().mesos().has_image()) {
+      return Failure("Container root filesystems not supported");
+    }
+
+    // TODO(jieyu): Also return a failure if there exists images in
+    // the specified volumes.
   }
 
   infos.put(containerId, Owned<Info>(new Info(directory)));

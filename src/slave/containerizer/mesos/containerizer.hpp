@@ -33,7 +33,6 @@
 
 #include "slave/containerizer/containerizer.hpp"
 #include "slave/containerizer/launcher.hpp"
-#include "slave/containerizer/provisioner.hpp"
 
 namespace mesos {
 namespace internal {
@@ -57,9 +56,7 @@ public:
       bool local,
       Fetcher* fetcher,
       const process::Owned<Launcher>& launcher,
-      const std::vector<process::Owned<mesos::slave::Isolator>>& isolators,
-      const hashmap<Image::Type, process::Owned<Provisioner>>& provisioners);
-
+      const std::vector<process::Owned<mesos::slave::Isolator>>& isolators);
 
   // Used for testing.
   MesosContainerizer(const process::Owned<MesosContainerizerProcess>& _process);
@@ -116,14 +113,12 @@ public:
       bool _local,
       Fetcher* _fetcher,
       const process::Owned<Launcher>& _launcher,
-      const std::vector<process::Owned<mesos::slave::Isolator>>& _isolators,
-      const hashmap<Image::Type, process::Owned<Provisioner>>& _provisioners)
+      const std::vector<process::Owned<mesos::slave::Isolator>>& _isolators)
     : flags(_flags),
       local(_local),
       fetcher(_fetcher),
       launcher(_launcher),
-      isolators(_isolators),
-      provisioners(_provisioners) {}
+      isolators(_isolators) {}
 
   virtual ~MesosContainerizerProcess() {}
 
@@ -181,16 +176,11 @@ private:
       const std::list<mesos::slave::ContainerState>& recovered,
       const hashset<ContainerID>& orphans);
 
-  process::Future<Option<std::string>> provision(
-      const ContainerID& containerId,
-      const ExecutorInfo& executorInfo);
-
   process::Future<std::list<Option<mesos::slave::ContainerPrepareInfo>>>
     prepare(const ContainerID& containerId,
             const ExecutorInfo& executorInfo,
             const std::string& directory,
-            const Option<std::string>& user,
-            const Option<std::string>& rootfs);
+            const Option<std::string>& user);
 
   process::Future<Nothing> fetch(
       const ContainerID& containerId,
@@ -204,17 +194,6 @@ private:
       const ExecutorInfo& executorInfo,
       const std::string& directory,
       const Option<std::string>& user,
-      const Option<std::string>& rootfs,
-      const SlaveID& slaveId,
-      const process::PID<Slave>& slavePid,
-      bool checkpoint);
-
-  process::Future<bool> __launch(
-      const ContainerID& containerId,
-      const ExecutorInfo& executorInfo,
-      const std::string& directory,
-      const Option<std::string>& user,
-      const Option<std::string>& rootfs,
       const SlaveID& slaveId,
       const process::PID<Slave>& slavePid,
       bool checkpoint,
@@ -249,15 +228,6 @@ private:
       Option<std::string> message,
       bool killed);
 
-  // Continues (and completes) '____destroy()' once any root filessystem
-  // has been cleaned up.
-  void _____destroy(
-      const ContainerID& containerId,
-      const process::Future<Option<int>>& status,
-      Option<std::string> message,
-      bool killed,
-      const process::Future<std::list<process::Future<bool>>>& futures);
-
   // Call back for when an isolator limits a container and impacts the
   // processes. This will trigger container destruction.
   void limited(
@@ -278,7 +248,6 @@ private:
   Fetcher* fetcher;
   const process::Owned<Launcher> launcher;
   const std::vector<process::Owned<mesos::slave::Isolator>> isolators;
-  hashmap<Image::Type, process::Owned<Provisioner>> provisioners;
 
   enum State
   {

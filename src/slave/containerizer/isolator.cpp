@@ -68,7 +68,6 @@ Future<Option<ContainerPrepareInfo>> MesosIsolator::prepare(
     const ContainerID& containerId,
     const ExecutorInfo& executorInfo,
     const string& directory,
-    const Option<string>& rootfs,
     const Option<string>& user)
 {
   return dispatch(process.get(),
@@ -76,7 +75,6 @@ Future<Option<ContainerPrepareInfo>> MesosIsolator::prepare(
                   containerId,
                   executorInfo,
                   directory,
-                  rootfs,
                   user);
 }
 
