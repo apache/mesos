@@ -28,8 +28,10 @@
 #include <process/subprocess.hpp>
 
 #include <stout/fs.hpp>
+#include <stout/lambda.hpp>
 #include <stout/os.hpp>
 #include <stout/path.hpp>
+#include <stout/strings.hpp>
 
 #include "common/protobuf_utils.hpp"
 
@@ -43,7 +45,7 @@
 #include "slave/containerizer/launcher.hpp"
 #ifdef __linux__
 #include "slave/containerizer/linux_launcher.hpp"
-#endif // __linux__
+#endif
 
 #include "slave/containerizer/isolators/posix.hpp"
 
@@ -102,22 +104,30 @@ Try<MesosContainerizer*> MesosContainerizer::create(
     Fetcher* fetcher)
 {
   string isolation;
+
   if (flags.isolation == "process") {
     LOG(WARNING) << "The 'process' isolation flag is deprecated, "
                  << "please update your flags to"
                  << " '--isolation=posix/cpu,posix/mem'.";
+
     isolation = "posix/cpu,posix/mem";
   } else if (flags.isolation == "cgroups") {
     LOG(WARNING) << "The 'cgroups' isolation flag is deprecated, "
                  << "please update your flags to"
                  << " '--isolation=cgroups/cpu,cgroups/mem'.";
+
     isolation = "cgroups/cpu,cgroups/mem";
   } else {
     isolation = flags.isolation;
   }
 
-  // A filesystem isolator is required for persistent volumes; use the
-  // filesystem/posix isolator if necessary.
+  // One and only one filesystem isolator is required. The filesystem
+  // isolator is responsible for preparing the filesystems for containers
+  // (e.g., prepare filesystem roots, volumes, etc.). If the user does
+  // not specify a filesystem isolator, the default 'filesystem/posix'
+  // isolator will be used.
+  //
+  // TODO(jieyu): Check that only one filesystem isolator is used.
   if (!strings::contains(isolation, "filesystem/")) {
     isolation += ",filesystem/posix";
   }
@@ -129,8 +139,15 @@ Try<MesosContainerizer*> MesosContainerizer::create(
   LOG(INFO) << "Using isolation: " << isolation;
 
   // Create a MesosContainerizerProcess using isolators and a launcher.
-  static const hashmap<string, Try<Isolator*> (*)(const Flags&)> creators = {
+  const hashmap<string, lambda::function<Try<Isolator*>(const Flags&)>>
+    creators = {
+    // Filesystem isolators.
     {"filesystem/posix", &PosixFilesystemIsolatorProcess::create},
+#ifdef __linux__
+    {"filesystem/shared", &SharedFilesystemIsolatorProcess::create},
+#endif
+
+    // Runtime isolators.
     {"posix/cpu", &PosixCpuIsolatorProcess::create},
     {"posix/mem", &PosixMemIsolatorProcess::create},
     {"posix/disk", &PosixDiskIsolatorProcess::create},
@@ -138,9 +155,8 @@ Try<MesosContainerizer*> MesosContainerizer::create(
     {"cgroups/cpu", &CgroupsCpushareIsolatorProcess::create},
     {"cgroups/mem", &CgroupsMemIsolatorProcess::create},
     {"cgroups/perf_event", &CgroupsPerfEventIsolatorProcess::create},
-    {"filesystem/shared", &SharedFilesystemIsolatorProcess::create},
     {"namespaces/pid", &NamespacesPidIsolatorProcess::create},
-#endif // __linux__
+#endif
 #ifdef WITH_NETWORK_ISOLATOR
     {"network/port_mapping", &PortMappingIsolatorProcess::create},
 #endif
@@ -149,30 +165,35 @@ Try<MesosContainerizer*> MesosContainerizer::create(
   vector<Owned<Isolator>> isolators;
 
   foreach (const string& type, strings::tokenize(isolation, ",")) {
+    Owned<Isolator> isolator;
+
     if (creators.contains(type)) {
-      Try<Isolator*> isolator = creators.at(type)(flags_);
-      if (isolator.isError()) {
+      Try<Isolator*> _isolator = creators.at(type)(flags_);
+      if (_isolator.isError()) {
         return Error(
-            "Could not create isolator " + type + ": " + isolator.error());
-      } else {
-        isolators.push_back(Owned<Isolator>(isolator.get()));
+            "Could not create isolator " + type + ": " + _isolator.error());
       }
+
+      isolator.reset(_isolator.get());
     } else if (ModuleManager::contains<Isolator>(type)) {
-      Try<Isolator*> isolator = ModuleManager::create<Isolator>(type);
-      if (isolator.isError()) {
+      Try<Isolator*> _isolator = ModuleManager::create<Isolator>(type);
+      if (_isolator.isError()) {
         return Error(
-            "Could not create isolator " + type + ": " + isolator.error());
-      } else {
-        if (type == "filesystem/shared") {
-          // Filesystem isolator must be the first isolator used for prepare()
-          // so any volume mounts are performed before anything else runs.
-          isolators.insert(isolators.begin(), Owned<Isolator>(isolator.get()));
-        } else {
-          isolators.push_back(Owned<Isolator>(isolator.get()));
-        }
+            "Could not create isolator " + type + ": " + _isolator.error());
       }
+
+      isolator.reset(_isolator.get());
     } else {
       return Error("Unknown or unsupported isolator: " + type);
+    }
+
+    // NOTE: The filesystem isolator must be the first isolator used
+    // so that the runtime isolators can have a consistent view on the
+    // prepared filesystem (e.g., any volume mounts are performed).
+    if (strings::contains(type, "filesystem/")) {
+      isolators.insert(isolators.begin(), isolator);
+    } else {
+      isolators.push_back(isolator);
     }
   }
 
