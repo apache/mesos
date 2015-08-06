@@ -766,6 +766,9 @@ TEST_F(MasterAuthorizationTest, DuplicateRegistration)
                     Return(promise2.future())))
     .WillRepeatedly(Return(true)); // Authorize subsequent registration retries.
 
+  // Pause the clock to avoid registration retries.
+  Clock::pause();
+
   driver.start();
 
   // Wait until first authorization attempt is in progress.
