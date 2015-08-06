@@ -13,6 +13,7 @@
 */
 
 #include <string>
+#include <utility>
 
 #include <stout/hashset.hpp>
 
@@ -21,6 +22,101 @@
 #include <gmock/gmock.h>
 
 using std::string;
+
+
+TEST(HashsetTest, InitializerList)
+{
+  hashset<string> set{"hello"};
+  EXPECT_EQ(1, set.size());
+
+  EXPECT_TRUE((hashset<int>{}.empty()));
+
+  hashset<int> set1{1, 3, 5, 7, 11};
+  EXPECT_EQ(5, set1.size());
+  EXPECT_TRUE(set1.contains(1));
+  EXPECT_TRUE(set1.contains(3));
+  EXPECT_TRUE(set1.contains(5));
+  EXPECT_TRUE(set1.contains(7));
+  EXPECT_TRUE(set1.contains(11));
+
+  EXPECT_FALSE(set1.contains(2));
+}
+
+
+TEST(HashsetTest, FromStdSet)
+{
+  std::set<int> set1{1, 3, 5, 7};
+
+  hashset<int> set2(set1);
+
+  EXPECT_EQ(set1.size(), set2.size());
+  EXPECT_EQ(4, set2.size());
+
+  foreach (const auto set1_entry, set1) {
+    EXPECT_TRUE(set2.contains(set1_entry));
+  }
+}
+
+
+TEST(HashsetTest, FromRValueStdSet)
+{
+  std::set<int> set1{1, 3};
+
+  hashset<int> set2(std::move(set1));
+
+  EXPECT_EQ(2, set2.size());
+
+  EXPECT_TRUE(set2.contains(1));
+  EXPECT_TRUE(set2.contains(3));
+
+  EXPECT_FALSE(set2.contains(2));
+}
+
+
+TEST(HashsetTest, CustomHashAndEqual)
+{
+  struct CaseInsensitiveHash
+  {
+    size_t operator () (const string& key) const
+    {
+      size_t seed = 0;
+      foreach (const char c, key) {
+        boost::hash_combine(seed, ::tolower(c));
+      }
+      return seed;
+    }
+  };
+
+  struct CaseInsensitiveEqual
+  {
+    bool operator () (const string& left, const string& right) const
+    {
+      if (left.size() != right.size()) {
+        return false;
+      }
+      for (size_t i = 0; i < left.size(); ++i) {
+        if (::tolower(left[i]) != ::tolower(right[i])) {
+          return false;
+        }
+      }
+      return true;
+    }
+  };
+
+  hashset<string, CaseInsensitiveHash, CaseInsensitiveEqual> set;
+
+  set.insert("abc");
+  set.insert("def");
+  EXPECT_TRUE(set.contains("Abc"));
+  EXPECT_TRUE(set.contains("dEf"));
+
+  EXPECT_EQ(2, set.size());
+  set.insert("Abc");
+  set.insert("DEF");
+  EXPECT_EQ(2, set.size());
+  EXPECT_TRUE(set.contains("abc"));
+  EXPECT_TRUE(set.contains("def"));
+}
 
 
 TEST(HashsetTest, Insert)
