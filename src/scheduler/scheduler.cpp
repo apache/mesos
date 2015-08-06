@@ -106,7 +106,6 @@ public:
       disconnected(_disconnected),
       received(_received),
       local(false),
-      failover(true),
       detector(NULL),
       authenticatee(NULL),
       authenticating(None()),
@@ -444,15 +443,11 @@ protected:
 
   void receive(const UPID& from, const FrameworkRegisteredMessage& message)
   {
-    failover = false;
-
     receive(from, protobuf::scheduler::event(message));
   }
 
   void receive(const UPID& from, const FrameworkReregisteredMessage& message)
   {
-    failover = false;
-
     receive(from, protobuf::scheduler::event(message));
   }
 
@@ -520,12 +515,6 @@ private:
   lambda::function<void(const queue<Event>&)> received;
 
   bool local; // Whether or not we launched a local cluster.
-
-  // Whether or not this is the first time we've sent a
-  // REREGISTER. This is to maintain compatibility with what the
-  // master expects from SchedulerProcess. After the first REGISTER or
-  // REREGISTER event we force this to be false.
-  bool failover;
 
   MasterDetector* detector;
 
