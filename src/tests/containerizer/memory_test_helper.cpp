@@ -71,26 +71,36 @@ const char INCREASE_RSS[] = "INCREASE_RSS";
 const char INCREASE_PAGE_CACHE[] = "INCREASE_PAGE_CACHE";
 
 
-// This helper allocates and locks specified anonymous memory (RSS).
-// It uses mlockall() and memset() to make sure allocated memory is
-// mapped.
+// This helper allocates memory and prevents the compiler from
+// optimizing that allocation away by locking the allocated pages.
 static Try<void*> allocateRSS(const Bytes& size)
 {
-  void* rss = NULL;
-
+#ifndef __APPLE__
   // Make sure that all pages that are going to be mapped into the
   // address space of this process become unevictable. This is needed
-  // for testing cgroup oom killer.
+  // for testing cgroups OOM killer.
   if (mlockall(MCL_FUTURE) != 0) {
     return ErrnoError("Failed to make pages to be mapped unevictable");
   }
+#endif
 
+  void* rss = NULL;
   if (posix_memalign(&rss, getpagesize(), size.bytes()) != 0) {
     return ErrnoError("Failed to increase RSS memory, posix_memalign");
   }
 
   // Use memset to map pages into the memory space of this process.
   memset(rss, 1, size.bytes());
+
+#ifdef __APPLE__
+  // Locking a page makes it unevictable in the kernel. This is needed
+  // for testing cgroups OOM killer.
+  // NOTE: We use 'mlock' here because 'mlockall' is left
+  // unimplemented on OS X.
+  if (mlock(rss, size.bytes()) != 0) {
+    return ErrnoError("Failed to make mapped pages unevictable");
+  }
+#endif
 
   return rss;
 }
