@@ -49,6 +49,8 @@ class ZooKeeperMasterContenderProcess;
 
 
 // An abstraction for contending to be a leading master.
+//
+// TODO(benh): Support contending with a v1::MasterInfo.
 class MasterContender
 {
 public:

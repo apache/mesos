@@ -50,6 +50,7 @@
 #include <stout/lambda.hpp>
 #include <stout/none.hpp>
 #include <stout/option.hpp>
+#include <stout/os.hpp>
 #include <stout/stringify.hpp>
 #include <stout/try.hpp>
 #include <stout/uuid.hpp>
@@ -347,6 +348,13 @@ protected:
         executor; })
 
 
+#define DEFAULT_V1_EXECUTOR_INFO                                        \
+     ({ v1::ExecutorInfo executor;                                      \
+        executor.mutable_executor_id()->set_value("default");           \
+        executor.mutable_command()->set_value("exit 1");                \
+        executor; })
+
+
 #define CREATE_EXECUTOR_INFO(executorId, command)                       \
       ({ ExecutorInfo executor;                                         \
         executor.mutable_executor_id()->set_value(executorId);          \
@@ -361,16 +369,35 @@ protected:
         credential; })
 
 
+#define DEFAULT_V1_CREDENTIAL                                          \
+     ({ v1::Credential credential;                                     \
+        credential.set_principal("test-principal");                    \
+        credential.set_secret("test-secret");                          \
+        credential; })
+
+
 #define DEFAULT_FRAMEWORK_INFO                                          \
      ({ FrameworkInfo framework;                                        \
         framework.set_name("default");                                  \
-        framework.set_user("");                                         \
+        framework.set_user(os::user().get());                           \
+        framework.set_principal(DEFAULT_CREDENTIAL.principal());        \
+        framework; })
+
+
+#define DEFAULT_V1_FRAMEWORK_INFO                                       \
+     ({ v1::FrameworkInfo framework;                                    \
+        framework.set_name("default");                                  \
+        framework.set_user(os::user().get());                           \
         framework.set_principal(DEFAULT_CREDENTIAL.principal());        \
         framework; })
 
 
 #define DEFAULT_EXECUTOR_ID           \
       DEFAULT_EXECUTOR_INFO.executor_id()
+
+
+#define DEFAULT_V1_EXECUTOR_ID         \
+      DEFAULT_V1_EXECUTOR_INFO.executor_id()
 
 
 #define DEFAULT_CONTAINER_ID                                          \

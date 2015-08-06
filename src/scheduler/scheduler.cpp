@@ -29,13 +29,12 @@
 #include <string>
 #include <sstream>
 
-#include <mesos/mesos.hpp>
-#include <mesos/scheduler.hpp>
-#include <mesos/type_utils.hpp>
-
 #include <mesos/authentication/authenticatee.hpp>
 
 #include <mesos/module/authenticatee.hpp>
+
+#include <mesos/v1/mesos.hpp>
+#include <mesos/v1/scheduler.hpp>
 
 #include <process/async.hpp>
 #include <process/defer.hpp>
@@ -61,15 +60,16 @@
 
 #include "authentication/cram_md5/authenticatee.hpp"
 
-#include "common/protobuf_utils.hpp"
-
-#include "master/detector.hpp"
-#include "master/validation.hpp"
+#include "internal/devolve.hpp"
+#include "internal/evolve.hpp"
 
 #include "local/local.hpp"
 
 #include "logging/flags.hpp"
 #include "logging/logging.hpp"
+
+#include "master/detector.hpp"
+#include "master/validation.hpp"
 
 #include "messages/messages.hpp"
 
@@ -86,6 +86,7 @@ using std::vector;
 using process::wait; // Necessary on some OS's to disambiguate.
 
 namespace mesos {
+namespace v1 {
 namespace scheduler {
 
 // The process (below) is responsible for receiving messages
@@ -192,7 +193,7 @@ public:
       return;
     }
 
-    Option<Error> error = validation::scheduler::call::validate(call);
+    Option<Error> error = validation::scheduler::call::validate(devolve(call));
 
     if (error.isSome()) {
       drop(call, error.get().message);
@@ -202,7 +203,7 @@ public:
     // TODO(vinod): Add support for sending MESSAGE calls directly
     // to the slave, instead of relaying it through the master, as
     // the scheduler driver does.
-    send(master.get(), call);
+    send(master.get(), devolve(call));
   }
 
 protected:
@@ -223,7 +224,7 @@ protected:
       .onAny(defer(self(), &MesosProcess::detected, lambda::_1));
   }
 
-  void detected(const Future<Option<MasterInfo> >& future)
+  void detected(const Future<Option<mesos::MasterInfo>>& future)
   {
     CHECK(!future.isDiscarded());
 
@@ -313,9 +314,11 @@ protected:
     //     'Authenticatee'.
     // --> '~Authenticatee()' is invoked by 'AuthenticateeProcess'.
     // TODO(vinod): Consider using 'Shared' to 'Owned' upgrade.
-    authenticating =
-      authenticatee->authenticate(master.get(), self(), credential.get())
-        .onAny(defer(self(), &Self::_authenticate));
+    authenticating = authenticatee->authenticate(
+        master.get(),
+        self(),
+        devolve(credential.get()))
+      .onAny(defer(self(), &Self::_authenticate));
 
     delay(Seconds(5),
           self(),
@@ -433,47 +436,47 @@ protected:
 
   void receive(const UPID& from, const FrameworkRegisteredMessage& message)
   {
-    receive(from, protobuf::scheduler::event(message));
+    receive(from, evolve(message));
   }
 
   void receive(const UPID& from, const FrameworkReregisteredMessage& message)
   {
-    receive(from, protobuf::scheduler::event(message));
+    receive(from, evolve(message));
   }
 
   void receive(const UPID& from, const ResourceOffersMessage& message)
   {
-    receive(from, protobuf::scheduler::event(message));
+    receive(from, evolve(message));
   }
 
   void receive(const UPID& from, const RescindResourceOfferMessage& message)
   {
-    receive(from, protobuf::scheduler::event(message));
+    receive(from, evolve(message));
   }
 
   void receive(const UPID& from, const StatusUpdateMessage& message)
   {
-    receive(from, protobuf::scheduler::event(message));
+    receive(from, evolve(message));
   }
 
   void receive(const UPID& from, const LostSlaveMessage& message)
   {
-    receive(from, protobuf::scheduler::event(message));
+    receive(from, evolve(message));
   }
 
   void receive(const UPID& from, const ExitedExecutorMessage& message)
   {
-    receive(from, protobuf::scheduler::event(message));
+    receive(from, evolve(message));
   }
 
   void receive(const UPID& from, const ExecutorToFrameworkMessage& message)
   {
-    receive(from, protobuf::scheduler::event(message));
+    receive(from, evolve(message));
   }
 
   void receive(const UPID& from, const FrameworkErrorMessage& message)
   {
-    receive(from, protobuf::scheduler::event(message));
+    receive(from, evolve(message));
   }
 
   // Helper for injecting an ERROR event.
@@ -563,6 +566,6 @@ void Mesos::send(const Call& call)
   dispatch(process, &MesosProcess::send, call);
 }
 
-
 } // namespace scheduler {
+} // namespace v1 {
 } // namespace mesos {

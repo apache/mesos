@@ -1,0 +1,363 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+#include <mesos/v1/attributes.hpp>
+#include <mesos/v1/mesos.hpp>
+#include <mesos/v1/resources.hpp>
+
+namespace mesos {
+namespace v1 {
+
+// TODO(vinod): Ensure that these operators do not go out of sync
+// when new fields are added to the protobufs (MESOS-2487).
+
+bool operator == (const CommandInfo& left, const CommandInfo& right)
+{
+  if (left.uris().size() != right.uris().size()) {
+    return false;
+  }
+
+  // TODO(vinod): Factor out the comparison for repeated fields.
+  for (int i = 0; i < left.uris().size(); i++) {
+    bool found = false;
+    for (int j = 0; j < right.uris().size(); j++) {
+      if (left.uris().Get(i) == right.uris().Get(j)) {
+        found = true;
+        break;
+      }
+    }
+    if (!found) {
+      return false;
+    }
+  }
+
+  if (left.arguments().size() != right.arguments().size()) {
+    return false;
+  }
+
+  // The order of argv is important.
+  for (int i = 0; i < left.arguments().size(); i++) {
+    if (left.arguments().Get(i) != right.arguments().Get(i)) {
+      return false;
+    }
+  }
+
+  // NOTE: We are not validating CommandInfo::ContainerInfo here
+  // because it is being deprecated in favor of ContainerInfo.
+  // TODO(vinod): Kill the above comment when
+  // CommandInfo::ContainerInfo is removed.
+  return left.environment() == right.environment() &&
+    left.value() == right.value() &&
+    left.user() == right.user() &&
+    left.shell() == right.shell();
+}
+
+
+bool operator == (const CommandInfo::URI& left, const CommandInfo::URI& right)
+{
+  return left.value() == right.value() &&
+    left.executable() == right.executable() &&
+    left.extract() == right.extract();
+}
+
+
+bool operator == (const Credential& left, const Credential& right)
+{
+  return left.principal() == right.principal() &&
+    left.secret() == right.secret();
+}
+
+
+bool operator == (
+    const Environment::Variable& left,
+    const Environment::Variable& right)
+{
+  return left.name() == right.name() && left.value() == right.value();
+}
+
+
+bool operator == (const Environment& left, const Environment& right)
+{
+  // Order of variables is not important.
+  if (left.variables().size() != right.variables().size()) {
+    return false;
+  }
+
+  for (int i = 0; i < left.variables().size(); i++) {
+    bool found = false;
+    for (int j = 0; j < right.variables().size(); j++) {
+      if (left.variables().Get(i) == right.variables().Get(j)) {
+        found = true;
+        break;
+      }
+    }
+    if (!found) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+
+bool operator == (const Volume& left, const Volume& right)
+{
+  return left.container_path() == right.container_path() &&
+    left.host_path() == right.host_path() &&
+    left.mode() == right.mode();
+}
+
+
+// TODO(bmahler): Leverage process::http::URL for equality.
+bool operator == (const URL& left, const URL& right)
+{
+  return left.SerializeAsString() == right.SerializeAsString();
+}
+
+
+bool operator == (
+    const ContainerInfo::DockerInfo::PortMapping& left,
+    const ContainerInfo::DockerInfo::PortMapping& right)
+{
+  return left.host_port() == right.host_port() &&
+    left.container_port() == right.container_port() &&
+    left.protocol() == right.protocol();
+}
+
+
+bool operator == (const Parameter& left, const Parameter& right)
+{
+  return left.key() == right.key() && left.value() == right.value();
+}
+
+
+bool operator == (
+    const ContainerInfo::DockerInfo& left,
+    const ContainerInfo::DockerInfo& right)
+{
+  // Order of port mappings is not important.
+  if (left.port_mappings().size() != right.port_mappings().size()) {
+    return false;
+  }
+
+  for (int i = 0; i < left.port_mappings().size(); i++) {
+    bool found = false;
+    for (int j = 0; j < right.port_mappings().size(); j++) {
+      if (left.port_mappings().Get(i) == right.port_mappings().Get(j)) {
+        found = true;
+        break;
+      }
+    }
+    if (!found) {
+      return false;
+    }
+  }
+
+  // Order of parameters is not important.
+  if (left.parameters().size() != right.parameters().size()) {
+    return false;
+  }
+
+  for (int i = 0; i < left.parameters().size(); i++) {
+    bool found = false;
+    for (int j = 0; j < right.parameters().size(); j++) {
+      if (left.parameters().Get(i) == right.parameters().Get(j)) {
+        found = true;
+        break;
+      }
+    }
+    if (!found) {
+      return false;
+    }
+  }
+
+  return left.image() == right.image() &&
+    left.network() == right.network() &&
+    left.privileged() == right.privileged() &&
+    left.force_pull_image() == right.force_pull_image();
+}
+
+
+bool operator == (const ContainerInfo& left, const ContainerInfo& right)
+{
+  // Order of volumes is not important.
+  if (left.volumes().size() != right.volumes().size()) {
+    return false;
+  }
+
+  for (int i = 0; i < left.volumes().size(); i++) {
+    bool found = false;
+    for (int j = 0; j < right.volumes().size(); j++) {
+      if (left.volumes().Get(i) == right.volumes().Get(j)) {
+        found = true;
+        break;
+      }
+    }
+    if (!found) {
+      return false;
+    }
+  }
+
+  return left.type() == right.type() &&
+    left.hostname() == right.hostname() &&
+    left.docker() == right.docker();
+}
+
+
+bool operator == (const Port& left, const Port& right)
+{
+  return left.number() == right.number() &&
+    left.name() == right.name() &&
+    left.protocol() == right.protocol();
+}
+
+
+bool operator == (const Ports& left, const Ports& right)
+{
+  // Order of ports is not important.
+  if (left.ports().size() != right.ports().size()) {
+    return false;
+  }
+
+  for (int i = 0; i < left.ports().size(); i++) {
+    bool found = false;
+    for (int j = 0; j < right.ports().size(); j++) {
+      if (left.ports().Get(i) == right.ports().Get(j)) {
+        found = true;
+        break;
+      }
+    }
+    if (!found) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+
+bool operator == (const Label& left, const Label& right)
+{
+  return left.key() == right.key() && left.value() == right.value();
+}
+
+
+bool operator == (const Labels& left, const Labels& right)
+{
+  // Order of labels is not important.
+  if (left.labels().size() != right.labels().size()) {
+    return false;
+  }
+
+  for (int i = 0; i < left.labels().size(); i++) {
+    bool found = false;
+    for (int j = 0; j < right.labels().size(); j++) {
+      if (left.labels().Get(i) == right.labels().Get(j)) {
+        found = true;
+        break;
+      }
+    }
+    if (!found) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+
+bool operator == (const DiscoveryInfo& left, const DiscoveryInfo& right)
+{
+  return left.visibility() == right.visibility() &&
+    left.name() == right.name() &&
+    left.environment() == right.environment() &&
+    left.location() == right.location() &&
+    left.version() == right.version() &&
+    left.ports() == right.ports() &&
+    left.labels() == right.labels();
+}
+
+
+bool operator == (const ExecutorInfo& left, const ExecutorInfo& right)
+{
+  return left.executor_id() == right.executor_id() &&
+    left.data() == right.data() &&
+    Resources(left.resources()) == Resources(right.resources()) &&
+    left.command() == right.command() &&
+    left.framework_id() == right.framework_id() &&
+    left.name() == right.name() &&
+    left.source() == right.source() &&
+    left.container() == right.container() &&
+    left.discovery() == right.discovery();
+}
+
+
+bool operator == (const MasterInfo& left, const MasterInfo& right)
+{
+  return left.id() == right.id() &&
+    left.ip() == right.ip() &&
+    left.port() == right.port() &&
+    left.pid() == right.pid() &&
+    left.hostname() == right.hostname() &&
+    left.version() == right.version();
+}
+
+
+bool operator == (
+    const ResourceStatistics& left,
+    const ResourceStatistics& right)
+{
+  return left.SerializeAsString() == right.SerializeAsString();
+}
+
+
+bool operator == (const AgentInfo& left, const AgentInfo& right)
+{
+  return left.hostname() == right.hostname() &&
+    Resources(left.resources()) == Resources(right.resources()) &&
+    Attributes(left.attributes()) == Attributes(right.attributes()) &&
+    left.id() == right.id() &&
+    left.port() == right.port();
+}
+
+
+// TODO(bmahler): Use SerializeToString here?
+bool operator == (const TaskStatus& left, const TaskStatus& right)
+{
+  return left.task_id() == right.task_id() &&
+    left.state() == right.state() &&
+    left.data() == right.data() &&
+    left.message() == right.message() &&
+    left.agent_id() == right.agent_id() &&
+    left.timestamp() == right.timestamp() &&
+    left.executor_id() == right.executor_id() &&
+    left.healthy() == right.healthy() &&
+    left.source() == right.source() &&
+    left.reason() == right.reason() &&
+    left.uuid() == right.uuid();
+}
+
+
+bool operator != (const TaskStatus& left, const TaskStatus& right)
+{
+  return !(left == right);
+}
+
+
+} // namespace v1 {
+} // namespace mesos {

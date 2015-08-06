@@ -29,8 +29,6 @@
 #include <mesos/executor.hpp>
 #include <mesos/scheduler.hpp>
 
-#include <mesos/scheduler/scheduler.hpp>
-
 #include <process/clock.hpp>
 #include <process/future.hpp>
 #include <process/gmock.hpp>

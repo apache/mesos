@@ -21,7 +21,7 @@
 
 #include <string>
 
-#include <mesos/scheduler/scheduler.hpp>
+#include <mesos/mesos.hpp>
 
 #include <mesos/slave/isolator.hpp>
 
@@ -91,22 +91,6 @@ mesos::slave::ContainerState createContainerState(
     const std::string& directory);
 
 } // namespace slave {
-
-namespace scheduler {
-
-// Helper functions that create scheduler::Event from a message that
-// is sent to the scheduler.
-mesos::scheduler::Event event(const FrameworkRegisteredMessage& message);
-mesos::scheduler::Event event(const FrameworkReregisteredMessage& message);
-mesos::scheduler::Event event(const ResourceOffersMessage& message);
-mesos::scheduler::Event event(const RescindResourceOfferMessage& message);
-mesos::scheduler::Event event(const StatusUpdateMessage& message);
-mesos::scheduler::Event event(const LostSlaveMessage& message);
-mesos::scheduler::Event event(const ExitedExecutorMessage& message);
-mesos::scheduler::Event event(const ExecutorToFrameworkMessage& message);
-mesos::scheduler::Event event(const FrameworkErrorMessage& message);
-
-} // namespace scheduler {
 
 } // namespace protobuf {
 } // namespace internal {

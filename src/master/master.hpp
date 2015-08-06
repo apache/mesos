@@ -60,6 +60,9 @@
 
 #include "files/files.hpp"
 
+#include "internal/devolve.hpp"
+#include "internal/evolve.hpp"
+
 #include "master/constants.hpp"
 #include "master/contender.hpp"
 #include "master/detector.hpp"
@@ -1250,7 +1253,12 @@ struct HttpConnection
   // Converts the message to an Event before sending.
   template <typename Message>
   bool send(const Message& message) {
-    return writer.write(encoder.encode(protobuf::scheduler::event(message)));
+    // We need to evolve the internal "message" into a
+    // 'v1::scheduler::Event' which we then devolve back to an
+    // pre-versioned 'scheduler::Event' which we use internally.
+    //
+    // TODO(benh): This should only support v1!
+    return writer.write(encoder.encode(devolve(evolve(message))));
   }
 
   bool close()
@@ -1360,8 +1368,6 @@ struct Framework
     }
 
     if (http.isSome()) {
-      const scheduler::Event event = protobuf::scheduler::event(message);
-
       if (!http.get().send(message)) {
         LOG(WARNING) << "Unable to send event to framework " << *this << ":"
                      << " connection closed";

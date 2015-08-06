@@ -136,6 +136,8 @@ endif
 
 MESOS_PROTO = $(top_srcdir)/include/mesos/mesos.proto
 
+V1_MESOS_PROTO = $(top_srcdir)/include/mesos/v1/mesos.proto
+
 AUTHENTICATION_PROTO =							\
   $(top_srcdir)/include/mesos/authentication/authentication.proto
 
@@ -156,6 +158,9 @@ MODULE_PROTO =								\
 
 SCHEDULER_PROTO =							\
   $(top_srcdir)/include/mesos/scheduler/scheduler.proto
+
+V1_SCHEDULER_PROTO =							\
+  $(top_srcdir)/include/mesos/v1/scheduler/scheduler.proto
 
 ISOLATOR_PROTO =							\
   $(top_srcdir)/include/mesos/slave/isolator.proto
@@ -183,7 +188,12 @@ CXX_PROTOS =								\
   slave/isolator.pb.cc							\
   ../include/mesos/slave/isolator.pb.h					\
   slave/oversubscription.pb.cc						\
-  ../include/mesos/slave/oversubscription.pb.h
+  ../include/mesos/slave/oversubscription.pb.h				\
+  v1/mesos.pb.cc							\
+  ../include/mesos/v1/mesos.pb.h					\
+  v1/scheduler/scheduler.pb.cc						\
+  ../include/mesos/v1/scheduler/scheduler.pb.h
+
 
 JAVA_PROTOS =								\
   java/generated/org/apache/mesos/Protos.java				\
@@ -224,10 +234,21 @@ CLEANFILES += $(REGISTRY_PROTOS)
 # Targets for generating protocol buffer code.
 # For the include headers, place the header files in the include
 # directory and leave the cc files in src.
-%.pb.cc ../include/mesos/%.pb.h: $(top_srcdir)/include/mesos/%.proto
+#
+# TODO(benh): In certain circumstances below we need to do '-mv'
+# instead of just 'mv' because the way we have our dependencies
+# currently set up 'make' actually attempts to run the 'mv' command
+# twice which causes the second invocation to fail because the file no
+# longer exists (because it's already been moved).
+mesos.pb.cc ../include/mesos/mesos.pb.h: $(MESOS_PROTO)
 	$(MKDIR_P) $(@D)
 	$(PROTOC) $(PROTOCFLAGS) --cpp_out=../include $^
-	mv ../include/mesos/*.pb.cc .
+	-mv -f ../include/mesos/mesos.pb.cc $(@D)
+
+v1/mesos.pb.cc ../include/mesos/v1/mesos.pb.h: $(V1_MESOS_PROTO)
+	$(MKDIR_P) $(@D)
+	$(PROTOC) $(PROTOCFLAGS) --cpp_out=../include $^
+	-mv -f ../include/mesos/v1/mesos.pb.cc $(@D)
 
 authentication/%.pb.cc ../include/mesos/authentication/%.pb.h: $(AUTHENTICATION_PROTO)
 	$(MKDIR_P) $(@D)
@@ -271,6 +292,12 @@ scheduler/%.pb.cc ../include/mesos/scheduler/%.pb.h: $(SCHEDULER_PROTO)
 	$(PROTOC) $(PROTOCFLAGS) --cpp_out=../include $^
 	mv ../include/mesos/scheduler/*.pb.cc $(@D)
 
+v1/scheduler/%.pb.cc ../include/mesos/v1/scheduler/%.pb.h: $(V1_SCHEDULER_PROTO)
+	$(MKDIR_P) $(@D)
+	$(MKDIR_P) ../include/mesos/v1/scheduler
+	$(PROTOC) $(PROTOCFLAGS) --cpp_out=../include $^
+	mv ../include/mesos/v1/scheduler/*.pb.cc $(@D)
+
 slave/%.pb.cc ../include/mesos/slave/%.pb.h: $(top_srcdir)/include/mesos/slave/%.proto
 	$(MKDIR_P) $(@D)
 	$(MKDIR_P) ../include/mesos/slave
@@ -282,6 +309,10 @@ slave/%.pb.cc ../include/mesos/slave/%.pb.h: $(top_srcdir)/include/mesos/slave/%
 	$(PROTOC) $(PROTOCFLAGS) --cpp_out=. $^
 
 java/generated/org/apache/mesos/Protos.java: $(MESOS_PROTO)
+	$(MKDIR_P)  $(@D)
+	$(PROTOC) $(PROTOCFLAGS) --java_out=java/generated $^
+
+java/generated/org/apache/mesos/v1/Protos.java: $(V1_MESOS_PROTO)
 	$(MKDIR_P)  $(@D)
 	$(PROTOC) $(PROTOCFLAGS) --java_out=java/generated $^
 
@@ -298,6 +329,10 @@ java/generated/org/apache/mesos/scheduler/Protos.java: $(SCHEDULER_PROTO)
 	$(MKDIR_P)  $(@D)
 	$(PROTOC) $(PROTOCFLAGS) --java_out=java/generated $^
 
+java/generated/org/apache/mesos/v1/scheduler/Protos.java: $(V1_SCHEDULER_PROTO)
+	$(MKDIR_P)  $(@D)
+	$(PROTOC) $(PROTOCFLAGS) --java_out=java/generated $^
+
 java/generated/org/apache/mesos/executor/Protos.java: $(EXECUTOR_PROTO)
 	$(MKDIR_P)  $(@D)
 	$(PROTOC) $(PROTOCFLAGS) --java_out=java/generated $^
@@ -305,7 +340,12 @@ java/generated/org/apache/mesos/executor/Protos.java: $(EXECUTOR_PROTO)
 python/interface/src/mesos/interface/mesos_pb2.py: $(MESOS_PROTO)
 	$(MKDIR_P) $(@D)
 	$(PROTOC) -I$(top_srcdir)/include/mesos				\
-		$(PROTOCFLAGS) --python_out=python/interface/src/mesos/interface $^
+          $(PROTOCFLAGS) --python_out=python/interface/src/mesos/interface $^
+
+python/interface/src/mesos/v1/interface/mesos_pb2.py: $(V1_MESOS_PROTO)
+	$(MKDIR_P) $(@D)
+	$(PROTOC) -I$(top_srcdir)/include/mesos				\
+          $(PROTOCFLAGS) --python_out=python/interface/src/mesos/v1/interface $^
 
 # All python protocol buffer code that imports from mesos.proto has
 # to get patched using sed, removing the leading 'mesos.' namespace
@@ -322,15 +362,22 @@ python/interface/src/mesos/interface/containerizer_pb2.py:		\
 python/interface/src/mesos/interface/scheduler_pb2.py: $(SCHEDULER_PROTO)
 	$(MKDIR_P) $(@D)
 	$(PROTOC) -I$(top_srcdir)/include/mesos/scheduler		\
-		$(PROTOCFLAGS)						\
-		--python_out=python/interface/src/mesos/interface $^
+          $(PROTOCFLAGS)						\
+          --python_out=python/interface/src/mesos/interface $^
+	sed -e 's/mesos\.mesos_pb2/mesos_pb2/' <$@ >$@
+
+python/interface/src/mesos/v1/interface/scheduler_pb2.py: $(V1_SCHEDULER_PROTO)
+	$(MKDIR_P) $(@D)
+	$(PROTOC) -I$(top_srcdir)/include/mesos/v1/scheduler		\
+          $(PROTOCFLAGS)						\
+          --python_out=python/interface/src/mesos/v1/interface $^
 	sed -e 's/mesos\.mesos_pb2/mesos_pb2/' <$@ >$@
 
 python/interface/src/mesos/interface/executor_pb2.py: $(EXECUTOR_PROTO)
 	$(MKDIR_P) $(@D)
 	$(PROTOC) -I$(top_srcdir)/include/mesos/executor		\
-		$(PROTOCFLAGS)						\
-		--python_out=python/interface/src/mesos/interface $^
+          $(PROTOCFLAGS)						\
+          --python_out=python/interface/src/mesos/interface $^
 	sed -e 's/mesos\.mesos_pb2/mesos_pb2/' <$@ >$@
 
 # We even use a convenience library for most of Mesos so that we can
@@ -366,6 +413,8 @@ libmesos_no_3rdparty_la_SOURCES =					\
 	exec/exec.cpp							\
 	files/files.cpp							\
 	hook/manager.cpp						\
+	internal/devolve.cpp						\
+	internal/evolve.cpp						\
 	local/local.cpp							\
 	logging/flags.cpp						\
 	logging/logging.cpp						\
@@ -383,6 +432,8 @@ libmesos_no_3rdparty_la_SOURCES =					\
 	master/validation.cpp						\
 	master/allocator/allocator.cpp					\
 	master/allocator/sorter/drf/sorter.cpp				\
+	messages/flags.proto						\
+	messages/messages.proto						\
 	module/manager.cpp						\
 	sched/constants.cpp						\
 	sched/sched.cpp							\
@@ -415,25 +466,28 @@ libmesos_no_3rdparty_la_SOURCES =					\
 	slave/containerizer/provisioner.cpp				\
 	slave/resource_estimators/noop.cpp				\
 	usage/usage.cpp							\
+	v1/attributes.cpp						\
+	v1/mesos.cpp							\
+	v1/resources.cpp						\
+	v1/values.cpp							\
 	watcher/whitelist_watcher.cpp					\
 	zookeeper/contender.cpp						\
 	zookeeper/detector.cpp						\
 	zookeeper/zookeeper.cpp						\
 	zookeeper/authentication.cpp					\
-	zookeeper/group.cpp						\
-	messages/flags.proto						\
-	messages/messages.proto
+	zookeeper/group.cpp
+
 
 pkginclude_HEADERS =							\
   $(top_srcdir)/include/mesos/executor.hpp				\
   $(top_srcdir)/include/mesos/hook.hpp					\
   $(top_srcdir)/include/mesos/mesos.hpp					\
+  $(top_srcdir)/include/mesos/mesos.proto				\
   $(top_srcdir)/include/mesos/module.hpp				\
   $(top_srcdir)/include/mesos/resources.hpp				\
   $(top_srcdir)/include/mesos/scheduler.hpp				\
   $(top_srcdir)/include/mesos/type_utils.hpp				\
-  $(top_srcdir)/include/mesos/values.hpp				\
-  $(top_srcdir)/include/mesos/mesos.proto
+  $(top_srcdir)/include/mesos/values.hpp
 
 nodist_pkginclude_HEADERS =						\
   ../include/mesos/version.hpp						\
@@ -519,6 +573,27 @@ nodist_slave_HEADERS =							\
   ../include/mesos/slave/isolator.pb.h					\
   ../include/mesos/slave/oversubscription.pb.h
 
+v1dir = $(pkgincludedir)/v1
+
+v1_HEADERS =								\
+  $(top_srcdir)/include/mesos/v1/attributes.hpp				\
+  $(top_srcdir)/include/mesos/v1/mesos.hpp				\
+  $(top_srcdir)/include/mesos/v1/mesos.proto				\
+  $(top_srcdir)/include/mesos/v1/resources.hpp				\
+  $(top_srcdir)/include/mesos/v1/scheduler.hpp				\
+  $(top_srcdir)/include/mesos/v1/values.hpp
+
+nodist_v1_HEADERS =							\
+  ../include/mesos/v1/mesos.pb.h
+
+v1schedulerdir = $(pkgincludedir)/v1/scheduler
+
+v1scheduler_HEADERS =							\
+  $(top_srcdir)/include/mesos/v1/scheduler/scheduler.hpp		\
+  $(top_srcdir)/include/mesos/v1/scheduler/scheduler.proto
+
+nodist_v1scheduler_HEADERS = ../include/mesos/v1/scheduler/scheduler.pb.h
+
 if OS_LINUX
   libmesos_no_3rdparty_la_SOURCES += linux/cgroups.cpp
   libmesos_no_3rdparty_la_SOURCES += linux/fs.cpp
@@ -595,6 +670,8 @@ libmesos_no_3rdparty_la_SOURCES +=					\
 	files/files.hpp							\
 	hdfs/hdfs.hpp							\
 	hook/manager.hpp						\
+	internal/devolve.hpp						\
+	internal/evolve.hpp						\
 	linux/cgroups.hpp						\
 	linux/fs.hpp							\
 	linux/ns.hpp							\
@@ -794,7 +871,9 @@ libmesos_la_SOURCES =							\
   $(SCHEDULER_PROTO)							\
   $(EXECUTOR_PROTO)							\
   $(ISOLATOR_PROTO)							\
-  $(OVERSUBSCRIPTION_PROTO)
+  $(OVERSUBSCRIPTION_PROTO)						\
+  $(V1_MESOS_PROTO)							\
+  $(V1_SCHEDULER_PROTO)
 
 libmesos_la_LDFLAGS = -release $(PACKAGE_VERSION)
 
@@ -1093,7 +1172,11 @@ libjava_la_CPPFLAGS = $(MESOS_CPPFLAGS)
 libjava_la_CPPFLAGS += $(JAVA_CPPFLAGS)
 libjava_la_CPPFLAGS += -I$(srcdir)/java/jni -Ijava/jni
 
-libjava_la_DEPENDENCIES = $(MESOS_PROTO) $(CONTAINERIZER_PROTO)
+libjava_la_DEPENDENCIES =						\
+  $(CONTAINERIZER_PROTO)						\
+  $(MESOS_PROTO)							\
+  $(V1_MESOS_PROTO)							\
+  $(V1_SCHEDULER_PROTO)
 
 # We don't add libjava.la to libmesos_no_3rdparty.la so we don't
 # include the JNI bindings in the Python egg (but we might want to
@@ -1523,6 +1606,7 @@ mesos_tests_SOURCES =						\
   tests/resource_offers_tests.cpp				\
   tests/resources_tests.cpp					\
   tests/scheduler_tests.cpp					\
+  tests/scheduler_driver_tests.cpp				\
   tests/scheduler_event_call_tests.cpp				\
   tests/script.cpp						\
   tests/slave_recovery_tests.cpp				\
