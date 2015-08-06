@@ -27,6 +27,7 @@
 #include <stout/foreach.hpp>
 #include <stout/protobuf.hpp>
 #include <stout/stringify.hpp>
+#include <stout/unreachable.hpp>
 
 #include "common/attributes.hpp"
 #include "common/http.hpp"
@@ -43,6 +44,24 @@ namespace internal {
 
 const char APPLICATION_JSON[] = "application/json";
 const char APPLICATION_PROTOBUF[] = "application/x-protobuf";
+
+
+string serialize(
+    ContentType contentType,
+    const google::protobuf::Message& message)
+{
+  switch (contentType) {
+    case ContentType::PROTOBUF: {
+      return message.SerializeAsString();
+    }
+    case ContentType::JSON: {
+      JSON::Object object = JSON::Protobuf(message);
+      return stringify(object);
+    }
+  }
+
+  UNREACHABLE();
+}
 
 
 // TODO(bmahler): Kill these in favor of automatic Proto->JSON

@@ -960,10 +960,11 @@ void Master::finalize()
 }
 
 
-void Master::exited(const FrameworkID& frameworkId, Pipe::Writer writer)
+void Master::exited(const FrameworkID& frameworkId, const HttpConnection& http)
 {
   foreachvalue (Framework* framework, frameworks.registered) {
-    if (framework->http.isSome() && framework->http.get().writer == writer) {
+    if (framework->http.isSome() &&
+        framework->http.get().writer == http.writer) {
       CHECK_EQ(frameworkId, framework->id());
       _exited(framework);
       return;
@@ -4665,15 +4666,18 @@ void Master::addFramework(Framework* framework)
   CHECK(!frameworks.registered.contains(framework->id()))
     << "Framework " << *framework << " already exists!";
 
-  CHECK_SOME(framework->pid) << "adding http framework not implemented";
-
   frameworks.registered[framework->id()] = framework;
 
-  link(framework->pid.get());
+  if (framework->pid.isSome()) {
+    link(framework->pid.get());
+  } else {
+    CHECK_SOME(framework->http);
 
-  // TODO(anand): For http frameworks, add a readerClosed()
-  // callback to invoke Master::exited() when the connection
-  // closes.
+    HttpConnection http = framework->http.get();
+
+    http.closed()
+      .onAny(defer(self(), &Self::exited, framework->id(), http));
+  }
 
   // Enforced by Master::registerFramework.
   CHECK(roles.contains(framework->info.role()))
@@ -4695,22 +4699,25 @@ void Master::addFramework(Framework* framework)
   // If the framework is authenticated, its principal should be in
   // 'authenticated'. Otherwise look if it's supplied in
   // FrameworkInfo.
-  Option<string> principal = authenticated.get(framework->pid.get());
-  if (principal.isNone() && framework->info.has_principal()) {
-    principal = framework->info.principal();
-  }
+  if (framework->pid.isSome()) {
+    Option<string> principal = authenticated.get(framework->pid.get());
+    if (principal.isNone() && framework->info.has_principal()) {
+      principal = framework->info.principal();
+    }
 
-  CHECK(!frameworks.principals.contains(framework->pid.get()));
-  frameworks.principals.put(framework->pid.get(), principal);
+    CHECK(!frameworks.principals.contains(framework->pid.get()));
+    frameworks.principals.put(framework->pid.get(), principal);
 
-  // Export framework metrics if a principal is specified.
-  if (principal.isSome()) {
-    // Create new framework metrics if this framework is the first
-    // one of this principal. Otherwise existing metrics are reused.
-    if (!metrics->frameworks.contains(principal.get())) {
-      metrics->frameworks.put(
-          principal.get(),
-          Owned<Metrics::Frameworks>(new Metrics::Frameworks(principal.get())));
+    // Export framework metrics if a principal is specified.
+    if (principal.isSome()) {
+      // Create new framework metrics if this framework is the first
+      // one of this principal. Otherwise existing metrics are reused.
+      if (!metrics->frameworks.contains(principal.get())) {
+        metrics->frameworks.put(
+            principal.get(),
+            Owned<Metrics::Frameworks>(
+              new Metrics::Frameworks(principal.get())));
+      }
     }
   }
 }

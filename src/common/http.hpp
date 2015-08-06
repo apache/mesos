@@ -46,6 +46,14 @@ enum class ContentType
   JSON
 };
 
+
+// Serializes a protobuf message for transmission
+// based on the HTTP content type.
+std::string serialize(
+    ContentType contentType,
+    const google::protobuf::Message& message);
+
+
 JSON::Object model(const Resources& resources);
 JSON::Object model(const hashmap<std::string, Resources>& roleResources);
 JSON::Object model(const Attributes& attributes);

@@ -92,6 +92,7 @@ class SlaveObserver;
 
 struct BoundedRateLimiter;
 struct Framework;
+struct HttpConnection;
 struct Role;
 
 
@@ -512,9 +513,7 @@ protected:
   virtual void visit(const process::ExitedEvent& event);
 
   virtual void exited(const process::UPID& pid);
-  void exited(
-      const FrameworkID& frameworkId,
-      process::http::Pipe::Writer writer);
+  void exited(const FrameworkID& frameworkId, const HttpConnection& http);
   void _exited(Framework* framework);
 
   // Invoked when the message is ready to be executed after
@@ -1225,6 +1224,37 @@ inline std::ostream& operator << (
     const Framework& framework);
 
 
+// Represents the streaming HTTP connection to a framework.
+struct HttpConnection
+{
+  HttpConnection(const process::http::Pipe::Writer& _writer,
+       ContentType _contentType)
+    :  writer(_writer),
+       contentType(_contentType),
+       encoder(lambda::bind(serialize, contentType, lambda::_1)) {}
+
+  // Converts the message to an Event before sending.
+  template <typename Message>
+  bool send(const Message& message) {
+    return writer.write(encoder.encode(protobuf::scheduler::event(message)));
+  }
+
+  bool close()
+  {
+    return writer.close();
+  }
+
+  process::Future<Nothing> closed() const
+  {
+    return writer.readerClosed();
+  }
+
+  process::http::Pipe::Writer writer;
+  ContentType contentType;
+  recordio::Encoder<scheduler::Event> encoder;
+};
+
+
 // Information about a connected or completed framework.
 // TODO(bmahler): Keeping the task and executor information in sync
 // across the Slave and Framework structs is error prone!
@@ -1245,46 +1275,21 @@ struct Framework
 
   Framework(Master* const _master,
             const FrameworkInfo& _info,
-            const process::http::Pipe::Writer& writer,
-            ContentType contentType,
+            const HttpConnection& _http,
             const process::Time& time = process::Clock::now())
     : master(_master),
       info(_info),
+      http(_http),
       connected(true),
       active(true),
       registeredTime(time),
       reregisteredTime(time),
-      completedTasks(MAX_COMPLETED_TASKS_PER_FRAMEWORK)
-  {
-    // TODO(anand): This logic needs to be invoked each
-    // time the framework connects via http. Move it to
-    // a method instead, that gets invoked from
-    // addFramework and failoverFrameowrk.
-
-    auto serialize = [contentType](const scheduler::Event& event) {
-      switch (contentType) {
-        case ContentType::PROTOBUF: {
-          return event.SerializeAsString();
-        }
-        case ContentType::JSON: {
-          JSON::Object object = JSON::Protobuf(event);
-          return stringify(object);
-        }
-      }
-    };
-
-    auto encoder = recordio::Encoder<scheduler::Event>(serialize);
-
-    http = Http {writer, encoder};
-
-    http.get().writer.readerClosed().
-      onAny(defer(master->self(), &Master::exited, id(), writer));
-  }
+      completedTasks(MAX_COMPLETED_TASKS_PER_FRAMEWORK) {}
 
   ~Framework()
   {
     if (http.isSome() && connected) {
-      if (!http.get().writer.close()) {
+      if (!http.get().close()) {
         LOG(WARNING) << "Failed to close HTTP pipe for " << *this;
       }
     }
@@ -1343,7 +1348,7 @@ struct Framework
     if (http.isSome()) {
       const scheduler::Event event = protobuf::scheduler::event(message);
 
-      if (!http.get().writer.write(http.get().encoder.encode(event))) {
+      if (!http.get().send(message)) {
         LOG(WARNING) << "Unable to send event to framework " << *this << ":"
                      << " connection closed";
       }
@@ -1503,21 +1508,25 @@ struct Framework
     }
   }
 
+  void updateConnection(const HttpConnection& other)
+  {
+    // Close the existing connection if it has changed.
+    if (http.isSome() && http.get().writer != other.writer) {
+      http.get().close();
+    }
+
+    http = other;
+  }
+
   Master* const master;
 
   FrameworkInfo info;
-
-  struct Http
-  {
-    process::http::Pipe::Writer writer;
-    recordio::Encoder<scheduler::Event> encoder;
-  };
 
   // Frameworks can either be connected via HTTP or by message
   // passing (scheduler driver). Exactly one of 'http' and 'pid'
   // will be set according to the last connection made by the
   // framework.
-  Option<Http> http;
+  Option<HttpConnection> http;
   Option<process::UPID> pid;
 
   // Framework becomes disconnected when the socket closes.
