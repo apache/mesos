@@ -871,6 +871,132 @@ TEST_F(OversubscriptionTest, QoSCorrectionKill)
 
   Shutdown();
 }
+
+
+// This test verifies that when a framework re-registers with updated
+// FrameworkInfo, it gets updated in the allocator. The steps involved
+// are:
+//   1. Launch a master, slave and scheduler.
+//   2. Record FrameworkID of launched scheduler.
+//   3. Check if revocable offers are being sent to the framework.
+//   4. Launch a second scheduler which has the same FrameworkID as
+//      the first scheduler and also has updated FrameworkInfo.
+//   5. Check if revocable offers are being sent to the framework.
+TEST_F(OversubscriptionTest, UpdateAllocatorOnSchedulerFailover)
+{
+  Try<PID<Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+
+  MockResourceEstimator resourceEstimator;
+
+  EXPECT_CALL(resourceEstimator, initialize(_));
+
+  Queue<Resources> estimations;
+  EXPECT_CALL(resourceEstimator, oversubscribable())
+    .WillOnce(InvokeWithoutArgs(&estimations, &Queue<Resources>::get));
+
+  slave::Flags flags = CreateSlaveFlags();
+
+  Try<PID<Slave>> slave = StartSlave(&exec, &resourceEstimator, flags);
+  ASSERT_SOME(slave);
+
+  // Launch the first (i.e., failing) scheduler and wait until
+  // registered gets called to launch the second (i.e., failover)
+  // scheduler with updated information.
+
+  FrameworkInfo framework1 = DEFAULT_FRAMEWORK_INFO;
+
+  MockScheduler sched1;
+  MesosSchedulerDriver driver1(
+      &sched1, framework1, master.get(), DEFAULT_CREDENTIAL);
+
+  Future<FrameworkID> frameworkId;
+  EXPECT_CALL(sched1, registered(&driver1, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId));
+
+  Future<vector<Offer>> offers1;
+  EXPECT_CALL(sched1, resourceOffers(&driver1, _))
+    .WillOnce(FutureArg<1>(&offers1));
+
+  driver1.start();
+
+  // Framework doesn't receive revocable resources because
+  // it doesn't have the capability set.
+
+  AWAIT_READY(offers1);
+  EXPECT_NE(0u, offers1.get().size());
+  EXPECT_TRUE(Resources(offers1.get()[0].resources()).revocable().empty());
+
+  // Now launch the second (i.e., failover) scheduler using the
+  // framework id recorded from the first scheduler, along with the
+  // updated FrameworkInfo and wait until it gets a registered
+  // callback.
+
+  MockScheduler sched2;
+
+  FrameworkInfo framework2 = DEFAULT_FRAMEWORK_INFO;
+  framework2.mutable_id()->MergeFrom(frameworkId.get());
+  auto capabilityType = FrameworkInfo::Capability::REVOCABLE_RESOURCES;
+  framework2.add_capabilities()->set_type(capabilityType);
+
+  MesosSchedulerDriver driver2(
+      &sched2, framework2, master.get(), DEFAULT_CREDENTIAL);
+
+  Future<Nothing> sched2Registered;
+  EXPECT_CALL(sched2, registered(&driver2, frameworkId.get(), _))
+    .WillOnce(FutureSatisfy(&sched2Registered));
+
+  // Scheduler1's expectations.
+
+  EXPECT_CALL(sched1, offerRescinded(&driver1, _))
+    .Times(AtMost(1));
+
+  Future<Nothing> sched1Error;
+  EXPECT_CALL(sched1, error(&driver1, "Framework failed over"))
+    .WillOnce(FutureSatisfy(&sched1Error));
+
+  EXPECT_CALL(sched2, resourceOffers(&driver2, _))
+    .WillOnce(FutureArg<1>(&offers1));
+
+  // Initially the framework will get all regular resources.
+
+  driver2.start();
+
+  AWAIT_READY(offers1);
+  EXPECT_NE(0u, offers1.get().size());
+  EXPECT_TRUE(Resources(offers1.get()[0].resources()).revocable().empty());
+
+  AWAIT_READY(sched2Registered);
+
+  AWAIT_READY(sched1Error);
+
+  // Check if framework receives revocable offers.
+
+  Resources taskResources = createRevocableResources("cpus", "1");
+  Resources executorResources = createRevocableResources("cpus", "1");
+  estimations.put(taskResources + executorResources);
+
+  Future<vector<Offer>> offers2;
+  EXPECT_CALL(sched2, resourceOffers(&driver2, _))
+    .WillOnce(FutureArg<1>(&offers2))
+    .WillRepeatedly(Return());
+
+  AWAIT_READY(offers2);
+  EXPECT_NE(0u, offers2.get().size());
+  EXPECT_EQ(taskResources + executorResources,
+            Resources(offers2.get()[0].resources()));
+
+  EXPECT_EQ(DRIVER_STOPPED, driver2.stop());
+  EXPECT_EQ(DRIVER_STOPPED, driver2.join());
+
+  EXPECT_EQ(DRIVER_ABORTED, driver1.stop());
+  EXPECT_EQ(DRIVER_STOPPED, driver1.join());
+
+  Shutdown();
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {
