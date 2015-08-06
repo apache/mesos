@@ -218,7 +218,7 @@ public:
     // Returns Nothing when the read-end of the pipe is closed
     // before the write-end is closed, which means the reader
     // was unable to continue reading!
-    Future<Nothing> readerClosed();
+    Future<Nothing> readerClosed() const;
 
     // Comparison operators useful for checking connection equality.
     bool operator == (const Writer& other) const { return data == other.data; }

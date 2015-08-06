@@ -339,7 +339,7 @@ bool Pipe::Writer::fail(const string& message)
 }
 
 
-Future<Nothing> Pipe::Writer::readerClosed()
+Future<Nothing> Pipe::Writer::readerClosed() const
 {
   return data->readerClosure.future();
 }
