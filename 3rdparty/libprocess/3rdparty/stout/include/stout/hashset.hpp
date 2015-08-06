@@ -44,7 +44,7 @@ public:
   //
   // TODO(arojas): Allow any arbitrary type that supports 'begin()'
   // and 'end()' passed into the specified 'emplace'?
-  hashset(const std::set<Elem> &set)
+  hashset(const std::set<Elem>& set)
   {
     boost::unordered_set<Elem, Hash, Equal>::reserve(set.size());
 
