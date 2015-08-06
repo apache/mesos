@@ -192,16 +192,6 @@ public:
       return;
     }
 
-    // If no user was specified in FrameworkInfo, use the current user.
-    // TODO(benh): Make FrameworkInfo.user be optional.
-    if (call.type() == Call::SUBSCRIBE &&
-        call.subscribe().framework_info().user() == "") {
-      Result<string> user = os::user();
-      CHECK_SOME(user);
-
-      call.mutable_subscribe()->mutable_framework_info()->set_user(user.get());
-    }
-
     Option<Error> error = validation::scheduler::call::validate(call);
 
     if (error.isSome()) {

@@ -396,9 +396,13 @@ int main(int argc, char** argv)
   internal::logging::initialize(argv[0], flags, true); // Catch signals.
 
   FrameworkInfo framework;
-  framework.set_user(""); // Have Mesos fill in the current user.
   framework.set_name("Event Call Scheduler using libprocess (C++)");
   framework.set_role(role);
+
+  const Result<string> user = os::user();
+
+  CHECK_SOME(user);
+  framework.set_user(user.get());
 
   value = os::getenv("MESOS_CHECKPOINT");
   if (value.isSome()) {
