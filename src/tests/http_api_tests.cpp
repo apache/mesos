@@ -52,6 +52,7 @@ using process::http::BadRequest;
 using process::http::OK;
 using process::http::Pipe;
 using process::http::Response;
+using process::http::UnsupportedMediaType;
 
 using std::string;
 
@@ -129,6 +130,84 @@ TEST_F(HttpApiTest, NoContentType)
       None());
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response);
+}
+
+
+// This test sends a valid JSON blob that cannot be deserialized
+// into a valid protobuf resulting in a BadRequest.
+TEST_F(HttpApiTest, ValidJsonButInvalidProtobuf)
+{
+  Try<PID<Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  JSON::Object object;
+  object.values["string"] = "valid_json";
+
+  hashmap<string, string> headers;
+  headers["Accept"] = APPLICATION_JSON;
+
+  Future<Response> response = process::http::post(
+      master.get(),
+      "call",
+      headers,
+      stringify(object),
+      APPLICATION_JSON);
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response);
+}
+
+
+// This test sends a malformed body that cannot be deserialized
+// into a valid protobuf resulting in a BadRequest.
+TEST_P(HttpApiTest, MalformedContent)
+{
+  Try<PID<Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  const std::string body = "MALFORMED_CONTENT";
+
+  const std::string contentType = GetParam();
+  hashmap<string, string> headers;
+  headers["Accept"] = contentType;
+
+  Future<Response> response = process::http::post(
+      master.get(),
+      "call",
+      headers,
+      body,
+      contentType);
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response);
+}
+
+
+// This test sets an unsupported media type as Content-Type. This
+// should result in a 415 (UnsupportedMediaType) response.
+TEST_P(HttpApiTest, UnsupportedContentMediaType)
+{
+  Try<PID<Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  const std::string contentType = GetParam();
+  hashmap<string, string> headers;
+  headers["Accept"] = contentType;
+
+  Call call;
+  call.set_type(Call::SUBSCRIBE);
+
+  Call::Subscribe* subscribe = call.mutable_subscribe();
+  subscribe->mutable_framework_info()->CopyFrom(DEFAULT_FRAMEWORK_INFO);
+
+  const std::string unknownMediaType = "application/unknown-media-type";
+
+  Future<Response> response = process::http::post(
+      master.get(),
+      "call",
+      headers,
+      serialize(call, contentType),
+      unknownMediaType);
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(UnsupportedMediaType().status, response);
 }
 
 
