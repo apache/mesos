@@ -738,6 +738,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
 	tests/containerizer/isolator.hpp				\
 	tests/containerizer/launcher.hpp				\
 	tests/containerizer/memory_test_helper.hpp			\
+	tests/containerizer/provisioner.hpp				\
 	tests/containerizer/rootfs.hpp					\
 	tests/containerizer/setns_test_helper.hpp			\
 	usage/usage.hpp							\
@@ -1637,6 +1638,7 @@ mesos_tests_DEPENDENCIES = # Initialized to allow += below.
 if OS_LINUX
   mesos_tests_SOURCES += tests/containerizer/cgroups_isolator_tests.cpp
   mesos_tests_SOURCES += tests/containerizer/cgroups_tests.cpp
+  mesos_tests_SOURCES += tests/containerizer/filesystem_isolator_tests.cpp
   mesos_tests_SOURCES += tests/containerizer/fs_tests.cpp
   mesos_tests_SOURCES += tests/containerizer/launch_tests.cpp
   mesos_tests_SOURCES += tests/containerizer/memory_pressure_tests.cpp
