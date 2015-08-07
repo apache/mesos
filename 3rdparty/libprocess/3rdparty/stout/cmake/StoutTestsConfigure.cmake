@@ -39,9 +39,7 @@ if (WIN32)
   add_definitions(-D__WINDOWS__)
 elseif (APPLE)
   # GTEST on OSX needs its own tr1 tuple.
-  # TODO(dhamon): Update to gmock 1.7 and pass GTEST_LANG_CXX11 when
-  # in C++11 mode.
-  add_definitions(-DGTEST_USE_OWN_TR1_TUPLE=1)
+  add_definitions(-DGTEST_USE_OWN_TR1_TUPLE=1 -DGTEST_LANG_CXX11)
 endif (WIN32)
 
 # DEFINE PROCESS LIBRARY DEPENDENCIES. Tells the process library build targets
