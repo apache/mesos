@@ -163,9 +163,7 @@ endif (REBUNDLED)
 
 if (APPLE)
   # GTEST on OSX needs its own tr1 tuple.
-  # TODO(dhamon): Update to gmock 1.7 and pass GTEST_LANG_CXX11 when
-  # in C++11 mode.
-  set(GMOCK_BUILD_CMD  make CPPFLAGS=-DGTEST_USE_OWN_TR1_TUPLE)
+  set(GMOCK_BUILD_CMD  make CPPFLAGS=-DGTEST_USE_OWN_TR1_TUPLE -DGTEST_LANG_CXX11)
   set(GMOCK_CONFIG_CMD ${GMOCK_ROOT}/configure --prefix=${GMOCK_ROOT}-lib/lib)
 elseif (NOT WIN32)
   set(GMOCK_CONFIG_CMD ${GMOCK_ROOT}/configure --prefix=${GMOCK_ROOT}-lib/lib)

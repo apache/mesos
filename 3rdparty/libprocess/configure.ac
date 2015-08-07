@@ -823,9 +823,7 @@ case "$host_os" in
     fi
 
     # GTEST on OSX needs its own tr1 tuple.
-    # TODO(dhamon): Update to gmock 1.7 and pass GTEST_LANG_CXX11 when
-    # in C++11 mode.
-    CXXFLAGS="$CXXFLAGS -DGTEST_USE_OWN_TR1_TUPLE=1"
+    CXXFLAGS="$CXXFLAGS -DGTEST_USE_OWN_TR1_TUPLE=1 -DGTEST_LANG_CXX11"
     ;;
 esac
 
