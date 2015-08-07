@@ -82,6 +82,7 @@ layout: documentation
 * [Yelp](http://www.yelp.com)
 * [Yieldbot](http://www.yieldbot.com)
 * [Yodle](http://www.yodle.com)
+* [Xiaomi](http://www.xiaomi.com)
 * [Xogito](http://www.xogito.com)
 
 ## Software projects built on Mesos
