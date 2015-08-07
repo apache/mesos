@@ -294,7 +294,7 @@ Agreement.
 
 
 ======================================================================
-For glog-0.3.1 (3rdparty/libprocess/3rdparty/glog-0.3.1.tar.gz):
+For glog-0.3.3 (3rdparty/libprocess/3rdparty/glog-0.3.3.tar.gz):
 ======================================================================
 
 Copyright (c) 2008, Google Inc.
@@ -432,8 +432,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
 ======================================================================
-For protobuf-2.4.1
-(3rdparty/libprocess/3rdparty/protobuf-2.4.1.tar.gz):
+For protobuf-2.5.0
+(3rdparty/libprocess/3rdparty/protobuf-2.5.0.tar.gz):
 ======================================================================
 
 Copyright 2008, Google Inc.
