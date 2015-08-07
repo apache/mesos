@@ -1966,9 +1966,6 @@ void Master::_subscribe(
     framework->reregisteredTime = Clock::now();
 
     if (subscribe.force()) {
-      // TODO(benh): Should we check whether the new scheduler has
-      // given us a different framework name, user name or executor
-      // info?
       // TODO(vinod): Now that the scheduler pid is unique we don't
       // need to call 'failoverFramework()' if the pid hasn't changed
       // (i.e., duplicate message). Instead we can just send the
