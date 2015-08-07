@@ -143,11 +143,11 @@ struct Request
 // reader must "keep up" with the writer in order to avoid
 // unbounded memory growth.
 //
-// TODO(bmahler): The writer needs to be able to induce a failure
-// on the reader to signal an error has occurred. For example, if
-// we are receiving a response but a disconnection occurs before
-// the response is completed, we want the reader to detect that a
-// disconnection occurred!
+// The writer can induce a failure on the reader in order to signal
+// that an error has occurred. For example, if we are receiving a
+// response but a disconnection occurs before the response is
+// completed, we want the reader to detect that a disconnection
+// occurred!
 //
 // TODO(bmahler): Consider aggregating writes into larger reads to
 // help the reader keep up (a process::Stream abstraction with
