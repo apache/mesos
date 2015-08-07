@@ -66,6 +66,11 @@ public:
   MOCK_METHOD1(get, Future<http::Response>(const http::Request&));
   MOCK_METHOD1(post, Future<http::Response>(const http::Request&));
 
+  void addRoute(const string& path, const HttpRequestHandler& handler)
+  {
+    route(path, None(), handler);
+  }
+
 protected:
   virtual void initialize()
   {
@@ -105,6 +110,8 @@ public:
   Owned<HttpProcess> process;
 };
 
+
+// TODO(vinod): Use AWAIT_EXPECT_RESPONSE_STATUS_EQ in the tests.
 
 TEST(HTTPTest, Auth)
 {
@@ -430,6 +437,33 @@ TEST(HTTPTest, Get)
 
   AWAIT_READY(queryFuture);
   ASSERT_EQ(http::statuses[200], queryFuture.get().status);
+}
+
+
+TEST(HTTPTest, NestedGet)
+{
+  Http http;
+
+  http.process->addRoute("/a/b/c", [] (const http::Request&) {
+    return http::OK();
+  });
+
+  http.process->addRoute("/a", [] (const http::Request&) {
+    return http::Accepted();
+  });
+
+  // The handler for "/a/b/c" should return 'http::OK()'.
+  Future<http::Response> response = http::get(http.process->self(), "/a/b/c");
+
+  AWAIT_READY(response);
+  ASSERT_EQ(http::statuses[200], response.get().status);
+
+  // "/a/b" should be handled by "/a" handler and return
+  // 'http::Accepted()'.
+  response = http::get(http.process->self(), "/a/b");
+
+  AWAIT_READY(response);
+  ASSERT_EQ(http::statuses[202], response.get().status);
 }
 
 

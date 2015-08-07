@@ -3026,24 +3026,42 @@ void ProcessBase::visit(const HttpEvent& event)
   CHECK(tokens.size() >= 1);
   CHECK_EQ(pid.id, http::decode(tokens[0]).get());
 
-  const string name = tokens.size() > 1 ? tokens[1] : "";
+  // First look to see if there is an HTTP handler that can handle the
+  // longest prefix of this path.
 
-  if (handlers.http.count(name) > 0) {
-    // Create the promise to link with whatever gets returned, as well
-    // as a future to wait for the response.
-    std::shared_ptr<Promise<Response>> promise(new Promise<Response>());
+  // Remove the 'id' prefix from the path.
+  string name = strings::remove(
+      event.request->path, "/" + tokens[0], strings::PREFIX);
 
-    Future<Response>* future = new Future<Response>(promise->future());
+  name = strings::trim(name, strings::PREFIX, "/");
 
-    // Get the HttpProxy pid for this socket.
-    PID<HttpProxy> proxy = socket_manager->proxy(event.socket);
+  while (Path(name).dirname() != name) {
+    if (handlers.http.count(name) > 0) {
+      // Create the promise to link with whatever gets returned, as well
+      // as a future to wait for the response.
+      std::shared_ptr<Promise<Response>> promise(new Promise<Response>());
 
-    // Let the HttpProxy know about this request (via the future).
-    dispatch(proxy, &HttpProxy::handle, future, *event.request);
+      Future<Response>* future = new Future<Response>(promise->future());
 
-    // Now call the handler and associate the response with the promise.
-    promise->associate(handlers.http[name](*event.request));
-  } else if (assets.count(name) > 0) {
+      // Get the HttpProxy pid for this socket.
+      PID<HttpProxy> proxy = socket_manager->proxy(event.socket);
+
+      // Let the HttpProxy know about this request (via the future).
+      dispatch(proxy, &HttpProxy::handle, future, *event.request);
+
+      // Now call the handler and associate the response with the promise.
+      promise->associate(handlers.http[name](*event.request));
+
+      return;
+    }
+
+    name = Path(name).dirname();
+  }
+
+  // If no HTTP handler is found look in assets.
+  name = tokens.size() > 1 ? tokens[1] : "";
+
+  if (assets.count(name) > 0) {
     OK response;
     response.type = Response::PATH;
     response.path = assets[name].path;
@@ -3073,16 +3091,18 @@ void ProcessBase::visit(const HttpEvent& event)
     // Enqueue the response with the HttpProxy so that it respects the
     // order of requests to account for HTTP/1.1 pipelining.
     dispatch(proxy, &HttpProxy::enqueue, response, *event.request);
-  } else {
-    VLOG(1) << "Returning '404 Not Found' for '" << event.request->path << "'";
 
-    // Get the HttpProxy pid for this socket.
-    PID<HttpProxy> proxy = socket_manager->proxy(event.socket);
-
-    // Enqueue the response with the HttpProxy so that it respects the
-    // order of requests to account for HTTP/1.1 pipelining.
-    dispatch(proxy, &HttpProxy::enqueue, NotFound(), *event.request);
+    return;
   }
+
+  VLOG(1) << "Returning '404 Not Found' for '" << event.request->path << "'";
+
+  // Get the HttpProxy pid for this socket.
+  PID<HttpProxy> proxy = socket_manager->proxy(event.socket);
+
+  // Enqueue the response with the HttpProxy so that it respects the
+  // order of requests to account for HTTP/1.1 pipelining.
+  dispatch(proxy, &HttpProxy::enqueue, NotFound(), *event.request);
 }
 
 

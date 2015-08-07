@@ -108,7 +108,10 @@ struct Request
 
   // TODO(benh): Replace 'url', 'path', 'query', and 'fragment' with URL.
   std::string url; // (path?query#fragment)
+
+  // TODO(vinod): Make this a 'Path' instead of 'string'.
   std::string path;
+
   hashmap<std::string, std::string> query;
   std::string fragment;
 
