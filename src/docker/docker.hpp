@@ -42,7 +42,7 @@ class Docker
 {
 public:
   // Create Docker abstraction and optionally validate docker.
-  static Try<Docker*> create(const std::string& path, bool validate = true);
+  static Try<Docker*> create(const std::string& path, bool validate = true, const std::string& host = "unix:///var/run/docker.sock");
 
   virtual ~Docker() {}
 
@@ -151,7 +151,7 @@ public:
 
 protected:
   // Uses the specified path to the Docker CLI tool.
-  Docker(const std::string& _path) : path(_path) {};
+  Docker(const std::string& _path, const std::string& _host = "unix:///var/run/docker.sock") : path(_path), host(_host) {};
 
 private:
   static process::Future<Nothing> _run(
@@ -230,6 +230,9 @@ private:
       const std::string& cmd);
 
   const std::string path;
+
+public:  
+  const std::string host;
 };
 
 #endif // __DOCKER_HPP__

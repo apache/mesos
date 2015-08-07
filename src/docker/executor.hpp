@@ -40,6 +40,10 @@ struct Flags : public mesos::internal::logging::Flags
         "docker",
         "The path to the docker executable.\n");
 
+    add(&docker_host,
+        "docker_host",
+        "The docker host.\n");
+
     add(&sandbox_directory,
         "sandbox_directory",
         "The path to the container sandbox holding stdout and stderr files\n"
@@ -57,6 +61,7 @@ struct Flags : public mesos::internal::logging::Flags
 
   Option<std::string> container;
   Option<std::string> docker;
+  Option<std::string> docker_host;
   Option<std::string> sandbox_directory;
   Option<std::string> mapped_directory;
   Option<Duration> stop_timeout;

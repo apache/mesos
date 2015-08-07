@@ -390,6 +390,12 @@ mesos::internal::slave::Flags::Flags()
       "path used by the slave's docker image.\n",
       "/var/run/docker.sock");
 
+  add(&Flags::docker_host,
+      "docker_host",
+      "The docker host to be connected to\n"
+      "UNIX socket path of tcp host ip\n",
+      "unix:///var/run/docker.sock");
+
   add(&Flags::sandbox_directory,
       "sandbox_directory",
       "The absolute path for the directory in the container where the\n"

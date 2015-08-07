@@ -96,9 +96,9 @@ static Future<Nothing> checkError(const string& cmd, const Subprocess& s)
 }
 
 
-Try<Docker*> Docker::create(const string& path, bool validate)
+Try<Docker*> Docker::create(const string& path, bool validate, const string& host)
 {
-  Docker* docker = new Docker(path);
+  Docker* docker = new Docker(path, host);
   if (!validate) {
     return docker;
   }
@@ -147,7 +147,7 @@ void commandDiscarded(const Subprocess& s, const string& cmd)
 
 Future<Version> Docker::version() const
 {
-  string cmd = path + " --version";
+  string cmd = path + " -H " + host + " --version";
 
   Try<Subprocess> s = subprocess(
       cmd,
@@ -348,8 +348,10 @@ Future<Nothing> Docker::run(
 
   vector<string> argv;
   argv.push_back(path);
+  argv.push_back("-H");
+  argv.push_back(host);
   argv.push_back("run");
-
+ 
   if (dockerInfo.privileged()) {
     argv.push_back("--privileged");
   }
@@ -595,7 +597,7 @@ Future<Nothing> Docker::stop(
                    stringify(timeoutSecs));
   }
 
-  string cmd = path + " stop -t " + stringify(timeoutSecs) +
+  string cmd = path + " -H " + host + " stop -t " + stringify(timeoutSecs) +
                " " + containerName;
 
   VLOG(1) << "Running " << cmd;
@@ -642,7 +644,7 @@ Future<Nothing> Docker::rm(
     const string& containerName,
     bool force) const
 {
-  const string cmd = path + (force ? " rm -f " : " rm ") + containerName;
+  const string cmd = path + " -H " + host + (force ? " rm -f " : " rm ") + containerName;
 
   VLOG(1) << "Running " << cmd;
 
@@ -666,7 +668,7 @@ Future<Docker::Container> Docker::inspect(
 {
   Owned<Promise<Docker::Container>> promise(new Promise<Docker::Container>());
 
-  const string cmd =  path + " inspect " + containerName;
+  const string cmd =  path + " -H " + host + " inspect " + containerName;
   _inspect(cmd, promise, retryInterval);
 
   return promise->future();
@@ -800,7 +802,7 @@ Future<list<Docker::Container>> Docker::ps(
     bool all,
     const Option<string>& prefix) const
 {
-  string cmd = path + (all ? " ps -a" : " ps");
+  string cmd = path + " -H " + host + (all ? " ps -a" : " ps");
 
   VLOG(1) << "Running " << cmd;
 
@@ -908,6 +910,8 @@ Future<Docker::Image> Docker::pull(
   }
 
   argv.push_back(path);
+  argv.push_back("-H");
+  argv.push_back(host);
   argv.push_back("inspect");
   argv.push_back(dockerImage);
 
