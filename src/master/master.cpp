@@ -757,10 +757,10 @@ void Master::initialize()
   // Setup HTTP routes.
   Http http = Http(this);
 
-  route("/call",
-        Http::CALL_HELP,
+  route("/api/v1/scheduler",
+        Http::SCHEDULER_HELP,
         [http](const process::http::Request& request) {
-          return http.call(request);
+          return http.scheduler(request);
         });
   route("/health",
         Http::HEALTH_HELP,

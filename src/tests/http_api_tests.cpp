@@ -55,7 +55,7 @@ TEST_F(HttpApiTest, NoContentType)
   // the BadRequest is only due to the missing header.
   Future<Response> response = process::http::post(
       master.get(),
-      "call",
+      "api/v1/scheduler",
       None(),
       None());
 

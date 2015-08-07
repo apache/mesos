@@ -788,8 +788,8 @@ private:
     // desired request handler to get consistent request logging.
     static void log(const process::http::Request& request);
 
-    // /master/call
-    process::Future<process::http::Response> call(
+    // /api/v1/scheduler
+    process::Future<process::http::Response> scheduler(
         const process::http::Request& request) const;
 
     // /master/health
@@ -828,7 +828,7 @@ private:
     process::Future<process::http::Response> tasks(
         const process::http::Request& request) const;
 
-    const static std::string CALL_HELP;
+    const static std::string SCHEDULER_HELP;
     const static std::string HEALTH_HELP;
     const static std::string OBSERVE_HELP;
     const static std::string REDIRECT_HELP;
