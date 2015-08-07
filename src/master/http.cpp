@@ -70,6 +70,7 @@ using process::http::InternalServerError;
 using process::http::NotFound;
 using process::http::NotImplemented;
 using process::http::OK;
+using process::http::Pipe;
 using process::http::TemporaryRedirect;
 using process::http::Unauthorized;
 using process::http::UnsupportedMediaType;
@@ -375,10 +376,24 @@ Future<Response> Master::Http::call(const Request& request) const
     responseContentType = ContentType::PROTOBUF;
   }
 
-  // Silence unused warning for now.
-  (void)responseContentType;
+  switch (call.type()) {
+    case scheduler::Call::SUBSCRIBE: {
+      Pipe pipe;
+      OK ok;
 
-  // TODO(anand): Handle the call.
+      ok.type = Response::PIPE;
+      ok.reader = pipe.reader();
+
+      HttpConnection http {pipe.writer(), responseContentType};
+      master->subscribe(http, call.subscribe());
+
+      return ok;
+    }
+    default:
+      // TODO(bmahler): Log fatally here once all calls are
+      // implemented, since validation should catch this.
+      break;
+  }
 
   return NotImplemented();
 }

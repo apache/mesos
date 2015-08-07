@@ -583,6 +583,12 @@ protected:
   // the event of a scheduler failover.
   void failoverFramework(Framework* framework, const process::UPID& newPid);
 
+  // Replace the scheduler for a framework with a new http connection,
+  // in the event of a scheduler failover.
+  void failoverFramework(Framework* framework, const HttpConnection& http);
+
+  void _failoverFramework(Framework* framework);
+
   // Kill all of a framework's tasks, delete the framework object, and
   // reschedule offers that were assigned to this framework.
   void removeFramework(Framework* framework);
@@ -701,6 +707,14 @@ private:
   void receive(
       const process::UPID& from,
       const scheduler::Call& call);
+
+  void subscribe(
+      HttpConnection http,
+      const scheduler::Call::Subscribe& subscribe);
+
+  void _subscribe(
+      HttpConnection http,
+      const scheduler::Call::Subscribe& subscribe);
 
   void subscribe(
       const process::UPID& from,
@@ -1508,14 +1522,33 @@ struct Framework
     }
   }
 
-  void updateConnection(const HttpConnection& other)
+  void updateConnection(const process::UPID& newPid)
   {
+    // Remove the http connnection if this is a downgrade from
+    // http to pid, note the connection may already be closed.
+    if (http.isSome()) {
+      http.get().close();
+      http = None();
+    }
+
+    // TODO(benh): unlink(oldPid);
+    pid = newPid;
+  }
+
+  void updateConnection(const HttpConnection& newHttp)
+  {
+    // Wipe the pid if this is an upgrade from pid to http.
+    if (pid.isSome()) {
+      // TODO(benh): unlink(oldPid);
+      pid = None();
+    }
+
     // Close the existing connection if it has changed.
-    if (http.isSome() && http.get().writer != other.writer) {
+    if (http.isSome() && http.get().writer != newHttp.writer) {
       http.get().close();
     }
 
-    http = other;
+    http = newHttp;
   }
 
   Master* const master;
