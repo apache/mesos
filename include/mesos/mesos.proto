@@ -1243,7 +1243,10 @@ message Volume {
 
   required Mode mode = 3;
 
-  // Absolute path pointing to a directory or file in the container.
+  // Path pointing to a directory or file in the container. If the
+  // path is a relative path, it is relative to the container work
+  // directory. If the path is an absolute path, that path must
+  // already exist.
   required string container_path = 1;
 
   // The following specifies the source of this volume. At most one of

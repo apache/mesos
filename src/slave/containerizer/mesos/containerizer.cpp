@@ -46,6 +46,7 @@
 #ifdef __linux__
 #include "slave/containerizer/linux_launcher.hpp"
 #endif
+#include "slave/containerizer/provisioner.hpp"
 
 #include "slave/containerizer/isolators/posix.hpp"
 
@@ -57,6 +58,9 @@
 #include "slave/containerizer/isolators/cgroups/perf_event.hpp"
 #endif
 
+#ifdef __linux__
+#include "slave/containerizer/isolators/filesystem/linux.hpp"
+#endif
 #include "slave/containerizer/isolators/filesystem/posix.hpp"
 #ifdef __linux__
 #include "slave/containerizer/isolators/filesystem/shared.hpp"
@@ -138,12 +142,27 @@ Try<MesosContainerizer*> MesosContainerizer::create(
 
   LOG(INFO) << "Using isolation: " << isolation;
 
+#ifdef __linux__
+  // The provisioner will be used by the 'filesystem/linux' isolator.
+  Try<hashmap<Image::Type, Owned<Provisioner>>> provisioners =
+    Provisioner::create(flags, fetcher);
+
+  if (provisioners.isError()) {
+    return Error("Failed to create provisioner(s): " + provisioners.error());
+  }
+#endif
+
   // Create a MesosContainerizerProcess using isolators and a launcher.
   const hashmap<string, lambda::function<Try<Isolator*>(const Flags&)>>
     creators = {
     // Filesystem isolators.
     {"filesystem/posix", &PosixFilesystemIsolatorProcess::create},
 #ifdef __linux__
+    {"filesystem/linux", lambda::bind(&LinuxFilesystemIsolatorProcess::create,
+                                      lambda::_1,
+                                      provisioners.get())},
+
+    // TODO(jieyu): Deprecate this in favor of using filesystem/linux.
     {"filesystem/shared", &SharedFilesystemIsolatorProcess::create},
 #endif
 
