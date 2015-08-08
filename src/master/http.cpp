@@ -589,7 +589,7 @@ const string Master::Http::STATE_HELP = HELP(
     TLDR(
         "Information about state of master."),
     USAGE(
-        "/master/state"),
+        "/master/state.json"),
     DESCRIPTION(
         "This endpoint shows information about the frameworks, tasks,",
         "executors and slaves running in the cluster as a JSON object."));
@@ -1001,7 +1001,7 @@ const string Master::Http::ROLES_HELP = HELP(
     TLDR(
         "Information about roles that the master is configured with."),
     USAGE(
-        "/master/roles"),
+        "/master/roles.json"),
     DESCRIPTION(
         "This endpoint gives information about the roles that are assigned",
         "to frameworks and resources as a JSON object."));
