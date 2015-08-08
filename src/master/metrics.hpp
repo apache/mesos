@@ -131,6 +131,8 @@ struct Metrics
   process::metrics::Counter messages_revive_offers;
   process::metrics::Counter messages_reconcile_tasks;
   process::metrics::Counter messages_framework_to_executor;
+
+  // Messages from executors.
   process::metrics::Counter messages_executor_to_framework;
 
   // Messages from slaves.

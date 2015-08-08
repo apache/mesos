@@ -1463,6 +1463,8 @@ TEST_F(MasterTest, LaunchDuplicateOfferTest)
 }
 
 
+// TODO(vinod): These tests only verify that the master metrics exist
+// but we need tests that verify that these metrics are updated.
 TEST_F(MasterTest, MetricsInMetricsEndpoint)
 {
   Try<PID<Master>> master = StartMaster();
@@ -1511,6 +1513,9 @@ TEST_F(MasterTest, MetricsInMetricsEndpoint)
   EXPECT_EQ(1u, snapshot.values.count("master/messages_revive_offers"));
   EXPECT_EQ(1u, snapshot.values.count("master/messages_reconcile_tasks"));
   EXPECT_EQ(1u, snapshot.values.count("master/messages_framework_to_executor"));
+
+  // Messages from executors.
+  EXPECT_EQ(1u, snapshot.values.count("master/messages_executor_to_framework"));
 
   // Messages from slaves.
   EXPECT_EQ(1u, snapshot.values.count("master/messages_register_slave"));

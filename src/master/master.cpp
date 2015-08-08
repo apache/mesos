@@ -2269,8 +2269,6 @@ void Master::unregisterFramework(
     const UPID& from,
     const FrameworkID& frameworkId)
 {
-  ++metrics->messages_unregister_framework;
-
   LOG(INFO) << "Asked to unregister framework " << frameworkId;
 
   Framework* framework = getFramework(frameworkId);
@@ -2401,8 +2399,6 @@ void Master::resourceRequest(
     const FrameworkID& frameworkId,
     const vector<Request>& requests)
 {
-  ++metrics->messages_resource_request;
-
   Framework* framework = getFramework(frameworkId);
 
   if (framework == NULL) {
@@ -2436,6 +2432,8 @@ void Master::request(
 
   LOG(INFO) << "Processing REQUEST call for framework " << *framework;
 
+  ++metrics->messages_resource_request;
+
   allocator->requestResources(
       framework->id(),
       google::protobuf::convert(request.requests()));
@@ -2449,12 +2447,6 @@ void Master::launchTasks(
     const Filters& filters,
     const vector<OfferID>& offerIds)
 {
-  if (!tasks.empty()) {
-    ++metrics->messages_launch_tasks;
-  } else {
-    ++metrics->messages_decline_offers;
-  }
-
   Framework* framework = getFramework(frameworkId);
 
   if (framework == NULL) {
@@ -2602,7 +2594,19 @@ void Master::accept(
     Framework* framework,
     const scheduler::Call::Accept& accept)
 {
-  // TODO(jieyu): Update metrics for ACCEPT calls.
+  CHECK_NOTNULL(framework);
+
+  foreach (const Offer::Operation& operation, accept.operations()) {
+    if (operation.type() == Offer::Operation::LAUNCH) {
+      if (operation.launch().task_infos().size() > 0) {
+        ++metrics->messages_launch_tasks;
+      } else {
+        ++metrics->messages_decline_offers;
+      }
+    }
+
+    // TODO(jieyu): Add metrics for non launch operations.
+  }
 
   // TODO(bmahler): We currently only support using multiple offers
   // for a single slave.
@@ -3064,6 +3068,8 @@ void Master::decline(
   LOG(INFO) << "Processing DECLINE call for offers: " << decline.offer_ids()
             << " for framework " << *framework;
 
+  ++metrics->messages_decline_offers;
+
   //  Return resources to the allocator.
   foreach (const OfferID& offerId, decline.offer_ids()) {
     Offer* offer = getOffer(offerId);
@@ -3085,8 +3091,6 @@ void Master::decline(
 
 void Master::reviveOffers(const UPID& from, const FrameworkID& frameworkId)
 {
-  ++metrics->messages_revive_offers;
-
   Framework* framework = getFramework(frameworkId);
 
   if (framework == NULL) {
@@ -3112,6 +3116,9 @@ void Master::revive(Framework* framework)
   CHECK_NOTNULL(framework);
 
   LOG(INFO) << "Processing REVIVE call for framework " << *framework;
+
+  ++metrics->messages_revive_offers;
+
   allocator->reviveOffers(framework->id());
 }
 
@@ -3123,8 +3130,6 @@ void Master::killTask(
 {
   LOG(INFO) << "Asked to kill task " << taskId
             << " of framework " << frameworkId;
-
-  ++metrics->messages_kill_task;
 
   Framework* framework = getFramework(frameworkId);
 
@@ -3152,6 +3157,8 @@ void Master::killTask(
 void Master::kill(Framework* framework, const scheduler::Call::Kill& kill)
 {
   CHECK_NOTNULL(framework);
+
+  ++metrics->messages_kill_task;
 
   const TaskID& taskId = kill.task_id();
   const Option<SlaveID> slaveId =
@@ -3235,8 +3242,6 @@ void Master::statusUpdateAcknowledgement(
     const TaskID& taskId,
     const string& uuid)
 {
-  metrics->messages_status_update_acknowledgement++;
-
   // TODO(bmahler): Consider adding a message validator abstraction
   // for the master that takes care of all this boilerplate. Ideally
   // by the time we process messages in the critical master code, we
@@ -3278,6 +3283,8 @@ void Master::acknowledge(
     const scheduler::Call::Acknowledge& acknowledge)
 {
   CHECK_NOTNULL(framework);
+
+  metrics->messages_status_update_acknowledgement++;
 
   const SlaveID slaveId = acknowledge.slave_id();
   const TaskID taskId = acknowledge.task_id();
@@ -3357,8 +3364,6 @@ void Master::schedulerMessage(
     const ExecutorID& executorId,
     const string& data)
 {
-  metrics->messages_framework_to_executor++;
-
   Framework* framework = getFramework(frameworkId);
 
   if (framework == NULL) {
@@ -3457,6 +3462,8 @@ void Master::message(
     const scheduler::Call::Message& message)
 {
   CHECK_NOTNULL(framework);
+
+  metrics->messages_framework_to_executor++;
 
   Slave* slave = slaves.registered.get(message.slave_id());
 
@@ -4133,6 +4140,8 @@ void Master::shutdown(
 {
   CHECK_NOTNULL(framework);
 
+  // TODO(vinod): Add a metric for executor shutdowns.
+
   if (!slaves.registered.contains(shutdown.slave_id())) {
     LOG(WARNING) << "Unable to shutdown executor '" << shutdown.executor_id()
                  << "' of framework " << framework->id()
@@ -4201,8 +4210,6 @@ void Master::reconcileTasks(
     const FrameworkID& frameworkId,
     const std::vector<TaskStatus>& statuses)
 {
-  ++metrics->messages_reconcile_tasks;
-
   Framework* framework = getFramework(frameworkId);
   if (framework == NULL) {
     LOG(WARNING) << "Unknown framework " << frameworkId << " at " << from
@@ -4226,6 +4233,8 @@ void Master::_reconcileTasks(
     const vector<TaskStatus>& statuses)
 {
   CHECK_NOTNULL(framework);
+
+  ++metrics->messages_reconcile_tasks;
 
   if (statuses.empty()) {
     // Implicit reconciliation.
@@ -5033,6 +5042,8 @@ void Master::teardown(Framework* framework)
   CHECK_NOTNULL(framework);
 
   LOG(INFO) << "Processing TEARDOWN call for framework " << *framework;
+
+  ++metrics->messages_unregister_framework;
 
   removeFramework(framework);
 }
