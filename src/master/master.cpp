@@ -1669,7 +1669,7 @@ void Master::receive(
 
   switch (call.type()) {
     case scheduler::Call::TEARDOWN:
-      removeFramework(framework);
+      teardown(framework);
       break;
 
     case scheduler::Call::ACCEPT:
@@ -2276,7 +2276,7 @@ void Master::unregisterFramework(
   Framework* framework = getFramework(frameworkId);
   if (framework != NULL) {
     if (framework->pid == from) {
-      removeFramework(framework);
+      teardown(framework);
     } else {
       LOG(WARNING)
         << "Ignoring unregister framework message for framework " << *framework
@@ -5025,6 +5025,16 @@ void Master::_failoverFramework(Framework* framework)
   message.mutable_framework_id()->MergeFrom(framework->id());
   message.mutable_master_info()->MergeFrom(info_);
   framework->send(message);
+}
+
+
+void Master::teardown(Framework* framework)
+{
+  CHECK_NOTNULL(framework);
+
+  LOG(INFO) << "Processing TEARDOWN call for framework " << *framework;
+
+  removeFramework(framework);
 }
 
 

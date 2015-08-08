@@ -728,6 +728,8 @@ private:
       const scheduler::Call::Subscribe& subscribe,
       const process::Future<bool>& authorized);
 
+  void teardown(Framework* framework);
+
   void accept(
       Framework* framework,
       const scheduler::Call::Accept& accept);
