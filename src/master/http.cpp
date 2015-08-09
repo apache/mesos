@@ -376,23 +376,71 @@ Future<Response> Master::Http::call(const Request& request) const
     responseContentType = ContentType::PROTOBUF;
   }
 
+  if (call.type() == scheduler::Call::SUBSCRIBE) {
+    Pipe pipe;
+    OK ok;
+
+    ok.type = Response::PIPE;
+    ok.reader = pipe.reader();
+
+    HttpConnection http {pipe.writer(), responseContentType};
+    master->subscribe(http, call.subscribe());
+
+    return ok;
+  }
+
+  // We consolidate the framework lookup logic here because it is
+  // common for all the call handlers.
+  Framework* framework = master->getFramework(call.framework_id());
+
+  if (framework == NULL) {
+    return BadRequest("Framework cannot be found");
+  }
+
   switch (call.type()) {
-    case scheduler::Call::SUBSCRIBE: {
-      Pipe pipe;
-      OK ok;
+    case scheduler::Call::TEARDOWN:
+      master->removeFramework(framework);
+      return Accepted();
 
-      ok.type = Response::PIPE;
-      ok.reader = pipe.reader();
+    case scheduler::Call::ACCEPT:
+      master->accept(framework, call.accept());
+      return Accepted();
 
-      HttpConnection http {pipe.writer(), responseContentType};
-      master->subscribe(http, call.subscribe());
+    case scheduler::Call::DECLINE:
+      master->decline(framework, call.decline());
+      return Accepted();
 
-      return ok;
-    }
+    case scheduler::Call::REVIVE:
+      master->revive(framework);
+      return Accepted();
+
+    case scheduler::Call::KILL:
+      master->kill(framework, call.kill());
+      return Accepted();
+
+    case scheduler::Call::SHUTDOWN:
+      master->shutdown(framework, call.shutdown());
+      return Accepted();
+
+    case scheduler::Call::ACKNOWLEDGE:
+      master->acknowledge(framework, call.acknowledge());
+      return Accepted();
+
+    case scheduler::Call::RECONCILE:
+      master->reconcile(framework, call.reconcile());
+      return Accepted();
+
+    case scheduler::Call::MESSAGE:
+      master->message(framework, call.message());
+      return Accepted();
+
+    case scheduler::Call::REQUEST:
+      master->request(framework, call.request());
+      return Accepted();
+
     default:
-      // TODO(bmahler): Log fatally here once all calls are
-      // implemented, since validation should catch this.
-      break;
+      // Should be caught during call validation above.
+      LOG(FATAL) << "Unexpected " << call.type() << " call";
   }
 
   return NotImplemented();

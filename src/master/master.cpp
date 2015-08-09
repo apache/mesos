@@ -1808,8 +1808,8 @@ void Master::subscribe(
     }
   }
 
-  LOG(INFO) << "Received registration request for"
-            << " http framework '" << frameworkInfo.name() << "'";
+  LOG(INFO) << "Received subscription request for"
+            << " HTTP framework '" << frameworkInfo.name() << "'";
 
   if (validationError.isSome()) {
     LOG(INFO) << "Refusing subscription of framework"
@@ -1835,8 +1835,8 @@ void Master::_subscribe(
 {
   const FrameworkInfo& frameworkInfo = subscribe.framework_info();
 
-  LOG(INFO) << "Subscribing framework " << frameworkInfo.name()
-            << " with checkpointing "
+  LOG(INFO) << "Subscribing framework '" << frameworkInfo.name()
+            << "' with checkpointing "
             << (frameworkInfo.checkpoint() ? "enabled" : "disabled")
             << " and capabilities " << frameworkInfo.capabilities();
 
