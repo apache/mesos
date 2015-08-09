@@ -81,16 +81,16 @@ public:
 
   // Returns the byte at the given index. For example, for a MAC
   // address 01:23:45:67:89:ab, mac[0] = 01, mac[1] = 23 and etc.
-  uint8_t operator [] (size_t index) const
+  uint8_t operator[](size_t index) const
   {
     if (index >= 6) {
-      ABORT("Invalid index specified in MAC::operator []\n");
+      ABORT("Invalid index specified in MAC::operator[]\n");
     }
 
     return bytes[index];
   }
 
-  bool operator == (const MAC& that) const
+  bool operator==(const MAC& that) const
   {
     for (size_t i = 0; i < 6; i++) {
       if (bytes[i] != that.bytes[i]) {
@@ -100,9 +100,9 @@ public:
     return true;
   }
 
-  bool operator != (const MAC& that) const
+  bool operator!=(const MAC& that) const
   {
-    return !operator == (that);
+    return !(*this == that);
   }
 
 private:
@@ -115,7 +115,7 @@ private:
 // address, which contains six groups of two hexadecimal digits,
 // separated by colons, in transmission order (e.g.,
 // 01:23:45:67:89:ab).
-inline std::ostream& operator << (std::ostream& stream, const MAC& mac)
+inline std::ostream& operator<<(std::ostream& stream, const MAC& mac)
 {
   char buffer[18];
 

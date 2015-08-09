@@ -238,7 +238,7 @@ private:
 
 
 // Need to declare/define some explicit subclasses of FlagsBase so
-// that we can overload the 'Flags::operator FlagsN () const'
+// that we can overload the 'Flags::operator FlagsN() const'
 // functions for each possible type.
 class _Flags1 : public virtual FlagsBase {};
 class _Flags2 : public virtual FlagsBase {};
@@ -833,7 +833,7 @@ inline std::string FlagsBase::usage( const Option<std::string>& message) const
 }
 
 
-inline std::ostream& operator << (std::ostream& stream, const FlagsBase& flags)
+inline std::ostream& operator<<(std::ostream& stream, const FlagsBase& flags)
 {
   std::vector<std::string> _flags;
 

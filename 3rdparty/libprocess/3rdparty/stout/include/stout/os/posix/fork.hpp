@@ -257,7 +257,7 @@ private:
   {
     SharedMemoryDeleter(int _fd) : fd(_fd) {}
 
-    void operator () (Tree::Memory* process) const
+    void operator()(Tree::Memory* process) const
     {
       if (munmap(process, sizeof(Tree::Memory)) == -1) {
         ABORT(std::string("Failed to unmap memory: ") + strerror(errno));
@@ -417,7 +417,7 @@ private:
 
 public:
   // Prepares and instantiates the process tree.
-  Try<ProcessTree> operator () () const
+  Try<ProcessTree> operator()() const
   {
     Try<Tree> tree = prepare();
 

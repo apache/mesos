@@ -168,8 +168,7 @@ struct Suppressor
   }
 
   // Needed for the suppress() macro.
-  operator bool () { return true; }
-
+  operator bool() { return true; }
 private:
   const int signal;
   bool pending; // Whether the signal is already pending.

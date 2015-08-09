@@ -79,26 +79,26 @@ public:
   uint64_t gigabytes() const { return value / GIGABYTES; }
   uint64_t terabytes() const { return value / TERABYTES; }
 
-  bool operator <  (const Bytes& that) const { return value <  that.value; }
-  bool operator <= (const Bytes& that) const { return value <= that.value; }
-  bool operator >  (const Bytes& that) const { return value >  that.value; }
-  bool operator >= (const Bytes& that) const { return value >= that.value; }
-  bool operator == (const Bytes& that) const { return value == that.value; }
-  bool operator != (const Bytes& that) const { return value != that.value; }
+  bool operator<(const Bytes& that) const { return value < that.value; }
+  bool operator<=(const Bytes& that) const { return value <= that.value; }
+  bool operator>(const Bytes& that) const { return value > that.value; }
+  bool operator>=(const Bytes& that) const { return value >= that.value; }
+  bool operator==(const Bytes& that) const { return value == that.value; }
+  bool operator!=(const Bytes& that) const { return value != that.value; }
 
-  Bytes& operator += (const Bytes& that)
+  Bytes& operator+=(const Bytes& that)
   {
     value += that.value;
     return *this;
   }
 
-  Bytes& operator -= (const Bytes& that)
+  Bytes& operator-=(const Bytes& that)
   {
     value -= that.value;
     return *this;
   }
 
-  Bytes& operator *= (double multiplier)
+  Bytes& operator*=(double multiplier)
   {
     if (multiplier < 0) {
       ABORT("Multiplying Bytes by negative multiplier "
@@ -109,7 +109,7 @@ public:
     return *this;
   }
 
-  Bytes& operator /= (double divisor)
+  Bytes& operator/=(double divisor)
   {
     if (divisor < 0) {
       ABORT("Dividing Bytes by negative divisor "
@@ -160,7 +160,7 @@ public:
 };
 
 
-inline std::ostream& operator << (std::ostream& stream, const Bytes& bytes)
+inline std::ostream& operator<<(std::ostream& stream, const Bytes& bytes)
 {
   // Only raise the unit when there is no loss of information.
   if (bytes.bytes() == 0) {
@@ -179,7 +179,7 @@ inline std::ostream& operator << (std::ostream& stream, const Bytes& bytes)
 }
 
 
-inline Bytes operator + (const Bytes& lhs, const Bytes& rhs)
+inline Bytes operator+(const Bytes& lhs, const Bytes& rhs)
 {
   Bytes sum = lhs;
   sum += rhs;
@@ -187,7 +187,7 @@ inline Bytes operator + (const Bytes& lhs, const Bytes& rhs)
 }
 
 
-inline Bytes operator - (const Bytes& lhs, const Bytes& rhs)
+inline Bytes operator-(const Bytes& lhs, const Bytes& rhs)
 {
   Bytes diff = lhs;
   diff -= rhs;
@@ -195,7 +195,7 @@ inline Bytes operator - (const Bytes& lhs, const Bytes& rhs)
 }
 
 
-inline Bytes operator * (const Bytes& lhs, double multiplier)
+inline Bytes operator*(const Bytes& lhs, double multiplier)
 {
   if (multiplier < 0) {
     ABORT("Multiplying Bytes by negative multiplier "
@@ -208,7 +208,7 @@ inline Bytes operator * (const Bytes& lhs, double multiplier)
 }
 
 
-inline Bytes operator / (const Bytes& lhs, double divisor)
+inline Bytes operator/(const Bytes& lhs, double divisor)
 {
   if (divisor < 0) {
     ABORT("Dividing Bytes by negative divisor "

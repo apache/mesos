@@ -29,7 +29,7 @@ using std::string;
 
 
 template <typename T>
-bool operator == (Try<T> lhs, Try<T> rhs)
+bool operator==(Try<T> lhs, Try<T> rhs)
 {
   if (lhs.isSome() != rhs.isSome()) {
     return false;
@@ -44,14 +44,14 @@ bool operator == (Try<T> lhs, Try<T> rhs)
 
 
 template <typename T>
-bool operator != (Try<T> lhs, Try<T> rhs)
+bool operator!=(Try<T> lhs, Try<T> rhs)
 {
   return !(lhs == rhs);
 }
 
 
 template <typename T>
-bool operator == (deque<T> rhs, deque<T> lhs)
+bool operator==(deque<T> rhs, deque<T> lhs)
 {
   if (rhs.size() != lhs.size()) {
     return false;

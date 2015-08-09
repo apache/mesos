@@ -215,12 +215,12 @@ private:
     explicit ContainmentComparator(const Value& _self)
       : self(_self) {}
 
-    bool operator () (const Object& other) const;
-    bool operator () (const Array& other) const;
-    bool operator () (const String& other) const;
-    bool operator () (const Number& other) const;
-    bool operator () (const Boolean& other) const;
-    bool operator () (const Null&) const;
+    bool operator()(const Object& other) const;
+    bool operator()(const Array& other) const;
+    bool operator()(const String& other) const;
+    bool operator()(const Number& other) const;
+    bool operator()(const Boolean& other) const;
+    bool operator()(const Null&) const;
 
   private:
     const Value& self;
@@ -335,8 +335,7 @@ inline bool Value::contains(const Value& other) const
 }
 
 
-inline bool Value::ContainmentComparator::operator () (
-    const Object& other) const
+inline bool Value::ContainmentComparator::operator()(const Object& other) const
 {
   if (!self.is<Object>()) {
     return false;
@@ -371,8 +370,7 @@ inline bool Value::ContainmentComparator::operator () (
 }
 
 
-inline bool Value::ContainmentComparator::operator () (
-    const String& other) const
+inline bool Value::ContainmentComparator::operator()(const String& other) const
 {
   if (!self.is<String>()) {
     return false;
@@ -381,8 +379,7 @@ inline bool Value::ContainmentComparator::operator () (
 }
 
 
-inline bool Value::ContainmentComparator::operator () (
-    const Number& other) const
+inline bool Value::ContainmentComparator::operator()(const Number& other) const
 {
   if (!self.is<Number>()) {
     return false;
@@ -391,7 +388,7 @@ inline bool Value::ContainmentComparator::operator () (
 }
 
 
-inline bool Value::ContainmentComparator::operator () (const Array& other) const
+inline bool Value::ContainmentComparator::operator()(const Array& other) const
 {
   if (!self.is<Array>()) {
     return false;
@@ -413,8 +410,7 @@ inline bool Value::ContainmentComparator::operator () (const Array& other) const
 }
 
 
-inline bool Value::ContainmentComparator::operator () (
-    const Boolean& other) const
+inline bool Value::ContainmentComparator::operator()(const Boolean& other) const
 {
   if (!self.is<Boolean>()) {
     return false;
@@ -423,7 +419,7 @@ inline bool Value::ContainmentComparator::operator () (
 }
 
 
-inline bool Value::ContainmentComparator::operator () (const Null&) const
+inline bool Value::ContainmentComparator::operator()(const Null&) const
 {
   return self.is<Null>();
 }
@@ -434,7 +430,7 @@ struct Comparator : boost::static_visitor<bool>
   Comparator(const Value& _value)
     : value(_value) {}
 
-  bool operator () (const Object& object) const
+  bool operator()(const Object& object) const
   {
     if (value.is<Object>()) {
       return value.as<Object>().values == object.values;
@@ -442,7 +438,7 @@ struct Comparator : boost::static_visitor<bool>
     return false;
   }
 
-  bool operator () (const String& string) const
+  bool operator()(const String& string) const
   {
     if (value.is<String>()) {
       return value.as<String>().value == string.value;
@@ -450,7 +446,7 @@ struct Comparator : boost::static_visitor<bool>
     return false;
   }
 
-  bool operator () (const Number& number) const
+  bool operator()(const Number& number) const
   {
     if (value.is<Number>()) {
       return value.as<Number>().value == number.value;
@@ -458,7 +454,7 @@ struct Comparator : boost::static_visitor<bool>
     return false;
   }
 
-  bool operator () (const Array& array) const
+  bool operator()(const Array& array) const
   {
     if (value.is<Array>()) {
       return value.as<Array>().values == array.values;
@@ -466,7 +462,7 @@ struct Comparator : boost::static_visitor<bool>
     return false;
   }
 
-  bool operator () (const Boolean& boolean) const
+  bool operator()(const Boolean& boolean) const
   {
     if (value.is<Boolean>()) {
       return value.as<Boolean>().value == boolean.value;
@@ -474,7 +470,7 @@ struct Comparator : boost::static_visitor<bool>
     return false;
   }
 
-  bool operator () (const Null&) const
+  bool operator()(const Null&) const
   {
     return value.is<Null>();
   }
@@ -484,19 +480,19 @@ private:
 };
 
 
-inline bool operator == (const Value& lhs, const Value& rhs)
+inline bool operator==(const Value& lhs, const Value& rhs)
 {
   return boost::apply_visitor(Comparator(lhs), rhs);
 }
 
 
-inline bool operator != (const Value& lhs, const Value& rhs)
+inline bool operator!=(const Value& lhs, const Value& rhs)
 {
   return !(lhs == rhs);
 }
 
 
-inline std::ostream& operator << (std::ostream& out, const String& string)
+inline std::ostream& operator<<(std::ostream& out, const String& string)
 {
   // TODO(benh): This escaping DOES NOT handle unicode, it encodes as ASCII.
   // See RFC4627 for the JSON string specificiation.
@@ -534,7 +530,7 @@ inline std::ostream& operator << (std::ostream& out, const String& string)
 }
 
 
-inline std::ostream& operator << (std::ostream& out, const Number& number)
+inline std::ostream& operator<<(std::ostream& out, const Number& number)
 {
   // Use the guaranteed accurate precision, see:
   // http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2006/n2005.pdf
@@ -543,7 +539,7 @@ inline std::ostream& operator << (std::ostream& out, const Number& number)
 }
 
 
-inline std::ostream& operator << (std::ostream& out, const Object& object)
+inline std::ostream& operator<<(std::ostream& out, const Object& object)
 {
   out << "{";
   std::map<std::string, Value>::const_iterator iterator;
@@ -559,7 +555,7 @@ inline std::ostream& operator << (std::ostream& out, const Object& object)
 }
 
 
-inline std::ostream& operator << (std::ostream& out, const Array& array)
+inline std::ostream& operator<<(std::ostream& out, const Array& array)
 {
   out << "[";
   std::vector<Value>::const_iterator iterator;
@@ -575,13 +571,13 @@ inline std::ostream& operator << (std::ostream& out, const Array& array)
 }
 
 
-inline std::ostream& operator << (std::ostream& out, const Boolean& boolean)
+inline std::ostream& operator<<(std::ostream& out, const Boolean& boolean)
 {
   return out << (boolean.value ? "true" : "false");
 }
 
 
-inline std::ostream& operator << (std::ostream& out, const Null&)
+inline std::ostream& operator<<(std::ostream& out, const Null&)
 {
   return out << "null";
 }

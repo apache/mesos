@@ -76,19 +76,19 @@ struct Version
       minorVersion(_minorVersion),
       patchVersion(_patchVersion) {}
 
-  bool operator == (const Version& other) const
+  bool operator==(const Version& other) const
   {
     return majorVersion == other.majorVersion &&
-      minorVersion == other.minorVersion &&
-      patchVersion == other.patchVersion;
+        minorVersion == other.minorVersion &&
+        patchVersion == other.patchVersion;
   }
 
-  bool operator != (const Version& other) const
+  bool operator!=(const Version& other) const
   {
     return !(*this == other);
   }
 
-  bool operator < (const Version& other) const
+  bool operator<(const Version& other) const
   {
     // Lexicographic ordering.
     if (majorVersion != other.majorVersion) {
@@ -100,7 +100,7 @@ struct Version
     }
   }
 
-  bool operator > (const Version& other) const
+  bool operator>(const Version& other) const
   {
     // Lexicographic ordering.
     if (majorVersion != other.majorVersion) {
@@ -112,17 +112,17 @@ struct Version
     }
   }
 
-  bool operator <= (const Version& other) const
+  bool operator<=(const Version& other) const
   {
     return *this < other || *this == other;
   }
 
-  bool operator >= (const Version& other) const
+  bool operator>=(const Version& other) const
   {
     return *this > other || *this == other;
   }
 
-  friend inline std::ostream& operator << (std::ostream& s, const Version& v);
+  friend inline std::ostream& operator<<(std::ostream& s, const Version& v);
 
   const int majorVersion;
   const int minorVersion;
@@ -130,7 +130,7 @@ struct Version
 };
 
 
-inline std::ostream& operator << (std::ostream& s, const Version& v)
+inline std::ostream& operator<<(std::ostream& s, const Version& v)
 {
   return s << v.majorVersion << "." << v.minorVersion << "." << v.patchVersion;
 }

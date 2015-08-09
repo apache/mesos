@@ -121,7 +121,7 @@ const hashset<Elem, Hash, Equal>& hashset<Elem, Hash, Equal>::EMPTY =
 
 // Union operator.
 template <typename Elem, typename Hash, typename Equal>
-hashset<Elem, Hash, Equal> operator | (
+hashset<Elem, Hash, Equal> operator|(
     const hashset<Elem, Hash, Equal>& left,
     const hashset<Elem, Hash, Equal>& right)
 {

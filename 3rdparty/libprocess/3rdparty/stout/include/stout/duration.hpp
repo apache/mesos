@@ -103,59 +103,59 @@ public:
     return t;
   }
 
-  bool operator <  (const Duration& d) const { return nanos <  d.nanos; }
-  bool operator <= (const Duration& d) const { return nanos <= d.nanos; }
-  bool operator >  (const Duration& d) const { return nanos >  d.nanos; }
-  bool operator >= (const Duration& d) const { return nanos >= d.nanos; }
-  bool operator == (const Duration& d) const { return nanos == d.nanos; }
-  bool operator != (const Duration& d) const { return nanos != d.nanos; }
+  bool operator<(const Duration& d) const { return nanos < d.nanos; }
+  bool operator<=(const Duration& d) const { return nanos <= d.nanos; }
+  bool operator>(const Duration& d) const { return nanos > d.nanos; }
+  bool operator>=(const Duration& d) const { return nanos >= d.nanos; }
+  bool operator==(const Duration& d) const { return nanos == d.nanos; }
+  bool operator!=(const Duration& d) const { return nanos != d.nanos; }
 
-  Duration& operator += (const Duration& that)
+  Duration& operator+=(const Duration& that)
   {
     nanos += that.nanos;
     return *this;
   }
 
-  Duration& operator -= (const Duration& that)
+  Duration& operator-=(const Duration& that)
   {
     nanos -= that.nanos;
     return *this;
   }
 
-  Duration& operator *= (double multiplier)
+  Duration& operator*=(double multiplier)
   {
     nanos = static_cast<int64_t>(nanos * multiplier);
     return *this;
   }
 
-  Duration& operator /= (double divisor)
+  Duration& operator/=(double divisor)
   {
     nanos = static_cast<int64_t>(nanos / divisor);
     return *this;
   }
 
-  Duration operator + (const Duration& that) const
+  Duration operator+(const Duration& that) const
   {
     Duration sum = *this;
     sum += that;
     return sum;
   }
 
-  Duration operator - (const Duration& that) const
+  Duration operator-(const Duration& that) const
   {
     Duration diff = *this;
     diff -= that;
     return diff;
   }
 
-  Duration operator * (double multiplier) const
+  Duration operator*(double multiplier) const
   {
     Duration product = *this;
     product *= multiplier;
     return product;
   }
 
-  Duration operator / (double divisor) const
+  Duration operator/(double divisor) const
   {
     Duration quotient = *this;
     quotient /= divisor;
@@ -197,7 +197,7 @@ private:
 
   int64_t nanos;
 
-  friend std::ostream& operator << (
+  friend std::ostream& operator<<(
     std::ostream& stream,
     const Duration& duration);
 };
@@ -314,9 +314,7 @@ public:
 };
 
 
-inline std::ostream& operator << (
-    std::ostream& stream,
-    const Duration& duration_)
+inline std::ostream& operator<<(std::ostream& stream, const Duration& duration_)
 {
   long precision = stream.precision();
 

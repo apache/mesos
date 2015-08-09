@@ -107,7 +107,7 @@ TEST(HashMapTest, CustomHashAndEqual)
 {
   struct CaseInsensitiveHash
   {
-    size_t operator () (const string& key) const
+    size_t operator()(const string& key) const
     {
       size_t seed = 0;
       foreach (const char c, key) {
@@ -119,7 +119,7 @@ TEST(HashMapTest, CustomHashAndEqual)
 
   struct CaseInsensitiveEqual
   {
-    bool operator () (const string& left, const string& right) const
+    bool operator()(const string& left, const string& right) const
     {
       if (left.size() != right.size()) {
         return false;

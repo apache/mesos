@@ -215,7 +215,7 @@ Of course, nesting of a `JSON::Value` is also permitted as per the JSON specific
   array.values.push_back(object2);
 ~~~
 
-You can "render" a JSON value using `std::ostream operator <<` (or by using `stringify` (see [here](#stringify)).
+You can "render" a JSON value using `std::ostream operator<<` (or by using `stringify` (see [here](#stringify)).
 
 
 <a href="lambda"></a>
@@ -307,7 +307,7 @@ There is also a protobuf to JSON converter via `JSON::Protobuf` that enables ser
 
 Utilities for inspecting and manipulating strings are available in the `strings` namespace. This includes varying tokenization techniques via `strings::tokenize`, `strings::split`, and `strings::pairs`.
 
-String formatting is provided via `strings::format`. The `strings::format` functions produces strings based on the `printf` family of functions. Except, unlike the `printf` family of functions, the `strings::format` routines attempt to "stringify" (see [here](#stringify)) any arguments that are not POD types (i.e., "plain old data": primitives, pointers, certain structs/classes and unions, etc). This enables passing structs/classes to `strings::format` provided there is a definition/specialization of `std::ostream operator <<` available for that type. Note that the `%s` format specifier is expected for each argument that gets passed. A specialization for `std::string` is also provided so that `std::string::c_str` is not necessary (but again, `%s` is expected as the format specifier).
+String formatting is provided via `strings::format`. The `strings::format` functions produces strings based on the `printf` family of functions. Except, unlike the `printf` family of functions, the `strings::format` routines attempt to "stringify" (see [here](#stringify)) any arguments that are not POD types (i.e., "plain old data": primitives, pointers, certain structs/classes and unions, etc). This enables passing structs/classes to `strings::format` provided there is a definition/specialization of `std::ostream operator<<` available for that type. Note that the `%s` format specifier is expected for each argument that gets passed. A specialization for `std::string` is also provided so that `std::string::c_str` is not necessary (but again, `%s` is expected as the format specifier).
 
 
 
@@ -398,7 +398,7 @@ Used to represent some magnitude of bytes, i.e., kilobytes, megabytes, gigabytes
     Bytes bytes = Megabytes(10);
 ~~~
 
-There are operators for comparing (equal to, greater than or less than, etc) and manipulating (addition, subtraction, etc) `Bytes` objects, as well as a `std::ostream operator <<` overload (thus making them stringifiable, see [here](#stringify)). For example:
+There are operators for comparing (equal to, greater than or less than, etc) and manipulating (addition, subtraction, etc) `Bytes` objects, as well as a `std::ostream operator<<` overload (thus making them stringifiable, see [here](#stringify)). For example:
 
 ~~~{.cpp}
     Try<Bytes> bytes = Bytes::parse("32MB");
@@ -417,7 +417,7 @@ Used to represent some duration of time. The main way to construct a `Duration` 
     Duration d = Seconds(5);
 ~~~
 
-There are operators for comparing (equal to, greater than or less than, etc) and manipulating (addition, subtraction, etc) `Duration` objects, as well as a `std::ostream operator <<` overload (thus making them stringifiable, see [here](#stringify)). Note that the `std::ostream operator <<` overload formats the output (including the unit) based on the magnitude, for example:
+There are operators for comparing (equal to, greater than or less than, etc) and manipulating (addition, subtraction, etc) `Duration` objects, as well as a `std::ostream operator<<` overload (thus making them stringifiable, see [here](#stringify)). Note that the `std::ostream operator<<` overload formats the output (including the unit) based on the magnitude, for example:
 
 ~~~{.cpp}
     stringify(Seconds(42)); // Yields "42secs".
@@ -492,7 +492,7 @@ Wraps `boost::lexical_cast` for converting strings to numbers but returns a `Try
 
 #### `stringify`
 
-Converts arbitrary types into strings by attempting to use an overloaded `std::ostream operator <<` (otherwise compilation fails). Note that `stringify` aborts the program if the stringification process fails.
+Converts arbitrary types into strings by attempting to use an overloaded `std::ostream operator<<` (otherwise compilation fails). Note that `stringify` aborts the program if the stringification process fails.
 
 
 #### `ThreadLocal`

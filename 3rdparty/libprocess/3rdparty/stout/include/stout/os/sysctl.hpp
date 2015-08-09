@@ -101,7 +101,7 @@ private:
     Integer(int _levels, int* _name);
 
     template <typename T>
-    operator Try<T> ();
+    operator Try<T>();
 
     const int levels;
     int* name;
@@ -112,7 +112,7 @@ private:
     Table(int _levels, int* _name, const Option<size_t>& _length);
 
     template <typename T>
-    operator Try<std::vector<T> > ();
+    operator Try<std::vector<T>>();
 
     const int levels;
     int* name;
@@ -242,7 +242,7 @@ inline sysctl::Integer::Integer(
 
 
 template <typename T>
-sysctl::Integer::operator Try<T> ()
+sysctl::Integer::operator Try<T>()
 {
   T i;
   size_t size = sizeof(i);
@@ -264,7 +264,7 @@ inline sysctl::Table::Table(
 
 
 template <typename T>
-sysctl::Table::operator Try<std::vector<T> > ()
+sysctl::Table::operator Try<std::vector<T>>()
 {
   size_t size = 0;
   if (length.isNone()) {

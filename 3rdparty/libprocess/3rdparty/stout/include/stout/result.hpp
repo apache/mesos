@@ -90,7 +90,7 @@ public:
   // Try<Option<T>>.
   Result(const Result<T>& that) = default;
   ~Result() = default;
-  Result<T>& operator = (const Result<T>& that) = default;
+  Result<T>& operator=(const Result<T>& that) = default;
 
   // 'isSome', 'isNone', and 'isError' are mutually exclusive. They
   // correspond to the underlying unioned state of the Option and Try.

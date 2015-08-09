@@ -54,7 +54,7 @@ public:
   //   (3, 4]:  (Bound<int>::open(3), Bound<int>::closed(4))
   //   [0, 5):  (Bound<int>::closed(0), Bound<int>::open(5))
   //   [1, 2]:  (Bound<int>::closed(1), Bound<int>::closed(2))
-  Interval<T> operator , (const Bound<T>& right) const;
+  Interval<T> operator,(const Bound<T>& right) const;
 
 private:
   enum Type
@@ -92,21 +92,21 @@ public:
   // Checks if this interval intersects with an interval set.
   bool intersects(const IntervalSet<T>& set) const;
 
-  bool operator == (const Interval<T>& that) const
+  bool operator==(const Interval<T>& that) const
   {
     return data == that.data;
   }
 
-  bool operator != (const Interval<T>& that) const
+  bool operator!=(const Interval<T>& that) const
   {
-    return !operator == (that);
+    return !(*this == that);
   }
 
 private:
   friend class Bound<T>;
 
   template <typename X>
-  friend std::ostream& operator << (
+  friend std::ostream& operator<<(
       std::ostream& stream,
       const Interval<X>& interval);
 
@@ -121,14 +121,14 @@ private:
 
 
 template <typename T>
-std::ostream& operator << (std::ostream& stream, const Interval<T>& interval)
+std::ostream& operator<<(std::ostream& stream, const Interval<T>& interval)
 {
   return stream << interval.data;
 }
 
 
 template <typename T>
-Interval<T> Bound<T>::operator , (const Bound<T>& right) const
+Interval<T> Bound<T>::operator,(const Bound<T>& right) const
 {
   if (type == OPEN) {
     if (right.type == OPEN) {
@@ -238,65 +238,65 @@ public:
   }
 
   // Overloaded operators.
-  bool operator == (const IntervalSet<T>& that) const
+  bool operator==(const IntervalSet<T>& that) const
   {
     return static_cast<const Base&>(*this) == static_cast<const Base&>(that);
   }
 
-  bool operator != (const IntervalSet<T>& that) const
+  bool operator!=(const IntervalSet<T>& that) const
   {
-    return !operator == (that);
+    return !(*this == that);
   }
 
-  IntervalSet<T>& operator += (const T& value)
+  IntervalSet<T>& operator+=(const T& value)
   {
     static_cast<Base&>(*this) += value;
     return *this;
   }
 
-  IntervalSet<T>& operator += (const Interval<T>& interval)
+  IntervalSet<T>& operator+=(const Interval<T>& interval)
   {
     static_cast<Base&>(*this) += interval;
     return *this;
   }
 
-  IntervalSet<T>& operator += (const IntervalSet<T>& set)
+  IntervalSet<T>& operator+=(const IntervalSet<T>& set)
   {
     static_cast<Base&>(*this) += static_cast<const Base&>(set);
     return *this;
   }
 
-  IntervalSet<T>& operator -= (const T& value)
+  IntervalSet<T>& operator-=(const T& value)
   {
     static_cast<Base&>(*this) -= value;
     return *this;
   }
 
-  IntervalSet<T>& operator -= (const Interval<T>& interval)
+  IntervalSet<T>& operator-=(const Interval<T>& interval)
   {
     static_cast<Base&>(*this) -= interval;
     return *this;
   }
 
-  IntervalSet<T>& operator -= (const IntervalSet<T>& set)
+  IntervalSet<T>& operator-=(const IntervalSet<T>& set)
   {
     static_cast<Base&>(*this) -= static_cast<const Base&>(set);
     return *this;
   }
 
-  IntervalSet<T>& operator &= (const T& value)
+  IntervalSet<T>& operator&=(const T& value)
   {
     static_cast<Base&>(*this) &= value;
     return *this;
   }
 
-  IntervalSet<T>& operator &= (const Interval<T>& interval)
+  IntervalSet<T>& operator&=(const Interval<T>& interval)
   {
     static_cast<Base&>(*this) &= interval;
     return *this;
   }
 
-  IntervalSet<T>& operator &= (const IntervalSet<T>& set)
+  IntervalSet<T>& operator&=(const IntervalSet<T>& set)
   {
     static_cast<Base&>(*this) &= static_cast<const Base&>(set);
     return *this;
@@ -304,7 +304,7 @@ public:
 
 private:
   template <typename X>
-  friend std::ostream& operator << (
+  friend std::ostream& operator<<(
       std::ostream& stream,
       const IntervalSet<X>& set);
 
@@ -314,7 +314,7 @@ private:
 
 
 template <typename T>
-std::ostream& operator << (std::ostream& stream, const IntervalSet<T>& set)
+std::ostream& operator<<(std::ostream& stream, const IntervalSet<T>& set)
 {
   return stream << static_cast<const typename IntervalSet<T>::Base&>(set);
 }
@@ -335,7 +335,7 @@ bool Interval<T>::intersects(const IntervalSet<T>& set) const
 
 
 template <typename T, typename X>
-IntervalSet<T> operator + (const IntervalSet<T>& set, const X& x)
+IntervalSet<T> operator+(const IntervalSet<T>& set, const X& x)
 {
   IntervalSet<T> result(set);
   result += x;
@@ -344,7 +344,7 @@ IntervalSet<T> operator + (const IntervalSet<T>& set, const X& x)
 
 
 template <typename T, typename X>
-IntervalSet<T> operator - (const IntervalSet<T>& set, const X& x)
+IntervalSet<T> operator-(const IntervalSet<T>& set, const X& x)
 {
   IntervalSet<T> result(set);
   result -= x;

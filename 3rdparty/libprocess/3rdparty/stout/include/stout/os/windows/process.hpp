@@ -33,9 +33,7 @@ class ProcessTree
 };
 
 
-inline std::ostream& operator << (
-    std::ostream& stream,
-    const ProcessTree& tree)
+inline std::ostream& operator<<(std::ostream& stream, const ProcessTree& tree)
 {
   UNIMPLEMENTED;
 }

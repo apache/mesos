@@ -405,14 +405,14 @@ struct CPU
 };
 
 
-inline bool operator == (const CPU& lhs, const CPU& rhs)
+inline bool operator==(const CPU& lhs, const CPU& rhs)
 {
   return (lhs.id == rhs.id) && (lhs.core == rhs.core) &&
     (lhs.socket == rhs.socket);
 }
 
 
-inline bool operator < (const CPU& lhs, const CPU& rhs)
+inline bool operator<(const CPU& lhs, const CPU& rhs)
 {
   // Sort by (socket, core, id).
   if (lhs.socket != rhs.socket) {
@@ -429,7 +429,7 @@ inline bool operator < (const CPU& lhs, const CPU& rhs)
 }
 
 
-inline std::ostream& operator << (std::ostream& out, const CPU& cpu)
+inline std::ostream& operator<<(std::ostream& out, const CPU& cpu)
 {
   return out << "CPU (id:" << cpu.id << ", "
              << "core:" << cpu.core << ", "

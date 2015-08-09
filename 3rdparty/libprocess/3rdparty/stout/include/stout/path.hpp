@@ -149,7 +149,7 @@ public:
   }
 
   // Implicit conversion from Path to string.
-  operator std::string () const
+  operator std::string() const
   {
     return value;
   }
@@ -158,7 +158,7 @@ public:
 };
 
 
-inline std::ostream& operator << (
+inline std::ostream& operator<<(
     std::ostream& stream,
     const Path& path)
 {

@@ -143,7 +143,7 @@ public:
     }
   }
 
-  bool operator == (const IP& that) const
+  bool operator==(const IP& that) const
   {
     if (family_ != that.family_) {
       return false;
@@ -152,12 +152,12 @@ public:
     }
   }
 
-  bool operator != (const IP& that) const
+  bool operator!=(const IP& that) const
   {
-    return !operator == (that);
+    return !(*this == that);
   }
 
-  bool operator < (const IP& that) const
+  bool operator<(const IP& that) const
   {
     if (family_ != that.family_) {
       return family_ < that.family_;
@@ -166,7 +166,7 @@ public:
     }
   }
 
-  bool operator > (const IP& that) const
+  bool operator>(const IP& that) const
   {
     if (family_ != that.family_) {
       return family_ > that.family_;
@@ -234,7 +234,7 @@ inline Try<IP> IP::create(const struct sockaddr& _storage)
 
 // Returns the string representation of the given IP using the
 // canonical dot-decimal form. For example: "10.0.0.1".
-inline std::ostream& operator << (std::ostream& stream, const IP& ip)
+inline std::ostream& operator<<(std::ostream& stream, const IP& ip)
 {
   switch (ip.family()) {
     case AF_INET: {
@@ -322,14 +322,14 @@ public:
     }
   }
 
-  bool operator == (const IPNetwork& that) const
+  bool operator==(const IPNetwork& that) const
   {
     return address_ == that.address_ && netmask_ == that.netmask_;
   }
 
-  bool operator != (const IPNetwork& that) const
+  bool operator!=(const IPNetwork& that) const
   {
-    return !operator == (that);
+    return !(*this == that);
   }
 
 private:
@@ -487,9 +487,7 @@ inline Result<IPNetwork> IPNetwork::fromLinkDevice(
 
 // Returns the string representation of the given IP network using the
 // canonical dot-decimal form with prefix. For example: "10.0.0.1/8".
-inline std::ostream& operator << (
-    std::ostream& stream,
-    const IPNetwork& network)
+inline std::ostream& operator<<(std::ostream& stream, const IPNetwork& network)
 {
   stream << network.address() << "/" << network.prefix();
 

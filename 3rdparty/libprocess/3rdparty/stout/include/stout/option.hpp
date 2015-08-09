@@ -73,7 +73,7 @@ public:
     }
   }
 
-  Option<T>& operator = (const Option<T>& that)
+  Option<T>& operator=(const Option<T>& that)
   {
     if (this != &that) {
       if (isSome()) {
@@ -88,7 +88,7 @@ public:
     return *this;
   }
 
-  Option<T>& operator = (Option<T>&& that)
+  Option<T>& operator=(Option<T>&& that)
   {
     if (this != &that) {
       if (isSome()) {
@@ -103,25 +103,25 @@ public:
     return *this;
   }
 
-  bool operator == (const Option<T>& that) const
+  bool operator==(const Option<T>& that) const
   {
     return (isNone() && that.isNone()) ||
       (isSome() && that.isSome() && t == that.t);
   }
 
-  bool operator != (const Option<T>& that) const
+  bool operator!=(const Option<T>& that) const
   {
-    return !operator == (that);
+    return !(*this == that);
   }
 
-  bool operator == (const T& that) const
+  bool operator==(const T& that) const
   {
     return isSome() && t == that;
   }
 
-  bool operator != (const T& that) const
+  bool operator!=(const T& that) const
   {
-    return !operator == (that);
+    return !(*this == that);
   }
 
   bool isSome() const { return state == SOME; }

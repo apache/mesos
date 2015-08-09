@@ -154,7 +154,7 @@ namespace internal {
 template <typename T>
 struct Read
 {
-  Result<T> operator () (int fd, bool ignorePartial, bool undoFailed)
+  Result<T> operator()(int fd, bool ignorePartial, bool undoFailed)
   {
     off_t offset = 0;
 
@@ -245,7 +245,7 @@ struct Read
 template <typename T>
 struct Read<google::protobuf::RepeatedPtrField<T>>
 {
-  Result<google::protobuf::RepeatedPtrField<T>> operator () (
+  Result<google::protobuf::RepeatedPtrField<T>> operator()(
       int fd, bool ignorePartial, bool undoFailed)
   {
     google::protobuf::RepeatedPtrField<T> result;
@@ -324,7 +324,7 @@ struct Parser : boost::static_visitor<Try<Nothing> >
       reflection(message->GetReflection()),
       field(_field) {}
 
-  Try<Nothing> operator () (const JSON::Object& object) const
+  Try<Nothing> operator()(const JSON::Object& object) const
   {
     switch (field->type()) {
       case google::protobuf::FieldDescriptor::TYPE_MESSAGE:
@@ -341,7 +341,7 @@ struct Parser : boost::static_visitor<Try<Nothing> >
     return Nothing();
   }
 
-  Try<Nothing> operator () (const JSON::String& string) const
+  Try<Nothing> operator()(const JSON::String& string) const
   {
     switch (field->type()) {
       case google::protobuf::FieldDescriptor::TYPE_STRING:
@@ -374,7 +374,7 @@ struct Parser : boost::static_visitor<Try<Nothing> >
     return Nothing();
   }
 
-  Try<Nothing> operator () (const JSON::Number& number) const
+  Try<Nothing> operator()(const JSON::Number& number) const
   {
     switch (field->type()) {
       case google::protobuf::FieldDescriptor::TYPE_DOUBLE:
@@ -462,7 +462,7 @@ struct Parser : boost::static_visitor<Try<Nothing> >
     return Nothing();
   }
 
-  Try<Nothing> operator () (const JSON::Array& array) const
+  Try<Nothing> operator()(const JSON::Array& array) const
   {
     if (!field->is_repeated()) {
       return Error("Not expecting a JSON array for field '" +
@@ -481,7 +481,7 @@ struct Parser : boost::static_visitor<Try<Nothing> >
     return Nothing();
   }
 
-  Try<Nothing> operator () (const JSON::Boolean& boolean) const
+  Try<Nothing> operator()(const JSON::Boolean& boolean) const
   {
     switch (field->type()) {
       case google::protobuf::FieldDescriptor::TYPE_BOOL:
@@ -498,7 +498,7 @@ struct Parser : boost::static_visitor<Try<Nothing> >
     return Nothing();
   }
 
-  Try<Nothing> operator () (const JSON::Null&) const
+  Try<Nothing> operator()(const JSON::Null&) const
   {
     return Error("Not expecting a JSON null");
   }
@@ -720,7 +720,7 @@ struct Protobuf
     }
   }
 
-  operator Object () const { return object; }
+  operator Object() const { return object; }
 
 private:
   JSON::Object object;

@@ -63,12 +63,12 @@ struct Process
 
   // TODO(bmahler): Add additional data as needed.
 
-  bool operator <  (const Process& p) const { return pid <  p.pid; }
-  bool operator <= (const Process& p) const { return pid <= p.pid; }
-  bool operator >  (const Process& p) const { return pid >  p.pid; }
-  bool operator >= (const Process& p) const { return pid >= p.pid; }
-  bool operator == (const Process& p) const { return pid == p.pid; }
-  bool operator != (const Process& p) const { return pid != p.pid; }
+  bool operator<(const Process& p) const { return pid < p.pid; }
+  bool operator<=(const Process& p) const { return pid <= p.pid; }
+  bool operator>(const Process& p) const { return pid > p.pid; }
+  bool operator>=(const Process& p) const { return pid >= p.pid; }
+  bool operator==(const Process& p) const { return pid == p.pid; }
+  bool operator!=(const Process& p) const { return pid != p.pid; }
 };
 
 
@@ -99,12 +99,12 @@ public:
     return find(pid).isSome();
   }
 
-  operator Process () const
+  operator Process() const
   {
     return process;
   }
 
-  operator pid_t () const
+  operator pid_t() const
   {
     return process.pid;
   }
@@ -124,9 +124,7 @@ private:
 };
 
 
-inline std::ostream& operator << (
-    std::ostream& stream,
-    const ProcessTree& tree)
+inline std::ostream& operator<<(std::ostream& stream, const ProcessTree& tree)
 {
   if (tree.children.empty()) {
     stream << "--- " << tree.process.pid << " ";

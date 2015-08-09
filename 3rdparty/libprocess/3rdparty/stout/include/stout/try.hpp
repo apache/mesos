@@ -64,7 +64,7 @@ public:
   // Option<T>.
   Try(const Try<T>& that) = default;
   ~Try() = default;
-  Try<T>& operator = (const Try<T>& that) = default;
+  Try<T>& operator=(const Try<T>& that) = default;
 
   // 'isSome' and 'isError' are mutually exclusive. They correspond
   // to the underlying state of the Option.
