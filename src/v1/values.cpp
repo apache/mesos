@@ -133,25 +133,25 @@ Try<Value> parse(const std::string& text)
 } // namespace internal {
 
 
-ostream& operator << (ostream& stream, const Value::Scalar& scalar)
+ostream& operator<<(ostream& stream, const Value::Scalar& scalar)
 {
   return stream << scalar.value();
 }
 
 
-bool operator == (const Value::Scalar& left, const Value::Scalar& right)
+bool operator==(const Value::Scalar& left, const Value::Scalar& right)
 {
   return left.value() == right.value();
 }
 
 
-bool operator <= (const Value::Scalar& left, const Value::Scalar& right)
+bool operator<=(const Value::Scalar& left, const Value::Scalar& right)
 {
   return left.value() <= right.value();
 }
 
 
-Value::Scalar operator + (const Value::Scalar& left, const Value::Scalar& right)
+Value::Scalar operator+(const Value::Scalar& left, const Value::Scalar& right)
 {
   Value::Scalar result;
   result.set_value(left.value() + right.value());
@@ -159,7 +159,7 @@ Value::Scalar operator + (const Value::Scalar& left, const Value::Scalar& right)
 }
 
 
-Value::Scalar operator - (const Value::Scalar& left, const Value::Scalar& right)
+Value::Scalar operator-(const Value::Scalar& left, const Value::Scalar& right)
 {
   Value::Scalar result;
   result.set_value(left.value() - right.value());
@@ -167,14 +167,14 @@ Value::Scalar operator - (const Value::Scalar& left, const Value::Scalar& right)
 }
 
 
-Value::Scalar& operator += (Value::Scalar& left, const Value::Scalar& right)
+Value::Scalar& operator+=(Value::Scalar& left, const Value::Scalar& right)
 {
   left.set_value(left.value() + right.value());
   return left;
 }
 
 
-Value::Scalar& operator -= (Value::Scalar& left, const Value::Scalar& right)
+Value::Scalar& operator-=(Value::Scalar& left, const Value::Scalar& right)
 {
   left.set_value(left.value() - right.value());
   return left;
@@ -292,7 +292,7 @@ static void remove(Value::Ranges* ranges, const Value::Range& range)
 }
 
 
-ostream& operator << (ostream& stream, const Value::Ranges& ranges)
+ostream& operator<<(ostream& stream, const Value::Ranges& ranges)
 {
   stream << "[";
   for (int i = 0; i < ranges.range_size(); i++) {
@@ -306,7 +306,7 @@ ostream& operator << (ostream& stream, const Value::Ranges& ranges)
 }
 
 
-bool operator == (const Value::Ranges& _left, const Value::Ranges& _right)
+bool operator==(const Value::Ranges& _left, const Value::Ranges& _right)
 {
   Value::Ranges left;
   coalesce(&left, _left);
@@ -338,7 +338,7 @@ bool operator == (const Value::Ranges& _left, const Value::Ranges& _right)
 }
 
 
-bool operator <= (const Value::Ranges& _left, const Value::Ranges& _right)
+bool operator<=(const Value::Ranges& _left, const Value::Ranges& _right)
 {
   Value::Ranges left;
   coalesce(&left, _left);
@@ -365,7 +365,7 @@ bool operator <= (const Value::Ranges& _left, const Value::Ranges& _right)
 }
 
 
-Value::Ranges operator + (const Value::Ranges& left, const Value::Ranges& right)
+Value::Ranges operator+(const Value::Ranges& left, const Value::Ranges& right)
 {
   Value::Ranges result;
 
@@ -376,7 +376,7 @@ Value::Ranges operator + (const Value::Ranges& left, const Value::Ranges& right)
 }
 
 
-Value::Ranges operator - (const Value::Ranges& left, const Value::Ranges& right)
+Value::Ranges operator-(const Value::Ranges& left, const Value::Ranges& right)
 {
   Value::Ranges result;
 
@@ -391,7 +391,7 @@ Value::Ranges operator - (const Value::Ranges& left, const Value::Ranges& right)
 }
 
 
-Value::Ranges& operator += (Value::Ranges& left, const Value::Ranges& right)
+Value::Ranges& operator+=(Value::Ranges& left, const Value::Ranges& right)
 {
   Value::Ranges temp;
 
@@ -405,7 +405,7 @@ Value::Ranges& operator += (Value::Ranges& left, const Value::Ranges& right)
 }
 
 
-Value::Ranges& operator -= (Value::Ranges& left, const Value::Ranges& right)
+Value::Ranges& operator-=(Value::Ranges& left, const Value::Ranges& right)
 {
   Value::Ranges temp;
 
@@ -422,7 +422,7 @@ Value::Ranges& operator -= (Value::Ranges& left, const Value::Ranges& right)
 }
 
 
-ostream& operator << (ostream& stream, const Value::Set& set)
+ostream& operator<<(ostream& stream, const Value::Set& set)
 {
   stream << "{";
   for (int i = 0; i < set.item_size(); i++) {
@@ -436,7 +436,7 @@ ostream& operator << (ostream& stream, const Value::Set& set)
 }
 
 
-bool operator == (const Value::Set& left, const Value::Set& right)
+bool operator==(const Value::Set& left, const Value::Set& right)
 {
   if (left.item_size() == right.item_size()) {
     for (int i = 0; i < left.item_size(); i++) {
@@ -461,7 +461,7 @@ bool operator == (const Value::Set& left, const Value::Set& right)
 }
 
 
-bool operator <= (const Value::Set& left, const Value::Set& right)
+bool operator<=(const Value::Set& left, const Value::Set& right)
 {
   if (left.item_size() <= right.item_size()) {
     for (int i = 0; i < left.item_size(); i++) {
@@ -486,7 +486,7 @@ bool operator <= (const Value::Set& left, const Value::Set& right)
 }
 
 
-Value::Set operator + (const Value::Set& left, const Value::Set& right)
+Value::Set operator+(const Value::Set& left, const Value::Set& right)
 {
   Value::Set result;
 
@@ -513,7 +513,7 @@ Value::Set operator + (const Value::Set& left, const Value::Set& right)
 }
 
 
-Value::Set operator - (const Value::Set& left, const Value::Set& right)
+Value::Set operator-(const Value::Set& left, const Value::Set& right)
 {
   Value::Set result;
 
@@ -536,7 +536,7 @@ Value::Set operator - (const Value::Set& left, const Value::Set& right)
 }
 
 
-Value::Set& operator += (Value::Set& left, const Value::Set& right)
+Value::Set& operator+=(Value::Set& left, const Value::Set& right)
 {
   // A little bit of extra logic to avoid adding duplicates from right.
   for (int i = 0; i < right.item_size(); i++) {
@@ -557,7 +557,7 @@ Value::Set& operator += (Value::Set& left, const Value::Set& right)
 }
 
 
-Value::Set& operator -= (Value::Set& left, const Value::Set& right)
+Value::Set& operator-=(Value::Set& left, const Value::Set& right)
 {
   // For each item in right, remove it if it's in left.
   for (int i = 0; i < right.item_size(); i++) {
@@ -573,13 +573,13 @@ Value::Set& operator -= (Value::Set& left, const Value::Set& right)
 }
 
 
-ostream& operator << (ostream& stream, const Value::Text& value)
+ostream& operator<<(ostream& stream, const Value::Text& value)
 {
   return stream << value.value();
 }
 
 
-bool operator == (const Value::Text& left, const Value::Text& right)
+bool operator==(const Value::Text& left, const Value::Text& right)
 {
   return left.value() == right.value();
 }

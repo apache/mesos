@@ -26,7 +26,7 @@ namespace v1 {
 // TODO(vinod): Ensure that these operators do not go out of sync
 // when new fields are added to the protobufs (MESOS-2487).
 
-bool operator == (const CommandInfo& left, const CommandInfo& right)
+bool operator==(const CommandInfo& left, const CommandInfo& right)
 {
   if (left.uris().size() != right.uris().size()) {
     return false;
@@ -68,7 +68,7 @@ bool operator == (const CommandInfo& left, const CommandInfo& right)
 }
 
 
-bool operator == (const CommandInfo::URI& left, const CommandInfo::URI& right)
+bool operator==(const CommandInfo::URI& left, const CommandInfo::URI& right)
 {
   return left.value() == right.value() &&
     left.executable() == right.executable() &&
@@ -76,14 +76,14 @@ bool operator == (const CommandInfo::URI& left, const CommandInfo::URI& right)
 }
 
 
-bool operator == (const Credential& left, const Credential& right)
+bool operator==(const Credential& left, const Credential& right)
 {
   return left.principal() == right.principal() &&
     left.secret() == right.secret();
 }
 
 
-bool operator == (
+bool operator==(
     const Environment::Variable& left,
     const Environment::Variable& right)
 {
@@ -91,7 +91,7 @@ bool operator == (
 }
 
 
-bool operator == (const Environment& left, const Environment& right)
+bool operator==(const Environment& left, const Environment& right)
 {
   // Order of variables is not important.
   if (left.variables().size() != right.variables().size()) {
@@ -115,7 +115,7 @@ bool operator == (const Environment& left, const Environment& right)
 }
 
 
-bool operator == (const Volume& left, const Volume& right)
+bool operator==(const Volume& left, const Volume& right)
 {
   return left.container_path() == right.container_path() &&
     left.host_path() == right.host_path() &&
@@ -124,13 +124,13 @@ bool operator == (const Volume& left, const Volume& right)
 
 
 // TODO(bmahler): Leverage process::http::URL for equality.
-bool operator == (const URL& left, const URL& right)
+bool operator==(const URL& left, const URL& right)
 {
   return left.SerializeAsString() == right.SerializeAsString();
 }
 
 
-bool operator == (
+bool operator==(
     const ContainerInfo::DockerInfo::PortMapping& left,
     const ContainerInfo::DockerInfo::PortMapping& right)
 {
@@ -140,13 +140,13 @@ bool operator == (
 }
 
 
-bool operator == (const Parameter& left, const Parameter& right)
+bool operator==(const Parameter& left, const Parameter& right)
 {
   return left.key() == right.key() && left.value() == right.value();
 }
 
 
-bool operator == (
+bool operator==(
     const ContainerInfo::DockerInfo& left,
     const ContainerInfo::DockerInfo& right)
 {
@@ -193,7 +193,7 @@ bool operator == (
 }
 
 
-bool operator == (const ContainerInfo& left, const ContainerInfo& right)
+bool operator==(const ContainerInfo& left, const ContainerInfo& right)
 {
   // Order of volumes is not important.
   if (left.volumes().size() != right.volumes().size()) {
@@ -219,7 +219,7 @@ bool operator == (const ContainerInfo& left, const ContainerInfo& right)
 }
 
 
-bool operator == (const Port& left, const Port& right)
+bool operator==(const Port& left, const Port& right)
 {
   return left.number() == right.number() &&
     left.name() == right.name() &&
@@ -227,7 +227,7 @@ bool operator == (const Port& left, const Port& right)
 }
 
 
-bool operator == (const Ports& left, const Ports& right)
+bool operator==(const Ports& left, const Ports& right)
 {
   // Order of ports is not important.
   if (left.ports().size() != right.ports().size()) {
@@ -251,13 +251,13 @@ bool operator == (const Ports& left, const Ports& right)
 }
 
 
-bool operator == (const Label& left, const Label& right)
+bool operator==(const Label& left, const Label& right)
 {
   return left.key() == right.key() && left.value() == right.value();
 }
 
 
-bool operator == (const Labels& left, const Labels& right)
+bool operator==(const Labels& left, const Labels& right)
 {
   // Order of labels is not important.
   if (left.labels().size() != right.labels().size()) {
@@ -281,7 +281,7 @@ bool operator == (const Labels& left, const Labels& right)
 }
 
 
-bool operator == (const DiscoveryInfo& left, const DiscoveryInfo& right)
+bool operator==(const DiscoveryInfo& left, const DiscoveryInfo& right)
 {
   return left.visibility() == right.visibility() &&
     left.name() == right.name() &&
@@ -293,7 +293,7 @@ bool operator == (const DiscoveryInfo& left, const DiscoveryInfo& right)
 }
 
 
-bool operator == (const ExecutorInfo& left, const ExecutorInfo& right)
+bool operator==(const ExecutorInfo& left, const ExecutorInfo& right)
 {
   return left.executor_id() == right.executor_id() &&
     left.data() == right.data() &&
@@ -307,7 +307,7 @@ bool operator == (const ExecutorInfo& left, const ExecutorInfo& right)
 }
 
 
-bool operator == (const MasterInfo& left, const MasterInfo& right)
+bool operator==(const MasterInfo& left, const MasterInfo& right)
 {
   return left.id() == right.id() &&
     left.ip() == right.ip() &&
@@ -318,15 +318,13 @@ bool operator == (const MasterInfo& left, const MasterInfo& right)
 }
 
 
-bool operator == (
-    const ResourceStatistics& left,
-    const ResourceStatistics& right)
+bool operator==(const ResourceStatistics& left, const ResourceStatistics& right)
 {
   return left.SerializeAsString() == right.SerializeAsString();
 }
 
 
-bool operator == (const AgentInfo& left, const AgentInfo& right)
+bool operator==(const AgentInfo& left, const AgentInfo& right)
 {
   return left.hostname() == right.hostname() &&
     Resources(left.resources()) == Resources(right.resources()) &&
@@ -337,7 +335,7 @@ bool operator == (const AgentInfo& left, const AgentInfo& right)
 
 
 // TODO(bmahler): Use SerializeToString here?
-bool operator == (const TaskStatus& left, const TaskStatus& right)
+bool operator==(const TaskStatus& left, const TaskStatus& right)
 {
   return left.task_id() == right.task_id() &&
     left.state() == right.state() &&
@@ -353,7 +351,7 @@ bool operator == (const TaskStatus& left, const TaskStatus& right)
 }
 
 
-bool operator != (const TaskStatus& left, const TaskStatus& right)
+bool operator!=(const TaskStatus& left, const TaskStatus& right)
 {
   return !(left == right);
 }

@@ -34,7 +34,7 @@ using std::vector;
 namespace mesos {
 namespace v1 {
 
-std::ostream& operator << (std::ostream& stream, const Attribute& attribute)
+std::ostream& operator<<(std::ostream& stream, const Attribute& attribute)
 {
   stream << attribute.name() << "=";
   switch (attribute.type()) {
@@ -51,7 +51,7 @@ std::ostream& operator << (std::ostream& stream, const Attribute& attribute)
 }
 
 
-bool Attributes::operator == (const Attributes& that) const
+bool Attributes::operator==(const Attributes& that) const
 {
   if (size() != that.size()) {
     return false;

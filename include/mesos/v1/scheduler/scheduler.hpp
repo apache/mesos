@@ -28,17 +28,13 @@ namespace mesos {
 namespace v1 {
 namespace scheduler {
 
-inline std::ostream& operator << (
-    std::ostream& stream,
-    const Call::Type& type)
+inline std::ostream& operator<<(std::ostream& stream, const Call::Type& type)
 {
   return stream << Call::Type_Name(type);
 }
 
 
-inline std::ostream& operator << (
-    std::ostream& stream,
-    const Event::Type& type)
+inline std::ostream& operator<<(std::ostream& stream, const Event::Type& type)
 {
   return stream << Event::Type_Name(type);
 }

@@ -29,7 +29,7 @@
 namespace mesos {
 namespace v1 {
 
-std::ostream& operator << (std::ostream& stream, const Attribute& attribute);
+std::ostream& operator<<(std::ostream& stream, const Attribute& attribute);
 
 
 class Attributes
@@ -49,7 +49,7 @@ public:
     attributes.MergeFrom(that.attributes);
   }
 
-  Attributes& operator = (const Attributes& that)
+  Attributes& operator=(const Attributes& that)
   {
     if (this != &that) {
       attributes.Clear();
@@ -59,10 +59,10 @@ public:
     return *this;
   }
 
-  bool operator == (const Attributes& that) const;
+  bool operator==(const Attributes& that) const;
 
 
-  bool operator != (const Attributes& that) const
+  bool operator!=(const Attributes& that) const
   {
     return !(*this == that);
   }
@@ -74,7 +74,7 @@ public:
 
   // Using this operator makes it easy to copy a attributes object into
   // a protocol buffer field.
-  operator const google::protobuf::RepeatedPtrField<Attribute>& () const
+  operator const google::protobuf::RepeatedPtrField<Attribute>&() const
   {
     return attributes;
   }
