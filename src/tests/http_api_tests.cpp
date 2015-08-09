@@ -21,6 +21,7 @@
 #include <mesos/v1/mesos.hpp>
 #include <mesos/v1/scheduler.hpp>
 
+#include <process/clock.hpp>
 #include <process/future.hpp>
 #include <process/gtest.hpp>
 #include <process/http.hpp>
@@ -33,11 +34,13 @@
 #include "common/http.hpp"
 #include "common/recordio.hpp"
 
+#include "master/constants.hpp"
 #include "master/master.hpp"
 
 #include "tests/mesos.hpp"
 #include "tests/utils.hpp"
 
+using mesos::internal::master::DEFAULT_HEARTBEAT_INTERVAL;
 
 using mesos::internal::master::Master;
 
@@ -46,6 +49,7 @@ using mesos::internal::recordio::Reader;
 using mesos::v1::scheduler::Call;
 using mesos::v1::scheduler::Event;
 
+using process::Clock;
 using process::Future;
 using process::PID;
 
@@ -254,7 +258,8 @@ TEST_P(HttpApiTest, UnsupportedContentMediaType)
 
 
 // This test verifies if the scheduler is able to receive a Subscribed
-// event on the stream in response to a Subscribe call request.
+// event and heartbeat events on the stream in response to a Subscribe
+// call request.
 TEST_P(HttpApiTest, Subscribe)
 {
   // HTTP schedulers cannot yet authenticate.
@@ -301,6 +306,23 @@ TEST_P(HttpApiTest, Subscribe)
   // Check event type is subscribed and the framework id is set.
   ASSERT_EQ(Event::SUBSCRIBED, event.get().get().type());
   EXPECT_NE("", event.get().get().subscribed().framework_id().value());
+
+  // Make sure it receives a heartbeat.
+  event = responseDecoder.read();
+  AWAIT_READY(event);
+  ASSERT_SOME(event.get());
+
+  ASSERT_EQ(Event::HEARTBEAT, event.get().get().type());
+
+  // Advance the clock to receive another heartbeat.
+  Clock::pause();
+  Clock::advance(DEFAULT_HEARTBEAT_INTERVAL);
+
+  event = responseDecoder.read();
+  AWAIT_READY(event);
+  ASSERT_SOME(event.get());
+
+  ASSERT_EQ(Event::HEARTBEAT, event.get().get().type());
 
   Shutdown();
 }
@@ -387,6 +409,13 @@ TEST_P(HttpApiTest, SubscribedOnRetryWithForce)
     // Check event type is subscribed and the same framework id is set.
     ASSERT_EQ(Event::SUBSCRIBED, event.get().get().type());
     EXPECT_EQ(frameworkId, event.get().get().subscribed().framework_id());
+
+    // Make sure it receives a heartbeat.
+    event = responseDecoder.read();
+    AWAIT_READY(event);
+    ASSERT_SOME(event.get());
+
+    ASSERT_EQ(Event::HEARTBEAT, event.get().get().type());
   }
 
   Shutdown();
@@ -474,6 +503,13 @@ TEST_P(HttpApiTest, UpdatePidToHttpScheduler)
   EXPECT_EQ(evolve(frameworkId.get()),
             event.get().get().subscribed().framework_id());
 
+  // Make sure it receives a heartbeat.
+  event = responseDecoder.read();
+  AWAIT_READY(event);
+  ASSERT_SOME(event.get());
+
+  ASSERT_EQ(Event::HEARTBEAT, event.get().get().type());
+
   driver.stop();
   driver.join();
 
@@ -552,6 +588,14 @@ TEST_P(HttpApiTest, UpdatePidToHttpSchedulerWithoutForce)
   // We should be receiving an error event since the PID framework
   // was already connected.
   ASSERT_EQ(Event::ERROR, event.get().get().type());
+
+  // Unsubscribed HTTP framework should not get any heartbeats.
+  Clock::pause();
+  Clock::advance(DEFAULT_HEARTBEAT_INTERVAL);
+  Clock::settle();
+
+  event = responseDecoder.read();
+  ASSERT_TRUE(event.isPending());
 
   driver.stop();
   driver.join();

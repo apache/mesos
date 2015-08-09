@@ -54,6 +54,11 @@ extern const double MIN_CPUS;
 // Minimum amount of memory per offer.
 extern const Bytes MIN_MEM;
 
+
+// Default interval the master uses to send heartbeats to an HTTP
+// scheduler.
+extern const Duration DEFAULT_HEARTBEAT_INTERVAL;
+
 // Amount of time within which a slave PING should be received.
 // NOTE: The slave uses these PING constants to determine when
 // the master has stopped sending pings. If these are made

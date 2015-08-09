@@ -64,6 +64,9 @@ google::protobuf::RepeatedPtrField<T1> evolve(
 }
 
 
+v1::scheduler::Event evolve(const scheduler::Event& event);
+
+
 // Helper functions that evolve old style internal messages to a
 // v1::scheduler::Event.
 v1::scheduler::Event evolve(const FrameworkRegisteredMessage& message);

@@ -1778,6 +1778,10 @@ void Master::subscribe(
   // TODO(anand): Authenticate the framework.
 
   const FrameworkInfo& frameworkInfo = subscribe.framework_info();
+
+  LOG(INFO) << "Received subscription request for"
+            << " HTTP framework '" << frameworkInfo.name() << "'";
+
   Option<Error> validationError = None();
 
   // TODO(vinod): Deprecate this in favor of ACLs.
@@ -1807,9 +1811,6 @@ void Master::subscribe(
       }
     }
   }
-
-  LOG(INFO) << "Received subscription request for"
-            << " HTTP framework '" << frameworkInfo.name() << "'";
 
   if (validationError.isSome()) {
     LOG(INFO) << "Refusing subscription of framework"
@@ -1889,6 +1890,10 @@ void Master::_subscribe(
     message.mutable_framework_id()->MergeFrom(framework->id());
     message.mutable_master_info()->MergeFrom(info_);
     framework->send(message);
+
+    // Start the heartbeat after sending SUBSCRIBED event.
+    framework->heartbeat();
+
     return;
   }
 
@@ -1934,7 +1939,7 @@ void Master::_subscribe(
       return;
     } else {
       LOG(INFO) << "Allowing framework " << *framework
-                << " to subcribe with an already used id";
+                << " to subscribe with an already used id";
 
       // Convert the framework to an http framework if it was
       // pid based in the past.
@@ -1958,6 +1963,9 @@ void Master::_subscribe(
       message.mutable_framework_id()->MergeFrom(framework->id());
       message.mutable_master_info()->MergeFrom(info_);
       framework->send(message);
+
+      // Start the heartbeat after sending SUBSCRIBED event.
+      framework->heartbeat();
     }
   } else {
     // We don't have a framework with this ID, so we must be a newly
@@ -1986,6 +1994,9 @@ void Master::_subscribe(
     message.mutable_framework_id()->MergeFrom(framework->id());
     message.mutable_master_info()->MergeFrom(info_);
     framework->send(message);
+
+    // Start the heartbeat after sending SUBSCRIBED event.
+    framework->heartbeat();
   }
 
   CHECK(frameworks.registered.contains(frameworkInfo.id()))
@@ -5005,6 +5016,9 @@ void Master::failoverFramework(Framework* framework, const HttpConnection& http)
     .onAny(defer(self(), &Self::exited, framework->id(), http));
 
   _failoverFramework(framework);
+
+  // Start the heartbeat after sending SUBSCRIBED event.
+  framework->heartbeat();
 }
 
 

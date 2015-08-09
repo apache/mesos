@@ -116,6 +116,12 @@ v1::scheduler::Call evolve(const scheduler::Call& call)
 }
 
 
+v1::scheduler::Event evolve(const scheduler::Event& event)
+{
+  return evolve<v1::scheduler::Event>(event);
+}
+
+
 v1::scheduler::Event evolve(const FrameworkRegisteredMessage& message)
 {
   v1::scheduler::Event event;

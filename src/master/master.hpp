@@ -586,7 +586,7 @@ protected:
   // the event of a scheduler failover.
   void failoverFramework(Framework* framework, const process::UPID& newPid);
 
-  // Replace the scheduler for a framework with a new http connection,
+  // Replace the scheduler for a framework with a new HTTP connection,
   // in the event of a scheduler failover.
   void failoverFramework(Framework* framework, const HttpConnection& http);
 
@@ -1278,6 +1278,47 @@ struct HttpConnection
 };
 
 
+// This process periodically sends heartbeats to a scheduler on the
+// given HTTP connection.
+class Heartbeater : public process::Process<Heartbeater>
+{
+public:
+  Heartbeater(const FrameworkID& _frameworkId,
+              const HttpConnection& _http,
+              const Duration& _interval)
+    : process::ProcessBase(process::ID::generate("heartbeater")),
+      frameworkId(_frameworkId),
+      http(_http),
+      interval(_interval) {}
+
+protected:
+  virtual void initialize() override
+  {
+    heartbeat();
+  }
+
+private:
+  void heartbeat()
+  {
+    // Only send a heartbeat if the connection is not closed.
+    if (http.closed().isPending()) {
+      VLOG(1) << "Sending heartbeat to " << frameworkId;
+
+      scheduler::Event event;
+      event.set_type(scheduler::Event::HEARTBEAT);
+
+      http.send(event);
+    }
+
+    process::delay(interval, self(), &Self::heartbeat);
+  }
+
+  const FrameworkID frameworkId;
+  HttpConnection http;
+  const Duration interval;
+};
+
+
 // Information about a connected or completed framework.
 // TODO(bmahler): Keeping the task and executor information in sync
 // across the Slave and Framework structs is error prone!
@@ -1311,10 +1352,8 @@ struct Framework
 
   ~Framework()
   {
-    if (http.isSome() && connected) {
-      if (!http.get().close()) {
-        LOG(WARNING) << "Failed to close HTTP pipe for " << *this;
-      }
+    if (http.isSome()) {
+      cleanupConnection();
     }
   }
 
@@ -1531,11 +1570,10 @@ struct Framework
 
   void updateConnection(const process::UPID& newPid)
   {
-    // Remove the http connnection if this is a downgrade from
-    // http to pid, note the connection may already be closed.
+    // Cleanup the HTTP connnection if this is a downgrade from HTTP
+    // to PID. Note that the connection may already be closed.
     if (http.isSome()) {
-      http.get().close();
-      http = None();
+      cleanupConnection();
     }
 
     // TODO(benh): unlink(oldPid);
@@ -1544,18 +1582,55 @@ struct Framework
 
   void updateConnection(const HttpConnection& newHttp)
   {
-    // Wipe the pid if this is an upgrade from pid to http.
     if (pid.isSome()) {
+      // Wipe the PID if this is an upgrade from PID to HTTP.
       // TODO(benh): unlink(oldPid);
       pid = None();
+    } else {
+      // Cleanup the old HTTP connection.
+      // Note that master creates a new HTTP connection for every
+      // subscribe request, so 'newHttp' should always be different
+      // from 'http'.
+      cleanupConnection();
     }
 
-    // Close the existing connection if it has changed.
-    if (http.isSome() && http.get().writer != newHttp.writer) {
-      http.get().close();
-    }
+    CHECK_NONE(http);
 
     http = newHttp;
+  }
+
+  // Closes the connection and stops the heartbeat.
+  // TODO(vinod): Currently 'connected' variable is set separately
+  // from this method. We need to make sure these are in sync.
+  void cleanupConnection()
+  {
+    CHECK_SOME(http);
+
+    if (connected && !http.get().close()) {
+      LOG(WARNING) << "Failed to close HTTP pipe for " << *this;
+    }
+
+    http = None();
+
+    CHECK_SOME(heartbeater);
+
+    terminate(heartbeater.get().get());
+    wait(heartbeater.get().get());
+
+    heartbeater = None();
+  }
+
+  void heartbeat()
+  {
+    CHECK_NONE(heartbeater);
+    CHECK_SOME(http);
+
+    // TODO(vinod): Make heartbeat interval configurable and include
+    // this information in the SUBSCRIBED response.
+    heartbeater =
+      new Heartbeater(info.id(), http.get(), DEFAULT_HEARTBEAT_INTERVAL);
+
+    process::spawn(heartbeater.get().get());
   }
 
   Master* const master;
@@ -1625,6 +1700,9 @@ struct Framework
   // Offered resources.
   Resources totalOfferedResources;
   hashmap<SlaveID, Resources> offeredResources;
+
+  // This is only set for HTTP frameworks.
+  Option<process::Owned<Heartbeater>> heartbeater;
 
 private:
   Framework(const Framework&);              // No copying.
