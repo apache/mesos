@@ -266,7 +266,7 @@ public:
       }
     }
 
-    Object& operator = (const Object& that)
+    Object& operator=(const Object& that)
     {
       if (object != NULL) {
         Jvm::get()->deleteGlobalRef(object);
@@ -278,7 +278,7 @@ public:
       return *this;
     }
 
-    operator jobject () const
+    operator jobject() const
     {
       return object;
     }
@@ -315,7 +315,7 @@ public:
     // This requires implementing Jvm::getField too.
 
     template <typename U>
-    Variable& operator = (const U& u)
+    Variable& operator=(const U& u)
     {
       // Check that U extends Object (but not necessarily T since U
       // might be 'Null').
@@ -356,7 +356,7 @@ public:
       { T* t = NULL; Object* o = t; (void) o; }
     }
 
-    operator T () const
+    operator T() const
     {
       // Note that we actually look up the field lazily (upon first
       // invocation operator) so that we don't possibly create the JVM
@@ -386,9 +386,9 @@ public:
     explicit Env(bool daemon = true);
     ~Env();
 
-    JNIEnv* operator -> () const { return env; }
+    JNIEnv* operator->() const { return env; }
 
-    operator JNIEnv* () const { return env; }
+    operator JNIEnv*() const { return env; }
 
   private:
     JNIEnv* env;

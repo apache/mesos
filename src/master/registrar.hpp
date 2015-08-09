@@ -53,7 +53,7 @@ public:
   // accumulators, in this case 'slaveIDs').
   // Returns whether the operation mutates 'registry', or an error if
   // the operation cannot be applied successfully.
-  Try<bool> operator () (
+  Try<bool> operator()(
       Registry* registry,
       hashset<SlaveID>* slaveIDs,
       bool strict)

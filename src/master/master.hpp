@@ -327,11 +327,11 @@ struct Slave
 
 private:
   Slave(const Slave&);              // No copying.
-  Slave& operator = (const Slave&); // No assigning.
+  Slave& operator=(const Slave&); // No assigning.
 };
 
 
-inline std::ostream& operator << (std::ostream& stream, const Slave& slave)
+inline std::ostream& operator<<(std::ostream& stream, const Slave& slave)
 {
   return stream << slave.id << " at " << slave.pid
                 << " (" << slave.info.hostname() << ")";
@@ -854,7 +854,7 @@ private:
   };
 
   Master(const Master&);              // No copying.
-  Master& operator = (const Master&); // No assigning.
+  Master& operator=(const Master&); // No assigning.
 
   friend struct Framework;
   friend struct Metrics;
@@ -1238,7 +1238,7 @@ private:
 };
 
 
-inline std::ostream& operator << (
+inline std::ostream& operator<<(
     std::ostream& stream,
     const Framework& framework);
 
@@ -1630,11 +1630,11 @@ struct Framework
 
 private:
   Framework(const Framework&);              // No copying.
-  Framework& operator = (const Framework&); // No assigning.
+  Framework& operator=(const Framework&); // No assigning.
 };
 
 
-inline std::ostream& operator << (
+  inline std::ostream& operator<<(
     std::ostream& stream,
     const Framework& framework)
 {

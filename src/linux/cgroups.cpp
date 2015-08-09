@@ -2297,7 +2297,7 @@ Try<Nothing> disable(const string& hierarchy, const string& cgroup)
 
 namespace pressure {
 
-ostream& operator << (ostream& stream, Level level)
+ostream& operator<<(ostream& stream, Level level)
 {
   switch (level) {
     case LOW:

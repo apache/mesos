@@ -52,7 +52,7 @@ inline Try<mesos::internal::Firewall> parse(const std::string& value)
 namespace mesos {
 namespace internal {
 
-inline std::ostream& operator << (
+inline std::ostream& operator<<(
     std::ostream& stream,
     const Firewall& rules)
 {

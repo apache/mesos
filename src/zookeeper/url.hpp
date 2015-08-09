@@ -110,7 +110,7 @@ inline Try<URL> URL::parse(const std::string& url)
   }
 }
 
-inline std::ostream& operator << (std::ostream& stream, const URL& url)
+inline std::ostream& operator<<(std::ostream& stream, const URL& url)
 {
   stream << URL::scheme();
   if (url.authentication.isSome()) {

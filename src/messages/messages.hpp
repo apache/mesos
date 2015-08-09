@@ -68,14 +68,14 @@ Try<std::string> serialize(const T& t)
 namespace mesos {
 namespace internal {
 
-bool operator == (const Task& left, const Task& right);
+bool operator==(const Task& left, const Task& right);
 
 
-std::ostream& operator << (
+std::ostream& operator<<(
     std::ostream& stream,
     const StatusUpdate& update);
 
-inline std::ostream& operator << (
+inline std::ostream& operator<<(
     std::ostream& stream,
     const StatusUpdateRecord::Type& type)
 {

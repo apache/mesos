@@ -122,7 +122,7 @@ public:
   private:
     // Not copyable, not assignable.
     Masters(const Masters&);
-    Masters& operator = (const Masters&);
+    Masters& operator=(const Masters&);
 
     Cluster* cluster; // Enclosing class.
     Option<zookeeper::URL> url;
@@ -187,7 +187,7 @@ public:
   private:
     // Not copyable, not assignable.
     Slaves(const Slaves&);
-    Slaves& operator = (const Slaves&);
+    Slaves& operator=(const Slaves&);
 
     Cluster* cluster; // Enclosing class.
     Masters* masters; // Used to create MasterDetector instances.
@@ -232,7 +232,7 @@ public:
 private:
   // Not copyable, not assignable.
   Cluster(const Cluster&);
-  Cluster& operator = (const Cluster&);
+  Cluster& operator=(const Cluster&);
 };
 
 

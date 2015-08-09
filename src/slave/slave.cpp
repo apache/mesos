@@ -5252,7 +5252,7 @@ bool Executor::isCommandExecutor() const
 }
 
 
-std::ostream& operator << (std::ostream& stream, Slave::State state)
+std::ostream& operator<<(std::ostream& stream, Slave::State state)
 {
   switch (state) {
     case Slave::RECOVERING:   return stream << "RECOVERING";
@@ -5264,7 +5264,7 @@ std::ostream& operator << (std::ostream& stream, Slave::State state)
 }
 
 
-std::ostream& operator << (std::ostream& stream, Framework::State state)
+std::ostream& operator<<(std::ostream& stream, Framework::State state)
 {
   switch (state) {
     case Framework::RUNNING:     return stream << "RUNNING";
@@ -5274,7 +5274,7 @@ std::ostream& operator << (std::ostream& stream, Framework::State state)
 }
 
 
-std::ostream& operator << (std::ostream& stream, Executor::State state)
+std::ostream& operator<<(std::ostream& stream, Executor::State state)
 {
   switch (state) {
     case Executor::REGISTERING: return stream << "REGISTERING";

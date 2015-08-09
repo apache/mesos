@@ -51,7 +51,7 @@ struct Classifier
   explicit Classifier(uint16_t _protocol)
     : protocol(_protocol) {}
 
-  bool operator == (const Classifier& that) const
+  bool operator==(const Classifier& that) const
   {
     return protocol == that.protocol;
   }

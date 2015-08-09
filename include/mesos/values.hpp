@@ -25,36 +25,32 @@
 
 namespace mesos {
 
-std::ostream& operator << (std::ostream& stream, const Value::Scalar& scalar);
-bool operator == (const Value::Scalar& left, const Value::Scalar& right);
-bool operator <= (const Value::Scalar& left, const Value::Scalar& right);
-Value::Scalar operator + (const Value::Scalar& left,
-                          const Value::Scalar& right);
-Value::Scalar operator - (const Value::Scalar& left,
-                          const Value::Scalar& right);
-Value::Scalar& operator += (Value::Scalar& left, const Value::Scalar& right);
-Value::Scalar& operator -= (Value::Scalar& left, const Value::Scalar& right);
+std::ostream& operator<<(std::ostream& stream, const Value::Scalar& scalar);
+bool operator==(const Value::Scalar& left, const Value::Scalar& right);
+bool operator<=(const Value::Scalar& left, const Value::Scalar& right);
+Value::Scalar operator+(const Value::Scalar& left, const Value::Scalar& right);
+Value::Scalar operator-(const Value::Scalar& left, const Value::Scalar& right);
+Value::Scalar& operator+=(Value::Scalar& left, const Value::Scalar& right);
+Value::Scalar& operator-=(Value::Scalar& left, const Value::Scalar& right);
 
-std::ostream& operator << (std::ostream& stream, const Value::Ranges& ranges);
-bool operator == (const Value::Ranges& left, const Value::Ranges& right);
-bool operator <= (const Value::Ranges& left, const Value::Ranges& right);
-Value::Ranges operator + (const Value::Ranges& left,
-                          const Value::Ranges& right);
-Value::Ranges operator - (const Value::Ranges& left,
-                          const Value::Ranges& right);
-Value::Ranges& operator += (Value::Ranges& left, const Value::Ranges& right);
-Value::Ranges& operator -= (Value::Ranges& left, const Value::Ranges& right);
+std::ostream& operator<<(std::ostream& stream, const Value::Ranges& ranges);
+bool operator==(const Value::Ranges& left, const Value::Ranges& right);
+bool operator<=(const Value::Ranges& left, const Value::Ranges& right);
+Value::Ranges operator+(const Value::Ranges& left, const Value::Ranges& right);
+Value::Ranges operator-(const Value::Ranges& left, const Value::Ranges& right);
+Value::Ranges& operator+=(Value::Ranges& left, const Value::Ranges& right);
+Value::Ranges& operator-=(Value::Ranges& left, const Value::Ranges& right);
 
-std::ostream& operator << (std::ostream& stream, const Value::Set& set);
-bool operator == (const Value::Set& left, const Value::Set& right);
-bool operator <= (const Value::Set& left, const Value::Set& right);
-Value::Set operator + (const Value::Set& left, const Value::Set& right);
-Value::Set operator - (const Value::Set& left, const Value::Set& right);
-Value::Set& operator += (Value::Set& left, const Value::Set& right);
-Value::Set& operator -= (Value::Set& left, const Value::Set& right);
+std::ostream& operator<<(std::ostream& stream, const Value::Set& set);
+bool operator==(const Value::Set& left, const Value::Set& right);
+bool operator<=(const Value::Set& left, const Value::Set& right);
+Value::Set operator+(const Value::Set& left, const Value::Set& right);
+Value::Set operator-(const Value::Set& left, const Value::Set& right);
+Value::Set& operator+=(Value::Set& left, const Value::Set& right);
+Value::Set& operator-=(Value::Set& left, const Value::Set& right);
 
-std::ostream& operator << (std::ostream& stream, const Value::Text& value);
-bool operator == (const Value::Text& left, const Value::Text& right);
+std::ostream& operator<<(std::ostream& stream, const Value::Text& value);
+bool operator==(const Value::Text& left, const Value::Text& right);
 
 namespace internal {
 namespace values {

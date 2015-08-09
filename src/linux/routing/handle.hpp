@@ -49,12 +49,12 @@ public:
   constexpr Handle(const Handle& parent, uint16_t id)
     : handle((((uint32_t) parent.primary()) << 16) + id) {}
 
-  constexpr bool operator == (const Handle& that) const
+  constexpr bool operator==(const Handle& that) const
   {
     return handle == that.handle;
   }
 
-  constexpr bool operator != (const Handle& that) const
+  constexpr bool operator!=(const Handle& that) const
   {
     return handle != that.handle;
   }
@@ -68,7 +68,7 @@ protected:
 };
 
 
-inline std::ostream& operator << (std::ostream& out, const Handle& handle)
+inline std::ostream& operator<<(std::ostream& out, const Handle& handle)
 {
   out << std::hex << handle.primary() << ":" << handle.secondary() << std::dec;
   return out;

@@ -42,7 +42,7 @@ struct Classifier
   explicit Classifier(const Option<net::IP>& _destinationIP)
     : destinationIP(_destinationIP) {}
 
-  bool operator == (const Classifier& that) const
+  bool operator==(const Classifier& that) const
   {
     return destinationIP == that.destinationIP;
   }

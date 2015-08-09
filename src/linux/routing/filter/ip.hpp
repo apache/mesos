@@ -70,7 +70,7 @@ public:
   // Returns the mask (in host order) of this port range.
   uint16_t mask() const { return ~(end_ - begin_); }
 
-  bool operator == (const PortRange& that) const
+  bool operator==(const PortRange& that) const
   {
     return begin_ == that.begin_ && end_ == that.end_;
   }
@@ -84,7 +84,7 @@ private:
 };
 
 
-inline std::ostream& operator << (
+inline std::ostream& operator<<(
     std::ostream& stream,
     const PortRange& range)
 {
@@ -113,7 +113,7 @@ struct Classifier
       sourcePorts(_sourcePorts),
       destinationPorts(_destinationPorts) {}
 
-  bool operator == (const Classifier& that) const
+  bool operator==(const Classifier& that) const
   {
     return (destinationMAC == that.destinationMAC &&
         destinationIP == that.destinationIP &&

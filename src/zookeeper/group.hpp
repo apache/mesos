@@ -58,32 +58,32 @@ public:
   // from different Group instances will still be considered the same.
   struct Membership
   {
-    bool operator == (const Membership& that) const
+    bool operator==(const Membership& that) const
     {
       return sequence == that.sequence;
     }
 
-    bool operator != (const Membership& that) const
+    bool operator!=(const Membership& that) const
     {
       return sequence != that.sequence;
     }
 
-    bool operator < (const Membership& that) const
+    bool operator<(const Membership& that) const
     {
       return sequence < that.sequence;
     }
 
-    bool operator <= (const Membership& that) const
+    bool operator<=(const Membership& that) const
     {
       return sequence <= that.sequence;
     }
 
-    bool operator > (const Membership& that) const
+    bool operator>(const Membership& that) const
     {
       return sequence > that.sequence;
     }
 
-    bool operator >= (const Membership& that) const
+    bool operator>=(const Membership& that) const
     {
       return sequence >= that.sequence;
     }

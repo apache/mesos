@@ -100,7 +100,7 @@ public:
 private:
   // Not copyable, not assignable.
   Network(const Network&);
-  Network& operator = (const Network&);
+  Network& operator=(const Network&);
 
   NetworkProcess* process;
 };
@@ -121,7 +121,7 @@ private:
 
   // Not copyable, not assignable.
   ZooKeeperNetwork(const ZooKeeperNetwork&);
-  ZooKeeperNetwork& operator = (const ZooKeeperNetwork&);
+  ZooKeeperNetwork& operator=(const ZooKeeperNetwork&);
 
   // Helper that sets up a watch on the group.
   void watch(const std::set<zookeeper::Group::Membership>& expected);
@@ -256,7 +256,7 @@ private:
 
   // Not copyable, not assignable.
   NetworkProcess(const NetworkProcess&);
-  NetworkProcess& operator = (const NetworkProcess&);
+  NetworkProcess& operator=(const NetworkProcess&);
 
   // Notifies the change of the network.
   void update()

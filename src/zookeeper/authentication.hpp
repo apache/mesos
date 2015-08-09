@@ -53,7 +53,7 @@ extern const ACL_vector EVERYONE_READ_CREATOR_ALL;
 extern const ACL_vector EVERYONE_CREATE_AND_READ_CREATOR_ALL;
 
 
-inline std::ostream& operator << (
+inline std::ostream& operator<<(
     std::ostream& stream,
     const Authentication& authentication)
 {

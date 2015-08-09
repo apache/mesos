@@ -31,7 +31,7 @@ namespace mesos {
 namespace internal {
 namespace log {
 
-inline std::ostream& operator << (
+inline std::ostream& operator<<(
     std::ostream& stream,
     const Action::Type& type)
 {
@@ -39,7 +39,7 @@ inline std::ostream& operator << (
 }
 
 
-inline std::ostream& operator << (
+inline std::ostream& operator<<(
     std::ostream& stream,
     const Metadata::Status& status)
 {

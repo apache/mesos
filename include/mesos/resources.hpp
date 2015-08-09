@@ -158,7 +158,7 @@ public:
 
   Resources(const Resources& that) : resources(that.resources) {}
 
-  Resources& operator = (const Resources& that)
+  Resources& operator=(const Resources& that)
   {
     if (this != &that) {
       resources = that.resources;
@@ -287,25 +287,25 @@ public:
 
   // Using this operator makes it easy to copy a resources object into
   // a protocol buffer field.
-  operator const google::protobuf::RepeatedPtrField<Resource>& () const;
+  operator const google::protobuf::RepeatedPtrField<Resource>&() const;
 
-  bool operator == (const Resources& that) const;
-  bool operator != (const Resources& that) const;
+  bool operator==(const Resources& that) const;
+  bool operator!=(const Resources& that) const;
 
   // NOTE: If any error occurs (e.g., input Resource is not valid or
   // the first operand is not a superset of the second oprand while
   // doing subtraction), the semantics is as though the second operand
   // was actually just an empty resource (as though you didn't do the
   // operation at all).
-  Resources operator + (const Resource& that) const;
-  Resources operator + (const Resources& that) const;
-  Resources& operator += (const Resource& that);
-  Resources& operator += (const Resources& that);
+  Resources operator+(const Resource& that) const;
+  Resources operator+(const Resources& that) const;
+  Resources& operator+=(const Resource& that);
+  Resources& operator+=(const Resources& that);
 
-  Resources operator - (const Resource& that) const;
-  Resources operator - (const Resources& that) const;
-  Resources& operator -= (const Resource& that);
-  Resources& operator -= (const Resources& that);
+  Resources operator-(const Resource& that) const;
+  Resources operator-(const Resources& that) const;
+  Resources& operator-=(const Resource& that);
+  Resources& operator-=(const Resources& that);
 
 private:
   // Similar to 'contains(const Resource&)' but skips the validity
@@ -326,11 +326,11 @@ private:
 };
 
 
-std::ostream& operator << (std::ostream& stream, const Resource& resource);
-std::ostream& operator << (std::ostream& stream, const Resources& resources);
+std::ostream& operator<<(std::ostream& stream, const Resource& resource);
+std::ostream& operator<<(std::ostream& stream, const Resources& resources);
 
 
-inline std::ostream& operator << (
+inline std::ostream& operator<<(
     std::ostream& stream,
     const google::protobuf::RepeatedPtrField<Resource>& resources)
 {
@@ -338,7 +338,7 @@ inline std::ostream& operator << (
 }
 
 
-inline Resources operator + (
+inline Resources operator+(
     const google::protobuf::RepeatedPtrField<Resource>& left,
     const Resources& right)
 {
@@ -346,7 +346,7 @@ inline Resources operator + (
 }
 
 
-inline Resources operator - (
+inline Resources operator-(
     const google::protobuf::RepeatedPtrField<Resource>& left,
     const Resources& right)
 {
@@ -354,7 +354,7 @@ inline Resources operator - (
 }
 
 
-inline bool operator == (
+inline bool operator==(
     const google::protobuf::RepeatedPtrField<Resource>& left,
     const Resources& right)
 {
@@ -363,7 +363,7 @@ inline bool operator == (
 
 
 template <typename Key>
-hashmap<Key, Resources>& operator += (
+hashmap<Key, Resources>& operator+=(
     hashmap<Key, Resources>& left,
     const hashmap<Key, Resources>& right)
 {
@@ -375,7 +375,7 @@ hashmap<Key, Resources>& operator += (
 
 
 template <typename Key>
-hashmap<Key, Resources> operator + (
+hashmap<Key, Resources> operator+(
     const hashmap<Key, Resources>& left,
     const hashmap<Key, Resources>& right)
 {

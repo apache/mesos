@@ -29,7 +29,7 @@ namespace internal {
 namespace master {
 namespace allocator {
 
-bool DRFComparator::operator () (const Client& client1, const Client& client2)
+bool DRFComparator::operator()(const Client& client1, const Client& client2)
 {
   if (client1.share == client2.share) {
     if (client1.allocations == client2.allocations) {

@@ -37,7 +37,6 @@ void Slave::statusUpdate(StatusUpdate update, const UPID& pid)
 
 ### Function Names
 * We use [lowerCamelCase](http://en.wikipedia.org/wiki/CamelCase#Variations_and_synonyms) for function names (Google uses mixed case for regular functions; and their accessors and mutators match the name of the variable).
-* Leave spaces around overloaded operators, e.g. `operator + (...);` rather than `operator+(...);`
 
 ### Namespace Names
 * We do not use namespace aliases.

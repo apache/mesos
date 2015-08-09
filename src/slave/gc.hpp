@@ -109,7 +109,7 @@ private:
              process::Owned<process::Promise<Nothing> > _promise)
       : path(_path), promise(_promise) {}
 
-    bool operator == (const PathInfo& that) const
+    bool operator==(const PathInfo& that) const
     {
       return path == that.path && promise == that.promise;
     }

@@ -46,7 +46,7 @@ namespace mesos {
 // Helper functions.
 /////////////////////////////////////////////////
 
-bool operator == (
+bool operator==(
     const Resource::ReservationInfo& left,
     const Resource::ReservationInfo& right)
 {
@@ -54,7 +54,7 @@ bool operator == (
 }
 
 
-bool operator != (
+bool operator!=(
     const Resource::ReservationInfo& left,
     const Resource::ReservationInfo& right)
 {
@@ -62,7 +62,7 @@ bool operator != (
 }
 
 
-bool operator == (
+bool operator==(
     const Resource::DiskInfo& left,
     const Resource::DiskInfo& right)
 {
@@ -83,7 +83,7 @@ bool operator == (
 }
 
 
-bool operator != (
+bool operator!=(
     const Resource::DiskInfo& left,
     const Resource::DiskInfo& right)
 {
@@ -91,7 +91,7 @@ bool operator != (
 }
 
 
-bool operator == (const Resource& left, const Resource& right)
+bool operator==(const Resource& left, const Resource& right)
 {
   if (left.name() != right.name() ||
       left.type() != right.type() ||
@@ -134,7 +134,7 @@ bool operator == (const Resource& left, const Resource& right)
 }
 
 
-bool operator != (const Resource& left, const Resource& right)
+bool operator!=(const Resource& left, const Resource& right)
 {
   return !(left == right);
 }
@@ -257,7 +257,7 @@ static bool contains(const Resource& left, const Resource& right)
 }
 
 
-Resource& operator += (Resource& left, const Resource& right)
+Resource& operator+=(Resource& left, const Resource& right)
 {
   if (left.type() == Value::SCALAR) {
     *left.mutable_scalar() += right.scalar();
@@ -271,7 +271,7 @@ Resource& operator += (Resource& left, const Resource& right)
 }
 
 
-Resource operator + (const Resource& left, const Resource& right)
+Resource operator+(const Resource& left, const Resource& right)
 {
   Resource result = left;
   result += right;
@@ -279,7 +279,7 @@ Resource operator + (const Resource& left, const Resource& right)
 }
 
 
-Resource& operator -= (Resource& left, const Resource& right)
+Resource& operator-=(Resource& left, const Resource& right)
 {
   if (left.type() == Value::SCALAR) {
     *left.mutable_scalar() -= right.scalar();
@@ -293,7 +293,7 @@ Resource& operator -= (Resource& left, const Resource& right)
 }
 
 
-Resource operator - (const Resource& left, const Resource& right)
+Resource operator-(const Resource& left, const Resource& right)
 {
   Resource result = left;
   result -= right;
@@ -1051,25 +1051,25 @@ bool Resources::_contains(const Resource& that) const
 /////////////////////////////////////////////////
 
 
-Resources::operator const google::protobuf::RepeatedPtrField<Resource>& () const
+Resources::operator const google::protobuf::RepeatedPtrField<Resource>&() const
 {
   return resources;
 }
 
 
-bool Resources::operator == (const Resources& that) const
+bool Resources::operator==(const Resources& that) const
 {
   return this->contains(that) && that.contains(*this);
 }
 
 
-bool Resources::operator != (const Resources& that) const
+bool Resources::operator!=(const Resources& that) const
 {
   return !(*this == that);
 }
 
 
-Resources Resources::operator + (const Resource& that) const
+Resources Resources::operator+(const Resource& that) const
 {
   Resources result = *this;
   result += that;
@@ -1077,7 +1077,7 @@ Resources Resources::operator + (const Resource& that) const
 }
 
 
-Resources Resources::operator + (const Resources& that) const
+Resources Resources::operator+(const Resources& that) const
 {
   Resources result = *this;
   result += that;
@@ -1085,7 +1085,7 @@ Resources Resources::operator + (const Resources& that) const
 }
 
 
-Resources& Resources::operator += (const Resource& that)
+Resources& Resources::operator+=(const Resource& that)
 {
   if (validate(that).isNone() && !isEmpty(that)) {
     bool found = false;
@@ -1107,7 +1107,7 @@ Resources& Resources::operator += (const Resource& that)
 }
 
 
-Resources& Resources::operator += (const Resources& that)
+Resources& Resources::operator+=(const Resources& that)
 {
   foreach (const Resource& resource, that.resources) {
     *this += resource;
@@ -1117,7 +1117,7 @@ Resources& Resources::operator += (const Resources& that)
 }
 
 
-Resources Resources::operator - (const Resource& that) const
+Resources Resources::operator-(const Resource& that) const
 {
   Resources result = *this;
   result -= that;
@@ -1125,7 +1125,7 @@ Resources Resources::operator - (const Resource& that) const
 }
 
 
-Resources Resources::operator - (const Resources& that) const
+Resources Resources::operator-(const Resources& that) const
 {
   Resources result = *this;
   result -= that;
@@ -1133,7 +1133,7 @@ Resources Resources::operator - (const Resources& that) const
 }
 
 
-Resources& Resources::operator -= (const Resource& that)
+Resources& Resources::operator-=(const Resource& that)
 {
   if (validate(that).isNone() && !isEmpty(that)) {
     for (int i = 0; i < resources.size(); i++) {
@@ -1158,7 +1158,7 @@ Resources& Resources::operator -= (const Resource& that)
 }
 
 
-Resources& Resources::operator -= (const Resources& that)
+Resources& Resources::operator-=(const Resources& that)
 {
   foreach (const Resource& resource, that.resources) {
     *this -= resource;
@@ -1168,7 +1168,7 @@ Resources& Resources::operator -= (const Resources& that)
 }
 
 
-ostream& operator << (ostream& stream, const Volume& volume) {
+ostream& operator<<(ostream& stream, const Volume& volume) {
   string volumeConfig = volume.container_path();
 
   if (volume.has_host_path()) {
@@ -1191,7 +1191,7 @@ ostream& operator << (ostream& stream, const Volume& volume) {
 }
 
 
-ostream& operator << (ostream& stream, const Resource::DiskInfo& disk) {
+ostream& operator<<(ostream& stream, const Resource::DiskInfo& disk) {
   if (disk.has_persistence()) {
     stream << disk.persistence().id();
   }
@@ -1204,7 +1204,7 @@ ostream& operator << (ostream& stream, const Resource::DiskInfo& disk) {
 }
 
 
-ostream& operator << (ostream& stream, const Resource& resource)
+ostream& operator<<(ostream& stream, const Resource& resource)
 {
   stream << resource.name();
 
@@ -1241,7 +1241,7 @@ ostream& operator << (ostream& stream, const Resource& resource)
 }
 
 
-ostream& operator << (ostream& stream, const Resources& resources)
+ostream& operator<<(ostream& stream, const Resources& resources)
 {
   mesos::Resources::const_iterator it = resources.begin();
 

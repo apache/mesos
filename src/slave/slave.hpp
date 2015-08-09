@@ -418,7 +418,7 @@ private:
   friend struct Metrics;
 
   Slave(const Slave&);              // No copying.
-  Slave& operator = (const Slave&); // No assigning.
+  Slave& operator=(const Slave&); // No assigning.
 
   // Gauge methods.
   double _frameworks_active()
@@ -623,7 +623,7 @@ struct Executor
 
 private:
   Executor(const Executor&);              // No copying.
-  Executor& operator = (const Executor&); // No assigning.
+  Executor& operator=(const Executor&); // No assigning.
 
   bool commandExecutor;
 };
@@ -678,13 +678,13 @@ struct Framework
   boost::circular_buffer<process::Owned<Executor>> completedExecutors;
 private:
   Framework(const Framework&);              // No copying.
-  Framework& operator = (const Framework&); // No assigning.
+  Framework& operator=(const Framework&); // No assigning.
 };
 
 
-std::ostream& operator << (std::ostream& stream, Slave::State state);
-std::ostream& operator << (std::ostream& stream, Framework::State state);
-std::ostream& operator << (std::ostream& stream, Executor::State state);
+std::ostream& operator<<(std::ostream& stream, Slave::State state);
+std::ostream& operator<<(std::ostream& stream, Framework::State state);
+std::ostream& operator<<(std::ostream& stream, Executor::State state);
 
 } // namespace slave {
 } // namespace internal {

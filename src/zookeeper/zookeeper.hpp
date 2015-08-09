@@ -328,7 +328,7 @@ protected:
 private:
   /* ZooKeeper instances are not copyable. */
   ZooKeeper(const ZooKeeper& that);
-  ZooKeeper& operator = (const ZooKeeper& that);
+  ZooKeeper& operator=(const ZooKeeper& that);
 };
 
 

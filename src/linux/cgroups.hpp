@@ -580,7 +580,7 @@ enum Level {
 };
 
 
-std::ostream& operator << (std::ostream& stream, Level level);
+std::ostream& operator<<(std::ostream& stream, Level level);
 
 
 // Forward declaration.

@@ -57,27 +57,27 @@ public:
   class Position
   {
   public:
-    bool operator == (const Position& that) const
+    bool operator==(const Position& that) const
     {
       return value == that.value;
     }
 
-    bool operator < (const Position& that) const
+    bool operator<(const Position& that) const
     {
       return value < that.value;
     }
 
-    bool operator <= (const Position& that) const
+    bool operator<=(const Position& that) const
     {
       return value <= that.value;
     }
 
-    bool operator > (const Position& that) const
+    bool operator>(const Position& that) const
     {
       return value > that.value;
     }
 
-    bool operator >= (const Position& that) const
+    bool operator>=(const Position& that) const
     {
       return value >= that.value;
     }

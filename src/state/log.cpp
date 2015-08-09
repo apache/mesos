@@ -194,7 +194,7 @@ private:
   };
 
   // All known snapshots indexed by name. Note that 'hashmap::get'
-  // must be used instead of 'operator []' since Snapshot doesn't have
+  // must be used instead of 'operator[]' since Snapshot doesn't have
   // a default/empty constructor.
   hashmap<string, Snapshot> snapshots;
 
