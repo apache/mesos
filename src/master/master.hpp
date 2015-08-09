@@ -1245,14 +1245,15 @@ inline std::ostream& operator << (
 struct HttpConnection
 {
   HttpConnection(const process::http::Pipe::Writer& _writer,
-       ContentType _contentType)
-    :  writer(_writer),
-       contentType(_contentType),
-       encoder(lambda::bind(serialize, contentType, lambda::_1)) {}
+                 ContentType _contentType)
+    : writer(_writer),
+      contentType(_contentType),
+      encoder(lambda::bind(serialize, contentType, lambda::_1)) {}
 
   // Converts the message to an Event before sending.
   template <typename Message>
-  bool send(const Message& message) {
+  bool send(const Message& message)
+  {
     // We need to evolve the internal "message" into a
     // 'v1::scheduler::Event' which we then devolve back to an
     // pre-versioned 'scheduler::Event' which we use internally.
