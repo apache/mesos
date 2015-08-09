@@ -39,7 +39,7 @@ public:
     return Timeout(Clock::now() + duration);
   }
 
-  Timeout& operator = (const Timeout& that)
+  Timeout& operator=(const Timeout& that)
   {
     if (this != &that) {
       timeout = that.timeout;
@@ -48,23 +48,23 @@ public:
     return *this;
   }
 
-  Timeout& operator = (const Duration& duration)
+  Timeout& operator=(const Duration& duration)
   {
     timeout = Clock::now() + duration;
     return *this;
   }
 
-  bool operator == (const Timeout& that) const
+  bool operator==(const Timeout& that) const
   {
     return timeout == that.timeout;
   }
 
-  bool operator < (const Timeout& that) const
+  bool operator<(const Timeout& that) const
   {
     return timeout < that.timeout;
   }
 
-  bool operator <= (const Timeout& that) const
+  bool operator<=(const Timeout& that) const
   {
     return timeout <= that.timeout;
   }

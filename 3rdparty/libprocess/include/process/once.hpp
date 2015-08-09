@@ -70,7 +70,7 @@ public:
 private:
   // Not copyable, not assignable.
   Once(const Once& that);
-  Once& operator = (const Once& that);
+  Once& operator=(const Once& that);
 
   std::mutex mutex;
   std::condition_variable cond;

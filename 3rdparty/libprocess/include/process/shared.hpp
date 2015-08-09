@@ -36,12 +36,12 @@ public:
   Shared();
   explicit Shared(T* t);
 
-  bool operator == (const Shared<T>& that) const;
-  bool operator < (const Shared<T>& that) const;
+  bool operator==(const Shared<T>& that) const;
+  bool operator<(const Shared<T>& that) const;
 
   // Enforces const access semantics.
-  const T& operator * () const;
-  const T* operator -> () const;
+  const T& operator*() const;
+  const T* operator->() const;
   const T* get() const;
 
   bool unique() const;
@@ -86,28 +86,28 @@ Shared<T>::Shared(T* t)
 
 
 template <typename T>
-bool Shared<T>::operator == (const Shared<T>& that) const
+bool Shared<T>::operator==(const Shared<T>& that) const
 {
   return data == that.data;
 }
 
 
 template <typename T>
-bool Shared<T>::operator < (const Shared<T>& that) const
+bool Shared<T>::operator<(const Shared<T>& that) const
 {
   return data < that.data;
 }
 
 
 template <typename T>
-const T& Shared<T>::operator * () const
+const T& Shared<T>::operator*() const
 {
   return *CHECK_NOTNULL(get());
 }
 
 
 template <typename T>
-const T* Shared<T>::operator -> () const
+const T* Shared<T>::operator->() const
 {
   return CHECK_NOTNULL(get());
 }

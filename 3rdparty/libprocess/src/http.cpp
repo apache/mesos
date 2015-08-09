@@ -523,9 +523,7 @@ std::string encode(const hashmap<std::string, std::string>& query)
 } // namespace query {
 
 
-ostream& operator << (
-    ostream& stream,
-    const URL& url)
+ostream& operator<<(ostream& stream, const URL& url)
 {
   stream << url.scheme << "://";
 

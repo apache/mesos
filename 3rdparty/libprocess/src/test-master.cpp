@@ -31,7 +31,7 @@ private:
   int id;
 
 protected:
-  void operator () ()
+  void operator()()
   {
     do {
       switch (receive()) {

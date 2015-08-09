@@ -220,12 +220,12 @@ public:
     int s;
   };
 
-  bool operator == (const Socket& that) const
+  bool operator==(const Socket& that) const
   {
     return impl == that.impl;
   }
 
-  operator int () const
+  operator int() const
   {
     return impl->get();
   }

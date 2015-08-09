@@ -23,7 +23,7 @@ private:
   int id;
 
 protected:
-  void operator () ()
+  void operator()()
   {
     send(master, pack<REGISTER>("c3po"));
 

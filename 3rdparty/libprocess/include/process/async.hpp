@@ -75,7 +75,7 @@ private:
 
   // Not copyable, not assignable.
   AsyncExecutorProcess(const AsyncExecutorProcess&);
-  AsyncExecutorProcess& operator = (const AsyncExecutorProcess&);
+  AsyncExecutorProcess& operator=(const AsyncExecutorProcess&);
 
   template <typename F>
   typename lambda::result_of<F(void)>::type execute(
@@ -164,7 +164,7 @@ private:
 
   // Not copyable, not assignable.
   AsyncExecutor(const AsyncExecutor&);
-  AsyncExecutor& operator = (const AsyncExecutor&);
+  AsyncExecutor& operator=(const AsyncExecutor&);
 
   template <typename F>
   Future<typename lambda::result_of<F(void)>::type> execute(

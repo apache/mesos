@@ -64,7 +64,7 @@ void initialize();
 
 struct CaseInsensitiveHash
 {
-  size_t operator () (const std::string& key) const
+  size_t operator()(const std::string& key) const
   {
     size_t seed = 0;
     foreach (char c, key) {
@@ -77,7 +77,7 @@ struct CaseInsensitiveHash
 
 struct CaseInsensitiveEqual
 {
-  bool operator () (const std::string& left, const std::string& right) const
+  bool operator()(const std::string& left, const std::string& right) const
   {
     if (left.size() != right.size()) {
       return false;
@@ -180,8 +180,8 @@ public:
     bool close();
 
     // Comparison operators useful for checking connection equality.
-    bool operator == (const Reader& other) const { return data == other.data; }
-    bool operator != (const Reader& other) const { return !(*this == other); }
+    bool operator==(const Reader& other) const { return data == other.data; }
+    bool operator!=(const Reader& other) const { return !(*this == other); }
 
   private:
     friend class Pipe;
@@ -221,9 +221,8 @@ public:
     Future<Nothing> readerClosed() const;
 
     // Comparison operators useful for checking connection equality.
-    bool operator == (const Writer& other) const { return data == other.data; }
-    bool operator != (const Writer& other) const { return !(*this == other); }
-
+    bool operator==(const Writer& other) const { return data == other.data; }
+    bool operator!=(const Writer& other) const { return !(*this == other); }
   private:
     friend class Pipe;
 
@@ -245,9 +244,8 @@ public:
   Writer writer() const;
 
   // Comparison operators useful for checking connection equality.
-  bool operator == (const Pipe& other) const { return data == other.data; }
-  bool operator != (const Pipe& other) const { return !(*this == other); }
-
+  bool operator==(const Pipe& other) const { return data == other.data; }
+  bool operator!=(const Pipe& other) const { return !(*this == other); }
 private:
   struct Data
   {
@@ -695,9 +693,7 @@ struct URL
 };
 
 
-std::ostream& operator << (
-    std::ostream& stream,
-    const URL& url);
+std::ostream& operator<<(std::ostream& stream, const URL& url);
 
 
 // TODO(bmahler): Consolidate these functions into a single

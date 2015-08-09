@@ -27,8 +27,8 @@ public:
   Latch();
   virtual ~Latch();
 
-  bool operator == (const Latch& that) const { return pid == that.pid; }
-  bool operator < (const Latch& that) const { return pid < that.pid; }
+  bool operator==(const Latch& that) const { return pid == that.pid; }
+  bool operator<(const Latch& that) const { return pid < that.pid; }
 
   // Returns true if the latch was triggered, false if the latch had
   // already been triggered.
@@ -41,7 +41,7 @@ public:
 private:
   // Not copyable, not assignable.
   Latch(const Latch& that);
-  Latch& operator = (const Latch& that);
+  Latch& operator=(const Latch& that);
 
   bool triggered;
   UPID pid;

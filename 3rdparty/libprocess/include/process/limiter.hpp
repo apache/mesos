@@ -55,7 +55,7 @@ public:
 private:
   // Not copyable, not assignable.
   RateLimiter(const RateLimiter&);
-  RateLimiter& operator = (const RateLimiter&);
+  RateLimiter& operator=(const RateLimiter&);
 
   RateLimiterProcess* process;
 };
@@ -115,7 +115,7 @@ public:
 private:
   // Not copyable, not assignable.
   RateLimiterProcess(const RateLimiterProcess&);
-  RateLimiterProcess& operator = (const RateLimiterProcess&);
+  RateLimiterProcess& operator=(const RateLimiterProcess&);
 
   void _acquire()
   {

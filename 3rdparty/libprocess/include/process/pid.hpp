@@ -62,19 +62,19 @@ struct UPID
 
   /*implicit*/ UPID(const ProcessBase& process);
 
-  operator std::string () const;
+  operator std::string() const;
 
-  operator bool () const
+  operator bool() const
   {
     return id != "" && !address.ip.isAny() && address.port != 0;
   }
 
-  bool operator ! () const // NOLINT(whitespace/operators)
+  bool operator!() const // NOLINT(whitespace/operators)
   {
     return id == "" && address.ip.isAny() && address.port == 0;
   }
 
-  bool operator < (const UPID& that) const
+  bool operator<(const UPID& that) const
   {
     if (address == that.address) {
       return id < that.id;
@@ -83,16 +83,15 @@ struct UPID
     }
   }
 
-  bool operator == (const UPID& that) const
+  bool operator==(const UPID& that) const
   {
     return (id == that.id && address == that.address);
   }
 
-  bool operator != (const UPID& that) const
+  bool operator!=(const UPID& that) const
   {
     return !(*this == that);
   }
-
   std::string id;
   network::Address address;
 };
@@ -133,7 +132,7 @@ struct PID : UPID
   /*implicit*/ PID(const T& t) : UPID(static_cast<const ProcessBase&>(t)) {}
 
   template <typename Base>
-  operator PID<Base> () const
+  operator PID<Base>() const
   {
     // Only allow upcasts!
     T* t = NULL;
@@ -148,8 +147,8 @@ struct PID : UPID
 
 
 // Outputing UPIDs and generating UPIDs using streams.
-std::ostream& operator << (std::ostream&, const UPID&);
-std::istream& operator >> (std::istream&, UPID&);
+std::ostream& operator<<(std::ostream&, const UPID&);
+std::istream& operator>>(std::istream&, UPID&);
 
 
 // UPID hash value (for example, to use in Boost's unordered maps).

@@ -33,13 +33,13 @@ class Timer
 public:
   Timer() : id(0), pid(process::UPID()), thunk(&abort) {}
 
-  bool operator == (const Timer& that) const
+  bool operator==(const Timer& that) const
   {
     return id == that.id;
   }
 
   // Invokes this timer's thunk.
-  void operator () () const
+  void operator()() const
   {
     thunk();
   }

@@ -1831,8 +1831,8 @@ TEST(ProcessTest, Defers)
 
   struct Functor
   {
-    int operator () (string) const { return 42; }
-    int operator () () const { return 42; }
+    int operator()(string) const { return 42; }
+    int operator()() const { return 42; }
   } functor;
 
   Future<int> future13 = Future<string>().then(

@@ -50,19 +50,19 @@ public:
     push(__sync_and_and_fetch(&data->v, 0));
   }
 
-  Counter& operator ++ () // NOLINT(whitespace/operators)
+  Counter& operator++()
   {
     return *this += 1;
   }
 
-  Counter operator ++ (int) // NOLINT(whitespace/operators)
+  Counter operator++(int)
   {
     Counter c(*this);
     ++(*this);
     return c;
   }
 
-  Counter& operator += (int64_t v)
+  Counter& operator+=(int64_t v)
   {
     push(__sync_add_and_fetch(&data->v, v));
     return *this;

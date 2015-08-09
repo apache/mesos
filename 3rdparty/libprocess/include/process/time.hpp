@@ -39,38 +39,38 @@ public:
 
   double secs() const { return sinceEpoch.secs(); }
 
-  bool operator <  (const Time& t) const { return sinceEpoch <  t.sinceEpoch; }
-  bool operator <= (const Time& t) const { return sinceEpoch <= t.sinceEpoch; }
-  bool operator >  (const Time& t) const { return sinceEpoch >  t.sinceEpoch; }
-  bool operator >= (const Time& t) const { return sinceEpoch >= t.sinceEpoch; }
-  bool operator == (const Time& t) const { return sinceEpoch == t.sinceEpoch; }
-  bool operator != (const Time& t) const { return sinceEpoch != t.sinceEpoch; }
+  bool operator<(const Time& t) const { return sinceEpoch < t.sinceEpoch; }
+  bool operator<=(const Time& t) const { return sinceEpoch <= t.sinceEpoch; }
+  bool operator>(const Time& t) const { return sinceEpoch > t.sinceEpoch; }
+  bool operator>=(const Time& t) const { return sinceEpoch >= t.sinceEpoch; }
+  bool operator==(const Time& t) const { return sinceEpoch == t.sinceEpoch; }
+  bool operator!=(const Time& t) const { return sinceEpoch != t.sinceEpoch; }
 
-  Time& operator += (const Duration& d)
+  Time& operator+=(const Duration& d)
   {
     sinceEpoch += d;
     return *this;
   }
 
-  Time& operator -= (const Duration& d)
+  Time& operator-=(const Duration& d)
   {
     sinceEpoch -= d;
     return *this;
   }
 
-  Duration operator - (const Time& that) const
+  Duration operator-(const Time& that) const
   {
     return sinceEpoch - that.sinceEpoch;
   }
 
-  Time operator + (const Duration& duration) const
+  Time operator+(const Duration& duration) const
   {
     Time new_ = *this;
     new_ += duration;
     return new_;
   }
 
-  Time operator - (const Duration& duration) const
+  Time operator-(const Duration& duration) const
   {
     Time new_ = *this;
     new_ -= duration;
@@ -104,13 +104,13 @@ public:
   explicit RFC1123(const Time& _time) : time(_time) {}
 
 private:
-  friend std::ostream& operator << (std::ostream& out, const RFC1123& format);
+  friend std::ostream& operator<<(std::ostream& out, const RFC1123& format);
 
   const Time time;
 };
 
 
-std::ostream& operator << (std::ostream& out, const RFC1123& formatter);
+std::ostream& operator<<(std::ostream& out, const RFC1123& formatter);
 
 
 // Stream manipulator class which serializes Time objects in RFC 3339
@@ -122,17 +122,17 @@ public:
   explicit RFC3339(const Time& _time) : time(_time) {}
 
 private:
-  friend std::ostream& operator << (std::ostream& out, const RFC3339& format);
+  friend std::ostream& operator<<(std::ostream& out, const RFC3339& format);
 
   const Time time;
 };
 
 
-std::ostream& operator << (std::ostream& out, const RFC3339& formatter);
+std::ostream& operator<<(std::ostream& out, const RFC3339& formatter);
 
 
 // Outputs the time in RFC 3339 Format.
-inline std::ostream& operator << (std::ostream& stream, const Time& time)
+inline std::ostream& operator<<(std::ostream& stream, const Time& time)
 {
   stream << RFC3339(time);
   return stream;

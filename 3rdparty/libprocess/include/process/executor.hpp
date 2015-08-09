@@ -62,7 +62,7 @@ public:
 private:
   // Not copyable, not assignable.
   Executor(const Executor&);
-  Executor& operator = (const Executor&);
+  Executor& operator=(const Executor&);
 
   ProcessBase process;
 };

@@ -111,7 +111,7 @@ private:
   // copyable.
   // Note that we are violating the "rule of three" here but it helps
   // keep the fields const.
-  MessageEvent& operator = (const MessageEvent&);
+  MessageEvent& operator=(const MessageEvent&);
 };
 
 
@@ -136,7 +136,7 @@ struct HttpEvent : Event
 private:
   // Not copyable, not assignable.
   HttpEvent(const HttpEvent&);
-  HttpEvent& operator = (const HttpEvent&);
+  HttpEvent& operator=(const HttpEvent&);
 };
 
 
@@ -167,7 +167,7 @@ struct DispatchEvent : Event
 private:
   // Not copyable, not assignable.
   DispatchEvent(const DispatchEvent&);
-  DispatchEvent& operator = (const DispatchEvent&);
+  DispatchEvent& operator=(const DispatchEvent&);
 };
 
 
@@ -187,7 +187,7 @@ private:
   // Keep ExitedEvent not assignable even though we made it copyable.
   // Note that we are violating the "rule of three" here but it helps
   // keep the fields const.
-  ExitedEvent& operator = (const ExitedEvent&);
+  ExitedEvent& operator=(const ExitedEvent&);
 };
 
 
@@ -206,7 +206,7 @@ struct TerminateEvent : Event
 private:
   // Not copyable, not assignable.
   TerminateEvent(const TerminateEvent&);
-  TerminateEvent& operator = (const TerminateEvent&);
+  TerminateEvent& operator=(const TerminateEvent&);
 };
 
 } // namespace process {

@@ -103,7 +103,7 @@ public:
     }
   }
 
-  bool operator < (const Address& that) const
+  bool operator<(const Address& that) const
   {
     if (ip == that.ip) {
       return port < that.port;
@@ -112,7 +112,7 @@ public:
     }
   }
 
-  bool operator > (const Address& that) const
+  bool operator>(const Address& that) const
   {
     if (ip == that.ip) {
       return port > that.port;
@@ -121,12 +121,12 @@ public:
     }
   }
 
-  bool operator == (const Address& that) const
+  bool operator==(const Address& that) const
   {
     return (ip == that.ip && port == that.port);
   }
 
-  bool operator != (const Address& that) const
+  bool operator!=(const Address& that) const
   {
     return !(*this == that);
   }
@@ -136,7 +136,7 @@ public:
 };
 
 
-inline std::ostream& operator << (std::ostream& stream, const Address& address)
+inline std::ostream& operator<<(std::ostream& stream, const Address& address)
 {
   stream << address.ip << ":" << address.port;
   return stream;

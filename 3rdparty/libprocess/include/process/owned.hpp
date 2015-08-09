@@ -39,11 +39,11 @@ public:
   Owned();
   explicit Owned(T* t);
 
-  bool operator == (const Owned<T>& that) const;
-  bool operator < (const Owned<T>& that) const;
+  bool operator==(const Owned<T>& that) const;
+  bool operator<(const Owned<T>& that) const;
 
-  T& operator * () const;
-  T* operator -> () const;
+  T& operator*() const;
+  T* operator->() const;
   T* get() const;
 
   void reset();
@@ -85,28 +85,28 @@ Owned<T>::Owned(T* t)
 
 
 template <typename T>
-bool Owned<T>::operator == (const Owned<T>& that) const
+bool Owned<T>::operator==(const Owned<T>& that) const
 {
   return data == that.data;
 }
 
 
 template <typename T>
-bool Owned<T>::operator < (const Owned<T>& that) const
+bool Owned<T>::operator<(const Owned<T>& that) const
 {
   return data < that.data;
 }
 
 
 template <typename T>
-T& Owned<T>::operator * () const
+T& Owned<T>::operator*() const
 {
   return *CHECK_NOTNULL(get());
 }
 
 
 template <typename T>
-T* Owned<T>::operator -> () const
+T* Owned<T>::operator->() const
 {
   return CHECK_NOTNULL(get());
 }

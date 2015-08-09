@@ -184,7 +184,7 @@ private:
   private:
     // Not copyable, not assignable.
     Implementation(const Implementation&);
-    Implementation& operator = (const Implementation&);
+    Implementation& operator=(const Implementation&);
 
     process::Promise<R> promise;
     const ::testing::Action<F> action;

@@ -865,7 +865,7 @@ private:
 template <typename Req, typename Res>
 struct Protocol
 {
-  process::Future<Res> operator () (
+  process::Future<Res> operator()(
       const process::UPID& pid,
       const Req& req) const
   {

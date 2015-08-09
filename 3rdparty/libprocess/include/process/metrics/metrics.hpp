@@ -56,7 +56,7 @@ private:
 
   // Non-copyable, non-assignable.
   MetricsProcess(const MetricsProcess&);
-  MetricsProcess& operator = (const MetricsProcess&);
+  MetricsProcess& operator=(const MetricsProcess&);
 
   Future<http::Response> snapshot(const http::Request& request);
   Future<http::Response> _snapshot(const http::Request& request);

@@ -20,7 +20,7 @@
 
 namespace process {
 
-std::ostream& operator << (std::ostream& out, const RFC1123& formatter)
+std::ostream& operator<<(std::ostream& out, const RFC1123& formatter)
 {
   time_t secs = static_cast<time_t>(formatter.time.secs());
 
@@ -76,7 +76,7 @@ std::ostream& operator << (std::ostream& out, const RFC1123& formatter)
 }
 
 
-std::ostream& operator << (std::ostream& out, const RFC3339& formatter)
+std::ostream& operator<<(std::ostream& out, const RFC3339& formatter)
 {
   // Round down the secs to use it with strftime and then append the
   // fraction part.

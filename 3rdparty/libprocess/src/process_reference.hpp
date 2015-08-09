@@ -35,7 +35,7 @@ public:
     copy(that);
   }
 
-  ProcessReference& operator = (const ProcessReference& that)
+  ProcessReference& operator=(const ProcessReference& that)
   {
     if (this != &that) {
       cleanup();
@@ -44,17 +44,17 @@ public:
     return *this;
   }
 
-  ProcessBase* operator -> ()
+  ProcessBase* operator->()
   {
     return process;
   }
 
-  operator ProcessBase* ()
+  operator ProcessBase*()
   {
     return process;
   }
 
-  operator bool () const
+  operator bool() const
   {
     return process != NULL;
   }

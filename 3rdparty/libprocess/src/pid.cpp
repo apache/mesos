@@ -74,14 +74,14 @@ UPID::operator std::string() const
 }
 
 
-ostream& operator << (ostream& stream, const UPID& pid)
+ostream& operator<<(ostream& stream, const UPID& pid)
 {
   stream << pid.id << "@" << pid.address;
   return stream;
 }
 
 
-istream& operator >> (istream& stream, UPID& pid)
+istream& operator>>(istream& stream, UPID& pid)
 {
   pid.id = "";
   pid.address.ip = net::IP(INADDR_ANY);

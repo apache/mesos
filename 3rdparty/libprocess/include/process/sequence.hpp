@@ -55,7 +55,7 @@ public:
 private:
   // Not copyable, not assignable.
   Sequence(const Sequence&);
-  Sequence& operator = (const Sequence&);
+  Sequence& operator=(const Sequence&);
 
   SequenceProcess* process;
 };
