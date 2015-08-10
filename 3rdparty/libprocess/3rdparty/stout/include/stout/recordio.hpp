@@ -94,6 +94,9 @@ public:
    * Returns an Error if the data contains an invalid length
    * header, at which point the decoder will return Error for
    * all subsequent calls.
+   *
+   * TODO(bmahler): Allow the caller to signal EOF, this allows
+   * detection of invalid partial data at the end of the input.
    */
   Try<std::deque<Try<T>>> decode(const std::string& data)
   {
