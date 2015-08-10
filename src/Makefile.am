@@ -169,7 +169,7 @@ OVERSUBSCRIPTION_PROTO =						\
   $(top_srcdir)/include/mesos/slave/oversubscription.proto
 
 CXX_PROTOS =								\
-  mesos.pb.cc								\
+  ../include/mesos/mesos.pb.cc						\
   ../include/mesos/mesos.pb.h						\
   authentication/authentication.pb.cc					\
   ../include/mesos/authentication/authentication.pb.h			\
@@ -189,7 +189,7 @@ CXX_PROTOS =								\
   ../include/mesos/slave/isolator.pb.h					\
   slave/oversubscription.pb.cc						\
   ../include/mesos/slave/oversubscription.pb.h				\
-  v1/mesos.pb.cc							\
+  ../include/mesos/v1/mesos.pb.cc					\
   ../include/mesos/v1/mesos.pb.h					\
   v1/scheduler/scheduler.pb.cc						\
   ../include/mesos/v1/scheduler/scheduler.pb.h
@@ -234,21 +234,14 @@ CLEANFILES += $(REGISTRY_PROTOS)
 # Targets for generating protocol buffer code.
 # For the include headers, place the header files in the include
 # directory and leave the cc files in src.
-#
-# TODO(benh): In certain circumstances below we need to do '-mv'
-# instead of just 'mv' because the way we have our dependencies
-# currently set up 'make' actually attempts to run the 'mv' command
-# twice which causes the second invocation to fail because the file no
-# longer exists (because it's already been moved).
-mesos.pb.cc ../include/mesos/mesos.pb.h: $(MESOS_PROTO)
+../include/mesos/mesos.pb.cc ../include/mesos/mesos.pb.h: $(MESOS_PROTO)
 	$(MKDIR_P) $(@D)
 	$(PROTOC) $(PROTOCFLAGS) --cpp_out=../include $^
-	-mv -f ../include/mesos/mesos.pb.cc $(@D)
 
-v1/mesos.pb.cc ../include/mesos/v1/mesos.pb.h: $(V1_MESOS_PROTO)
+../include/mesos/v1/mesos.pb.cc ../include/mesos/v1/mesos.pb.h: $(V1_MESOS_PROTO)
 	$(MKDIR_P) $(@D)
+	$(MKDIR_P) ../include/mesos/v1
 	$(PROTOC) $(PROTOCFLAGS) --cpp_out=../include $^
-	-mv -f ../include/mesos/v1/mesos.pb.cc $(@D)
 
 authentication/%.pb.cc ../include/mesos/authentication/%.pb.h: $(AUTHENTICATION_PROTO)
 	$(MKDIR_P) $(@D)
@@ -344,7 +337,7 @@ python/interface/src/mesos/interface/mesos_pb2.py: $(MESOS_PROTO)
 
 python/interface/src/mesos/v1/interface/mesos_pb2.py: $(V1_MESOS_PROTO)
 	$(MKDIR_P) $(@D)
-	$(PROTOC) -I$(top_srcdir)/include/mesos				\
+	$(PROTOC) -I$(top_srcdir)/include/mesos/v1			\
           $(PROTOCFLAGS) --python_out=python/interface/src/mesos/v1/interface $^
 
 # All python protocol buffer code that imports from mesos.proto has
