@@ -232,6 +232,100 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_VolumeFromSandbox)
 
   EXPECT_SOME_EQ("abc\n", os::read(path::join(directory, "tmp", "file")));
 }
+
+
+// This test verifies that a volume with an absolute host path as
+// well as an absolute container path is properly mounted in the
+// container's mount namespace.
+TEST_F(LinuxFilesystemIsolatorTest, ROOT_VolumeFromHost)
+{
+  slave::Flags flags = CreateSlaveFlags();
+
+  Try<Owned<MesosContainerizer>> containerizer = createContainerizer(flags);
+  ASSERT_SOME(containerizer);
+
+  ContainerID containerId;
+  containerId.set_value(UUID::random().toString());
+
+  ExecutorInfo executor = CREATE_EXECUTOR_INFO(
+      "test_executor",
+      "test -d /tmp/sandbox");
+
+  executor.mutable_container()->CopyFrom(createContainerInfo(
+      {CREATE_VOLUME("/tmp", os::getcwd(), Volume::RW)}));
+
+  string directory = path::join(os::getcwd(), "sandbox");
+  ASSERT_SOME(os::mkdir(directory));
+
+  Future<bool> launch = containerizer.get()->launch(
+      containerId,
+      executor,
+      directory,
+      None(),
+      SlaveID(),
+      PID<Slave>(),
+      false);
+
+  // Wait for the launch to complete.
+  AWAIT_READY(launch);
+
+  // Wait on the container.
+  Future<containerizer::Termination> wait =
+    containerizer.get()->wait(containerId);
+
+  AWAIT_READY(wait);
+
+  // Check the executor exited correctly.
+  EXPECT_TRUE(wait.get().has_status());
+  EXPECT_EQ(0, wait.get().status());
+}
+
+
+// This test verifies that a volume with an absolute host path and a
+// relative container path is properly mounted in the container's
+// mount namespace. The mount point will be created in the sandbox.
+TEST_F(LinuxFilesystemIsolatorTest, ROOT_VolumeFromHostSandboxMountPoint)
+{
+  slave::Flags flags = CreateSlaveFlags();
+
+  Try<Owned<MesosContainerizer>> containerizer = createContainerizer(flags);
+  ASSERT_SOME(containerizer);
+
+  ContainerID containerId;
+  containerId.set_value(UUID::random().toString());
+
+  ExecutorInfo executor = CREATE_EXECUTOR_INFO(
+      "test_executor",
+      "test -d mountpoint/sandbox");
+
+  executor.mutable_container()->CopyFrom(createContainerInfo(
+      {CREATE_VOLUME("mountpoint", os::getcwd(), Volume::RW)}));
+
+  string directory = path::join(os::getcwd(), "sandbox");
+  ASSERT_SOME(os::mkdir(directory));
+
+  Future<bool> launch = containerizer.get()->launch(
+      containerId,
+      executor,
+      directory,
+      None(),
+      SlaveID(),
+      PID<Slave>(),
+      false);
+
+  // Wait for the launch to complete.
+  AWAIT_READY(launch);
+
+  // Wait on the container.
+  Future<containerizer::Termination> wait =
+    containerizer.get()->wait(containerId);
+
+  AWAIT_READY(wait);
+
+  // Check the executor exited correctly.
+  EXPECT_TRUE(wait.get().has_status());
+  EXPECT_EQ(0, wait.get().status());
+}
 #endif // __linux__
 
 } // namespace tests {
