@@ -183,7 +183,8 @@ public:
       slave::DOCKER_NAME_SEPERATOR + containerId.value();
   }
 
-  enum ContainerState {
+  enum ContainerState
+  {
     EXISTS,
     RUNNING
   };

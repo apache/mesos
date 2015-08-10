@@ -113,7 +113,9 @@ private:
   Watcher* watcher;
   ZooKeeper* zk;
 
-  enum State { // ZooKeeper connection state.
+  // ZooKeeper connection state.
+  enum State
+  {
     DISCONNECTED,
     CONNECTING,
     CONNECTED,

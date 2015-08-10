@@ -118,7 +118,8 @@ private:
   // election and has filled all existing positions. A coordinator is
   // put in electing state after it decides to go for an election and
   // before it is elected.
-  enum {
+  enum
+  {
     INITIAL,
     ELECTING,
     ELECTED,

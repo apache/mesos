@@ -348,7 +348,8 @@ private:
 
   sasl_callback_t callbacks[5];
 
-  enum {
+  enum
+  {
     READY,
     STARTING,
     STEPPING,

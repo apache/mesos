@@ -260,7 +260,8 @@ public:
   // Made public for testing purposes.
   void detected(const process::Future<Option<MasterInfo>>& pid);
 
-  enum State {
+  enum State
+  {
     RECOVERING,   // Slave is doing recovery.
     DISCONNECTED, // Slave is not connected to the master.
     RUNNING,      // Slave has (re-)registered.
@@ -571,7 +572,8 @@ struct Executor
   // Returns true if this is a command executor.
   bool isCommandExecutor() const;
 
-  enum State {
+  enum State
+  {
     REGISTERING,  // Executor is launched but not (re-)registered yet.
     RUNNING,      // Executor has (re-)registered.
     TERMINATING,  // Executor is being shutdown/killed.
@@ -649,7 +651,8 @@ struct Framework
 
   const FrameworkID id() const { return info.id(); }
 
-  enum State {
+  enum State
+  {
     RUNNING,      // First state of a newly created framework.
     TERMINATING,  // Framework is shutting down in the cluster.
   } state;

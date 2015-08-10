@@ -50,7 +50,7 @@ void Slave::statusUpdate(StatusUpdate update, const UPID& pid)
 * For trailing comments, leave one space.
 
 ## Breaks
-* Break before braces on function, class, struct and union definitions. (Google attaches braces to the surrounding context)
+* Break before braces on enum, function, and record (i.e. struct, class, union) definitions.
 
 ## Indentation
 

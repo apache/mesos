@@ -394,7 +394,8 @@ private:
     // for discarding, then we won't need to make pull be it's own
     // state anymore, although it doesn't hurt since it gives us
     // better error messages.
-    enum State {
+    enum State
+    {
       FETCHING = 1,
       PULLING = 2,
       RUNNING = 3,

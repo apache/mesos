@@ -334,7 +334,8 @@ private:
   const ExecutorInfo executor;
   scheduler::Mesos mesos;
 
-  enum State {
+  enum State
+  {
     INITIALIZING = 0,
     SUBSCRIBED = 1,
     DISCONNECTED = 2

@@ -573,7 +573,8 @@ Try<Nothing> disable(
 // Memory pressure counters.
 namespace pressure {
 
-enum Level {
+enum Level
+{
   LOW,
   MEDIUM,
   CRITICAL

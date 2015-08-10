@@ -88,8 +88,6 @@ This binds the function `clang-format-region` to `C-M-tab`, which then formats t
 
 ## Known Limitations
 
-* The braces after `namespace`s should not be wrapped.
-* The braces after `struct`s and `union`s should be wrapped.
 * Parameters and arguments should be indented by 4 spaces rather than 2.
 * Should not follow Google's style of wrapping on open parentheses, we should
   try to reduce "jaggedness" in the code.

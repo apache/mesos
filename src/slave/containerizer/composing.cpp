@@ -113,7 +113,8 @@ private:
 
   // The states that the composing containerizer cares about for the
   // container it is asked to launch.
-  enum State {
+  enum State
+  {
     LAUNCHING,
     LAUNCHED,
     DESTROYED

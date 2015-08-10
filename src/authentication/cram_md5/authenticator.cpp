@@ -339,7 +339,8 @@ private:
     }
   }
 
-  enum {
+  enum
+  {
     READY,
     STARTING,
     STEPPING,
