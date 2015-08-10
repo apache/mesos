@@ -54,7 +54,7 @@ public:
   //   (3, 4]:  (Bound<int>::open(3), Bound<int>::closed(4))
   //   [0, 5):  (Bound<int>::closed(0), Bound<int>::open(5))
   //   [1, 2]:  (Bound<int>::closed(1), Bound<int>::closed(2))
-  Interval<T> operator,(const Bound<T>& right) const;
+  Interval<T> operator , (const Bound<T>& right) const;
 
 private:
   enum Type
@@ -128,7 +128,7 @@ std::ostream& operator<<(std::ostream& stream, const Interval<T>& interval)
 
 
 template <typename T>
-Interval<T> Bound<T>::operator,(const Bound<T>& right) const
+Interval<T> Bound<T>::operator , (const Bound<T>& right) const
 {
   if (type == OPEN) {
     if (right.type == OPEN) {
