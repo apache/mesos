@@ -458,6 +458,7 @@ libmesos_no_3rdparty_la_SOURCES =					\
 	slave/containerizer/mesos/launch.cpp				\
 	slave/containerizer/provisioner.cpp				\
 	slave/containerizer/provisioners/appc/paths.cpp			\
+	slave/containerizer/provisioners/appc/spec.cpp			\
 	slave/resource_estimators/noop.cpp				\
 	usage/usage.cpp							\
 	v1/attributes.cpp						\
@@ -713,6 +714,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
 	slave/containerizer/linux_launcher.hpp				\
 	slave/containerizer/provisioner.hpp				\
 	slave/containerizer/provisioners/appc/paths.hpp			\
+	slave/containerizer/provisioners/appc/spec.hpp			\
 	slave/containerizer/isolators/posix.hpp				\
 	slave/containerizer/isolators/posix/disk.hpp			\
 	slave/containerizer/isolators/cgroups/constants.hpp		\
@@ -1619,6 +1621,7 @@ mesos_tests_SOURCES =						\
   tests/zookeeper_url_tests.cpp					\
   tests/common/http_tests.cpp					\
   tests/common/recordio_tests.cpp				\
+  tests/containerizer/appc_provisioner_tests.cpp		\
   tests/containerizer/composing_containerizer_tests.cpp		\
   tests/containerizer/docker_containerizer_tests.cpp		\
   tests/containerizer/docker_tests.cpp				\
