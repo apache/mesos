@@ -88,7 +88,8 @@ public:
   // you're going backwards in time! SAFE means don't update the
   // previous Clock for a process if going backwards in time, where as
   // FORCE forces this change.
-  enum Update {
+  enum Update
+  {
     SAFE,  /*!< Don't update Clock for a process if going backwards in time. */
     FORCE, /*!< Update Clock even if going backwards in time. */
   };

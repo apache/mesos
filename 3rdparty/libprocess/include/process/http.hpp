@@ -320,7 +320,8 @@ struct Response
   // In all cases (BODY, PATH, PIPE), you are expected to properly
   // specify the 'Content-Type' header, but the 'Content-Length' and
   // or 'Transfer-Encoding' headers will be filled in for you.
-  enum {
+  enum
+  {
     NONE,
     BODY,
     PATH,

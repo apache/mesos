@@ -35,7 +35,8 @@ extern THREAD_LOCAL bool* _in_event_loop_;
   _in_event_loop_ = new bool(false) : _in_event_loop_)
 
 
-enum EventLoopLogicFlow {
+enum EventLoopLogicFlow
+{
   ALLOW_SHORT_CIRCUIT,
   DISALLOW_SHORT_CIRCUIT
 };

@@ -44,7 +44,8 @@ public:
    * @see process::network::PollSocketImpl
    * @see process::network::LibeventSSLSocketImpl
    */
-  enum Kind {
+  enum Kind
+  {
     POLL,
 #ifdef USE_SSL_SOCKET
     SSL

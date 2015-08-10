@@ -286,7 +286,8 @@ private:
   friend void* schedule(void*);
 
   // Process states.
-  enum {
+  enum
+  {
     BOTTOM,
     READY,
     RUNNING,

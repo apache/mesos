@@ -42,7 +42,8 @@ class Encoder;
 class Encoder
 {
 public:
-  enum Kind {
+  enum Kind
+  {
     DATA,
     FILE
   };

@@ -275,7 +275,8 @@ private:
   http_parser parser;
   http_parser_settings settings;
 
-  enum {
+  enum
+  {
     HEADER_FIELD,
     HEADER_VALUE
   } header;
@@ -470,7 +471,8 @@ private:
   http_parser parser;
   http_parser_settings settings;
 
-  enum {
+  enum
+  {
     HEADER_FIELD,
     HEADER_VALUE
   } header;
@@ -701,7 +703,8 @@ private:
   http_parser parser;
   http_parser_settings settings;
 
-  enum {
+  enum
+  {
     HEADER_FIELD,
     HEADER_VALUE
   } header;
