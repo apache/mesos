@@ -1211,7 +1211,7 @@ message Image {
     // "hash" is the hash algorithm used and "value" is the hex
     // encoded string of the digest. Currently the only permitted
     // hash algorithm is sha512.
-    required string id = 2;
+    optional string id = 2;
 
     // Optional labels. Suggested labels: "version", "os", and "arch".
     optional Labels labels = 3;
