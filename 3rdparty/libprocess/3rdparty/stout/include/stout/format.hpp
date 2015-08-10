@@ -79,6 +79,9 @@ inline Try<std::string> format(const std::string& fmt, va_list args)
 }
 
 
+// NOTE: 'fmt' cannot be 'const std::string&' because passing an
+// argument of reference type as the second argument of 'va_start'
+// results in undefined behavior.
 inline Try<std::string> format(const std::string fmt, ...)
 {
   va_list args;
