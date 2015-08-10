@@ -28,7 +28,8 @@
 namespace strings {
 
 // Flags indicating how 'remove' or 'trim' should operate.
-enum Mode {
+enum Mode
+{
   PREFIX,
   SUFFIX,
   ANY

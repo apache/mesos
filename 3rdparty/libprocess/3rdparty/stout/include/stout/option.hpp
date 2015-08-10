@@ -134,7 +134,8 @@ public:
   T getOrElse(const T& _t) const { return isNone() ? _t : t; }
 
 private:
-  enum State {
+  enum State
+  {
     SOME,
     NONE,
   };

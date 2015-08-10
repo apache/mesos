@@ -149,7 +149,8 @@ public:
   }
 
 private:
-  enum {
+  enum
+  {
     HEADER,
     RECORD,
     FAILED
