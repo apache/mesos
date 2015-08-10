@@ -2692,11 +2692,11 @@ def CheckSpacing(filename, clean_lines, linenum, nesting_state, error):
           'Missing spaces around %s' % match.group(1))
   # We allow no-spaces around << when used like this: 10<<20, but
   # not otherwise (particularly, not when used as streams)
-  # Also ignore using ns::operator<<;
+  # Also ignore 'operator<<'.
   match = Search(r'(operator|\S)(?:L|UL|ULL|l|ul|ull)?<<(\S)', line)
   if (match and
       not (match.group(1).isdigit() and match.group(2).isdigit()) and
-      not (match.group(1) == 'operator' and match.group(2) == ';')):
+      not (match.group(1) == 'operator')):
     error(filename, linenum, 'whitespace/operators', 3,
           'Missing spaces around <<')
   elif not Match(r'#.*include', line):
