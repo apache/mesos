@@ -654,6 +654,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
 	common/http.hpp							\
 	common/parse.hpp						\
 	common/protobuf_utils.hpp					\
+	common/recordio.hpp						\
 	common/resources_utils.hpp					\
 	common/status_utils.hpp						\
 	credentials/credentials.hpp					\
@@ -1612,6 +1613,7 @@ mesos_tests_SOURCES =						\
   tests/values_tests.cpp					\
   tests/zookeeper_url_tests.cpp					\
   tests/common/http_tests.cpp					\
+  tests/common/recordio_tests.cpp				\
   tests/containerizer/composing_containerizer_tests.cpp		\
   tests/containerizer/docker_containerizer_tests.cpp		\
   tests/containerizer/docker_tests.cpp				\
