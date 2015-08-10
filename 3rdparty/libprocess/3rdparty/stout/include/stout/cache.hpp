@@ -93,7 +93,7 @@ private:
   Cache& operator=(const Cache&);
 
   // Give the operator access to our internals.
-  friend std::ostream& operator<<(
+  friend std::ostream& operator<<<>(
       std::ostream& stream,
       const Cache<Key, Value>& c);
 
