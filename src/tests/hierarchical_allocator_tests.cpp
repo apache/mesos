@@ -1054,24 +1054,49 @@ TEST_F(HierarchicalAllocatorTest, Whitelist)
 
 class HierarchicalAllocator_BENCHMARK_Test
   : public HierarchicalAllocatorTestBase,
-    public WithParamInterface<size_t>
+    public WithParamInterface<std::tr1::tuple<size_t, size_t>>
 {};
 
 
 // The Hierarchical Allocator benchmark tests are parameterized
 // by the number of slaves.
 INSTANTIATE_TEST_CASE_P(
-    SlaveCount,
+    SlaveAndFrameworkCount,
     HierarchicalAllocator_BENCHMARK_Test,
-    ::testing::Values(1000U, 5000U, 10000U, 20000U, 30000U, 50000U));
+    ::testing::Combine(
+      ::testing::Values(1000U, 5000U, 10000U, 20000U, 30000U, 50000U),
+      ::testing::Values(1U, 50U, 100U, 200U, 500U, 1000U))
+    );
 
 
+// TODO(bmahler): Should also measure how expensive it is to
+// add a framework after the slaves are added.
 TEST_P(HierarchicalAllocator_BENCHMARK_Test, AddAndUpdateSlave)
 {
+  size_t slaveCount = std::tr1::get<0>(GetParam());
+  size_t frameworkCount = std::tr1::get<1>(GetParam());
+
+  vector<SlaveInfo> slaves;
+  vector<FrameworkInfo> frameworks;
+
+  for (unsigned i = 0; i < slaveCount; i++) {
+    slaves.push_back(createSlaveInfo(
+        "cpus:2;mem:1024;disk:4096;ports:[31000-32000]"));
+  }
+
+  for (unsigned i = 0; i < frameworkCount; ++i) {
+    frameworks.push_back(createFrameworkInfo("*"));
+    frameworks.back().add_capabilities()->set_type(
+        FrameworkInfo::Capability::REVOCABLE_RESOURCES);
+  }
+
+  cout << "Using " << slaveCount << " slaves"
+       << " and " << frameworkCount << " frameworks" << endl;
+
   Clock::pause();
 
-  // Number of allocations. This is used to determine the termination
-  // condition.
+  // Number of allocations. This is used to determine
+  // the termination condition.
   atomic<size_t> finished(0);
 
   auto offerCallback = [&finished](
@@ -1082,33 +1107,28 @@ TEST_P(HierarchicalAllocator_BENCHMARK_Test, AddAndUpdateSlave)
 
   initialize({}, master::Flags(), offerCallback);
 
-  // Add a framework that can accept revocable resources.
-  FrameworkInfo framework = createFrameworkInfo("*");
-  framework.add_capabilities()->set_type(
-      FrameworkInfo::Capability::REVOCABLE_RESOURCES);
-
-  allocator->addFramework(framework.id(), framework, {});
-
-  size_t slaveCount = GetParam();
-
-  // Create slaves.
-  vector<SlaveInfo> slaves;
-  for (size_t i = 0; i < slaveCount; i++) {
-    slaves.push_back(createSlaveInfo(
-        "cpus:2;mem:1024;disk:4096;ports:[31000-32000]"));
-  }
-
-  // Used resources on each slave.
-  hashmap<FrameworkID, Resources> used;
-  used[framework.id()] = Resources::parse(
-      "cpus:1;mem:128;disk:1024;"
-      "ports:[31126-31510,31512-31623,31810-31852,31854-31964]").get();
-
   Stopwatch watch;
   watch.start();
 
-  foreach (const SlaveInfo& slave, slaves) {
-    allocator->addSlave(slave.id(), slave, slave.resources(), used);
+  foreach (const FrameworkInfo& framework, frameworks) {
+    allocator->addFramework(framework.id(), framework, {});
+  }
+
+  cout << "Added " << frameworkCount << " frameworks"
+       << " in " << watch.elapsed() << endl;
+
+  watch.start();
+
+  // Add the slaves, use round-robin to choose which framework
+  // to allocate a slice of the slave's resources to.
+  for (unsigned i = 0; i < slaves.size(); ++i) {
+    hashmap<FrameworkID, Resources> used;
+
+    used[frameworks[i % frameworkCount].id()] = Resources::parse(
+        "cpus:1;mem:128;disk:1024;"
+        "ports:[31126-31510,31512-31623,31810-31852,31854-31964]").get();
+
+    allocator->addSlave(slaves[i].id(), slaves[i], slaves[i].resources(), used);
   }
 
   // Wait for all the 'addSlave' operations to be processed.
@@ -1116,7 +1136,8 @@ TEST_P(HierarchicalAllocator_BENCHMARK_Test, AddAndUpdateSlave)
     os::sleep(Milliseconds(10));
   }
 
-  cout << "Added " << slaveCount << " slaves in " << watch.elapsed() << endl;
+  cout << "Added " << slaveCount << " slaves"
+       << " in " << watch.elapsed() << endl;
 
   // Oversubscribed resources on each slave.
   Resource oversubscribed = Resources::parse("cpus", "10", "*").get();
