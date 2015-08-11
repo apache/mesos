@@ -107,7 +107,10 @@ ACTION_P(Enqueue, queue)
 // SUBSCRIBED event with the previously assigned framework id.
 TEST_F(SchedulerTest, Subscribe)
 {
-  Try<PID<Master>> master = StartMaster();
+  master::Flags flags = CreateMasterFlags();
+  flags.authenticate_frameworks = false;
+
+  Try<PID<Master>> master = StartMaster(flags);
   ASSERT_SOME(master);
 
   Callbacks callbacks;
@@ -118,7 +121,6 @@ TEST_F(SchedulerTest, Subscribe)
 
   Mesos mesos(
       master.get(),
-      DEFAULT_V1_CREDENTIAL,
       lambda::bind(&Callbacks::connected, lambda::ref(callbacks)),
       lambda::bind(&Callbacks::disconnected, lambda::ref(callbacks)),
       lambda::bind(&Callbacks::received, lambda::ref(callbacks), lambda::_1));
@@ -172,7 +174,10 @@ TEST_F(SchedulerTest, Subscribe)
 
 TEST_F(SchedulerTest, TaskRunning)
 {
-  Try<PID<Master>> master = StartMaster();
+  master::Flags flags = CreateMasterFlags();
+  flags.authenticate_frameworks = false;
+
+  Try<PID<Master>> master = StartMaster(flags);
   ASSERT_SOME(master);
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
@@ -190,7 +195,6 @@ TEST_F(SchedulerTest, TaskRunning)
 
   Mesos mesos(
       master.get(),
-      DEFAULT_V1_CREDENTIAL,
       lambda::bind(&Callbacks::connected, lambda::ref(callbacks)),
       lambda::bind(&Callbacks::disconnected, lambda::ref(callbacks)),
       lambda::bind(&Callbacks::received, lambda::ref(callbacks), lambda::_1));
@@ -280,7 +284,10 @@ TEST_F(SchedulerTest, TaskRunning)
 
 TEST_F(SchedulerTest, ReconcileTask)
 {
-  Try<PID<Master>> master = StartMaster();
+  master::Flags flags = CreateMasterFlags();
+  flags.authenticate_frameworks = false;
+
+  Try<PID<Master>> master = StartMaster(flags);
   ASSERT_SOME(master);
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
@@ -298,7 +305,6 @@ TEST_F(SchedulerTest, ReconcileTask)
 
   Mesos mesos(
       master.get(),
-      DEFAULT_V1_CREDENTIAL,
       lambda::bind(&Callbacks::connected, lambda::ref(callbacks)),
       lambda::bind(&Callbacks::disconnected, lambda::ref(callbacks)),
       lambda::bind(&Callbacks::received, lambda::ref(callbacks), lambda::_1));
@@ -390,7 +396,10 @@ TEST_F(SchedulerTest, ReconcileTask)
 
 TEST_F(SchedulerTest, KillTask)
 {
-  Try<PID<Master>> master = StartMaster();
+  master::Flags flags = CreateMasterFlags();
+  flags.authenticate_frameworks = false;
+
+  Try<PID<Master>> master = StartMaster(flags);
   ASSERT_SOME(master);
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
@@ -408,7 +417,6 @@ TEST_F(SchedulerTest, KillTask)
 
   Mesos mesos(
       master.get(),
-      DEFAULT_V1_CREDENTIAL,
       lambda::bind(&Callbacks::connected, lambda::ref(callbacks)),
       lambda::bind(&Callbacks::disconnected, lambda::ref(callbacks)),
       lambda::bind(&Callbacks::received, lambda::ref(callbacks), lambda::_1));
@@ -515,7 +523,10 @@ TEST_F(SchedulerTest, KillTask)
 
 TEST_F(SchedulerTest, ShutdownExecutor)
 {
-  Try<PID<Master>> master = StartMaster();
+  master::Flags flags = CreateMasterFlags();
+  flags.authenticate_frameworks = false;
+
+  Try<PID<Master>> master = StartMaster(flags);
   ASSERT_SOME(master);
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
@@ -533,7 +544,6 @@ TEST_F(SchedulerTest, ShutdownExecutor)
 
   Mesos mesos(
       master.get(),
-      DEFAULT_V1_CREDENTIAL,
       lambda::bind(&Callbacks::connected, lambda::ref(callbacks)),
       lambda::bind(&Callbacks::disconnected, lambda::ref(callbacks)),
       lambda::bind(&Callbacks::received, lambda::ref(callbacks), lambda::_1));
@@ -629,7 +639,10 @@ TEST_F(SchedulerTest, ShutdownExecutor)
 
 TEST_F(SchedulerTest, Teardown)
 {
-  Try<PID<Master>> master = StartMaster();
+  master::Flags flags = CreateMasterFlags();
+  flags.authenticate_frameworks = false;
+
+  Try<PID<Master>> master = StartMaster(flags);
   ASSERT_SOME(master);
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
@@ -647,7 +660,6 @@ TEST_F(SchedulerTest, Teardown)
 
   Mesos mesos(
       master.get(),
-      DEFAULT_V1_CREDENTIAL,
       lambda::bind(&Callbacks::connected, lambda::ref(callbacks)),
       lambda::bind(&Callbacks::disconnected, lambda::ref(callbacks)),
       lambda::bind(&Callbacks::received, lambda::ref(callbacks), lambda::_1));
@@ -731,7 +743,10 @@ TEST_F(SchedulerTest, Teardown)
 
 TEST_F(SchedulerTest, Decline)
 {
-  Try<PID<Master>> master = StartMaster();
+  master::Flags flags = CreateMasterFlags();
+  flags.authenticate_frameworks = false;
+
+  Try<PID<Master>> master = StartMaster(flags);
   ASSERT_SOME(master);
 
   Try<PID<Slave>> slave = StartSlave();
@@ -745,7 +760,6 @@ TEST_F(SchedulerTest, Decline)
 
   Mesos mesos(
       master.get(),
-      DEFAULT_V1_CREDENTIAL,
       lambda::bind(&Callbacks::connected, lambda::ref(callbacks)),
       lambda::bind(&Callbacks::disconnected, lambda::ref(callbacks)),
       lambda::bind(&Callbacks::received, lambda::ref(callbacks), lambda::_1));
@@ -809,7 +823,10 @@ TEST_F(SchedulerTest, Decline)
 
 TEST_F(SchedulerTest, Revive)
 {
-  Try<PID<Master>> master = StartMaster();
+  master::Flags flags = CreateMasterFlags();
+  flags.authenticate_frameworks = false;
+
+  Try<PID<Master>> master = StartMaster(flags);
   ASSERT_SOME(master);
 
   Try<PID<Slave>> slave = StartSlave();
@@ -823,7 +840,6 @@ TEST_F(SchedulerTest, Revive)
 
   Mesos mesos(
       master.get(),
-      DEFAULT_V1_CREDENTIAL,
       lambda::bind(&Callbacks::connected, lambda::ref(callbacks)),
       lambda::bind(&Callbacks::disconnected, lambda::ref(callbacks)),
       lambda::bind(&Callbacks::received, lambda::ref(callbacks), lambda::_1));
@@ -903,7 +919,10 @@ TEST_F(SchedulerTest, Revive)
 
 TEST_F(SchedulerTest, Message)
 {
-  Try<PID<Master>> master = StartMaster();
+  master::Flags flags = CreateMasterFlags();
+  flags.authenticate_frameworks = false;
+
+  Try<PID<Master>> master = StartMaster(flags);
   ASSERT_SOME(master);
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
@@ -921,7 +940,6 @@ TEST_F(SchedulerTest, Message)
 
   Mesos mesos(
       master.get(),
-      DEFAULT_V1_CREDENTIAL,
       lambda::bind(&Callbacks::connected, lambda::ref(callbacks)),
       lambda::bind(&Callbacks::disconnected, lambda::ref(callbacks)),
       lambda::bind(&Callbacks::received, lambda::ref(callbacks), lambda::_1));
@@ -1010,7 +1028,10 @@ TEST_F(SchedulerTest, Message)
 
 TEST_F(SchedulerTest, Request)
 {
-  Try<PID<Master>> master = StartMaster();
+  master::Flags flags = CreateMasterFlags();
+  flags.authenticate_frameworks = false;
+
+  Try<PID<Master>> master = StartMaster(flags);
   ASSERT_SOME(master);
 
   Callbacks callbacks;
@@ -1021,7 +1042,6 @@ TEST_F(SchedulerTest, Request)
 
   Mesos mesos(
       master.get(),
-      DEFAULT_V1_CREDENTIAL,
       lambda::bind(&Callbacks::connected, lambda::ref(callbacks)),
       lambda::bind(&Callbacks::disconnected, lambda::ref(callbacks)),
       lambda::bind(&Callbacks::received, lambda::ref(callbacks), lambda::_1));
