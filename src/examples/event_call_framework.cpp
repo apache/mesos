@@ -90,7 +90,6 @@ public:
     : framework(_framework),
       executor(_executor),
       mesos(master,
-            credential,
             process::defer(self(), &Self::connected),
             process::defer(self(), &Self::disconnected),
             process::defer(self(), &Self::received, lambda::_1)),
@@ -419,35 +418,15 @@ int main(int argc, char** argv)
   executor.set_name("Test Executor (C++)");
   executor.set_source("cpp_test");
 
-  EventCallScheduler* scheduler;
-  if (os::getenv("MESOS_AUTHENTICATE").isSome()) {
-    cout << "Enabling authentication for the scheduler" << endl;
-
-    value = os::getenv("DEFAULT_PRINCIPAL");
-    if (value.isNone()) {
-      EXIT(1) << "Expecting authentication principal in the environment";
-    }
-
-    Credential credential;
-    credential.set_principal(value.get());
-
-    framework.set_principal(value.get());
-
-    value = os::getenv("DEFAULT_SECRET");
-    if (value.isNone()) {
-      EXIT(1) << "Expecting authentication secret in the environment";
-    }
-
-    credential.set_secret(value.get());
-
-    scheduler =
-      new EventCallScheduler(framework, executor, master.get(), credential);
-  } else {
-    framework.set_principal("event-call-scheduler-cpp");
-
-    scheduler =
-      new EventCallScheduler(framework, executor, master.get());
+  value = os::getenv("DEFAULT_PRINCIPAL");
+  if (value.isNone()) {
+    EXIT(1) << "Expecting authentication principal in the environment";
   }
+
+  framework.set_principal(value.get());
+
+  EventCallScheduler* scheduler;
+  scheduler = new EventCallScheduler(framework, executor, master.get());
 
   process::spawn(scheduler);
   process::wait(scheduler);
