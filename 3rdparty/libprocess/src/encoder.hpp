@@ -152,8 +152,6 @@ public:
       }
     }
 
-    VLOG(1) << out.str();
-
     return out.str();
   }
 
