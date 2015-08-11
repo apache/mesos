@@ -228,13 +228,11 @@ Future<T> timeout(
 
 
 // Helper for failing a deque of operations.
-void fail(deque<Owned<Operation> >* operations, const string& message)
+void fail(deque<Owned<Operation>>* operations, const string& message)
 {
   while (!operations->empty()) {
-    Owned<Operation> operation = operations->front();
+    operations->front()->fail(message);
     operations->pop_front();
-
-    operation->fail(message);
   }
 }
 
