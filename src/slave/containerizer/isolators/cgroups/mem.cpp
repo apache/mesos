@@ -476,6 +476,11 @@ Future<ResourceStatistics> CgroupsMemIsolatorProcess::usage(
     result.set_mem_swap_bytes(total_swap.get());
   }
 
+  Option<uint64_t> total_unevictable = stat.get().get("total_unevictable");
+  if (total_unevictable.isSome()) {
+    result.set_mem_unevictable_bytes(total_unevictable.get());
+  }
+
   // Get pressure counter readings.
   list<Level> levels;
   list<Future<uint64_t>> values;
