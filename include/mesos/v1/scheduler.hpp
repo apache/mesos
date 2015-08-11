@@ -55,14 +55,6 @@ public:
         const std::function<void(void)>& disconnected,
         const std::function<void(const std::queue<Event>&)>& received);
 
-  // Same as the above constructor but takes 'credential' as argument.
-  // The credential will be used for authenticating with the master.
-  Mesos(const std::string& master,
-        const Credential& credential,
-        const std::function<void(void)>& connected,
-        const std::function<void(void)>& disconnected,
-        const std::function<void(const std::queue<Event>&)>& received);
-
   virtual ~Mesos();
 
   // Attempts to send a call to the master.

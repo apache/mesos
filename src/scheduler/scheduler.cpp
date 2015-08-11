@@ -29,10 +29,6 @@
 #include <string>
 #include <sstream>
 
-#include <mesos/authentication/authenticatee.hpp>
-
-#include <mesos/module/authenticatee.hpp>
-
 #include <mesos/v1/mesos.hpp>
 #include <mesos/v1/scheduler.hpp>
 
@@ -57,8 +53,6 @@
 #include <stout/option.hpp>
 #include <stout/os.hpp>
 #include <stout/uuid.hpp>
-
-#include "authentication/cram_md5/authenticatee.hpp"
 
 #include "internal/devolve.hpp"
 #include "internal/evolve.hpp"
@@ -97,21 +91,15 @@ class MesosProcess : public ProtobufProcess<MesosProcess>
 public:
   MesosProcess(
       const string& master,
-      const Option<Credential>& _credential,
       const lambda::function<void(void)>& _connected,
       const lambda::function<void(void)>& _disconnected,
       lambda::function<void(const queue<Event>&)> _received)
     : ProcessBase(ID::generate("scheduler")),
-      credential(_credential),
       connected(_connected),
       disconnected(_disconnected),
       received(_received),
       local(false),
-      detector(NULL),
-      authenticatee(NULL),
-      authenticating(None()),
-      authenticated(false),
-      reauthenticate(false)
+      detector(NULL)
   {
     GOOGLE_PROTOBUF_VERIFY_VERSION;
 
@@ -172,8 +160,6 @@ public:
 
   virtual ~MesosProcess()
   {
-    delete authenticatee;
-
     // Check and see if we need to shutdown a local cluster.
     if (local) {
       local::shutdown();
@@ -246,15 +232,9 @@ protected:
 
       VLOG(1) << "New master detected at " << master.get();
 
-      if (credential.isSome()) {
-        // TODO(vinod): Do pure HTTP Authentication instead of SASL.
-        // Authenticate with the master.
-        authenticate();
-      } else {
-        mutex.lock()
-          .then(defer(self(), &Self::__detected))
-          .onAny(lambda::bind(&Mutex::unlock, mutex));
-      }
+      mutex.lock()
+        .then(defer(self(), &Self::__detected))
+        .onAny(lambda::bind(&Mutex::unlock, mutex));
     }
 
     // Keep detecting masters.
@@ -270,127 +250,6 @@ protected:
   Future<Nothing> __detected()
   {
     return async(connected);
-  }
-
-  void authenticate()
-  {
-    authenticated = false;
-
-    // We retry to authenticate and it's possible that we'll get
-    // disconnected while that is happening.
-    if (master.isNone()) {
-      return;
-    }
-
-    if (authenticating.isSome()) {
-      // Authentication is in progress. Try to cancel it.
-      // Note that it is possible that 'authenticating' is ready
-      // and the dispatch to '_authenticate' is enqueued when we
-      // are here, making the 'discard' here a no-op. This is ok
-      // because we set 'reauthenticate' here which enforces a retry
-      // in '_authenticate'.
-      Future<bool>(authenticating.get()).discard();
-      reauthenticate = true;
-      return;
-    }
-
-    VLOG(1) << "Authenticating with master " << master.get();
-
-    CHECK_SOME(credential);
-
-    CHECK(authenticatee == NULL);
-    authenticatee = new cram_md5::CRAMMD5Authenticatee();
-
-    // NOTE: We do not pass 'Owned<Authenticatee>' here because doing
-    // so could make 'AuthenticateeProcess' responsible for deleting
-    // 'Authenticatee' causing a deadlock because the destructor of
-    // 'Authenticatee' waits on 'AuthenticateeProcess'.
-    // This will happen in the following scenario:
-    // --> 'AuthenticateeProcess' does a 'Future.set()'.
-    // --> '_authenticate()' is dispatched to this process.
-    // --> This process executes '_authenticatee()'.
-    // --> 'AuthenticateeProcess' removes the onAny callback
-    //     from its queue which holds the last reference to
-    //     'Authenticatee'.
-    // --> '~Authenticatee()' is invoked by 'AuthenticateeProcess'.
-    // TODO(vinod): Consider using 'Shared' to 'Owned' upgrade.
-    authenticating = authenticatee->authenticate(
-        master.get(),
-        self(),
-        devolve(credential.get()))
-      .onAny(defer(self(), &Self::_authenticate));
-
-    delay(Seconds(5),
-          self(),
-          &Self::authenticationTimeout,
-          authenticating.get());
-  }
-
-  void _authenticate()
-  {
-    delete CHECK_NOTNULL(authenticatee);
-    authenticatee = NULL;
-
-    CHECK_SOME(authenticating);
-    const Future<bool>& future = authenticating.get();
-
-    if (master.isNone()) {
-      VLOG(1) << "Ignoring authentication because no master is detected";
-      authenticating = None();
-
-      // Set it to false because we do not want further retries until
-      // a new master is detected.
-      // We obviously do not need to reauthenticate either even if
-      // 'reauthenticate' is currently true because the master is
-      // lost.
-      reauthenticate = false;
-      return;
-    }
-
-    if (reauthenticate || !future.isReady()) {
-      VLOG(1)
-        << "Failed to authenticate with master " << master.get() << ": "
-        << (reauthenticate ? "master changed" :
-           (future.isFailed() ? future.failure() : "future discarded"));
-
-      authenticating = None();
-      reauthenticate = false;
-
-      // TODO(vinod): Add a limit on number of retries.
-      dispatch(self(), &Self::authenticate); // Retry.
-      return;
-    }
-
-    if (!future.get()) {
-      VLOG(1) << "Master " << master.get() << " refused authentication";
-      error("Authentication refused");
-      return;
-    }
-
-    VLOG(1) << "Successfully authenticated with master " << master.get();
-
-    authenticated = true;
-    authenticating = None();
-
-    mutex.lock()
-      .then(defer(self(), &Self::__authenticate))
-      .onAny(lambda::bind(&Mutex::unlock, mutex));
-  }
-
-  Future<Nothing> __authenticate()
-  {
-    return async(connected);
-  }
-
-  void authenticationTimeout(Future<bool> future)
-  {
-    // NOTE: Discarded future results in a retry in '_authenticate()'.
-    // Also note that a 'discard' here is safe even if another
-    // authenticator is in progress because this copy of the future
-    // corresponds to the original authenticator that started the timer.
-    if (future.discard()) { // This is a no-op if the future is already ready.
-      LOG(WARNING) << "Authentication timed out";
-    }
   }
 
   // NOTE: A None 'from' is possible when an event is injected locally.
@@ -499,8 +358,6 @@ protected:
   }
 
 private:
-  const Option<Credential> credential;
-
   Mutex mutex; // Used to serialize the callback invocations.
 
   lambda::function<void(void)> connected;
@@ -514,17 +371,6 @@ private:
   queue<Event> events;
 
   Option<UPID> master;
-
-  Authenticatee* authenticatee;
-
-  // Indicates if an authentication attempt is in progress.
-  Option<Future<bool> > authenticating;
-
-  // Indicates if the authentication is successful.
-  bool authenticated;
-
-  // Indicates if a new authentication attempt should be enforced.
-  bool reauthenticate;
 };
 
 
@@ -535,20 +381,7 @@ Mesos::Mesos(
     const lambda::function<void(const queue<Event>&)>& received)
 {
   process =
-    new MesosProcess(master, None(), connected, disconnected, received);
-  spawn(process);
-}
-
-
-Mesos::Mesos(
-    const string& master,
-    const Credential& credential,
-    const lambda::function<void(void)>& connected,
-    const lambda::function<void(void)>& disconnected,
-    const lambda::function<void(const queue<Event>&)>& received)
-{
-  process =
-    new MesosProcess(master, credential, connected, disconnected, received);
+    new MesosProcess(master, connected, disconnected, received);
   spawn(process);
 }
 
