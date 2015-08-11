@@ -189,6 +189,64 @@ bool Request::acceptsEncoding(const string& encoding) const
 }
 
 
+bool Request::acceptsMediaType(const string& mediaType) const
+{
+  vector<string> mediaTypes = strings::tokenize(mediaType, "/");
+
+  if (mediaTypes.size() != 2) {
+    return false;
+  }
+
+  Option<string> accept = headers.get("Accept");
+
+  // If no Accept header field is present, then it is assumed
+  // that the client accepts all media types.
+  if (accept.isNone()) {
+    return true;
+  }
+
+  // Remove spaces and tabs for easier parsing.
+  accept = strings::remove(accept.get(), " ");
+  accept = strings::remove(accept.get(), "\t");
+  accept = strings::remove(accept.get(), "\n");
+
+  // First match 'type/subtype', then 'type/*', then '*/*'.
+  vector<string> candidates;
+  candidates.push_back(mediaType);
+  candidates.push_back(mediaTypes[0] + "/*");
+  candidates.push_back("*/*");
+
+  foreach (const string& candidate, candidates) {
+    foreach (const string& type, strings::tokenize(accept.get(), ",")) {
+      vector<string> tokens = strings::tokenize(type, ";");
+
+      if (tokens.empty()) {
+        continue;
+      }
+
+      // Is the candidate one of the accepted type?
+      if (strings::lower(tokens[0]) == strings::lower(candidate)) {
+        // Is there a 0 q value? Ex: 'gzip;q=0.0'.
+        const map<string, vector<string>> values =
+          strings::pairs(type, ";", "=");
+
+        // Look for { "q": ["0"] }.
+        if (values.count("q") == 0 || values.find("q")->second.size() != 1) {
+          // No q value, or malformed q value.
+          return true;
+        }
+
+        // Is the q value > 0?
+        Try<double> value = numify<double>(values.find("q")->second[0]);
+        return value.isSome() && value.get() > 0;
+      }
+    }
+  }
+
+  return false;
+}
+
+
 Pipe::Reader Pipe::reader() const
 {
   return Pipe::Reader(data);

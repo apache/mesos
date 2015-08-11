@@ -118,9 +118,15 @@ struct Request
 
   /**
    * Returns whether the encoding is considered acceptable in the
-   * response. See RFC 2616 section 14 for details.
+   * response. See RFC 2616 section 14.3 for details.
    */
   bool acceptsEncoding(const std::string& encoding) const;
+
+  /**
+   * Returns whether the media type is considered acceptable in the
+   * response. See RFC 2616, section 14.1 for the details.
+   */
+  bool acceptsMediaType(const std::string& mediaType) const;
 };
 
 

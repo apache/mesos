@@ -20,6 +20,7 @@
 #include <netinet/tcp.h>
 
 #include <string>
+#include <vector>
 
 #include <process/address.hpp>
 #include <process/future.hpp>
@@ -45,6 +46,7 @@ using process::http::URL;
 using process::network::Socket;
 
 using std::string;
+using std::vector;
 
 using testing::_;
 using testing::Assign;
@@ -649,6 +651,62 @@ TEST(HTTPTest, CaseInsensitiveHeaders)
   EXPECT_EQ("text/javascript", response.headers["content-type"]);
   EXPECT_EQ("text/javascript", response.headers["Content-Type"]);
   EXPECT_EQ("text/javascript", response.headers["CONTENT-TYPE"]);
+}
+
+
+TEST(HTTPTest, Accepts)
+{
+  // Create requests that do not accept the 'text/*' media type.
+  vector<string> headers = {
+    "text/*;q=0.0",
+    "text/html;q=0.0",
+    "text/",
+    "text",
+    "foo/*",
+    "foo/*, text/*;q=0.0",
+    "foo/*,\ttext/*;q=0.0",
+    "*/*, text/*;q=0.0",
+    "*/*;q=0.0, foo",
+    "textttt/*"
+  };
+
+  foreach (const string& accept, headers) {
+    http::Request request;
+    request.headers["Accept"] = accept;
+
+    EXPECT_FALSE(request.acceptsMediaType("text/*"))
+      << "Not expecting " << accept << " to match 'text/*'";
+
+    EXPECT_FALSE(request.acceptsMediaType("text/html"))
+      << "Not expecting " << accept << " to match 'text/html'";
+  }
+
+  // Create requests that accept 'text/html' media type.
+  headers = {
+    "text/*",
+    "text/*;q=0.1",
+    "text/html",
+    "text/html;q=0.1",
+    "text/bar, text/html,q=0.1",
+    "*/*, text/bar;q=0.5",
+    "*/*;q=0.9, text/foo",
+    "text/foo,\ttext/*;q=0.1",
+    "*/*",
+    "*/*, text/bar",
+    "*/*, foo/*"
+  };
+
+  foreach (const string& accept, headers) {
+    http::Request request;
+    request.headers["Accept"] = accept;
+
+    EXPECT_TRUE(request.acceptsMediaType("text/html"))
+      << "Expecting '" << accept << "' to match 'text/html'";
+  }
+
+  // Missing header should accept all media types.
+  http::Request empty;
+  EXPECT_TRUE(empty.acceptsMediaType("text/html"));
 }
 
 
