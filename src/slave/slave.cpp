@@ -1270,12 +1270,6 @@ void Slave::runTask(
     return;
   }
 
-  if (HookManager::hooksAvailable()) {
-    // Set task labels from run task label decorator.
-    task.mutable_labels()->CopyFrom(
-        HookManager::slaveRunTaskLabelDecorator(task, frameworkInfo, info));
-  }
-
   Future<bool> unschedule = true;
 
   // If we are about to create a new framework, unschedule the work
@@ -1322,6 +1316,12 @@ void Slave::runTask(
 
   const ExecutorInfo executorInfo = getExecutorInfo(frameworkId, task);
   const ExecutorID& executorId = executorInfo.executor_id();
+
+  if (HookManager::hooksAvailable()) {
+    // Set task labels from run task label decorator.
+    task.mutable_labels()->CopyFrom(HookManager::slaveRunTaskLabelDecorator(
+        task, executorInfo, frameworkInfo, info));
+  }
 
   // We add the task to 'pending' to ensure the framework is not
   // removed and the framework and top level executor directories

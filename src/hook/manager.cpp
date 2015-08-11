@@ -134,6 +134,7 @@ Labels HookManager::masterLaunchTaskLabelDecorator(
 
 Labels HookManager::slaveRunTaskLabelDecorator(
     const TaskInfo& taskInfo,
+    const ExecutorInfo& executorInfo,
     const FrameworkInfo& frameworkInfo,
     const SlaveInfo& slaveInfo)
 {
@@ -141,8 +142,8 @@ Labels HookManager::slaveRunTaskLabelDecorator(
     TaskInfo taskInfo_ = taskInfo;
 
     foreachpair (const string& name, Hook* hook, availableHooks) {
-      const Result<Labels> result =
-        hook->slaveRunTaskLabelDecorator(taskInfo_, frameworkInfo, slaveInfo);
+      const Result<Labels> result = hook->slaveRunTaskLabelDecorator(
+          taskInfo_, executorInfo, frameworkInfo, slaveInfo);
 
       // NOTE: If the hook returns None(), the task labels won't be
       // changed.

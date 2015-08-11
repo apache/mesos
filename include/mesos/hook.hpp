@@ -51,6 +51,7 @@ public:
   // labels overwrite the existing labels on the task info.
   virtual Result<Labels> slaveRunTaskLabelDecorator(
       const TaskInfo& taskInfo,
+      const ExecutorInfo& executorInfo,
       const FrameworkInfo& frameworkInfo,
       const SlaveInfo& slaveInfo)
   {
