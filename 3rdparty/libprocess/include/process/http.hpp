@@ -116,9 +116,10 @@ struct Request
 
   bool keepAlive;
 
-  // Returns whether the encoding is considered acceptable in the request.
-  // TODO(bmahler): Consider this logic being in decoder.hpp, and having the
-  // Request contain a member variable for each popular HTTP 1.0/1.1 header.
+  /**
+   * Returns whether the encoding is considered acceptable in the
+   * response. See RFC 2616 section 14 for details.
+   */
   bool acceptsEncoding(const std::string& encoding) const;
 };
 

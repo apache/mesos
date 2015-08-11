@@ -64,7 +64,7 @@ TEST(EncoderTest, Response)
 TEST(EncoderTest, AcceptableEncodings)
 {
   // Create requests that do not accept gzip encoding.
-  vector<Request> requests(7);
+  vector<Request> requests(10);
   requests[0].headers["Accept-Encoding"] = "gzip;q=0.0,*";
   requests[1].headers["Accept-Encoding"] = "compress";
   requests[2].headers["Accept-Encoding"] = "compress, gzip;q=0.0";
@@ -72,6 +72,9 @@ TEST(EncoderTest, AcceptableEncodings)
   requests[4].headers["Accept-Encoding"] = "*;q=0.0, compress";
   requests[5].headers["Accept-Encoding"] = "\n compress";
   requests[6].headers["Accept-Encoding"] = "compress,\tgzip;q=0.0";
+  requests[7].headers["Accept-Encoding"] = "gzipbug;q=0.1";
+  requests[8].headers["Accept-Encoding"] = "";
+  requests[9].headers["Accept-Encoding"] = ",";
 
   foreach (const Request& request, requests) {
     EXPECT_FALSE(request.acceptsEncoding("gzip"))

@@ -117,26 +117,41 @@ void initialize()
 
 bool Request::acceptsEncoding(const string& encoding) const
 {
-  // See RFC 2616, section 14.3 for the details.
-  Option<string> accepted = headers.get("Accept-Encoding");
-
-  if (accepted.isNone()) {
-    return false;
-  }
-
-  // Remove spaces and tabs for easier parsing.
-  accepted = strings::remove(accepted.get(), " ");
-  accepted = strings::remove(accepted.get(), "\t");
-  accepted = strings::remove(accepted.get(), "\n");
-
   // From RFC 2616:
+  //
   // 1. If the content-coding is one of the content-codings listed in
   //    the Accept-Encoding field, then it is acceptable, unless it is
   //    accompanied by a qvalue of 0. (As defined in section 3.9, a
   //    qvalue of 0 means "not acceptable.")
+  //
   // 2. The special "*" symbol in an Accept-Encoding field matches any
   //    available content-coding not explicitly listed in the header
   //    field.
+  //
+  // 3. If multiple content-codings are acceptable, then the acceptable
+  //    content-coding with the highest non-zero qvalue is preferred.
+  //
+  // 4. The "identity" content-coding is always acceptable, unless
+  //    specifically refused because the Accept-Encoding field includes
+  //    "identity;q=0", or because the field includes "*;q=0" and does
+  //    not explicitly include the "identity" content-coding. If the
+  //    Accept-Encoding field-value is empty, then only the "identity"
+  //    encoding is acceptable.
+  //
+  // If no Accept-Encoding field is present in a request, the server
+  // MAY assume that the client will accept any content coding. In
+  // this case, if "identity" is one of the available content-codings,
+  // then the server SHOULD use the "identity" content-coding...
+  Option<string> accept = headers.get("Accept-Encoding");
+
+  if (accept.isNone() || accept.get().empty()) {
+    return false;
+  }
+
+  // Remove spaces and tabs for easier parsing.
+  accept = strings::remove(accept.get(), " ");
+  accept = strings::remove(accept.get(), "\t");
+  accept = strings::remove(accept.get(), "\n");
 
   // First we'll look for the encoding specified explicitly, then '*'.
   vector<string> candidates;
@@ -145,11 +160,17 @@ bool Request::acceptsEncoding(const string& encoding) const
 
   foreach (const string& candidate, candidates) {
     // Is the candidate one of the accepted encodings?
-    foreach (const string& _encoding, strings::tokenize(accepted.get(), ",")) {
-      if (strings::startsWith(_encoding, candidate)) {
+    foreach (const string& encoding_, strings::tokenize(accept.get(), ",")) {
+      vector<string> tokens = strings::tokenize(encoding_, ";");
+
+      if (tokens.empty()) {
+        continue;
+      }
+
+      if (strings::lower(tokens[0]) == strings::lower(candidate)) {
         // Is there a 0 q value? Ex: 'gzip;q=0.0'.
         const map<string, vector<string>> values =
-          strings::pairs(_encoding, ";", "=");
+          strings::pairs(encoding_, ";", "=");
 
         // Look for { "q": ["0"] }.
         if (values.count("q") == 0 || values.find("q")->second.size() != 1) {
@@ -164,15 +185,6 @@ bool Request::acceptsEncoding(const string& encoding) const
     }
   }
 
-  // NOTE: 3 and 4 are partially ignored since we can only provide gzip.
-  // 3. If multiple content-codings are acceptable, then the acceptable
-  //    content-coding with the highest non-zero qvalue is preferred.
-  // 4. The "identity" content-coding is always acceptable, unless
-  //    specifically refused because the Accept-Encoding field includes
-  //    "identity;q=0", or because the field includes "*;q=0" and does
-  //    not explicitly include the "identity" content-coding. If the
-  //    Accept-Encoding field-value is empty, then only the "identity"
-  //    encoding is acceptable.
   return false;
 }
 
