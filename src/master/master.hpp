@@ -717,7 +717,8 @@ private:
 
   void _subscribe(
       HttpConnection http,
-      const scheduler::Call::Subscribe& subscribe);
+      const scheduler::Call::Subscribe& subscribe,
+      const process::Future<bool>& authorized);
 
   void subscribe(
       const process::UPID& from,

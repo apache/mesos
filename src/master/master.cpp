@@ -1824,16 +1824,51 @@ void Master::subscribe(
     return;
   }
 
-  // TODO(anand): Authorize the framework.
-  this->_subscribe(http, subscribe);
+  // Need to disambiguate for the compiler.
+  void (Master::*_subscribe)(
+      HttpConnection,
+      const scheduler::Call::Subscribe&,
+      const Future<bool>&) = &Self::_subscribe;
+
+  authorizeFramework(frameworkInfo)
+    .onAny(defer(self(),
+                 _subscribe,
+                 http,
+                 subscribe,
+                 lambda::_1));
 }
 
 
 void Master::_subscribe(
     HttpConnection http,
-    const scheduler::Call::Subscribe& subscribe)
+    const scheduler::Call::Subscribe& subscribe,
+    const Future<bool>& authorized)
 {
   const FrameworkInfo& frameworkInfo = subscribe.framework_info();
+
+  CHECK(!authorized.isDiscarded());
+
+  Option<Error> authorizationError = None();
+
+  if (authorized.isFailed()) {
+    authorizationError =
+      Error("Authorization failure: " + authorized.failure());
+  } else if (!authorized.get()) {
+    authorizationError =
+      Error("Not authorized to use role '" + frameworkInfo.role() + "'");
+  }
+
+  if (authorizationError.isSome()) {
+    LOG(INFO) << "Refusing subscription of framework"
+              << " '" << frameworkInfo.name() << "'"
+              << ": " << authorizationError.get().message;
+
+    FrameworkErrorMessage message;
+    message.set_message(authorizationError.get().message);
+    http.send(message);
+    http.close();
+    return;
+  }
 
   LOG(INFO) << "Subscribing framework '" << frameworkInfo.name()
             << "' with checkpointing "
@@ -2056,9 +2091,15 @@ void Master::subscribe(
                  << " does not set 'principal' in FrameworkInfo";
   }
 
+  // Need to disambiguate for the compiler.
+  void (Master::*_subscribe)(
+      const UPID&,
+      const scheduler::Call::Subscribe&,
+      const Future<bool>&) = &Self::_subscribe;
+
   authorizeFramework(frameworkInfo)
     .onAny(defer(self(),
-                 &Master::_subscribe,
+                 _subscribe,
                  from,
                  subscribe,
                  lambda::_1));
