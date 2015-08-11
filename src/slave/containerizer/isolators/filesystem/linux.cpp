@@ -34,6 +34,8 @@
 #include "linux/fs.hpp"
 #include "linux/ns.hpp"
 
+#include "slave/paths.hpp"
+
 #include "slave/containerizer/isolators/filesystem/linux.hpp"
 
 using namespace process;
@@ -109,8 +111,26 @@ Future<Nothing> LinuxFilesystemIsolatorProcess::_recover(
     const list<ContainerState>& states,
     const hashset<ContainerID>& orphans)
 {
+  // Read the mount table in the host mount namespace to recover paths
+  // to containers' work directories if their root filesystems are
+  // changed. Method 'cleanup()' relies on this information to clean
+  // up mounts in the host mount namespace for each container.
+  Try<fs::MountInfoTable> table = fs::MountInfoTable::read();
+  if (table.isError()) {
+    return Failure("Failed to get mount table: " + table.error());
+  }
+
   foreach (const ContainerState& state, states) {
-    infos.put(state.container_id(), Owned<Info>(new Info(state.directory())));
+    Owned<Info> info(new Info(state.directory()));
+
+    foreach (const fs::MountInfoTable::Entry& entry, table.get().entries) {
+      if (entry.root == info->directory) {
+        info->sandbox = entry.target;
+        break;
+      }
+    }
+
+    infos.put(state.container_id(), info);
   }
 
   // TODO(jieyu): Clean up unknown containers' work directory mounts
@@ -173,6 +193,8 @@ Future<Option<ContainerPrepareInfo>> LinuxFilesystemIsolatorProcess::_prepare(
 {
   CHECK(infos.contains(containerId));
 
+  const Owned<Info>& info = infos[containerId];
+
   ContainerPrepareInfo prepareInfo;
 
   // If the container changes its root filesystem, we need to mount
@@ -187,6 +209,9 @@ Future<Option<ContainerPrepareInfo>> LinuxFilesystemIsolatorProcess::_prepare(
   if (rootfs.isSome()) {
     // This is the mount point of the work directory in the root filesystem.
     const string sandbox = path::join(rootfs.get(), flags.sandbox_directory);
+
+    // Save the path 'sandbox' which will be used in 'cleanup()'.
+    info->sandbox = sandbox;
 
     if (!os::exists(sandbox)) {
       Try<Nothing> mkdir = os::mkdir(sandbox);
@@ -258,6 +283,10 @@ Try<string> LinuxFilesystemIsolatorProcess::script(
   ostringstream out;
   out << "#!/bin/sh\n";
   out << "set -x -e\n";
+
+  // Make sure mounts in the container mount namespace do not
+  // propagate back to the host mount namespace.
+  out << "mount --make-rslave /\n";
 
   foreach (const Volume& volume, executorInfo.container().volumes()) {
     if (!volume.has_host_path()) {
@@ -375,7 +404,166 @@ Future<Nothing> LinuxFilesystemIsolatorProcess::update(
     const ContainerID& containerId,
     const Resources& resources)
 {
-  // TODO(jieyu): Update persistent volumes in this function.
+  // Mount persistent volumes. We do this in the host namespace and
+  // rely on mount propagation for them to be visible inside the
+  // container.
+  if (!infos.contains(containerId)) {
+    return Failure("Unknown container");
+  }
+
+  const Owned<Info>& info = infos[containerId];
+
+  Resources current = info->resources;
+
+  // We first remove unneeded persistent volumes.
+  foreach (const Resource& resource, current.persistentVolumes()) {
+    // This is enforced by the master.
+    CHECK(resource.disk().has_volume());
+
+    // Ignore absolute and nested paths.
+    const string& containerPath = resource.disk().volume().container_path();
+    if (strings::contains(containerPath, "/")) {
+      LOG(WARNING) << "Skipping updating mount for persistent volume "
+                   << resource << " of container " << containerId
+                   << " because the container path '" << containerPath
+                   << "' contains slash";
+      continue;
+    }
+
+    if (resources.contains(resource)) {
+      continue;
+    }
+
+    // Determine the target of the mount.
+    string target;
+
+    if (info->sandbox.isSome()) {
+      target = path::join(info->sandbox.get(), containerPath);
+    } else {
+      target = path::join(info->directory, containerPath);
+    }
+
+    LOG(INFO) << "Removing mount '" << target << "' for persistent volume "
+              << resource << " of container " << containerId;
+
+    // The unmount will fail if the task/executor is still using files
+    // or directories under 'target'.
+    Try<Nothing> unmount = fs::unmount(target);
+    if (unmount.isError()) {
+      return Failure(
+          "Failed to unmount unneeded persistent volume at '" +
+          target + "': " + unmount.error());
+    }
+
+    // NOTE: This is a non-recursive rmdir.
+    Try<Nothing> rmdir = os::rmdir(target, false);
+    if (rmdir.isError()) {
+      return Failure(
+          "Failed to remove persistent volume mount point at '" +
+          target + "': " + rmdir.error());
+    }
+  }
+
+  // We then mount new persistent volumes.
+  foreach (const Resource& resource, resources.persistentVolumes()) {
+    // This is enforced by the master.
+    CHECK(resource.disk().has_volume());
+
+    // Ignore absolute and nested paths.
+    const string& containerPath = resource.disk().volume().container_path();
+    if (strings::contains(containerPath, "/")) {
+      LOG(WARNING) << "Skipping updating mount for persistent volume "
+                   << resource << " of container " << containerId
+                   << " because the container path '" << containerPath
+                   << "' contains slash";
+      continue;
+    }
+
+    if (current.contains(resource)) {
+      continue;
+    }
+
+    // Determine the source of the mount.
+    string source = paths::getPersistentVolumePath(
+        flags.work_dir,
+        resource.role(),
+        resource.disk().persistence().id());
+
+    // Set the ownership of the persistent volume to match that of the
+    // sandbox directory.
+    //
+    // NOTE: Currently, persistent volumes in Mesos are exclusive,
+    // meaning that if a persistent volume is used by one task or
+    // executor, it cannot be concurrently used by other task or
+    // executor. But if we allow multiple executors to use same
+    // persistent volume at the same time in the future, the ownership
+    // of the persistent volume may conflict here.
+    //
+    // TODO(haosdent): Consider letting the frameworks specify the
+    // user/group of the persistent volumes.
+    struct stat s;
+    if (::stat(info->directory.c_str(), &s) < 0) {
+      return Failure(
+          "Failed to get ownership for '" + info->directory +
+          "': " + strerror(errno));
+    }
+
+    LOG(INFO) << "Changing the ownership of the persistent volume at '"
+              << source << "' with uid " << s.st_uid
+              << " and gid " << s.st_gid;
+
+    Try<Nothing> chown = os::chown(s.st_uid, s.st_gid, source, true);
+    if (chown.isError()) {
+      return Failure(
+          "Failed to change the ownership of the persistent volume at '" +
+          source + "' with uid " + stringify(s.st_uid) +
+          " and gid " + stringify(s.st_gid) + ": " + chown.error());
+    }
+
+    // Determine the target of the mount.
+    string target;
+
+    if (info->sandbox.isSome()) {
+      target = path::join(info->sandbox.get(), containerPath);
+    } else {
+      target = path::join(info->directory, containerPath);
+    }
+
+    if (os::exists(target)) {
+      // NOTE: This is possible because 'info->resources' will be
+      // reset when slave restarts and recovers. When the slave calls
+      // 'containerizer->update' after the executor re-registers,
+      // we'll try to re-mount all the already mounted volumes.
+
+      // TODO(jieyu): Check the source of the mount matches the entry
+      // with the same target in the mount table if one can be found.
+      // If not, mount the persistent volume as we did below. This is
+      // possible because the slave could crash after it unmounts the
+      // volume but before it is able to delete the mount point.
+    } else {
+      Try<Nothing> mkdir = os::mkdir(target);
+      if (mkdir.isError()) {
+        return Failure(
+            "Failed to create persistent volume mount point at '" +
+            target + "': " + mkdir.error());
+      }
+
+      LOG(INFO) << "Mounting '" << source << "' to '" << target
+                << "' for persistent volume " << resource
+                << " of container " << containerId;
+
+      Try<Nothing> mount = fs::mount(source, target, None(), MS_BIND, NULL);
+      if (mount.isError()) {
+        return Failure(
+            "Failed to mount persistent volume from '" +
+            source + "' to '" + target + "': " + mount.error());
+      }
+    }
+  }
+
+  // Store the new resources;
+  info->resources = resources;
+
   return Nothing();
 }
 
@@ -400,31 +588,56 @@ Future<Nothing> LinuxFilesystemIsolatorProcess::cleanup(
 
   const Owned<Info>& info = infos[containerId];
 
-  // Cleanup the mounts for this container in the host mount
-  // namespace, including container's work directory (if container
-  // root filesystem is used), and all the persistent volume mounts.
-  //
   // NOTE: We don't need to cleanup mounts in the container's mount
   // namespace because it's done automatically by the kernel when the
   // mount namespace is destroyed after the last process terminates.
+
+  // The path to the container' work directory which is the parent of
+  // all the persistent volume mounts.
+  string sandbox;
+
+  if (info->sandbox.isSome()) {
+    sandbox = info->sandbox.get();
+  } else {
+    sandbox = info->directory;
+  }
+
+  // Cleanup the mounts for this container in the host mount
+  // namespace, including container's work directory (if container
+  // root filesystem is used), and all the persistent volume mounts.
   Try<fs::MountInfoTable> table = fs::MountInfoTable::read();
   if (table.isError()) {
     return Failure("Failed to get mount table: " + table.error());
   }
 
   foreach (const fs::MountInfoTable::Entry& entry, table.get().entries) {
-    // NOTE: Currently, all persistent volumes are mounted at targets
-    // under the container's work directory.
-    if (entry.root == info->directory ||
-        strings::startsWith(entry.target, info->directory)) {
-      LOG(INFO) << "Unmounting '" << entry.target
+    // NOTE: All persistent volumes are mounted at targets under the
+    // container's work directory.
+    if (entry.target != sandbox &&
+        strings::startsWith(entry.target, sandbox)) {
+      LOG(INFO) << "Unmounting volume '" << entry.target
                 << "' for container " << containerId;
 
       Try<Nothing> unmount = fs::unmount(entry.target, MNT_DETACH);
       if (unmount.isError()) {
         return Failure(
-            "Failed to unmount '" + entry.target + "': " + unmount.error());
+            "Failed to unmount volume '" + entry.target +
+            "': " + unmount.error());
       }
+    }
+  }
+
+  // Cleanup the container's work directory mount. We only need to do
+  // that if the container specifies a filesystem root.
+  if (info->sandbox.isSome()) {
+    LOG(INFO) << "Unmounting sandbox '" << info->sandbox.get()
+              << "' for container " << containerId;
+
+    Try<Nothing> unmount = fs::unmount(info->sandbox.get(), MNT_DETACH);
+    if (unmount.isError()) {
+      return Failure(
+          "Failed to unmount sandbox '" + info->sandbox.get() +
+          "': " + unmount.error());
     }
   }
 

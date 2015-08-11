@@ -105,6 +105,16 @@ private:
     Info(const std::string& _directory) : directory(_directory) {}
 
     const std::string directory;
+
+    // The absolute path to the container's work directory mount point
+    // in the new root filesystem if the container changes its root
+    // filesystem (i.e., '<rootfs>/<flags.sandbox_directory>'). If the
+    // container does not specify a root filesystem, this field will
+    // not be set.
+    Option<std::string> sandbox;
+
+    // Track resources so we can unmount unneeded persistent volumes.
+    Resources resources;
   };
 
   hashmap<ContainerID, process::Owned<Info>> infos;
