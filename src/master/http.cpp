@@ -326,6 +326,12 @@ const string Master::Http::SCHEDULER_HELP = HELP(
 
 Future<Response> Master::Http::scheduler(const Request& request) const
 {
+  if (master->flags.authenticate_frameworks) {
+    return Unauthorized(
+        "Mesos master",
+        "HTTP schedulers are not supported when authentication is required");
+  }
+
   v1::scheduler::Call v1Call;
 
   // TODO(anand): Content type values are case-insensitive.

@@ -53,6 +53,7 @@ using process::http::BadRequest;
 using process::http::OK;
 using process::http::Pipe;
 using process::http::Response;
+using process::http::Unauthorized;
 using process::http::UnsupportedMediaType;
 
 using recordio::Decoder;
@@ -98,13 +99,6 @@ public:
 
     return stringify(JSON::Protobuf(call));
   }
-
-  master::Flags masterFlags()
-  {
-    master::Flags flags = CreateMasterFlags();
-    flags.authenticate_frameworks = false;
-    return flags;
-  }
 };
 
 
@@ -125,10 +119,34 @@ INSTANTIATE_TEST_CASE_P(
 //  timeout and should succeed.
 
 
+TEST_F(HttpApiTest, AuthenticationRequired)
+{
+  master::Flags flags = CreateMasterFlags();
+  flags.authenticate_frameworks = true;
+
+  Try<PID<Master>> master = StartMaster(flags);
+  ASSERT_SOME(master);
+
+  Future<Response> response = process::http::post(
+      master.get(),
+      "api/v1/scheduler",
+      None(),
+      None());
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(
+      Unauthorized("Mesos master").status,
+      response);
+}
+
+
 // TODO(anand): Add additional tests for validation.
 TEST_F(HttpApiTest, NoContentType)
 {
-  Try<PID<Master>> master = StartMaster();
+  // HTTP schedulers cannot yet authenticate.
+  master::Flags flags = CreateMasterFlags();
+  flags.authenticate_frameworks = false;
+
+  Try<PID<Master>> master = StartMaster(flags);
   ASSERT_SOME(master);
 
   // Expect a BadRequest when 'Content-Type' is omitted.
@@ -149,7 +167,11 @@ TEST_F(HttpApiTest, NoContentType)
 // into a valid protobuf resulting in a BadRequest.
 TEST_F(HttpApiTest, ValidJsonButInvalidProtobuf)
 {
-  Try<PID<Master>> master = StartMaster();
+  // HTTP schedulers cannot yet authenticate.
+  master::Flags flags = CreateMasterFlags();
+  flags.authenticate_frameworks = false;
+
+  Try<PID<Master>> master = StartMaster(flags);
   ASSERT_SOME(master);
 
   JSON::Object object;
@@ -173,7 +195,11 @@ TEST_F(HttpApiTest, ValidJsonButInvalidProtobuf)
 // into a valid protobuf resulting in a BadRequest.
 TEST_P(HttpApiTest, MalformedContent)
 {
-  Try<PID<Master>> master = StartMaster();
+  // HTTP schedulers cannot yet authenticate.
+  master::Flags flags = CreateMasterFlags();
+  flags.authenticate_frameworks = false;
+
+  Try<PID<Master>> master = StartMaster(flags);
   ASSERT_SOME(master);
 
   const std::string body = "MALFORMED_CONTENT";
@@ -197,7 +223,11 @@ TEST_P(HttpApiTest, MalformedContent)
 // should result in a 415 (UnsupportedMediaType) response.
 TEST_P(HttpApiTest, UnsupportedContentMediaType)
 {
-  Try<PID<Master>> master = StartMaster();
+  // HTTP schedulers cannot yet authenticate.
+  master::Flags flags = CreateMasterFlags();
+  flags.authenticate_frameworks = false;
+
+  Try<PID<Master>> master = StartMaster(flags);
   ASSERT_SOME(master);
 
   const std::string contentType = GetParam();
@@ -227,7 +257,11 @@ TEST_P(HttpApiTest, UnsupportedContentMediaType)
 // event on the stream in response to a Subscribe call request.
 TEST_P(HttpApiTest, Subscribe)
 {
-  Try<PID<Master>> master = StartMaster(masterFlags());
+  // HTTP schedulers cannot yet authenticate.
+  master::Flags flags = CreateMasterFlags();
+  flags.authenticate_frameworks = false;
+
+  Try<PID<Master>> master = StartMaster(flags);
   ASSERT_SOME(master);
 
   Call call;
@@ -276,7 +310,11 @@ TEST_P(HttpApiTest, Subscribe)
 // e.g. after a ZK blip.
 TEST_P(HttpApiTest, SubscribedOnRetryWithForce)
 {
-  Try<PID<Master>> master = StartMaster(masterFlags());
+  // HTTP schedulers cannot yet authenticate.
+  master::Flags flags = CreateMasterFlags();
+  flags.authenticate_frameworks = false;
+
+  Try<PID<Master>> master = StartMaster(flags);
   ASSERT_SOME(master);
 
   Call call;
@@ -359,7 +397,11 @@ TEST_P(HttpApiTest, SubscribedOnRetryWithForce)
 // framework to HTTP when force is set.
 TEST_P(HttpApiTest, UpdatePidToHttpScheduler)
 {
-  Try<PID<Master>> master = StartMaster(masterFlags());
+  // HTTP schedulers cannot yet authenticate.
+  master::Flags flags = CreateMasterFlags();
+  flags.authenticate_frameworks = false;
+
+  Try<PID<Master>> master = StartMaster(flags);
   ASSERT_SOME(master);
 
   v1::FrameworkInfo frameworkInfo = DEFAULT_V1_FRAMEWORK_INFO;
@@ -444,7 +486,11 @@ TEST_P(HttpApiTest, UpdatePidToHttpScheduler)
 // framework is already connected.
 TEST_P(HttpApiTest, UpdatePidToHttpSchedulerWithoutForce)
 {
-  Try<PID<Master>> master = StartMaster(masterFlags());
+  // HTTP schedulers cannot yet authenticate.
+  master::Flags flags = CreateMasterFlags();
+  flags.authenticate_frameworks = false;
+
+  Try<PID<Master>> master = StartMaster(flags);
   ASSERT_SOME(master);
 
   v1::FrameworkInfo frameworkInfo = DEFAULT_V1_FRAMEWORK_INFO;
