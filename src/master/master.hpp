@@ -1257,12 +1257,9 @@ struct HttpConnection
   template <typename Message>
   bool send(const Message& message)
   {
-    // We need to evolve the internal "message" into a
-    // 'v1::scheduler::Event' which we then devolve back to an
-    // pre-versioned 'scheduler::Event' which we use internally.
-    //
-    // TODO(benh): This should only support v1!
-    return writer.write(encoder.encode(devolve(evolve(message))));
+    // We need to evolve the internal 'message' into a
+    // 'v1::scheduler::Event'.
+    return writer.write(encoder.encode(evolve(message)));
   }
 
   bool close()
@@ -1277,7 +1274,7 @@ struct HttpConnection
 
   process::http::Pipe::Writer writer;
   ContentType contentType;
-  recordio::Encoder<scheduler::Event> encoder;
+  recordio::Encoder<v1::scheduler::Event> encoder;
 };
 
 

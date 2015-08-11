@@ -49,6 +49,8 @@
 #include "common/http.hpp"
 #include "common/protobuf_utils.hpp"
 
+#include "internal/devolve.hpp"
+
 #include "logging/logging.hpp"
 
 #include "master/master.hpp"
@@ -324,7 +326,7 @@ const string Master::Http::SCHEDULER_HELP = HELP(
 
 Future<Response> Master::Http::scheduler(const Request& request) const
 {
-  scheduler::Call call;
+  v1::scheduler::Call v1Call;
 
   // TODO(anand): Content type values are case-insensitive.
   Option<string> contentType = request.headers.get("Content-Type");
@@ -334,7 +336,7 @@ Future<Response> Master::Http::scheduler(const Request& request) const
   }
 
   if (contentType.get() == APPLICATION_PROTOBUF) {
-    if (!call.ParseFromString(request.body)) {
+    if (!v1Call.ParseFromString(request.body)) {
       return BadRequest("Failed to parse body into Call protobuf");
     }
   } else if (contentType.get() == APPLICATION_JSON) {
@@ -344,20 +346,22 @@ Future<Response> Master::Http::scheduler(const Request& request) const
       return BadRequest("Failed to parse body into JSON: " + value.error());
     }
 
-    Try<scheduler::Call> parse =
-      ::protobuf::parse<scheduler::Call>(value.get());
+    Try<v1::scheduler::Call> parse =
+      ::protobuf::parse<v1::scheduler::Call>(value.get());
 
     if (parse.isError()) {
       return BadRequest("Failed to convert JSON into Call protobuf: " +
                         parse.error());
     }
 
-    call = parse.get();
+    v1Call = parse.get();
   } else {
     return UnsupportedMediaType(
         string("Expecting 'Content-Type' of ") +
         APPLICATION_JSON + " or " + APPLICATION_PROTOBUF);
   }
+
+  scheduler::Call call = devolve(v1Call);
 
   Option<Error> error = validation::scheduler::call::validate(call);
 
