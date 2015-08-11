@@ -3529,7 +3529,7 @@ string PortMappingIsolatorProcess::scripts(Info* info)
   ostringstream script;
 
   script << "#!/bin/sh\n";
-  script << "set -x\n";
+  script << "set -xe\n";
 
   // Mark the mount point PORT_MAPPING_BIND_MOUNT_ROOT() as slave
   // mount so that changes in the container will not be propagated to
