@@ -81,11 +81,13 @@ layout: documentation
 * [Whisk](http://www.whisk.com)
 * [Wizcorp](http://www.wizcorp.jp)
 * [WooRank](http://www.woorank.com)
+* [Xiaomi](http://www.xiaomi.com)
+* [Xogito](http://www.xogito.com)
 * [Yelp](http://www.yelp.com)
 * [Yieldbot](http://www.yieldbot.com)
 * [Yodle](http://www.yodle.com)
-* [Xiaomi](http://www.xiaomi.com)
-* [Xogito](http://www.xogito.com)
+* [YP](http://yp.com)
+
 
 ## Software projects built on Mesos
 
