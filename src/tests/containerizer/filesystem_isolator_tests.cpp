@@ -332,7 +332,7 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_VolumeFromHostSandboxMountPoint)
 
 // This test verifies that persistent volumes are properly mounted in
 // the container's root filesystem.
-TEST_F(LinuxFilesystemIsolatorTest, ROOT_PersistentVolume)
+TEST_F(LinuxFilesystemIsolatorTest, ROOT_PersistentVolumeWithRootFilesystem)
 {
   slave::Flags flags = CreateSlaveFlags();
   flags.work_dir = os::getcwd();
@@ -354,6 +354,66 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_PersistentVolume)
       "volume"));
 
   executor.mutable_container()->CopyFrom(createContainerInfo());
+
+  // Create a persistent volume.
+  string volume = slave::paths::getPersistentVolumePath(
+      os::getcwd(),
+      "test_role",
+      "persistent_volume_id");
+
+  ASSERT_SOME(os::mkdir(volume));
+
+  string directory = path::join(os::getcwd(), "sandbox");
+  ASSERT_SOME(os::mkdir(directory));
+
+  Future<bool> launch = containerizer.get()->launch(
+      containerId,
+      executor,
+      directory,
+      None(),
+      SlaveID(),
+      PID<Slave>(),
+      false);
+
+  // Wait for the launch to complete.
+  AWAIT_READY(launch);
+
+  // Wait on the container.
+  Future<containerizer::Termination> wait =
+    containerizer.get()->wait(containerId);
+
+  AWAIT_READY(wait);
+
+  // Check the executor exited correctly.
+  EXPECT_TRUE(wait.get().has_status());
+  EXPECT_EQ(0, wait.get().status());
+
+  EXPECT_SOME_EQ("abc\n", os::read(path::join(volume, "file")));
+}
+
+
+TEST_F(LinuxFilesystemIsolatorTest, ROOT_PersistentVolumeWithoutRootFilesystem)
+{
+  slave::Flags flags = CreateSlaveFlags();
+  flags.work_dir = os::getcwd();
+
+  Try<Owned<MesosContainerizer>> containerizer = createContainerizer(flags);
+  ASSERT_SOME(containerizer);
+
+  ContainerID containerId;
+  containerId.set_value(UUID::random().toString());
+
+  ExecutorInfo executor = CREATE_EXECUTOR_INFO(
+      "test_executor",
+      "echo abc > volume/file");
+
+  executor.add_resources()->CopyFrom(createPersistentVolume(
+      Megabytes(32),
+      "test_role",
+      "persistent_volume_id",
+      "volume"));
+
+  executor.mutable_container()->CopyFrom(createContainerInfo({}, false));
 
   // Create a persistent volume.
   string volume = slave::paths::getPersistentVolumePath(
