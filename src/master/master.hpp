@@ -1274,7 +1274,7 @@ struct HttpConnection
 
   process::http::Pipe::Writer writer;
   ContentType contentType;
-  recordio::Encoder<v1::scheduler::Event> encoder;
+  ::recordio::Encoder<v1::scheduler::Event> encoder;
 };
 
 
