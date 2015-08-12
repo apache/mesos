@@ -27,10 +27,30 @@
 
 namespace os {
 
-// Runs a shell command formatted with varargs and return the return value
-// of the command. Optionally, the output is returned via an argument.
-// TODO(vinod): Pass an istream object that can provide input to the command.
-inline Try<int> shell(std::ostream* os, const std::string fmt, ...)
+/**
+ * Runs a shell command with optional arguments.
+ *
+ * This assumes that a successful execution will result in the exit code
+ * for the command to be `EXIT_SUCCESS`; in this case, the contents
+ * of the `Try` will be the contents of `stdout`.
+ *
+ * If the exit code is non-zero or the process was signaled, we will
+ * return an appropriate error message; but *not* `stderr`.
+ *
+ * If the caller needs to examine the contents of `stderr` it should
+ * be redirected to `stdout` (using, e.g., "2>&1 || true" in the command
+ * string).  The `|| true` is required to obtain a success exit
+ * code in case of errors, and still obtain `stderr`, as piped to
+ * `stdout`.
+ *
+ * @param fmt the formatting string that contains the command to execute
+ *   in the underlying shell.
+ * @param varargs optional arguments for `fmt`.
+ *
+ * @return the output from running the specified command with the shell; or
+ *   an error message if the command's exit code is non-zero.
+ */
+inline Try<std::string> shell(const std::string fmt, ...)
 {
   va_list args;
   va_start(args, fmt);
@@ -44,6 +64,7 @@ inline Try<int> shell(std::ostream* os, const std::string fmt, ...)
   }
 
   FILE* file;
+  std::ostringstream stdout;
 
   if ((file = popen(command.get().c_str(), "r")) == NULL) {
     return Error("Failed to run '" + command.get() + "'");
@@ -53,9 +74,7 @@ inline Try<int> shell(std::ostream* os, const std::string fmt, ...)
   // NOTE(vinod): Ideally the if and while loops should be interchanged. But
   // we get a broken pipe error if we don't read the output and simply close.
   while (fgets(line, sizeof(line), file) != NULL) {
-    if (os != NULL) {
-      *os << line;
-    }
+    stdout << line;
   }
 
   if (ferror(file) != 0) {
@@ -68,7 +87,20 @@ inline Try<int> shell(std::ostream* os, const std::string fmt, ...)
     return Error("Failed to get status of '" + command.get() + "'");
   }
 
-  return status;
+  if (WIFSIGNALED(status)) {
+    return Error(
+        "Running '" + command.get() + "' was interrupted by signal '" +
+        strsignal(WTERMSIG(status)) + "'");
+  } else if ((WEXITSTATUS(status) != EXIT_SUCCESS)) {
+    LOG(ERROR) << "Command '" << command.get()
+               << "' failed; this is the output:\n" << stdout.str();
+    return Error(
+        "Failed to execute '" + command.get() + "'; the command was either "
+        "not found or exited with a non-zero exit status: " +
+        stringify(WEXITSTATUS(status)));
+  }
+
+  return stdout.str();
 }
 
 } // namespace os {

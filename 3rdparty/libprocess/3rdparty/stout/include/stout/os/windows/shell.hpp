@@ -27,7 +27,7 @@ namespace os {
 // Runs a shell command formatted with varargs and return the return value
 // of the command. Optionally, the output is returned via an argument.
 // TODO(vinod): Pass an istream object that can provide input to the command.
-inline Try<int> shell(std::ostream* os, const std::string fmt, ...)
+inline Try<std::string> shell(const std::string fmt, ...)
 {
   UNIMPLEMENTED;
 }

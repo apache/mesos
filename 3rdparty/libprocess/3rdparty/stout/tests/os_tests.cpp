@@ -882,21 +882,21 @@ TEST_F(OsTest, ProcessExists)
 
 TEST_F(OsTest, User)
 {
-  std::ostringstream user_;
-  EXPECT_SOME_EQ(0, os::shell(&user_ , "id -un"));
+  Try<string> user_ = os::shell("id -un");
+  EXPECT_SOME(user_);
 
   Result<string> user = os::user();
-  ASSERT_SOME_EQ(strings::trim(user_.str()), user);
+  ASSERT_SOME_EQ(strings::trim(user_.get()), user);
 
-  std::ostringstream uid_;
-  EXPECT_SOME_EQ(0, os::shell(&uid_, "id -u"));
-  Try<uid_t> uid = numify<uid_t>(strings::trim(uid_.str()));
+  Try<string> uid_ = os::shell("id -u");
+  EXPECT_SOME(uid_);
+  Try<uid_t> uid = numify<uid_t>(strings::trim(uid_.get()));
   ASSERT_SOME(uid);
   EXPECT_SOME_EQ(uid.get(), os::getuid(user.get()));
 
-  std::ostringstream gid_;
-  EXPECT_SOME_EQ(0, os::shell(&gid_, "id -g"));
-  Try<gid_t> gid = numify<gid_t>(strings::trim(gid_.str()));
+  Try<string> gid_ = os::shell("id -g");
+  EXPECT_SOME(gid_);
+  Try<gid_t> gid = numify<gid_t>(strings::trim(gid_.get()));
   ASSERT_SOME(gid);
   EXPECT_SOME_EQ(gid.get(), os::getgid(user.get()));
 
@@ -945,6 +945,33 @@ TEST_F(OsTest, Libraries)
   // Reset LD_LIBRARY_PATH.
   os::libraries::setPaths(originalLibraryPath);
   EXPECT_EQ(os::libraries::paths(), originalLibraryPath);
+}
+
+
+TEST_F(OsTest, Shell)
+{
+  Try<string> result = os::shell("echo %s", "hello world");
+  EXPECT_SOME_EQ("hello world\n", result);
+
+  result = os::shell("foobar");
+  EXPECT_ERROR(result);
+
+  // The `|| true`` necessary so that os::shell() sees a success
+  // exit code and returns stdout (which we have piped stderr to).
+  result = os::shell("ls /tmp/foobar889076 2>&1 || true");
+  ASSERT_SOME(result);
+  EXPECT_TRUE(strings::contains(result.get(), "No such file or directory"));
+
+  // Testing a more ambitious command that mutates the filesystem.
+  const string path = "/tmp/os_tests.txt";
+  result = os::shell("touch %s", path.c_str());
+  EXPECT_SOME_EQ("", result);
+  EXPECT_TRUE(os::exists(path));
+
+  // Let's clean up, and ensure this worked too.
+  result = os::shell("rm %s", path.c_str());
+  EXPECT_SOME_EQ("", result);
+  EXPECT_FALSE(os::exists("/tmp/os_tests.txt"));
 }
 
 

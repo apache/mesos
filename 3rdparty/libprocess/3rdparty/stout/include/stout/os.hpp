@@ -295,14 +295,11 @@ inline Try<std::list<std::string> > find(
 // Creates a tar 'archive' with gzip compression, of the given 'path'.
 inline Try<Nothing> tar(const std::string& path, const std::string& archive)
 {
-  Try<int> status =
-    shell(NULL, "tar -czf %s %s", archive.c_str(), path.c_str());
+  Try<std::string> tarOut =
+    os::shell("tar %s %s %s", "-czf", archive.c_str(), path.c_str());
 
-  if (status.isError()) {
-    return Error("Failed to archive " + path + ": " + status.error());
-  } else if (status.get() != 0) {
-    return Error("Non-zero exit status when archiving " + path +
-                 ": " + stringify(status.get()));
+  if (tarOut.isError()) {
+    return Error("Failed to archive " + path + ": " + tarOut.error());
   }
 
   return Nothing();
