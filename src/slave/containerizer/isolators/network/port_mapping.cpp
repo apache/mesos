@@ -1091,22 +1091,14 @@ Try<Isolator*> PortMappingIsolatorProcess::create(const Flags& flags)
   // Check the availability of a few Linux commands that we will use.
   // We use the blocking os::shell here because 'create' will only be
   // invoked during initialization.
-  Try<int> checkCommandTc = os::shell(NULL, "tc filter show");
+  Try<string> checkCommandTc = os::shell("tc filter show");
   if (checkCommandTc.isError()) {
     return Error("Check command 'tc' failed: " + checkCommandTc.error());
-  } else if (checkCommandTc.get() != 0) {
-    return Error(
-        "Check command 'tc' failed: non-zero exit code: " +
-        stringify(checkCommandTc.get()));
   }
 
-  Try<int> checkCommandIp = os::shell(NULL, "ip link show");
+  Try<string> checkCommandIp = os::shell("ip link show");
   if (checkCommandIp.isError()) {
     return Error("Check command 'ip' failed: " + checkCommandIp.error());
-  } else if (checkCommandIp.get() != 0) {
-    return Error(
-        "Check command 'ip' failed: non-zero exit code: " +
-        stringify(checkCommandIp.get()));
   }
 
   Try<Resources> resources = Resources::parse(
@@ -1574,8 +1566,7 @@ Try<Isolator*> PortMappingIsolatorProcess::create(const Flags& flags)
     // issues for the shell command 'mount --make-rslave' inside the
     // container. It's OK to use the blocking os::shell here because
     // 'create' will only be invoked during initialization.
-    Try<int> mount = os::shell(
-        NULL,
+    Try<string> mount = os::shell(
         "mount --bind %s %s",
         PORT_MAPPING_BIND_MOUNT_ROOT().c_str(),
         PORT_MAPPING_BIND_MOUNT_ROOT().c_str());
@@ -1584,17 +1575,12 @@ Try<Isolator*> PortMappingIsolatorProcess::create(const Flags& flags)
       return Error(
           "Failed to self bind mount '" + PORT_MAPPING_BIND_MOUNT_ROOT() +
           "': " + mount.error());
-    } else if (mount.get() != 0) {
-      return Error(
-          "Failed to self bind mount '" + PORT_MAPPING_BIND_MOUNT_ROOT() +
-          "': non-zero exit code: " + stringify(mount.get()));
     }
   }
 
   // Mark the mount point PORT_MAPPING_BIND_MOUNT_ROOT() as
   // recursively shared.
-  Try<int> mountShared = os::shell(
-      NULL,
+  Try<string> mountShared = os::shell(
       "mount --make-rshared %s",
       PORT_MAPPING_BIND_MOUNT_ROOT().c_str());
 

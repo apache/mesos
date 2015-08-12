@@ -200,36 +200,13 @@ int main(int argc, char** argv)
   }
 
   if (ip_discovery_command.isSome()) {
-    ostringstream out;
+    Try<string> ipAddress = os::shell(ip_discovery_command.get());
 
-    // TODO(marco): Modify os::shell to be used in a less verbose
-    // fashion, see MESOS-3142.
-    Try<int> status = os::shell(&out, ip_discovery_command.get());
-
-    if (status.isError()) {
-      EXIT(EXIT_FAILURE)
-          << "Could not execute '" << ip_discovery_command.get()
-          << "': " << status.error();
-    } else if (WIFSIGNALED(status.get())) {
-      EXIT(EXIT_FAILURE)
-          << "Running '" << ip_discovery_command.get()
-          << "' was interruped by signal '"
-          << strsignal(WTERMSIG(status.get())) << "'";
-    } else if (WEXITSTATUS(status.get()) != EXIT_SUCCESS) {
-      EXIT(EXIT_FAILURE)
-          << "Failed to discover Master IP using '"
-          << ip_discovery_command.get() << "'; the script was either not found "
-          << "or exited with an error code.\n"
-          << "Error code (127 typically indicates command not found): "
-          << stringify(WEXITSTATUS(status.get()));
+    if (ipAddress.isError()) {
+      EXIT(EXIT_FAILURE) << ipAddress.error();
     }
 
-    const string ipAddress = strings::trim(out.str());
-
-    LOG(INFO) << "Configuring Mesos master to listen on IP '"
-              << ipAddress << "'";
-
-    os::setenv("LIBPROCESS_IP", ipAddress);
+    os::setenv("LIBPROCESS_IP", strings::trim(ipAddress.get()));
   } else if (ip.isSome()) {
     os::setenv("LIBPROCESS_IP", ip.get());
   }

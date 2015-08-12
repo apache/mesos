@@ -1250,20 +1250,18 @@ TYPED_TEST(UserCgroupIsolatorTest, ROOT_CGROUPS_UserCgroup)
   //
   // Our 'grep' will only select the 'memory' line and then 'awk' will
   // output 'memory/mesos/b7410ed8-c85b-445e-b50e-3a1698d0e18c'.
-  ostringstream output;
-  Try<int> status = os::shell(
-      &output,
+  Try<string> grepOut = os::shell(
       "grep '" + path::join("/", flags.cgroups_root) + "' /proc/" +
-      stringify(pid) + "/cgroup | awk -F ':' '{print $2$3}'");
+       stringify(pid) + "/cgroup | awk -F ':' '{print $2$3}'");
 
-  ASSERT_SOME(status);
+  ASSERT_SOME(grepOut);
 
   // Kill the dummy child process.
   ::kill(pid, SIGKILL);
   int exitStatus;
   EXPECT_NE(-1, ::waitpid(pid, &exitStatus, 0));
 
-  vector<string> cgroups = strings::tokenize(output.str(), "\n");
+  vector<string> cgroups = strings::tokenize(grepOut.get(), "\n");
   ASSERT_FALSE(cgroups.empty());
 
   foreach (const string& cgroup, cgroups) {

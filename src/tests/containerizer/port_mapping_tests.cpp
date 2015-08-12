@@ -191,14 +191,14 @@ public:
       << "new libnl library, or disable this test case\n"
       << "-------------------------------------------------------------";
 
-    ASSERT_SOME_EQ(0, os::shell(NULL, "which nc"))
+    ASSERT_SOME(os::shell("which nc"))
       << "-------------------------------------------------------------\n"
       << "We cannot run any PortMappingIsolatorTests because 'nc'\n"
       << "could not be found. You can either install 'nc', or disable\n"
       << "this test case\n"
       << "-------------------------------------------------------------";
 
-    ASSERT_SOME_EQ(0, os::shell(NULL, "which arping"))
+    ASSERT_SOME(os::shell("which arping"))
       << "-------------------------------------------------------------\n"
       << "We cannot run some PortMappingIsolatorTests because 'arping'\n"
       << "could not be found. You can either isntall 'arping', or\n"
@@ -838,24 +838,24 @@ TEST_F(PortMappingIsolatorTest, ROOT_NC_HostToContainerUDP)
   // Send to 'localhost' and 'port'.
   ostringstream command2;
   command2 << "printf hello1 | nc -w1 -u localhost " << validPort;
-  ASSERT_SOME_EQ(0, os::shell(NULL, command2.str().c_str()));
+  ASSERT_SOME(os::shell(command2.str()));
 
   // Send to 'localhost' and 'invalidPort'. The command should return
   // successfully because UDP is stateless but no data could be sent.
   ostringstream command3;
   command3 << "printf hello2 | nc -w1 -u localhost " << invalidPort;
-  ASSERT_SOME_EQ(0, os::shell(NULL, command3.str().c_str()));
+  ASSERT_SOME(os::shell(command3.str()));
 
   // Send to 'public IP' and 'port'.
   ostringstream command4;
   command4 << "printf hello3 | nc -w1 -u " << hostIP << " " << validPort;
-  ASSERT_SOME_EQ(0, os::shell(NULL, command4.str().c_str()));
+  ASSERT_SOME(os::shell(command4.str()));
 
   // Send to 'public IP' and 'invalidPort'. The command should return
   // successfully because UDP is stateless but no data could be sent.
   ostringstream command5;
   command5 << "printf hello4 | nc -w1 -u " << hostIP << " " << invalidPort;
-  ASSERT_SOME_EQ(0, os::shell(NULL, command5.str().c_str()));
+  ASSERT_SOME(os::shell(command5.str()));
 
   EXPECT_SOME_EQ("hello1", os::read(trafficViaLoopback));
   EXPECT_SOME_EQ("hello3", os::read(trafficViaPublic));
@@ -955,24 +955,34 @@ TEST_F(PortMappingIsolatorTest, ROOT_NC_HostToContainerTCP)
   // Send to 'localhost' and 'port'.
   ostringstream command2;
   command2 << "printf hello1 | nc localhost " << validPort;
-  ASSERT_SOME_EQ(0, os::shell(NULL, command2.str().c_str()));
+  ASSERT_SOME(os::shell(command2.str()));
 
   // Send to 'localhost' and 'invalidPort'. This should fail because TCP
   // connection couldn't be established..
   ostringstream command3;
   command3 << "printf hello2 | nc localhost " << invalidPort;
-  ASSERT_SOME_EQ(256, os::shell(NULL, command3.str().c_str()));
+  Try<string> invalid = os::shell(command3.str());
+  ASSERT_ERROR(invalid);
+
+  // When the above command fails, it prints an error message that
+  // ends with the error exit code, which happens to be 256.
+  EXPECT_TRUE(strings::contains(invalid.error(), "256"));
 
   // Send to 'public IP' and 'port'.
   ostringstream command4;
   command4 << "printf hello3 | nc " << hostIP << " " << validPort;
-  ASSERT_SOME_EQ(0, os::shell(NULL, command4.str().c_str()));
+  ASSERT_SOME(os::shell(command4.str()));
 
   // Send to 'public IP' and 'invalidPort'. This should fail because TCP
   // connection couldn't be established.
   ostringstream command5;
   command5 << "printf hello4 | nc " << hostIP << " " << invalidPort;
-  ASSERT_SOME_EQ(256, os::shell(NULL, command5.str().c_str()));
+  Try<string> connect = os::shell(command5.str());
+  ASSERT_ERROR(connect);
+
+  // As above, we check that the error message contains the
+  // expected error code.
+  EXPECT_TRUE(strings::contains(connect.error(), "256"));
 
   EXPECT_SOME_EQ("hello1", os::read(trafficViaLoopback));
   EXPECT_SOME_EQ("hello3", os::read(trafficViaPublic));

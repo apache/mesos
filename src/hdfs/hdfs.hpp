@@ -70,12 +70,15 @@ struct HDFS
 
     CHECK_SOME(command);
 
-    Try<int> status = os::shell(NULL, command.get() + " 2>&1");
+    // We are piping stderr to stdout so that we can see the error (if
+    // any) in the logs emitted by `os::shell()` in case of failure.
+    Try<std::string> out = os::shell(command.get() + " 2>&1");
 
-    if(status.isError()) {
-      return Error(status.error());
+    if (out.isError()) {
+      return Error(out.error());
     }
-    return status.get() == 0;
+
+    return true;
   }
 
   Try<bool> exists(std::string path)
@@ -88,13 +91,15 @@ struct HDFS
 
     CHECK_SOME(command);
 
-    Try<int> status = os::shell(NULL, command.get() + " 2>&1");
+    // We are piping stderr to stdout so that we can see the error (if
+    // any) in the logs emitted by `os::shell()` in case of failure.
+    Try<std::string> out = os::shell(command.get() + " 2>&1");
 
-    if (status.isError()) {
-      return Error(status.error());
+    if (out.isError()) {
+      return Error(out.error());
     }
 
-    return status.get() == 0;
+    return true;
   }
 
   Try<Bytes> du(std::string path)
@@ -107,18 +112,21 @@ struct HDFS
 
     CHECK_SOME(command);
 
-    std::ostringstream output;
+    // We are piping stderr to stdout so that we can see the error (if
+    // any) in the logs emitted by `os::shell()` in case of failure.
+    //
+    // TODO(marco): this was the existing logic, but not sure it is
+    // actually needed.
+    Try<std::string> out = os::shell(command.get() + " 2>&1");
 
-    Try<int> status = os::shell(&output, command.get() + " 2>&1");
-
-    if (status.isError()) {
-      return Error("HDFS du failed: " + status.error());
+    if (out.isError()) {
+      return Error("HDFS du failed: " + out.error());
     }
 
-    const std::vector<std::string>& s = strings::split(output.str(), " ");
+    const std::vector<std::string>& s = strings::split(out.get(), " ");
     if (s.size() != 2) {
       return Error("HDFS du returned an unexpected number of results: '" +
-                   output.str() + "'");
+                   out.get() + "'");
     }
 
     Result<size_t> size = numify<size_t>(s[0]);
@@ -141,14 +149,10 @@ struct HDFS
 
     CHECK_SOME(command);
 
-    std::ostringstream output;
+    Try<std::string> out = os::shell(command.get());
 
-    Try<int> status = os::shell(&output, command.get() + " 2>&1");
-
-    if (status.isError()) {
-      return Error(status.error());
-    } else if (status.get() != 0) {
-      return Error(command.get() + "\n" + output.str());
+    if (out.isError()) {
+      return Error(out.error());
     }
 
     return Nothing();
@@ -171,14 +175,10 @@ struct HDFS
 
     CHECK_SOME(command);
 
-    std::ostringstream output;
+    Try<std::string> out = os::shell(command.get());
 
-    Try<int> status = os::shell(&output, command.get() + " 2>&1");
-
-    if (status.isError()) {
-      return Error(status.error());
-    } else if (status.get() != 0) {
-      return Error(command.get() + "\n" + output.str());
+    if (out.isError()) {
+      return Error(out.error());
     }
 
     return Nothing();
@@ -194,14 +194,10 @@ struct HDFS
 
     CHECK_SOME(command);
 
-    std::ostringstream output;
+    Try<std::string> out = os::shell(command.get());
 
-    Try<int> status = os::shell(&output, command.get() + " 2>&1");
-
-    if (status.isError()) {
-      return Error(status.error());
-    } else if (status.get() != 0) {
-      return Error(command.get() + "\n" + output.str());
+    if (out.isError()) {
+      return Error(out.error());
     }
 
     return Nothing();
