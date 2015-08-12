@@ -81,6 +81,12 @@ FrameworkID devolve(const v1::FrameworkID& frameworkId)
 }
 
 
+FrameworkInfo devolve(const v1::FrameworkInfo& frameworkInfo)
+{
+  return devolve<FrameworkInfo>(frameworkInfo);
+}
+
+
 ExecutorID devolve(const v1::ExecutorID& executorId)
 {
   return devolve<ExecutorID>(executorId);

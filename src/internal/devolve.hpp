@@ -38,6 +38,7 @@ namespace internal {
 SlaveID devolve(const v1::AgentID& agentId);
 SlaveInfo devolve(const v1::AgentInfo& agentInfo);
 FrameworkID devolve(const v1::FrameworkID& frameworkId);
+FrameworkInfo devolve(const v1::FrameworkInfo& frameworkInfo);
 ExecutorID devolve(const v1::ExecutorID& executorId);
 Offer devolve(const v1::Offer& offer);
 Credential devolve(const v1::Credential& credential);

@@ -18,7 +18,8 @@
 
 #include <string>
 
-#include <mesos/scheduler.hpp>
+#include <mesos/v1/mesos.hpp>
+#include <mesos/v1/scheduler.hpp>
 
 #include <process/future.hpp>
 #include <process/gtest.hpp>
@@ -42,8 +43,8 @@ using mesos::internal::master::Master;
 
 using mesos::internal::recordio::Reader;
 
-using mesos::scheduler::Call;
-using mesos::scheduler::Event;
+using mesos::v1::scheduler::Call;
+using mesos::v1::scheduler::Event;
 
 using process::Future;
 using process::PID;
@@ -207,7 +208,7 @@ TEST_P(HttpApiTest, UnsupportedContentMediaType)
   call.set_type(Call::SUBSCRIBE);
 
   Call::Subscribe* subscribe = call.mutable_subscribe();
-  subscribe->mutable_framework_info()->CopyFrom(DEFAULT_FRAMEWORK_INFO);
+  subscribe->mutable_framework_info()->CopyFrom(DEFAULT_V1_FRAMEWORK_INFO);
 
   const std::string unknownMediaType = "application/unknown-media-type";
 
@@ -232,10 +233,8 @@ TEST_P(HttpApiTest, Subscribe)
   Call call;
   call.set_type(Call::SUBSCRIBE);
 
-  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
-
   Call::Subscribe* subscribe = call.mutable_subscribe();
-  subscribe->mutable_framework_info()->CopyFrom(frameworkInfo);
+  subscribe->mutable_framework_info()->CopyFrom(DEFAULT_V1_FRAMEWORK_INFO);
 
   // Retrieve the parameter passed as content type to this test.
   const std::string contentType = GetParam();
@@ -283,10 +282,8 @@ TEST_P(HttpApiTest, SubscribedOnRetryWithForce)
   Call call;
   call.set_type(Call::SUBSCRIBE);
 
-  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
-
   Call::Subscribe* subscribe = call.mutable_subscribe();
-  subscribe->mutable_framework_info()->CopyFrom(frameworkInfo);
+  subscribe->mutable_framework_info()->CopyFrom(DEFAULT_V1_FRAMEWORK_INFO);
 
   // Retrieve the parameter passed as content type to this test.
   const std::string contentType = GetParam();
@@ -296,7 +293,7 @@ TEST_P(HttpApiTest, SubscribedOnRetryWithForce)
   auto deserializer =
     lambda::bind(&HttpApiTest::deserialize, this, contentType, lambda::_1);
 
-  FrameworkID frameworkId;
+  v1::FrameworkID frameworkId;
 
   {
     Future<Response> response = process::http::streaming::post(
@@ -365,13 +362,13 @@ TEST_P(HttpApiTest, UpdatePidToHttpScheduler)
   Try<PID<Master>> master = StartMaster(masterFlags());
   ASSERT_SOME(master);
 
-  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  v1::FrameworkInfo frameworkInfo = DEFAULT_V1_FRAMEWORK_INFO;
   frameworkInfo.set_failover_timeout(Weeks(2).secs());
 
   // Start the scheduler without credentials.
   MockScheduler sched;
   StandaloneMasterDetector detector(master.get());
-  TestingMesosSchedulerDriver driver(&sched, &detector, frameworkInfo);
+  TestingMesosSchedulerDriver driver(&sched, &detector, devolve(frameworkInfo));
 
   Future<FrameworkID> frameworkId;
   EXPECT_CALL(sched, registered(&driver, _, _))
@@ -392,13 +389,13 @@ TEST_P(HttpApiTest, UpdatePidToHttpScheduler)
   // Now try to subscribe as an HTTP framework.
   Call call;
   call.set_type(Call::SUBSCRIBE);
-  call.mutable_framework_id()->CopyFrom(frameworkId.get());
+  call.mutable_framework_id()->CopyFrom(evolve(frameworkId.get()));
 
   Call::Subscribe* subscribe = call.mutable_subscribe();
 
   subscribe->mutable_framework_info()->CopyFrom(frameworkInfo);
   subscribe->mutable_framework_info()->mutable_id()->
-    CopyFrom(frameworkId.get());
+    CopyFrom(evolve(frameworkId.get()));
 
   subscribe->set_force(true);
 
@@ -432,7 +429,8 @@ TEST_P(HttpApiTest, UpdatePidToHttpScheduler)
 
   // Check event type is subscribed and the framework id is set.
   ASSERT_EQ(Event::SUBSCRIBED, event.get().get().type());
-  EXPECT_EQ(frameworkId.get(), event.get().get().subscribed().framework_id());
+  EXPECT_EQ(evolve(frameworkId.get()),
+            event.get().get().subscribed().framework_id());
 
   driver.stop();
   driver.join();
@@ -449,13 +447,13 @@ TEST_P(HttpApiTest, UpdatePidToHttpSchedulerWithoutForce)
   Try<PID<Master>> master = StartMaster(masterFlags());
   ASSERT_SOME(master);
 
-  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  v1::FrameworkInfo frameworkInfo = DEFAULT_V1_FRAMEWORK_INFO;
   frameworkInfo.set_failover_timeout(Weeks(2).secs());
 
   // Start the scheduler without credentials.
   MockScheduler sched;
   StandaloneMasterDetector detector(master.get());
-  TestingMesosSchedulerDriver driver(&sched, &detector, frameworkInfo);
+  TestingMesosSchedulerDriver driver(&sched, &detector, devolve(frameworkInfo));
 
   Future<FrameworkID> frameworkId;
   EXPECT_CALL(sched, registered(&driver, _, _))
@@ -470,12 +468,12 @@ TEST_P(HttpApiTest, UpdatePidToHttpSchedulerWithoutForce)
   // 'force' field.
   Call call;
   call.set_type(Call::SUBSCRIBE);
-  call.mutable_framework_id()->CopyFrom(frameworkId.get());
+  call.mutable_framework_id()->CopyFrom(evolve(frameworkId.get()));
 
   Call::Subscribe* subscribe = call.mutable_subscribe();
   subscribe->mutable_framework_info()->CopyFrom(frameworkInfo);
   subscribe->mutable_framework_info()->mutable_id()->
-    CopyFrom(frameworkId.get());
+    CopyFrom(evolve(frameworkId.get()));
 
   // Retrieve the parameter passed as content type to this test.
   const std::string contentType = GetParam();
