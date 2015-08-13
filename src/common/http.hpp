@@ -47,6 +47,21 @@ enum class ContentType
 };
 
 
+inline std::ostream& operator<<(std::ostream& stream, ContentType contentType)
+{
+  switch (contentType) {
+    case ContentType::PROTOBUF: {
+      return stream << APPLICATION_PROTOBUF;
+    }
+    case ContentType::JSON: {
+      return stream << APPLICATION_JSON;
+    }
+  }
+
+  UNREACHABLE();
+}
+
+
 // Serializes a protobuf message for transmission
 // based on the HTTP content type.
 std::string serialize(
