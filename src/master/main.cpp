@@ -125,6 +125,20 @@ int main(int argc, char** argv)
   uint16_t port;
   flags.add(&port, "port", "Port to listen on", MasterInfo().port());
 
+  Option<string> advertise_ip;
+  flags.add(&advertise_ip,
+            "advertise_ip",
+            "IP address advertised to reach mesos master.\n"
+            "Mesos master does not bind using this IP address.\n"
+            "However, this IP address may be used to access Mesos master.");
+
+  Option<string> advertise_port;
+  flags.add(&advertise_port,
+            "advertise_port",
+            "Port advertised to reach mesos master (alongwith advertise_ip).\n"
+            "Mesos master does not bind using this port.\n"
+            "However, this port (alongwith advertise_ip) may be used to access Mesos master.");
+
   Option<string> zk;
   flags.add(&zk,
             "zk",
@@ -218,6 +232,14 @@ int main(int argc, char** argv)
   }
 
   os::setenv("LIBPROCESS_PORT", stringify(port));
+
+  if (advertise_ip.isSome()) {
+    os::setenv("LIBPROCESS_ADVERTISE_IP", advertise_ip.get());
+  }
+
+  if (advertise_port.isSome()) {
+    os::setenv("LIBPROCESS_ADVERTISE_PORT", advertise_port.get());
+  }
 
   // Initialize libprocess.
   process::initialize("master");

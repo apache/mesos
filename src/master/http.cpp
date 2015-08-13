@@ -582,7 +582,8 @@ const string Master::Http::REDIRECT_HELP = HELP(
         "1. This is the recommended way to bookmark the WebUI when",
         "running multiple Masters.",
         "2. This is broken currently \"on the cloud\" (e.g. EC2) as",
-        "this will attempt to redirect to the private IP address."));
+        "this will attempt to redirect to the private IP address, unless",
+        "advertise_ip points to an externally accessible IP"));
 
 
 Future<Response> Master::Http::redirect(const Request& request) const
