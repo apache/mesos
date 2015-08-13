@@ -1770,6 +1770,7 @@ mesos_tests_DEPENDENCIES = # Initialized to allow += below.
 if OS_LINUX
   mesos_tests_SOURCES += tests/containerizer/cgroups_isolator_tests.cpp
   mesos_tests_SOURCES += tests/containerizer/cgroups_tests.cpp
+  mesos_tests_SOURCES += tests/containerizer/docker_provisioner_tests.cpp
   mesos_tests_SOURCES += tests/containerizer/filesystem_isolator_tests.cpp
   mesos_tests_SOURCES += tests/containerizer/fs_tests.cpp
   mesos_tests_SOURCES += tests/containerizer/launch_tests.cpp
