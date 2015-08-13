@@ -46,7 +46,10 @@ public:
   Option<std::string> hostname;
   Option<std::string> resources;
   std::string isolation;
+
   Option<std::string> provisioners;
+  std::string appc_store_dir;
+
   std::string default_role;
   Option<std::string> attributes;
   Bytes fetcher_cache_size;

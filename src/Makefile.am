@@ -459,6 +459,7 @@ libmesos_no_3rdparty_la_SOURCES =					\
 	slave/containerizer/provisioner.cpp				\
 	slave/containerizer/provisioners/appc/paths.cpp			\
 	slave/containerizer/provisioners/appc/spec.cpp			\
+	slave/containerizer/provisioners/appc/store.cpp			\
 	slave/resource_estimators/noop.cpp				\
 	usage/usage.cpp							\
 	v1/attributes.cpp						\
@@ -715,6 +716,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
 	slave/containerizer/provisioner.hpp				\
 	slave/containerizer/provisioners/appc/paths.hpp			\
 	slave/containerizer/provisioners/appc/spec.hpp			\
+	slave/containerizer/provisioners/appc/store.hpp			\
 	slave/containerizer/isolators/posix.hpp				\
 	slave/containerizer/isolators/posix/disk.hpp			\
 	slave/containerizer/isolators/cgroups/constants.hpp		\
