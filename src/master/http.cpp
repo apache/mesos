@@ -71,6 +71,7 @@ using process::http::BadRequest;
 using process::http::InternalServerError;
 using process::http::NotFound;
 using process::http::NotImplemented;
+using process::http::NotAcceptable;
 using process::http::OK;
 using process::http::Pipe;
 using process::http::TemporaryRedirect;
@@ -313,7 +314,7 @@ void Master::Http::log(const Request& request)
 }
 
 
-// TODO(ijiminez): Add some information or pointers to help
+// TODO(ijimenez): Add some information or pointers to help
 // users understand the HTTP Event/Call API.
 const string Master::Http::SCHEDULER_HELP = HELP(
     TLDR(
@@ -376,17 +377,21 @@ Future<Response> Master::Http::scheduler(const Request& request) const
                       error.get().message);
   }
 
-  // Default to sending back JSON.
-  ContentType responseContentType = ContentType::JSON;
-
-  // TODO(anand): Use request.acceptsMediaType() once available.
-  Option<string> acceptType = request.headers.get("Accept");
-
-  if (acceptType.get() == APPLICATION_PROTOBUF) {
-    responseContentType = ContentType::PROTOBUF;
-  }
-
   if (call.type() == scheduler::Call::SUBSCRIBE) {
+    // We default to JSON since an empty 'Accept' header
+    // results in all media types considered acceptable.
+    ContentType responseContentType;
+
+    if (request.acceptsMediaType(APPLICATION_JSON)) {
+      responseContentType = ContentType::JSON;
+    } else if (request.acceptsMediaType(APPLICATION_PROTOBUF)) {
+      responseContentType = ContentType::PROTOBUF;
+    } else {
+      return NotAcceptable(
+          string("Expecting 'Accept' to allow ") +
+          "'" + APPLICATION_PROTOBUF + "' or '" + APPLICATION_JSON + "'");
+    }
+
     Pipe pipe;
     OK ok;
 

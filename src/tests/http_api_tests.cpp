@@ -27,6 +27,7 @@
 #include <process/http.hpp>
 #include <process/pid.hpp>
 
+#include <stout/gtest.hpp>
 #include <stout/json.hpp>
 #include <stout/lambda.hpp>
 #include <stout/recordio.hpp>
@@ -41,7 +42,6 @@
 #include "tests/utils.hpp"
 
 using mesos::internal::master::DEFAULT_HEARTBEAT_INTERVAL;
-
 using mesos::internal::master::Master;
 
 using mesos::internal::recordio::Reader;
@@ -54,6 +54,7 @@ using process::Future;
 using process::PID;
 
 using process::http::BadRequest;
+using process::http::NotAcceptable;
 using process::http::OK;
 using process::http::Pipe;
 using process::http::Response;
@@ -602,6 +603,109 @@ TEST_P(HttpApiTest, UpdatePidToHttpSchedulerWithoutForce)
 
   Shutdown();
 }
+
+
+TEST_P(HttpApiTest, NotAcceptable)
+{
+  // HTTP schedulers cannot yet authenticate.
+  master::Flags flags = CreateMasterFlags();
+  flags.authenticate_frameworks = false;
+
+  Try<PID<Master> > master = StartMaster(flags);
+  ASSERT_SOME(master);
+
+  // Retrieve the parameter passed as content type to this test.
+  const string contentType = GetParam();
+
+  hashmap<string, string> headers;
+  headers["Accept"] = "foo";
+
+  // Only subscribe needs to 'Accept' json or protobuf.
+  Call call;
+  call.set_type(Call::SUBSCRIBE);
+
+  Call::Subscribe* subscribe = call.mutable_subscribe();
+  subscribe->mutable_framework_info()->CopyFrom(DEFAULT_V1_FRAMEWORK_INFO);
+
+  Future<Response> response = process::http::streaming::post(
+      master.get(),
+      "api/v1/scheduler",
+      headers,
+      serialize(call, contentType),
+      contentType);
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(NotAcceptable().status, response);
+}
+
+
+TEST_P(HttpApiTest, NoAcceptHeader)
+{
+  // HTTP schedulers cannot yet authenticate.
+  master::Flags flags = CreateMasterFlags();
+  flags.authenticate_frameworks = false;
+
+  Try<PID<Master> > master = StartMaster(flags);
+  ASSERT_SOME(master);
+
+  // Retrieve the parameter passed as content type to this test.
+  const string contentType = GetParam();
+
+  // No 'Accept' header leads to all media types considered
+  // acceptable. JSON will be chosen by default.
+  hashmap<string, string> headers;
+
+  // Only subscribe needs to 'Accept' json or protobuf.
+  Call call;
+  call.set_type(Call::SUBSCRIBE);
+
+  Call::Subscribe* subscribe = call.mutable_subscribe();
+  subscribe->mutable_framework_info()->CopyFrom(DEFAULT_V1_FRAMEWORK_INFO);
+
+  Future<Response> response = process::http::streaming::post(
+      master.get(),
+      "api/v1/scheduler",
+      headers,
+      serialize(call, contentType),
+      contentType);
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  EXPECT_SOME_EQ(APPLICATION_JSON, response.get().headers.get("Content-Type"));
+}
+
+
+TEST_P(HttpApiTest, DefaultAccept)
+{
+  // HTTP schedulers cannot yet authenticate.
+  master::Flags flags = CreateMasterFlags();
+  flags.authenticate_frameworks = false;
+
+  Try<PID<Master> > master = StartMaster(flags);
+  ASSERT_SOME(master);
+
+  hashmap<string, string> headers;
+  headers["Accept"] = "*/*";
+
+  // Only subscribe needs to 'Accept' json or protobuf.
+  Call call;
+  call.set_type(Call::SUBSCRIBE);
+
+  Call::Subscribe* subscribe = call.mutable_subscribe();
+  subscribe->mutable_framework_info()->CopyFrom(DEFAULT_V1_FRAMEWORK_INFO);
+
+  // Retrieve the parameter passed as content type to this test.
+  const string contentType = GetParam();
+
+  Future<Response> response = process::http::streaming::post(
+      master.get(),
+      "api/v1/scheduler",
+      headers,
+      serialize(call, contentType),
+      contentType);
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  EXPECT_SOME_EQ(APPLICATION_JSON, response.get().headers.get("Content-Type"));
+}
+
 
 } // namespace tests {
 } // namespace internal {
