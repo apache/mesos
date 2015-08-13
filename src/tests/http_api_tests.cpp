@@ -79,9 +79,7 @@ class HttpApiTest
 public:
   // TODO(anand): Use the serialize/deserialize from common/http.hpp
   // when they are available.
-  Try<Event> deserialize(
-      const std::string& contentType,
-      const std::string& body)
+  Try<Event> deserialize(const string& contentType, const string& body)
   {
     if (contentType == APPLICATION_PROTOBUF) {
       Event event;
@@ -96,7 +94,7 @@ public:
     return parse;
   }
 
-  std::string serialize(const Call& call, const std::string& contentType)
+  string serialize(const Call& call, const string& contentType)
   {
     if (contentType == APPLICATION_PROTOBUF) {
       return call.SerializeAsString();
@@ -207,9 +205,9 @@ TEST_P(HttpApiTest, MalformedContent)
   Try<PID<Master>> master = StartMaster(flags);
   ASSERT_SOME(master);
 
-  const std::string body = "MALFORMED_CONTENT";
+  const string body = "MALFORMED_CONTENT";
 
-  const std::string contentType = GetParam();
+  const string contentType = GetParam();
   hashmap<string, string> headers;
   headers["Accept"] = contentType;
 
@@ -235,7 +233,7 @@ TEST_P(HttpApiTest, UnsupportedContentMediaType)
   Try<PID<Master>> master = StartMaster(flags);
   ASSERT_SOME(master);
 
-  const std::string contentType = GetParam();
+  const string contentType = GetParam();
   hashmap<string, string> headers;
   headers["Accept"] = contentType;
 
@@ -245,7 +243,7 @@ TEST_P(HttpApiTest, UnsupportedContentMediaType)
   Call::Subscribe* subscribe = call.mutable_subscribe();
   subscribe->mutable_framework_info()->CopyFrom(DEFAULT_V1_FRAMEWORK_INFO);
 
-  const std::string unknownMediaType = "application/unknown-media-type";
+  const string unknownMediaType = "application/unknown-media-type";
 
   Future<Response> response = process::http::post(
       master.get(),
@@ -277,7 +275,7 @@ TEST_P(HttpApiTest, Subscribe)
   subscribe->mutable_framework_info()->CopyFrom(DEFAULT_V1_FRAMEWORK_INFO);
 
   // Retrieve the parameter passed as content type to this test.
-  const std::string contentType = GetParam();
+  const string contentType = GetParam();
   hashmap<string, string> headers;
   headers["Accept"] = contentType;
 
@@ -347,7 +345,7 @@ TEST_P(HttpApiTest, SubscribedOnRetryWithForce)
   subscribe->mutable_framework_info()->CopyFrom(DEFAULT_V1_FRAMEWORK_INFO);
 
   // Retrieve the parameter passed as content type to this test.
-  const std::string contentType = GetParam();
+  const string contentType = GetParam();
   hashmap<string, string> headers;
   headers["Accept"] = contentType;
 
@@ -472,7 +470,7 @@ TEST_P(HttpApiTest, UpdatePidToHttpScheduler)
   subscribe->set_force(true);
 
   // Retrieve the parameter passed as content type to this test.
-  const std::string contentType = GetParam();
+  const string contentType = GetParam();
   hashmap<string, string> headers;
   headers["Accept"] = contentType;
 
@@ -559,7 +557,7 @@ TEST_P(HttpApiTest, UpdatePidToHttpSchedulerWithoutForce)
     CopyFrom(evolve(frameworkId.get()));
 
   // Retrieve the parameter passed as content type to this test.
-  const std::string contentType = GetParam();
+  const string contentType = GetParam();
   hashmap<string, string> headers;
   headers["Accept"] = contentType;
 
