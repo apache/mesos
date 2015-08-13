@@ -97,7 +97,14 @@ ACTION_P(Enqueue, queue)
 {
   std::queue<Event> events = arg0;
   while (!events.empty()) {
-    queue->put(events.front());
+    // Note that we currently drop HEARTBEATs because most of these tests
+    // are not designed to deal with heartbeats.
+    // TODO(vinod): Implement DROP_HTTP_CALLS that can filter heartbeats.
+    if (events.front().type() == Event::HEARTBEAT) {
+      VLOG(1) << "Ignoring HEARTBEAT event";
+    } else {
+      queue->put(events.front());
+    }
     events.pop();
   }
 }
