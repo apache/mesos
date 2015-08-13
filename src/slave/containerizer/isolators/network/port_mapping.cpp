@@ -885,9 +885,19 @@ int PortMappingStatistics::execute()
         NET_ISOLATOR_BW_LIMIT,
         statistics.get(),
         &result);
-  } else {
-    cerr << "Failed to get the network statistics for "
-         << "the htb qdisc on " << eth0 << endl;
+  } else if (statistics.isNone()) {
+    // Traffic control statistics are only available when the
+    // container is created on a slave when the egress rate limit is
+    // on (i.e., egress_rate_limit_per_container flag is set). We
+    // can't just test for that flag here however, since the slave may
+    // have been restarted with different flags since the container
+    // was created. It is also possible that isolator statistics are
+    // unavailable because we the container is in the process of being
+    // created or destroy. Hence we do not report a lack of network
+    // statistics as an error.
+  } else if (statistics.isError()) {
+    cerr << "Failed to get htb qdisc statistics on " << eth0
+         << " in namespace " << flags.pid.get() << endl;
   }
 
   // Drops due to the bandwidth limit should be reported at the leaf.
@@ -897,9 +907,11 @@ int PortMappingStatistics::execute()
         NET_ISOLATOR_BLOAT_REDUCTION,
         statistics.get(),
         &result);
-  } else {
-    cerr << "Failed to get the network statistics for "
-         << "the fq_codel qdisc on " << eth0 << endl;
+  } else if (statistics.isNone()) {
+    // See discussion on network isolator statistics above.
+  } else if (statistics.isError()) {
+    cerr << "Failed to get fq_codel qdisc statistics on " << eth0
+         << " in namespace " << flags.pid.get() << endl;
   }
 
   cout << stringify(JSON::Protobuf(result));
