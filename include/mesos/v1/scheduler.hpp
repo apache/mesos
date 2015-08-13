@@ -34,19 +34,13 @@ namespace scheduler {
 class MesosProcess; // Forward declaration.
 
 // Interface to Mesos for a scheduler. Abstracts master detection
-// (connection and disconnection) and authentication if some
-// credentials are provided.
+// (connection and disconnection).
 //
 // Expects three callbacks, 'connected', 'disconnected', and
 // 'received' which will get invoked _serially_ when it's determined
-// that we've connected, disconnected, or received events from the
-// master. Note that we drop events while disconnected but it's
-// possible to receive a batch of events across a
-// disconnected/connected transition before getting the disconnected
-// and then connected callback.
-//
-// TODO(benh): Don't include events in 'received' that occured after a
-// disconnected/connected transition.
+// that we've connected (i.e., detected master), disconnected
+// (i.e, detected no master), or received events from the master.
+// Note that we drop events while disconnected.
 class Mesos
 {
 public:
