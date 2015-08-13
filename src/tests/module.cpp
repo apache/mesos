@@ -184,6 +184,27 @@ static void addResourceEstimatorModules(Modules* modules)
 }
 
 
+static void addAuthorizerModules(Modules* modules)
+{
+  CHECK_NOTNULL(modules);
+
+  const string libraryPath = path::join(
+      tests::flags.build_dir,
+      "src",
+      ".libs",
+      os::libraries::expandName("testauthorizer"));
+
+  // Now add our test authorizer module.
+  Modules::Library* library = modules->add_libraries();
+  library->set_file(libraryPath);
+
+  // To add a new module from this library, create a new ModuleID enum
+  // and tie it with a module name.
+  addModule(
+      library, TestLocalAuthorizer, "org_apache_mesos_TestLocalAuthorizer");
+}
+
+
 Try<Nothing> initModules(const Option<Modules>& modules)
 {
   // First get the user provided modules.
@@ -209,6 +230,9 @@ Try<Nothing> initModules(const Option<Modules>& modules)
 
   // Add resource estimator modules from testresource_estimator library.
   addResourceEstimatorModules(&mergedModules);
+
+  // Add authorizer modules from testauthorizer library.
+  addAuthorizerModules(&mergedModules);
 
   return ModuleManager::load(mergedModules);
 }

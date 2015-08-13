@@ -48,7 +48,8 @@ enum ModuleID
   TestHook,
   TestAnonymous,
   TestDRFAllocator,
-  TestNoopResourceEstimator
+  TestNoopResourceEstimator,
+  TestLocalAuthorizer
 };
 
 

@@ -20,11 +20,12 @@
 
 #include <mesos/authorizer/authorizer.hpp>
 
-#include <process/future.hpp>
+#include <mesos/module/authorizer.hpp>
 
 #include "authorizer/local/authorizer.hpp"
 
 #include "tests/mesos.hpp"
+#include "tests/module.hpp"
 
 using namespace process;
 
@@ -33,10 +34,19 @@ namespace internal {
 namespace tests {
 
 
+template <typename T>
 class AuthorizationTest : public MesosTest {};
 
 
-TEST_F(AuthorizationTest, AnyPrincipalRunAsUser)
+typedef ::testing::Types<LocalAuthorizer,
+                         tests::Module<Authorizer, TestLocalAuthorizer>>
+  AuthorizerTypes;
+
+
+TYPED_TEST_CASE(AuthorizationTest, AuthorizerTypes);
+
+
+TYPED_TEST(AuthorizationTest, AnyPrincipalRunAsUser)
 {
   // Any principal can run as "guest" user.
   ACLs acls;
@@ -45,7 +55,7 @@ TEST_F(AuthorizationTest, AnyPrincipalRunAsUser)
   acl->mutable_users()->add_values("guest");
 
   // Create an Authorizer with the ACLs.
-  Try<Authorizer*> create = LocalAuthorizer::create();
+  Try<Authorizer*> create = TypeParam::create();
   ASSERT_SOME(create);
   Owned<Authorizer> authorizer(create.get());
 
@@ -67,7 +77,7 @@ TEST_F(AuthorizationTest, AnyPrincipalRunAsUser)
 }
 
 
-TEST_F(AuthorizationTest, NoPrincipalRunAsUser)
+TYPED_TEST(AuthorizationTest, NoPrincipalRunAsUser)
 {
   // No principal can run as "root" user.
   ACLs acls;
@@ -76,7 +86,7 @@ TEST_F(AuthorizationTest, NoPrincipalRunAsUser)
   acl->mutable_users()->add_values("root");
 
   // Create an Authorizer with the ACLs.
-  Try<Authorizer*> create = LocalAuthorizer::create();
+  Try<Authorizer*> create = TypeParam::create();
   ASSERT_SOME(create);
   Owned<Authorizer> authorizer(create.get());
 
@@ -91,7 +101,7 @@ TEST_F(AuthorizationTest, NoPrincipalRunAsUser)
 }
 
 
-TEST_F(AuthorizationTest, PrincipalRunAsAnyUser)
+TYPED_TEST(AuthorizationTest, PrincipalRunAsAnyUser)
 {
   // A principal "foo" can run as any user.
   ACLs acls;
@@ -100,7 +110,7 @@ TEST_F(AuthorizationTest, PrincipalRunAsAnyUser)
   acl->mutable_users()->set_type(mesos::ACL::Entity::ANY);
 
   // Create an Authorizer with the ACLs.
-  Try<Authorizer*> create = LocalAuthorizer::create();
+  Try<Authorizer*> create = TypeParam::create();
   ASSERT_SOME(create);
   Owned<Authorizer> authorizer(create.get());
 
@@ -116,7 +126,7 @@ TEST_F(AuthorizationTest, PrincipalRunAsAnyUser)
 }
 
 
-TEST_F(AuthorizationTest, AnyPrincipalRunAsAnyUser)
+TYPED_TEST(AuthorizationTest, AnyPrincipalRunAsAnyUser)
 {
   // Any principal can run as any user.
   ACLs acls;
@@ -125,7 +135,7 @@ TEST_F(AuthorizationTest, AnyPrincipalRunAsAnyUser)
   acl->mutable_users()->set_type(mesos::ACL::Entity::ANY);
 
   // Create an Authorizer with the ACLs.
-  Try<Authorizer*> create = LocalAuthorizer::create();
+  Try<Authorizer*> create = TypeParam::create();
   ASSERT_SOME(create);
   Owned<Authorizer> authorizer(create.get());
 
@@ -142,7 +152,7 @@ TEST_F(AuthorizationTest, AnyPrincipalRunAsAnyUser)
 }
 
 
-TEST_F(AuthorizationTest, OnlySomePrincipalsRunAsSomeUsers)
+TYPED_TEST(AuthorizationTest, OnlySomePrincipalsRunAsSomeUsers)
 {
   // Only some principals can run as some users.
   ACLs acls;
@@ -161,7 +171,7 @@ TEST_F(AuthorizationTest, OnlySomePrincipalsRunAsSomeUsers)
   acl2->mutable_users()->add_values("user2");
 
   // Create an Authorizer with the ACLs.
-  Try<Authorizer*> create = LocalAuthorizer::create();
+  Try<Authorizer*> create = TypeParam::create();
   ASSERT_SOME(create);
   Owned<Authorizer> authorizer(create.get());
 
@@ -190,7 +200,7 @@ TEST_F(AuthorizationTest, OnlySomePrincipalsRunAsSomeUsers)
 }
 
 
-TEST_F(AuthorizationTest, SomePrincipalOnlySomeUser)
+TYPED_TEST(AuthorizationTest, SomePrincipalOnlySomeUser)
 {
   // Some principal can run as only some user.
   ACLs acls;
@@ -206,7 +216,7 @@ TEST_F(AuthorizationTest, SomePrincipalOnlySomeUser)
   acl2->mutable_users()->set_type(mesos::ACL::Entity::NONE);
 
   // Create an Authorizer with the ACLs.
-  Try<Authorizer*> create = LocalAuthorizer::create();
+  Try<Authorizer*> create = TypeParam::create();
   ASSERT_SOME(create);
   Owned<Authorizer> authorizer(create.get());
 
@@ -234,7 +244,7 @@ TEST_F(AuthorizationTest, SomePrincipalOnlySomeUser)
 }
 
 
-TEST_F(AuthorizationTest, PrincipalRunAsSomeUserRestrictive)
+TYPED_TEST(AuthorizationTest, PrincipalRunAsSomeUserRestrictive)
 {
   // A principal can run as "user1";
   ACLs acls;
@@ -244,7 +254,7 @@ TEST_F(AuthorizationTest, PrincipalRunAsSomeUserRestrictive)
   acl->mutable_users()->add_values("user1");
 
   // Create an Authorizer with the ACLs.
-  Try<Authorizer*> create = LocalAuthorizer::create();
+  Try<Authorizer*> create = TypeParam::create();
   ASSERT_SOME(create);
   Owned<Authorizer> authorizer(create.get());
 
@@ -271,7 +281,7 @@ TEST_F(AuthorizationTest, PrincipalRunAsSomeUserRestrictive)
 }
 
 
-TEST_F(AuthorizationTest, AnyPrincipalOfferedRole)
+TYPED_TEST(AuthorizationTest, AnyPrincipalOfferedRole)
 {
   // Any principal can be offered "*" role's resources.
   ACLs acls;
@@ -280,7 +290,7 @@ TEST_F(AuthorizationTest, AnyPrincipalOfferedRole)
   acl->mutable_roles()->add_values("*");
 
   // Create an Authorizer with the ACLs.
-  Try<Authorizer*> create = LocalAuthorizer::create();
+  Try<Authorizer*> create = TypeParam::create();
   ASSERT_SOME(create);
   Owned<Authorizer> authorizer(create.get());
 
@@ -296,7 +306,7 @@ TEST_F(AuthorizationTest, AnyPrincipalOfferedRole)
 }
 
 
-TEST_F(AuthorizationTest, SomePrincipalsOfferedRole)
+TYPED_TEST(AuthorizationTest, SomePrincipalsOfferedRole)
 {
   // Some principals can be offered "ads" role's resources.
   ACLs acls;
@@ -306,7 +316,7 @@ TEST_F(AuthorizationTest, SomePrincipalsOfferedRole)
   acl->mutable_roles()->add_values("ads");
 
   // Create an Authorizer with the ACLs.
-  Try<Authorizer*> create = LocalAuthorizer::create();
+  Try<Authorizer*> create = TypeParam::create();
   ASSERT_SOME(create);
   Owned<Authorizer> authorizer(create.get());
 
@@ -324,7 +334,7 @@ TEST_F(AuthorizationTest, SomePrincipalsOfferedRole)
 }
 
 
-TEST_F(AuthorizationTest, PrincipalOfferedRole)
+TYPED_TEST(AuthorizationTest, PrincipalOfferedRole)
 {
   // Only a principal can be offered "analytics" role's resources.
   ACLs acls;
@@ -340,7 +350,7 @@ TEST_F(AuthorizationTest, PrincipalOfferedRole)
   acl2->mutable_roles()->add_values("analytics");
 
   // Create an Authorizer with the ACLs.
-  Try<Authorizer*> create = LocalAuthorizer::create();
+  Try<Authorizer*> create = TypeParam::create();
   ASSERT_SOME(create);
   Owned<Authorizer> authorizer(create.get());
 
@@ -361,7 +371,7 @@ TEST_F(AuthorizationTest, PrincipalOfferedRole)
 }
 
 
-TEST_F(AuthorizationTest, PrincipalNotOfferedAnyRoleRestrictive)
+TYPED_TEST(AuthorizationTest, PrincipalNotOfferedAnyRoleRestrictive)
 {
   // A principal "foo" can be offered "analytics" role's resources.
   ACLs acls;
@@ -371,7 +381,7 @@ TEST_F(AuthorizationTest, PrincipalNotOfferedAnyRoleRestrictive)
   acl->mutable_roles()->add_values("analytics");
 
   // Create an Authorizer with the ACLs.
-  Try<Authorizer*> create = LocalAuthorizer::create();
+  Try<Authorizer*> create = TypeParam::create();
   ASSERT_SOME(create);
   Owned<Authorizer> authorizer(create.get());
 
