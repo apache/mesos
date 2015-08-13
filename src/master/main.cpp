@@ -137,7 +137,8 @@ int main(int argc, char** argv)
             "advertise_port",
             "Port advertised to reach mesos master (alongwith advertise_ip).\n"
             "Mesos master does not bind using this port.\n"
-            "However, this port (alongwith advertise_ip) may be used to access Mesos master.");
+            "However, this port (alongwith advertise_ip) may be used to\n"
+            "access Mesos master.");
 
   Option<string> zk;
   flags.add(&zk,
