@@ -127,6 +127,9 @@ extern const std::string DEFAULT_AUTHENTICATOR;
 // Name of the default, HierarchicalDRF authenticator.
 extern const std::string DEFAULT_ALLOCATOR;
 
+// Name of the default, local authorizer.
+extern const std::string DEFAULT_AUTHORIZER;
+
 } // namespace master {
 } // namespace internal {
 } // namespace mesos {

@@ -327,6 +327,23 @@ file:///path/to/file (where file contains one of the above)</code></pre>
   </tr>
   <tr>
     <td>
+      --authorizers=VALUE
+    </td>
+    <td>
+      Authorizer implementation to use when authorizating actions that
+      required it. Use the default <code>local</code>, or load an alternate
+      authorizer module using <code>--modules</code>.
+      <br/>
+      Note that if the flag <code>--authorizers</code> is provided with a
+      value different than the default <code>local</code>, the ACLs passed
+      through the <code>--acls</code> flag will be ignored.
+      <br/>
+      Currently there's no support for multiple authorizers.<br/>
+      (default: <code>local</code>)
+    </td>
+  </tr>
+  <tr>
+    <td>
       --cluster=VALUE
     </td>
     <td>

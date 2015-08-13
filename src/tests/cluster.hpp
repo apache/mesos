@@ -63,6 +63,7 @@
 
 #include "log/tool/initialize.hpp"
 
+#include "master/constants.hpp"
 #include "master/contender.hpp"
 #include "master/detector.hpp"
 #include "master/flags.hpp"
@@ -351,7 +352,7 @@ inline Try<process::PID<master::Master>> Cluster::Masters::start(
   if (authorizer.isSome()) {
     CHECK_NOTNULL(authorizer.get());
   } else if (flags.acls.isSome()) {
-    Try<Authorizer*> local = LocalAuthorizer::create();
+    Try<Authorizer*> local = Authorizer::create(master::DEFAULT_AUTHORIZER);
 
     if (local.isError()) {
       EXIT(EXIT_FAILURE)

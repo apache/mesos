@@ -402,6 +402,7 @@ libmesos_no_3rdparty_la_SOURCES =					\
 	authentication/cram_md5/authenticatee.cpp			\
 	authentication/cram_md5/authenticator.cpp			\
 	authentication/cram_md5/auxprop.cpp				\
+	authorizer/authorizer.cpp					\
 	authorizer/local/authorizer.cpp					\
 	common/attributes.cpp						\
 	common/date_utils.cpp						\
@@ -549,6 +550,7 @@ module_HEADERS =							\
   $(top_srcdir)/include/mesos/module/anonymous.hpp			\
   $(top_srcdir)/include/mesos/module/authenticatee.hpp			\
   $(top_srcdir)/include/mesos/module/authenticator.hpp			\
+  $(top_srcdir)/include/mesos/module/authorizer.hpp			\
   $(top_srcdir)/include/mesos/module/hook.hpp				\
   $(top_srcdir)/include/mesos/module/isolator.hpp			\
   $(top_srcdir)/include/mesos/module/module.hpp				\

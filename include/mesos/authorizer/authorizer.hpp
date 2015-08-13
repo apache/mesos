@@ -20,6 +20,7 @@
 #define __MESOS_AUTHORIZER_AUTHORIZER_HPP__
 
 #include <ostream>
+#include <string>
 
 // ONLY USEFUL AFTER RUNNING PROTOC.
 #include <mesos/authorizer/authorizer.pb.h>
@@ -42,6 +43,8 @@ namespace mesos {
 class Authorizer
 {
 public:
+  static Try<Authorizer*> create(const std::string& name);
+
   virtual ~Authorizer() {}
 
   /**
