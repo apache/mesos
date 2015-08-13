@@ -69,6 +69,7 @@ using process::USAGE;
 using process::http::Accepted;
 using process::http::BadRequest;
 using process::http::InternalServerError;
+using process::http::MethodNotAllowed;
 using process::http::NotFound;
 using process::http::NotImplemented;
 using process::http::NotAcceptable;
@@ -331,6 +332,11 @@ Future<Response> Master::Http::scheduler(const Request& request) const
     return Unauthorized(
         "Mesos master",
         "HTTP schedulers are not supported when authentication is required");
+  }
+
+  if (request.method != "POST") {
+    return MethodNotAllowed(
+        "Expecting a 'POST' request, received '" + request.method + "'");
   }
 
   v1::scheduler::Call v1Call;

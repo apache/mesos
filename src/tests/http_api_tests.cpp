@@ -54,6 +54,7 @@ using process::Future;
 using process::PID;
 
 using process::http::BadRequest;
+using process::http::MethodNotAllowed;
 using process::http::NotAcceptable;
 using process::http::OK;
 using process::http::Pipe;
@@ -704,6 +705,22 @@ TEST_P(HttpApiTest, DefaultAccept)
   EXPECT_SOME_EQ(APPLICATION_JSON, response.get().headers.get("Content-Type"));
 }
 
+
+TEST_F(HttpApiTest, GetRequest)
+{
+  master::Flags flags = CreateMasterFlags();
+  flags.authenticate_frameworks = false;
+
+  Try<PID<Master> > master = StartMaster(flags);
+  ASSERT_SOME(master);
+
+  Future<Response> response = process::http::get(
+      master.get(),
+      "api/v1/scheduler");
+
+  AWAIT_READY(response);
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(MethodNotAllowed().status, response);
+}
 
 } // namespace tests {
 } // namespace internal {
