@@ -394,6 +394,7 @@ Future<Response> Master::Http::scheduler(const Request& request) const
 
     Pipe pipe;
     OK ok;
+    ok.headers["Content-Type"] = stringify(responseContentType);
 
     ok.type = Response::PIPE;
     ok.reader = pipe.reader();
