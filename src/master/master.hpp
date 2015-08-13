@@ -78,6 +78,10 @@ class RateLimiter; // Forward declaration.
 }
 
 namespace mesos {
+
+// Forward declarations.
+class Authorizer;
+
 namespace internal {
 
 // Forward declarations.
@@ -85,7 +89,6 @@ namespace registry {
 class Slaves;
 }
 
-class Authorizer;
 class WhitelistWatcher;
 
 namespace master {

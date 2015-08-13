@@ -19,6 +19,8 @@
 #include <memory>
 #include <string>
 
+#include <mesos/authorizer/authorizer.hpp>
+
 #include <stout/check.hpp>
 #include <stout/foreach.hpp>
 #include <stout/json.hpp>
@@ -27,8 +29,6 @@
 #include <stout/result.hpp>
 #include <stout/stringify.hpp>
 #include <stout/uuid.hpp>
-
-#include "authorizer/authorizer.hpp"
 
 #ifdef __linux__
 #include "linux/cgroups.hpp"

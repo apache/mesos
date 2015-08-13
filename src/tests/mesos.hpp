@@ -28,6 +28,8 @@
 #include <mesos/executor.hpp>
 #include <mesos/scheduler.hpp>
 
+#include <mesos/authorizer/authorizer.hpp>
+
 #include <mesos/master/allocator.hpp>
 
 #include <mesos/fetcher/fetcher.hpp>
@@ -54,8 +56,6 @@
 #include <stout/stringify.hpp>
 #include <stout/try.hpp>
 #include <stout/uuid.hpp>
-
-#include "authorizer/authorizer.hpp"
 
 #include "messages/messages.hpp" // For google::protobuf::Message.
 
@@ -973,8 +973,13 @@ public:
 
     EXPECT_CALL(*this, authorize(An<const mesos::ACL::ShutdownFramework&>()))
       .WillRepeatedly(Return(true));
+
+    EXPECT_CALL(*this, initialize(An<const Option<ACLs>&>()))
+      .WillRepeatedly(Return(Nothing()));
   }
 
+  MOCK_METHOD1(
+      initialize, Try<Nothing>(const Option<ACLs>& acls));
   MOCK_METHOD1(
       authorize, process::Future<bool>(const ACL::RegisterFramework& request));
   MOCK_METHOD1(

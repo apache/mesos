@@ -26,6 +26,8 @@
 
 #include <mesos/mesos.hpp>
 
+#include <mesos/authorizer/authorizer.hpp>
+
 #include <mesos/master/allocator.hpp>
 
 #include <mesos/slave/resource_estimator.hpp>
@@ -49,13 +51,13 @@
 #include <stout/strings.hpp>
 #include <stout/try.hpp>
 
+#include "authorizer/local/authorizer.hpp"
+
 #include "files/files.hpp"
 
 #ifdef __linux__
 #include "linux/cgroups.hpp"
 #endif // __linux__
-
-#include "authorizer/authorizer.hpp"
 
 #include "log/log.hpp"
 
@@ -349,15 +351,22 @@ inline Try<process::PID<master::Master>> Cluster::Masters::start(
   if (authorizer.isSome()) {
     CHECK_NOTNULL(authorizer.get());
   } else if (flags.acls.isSome()) {
-    Try<process::Owned<Authorizer>> create =
-      Authorizer::create(flags.acls.get());
+    Try<Authorizer*> local = LocalAuthorizer::create();
 
-    if (create.isError()) {
-      return Error("Failed to initialize the authorizer: " +
-                   create.error() + " (see --acls flag)");
+    if (local.isError()) {
+      EXIT(EXIT_FAILURE)
+        << "Failed to instantiate the local authorizer: "
+        << local.error();
     }
 
-    master.authorizer = process::Owned<Authorizer>(create.get());
+    Try<Nothing> initialized = local.get()->initialize(flags.acls.get());
+
+    if (initialized.isError()) {
+      return Error("Failed to initialize the authorizer: " +
+                   initialized.error() + " (see --acls flag)");
+    }
+
+    master.authorizer.reset(local.get());
   }
 
   if (slaveRemovalLimiter.isNone() &&

@@ -268,12 +268,6 @@ inline std::size_t hash_value(const TaskID& taskId)
 }
 
 
-inline std::ostream& operator<<(std::ostream& stream, const ACLs& acls)
-{
-  return stream << acls.DebugString();
-}
-
-
 inline std::ostream& operator<<(
     std::ostream& stream,
     const ContainerID& containerId)

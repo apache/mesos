@@ -26,6 +26,9 @@
 #include <stout/path.hpp>
 
 #include <mesos/mesos.hpp>
+
+#include <mesos/authorizer/authorizer.hpp>
+
 #include <mesos/module/module.hpp>
 
 #include "logging/flags.hpp"

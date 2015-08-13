@@ -23,6 +23,8 @@
 #include <string>
 #include <vector>
 
+#include <mesos/authorizer/authorizer.hpp>
+
 #include <mesos/master/allocator.hpp>
 
 #include <mesos/module/anonymous.hpp>
@@ -41,7 +43,7 @@
 #include <stout/try.hpp>
 #include <stout/strings.hpp>
 
-#include "authorizer/authorizer.hpp"
+#include "authorizer/local/authorizer.hpp"
 
 #include "common/protobuf_utils.hpp"
 
@@ -214,16 +216,23 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
     detector = new StandaloneMasterDetector();
 
     if (flags.acls.isSome()) {
-      Try<Owned<Authorizer>> create = Authorizer::create(flags.acls.get());
+      Try<Authorizer*> local = LocalAuthorizer::create();
 
-      if (create.isError()) {
-        EXIT(1) << "Failed to initialize the authorizer: "
-                << create.error() << " (see --acls flag)";
+      if (local.isError()) {
+        EXIT(EXIT_FAILURE)
+          << "Failed to instantiate the local authorizer: "
+          << local.error();
       }
 
-      // Now pull out the authorizer but need to make a copy since we
-      // get a 'const &' from 'Try::get'.
-      authorizer = Owned<Authorizer>(create.get()).release();
+      authorizer = local.get();
+
+      Try<Nothing> initialized = authorizer.get()->initialize(flags.acls.get());
+
+      if (initialized.isError()) {
+        EXIT(EXIT_FAILURE)
+          << "Failed to initialize the local authorizer: "
+          << initialized.error() << " (see --acls flag)";
+      }
     }
 
     Option<shared_ptr<RateLimiter>> slaveRemovalLimiter = None();

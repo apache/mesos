@@ -30,6 +30,8 @@
 
 #include <mesos/authentication/authenticator.hpp>
 
+#include <mesos/authorizer/authorizer.hpp>
+
 #include <mesos/master/allocator.hpp>
 
 #include <mesos/module/authenticator.hpp>
@@ -62,8 +64,6 @@
 #include <stout/uuid.hpp>
 
 #include "authentication/cram_md5/authenticator.hpp"
-
-#include "authorizer/authorizer.hpp"
 
 #include "common/build.hpp"
 #include "common/date_utils.hpp"

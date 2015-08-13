@@ -141,6 +141,9 @@ V1_MESOS_PROTO = $(top_srcdir)/include/mesos/v1/mesos.proto
 AUTHENTICATION_PROTO =							\
   $(top_srcdir)/include/mesos/authentication/authentication.proto
 
+AUTHORIZATION_PROTO =							\
+  $(top_srcdir)/include/mesos/authorizer/authorizer.proto
+
 CONTAINERIZER_PROTO =							\
   $(top_srcdir)/include/mesos/containerizer/containerizer.proto
 
@@ -173,6 +176,8 @@ CXX_PROTOS =								\
   ../include/mesos/mesos.pb.h						\
   authentication/authentication.pb.cc					\
   ../include/mesos/authentication/authentication.pb.h			\
+  authorizer/authorizer.pb.cc						\
+  ../include/mesos/authorizer/authorizer.pb.h				\
   containerizer/containerizer.pb.cc					\
   ../include/mesos/containerizer/containerizer.pb.h			\
   executor/executor.pb.cc						\
@@ -248,6 +253,12 @@ authentication/%.pb.cc ../include/mesos/authentication/%.pb.h: $(AUTHENTICATION_
 	$(MKDIR_P) ../include/mesos/authentication
 	$(PROTOC) $(PROTOCFLAGS) --cpp_out=../include $^
 	mv ../include/mesos/authentication/*.pb.cc $(@D)
+
+authorizer/%.pb.cc ../include/mesos/authorizer/%.pb.h: $(AUTHORIZATION_PROTO)
+	$(MKDIR_P) $(@D)
+	$(MKDIR_P) ../include/mesos/authorizer
+	$(PROTOC) $(PROTOCFLAGS) --cpp_out=../include $^
+	mv ../include/mesos/authorizer/*.pb.cc $(@D)
 
 containerizer/%.pb.cc ../include/mesos/containerizer/%.pb.h: $(CONTAINERIZER_PROTO)
 	$(MKDIR_P) $(@D)
@@ -391,7 +402,7 @@ libmesos_no_3rdparty_la_SOURCES =					\
 	authentication/cram_md5/authenticatee.cpp			\
 	authentication/cram_md5/authenticator.cpp			\
 	authentication/cram_md5/auxprop.cpp				\
-	authorizer/authorizer.cpp					\
+	authorizer/local/authorizer.cpp					\
 	common/attributes.cpp						\
 	common/date_utils.cpp						\
 	common/http.cpp							\
@@ -498,6 +509,14 @@ authentication_HEADERS =						\
   $(top_srcdir)/include/mesos/authentication/authenticator.hpp
 
 nodist_authentication_HEADERS = ../include/mesos/authentication/authentication.pb.h
+
+authorizerdir = $(pkgincludedir)/authorizer
+
+authorizer_HEADERS =							\
+  $(top_srcdir)/include/mesos/authorizer/authorizer.hpp			\
+  $(top_srcdir)/include/mesos/authorizer/authorizer.proto
+
+nodist_authorizer_HEADERS = ../include/mesos/authorizer/authorizer.pb.h
 
 containerizerdir = $(pkgincludedir)/containerizer
 
@@ -651,7 +670,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
 	authentication/cram_md5/authenticatee.hpp			\
 	authentication/cram_md5/authenticator.hpp			\
 	authentication/cram_md5/auxprop.hpp				\
-	authorizer/authorizer.hpp					\
+	authorizer/local/authorizer.hpp					\
 	common/attributes.hpp						\
 	common/build.hpp						\
 	common/date_utils.hpp						\

@@ -28,6 +28,8 @@
 #include <mesos/scheduler.hpp>
 #include <mesos/type_utils.hpp>
 
+#include <mesos/authorizer/authorizer.hpp>
+
 #include <stout/flags.hpp>
 #include <stout/format.hpp>
 #include <stout/json.hpp>

@@ -26,6 +26,8 @@
 
 #include <mesos/mesos.hpp>
 
+#include <mesos/authorizer/authorizer.hpp>
+
 #include <mesos/master/allocator.hpp>
 
 #include <mesos/module/anonymous.hpp>
@@ -46,7 +48,7 @@
 #include <stout/strings.hpp>
 #include <stout/try.hpp>
 
-#include "authorizer/authorizer.hpp"
+#include "authorizer/local/authorizer.hpp"
 
 #include "common/build.hpp"
 #include "common/protobuf_utils.hpp"
@@ -79,6 +81,7 @@ using namespace mesos::internal::log;
 using namespace mesos::internal::master;
 using namespace zookeeper;
 
+using mesos::Authorizer;
 using mesos::MasterInfo;
 
 using mesos::master::allocator::Allocator;
@@ -365,17 +368,23 @@ int main(int argc, char** argv)
 
   Option<Authorizer*> authorizer = None();
   if (flags.acls.isSome()) {
-    Try<Owned<Authorizer>> create = Authorizer::create(flags.acls.get());
+    Try<Authorizer*> local = LocalAuthorizer::create();
 
-    if (create.isError()) {
+    if (local.isError()) {
       EXIT(EXIT_FAILURE)
-        << "Failed to initialize the authorizer: "
-        << create.error() << " (see --acls flag)";
+        << "Failed to instantiate the local authorizer: "
+        << local.error();
     }
 
-    // Now pull out the authorizer but need to make a copy since we
-    // get a 'const &' from 'Try::get'.
-    authorizer = Owned<Authorizer>(create.get()).release();
+    authorizer = local.get();
+
+    Try<Nothing> initialized = authorizer.get()->initialize(flags.acls.get());
+
+    if (initialized.isError()) {
+      EXIT(EXIT_FAILURE)
+        << "Failed to initialize the local authorizer: "
+        << initialized.error() << " (see --acls flag)";
+    }
   }
 
   Option<shared_ptr<RateLimiter>> slaveRemovalLimiter = None();

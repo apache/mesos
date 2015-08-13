@@ -16,34 +16,24 @@
  * limitations under the License.
  */
 
-#include <string>
-#include <vector>
+#include "authorizer/local/authorizer.hpp"
 
-#include <glog/logging.h>
+#include <string>
 
 #include <process/dispatch.hpp>
 #include <process/future.hpp>
 #include <process/id.hpp>
-#include <process/owned.hpp>
 #include <process/process.hpp>
 #include <process/protobuf.hpp>
 
-#include <stout/check.hpp>
-#include <stout/hashmap.hpp>
-#include <stout/hashset.hpp>
 #include <stout/protobuf.hpp>
 #include <stout/try.hpp>
 
-#include "authorizer/authorizer.hpp"
-
-#include "mesos/mesos.hpp"
-
+using process::Failure;
 using process::Future;
-using process::Owned;
 using process::dispatch;
 
 using std::string;
-using std::vector;
 
 namespace mesos {
 namespace internal {
@@ -213,42 +203,58 @@ private:
 };
 
 
-Try<Owned<Authorizer> > Authorizer::create(const ACLs& acls)
+Try<Authorizer*> LocalAuthorizer::create()
 {
-  Try<Owned<LocalAuthorizer> > authorizer = LocalAuthorizer::create(acls);
+  Authorizer* local = new LocalAuthorizer;
 
-  if (authorizer.isError()) {
-    return Error(authorizer.error());
-  }
-
-  Owned<LocalAuthorizer> authorizer_ = authorizer.get();
-  return static_cast<Authorizer*>(authorizer_.release());
+  return local;
 }
 
 
-LocalAuthorizer::LocalAuthorizer(const ACLs& acls)
+LocalAuthorizer::LocalAuthorizer() : process(NULL)
 {
-  process = new LocalAuthorizerProcess(acls);
-  spawn(process);
 }
 
 
 LocalAuthorizer::~LocalAuthorizer()
 {
-  terminate(process);
-  wait(process);
-  delete process;
+  if (process != NULL) {
+    terminate(process);
+    wait(process);
+    delete process;
+  }
 }
 
-
-Try<Owned<LocalAuthorizer> > LocalAuthorizer::create(const ACLs& acls)
+Try<Nothing> LocalAuthorizer::initialize(const Option<ACLs>& acls)
 {
-  return new LocalAuthorizer(acls);
+  if (!acls.isSome()) {
+    return Error("ACLs need to be specified for local authorizer");
+  }
+
+  if (!initialized.once()) {
+    if (process != NULL) {
+      return Error("Authorizer already initialized");
+    }
+
+    // Process initialization needs to be done here because default
+    // implementations of modules need to be default constructible. So
+    // actual construction is delayed until initialization.
+    process = new LocalAuthorizerProcess(acls.get());
+    spawn(process);
+
+    initialized.done();
+  }
+
+  return Nothing();
 }
 
 
 Future<bool> LocalAuthorizer::authorize(const ACL::RegisterFramework& request)
 {
+  if (process == NULL) {
+    return Failure("Authorizer not initialized");
+  }
+
   // Necessary to disambiguate.
   typedef Future<bool>(LocalAuthorizerProcess::*F)(
       const ACL::RegisterFramework&);
@@ -260,6 +266,10 @@ Future<bool> LocalAuthorizer::authorize(const ACL::RegisterFramework& request)
 
 Future<bool> LocalAuthorizer::authorize(const ACL::RunTask& request)
 {
+  if (process == NULL) {
+    return Failure("Authorizer not initialized");
+  }
+
   // Necessary to disambiguate.
   typedef Future<bool>(LocalAuthorizerProcess::*F)(const ACL::RunTask&);
 
@@ -270,6 +280,10 @@ Future<bool> LocalAuthorizer::authorize(const ACL::RunTask& request)
 
 Future<bool> LocalAuthorizer::authorize(const ACL::ShutdownFramework& request)
 {
+  if (process == NULL) {
+    return Failure("Authorizer not initialized");
+  }
+
   // Necessary to disambiguate.
   typedef Future<bool>(LocalAuthorizerProcess::*F)(
       const ACL::ShutdownFramework&);

@@ -19,16 +19,14 @@
 #ifndef __AUTHORIZER_AUTHORIZER_HPP__
 #define __AUTHORIZER_AUTHORIZER_HPP__
 
-#include <glog/logging.h>
+#include <mesos/authorizer/authorizer.hpp>
 
 #include <process/future.hpp>
-#include <process/owned.hpp>
-#include <process/process.hpp>
+#include <process/once.hpp>
 
-#include <stout/json.hpp>
+#include <stout/nothing.hpp>
+#include <stout/option.hpp>
 #include <stout/try.hpp>
-
-#include "mesos/mesos.hpp"
 
 namespace mesos {
 namespace internal {
@@ -36,37 +34,23 @@ namespace internal {
 // Forward declaration.
 class LocalAuthorizerProcess;
 
-
-class Authorizer
-{
-public:
-  virtual ~Authorizer() {}
-
-  // Attempts to create an Authorizer based on the ACLs.
-  static Try<process::Owned<Authorizer> > create(const ACLs& acls);
-
-  // Returns true if the ACL can be satisfied or false otherwise.
-  // A failed future indicates a transient failure and the user
-  // can (should) retry.
-  virtual process::Future<bool> authorize(
-      const ACL::RegisterFramework& request) = 0;
-  virtual process::Future<bool> authorize(
-      const ACL::RunTask& request) = 0;
-  virtual process::Future<bool> authorize(
-      const ACL::ShutdownFramework& request) = 0;
-
-protected:
-  Authorizer() {}
-};
-
-
 // This Authorizer is constructed with all the required ACLs upfront.
 class LocalAuthorizer : public Authorizer
 {
 public:
-  // Validates the ACLs and creates a LocalAuthorizer.
-  static Try<process::Owned<LocalAuthorizer> > create(const ACLs& acls);
+  // Creates a LocalAuthorizer.
+  // Never returns a nullptr, instead sets the Try to error.
+  //
+  // This factory needs to return a raw pointer so its signature matches that
+  // of tests::Module<T,N>::create() so typed tests can be performed.
+  static Try<Authorizer*> create();
+
   virtual ~LocalAuthorizer();
+
+  // Initialization is needed since this class is required to be default
+  // constructible, however the ACLs still need to be provided. MESOS-3072
+  // tries to address this requirement.
+  virtual Try<Nothing> initialize(const Option<ACLs>& acls);
 
   // Implementation of Authorizer interface.
   virtual process::Future<bool> authorize(
@@ -77,8 +61,11 @@ public:
       const ACL::ShutdownFramework& request);
 
 private:
-  LocalAuthorizer(const ACLs& acls);
+  LocalAuthorizer();
+
   LocalAuthorizerProcess* process;
+
+  process::Once initialized;
 };
 
 } // namespace internal {

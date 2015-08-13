@@ -28,6 +28,8 @@
 
 #include <mesos/type_utils.hpp>
 
+#include <mesos/authorizer/authorizer.hpp>
+
 #include <process/help.hpp>
 
 #include <process/metrics/metrics.hpp>
@@ -41,8 +43,6 @@
 #include <stout/os.hpp>
 #include <stout/result.hpp>
 #include <stout/strings.hpp>
-
-#include "authorizer/authorizer.hpp"
 
 #include "common/attributes.hpp"
 #include "common/build.hpp"

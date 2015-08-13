@@ -16,6 +16,8 @@
 
 #include <mesos/mesos.hpp>
 
+#include <mesos/authorizer/authorizer.hpp>
+
 #include <mesos/module/module.hpp>
 
 #include <stout/error.hpp>
