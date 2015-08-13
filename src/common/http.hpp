@@ -25,7 +25,6 @@
 
 #include <stout/hashmap.hpp>
 #include <stout/json.hpp>
-#include <stout/protobuf.hpp>
 
 namespace mesos {
 
@@ -48,55 +47,11 @@ enum class ContentType
 };
 
 
-inline std::ostream& operator<<(std::ostream& stream, ContentType contentType)
-{
-  switch (contentType) {
-    case ContentType::PROTOBUF: {
-      return stream << APPLICATION_PROTOBUF;
-    }
-    case ContentType::JSON: {
-      return stream << APPLICATION_JSON;
-    }
-  }
-
-  UNREACHABLE();
-}
-
-
 // Serializes a protobuf message for transmission
 // based on the HTTP content type.
 std::string serialize(
     ContentType contentType,
     const google::protobuf::Message& message);
-
-
-// Deserializes a string message into a protobuf message based on the
-// HTTP content type.
-template <typename Message>
-Try<Message> deserialize(
-    ContentType contentType,
-    const std::string& body)
-{
-  switch (contentType) {
-    case ContentType::PROTOBUF: {
-      Message message;
-      if (!message.ParseFromString(body)) {
-        return Error("Failed to parse body into a protobuf object");
-      }
-      return message;
-    }
-    case ContentType::JSON: {
-      Try<JSON::Value> value = JSON::parse(body);
-      if (value.isError()) {
-        return Error("Failed to parse body into JSON: " + value.error());
-      }
-
-      return ::protobuf::parse<Message>(value.get());
-    }
-  }
-
-  UNREACHABLE();
-}
 
 
 JSON::Object model(const Resources& resources);
