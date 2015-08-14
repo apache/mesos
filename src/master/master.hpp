@@ -1510,8 +1510,8 @@ struct Framework
   const FrameworkID id() const { return info.id(); }
 
   // Update fields in 'info' using those in 'source'. Currently this
-  // only updates 'name', 'failover_timeout', 'hostname', and
-  // 'webui_url'.
+  // only updates 'name', 'failover_timeout', 'hostname', 'webui_url',
+  // 'capabilities', and 'labels'.
   void updateFrameworkInfo(const FrameworkInfo& source)
   {
     // TODO(jmlvanre): We can't check 'FrameworkInfo.id' yet because
@@ -1568,6 +1568,12 @@ struct Framework
 
     if (source.capabilities_size() > 0) {
       info.mutable_capabilities()->CopyFrom(source.capabilities());
+    }
+
+    if (source.has_labels()) {
+      info.mutable_labels()->CopyFrom(source.labels());
+    } else {
+      info.clear_labels();
     }
   }
 

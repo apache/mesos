@@ -3594,6 +3594,63 @@ TEST_F(MasterTest, MasterFailoverLongLivedExecutor)
   Shutdown(); // Must shutdown before 'containerizer' gets deallocated.
 }
 
+// This test ensures that if a framework scheduler provides any labels in its
+// FrameworkInfo message, those labels are included in the state.json endpoint.
+TEST_F(MasterTest, FrameworkInfoLabels)
+{
+  Try<PID<Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  FrameworkInfo framework = DEFAULT_FRAMEWORK_INFO;
+
+  // Add three labels to the FrameworkInfo. Two labels share the same key.
+  framework.mutable_labels()->add_labels()->CopyFrom(createLabel("foo", "bar"));
+  framework.mutable_labels()->add_labels()->CopyFrom(createLabel("bar", "baz"));
+  framework.mutable_labels()->add_labels()->CopyFrom(createLabel("bar", "qux"));
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, framework, master.get(), DEFAULT_CREDENTIAL);
+
+  Future<Nothing> registered;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureSatisfy(&registered));
+
+  driver.start();
+
+  AWAIT_READY(registered);
+
+  Future<process::http::Response> response =
+    process::http::get(master.get(), "state.json");
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(process::http::OK().status, response);
+
+  Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+  ASSERT_SOME(parse);
+
+  Result<JSON::Array> labelsObject = parse.get().find<JSON::Array>(
+      "frameworks[0].labels");
+  EXPECT_SOME(labelsObject);
+
+  JSON::Array labelsObject_ = labelsObject.get();
+
+  EXPECT_EQ(
+      JSON::Value(JSON::Protobuf(createLabel("foo", "bar"))),
+      labelsObject_.values[0]);
+
+  EXPECT_EQ(
+      JSON::Value(JSON::Protobuf(createLabel("bar", "baz"))),
+      labelsObject_.values[1]);
+
+  EXPECT_EQ(
+      JSON::Value(JSON::Protobuf(createLabel("bar", "qux"))),
+      labelsObject_.values[2]);
+
+  driver.stop();
+  driver.join();
+
+  Shutdown();
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {

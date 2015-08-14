@@ -1828,13 +1828,14 @@ TEST_F(FaultToleranceTest, UpdateFrameworkInfoOnSchedulerFailover)
   // registered gets called to launch the second (i.e., failover)
   // scheduler with updated information.
 
-  FrameworkInfo framework1 = DEFAULT_FRAMEWORK_INFO;
-  framework1.set_name("Framework 1");
-  framework1.set_failover_timeout(1000);
+  FrameworkInfo finfo1 = DEFAULT_FRAMEWORK_INFO;
+  finfo1.set_name("Framework 1");
+  finfo1.set_failover_timeout(1000);
+  finfo1.mutable_labels()->add_labels()->CopyFrom(createLabel("foo", "bar"));
 
   MockScheduler sched1;
   MesosSchedulerDriver driver1(
-      &sched1, framework1, master.get(), DEFAULT_CREDENTIAL);
+      &sched1, finfo1, master.get(), DEFAULT_CREDENTIAL);
 
   Future<FrameworkID> frameworkId;
   EXPECT_CALL(sched1, registered(&driver1, _, _))
@@ -1854,17 +1855,18 @@ TEST_F(FaultToleranceTest, UpdateFrameworkInfoOnSchedulerFailover)
 
   MockScheduler sched2;
 
-  FrameworkInfo framework2 = DEFAULT_FRAMEWORK_INFO;
-  framework2.mutable_id()->MergeFrom(frameworkId.get());
+  FrameworkInfo finfo2 = DEFAULT_FRAMEWORK_INFO;
+  finfo2.mutable_id()->MergeFrom(frameworkId.get());
   auto capabilityType = FrameworkInfo::Capability::REVOCABLE_RESOURCES;
-  framework2.add_capabilities()->set_type(capabilityType);
-  framework2.set_name("Framework 2");
-  framework2.set_webui_url("http://localhost:8080/");
-  framework2.set_failover_timeout(100);
-  framework2.set_hostname("myHostname");
+  finfo2.add_capabilities()->set_type(capabilityType);
+  finfo2.set_name("Framework 2");
+  finfo2.set_webui_url("http://localhost:8080/");
+  finfo2.set_failover_timeout(100);
+  finfo2.set_hostname("myHostname");
+  finfo2.mutable_labels()->add_labels()->CopyFrom(createLabel("baz", "qux"));
 
   MesosSchedulerDriver driver2(
-      &sched2, framework2, master.get(), DEFAULT_CREDENTIAL);
+      &sched2, finfo2, master.get(), DEFAULT_CREDENTIAL);
 
   Future<Nothing> sched2Registered;
   EXPECT_CALL(sched2, registered(&driver2, frameworkId.get(), _))
@@ -1907,20 +1909,20 @@ TEST_F(FaultToleranceTest, UpdateFrameworkInfoOnSchedulerFailover)
 
   EXPECT_EQ(1u, framework.values.count("name"));
   JSON::String name = framework.values["name"].as<JSON::String>();
-  EXPECT_EQ(framework2.name(), name.value);
+  EXPECT_EQ(finfo2.name(), name.value);
 
   EXPECT_EQ(1u, framework.values.count("webui_url"));
   JSON::String webuiUrl = framework.values["webui_url"].as<JSON::String>();
-  EXPECT_EQ(framework2.webui_url(), webuiUrl.value);
+  EXPECT_EQ(finfo2.webui_url(), webuiUrl.value);
 
   EXPECT_EQ(1u, framework.values.count("failover_timeout"));
   JSON::Number failoverTimeout =
     framework.values["failover_timeout"].as<JSON::Number>();
-  EXPECT_EQ(framework2.failover_timeout(), failoverTimeout.value);
+  EXPECT_EQ(finfo2.failover_timeout(), failoverTimeout.value);
 
   EXPECT_EQ(1u, framework.values.count("hostname"));
   JSON::String hostname = framework.values["hostname"].as<JSON::String>();
-  EXPECT_EQ(framework2.hostname(), hostname.value);
+  EXPECT_EQ(finfo2.hostname(), hostname.value);
 
   EXPECT_EQ(1u, framework.values.count("capabilities"));
   JSON::Array capabilities =
@@ -1929,6 +1931,13 @@ TEST_F(FaultToleranceTest, UpdateFrameworkInfoOnSchedulerFailover)
   JSON::String capability = capabilities.values.front().as<JSON::String>();
   EXPECT_EQ(FrameworkInfo::Capability::Type_Name(capabilityType),
             capability.value);
+
+  EXPECT_EQ(1u, framework.values.count("labels"));
+  JSON::Array labels = framework.values["labels"].as<JSON::Array>();
+
+  EXPECT_EQ(
+      JSON::Value(JSON::Protobuf(createLabel("baz", "qux"))),
+      labels.values[0]);
 
   EXPECT_EQ(DRIVER_STOPPED, driver2.stop());
   EXPECT_EQ(DRIVER_STOPPED, driver2.join());

@@ -238,6 +238,18 @@ JSON::Object model(const Framework& framework)
     object.values["executors"] = std::move(executors);
   }
 
+  // Model all of the labels associated with a framework.
+  if (framework.info.has_labels()) {
+    JSON::Array array;
+    const mesos::Labels labels = framework.info.labels();
+    array.values.reserve(labels.labels_size());
+
+    foreach (const Label& label, labels.labels()) {
+      array.values.push_back(JSON::Protobuf(label));
+    }
+    object.values["labels"] = std::move(array);
+  }
+
   return object;
 }
 
