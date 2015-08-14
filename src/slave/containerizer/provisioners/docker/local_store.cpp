@@ -16,14 +16,16 @@
  * limitations under the License.
  */
 
-#include "slave/containerizer/provisioners/docker/store.hpp"
+#include "slave/containerizer/provisioners/docker/local_store.hpp"
 
 #include <list>
+#include <vector>
 
 #include <glog/logging.h>
 
-#include <stout/os.hpp>
 #include <stout/json.hpp>
+#include <stout/os.hpp>
+#include <stout/result.hpp>
 
 #include <process/collect.hpp>
 #include <process/defer.hpp>
@@ -33,6 +35,8 @@
 
 #include "slave/containerizer/fetcher.hpp"
 #include "slave/flags.hpp"
+
+#include "slave/containerizer/provisioners/docker/store.hpp"
 
 using namespace process;
 
@@ -44,6 +48,58 @@ namespace mesos {
 namespace internal {
 namespace slave {
 namespace docker {
+
+class LocalStoreProcess : public process::Process<LocalStoreProcess>
+{
+public:
+  ~LocalStoreProcess() {}
+
+  static Try<process::Owned<LocalStoreProcess>> create(
+      const Flags& flags,
+      Fetcher* fetcher);
+
+  process::Future<DockerImage> put(
+      const std::string& name,
+      const std::string& sandbox);
+
+  process::Future<Option<DockerImage>> get(const std::string& name);
+
+private:
+  LocalStoreProcess(const Flags& flags);
+
+  process::Future<Nothing> untarImage(
+      const std::string& tarPath,
+      const std::string& staging);
+
+  process::Future<DockerImage> putImage(
+      const std::string& name,
+      const std::string& staging,
+      const std::string& sandbox);
+
+  Result<std::string> getParentId(
+      const std::string& staging,
+      const std::string& layerId);
+
+  process::Future<Nothing> putLayers(
+      const std::string& staging,
+      const std::list<std::string>& layers,
+      const std::string& sandbox);
+
+  process::Future<Nothing> untarLayer(
+      const std::string& staging,
+      const std::string& id,
+      const std::string& sandbox);
+
+  process::Future<Nothing> moveLayer(
+      const std::string& staging,
+      const std::string& id,
+      const std::string& sandbox);
+
+  const Flags flags;
+
+  process::Owned<ReferenceStore> refStore;
+};
+
 
 Try<Owned<Store>> Store::create(
     const Flags& flags,

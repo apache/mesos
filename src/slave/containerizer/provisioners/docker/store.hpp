@@ -20,18 +20,13 @@
 #define __MESOS_DOCKER_STORE__
 
 #include <string>
-#include <vector>
 
 #include <stout/hashmap.hpp>
 #include <stout/nothing.hpp>
 #include <stout/option.hpp>
-#include <stout/result.hpp>
 #include <stout/try.hpp>
 
 #include <process/future.hpp>
-#include <process/owned.hpp>
-#include <process/process.hpp>
-#include <process/shared.hpp>
 
 #include "slave/containerizer/fetcher.hpp"
 #include "slave/containerizer/provisioners/docker.hpp"
@@ -81,90 +76,6 @@ public:
 
 protected:
   Store() {}
-};
-
-// Forward Declaration.
-class LocalStoreProcess;
-
-class LocalStore : public Store
-{
-public:
-  virtual ~LocalStore();
-
-  static Try<process::Owned<Store>> create(
-      const Flags& flags,
-      Fetcher* fetcher);
-
-  /**
-   * Put assumes the image tar archive is located in the directory specified in
-   * the slave flag docker_discovery_local_dir and is named with <name>.tar .
-   */
-  virtual process::Future<DockerImage> put(
-      const std::string& name,
-      const std::string& sandbox);
-
-  virtual process::Future<Option<DockerImage>> get(const std::string& name);
-
-private:
-  explicit LocalStore(process::Owned<LocalStoreProcess> process);
-
-  LocalStore(const LocalStore&); // Not copyable.
-
-  LocalStore& operator=(const LocalStore&); // Not assignable.
-
-  process::Owned<LocalStoreProcess> process;
-};
-
-
-class LocalStoreProcess : public process::Process<LocalStoreProcess>
-{
-public:
-  ~LocalStoreProcess() {}
-
-  static Try<process::Owned<LocalStoreProcess>> create(
-      const Flags& flags,
-      Fetcher* fetcher);
-
-  process::Future<DockerImage> put(
-      const std::string& name,
-      const std::string& sandbox);
-
-  process::Future<Option<DockerImage>> get(const std::string& name);
-
-private:
-  LocalStoreProcess(const Flags& flags);
-
-  process::Future<Nothing> untarImage(
-      const std::string& tarPath,
-      const std::string& staging);
-
-  process::Future<DockerImage> putImage(
-      const std::string& name,
-      const std::string& staging,
-      const std::string& sandbox);
-
-  Result<std::string> getParentId(
-      const std::string& staging,
-      const std::string& layerId);
-
-  process::Future<Nothing> putLayers(
-      const std::string& staging,
-      const std::list<std::string>& layers,
-      const std::string& sandbox);
-
-  process::Future<Nothing> untarLayer(
-      const std::string& staging,
-      const std::string& id,
-      const std::string& sandbox);
-
-  process::Future<Nothing> moveLayer(
-      const std::string& staging,
-      const std::string& id,
-      const std::string& sandbox);
-
-  const Flags flags;
-
-  process::Owned<ReferenceStore> refStore;
 };
 
 } // namespace docker {

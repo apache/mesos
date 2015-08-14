@@ -700,8 +700,8 @@ if OS_LINUX
   libmesos_no_3rdparty_la_SOURCES += slave/containerizer/linux_launcher.cpp
   libmesos_no_3rdparty_la_SOURCES += slave/containerizer/provisioner/backends/bind.cpp
   libmesos_no_3rdparty_la_SOURCES += slave/containerizer/provisioner/docker.cpp
+  libmesos_no_3rdparty_la_SOURCES += slave/containerizer/provisioner/docker/local_store.cpp
   libmesos_no_3rdparty_la_SOURCES += slave/containerizer/provisioner/docker/reference_store.cpp
-  libmesos_no_3rdparty_la_SOURCES += slave/containerizer/provisioner/docker/store.cpp
 else
   EXTRA_DIST += linux/cgroups.cpp
   EXTRA_DIST += linux/fs.cpp
@@ -827,6 +827,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
 	slave/containerizer/provisioner/backends/bind.hpp		\
 	slave/containerizer/provisioner/backends/copy.hpp		\
 	slave/containerizer/provisioner/docker.hpp			\
+	slave/containerizer/provisioners/docker/local_store.hpp         \
 	slave/containerizer/provisioner/docker/reference_store.hpp	\
 	slave/containerizer/provisioner/docker/registry_client.hpp	\
 	slave/containerizer/provisioner/docker/store.hpp		\
