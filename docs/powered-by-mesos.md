@@ -39,7 +39,7 @@ layout: documentation
 * [iQIYI](http://www.iqiyi.com/)
 * [Learnium](http://www.learnium.net/)
 * [LIFX](http://lifx.co)
-* [Linkernetworks](http://www.linkernetworks.com)
+* [Linker Networks](http://www.linkernetworks.com)
 * [Localsensor](http://www.localsensor.com)
 * [Magine TV](https://magine.com)
 * [Medallia](http://www.medallia.com)
