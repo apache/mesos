@@ -710,6 +710,7 @@ std::ostream& operator<<(std::ostream& stream, const URL& url);
 // TODO(bmahler): Consolidate these functions into a single
 // http::request function that takes a 'Request' object.
 
+// TODO(joerg84): Make names consistent (see Mesos-3256).
 
 // Asynchronously sends an HTTP GET request to the specified URL
 // and returns the HTTP response of type 'BODY' once the entire
@@ -748,6 +749,35 @@ Future<Response> post(
     const Option<hashmap<std::string, std::string>>& headers = None(),
     const Option<std::string>& body = None(),
     const Option<std::string>& contentType = None());
+
+
+/**
+ * Asynchronously sends an HTTP DELETE request to the process with the
+ * given UPID and returns the HTTP response.
+ *
+ * @param url The target url for the request.
+ * @param headers Optional header for the request.
+ * @return A future with the HTTP response.
+ */
+Future<Response> requestDelete(
+    const URL& url,
+    const Option<hashmap<std::string, std::string>>& headers = None());
+
+
+/**
+ * Asynchronously sends an HTTP DELETE request to the process with the
+ * given UPID and returns the HTTP response.
+ *
+ * @param upid The target process's assigned untyped PID.
+ * @param path The optional path to be be deleted. If not send the
+     request is send to the process directly.
+ * @param headers Optional headers for the request.
+ * @return A future with the HTTP response.
+ */
+Future<Response> requestDelete(
+    const UPID& upid,
+    const Option<std::string>& path = None(),
+    const Option<hashmap<std::string, std::string>>& headers = None());
 
 
 namespace streaming {

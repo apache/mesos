@@ -65,6 +65,7 @@ public:
   MOCK_METHOD1(pipe, Future<http::Response>(const http::Request&));
   MOCK_METHOD1(get, Future<http::Response>(const http::Request&));
   MOCK_METHOD1(post, Future<http::Response>(const http::Request&));
+  MOCK_METHOD1(requestDelete, Future<http::Response>(const http::Request&));
 
   void addRoute(const string& path, const HttpRequestHandler& handler)
   {
@@ -79,6 +80,7 @@ protected:
     route("/pipe", None(), &HttpProcess::pipe);
     route("/get", None(), &HttpProcess::get);
     route("/post", None(), &HttpProcess::post);
+    route("/delete", None(), &HttpProcess::requestDelete);
   }
 
   Future<http::Response> auth(const http::Request& request)
@@ -615,6 +617,32 @@ TEST(HTTPTest, Post)
 
   future =
     http::post(http.process->self(), "post", headers, "This is the payload.");
+
+  AWAIT_READY(future);
+  ASSERT_EQ(http::statuses[200], future.get().status);
+}
+
+
+http::Response validateDelete(const http::Request& request)
+{
+  EXPECT_EQ("DELETE", request.method);
+  EXPECT_THAT(request.path, EndsWith("delete"));
+  EXPECT_TRUE(request.body.empty());
+  EXPECT_TRUE(request.query.empty());
+
+  return http::OK();
+}
+
+
+TEST(HTTPTest, Delete)
+{
+  Http http;
+
+  EXPECT_CALL(*http.process, requestDelete(_))
+    .WillOnce(Invoke(validateDelete));
+
+  Future<http::Response> future =
+    http::requestDelete(http.process->self(), "delete", None());
 
   AWAIT_READY(future);
   ASSERT_EQ(http::statuses[200], future.get().status);

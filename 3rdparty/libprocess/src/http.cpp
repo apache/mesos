@@ -984,6 +984,32 @@ Future<Response> post(
 }
 
 
+Future<Response> requestDelete(
+    const URL& url,
+    const Option<hashmap<string, string>>& headers)
+{
+  return internal::request(url, "DELETE", false, headers, None(), None());
+}
+
+
+Future<Response> requestDelete(
+    const UPID& upid,
+    const Option<string>& path,
+    const Option<hashmap<string, string>>& headers)
+{
+  URL url("http", net::IP(upid.address.ip), upid.address.port, upid.id);
+
+  if (path.isSome()) {
+    // TODO(joerg84): Handle 'query' and/or 'fragment' in 'path'.
+    // This could mean that we either remove these or even fail
+    // (see MESOS-3163).
+    url.path = strings::join("/", url.path, path.get());
+  }
+
+  return requestDelete(url, headers);
+}
+
+
 namespace streaming {
 
 Future<Response> get(
