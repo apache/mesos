@@ -382,7 +382,7 @@ protected:
 
   void ___send()
   {
-    CHECK_LT(0, calls.size());
+    CHECK_LT(0u, calls.size());
     calls.pop();
 
     // Execute the next event in the queue.
