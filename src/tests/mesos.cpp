@@ -737,7 +737,7 @@ void ContainerizerTest<slave::MesosContainerizer>::SetUp()
         // otherwise our tests will fail when we try and clean them up
         // later).
         Try<std::vector<string>> cgroups = cgroups::get(hierarchy);
-        CHECK_SOME(cgroups);
+        ASSERT_SOME(cgroups);
 
         foreach (const string& cgroup, cgroups.get()) {
           // Remove any cgroups that start with TEST_CGROUPS_ROOT.
@@ -771,7 +771,7 @@ void ContainerizerTest<slave::MesosContainerizer>::TearDown()
       string hierarchy = path::join(baseHierarchy, subsystem);
 
       Try<std::vector<string>> cgroups = cgroups::get(hierarchy);
-      CHECK_SOME(cgroups);
+      ASSERT_SOME(cgroups);
 
       foreach (const string& cgroup, cgroups.get()) {
         // Remove any cgroups that start with TEST_CGROUPS_ROOT.
