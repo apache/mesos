@@ -184,6 +184,11 @@ public:
           break;
         }
 
+        case Event::HEARTBEAT: {
+          cout << endl << "Received a HEARTBEAT event" << endl;
+          break;
+        }
+
         default: {
           EXIT(1) << "Received an UNKNOWN event";
         }
