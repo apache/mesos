@@ -66,11 +66,8 @@ public:
   MOCK_METHOD1(get, Future<http::Response>(const http::Request&));
   MOCK_METHOD1(post, Future<http::Response>(const http::Request&));
   MOCK_METHOD1(requestDelete, Future<http::Response>(const http::Request&));
-
-  void addRoute(const string& path, const HttpRequestHandler& handler)
-  {
-    route(path, None(), handler);
-  }
+  MOCK_METHOD1(a, Future<http::Response>(const http::Request&));
+  MOCK_METHOD1(abc, Future<http::Response>(const http::Request&));
 
 protected:
   virtual void initialize()
@@ -81,6 +78,8 @@ protected:
     route("/get", None(), &HttpProcess::get);
     route("/post", None(), &HttpProcess::post);
     route("/delete", None(), &HttpProcess::requestDelete);
+    route("/a", None(), &HttpProcess::a);
+    route("/a/b/c", None(), &HttpProcess::abc);
   }
 
   Future<http::Response> auth(const http::Request& request)
@@ -446,13 +445,11 @@ TEST(HTTPTest, NestedGet)
 {
   Http http;
 
-  http.process->addRoute("/a/b/c", [] (const http::Request&) {
-    return http::OK();
-  });
+  EXPECT_CALL(*http.process, a(_))
+    .WillOnce(Return(http::Accepted()));
 
-  http.process->addRoute("/a", [] (const http::Request&) {
-    return http::Accepted();
-  });
+  EXPECT_CALL(*http.process, abc(_))
+    .WillOnce(Return(http::OK()));
 
   // The handler for "/a/b/c" should return 'http::OK()'.
   Future<http::Response> response = http::get(http.process->self(), "/a/b/c");
