@@ -107,6 +107,16 @@ int main(int argc, char** argv)
             "  zk://username:password@host1:port1,host2:port2,.../path\n"
             "  file:///path/to/file (where file contains one of the above)");
 
+
+  // Optional IP discover script that will set the slave's IP.
+  // If set, its output is expected to be a valid parseable IP string.
+  Option<string> ip_discovery_command;
+  flags.add(&ip_discovery_command,
+      "ip_discovery_command",
+      "Optional IP discovery binary: if set, it is expected to emit\n"
+      "the IP address which slave will try to bind to.\n"
+      "Cannot be used in conjunction with --ip.");
+
   Try<Nothing> load = flags.load("MESOS_", argc, argv);
 
   // TODO(marco): this pattern too should be abstracted away
@@ -149,7 +159,20 @@ int main(int argc, char** argv)
   }
 
   // Initialize libprocess.
-  if (ip.isSome()) {
+  if (ip_discovery_command.isSome() && ip.isSome()) {
+    EXIT(EXIT_FAILURE) << flags.usage(
+        "Only one of --ip or --ip_discovery_command should be specified");
+  }
+
+  if (ip_discovery_command.isSome()) {
+    Try<string> ipAddress = os::shell(ip_discovery_command.get());
+
+    if (ipAddress.isError()) {
+      EXIT(EXIT_FAILURE) << ipAddress.error();
+    }
+
+    os::setenv("LIBPROCESS_IP", strings::trim(ipAddress.get()));
+  } else if (ip.isSome()) {
     os::setenv("LIBPROCESS_IP", ip.get());
   }
 
