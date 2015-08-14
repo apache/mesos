@@ -496,37 +496,7 @@ inline std::ostream& operator<<(std::ostream& out, const String& string)
 {
   // TODO(benh): This escaping DOES NOT handle unicode, it encodes as ASCII.
   // See RFC4627 for the JSON string specificiation.
-  out << "\"";
-  foreach (unsigned char c, string.value) {
-    switch (c) {
-      case '"':  out << "\\\""; break;
-      case '\\': out << "\\\\"; break;
-      case '/':  out << "\\/";  break;
-      case '\b': out << "\\b";  break;
-      case '\f': out << "\\f";  break;
-      case '\n': out << "\\n";  break;
-      case '\r': out << "\\r";  break;
-      case '\t': out << "\\t";  break;
-      default:
-        // See RFC4627 for these ranges.
-        if ((c >= 0x20 && c <= 0x21) ||
-            (c >= 0x23 && c <= 0x5B) ||
-            (c >= 0x5D && c < 0x7F)) {
-          out << c;
-        } else {
-          // NOTE: We also escape all bytes > 0x7F since they imply more than
-          // 1 byte in UTF-8. This is why we don't escape UTF-8 properly.
-          // See RFC4627 for the escaping format: \uXXXX (X is a hex digit).
-          // Each byte here will be of the form: \u00XX (this is why we need
-          // setw and the cast to unsigned int).
-          out << "\\u" << std::setfill('0') << std::setw(4)
-              << std::hex << std::uppercase << (unsigned int) c;
-        }
-        break;
-    }
-  }
-  out << "\"";
-  return out;
+  return out << picojson::value(string.value).serialize();
 }
 
 

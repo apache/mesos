@@ -23,6 +23,7 @@
 #include <stout/protobuf.hpp>
 #include <stout/stringify.hpp>
 #include <stout/strings.hpp>
+#include <stout/uuid.hpp>
 
 #include "protobuf_tests.pb.h"
 
@@ -118,4 +119,19 @@ TEST(ProtobufTest, JSON)
   ASSERT_SOME(parse);
 
   EXPECT_EQ(object, JSON::Protobuf(parse.get()));
+
+  // Modify the message to test (de-)serialization of random bytes generated
+  // by UUID.
+  message.set_bytes(UUID::random().toBytes());
+
+  object = JSON::Protobuf(message);
+
+  // Test parsing too.
+  parse = protobuf::parse<tests::Message>(object);
+  ASSERT_SOME(parse);
+
+  EXPECT_EQ(object, JSON::Protobuf(parse.get()));
+
+  // Now convert JSON to string and parse it back as JSON.
+  ASSERT_SOME_EQ(object, JSON::parse(stringify(object)));
 }
