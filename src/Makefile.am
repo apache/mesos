@@ -1030,16 +1030,6 @@ dist_bin_SCRIPTS +=							\
   cli/mesos-scp								\
   cli/mesos-tail
 
-# Also install the supporting scripts for the Python based CLI tools.
-# TODO(benh): Use PIP and python/setup.py to do this correctly.
-mesospythonpkglibexecdir = $(pkglibexecdir)/python/mesos
-
-dist_mesospythonpkglibexec_SCRIPTS =					\
-  cli/python/mesos/__init__.py						\
-  cli/python/mesos/cli.py						\
-  cli/python/mesos/futures.py						\
-  cli/python/mesos/http.py
-
 # Need to distribute/install webui javascript. We use 'pkgdatadir'
 # instead of 'datadir' as the install directory so we get the the
 # package name (i.e., 'mesos') as part of the path (i.e.,
@@ -1295,6 +1285,10 @@ PHONY_TARGETS += clean-java
 # distribution unconditionally.
 PYTHON_SOURCE =								\
 	python/src/mesos/__init__.py					\
+	python/cli/src/mesos/__init__.py				\
+	python/cli/src/mesos/cli.py					\
+	python/cli/src/mesos/futures.py					\
+	python/cli/src/mesos/http.py					\
 	python/interface/src/mesos/__init__.py				\
 	python/interface/src/mesos/interface/__init__.py		\
 	python/native/src/mesos/__init__.py				\
@@ -1354,11 +1348,13 @@ $(PYTHON_SOURCE):
 # can be easily uninstalled. They end up being what gets installed/uninstalled.
 MESOS_EGGS =										\
 	python/dist/mesos-$(PACKAGE_VERSION)$(PYTHON_EGG_PUREPY_POSTFIX).egg		\
+	python/dist/mesos.cli-$(PACKAGE_VERSION)$(PYTHON_EGG_PUREPY_POSTFIX).egg	\
 	python/dist/mesos.interface-$(PACKAGE_VERSION)$(PYTHON_EGG_PUREPY_POSTFIX).egg	\
 	python/dist/mesos.native-$(PACKAGE_VERSION)$(PYTHON_EGG_POSTFIX).egg
 
 MESOS_WHLS =										\
 	python/dist/mesos-$(PACKAGE_VERSION)$(PYTHON_WHL_PUREPY_POSTFIX).whl		\
+	python/dist/mesos.cli-$(PACKAGE_VERSION)$(PYTHON_WHL_PUREPY_POSTFIX).whl	\
 	python/dist/mesos.interface-$(PACKAGE_VERSION)$(PYTHON_WHL_PUREPY_POSTFIX).whl	\
 	python/dist/mesos.native-$(PACKAGE_VERSION)$(PYTHON_WHL_POSTFIX).whl
 

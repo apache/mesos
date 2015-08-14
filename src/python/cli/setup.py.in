@@ -15,3 +15,23 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+config = {
+    'name': 'mesos.cli',
+    'version': '@PACKAGE_VERSION@',
+    'description': 'Mesos command line utilities',
+    'author': 'Apache Mesos',
+    'author_email': 'dev@mesos.apache.org',
+    'url': 'http://pypi.python.org/pypi/mesos.cli',
+    'namespace_packages': [ 'mesos' ],
+    'packages': [ 'mesos' ],
+    'package_dir': { '': 'src' },
+    'install_requires': [ ],
+    'license': 'Apache 2.0',
+    'keywords': 'mesos',
+    'classifiers': [ ]
+}
+
+from setuptools import setup
+
+setup(**config)
