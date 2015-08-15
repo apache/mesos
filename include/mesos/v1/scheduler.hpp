@@ -46,12 +46,12 @@ class MesosProcess; // Forward declaration.
 class Mesos
 {
 public:
+  // TODO(vinod): Remove this in favor of the below constructor.
   Mesos(const std::string& master,
         const std::function<void(void)>& connected,
         const std::function<void(void)>& disconnected,
         const std::function<void(const std::queue<Event>&)>& received);
 
-  // This constructor is primarily used for testing.
   Mesos(const std::string& master,
         ContentType contentType,
         const std::function<void(void)>& connected,
