@@ -1124,6 +1124,8 @@ message RateLimits {
 /**
  * Describe an image used by tasks or executors. Note that it's only
  * for tasks or executors launched by MesosContainerizer currently.
+ * TODO(jieyu): This feature not fully supported in 0.24.0. Please do
+ * not use it until this feature is announced.
  */
 message Image {
   enum Type {
