@@ -71,13 +71,14 @@ using testing::_;
 using testing::AtMost;
 using testing::DoAll;
 using testing::Return;
+using testing::WithParamInterface;
 
 namespace mesos {
 namespace internal {
 namespace tests {
 
 
-class SchedulerTest : public MesosTest
+class SchedulerTest : public MesosTest, public WithParamInterface<ContentType>
 {
 protected:
   // Helper class for using EXPECT_CALL since the Mesos scheduler API
@@ -90,6 +91,14 @@ protected:
     MOCK_METHOD1(received, void(const std::queue<Event>&));
   };
 };
+
+
+// The scheduler library tests are parameterized by the content type
+// of the HTTP request.
+INSTANTIATE_TEST_CASE_P(
+    ContentType,
+    SchedulerTest,
+    ::testing::Values(ContentType::PROTOBUF, ContentType::JSON));
 
 
 // Enqueues all received events into a libprocess queue.
@@ -112,7 +121,7 @@ ACTION_P(Enqueue, queue)
 
 // This test verifies that when a scheduler resubscribes it receives
 // SUBSCRIBED event with the previously assigned framework id.
-TEST_F(SchedulerTest, Subscribe)
+TEST_P(SchedulerTest, Subscribe)
 {
   master::Flags flags = CreateMasterFlags();
   flags.authenticate_frameworks = false;
@@ -128,6 +137,7 @@ TEST_F(SchedulerTest, Subscribe)
 
   Mesos mesos(
       master.get(),
+      GetParam(),
       lambda::bind(&Callbacks::connected, lambda::ref(callbacks)),
       lambda::bind(&Callbacks::disconnected, lambda::ref(callbacks)),
       lambda::bind(&Callbacks::received, lambda::ref(callbacks), lambda::_1));
@@ -179,7 +189,7 @@ TEST_F(SchedulerTest, Subscribe)
 }
 
 
-TEST_F(SchedulerTest, TaskRunning)
+TEST_P(SchedulerTest, TaskRunning)
 {
   master::Flags flags = CreateMasterFlags();
   flags.authenticate_frameworks = false;
@@ -202,6 +212,7 @@ TEST_F(SchedulerTest, TaskRunning)
 
   Mesos mesos(
       master.get(),
+      GetParam(),
       lambda::bind(&Callbacks::connected, lambda::ref(callbacks)),
       lambda::bind(&Callbacks::disconnected, lambda::ref(callbacks)),
       lambda::bind(&Callbacks::received, lambda::ref(callbacks), lambda::_1));
@@ -289,7 +300,7 @@ TEST_F(SchedulerTest, TaskRunning)
 }
 
 
-TEST_F(SchedulerTest, ReconcileTask)
+TEST_P(SchedulerTest, ReconcileTask)
 {
   master::Flags flags = CreateMasterFlags();
   flags.authenticate_frameworks = false;
@@ -312,6 +323,7 @@ TEST_F(SchedulerTest, ReconcileTask)
 
   Mesos mesos(
       master.get(),
+      GetParam(),
       lambda::bind(&Callbacks::connected, lambda::ref(callbacks)),
       lambda::bind(&Callbacks::disconnected, lambda::ref(callbacks)),
       lambda::bind(&Callbacks::received, lambda::ref(callbacks), lambda::_1));
@@ -401,7 +413,7 @@ TEST_F(SchedulerTest, ReconcileTask)
 }
 
 
-TEST_F(SchedulerTest, KillTask)
+TEST_P(SchedulerTest, KillTask)
 {
   master::Flags flags = CreateMasterFlags();
   flags.authenticate_frameworks = false;
@@ -424,6 +436,7 @@ TEST_F(SchedulerTest, KillTask)
 
   Mesos mesos(
       master.get(),
+      GetParam(),
       lambda::bind(&Callbacks::connected, lambda::ref(callbacks)),
       lambda::bind(&Callbacks::disconnected, lambda::ref(callbacks)),
       lambda::bind(&Callbacks::received, lambda::ref(callbacks), lambda::_1));
@@ -528,7 +541,7 @@ TEST_F(SchedulerTest, KillTask)
 }
 
 
-TEST_F(SchedulerTest, ShutdownExecutor)
+TEST_P(SchedulerTest, ShutdownExecutor)
 {
   master::Flags flags = CreateMasterFlags();
   flags.authenticate_frameworks = false;
@@ -551,6 +564,7 @@ TEST_F(SchedulerTest, ShutdownExecutor)
 
   Mesos mesos(
       master.get(),
+      GetParam(),
       lambda::bind(&Callbacks::connected, lambda::ref(callbacks)),
       lambda::bind(&Callbacks::disconnected, lambda::ref(callbacks)),
       lambda::bind(&Callbacks::received, lambda::ref(callbacks), lambda::_1));
@@ -644,7 +658,7 @@ TEST_F(SchedulerTest, ShutdownExecutor)
 }
 
 
-TEST_F(SchedulerTest, Teardown)
+TEST_P(SchedulerTest, Teardown)
 {
   master::Flags flags = CreateMasterFlags();
   flags.authenticate_frameworks = false;
@@ -667,6 +681,7 @@ TEST_F(SchedulerTest, Teardown)
 
   Mesos mesos(
       master.get(),
+      GetParam(),
       lambda::bind(&Callbacks::connected, lambda::ref(callbacks)),
       lambda::bind(&Callbacks::disconnected, lambda::ref(callbacks)),
       lambda::bind(&Callbacks::received, lambda::ref(callbacks), lambda::_1));
@@ -748,7 +763,7 @@ TEST_F(SchedulerTest, Teardown)
 }
 
 
-TEST_F(SchedulerTest, Decline)
+TEST_P(SchedulerTest, Decline)
 {
   master::Flags flags = CreateMasterFlags();
   flags.authenticate_frameworks = false;
@@ -767,6 +782,7 @@ TEST_F(SchedulerTest, Decline)
 
   Mesos mesos(
       master.get(),
+      GetParam(),
       lambda::bind(&Callbacks::connected, lambda::ref(callbacks)),
       lambda::bind(&Callbacks::disconnected, lambda::ref(callbacks)),
       lambda::bind(&Callbacks::received, lambda::ref(callbacks), lambda::_1));
@@ -828,7 +844,7 @@ TEST_F(SchedulerTest, Decline)
 }
 
 
-TEST_F(SchedulerTest, Revive)
+TEST_P(SchedulerTest, Revive)
 {
   master::Flags flags = CreateMasterFlags();
   flags.authenticate_frameworks = false;
@@ -847,6 +863,7 @@ TEST_F(SchedulerTest, Revive)
 
   Mesos mesos(
       master.get(),
+      GetParam(),
       lambda::bind(&Callbacks::connected, lambda::ref(callbacks)),
       lambda::bind(&Callbacks::disconnected, lambda::ref(callbacks)),
       lambda::bind(&Callbacks::received, lambda::ref(callbacks), lambda::_1));
@@ -924,7 +941,7 @@ TEST_F(SchedulerTest, Revive)
 }
 
 
-TEST_F(SchedulerTest, Message)
+TEST_P(SchedulerTest, Message)
 {
   master::Flags flags = CreateMasterFlags();
   flags.authenticate_frameworks = false;
@@ -947,6 +964,7 @@ TEST_F(SchedulerTest, Message)
 
   Mesos mesos(
       master.get(),
+      GetParam(),
       lambda::bind(&Callbacks::connected, lambda::ref(callbacks)),
       lambda::bind(&Callbacks::disconnected, lambda::ref(callbacks)),
       lambda::bind(&Callbacks::received, lambda::ref(callbacks), lambda::_1));
@@ -1033,7 +1051,7 @@ TEST_F(SchedulerTest, Message)
 }
 
 
-TEST_F(SchedulerTest, Request)
+TEST_P(SchedulerTest, Request)
 {
   master::Flags flags = CreateMasterFlags();
   flags.authenticate_frameworks = false;
@@ -1049,6 +1067,7 @@ TEST_F(SchedulerTest, Request)
 
   Mesos mesos(
       master.get(),
+      GetParam(),
       lambda::bind(&Callbacks::connected, lambda::ref(callbacks)),
       lambda::bind(&Callbacks::disconnected, lambda::ref(callbacks)),
       lambda::bind(&Callbacks::received, lambda::ref(callbacks), lambda::_1));

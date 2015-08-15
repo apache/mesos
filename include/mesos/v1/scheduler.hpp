@@ -23,6 +23,8 @@
 #include <queue>
 #include <string>
 
+#include <mesos/http.hpp>
+
 #include <mesos/v1/mesos.hpp>
 
 #include <mesos/v1/scheduler/scheduler.hpp>
@@ -48,6 +50,14 @@ public:
         const std::function<void(void)>& connected,
         const std::function<void(void)>& disconnected,
         const std::function<void(const std::queue<Event>&)>& received);
+
+  // This constructor is primarily used for testing.
+  Mesos(const std::string& master,
+        ContentType contentType,
+        const std::function<void(void)>& connected,
+        const std::function<void(void)>& disconnected,
+        const std::function<void(const std::queue<Event>&)>& received);
+
 
   virtual ~Mesos();
 

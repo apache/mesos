@@ -489,6 +489,7 @@ libmesos_no_3rdparty_la_SOURCES =					\
 pkginclude_HEADERS =							\
   $(top_srcdir)/include/mesos/executor.hpp				\
   $(top_srcdir)/include/mesos/hook.hpp					\
+  $(top_srcdir)/include/mesos/http.hpp					\
   $(top_srcdir)/include/mesos/mesos.hpp					\
   $(top_srcdir)/include/mesos/mesos.proto				\
   $(top_srcdir)/include/mesos/module.hpp				\

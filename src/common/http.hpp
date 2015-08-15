@@ -21,6 +21,7 @@
 
 #include <vector>
 
+#include <mesos/http.hpp>
 #include <mesos/mesos.hpp>
 
 #include <stout/hashmap.hpp>
@@ -35,32 +36,6 @@ namespace internal {
 
 class Attributes;
 class Task;
-
-extern const char APPLICATION_JSON[];
-extern const char APPLICATION_PROTOBUF[];
-
-// Possible content-types that can be used as responses for
-// the mesos Http API.
-enum class ContentType
-{
-  PROTOBUF,
-  JSON
-};
-
-
-inline std::ostream& operator<<(std::ostream& stream, ContentType contentType)
-{
-  switch (contentType) {
-    case ContentType::PROTOBUF: {
-      return stream << APPLICATION_PROTOBUF;
-    }
-    case ContentType::JSON: {
-      return stream << APPLICATION_JSON;
-    }
-  }
-
-  UNREACHABLE();
-}
 
 
 // Serializes a protobuf message for transmission

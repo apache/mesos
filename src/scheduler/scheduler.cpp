@@ -505,20 +505,29 @@ private:
 
 Mesos::Mesos(
     const string& master,
+    ContentType contentType,
     const lambda::function<void(void)>& connected,
     const lambda::function<void(void)>& disconnected,
     const lambda::function<void(const queue<Event>&)>& received)
 {
-  // TODO(anand): Make ContentType as a constructor argument.
   process = new MesosProcess(
       master,
-      ContentType::PROTOBUF,
+      contentType,
       connected,
       disconnected,
       received);
 
   spawn(process);
 }
+
+
+// Default ContentType is protobuf for HTTP requests.
+Mesos::Mesos(
+    const string& master,
+    const lambda::function<void(void)>& connected,
+    const lambda::function<void(void)>& disconnected,
+    const lambda::function<void(const queue<Event>&)>& received)
+  : Mesos(master, ContentType::PROTOBUF, connected, disconnected, received) {}
 
 
 Mesos::~Mesos()
