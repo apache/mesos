@@ -1,10 +1,136 @@
 Release Notes - Mesos - Version 0.24.0
 --------------------------------------------
-This release contains new features:
+This release contains experimental v1 scheduler HTTP API. This allows framework schedulers
+to send HTTP requests to master endpoint ('/api/v1/scheduler') without the need for a driver.
+
+The release also includes these features:
+    * [MESOS-336] - Mesos slave should cache executors
+
+* API Changes:
+  * [MESOS-2293] - Implement the scheduler endpoint on master
+  * [MESOS-3135] - Publish MasterInfo to ZK using JSON
+  * [MESOS-2830] - Add an endpoint to slaves to allow launching system administration tasks
+
+* Binary API Changes (e.g., new flags)
+    * [MESOS-3154] - Enable Mesos Agent Node to use arbitrary script / module to figure out IP, HOSTNAME
+    * [MESOS-809] - External control of the ip that Mesos components publish to zookeeper
 
 * Deprecations:
   * [MESOS-2736]  - MasterInfo `ip`, `port` and `hostname` are deprecated in
                     favor of using the `address` field (see `Address` protobuf)
+
+* Work In Progress:
+  * Support for 'Image' field added to 'Volume' and 'ContainerInfo' protobufs is incomplete.
+
+
+This release also includes several bug fixes and stability improvements.
+
+** Bug
+    * [MESOS-2166] -  PerfEventIsolatorTest.ROOT_CGROUPS_Sample requires 'perf' to be installed
+    * [MESOS-2337] - __init__.py not getting installed in $PREFIX/lib/pythonX.Y/site-packages/mesos
+    * [MESOS-2493] - google glog link is incorrect
+    * [MESOS-2497] - Create synchronous validations for Calls
+    * [MESOS-2552] - C++ Scheduler library should send HTTP Calls to master
+    * [MESOS-2559] - Do not use RunTaskMessage.framework_id.
+    * [MESOS-2660] - ROOT_CGROUPS_Listen and ROOT_IncreaseRSS tests are flaky
+    * [MESOS-2862] - mesos-fetcher won't fetch uris which begin with a " "
+    * [MESOS-2868] - --attributes flag in slave cannot take a value with ':' 
+    * [MESOS-2882] - Duplicate name-value env-vars in '-e' option of docker run
+    * [MESOS-2900] - Display capabilities in state.json
+    * [MESOS-2989] - Changing to "framework" from "framwork"
+    * [MESOS-3001] - Create a "demo" HTTP API client
+    * [MESOS-3002] - Rename Option<T>::get(const T& _t) to getOrElse() broke network isolator
+    * [MESOS-3027] - Compiler warning in stout subcommand tests
+    * [MESOS-3058] - Cgroup tests relies on cgroups::get() returning in a specific order
+    * [MESOS-3079] - `sudo make distcheck` fails on Ubuntu 14.04 (and possibly other OSes too)
+    * [MESOS-3121] - Always disable SSLV2
+    * [MESOS-3124] - Updating persistent volumes after slave restart is problematic.
+    * [MESOS-3138] - PersistentVolumeTest.SlaveRecovery test fails on OSX
+    * [MESOS-3141] - Compiler warning when mocking function type has an enum return type.
+    * [MESOS-3143] - Disable endpoints rule fails to recognize HTTP path delegates
+    * [MESOS-3148] - Resolve issue with hanging tests with Zookeeper
+    * [MESOS-3168] - MesosZooKeeperTest fixture can have side effects across tests
+    * [MESOS-3170] - 0.23 Build fails when compiling against -lsasl2 which has been statically linked
+    * [MESOS-3175] - subprocess_tests.cpp:598 delete used but allocated with new[]
+    * [MESOS-3178] - Perform a self bind mount of rootfs itself in fs::chroot::enter.
+    * [MESOS-3192] - ContainerInfo::Image::AppC::id should be optional
+    * [MESOS-3195] - Fix master metrics for scheduler calls
+    * [MESOS-3197] - MemIsolatorTest/{0,1}.MemUsage fails on OS X
+    * [MESOS-3203] - MasterAuthorizationTest.DuplicateRegistration test is flaky
+    * [MESOS-3204] - PortMappingIsolatorProcess shell script can silently fail
+    * [MESOS-3207] - C++ style guide is not rendered correctly (code section syntax disregarded)
+    * [MESOS-3209] - parameterize allocator benchmark by framework count
+    * [MESOS-3234] - enable automake maintainer mode
+    * [MESOS-3237] - HTTP requests with nested path are not properly handled by libprocess
+    * [MESOS-3238] - Master endpoint help message is incorrect
+    * [MESOS-3260] - SchedulerTest.* are broken on OSX and CentOS
+    * [MESOS-3262] - HTTPTest.NestedGet is flaky
+    * [MESOS-3263] - SchedulerTask.KillTest fails for JSON Requests
+    * [MESOS-3267] - JSON serialization/deserialization of bytes is incorrect
+
+** Documentation
+    * [MESOS-1838] - Add documentation for Authentication
+    * [MESOS-2555] - Document issue with slave recovery when using systemd.
+    * [MESOS-3087] - Typos in oversubscription doc
+    * [MESOS-3167] - Design doc for versioning the HTTP API
+
+** Improvement
+    * [MESOS-2350] - Add support for MesosContainerizerLaunch to chroot to a specified path
+    * [MESOS-2794] - Implement filesystem isolators
+    * [MESOS-2795] - Introduce filesystem provisioner abstraction
+    * [MESOS-2798] - Export statistics on "unevictable" memory
+    * [MESOS-2800] - Rename Option<T>::get(const T& _t) to getOrElse() and refactor the original function
+    * [MESOS-2841] - FrameworkInfo should include a Labels field to support arbitrary, lightweight metadata
+    * [MESOS-2880] - Add Frameworkinfo.capabilities on framework re-registration
+    * [MESOS-2902] - Enable Mesos to use arbitrary script / module to figure out IP, HOSTNAME
+    * [MESOS-2924] - Allow simple construction via initializer list on hashset.
+    * [MESOS-2946] - Authorizer Module: Interface design
+    * [MESOS-2947] - Authorizer Module: Implementation, Integration & Tests
+    * [MESOS-2951] - Inefficient container usage collection
+    * [MESOS-2965] - Add implicit cast to string operator to Path.
+    * [MESOS-2967] - Missing doxygen documentation for libprocess socket interface 
+    * [MESOS-3020] - Expose major, minor and patch components from stout Version  
+    * [MESOS-3054] - update gitignore
+    * [MESOS-3093] - Support HTTPS requests in libprocess
+    * [MESOS-3112] - Fetcher should perform cache eviction based on cache file usage patterns.
+    * [MESOS-3118] - Remove pthread specific code from Stout
+    * [MESOS-3119] - Remove pthread specific code from Libprocess
+    * [MESOS-3120] - Remove pthread specific code from Mesos
+    * [MESOS-3127] - Improve task reconciliation documentation.
+    * [MESOS-3173] - Mark Path::basename, Path::dirname as const functions.
+    * [MESOS-3182] - Make Master::registerFramework() and Master::reregisterFramework() call into Master::subscribe()
+
+** Story
+    * [MESOS-2860] - Create the basic infrastructure to handle /scheduler endpoint
+    * [MESOS-3142] - As a Developer I want a better way to run shell commands
+    * [MESOS-3211] - As a Python developer I want a simple way to obtain information about Master from ZooKeeper
+    * [MESOS-3212] - As a Java developer I want a simple way to obtain information about Master from ZooKeeper
+
+** Task
+    * [MESOS-2294] - Implement the Events stream on master for Call endpoint
+    * [MESOS-2640] - Remove old frameworks and ec2 scripts from core Mesos repository
+    * [MESOS-2910] - Add an Event message handler to scheduler driver
+    * [MESOS-2912] - Provide a Python library for master detection
+    * [MESOS-2913] - Scheduler driver should send Call messages to the master
+    * [MESOS-2933] - Pass slave's total resources to the ResourceEstimator and QoSController via Slave::usage().
+    * [MESOS-2961] - Add cpuacct subsystem utils to cgroups
+    * [MESOS-3012] - Support existing message passing optimization with Event/Call.
+    * [MESOS-3044] - Slaves are not deactivated upon reaching a maintenance window
+    * [MESOS-3067] - Implement a streaming response decoder for events stream
+    * [MESOS-3068] - Registry operations are hardcoded for a single key (Registry object)
+    * [MESOS-3077] - Registry recovery does not recover the maintenance object.
+    * [MESOS-3088] - Update scheduler driver to send SUBSCRIBE call
+    * [MESOS-3089] - Update scheduler library to send REQUEST call
+    * [MESOS-3101] - Standardize separation of Windows/Linux-specific OS code
+    * [MESOS-3102] - Separate OS-specific code in the stout library
+    * [MESOS-3130] - Custom isolators should implement Isolator instead of IsolatorProcess.
+    * [MESOS-3131] - Master should send heartbeats on the subscription connection
+    * [MESOS-3132] - Allow slave to forward messages through the master for HTTP schedulers.
+    * [MESOS-3145] - Using a unresolvable hostname crashes the framework on registration
+    * [MESOS-3149] - Use setuptools to install python cli package
+    * [MESOS-3162] - Provide a means to check http connection equality for streaming connections.
+    * [MESOS-3179] - Create a test abstraction for preparing test rootfs.
+    * [MESOS-3194] - Implement a 'read-only' AppC Image Store
 
 
 Release Notes - Mesos - Version 0.23.0
