@@ -33,6 +33,7 @@
 
 #include "messages/docker_provisioner.hpp"
 
+#include "slave/containerizer/provisioners/docker/paths.hpp"
 #include "slave/containerizer/provisioners/docker/reference_store.hpp"
 #include "slave/state.hpp"
 
@@ -147,14 +148,8 @@ Try<Nothing> ReferenceStoreProcess::persist()
     }
   }
 
-  Try<string> path = path::join(flags.docker_store_dir, "storedImages");
-  if (path.isError()) {
-    return Error("Failure to construct path to repositories lookup: " +
-                    path.error());
-  }
-
-  Try<Nothing> status =
-    mesos::internal::slave::state::checkpoint(path.get(), images);
+  Try<Nothing> status = mesos::internal::slave::state::checkpoint(
+      paths::getStoredImagesPath(flags.docker_store_dir), images);
   if (status.isError()) {
     return Error("Failed to perform checkpoint: " + status.error());
   }
@@ -165,17 +160,17 @@ Try<Nothing> ReferenceStoreProcess::persist()
 
 void ReferenceStoreProcess::initialize()
 {
-  Try<string> path = path::join(flags.docker_store_dir, "storedImages");
+  string storedImagesPath = paths::getStoredImagesPath(flags.docker_store_dir);
 
   storedImages.clear();
-  if (!os::exists(path.get())) {
+  if (!os::exists(storedImagesPath)) {
     LOG(INFO) << "No images to load from disk. Docker provisioner image "
-              << "storage path: " << path.get() << " does not exist.";
+              << "storage path: " << storedImagesPath << " does not exist.";
     return;
   }
 
   Result<DockerProvisionerImages> images =
-    ::protobuf::read<DockerProvisionerImages>(path.get());
+    ::protobuf::read<DockerProvisionerImages>(storedImagesPath);
   if (images.isError()) {
     LOG(ERROR) << "Failed to read protobuf for Docker provisioner image: "
                << images.error();
@@ -192,7 +187,8 @@ void ReferenceStoreProcess::initialize()
 
       layers.push_back(layerId);
 
-      if (!os::exists(path::join(flags.docker_store_dir, layerId))) {
+      if (!os::exists(
+              paths::getImageLayerPath(flags.docker_store_dir, layerId))) {
         missingLayers.push_back(layerId);
       }
     }
