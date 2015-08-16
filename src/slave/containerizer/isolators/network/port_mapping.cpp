@@ -1588,11 +1588,6 @@ Try<Isolator*> PortMappingIsolatorProcess::create(const Flags& flags)
     return Error(
         "Failed to mark '" + PORT_MAPPING_BIND_MOUNT_ROOT() +
         "' as recursively shared: " + mountShared.error());
-  } else if (mountShared.get() != 0) {
-    return Error(
-        "Failed to mark '" + PORT_MAPPING_BIND_MOUNT_ROOT() +
-        "' as recursively shared: " + "non-zero exit code: " +
-        stringify(mountShared.get()));
   }
 
   // Create the network namespace handle symlink directory if it does
