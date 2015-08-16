@@ -760,6 +760,7 @@ void Master::initialize()
   route("/api/v1/scheduler",
         Http::SCHEDULER_HELP,
         [http](const process::http::Request& request) {
+          Http::log(request);
           return http.scheduler(request);
         });
   route("/health",
