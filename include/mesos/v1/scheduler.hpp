@@ -58,6 +58,11 @@ public:
         const std::function<void(void)>& disconnected,
         const std::function<void(const std::queue<Event>&)>& received);
 
+  // Delete copy constructor.
+  Mesos(const Mesos& other) = delete;
+
+  // Delete assignment operator.
+  Mesos& operator = (const Mesos& other) = delete;
 
   virtual ~Mesos();
 
