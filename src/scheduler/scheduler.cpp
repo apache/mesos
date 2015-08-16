@@ -300,6 +300,8 @@ protected:
       return Nothing();
     }
 
+    VLOG(1) << "Sending " << call.type() << " call to " << master.get();
+
     // TODO(vinod): Add support for sending MESSAGE calls directly
     // to the slave, instead of relaying it through the master, as
     // the scheduler driver does.
@@ -447,8 +449,10 @@ protected:
     }
 
     if (isLocallyInjected) {
-      VLOG(1) << "Enqueuing locally injected event "
-              << stringify(event.type());
+      VLOG(1) << "Enqueuing locally injected event " << stringify(event.type());
+    } else {
+      VLOG(1) << "Enqueuing event " << stringify(event.type()) << " received"
+              << " from " << master.get();
     }
 
     // Queue up the event and invoke the 'received' callback if this
