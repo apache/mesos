@@ -68,6 +68,7 @@ using process::USAGE;
 
 using process::http::Accepted;
 using process::http::BadRequest;
+using process::http::Forbidden;
 using process::http::InternalServerError;
 using process::http::MethodNotAllowed;
 using process::http::NotFound;
@@ -429,6 +430,10 @@ Future<Response> Master::Http::scheduler(const Request& request) const
 
   if (framework == NULL) {
     return BadRequest("Framework cannot be found");
+  }
+
+  if (!framework->connected) {
+    return Forbidden("Framework is not subscribed");
   }
 
   switch (call.type()) {
