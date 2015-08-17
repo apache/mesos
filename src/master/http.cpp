@@ -1346,10 +1346,14 @@ Result<Credential> Master::Http::authenticate(const Request& request) const
     return Error("Missing 'Authorization' request header");
   }
 
-  const string& decoded =
+  Try<string> decode =
     base64::decode(strings::split(authorization.get(), " ", 2)[1]);
 
-  const vector<string>& pairs = strings::split(decoded, ":", 2);
+  if (decode.isError()) {
+    return Error("Failed to decode 'Authorization' header: " + decode.error());
+  }
+
+  vector<string> pairs = strings::split(decode.get(), ":", 2);
 
   if (pairs.size() != 2) {
     return Error("Malformed 'Authorization' request header");
