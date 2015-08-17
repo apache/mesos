@@ -489,6 +489,18 @@ AM_CONDITIONAL([WITH_BUNDLED_ZOOKEEPER],
                [test "x$with_bundled_zookeeper" = "xyes"])
 
 
+# Check if gflags are present. If so, make sure we link against them
+# when building the Python module.
+AC_CHECK_LIB([gflags],
+             [main],
+             [found_gflags=yes])
+if test "x$found_gflags" = "xyes"; then
+  GFLAGS_LIBS="-lgflags"
+else
+  GFLAGS_LIBS=""
+fi
+
+
 AS_CASE($ax_cv_cxx_compiler_vendor,
   [clang], [
     # Check if -Wno-unused-local-typedef is needed by checking a sample
@@ -1259,7 +1271,7 @@ There are two possible workarounds for this issue:
   # TODO(tillt): Remove this once Apple distributed an updated Python.
   PYTHON_CPPFLAGS="$CPPFLAGS"
   PYTHON_CFLAGS="$CFLAGS $CXXFLAGS" # distutils requires we embed CXXFLAGS.
-  PYTHON_LDFLAGS="$LDFLAGS"
+  PYTHON_LDFLAGS="$LDFLAGS $GFLAGS_LIBS"
 
   AS_IF([test "x$ax_cv_cxx_compiler_vendor" = "xclang"],
 	[PYTHON_CPPFLAGS="$PYTHON_CPPFLAGS -Qunused-arguments"
