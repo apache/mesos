@@ -961,12 +961,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_NC_HostToContainerTCP)
   // connection couldn't be established..
   ostringstream command3;
   command3 << "printf hello2 | nc localhost " << invalidPort;
-  Try<string> invalid = os::shell(command3.str());
-  ASSERT_ERROR(invalid);
-
-  // When the above command fails, it prints an error message that
-  // ends with the error exit code, which happens to be 256.
-  EXPECT_TRUE(strings::contains(invalid.error(), "256"));
+  ASSERT_ERROR(os::shell(command3.str()));
 
   // Send to 'public IP' and 'port'.
   ostringstream command4;
@@ -977,12 +972,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_NC_HostToContainerTCP)
   // connection couldn't be established.
   ostringstream command5;
   command5 << "printf hello4 | nc " << hostIP << " " << invalidPort;
-  Try<string> connect = os::shell(command5.str());
-  ASSERT_ERROR(connect);
-
-  // As above, we check that the error message contains the
-  // expected error code.
-  EXPECT_TRUE(strings::contains(connect.error(), "256"));
+  ASSERT_ERROR(os::shell(command5.str()));
 
   EXPECT_SOME_EQ("hello1", os::read(trafficViaLoopback));
   EXPECT_SOME_EQ("hello3", os::read(trafficViaPublic));
