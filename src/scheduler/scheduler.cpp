@@ -184,8 +184,7 @@ public:
       local::shutdown();
     }
 
-    // Wait for any callbacks to finish.
-    mutex.lock().await();
+    // Note that we ignore any callbacks that are enqueued.
   }
 
   // TODO(benh): Move this to 'protected'.
