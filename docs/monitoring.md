@@ -85,6 +85,27 @@ framework is misbehaving.
 </tr>
 <tr>
   <td>
+  <code>master/cpus_revocable_percent</code>
+  </td>
+  <td>Percentage of allocated revocable CPUs</td>
+  <td>Gauge</td>
+</tr>
+<tr>
+  <td>
+  <code>master/cpus_revocable_total</code>
+  </td>
+  <td>Number of revocable CPUs</td>
+  <td>Gauge</td>
+</tr>
+<tr>
+  <td>
+  <code>master/cpus_revocable_used</code>
+  </td>
+  <td>Number of allocated revocable CPUs</td>
+  <td>Gauge</td>
+</tr>
+<tr>
+  <td>
   <code>master/disk_percent</code>
   </td>
   <td>Percentage of allocated disk space</td>
@@ -106,6 +127,27 @@ framework is misbehaving.
 </tr>
 <tr>
   <td>
+  <code>master/disk_revocable_percent</code>
+  </td>
+  <td>Percentage of allocated revocable disk space</td>
+  <td>Gauge</td>
+</tr>
+<tr>
+  <td>
+  <code>master/disk_revocable_total</code>
+  </td>
+  <td>Revocable disk space in MB</td>
+  <td>Gauge</td>
+</tr>
+<tr>
+  <td>
+  <code>master/disk_revocable_used</code>
+  </td>
+  <td>Allocated revocable disk space in MB</td>
+  <td>Gauge</td>
+</tr>
+<tr>
+  <td>
   <code>master/mem_percent</code>
   </td>
   <td>Percentage of allocated memory</td>
@@ -123,6 +165,27 @@ framework is misbehaving.
   <code>master/mem_total</code>
   </td>
   <td>Memory in MB</td>
+  <td>Gauge</td>
+</tr>
+<tr>
+  <td>
+  <code>master/mem_revocable_percent</code>
+  </td>
+  <td>Percentage of allocated revocable memory</td>
+  <td>Gauge</td>
+</tr>
+<tr>
+  <td>
+  <code>master/mem_revocable_total</code>
+  </td>
+  <td>Revocable memory in MB</td>
+  <td>Gauge</td>
+</tr>
+<tr>
+  <td>
+  <code>master/mem_revocable_used</code>
+  </td>
+  <td>Allocated revocable memory in MB</td>
   <td>Gauge</td>
 </tr>
 </table>
