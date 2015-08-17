@@ -81,7 +81,7 @@ TEST(ProtobufTest, JSON)
   string expected = strings::remove(
       "{"
       "  \"b\": true,"
-      "  \"bytes\": \"bytes\","
+      "  \"bytes\": \"Ynl0ZXM=\","
       "  \"d\": 1,"
       "  \"e\": \"ONE\","
       "  \"f\": 1,"
@@ -90,7 +90,7 @@ TEST(ProtobufTest, JSON)
       "  \"nested\": { \"str\": \"nested\"},"
       "  \"optional_default\": 42,"
       "  \"repeated_bool\": [true],"
-      "  \"repeated_bytes\": [\"repeated_bytes\"],"
+      "  \"repeated_bytes\": [\"cmVwZWF0ZWRfYnl0ZXM=\"],"
       "  \"repeated_double\": [1, 2],"
       "  \"repeated_enum\": [\"TWO\"],"
       "  \"repeated_float\": [1],"

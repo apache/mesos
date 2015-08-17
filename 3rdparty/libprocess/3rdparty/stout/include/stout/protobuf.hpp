@@ -24,24 +24,21 @@
 #include <string>
 #include <vector>
 
-#include <boost/lexical_cast.hpp>
-
-#include <glog/logging.h>
-
 #include <google/protobuf/descriptor.h>
 #include <google/protobuf/message.h>
 #include <google/protobuf/repeated_field.h>
 
 #include <google/protobuf/io/zero_copy_stream_impl.h>
 
-#include "abort.hpp"
-#include "error.hpp"
-#include "json.hpp"
-#include "none.hpp"
-#include "os.hpp"
-#include "result.hpp"
-#include "stringify.hpp"
-#include "try.hpp"
+#include <stout/abort.hpp>
+#include <stout/base64.hpp>
+#include <stout/error.hpp>
+#include <stout/json.hpp>
+#include <stout/none.hpp>
+#include <stout/os.hpp>
+#include <stout/result.hpp>
+#include <stout/stringify.hpp>
+#include <stout/try.hpp>
 
 namespace protobuf {
 
@@ -345,13 +342,27 @@ struct Parser : boost::static_visitor<Try<Nothing> >
   {
     switch (field->type()) {
       case google::protobuf::FieldDescriptor::TYPE_STRING:
-      case google::protobuf::FieldDescriptor::TYPE_BYTES:
         if (field->is_repeated()) {
           reflection->AddString(message, field, string.value);
         } else {
           reflection->SetString(message, field, string.value);
         }
         break;
+      case google::protobuf::FieldDescriptor::TYPE_BYTES: {
+        Try<std::string> decode = base64::decode(string.value);
+
+        if (decode.isError()) {
+          return Error("Failed to base64 decode bytes field"
+                       " '" + field->name() + "': " + decode.error());
+        }
+
+        if (field->is_repeated()) {
+          reflection->AddString(message, field, decode.get());
+        } else {
+          reflection->SetString(message, field, decode.get());
+        }
+        break;
+      }
       case google::protobuf::FieldDescriptor::TYPE_ENUM: {
         const google::protobuf::EnumValueDescriptor* descriptor =
           field->enum_type()->FindValueByName(string.value);
@@ -638,9 +649,12 @@ struct Protobuf
               }
               break;
             case google::protobuf::FieldDescriptor::TYPE_STRING:
-            case google::protobuf::FieldDescriptor::TYPE_BYTES:
               array.values.push_back(JSON::String(
                   reflection->GetRepeatedString(message, field, i)));
+              break;
+            case google::protobuf::FieldDescriptor::TYPE_BYTES:
+              array.values.push_back(JSON::String(base64::encode(
+                  reflection->GetRepeatedString(message, field, i))));
               break;
             case google::protobuf::FieldDescriptor::TYPE_MESSAGE:
               array.values.push_back(Protobuf(
@@ -698,9 +712,12 @@ struct Protobuf
             }
             break;
           case google::protobuf::FieldDescriptor::TYPE_STRING:
-          case google::protobuf::FieldDescriptor::TYPE_BYTES:
             object.values[field->name()] =
                 JSON::String(reflection->GetString(message, field));
+            break;
+          case google::protobuf::FieldDescriptor::TYPE_BYTES:
+            object.values[field->name()] = JSON::String(
+                base64::encode(reflection->GetString(message, field)));
             break;
           case google::protobuf::FieldDescriptor::TYPE_MESSAGE:
             object.values[field->name()] =
