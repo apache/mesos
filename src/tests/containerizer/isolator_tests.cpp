@@ -191,7 +191,7 @@ TYPED_TEST(CpuIsolatorTest, UserCpuUsage)
 
   Try<pid_t> pid = launcher.get()->fork(
       containerId,
-      "/bin/sh",
+      "sh",
       argv,
       Subprocess::FD(STDIN_FILENO),
       Subprocess::FD(STDOUT_FILENO),
@@ -301,7 +301,7 @@ TYPED_TEST(CpuIsolatorTest, SystemCpuUsage)
 
   Try<pid_t> pid = launcher.get()->fork(
       containerId,
-      "/bin/sh",
+      "sh",
       argv,
       Subprocess::FD(STDIN_FILENO),
       Subprocess::FD(STDOUT_FILENO),
@@ -493,7 +493,7 @@ TEST_F(LimitedCpuIsolatorTest, ROOT_CGROUPS_Cfs)
 
   Try<pid_t> pid = launcher.get()->fork(
       containerId,
-      "/bin/sh",
+      "sh",
       argv,
       Subprocess::FD(STDIN_FILENO),
       Subprocess::FD(STDOUT_FILENO),
@@ -595,7 +595,7 @@ TEST_F(LimitedCpuIsolatorTest, ROOT_CGROUPS_Cfs_Big_Quota)
 
   Try<pid_t> pid = launcher.get()->fork(
       containerId,
-      "/bin/sh",
+      "sh",
       argv,
       Subprocess::FD(STDIN_FILENO),
       Subprocess::FD(STDOUT_FILENO),
@@ -685,7 +685,7 @@ TEST_F(LimitedCpuIsolatorTest, ROOT_CGROUPS_Pids_and_Tids)
 
   Try<pid_t> pid = launcher.get()->fork(
       containerId,
-      "/bin/sh",
+      "sh",
       argv,
       Subprocess::FD(STDIN_FILENO),
       Subprocess::FD(STDOUT_FILENO),
@@ -961,14 +961,14 @@ TEST_F(SharedFilesystemIsolatorTest, DISABLED_ROOT_RelativeVolume)
   // Manually run the isolator's preparation command first, then touch
   // the file.
   vector<string> args;
-  args.push_back("/bin/sh");
+  args.push_back("sh");
   args.push_back("-x");
   args.push_back("-c");
   args.push_back(prepare.get().get().commands(0).value() + " && touch " + file);
 
   Try<pid_t> pid = launcher.get()->fork(
       containerId,
-      "/bin/sh",
+      "sh",
       args,
       Subprocess::FD(STDIN_FILENO),
       Subprocess::FD(STDOUT_FILENO),
@@ -1064,7 +1064,7 @@ TEST_F(SharedFilesystemIsolatorTest, DISABLED_ROOT_AbsoluteVolume)
   ASSERT_FALSE(os::exists(path::join(containerPath, filename)));
 
   vector<string> args;
-  args.push_back("/bin/sh");
+  args.push_back("sh");
   args.push_back("-x");
   args.push_back("-c");
   args.push_back(prepare.get().get().commands(0).value() +
@@ -1073,7 +1073,7 @@ TEST_F(SharedFilesystemIsolatorTest, DISABLED_ROOT_AbsoluteVolume)
 
   Try<pid_t> pid = launcher.get()->fork(
       containerId,
-      "/bin/sh",
+      "sh",
       args,
       Subprocess::FD(STDIN_FILENO),
       Subprocess::FD(STDOUT_FILENO),

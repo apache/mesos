@@ -236,8 +236,8 @@ public:
       // The child has successfully setsid, now run the command.
       if (override.isNone()) {
         if (task.command().shell()) {
-          execl(
-              "/bin/sh",
+          execlp(
+              "sh",
               "sh",
               "-c",
               task.command().value().c_str(),

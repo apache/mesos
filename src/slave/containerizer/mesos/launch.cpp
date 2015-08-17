@@ -263,7 +263,7 @@ int MesosContainerizerLaunch::execute()
 
   if (command.get().shell()) {
     // Execute the command using shell.
-    execl("/bin/sh", "sh", "-c", command.get().value().c_str(), (char*) NULL);
+    execlp("sh", "sh", "-c", command.get().value().c_str(), (char*) NULL);
   } else {
     // Use os::execvpe to launch the command.
     char** argv = new char*[command.get().arguments().size() + 1];
