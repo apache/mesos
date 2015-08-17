@@ -281,7 +281,7 @@ inline int system(const std::string& command)
     return -1;
   } else if (pid == 0) {
     // In child process.
-    ::execl("/bin/sh", "sh", "-c", command.c_str(), (char*) NULL);
+    ::execlp("sh", "sh", "-c", command.c_str(), (char*) NULL);
     ::exit(127);
   } else {
     // In parent process.
