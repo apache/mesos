@@ -45,6 +45,7 @@ THREAD_LOCAL bool* _in_event_loop_ = NULL;
 
 void handle_async(struct ev_loop* loop, ev_async* _, int revents)
 {
+  std::queue<lambda::function<void(void)>> run_functions;
   synchronized (watchers_mutex) {
     // Start all the new I/O watchers.
     while (!watchers->empty()) {
@@ -53,10 +54,22 @@ void handle_async(struct ev_loop* loop, ev_async* _, int revents)
       ev_io_start(loop, watcher);
     }
 
-    while (!functions->empty()) {
-      (functions->front())();
-      functions->pop();
-    }
+    // Swap the functions into a temporary queue so that we can invoke
+    // them outside of the mutex.
+    std::swap(run_functions, *functions);
+  }
+
+  // Running the functions outside of the mutex reduces locking
+  // contention as these are arbitrary functions that can take a long
+  // time to execute. Doing this also avoids a deadlock scenario where
+  // (A) mutexes are acquired before calling `run_in_event_loop`,
+  // followed by locking (B) `watchers_mutex`. If we executed the
+  // functions inside the mutex, then the locking order violation
+  // would be this function acquiring the (B) `watchers_mutex`
+  // followed by the arbitrary function acquiring the (A) mutexes.
+  while (!run_functions.empty()) {
+    (run_functions.front())();
+    run_functions.pop();
   }
 }
 
