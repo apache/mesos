@@ -62,6 +62,7 @@ layout: documentation
 * [Revisely](http://revise.ly)
 * [Sabre Labs](http://www.sabre.com)
 * [Sailthru](http://www.sailthru.com)
+* [Scrapinghub](http://www.scrapinghub.com)
 * [Sharethrough](http://www.sharethrough.com)
 * [Sigmoid Analytics](http://www.sigmoidanalytics.com/)
 * [SiQueries](https://siqueries.com)
