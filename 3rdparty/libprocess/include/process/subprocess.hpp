@@ -276,7 +276,7 @@ inline Try<Subprocess> subprocess(
   std::vector<std::string> argv = {"sh", "-c", command};
 
   return subprocess(
-      "/bin/sh",
+      "sh",
       argv,
       in,
       out,
