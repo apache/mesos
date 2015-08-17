@@ -15,7 +15,12 @@
 #define __STOUT_BASE64_HPP__
 
 #include <cctype>
+#include <functional>
 #include <string>
+
+#include <stout/foreach.hpp>
+#include <stout/stringify.hpp>
+#include <stout/try.hpp>
 
 namespace base64 {
 
@@ -27,12 +32,6 @@ static const std::string chars =
   "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
   "abcdefghijklmnopqrstuvwxyz"
   "0123456789+/";
-
-
-static inline bool isBase64(unsigned char c)
-{
-  return (isalnum(c) || (c == '+') || (c == '/'));
-}
 
 
 inline std::string encode(const std::string& s)
@@ -79,19 +78,30 @@ inline std::string encode(const std::string& s)
 }
 
 
-inline std::string decode(const std::string& s)
+inline Try<std::string> decode(const std::string& s)
 {
-  size_t length = s.size();
+  auto isBase64 = [](unsigned char c) -> bool {
+    return (isalnum(c) || (c == '+') || (c == '/'));
+  };
+
   size_t i = 0;
-  size_t j = 0;
-  int index = 0;
   unsigned char array3[3];
   unsigned char array4[4];
   std::string result;
 
-  while (length-- && (s[index] != '=') && isBase64(s[index])) {
-    array4[i++] = s[index];
-    index++;
+  foreach (unsigned char c, s) {
+    if (c == '=') {
+      // TODO(bmahler): Note that this does not validate that
+      // there are the correct number of '=' characters!
+      break; // Reached the padding.
+    }
+
+    if (!isBase64(c)) {
+      return Error("Invalid character '" + stringify(c) + "'");
+    }
+
+    array4[i++] = c;
+
     if (i == 4) {
       for (i = 0; i < 4; i++) {
         array4[i] = static_cast<unsigned char>(chars.find(array4[i]));
@@ -107,6 +117,8 @@ inline std::string decode(const std::string& s)
   }
 
   if (i != 0) {
+    size_t j;
+
     for (j = i; j < 4; j++) {
       array4[j] = 0;
     }

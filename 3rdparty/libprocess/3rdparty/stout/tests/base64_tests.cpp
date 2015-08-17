@@ -14,15 +14,33 @@
 #include <gtest/gtest.h>
 
 #include <stout/base64.hpp>
+#include <stout/gtest.hpp>
 
 
 TEST(Base64Test, Encode)
 {
-  EXPECT_EQ("dGVzdHVzZXI6dGVzdHBhc3M=", base64::encode("testuser:testpass"));
+  EXPECT_EQ("dXNlcjpwYXNzd29yZA==", base64::encode("user:password"));
 }
 
 
 TEST(Base64Test, Decode)
 {
-  EXPECT_EQ("testuser:testpass", base64::decode("dGVzdHVzZXI6dGVzdHBhc3M="));
+  // We're able to parse without padding.
+  EXPECT_SOME_EQ("user:password", base64::decode("dXNlcjpwYXNzd29yZA=="));
+  EXPECT_SOME_EQ("user:password", base64::decode("dXNlcjpwYXNzd29yZA="));
+  EXPECT_SOME_EQ("user:password", base64::decode("dXNlcjpwYXNzd29yZA"));
+
+  // Whitespace is not allowed.
+  EXPECT_ERROR(base64::decode("d XNlcjpwYXNzd29yZA=="));
+  EXPECT_ERROR(base64::decode("d\r\nXNlcjpwYXNzd29yZA=="));
+
+  // Invalid characters.
+  EXPECT_ERROR(base64::decode("abc("));
+  EXPECT_ERROR(base64::decode(">abc"));
+  EXPECT_ERROR(base64::decode("ab,="));
+
+  // These cases are not currently validated!
+  //  EXPECT_ERROR(base64::decode("ab="));
+  //  EXPECT_ERROR(base64::decode("ab=,"));
+  //  EXPECT_ERROR(base64::decode("ab==="));
 }
