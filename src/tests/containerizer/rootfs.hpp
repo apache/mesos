@@ -116,6 +116,15 @@ public:
       }
     }
 
+    // 'sh' is under '/usr/bin' on CentOS 7.1.
+    if (os::exists("/usr/bin/sh")) {
+      Try<Nothing> result = rootfs->add("/usr/bin/sh");
+      if (result.isError()) {
+        return Error("Failed to add '/usr/bin/sh' to rootfs: " +
+                     result.error());
+      }
+    }
+
     directories = {
       "/proc",
       "/sys",
