@@ -862,7 +862,17 @@ Future<Response> _request(
   }
 
   // Need to specify the 'Host' header.
-  headers["Host"] = stringify(address);
+  if (url.domain.isSome()) {
+    // Use ONLY domain for standard ports.
+    if (url.port == 80 || url.port == 443) {
+      headers["Host"] = url.domain.get();
+    } else {
+      // Add port for non-standard ports.
+      headers["Host"] = url.domain.get() + ":" + stringify(url.port);
+    }
+  } else {
+    headers["Host"] = stringify(address);
+  }
 
   // Tell the server to close the connection when it's done.
   headers["Connection"] = "close";
