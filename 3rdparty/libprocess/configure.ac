@@ -181,9 +181,6 @@ AC_ARG_WITH([ssl],
                            [specify where to locate the ssl library]),
             [], [])
 
-# There is no prefix installation of the JAR.
-AC_ARG_VAR([PROTOBUF_JAR], [full path to protobuf jar on prefixed builds])
-
 # Do some OS specific setup.
 case "${target_os}" in
   linux*)
@@ -544,13 +541,6 @@ if test "x$without_bundled_protobuf" = "xyes" || \
 
   if test "x$found_protobuf" = "xyes"; then
     with_bundled_protobuf=no
-    if test -z "`echo $PROTOBUF_JAR`"; then
-      PROTOBUF_JAR="${PROTOBUFPREFIX}/share/java/protobuf.jar"
-    fi
-
-    AC_CHECK_FILE([$PROTOBUF_JAR],
-                  [],
-                  [AC_MSG_ERROR([cannot find PROTOBUF_JAR=$PROTOBUF_JAR])])
 
     AC_CHECK_TOOL([PROTOCOMPILER_TEST], [protoc], [], [$PROTOBUFPREFIX/bin])
 
@@ -572,13 +562,10 @@ correct if you're already doing this.
   fi
 else
   with_bundled_protobuf=yes
-  PROTOBUF_JAR="\${MESOS_BUILD_DIR}/src/java/target/protobuf-java-2.5.0.jar"
 fi
 
 AM_CONDITIONAL([WITH_BUNDLED_PROTOBUF],
                [test "x$with_bundled_protobuf" = "xyes"])
-
-AC_SUBST([PROTOBUF_JAR])
 
 # Default to gcc toolchain (we rely on some atomic builtins for now,
 # that are also present with clang).
