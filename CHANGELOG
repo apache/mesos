@@ -28,6 +28,7 @@ This release also includes several bug fixes and stability improvements.
 ** Bug
     * [MESOS-2166] -  PerfEventIsolatorTest.ROOT_CGROUPS_Sample requires 'perf' to be installed
     * [MESOS-2337] - __init__.py not getting installed in $PREFIX/lib/pythonX.Y/site-packages/mesos
+    * [MESOS-2480] - Protobuf jar is required for unbundled protobuf regardless of --disable-java flag.
     * [MESOS-2493] - google glog link is incorrect
     * [MESOS-2497] - Create synchronous validations for Calls
     * [MESOS-2552] - C++ Scheduler library should send HTTP Calls to master
@@ -56,6 +57,7 @@ This release also includes several bug fixes and stability improvements.
     * [MESOS-3192] - ContainerInfo::Image::AppC::id should be optional
     * [MESOS-3195] - Fix master metrics for scheduler calls
     * [MESOS-3197] - MemIsolatorTest/{0,1}.MemUsage fails on OS X
+    * [MESOS-3201] - Libev handle_async can deadlock with run_in_event_loop
     * [MESOS-3203] - MasterAuthorizationTest.DuplicateRegistration test is flaky
     * [MESOS-3204] - PortMappingIsolatorProcess shell script can silently fail
     * [MESOS-3207] - C++ style guide is not rendered correctly (code section syntax disregarded)
@@ -67,12 +69,20 @@ This release also includes several bug fixes and stability improvements.
     * [MESOS-3262] - HTTPTest.NestedGet is flaky
     * [MESOS-3263] - SchedulerTask.KillTest fails for JSON Requests
     * [MESOS-3267] - JSON serialization/deserialization of bytes is incorrect
+    * [MESOS-3274] - Build error with port mapping isolator
+    * [MESOS-3275] - ContentType/HttpApiTest.UpdatePidToHttpSchedulerWithoutForce is flaky
+    * [MESOS-3284] - JSON representation of Protobuf should use base64 encoding for 'bytes' fields.
+    * [MESOS-3287] - downloadWithHadoop tries to access Error() for a valid Try<bool>
+    * [MESOS-3290] - Master should drop HTTP calls when it's recovering
 
 ** Documentation
     * [MESOS-1838] - Add documentation for Authentication
     * [MESOS-2555] - Document issue with slave recovery when using systemd.
     * [MESOS-3087] - Typos in oversubscription doc
     * [MESOS-3167] - Design doc for versioning the HTTP API
+    * [MESOS-3278] -  Add the revocable metrics information in monitoring doc
+    * [MESOS-3281] - Create a user doc for Scheduler HTTP API
+    * [MESOS-3286] - Revocable metrics information are missed for slave node
 
 ** Improvement
     * [MESOS-2350] - Add support for MesosContainerizerLaunch to chroot to a specified path
@@ -132,8 +142,9 @@ This release also includes several bug fixes and stability improvements.
     * [MESOS-3179] - Create a test abstraction for preparing test rootfs.
     * [MESOS-3194] - Implement a 'read-only' AppC Image Store
 
+** Wish
+    * [MESOS-3276] - Add Scrapinghub to the Powered By Mesos page
 
-Release Notes - Mesos - Version 0.23.0
 --------------------------------------------
 This release contains new features:
 
