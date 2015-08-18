@@ -594,8 +594,10 @@ TEST_P(HttpApiTest, UpdatePidToHttpSchedulerWithoutForce)
   Clock::advance(DEFAULT_HEARTBEAT_INTERVAL);
   Clock::settle();
 
+  // The next read should be EOF.
   event = responseDecoder.read();
-  ASSERT_TRUE(event.isPending());
+  AWAIT_READY(event);
+  EXPECT_NONE(event.get());
 
   driver.stop();
   driver.join();
