@@ -76,6 +76,7 @@ using process::http::NotImplemented;
 using process::http::NotAcceptable;
 using process::http::OK;
 using process::http::Pipe;
+using process::http::ServiceUnavailable;
 using process::http::TemporaryRedirect;
 using process::http::Unauthorized;
 using process::http::UnsupportedMediaType;
@@ -341,6 +342,22 @@ const string Master::Http::SCHEDULER_HELP = HELP(
 
 Future<Response> Master::Http::scheduler(const Request& request) const
 {
+  // TODO(vinod): Add metrics for rejected requests.
+
+  // TODO(vinod): Add support for rate limiting.
+
+  if (!master->elected()) {
+    // Note that this could happen if the scheduler realizes this is the
+    // leading master before master itself realizes it (e.g., ZK watch delay).
+    return ServiceUnavailable("Not the leading master");
+  }
+
+  CHECK_SOME(master->recovered);
+
+  if (!master->recovered.get().isReady()) {
+    return ServiceUnavailable("Master has not finished recovery");
+  }
+
   if (master->flags.authenticate_frameworks) {
     return Unauthorized(
         "Mesos master",

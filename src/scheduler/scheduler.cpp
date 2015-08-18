@@ -348,8 +348,9 @@ protected:
       return;
     }
 
-    if (call.type() == Call::SUBSCRIBE &&
-        response.get().status == process::http::statuses[200] ) {
+    if (response.get().status == process::http::statuses[200]) {
+      // Only SUBSCRIBE call should get a "200 OK" response.
+      CHECK_EQ(Call::SUBSCRIBE, call.type());
       CHECK_EQ(response.get().type, http::Response::PIPE);
       CHECK_SOME(response.get().reader);
 
@@ -364,21 +365,28 @@ protected:
       connection = Connection {reader, decoder};
 
       read();
+
       return;
     }
 
-    if (call.type() != Call::SUBSCRIBE &&
-        response.get().status == process::http::statuses[202] ) {
+    if (response.get().status == process::http::statuses[202]) {
+      // Only non SUBSCRIBE calls should get a "202 Accepted" response.
+      CHECK_NE(Call::SUBSCRIBE, call.type());
+      return;
+    }
+
+    if (response.get().status == process::http::statuses[503]) {
+      // This could happen if the master hasn't realized it is the leader yet
+      // or is still in the process of recovery.
+      LOG(WARNING) << "Received '" << response.get().status << "' ("
+                   << response.get().body << ") for " << call.type();
       return;
     }
 
     // We should be able to get here only for AuthN errors which is not
-    // yet supported for HTTP frameworks. The other possible scenario
-    // can be that the master was not able to de-serialize the Call
-    // message. Since we validate the Call messages before sending, this
-    // can only happen when a packet corruption happens.
-    error("Received unexpected '" + response.get().status + "' for " +
-          stringify(call.type()) + " call: " + response.get().body);
+    // yet supported for HTTP frameworks.
+    error("Received unexpected '" + response.get().status + "' (" +
+          response.get().body + ") for " + stringify(call.type()));
   }
 
   void ___send()
