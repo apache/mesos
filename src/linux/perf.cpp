@@ -193,7 +193,9 @@ protected:
 
   virtual void finalize()
   {
-    // Kill the perf process if it's still running.
+    // Kill the perf process (if it's still running) by sending
+    // SIGTERM to the signal handler which will then SIGKILL the
+    // perf process group created by setupChild.
     if (perf.isSome() && perf.get().status().isPending()) {
       kill(perf.get().pid(), SIGTERM);
     }
