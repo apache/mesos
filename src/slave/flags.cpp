@@ -221,7 +221,7 @@ mesos::internal::slave::Flags::Flags()
 
   add(&Flags::recovery_timeout,
       "recovery_timeout",
-      "Amount of time alloted for the slave to recover. If the slave takes\n"
+      "Amount of time allotted for the slave to recover. If the slave takes\n"
       "longer than recovery_timeout to recover, any executors that are\n"
       "waiting to reconnect to the slave will self-terminate.\n",
       RECOVERY_TIMEOUT);
