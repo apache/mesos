@@ -73,7 +73,7 @@ vector<string> argv(
     const Duration& duration)
 {
   vector<string> argv = {
-    "perf", "stat",
+    "stat",
 
     // System-wide collection from all CPUs.
     "--all-cpus",
@@ -123,7 +123,7 @@ vector<string> argv(
     const Duration& duration)
 {
   vector<string> argv = {
-    "perf", "stat",
+    "stat",
 
     // System-wide collection from all CPUs.
     "--all-cpus",
@@ -155,15 +155,28 @@ inline string normalize(const string& s)
 }
 
 
-class PerfSampler : public Process<PerfSampler>
+// Executes the 'perf' command using the supplied arguments, and
+// returns stdout as the value of the future or a failure if calling
+// the command fails or the command returns a non-zero exit code.
+//
+// TODO(bmahler): Add a process::os::shell to generalize this.
+class Perf : public Process<Perf>
 {
 public:
-  PerfSampler(const vector<string>& _argv, const Duration& _duration)
-    : argv(_argv), duration(_duration) {}
+  Perf(const vector<string>& _argv) : argv(_argv)
+  {
+    // The first argument should be 'perf'. Note that this is
+    // a bit hacky because this class is specialized to only
+    // execute the 'perf' binary. Ultimately, this should be
+    // generalized to something like process::os::shell.
+    if (argv.empty() || argv.front() != "perf") {
+      argv.insert(argv.begin(), "perf");
+    }
+  }
 
-  virtual ~PerfSampler() {}
+  virtual ~Perf() {}
 
-  Future<hashmap<string, mesos::PerfStatistics>> future()
+  Future<string> future()
   {
     return promise.future();
   }
@@ -173,18 +186,9 @@ protected:
   {
     // Stop when no one cares.
     promise.future().onDiscard(lambda::bind(
-          static_cast<void(*)(const UPID&, bool)>(terminate), self(), true));
+        static_cast<void(*)(const UPID&, bool)>(terminate), self(), true));
 
-    if (duration < Seconds(0)) {
-      promise.fail("Perf sample duration cannot be negative: '" +
-                   stringify(duration.secs()) + "'");
-      terminate(self());
-      return;
-    }
-
-    start = Clock::now();
-
-    sample();
+    execute();
   }
 
   virtual void finalize()
@@ -273,7 +277,7 @@ private:
     }
   }
 
-  void sample()
+  void execute()
   {
     Try<Subprocess> _perf = subprocess(
         "perf",
@@ -311,7 +315,7 @@ private:
         } else if (status.get().isNone()) {
           error = Error("Failed to execute perf: failed to reap");
         } else if (status.get().get() != 0) {
-          error = Error("Failed to collect perf statistics: " +
+          error = Error("Failed to execute perf: " +
                         WSTRINGIFY(status.get().get()));
         } else if (!output.isReady()) {
           error = Error("Failed to read perf output: " +
@@ -324,35 +328,15 @@ private:
           return;
         }
 
-        // Parse output from stdout.
-        Try<hashmap<string, mesos::PerfStatistics>> parse =
-            perf::parse(output.get());
-
-        if (parse.isError()) {
-          promise.fail("Failed to parse perf output: " + parse.error());
-          terminate(self());
-          return;
-        }
-
-        // Create a non-const copy from the Try<> so we can set the
-        // timestamp and duration.
-        hashmap<string, mesos::PerfStatistics> statistics = parse.get();
-        foreachvalue (mesos::PerfStatistics& s, statistics) {
-          s.set_timestamp(start.secs());
-          s.set_duration(duration.secs());
-        }
-
-        promise.set(statistics);
+        promise.set(output.get());
         terminate(self());
         return;
     }));
-}
+  }
 
-  const vector<string> argv;
-  const Duration duration;
-  Time start;
+  vector<string> argv;
+  Promise<string> promise;
   Option<Subprocess> perf;
-  Promise<hashmap<string, mesos::PerfStatistics>> promise;
 };
 
 
@@ -362,6 +346,36 @@ Future<mesos::PerfStatistics> select(
     const hashmap<string, mesos::PerfStatistics>& statistics)
 {
   return statistics.get(key).get();
+}
+
+
+Future<hashmap<string, mesos::PerfStatistics>> sample(
+    const vector<string>& argv,
+    const Duration& duration)
+{
+  Time start = Clock::now();
+
+  Perf* perf = new Perf(argv);
+  Future<string> future = perf->future();
+  spawn(perf, true);
+
+  auto parse = [start, duration](const string& output) ->
+      Future<hashmap<string, mesos::PerfStatistics>> {
+    Try<hashmap<string, mesos::PerfStatistics>> parse = perf::parse(output);
+
+    if (parse.isError()) {
+      return Failure("Failed to parse perf sample: " + parse.error());
+    }
+
+    foreachvalue (mesos::PerfStatistics& statistics, parse.get()) {
+      statistics.set_timestamp(start.secs());
+      statistics.set_duration(duration.secs());
+    }
+
+    return parse.get();
+  };
+
+  return future.then(parse);
 }
 
 } // namespace internal {
@@ -387,11 +401,7 @@ Future<mesos::PerfStatistics> sample(
     return Failure("Perf is not supported");
   }
 
-  const vector<string> argv = internal::argv(events, pids, duration);
-  internal::PerfSampler* sampler = new internal::PerfSampler(argv, duration);
-  Future<hashmap<string, mesos::PerfStatistics>> future = sampler->future();
-  spawn(sampler, true);
-  return future
+  return internal::sample(internal::argv(events, pids, duration), duration)
     .then(lambda::bind(&internal::select, PIDS_KEY, lambda::_1));
 }
 
@@ -417,11 +427,7 @@ Future<hashmap<string, mesos::PerfStatistics>> sample(
     return Failure("Perf is not supported");
   }
 
-  const vector<string> argv = internal::argv(events, cgroups, duration);
-  internal::PerfSampler* sampler = new internal::PerfSampler(argv, duration);
-  Future<hashmap<string, mesos::PerfStatistics>> future = sampler->future();
-  spawn(sampler, true);
-  return future;
+  return internal::sample(internal::argv(events, cgroups, duration), duration);
 }
 
 
