@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 
+#include <errno.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -276,7 +277,7 @@ int MesosContainerizerLaunch::execute()
   }
 
   // If we get here, the execle call failed.
-  cerr << "Failed to execute command" << endl;
+  cerr << "Failed to execute command: " << strerror(errno) << endl;
   UNREACHABLE();
 }
 
