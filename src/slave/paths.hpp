@@ -52,7 +52,7 @@ namespace paths {
 //   |   |-- latest (symlink)
 //   |   |-- <slave_id>
 //   |       |-- frameworks
-//   |           |-- <framework__id>
+//   |           |-- <framework_id>
 //   |               |-- executors
 //   |                   |-- <executor_id>
 //   |                       |-- runs
@@ -64,7 +64,7 @@ namespace paths {
 //   |       |-- <slave_id>
 //   |           |-- slave.info
 //   |           |-- frameworks
-//   |               |-- <framework__id>
+//   |               |-- <framework_id>
 //   |                   |-- framework.info
 //   |                   |-- framework.pid
 //   |                   |-- executors
