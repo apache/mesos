@@ -33,6 +33,7 @@
 #include "hook/manager.hpp"
 #include "module/manager.hpp"
 
+using std::map;
 using std::string;
 using std::vector;
 
@@ -180,6 +181,37 @@ Environment HookManager::slaveExecutorEnvironmentDecorator(
     }
 
     return executorInfo.command().environment();
+  }
+}
+
+
+void HookManager::slavePreLaunchDockerHook(
+    const ContainerInfo& containerInfo,
+    const CommandInfo& commandInfo,
+    const Option<TaskInfo>& taskInfo,
+    const ExecutorInfo& executorInfo,
+    const string& name,
+    const string& sandboxDirectory,
+    const string& mappedDirectory,
+    const Option<Resources>& resources,
+    const Option<map<string, string>>& env)
+{
+  foreachpair (const string& name, Hook* hook, availableHooks) {
+    Try<Nothing> result =
+      hook->slavePreLaunchDockerHook(
+          containerInfo,
+          commandInfo,
+          taskInfo,
+          executorInfo,
+          name,
+          sandboxDirectory,
+          mappedDirectory,
+          resources,
+          env);
+    if (result.isError()) {
+      LOG(WARNING) << "Slave pre launch docker hook failed for module '"
+                   << name << "': " << result.error();
+    }
   }
 }
 

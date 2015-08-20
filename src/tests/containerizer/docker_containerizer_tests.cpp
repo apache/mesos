@@ -30,15 +30,15 @@
 
 #include "messages/messages.hpp"
 
-#include "tests/flags.hpp"
-#include "tests/mesos.hpp"
-
 #include "slave/containerizer/docker.hpp"
 #include "slave/containerizer/fetcher.hpp"
 
 #include "slave/paths.hpp"
 #include "slave/slave.hpp"
 #include "slave/state.hpp"
+
+#include "tests/flags.hpp"
+#include "tests/mesos.hpp"
 
 using namespace mesos::internal::slave::paths;
 using namespace mesos::internal::slave::state;
@@ -57,9 +57,9 @@ using process::Message;
 using process::PID;
 using process::UPID;
 
-using std::vector;
 using std::list;
 using std::string;
+using std::vector;
 
 using testing::_;
 using testing::DoAll;
@@ -71,105 +71,6 @@ using testing::Return;
 namespace mesos {
 namespace internal {
 namespace tests {
-
-
-class MockDocker : public Docker
-{
-public:
-  MockDocker(const string& path) : Docker(path)
-  {
-    EXPECT_CALL(*this, pull(_, _, _))
-      .WillRepeatedly(Invoke(this, &MockDocker::_pull));
-
-    EXPECT_CALL(*this, stop(_, _, _))
-      .WillRepeatedly(Invoke(this, &MockDocker::_stop));
-
-    EXPECT_CALL(*this, run(_, _, _, _, _, _, _, _, _))
-      .WillRepeatedly(Invoke(this, &MockDocker::_run));
-
-    EXPECT_CALL(*this, inspect(_, _))
-      .WillRepeatedly(Invoke(this, &MockDocker::_inspect));
-  }
-
-  MOCK_CONST_METHOD9(
-      run,
-      process::Future<Nothing>(
-          const mesos::ContainerInfo&,
-          const mesos::CommandInfo&,
-          const std::string&,
-          const std::string&,
-          const std::string&,
-          const Option<mesos::Resources>&,
-          const Option<std::map<std::string, std::string>>&,
-          const Option<std::string>&,
-          const Option<std::string>&));
-
-  MOCK_CONST_METHOD3(
-      pull,
-      process::Future<Docker::Image>(
-          const string&,
-          const string&,
-          bool));
-
-  MOCK_CONST_METHOD3(
-      stop,
-      process::Future<Nothing>(
-          const string&,
-          const Duration&,
-          bool));
-
-  MOCK_CONST_METHOD2(
-      inspect,
-      process::Future<Docker::Container>(
-          const string&,
-          const Option<Duration>&));
-
-  process::Future<Nothing> _run(
-      const mesos::ContainerInfo& containerInfo,
-      const mesos::CommandInfo& commandInfo,
-      const std::string& name,
-      const std::string& sandboxDirectory,
-      const std::string& mappedDirectory,
-      const Option<mesos::Resources>& resources,
-      const Option<std::map<std::string, std::string>>& env,
-      const Option<std::string>& stdoutPath,
-      const Option<std::string>& stderrPath) const
-  {
-    return Docker::run(
-        containerInfo,
-        commandInfo,
-        name,
-        sandboxDirectory,
-        mappedDirectory,
-        resources,
-        env,
-        stdoutPath,
-        stderrPath);
-  }
-
-  process::Future<Docker::Image> _pull(
-      const string& directory,
-      const string& image,
-      bool force) const
-  {
-    return Docker::pull(directory, image, force);
-  }
-
-  process::Future<Nothing> _stop(
-      const string& containerName,
-      const Duration& timeout,
-      bool remove) const
-  {
-    return Docker::stop(containerName, timeout, remove);
-  }
-
-  process::Future<Docker::Container> _inspect(
-      const string& containerName,
-      const Option<Duration>& retryInterval)
-  {
-    return Docker::inspect(containerName, retryInterval);
-  }
-};
 
 
 class DockerContainerizerTest : public MesosTest
@@ -253,160 +154,6 @@ public:
     }
 
     delete docker.get();
-  }
-};
-
-
-class MockDockerContainerizer : public DockerContainerizer {
-public:
-  MockDockerContainerizer(
-      const slave::Flags& flags,
-      Fetcher* fetcher,
-      Shared<Docker> docker)
-    : DockerContainerizer(flags, fetcher, docker)
-  {
-    initialize();
-  }
-
-  MockDockerContainerizer(const Owned<DockerContainerizerProcess>& process)
-    : DockerContainerizer(process)
-  {
-    initialize();
-  }
-
-  void initialize()
-  {
-    // NOTE: See TestContainerizer::setup for why we use
-    // 'EXPECT_CALL' and 'WillRepeatedly' here instead of
-    // 'ON_CALL' and 'WillByDefault'.
-    EXPECT_CALL(*this, launch(_, _, _, _, _, _, _))
-      .WillRepeatedly(Invoke(this, &MockDockerContainerizer::_launchExecutor));
-
-    EXPECT_CALL(*this, launch(_, _, _, _, _, _, _, _))
-      .WillRepeatedly(Invoke(this, &MockDockerContainerizer::_launch));
-
-    EXPECT_CALL(*this, update(_, _))
-      .WillRepeatedly(Invoke(this, &MockDockerContainerizer::_update));
-  }
-
-  MOCK_METHOD7(
-      launch,
-      process::Future<bool>(
-          const ContainerID&,
-          const ExecutorInfo&,
-          const std::string&,
-          const Option<std::string>&,
-          const SlaveID&,
-          const process::PID<slave::Slave>&,
-          bool checkpoint));
-
-  MOCK_METHOD8(
-      launch,
-      process::Future<bool>(
-          const ContainerID&,
-          const TaskInfo&,
-          const ExecutorInfo&,
-          const std::string&,
-          const Option<std::string>&,
-          const SlaveID&,
-          const process::PID<slave::Slave>&,
-          bool checkpoint));
-
-  MOCK_METHOD2(
-      update,
-      process::Future<Nothing>(
-          const ContainerID&,
-          const Resources&));
-
-  // Default 'launch' implementation (necessary because we can't just
-  // use &DockerContainerizer::launch with 'Invoke').
-  process::Future<bool> _launch(
-      const ContainerID& containerId,
-      const TaskInfo& taskInfo,
-      const ExecutorInfo& executorInfo,
-      const string& directory,
-      const Option<string>& user,
-      const SlaveID& slaveId,
-      const PID<Slave>& slavePid,
-      bool checkpoint)
-  {
-    return DockerContainerizer::launch(
-        containerId,
-        taskInfo,
-        executorInfo,
-        directory,
-        user,
-        slaveId,
-        slavePid,
-        checkpoint);
-  }
-
-  process::Future<bool> _launchExecutor(
-      const ContainerID& containerId,
-      const ExecutorInfo& executorInfo,
-      const string& directory,
-      const Option<string>& user,
-      const SlaveID& slaveId,
-      const PID<Slave>& slavePid,
-      bool checkpoint)
-  {
-    return DockerContainerizer::launch(
-        containerId,
-        executorInfo,
-        directory,
-        user,
-        slaveId,
-        slavePid,
-        checkpoint);
-  }
-
-  process::Future<Nothing> _update(
-      const ContainerID& containerId,
-      const Resources& resources)
-  {
-    return DockerContainerizer::update(
-        containerId,
-        resources);
-  }
-};
-
-
-class MockDockerContainerizerProcess : public DockerContainerizerProcess
-{
-public:
-  MockDockerContainerizerProcess(
-      const slave::Flags& flags,
-      Fetcher* fetcher,
-      const Shared<Docker>& docker)
-    : DockerContainerizerProcess(flags, fetcher, docker)
-  {
-    EXPECT_CALL(*this, fetch(_, _))
-      .WillRepeatedly(Invoke(this, &MockDockerContainerizerProcess::_fetch));
-
-    EXPECT_CALL(*this, pull(_))
-      .WillRepeatedly(Invoke(this, &MockDockerContainerizerProcess::_pull));
-  }
-
-  MOCK_METHOD2(
-      fetch,
-      process::Future<Nothing>(
-          const ContainerID& containerId,
-          const SlaveID& slaveId));
-
-  MOCK_METHOD1(
-      pull,
-      process::Future<Nothing>(const ContainerID& containerId));
-
-  process::Future<Nothing> _fetch(
-      const ContainerID& containerId,
-      const SlaveID& slaveId)
-  {
-    return DockerContainerizerProcess::fetch(containerId, slaveId);
-  }
-
-  process::Future<Nothing> _pull(const ContainerID& containerId)
-  {
-    return DockerContainerizerProcess::pull(containerId);
   }
 };
 
@@ -2949,7 +2696,6 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_DockerInspectDiscard)
   // the test will fail because of the inspect process still running.
   Shutdown();
 }
-
 
 } // namespace tests {
 } // namespace internal {

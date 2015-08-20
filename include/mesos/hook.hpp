@@ -19,7 +19,11 @@
 #ifndef __MESOS_HOOK_HPP__
 #define __MESOS_HOOK_HPP__
 
+#include <map>
+#include <string>
+
 #include <mesos/mesos.hpp>
+#include <mesos/resources.hpp>
 
 #include <stout/none.hpp>
 #include <stout/nothing.hpp>
@@ -69,6 +73,23 @@ public:
       const ExecutorInfo& executorInfo)
   {
     return None();
+  }
+
+  // This hook is called from within slave before docker is launched.
+  // A typical module implementing the hook will perform some settings
+  // as required.
+  virtual Try<Nothing> slavePreLaunchDockerHook(
+      const ContainerInfo& containerInfo,
+      const CommandInfo& commandInfo,
+      const Option<TaskInfo>& taskInfo,
+      const ExecutorInfo& executorInfo,
+      const std::string& name,
+      const std::string& sandboxDirectory,
+      const std::string& mappedDirectory,
+      const Option<Resources>& resources,
+      const Option<std::map<std::string, std::string>>& env)
+  {
+    return Nothing();
   }
 
   // This hook is called from within slave when an executor is being

@@ -145,7 +145,7 @@ public:
   virtual process::Future<ResourceStatistics> usage(
       const ContainerID& containerId);
 
-  virtual Future<containerizer::Termination> wait(
+  virtual process::Future<containerizer::Termination> wait(
       const ContainerID& containerId);
 
   virtual void destroy(
@@ -202,12 +202,12 @@ private:
   void __destroy(
       const ContainerID& containerId,
       bool killed,
-      const Future<Nothing>& future);
+      const process::Future<Nothing>& future);
 
   void ___destroy(
       const ContainerID& containerId,
       bool killed,
-      const Future<Option<int>>& status);
+      const process::Future<Option<int>>& status);
 
   process::Future<Nothing> _update(
       const ContainerID& containerId,
@@ -421,16 +421,16 @@ private:
     const Flags flags;
 
     // Promise for future returned from wait().
-    Promise<containerizer::Termination> termination;
+    process::Promise<containerizer::Termination> termination;
 
     // Exit status of executor or container (depending on whether or
     // not we used the command executor). Represented as a promise so
     // that destroying can chain with it being set.
-    Promise<Future<Option<int>>> status;
+    process::Promise<process::Future<Option<int>>> status;
 
     // Future that tells us the return value of last launch stage (fetch, pull,
     // run, etc).
-    Future<bool> launch;
+    process::Future<bool> launch;
 
     // We keep track of the resources for each container so we can set
     // the ResourceStatistics limits in usage(). Note that this is
@@ -440,7 +440,7 @@ private:
 
     // The docker pull future is stored so we can discard when
     // destroy is called while docker is pulling the image.
-    Future<Docker::Image> pull;
+    process::Future<Docker::Image> pull;
 
     // Once the container is running, this saves the pid of the
     // running container.

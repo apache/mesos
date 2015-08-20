@@ -34,6 +34,9 @@
 
 using namespace mesos;
 
+using std::map;
+using std::string;
+
 using process::Future;
 
 // Must be kept in sync with variables of the same name in
@@ -128,6 +131,23 @@ public:
 
     return environment;
   }
+
+
+  virtual Try<Nothing> slavePreLaunchDockerHook(
+      const ContainerInfo& containerInfo,
+      const CommandInfo& commandInfo,
+      const Option<TaskInfo>& taskInfo,
+      const ExecutorInfo& executorInfo,
+      const string& name,
+      const string& sandboxDirectory,
+      const string& mappedDirectory,
+      const Option<Resources>& resources,
+      const Option<map<string, string>>& env)
+  {
+    LOG(INFO) << "Executing 'slavePreLaunchDockerHook'";
+    return os::touch(sandboxDirectory + "/foo");
+  }
+
 
   // This hook locates the file created by environment decorator hook
   // and deletes it.

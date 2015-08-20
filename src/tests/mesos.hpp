@@ -25,6 +25,8 @@
 #include <string>
 #include <vector>
 
+#include <gmock/gmock.h>
+
 #include <mesos/executor.hpp>
 #include <mesos/scheduler.hpp>
 
@@ -67,6 +69,8 @@
 #include "slave/slave.hpp"
 
 #include "slave/containerizer/containerizer.hpp"
+#include "slave/containerizer/docker.hpp"
+#include "slave/containerizer/fetcher.hpp"
 
 #include "slave/containerizer/mesos/containerizer.hpp"
 
@@ -81,6 +85,7 @@
 using ::testing::_;
 using ::testing::An;
 using ::testing::DoDefault;
+using ::testing::Invoke;
 using ::testing::Return;
 
 namespace mesos {
@@ -953,6 +958,264 @@ public:
       const Option<std::string>& user,
       const FetcherInfo& info,
       const slave::Flags& flags);
+};
+
+
+// Definition of a mock Docker to be used in tests with gmock.
+class MockDocker : public Docker
+{
+public:
+  MockDocker(const std::string& path) : Docker(path)
+  {
+    EXPECT_CALL(*this, pull(_, _, _))
+      .WillRepeatedly(Invoke(this, &MockDocker::_pull));
+
+    EXPECT_CALL(*this, stop(_, _, _))
+      .WillRepeatedly(Invoke(this, &MockDocker::_stop));
+
+    EXPECT_CALL(*this, run(_, _, _, _, _, _, _, _, _))
+      .WillRepeatedly(Invoke(this, &MockDocker::_run));
+
+    EXPECT_CALL(*this, inspect(_, _))
+      .WillRepeatedly(Invoke(this, &MockDocker::_inspect));
+  }
+
+  MOCK_CONST_METHOD9(
+      run,
+      process::Future<Nothing>(
+          const mesos::ContainerInfo&,
+          const mesos::CommandInfo&,
+          const std::string&,
+          const std::string&,
+          const std::string&,
+          const Option<mesos::Resources>&,
+          const Option<std::map<std::string, std::string>>&,
+          const Option<std::string>&,
+          const Option<std::string>&));
+
+  MOCK_CONST_METHOD3(
+      pull,
+      process::Future<Docker::Image>(
+          const std::string&,
+          const std::string&,
+          bool));
+
+  MOCK_CONST_METHOD3(
+      stop,
+      process::Future<Nothing>(
+          const std::string&,
+          const Duration&,
+          bool));
+
+  MOCK_CONST_METHOD2(
+      inspect,
+      process::Future<Docker::Container>(
+          const std::string&,
+          const Option<Duration>&));
+
+  process::Future<Nothing> _run(
+      const mesos::ContainerInfo& containerInfo,
+      const mesos::CommandInfo& commandInfo,
+      const std::string& name,
+      const std::string& sandboxDirectory,
+      const std::string& mappedDirectory,
+      const Option<mesos::Resources>& resources,
+      const Option<std::map<std::string, std::string>>& env,
+      const Option<std::string>& stdoutPath,
+      const Option<std::string>& stderrPath) const
+  {
+    return Docker::run(
+        containerInfo,
+        commandInfo,
+        name,
+        sandboxDirectory,
+        mappedDirectory,
+        resources,
+        env,
+        stdoutPath,
+        stderrPath);
+  }
+
+  process::Future<Docker::Image> _pull(
+      const std::string& directory,
+      const std::string& image,
+      bool force) const
+  {
+    return Docker::pull(directory, image, force);
+  }
+
+  process::Future<Nothing> _stop(
+      const std::string& containerName,
+      const Duration& timeout,
+      bool remove) const
+  {
+    return Docker::stop(containerName, timeout, remove);
+  }
+
+  process::Future<Docker::Container> _inspect(
+      const std::string& containerName,
+      const Option<Duration>& retryInterval)
+  {
+    return Docker::inspect(containerName, retryInterval);
+  }
+};
+
+
+// Definition of a mock DockerContainerizer to be used in tests with gmock.
+class MockDockerContainerizer : public slave::DockerContainerizer {
+public:
+  MockDockerContainerizer(
+      const slave::Flags& flags,
+      slave::Fetcher* fetcher,
+      process::Shared<Docker> docker)
+    : slave::DockerContainerizer(flags, fetcher, docker)
+  {
+    initialize();
+  }
+
+  MockDockerContainerizer(
+      const process::Owned<slave::DockerContainerizerProcess>& process)
+    : slave::DockerContainerizer(process)
+  {
+    initialize();
+  }
+
+  void initialize()
+  {
+    // NOTE: See TestContainerizer::setup for why we use
+    // 'EXPECT_CALL' and 'WillRepeatedly' here instead of
+    // 'ON_CALL' and 'WillByDefault'.
+    EXPECT_CALL(*this, launch(_, _, _, _, _, _, _))
+      .WillRepeatedly(Invoke(this, &MockDockerContainerizer::_launchExecutor));
+
+    EXPECT_CALL(*this, launch(_, _, _, _, _, _, _, _))
+      .WillRepeatedly(Invoke(this, &MockDockerContainerizer::_launch));
+
+    EXPECT_CALL(*this, update(_, _))
+      .WillRepeatedly(Invoke(this, &MockDockerContainerizer::_update));
+  }
+
+  MOCK_METHOD7(
+      launch,
+      process::Future<bool>(
+          const ContainerID&,
+          const ExecutorInfo&,
+          const std::string&,
+          const Option<std::string>&,
+          const SlaveID&,
+          const process::PID<slave::Slave>&,
+          bool checkpoint));
+
+  MOCK_METHOD8(
+      launch,
+      process::Future<bool>(
+          const ContainerID&,
+          const TaskInfo&,
+          const ExecutorInfo&,
+          const std::string&,
+          const Option<std::string>&,
+          const SlaveID&,
+          const process::PID<slave::Slave>&,
+          bool checkpoint));
+
+  MOCK_METHOD2(
+      update,
+      process::Future<Nothing>(
+          const ContainerID&,
+          const Resources&));
+
+  // Default 'launch' implementation (necessary because we can't just
+  // use &slave::DockerContainerizer::launch with 'Invoke').
+  process::Future<bool> _launch(
+      const ContainerID& containerId,
+      const TaskInfo& taskInfo,
+      const ExecutorInfo& executorInfo,
+      const std::string& directory,
+      const Option<std::string>& user,
+      const SlaveID& slaveId,
+      const slave::PID<slave::Slave>& slavePid,
+      bool checkpoint)
+  {
+    return slave::DockerContainerizer::launch(
+        containerId,
+        taskInfo,
+        executorInfo,
+        directory,
+        user,
+        slaveId,
+        slavePid,
+        checkpoint);
+  }
+
+  process::Future<bool> _launchExecutor(
+      const ContainerID& containerId,
+      const ExecutorInfo& executorInfo,
+      const std::string& directory,
+      const Option<std::string>& user,
+      const SlaveID& slaveId,
+      const slave::PID<slave::Slave>& slavePid,
+      bool checkpoint)
+  {
+    return slave::DockerContainerizer::launch(
+        containerId,
+        executorInfo,
+        directory,
+        user,
+        slaveId,
+        slavePid,
+        checkpoint);
+  }
+
+  process::Future<Nothing> _update(
+      const ContainerID& containerId,
+      const Resources& resources)
+  {
+    return slave::DockerContainerizer::update(
+        containerId,
+        resources);
+  }
+};
+
+
+// Definition of a mock DockerContainerizerProcess to be used in tests
+// with gmock.
+class MockDockerContainerizerProcess : public slave::DockerContainerizerProcess
+{
+public:
+  MockDockerContainerizerProcess(
+      const slave::Flags& flags,
+      slave::Fetcher* fetcher,
+      const process::Shared<Docker>& docker)
+    : slave::DockerContainerizerProcess(flags, fetcher, docker)
+  {
+    EXPECT_CALL(*this, fetch(_, _))
+      .WillRepeatedly(Invoke(this, &MockDockerContainerizerProcess::_fetch));
+
+    EXPECT_CALL(*this, pull(_))
+      .WillRepeatedly(Invoke(this, &MockDockerContainerizerProcess::_pull));
+  }
+
+  MOCK_METHOD2(
+      fetch,
+      process::Future<Nothing>(
+          const ContainerID& containerId,
+          const SlaveID& slaveId));
+
+  MOCK_METHOD1(
+      pull,
+      process::Future<Nothing>(const ContainerID& containerId));
+
+  process::Future<Nothing> _fetch(
+      const ContainerID& containerId,
+      const SlaveID& slaveId)
+  {
+    return slave::DockerContainerizerProcess::fetch(containerId, slaveId);
+  }
+
+  process::Future<Nothing> _pull(const ContainerID& containerId)
+  {
+    return slave::DockerContainerizerProcess::pull(containerId);
+  }
 };
 
 
