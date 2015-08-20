@@ -18,6 +18,11 @@ Example: mesos-slave --containerizers=docker,mesos
 
 Each slave that has the Docker containerizer should have Docker CLI client installed (version >= 1.0.0).
 
+If you enable iptables on slave, make sure the iptables allow all traffic from docker bridge interface through add below rule:
+```
+iptables -A INPUT -s 172.17.0.0/16 -i docker0 -p tcp -j ACCEPT
+```
+
 ## How do I use the Docker Containerizer?
 
 TaskInfo before 0.20.0 used to only support either setting a CommandInfo that launches a task running the bash command, or a ExecutorInfo that launches a custom Executor
