@@ -109,19 +109,20 @@ public:
     };
 
     foreach (const std::string& directory, directories) {
-      Try<Nothing> result = rootfs->add(directory);
-      if (result.isError()) {
-        return Error("Failed to add '" + directory +
-                     "' to rootfs: " + result.error());
+      // Some linux distros are moving all binaries and libraries to
+      // /usr, in which case /bin, /lib, and /lib64 will be symlinks
+      // to their equivalent directories in /usr.
+      Result<std::string> realpath = os::realpath(directory);
+      if (!realpath.isSome()) {
+        return Error("Failed to get realpath for '" +
+                     directory + "': " + (realpath.isError() ?
+                     realpath.error() : "No such directory"));
       }
-    }
 
-    // 'sh' is under '/usr/bin' on CentOS 7.1.
-    if (os::exists("/usr/bin/sh")) {
-      Try<Nothing> result = rootfs->add("/usr/bin/sh");
+      Try<Nothing> result = rootfs->add(realpath.get());
       if (result.isError()) {
-        return Error("Failed to add '/usr/bin/sh' to rootfs: " +
-                     result.error());
+        return Error("Failed to add '" + realpath.get() +
+                     "' to rootfs: " + result.error());
       }
     }
 
