@@ -51,6 +51,7 @@ layout: documentation
 * [Motus](http://www.motus.com)
 * [Netflix](http://www.netflix.com)
 * [Oakmore Labs](http://www.oakmorelabs.com)
+* [Orbitz Worldwide](http://www.orbitz.com/)
 * [OpenCredo](http://www.opencredo.com/)
 * [OpenTable](http://www.opentable.com)
 * [Oscar Insurance](https://www.hioscar.com/)
