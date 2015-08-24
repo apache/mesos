@@ -25,6 +25,7 @@
 #include <process/future.hpp>
 #include <process/owned.hpp>
 
+#include <stout/hashmap.hpp>
 #include <stout/try.hpp>
 
 #include "slave/flags.hpp"
@@ -39,7 +40,11 @@ class Backend
 public:
   virtual ~Backend() {}
 
-  static Try<process::Owned<Backend>> create(const Flags& flags);
+  // Return a map of all supported backends keyed by their names. Note
+  // that Backends that failed to be created due to incorrect flags are
+  // simply not added to the result.
+  static hashmap<std::string, process::Owned<Backend>> create(
+      const Flags& flags);
 
   // Provision a root filesystem for a container into the specified 'rootfs'
   // directory by applying the specified list of root filesystem layers in

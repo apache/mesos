@@ -38,9 +38,10 @@ protected:
   virtual void SetUp();
   virtual void TearDown();
 
+  Option<std::string> sandbox;
+
 private:
   std::string cwd;
-  Option<std::string> sandbox;
 };
 
 

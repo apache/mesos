@@ -16,22 +16,43 @@
  * limitations under the License.
  */
 
+#include <glog/logging.h>
+
+#include <stout/os.hpp>
+
 #include "slave/containerizer/provisioners/backend.hpp"
+
+#include "slave/containerizer/provisioners/backends/bind.hpp"
 
 using namespace process;
 
-using std::list;
 using std::string;
-using std::vector;
 
 namespace mesos {
 namespace internal {
 namespace slave {
 
-Try<Owned<Backend>> Backend::create(const Flags& flags)
+hashmap<string, Owned<Backend>> Backend::create(const Flags& flags)
 {
-  // TODO(xujyan): Load backend implementations once they are introduced.
-  return Error("No Backend implementation available");
+  hashmap<string, Try<Owned<Backend>>(*)(const Flags&)> creators;
+
+#ifdef __linux__
+  creators.put("bind", &BindBackend::create);
+#endif // __linux__
+
+  hashmap<string, Owned<Backend>> backends;
+
+  foreachkey (const string& name, creators) {
+    Try<Owned<Backend>> backend = creators[name](flags);
+    if (backend.isError()) {
+      LOG(WARNING) << "Failed to create '" << name << "' backend: "
+                   << backend.error();
+      continue;
+    }
+    backends.put(name, backend.get());
+  }
+
+  return backends;
 }
 
 } // namespace slave {
