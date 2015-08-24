@@ -997,6 +997,105 @@ TEST_F(OversubscriptionTest, UpdateAllocatorOnSchedulerFailover)
   Shutdown();
 }
 
+TEST_F(OversubscriptionTest, RemoveCapabilitiesOnSchedulerFailover)
+{
+  // Start the master.
+  Try<PID<Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  // Start the slave with mock executor and test resource estimator.
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+
+  MockResourceEstimator resourceEstimator;
+
+  EXPECT_CALL(resourceEstimator, initialize(_));
+
+  Queue<Resources> estimations;
+  EXPECT_CALL(resourceEstimator, oversubscribable())
+    .WillOnce(InvokeWithoutArgs(&estimations, &Queue<Resources>::get));
+
+  slave::Flags flags = CreateSlaveFlags();
+
+  Try<PID<Slave>> slave = StartSlave(&exec, &resourceEstimator, flags);
+  ASSERT_SOME(slave);
+
+  // Start the framework which accepts revocable resources.
+  FrameworkInfo framework1 = DEFAULT_FRAMEWORK_INFO;
+  framework1.add_capabilities()->set_type(
+      FrameworkInfo::Capability::REVOCABLE_RESOURCES);
+
+  MockScheduler sched1;
+  MesosSchedulerDriver driver1(
+      &sched1, framework1, master.get(), DEFAULT_CREDENTIAL);
+
+  Future<FrameworkID> frameworkId;
+  EXPECT_CALL(sched1, registered(&driver1, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId));
+
+  Future<vector<Offer>> offers1;
+  EXPECT_CALL(sched1, resourceOffers(&driver1, _))
+    .WillOnce(FutureArg<1>(&offers1));
+
+  driver1.start();
+
+  // Initially the framework will get all regular resources.
+  AWAIT_READY(offers1);
+  EXPECT_NE(0u, offers1.get().size());
+  EXPECT_TRUE(Resources(offers1.get()[0].resources()).revocable().empty());
+
+  Future<vector<Offer>> offers2;
+  EXPECT_CALL(sched1, resourceOffers(&driver1, _))
+    .WillOnce(FutureArg<1>(&offers2))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  // Inject an estimation of oversubscribable cpu resources.
+  Resources taskResources = createRevocableResources("cpus", "1");
+  Resources executorResources = createRevocableResources("cpus", "1");
+  estimations.put(taskResources + executorResources);
+
+  // Now the framework will get revocable resources.
+  AWAIT_READY(offers2);
+  EXPECT_NE(0u, offers2.get().size());
+  EXPECT_EQ(
+      taskResources + executorResources,
+      Resources(offers2.get()[0].resources()));
+
+  // Reregister the framework with removal of revocable resources capability.
+  FrameworkInfo framework2 = DEFAULT_FRAMEWORK_INFO;
+  framework2.mutable_id()->MergeFrom(frameworkId.get());
+
+  MockScheduler sched2;
+  MesosSchedulerDriver driver2(
+      &sched2, framework2, master.get(), DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched2, registered(&driver2, _, _));
+
+  // Scheduler1's expectations.
+
+  EXPECT_CALL(sched1, offerRescinded(&driver1, _))
+    .Times(AtMost(1));
+
+  Future<Nothing> sched1Error;
+  EXPECT_CALL(sched1, error(&driver1, "Framework failed over"))
+    .WillOnce(FutureSatisfy(&sched1Error));
+
+  Future<vector<Offer>> offers3;
+  EXPECT_CALL(sched2, resourceOffers(&driver2, _))
+    .WillOnce(FutureArg<1>(&offers3))
+    .WillRepeatedly(Return());
+
+  driver2.start();
+
+  AWAIT_READY(offers3);
+  EXPECT_NE(0u, offers3.get().size());
+  EXPECT_TRUE(Resources(offers3.get()[0].resources()).revocable().empty());
+
+  driver1.stop();
+  driver1.join();
+
+  Shutdown();
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {
