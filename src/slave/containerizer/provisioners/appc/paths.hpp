@@ -32,7 +32,7 @@ namespace paths {
 
 // The appc store file system layout is as follows:
 //
-// <root> ('--appc_store_dir' flag)
+// <store_dir> ('--appc_store_dir' flag)
 // |--staging (contains temp directories for staging downloads)
 // |
 // |--images (stores validated images)
@@ -45,6 +45,24 @@ namespace paths {
 // externally managed) but implemented to illustrate the need for a
 // separate 'images' directory. Complete the layout diagram when the
 // staging directory is utilized by the provisioner.
+//
+// The appc provisioner rootfs directory is as follows:
+// <work_dir> ('--work_dir' flag)
+// |-- provisioners
+//     |-- APPC (see definition in src/slave/paths.hpp)
+//         |-- containers
+//             |-- <container_id>
+//                 |-- backends
+//                     |-- <backend> (copy, bind, etc.)
+//                         |-- rootfses
+//                             |-- <image_id> (the rootfs)
+//
+// NOTE: Each container could have multiple image types, therefore there
+// can be the same <container_id> directory under other provisioners e.g.,
+// <work_dir>/provisioners/DOCKER, etc. Under each provisioner + container
+// there can be multiple backends due to the change of backend flags. For
+// appc, under each backend a rootfs is identified by the 'image_id' of
+// the topmost filesystem layer.
 
 std::string getStagingDir(const std::string& storeDir);
 
@@ -71,6 +89,14 @@ std::string getImageManifestPath(
 
 
 std::string getImageManifestPath(const std::string& imagePath);
+
+
+std::string getContainerRootfsDir(
+    const std::string& rootDir,
+    const Image::Type& imageType,
+    const ContainerID& containerId,
+    const std::string& backend,
+    const std::string& imageId);
 
 } // namespace paths {
 } // namespace appc {

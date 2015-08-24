@@ -19,6 +19,7 @@
 #include <stout/path.hpp>
 
 #include "slave/containerizer/provisioners/appc/paths.hpp"
+#include "slave/paths.hpp"
 
 using std::string;
 
@@ -71,6 +72,24 @@ string getImageManifestPath(
 string getImageManifestPath(const std::string& imagePath)
 {
   return path::join(imagePath, "manifest");
+}
+
+
+string getContainerRootfsDir(
+    const string& rootDir,
+    const Image::Type& imageType,
+    const ContainerID& containerId,
+    const string& backend,
+    const string& imageId)
+{
+  return path::join(
+      slave::paths::getProvisionerDir(rootDir, imageType),
+      "containers",
+      containerId.value(),
+      "backends",
+      backend,
+      "rootfses",
+      imageId);
 }
 
 } // namespace paths {

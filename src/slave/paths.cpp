@@ -446,6 +446,17 @@ string createSlaveDirectory(
   return directory;
 }
 
+
+string getProvisionerDir(
+    const string& rootDir,
+    const Image::Type& imageType)
+{
+  return path::join(
+      rootDir,
+      "provisioners",
+      stringify(imageType));
+}
+
 } // namespace paths {
 } // namespace slave {
 } // namespace internal {

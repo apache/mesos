@@ -395,6 +395,14 @@ inline std::ostream& operator<<(
 }
 
 
+inline std::ostream& operator<<(
+    std::ostream& stream,
+    const Image::Type& imageType)
+{
+  return stream << Image::Type_Name(imageType);
+}
+
+
 template <typename T>
 inline std::ostream& operator<<(
     std::ostream& stream,

@@ -45,6 +45,8 @@ namespace paths {
 //       This includes things like persistent volumes and dynamic
 //       reservations.
 //
+//   (5) For provisioning root filesystems for containers.
+//
 // The file system layout is as follows:
 //
 //   root ('--work_dir' flag)
@@ -85,9 +87,11 @@ namespace paths {
 //   |-- resources
 //   |   |-- resources.info
 //   |-- volumes
-//       |-- roles
-//           |-- <role>
-//               |-- <persistence_id> (persistent volume)
+//   |   |-- roles
+//   |       |-- <role>
+//   |           |-- <persistence_id> (persistent volume)
+//   |-- provisioners
+//       |-- <image_type> (as defined in Image::Type)
 
 const char LATEST_SYMLINK[] = "latest";
 
@@ -269,6 +273,12 @@ std::string createExecutorDirectory(
 std::string createSlaveDirectory(
     const std::string& rootDir,
     const SlaveID& slaveId);
+
+
+// Contents of the provisioner directory are managed by the provisioner itself.
+std::string getProvisionerDir(
+    const std::string& rootDir,
+    const Image::Type& imageType);
 
 } // namespace paths {
 } // namespace slave {
