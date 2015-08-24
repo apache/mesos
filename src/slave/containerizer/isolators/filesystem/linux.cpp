@@ -423,7 +423,7 @@ Try<string> LinuxFilesystemIsolatorProcess::script(
     }
 
     // TODO(jieyu): Consider the mode in the volume.
-    out << "mount -n --bind '" << source << "' '" << target << "'\n";
+    out << "mount -n --rbind '" << source << "' '" << target << "'\n";
   }
 
   return out.str();
