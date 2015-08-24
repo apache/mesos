@@ -93,6 +93,13 @@ private:
     const Option<std::string>& user,
     const Option<std::string>& rootfs);
 
+  process::Future<Option<mesos::slave::ContainerPrepareInfo>> __prepare(
+    const ContainerID& containerId,
+    const ExecutorInfo& executorInfo,
+    const std::string& directory,
+    const Option<std::string>& user,
+    const Option<std::string>& rootfs);
+
   Try<std::string> script(
     const ExecutorInfo& executorInfo,
     const std::string& directory,

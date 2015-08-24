@@ -137,6 +137,19 @@ public:
     return info;
   }
 
+  Volume createVolume(
+      const string& containerPath,
+      const Image::Type& imageType,
+      const Volume::Mode& mode)
+  {
+    Volume volume;
+    volume.set_container_path(containerPath);
+    volume.mutable_image()->set_type(imageType);
+    volume.set_mode(mode);
+
+    return volume;
+  }
+
 private:
   Fetcher fetcher;
 };
@@ -449,6 +462,52 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_PersistentVolumeWithoutRootFilesystem)
   EXPECT_EQ(0, wait.get().status());
 
   EXPECT_SOME_EQ("abc\n", os::read(path::join(volume, "file")));
+}
+
+
+// This test verifies that the image specified in the volume will be
+// properly provisioned and mounted into the container.
+TEST_F(LinuxFilesystemIsolatorTest, ROOT_ImageInVolume)
+{
+  slave::Flags flags = CreateSlaveFlags();
+
+  Try<Owned<MesosContainerizer>> containerizer = createContainerizer(flags);
+  ASSERT_SOME(containerizer);
+
+  ContainerID containerId;
+  containerId.set_value(UUID::random().toString());
+
+  ExecutorInfo executor = CREATE_EXECUTOR_INFO(
+      "test_executor",
+      "test -d rootfs/bin");
+
+  executor.mutable_container()->CopyFrom(createContainerInfo(
+      {createVolume("rootfs", Image::APPC, Volume::RW)}, false));
+
+  string directory = path::join(os::getcwd(), "sandbox");
+  ASSERT_SOME(os::mkdir(directory));
+
+  Future<bool> launch = containerizer.get()->launch(
+      containerId,
+      executor,
+      directory,
+      None(),
+      SlaveID(),
+      PID<Slave>(),
+      false);
+
+  // Wait for the launch to complete.
+  AWAIT_READY(launch);
+
+  // Wait on the container.
+  Future<containerizer::Termination> wait =
+    containerizer.get()->wait(containerId);
+
+  AWAIT_READY(wait);
+
+  // Check the executor exited correctly.
+  EXPECT_TRUE(wait.get().has_status());
+  EXPECT_EQ(0, wait.get().status());
 }
 #endif // __linux__
 

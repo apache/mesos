@@ -154,37 +154,84 @@ Future<Option<ContainerPrepareInfo>> LinuxFilesystemIsolatorProcess::prepare(
 
   infos.put(containerId, Owned<Info>(new Info(directory)));
 
-  // Provision the root filesystem if needed.
-  if (executorInfo.has_container()) {
-    CHECK_EQ(executorInfo.container().type(), ContainerInfo::MESOS);
-
-    if (executorInfo.container().mesos().has_image()) {
-      const Image& image = executorInfo.container().mesos().image();
-
-      if (!provisioners.contains(image.type())) {
-        return Failure(
-            "No suitable provisioner found for container image type '" +
-            stringify(image.type()) + "'");
-      }
-
-      return provisioners[image.type()]->provision(containerId, image)
-        .then(defer(PID<LinuxFilesystemIsolatorProcess>(this),
-                    &LinuxFilesystemIsolatorProcess::_prepare,
-                    containerId,
-                    executorInfo,
-                    directory,
-                    user,
-                    lambda::_1));
-    }
+  if (!executorInfo.has_container()) {
+    return __prepare(containerId, executorInfo, directory, user, None());
   }
 
-  // TODO(jieyu): Provision images in volumes as well.
+  // Provision the root filesystem if needed.
+  CHECK_EQ(executorInfo.container().type(), ContainerInfo::MESOS);
 
-  return _prepare(containerId, executorInfo, directory, user, None());
+  if (!executorInfo.container().mesos().has_image()) {
+    return _prepare(containerId, executorInfo, directory, user, None());
+  }
+
+  const Image& image = executorInfo.container().mesos().image();
+
+  if (!provisioners.contains(image.type())) {
+    return Failure(
+        "No suitable provisioner found for container image type '" +
+        stringify(image.type()) + "'");
+  }
+
+  return provisioners[image.type()]->provision(containerId, image)
+    .then(defer(PID<LinuxFilesystemIsolatorProcess>(this),
+                &LinuxFilesystemIsolatorProcess::_prepare,
+                containerId,
+                executorInfo,
+                directory,
+                user,
+                lambda::_1));
 }
 
 
 Future<Option<ContainerPrepareInfo>> LinuxFilesystemIsolatorProcess::_prepare(
+    const ContainerID& containerId,
+    const ExecutorInfo& executorInfo,
+    const string& directory,
+    const Option<string>& user,
+    const Option<string>& rootfs)
+{
+  CHECK(executorInfo.has_container());
+  CHECK_EQ(executorInfo.container().type(), ContainerInfo::MESOS);
+
+  // We will provision the images specified in ContainerInfo::volumes
+  // as well. We will mutate ContainerInfo::volumes to include the
+  // paths to the provisioned root filesystems (by setting the
+  // 'host_path') if the volume specifies an image as the source.
+  Owned<ExecutorInfo> _executorInfo(new ExecutorInfo(executorInfo));
+  list<Future<Nothing>> futures;
+
+  for (int i = 0; i < _executorInfo->container().volumes_size(); i++) {
+    Volume* volume = _executorInfo->mutable_container()->mutable_volumes(i);
+
+    if (!volume->has_image()) {
+      continue;
+    }
+
+    const Image& image = volume->image();
+
+    if (!provisioners.contains(image.type())) {
+      return Failure(
+          "No suitable provisioner found for image type '" +
+          stringify(image.type()) + "' in a volume");
+    }
+
+    futures.push_back(
+        provisioners[image.type()]->provision(containerId, image)
+          .then([volume](const string& path) -> Future<Nothing> {
+            volume->set_host_path(path);
+            return Nothing();
+          }));
+  }
+
+  return collect(futures)
+    .then([=]() -> Future<Option<ContainerPrepareInfo>> {
+      return __prepare(containerId, *_executorInfo, directory, user, rootfs);
+    });
+}
+
+
+Future<Option<ContainerPrepareInfo>> LinuxFilesystemIsolatorProcess::__prepare(
     const ContainerID& containerId,
     const ExecutorInfo& executorInfo,
     const string& directory,
