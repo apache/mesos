@@ -1135,7 +1135,7 @@ message Image {
 
   // Protobuf for specifying an Appc container image. See:
   // https://github.com/appc/spec/blob/master/spec/aci.md
-  message AppC {
+  message Appc {
     // The name of the image.
     required string name = 1;
 
@@ -1158,7 +1158,7 @@ message Image {
 
   // Only one of the following image messages should be set to match
   // the type.
-  optional AppC appc = 2;
+  optional Appc appc = 2;
   optional Docker docker = 3;
 }
 

@@ -23,6 +23,9 @@
 
 #include <process/shared.hpp>
 
+#include <stout/hashmap.hpp>
+#include <stout/stringify.hpp>
+
 #include "slave/containerizer/provisioner.hpp"
 
 #include "tests/containerizer/rootfs.hpp"
@@ -31,28 +34,29 @@ namespace mesos {
 namespace internal {
 namespace tests {
 
-class TestProvisioner : public slave::Provisioner
+class TestAppcProvisioner : public slave::Provisioner
 {
 public:
-  TestProvisioner(const process::Shared<Rootfs>& _rootfs)
-    : rootfs(_rootfs)
+  TestAppcProvisioner(
+      const hashmap<std::string, process::Shared<Rootfs>>& _rootfses)
+    : rootfses(_rootfses)
   {
     using testing::_;
     using testing::DoDefault;
     using testing::Invoke;
 
     ON_CALL(*this, recover(_, _))
-      .WillByDefault(Invoke(this, &TestProvisioner::unmocked_recover));
+      .WillByDefault(Invoke(this, &TestAppcProvisioner::unmocked_recover));
     EXPECT_CALL(*this, recover(_, _))
       .WillRepeatedly(DoDefault());
 
     ON_CALL(*this, provision(_, _))
-      .WillByDefault(Invoke(this, &TestProvisioner::unmocked_provision));
+      .WillByDefault(Invoke(this, &TestAppcProvisioner::unmocked_provision));
     EXPECT_CALL(*this, provision(_, _))
       .WillRepeatedly(DoDefault());
 
     ON_CALL(*this, destroy(_))
-      .WillByDefault(Invoke(this, &TestProvisioner::unmocked_destroy));
+      .WillByDefault(Invoke(this, &TestAppcProvisioner::unmocked_destroy));
     EXPECT_CALL(*this, destroy(_))
       .WillRepeatedly(DoDefault());
   }
@@ -85,7 +89,17 @@ public:
       const ContainerID& containerId,
       const Image& image)
   {
-    return rootfs->root;
+    if (image.type() != Image::APPC) {
+      return process::Failure(
+          "Unsupported image type '" + stringify(image.type()) + "'");
+    }
+
+    if (!rootfses.contains(image.appc().name())) {
+      return process::Failure(
+          "Image '" + image.appc().name() + "' is not found");
+    }
+
+    return rootfses[image.appc().name()]->root;
   }
 
   process::Future<bool> unmocked_destroy(
@@ -95,7 +109,7 @@ public:
   }
 
 private:
-  process::Shared<Rootfs> rootfs;
+  hashmap<std::string, process::Shared<Rootfs>> rootfses;
 };
 
 } // namespace tests {

@@ -417,6 +417,8 @@ protected:
      commandInfo; })
 
 
+// TODO(jieyu): Consider making it a function to support more
+// overloads (e.g., createVolumeFromHost, createVolumeFromImage).
 #define CREATE_VOLUME(containerPath, hostPath, mode)                  \
       ({ Volume volume;                                               \
          volume.set_container_path(containerPath);                    \

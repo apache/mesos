@@ -73,22 +73,30 @@ class LinuxFilesystemIsolatorTest: public MesosTest
 public:
   // This helper creates a MesosContainerizer instance that uses the
   // LinuxFilesystemIsolator. The filesystem isolator takes a
-  // TestProvisioner which provision APPC images by copying files from
-  // the host filesystem.
-  Try<Owned<MesosContainerizer>> createContainerizer(const slave::Flags& flags)
+  // TestAppcProvisioner which provisions APPC images by copying files
+  // from the host filesystem.
+  Try<Owned<MesosContainerizer>> createContainerizer(
+      const slave::Flags& flags,
+      const vector<string>& imageNames)
   {
-    Try<Owned<Rootfs>> rootfs =
-      LinuxRootfs::create(path::join(os::getcwd(), "rootfs"));
+    // Create the root filesystems.
+    hashmap<string, Shared<Rootfs>> rootfses;
+    foreach (const string& imageName, imageNames) {
+      Try<Owned<Rootfs>> rootfs =
+        LinuxRootfs::create(path::join(os::getcwd(), "rootfses", imageName));
 
-    if (rootfs.isError()) {
-      return Error("Failed to create LinuxRootfs: " + rootfs.error());
+      if (rootfs.isError()) {
+        return Error("Failed to create LinuxRootfs: " + rootfs.error());
+      }
+
+      rootfses.put(imageName, rootfs.get().share());
     }
 
-    // NOTE: TestProvisioner provisions APPC images.
+    // Create the TestAppcProvisioner for the above root filesystems.
     hashmap<Image::Type, Owned<Provisioner>> provisioners;
     provisioners.put(
         Image::APPC,
-        Owned<Provisioner>(new TestProvisioner(rootfs.get().share())));
+        Owned<Provisioner>(new TestAppcProvisioner(rootfses)));
 
     Try<Isolator*> _isolator =
       LinuxFilesystemIsolatorProcess::create(flags, provisioners);
@@ -120,14 +128,18 @@ public:
   }
 
   ContainerInfo createContainerInfo(
-      const vector<Volume>& volumes = vector<Volume>(),
-      bool hasImage = true)
+      const Option<string>& imageName = None(),
+      const vector<Volume>& volumes = vector<Volume>())
   {
     ContainerInfo info;
     info.set_type(ContainerInfo::MESOS);
 
-    if (hasImage) {
-      info.mutable_mesos()->mutable_image()->set_type(Image::APPC);
+    if (imageName.isSome()) {
+      Image* image = info.mutable_mesos()->mutable_image();
+      image->set_type(Image::APPC);
+
+      Image::Appc* appc = image->mutable_appc();
+      appc->set_name(imageName.get());
     }
 
     foreach (const Volume& volume, volumes) {
@@ -137,15 +149,28 @@ public:
     return info;
   }
 
-  Volume createVolume(
+  Volume createVolumeFromHostPath(
       const string& containerPath,
-      const Image::Type& imageType,
+      const string& hostPath,
+      const Volume::Mode& mode)
+  {
+    return CREATE_VOLUME(containerPath, hostPath, mode);
+  }
+
+  Volume createVolumeFromImage(
+      const string& containerPath,
+      const string& imageName,
       const Volume::Mode& mode)
   {
     Volume volume;
     volume.set_container_path(containerPath);
-    volume.mutable_image()->set_type(imageType);
     volume.set_mode(mode);
+
+    Image* image = volume.mutable_image();
+    image->set_type(Image::APPC);
+
+    Image::Appc* appc = image->mutable_appc();
+    appc->set_name(imageName);
 
     return volume;
   }
@@ -161,7 +186,9 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_ChangeRootFilesystem)
 {
   slave::Flags flags = CreateSlaveFlags();
 
-  Try<Owned<MesosContainerizer>> containerizer = createContainerizer(flags);
+  Try<Owned<MesosContainerizer>> containerizer =
+    createContainerizer(flags, {"test_image"});
+
   ASSERT_SOME(containerizer);
 
   ContainerID containerId;
@@ -171,7 +198,7 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_ChangeRootFilesystem)
       "test_executor",
       "[ ! -d '" + os::getcwd() + "' ]");
 
-  executor.mutable_container()->CopyFrom(createContainerInfo());
+  executor.mutable_container()->CopyFrom(createContainerInfo("test_image"));
 
   string directory = path::join(os::getcwd(), "sandbox");
   ASSERT_SOME(os::mkdir(directory));
@@ -207,7 +234,9 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_VolumeFromSandbox)
 {
   slave::Flags flags = CreateSlaveFlags();
 
-  Try<Owned<MesosContainerizer>> containerizer = createContainerizer(flags);
+  Try<Owned<MesosContainerizer>> containerizer =
+    createContainerizer(flags, {"test_image"});
+
   ASSERT_SOME(containerizer);
 
   ContainerID containerId;
@@ -218,7 +247,8 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_VolumeFromSandbox)
       "echo abc > /tmp/file");
 
   executor.mutable_container()->CopyFrom(createContainerInfo(
-      {CREATE_VOLUME("/tmp", "tmp", Volume::RW)}));
+      "test_image",
+      {createVolumeFromHostPath("/tmp", "tmp", Volume::RW)}));
 
   string directory = path::join(os::getcwd(), "sandbox");
   ASSERT_SOME(os::mkdir(directory));
@@ -256,7 +286,9 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_VolumeFromHost)
 {
   slave::Flags flags = CreateSlaveFlags();
 
-  Try<Owned<MesosContainerizer>> containerizer = createContainerizer(flags);
+  Try<Owned<MesosContainerizer>> containerizer =
+    createContainerizer(flags, {"test_image"});
+
   ASSERT_SOME(containerizer);
 
   ContainerID containerId;
@@ -267,7 +299,8 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_VolumeFromHost)
       "test -d /tmp/sandbox");
 
   executor.mutable_container()->CopyFrom(createContainerInfo(
-      {CREATE_VOLUME("/tmp", os::getcwd(), Volume::RW)}));
+      "test_image",
+      {createVolumeFromHostPath("/tmp", os::getcwd(), Volume::RW)}));
 
   string directory = path::join(os::getcwd(), "sandbox");
   ASSERT_SOME(os::mkdir(directory));
@@ -303,7 +336,9 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_VolumeFromHostSandboxMountPoint)
 {
   slave::Flags flags = CreateSlaveFlags();
 
-  Try<Owned<MesosContainerizer>> containerizer = createContainerizer(flags);
+  Try<Owned<MesosContainerizer>> containerizer =
+    createContainerizer(flags, {"test_image"});
+
   ASSERT_SOME(containerizer);
 
   ContainerID containerId;
@@ -314,7 +349,8 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_VolumeFromHostSandboxMountPoint)
       "test -d mountpoint/sandbox");
 
   executor.mutable_container()->CopyFrom(createContainerInfo(
-      {CREATE_VOLUME("mountpoint", os::getcwd(), Volume::RW)}));
+      "test_image",
+      {createVolumeFromHostPath("mountpoint", os::getcwd(), Volume::RW)}));
 
   string directory = path::join(os::getcwd(), "sandbox");
   ASSERT_SOME(os::mkdir(directory));
@@ -350,7 +386,9 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_PersistentVolumeWithRootFilesystem)
   slave::Flags flags = CreateSlaveFlags();
   flags.work_dir = os::getcwd();
 
-  Try<Owned<MesosContainerizer>> containerizer = createContainerizer(flags);
+  Try<Owned<MesosContainerizer>> containerizer =
+    createContainerizer(flags, {"test_image"});
+
   ASSERT_SOME(containerizer);
 
   ContainerID containerId;
@@ -366,7 +404,7 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_PersistentVolumeWithRootFilesystem)
       "persistent_volume_id",
       "volume"));
 
-  executor.mutable_container()->CopyFrom(createContainerInfo());
+  executor.mutable_container()->CopyFrom(createContainerInfo("test_image"));
 
   // Create a persistent volume.
   string volume = slave::paths::getPersistentVolumePath(
@@ -410,7 +448,9 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_PersistentVolumeWithoutRootFilesystem)
   slave::Flags flags = CreateSlaveFlags();
   flags.work_dir = os::getcwd();
 
-  Try<Owned<MesosContainerizer>> containerizer = createContainerizer(flags);
+  Try<Owned<MesosContainerizer>> containerizer =
+    createContainerizer(flags, {"test_image"});
+
   ASSERT_SOME(containerizer);
 
   ContainerID containerId;
@@ -426,7 +466,7 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_PersistentVolumeWithoutRootFilesystem)
       "persistent_volume_id",
       "volume"));
 
-  executor.mutable_container()->CopyFrom(createContainerInfo({}, false));
+  executor.mutable_container()->CopyFrom(createContainerInfo());
 
   // Create a persistent volume.
   string volume = slave::paths::getPersistentVolumePath(
@@ -471,7 +511,9 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_ImageInVolume)
 {
   slave::Flags flags = CreateSlaveFlags();
 
-  Try<Owned<MesosContainerizer>> containerizer = createContainerizer(flags);
+  Try<Owned<MesosContainerizer>> containerizer =
+    createContainerizer(flags, {"test_image"});
+
   ASSERT_SOME(containerizer);
 
   ContainerID containerId;
@@ -482,7 +524,8 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_ImageInVolume)
       "test -d rootfs/bin");
 
   executor.mutable_container()->CopyFrom(createContainerInfo(
-      {createVolume("rootfs", Image::APPC, Volume::RW)}, false));
+      None(),
+      {createVolumeFromImage("rootfs", "test_image", Volume::RW)}));
 
   string directory = path::join(os::getcwd(), "sandbox");
   ASSERT_SOME(os::mkdir(directory));
