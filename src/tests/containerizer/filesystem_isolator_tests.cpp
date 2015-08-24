@@ -506,8 +506,9 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_PersistentVolumeWithoutRootFilesystem)
 
 
 // This test verifies that the image specified in the volume will be
-// properly provisioned and mounted into the container.
-TEST_F(LinuxFilesystemIsolatorTest, ROOT_ImageInVolume)
+// properly provisioned and mounted into the container if container
+// root filesystem is not specified.
+TEST_F(LinuxFilesystemIsolatorTest, ROOT_ImageInVolumeWithoutRootFilesystem)
 {
   slave::Flags flags = CreateSlaveFlags();
 
@@ -526,6 +527,56 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_ImageInVolume)
   executor.mutable_container()->CopyFrom(createContainerInfo(
       None(),
       {createVolumeFromImage("rootfs", "test_image", Volume::RW)}));
+
+  string directory = path::join(os::getcwd(), "sandbox");
+  ASSERT_SOME(os::mkdir(directory));
+
+  Future<bool> launch = containerizer.get()->launch(
+      containerId,
+      executor,
+      directory,
+      None(),
+      SlaveID(),
+      PID<Slave>(),
+      false);
+
+  // Wait for the launch to complete.
+  AWAIT_READY(launch);
+
+  // Wait on the container.
+  Future<containerizer::Termination> wait =
+    containerizer.get()->wait(containerId);
+
+  AWAIT_READY(wait);
+
+  // Check the executor exited correctly.
+  EXPECT_TRUE(wait.get().has_status());
+  EXPECT_EQ(0, wait.get().status());
+}
+
+
+// This test verifies that the image specified in the volume will be
+// properly provisioned and mounted into the container if container
+// root filesystem is specified.
+TEST_F(LinuxFilesystemIsolatorTest, ROOT_ImageInVolumeWithRootFilesystem)
+{
+  slave::Flags flags = CreateSlaveFlags();
+
+  Try<Owned<MesosContainerizer>> containerizer =
+    createContainerizer(flags, {"test_image_rootfs", "test_image_volume"});
+
+  ASSERT_SOME(containerizer);
+
+  ContainerID containerId;
+  containerId.set_value(UUID::random().toString());
+
+  ExecutorInfo executor = CREATE_EXECUTOR_INFO(
+      "test_executor",
+      "[ ! -d '" + os::getcwd() + "' ] && [ -d rootfs/bin ]");
+
+  executor.mutable_container()->CopyFrom(createContainerInfo(
+      "test_image_rootfs",
+      {createVolumeFromImage("rootfs", "test_image_volume", Volume::RW)}));
 
   string directory = path::join(os::getcwd(), "sandbox");
   ASSERT_SOME(os::mkdir(directory));
