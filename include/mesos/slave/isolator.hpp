@@ -39,10 +39,6 @@
 namespace mesos {
 namespace slave {
 
-// Forward declaration.
-class IsolatorProcess;
-
-
 class Isolator
 {
 public:
