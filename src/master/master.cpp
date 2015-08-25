@@ -4654,6 +4654,14 @@ void Master::offer(const FrameworkID& frameworkId,
       }
     }
 
+    // If the slave in this offer is planned to be unavailable due to
+    // maintenance in the future, then set the Unavailability.
+    CHECK(machines.contains(slave->machineId));
+    if (machines[slave->machineId].info.has_unavailability()) {
+      offer->mutable_unavailability()->CopyFrom(
+          machines[slave->machineId].info.unavailability());
+    }
+
     offers[offer->id()] = offer;
 
     framework->addOffer(offer);

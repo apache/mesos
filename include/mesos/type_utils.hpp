@@ -108,6 +108,18 @@ inline bool operator==(const TaskID& left, const TaskID& right)
 }
 
 
+inline bool operator==(const TimeInfo& left, const TimeInfo& right)
+{
+  return left.nanoseconds() == right.nanoseconds();
+}
+
+
+inline bool operator==(const DurationInfo& left, const DurationInfo& right)
+{
+  return left.nanoseconds() == right.nanoseconds();
+}
+
+
 inline bool operator==(const ContainerID& left, const std::string& right)
 {
   return left.value() == right;
@@ -180,6 +192,18 @@ inline bool operator!=(const FrameworkID& left, const FrameworkID& right)
 inline bool operator!=(const SlaveID& left, const SlaveID& right)
 {
   return left.value() != right.value();
+}
+
+
+inline bool operator!=(const TimeInfo& left, const TimeInfo& right)
+{
+  return !(left == right);
+}
+
+
+inline bool operator!=(const DurationInfo& left, const DurationInfo& right)
+{
+  return !(left == right);
 }
 
 
