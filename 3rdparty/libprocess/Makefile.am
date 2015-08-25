@@ -140,6 +140,7 @@ check_PROGRAMS = tests benchmarks
 tests_SOURCES =							\
   src/tests/decoder_tests.cpp					\
   src/tests/encoder_tests.cpp					\
+  src/tests/future_tests.cpp					\
   src/tests/http_tests.cpp					\
   src/tests/io_tests.cpp					\
   src/tests/limiter_tests.cpp					\

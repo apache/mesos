@@ -148,6 +148,7 @@ public:
   // Return the value associated with this future, waits indefinitely
   // until a value gets associated or until the future is discarded.
   const T& get() const;
+  const T* operator->() const;
 
   // Returns the failure message associated with this future.
   const std::string& failure() const;
@@ -1054,6 +1055,13 @@ const T& Future<T>::get() const
 
   assert(data->result.isSome());
   return data->result.get();
+}
+
+
+template <typename T>
+const T* Future<T>::operator->() const
+{
+  return &get();
 }
 
 
