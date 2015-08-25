@@ -20,6 +20,12 @@
 
 #include <mesos/maintenance/maintenance.hpp>
 
+#include <mesos/v1/mesos.hpp>
+#include <mesos/v1/resources.hpp>
+#include <mesos/v1/scheduler.hpp>
+
+#include <mesos/v1/scheduler/scheduler.hpp>
+
 #include <process/clock.hpp>
 #include <process/future.hpp>
 #include <process/http.hpp>
@@ -37,6 +43,9 @@
 
 #include "common/protobuf_utils.hpp"
 
+#include "internal/devolve.hpp"
+#include "internal/evolve.hpp"
+
 #include "master/master.hpp"
 
 #include "slave/flags.hpp"
@@ -48,9 +57,14 @@ using mesos::internal::master::Master;
 
 using mesos::internal::slave::Slave;
 
+using mesos::v1::scheduler::Call;
+using mesos::v1::scheduler::Event;
+using mesos::v1::scheduler::Mesos;
+
 using process::Clock;
 using process::Future;
 using process::PID;
+using process::Queue;
 using process::Time;
 
 using process::http::BadRequest;
@@ -65,6 +79,7 @@ using mesos::internal::protobuf::maintenance::createWindow;
 using std::string;
 using std::vector;
 
+using testing::AtMost;
 using testing::DoAll;
 
 namespace mesos {
@@ -111,7 +126,38 @@ public:
   // Default unavailability.  Used when the test does not care
   // about the value of the unavailability.
   Unavailability unavailability;
+
+protected:
+  // Helper class for using EXPECT_CALL since the Mesos scheduler API
+  // is callback based.
+  class Callbacks
+  {
+  public:
+    MOCK_METHOD0(connected, void(void));
+    MOCK_METHOD0(disconnected, void(void));
+    MOCK_METHOD1(received, void(const std::queue<Event>&));
+  };
 };
+
+
+// Enqueues all received events into a libprocess queue.
+// TODO(jmlvanre): Factor this common code out of tests into V1
+// helper.
+ACTION_P(Enqueue, queue)
+{
+  std::queue<Event> events = arg0;
+  while (!events.empty()) {
+    // Note that we currently drop HEARTBEATs because most of these tests
+    // are not designed to deal with heartbeats.
+    // TODO(vinod): Implement DROP_HTTP_CALLS that can filter heartbeats.
+    if (events.front().type() == Event::HEARTBEAT) {
+      VLOG(1) << "Ignoring HEARTBEAT event";
+    } else {
+      queue->put(events.front());
+    }
+    events.pop();
+  }
+}
 
 
 // Posts valid and invalid schedules to the maintenance schedule endpoint.
@@ -304,7 +350,10 @@ TEST_F(MasterMaintenanceTest, FailToUnscheduleDeactivatedMachines)
 // slave is scheduled to go down for maintenance.
 TEST_F(MasterMaintenanceTest, PendingUnavailabilityTest)
 {
-  Try<PID<Master>> master = StartMaster();
+  master::Flags flags = CreateMasterFlags();
+  flags.authenticate_frameworks = false;
+
+  Try<PID<Master>> master = StartMaster(flags);
   ASSERT_SOME(master);
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
@@ -312,36 +361,49 @@ TEST_F(MasterMaintenanceTest, PendingUnavailabilityTest)
   Try<PID<Slave>> slave = StartSlave(&exec);
   ASSERT_SOME(slave);
 
-  MockScheduler sched;
-  MesosSchedulerDriver driver(
-      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+  Callbacks callbacks;
 
-  EXPECT_CALL(sched, registered(&driver, _, _))
-    .Times(1);
+  Future<Nothing> connected;
+  EXPECT_CALL(callbacks, connected())
+    .WillOnce(FutureSatisfy(&connected));
 
-  // Intercept offers sent to the scheduler.
-  Future<vector<Offer>> normalOffers;
-  Future<vector<Offer>> unavailabilityOffers;
-  EXPECT_CALL(sched, resourceOffers(&driver, _))
-    .WillOnce(FutureArg<1>(&normalOffers))
-    .WillOnce(FutureArg<1>(&unavailabilityOffers))
-    .WillRepeatedly(Return()); // Ignore subsequent offers.
+  Mesos mesos(
+      master.get(),
+      lambda::bind(&Callbacks::connected, lambda::ref(callbacks)),
+      lambda::bind(&Callbacks::disconnected, lambda::ref(callbacks)),
+      lambda::bind(&Callbacks::received, lambda::ref(callbacks), lambda::_1));
 
-  // The original offers should be rescinded when the unavailability
-  // is changed.
-  Future<Nothing> offerRescinded;
-  EXPECT_CALL(sched, offerRescinded(&driver, _))
-    .WillOnce(FutureSatisfy(&offerRescinded));
+  AWAIT_READY(connected);
 
-  // Start the test.
-  driver.start();
+  Queue<Event> events;
 
-  // Wait for some normal offers.
-  AWAIT_READY(normalOffers);
-  EXPECT_NE(0u, normalOffers.get().size());
+  EXPECT_CALL(callbacks, received(_))
+    .WillRepeatedly(Enqueue(&events));
 
-  // Check that unavailability is not set.
-  foreach (const Offer& offer, normalOffers.get()) {
+  {
+    Call call;
+    call.set_type(Call::SUBSCRIBE);
+
+    Call::Subscribe* subscribe = call.mutable_subscribe();
+    subscribe->mutable_framework_info()->CopyFrom(DEFAULT_V1_FRAMEWORK_INFO);
+
+    mesos.send(call);
+  }
+
+  Future<Event> event = events.get();
+  AWAIT_READY(event);
+  EXPECT_EQ(Event::SUBSCRIBED, event.get().type());
+
+  v1::FrameworkID id(event.get().subscribed().framework_id());
+
+  event = events.get();
+  AWAIT_READY(event);
+  EXPECT_EQ(Event::OFFERS, event.get().type());
+  EXPECT_NE(0, event.get().offers().offers().size());
+  const size_t numberOfOffers = event.get().offers().offers().size();
+
+  // Regular offers shouldn't have unavailability.
+  foreach (const v1::Offer& offer, event.get().offers().offers()) {
     EXPECT_FALSE(offer.has_unavailability());
   }
 
@@ -372,19 +434,41 @@ TEST_F(MasterMaintenanceTest, PendingUnavailabilityTest)
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 
-  // Wait for some offers.
-  AWAIT_READY(unavailabilityOffers);
-  EXPECT_NE(0u, unavailabilityOffers.get().size());
-
-  // Check that each offer has an unavailability.
-  foreach (const Offer& offer, unavailabilityOffers.get()) {
-    EXPECT_TRUE(offer.has_unavailability());
-    EXPECT_EQ(unavailability.start(), offer.unavailability().start());
-    EXPECT_EQ(unavailability.duration(), offer.unavailability().duration());
+  // The original offers should be rescinded when the unavailability
+  // is changed. We expect as many rescind events as we received
+  // original offers.
+  for (size_t offerNumber = 0; offerNumber < numberOfOffers; ++offerNumber) {
+    event = events.get();
+    AWAIT_READY(event);
+    EXPECT_EQ(Event::RESCIND, event.get().type());
   }
 
-  driver.stop();
-  driver.join();
+  event = events.get();
+  AWAIT_READY(event);
+  EXPECT_EQ(Event::OFFERS, event.get().type());
+  EXPECT_NE(0, event.get().offers().offers().size());
+
+  // Make sure the new offers have the unavailability set.
+  foreach (const v1::Offer& offer, event.get().offers().offers()) {
+    EXPECT_TRUE(offer.has_unavailability());
+    EXPECT_EQ(
+        unavailability.start().nanoseconds(),
+        offer.unavailability().start().nanoseconds());
+
+    EXPECT_EQ(
+        unavailability.duration().nanoseconds(),
+        offer.unavailability().duration().nanoseconds());
+  }
+
+  // We also expect an inverse offer for the slave to go under
+  // maintenance.
+  event = events.get();
+  AWAIT_READY(event);
+  EXPECT_EQ(Event::OFFERS, event.get().type());
+  EXPECT_NE(0, event.get().offers().inverse_offers().size());
+
+  EXPECT_CALL(exec, shutdown(_))
+    .Times(AtMost(1));
 
   Shutdown(); // Must shutdown before 'containerizer' gets deallocated.
 }
