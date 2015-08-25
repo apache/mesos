@@ -564,6 +564,120 @@ TEST_F(MasterMaintenanceTest, PreV1SchedulerSupport)
 }
 
 
+// Test ensures that slaves receive a shutdown message from the master when
+// maintenance is started, and frameworks receive a task lost message.
+TEST_F(MasterMaintenanceTest, EnterMaintenanceMode)
+{
+  Try<PID<Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+
+  Try<PID<Slave>> slave = StartSlave(&exec);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .Times(1);
+
+  // Launch a task.
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(LaunchTasks(DEFAULT_EXECUTOR_INFO, 1, 1, 64, "*"))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  EXPECT_CALL(exec, registered(_, _, _, _))
+    .Times(1);
+
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
+
+  EXPECT_CALL(exec, shutdown(_))
+    .Times(AtMost(1));
+
+  EXPECT_CALL(sched, offerRescinded(&driver, _))
+    .WillRepeatedly(Return()); // Ignore rescinds.
+
+  // Collect the status updates to verify the task is running and then lost.
+  Future<TaskStatus> startStatus, lostStatus;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&startStatus))
+    .WillOnce(FutureArg<1>(&lostStatus));
+
+  // Start the test.
+  driver.start();
+
+  // Wait till the task is running to schedule the maintenance.
+  AWAIT_READY(startStatus);
+  EXPECT_EQ(TASK_RUNNING, startStatus.get().state());
+
+  // Schedule this slave for maintenance.
+  MachineID machine;
+  machine.set_hostname(maintenanceHostname);
+  machine.set_ip(stringify(slave.get().address.ip));
+
+  // TODO(jmlvanre): Replace Time(0.0) with `Clock::now()` once JSON double
+  // conversion is fixed. For now using a rounded time avoids the issue.
+  const Time start = Time::create(0.0).get() + Seconds(60);
+  const Duration duration = Seconds(120);
+  const Unavailability unavailability = createUnavailability(start, duration);
+
+  // Post a valid schedule with one machine.
+  maintenance::Schedule schedule = createSchedule(
+      {createWindow({machine}, unavailability)});
+
+  // We have a few seconds between the first set of offers and the next
+  // allocation of offers.  This should be enough time to perform a maintenance
+  // schedule update.  This update will also trigger the rescinding of offers
+  // from the scheduled slave.
+  Future<Response> response =
+    process::http::post(
+        master.get(),
+        "maintenance/schedule",
+        headers,
+        stringify(JSON::Protobuf(schedule)));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+
+  // Verify that the master forces the slave to be shut down after the
+  // maintenance is started.
+  Future<ShutdownMessage> shutdownMessage =
+    FUTURE_PROTOBUF(ShutdownMessage(), master.get(), slave.get());
+
+  // Verify that the framework will be informed that the slave is lost.
+  Future<Nothing> slaveLost;
+  EXPECT_CALL(sched, slaveLost(&driver, _))
+    .WillOnce(FutureSatisfy(&slaveLost));
+
+  // Start the maintenance.
+  response =
+    process::http::post(
+        master.get(),
+        "machine/down",
+        headers,
+        stringify(JSON::Protobuf(createMachineList({machine}))));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+
+  // Wait for the slave to be shut down.
+  AWAIT_READY(shutdownMessage);
+
+  // Verify that we received a TASK_LOST.
+  AWAIT_READY(lostStatus);
+  EXPECT_EQ(TASK_LOST, lostStatus.get().state());
+
+  // Verify that the framework received the slave lost message.
+  AWAIT_READY(slaveLost);
+
+  driver.stop();
+  driver.join();
+
+  Shutdown(); // Must shutdown before 'containerizer' gets deallocated.
+}
+
+
 // Posts valid and invalid machines to the maintenance start endpoint.
 TEST_F(MasterMaintenanceTest, BringDownMachines)
 {

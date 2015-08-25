@@ -1593,6 +1593,37 @@ Future<Response> Master::Http::machineDown(const Request& request) const
       // is here, and is appropriate.
       CHECK(result);
 
+      // We currently send a `ShutdownMessage` to each slave. This terminates
+      // all the executors for all the frameworks running on that slave.
+      // We also manually remove the slave to force sending TASK_LOST updates
+      // for all the tasks that were running on the slave and `LostSlaveMessage`
+      // messages to the framework. This guards against the slave having dropped
+      // the `ShutdownMessage`.
+      foreach (const MachineID& machineId, ids.values()) {
+        // The machine may not be in machines. This means no slaves are
+        // currently registered on that machine so this is a no-op.
+        if (master->machines.contains(machineId)) {
+          // NOTE: Copies are needed because removeSlave modifies
+          // master->machines.
+          foreach (
+              const SlaveID& slaveId,
+              utils::copy(master->machines[machineId].slaves)) {
+            Slave* slave = master->slaves.registered.get(slaveId);
+            CHECK_NOTNULL(slave);
+
+            // Tell the slave to shut down.
+            ShutdownMessage shutdownMessage;
+            shutdownMessage.set_message("Operator initiated 'Machine DOWN'");
+            master->send(slave->pid, shutdownMessage);
+
+            // Immediately remove the slave to force sending `TASK_LOST` status
+            // updates as well as `LostSlaveMessage` messages to the frameworks.
+            // See comment above.
+            master->removeSlave(slave, "Operator initiated 'Machine DOWN'");
+          }
+        }
+      }
+
       // Update the master's local state with the downed machines.
       foreach (const MachineID& id, ids.values()) {
         master->machines[id].info.set_mode(MachineInfo::DOWN);
