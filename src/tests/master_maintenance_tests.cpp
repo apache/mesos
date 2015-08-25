@@ -327,6 +327,12 @@ TEST_F(MasterMaintenanceTest, PendingUnavailabilityTest)
     .WillOnce(FutureArg<1>(&unavailabilityOffers))
     .WillRepeatedly(Return()); // Ignore subsequent offers.
 
+  // The original offers should be rescinded when the unavailability
+  // is changed.
+  Future<Nothing> offerRescinded;
+  EXPECT_CALL(sched, offerRescinded(&driver, _))
+    .WillOnce(FutureSatisfy(&offerRescinded));
+
   // Start the test.
   driver.start();
 
@@ -337,10 +343,6 @@ TEST_F(MasterMaintenanceTest, PendingUnavailabilityTest)
   // Check that unavailability is not set.
   foreach (const Offer& offer, normalOffers.get()) {
     EXPECT_FALSE(offer.has_unavailability());
-
-    // We have a few seconds between allocations (by default).  That should
-    // be enough time to post a schedule before the next allocation.
-    driver.declineOffer(offer.id());
   }
 
   // Schedule this slave for maintenance.
@@ -355,9 +357,13 @@ TEST_F(MasterMaintenanceTest, PendingUnavailabilityTest)
   const Unavailability unavailability = createUnavailability(start, duration);
 
   // Post a valid schedule with one machine.
-  maintenance::Schedule schedule = createSchedule({
-      createWindow({machine}, unavailability)});
+  maintenance::Schedule schedule = createSchedule(
+      {createWindow({machine}, unavailability)});
 
+  // We have a few seconds between the first set of offers and the
+  // next allocation of offers.  This should be enough time to perform
+  // a maintenance schedule update.  This update will also trigger the
+  // rescinding of offers from the scheduled slave.
   Future<Response> response = process::http::post(
       master.get(),
       "maintenance/schedule",
@@ -365,9 +371,6 @@ TEST_F(MasterMaintenanceTest, PendingUnavailabilityTest)
       stringify(JSON::Protobuf(schedule)));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
-
-  // Speed up the test by not waiting until the next allocation.
-  driver.reviveOffers();
 
   // Wait for some offers.
   AWAIT_READY(unavailabilityOffers);

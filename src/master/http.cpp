@@ -1494,19 +1494,19 @@ Future<Response> Master::Http::maintenanceSchedule(const Request& request) const
         }
       }
 
-      // NOTE: Copies are needed because this loop modifies the container.
+      // NOTE: Copies are needed because `updateUnavailability()` in this loop
+      // modifies the container.
       foreachkey (const MachineID& id, utils::copy(master->machines)) {
         // Update the entry for each updated machine.
         if (updated.contains(id)) {
-          master->machines[id]
-            .info.mutable_unavailability()->CopyFrom(updated[id]);
-
+          master->updateUnavailability(id, updated[id]);
           continue;
         }
 
-        // Remove the unavailability for each removed machine.
-        master->machines[id].info.clear_unavailability();
+        // Transition each removed machine back to the `UP` mode and remove the
+        // unavailability.
         master->machines[id].info.set_mode(MachineInfo::UP);
+        master->updateUnavailability(id, None());
       }
 
       // Save each new machine, with the unavailability
@@ -1516,9 +1516,10 @@ Future<Response> Master::Http::maintenanceSchedule(const Request& request) const
           MachineInfo info;
           info.mutable_id()->CopyFrom(id);
           info.set_mode(MachineInfo::DRAINING);
-          info.mutable_unavailability()->CopyFrom(window.unavailability());
 
           master->machines[id].info.CopyFrom(info);
+
+          master->updateUnavailability(id, window.unavailability());
         }
       }
 

@@ -468,6 +468,10 @@ public:
       const SlaveID& slaveId,
       const Resources& oversubscribedResources);
 
+  void updateUnavailability(
+      const MachineID& machineId,
+      const Option<Unavailability>& unavailability);
+
   void shutdownSlave(
       const SlaveID& slaveId,
       const std::string& message);

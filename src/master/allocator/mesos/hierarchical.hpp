@@ -146,6 +146,10 @@ public:
       const SlaveID& slaveId,
       const std::vector<Offer::Operation>& operations);
 
+  void updateUnavailability(
+      const SlaveID& slaveId,
+      const Option<Unavailability>& unavailability);
+
   void recoverResources(
       const FrameworkID& frameworkId,
       const SlaveID& slaveId,
@@ -811,6 +815,31 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::updateAvailable(
   roleSorter->update(slaveId, slaves[slaveId].total.unreserved());
 
   return Nothing();
+}
+
+
+template <class RoleSorter, class FrameworkSorter>
+void
+HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::updateUnavailability(
+    const SlaveID& slaveId,
+    const Option<Unavailability>& unavailability)
+{
+  CHECK(initialized);
+  CHECK(slaves.contains(slaveId));
+
+  // NOTE: We currently implement maintenance in the allocator to be able to
+  // leverage state and features such as the FrameworkSorter and Filters.
+
+  // Remove any old unavailability.
+  slaves[slaveId].maintenance = None();
+
+  // If we have a new unavailability.
+  if (unavailability.isSome()) {
+    slaves[slaveId].maintenance =
+      typename Slave::Maintenance(unavailability.get());
+  }
+
+  allocate(slaveId);
 }
 
 

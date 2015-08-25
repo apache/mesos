@@ -135,6 +135,14 @@ public:
       const SlaveID& slaveId,
       const std::vector<Offer::Operation>& operations) = 0;
 
+  // We currently support storing the next unavailability, if there is one, per
+  // slave. If `unavailability` is not set then there is no known upcoming
+  // unavailability. This might require the implementation of the function to
+  // remove any inverse offers that are outstanding.
+  virtual void updateUnavailability(
+      const SlaveID& slaveId,
+      const Option<Unavailability>& unavailability) = 0;
+
   // Informs the Allocator to recover resources that are considered
   // used by the framework.
   virtual void recoverResources(

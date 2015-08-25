@@ -108,6 +108,10 @@ public:
       const SlaveID& slaveId,
       const std::vector<Offer::Operation>& operations);
 
+  void updateUnavailability(
+      const SlaveID& slaveId,
+      const Option<Unavailability>& unavailability);
+
   void recoverResources(
       const FrameworkID& frameworkId,
       const SlaveID& slaveId,
@@ -198,6 +202,10 @@ public:
   virtual process::Future<Nothing> updateAvailable(
       const SlaveID& slaveId,
       const std::vector<Offer::Operation>& operations) = 0;
+
+  virtual void updateUnavailability(
+      const SlaveID& slaveId,
+      const Option<Unavailability>& unavailability) = 0;
 
   virtual void recoverResources(
       const FrameworkID& frameworkId,
@@ -429,6 +437,19 @@ MesosAllocator<AllocatorProcess>::updateAvailable(
       &MesosAllocatorProcess::updateAvailable,
       slaveId,
       operations);
+}
+
+
+template <typename AllocatorProcess>
+inline void MesosAllocator<AllocatorProcess>::updateUnavailability(
+    const SlaveID& slaveId,
+    const Option<Unavailability>& unavailability)
+{
+  return process::dispatch(
+      process,
+      &MesosAllocatorProcess::updateUnavailability,
+      slaveId,
+      unavailability);
 }
 
 
