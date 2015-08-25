@@ -27,7 +27,7 @@
 
 #include <stout/try.hpp>
 
-#include "slave/qos_controller.hpp"
+#include "slave/qos_controllers/noop.hpp"
 
 using namespace mesos;
 

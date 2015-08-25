@@ -16,8 +16,8 @@
  * limitations under the License.
  */
 
-#ifndef __SLAVE_QOS_CONTROLLER_HPP__
-#define __SLAVE_QOS_CONTROLLER_HPP__
+#ifndef __SLAVE_QOS_CONTROLLERS_NOOP_HPP__
+#define __SLAVE_QOS_CONTROLLERS_NOOP_HPP__
 
 #include <mesos/slave/qos_controller.hpp>
 
@@ -55,4 +55,4 @@ protected:
 } // namespace internal {
 } // namespace mesos {
 
-#endif // __SLAVE_QOS_CONTROLLER_HPP__
+#endif // __SLAVE_QOS_CONTROLLERS_NOOP_HPP__

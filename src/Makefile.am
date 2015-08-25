@@ -451,6 +451,7 @@ libmesos_no_3rdparty_la_SOURCES =					\
 	slave/monitor.cpp						\
 	slave/paths.cpp							\
 	slave/qos_controller.cpp					\
+	slave/qos_controllers/noop.cpp					\
 	slave/resource_estimator.cpp					\
 	slave/slave.cpp							\
 	slave/state.cpp							\
@@ -726,7 +727,6 @@ libmesos_no_3rdparty_la_SOURCES +=					\
 	slave/metrics.hpp						\
 	slave/monitor.hpp						\
 	slave/paths.hpp							\
-	slave/qos_controller.hpp					\
 	slave/slave.hpp							\
 	slave/state.hpp							\
 	slave/status_update_manager.hpp					\
@@ -753,6 +753,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
 	slave/containerizer/isolators/filesystem/shared.hpp		\
 	slave/containerizer/mesos/containerizer.hpp			\
 	slave/containerizer/mesos/launch.hpp				\
+	slave/qos_controllers/noop.hpp					\
 	slave/resource_estimators/noop.hpp				\
 	tests/cluster.hpp						\
 	tests/containerizer.hpp						\

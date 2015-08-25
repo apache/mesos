@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-#include <process/delay.hpp>
 #include <process/dispatch.hpp>
 #include <process/process.hpp>
 
@@ -24,36 +23,53 @@
 
 #include <mesos/module/qos_controller.hpp>
 
-#include "module/manager.hpp"
-
 #include "slave/qos_controllers/noop.hpp"
 
 using namespace process;
 
 using std::list;
-using std::string;
 
 namespace mesos {
+namespace internal {
 namespace slave {
 
-Try<QoSController*> QoSController::create(const Option<string>& type)
+class NoopQoSControllerProcess : public Process<NoopQoSControllerProcess>
 {
-  if (type.isNone()) {
-    return new internal::slave::NoopQoSController();
+public:
+  virtual ~NoopQoSControllerProcess() {}
+
+  NoopQoSControllerProcess() {}
+};
+
+
+NoopQoSController::~NoopQoSController()
+{
+  if (process.get() != NULL) {
+    terminate(process.get());
+    wait(process.get());
+  }
+}
+
+
+Try<Nothing> NoopQoSController::initialize(
+    const lambda::function<Future<ResourceUsage>()>& usage)
+{
+  if (process.get() != NULL) {
+    return Error("Noop QoS Controller has already been initialized");
   }
 
-  // Try to load QoS Controller from module.
-  Try<QoSController*> module =
-    modules::ModuleManager::create<QoSController>(type.get());
+  process.reset(new NoopQoSControllerProcess());
+  spawn(process.get());
 
-  if (module.isError()) {
-    return Error(
-        "Failed to create QoS Controller module '" + type.get() +
-        "': " + module.error());
-  }
+  return Nothing();
+}
 
-  return module.get();
+
+Future<list<mesos::slave::QoSCorrection>> NoopQoSController::corrections()
+{
+  return Future<list<mesos::slave::QoSCorrection>>();
 }
 
 } // namespace slave {
+} // namespace internal {
 } // namespace mesos {
