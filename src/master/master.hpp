@@ -491,6 +491,10 @@ public:
       const FrameworkID& framework,
       const hashmap<SlaveID, Resources>& resources);
 
+  void inverseOffer(
+      const FrameworkID& framework,
+      const hashmap<SlaveID, UnavailableResources>& resources);
+
   // Invoked when there is a newly elected leading master.
   // Made public for testing purposes.
   void detected(const process::Future<Option<MasterInfo>>& pid);

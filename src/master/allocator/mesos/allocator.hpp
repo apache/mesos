@@ -52,6 +52,10 @@ public:
       const lambda::function<
           void(const FrameworkID&,
                const hashmap<SlaveID, Resources>&)>& offerCallback,
+      const lambda::function<
+          void(const FrameworkID&,
+               const hashmap<SlaveID, UnavailableResources>&)>&
+        inverseOfferCallback,
       const hashmap<std::string, mesos::master::RoleInfo>& roles);
 
   void addFramework(
@@ -147,6 +151,10 @@ public:
       const lambda::function<
           void(const FrameworkID&,
                const hashmap<SlaveID, Resources>&)>& offerCallback,
+      const lambda::function<
+          void(const FrameworkID&,
+               const hashmap<SlaveID, UnavailableResources>&)>&
+        inverseOfferCallback,
       const hashmap<std::string, mesos::master::RoleInfo>& roles) = 0;
 
   virtual void addFramework(
@@ -250,6 +258,10 @@ inline void MesosAllocator<AllocatorProcess>::initialize(
     const lambda::function<
         void(const FrameworkID&,
              const hashmap<SlaveID, Resources>&)>& offerCallback,
+    const lambda::function<
+        void(const FrameworkID&,
+              const hashmap<SlaveID, UnavailableResources>&)>&
+      inverseOfferCallback,
     const hashmap<std::string, mesos::master::RoleInfo>& roles)
 {
   process::dispatch(
@@ -257,6 +269,7 @@ inline void MesosAllocator<AllocatorProcess>::initialize(
       &MesosAllocatorProcess::initialize,
       allocationInterval,
       offerCallback,
+      inverseOfferCallback,
       roles);
 }
 

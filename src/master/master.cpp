@@ -621,6 +621,7 @@ void Master::initialize()
   allocator->initialize(
       flags.allocation_interval,
       defer(self(), &Master::offer, lambda::_1, lambda::_2),
+      defer(self(), &Master::inverseOffer, lambda::_1, lambda::_2),
       roleInfos);
 
   // Parse the whitelist. Passing Allocator::updateWhitelist()
@@ -4778,6 +4779,14 @@ void Master::offer(const FrameworkID& frameworkId,
             << " offers to framework " << *framework;
 
   framework->send(message);
+}
+
+
+void Master::inverseOffer(
+    const FrameworkID& frameworkId,
+    const hashmap<SlaveID, UnavailableResources>& resources)
+{
+  // TODO(jmlvanre): Implement this function.
 }
 
 

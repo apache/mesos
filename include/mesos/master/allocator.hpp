@@ -25,6 +25,8 @@
 // ONLY USEFUL AFTER RUNNING PROTOC.
 #include <mesos/master/allocator.pb.h>
 
+#include <mesos/maintenance/maintenance.hpp>
+
 #include <mesos/resources.hpp>
 
 #include <process/future.hpp>
@@ -67,6 +69,10 @@ public:
       const lambda::function<
           void(const FrameworkID&,
                const hashmap<SlaveID, Resources>&)>& offerCallback,
+      const lambda::function<
+          void(const FrameworkID&,
+               const hashmap<SlaveID, UnavailableResources>&)>&
+        inverseOfferCallback,
       const hashmap<std::string, RoleInfo>& roles) = 0;
 
   virtual void addFramework(
