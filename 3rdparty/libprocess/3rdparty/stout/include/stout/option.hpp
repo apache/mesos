@@ -103,6 +103,18 @@ public:
     return *this;
   }
 
+  bool isSome() const { return state == SOME; }
+  bool isNone() const { return state == NONE; }
+
+  const T& get() const { assert(isSome()); return t; }
+  T& get() { assert(isSome()); return t; }
+
+  const T* operator->() const { return &get(); }
+  T* operator->() { return &get(); }
+
+  // This must return a copy to avoid returning a reference to a temporary.
+  T getOrElse(const T& _t) const { return isNone() ? _t : t; }
+
   bool operator==(const Option<T>& that) const
   {
     return (isNone() && that.isNone()) ||
@@ -123,15 +135,6 @@ public:
   {
     return !(*this == that);
   }
-
-  bool isSome() const { return state == SOME; }
-  bool isNone() const { return state == NONE; }
-
-  const T& get() const { assert(isSome()); return t; }
-  T& get() { assert(isSome()); return t; }
-
-  // This must return a copy to avoid returning a reference to a temporary.
-  T getOrElse(const T& _t) const { return isNone() ? _t : t; }
 
 private:
   enum State

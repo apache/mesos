@@ -119,6 +119,16 @@ TEST(OptionTest, NonConstReference)
 }
 
 
+TEST(OptionTest, ArrowOperator)
+{
+  Option<string> s = string("hello");
+  EXPECT_EQ(5u, s->size());
+
+  s->clear();
+  EXPECT_TRUE(s->empty());
+}
+
+
 struct NonCopyable
 {
   NonCopyable() = default;

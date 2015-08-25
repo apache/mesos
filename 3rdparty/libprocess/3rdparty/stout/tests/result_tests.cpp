@@ -12,12 +12,16 @@
  * limitations under the License.
  */
 
+#include <string>
+
 #include <gmock/gmock.h>
 
 #include <stout/error.hpp>
 #include <stout/gtest.hpp>
 #include <stout/result.hpp>
 #include <stout/try.hpp>
+
+using std::string;
 
 // Verify Try to Result conversion.
 TEST(ResultTest, TryToResultConversion)
@@ -44,4 +48,14 @@ TEST(ResultTest, TryToResultConversion)
   result = Result<int>(tryError);
   EXPECT_ERROR(result);
   EXPECT_EQ(result.error(), tryError.error());
+}
+
+
+TEST(ResultTest, ArrowOperator)
+{
+  Result<string> s = string("hello");
+  EXPECT_EQ(5u, s->size());
+
+  s->clear();
+  EXPECT_TRUE(s->empty());
 }

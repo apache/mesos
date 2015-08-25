@@ -81,11 +81,11 @@ public:
 
   T& get()
   {
-    if (!data.isSome()) {
-      ABORT("Try::get() but state == ERROR: " + message);
-    }
-    return data.get();
+    return const_cast<T &>(static_cast<const Try &>(*this).get());
   }
+
+  const T* operator->() const { return &get(); }
+  T* operator->() { return &get(); }
 
   const std::string& error() const { assert(data.isNone()); return message; }
 
