@@ -474,6 +474,96 @@ TEST_F(MasterMaintenanceTest, PendingUnavailabilityTest)
 }
 
 
+// Test ensures that old schedulers gracefully handle inverse offers, even if
+// they aren't passed up to the top level API yet.
+TEST_F(MasterMaintenanceTest, PreV1SchedulerSupport)
+{
+  Try<PID<Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+
+  Try<PID<Slave>> slave = StartSlave(&exec);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .Times(1);
+
+  // Intercept offers sent to the scheduler.
+  Future<vector<Offer>> normalOffers;
+  Future<vector<Offer>> unavailabilityOffers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&normalOffers))
+    .WillOnce(FutureArg<1>(&unavailabilityOffers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  // The original offers should be rescinded when the unavailability is changed.
+  Future<Nothing> offerRescinded;
+  EXPECT_CALL(sched, offerRescinded(&driver, _))
+    .WillOnce(FutureSatisfy(&offerRescinded));
+
+  // Start the test.
+  driver.start();
+
+  // Wait for some normal offers.
+  AWAIT_READY(normalOffers);
+  EXPECT_NE(0u, normalOffers.get().size());
+
+  // Check that unavailability is not set.
+  foreach (const Offer& offer, normalOffers.get()) {
+    EXPECT_FALSE(offer.has_unavailability());
+  }
+
+  // Schedule this slave for maintenance.
+  MachineID machine;
+  machine.set_hostname(maintenanceHostname);
+  machine.set_ip(stringify(slave.get().address.ip));
+
+  // TODO(jmlvanre): Replace Time(0.0) with `Clock::now()` once JSON double
+  // conversion is fixed. For now using a rounded time avoids the issue.
+  const Time start = Time::create(0.0).get() + Seconds(60);
+  const Duration duration = Seconds(120);
+  const Unavailability unavailability = createUnavailability(start, duration);
+
+  // Post a valid schedule with one machine.
+  maintenance::Schedule schedule = createSchedule(
+      {createWindow({machine}, unavailability)});
+
+  // We have a few seconds between the first set of offers and the next
+  // allocation of offers. This should be enough time to perform a maintenance
+  // schedule update. This update will also trigger the rescinding of offers
+  // from the scheduled slave.
+  Future<Response> response =
+    process::http::post(
+        master.get(),
+        "maintenance/schedule",
+        headers,
+        stringify(JSON::Protobuf(schedule)));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+
+  // Wait for some offers.
+  AWAIT_READY(unavailabilityOffers);
+  EXPECT_NE(0u, unavailabilityOffers.get().size());
+
+  // Check that each offer has an unavailability.
+  foreach (const Offer& offer, unavailabilityOffers.get()) {
+    EXPECT_TRUE(offer.has_unavailability());
+    EXPECT_EQ(unavailability.start(), offer.unavailability().start());
+    EXPECT_EQ(unavailability.duration(), offer.unavailability().duration());
+  }
+
+  driver.stop();
+  driver.join();
+
+  Shutdown(); // Must shutdown before 'containerizer' gets deallocated.
+}
+
+
 // Posts valid and invalid machines to the maintenance start endpoint.
 TEST_F(MasterMaintenanceTest, BringDownMachines)
 {

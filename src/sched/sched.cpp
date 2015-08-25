@@ -505,6 +505,7 @@ protected:
         }
 
         resourceOffers(from, offers, pids);
+
         break;
       }
 
@@ -776,9 +777,16 @@ protected:
       return;
     }
 
+    // We exit early if `offers` is empty since we don't implement inverse
+    // offers in the old scheduler API. It could be empty when there are only
+    // inverse offers as part of the `ResourceOffersMessage`.
+    if (offers.empty()) {
+      return;
+    }
+
     VLOG(2) << "Received " << offers.size() << " offers";
 
-    CHECK(offers.size() == pids.size());
+    CHECK_EQ(offers.size(), pids.size());
 
     // Save the pid associated with each slave (one per offer) so
     // later we can send framework messages directly.
