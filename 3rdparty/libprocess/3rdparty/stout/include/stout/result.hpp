@@ -114,7 +114,7 @@ public:
 
   T& get()
   {
-    return const_cast<T &>(static_cast<const Result &>(*this).get());
+    return const_cast<T&>(static_cast<const Result&>(*this).get());
   }
 
   const T* operator->() const { return &get(); }
