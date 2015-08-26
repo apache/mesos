@@ -25,7 +25,9 @@
 #include <stout/path.hpp>
 #include <stout/strings.hpp>
 
+#ifdef __linux__
 #include "linux/fs.hpp"
+#endif // __linux__
 
 #include "slave/containerizer/provisioners/backends/bind.hpp"
 
