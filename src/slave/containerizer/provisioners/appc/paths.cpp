@@ -80,7 +80,7 @@ string getContainerRootfsDir(
     const Image::Type& imageType,
     const ContainerID& containerId,
     const string& backend,
-    const string& imageId)
+    const string& rootfsId)
 {
   return path::join(
       slave::paths::getProvisionerDir(rootDir, imageType),
@@ -89,7 +89,7 @@ string getContainerRootfsDir(
       "backends",
       backend,
       "rootfses",
-      imageId);
+      rootfsId);
 }
 
 } // namespace paths {

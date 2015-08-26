@@ -55,14 +55,14 @@ namespace paths {
 //                 |-- backends
 //                     |-- <backend> (copy, bind, etc.)
 //                         |-- rootfses
-//                             |-- <image_id> (the rootfs)
+//                             |-- <rootfs_id> (the rootfs)
 //
 // NOTE: Each container could have multiple image types, therefore there
 // can be the same <container_id> directory under other provisioners e.g.,
 // <work_dir>/provisioners/DOCKER, etc. Under each provisioner + container
 // there can be multiple backends due to the change of backend flags. For
-// appc, under each backend a rootfs is identified by the 'image_id' of
-// the topmost filesystem layer.
+// appc, under each backend a rootfs is identified by the 'rootfs_id' which
+// is a UUID.
 
 std::string getStagingDir(const std::string& storeDir);
 
@@ -96,7 +96,7 @@ std::string getContainerRootfsDir(
     const Image::Type& imageType,
     const ContainerID& containerId,
     const std::string& backend,
-    const std::string& imageId);
+    const std::string& rootfsId);
 
 } // namespace paths {
 } // namespace appc {
