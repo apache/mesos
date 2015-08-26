@@ -241,7 +241,11 @@ When sending reviews, it can be valuable to consult the component maintainers, a
     </tr>
     <tr>
       <td>Modules / Hooks</td>
-      <td>Niklas Nielsen, Benjamin Hindman</td>
+      <td>Benjamin Hindman, Niklas Nielsen</td>
+    </tr>
+    <tr>
+      <td>Oversubscription</td>
+      <td>Vinod Kone, Niklas Nielsen, Jie Yu</td>
     </tr>
     <tr>
       <td>CLI</td>
