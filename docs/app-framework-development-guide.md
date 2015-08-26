@@ -210,6 +210,67 @@ You need to put your framework somewhere that all slaves on the cluster can get 
 
 Once you are sure that your executors are available to the mesos-slaves, you should be able to run your scheduler, which will register with the Mesos master, and start receiving resource offers!
 
+
+## Labels
+
+`Labels` can be found in the `TaskInfo`, `DiscoveryInfo` and `TaskStatus`s and
+let's framework and module writers use Labels to tag and pass unstructured
+information around Mesos. Labels are free-form key-value pairs supplied by the
+framework scheduler or label decorator hooks. Below is the protobuf definitions
+of labels:
+
+~~~{.proto}
+  optional Labels labels = 11;
+~~~
+
+~~~{.proto}
+/**
+ * Collection of labels.
+ */
+message Labels {
+    repeated Label labels = 1;
+}
+
+/**
+ * Key, value pair used to store free form user-data.
+ */
+message Label {
+  required string key = 1;
+  optional string value = 2;
+}
+~~~
+
+Labels are not interpreted by Mesos itself, but will be made available over
+master and slave state endpoints. Further more, the executor and scheduler can
+introspect labels on the TaskInfo and TaskStatus programmatically.
+Below is an example of how two label pairs (`"environment": "prod"` and
+`"bananas": "apples"`) can be fetched from the master state endpoint.
+
+
+~~~{.sh}
+$ curl http://master/state.json
+...
+{
+  "executor_id": "default",
+  "framework_id": "20150312-120017-16777343-5050-39028-0000",
+  "id": "3",
+  "labels": [
+    {
+      "key": "environment",
+      "value": "prod"
+    },
+    {
+      "key": "bananas",
+      "value": "apples"
+    }
+  ],
+  "name": "Task 3",
+  "slave_id": "20150312-115625-16777343-5050-38751-S0",
+  "state": "TASK_FINISHED",
+  ...
+},
+~~~
+
 ## Service discovery
 
 When your framework registers an executor or launches a task, it can provide additional information for service discovery. This information is stored by the Mesos master along with other imporant information such as the slave currently running the task. A service discovery system can programmatically retrieve this information in order to set up DNS entries, configure proxies, or update any consistent store used for service discovery in a Mesos cluster that runs multiple frameworks and multiple tasks.
