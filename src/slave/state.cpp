@@ -687,7 +687,7 @@ Try<ResourcesState> ResourcesState::recover(
 
   const string& path = paths::getResourcesInfoPath(rootDir);
   if (!os::exists(path)) {
-    LOG(INFO) << "Failed to find resources file '" << path << "'";
+    LOG(INFO) << "No checkpointed resources found at '" << path << "'";
     return state;
   }
 
