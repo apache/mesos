@@ -40,6 +40,7 @@
 #include <stout/try.hpp>
 
 #include <mesos/fetcher/fetcher.hpp>
+#include <mesos/type_utils.hpp>
 
 #include "slave/containerizer/fetcher.hpp"
 #include "slave/flags.hpp"

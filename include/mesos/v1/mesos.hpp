@@ -185,71 +185,6 @@ inline bool operator<(const TaskID& left, const TaskID& right)
 }
 
 
-inline std::size_t hash_value(const CommandInfo::URI& uri)
-{
-  size_t seed = 0;
-
-  if (uri.extract()) {
-    seed += 11;
-  }
-
-  if (uri.executable()) {
-    seed += 2003;
-  }
-
-  boost::hash_combine(seed, uri.value());
-  return seed;
-}
-
-
-inline std::size_t hash_value(const ContainerID& containerId)
-{
-  size_t seed = 0;
-  boost::hash_combine(seed, containerId.value());
-  return seed;
-}
-
-
-inline std::size_t hash_value(const ExecutorID& executorId)
-{
-  size_t seed = 0;
-  boost::hash_combine(seed, executorId.value());
-  return seed;
-}
-
-
-inline std::size_t hash_value(const FrameworkID& frameworkId)
-{
-  size_t seed = 0;
-  boost::hash_combine(seed, frameworkId.value());
-  return seed;
-}
-
-
-inline std::size_t hash_value(const OfferID& offerId)
-{
-  size_t seed = 0;
-  boost::hash_combine(seed, offerId.value());
-  return seed;
-}
-
-
-inline std::size_t hash_value(const AgentID& agentId)
-{
-  size_t seed = 0;
-  boost::hash_combine(seed, agentId.value());
-  return seed;
-}
-
-
-inline std::size_t hash_value(const TaskID& taskId)
-{
-  size_t seed = 0;
-  boost::hash_combine(seed, taskId.value());
-  return seed;
-}
-
-
 inline std::ostream& operator<<(std::ostream& stream, const ACLs& acls)
 {
   return stream << acls.DebugString();
@@ -386,5 +321,129 @@ inline std::ostream& operator<<(
 
 } // namespace v1 {
 } // namespace mesos {
+
+namespace std {
+
+template <>
+struct hash<mesos::v1::CommandInfo::URI>
+{
+  typedef std::size_t result_type;
+
+  typedef mesos::v1::CommandInfo::URI argument_type;
+
+  result_type operator()(const argument_type& uri) const
+  {
+    size_t seed = 0;
+
+    if (uri.extract()) {
+      seed += 11;
+    }
+
+    if (uri.executable()) {
+      seed += 2003;
+    }
+
+    boost::hash_combine(seed, uri.value());
+    return seed;
+  }
+};
+
+
+template <>
+struct hash<mesos::v1::ContainerID>
+{
+  typedef std::size_t result_type;
+
+  typedef mesos::v1::ContainerID argument_type;
+
+  result_type operator()(const argument_type& containerId) const
+  {
+    size_t seed = 0;
+    boost::hash_combine(seed, containerId.value());
+    return seed;
+  }
+};
+
+
+template <>
+struct hash<mesos::v1::ExecutorID>
+{
+  typedef std::size_t result_type;
+
+  typedef mesos::v1::ExecutorID argument_type;
+
+  result_type operator()(const argument_type& executorId) const
+  {
+    size_t seed = 0;
+    boost::hash_combine(seed, executorId.value());
+    return seed;
+  }
+};
+
+
+template <>
+struct hash<mesos::v1::FrameworkID>
+{
+  typedef std::size_t result_type;
+
+  typedef mesos::v1::FrameworkID argument_type;
+
+  result_type operator()(const argument_type& frameworkId) const
+  {
+    size_t seed = 0;
+    boost::hash_combine(seed, frameworkId.value());
+    return seed;
+  }
+};
+
+
+template <>
+struct hash<mesos::v1::OfferID>
+{
+  typedef std::size_t result_type;
+
+  typedef mesos::v1::OfferID argument_type;
+
+  result_type operator()(const argument_type& offerId) const
+  {
+    size_t seed = 0;
+    boost::hash_combine(seed, offerId.value());
+    return seed;
+  }
+};
+
+
+template <>
+struct hash<mesos::v1::AgentID>
+{
+  typedef std::size_t result_type;
+
+  typedef mesos::v1::AgentID argument_type;
+
+  result_type operator()(const argument_type& agentId) const
+  {
+    size_t seed = 0;
+    boost::hash_combine(seed, agentId.value());
+    return seed;
+  }
+};
+
+
+template <>
+struct hash<mesos::v1::TaskID>
+{
+  typedef std::size_t result_type;
+
+  typedef mesos::v1::TaskID argument_type;
+
+  result_type operator()(const argument_type& taskId) const
+  {
+    size_t seed = 0;
+    boost::hash_combine(seed, taskId.value());
+    return seed;
+  }
+};
+
+} // namespace std {
 
 #endif // __MESOS_V1_HPP__

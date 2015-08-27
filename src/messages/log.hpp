@@ -50,4 +50,22 @@ inline std::ostream& operator<<(
 } // namespace internal {
 } // namespace mesos {
 
+namespace std {
+
+template <>
+struct hash<mesos::internal::log::Metadata_Status>
+{
+  typedef std::size_t result_type;
+
+  typedef mesos::internal::log::Metadata_Status argument_type;
+
+  result_type operator()(const argument_type& status) const
+  {
+    // Use the underlying type of the enum as hash value.
+    return static_cast<std::size_t>(status);
+  }
+};
+
+} // namespace std {
+
 #endif // __MESSAGES_LOG_HPP__

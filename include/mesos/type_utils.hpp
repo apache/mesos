@@ -203,71 +203,6 @@ inline bool operator<(const TaskID& left, const TaskID& right)
 }
 
 
-inline std::size_t hash_value(const CommandInfo::URI& uri)
-{
-  size_t seed = 0;
-
-  if (uri.extract()) {
-    seed += 11;
-  }
-
-  if (uri.executable()) {
-    seed += 2003;
-  }
-
-  boost::hash_combine(seed, uri.value());
-  return seed;
-}
-
-
-inline std::size_t hash_value(const ContainerID& containerId)
-{
-  size_t seed = 0;
-  boost::hash_combine(seed, containerId.value());
-  return seed;
-}
-
-
-inline std::size_t hash_value(const ExecutorID& executorId)
-{
-  size_t seed = 0;
-  boost::hash_combine(seed, executorId.value());
-  return seed;
-}
-
-
-inline std::size_t hash_value(const FrameworkID& frameworkId)
-{
-  size_t seed = 0;
-  boost::hash_combine(seed, frameworkId.value());
-  return seed;
-}
-
-
-inline std::size_t hash_value(const OfferID& offerId)
-{
-  size_t seed = 0;
-  boost::hash_combine(seed, offerId.value());
-  return seed;
-}
-
-
-inline std::size_t hash_value(const SlaveID& slaveId)
-{
-  size_t seed = 0;
-  boost::hash_combine(seed, slaveId.value());
-  return seed;
-}
-
-
-inline std::size_t hash_value(const TaskID& taskId)
-{
-  size_t seed = 0;
-  boost::hash_combine(seed, taskId.value());
-  return seed;
-}
-
-
 inline std::ostream& operator<<(
     std::ostream& stream,
     const ContainerID& containerId)
@@ -435,5 +370,206 @@ inline std::ostream& operator<<(
 }
 
 } // namespace mesos {
+
+namespace std {
+
+template <>
+struct hash<mesos::CommandInfo_URI>
+{
+  typedef std::size_t result_type;
+
+  typedef mesos::CommandInfo_URI argument_type;
+
+  result_type operator()(const argument_type& uri) const
+  {
+    size_t seed = 0;
+
+    if (uri.extract()) {
+      seed += 11;
+    }
+
+    if (uri.executable()) {
+      seed += 2003;
+    }
+
+    boost::hash_combine(seed, uri.value());
+    return seed;
+  }
+};
+
+
+template <>
+struct hash<mesos::ContainerID>
+{
+  typedef std::size_t result_type;
+
+  typedef mesos::ContainerID argument_type;
+
+  result_type operator()(const argument_type& containerId) const
+  {
+    size_t seed = 0;
+    boost::hash_combine(seed, containerId.value());
+    return seed;
+  }
+};
+
+
+template <>
+struct hash<mesos::ExecutorID>
+{
+  typedef std::size_t result_type;
+
+  typedef mesos::ExecutorID argument_type;
+
+  result_type operator()(const argument_type& executorId) const
+  {
+    size_t seed = 0;
+    boost::hash_combine(seed, executorId.value());
+    return seed;
+  }
+};
+
+
+template <>
+struct hash<mesos::FrameworkID>
+{
+  typedef std::size_t result_type;
+
+  typedef mesos::FrameworkID argument_type;
+
+  result_type operator()(const argument_type& frameworkId) const
+  {
+    size_t seed = 0;
+    boost::hash_combine(seed, frameworkId.value());
+    return seed;
+  }
+};
+
+
+template <>
+struct hash<mesos::OfferID>
+{
+  typedef std::size_t result_type;
+
+  typedef mesos::OfferID argument_type;
+
+  result_type operator()(const argument_type& offerId) const
+  {
+    size_t seed = 0;
+    boost::hash_combine(seed, offerId.value());
+    return seed;
+  }
+};
+
+
+template <>
+struct hash<mesos::SlaveID>
+{
+  typedef std::size_t result_type;
+
+  typedef mesos::SlaveID argument_type;
+
+  result_type operator()(const argument_type& slaveId) const
+  {
+    size_t seed = 0;
+    boost::hash_combine(seed, slaveId.value());
+    return seed;
+  }
+};
+
+
+template <>
+struct hash<mesos::TaskID>
+{
+  typedef std::size_t result_type;
+
+  typedef mesos::TaskID argument_type;
+
+  result_type operator()(const argument_type& taskId) const
+  {
+    size_t seed = 0;
+    boost::hash_combine(seed, taskId.value());
+    return seed;
+  }
+};
+
+
+template <>
+struct hash<mesos::TaskState>
+{
+  typedef std::size_t result_type;
+
+  typedef mesos::TaskState argument_type;
+
+  result_type operator()(const argument_type& taskState) const
+  {
+    // Use the underlying type of the enum as hash value.
+    return static_cast<std::size_t>(taskState);
+  }
+};
+
+
+template <>
+struct hash<mesos::TaskStatus_Source>
+{
+  typedef std::size_t result_type;
+
+  typedef mesos::TaskStatus_Source argument_type;
+
+  result_type operator()(const argument_type& source) const
+  {
+    // Use the underlying type of the enum as hash value.
+    return static_cast<std::size_t>(source);
+  }
+};
+
+
+template <>
+struct hash<mesos::TaskStatus_Reason>
+{
+  typedef std::size_t result_type;
+
+  typedef mesos::TaskStatus_Reason argument_type;
+
+  result_type operator()(const argument_type& reason) const
+  {
+    // Use the underlying type of the enum as hash value.
+    return static_cast<std::size_t>(reason);
+  }
+};
+
+
+template <>
+struct hash<mesos::Image_Type>
+{
+  typedef std::size_t result_type;
+
+  typedef mesos::Image_Type argument_type;
+
+  result_type operator()(const argument_type& imageType) const
+  {
+    // Use the underlying type of the enum as hash value.
+    return static_cast<std::size_t>(imageType);
+  }
+};
+
+
+template <>
+struct hash<std::pair<mesos::FrameworkID, mesos::ExecutorID>>
+{
+  typedef std::size_t result_type;
+
+  typedef std::pair<mesos::FrameworkID, mesos::ExecutorID> argument_type;
+
+  result_type operator()(const argument_type& pair) const
+  {
+    std::size_t seed = 0;
+    boost::hash_combine(seed, std::hash<mesos::FrameworkID>()(pair.first));
+    boost::hash_combine(seed, std::hash<mesos::ExecutorID>()(pair.second));
+    return seed;
+  }
+};
+
+} // namespace std {
 
 #endif // __MESOS_TYPE_UTILS_H__

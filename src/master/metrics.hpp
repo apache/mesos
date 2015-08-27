@@ -29,6 +29,7 @@
 #include <stout/hashmap.hpp>
 
 #include "mesos/mesos.hpp"
+#include "mesos/type_utils.hpp"
 
 namespace mesos {
 namespace internal {

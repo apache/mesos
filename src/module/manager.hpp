@@ -144,21 +144,20 @@ private:
 
   static std::mutex mutex;
 
-  static hashmap<const std::string, std::string> kindToVersion;
+  static hashmap<std::string, std::string> kindToVersion;
 
   // Mapping from "module name" to the actual ModuleBase. If two
   // modules from different libraries have the same name then the last
   // one specified in the protobuf Modules will be picked.
-  static hashmap<const std::string, ModuleBase*> moduleBases;
+  static hashmap<std::string, ModuleBase*> moduleBases;
 
   // Module-specific command-line parameters.
-  static hashmap<const std::string, Parameters> moduleParameters;
+  static hashmap<std::string, Parameters> moduleParameters;
 
   // A list of dynamic libraries to keep the object from getting
   // destructed. Destroying the DynamicLibrary object could result in
   // unloading the library from the process memory.
-  static hashmap<const std::string, process::Owned<DynamicLibrary>>
-    dynamicLibraries;
+  static hashmap<std::string, process::Owned<DynamicLibrary>> dynamicLibraries;
 };
 
 } // namespace modules {

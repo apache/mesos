@@ -46,10 +46,10 @@ using namespace mesos::internal;
 using namespace mesos::modules;
 
 std::mutex ModuleManager::mutex;
-hashmap<const string, string> ModuleManager::kindToVersion;
-hashmap<const string, ModuleBase*> ModuleManager::moduleBases;
-hashmap<const string, Owned<DynamicLibrary>> ModuleManager::dynamicLibraries;
-hashmap<const std::string, Parameters> ModuleManager::moduleParameters;
+hashmap<string, string> ModuleManager::kindToVersion;
+hashmap<string, ModuleBase*> ModuleManager::moduleBases;
+hashmap<string, Owned<DynamicLibrary>> ModuleManager::dynamicLibraries;
+hashmap<string, Parameters> ModuleManager::moduleParameters;
 
 
 void ModuleManager::initialize()

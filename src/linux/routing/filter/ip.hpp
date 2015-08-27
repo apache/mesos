@@ -92,15 +92,6 @@ inline std::ostream& operator<<(
 }
 
 
-inline size_t hash_value(const PortRange& range)
-{
-  size_t seed = 0;
-  boost::hash_combine(seed, range.begin());
-  boost::hash_combine(seed, range.end());
-  return seed;
-}
-
-
 struct Classifier
 {
   Classifier(
@@ -216,5 +207,25 @@ Result<std::vector<Classifier>> classifiers(
 } // namespace ip {
 } // namespace filter {
 } // namespace routing {
+
+namespace std {
+
+template <>
+struct hash<routing::filter::ip::PortRange>
+{
+  typedef std::size_t result_type;
+
+  typedef routing::filter::ip::PortRange argument_type;
+
+  result_type operator()(const argument_type& range) const
+  {
+    std::size_t seed = 0;
+    boost::hash_combine(seed, range.begin());
+    boost::hash_combine(seed, range.end());
+    return seed;
+  }
+};
+
+} // namespace std {
 
 #endif // __LINUX_ROUTING_FILTER_IP_HPP__

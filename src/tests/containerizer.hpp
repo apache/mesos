@@ -38,6 +38,7 @@
 #include "mesos/executor.hpp"
 #include "mesos/mesos.hpp"
 #include "mesos/resources.hpp"
+#include "mesos/type_utils.hpp"
 
 #include "slave/containerizer/containerizer.hpp"
 
