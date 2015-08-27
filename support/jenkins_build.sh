@@ -51,6 +51,10 @@ case $OS in
 
     append_dockerfile "FROM $OS"
 
+    # NOTE: We need to do this to fix some flakiness while fetching packages.
+    # See https://bugs.launchpad.net/ubuntu/+source/apt/+bug/972077
+    append_dockerfile "RUN rm -rf /var/lib/apt/lists/*"
+
     # Install dependencies.
     append_dockerfile "RUN apt-get update"
     append_dockerfile "RUN apt-get -y install build-essential clang git maven autoconf libtool"
