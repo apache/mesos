@@ -1264,7 +1264,17 @@ TYPED_TEST(UserCgroupIsolatorTest, ROOT_CGROUPS_UserCgroup)
   vector<string> cgroups = strings::tokenize(grepOut.get(), "\n");
   ASSERT_FALSE(cgroups.empty());
 
-  foreach (const string& cgroup, cgroups) {
+  foreach (string cgroup, cgroups) {
+    if (!os::exists(path::join(flags.cgroups_hierarchy, cgroup)) &&
+        strings::startsWith(cgroup, "cpuacct,cpu")) {
+      // An existing bug in CentOS 7.x causes 'cpuacct,cpu' cgroup to
+      // be under 'cpu,cpuacct'. Actively detect this here to
+      // work around this problem.
+      vector<string> parts = strings::split(cgroup, "/");
+      parts[0] = "cpu,cpuacct";
+      cgroup = strings::join("/", parts);
+    }
+
     // Check the user cannot manipulate the container's cgroup control
     // files.
     EXPECT_NE(0, os::system(
