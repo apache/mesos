@@ -17,18 +17,17 @@
 #include <algorithm> // For find.
 #include <list>
 #include <set>
+#include <unordered_map>
 #include <utility>
 
-#include <boost/unordered_map.hpp>
 
-
-// Implementation of a hash multimap via Boost's 'unordered_multimap'
+// Implementation of a hash multimap via 'std::unordered_multimap'
 // but with a better interface. The rationale for creating this is
 // that the std::multimap interface is painful to use (requires lots
 // of iterator garbage, as well as the use of 'equal_range' which
 // makes for cluttered code).
 template <typename K, typename V>
-class multihashmap : public boost::unordered_multimap<K, V>
+class multihashmap : public std::unordered_multimap<K, V>
 {
 public:
   void put(const K& key, const V& value);
@@ -44,7 +43,7 @@ public:
 template <typename K, typename V>
 void multihashmap<K, V>::put(const K& key, const V& value)
 {
-  boost::unordered_multimap<K, V>::insert(std::pair<K, V>(key, value));
+  std::unordered_multimap<K, V>::insert(std::pair<K, V>(key, value));
 }
 
 
@@ -53,12 +52,12 @@ std::list<V> multihashmap<K, V>::get(const K& key) const
 {
   std::list<V> values; // Values to return.
 
-  std::pair<typename boost::unordered_multimap<K, V>::const_iterator,
-    typename boost::unordered_multimap<K, V>::const_iterator> range;
+  std::pair<typename std::unordered_multimap<K, V>::const_iterator,
+    typename std::unordered_multimap<K, V>::const_iterator> range;
 
-  range = boost::unordered_multimap<K, V>::equal_range(key);
+  range = std::unordered_multimap<K, V>::equal_range(key);
 
-  typename boost::unordered_multimap<K, V>::const_iterator i;
+  typename std::unordered_multimap<K, V>::const_iterator i;
   for (i = range.first; i != range.second; ++i) {
     values.push_back(i->second);
   }
@@ -81,22 +80,22 @@ std::set<K> multihashmap<K, V>::keys() const
 template <typename K, typename V>
 bool multihashmap<K, V>::remove(const K& key)
 {
-  return boost::unordered_multimap<K, V>::erase(key) > 0;
+  return std::unordered_multimap<K, V>::erase(key) > 0;
 }
 
 
 template <typename K, typename V>
 bool multihashmap<K, V>::remove(const K& key, const V& value)
 {
-  std::pair<typename boost::unordered_multimap<K, V>::iterator,
-    typename boost::unordered_multimap<K, V>::iterator> range;
+  std::pair<typename std::unordered_multimap<K, V>::iterator,
+    typename std::unordered_multimap<K, V>::iterator> range;
 
-  range = boost::unordered_multimap<K, V>::equal_range(key);
+  range = std::unordered_multimap<K, V>::equal_range(key);
 
-  typename boost::unordered_multimap<K, V>::iterator i;
+  typename std::unordered_multimap<K, V>::iterator i;
   for (i = range.first; i != range.second; ++i) {
     if (i->second == value) {
-      boost::unordered_multimap<K, V>::erase(i);
+      std::unordered_multimap<K, V>::erase(i);
       return true;
     }
   }

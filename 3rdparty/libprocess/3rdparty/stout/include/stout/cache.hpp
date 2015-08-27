@@ -18,9 +18,8 @@
 #include <iostream>
 #include <list>
 #include <map>
+#include <unordered_map>
 #include <utility>
-
-#include <boost/unordered_map.hpp>
 
 #include <glog/logging.h>
 
@@ -43,8 +42,8 @@ class Cache
 {
 public:
   typedef std::list<Key> list;
-  typedef boost::unordered_map<
-    Key, std::pair<Value, typename list::iterator> > map;
+  typedef std::unordered_map<
+    Key, std::pair<Value, typename list::iterator>> map;
 
   explicit Cache(size_t _capacity) : capacity(_capacity) {}
 

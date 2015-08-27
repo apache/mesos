@@ -17,10 +17,10 @@
 #include <functional>
 #include <list>
 #include <map>
+#include <unordered_map>
 #include <utility>
 
 #include <boost/get_pointer.hpp>
-#include <boost/unordered_map.hpp>
 
 #include "foreach.hpp"
 #include "hashset.hpp"
@@ -28,16 +28,15 @@
 #include "option.hpp"
 
 
-// Provides a hash map via Boost's 'unordered_map'. For most purposes
-// this could be accomplished with a templated typedef, but those
-// don't exist (until C++-11). Also, doing it this way allows us to
-// add functionality, or better naming of existing functionality, etc.
+// Provides a hash map via 'std::unordered_map'. We inherit from it to add
+// new functions as well as to provide better names for some of the
+// existing functions.
 
 template <typename Key,
           typename Value,
-          typename Hash = boost::hash<Key>,
+          typename Hash = std::hash<Key>,
           typename Equal = std::equal_to<Key>>
-class hashmap : public boost::unordered_map<Key, Value, Hash, Equal>
+class hashmap : public std::unordered_map<Key, Value, Hash, Equal>
 {
 public:
   // An explicit default constructor is needed so
@@ -50,10 +49,10 @@ public:
   // 'end()' passed into the specified 'emplace'?
   hashmap(const std::map<Key, Value>& map)
   {
-    boost::unordered_map<Key, Value, Hash, Equal>::reserve(map.size());
+    std::unordered_map<Key, Value, Hash, Equal>::reserve(map.size());
 
     for (auto iterator = map.begin(); iterator != map.end(); ++iterator) {
-      boost::unordered_map<Key, Value, Hash, Equal>::emplace(
+      std::unordered_map<Key, Value, Hash, Equal>::emplace(
           iterator->first,
           iterator->second);
     }
@@ -67,7 +66,7 @@ public:
   {
     // NOTE: We're using 'insert' here with a move iterator in order
     // to avoid copies because we know we have an r-value paramater.
-    boost::unordered_map<Key, Value, Hash, Equal>::insert(
+    std::unordered_map<Key, Value, Hash, Equal>::insert(
         std::make_move_iterator(map.begin()),
         std::make_move_iterator(map.end()));
   }
@@ -75,10 +74,10 @@ public:
   // Allow simple construction via initializer list.
   hashmap(std::initializer_list<std::pair<Key, Value>> list)
   {
-    boost::unordered_map<Key, Value, Hash, Equal>::reserve(list.size());
+    std::unordered_map<Key, Value, Hash, Equal>::reserve(list.size());
 
     for (auto iterator = list.begin(); iterator != list.end(); ++iterator) {
-      boost::unordered_map<Key, Value, Hash, Equal>::emplace(
+      std::unordered_map<Key, Value, Hash, Equal>::emplace(
           iterator->first,
           iterator->second);
     }
@@ -87,7 +86,7 @@ public:
   // Checks whether this map contains a binding for a key.
   bool contains(const Key& key) const
   {
-    return boost::unordered_map<Key, Value, Hash, Equal>::count(key) > 0;
+    return std::unordered_map<Key, Value, Hash, Equal>::count(key) > 0;
   }
 
   // Checks whether there exists a bound value in this map.
@@ -105,16 +104,16 @@ public:
   // if the key is already present.
   void put(const Key& key, const Value& value)
   {
-    boost::unordered_map<Key, Value, Hash, Equal>::erase(key);
-    boost::unordered_map<Key, Value, Hash, Equal>::insert(
+    std::unordered_map<Key, Value, Hash, Equal>::erase(key);
+    std::unordered_map<Key, Value, Hash, Equal>::insert(
         std::pair<Key, Value>(key, value));
   }
 
   // Returns an Option for the binding to the key.
   Option<Value> get(const Key& key) const
   {
-    auto it = boost::unordered_map<Key, Value, Hash, Equal>::find(key);
-    if (it == boost::unordered_map<Key, Value, Hash, Equal>::end()) {
+    auto it = std::unordered_map<Key, Value, Hash, Equal>::find(key);
+    if (it == std::unordered_map<Key, Value, Hash, Equal>::end()) {
       return None();
     }
     return it->second;

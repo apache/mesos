@@ -127,36 +127,6 @@ TYPED_TEST(MultimapTest, Keys)
 }
 
 
-TYPED_TEST(MultimapTest, Iterator)
-{
-  typedef TypeParam Map;
-
-  Map map;
-
-  map.put("foo", 1024);
-  map.put("foo", 1025);
-  ASSERT_EQ(2u, map.get("foo").size());
-  ASSERT_TRUE(map.contains("foo", 1024));
-  ASSERT_TRUE(map.contains("foo", 1025));
-
-  typename Map::iterator i = map.begin();
-
-  ASSERT_TRUE(i != map.end());
-
-  ASSERT_EQ("foo", i->first);
-  ASSERT_EQ(1024, i->second);
-
-  ++i;
-  ASSERT_TRUE(i != map.end());
-
-  ASSERT_EQ("foo", i->first);
-  ASSERT_EQ(1025, i->second);
-
-  ++i;
-  ASSERT_TRUE(i == map.end());
-}
-
-
 TYPED_TEST(MultimapTest, Foreach)
 {
   typedef TypeParam Map;

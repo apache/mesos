@@ -258,20 +258,6 @@ inline std::ostream& operator<<(std::ostream& stream, const IP& ip)
 }
 
 
-inline std::size_t hash_value(const IP& ip)
-{
-  size_t seed = 0;
-
-  switch (ip.family()) {
-     case AF_INET:
-       boost::hash_combine(seed, htonl(ip.in().get().s_addr));
-       return seed;
-     default:
-       UNREACHABLE();
-  }
-}
-
-
 // Represents an IP network. We store the IP address and the IP
 // netmask which defines the subnet.
 class IPNetwork
@@ -495,5 +481,30 @@ inline std::ostream& operator<<(std::ostream& stream, const IPNetwork& network)
 }
 
 } // namespace net {
+
+namespace std {
+
+template <>
+struct hash<net::IP>
+{
+  typedef std::size_t result_type;
+
+  typedef net::IP argument_type;
+
+  result_type operator()(const argument_type& ip) const
+  {
+    size_t seed = 0;
+
+    switch (ip.family()) {
+      case AF_INET:
+        boost::hash_combine(seed, htonl(ip.in().get().s_addr));
+        return seed;
+      default:
+        UNREACHABLE();
+    }
+  }
+};
+
+} // namespace std {
 
 #endif // __STOUT_IP_HPP__

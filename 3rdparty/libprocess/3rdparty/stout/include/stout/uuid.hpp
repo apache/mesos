@@ -64,4 +64,21 @@ private:
     : boost::uuids::uuid(uuid) {}
 };
 
+namespace std {
+
+template <>
+struct hash<UUID>
+{
+  typedef std::size_t result_type;
+
+  typedef UUID argument_type;
+
+  result_type operator()(const argument_type& uuid) const
+  {
+    return boost::uuids::hash_value(uuid);
+  }
+};
+
+} // namespace std {
+
 #endif // __STOUT_UUID_HPP__
