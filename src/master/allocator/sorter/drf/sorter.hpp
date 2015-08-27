@@ -117,7 +117,7 @@ private:
   // it exists in this Sorter.
   std::set<Client, DRFComparator>::iterator find(const std::string& name);
 
-  // If true, start() will recalculate all shares.
+  // If true, sort() will recalculate all shares.
   bool dirty;
 
   // A set of Clients (names and shares) sorted by share.
