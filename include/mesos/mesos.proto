@@ -94,6 +94,24 @@ message ContainerID {
 
 
 /**
+ * Represents time since the epoch, in nanoseconds.
+ */
+message TimeInfo {
+  required int64 nanoseconds = 1;
+
+  // TODO(josephw): Add time zone information, if necessary.
+}
+
+
+/**
+ * Represents duration in nanoseconds.
+ */
+message DurationInfo {
+  required int64 nanoseconds = 1;
+}
+
+
+/**
  * A network address.
  *
  * TODO(bmahler): Use this more widely.
