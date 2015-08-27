@@ -201,6 +201,18 @@ private:
       const Option<std::string>& prefix,
       const std::string& output);
 
+  static void inspectBatches(
+      process::Owned<std::list<Docker::Container>> containers,
+      process::Owned<std::vector<std::string>> lines,
+      process::Owned<process::Promise<std::list<Docker::Container>>> promise,
+      const Docker& docker,
+      const Option<std::string>& prefix);
+
+  static std::list<process::Future<Docker::Container>> createInspectBatch(
+      process::Owned<std::vector<std::string>> lines,
+      const Docker& docker,
+      const Option<std::string>& prefix);
+
   static process::Future<Image> _pull(
       const Docker& docker,
       const process::Subprocess& s,

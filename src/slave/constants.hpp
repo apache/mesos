@@ -111,6 +111,10 @@ extern const std::string DEFAULT_AUTHENTICATEE;
 // Default maximum storage space to be used by the fetcher cache.
 const Bytes DEFAULT_FETCHER_CACHE_SIZE = Gigabytes(2);
 
+// Default maximum number of docker inspect calls docker ps will invoke
+// in parallel to prevent hitting system's open file descriptor limit.
+const int DOCKER_PS_MAX_INSPECT_CALLS = 100;
+
 // If no pings received within this timeout, then the slave will
 // trigger a re-detection of the master to cause a re-registration.
 Duration DEFAULT_MASTER_PING_TIMEOUT();

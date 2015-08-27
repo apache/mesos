@@ -857,28 +857,83 @@ Future<list<Docker::Container>> Docker::__ps(
     const Option<string>& prefix,
     const string& output)
 {
-  vector<string> lines = strings::tokenize(output, "\n");
+  Owned<vector<string>> lines(new vector<string>());
+  *lines = strings::tokenize(output, "\n");
 
   // Skip the header.
-  CHECK(!lines.empty());
-  lines.erase(lines.begin());
+  CHECK(!lines->empty());
+  lines->erase(lines->begin());
 
-  list<Future<Docker::Container>> futures;
+  Owned<list<Docker::Container>> containers(new list<Docker::Container>());
 
-  foreach (const string& line, lines) {
+  Owned<Promise<list<Docker::Container>>> promise(
+    new Promise<list<Docker::Container>>());
+
+  // Limit number of parallel calls to docker inspect at once to prevent
+  // reaching system's open file descriptor limit.
+  inspectBatches(containers, lines, promise, docker, prefix);
+
+  return promise->future();
+}
+
+// TODO(chenlily): Generalize functionality into a concurrency limiter
+// within libprocess.
+void Docker::inspectBatches(
+    Owned<list<Docker::Container>> containers,
+    Owned<vector<string>> lines,
+    Owned<Promise<list<Docker::Container>>> promise,
+    const Docker& docker,
+    const Option<string>& prefix)
+{
+  list<Future<Docker::Container>> batch =
+    createInspectBatch(lines, docker, prefix);
+
+  collect(batch).onAny([=](const Future<list<Docker::Container>>& c) {
+    if (c.isReady()) {
+      foreach (const Docker::Container& container, c.get()) {
+        containers->push_back(container);
+      }
+      if (lines->empty()) {
+        promise->set(*containers);
+      }
+      else {
+        inspectBatches(containers, lines, promise, docker, prefix);
+      }
+    } else {
+      if (c.isFailed()) {
+        promise->fail("Docker ps batch failed " + c.failure());
+      }
+      else {
+        promise->fail("Docker ps batch discarded");
+      }
+    }
+  });
+}
+
+
+list<Future<Docker::Container>> Docker::createInspectBatch(
+    Owned<vector<string>> lines,
+    const Docker& docker,
+    const Option<string>& prefix)
+{
+  list<Future<Docker::Container>> batch;
+
+  while (!lines->empty() && batch.size() < DOCKER_PS_MAX_INSPECT_CALLS) {
+    string line = lines->back();
+    lines->pop_back();
+
     // Inspect the containers that we are interested in depending on
     // whether or not a 'prefix' was specified.
     vector<string> columns = strings::split(strings::trim(line), " ");
+
     // We expect the name column to be the last column from ps.
     string name = columns[columns.size() - 1];
-    if (prefix.isNone()) {
-      futures.push_back(docker.inspect(name));
-    } else if (strings::startsWith(name, prefix.get())) {
-      futures.push_back(docker.inspect(name));
+    if (prefix.isNone() || strings::startsWith(name, prefix.get())) {
+      batch.push_back(docker.inspect(name));
     }
   }
 
-  return collect(futures);
+  return batch;
 }
 
 
