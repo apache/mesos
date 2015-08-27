@@ -24,5 +24,8 @@ export MESOS_WORK_DIR=${MESOS_WORK_DIR}
 # Set local Mesos runner to use 3 slaves
 export MESOS_NUM_SLAVES=3
 
+# Set isolation for the slave.
+export MESOS_ISOLATION="filesystem/posix,posix/cpu,posix/mem"
+
 # Check that the framework executes without crashing (returns 0).
 exec ${MESOS_BUILD_DIR}/src/persistent-volume-framework --master=local

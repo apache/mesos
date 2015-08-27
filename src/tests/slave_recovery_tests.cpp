@@ -2931,6 +2931,10 @@ TYPED_TEST(SlaveRecoveryTest, MultipleSlaves)
   // Start the first slave.
   slave::Flags flags1 = this->CreateSlaveFlags();
 
+  // NOTE: We cannot run multiple slaves simultaneously on a host if
+  // cgroups isolation is involved.
+  flags1.isolation = "filesystem/posix,posix/mem,posix/cpu";
+
 #ifdef __linux__
   // Disable putting slave into cgroup(s) because this is a multi-slave test.
   flags1.slave_subsystems = None();
@@ -2967,6 +2971,10 @@ TYPED_TEST(SlaveRecoveryTest, MultipleSlaves)
 
   // Start the second slave.
   slave::Flags flags2 = this->CreateSlaveFlags();
+
+  // NOTE: We cannot run multiple slaves simultaneously on a host if
+  // cgroups isolation is involved.
+  flags2.isolation = "filesystem/posix,posix/mem,posix/cpu";
 
 #ifdef __linux__
   // Disable putting slave into cgroup(s) because this is a multi-slave test.

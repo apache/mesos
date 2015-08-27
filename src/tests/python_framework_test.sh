@@ -27,5 +27,8 @@ export MESOS_NUM_SLAVES=3
 # Set resources for the slave.
 export MESOS_RESOURCES="cpus:2;mem:10240"
 
+# Set isolation for the slave.
+export MESOS_ISOLATION="filesystem/posix,posix/cpu,posix/mem"
+
 # Check that the Python test framework executes without crashing (returns 0).
 exec $MESOS_BUILD_DIR/src/examples/python/test-framework local
