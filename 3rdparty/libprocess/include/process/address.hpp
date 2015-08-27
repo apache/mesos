@@ -142,17 +142,27 @@ inline std::ostream& operator<<(std::ostream& stream, const Address& address)
   return stream;
 }
 
-
-// Address hash value (for example, to use in Boost's unordered maps).
-inline std::size_t hash_value(const Address& address)
-{
-  size_t seed = 0;
-  boost::hash_combine(seed, address.ip);
-  boost::hash_combine(seed, address.port);
-  return seed;
-}
-
 } // namespace network {
 } // namespace process {
+
+namespace std {
+
+template <>
+struct hash<process::network::Address>
+{
+  typedef std::size_t result_type;
+
+  typedef process::network::Address argument_type;
+
+  result_type operator()(const argument_type& address) const
+  {
+    size_t seed = 0;
+    boost::hash_combine(seed, std::hash<net::IP>()(address.ip));
+    boost::hash_combine(seed, address.port);
+    return seed;
+  }
+};
+
+} // namespace std {
 
 #endif // __PROCESS_ADDRESS_HPP__

@@ -25,8 +25,6 @@
 #include <iostream>
 #include <string>
 
-#include <boost/unordered_map.hpp>
-
 #include <process/pid.hpp>
 #include <process/process.hpp>
 
@@ -146,16 +144,6 @@ istream& operator>>(istream& stream, UPID& pid)
   pid.address = address;
 
   return stream;
-}
-
-
-size_t hash_value(const UPID& pid)
-{
-  size_t seed = 0;
-  boost::hash_combine(seed, pid.id);
-  boost::hash_combine(seed, pid.address.ip);
-  boost::hash_combine(seed, pid.address.port);
-  return seed;
 }
 
 } // namespace process {

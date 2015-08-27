@@ -21,6 +21,8 @@
 #include <sstream>
 #include <string>
 
+#include <boost/functional/hash.hpp>
+
 #include <process/address.hpp>
 
 #include <stout/ip.hpp>
@@ -137,7 +139,7 @@ struct PID : UPID
     // Only allow upcasts!
     T* t = NULL;
     Base* base = t;
-    (void)base;  // Eliminate unused base warning.
+    (void)base; // Eliminate unused base warning.
     PID<Base> pid;
     pid.id = id;
     pid.address = address;
@@ -150,10 +152,27 @@ struct PID : UPID
 std::ostream& operator<<(std::ostream&, const UPID&);
 std::istream& operator>>(std::istream&, UPID&);
 
+} // namespace process {
 
-// UPID hash value (for example, to use in Boost's unordered maps).
-std::size_t hash_value(const UPID&);
+namespace std {
 
-}  // namespace process {
+template <>
+struct hash<process::UPID>
+{
+  typedef std::size_t result_type;
+
+  typedef process::UPID argument_type;
+
+  result_type operator()(const argument_type& upid) const
+  {
+    size_t seed = 0;
+    boost::hash_combine(seed, upid.id);
+    boost::hash_combine(seed, std::hash<net::IP>()(upid.address.ip));
+    boost::hash_combine(seed, upid.address.port);
+    return seed;
+  }
+};
+
+} // namespace std {
 
 #endif // __PROCESS_PID_HPP__

@@ -791,15 +791,27 @@ TEST(URLTest, Stringification)
   query["foo"] = "bar";
   query["baz"] = "bam";
 
-  EXPECT_EQ("http://172.158.1.23:80/?baz=bam&foo=bar",
-            stringify(URL("http", ip.get(), 80, "/", query)));
+  // The order of the hashmap entries may vary, hence we have
+  // to check if one of the possible outcomes is satisfied.
+  const string url1 = stringify(URL("http", ip.get(), 80, "/", query));
 
-  EXPECT_EQ("http://172.158.1.23:80/path?baz=bam&foo=bar",
-            stringify(URL("http", ip.get(), 80, "/path", query)));
+  EXPECT_TRUE(url1 == "http://172.158.1.23:80/?baz=bam&foo=bar" ||
+              url1 == "http://172.158.1.23:80/?foo=bar&baz=bam");
 
-  EXPECT_EQ("http://172.158.1.23:80/?baz=bam&foo=bar#fragment",
-            stringify(URL("http", ip.get(), 80, "/", query, "fragment")));
+  const string url2 = stringify(URL("http", ip.get(), 80, "/path", query));
 
-  EXPECT_EQ("http://172.158.1.23:80/path?baz=bam&foo=bar#fragment",
-            stringify(URL("http", ip.get(), 80, "/path", query, "fragment")));
+  EXPECT_TRUE(url2 == "http://172.158.1.23:80/path?baz=bam&foo=bar" ||
+              url2 == "http://172.158.1.23:80/path?foo=bar&baz=bam");
+
+  const string url3 =
+    stringify(URL("http", ip.get(), 80, "/", query, "fragment"));
+
+  EXPECT_TRUE(url3 == "http://172.158.1.23:80/?baz=bam&foo=bar#fragment" ||
+              url3 == "http://172.158.1.23:80/?foo=bar&baz=bam#fragment");
+
+  const string url4 =
+    stringify(URL("http", ip.get(), 80, "/path", query, "fragment"));
+
+  EXPECT_TRUE(url4 == "http://172.158.1.23:80/path?baz=bam&foo=bar#fragment" ||
+              url4 == "http://172.158.1.23:80/path?foo=bar&baz=bam#fragment");
 }
