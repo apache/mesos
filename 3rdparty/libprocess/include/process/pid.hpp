@@ -159,7 +159,7 @@ namespace std {
 template <>
 struct hash<process::UPID>
 {
-  typedef std::size_t result_type;
+  typedef size_t result_type;
 
   typedef process::UPID argument_type;
 

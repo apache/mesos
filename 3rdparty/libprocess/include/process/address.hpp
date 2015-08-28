@@ -150,7 +150,7 @@ namespace std {
 template <>
 struct hash<process::network::Address>
 {
-  typedef std::size_t result_type;
+  typedef size_t result_type;
 
   typedef process::network::Address argument_type;
 

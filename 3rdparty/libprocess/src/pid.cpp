@@ -36,7 +36,6 @@
 
 using std::istream;
 using std::ostream;
-using std::size_t;
 using std::string;
 
 
