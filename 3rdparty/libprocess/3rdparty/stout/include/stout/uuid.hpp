@@ -69,7 +69,7 @@ namespace std {
 template <>
 struct hash<UUID>
 {
-  typedef std::size_t result_type;
+  typedef size_t result_type;
 
   typedef UUID argument_type;
 

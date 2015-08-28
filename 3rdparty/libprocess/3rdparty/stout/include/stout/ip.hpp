@@ -487,7 +487,7 @@ namespace std {
 template <>
 struct hash<net::IP>
 {
-  typedef std::size_t result_type;
+  typedef size_t result_type;
 
   typedef net::IP argument_type;
 
