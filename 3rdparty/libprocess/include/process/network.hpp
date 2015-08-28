@@ -105,7 +105,7 @@ inline Try<Address> address(int s)
   struct sockaddr_storage storage;
   socklen_t storagelen = sizeof(storage);
 
-  if(::getsockname(s, (struct sockaddr*) &storage, &storagelen) < 0) {
+  if (::getsockname(s, (struct sockaddr*) &storage, &storagelen) < 0) {
     return ErrnoError("Failed to getsockname");
   }
 
@@ -124,7 +124,7 @@ inline Try<Address> peer(int s)
   struct sockaddr_storage storage;
   socklen_t storagelen = sizeof(storage);
 
-  if(::getpeername(s, (struct sockaddr*) &storage, &storagelen) < 0) {
+  if (::getpeername(s, (struct sockaddr*) &storage, &storagelen) < 0) {
     return ErrnoError("Failed to getpeername");
   }
 
