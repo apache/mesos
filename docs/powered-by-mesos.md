@@ -27,6 +27,7 @@ layout: documentation
 * [CRP-Gabriel Lippmann](http://www.crpgl.lu)
 * [Daemon](http://www.daemon.com.au)
 * [DataMan](http://www.dataman-inc.com)
+* [Delivery Hero Holding GmbH](http://www.deliveryhero.com)
 * [Devicescape](http://www.devicescape.com)
 * [DueDil](http://www.duedil.com)
 * [eBay](http://www.ebay.com)
