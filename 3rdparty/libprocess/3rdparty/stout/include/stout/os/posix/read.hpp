@@ -75,8 +75,7 @@ inline Result<std::string> read(int fd, size_t size)
 inline Try<std::string> read(const std::string& path)
 {
   std::ifstream ifs(path.c_str());
-  if (!ifs.is_open())
-  {
+  if (!ifs.is_open()) {
     return ErrnoError("Failed to open file '" + path + "'");
   }
   return std::string((std::istreambuf_iterator<char>(ifs)),

@@ -37,7 +37,7 @@ TEST(NetTest, Mac)
   Try<set<string> > links = net::links();
   ASSERT_SOME(links);
 
-  foreach(const string& link, links.get()) {
+  foreach (const string& link, links.get()) {
     Result<net::MAC> mac = net::mac(link);
     EXPECT_FALSE(mac.isError());
 

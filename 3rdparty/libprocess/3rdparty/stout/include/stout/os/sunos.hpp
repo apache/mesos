@@ -48,8 +48,7 @@ inline Result<Process> process(pid_t pid)
     return ErrnoError("Cannot open " + fn);
   }
 
-  if (::read(fd.get(), &pstatus, sizeof(pstatus)) != sizeof(pstatus))
-  {
+  if (::read(fd.get(), &pstatus, sizeof(pstatus)) != sizeof(pstatus)) {
     os::close(fd.get());
     return Error("Cannot read from " + fn);
   }
@@ -63,8 +62,7 @@ inline Result<Process> process(pid_t pid)
     return ErrnoError("Cannot open " + fn);
   }
 
-  if (::read(fd.get(), &psinfo, sizeof(psinfo)) != sizeof(psinfo))
-  {
+  if (::read(fd.get(), &psinfo, sizeof(psinfo)) != sizeof(psinfo)) {
     os::close(fd.get());
     return Error("Cannot read from " + fn);
   }

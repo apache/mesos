@@ -38,7 +38,7 @@ TEST(NetTest, LinkDevice)
   Try<set<string> > links = net::links();
   ASSERT_SOME(links);
 
-  foreach(const string& link, links.get()) {
+  foreach (const string& link, links.get()) {
     Result<net::IPNetwork> network =
       net::IPNetwork::fromLinkDevice(link, AF_INET);
 
