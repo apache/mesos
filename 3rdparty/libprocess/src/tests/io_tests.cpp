@@ -360,3 +360,102 @@ TEST(IOTest, Redirect)
   ASSERT_SOME(read);
   EXPECT_EQ(data, read.get());
 }
+
+
+TEST(IOTest, Peek)
+{
+  ASSERT_TRUE(GTEST_IS_THREADSAFE);
+
+  int sockets[2];
+  int pipes[2];
+  char data[3] = {};
+
+  // Create a blocking socketpair.
+  ASSERT_NE(-1, ::socketpair(PF_LOCAL, SOCK_STREAM, 0, sockets));
+
+  // Test on closed socket.
+  ASSERT_SOME(os::close(sockets[0]));
+  ASSERT_SOME(os::close(sockets[1]));
+  AWAIT_EXPECT_FAILED(io::peek(sockets[0], data, sizeof(data), sizeof(data)));
+
+  // Test on pipe.
+  ASSERT_NE(-1, ::pipe(pipes));
+  AWAIT_EXPECT_FAILED(io::peek(pipes[0], data, sizeof(data), sizeof(data)));
+
+  ASSERT_SOME(os::close(pipes[0]));
+  ASSERT_SOME(os::close(pipes[1]));
+
+  // Create a non-blocking socketpair.
+  ASSERT_NE(-1, ::socketpair(PF_LOCAL, SOCK_STREAM, 0, sockets));
+  ASSERT_SOME(os::nonblock(sockets[0]));
+  ASSERT_SOME(os::nonblock(sockets[1]));
+
+  // Test peeking nothing.
+  AWAIT_EXPECT_EQ(0, io::peek(sockets[0], data, 0, 0));
+
+  // Test discarded peek.
+  Future<size_t> future = io::peek(sockets[0], data, sizeof(data), 1);
+  EXPECT_TRUE(future.isPending());
+  future.discard();
+  AWAIT_DISCARDED(future);
+
+  // Test successful peek.
+  future = io::peek(sockets[0], data, sizeof(data), 2);
+  ASSERT_FALSE(future.isReady());
+
+  ASSERT_EQ(2, write(sockets[1], "hi", 2));
+
+  AWAIT_ASSERT_EQ(2u, future);
+  EXPECT_EQ('h', data[0]);
+  EXPECT_EQ('i', data[1]);
+
+  // Discard what was read before and peek again.
+  memset(data, 0, sizeof(data));
+
+  future = io::peek(sockets[0], data, sizeof(data), 2);
+  ASSERT_TRUE(future.isReady());
+
+  AWAIT_ASSERT_EQ(2u, future);
+  EXPECT_EQ('h', data[0]);
+  EXPECT_EQ('i', data[1]);
+
+  // Discard what was read before and now io::read.
+  memset(data, 0, sizeof(data));
+
+  future = io::read(sockets[0], data, sizeof(data));
+  ASSERT_TRUE(future.isReady());
+
+  AWAIT_ASSERT_EQ(2u, future);
+  EXPECT_EQ('h', data[0]);
+  EXPECT_EQ('i', data[1]);
+
+  // Test read EOF.
+  future = io::peek(sockets[0], data, sizeof(data), 2);
+  ASSERT_FALSE(future.isReady());
+
+  ASSERT_SOME(os::close(sockets[1]));
+
+  AWAIT_ASSERT_EQ(0u, future);
+
+  ASSERT_SOME(os::close(sockets[0]));
+
+  // Test the auxiliary interface.
+  ASSERT_NE(-1, ::socketpair(PF_LOCAL, SOCK_STREAM, 0, sockets));
+  ASSERT_SOME(os::nonblock(sockets[0]));
+  ASSERT_SOME(os::nonblock(sockets[1]));
+
+  // Test exceeding read buffer size limit.
+  AWAIT_EXPECT_FAILED(io::peek(sockets[0], io::BUFFERED_READ_SIZE + 1));
+
+  // The function should return after reading some data (not
+  // necessarily as much as we expect). We test that by writing less
+  // than we expect to read.
+  Future<string> result = io::peek(sockets[0], 4);
+  EXPECT_TRUE(result.isPending());
+
+  ASSERT_EQ(2, write(sockets[1], "Hi", 2));
+  AWAIT_ASSERT_EQ("Hi", result);
+
+  ASSERT_SOME(os::close(sockets[0]));
+  ASSERT_SOME(os::close(sockets[1]));
+}

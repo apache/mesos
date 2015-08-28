@@ -32,10 +32,17 @@ namespace process {
 namespace io {
 namespace internal {
 
+enum ReadFlags {
+  NONE = 0,
+  PEEK
+};
+
+
 void read(
     int fd,
     void* data,
     size_t size,
+    ReadFlags flags,
     const std::shared_ptr<Promise<size_t>>& promise,
     const Future<short>& future)
 {
@@ -56,7 +63,15 @@ void read(
   } else if (future.isFailed()) {
     promise->fail(future.failure());
   } else {
-    ssize_t length = ::read(fd, data, size);
+    ssize_t length;
+    if (flags == NONE) {
+      length = ::read(fd, data, size);
+    } else { // PEEK.
+      // In case 'fd' is not a socket ::recv() will fail with ENOTSOCK and the
+      // error will be propagted out.
+      length = ::recv(fd, data, size, MSG_PEEK);
+    }
+
     if (length < 0) {
       if (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK) {
         // Restart the read operation.
@@ -66,6 +81,7 @@ void read(
                            fd,
                            data,
                            size,
+                           flags,
                            promise,
                            lambda::_1));
 
@@ -205,7 +221,7 @@ Future<size_t> read(int fd, void* data, size_t size)
   // block for non-deterministically long periods of time. This may be
   // fixed in a newer version of libev (we use 3.8 at the time of
   // writing this comment).
-  internal::read(fd, data, size, promise, io::READ);
+  internal::read(fd, data, size, internal::NONE, promise, io::READ);
 
   return promise->future();
 }
@@ -239,6 +255,62 @@ Future<size_t> write(int fd, void* data, size_t size)
   // fixed in a newer version of libev (we use 3.8 at the time of
   // writing this comment).
   internal::write(fd, data, size, promise, io::WRITE);
+
+  return promise->future();
+}
+
+
+Future<size_t> peek(int fd, void* data, size_t size, size_t limit)
+{
+  process::initialize();
+
+  // Make sure that the buffer is large enough.
+  if (size < limit) {
+    return Failure("Expected a large enough data buffer");
+  }
+
+  // Get our own copy of the file descriptor so that we're in control
+  // of the lifetime and don't crash if/when someone by accidently
+  // closes the file descriptor before discarding this future. We can
+  // also make sure it's non-blocking and will close-on-exec. Start by
+  // checking we've got a "valid" file descriptor before dup'ing.
+  if (fd < 0) {
+    return Failure(strerror(EBADF));
+  }
+
+  fd = dup(fd);
+  if (fd == -1) {
+    return Failure(ErrnoError("Failed to duplicate file descriptor"));
+  }
+
+  // Set the close-on-exec flag.
+  Try<Nothing> cloexec = os::cloexec(fd);
+  if (cloexec.isError()) {
+    os::close(fd);
+    return Failure(
+        "Failed to set close-on-exec on duplicated file descriptor: " +
+        cloexec.error());
+  }
+
+  // Make the file descriptor non-blocking.
+  Try<Nothing> nonblock = os::nonblock(fd);
+  if (nonblock.isError()) {
+    os::close(fd);
+    return Failure(
+        "Failed to make duplicated file descriptor non-blocking: " +
+        nonblock.error());
+  }
+
+  std::shared_ptr<Promise<size_t>> promise(new Promise<size_t>());
+
+  // Because the file descriptor is non-blocking, we call read()
+  // immediately. The read may in turn call poll if necessary,
+  // avoiding unnecessary polling. We also observed that for some
+  // combination of libev and Linux kernel versions, the poll would
+  // block for non-deterministically long periods of time. This may be
+  // fixed in a newer version of libev (we use 3.8 at the time of
+  // writing this comment).
+  internal::read(fd, data, limit, internal::PEEK, promise, io::READ);
 
   return promise->future();
 }
@@ -372,7 +444,7 @@ Future<string> read(int fd)
         cloexec.error());
   }
 
-  // Make the file descriptor is non-blocking.
+  // Make the file descriptor non-blocking.
   Try<Nothing> nonblock = os::nonblock(fd);
   if (nonblock.isError()) {
     os::close(fd);
@@ -418,7 +490,7 @@ Future<Nothing> write(int fd, const std::string& data)
         cloexec.error());
   }
 
-  // Make the file descriptor is non-blocking.
+  // Make the file descriptor non-blocking.
   Try<Nothing> nonblock = os::nonblock(fd);
   if (nonblock.isError()) {
     os::close(fd);
@@ -499,6 +571,30 @@ Future<Nothing> redirect(int from, Option<int> to, size_t chunk)
   return internal::splice(from, to.get(), chunk)
     .onAny(lambda::bind(&os::close, from))
     .onAny(lambda::bind(&os::close, to.get()));
+}
+
+
+// TODO(hartem): Most of the boilerplate code here is the same as
+// in io::read, so this needs to be refactored.
+Future<string> peek(int fd, size_t limit)
+{
+  process::initialize();
+
+  if (limit > BUFFERED_READ_SIZE) {
+    return Failure("Expected the number of bytes to be less than " +
+                   stringify(BUFFERED_READ_SIZE));
+  }
+
+  // TODO(benh): Wrap up this data as a struct, use 'Owner'.
+  boost::shared_array<char> data(new char[BUFFERED_READ_SIZE]);
+
+  return io::peek(fd, data.get(), BUFFERED_READ_SIZE, limit)
+    .then([=](size_t length) -> Future<string> {
+      // At this point we have to return whatever data we were able to
+      // peek, because we can not rely on peeking across message
+      // boundaries.
+      return string(data.get(), length);
+    });
 }
 
 } // namespace io {
