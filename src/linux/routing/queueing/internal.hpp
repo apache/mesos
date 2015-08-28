@@ -318,8 +318,8 @@ inline Result<hashmap<std::string, uint64_t>> statistics(
 
   // NOTE: We use '<=' here because RTNL_TC_STATS_MAX is set to be the
   // value of the last enum entry.
-  for(size_t i = 0; i <= static_cast<size_t>(RTNL_TC_STATS_MAX); i++) {
-    if(rtnl_tc_stat2str(static_cast<rtnl_tc_stat>(i), name, sizeof(name))) {
+  for (size_t i = 0; i <= static_cast<size_t>(RTNL_TC_STATS_MAX); i++) {
+    if (rtnl_tc_stat2str(static_cast<rtnl_tc_stat>(i), name, sizeof(name))) {
       results[name] = rtnl_tc_get_stat(
           TC_CAST(qdisc.get().get()),
           static_cast<rtnl_tc_stat>(i));

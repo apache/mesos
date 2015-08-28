@@ -960,7 +960,7 @@ Resources Resources::scalars() const
 set<string> Resources::names() const
 {
   set<string> result;
-  foreach(const Resource& resource, resources) {
+  foreach (const Resource& resource, resources) {
     result.insert(resource.name());
   }
 
@@ -971,7 +971,7 @@ set<string> Resources::names() const
 map<string, Value_Type> Resources::types() const
 {
   map<string, Value_Type> result;
-  foreach(const Resource& resource, resources) {
+  foreach (const Resource& resource, resources) {
     result[resource.name()] = resource.type();
   }
 

@@ -298,7 +298,7 @@ int MemoryTestHelperMain::execute()
   cout << STARTED << flush;
 
   string line;
-  while(cin.good()) {
+  while (cin.good()) {
     getline(cin, line);
     vector<string> tokens = strings::tokenize(line, " ");
 

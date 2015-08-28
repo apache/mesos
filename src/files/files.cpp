@@ -234,7 +234,7 @@ Future<Response> FilesProcess::browse(const Request& request)
   }
 
   JSON::Array listing;
-  foreachvalue(const JSON::Object& file, files) {
+  foreachvalue (const JSON::Object& file, files) {
     listing.values.push_back(file);
   }
 
@@ -459,7 +459,7 @@ const string FilesProcess::DEBUG_HELP = HELP(
 Future<Response> FilesProcess::debug(const Request& request)
 {
   JSON::Object object;
-  foreachpair(const string& name, const string& path, paths) {
+  foreachpair (const string& name, const string& path, paths) {
     object.values[name] = path;
   }
   return OK(object, request.query.get("jsonp"));

@@ -454,7 +454,7 @@ void load(const std::map<string, string>& secrets)
 void load(const Credentials& credentials)
 {
   std::map<string, string> secrets;
-  foreach(const Credential& credential, credentials.credentials()) {
+  foreach (const Credential& credential, credentials.credentials()) {
     secrets[credential.principal()] = credential.secret();
   }
   load(secrets);

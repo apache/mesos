@@ -229,8 +229,8 @@ JSON::Object model(const CommandInfo& command)
   if (command.has_environment()) {
     JSON::Object environment;
     JSON::Array variables;
-    foreach(const Environment_Variable& variable,
-            command.environment().variables()) {
+    foreach (const Environment_Variable& variable,
+             command.environment().variables()) {
       JSON::Object variableObject;
       variableObject.values["name"] = variable.name();
       variableObject.values["value"] = variable.value();
@@ -241,7 +241,7 @@ JSON::Object model(const CommandInfo& command)
   }
 
   JSON::Array uris;
-  foreach(const CommandInfo_URI& uri, command.uris()) {
+  foreach (const CommandInfo_URI& uri, command.uris()) {
     JSON::Object uriObject;
     uriObject.values["value"] = uri.value();
     uriObject.values["executable"] = uri.executable();

@@ -854,7 +854,7 @@ void Slave::registered(
     masterPingTimeout = DEFAULT_MASTER_PING_TIMEOUT();
   }
 
-  switch(state) {
+  switch (state) {
     case DISCONNECTED: {
       LOG(INFO) << "Registered with master " << master.get()
                 << "; given slave ID " << slaveId;
@@ -954,7 +954,7 @@ void Slave::reregistered(
     masterPingTimeout = DEFAULT_MASTER_PING_TIMEOUT();
   }
 
-  switch(state) {
+  switch (state) {
     case DISCONNECTED:
       LOG(INFO) << "Re-registered with master " << master.get();
       state = RUNNING;

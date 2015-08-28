@@ -1404,7 +1404,7 @@ Try<Isolator*> PortMappingIsolatorProcess::create(const Flags& flags)
 
     // TODO(cwang): Make sure DEFAULT_FLOWS is large enough so that
     // it's unlikely to run out of free flow IDs.
-    for(uint16_t i = CONTAINER_MIN_FLOWID; i < fq_codel::DEFAULT_FLOWS; i++) {
+    for (uint16_t i = CONTAINER_MIN_FLOWID; i < fq_codel::DEFAULT_FLOWS; i++) {
       freeFlowIds.insert(i);
     }
   }
@@ -1536,7 +1536,7 @@ Try<Isolator*> PortMappingIsolatorProcess::create(const Flags& flags)
 
   // We first create the bind mount directory if it does not exist.
   Try<Nothing> mkdir = os::mkdir(PORT_MAPPING_BIND_MOUNT_ROOT());
-  if(mkdir.isError()) {
+  if (mkdir.isError()) {
     return Error(
         "Failed to create the bind mount root directory at " +
         PORT_MAPPING_BIND_MOUNT_ROOT() + ": " + mkdir.error());
@@ -1596,7 +1596,7 @@ Try<Isolator*> PortMappingIsolatorProcess::create(const Flags& flags)
   // recover container IDs for orphan containers (i.e., not known by
   // the slave). This is introduced in 0.23.0.
   mkdir = os::mkdir(PORT_MAPPING_BIND_MOUNT_SYMLINK_ROOT());
-  if(mkdir.isError()) {
+  if (mkdir.isError()) {
     return Error(
         "Failed to create the bind mount root directory at " +
         PORT_MAPPING_BIND_MOUNT_SYMLINK_ROOT() + ": " + mkdir.error());
@@ -2722,7 +2722,7 @@ Future<ResourceStatistics> PortMappingIsolatorProcess::usage(
 
   Info* info = CHECK_NOTNULL(infos[containerId]);
 
-  if(info->pid.isNone()) {
+  if (info->pid.isNone()) {
     return result;
   }
 
@@ -2936,7 +2936,7 @@ Try<Nothing> PortMappingIsolatorProcess::_cleanup(
   // this function returns.
   Owned<Info> info(CHECK_NOTNULL(_info));
 
-  if(!info->pid.isSome()) {
+  if (!info->pid.isSome()) {
     LOG(WARNING) << "The container has not been isolated";
     return Nothing();
   }
