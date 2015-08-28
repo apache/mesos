@@ -38,6 +38,10 @@ if len(sys.argv) >= 5:
     QUERY_PARAMS = sys.argv[4]
 
 
+class ReviewError(Exception):
+  pass
+
+
 def shell(command):
     print command
     return subprocess.check_output(
@@ -70,6 +74,10 @@ def apply_reviews(review_request, applied):
     # Skip this review if it's already applied.
     if review_request["id"] in applied:
         print "Skipping already applied review %s" % review_request["id"]
+
+    if not review_request["target_people"]:
+      raise ReviewError("No reviewers specified. Please find a reviewer by"
+                        " asking on JIRA or the mailing list.")
 
     # First recursively apply the dependent reviews.
     for review in review_request["depends_on"]:
@@ -127,6 +135,12 @@ def verify_review(review_request):
             "Reviews applied: %s\n\n" \
             "Failed command: %s\n\n" \
             "Error:\n %s" % (applied, e.cmd, e.output))
+    except ReviewError as e:
+        post_review(
+            review_request,
+            "Bad review!\n\n" \
+            "Reviews applied: %s\n\n" \
+            "Error:\n %s" % (applied, e.args[0]))
 
     # Clean up.
     cleanup()
