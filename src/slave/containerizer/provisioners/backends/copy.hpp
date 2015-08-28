@@ -16,47 +16,46 @@
  * limitations under the License.
  */
 
-#include <glog/logging.h>
-
-#include <stout/os.hpp>
+#ifndef __MESOS_PROVISIONER_COPY_HPP__
+#define __MESOS_PROVISIONER_COPY_HPP__
 
 #include "slave/containerizer/provisioners/backend.hpp"
-
-#include "slave/containerizer/provisioners/backends/bind.hpp"
-#include "slave/containerizer/provisioners/backends/copy.hpp"
-
-using namespace process;
-
-using std::string;
 
 namespace mesos {
 namespace internal {
 namespace slave {
 
-hashmap<string, Owned<Backend>> Backend::create(const Flags& flags)
+// Forward declaration.
+class CopyBackendProcess;
+
+
+class CopyBackend : public Backend
 {
-  hashmap<string, Try<Owned<Backend>>(*)(const Flags&)> creators;
+public:
+  virtual ~CopyBackend();
 
-#ifdef __linux__
-  creators.put("bind", &BindBackend::create);
-#endif // __linux__
-  creators.put("copy", &CopyBackend::create);
+  // CopyBackend doesn't use any flag.
+  static Try<process::Owned<Backend>> create(const Flags&);
 
-  hashmap<string, Owned<Backend>> backends;
+  // Provisions a rootfs given the layers' paths and target rootfs
+  // path.
+  virtual process::Future<Nothing> provision(
+      const std::vector<std::string>& layers,
+      const std::string& rootfs);
 
-  foreachkey (const string& name, creators) {
-    Try<Owned<Backend>> backend = creators[name](flags);
-    if (backend.isError()) {
-      LOG(WARNING) << "Failed to create '" << name << "' backend: "
-                   << backend.error();
-      continue;
-    }
-    backends.put(name, backend.get());
-  }
+  virtual process::Future<bool> destroy(const std::string& rootfs);
 
-  return backends;
-}
+private:
+  explicit CopyBackend(process::Owned<CopyBackendProcess> process);
+
+  CopyBackend(const CopyBackend&); // Not copyable.
+  CopyBackend& operator=(const CopyBackend&); // Not assignable.
+
+  process::Owned<CopyBackendProcess> process;
+};
 
 } // namespace slave {
 } // namespace internal {
 } // namespace mesos {
+
+#endif // __MESOS_PROVISIONER_COPY_HPP__

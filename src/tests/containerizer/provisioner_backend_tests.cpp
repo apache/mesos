@@ -30,6 +30,7 @@
 #endif // __linux__
 
 #include "slave/containerizer/provisioners/backends/bind.hpp"
+#include "slave/containerizer/provisioners/backends/copy.hpp"
 
 #include "tests/flags.hpp"
 #include "tests/utils.hpp"
@@ -98,6 +99,54 @@ TEST_F(BindBackendTest, ROOT_BindBackend)
   EXPECT_FALSE(os::exists(target));
 }
 #endif // __linux__
+
+
+class CopyBackendTest : public TemporaryDirectoryTest {};
+
+
+// Provision a rootfs using multiple layers with the copy backend.
+TEST_F(CopyBackendTest, ROOT_CopyBackend)
+{
+  string layer1 = path::join(os::getcwd(), "source1");
+  ASSERT_SOME(os::mkdir(layer1));
+  ASSERT_SOME(os::mkdir(path::join(layer1, "dir1")));
+  ASSERT_SOME(os::write(path::join(layer1, "dir1", "1"), "1"));
+  ASSERT_SOME(os::write(path::join(layer1, "file"), "test1"));
+
+  string layer2 = path::join(os::getcwd(), "source2");
+  ASSERT_SOME(os::mkdir(layer2));
+  ASSERT_SOME(os::mkdir(path::join(layer2, "dir2")));
+  ASSERT_SOME(os::write(path::join(layer2, "dir2", "2"), "2"));
+  ASSERT_SOME(os::write(path::join(layer2, "file"), "test2"));
+
+  string rootfs = path::join(os::getcwd(), "rootfs");
+
+  hashmap<string, Owned<Backend>> backends = Backend::create(slave::Flags());
+  ASSERT_TRUE(backends.contains("copy"));
+
+  AWAIT_READY(backends["copy"]->provision({layer1, layer2}, rootfs));
+
+  EXPECT_TRUE(os::exists(path::join(rootfs, "dir1", "1")));
+  Try<string> read = os::read(path::join(rootfs, "dir1", "1"));
+  ASSERT_SOME(read);
+  EXPECT_EQ(read.get(), "1");
+
+  EXPECT_TRUE(os::exists(path::join(rootfs, "dir2", "2")));
+  read = os::read(path::join(rootfs, "dir2", "2"));
+  ASSERT_SOME(read);
+  EXPECT_EQ(read.get(), "2");
+
+  EXPECT_TRUE(os::exists(path::join(rootfs, "file")));
+  read = os::read(path::join(rootfs, "file"));
+  ASSERT_SOME(read);
+
+  // Last layer should overwrite existing file.
+  EXPECT_EQ(read.get(), "test2");
+
+  AWAIT_READY(backends["copy"]->destroy(rootfs));
+
+  EXPECT_FALSE(os::exists(rootfs));
+}
 
 } // namespace tests {
 } // namespace internal {
