@@ -690,7 +690,7 @@ Future<Nothing> LinuxFilesystemIsolatorProcess::cleanup(
 
   infos.erase(containerId);
 
-  // Destroy the provisioned root filesystem.
+  // Destroy the provisioned root filesystems.
   list<Future<bool>> futures;
   foreachvalue (const Owned<Provisioner>& provisioner, provisioners) {
     futures.push_back(provisioner->destroy(containerId));
