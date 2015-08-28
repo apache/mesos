@@ -261,7 +261,7 @@ static Try<string> fetchBypassingCache(
     Try<bool> extracted = extract(path, sandboxDirectory);
     if (extracted.isError()) {
       return Error(extracted.error());
-    } else {
+    } else if (!extracted.get()) {
       LOG(WARNING) << "Copying instead of extracting resource from URI with "
                    << "'extract' flag, because it does not seem to be an "
                    << "archive: " << uri.value();
