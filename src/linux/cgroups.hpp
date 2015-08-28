@@ -656,14 +656,14 @@ namespace std {
 template <>
 struct hash<cgroups::memory::pressure::Level>
 {
-  typedef std::size_t result_type;
+  typedef size_t result_type;
 
   typedef cgroups::memory::pressure::Level argument_type;
 
   result_type operator()(const argument_type& level) const
   {
     // Use the underlying type of the enum as hash value.
-    return static_cast<std::size_t>(level);
+    return static_cast<size_t>(level);
   }
 };
 

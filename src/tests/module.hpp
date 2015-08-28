@@ -88,14 +88,14 @@ namespace std {
 template <>
 struct hash<mesos::internal::tests::ModuleID>
 {
-  typedef std::size_t result_type;
+  typedef size_t result_type;
 
   typedef mesos::internal::tests::ModuleID argument_type;
 
   result_type operator()(const argument_type& moduleId) const
   {
     // Use the underlying type of the enum as hash value.
-    return static_cast<std::size_t>(moduleId);
+    return static_cast<size_t>(moduleId);
   }
 };
 

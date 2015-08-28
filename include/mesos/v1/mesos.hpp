@@ -327,7 +327,7 @@ namespace std {
 template <>
 struct hash<mesos::v1::CommandInfo::URI>
 {
-  typedef std::size_t result_type;
+  typedef size_t result_type;
 
   typedef mesos::v1::CommandInfo::URI argument_type;
 
@@ -352,7 +352,7 @@ struct hash<mesos::v1::CommandInfo::URI>
 template <>
 struct hash<mesos::v1::ContainerID>
 {
-  typedef std::size_t result_type;
+  typedef size_t result_type;
 
   typedef mesos::v1::ContainerID argument_type;
 
@@ -368,7 +368,7 @@ struct hash<mesos::v1::ContainerID>
 template <>
 struct hash<mesos::v1::ExecutorID>
 {
-  typedef std::size_t result_type;
+  typedef size_t result_type;
 
   typedef mesos::v1::ExecutorID argument_type;
 
@@ -384,7 +384,7 @@ struct hash<mesos::v1::ExecutorID>
 template <>
 struct hash<mesos::v1::FrameworkID>
 {
-  typedef std::size_t result_type;
+  typedef size_t result_type;
 
   typedef mesos::v1::FrameworkID argument_type;
 
@@ -400,7 +400,7 @@ struct hash<mesos::v1::FrameworkID>
 template <>
 struct hash<mesos::v1::OfferID>
 {
-  typedef std::size_t result_type;
+  typedef size_t result_type;
 
   typedef mesos::v1::OfferID argument_type;
 
@@ -416,7 +416,7 @@ struct hash<mesos::v1::OfferID>
 template <>
 struct hash<mesos::v1::AgentID>
 {
-  typedef std::size_t result_type;
+  typedef size_t result_type;
 
   typedef mesos::v1::AgentID argument_type;
 
@@ -432,7 +432,7 @@ struct hash<mesos::v1::AgentID>
 template <>
 struct hash<mesos::v1::TaskID>
 {
-  typedef std::size_t result_type;
+  typedef size_t result_type;
 
   typedef mesos::v1::TaskID argument_type;
 

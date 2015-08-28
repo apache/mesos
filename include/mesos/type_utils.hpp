@@ -376,7 +376,7 @@ namespace std {
 template <>
 struct hash<mesos::CommandInfo_URI>
 {
-  typedef std::size_t result_type;
+  typedef size_t result_type;
 
   typedef mesos::CommandInfo_URI argument_type;
 
@@ -401,7 +401,7 @@ struct hash<mesos::CommandInfo_URI>
 template <>
 struct hash<mesos::ContainerID>
 {
-  typedef std::size_t result_type;
+  typedef size_t result_type;
 
   typedef mesos::ContainerID argument_type;
 
@@ -417,7 +417,7 @@ struct hash<mesos::ContainerID>
 template <>
 struct hash<mesos::ExecutorID>
 {
-  typedef std::size_t result_type;
+  typedef size_t result_type;
 
   typedef mesos::ExecutorID argument_type;
 
@@ -433,7 +433,7 @@ struct hash<mesos::ExecutorID>
 template <>
 struct hash<mesos::FrameworkID>
 {
-  typedef std::size_t result_type;
+  typedef size_t result_type;
 
   typedef mesos::FrameworkID argument_type;
 
@@ -449,7 +449,7 @@ struct hash<mesos::FrameworkID>
 template <>
 struct hash<mesos::OfferID>
 {
-  typedef std::size_t result_type;
+  typedef size_t result_type;
 
   typedef mesos::OfferID argument_type;
 
@@ -465,7 +465,7 @@ struct hash<mesos::OfferID>
 template <>
 struct hash<mesos::SlaveID>
 {
-  typedef std::size_t result_type;
+  typedef size_t result_type;
 
   typedef mesos::SlaveID argument_type;
 
@@ -481,7 +481,7 @@ struct hash<mesos::SlaveID>
 template <>
 struct hash<mesos::TaskID>
 {
-  typedef std::size_t result_type;
+  typedef size_t result_type;
 
   typedef mesos::TaskID argument_type;
 
@@ -497,14 +497,14 @@ struct hash<mesos::TaskID>
 template <>
 struct hash<mesos::TaskState>
 {
-  typedef std::size_t result_type;
+  typedef size_t result_type;
 
   typedef mesos::TaskState argument_type;
 
   result_type operator()(const argument_type& taskState) const
   {
     // Use the underlying type of the enum as hash value.
-    return static_cast<std::size_t>(taskState);
+    return static_cast<size_t>(taskState);
   }
 };
 
@@ -512,14 +512,14 @@ struct hash<mesos::TaskState>
 template <>
 struct hash<mesos::TaskStatus_Source>
 {
-  typedef std::size_t result_type;
+  typedef size_t result_type;
 
   typedef mesos::TaskStatus_Source argument_type;
 
   result_type operator()(const argument_type& source) const
   {
     // Use the underlying type of the enum as hash value.
-    return static_cast<std::size_t>(source);
+    return static_cast<size_t>(source);
   }
 };
 
@@ -527,14 +527,14 @@ struct hash<mesos::TaskStatus_Source>
 template <>
 struct hash<mesos::TaskStatus_Reason>
 {
-  typedef std::size_t result_type;
+  typedef size_t result_type;
 
   typedef mesos::TaskStatus_Reason argument_type;
 
   result_type operator()(const argument_type& reason) const
   {
     // Use the underlying type of the enum as hash value.
-    return static_cast<std::size_t>(reason);
+    return static_cast<size_t>(reason);
   }
 };
 
@@ -542,14 +542,14 @@ struct hash<mesos::TaskStatus_Reason>
 template <>
 struct hash<mesos::Image_Type>
 {
-  typedef std::size_t result_type;
+  typedef size_t result_type;
 
   typedef mesos::Image_Type argument_type;
 
   result_type operator()(const argument_type& imageType) const
   {
     // Use the underlying type of the enum as hash value.
-    return static_cast<std::size_t>(imageType);
+    return static_cast<size_t>(imageType);
   }
 };
 
@@ -557,13 +557,13 @@ struct hash<mesos::Image_Type>
 template <>
 struct hash<std::pair<mesos::FrameworkID, mesos::ExecutorID>>
 {
-  typedef std::size_t result_type;
+  typedef size_t result_type;
 
   typedef std::pair<mesos::FrameworkID, mesos::ExecutorID> argument_type;
 
   result_type operator()(const argument_type& pair) const
   {
-    std::size_t seed = 0;
+    size_t seed = 0;
     boost::hash_combine(seed, std::hash<mesos::FrameworkID>()(pair.first));
     boost::hash_combine(seed, std::hash<mesos::ExecutorID>()(pair.second));
     return seed;
