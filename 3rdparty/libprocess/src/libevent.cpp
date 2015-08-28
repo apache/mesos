@@ -19,6 +19,7 @@
 
 #include <event2/event.h>
 #include <event2/thread.h>
+#include <event2/util.h>
 
 #include <process/logging.hpp>
 #include <process/once.hpp>
@@ -170,13 +171,14 @@ void EventLoop::delay(
 
 double EventLoop::time()
 {
-  // Get the cached time if running the event loop, or call
-  // gettimeofday() to get the current time. Since a lot of logic in
+  // We explicitly call `evutil_gettimeofday()` for now to avoid any
+  // issues that may be introduced by using the cached value provided
+  // by `event_base_gettimeofday_cached()`. Since a lot of logic in
   // libprocess depends on time math, we want to log fatal rather than
   // cause logic errors if the time fails.
   timeval t;
-  if (event_base_gettimeofday_cached(base, &t) < 0) {
-    LOG(FATAL) << "Failed to get time, event_base_gettimeofday_cached";
+  if (evutil_gettimeofday(&t, NULL) < 0) {
+    LOG(FATAL) << "Failed to get time, evutil_gettimeofday";
   }
 
   return Duration(t).secs();
