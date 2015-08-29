@@ -57,10 +57,15 @@ TEST(VersionTest, Parse)
   EXPECT_EQ(version4.get(), version1.get());
   EXPECT_EQ(stringify(version4.get()), "1.20.3");
 
+  // Ignore additional components following "X.Y.Z".
+  Try<Version> version5 = Version::parse("1.20.3.fc22");
+  EXPECT_SOME(version5);
+  EXPECT_EQ(version5.get(), version1.get());
+  EXPECT_EQ(stringify(version5.get()), "1.20.3");
+
   EXPECT_ERROR(Version::parse("0.a.b"));
   EXPECT_ERROR(Version::parse(""));
   EXPECT_ERROR(Version::parse("a"));
   EXPECT_ERROR(Version::parse("1."));
   EXPECT_ERROR(Version::parse(".1.2"));
-  EXPECT_ERROR(Version::parse("0.1.2.3"));
 }
