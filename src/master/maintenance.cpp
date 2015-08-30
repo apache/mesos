@@ -112,6 +112,36 @@ Try<bool> UpdateSchedule::perform(
 }
 
 
+StartMaintenance::StartMaintenance(
+    const MachineIDs& _ids)
+{
+  foreach (const MachineID& id, _ids.values()) {
+    ids.insert(id);
+  }
+}
+
+
+Try<bool> StartMaintenance::perform(
+    Registry* registry,
+    hashset<SlaveID>* slaveIDs,
+    bool strict)
+{
+  // Flip the mode of all targeted machines.
+  bool changed = false;
+  for (int i = 0; i < registry->machines().machines().size(); i++) {
+    if (ids.contains(registry->machines().machines(i).info().id())) {
+      // Flip the mode.
+      registry->mutable_machines()->mutable_machines(i)
+        ->mutable_info()->set_mode(MachineInfo::DOWN);
+
+      changed = true; // Mutation.
+    }
+  }
+
+  return changed;
+}
+
+
 namespace validation {
 
 Try<Nothing> schedule(

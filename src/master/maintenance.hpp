@@ -65,6 +65,30 @@ private:
 };
 
 
+/**
+ * Transitions a group of machines from `DRAINING` mode into
+ * `DOWN` mode.  All machines must be part of a maintenance
+ * schedule prior to executing this operation.
+ *
+ * TODO(josephw): Allow a transition from `UP` to `DOWN`.
+ */
+class StartMaintenance : public Operation
+{
+public:
+  explicit StartMaintenance(
+      const MachineIDs& _ids);
+
+protected:
+  Try<bool> perform(
+      Registry* registry,
+      hashset<SlaveID>* slaveIDs,
+      bool strict);
+
+private:
+  hashset<MachineID> ids;
+};
+
+
 namespace validation {
 
 /**

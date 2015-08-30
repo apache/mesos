@@ -1475,6 +1475,79 @@ Future<Response> Master::Http::maintenanceSchedule(const Request& request) const
 }
 
 
+// /master/machine/down endpoint help.
+const string Master::Http::MACHINE_DOWN_HELP = HELP(
+    TLDR(
+        "Brings a set of machines down."),
+    USAGE(
+        "/master/machine/down"),
+    DESCRIPTION(
+        "POST: Validates the request body as JSON and transitions",
+        "  the list of machines into DOWN mode.  Currently, only",
+        "  machines in DRAINING mode are allowed to be brought down."));
+
+
+// /master/machine/down endpoint handler.
+Future<Response> Master::Http::machineDown(const Request& request) const
+{
+  if (request.method != "POST") {
+    return BadRequest("Expecting POST, got '" + request.method + "'");
+  }
+
+  // Parse the POST body as JSON.
+  Try<JSON::Object> jsonIds = JSON::parse<JSON::Object>(request.body);
+  if (jsonIds.isError()) {
+    return BadRequest(jsonIds.error());
+  }
+
+  // Convert the machines to a protobuf.
+  Try<MachineIDs> protoIds =
+    ::protobuf::parse<MachineIDs>(jsonIds.get());
+
+  if (protoIds.isError()) {
+    return BadRequest(protoIds.error());
+  }
+
+  // Validate every machine in the list.
+  MachineIDs ids = protoIds.get();
+  Try<Nothing> isValid = maintenance::validation::machines(ids);
+  if (isValid.isError()) {
+    return BadRequest(isValid.error());
+  }
+
+  // Check that all machines are part of a maintenance schedule.
+  // TODO(josephw): Allow a transition from `UP` to `DOWN`.
+  foreach (const MachineID& id, ids.values()) {
+    if (!master->machineInfos.contains(id)) {
+      return BadRequest(
+          "Machine '" + id.DebugString() +
+            "' is not part of a maintenance schedule");
+    }
+
+    if (master->machineInfos[id].mode() != MachineInfo::DRAINING) {
+      return BadRequest(
+          "Machine '" + id.DebugString() +
+            "' is not in DRAINING mode and cannot be brought down");
+    }
+  }
+
+  return master->registrar->apply(Owned<Operation>(
+      new maintenance::StartMaintenance(ids)))
+    .then(defer(master->self(), [=](bool result) -> Future<Response> {
+      // See the top comment in "master/maintenance.hpp" for why this check
+      // is here, and is appropriate.
+      CHECK(result);
+
+      // Update the master's local state with the downed machines.
+      foreach (const MachineID& id, ids.values()) {
+        master->machineInfos[id].set_mode(MachineInfo::DOWN);
+      }
+
+      return OK();
+    }));
+}
+
+
 Result<Credential> Master::Http::authenticate(const Request& request) const
 {
   // By default, assume everyone is authenticated if no credentials

@@ -72,6 +72,7 @@ using std::vector;
 
 using process::Clock;
 
+using mesos::internal::protobuf::maintenance::createMachineList;
 using mesos::internal::protobuf::maintenance::createSchedule;
 using mesos::internal::protobuf::maintenance::createUnavailability;
 using mesos::internal::protobuf::maintenance::createWindow;
@@ -492,10 +493,94 @@ TEST_P(RegistrarTest, UpdateMaintenanceSchedule)
     Registrar registrar(flags, state);
     Future<Registry> registry = registrar.recover(master);
     AWAIT_READY(registry);
-    
+
     EXPECT_EQ(1, registry.get().schedules().size());
     EXPECT_EQ(0, registry.get().schedules(0).windows().size());
     EXPECT_EQ(0, registry.get().machines().machines().size());
+  }
+}
+
+
+// Creates a schedule and properly starts maintenance.
+TEST_P(RegistrarTest, StartMaintenance)
+{
+  // Machine definitions used in this test.
+  MachineID machine1;
+  machine1.set_ip("0.0.0.1");
+
+  MachineID machine2;
+  machine2.set_hostname("2");
+
+  MachineID machine3;
+  machine3.set_hostname("3");
+  machine3.set_ip("0.0.0.3");
+
+  Unavailability unavailability = createUnavailability(Clock::now());
+
+  {
+    // Prepare the registrar.
+    Registrar registrar(flags, state);
+    AWAIT_READY(registrar.recover(master));
+
+    // Schedule two machines for maintenance.
+    maintenance::Schedule schedule = createSchedule(
+        {createWindow({machine1, machine2}, unavailability)});
+
+    AWAIT_READY(registrar.apply(
+        Owned<Operation>(new UpdateSchedule(schedule))));
+
+    // Transition machine two into `DOWN` mode.
+    MachineIDs machines = createMachineList({machine2});
+    AWAIT_READY(registrar.apply(
+        Owned<Operation>(new StartMaintenance(machines))));
+  }
+
+  {
+    // Check that machine two is down.
+    Registrar registrar(flags, state);
+    Future<Registry> registry = registrar.recover(master);
+    AWAIT_READY(registry);
+
+    EXPECT_EQ(2, registry.get().machines().machines().size());
+    EXPECT_EQ(
+        MachineInfo::DRAINING,
+        registry.get().machines().machines(0).info().mode());
+
+    EXPECT_EQ(
+        MachineInfo::DOWN,
+        registry.get().machines().machines(1).info().mode());
+
+    // Schedule three machines for maintenance.
+    maintenance::Schedule schedule = createSchedule(
+        {createWindow({machine1, machine2, machine3}, unavailability)});
+
+    AWAIT_READY(registrar.apply(
+        Owned<Operation>(new UpdateSchedule(schedule))));
+
+    // Deactivate the two `DRAINING` machines.
+    MachineIDs machines = createMachineList({machine1, machine3});
+    AWAIT_READY(registrar.apply(
+        Owned<Operation>(new StartMaintenance(machines))));
+  }
+
+  {
+    // Check that all machines are down.
+    Registrar registrar(flags, state);
+    Future<Registry> registry = registrar.recover(master);
+    AWAIT_READY(registry);
+
+    EXPECT_EQ(3, registry.get().machines().machines().size());
+    EXPECT_EQ(
+        MachineInfo::DOWN,
+        registry.get().machines().machines(0).info().mode());
+
+    EXPECT_EQ(
+        MachineInfo::DOWN,
+        registry.get().machines().machines(1).info().mode());
+
+    EXPECT_EQ(
+        MachineInfo::DOWN,
+        registry.get().machines().machines(2).info().mode());
   }
 }
 

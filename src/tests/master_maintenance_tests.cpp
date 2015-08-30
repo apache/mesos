@@ -54,6 +54,7 @@ using process::http::BadRequest;
 using process::http::OK;
 using process::http::Response;
 
+using mesos::internal::protobuf::maintenance::createMachineList;
 using mesos::internal::protobuf::maintenance::createSchedule;
 using mesos::internal::protobuf::maintenance::createUnavailability;
 using mesos::internal::protobuf::maintenance::createWindow;
@@ -231,6 +232,100 @@ TEST_F(MasterMaintenanceTest, UpdateSchedule)
       headers,
       stringify(JSON::Protobuf(schedule)));
 
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+}
+
+
+// Posts valid and invalid machines to the maintenance start endpoint.
+TEST_F(MasterMaintenanceTest, BringDownMachines)
+{
+  // Set up a master.
+  Try<PID<Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  // Extra machine used in this test.
+  // It isn't filled in, so it's incorrect.
+  MachineID badMachine;
+
+  // Try to start maintenance on an unscheduled machine.
+  MachineIDs machines = createMachineList({machine1, machine2});
+  Future<Response> response = process::http::post(
+      master.get(),
+      "machine/down",
+      headers,
+      stringify(JSON::Protobuf(machines)));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response);
+
+  // Try an empty list.
+  machines = createMachineList({});
+  response = process::http::post(
+      master.get(),
+      "machine/down",
+      headers,
+      stringify(JSON::Protobuf(machines)));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response);
+
+  // Try an empty machine.
+  machines = createMachineList({badMachine});
+  response = process::http::post(
+      master.get(),
+      "machine/down",
+      headers,
+      stringify(JSON::Protobuf(machines)));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response);
+
+  // Post a valid schedule with two machines.
+  maintenance::Schedule schedule = createSchedule(
+      {createWindow({machine1, machine2}, unavailability)});
+
+  response = process::http::post(
+      master.get(),
+      "maintenance/schedule",
+      headers,
+      stringify(JSON::Protobuf(schedule)));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+
+  // Down machine1.
+  machines = createMachineList({machine1});
+  response = process::http::post(
+      master.get(),
+      "machine/down",
+      headers,
+      stringify(JSON::Protobuf(machines)));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+
+  // Fail to down machine1 again.
+  response = process::http::post(
+      master.get(),
+      "machine/down",
+      headers,
+      stringify(JSON::Protobuf(machines)));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response);
+
+  // Fail to down machine1 and machine2.
+  machines = createMachineList({machine1, machine2});
+  response = process::http::post(
+      master.get(),
+      "machine/down",
+      headers,
+      stringify(JSON::Protobuf(machines)));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response);
+
+  // Down machine2.
+  machines = createMachineList({machine2});
+  response = process::http::post(
+      master.get(),
+      "machine/down",
+      headers,
+      stringify(JSON::Protobuf(machines)));
+  
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 }
 

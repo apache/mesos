@@ -821,6 +821,12 @@ void Master::initialize()
           Http::log(request);
           return http.maintenanceSchedule(request);
         });
+  route("/machine/down",
+        Http::MACHINE_DOWN_HELP,
+        [http](const process::http::Request& request) {
+          Http::log(request);
+          return http.machineDown(request);
+        });
 
   // Provide HTTP assets from a "webui" directory. This is either
   // specified via flags (which is necessary for running out of the
