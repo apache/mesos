@@ -80,6 +80,10 @@ public:
   // Returns the resources that have been allocated to this client.
   virtual hashmap<SlaveID, Resources> allocation(const std::string& client) = 0;
 
+  // Returns the clients that have allocations on this slave.
+  virtual hashmap<std::string, Resources> allocation(
+      const SlaveID& slaveId) = 0;
+
   // Returns the given slave's resources that have been allocated to
   // this client.
   virtual Resources allocation(
