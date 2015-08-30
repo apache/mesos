@@ -45,6 +45,8 @@ class Provisioner
 public:
   virtual ~Provisioner() {}
 
+  // Create provisioners based on specified flags. An error is returned if
+  // any of the provisioners specified in --provisioner failed to be created.
   static Try<hashmap<Image::Type, process::Owned<Provisioner>>>
     create(const Flags& flags, Fetcher* fetcher);
 

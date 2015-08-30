@@ -48,7 +48,9 @@ public:
   std::string isolation;
 
   Option<std::string> provisioners;
+
   std::string appc_store_dir;
+  std::string appc_backend;
 
   std::string default_role;
   Option<std::string> attributes;

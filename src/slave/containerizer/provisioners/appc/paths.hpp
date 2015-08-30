@@ -19,10 +19,12 @@
 #ifndef __MESOS_APPC_PATHS__
 #define __MESOS_APPC_PATHS__
 
-#include <list>
 #include <string>
 
 #include <mesos/mesos.hpp>
+
+#include <stout/hashmap.hpp>
+#include <stout/try.hpp>
 
 namespace mesos {
 namespace internal {
@@ -92,11 +94,22 @@ std::string getImageManifestPath(const std::string& imagePath);
 
 
 std::string getContainerRootfsDir(
-    const std::string& rootDir,
-    const Image::Type& imageType,
+    const std::string& provisionerDir,
     const ContainerID& containerId,
     const std::string& backend,
     const std::string& rootfsId);
+
+
+// Recursively "ls" the container directory and return a map of
+// backend -> rootfsId -> rootfsPath.
+Try<hashmap<std::string, hashmap<std::string, std::string>>>
+listContainerRootfses(
+    const std::string& provisionerDir,
+    const ContainerID& containerId);
+
+// Return a map of containerId -> containerPath;
+Try<hashmap<ContainerID, std::string>> listContainers(
+    const std::string& provisionerDir);
 
 } // namespace paths {
 } // namespace appc {

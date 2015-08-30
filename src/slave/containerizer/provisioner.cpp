@@ -16,9 +16,17 @@
  * limitations under the License.
  */
 
+#include <stout/hashset.hpp>
+#include <stout/stringify.hpp>
+#include <stout/strings.hpp>
+
 #include "slave/containerizer/provisioner.hpp"
 
+#include "slave/containerizer/provisioners/appc.hpp"
+
 using namespace process;
+
+using std::string;
 
 namespace mesos {
 namespace internal {
@@ -28,8 +36,42 @@ Try<hashmap<Image::Type, Owned<Provisioner>>> Provisioner::create(
     const Flags& flags,
     Fetcher* fetcher)
 {
-  // TODO(tnachen): Load provisioners when one of them is available.
-  return hashmap<Image::Type, Owned<Provisioner>>();
+  if (flags.provisioners.isNone()) {
+    return hashmap<Image::Type, Owned<Provisioner>>();
+  }
+
+  hashmap<Image::Type,
+          Try<Owned<Provisioner>>(*)(const Flags&, Fetcher*)> creators;
+
+  // Register all supported creators.
+  creators.put(Image::APPC, &appc::AppcProvisioner::create);
+
+  hashmap<Image::Type, Owned<Provisioner>> provisioners;
+
+  // NOTE: Change in '--provisioners' flag may result in leaked rootfs
+  // files on the disk but it's at least safe because files managed by
+  // different provisioners are totally separated.
+  foreach (const string& type,
+           strings::tokenize(flags.provisioners.get(), ",")) {
+     Image::Type imageType;
+     if (!Image::Type_Parse(strings::upper(type), &imageType)) {
+       return Error("Unknown provisioner '" + type + "'");
+     }
+
+     if (!creators.contains(imageType)) {
+       return Error("Unsupported provisioner '" + type + "'");
+     }
+
+     Try<Owned<Provisioner>> provisioner = creators[imageType](flags, fetcher);
+     if (provisioner.isError()) {
+       return Error("Failed to create '" + stringify(imageType) +
+                    "' provisioner: " + provisioner.error());
+     }
+
+     provisioners[imageType] = provisioner.get();
+  }
+
+  return provisioners;
 }
 
 } // namespace slave {
