@@ -154,6 +154,11 @@ public:
       const SlaveID& slaveId,
       const Option<Unavailability>& unavailability);
 
+  void updateInverseOffer(
+      const SlaveID& slaveId,
+      const FrameworkID& frameworkId,
+      const Option<mesos::master::InverseOfferStatus>& status);
+
   void recoverResources(
       const FrameworkID& frameworkId,
       const SlaveID& slaveId,
@@ -856,6 +861,51 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::updateUnavailability(
   }
 
   allocate(slaveId);
+}
+
+
+template <class RoleSorter, class FrameworkSorter>
+void
+HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::updateInverseOffer(
+    const SlaveID& slaveId,
+    const FrameworkID& frameworkId,
+    const Option<mesos::master::InverseOfferStatus>& status)
+{
+  CHECK(initialized);
+  CHECK(frameworks.contains(frameworkId));
+  CHECK(slaves.contains(slaveId));
+  CHECK(slaves[slaveId].maintenance.isSome());
+
+  // NOTE: We currently implement maintenance in the allocator to be able to
+  // leverage state and features such as the FrameworkSorter and Filters.
+
+  // We use a reference by alias because we intend to modify the
+  // `maintenance` and to improve readability.
+  typename Slave::Maintenance& maintenance = slaves[slaveId].maintenance.get();
+
+  // Only handle inverse offers that we currently have outstanding. If it is not
+  // currently outstanding this means it is old and can be safely ignored.
+  if (maintenance.offersOutstanding.contains(frameworkId)) {
+
+    // We always remove the outstanding offer so that we will send a new offer
+    // out the next time we schedule inverse offers.
+    maintenance.offersOutstanding.erase(frameworkId);
+
+    // If the response is `Some`, this means the framework responded. Otherwise
+    // if it is `None` the inverse offer timed out or was rescinded.
+    if (status.isSome()) {
+      // For now we don't allow frameworks to respond with `UNKNOWN`. The caller
+      // should guard against this. This goes against the pattern of not
+      // checking external invariants; however, the allocator and master are
+      // currently so tightly coupled that this check is valuable.
+      CHECK_NE(
+          status.get().status(),
+          mesos::master::InverseOfferStatus::UNKNOWN);
+
+      // If the framework responded, we update our state to match.
+      maintenance.statuses[frameworkId].CopyFrom(status.get());
+    }
+  }
 }
 
 
