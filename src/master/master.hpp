@@ -832,6 +832,10 @@ private:
     process::Future<process::http::Response> tasks(
         const process::http::Request& request) const;
 
+    // /master/maintenance/schedule
+    process::Future<process::http::Response> maintenanceSchedule(
+        const process::http::Request& request) const;
+
     const static std::string SCHEDULER_HELP;
     const static std::string HEALTH_HELP;
     const static std::string OBSERVE_HELP;
@@ -842,6 +846,7 @@ private:
     const static std::string STATE_HELP;
     const static std::string STATESUMMARY_HELP;
     const static std::string TASKS_HELP;
+    const static std::string MAINTENANCE_SCHEDULE_HELP;
 
   private:
     // Helper for doing authentication, returns the credential used if

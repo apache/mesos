@@ -30,19 +30,28 @@
 
 #include <mesos/authorizer/authorizer.hpp>
 
+#include <mesos/maintenance/maintenance.hpp>
+
+#include <process/defer.hpp>
 #include <process/help.hpp>
 
 #include <process/metrics/metrics.hpp>
 
 #include <stout/base64.hpp>
 #include <stout/foreach.hpp>
+#include <stout/hashmap.hpp>
+#include <stout/hashset.hpp>
 #include <stout/json.hpp>
 #include <stout/lambda.hpp>
 #include <stout/net.hpp>
+#include <stout/nothing.hpp>
 #include <stout/numify.hpp>
 #include <stout/os.hpp>
+#include <stout/protobuf.hpp>
 #include <stout/result.hpp>
 #include <stout/strings.hpp>
+#include <stout/try.hpp>
+#include <stout/utils.hpp>
 
 #include "common/attributes.hpp"
 #include "common/build.hpp"
@@ -53,6 +62,7 @@
 
 #include "logging/logging.hpp"
 
+#include "master/maintenance.hpp"
 #include "master/master.hpp"
 #include "master/validation.hpp"
 
@@ -98,6 +108,7 @@ using mesos::internal::model;
 // Pull in definitions from process.
 using process::http::Response;
 using process::http::Request;
+using process::Owned;
 
 
 // TODO(bmahler): Kill these in favor of automatic Proto->JSON Conversion (when
@@ -1346,6 +1357,121 @@ Future<Response> Master::Http::tasks(const Request& request) const
   }
 
   return OK(object, request.query.get("jsonp"));
+}
+
+
+// /master/maintenance/schedule endpoint help.
+const string Master::Http::MAINTENANCE_SCHEDULE_HELP = HELP(
+    TLDR(
+        "Returns or updates the cluster's maintenance schedule."),
+    USAGE(
+        "/master/maintenance/schedule"),
+    DESCRIPTION(
+        "GET: Returns the current maintenance schedule as JSON.",
+        "POST: Validates the request body as JSON",
+        "  and updates the maintenance schedule."));
+
+
+// /master/maintenance/schedule endpoint handler.
+Future<Response> Master::Http::maintenanceSchedule(const Request& request) const
+{
+  if (request.method != "GET" && request.method != "POST") {
+    return BadRequest("Expecting GET or POST, got '" + request.method + "'");
+  }
+
+  // JSON-ify and return the current maintenance schedule.
+  if (request.method == "GET") {
+    // TODO(josephw): Return more than one schedule.
+    const mesos::maintenance::Schedule schedule =
+      master->maintenance.schedules.empty() ?
+        mesos::maintenance::Schedule() :
+        master->maintenance.schedules.front();
+
+    return OK(JSON::Protobuf(schedule), request.query.get("jsonp"));
+  }
+
+  // Parse the POST body as JSON.
+  Try<JSON::Object> jsonSchedule = JSON::parse<JSON::Object>(request.body);
+  if (jsonSchedule.isError()) {
+    return BadRequest(jsonSchedule.error());
+  }
+
+  // Convert the schedule to a protobuf.
+  Try<mesos::maintenance::Schedule> protoSchedule =
+    ::protobuf::parse<mesos::maintenance::Schedule>(jsonSchedule.get());
+
+  if (protoSchedule.isError()) {
+    return BadRequest(protoSchedule.error());
+  }
+
+  // Validate that the schedule only transitions machines between
+  // `UP` and `DRAINING` modes.
+  mesos::maintenance::Schedule schedule = protoSchedule.get();
+  Try<Nothing> isValid = maintenance::validation::schedule(
+      schedule,
+      master->machineInfos);
+
+  if (isValid.isError()) {
+    return BadRequest(isValid.error());
+  }
+
+  return master->registrar->apply(Owned<Operation>(
+      new maintenance::UpdateSchedule(schedule)))
+    .then(defer(master->self(), [=](bool result) -> Future<Response> {
+      // See the top comment in "master/maintenance.hpp" for why this check
+      // is here, and is appropriate.
+      CHECK(result);
+
+      // Update the master's local state with the new schedule.
+      // NOTE: We only add or remove differences between the current schedule
+      // and the new schedule.  This is because the `MachineInfo` struct
+      // holds more information than a maintenance schedule.
+      // For example, the `mode` field is not part of a maintenance schedule.
+
+      // TODO(josephw): allow more than one schedule.
+
+      // Put the machines in the updated schedule into a set.
+      // Save the unavailability, to help with updating some machines.
+      hashmap<MachineID, Unavailability> updated;
+      foreach (const mesos::maintenance::Window& window, schedule.windows()) {
+        foreach (const MachineID& id, window.machine_ids()) {
+          updated[id] = window.unavailability();
+        }
+      }
+
+      // NOTE: Copies are needed because this loop modifies the container.
+      foreachkey (const MachineID& id, utils::copy(master->machineInfos)) {
+        // Update the entry for each updated machine.
+        if (updated.contains(id)) {
+          master->machineInfos[id]
+            .mutable_unavailability()->CopyFrom(updated[id]);
+
+          continue;
+        }
+
+        // Delete the entry for each removed machine.
+        master->machineInfos.erase(id);
+      }
+
+      // Save each new machine, with the unavailability
+      // and starting in `DRAINING` mode.
+      foreach (const mesos::maintenance::Window& window, schedule.windows()) {
+        foreach (const MachineID& id, window.machine_ids()) {
+          MachineInfo info;
+          info.mutable_id()->CopyFrom(id);
+          info.set_mode(MachineInfo::DRAINING);
+          info.mutable_unavailability()->CopyFrom(window.unavailability());
+
+          master->machineInfos[id] = info;
+        }
+      }
+
+      // Replace the old schedule(s) with the new schedule.
+      master->maintenance.schedules.clear();
+      master->maintenance.schedules.push_back(schedule);
+
+      return OK();
+    }));
 }
 
 

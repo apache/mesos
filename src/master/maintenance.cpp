@@ -22,6 +22,7 @@
 
 #include <stout/duration.hpp>
 #include <stout/error.hpp>
+#include <stout/hashmap.hpp>
 #include <stout/hashset.hpp>
 #include <stout/ip.hpp>
 #include <stout/nothing.hpp>
@@ -35,6 +36,81 @@ namespace master {
 namespace maintenance {
 
 using namespace mesos::maintenance;
+
+UpdateSchedule::UpdateSchedule(
+    const maintenance::Schedule& _schedule)
+  : schedule(_schedule) {}
+
+
+Try<bool> UpdateSchedule::perform(
+    Registry* registry,
+    hashset<SlaveID>* slaveIDs,
+    bool strict)
+{
+  // Put the machines in the existing schedule into a set.
+  hashset<MachineID> existing;
+  foreach (const maintenance::Schedule& agenda, registry->schedules()) {
+    foreach (const maintenance::Window& window, agenda.windows()) {
+      foreach (const MachineID& id, window.machine_ids()) {
+        existing.insert(id);
+      }
+    }
+  }
+
+  // Put the machines in the updated schedule into a set.
+  // Keep the relevant unavailability to help update existing machines.
+  hashmap<MachineID, Unavailability> updated;
+  foreach (const maintenance::Window& window, schedule.windows()) {
+    foreach (const MachineID& id, window.machine_ids()) {
+      updated[id] = window.unavailability();
+    }
+  }
+
+  // This operation overwrites the existing schedules with a new one.
+  // At the same time, every machine in the schedule is saved as a
+  // `MachineInfo` in the registry.
+
+  // TODO(josephw): allow more than one schedule.
+
+  // Loop through and modify the existing `MachineInfo` entries.
+  for (int i = registry->machines().machines().size() - 1; i >= 0; i--) {
+    const MachineID& id = registry->machines().machines(i).info().id();
+
+    // Update the `MachineInfo` entry for all machines in the schedule.
+    if (updated.contains(id)) {
+      registry->mutable_machines()->mutable_machines(i)->mutable_info()
+        ->mutable_unavailability()->CopyFrom(updated[id]);
+
+      continue;
+    }
+
+    // Delete the `MachineInfo` entry for each removed machine.
+    registry->mutable_machines()->mutable_machines()->DeleteSubrange(i, 1);
+  }
+
+  // Create new `MachineInfo` entries for each new machine.
+  foreach (const maintenance::Window& window, schedule.windows()) {
+    foreach (const MachineID& id, window.machine_ids()) {
+      if (existing.contains(id)) {
+        continue;
+      }
+
+      // Each newly scheduled machine starts in `DRAINING` mode.
+      Registry::Machine* machine = registry->mutable_machines()->add_machines();
+      MachineInfo* info = machine->mutable_info();
+      info->mutable_id()->CopyFrom(id);
+      info->set_mode(MachineInfo::DRAINING);
+      info->mutable_unavailability()->CopyFrom(window.unavailability());
+    }
+  }
+
+  // Replace the old schedule with the new schedule.
+  registry->clear_schedules();
+  registry->add_schedules()->CopyFrom(schedule);
+
+  return true; // Mutation.
+}
+
 
 namespace validation {
 

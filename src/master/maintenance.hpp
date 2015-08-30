@@ -34,6 +34,37 @@ namespace mesos {
 namespace internal {
 namespace master {
 namespace maintenance {
+
+// Maintenance registry operations will never report a failure while
+// performing the operation (i.e. `perform` never returns an `Error`).
+// This means the underlying `Future` for the operation will always be
+// set to true.  If there is a separate failure, such as a network
+// partition, while performing the operation, this future will not be set.
+
+/**
+ * Updates the maintanence schedule of the cluster.  This transitions machines
+ * between `UP` and `DRAINING` modes only.  The given schedule must only
+ * add valid machines and remove machines that are not `DOWN`.
+ *
+ * TODO(josephw): allow more than one schedule.
+ */
+class UpdateSchedule : public Operation
+{
+public:
+  explicit UpdateSchedule(
+      const mesos::maintenance::Schedule& _schedule);
+
+protected:
+  Try<bool> perform(
+      Registry* registry,
+      hashset<SlaveID>* slaveIDs,
+      bool strict);
+
+private:
+  const mesos::maintenance::Schedule schedule;
+};
+
+
 namespace validation {
 
 /**
