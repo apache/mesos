@@ -661,7 +661,7 @@ TEST_F(MasterMaintenanceTest, EnterMaintenanceMode)
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 
-  // Wait for the slave to be shut down.
+  // Wait for the slave to be told to shut down.
   AWAIT_READY(shutdownMessage);
 
   // Verify that we received a TASK_LOST.
@@ -670,6 +670,44 @@ TEST_F(MasterMaintenanceTest, EnterMaintenanceMode)
 
   // Verify that the framework received the slave lost message.
   AWAIT_READY(slaveLost);
+
+  // Wait on the agent to terminate so that it wipes out it's latest symlink.
+  // This way when we launch a new agent it will register with a new agent id.
+  wait(slave.get());
+
+  // Ensure that the slave gets shut down immediately if it tries to register
+  // from a machine that is under maintenance.
+  shutdownMessage = FUTURE_PROTOBUF(ShutdownMessage(), master.get(), _);
+  EXPECT_TRUE(shutdownMessage.isPending());
+
+  slave = StartSlave();
+  ASSERT_SOME(slave);
+
+  AWAIT_READY(shutdownMessage);
+
+  // Wait on the agent to terminate so that it wipes out it's latest symlink.
+  // This way when we launch a new agent it will register with a new agent id.
+  wait(slave.get());
+
+  // Stop maintenance.
+  response =
+    process::http::post(
+        master.get(),
+        "machine/up",
+        headers,
+        stringify(JSON::Protobuf(createMachineList({machine}))));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+
+  // Capture the registration message.
+  Future<SlaveRegisteredMessage> slaveRegisteredMessage =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
+
+  // Start the agent again.
+  slave = StartSlave();
+
+  // Wait for agent registration.
+  AWAIT_READY(slaveRegisteredMessage);
 
   driver.stop();
   driver.join();

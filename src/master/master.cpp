@@ -3746,6 +3746,24 @@ void Master::registerSlave(
     return;
   }
 
+  MachineID machineId;
+  machineId.set_hostname(slaveInfo.hostname());
+  machineId.set_ip(stringify(from.address.ip));
+
+  // Slaves are not allowed to register while the machine they are on is in
+  // `DOWN` mode.
+  if (machines.contains(machineId) &&
+      machines[machineId].info.mode() == MachineInfo::DOWN) {
+    LOG(WARNING) << "Refusing registration of slave at " << from
+                 << " because the machine '" << machineId << "' that it is "
+                 << "running on is `DOWN`";
+
+    ShutdownMessage message;
+    message.set_message("Machine is `DOWN`");
+    send(from, message);
+    return;
+  }
+
   // Check if this slave is already registered (because it retries).
   if (slaves.registered.contains(from)) {
     Slave* slave = slaves.registered.get(from);
@@ -3905,6 +3923,24 @@ void Master::reregisterSlave(
                  << " because it is not authenticated";
     ShutdownMessage message;
     message.set_message("Slave is not authenticated");
+    send(from, message);
+    return;
+  }
+
+  MachineID machineId;
+  machineId.set_hostname(slaveInfo.hostname());
+  machineId.set_ip(stringify(from.address.ip));
+
+  // Slaves are not allowed to register while the machine they are on is in
+  // 'DOWN` mode.
+  if (machines.contains(machineId) &&
+      machines[machineId].info.mode() == MachineInfo::DOWN) {
+    LOG(WARNING) << "Refusing re-registration of slave at " << from
+                 << " because the machine '" << machineId << "' that it is "
+                 << "running on is `DOWN`";
+
+    ShutdownMessage message;
+    message.set_message("Machine is `DOWN`");
     send(from, message);
     return;
   }

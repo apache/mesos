@@ -255,6 +255,23 @@ inline std::ostream& operator<<(
 }
 
 
+inline std::ostream& operator<<(
+    std::ostream& stream,
+    const MachineID& machineId)
+{
+  if (machineId.has_hostname() && machineId.has_ip()) {
+    return stream << machineId.hostname() << " (" << machineId.ip() << ")";
+  }
+
+  // If only a hostname is present.
+  if (machineId.has_hostname()) {
+    return stream << machineId.hostname();
+  } else { // If there is no hostname, then there is an IP.
+    return stream << "(" << machineId.ip() << ")";
+  }
+}
+
+
 inline std::ostream& operator<<(std::ostream& stream, const MasterInfo& master)
 {
   return stream << master.DebugString();
