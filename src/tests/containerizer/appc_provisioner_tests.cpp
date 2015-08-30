@@ -171,14 +171,14 @@ TEST_F(AppcProvisionerTest, StoreRecover)
   // Recover the image from disk.
   AWAIT_READY(store.get()->recover());
 
-  Future<vector<Store::Image>> _images = store.get()->get("foo.com/bar");
-  AWAIT_READY(_images);
+  Image image;
+  image.mutable_appc()->set_name("foo.com/bar");
+  Future<vector<string>> layers = store.get()->get(image.appc());
+  AWAIT_READY(layers);
 
-  vector<Store::Image> images = _images.get();
-
-  EXPECT_EQ(1u, images.size());
+  EXPECT_EQ(1u, layers.get().size());
   ASSERT_SOME(os::realpath(imagePath));
-  EXPECT_EQ(os::realpath(imagePath).get(), images.front().path);
+  EXPECT_EQ(os::realpath(imagePath).get(), layers.get().front());
 }
 
 } // namespace tests {

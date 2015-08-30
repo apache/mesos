@@ -40,42 +40,38 @@ namespace appc {
 class StoreProcess;
 
 
-// Provides the provisioner with access to locally stored / cached Appc images.
+// An image store abstraction that "stores" images. It serves as a read-through
+// cache (cache misses are fetched remotely and transparently) for images.
+// TODO(xujyan): The store currently keeps cached images indefinitely and we
+// should introduce cache eviction policies.
 class Store
 {
 public:
-  // Defines an image in the store (which has passed validation).
-  struct Image
-  {
-    Image(
-        const AppcImageManifest& _manifest,
-        const std::string& _id,
-        const std::string& _path)
-      : manifest(_manifest), id(_id), path(_path) {}
-
-    const AppcImageManifest manifest;
-
-    // Image ID of the format "sha512-value" where "value" is the hex
-    // encoded string of the sha512 digest of the uncompressed tar file
-    // of the image.
-    const std::string id;
-
-    // Absolute path of the extracted image.
-    const std::string path;
-  };
-
   static Try<process::Owned<Store>> create(const Flags& flags);
 
   ~Store();
 
   process::Future<Nothing> recover();
 
-  // Get all images matched by name.
-  process::Future<std::vector<Image>> get(const std::string& name);
-
-  // TODO(xujyan): Implement a put() method that fetches an image into
-  // the store. i.e.,
-  // process::Future<StoredImage> put(const std::string& uri);
+  // Get the specified image (and all its recursive dependencies) as a list
+  // of rootfs layers in the topological order (dependencies go before
+  // dependents in the list). The images required to build this list are
+  // either retrieved from the local cache or fetched remotely.
+  // NOTE: The returned list should not have duplicates. e.g., in the
+  // following scenario the result should be [C, B, D, A] (B before D in this
+  // example is decided by the order in which A specifies its dependencies).
+  //
+  // A --> B --> C
+  // |           ^
+  // |---> D ----|
+  //
+  // The returned future fails if the requested image or any of its
+  // dependencies cannot be found or failed to be fetched.
+  // TODO(xujyan): Fetching remotely is not implemented for now and until
+  // then the future fails directly if the image is not in the local cache.
+  // TODO(xujyan): The store currently doesn't support images that have
+  // dependencies and we should add it later.
+  process::Future<std::vector<std::string>> get(const Image::Appc& image);
 
 private:
   Store(process::Owned<StoreProcess> process);

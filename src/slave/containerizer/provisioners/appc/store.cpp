@@ -43,6 +43,69 @@ namespace internal {
 namespace slave {
 namespace appc {
 
+// Defines a locally cached image (which has passed validation).
+struct CachedImage
+{
+  CachedImage(
+      const AppcImageManifest& _manifest,
+      const string& _id,
+      const string& _path)
+    : manifest(_manifest), id(_id), path(_path) {}
+
+  const AppcImageManifest manifest;
+
+  // Image ID of the format "sha512-value" where "value" is the hex
+  // encoded string of the sha512 digest of the uncompressed tar file
+  // of the image.
+  const string id;
+
+  // Absolute path to the extracted image.
+  const string path;
+};
+
+
+// Helper that implements this:
+// https://github.com/appc/spec/blob/master/spec/aci.md#dependency-matching
+static bool matches(Image::Appc requirements, const CachedImage& candidate)
+{
+  // The name must match.
+  if (candidate.manifest.name() != requirements.name()) {
+    return false;
+  }
+
+  // If an id is specified the candidate must match.
+  if (requirements.has_id() && (candidate.id != requirements.id())) {
+    return false;
+  }
+
+  // Extract labels for easier comparison, this also weeds out duplicates.
+  // TODO(xujyan): Detect duplicate labels in image manifest validation
+  // and Image::Appc validation.
+  hashmap<string, string> requiredLabels;
+  foreach (const Label& label, requirements.labels().labels()) {
+    requiredLabels[label.key()] = label.value();
+  }
+
+  hashmap<string, string> candidateLabels;
+  foreach (const AppcImageManifest::Label& label,
+           candidate.manifest.labels()) {
+    candidateLabels[label.name()] = label.value();
+  }
+
+  // Any label specified must be present and match in the candidate.
+  foreachpair (const string& name,
+               const string& value,
+               requiredLabels) {
+    if (!candidateLabels.contains(name) ||
+        candidateLabels.get(name).get() != value) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+
 class StoreProcess : public Process<StoreProcess>
 {
 public:
@@ -52,7 +115,7 @@ public:
 
   Future<Nothing> recover();
 
-  Future<std::vector<Store::Image>> get(const string& name);
+  Future<vector<string>> get(const Image::Appc& image);
 
 private:
   // Absolute path to the root directory of the store as defined by
@@ -60,7 +123,7 @@ private:
   const string root;
 
   // Mappings: name -> id -> image.
-  hashmap<string, hashmap<string, Store::Image>> images;
+  hashmap<string, hashmap<string, CachedImage>> images;
 };
 
 
@@ -107,17 +170,18 @@ Future<Nothing> Store::recover()
 }
 
 
-Future<vector<Store::Image>> Store::get(const string& name)
+Future<vector<string>> Store::get(const Image::Appc& image)
 {
-  return dispatch(process.get(), &StoreProcess::get, name);
+  return dispatch(process.get(), &StoreProcess::get, image);
 }
 
 
 StoreProcess::StoreProcess(const string& _root) : root(_root) {}
 
 
-// Implemented as a helper function because it's going to be used by 'put()'.
-static Try<Store::Image> createImage(const string& imagePath)
+// Implemented as a helper function because it's going to be used for a
+// newly downloaded image too.
+static Try<CachedImage> createImage(const string& imagePath)
 {
   Option<Error> error = spec::validateLayout(imagePath);
   if (error.isSome()) {
@@ -141,22 +205,34 @@ static Try<Store::Image> createImage(const string& imagePath)
     return Error("Failed to parse manifest: " + manifest.error());
   }
 
-  return Store::Image(manifest.get(), imageId, imagePath);
+  return CachedImage(manifest.get(), imageId, imagePath);
 }
 
 
-Future<vector<Store::Image>> StoreProcess::get(const string& name)
+Future<vector<string>> StoreProcess::get(const Image::Appc& image)
 {
-  if (!images.contains(name)) {
-    return vector<Store::Image>();
+  if (!images.contains(image.name())) {
+    return Failure("No image named '" + image.name() + "' can be found");
   }
 
-  vector<Store::Image> result;
-  foreach (const Store::Image& image, images[name].values()) {
-    result.push_back(image);
+  // Get local candidates.
+  vector<CachedImage> candidates;
+  foreach (const CachedImage& candidate, images[image.name()].values()) {
+    // The first match is returned.
+    // TODO(xujyan): Some tie-breaking rules are necessary.
+    if (matches(image, candidate)) {
+      LOG(INFO) << "Found match for image '" << image.name()
+                << "' in the store";
+      // The Appc store current doesn't support dependencies and this is
+      // enforced by manifest validation: if the image's manifest contains
+      // dependencies it would fail the validation and wouldn't be stored
+      // in the store.
+      return vector<string>({candidate.path});
+    }
   }
 
-  return result;
+  return Failure("No image named '" + image.name() +
+                 "' can match the requirements");
 }
 
 
@@ -178,7 +254,7 @@ Future<Nothing> StoreProcess::recover()
       continue;
     }
 
-    Try<Store::Image> image = createImage(path);
+    Try<CachedImage> image = createImage(path);
     if (image.isError()) {
       LOG(WARNING) << "Unexpected entry in storage: " << image.error();
       continue;
