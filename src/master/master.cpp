@@ -1331,6 +1331,16 @@ Future<Nothing> Master::_recover(const Registry& registry)
           &Self::recoveredSlavesTimeout,
           registry);
 
+  // Save the maintenance schedule.
+  foreach (const mesos::maintenance::Schedule& schedule, registry.schedules()) {
+    maintenance.schedules.push_back(schedule);
+  }
+
+  // Save the machine info for each machine.
+  foreach (const Registry::Machine& machine, registry.machines().machines()) {
+    machineInfos[machine.info().id()] = machine.info();
+  }
+
   // Recovery is now complete!
   LOG(INFO) << "Recovered " << registry.slaves().slaves().size() << " slaves"
             << " from the Registry (" << Bytes(registry.ByteSize()) << ")"

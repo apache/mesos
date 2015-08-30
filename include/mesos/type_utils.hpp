@@ -31,6 +31,7 @@
 
 #include <stout/hashmap.hpp>
 #include <stout/stringify.hpp>
+#include <stout/strings.hpp>
 #include <stout/uuid.hpp>
 
 // This file includes definitions for operators on public protobuf
@@ -140,6 +141,21 @@ inline bool operator==(const SlaveID& left, const std::string& right)
 inline bool operator==(const TaskID& left, const std::string& right)
 {
   return left.value() == right;
+}
+
+
+/**
+ * For machines to match, both the `hostname` and `ip` must be equivalent.
+ * Hostname is not case sensitive, so it is lowercased before comparison.
+ */
+inline bool operator==(const MachineID& left, const MachineID& right)
+{
+  // NOTE: Both fields default to the empty string if they are not specified,
+  // so the string comparisons are safe.
+  return left.has_hostname() == right.has_hostname() &&
+    strings::lower(left.hostname()) == strings::lower(right.hostname()) &&
+    left.has_ip() == right.has_ip() &&
+    left.ip() == right.ip();
 }
 
 
@@ -566,6 +582,23 @@ struct hash<std::pair<mesos::FrameworkID, mesos::ExecutorID>>
     size_t seed = 0;
     boost::hash_combine(seed, std::hash<mesos::FrameworkID>()(pair.first));
     boost::hash_combine(seed, std::hash<mesos::ExecutorID>()(pair.second));
+    return seed;
+  }
+};
+
+
+template <>
+struct hash<mesos::MachineID>
+{
+  typedef size_t result_type;
+
+  typedef mesos::MachineID argument_type;
+
+  result_type operator()(const argument_type& machineId) const
+  {
+    size_t seed = 0;
+    boost::hash_combine(seed, strings::lower(machineId.hostname()));
+    boost::hash_combine(seed, machineId.ip());
     return seed;
   }
 };
