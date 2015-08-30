@@ -18,8 +18,6 @@
 #include <string>
 #include <vector>
 
-#include <glog/logging.h>
-
 #include <stout/error.hpp>
 #include <stout/numify.hpp>
 #include <stout/stringify.hpp>
@@ -54,18 +52,14 @@ struct Version
       strings::split(strings::split(s, "-")[0], ".");
 
     if (split.size() > maxComponents) {
-      LOG(WARNING) << "Version string has " << split.size() << " components; "
-                   << "only " << maxComponents << " components will be "
-                   << "recognized, the rest will be ignored.";
+      return Error("Version string has " + stringify(split.size()) +
+                   " components; maximum " + stringify(maxComponents) +
+                   " components allowed");
     }
 
     int components[maxComponents] = {0};
-    size_t componentSize = maxComponents;
-    if (split.size() < maxComponents) {
-      componentSize = split.size();
-    }
 
-    for (size_t i = 0; i < componentSize; i++) {
+    for (size_t i = 0; i < split.size(); i++) {
       Try<int> result = numify<int>(split[i]);
       if (result.isError()) {
         return Error("Invalid version component '" + split[i] + "': " +
