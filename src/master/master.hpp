@@ -840,6 +840,10 @@ private:
     process::Future<process::http::Response> machineDown(
         const process::http::Request& request) const;
 
+    // /master/machine/up
+    process::Future<process::http::Response> machineUp(
+        const process::http::Request& request) const;
+
     const static std::string SCHEDULER_HELP;
     const static std::string HEALTH_HELP;
     const static std::string OBSERVE_HELP;
@@ -852,6 +856,7 @@ private:
     const static std::string TASKS_HELP;
     const static std::string MAINTENANCE_SCHEDULE_HELP;
     const static std::string MACHINE_DOWN_HELP;
+    const static std::string MACHINE_UP_HELP;
 
   private:
     // Helper for doing authentication, returns the credential used if

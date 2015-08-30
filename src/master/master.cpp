@@ -827,6 +827,12 @@ void Master::initialize()
           Http::log(request);
           return http.machineDown(request);
         });
+  route("/machine/up",
+        Http::MACHINE_UP_HELP,
+        [http](const process::http::Request& request) {
+          Http::log(request);
+          return http.machineUp(request);
+        });
 
   // Provide HTTP assets from a "webui" directory. This is either
   // specified via flags (which is necessary for running out of the

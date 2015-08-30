@@ -18,6 +18,8 @@
 
 #include <string>
 
+#include <mesos/maintenance/maintenance.hpp>
+
 #include <process/clock.hpp>
 #include <process/future.hpp>
 #include <process/http.hpp>
@@ -28,6 +30,7 @@
 #include <stout/json.hpp>
 #include <stout/net.hpp>
 #include <stout/option.hpp>
+#include <stout/protobuf.hpp>
 #include <stout/strings.hpp>
 #include <stout/stringify.hpp>
 #include <stout/try.hpp>
@@ -325,8 +328,124 @@ TEST_F(MasterMaintenanceTest, BringDownMachines)
       "machine/down",
       headers,
       stringify(JSON::Protobuf(machines)));
-  
+
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+}
+
+
+// Posts valid and invalid machines to the maintenance stop endpoint.
+TEST_F(MasterMaintenanceTest, BringUpMachines)
+{
+  // Set up a master.
+  Try<PID<Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  // Try to bring up an unscheduled machine.
+  MachineIDs machines = createMachineList({machine1, machine2});
+  Future<Response> response = process::http::post(
+      master.get(),
+      "machine/up",
+      headers,
+      stringify(JSON::Protobuf(machines)));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response);
+
+  // Post a valid schedule with three machines.
+  maintenance::Schedule schedule = createSchedule({
+      createWindow({machine1, machine2}, unavailability),
+      createWindow({machine3}, unavailability)});
+
+  response = process::http::post(
+      master.get(),
+      "maintenance/schedule",
+      headers,
+      stringify(JSON::Protobuf(schedule)));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+
+  // Try to bring up a non-down machine.
+  machines = createMachineList({machine1, machine2});
+  response = process::http::post(
+      master.get(),
+      "machine/up",
+      headers,
+      stringify(JSON::Protobuf(machines)));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response);
+
+  // Down machine3.
+  machines = createMachineList({machine3});
+  response = process::http::post(
+      master.get(),
+      "machine/down",
+      headers,
+      stringify(JSON::Protobuf(machines)));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+
+  // Up machine3.
+  response = process::http::post(
+      master.get(),
+      "machine/up",
+      headers,
+      stringify(JSON::Protobuf(machines)));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+
+  // Get the maintenance schedule.
+  response = process::http::get(
+      master.get(),
+      "maintenance/schedule");
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+
+  // Check that only one maintenance window remains.
+  Try<JSON::Object> masterSchedule_ =
+    JSON::parse<JSON::Object>(response.get().body);
+
+  ASSERT_SOME(masterSchedule_);
+  Try<mesos::maintenance::Schedule> masterSchedule =
+    ::protobuf::parse<mesos::maintenance::Schedule>(masterSchedule_.get());
+
+  ASSERT_SOME(masterSchedule);
+  ASSERT_EQ(1, masterSchedule.get().windows().size());
+  ASSERT_EQ(2, masterSchedule.get().windows(0).machine_ids().size());
+
+  // Down the other machines.
+  machines = createMachineList({machine1, machine2});
+  response = process::http::post(
+      master.get(),
+      "machine/down",
+      headers,
+      stringify(JSON::Protobuf(machines)));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+
+  // Up the other machines.
+  response = process::http::post(
+      master.get(),
+      "machine/up",
+      headers,
+      stringify(JSON::Protobuf(machines)));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+
+  // Get the maintenance schedule again.
+  response = process::http::get(
+      master.get(),
+      "maintenance/schedule");
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+
+  // Check that the schedule is empty.
+  masterSchedule_ = JSON::parse<JSON::Object>(response.get().body);
+
+  ASSERT_SOME(masterSchedule_);
+  masterSchedule =
+    ::protobuf::parse<mesos::maintenance::Schedule>(masterSchedule_.get());
+
+  ASSERT_SOME(masterSchedule);
+  ASSERT_EQ(0, masterSchedule.get().windows().size());
 }
 
 } // namespace tests {

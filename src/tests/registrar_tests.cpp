@@ -585,6 +585,85 @@ TEST_P(RegistrarTest, StartMaintenance)
 }
 
 
+// Creates a schedule and properly starts and stops maintenance.
+TEST_P(RegistrarTest, StopMaintenance)
+{
+  // Machine definitions used in this test.
+  MachineID machine1;
+  machine1.set_ip("0.0.0.1");
+
+  MachineID machine2;
+  machine2.set_hostname("2");
+
+  MachineID machine3;
+  machine3.set_hostname("3");
+  machine3.set_ip("0.0.0.3");
+
+  Unavailability unavailability = createUnavailability(Clock::now());
+
+  {
+    // Prepare the registrar.
+    Registrar registrar(flags, state);
+    AWAIT_READY(registrar.recover(master));
+
+    // Schdule three machines for maintenance.
+    maintenance::Schedule schedule = createSchedule({
+        createWindow({machine1, machine2}, unavailability),
+        createWindow({machine3}, unavailability)});
+
+    AWAIT_READY(registrar.apply(
+        Owned<Operation>(new UpdateSchedule(schedule))));
+
+    // Transition machine three into `DOWN` mode.
+    MachineIDs machines = createMachineList({machine3});
+    AWAIT_READY(registrar.apply(
+        Owned<Operation>(new StartMaintenance(machines))));
+
+    // Transition machine three into `UP` mode.
+    AWAIT_READY(registrar.apply(
+        Owned<Operation>(new StopMaintenance(machines))));
+  }
+
+  {
+    // Check that machine three and the window were removed.
+    Registrar registrar(flags, state);
+    Future<Registry> registry = registrar.recover(master);
+    AWAIT_READY(registry);
+
+    EXPECT_EQ(1, registry.get().schedules().size());
+    EXPECT_EQ(1, registry.get().schedules(0).windows().size());
+    EXPECT_EQ(2, registry.get().schedules(0).windows(0).machine_ids().size());
+    EXPECT_EQ(2, registry.get().machines().machines().size());
+    EXPECT_EQ(
+        MachineInfo::DRAINING,
+        registry.get().machines().machines(0).info().mode());
+
+    EXPECT_EQ(
+        MachineInfo::DRAINING,
+        registry.get().machines().machines(1).info().mode());
+
+    // Transition machine one and two into `DOWN` mode.
+    MachineIDs machines = createMachineList({machine1, machine2});
+    AWAIT_READY(registrar.apply(
+        Owned<Operation>(new StartMaintenance(machines))));
+
+    // Transition all machines into `UP` mode.
+    AWAIT_READY(registrar.apply(
+        Owned<Operation>(new StopMaintenance(machines))));
+  }
+
+  {
+    // Check that the schedule is now empty.
+    Registrar registrar(flags, state);
+    Future<Registry> registry = registrar.recover(master);
+    AWAIT_READY(registry);
+
+    EXPECT_EQ(0, registry.get().schedules().size());
+    EXPECT_EQ(0, registry.get().machines().machines().size());
+  }
+}
+
+
 TEST_P(RegistrarTest, Bootstrap)
 {
   // Run 1 readmits a slave that is not present.

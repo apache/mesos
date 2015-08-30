@@ -93,6 +93,7 @@ using process::http::UnsupportedMediaType;
 
 using process::metrics::internal::MetricsProcess;
 
+using std::list;
 using std::map;
 using std::string;
 using std::vector;
@@ -1541,6 +1542,108 @@ Future<Response> Master::Http::machineDown(const Request& request) const
       // Update the master's local state with the downed machines.
       foreach (const MachineID& id, ids.values()) {
         master->machineInfos[id].set_mode(MachineInfo::DOWN);
+      }
+
+      return OK();
+    }));
+}
+
+
+// /master/maintenance/start endpoint help.
+const string Master::Http::MACHINE_UP_HELP = HELP(
+    TLDR(
+        "Brings a set of machines back up."),
+    USAGE(
+        "/master/machine/up"),
+    DESCRIPTION(
+        "POST: Validates the request body as JSON and transitions",
+        "  the list of machines into UP mode.  This also removes",
+        "  the list of machines from the maintenance schedule."));
+
+
+// /master/machine/up endpoint handler.
+Future<Response> Master::Http::machineUp(const Request& request) const
+{
+  if (request.method != "POST") {
+    return BadRequest("Expecting POST, got '" + request.method + "'");
+  }
+
+  // Parse the POST body as JSON.
+  Try<JSON::Object> jsonIds = JSON::parse<JSON::Object>(request.body);
+  if (jsonIds.isError()) {
+    return BadRequest(jsonIds.error());
+  }
+
+  // Convert the machines to a protobuf.
+  Try<MachineIDs> protoIds =
+    ::protobuf::parse<MachineIDs>(jsonIds.get());
+
+  if (protoIds.isError()) {
+    return BadRequest(protoIds.error());
+  }
+
+  // Validate every machine in the list.
+  MachineIDs ids = protoIds.get();
+  Try<Nothing> isValid = maintenance::validation::machines(ids);
+  if (isValid.isError()) {
+    return BadRequest(isValid.error());
+  }
+
+  // Check that all machines are part of a maintenance schedule.
+  foreach (const MachineID& id, ids.values()) {
+    if (!master->machineInfos.contains(id)) {
+      return BadRequest(
+          "Machine '" + id.DebugString() +
+            "' is not part of a maintenance schedule");
+    }
+
+    if (master->machineInfos[id].mode() != MachineInfo::DOWN) {
+      return BadRequest(
+          "Machine '" + id.DebugString() +
+            "' is not in DOWN mode and cannot be brought up");
+    }
+  }
+
+  return master->registrar->apply(Owned<Operation>(
+      new maintenance::StopMaintenance(ids)))
+    .then(defer(master->self(), [=](bool result) -> Future<Response> {
+      // See the top comment in "master/maintenance.hpp" for why this check
+      // is here, and is appropriate.
+      CHECK(result);
+
+      // Update the master's local state with the reactivated machines.
+      hashset<MachineID> updated;
+      foreach (const MachineID& id, ids.values()) {
+        master->machineInfos.erase(id);
+        updated.insert(id);
+      }
+
+      // Delete the machines from the schedule.
+      for (list<mesos::maintenance::Schedule>::iterator schedule =
+          master->maintenance.schedules.begin();
+          schedule != master->maintenance.schedules.end();) {
+        for (int j = schedule->windows().size() - 1; j >= 0; j--) {
+          mesos::maintenance::Window* window = schedule->mutable_windows(j);
+
+          // Delete individual machines.
+          for (int k = window->machine_ids().size() - 1; k >= 0; k--) {
+            if (updated.contains(window->machine_ids(k))) {
+              window->mutable_machine_ids()->DeleteSubrange(k, 1);
+            }
+          }
+
+          // If the resulting window is empty, delete it.
+          if (window->machine_ids().size() == 0) {
+            schedule->mutable_windows()->DeleteSubrange(j, 1);
+          }
+        }
+
+        // If the resulting schedule is empty, delete it.
+        if (schedule->windows().size() == 0) {
+          schedule = master->maintenance.schedules.erase(schedule);
+        } else {
+          ++schedule;
+        }
       }
 
       return OK();

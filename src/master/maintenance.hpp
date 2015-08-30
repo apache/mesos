@@ -89,6 +89,29 @@ private:
 };
 
 
+/**
+ * Transitions a group of machines from `DOWN` mode into `UP` mode.
+ * All machines must be in `DOWN` mode and must be part of a maintenance
+ * schedule prior to executing this operation. The machines will be
+ * removed from the maintenance schedule.
+ */
+class StopMaintenance : public Operation
+{
+public:
+  explicit StopMaintenance(
+      const MachineIDs& _ids);
+
+protected:
+  Try<bool> perform(
+      Registry* registry,
+      hashset<SlaveID>* slaveIDs,
+      bool strict);
+
+private:
+  hashset<MachineID> ids;
+};
+
+
 namespace validation {
 
 /**
