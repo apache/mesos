@@ -49,8 +49,14 @@ public:
   Operation() : success(false) {}
   virtual ~Operation() {}
 
-  // Attempts to invoke the operation on 'registry' (and the
-  // accumulators, in this case 'slaveIDs').
+  // Attempts to invoke the operation on the registry object.
+  // Aided by accumulator(s):
+  //   slaveIDs - is the set of registered slaves.
+  //
+  // NOTE: the "strict" parameter only applies to operations that
+  // affect slaves (i.e. registration).  See Flags::registry_strict
+  // in master/flags.cpp for more information.
+  //
   // Returns whether the operation mutates 'registry', or an error if
   // the operation cannot be applied successfully.
   Try<bool> operator()(

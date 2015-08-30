@@ -248,6 +248,64 @@ ContainerState createContainerState(
 
 } // namespace slave {
 
+namespace maintenance {
+
+Unavailability createUnavailability(
+    const process::Time& start,
+    const Option<Duration>& duration)
+{
+  Unavailability unavailability;
+  unavailability.mutable_start()->set_nanoseconds(start.duration().ns());
+
+  if (duration.isSome()) {
+    unavailability.mutable_duration()->set_nanoseconds(duration.get().ns());
+  }
+
+  return unavailability;
+}
+
+
+MachineIDs createMachineList(std::initializer_list<MachineID> ids)
+{
+  MachineIDs array;
+
+  foreach (const MachineID& id, ids) {
+    array.add_values()->CopyFrom(id);
+  }
+
+  return array;
+}
+
+
+mesos::maintenance::Window createWindow(
+    std::initializer_list<MachineID> ids,
+    const Unavailability& unavailability)
+{
+  mesos::maintenance::Window window;
+  window.mutable_unavailability()->CopyFrom(unavailability);
+
+  foreach (const MachineID& id, ids) {
+    window.add_machine_ids()->CopyFrom(id);
+  }
+
+  return window;
+}
+
+
+mesos::maintenance::Schedule createSchedule(
+    std::initializer_list<mesos::maintenance::Window> windows)
+{
+  mesos::maintenance::Schedule schedule;
+
+  foreach (const mesos::maintenance::Window& window, windows) {
+    schedule.add_windows()->CopyFrom(window);
+  }
+
+  return schedule;
+}
+
+} // namespace maintenance {
+
 } // namespace protobuf {
 } // namespace internal {
 } // namespace mesos {

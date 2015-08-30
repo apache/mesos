@@ -439,6 +439,7 @@ libmesos_no_3rdparty_la_SOURCES =					\
 	master/detector.cpp						\
 	master/flags.cpp						\
 	master/http.cpp							\
+	master/maintenance.cpp						\
 	master/master.cpp						\
 	master/metrics.cpp						\
 	master/registry.hpp						\
@@ -727,6 +728,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
 	master/constants.hpp						\
 	master/detector.hpp						\
 	master/flags.hpp						\
+	master/maintenance.hpp						\
 	master/master.hpp						\
 	master/metrics.hpp						\
 	master/repairer.hpp						\
