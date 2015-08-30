@@ -138,6 +138,23 @@ message URL {
 
 
 /**
+ * Represents an interval, from a given start time over a given duration.
+ * This interval pertains to an unavailability event, such as maintenance,
+ * and is not a generic interval.
+ */
+message Unavailability {
+  required TimeInfo start = 1;
+
+  // When added to `start`, this represents the end of the interval.
+  // If unspecified, the duration is assumed to be infinite.
+  optional DurationInfo duration = 2;
+
+  // TODO(josephw): Add additional fields for expressing the purpose and
+  // urgency of the unavailability event.
+}
+
+
+/**
  * Describes a framework.
  */
 message FrameworkInfo {
@@ -847,6 +864,18 @@ message Offer {
   repeated Attribute attributes = 7;
   repeated ExecutorID executor_ids = 6;
 
+  // Signifies that the resources in this Offer may be unavailable during
+  // the given interval.  Any tasks launched using these resources may be
+  // killed when the interval arrives.  For example, these resources may be
+  // part of a planned maintenance schedule.
+  //
+  // This field only provides information about a planned unavailability.
+  // The unavailability interval may not necessarily start at exactly this
+  // interval, nor last for exactly the duration of this interval.
+  // The unavailability may also be forever!  See comments in
+  // `Unavailability` for more details.
+  optional Unavailability unavailability = 9;
+
   // Defines an operation that can be performed against offers.
   message Operation {
     enum Type {
@@ -884,6 +913,57 @@ message Offer {
     optional Create create = 5;
     optional Destroy destroy = 6;
   }
+}
+
+
+/**
+ * A request to return some resources occupied by a framework.
+ */
+message InverseOffer {
+  // This is the same OfferID as found in normal offers, which allows
+  // re-use of some of the OfferID-only messages.
+  required OfferID id = 1;
+
+  // URL for reaching the agent running on the host.  This enables some
+  // optimizations as described in MESOS-3012, such as allowing the
+  // scheduler driver to bypass the master and talk directly with a agent.
+  optional URL url = 2;
+
+  // The framework that should release its resources.
+  // If no specifics are provided (i.e. which agent), all the framework's
+  // resources are requested back.
+  required FrameworkID framework_id = 3;
+
+  // Specified if the resources need to be released from a particular agent.
+  // All the framework's resources on this agent are requested back,
+  // unless further qualified by the `resources` field.
+  optional AgentID agent_id = 4;
+
+  // This InverseOffer represents a planned unavailability event in the
+  // specified interval.  Any tasks running on the given framework or agent
+  // may be killed when the interval arrives.  Therefore, frameworks should
+  // aim to gracefully terminate tasks prior to the arrival of the interval.
+  //
+  // For reserved resources, the resources are expected to be returned to the
+  // framework after the unavailability interval.  This is an expectation,
+  // not a guarantee.  For example, if the unavailiability duration is not set,
+  // the resources may be removed permenantly.
+  //
+  // For other resources, there is no guarantee that requested resources will
+  // be returned after the unavailiability interval.  The allocator has no
+  // obligation to re-offer these resources to the prior framework after
+  // the unavailability.
+  required Unavailability unavailability = 5;
+
+  // A list of resources being requested back from the framework,
+  // on the agent identified by `agent_id`.  If no resources are specified
+  // then all resources are being requested back.  For the purpose of
+  // maintenance, this field is always empty (maintenance always requests
+  // all resources back).
+  repeated Resource resources = 6;
+
+  // TODO(josephw): Add additional options for narrowing down the resources
+  // being requested back.  Such as specific executors, tasks, etc.
 }
 
 
