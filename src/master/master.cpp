@@ -4874,6 +4874,14 @@ void Master::inverseOffer(
       continue;
     }
 
+    // TODO(bmahler): Set "https" if only "https" is supported.
+    mesos::URL url;
+    url.set_scheme("http");
+    url.mutable_address()->set_hostname(slave->info.hostname());
+    url.mutable_address()->set_ip(stringify(slave->pid.address.ip));
+    url.mutable_address()->set_port(slave->pid.address.port);
+    url.set_path("/" + slave->pid.id);
+
     InverseOffer* inverseOffer = new InverseOffer();
 
     // We use the same id generator as regular offers so that we can have unique
@@ -4882,6 +4890,7 @@ void Master::inverseOffer(
     inverseOffer->mutable_id()->CopyFrom(newOfferId());
     inverseOffer->mutable_framework_id()->CopyFrom(framework->id());
     inverseOffer->mutable_slave_id()->CopyFrom(slave->id);
+    inverseOffer->mutable_url()->CopyFrom(url);
     inverseOffer->mutable_unavailability()->CopyFrom(
         unavailableResources.unavailability);
 
