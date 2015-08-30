@@ -92,6 +92,12 @@ v1::Offer evolve(const Offer& offer)
 }
 
 
+v1::InverseOffer evolve(const InverseOffer& inverseOffer)
+{
+  return evolve<v1::InverseOffer>(inverseOffer);
+}
+
+
 v1::OfferID evolve(const OfferID& offerId)
 {
   return evolve<v1::OfferID>(offerId);
@@ -153,6 +159,8 @@ v1::scheduler::Event evolve(const ResourceOffersMessage& message)
 
   v1::scheduler::Event::Offers* offers = event.mutable_offers();
   offers->mutable_offers()->CopyFrom(evolve<v1::Offer>(message.offers()));
+  offers->mutable_inverse_offers()->CopyFrom(evolve<v1::InverseOffer>(
+      message.inverse_offers()));
 
   return event;
 }

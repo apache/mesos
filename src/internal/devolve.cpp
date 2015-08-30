@@ -99,6 +99,12 @@ Offer devolve(const v1::Offer& offer)
 }
 
 
+InverseOffer devolve(const v1::InverseOffer& inverseOffer)
+{
+  return devolve<InverseOffer>(inverseOffer);
+}
+
+
 Credential devolve(const v1::Credential& credential)
 {
   return devolve<Credential>(credential);

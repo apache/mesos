@@ -168,6 +168,14 @@ message ResourceRequestMessage {
 message ResourceOffersMessage {
   repeated Offer offers = 1;
   repeated string pids = 2;
+  
+  // The `inverse_offers` field is added here because we currently use it in
+  // `master.cpp` when constructing the message to send to schedulers. We use
+  // the original version of the proto API until we do a full refactor of all
+  // the messages being sent.
+  // It is not fully implemented in the old scheduler; only the V1 scheduler
+  // currently implements inverse offers.
+  repeated InverseOffer inverse_offers = 3;
 }
 
 
