@@ -1397,7 +1397,7 @@ Future<Nothing> Master::_recover(const Registry& registry)
 
   // Save the machine info for each machine.
   foreach (const Registry::Machine& machine, registry.machines().machines()) {
-    machineInfos[machine.info().id()] = machine.info();
+    machines[machine.info().id()] = Machine(machine.info());
   }
 
   // Recovery is now complete!
@@ -3744,9 +3744,14 @@ void Master::_registerSlave(
         stringify(slaveInfo.id()));
     send(pid, message);
   } else {
+    MachineID machineId;
+    machineId.set_hostname(slaveInfo.hostname());
+    machineId.set_ip(stringify(pid.address.ip));
+
     Slave* slave = new Slave(
         slaveInfo,
         pid,
+        machineId,
         version.empty() ? Option<string>::none() : version,
         Clock::now(),
         checkpointedResources);
@@ -3942,9 +3947,14 @@ void Master::_reregisterSlave(
     send(pid, message);
   } else {
     // Re-admission succeeded.
+    MachineID machineId;
+    machineId.set_hostname(slaveInfo.hostname());
+    machineId.set_ip(stringify(pid.address.ip));
+
     Slave* slave = new Slave(
         slaveInfo,
         pid,
+        machineId,
         version.empty() ? Option<string>::none() : version,
         Clock::now(),
         checkpointedResources,
@@ -5355,6 +5365,10 @@ void Master::addSlave(
 
   link(slave->pid);
 
+  // Map the slave to the machine it is running on.
+  CHECK(!machines[slave->machineId].slaves.contains(slave->id));
+  machines[slave->machineId].slaves.insert(slave->id);
+
   // Set up an observer for the slave.
   slave->observer = new SlaveObserver(
       slave->pid,
@@ -5498,6 +5512,11 @@ void Master::removeSlave(
   slaves.registered.remove(slave);
   slaves.removed.put(slave->id, Nothing());
   authenticated.erase(slave->pid);
+
+  // Remove the slave from the `machines` mapping.
+  CHECK(machines.contains(slave->machineId));
+  CHECK(machines[slave->machineId].slaves.contains(slave->id));
+  machines[slave->machineId].slaves.erase(slave->id);
 
   // Kill the slave observer.
   terminate(slave->observer);

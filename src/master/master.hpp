@@ -70,6 +70,7 @@
 #include "master/contender.hpp"
 #include "master/detector.hpp"
 #include "master/flags.hpp"
+#include "master/machine.hpp"
 #include "master/metrics.hpp"
 #include "master/registrar.hpp"
 #include "master/validation.hpp"
@@ -109,6 +110,7 @@ struct Slave
 {
   Slave(const SlaveInfo& _info,
         const process::UPID& _pid,
+        const MachineID& _machineId,
         const Option<std::string> _version,
         const process::Time& _registeredTime,
         const Resources& _checkpointedResources,
@@ -118,6 +120,7 @@ struct Slave
           std::vector<Task>())
     : id(_info.id()),
       info(_info),
+      machineId(_machineId),
       pid(_pid),
       version(_version),
       registeredTime(_registeredTime),
@@ -279,6 +282,8 @@ struct Slave
 
   const SlaveID id;
   const SlaveInfo info;
+
+  const MachineID machineId;
 
   process::UPID pid;
 
@@ -954,9 +959,10 @@ private:
 
   MasterInfo info_;
 
-  // Holds some info which affects how a machine behaves.
-  // See the `MachineInfo` protobuf for more information.
-  hashmap<MachineID, MachineInfo> machineInfos;
+  // Holds some info which affects how a machine behaves, as well as state that
+  // represent the master's view of this machine. See the `MachineInfo` protobuf
+  // and `Machine` struct for more information.
+  hashmap<MachineID, Machine> machines;
 
   struct Maintenance
   {

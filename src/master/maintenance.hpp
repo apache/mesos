@@ -27,6 +27,7 @@
 #include <stout/nothing.hpp>
 #include <stout/try.hpp>
 
+#include "master/machine.hpp"
 #include "master/registrar.hpp"
 #include "master/registry.hpp"
 
@@ -124,7 +125,7 @@ namespace validation {
  */
 Try<Nothing> schedule(
     const mesos::maintenance::Schedule& schedule,
-    const hashmap<MachineID, MachineInfo>& infos);
+    const hashmap<MachineID, Machine>& machines);
 
 
 // Checks that the `duration` of the unavailability is non-negative.

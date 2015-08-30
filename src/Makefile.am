@@ -732,6 +732,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
 	master/constants.hpp						\
 	master/detector.hpp						\
 	master/flags.hpp						\
+	master/machine.hpp						\
 	master/maintenance.hpp						\
 	master/master.hpp						\
 	master/metrics.hpp						\

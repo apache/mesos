@@ -201,7 +201,7 @@ namespace validation {
 
 Try<Nothing> schedule(
     const maintenance::Schedule& schedule,
-    const hashmap<MachineID, MachineInfo>& infos)
+    const hashmap<MachineID, Machine>& machines)
 {
   hashset<MachineID> updated;
   foreach (const maintenance::Window& window, schedule.windows()) {
@@ -238,8 +238,8 @@ Try<Nothing> schedule(
   }
 
   // Ensure that no `DOWN` machine is removed from the schedule.
-  foreachpair (const MachineID& id, const MachineInfo& info, infos) {
-    if (info.mode() == MachineInfo::DOWN && !updated.contains(id)) {
+  foreachpair (const MachineID& id, const Machine& machine, machines) {
+    if (machine.info.mode() == MachineInfo::DOWN && !updated.contains(id)) {
       return Error(
           "Machine '" + id.DebugString() +
             "' is deactivated and cannot be removed from the schedule");

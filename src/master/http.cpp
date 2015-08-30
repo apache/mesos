@@ -1464,7 +1464,7 @@ Future<Response> Master::Http::maintenanceSchedule(const Request& request) const
   mesos::maintenance::Schedule schedule = protoSchedule.get();
   Try<Nothing> isValid = maintenance::validation::schedule(
       schedule,
-      master->machineInfos);
+      master->machines);
 
   if (isValid.isError()) {
     return BadRequest(isValid.error());
@@ -1495,17 +1495,18 @@ Future<Response> Master::Http::maintenanceSchedule(const Request& request) const
       }
 
       // NOTE: Copies are needed because this loop modifies the container.
-      foreachkey (const MachineID& id, utils::copy(master->machineInfos)) {
+      foreachkey (const MachineID& id, utils::copy(master->machines)) {
         // Update the entry for each updated machine.
         if (updated.contains(id)) {
-          master->machineInfos[id]
-            .mutable_unavailability()->CopyFrom(updated[id]);
+          master->machines[id]
+            .info.mutable_unavailability()->CopyFrom(updated[id]);
 
           continue;
         }
 
-        // Delete the entry for each removed machine.
-        master->machineInfos.erase(id);
+        // Remove the unavailability for each removed machine.
+        master->machines[id].info.clear_unavailability();
+        master->machines[id].info.set_mode(MachineInfo::UP);
       }
 
       // Save each new machine, with the unavailability
@@ -1517,7 +1518,7 @@ Future<Response> Master::Http::maintenanceSchedule(const Request& request) const
           info.set_mode(MachineInfo::DRAINING);
           info.mutable_unavailability()->CopyFrom(window.unavailability());
 
-          master->machineInfos[id] = info;
+          master->machines[id].info.CopyFrom(info);
         }
       }
 
@@ -1571,13 +1572,13 @@ Future<Response> Master::Http::machineDown(const Request& request) const
   // Check that all machines are part of a maintenance schedule.
   // TODO(josephw): Allow a transition from `UP` to `DOWN`.
   foreach (const MachineID& id, ids.values()) {
-    if (!master->machineInfos.contains(id)) {
+    if (!master->machines.contains(id)) {
       return BadRequest(
           "Machine '" + id.DebugString() +
             "' is not part of a maintenance schedule");
     }
 
-    if (master->machineInfos[id].mode() != MachineInfo::DRAINING) {
+    if (master->machines[id].info.mode() != MachineInfo::DRAINING) {
       return BadRequest(
           "Machine '" + id.DebugString() +
             "' is not in DRAINING mode and cannot be brought down");
@@ -1593,7 +1594,7 @@ Future<Response> Master::Http::machineDown(const Request& request) const
 
       // Update the master's local state with the downed machines.
       foreach (const MachineID& id, ids.values()) {
-        master->machineInfos[id].set_mode(MachineInfo::DOWN);
+        master->machines[id].info.set_mode(MachineInfo::DOWN);
       }
 
       return OK();
@@ -1641,13 +1642,13 @@ Future<Response> Master::Http::machineUp(const Request& request) const
 
   // Check that all machines are part of a maintenance schedule.
   foreach (const MachineID& id, ids.values()) {
-    if (!master->machineInfos.contains(id)) {
+    if (!master->machines.contains(id)) {
       return BadRequest(
           "Machine '" + id.DebugString() +
             "' is not part of a maintenance schedule");
     }
 
-    if (master->machineInfos[id].mode() != MachineInfo::DOWN) {
+    if (master->machines[id].info.mode() != MachineInfo::DOWN) {
       return BadRequest(
           "Machine '" + id.DebugString() +
             "' is not in DOWN mode and cannot be brought up");
@@ -1664,7 +1665,8 @@ Future<Response> Master::Http::machineUp(const Request& request) const
       // Update the master's local state with the reactivated machines.
       hashset<MachineID> updated;
       foreach (const MachineID& id, ids.values()) {
-        master->machineInfos.erase(id);
+        master->machines[id].info.set_mode(MachineInfo::UP);
+        master->machines[id].info.clear_unavailability();
         updated.insert(id);
       }
 
@@ -1718,8 +1720,8 @@ Future<Response> Master::Http::maintenanceStatus(const Request& request) const
 
   // Unwrap the master's machine information into two arrays of machines.
   mesos::maintenance::ClusterStatus status;
-  foreachkey (const MachineID& id, master->machineInfos) {
-    switch (master->machineInfos[id].mode()) {
+  foreachkey (const MachineID& id, master->machines) {
+    switch (master->machines[id].info.mode()) {
       case MachineInfo::DRAINING: {
         status.add_draining_machines()->CopyFrom(id);
         break;
