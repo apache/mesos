@@ -2789,6 +2789,11 @@ void Master::accept(
     // validation failed, return resources to the allocator.
     foreach (const OfferID& offerId, accept.offer_ids()) {
       Offer* offer = getOffer(offerId);
+
+      // Since we re-use `OfferID`s, it is possible to arrive here with either
+      // a resource offer, or an inverse offer. We first try as a resource offer
+      // and if that fails, then we assume it is an inverse offer. This is
+      // correct as those are currently the only 2 ways to get an `OfferID`.
       if (offer != NULL) {
         slaveId = offer->slave_id();
         offeredResources += offer->resources();
@@ -2801,7 +2806,29 @@ void Master::accept(
               None());
         }
         removeOffer(offer);
+        continue;
       }
+
+      // Try it as an inverse offer. If this fails then the offer is no longer
+      // valid.
+      InverseOffer* inverseOffer = getInverseOffer(offerId);
+      if (inverseOffer != NULL) {
+        mesos::master::InverseOfferStatus status;
+        status.set_status(mesos::master::InverseOfferStatus::ACCEPT);
+
+        allocator->updateInverseOffer(
+            offer->slave_id(),
+            offer->framework_id(),
+            status);
+
+        removeInverseOffer(inverseOffer);
+        continue;
+      }
+
+      // If the offer was neither in our offer or inverse offer sets, then this
+      // offer is no longer valid.
+      LOG(WARNING) << "Ignoring accept of offer " << offerId
+                   << " since it is no longer valid";
     }
   }
 
@@ -3237,6 +3264,10 @@ void Master::decline(
 
   //  Return resources to the allocator.
   foreach (const OfferID& offerId, decline.offer_ids()) {
+    // Since we re-use `OfferID`s, it is possible to arrive here with either a
+    // resource offer, or an inverse offer. We first try as a resource offer and
+    // if that fails, then we assume it is an inverse offer. This is correct as
+    // those are currently the only 2 ways to get an `OfferID`.
     Offer* offer = getOffer(offerId);
     if (offer != NULL) {
       allocator->recoverResources(
@@ -3246,10 +3277,29 @@ void Master::decline(
           decline.filters());
 
       removeOffer(offer);
-    } else {
-      LOG(WARNING) << "Ignoring decline of offer " << offerId
-                   << " since it is no longer valid";
+      continue;
     }
+
+    // Try it as an inverse offer. If this fails then the offer is no longer
+    // valid.
+    InverseOffer* inverseOffer = getInverseOffer(offerId);
+    if (inverseOffer != NULL) { // If this is an inverse offer.
+      mesos::master::InverseOfferStatus status;
+      status.set_status(mesos::master::InverseOfferStatus::DECLINE);
+
+      allocator->updateInverseOffer(
+          offer->slave_id(),
+          offer->framework_id(),
+          status);
+
+      removeInverseOffer(inverseOffer);
+      continue;
+    }
+
+    // If the offer was neither in our offer or inverse offer sets, then this
+    // offer is no longer valid.
+    LOG(WARNING) << "Ignoring decline of offer " << offerId
+                 << " since it is no longer valid";
   }
 }
 
