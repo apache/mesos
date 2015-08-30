@@ -17,10 +17,19 @@
  */
 
 import "mesos/mesos.proto";
+import "mesos/maintenance/maintenance.proto";
 
 package mesos.internal;
 
+/**
+ * A top level object that is managed by the Registrar and persisted in a
+ * replicated log.  This object is recovered upon master startup and failover.
+ */
 message Registry {
+  // NOTE: This object defines wrappers around existing objects in case
+  // the Registry wishes to store more information about the wrapped objects
+  // in the future.
+
   message Master {
     required MasterInfo info = 1;
   }
@@ -33,9 +42,27 @@ message Registry {
     repeated Slave slaves = 1;
   }
 
+  message Machine {
+    required MachineInfo info = 1;
+  }
+
+  message Machines {
+    repeated Machine machines = 1;
+  }
+
   // Most recent leading master.
   optional Master master = 1;
 
   // All admitted slaves.
   optional Slaves slaves = 2;
+
+  // Holds a list of machines and some status information about each.
+  // See comments in `MachineInfo` for more information.
+  optional Machines machines = 3;
+
+  // Describes a schedule for taking down specific machines for maintenance.
+  // The schedule is meant to give hints to frameworks about potential
+  // unavailability of resources.  The `schedules` are related to the status
+  // information found in `machines`.
+  repeated maintenance.Schedule schedules = 4;
 }

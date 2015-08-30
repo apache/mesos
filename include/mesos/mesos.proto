@@ -155,6 +155,65 @@ message Unavailability {
 
 
 /**
+ * Represents a single machine, which may hold one or more slaves.
+ *
+ * NOTE: In order to match a slave to a machine, both the `hostname` and
+ * `ip` must match the values advertised by the slave to the master.
+ * Hostname is not case-sensitive.
+ */
+message MachineID {
+  optional string hostname = 1;
+  optional string ip = 2;
+}
+
+
+/**
+ * A list of machines.
+ *
+ * TODO(josephw): Remove this when https://reviews.apache.org/r/37826/
+ * is submitted.
+ */
+message MachineIDs {
+  repeated MachineID values = 1;
+}
+
+
+/**
+ * Holds information about a single machine, its `mode`, and any other
+ * relevant information which may affect the behavior of the machine.
+ */
+message MachineInfo {
+  // Describes the several states that a machine can be in.  A `Mode`
+  // applies to a machine and to all associated slaves on the machine.
+  enum Mode {
+    // In this mode, a machine is behaving normally;
+    // offering resources, executing tasks, etc.
+    UP = 1;
+
+    // In this mode, all slaves on the machine are expected to cooperate with
+    // frameworks to drain resources.  In general, draining is done ahead of
+    // a pending `unavailability`.  The resources should be drained so as to
+    // maximize utilization prior to the maintenance but without knowingly
+    // violating the frameworks' requirements.
+    DRAINING = 2;
+
+    // In this mode, a machine is not running any tasks and will not offer
+    // any of its resources.  Slaves on the machine will not be allowed to
+    // register with the master.
+    DOWN = 3;
+  }
+
+  required MachineID id = 1;
+  optional Mode mode = 2;
+
+  // Signifies that the machine may be unavailable during the given interval.
+  // See comments in `Unavailability` and for the `unavailability` fields
+  // in `Offer` and `InverseOffer` for more information.
+  optional Unavailability unavailability = 3;
+}
+
+
+/**
  * Describes a framework.
  */
 message FrameworkInfo {
