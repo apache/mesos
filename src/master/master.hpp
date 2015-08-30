@@ -836,6 +836,10 @@ private:
     process::Future<process::http::Response> maintenanceSchedule(
         const process::http::Request& request) const;
 
+    // /master/maintenance/status
+    process::Future<process::http::Response> maintenanceStatus(
+        const process::http::Request& request) const;
+
     // /master/machine/down
     process::Future<process::http::Response> machineDown(
         const process::http::Request& request) const;
@@ -855,6 +859,7 @@ private:
     const static std::string STATESUMMARY_HELP;
     const static std::string TASKS_HELP;
     const static std::string MAINTENANCE_SCHEDULE_HELP;
+    const static std::string MAINTENANCE_STATUS_HELP;
     const static std::string MACHINE_DOWN_HELP;
     const static std::string MACHINE_UP_HELP;
 

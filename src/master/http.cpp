@@ -1651,6 +1651,47 @@ Future<Response> Master::Http::machineUp(const Request& request) const
 }
 
 
+// /master/maintenance/status endpoint help.
+const string Master::Http::MAINTENANCE_STATUS_HELP = HELP(
+    TLDR(
+        "Retrieves the maintenance status of the cluster."),
+    USAGE(
+        "/master/maintenance/status"),
+    DESCRIPTION(
+        "Returns an object with one list of machines per machine mode."));
+
+
+// /master/maintenance/status endpoint handler.
+Future<Response> Master::Http::maintenanceStatus(const Request& request) const
+{
+  if (request.method != "GET") {
+    return BadRequest("Expecting GET, got '" + request.method + "'");
+  }
+
+  // Unwrap the master's machine information into two arrays of machines.
+  mesos::maintenance::ClusterStatus status;
+  foreachkey (const MachineID& id, master->machineInfos) {
+    switch (master->machineInfos[id].mode()) {
+      case MachineInfo::DRAINING: {
+        status.add_draining_machines()->CopyFrom(id);
+        break;
+      }
+      case MachineInfo::DOWN: {
+        status.add_down_machines()->CopyFrom(id);
+        break;
+      }
+      // Currently, `UP` machines are not specifically tracked in the master.
+      case MachineInfo::UP: {}
+      default: {
+        break;
+      }
+    }
+  }
+
+  return OK(JSON::Protobuf(status), request.query.get("jsonp"));
+}
+
+
 Result<Credential> Master::Http::authenticate(const Request& request) const
 {
   // By default, assume everyone is authenticated if no credentials

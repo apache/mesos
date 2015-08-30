@@ -65,3 +65,13 @@ message Window {
 message Schedule {
   repeated Window windows = 1;
 }
+
+
+/**
+ * Represents the maintenance status of each machine in the cluster.
+ * Corresponds to the `MachineInfo.Mode` enumeration.
+ */
+message ClusterStatus {
+  repeated MachineID draining_machines = 1;
+  repeated MachineID down_machines = 2;
+}

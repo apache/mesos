@@ -239,6 +239,58 @@ TEST_F(MasterMaintenanceTest, UpdateSchedule)
 }
 
 
+// Tries to remove deactivated machines from the schedule.
+TEST_F(MasterMaintenanceTest, FailToUnscheduleDeactivatedMachines)
+{
+  // Set up a master.
+  Try<PID<Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  // Schedule two machines.
+  maintenance::Schedule schedule = createSchedule(
+      {createWindow({machine1, machine2}, unavailability)});
+
+  Future<Response> response = process::http::post(
+      master.get(),
+      "maintenance/schedule",
+      headers,
+      stringify(JSON::Protobuf(schedule)));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+
+  // Deactivate machine1.
+  MachineIDs machines = createMachineList({machine1});
+  response = process::http::post(
+      master.get(),
+      "machine/down",
+      headers,
+      stringify(JSON::Protobuf(machines)));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+
+  // Try to unschedule machine1, by posting a schedule without it.
+  schedule = createSchedule({createWindow({machine2}, unavailability)});
+
+  response = process::http::post(
+      master.get(),
+      "maintenance/schedule",
+      headers,
+      stringify(JSON::Protobuf(schedule)));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response);
+
+  // Reactivate machine1.
+  machines = createMachineList({machine1});
+  response = process::http::post(
+      master.get(),
+      "machine/up",
+      headers,
+      stringify(JSON::Protobuf(machines)));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+}
+
+
 // Posts valid and invalid machines to the maintenance start endpoint.
 TEST_F(MasterMaintenanceTest, BringDownMachines)
 {
@@ -446,6 +498,93 @@ TEST_F(MasterMaintenanceTest, BringUpMachines)
 
   ASSERT_SOME(masterSchedule);
   ASSERT_EQ(0, masterSchedule.get().windows().size());
+}
+
+
+// Queries for machine statuses in between maintenance mode transitions.
+TEST_F(MasterMaintenanceTest, MachineStatus)
+{
+  // Set up a master.
+  Try<PID<Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  // Try to stop maintenance on an unscheduled machine.
+  maintenance::Schedule schedule = createSchedule(
+      {createWindow({machine1, machine2}, unavailability)});
+
+  Future<Response> response = process::http::post(
+      master.get(),
+      "maintenance/schedule",
+      headers,
+      stringify(JSON::Protobuf(schedule)));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+
+  // Get the maintenance statuses.
+  response = process::http::get(master.get(), "maintenance/status");
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+
+  // Check that both machines are draining.
+  Try<JSON::Object> statuses_ =
+    JSON::parse<JSON::Object>(response.get().body);
+
+  ASSERT_SOME(statuses_);
+  Try<maintenance::ClusterStatus> statuses =
+    ::protobuf::parse<maintenance::ClusterStatus>(statuses_.get());
+
+  ASSERT_SOME(statuses);
+  ASSERT_EQ(2, statuses.get().draining_machines().size());
+  ASSERT_EQ(0, statuses.get().down_machines().size());
+
+  // Deactivate machine1.
+  MachineIDs machines = createMachineList({machine1});
+  response = process::http::post(
+      master.get(),
+      "machine/down",
+      headers,
+      stringify(JSON::Protobuf(machines)));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+
+  // Get the maintenance statuses.
+  response = process::http::get(master.get(), "maintenance/status");
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+
+  // Check one machine is deactivated.
+  statuses_ = JSON::parse<JSON::Object>(response.get().body);
+
+  ASSERT_SOME(statuses_);
+  statuses = ::protobuf::parse<maintenance::ClusterStatus>(statuses_.get());
+
+  ASSERT_SOME(statuses);
+  ASSERT_EQ(1, statuses.get().draining_machines().size());
+  ASSERT_EQ(1, statuses.get().down_machines().size());
+  ASSERT_EQ("Machine1", statuses.get().down_machines(0).hostname());
+
+  // Reactivate machine1.
+  machines = createMachineList({machine1});
+  response = process::http::post(
+      master.get(),
+      "machine/up",
+      headers,
+      stringify(JSON::Protobuf(machines)));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+
+  // Get the maintenance statuses.
+  response = process::http::get(master.get(), "maintenance/status");
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+
+  // Check that only one machine remains.
+  statuses_ = JSON::parse<JSON::Object>(response.get().body);
+
+  ASSERT_SOME(statuses_);
+  statuses = ::protobuf::parse<maintenance::ClusterStatus>(statuses_.get());
+
+  ASSERT_SOME(statuses);
+  ASSERT_EQ(1, statuses.get().draining_machines().size());
+  ASSERT_EQ(0, statuses.get().down_machines().size());
+  ASSERT_EQ("0.0.0.2", statuses.get().draining_machines(0).ip());
 }
 
 } // namespace tests {

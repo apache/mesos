@@ -821,6 +821,12 @@ void Master::initialize()
           Http::log(request);
           return http.maintenanceSchedule(request);
         });
+  route("/maintenance/status",
+        Http::MAINTENANCE_STATUS_HELP,
+        [http](const process::http::Request& request) {
+          Http::log(request);
+          return http.maintenanceStatus(request);
+        });
   route("/machine/down",
         Http::MACHINE_DOWN_HELP,
         [http](const process::http::Request& request) {
