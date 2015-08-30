@@ -3998,7 +3998,7 @@ void Master::updateSlave(
   LOG(INFO) << "Received update of slave " << *slave << " with total"
             << " oversubscribed resources " <<  oversubscribedResources;
 
-  // First, rescind any oustanding offers with revocable resources.
+  // First, rescind any outstanding offers with revocable resources.
   // NOTE: Need a copy of offers because the offers are removed inside
   // the loop.
   foreach (Offer* offer, utils::copy(slave->offers)) {
