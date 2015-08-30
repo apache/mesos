@@ -75,6 +75,7 @@ public:
   void addSlave(
       const SlaveID& slaveId,
       const SlaveInfo& slaveInfo,
+      const Option<Unavailability>& unavailability,
       const Resources& total,
       const hashmap<FrameworkID, Resources>& used);
 
@@ -165,6 +166,7 @@ public:
   virtual void addSlave(
       const SlaveID& slaveId,
       const SlaveInfo& slaveInfo,
+      const Option<Unavailability>& unavailability,
       const Resources& total,
       const hashmap<FrameworkID, Resources>& used) = 0;
 
@@ -316,6 +318,7 @@ template <typename AllocatorProcess>
 inline void MesosAllocator<AllocatorProcess>::addSlave(
     const SlaveID& slaveId,
     const SlaveInfo& slaveInfo,
+    const Option<Unavailability>& unavailability,
     const Resources& total,
     const hashmap<FrameworkID, Resources>& used)
 {
@@ -324,6 +327,7 @@ inline void MesosAllocator<AllocatorProcess>::addSlave(
       &MesosAllocatorProcess::addSlave,
       slaveId,
       slaveInfo,
+      unavailability,
       total,
       used);
 }

@@ -28,3 +28,32 @@ message RoleInfo {
   required string name = 1;
   optional double weight = 2 [default = 1];
 }
+
+
+/**
+ * Describes the status of an inverse offer.
+ *
+ * This is a protobuf so as to be able to share the status to inverse offers
+ * through endpoints such as the maintenance status endpoint.
+ */
+// TODO(jmlvanre): Copy this when V1 Allocator API is introduced.
+message InverseOfferStatus {
+  enum Status {
+    // We have not received a response yet. This is the default state before
+    // receiving a response.
+    UNKNOWN = 1;
+    // The framework is ok with the inverse offer. This means it will not
+    // violate any SLAs and will attempt to evacuate any tasks running on the
+    // agent. If the tasks are not evacuated by the framework, the operator can
+    // manually shut down the slave knowing that the framework will not have
+    // violated its SLAs.
+    ACCEPT = 2;
+    // The framework wants to block the maintenance operation from happening. An
+    // example would be that it can not meet its SLA by losing resources.
+    DECLINE = 3;
+  }
+
+  required Status status = 1;
+
+  // TODO(jmlvanre): Capture decline message.
+}

@@ -36,6 +36,7 @@
 #include <stout/check.hpp>
 #include <stout/duration.hpp>
 #include <stout/hashmap.hpp>
+#include <stout/hashset.hpp>
 #include <stout/stopwatch.hpp>
 #include <stout/stringify.hpp>
 
@@ -112,6 +113,7 @@ public:
   void addSlave(
       const SlaveID& slaveId,
       const SlaveInfo& slaveInfo,
+      const Option<Unavailability>& unavailability,
       const Resources& total,
       const hashmap<FrameworkID, Resources>& used);
 
@@ -258,6 +260,40 @@ protected:
     bool checkpoint; // Whether slave supports checkpointing.
 
     std::string hostname;
+
+    // Represents a scheduled unavailability due to maintenance for a specific
+    // slave, and the responses from frameworks as to whether they will be able
+    // to gracefully handle this unavailability.
+    // NOTE: We currently implement maintenance in the allocator to be able to
+    // leverage state and features such as the FrameworkSorter and Filters.
+    struct Maintenance
+    {
+      Maintenance(const Unavailability& _unavailability)
+        : unavailability(_unavailability) {}
+
+      // The start time and optional duration of the event.
+      Unavailability unavailability;
+
+      // A mapping of frameworks to the inverse offer status associated with
+      // this unavailability.
+      // NOTE: We currently lose this information during a master fail over
+      // since it is not persisted or replicated. This is ok as the new master's
+      // allocator will send out new inverse offers and re-collect the
+      // information. This is similar to all the outstanding offers from an old
+      // master being invalidated, and new offers being sent out.
+      hashmap<FrameworkID, mesos::master::InverseOfferStatus> statuses;
+
+      // Represent the "unit of accounting" for maintenance. When a
+      // `FrameworkID` is present in the hashset it means an inverse offer has
+      // been sent out. When it is not present it means no offer is currently
+      // outstanding.
+      hashset<FrameworkID> offersOutstanding;
+    };
+
+    // When the `maintenance` is set the slave is scheduled to be unavailable at
+    // a given point in time, for an optional duration. This information is used
+    // to send out `InverseOffers`.
+    Option<Maintenance> maintenance;
   };
 
   hashmap<SlaveID, Slave> slaves;
@@ -509,6 +545,7 @@ void
 HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::addSlave(
     const SlaveID& slaveId,
     const SlaveInfo& slaveInfo,
+    const Option<Unavailability>& unavailability,
     const Resources& total,
     const hashmap<FrameworkID, Resources>& used)
 {
@@ -539,6 +576,13 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::addSlave(
   slaves[slaveId].activated = true;
   slaves[slaveId].checkpoint = slaveInfo.checkpoint();
   slaves[slaveId].hostname = slaveInfo.hostname();
+
+  // NOTE: We currently implement maintenance in the allocator to be able to
+  // leverage state and features such as the FrameworkSorter and Filters.
+  if (unavailability.isSome()) {
+    slaves[slaveId].maintenance =
+      typename Slave::Maintenance(unavailability.get());
+  }
 
   LOG(INFO) << "Added slave " << slaveId << " (" << slaves[slaveId].hostname
             << ") with " << slaves[slaveId].total

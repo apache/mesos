@@ -5445,9 +5445,18 @@ void Master::addSlave(
     }
   }
 
+  CHECK(machines.contains(slave->machineId));
+
+  // Only set unavailability if the protobuf has one set.
+  Option<Unavailability> unavailability = None();
+  if (machines[slave->machineId].info.has_unavailability()) {
+    unavailability = machines[slave->machineId].info.unavailability();
+  }
+
   allocator->addSlave(
       slave->id,
       slave->info,
+      unavailability,
       slave->totalResources,
       slave->usedResources);
 }
