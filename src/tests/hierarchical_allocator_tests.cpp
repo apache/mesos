@@ -416,6 +416,65 @@ TEST_F(HierarchicalAllocatorTest, ReservedDRF)
 }
 
 
+// This test ensures that agents which are scheduled for maintenance are
+// properly sent inverse offers after they have accepted or reserved resources.
+TEST_F(HierarchicalAllocatorTest, MaintenanceInverseOffers)
+{
+  // Pausing the clock is not necessary, but ensures that the test doesn't rely
+  // on the periodic allocation in the allocator, which would slow down the
+  // test.
+  Clock::pause();
+
+  initialize(vector<string>{});
+
+  // No initial resources.
+  hashmap<FrameworkID, Resources> EMPTY;
+
+  // Create an agent.
+  SlaveInfo agent = createSlaveInfo("cpus:2;mem:1024;disk:0");
+  allocator->addSlave(agent.id(), agent, None(), agent.resources(), EMPTY);
+
+  // This framework will be offered all of the resources.
+  FrameworkInfo framework1 = createFrameworkInfo("*");
+  allocator->addFramework(
+      framework1.id(), framework1, hashmap<SlaveID, Resources>());
+
+  // Check that the resources go to the framework.
+  Future<Allocation> allocation = allocations.get();
+  AWAIT_READY(allocation);
+  EXPECT_EQ(framework1.id(), allocation.get().frameworkId);
+  EXPECT_EQ(agent.resources(), Resources::sum(allocation.get().resources));
+
+  // TODO(jmlvanre): Replace Time(0.0) with `Clock::now()` once JSON double
+  // conversion is fixed. For now using a rounded time avoids the issue.
+  const process::Time start = process::Time::create(0.0).get() + Seconds(60);
+
+  // Give the agent some unavailability.
+  allocator->updateUnavailability(
+      agent.id(),
+      protobuf::maintenance::createUnavailability(
+          start));
+
+  // Check the resources get inverse offered.
+  Future<Deallocation> deallocation = deallocations.get();
+  AWAIT_READY(deallocation);
+  EXPECT_EQ(framework1.id(), deallocation.get().frameworkId);
+  EXPECT_TRUE(deallocation.get().resources.contains(agent.id()));
+
+  foreachvalue (
+      const UnavailableResources& unavailableResources,
+      deallocation.get().resources) {
+    // The resources in the inverse offer are unspecified.
+    // This means everything is being requested back.
+    EXPECT_EQ(Resources(), unavailableResources.resources);
+
+    EXPECT_EQ(
+        start.duration(),
+        Nanoseconds(unavailableResources.unavailability.start().nanoseconds()));
+  }
+}
+
+
 // This test ensures that allocation is done per slave. This is done
 // by having 2 slaves and 2 frameworks and making sure each framework
 // gets only one slave's resources during an allocation.
