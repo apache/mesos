@@ -83,8 +83,7 @@ libprocess_la_SOURCES +=	\
     src/libevent_ssl_socket.hpp	\
     src/openssl.cpp		\
     src/openssl.hpp		\
-    src/openssl_util.cpp	\
-    src/openssl_util.hpp
+    src/ssl/utilities.cpp
 endif
 
 libprocess_la_CPPFLAGS =			\

@@ -15,6 +15,8 @@
 #ifndef __OPENSSL_UTIL_HPP__
 #define __OPENSSL_UTIL_HPP__
 
+#ifdef USE_SSL_SOCKET
+
 #include <openssl/ssl.h>
 #include <openssl/x509.h>
 
@@ -107,5 +109,7 @@ Try<Nothing> write_certificate_file(X509* x509, const Path& path);
 } // namespace openssl {
 } // namespace network {
 } // namespace process {
+
+#endif // USE_SSL_SOCKET
 
 #endif // __OPENSSL_UTIL_HPP__

@@ -57,6 +57,8 @@ nobase_include_HEADERS =		\
   process/sequence.hpp			\
   process/shared.hpp			\
   process/socket.hpp			\
+  process/ssl/gtest.hpp			\
+  process/ssl/utilities.hpp		\
   process/statistics.hpp		\
   process/system.hpp			\
   process/subprocess.hpp		\

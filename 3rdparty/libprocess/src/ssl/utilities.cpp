@@ -12,7 +12,7 @@
 * limitations under the License
 */
 
-#include "openssl_util.hpp"
+#include <process/ssl/utilities.hpp>
 
 #include <openssl/err.h>
 #include <openssl/rsa.h>
