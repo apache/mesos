@@ -383,6 +383,21 @@ Future<hashmap<string, mesos::PerfStatistics>> sample(
 } // namespace internal {
 
 
+Future<Version> version()
+{
+  internal::Perf* perf = new internal::Perf({"--version"});
+  Future<string> future = perf->future();
+  spawn(perf, true);
+
+  return future
+    .then([=](const string& output) -> Future<Version> {
+      // Trim off the leading 'perf version ' text to convert.
+      return Version::parse(strings::remove(
+          output, "perf version ", strings::PREFIX));
+    });
+};
+
+
 Future<mesos::PerfStatistics> sample(
     const set<string>& events,
     pid_t pid,
@@ -450,14 +465,24 @@ bool valid(const set<string>& events)
 
 bool supported()
 {
-  // Require Linux kernel version >= 2.6.38 for "-x" and >= 2.6.39 for
-  // "--cgroup"
-  Try<Version> release = os::release();
+  // Require perf version >= 2.6.39 to support cgroups and formatting.
+  Future<Version> version = perf::version();
 
-  // This is not expected to ever be an Error.
-  CHECK_SOME(release);
+  // If perf does not respond in a reasonable time, mark as unsupported.
+  version.await(Seconds(5));
 
-  return release.get() >= Version(2, 6, 39);
+  if (!version.isReady()) {
+    if (version.isFailed()) {
+      LOG(ERROR) << "Failed to get perf version: " << version.failure();
+    } else {
+      LOG(ERROR) << "Failed to get perf version: timeout of 5secs exceeded";
+    }
+
+    version.discard();
+    return false;
+  }
+
+  return version.get() >= Version(2, 6, 39);
 }
 
 
