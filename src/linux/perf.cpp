@@ -413,30 +413,28 @@ Try<hashmap<string, mesos::PerfStatistics>> parse(const string& output)
     }
 
     switch (field->type()) {
-      case google::protobuf::FieldDescriptor::TYPE_DOUBLE:
-        {
-          Try<double> number =
-            (value == "<not counted>") ?  0 : numify<double>(value);
+      case google::protobuf::FieldDescriptor::TYPE_DOUBLE: {
+        Try<double> number =
+          (value == "<not counted>") ?  0 : numify<double>(value);
 
-          if (number.isError()) {
-            return Error("Unable to parse perf value at line: " + line);
-          }
-
-          reflection->SetDouble(&(statistics[cgroup]), field, number.get());
-          break;
+        if (number.isError()) {
+          return Error("Unable to parse perf value at line: " + line);
         }
-      case google::protobuf::FieldDescriptor::TYPE_UINT64:
-        {
-          Try<uint64_t> number =
+
+        reflection->SetDouble(&(statistics[cgroup]), field, number.get());
+        break;
+      }
+      case google::protobuf::FieldDescriptor::TYPE_UINT64: {
+        Try<uint64_t> number =
             (value == "<not counted>") ?  0 : numify<uint64_t>(value);
 
-          if (number.isError()) {
-            return Error("Unable to parse perf value at line: " + line);
-          }
-
-          reflection->SetUInt64(&(statistics[cgroup]), field, number.get());
-          break;
+        if (number.isError()) {
+          return Error("Unable to parse perf value at line: " + line);
         }
+
+        reflection->SetUInt64(&(statistics[cgroup]), field, number.get());
+        break;
+      }
       default:
         return Error("Unsupported perf field type at line: " + line);
       }
