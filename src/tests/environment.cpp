@@ -174,7 +174,7 @@ public:
   DockerFilter()
   {
 #ifdef __linux__
-    Try<Docker*> docker = Docker::create(flags.docker);
+    Try<Docker*> docker = Docker::create(flags.docker, flags.docker_socket);
     if (docker.isError()) {
       dockerError = docker.error();
     } else {

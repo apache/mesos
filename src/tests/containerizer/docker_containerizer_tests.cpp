@@ -141,7 +141,10 @@ public:
 
   virtual void TearDown()
   {
-    Try<Docker*> docker = Docker::create(tests::flags.docker, false);
+    Try<Docker*> docker =
+      Docker::create(tests::flags.docker, tests::flags.docker_socket,
+      false);
+
     ASSERT_SOME(docker);
     Future<list<Docker::Container>> containers =
       docker.get()->ps(true, slave::DOCKER_NAME_PREFIX);
@@ -167,7 +170,9 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Launch_Executor)
   Try<PID<Master> > master = StartMaster();
   ASSERT_SOME(master);
 
-  MockDocker* mockDocker = new MockDocker(tests::flags.docker);
+  MockDocker* mockDocker =
+   new MockDocker(tests::flags.docker, tests::flags.docker_socket);
+
   Shared<Docker> docker(mockDocker);
 
   slave::Flags flags = CreateSlaveFlags();
@@ -277,7 +282,9 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Launch_Executor_Bridged)
   Try<PID<Master> > master = StartMaster();
   ASSERT_SOME(master);
 
-  MockDocker* mockDocker = new MockDocker(tests::flags.docker);
+  MockDocker* mockDocker =
+    new MockDocker(tests::flags.docker, tests::flags.docker_socket);
+
   Shared<Docker> docker(mockDocker);
 
   slave::Flags flags = CreateSlaveFlags();
@@ -384,7 +391,9 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Launch)
   Try<PID<Master> > master = StartMaster();
   ASSERT_SOME(master);
 
-  MockDocker* mockDocker = new MockDocker(tests::flags.docker);
+  MockDocker* mockDocker =
+    new MockDocker(tests::flags.docker, tests::flags.docker_socket);
+
   Shared<Docker> docker(mockDocker);
 
   slave::Flags flags = CreateSlaveFlags();
@@ -490,7 +499,9 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Kill)
   Try<PID<Master> > master = StartMaster();
   ASSERT_SOME(master);
 
-  MockDocker* mockDocker = new MockDocker(tests::flags.docker);
+  MockDocker* mockDocker =
+    new MockDocker(tests::flags.docker, tests::flags.docker_socket);
+
   Shared<Docker> docker(mockDocker);
 
   slave::Flags flags = CreateSlaveFlags();
@@ -598,7 +609,9 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Usage)
   slave::Flags flags = CreateSlaveFlags();
   flags.resources = Option<string>("cpus:2;mem:1024");
 
-  MockDocker* mockDocker = new MockDocker(tests::flags.docker);
+  MockDocker* mockDocker =
+    new MockDocker(tests::flags.docker, tests::flags.docker_socket);
+
   Shared<Docker> docker(mockDocker);
 
   Fetcher fetcher;
@@ -731,7 +744,9 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Update)
 
   slave::Flags flags = CreateSlaveFlags();
 
-  MockDocker* mockDocker = new MockDocker(tests::flags.docker);
+  MockDocker* mockDocker =
+    new MockDocker(tests::flags.docker, tests::flags.docker_socket);
+
   Shared<Docker> docker(mockDocker);
 
   Fetcher fetcher;
@@ -883,7 +898,9 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Recover)
 {
   slave::Flags flags = CreateSlaveFlags();
 
-  MockDocker* mockDocker = new MockDocker(tests::flags.docker);
+  MockDocker* mockDocker =
+    new MockDocker(tests::flags.docker, tests::flags.docker_socket);
+
   Shared<Docker> docker(mockDocker);
 
   Future<string> stoppedContainer;
@@ -998,7 +1015,9 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_SkipRecoverNonDocker)
 {
   slave::Flags flags = CreateSlaveFlags();
 
-  MockDocker* mockDocker = new MockDocker(tests::flags.docker);
+  MockDocker* mockDocker =
+    new MockDocker(tests::flags.docker, tests::flags.docker_socket);
+
   Shared<Docker> docker(mockDocker);
 
   Fetcher fetcher;
@@ -1051,7 +1070,9 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Logs)
 
   slave::Flags flags = CreateSlaveFlags();
 
-  MockDocker* mockDocker = new MockDocker(tests::flags.docker);
+  MockDocker* mockDocker =
+    new MockDocker(tests::flags.docker, tests::flags.docker_socket);
+
   Shared<Docker> docker(mockDocker);
 
   // We skip stopping the docker container because stopping a container
@@ -1169,7 +1190,9 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Default_CMD)
 
   slave::Flags flags = CreateSlaveFlags();
 
-  MockDocker* mockDocker = new MockDocker(tests::flags.docker);
+  MockDocker* mockDocker =
+    new MockDocker(tests::flags.docker, tests::flags.docker_socket);
+
   Shared<Docker> docker(mockDocker);
 
   // We skip stopping the docker container because stopping a container
@@ -1290,7 +1313,9 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Default_CMD_Override)
 
   slave::Flags flags = CreateSlaveFlags();
 
-  MockDocker* mockDocker = new MockDocker(tests::flags.docker);
+  MockDocker* mockDocker =
+    new MockDocker(tests::flags.docker, tests::flags.docker_socket);
+
   Shared<Docker> docker(mockDocker);
 
   // We skip stopping the docker container because stopping  a container
@@ -1414,7 +1439,9 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Default_CMD_Args)
 
   slave::Flags flags = CreateSlaveFlags();
 
-  MockDocker* mockDocker = new MockDocker(tests::flags.docker);
+  MockDocker* mockDocker =
+    new MockDocker(tests::flags.docker, tests::flags.docker_socket);
+
   Shared<Docker> docker(mockDocker);
 
   // We skip stopping the docker container because stopping a container
@@ -1540,7 +1567,9 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_SlaveRecoveryTaskContainer)
 
   slave::Flags flags = CreateSlaveFlags();
 
-  MockDocker* mockDocker = new MockDocker(tests::flags.docker);
+  MockDocker* mockDocker =
+    new MockDocker(tests::flags.docker, tests::flags.docker_socket);
+
   Shared<Docker> docker(mockDocker);
 
   Fetcher fetcher;
@@ -1689,7 +1718,9 @@ TEST_F(DockerContainerizerTest,
 
   slave::Flags flags = CreateSlaveFlags();
 
-  MockDocker* mockDocker = new MockDocker(tests::flags.docker);
+  MockDocker* mockDocker =
+    new MockDocker(tests::flags.docker, tests::flags.docker_socket);
+
   Shared<Docker> docker(mockDocker);
 
   Fetcher fetcher;
@@ -1847,7 +1878,9 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_NC_PortMapping)
 
   flags.resources = "cpus:1;mem:1024;ports:[10000-10000]";
 
-  MockDocker* mockDocker = new MockDocker(tests::flags.docker);
+  MockDocker* mockDocker =
+    new MockDocker(tests::flags.docker, tests::flags.docker_socket);
+
   Shared<Docker> docker(mockDocker);
 
   // We skip stopping the docker container because stopping a container
@@ -1988,7 +2021,9 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_LaunchSandboxWithColon)
 
   slave::Flags flags = CreateSlaveFlags();
 
-  MockDocker* mockDocker = new MockDocker(tests::flags.docker);
+  MockDocker* mockDocker =
+    new MockDocker(tests::flags.docker, tests::flags.docker_socket);
+
   Shared<Docker> docker(mockDocker);
 
   Fetcher fetcher;
@@ -2080,7 +2115,9 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_DestroyWhileFetching)
 
   slave::Flags flags = CreateSlaveFlags();
 
-  MockDocker* mockDocker = new MockDocker(tests::flags.docker);
+  MockDocker* mockDocker =
+    new MockDocker(tests::flags.docker, tests::flags.docker_socket);
+
   Shared<Docker> docker(mockDocker);
 
   Fetcher fetcher;
@@ -2185,7 +2222,9 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_DestroyWhilePulling)
 
   slave::Flags flags = CreateSlaveFlags();
 
-  MockDocker* mockDocker = new MockDocker(tests::flags.docker);
+  MockDocker* mockDocker =
+    new MockDocker(tests::flags.docker, tests::flags.docker_socket);
+
   Shared<Docker> docker(mockDocker);
 
   Fetcher fetcher;
@@ -2297,7 +2336,9 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_ExecutorCleanupWhenLaunchFailed)
 
   slave::Flags flags = CreateSlaveFlags();
 
-  MockDocker* mockDocker = new MockDocker(tests::flags.docker);
+  MockDocker* mockDocker =
+    new MockDocker(tests::flags.docker, tests::flags.docker_socket);
+
   Shared<Docker> docker(mockDocker);
 
   Fetcher fetcher;
@@ -2394,7 +2435,9 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_FetchFailure)
 
   slave::Flags flags = CreateSlaveFlags();
 
-  MockDocker* mockDocker = new MockDocker(tests::flags.docker);
+  MockDocker* mockDocker =
+    new MockDocker(tests::flags.docker, tests::flags.docker_socket);
+
   Shared<Docker> docker(mockDocker);
 
   Fetcher fetcher;
@@ -2495,7 +2538,9 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_DockerPullFailure)
 
   slave::Flags flags = CreateSlaveFlags();
 
-  MockDocker* mockDocker = new MockDocker(tests::flags.docker);
+  MockDocker* mockDocker =
+    new MockDocker(tests::flags.docker, tests::flags.docker_socket);
+
   Shared<Docker> docker(mockDocker);
 
   Fetcher fetcher;
@@ -2596,7 +2641,9 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_DockerInspectDiscard)
 
   slave::Flags flags = CreateSlaveFlags();
 
-  MockDocker* mockDocker = new MockDocker(tests::flags.docker);
+  MockDocker* mockDocker =
+    new MockDocker(tests::flags.docker, tests::flags.docker_socket);
+
   Shared<Docker> docker(mockDocker);
 
   Future<Docker::Container> inspect;

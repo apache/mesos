@@ -123,7 +123,7 @@ Try<DockerContainerizer*> DockerContainerizer::create(
     const Flags& flags,
     Fetcher* fetcher)
 {
-  Try<Docker*> create = Docker::create(flags.docker);
+  Try<Docker*> create = Docker::create(flags.docker, flags.docker_socket, true);
   if (create.isError()) {
     return Error("Failed to create docker: " + create.error());
   }
@@ -187,6 +187,7 @@ docker::Flags dockerFlags(
   dockerFlags.sandbox_directory = directory;
   dockerFlags.mapped_directory = flags.sandbox_directory;
   dockerFlags.stop_timeout = flags.docker_stop_timeout;
+  dockerFlags.docker_socket = flags.docker_socket;
   return dockerFlags;
 }
 

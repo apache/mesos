@@ -95,10 +95,16 @@ static Future<Nothing> checkError(const string& cmd, const Subprocess& s)
     .then(lambda::bind(_checkError, cmd, s));
 }
 
-
-Try<Docker*> Docker::create(const string& path, bool validate)
+Try<Docker*> Docker::create(
+    const string& path,
+    const string& socket,
+    bool validate)
 {
-  Docker* docker = new Docker(path);
+  if (!strings::startsWith(socket, "/")) {
+    return Error("Invalid Docker socket path: " + socket);
+  }
+
+  Docker* docker = new Docker(path, socket);
   if (!validate) {
     return docker;
   }
@@ -147,7 +153,7 @@ void commandDiscarded(const Subprocess& s, const string& cmd)
 
 Future<Version> Docker::version() const
 {
-  string cmd = path + " --version";
+  string cmd = path + " -H " + socket + " --version";
 
   Try<Subprocess> s = subprocess(
       cmd,
@@ -348,6 +354,8 @@ Future<Nothing> Docker::run(
 
   vector<string> argv;
   argv.push_back(path);
+  argv.push_back("-H");
+  argv.push_back(socket);
   argv.push_back("run");
 
   if (dockerInfo.privileged()) {
@@ -595,7 +603,7 @@ Future<Nothing> Docker::stop(
                    stringify(timeoutSecs));
   }
 
-  string cmd = path + " stop -t " + stringify(timeoutSecs) +
+  string cmd = path + " -H " + socket + " stop -t " + stringify(timeoutSecs) +
                " " + containerName;
 
   VLOG(1) << "Running " << cmd;
@@ -642,7 +650,9 @@ Future<Nothing> Docker::rm(
     const string& containerName,
     bool force) const
 {
-  const string cmd = path + (force ? " rm -f " : " rm ") + containerName;
+  const string cmd =
+    path + " -H " + socket +
+    (force ? " rm -f " : " rm ") + containerName;
 
   VLOG(1) << "Running " << cmd;
 
@@ -666,7 +676,7 @@ Future<Docker::Container> Docker::inspect(
 {
   Owned<Promise<Docker::Container>> promise(new Promise<Docker::Container>());
 
-  const string cmd =  path + " inspect " + containerName;
+  const string cmd =  path + " -H " + socket + " inspect " + containerName;
   _inspect(cmd, promise, retryInterval);
 
   return promise->future();
@@ -800,7 +810,7 @@ Future<list<Docker::Container>> Docker::ps(
     bool all,
     const Option<string>& prefix) const
 {
-  string cmd = path + (all ? " ps -a" : " ps");
+  string cmd = path + " -H " + socket + (all ? " ps -a" : " ps");
 
   VLOG(1) << "Running " << cmd;
 
@@ -959,10 +969,12 @@ Future<Docker::Image> Docker::pull(
 
   if (force) {
     // Skip inspect and docker pull the image.
-    return Docker::__pull(*this, directory, image, path);
+    return Docker::__pull(*this, directory, image, path, socket);
   }
 
   argv.push_back(path);
+  argv.push_back("-H");
+  argv.push_back(socket);
   argv.push_back("inspect");
   argv.push_back(dockerImage);
 
@@ -997,6 +1009,7 @@ Future<Docker::Image> Docker::pull(
         directory,
         dockerImage,
         path,
+        socket,
         output));
 }
 
@@ -1007,6 +1020,7 @@ Future<Docker::Image> Docker::_pull(
     const string& directory,
     const string& image,
     const string& path,
+    const string& socket,
     Future<string> output)
 {
   Option<int> status = s.status().get();
@@ -1017,7 +1031,7 @@ Future<Docker::Image> Docker::_pull(
 
   output.discard();
 
-  return Docker::__pull(docker, directory, image, path);
+  return Docker::__pull(docker, directory, image, path, socket);
 }
 
 
@@ -1025,10 +1039,13 @@ Future<Docker::Image> Docker::__pull(
     const Docker& docker,
     const string& directory,
     const string& image,
-    const string& path)
+    const string& path,
+    const string& socket)
 {
   vector<string> argv;
   argv.push_back(path);
+  argv.push_back("-H");
+  argv.push_back(socket);
   argv.push_back("pull");
   argv.push_back(image);
 

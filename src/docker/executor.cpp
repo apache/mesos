@@ -406,7 +406,9 @@ int main(int argc, char** argv)
   // The 2nd argument for docker create is set to false so we skip
   // validation when creating a docker abstraction, as the slave
   // should have already validated docker.
-  Try<Docker*> docker = Docker::create(flags.docker.get(), false);
+  Try<Docker*> docker =
+    Docker::create(flags.docker.get(), flags.docker_socket.get(), false);
+
   if (docker.isError()) {
     cerr << "Unable to create docker abstraction: " << docker.error() << endl;
     return EXIT_FAILURE;

@@ -77,6 +77,14 @@ public:
         "Where to find docker executable",
         "docker");
 
+    add(&Flags::docker_socket,
+        "docker_socket",
+        "The UNIX socket path to be mounted into the\n"
+        "docker executor container to provide docker\n"
+        "CLI access to the docker daemon. This must be the\n"
+        "path used by the slave's docker image.\n",
+        "/var/run/docker.sock");
+
     // This help message for --modules flag is the same for
     // {master,slave,tests}/flags.hpp and should always be kept in
     // sync.
@@ -150,6 +158,7 @@ public:
   std::string source_dir;
   std::string build_dir;
   std::string docker;
+  std::string docker_socket;
   Option<Modules> modules;
   Option<std::string> isolation;
   std::string authenticators;

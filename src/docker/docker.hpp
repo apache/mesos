@@ -42,7 +42,10 @@ class Docker
 {
 public:
   // Create Docker abstraction and optionally validate docker.
-  static Try<Docker*> create(const std::string& path, bool validate = true);
+  static Try<Docker*> create(
+    const std::string& path,
+    const std::string& socket,
+    bool validate = true);
 
   virtual ~Docker() {}
 
@@ -151,7 +154,9 @@ public:
 
 protected:
   // Uses the specified path to the Docker CLI tool.
-  Docker(const std::string& _path) : path(_path) {};
+  Docker(const std::string& _path,
+         const std::string& _socket)
+       : path(_path), socket("unix://" + _socket) {};
 
 private:
   static process::Future<Nothing> _run(
@@ -219,13 +224,15 @@ private:
       const std::string& directory,
       const std::string& image,
       const std::string& path,
+      const std::string& socket,
       process::Future<std::string> output);
 
   static process::Future<Image> __pull(
       const Docker& docker,
       const std::string& directory,
       const std::string& image,
-      const std::string& path);
+      const std::string& path,
+      const std::string& socket);
 
   static process::Future<Image> ___pull(
       const Docker& docker,
@@ -242,6 +249,8 @@ private:
       const std::string& cmd);
 
   const std::string path;
+  const std::string socket;
+
 };
 
 #endif // __DOCKER_HPP__
