@@ -63,7 +63,7 @@ TEST_F(PerfTest, Parse)
   // uint64 and floats should be parsed.
   Try<hashmap<string, mesos::PerfStatistics> > parse =
     perf::parse("123,cycles\n0.123,task-clock");
-  CHECK_SOME(parse);
+  ASSERT_SOME(parse);
 
   ASSERT_TRUE(parse->contains(""));
   mesos::PerfStatistics statistics = parse->get("").get();
@@ -78,7 +78,7 @@ TEST_F(PerfTest, Parse)
                       "456,cycles,cgroup2\n"
                       "0.456,task-clock,cgroup2\n"
                       "0.123,task-clock,cgroup1");
-  CHECK_SOME(parse);
+  ASSERT_SOME(parse);
   EXPECT_FALSE(parse->contains(""));
 
   ASSERT_TRUE(parse->contains("cgroup1"));
@@ -99,7 +99,7 @@ TEST_F(PerfTest, Parse)
 
   // Statistics reporting <not supported> should not appear.
   parse = perf::parse("<not supported>,cycles");
-  CHECK_SOME(parse);
+  ASSERT_SOME(parse);
 
   ASSERT_TRUE(parse->contains(""));
   statistics = parse->get("").get();
@@ -107,7 +107,7 @@ TEST_F(PerfTest, Parse)
 
   // Statistics reporting <not counted> should be zero.
   parse = perf::parse("<not counted>,cycles\n<not counted>,task-clock");
-  CHECK_SOME(parse);
+  ASSERT_SOME(parse);
 
   ASSERT_TRUE(parse->contains(""));
   statistics = parse->get("").get();
