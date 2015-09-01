@@ -250,7 +250,6 @@ private:
 
   const std::string path;
   const std::string socket;
-
 };
 
 #endif // __DOCKER_HPP__

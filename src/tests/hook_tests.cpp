@@ -528,7 +528,7 @@ TEST_F(HookTest, ROOT_DOCKER_VerifySlavePreLaunchDockerHook)
   ASSERT_SOME(master);
 
   MockDocker* mockDocker =
-   new MockDocker(tests::flags.docker, tests::flags.docker_socket);
+    new MockDocker(tests::flags.docker, tests::flags.docker_socket);
   Shared<Docker> docker(mockDocker);
 
   slave::Flags flags = CreateSlaveFlags();

@@ -171,7 +171,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Launch_Executor)
   ASSERT_SOME(master);
 
   MockDocker* mockDocker =
-   new MockDocker(tests::flags.docker, tests::flags.docker_socket);
+    new MockDocker(tests::flags.docker, tests::flags.docker_socket);
 
   Shared<Docker> docker(mockDocker);
 
