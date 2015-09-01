@@ -1001,19 +1001,21 @@ TEST_F(CgroupsAnyHierarchyWithPerfEventTest, ROOT_CGROUPS_Perf)
   // NOTE: Wait at least 2 seconds as we've seen some variance in how
   // well 'perf' does across Linux distributions (e.g., Ubuntu 14.04)
   // and we want to make sure that we collect some non-zero values.
-  Future<mesos::PerfStatistics> statistics =
-    perf::sample(events, TEST_CGROUPS_ROOT, Seconds(2));
+  Future<hashmap<string, mesos::PerfStatistics>> statistics =
+    perf::sample(events, {TEST_CGROUPS_ROOT}, Seconds(2));
+
   AWAIT_READY(statistics);
 
-  ASSERT_TRUE(statistics->has_cycles());
+  ASSERT_TRUE(statistics->contains(TEST_CGROUPS_ROOT));
+  ASSERT_TRUE(statistics->at(TEST_CGROUPS_ROOT).has_cycles());
 
   // TODO(benh): Some Linux distributions (Ubuntu 14.04) fail to
   // properly sample 'cycles' with 'perf', so we don't explicitly
   // check the value here. See MESOS-3082.
   // EXPECT_LT(0u, statistics->cycles());
 
-  ASSERT_TRUE(statistics->has_task_clock());
-  EXPECT_LT(0.0, statistics->task_clock());
+  ASSERT_TRUE(statistics->at(TEST_CGROUPS_ROOT).has_task_clock());
+  EXPECT_LT(0.0, statistics->at(TEST_CGROUPS_ROOT).task_clock());
 
   // Kill the child process.
   ASSERT_NE(-1, ::kill(pid, SIGKILL));

@@ -61,90 +61,7 @@ namespace perf {
 // Delimiter for fields in perf stat output.
 static const char PERF_DELIMITER[] = ",";
 
-// Use an empty string as the key for the parse output when sampling a
-// set of pids. No valid cgroup can be an empty string.
-static const char PIDS_KEY[] = "";
-
 namespace internal {
-
-vector<string> argv(
-    const set<string>& events,
-    const set<string>& cgroups,
-    const Duration& duration)
-{
-  vector<string> argv = {
-    "stat",
-
-    // System-wide collection from all CPUs.
-    "--all-cpus",
-
-    // Print counts using a CSV-style output to make it easy to import
-    // directly into spreadsheets. Columns are separated by the string
-    // specified in PERF_DELIMITER.
-    "--field-separator", PERF_DELIMITER,
-
-    // Ensure all output goes to stdout.
-    "--log-fd", "1"
-  };
-
-  // Nested loop to produce all pairings of event and cgroup.
-  foreach (const string& event, events) {
-    foreach (const string& cgroup, cgroups) {
-      argv.push_back("--event");
-      argv.push_back(event);
-      argv.push_back("--cgroup");
-      argv.push_back(cgroup);
-    }
-  }
-
-  argv.push_back("--");
-  argv.push_back("sleep");
-  argv.push_back(stringify(duration.secs()));
-
-  return argv;
-}
-
-
-vector<string> argv(
-    const set<string>& events,
-    const string& cgroup,
-    const Duration& duration)
-{
-  set<string> cgroups;
-  cgroups.insert(cgroup);
-
-  return argv(events, cgroups, duration);
-}
-
-
-vector<string> argv(
-    const set<string>& events,
-    const set<pid_t>& pids,
-    const Duration& duration)
-{
-  vector<string> argv = {
-    "stat",
-
-    // System-wide collection from all CPUs.
-    "--all-cpus",
-
-    // Print counts using a CSV-style output to make it easy to import
-    // directly into spreadsheets. Columns are separated by the string
-    // specified in PERF_DELIMITER.
-    "--field-separator", PERF_DELIMITER,
-
-    // Ensure all output goes to stdout.
-    "--log-fd", "1",
-
-    "--event", strings::join(",", events),
-    "--pid", strings::join(",", pids),
-    "--",
-    "sleep", stringify(duration.secs())
-  };
-
-  return argv;
-}
-
 
 // Normalize a perf event name. After normalization the event name
 // should match an event field in the PerfStatistics protobuf.
@@ -341,23 +258,65 @@ private:
   Option<Subprocess> perf;
 };
 
+} // namespace internal {
 
-// Helper to select a single key from the hashmap of perf statistics.
-Future<mesos::PerfStatistics> select(
-    const string& key,
-    const hashmap<string, mesos::PerfStatistics>& statistics)
+
+Future<Version> version()
 {
-  return statistics.get(key).get();
-}
+  internal::Perf* perf = new internal::Perf({"--version"});
+  Future<string> future = perf->future();
+  spawn(perf, true);
+
+  return future
+    .then([=](const string& output) -> Future<Version> {
+      // Trim off the leading 'perf version ' text to convert.
+      return Version::parse(strings::remove(
+          output, "perf version ", strings::PREFIX));
+    });
+};
 
 
 Future<hashmap<string, mesos::PerfStatistics>> sample(
-    const vector<string>& argv,
+    const set<string>& events,
+    const set<string>& cgroups,
     const Duration& duration)
 {
+  if (!supported()) {
+    return Failure("Perf is not supported");
+  }
+
+  vector<string> argv = {
+    "stat",
+
+    // System-wide collection from all CPUs.
+    "--all-cpus",
+
+    // Print counts using a CSV-style output to make it easy to import
+    // directly into spreadsheets. Columns are separated by the string
+    // specified in PERF_DELIMITER.
+    "--field-separator", PERF_DELIMITER,
+
+    // Ensure all output goes to stdout.
+    "--log-fd", "1"
+  };
+
+  // Add all pairwise combinations of event and cgroup.
+  foreach (const string& event, events) {
+    foreach (const string& cgroup, cgroups) {
+      argv.push_back("--event");
+      argv.push_back(event);
+      argv.push_back("--cgroup");
+      argv.push_back(cgroup);
+    }
+  }
+
+  argv.push_back("--");
+  argv.push_back("sleep");
+  argv.push_back(stringify(duration.secs()));
+
   Time start = Clock::now();
 
-  Perf* perf = new Perf(argv);
+  internal::Perf* perf = new internal::Perf(argv);
   Future<string> future = perf->future();
   spawn(perf, true);
 
@@ -378,73 +337,6 @@ Future<hashmap<string, mesos::PerfStatistics>> sample(
   };
 
   return future.then(parse);
-}
-
-} // namespace internal {
-
-
-Future<Version> version()
-{
-  internal::Perf* perf = new internal::Perf({"--version"});
-  Future<string> future = perf->future();
-  spawn(perf, true);
-
-  return future
-    .then([=](const string& output) -> Future<Version> {
-      // Trim off the leading 'perf version ' text to convert.
-      return Version::parse(strings::remove(
-          output, "perf version ", strings::PREFIX));
-    });
-};
-
-
-Future<mesos::PerfStatistics> sample(
-    const set<string>& events,
-    pid_t pid,
-    const Duration& duration)
-{
-  set<pid_t> pids;
-  pids.insert(pid);
-  return sample(events, pids, duration);
-}
-
-
-Future<mesos::PerfStatistics> sample(
-    const set<string>& events,
-    const set<pid_t>& pids,
-    const Duration& duration)
-{
-  if (!supported()) {
-    return Failure("Perf is not supported");
-  }
-
-  return internal::sample(internal::argv(events, pids, duration), duration)
-    .then(lambda::bind(&internal::select, PIDS_KEY, lambda::_1));
-}
-
-
-Future<mesos::PerfStatistics> sample(
-    const set<string>& events,
-    const string& cgroup,
-    const Duration& duration)
-{
-  set<string> cgroups;
-  cgroups.insert(cgroup);
-  return sample(events, cgroups, duration)
-    .then(lambda::bind(&internal::select, cgroup, lambda::_1));
-}
-
-
-Future<hashmap<string, mesos::PerfStatistics>> sample(
-    const set<string>& events,
-    const set<string>& cgroups,
-    const Duration& duration)
-{
-  if (!supported()) {
-    return Failure("Perf is not supported");
-  }
-
-  return internal::sample(internal::argv(events, cgroups, duration), duration);
 }
 
 
@@ -492,18 +384,15 @@ Try<hashmap<string, mesos::PerfStatistics>> parse(const string& output)
 
   foreach (const string& line, strings::tokenize(output, "\n")) {
     vector<string> tokens = strings::tokenize(line, PERF_DELIMITER);
-    // Expected format for an output line is either:
-    // value,event          (when sampling pids)
-    // value,event,cgroup   (when sampling a cgroup)
-    // assuming PERF_DELIMITER = ",".
-    if (tokens.size() < 2 || tokens.size() > 3) {
+    // Expected format for an output line is: value,event,cgroup
+    // (assuming PERF_DELIMITER = ",").
+    if (tokens.size() != 3) {
       return Error("Unexpected perf output at line: " + line);
     }
 
     const string value = tokens[0];
     const string event = internal::normalize(tokens[1]);
-    // Use the special PIDS_KEY when sampling pids.
-    const string cgroup = (tokens.size() == 3 ? tokens[2] : PIDS_KEY);
+    const string cgroup = tokens[2];
 
     if (!statistics.contains(cgroup)) {
       statistics.put(cgroup, mesos::PerfStatistics());

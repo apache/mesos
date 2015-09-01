@@ -34,20 +34,6 @@
 
 namespace perf {
 
-// Sample the perf events for process pid for duration.
-process::Future<mesos::PerfStatistics> sample(
-    const std::set<std::string>& events,
-    pid_t pid,
-    const Duration& duration);
-
-
-// Sample the perf events for processes in pids for duration.
-process::Future<mesos::PerfStatistics> sample(
-    const std::set<std::string>& events,
-    const std::set<pid_t>& pids,
-    const Duration& duration);
-
-
 // Sample the perf events for process(es) in the perf_event cgroups
 // for duration. The returned hashmap is keyed by cgroup.
 // NOTE: cgroups should be relative to the perf_event subsystem mount,
@@ -55,13 +41,6 @@ process::Future<mesos::PerfStatistics> sample(
 process::Future<hashmap<std::string, mesos::PerfStatistics>> sample(
     const std::set<std::string>& events,
     const std::set<std::string>& cgroups,
-    const Duration& duration);
-
-
-// Sample the perf events for process(es) in the perf_event cgroup.
-process::Future<mesos::PerfStatistics> sample(
-    const std::set<std::string>& events,
-    const std::string& cgroup,
     const Duration& duration);
 
 

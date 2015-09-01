@@ -24,7 +24,6 @@
 
 #include <process/clock.hpp>
 #include <process/gtest.hpp>
-#include <process/reap.hpp>
 
 #include <stout/gtest.hpp>
 #include <stout/stringify.hpp>
@@ -60,29 +59,18 @@ TEST_F(PerfTest, ROOT_Events)
 
 TEST_F(PerfTest, Parse)
 {
-  // uint64 and floats should be parsed.
-  Try<hashmap<string, mesos::PerfStatistics> > parse =
-    perf::parse("123,cycles\n0.123,task-clock");
+  // Parse multiple cgroups with uint64 and floats.
+  Try<hashmap<string, mesos::PerfStatistics>> parse =
+    perf::parse("123,cycles,cgroup1\n"
+                "456,cycles,cgroup2\n"
+                "0.456,task-clock,cgroup2\n"
+                "0.123,task-clock,cgroup1");
+
   ASSERT_SOME(parse);
-
-  ASSERT_TRUE(parse->contains(""));
-  mesos::PerfStatistics statistics = parse->get("").get();
-
-  ASSERT_TRUE(statistics.has_cycles());
-  EXPECT_EQ(123u, statistics.cycles());
-  ASSERT_TRUE(statistics.has_task_clock());
-  EXPECT_EQ(0.123, statistics.task_clock());
-
-  // Parse multiple cgroups.
-  parse = perf::parse("123,cycles,cgroup1\n"
-                      "456,cycles,cgroup2\n"
-                      "0.456,task-clock,cgroup2\n"
-                      "0.123,task-clock,cgroup1");
-  ASSERT_SOME(parse);
-  EXPECT_FALSE(parse->contains(""));
+  EXPECT_EQ(2u, parse->size());
 
   ASSERT_TRUE(parse->contains("cgroup1"));
-  statistics = parse->get("cgroup1").get();
+  mesos::PerfStatistics statistics = parse->get("cgroup1").get();
 
   ASSERT_TRUE(statistics.has_cycles());
   EXPECT_EQ(123u, statistics.cycles());
@@ -98,19 +86,20 @@ TEST_F(PerfTest, Parse)
   EXPECT_EQ(0.456, statistics.task_clock());
 
   // Statistics reporting <not supported> should not appear.
-  parse = perf::parse("<not supported>,cycles");
+  parse = perf::parse("<not supported>,cycles,cgroup1");
   ASSERT_SOME(parse);
 
-  ASSERT_TRUE(parse->contains(""));
-  statistics = parse->get("").get();
+  ASSERT_TRUE(parse->contains("cgroup1"));
+  statistics = parse->get("cgroup1").get();
   EXPECT_FALSE(statistics.has_cycles());
 
   // Statistics reporting <not counted> should be zero.
-  parse = perf::parse("<not counted>,cycles\n<not counted>,task-clock");
+  parse = perf::parse("<not counted>,cycles,cgroup1\n"
+                      "<not counted>,task-clock,cgroup1");
   ASSERT_SOME(parse);
 
-  ASSERT_TRUE(parse->contains(""));
-  statistics = parse->get("").get();
+  ASSERT_TRUE(parse->contains("cgroup1"));
+  statistics = parse->get("cgroup1").get();
 
   EXPECT_TRUE(statistics.has_cycles());
   EXPECT_EQ(0u, statistics.cycles());
@@ -123,60 +112,6 @@ TEST_F(PerfTest, Parse)
 
   parse = perf::parse("1,unknown-field");
   EXPECT_ERROR(parse);
-}
-
-
-TEST_F(PerfTest, ROOT_SamplePid)
-{
-  // TODO(idownes): Replace this with a Subprocess when it supports
-  // DEATHSIG.
-  // Fork a child which we'll run perf against.
-  pid_t pid = fork();
-  ASSERT_GE(pid, 0);
-
-  if (pid == 0) {
-    // Kill ourself if the parent dies to prevent leaking the child.
-    prctl(PR_SET_PDEATHSIG, SIGKILL);
-
-    // Spin child to consume cpu cycles.
-    while (true);
-  }
-
-  // Continue in parent.
-  set<string> events;
-  // Hardware event.
-  events.insert("cycles");
-  // Software event.
-  events.insert("task-clock");
-
-  // Sample the child.
-  Duration duration = Milliseconds(100);
-  Future<mesos::PerfStatistics> statistics =
-    perf::sample(events, pid, duration);
-  AWAIT_READY(statistics);
-
-  // Kill the child and reap it.
-  Future<Option<int>> status = reap(pid);
-  kill(pid, SIGKILL);
-  AWAIT_READY(status);
-
-  // Check the sample timestamp is within the last 5 seconds. This is generous
-  // because there's the process reap delay in addition to the sampling
-  // duration.
-  ASSERT_TRUE(statistics->has_timestamp());
-  EXPECT_GT(
-      Seconds(5).secs(), Clock::now().secs() - statistics->timestamp());
-  EXPECT_EQ(duration.secs(), statistics->duration());
-
-  ASSERT_TRUE(statistics->has_cycles());
-
-  // TODO(benh): Some Linux distributions (Ubuntu 14.04) fail to
-  // properly sample 'cycles' with 'perf', so we don't explicitly
-  // check the value here. See MESOS-3082.
-  // EXPECT_LT(0u, statistics->cycles());
-
-  ASSERT_TRUE(statistics->has_task_clock());
-  EXPECT_LT(0.0, statistics->task_clock());
 }
 
 } // namespace tests {
