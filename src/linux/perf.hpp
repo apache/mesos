@@ -54,7 +54,7 @@ process::Future<mesos::PerfStatistics> sample(
 // e.g., mesos/test for /sys/fs/cgroup/perf_event/mesos/test.
 process::Future<hashmap<std::string, mesos::PerfStatistics>> sample(
     const std::set<std::string>& events,
-    const std::set<std::string>& cgroup,
+    const std::set<std::string>& cgroups,
     const Duration& duration);
 
 
