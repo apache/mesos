@@ -4223,7 +4223,7 @@ Future<Nothing> Slave::garbageCollect(const string& path)
 
 void Slave::forwardOversubscribed()
 {
-  LOG(INFO) << "Querying resource estimator for oversubscribable resources";
+  VLOG(1) << "Querying resource estimator for oversubscribable resources";
 
   resourceEstimator->oversubscribable()
     .onAny(defer(self(), &Self::_forwardOversubscribed, lambda::_1));
@@ -4237,8 +4237,8 @@ void Slave::_forwardOversubscribed(const Future<Resources>& oversubscribable)
                << (oversubscribable.isFailed()
                    ? oversubscribable.failure() : "future discarded");
   } else {
-    LOG(INFO) << "Received oversubscribable resources "
-              << oversubscribable.get() << " from the resource estimator";
+    VLOG(1) << "Received oversubscribable resources "
+            << oversubscribable.get() << " from the resource estimator";
 
     // Calculate the latest allocation of oversubscribed resources.
     // Note that this allocation value might be different from the
