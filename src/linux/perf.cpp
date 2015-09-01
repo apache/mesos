@@ -113,8 +113,8 @@ protected:
     // Kill the perf process (if it's still running) by sending
     // SIGTERM to the signal handler which will then SIGKILL the
     // perf process group created by setupChild.
-    if (perf.isSome() && perf.get().status().isPending()) {
-      kill(perf.get().pid(), SIGTERM);
+    if (perf.isSome() && perf->status().isPending()) {
+      kill(perf->pid(), SIGTERM);
     }
 
     promise.discard();
@@ -216,9 +216,9 @@ private:
     perf = _perf.get();
 
     // Wait for the process to exit.
-    await(perf.get().status(),
-          io::read(perf.get().out().get()),
-          io::read(perf.get().err().get()))
+    await(perf->status(),
+          io::read(perf->out().get()),
+          io::read(perf->err().get()))
       .onReady(defer(self(), [this](const tuple<
           Future<Option<int>>,
           Future<string>,
@@ -231,18 +231,18 @@ private:
         if (!status.isReady()) {
           error = Error("Failed to execute perf: " +
                         (status.isFailed() ? status.failure() : "discarded"));
-        } else if (status.get().isNone()) {
+        } else if (status->isNone()) {
           error = Error("Failed to execute perf: failed to reap");
-        } else if (status.get().get() != 0) {
+        } else if (status->get() != 0) {
           error = Error("Failed to execute perf: " +
-                        WSTRINGIFY(status.get().get()));
+                        WSTRINGIFY(status->get()));
         } else if (!output.isReady()) {
           error = Error("Failed to read perf output: " +
                         (output.isFailed() ? output.failure() : "discarded"));
         }
 
         if (error.isSome()) {
-          promise.fail(error.get().message);
+          promise.fail(error->message);
           terminate(self());
           return;
         }
