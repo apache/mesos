@@ -2614,8 +2614,15 @@ TEST_F(SlaveTest, HTTPSchedulerSlaveRestart)
   Future<UpdateFrameworkMessage> updateFrameworkMessage =
      DROP_PROTOBUF(UpdateFrameworkMessage(), _, _);
 
+  // Ensure that there will be no reregistration retries from the
+  // slave resulting in another UpdateFrameworkMessage from master.
+  Clock::pause();
+
   slave = StartSlave(containerizer2.get(), flags);
   ASSERT_SOME(slave);
+
+  Clock::settle();
+  Clock::resume();
 
   AWAIT_READY(slaveReregisteredMessage);
   AWAIT_READY(updateFrameworkMessage);
