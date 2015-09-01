@@ -378,61 +378,84 @@ bool supported()
 }
 
 
+struct Sample
+{
+  const string value;
+  const string event;
+  const string cgroup;
+
+  // Convert a single line of perf output in CSV format (using
+  // PERF_DELIMITER as a separator) to a sample.
+  static Try<Sample> parse(const string& line)
+  {
+    vector<string> tokens = strings::tokenize(line, PERF_DELIMITER);
+
+    // Expected format for an output line is 'value,event,cgroup'.
+    if (tokens.size() == 3) {
+      return Sample({tokens[0], internal::normalize(tokens[1]), tokens[2]});
+    } else {
+      return Error("Unexpected number of fields");
+    }
+  }
+};
+
+
 Try<hashmap<string, mesos::PerfStatistics>> parse(const string& output)
 {
   hashmap<string, mesos::PerfStatistics> statistics;
 
   foreach (const string& line, strings::tokenize(output, "\n")) {
-    vector<string> tokens = strings::tokenize(line, PERF_DELIMITER);
-    // Expected format for an output line is: value,event,cgroup
-    // (assuming PERF_DELIMITER = ",").
-    if (tokens.size() != 3) {
-      return Error("Unexpected perf output at line: " + line);
+    Try<Sample> sample = Sample::parse(line);
+
+    if (sample.isError()) {
+      return Error("Failed to parse perf sample line '" + line + "': " +
+                   sample.error() );
     }
 
-    const string value = tokens[0];
-    const string event = internal::normalize(tokens[1]);
-    const string cgroup = tokens[2];
-
-    if (!statistics.contains(cgroup)) {
-      statistics.put(cgroup, mesos::PerfStatistics());
+    if (!statistics.contains(sample->cgroup)) {
+      statistics.put(sample->cgroup, mesos::PerfStatistics());
     }
 
     const google::protobuf::Reflection* reflection =
-      statistics[cgroup].GetReflection();
+      statistics[sample->cgroup].GetReflection();
     const google::protobuf::FieldDescriptor* field =
-      statistics[cgroup].GetDescriptor()->FindFieldByName(event);
+      statistics[sample->cgroup].GetDescriptor()->FindFieldByName(
+          sample->event);
 
     if (field == NULL) {
       return Error("Unexpected perf output at line: " + line);
     }
 
-    if (value == "<not supported>") {
+    if (sample->value == "<not supported>") {
       LOG(WARNING) << "Unsupported perf counter, ignoring: " << line;
       continue;
     }
 
     switch (field->type()) {
       case google::protobuf::FieldDescriptor::TYPE_DOUBLE: {
-        Try<double> number =
-          (value == "<not counted>") ?  0 : numify<double>(value);
+        Try<double> number = (sample->value == "<not counted>")
+            ?  0
+            : numify<double>(sample->value);
 
         if (number.isError()) {
           return Error("Unable to parse perf value at line: " + line);
         }
 
-        reflection->SetDouble(&(statistics[cgroup]), field, number.get());
+        reflection->SetDouble(&(
+            statistics[sample->cgroup]), field, number.get());
         break;
       }
       case google::protobuf::FieldDescriptor::TYPE_UINT64: {
-        Try<uint64_t> number =
-            (value == "<not counted>") ?  0 : numify<uint64_t>(value);
+        Try<uint64_t> number = (sample->value == "<not counted>")
+            ?  0
+            : numify<uint64_t>(sample->value);
 
         if (number.isError()) {
           return Error("Unable to parse perf value at line: " + line);
         }
 
-        reflection->SetUInt64(&(statistics[cgroup]), field, number.get());
+        reflection->SetUInt64(&(
+            statistics[sample->cgroup]), field, number.get());
         break;
       }
       default:
