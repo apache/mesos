@@ -47,6 +47,45 @@ namespace internal {
 namespace slave {
 namespace docker {
 
+class DockerProvisionerProcess :
+  public process::Process<DockerProvisionerProcess>
+{
+public:
+  static Try<process::Owned<DockerProvisionerProcess>> create(
+      const Flags& flags,
+      Fetcher* fetcher);
+
+  process::Future<Nothing> recover(
+      const std::list<mesos::slave::ContainerState>& states,
+      const hashset<ContainerID>& orphans);
+
+  process::Future<std::string> provision(
+      const ContainerID& containerId,
+      const Image& image);
+
+  process::Future<bool> destroy(const ContainerID& containerId);
+
+private:
+  DockerProvisionerProcess(
+      const Flags& flags,
+      const process::Owned<Store>& store,
+      const process::Owned<mesos::internal::slave::Backend>& backend);
+
+  process::Future<std::string> _provision(
+      const ContainerID& containerId,
+      const DockerImage& image);
+
+  process::Future<DockerImage> fetch(
+      const std::string& name,
+      const std::string& sandbox);
+
+  const Flags flags;
+
+  process::Owned<Store> store;
+  process::Owned<mesos::internal::slave::Backend> backend;
+};
+
+
 ImageName::ImageName(const std::string& name)
 {
   registry = None();
@@ -107,15 +146,13 @@ Future<Nothing> DockerProvisioner::recover(
 
 Future<string> DockerProvisioner::provision(
     const ContainerID& containerId,
-    const Image& image,
-    const std::string& sandbox)
+    const Image& image)
 {
   return dispatch(
       process.get(),
       &DockerProvisionerProcess::provision,
       containerId,
-      image,
-      sandbox);
+      image);
 }
 
 
@@ -173,8 +210,7 @@ Future<Nothing> DockerProvisionerProcess::recover(
 
 Future<string> DockerProvisionerProcess::provision(
     const ContainerID& containerId,
-    const Image& image,
-    const string& sandbox)
+    const Image& image)
 {
   if (image.type() != Image::DOCKER) {
     return Failure("Unsupported container image type");
@@ -184,7 +220,7 @@ Future<string> DockerProvisionerProcess::provision(
     return Failure("Missing Docker image info");
   }
 
-  return fetch(image.docker().name(), sandbox)
+  return fetch(image.docker().name())
     .then(defer(self(),
                 &Self::_provision,
                 containerId,
@@ -234,16 +270,9 @@ Future<string> DockerProvisionerProcess::_provision(
 
 // Fetch an image and all dependencies.
 Future<DockerImage> DockerProvisionerProcess::fetch(
-    const string& name,
-    const string& sandbox)
+    const string& name)
 {
-  return store->get(name)
-    .then([=](const Option<DockerImage>& image) -> Future<DockerImage> {
-      if (image.isSome()) {
-        return image.get();
-      }
-      return store->put(name, sandbox);
-    });
+  return store->get(name);
 }
 
 

@@ -112,8 +112,7 @@ public:
 
   virtual process::Future<std::string> provision(
       const ContainerID& containerId,
-      const Image& image,
-      const std::string& sandbox);
+      const Image& image);
 
   virtual process::Future<bool> destroy(const ContainerID& containerId);
 
@@ -125,45 +124,6 @@ private:
   process::Owned<DockerProvisionerProcess> process;
 };
 
-
-class DockerProvisionerProcess :
-  public process::Process<DockerProvisionerProcess>
-{
-public:
-  static Try<process::Owned<DockerProvisionerProcess>> create(
-      const Flags& flags,
-      Fetcher* fetcher);
-
-  process::Future<Nothing> recover(
-      const std::list<mesos::slave::ContainerState>& states,
-      const hashset<ContainerID>& orphans);
-
-  process::Future<std::string> provision(
-      const ContainerID& containerId,
-      const Image& image,
-      const std::string& sandbox);
-
-  process::Future<bool> destroy(const ContainerID& containerId);
-
-private:
-  DockerProvisionerProcess(
-      const Flags& flags,
-      const process::Owned<Store>& store,
-      const process::Owned<mesos::internal::slave::Backend>& backend);
-
-  process::Future<std::string> _provision(
-      const ContainerID& containerId,
-      const DockerImage& image);
-
-  process::Future<DockerImage> fetch(
-      const std::string& name,
-      const std::string& sandbox);
-
-  const Flags flags;
-
-  process::Owned<Store> store;
-  process::Owned<mesos::internal::slave::Backend> backend;
-};
 
 } // namespace docker {
 } // namespace slave {

@@ -60,11 +60,7 @@ public:
       const Flags& flags,
       Fetcher* fetcher);
 
-  process::Future<DockerImage> put(
-      const std::string& name,
-      const std::string& sandbox);
-
-  process::Future<Option<DockerImage>> get(const std::string& name);
+  process::Future<DockerImage> get(const std::string& name);
 
 private:
   LocalStoreProcess(const Flags& flags);
@@ -75,8 +71,7 @@ private:
 
   process::Future<DockerImage> putImage(
       const std::string& name,
-      const std::string& staging,
-      const std::string& sandbox);
+      const std::string& staging)
 
   Result<std::string> getParentId(
       const std::string& staging,
@@ -84,18 +79,15 @@ private:
 
   process::Future<Nothing> putLayers(
       const std::string& staging,
-      const std::list<std::string>& layers,
-      const std::string& sandbox);
+      const std::list<std::string>& layers)
 
   process::Future<Nothing> untarLayer(
       const std::string& staging,
-      const std::string& id,
-      const std::string& sandbox);
+      const std::string& id)
 
   process::Future<Nothing> moveLayer(
       const std::string& staging,
-      const std::string& id,
-      const std::string& sandbox);
+      const std::string& id)
 
   const Flags flags;
 
@@ -147,14 +139,6 @@ LocalStore::~LocalStore()
 }
 
 
-Future<DockerImage> LocalStore::put(
-    const string& name,
-    const string& sandbox)
-{
-  return dispatch(process.get(), &LocalStoreProcess::put, name, sandbox);
-}
-
-
 Future<Option<DockerImage>> LocalStore::get(const string& name)
 {
   return dispatch(process.get(), &LocalStoreProcess::get, name);
@@ -173,10 +157,13 @@ LocalStoreProcess::LocalStoreProcess(const Flags& flags)
   : flags(flags), refStore(ReferenceStore::create(flags).get()) {}
 
 
-Future<DockerImage> LocalStoreProcess::put(
-    const string& name,
-    const string& sandbox)
+Future<DockerImage> LocalStoreProcess::get(const string& name)
 {
+  Option<DockerImage> image = refStore->get(name);
+  if (image.isSome()) {
+    return image.get();
+  }
+
   string tarPath =
     paths::getLocalImageTarPath(flags.docker_discovery_local_dir, name);
   if (!os::exists(tarPath)) {
@@ -195,7 +182,7 @@ Future<DockerImage> LocalStoreProcess::put(
   }
 
   return untarImage(tarPath, staging.get())
-    .then(defer(self(), &Self::putImage, name, staging.get(), sandbox));
+    .then(defer(self(), &Self::putImage, name, staging.get()));
 }
 
 
@@ -244,8 +231,7 @@ Future<Nothing> LocalStoreProcess::untarImage(
 
 Future<DockerImage> LocalStoreProcess::putImage(
     const std::string& name,
-    const string& staging,
-    const string& sandbox)
+    const string& staging)
 {
   ImageName imageName(name);
 
@@ -302,7 +288,7 @@ Future<DockerImage> LocalStoreProcess::putImage(
     return Failure("Failed to obtain parent layer id: " + parentId.error());
   }
 
-  return putLayers(staging, layers, sandbox)
+  return putLayers(staging, layers)
     .then([=]() -> Future<DockerImage> {
       return refStore->put(name, layers);
     });
@@ -336,14 +322,13 @@ Result<string> LocalStoreProcess::getParentId(
 
 Future<Nothing> LocalStoreProcess::putLayers(
     const string& staging,
-    const list<string>& layers,
-    const string& sandbox)
+    const list<string>& layers)
 {
   list<Future<Nothing>> futures{ Nothing() };
   foreach (const string& layer, layers) {
     futures.push_back(
         futures.back().then(
-          defer(self(), &Self::untarLayer, staging, layer, sandbox)));
+          defer(self(), &Self::untarLayer, staging, layer)));
   }
 
   return collect(futures)
@@ -353,8 +338,7 @@ Future<Nothing> LocalStoreProcess::putLayers(
 
 Future<Nothing> LocalStoreProcess::untarLayer(
     const string& staging,
-    const string& id,
-    const string& sandbox)
+    const string& id)
 {
   // Check if image layer is already in store.
   if (os::exists(paths::getImageLayerPath(flags.docker_store_dir, id))) {
@@ -368,7 +352,7 @@ Future<Nothing> LocalStoreProcess::untarLayer(
   if (os::exists(localRootfsPath)) {
     LOG(WARNING) << "Image layer rootfs present at but not in store directory: "
                  << localRootfsPath << "Skipping untarLayer.";
-    return moveLayer(staging, id, sandbox);
+    return moveLayer(staging, id);
   }
 
   os::mkdir(localRootfsPath);
@@ -401,36 +385,15 @@ Future<Nothing> LocalStoreProcess::untarLayer(
                         WSTRINGIFY(status.get()));
       }
 
-      return moveLayer(staging, id, sandbox);
+      return moveLayer(staging, id);
     });
 }
 
 
 Future<Nothing> LocalStoreProcess::moveLayer(
     const string& staging,
-    const string& id,
-    const string& sandbox){
-
-  Try<int> out = os::open(
-      path::join(sandbox, "stdout"),
-      O_WRONLY | O_CREAT | O_TRUNC | O_NONBLOCK | O_CLOEXEC,
-      S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
-
-  if (out.isError()) {
-    return Failure("Failed to create 'stdout' file: " + out.error());
-  }
-
-  // Repeat for stderr.
-  Try<int> err = os::open(
-      path::join(sandbox, "stderr"),
-      O_WRONLY | O_CREAT | O_TRUNC | O_NONBLOCK | O_CLOEXEC,
-      S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
-
-  if (err.isError()) {
-    os::close(out.get());
-    return Failure("Failed to create 'stderr' file: " + err.error());
-  }
-
+    const string& id)
+{
   if (!os::exists(flags.docker_store_dir)) {
     VLOG(1) << "Creating docker store directory";
     os::mkdir(flags.docker_store_dir);
@@ -451,11 +414,6 @@ Future<Nothing> LocalStoreProcess::moveLayer(
   return Nothing();
 }
 
-
-Future<Option<DockerImage>> LocalStoreProcess::get(const string& name)
-{
-  return refStore->get(name);
-}
 
 } // namespace docker {
 } // namespace slave {

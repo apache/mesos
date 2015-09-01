@@ -49,28 +49,13 @@ public:
   virtual ~Store() {}
 
   /**
-   * Put an image into the store. Returns the DockerImage containing
-   * the manifest, hash of the image, and the path to the extracted
-   * image.
-   *
-   * @param name The name of the Docker image being stored.
-   * @param sandbox The path of the directory in which the stderr and
-   *     stdout logs will be placed.
-   *
-   * @return The DockerImage placed in the store.
-   */
-  virtual process::Future<DockerImage> put(
-      const std::string& name,
-      const std::string& sandbox) = 0;
-
-  /**
   * Get image by name.
   *
   * @param name The name of the Docker image to retrieve from store.
   *
-  * @return The DockerImage or none if image is not in the store.
+  * @return The DockerImage that holds the Docker layers.
   */
-  virtual process::Future<Option<DockerImage>> get(const std::string& name) = 0;
+  virtual process::Future<DockerImage> get(const std::string& name) = 0;
 
   // TODO(chenlily): Implement removing an image.
 
