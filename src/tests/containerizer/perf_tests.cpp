@@ -46,6 +46,7 @@ class PerfTest : public ::testing::Test {};
 TEST_F(PerfTest, ROOT_Events)
 {
   set<string> events;
+
   // Valid events.
   events.insert("cycles");
   events.insert("task-clock");
@@ -64,8 +65,8 @@ TEST_F(PerfTest, Parse)
     perf::parse("123,cycles\n0.123,task-clock");
   CHECK_SOME(parse);
 
-  ASSERT_TRUE(parse.get().contains(""));
-  mesos::PerfStatistics statistics = parse.get().get("").get();
+  ASSERT_TRUE(parse->contains(""));
+  mesos::PerfStatistics statistics = parse->get("").get();
 
   ASSERT_TRUE(statistics.has_cycles());
   EXPECT_EQ(123u, statistics.cycles());
@@ -78,18 +79,18 @@ TEST_F(PerfTest, Parse)
                       "0.456,task-clock,cgroup2\n"
                       "0.123,task-clock,cgroup1");
   CHECK_SOME(parse);
-  EXPECT_FALSE(parse.get().contains(""));
+  EXPECT_FALSE(parse->contains(""));
 
-  ASSERT_TRUE(parse.get().contains("cgroup1"));
-  statistics = parse.get().get("cgroup1").get();
+  ASSERT_TRUE(parse->contains("cgroup1"));
+  statistics = parse->get("cgroup1").get();
 
   ASSERT_TRUE(statistics.has_cycles());
   EXPECT_EQ(123u, statistics.cycles());
   ASSERT_TRUE(statistics.has_task_clock());
   EXPECT_EQ(0.123, statistics.task_clock());
 
-  ASSERT_TRUE(parse.get().contains("cgroup2"));
-  statistics = parse.get().get("cgroup2").get();
+  ASSERT_TRUE(parse->contains("cgroup2"));
+  statistics = parse->get("cgroup2").get();
 
   ASSERT_TRUE(statistics.has_cycles());
   EXPECT_EQ(456u, statistics.cycles());
@@ -100,16 +101,16 @@ TEST_F(PerfTest, Parse)
   parse = perf::parse("<not supported>,cycles");
   CHECK_SOME(parse);
 
-  ASSERT_TRUE(parse.get().contains(""));
-  statistics = parse.get().get("").get();
+  ASSERT_TRUE(parse->contains(""));
+  statistics = parse->get("").get();
   EXPECT_FALSE(statistics.has_cycles());
 
   // Statistics reporting <not counted> should be zero.
   parse = perf::parse("<not counted>,cycles\n<not counted>,task-clock");
   CHECK_SOME(parse);
 
-  ASSERT_TRUE(parse.get().contains(""));
-  statistics = parse.get().get("").get();
+  ASSERT_TRUE(parse->contains(""));
+  statistics = parse->get("").get();
 
   EXPECT_TRUE(statistics.has_cycles());
   EXPECT_EQ(0u, statistics.cycles());
@@ -162,20 +163,20 @@ TEST_F(PerfTest, ROOT_SamplePid)
   // Check the sample timestamp is within the last 5 seconds. This is generous
   // because there's the process reap delay in addition to the sampling
   // duration.
-  ASSERT_TRUE(statistics.get().has_timestamp());
+  ASSERT_TRUE(statistics->has_timestamp());
   EXPECT_GT(
-      Seconds(5).secs(), Clock::now().secs() - statistics.get().timestamp());
-  EXPECT_EQ(duration.secs(), statistics.get().duration());
+      Seconds(5).secs(), Clock::now().secs() - statistics->timestamp());
+  EXPECT_EQ(duration.secs(), statistics->duration());
 
-  ASSERT_TRUE(statistics.get().has_cycles());
+  ASSERT_TRUE(statistics->has_cycles());
 
   // TODO(benh): Some Linux distributions (Ubuntu 14.04) fail to
   // properly sample 'cycles' with 'perf', so we don't explicitly
   // check the value here. See MESOS-3082.
-  // EXPECT_LT(0u, statistics.get().cycles());
+  // EXPECT_LT(0u, statistics->cycles());
 
-  ASSERT_TRUE(statistics.get().has_task_clock());
-  EXPECT_LT(0.0, statistics.get().task_clock());
+  ASSERT_TRUE(statistics->has_task_clock());
+  EXPECT_LT(0.0, statistics->task_clock());
 }
 
 } // namespace tests {
