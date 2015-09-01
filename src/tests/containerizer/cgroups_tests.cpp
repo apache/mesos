@@ -101,7 +101,7 @@ public:
 
     Try<set<string> > hierarchies = cgroups::hierarchies();
     ASSERT_SOME(hierarchies);
-    ASSERT_TRUE(hierarchies.get().empty())
+    ASSERT_TRUE(hierarchies->empty())
       << "-------------------------------------------------------------\n"
       << "We cannot run any cgroups tests that require mounting\n"
       << "hierarchies because you have the following hierarchies mounted:\n"
@@ -376,10 +376,10 @@ TEST_F(CgroupsAnyHierarchyTest, ROOT_CGROUPS_Get)
   Try<std::vector<string>> cgroups = cgroups::get(hierarchy);
   ASSERT_SOME(cgroups);
 
-  EXPECT_NE(cgroups.get().end(),
-            find(cgroups.get().begin(), cgroups.get().end(), "mesos_test2"));
-  EXPECT_NE(cgroups.get().end(),
-            find(cgroups.get().begin(), cgroups.get().end(), "mesos_test1"));
+  EXPECT_NE(cgroups->end(),
+            find(cgroups->begin(), cgroups->end(), "mesos_test2"));
+  EXPECT_NE(cgroups->end(),
+            find(cgroups->begin(), cgroups->end(), "mesos_test1"));
 
   ASSERT_SOME(cgroups::remove(hierarchy, "mesos_test1"));
   ASSERT_SOME(cgroups::remove(hierarchy, "mesos_test2"));
@@ -407,12 +407,12 @@ TEST_F(CgroupsAnyHierarchyTest, ROOT_CGROUPS_NestedCgroups)
     cgroups::get(hierarchy, TEST_CGROUPS_ROOT);
   ASSERT_SOME(cgroups);
 
-  ASSERT_EQ(2u, cgroups.get().size());
+  ASSERT_EQ(2u, cgroups->size());
 
-  EXPECT_NE(cgroups.get().end(),
-            find(cgroups.get().begin(), cgroups.get().end(), cgroup2));
-  EXPECT_NE(cgroups.get().end(),
-            find(cgroups.get().begin(), cgroups.get().end(), cgroup1));
+  EXPECT_NE(cgroups->end(),
+            find(cgroups->begin(), cgroups->end(), cgroup2));
+  EXPECT_NE(cgroups->end(),
+            find(cgroups->begin(), cgroups->end(), cgroup1));
 
   ASSERT_SOME(cgroups::remove(hierarchy, cgroup1));
   ASSERT_SOME(cgroups::remove(hierarchy, cgroup2));
@@ -431,7 +431,7 @@ TEST_F(CgroupsAnyHierarchyTest, ROOT_CGROUPS_Tasks)
   Try<set<pid_t>> pids = cgroups::processes(hierarchy, cgroup.get());
   ASSERT_SOME(pids);
 
-  EXPECT_NE(0u, pids.get().count(pid));
+  EXPECT_NE(0u, pids->count(pid));
 }
 
 
@@ -486,7 +486,7 @@ TEST_F(CgroupsAnyHierarchyTest, ROOT_CGROUPS_Write)
   Try<set<pid_t> > pids = cgroups::processes(hierarchy, TEST_CGROUPS_ROOT);
   ASSERT_SOME(pids);
 
-  EXPECT_NE(0u, pids.get().count(pid));
+  EXPECT_NE(0u, pids->count(pid));
 
   // Kill the child process.
   ASSERT_NE(-1, ::kill(pid, SIGKILL));
@@ -531,16 +531,16 @@ TEST_F(CgroupsAnyHierarchyWithCpuAcctMemoryTest, ROOT_CGROUPS_Stat)
     cgroups::stat(
         path::join(baseHierarchy, "cpuacct"), "/", "cpuacct.stat");
   ASSERT_SOME(result);
-  EXPECT_TRUE(result.get().contains("user"));
-  EXPECT_TRUE(result.get().contains("system"));
-  EXPECT_GT(result.get().get("user").get(), 0llu);
-  EXPECT_GT(result.get().get("system").get(), 0llu);
+  EXPECT_TRUE(result->contains("user"));
+  EXPECT_TRUE(result->contains("system"));
+  EXPECT_GT(result->get("user").get(), 0llu);
+  EXPECT_GT(result->get("system").get(), 0llu);
 
   result = cgroups::stat(
       path::join(baseHierarchy, "memory"), "/", "memory.stat");
   ASSERT_SOME(result);
-  EXPECT_TRUE(result.get().contains("rss"));
-  EXPECT_GT(result.get().get("rss").get(), 0llu);
+  EXPECT_TRUE(result->contains("rss"));
+  EXPECT_GT(result->get("rss").get(), 0llu);
 }
 
 
@@ -824,7 +824,7 @@ TEST_F(CgroupsAnyHierarchyWithFreezerTest, ROOT_CGROUPS_AssignThreads)
   Try<set<pid_t> > cgroupThreads =
     cgroups::threads(hierarchy, TEST_CGROUPS_ROOT);
   EXPECT_SOME(cgroupThreads);
-  EXPECT_EQ(0u, cgroupThreads.get().size());
+  EXPECT_EQ(0u, cgroupThreads->size());
 
   // Assign ourselves to the test cgroup.
   CHECK_SOME(cgroups::assign(hierarchy, TEST_CGROUPS_ROOT, ::getpid()));
@@ -918,7 +918,7 @@ TEST_F(CgroupsAnyHierarchyWithFreezerTest, ROOT_CGROUPS_DestroyTracedProcess)
     Result<proc::ProcessStatus> process = proc::status(pid);
     ASSERT_SOME(process);
 
-    if (process.get().state == 'T' || process.get().state == 't') {
+    if (process->state == 'T' || process->state == 't') {
       break;
     }
 
@@ -1005,15 +1005,15 @@ TEST_F(CgroupsAnyHierarchyWithPerfEventTest, ROOT_CGROUPS_Perf)
     perf::sample(events, TEST_CGROUPS_ROOT, Seconds(2));
   AWAIT_READY(statistics);
 
-  ASSERT_TRUE(statistics.get().has_cycles());
+  ASSERT_TRUE(statistics->has_cycles());
 
   // TODO(benh): Some Linux distributions (Ubuntu 14.04) fail to
   // properly sample 'cycles' with 'perf', so we don't explicitly
   // check the value here. See MESOS-3082.
-  // EXPECT_LT(0u, statistics.get().cycles());
+  // EXPECT_LT(0u, statistics->cycles());
 
-  ASSERT_TRUE(statistics.get().has_task_clock());
-  EXPECT_LT(0.0, statistics.get().task_clock());
+  ASSERT_TRUE(statistics->has_task_clock());
+  EXPECT_LT(0.0, statistics->task_clock());
 
   // Kill the child process.
   ASSERT_NE(-1, ::kill(pid, SIGKILL));
