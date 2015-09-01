@@ -402,7 +402,8 @@ Try<hashmap<string, mesos::PerfStatistics>> parse(const string& output)
       statistics[cgroup].GetReflection();
     const google::protobuf::FieldDescriptor* field =
       statistics[cgroup].GetDescriptor()->FindFieldByName(event);
-    if (!field) {
+
+    if (field == NULL) {
       return Error("Unexpected perf output at line: " + line);
     }
 
