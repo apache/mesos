@@ -1165,14 +1165,15 @@ TEST(ProcessTest, Select)
 }
 
 
-TEST(ProcessTest, Collect)
+TEST(ProcessTest, Collect1)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
   // First ensure an empty list functions correctly.
   std::list<Future<int>> empty;
   Future<std::list<int>> future = collect(empty);
-  AWAIT_ASSERT_READY(future);
+
+  AWAIT_READY(future);
   EXPECT_TRUE(future.get().empty());
 
   Promise<int> promise1;
@@ -1205,6 +1206,53 @@ TEST(ProcessTest, Collect)
   // We expect them to be returned in the same order as the
   // future list that was passed in.
   EXPECT_EQ(values, future.get());
+}
+
+
+TEST(ProcessTest, Collect2)
+{
+  Promise<int> promise1;
+  Promise<bool> promise2;
+
+  Future<std::tuple<int, bool>> future =
+    collect(promise1.future(), promise2.future());
+
+  ASSERT_TRUE(future.isPending());
+
+  promise1.set(42);
+
+  ASSERT_TRUE(future.isPending());
+
+  promise2.set(true);
+
+  AWAIT_READY(future);
+
+  std::tuple<int, bool> values = future.get();
+
+  ASSERT_EQ(42, std::get<0>(values));
+  ASSERT_TRUE(std::get<1>(values));
+
+  // Collect should fail when a future fails.
+  Promise<bool> promise3;
+
+  future = collect(promise1.future(), promise3.future());
+
+  ASSERT_TRUE(future.isPending());
+
+  promise3.fail("failure");
+
+  AWAIT_FAILED(future);
+
+  // Collect should fail when a future is discarded.
+  Promise<bool> promise4;
+
+  future = collect(promise1.future(), promise4.future());
+
+  ASSERT_TRUE(future.isPending());
+
+  promise4.discard();
+
+  AWAIT_FAILED(future);
 }
 
 

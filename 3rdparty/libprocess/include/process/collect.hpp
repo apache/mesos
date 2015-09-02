@@ -39,6 +39,15 @@ template <typename T>
 Future<std::list<T>> collect(const std::list<Future<T>>& futures);
 
 
+// Waits on each future specified and returns the wrapping future
+// typed of a tuple of values.
+// TODO(jieyu): Investigate the use of variadic templates here.
+template <typename T1, typename T2>
+Future<std::tuple<T1, T2>> collect(
+    const Future<T1>& future1,
+    const Future<T2>& future2);
+
+
 // Waits on each future in the specified set and returns the list of
 // non-pending futures.
 template <typename T>
@@ -191,6 +200,24 @@ inline Future<std::list<T>> collect(
   Future<std::list<T>> future = promise->future();
   spawn(new internal::CollectProcess<T>(futures, promise), true);
   return future;
+}
+
+
+template <typename T1, typename T2>
+Future<std::tuple<T1, T2>> collect(
+    const Future<T1>& future1,
+    const Future<T2>& future2)
+{
+  Future<Nothing> wrapper1 = future1
+    .then([]() { return Nothing(); });
+
+  Future<Nothing> wrapper2 = future2
+    .then([]() { return Nothing(); });
+
+  std::list<Future<Nothing>> futures = { wrapper1, wrapper2 };
+
+  return collect(futures)
+    .then([=]() { return std::make_tuple(future1.get(), future2.get()); });
 }
 
 
