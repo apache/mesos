@@ -171,7 +171,10 @@ protected:
   void allocate(const hashset<SlaveID>& slaveIds);
 
   // Remove a filter for the specified framework.
-  void expire(const FrameworkID& frameworkId, Filter* filter);
+  void expire(
+      const FrameworkID& frameworkId,
+      const SlaveID& slaveId,
+      Filter* filter);
 
   // Checks whether the slave is whitelisted.
   bool isWhitelisted(const SlaveID& slaveId);
@@ -219,7 +222,8 @@ protected:
     // Whether the framework desires revocable resources.
     bool revocable;
 
-    hashset<Filter*> filters; // Active filters for the framework.
+    // Active filters for the framework.
+    hashmap<SlaveID, hashset<Filter*>> filters;
   };
 
   double _event_queue_dispatches()
@@ -287,7 +291,7 @@ class Filter
 public:
   virtual ~Filter() {}
 
-  virtual bool filter(const SlaveID& slaveId, const Resources& resources) = 0;
+  virtual bool filter(const Resources& resources) = 0;
 };
 
 
@@ -295,24 +299,21 @@ class RefusedFilter: public Filter
 {
 public:
   RefusedFilter(
-      const SlaveID& _slaveId,
       const Resources& _resources,
       const process::Timeout& _timeout)
-    : slaveId(_slaveId), resources(_resources), timeout(_timeout) {}
+    : resources(_resources), timeout(_timeout) {}
 
-  virtual bool filter(const SlaveID& _slaveId, const Resources& _resources)
+  virtual bool filter(const Resources& _resources)
   {
     // TODO(jieyu): Consider separating the superset check for regular
     // and revocable resources. For example, frameworks might want
     // more revocable resources only or non-revocable resources only,
     // but currently the filter only expires if there is more of both
     // revocable and non-revocable resources.
-    return slaveId == _slaveId &&
-           resources.contains(_resources) && // Refused resources are superset.
+    return resources.contains(_resources) && // Refused resources are superset.
            timeout.remaining() > Seconds(0);
   }
 
-  const SlaveID slaveId;
   const Resources resources;
   const process::Timeout timeout;
 };
@@ -856,13 +857,12 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::recoverResources(
 
     // Create a new filter and delay its expiration.
     Filter* filter = new RefusedFilter(
-        slaveId,
         resources,
         process::Timeout::in(seconds.get()));
 
-    frameworks[frameworkId].filters.insert(filter);
+    frameworks[frameworkId].filters[slaveId].insert(filter);
 
-    delay(seconds.get(), self(), &Self::expire, frameworkId, filter);
+    delay(seconds.get(), self(), &Self::expire, frameworkId, slaveId, filter);
   }
 }
 
@@ -1021,6 +1021,7 @@ template <class RoleSorter, class FrameworkSorter>
 void
 HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::expire(
     const FrameworkID& frameworkId,
+    const SlaveID& slaveId,
     Filter* filter)
 {
   // The filter might have already been removed (e.g., if the
@@ -1029,8 +1030,12 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::expire(
   // keep the address from getting reused possibly causing premature
   // expiration).
   if (frameworks.contains(frameworkId) &&
-      frameworks[frameworkId].filters.contains(filter)) {
-    frameworks[frameworkId].filters.erase(filter);
+      frameworks[frameworkId].filters.contains(slaveId) &&
+      frameworks[frameworkId].filters[slaveId].contains(filter)) {
+    frameworks[frameworkId].filters[slaveId].erase(filter);
+    if (frameworks[frameworkId].filters[slaveId].empty()) {
+      frameworks[frameworkId].filters.erase(slaveId);
+    }
   }
 
   delete filter;
@@ -1069,14 +1074,17 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::isFiltered(
     return true;
   }
 
-  foreach (Filter* filter, frameworks[frameworkId].filters) {
-    if (filter->filter(slaveId, resources)) {
-      VLOG(1) << "Filtered " << resources
-              << " on slave " << slaveId
-              << " for framework " << frameworkId;
-      return true;
+  if (frameworks[frameworkId].filters.contains(slaveId)) {
+    foreach (Filter* filter, frameworks[frameworkId].filters[slaveId]) {
+      if (filter->filter(resources)) {
+        VLOG(1) << "Filtered " << resources
+                << " on slave " << slaveId
+                << " for framework " << frameworkId;
+        return true;
+      }
     }
   }
+
   return false;
 }
 
