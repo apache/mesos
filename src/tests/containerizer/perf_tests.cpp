@@ -64,7 +64,8 @@ TEST_F(PerfTest, Parse)
     perf::parse("123,cycles,cgroup1\n"
                 "456,cycles,cgroup2\n"
                 "0.456,task-clock,cgroup2\n"
-                "0.123,task-clock,cgroup1");
+                "0.123,task-clock,cgroup1",
+                Version(3, 12, 0));
 
   ASSERT_SOME(parse);
   EXPECT_EQ(2u, parse->size());
@@ -86,7 +87,7 @@ TEST_F(PerfTest, Parse)
   EXPECT_EQ(0.456, statistics.task_clock());
 
   // Statistics reporting <not supported> should not appear.
-  parse = perf::parse("<not supported>,cycles,cgroup1");
+  parse = perf::parse("<not supported>,cycles,cgroup1", Version(3, 12, 0));
   ASSERT_SOME(parse);
 
   ASSERT_TRUE(parse->contains("cgroup1"));
@@ -95,7 +96,8 @@ TEST_F(PerfTest, Parse)
 
   // Statistics reporting <not counted> should be zero.
   parse = perf::parse("<not counted>,cycles,cgroup1\n"
-                      "<not counted>,task-clock,cgroup1");
+                      "<not counted>,task-clock,cgroup1",
+                      Version(3, 12, 0));
   ASSERT_SOME(parse);
 
   ASSERT_TRUE(parse->contains("cgroup1"));
@@ -107,10 +109,10 @@ TEST_F(PerfTest, Parse)
   EXPECT_EQ(0.0, statistics.task_clock());
 
   // Check parsing fails.
-  parse = perf::parse("1,cycles\ngarbage");
+  parse = perf::parse("1,cycles\ngarbage", Version(3, 12, 0));
   EXPECT_ERROR(parse);
 
-  parse = perf::parse("1,unknown-field");
+  parse = perf::parse("1,unknown-field", Version(3, 12, 0));
   EXPECT_ERROR(parse);
 }
 

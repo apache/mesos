@@ -93,7 +93,7 @@ public:
 
   virtual ~Perf() {}
 
-  Future<string> future()
+  Future<string> output()
   {
     return promise.future();
   }
@@ -264,11 +264,11 @@ private:
 Future<Version> version()
 {
   internal::Perf* perf = new internal::Perf({"--version"});
-  Future<string> future = perf->future();
+  Future<string> output = perf->output();
   spawn(perf, true);
 
-  return future
-    .then([=](const string& output) -> Future<Version> {
+  return output
+    .then([](const string& output) -> Future<Version> {
       // Trim off the leading 'perf version ' text to convert.
       return Version::parse(strings::remove(
           output, "perf version ", strings::PREFIX));
@@ -276,15 +276,40 @@ Future<Version> version()
 };
 
 
+bool supported(const Version& version)
+{
+  // Require perf version >= 2.6.39 to support cgroups and formatting.
+  return version >= Version(2, 6, 39);
+}
+
+
+bool supported()
+{
+  Future<Version> version = perf::version();
+
+  // If perf does not respond in a reasonable time, mark as unsupported.
+  version.await(Seconds(5));
+
+  if (!version.isReady()) {
+    if (version.isFailed()) {
+      LOG(ERROR) << "Failed to get perf version: " << version.failure();
+    } else {
+      LOG(ERROR) << "Failed to get perf version: timeout of 5secs exceeded";
+    }
+
+    version.discard();
+    return false;
+  }
+
+  return supported(version.get());
+}
+
+
 Future<hashmap<string, mesos::PerfStatistics>> sample(
     const set<string>& events,
     const set<string>& cgroups,
     const Duration& duration)
 {
-  if (!supported()) {
-    return Failure("Perf is not supported");
-  }
-
   vector<string> argv = {
     "stat",
 
@@ -317,26 +342,38 @@ Future<hashmap<string, mesos::PerfStatistics>> sample(
   Time start = Clock::now();
 
   internal::Perf* perf = new internal::Perf(argv);
-  Future<string> future = perf->future();
+  Future<string> output = perf->output();
   spawn(perf, true);
 
-  auto parse = [start, duration](const string& output) ->
+  auto parse = [start, duration](
+      const tuple<Version, string> values) ->
       Future<hashmap<string, mesos::PerfStatistics>> {
-    Try<hashmap<string, mesos::PerfStatistics>> parse = perf::parse(output);
+    const Version& version = std::get<0>(values);
+    const string& output = std::get<1>(values);
 
-    if (parse.isError()) {
-      return Failure("Failed to parse perf sample: " + parse.error());
+    // Check that the version is supported.
+    if (!supported(version)) {
+      return Failure("Perf " + stringify(version) + " is not supported");
     }
 
-    foreachvalue (mesos::PerfStatistics& statistics, parse.get()) {
+    Try<hashmap<string, mesos::PerfStatistics>> result =
+      perf::parse(output, version);
+
+    if (result.isError()) {
+      return Failure("Failed to parse perf sample: " + result.error());
+    }
+
+    foreachvalue (mesos::PerfStatistics& statistics, result.get()) {
       statistics.set_timestamp(start.secs());
       statistics.set_duration(duration.secs());
     }
 
-    return parse.get();
+    return result.get();
   };
 
-  return future.then(parse);
+  // TODO(pbrett): Don't wait for these forever!
+  return process::collect(perf::version(), output)
+    .then(parse);
 }
 
 
@@ -355,29 +392,6 @@ bool valid(const set<string>& events)
 }
 
 
-bool supported()
-{
-  // Require perf version >= 2.6.39 to support cgroups and formatting.
-  Future<Version> version = perf::version();
-
-  // If perf does not respond in a reasonable time, mark as unsupported.
-  version.await(Seconds(5));
-
-  if (!version.isReady()) {
-    if (version.isFailed()) {
-      LOG(ERROR) << "Failed to get perf version: " << version.failure();
-    } else {
-      LOG(ERROR) << "Failed to get perf version: timeout of 5secs exceeded";
-    }
-
-    version.discard();
-    return false;
-  }
-
-  return version.get() >= Version(2, 6, 39);
-}
-
-
 struct Sample
 {
   const string value;
@@ -386,30 +400,51 @@ struct Sample
 
   // Convert a single line of perf output in CSV format (using
   // PERF_DELIMITER as a separator) to a sample.
-  static Try<Sample> parse(const string& line)
+  static Try<Sample> parse(const string& line, const Version& version)
   {
-    vector<string> tokens = strings::tokenize(line, PERF_DELIMITER);
+    // We use strings::split to separate the tokens
+    // because the unit field can be empty.
+    vector<string> tokens = strings::split(line, PERF_DELIMITER);
 
-    // Expected format for an output line is 'value,event,cgroup'.
-    if (tokens.size() == 3) {
-      return Sample({tokens[0], internal::normalize(tokens[1]), tokens[2]});
+    if (version >= Version(4, 0, 0)) {
+      // Optional running time and ratio were introduced in Linux v4.0,
+      // which make the format either:
+      //   value,unit,event,cgroup
+      //   value,unit,event,cgroup,running,ratio
+      if ((tokens.size() == 4) || (tokens.size() == 6)) {
+        return Sample({tokens[0], internal::normalize(tokens[2]), tokens[3]});
+      }
+    } else if (version >= Version(3, 13, 0)) {
+      // Unit was added in Linux v3.13, making the format:
+      //   value,unit,event,cgroup
+      if (tokens.size() == 4) {
+        return Sample({tokens[0], internal::normalize(tokens[2]), tokens[3]});
+      }
     } else {
-      return Error("Unexpected number of fields");
+      // Expected format for Linux kernel <= 3.12 is:
+      //   value,event,cgroup
+      if (tokens.size() == 3) {
+        return Sample({tokens[0], internal::normalize(tokens[1]), tokens[2]});
+      }
     }
+
+    return Error("Unexpected number of fields");
   }
 };
 
 
-Try<hashmap<string, mesos::PerfStatistics>> parse(const string& output)
+Try<hashmap<string, mesos::PerfStatistics>> parse(
+    const string& output,
+    const Version& version)
 {
   hashmap<string, mesos::PerfStatistics> statistics;
 
   foreach (const string& line, strings::tokenize(output, "\n")) {
-    Try<Sample> sample = Sample::parse(line);
+    Try<Sample> sample = Sample::parse(line, version);
 
     if (sample.isError()) {
       return Error("Failed to parse perf sample line '" + line + "': " +
-                   sample.error() );
+                   sample.error());
     }
 
     if (!statistics.contains(sample->cgroup)) {
@@ -423,7 +458,8 @@ Try<hashmap<string, mesos::PerfStatistics>> parse(const string& output)
           sample->event);
 
     if (field == NULL) {
-      return Error("Unexpected perf output at line: " + line);
+      return Error("Unexpected event '" + sample->event + "'"
+                   " in perf output at line: " + line);
     }
 
     if (sample->value == "<not supported>") {
