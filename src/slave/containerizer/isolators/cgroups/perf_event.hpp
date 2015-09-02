@@ -73,8 +73,12 @@ protected:
 
 private:
   CgroupsPerfEventIsolatorProcess(
-      const Flags& flags,
-      const std::string& hierarchy);
+      const Flags& _flags,
+      const std::string& _hierarchy,
+      const std::set<std::string>& _events)
+    : flags(_flags),
+      hierarchy(_hierarchy),
+      events(_events) {}
 
   void sample();
 

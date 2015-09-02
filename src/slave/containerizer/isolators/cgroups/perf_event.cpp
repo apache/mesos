@@ -107,24 +107,9 @@ Try<Isolator*> CgroupsPerfEventIsolatorProcess::create(const Flags& flags)
             << " for events: " << stringify(events);
 
   process::Owned<MesosIsolatorProcess> process(
-      new CgroupsPerfEventIsolatorProcess(flags, hierarchy.get()));
+      new CgroupsPerfEventIsolatorProcess(flags, hierarchy.get(), events));
 
   return new MesosIsolator(process);
-}
-
-
-CgroupsPerfEventIsolatorProcess::CgroupsPerfEventIsolatorProcess(
-    const Flags& _flags,
-    const string& _hierarchy)
-  : flags(_flags),
-    hierarchy(_hierarchy)
-{
-  CHECK_SOME(flags.perf_events);
-
-  foreach (const string& event,
-           strings::tokenize(flags.perf_events.get(), ",")) {
-    events.insert(event);
-  }
 }
 
 
