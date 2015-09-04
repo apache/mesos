@@ -198,7 +198,18 @@ Future<Version> Docker::__version(const Future<string>& output)
     vector<string> subParts = strings::split(parts.front(), " ");
 
     if (!subParts.empty()) {
-      Try<Version> version = Version::parse(subParts.back());
+      // Docker version output in Fedora 22 is "x.x.x.fc22" which does not match
+      // the Semantic Versioning specification(<major>[.<minor>[.<patch>]]). We
+      // remove the overflow components here before parsing the docker version
+      // output to a Version struct.
+      string versionString = subParts.back();
+      vector<string> components = strings::split(versionString, ".");
+      if (components.size() > 3) {
+        components.erase(components.begin() + 3, components.end());
+      }
+      versionString = strings::join(".", components);
+
+      Try<Version> version = Version::parse(versionString);
 
       if (version.isError()) {
         return Failure("Failed to parse docker version: " +
