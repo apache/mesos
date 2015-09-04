@@ -76,7 +76,8 @@ TEST_F(PartitionTest, PartitionedSlave)
 
   // Set these expectations up before we spawn the slave so that we
   // don't miss the first PING.
-  Future<Message> ping = FUTURE_MESSAGE(Eq(PingSlaveMessage().GetTypeName()), _, _);
+  Future<Message> ping = FUTURE_MESSAGE(
+      Eq(PingSlaveMessage().GetTypeName()), _, _);
 
   // Drop all the PONGs to simulate slave partition.
   DROP_MESSAGES(Eq(PongSlaveMessage().GetTypeName()), _, _);
@@ -160,7 +161,9 @@ TEST_F(PartitionTest, PartitionedSlaveReregistration)
   // from the slave. Note that we don't match on the master / slave
   // PIDs because it's actually the SlaveObserver Process that sends
   // the pings.
-  Future<Message> ping = FUTURE_MESSAGE(Eq(PingSlaveMessage().GetTypeName()), _, _);
+  Future<Message> ping = FUTURE_MESSAGE(
+      Eq(PingSlaveMessage().GetTypeName()), _, _);
+
   DROP_MESSAGES(Eq(PongSlaveMessage().GetTypeName()), _, _);
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
@@ -309,7 +312,9 @@ TEST_F(PartitionTest, PartitionedSlaveStatusUpdates)
   // from the slave. Note that we don't match on the master / slave
   // PIDs because it's actually the SlaveObserver Process that sends
   // the pings.
-  Future<Message> ping = FUTURE_MESSAGE(Eq(PingSlaveMessage().GetTypeName()), _, _);
+  Future<Message> ping = FUTURE_MESSAGE(
+      Eq(PingSlaveMessage().GetTypeName()), _, _);
+
   DROP_MESSAGES(Eq(PongSlaveMessage().GetTypeName()), _, _);
 
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
@@ -427,7 +432,9 @@ TEST_F(PartitionTest, PartitionedSlaveExitedExecutor)
   // from the slave. Note that we don't match on the master / slave
   // PIDs because it's actually the SlaveObserver Process that sends
   // the pings.
-  Future<Message> ping = FUTURE_MESSAGE(Eq(PingSlaveMessage().GetTypeName()), _, _);
+  Future<Message> ping = FUTURE_MESSAGE(
+      Eq(PingSlaveMessage().GetTypeName()), _, _);
+
   DROP_MESSAGES(Eq(PongSlaveMessage().GetTypeName()), _, _);
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
@@ -556,7 +563,8 @@ TEST_F(PartitionTest, OneWayPartitionMasterToSlave)
     FUTURE_MESSAGE(Eq(SlaveRegisteredMessage().GetTypeName()), _, _);
 
   // Ensure a ping reaches the slave.
-  Future<Message> ping = FUTURE_MESSAGE(Eq(PingSlaveMessage().GetTypeName()), _, _);
+  Future<Message> ping = FUTURE_MESSAGE(
+      Eq(PingSlaveMessage().GetTypeName()), _, _);
 
   Try<PID<Slave>> slave = StartSlave();
   ASSERT_SOME(slave);
