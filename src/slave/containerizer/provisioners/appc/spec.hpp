@@ -16,8 +16,8 @@
  * limitations under the License.
  */
 
-#ifndef __MESOS_APPC_SPEC__
-#define __MESOS_APPC_SPEC__
+#ifndef __MESOS_APPC_SPEC_HPP__
+#define __MESOS_APPC_SPEC_HPP__
 
 #include <string>
 
@@ -51,4 +51,4 @@ Try<AppcImageManifest> parse(const std::string& value);
 } // namespace internal {
 } // namespace mesos {
 
-#endif // __MESOS_APPC_SPEC__
+#endif // __MESOS_APPC_SPEC_HPP__

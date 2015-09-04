@@ -16,8 +16,8 @@
  * limitations under the License.
  */
 
-#ifndef __MESOS_APPC_PATHS__
-#define __MESOS_APPC_PATHS__
+#ifndef __MESOS_APPC_PATHS_HPP__
+#define __MESOS_APPC_PATHS_HPP__
 
 #include <string>
 
