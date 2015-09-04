@@ -199,6 +199,29 @@ TEST(DockerTest, ROOT_DOCKER_interface)
 }
 
 
+// This test tests parsing docker version output.
+TEST(DockerTest, ROOT_DOCKER_parsing_version)
+{
+  Owned<Docker> docker1(Docker::create("echo Docker version 1.7.1, build",
+                                       false).get());
+  Future<Version> version1 = docker1->version();
+  AWAIT_READY(version1);
+  EXPECT_EQ(version1.get(), Version::parse("1.7.1").get());
+
+  Owned<Docker> docker2(Docker::create("echo Docker version 1.7.1.fc22, build",
+                                       false).get());
+  Future<Version> version2 = docker2->version();
+  AWAIT_READY(version2);
+  EXPECT_EQ(version2.get(), Version::parse("1.7.1").get());
+
+  Owned<Docker> docker3(Docker::create("echo Docker version 1.7.1-fc22, build",
+                                       false).get());
+  Future<Version> version3 = docker3->version();
+  AWAIT_READY(version3);
+  EXPECT_EQ(version3.get(), Version::parse("1.7.1").get());
+}
+
+
 TEST(DockerTest, ROOT_DOCKER_CheckCommandWithShell)
 {
   Owned<Docker> docker(Docker::create(tests::flags.docker, false).get());
@@ -229,60 +252,24 @@ TEST(DockerTest, ROOT_DOCKER_CheckPortResource)
   string containerName = "mesos-docker-port-resource-test";
   Owned<Docker> docker(Docker::create(tests::flags.docker, false).get());
 
-  // Make sure the container is removed.
-  Future<Nothing> remove = docker->rm(containerName, true);
-
-  ASSERT_TRUE(process::internal::await(remove, Seconds(10)));
-
   ContainerInfo containerInfo;
   containerInfo.set_type(ContainerInfo::DOCKER);
 
   ContainerInfo::DockerInfo dockerInfo;
   dockerInfo.set_image("busybox");
-  dockerInfo.set_network(ContainerInfo::DockerInfo::BRIDGE);
-
-  ContainerInfo::DockerInfo::PortMapping portMapping;
-  portMapping.set_host_port(10000);
-  portMapping.set_container_port(80);
-
-  dockerInfo.add_port_mappings()->CopyFrom(portMapping);
   containerInfo.mutable_docker()->CopyFrom(dockerInfo);
 
   CommandInfo commandInfo;
-  commandInfo.set_shell(false);
-  commandInfo.set_value("true");
-
-  Resources resources =
-    Resources::parse("ports:[9998-9999];ports:[10001-11000]").get();
+  commandInfo.set_shell(true);
 
   Future<Nothing> run = docker->run(
       containerInfo,
       commandInfo,
-      containerName,
+      "testContainer",
       "dir",
-      "/mnt/mesos/sandbox",
-      resources);
+      "/mnt/mesos/sandbox");
 
-  // Port should be out side of the provided ranges.
-  AWAIT_EXPECT_FAILED(run);
-
-  resources = Resources::parse("ports:[9998-9999];ports:[10000-11000]").get();
-
-  Try<string> directory = environment->mkdtemp();
-  CHECK_SOME(directory) << "Failed to create temporary directory";
-
-  run = docker->run(
-      containerInfo,
-      commandInfo,
-      containerName,
-      directory.get(),
-      "/mnt/mesos/sandbox",
-      resources);
-
-  AWAIT_READY(run);
-
-  Future<Nothing> status = docker->rm(containerName, true);
-  ASSERT_TRUE(process::internal::await(status, Seconds(10)));
+  ASSERT_TRUE(run.isFailed());
 }
 
 
