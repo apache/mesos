@@ -29,6 +29,7 @@ If you have special compilation requirements, please refer to `./configure --hel
       <th>
         Explanation
       </th>
+    </tr>
   </thead>
 
   <tr>
@@ -155,6 +156,8 @@ If you have special compilation requirements, please refer to `./configure --hel
     </td>
     <td>
       Show version and exit. (default: false)
+    </td>
+  </tr>
 </table>
 
 ## Master Options
@@ -170,6 +173,7 @@ If you have special compilation requirements, please refer to `./configure --hel
       <th>
         Explanation
       </th>
+    </tr>
   </thead>
    <tr>
      <td>
@@ -239,6 +243,7 @@ file:///path/to/file (where file contains one of the above)</code></pre>
       <th>
         Explanation
       </th>
+    </tr>
   </thead>
   <tr>
     <td>
@@ -704,6 +709,7 @@ file:///path/to/file (where file contains one of the above)</code></pre>
       <th>
         Explanation
       </th>
+    </tr>
   </thead>
   <tr>
   <tr>
@@ -735,6 +741,7 @@ file:///path/to/file (where file contains one of the above)</code></pre>
       <th>
         Explanation
       </th>
+    </tr>
   </thead>
   <tr>
     <td>
@@ -775,6 +782,7 @@ file:///path/to/file (where file contains one of the above)</code></pre>
       <th>
         Explanation
       </th>
+    </tr>
   </thead>
   <tr>
     <td>
@@ -1430,6 +1438,7 @@ file:///path/to/file (where file contains one of the above)</code></pre>
       <th>
         Explanation
       </th>
+    </tr>
   </thead>
   <tr>
     <td>
@@ -1494,6 +1503,64 @@ file:///path/to/file (where file contains one of the above)</code></pre>
 </table>
 
 
+## Libprocess Options
+
+*The bundled libprocess library can be controlled with the following environment variables.*
+
+<table class="table table-striped">
+  <thead>
+    <tr>
+      <th width="30%">
+        Variable
+      </th>
+      <th>
+        Explanation
+      </th>
+    </tr>
+  </thead>
+  <tr>
+    <td>
+      LIBPROCESS_IP
+    </td>
+    <td>
+      Sets the IP address for communication to and from libprocess.
+    </td>
+  </tr>
+  <tr>
+    <td>
+      LIBPROCESS_PORT
+    </td>
+    <td>
+      Sets the port for communication to and from libprocess.
+    </td>
+  </tr>
+  <tr>
+    <td>
+      LIBPROCESS_ADVERTISE_IP
+    </td>
+    <td>
+      If set, this provides the IP address that will be advertised to
+      the outside world for communication to and from libprocess.
+      This is useful, for example, for containerized tasks in which
+      communication is bound locally to a non-public IP that will be
+      inaccessible to the master.
+    </td>
+  </tr>
+  <tr>
+    <td>
+      LIBPROCESS_ADVERTISE_PORT
+    </td>
+    <td>
+      If set, this provides the port that will be advertised to the
+      outside world for communication to and from libprocess. Note that
+      this port will not actually be bound (the local LIBPROCESS_PORT
+      will be), so redirection to the local IP and port must be
+      provided separately.
+    </td>
+  </tr>
+</table>
+
+
 ## Mesos Build Configuration Options
 
 ###The configure script has the following flags for optional features:
@@ -1507,6 +1574,7 @@ file:///path/to/file (where file contains one of the above)</code></pre>
       <th>
         Explanation
       </th>
+    </tr>
   </thead>
   <tr>
     <td>
@@ -1637,6 +1705,7 @@ file:///path/to/file (where file contains one of the above)</code></pre>
       <th>
         Explanation
       </th>
+    </tr>
   </thead>
   <tr>
     <td>
@@ -1764,11 +1833,12 @@ it to find libraries and programs with nonstandard names/locations.
   <thead>
     <tr>
       <th width="30%">
-        Flag
+        Variable
       </th>
       <th>
         Explanation
       </th>
+    </tr>
   </thead>
   <tr>
     <td>
