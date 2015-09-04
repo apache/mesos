@@ -28,15 +28,17 @@
 
 #include <boost/circular_buffer.hpp>
 
-#include <mesos/maintenance/maintenance.hpp>
 #include <mesos/mesos.hpp>
 #include <mesos/resources.hpp>
-#include <mesos/scheduler/scheduler.hpp>
 #include <mesos/type_utils.hpp>
+
+#include <mesos/maintenance/maintenance.hpp>
 
 #include <mesos/master/allocator.hpp>
 
 #include <mesos/module/authenticator.hpp>
+
+#include <mesos/scheduler/scheduler.hpp>
 
 #include <process/limiter.hpp>
 #include <process/http.hpp>
