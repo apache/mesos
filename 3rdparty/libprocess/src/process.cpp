@@ -474,9 +474,6 @@ THREAD_LOCAL ProcessBase* __process__ = NULL;
 // Per thread executor pointer.
 THREAD_LOCAL Executor* _executor_ = NULL;
 
-// TODO(dhamon): Reintroduce this when it is plumbed through to Statistics.
-// const Duration LIBPROCESS_STATISTICS_WINDOW = Days(1);
-
 
 // NOTE: Clock::* implementations are in clock.cpp except for
 // Clock::settle which currently has a dependency on
@@ -973,23 +970,6 @@ void initialize(const string& delegate)
 
   // Create the global system statistics process.
   spawn(new System(), true);
-
-  // Create the global statistics.
-  // TODO(dhamon): Plumb this through to metrics.
-  // value = os::getenv("LIBPROCESS_STATISTICS_WINDOW");
-  // if (value.isSome()) {
-  //   Try<Duration> window = Duration::parse(value.get());
-  //   if (window.isError()) {
-  //     LOG(FATAL) << "LIBPROCESS_STATISTICS_WINDOW=" << value.get()
-  //                << " is not a valid duration: " << window.error();
-  //   }
-  //   statistics = new Statistics(window.get());
-  // } else {
-  //   // TODO(bmahler): Investigate memory implications of this window
-  //   // size. We may also want to provide a maximum memory size rather than
-  //   // time window. Or, offload older data to disk, etc.
-  //   statistics = new Statistics(LIBPROCESS_STATISTICS_WINDOW);
-  // }
 
   // Ensure metrics process is running.
   // TODO(bmahler): Consider initializing this consistently with
