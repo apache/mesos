@@ -1508,7 +1508,7 @@ TEST_F(SlaveTest, PingTimeoutNoPings)
   ASSERT_SOME(master);
 
   // Block all pings to the slave.
-  DROP_MESSAGES(Eq("PING"), _, _);
+  DROP_MESSAGES(Eq(PingSlaveMessage().GetTypeName()), _, _);
 
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
     FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
@@ -1562,7 +1562,7 @@ TEST_F(SlaveTest, PingTimeoutSomePings)
   Clock::pause();
 
   // Ensure a ping reaches the slave.
-  Future<Message> ping = FUTURE_MESSAGE(Eq("PING"), _, _);
+  Future<Message> ping = FUTURE_MESSAGE(Eq(PingSlaveMessage().GetTypeName()), _, _);
 
   Clock::advance(masterFlags.slave_ping_timeout);
 
@@ -1571,7 +1571,7 @@ TEST_F(SlaveTest, PingTimeoutSomePings)
   // Now block further pings from the master and advance
   // the clock to trigger a re-detection and re-registration on
   // the slave.
-  DROP_MESSAGES(Eq("PING"), _, _);
+  DROP_MESSAGES(Eq(PingSlaveMessage().GetTypeName()), _, _);
 
   Future<Nothing> detected = FUTURE_DISPATCH(_, &Slave::detected);
 
@@ -1598,10 +1598,10 @@ TEST_F(SlaveTest, RateLimitSlaveShutdown)
 
   // Set these expectations up before we spawn the slave so that we
   // don't miss the first PING.
-  Future<Message> ping = FUTURE_MESSAGE(Eq("PING"), _, _);
+  Future<Message> ping = FUTURE_MESSAGE(Eq(PingSlaveMessage().GetTypeName()), _, _);
 
   // Drop all the PONGs to simulate health check timeout.
-  DROP_MESSAGES(Eq("PONG"), _, _);
+  DROP_MESSAGES(Eq(PongSlaveMessage().GetTypeName()), _, _);
 
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
     FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
@@ -1631,7 +1631,7 @@ TEST_F(SlaveTest, RateLimitSlaveShutdown)
       Clock::advance(masterFlags.slave_ping_timeout);
       break;
     }
-    ping = FUTURE_MESSAGE(Eq("PING"), _, _);
+    ping = FUTURE_MESSAGE(Eq(PingSlaveMessage().GetTypeName()), _, _);
     Clock::advance(masterFlags.slave_ping_timeout);
   }
 
@@ -1662,10 +1662,10 @@ TEST_F(SlaveTest, CancelSlaveShutdown)
 
   // Set these expectations up before we spawn the slave so that we
   // don't miss the first PING.
-  Future<Message> ping = FUTURE_MESSAGE(Eq("PING"), _, _);
+  Future<Message> ping = FUTURE_MESSAGE(Eq(PingSlaveMessage().GetTypeName()), _, _);
 
   // Drop all the PONGs to simulate health check timeout.
-  DROP_MESSAGES(Eq("PONG"), _, _);
+  DROP_MESSAGES(Eq(PongSlaveMessage().GetTypeName()), _, _);
 
   // No shutdown should occur during the test!
   EXPECT_NO_FUTURE_PROTOBUFS(ShutdownMessage(), _, _);
@@ -1696,7 +1696,7 @@ TEST_F(SlaveTest, CancelSlaveShutdown)
       Clock::advance(masterFlags.slave_ping_timeout);
       break;
     }
-    ping = FUTURE_MESSAGE(Eq("PING"), _, _);
+    ping = FUTURE_MESSAGE(Eq(PingSlaveMessage().GetTypeName()), _, _);
     Clock::advance(masterFlags.slave_ping_timeout);
   }
 

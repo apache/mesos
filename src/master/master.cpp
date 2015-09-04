@@ -118,7 +118,7 @@ using mesos::master::RoleInfo;
 using mesos::master::allocator::Allocator;
 
 
-class SlaveObserver : public Process<SlaveObserver>
+class SlaveObserver : public ProtobufProcess<SlaveObserver>
 {
 public:
   SlaveObserver(const UPID& _slave,
@@ -142,9 +142,11 @@ public:
       pinged(false),
       connected(true)
   {
-    // TODO(vinod): Deprecate this handler in 0.22.0 in favor of a
-    // new PongSlaveMessage handler.
-    install("PONG", &SlaveObserver::pong);
+    // TODO(Wang Yong Qiao): For backwards compatibility, this handler is kept.
+    // Suggest to remove this handler in 0.26.0.
+    install("PONG", &SlaveObserver::pongOld);
+
+    install<PongSlaveMessage>(&SlaveObserver::pong);
   }
 
   void reconnect()
@@ -165,21 +167,20 @@ protected:
 
   void ping()
   {
-    // TODO(vinod): In 0.22.0, master should send the PingSlaveMessage
-    // instead of sending "PING" with the encoded PingSlaveMessage.
-    // Currently we do not do this for backwards compatibility with
-    // slaves on 0.20.0.
     PingSlaveMessage message;
     message.set_connected(connected);
-    string data;
-    CHECK(message.SerializeToString(&data));
-    send(slave, "PING", data.data(), data.size());
+    send(slave, message);
 
     pinged = true;
     delay(slavePingTimeout, self(), &SlaveObserver::timeout);
   }
 
-  void pong(const UPID& from, const string& body)
+  void pongOld(const UPID& from, const string& body)
+  {
+    pong();
+  }
+
+  void pong()
   {
     timeouts = 0;
     pinged = false;

@@ -2469,10 +2469,10 @@ TYPED_TEST(SlaveRecoveryTest, PartitionedSlave)
 
   // Set these expectations up before we spawn the slave so that we
   // don't miss the first PING.
-  Future<Message> ping = FUTURE_MESSAGE(Eq("PING"), _, _);
+  Future<Message> ping = FUTURE_MESSAGE(Eq(PingSlaveMessage().GetTypeName()), _, _);
 
   // Drop all the PONGs to simulate slave partition.
-  DROP_MESSAGES(Eq("PONG"), _, _);
+  DROP_MESSAGES(Eq(PongSlaveMessage().GetTypeName()), _, _);
 
   slave::Flags flags = this->CreateSlaveFlags();
 
@@ -2542,7 +2542,7 @@ TYPED_TEST(SlaveRecoveryTest, PartitionedSlave)
     if (pings == masterFlags.max_slave_ping_timeouts) {
      break;
     }
-    ping = FUTURE_MESSAGE(Eq("PING"), _, _);
+    ping = FUTURE_MESSAGE(Eq(PingSlaveMessage().GetTypeName()), _, _);
     Clock::advance(masterFlags.slave_ping_timeout);
     Clock::settle();
   }
