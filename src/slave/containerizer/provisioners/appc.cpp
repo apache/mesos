@@ -33,6 +33,7 @@
 #include "slave/containerizer/provisioners/appc.hpp"
 
 #include "slave/containerizer/provisioners/backend.hpp"
+#include "slave/containerizer/provisioners/paths.hpp"
 
 #include "slave/containerizer/provisioners/appc/paths.hpp"
 #include "slave/containerizer/provisioners/appc/spec.hpp"
@@ -41,6 +42,7 @@
 #include "slave/paths.hpp"
 
 using namespace process;
+using namespace mesos::internal::slave;
 
 using std::list;
 using std::string;
@@ -220,7 +222,7 @@ Future<Nothing> AppcProvisionerProcess::recover(
   // be destroyed by the containerizer using the normal cleanup path. See
   // MESOS-2367 for details.
   Try<hashmap<ContainerID, string>> containers =
-    paths::listContainers(root);
+    provisioners::paths::listContainers(root);
 
   if (containers.isError()) {
     return Failure("Failed to list the containers managed by Appc "
@@ -233,7 +235,7 @@ Future<Nothing> AppcProvisionerProcess::recover(
       Owned<Info> info = Owned<Info>(new Info());
 
       Try<hashmap<string, hashmap<string, string>>> rootfses =
-        paths::listContainerRootfses(root, containerId);
+        provisioners::paths::listContainerRootfses(root, containerId);
 
       if (rootfses.isError()) {
         return Failure("Unable to list rootfses belonged to container '" +
@@ -257,7 +259,7 @@ Future<Nothing> AppcProvisionerProcess::recover(
 
     // Destroy (unknown) orphan container's rootfses.
     Try<hashmap<string, hashmap<string, string>>> rootfses =
-      paths::listContainerRootfses(root, containerId);
+      provisioners::paths::listContainerRootfses(root, containerId);
 
     if (rootfses.isError()) {
       return Failure("Unable to find rootfses for container '" +
@@ -308,7 +310,7 @@ Future<string> AppcProvisionerProcess::provision(
   }
 
   string rootfsId = UUID::random().toString();
-  string rootfs = paths::getContainerRootfsDir(
+  string rootfs = provisioners::paths::getContainerRootfsDir(
       root, containerId, flags.appc_backend, rootfsId);
 
   if (!infos.contains(containerId)) {

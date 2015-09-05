@@ -47,24 +47,6 @@ namespace paths {
 // externally managed) but implemented to illustrate the need for a
 // separate 'images' directory. Complete the layout diagram when the
 // staging directory is utilized by the provisioner.
-//
-// The appc provisioner rootfs directory is as follows:
-// <work_dir> ('--work_dir' flag)
-// |-- provisioners
-//     |-- APPC (see definition in src/slave/paths.hpp)
-//         |-- containers
-//             |-- <container_id>
-//                 |-- backends
-//                     |-- <backend> (copy, bind, etc.)
-//                         |-- rootfses
-//                             |-- <rootfs_id> (the rootfs)
-//
-// NOTE: Each container could have multiple image types, therefore there
-// can be the same <container_id> directory under other provisioners e.g.,
-// <work_dir>/provisioners/DOCKER, etc. Under each provisioner + container
-// there can be multiple backends due to the change of backend flags. For
-// appc, under each backend a rootfs is identified by the 'rootfs_id' which
-// is a UUID.
 
 std::string getStagingDir(const std::string& storeDir);
 
@@ -91,25 +73,6 @@ std::string getImageManifestPath(
 
 
 std::string getImageManifestPath(const std::string& imagePath);
-
-
-std::string getContainerRootfsDir(
-    const std::string& provisionerDir,
-    const ContainerID& containerId,
-    const std::string& backend,
-    const std::string& rootfsId);
-
-
-// Recursively "ls" the container directory and return a map of
-// backend -> rootfsId -> rootfsPath.
-Try<hashmap<std::string, hashmap<std::string, std::string>>>
-listContainerRootfses(
-    const std::string& provisionerDir,
-    const ContainerID& containerId);
-
-// Return a map of containerId -> containerPath;
-Try<hashmap<ContainerID, std::string>> listContainers(
-    const std::string& provisionerDir);
 
 } // namespace paths {
 } // namespace appc {
