@@ -32,15 +32,13 @@ namespace paths {
 
 /**
  * The Docker store file system layout is as follows:
- * <root>
- * |-- Local image discovery dir ('--docker_discovery_local_dir' slave flag)
- *    |--<name>.tar
- * |
- * |-- Image store dir ('--docker_store_dir' slave flag)
- *    |--staging
- *    |--<image_id>
- *        |--rootfs
- *    |--storedImages
+ * Image store dir ('--docker_store_dir' slave flag)
+ *    |--staging (contains temp directories for downloads and extract)
+ *    |--layers
+ *       |--<layer_id>
+ *           |--rootfs
+ *    |--rootfses
+ *    |--storedImages (file holding on cached images)
  */
 
 std::string getStagingDir(const std::string& storeDir);

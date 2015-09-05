@@ -82,7 +82,7 @@ string getImageLayerPath(
     const string& storeDir,
     const string& layerId)
 {
-  return path::join(storeDir, layerId);
+  return path::join(storeDir, "layers", layerId);
 }
 
 string getImageLayerRootfsPath(
