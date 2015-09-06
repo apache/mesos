@@ -35,6 +35,7 @@
 #include "slave/containerizer/provisioners/docker/store.hpp"
 
 using namespace process;
+using namespace mesos::internal::slave;
 
 using std::list;
 using std::string;
@@ -82,7 +83,16 @@ private:
   const Flags flags;
 
   process::Owned<Store> store;
-  process::Owned<mesos::internal::slave::Backend> backend;
+  hashmap<string, process::Owned<Backend>> backends;
+
+  struct Info
+  {
+    // Mappings: backend -> rootfsId -> rootfsPath.
+    hashmap<string, hashmap<string, string>> rootfses;
+  };
+
+  hashmap<ContainerID, Owned<Info>> infos;
+
 };
 
 
@@ -169,10 +179,32 @@ Try<Owned<DockerProvisionerProcess>> DockerProvisionerProcess::create(
     const Flags& flags,
     Fetcher* fetcher)
 {
-  Try<Nothing> mkdir = os::mkdir(flags.docker_rootfs_dir);
+  string _root =
+    slave::paths::getProvisionerDir(flags.work_dir, Image::DOCKER);
+
+  Try<Nothing> mkdir = os::mkdir(_root);
   if (mkdir.isError()) {
-    return Error("Failed to create provisioner rootfs directory '" +
-                 flags.docker_rootfs_dir + "': " + mkdir.error());
+    return Error("Failed to create provisioner root directory '" +
+                 _root + "': " + mkdir.error());
+  }
+
+  Result<string> root = os::realpath(_root);
+  if (root.isError()) {
+    return Error(
+        "Failed to resolve the realpath of provisioner root directory '" +
+        _root + "': " + root.error());
+  }
+
+  CHECK_SOME(root); // Can't be None since we just created it.
+
+  hashmap<string, Owned<Backend>> backends = Backend::create(flags);
+  if (backends.empty()) {
+    return Error("No usable Docker provisioner backend created");
+  }
+
+  if (!backends.contains(flags.docker_backend)) {
+    return Error("The specified Docker provisioner backend '" +
+                 flags.docker_backend + "'is unsupported");
   }
 
   Try<Owned<Store>> store = Store::create(flags, fetcher);
@@ -180,31 +212,117 @@ Try<Owned<DockerProvisionerProcess>> DockerProvisionerProcess::create(
     return Error("Failed to create image store: " + store.error());
   }
 
-  hashmap<string, Owned<mesos::internal::slave::Backend>> backendOptions =
-    mesos::internal::slave::Backend::create(flags);
-
   return Owned<DockerProvisionerProcess>(
       new DockerProvisionerProcess(
           flags,
           store.get(),
-          backendOptions[flags.docker_backend]));
+          backends));
 }
 
 
 DockerProvisionerProcess::DockerProvisionerProcess(
     const Flags& _flags,
     const Owned<Store>& _store,
-    const Owned<mesos::internal::slave::Backend>& _backend)
+    const hashmap<string, Owned<Backend>>& _backends)
   : flags(_flags),
     store(_store),
-    backend(_backend) {}
+    backends(_backends) {}
 
 
 Future<Nothing> DockerProvisionerProcess::recover(
     const list<ContainerState>& states,
     const hashset<ContainerID>& orphans)
 {
-  return Nothing();
+  // TODO(tnachen): Consider merging this with
+  // AppcProvisionerProcess::recover.
+
+  // Register living containers, including the ones that do not
+  // provision Docker images.
+  hashset<ContainerID> alive;
+
+  foreach (const ContainerState& state, states) {
+    if (state.executor_info().has_container() &&
+        state.executor_info().container().type() == ContainerInfo::MESOS) {
+      alive.insert(state.container_id());
+    }
+  }
+
+  // List provisioned containers; recover living ones; destroy unknown orphans.
+  // Note that known orphan containers are recovered as well and they will
+  // be destroyed by the containerizer using the normal cleanup path. See
+  // MESOS-2367 for details.
+  Try<hashmap<ContainerID, string>> containers =
+    provisioners::paths::listContainers(root);
+
+  if (containers.isError()) {
+    return Failure("Failed to list the containers managed by Docker "
+                   "provisioner: " + containers.error());
+  }
+
+  // If no container has been launched the 'containers' directory will be empty.
+  foreachkey (const ContainerID& containerId, containers.get()) {
+    if (alive.contains(containerId) || orphans.contains(containerId)) {
+      Owned<Info> info = Owned<Info>(new Info());
+
+      Try<hashmap<string, hashmap<string, string>>> rootfses =
+        provisioners::paths::listContainerRootfses(root, containerId);
+
+      if (rootfses.isError()) {
+        return Failure("Unable to list rootfses belonged to container '" +
+                       containerId.value() + "': " + rootfses.error());
+      }
+
+      foreachkey (const string& backend, rootfses.get()) {
+        if (!backends.contains(backend)) {
+          return Failure("Found rootfses managed by an unrecognized backend: " +
+                         backend);
+        }
+
+        info->rootfses.put(backend, rootfses.get()[backend]);
+      }
+
+      VLOG(1) << "Recovered container " << containerId;
+      infos.put(containerId, info);
+
+      continue;
+    }
+
+    // Destroy (unknown) orphan container's rootfses.
+    Try<hashmap<string, hashmap<string, string>>> rootfses =
+      provisioners::paths::listContainerRootfses(root, containerId);
+
+    if (rootfses.isError()) {
+      return Failure("Unable to find rootfses for container '" +
+                     containerId.value() + "': " + rootfses.error());
+    }
+
+    foreachkey (const string& backend, rootfses.get()) {
+      if (!backends.contains(backend)) {
+        return Failure("Found rootfses managed by an unrecognized backend: " +
+                       backend);
+      }
+
+      foreachvalue (const string& rootfs, rootfses.get()[backend]) {
+        VLOG(1) << "Destroying orphan rootfs " << rootfs;
+
+        // Not waiting for the destruction and we don't care about
+        // the return value.
+        backends.get(backend).get()->destroy(rootfs)
+          .onFailed([rootfs](const std::string& error) {
+            LOG(WARNING) << "Failed to destroy orphan rootfs '" << rootfs
+                         << "': "<< error;
+          });
+      }
+    }
+  }
+
+  LOG(INFO) << "Recovered Docker provisioner rootfses";
+
+  return store->recover()
+    .then([]() -> Future<Nothing> {
+      LOG(INFO) << "Recovered Docker image store";
+      return Nothing();
+    });
 }
 
 
@@ -220,6 +338,17 @@ Future<string> DockerProvisionerProcess::provision(
     return Failure("Missing Docker image info");
   }
 
+  string rootfsId = UUID::random().toString();
+  string rootfs = provisioners::paths::getContainerRootfsDir(
+      root, containerId, flags.docker_backend, rootfsId);
+
+  if (!infos.contains(containerId)) {
+    infos.put(containerId, Owned<Info>(new Info()));
+  }
+
+  infos[containerId]->rootfses[flags.docker_backend].put(rootfsId, rootfs);
+
+
   return fetch(image.docker().name())
     .then(defer(self(),
                 &Self::_provision,
@@ -232,6 +361,8 @@ Future<string> DockerProvisionerProcess::_provision(
     const ContainerID& containerId,
     const DockerImage& image)
 {
+  CHECK(backends.contains(flags.docker_backend));
+
   // Create root directory.
   string base = path::join(flags.docker_rootfs_dir,
                            stringify(containerId));
@@ -252,7 +383,8 @@ Future<string> DockerProvisionerProcess::_provision(
     layerPaths.push_back(path::join(flags.docker_store_dir, layerId, "rootfs"));
   }
 
-  return backend->provision(layerPaths, base)
+
+  return backends[flags.docker_backend]->provision(layerPaths, base)
     .then([rootfs]() -> Future<string> {
       // Bind mount the rootfs to itself so we can pivot_root. We do
       // it now so any subsequent mounts by the containerizer or
@@ -279,31 +411,40 @@ Future<DockerImage> DockerProvisionerProcess::fetch(
 Future<bool> DockerProvisionerProcess::destroy(
     const ContainerID& containerId)
 {
-  string base = path::join(flags.docker_rootfs_dir, stringify(containerId));
+  // TODO(tnachen): Consider merging this with
+  // AppcProvisionerProcess::destroy.
+  if (!infos.contains(containerId)) {
+    LOG(INFO) << "Ignoring destroy request for unknown container: "
+              << containerId;
 
-  if (!os::exists(base)) {
     return false;
   }
 
-  LOG(INFO) << "Destroying container rootfs for container '"
-            << containerId << "'";
+  // Unregister the container first. If destroy() fails, we can rely on
+  // recover() to retry it later.
+  Owned<Info> info = infos[containerId];
+  infos.erase(containerId);
 
-  Try<fs::MountInfoTable> mountTable = fs::MountInfoTable::read();
-  if (mountTable.isError()) {
-    return Failure("Failed to read mount table: " + mountTable.error());
-  }
-
-  foreach (const fs::MountInfoTable::Entry& entry, mountTable.get().entries) {
-    if (strings::startsWith(entry.target, base)) {
-      Try<Nothing> unmount = fs::unmount(entry.target, MNT_DETACH);
-      if (unmount.isError()) {
-        return Failure("Failed to unmount mount table target: " +
-                        unmount.error());
+  list<Future<bool>> futures;
+  foreachkey (const string& backend, info->rootfses) {
+    foreachvalue (const string& rootfs, info->rootfses[backend]) {
+      if (!backends.contains(backend)) {
+        return Failure("Cannot destroy rootfs '" + rootfs +
+                       "' provisioned by an unknown backend '" + backend + "'");
       }
+
+      LOG(INFO) << "Destroying container rootfs for container '"
+                << containerId << "' at '" << rootfs << "'";
+
+      futures.push_back(
+          backends.get(backend).get()->destroy(rootfs));
     }
   }
 
-  return backend->destroy(base);
+  return collect(futures)
+    .then([=](const list<bool>& results) -> Future<bool> {
+      return true;
+    });
 }
 
 } // namespace docker {
