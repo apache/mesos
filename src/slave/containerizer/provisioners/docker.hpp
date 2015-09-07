@@ -16,8 +16,8 @@
  * limitations under the License.
  */
 
-#ifndef __MESOS_DOCKER__
-#define __MESOS_DOCKER__
+#ifndef __MESOS_DOCKER_HPP__
+#define __MESOS_DOCKER_HPP__
 
 #include <list>
 #include <ostream>
@@ -130,4 +130,4 @@ private:
 } // namespace internal {
 } // namespace mesos {
 
-#endif // __MESOS_DOCKER__
+#endif // __MESOS_DOCKER_HPP__

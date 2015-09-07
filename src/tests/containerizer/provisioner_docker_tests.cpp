@@ -713,7 +713,7 @@ public:
         "bar 456",
         os::read(path::join(flags.docker_store_dir, "456", "rootfs", "temp")));
 
-    // Verify the docker Image provided.
+    // Verify the Docker Image provided.
     EXPECT_EQ(dockerImage.imageName, "abc");
     list<string> expectedLayers;
     expectedLayers.push_back("123");

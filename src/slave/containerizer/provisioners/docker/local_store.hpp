@@ -16,8 +16,8 @@
  * limitations under the License.
  */
 
-#ifndef __MESOS_DOCKER_LOCAL_STORE__
-#define __MESOS_DOCKER_LOCAL_STORE__
+#ifndef __MESOS_DOCKER_LOCAL_STORE_HPP__
+#define __MESOS_DOCKER_LOCAL_STORE_HPP__
 
 #include "slave/containerizer/provisioners/docker/store.hpp"
 
@@ -62,4 +62,4 @@ private:
 } // namespace internal {
 } // namespace mesos {
 
-#endif // __MESOS_DOCKER_LOCAL_STORE__
+#endif // __MESOS_DOCKER_LOCAL_STORE_HPP__

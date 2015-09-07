@@ -16,8 +16,8 @@
  * limitations under the License.
  */
 
-#ifndef __MESOS_DOCKER_PATHS__
-#define __MESOS_DOCKER_PATHS__
+#ifndef __MESOS_DOCKER_PATHS_HPP__
+#define __MESOS_DOCKER_PATHS_HPP__
 
 #include <list>
 #include <string>
@@ -83,4 +83,4 @@ std::string getStoredImagesPath(const std::string& storeDir);
 } // namespace internal {
 } // namespace mesos {
 
-#endif // __MESOS_DOCKER_PATHS__
+#endif // __MESOS_DOCKER_PATHS_HPP__

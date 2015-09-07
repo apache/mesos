@@ -16,8 +16,8 @@
  * limitations under the License.
  */
 
-#ifndef __MESOS_DOCKER_STORE__
-#define __MESOS_DOCKER_STORE__
+#ifndef __MESOS_DOCKER_STORE_HPP__
+#define __MESOS_DOCKER_STORE_HPP__
 
 #include <string>
 
@@ -68,4 +68,4 @@ protected:
 } // namespace internal {
 } // namespace mesos {
 
-#endif // __MESOS_DOCKER_STORE__
+#endif // __MESOS_DOCKER_STORE_HPP__

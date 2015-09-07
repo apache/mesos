@@ -249,7 +249,9 @@ STATE_PROTOS = messages/state.pb.cc messages/state.pb.h
 BUILT_SOURCES += $(STATE_PROTOS)
 CLEANFILES += $(STATE_PROTOS)
 
-DOCKER_PROVISIONER_PROTOS = messages/docker_provisioner.pb.cc messages/docker_provisioner.pb.h
+DOCKER_PROVISIONER_PROTOS =                                             \
+  messages/docker_provisioner.pb.cc                                     \
+  messages/docker_provisioner.pb.h
 
 BUILT_SOURCES += $(DOCKER_PROVISIONER_PROTOS)
 CLEANFILES += $(DOCKER_PROVISIONER_PROTOS)

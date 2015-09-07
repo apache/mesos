@@ -48,6 +48,42 @@ namespace internal {
 namespace slave {
 namespace docker {
 
+
+class ReferenceStoreProcess : public process::Process<ReferenceStoreProcess>
+{
+public:
+  ~ReferenceStoreProcess() {}
+
+  // Explicitly use 'initialize' since we are overloading below.
+  using process::ProcessBase::initialize;
+
+  void initialize();
+
+  static Try<process::Owned<ReferenceStoreProcess>> create(const Flags& flags);
+
+  process::Future<DockerImage> put(
+      const std::string& name,
+      const std::list<std::string>& layers);
+
+  process::Future<Option<DockerImage>> get(const std::string& name);
+
+  // TODO(chenlily): Implement removal of unreferenced images.
+
+private:
+  ReferenceStoreProcess(const Flags& flags);
+
+  // Write out reference store state to persistent store.
+  Try<Nothing> persist();
+
+  const Flags flags;
+
+  // This is a lookup table for images that are stored in memory. It is keyed
+  // by the name of the DockerImage.
+  // For example, "ubuntu:14.04" -> ubuntu14:04 DockerImage.
+  hashmap<std::string, DockerImage> storedImages;
+};
+
+
 Try<Owned<ReferenceStore>> ReferenceStore::create(const Flags& flags)
 {
   Try<Owned<ReferenceStoreProcess>> process =
@@ -203,9 +239,10 @@ void ReferenceStoreProcess::initialize()
       continue;
     }
 
-    VLOG(1) << "Loaded Docker image: " << imageName << " from disk.";
     storedImages[imageName] = DockerImage(imageName, layers);
   }
+
+  LOG(INFO) << "Loaded " << storedImages.size() << " Docker images.";
 }
 
 } // namespace docker {

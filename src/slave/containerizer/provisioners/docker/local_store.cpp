@@ -63,7 +63,9 @@ public:
   process::Future<DockerImage> get(const std::string& name);
 
 private:
-  LocalStoreProcess(const Flags& flags);
+  LocalStoreProcess(
+      const Flags& flags,
+      Owned<ReferenceStore> _refStore);
 
   process::Future<Nothing> untarImage(
       const std::string& tarPath,
@@ -81,7 +83,7 @@ private:
       const std::string& staging,
       const std::list<std::string>& layers)
 
-  process::Future<Nothing> untarLayer(
+  process::Future<Nothing> putLayer(
       const std::string& staging,
       const std::string& id)
 
@@ -115,18 +117,42 @@ Try<Owned<Store>> LocalStore::create(
     const Flags& flags,
     Fetcher* fetcher)
 {
+  if (!os::exists(flags.docker_store_dir)) {
+    Try<Nothing> mkdir = os::mkdir(flags.docker_store_dir);
+    if (mkdir.isError()) {
+      return Error("Failed to create Docker store directory: " + mkdir.error());
+    }
+  }
+
+  if (!os::exists(paths::getStagingDir(flags.docker_store_dir))) {
+    Try<Nothing> mkdir =
+      os::mkdir(paths::getStagingDir(flags.docker_store_dir));
+    if (mkdir.isError()) {
+      return Error("Failed to create Docker store staging directory: " +
+                   mkdir.error());
+    }
+  }
+
   Try<Owned<LocalStoreProcess>> process =
     LocalStoreProcess::create(flags, fetcher);
   if (process.isError()) {
-    return Error("Failed to create store: " + process.error());
+    return Error(process.error());
   }
 
-  return Owned<Store>(new LocalStore(process.get()));
+  Try<Owned<ReferenceStore>> refStore = ReferenceStore::create(flags);
+  if (refStore.isError()) {
+    return Error(refStore);
+  }
+
+  return Owned<Store>(new LocalStore(process.get(), refStore.get()));
 }
 
 
-LocalStore::LocalStore(Owned<LocalStoreProcess> process)
-  : process(process)
+LocalStore::LocalStore(
+    Owned<LocalStoreProcess> process,
+    Owned<ReferenceStore> refStore)
+  : process(process),
+    _refStore(refStore)
 {
   process::spawn(CHECK_NOTNULL(process.get()));
 }
@@ -168,10 +194,6 @@ Future<DockerImage> LocalStoreProcess::get(const string& name)
     paths::getLocalImageTarPath(flags.docker_discovery_local_dir, name);
   if (!os::exists(tarPath)) {
     return Failure("No Docker image tar archive found");
-  }
-
-  if (!os::exists(paths::getStagingDir(flags.docker_store_dir))) {
-    os::mkdir(paths::getStagingDir(flags.docker_store_dir));
   }
 
   // Create a temporary staging directory.
@@ -328,7 +350,7 @@ Future<Nothing> LocalStoreProcess::putLayers(
   foreach (const string& layer, layers) {
     futures.push_back(
         futures.back().then(
-          defer(self(), &Self::untarLayer, staging, layer)));
+          defer(self(), &Self::putLayer, staging, layer)));
   }
 
   return collect(futures)
@@ -336,26 +358,50 @@ Future<Nothing> LocalStoreProcess::putLayers(
 }
 
 
-Future<Nothing> LocalStoreProcess::untarLayer(
+Future<Nothing> LocalStoreProcess::putLayer(
     const string& staging,
     const string& id)
 {
-  // Check if image layer is already in store.
-  if (os::exists(paths::getImageLayerPath(flags.docker_store_dir, id))) {
-    VLOG(1) << "Image layer: " << id << " already in store. Skipping untar"
-            << " and putLayer.";
+  // We untar the layer from source into a staging directory, then
+  // move the layer into store. We do this instead of untarring
+  // directly to store to make sure we don't end up with partially
+  // untarred layer rootfs.
+
+  // Check if image layer rootfs is already in store.
+  if (os::exists(paths::getImageLayerRootfsPath(flags.docker_store_dir, id))) {
+    VLOG(1) << "Image layer '" << id << "' rootfs already in store. "
+            << "Skipping put.";
     return Nothing();
+  }
+
+  const string imageLayerPath =
+    paths::getImageLayerPath(flags.docker_store_dir, id);
+  if (!os::exists()) {
+    Try<Nothing> mkdir = os::mkdir(imageLayerPath);
+    if (mkdir.isError()) {
+      return Failure("Failed to create Image layer directory '" +
+                     imageLayerPath + "': " + mkdir.error());
+    }
   }
 
   // Image layer has been untarred but is not present in the store directory.
   string localRootfsPath = paths::getLocalImageLayerRootfsPath(staging, id);
   if (os::exists(localRootfsPath)) {
-    LOG(WARNING) << "Image layer rootfs present at but not in store directory: "
-                 << localRootfsPath << "Skipping untarLayer.";
-    return moveLayer(staging, id);
+    LOG(WARNING) << "Image layer '" << id << "' rootfs present at but not in "
+                 << "store directory '" << localRootfsPath << "'. Removing "
+                 << "staged rootfs and untarring layer again.";
+    Try<Nothing> rmdir = os::rmdir(localRootfsPath);
+    if (rmdir.isError()) {
+      return Failure("Failed to remove incomplete staged rootfs for layer '" +
+                     id + "': " + rmdir.error());
+    }
   }
 
-  os::mkdir(localRootfsPath);
+  Try<Nothing> mkdir = os::mkdir(localRootfsPath);
+  if (mkdir.isError()) {
+    return Failure("Failed to create rootfs path '" + localRootfsPath + "': " +
+                   mkdir.error());
+  }
   // Untar staging/id/layer.tar into staging/id/rootfs.
   vector<string> argv = {
     "tar",
@@ -394,21 +440,13 @@ Future<Nothing> LocalStoreProcess::moveLayer(
     const string& staging,
     const string& id)
 {
-  if (!os::exists(flags.docker_store_dir)) {
-    VLOG(1) << "Creating docker store directory";
-    os::mkdir(flags.docker_store_dir);
-  }
-
-  if (!os::exists(paths::getImageLayerPath(flags.docker_store_dir, id))) {
-    os::mkdir(paths::getImageLayerPath(flags.docker_store_dir, id));
-  }
-
   Try<Nothing> status = os::rename(
       paths::getLocalImageLayerRootfsPath(staging, id),
       paths::getImageLayerRootfsPath(flags.docker_store_dir, id));
 
   if (status.isError()) {
-    return Failure("Failed to move layer to store directory:" + status.error());
+    return Failure("Failed to move layer to store directory: "
+                   + status.error());
   }
 
   return Nothing();

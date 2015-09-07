@@ -16,8 +16,8 @@
  * limitations under the License.
  */
 
-#ifndef __MESOS_DOCKER_REFERENCE_STORE__
-#define __MESOS_DOCKER_REFERENCE_STORE__
+#ifndef __MESOS_DOCKER_REFERENCE_STORE_HPP__
+#define __MESOS_DOCKER_REFERENCE_STORE_HPP__
 
 #include <list>
 #include <string>
@@ -95,43 +95,9 @@ private:
 };
 
 
-class ReferenceStoreProcess : public process::Process<ReferenceStoreProcess>
-{
-public:
-  ~ReferenceStoreProcess() {}
-
-  // Explicitly use 'initialize' since we are overloading below.
-  using process::ProcessBase::initialize;
-
-  void initialize();
-
-  static Try<process::Owned<ReferenceStoreProcess>> create(const Flags& flags);
-
-  process::Future<DockerImage> put(
-      const std::string& name,
-      const std::list<std::string>& layers);
-
-  process::Future<Option<DockerImage>> get(const std::string& name);
-
-  // TODO(chenlily): Implement removal of unreferenced images.
-
-private:
-  ReferenceStoreProcess(const Flags& flags);
-
-  // Write out reference store state to persistent store.
-  Try<Nothing> persist();
-
-  const Flags flags;
-
-  // This is a lookup table for images that are stored in memory. It is keyed
-  // by the name of the DockerImage.
-  // For example, "ubuntu:14.04" -> ubuntu14:04 DockerImage.
-  hashmap<std::string, DockerImage> storedImages;
-};
-
 } // namespace docker {
 } // namespace slave {
 } // namespace internal {
 } // namespace mesos {
 
-#endif // __MESOS_DOCKER_REFERENCE_STORE__
+#endif // __MESOS_DOCKER_REFERENCE_STORE_HPP__
