@@ -411,6 +411,8 @@ Future<Nothing> Docker::run(
 
   argv.push_back("-e");
   argv.push_back("MESOS_SANDBOX=" + mappedDirectory);
+  argv.push_back("-e");
+  argv.push_back("MESOS_CONTAINER_NAME=" + name);
 
   foreach (const Volume& volume, containerInfo.volumes()) {
     string volumeConfig = volume.container_path();
