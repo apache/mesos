@@ -35,6 +35,7 @@ layout: documentation
 * [GoCardless](http://www.gocardless.com)
 * [Groupon](http://www.groupon.com)
 * [Gutefrage.net](http://www.gutefrage.net)
+* [Hootsuite](https://hootsuite.com)
 * [HubSpot](http://www.hubspot.com)
 * [Ignidata](http://www.ignidata.com)
 * [iQIYI](http://www.iqiyi.com/)
