@@ -16,9 +16,9 @@
  * limitations under the License.
  */
 
-#ifndef __DOCKER_PROVISIONER_HPP__
-#define __DOCKER_PROVISIONER_HPP__
+#ifndef __MESSAGES_DOCKER_PROVISIONER_HPP__
+#define __MESSAGES_DOCKER_PROVISIONER_HPP__
 
 #include "messages/docker_provisioner.pb.h"
 
-#endif // __DOCKER_PROVISIONER_HPP__
+#endif // __MESSAGES_DOCKER_PROVISIONER_HPP__

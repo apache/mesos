@@ -701,17 +701,17 @@ public:
       const slave::Flags& flags,
       const DockerImage& dockerImage)
   {
+    string layersPath = path::join(flags.docker_store_dir, "layers");
+
     // Verify contents of the image in store directory.
-    EXPECT_TRUE(
-        os::exists(path::join(flags.docker_store_dir, "123", "rootfs")));
-    EXPECT_TRUE(
-        os::exists(path::join(flags.docker_store_dir, "456", "rootfs")));
+    EXPECT_TRUE(os::exists(path::join(layersPath, "123", "rootfs")));
+    EXPECT_TRUE(os::exists(path::join(layersPath, "456", "rootfs")));
     EXPECT_SOME_EQ(
         "foo 123",
-        os::read(path::join(flags.docker_store_dir, "123", "rootfs" , "temp")));
+        os::read(path::join(layersPath, "123", "rootfs" , "temp")));
     EXPECT_SOME_EQ(
         "bar 456",
-        os::read(path::join(flags.docker_store_dir, "456", "rootfs", "temp")));
+        os::read(path::join(layersPath, "456", "rootfs", "temp")));
 
     // Verify the Docker Image provided.
     EXPECT_EQ(dockerImage.imageName, "abc");
@@ -804,15 +804,10 @@ TEST_F(DockerProvisionerLocalStoreTest, LocalStoreTestWithTar)
 
   string sandbox = path::join(os::getcwd(), "sandbox");
   ASSERT_SOME(os::mkdir(sandbox));
-  Future<DockerImage> dockerImage = store.get()->put("abc", sandbox);
+  Future<DockerImage> dockerImage = store.get()->get("abc");
   AWAIT_READY(dockerImage);
 
   verifyLocalDockerImage(flags, dockerImage.get());
-
-  Future<Option<DockerImage>> dockerImageOption = store.get()->get("abc");
-  AWAIT_READY(dockerImageOption);
-  ASSERT_SOME(dockerImageOption.get());
-  verifyLocalDockerImage(flags, dockerImageOption.get().get());
 }
 
 // This tests the ability of the reference store to recover the images it has
@@ -832,7 +827,7 @@ TEST_F(DockerProvisionerLocalStoreTest, ReferenceStoreInitialization)
 
   string sandbox = path::join(os::getcwd(), "sandbox");
   ASSERT_SOME(os::mkdir(sandbox));
-  Future<DockerImage> dockerImage = store.get()->put("abc", sandbox);
+  Future<DockerImage> dockerImage = store.get()->get("abc");
   AWAIT_READY(dockerImage);
 
   // Store is deleted and recreated. Reference Store is initialized upon
@@ -841,10 +836,9 @@ TEST_F(DockerProvisionerLocalStoreTest, ReferenceStoreInitialization)
   store = Store::create(flags, &fetcher);
   ASSERT_SOME(store);
 
-  Future<Option<DockerImage>> dockerImageOption = store.get()->get("abc");
-  AWAIT_READY(dockerImageOption);
-  ASSERT_SOME(dockerImageOption.get());
-  verifyLocalDockerImage(flags, dockerImageOption.get().get());
+  dockerImage = store.get()->get("abc");
+  AWAIT_READY(dockerImage);
+  verifyLocalDockerImage(flags, dockerImage.get());
 }
 
 } // namespace tests {

@@ -96,10 +96,10 @@ struct DockerImage
 // Forward declaration.
 class DockerProvisionerProcess;
 
-class DockerProvisioner : public Provisioner
+class DockerProvisioner : public mesos::internal::slave::Provisioner
 {
 public:
-  static Try<process::Owned<Provisioner>> create(
+  static Try<process::Owned<mesos::internal::slave::Provisioner>> create(
       const Flags& flags,
       Fetcher* fetcher);
 
@@ -116,7 +116,7 @@ public:
   virtual process::Future<bool> destroy(const ContainerID& containerId);
 
 private:
-  explicit DockerProvisioner(process::Owned<DockerProvisionerProcess> process);
+  explicit DockerProvisioner(process::Owned<DockerProvisionerProcess> _process);
   DockerProvisioner(const DockerProvisioner&); // Not copyable.
   DockerProvisioner& operator=(const DockerProvisioner&); // Not assignable.
 

@@ -187,7 +187,7 @@ Future<DockerImage> LocalStoreProcess::get(const string& name)
 {
   return refStore->get(name)
     .then(defer(self(),
-                [this, &name](
+                [this, name](
                     const Option<DockerImage>& image) -> Future<DockerImage> {
       if (image.isSome()) {
         return image.get();
