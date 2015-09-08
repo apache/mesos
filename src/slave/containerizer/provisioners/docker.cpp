@@ -30,9 +30,13 @@
 #include <process/owned.hpp>
 #include <process/sequence.hpp>
 
-#include "linux/fs.hpp"
+#include "slave/containerizer/provisioners/backend.hpp"
+#include "slave/containerizer/provisioners/paths.hpp"
 
+#include "slave/containerizer/provisioners/docker/paths.hpp"
 #include "slave/containerizer/provisioners/docker/store.hpp"
+
+#include "slave/paths.hpp"
 
 using namespace process;
 using namespace mesos::internal::slave;
@@ -68,20 +72,18 @@ public:
 
 private:
   DockerProvisionerProcess(
-      const Flags& flags,
-      const process::Owned<Store>& store,
-      const process::Owned<mesos::internal::slave::Backend>& backend);
+      const string& _rootDir,
+      const Flags& _flags,
+      const process::Owned<Store>& _store,
+      const hashmap<std::string, process::Owned<Backend>>& _backends);
 
   process::Future<std::string> _provision(
+      const DockerImage& image,
       const ContainerID& containerId,
-      const DockerImage& image);
+      const string& rootfs);
 
-  process::Future<DockerImage> fetch(
-      const std::string& name,
-      const std::string& sandbox);
-
+  const string& rootDir;
   const Flags flags;
-
   process::Owned<Store> store;
   hashmap<string, process::Owned<Backend>> backends;
 
@@ -92,7 +94,6 @@ private:
   };
 
   hashmap<ContainerID, Owned<Info>> infos;
-
 };
 
 
@@ -179,23 +180,16 @@ Try<Owned<DockerProvisionerProcess>> DockerProvisionerProcess::create(
     const Flags& flags,
     Fetcher* fetcher)
 {
-  string _root =
+  string rootDir =
     slave::paths::getProvisionerDir(flags.work_dir, Image::DOCKER);
 
-  Try<Nothing> mkdir = os::mkdir(_root);
-  if (mkdir.isError()) {
-    return Error("Failed to create provisioner root directory '" +
-                 _root + "': " + mkdir.error());
+  if (!os::exists(rootDir)) {
+    Try<Nothing> mkdir = os::mkdir(rootDir);
+    if (mkdir.isError()) {
+      return Error("Failed to create Docker provisioner root directory '" +
+                   rootDir + "': " + mkdir.error());
+    }
   }
-
-  Result<string> root = os::realpath(_root);
-  if (root.isError()) {
-    return Error(
-        "Failed to resolve the realpath of provisioner root directory '" +
-        _root + "': " + root.error());
-  }
-
-  CHECK_SOME(root); // Can't be None since we just created it.
 
   hashmap<string, Owned<Backend>> backends = Backend::create(flags);
   if (backends.empty()) {
@@ -214,6 +208,7 @@ Try<Owned<DockerProvisionerProcess>> DockerProvisionerProcess::create(
 
   return Owned<DockerProvisionerProcess>(
       new DockerProvisionerProcess(
+          rootDir,
           flags,
           store.get(),
           backends));
@@ -221,10 +216,12 @@ Try<Owned<DockerProvisionerProcess>> DockerProvisionerProcess::create(
 
 
 DockerProvisionerProcess::DockerProvisionerProcess(
+    const string& _rootDir,
     const Flags& _flags,
     const Owned<Store>& _store,
     const hashmap<string, Owned<Backend>>& _backends)
-  : flags(_flags),
+  : rootDir(_rootDir),
+    flags(_flags),
     store(_store),
     backends(_backends) {}
 
@@ -252,7 +249,7 @@ Future<Nothing> DockerProvisionerProcess::recover(
   // be destroyed by the containerizer using the normal cleanup path. See
   // MESOS-2367 for details.
   Try<hashmap<ContainerID, string>> containers =
-    provisioners::paths::listContainers(root);
+    provisioners::paths::listContainers(rootDir);
 
   if (containers.isError()) {
     return Failure("Failed to list the containers managed by Docker "
@@ -265,7 +262,7 @@ Future<Nothing> DockerProvisionerProcess::recover(
       Owned<Info> info = Owned<Info>(new Info());
 
       Try<hashmap<string, hashmap<string, string>>> rootfses =
-        provisioners::paths::listContainerRootfses(root, containerId);
+        provisioners::paths::listContainerRootfses(rootDir, containerId);
 
       if (rootfses.isError()) {
         return Failure("Unable to list rootfses belonged to container '" +
@@ -289,7 +286,7 @@ Future<Nothing> DockerProvisionerProcess::recover(
 
     // Destroy (unknown) orphan container's rootfses.
     Try<hashmap<string, hashmap<string, string>>> rootfses =
-      provisioners::paths::listContainerRootfses(root, containerId);
+      provisioners::paths::listContainerRootfses(rootDir, containerId);
 
     if (rootfses.isError()) {
       return Failure("Unable to find rootfses for container '" +
@@ -340,7 +337,7 @@ Future<string> DockerProvisionerProcess::provision(
 
   string rootfsId = UUID::random().toString();
   string rootfs = provisioners::paths::getContainerRootfsDir(
-      root, containerId, flags.docker_backend, rootfsId);
+      rootDir, containerId, flags.docker_backend, rootfsId);
 
   if (!infos.contains(containerId)) {
     infos.put(containerId, Owned<Info>(new Info()));
@@ -348,63 +345,29 @@ Future<string> DockerProvisionerProcess::provision(
 
   infos[containerId]->rootfses[flags.docker_backend].put(rootfsId, rootfs);
 
-
-  return fetch(image.docker().name())
-    .then(defer(self(),
-                &Self::_provision,
-                containerId,
-                lambda::_1));
+  return store->get(image.docker().name())
+    .then(defer(self(), &Self::_provision, lambda::_1, containerId, rootfs));
 }
 
 
 Future<string> DockerProvisionerProcess::_provision(
+    const DockerImage& image,
     const ContainerID& containerId,
-    const DockerImage& image)
+    const string& rootfs)
 {
   CHECK(backends.contains(flags.docker_backend));
 
-  // Create root directory.
-  string base = path::join(flags.docker_rootfs_dir,
-                           stringify(containerId));
-
-  string rootfs = path::join(base, "rootfs");
-
-  Try<Nothing> mkdir = os::mkdir(base);
-  if (mkdir.isError()) {
-    return Failure("Failed to create directory for container filesystem: " +
-                    mkdir.error());
-  }
-
   LOG(INFO) << "Provisioning rootfs for container '" << containerId << "'"
-            << " to '" << base << "'";
+            << " to '" << rootfs << "'";
 
   vector<string> layerPaths;
   foreach (const string& layerId, image.layers) {
-    layerPaths.push_back(path::join(flags.docker_store_dir, layerId, "rootfs"));
+    layerPaths.push_back(
+        paths::getImageLayerRootfsPath(flags.docker_store_dir, layerId));
   }
 
-
-  return backends[flags.docker_backend]->provision(layerPaths, base)
-    .then([rootfs]() -> Future<string> {
-      // Bind mount the rootfs to itself so we can pivot_root. We do
-      // it now so any subsequent mounts by the containerizer or
-      // isolators are correctly handled by pivot_root.
-      Try<Nothing> mount =
-        fs::mount(rootfs, rootfs, None(), MS_BIND | MS_SHARED, NULL);
-      if (mount.isError()) {
-        return Failure("Failure to bind mount rootfs: " + mount.error());
-      }
-
-      return rootfs;
-    });
-}
-
-
-// Fetch an image and all dependencies.
-Future<DockerImage> DockerProvisionerProcess::fetch(
-    const string& name)
-{
-  return store->get(name);
+  return backends[flags.docker_backend]->provision(layerPaths, rootfs)
+    .then([rootfs]() -> Future<string> { return rootfs; });
 }
 
 

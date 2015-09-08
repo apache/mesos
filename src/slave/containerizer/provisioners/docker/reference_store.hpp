@@ -56,12 +56,6 @@ class ReferenceStore
 public:
   ~ReferenceStore();
 
-  /**
-   * Recover all Docker Images that are on disk by checking if all
-   * layer dependencies for that layer are present on disk.
-   */
-  void initialize();
-
   static Try<process::Owned<ReferenceStore>> create(const Flags& flags);
 
   /**
@@ -84,6 +78,11 @@ public:
    * @param name  the name of the Docker image to retrieve
    */
   process::Future<Option<DockerImage>> get(const std::string& name);
+
+  /**
+   * Recover all stored DockerImage and its layer references.
+   */
+  process::Future<Nothing> recover();
 
 private:
   explicit ReferenceStore(process::Owned<ReferenceStoreProcess> process);

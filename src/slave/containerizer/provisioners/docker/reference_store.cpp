@@ -54,18 +54,15 @@ class ReferenceStoreProcess : public process::Process<ReferenceStoreProcess>
 public:
   ~ReferenceStoreProcess() {}
 
-  // Explicitly use 'initialize' since we are overloading below.
-  using process::ProcessBase::initialize;
-
-  void initialize();
-
   static Try<process::Owned<ReferenceStoreProcess>> create(const Flags& flags);
 
-  process::Future<DockerImage> put(
+  Future<DockerImage> put(
       const std::string& name,
       const std::list<std::string>& layers);
 
-  process::Future<Option<DockerImage>> get(const std::string& name);
+  Future<Option<DockerImage>> get(const std::string& name);
+
+  Future<Nothing> recover();
 
   // TODO(chenlily): Implement removal of unreferenced images.
 
@@ -109,9 +106,9 @@ ReferenceStore::~ReferenceStore()
 }
 
 
-void ReferenceStore::initialize()
+Future<Nothing> ReferenceStore::recover()
 {
-  process::dispatch(process.get(), &ReferenceStoreProcess::initialize);
+  return process::dispatch(process.get(), &ReferenceStoreProcess::recover);
 }
 
 
@@ -194,7 +191,7 @@ Try<Nothing> ReferenceStoreProcess::persist()
 }
 
 
-void ReferenceStoreProcess::initialize()
+Future<Nothing> ReferenceStoreProcess::recover()
 {
   string storedImagesPath = paths::getStoredImagesPath(flags.docker_store_dir);
 
@@ -202,15 +199,14 @@ void ReferenceStoreProcess::initialize()
   if (!os::exists(storedImagesPath)) {
     LOG(INFO) << "No images to load from disk. Docker provisioner image "
               << "storage path: " << storedImagesPath << " does not exist.";
-    return;
+    return Nothing();
   }
 
   Result<DockerProvisionerImages> images =
     ::protobuf::read<DockerProvisionerImages>(storedImagesPath);
   if (images.isError()) {
-    LOG(ERROR) << "Failed to read protobuf for Docker provisioner image: "
-               << images.error();
-    return;
+    return Failure("Failed to read protobuf for Docker provisioner image: " +
+                   images.error());
   }
 
   for (int i = 0; i < images.get().images_size(); i++) {
@@ -224,7 +220,7 @@ void ReferenceStoreProcess::initialize()
       layers.push_back(layerId);
 
       if (!os::exists(
-              paths::getImageLayerPath(flags.docker_store_dir, layerId))) {
+              paths::getImageLayerRootfsPath(flags.docker_store_dir, layerId))) {
         missingLayers.push_back(layerId);
       }
     }
@@ -243,6 +239,8 @@ void ReferenceStoreProcess::initialize()
   }
 
   LOG(INFO) << "Loaded " << storedImages.size() << " Docker images.";
+
+  return Nothing();
 }
 
 } // namespace docker {

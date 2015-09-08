@@ -41,7 +41,6 @@
 #include <mesos/resources.hpp>
 
 #include "slave/containerizer/provisioner.hpp"
-#include "slave/containerizer/provisioners/backend.hpp"
 
 #include "slave/flags.hpp"
 

@@ -62,10 +62,13 @@ public:
 
   process::Future<DockerImage> get(const std::string& name);
 
+  process::Future<Nothing> recover();
+
 private:
   LocalStoreProcess(
-      const Flags& flags,
-      Owned<ReferenceStore> _refStore);
+      const Flags& _flags,
+      Owned<ReferenceStore> _refStore)
+    : flags(_flags), refStore(_refStore) {}
 
   process::Future<Nothing> untarImage(
       const std::string& tarPath,
@@ -73,7 +76,7 @@ private:
 
   process::Future<DockerImage> putImage(
       const std::string& name,
-      const std::string& staging)
+      const std::string& staging);
 
   Result<std::string> getParentId(
       const std::string& staging,
@@ -81,18 +84,17 @@ private:
 
   process::Future<Nothing> putLayers(
       const std::string& staging,
-      const std::list<std::string>& layers)
+      const std::list<std::string>& layers);
 
   process::Future<Nothing> putLayer(
       const std::string& staging,
-      const std::string& id)
+      const std::string& id);
 
   process::Future<Nothing> moveLayer(
       const std::string& staging,
-      const std::string& id)
+      const std::string& id);
 
   const Flags flags;
-
   process::Owned<ReferenceStore> refStore;
 };
 
@@ -117,6 +119,45 @@ Try<Owned<Store>> LocalStore::create(
     const Flags& flags,
     Fetcher* fetcher)
 {
+  Try<Owned<LocalStoreProcess>> process =
+    LocalStoreProcess::create(flags, fetcher);
+  if (process.isError()) {
+    return Error(process.error());
+  }
+
+  return Owned<Store>(new LocalStore(process.get()));
+}
+
+
+LocalStore::LocalStore(Owned<LocalStoreProcess> _process) : process(_process)
+{
+  process::spawn(CHECK_NOTNULL(process.get()));
+}
+
+
+LocalStore::~LocalStore()
+{
+  process::terminate(process.get());
+  process::wait(process.get());
+}
+
+
+Future<DockerImage> LocalStore::get(const string& name)
+{
+  return dispatch(process.get(), &LocalStoreProcess::get, name);
+}
+
+
+Future<Nothing> LocalStore::recover()
+{
+  return dispatch(process.get(), &LocalStoreProcess::recover);
+}
+
+
+Try<Owned<LocalStoreProcess>> LocalStoreProcess::create(
+    const Flags& flags,
+    Fetcher* fetcher)
+{
   if (!os::exists(flags.docker_store_dir)) {
     Try<Nothing> mkdir = os::mkdir(flags.docker_store_dir);
     if (mkdir.isError()) {
@@ -133,80 +174,48 @@ Try<Owned<Store>> LocalStore::create(
     }
   }
 
-  Try<Owned<LocalStoreProcess>> process =
-    LocalStoreProcess::create(flags, fetcher);
-  if (process.isError()) {
-    return Error(process.error());
-  }
-
   Try<Owned<ReferenceStore>> refStore = ReferenceStore::create(flags);
   if (refStore.isError()) {
-    return Error(refStore);
+    return Error(refStore.error());
   }
 
-  return Owned<Store>(new LocalStore(process.get(), refStore.get()));
+  return Owned<LocalStoreProcess>(new LocalStoreProcess(flags, refStore.get()));
 }
-
-
-LocalStore::LocalStore(
-    Owned<LocalStoreProcess> process,
-    Owned<ReferenceStore> refStore)
-  : process(process),
-    _refStore(refStore)
-{
-  process::spawn(CHECK_NOTNULL(process.get()));
-}
-
-
-LocalStore::~LocalStore()
-{
-  process::terminate(process.get());
-  process::wait(process.get());
-}
-
-
-Future<Option<DockerImage>> LocalStore::get(const string& name)
-{
-  return dispatch(process.get(), &LocalStoreProcess::get, name);
-}
-
-
-Try<Owned<LocalStoreProcess>> LocalStoreProcess::create(
-    const Flags& flags,
-    Fetcher* fetcher)
-{
-  return Owned<LocalStoreProcess>(new LocalStoreProcess(flags));
-}
-
-
-LocalStoreProcess::LocalStoreProcess(const Flags& flags)
-  : flags(flags), refStore(ReferenceStore::create(flags).get()) {}
 
 
 Future<DockerImage> LocalStoreProcess::get(const string& name)
 {
-  Option<DockerImage> image = refStore->get(name);
-  if (image.isSome()) {
-    return image.get();
-  }
+  return refStore->get(name)
+    .then(defer(self(),
+                [this, &name](
+                    const Option<DockerImage>& image) -> Future<DockerImage> {
+      if (image.isSome()) {
+        return image.get();
+      }
 
-  string tarPath =
-    paths::getLocalImageTarPath(flags.docker_discovery_local_dir, name);
-  if (!os::exists(tarPath)) {
-    return Failure("No Docker image tar archive found");
-  }
+      string tarPath =
+        paths::getLocalImageTarPath(flags.docker_discovery_local_dir, name);
+      if (!os::exists(tarPath)) {
+        return Failure("No Docker image tar archive found");
+      }
 
-  // Create a temporary staging directory.
-  Try<string> staging =
-    os::mkdtemp(paths::getTempStaging(flags.docker_store_dir));
-  if (staging.isError()) {
-    return Failure("Failed to create a staging directory");
-  }
+      // Create a temporary staging directory.
+      Try<string> staging =
+        os::mkdtemp(paths::getTempStaging(flags.docker_store_dir));
+      if (staging.isError()) {
+        return Failure("Failed to create a staging directory");
+      }
 
-  return untarImage(tarPath, staging.get())
-    .then(defer(self(), &Self::putImage, name, staging.get()));
+      return untarImage(tarPath, staging.get())
+        .then(defer(self(), &Self::putImage, name, staging.get()));
+    }));
 }
 
+
+Future<Nothing> LocalStoreProcess::recover()
+{
+  return refStore->recover();
+}
 
 Future<Nothing> LocalStoreProcess::untarImage(
     const string& tarPath,
@@ -376,7 +385,7 @@ Future<Nothing> LocalStoreProcess::putLayer(
 
   const string imageLayerPath =
     paths::getImageLayerPath(flags.docker_store_dir, id);
-  if (!os::exists()) {
+  if (!os::exists(imageLayerPath)) {
     Try<Nothing> mkdir = os::mkdir(imageLayerPath);
     if (mkdir.isError()) {
       return Failure("Failed to create Image layer directory '" +

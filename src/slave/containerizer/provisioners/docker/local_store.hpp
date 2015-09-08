@@ -26,8 +26,17 @@ namespace internal {
 namespace slave {
 namespace docker {
 
+// Forward declaration.
 class LocalStoreProcess;
+class ReferenceStore;
 
+
+/**
+ * LocalStore assumes Docker images are stored in a local directory
+ * (configured with flags.docker_discovery_local_dir), with all the
+ * images saved as tar with the name as the image name with tag (e.g:
+ * ubuntu:14.04.tar).
+ */
 class LocalStore : public Store
 {
 public:
@@ -37,18 +46,12 @@ public:
       const Flags& flags,
       Fetcher* fetcher);
 
-  /**
-   * Put assumes the image tar archive is located in the directory specified in
-   * the slave flag docker_discovery_local_dir and is named with <name>.tar .
-   */
-  virtual process::Future<DockerImage> put(
-      const std::string& name,
-      const std::string& sandbox);
+  virtual process::Future<DockerImage> get(const std::string& name);
 
-  virtual process::Future<Option<DockerImage>> get(const std::string& name);
+  virtual process::Future<Nothing> recover();
 
 private:
-  explicit LocalStore(process::Owned<LocalStoreProcess> process);
+  explicit LocalStore(process::Owned<LocalStoreProcess> _process);
 
   LocalStore(const LocalStore&); // Not copyable.
 

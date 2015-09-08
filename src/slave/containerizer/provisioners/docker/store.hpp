@@ -49,13 +49,18 @@ public:
   virtual ~Store() {}
 
   /**
-  * Get image by name.
-  *
-  * @param name The name of the Docker image to retrieve from store.
-  *
-  * @return The DockerImage that holds the Docker layers.
-  */
+   * Get image by name.
+   *
+   * @param name The name of the Docker image to retrieve from store.
+   *
+   * @return The DockerImage that holds the Docker layers.
+   */
   virtual process::Future<DockerImage> get(const std::string& name) = 0;
+
+  /**
+   * Recover all stored images
+   */
+  virtual process::Future<Nothing> recover() = 0;
 
   // TODO(chenlily): Implement removing an image.
 

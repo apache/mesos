@@ -529,6 +529,10 @@ libmesos_no_3rdparty_la_SOURCES =					\
 	slave/containerizer/provisioner/appc/store.cpp			\
 	slave/containerizer/provisioner/backend.cpp			\
 	slave/containerizer/provisioner/backends/copy.cpp		\
+	slave/containerizer/provisioner/docker.cpp			\
+	slave/containerizer/provisioner/docker/local_store.cpp		\
+	slave/containerizer/provisioner/docker/paths.cpp		\
+	slave/containerizer/provisioner/docker/reference_store.cpp	\
 	slave/containerizer/provisioner/docker/registry_client.cpp	\
 	slave/containerizer/provisioner/docker/token_manager.cpp	\
 	slave/resource_estimators/noop.cpp				\
@@ -701,10 +705,6 @@ if OS_LINUX
   libmesos_no_3rdparty_la_SOURCES += slave/containerizer/isolators/filesystem/shared.cpp
   libmesos_no_3rdparty_la_SOURCES += slave/containerizer/linux_launcher.cpp
   libmesos_no_3rdparty_la_SOURCES += slave/containerizer/provisioner/backends/bind.cpp
-  libmesos_no_3rdparty_la_SOURCES += slave/containerizer/provisioner/docker.cpp
-  libmesos_no_3rdparty_la_SOURCES += slave/containerizer/provisioner/docker/local_store.cpp
-  libmesos_no_3rdparty_la_SOURCES += slave/containerizer/provisioner/docker/paths.cpp
-  libmesos_no_3rdparty_la_SOURCES += slave/containerizer/provisioner/docker/reference_store.cpp
 else
   EXTRA_DIST += linux/cgroups.cpp
   EXTRA_DIST += linux/fs.cpp
