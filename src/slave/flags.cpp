@@ -69,8 +69,8 @@ mesos::internal::slave::Flags::Flags()
       "Directory the appc provisioner will store images in",
       "/tmp/mesos/store/appc");
 
-  add(&Flags::appc_backend,
-      "appc_backend",
+  add(&Flags::appc_provisioner_backend,
+      "appc_provisioner_backend",
       "Strategy for provisioning container rootfs from appc images",
       "copy");
 

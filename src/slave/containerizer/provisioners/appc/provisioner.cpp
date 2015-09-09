@@ -129,9 +129,9 @@ Try<Owned<Provisioner>> AppcProvisioner::create(
     return Error("No usable provisioner backend created");
   }
 
-  if (!backends.contains(flags.appc_backend)) {
-    return Error("The specified provisioner backend '" + flags.appc_backend +
-                 "'is unsupported");
+  if (!backends.contains(flags.appc_provisioner_backend)) {
+    return Error("The specified provisioner backend '" +
+                 flags.appc_provisioner_backend + "'is unsupported");
   }
 
   return Owned<Provisioner>(new AppcProvisioner(
@@ -310,13 +310,14 @@ Future<string> AppcProvisionerProcess::provision(
 
   string rootfsId = UUID::random().toString();
   string rootfs = provisioners::paths::getContainerRootfsDir(
-      root, containerId, flags.appc_backend, rootfsId);
+      root, containerId, flags.appc_provisioner_backend, rootfsId);
 
   if (!infos.contains(containerId)) {
     infos.put(containerId, Owned<Info>(new Info()));
   }
 
-  infos[containerId]->rootfses[flags.appc_backend].put(rootfsId, rootfs);
+  infos[containerId]->rootfses[flags.appc_provisioner_backend].put(
+      rootfsId, rootfs);
 
   // Get and then provision image layers from the store.
   return store->get(image.appc())
@@ -330,8 +331,10 @@ Future<string> AppcProvisionerProcess::_provision(
 {
   LOG(INFO) << "Provisioning image layers to rootfs '" << rootfs << "'";
 
-  CHECK(backends.contains(flags.appc_backend));
-  return backends.get(flags.appc_backend).get()->provision(layers, rootfs)
+  CHECK(backends.contains(flags.appc_provisioner_backend));
+  return backends.get(flags.appc_provisioner_backend).get()->provision(
+      layers,
+      rootfs)
     .then([rootfs]() -> Future<string> { return rootfs; });
 }
 

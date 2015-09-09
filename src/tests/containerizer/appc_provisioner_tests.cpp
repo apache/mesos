@@ -196,7 +196,7 @@ TEST_F(AppcProvisionerTest, ROOT_Provision)
   // Create provisioner.
   slave::Flags flags;
   flags.appc_store_dir = path::join(os::getcwd(), "store");
-  flags.appc_backend = "bind";
+  flags.appc_provisioner_backend = "bind";
   flags.provisioners = "appc";
   flags.work_dir = "work_dir";
 
@@ -276,7 +276,7 @@ TEST_F(AppcProvisionerTest, ROOT_Provision)
       "containers",
       containerId.value(),
       "backends",
-      flags.appc_backend,
+      flags.appc_provisioner_backend,
       "rootfses"));
 
   ASSERT_SOME(rootfses);
