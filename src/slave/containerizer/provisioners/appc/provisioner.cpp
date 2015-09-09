@@ -208,12 +208,8 @@ Future<Nothing> AppcProvisionerProcess::recover(
   // Register living containers, including the ones that do not
   // provision Appc images.
   hashset<ContainerID> alive;
-
   foreach (const ContainerState& state, states) {
-    if (state.executor_info().has_container() &&
-        state.executor_info().container().type() == ContainerInfo::MESOS) {
-      alive.insert(state.container_id());
-    }
+    alive.insert(state.container_id());
   }
 
   // List provisioned containers; recover living ones; destroy unknown orphans.
@@ -272,7 +268,8 @@ Future<Nothing> AppcProvisionerProcess::recover(
       }
 
       foreachvalue (const string& rootfs, rootfses.get()[backend]) {
-        VLOG(1) << "Destroying orphan rootfs " << rootfs;
+        LOG(INFO) << "Destroying unknown orphan rootfs '" << rootfs
+                  << "' of container " << containerId;
 
         // Not waiting for the destruction and we don't care about
         // the return value.
