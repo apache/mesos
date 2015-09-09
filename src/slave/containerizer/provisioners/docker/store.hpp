@@ -30,7 +30,7 @@
 
 #include "slave/containerizer/fetcher.hpp"
 #include "slave/containerizer/provisioners/docker.hpp"
-#include "slave/containerizer/provisioners/docker/reference_store.hpp"
+
 #include "slave/flags.hpp"
 
 namespace mesos {
@@ -55,7 +55,7 @@ public:
    *
    * @return The DockerImage that holds the Docker layers.
    */
-  virtual process::Future<DockerImage> get(const std::string& name) = 0;
+  virtual process::Future<DockerImage> get(const ImageName& name) = 0;
 
   /**
    * Recover all stored images

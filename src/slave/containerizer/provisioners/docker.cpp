@@ -97,9 +97,10 @@ private:
 };
 
 
-ImageName::ImageName(const std::string& name)
+Try<ImageName> ImageName::create(const std::string& name)
 {
-  registry = None();
+  ImageName imageName;
+  Option<string> registry = None();
   std::vector<std::string> components = strings::split(name, "/");
   if (components.size() > 2) {
     registry = name.substr(0, name.find_last_of("/"));
@@ -107,12 +108,14 @@ ImageName::ImageName(const std::string& name)
 
   std::size_t found = components.back().find_last_of(':');
   if (found == std::string::npos) {
-    repo = components.back();
-    tag = "latest";
+    imageName.repository = components.back();
+    imageName.tag = "latest";
   } else {
-    repo = components.back().substr(0, found);
-    tag = components.back().substr(found + 1);
+    imageName.repository = components.back().substr(0, found);
+    imageName.tag = components.back().substr(found + 1);
   }
+
+  return imageName;
 }
 
 Try<Owned<Provisioner>> DockerProvisioner::create(
@@ -191,7 +194,7 @@ Try<Owned<DockerProvisionerProcess>> DockerProvisionerProcess::create(
     }
   }
 
-  hashmap<string, Owned<Backend>> backends = Backend::create(flags);
+  const hashmap<string, Owned<Backend>> backends = Backend::create(flags);
   if (backends.empty()) {
     return Error("No usable Docker provisioner backend created");
   }
@@ -345,7 +348,13 @@ Future<string> DockerProvisionerProcess::provision(
 
   infos[containerId]->rootfses[flags.docker_backend].put(rootfsId, rootfs);
 
-  return store->get(image.docker().name())
+  Try<ImageName> imageName = ImageName::create(image.docker().name());
+  if (imageName.isError()) {
+    return Failure("Unable to able to parse Docker image name '" +
+                   image.docker().name() + "': " + imageName.error());
+  }
+
+  return store->get(imageName.get())
     .then(defer(self(), &Self::_provision, lambda::_1, containerId, rootfs));
 }
 
@@ -361,7 +370,7 @@ Future<string> DockerProvisionerProcess::_provision(
             << " to '" << rootfs << "'";
 
   vector<string> layerPaths;
-  foreach (const string& layerId, image.layers) {
+  foreach (const string& layerId, image.layerIds) {
     layerPaths.push_back(
         paths::getImageLayerRootfsPath(flags.docker_store_dir, layerId));
   }

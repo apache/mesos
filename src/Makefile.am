@@ -531,8 +531,8 @@ libmesos_no_3rdparty_la_SOURCES =					\
 	slave/containerizer/provisioner/backends/copy.cpp		\
 	slave/containerizer/provisioner/docker.cpp			\
 	slave/containerizer/provisioner/docker/local_store.cpp		\
+	slave/containerizer/provisioner/docker/metadata_manager.cpp	\
 	slave/containerizer/provisioner/docker/paths.cpp		\
-	slave/containerizer/provisioner/docker/reference_store.cpp	\
 	slave/containerizer/provisioner/docker/registry_client.cpp	\
 	slave/containerizer/provisioner/docker/token_manager.cpp	\
 	slave/resource_estimators/noop.cpp				\
@@ -831,8 +831,8 @@ libmesos_no_3rdparty_la_SOURCES +=					\
 	slave/containerizer/provisioner/backends/copy.hpp		\
 	slave/containerizer/provisioner/docker.hpp			\
 	slave/containerizer/provisioner/docker/local_store.hpp		\
+	slave/containerizer/provisioners/docker/metadata_manager.hpp    \
 	slave/containerizer/provisioner/docker/paths.hpp		\
-	slave/containerizer/provisioner/docker/reference_store.hpp	\
 	slave/containerizer/provisioner/docker/registry_client.hpp	\
 	slave/containerizer/provisioner/docker/store.hpp		\
 	slave/containerizer/provisioner/docker/token_manager.hpp	\

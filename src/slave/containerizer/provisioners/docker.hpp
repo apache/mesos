@@ -52,50 +52,83 @@ namespace docker {
 // Forward declaration.
 class Store;
 
+/**
+ * Represents Docker Image Name, which composes of a repository and a
+ * tag.
+ */
 struct ImageName
 {
-  std::string repo;
-  std::string tag;
-  Option<std::string> registry;
-
-  ImageName(const std::string& name);
+  static Try<ImageName> create(const std::string& name);
 
   ImageName(
-      const std::string& repo,
-      const std::string& tag,
-      const Option<std::string>& registry = None())
-    : repo(repo), tag(tag), registry(registry) {}
+      const std::string& _repository,
+      const std::string& _tag,
+      const Option<std::string>& _registry = None())
+    : repository(_repository),
+      tag(_tag),
+      registry(_registry) {}
 
   ImageName() {}
+
+  /**
+   * The string representation of this image.
+   */
+  std::string name() const
+  {
+    if (registry.isSome()) {
+      return registry.get() +  "/" + repository + ":" + tag;
+    }
+
+    return repository + ":" + tag;
+  }
+
+  /**
+   * Repository of this image (e.g, ubuntu).
+   */
+  std::string repository;
+
+  /**
+   * Tag of this image (e.g: 14.04).
+   */
+  std::string tag;
+
+  /**
+   * Custom registry that the image points to.
+   */
+  Option<std::string> registry;
 };
 
 
 inline std::ostream& operator<<(std::ostream& stream, const ImageName& image)
 {
-  if (image.registry.isSome()) {
-    return stream << image.registry.get()
-                  << "/" << image.repo << ":" << image.tag;
-  }
-  return stream << image.repo << ":" << image.tag;
+  return stream << image.name();
 }
 
 
+/**
+ * Represents a Docker Image that holds its name and all of its layers
+ * sorted by its dependency.
+ */
 struct DockerImage
 {
   DockerImage() {}
 
   DockerImage(
-      const std::string& imageName,
-      const std::list<std::string>& layers)
-  : imageName(imageName), layers(layers) {}
+      const ImageName& _imageName,
+      const std::list<std::string>& _layerIds)
+  : imageName(_imageName), layerIds(_layerIds) {}
 
-  std::string imageName;
-  std::list<std::string> layers;
+  ImageName imageName;
+  std::list<std::string> layerIds;
 };
 
 // Forward declaration.
 class DockerProvisionerProcess;
 
+/**
+ * Docker Provisioner is responsible to provision rootfs for
+ * containers with Docker images.
+ */
 class DockerProvisioner : public mesos::internal::slave::Provisioner
 {
 public:
@@ -117,8 +150,9 @@ public:
 
 private:
   explicit DockerProvisioner(process::Owned<DockerProvisionerProcess> _process);
-  DockerProvisioner(const DockerProvisioner&); // Not copyable.
-  DockerProvisioner& operator=(const DockerProvisioner&); // Not assignable.
+
+  DockerProvisioner& operator=(const DockerProvisioner&) = delete; // Not assignable.
+  DockerProvisioner(const DockerProvisioner&) = delete; // Not copyable.
 
   process::Owned<DockerProvisionerProcess> process;
 };

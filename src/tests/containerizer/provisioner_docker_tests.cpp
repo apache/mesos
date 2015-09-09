@@ -37,12 +37,15 @@
 
 #include <process/ssl/gtest.hpp>
 
+#include "slave/containerizer/provisioner/docker/metadata_manager.hpp"
 #include "slave/containerizer/provisioner/docker/registry_client.hpp"
+#include "slave/containerizer/provisioner/docker/store.hpp"
 #include "slave/containerizer/provisioner/docker/token_manager.hpp"
 
 #include "tests/mesos.hpp"
 #include "tests/utils.hpp"
 
+using std::list;
 using std::map;
 using std::string;
 using std::vector;
@@ -714,11 +717,12 @@ public:
         os::read(path::join(layersPath, "456", "rootfs", "temp")));
 
     // Verify the Docker Image provided.
-    EXPECT_EQ(dockerImage.imageName, "abc");
+    EXPECT_EQ(dockerImage.imageName.repository, "abc");
+    EXPECT_EQ(dockerImage.imageName.tag, "latest");
     list<string> expectedLayers;
     expectedLayers.push_back("123");
     expectedLayers.push_back("456");
-    EXPECT_EQ(dockerImage.layers, expectedLayers);
+    EXPECT_EQ(dockerImage.layerIds, expectedLayers);
   }
 
 protected:
@@ -727,7 +731,7 @@ protected:
     TemporaryDirectoryTest::SetUp();
 
     string imageDir = path::join(os::getcwd(), "images");
-    string image = path::join(imageDir, "abc");
+    string image = path::join(imageDir, "abc:latest");
     ASSERT_SOME(os::mkdir(imageDir));
     ASSERT_SOME(os::mkdir(image));
 
@@ -775,7 +779,7 @@ protected:
     ASSERT_SOME(os::rmdir(path::join(image, "456", "layer")));
 
     ASSERT_SOME(os::chdir(image));
-    ASSERT_SOME(os::tar(".", "../abc.tar"));
+    ASSERT_SOME(os::tar(".", "../abc:latest.tar"));
     ASSERT_SOME(os::chdir(cwd));
     ASSERT_SOME(os::rmdir(image));
   }
@@ -787,7 +791,7 @@ protected:
 TEST_F(DockerProvisionerLocalStoreTest, LocalStoreTestWithTar)
 {
   string imageDir = path::join(os::getcwd(), "images");
-  string image = path::join(imageDir, "abc");
+  string image = path::join(imageDir, "abc:latest");
   ASSERT_SOME(os::mkdir(imageDir));
   ASSERT_SOME(os::mkdir(image));
 
@@ -804,7 +808,10 @@ TEST_F(DockerProvisionerLocalStoreTest, LocalStoreTestWithTar)
 
   string sandbox = path::join(os::getcwd(), "sandbox");
   ASSERT_SOME(os::mkdir(sandbox));
-  Future<DockerImage> dockerImage = store.get()->get("abc");
+  Try<ImageName> imageName = ImageName::create("abc");
+  ASSERT_SOME(imageName);
+
+  Future<DockerImage> dockerImage = store.get()->get(imageName.get());
   AWAIT_READY(dockerImage);
 
   verifyLocalDockerImage(flags, dockerImage.get());
@@ -812,7 +819,7 @@ TEST_F(DockerProvisionerLocalStoreTest, LocalStoreTestWithTar)
 
 // This tests the ability of the reference store to recover the images it has
 // already stored on disk when it is initialized.
-TEST_F(DockerProvisionerLocalStoreTest, ReferenceStoreInitialization)
+TEST_F(DockerProvisionerLocalStoreTest, MetadataManagerInitialization)
 {
   slave::Flags flags;
   flags.docker_store = "local";
@@ -827,7 +834,9 @@ TEST_F(DockerProvisionerLocalStoreTest, ReferenceStoreInitialization)
 
   string sandbox = path::join(os::getcwd(), "sandbox");
   ASSERT_SOME(os::mkdir(sandbox));
-  Future<DockerImage> dockerImage = store.get()->get("abc");
+  Try<ImageName> imageName = ImageName::create("abc");
+  ASSERT_SOME(imageName);
+  Future<DockerImage> dockerImage = store.get()->get(imageName.get());
   AWAIT_READY(dockerImage);
 
   // Store is deleted and recreated. Reference Store is initialized upon
@@ -836,7 +845,7 @@ TEST_F(DockerProvisionerLocalStoreTest, ReferenceStoreInitialization)
   store = Store::create(flags, &fetcher);
   ASSERT_SOME(store);
 
-  dockerImage = store.get()->get("abc");
+  dockerImage = store.get()->get(imageName.get());
   AWAIT_READY(dockerImage);
   verifyLocalDockerImage(flags, dockerImage.get());
 }

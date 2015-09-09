@@ -16,8 +16,8 @@
  * limitations under the License.
  */
 
-#ifndef __MESOS_DOCKER_REFERENCE_STORE_HPP__
-#define __MESOS_DOCKER_REFERENCE_STORE_HPP__
+#ifndef __MESOS_DOCKER_METADATA_MANAGER_HPP__
+#define __MESOS_DOCKER_METADATA_MANAGER_HPP__
 
 #include <list>
 #include <string>
@@ -33,6 +33,7 @@
 #include <process/process.hpp>
 
 #include "slave/containerizer/provisioners/docker.hpp"
+
 #include "slave/flags.hpp"
 
 namespace mesos {
@@ -41,35 +42,36 @@ namespace slave {
 namespace docker {
 
 // Forward Declaration.
-class ReferenceStoreProcess;
+class MetadataManagerProcess;
 
 /**
- * The Reference Store is a way to track the Docker images used by the
- * provisioner that are stored in on disk. It keeps track of the layers
- * that Docker images are composed of and recovers DockerImage objects upon
- * initialization by checking for dependent layers stored on disk.
- * Currently, image layers are stored indefinitely, with no garbage collection
- * of unreferenced image layers.
+ * The MetadataManager tracks the Docker images cached by the
+ * provisioner that are stored on disk. It keeps track of the layers
+ * that Docker images are composed of and recovers DockerImage objects
+ * upon initialization by checking for dependent layers stored on disk.
+ * Currently, image layers are stored indefinitely, with no garbage
+ * collection of unreferenced image layers.
  */
-class ReferenceStore
+class MetadataManager
 {
 public:
-  ~ReferenceStore();
+  static Try<process::Owned<MetadataManager>> create(const Flags& flags);
 
-  static Try<process::Owned<ReferenceStore>> create(const Flags& flags);
+   ~MetadataManager();
 
   /**
-   * Create a DockerImage, put it in reference store and persist the reference
+   * Create a DockerImage, put it in metadata manager and persist the reference
    * store state to disk.
    *
-   * @param name   the name of the Docker image to place in the reference store.
-   * @param layers the list of layer ids that comprise the Docker image in
-   *               order where the root layer's id (no parent layer) is first
-   *               and the leaf layer's id is last.
+   * @param name     the name of the Docker image to place in the reference
+   *                 store.
+   * @param layerIds the list of layer ids that comprise the Docker image in
+   *                 order where the root layer's id (no parent layer) is first
+   *                 and the leaf layer's id is last.
    */
   process::Future<DockerImage> put(
-      const std::string& name,
-      const std::list<std::string>& layers);
+      const ImageName& name,
+      const std::list<std::string>& layerIds);
 
   /**
    * Retrieve DockerImage based on image name if it is among the DockerImages
@@ -77,7 +79,7 @@ public:
    *
    * @param name  the name of the Docker image to retrieve
    */
-  process::Future<Option<DockerImage>> get(const std::string& name);
+  process::Future<Option<DockerImage>> get(const ImageName& name);
 
   /**
    * Recover all stored DockerImage and its layer references.
@@ -85,12 +87,12 @@ public:
   process::Future<Nothing> recover();
 
 private:
-  explicit ReferenceStore(process::Owned<ReferenceStoreProcess> process);
+  explicit MetadataManager(process::Owned<MetadataManagerProcess> process);
 
-  ReferenceStore(const ReferenceStore&); // Not copyable.
-  ReferenceStore& operator=(const ReferenceStore&); // Not assignable.
+  MetadataManager(const MetadataManager&); // Not copyable.
+  MetadataManager& operator=(const MetadataManager&); // Not assignable.
 
-  process::Owned<ReferenceStoreProcess> process;
+  process::Owned<MetadataManagerProcess> process;
 };
 
 
@@ -99,4 +101,4 @@ private:
 } // namespace internal {
 } // namespace mesos {
 
-#endif // __MESOS_DOCKER_REFERENCE_STORE_HPP__
+#endif // __MESOS_DOCKER_METADATA_MANAGER_HPP__

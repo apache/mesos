@@ -35,8 +35,9 @@
 
 #include "slave/containerizer/fetcher.hpp"
 
-#include "slave/containerizer/provisioners/docker/store.hpp"
+#include "slave/containerizer/provisioners/docker/metadata_manager.hpp"
 #include "slave/containerizer/provisioners/docker/paths.hpp"
+#include "slave/containerizer/provisioners/docker/store.hpp"
 
 #include "slave/flags.hpp"
 
@@ -60,22 +61,22 @@ public:
       const Flags& flags,
       Fetcher* fetcher);
 
-  process::Future<DockerImage> get(const std::string& name);
+  process::Future<DockerImage> get(const ImageName& name);
 
   process::Future<Nothing> recover();
 
 private:
   LocalStoreProcess(
       const Flags& _flags,
-      Owned<ReferenceStore> _refStore)
-    : flags(_flags), refStore(_refStore) {}
+      Owned<MetadataManager> _metadataManager)
+    : flags(_flags), metadataManager(_metadataManager) {}
 
   process::Future<Nothing> untarImage(
       const std::string& tarPath,
       const std::string& staging);
 
   process::Future<DockerImage> putImage(
-      const std::string& name,
+      const ImageName& name,
       const std::string& staging);
 
   Result<std::string> getParentId(
@@ -84,7 +85,7 @@ private:
 
   process::Future<Nothing> putLayers(
       const std::string& staging,
-      const std::list<std::string>& layers);
+      const std::list<std::string>& layerIds);
 
   process::Future<Nothing> putLayer(
       const std::string& staging,
@@ -95,7 +96,7 @@ private:
       const std::string& id);
 
   const Flags flags;
-  process::Owned<ReferenceStore> refStore;
+  process::Owned<MetadataManager> metadataManager;
 };
 
 
@@ -142,7 +143,7 @@ LocalStore::~LocalStore()
 }
 
 
-Future<DockerImage> LocalStore::get(const string& name)
+Future<DockerImage> LocalStore::get(const ImageName& name)
 {
   return dispatch(process.get(), &LocalStoreProcess::get, name);
 }
@@ -174,18 +175,19 @@ Try<Owned<LocalStoreProcess>> LocalStoreProcess::create(
     }
   }
 
-  Try<Owned<ReferenceStore>> refStore = ReferenceStore::create(flags);
-  if (refStore.isError()) {
-    return Error(refStore.error());
+  Try<Owned<MetadataManager>> metadataManager = MetadataManager::create(flags);
+  if (metadataManager.isError()) {
+    return Error(metadataManager.error());
   }
 
-  return Owned<LocalStoreProcess>(new LocalStoreProcess(flags, refStore.get()));
+  return Owned<LocalStoreProcess>(
+      new LocalStoreProcess(flags, metadataManager.get()));
 }
 
 
-Future<DockerImage> LocalStoreProcess::get(const string& name)
+Future<DockerImage> LocalStoreProcess::get(const ImageName& name)
 {
-  return refStore->get(name)
+  return metadataManager->get(name)
     .then(defer(self(),
                 [this, name](
                     const Option<DockerImage>& image) -> Future<DockerImage> {
@@ -193,9 +195,12 @@ Future<DockerImage> LocalStoreProcess::get(const string& name)
         return image.get();
       }
 
-      string tarPath =
-        paths::getLocalImageTarPath(flags.docker_discovery_local_dir, name);
+      string tarPath = paths::getLocalImageTarPath(
+          flags.docker_discovery_local_dir,
+          name.name());
+
       if (!os::exists(tarPath)) {
+        VLOG(1) << "Unable to find image in local store with path: " << tarPath;
         return Failure("No Docker image tar archive found");
       }
 
@@ -214,7 +219,7 @@ Future<DockerImage> LocalStoreProcess::get(const string& name)
 
 Future<Nothing> LocalStoreProcess::recover()
 {
-  return refStore->recover();
+  return metadataManager->recover();
 }
 
 Future<Nothing> LocalStoreProcess::untarImage(
@@ -261,11 +266,9 @@ Future<Nothing> LocalStoreProcess::untarImage(
 
 
 Future<DockerImage> LocalStoreProcess::putImage(
-    const std::string& name,
+    const ImageName& name,
     const string& staging)
 {
-  ImageName imageName(name);
-
   Try<string> value = os::read(paths::getLocalImageRepositoriesPath(staging));
   if (value.isError()) {
     return Failure("Failed to read repository JSON: " + value.error());
@@ -277,20 +280,20 @@ Future<DockerImage> LocalStoreProcess::putImage(
   }
 
   Result<JSON::Object> repositoryValue =
-    json.get().find<JSON::Object>(imageName.repo);
+    json.get().find<JSON::Object>(name.repository);
   if (repositoryValue.isError()) {
     return Failure("Failed to find repository: " + repositoryValue.error());
   } else if (repositoryValue.isNone()) {
-    return Failure("Repository '" + imageName.repo + "' is not found");
+    return Failure("Repository '" + name.repository + "' is not found");
   }
 
   JSON::Object repositoryJson = repositoryValue.get();
 
   // We don't use JSON find here because a tag might contain a '.'.
   std::map<string, JSON::Value>::const_iterator entry =
-    repositoryJson.values.find(imageName.tag);
+    repositoryJson.values.find(name.tag);
   if (entry == repositoryJson.values.end()) {
-    return Failure("Tag '" + imageName.tag + "' is not found");
+    return Failure("Tag '" + name.tag + "' is not found");
   } else if (!entry->second.is<JSON::String>()) {
     return Failure("Tag JSON value expected to be JSON::String");
   }
@@ -308,20 +311,20 @@ Future<DockerImage> LocalStoreProcess::putImage(
     return Failure("Failed to parse manifest: " + manifestJson.error());
   }
 
-  list<string> layers;
-  layers.push_back(layerId);
+  list<string> layerIds;
+  layerIds.push_back(layerId);
   Result<string> parentId = getParentId(staging, layerId);
   while(parentId.isSome()) {
-    layers.push_front(parentId.get());
+    layerIds.push_front(parentId.get());
     parentId = getParentId(staging, parentId.get());
   }
   if (parentId.isError()) {
     return Failure("Failed to obtain parent layer id: " + parentId.error());
   }
 
-  return putLayers(staging, layers)
+  return putLayers(staging, layerIds)
     .then([=]() -> Future<DockerImage> {
-      return refStore->put(name, layers);
+      return metadataManager->put(name, layerIds);
     });
 }
 
@@ -353,10 +356,10 @@ Result<string> LocalStoreProcess::getParentId(
 
 Future<Nothing> LocalStoreProcess::putLayers(
     const string& staging,
-    const list<string>& layers)
+    const list<string>& layerIds)
 {
   list<Future<Nothing>> futures{ Nothing() };
-  foreach (const string& layer, layers) {
+  foreach (const string& layer, layerIds) {
     futures.push_back(
         futures.back().then(
           defer(self(), &Self::putLayer, staging, layer)));

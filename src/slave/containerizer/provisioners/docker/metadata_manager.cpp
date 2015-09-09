@@ -34,7 +34,7 @@
 #include "messages/docker_provisioner.hpp"
 
 #include "slave/containerizer/provisioners/docker/paths.hpp"
-#include "slave/containerizer/provisioners/docker/reference_store.hpp"
+#include "slave/containerizer/provisioners/docker/metadata_manager.hpp"
 #include "slave/state.hpp"
 
 using namespace process;
@@ -49,27 +49,28 @@ namespace slave {
 namespace docker {
 
 
-class ReferenceStoreProcess : public process::Process<ReferenceStoreProcess>
+class MetadataManagerProcess : public process::Process<MetadataManagerProcess>
 {
 public:
-  ~ReferenceStoreProcess() {}
+  ~MetadataManagerProcess() {}
 
-  static Try<process::Owned<ReferenceStoreProcess>> create(const Flags& flags);
+  static Try<process::Owned<MetadataManagerProcess>> create(
+      const Flags& flags);
 
   Future<DockerImage> put(
-      const std::string& name,
-      const std::list<std::string>& layers);
+      const ImageName& name,
+      const std::list<std::string>& layerIds);
 
-  Future<Option<DockerImage>> get(const std::string& name);
+  Future<Option<DockerImage>> get(const ImageName& name);
 
   Future<Nothing> recover();
 
   // TODO(chenlily): Implement removal of unreferenced images.
 
 private:
-  ReferenceStoreProcess(const Flags& flags);
+  MetadataManagerProcess(const Flags& flags);
 
-  // Write out reference store state to persistent store.
+  // Write out metadata manager state to persistent store.
   Try<Nothing> persist();
 
   const Flags flags;
@@ -81,92 +82,92 @@ private:
 };
 
 
-Try<Owned<ReferenceStore>> ReferenceStore::create(const Flags& flags)
+Try<Owned<MetadataManager>> MetadataManager::create(const Flags& flags)
 {
-  Try<Owned<ReferenceStoreProcess>> process =
-    ReferenceStoreProcess::create(flags);
+  Try<Owned<MetadataManagerProcess>> process =
+    MetadataManagerProcess::create(flags);
   if (process.isError()) {
-    return Error("Failed to create reference store: " + process.error());
+    return Error("Failed to create Metadata Manager: " + process.error());
   }
-  return Owned<ReferenceStore>(new ReferenceStore(process.get()));
+  return Owned<MetadataManager>(new MetadataManager(process.get()));
 }
 
 
-ReferenceStore::ReferenceStore(Owned<ReferenceStoreProcess> process)
+MetadataManager::MetadataManager(Owned<MetadataManagerProcess> process)
   : process(process)
 {
   process::spawn(CHECK_NOTNULL(process.get()));
 }
 
 
-ReferenceStore::~ReferenceStore()
+MetadataManager::~MetadataManager()
 {
   process::terminate(process.get());
   process::wait(process.get());
 }
 
 
-Future<Nothing> ReferenceStore::recover()
+Future<Nothing> MetadataManager::recover()
 {
-  return process::dispatch(process.get(), &ReferenceStoreProcess::recover);
+  return process::dispatch(process.get(), &MetadataManagerProcess::recover);
 }
 
 
-Future<DockerImage> ReferenceStore::put(
-    const string& name,
-    const list<string>& layers)
+Future<DockerImage> MetadataManager::put(
+    const ImageName& name,
+    const list<string>& layerIds)
 {
   return dispatch(
-      process.get(), &ReferenceStoreProcess::put, name, layers);
+      process.get(), &MetadataManagerProcess::put, name, layerIds);
 }
 
 
-Future<Option<DockerImage>> ReferenceStore::get(const string& name)
+Future<Option<DockerImage>> MetadataManager::get(const ImageName& name)
 {
-  return dispatch(process.get(), &ReferenceStoreProcess::get, name);
+  return dispatch(process.get(), &MetadataManagerProcess::get, name);
 }
 
 
-ReferenceStoreProcess::ReferenceStoreProcess(const Flags& flags)
+MetadataManagerProcess::MetadataManagerProcess(const Flags& flags)
   : flags(flags) {}
 
 
-Try<Owned<ReferenceStoreProcess>> ReferenceStoreProcess::create(
+Try<Owned<MetadataManagerProcess>> MetadataManagerProcess::create(
     const Flags& flags)
 {
-  Owned<ReferenceStoreProcess> referenceStore =
-    Owned<ReferenceStoreProcess>(new ReferenceStoreProcess(flags));
+  Owned<MetadataManagerProcess> metadataManager =
+    Owned<MetadataManagerProcess>(new MetadataManagerProcess(flags));
 
-  return referenceStore;
+  return metadataManager;
 }
 
 
-Future<DockerImage> ReferenceStoreProcess::put(
-    const string& name,
-    const list<string>& layers)
+Future<DockerImage> MetadataManagerProcess::put(
+    const ImageName& name,
+    const list<string>& layerIds)
 {
-  storedImages[name] = DockerImage(name, layers);
+  storedImages[name.name()] = DockerImage(name, layerIds);
 
   Try<Nothing> status = persist();
   if (status.isError()) {
     return Failure("Failed to save state of Docker images" + status.error());
   }
 
-  return storedImages[name];
+  return storedImages[name.name()];
 }
 
 
-Future<Option<DockerImage>> ReferenceStoreProcess::get(const string& name)
+Future<Option<DockerImage>> MetadataManagerProcess::get(const ImageName& name)
 {
-  if (!storedImages.contains(name)) {
+  if (!storedImages.contains(name.name())) {
     return None();
   }
 
-  return storedImages[name];
+  return storedImages[name.name()];
 }
 
 
-Try<Nothing> ReferenceStoreProcess::persist()
+Try<Nothing> MetadataManagerProcess::persist()
 {
   DockerProvisionerImages images;
 
@@ -176,8 +177,8 @@ Try<Nothing> ReferenceStoreProcess::persist()
 
     image->set_name(name);
 
-    foreach (const string& layer, dockerImage.layers) {
-      image->add_layer_ids(layer);
+    foreach (const string& layerId, dockerImage.layerIds) {
+      image->add_layer_ids(layerId);
     }
   }
 
@@ -191,7 +192,7 @@ Try<Nothing> ReferenceStoreProcess::persist()
 }
 
 
-Future<Nothing> ReferenceStoreProcess::recover()
+Future<Nothing> MetadataManagerProcess::recover()
 {
   string storedImagesPath = paths::getStoredImagesPath(flags.docker_store_dir);
 
@@ -210,32 +211,36 @@ Future<Nothing> ReferenceStoreProcess::recover()
   }
 
   for (int i = 0; i < images.get().images_size(); i++) {
-    string imageName = images.get().images(i).name();
+    string name = images.get().images(i).name();
 
-    list<string> layers;
-    vector<string> missingLayers;
+    list<string> layerIds;
+    vector<string> missingLayerIds;
     for (int j = 0; j < images.get().images(i).layer_ids_size(); j++) {
       string layerId = images.get().images(i).layer_ids(j);
 
-      layers.push_back(layerId);
+      layerIds.push_back(layerId);
 
       if (!os::exists(
               paths::getImageLayerRootfsPath(flags.docker_store_dir, layerId))) {
-        missingLayers.push_back(layerId);
+        missingLayerIds.push_back(layerId);
       }
     }
 
-    if (!missingLayers.empty()) {
-      foreach (const string& layer, missingLayers) {
-        LOG(WARNING) << "Image layer: " << layer << " required for Docker "
-                     << "image: " << imageName << " is not on disk.";
+    if (!missingLayerIds.empty()) {
+      foreach (const string& layerId, missingLayerIds) {
+        LOG(WARNING) << "Image layer: " << layerId << " required for Docker "
+                     << "image: " << name << " is not on disk.";
       }
-      LOG(WARNING) << "Skipped loading image: " << imageName
+      LOG(WARNING) << "Skipped loading image: " << name
                    << " due to missing layers.";
       continue;
     }
 
-    storedImages[imageName] = DockerImage(imageName, layers);
+    Try<ImageName> imageName = ImageName::create(name);
+    if (imageName.isError()) {
+      return Failure("Unable to parse Docker image name: " + imageName.error());
+    }
+    storedImages[imageName.get().name()] = DockerImage(imageName.get(), layerIds);
   }
 
   LOG(INFO) << "Loaded " << storedImages.size() << " Docker images.";

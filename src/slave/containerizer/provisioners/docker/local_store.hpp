@@ -28,7 +28,6 @@ namespace docker {
 
 // Forward declaration.
 class LocalStoreProcess;
-class ReferenceStore;
 
 
 /**
@@ -40,22 +39,21 @@ class ReferenceStore;
 class LocalStore : public Store
 {
 public:
-  virtual ~LocalStore();
-
   static Try<process::Owned<Store>> create(
       const Flags& flags,
       Fetcher* fetcher);
 
-  virtual process::Future<DockerImage> get(const std::string& name);
+  virtual ~LocalStore();
+
+  virtual process::Future<DockerImage> get(const ImageName& name);
 
   virtual process::Future<Nothing> recover();
 
 private:
   explicit LocalStore(process::Owned<LocalStoreProcess> _process);
 
-  LocalStore(const LocalStore&); // Not copyable.
-
-  LocalStore& operator=(const LocalStore&); // Not assignable.
+  LocalStore& operator=(const LocalStore&) = delete; // Not assignable.
+  LocalStore(const LocalStore&) = delete; // Not copyable.
 
   process::Owned<LocalStoreProcess> process;
 };
