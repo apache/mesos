@@ -366,7 +366,7 @@ instance.method([]() {
 });
 ~~~
 
-  * Wrap capture lists indepedently of parameters, *use the same formatting as if the capture list were template parameters*:
+  * Wrap capture lists independently of parameters, *use the same formatting as if the capture list were template parameters*:
 
 ~~~{.cpp}
 // 1: OK.
@@ -558,7 +558,7 @@ auto lambda = [
   int array[SPAN()];
 ~~~
 
-Const expression constructors allow object initialization at compile time provided that all the constructor arguments are `constexpr` and the constuctor body is empty, i.e. all initialization is performed in the initialization list.  Classes which provide `constexpr` constructors should normally also provide `constexpr` copy constructors to allow the class to be used in the return value from a `constexpr` function.
+Const expression constructors allow object initialization at compile time provided that all the constructor arguments are `constexpr` and the constructor body is empty, i.e. all initialization is performed in the initialization list.  Classes which provide `constexpr` constructors should normally also provide `constexpr` copy constructors to allow the class to be used in the return value from a `constexpr` function.
 
 ~~~{.cpp}
   class C
