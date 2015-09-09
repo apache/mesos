@@ -229,7 +229,7 @@ reserved disk resources:
 
 Note that in 0.23, even after you destroy the persistent volume, its content
 will still be on the disk. The garbage collection for persistent volumes is
-coming soon: [MESOS-2408](https://issues.apache.org/jira/browse/MESOS-2408).
+coming soon: [MESOS-2048](https://issues.apache.org/jira/browse/MESOS-2408).
 
 
 ### `/create` (_Coming Soon_)

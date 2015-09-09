@@ -489,6 +489,7 @@ libmesos_no_3rdparty_la_SOURCES =					\
 	slave/containerizer/provisioners/appc/store.cpp			\
 	slave/containerizer/provisioners/backend.cpp			\
 	slave/containerizer/provisioners/backends/copy.cpp              \
+	slave/containerizer/provisioners/docker/registry_client.cpp	\
 	slave/containerizer/provisioners/docker/token_manager.cpp	\
 	slave/resource_estimators/noop.cpp				\
 	usage/usage.cpp							\
@@ -772,6 +773,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
 	slave/containerizer/provisioners/backend.hpp			\
 	slave/containerizer/provisioners/backends/bind.hpp		\
 	slave/containerizer/provisioners/backends/copy.hpp		\
+	slave/containerizer/provisioners/docker/registry_client.hpp	\
 	slave/containerizer/provisioners/docker/token_manager.hpp	\
 	slave/containerizer/isolators/posix.hpp				\
 	slave/containerizer/isolators/posix/disk.hpp			\
