@@ -722,7 +722,6 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::updateAllocation(
 
   slaves[slaveId].total = updatedTotal.get();
 
-  // TODO(jieyu): Do not log if there is no update.
   LOG(INFO) << "Updated allocation of framework " << frameworkId
             << " on slave " << slaveId
             << " from " << frameworkAllocation
