@@ -22,7 +22,7 @@
 
 #include "slave/containerizer/provisioner.hpp"
 
-#include "slave/containerizer/provisioners/appc.hpp"
+#include "slave/containerizer/provisioners/appc/provisioner.hpp"
 
 using namespace process;
 

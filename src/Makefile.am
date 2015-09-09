@@ -482,9 +482,9 @@ libmesos_no_3rdparty_la_SOURCES =					\
 	slave/containerizer/mesos/containerizer.cpp			\
 	slave/containerizer/mesos/launch.cpp				\
 	slave/containerizer/provisioner.cpp				\
-	slave/containerizer/provisioners/appc.cpp			\
-	slave/containerizer/provisioners/paths.cpp                      \
+        slave/containerizer/provisioners/paths.cpp                      \
 	slave/containerizer/provisioners/appc/paths.cpp			\
+	slave/containerizer/provisioners/appc/provisioner.cpp		\
 	slave/containerizer/provisioners/appc/spec.cpp			\
 	slave/containerizer/provisioners/appc/store.cpp			\
 	slave/containerizer/provisioners/backend.cpp			\
@@ -763,9 +763,9 @@ libmesos_no_3rdparty_la_SOURCES +=					\
 	slave/containerizer/launcher.hpp				\
 	slave/containerizer/linux_launcher.hpp				\
 	slave/containerizer/provisioner.hpp				\
-	slave/containerizer/provisioners/appc.hpp			\
-	slave/containerizer/provisioners/paths.hpp                      \
+        slave/containerizer/provisioners/paths.hpp                      \
 	slave/containerizer/provisioners/appc/paths.hpp			\
+	slave/containerizer/provisioners/appc/provisioner.hpp		\
 	slave/containerizer/provisioners/appc/spec.hpp			\
 	slave/containerizer/provisioners/appc/store.hpp			\
 	slave/containerizer/provisioners/backend.hpp			\
