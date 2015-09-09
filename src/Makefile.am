@@ -483,12 +483,13 @@ libmesos_no_3rdparty_la_SOURCES =					\
 	slave/containerizer/mesos/launch.cpp				\
 	slave/containerizer/provisioner.cpp				\
 	slave/containerizer/provisioners/appc.cpp			\
-        slave/containerizer/provisioners/paths.cpp                      \
+	slave/containerizer/provisioners/paths.cpp                      \
 	slave/containerizer/provisioners/appc/paths.cpp			\
 	slave/containerizer/provisioners/appc/spec.cpp			\
 	slave/containerizer/provisioners/appc/store.cpp			\
 	slave/containerizer/provisioners/backend.cpp			\
-        slave/containerizer/provisioners/backends/copy.cpp              \
+	slave/containerizer/provisioners/backends/copy.cpp              \
+	slave/containerizer/provisioners/docker/token_manager.cpp	\
 	slave/resource_estimators/noop.cpp				\
 	usage/usage.cpp							\
 	v1/attributes.cpp						\
@@ -763,13 +764,14 @@ libmesos_no_3rdparty_la_SOURCES +=					\
 	slave/containerizer/linux_launcher.hpp				\
 	slave/containerizer/provisioner.hpp				\
 	slave/containerizer/provisioners/appc.hpp			\
-        slave/containerizer/provisioners/paths.hpp                      \
+	slave/containerizer/provisioners/paths.hpp                      \
 	slave/containerizer/provisioners/appc/paths.hpp			\
 	slave/containerizer/provisioners/appc/spec.hpp			\
 	slave/containerizer/provisioners/appc/store.hpp			\
 	slave/containerizer/provisioners/backend.hpp			\
 	slave/containerizer/provisioners/backends/bind.hpp		\
 	slave/containerizer/provisioners/backends/copy.hpp		\
+	slave/containerizer/provisioners/docker/token_manager.hpp	\
 	slave/containerizer/isolators/posix.hpp				\
 	slave/containerizer/isolators/posix/disk.hpp			\
 	slave/containerizer/isolators/cgroups/constants.hpp		\
@@ -1659,6 +1661,7 @@ mesos_tests_SOURCES =						\
   tests/paths_tests.cpp						\
   tests/persistent_volume_tests.cpp				\
   tests/protobuf_io_tests.cpp					\
+  tests/provisioners/docker_provisioner_tests.cpp		\
   tests/rate_limiting_tests.cpp					\
   tests/reconciliation_tests.cpp				\
   tests/registrar_tests.cpp					\
