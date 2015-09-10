@@ -11,7 +11,7 @@ In a multi-framework environment, this feature aims to protect the throughput of
 To throttle messages from a framework, the Mesos cluster operator sets a `qps` (queries per seconds) value for each framework identified by its principal (You can also throttle a group of frameworks together but we'll assume individual frameworks in this doc unless otherwise stated; see the `RateLimits` [ProtoBuf definition](https://github.com/apache/mesos/blob/master/include/mesos/mesos.proto) and the configuration notes below). The master then promises not to process messages from that framework at a rate above `qps`. The outstanding messages are stored in memory on the master.
 
 ## Rate Limits Configuration
-The following is a sample config file (in JSON format) which could be specified with the `--rate-limits` master flag.
+The following is a sample config file (in JSON format) which could be specified with the `--rate_limits` master flag.
 
     {
       "limits": [
