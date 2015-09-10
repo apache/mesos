@@ -68,7 +68,6 @@ string MetricsProcess::help()
 {
   return HELP(
       TLDR("Provides a snapshot of the current metrics."),
-      USAGE("/metrics/snapshot"),
       DESCRIPTION(
           "This endpoint provides information regarding the current metrics ",
           "tracked by the system.",

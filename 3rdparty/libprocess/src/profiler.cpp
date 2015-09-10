@@ -41,15 +41,9 @@ const std::string Profiler::START_HELP()
 {
   return HELP(
     TLDR(
-        "Starts profiling ..."),
-    USAGE(
-        "/profiler/start..."),
+        "Start profiling."),
     DESCRIPTION(
-        "...",
-        "",
-        "Query parameters:",
-        "",
-        ">        param=VALUE          Some description here"));
+        "Start to use google perftools do profiling."));
 }
 
 
@@ -57,15 +51,9 @@ const std::string Profiler::STOP_HELP()
 {
   return HELP(
     TLDR(
-        "Stops profiling ..."),
-    USAGE(
-        "/profiler/stop..."),
+        "Stops profiling."),
     DESCRIPTION(
-        "...",
-        "",
-        "Query parameters:",
-        "",
-        ">        param=VALUE          Some description here"));
+        "Stop to use google perftools do profiling."));
 }
 
 

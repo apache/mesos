@@ -40,17 +40,12 @@ namespace process {
 
 string HELP(
     string tldr,
-    string usage,
     string description,
     const Option<string>& references)
 {
-  // Make sure 'tldr', 'usage', and 'description' end with a newline.
+  // Make sure 'tldr' and 'description' end with a newline.
   if (!strings::endsWith(tldr, "\n")) {
     tldr += "\n";
-  }
-
-  if (!strings::endsWith(usage, "\n")) {
-    usage += "\n";
   }
 
   if (!strings::endsWith(description, "\n")) {
@@ -61,9 +56,6 @@ string HELP(
   string help =
     "### TL;DR; ###\n" +
     tldr +
-    "\n" +
-    "### USAGE ###\n" +
-    usage +
     "\n" +
     "### DESCRIPTION ###\n" +
     description;
@@ -80,16 +72,29 @@ string HELP(
 Help::Help() : ProcessBase("help") {}
 
 
-void Help::add(const string& id,
+string Help::getUsagePath(const string& id, const string& name)
+{
+  return id + strings::remove(name, "/", strings::Mode::SUFFIX);
+}
+
+
+void Help::add(
+    const string& id,
     const string& name,
     const Option<string>& help)
 {
-  if (id != "help") { // TODO(benh): Enable help for help.
+  // TODO(benh): Enable help for help.
+  if (id != "help" && id != "__processes__") {
+    // Remove tail slash in usage information.
+    const string path = "/" + getUsagePath(id, name);
+
     if (help.isSome()) {
-      helps[id][name] = help.get();
+      string usage = "### USAGE ###\n" + USAGE(path) + "\n";
+      helps[id][name] = usage + help.get();
     } else {
-      helps[id][name] = "## No help page for `/" + id + name + "`\n";
+      helps[id][name] = "## No help page for `" + path + "`\n";
     }
+
     route("/" + id, "Help for " + id, &Help::help);
   }
 }
@@ -135,7 +140,7 @@ Future<http::Response> Help::help(const http::Request& request)
 
     document += "## `/" + id.get() + "` ##\n";
     foreachkey (const string& name, helps[id.get()]) {
-      const string path = id.get() + name;
+      const string path = getUsagePath(id.get(), name);
       document += "> [/" +  path + "][" + path + "]\n";
       references += "[" + path + "]: " + path + "\n";
     }

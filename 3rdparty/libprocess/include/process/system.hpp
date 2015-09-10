@@ -88,8 +88,6 @@ private:
     return HELP(
       TLDR(
           "Shows local system metrics."),
-      USAGE(
-          "/system/stats.json"),
       DESCRIPTION(
           ">        cpus_total          Total number of available CPUs",
           ">        load_1min           Average system load for last"
