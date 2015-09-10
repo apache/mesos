@@ -45,6 +45,28 @@ else (REBUNDLED)
 endif (REBUNDLED)
 
 if (WIN32)
+  # TODO(hausdorff): (MESOS-3394) Upgrade Windows to use glog v0.3.5, as that
+  # release will contain fixes that will allow us to build glog on Windows.
+  #
+  # NOTE: hausdorff has ported glog v0.3.4 to support compilation with MSVC
+  # 1900 (it works on MSVC 1800, but not 1900). The patch has been submitted
+  # to the glog project which you can see in pull request #43[1].
+  #
+  # Note also that this tarball actually points directly at the branch the
+  # PR is issued from, and uses the GitHub REST API to get a tarball of it.
+  # We think this is stictly better than pulling a tarball out of 3rdparty, or
+  # running `patch` on a tarball version of the vanilla 0.3.4 release, because
+  # it means that this code will automatically be up-to-date, and to transition
+  # to the next release of glog (when this will presumably be fixed), we need
+  # only change this line.
+  #
+  # Finally, for our third-party libraries, MSVC 1800 and 1900 are not
+  # linker-compatible, so it's important for us to be able to build glog
+  # (as well as all the other third-party dependencies) on MSVC 1900.
+  #
+  # [1] https://github.com/google/glog/pull/43
+  set(GLOG_URL https://github.com/hausdorff/glog/tarball/glog-${GLOG_VERSION}-msvc1900)
+
   # TODO(hausdorff): (MESOS-3394) points at a random tarball in my
   # (hausdorff's) repository. We need a more permanent solution for this
   # eventually.

@@ -15,16 +15,16 @@
 # limitations under the License.
 
 ###############################################################
-# EXPORTS VARIABLES NEEDED TO LINK TO THIRD-PARTY LIBS. These are used
-# throughout the Mesos project.
+# This file exports variables needed ot link to third-party libs. These are
+# used throughout the Mesos project.
 #
-# THIS INCLUDES things like:
-#   * "Public interface" stuff, like which headers we need in order to link to
-#     libprocess.
+# This includes things like:
+#   * Components defining the public interface, like which headers we need in
+#     order to link to libprocess.
 #   * Where to look to find built libraries.
 #   * Version information of the third-party libraries in use.
 #
-# This DOES NOT include:
+# This does not include:
 #   * Where to find include headers for tests -- the rest of Mesos does not
 #     need this information.
 #   * Any information about how to build these libraries. That's in
@@ -33,7 +33,7 @@
 #     files we need to compile libprocess.
 #   * Build commands actually used to compile (e.g.) libprocess.
 #
-# RATIONALE: Autoconf makes linking to third party dependencies as simple as
+# Rationale: Autoconf makes linking to third party dependencies as simple as
 # pointing at the underlying makefile. In CMake, this is harder because we do
 # not assume there are Makefiles at all. Thus, it is useful to export variables
 # with things like which header files you need to include to link to third
@@ -52,20 +52,27 @@ set(PROCESS_3RD_BIN ${CMAKE_BINARY_DIR}/3rdparty/libprocess/3rdparty)
 set(STOUT ${PROCESS_3RD_SRC}/stout)
 
 EXTERNAL("boost"       "1.53.0"  "${PROCESS_3RD_BIN}")
-EXTERNAL("glog"        "0.3.3"   "${PROCESS_3RD_BIN}")
 EXTERNAL("picojson"    "4f93734" "${PROCESS_3RD_BIN}")
 EXTERNAL("http_parser" "1c3624a" "${PROCESS_3RD_BIN}")
 EXTERNAL("libev"       "4.15"    "${PROCESS_3RD_BIN}")
 
+if (NOT WIN32)
+  EXTERNAL("glog" "0.3.3" "${PROCESS_3RD_BIN}")
+elseif (WIN32)
+  # Glog 0.3.3 does not compile out of the box on Windows. Therefore, we
+  # require 0.3.4.
+  EXTERNAL("glog" "0.3.4" "${PROCESS_3RD_BIN}")
+endif (NOT WIN32)
+
 set(GLOG_LIB ${GLOG_ROOT}-lib/lib)
 
-# DIRECTORY STRUCTURE FOR WINDOWS-ONLY THIRD-PARTY LIBS.
+# Directory structure for windows-only third-party libs.
 ########################################################
 if (WIN32)
   EXTERNAL("curl" "7.43.0" "${PROCESS_3RD_BIN}")
 endif (WIN32)
 
-# DEFINE PROCESS LIBRARY DEPENDENCIES. Tells the process library build targets
+# Define process library dependencies. Tells the process library build targets
 # download/configure/build all third-party libraries before attempting to build.
 ################################################################################
 set(PROCESS_DEPENDENCIES
@@ -77,7 +84,7 @@ set(PROCESS_DEPENDENCIES
   ${LIBEV_TARGET}
   )
 
-# DEFINE THIRD-PARTY INCLUDE DIRECTORIES. Tells compiler toolchain where to get
+# Define third-party include directories. Tells compiler toolchain where to get
 # headers for our third party libs (e.g., -I/path/to/glog on Linux).
 ###############################################################################
 set(PROCESS_INCLUDE_DIRS
@@ -113,7 +120,7 @@ if (HAS_GPERFTOOLS)
     )
 endif (HAS_GPERFTOOLS)
 
-# DEFINE THIRD-PARTY LIB INSTALL DIRECTORIES. Used to tell the compiler
+# Define third-party lib install directories. Used to tell the compiler
 # toolchain where to find our third party libs (e.g., -L/path/to/glog on
 # Linux).
 ########################################################################
@@ -124,7 +131,7 @@ set(PROCESS_LIB_DIRS
   ${HTTP_PARSER_ROOT}-build
   )
 
-# DEFINE THIRD-PARTY LIBS. Used to generate flags that the linker uses to
+# Define third-party libs. Used to generate flags that the linker uses to
 # include our third-party libs (e.g., -lglog on Linux).
 #########################################################################
 find_package(Threads REQUIRED)
@@ -141,8 +148,8 @@ set(PROCESS_LIBS
 if (NOT WIN32)
   find_package(ZLIB REQUIRED)
 
-  # TODO(hausdorff): The `LINUX` flag comes from MesosConfigure; when
-  # we port the bootstrap script to CMake, we should also copy this
+  # TODO(hausdorff): (MESOS-3396) The `LINUX` flag comes from MesosConfigure;
+  # when we port the bootstrap script to CMake, we should also copy this
   # logic into .cmake files in the Stout and Process libraries'
   # folders individually.
   if (LINUX)
