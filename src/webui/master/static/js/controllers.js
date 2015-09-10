@@ -206,6 +206,12 @@
     return true; // Continue polling.
   }
 
+  // Add a filter to convert small float number to decimal string
+  mesosApp.filter('decimalFloat', function() {
+    return function(num) {
+      return parseFloat(num.toFixed(4)).toString();
+    }
+  });
 
   // Main controller that can be used to handle "global" events. E.g.,:
   //     $scope.$on('$afterRouteChange', function() { ...; });
