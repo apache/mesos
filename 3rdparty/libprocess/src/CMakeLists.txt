@@ -23,6 +23,7 @@ set(PROCESS_SRC
   decoder.hpp
   encoder.hpp
   event_loop.hpp
+  firewall.cpp
   gate.hpp
   help.cpp
   http.cpp
