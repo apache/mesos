@@ -11,51 +11,110 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef __STOUT_WINDOWS_PREPROCESSOR_HPP__
-#define __STOUT_WINDOWS_PREPROCESSOR_HPP__
+#ifndef __STOUT_WINDOWS_HPP__
+#define __STOUT_WINDOWS_HPP__
 
-// Provides aliases to Windows-specific nuances.
+
+// Definitions and constants used for Windows compat.
+//
+// Gathers most of the Windows-compatibility definitions. This makes it
+// possible for files throughout the codebase to remain relatively free of all
+// the #if's we'd need to make them work.
+//
+// Roughly, the things that should go in this file are definitions and
+// declarations that one would not mind being:
+//   * in global scope.
+//   * globally available throughout both the Stout codebase, and any code
+//     that uses it (such as Mesos).
 
 // Normally defined in unistd.h.
 #define STDIN_FILENO 0
 #define STDOUT_FILENO 1
 #define STDERR_FILENO 2
 
-// Alias for method in stdio.h.
-#define write(fd, buf, count) _write(fd, buf, count)
 
-// Aliases for 'inet_pton' and 'inet_ntop'.
-#define inet_pton(af, cp, buf) InetPton(af, cp, buf)
-#define inet_ntop(af, cp, buf, len) InetNtop(af, cp, buf, len)
+// NOTE: The use of `auto` and the trailing return type in the following
+// functions are meant to make it easier for Linux developers to use and
+// maintain the code. It is an explicit marker that we are using the compiler
+// to guarantee that the return type is identical to whatever is in the Windows
+// implementation of the standard.
+inline auto write(int fd, const void* buffer, size_t count) ->
+decltype(_write(fd, buffer, count))
+{
+  return _write(fd, buffer, count);
+}
 
-// TODO(aclemmer): Not defined on Windows.  This value is temporary.
+
+inline auto open(const char* path, int flags) ->
+decltype(_open(path, flags))
+{
+  return _open(path, flags);
+}
+
+
+inline auto close(int fd) ->
+decltype(_close(fd))
+{
+  return _close(fd);
+}
+
+
+// TODO(aclemmer): (MESOS-3398) Not defined on Windows. This value is temporary.
 #define MAXHOSTNAMELEN 64
 
-// Macros associated with ::access, usually defined in unistd.h.
-#define access(path, how) _access(path, how)
+
+inline auto access(const char* fileName, int accessMode) ->
+decltype(_access(fileName, accessMode))
+{
+  return _access(fileName, accessMode);
+}
 #define R_OK 0x4
 #define W_OK 0x2
-#define X_OK 0x0 // No such permission on Windows
+#define X_OK 0x0 // No such permission on Windows.
 #define F_OK 0x0
 
-// Aliases for file access modes (defined in fcntl.h).
+// Aliases for file access modes.
+#include <fcntl.h>
 #define O_RDONLY _O_RDONLY
 #define O_WRONLY _O_WRONLY
 #define O_RDWR _O_RDWR
 #define O_CREAT _O_CREAT
 #define O_TRUNC _O_TRUNC
 #define O_APPEND _O_APPEND
-// TODO(josephw): No equivalent for O_NONBLOCK or O_SYNC
+// TODO(josephw): No equivalent for O_NONBLOCK or O_SYNC.
+
 
 // Alias for mkstemp (requires io.h).
-#define mkstemp(path) _mktemp_s(path, strlen(path) + 1)
+inline auto mkstemp(char* path) ->
+decltype(_mktemp_s(path, strlen(path) + 1))
+{
+  return _mktemp_s(path, strlen(path) + 1);
+}
+
 
 // Alias for realpath.
-#define PATH_MAX MAX_PATH
-#define realpath(path, resolved) _fullpath(resolved, path, PATH_MAX)
+#define PATH_MAX _MAX_PATH
+
+
+inline auto realpath(const char* path, char* resolved) ->
+decltype(_fullpath(resolved, path, PATH_MAX))
+{
+  return _fullpath(resolved, path, PATH_MAX);
+}
+
+
+// Corresponds to `mode_t` defined in sys/types.h of the POSIX spec.
+// See note above for an explanation of why this is an int instead of
+// unsigned short (as is common on POSIX).
+typedef int mode_t;
+
 
 // Alias for mkdir (requires direct.h).
-#define mkdir(path, mode) _mkdir(path)
+inline auto mkdir(const char* path, mode_t mode) ->
+decltype(_mkdir(path))
+{
+  return _mkdir(path);
+}
 
 
-#endif // __STOUT_WINDOWS_PREPROCESSOR_HPP__
+#endif // __STOUT_WINDOWS_HPP__
