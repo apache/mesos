@@ -267,7 +267,7 @@ protected:
    * Returns the number of events of the given type currently on the event
    * queue.
    */
-  template<typename T>
+  template <typename T>
   size_t eventCount()
   {
     size_t count = 0U;
@@ -296,7 +296,7 @@ private:
     TERMINATED
   } state;
 
-  template<typename T>
+  template <typename T>
   static bool isEventType(const Event* event)
   {
     return event->is<T>();
