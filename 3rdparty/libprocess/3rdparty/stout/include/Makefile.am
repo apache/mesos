@@ -59,7 +59,6 @@ nobase_include_HEADERS =		\
   stout/os/fork.hpp			\
   stout/os/killtree.hpp			\
   stout/os/linux.hpp			\
-  stout/os/posix/close.hpp		\
   stout/os/posix/exists.hpp		\
   stout/os/posix/fcntl.hpp		\
   stout/os/posix/fork.hpp		\
@@ -88,7 +87,6 @@ nobase_include_HEADERS =		\
   stout/os/permissions.hpp		\
   stout/os/pstree.hpp			\
   stout/os/sysctl.hpp			\
-  stout/os/windows/close.hpp		\
   stout/os/windows/exists.hpp		\
   stout/os/windows/fcntl.hpp		\
   stout/os/windows/fork.hpp		\
