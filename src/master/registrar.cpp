@@ -254,8 +254,6 @@ string RegistrarProcess::registryHelp()
   return HELP(
       TLDR(
           "Returns the current contents of the Registry in JSON."),
-      USAGE(
-          "/registrar(1)/registry"),
       DESCRIPTION(
           "Example:"
           "",

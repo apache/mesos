@@ -74,7 +74,6 @@ using process::DESCRIPTION;
 using process::Future;
 using process::HELP;
 using process::TLDR;
-using process::USAGE;
 
 using process::http::Accepted;
 using process::http::BadRequest;
@@ -347,8 +346,6 @@ void Master::Http::log(const Request& request)
 const string Master::Http::SCHEDULER_HELP = HELP(
     TLDR(
         "Endpoint for schedulers to make Calls against the master."),
-    USAGE(
-        "/api/v1/scheduler"),
     DESCRIPTION(
         "Returns 202 Accepted iff the request is accepted."));
 
@@ -519,8 +516,6 @@ Future<Response> Master::Http::scheduler(const Request& request) const
 const string Master::Http::HEALTH_HELP = HELP(
     TLDR(
         "Health check of the Master."),
-    USAGE(
-        "/master/health"),
     DESCRIPTION(
         "Returns 200 OK iff the Master is healthy.",
         "Delayed responses are also indicative of poor health."));
@@ -538,8 +533,6 @@ const static string MONITOR_KEY = "monitor";
 const string Master::Http::OBSERVE_HELP = HELP(
     TLDR(
         "Observe a monitor health state for host(s)."),
-    USAGE(
-        "/master/observe"),
     DESCRIPTION(
         "This endpoint receives information indicating host(s) ",
         "health."
@@ -630,8 +623,6 @@ Future<Response> Master::Http::observe(const Request& request) const
 const string Master::Http::REDIRECT_HELP = HELP(
     TLDR(
         "Redirects to the leading Master."),
-    USAGE(
-        "/master/redirect"),
     DESCRIPTION(
         "This returns a 307 Temporary Redirect to the leading Master.",
         "If no Master is leading (according to this Master), then the",
@@ -752,8 +743,6 @@ Future<Response> Master::Http::reserve(const Request& request) const
 const string Master::Http::SLAVES_HELP = HELP(
     TLDR(
         "Information about registered slaves."),
-    USAGE(
-        "/master/slaves"),
     DESCRIPTION(
         "This endpoint shows information about the slaves registered in",
         "this master formatted as a JSON object."));
@@ -782,8 +771,6 @@ Future<Response> Master::Http::slaves(const Request& request) const
 const string Master::Http::STATE_HELP = HELP(
     TLDR(
         "Information about state of master."),
-    USAGE(
-        "/master/state.json"),
     DESCRIPTION(
         "This endpoint shows information about the frameworks, tasks,",
         "executors and slaves running in the cluster as a JSON object."));
@@ -1076,8 +1063,6 @@ private:
 const string Master::Http::STATESUMMARY_HELP = HELP(
     TLDR(
         "Summary of state of all tasks and registered frameworks in cluster."),
-    USAGE(
-        "/master/state-summary"),
     DESCRIPTION(
         "This endpoint gives a summary of the state of all tasks and",
         "registered frameworks in the cluster as a JSON object."));
@@ -1194,8 +1179,6 @@ Future<Response> Master::Http::stateSummary(const Request& request) const
 const string Master::Http::ROLES_HELP = HELP(
     TLDR(
         "Information about roles that the master is configured with."),
-    USAGE(
-        "/master/roles.json"),
     DESCRIPTION(
         "This endpoint gives information about the roles that are assigned",
         "to frameworks and resources as a JSON object."));
@@ -1223,8 +1206,6 @@ const string Master::Http::TEARDOWN_HELP = HELP(
     TLDR(
         "Tears down a running framework by shutting down all tasks/executors "
         "and removing the framework."),
-    USAGE(
-        "/master/teardown"),
     DESCRIPTION(
         "Please provide a \"frameworkId\" value designating the running "
         "framework to tear down.",
@@ -1319,8 +1300,6 @@ Future<Response> Master::Http::_teardown(
 const string Master::Http::TASKS_HELP = HELP(
     TLDR(
       "Lists tasks from all active frameworks."),
-    USAGE(
-      "/master/tasks.json"),
     DESCRIPTION(
       "Lists known tasks.",
       "",
@@ -1442,8 +1421,6 @@ Future<Response> Master::Http::tasks(const Request& request) const
 const string Master::Http::MAINTENANCE_SCHEDULE_HELP = HELP(
     TLDR(
         "Returns or updates the cluster's maintenance schedule."),
-    USAGE(
-        "/master/maintenance/schedule"),
     DESCRIPTION(
         "GET: Returns the current maintenance schedule as JSON.",
         "POST: Validates the request body as JSON",
@@ -1557,8 +1534,6 @@ Future<Response> Master::Http::maintenanceSchedule(const Request& request) const
 const string Master::Http::MACHINE_DOWN_HELP = HELP(
     TLDR(
         "Brings a set of machines down."),
-    USAGE(
-        "/master/machine/down"),
     DESCRIPTION(
         "POST: Validates the request body as JSON and transitions",
         "  the list of machines into DOWN mode.  Currently, only",
@@ -1630,8 +1605,6 @@ Future<Response> Master::Http::machineDown(const Request& request) const
 const string Master::Http::MACHINE_UP_HELP = HELP(
     TLDR(
         "Brings a set of machines back up."),
-    USAGE(
-        "/master/machine/up"),
     DESCRIPTION(
         "POST: Validates the request body as JSON and transitions",
         "  the list of machines into UP mode.  This also removes",
@@ -1732,8 +1705,6 @@ Future<Response> Master::Http::machineUp(const Request& request) const
 const string Master::Http::MAINTENANCE_STATUS_HELP = HELP(
     TLDR(
         "Retrieves the maintenance status of the cluster."),
-    USAGE(
-        "/master/maintenance/status"),
     DESCRIPTION(
         "Returns an object with one list of machines per machine mode."));
 

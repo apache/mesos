@@ -188,8 +188,6 @@ void FilesProcess::detach(const string& name)
 const string FilesProcess::BROWSE_HELP = HELP(
     TLDR(
         "Returns a file listing for a directory."),
-    USAGE(
-        "/files/browse.json"),
     DESCRIPTION(
         "Lists files and directories contained in the path as",
         "a JSON object.",
@@ -262,8 +260,6 @@ Future<Response> _read(int fd,
 const string FilesProcess::READ_HELP = HELP(
     TLDR(
         "Reads data from a file."),
-    USAGE(
-        "/files/read.json"),
     DESCRIPTION(
         "This endpoint reads data from a file at a given offset and for",
         "a given length."
@@ -392,8 +388,6 @@ Future<Response> FilesProcess::read(const Request& request)
 const string FilesProcess::DOWNLOAD_HELP = HELP(
     TLDR(
         "Returns the raw file contents for a given path."),
-    USAGE(
-        "/files/download.json"),
     DESCRIPTION(
         "This endpoint will return the raw file contents for the",
         "given path.",
@@ -449,8 +443,6 @@ Future<Response> FilesProcess::download(const Request& request)
 const string FilesProcess::DEBUG_HELP = HELP(
     TLDR(
         "Returns the internal virtual path mapping."),
-    USAGE(
-        "/files/debug.json"),
     DESCRIPTION(
         "This endpoint shows the internal virtual path map as a",
         "JSON object."));

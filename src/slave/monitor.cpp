@@ -47,8 +47,6 @@ static const string STATISTICS_HELP()
   return HELP(
       TLDR(
           "Retrieve resource monitoring information."),
-      USAGE(
-          "/statistics.json"),
       DESCRIPTION(
           "Returns the current resource consumption data for containers",
           "running under this slave.",

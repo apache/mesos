@@ -185,8 +185,6 @@ void Slave::Http::log(const Request& request)
 const string Slave::Http::HEALTH_HELP = HELP(
     TLDR(
         "Health check of the Slave."),
-    USAGE(
-        "/health"),
     DESCRIPTION(
         "Returns 200 OK iff the Slave is healthy.",
         "Delayed responses are also indicative of poor health."));
@@ -201,8 +199,6 @@ Future<Response> Slave::Http::health(const Request& request) const
 const string Slave::Http::STATE_HELP = HELP(
     TLDR(
         "Information about state of the Slave."),
-    USAGE(
-        "/state.json"),
     DESCRIPTION(
         "This endpoint shows information about the frameworks, executors",
         "and the slave's master as a JSON object."));
