@@ -91,7 +91,7 @@ inline Try<mesos::ContainerInfo> parse(const std::string& value)
 
 // When the same variable is listed multiple times,
 // uses only the last value.
-template<>
+template <>
 inline Try<hashmap<std::string, std::string>> parse(const std::string& value)
 {
   // Convert from string or file to JSON.

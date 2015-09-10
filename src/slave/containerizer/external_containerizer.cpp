@@ -105,7 +105,7 @@ static Option<Error> validate(
 
 // Validate the invocation results and extract a piped protobuf
 // message.
-template<typename T>
+template <typename T>
 static Try<T> result(
     const Future<tuple<Future<Result<T>>, Future<Option<int>>>>& future)
 {

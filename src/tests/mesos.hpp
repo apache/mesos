@@ -276,7 +276,7 @@ private:
   hashset<std::string> subsystems;
 };
 #else
-template<>
+template <>
 class ContainerizerTest<slave::MesosContainerizer> : public MesosTest
 {
 protected:
