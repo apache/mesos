@@ -24,40 +24,46 @@ set(STOUT_TESTS_SRC
   bits_tests.cpp
   bytes_tests.cpp
   cache_tests.cpp
-  svn_tests.cpp
   duration_tests.cpp
-  dynamiclibrary_tests.cpp
   error_tests.cpp
-  flags_tests.cpp
-  gzip_tests.cpp
   hashmap_tests.cpp
   hashset_tests.cpp
   interval_tests.cpp
-  ip_tests.cpp
   json_tests.cpp
   linkedhashmap_tests.cpp
-  mac_tests.cpp
   main.cpp
   multimap_tests.cpp
   none_tests.cpp
   option_tests.cpp
-  os_tests.cpp
-  path_tests.cpp
-  protobuf_tests.cpp
-  protobuf_tests.pb.cc
   protobuf_tests.pb.h
   protobuf_tests.proto
   result_tests.cpp
-  os/sendfile_tests.cpp
-  os/signals_tests.cpp
   set_tests.cpp
   some_tests.cpp
   strings_tests.cpp
-  subcommand_tests.cpp
-  thread_tests.cpp
   uuid_tests.cpp
   version_tests.cpp
   )
+
+if (NOT WIN32)
+  set(STOUT_TESTS_SRC
+    ${STOUT_TESTS_SRC}
+    dynamiclibrary_tests.cpp
+    flags_tests.cpp
+    gzip_tests.cpp
+    ip_tests.cpp
+    mac_tests.cpp
+    os_tests.cpp
+    path_tests.cpp
+    protobuf_tests.cpp
+    protobuf_tests.pb.cc
+    os/sendfile_tests.cpp
+    os/signals_tests.cpp
+    subcommand_tests.cpp
+    svn_tests.cpp
+    thread_tests.cpp
+    )
+endif (NOT WIN32)
 
 # INCLUDE DIRECTIVES FOR STOUT TEST BINARY (generates, e.g., -I/path/to/thing
 # on Linux).
