@@ -32,7 +32,8 @@ namespace process {
 namespace io {
 namespace internal {
 
-enum ReadFlags {
+enum ReadFlags
+{
   NONE = 0,
   PEEK
 };
