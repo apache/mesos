@@ -20,6 +20,7 @@
 
 #include <process/defer.hpp>
 #include <process/dispatch.hpp>
+#include <process/io.hpp>
 
 #include "slave/containerizer/provisioners/docker/registry_client.hpp"
 #include "slave/containerizer/provisioners/docker/token_manager.hpp"
@@ -264,6 +265,45 @@ RegistryClientProcess::doHttpGet(
       // Set the future if we get a OK response.
       if (httpResponse.status == "200 OK") {
         return httpResponse;
+      } else if (httpResponse.status == "400 Bad Request") {
+        Try<JSON::Object> errorResponse =
+          JSON::parse<JSON::Object>(httpResponse.body);
+
+        if (errorResponse.isError()) {
+          return Failure("Failed to parse bad request response JSON: " +
+                         errorResponse.error());
+        }
+
+        std::ostringstream out;
+        bool first = true;
+        Result<JSON::Array> errorObjects =
+          errorResponse.get().find<JSON::Array>("errors");
+
+        if (errorObjects.isError()) {
+          return Failure("Failed to find 'errors' in bad request response: " +
+                         errorObjects.error());
+        } else if (errorObjects.isNone()) {
+          return Failure("Errors not found in bad request response");
+        }
+
+        foreach (const JSON::Value& error, errorObjects.get().values) {
+          Result<JSON::String> message =
+            error.as<JSON::Object>().find<JSON::String>("message");
+          if (message.isError()) {
+            return Failure("Failed to parse bad request error message: " +
+                           message.error());
+          } else if (message.isNone()) {
+            continue;
+          }
+
+          if (first) {
+            out << message.get().value;
+            first = false;
+          } else {
+            out << ", " << message.get().value;
+          }
+        }
+        return Failure("Received Bad request, errors: [" + out.str() + "]");
       }
 
       // Prevent infinite recursion.
@@ -410,15 +450,15 @@ Future<ManifestResponse> RegistryClientProcess::getManifest(
 
   auto getManifestResponse = [](
       const Response& httpResponse) -> Try<ManifestResponse> {
+    if (!httpResponse.headers.contains("Docker-Content-Digest")) {
+      return Error("Docker-Content-Digest header missing in response");
+    }
+
     Try<JSON::Object> responseJSON =
       JSON::parse<JSON::Object>(httpResponse.body);
 
     if (responseJSON.isError()) {
       return Error(responseJSON.error());
-    }
-
-    if (!httpResponse.headers.contains("Docker-Content-Digest")) {
-      return Error("Docker-Content-Digest header missing in response");
     }
 
     Result<JSON::String> name = responseJSON.get().find<JSON::String>("name");
@@ -434,7 +474,7 @@ Future<ManifestResponse> RegistryClientProcess::getManifest(
     }
 
     vector<FileSystemLayerInfo> fsLayerInfoList;
-    foreach(const JSON::Value& layer, fsLayers.get().values) {
+    foreach (const JSON::Value& layer, fsLayers.get().values) {
       const JSON::Object& layerInfoJSON = layer.as<JSON::Object>();
       Result<JSON::String> blobSumInfo =
         layerInfoJSON.find<JSON::String>("blobSum");
@@ -456,10 +496,8 @@ Future<ManifestResponse> RegistryClientProcess::getManifest(
 
   return doHttpGet(manifestURL, None(), timeout, true, None())
     .then([getManifestResponse] (
-        const Future<Response>&  httpResponseFuture
-        ) -> Future<ManifestResponse> {
-      Try<ManifestResponse> manifestResponse =
-        getManifestResponse(httpResponseFuture.get());
+        const Response& response) -> Future<ManifestResponse> {
+      Try<ManifestResponse> manifestResponse = getManifestResponse(response);
 
       if (manifestResponse.isError()) {
         return Failure(
@@ -507,30 +545,27 @@ Future<size_t> RegistryClientProcess::getBlob(
     "v2/" + path + "/blobs/" + digest.getOrElse("");
 
   auto saveBlob = [filePath](
-      const Response& httpResponse) -> Try<size_t> {
-    Try<Nothing> writeResult =
-      os::write(filePath, httpResponse.body);
-
+      const Response& httpResponse) -> Future<size_t> {
     // TODO(jojy): Add verification step.
     // TODO(jojy): Add check for max size.
+    size_t size = httpResponse.body.length();
+    Try<int> fd = os::open(
+        filePath.value,
+        O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC,
+        S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 
-    if (writeResult.isError()) {
-      return Error(writeResult.error());
+    if (fd.isError()) {
+      return Failure("Failed to open file '" + filePath.value + "': " +
+                     fd.error());
     }
 
-    return httpResponse.body.length();
+    return process::io::write(fd.get(), httpResponse.body)
+      .then([size](const Future<Nothing>&) { return size; })
+      .onAny([fd]() { os::close(fd.get()); } );
   };
 
   return doHttpGet(blobURL, None(), timeout, true, None())
-    .then([saveBlob](
-        const Future<Response>&  httpResponseFuture) -> Future<size_t> {
-      Try<size_t> blobSaved = saveBlob(httpResponseFuture.get());
-      if (blobSaved.isError()) {
-        return Failure("Failed to save blob: " + blobSaved.error());
-      }
-
-     return blobSaved.get();
-    });
+    .then([saveBlob](const Response& response) { return saveBlob(response); });
 }
 
 } // namespace registry {

@@ -1664,13 +1664,12 @@ mesos_tests_SOURCES =						\
   tests/paths_tests.cpp						\
   tests/persistent_volume_tests.cpp				\
   tests/protobuf_io_tests.cpp					\
-  tests/provisioners/docker_provisioner_tests.cpp		\
   tests/rate_limiting_tests.cpp					\
   tests/reconciliation_tests.cpp				\
   tests/registrar_tests.cpp					\
   tests/repair_tests.cpp					\
   tests/reservation_tests.cpp					\
-  tests/reservation_endpoints_tests.cpp					\
+  tests/reservation_endpoints_tests.cpp                         \
   tests/resource_offers_tests.cpp				\
   tests/resources_tests.cpp					\
   tests/scheduler_tests.cpp					\
@@ -1692,6 +1691,7 @@ mesos_tests_SOURCES =						\
   tests/containerizer/composing_containerizer_tests.cpp		\
   tests/containerizer/docker_containerizer_tests.cpp		\
   tests/containerizer/docker_tests.cpp				\
+  tests/containerizer/docker_provisioner_tests.cpp	        \
   tests/containerizer/external_containerizer_test.cpp		\
   tests/containerizer/isolator_tests.cpp			\
   tests/containerizer/memory_test_helper.cpp			\

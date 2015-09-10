@@ -54,7 +54,7 @@ public:
   };
 
   /**
-   * Encapsulates response of "GET Mannifest" request.
+   * Encapsulates response of "GET Manifest" request.
    *
    * Reference: https://docs.docker.com/registry/spec/api
    */
@@ -78,7 +78,7 @@ public:
      */
     const Option<std::string> password;
     /**
-     * Account for fetching data from  registry.
+     * Account for fetching data from registry.
      */
     const Option<std::string> account;
   };

@@ -620,6 +620,62 @@ TEST_F(RegistryClientTest, SimpleGetBlob)
   ASSERT_EQ(blob.get(), blobResponse);
 }
 
+
+TEST_F(RegistryClientTest, BadRequest)
+{
+  Try<Socket> server = setup_server({
+      {"SSL_ENABLED", "true"},
+      {"SSL_KEY_FILE", key_path().value},
+      {"SSL_CERT_FILE", certificate_path().value}});
+
+  ASSERT_SOME(server);
+  ASSERT_SOME(server.get().address());
+  ASSERT_SOME(server.get().address().get().hostname());
+
+  Future<Socket> socket = server.get().accept();
+
+  const http::URL url(
+      "https",
+      server.get().address().get().hostname().get(),
+      server.get().address().get().port);
+
+  Try<Owned<RegistryClient>> registryClient =
+    RegistryClient::create(url, url, None());
+
+  ASSERT_SOME(registryClient);
+
+  const Path blobPath(RegistryClientTest::OUTPUT_DIR + "/blob");
+
+  Future<size_t> resultFuture =
+    registryClient.get()->getBlob(
+        "/blob",
+        "digest",
+        blobPath,
+        None(),
+        None());
+
+  const string badRequestResponse =
+    "{\"errors\": [{\"message\": \"Error1\" }, {\"message\": \"Error2\"}]}";
+
+  const string badRequestHttpResponse =
+    string("HTTP/1.1 400 Bad Request\r\n") +
+    "Content-Length : " + stringify(badRequestResponse.length()) + "\r\n" +
+    "\r\n" +
+    badRequestResponse;
+
+  AWAIT_ASSERT_READY(socket);
+
+  // Send 400 Bad Request.
+  Future<string> blobHttpRequestFuture = Socket(socket.get()).recv();
+  AWAIT_ASSERT_READY(blobHttpRequestFuture);
+  AWAIT_ASSERT_READY(Socket(socket.get()).send(badRequestHttpResponse));
+
+  AWAIT_FAILED(resultFuture);
+
+  ASSERT_TRUE(strings::contains(resultFuture.failure(), "Error1"));
+  ASSERT_TRUE(strings::contains(resultFuture.failure(), "Error2"));
+}
+
 #endif // USE_SSL_SOCKET
 
 } // namespace tests {
