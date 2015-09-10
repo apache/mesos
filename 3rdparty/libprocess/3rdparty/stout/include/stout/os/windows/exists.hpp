@@ -16,22 +16,65 @@
 
 #include <string>
 
+#include <stout/windows.hpp>
+
 
 namespace os {
 
+
 inline bool exists(const std::string& path)
 {
-  UNIMPLEMENTED;
+  // TODO(hausdorff): (MESOS-3386) os.hpp is not yet fully ported to Windows,
+  // but when it is, we should change this to use `os::realpath` instead,
+  // rather than the raw `::realpath` API.
+  //
+  // NOTE: `::realpath` will correctly error out if path length is greater than
+  // `PATH_MAX`.
+  char absolutePath[PATH_MAX];
+
+  if (::realpath(path.c_str(), absolutePath) == NULL) {
+    return false;
+  }
+
+  // NOTE: GetFileAttributes does not support unicode natively. See also
+  // "documentation"[1] for why this is a check-if-file-exists idiom.
+  //
+  // [1] http://blogs.msdn.com/b/oldnewthing/archive/2007/10/23/5612082.aspx
+  DWORD attributes = GetFileAttributes(absolutePath);
+
+  bool fileNotFound = GetLastError() == ERROR_FILE_NOT_FOUND;
+
+  return !((attributes == INVALID_FILE_ATTRIBUTES) && fileNotFound);
 }
 
 
 // Determine if the process identified by pid exists.
-// NOTE: Zombie processes have a pid and therefore exist. See os::process(pid)
-// to get details of a process.
+// NOTE: Zombie processes have a pid and therefore exist. See
+// os::process(pid) to get details of a process.
 inline bool exists(pid_t pid)
 {
-  UNIMPLEMENTED;
+  HANDLE handle = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid);
+
+  // NOTE: `GetExitCode` will gracefully deal with the case that `handle` is
+  // `NULL`.
+  DWORD exitCode = 0;
+  BOOL exitCodeExists = GetExitCodeProcess(handle, &exitCode);
+
+  // `CloseHandle`, on the other hand, will throw an exception in the
+  // VS debugger if you pass it a broken handle. (cf. "Return value"
+  // section of the documentation[1].)
+  //
+  // [1] https://msdn.microsoft.com/en-us/library/windows/desktop/ms724211(v=vs.85).aspx
+  if (handle != NULL) {
+    CloseHandle(handle);
+  }
+
+  // NOTE: Windows quirk, the exit code returned by the process can
+  // be the same number as `STILL_ACTIVE`, in which case this
+  // function will mis-report that the process still exists.
+  return exitCodeExists && (exitCode == STILL_ACTIVE);
 }
+
 
 } // namespace os {
 

@@ -23,9 +23,11 @@
 
 namespace os {
 
+
 inline bool exists(const std::string& path)
 {
   struct stat s;
+
   if (::lstat(path.c_str(), &s) < 0) {
     return false;
   }
@@ -47,6 +49,7 @@ inline bool exists(pid_t pid)
 
   return false;
 }
+
 
 } // namespace os {
 
