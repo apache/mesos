@@ -31,13 +31,6 @@
 
 #include <process/ssl/utilities.hpp>
 
-using std::map;
-using std::string;
-using std::vector;
-
-using namespace process;
-using namespace process::network;
-
 namespace process {
 namespace network {
 namespace openssl {
@@ -140,7 +133,7 @@ protected:
     };
 
     // Generate the authority key.
-    private_key = openssl::generate_private_rsa_key();
+    private_key = process::network::openssl::generate_private_rsa_key();
     if (private_key.isError()) {
       ABORT("Could not generate private key: " + private_key.error());
     }
@@ -148,7 +141,7 @@ protected:
     // Figure out the hostname that 'INADDR_LOOPBACK' will bind to.
     // Set the hostname of the certificate to this hostname so that
     // hostname verification of the certificate will pass.
-    Try<string> hostname = net::getHostname(net::IP(INADDR_LOOPBACK));
+    Try<std::string> hostname = net::getHostname(net::IP(INADDR_LOOPBACK));
     if (hostname.isError()) {
       cleanup();
       ABORT("Could not determine hostname of 'INADDR_LOOPBACK': " +
@@ -156,7 +149,7 @@ protected:
     }
 
     // Generate an authorized certificate.
-    certificate = openssl::generate_x509(
+    certificate = process::network::openssl::generate_x509(
         private_key.get(),
         private_key.get(),
         None(),
@@ -171,7 +164,7 @@ protected:
 
     // Write the authority key to disk.
     Try<Nothing> key_write =
-      openssl::write_key_file(private_key.get(), key_path());
+      process::network::openssl::write_key_file(private_key.get(), key_path());
 
     if (key_write.isError()) {
       cleanup();
@@ -180,7 +173,9 @@ protected:
 
     // Write the authorized certificate to disk.
     Try<Nothing> certificate_write =
-      openssl::write_certificate_file(certificate.get(), certificate_path());
+      process::network::openssl::write_certificate_file(
+          certificate.get(),
+          certificate_path());
 
     if (certificate_write.isError()) {
       cleanup();
@@ -189,14 +184,16 @@ protected:
     }
 
     // Generate a scrap key.
-    scrap_key = openssl::generate_private_rsa_key();
+    scrap_key = process::network::openssl::generate_private_rsa_key();
     if (scrap_key.isError()) {
       cleanup();
       ABORT("Could not generate a scrap private key: " + scrap_key.error());
     }
 
     // Write the scrap key to disk.
-    key_write = openssl::write_key_file(scrap_key.get(), scrap_key_path());
+    key_write = process::network::openssl::write_key_file(
+        scrap_key.get(),
+        scrap_key_path());
 
     if (key_write.isError()) {
       cleanup();
@@ -204,8 +201,9 @@ protected:
     }
 
     // Generate a scrap certificate.
-    scrap_certificate =
-      openssl::generate_x509(scrap_key.get(), scrap_key.get());
+    scrap_certificate = process::network::openssl::generate_x509(
+        scrap_key.get(),
+        scrap_key.get());
 
     if (scrap_certificate.isError()) {
       cleanup();
@@ -214,7 +212,7 @@ protected:
     }
 
     // Write the scrap certificate to disk.
-    certificate_write = openssl::write_certificate_file(
+    certificate_write = process::network::openssl::write_certificate_file(
         scrap_certificate.get(),
         scrap_certificate_path());
 
@@ -263,23 +261,30 @@ protected:
    *
    * @return Socket if successful otherwise an Error.
    */
-  Try<Socket> setup_server(const map<string, string>& environment)
+  Try<process::network::Socket> setup_server(
+      const std::map<std::string, std::string>& environment)
   {
-    foreachpair (const string& name, const string& value, environment) {
+    foreachpair (
+        const std::string& name, const std::string& value, environment) {
       os::setenv(name, value);
     }
-    openssl::reinitialize();
 
-    const Try<Socket> create = Socket::create(Socket::SSL);
+    process::network::openssl::reinitialize();
+
+    const Try<process::network::Socket> create =
+      process::network::Socket::create(process::network::Socket::SSL);
+
     if (create.isError()) {
       return Error(create.error());
     }
 
-    Socket server = create.get();
+    process::network::Socket server = create.get();
 
     // We need to explicitly bind to INADDR_LOOPBACK so the
     // certificate we create in this test fixture can be verified.
-    Try<Address> bind = server.bind(Address(net::IP(INADDR_LOOPBACK), 0));
+    Try<process::network::Address> bind =
+      server.bind(process::network::Address(net::IP(INADDR_LOOPBACK), 0));
+
     if (bind.isError()) {
       return Error(bind.error());
     }
@@ -306,42 +311,42 @@ protected:
    *
    * @return Subprocess if successful otherwise an Error.
    */
-  Try<Subprocess> launch_client(
-      const map<string, string>& environment,
-      const Socket& server,
+  Try<process::Subprocess> launch_client(
+      const std::map<std::string, std::string>& environment,
+      const process::network::Socket& server,
       bool use_ssl_socket)
   {
-    const Try<Address> address = server.address();
+    const Try<process::network::Address> address = server.address();
     if (address.isError()) {
       return Error(address.error());
     }
 
     // Set up arguments to be passed to the 'client-ssl' binary.
-    const vector<string> argv = {
+    const std::vector<std::string> argv = {
       "ssl-client",
       "--use_ssl=" + stringify(use_ssl_socket),
       "--server=127.0.0.1",
       "--port=" + stringify(address.get().port),
       "--data=" + data};
 
-    Result<string> path = os::realpath(BUILD_DIR);
+    Result<std::string> path = os::realpath(BUILD_DIR);
     if (!path.isSome()) {
       return Error("Could not establish build directory path");
     }
 
-    return subprocess(
+    return process::subprocess(
         path::join(path.get(), "ssl-client"),
         argv,
-        Subprocess::PIPE(),
-        Subprocess::PIPE(),
-        Subprocess::FD(STDERR_FILENO),
+        process::Subprocess::PIPE(),
+        process::Subprocess::PIPE(),
+        process::Subprocess::FD(STDERR_FILENO),
         None(),
         environment);
   }
 
   static constexpr size_t BACKLOG = 5;
 
-  const string data;
+  const std::string data;
 };
 
 #endif // USE_SSL_SOCKET
