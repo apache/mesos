@@ -259,6 +259,9 @@ Try<Owned<LocalAuthorizer>> authorizer = LocalAuthorizer::create();
   * `std::mutex`
   * `std::lock_guard<std::mutex>`
   * `std::unique_lock<std::mutex>`
+* Atomics (`std::atomic`)
+  * The standard defines a number of predefined typedefs for atomic types (e.g., `std::atomic_int`), in addition to `std::atomic<T>`. When a typedef is available, it should be preferred over explicit template specialization of `std::atomic<T>`.
+  * When reading from and writing to atomic values, the `load` and `store` member functions should be used instead of the overloads of `operator T()` and `operator=`. Being explicit helps to draw the reader's attention to the fact that atomic values are being manipulated.
 * Shared from this.
   * `class T : public std::enable_shared_from_this<T>`
   * `shared_from_this()`
