@@ -52,6 +52,11 @@ struct CachedImage
       const string& _path)
     : manifest(_manifest), id(_id), path(_path) {}
 
+  string rootfs() const
+  {
+    return path::join(path, "rootfs");
+  }
+
   const AppcImageManifest manifest;
 
   // Image ID of the format "sha512-value" where "value" is the hex
@@ -223,11 +228,12 @@ Future<vector<string>> StoreProcess::get(const Image::Appc& image)
     if (matches(image, candidate)) {
       LOG(INFO) << "Found match for image '" << image.name()
                 << "' in the store";
+
       // The Appc store current doesn't support dependencies and this is
       // enforced by manifest validation: if the image's manifest contains
       // dependencies it would fail the validation and wouldn't be stored
       // in the store.
-      return vector<string>({candidate.path});
+      return vector<string>({candidate.rootfs()});
     }
   }
 

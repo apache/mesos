@@ -187,7 +187,9 @@ TEST_F(AppcProvisionerTest, StoreRecover)
 
   EXPECT_EQ(1u, layers.get().size());
   ASSERT_SOME(os::realpath(imagePath));
-  EXPECT_EQ(os::realpath(imagePath).get(), layers.get().front());
+  EXPECT_EQ(
+      os::realpath(path::join(imagePath, "rootfs")).get(),
+      layers.get().front());
 }
 
 
