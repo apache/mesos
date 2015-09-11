@@ -29,7 +29,10 @@
 #include <process/future.hpp>
 
 #include "slave/containerizer/fetcher.hpp"
-#include "slave/containerizer/provisioners/docker.hpp"
+
+#include "slave/containerizer/provisioner/store.hpp"
+
+#include "slave/containerizer/provisioner/docker/message.hpp"
 
 #include "slave/flags.hpp"
 
@@ -39,33 +42,12 @@ namespace slave {
 namespace docker {
 
 // Store fetches the Docker images and stores them on disk.
+// TODO(tnachen): Make this store the only docker store
+// implementation, and move local and remote to different pullers.
 class Store
 {
 public:
-  static Try<process::Owned<Store>> create(
-      const Flags& flags,
-      Fetcher* fetcher);
-
-  virtual ~Store() {}
-
-  /**
-   * Get image by name.
-   *
-   * @param name The name of the Docker image to retrieve from store.
-   *
-   * @return The DockerImage that holds the Docker layers.
-   */
-  virtual process::Future<DockerImage> get(const ImageName& name) = 0;
-
-  /**
-   * Recover all stored images
-   */
-  virtual process::Future<Nothing> recover() = 0;
-
-  // TODO(chenlily): Implement removing an image.
-
-protected:
-  Store() {}
+  static Try<process::Owned<slave::Store>> create(const Flags& flags);
 };
 
 } // namespace docker {

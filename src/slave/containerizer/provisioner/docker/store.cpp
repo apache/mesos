@@ -16,9 +16,32 @@
  * limitations under the License.
  */
 
-#ifndef __MESSAGES_DOCKER_PROVISIONER_HPP__
-#define __MESSAGES_DOCKER_PROVISIONER_HPP__
+#include "slave/containerizer/provisioner/docker/local_store.hpp"
+#include "slave/containerizer/provisioner/docker/store.hpp"
 
-#include "messages/docker_provisioner.pb.h"
+using process::Owned;
 
-#endif // __MESSAGES_DOCKER_PROVISIONER_HPP__
+using std::string;
+
+namespace mesos {
+namespace internal {
+namespace slave {
+namespace docker {
+
+Try<Owned<slave::Store>> Store::create(const Flags& flags)
+{
+  hashmap<string, Try<Owned<slave::Store>>(*)(const Flags&)> creators{
+    {"local", &LocalStore::create}
+  };
+
+  if (!creators.contains(flags.docker_store_discovery)) {
+    return Error("Unknown Docker store: " + flags.docker_store_discovery);
+  }
+
+  return creators[flags.docker_store_discovery](flags);
+}
+
+} // namespace docker {
+} // namespace slave {
+} // namespace internal {
+} // namespace mesos {

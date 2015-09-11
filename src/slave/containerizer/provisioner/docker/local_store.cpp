@@ -16,8 +16,6 @@
  * limitations under the License.
  */
 
-#include "slave/containerizer/provisioners/docker/local_store.hpp"
-
 #include <list>
 #include <vector>
 
@@ -33,11 +31,10 @@
 
 #include "common/status_utils.hpp"
 
-#include "slave/containerizer/fetcher.hpp"
-
-#include "slave/containerizer/provisioners/docker/metadata_manager.hpp"
-#include "slave/containerizer/provisioners/docker/paths.hpp"
-#include "slave/containerizer/provisioners/docker/store.hpp"
+#include "slave/containerizer/provisioner/docker/local_store.hpp"
+#include "slave/containerizer/provisioner/docker/metadata_manager.hpp"
+#include "slave/containerizer/provisioner/docker/paths.hpp"
+#include "slave/containerizer/provisioner/docker/store.hpp"
 
 #include "slave/flags.hpp"
 
@@ -55,28 +52,30 @@ namespace docker {
 class LocalStoreProcess : public process::Process<LocalStoreProcess>
 {
 public:
-  ~LocalStoreProcess() {}
-
-  static Try<process::Owned<LocalStoreProcess>> create(
-      const Flags& flags,
-      Fetcher* fetcher);
-
-  process::Future<DockerImage> get(const ImageName& name);
-
-  process::Future<Nothing> recover();
-
-private:
   LocalStoreProcess(
       const Flags& _flags,
       Owned<MetadataManager> _metadataManager)
     : flags(_flags), metadataManager(_metadataManager) {}
+
+  ~LocalStoreProcess() {}
+
+  static Try<process::Owned<LocalStoreProcess>> create(const Flags& flags);
+
+  process::Future<vector<string>> get(const Image& image);
+
+  process::Future<Nothing> recover();
+
+private:
+  process::Future<DockerImage> _get(
+      const DockerImage::Name& name,
+      const Option<DockerImage>& image);
 
   process::Future<Nothing> untarImage(
       const std::string& tarPath,
       const std::string& staging);
 
   process::Future<DockerImage> putImage(
-      const ImageName& name,
+      const DockerImage::Name& name,
       const std::string& staging);
 
   Result<std::string> getParentId(
@@ -100,64 +99,7 @@ private:
 };
 
 
-Try<Owned<Store>> Store::create(
-    const Flags& flags,
-    Fetcher* fetcher)
-{
-  hashmap<string, Try<Owned<Store>>(*)(const Flags&, Fetcher*)> creators{
-    {"local", &LocalStore::create}
-  };
-
-  if (!creators.contains(flags.docker_store)) {
-    return Error("Unknown Docker store: " + flags.docker_store);
-  }
-
-  return creators[flags.docker_store](flags, fetcher);
-}
-
-
-Try<Owned<Store>> LocalStore::create(
-    const Flags& flags,
-    Fetcher* fetcher)
-{
-  Try<Owned<LocalStoreProcess>> process =
-    LocalStoreProcess::create(flags, fetcher);
-  if (process.isError()) {
-    return Error(process.error());
-  }
-
-  return Owned<Store>(new LocalStore(process.get()));
-}
-
-
-LocalStore::LocalStore(Owned<LocalStoreProcess> _process) : process(_process)
-{
-  process::spawn(CHECK_NOTNULL(process.get()));
-}
-
-
-LocalStore::~LocalStore()
-{
-  process::terminate(process.get());
-  process::wait(process.get());
-}
-
-
-Future<DockerImage> LocalStore::get(const ImageName& name)
-{
-  return dispatch(process.get(), &LocalStoreProcess::get, name);
-}
-
-
-Future<Nothing> LocalStore::recover()
-{
-  return dispatch(process.get(), &LocalStoreProcess::recover);
-}
-
-
-Try<Owned<LocalStoreProcess>> LocalStoreProcess::create(
-    const Flags& flags,
-    Fetcher* fetcher)
+Try<Owned<slave::Store>> LocalStore::create(const Flags& flags)
 {
   if (!os::exists(flags.docker_store_dir)) {
     Try<Nothing> mkdir = os::mkdir(flags.docker_store_dir);
@@ -180,40 +122,86 @@ Try<Owned<LocalStoreProcess>> LocalStoreProcess::create(
     return Error(metadataManager.error());
   }
 
-  return Owned<LocalStoreProcess>(
+  Owned<LocalStoreProcess> process(
       new LocalStoreProcess(flags, metadataManager.get()));
+
+  return Owned<slave::Store>(new LocalStore(process));
 }
 
 
-Future<DockerImage> LocalStoreProcess::get(const ImageName& name)
+LocalStore::LocalStore(Owned<LocalStoreProcess> _process) : process(_process)
 {
-  return metadataManager->get(name)
-    .then(defer(self(),
-                [this, name](
-                    const Option<DockerImage>& image) -> Future<DockerImage> {
-      if (image.isSome()) {
-        return image.get();
+  process::spawn(CHECK_NOTNULL(process.get()));
+}
+
+
+LocalStore::~LocalStore()
+{
+  process::terminate(process.get());
+  process::wait(process.get());
+}
+
+
+Future<vector<string>> LocalStore::get(const Image& image)
+{
+  return dispatch(process.get(), &LocalStoreProcess::get, image);
+}
+
+
+Future<Nothing> LocalStore::recover()
+{
+  return dispatch(process.get(), &LocalStoreProcess::recover);
+}
+
+
+Future<vector<string>> LocalStoreProcess::get(const Image& image)
+{
+  CHECK_EQ(image.type(), Image::DOCKER);
+
+  Try<DockerImage::Name> dockerName = parseName(image.docker().name());
+  if (dockerName.isError()) {
+    return Failure("Unable to parse docker image name: " + dockerName.error());
+  }
+
+  return metadataManager->get(dockerName.get())
+    .then(defer(self(), &Self::_get, dockerName.get(), lambda::_1))
+    .then([](const DockerImage& dockerImage) {
+      vector<string> layers;
+      foreach (const string& layer, dockerImage.layer_ids()) {
+        layers.push_back(layer);
       }
 
-      string tarPath = paths::getLocalImageTarPath(
-          flags.docker_discovery_local_dir,
-          name.name());
+      return layers;
+    });
+}
 
-      if (!os::exists(tarPath)) {
-        VLOG(1) << "Unable to find image in local store with path: " << tarPath;
-        return Failure("No Docker image tar archive found");
-      }
 
-      // Create a temporary staging directory.
-      Try<string> staging =
-        os::mkdtemp(paths::getTempStaging(flags.docker_store_dir));
-      if (staging.isError()) {
-        return Failure("Failed to create a staging directory");
-      }
+Future<DockerImage> LocalStoreProcess::_get(
+    const DockerImage::Name& name,
+    const Option<DockerImage>& image)
+{
+  if (image.isSome()) {
+    return image.get();
+  }
 
-      return untarImage(tarPath, staging.get())
-        .then(defer(self(), &Self::putImage, name, staging.get()));
-    }));
+  string tarPath = paths::getLocalImageTarPath(
+      flags.docker_store_discovery_local_dir,
+      stringify(name));
+
+  if (!os::exists(tarPath)) {
+    VLOG(1) << "Unable to find image in local store with path: " << tarPath;
+    return Failure("No Docker image tar archive found");
+  }
+
+  // Create a temporary staging directory.
+  Try<string> staging =
+    os::mkdtemp(paths::getTempStaging(flags.docker_store_dir));
+  if (staging.isError()) {
+    return Failure("Failed to create a staging directory");
+  }
+
+  return untarImage(tarPath, staging.get())
+    .then(defer(self(), &Self::putImage, name, staging.get()));
 }
 
 
@@ -222,13 +210,14 @@ Future<Nothing> LocalStoreProcess::recover()
   return metadataManager->recover();
 }
 
+
 Future<Nothing> LocalStoreProcess::untarImage(
     const string& tarPath,
     const string& staging)
 {
   VLOG(1) << "Untarring image at: " << tarPath;
 
-  // Untar discovery_local_dir/name.tar into staging/.
+  // Untar store_discovery_local_dir/name.tar into staging/.
   vector<string> argv = {
     "tar",
     "-C",
@@ -266,7 +255,7 @@ Future<Nothing> LocalStoreProcess::untarImage(
 
 
 Future<DockerImage> LocalStoreProcess::putImage(
-    const ImageName& name,
+    const DockerImage::Name& name,
     const string& staging)
 {
   Try<string> value = os::read(paths::getLocalImageRepositoriesPath(staging));
@@ -280,20 +269,20 @@ Future<DockerImage> LocalStoreProcess::putImage(
   }
 
   Result<JSON::Object> repositoryValue =
-    json.get().find<JSON::Object>(name.repository);
+    json.get().find<JSON::Object>(name.repository());
   if (repositoryValue.isError()) {
     return Failure("Failed to find repository: " + repositoryValue.error());
   } else if (repositoryValue.isNone()) {
-    return Failure("Repository '" + name.repository + "' is not found");
+    return Failure("Repository '" + name.repository() + "' is not found");
   }
 
   JSON::Object repositoryJson = repositoryValue.get();
 
   // We don't use JSON find here because a tag might contain a '.'.
   std::map<string, JSON::Value>::const_iterator entry =
-    repositoryJson.values.find(name.tag);
+    repositoryJson.values.find(name.tag());
   if (entry == repositoryJson.values.end()) {
-    return Failure("Tag '" + name.tag + "' is not found");
+    return Failure("Tag '" + name.tag() + "' is not found");
   } else if (!entry->second.is<JSON::String>()) {
     return Failure("Tag JSON value expected to be JSON::String");
   }

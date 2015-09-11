@@ -18,18 +18,26 @@
 
 import "mesos/mesos.proto";
 
-package mesos.internal;
+package mesos.internal.slave.docker;
 
 /**
  * A Docker Image name and the layer ids of the layers that comprise the image.
  * The layerIds are ordered, with the root layer id (no parent layer id) first
  * and the leaf layer id last.
  */
-message DockerProvisionerImages {
-  message Image {
-    required string name = 1;
-    repeated string layer_ids = 2;
+message DockerImage {
+  message Name {
+    optional string registry = 1;
+    required string repository = 2;
+    required string tag = 3;
   }
 
-  repeated Image images = 1;
+  required Name name = 1;
+
+  // The order of the layers represents the dependency between layers.
+  repeated string layer_ids = 2;
+}
+
+message DockerImages {
+  repeated DockerImage images = 1;
 }

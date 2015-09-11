@@ -702,7 +702,7 @@ class DockerProvisionerLocalStoreTest : public TemporaryDirectoryTest
 public:
   void verifyLocalDockerImage(
       const slave::Flags& flags,
-      const DockerImage& dockerImage)
+      const vector<string>& layers)
   {
     string layersPath = path::join(flags.docker_store_dir, "layers");
 
@@ -717,12 +717,10 @@ public:
         os::read(path::join(layersPath, "456", "rootfs", "temp")));
 
     // Verify the Docker Image provided.
-    EXPECT_EQ(dockerImage.imageName.repository, "abc");
-    EXPECT_EQ(dockerImage.imageName.tag, "latest");
-    list<string> expectedLayers;
+    vector<string> expectedLayers;
     expectedLayers.push_back("123");
     expectedLayers.push_back("456");
-    EXPECT_EQ(dockerImage.layerIds, expectedLayers);
+    EXPECT_EQ(expectedLayers, layers);
   }
 
 protected:
@@ -796,25 +794,25 @@ TEST_F(DockerProvisionerLocalStoreTest, LocalStoreTestWithTar)
   ASSERT_SOME(os::mkdir(image));
 
   slave::Flags flags;
-  flags.docker_store = "local";
+  flags.docker_store_discovery = "local";
   flags.docker_store_dir = path::join(os::getcwd(), "store");
-  flags.docker_discovery_local_dir = imageDir;
+  flags.docker_store_discovery_local_dir = imageDir;
 
-  // Fetcher is not relevant to local store. It is passed through from the
-  // provisioner interface.
-  Fetcher fetcher;
-  Try<Owned<Store>> store = Store::create(flags, &fetcher);
+  Try<Owned<slave::Store>> store =
+    mesos::internal::slave::docker::Store::create(flags);
   ASSERT_SOME(store);
 
   string sandbox = path::join(os::getcwd(), "sandbox");
   ASSERT_SOME(os::mkdir(sandbox));
-  Try<ImageName> imageName = ImageName::create("abc");
-  ASSERT_SOME(imageName);
 
-  Future<DockerImage> dockerImage = store.get()->get(imageName.get());
-  AWAIT_READY(dockerImage);
+  Image mesosImage;
+  mesosImage.set_type(Image::DOCKER);
+  mesosImage.mutable_docker()->set_name("abc");
 
-  verifyLocalDockerImage(flags, dockerImage.get());
+  Future<vector<string>> layers = store.get()->get(mesosImage);
+  AWAIT_READY(layers);
+
+  verifyLocalDockerImage(flags, layers.get());
 }
 
 // This tests the ability of the reference store to recover the images it has
@@ -822,32 +820,33 @@ TEST_F(DockerProvisionerLocalStoreTest, LocalStoreTestWithTar)
 TEST_F(DockerProvisionerLocalStoreTest, MetadataManagerInitialization)
 {
   slave::Flags flags;
-  flags.docker_store = "local";
+  flags.docker_store_discovery = "local";
   flags.docker_store_dir = path::join(os::getcwd(), "store");
-  flags.docker_discovery_local_dir = path::join(os::getcwd(), "images");
+  flags.docker_store_discovery_local_dir = path::join(os::getcwd(), "images");
 
-  // Fetcher is not relevant to local store. It is passed through from the
-  // provisioner interface.
-  Fetcher fetcher;
-  Try<Owned<Store>> store = Store::create(flags, &fetcher);
+  Try<Owned<slave::Store>> store =
+    mesos::internal::slave::docker::Store::create(flags);
   ASSERT_SOME(store);
 
   string sandbox = path::join(os::getcwd(), "sandbox");
   ASSERT_SOME(os::mkdir(sandbox));
-  Try<ImageName> imageName = ImageName::create("abc");
-  ASSERT_SOME(imageName);
-  Future<DockerImage> dockerImage = store.get()->get(imageName.get());
-  AWAIT_READY(dockerImage);
+
+  Image image;
+  image.set_type(Image::DOCKER);
+  image.mutable_docker()->set_name("abc");
+
+  Future<vector<string>> layers = store.get()->get(image);
+  AWAIT_READY(layers);
 
   // Store is deleted and recreated. Reference Store is initialized upon
   // creation of the store.
   store.get().reset();
-  store = Store::create(flags, &fetcher);
+  store = mesos::internal::slave::docker::Store::create(flags);
   ASSERT_SOME(store);
 
-  dockerImage = store.get()->get(imageName.get());
-  AWAIT_READY(dockerImage);
-  verifyLocalDockerImage(flags, dockerImage.get());
+  layers = store.get()->get(image);
+  AWAIT_READY(layers);
+  verifyLocalDockerImage(flags, layers.get());
 }
 
 } // namespace tests {

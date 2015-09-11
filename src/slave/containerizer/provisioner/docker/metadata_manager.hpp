@@ -32,7 +32,9 @@
 #include <process/owned.hpp>
 #include <process/process.hpp>
 
-#include "slave/containerizer/provisioners/docker.hpp"
+#include "slave/containerizer/provisioner/provisioner.hpp"
+
+#include "slave/containerizer/provisioner/docker/message.hpp"
 
 #include "slave/flags.hpp"
 
@@ -60,7 +62,7 @@ public:
    ~MetadataManager();
 
   /**
-   * Create a DockerImage, put it in metadata manager and persist the reference
+   * Create a Image, put it in metadata manager and persist the reference
    * store state to disk.
    *
    * @param name     the name of the Docker image to place in the reference
@@ -70,7 +72,7 @@ public:
    *                 and the leaf layer's id is last.
    */
   process::Future<DockerImage> put(
-      const ImageName& name,
+      const DockerImage::Name& name,
       const std::list<std::string>& layerIds);
 
   /**
@@ -79,7 +81,7 @@ public:
    *
    * @param name  the name of the Docker image to retrieve
    */
-  process::Future<Option<DockerImage>> get(const ImageName& name);
+  process::Future<Option<DockerImage>> get(const DockerImage::Name& name);
 
   /**
    * Recover all stored DockerImage and its layer references.

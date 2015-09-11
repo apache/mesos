@@ -19,7 +19,7 @@
 #ifndef __MESOS_DOCKER_LOCAL_STORE_HPP__
 #define __MESOS_DOCKER_LOCAL_STORE_HPP__
 
-#include "slave/containerizer/provisioners/docker/store.hpp"
+#include "slave/containerizer/provisioner/store.hpp"
 
 namespace mesos {
 namespace internal {
@@ -36,18 +36,16 @@ class LocalStoreProcess;
  * images saved as tar with the name as the image name with tag (e.g:
  * ubuntu:14.04.tar).
  */
-class LocalStore : public Store
+class LocalStore : public slave::Store
 {
 public:
-  static Try<process::Owned<Store>> create(
-      const Flags& flags,
-      Fetcher* fetcher);
+  static Try<process::Owned<Store>> create(const Flags& flags);
 
   virtual ~LocalStore();
 
-  virtual process::Future<DockerImage> get(const ImageName& name);
-
   virtual process::Future<Nothing> recover();
+
+  virtual process::Future<std::vector<std::string>> get(const Image& image);
 
 private:
   explicit LocalStore(process::Owned<LocalStoreProcess> _process);

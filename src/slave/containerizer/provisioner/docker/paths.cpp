@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-#include "slave/containerizer/provisioners/docker/paths.hpp"
+#include "slave/containerizer/provisioner/docker/paths.hpp"
 
 #include <stout/path.hpp>
 

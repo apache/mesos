@@ -31,10 +31,10 @@
 
 #include "common/status_utils.hpp"
 
-#include "messages/docker_provisioner.hpp"
+#include "slave/containerizer/provisioner/docker/paths.hpp"
+#include "slave/containerizer/provisioner/docker/message.hpp"
+#include "slave/containerizer/provisioner/docker/metadata_manager.hpp"
 
-#include "slave/containerizer/provisioners/docker/paths.hpp"
-#include "slave/containerizer/provisioners/docker/metadata_manager.hpp"
 #include "slave/state.hpp"
 
 using namespace process;
@@ -58,10 +58,10 @@ public:
       const Flags& flags);
 
   Future<DockerImage> put(
-      const ImageName& name,
+      const DockerImage::Name& name,
       const std::list<std::string>& layerIds);
 
-  Future<Option<DockerImage>> get(const ImageName& name);
+  Future<Option<DockerImage>> get(const DockerImage::Name& name);
 
   Future<Nothing> recover();
 
@@ -114,7 +114,7 @@ Future<Nothing> MetadataManager::recover()
 
 
 Future<DockerImage> MetadataManager::put(
-    const ImageName& name,
+    const DockerImage::Name& name,
     const list<string>& layerIds)
 {
   return dispatch(
@@ -122,7 +122,7 @@ Future<DockerImage> MetadataManager::put(
 }
 
 
-Future<Option<DockerImage>> MetadataManager::get(const ImageName& name)
+Future<Option<DockerImage>> MetadataManager::get(const DockerImage::Name& name)
 {
   return dispatch(process.get(), &MetadataManagerProcess::get, name);
 }
@@ -143,43 +143,47 @@ Try<Owned<MetadataManagerProcess>> MetadataManagerProcess::create(
 
 
 Future<DockerImage> MetadataManagerProcess::put(
-    const ImageName& name,
+    const DockerImage::Name& name,
     const list<string>& layerIds)
 {
-  storedImages[name.name()] = DockerImage(name, layerIds);
+  const string imageName = stringify(name);
+
+  DockerImage dockerImage;
+  dockerImage.mutable_name()->CopyFrom(name);
+  foreach (const string& layerId, layerIds) {
+    dockerImage.add_layer_ids(layerId);
+  }
+
+  storedImages[imageName] = dockerImage;
 
   Try<Nothing> status = persist();
   if (status.isError()) {
     return Failure("Failed to save state of Docker images" + status.error());
   }
 
-  return storedImages[name.name()];
+  return dockerImage;
 }
 
 
-Future<Option<DockerImage>> MetadataManagerProcess::get(const ImageName& name)
+Future<Option<DockerImage>> MetadataManagerProcess::get(
+    const DockerImage::Name& name)
 {
-  if (!storedImages.contains(name.name())) {
+  const string imageName = stringify(name);
+
+  if (!storedImages.contains(imageName)) {
     return None();
   }
 
-  return storedImages[name.name()];
+  return storedImages[imageName];
 }
 
 
 Try<Nothing> MetadataManagerProcess::persist()
 {
-  DockerProvisionerImages images;
+  DockerImages images;
 
-  foreachpair(
-      const string& name, const DockerImage& dockerImage, storedImages) {
-    DockerProvisionerImages::Image* image = images.add_images();
-
-    image->set_name(name);
-
-    foreach (const string& layerId, dockerImage.layerIds) {
-      image->add_layer_ids(layerId);
-    }
+  foreachvalue (const DockerImage& image, storedImages) {
+    images.add_images()->CopyFrom(image);
   }
 
   Try<Nothing> status = mesos::internal::slave::state::checkpoint(
@@ -203,44 +207,37 @@ Future<Nothing> MetadataManagerProcess::recover()
     return Nothing();
   }
 
-  Result<DockerProvisionerImages> images =
-    ::protobuf::read<DockerProvisionerImages>(storedImagesPath);
+  Result<DockerImages> images =
+    ::protobuf::read<DockerImages>(storedImagesPath);
   if (images.isError()) {
     return Failure("Failed to read protobuf for Docker provisioner image: " +
                    images.error());
   }
 
-  for (int i = 0; i < images.get().images_size(); i++) {
-    string name = images.get().images(i).name();
-
-    list<string> layerIds;
+  foreach (const DockerImage image, images.get().images()) {
     vector<string> missingLayerIds;
-    for (int j = 0; j < images.get().images(i).layer_ids_size(); j++) {
-      string layerId = images.get().images(i).layer_ids(j);
+    foreach (const string layerId, image.layer_ids()) {
+      const string rootfsPath =
+        paths::getImageLayerRootfsPath(flags.docker_store_dir, layerId);
 
-      layerIds.push_back(layerId);
-
-      if (!os::exists(
-              paths::getImageLayerRootfsPath(flags.docker_store_dir, layerId))) {
+      if (!os::exists(rootfsPath)) {
         missingLayerIds.push_back(layerId);
       }
     }
 
     if (!missingLayerIds.empty()) {
-      foreach (const string& layerId, missingLayerIds) {
-        LOG(WARNING) << "Image layer: " << layerId << " required for Docker "
-                     << "image: " << name << " is not on disk.";
-      }
-      LOG(WARNING) << "Skipped loading image: " << name
-                   << " due to missing layers.";
+      LOG(WARNING) << "Skipped loading image: " << stringify(image.name())
+                   << " due to missing layers: " << stringify(missingLayerIds);
       continue;
     }
 
-    Try<ImageName> imageName = ImageName::create(name);
-    if (imageName.isError()) {
-      return Failure("Unable to parse Docker image name: " + imageName.error());
+    const string imageName = stringify(image.name());
+    if (storedImages.contains(imageName)) {
+      LOG(WARNING) << "Found duplicate image in recovery for image name '" << imageName
+                   << "'";
+    } else {
+      storedImages[imageName] = image;
     }
-    storedImages[imageName.get().name()] = DockerImage(imageName.get(), layerIds);
   }
 
   LOG(INFO) << "Loaded " << storedImages.size() << " Docker images.";

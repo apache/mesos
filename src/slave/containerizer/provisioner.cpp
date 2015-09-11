@@ -23,6 +23,7 @@
 #include "slave/containerizer/provisioner.hpp"
 
 #include "slave/containerizer/provisioners/appc/provisioner.hpp"
+
 #include "slave/containerizer/provisioners/docker/provisioner.hpp"
 
 using namespace process;

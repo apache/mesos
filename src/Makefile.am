@@ -250,8 +250,9 @@ BUILT_SOURCES += $(STATE_PROTOS)
 CLEANFILES += $(STATE_PROTOS)
 
 DOCKER_PROVISIONER_PROTOS =                                             \
-  messages/docker_provisioner.pb.cc                                     \
-  messages/docker_provisioner.pb.h
+  slave/containerizer/provisioner/docker/message.pb.cc			\
+  slave/containerizer/provisioner/docker/message.pb.h
+
 
 BUILT_SOURCES += $(DOCKER_PROVISIONER_PROTOS)
 CLEANFILES += $(DOCKER_PROVISIONER_PROTOS)
@@ -529,11 +530,11 @@ libmesos_no_3rdparty_la_SOURCES =					\
 	slave/containerizer/provisioner/appc/store.cpp			\
 	slave/containerizer/provisioner/backend.cpp			\
 	slave/containerizer/provisioner/backends/copy.cpp		\
-	slave/containerizer/provisioner/docker.cpp			\
 	slave/containerizer/provisioner/docker/local_store.cpp		\
 	slave/containerizer/provisioner/docker/metadata_manager.cpp	\
 	slave/containerizer/provisioner/docker/paths.cpp		\
 	slave/containerizer/provisioner/docker/registry_client.cpp	\
+	slave/containerizer/provisioner/docker/store.cpp		\
 	slave/containerizer/provisioner/docker/token_manager.cpp	\
 	slave/resource_estimators/noop.cpp				\
 	usage/usage.cpp							\
@@ -831,7 +832,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
 	slave/containerizer/provisioner/backends/copy.hpp		\
 	slave/containerizer/provisioner/docker.hpp			\
 	slave/containerizer/provisioner/docker/local_store.hpp		\
-	slave/containerizer/provisioners/docker/metadata_manager.hpp    \
+	slave/containerizer/provisioner/docker/metadata_manager.hpp	\
 	slave/containerizer/provisioner/docker/paths.hpp		\
 	slave/containerizer/provisioner/docker/registry_client.hpp	\
 	slave/containerizer/provisioner/docker/store.hpp		\
