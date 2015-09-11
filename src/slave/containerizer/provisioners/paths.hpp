@@ -50,6 +50,11 @@ namespace paths {
 // due to the change of backend flags. Under each backend a rootfs is
 // identified by the 'rootfs_id' which is a UUID.
 
+std::string getContainerDir(
+    const std::string& provisionerDir,
+    const ContainerID& containerId);
+
+
 std::string getContainerRootfsDir(
     const std::string& provisionerDir,
     const ContainerID& containerId,

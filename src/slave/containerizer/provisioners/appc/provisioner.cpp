@@ -224,40 +224,17 @@ Future<Nothing> AppcProvisionerProcess::recover(
                    "provisioner: " + containers.error());
   }
 
-  // If no container has been launched the 'containers' directory will be empty.
+  // Scan the list of containers, register all of them with 'infos' but
+  // mark unknown orphans for immediate cleanup.
+  hashset<ContainerID> unknownOrphans;
   foreachkey (const ContainerID& containerId, containers.get()) {
-    if (alive.contains(containerId) || orphans.contains(containerId)) {
-      Owned<Info> info = Owned<Info>(new Info());
+    Owned<Info> info = Owned<Info>(new Info());
 
-      Try<hashmap<string, hashmap<string, string>>> rootfses =
-        provisioners::paths::listContainerRootfses(root, containerId);
-
-      if (rootfses.isError()) {
-        return Failure("Unable to list rootfses belonged to container '" +
-                       containerId.value() + "': " + rootfses.error());
-      }
-
-      foreachkey (const string& backend, rootfses.get()) {
-        if (!backends.contains(backend)) {
-          return Failure("Found rootfses managed by an unrecognized backend: " +
-                         backend);
-        }
-
-        info->rootfses.put(backend, rootfses.get()[backend]);
-      }
-
-      VLOG(1) << "Recovered container " << containerId;
-      infos.put(containerId, info);
-
-      continue;
-    }
-
-    // Destroy (unknown) orphan container's rootfses.
     Try<hashmap<string, hashmap<string, string>>> rootfses =
       provisioners::paths::listContainerRootfses(root, containerId);
 
     if (rootfses.isError()) {
-      return Failure("Unable to find rootfses for container '" +
+      return Failure("Unable to list rootfses belonged to container '" +
                      containerId.value() + "': " + rootfses.error());
     }
 
@@ -267,26 +244,48 @@ Future<Nothing> AppcProvisionerProcess::recover(
                        backend);
       }
 
-      foreachvalue (const string& rootfs, rootfses.get()[backend]) {
-        LOG(INFO) << "Destroying unknown orphan rootfs '" << rootfs
-                  << "' of container " << containerId;
+      info->rootfses.put(backend, rootfses.get()[backend]);
+    }
 
-        // Not waiting for the destruction and we don't care about
-        // the return value.
-        backends.get(backend).get()->destroy(rootfs)
-          .onFailed([rootfs](const std::string& error) {
-            LOG(WARNING) << "Failed to destroy orphan rootfs '" << rootfs
-                         << "': "<< error;
-          });
-      }
+    infos.put(containerId, info);
+
+    if (alive.contains(containerId) || orphans.contains(containerId)) {
+      VLOG(1) << "Recovered container " << containerId;
+      continue;
+    } else {
+      // For immediate cleanup below.
+      unknownOrphans.insert(containerId);
     }
   }
 
-  LOG(INFO) << "Recovered Appc provisioner rootfses";
+  LOG(INFO)
+    << "Recovered living and known orphan containers for Appc provisioner";
 
-  return store->recover()
+  // Destroy unknown orphan containers' rootfses.
+  list<Future<bool>> destroys;
+  foreach (const ContainerID& containerId, unknownOrphans) {
+    destroys.push_back(destroy(containerId));
+  }
+
+  Future<Nothing> cleanup = collect(destroys)
+    .then([]() -> Future<Nothing> {
+      LOG(INFO) << "Cleaned up unknown orphan containers for Appc provisioner";
+      return Nothing();
+    });
+
+  Future<Nothing> recover = store->recover()
     .then([]() -> Future<Nothing> {
       LOG(INFO) << "Recovered Appc image store";
+      return Nothing();
+    });
+
+
+  // A successful provisioner recovery depends on:
+  // 1) Recovery of living containers and known orphans (done above).
+  // 2) Successful cleanup of unknown orphans.
+  // 3) Successful store recovery.
+  return collect(cleanup, recover)
+    .then([=]() -> Future<Nothing> {
       return Nothing();
     });
 }
@@ -368,7 +367,19 @@ Future<bool> AppcProvisionerProcess::destroy(const ContainerID& containerId)
 
   // TODO(xujyan): Revisit the usefulness of this return value.
   return collect(futures)
-    .then([=](const list<bool>& results) -> Future<bool> {
+    .then([=]() -> Future<bool> {
+      // This should be fairly cheap as the directory should only contain a
+      // few empty sub-directories at this point.
+      string containerDir =
+        provisioners::paths::getContainerDir(root, containerId);
+
+      Try<Nothing> rmdir = os::rmdir(containerDir);
+      if (rmdir.isError()) {
+        return Failure("Failed to remove container directory '" +
+                       containerDir + "' of container " +
+                       stringify(containerId));
+      }
+
       return true;
     });
 }

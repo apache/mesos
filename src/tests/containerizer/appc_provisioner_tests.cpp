@@ -274,12 +274,15 @@ TEST_F(AppcProvisionerTest, ROOT_Provision)
     provisioners.get()[Image::APPC]->provision(containerId, image);
   AWAIT_READY(rootfs);
 
-  Try<list<string>> rootfses = os::ls(path::join(
+  string containerDir = path::join(
       flags.work_dir,
       "provisioners",
       stringify(Image::APPC),
       "containers",
-      containerId.value(),
+      containerId.value());
+
+  Try<list<string>> rootfses = os::ls(path::join(
+      containerDir,
       "backends",
       flags.appc_provisioner_backend,
       "rootfses"));
@@ -295,6 +298,9 @@ TEST_F(AppcProvisionerTest, ROOT_Provision)
 
   // One rootfs is destroyed.
   EXPECT_TRUE(destroy.get());
+
+  // The container directory is successfully cleaned up.
+  EXPECT_FALSE(os::exists(containerDir));
 }
 #endif // __linux__
 
@@ -378,12 +384,15 @@ TEST_F(AppcProvisionerTest, Recover)
   // from the same image.
   AWAIT_READY(provisioners2.get()[Image::APPC]->provision(containerId, image));
 
-  Try<list<string>> rootfses = os::ls(path::join(
+  string containerDir = path::join(
       flags.work_dir,
       "provisioners",
       stringify(Image::APPC),
       "containers",
-      containerId.value(),
+      containerId.value());
+
+  Try<list<string>> rootfses = os::ls(path::join(
+      containerDir,
       "backends",
       flags.appc_provisioner_backend,
       "rootfses"));
@@ -396,6 +405,9 @@ TEST_F(AppcProvisionerTest, Recover)
   Future<bool> destroy = provisioners2.get()[Image::APPC]->destroy(containerId);
   AWAIT_READY(destroy);
   EXPECT_TRUE(destroy.get());
+
+  // The container directory is successfully cleaned up.
+  EXPECT_FALSE(os::exists(containerDir));
 }
 
 } // namespace tests {

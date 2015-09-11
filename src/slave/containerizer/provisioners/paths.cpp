@@ -45,14 +45,6 @@ static string getContainersDir(const string& provisionerDir)
 }
 
 
-static string getContainerDir(
-    const string& containersDir,
-    const ContainerID& containerId)
-{
-  return path::join(containersDir, containerId.value());
-}
-
-
 static string getBackendsDir(const string& containerDir)
 {
   return path::join(containerDir, "backends");
@@ -77,6 +69,14 @@ static string getRootfsDir(const string& rootfsesDir, const string& roofsId)
 }
 
 
+string getContainerDir(
+    const string& provisionerDir,
+    const ContainerID& containerId)
+{
+  return path::join(getContainersDir(provisionerDir), containerId.value());
+}
+
+
 string getContainerRootfsDir(
     const string& provisionerDir,
     const ContainerID& containerId,
@@ -88,7 +88,7 @@ string getContainerRootfsDir(
           getBackendDir(
               getBackendsDir(
                   getContainerDir(
-                      getContainersDir(provisionerDir),
+                      provisionerDir,
                       containerId)),
               backend)),
       rootfsId);
@@ -138,7 +138,7 @@ Try<hashmap<string, hashmap<string, string>>> listContainerRootfses(
 
   string backendsDir = getBackendsDir(
       getContainerDir(
-          getContainersDir(provisionerDir),
+          provisionerDir,
           containerId));
 
   Try<list<string>> backends = os::ls(backendsDir);
