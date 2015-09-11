@@ -180,17 +180,17 @@ TEST_F(ReservationEndpointsTest, AvailableResources)
 
   EXPECT_TRUE(Resources(offer.resources()).contains(dynamicallyReserved));
 
+  Future<Nothing> recoverResources;
+  EXPECT_CALL(allocator, recoverResources(_, _, _, _))
+    .WillOnce(DoAll(InvokeRecoverResources(&allocator),
+                    FutureSatisfy(&recoverResources)));
+
   // The filter to decline the offer "forever".
   Filters filtersForever;
   filtersForever.set_refuse_seconds(1000);
 
   // Decline the offer "forever" in order to deallocate resources.
   driver.declineOffer(offer.id(), filtersForever);
-
-  Future<Nothing> recoverResources;
-  EXPECT_CALL(allocator, recoverResources(_, _, _, _))
-    .WillOnce(DoAll(InvokeRecoverResources(&allocator),
-                    FutureSatisfy(&recoverResources)));
 
   AWAIT_READY(recoverResources);
 
