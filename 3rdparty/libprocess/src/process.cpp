@@ -427,7 +427,7 @@ private:
   std::recursive_mutex runq_mutex;
 
   // Number of running processes, to support Clock::settle operation.
-  int running;
+  std::atomic_long running;
 
   // List of rules applied to all incoming HTTP requests.
   vector<Owned<FirewallRule>> firewallRules;
@@ -746,23 +746,26 @@ void install(vector<Owned<FirewallRule>>&& rules)
 void initialize(const string& delegate)
 {
   // TODO(benh): Return an error if attempting to initialize again
-  // with a different delegate then originally specified.
+  // with a different delegate than originally specified.
 
   // static pthread_once_t init = PTHREAD_ONCE_INIT;
   // pthread_once(&init, ...);
 
-  static volatile bool initialized = false;
-  static volatile bool initializing = true;
+  static std::atomic_bool initialized(false);
+  static std::atomic_bool initializing(true);
 
   // Try and do the initialization or wait for it to complete.
-  if (initialized && !initializing) {
+  // TODO(neilc): Try to simplify and/or document this logic.
+  if (initialized.load() && !initializing.load()) {
     return;
-  } else if (initialized && initializing) {
-    while (initializing);
+  } else if (initialized.load() && initializing.load()) {
+    while (initializing.load());
     return;
   } else {
-    if (!__sync_bool_compare_and_swap(&initialized, false, true)) {
-      while (initializing);
+    // `compare_exchange_strong` needs an lvalue.
+    bool expected = false;
+    if (!initialized.compare_exchange_strong(expected, true)) {
+      while (initializing.load());
       return;
     }
   }
@@ -945,9 +948,9 @@ void initialize(const string& delegate)
     PLOG(FATAL) << "Failed to initialize: " << listen.error();
   }
 
-  // Need to set initialzing here so that we can actually invoke
-  // 'spawn' below for the garbage collector.
-  initializing = false;
+  // Need to set `initializing` here so that we can actually invoke `spawn()`
+  // below for the garbage collector.
+  initializing.store(false);
 
   __s__->accept()
     .onAny(lambda::bind(&internal::on_accept, lambda::_1));
@@ -998,7 +1001,7 @@ void finalize()
 {
   delete process_manager;
 
-  // TODO(benh): Finialize/shutdown Clock so that it doesn't attempt
+  // TODO(benh): Finalize/shutdown Clock so that it doesn't attempt
   // to dereference 'process_manager' in the 'timedout' callback.
 }
 
@@ -2111,8 +2114,7 @@ void SocketManager::swap_implementing_socket(const Socket& from, Socket* to)
 ProcessManager::ProcessManager(const string& _delegate)
   : delegate(_delegate)
 {
-  running = 0;
-  __sync_synchronize(); // Ensure write to 'running' visible in other threads.
+  running.store(0);
 }
 
 
@@ -2485,8 +2487,8 @@ void ProcessManager::resume(ProcessBase* process)
 
   __process__ = NULL;
 
-  CHECK_GE(running, 1);
-  __sync_fetch_and_sub(&running, 1);
+  CHECK_GE(running.load(), 1);
+  running.fetch_sub(1);
 }
 
 
@@ -2525,11 +2527,10 @@ void ProcessManager::cleanup(ProcessBase* process)
   // Remove process.
   synchronized (processes_mutex) {
     // Wait for all process references to get cleaned up.
-    while (process->refs > 0) {
+    while (process->refs.load() > 0) {
 #if defined(__i386__) || defined(__x86_64__)
       asm ("pause");
 #endif
-      __sync_synchronize();
     }
 
     synchronized (process->mutex) {
@@ -2545,7 +2546,7 @@ void ProcessManager::cleanup(ProcessBase* process)
         gates.erase(it);
       }
 
-      CHECK(process->refs == 0);
+      CHECK(process->refs.load() == 0);
       process->state = ProcessBase::TERMINATED;
     }
 
@@ -2672,7 +2673,7 @@ bool ProcessManager::wait(const UPID& pid)
             // 'runq' and 'running' equal to 0 between when we exit
             // this critical section and increment 'running').
             runq.erase(it);
-            __sync_fetch_and_add(&running, 1);
+            running.fetch_add(1);
           } else {
             // Another thread has resumed the process ...
             process = NULL;
@@ -2783,7 +2784,7 @@ ProcessBase* ProcessManager::dequeue()
       // Increment the running count of processes in order to support
       // the Clock::settle() operation (this must be done atomically
       // with removing the process from the runq).
-      __sync_fetch_and_add(&running, 1);
+      running.fetch_add(1);
     }
   }
 
@@ -2803,7 +2804,7 @@ void ProcessManager::settle()
     // expect the http::get will have properly enqueued a process on
     // the run queue but http::get is just sending bytes on a
     // socket. Without sleeping at the beginning of this function we
-    // can get unlucky and appear settled when in actuallity the
+    // can get unlucky and appear settled when in actuality the
     // kernel just hasn't copied the bytes to a socket or we haven't
     // yet read the bytes and enqueued an event on a process (and the
     // process on the run queue).
@@ -2817,10 +2818,7 @@ void ProcessManager::settle()
         continue;
       }
 
-      // Read barrier for 'running'.
-      __sync_synchronize();
-
-      if (running > 0) {
+      if (running.load() > 0) {
         done = false;
         continue;
       }

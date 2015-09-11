@@ -332,7 +332,7 @@ private:
   std::deque<Event*> events;
 
   // Active references.
-  int refs;
+  std::atomic_long refs;
 
   // Process PID.
   UPID pid;

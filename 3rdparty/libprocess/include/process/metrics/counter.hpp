@@ -35,19 +35,20 @@ public:
     : Metric(name, window),
       data(new Data())
   {
-    push(data->v);
+    push(data->value.load());
   }
 
   virtual ~Counter() {}
 
   virtual Future<double> value() const
   {
-    return static_cast<double>(data->v);
+    return static_cast<double>(data->value.load());
   }
 
   void reset()
   {
-    push(__sync_and_and_fetch(&data->v, 0));
+    data->value.store(0);
+    push(0);
   }
 
   Counter& operator++()
@@ -64,17 +65,17 @@ public:
 
   Counter& operator+=(int64_t v)
   {
-    push(__sync_add_and_fetch(&data->v, v));
+    int64_t prev = data->value.fetch_add(v);
+    push(prev + v);
     return *this;
   }
 
 private:
   struct Data
   {
-    explicit Data() : v(0) {}
+    explicit Data() : value(0) {}
 
-    // TODO(dhamon): Update to std::atomic<int64_t> when C++11 lands.
-    volatile int64_t v;
+    std::atomic<int64_t> value;
   };
 
   std::shared_ptr<Data> data;
