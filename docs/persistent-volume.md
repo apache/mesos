@@ -4,10 +4,16 @@ layout: documentation
 
 # Persistent Volume
 
-Mesos provides a mechanism to create a persistent volume from disk resources.
-This enables stateful services such as HDFS and Cassandra to store their data
-within Mesos rather than having to resort to network-mounted EBS volumes that
-needs to be placed in a well-known location.
+Mesos provides a mechanism to create a persistent volume from disk
+resources. When launching a task, you can create a volume that exists outside
+the task's sandbox and will persist on the node even after the task dies or
+completes. When the task exits, its resources -- including the persistent volume
+-- can be offered back to the framework, so that the framework can launch the
+same task again, launch a recovery task, or launch a new task that consumes the
+previous task's output as its input. Persistent volumes enable stateful services
+such as HDFS and Cassandra to store their data within Mesos rather than having
+to resort to workarounds (e.g., writing task state to a distributed filesystem
+that is mounted at a well-known location outside the task's sandbox).
 
 Persistent volumes can only be created from __reserved__ disk resources, whether
 it be statically reserved or dynamically reserved. A dynamically reserved
@@ -16,9 +22,8 @@ the volume. These rules exist to limit the accidental mistakes such as:
 a persistent volume containing sensitive data being offered to other frameworks
 in the cluster.
 
-Please refer to the
-[Reservation](reservation.md) documentation for details regarding reservation
-mechanisms available in Mesos.
+Please refer to the [Reservation](reservation.md) documentation for details
+regarding reservation mechanisms available in Mesos.
 
 Persistent volumes can be created by __operators__ and authorized
 __frameworks__. We require a `principal` from the operator or framework in order
