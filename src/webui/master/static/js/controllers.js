@@ -14,7 +14,7 @@
   // Invokes the pailer for the specified host and path using the
   // specified window_title.
   function pailer(host, path, window_title) {
-    var url = '//' + host + '/files/read.json?path=' + path;
+    var url = '//' + host + '/files/read?path=' + path;
     var pailer =
       window.open('/static/pailer.html', url, 'width=580px, height=700px');
 

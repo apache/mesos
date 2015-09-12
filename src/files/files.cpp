@@ -134,6 +134,8 @@ FilesProcess::FilesProcess()
 
 void FilesProcess::initialize()
 {
+  // TODO(ijimenez): Remove these endpoints at the end of the
+  // deprecation cycle on 0.26.
   route("/browse.json",
         FilesProcess::BROWSE_HELP,
         &FilesProcess::browse);
@@ -144,6 +146,19 @@ void FilesProcess::initialize()
         FilesProcess::DOWNLOAD_HELP,
         &FilesProcess::download);
   route("/debug.json",
+        FilesProcess::DEBUG_HELP,
+        &FilesProcess::debug);
+
+  route("/browse",
+        FilesProcess::BROWSE_HELP,
+        &FilesProcess::browse);
+  route("/read",
+        FilesProcess::READ_HELP,
+        &FilesProcess::read);
+  route("/download",
+        FilesProcess::DOWNLOAD_HELP,
+        &FilesProcess::download);
+  route("/debug",
         FilesProcess::DEBUG_HELP,
         &FilesProcess::debug);
 }

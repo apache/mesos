@@ -61,7 +61,7 @@ def read(slave, task, file):
     try:
         result = json.loads(http.get(
             slave['pid'],
-            '/files/read.json',
+            '/files/read',
             {'path': path,
              'offset': -1}))
     except HTTPError as error:
@@ -80,7 +80,7 @@ def read(slave, task, file):
         try:
             result = json.loads(http.get(
                 slave['pid'],
-                '/files/read.json',
+                '/files/read',
                 {'path': path,
                  'offset': offset,
                  'length': PAGE_LENGTH}))

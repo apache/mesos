@@ -55,7 +55,7 @@ def read_forever(slave, task, file):
     while True:
         try:
             result = json.loads(http.get(slave['pid'],
-                '/files/read.json',
+                '/files/read',
                 {'path': path,
                  'offset': offset,
                  'length': PAGE_LENGTH}))

@@ -267,7 +267,7 @@ mesos::internal::master::Flags::Flags()
       "{\n"
       "  \"disabled_endpoints\" : {\n"
       "    \"paths\" : [\n"
-      "      \"/files/browse.json\",\n"
+      "      \"/files/browse\",\n"
       "      \"/slave(0)/stats.json\",\n"
       "    ]\n"
       "  }\n"

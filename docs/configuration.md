@@ -58,7 +58,7 @@ If you have special compilation requirements, please refer to `./configure --hel
 <pre><code>{
   "disabled_endpoints" : {
     "paths" : [
-      "/files/browse.json",
+      "/files/browse",
       "/slave(0)/stats.json",
     ]
   }
