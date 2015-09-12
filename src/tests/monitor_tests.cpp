@@ -97,7 +97,7 @@ TEST(MonitorTest, Statistics)
 
   UPID upid("monitor", process::address());
 
-  Future<http::Response> response = http::get(upid, "statistics.json");
+  Future<http::Response> response = http::get(upid, "statistics");
   AWAIT_READY(response);
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::OK().status, response);
@@ -147,7 +147,7 @@ TEST(MonitorTest, Statistics)
 }
 
 
-// This test verifies the correct handling of the statistics.json
+// This test verifies the correct handling of the statistics
 // endpoint when there is no executor running.
 TEST(MonitorTest, NoExecutor)
 {
@@ -157,7 +157,7 @@ TEST(MonitorTest, NoExecutor)
 
   UPID upid("monitor", process::address());
 
-  Future<http::Response> response = http::get(upid, "statistics.json");
+  Future<http::Response> response = http::get(upid, "statistics");
   AWAIT_READY(response);
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::OK().status, response);
@@ -169,7 +169,7 @@ TEST(MonitorTest, NoExecutor)
 }
 
 
-// This test verifies the correct handling of the statistics.json
+// This test verifies the correct handling of the statistics
 // endpoint when statistics is missing in ResourceUsage.
 TEST(MonitorTest, MissingStatistics)
 {
@@ -198,7 +198,7 @@ TEST(MonitorTest, MissingStatistics)
 
   UPID upid("monitor", process::address());
 
-  Future<http::Response> response = http::get(upid, "statistics.json");
+  Future<http::Response> response = http::get(upid, "statistics");
   AWAIT_READY(response);
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::OK().status, response);
@@ -262,7 +262,7 @@ TEST_F(MonitorIntegrationTest, RunningExecutor)
   // resource statistics for the running container.
   UPID upid("monitor", process::address());
 
-  Future<http::Response> response = http::get(upid, "statistics.json");
+  Future<http::Response> response = http::get(upid, "statistics");
   AWAIT_READY(response);
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::OK().status, response);

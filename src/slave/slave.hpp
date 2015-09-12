@@ -403,7 +403,7 @@ private:
     process::Future<process::http::Response> health(
         const process::http::Request& request) const;
 
-    // /slave/state.json
+    // /slave/state
     process::Future<process::http::Response> state(
         const process::http::Request& request) const;
 

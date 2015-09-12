@@ -196,7 +196,7 @@ def main():
         slaves = [slave for slave in state['slaves'] if slave['id'] in active]
 
         # Now submit calls to get the statistics for each slave.
-        path = '/monitor/statistics.json'
+        path = '/monitor/statistics'
         futures = dict((executor.submit(http.get, slave['pid'], path), slave)
                        for slave in slaves)
 

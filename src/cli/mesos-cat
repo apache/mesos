@@ -26,9 +26,9 @@ def read(slave, task, file):
     # uses the same executor ID as task ID in the slave.
     if executor_id == '': executor_id = task['id']
 
-    # Get 'state.json' to determine the executor directory.
+    # Get 'state' json  to determine the executor directory.
     try:
-        state = json.loads(http.get(slave['pid'], '/state.json'))
+        state = json.loads(http.get(slave['pid'], '/state'))
     except:
         fatal('Failed to get state from slave')
 

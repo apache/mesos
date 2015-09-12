@@ -427,7 +427,7 @@
         $top.start(host, $scope);
       }
 
-      $http.jsonp('//' + host + '/' + id + '/state.json?jsonp=JSON_CALLBACK')
+      $http.jsonp('//' + host + '/' + id + '/state?jsonp=JSON_CALLBACK')
         .success(function (response) {
           $scope.state = response;
 
@@ -505,7 +505,7 @@
         $top.start(host, $scope);
       }
 
-      $http.jsonp('//' + host + '/' + id + '/state.json?jsonp=JSON_CALLBACK')
+      $http.jsonp('//' + host + '/' + id + '/state?jsonp=JSON_CALLBACK')
         .success(function (response) {
           $scope.state = response;
 
@@ -578,7 +578,7 @@
         $top.start(host, $scope);
       }
 
-      $http.jsonp('//' + host + '/' + id + '/state.json?jsonp=JSON_CALLBACK')
+      $http.jsonp('//' + host + '/' + id + '/state?jsonp=JSON_CALLBACK')
         .success(function (response) {
           $scope.state = response;
 
@@ -683,7 +683,7 @@
 
     // Request slave details to get access to the route executor's "directory"
     // to navigate directly to the executor's sandbox.
-    $http.jsonp('//' + host + '/' + id + '/state.json?jsonp=JSON_CALLBACK')
+    $http.jsonp('//' + host + '/' + id + '/state?jsonp=JSON_CALLBACK')
       .success(function(response) {
 
         function matchFramework(framework) {
@@ -753,7 +753,7 @@
         var hostname = $scope.slaves[$routeParams.slave_id].hostname;
         var id = pid.substring(0, pid.indexOf('@'));
         var host = hostname + ":" + pid.substring(pid.lastIndexOf(':') + 1);
-        var url = '//' + host + '/files/browse.json?jsonp=JSON_CALLBACK';
+        var url = '//' + host + '/files/browse?jsonp=JSON_CALLBACK';
 
         $scope.slave_host = host;
 

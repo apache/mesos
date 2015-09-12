@@ -494,16 +494,24 @@ void Slave::initialize()
   // Setup HTTP routes.
   Http http = Http(this);
 
-  route("/health",
-        Http::HEALTH_HELP,
-        [http](const process::http::Request& request) {
-          return http.health(request);
-        });
+  // TODO(ijimenez): Remove this endpoint at the end of the
+  // deprecation cycle on 0.26.
   route("/state.json",
         Http::STATE_HELP,
         [http](const process::http::Request& request) {
           Http::log(request);
           return http.state(request);
+        });
+  route("/state",
+        Http::STATE_HELP,
+        [http](const process::http::Request& request) {
+          Http::log(request);
+          return http.state(request);
+        });
+  route("/health",
+        Http::HEALTH_HELP,
+        [http](const process::http::Request& request) {
+          return http.health(request);
         });
 
   // Expose the log file for the webui. Fall back to 'log_dir' if

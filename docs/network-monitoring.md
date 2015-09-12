@@ -290,9 +290,9 @@ for each of these elements includes:
 
 [3] Currently always reported as 0 by the underlying Traffic Control element.
 
-For example, these are the statistics you will get by hitting the `/monitor/statistics.json` endpoint on a slave with network monitoring turned on:
+For example, these are the statistics you will get by hitting the `/monitor/statistics` endpoint on a slave with network monitoring turned on:
 
-    $ curl -s http://localhost:5051/monitor/statistics.json | python2.6 -mjson.tool
+    $ curl -s http://localhost:5051/monitor/statistics | python2.6 -mjson.tool
     [
         {
             "executor_id": "job.1436298853",

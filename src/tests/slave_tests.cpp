@@ -1045,7 +1045,7 @@ TEST_F(SlaveTest, StateEndpoint)
   ASSERT_SOME(slave);
 
   Future<process::http::Response> response =
-    process::http::get(slave.get(), "state.json");
+    process::http::get(slave.get(), "state");
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(process::http::OK().status, response);
 
@@ -1157,7 +1157,7 @@ TEST_F(SlaveTest, StateEndpoint)
   AWAIT_READY(status);
   EXPECT_EQ(TASK_RUNNING, status.get().state());
 
-  response = http::get(slave.get(), "state.json");
+  response = http::get(slave.get(), "state");
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::OK().status, response);
 
@@ -2079,9 +2079,9 @@ TEST_F(SlaveTest, TaskLabels)
 
   AWAIT_READY(update);
 
-  // Verify label key and value in slave state.json.
+  // Verify label key and value in slave state endpoint.
   Future<process::http::Response> response =
-    process::http::get(slave.get(), "state.json");
+    process::http::get(slave.get(), "state");
   AWAIT_READY(response);
 
   EXPECT_SOME_EQ(

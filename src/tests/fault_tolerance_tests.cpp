@@ -235,7 +235,7 @@ TEST_F(FaultToleranceTest, ReregisterCompletedFrameworks)
   EXPECT_EQ(1u,
     masterJSON.values["frameworks"].as<JSON::Array>().values.size());
 
-  Future<Response> slaveState = process::http::get(slave.get(), "state.json");
+  Future<Response> slaveState = process::http::get(slave.get(), "state");
 
   parse = JSON::parse<JSON::Object>(slaveState.get().body);
   ASSERT_SOME(parse);
@@ -272,7 +272,7 @@ TEST_F(FaultToleranceTest, ReregisterCompletedFrameworks)
   EXPECT_EQ(1u,
     masterJSON.values["frameworks"].as<JSON::Array>().values.size());
 
-  slaveState = process::http::get(slave.get(), "state.json");
+  slaveState = process::http::get(slave.get(), "state");
   parse = JSON::parse<JSON::Object>(slaveState.get().body);
   ASSERT_SOME(parse);
   slaveJSON = parse.get();
@@ -299,7 +299,7 @@ TEST_F(FaultToleranceTest, ReregisterCompletedFrameworks)
   Clock::resume();
 
   // Verify slave sees completed framework.
-  slaveState = process::http::get(slave.get(), "state.json");
+  slaveState = process::http::get(slave.get(), "state");
   parse = JSON::parse<JSON::Object>(slaveState.get().body);
   ASSERT_SOME(parse);
   slaveJSON = parse.get();
