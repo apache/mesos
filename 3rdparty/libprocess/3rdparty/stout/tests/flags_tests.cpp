@@ -32,7 +32,9 @@
 
 #include <stout/tests/utils.hpp>
 
-using namespace flags;
+using flags::Flag;
+using flags::Flags;
+using flags::FlagsBase;
 
 using std::cout;
 using std::endl;
