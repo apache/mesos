@@ -282,7 +282,7 @@
     });
 
     var poll = function() {
-      $http.get('master/state.json',
+      $http.get('master/state',
                 {transformResponse: function(data) { return data; }})
         .success(function(data) {
           if (update($scope, $timeout, data)) {
@@ -637,8 +637,8 @@
   // directory to browse is known by the slave but not by the master. Request
   // the directory from the slave, and then redirect to it.
   //
-  // TODO(ssorallen): Add `executor.directory` to the state.json output so this
-  // controller of rerouting is no longer necessary.
+  // TODO(ssorallen): Add `executor.directory` to the master's state endpoint
+  // output so this controller of rerouting is no longer necessary.
   mesosApp.controller('SlaveExecutorRerouterCtrl',
       function($alert, $http, $location, $routeParams, $scope, $window) {
 

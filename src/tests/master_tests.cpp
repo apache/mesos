@@ -280,7 +280,7 @@ TEST_F(MasterTest, ShutdownFrameworkWhileTaskRunning)
 
   // Request master state.
   Future<process::http::Response> response =
-    process::http::get(master.get(), "state.json");
+    process::http::get(master.get(), "state");
   AWAIT_READY(response);
 
   // These checks are not essential for the test, but may help
@@ -2178,7 +2178,7 @@ TEST_F(MasterZooKeeperTest, MasterInfoAddress)
 
 // This test ensures that when a master fails over, those tasks that
 // belong to some currently unregistered frameworks will appear in the
-// "orphan_tasks" field in the state.json. And those unregistered frameworks
+// "orphan_tasks" field in the state endpoint. And those unregistered frameworks
 // will appear in the "unregistered_frameworks" field.
 TEST_F(MasterTest, OrphanTasks)
 {
@@ -2224,7 +2224,7 @@ TEST_F(MasterTest, OrphanTasks)
 
   // Get the master's state.
   Future<process::http::Response> response =
-    process::http::get(master.get(), "state.json");
+    process::http::get(master.get(), "state");
   AWAIT_READY(response);
 
   EXPECT_SOME_EQ(
@@ -2290,7 +2290,7 @@ TEST_F(MasterTest, OrphanTasks)
   AWAIT_READY(subscribeCall);
 
   // Get the master's state.
-  response = process::http::get(master.get(), "state.json");
+  response = process::http::get(master.get(), "state");
   AWAIT_READY(response);
 
   EXPECT_SOME_EQ(
@@ -2325,7 +2325,7 @@ TEST_F(MasterTest, OrphanTasks)
   AWAIT_READY(frameworkRegisteredMessage);
 
   // Get the master's state.
-  response = process::http::get(master.get(), "state.json");
+  response = process::http::get(master.get(), "state");
   AWAIT_READY(response);
 
   EXPECT_SOME_EQ(
@@ -2792,7 +2792,7 @@ TEST_F(MasterTest, StateEndpoint)
   ASSERT_SOME(master);
 
   Future<process::http::Response> response =
-    process::http::get(master.get(), "state.json");
+    process::http::get(master.get(), "state");
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(process::http::OK().status, response);
 
@@ -2973,7 +2973,7 @@ TEST_F(MasterTest, StateSummaryEndpoint)
 
 
 // This test ensures that the web UI and capabilities of a framework
-// are included in the state.json endpoint, if provided by the
+// are included in the master's state endpoint, if provided by the
 // framework.
 TEST_F(MasterTest, FrameworkWebUIUrlandCapabilities)
 {
@@ -2998,7 +2998,7 @@ TEST_F(MasterTest, FrameworkWebUIUrlandCapabilities)
   AWAIT_READY(registered);
 
   Future<process::http::Response> masterState =
-    process::http::get(master.get(), "state.json");
+    process::http::get(master.get(), "state");
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(process::http::OK().status, masterState);
 
   Try<JSON::Object> parse = JSON::parse<JSON::Object>(masterState.get().body);
@@ -3035,7 +3035,7 @@ TEST_F(MasterTest, FrameworkWebUIUrlandCapabilities)
 }
 
 
-// This test verifies that label values are exposed over the master
+// This test verifies that label values are exposed over the master's
 // state endpoint.
 TEST_F(MasterTest, TaskLabels)
 {
@@ -3103,9 +3103,9 @@ TEST_F(MasterTest, TaskLabels)
 
   AWAIT_READY(update);
 
-  // Verify label key and value in master state.json.
+  // Verify label key and value in the master's state endpoint.
   Future<process::http::Response> response =
-    process::http::get(master.get(), "state.json");
+    process::http::get(master.get(), "state");
   AWAIT_READY(response);
 
   EXPECT_SOME_EQ(
@@ -3143,7 +3143,7 @@ TEST_F(MasterTest, TaskLabels)
 
 
 // This test verifies that TaskStatus label values are exposed over
-// the master state endpoint.
+// the master's state endpoint.
 TEST_F(MasterTest, TaskStatusLabels)
 {
   Try<PID<Master>> master = StartMaster();
@@ -3244,9 +3244,9 @@ TEST_F(MasterTest, TaskStatusLabels)
 }
 
 
-// This tests the 'active' field in slave entries from state.json. We
-// first verify an active slave, deactivate it and verify that the
-// 'active' field is false.
+// This tests the 'active' field in slave entries from the master's
+// state endpoint. We first verify an active slave, deactivate it
+// and verify that the 'active' field is false.
 TEST_F(MasterTest, SlaveActiveEndpoint)
 {
   // Start a master.
@@ -3263,7 +3263,7 @@ TEST_F(MasterTest, SlaveActiveEndpoint)
 
   // Verify slave is active.
   Future<process::http::Response> response =
-    process::http::get(master.get(), "state.json");
+    process::http::get(master.get(), "state");
   AWAIT_READY(response);
 
   Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
@@ -3285,7 +3285,7 @@ TEST_F(MasterTest, SlaveActiveEndpoint)
   AWAIT_READY(deactivateSlave);
 
   // Verify slave is inactive.
-  response = process::http::get(master.get(), "state.json");
+  response = process::http::get(master.get(), "state");
   AWAIT_READY(response);
 
   parse = JSON::parse<JSON::Object>(response.get().body);
@@ -3300,7 +3300,7 @@ TEST_F(MasterTest, SlaveActiveEndpoint)
 
 
 // This test verifies that service info for tasks is exposed over the
-// master state endpoint.
+// master's state endpoint.
 TEST_F(MasterTest, TaskDiscoveryInfo)
 {
   Try<PID<Master>> master = StartMaster();
@@ -3382,9 +3382,9 @@ TEST_F(MasterTest, TaskDiscoveryInfo)
 
   AWAIT_READY(update);
 
-  // Verify label key and value in master state.json.
+  // Verify label key and value in the master's state endpoint.
   Future<process::http::Response> response =
-    process::http::get(master.get(), "state.json");
+    process::http::get(master.get(), "state");
   AWAIT_READY(response);
 
   EXPECT_SOME_EQ(
@@ -3594,8 +3594,9 @@ TEST_F(MasterTest, MasterFailoverLongLivedExecutor)
   Shutdown(); // Must shutdown before 'containerizer' gets deallocated.
 }
 
-// This test ensures that if a framework scheduler provides any labels in its
-// FrameworkInfo message, those labels are included in the state.json endpoint.
+// This test ensures that if a framework scheduler provides any
+// labels in its FrameworkInfo message, those labels are included
+// in the master's state endpoint.
 TEST_F(MasterTest, FrameworkInfoLabels)
 {
   Try<PID<Master>> master = StartMaster();

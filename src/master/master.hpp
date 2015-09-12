@@ -826,7 +826,7 @@ private:
     process::Future<process::http::Response> reserve(
         const process::http::Request& request) const;
 
-    // /master/roles.json
+    // /master/roles
     process::Future<process::http::Response> roles(
         const process::http::Request& request) const;
 
@@ -838,7 +838,7 @@ private:
     process::Future<process::http::Response> slaves(
         const process::http::Request& request) const;
 
-    // /master/state.json
+    // /master/state
     process::Future<process::http::Response> state(
         const process::http::Request& request) const;
 
@@ -846,7 +846,7 @@ private:
     process::Future<process::http::Response> stateSummary(
         const process::http::Request& request) const;
 
-    // /master/tasks.json
+    // /master/tasks
     process::Future<process::http::Response> tasks(
         const process::http::Request& request) const;
 

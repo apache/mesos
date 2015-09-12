@@ -167,7 +167,7 @@ TEST_F(FaultToleranceTest, ReregisterCompletedFrameworks)
   ASSERT_SOME(slave);
 
   // Verify master/slave have 0 completed/running frameworks.
-  Future<Response> masterState = process::http::get(master.get(), "state.json");
+  Future<Response> masterState = process::http::get(master.get(), "state");
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, masterState);
 
   AWAIT_EXPECT_RESPONSE_HEADER_EQ(
@@ -224,7 +224,7 @@ TEST_F(FaultToleranceTest, ReregisterCompletedFrameworks)
   EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
 
   // Verify master and slave recognize the running task/framework.
-  masterState = process::http::get(master.get(), "state.json");
+  masterState = process::http::get(master.get(), "state");
 
   parse = JSON::parse<JSON::Object>(masterState.get().body);
   ASSERT_SOME(parse);
@@ -262,7 +262,7 @@ TEST_F(FaultToleranceTest, ReregisterCompletedFrameworks)
   // At this point, the task is killed, but the framework is still
   // running.  This is because the executor has to time-out before
   // it exits.
-  masterState = process::http::get(master.get(), "state.json");
+  masterState = process::http::get(master.get(), "state");
   parse = JSON::parse<JSON::Object>(masterState.get().body);
   ASSERT_SOME(parse);
   masterJSON = parse.get();
@@ -340,7 +340,7 @@ TEST_F(FaultToleranceTest, ReregisterCompletedFrameworks)
   Clock::settle();
   Clock::resume();
 
-  masterState = process::http::get(master.get(), "state.json");
+  masterState = process::http::get(master.get(), "state");
   parse = JSON::parse<JSON::Object>(masterState.get().body);
   ASSERT_SOME(parse);
   masterJSON = parse.get();
