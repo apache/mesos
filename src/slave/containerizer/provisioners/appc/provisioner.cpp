@@ -344,8 +344,8 @@ Future<bool> AppcProvisionerProcess::destroy(const ContainerID& containerId)
     return false;
   }
 
-  // Unregister the container first. If destroy() fails, we can rely on
-  // recover() to retry it later.
+  // Unregister the container first. If destroy() fails, we can rely
+  // on recover() to retry it later.
   Owned<Info> info = infos[containerId];
   infos.erase(containerId);
 
@@ -365,19 +365,26 @@ Future<bool> AppcProvisionerProcess::destroy(const ContainerID& containerId)
     }
   }
 
+  // NOTE: We calculate 'containerDir' here so that the following
+  // lambda does not need to bind 'this'.
+  string containerDir =
+    provisioners::paths::getContainerDir(root, containerId);
+
   // TODO(xujyan): Revisit the usefulness of this return value.
   return collect(futures)
-    .then([=]() -> Future<bool> {
-      // This should be fairly cheap as the directory should only contain a
-      // few empty sub-directories at this point.
-      string containerDir =
-        provisioners::paths::getContainerDir(root, containerId);
-
+    .then([containerDir]() -> Future<bool> {
+      // This should be fairly cheap as the directory should only
+      // contain a few empty sub-directories at this point.
+      //
+      // TODO(jieyu): Currently, it's possible that some directories
+      // cannot be removed due to EBUSY. EBUSY is caused by the race
+      // between cleaning up this container and new containers copying
+      // the host mount table. It's OK to ignore them. The cleanup
+      // will be retried during slave recovery.
       Try<Nothing> rmdir = os::rmdir(containerDir);
       if (rmdir.isError()) {
-        return Failure("Failed to remove container directory '" +
-                       containerDir + "' of container " +
-                       stringify(containerId));
+        LOG(ERROR) << "Failed to remove the provisioned container directory "
+                   << "at '" << containerDir << "'";
       }
 
       return true;

@@ -244,16 +244,51 @@ Future<Option<ContainerPrepareInfo>> LinuxFilesystemIsolatorProcess::__prepare(
 
   ContainerPrepareInfo prepareInfo;
 
-  // If the container changes its root filesystem, we need to mount
-  // the container's work directory into its root filesystem (creating
-  // it if needed) so that the executor and the task can access the
-  // work directory.
-  //
-  // NOTE: The mount of the work directory must be a shared mount in
-  // the host filesystem so that any mounts underneath it will
-  // propagate into the container's mount namespace. This is how we
-  // can update persistent volumes for the container.
-  if (rootfs.isSome()) {
+  if (rootfs.isNone()) {
+    // It the container does not change its root filesystem, we need
+    // to do a self bind mount of the container's work directory and
+    // mark it as a shared mount. This is necessary for any mounts
+    // underneath it to be propagated into the container's mount
+    // namespace. This is how we can update persistent volumes.
+    LOG(INFO) << "Bind mounting work directory '" << directory
+              << "' for container " << containerId;
+
+    Try<Nothing> mount = fs::mount(
+        directory,
+        directory,
+        None(),
+        MS_BIND,
+        NULL);
+
+    if (mount.isError()) {
+      return Failure(
+          "Failed to self bind mount work directory '" +
+          directory + "': " + mount.error());
+    }
+
+    mount = fs::mount(
+        None(),
+        directory,
+        None(),
+        MS_SHARED,
+        NULL);
+
+    if (mount.isError()) {
+      return Failure(
+          "Failed to mark work directory '" + directory +
+          "' as a shared mount: " + mount.error());
+    }
+  } else {
+    // If the container changes its root filesystem, we need to mount
+    // the container's work directory into its root filesystem
+    // (creating it if needed) so that the executor and the task can
+    // access the work directory.
+    //
+    // NOTE: The mount of the work directory must be a shared mount in
+    // the host filesystem so that any mounts underneath it will
+    // propagate into the container's mount namespace. This is how we
+    // can update persistent volumes for the container.
+
     // This is the mount point of the work directory in the root filesystem.
     const string sandbox = path::join(rootfs.get(), flags.sandbox_directory);
 
@@ -268,6 +303,9 @@ Future<Option<ContainerPrepareInfo>> LinuxFilesystemIsolatorProcess::__prepare(
             sandbox + "': " + mkdir.error());
       }
     }
+
+    LOG(INFO) << "Bind mounting work directory from '" << directory
+              << "' to '" << sandbox << "' for container " << containerId;
 
     Try<Nothing> mount = fs::mount(
         directory,
@@ -291,7 +329,7 @@ Future<Option<ContainerPrepareInfo>> LinuxFilesystemIsolatorProcess::__prepare(
 
     if (mount.isError()) {
       return Failure(
-          "Failed to mark work directory '" + directory +
+          "Failed to mark sandbox '" + sandbox +
           "' as a shared mount: " + mount.error());
     }
 
@@ -334,6 +372,10 @@ Try<string> LinuxFilesystemIsolatorProcess::script(
   // Make sure mounts in the container mount namespace do not
   // propagate back to the host mount namespace.
   out << "mount --make-rslave /\n";
+
+  // TODO(jieyu): Try to unmount work directory mounts and persistent
+  // volume mounts for other containers to release the extra
+  // references to those mounts.
 
   foreach (const Volume& volume, executorInfo.container().volumes()) {
     if (!volume.has_host_path()) {
@@ -649,9 +691,11 @@ Future<Nothing> LinuxFilesystemIsolatorProcess::cleanup(
     sandbox = info->directory;
   }
 
+  infos.erase(containerId);
+
   // Cleanup the mounts for this container in the host mount
-  // namespace, including container's work directory (if container
-  // root filesystem is used), and all the persistent volume mounts.
+  // namespace, including container's work directory and all the
+  // persistent volume mounts.
   Try<fs::MountInfoTable> table = fs::MountInfoTable::read();
   if (table.isError()) {
     return Failure("Failed to get mount table: " + table.error());
@@ -665,7 +709,7 @@ Future<Nothing> LinuxFilesystemIsolatorProcess::cleanup(
       LOG(INFO) << "Unmounting volume '" << entry.target
                 << "' for container " << containerId;
 
-      Try<Nothing> unmount = fs::unmount(entry.target, MNT_DETACH);
+      Try<Nothing> unmount = fs::unmount(entry.target);
       if (unmount.isError()) {
         return Failure(
             "Failed to unmount volume '" + entry.target +
@@ -674,21 +718,16 @@ Future<Nothing> LinuxFilesystemIsolatorProcess::cleanup(
     }
   }
 
-  // Cleanup the container's work directory mount. We only need to do
-  // that if the container specifies a filesystem root.
-  if (info->sandbox.isSome()) {
-    LOG(INFO) << "Unmounting sandbox '" << info->sandbox.get()
-              << "' for container " << containerId;
+  // Cleanup the container's work directory mount.
+  LOG(INFO) << "Unmounting sandbox/work directory '" << sandbox
+            << "' for container " << containerId;
 
-    Try<Nothing> unmount = fs::unmount(info->sandbox.get(), MNT_DETACH);
-    if (unmount.isError()) {
-      return Failure(
-          "Failed to unmount sandbox '" + info->sandbox.get() +
-          "': " + unmount.error());
-    }
+  Try<Nothing> unmount = fs::unmount(sandbox);
+  if (unmount.isError()) {
+    return Failure(
+        "Failed to unmount sandbox/work directory '" + sandbox +
+        "': " + unmount.error());
   }
-
-  infos.erase(containerId);
 
   // Destroy the provisioned root filesystems.
   list<Future<bool>> futures;

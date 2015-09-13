@@ -16,6 +16,10 @@
  * limitations under the License.
  */
 
+#include <errno.h>
+#include <stdio.h>
+#include <unistd.h>
+
 #include <process/dispatch.hpp>
 #include <process/process.hpp>
 
@@ -150,9 +154,9 @@ Future<bool> BindBackendProcess::destroy(const string& rootfs)
   }
 
   foreach (const fs::MountInfoTable::Entry& entry, mountTable.get().entries) {
-    // TODO(xujyan): If MS_REC was used in 'provision()' we would need to
-    // check `strings::startsWith(entry.target, rootfs)` here to unmount
-    // all nested mounts.
+    // TODO(xujyan): If MS_REC was used in 'provision()' we would need
+    // to check `strings::startsWith(entry.target, rootfs)` here to
+    // unmount all nested mounts.
     if (entry.target == rootfs) {
       // NOTE: This would fail if the rootfs is still in use.
       Try<Nothing> unmount = fs::unmount(entry.target);
@@ -162,11 +166,23 @@ Future<bool> BindBackendProcess::destroy(const string& rootfs)
             unmount.error());
       }
 
-      Try<Nothing> rmdir = os::rmdir(rootfs);
-      if (rmdir.isError()) {
-        return Failure(
-            "Failed to remove rootfs mount point '" + rootfs + "': " +
-            rmdir.error());
+      // TODO(jieyu): If 'rmdir' here returns EBUSY, we still returns
+      // a success. This is currently possible because the parent
+      // mount of 'rootfs' might not be a shared mount. Thus,
+      // containers in different mount namespaces might hold extra
+      // references to this mount. It is OK to ignore the EBUSY error
+      // because the provisioner will later try to delete all the
+      // rootfses for the terminated containers.
+      if (::rmdir(rootfs.c_str()) != 0) {
+        string message =
+          "Failed to remove rootfs mount point '" + rootfs +
+          "': " + strerror(errno);
+
+        if (errno == EBUSY) {
+          LOG(ERROR) << message;
+        } else {
+          return Failure(message);
+        }
       }
 
       return true;
