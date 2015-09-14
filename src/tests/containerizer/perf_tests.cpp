@@ -44,16 +44,11 @@ class PerfTest : public ::testing::Test {};
 
 TEST_F(PerfTest, ROOT_Events)
 {
-  set<string> events;
-
   // Valid events.
-  events.insert("cycles");
-  events.insert("task-clock");
-  EXPECT_TRUE(perf::valid(events));
+  EXPECT_TRUE(perf::valid({"cycles", "task-clock"}));
 
-  // Add an invalid event.
-  events.insert("this-is-an-invalid-event");
-  EXPECT_FALSE(perf::valid(events));
+  // Invalid event among valid events.
+  EXPECT_FALSE(perf::valid({"cycles", "task-clock", "invalid-event"}));
 }
 
 
