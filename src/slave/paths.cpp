@@ -62,6 +62,12 @@ string getMetaRootDir(const string& rootDir)
 }
 
 
+string getSandboxRootDir(const string& rootDir)
+{
+  return path::join(rootDir, "slaves");
+}
+
+
 string getArchiveDir(const string& rootDir)
 {
   return path::join(rootDir, "archive");

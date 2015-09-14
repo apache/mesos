@@ -100,6 +100,9 @@ const char LATEST_SYMLINK[] = "latest";
 std::string getMetaRootDir(const std::string& rootDir);
 
 
+std::string getSandboxRootDir(const std::string& rootDir);
+
+
 std::string getArchiveDir(const std::string& rootDir);
 
 

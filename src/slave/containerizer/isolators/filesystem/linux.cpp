@@ -94,23 +94,6 @@ Future<Nothing> LinuxFilesystemIsolatorProcess::recover(
     const list<ContainerState>& states,
     const hashset<ContainerID>& orphans)
 {
-  list<Future<Nothing>> futures;
-  foreachvalue (const Owned<Provisioner>& provisioner, provisioners) {
-    futures.push_back(provisioner->recover(states, orphans));
-  }
-
-  return collect(futures)
-    .then(defer(PID<LinuxFilesystemIsolatorProcess>(this),
-                &LinuxFilesystemIsolatorProcess::_recover,
-                states,
-                orphans));
-}
-
-
-Future<Nothing> LinuxFilesystemIsolatorProcess::_recover(
-    const list<ContainerState>& states,
-    const hashset<ContainerID>& orphans)
-{
   // Read the mount table in the host mount namespace to recover paths
   // to containers' work directories if their root filesystems are
   // changed. Method 'cleanup()' relies on this information to clean
@@ -133,12 +116,71 @@ Future<Nothing> LinuxFilesystemIsolatorProcess::_recover(
     infos.put(state.container_id(), info);
   }
 
-  // TODO(jieyu): Clean up unknown containers' work directory mounts
-  // and the corresponding persistent volume mounts. This can be
-  // achieved by iterating the mount table and find those unknown
-  // mounts whose sources are under the slave 'work_dir'.
+  // Recover both known and unknown orphans by scanning the mount
+  // table and finding those mounts whose roots are under slave's
+  // sandbox root directory. Those mounts are container's work
+  // directory mounts. Mounts from unknown orphans will be cleaned up
+  // immediately. Mounts from known orphans will be cleaned up when
+  // those known orphan containers are being destroyed by the slave.
+  hashset<ContainerID> unknownOrphans;
 
-  return Nothing();
+  string sandboxRootDir = paths::getSandboxRootDir(flags.work_dir);
+
+  foreach (const fs::MountInfoTable::Entry& entry, table.get().entries) {
+    if (!strings::startsWith(entry.root, sandboxRootDir)) {
+      continue;
+    }
+
+    // TODO(jieyu): Here, we retrieve the container ID by taking the
+    // basename of 'entry.root'. This assumes that the slave's sandbox
+    // root directory are organized according to the comments in the
+    // beginning of slave/paths.hpp.
+    ContainerID containerId;
+    containerId.set_value(Path(entry.root).basename());
+
+    if (infos.contains(containerId)) {
+      continue;
+    }
+
+    Owned<Info> info(new Info(entry.root));
+
+    if (entry.root != entry.target) {
+      info->sandbox = entry.target;
+    }
+
+    infos.put(containerId, info);
+
+    // Remember all the unknown orphan containers.
+    if (!orphans.contains(containerId)) {
+      unknownOrphans.insert(containerId);
+    }
+  }
+
+  // Cleanup mounts from unknown orphans.
+  list<Future<Nothing>> futures;
+  foreach (const ContainerID& containerId, unknownOrphans) {
+    futures.push_back(cleanup(containerId));
+  }
+
+  return collect(futures)
+    .then(defer(PID<LinuxFilesystemIsolatorProcess>(this),
+                &LinuxFilesystemIsolatorProcess::_recover,
+                states,
+                orphans));
+}
+
+
+Future<Nothing> LinuxFilesystemIsolatorProcess::_recover(
+    const list<ContainerState>& states,
+    const hashset<ContainerID>& orphans)
+{
+  list<Future<Nothing>> futures;
+  foreachvalue (const Owned<Provisioner>& provisioner, provisioners) {
+    futures.push_back(provisioner->recover(states, orphans));
+  }
+
+  return collect(futures)
+    .then([]() -> Future<Nothing> { return Nothing(); });
 }
 
 
