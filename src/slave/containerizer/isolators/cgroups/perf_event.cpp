@@ -383,10 +383,8 @@ void CgroupsPerfEventIsolatorProcess::sample()
     }
   }
 
-  // The timeout includes an allowance of twice the process::reap
-  // interval to ensure we see the perf process exit. If the sample
-  // is not ready after the timeout something very unexpected has
-  // occurred so we discard it and halt all sampling.
+  // The discard timeout includes an allowance of twice the
+  // reaper interval to ensure we see the perf process exit.
   Duration timeout = flags.perf_duration + process::MAX_REAP_INTERVAL() * 2;
 
   perf::sample(events, cgroups, flags.perf_duration)
@@ -407,22 +405,22 @@ void CgroupsPerfEventIsolatorProcess::_sample(
     const Future<hashmap<string, PerfStatistics>>& statistics)
 {
   if (!statistics.isReady()) {
-    // Failure can occur for many reasons but all are unexpected and
-    // indicate something is not right so we'll stop sampling.
-    LOG(ERROR) << "Failed to get perf sample, sampling will be halted: "
+    // In case the failure is transient or this is due to a timeout,
+    // we continue sampling. Note that since sampling is done on an
+    // interval, it should be ok if this is a non-transient failure.
+    LOG(ERROR) << "Failed to get perf sample: "
                << (statistics.isFailed()
                    ? statistics.failure()
                    : "discarded due to timeout");
-    return;
-  }
+  } else {
+    // Store the latest statistics, note that cgroups added in the
+    // interim will be picked up by the next sample.
+    foreachvalue (Info* info, infos) {
+      CHECK_NOTNULL(info);
 
-  // Store the latest statistics, note that cgroups added in the
-  // interim will be picked up by the next sample.
-  foreachvalue (Info* info, infos) {
-    CHECK_NOTNULL(info);
-
-    if (statistics->contains(info->cgroup)) {
-      info->statistics = statistics->get(info->cgroup).get();
+      if (statistics->contains(info->cgroup)) {
+        info->statistics = statistics->get(info->cgroup).get();
+      }
     }
   }
 
