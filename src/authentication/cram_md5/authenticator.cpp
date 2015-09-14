@@ -503,7 +503,7 @@ Try<Nothing> CRAMMD5Authenticator::initialize(
     secrets::load(credentials.get());
   } else {
     LOG(WARNING) << "No credentials provided, authentication requests will be "
-                 << "refused.";
+                 << "refused";
   }
 
   // Initialize SASL and add the auxiliary memory plugin. We must
