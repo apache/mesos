@@ -356,6 +356,28 @@ Try<pid_t> LinuxLauncher::fork(
     return Error("Failed to contain process");
   }
 
+  // If we are on systemd, then move the child into the
+  // `SYSTEMD_MESOS_EXECUTORS_SLICE`. As with the freezer, any grandchildren
+  // will also be contained in the slice.
+  if (systemdHierarchy.isSome()) {
+    Try<Nothing> assign = cgroups::assign(
+        systemdHierarchy.get(),
+        SYSTEMD_MESOS_EXECUTORS_SLICE,
+        child.get().pid());
+
+    if (assign.isError()) {
+      LOG(ERROR) << "Failed to assign process " << child.get().pid()
+                  << " of container '" << containerId << "'"
+                  << " to its systemd executor slice: " << assign.error();
+
+      ::kill(child.get().pid(), SIGKILL);
+      return Error("Failed to contain process on systemd");
+    }
+
+    LOG(INFO) << "Assigned child process `" << child.get().pid() << "` to `"
+              << SYSTEMD_MESOS_EXECUTORS_SLICE << "`";
+  }
+
   // Now that we've contained the child we can signal it to continue
   // by writing to the pipe.
   char dummy;
