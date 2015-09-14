@@ -46,17 +46,21 @@
 
 #include "slave/containerizer/isolators/cgroups/perf_event.hpp"
 
-using namespace process;
+using mesos::slave::ContainerLimitation;
+using mesos::slave::ContainerPrepareInfo;
+using mesos::slave::ContainerState;
+using mesos::slave::Isolator;
 
 using std::list;
 using std::set;
 using std::string;
 using std::vector;
 
-using mesos::slave::ContainerLimitation;
-using mesos::slave::ContainerPrepareInfo;
-using mesos::slave::ContainerState;
-using mesos::slave::Isolator;
+using process::Clock;
+using process::Failure;
+using process::Future;
+using process::PID;
+using process::Time;
 
 namespace mesos {
 namespace internal {
