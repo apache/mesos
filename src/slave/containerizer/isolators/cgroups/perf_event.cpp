@@ -28,6 +28,7 @@
 #include <process/delay.hpp>
 #include <process/io.hpp>
 #include <process/pid.hpp>
+#include <process/reap.hpp>
 #include <process/subprocess.hpp>
 
 #include <stout/bytes.hpp>
@@ -383,11 +384,10 @@ void CgroupsPerfEventIsolatorProcess::sample()
   }
 
   // The timeout includes an allowance of twice the process::reap
-  // interval (currently one second) to ensure we see the perf
-  // process exit. If the sample is not ready after the timeout
-  // something very unexpected has occurred so we discard it and
-  // halt all sampling.
-  Duration timeout = flags.perf_duration + Seconds(2);
+  // interval to ensure we see the perf process exit. If the sample
+  // is not ready after the timeout something very unexpected has
+  // occurred so we discard it and halt all sampling.
+  Duration timeout = flags.perf_duration + process::MAX_REAP_INTERVAL() * 2;
 
   perf::sample(events, cgroups, flags.perf_duration)
     .after(timeout,
