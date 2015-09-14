@@ -41,7 +41,12 @@ using std::string;
 using std::vector;
 
 using namespace mesos::internal::slave::docker::registry;
-using namespace process;
+
+using process::Clock;
+using process::Future;
+using process::Owned;
+
+using process::network::Socket;
 
 using ManifestResponse = RegistryClient::ManifestResponse;
 
@@ -263,7 +268,7 @@ TEST_F(RegistryClientTest, SimpleGetToken)
   Future<Socket> socket = server.get().accept();
 
   // Create URL from server hostname and port.
-  const http::URL url(
+  const process::http::URL url(
       "https",
       server.get().address().get().hostname().get(),
       server.get().address().get().port);
@@ -330,7 +335,7 @@ TEST_F(RegistryClientTest, BadTokenResponse)
   Future<Socket> socket = server.get().accept();
 
   // Create URL from server hostname and port.
-  const http::URL url(
+  const process::http::URL url(
       "https",
       server.get().address().get().hostname().get(),
       server.get().address().get().port);
@@ -366,7 +371,7 @@ TEST_F(RegistryClientTest, BadTokenResponse)
 TEST_F(RegistryClientTest, BadTokenServerAddress)
 {
   // Create an invalid URL with current time.
-  const http::URL url("https", stringify(Clock::now().secs()), 0);
+  const process::http::URL url("https", stringify(Clock::now().secs()), 0);
 
   Try<Owned<TokenManager>> tokenMgr = TokenManager::create(url);
   ASSERT_SOME(tokenMgr);
@@ -395,7 +400,7 @@ TEST_F(RegistryClientTest, SimpleGetManifest)
 
   Future<Socket> socket = server.get().accept();
 
-  const http::URL url(
+  const process::http::URL url(
       "https",
       server.get().address().get().hostname().get(),
       server.get().address().get().port);
@@ -524,7 +529,7 @@ TEST_F(RegistryClientTest, SimpleGetBlob)
 
   Future<Socket> socket = server.get().accept();
 
-  const http::URL url(
+  const process::http::URL url(
       "https",
       server.get().address().get().hostname().get(),
       server.get().address().get().port);
@@ -634,7 +639,7 @@ TEST_F(RegistryClientTest, BadRequest)
 
   Future<Socket> socket = server.get().accept();
 
-  const http::URL url(
+  const process::http::URL url(
       "https",
       server.get().address().get().hostname().get(),
       server.get().address().get().port);
