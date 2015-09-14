@@ -52,6 +52,18 @@ TEST_F(PerfTest, ROOT_Events)
 }
 
 
+TEST_F(PerfTest, ROOT_Sample)
+{
+  // Sampling an empty set of cgroups should be a no-op.
+  Future<hashmap<string, PerfStatistics>> sample =
+    perf::sample({"cycles", "task-clock"}, {}, Seconds(1));
+
+  AWAIT_READY(sample);
+
+  EXPECT_TRUE(sample->empty());
+}
+
+
 TEST_F(PerfTest, Parse)
 {
   // Parse multiple cgroups with uint64 and floats.

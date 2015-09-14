@@ -310,6 +310,11 @@ Future<hashmap<string, mesos::PerfStatistics>> sample(
     const set<string>& cgroups,
     const Duration& duration)
 {
+  // Is this a no-op?
+  if (cgroups.empty()) {
+    return hashmap<string, mesos::PerfStatistics>();
+  }
+
   vector<string> argv = {
     "stat",
 
