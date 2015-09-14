@@ -198,7 +198,7 @@ Upload the mesos.interface package to PyPi.
   1. Setup your [`~/.pypirc`](https://docs.python.org/2/distutils/packageindex.html#pypirc) with your PyPi username and password.
   1. After a successful Mesos `make` (any architecture), cd to `build/src/python/interface`.
   1. Run `python setup.py register` to register this package.
-  1. Run `python setup.py bdist_egg upload` to upload the egg for this package.
+  1. Run `python setup.py sdist bdist_egg upload` to upload the source distribution and egg for this package.
 
 Update the Mesos Homebrew package.
 
