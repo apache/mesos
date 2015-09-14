@@ -9,7 +9,6 @@ The release also includes these features:
 * API Changes:
   * [MESOS-2293] - Implement the scheduler endpoint on master
   * [MESOS-3135] - Publish MasterInfo to ZK using JSON
-  * [MESOS-2830] - Add an endpoint to slaves to allow launching system administration tasks
 
 * Binary API Changes (e.g., new flags)
     * [MESOS-3154] - Enable Mesos Agent Node to use arbitrary script / module to figure out IP, HOSTNAME
@@ -120,15 +119,11 @@ This release also includes several bug fixes and stability improvements.
     * [MESOS-2294] - Implement the Events stream on master for Call endpoint
     * [MESOS-2640] - Remove old frameworks and ec2 scripts from core Mesos repository
     * [MESOS-2910] - Add an Event message handler to scheduler driver
-    * [MESOS-2912] - Provide a Python library for master detection
     * [MESOS-2913] - Scheduler driver should send Call messages to the master
     * [MESOS-2933] - Pass slave's total resources to the ResourceEstimator and QoSController via Slave::usage().
     * [MESOS-2961] - Add cpuacct subsystem utils to cgroups
     * [MESOS-3012] - Support existing message passing optimization with Event/Call.
-    * [MESOS-3044] - Slaves are not deactivated upon reaching a maintenance window
     * [MESOS-3067] - Implement a streaming response decoder for events stream
-    * [MESOS-3068] - Registry operations are hardcoded for a single key (Registry object)
-    * [MESOS-3077] - Registry recovery does not recover the maintenance object.
     * [MESOS-3088] - Update scheduler driver to send SUBSCRIBE call
     * [MESOS-3089] - Update scheduler library to send REQUEST call
     * [MESOS-3101] - Standardize separation of Windows/Linux-specific OS code
