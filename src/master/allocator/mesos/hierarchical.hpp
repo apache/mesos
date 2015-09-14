@@ -886,7 +886,6 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::updateInverseOffer(
   // Only handle inverse offers that we currently have outstanding. If it is not
   // currently outstanding this means it is old and can be safely ignored.
   if (maintenance.offersOutstanding.contains(frameworkId)) {
-
     // We always remove the outstanding offer so that we will send a new offer
     // out the next time we schedule inverse offers.
     maintenance.offersOutstanding.erase(frameworkId);
