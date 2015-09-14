@@ -137,6 +137,7 @@ endif
 check_PROGRAMS = tests benchmarks
 
 tests_SOURCES =							\
+  src/tests/collect_tests.cpp					\
   src/tests/decoder_tests.cpp					\
   src/tests/encoder_tests.cpp					\
   src/tests/future_tests.cpp					\
