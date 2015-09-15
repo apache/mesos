@@ -90,6 +90,8 @@ template <typename T>
 class Future
 {
 public:
+  typedef T value_type;
+
   // Constructs a failed future.
   static Future<T> failed(const std::string& message);
 

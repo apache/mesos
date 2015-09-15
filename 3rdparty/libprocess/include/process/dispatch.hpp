@@ -347,6 +347,33 @@ Future<R> dispatch(
 #undef TEMPLATE
 
 
+template <typename I, typename Callable, typename ...Args>
+auto dispatch(
+    const ProcessBase* process,
+    Callable fn,
+    Args&&... args) -> typename std::result_of<decltype(fn)(I*, Args...)>::type
+{
+  typedef typename std::result_of<decltype(fn)(I*, Args...)>::type::value_type result_type; //NOLINT
+  std::shared_ptr<Promise<result_type>> promise(new Promise<result_type>());
+
+  auto call(std::bind(fn, std::placeholders::_1, std::forward<Args>(args)...));
+
+  std::shared_ptr<std::function<void(ProcessBase*)>> f(
+      new std::function<void(ProcessBase*)>(
+      [=](ProcessBase* process) {
+        assert(process != NULL);
+        I* t = dynamic_cast<I*>(process);
+        assert(t != NULL);
+
+        promise->associate(call(t));
+      }));
+
+  internal::dispatch(process->self(), f, &typeid(fn));
+
+  return promise->future();
+}
+
+
 inline void dispatch(
     const UPID& pid,
     const std::function<void()>& f)
