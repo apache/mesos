@@ -31,6 +31,7 @@
 
 #include <process/ssl/gtest.hpp>
 
+#include "common/process_dispatcher.hpp"
 #include "slave/containerizer/provisioners/docker/token_manager.hpp"
 
 #include "tests/mesos.hpp"
@@ -234,11 +235,152 @@ TEST_F(DockerRegistryClientTest, SimpleGetToken)
       server.get().address().get().hostname().get(),
       server.get().address().get().port);
 
-  Try<Owned<TokenManager>> tokenMgr = TokenManager::create(url);
-  ASSERT_SOME(tokenMgr);
+  auto tokenManagerProcess = TokenManagerProcess::create(url);
+  ASSERT_SOME(tokenManagerProcess);
+
+  Shared<TokenManager> tmProcess(tokenManagerProcess.get().release());
+  auto tokenManager =
+    ProcessDispatcher<TokenManager>::create(tmProcess);
 
   Future<Token> token =
-    tokenMgr.get()->getToken(
+    tokenManager.get()->dispatch(
+        &TokenManager::getToken,
+        "registry.docker.io",
+        "repository:library/busybox:pull",
+        None());
+
+  AWAIT_ASSERT_READY(socket);
+
+  // Construct response and send(server side).
+  const double expirySecs = Clock::now().secs() + Days(365).secs();
+
+  claimsJsonString =
+    "{\"access\" \
+      :[ \
+        { \
+          \"type\":\"repository\", \
+          \"name\":\"library/busybox\", \
+          \"actions\":[\"pull\"]}], \
+          \"aud\":\"registry.docker.io\", \
+          \"exp\":" + stringify(expirySecs) + ", \
+          \"iat\":1438887168, \
+          \"iss\":\"auth.docker.io\", \
+          \"jti\":\"l2PJDFkzwvoL7-TajJF7\", \
+          \"nbf\":1438887166, \
+          \"sub\":\"\" \
+         }";
+
+  const string tokenString(getTokenString());
+  const string tokenResponse = "{\"token\":\"" + tokenString + "\"}";
+
+  const string buffer =
+    string("HTTP/1.1 200 OK\r\n") +
+    "Content-Length : " +
+    stringify(tokenResponse.length()) + "\r\n" +
+    "\r\n" +
+    tokenResponse;
+
+  AWAIT_ASSERT_READY(Socket(socket.get()).send(buffer));
+
+  AWAIT_ASSERT_READY(token);
+  ASSERT_EQ(token.get().raw, tokenString);
+}
+
+
+TEST_F(DockerRegistryClientTest, TokenManagerInterface)
+{
+  class AnotherTokenManager :
+    public TokenManager,
+    public Process<AnotherTokenManager>
+  {
+  public:
+    static Owned<AnotherTokenManager> create(const string& str)
+    {
+      return Owned<AnotherTokenManager>(new AnotherTokenManager(str));
+    }
+
+    AnotherTokenManager(const string str)
+      :str_(str) {}
+
+    process::Future<Token> getToken(
+        const std::string& service,
+        const std::string& scope,
+        const Option<std::string>& account)
+    {
+      return Failure("AnotherTokenManager");
+    }
+
+  private:
+    const string str_;
+  };
+
+  Try<Socket> server = setup_server({
+      {"SSL_ENABLED", "true"},
+      {"SSL_KEY_FILE", key_path().value},
+      {"SSL_CERT_FILE", certificate_path().value}});
+
+  ASSERT_SOME(server);
+  ASSERT_SOME(server.get().address());
+  ASSERT_SOME(server.get().address().get().hostname());
+
+  Future<Socket> socket = server.get().accept();
+
+  // Create URL from server hostname and port.
+  const http::URL url(
+      "https",
+      server.get().address().get().hostname().get(),
+      server.get().address().get().port);
+
+  vector<Owned<Dispatchable<TokenManager>>> tokenManagerList;
+
+  Try<Owned<Dispatchable<TokenManager>>> tokenManagerProcess1 =
+    ProcessDispatcher<TokenManager, TokenManagerProcess>::create(url);
+  ASSERT_SOME(tokenManagerProcess1);
+
+
+  Try<Owned<Dispatchable<TokenManager>>> tokenManagerProcess2 =
+    ProcessDispatcher<TokenManager, AnotherTokenManager>::create("test");
+
+  ASSERT_SOME(tokenManagerProcess2);
+
+  tokenManagerList.push_back(tokenManagerProcess1.get());
+  tokenManagerList.push_back(tokenManagerProcess2.get());
+
+  foreach (Owned<Dispatchable<TokenManager>>& i, tokenManagerList) {
+      i->dispatch(
+        &TokenManager::getToken,
+        "registry.docker.io",
+        "repository:library/busybox:pull",
+        None());
+  }
+}
+
+
+TEST_F(DockerRegistryClientTest, DispatchOwnsTokenManager)
+{
+  Try<Socket> server = setup_server({
+      {"SSL_ENABLED", "true"},
+      {"SSL_KEY_FILE", key_path().value},
+      {"SSL_CERT_FILE", certificate_path().value}});
+
+  ASSERT_SOME(server);
+  ASSERT_SOME(server.get().address());
+  ASSERT_SOME(server.get().address().get().hostname());
+
+  Future<Socket> socket = server.get().accept();
+
+  // Create URL from server hostname and port.
+  const http::URL url(
+      "https",
+      server.get().address().get().hostname().get(),
+      server.get().address().get().port);
+
+  auto tokenManager =
+    ProcessDispatcher<TokenManager, TokenManagerProcess>::create(url);
+
+  Future<Token> token =
+    tokenManager.get()->dispatch(
+        &TokenManager::getToken,
         "registry.docker.io",
         "repository:library/busybox:pull",
         None());
@@ -301,11 +443,13 @@ TEST_F(DockerRegistryClientTest, BadTokenResponse)
       server.get().address().get().hostname().get(),
       server.get().address().get().port);
 
-  Try<Owned<TokenManager>> tokenMgr = TokenManager::create(url);
+  auto tokenMgr =
+    ProcessDispatcher<TokenManager, TokenManagerProcess>::create(url);
   ASSERT_SOME(tokenMgr);
 
   Future<Token> token =
-    tokenMgr.get()->getToken(
+    tokenMgr.get()->dispatch(
+        &TokenManager::getToken,
         "registry.docker.io",
         "repository:library/busybox:pull",
         None());
@@ -334,11 +478,13 @@ TEST_F(DockerRegistryClientTest, BadTokenServerAddress)
   // Create an invalid URL with current time.
   const http::URL url("https", stringify(Clock::now().secs()), 0);
 
-  Try<Owned<TokenManager>> tokenMgr = TokenManager::create(url);
+  auto tokenMgr =
+    ProcessDispatcher<TokenManager, TokenManagerProcess>::create(url);
   ASSERT_SOME(tokenMgr);
 
   Future<Token> token =
-    tokenMgr.get()->getToken(
+    tokenMgr.get()->dispatch(
+        &TokenManager::getToken,
         "registry.docker.io",
         "repository:library/busybox:pull",
         None());
@@ -347,7 +493,6 @@ TEST_F(DockerRegistryClientTest, BadTokenServerAddress)
 }
 
 #endif // USE_SSL_SOCKET
-
 
 } // namespace tests {
 } // namespace internal {

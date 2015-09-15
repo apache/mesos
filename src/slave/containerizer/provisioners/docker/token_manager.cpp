@@ -42,68 +42,6 @@ namespace slave {
 namespace docker {
 namespace registry {
 
-class TokenManagerProcess : public Process<TokenManagerProcess>
-{
-public:
-  static Try<Owned<TokenManagerProcess>> create(const URL& realm);
-
-  Future<Token> getToken(
-      const string& service,
-      const string& scope,
-      const Option<string>& account);
-
-private:
-  static const string TOKEN_PATH_PREFIX;
-  static const Duration RESPONSE_TIMEOUT;
-
-  TokenManagerProcess(const URL& realm)
-    : realm_(realm) {}
-
-  Try<Token> getTokenFromResponse(const Response& response) const;
-
-  /**
-   * Key for the token cache.
-   */
-  struct TokenCacheKey
-  {
-    string service;
-    string scope;
-  };
-
-  struct TokenCacheKeyHash
-  {
-    size_t operator()(const TokenCacheKey& key) const
-    {
-      hash<string> hashFn;
-
-      return (hashFn(key.service) ^
-          (hashFn(key.scope) << 1));
-    }
-  };
-
-  struct TokenCacheKeyEqual
-  {
-    bool operator()(
-        const TokenCacheKey& left,
-        const TokenCacheKey& right) const
-    {
-      return ((left.service == right.service) &&
-          (left.scope == right.scope));
-    }
-  };
-
-  typedef hashmap<
-    const TokenCacheKey,
-    Token,
-    TokenCacheKeyHash,
-    TokenCacheKeyEqual> TokenCacheType;
-
-  const URL realm_;
-  TokenCacheType tokenCache_;
-
-  TokenManagerProcess(const TokenManagerProcess&) = delete;
-  TokenManagerProcess& operator=(const TokenManagerProcess&) = delete;
-};
 
 const Duration TokenManagerProcess::RESPONSE_TIMEOUT = Seconds(10);
 const string TokenManagerProcess::TOKEN_PATH_PREFIX = "/v2/token/";
@@ -233,46 +171,6 @@ bool Token::isValid() const
 }
 
 
-Try<Owned<TokenManager>> TokenManager::create(
-    const URL& realm)
-{
-  Try<Owned<TokenManagerProcess>> process = TokenManagerProcess::create(realm);
-  if (process.isError()) {
-    return Error(process.error());
-  }
-
-  return Owned<TokenManager>(new TokenManager(process.get()));
-}
-
-
-TokenManager::TokenManager(Owned<TokenManagerProcess>& process)
-  : process_(process)
-{
-  spawn(CHECK_NOTNULL(process_.get()));
-}
-
-
-TokenManager::~TokenManager()
-{
-  terminate(process_.get());
-  process::wait(process_.get());
-}
-
-
-Future<Token> TokenManager::getToken(
-    const string& service,
-    const string& scope,
-    const Option<string>& account)
-{
-  return dispatch(
-      process_.get(),
-      &TokenManagerProcess::getToken,
-      service,
-      scope,
-      account);
-}
-
-
 Try<Owned<TokenManagerProcess>> TokenManagerProcess::create(const URL& realm)
 {
   return Owned<TokenManagerProcess>(new TokenManagerProcess(realm));
@@ -308,6 +206,7 @@ Future<Token> TokenManagerProcess::getToken(
     const string& scope,
     const Option<string>& account)
 {
+        std::cout << __FILE__ << ":" << __LINE__ << std::endl;
   const TokenCacheKey tokenKey = {service, scope};
 
   if (tokenCache_.contains(tokenKey)) {

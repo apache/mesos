@@ -96,10 +96,6 @@ private:
 };
 
 
-// Forward declaration.
-class TokenManagerProcess;
-
-
 /**
  *  Acquires and manages docker registry tokens. It keeps the tokens in its
  *  cache to server any future request for the same token.
@@ -110,19 +106,6 @@ class TokenManagerProcess;
 class TokenManager
 {
 public:
-  /**
-   * Factory method for creating TokenManager object.
-   *
-   * TokenManager and registry authorization realm has a 1:1 relationship.
-   *
-   * @param realm URL of the authorization server from where token will be
-   *     requested by this TokenManager.
-   * @returns Owned<TokenManager> if success.
-   *          Error on failure.
-   */
-  static Try<process::Owned<TokenManager>> create(
-      const process::http::URL& realm);
-
   /**
    * Returns JSON Web Token from cache or from remote server using "Basic
    * authorization".
@@ -136,13 +119,14 @@ public:
    * @param password base64 encoded password for basic authorization.
    * @returns Token struct that encapsulates JSON Web Token.
    */
-  process::Future<Token> getToken(
+  /*
+  virtual process::Future<Token> getToken(
       const std::string& service,
       const std::string& scope,
       const Option<std::string>& account,
       const std::string& user,
-      const Option<std::string>& password);
-
+      const Option<std::string>& password) = 0;
+*/
   /**
    * Returns JSON Web Token from cache or from remote server using "TLS/Cert"
    * based authorization.
@@ -154,22 +138,82 @@ public:
    * @param account Name of the account which the client is acting as.
    * @returns Token struct that encapsulates JSON Web Token.
    */
+
+  virtual process::Future<Token> getToken(
+      const std::string& service,
+      const std::string& scope,
+      const Option<std::string>& account) = 0;
+
+  virtual ~TokenManager() {}
+};
+
+
+class TokenManagerProcess :
+  public TokenManager,
+  public process::Process<TokenManagerProcess>
+{
+public:
+  static Try<process::Owned<TokenManagerProcess>> create(
+      const process::http::URL& realm);
+
   process::Future<Token> getToken(
       const std::string& service,
       const std::string& scope,
       const Option<std::string>& account);
 
-  ~TokenManager();
-
 private:
-  TokenManager(process::Owned<TokenManagerProcess>& process);
+  static const std::string TOKEN_PATH_PREFIX;
+  static const Duration RESPONSE_TIMEOUT;
 
-  TokenManager(const TokenManager&) = delete;
-  TokenManager& operator=(const TokenManager&) = delete;
+  TokenManagerProcess(const process::http::URL& realm)
+    : realm_(realm) {}
 
-  process::Owned<TokenManagerProcess> process_;
+  Try<Token> getTokenFromResponse(
+      const process::http::Response& response) const;
+
+  /**
+   * Key for the token cache.
+   */
+  struct TokenCacheKey
+  {
+    std::string service;
+    std::string scope;
+  };
+
+  struct TokenCacheKeyHash
+  {
+    size_t operator()(const TokenCacheKey& key) const
+    {
+      std::hash<std::string> hashFn;
+
+      return (hashFn(key.service) ^
+          (hashFn(key.scope) << 1));
+    }
+  };
+
+  struct TokenCacheKeyEqual
+  {
+    bool operator()(
+        const TokenCacheKey& left,
+        const TokenCacheKey& right) const
+    {
+      return ((left.service == right.service) &&
+          (left.scope == right.scope));
+    }
+  };
+
+  typedef hashmap<
+    const TokenCacheKey,
+    Token,
+    TokenCacheKeyHash,
+    TokenCacheKeyEqual> TokenCacheType;
+
+  const process::http::URL realm_;
+  TokenCacheType tokenCache_;
+
+  TokenManagerProcess(const TokenManagerProcess&) = delete;
+  TokenManagerProcess& operator=(const TokenManagerProcess&) = delete;
 };
-
 } // namespace registry {
 } // namespace docker {
 } // namespace slave {
