@@ -16,10 +16,10 @@
  * limitations under the License.
  */
 
-#ifndef __MESOS_PROVISIONER_BIND_HPP__
-#define __MESOS_PROVISIONER_BIND_HPP__
+#ifndef __PROVISIONER_BACKENDS_BIND_HPP__
+#define __PROVISIONER_BACKENDS_BIND_HPP__
 
-#include "slave/containerizer/provisioners/backend.hpp"
+#include "slave/containerizer/provisioner/backend.hpp"
 
 namespace mesos {
 namespace internal {
@@ -72,4 +72,4 @@ private:
 } // namespace internal {
 } // namespace mesos {
 
-#endif // __MESOS_PROVISIONER_BIND_HPP__
+#endif // __PROVISIONER_BACKENDS_BIND_HPP__

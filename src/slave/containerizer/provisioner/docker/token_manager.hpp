@@ -16,8 +16,8 @@
  * limitations under the License.
  */
 
-#ifndef __PROVISIONERS_DOCKER_TOKEN_MANAGER_HPP__
-#define __PROVISIONERS_DOCKER_TOKEN_MANAGER_HPP__
+#ifndef __PROVISIONER_DOCKER_TOKEN_MANAGER_HPP__
+#define __PROVISIONER_DOCKER_TOKEN_MANAGER_HPP__
 
 #include <functional>
 #include <string>
@@ -176,4 +176,4 @@ private:
 } // namespace internal {
 } // namespace mesos {
 
-#endif // __PROVISIONERS_DOCKER_TOKEN_MANAGER_HPP__
+#endif // __PROVISIONER_DOCKER_TOKEN_MANAGER_HPP__

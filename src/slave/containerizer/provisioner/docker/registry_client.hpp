@@ -16,8 +16,8 @@
  * limitations under the License.
  */
 
-#ifndef __PROVISIONERS_DOCKER_REGISTRY_CLIENT_HPP__
-#define __PROVISIONERS_DOCKER_REGISTRY_CLIENT_HPP__
+#ifndef __PROVISIONER_DOCKER_REGISTRY_CLIENT_HPP__
+#define __PROVISIONER_DOCKER_REGISTRY_CLIENT_HPP__
 
 #include <string>
 #include <vector>
@@ -160,4 +160,4 @@ private:
 } // namespace internal {
 } // namespace mesos {
 
-#endif // __PROVISIONERS_DOCKER_REGISTRY_CLIENT_HPP__
+#endif // __PROVISIONER_DOCKER_REGISTRY_CLIENT_HPP__

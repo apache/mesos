@@ -31,7 +31,7 @@
 
 #include "common/status_utils.hpp"
 
-#include "slave/containerizer/provisioners/backends/copy.hpp"
+#include "slave/containerizer/provisioner/backends/copy.hpp"
 
 
 using namespace process;

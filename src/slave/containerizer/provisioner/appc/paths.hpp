@@ -16,8 +16,8 @@
  * limitations under the License.
  */
 
-#ifndef __MESOS_APPC_PATHS_HPP__
-#define __MESOS_APPC_PATHS_HPP__
+#ifndef __PROVISIONER_APPC_PATHS_HPP__
+#define __PROVISIONER_APPC_PATHS_HPP__
 
 #include <string>
 
@@ -80,4 +80,4 @@ std::string getImageManifestPath(const std::string& imagePath);
 } // namespace internal {
 } // namespace mesos {
 
-#endif // __MESOS_APPC_PATHS__
+#endif // __PROVISIONER_APPC_PATHS_HPP__

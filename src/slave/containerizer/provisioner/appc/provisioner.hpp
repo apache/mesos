@@ -31,7 +31,7 @@
 #include <stout/nothing.hpp>
 #include <stout/try.hpp>
 
-#include "slave/containerizer/provisioner.hpp"
+#include "slave/containerizer/provisioner/provisioner.hpp"
 
 namespace mesos {
 namespace internal {

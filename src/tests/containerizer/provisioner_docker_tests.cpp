@@ -31,8 +31,8 @@
 
 #include <process/ssl/gtest.hpp>
 
-#include "slave/containerizer/provisioners/docker/registry_client.hpp"
-#include "slave/containerizer/provisioners/docker/token_manager.hpp"
+#include "slave/containerizer/provisioner/docker/registry_client.hpp"
+#include "slave/containerizer/provisioner/docker/token_manager.hpp"
 
 #include "tests/mesos.hpp"
 

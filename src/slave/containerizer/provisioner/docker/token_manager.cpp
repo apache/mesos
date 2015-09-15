@@ -19,7 +19,7 @@
 #include <process/defer.hpp>
 #include <process/dispatch.hpp>
 
-#include "slave/containerizer/provisioners/docker/token_manager.hpp"
+#include "slave/containerizer/provisioner/docker/token_manager.hpp"
 
 using std::hash;
 using std::string;

@@ -22,7 +22,7 @@
 
 #include <stout/path.hpp>
 
-#include "slave/containerizer/provisioners/appc/paths.hpp"
+#include "slave/containerizer/provisioner/appc/paths.hpp"
 
 using std::list;
 using std::string;

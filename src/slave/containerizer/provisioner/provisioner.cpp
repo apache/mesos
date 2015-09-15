@@ -20,9 +20,9 @@
 #include <stout/stringify.hpp>
 #include <stout/strings.hpp>
 
-#include "slave/containerizer/provisioner.hpp"
+#include "slave/containerizer/provisioner/provisioner.hpp"
 
-#include "slave/containerizer/provisioners/appc/provisioner.hpp"
+#include "slave/containerizer/provisioner/appc/provisioner.hpp"
 
 using namespace process;
 

@@ -16,8 +16,8 @@
  * limitations under the License.
  */
 
-#ifndef __MESOS_APPC_STORE_HPP__
-#define __MESOS_APPC_STORE_HPP__
+#ifndef __PROVISIONER_APPC_STORE_HPP__
+#define __PROVISIONER_APPC_STORE_HPP__
 
 #include <string>
 #include <vector>
@@ -87,4 +87,4 @@ private:
 } // namespace internal {
 } // namespace mesos {
 
-#endif // __MESOS_APPC_STORE_HPP__
+#endif // __PROVISIONER_APPC_STORE_HPP__

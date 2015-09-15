@@ -46,7 +46,6 @@
 #ifdef __linux__
 #include "slave/containerizer/linux_launcher.hpp"
 #endif
-#include "slave/containerizer/provisioner.hpp"
 
 #include "slave/containerizer/isolators/posix.hpp"
 
@@ -76,6 +75,8 @@
 
 #include "slave/containerizer/mesos/containerizer.hpp"
 #include "slave/containerizer/mesos/launch.hpp"
+
+#include "slave/containerizer/provisioner/provisioner.hpp"
 
 using std::list;
 using std::map;

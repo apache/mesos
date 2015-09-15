@@ -28,9 +28,9 @@
 #include <stout/os.hpp>
 #include <stout/path.hpp>
 
-#include "slave/containerizer/provisioners/appc/paths.hpp"
-#include "slave/containerizer/provisioners/appc/spec.hpp"
-#include "slave/containerizer/provisioners/appc/store.hpp"
+#include "slave/containerizer/provisioner/appc/paths.hpp"
+#include "slave/containerizer/provisioner/appc/spec.hpp"
+#include "slave/containerizer/provisioner/appc/store.hpp"
 
 using namespace process;
 

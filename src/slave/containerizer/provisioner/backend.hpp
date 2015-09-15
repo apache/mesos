@@ -16,8 +16,8 @@
  * limitations under the License.
  */
 
-#ifndef __MESOS_PROVISIONER_BACKEND_HPP__
-#define __MESOS_PROVISIONER_BACKEND_HPP__
+#ifndef __PROVISIONER_BACKEND_HPP__
+#define __PROVISIONER_BACKEND_HPP__
 
 #include <string>
 #include <vector>
@@ -64,4 +64,4 @@ public:
 } // namespace internal {
 } // namespace mesos {
 
-#endif // __MESOS_PROVISIONER_BACKEND_HPP__
+#endif // __PROVISIONER_BACKEND_HPP__

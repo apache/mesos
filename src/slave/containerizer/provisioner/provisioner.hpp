@@ -16,8 +16,8 @@
  * limitations under the License.
  */
 
-#ifndef __MESOS_PROVISIONER_HPP__
-#define __MESOS_PROVISIONER_HPP__
+#ifndef __PROVISIONER_HPP__
+#define __PROVISIONER_HPP__
 
 #include <list>
 
@@ -76,4 +76,4 @@ public:
 } // namespace internal {
 } // namespace mesos {
 
-#endif // __MESOS_PROVISIONER_HPP__
+#endif // __PROVISIONER_HPP__

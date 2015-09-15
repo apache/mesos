@@ -16,8 +16,8 @@
  * limitations under the License.
  */
 
-#ifndef __MESOS_PROVISIONERS_PATHS_HPP__
-#define __MESOS_PROVISIONERS_PATHS_HPP__
+#ifndef __PROVISIONER_PATHS_HPP__
+#define __PROVISIONER_PATHS_HPP__
 
 #include <string>
 
@@ -80,4 +80,4 @@ Try<hashmap<ContainerID, std::string>> listContainers(
 } // namespace internal {
 } // namespace mesos {
 
-#endif // __MESOS_PROVISIONERS_PATHS__
+#endif // __PROVISIONER_PATHS_HPP__

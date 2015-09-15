@@ -30,13 +30,13 @@
 #include <stout/strings.hpp>
 #include <stout/uuid.hpp>
 
-#include "slave/containerizer/provisioners/backend.hpp"
-#include "slave/containerizer/provisioners/paths.hpp"
+#include "slave/containerizer/provisioner/backend.hpp"
+#include "slave/containerizer/provisioner/paths.hpp"
 
-#include "slave/containerizer/provisioners/appc/paths.hpp"
-#include "slave/containerizer/provisioners/appc/provisioner.hpp"
-#include "slave/containerizer/provisioners/appc/spec.hpp"
-#include "slave/containerizer/provisioners/appc/store.hpp"
+#include "slave/containerizer/provisioner/appc/paths.hpp"
+#include "slave/containerizer/provisioner/appc/provisioner.hpp"
+#include "slave/containerizer/provisioner/appc/spec.hpp"
+#include "slave/containerizer/provisioner/appc/store.hpp"
 
 #include "slave/paths.hpp"
 

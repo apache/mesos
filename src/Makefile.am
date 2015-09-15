@@ -503,16 +503,16 @@ libmesos_no_3rdparty_la_SOURCES =					\
 	slave/containerizer/launcher.cpp				\
 	slave/containerizer/mesos/containerizer.cpp			\
 	slave/containerizer/mesos/launch.cpp				\
-	slave/containerizer/provisioner.cpp				\
-        slave/containerizer/provisioners/paths.cpp                      \
-	slave/containerizer/provisioners/appc/paths.cpp			\
-	slave/containerizer/provisioners/appc/provisioner.cpp		\
-	slave/containerizer/provisioners/appc/spec.cpp			\
-	slave/containerizer/provisioners/appc/store.cpp			\
-	slave/containerizer/provisioners/backend.cpp			\
-	slave/containerizer/provisioners/backends/copy.cpp              \
-	slave/containerizer/provisioners/docker/registry_client.cpp	\
-	slave/containerizer/provisioners/docker/token_manager.cpp	\
+        slave/containerizer/provisioner/paths.cpp			\
+	slave/containerizer/provisioner/provisioner.cpp			\
+	slave/containerizer/provisioner/appc/paths.cpp			\
+	slave/containerizer/provisioner/appc/provisioner.cpp		\
+	slave/containerizer/provisioner/appc/spec.cpp			\
+	slave/containerizer/provisioner/appc/store.cpp			\
+	slave/containerizer/provisioner/backend.cpp			\
+	slave/containerizer/provisioner/backends/copy.cpp		\
+	slave/containerizer/provisioner/docker/registry_client.cpp	\
+	slave/containerizer/provisioner/docker/token_manager.cpp	\
 	slave/resource_estimators/noop.cpp				\
 	usage/usage.cpp							\
 	v1/attributes.cpp						\
@@ -680,7 +680,7 @@ if OS_LINUX
   libmesos_no_3rdparty_la_SOURCES += slave/containerizer/isolators/filesystem/linux.cpp
   libmesos_no_3rdparty_la_SOURCES += slave/containerizer/isolators/filesystem/shared.cpp
   libmesos_no_3rdparty_la_SOURCES += slave/containerizer/linux_launcher.cpp
-  libmesos_no_3rdparty_la_SOURCES += slave/containerizer/provisioners/backends/bind.cpp
+  libmesos_no_3rdparty_la_SOURCES += slave/containerizer/provisioner/backends/bind.cpp
 else
   EXTRA_DIST += linux/cgroups.cpp
   EXTRA_DIST += linux/fs.cpp
@@ -794,17 +794,17 @@ libmesos_no_3rdparty_la_SOURCES +=					\
 	slave/containerizer/isolator.hpp				\
 	slave/containerizer/launcher.hpp				\
 	slave/containerizer/linux_launcher.hpp				\
-	slave/containerizer/provisioner.hpp				\
-        slave/containerizer/provisioners/paths.hpp                      \
-	slave/containerizer/provisioners/appc/paths.hpp			\
-	slave/containerizer/provisioners/appc/provisioner.hpp		\
-	slave/containerizer/provisioners/appc/spec.hpp			\
-	slave/containerizer/provisioners/appc/store.hpp			\
-	slave/containerizer/provisioners/backend.hpp			\
-	slave/containerizer/provisioners/backends/bind.hpp		\
-	slave/containerizer/provisioners/backends/copy.hpp		\
-	slave/containerizer/provisioners/docker/registry_client.hpp	\
-	slave/containerizer/provisioners/docker/token_manager.hpp	\
+        slave/containerizer/provisioner/paths.hpp			\
+	slave/containerizer/provisioner/provisioner.hpp			\
+	slave/containerizer/provisioner/appc/paths.hpp			\
+	slave/containerizer/provisioner/appc/provisioner.hpp		\
+	slave/containerizer/provisioner/appc/spec.hpp			\
+	slave/containerizer/provisioner/appc/store.hpp			\
+	slave/containerizer/provisioner/backend.hpp			\
+	slave/containerizer/provisioner/backends/bind.hpp		\
+	slave/containerizer/provisioner/backends/copy.hpp		\
+	slave/containerizer/provisioner/docker/registry_client.hpp	\
+	slave/containerizer/provisioner/docker/token_manager.hpp	\
 	slave/containerizer/isolators/posix.hpp				\
 	slave/containerizer/isolators/posix/disk.hpp			\
 	slave/containerizer/isolators/cgroups/constants.hpp		\
@@ -1719,16 +1719,16 @@ mesos_tests_SOURCES =						\
   tests/zookeeper_url_tests.cpp					\
   tests/common/http_tests.cpp					\
   tests/common/recordio_tests.cpp				\
-  tests/containerizer/appc_provisioner_tests.cpp		\
   tests/containerizer/composing_containerizer_tests.cpp		\
   tests/containerizer/docker_containerizer_tests.cpp		\
   tests/containerizer/docker_tests.cpp				\
-  tests/containerizer/docker_provisioner_tests.cpp	        \
   tests/containerizer/external_containerizer_test.cpp		\
   tests/containerizer/isolator_tests.cpp			\
   tests/containerizer/memory_test_helper.cpp			\
   tests/containerizer/mesos_containerizer_tests.cpp		\
-  tests/containerizer/provisioner_backend_tests.cpp
+  tests/containerizer/provisioner_appc_tests.cpp		\
+  tests/containerizer/provisioner_backend_tests.cpp		\
+  tests/containerizer/provisioner_docker_tests.cpp
 
 mesos_tests_CPPFLAGS = $(MESOS_CPPFLAGS)
 mesos_tests_CPPFLAGS += -DSOURCE_DIR=\"$(abs_top_srcdir)\"

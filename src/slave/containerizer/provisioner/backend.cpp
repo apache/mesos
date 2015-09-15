@@ -20,10 +20,10 @@
 
 #include <stout/os.hpp>
 
-#include "slave/containerizer/provisioners/backend.hpp"
+#include "slave/containerizer/provisioner/backend.hpp"
 
-#include "slave/containerizer/provisioners/backends/bind.hpp"
-#include "slave/containerizer/provisioners/backends/copy.hpp"
+#include "slave/containerizer/provisioner/backends/bind.hpp"
+#include "slave/containerizer/provisioner/backends/copy.hpp"
 
 using namespace process;
 

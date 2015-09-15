@@ -20,8 +20,8 @@
 #include <stout/protobuf.hpp>
 #include <stout/strings.hpp>
 
-#include "slave/containerizer/provisioners/appc/paths.hpp"
-#include "slave/containerizer/provisioners/appc/spec.hpp"
+#include "slave/containerizer/provisioner/appc/paths.hpp"
+#include "slave/containerizer/provisioner/appc/spec.hpp"
 
 using std::string;
 

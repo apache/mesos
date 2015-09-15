@@ -29,10 +29,10 @@
 #include <stout/stringify.hpp>
 #include <stout/uuid.hpp>
 
-#include "slave/containerizer/provisioner.hpp"
+#include "slave/containerizer/provisioner/provisioner.hpp"
 
-#include "slave/containerizer/provisioners/appc/spec.hpp"
-#include "slave/containerizer/provisioners/appc/store.hpp"
+#include "slave/containerizer/provisioner/appc/spec.hpp"
+#include "slave/containerizer/provisioner/appc/store.hpp"
 
 #include "tests/utils.hpp"
 

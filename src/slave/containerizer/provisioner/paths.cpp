@@ -27,8 +27,9 @@
 
 #include <stout/os/stat.hpp>
 
-#include "slave/containerizer/provisioners/paths.hpp"
 #include "slave/paths.hpp"
+
+#include "slave/containerizer/provisioner/paths.hpp"
 
 using std::list;
 using std::string;

@@ -28,7 +28,7 @@
 
 #include "linux/fs.hpp"
 
-#include "slave/containerizer/provisioners/backends/bind.hpp"
+#include "slave/containerizer/provisioner/backends/bind.hpp"
 
 using namespace process;
 

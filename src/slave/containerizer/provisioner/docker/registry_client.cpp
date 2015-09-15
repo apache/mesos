@@ -22,8 +22,8 @@
 #include <process/dispatch.hpp>
 #include <process/io.hpp>
 
-#include "slave/containerizer/provisioners/docker/registry_client.hpp"
-#include "slave/containerizer/provisioners/docker/token_manager.hpp"
+#include "slave/containerizer/provisioner/docker/registry_client.hpp"
+#include "slave/containerizer/provisioner/docker/token_manager.hpp"
 
 using std::string;
 using std::vector;
