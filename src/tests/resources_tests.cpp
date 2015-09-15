@@ -24,6 +24,8 @@
 
 #include <stout/bytes.hpp>
 #include <stout/gtest.hpp>
+#include <stout/json.hpp>
+#include <stout/protobuf.hpp>
 
 #include "master/master.hpp"
 
@@ -36,6 +38,8 @@ using std::ostringstream;
 using std::pair;
 using std::set;
 using std::string;
+
+using google::protobuf::RepeatedPtrField;
 
 namespace mesos {
 namespace internal {
@@ -139,6 +143,26 @@ TEST(ResourcesTest, ParseError)
   // Resources with the same name but different types are not
   // allowed.
   EXPECT_ERROR(Resources::parse("foo(role1):1;foo(role2):[0-1]"));
+}
+
+
+TEST(ResourcesTest, ParsingFromJSON)
+{
+  Resources resources = Resources::parse("cpus:2;mem:3").get();
+
+  // Convert to an array of JSON objects.
+  JSON::Array array;
+  foreach (const Resource& resource, resources) {
+    JSON::Object object = JSON::Protobuf(resource);
+    array.values.push_back(object);
+  }
+
+  // Parse JSON array into a collection of Resource messages and convert them
+  // into Resources object.
+  auto parse = ::protobuf::parse<RepeatedPtrField<Resource>>(array);
+  ASSERT_SOME(parse);
+
+  EXPECT_EQ(resources, Resources(parse.get()));
 }
 
 
