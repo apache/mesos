@@ -151,7 +151,7 @@ private:
   process::Owned<RegistryClientProcess> process_;
 
   RegistryClient(const RegistryClient&) = delete;
-  RegistryClient& operator = (const RegistryClient&) = delete;
+  RegistryClient& operator=(const RegistryClient&) = delete;
 };
 
 } // namespace registry {
