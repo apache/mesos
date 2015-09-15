@@ -217,7 +217,7 @@ Future<Nothing> AppcProvisionerProcess::recover(
   // be destroyed by the containerizer using the normal cleanup path. See
   // MESOS-2367 for details.
   Try<hashmap<ContainerID, string>> containers =
-    provisioners::paths::listContainers(root);
+    provisioner::paths::listContainers(root);
 
   if (containers.isError()) {
     return Failure("Failed to list the containers managed by Appc "
@@ -231,7 +231,7 @@ Future<Nothing> AppcProvisionerProcess::recover(
     Owned<Info> info = Owned<Info>(new Info());
 
     Try<hashmap<string, hashmap<string, string>>> rootfses =
-      provisioners::paths::listContainerRootfses(root, containerId);
+      provisioner::paths::listContainerRootfses(root, containerId);
 
     if (rootfses.isError()) {
       return Failure("Unable to list rootfses belonged to container '" +
@@ -305,7 +305,7 @@ Future<string> AppcProvisionerProcess::provision(
   }
 
   string rootfsId = UUID::random().toString();
-  string rootfs = provisioners::paths::getContainerRootfsDir(
+  string rootfs = provisioner::paths::getContainerRootfsDir(
       root, containerId, flags.appc_provisioner_backend, rootfsId);
 
   if (!infos.contains(containerId)) {
@@ -368,7 +368,7 @@ Future<bool> AppcProvisionerProcess::destroy(const ContainerID& containerId)
   // NOTE: We calculate 'containerDir' here so that the following
   // lambda does not need to bind 'this'.
   string containerDir =
-    provisioners::paths::getContainerDir(root, containerId);
+    provisioner::paths::getContainerDir(root, containerId);
 
   // TODO(xujyan): Revisit the usefulness of this return value.
   return collect(futures)

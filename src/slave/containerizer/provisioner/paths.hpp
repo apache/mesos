@@ -29,13 +29,13 @@
 namespace mesos {
 namespace internal {
 namespace slave {
-namespace provisioners {
+namespace provisioner {
 namespace paths {
 
 // The provisioner rootfs directory is as follows:
 // <work_dir> ('--work_dir' flag)
-// |-- provisioners
-//     |-- <provisioner_type> (APPC, DOCKER, etc.)
+// |-- provisioner
+//     |-- <image_type> (APPC, DOCKER, etc.)
 //         |-- containers
 //             |-- <container_id>
 //                 |-- backends
@@ -43,12 +43,12 @@ namespace paths {
 //                         |-- rootfses
 //                             |-- <rootfs_id> (the rootfs)
 //
-// NOTE: Each container could have multiple image types, therefore there
-// can be the same <container_id> directory under other provisioners e.g.,
-// <work_dir>/provisioners/DOCKER, <work_dir>/provisioners/APPC, etc.
-// Under each provisioner + container there can be multiple backends
-// due to the change of backend flags. Under each backend a rootfs is
-// identified by the 'rootfs_id' which is a UUID.
+// NOTE: Each container could have multiple image types, therefore the
+// same <container_id> directory can be under other directories (e.g.,
+// <work_dir>/provisioner/DOCKER, <work_dir>/provisioner/APPC, etc.).
+// There can be multiple backends due to the change of backend flags.
+// Under each backend a rootfs is identified by the 'rootfs_id' which
+// is a UUID.
 
 std::string getContainerDir(
     const std::string& provisionerDir,
@@ -75,7 +75,7 @@ Try<hashmap<ContainerID, std::string>> listContainers(
     const std::string& provisionerDir);
 
 } // namespace paths {
-} // namespace provisioners {
+} // namespace provisioner {
 } // namespace slave {
 } // namespace internal {
 } // namespace mesos {

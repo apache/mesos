@@ -37,7 +37,7 @@ using std::string;
 namespace mesos {
 namespace internal {
 namespace slave {
-namespace provisioners {
+namespace provisioner {
 namespace paths {
 
 static string getContainersDir(const string& provisionerDir)
@@ -186,7 +186,7 @@ Try<hashmap<string, hashmap<string, string>>> listContainerRootfses(
 }
 
 } // namespace paths {
-} // namespace provisioners {
+} // namespace provisioner {
 } // namespace slave {
 } // namespace internal {
 } // namespace mesos {

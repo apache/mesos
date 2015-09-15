@@ -264,6 +264,12 @@ std::string getPersistentVolumePath(
     const std::string& persistenceId);
 
 
+// Contents of the provisioner directory are managed by the provisioner itself.
+std::string getProvisionerDir(
+    const std::string& rootDir,
+    const Image::Type& imageType);
+
+
 std::string createExecutorDirectory(
     const std::string& rootDir,
     const SlaveID& slaveId,
@@ -276,12 +282,6 @@ std::string createExecutorDirectory(
 std::string createSlaveDirectory(
     const std::string& rootDir,
     const SlaveID& slaveId);
-
-
-// Contents of the provisioner directory are managed by the provisioner itself.
-std::string getProvisionerDir(
-    const std::string& rootDir,
-    const Image::Type& imageType);
 
 } // namespace paths {
 } // namespace slave {

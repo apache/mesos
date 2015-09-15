@@ -221,7 +221,7 @@ TEST_F(PathsTest, PersistentVolume)
 
 TEST_F(PathsTest, ProvisionerDir)
 {
-  string dir = path::join(rootDir, "provisioners", "APPC");
+  string dir = path::join(rootDir, "provisioner", "APPC");
 
   EXPECT_EQ(dir, paths::getProvisionerDir(rootDir, imageType));
 }

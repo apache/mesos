@@ -369,6 +369,17 @@ string getPersistentVolumePath(
 }
 
 
+string getProvisionerDir(
+    const string& rootDir,
+    const Image::Type& imageType)
+{
+  return path::join(
+      rootDir,
+      "provisioner",
+      stringify(imageType));
+}
+
+
 string createExecutorDirectory(
     const string& rootDir,
     const SlaveID& slaveId,
@@ -450,17 +461,6 @@ string createSlaveDirectory(
     << "' to '" << latest << "'";
 
   return directory;
-}
-
-
-string getProvisionerDir(
-    const string& rootDir,
-    const Image::Type& imageType)
-{
-  return path::join(
-      rootDir,
-      "provisioners",
-      stringify(imageType));
 }
 
 } // namespace paths {
