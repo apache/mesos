@@ -20,6 +20,13 @@ message Nested {
 }
 
 
+// A simple message for testing Proto->JSON conversion.
+message SimpleMessage {
+  required string id = 1;
+  repeated int32 numbers = 2;
+}
+
+
 // An elaborate message for testing Proto->JSON conversion.
 message Message {
   required bool b = 26;

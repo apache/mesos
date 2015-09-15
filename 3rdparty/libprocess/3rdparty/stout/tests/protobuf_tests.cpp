@@ -12,11 +12,12 @@
 * limitations under the License
 */
 
-#include <string>
-
 #include <gtest/gtest.h>
 
 #include <gmock/gmock.h>
+
+#include <algorithm>
+#include <string>
 
 #include <stout/gtest.hpp>
 #include <stout/json.hpp>
@@ -28,6 +29,31 @@
 #include "protobuf_tests.pb.h"
 
 using std::string;
+
+using google::protobuf::RepeatedPtrField;
+
+namespace tests {
+
+// Trivial equality operators to enable gtest macros.
+bool operator==(const SimpleMessage& left, const SimpleMessage& right)
+{
+  if (left.id() != right.id() ||
+      left.numbers().size() != right.numbers().size()) {
+    return false;
+  }
+
+  return std::equal(
+      left.numbers().begin(), left.numbers().end(), right.numbers().begin());
+}
+
+
+bool operator!=(const SimpleMessage& left, const SimpleMessage& right)
+{
+  return !(left == right);
+}
+
+} // namespace tests {
+
 
 TEST(ProtobufTest, JSON)
 {
@@ -134,4 +160,76 @@ TEST(ProtobufTest, JSON)
 
   // Now convert JSON to string and parse it back as JSON.
   ASSERT_SOME_EQ(object, JSON::parse(stringify(object)));
+}
+
+
+TEST(ProtobufTest, SimpleMessageEquals)
+{
+  tests::SimpleMessage message1;
+  message1.set_id("message1");
+  message1.add_numbers(1);
+  message1.add_numbers(2);
+
+  // Obviously, a message should equal to itself.
+  EXPECT_EQ(message1, message1);
+
+  // Messages with different IDs are not equal.
+  tests::SimpleMessage message2;
+  message2.set_id("message2");
+  message2.add_numbers(1);
+  message2.add_numbers(2);
+
+  EXPECT_NE(message1, message2);
+
+  // Messages with not identical collection of numbers are not equal.
+  tests::SimpleMessage message3;
+  message3.set_id("message1");
+  message3.add_numbers(1);
+
+  EXPECT_NE(message1, message3);
+
+  tests::SimpleMessage message4;
+  message4.set_id("message1");
+  message4.add_numbers(2);
+  message4.add_numbers(1);
+
+  EXPECT_NE(message1, message4);
+
+  // Different messages with the same ID and collection of numbers should
+  // be equal. Their JSON counterparts should be equal as well.
+  tests::SimpleMessage message5;
+  message5.set_id("message1");
+  message5.add_numbers(1);
+  message5.add_numbers(2);
+
+  EXPECT_EQ(message1, message5);
+  EXPECT_EQ(JSON::Protobuf(message1), JSON::Protobuf(message5));
+}
+
+
+TEST(ProtobufTest, ParseJSONArray)
+{
+  tests::SimpleMessage message;
+  message.set_id("message1");
+  message.add_numbers(1);
+  message.add_numbers(2);
+
+  // Convert protobuf message to a JSON object.
+  JSON::Object object = JSON::Protobuf(message);
+
+  // Populate JSON array with JSON objects, conversion JSON::Object ->
+  // JSON::Value is implicit.
+  JSON::Array array;
+  array.values.push_back(object);
+  array.values.push_back(object);
+
+  // Parse JSON array into a collection of protobuf messages.
+  auto parse =
+    protobuf::parse<RepeatedPtrField<tests::SimpleMessage>>(array);
+  ASSERT_SOME(parse);
+  auto repeated = parse.get();
+
+  // Make sure the parsed message equals to the original one.
+  EXPECT_EQ(message, repeated.Get(0));
+  EXPECT_EQ(message, repeated.Get(1));
 }
