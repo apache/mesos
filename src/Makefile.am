@@ -706,6 +706,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
 	common/date_utils.hpp						\
 	common/http.hpp							\
 	common/parse.hpp						\
+	common/process_dispatcher.hpp					\
 	common/protobuf_utils.hpp					\
 	common/recordio.hpp						\
 	common/resources_utils.hpp					\
