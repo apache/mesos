@@ -22,6 +22,7 @@
 #include <sys/types.h>
 
 #include <string>
+#include <type_traits>
 #include <vector>
 
 #include <google/protobuf/descriptor.h>
@@ -553,7 +554,8 @@ struct Parse
 {
   Try<T> operator()(const JSON::Value& value)
   {
-    { google::protobuf::Message* message = (T*) NULL; (void) message; }
+    static_assert(std::is_convertible<T*, google::protobuf::Message*>::value,
+                  "T must be a protobuf message");
 
     const JSON::Object* object = boost::get<JSON::Object>(&value);
     if (object == NULL) {
@@ -588,7 +590,8 @@ struct Parse<google::protobuf::RepeatedPtrField<T>>
   Try<google::protobuf::RepeatedPtrField<T>> operator()(
       const JSON::Value& value)
   {
-    { google::protobuf::Message* message = (T*) NULL; (void) message; }
+    static_assert(std::is_convertible<T*, google::protobuf::Message*>::value,
+                  "T must be a protobuf message");
 
     const JSON::Array* array = boost::get<JSON::Array>(&value);
     if (array == NULL) {
