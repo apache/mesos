@@ -280,6 +280,11 @@ message FrameworkInfo {
   // capabilities (e.g., ability to receive offers for revocable
   // resources).
   repeated Capability capabilities = 10;
+
+  // Labels are free-form key value pairs supplied by the framework
+  // scheduler (e.g., to describe additional functionality offered by
+  // the framework). These labels are not interpreted by Mesos itself.
+  optional Labels labels = 11;
 }
 
 
