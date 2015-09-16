@@ -236,7 +236,6 @@ Try<Nothing> Docker::validateVersion(const Version& minVersion) const
 }
 
 
-// TODO(josephw): Parse this string with a protobuf.
 Try<Docker::Container> Docker::Container::create(const string& output)
 {
   Try<JSON::Array> parse = JSON::parse<JSON::Array>(output);
@@ -287,7 +286,7 @@ Try<Docker::Container> Docker::Container::create(const string& output)
     return Error("Error finding Pid in State: " + pidValue.error());
   }
 
-  pid_t pid = pid_t(pidValue.get().as<int64_t>());
+  pid_t pid = pid_t(pidValue.get().value);
 
   Option<pid_t> optionalPid;
   if (pid != 0) {

@@ -1080,7 +1080,7 @@ TEST_F(SlaveTest, StateEndpoint)
   ASSERT_TRUE(state.values["start_time"].is<JSON::Number>());
   EXPECT_EQ(
       static_cast<int>(Clock::now().secs()),
-      state.values["start_time"].as<JSON::Number>().as<int>());
+      static_cast<int>(state.values["start_time"].as<JSON::Number>().value));
 
   // TODO(bmahler): The slave must register for the 'id'
   // to be non-empty.

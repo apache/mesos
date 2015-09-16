@@ -1918,7 +1918,7 @@ TEST_F(FaultToleranceTest, UpdateFrameworkInfoOnSchedulerFailover)
   EXPECT_EQ(1u, framework.values.count("failover_timeout"));
   JSON::Number failoverTimeout =
     framework.values["failover_timeout"].as<JSON::Number>();
-  EXPECT_EQ(finfo2.failover_timeout(), failoverTimeout.as<double>());
+  EXPECT_EQ(finfo2.failover_timeout(), failoverTimeout.value);
 
   EXPECT_EQ(1u, framework.values.count("hostname"));
   JSON::String hostname = framework.values["hostname"].as<JSON::String>();

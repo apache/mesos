@@ -122,7 +122,6 @@ Token::Token(
     notBefore(_notBefore) {}
 
 
-// TODO(josephw): Parse this string with some protobufs.
 Try<Token> Token::create(const string& raw)
 {
   auto decode = [](
@@ -197,7 +196,7 @@ Result<Time> Token::getTimeValue(const JSON::Object& object, const string& key)
 
   // If expiration is provided, we will process it for future validations.
   if (jsonValue.isSome()) {
-    Try<Time> time = Time::create(jsonValue.get().as<double>());
+    Try<Time> time = Time::create(jsonValue.get().value);
     if (time.isError()) {
       return Error("Failed to decode time: " + time.error());
     }

@@ -166,16 +166,12 @@ TEST_F(RateLimitingTest, NoRateLimiting)
     const string& messages_received =
       "frameworks/" + DEFAULT_CREDENTIAL.principal() + "/messages_received";
     EXPECT_EQ(1u, metrics.values.count(messages_received));
-    EXPECT_EQ(
-        1,
-        metrics.values[messages_received].as<JSON::Number>().as<int64_t>());
+    EXPECT_EQ(1, metrics.values[messages_received].as<JSON::Number>().value);
 
     const string& messages_processed =
       "frameworks/" + DEFAULT_CREDENTIAL.principal() + "/messages_processed";
     EXPECT_EQ(1u, metrics.values.count(messages_processed));
-    EXPECT_EQ(
-        1,
-        metrics.values[messages_processed].as<JSON::Number>().as<int64_t>());
+    EXPECT_EQ(1, metrics.values[messages_processed].as<JSON::Number>().value);
   }
 
   Future<Nothing> removeFramework =
@@ -274,16 +270,12 @@ TEST_F(RateLimitingTest, RateLimitingEnabled)
     const string& messages_received =
       "frameworks/" + DEFAULT_CREDENTIAL.principal() + "/messages_received";
     EXPECT_EQ(1u, metrics.values.count(messages_received));
-    EXPECT_EQ(
-        1,
-        metrics.values[messages_received].as<JSON::Number>().as<int64_t>());
+    EXPECT_EQ(1, metrics.values[messages_received].as<JSON::Number>().value);
 
     const string& messages_processed =
       "frameworks/" + DEFAULT_CREDENTIAL.principal() + "/messages_processed";
     EXPECT_EQ(1u, metrics.values.count(messages_processed));
-    EXPECT_EQ(
-        1,
-        metrics.values[messages_processed].as<JSON::Number>().as<int64_t>());
+    EXPECT_EQ(1, metrics.values[messages_processed].as<JSON::Number>().value);
   }
 
   // The 2nd message is throttled for a second.
@@ -313,12 +305,8 @@ TEST_F(RateLimitingTest, RateLimitingEnabled)
 
     // The 2nd message is received and but not processed after half
     // a second because of throttling.
-    EXPECT_EQ(
-        2,
-        metrics.values[messages_received].as<JSON::Number>().as<int64_t>());
-    EXPECT_EQ(
-        1,
-        metrics.values[messages_processed].as<JSON::Number>().as<int64_t>());
+    EXPECT_EQ(2, metrics.values[messages_received].as<JSON::Number>().value);
+    EXPECT_EQ(1, metrics.values[messages_processed].as<JSON::Number>().value);
     EXPECT_TRUE(duplicateFrameworkRegisteredMessage.isPending());
   }
 
@@ -336,10 +324,8 @@ TEST_F(RateLimitingTest, RateLimitingEnabled)
     "frameworks/" + DEFAULT_CREDENTIAL.principal() + "/messages_processed";
   EXPECT_EQ(1u, metrics.values.count(messages_processed));
 
-  EXPECT_EQ(
-      2, metrics.values[messages_received].as<JSON::Number>().as<int64_t>());
-  EXPECT_EQ(
-      2, metrics.values[messages_processed].as<JSON::Number>().as<int64_t>());
+  EXPECT_EQ(2, metrics.values[messages_received].as<JSON::Number>().value);
+  EXPECT_EQ(2, metrics.values[messages_processed].as<JSON::Number>().value);
 
   EXPECT_EQ(DRIVER_STOPPED, driver.stop());
   EXPECT_EQ(DRIVER_STOPPED, driver.join());
@@ -495,19 +481,19 @@ TEST_F(RateLimitingTest, DifferentPrincipalFrameworks)
       EXPECT_EQ(
           2,
           metrics.values["frameworks/framework1/messages_received"]
-            .as<JSON::Number>().as<int64_t>());
+            .as<JSON::Number>().value);
       EXPECT_EQ(
           2,
           metrics.values["frameworks/framework2/messages_received"]
-            .as<JSON::Number>().as<int64_t>());
+            .as<JSON::Number>().value);
       EXPECT_EQ(
           1,
           metrics.values["frameworks/framework1/messages_processed"]
-            .as<JSON::Number>().as<int64_t>());
+            .as<JSON::Number>().value);
       EXPECT_EQ(
           1,
           metrics.values["frameworks/framework2/messages_processed"]
-            .as<JSON::Number>().as<int64_t>());
+            .as<JSON::Number>().value);
     }
 
     // Advance for a second so the message from framework1 (1qps)
@@ -522,11 +508,11 @@ TEST_F(RateLimitingTest, DifferentPrincipalFrameworks)
     EXPECT_EQ(
         2,
         metrics.values["frameworks/framework1/messages_processed"]
-          .as<JSON::Number>().as<int64_t>());
+          .as<JSON::Number>().value);
     EXPECT_EQ(
         1,
         metrics.values["frameworks/framework2/messages_processed"]
-          .as<JSON::Number>().as<int64_t>());
+          .as<JSON::Number>().value);
 
     // After another half a second framework2 (0.2qps)'s message is
     // processed as well.
@@ -549,19 +535,19 @@ TEST_F(RateLimitingTest, DifferentPrincipalFrameworks)
     EXPECT_EQ(
         2,
         metrics.values["frameworks/framework1/messages_received"]
-          .as<JSON::Number>().as<int64_t>());
+          .as<JSON::Number>().value);
     EXPECT_EQ(
         2,
         metrics.values["frameworks/framework2/messages_received"]
-          .as<JSON::Number>().as<int64_t>());
+          .as<JSON::Number>().value);
     EXPECT_EQ(
         2,
         metrics.values["frameworks/framework1/messages_processed"]
-          .as<JSON::Number>().as<int64_t>());
+          .as<JSON::Number>().value);
     EXPECT_EQ(
         2,
         metrics.values["frameworks/framework2/messages_processed"]
-          .as<JSON::Number>().as<int64_t>());
+          .as<JSON::Number>().value);
   }
 
   // 3. Remove a framework and its message counters are deleted while
@@ -719,16 +705,12 @@ TEST_F(RateLimitingTest, SamePrincipalFrameworks)
     const string& messages_received =
       "frameworks/" + DEFAULT_CREDENTIAL.principal() + "/messages_received";
     EXPECT_EQ(1u, metrics.values.count(messages_received));
-    EXPECT_EQ(
-        2,
-        metrics.values[messages_received].as<JSON::Number>().as<int64_t>());
+    EXPECT_EQ(2, metrics.values[messages_received].as<JSON::Number>().value);
 
     const string& messages_processed =
       "frameworks/" + DEFAULT_CREDENTIAL.principal() + "/messages_processed";
     EXPECT_EQ(1u, metrics.values.count(messages_processed));
-    EXPECT_EQ(
-        1,
-        metrics.values[messages_processed].as<JSON::Number>().as<int64_t>());
+    EXPECT_EQ(1, metrics.values[messages_processed].as<JSON::Number>().value);
   }
 
   // Advance for another half a second to make sure throttled
@@ -846,16 +828,12 @@ TEST_F(RateLimitingTest, SchedulerFailover)
     const string& messages_received =
       "frameworks/" + DEFAULT_CREDENTIAL.principal() + "/messages_received";
     EXPECT_EQ(1u, metrics.values.count(messages_received));
-    EXPECT_EQ(
-        1,
-        metrics.values[messages_received].as<JSON::Number>().as<int64_t>());
+    EXPECT_EQ(1, metrics.values[messages_received].as<JSON::Number>().value);
 
     const string& messages_processed =
       "frameworks/" + DEFAULT_CREDENTIAL.principal() + "/messages_processed";
     EXPECT_EQ(1u, metrics.values.count(messages_processed));
-    EXPECT_EQ(
-        1,
-        metrics.values[messages_processed].as<JSON::Number>().as<int64_t>());
+    EXPECT_EQ(1, metrics.values[messages_processed].as<JSON::Number>().value);
   }
 
   // 2. Now launch the second (i.e., failover) scheduler using the
@@ -920,16 +898,12 @@ TEST_F(RateLimitingTest, SchedulerFailover)
     const string& messages_received =
       "frameworks/" + DEFAULT_CREDENTIAL.principal() + "/messages_received";
     EXPECT_EQ(1u, metrics.values.count(messages_received));
-    EXPECT_EQ(
-        2,
-        metrics.values[messages_received].as<JSON::Number>().as<int64_t>());
+    EXPECT_EQ(2, metrics.values[messages_received].as<JSON::Number>().value);
 
     const string& messages_processed =
       "frameworks/" + DEFAULT_CREDENTIAL.principal() + "/messages_processed";
     EXPECT_EQ(1u, metrics.values.count(messages_processed));
-    EXPECT_EQ(
-        1,
-        metrics.values[messages_processed].as<JSON::Number>().as<int64_t>());
+    EXPECT_EQ(1, metrics.values[messages_processed].as<JSON::Number>().value);
   }
 
   // Need another half a second to have it processed.
@@ -948,16 +922,12 @@ TEST_F(RateLimitingTest, SchedulerFailover)
     const string& messages_received =
       "frameworks/" + DEFAULT_CREDENTIAL.principal() + "/messages_received";
     EXPECT_EQ(1u, metrics.values.count(messages_received));
-    EXPECT_EQ(
-        2,
-        metrics.values[messages_received].as<JSON::Number>().as<int64_t>());
+    EXPECT_EQ(2, metrics.values[messages_received].as<JSON::Number>().value);
 
     const string& messages_processed =
       "frameworks/" + DEFAULT_CREDENTIAL.principal() + "/messages_processed";
     EXPECT_EQ(1u, metrics.values.count(messages_processed));
-    EXPECT_EQ(
-        2,
-        metrics.values[messages_processed].as<JSON::Number>().as<int64_t>());
+    EXPECT_EQ(2, metrics.values[messages_processed].as<JSON::Number>().value);
   }
 
   EXPECT_EQ(DRIVER_STOPPED, driver2.stop());
@@ -1042,16 +1012,12 @@ TEST_F(RateLimitingTest, CapacityReached)
     const string& messages_received =
       "frameworks/" + DEFAULT_CREDENTIAL.principal() + "/messages_received";
     EXPECT_EQ(1u, metrics.values.count(messages_received));
-    EXPECT_EQ(
-        1,
-        metrics.values[messages_received].as<JSON::Number>().as<int64_t>());
+    EXPECT_EQ(1, metrics.values[messages_received].as<JSON::Number>().value);
 
     const string& messages_processed =
       "frameworks/" + DEFAULT_CREDENTIAL.principal() + "/messages_processed";
     EXPECT_EQ(1u, metrics.values.count(messages_processed));
-    EXPECT_EQ(
-        1,
-        metrics.values[messages_processed].as<JSON::Number>().as<int64_t>());
+    EXPECT_EQ(1, metrics.values[messages_processed].as<JSON::Number>().value);
   }
 
   // The subsequent messages are going to be throttled.
@@ -1098,16 +1064,12 @@ TEST_F(RateLimitingTest, CapacityReached)
     const string& messages_received =
       "frameworks/" + DEFAULT_CREDENTIAL.principal() + "/messages_received";
     EXPECT_EQ(1u, metrics.values.count(messages_received));
-    EXPECT_EQ(
-        5,
-        metrics.values[messages_received].as<JSON::Number>().as<int64_t>());
+    EXPECT_EQ(5, metrics.values[messages_received].as<JSON::Number>().value);
     const string& messages_processed =
       "frameworks/" + DEFAULT_CREDENTIAL.principal() + "/messages_processed";
     EXPECT_EQ(1u, metrics.values.count(messages_processed));
     // Four messages not processed, two in the queue and two dropped.
-    EXPECT_EQ(
-        1,
-        metrics.values[messages_processed].as<JSON::Number>().as<int64_t>());
+    EXPECT_EQ(1, metrics.values[messages_processed].as<JSON::Number>().value);
   }
 
   // Advance three times for the two pending messages and the exited
@@ -1124,16 +1086,12 @@ TEST_F(RateLimitingTest, CapacityReached)
   const string& messages_received =
     "frameworks/" + DEFAULT_CREDENTIAL.principal() + "/messages_received";
   EXPECT_EQ(1u, metrics.values.count(messages_received));
-  EXPECT_EQ(
-      5,
-      metrics.values[messages_received].as<JSON::Number>().as<int64_t>());
+  EXPECT_EQ(5, metrics.values[messages_received].as<JSON::Number>().value);
   const string& messages_processed =
     "frameworks/" + DEFAULT_CREDENTIAL.principal() + "/messages_processed";
   EXPECT_EQ(1u, metrics.values.count(messages_processed));
   // Two messages are dropped.
-  EXPECT_EQ(
-      3,
-      metrics.values[messages_processed].as<JSON::Number>().as<int64_t>());
+  EXPECT_EQ(3, metrics.values[messages_processed].as<JSON::Number>().value);
 
   Shutdown();
 }
