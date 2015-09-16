@@ -1476,7 +1476,7 @@ void Slave::_runTask(
           TASK_LOST,
           TaskStatus::SOURCE_SLAVE,
           UUID::random(),
-         "The checkpointed resources being used by the task are unknown to "
+          "The checkpointed resources being used by the task are unknown to "
           "the slave",
           TaskStatus::REASON_RESOURCES_UNKNOWN);
 
