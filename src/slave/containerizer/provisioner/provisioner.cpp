@@ -16,62 +16,396 @@
  * limitations under the License.
  */
 
+#include <mesos/type_utils.hpp>
+
+#include <process/collect.hpp>
+#include <process/defer.hpp>
+#include <process/dispatch.hpp>
+#include <process/process.hpp>
+
+#include <stout/foreach.hpp>
+#include <stout/hashmap.hpp>
 #include <stout/hashset.hpp>
+#include <stout/os.hpp>
 #include <stout/stringify.hpp>
-#include <stout/strings.hpp>
+#include <stout/uuid.hpp>
 
+#include "slave/paths.hpp"
+
+#include "slave/containerizer/provisioner/backend.hpp"
+#include "slave/containerizer/provisioner/paths.hpp"
 #include "slave/containerizer/provisioner/provisioner.hpp"
-
-#include "slave/containerizer/provisioner/appc/provisioner.hpp"
+#include "slave/containerizer/provisioner/store.hpp"
 
 using namespace process;
 
+using std::list;
 using std::string;
+using std::vector;
+
+using mesos::slave::ContainerState;
 
 namespace mesos {
 namespace internal {
 namespace slave {
 
-Try<hashmap<Image::Type, Owned<Provisioner>>> Provisioner::create(
+class ProvisionerProcess : public Process<ProvisionerProcess>
+{
+public:
+  ProvisionerProcess(
+      const Flags& flags,
+      const string& rootDir,
+      const hashmap<Image::Type, Owned<Store>>& stores,
+      const hashmap<string, Owned<Backend>>& backends);
+
+  Future<Nothing> recover(
+      const list<ContainerState>& states,
+      const hashset<ContainerID>& orphans);
+
+  Future<string> provision(
+      const ContainerID& containerId,
+      const Image& image);
+
+  Future<bool> destroy(const ContainerID& containerId);
+
+private:
+  Future<string> _provision(
+      const ContainerID& containerId,
+      const vector<string>& layers);
+
+  const Flags flags;
+
+  // Absolute path to the provisioner root directory. It can be
+  // derived from '--work_dir' but we keep a separate copy here
+  // because we converted it into an absolute path so managed rootfs
+  // paths match the ones in 'mountinfo' (important if mount-based
+  // backends are used).
+  const string rootDir;
+
+  const hashmap<Image::Type, Owned<Store>> stores;
+  const hashmap<string, Owned<Backend>> backends;
+
+  struct Info
+  {
+    // Mappings: backend -> {rootfsId, ...}
+    hashmap<string, hashset<string>> rootfses;
+  };
+
+  hashmap<ContainerID, Owned<Info>> infos;
+};
+
+
+Try<Owned<Provisioner>> Provisioner::create(
     const Flags& flags,
     Fetcher* fetcher)
 {
-  if (flags.provisioners.isNone()) {
-    return hashmap<Image::Type, Owned<Provisioner>>();
+  string _rootDir = slave::paths::getProvisionerDir(flags.work_dir);
+
+  Try<Nothing> mkdir = os::mkdir(_rootDir);
+  if (mkdir.isError()) {
+    return Error(
+        "Failed to create provisioner root directory '" +
+        _rootDir + "': " + mkdir.error());
   }
 
-  hashmap<Image::Type,
-          Try<Owned<Provisioner>>(*)(const Flags&, Fetcher*)> creators;
-
-  // Register all supported creators.
-  creators.put(Image::APPC, &appc::AppcProvisioner::create);
-
-  hashmap<Image::Type, Owned<Provisioner>> provisioners;
-
-  // NOTE: Change in '--provisioners' flag may result in leaked rootfs
-  // files on the disk but it's at least safe because files managed by
-  // different provisioners are totally separated.
-  foreach (const string& type,
-           strings::tokenize(flags.provisioners.get(), ",")) {
-     Image::Type imageType;
-     if (!Image::Type_Parse(strings::upper(type), &imageType)) {
-       return Error("Unknown provisioner '" + type + "'");
-     }
-
-     if (!creators.contains(imageType)) {
-       return Error("Unsupported provisioner '" + type + "'");
-     }
-
-     Try<Owned<Provisioner>> provisioner = creators[imageType](flags, fetcher);
-     if (provisioner.isError()) {
-       return Error("Failed to create '" + stringify(imageType) +
-                    "' provisioner: " + provisioner.error());
-     }
-
-     provisioners[imageType] = provisioner.get();
+  Result<string> rootDir = os::realpath(_rootDir);
+  if (rootDir.isError()) {
+    return Error(
+        "Failed to resolve the realpath of provisioner root directory '" +
+        _rootDir + "': " + rootDir.error());
   }
 
-  return provisioners;
+  CHECK_SOME(rootDir); // Can't be None since we just created it.
+
+  Try<hashmap<Image::Type, Owned<Store>>> stores = Store::create(flags);
+  if (stores.isError()) {
+    return Error("Failed to create image stores: " + stores.error());
+  }
+
+  hashmap<string, Owned<Backend>> backends = Backend::create(flags);
+  if (backends.empty()) {
+    return Error("No usable provisioner backend created");
+  }
+
+  if (!backends.contains(flags.image_provisioner_backend)) {
+    return Error(
+        "The specified provisioner backend '" +
+        flags.image_provisioner_backend + "' is unsupported");
+  }
+
+  return Owned<Provisioner>(new Provisioner(
+      Owned<ProvisionerProcess>(new ProvisionerProcess(
+          flags,
+          rootDir.get(),
+          stores.get(),
+          backends))));
+}
+
+
+Provisioner::Provisioner(Owned<ProvisionerProcess> _process)
+  : process(_process)
+{
+  spawn(CHECK_NOTNULL(process.get()));
+}
+
+
+Provisioner::~Provisioner()
+{
+  if (process.get() != NULL) {
+    terminate(process.get());
+    wait(process.get());
+  }
+}
+
+
+Future<Nothing> Provisioner::recover(
+    const list<ContainerState>& states,
+    const hashset<ContainerID>& orphans)
+{
+  return dispatch(
+      CHECK_NOTNULL(process.get()),
+      &ProvisionerProcess::recover,
+      states,
+      orphans);
+}
+
+
+Future<string> Provisioner::provision(
+    const ContainerID& containerId,
+    const Image& image)
+{
+  return dispatch(
+      CHECK_NOTNULL(process.get()),
+      &ProvisionerProcess::provision,
+      containerId,
+      image);
+}
+
+
+Future<bool> Provisioner::destroy(const ContainerID& containerId)
+{
+  return dispatch(
+      CHECK_NOTNULL(process.get()),
+      &ProvisionerProcess::destroy,
+      containerId);
+}
+
+
+ProvisionerProcess::ProvisionerProcess(
+    const Flags& _flags,
+    const string& _rootDir,
+    const hashmap<Image::Type, Owned<Store>>& _stores,
+    const hashmap<string, Owned<Backend>>& _backends)
+  : flags(_flags),
+    rootDir(_rootDir),
+    stores(_stores),
+    backends(_backends) {}
+
+
+Future<Nothing> ProvisionerProcess::recover(
+    const list<ContainerState>& states,
+    const hashset<ContainerID>& orphans)
+{
+  // Register living containers, including the ones that do not
+  // provision images.
+  hashset<ContainerID> alive;
+  foreach (const ContainerState& state, states) {
+    alive.insert(state.container_id());
+  }
+
+  // List provisioned containers; recover living ones; destroy unknown
+  // orphans. Note that known orphan containers are recovered as well
+  // and they will be destroyed by the containerizer using the normal
+  // cleanup path. See MESOS-2367 for details.
+  Try<hashset<ContainerID>> containers =
+    provisioner::paths::listContainers(rootDir);
+
+  if (containers.isError()) {
+    return Failure(
+        "Failed to list the containers managed by the provisioner: " +
+        containers.error());
+  }
+
+  // Scan the list of containers, register all of them with 'infos'
+  // but mark unknown orphans for immediate cleanup.
+  hashset<ContainerID> unknownOrphans;
+
+  foreach (const ContainerID& containerId, containers.get()) {
+    Owned<Info> info = Owned<Info>(new Info());
+
+    Try<hashmap<string, hashset<string>>> rootfses =
+      provisioner::paths::listContainerRootfses(rootDir, containerId);
+
+    if (rootfses.isError()) {
+      return Failure(
+          "Unable to list rootfses belonged to container " +
+          stringify(containerId) + ": " + rootfses.error());
+    }
+
+    foreachkey (const string& backend, rootfses.get()) {
+      if (!backends.contains(backend)) {
+        return Failure(
+            "Found rootfses managed by an unrecognized backend: " + backend);
+      }
+
+      info->rootfses.put(backend, rootfses.get()[backend]);
+    }
+
+    infos.put(containerId, info);
+
+    if (alive.contains(containerId) || orphans.contains(containerId)) {
+      LOG(INFO) << "Recovered container " << containerId;
+      continue;
+    } else {
+      // For immediate cleanup below.
+      unknownOrphans.insert(containerId);
+    }
+  }
+
+  // Cleanup unknown orphan containers' rootfses.
+  list<Future<bool>> cleanups;
+  foreach (const ContainerID& containerId, unknownOrphans) {
+    LOG(INFO) << "Cleaning up unknown orphan container " << containerId;
+    cleanups.push_back(destroy(containerId));
+  }
+
+  Future<Nothing> cleanup = collect(cleanups)
+    .then([]() -> Future<Nothing> { return Nothing(); });
+
+  // Recover stores.
+  list<Future<Nothing>> recovers;
+  foreachvalue (const Owned<Store>& store, stores) {
+    recovers.push_back(store->recover());
+  }
+
+  Future<Nothing> recover = collect(recovers)
+    .then([]() -> Future<Nothing> { return Nothing(); });
+
+  // A successful provisioner recovery depends on:
+  // 1) Recovery of living containers and known orphans (done above).
+  // 2) Successful cleanup of unknown orphans.
+  // 3) Successful store recovery.
+  //
+  // TODO(jieyu): Do not recover 'store' before unknown orphans are
+  // cleaned up. In the future, we may want to cleanup unused rootfses
+  // in 'store', which might fail if there still exist unknown orphans
+  // holding references to them.
+  return collect(cleanup, recover)
+    .then([=]() -> Future<Nothing> {
+      LOG(INFO) << "Provisioner recovery complete";
+      return Nothing();
+    });
+}
+
+
+Future<string> ProvisionerProcess::provision(
+    const ContainerID& containerId,
+    const Image& image)
+{
+  if (!stores.contains(image.type())) {
+    return Failure(
+        "Unsupported container image type: " +
+        stringify(image.type()));
+  }
+
+  // Get and then provision image layers from the store.
+  return stores.get(image.type()).get()->get(image)
+    .then(defer(self(), &Self::_provision, containerId, lambda::_1));
+}
+
+
+Future<string> ProvisionerProcess::_provision(
+    const ContainerID& containerId,
+    const vector<string>& layers)
+{
+  // TODO(jieyu): Choose a backend smartly. For instance, if there is
+  // only one layer returned from the store. prefer to use bind
+  // backend because it's the simplest.
+  const string& backend = flags.image_provisioner_backend;
+  CHECK(backends.contains(backend));
+
+  string rootfsId = UUID::random().toString();
+
+  string rootfs = provisioner::paths::getContainerRootfsDir(
+      rootDir,
+      containerId,
+      backend,
+      rootfsId);
+
+  LOG(INFO) << "Provisioning image rootfs '" << rootfs
+            << "' for container " << containerId;
+
+  // NOTE: It's likely that the container ID already exists in 'infos'
+  // because one container might provision multiple images.
+  if (!infos.contains(containerId)) {
+    infos.put(containerId, Owned<Info>(new Info()));
+  }
+
+  infos[containerId]->rootfses[backend].insert(rootfsId);
+
+  return backends.get(backend).get()->provision(layers, rootfs)
+    .then([rootfs]() -> Future<string> { return rootfs; });
+}
+
+
+Future<bool> ProvisionerProcess::destroy(const ContainerID& containerId)
+{
+  if (!infos.contains(containerId)) {
+    LOG(INFO) << "Ignoring destroy request for unknown container "
+              << containerId;
+
+    return false;
+  }
+
+  // Unregister the container first. If destroy() fails, we can rely
+  // on recover() to retry it later.
+  Owned<Info> info = infos[containerId];
+  infos.erase(containerId);
+
+  list<Future<bool>> futures;
+  foreachkey (const string& backend, info->rootfses) {
+    if (!backends.contains(backend)) {
+      return Failure("Unknown backend '" + backend + "'");
+    }
+
+    foreach (const string& rootfsId, info->rootfses[backend]) {
+      string rootfs = provisioner::paths::getContainerRootfsDir(
+          rootDir,
+          containerId,
+          backend,
+          rootfsId);
+
+      LOG(INFO) << "Destroying container rootfs at '" << rootfs
+                << "' for container " << containerId;
+
+      futures.push_back(backends.get(backend).get()->destroy(rootfs));
+    }
+  }
+
+  // NOTE: We calculate 'containerDir' here so that the following
+  // lambda does not need to bind 'this'.
+  string containerDir =
+    provisioner::paths::getContainerDir(rootDir, containerId);
+
+  // TODO(xujyan): Revisit the usefulness of this return value.
+  return collect(futures)
+    .then([containerDir]() -> Future<bool> {
+      // This should be fairly cheap as the directory should only
+      // contain a few empty sub-directories at this point.
+      //
+      // TODO(jieyu): Currently, it's possible that some directories
+      // cannot be removed due to EBUSY. EBUSY is caused by the race
+      // between cleaning up this container and new containers copying
+      // the host mount table. It's OK to ignore them. The cleanup
+      // will be retried during slave recovery.
+      Try<Nothing> rmdir = os::rmdir(containerDir);
+      if (rmdir.isError()) {
+        LOG(ERROR) << "Failed to remove the provisioned container directory "
+                   << "at '" << containerDir << "': " << rmdir.error();
+      }
+
+      return true;
+    });
 }
 
 } // namespace slave {

@@ -45,7 +45,7 @@ class LinuxFilesystemIsolatorProcess : public MesosIsolatorProcess
 public:
   static Try<mesos::slave::Isolator*> create(
       const Flags& flags,
-      const hashmap<Image::Type, process::Owned<Provisioner>>& provisioners);
+      const process::Owned<Provisioner>& provisioner);
 
   virtual ~LinuxFilesystemIsolatorProcess();
 
@@ -81,7 +81,7 @@ public:
 private:
   LinuxFilesystemIsolatorProcess(
       const Flags& flags,
-      const hashmap<Image::Type, process::Owned<Provisioner>>& provisioners);
+      const process::Owned<Provisioner>& provisioner);
 
   process::Future<Nothing> _recover(
       const std::list<mesos::slave::ContainerState>& states,
@@ -107,6 +107,7 @@ private:
       const Option<std::string>& rootfs);
 
   const Flags flags;
+  const process::Owned<Provisioner> provisioner;
 
   struct Info
   {
@@ -126,7 +127,6 @@ private:
   };
 
   hashmap<ContainerID, process::Owned<Info>> infos;
-  hashmap<Image::Type, process::Owned<Provisioner>> provisioners;
 };
 
 } // namespace slave {

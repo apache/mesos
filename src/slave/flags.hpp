@@ -47,10 +47,9 @@ public:
   Option<std::string> resources;
   std::string isolation;
 
-  Option<std::string> provisioners;
-
+  Option<std::string> image_providers;
+  std::string image_provisioner_backend;
   std::string appc_store_dir;
-  std::string appc_provisioner_backend;
 
   std::string default_role;
   Option<std::string> attributes;

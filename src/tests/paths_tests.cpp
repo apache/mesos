@@ -104,6 +104,13 @@ TEST_F(PathsTest, Meta)
 }
 
 
+TEST_F(PathsTest, ProvisionerDir)
+{
+  EXPECT_EQ(path::join(rootDir, "provisioner"),
+            paths::getProvisionerDir(rootDir));
+}
+
+
 TEST_F(PathsTest, Archive)
 {
   EXPECT_EQ(path::join(rootDir, "archive"), paths::getArchiveDir(rootDir));
@@ -218,13 +225,6 @@ TEST_F(PathsTest, PersistentVolume)
   EXPECT_EQ(dir, paths::getPersistentVolumePath(rootDir, role, persistenceId));
 }
 
-
-TEST_F(PathsTest, ProvisionerDir)
-{
-  string dir = path::join(rootDir, "provisioner", "APPC");
-
-  EXPECT_EQ(dir, paths::getProvisionerDir(rootDir, imageType));
-}
 
 } // namespace paths {
 } // namespace slave {

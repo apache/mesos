@@ -46,6 +46,8 @@ namespace appc {
 // Defines a locally cached image (which has passed validation).
 struct CachedImage
 {
+  static Try<CachedImage> create(const string& imagePath);
+
   CachedImage(
       const AppcImageManifest& _manifest,
       const string& _id,
@@ -67,6 +69,34 @@ struct CachedImage
   // Absolute path to the extracted image.
   const string path;
 };
+
+
+Try<CachedImage> CachedImage::create(const string& imagePath)
+{
+  Option<Error> error = spec::validateLayout(imagePath);
+  if (error.isSome()) {
+    return Error("Invalid image layout: " + error.get().message);
+  }
+
+  string imageId = Path(imagePath).basename();
+
+  error = spec::validateImageID(imageId);
+  if (error.isSome()) {
+    return Error("Invalid image ID: " + error.get().message);
+  }
+
+  Try<string> read = os::read(paths::getImageManifestPath(imagePath));
+  if (read.isError()) {
+    return Error("Failed to read manifest: " + read.error());
+  }
+
+  Try<AppcImageManifest> manifest = spec::parse(read.get());
+  if (manifest.isError()) {
+    return Error("Failed to parse manifest: " + manifest.error());
+  }
+
+  return CachedImage(manifest.get(), imageId, imagePath);
+}
 
 
 // Helper that implements this:
@@ -114,25 +144,25 @@ static bool matches(Image::Appc requirements, const CachedImage& candidate)
 class StoreProcess : public Process<StoreProcess>
 {
 public:
-  StoreProcess(const string& root);
+  StoreProcess(const string& rootDir);
 
   ~StoreProcess() {}
 
   Future<Nothing> recover();
 
-  Future<vector<string>> get(const Image::Appc& image);
+  Future<vector<string>> get(const Image& image);
 
 private:
   // Absolute path to the root directory of the store as defined by
   // --appc_store_dir.
-  const string root;
+  const string rootDir;
 
   // Mappings: name -> id -> image.
   hashmap<string, hashmap<string, CachedImage>> images;
 };
 
 
-Try<Owned<Store>> Store::create(const Flags& flags)
+Try<Owned<slave::Store>> Store::create(const Flags& flags)
 {
   Try<Nothing> mkdir = os::mkdir(paths::getImagesDir(flags.appc_store_dir));
   if (mkdir.isError()) {
@@ -141,17 +171,19 @@ Try<Owned<Store>> Store::create(const Flags& flags)
 
   // Make sure the root path is canonical so all image paths derived
   // from it are canonical too.
-  Result<string> root = os::realpath(flags.appc_store_dir);
-  if (!root.isSome()) {
+  Result<string> rootDir = os::realpath(flags.appc_store_dir);
+  if (!rootDir.isSome()) {
     // The above mkdir call recursively creates the store directory
     // if necessary so it cannot be None here.
-    CHECK_ERROR(root);
+    CHECK_ERROR(rootDir);
+
     return Error(
-        "Failed to get the realpath of the store directory: " + root.error());
+        "Failed to get the realpath of the store root directory: " +
+        rootDir.error());
   }
 
-  return Owned<Store>(new Store(
-      Owned<StoreProcess>(new StoreProcess(root.get()))));
+  return Owned<slave::Store>(new Store(
+      Owned<StoreProcess>(new StoreProcess(rootDir.get()))));
 }
 
 
@@ -175,92 +207,34 @@ Future<Nothing> Store::recover()
 }
 
 
-Future<vector<string>> Store::get(const Image::Appc& image)
+Future<vector<string>> Store::get(const Image& image)
 {
   return dispatch(process.get(), &StoreProcess::get, image);
 }
 
 
-StoreProcess::StoreProcess(const string& _root) : root(_root) {}
-
-
-// Implemented as a helper function because it's going to be used for a
-// newly downloaded image too.
-static Try<CachedImage> createImage(const string& imagePath)
-{
-  Option<Error> error = spec::validateLayout(imagePath);
-  if (error.isSome()) {
-    return Error("Invalid image layout: " + error.get().message);
-  }
-
-  string imageId = Path(imagePath).basename();
-
-  error = spec::validateImageID(imageId);
-  if (error.isSome()) {
-    return Error("Invalid image ID: " + error.get().message);
-  }
-
-  Try<string> read = os::read(paths::getImageManifestPath(imagePath));
-  if (read.isError()) {
-    return Error("Failed to read manifest: " + read.error());
-  }
-
-  Try<AppcImageManifest> manifest = spec::parse(read.get());
-  if (manifest.isError()) {
-    return Error("Failed to parse manifest: " + manifest.error());
-  }
-
-  return CachedImage(manifest.get(), imageId, imagePath);
-}
-
-
-Future<vector<string>> StoreProcess::get(const Image::Appc& image)
-{
-  if (!images.contains(image.name())) {
-    return Failure("No image named '" + image.name() + "' can be found");
-  }
-
-  // Get local candidates.
-  vector<CachedImage> candidates;
-  foreach (const CachedImage& candidate, images[image.name()].values()) {
-    // The first match is returned.
-    // TODO(xujyan): Some tie-breaking rules are necessary.
-    if (matches(image, candidate)) {
-      LOG(INFO) << "Found match for image '" << image.name()
-                << "' in the store";
-
-      // The Appc store current doesn't support dependencies and this is
-      // enforced by manifest validation: if the image's manifest contains
-      // dependencies it would fail the validation and wouldn't be stored
-      // in the store.
-      return vector<string>({candidate.rootfs()});
-    }
-  }
-
-  return Failure("No image named '" + image.name() +
-                 "' can match the requirements");
-}
+StoreProcess::StoreProcess(const string& _rootDir) : rootDir(_rootDir) {}
 
 
 Future<Nothing> StoreProcess::recover()
 {
   // Recover everything in the store.
-  Try<list<string>> imageIds = os::ls(paths::getImagesDir(root));
+  Try<list<string>> imageIds = os::ls(paths::getImagesDir(rootDir));
   if (imageIds.isError()) {
     return Failure(
         "Failed to list images under '" +
-        paths::getImagesDir(root) + "': " +
+        paths::getImagesDir(rootDir) + "': " +
         imageIds.error());
   }
 
   foreach (const string& imageId, imageIds.get()) {
-    string path = paths::getImagePath(root, imageId);
+    string path = paths::getImagePath(rootDir, imageId);
     if (!os::stat::isdir(path)) {
       LOG(WARNING) << "Unexpected entry in storage: " << imageId;
       continue;
     }
 
-    Try<CachedImage> image = createImage(path);
+    Try<CachedImage> image = CachedImage::create(path);
     if (image.isError()) {
       LOG(WARNING) << "Unexpected entry in storage: " << image.error();
       continue;
@@ -272,6 +246,40 @@ Future<Nothing> StoreProcess::recover()
   }
 
   return Nothing();
+}
+
+
+Future<vector<string>> StoreProcess::get(const Image& image)
+{
+  if (image.type() != Image::APPC) {
+    return Failure("Not an Appc image: " + stringify(image.type()));
+  }
+
+  const Image::Appc& appc = image.appc();
+
+  if (!images.contains(appc.name())) {
+    return Failure("No Appc image named '" + appc.name() + "' can be found");
+  }
+
+  // Get local candidates.
+  vector<CachedImage> candidates;
+  foreach (const CachedImage& candidate, images[appc.name()].values()) {
+    // The first match is returned.
+    // TODO(xujyan): Some tie-breaking rules are necessary.
+    if (matches(appc, candidate)) {
+      LOG(INFO) << "Found match for Appc image '" << appc.name()
+                << "' in the store";
+
+      // The Appc store current doesn't support dependencies and this
+      // is enforced by manifest validation: if the image's manifest
+      // contains dependencies it would fail the validation and
+      // wouldn't be stored in the store.
+      return vector<string>({candidate.rootfs()});
+    }
+  }
+
+  return Failure("No Appc image named '" + appc.name() +
+                 "' can match the requirements");
 }
 
 } // namespace appc {

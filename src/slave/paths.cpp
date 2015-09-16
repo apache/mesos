@@ -68,6 +68,12 @@ string getSandboxRootDir(const string& rootDir)
 }
 
 
+string getProvisionerDir(const string& rootDir)
+{
+  return path::join(rootDir, "provisioner");
+}
+
+
 string getArchiveDir(const string& rootDir)
 {
   return path::join(rootDir, "archive");
@@ -366,17 +372,6 @@ string getPersistentVolumePath(
     const string& persistenceId)
 {
   return path::join(rootDir, "volumes", "roles", role, persistenceId);
-}
-
-
-string getProvisionerDir(
-    const string& rootDir,
-    const Image::Type& imageType)
-{
-  return path::join(
-      rootDir,
-      "provisioner",
-      stringify(imageType));
 }
 
 

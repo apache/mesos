@@ -59,20 +59,21 @@ mesos::internal::slave::Flags::Flags()
       "for the Mesos Containerizer.",
       "posix/cpu,posix/mem");
 
-  add(&Flags::provisioners,
-      "provisioners",
-      "Comma separated list of image rootfs provisioners,\n"
-      "e.g., appc,docker");
+  add(&Flags::image_providers,
+      "image_providers",
+      "Comma separated list of supported image providers,\n"
+      "e.g., 'APPC,DOCKER'.");
+
+  add(&Flags::image_provisioner_backend,
+      "image_provisioner_backend",
+      "Strategy for provisioning container rootfs from images,\n"
+      "e.g., 'bind', 'copy'.",
+      "copy");
 
   add(&Flags::appc_store_dir,
       "appc_store_dir",
-      "Directory the appc provisioner will store images in",
+      "Directory the appc provisioner will store images in.",
       "/tmp/mesos/store/appc");
-
-  add(&Flags::appc_provisioner_backend,
-      "appc_provisioner_backend",
-      "Strategy for provisioning container rootfs from appc images",
-      "copy");
 
   add(&Flags::default_role,
       "default_role",

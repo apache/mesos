@@ -162,11 +162,9 @@ Try<MesosContainerizer*> MesosContainerizer::create(
 
 #ifdef __linux__
   // The provisioner will be used by the 'filesystem/linux' isolator.
-  Try<hashmap<Image::Type, Owned<Provisioner>>> provisioners =
-    Provisioner::create(flags, fetcher);
-
-  if (provisioners.isError()) {
-    return Error("Failed to create provisioner(s): " + provisioners.error());
+  Try<Owned<Provisioner>> provisioner = Provisioner::create(flags, fetcher);
+  if (provisioner.isError()) {
+    return Error("Failed to create provisioner: " + provisioner.error());
   }
 #endif
 
@@ -178,7 +176,7 @@ Try<MesosContainerizer*> MesosContainerizer::create(
 #ifdef __linux__
     {"filesystem/linux", lambda::bind(&LinuxFilesystemIsolatorProcess::create,
                                       lambda::_1,
-                                      provisioners.get())},
+                                      provisioner.get())},
 
     // TODO(jieyu): Deprecate this in favor of using filesystem/linux.
     {"filesystem/shared", &SharedFilesystemIsolatorProcess::create},

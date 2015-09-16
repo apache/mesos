@@ -55,7 +55,7 @@ namespace slave {
 
 Try<Isolator*> LinuxFilesystemIsolatorProcess::create(
     const Flags& flags,
-    const hashmap<Image::Type, Owned<Provisioner>>& provisioners)
+    const Owned<Provisioner>& provisioner)
 {
   Result<string> user = os::user();
   if (!user.isSome()) {
@@ -68,7 +68,7 @@ Try<Isolator*> LinuxFilesystemIsolatorProcess::create(
   }
 
   Owned<MesosIsolatorProcess> process(
-      new LinuxFilesystemIsolatorProcess(flags, provisioners));
+      new LinuxFilesystemIsolatorProcess(flags, provisioner));
 
   return new MesosIsolator(process);
 }
@@ -76,9 +76,9 @@ Try<Isolator*> LinuxFilesystemIsolatorProcess::create(
 
 LinuxFilesystemIsolatorProcess::LinuxFilesystemIsolatorProcess(
     const Flags& _flags,
-    const hashmap<Image::Type, Owned<Provisioner>>& _provisioners)
+    const Owned<Provisioner>& _provisioner)
   : flags(_flags),
-    provisioners(_provisioners) {}
+    provisioner(_provisioner) {}
 
 
 LinuxFilesystemIsolatorProcess::~LinuxFilesystemIsolatorProcess() {}
@@ -174,12 +174,7 @@ Future<Nothing> LinuxFilesystemIsolatorProcess::_recover(
     const list<ContainerState>& states,
     const hashset<ContainerID>& orphans)
 {
-  list<Future<Nothing>> futures;
-  foreachvalue (const Owned<Provisioner>& provisioner, provisioners) {
-    futures.push_back(provisioner->recover(states, orphans));
-  }
-
-  return collect(futures)
+  return provisioner->recover(states, orphans)
     .then([]() -> Future<Nothing> { return Nothing(); });
 }
 
@@ -209,13 +204,7 @@ Future<Option<ContainerPrepareInfo>> LinuxFilesystemIsolatorProcess::prepare(
 
   const Image& image = executorInfo.container().mesos().image();
 
-  if (!provisioners.contains(image.type())) {
-    return Failure(
-        "No suitable provisioner found for container image type '" +
-        stringify(image.type()) + "'");
-  }
-
-  return provisioners[image.type()]->provision(containerId, image)
+  return provisioner->provision(containerId, image)
     .then(defer(PID<LinuxFilesystemIsolatorProcess>(this),
                 &LinuxFilesystemIsolatorProcess::_prepare,
                 containerId,
@@ -252,14 +241,8 @@ Future<Option<ContainerPrepareInfo>> LinuxFilesystemIsolatorProcess::_prepare(
 
     const Image& image = volume->image();
 
-    if (!provisioners.contains(image.type())) {
-      return Failure(
-          "No suitable provisioner found for image type '" +
-          stringify(image.type()) + "' in a volume");
-    }
-
     futures.push_back(
-        provisioners[image.type()]->provision(containerId, image)
+        provisioner->provision(containerId, image)
           .then([volume](const string& path) -> Future<Nothing> {
             volume->set_host_path(path);
             return Nothing();
@@ -772,12 +755,7 @@ Future<Nothing> LinuxFilesystemIsolatorProcess::cleanup(
   }
 
   // Destroy the provisioned root filesystems.
-  list<Future<bool>> futures;
-  foreachvalue (const Owned<Provisioner>& provisioner, provisioners) {
-    futures.push_back(provisioner->destroy(containerId));
-  }
-
-  return collect(futures)
+  return provisioner->destroy(containerId)
     .then([]() -> Future<Nothing> { return Nothing(); });
 }
 

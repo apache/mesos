@@ -29,6 +29,9 @@
 #include <stout/stringify.hpp>
 #include <stout/uuid.hpp>
 
+#include "slave/paths.hpp"
+
+#include "slave/containerizer/provisioner/paths.hpp"
 #include "slave/containerizer/provisioner/provisioner.hpp"
 
 #include "slave/containerizer/provisioner/appc/spec.hpp"
@@ -51,10 +54,10 @@ namespace mesos {
 namespace internal {
 namespace tests {
 
-class AppcProvisionerTest : public TemporaryDirectoryTest {};
+class AppcSpecTest : public TemporaryDirectoryTest {};
 
 
-TEST_F(AppcProvisionerTest, ValidateImageManifest)
+TEST_F(AppcSpecTest, ValidateImageManifest)
 {
   JSON::Value manifest = JSON::parse(
       "{"
@@ -97,7 +100,7 @@ TEST_F(AppcProvisionerTest, ValidateImageManifest)
 }
 
 
-TEST_F(AppcProvisionerTest, ValidateLayout)
+TEST_F(AppcSpecTest, ValidateLayout)
 {
   string image = os::getcwd();
 
@@ -120,12 +123,15 @@ TEST_F(AppcProvisionerTest, ValidateLayout)
 }
 
 
-TEST_F(AppcProvisionerTest, StoreRecover)
+class AppcStoreTest : public TemporaryDirectoryTest {};
+
+
+TEST_F(AppcStoreTest, Recover)
 {
   // Create store.
   slave::Flags flags;
   flags.appc_store_dir = path::join(os::getcwd(), "store");
-  Try<Owned<Store>> store = Store::create(flags);
+  Try<Owned<slave::Store>> store = Store::create(flags);
   ASSERT_SOME(store);
 
   // Create a simple image in the store:
@@ -161,8 +167,8 @@ TEST_F(AppcProvisionerTest, StoreRecover)
       "  ]"
       "}").get();
 
-  // The 'imageId' below has the correct format but it's not computed by
-  // hashing the tarball of the image. It's OK here as we assume
+  // The 'imageId' below has the correct format but it's not computed
+  // by hashing the tarball of the image. It's OK here as we assume
   // the images under 'images' have passed such check when they are
   // downloaded and validated.
   string imageId =
@@ -182,7 +188,7 @@ TEST_F(AppcProvisionerTest, StoreRecover)
 
   Image image;
   image.mutable_appc()->set_name("foo.com/bar");
-  Future<vector<string>> layers = store.get()->get(image.appc());
+  Future<vector<string>> layers = store.get()->get(image);
   AWAIT_READY(layers);
 
   EXPECT_EQ(1u, layers.get().size());
@@ -193,23 +199,25 @@ TEST_F(AppcProvisionerTest, StoreRecover)
 }
 
 
+class ProvisionerAppcTest : public TemporaryDirectoryTest {};
+
+
 #ifdef __linux__
-// This test verifies that the provisioner can provision an rootfs from an
-// image that is already put into the store directory.
-TEST_F(AppcProvisionerTest, ROOT_Provision)
+// This test verifies that the provisioner can provision an rootfs
+// from an image that is already put into the store directory.
+TEST_F(ProvisionerAppcTest, ROOT_Provision)
 {
   // Create provisioner.
   slave::Flags flags;
+  flags.image_providers = "APPC";
   flags.appc_store_dir = path::join(os::getcwd(), "store");
-  flags.appc_provisioner_backend = "bind";
-  flags.provisioners = "appc";
+  flags.image_provisioner_backend = "bind";
   flags.work_dir = "work_dir";
 
   Fetcher fetcher;
-  Try<hashmap<Image::Type, Owned<Provisioner>>> provisioners =
-    Provisioner::create(flags, &fetcher);
-  ASSERT_SOME(provisioners);
-  ASSERT_TRUE(provisioners.get().contains(Image::APPC));
+
+  Try<Owned<Provisioner>> provisioner = Provisioner::create(flags, &fetcher);
+  ASSERT_SOME(provisioner);
 
   // Create a simple image in the store:
   // <store>
@@ -244,8 +252,8 @@ TEST_F(AppcProvisionerTest, ROOT_Provision)
       "  ]"
       "}").get();
 
-  // The 'imageId' below has the correct format but it's not computed by
-  // hashing the tarball of the image. It's OK here as we assume
+  // The 'imageId' below has the correct format but it's not computed
+  // by hashing the tarball of the image. It's OK here as we assume
   // the images under 'images' have passed such check when they are
   // downloaded and validated.
   string imageId =
@@ -261,7 +269,7 @@ TEST_F(AppcProvisionerTest, ROOT_Provision)
       os::write(path::join(imagePath, "manifest"), stringify(manifest)));
 
   // Recover. This is when the image in the store is loaded.
-  AWAIT_READY(provisioners.get()[Image::APPC]->recover({}, {}));
+  AWAIT_READY(provisioner.get()->recover({}, {}));
 
   // Simulate a task that requires an image.
   Image image;
@@ -270,30 +278,30 @@ TEST_F(AppcProvisionerTest, ROOT_Provision)
   ContainerID containerId;
   containerId.set_value("12345");
 
-  Future<string> rootfs =
-    provisioners.get()[Image::APPC]->provision(containerId, image);
+  Future<string> rootfs = provisioner.get()->provision(containerId, image);
   AWAIT_READY(rootfs);
 
-  string containerDir = path::join(
-      flags.work_dir,
-      "provisioners",
-      stringify(Image::APPC),
-      "containers",
-      containerId.value());
+  string provisionerDir = slave::paths::getProvisionerDir(flags.work_dir);
 
-  Try<list<string>> rootfses = os::ls(path::join(
-      containerDir,
-      "backends",
-      flags.appc_provisioner_backend,
-      "rootfses"));
+  string containerDir =
+    slave::provisioner::paths::getContainerDir(
+        provisionerDir,
+        containerId);
+
+  Try<hashmap<string, hashset<string>>> rootfses =
+    slave::provisioner::paths::listContainerRootfses(
+        provisionerDir,
+        containerId);
 
   ASSERT_SOME(rootfses);
 
   // Verify that the rootfs is successfully provisioned.
-  EXPECT_EQ(1u, rootfses.get().size());
-  EXPECT_EQ(rootfses.get().front(), Path(rootfs.get()).basename());
+  ASSERT_TRUE(rootfses->contains(flags.image_provisioner_backend));
+  ASSERT_EQ(1u, rootfses->get(flags.image_provisioner_backend)->size());
+  EXPECT_EQ(*rootfses->get(flags.image_provisioner_backend)->begin(),
+            Path(rootfs.get()).basename());
 
-  Future<bool> destroy = provisioners.get()[Image::APPC]->destroy(containerId);
+  Future<bool> destroy = provisioner.get()->destroy(containerId);
   AWAIT_READY(destroy);
 
   // One rootfs is destroyed.
@@ -305,23 +313,21 @@ TEST_F(AppcProvisionerTest, ROOT_Provision)
 #endif // __linux__
 
 
-// This test verifies that a provisioner can recover the rootfs provisioned
-// by a previous provisioner and then destroy it. Note that we use the copy
-// backend in this test so Linux is not required.
-TEST_F(AppcProvisionerTest, Recover)
+// This test verifies that a provisioner can recover the rootfs
+// provisioned by a previous provisioner and then destroy it. Note
+// that we use the copy backend in this test so Linux is not required.
+TEST_F(ProvisionerAppcTest, Recover)
 {
   // Create provisioner.
   slave::Flags flags;
+  flags.image_providers = "APPC";
   flags.appc_store_dir = path::join(os::getcwd(), "store");
-  flags.appc_provisioner_backend = "copy";
-  flags.provisioners = "appc";
+  flags.image_provisioner_backend = "copy";
   flags.work_dir = "work_dir";
 
   Fetcher fetcher;
-  Try<hashmap<Image::Type, Owned<Provisioner>>> provisioners1 =
-    Provisioner::create(flags, &fetcher);
+  Try<Owned<Provisioner>> provisioners1 = Provisioner::create(flags, &fetcher);
   ASSERT_SOME(provisioners1);
-  ASSERT_TRUE(provisioners1.get().contains(Image::APPC));
 
   // Create a simple image in the store:
   // <store>
@@ -336,8 +342,8 @@ TEST_F(AppcProvisionerTest, Recover)
       "  \"name\": \"foo.com/bar\""
       "}").get();
 
-  // The 'imageId' below has the correct format but it's not computed by
-  // hashing the tarball of the image. It's OK here as we assume
+  // The 'imageId' below has the correct format but it's not computed
+  // by hashing the tarball of the image. It's OK here as we assume
   // the images under 'images' have passed such check when they are
   // downloaded and validated.
   string imageId =
@@ -353,7 +359,7 @@ TEST_F(AppcProvisionerTest, Recover)
       os::write(path::join(imagePath, "manifest"), stringify(manifest)));
 
   // Recover. This is when the image in the store is loaded.
-  AWAIT_READY(provisioners1.get()[Image::APPC]->recover({}, {}));
+  AWAIT_READY(provisioners1.get()->recover({}, {}));
 
   Image image;
   image.mutable_appc()->set_name("foo.com/bar");
@@ -361,48 +367,46 @@ TEST_F(AppcProvisionerTest, Recover)
   ContainerID containerId;
   containerId.set_value(UUID::random().toString());
 
-  Future<string> rootfs =
-    provisioners1.get()[Image::APPC]->provision(containerId, image);
+  Future<string> rootfs = provisioners1.get()->provision(containerId, image);
   AWAIT_READY(rootfs);
 
   // Create a new provisioner to recover the state from the container.
-  Try<hashmap<Image::Type, Owned<Provisioner>>> provisioners2 =
-    Provisioner::create(flags, &fetcher);
+  Try<Owned<Provisioner>> provisioners2 = Provisioner::create(flags, &fetcher);
   ASSERT_SOME(provisioners2);
-  ASSERT_TRUE(provisioners2.get().contains(Image::APPC));
 
   mesos::slave::ContainerState state;
 
   // Here we are using an ExecutorInfo in the ContainerState without a
-  // ContainerInfo. This is the situation where the Image is specified via
-  // --default_container_info so it's not part of the recovered ExecutorInfo.
+  // ContainerInfo. This is the situation where the Image is specified
+  // via --default_container_info so it's not part of the recovered
+  // ExecutorInfo.
   state.mutable_container_id()->CopyFrom(containerId);
 
-  AWAIT_READY(provisioners2.get()[Image::APPC]->recover({state}, {}));
+  AWAIT_READY(provisioners2.get()->recover({state}, {}));
 
   // It's possible for the user to provision two different rootfses
   // from the same image.
-  AWAIT_READY(provisioners2.get()[Image::APPC]->provision(containerId, image));
+  AWAIT_READY(provisioners2.get()->provision(containerId, image));
 
-  string containerDir = path::join(
-      flags.work_dir,
-      "provisioners",
-      stringify(Image::APPC),
-      "containers",
-      containerId.value());
+  string provisionerDir = slave::paths::getProvisionerDir(flags.work_dir);
 
-  Try<list<string>> rootfses = os::ls(path::join(
-      containerDir,
-      "backends",
-      flags.appc_provisioner_backend,
-      "rootfses"));
+  string containerDir =
+    slave::provisioner::paths::getContainerDir(
+        provisionerDir,
+        containerId);
+
+  Try<hashmap<string, hashset<string>>> rootfses =
+    slave::provisioner::paths::listContainerRootfses(
+        provisionerDir,
+        containerId);
 
   ASSERT_SOME(rootfses);
 
   // Verify that the rootfs is successfully provisioned.
-  EXPECT_EQ(2u, rootfses.get().size());
+  ASSERT_TRUE(rootfses->contains(flags.image_provisioner_backend));
+  EXPECT_EQ(2u, rootfses->get(flags.image_provisioner_backend)->size());
 
-  Future<bool> destroy = provisioners2.get()[Image::APPC]->destroy(containerId);
+  Future<bool> destroy = provisioners2.get()->destroy(containerId);
   AWAIT_READY(destroy);
   EXPECT_TRUE(destroy.get());
 

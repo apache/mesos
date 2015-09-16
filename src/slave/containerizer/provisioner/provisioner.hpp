@@ -25,7 +25,6 @@
 
 #include <mesos/slave/isolator.hpp> // For ContainerState.
 
-#include <stout/hashmap.hpp>
 #include <stout/nothing.hpp>
 #include <stout/try.hpp>
 
@@ -40,15 +39,20 @@ namespace mesos {
 namespace internal {
 namespace slave {
 
+// Forward declaration.
+class ProvisionerProcess;
+
+
 class Provisioner
 {
 public:
-  virtual ~Provisioner() {}
+  // Create the provisioner based on the specified flags.
+  static Try<process::Owned<Provisioner>> create(
+      const Flags& flags,
+      Fetcher* fetcher);
 
-  // Create provisioners based on specified flags. An error is returned if
-  // any of the provisioners specified in --provisioner failed to be created.
-  static Try<hashmap<Image::Type, process::Owned<Provisioner>>>
-    create(const Flags& flags, Fetcher* fetcher);
+  // NOTE: Made 'virtual' for mocking and testing.
+  virtual ~Provisioner();
 
   // Recover root filesystems for containers from the run states and
   // the orphan containers (known to the launcher but not known to the
@@ -57,19 +61,30 @@ public:
   // directories) to not leak anything.
   virtual process::Future<Nothing> recover(
       const std::list<mesos::slave::ContainerState>& states,
-      const hashset<ContainerID>& orphans) = 0;
+      const hashset<ContainerID>& orphans);
 
   // Provision a root filesystem for the container using the specified
   // image and return the absolute path to the root filesystem.
   virtual process::Future<std::string> provision(
       const ContainerID& containerId,
-      const Image& image) = 0;
+      const Image& image);
 
   // Destroy a previously provisioned root filesystem. Assumes that
   // all references (e.g., mounts, open files) to the provisioned
   // filesystem have been removed. Return false if there is no
   // provisioned root filesystem for the given container.
-  virtual process::Future<bool> destroy(const ContainerID& containerId) = 0;
+  virtual process::Future<bool> destroy(const ContainerID& containerId);
+
+protected:
+  Provisioner() {} // For creating mock object.
+
+private:
+  explicit Provisioner(process::Owned<ProvisionerProcess> process);
+
+  Provisioner(const Provisioner&) = delete; // Not copyable.
+  Provisioner& operator=(const Provisioner&) = delete; // Not assignable.
+
+  process::Owned<ProvisionerProcess> process;
 };
 
 } // namespace slave {

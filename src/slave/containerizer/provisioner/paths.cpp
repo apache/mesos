@@ -96,10 +96,10 @@ string getContainerRootfsDir(
 }
 
 
-Try<hashmap<ContainerID, string>> listContainers(
+Try<hashset<ContainerID>> listContainers(
     const string& provisionerDir)
 {
-  hashmap<ContainerID, string> results;
+  hashset<ContainerID> results;
 
   string containersDir = getContainersDir(provisionerDir);
   if (!os::exists(containersDir)) {
@@ -124,18 +124,18 @@ Try<hashmap<ContainerID, string>> listContainers(
 
     ContainerID containerId;
     containerId.set_value(entry);
-    results.put(containerId, containerPath);
+    results.insert(containerId);
   }
 
   return results;
 }
 
 
-Try<hashmap<string, hashmap<string, string>>> listContainerRootfses(
+Try<hashmap<string, hashset<string>>> listContainerRootfses(
     const string& provisionerDir,
     const ContainerID& containerId)
 {
-  hashmap<string, hashmap<string, string>> results;
+  hashmap<string, hashset<string>> results;
 
   string backendsDir = getBackendsDir(
       getContainerDir(
@@ -159,7 +159,7 @@ Try<hashmap<string, hashmap<string, string>>> listContainerRootfses(
       return Error("Unable to list the backend directory: " + rootfses.error());
     }
 
-    hashmap<string, string> backendResults;
+    hashset<string> backendResults;
 
     foreach (const string& rootfsId, rootfses.get()) {
       string rootfs = getRootfsDir(getRootfsesDir(backendDir), rootfsId);
@@ -169,7 +169,7 @@ Try<hashmap<string, hashmap<string, string>>> listContainerRootfses(
         continue;
       }
 
-      backendResults.put(rootfsId, rootfs);
+      backendResults.insert(rootfsId);
     }
 
     if (backendResults.empty()) {

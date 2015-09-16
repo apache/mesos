@@ -92,14 +92,10 @@ public:
       rootfses.put(imageName, rootfs.get().share());
     }
 
-    // Create the TestAppcProvisioner for the above root filesystems.
-    hashmap<Image::Type, Owned<Provisioner>> provisioners;
-    provisioners.put(
-        Image::APPC,
-        Owned<Provisioner>(new TestAppcProvisioner(rootfses)));
+    Owned<Provisioner> provisioner(new TestProvisioner(rootfses));
 
     Try<Isolator*> _isolator =
-      LinuxFilesystemIsolatorProcess::create(flags, provisioners);
+      LinuxFilesystemIsolatorProcess::create(flags, provisioner);
 
     if (_isolator.isError()) {
       return Error(

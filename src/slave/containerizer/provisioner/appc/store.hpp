@@ -19,17 +19,7 @@
 #ifndef __PROVISIONER_APPC_STORE_HPP__
 #define __PROVISIONER_APPC_STORE_HPP__
 
-#include <string>
-#include <vector>
-
-#include <mesos/mesos.hpp>
-
-#include <process/future.hpp>
-#include <process/owned.hpp>
-
-#include <stout/try.hpp>
-
-#include "slave/flags.hpp"
+#include "slave/containerizer/provisioner/store.hpp"
 
 namespace mesos {
 namespace internal {
@@ -40,44 +30,27 @@ namespace appc {
 class StoreProcess;
 
 
-// An image store abstraction that "stores" images. It serves as a read-through
-// cache (cache misses are fetched remotely and transparently) for images.
-// TODO(xujyan): The store currently keeps cached images indefinitely and we
-// should introduce cache eviction policies.
-class Store
+class Store : public slave::Store
 {
 public:
-  static Try<process::Owned<Store>> create(const Flags& flags);
+  static Try<process::Owned<slave::Store>> create(const Flags& flags);
 
   ~Store();
 
-  process::Future<Nothing> recover();
+  virtual process::Future<Nothing> recover();
 
-  // Get the specified image (and all its recursive dependencies) as a list
-  // of rootfs layers in the topological order (dependencies go before
-  // dependents in the list). The images required to build this list are
-  // either retrieved from the local cache or fetched remotely.
-  // NOTE: The returned list should not have duplicates. e.g., in the
-  // following scenario the result should be [C, B, D, A] (B before D in this
-  // example is decided by the order in which A specifies its dependencies).
-  //
-  // A --> B --> C
-  // |           ^
-  // |---> D ----|
-  //
-  // The returned future fails if the requested image or any of its
-  // dependencies cannot be found or failed to be fetched.
-  // TODO(xujyan): Fetching remotely is not implemented for now and until
-  // then the future fails directly if the image is not in the local cache.
-  // TODO(xujyan): The store currently doesn't support images that have
-  // dependencies and we should add it later.
-  process::Future<std::vector<std::string>> get(const Image::Appc& image);
+  // TODO(xujyan): Fetching remotely is not implemented for now and
+  // until then the future fails directly if the image is not in the
+  // local cache.
+  // TODO(xujyan): The store currently doesn't support images that
+  // have dependencies and we should add it later.
+  virtual process::Future<std::vector<std::string>> get(const Image& image);
 
 private:
   Store(process::Owned<StoreProcess> process);
 
-  Store(const Store&); // Not copyable.
-  Store& operator=(const Store&); // Not assignable.
+  Store(const Store&) = delete; // Not copyable.
+  Store& operator=(const Store&) = delete; // Not assignable.
 
   process::Owned<StoreProcess> process;
 };

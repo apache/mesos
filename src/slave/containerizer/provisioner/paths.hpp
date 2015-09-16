@@ -24,6 +24,7 @@
 #include <mesos/mesos.hpp>
 
 #include <stout/hashmap.hpp>
+#include <stout/hashset.hpp>
 #include <stout/try.hpp>
 
 namespace mesos {
@@ -35,17 +36,13 @@ namespace paths {
 // The provisioner rootfs directory is as follows:
 // <work_dir> ('--work_dir' flag)
 // |-- provisioner
-//     |-- <image_type> (APPC, DOCKER, etc.)
-//         |-- containers
-//             |-- <container_id>
-//                 |-- backends
-//                     |-- <backend> (copy, bind, etc.)
-//                         |-- rootfses
-//                             |-- <rootfs_id> (the rootfs)
+//     |-- containers
+//         |-- <container_id>
+//             |-- backends
+//                 |-- <backend> (copy, bind, etc.)
+//                     |-- rootfses
+//                         |-- <rootfs_id> (the rootfs)
 //
-// NOTE: Each container could have multiple image types, therefore the
-// same <container_id> directory can be under other directories (e.g.,
-// <work_dir>/provisioner/DOCKER, <work_dir>/provisioner/APPC, etc.).
 // There can be multiple backends due to the change of backend flags.
 // Under each backend a rootfs is identified by the 'rootfs_id' which
 // is a UUID.
@@ -63,15 +60,15 @@ std::string getContainerRootfsDir(
 
 
 // Recursively "ls" the container directory and return a map of
-// backend -> rootfsId -> rootfsPath.
-Try<hashmap<std::string, hashmap<std::string, std::string>>>
+// backend -> {rootfsId, ...}
+Try<hashmap<std::string, hashset<std::string>>>
 listContainerRootfses(
     const std::string& provisionerDir,
     const ContainerID& containerId);
 
 
-// Return a map of containerId -> containerPath;
-Try<hashmap<ContainerID, std::string>> listContainers(
+// Return a set of container IDs.
+Try<hashset<ContainerID>> listContainers(
     const std::string& provisionerDir);
 
 } // namespace paths {
