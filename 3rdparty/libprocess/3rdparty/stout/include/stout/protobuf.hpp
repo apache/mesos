@@ -391,50 +391,80 @@ struct Parser : boost::static_visitor<Try<Nothing> >
     switch (field->type()) {
       case google::protobuf::FieldDescriptor::TYPE_DOUBLE:
         if (field->is_repeated()) {
-          reflection->AddDouble(message, field, number.as<double>());
+          reflection->AddDouble(message, field, number.value);
         } else {
-          reflection->SetDouble(message, field, number.as<double>());
+          reflection->SetDouble(message, field, number.value);
         }
         break;
       case google::protobuf::FieldDescriptor::TYPE_FLOAT:
         if (field->is_repeated()) {
-          reflection->AddFloat(message, field, number.as<float>());
+          reflection->AddFloat(
+              message,
+              field,
+              static_cast<float>(number.value));
         } else {
-          reflection->SetFloat(message, field, number.as<float>());
+          reflection->SetFloat(
+              message,
+              field,
+              static_cast<float>(number.value));
         }
         break;
       case google::protobuf::FieldDescriptor::TYPE_INT64:
       case google::protobuf::FieldDescriptor::TYPE_SINT64:
       case google::protobuf::FieldDescriptor::TYPE_SFIXED64:
         if (field->is_repeated()) {
-          reflection->AddInt64(message, field, number.as<int64_t>());
+          reflection->AddInt64(
+              message,
+              field,
+              static_cast<int64_t>(number.value));
         } else {
-          reflection->SetInt64(message, field, number.as<int64_t>());
+          reflection->SetInt64(
+              message,
+              field,
+              static_cast<int64_t>(number.value));
         }
         break;
       case google::protobuf::FieldDescriptor::TYPE_UINT64:
       case google::protobuf::FieldDescriptor::TYPE_FIXED64:
         if (field->is_repeated()) {
-          reflection->AddUInt64(message, field, number.as<uint64_t>());
+          reflection->AddUInt64(
+              message,
+              field,
+              static_cast<uint64_t>(number.value));
         } else {
-          reflection->SetUInt64(message, field, number.as<uint64_t>());
+          reflection->SetUInt64(
+              message,
+              field,
+              static_cast<uint64_t>(number.value));
         }
         break;
       case google::protobuf::FieldDescriptor::TYPE_INT32:
       case google::protobuf::FieldDescriptor::TYPE_SINT32:
       case google::protobuf::FieldDescriptor::TYPE_SFIXED32:
         if (field->is_repeated()) {
-          reflection->AddInt32(message, field, number.as<int32_t>());
+          reflection->AddInt32(
+              message,
+              field,
+              static_cast<int32_t>(number.value));
         } else {
-          reflection->SetInt32(message, field, number.as<int32_t>());
+          reflection->SetInt32(
+              message,
+              field,
+              static_cast<int32_t>(number.value));
         }
         break;
       case google::protobuf::FieldDescriptor::TYPE_UINT32:
       case google::protobuf::FieldDescriptor::TYPE_FIXED32:
         if (field->is_repeated()) {
-          reflection->AddUInt32(message, field, number.as<uint32_t>());
+          reflection->AddUInt32(
+              message,
+              field,
+              static_cast<uint32_t>(number.value));
         } else {
-          reflection->SetUInt32(message, field, number.as<uint32_t>());
+          reflection->SetUInt32(
+              message,
+              field,
+              static_cast<uint32_t>(number.value));
         }
         break;
       default:
