@@ -39,7 +39,10 @@ message Event {
     KILL = 3;         // See 'Kill' below.
     ACKNOWLEDGED = 4; // See 'Acknowledged' below.
     MESSAGE = 5;      // See 'Message' below.
-    SHUTDOWN = 6;     // See 'Type' below.
+
+    // Received when the slave asks the executor to shutdown/kill itself.
+    SHUTDOWN = 6;
+
     ERROR = 7;        // See 'Error' below.
   }
 
@@ -118,16 +121,15 @@ message Event {
   // Possible call types, followed by message definitions if
   // applicable.
   enum Type {
-    SUBSCRIBE = 1;    // See 'executor_info' below.
-    RESUBSCRIBE = 2;  // See 'Resubscribe' below.
-    UPDATE = 3;       // See 'Update' below.
-    MESSAGE = 4;      // See 'Message' below.
+    SUBSCRIBE = 1;    // See 'Subscribe' below.
+    UPDATE = 2;       // See 'Update' below.
+    MESSAGE = 3;      // See 'Message' below.
   }
 
-  // Request to resubscribe with the slave. It must include a list of
-  // all the tasks and updates which haven't been acknoledged by the
-  // scheduler.
-  message Resubscribe {
+  // Request to subscribe with the slave. If subscribing after a disconnection,
+  // it must include a list of all the tasks and updates which haven't been
+  // acknowledged by the scheduler.
+  message Subscribe {
     repeated TaskInfo tasks = 1;
     repeated Update updates = 2;
   }
@@ -155,17 +157,16 @@ message Event {
     required bytes data = 2;
   }
 
-  // Identifies who generated this call. Always necessary, but the
-  // only thing that needs to be set for certain calls, e.g.,
-  // SUBSCRIBE.
-  required ExecutorInfo executor_info = 1;
+  // Identifies the executor which generated this call.
+  required ExecutorID executor_id = 1;
+  required FrameworkID framework_id = 2;
 
   // Type of the call, indicates which optional field below should be
   // present if that type has a nested message definition.
   // In case type is SUBSCRIBED, no message needs to be set.
-  required Type type = 2;
+  required Type type = 3;
 
-  optional Resubscribe resubscribe = 3;
-  optional Update update = 4;
-  optional Message message = 5;
+  optional Subscribe subscribe = 4;
+  optional Update update = 5;
+  optional Message message = 6;
 }
