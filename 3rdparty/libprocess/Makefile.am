@@ -93,7 +93,6 @@ libprocess_la_CPPFLAGS =			\
   -I$(BOOST)					\
   -I$(LIBEV)					\
   -I$(PICOJSON)					\
-  -DPICOJSON_USE_INT64				\
   $(AM_CPPFLAGS)
 
 if ENABLE_LIBEVENT
