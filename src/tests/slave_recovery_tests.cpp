@@ -587,7 +587,7 @@ TYPED_TEST(SlaveRecoveryTest, RecoverUnregisteredExecutor)
 
   // Now advance time until the reaper reaps the executor.
   while (status.isPending()) {
-    Clock::advance(MAX_REAP_INTERVAL());
+    Clock::advance(process::MAX_REAP_INTERVAL());
     Clock::settle();
   }
 
@@ -706,7 +706,7 @@ TYPED_TEST(SlaveRecoveryTest, RecoverTerminatedExecutor)
 
   // Now advance time until the reaper reaps the executor.
   while (status.isPending()) {
-    Clock::advance(MAX_REAP_INTERVAL());
+    Clock::advance(process::MAX_REAP_INTERVAL());
     Clock::settle();
   }
 
@@ -1000,7 +1000,7 @@ TYPED_TEST(SlaveRecoveryTest, CleanupExecutor)
 
   // Now advance time until the reaper reaps the executor.
   while (status.isPending()) {
-    Clock::advance(MAX_REAP_INTERVAL());
+    Clock::advance(process::MAX_REAP_INTERVAL());
     Clock::settle();
   }
 
@@ -1685,7 +1685,7 @@ TYPED_TEST(SlaveRecoveryTest, ShutdownSlave)
 
   // Now advance time until the reaper reaps the executor.
   while (executorTerminated.isPending()) {
-    Clock::advance(MAX_REAP_INTERVAL());
+    Clock::advance(process::MAX_REAP_INTERVAL());
     Clock::settle();
   }
 
@@ -2563,7 +2563,7 @@ TYPED_TEST(SlaveRecoveryTest, PartitionedSlave)
 
   // Wait for the executor to be terminated.
   while (executorTerminated.isPending()) {
-    Clock::advance(MAX_REAP_INTERVAL());
+    Clock::advance(process::MAX_REAP_INTERVAL());
     Clock::settle();
   }
 
