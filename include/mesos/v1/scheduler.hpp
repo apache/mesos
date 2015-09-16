@@ -62,7 +62,7 @@ public:
   Mesos(const Mesos& other) = delete;
 
   // Delete assignment operator.
-  Mesos& operator = (const Mesos& other) = delete;
+  Mesos& operator=(const Mesos& other) = delete;
 
   virtual ~Mesos();
 
