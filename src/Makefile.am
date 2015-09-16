@@ -106,6 +106,9 @@ MESOS_CPPFLAGS += -I../include/mesos
 MESOS_CPPFLAGS += -I../$(BOOST)
 MESOS_CPPFLAGS += -I../$(PICOJSON)
 
+# Enable the INT64 support for PicoJSON.
+MESOS_CPPFLAGS += -DPICOJSON_USE_INT64
+
 MESOS_CPPFLAGS += -I../$(PROTOBUF)/src
 MESOS_CPPFLAGS += -I../$(GLOG)/src
 
