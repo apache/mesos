@@ -76,7 +76,7 @@ TEST(ReapTest, NonChildProcess)
 
   // Now advance time until the Reaper reaps the grandchild.
   while (status.isPending()) {
-    Clock::advance(Seconds(1));
+    Clock::advance(MAX_REAP_INTERVAL());
     Clock::settle();
   }
 
@@ -90,7 +90,7 @@ TEST(ReapTest, NonChildProcess)
 
   // Now advance time until the child is reaped.
   while (status.isPending()) {
-    Clock::advance(Seconds(1));
+    Clock::advance(MAX_REAP_INTERVAL());
     Clock::settle();
   }
 
@@ -127,7 +127,7 @@ TEST(ReapTest, ChildProcess)
 
   // Now advance time until the reaper reaps the child.
   while (status.isPending()) {
-    Clock::advance(Seconds(1));
+    Clock::advance(MAX_REAP_INTERVAL());
     Clock::settle();
   }
 
@@ -176,7 +176,7 @@ TEST(ReapTest, TerminatedChildProcess)
   // Advance time until the reaper sends the notification.
   Clock::pause();
   while (status.isPending()) {
-    Clock::advance(Seconds(1));
+    Clock::advance(MAX_REAP_INTERVAL());
     Clock::settle();
   }
 

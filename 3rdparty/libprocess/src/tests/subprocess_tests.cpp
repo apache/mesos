@@ -25,6 +25,7 @@
 #include <process/gmock.hpp>
 #include <process/gtest.hpp>
 #include <process/io.hpp>
+#include <process/reap.hpp>
 #include <process/subprocess.hpp>
 
 #include <stout/foreach.hpp>
@@ -56,7 +57,7 @@ TEST_F(SubprocessTest, Status)
   // Advance time until the internal reaper reaps the subprocess.
   Clock::pause();
   while (s.get().status().isPending()) {
-    Clock::advance(Seconds(1));
+    Clock::advance(MAX_REAP_INTERVAL());
     Clock::settle();
   }
   Clock::resume();
@@ -76,7 +77,7 @@ TEST_F(SubprocessTest, Status)
   // Advance time until the internal reaper reaps the subprocess.
   Clock::pause();
   while (s.get().status().isPending()) {
-    Clock::advance(Seconds(1));
+    Clock::advance(MAX_REAP_INTERVAL());
     Clock::settle();
   }
   Clock::resume();
@@ -98,7 +99,7 @@ TEST_F(SubprocessTest, Status)
   // Advance time until the internal reaper reaps the subprocess.
   Clock::pause();
   while (s.get().status().isPending()) {
-    Clock::advance(Seconds(1));
+    Clock::advance(MAX_REAP_INTERVAL());
     Clock::settle();
   }
   Clock::resume();
@@ -120,7 +121,7 @@ TEST_F(SubprocessTest, Status)
   // Advance time until the internal reaper reaps the subprocess.
   Clock::pause();
   while (s.get().status().isPending()) {
-    Clock::advance(Seconds(1));
+    Clock::advance(MAX_REAP_INTERVAL());
     Clock::settle();
   }
   Clock::resume();
@@ -150,7 +151,7 @@ TEST_F(SubprocessTest, PipeOutput)
   // Advance time until the internal reaper reaps the subprocess.
   Clock::pause();
   while (s.get().status().isPending()) {
-    Clock::advance(Seconds(1));
+    Clock::advance(MAX_REAP_INTERVAL());
     Clock::settle();
   }
   Clock::resume();
@@ -176,7 +177,7 @@ TEST_F(SubprocessTest, PipeOutput)
   // Advance time until the internal reaper reaps the subprocess.
   Clock::pause();
   while (s.get().status().isPending()) {
-    Clock::advance(Seconds(1));
+    Clock::advance(MAX_REAP_INTERVAL());
     Clock::settle();
   }
   Clock::resume();
@@ -208,7 +209,7 @@ TEST_F(SubprocessTest, PipeInput)
   // Advance time until the internal reaper reaps the subprocess.
   Clock::pause();
   while (s.get().status().isPending()) {
-    Clock::advance(Seconds(1));
+    Clock::advance(MAX_REAP_INTERVAL());
     Clock::settle();
   }
   Clock::resume();
@@ -250,7 +251,7 @@ TEST_F(SubprocessTest, PipeRedirect)
   // Advance time until the internal reaper reaps the subprocess.
   Clock::pause();
   while (s.get().status().isPending()) {
-    Clock::advance(Seconds(1));
+    Clock::advance(MAX_REAP_INTERVAL());
     Clock::settle();
   }
   Clock::resume();
@@ -286,7 +287,7 @@ TEST_F(SubprocessTest, PathOutput)
   // Advance time until the internal reaper reaps the subprocess.
   Clock::pause();
   while (s.get().status().isPending()) {
-    Clock::advance(Seconds(1));
+    Clock::advance(MAX_REAP_INTERVAL());
     Clock::settle();
   }
   Clock::resume();
@@ -314,7 +315,7 @@ TEST_F(SubprocessTest, PathOutput)
   // Advance time until the internal reaper reaps the subprocess.
   Clock::pause();
   while (s.get().status().isPending()) {
-    Clock::advance(Seconds(1));
+    Clock::advance(MAX_REAP_INTERVAL());
     Clock::settle();
   }
   Clock::resume();
@@ -351,7 +352,7 @@ TEST_F(SubprocessTest, PathInput)
   // Advance time until the internal reaper reaps the subprocess.
   Clock::pause();
   while (s.get().status().isPending()) {
-    Clock::advance(Seconds(1));
+    Clock::advance(MAX_REAP_INTERVAL());
     Clock::settle();
   }
   Clock::resume();
@@ -390,7 +391,7 @@ TEST_F(SubprocessTest, FdOutput)
   // Advance time until the internal reaper reaps the subprocess.
   Clock::pause();
   while (s.get().status().isPending()) {
-    Clock::advance(Seconds(1));
+    Clock::advance(MAX_REAP_INTERVAL());
     Clock::settle();
   }
   Clock::resume();
@@ -426,7 +427,7 @@ TEST_F(SubprocessTest, FdOutput)
   // Advance time until the internal reaper reaps the subprocess.
   Clock::pause();
   while (s.get().status().isPending()) {
-    Clock::advance(Seconds(1));
+    Clock::advance(MAX_REAP_INTERVAL());
     Clock::settle();
   }
   Clock::resume();
@@ -468,7 +469,7 @@ TEST_F(SubprocessTest, FdInput)
   // Advance time until the internal reaper reaps the subprocess.
   Clock::pause();
   while (s.get().status().isPending()) {
-    Clock::advance(Seconds(1));
+    Clock::advance(MAX_REAP_INTERVAL());
     Clock::settle();
   }
   Clock::resume();
@@ -491,7 +492,7 @@ TEST_F(SubprocessTest, Default)
   // Advance time until the internal reaper reaps the subprocess.
   Clock::pause();
   while (s.get().status().isPending()) {
-    Clock::advance(Seconds(1));
+    Clock::advance(MAX_REAP_INTERVAL());
     Clock::settle();
   }
   Clock::resume();
@@ -574,7 +575,7 @@ TEST_F(SubprocessTest, Flags)
   // Advance time until the internal reaper reaps the subprocess.
   Clock::pause();
   while (s.get().status().isPending()) {
-    Clock::advance(Seconds(1));
+    Clock::advance(MAX_REAP_INTERVAL());
     Clock::settle();
   }
   Clock::resume();
@@ -640,7 +641,7 @@ TEST_F(SubprocessTest, Environment)
   // Advance time until the internal reaper reaps the subprocess.
   Clock::pause();
   while (s.get().status().isPending()) {
-    Clock::advance(Seconds(1));
+    Clock::advance(MAX_REAP_INTERVAL());
     Clock::settle();
   }
   Clock::resume();
@@ -671,7 +672,7 @@ TEST_F(SubprocessTest, Environment)
   // Advance time until the internal reaper reaps the subprocess.
   Clock::pause();
   while (s.get().status().isPending()) {
-    Clock::advance(Seconds(1));
+    Clock::advance(MAX_REAP_INTERVAL());
     Clock::settle();
   }
   Clock::resume();
@@ -705,7 +706,7 @@ TEST_F(SubprocessTest, EnvironmentWithSpaces)
   // Advance time until the internal reaper reaps the subprocess.
   Clock::pause();
   while (s.get().status().isPending()) {
-    Clock::advance(Seconds(1));
+    Clock::advance(MAX_REAP_INTERVAL());
     Clock::settle();
   }
   Clock::resume();
@@ -739,7 +740,7 @@ TEST_F(SubprocessTest, EnvironmentWithSpacesAndQuotes)
   // Advance time until the internal reaper reaps the subprocess.
   Clock::pause();
   while (s.get().status().isPending()) {
-    Clock::advance(Seconds(1));
+    Clock::advance(MAX_REAP_INTERVAL());
     Clock::settle();
   }
   Clock::resume();
@@ -776,7 +777,7 @@ TEST_F(SubprocessTest, EnvironmentOverride)
   // Advance time until the internal reaper reaps the subprocess.
   Clock::pause();
   while (s.get().status().isPending()) {
-    Clock::advance(Seconds(1));
+    Clock::advance(MAX_REAP_INTERVAL());
     Clock::settle();
   }
   Clock::resume();
@@ -820,7 +821,7 @@ TEST_F(SubprocessTest, Setup)
   // Advance time until the internal reaper reaps the subprocess.
   Clock::pause();
   while (s.get().status().isPending()) {
-    Clock::advance(Seconds(1));
+    Clock::advance(MAX_REAP_INTERVAL());
     Clock::settle();
   }
   Clock::resume();
@@ -859,7 +860,7 @@ TEST_F(SubprocessTest, SetupStatus)
   // Advance time until the internal reaper reaps the subprocess.
   Clock::pause();
   while (s.get().status().isPending()) {
-    Clock::advance(Seconds(1));
+    Clock::advance(MAX_REAP_INTERVAL());
     Clock::settle();
   }
   Clock::resume();
@@ -887,7 +888,7 @@ TEST_F(SubprocessTest, SetupStatus)
   // Advance time until the internal reaper reaps the subprocess.
   Clock::pause();
   while (s.get().status().isPending()) {
-    Clock::advance(Seconds(1));
+    Clock::advance(MAX_REAP_INTERVAL());
     Clock::settle();
   }
   Clock::resume();
