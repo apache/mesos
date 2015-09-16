@@ -2826,7 +2826,7 @@ TEST_F(MasterTest, StateEndpoint)
   ASSERT_TRUE(state.values["start_time"].is<JSON::Number>());
   EXPECT_EQ(
       static_cast<int>(Clock::now().secs()),
-      static_cast<int>(state.values["start_time"].as<JSON::Number>().value));
+      state.values["start_time"].as<JSON::Number>().as<int>());
 
   ASSERT_TRUE(state.values["id"].is<JSON::String>());
   EXPECT_NE("", state.values["id"].as<JSON::String>().value);
