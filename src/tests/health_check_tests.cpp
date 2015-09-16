@@ -21,10 +21,14 @@
 
 #include <process/clock.hpp>
 #include <process/future.hpp>
+#include <process/owned.hpp>
 #include <process/pid.hpp>
+
+#include "docker/docker.hpp"
 
 #include "slave/slave.hpp"
 
+#include "slave/containerizer/docker.hpp"
 #include "slave/containerizer/fetcher.hpp"
 
 #include "tests/containerizer.hpp"
@@ -35,6 +39,7 @@
 using mesos::internal::master::Master;
 
 using mesos::internal::slave::Containerizer;
+using mesos::internal::slave::DockerContainerizer;
 using mesos::internal::slave::Fetcher;
 using mesos::internal::slave::MesosContainerizer;
 using mesos::internal::slave::MesosContainerizerProcess;
@@ -42,6 +47,7 @@ using mesos::internal::slave::Slave;
 
 using process::Clock;
 using process::Future;
+using process::Owned;
 using process::PID;
 
 using testing::_;
@@ -68,7 +74,8 @@ public:
       const Offer& offer,
       int gracePeriodSeconds = 0,
       const Option<int>& consecutiveFailures = None(),
-      const Option<map<string, string> >& env = None())
+      const Option<map<string, string>>& env = None(),
+      const Option<ContainerInfo>& containerInfo = None())
   {
     CommandInfo healthCommand;
     healthCommand.set_value(healthCmd);
@@ -79,7 +86,8 @@ public:
         offer,
         gracePeriodSeconds,
         consecutiveFailures,
-        env);
+        env,
+        containerInfo);
   }
 
   vector<TaskInfo> populateTasks(
@@ -88,7 +96,8 @@ public:
       const Offer& offer,
       int gracePeriodSeconds = 0,
       const Option<int>& consecutiveFailures = None(),
-      const Option<map<string, string> >& env = None())
+      const Option<map<string, string>>& env = None(),
+      const Option<ContainerInfo>& containerInfo = None())
   {
     TaskInfo task;
     task.set_name("");
@@ -108,6 +117,10 @@ public:
     variable->set_value(path::join(tests::flags.build_dir, "src"));
 
     task.mutable_command()->CopyFrom(command);
+
+    if (containerInfo.isSome()) {
+      task.mutable_container()->CopyFrom(containerInfo.get());
+    }
 
     HealthCheck healthCheck;
 
@@ -235,6 +248,98 @@ TEST_F(HealthCheckTest, HealthyTask)
   driver.join();
 
   Shutdown();
+}
+
+
+// Testing a healthy task reporting one healthy status to scheduler for
+// docker executor.
+TEST_F(HealthCheckTest, ROOT_DOCKER_DockerHealthyTask)
+{
+  Owned<Docker> docker(Docker::create(tests::flags.docker,
+                                      tests::flags.docker_socket,
+                                      false).get());
+  Try<Nothing> validateResult = docker->validateVersion(Version(1, 3, 0));
+  ASSERT_SOME(validateResult)
+    << "-------------------------------------------------------------\n"
+    << "We cannot run this test because of 'docker exec' command \n"
+    << "require docker version greater than '1.3.0'. You won't be \n"
+    << "able to use the docker exec method, but feel free to disable\n"
+    << "this test.\n"
+    << "-------------------------------------------------------------";
+
+  Try<PID<Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  slave::Flags flags = CreateSlaveFlags();
+
+  Fetcher fetcher;
+
+  Try<DockerContainerizer*> containerizer =
+    DockerContainerizer::create(flags, &fetcher);
+  CHECK_SOME(containerizer);
+
+  Try<PID<Slave>> slave = StartSlave(containerizer.get());
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+    &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .Times(1);
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
+
+  ContainerInfo containerInfo;
+  containerInfo.set_type(ContainerInfo::DOCKER);
+
+  // TODO(tnachen): Use local image to test if possible.
+  ContainerInfo::DockerInfo dockerInfo;
+  dockerInfo.set_image("busybox");
+  containerInfo.mutable_docker()->CopyFrom(dockerInfo);
+
+  vector<TaskInfo> tasks = populateTasks(
+    "sleep 120", "exit 0", offers.get()[0], 0, None(), None(), containerInfo);
+
+  Future<TaskStatus> statusRunning;
+  Future<TaskStatus> statusHealth;
+
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusRunning))
+    .WillOnce(FutureArg<1>(&statusHealth));
+
+  driver.launchTasks(offers.get()[0].id(), tasks);
+
+  AWAIT_READY(statusRunning);
+  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
+
+  AWAIT_READY(statusHealth);
+  EXPECT_EQ(TASK_RUNNING, statusHealth.get().state());
+  EXPECT_TRUE(statusHealth.get().has_healthy());
+  EXPECT_TRUE(statusHealth.get().healthy());
+
+  driver.stop();
+  driver.join();
+
+  Shutdown();
+
+  Future<std::list<Docker::Container>> containers =
+    docker->ps(true, slave::DOCKER_NAME_PREFIX);
+
+  AWAIT_READY(containers);
+
+  // Cleanup all mesos launched containers.
+  foreach (const Docker::Container& container, containers.get()) {
+    AWAIT_READY_FOR(docker->rm(container.id, true), Seconds(30));
+  }
 }
 
 
@@ -392,6 +497,130 @@ TEST_F(HealthCheckTest, HealthStatusChange)
   driver.join();
 
   Shutdown();
+}
+
+
+// Testing health status change reporting to scheduler for docker executor.
+TEST_F(HealthCheckTest, ROOT_DOCKER_DockerHealthStatusChange)
+{
+  Owned<Docker> docker(Docker::create(tests::flags.docker,
+                                      tests::flags.docker_socket,
+                                      false).get());
+  Try<Nothing> validateResult = docker->validateVersion(Version(1, 3, 0));
+  ASSERT_SOME(validateResult)
+    << "-------------------------------------------------------------\n"
+    << "We cannot run this test because of 'docker exec' command \n"
+    << "require docker version greater than '1.3.0'. You won't be \n"
+    << "able to use the docker exec method, but feel free to disable\n"
+    << "this test.\n"
+    << "-------------------------------------------------------------";
+
+  Try<PID<Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  slave::Flags flags = CreateSlaveFlags();
+
+  Fetcher fetcher;
+
+  Try<DockerContainerizer*> containerizer =
+    DockerContainerizer::create(flags, &fetcher);
+  CHECK_SOME(containerizer);
+
+  Try<PID<Slave>> slave = StartSlave(containerizer.get());
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
+
+  ContainerInfo containerInfo;
+  containerInfo.set_type(ContainerInfo::DOCKER);
+
+  // TODO(tnachen): Use local image to test if possible.
+  ContainerInfo::DockerInfo dockerInfo;
+  dockerInfo.set_image("busybox");
+  containerInfo.mutable_docker()->CopyFrom(dockerInfo);
+
+  // Create a temporary file in host and then we could this file to make sure
+  // the health check command is run in docker container.
+  string tmpPath = path::join(os::getcwd(), "foobar");
+  ASSERT_SOME(os::write(tmpPath, "bar"));
+
+  // This command fails every other invocation.
+  // For all runs i in Nat0, the following case i % 2 applies:
+  //
+  // Case 0:
+  //   - Attempt to remove the nonexistent temporary file.
+  //   - Create the temporary file.
+  //   - Exit with a non-zero status.
+  //
+  // Case 1:
+  //   - Remove the temporary file.
+  string alt = "rm " + tmpPath + " || (mkdir -p " + os::getcwd() +
+               " && echo foo >" + tmpPath + " && exit 1)";
+
+  vector<TaskInfo> tasks = populateTasks(
+      "sleep 120", alt, offers.get()[0], 0, 3, None(), containerInfo);
+
+  Future<TaskStatus> statusRunning;
+  Future<TaskStatus> statusHealth1;
+  Future<TaskStatus> statusHealth2;
+  Future<TaskStatus> statusHealth3;
+
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusRunning))
+    .WillOnce(FutureArg<1>(&statusHealth1))
+    .WillOnce(FutureArg<1>(&statusHealth2))
+    .WillOnce(FutureArg<1>(&statusHealth3));
+
+  driver.launchTasks(offers.get()[0].id(), tasks);
+
+  AWAIT_READY(statusRunning);
+  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
+
+  AWAIT_READY(statusHealth1);
+  EXPECT_EQ(TASK_RUNNING, statusHealth1.get().state());
+  EXPECT_FALSE(statusHealth1.get().healthy());
+
+  AWAIT_READY(statusHealth2);
+  EXPECT_EQ(TASK_RUNNING, statusHealth2.get().state());
+  EXPECT_TRUE(statusHealth2.get().healthy());
+
+  AWAIT_READY(statusHealth3);
+  EXPECT_EQ(TASK_RUNNING, statusHealth3.get().state());
+  EXPECT_FALSE(statusHealth3.get().healthy());
+
+  // Check the temporary file created in host still exists and the content
+  // don't change.
+  ASSERT_SOME(os::read(tmpPath));
+  EXPECT_EQ("bar", os::read(tmpPath).get());
+
+  driver.stop();
+  driver.join();
+
+  Shutdown();
+
+  Future<std::list<Docker::Container>> containers =
+    docker->ps(true, slave::DOCKER_NAME_PREFIX);
+
+  AWAIT_READY(containers);
+
+  // Cleanup all mesos launched containers.
+  foreach (const Docker::Container& container, containers.get()) {
+    AWAIT_READY_FOR(docker->rm(container.id, true), Seconds(30));
+  }
 }
 
 

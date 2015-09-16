@@ -131,18 +131,10 @@ Try<DockerContainerizer*> DockerContainerizer::create(
   Shared<Docker> docker(create.get());
 
   if (flags.docker_mesos_image.isSome()) {
-    Future<Version> version = docker->version();
-    if (!version.await(DOCKER_VERSION_WAIT_TIMEOUT)) {
-      return Error("Timed out waiting for docker version");
-    }
-
-    if (version.isFailed()) {
-      return Error(version.failure());
-    }
-
-    if (version.get() < Version(1, 5, 0)) {
-      string message = "Docker with mesos images requires docker 1.5+, found ";
-      message += stringify(version.get());
+    Try<Nothing> validateResult = docker->validateVersion(Version(1, 5, 0));
+    if (validateResult.isError()) {
+      string message = "Docker with mesos images requires docker 1.5+";
+      message += validateResult.error();
       return Error(message);
     }
   }
