@@ -150,6 +150,9 @@ CONTAINERIZER_PROTO =							\
 EXECUTOR_PROTO =							\
   $(top_srcdir)/include/mesos/executor/executor.proto
 
+V1_EXECUTOR_PROTO =							\
+  $(top_srcdir)/include/mesos/v1/executor/executor.proto
+
 FETCHER_PROTO =								\
   $(top_srcdir)/include/mesos/fetcher/fetcher.proto
 
@@ -201,6 +204,8 @@ CXX_PROTOS =								\
   ../include/mesos/slave/oversubscription.pb.h				\
   ../include/mesos/v1/mesos.pb.cc					\
   ../include/mesos/v1/mesos.pb.h					\
+  v1/executor/executor.pb.cc						\
+  ../include/mesos/v1/executor/executor.pb.h				\
   v1/scheduler/scheduler.pb.cc						\
   ../include/mesos/v1/scheduler/scheduler.pb.h
 
@@ -277,6 +282,12 @@ executor/%.pb.cc ../include/mesos/executor/%.pb.h: $(EXECUTOR_PROTO)
 	$(PROTOC) $(PROTOCFLAGS) --cpp_out=../include $^
 	mv ../include/mesos/executor/*.pb.cc $(@D)
 
+v1/executor/%.pb.cc ../include/mesos/v1/executor/%.pb.h: $(V1_EXECUTOR_PROTO)
+	$(MKDIR_P) $(@D)
+	$(MKDIR_P) ../include/mesos/v1/executor
+	$(PROTOC) $(PROTOCFLAGS) --cpp_out=../include $^
+	mv ../include/mesos/v1/executor/*.pb.cc $(@D)
+
 fetcher/%.pb.cc ../include/mesos/fetcher/%.pb.h: $(FETCHER_PROTO)
 	$(MKDIR_P) $(@D)
 	$(MKDIR_P) ../include/mesos/fetcher
@@ -352,6 +363,10 @@ java/generated/org/apache/mesos/executor/Protos.java: $(EXECUTOR_PROTO)
 	$(MKDIR_P)  $(@D)
 	$(PROTOC) $(PROTOCFLAGS) --java_out=java/generated $^
 
+java/generated/org/apache/mesos/v1/executor/Protos.java: $(V1_EXECUTOR_PROTO)
+	$(MKDIR_P)  $(@D)
+	$(PROTOC) $(PROTOCFLAGS) --java_out=java/generated $^
+
 python/interface/src/mesos/interface/mesos_pb2.py: $(MESOS_PROTO)
 	$(MKDIR_P) $(@D)
 	$(PROTOC) -I$(top_srcdir)/include/mesos				\
@@ -393,6 +408,13 @@ python/interface/src/mesos/interface/executor_pb2.py: $(EXECUTOR_PROTO)
 	$(PROTOC) -I$(top_srcdir)/include/mesos/executor		\
           $(PROTOCFLAGS)						\
           --python_out=python/interface/src/mesos/interface $^
+	sed -e 's/mesos\.mesos_pb2/mesos_pb2/' <$@ >$@
+
+python/interface/src/mesos/v1/interface/executor_pb2.py: $(V1_EXECUTOR_PROTO)
+	$(MKDIR_P) $(@D)
+	$(PROTOC) -I$(top_srcdir)/include/mesos/v1/executor		\
+          $(PROTOCFLAGS)						\
+          --python_out=python/interface/src/mesos/v1/interface $^
 	sed -e 's/mesos\.mesos_pb2/mesos_pb2/' <$@ >$@
 
 # We even use a convenience library for most of Mesos so that we can
@@ -638,6 +660,14 @@ v1scheduler_HEADERS =							\
   $(top_srcdir)/include/mesos/v1/scheduler/scheduler.proto
 
 nodist_v1scheduler_HEADERS = ../include/mesos/v1/scheduler/scheduler.pb.h
+
+v1executordir = $(pkgincludedir)/v1/executor
+
+v1executor_HEADERS =							\
+  $(top_srcdir)/include/mesos/v1/executor/executor.hpp			\
+  $(top_srcdir)/include/mesos/v1/executor/executor.proto
+
+nodist_v1executor_HEADERS = ../include/mesos/v1/executor/executor.pb.h
 
 if OS_LINUX
   libmesos_no_3rdparty_la_SOURCES += linux/cgroups.cpp
@@ -935,6 +965,7 @@ libmesos_la_SOURCES =							\
   $(EXECUTOR_PROTO)							\
   $(ISOLATOR_PROTO)							\
   $(OVERSUBSCRIPTION_PROTO)						\
+  $(V1_EXECUTOR_PROTO)							\
   $(V1_MESOS_PROTO)							\
   $(V1_SCHEDULER_PROTO)
 
@@ -1228,6 +1259,7 @@ libjava_la_CPPFLAGS += -I$(srcdir)/java/jni -Ijava/jni
 libjava_la_DEPENDENCIES =						\
   $(CONTAINERIZER_PROTO)						\
   $(MESOS_PROTO)							\
+  $(V1_EXECUTOR_PROTO)							\
   $(V1_MESOS_PROTO)							\
   $(V1_SCHEDULER_PROTO)
 
