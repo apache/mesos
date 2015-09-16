@@ -131,7 +131,7 @@ TEST_F(MesosContainerizerLaunchTest, ROOT_ChangeRootfs)
 
   // Advance time until the internal reaper reaps the subprocess.
   while (s.get().status().isPending()) {
-    Clock::advance(Seconds(1));
+    Clock::advance(MAX_REAP_INTERVAL());
     Clock::settle();
   }
 

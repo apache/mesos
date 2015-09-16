@@ -33,6 +33,7 @@
 #include <process/future.hpp>
 #include <process/gmock.hpp>
 #include <process/pid.hpp>
+#include <process/reap.hpp>
 #include <process/subprocess.hpp>
 
 #include <stout/option.hpp>
@@ -223,7 +224,7 @@ TEST_F(SlaveTest, ShutdownUnregisteredExecutor)
 
   // Now advance time until the reaper reaps the executor.
   while (status.isPending()) {
-    Clock::advance(Seconds(1));
+    Clock::advance(process::MAX_REAP_INTERVAL());
     Clock::settle();
   }
 
