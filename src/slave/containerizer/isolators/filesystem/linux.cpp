@@ -360,16 +360,13 @@ Future<Option<ContainerPrepareInfo>> LinuxFilesystemIsolatorProcess::__prepare(
   // namespace right after forking the executor process. We use these
   // commands to mount those volumes specified in the container info
   // so that they don't pollute the host mount namespace.
-  if (executorInfo.has_container() &&
-      executorInfo.container().volumes_size() > 0) {
-    Try<string> _script = script(executorInfo, directory, rootfs);
-    if (_script.isError()) {
-      return Failure("Failed to generate isolation script: " + _script.error());
-    }
-
-    CommandInfo* command = prepareInfo.add_commands();
-    command->set_value(_script.get());
+  Try<string> _script = script(containerId, executorInfo, directory, rootfs);
+  if (_script.isError()) {
+    return Failure("Failed to generate isolation script: " + _script.error());
   }
+
+  CommandInfo* command = prepareInfo.add_commands();
+  command->set_value(_script.get());
 
   return update(containerId, executorInfo.resources())
     .then([prepareInfo]() -> Future<Option<ContainerPrepareInfo>> {
@@ -379,12 +376,11 @@ Future<Option<ContainerPrepareInfo>> LinuxFilesystemIsolatorProcess::__prepare(
 
 
 Try<string> LinuxFilesystemIsolatorProcess::script(
+    const ContainerID& containerId,
     const ExecutorInfo& executorInfo,
     const string& directory,
     const Option<string>& rootfs)
 {
-  CHECK(executorInfo.has_container());
-
   ostringstream out;
   out << "#!/bin/sh\n";
   out << "set -x -e\n";
@@ -393,9 +389,31 @@ Try<string> LinuxFilesystemIsolatorProcess::script(
   // propagate back to the host mount namespace.
   out << "mount --make-rslave /\n";
 
-  // TODO(jieyu): Try to unmount work directory mounts and persistent
-  // volume mounts for other containers to release the extra
-  // references to those mounts.
+  // Try to unmount work directory mounts and persistent volume mounts
+  // for other containers to release the extra references to them.
+  // NOTE:
+  // 1) This doesn't completely eliminate the race condition between
+  //    this container copying mount table and other containers being
+  //    cleaned up. This is instead a best-effort attempt.
+  // 2) This script assumes that all the mounts the container needs
+  //    under the slave work directory have its container ID in the
+  //    path either for the mount source (e.g. sandbox self-bind mount)
+  //    or the mount target (e.g. mounting sandbox into new rootfs).
+  //
+  // TODO(xujyan): This command may fail if --work_dir is not specified
+  // with a real path as real paths are used in the mount table. It
+  // doesn't work when the paths contain reserved characters such as
+  // spaces either because such characters in mount info are encoded
+  // in the escaped form (i.e. '\0xx').
+  out << "grep '" << flags.work_dir << "' /proc/self/mountinfo | "
+      << "grep -v '" << containerId.value() << "' | "
+      << "cut -d' ' -f5 | " // '-f5' is the mount target. See MountInfoTable.
+      << "xargs --no-run-if-empty umount -l || "
+      << "true \n"; // We mask errors in this command.
+
+  if (!executorInfo.has_container()) {
+    return out.str();
+  }
 
   foreach (const Volume& volume, executorInfo.container().volumes()) {
     if (!volume.has_host_path()) {

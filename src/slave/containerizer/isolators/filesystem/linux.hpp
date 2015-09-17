@@ -100,6 +100,7 @@ private:
       const Option<std::string>& rootfs);
 
   Try<std::string> script(
+      const ContainerID& containerId,
       const ExecutorInfo& executorInfo,
       const std::string& directory,
       const Option<std::string>& rootfs);
