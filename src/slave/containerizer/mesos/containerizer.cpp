@@ -787,6 +787,7 @@ Future<bool> MesosContainerizerProcess::_launch(
   }
 
   JSON::Array commandArray;
+  int namespaces = 0;
   foreach (const Option<ContainerPrepareInfo>& prepareInfo, prepareInfos) {
     if (!prepareInfo.isSome()) {
       continue;
@@ -804,6 +805,10 @@ Future<bool> MesosContainerizerProcess::_launch(
           prepareInfo.get().environment().variables()) {
         environment[variable.name()] = variable.value();
       }
+    }
+
+    if (prepareInfo.get().has_namespaces()) {
+      namespaces |= prepareInfo.get().namespaces();
     }
   }
 
@@ -829,15 +834,6 @@ Future<bool> MesosContainerizerProcess::_launch(
   launchFlags.pipe_read = pipes[0];
   launchFlags.pipe_write = pipes[1];
   launchFlags.commands = commands;
-
-  // TODO(karya): Create ContainerPrepareInfo.namespaces and use that instead of
-  // Isolator::namespaces().
-  int namespaces = 0;
-  foreach (const Owned<Isolator>& isolator, isolators) {
-    if (isolator->namespaces().get().isSome()) {
-      namespaces |= isolator->namespaces().get().get();
-    }
-  }
 
   // Fork the child using launcher.
   vector<string> argv(2);

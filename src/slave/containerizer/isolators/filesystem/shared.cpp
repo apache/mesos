@@ -64,12 +64,6 @@ Try<Isolator*> SharedFilesystemIsolatorProcess::create(const Flags& flags)
 }
 
 
-process::Future<Option<int>> SharedFilesystemIsolatorProcess::namespaces()
-{
-  return CLONE_NEWNS;
-}
-
-
 Future<Nothing> SharedFilesystemIsolatorProcess::recover(
     const list<ContainerState>& states,
     const hashset<ContainerID>& orphans)
@@ -108,6 +102,7 @@ Future<Option<ContainerPrepareInfo>> SharedFilesystemIsolatorProcess::prepare(
   containerPaths.insert(directory);
 
   ContainerPrepareInfo prepareInfo;
+  prepareInfo.set_namespaces(CLONE_NEWNS);
 
   foreach (const Volume& volume, executorInfo.container().volumes()) {
     // Because the filesystem is shared we require the container path

@@ -84,12 +84,6 @@ LinuxFilesystemIsolatorProcess::LinuxFilesystemIsolatorProcess(
 LinuxFilesystemIsolatorProcess::~LinuxFilesystemIsolatorProcess() {}
 
 
-Future<Option<int>> LinuxFilesystemIsolatorProcess::namespaces()
-{
-  return CLONE_NEWNS;
-}
-
-
 Future<Nothing> LinuxFilesystemIsolatorProcess::recover(
     const list<ContainerState>& states,
     const hashset<ContainerID>& orphans)
@@ -268,6 +262,7 @@ Future<Option<ContainerPrepareInfo>> LinuxFilesystemIsolatorProcess::__prepare(
   const Owned<Info>& info = infos[containerId];
 
   ContainerPrepareInfo prepareInfo;
+  prepareInfo.set_namespaces(CLONE_NEWNS);
 
   if (rootfs.isNone()) {
     // It the container does not change its root filesystem, we need

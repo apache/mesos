@@ -1619,17 +1619,6 @@ Try<Isolator*> PortMappingIsolatorProcess::create(const Flags& flags)
 }
 
 
-process::Future<Option<int>> PortMappingIsolatorProcess::namespaces()
-{
-  // NOTE: the port mapping isolator itself doesn't require mount
-  // namespace. However, if mount namespace is enabled because of
-  // other isolators, we need to set mount sharing accordingly for
-  // PORT_MAPPING_BIND_MOUNT_ROOT to avoid races described in
-  // MESOS-1558. So we turn on mount namespace here for consistency.
-  return CLONE_NEWNET | CLONE_NEWNS;
-}
-
-
 Future<Nothing> PortMappingIsolatorProcess::recover(
     const list<ContainerState>& states,
     const hashset<ContainerID>& orphans)
@@ -2134,6 +2123,13 @@ Future<Option<ContainerPrepareInfo>> PortMappingIsolatorProcess::prepare(
 
   ContainerPrepareInfo prepareInfo;
   prepareInfo.add_commands()->set_value(scripts(infos[containerId]));
+
+  // NOTE: the port mapping isolator itself doesn't require mount
+  // namespace. However, if mount namespace is enabled because of
+  // other isolators, we need to set mount sharing accordingly for
+  // PORT_MAPPING_BIND_MOUNT_ROOT to avoid races described in
+  // MESOS-1558. So we turn on mount namespace here for consistency.
+  prepareInfo.set_namespaces(CLONE_NEWNET | CLONE_NEWNS);
 
   return prepareInfo;
 }

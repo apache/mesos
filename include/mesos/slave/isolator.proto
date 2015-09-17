@@ -71,4 +71,8 @@ message ContainerPrepareInfo
 
   // The root filesystem for the container.
   optional string rootfs = 3;
+
+  // (Linux only) The namespaces required for the container.
+  // The namespaces are created while launching the executor.
+  optional uint32 namespaces = 4 [default = 0];
 }

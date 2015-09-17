@@ -470,11 +470,14 @@ TEST_F(LimitedCpuIsolatorTest, ROOT_CGROUPS_Cfs)
   Try<string> dir = os::mkdtemp(path::join(os::getcwd(), "XXXXXX"));
   ASSERT_SOME(dir);
 
-  AWAIT_READY(isolator.get()->prepare(
-      containerId,
-      executorInfo,
-      dir.get(),
-      None()));
+  Future<Option<ContainerPrepareInfo>> prepare =
+    isolator.get()->prepare(
+        containerId,
+        executorInfo,
+        dir.get(),
+        None());
+
+  AWAIT_READY(prepare);
 
   // Generate random numbers to max out a single core. We'll run this for 0.5
   // seconds of wall time so it should consume approximately 250 ms of total
@@ -503,7 +506,7 @@ TEST_F(LimitedCpuIsolatorTest, ROOT_CGROUPS_Cfs)
       None(),
       None(),
       lambda::bind(&childSetup, pipes),
-      isolator.get()->namespaces().get());
+      prepare.get().isSome() ? prepare.get().get().namespaces() : 0);
 
   ASSERT_SOME(pid);
 
@@ -581,11 +584,14 @@ TEST_F(LimitedCpuIsolatorTest, ROOT_CGROUPS_Cfs_Big_Quota)
   Try<string> dir = os::mkdtemp(path::join(os::getcwd(), "XXXXXX"));
   ASSERT_SOME(dir);
 
-  AWAIT_READY(isolator.get()->prepare(
-      containerId,
-      executorInfo,
-      dir.get(),
-      None()));
+  Future<Option<ContainerPrepareInfo>> prepare =
+    isolator.get()->prepare(
+        containerId,
+        executorInfo,
+        dir.get(),
+        None());
+
+  AWAIT_READY(prepare);
 
   int pipes[2];
   ASSERT_NE(-1, ::pipe(pipes));
@@ -605,7 +611,7 @@ TEST_F(LimitedCpuIsolatorTest, ROOT_CGROUPS_Cfs_Big_Quota)
       None(),
       None(),
       lambda::bind(&childSetup, pipes),
-      isolator.get()->namespaces().get());
+      prepare.get().isSome() ? prepare.get().get().namespaces() : 0);
 
   ASSERT_SOME(pid);
 
@@ -664,11 +670,14 @@ TEST_F(LimitedCpuIsolatorTest, ROOT_CGROUPS_Pids_and_Tids)
   Try<string> dir = os::mkdtemp(path::join(os::getcwd(), "XXXXXX"));
   ASSERT_SOME(dir);
 
-  AWAIT_READY(isolator.get()->prepare(
-      containerId,
-      executorInfo,
-      dir.get(),
-      None()));
+  Future<Option<ContainerPrepareInfo>> prepare =
+    isolator.get()->prepare(
+        containerId,
+        executorInfo,
+        dir.get(),
+        None());
+
+  AWAIT_READY(prepare);
 
   // Right after the creation of the cgroup, which happens in
   // 'prepare', we check that it is empty.
@@ -695,7 +704,7 @@ TEST_F(LimitedCpuIsolatorTest, ROOT_CGROUPS_Pids_and_Tids)
       None(),
       None(),
       lambda::bind(&childSetup, pipes),
-      isolator.get()->namespaces().get());
+      prepare.get().isSome() ? prepare.get().get().namespaces() : 0);
 
   ASSERT_SOME(pid);
 
@@ -955,6 +964,7 @@ TEST_F(SharedFilesystemIsolatorTest, DISABLED_ROOT_RelativeVolume)
   AWAIT_READY(prepare);
   ASSERT_SOME(prepare.get());
   ASSERT_EQ(1, prepare.get().get().commands().size());
+  EXPECT_TRUE(prepare.get().get().has_namespaces());
 
   // The test will touch a file in container path.
   const string file = path::join(containerPath, UUID::random().toString());
@@ -978,7 +988,7 @@ TEST_F(SharedFilesystemIsolatorTest, DISABLED_ROOT_RelativeVolume)
       None(),
       None(),
       None(),
-      isolator.get()->namespaces().get());
+      prepare.get().get().namespaces());
   ASSERT_SOME(pid);
 
   // Set up the reaper to wait on the forked child.
@@ -1059,6 +1069,7 @@ TEST_F(SharedFilesystemIsolatorTest, DISABLED_ROOT_AbsoluteVolume)
   AWAIT_READY(prepare);
   ASSERT_SOME(prepare.get());
   ASSERT_EQ(1, prepare.get().get().commands().size());
+  EXPECT_TRUE(prepare.get().get().has_namespaces());
 
   // Test the volume mounting by touching a file in the container's
   // /tmp, which should then be in flags.work_dir.
@@ -1083,7 +1094,7 @@ TEST_F(SharedFilesystemIsolatorTest, DISABLED_ROOT_AbsoluteVolume)
       None(),
       None(),
       None(),
-      isolator.get()->namespaces().get());
+      prepare.get().get().namespaces());
   ASSERT_SOME(pid);
 
   // Set up the reaper to wait on the forked child.
