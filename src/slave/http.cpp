@@ -186,7 +186,7 @@ void Slave::Http::log(const Request& request)
   Option<string> userAgent = request.headers.get("User-Agent");
   Option<string> forwardedFor = request.headers.get("X-Forwarded-For");
 
-  LOG(INFO) << "HTTP " << request.method << " for " << request.path
+  LOG(INFO) << "HTTP " << request.method << " for " << request.url.path
             << " from " << request.client
             << (userAgent.isSome()
                 ? " with User-Agent='" + userAgent.get() + "'"
@@ -404,7 +404,7 @@ Future<Response> Slave::Http::state(const Request& request) const
   }
   object.values["flags"] = flags;
 
-  return OK(object, request.query.get("jsonp"));
+  return OK(object, request.url.query.get("jsonp"));
 }
 
 } // namespace slave {

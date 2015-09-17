@@ -147,7 +147,7 @@ private:
       }
     }
 
-    return http::OK(result, request.query.get("jsonp"));
+    return http::OK(result, request.url.query.get("jsonp"));
   }
 
   // Callback used to retrieve resource usage information from slave.

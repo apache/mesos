@@ -788,11 +788,11 @@ public:
       synchronized (mutex) {
         countRequests++;
 
-        if (strings::contains(event.request->path, COMMAND_NAME)) {
+        if (strings::contains(event.request->url.path, COMMAND_NAME)) {
           countCommandRequests++;
         }
 
-        if (strings::contains(event.request->path, ARCHIVE_NAME)) {
+        if (strings::contains(event.request->url.path, ARCHIVE_NAME)) {
           countArchiveRequests++;
         }
 

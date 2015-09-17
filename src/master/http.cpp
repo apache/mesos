@@ -333,7 +333,7 @@ void Master::Http::log(const Request& request)
   Option<string> userAgent = request.headers.get("User-Agent");
   Option<string> forwardedFor = request.headers.get("X-Forwarded-For");
 
-  LOG(INFO) << "HTTP " << request.method << " for " << request.path
+  LOG(INFO) << "HTTP " << request.method << " for " << request.url.path
             << " from " << request.client
             << (userAgent.isSome()
                 ? " with User-Agent='" + userAgent.get() + "'"
@@ -780,7 +780,7 @@ Future<Response> Master::Http::slaves(const Request& request) const
   }
 
 
-  return OK(object, request.query.get("jsonp"));
+  return OK(object, request.url.query.get("jsonp"));
 }
 
 
@@ -926,7 +926,7 @@ Future<Response> Master::Http::state(const Request& request) const
     object.values["unregistered_frameworks"] = std::move(array);
   }
 
-  return OK(object, request.query.get("jsonp"));
+  return OK(object, request.url.query.get("jsonp"));
 }
 
 
@@ -1188,7 +1188,7 @@ Future<Response> Master::Http::stateSummary(const Request& request) const
     object.values["frameworks"] = std::move(array);
   }
 
-  return OK(object, request.query.get("jsonp"));
+  return OK(object, request.url.query.get("jsonp"));
 }
 
 
@@ -1214,7 +1214,7 @@ Future<Response> Master::Http::roles(const Request& request) const
     object.values["roles"] = std::move(array);
   }
 
-  return OK(object, request.query.get("jsonp"));
+  return OK(object, request.url.query.get("jsonp"));
 }
 
 
@@ -1376,10 +1376,10 @@ struct TaskComparator
 Future<Response> Master::Http::tasks(const Request& request) const
 {
   // Get list options (limit and offset).
-  Result<int> result = numify<int>(request.query.get("limit"));
+  Result<int> result = numify<int>(request.url.query.get("limit"));
   size_t limit = result.isSome() ? result.get() : TASK_LIMIT;
 
-  result = numify<int>(request.query.get("offset"));
+  result = numify<int>(request.url.query.get("offset"));
   size_t offset = result.isSome() ? result.get() : 0;
 
   // TODO(nnielsen): Currently, formatting errors in offset and/or limit
@@ -1409,7 +1409,7 @@ Future<Response> Master::Http::tasks(const Request& request) const
 
   // Sort tasks by task status timestamp. Default order is descending.
   // The earliest timestamp is chosen for comparison when multiple are present.
-  Option<string> order = request.query.get("order");
+  Option<string> order = request.url.query.get("order");
   if (order.isSome() && (order.get() == "asc")) {
     sort(tasks.begin(), tasks.end(), TaskComparator::ascending);
   } else {
@@ -1429,7 +1429,7 @@ Future<Response> Master::Http::tasks(const Request& request) const
     object.values["tasks"] = std::move(array);
   }
 
-  return OK(object, request.query.get("jsonp"));
+  return OK(object, request.url.query.get("jsonp"));
 }
 
 
@@ -1458,7 +1458,7 @@ Future<Response> Master::Http::maintenanceSchedule(const Request& request) const
         mesos::maintenance::Schedule() :
         master->maintenance.schedules.front();
 
-    return OK(JSON::Protobuf(schedule), request.query.get("jsonp"));
+    return OK(JSON::Protobuf(schedule), request.url.query.get("jsonp"));
   }
 
   // Parse the POST body as JSON.
@@ -1813,7 +1813,7 @@ Future<Response> Master::Http::maintenanceStatus(const Request& request) const
       }
     }
 
-    return OK(JSON::Protobuf(status), request.query.get("jsonp"));
+    return OK(JSON::Protobuf(status), request.url.query.get("jsonp"));
   }));
 }
 

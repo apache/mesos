@@ -245,7 +245,7 @@ Future<Response> RegistrarProcess::registry(const Request& request)
     result = JSON::Protobuf(variable.get().get());
   }
 
-  return OK(result, request.query.get("jsonp"));
+  return OK(result, request.url.query.get("jsonp"));
 }
 
 

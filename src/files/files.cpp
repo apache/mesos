@@ -214,7 +214,7 @@ const string FilesProcess::BROWSE_HELP = HELP(
 
 Future<Response> FilesProcess::browse(const Request& request)
 {
-  Option<string> path = request.query.get("path");
+  Option<string> path = request.url.query.get("path");
 
   if (!path.isSome() || path.get().empty()) {
     return BadRequest("Expecting 'path=value' in query.\n");
@@ -251,7 +251,7 @@ Future<Response> FilesProcess::browse(const Request& request)
     listing.values.push_back(file);
   }
 
-  return OK(listing, request.query.get("jsonp"));
+  return OK(listing, request.url.query.get("jsonp"));
 }
 
 
@@ -287,7 +287,7 @@ const string FilesProcess::READ_HELP = HELP(
 
 Future<Response> FilesProcess::read(const Request& request)
 {
-  Option<string> path = request.query.get("path");
+  Option<string> path = request.url.query.get("path");
 
   if (!path.isSome() || path.get().empty()) {
     return BadRequest("Expecting 'path=value' in query.\n");
@@ -295,21 +295,26 @@ Future<Response> FilesProcess::read(const Request& request)
 
   off_t offset = -1;
 
-  if (request.query.get("offset").isSome()) {
-    Try<off_t> result = numify<off_t>(request.query.get("offset").get());
+  if (request.url.query.get("offset").isSome()) {
+    Try<off_t> result = numify<off_t>(request.url.query.get("offset").get());
+
     if (result.isError()) {
       return BadRequest("Failed to parse offset: " + result.error() + ".\n");
     }
+
     offset = result.get();
   }
 
   ssize_t length = -1;
 
-  if (request.query.get("length").isSome()) {
-    Try<ssize_t> result = numify<ssize_t>(request.query.get("length").get());
+  if (request.url.query.get("length").isSome()) {
+    Try<ssize_t> result = numify<ssize_t>(
+        request.url.query.get("length").get());
+
     if (result.isError()) {
       return BadRequest("Failed to parse length: " + result.error() + ".\n");
     }
+
     length = result.get();
   }
 
@@ -364,7 +369,7 @@ Future<Response> FilesProcess::read(const Request& request)
     JSON::Object object;
     object.values["offset"] = size;
     object.values["data"] = "";
-    return OK(object, request.query.get("jsonp"));
+    return OK(object, request.url.query.get("jsonp"));
   }
 
   // Seek to the offset we want to read from.
@@ -395,7 +400,7 @@ Future<Response> FilesProcess::read(const Request& request)
         lambda::_1,
         offset,
         data,
-        request.query.get("jsonp")))
+        request.url.query.get("jsonp")))
     .onAny(lambda::bind(&os::close, fd.get()));
 }
 
@@ -414,7 +419,7 @@ const string FilesProcess::DOWNLOAD_HELP = HELP(
 
 Future<Response> FilesProcess::download(const Request& request)
 {
-  Option<string> path = request.query.get("path");
+  Option<string> path = request.url.query.get("path");
 
   if (!path.isSome() || path.get().empty()) {
     return BadRequest("Expecting 'path=value' in query.\n");
@@ -469,7 +474,7 @@ Future<Response> FilesProcess::debug(const Request& request)
   foreachpair (const string& name, const string& path, paths) {
     object.values[name] = path;
   }
-  return OK(object, request.query.get("jsonp"));
+  return OK(object, request.url.query.get("jsonp"));
 }
 
 
