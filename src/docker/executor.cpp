@@ -167,9 +167,14 @@ public:
           status.set_state(TASK_RUNNING);
           status.set_data(container.output);
           if (container.ipAddress.isSome()) {
+            // TODO(karya): Deprecated -- Remove after 0.25.0 has shipped.
             Label* label = status.mutable_labels()->add_labels();
             label->set_key("Docker.NetworkSettings.IPAddress");
             label->set_value(container.ipAddress.get());
+
+            NetworkInfo* networkInfo =
+              status.mutable_container_status()->add_network_infos();
+            networkInfo->set_ip_address(container.ipAddress.get());
           }
           driver->sendStatusUpdate(status);
         }

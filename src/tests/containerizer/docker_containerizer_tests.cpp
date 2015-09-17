@@ -472,10 +472,17 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Launch)
 
   // Now verify that the Docker.NetworkSettings.IPAddress label is
   // present.
+  // TODO(karya): Deprecated -- Remove after 0.25.0 has shipped.
   ASSERT_TRUE(statusRunning.get().has_labels());
   EXPECT_EQ(1, statusRunning.get().labels().labels().size());
   EXPECT_EQ("Docker.NetworkSettings.IPAddress",
             statusRunning.get().labels().labels(0).key());
+
+  // Now verify that the TaskStatus contains the container IP address.
+  ASSERT_TRUE(statusRunning.get().has_container_status());
+  EXPECT_EQ(1, statusRunning.get().container_status().network_infos().size());
+  EXPECT_TRUE(
+      statusRunning.get().container_status().network_infos(0).has_ip_address());
 
   ASSERT_TRUE(exists(docker, slaveId, containerId.get()));
 
