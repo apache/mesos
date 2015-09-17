@@ -4392,11 +4392,11 @@ void Slave::_qosCorrections(const Future<list<QoSCorrection>>& future)
         continue;
       }
 
-      const ContainerID& containerId =
+      const ContainerID containerId =
           kill.has_container_id() ? kill.container_id() : executor->containerId;
       if (containerId != executor->containerId) {
         LOG(WARNING) << "Ignoring QoS correction KILL on container '"
-                     << containerId << "' in executor '"
+                     << containerId << "' for executor '"
                      << executorId << "' of framework " << frameworkId
                      << ": container cannot be found";
         continue;
@@ -4406,7 +4406,7 @@ void Slave::_qosCorrections(const Future<list<QoSCorrection>>& future)
         case Executor::REGISTERING:
         case Executor::RUNNING: {
           LOG(INFO) << "Killing container '" << containerId
-                    << "' in executor '" << executorId
+                    << "' for executor '" << executorId
                     << "' of framework " << frameworkId
                     << " as QoS correction";
 

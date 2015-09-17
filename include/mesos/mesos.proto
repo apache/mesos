@@ -817,7 +817,7 @@ message ResourceUsage {
     // cannot provide resource usage.
     optional ResourceStatistics statistics = 3;
 
-    // The container id for the executor specified in the executor_info field
+    // The container id for the executor specified in the executor_info field.
     required ContainerID container_id = 4;
   }
 
