@@ -1159,6 +1159,10 @@ message TaskStatus {
   // labels should be used to tag TaskStatus message with light-weight
   // meta-data.
   optional Labels labels = 12;
+
+  // Container related information that is resolved dynamically such as
+  // network address.
+  optional ContainerStatus container_status = 13;
 }
 
 
@@ -1352,6 +1356,52 @@ message Volume {
 
 
 /**
+ * Describes a network request by framework as well as network resolution
+ * provided by the the executor or Agent.
+ *
+ * A framework may request the network isolator on the Agent to assign an IP
+ * address to the container being launched. Alternatively, it can provide a
+ * specific IP address to be assigned to the container. The NetworkInfo message
+ * is not interpreted by the Master or Agent and is intended to be use by Agent
+ * modules implementing network isolation. If the modules are missing, the
+ * message is simply ignored. In future, the task launch will fail if there is
+ * no module providing the network isolation capabilities (MESOS-3390).
+ *
+ * An executor, Agent, or an Agent module may append NetworkInfos inside
+ * TaskStatus::container_status to provide information such as the container IP
+ * address and isolation groups.
+ */
+message NetworkInfo {
+  enum Protocol {
+    IPv4 = 1;
+    IPv6 = 2;
+  }
+
+  // Specify IP address requirement. Set protocol to the desired value to
+  // request the network isolator on the Agent to assign an IP address to the
+  // container being launched. If a specific IP address is specified in
+  // ip_address, this field should not be set.
+  optional Protocol protocol = 1;
+
+  // Statically assigned IP provided by the Framework. This IP will be assigned
+  // to the container by the network isolator module on the Agent. This field
+  // should not be used with the protocol field above.
+  // NOTE: It is up to the networking 'provider' (IPAM/Isolator) to interpret
+  // this either as a hint of as a requirement for assigning the IP.
+  optional string ip_address = 2;
+
+  // A group is the name given to a set of logically-related IPs that are
+  // allowed to communicate within themselves. For example, one might want
+  // to create separate groups for isolating dev, testing, qa and prod
+  // deployment environments.
+  repeated string groups = 3;
+
+  // To tag certain metadata to be used by Isolator/IPAM, e.g., rack, etc.
+  optional Labels labels = 4;
+};
+
+
+/**
  * Describes a container configuration and allows extensible
  * configurations for different container implementations.
  */
@@ -1410,6 +1460,20 @@ message ContainerInfo {
   // the type.
   optional DockerInfo docker = 3;
   optional MesosInfo mesos = 5;
+
+  // A list of network requests. A framework can request multiple IP addresses
+  // for the container.
+  repeated NetworkInfo network_infos = 7;
+}
+
+
+/**
+ * Container related information that is resolved during container setup. The
+ * information is sent back to the framework as part of the TaskStatus message.
+ */
+message ContainerStatus {
+  // This field can be reliably used to identify the container IP address.
+  repeated NetworkInfo network_infos = 1;
 }
 
 

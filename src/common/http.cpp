@@ -150,6 +150,48 @@ JSON::Array model(const Labels& labels)
 }
 
 
+JSON::Object model(const NetworkInfo& info)
+{
+  JSON::Object object;
+
+  if (info.has_ip_address()) {
+    object.values["ip_address"] = info.ip_address();
+  }
+
+  if (info.groups().size() > 0) {
+    JSON::Array array;
+    array.values.reserve(info.groups().size()); // MESOS-2353.
+    foreach (const string& group, info.groups()) {
+      array.values.push_back(group);
+    }
+    object.values["groups"] = std::move(array);
+  }
+
+  if (info.has_labels()) {
+    object.values["labels"] = std::move(model(info.labels()));
+  }
+
+  return object;
+}
+
+
+JSON::Object model(const ContainerStatus& status)
+{
+  JSON::Object object;
+
+  if (status.network_infos().size() > 0) {
+    JSON::Array array;
+    array.values.reserve(status.network_infos().size()); // MESOS-2353.
+    foreach (const NetworkInfo& info, status.network_infos()) {
+      array.values.push_back(model(info));
+    }
+    object.values["network_infos"] = std::move(array);
+  }
+
+  return object;
+}
+
+
 // Returns a JSON object modeled on a TaskStatus.
 JSON::Object model(const TaskStatus& status)
 {
@@ -159,7 +201,10 @@ JSON::Object model(const TaskStatus& status)
 
   if (status.has_labels()) {
     object.values["labels"] = std::move(model(status.labels()));
+  }
 
+  if (status.has_container_status()) {
+    object.values["container_status"] = model(status.container_status());
   }
 
   return object;

@@ -2765,6 +2765,16 @@ void Slave::statusUpdate(StatusUpdate update, const UPID& pid)
             update.framework_id(), update.status()));
   }
 
+  // Fill in the container IP address with the IP from the agent PID, if not
+  // already filled in.
+  // TODO(karya): Fill in the IP address by looking up the executor PID.
+  ContainerStatus* containerStatus =
+    update.mutable_status()->mutable_container_status();
+  if (containerStatus->network_infos().size() == 0) {
+    NetworkInfo* networkInfo = containerStatus->add_network_infos();
+    networkInfo->set_ip_address(stringify(self().address.ip));
+  }
+
   TaskStatus status = update.status();
 
   Executor* executor = framework->getExecutor(status.task_id());
