@@ -39,6 +39,7 @@
 #include <stout/os/exists.hpp>
 
 #include "linux/fs.hpp"
+#include "linux/ns.hpp"
 
 #include "linux/routing/utils.hpp"
 
