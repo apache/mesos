@@ -105,8 +105,7 @@ public:
 
     Owned<Isolator> isolator(_isolator.get());
 
-    Try<Launcher*> _launcher =
-      LinuxLauncher::create(flags, isolator->namespaces().get().get());
+    Try<Launcher*> _launcher = LinuxLauncher::create(flags);
 
     if (_launcher.isError()) {
       return Error("Failed to create LinuxLauncher: " + _launcher.error());

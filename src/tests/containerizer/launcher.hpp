@@ -55,7 +55,7 @@ ACTION_P(InvokeRecover, launcher)
 ACTION_P(InvokeFork, launcher)
 {
   return launcher->real->fork(
-      arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
+      arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9);
 }
 
 
@@ -79,9 +79,9 @@ public:
     EXPECT_CALL(*this, recover(_))
       .WillRepeatedly(DoDefault());
 
-    ON_CALL(*this, fork(_, _, _, _, _, _, _, _, _))
+    ON_CALL(*this, fork(_, _, _, _, _, _, _, _, _, _))
       .WillByDefault(InvokeFork(this));
-    EXPECT_CALL(*this, fork(_, _, _, _, _, _, _, _, _))
+    EXPECT_CALL(*this, fork(_, _, _, _, _, _, _, _, _, _))
       .WillRepeatedly(DoDefault());
 
     ON_CALL(*this, destroy(_))
@@ -97,7 +97,7 @@ public:
       process::Future<hashset<ContainerID>>(
           const std::list<mesos::slave::ContainerState>& states));
 
-  MOCK_METHOD9(
+  MOCK_METHOD10(
       fork,
       Try<pid_t>(
           const ContainerID& containerId,
@@ -108,7 +108,8 @@ public:
           const process::Subprocess::IO& err,
           const Option<flags::FlagsBase>& flags,
           const Option<std::map<std::string, std::string> >& env,
-          const Option<lambda::function<int()> >& setup));
+          const Option<lambda::function<int()> >& setup,
+          const Option<int>& namespaces));
 
   MOCK_METHOD1(
       destroy,

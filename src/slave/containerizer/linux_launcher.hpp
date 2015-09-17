@@ -30,9 +30,7 @@ namespace slave {
 class LinuxLauncher : public Launcher
 {
 public:
-  static Try<Launcher*> create(
-      const Flags& flags,
-      const Option<int>& namespaces);
+  static Try<Launcher*> create(const Flags& flags);
 
   virtual ~LinuxLauncher() {}
 
@@ -48,19 +46,18 @@ public:
       const process::Subprocess::IO& err,
       const Option<flags::FlagsBase>& flags,
       const Option<std::map<std::string, std::string>>& environment,
-      const Option<lambda::function<int()>>& setup);
+      const Option<lambda::function<int()>>& setup,
+      const Option<int>& namespaces);
 
   virtual process::Future<Nothing> destroy(const ContainerID& containerId);
 
 private:
   LinuxLauncher(
       const Flags& flags,
-      int namespaces,
       const std::string& hierarchy);
 
   static const std::string subsystem;
   const Flags flags;
-  const int namespaces;
   const std::string hierarchy;
 
   std::string cgroup(const ContainerID& containerId);

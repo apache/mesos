@@ -198,7 +198,8 @@ TYPED_TEST(CpuIsolatorTest, UserCpuUsage)
       Subprocess::FD(STDERR_FILENO),
       None(),
       None(),
-      lambda::bind(&childSetup, pipes));
+      lambda::bind(&childSetup, pipes),
+      None());
 
   ASSERT_SOME(pid);
 
@@ -308,7 +309,8 @@ TYPED_TEST(CpuIsolatorTest, SystemCpuUsage)
       Subprocess::FD(STDERR_FILENO),
       None(),
       None(),
-      lambda::bind(&childSetup, pipes));
+      lambda::bind(&childSetup, pipes),
+      None());
 
   ASSERT_SOME(pid);
 
@@ -405,6 +407,7 @@ TEST_F(RevocableCpuIsolatorTest, ROOT_CGROUPS_RevocableCpu)
       Subprocess::PATH("/dev/null"),
       None(),
       None(),
+      None(),
       None());
 
   ASSERT_SOME(pid);
@@ -451,8 +454,7 @@ TEST_F(LimitedCpuIsolatorTest, ROOT_CGROUPS_Cfs)
   Try<Isolator*> isolator = CgroupsCpushareIsolatorProcess::create(flags);
   CHECK_SOME(isolator);
 
-  Try<Launcher*> launcher =
-    LinuxLauncher::create(flags, isolator.get()->namespaces().get());
+  Try<Launcher*> launcher = LinuxLauncher::create(flags);
   CHECK_SOME(launcher);
 
   // Set the executor's resources to 0.5 cpu.
@@ -500,7 +502,8 @@ TEST_F(LimitedCpuIsolatorTest, ROOT_CGROUPS_Cfs)
       Subprocess::FD(STDERR_FILENO),
       None(),
       None(),
-      lambda::bind(&childSetup, pipes));
+      lambda::bind(&childSetup, pipes),
+      isolator.get()->namespaces().get());
 
   ASSERT_SOME(pid);
 
@@ -562,8 +565,7 @@ TEST_F(LimitedCpuIsolatorTest, ROOT_CGROUPS_Cfs_Big_Quota)
   Try<Isolator*> isolator = CgroupsCpushareIsolatorProcess::create(flags);
   CHECK_SOME(isolator);
 
-  Try<Launcher*> launcher =
-    LinuxLauncher::create(flags, isolator.get()->namespaces().get());
+  Try<Launcher*> launcher = LinuxLauncher::create(flags);
   CHECK_SOME(launcher);
 
   // Set the executor's resources to 100.5 cpu.
@@ -602,7 +604,8 @@ TEST_F(LimitedCpuIsolatorTest, ROOT_CGROUPS_Cfs_Big_Quota)
       Subprocess::FD(STDERR_FILENO),
       None(),
       None(),
-      lambda::bind(&childSetup, pipes));
+      lambda::bind(&childSetup, pipes),
+      isolator.get()->namespaces().get());
 
   ASSERT_SOME(pid);
 
@@ -646,8 +649,7 @@ TEST_F(LimitedCpuIsolatorTest, ROOT_CGROUPS_Pids_and_Tids)
   Try<Isolator*> isolator = CgroupsCpushareIsolatorProcess::create(flags);
   CHECK_SOME(isolator);
 
-  Try<Launcher*> launcher =
-    LinuxLauncher::create(flags, isolator.get()->namespaces().get());
+  Try<Launcher*> launcher = LinuxLauncher::create(flags);
   CHECK_SOME(launcher);
 
   ExecutorInfo executorInfo;
@@ -692,7 +694,8 @@ TEST_F(LimitedCpuIsolatorTest, ROOT_CGROUPS_Pids_and_Tids)
       Subprocess::FD(STDERR_FILENO),
       None(),
       None(),
-      lambda::bind(&childSetup, pipes));
+      lambda::bind(&childSetup, pipes),
+      isolator.get()->namespaces().get());
 
   ASSERT_SOME(pid);
 
@@ -921,8 +924,7 @@ TEST_F(SharedFilesystemIsolatorTest, DISABLED_ROOT_RelativeVolume)
   Try<Isolator*> isolator = SharedFilesystemIsolatorProcess::create(flags);
   CHECK_SOME(isolator);
 
-  Try<Launcher*> launcher =
-    LinuxLauncher::create(flags, isolator.get()->namespaces().get());
+  Try<Launcher*> launcher = LinuxLauncher::create(flags);
   CHECK_SOME(launcher);
 
   // Use /var/tmp so we don't mask the work directory (under /tmp).
@@ -975,7 +977,8 @@ TEST_F(SharedFilesystemIsolatorTest, DISABLED_ROOT_RelativeVolume)
       Subprocess::FD(STDERR_FILENO),
       None(),
       None(),
-      None());
+      None(),
+      isolator.get()->namespaces().get());
   ASSERT_SOME(pid);
 
   // Set up the reaper to wait on the forked child.
@@ -1027,8 +1030,7 @@ TEST_F(SharedFilesystemIsolatorTest, DISABLED_ROOT_AbsoluteVolume)
   Try<Isolator*> isolator = SharedFilesystemIsolatorProcess::create(flags);
   CHECK_SOME(isolator);
 
-  Try<Launcher*> launcher =
-    LinuxLauncher::create(flags, isolator.get()->namespaces().get());
+  Try<Launcher*> launcher = LinuxLauncher::create(flags);
   CHECK_SOME(launcher);
 
   // We'll mount the absolute test work directory as /var/tmp in the
@@ -1080,7 +1082,8 @@ TEST_F(SharedFilesystemIsolatorTest, DISABLED_ROOT_AbsoluteVolume)
       Subprocess::FD(STDERR_FILENO),
       None(),
       None(),
-      None());
+      None(),
+      isolator.get()->namespaces().get());
   ASSERT_SOME(pid);
 
   // Set up the reaper to wait on the forked child.

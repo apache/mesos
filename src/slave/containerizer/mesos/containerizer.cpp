@@ -233,17 +233,11 @@ Try<MesosContainerizer*> MesosContainerizer::create(
   }
 
 #ifdef __linux__
-  int namespaces = 0;
-  foreach (const Owned<Isolator>& isolator, isolators) {
-    if (isolator->namespaces().get().isSome()) {
-      namespaces |= isolator->namespaces().get().get();
-    }
-  }
-
-  // Determine which launcher to use based on the isolation flag.
+  // Always use LinuxLauncher if running as root since we will be picking
+  // namespaces during the fork() call.
   Try<Launcher*> launcher =
-    (strings::contains(isolation, "cgroups") || namespaces != 0)
-    ? LinuxLauncher::create(flags_, namespaces)
+    (geteuid() == 0)
+    ? LinuxLauncher::create(flags_)
     : PosixLauncher::create(flags_);
 #else
   Try<Launcher*> launcher = PosixLauncher::create(flags_);
@@ -836,6 +830,15 @@ Future<bool> MesosContainerizerProcess::_launch(
 
   launchFlags.commands = object;
 
+  // TODO(karya): Create ContainerPrepareInfo.namespaces and use that instead of
+  // Isolator::namespaces().
+  int namespaces = 0;
+  foreach (const Owned<Isolator>& isolator, isolators) {
+    if (isolator->namespaces().get().isSome()) {
+      namespaces |= isolator->namespaces().get().get();
+    }
+  }
+
   // Fork the child using launcher.
   vector<string> argv(2);
   argv[0] = MESOS_CONTAINERIZER;
@@ -852,7 +855,8 @@ Future<bool> MesosContainerizerProcess::_launch(
              : Subprocess::PATH(path::join(directory, "stderr"))),
       launchFlags,
       environment,
-      None());
+      None(),
+      namespaces); // 'namespaces' will be ignored by PosixLauncher.
 
   if (forked.isError()) {
     return Failure("Failed to fork executor: " + forked.error());
