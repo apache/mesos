@@ -2743,7 +2743,9 @@ Resources Master::addTask(
     t->mutable_executor_id()->MergeFrom(executorId.get());
   }
 
-  t->mutable_labels()->MergeFrom(task.labels());
+  if (task.has_labels()) {
+    t->mutable_labels()->MergeFrom(task.labels());
+  }
   if (task.has_discovery()) {
     t->mutable_discovery()->MergeFrom(task.discovery());
   }

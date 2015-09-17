@@ -139,6 +139,17 @@ JSON::Object model(const Attributes& attributes)
 }
 
 
+JSON::Array model(const Labels& labels)
+{
+  JSON::Array array;
+  array.values.reserve(labels.labels().size()); // MESOS-2353.
+  foreach (const Label& label, labels.labels()) {
+    array.values.push_back(JSON::Protobuf(label));
+  }
+  return array;
+}
+
+
 // Returns a JSON object modeled on a TaskStatus.
 JSON::Object model(const TaskStatus& status)
 {
@@ -147,13 +158,8 @@ JSON::Object model(const TaskStatus& status)
   object.values["timestamp"] = status.timestamp();
 
   if (status.has_labels()) {
-    JSON::Array array;
-    array.values.reserve(status.labels().labels().size()); // MESOS-2353.
+    object.values["labels"] = std::move(model(status.labels()));
 
-    foreach (const Label& label, status.labels().labels()) {
-      array.values.push_back(JSON::Protobuf(label));
-    }
-    object.values["labels"] = std::move(array);
   }
 
   return object;
@@ -188,16 +194,8 @@ JSON::Object model(const Task& task)
     object.values["statuses"] = std::move(array);
   }
 
-  {
-    JSON::Array array;
-    if (task.has_labels()) {
-      array.values.reserve(task.labels().labels().size()); // MESOS-2353.
-
-      foreach (const Label& label, task.labels().labels()) {
-        array.values.push_back(JSON::Protobuf(label));
-      }
-    }
-    object.values["labels"] = std::move(array);
+  if (task.has_labels()) {
+    object.values["labels"] = std::move(model(task.labels()));
   }
 
   if (task.has_discovery()) {
@@ -299,16 +297,8 @@ JSON::Object model(
     object.values["statuses"] = std::move(array);
   }
 
-  {
-    JSON::Array array;
-    if (task.has_labels()) {
-      array.values.reserve(task.labels().labels().size()); // MESOS-2353.
-
-      foreach (const Label& label, task.labels().labels()) {
-        array.values.push_back(JSON::Protobuf(label));
-      }
-    }
-    object.values["labels"] = std::move(array);
+  if (task.has_labels()) {
+    object.values["labels"] = std::move(model(task.labels()));
   }
 
   if (task.has_discovery()) {
