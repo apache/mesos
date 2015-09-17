@@ -816,6 +816,9 @@ message ResourceUsage {
     // Current resource usage. If absent, the containerizer
     // cannot provide resource usage.
     optional ResourceStatistics statistics = 3;
+
+    // The container id for the executor specified in the executor_info field
+    required ContainerID container_id = 4;
   }
 
   repeated Executor executors = 1;

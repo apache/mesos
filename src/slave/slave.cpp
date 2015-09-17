@@ -4392,10 +4392,21 @@ void Slave::_qosCorrections(const Future<list<QoSCorrection>>& future)
         continue;
       }
 
+      const ContainerID& containerId =
+          kill.has_container_id() ? kill.container_id() : executor->containerId;
+      if (containerId != executor->containerId) {
+        LOG(WARNING) << "Ignoring QoS correction KILL on container '"
+                     << containerId << "' in executor '"
+                     << executorId << "' of framework " << frameworkId
+                     << ": container cannot be found";
+        continue;
+      }
+
       switch (executor->state) {
         case Executor::REGISTERING:
         case Executor::RUNNING: {
-          LOG(INFO) << "Killing executor '" << executorId
+          LOG(INFO) << "Killing container '" << containerId
+                    << "' in executor '" << executorId
                     << "' of framework " << frameworkId
                     << " as QoS correction";
 
@@ -4408,7 +4419,7 @@ void Slave::_qosCorrections(const Future<list<QoSCorrection>>& future)
           // (MESOS-2875).
           executor->state = Executor::TERMINATING;
           executor->reason = TaskStatus::REASON_EXECUTOR_PREEMPTED;
-          containerizer->destroy(executor->containerId);
+          containerizer->destroy(containerId);
 
           ++metrics.executors_preempted;
           break;
@@ -4447,6 +4458,7 @@ Future<ResourceUsage> Slave::usage()
       ResourceUsage::Executor* entry = usage->add_executors();
       entry->mutable_executor_info()->CopyFrom(executor->info);
       entry->mutable_allocated()->CopyFrom(executor->resources);
+      entry->mutable_container_id()->CopyFrom(executor->containerId);
 
       futures.push_back(containerizer->usage(executor->containerId));
     }
