@@ -102,11 +102,12 @@ public:
     return Nothing();
   }
 
-  // This hook is called from within slave when it receives a status
-  // update from the executor. A module implementing the hook creates
-  // and returns a set of labels. These labels overwrite the existing
-  // labels on the TaskStatus.
-  virtual Result<Labels> slaveTaskStatusLabelDecorator(
+  // This hook is called from within slave when it receives a status update from
+  // the executor. A module implementing the hook creates and returns a
+  // TaskStatus with a set of labels and container_status. These labels and
+  // container status overwrite the existing labels on the TaskStatus. Remaining
+  // fields from the returned TaskStatus are discarded.
+  virtual Result<TaskStatus> slaveTaskStatusDecorator(
       const FrameworkID& frameworkId,
       const TaskStatus& status)
   {

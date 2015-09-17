@@ -69,7 +69,7 @@ public:
       const FrameworkInfo& frameworkInfo,
       const ExecutorInfo& executorInfo);
 
-  static Labels slaveTaskStatusLabelDecorator(
+  static TaskStatus slaveTaskStatusDecorator(
       const FrameworkID& frameworkId,
       TaskStatus status);
 };

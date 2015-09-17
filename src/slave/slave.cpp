@@ -2759,10 +2759,20 @@ void Slave::statusUpdate(StatusUpdate update, const UPID& pid)
   }
 
   if (HookManager::hooksAvailable()) {
-    // Set TaskStatus labels from run task label decorator.
-    update.mutable_status()->mutable_labels()->CopyFrom(
-        HookManager::slaveTaskStatusLabelDecorator(
-            update.framework_id(), update.status()));
+    // Even though the hook(s) return a TaskStatus, we only use two fields:
+    // container_status and labels. Remaining fields are discarded.
+    TaskStatus statusFromHooks =
+      HookManager::slaveTaskStatusDecorator(
+          update.framework_id(), update.status());
+    if (statusFromHooks.has_labels()) {
+      update.mutable_status()->mutable_labels()->CopyFrom(
+          statusFromHooks.labels());
+    }
+
+    if (statusFromHooks.has_container_status()) {
+      update.mutable_status()->mutable_container_status()->CopyFrom(
+          statusFromHooks.container_status());
+    }
   }
 
   // Fill in the container IP address with the IP from the agent PID, if not

@@ -171,11 +171,11 @@ public:
   }
 
 
-  virtual Result<Labels> slaveTaskStatusLabelDecorator(
+  virtual Result<TaskStatus> slaveTaskStatusDecorator(
       const FrameworkID& frameworkId,
       const TaskStatus& status)
   {
-    LOG(INFO) << "Executing 'slaveTaskStatusLabelDecorator' hook";
+    LOG(INFO) << "Executing 'slaveTaskStatusDecorator' hook";
 
     Labels labels;
 
@@ -191,7 +191,22 @@ public:
       }
     }
 
-    return labels;
+    TaskStatus result;
+    result.mutable_labels()->CopyFrom(labels);
+
+    // Set an IP address, a network isolation group, and a known label
+    // in network info. This data is later validated by the
+    // 'HookTest.VerifySlaveTaskStatusDecorator' test.
+    NetworkInfo* networkInfo =
+      result.mutable_container_status()->add_network_infos();
+    networkInfo->set_ip_address("4.3.2.1");
+    networkInfo->add_groups("public");
+
+    Label* networkInfoLabel = networkInfo->mutable_labels()->add_labels();
+    networkInfoLabel->set_key("net_foo");
+    networkInfoLabel->set_value("net_bar");
+
+    return result;
   }
 };
 
