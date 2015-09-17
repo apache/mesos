@@ -341,7 +341,8 @@ protected:
         Subprocess::FD(STDERR_FILENO),
         launchFlags,
         None(),
-        None());
+        None(),
+        CLONE_NEWNET | CLONE_NEWNS);
 
     return pid;
   }
@@ -439,8 +440,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_NC_ContainerToContainerTCP)
   Try<Isolator*> isolator = PortMappingIsolatorProcess::create(flags);
   CHECK_SOME(isolator);
 
-  Try<Launcher*> launcher =
-    LinuxLauncher::create(flags, isolator.get()->namespaces().get());
+  Try<Launcher*> launcher = LinuxLauncher::create(flags);
   CHECK_SOME(launcher);
 
   // Set the executor's resources.
@@ -599,8 +599,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_NC_ContainerToContainerUDP)
   Try<Isolator*> isolator = PortMappingIsolatorProcess::create(flags);
   CHECK_SOME(isolator);
 
-  Try<Launcher*> launcher =
-    LinuxLauncher::create(flags, isolator.get()->namespaces().get());
+  Try<Launcher*> launcher = LinuxLauncher::create(flags);
   CHECK_SOME(launcher);
 
   // Set the executor's resources.
@@ -761,8 +760,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_NC_HostToContainerUDP)
   Try<Isolator*> isolator = PortMappingIsolatorProcess::create(flags);
   CHECK_SOME(isolator);
 
-  Try<Launcher*> launcher =
-    LinuxLauncher::create(flags, isolator.get()->namespaces().get());
+  Try<Launcher*> launcher = LinuxLauncher::create(flags);
   CHECK_SOME(launcher);
 
   // Set the executor's resources.
@@ -878,8 +876,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_NC_HostToContainerTCP)
   Try<Isolator*> isolator = PortMappingIsolatorProcess::create(flags);
   CHECK_SOME(isolator);
 
-  Try<Launcher*> launcher =
-    LinuxLauncher::create(flags, isolator.get()->namespaces().get());
+  Try<Launcher*> launcher = LinuxLauncher::create(flags);
   CHECK_SOME(launcher);
 
   // Set the executor's resources.
@@ -1003,8 +1000,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_ContainerICMPExternal)
   Try<Isolator*> isolator = PortMappingIsolatorProcess::create(flags);
   CHECK_SOME(isolator);
 
-  Try<Launcher*> launcher =
-    LinuxLauncher::create(flags, isolator.get()->namespaces().get());
+  Try<Launcher*> launcher = LinuxLauncher::create(flags);
   CHECK_SOME(launcher);
 
   // Set the executor's resources.
@@ -1089,8 +1085,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_ContainerICMPInternal)
   Try<Isolator*> isolator = PortMappingIsolatorProcess::create(flags);
   CHECK_SOME(isolator);
 
-  Try<Launcher*> launcher =
-    LinuxLauncher::create(flags, isolator.get()->namespaces().get());
+  Try<Launcher*> launcher = LinuxLauncher::create(flags);
   CHECK_SOME(launcher);
 
   // Set the executor's resources.
@@ -1178,8 +1173,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_ContainerARPExternal)
   Try<Isolator*> isolator = PortMappingIsolatorProcess::create(flags);
   CHECK_SOME(isolator);
 
-  Try<Launcher*> launcher =
-    LinuxLauncher::create(flags, isolator.get()->namespaces().get());
+  Try<Launcher*> launcher = LinuxLauncher::create(flags);
   CHECK_SOME(launcher);
 
   // Set the executor's resources.
@@ -1273,8 +1267,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_DNS)
   Try<Isolator*> isolator = PortMappingIsolatorProcess::create(flags);
   CHECK_SOME(isolator);
 
-  Try<Launcher*> launcher =
-    LinuxLauncher::create(flags, isolator.get()->namespaces().get());
+  Try<Launcher*> launcher = LinuxLauncher::create(flags);
   CHECK_SOME(launcher);
 
   // Set the executor's resources.
@@ -1364,8 +1357,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_TooManyContainers)
   Try<Isolator*> isolator = PortMappingIsolatorProcess::create(flags);
   CHECK_SOME(isolator);
 
-  Try<Launcher*> launcher =
-    LinuxLauncher::create(flags, isolator.get()->namespaces().get());
+  Try<Launcher*> launcher = LinuxLauncher::create(flags);
   CHECK_SOME(launcher);
 
   // Set the executor's resources.
@@ -1472,8 +1464,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_NC_SmallEgressLimit)
   Try<Isolator*> isolator = PortMappingIsolatorProcess::create(flags);
   CHECK_SOME(isolator);
 
-  Try<Launcher*> launcher =
-    LinuxLauncher::create(flags, isolator.get()->namespaces().get());
+  Try<Launcher*> launcher = LinuxLauncher::create(flags);
   CHECK_SOME(launcher);
 
   // Open an nc server on the host side. Note that 'invalidPort' is in
@@ -1624,8 +1615,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_NC_PortMappingStatistics)
   Try<Isolator*> isolator = PortMappingIsolatorProcess::create(flags);
   CHECK_SOME(isolator);
 
-  Try<Launcher*> launcher =
-    LinuxLauncher::create(flags, isolator.get()->namespaces().get());
+  Try<Launcher*> launcher = LinuxLauncher::create(flags);
   CHECK_SOME(launcher);
 
   // Open an nc server on the host side. Note that 'invalidPort' is
