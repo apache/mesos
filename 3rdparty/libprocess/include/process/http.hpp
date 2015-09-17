@@ -663,6 +663,10 @@ std::string encode(const hashmap<std::string, std::string>& query);
 
 // Represents a Uniform Resource Locator:
 //   scheme://domain|ip:port/path?query#fragment
+//
+// This is actually a URI-reference (see 4.1 of RFC 3986).
+//
+// TODO(bmahler): The default port should depend on the scheme!
 struct URL
 {
   URL(const std::string& _scheme,
@@ -693,11 +697,12 @@ struct URL
       query(_query),
       fragment(_fragment) {}
 
-  std::string scheme;
+  Option<std::string> scheme;
+
   // TODO(benh): Consider using unrestricted union for 'domain' and 'ip'.
   Option<std::string> domain;
   Option<net::IP> ip;
-  uint16_t port;
+  Option<uint16_t> port;
   std::string path;
   hashmap<std::string, std::string> query;
   Option<std::string> fragment;

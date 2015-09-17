@@ -595,7 +595,9 @@ std::string encode(const hashmap<std::string, std::string>& query)
 
 ostream& operator<<(ostream& stream, const URL& url)
 {
-  stream << url.scheme << "://";
+  if (url.scheme.isSome()) {
+    stream << url.scheme.get() << "://";
+  }
 
   if (url.domain.isSome()) {
     stream << url.domain.get();
@@ -603,7 +605,9 @@ ostream& operator<<(ostream& stream, const URL& url)
     stream << url.ip.get();
   }
 
-  stream << ":" << url.port;
+  if (url.port.isSome()) {
+    stream << ":" << url.port.get();
+  }
 
   stream << "/" << strings::remove(url.path, "/", strings::PREFIX);
 
@@ -771,32 +775,33 @@ Future<Response> request(
     const Option<string>& body,
     const Option<string>& contentType)
 {
-  auto create = [&url]() -> Try<Socket> {
-    if (url.scheme == "http") {
+  Try<Socket> socket = [&url]() -> Try<Socket> {
+    // Default to 'http' if no scheme was specified.
+    if (url.scheme.isNone() || url.scheme == string("http")) {
       return Socket::create(Socket::POLL);
     }
 
+    if (url.scheme == string("https")) {
 #ifdef USE_SSL_SOCKET
-    if (url.scheme == "https") {
       return Socket::create(Socket::SSL);
-    }
+#else
+      return Error("'https' scheme requires SSL enabled");
 #endif
+    }
 
     return Error("Unsupported URL scheme");
   }();
 
-  if (create.isError()) {
-    return Failure("Failed to create socket: " + create.error());
+  if (socket.isError()) {
+    return Failure("Failed to create socket: " + socket.error());
   }
-
-  Socket socket = create.get();
 
   Address address;
 
   if (url.ip.isSome()) {
     address.ip = url.ip.get();
   } else if (url.domain.isNone()) {
-    return Failure("Missing URL domain or IP");
+    return Failure("Expecting url.ip or url.domain to be set");
   } else {
     Try<net::IP> ip = net::getIP(url.domain.get(), AF_INET);
 
@@ -808,11 +813,15 @@ Future<Response> request(
     address.ip = ip.get();
   }
 
-  address.port = url.port;
+  if (url.port.isNone()) {
+    return Failure("Expecting url.port to be set");
+  }
 
-  return socket.connect(address)
+  address.port = url.port.get();
+
+  return socket->connect(address)
     .then(lambda::bind(&_request,
-                       socket,
+                       socket.get(),
                        address,
                        url,
                        method,
@@ -864,11 +873,11 @@ Future<Response> _request(
   // Need to specify the 'Host' header.
   if (url.domain.isSome()) {
     // Use ONLY domain for standard ports.
-    if (url.port == 80 || url.port == 443) {
+    if (url.port.isNone() || url.port == 80 || url.port == 443) {
       headers["Host"] = url.domain.get();
     } else {
       // Add port for non-standard ports.
-      headers["Host"] = url.domain.get() + ":" + stringify(url.port);
+      headers["Host"] = url.domain.get() + ":" + stringify(url.port.get());
     }
   } else {
     headers["Host"] = stringify(address);
