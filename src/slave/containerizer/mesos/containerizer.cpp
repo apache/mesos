@@ -129,29 +129,11 @@ Try<MesosContainerizer*> MesosContainerizer::create(
   // One and only one filesystem isolator is required. The filesystem
   // isolator is responsible for preparing the filesystems for
   // containers (e.g., prepare filesystem roots, volumes, etc.). If
-  // the user does not specify a filesystem isolator, the default
-  // 'filesystem/linux' isolator will be used if the slave runs on
-  // Linux and has root permission. Othersise, 'filesystem/posix' will
-  // be used as the default.
+  // the user does not specify one, 'filesystem/posix' will be used.
   //
   // TODO(jieyu): Check that only one filesystem isolator is used.
   if (!strings::contains(isolation, "filesystem/")) {
-#ifdef __linux__
-    Result<string> user = os::user();
-    if (!user.isSome()) {
-      return Error(
-          "Failed to get the current user: " +
-          (user.isError() ? user.error() : "Not found"));
-    }
-
-    if (user.get() == "root") {
-      isolation += ",filesystem/linux";
-    } else {
-      isolation += ",filesystem/posix";
-    }
-#else
     isolation += ",filesystem/posix";
-#endif
   }
 
   // Modify the flags to include any changes to isolation.
