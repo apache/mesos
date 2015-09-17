@@ -290,6 +290,19 @@ Future<Option<ContainerPrepareInfo>> LinuxFilesystemIsolatorProcess::__prepare(
         None(),
         directory,
         None(),
+        MS_SLAVE,
+        NULL);
+
+    if (mount.isError()) {
+      return Failure(
+          "Failed to mark work directory '" + directory +
+          "' as a slave mount: " + mount.error());
+    }
+
+    mount = fs::mount(
+        None(),
+        directory,
+        None(),
         MS_SHARED,
         NULL);
 
@@ -338,6 +351,19 @@ Future<Option<ContainerPrepareInfo>> LinuxFilesystemIsolatorProcess::__prepare(
       return Failure(
           "Failed to mount work directory '" + directory +
           "' to '" + sandbox + "': " + mount.error());
+    }
+
+    mount = fs::mount(
+        None(),
+        sandbox,
+        None(),
+        MS_SLAVE,
+        NULL);
+
+    if (mount.isError()) {
+      return Failure(
+          "Failed to mark sandbox '" + sandbox +
+          "' as a slave mount: " + mount.error());
     }
 
     mount = fs::mount(
