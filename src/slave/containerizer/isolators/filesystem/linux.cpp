@@ -721,11 +721,15 @@ Future<Nothing> LinuxFilesystemIsolatorProcess::cleanup(
     return Failure("Failed to get mount table: " + table.error());
   }
 
+  bool sandboxMountExists = false;
+
   foreach (const fs::MountInfoTable::Entry& entry, table.get().entries) {
     // NOTE: All persistent volumes are mounted at targets under the
-    // container's work directory.
-    if (entry.target != sandbox &&
-        strings::startsWith(entry.target, sandbox)) {
+    // container's work directory. We unmount all the persistent
+    // volumes before unmounting the sandbox/work directory mount.
+    if (entry.target == sandbox) {
+      sandboxMountExists = true;
+    } else if (strings::startsWith(entry.target, sandbox)) {
       LOG(INFO) << "Unmounting volume '" << entry.target
                 << "' for container " << containerId;
 
@@ -738,15 +742,21 @@ Future<Nothing> LinuxFilesystemIsolatorProcess::cleanup(
     }
   }
 
-  // Cleanup the container's work directory mount.
-  LOG(INFO) << "Unmounting sandbox/work directory '" << sandbox
-            << "' for container " << containerId;
+  if (!sandboxMountExists) {
+    // This could happen if the container is not launched by this
+    // isolator (e.g., slaves prior to 0.25.0).
+    LOG(WARNING) << "Ignoring unmounting sandbox/work directory"
+                 << " for container " << containerId;
+  } else {
+    LOG(INFO) << "Unmounting sandbox/work directory '" << sandbox
+              << "' for container " << containerId;
 
-  Try<Nothing> unmount = fs::unmount(sandbox);
-  if (unmount.isError()) {
-    return Failure(
-        "Failed to unmount sandbox/work directory '" + sandbox +
-        "': " + unmount.error());
+    Try<Nothing> unmount = fs::unmount(sandbox);
+    if (unmount.isError()) {
+      return Failure(
+          "Failed to unmount sandbox/work directory '" + sandbox +
+          "': " + unmount.error());
+    }
   }
 
   // Destroy the provisioned root filesystems.
