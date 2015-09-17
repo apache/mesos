@@ -786,16 +786,30 @@ Future<bool> MesosContainerizerProcess::_launch(
     environment[variable.name()] = variable.value();
   }
 
-  // Include any environment variables returned from
-  // Isolator::prepare().
+  JSON::Array commandArray;
   foreach (const Option<ContainerPrepareInfo>& prepareInfo, prepareInfos) {
-    if (prepareInfo.isSome() && prepareInfo.get().has_environment()) {
+    if (!prepareInfo.isSome()) {
+      continue;
+    }
+
+    // Populate the list of additional commands to be run inside the container
+    // context.
+    foreach (const CommandInfo& command, prepareInfo.get().commands()) {
+      commandArray.values.push_back(JSON::Protobuf(command));
+    }
+
+    // Process additional environment variables returned by isolators.
+    if (prepareInfo.get().has_environment()) {
       foreach (const Environment::Variable& variable,
-               prepareInfo.get().environment().variables()) {
+          prepareInfo.get().environment().variables()) {
         environment[variable.name()] = variable.value();
       }
     }
   }
+
+  // TODO(jieyu): Use JSON::Array once we have generic parse support.
+  JSON::Object commands;
+  commands.values["commands"] = commandArray;
 
   // Use a pipe to block the child until it's been isolated.
   int pipes[2];
@@ -814,21 +828,7 @@ Future<bool> MesosContainerizerProcess::_launch(
   launchFlags.user = user;
   launchFlags.pipe_read = pipes[0];
   launchFlags.pipe_write = pipes[1];
-
-  // Prepare the additional prepareInfo commands.
-  // TODO(jieyu): Use JSON::Array once we have generic parse support.
-  JSON::Object object;
-  JSON::Array array;
-  foreach (const Option<ContainerPrepareInfo>& prepareInfo, prepareInfos) {
-    if (prepareInfo.isSome()) {
-      foreach (const CommandInfo& command, prepareInfo.get().commands()) {
-        array.values.push_back(JSON::Protobuf(command));
-      }
-    }
-  }
-  object.values["commands"] = array;
-
-  launchFlags.commands = object;
+  launchFlags.commands = commands;
 
   // TODO(karya): Create ContainerPrepareInfo.namespaces and use that instead of
   // Isolator::namespaces().
