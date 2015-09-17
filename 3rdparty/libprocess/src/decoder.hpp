@@ -108,13 +108,6 @@ private:
     CHECK(decoder->request == NULL);
 
     decoder->request = new http::Request();
-    decoder->request->headers.clear();
-    decoder->request->method.clear();
-    decoder->request->path.clear();
-    decoder->request->url.clear();
-    decoder->request->fragment.clear();
-    decoder->request->query.clear();
-    decoder->request->body.clear();
 
     return 0;
   }
@@ -124,7 +117,7 @@ private:
   {
     DataDecoder* decoder = (DataDecoder*) p->data;
     CHECK_NOTNULL(decoder->request);
-    decoder->request->path.append(data, length);
+    decoder->request->url.path.append(data, length);
     return 0;
   }
 
@@ -140,7 +133,12 @@ private:
   {
     DataDecoder* decoder = (DataDecoder*) p->data;
     CHECK_NOTNULL(decoder->request);
-    decoder->request->fragment.append(data, length);
+
+    if (decoder->request->url.fragment.isNone()) {
+      decoder->request->url.fragment = "";
+    }
+
+    decoder->request->url.fragment->append(data, length);
     return 0;
   }
 #endif // !(HTTP_PARSER_VERSION_MAJOR >= 2)
@@ -149,7 +147,6 @@ private:
   {
     DataDecoder* decoder = (DataDecoder*) p->data;
     CHECK_NOTNULL(decoder->request);
-    decoder->request->url.append(data, length);
     int result = 0;
 
 #if (HTTP_PARSER_VERSION_MAJOR >= 2)
@@ -248,7 +245,7 @@ private:
 
     CHECK_NOTNULL(decoder->request);
 
-    decoder->request->query =  decoded.get();
+    decoder->request->url.query = decoded.get();
 
     Option<std::string> encoding =
       decoder->request->headers.get("Content-Encoding");

@@ -62,6 +62,59 @@ extern hashmap<uint16_t, std::string> statuses;
 void initialize();
 
 
+// Represents a Uniform Resource Locator:
+//   scheme://domain|ip:port/path?query#fragment
+//
+// This is actually a URI-reference (see 4.1 of RFC 3986).
+//
+// TODO(bmahler): The default port should depend on the scheme!
+struct URL
+{
+  URL() = default;
+
+  URL(const std::string& _scheme,
+      const std::string& _domain,
+      const uint16_t _port = 80,
+      const std::string& _path = "/",
+      const hashmap<std::string, std::string>& _query =
+        (hashmap<std::string, std::string>()),
+      const Option<std::string>& _fragment = None())
+    : scheme(_scheme),
+      domain(_domain),
+      port(_port),
+      path(_path),
+      query(_query),
+      fragment(_fragment) {}
+
+  URL(const std::string& _scheme,
+      const net::IP& _ip,
+      const uint16_t _port = 80,
+      const std::string& _path = "/",
+      const hashmap<std::string, std::string>& _query =
+        (hashmap<std::string, std::string>()),
+      const Option<std::string>& _fragment = None())
+    : scheme(_scheme),
+      ip(_ip),
+      port(_port),
+      path(_path),
+      query(_query),
+      fragment(_fragment) {}
+
+  Option<std::string> scheme;
+
+  // TODO(benh): Consider using unrestricted union for 'domain' and 'ip'.
+  Option<std::string> domain;
+  Option<net::IP> ip;
+  Option<uint16_t> port;
+  std::string path;
+  hashmap<std::string, std::string> query;
+  Option<std::string> fragment;
+};
+
+
+std::ostream& operator<<(std::ostream& stream, const URL& url);
+
+
 struct CaseInsensitiveHash
 {
   size_t operator()(const std::string& key) const
@@ -94,30 +147,29 @@ struct CaseInsensitiveEqual
 
 struct Request
 {
-  // Contains the client's address. Note that this may
-  // correspond to a proxy or load balancer address.
-  network::Address client;
+  std::string method;
 
   // TODO(benh): Add major/minor version.
+
+  // For client requests, the URL should be a URI.
+  // For server requests, the URL may be a URI or a relative reference.
+  URL url;
+
   hashmap<std::string,
           std::string,
           CaseInsensitiveHash,
           CaseInsensitiveEqual> headers;
 
-  std::string method;
-
-  // TODO(benh): Replace 'url', 'path', 'query', and 'fragment' with URL.
-  std::string url; // (path?query#fragment)
-
-  // TODO(vinod): Make this a 'Path' instead of 'string'.
-  std::string path;
-
-  hashmap<std::string, std::string> query;
-  std::string fragment;
+  // TODO(bmahler): Add a 'query' field which contains both
+  // the URL query and the parsed form data from the body.
 
   std::string body;
 
   bool keepAlive;
+
+  // For server requests, this contains the address of the client.
+  // Note that this may correspond to a proxy or load balancer address.
+  network::Address client;
 
   /**
    * Returns whether the encoding is considered acceptable in the
@@ -659,57 +711,6 @@ Try<hashmap<std::string, std::string>> decode(const std::string& query);
 std::string encode(const hashmap<std::string, std::string>& query);
 
 } // namespace query {
-
-
-// Represents a Uniform Resource Locator:
-//   scheme://domain|ip:port/path?query#fragment
-//
-// This is actually a URI-reference (see 4.1 of RFC 3986).
-//
-// TODO(bmahler): The default port should depend on the scheme!
-struct URL
-{
-  URL(const std::string& _scheme,
-      const std::string& _domain,
-      const uint16_t _port = 80,
-      const std::string& _path = "/",
-      const hashmap<std::string, std::string>& _query =
-        (hashmap<std::string, std::string>()),
-      const Option<std::string>& _fragment = None())
-    : scheme(_scheme),
-      domain(_domain),
-      port(_port),
-      path(_path),
-      query(_query),
-      fragment(_fragment) {}
-
-  URL(const std::string& _scheme,
-      const net::IP& _ip,
-      const uint16_t _port = 80,
-      const std::string& _path = "/",
-      const hashmap<std::string, std::string>& _query =
-        (hashmap<std::string, std::string>()),
-      const Option<std::string>& _fragment = None())
-    : scheme(_scheme),
-      ip(_ip),
-      port(_port),
-      path(_path),
-      query(_query),
-      fragment(_fragment) {}
-
-  Option<std::string> scheme;
-
-  // TODO(benh): Consider using unrestricted union for 'domain' and 'ip'.
-  Option<std::string> domain;
-  Option<net::IP> ip;
-  Option<uint16_t> port;
-  std::string path;
-  hashmap<std::string, std::string> query;
-  Option<std::string> fragment;
-};
-
-
-std::ostream& operator<<(std::ostream& stream, const URL& url);
 
 
 // TODO(bmahler): Consolidate these functions into a single

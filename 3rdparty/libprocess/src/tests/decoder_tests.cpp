@@ -50,20 +50,20 @@ TEST(DecoderTest, Request)
 
   Request* request = requests[0];
   EXPECT_EQ("GET", request->method);
-  EXPECT_EQ("/path/file.json", request->path);
-  EXPECT_EQ("/path/file.json?key1=value1&key2=value2#fragment", request->url);
-  EXPECT_EQ("fragment", request->fragment);
+
+  EXPECT_EQ("/path/file.json", request->url.path);
+  EXPECT_SOME_EQ("fragment", request->url.fragment);
+  EXPECT_EQ(2u, request->url.query.size());
+  EXPECT_SOME_EQ("value1", request->url.query.get("key1"));
+  EXPECT_SOME_EQ("value2", request->url.query.get("key2"));
+
   EXPECT_TRUE(request->body.empty());
   EXPECT_FALSE(request->keepAlive);
 
-  EXPECT_EQ(3, request->headers.size());
+  EXPECT_EQ(3u, request->headers.size());
   EXPECT_SOME_EQ("localhost", request->headers.get("Host"));
   EXPECT_SOME_EQ("close", request->headers.get("Connection"));
   EXPECT_SOME_EQ("compress, gzip", request->headers.get("Accept-Encoding"));
-
-  EXPECT_EQ(2, request->query.size());
-  EXPECT_SOME_EQ("value1", request->query.get("key1"));
-  EXPECT_SOME_EQ("value2", request->query.get("key2"));
 
   delete request;
 }

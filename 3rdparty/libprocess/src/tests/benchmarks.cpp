@@ -95,10 +95,10 @@ private:
     }
 
     hashmap<string, Option<string>> parameters {
-      {"server", request.query.get("server")},
-      {"messageSize", request.query.get("messageSize")},
-      {"requests", request.query.get("requests")},
-      {"concurrency", request.query.get("concurrency")},
+      {"server", request.url.query.get("server")},
+      {"messageSize", request.url.query.get("messageSize")},
+      {"requests", request.url.query.get("requests")},
+      {"concurrency", request.url.query.get("concurrency")},
     };
 
     // Ensure all parameters were provided.

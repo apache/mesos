@@ -109,7 +109,7 @@ void Help::initialize()
 Future<http::Response> Help::help(const http::Request& request)
 {
   // Split the path by '/'.
-  vector<string> tokens = strings::tokenize(request.path, "/");
+  vector<string> tokens = strings::tokenize(request.url.path, "/");
 
   Option<string> id = None();
   Option<string> name = None();

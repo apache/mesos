@@ -395,10 +395,10 @@ http::Response validateGetWithoutQuery(const http::Request& request)
 {
   EXPECT_NE(process::address(), request.client);
   EXPECT_EQ("GET", request.method);
-  EXPECT_THAT(request.path, EndsWith("get"));
+  EXPECT_THAT(request.url.path, EndsWith("get"));
   EXPECT_EQ("", request.body);
-  EXPECT_EQ("", request.fragment);
-  EXPECT_TRUE(request.query.empty());
+  EXPECT_NONE(request.url.fragment);
+  EXPECT_TRUE(request.url.query.empty());
 
   return http::OK();
 }
@@ -408,11 +408,11 @@ http::Response validateGetWithQuery(const http::Request& request)
 {
   EXPECT_NE(process::address(), request.client);
   EXPECT_EQ("GET", request.method);
-  EXPECT_THAT(request.path, EndsWith("get"));
+  EXPECT_THAT(request.url.path, EndsWith("get"));
   EXPECT_EQ("", request.body);
-  EXPECT_EQ("", request.fragment);
-  EXPECT_EQ("bar", request.query.at("foo"));
-  EXPECT_EQ(1, request.query.size());
+  EXPECT_NONE(request.url.fragment);
+  EXPECT_EQ("bar", request.url.query.at("foo"));
+  EXPECT_EQ(1, request.url.query.size());
 
   return http::OK();
 }
@@ -573,10 +573,10 @@ TEST(HTTPTest, PipeEquality)
 http::Response validatePost(const http::Request& request)
 {
   EXPECT_EQ("POST", request.method);
-  EXPECT_THAT(request.path, EndsWith("post"));
+  EXPECT_THAT(request.url.path, EndsWith("post"));
   EXPECT_EQ("This is the payload.", request.body);
-  EXPECT_EQ("", request.fragment);
-  EXPECT_TRUE(request.query.empty());
+  EXPECT_NONE(request.url.fragment);
+  EXPECT_TRUE(request.url.query.empty());
 
   return http::OK();
 }
@@ -623,9 +623,9 @@ TEST(HTTPTest, Post)
 http::Response validateDelete(const http::Request& request)
 {
   EXPECT_EQ("DELETE", request.method);
-  EXPECT_THAT(request.path, EndsWith("delete"));
+  EXPECT_THAT(request.url.path, EndsWith("delete"));
   EXPECT_TRUE(request.body.empty());
-  EXPECT_TRUE(request.query.empty());
+  EXPECT_TRUE(request.url.query.empty());
 
   return http::OK();
 }

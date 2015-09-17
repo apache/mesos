@@ -29,8 +29,8 @@ namespace process {
 
 Future<http::Response> Logging::toggle(const http::Request& request)
 {
-  Option<std::string> level = request.query.get("level");
-  Option<std::string> duration = request.query.get("duration");
+  Option<std::string> level = request.url.query.get("level");
+  Option<std::string> duration = request.url.query.get("duration");
 
   if (level.isNone() && duration.isNone()) {
     return http::OK(stringify(FLAGS_v) + "\n");

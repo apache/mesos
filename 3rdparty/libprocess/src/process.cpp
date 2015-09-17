@@ -556,11 +556,11 @@ static Message* parse(Request* request)
   }
 
   // Now determine 'to'.
-  size_t index = request->path.find('/', 1);
+  size_t index = request->url.path.find('/', 1);
   index = index != string::npos ? index - 1 : string::npos;
 
   // Decode possible percent-encoded 'to'.
-  Try<string> decode = http::decode(request->path.substr(1, index));
+  Try<string> decode = http::decode(request->url.path.substr(1, index));
 
   if (decode.isError()) {
     VLOG(2) << "Failed to decode URL path: " << decode.get();
@@ -570,8 +570,8 @@ static Message* parse(Request* request)
   const UPID to(decode.get(), __address__);
 
   // And now determine 'name'.
-  index = index != string::npos ? index + 2: request->path.size();
-  const string name = request->path.substr(index);
+  index = index != string::npos ? index + 2: request->url.path.size();
+  const string name = request->url.path.substr(index);
 
   VLOG(2) << "Parsed message name '" << name
           << "' for " << to << " from " << from.get();
@@ -2226,11 +2226,11 @@ bool ProcessManager::handle(
       Option<string> agent = request->headers.get("User-Agent");
       if (agent.getOrElse("").find("libprocess/") == string::npos) {
         if (accepted) {
-          VLOG(2) << "Accepted libprocess message to " << request->path;
+          VLOG(2) << "Accepted libprocess message to " << request->url.path;
           dispatch(proxy, &HttpProxy::enqueue, Accepted(), *request);
         } else {
           VLOG(1) << "Failed to handle libprocess message to "
-                  << request->path << ": not found";
+                  << request->url.path << ": not found";
           dispatch(proxy, &HttpProxy::enqueue, NotFound(), *request);
         }
       }
@@ -2240,7 +2240,7 @@ bool ProcessManager::handle(
     }
 
     VLOG(1) << "Failed to handle libprocess message: "
-            << request->method << " " << request->path
+            << request->method << " " << request->url.path
             << " (User-Agent: " << request->headers["User-Agent"] << ")";
 
     delete request;
@@ -2249,8 +2249,8 @@ bool ProcessManager::handle(
 
   // Treat this as an HTTP request. Start by checking that the path
   // starts with a '/' (since the code below assumes as much).
-  if (request->path.find('/') != 0) {
-    VLOG(1) << "Returning '400 Bad Request' for '" << request->path << "'";
+  if (request->url.path.find('/') != 0) {
+    VLOG(1) << "Returning '400 Bad Request' for '" << request->url.path << "'";
 
     // Get the HttpProxy pid for this socket.
     PID<HttpProxy> proxy = socket_manager->proxy(socket);
@@ -2265,8 +2265,8 @@ bool ProcessManager::handle(
   }
 
   // Ignore requests with relative paths (i.e., contain "/..").
-  if (request->path.find("/..") != string::npos) {
-    VLOG(1) << "Returning '404 Not Found' for '" << request->path
+  if (request->url.path.find("/..") != string::npos) {
+    VLOG(1) << "Returning '404 Not Found' for '" << request->url.path
             << "' (ignoring requests with relative paths)";
 
     // Get the HttpProxy pid for this socket.
@@ -2282,13 +2282,13 @@ bool ProcessManager::handle(
   }
 
   // Split the path by '/'.
-  vector<string> tokens = strings::tokenize(request->path, "/");
+  vector<string> tokens = strings::tokenize(request->url.path, "/");
 
   // Try and determine a receiver, otherwise try and delegate.
   ProcessReference receiver;
 
   if (tokens.size() == 0 && delegate != "") {
-    request->path = "/" + delegate;
+    request->url.path = "/" + delegate;
     receiver = use(UPID(delegate, __address__));
   } else if (tokens.size() > 0) {
     // Decode possible percent-encoded path.
@@ -2302,7 +2302,7 @@ bool ProcessManager::handle(
 
   if (!receiver && delegate != "") {
     // Try and delegate the request.
-    request->path = "/" + delegate + request->path;
+    request->url.path = "/" + delegate + request->url.path;
     receiver = use(UPID(delegate, __address__));
   }
 
@@ -2313,7 +2313,7 @@ bool ProcessManager::handle(
       Option<Response> rejection = rule->apply(socket, *request);
       if (rejection.isSome()) {
         VLOG(1) << "Returning '"<< rejection.get().status << "' for '"
-                << request->path << "' (firewall rule forbids request)";
+                << request->url.path << "' (firewall rule forbids request)";
 
         // TODO(arojas): Get rid of the duplicated code to return an
         // error.
@@ -2343,7 +2343,7 @@ bool ProcessManager::handle(
   }
 
   // This has no receiver, send error response.
-  VLOG(1) << "Returning '404 Not Found' for '" << request->path << "'";
+  VLOG(1) << "Returning '404 Not Found' for '" << request->url.path << "'";
 
   // Get the HttpProxy pid for this socket.
   PID<HttpProxy> proxy = socket_manager->proxy(socket);
@@ -2924,7 +2924,7 @@ Future<Response> ProcessManager::__processes__(const Request&)
           const Request& request = *event.request;
 
           object.values["method"] = request.method;
-          object.values["url"] = request.url;
+          object.values["url"] = stringify(request.url);
 
           events->values.push_back(object);
         }
@@ -3073,12 +3073,12 @@ void ProcessBase::visit(const DispatchEvent& event)
 void ProcessBase::visit(const HttpEvent& event)
 {
   VLOG(1) << "Handling HTTP event for process '" << pid.id << "'"
-          << " with path: '" << event.request->path << "'";
+          << " with path: '" << event.request->url.path << "'";
 
-  CHECK(event.request->path.find('/') == 0); // See ProcessManager::handle.
+  CHECK(event.request->url.path.find('/') == 0); // See ProcessManager::handle.
 
   // Split the path by '/'.
-  vector<string> tokens = strings::tokenize(event.request->path, "/");
+  vector<string> tokens = strings::tokenize(event.request->url.path, "/");
   CHECK(tokens.size() >= 1);
   CHECK_EQ(pid.id, http::decode(tokens[0]).get());
 
@@ -3087,7 +3087,7 @@ void ProcessBase::visit(const HttpEvent& event)
 
   // Remove the 'id' prefix from the path.
   string name = strings::remove(
-      event.request->path, "/" + tokens[0], strings::PREFIX);
+      event.request->url.path, "/" + tokens[0], strings::PREFIX);
 
   name = strings::trim(name, strings::PREFIX, "/");
 
@@ -3151,7 +3151,8 @@ void ProcessBase::visit(const HttpEvent& event)
     return;
   }
 
-  VLOG(1) << "Returning '404 Not Found' for '" << event.request->path << "'";
+  VLOG(1) << "Returning '404 Not Found' for"
+          << " '" << event.request->url.path << "'";
 
   // Get the HttpProxy pid for this socket.
   PID<HttpProxy> proxy = socket_manager->proxy(event.socket);

@@ -182,7 +182,7 @@ private:
       object.values["mem_free_bytes"] = memory.get().free.bytes();
     }
 
-    return http::OK(object, request.query.get("jsonp"));
+    return http::OK(object, request.url.query.get("jsonp"));
   }
 
   metrics::Gauge load_1min;
