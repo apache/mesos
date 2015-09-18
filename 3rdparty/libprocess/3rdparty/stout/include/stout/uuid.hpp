@@ -30,8 +30,11 @@ struct UUID : boost::uuids::uuid
 public:
   static UUID random()
   {
-    static THREAD_LOCAL boost::uuids::random_generator* generator =
-      new boost::uuids::random_generator();
+    static THREAD_LOCAL boost::uuids::random_generator* generator = NULL;
+
+    if (generator == NULL) {
+      generator = new boost::uuids::random_generator();
+    }
 
     return UUID((*generator)());
   }
