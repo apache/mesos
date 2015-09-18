@@ -97,6 +97,9 @@ Option<Error> validate(const mesos::scheduler::Call& call)
     case mesos::scheduler::Call::REVIVE:
       return None();
 
+    case mesos::scheduler::Call::QUIESCE:
+      return None();
+
     case mesos::scheduler::Call::KILL:
       if (!call.has_kill()) {
         return Error("Expecting 'kill' to be present");

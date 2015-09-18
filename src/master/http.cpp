@@ -482,6 +482,10 @@ Future<Response> Master::Http::scheduler(const Request& request) const
       master->revive(framework);
       return Accepted();
 
+    case scheduler::Call::QUIESCE:
+      master->quiesce(framework);
+      return Accepted();
+
     case scheduler::Call::KILL:
       master->kill(framework, call.kill());
       return Accepted();
