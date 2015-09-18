@@ -55,13 +55,15 @@ if (NOT WIN32)
     mac_tests.cpp
     os_tests.cpp
     path_tests.cpp
+    proc_tests.cpp
     protobuf_tests.cpp
     protobuf_tests.pb.cc
-    os/sendfile_tests.cpp
-    os/signals_tests.cpp
+    recordio_tests.cpp
     subcommand_tests.cpp
     svn_tests.cpp
-    thread_tests.cpp
+    try_tests.cpp
+    os/sendfile_tests.cpp
+    os/signals_tests.cpp
     )
 endif (NOT WIN32)
 
