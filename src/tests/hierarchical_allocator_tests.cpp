@@ -445,9 +445,7 @@ TEST_F(HierarchicalAllocatorTest, MaintenanceInverseOffers)
   EXPECT_EQ(framework1.id(), allocation.get().frameworkId);
   EXPECT_EQ(agent.resources(), Resources::sum(allocation.get().resources));
 
-  // TODO(jmlvanre): Replace Time(0.0) with `Clock::now()` once JSON double
-  // conversion is fixed. For now using a rounded time avoids the issue.
-  const process::Time start = process::Time::create(0.0).get() + Seconds(60);
+  const process::Time start = Clock::now() + Seconds(60);
 
   // Give the agent some unavailability.
   allocator->updateUnavailability(

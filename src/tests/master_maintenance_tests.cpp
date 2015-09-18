@@ -432,9 +432,7 @@ TEST_F(MasterMaintenanceTest, PendingUnavailabilityTest)
   machine.set_hostname(maintenanceHostname);
   machine.set_ip(stringify(slave.get().address.ip));
 
-  // TODO(jmlvanre): Replace Time(0.0) with `Clock::now()` once JSON double
-  // conversion is fixed. For now using a rounded time avoids the issue.
-  const Time start = Time::create(0.0).get() + Seconds(60);
+  const Time start = Clock::now() + Seconds(60);
   const Duration duration = Seconds(120);
   const Unavailability unavailability = createUnavailability(start, duration);
 
@@ -543,9 +541,7 @@ TEST_F(MasterMaintenanceTest, PreV1SchedulerSupport)
   machine.set_hostname(maintenanceHostname);
   machine.set_ip(stringify(slave.get().address.ip));
 
-  // TODO(jmlvanre): Replace Time(0.0) with `Clock::now()` once JSON double
-  // conversion is fixed. For now using a rounded time avoids the issue.
-  const Time start = Time::create(0.0).get() + Seconds(60);
+  const Time start = Clock::now() + Seconds(60);
   const Duration duration = Seconds(120);
   const Unavailability unavailability = createUnavailability(start, duration);
 
@@ -638,9 +634,7 @@ TEST_F(MasterMaintenanceTest, EnterMaintenanceMode)
   machine.set_hostname(maintenanceHostname);
   machine.set_ip(stringify(slave.get().address.ip));
 
-  // TODO(jmlvanre): Replace Time(0.0) with `Clock::now()` once JSON double
-  // conversion is fixed. For now using a rounded time avoids the issue.
-  const Time start = Time::create(0.0).get() + Seconds(60);
+  const Time start = Clock::now() + Seconds(60);
   const Duration duration = Seconds(120);
   const Unavailability unavailability = createUnavailability(start, duration);
 
@@ -1050,9 +1044,7 @@ TEST_F(MasterMaintenanceTest, InverseOffers)
   machine.set_hostname(maintenanceHostname);
   machine.set_ip(stringify(slave.get().address.ip));
 
-  // TODO(josephw): Replace Time(0.0) with `Clock::now()` once JSON double
-  // conversion is fixed. For now using a rounded time avoids the issue.
-  const Time start = Time::create(0.0).get() + Seconds(60);
+  const Time start = Clock::now() + Seconds(60);
   const Duration duration = Seconds(120);
   const Unavailability unavailability = createUnavailability(start, duration);
 
