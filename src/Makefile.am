@@ -106,6 +106,14 @@ MESOS_CPPFLAGS += -I../include/mesos
 MESOS_CPPFLAGS += -I../$(BOOST)
 MESOS_CPPFLAGS += -I../$(PICOJSON)
 
+# Enable the INT64 support for PicoJson.
+# NOTE: PicoJson requires __STDC_FORMAT_MACROS to be defined before importing
+# 'inttypes.h'.  Since other libraries may also import this header, it must
+# be globally defined so that PicoJson has access to the macros, regardless
+# of the order of inclusion.
+MESOS_CPPFLAGS += -DPICOJSON_USE_INT64
+MESOS_CPPFLAGS += -D__STDC_FORMAT_MACROS
+
 MESOS_CPPFLAGS += -I../$(PROTOBUF)/src
 MESOS_CPPFLAGS += -I../$(GLOG)/src
 
