@@ -785,6 +785,7 @@ void Master::initialize()
   route("/reserve",
         None(),  // TODO(mpark): Add an Http::RESERVE_HELP,
         [http](const process::http::Request& request) {
+          Http::log(request);
           return http.reserve(request);
         });
   // TODO(ijimenez): Remove this endpoint at the end of the
@@ -874,6 +875,7 @@ void Master::initialize()
   route("/unreserve",
         None(),  // TODO(mpark): Add an Http::UNRESERVE_HELP,
         [http](const process::http::Request& request) {
+          Http::log(request);
           return http.unreserve(request);
         });
 
