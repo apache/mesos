@@ -214,6 +214,10 @@ endif
 
 if WITH_BUNDLED_PICOJSON
   stout_tests_CPPFLAGS += -I$(PICOJSON)
+
+  # Enable the INT64 support for PicoJSON.
+  stout_tests_CPPFLAGS += -DPICOJSON_USE_INT64
+  stout_tests_CPPFLAGS += -D__STDC_FORMAT_MACROS
 endif
 
 if WITH_BUNDLED_GLOG

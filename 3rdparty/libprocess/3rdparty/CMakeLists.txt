@@ -35,7 +35,7 @@ else (REBUNDLED)
   set(GLOG_URL        https://google-glog.googlecode.com/files/glog-${GLOG_VERSION}.tar.gz)
   # NOTE: This url can't be versioned like the others, because it depends on
   #       specific commit, and isn't in our upstream.
-  set(PICOJSON_URL    https://github.com/kazuho/picojson/tarball/4f93734ade33ea0f5e5b4de35fc6b2c324a8dca6)
+  set(PICOJSON_URL    https://github.com/kazuho/picojson/archive/v1.3.0.tar.gz)
   # TODO(hausdorff): (MESOS-3395) depends on the github mirror, should remove
   # when possible.
   set(HTTP_PARSER_URL https://github.com/apache/mesos/raw/master/3rdparty/libprocess/3rdparty/ry-http-parser-${HTTP_PARSER_VERSION}.tar.gz)
@@ -153,7 +153,6 @@ ExternalProject_Add(
 ExternalProject_Add(
   ${PICOJSON_TARGET}
   PREFIX            ${PICOJSON_CMAKE_ROOT}
-  DOWNLOAD_NAME     ${PICOJSON_TARGET}.tar.gz
   CONFIGURE_COMMAND ""
   BUILD_COMMAND     ""
   INSTALL_COMMAND   ""
