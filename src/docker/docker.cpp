@@ -96,6 +96,30 @@ static Future<Nothing> checkError(const string& cmd, const Subprocess& s)
 }
 
 
+Try<Nothing> Docker::validateVersion(const Version& minVersion) const
+{
+  // Validate the version (and that we can use Docker at all).
+  Future<Version> version = this->version();
+
+  if (!version.await(DOCKER_VERSION_WAIT_TIMEOUT)) {
+    return Error("Timed out getting docker version");
+  }
+
+  if (version.isFailed()) {
+    return Error("Failed to get docker version: " + version.failure());
+  }
+
+  if (version.get() < minVersion) {
+    string msg = "Insufficient version '" + stringify(version.get()) +
+                 "' of Docker. Please upgrade to >=' " +
+                 stringify(minVersion) + "'";
+    return Error(msg);
+  }
+
+  return Nothing();
+}
+
+
 Try<Docker*> Docker::create(const string& path, bool validate)
 {
   Docker* docker = new Docker(path);
@@ -116,22 +140,10 @@ Try<Docker*> Docker::create(const string& path, bool validate)
   }
 #endif // __linux__
 
-  // Validate the version (and that we can use Docker at all).
-  Future<Version> version = docker->version();
-
-  if (!version.await(DOCKER_VERSION_WAIT_TIMEOUT)) {
+  Try<Nothing> validateVersion = docker->validateVersion(Version(1, 0, 0));
+  if (validateVersion.isError()) {
     delete docker;
-    return Error("Timed out getting docker version");
-  }
-
-  if (version.isFailed()) {
-    delete docker;
-    return Error("Failed to get docker version: " + version.failure());
-  }
-
-  if (version.get() < Version(1, 0, 0)) {
-    delete docker;
-    return Error("Insufficient version of Docker. Please upgrade to >= 1.0.0");
+    return Error(validateVersion.error());
   }
 
   return docker;
