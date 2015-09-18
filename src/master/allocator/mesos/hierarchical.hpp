@@ -165,6 +165,9 @@ public:
       const Resources& resources,
       const Option<Filters>& filters);
 
+  void quiesceOffers(
+      const FrameworkID& frameworkId);
+
   void reviveOffers(
       const FrameworkID& frameworkId);
 
@@ -240,6 +243,9 @@ protected:
   {
     std::string role;
     bool checkpoint;  // Whether the framework desires checkpointing.
+
+    // Whether the framework quiesces resources.
+    bool quiesced;
 
     // Whether the framework desires revocable resources.
     bool revocable;
@@ -449,6 +455,8 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::addFramework(
       frameworks[frameworkId].revocable = true;
     }
   }
+
+  frameworks[frameworkId].quiesced = false;
 
   LOG(INFO) << "Added framework " << frameworkId;
 
@@ -1006,12 +1014,23 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::recoverResources(
 
 template <class RoleSorter, class FrameworkSorter>
 void
+HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::quiesceOffers(
+    const FrameworkID& frameworkId)
+{
+  CHECK(initialized);
+  frameworks[frameworkId].quiesced = true;
+}
+
+
+template <class RoleSorter, class FrameworkSorter>
+void
 HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::reviveOffers(
     const FrameworkID& frameworkId)
 {
   CHECK(initialized);
 
   frameworks[frameworkId].filters.clear();
+  frameworks[frameworkId].quiesced = false;
 
   // We delete each actual Filter when
   // HierarchicalAllocatorProcess::expire gets invoked. If we delete the
@@ -1100,6 +1119,11 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::allocate(
                frameworkSorters[role]->sort()) {
         FrameworkID frameworkId;
         frameworkId.set_value(frameworkId_);
+
+        // If the framework has quiesced, ignore.
+        if (frameworks[frameworkId].quiesced) {
+          continue;
+        }
 
         // Calculate the currently available resources on the slave.
         Resources available = slaves[slaveId].total - slaves[slaveId].allocated;

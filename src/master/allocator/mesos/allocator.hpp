@@ -127,6 +127,9 @@ public:
       const Resources& resources,
       const Option<Filters>& filters);
 
+  void quiesceOffers(
+      const FrameworkID& frameworkId);
+
   void reviveOffers(
       const FrameworkID& frameworkId);
 
@@ -230,6 +233,9 @@ public:
       const SlaveID& slaveId,
       const Resources& resources,
       const Option<Filters>& filters) = 0;
+
+  virtual void quiesceOffers(
+      const FrameworkID& frameworkId) = 0;
 
   virtual void reviveOffers(
       const FrameworkID& frameworkId) = 0;
@@ -505,6 +511,17 @@ inline void MesosAllocator<AllocatorProcess>::recoverResources(
       slaveId,
       resources,
       filters);
+}
+
+
+template <typename AllocatorProcess>
+inline void MesosAllocator<AllocatorProcess>::quiesceOffers(
+    const FrameworkID& frameworkId)
+{
+  process::dispatch(
+      process,
+      &MesosAllocatorProcess::quiesceOffers,
+      frameworkId);
 }
 
 

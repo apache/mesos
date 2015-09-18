@@ -171,6 +171,10 @@ public:
   // offers for those resources the master invokes this callback.
   virtual void reviveOffers(
       const FrameworkID& frameworkId) = 0;
+
+  // Informs the allocator to stop sending resources for the framework
+  virtual void quiesceOffers(
+      const FrameworkID& frameworkId) = 0;
 };
 
 } // namespace allocator {

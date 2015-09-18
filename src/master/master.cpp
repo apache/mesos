@@ -2607,8 +2607,7 @@ void Master::quiesce(Framework* framework)
 
   LOG(INFO) << "Processing QUIESCE call for framework " << *framework;
 
-  //TODO(gyliu513): Add quiesce logic here.
-  LOG(WARNING) << "Not implemented yet, ignoring the QUIESCE call.";
+  allocator->quiesceOffers(framework->id());
 }
 
 
