@@ -26,6 +26,7 @@
 #include <stout/hashset.hpp>
 #include <stout/ip.hpp>
 #include <stout/nothing.hpp>
+#include <stout/stringify.hpp>
 #include <stout/strings.hpp>
 
 #include "master/maintenance.hpp"
@@ -229,7 +230,7 @@ Try<Nothing> schedule(
       // Check that the machine is unique.
       if (updated.contains(id)) {
         return Error(
-            "Machine '" + id.DebugString() +
+            "Machine '" + stringify(JSON::Protobuf(id)) +
               "' appears more than once in the schedule");
       }
 
@@ -241,7 +242,7 @@ Try<Nothing> schedule(
   foreachpair (const MachineID& id, const Machine& machine, machines) {
     if (machine.info.mode() == MachineInfo::DOWN && !updated.contains(id)) {
       return Error(
-          "Machine '" + id.DebugString() +
+          "Machine '" + stringify(JSON::Protobuf(id)) +
             "' is deactivated and cannot be removed from the schedule");
     }
   }
@@ -282,7 +283,7 @@ Try<Nothing> machines(const MachineIDs& ids)
     // Check machine uniqueness.
     if (uniques.contains(id)) {
       return Error(
-          "Machine '" + id.DebugString() +
+          "Machine '" + stringify(JSON::Protobuf(id)) +
             "' appears more than once in the schedule");
     }
 

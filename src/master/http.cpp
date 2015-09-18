@@ -1575,13 +1575,13 @@ Future<Response> Master::Http::machineDown(const Request& request) const
   foreach (const MachineID& id, ids.values()) {
     if (!master->machines.contains(id)) {
       return BadRequest(
-          "Machine '" + id.DebugString() +
+          "Machine '" + stringify(JSON::Protobuf(id)) +
             "' is not part of a maintenance schedule");
     }
 
     if (master->machines[id].info.mode() != MachineInfo::DRAINING) {
       return BadRequest(
-          "Machine '" + id.DebugString() +
+          "Machine '" + stringify(JSON::Protobuf(id)) +
             "' is not in DRAINING mode and cannot be brought down");
     }
   }
@@ -1676,13 +1676,13 @@ Future<Response> Master::Http::machineUp(const Request& request) const
   foreach (const MachineID& id, ids.values()) {
     if (!master->machines.contains(id)) {
       return BadRequest(
-          "Machine '" + id.DebugString() +
+          "Machine '" + stringify(JSON::Protobuf(id)) +
             "' is not part of a maintenance schedule");
     }
 
     if (master->machines[id].info.mode() != MachineInfo::DOWN) {
       return BadRequest(
-          "Machine '" + id.DebugString() +
+          "Machine '" + stringify(JSON::Protobuf(id)) +
             "' is not in DOWN mode and cannot be brought up");
     }
   }
