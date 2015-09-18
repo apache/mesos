@@ -759,29 +759,20 @@ void _decode(
 Future<Response> _request(
     Socket socket,
     const Address& address,
-    const URL& url,
-    const string& method,
-    bool streamingResponse,
-    const Option<Headers>& _headers,
-    const Option<string>& body,
-    const Option<string>& contentType);
+    const Request& request,
+    bool streamedResponse);
 
 
-Future<Response> request(
-    const URL& url,
-    const string& method,
-    bool streamedResponse,
-    const Option<Headers>& headers,
-    const Option<string>& body,
-    const Option<string>& contentType)
+Future<Response> request(const Request& request, bool streamedResponse)
 {
-  Try<Socket> socket = [&url]() -> Try<Socket> {
+  Try<Socket> socket = [&request]() -> Try<Socket> {
     // Default to 'http' if no scheme was specified.
-    if (url.scheme.isNone() || url.scheme == string("http")) {
+    if (request.url.scheme.isNone() ||
+        request.url.scheme == string("http")) {
       return Socket::create(Socket::POLL);
     }
 
-    if (url.scheme == string("https")) {
+    if (request.url.scheme == string("https")) {
 #ifdef USE_SSL_SOCKET
       return Socket::create(Socket::SSL);
 #else
@@ -798,86 +789,78 @@ Future<Response> request(
 
   Address address;
 
-  if (url.ip.isSome()) {
-    address.ip = url.ip.get();
-  } else if (url.domain.isNone()) {
+  if (request.url.ip.isSome()) {
+    address.ip = request.url.ip.get();
+  } else if (request.url.domain.isNone()) {
     return Failure("Expecting url.ip or url.domain to be set");
   } else {
-    Try<net::IP> ip = net::getIP(url.domain.get(), AF_INET);
+    Try<net::IP> ip = net::getIP(request.url.domain.get(), AF_INET);
 
     if (ip.isError()) {
       return Failure("Failed to determine IP of domain '" +
-                     url.domain.get() + "': " + ip.error());
+                     request.url.domain.get() + "': " + ip.error());
     }
 
     address.ip = ip.get();
   }
 
-  if (url.port.isNone()) {
+  if (request.url.port.isNone()) {
     return Failure("Expecting url.port to be set");
   }
 
-  address.port = url.port.get();
+  address.port = request.url.port.get();
 
   return socket->connect(address)
     .then(lambda::bind(&_request,
                        socket.get(),
                        address,
-                       url,
-                       method,
-                       streamedResponse,
-                       headers,
-                       body,
-                       contentType));
+                       request,
+                       streamedResponse));
 }
 
 
 Future<Response> _request(
     Socket socket,
     const Address& address,
-    const URL& url,
-    const string& method,
-    bool streamedResponse,
-    const Option<Headers>& _headers,
-    const Option<string>& body,
-    const Option<string>& contentType)
+    const Request& request,
+    bool streamedResponse)
 {
   std::ostringstream out;
 
-  out << method << " /" << strings::remove(url.path, "/", strings::PREFIX);
+  out << request.method
+      << " /" << strings::remove(request.url.path, "/", strings::PREFIX);
 
-  if (!url.query.empty()) {
+  if (!request.url.query.empty()) {
     // Convert the query to a string that we join via '=' and '&'.
     vector<string> query;
 
-    foreachpair (const string& key, const string& value, url.query) {
+    foreachpair (const string& key, const string& value, request.url.query) {
       query.push_back(key + "=" + value);
     }
 
     out << "?" << strings::join("&", query);
   }
 
-  if (url.fragment.isSome()) {
-    out << "#" << url.fragment.get();
+  if (request.url.fragment.isSome()) {
+    out << "#" << request.url.fragment.get();
   }
 
   out << " HTTP/1.1\r\n";
 
-  // Set up the headers as necessary.
-  Headers headers;
-
-  if (_headers.isSome()) {
-    headers = _headers.get();
-  }
+  // Overwrite headers as necessary.
+  Headers headers = request.headers;
 
   // Need to specify the 'Host' header.
-  if (url.domain.isSome()) {
+  if (request.url.domain.isSome()) {
     // Use ONLY domain for standard ports.
-    if (url.port.isNone() || url.port == 80 || url.port == 443) {
-      headers["Host"] = url.domain.get();
+    if (request.url.port.isNone() ||
+        request.url.port == 80 ||
+        request.url.port == 443) {
+      headers["Host"] = request.url.domain.get();
     } else {
       // Add port for non-standard ports.
-      headers["Host"] = url.domain.get() + ":" + stringify(url.port.get());
+      headers["Host"] =
+        request.url.domain.get() + ":" + stringify(request.url.port.get());
     }
   } else {
     headers["Host"] = stringify(address);
@@ -886,15 +869,8 @@ Future<Response> _request(
   // Tell the server to close the connection when it's done.
   headers["Connection"] = "close";
 
-  // Overwrite Content-Type if necessary.
-  if (contentType.isSome()) {
-    headers["Content-Type"] = contentType.get();
-  }
-
-  // Make sure the Content-Length is set correctly if necessary.
-  if (body.isSome()) {
-    headers["Content-Length"] = stringify(body.get().length());
-  }
+  // Make sure the Content-Length is set correctly.
+  headers["Content-Length"] = stringify(request.body.length());
 
   // TODO(bmahler): Use a 'Request' and a 'RequestEncoder' here!
   // Currently this does not handle 'gzip' content encoding,
@@ -909,10 +885,7 @@ Future<Response> _request(
   }
 
   out << "\r\n";
-
-  if (body.isSome()) {
-    out << body.get();
-  }
+  out << request.body;
 
   // Need to disambiguate the Socket::recv for binding below.
   Future<string> (Socket::*recv)(const Option<ssize_t>&) = &Socket::recv;
@@ -939,7 +912,16 @@ Future<Response> get(
     const URL& url,
     const Option<Headers>& headers)
 {
-  return internal::request(url, "GET", false, headers, None(), None());
+  Request request;
+  request.method = "GET";
+  request.url = url;
+  request.keepAlive = false;
+
+  if (headers.isSome()) {
+    request.headers = headers.get();
+  }
+
+  return internal::request(request, false);
 }
 
 
@@ -981,7 +963,24 @@ Future<Response> post(
     return Failure("Attempted to do a POST with a Content-Type but no body");
   }
 
-  return internal::request(url, "POST", false, headers, body, contentType);
+  Request request;
+  request.method = "POST";
+  request.url = url;
+  request.keepAlive = false;
+
+  if (headers.isSome()) {
+    request.headers = headers.get();
+  }
+
+  if (body.isSome()) {
+    request.body = body.get();
+  }
+
+  if (contentType.isSome()) {
+    request.headers["Content-Type"] = contentType.get();
+  }
+
+  return internal::request(request, false);
 }
 
 
@@ -1007,7 +1006,16 @@ Future<Response> requestDelete(
     const URL& url,
     const Option<Headers>& headers)
 {
-  return internal::request(url, "DELETE", false, headers, None(), None());
+  Request request;
+  request.method = "DELETE";
+  request.url = url;
+  request.keepAlive = false;
+
+  if (headers.isSome()) {
+    request.headers = headers.get();
+  }
+
+  return internal::request(request, false);
 }
 
 
@@ -1035,7 +1043,16 @@ Future<Response> get(
     const URL& url,
     const Option<Headers>& headers)
 {
-  return internal::request(url, "GET", true, headers, None(), None());
+  Request request;
+  request.method = "GET";
+  request.url = url;
+  request.keepAlive = false;
+
+  if (headers.isSome()) {
+    request.headers = headers.get();
+  }
+
+  return internal::request(request, true);
 }
 
 
@@ -1077,7 +1094,24 @@ Future<Response> post(
     return Failure("Attempted to do a POST with a Content-Type but no body");
   }
 
-  return internal::request(url, "POST", true, headers, body, contentType);
+  Request request;
+  request.method = "POST";
+  request.url = url;
+  request.keepAlive = false;
+
+  if (body.isSome()) {
+    request.body = body.get();
+  }
+
+  if (headers.isSome()) {
+    request.headers = headers.get();
+  }
+
+  if (contentType.isSome()) {
+    request.headers["Content-Type"] = contentType.get();
+  }
+
+  return internal::request(request, true);
 }
 
 
