@@ -21,6 +21,7 @@ include(ExternalProject)
 
 # Define sources of third-party dependencies.
 #############################################
+set(UPSTREAM_URL https://github.com/3rdparty/mesos-3rdparty/raw/master)
 set(REBUNDLED_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 if (REBUNDLED)
   set(BOOST_URL       ${REBUNDLED_DIR}/boost-${BOOST_VERSION}.tar.gz)
@@ -29,19 +30,11 @@ if (REBUNDLED)
   set(HTTP_PARSER_URL ${REBUNDLED_DIR}/ry-http-parser-${HTTP_PARSER_VERSION}.tar.gz)
   set(LIBEV_URL       ${REBUNDLED_DIR}/libev-${LIBEV_VERSION}.tar.gz)
 else (REBUNDLED)
-  # TODO(hausdorff): (MESOS-3395) depends on the github mirror, should remove
-  # when possible.
-  set(BOOST_URL       https://github.com/apache/mesos/raw/master/3rdparty/libprocess/3rdparty/boost-${BOOST_VERSION}.tar.gz)
-  set(GLOG_URL        https://google-glog.googlecode.com/files/glog-${GLOG_VERSION}.tar.gz)
-  # NOTE: This url can't be versioned like the others, because it depends on
-  #       specific commit, and isn't in our upstream.
-  set(PICOJSON_URL    https://github.com/kazuho/picojson/archive/v1.3.0.tar.gz)
-  # TODO(hausdorff): (MESOS-3395) depends on the github mirror, should remove
-  # when possible.
-  set(HTTP_PARSER_URL https://github.com/apache/mesos/raw/master/3rdparty/libprocess/3rdparty/ry-http-parser-${HTTP_PARSER_VERSION}.tar.gz)
-  # TODO(hausdorff): (MESOS-3395) depends on the github mirror, should remove
-  # when possible.
-  set(LIBEV_URL       https://github.com/apache/mesos/raw/master/3rdparty/libprocess/3rdparty/libev-${LIBEV_VERSION}.tar.gz)
+  set(BOOST_URL       ${UPSTREAM_URL}/boost-${BOOST_VERSION}.tar.gz)
+  set(GLOG_URL        ${UPSTREAM_URL}/glog-${GLOG_VERSION}.tar.gz)
+  set(PICOJSON_URL    ${UPSTREAM_URL}/picojson-${PICOJSON_VERSION}.tar.gz)
+  set(HTTP_PARSER_URL ${UPSTREAM_URL}/ry-http-parser-${HTTP_PARSER_VERSION}.tar.gz)
+  set(LIBEV_URL       ${UPSTREAM_URL}/libev-${LIBEV_VERSION}.tar.gz)
 endif (REBUNDLED)
 
 if (WIN32)
@@ -67,10 +60,7 @@ if (WIN32)
   # [1] https://github.com/google/glog/pull/43
   set(GLOG_URL https://github.com/hausdorff/glog/tarball/glog-${GLOG_VERSION}-msvc1900)
 
-  # TODO(hausdorff): (MESOS-3394) points at a random tarball in my
-  # (hausdorff's) repository. We need a more permanent solution for this
-  # eventually.
-  set(CURL_URL https://github.com/hausdorff/3rdparty/raw/master/curl-static-${CURL_VERSION}.tar.gz)
+  set(CURL_URL ${UPSTREAM_URL}/curl-static-${CURL_VERSION}.tar.gz)
 endif (WIN32)
 
 # Define build/patch/configure commands for third-party libs.
@@ -200,12 +190,8 @@ if (REBUNDLED)
   set(GMOCK_URL    ${REBUNDLED_DIR}/gmock-${GMOCK_VERSION}.tar.gz)
   set(PROTOBUF_URL ${REBUNDLED_DIR}/protobuf-${PROTOBUF_VERSION}.tar.gz)
 else (REBUNDLED)
-  # TODO(hausdorff): (MESOS-3395) depends on the github mirror, should remove
-  # when possible.
-  set(GMOCK_URL    https://github.com/apache/mesos/raw/master/3rdparty/libprocess/3rdparty/gmock-${GMOCK_VERSION}.tar.gz)
-  # TODO(hausdorff): (MESOS-3395) depends on the github mirror, should remove
-  # when possible.
-  set(PROTOBUF_URL https://github.com/hausdorff/mesos/raw/test_cmake/3rdparty/libprocess/3rdparty/protobuf-${PROTOBUF_VERSION}.tar.gz)
+  set(GMOCK_URL    ${UPSTREAM_URL}/gmock-${GMOCK_VERSION}.tar.gz)
+  set(PROTOBUF_URL ${UPSTREAM_URL}/protobuf-${PROTOBUF_VERSION}.tar.gz)
 endif (REBUNDLED)
 
 if (APPLE)
