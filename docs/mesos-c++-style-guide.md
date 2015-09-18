@@ -236,9 +236,9 @@ We support C++11 and require GCC 4.8+ or Clang 3.5+ compilers. The whitelist of 
 
 ~~~{.cpp}
 // 1: OK.
-const auto& i = values.find(keys.front());
+const auto i = values.find(keys.front());
 // Compare with
-const typename map::iterator& i = values.find(keys.front());
+const typename map::iterator i = values.find(keys.front());
 
 // 2: OK.
 auto names = shared_ptr<list<string>>(new list<string>());
