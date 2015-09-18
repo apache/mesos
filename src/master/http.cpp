@@ -670,6 +670,15 @@ Future<Response> Master::Http::redirect(const Request& request) const
 }
 
 
+const string Master::Http::RESERVE_HELP = HELP(
+    TLDR(
+        "Reserve resources dynamically on a specific slave."),
+    DESCRIPTION(
+        "Returns 200 OK if resource reservation was successful.",
+        "Please provide \"slaveId\" and \"resources\" values designating ",
+        "the resources to be reserved."));
+
+
 Future<Response> Master::Http::reserve(const Request& request) const
 {
   if (request.method != "POST") {
@@ -1772,6 +1781,15 @@ Future<Response> Master::Http::maintenanceStatus(const Request& request) const
 
   return OK(JSON::Protobuf(status), request.query.get("jsonp"));
 }
+
+
+const string Master::Http::UNRESERVE_HELP = HELP(
+    TLDR(
+        "Unreserve resources dynamically on a specific slave."),
+    DESCRIPTION(
+        "Returns 200 OK if resource unreservation was successful.",
+        "Please provide \"slaveId\" and \"resources\" values designating ",
+        "the resources to be unreserved."));
 
 
 Future<Response> Master::Http::unreserve(const Request& request) const

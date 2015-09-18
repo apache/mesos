@@ -773,7 +773,7 @@ void Master::initialize()
           return http.redirect(request);
         });
   route("/reserve",
-        None(),  // TODO(mpark): Add an Http::RESERVE_HELP,
+        Http::RESERVE_HELP,
         [http](const process::http::Request& request) {
           Http::log(request);
           return http.reserve(request);
@@ -863,7 +863,7 @@ void Master::initialize()
           return http.machineUp(request);
         });
   route("/unreserve",
-        None(),  // TODO(mpark): Add an Http::UNRESERVE_HELP,
+        Http::UNRESERVE_HELP,
         [http](const process::http::Request& request) {
           Http::log(request);
           return http.unreserve(request);

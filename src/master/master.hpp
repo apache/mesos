@@ -925,6 +925,8 @@ private:
     const static std::string MAINTENANCE_STATUS_HELP;
     const static std::string MACHINE_DOWN_HELP;
     const static std::string MACHINE_UP_HELP;
+    const static std::string RESERVE_HELP;
+    const static std::string UNRESERVE_HELP;
 
   private:
     // Helper for doing authentication, returns the credential used if
