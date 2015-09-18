@@ -193,10 +193,10 @@ TEST(MetricsTest, Snapshot)
   map<string, JSON::Value> values = responseJSON.get().values;
 
   EXPECT_EQ(1u, values.count("test/counter"));
-  EXPECT_FLOAT_EQ(0.0, values["test/counter"].as<JSON::Number>().value);
+  EXPECT_FLOAT_EQ(0.0, values["test/counter"].as<JSON::Number>().as<double>());
 
   EXPECT_EQ(1u, values.count("test/gauge"));
-  EXPECT_FLOAT_EQ(42.0, values["test/gauge"].as<JSON::Number>().value);
+  EXPECT_FLOAT_EQ(42.0, values["test/gauge"].as<JSON::Number>().as<double>());
 
   EXPECT_EQ(0u, values.count("test/gauge_fail"));
 
@@ -290,10 +290,10 @@ TEST(MetricsTest, SnapshotTimeout)
   map<string, JSON::Value> values = responseJSON.get().values;
 
   EXPECT_EQ(1u, values.count("test/counter"));
-  EXPECT_FLOAT_EQ(0.0, values["test/counter"].as<JSON::Number>().value);
+  EXPECT_FLOAT_EQ(0.0, values["test/counter"].as<JSON::Number>().as<double>());
 
   EXPECT_EQ(1u, values.count("test/gauge"));
-  EXPECT_FLOAT_EQ(42.0, values["test/gauge"].as<JSON::Number>().value);
+  EXPECT_FLOAT_EQ(42.0, values["test/gauge"].as<JSON::Number>().as<double>());
 
   EXPECT_EQ(0u, values.count("test/gauge_fail"));
   EXPECT_EQ(0u, values.count("test/gauge_timeout"));
@@ -381,7 +381,9 @@ TEST(MetricsTest, SnapshotStatistics)
                const JSON::Value& value,
                responseJSON.get().values) {
     if (value.is<JSON::Number>()) {
-      responseValues[key] = value.as<JSON::Number>().value;
+      // "test/counter/count" is an integer, everything else is a double.
+      JSON::Number number = value.as<JSON::Number>();
+      responseValues[key] = number.as<double>();
     }
   }
 
