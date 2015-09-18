@@ -3682,6 +3682,51 @@ TEST_F(MasterTest, MasterFailoverLongLivedExecutor)
   Shutdown(); // Must shutdown before 'containerizer' gets deallocated.
 }
 
+
+// This test ensures that a slave gets a unique SlaveID even after
+// master fails over. Please refer to MESOS-3351 for further details.
+TEST_F(MasterTest, DuplicatedSlaveIdWhenSlaveReregister)
+{
+  Try<PID<Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  Future<SlaveRegisteredMessage> slaveRegisteredMessage1 =
+      FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
+
+  StandaloneMasterDetector slaveDetector1 (master.get());
+  Try<PID<Slave>> slave1 = StartSlave(&slaveDetector1);
+  ASSERT_SOME(slave1);
+
+  AWAIT_READY(slaveRegisteredMessage1);
+
+  Stop(master.get());
+  master = StartMaster();
+  ASSERT_SOME(master);
+
+  Future<SlaveRegisteredMessage> slaveRegisteredMessage2 =
+      FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
+
+  // Start a new slave and make sure it registers before the old slave.
+  slave::Flags slaveFlags2 = CreateSlaveFlags();
+  Try<PID<Slave>> slave2 = StartSlave(slaveFlags2);
+  ASSERT_SOME(slave2);
+
+  AWAIT_READY(slaveRegisteredMessage2);
+
+  Future<SlaveReregisteredMessage> slaveReregisteredMessage1 =
+      FUTURE_PROTOBUF(SlaveReregisteredMessage(), master.get(), _);
+
+  // Now let the first slave re-register.
+  slaveDetector1.appoint(master.get());
+
+  // If both the slaves get the same SlaveID, the re-registration would
+  // fail here.
+  AWAIT_READY(slaveReregisteredMessage1);
+
+  Shutdown();
+}
+
+
 // This test ensures that if a framework scheduler provides any
 // labels in its FrameworkInfo message, those labels are included
 // in the master's state endpoint.

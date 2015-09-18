@@ -305,18 +305,8 @@ Master::Master(
   // NOTE: We populate 'info_' here instead of inside 'initialize()'
   // because 'StandaloneMasterDetector' needs access to the info.
 
-  // The master ID is currently comprised of the current date, the IP
-  // address and port from self() and the OS PID.
-  Try<string> id = strings::format(
-      "%s-%u-%u-%d",
-      DateUtils::currentDate(),
-      self().address.ip.in().get().s_addr,
-      self().address.port,
-      getpid());
-
-  CHECK(!id.isError()) << id.error();
-
-  info_.set_id(id.get());
+  // Master ID is generated randomly based on UUID.
+  info_.set_id(UUID::random().toString());
 
   // NOTE: Currently, we store ip in MasterInfo in network order,
   // which should be fixed. See MESOS-1201 for details.
