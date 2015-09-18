@@ -23,12 +23,17 @@
 #include <boost/uuid/uuid_generators.hpp>
 #include <boost/uuid/uuid_io.hpp>
 
+#include <stout/thread_local.hpp>
+
 struct UUID : boost::uuids::uuid
 {
 public:
   static UUID random()
   {
-    return UUID(boost::uuids::random_generator()());
+    static THREAD_LOCAL boost::uuids::random_generator* generator =
+      new boost::uuids::random_generator();
+
+    return UUID((*generator)());
   }
 
   static UUID fromBytes(const std::string& s)
