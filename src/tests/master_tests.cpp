@@ -1511,6 +1511,7 @@ TEST_F(MasterTest, MetricsInMetricsEndpoint)
   EXPECT_EQ(1u, snapshot.values.count("master/messages_launch_tasks"));
   EXPECT_EQ(1u, snapshot.values.count("master/messages_decline_offers"));
   EXPECT_EQ(1u, snapshot.values.count("master/messages_revive_offers"));
+  EXPECT_EQ(1u, snapshot.values.count("master/messages_quiesce_offers"));
   EXPECT_EQ(1u, snapshot.values.count("master/messages_reconcile_tasks"));
   EXPECT_EQ(1u, snapshot.values.count("master/messages_framework_to_executor"));
 

@@ -2607,6 +2607,8 @@ void Master::quiesce(Framework* framework)
 
   LOG(INFO) << "Processing QUIESCE call for framework " << *framework;
 
+  ++metrics->messages_quiesce_offers;
+
   allocator->quiesceOffers(framework->id());
 }
 

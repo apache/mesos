@@ -130,6 +130,7 @@ struct Metrics
   process::metrics::Counter messages_launch_tasks;
   process::metrics::Counter messages_decline_offers;
   process::metrics::Counter messages_revive_offers;
+  process::metrics::Counter messages_quiesce_offers;
   process::metrics::Counter messages_reconcile_tasks;
   process::metrics::Counter messages_framework_to_executor;
 
