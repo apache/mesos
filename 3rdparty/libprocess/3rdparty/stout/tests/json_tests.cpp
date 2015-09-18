@@ -50,15 +50,47 @@ TEST(JsonTest, BinaryData)
 
 TEST(JsonTest, NumberFormat)
 {
-  // Test whole numbers.
-  EXPECT_EQ("0", stringify(JSON::Number(0.0)));
-  EXPECT_EQ("1", stringify(JSON::Number(1.0)));
+  // Test whole numbers (as doubles).
+  EXPECT_EQ("0.", stringify(JSON::Number(0.0)));
+  EXPECT_EQ("1.", stringify(JSON::Number(1.0)));
 
   // Negative.
-  EXPECT_EQ("-1", stringify(JSON::Number(-1.0)));
+  EXPECT_EQ("-1.", stringify(JSON::Number(-1.0)));
+
+  // Test integers.
+  EXPECT_EQ("0", stringify(JSON::Number(0)));
+  EXPECT_EQ("2", stringify(JSON::Number(2)));
+  EXPECT_EQ("-2", stringify(JSON::Number(-2)));
 
   // Expect at least 15 digits of precision.
   EXPECT_EQ("1234567890.12345", stringify(JSON::Number(1234567890.12345)));
+}
+
+
+TEST(JsonTest, NumberComparisons)
+{
+  // Unsigned and signed comparisons.
+  EXPECT_EQ(JSON::Number(1U), JSON::Number((int64_t) 1));
+  EXPECT_EQ(JSON::Number(0U), JSON::Number((int64_t) 0));
+
+  EXPECT_NE(JSON::Number(1U), JSON::Number(-1));
+  EXPECT_NE(JSON::Number((uint64_t) -1), JSON::Number(-1));
+
+  // Signed and unsigned comparisons (opposite order of above).
+  EXPECT_EQ(JSON::Number((int64_t) 1), JSON::Number(1U));
+  EXPECT_EQ(JSON::Number((int64_t) 0), JSON::Number(0U));
+
+  EXPECT_NE(JSON::Number(-1), JSON::Number(1U));
+  EXPECT_NE(JSON::Number(-1), JSON::Number((uint64_t) -1));
+
+  // Make sure we aren't doing an implicit cast from int64_t to uint64_t.
+  // These have the same bit representation (64h'8000_0000_0000_0001).
+  EXPECT_NE(
+      JSON::Number(9223372036854775809U),
+      JSON::Number(-9223372036854775807));
+  EXPECT_NE(
+      JSON::Number(-9223372036854775807),
+      JSON::Number(9223372036854775809U));
 }
 
 
@@ -121,44 +153,50 @@ TEST(JsonTest, NumericAssignment)
   s.st_nlink = 1;
   JSON::Value v = s.st_nlink;
   JSON::Number d = s.st_nlink;
-  EXPECT_EQ(get<JSON::Number>(v).value, 1.0);
-  EXPECT_EQ(d.value, 1.0);
+  EXPECT_NE(get<JSON::Number>(v).type, JSON::Number::FLOATING);
+  EXPECT_EQ(get<JSON::Number>(v).as<int64_t>(), 1);
+  EXPECT_EQ(d.as<int64_t>(), 1);
 
   s.st_size = 2;
   v = s.st_size;
   d = s.st_size;
-  EXPECT_EQ(get<JSON::Number>(v).value, 2.0);
-  EXPECT_EQ(d.value, 2.0);
+  EXPECT_NE(get<JSON::Number>(v).type, JSON::Number::FLOATING);
+  EXPECT_EQ(get<JSON::Number>(v).as<int64_t>(), 2);
+  EXPECT_EQ(d.as<int64_t>(), 2);
 
   s.st_mtime = 3;
   v = s.st_mtime;
   d = s.st_mtime;
-  EXPECT_EQ(get<JSON::Number>(v).value, 3.0);
-  EXPECT_EQ(d.value, 3.0);
+  EXPECT_EQ(get<JSON::Number>(v).as<int64_t>(), 3);
+  EXPECT_EQ(d.as<int64_t>(), 3);
 
   size_t st = 4;
   v = st;
   d = st;
-  EXPECT_EQ(get<JSON::Number>(v).value, 4.0);
-  EXPECT_EQ(d.value, 4.0);
+  EXPECT_EQ(get<JSON::Number>(v).type, JSON::Number::UNSIGNED_INTEGER);
+  EXPECT_EQ(get<JSON::Number>(v).as<uint64_t>(), 4);
+  EXPECT_EQ(d.as<uint64_t>(), 4);
 
   uint64_t ui64 = 5;
   v = ui64;
   d = ui64;
-  EXPECT_EQ(get<JSON::Number>(v).value, 5.0);
-  EXPECT_EQ(d.value, 5.0);
+  EXPECT_EQ(get<JSON::Number>(v).type, JSON::Number::UNSIGNED_INTEGER);
+  EXPECT_EQ(get<JSON::Number>(v).as<uint64_t>(), 5);
+  EXPECT_EQ(d.as<uint64_t>(), 5);
 
   const unsigned int ui = 6;
   v = ui;
   d = ui;
-  EXPECT_EQ(get<JSON::Number>(v).value, 6.0);
-  EXPECT_EQ(d.value, 6.0);
+  EXPECT_EQ(get<JSON::Number>(v).type, JSON::Number::UNSIGNED_INTEGER);
+  EXPECT_EQ(get<JSON::Number>(v).as<uint64_t>(), 6);
+  EXPECT_EQ(d.as<uint64_t>(), 6);
 
   int i = 7;
   v = i;
   d = i;
-  EXPECT_EQ(get<JSON::Number>(v).value, 7.0);
-  EXPECT_EQ(d.value, 7.0);
+  EXPECT_EQ(get<JSON::Number>(v).type, JSON::Number::SIGNED_INTEGER);
+  EXPECT_EQ(get<JSON::Number>(v).as<int64_t>(), 7);
+  EXPECT_EQ(d.as<int64_t>(), 7);
 }
 
 

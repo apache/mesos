@@ -108,18 +108,18 @@ TEST(ProtobufTest, JSON)
       "{"
       "  \"b\": true,"
       "  \"bytes\": \"Ynl0ZXM=\","
-      "  \"d\": 1,"
+      "  \"d\": 1.,"
       "  \"e\": \"ONE\","
-      "  \"f\": 1,"
+      "  \"f\": 1.,"
       "  \"int32\": -1,"
       "  \"int64\": -1,"
       "  \"nested\": { \"str\": \"nested\"},"
-      "  \"optional_default\": 42,"
+      "  \"optional_default\": 42.,"
       "  \"repeated_bool\": [true],"
       "  \"repeated_bytes\": [\"cmVwZWF0ZWRfYnl0ZXM=\"],"
-      "  \"repeated_double\": [1, 2],"
+      "  \"repeated_double\": [1., 2.],"
       "  \"repeated_enum\": [\"TWO\"],"
-      "  \"repeated_float\": [1],"
+      "  \"repeated_float\": [1.],"
       "  \"repeated_int32\": [-2],"
       "  \"repeated_int64\": [-2],"
       "  \"repeated_nested\": [ { \"str\": \"repeated_nested\" } ],"
@@ -160,6 +160,78 @@ TEST(ProtobufTest, JSON)
 
   // Now convert JSON to string and parse it back as JSON.
   ASSERT_SOME_EQ(object, JSON::parse(stringify(object)));
+}
+
+
+// Tests that integer precision is maintained between
+// JSON <-> Protobuf conversions.
+TEST(ProtobufTest, JsonLargeIntegers)
+{
+  // These numbers are equal or close to the integer limits.
+  tests::Message message;
+  message.set_int32(-2147483647);
+  message.set_int64(-9223372036854775807);
+  message.set_uint32(4294967295U);
+  message.set_uint64(9223372036854775807);
+  message.set_sint32(-1234567890);
+  message.set_sint64(-1234567890123456789);
+  message.add_repeated_int32(-2000000000);
+  message.add_repeated_int64(-9000000000000000000);
+  message.add_repeated_uint32(3000000000U);
+  message.add_repeated_uint64(7000000000000000000);
+  message.add_repeated_sint32(-1000000000);
+  message.add_repeated_sint64(-8000000000000000000);
+
+  // Parts of the protobuf that are required.  Copied from the above test.
+  message.set_b(true);
+  message.set_str("string");
+  message.set_bytes("bytes");
+  message.set_f(1.0);
+  message.set_d(1.0);
+  message.set_e(tests::ONE);
+  message.mutable_nested()->set_str("nested");
+
+  // The keys are in alphabetical order.
+  string expected = strings::remove(
+      "{"
+      "  \"b\": true,"
+      "  \"bytes\": \"Ynl0ZXM=\","
+      "  \"d\": 1.,"
+      "  \"e\": \"ONE\","
+      "  \"f\": 1.,"
+      "  \"int32\": -2147483647,"
+      "  \"int64\": -9223372036854775807,"
+      "  \"nested\": {\"str\": \"nested\"},"
+      "  \"optional_default\": 42.,"
+      "  \"repeated_int32\": [-2000000000],"
+      "  \"repeated_int64\": [-9000000000000000000],"
+      "  \"repeated_sint32\": [-1000000000],"
+      "  \"repeated_sint64\": [-8000000000000000000],"
+      "  \"repeated_uint32\": [3000000000],"
+      "  \"repeated_uint64\": [7000000000000000000],"
+      "  \"sint32\": -1234567890,"
+      "  \"sint64\": -1234567890123456789,"
+      "  \"str\": \"string\","
+      "  \"uint32\": 4294967295,"
+      "  \"uint64\": 9223372036854775807"
+      "}",
+      " ");
+
+  // Check JSON -> String.
+  JSON::Object object = JSON::Protobuf(message);
+  EXPECT_EQ(expected, stringify(object));
+
+  // Check JSON -> Protobuf.
+  Try<tests::Message> parse = protobuf::parse<tests::Message>(object);
+  ASSERT_SOME(parse);
+
+  // Check Protobuf -> JSON.
+  EXPECT_EQ(object, JSON::Protobuf(parse.get()));
+
+  // Check String -> JSON.
+  Try<JSON::Object> json = JSON::parse<JSON::Object>(expected);
+  ASSERT_SOME(json);
+  EXPECT_EQ(object, json.get());
 }
 
 
