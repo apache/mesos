@@ -829,6 +829,8 @@ private:
       Framework* framework,
       const scheduler::Call::Request& request);
 
+  void quiesce(Framework* framework);
+
   bool elected() const
   {
     return leader.isSome() && leader.get() == info_;

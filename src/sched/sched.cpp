@@ -1242,6 +1242,23 @@ protected:
     send(master.get().pid(), call);
   }
 
+  void quiesceOffers()
+  {
+    if (!connected) {
+      VLOG(1) << "Ignoring quiesce offers message as master is disconnected";
+      return;
+    }
+
+    Call call;
+
+    CHECK(framework.has_id());
+    call.mutable_framework_id()->CopyFrom(framework.id());
+    call.set_type(Call::QUIESCE);
+
+    CHECK_SOME(master);
+    send(master.get().pid(), call);
+  }
+
   void acknowledgeStatusUpdate(
       const TaskStatus& status)
   {
@@ -1928,6 +1945,22 @@ Status MesosSchedulerDriver::reviveOffers()
     CHECK(process != NULL);
 
     dispatch(process, &SchedulerProcess::reviveOffers);
+
+    return status;
+  }
+}
+
+
+Status MesosSchedulerDriver::quiesceOffers()
+{
+  synchronized (mutex) {
+    if (status != DRIVER_RUNNING) {
+      return status;
+    }
+
+    CHECK(process != NULL);
+
+    dispatch(process, &SchedulerProcess::quiesceOffers);
 
     return status;
   }

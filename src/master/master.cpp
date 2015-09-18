@@ -1781,6 +1781,10 @@ void Master::receive(
       request(framework, call.request());
       break;
 
+    case scheduler::Call::QUIESCE:
+      quiesce(framework);
+      break;
+
     default:
       // Should be caught during call validation above.
       LOG(FATAL) << "Unexpected " << call.type() << " call"
@@ -2594,6 +2598,17 @@ void Master::request(
   allocator->requestResources(
       framework->id(),
       google::protobuf::convert(request.requests()));
+}
+
+
+void Master::quiesce(Framework* framework)
+{
+  CHECK_NOTNULL(framework);
+
+  LOG(INFO) << "Processing QUIESCE call for framework " << *framework;
+
+  //TODO(gyliu513): Add quiesce logic here.
+  LOG(WARNING) << "Not implemented yet, ignoring the QUIESCE call.";
 }
 
 
