@@ -122,6 +122,13 @@ public:
     unavailability = createUnavailability(Clock::now());
   }
 
+  virtual master::Flags CreateMasterFlags()
+  {
+    master::Flags masterFlags = MesosTest::CreateMasterFlags();
+    masterFlags.authenticate_frameworks = false;
+    return masterFlags;
+  }
+
   virtual slave::Flags CreateSlaveFlags()
   {
     slave::Flags slaveFlags = MesosTest::CreateSlaveFlags();
@@ -366,10 +373,7 @@ TEST_F(MasterMaintenanceTest, FailToUnscheduleDeactivatedMachines)
 // slave is scheduled to go down for maintenance.
 TEST_F(MasterMaintenanceTest, PendingUnavailabilityTest)
 {
-  master::Flags flags = CreateMasterFlags();
-  flags.authenticate_frameworks = false;
-
-  Try<PID<Master>> master = StartMaster(flags);
+  Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
@@ -425,7 +429,7 @@ TEST_F(MasterMaintenanceTest, PendingUnavailabilityTest)
 
   // Schedule this slave for maintenance.
   MachineID machine;
-  machine.set_hostname("maintenance-host");
+  machine.set_hostname(maintenanceHostname);
   machine.set_ip(stringify(slave.get().address.ip));
 
   // TODO(jmlvanre): Replace Time(0.0) with `Clock::now()` once JSON double
@@ -1026,6 +1030,209 @@ TEST_F(MasterMaintenanceTest, MachineStatus)
   ASSERT_EQ(1, statuses.get().draining_machines().size());
   ASSERT_EQ(0, statuses.get().down_machines().size());
   ASSERT_EQ("0.0.0.2", statuses.get().draining_machines(0).ip());
+}
+
+
+// Test ensures that accept and decline works with inverse offers.
+TEST_F(MasterMaintenanceTest, InverseOffers)
+{
+  // Set up a master.
+  Try<PID<Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+
+  Try<PID<Slave>> slave = StartSlave(&exec);
+  ASSERT_SOME(slave);
+
+  // Before starting any frameworks, put the one machine into `DRAINING` mode.
+  MachineID machine;
+  machine.set_hostname(maintenanceHostname);
+  machine.set_ip(stringify(slave.get().address.ip));
+
+  // TODO(josephw): Replace Time(0.0) with `Clock::now()` once JSON double
+  // conversion is fixed. For now using a rounded time avoids the issue.
+  const Time start = Time::create(0.0).get() + Seconds(60);
+  const Duration duration = Seconds(120);
+  const Unavailability unavailability = createUnavailability(start, duration);
+
+  maintenance::Schedule schedule = createSchedule(
+      {createWindow({machine}, unavailability)});
+
+  Future<Response> response = process::http::post(
+      master.get(),
+      "maintenance/schedule",
+      headers,
+      stringify(JSON::Protobuf(schedule)));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+
+  // Now start a framework.
+  Callbacks callbacks;
+
+  Future<Nothing> connected;
+  EXPECT_CALL(callbacks, connected())
+    .WillOnce(FutureSatisfy(&connected));
+
+  Mesos mesos(
+      master.get(),
+      lambda::bind(&Callbacks::connected, lambda::ref(callbacks)),
+      lambda::bind(&Callbacks::disconnected, lambda::ref(callbacks)),
+      lambda::bind(&Callbacks::received, lambda::ref(callbacks), lambda::_1));
+
+  AWAIT_READY(connected);
+
+  Queue<Event> events;
+
+  EXPECT_CALL(callbacks, received(_))
+    .WillRepeatedly(Enqueue(&events));
+
+  {
+    Call call;
+    call.set_type(Call::SUBSCRIBE);
+
+    Call::Subscribe* subscribe = call.mutable_subscribe();
+    subscribe->mutable_framework_info()->CopyFrom(DEFAULT_V1_FRAMEWORK_INFO);
+
+    mesos.send(call);
+  }
+
+  Future<Event> event = events.get();
+  AWAIT_READY(event);
+  EXPECT_EQ(Event::SUBSCRIBED, event.get().type());
+
+  v1::FrameworkID id(event.get().subscribed().framework_id());
+
+  // Ensure we receive some regular resource offers.
+  event = events.get();
+  AWAIT_READY(event);
+  EXPECT_EQ(Event::OFFERS, event.get().type());
+  EXPECT_NE(0, event.get().offers().offers().size());
+  EXPECT_EQ(0, event.get().offers().inverse_offers().size());
+
+  // All the offers should have unavailability.
+  foreach (const v1::Offer& offer, event.get().offers().offers()) {
+    EXPECT_TRUE(offer.has_unavailability());
+  }
+
+  // Just work with a single offer to simplify the rest of the test.
+  v1::Offer offer = event.get().offers().offers(0);
+
+  EXPECT_CALL(exec, registered(_, _, _, _))
+    .Times(1);
+
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
+
+  // A dummy task just for confirming that the offer is accepted.
+  // TODO(josephw): Replace with v1 API createTask helper.
+  v1::TaskInfo taskInfo =
+    evolve(createTask(devolve(offer), "", DEFAULT_EXECUTOR_ID));
+
+  {
+    // Accept this one offer.
+    Call call;
+    call.mutable_framework_id()->CopyFrom(id);
+    call.set_type(Call::ACCEPT);
+
+    Call::Accept* accept = call.mutable_accept();
+    accept->add_offer_ids()->CopyFrom(offer.id());
+
+    v1::Offer::Operation* operation = accept->add_operations();
+    operation->set_type(v1::Offer::Operation::LAUNCH);
+    operation->mutable_launch()->add_task_infos()->CopyFrom(taskInfo);
+
+    mesos.send(call);
+  }
+
+  // Expect an inverse offer.
+  event = events.get();
+  AWAIT_READY(event);
+  EXPECT_EQ(Event::OFFERS, event.get().type());
+  EXPECT_EQ(0, event.get().offers().offers().size());
+  EXPECT_EQ(1, event.get().offers().inverse_offers().size());
+
+  // Save this inverse offer so we can decline it later.
+  v1::InverseOffer inverseOffer = event.get().offers().inverse_offers(0);
+
+  // Wait for the task to start running.
+  event = events.get();
+  AWAIT_READY(event);
+  EXPECT_EQ(Event::UPDATE, event.get().type());
+  EXPECT_EQ(v1::TASK_RUNNING, event.get().update().status().state());
+
+  {
+    // Acknowledge TASK_RUNNING update.
+    Call call;
+    call.mutable_framework_id()->CopyFrom(id);
+    call.set_type(Call::ACKNOWLEDGE);
+
+    Call::Acknowledge* acknowledge = call.mutable_acknowledge();
+    acknowledge->mutable_task_id()->CopyFrom(taskInfo.task_id());
+    acknowledge->mutable_agent_id()->CopyFrom(offer.agent_id());
+    acknowledge->set_uuid(event.get().update().status().uuid());
+
+    mesos.send(call);
+  }
+
+  // TODO(hartem): The filters in this test do not actually
+  // do anything, because inverse offer filters have not been
+  // implemented yet.  Instead, the accept/decline calls use
+  // the default time, which results in a slow test.
+
+  {
+    // Decline an inverse offer, with a filter.
+    Call call;
+    call.mutable_framework_id()->CopyFrom(id);
+    call.set_type(Call::DECLINE);
+
+    Call::Decline* decline = call.mutable_decline();
+    decline->add_offer_ids()->CopyFrom(inverseOffer.id());
+
+    // Set a 0 second filter to immediately get another inverse offer.
+    v1::Filters filters;
+    filters.set_refuse_seconds(0);
+    decline->mutable_filters()->CopyFrom(filters);
+
+    mesos.send(call);
+  }
+
+  // Expect another inverse offer.
+  event = events.get();
+  AWAIT_READY(event);
+  EXPECT_EQ(Event::OFFERS, event.get().type());
+  EXPECT_EQ(0, event.get().offers().offers().size());
+  EXPECT_EQ(1, event.get().offers().inverse_offers().size());
+  inverseOffer = event.get().offers().inverse_offers(0);
+
+  {
+    // Accept an inverse offer, with filter.
+    Call call;
+    call.mutable_framework_id()->CopyFrom(id);
+    call.set_type(Call::ACCEPT);
+
+    Call::Accept* accept = call.mutable_accept();
+    accept->add_offer_ids()->CopyFrom(inverseOffer.id());
+
+    // Set a 0 second filter to immediately get another inverse offer.
+    v1::Filters filters;
+    filters.set_refuse_seconds(0);
+    accept->mutable_filters()->CopyFrom(filters);
+
+    mesos.send(call);
+  }
+
+  // Expect yet another inverse offer.
+  event = events.get();
+  AWAIT_READY(event);
+  EXPECT_EQ(Event::OFFERS, event.get().type());
+  EXPECT_EQ(0, event.get().offers().offers().size());
+  EXPECT_EQ(1, event.get().offers().inverse_offers().size());
+
+  EXPECT_CALL(exec, shutdown(_))
+    .Times(AtMost(1));
+
+  Shutdown(); // Must shutdown before 'containerizer' gets deallocated.
 }
 
 } // namespace tests {

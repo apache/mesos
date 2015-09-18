@@ -2821,8 +2821,8 @@ void Master::accept(
         status.set_status(mesos::master::InverseOfferStatus::ACCEPT);
 
         allocator->updateInverseOffer(
-            offer->slave_id(),
-            offer->framework_id(),
+            inverseOffer->slave_id(),
+            inverseOffer->framework_id(),
             status);
 
         removeInverseOffer(inverseOffer);
@@ -3292,8 +3292,8 @@ void Master::decline(
       status.set_status(mesos::master::InverseOfferStatus::DECLINE);
 
       allocator->updateInverseOffer(
-          offer->slave_id(),
-          offer->framework_id(),
+          inverseOffer->slave_id(),
+          inverseOffer->framework_id(),
           status);
 
       removeInverseOffer(inverseOffer);
