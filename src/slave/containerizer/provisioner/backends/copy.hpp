@@ -29,6 +29,14 @@ namespace slave {
 class CopyBackendProcess;
 
 
+// The backend implementation that copies the layers to the target.
+// NOTE: Using this backend currently has a few implications:
+// 1) The disk space used by the provisioned rootfs is not counted
+//    towards either the usage by the executor/task or the store
+//    cache, which can interfere with the slave hosts's disk space
+//    allocation.
+// 2) The task can write unrestrictedly into the provisioned rootfs
+//    which is not accounted for (in terms of disk usage) either.
 class CopyBackend : public Backend
 {
 public:
