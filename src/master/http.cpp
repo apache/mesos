@@ -69,6 +69,8 @@
 #include "mesos/mesos.hpp"
 #include "mesos/resources.hpp"
 
+using google::protobuf::RepeatedPtrField;
+
 using process::Clock;
 using process::DESCRIPTION;
 using process::Future;
@@ -1550,29 +1552,26 @@ Future<Response> Master::Http::machineDown(const Request& request) const
   }
 
   // Parse the POST body as JSON.
-  Try<JSON::Object> jsonIds = JSON::parse<JSON::Object>(request.body);
+  Try<JSON::Array> jsonIds = JSON::parse<JSON::Array>(request.body);
   if (jsonIds.isError()) {
     return BadRequest(jsonIds.error());
   }
 
   // Convert the machines to a protobuf.
-  Try<MachineIDs> protoIds =
-    ::protobuf::parse<MachineIDs>(jsonIds.get());
-
-  if (protoIds.isError()) {
-    return BadRequest(protoIds.error());
+  auto ids = ::protobuf::parse<RepeatedPtrField<MachineID>>(jsonIds.get());
+  if (ids.isError()) {
+    return BadRequest(ids.error());
   }
 
   // Validate every machine in the list.
-  MachineIDs ids = protoIds.get();
-  Try<Nothing> isValid = maintenance::validation::machines(ids);
+  Try<Nothing> isValid = maintenance::validation::machines(ids.get());
   if (isValid.isError()) {
     return BadRequest(isValid.error());
   }
 
   // Check that all machines are part of a maintenance schedule.
   // TODO(josephw): Allow a transition from `UP` to `DOWN`.
-  foreach (const MachineID& id, ids.values()) {
+  foreach (const MachineID& id, ids.get()) {
     if (!master->machines.contains(id)) {
       return BadRequest(
           "Machine '" + stringify(JSON::Protobuf(id)) +
@@ -1587,7 +1586,7 @@ Future<Response> Master::Http::machineDown(const Request& request) const
   }
 
   return master->registrar->apply(Owned<Operation>(
-      new maintenance::StartMaintenance(ids)))
+      new maintenance::StartMaintenance(ids.get())))
     .then(defer(master->self(), [=](bool result) -> Future<Response> {
       // See the top comment in "master/maintenance.hpp" for why this check
       // is here, and is appropriate.
@@ -1599,7 +1598,7 @@ Future<Response> Master::Http::machineDown(const Request& request) const
       // for all the tasks that were running on the slave and `LostSlaveMessage`
       // messages to the framework. This guards against the slave having dropped
       // the `ShutdownMessage`.
-      foreach (const MachineID& machineId, ids.values()) {
+      foreach (const MachineID& machineId, ids.get()) {
         // The machine may not be in machines. This means no slaves are
         // currently registered on that machine so this is a no-op.
         if (master->machines.contains(machineId)) {
@@ -1625,7 +1624,7 @@ Future<Response> Master::Http::machineDown(const Request& request) const
       }
 
       // Update the master's local state with the downed machines.
-      foreach (const MachineID& id, ids.values()) {
+      foreach (const MachineID& id, ids.get()) {
         master->machines[id].info.set_mode(MachineInfo::DOWN);
       }
 
@@ -1652,28 +1651,25 @@ Future<Response> Master::Http::machineUp(const Request& request) const
   }
 
   // Parse the POST body as JSON.
-  Try<JSON::Object> jsonIds = JSON::parse<JSON::Object>(request.body);
+  Try<JSON::Array> jsonIds = JSON::parse<JSON::Array>(request.body);
   if (jsonIds.isError()) {
     return BadRequest(jsonIds.error());
   }
 
   // Convert the machines to a protobuf.
-  Try<MachineIDs> protoIds =
-    ::protobuf::parse<MachineIDs>(jsonIds.get());
-
-  if (protoIds.isError()) {
-    return BadRequest(protoIds.error());
+  auto ids = ::protobuf::parse<RepeatedPtrField<MachineID>>(jsonIds.get());
+  if (ids.isError()) {
+    return BadRequest(ids.error());
   }
 
   // Validate every machine in the list.
-  MachineIDs ids = protoIds.get();
-  Try<Nothing> isValid = maintenance::validation::machines(ids);
+  Try<Nothing> isValid = maintenance::validation::machines(ids.get());
   if (isValid.isError()) {
     return BadRequest(isValid.error());
   }
 
   // Check that all machines are part of a maintenance schedule.
-  foreach (const MachineID& id, ids.values()) {
+  foreach (const MachineID& id, ids.get()) {
     if (!master->machines.contains(id)) {
       return BadRequest(
           "Machine '" + stringify(JSON::Protobuf(id)) +
@@ -1688,7 +1684,7 @@ Future<Response> Master::Http::machineUp(const Request& request) const
   }
 
   return master->registrar->apply(Owned<Operation>(
-      new maintenance::StopMaintenance(ids)))
+      new maintenance::StopMaintenance(ids.get())))
     .then(defer(master->self(), [=](bool result) -> Future<Response> {
       // See the top comment in "master/maintenance.hpp" for why this check
       // is here, and is appropriate.
@@ -1696,7 +1692,7 @@ Future<Response> Master::Http::machineUp(const Request& request) const
 
       // Update the master's local state with the reactivated machines.
       hashset<MachineID> updated;
-      foreach (const MachineID& id, ids.values()) {
+      foreach (const MachineID& id, ids.get()) {
         master->machines[id].info.set_mode(MachineInfo::UP);
         master->machines[id].info.clear_unavailability();
         updated.insert(id);

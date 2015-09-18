@@ -168,17 +168,6 @@ message MachineID {
 
 
 /**
- * A list of machines.
- *
- * TODO(josephw): Remove this when https://reviews.apache.org/r/37826/
- * is submitted.
- */
-message MachineIDs {
-  repeated MachineID values = 1;
-}
-
-
-/**
  * Holds information about a single machine, its `mode`, and any other
  * relevant information which may affect the behavior of the machine.
  */

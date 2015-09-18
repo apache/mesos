@@ -33,6 +33,8 @@
 
 using std::string;
 
+using google::protobuf::RepeatedPtrField;
+
 using mesos::slave::ContainerLimitation;
 using mesos::slave::ContainerState;
 
@@ -267,12 +269,13 @@ Unavailability createUnavailability(
 }
 
 
-MachineIDs createMachineList(std::initializer_list<MachineID> ids)
+RepeatedPtrField<MachineID> createMachineList(
+    std::initializer_list<MachineID> ids)
 {
-  MachineIDs array;
+  RepeatedPtrField<MachineID> array;
 
   foreach (const MachineID& id, ids) {
-    array.add_values()->CopyFrom(id);
+    array.Add()->CopyFrom(id);
   }
 
   return array;

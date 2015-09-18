@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 
+#include <initializer_list>
 #include <string>
 
 #include <mesos/maintenance/maintenance.hpp>
@@ -53,6 +54,8 @@
 #include "tests/mesos.hpp"
 #include "tests/utils.hpp"
 
+using google::protobuf::RepeatedPtrField;
+
 using mesos::internal::master::Master;
 
 using mesos::internal::slave::Slave;
@@ -71,7 +74,6 @@ using process::http::BadRequest;
 using process::http::OK;
 using process::http::Response;
 
-using mesos::internal::protobuf::maintenance::createMachineList;
 using mesos::internal::protobuf::maintenance::createSchedule;
 using mesos::internal::protobuf::maintenance::createUnavailability;
 using mesos::internal::protobuf::maintenance::createWindow;
@@ -85,6 +87,20 @@ using testing::DoAll;
 namespace mesos {
 namespace internal {
 namespace tests {
+
+JSON::Array createMachineList(std::initializer_list<MachineID> _ids)
+{
+  RepeatedPtrField<MachineID> ids =
+    internal::protobuf::maintenance::createMachineList(_ids);
+
+  JSON::Array array;
+  foreach (const MachineID& id, ids) {
+    array.values.emplace_back(JSON::Protobuf(id));
+  }
+
+  return array;
+}
+
 
 class MasterMaintenanceTest : public MesosTest
 {
@@ -314,12 +330,12 @@ TEST_F(MasterMaintenanceTest, FailToUnscheduleDeactivatedMachines)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 
   // Deactivate machine1.
-  MachineIDs machines = createMachineList({machine1});
+  JSON::Array machines = createMachineList({machine1});
   response = process::http::post(
       master.get(),
       "machine/down",
       headers,
-      stringify(JSON::Protobuf(machines)));
+      stringify(machines));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 
@@ -340,7 +356,7 @@ TEST_F(MasterMaintenanceTest, FailToUnscheduleDeactivatedMachines)
       master.get(),
       "machine/up",
       headers,
-      stringify(JSON::Protobuf(machines)));
+      stringify(machines));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 }
@@ -657,7 +673,7 @@ TEST_F(MasterMaintenanceTest, EnterMaintenanceMode)
         master.get(),
         "machine/down",
         headers,
-        stringify(JSON::Protobuf(createMachineList({machine}))));
+        stringify(createMachineList({machine})));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 
@@ -695,7 +711,7 @@ TEST_F(MasterMaintenanceTest, EnterMaintenanceMode)
         master.get(),
         "machine/up",
         headers,
-        stringify(JSON::Protobuf(createMachineList({machine}))));
+        stringify(createMachineList({machine})));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 
@@ -728,12 +744,12 @@ TEST_F(MasterMaintenanceTest, BringDownMachines)
   MachineID badMachine;
 
   // Try to start maintenance on an unscheduled machine.
-  MachineIDs machines = createMachineList({machine1, machine2});
+  JSON::Array machines = createMachineList({machine1, machine2});
   Future<Response> response = process::http::post(
       master.get(),
       "machine/down",
       headers,
-      stringify(JSON::Protobuf(machines)));
+      stringify(machines));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response);
 
@@ -743,7 +759,7 @@ TEST_F(MasterMaintenanceTest, BringDownMachines)
       master.get(),
       "machine/down",
       headers,
-      stringify(JSON::Protobuf(machines)));
+      stringify(machines));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response);
 
@@ -753,7 +769,7 @@ TEST_F(MasterMaintenanceTest, BringDownMachines)
       master.get(),
       "machine/down",
       headers,
-      stringify(JSON::Protobuf(machines)));
+      stringify(machines));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response);
 
@@ -775,7 +791,7 @@ TEST_F(MasterMaintenanceTest, BringDownMachines)
       master.get(),
       "machine/down",
       headers,
-      stringify(JSON::Protobuf(machines)));
+      stringify(machines));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 
@@ -784,7 +800,7 @@ TEST_F(MasterMaintenanceTest, BringDownMachines)
       master.get(),
       "machine/down",
       headers,
-      stringify(JSON::Protobuf(machines)));
+      stringify(machines));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response);
 
@@ -794,7 +810,7 @@ TEST_F(MasterMaintenanceTest, BringDownMachines)
       master.get(),
       "machine/down",
       headers,
-      stringify(JSON::Protobuf(machines)));
+      stringify(machines));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response);
 
@@ -804,7 +820,7 @@ TEST_F(MasterMaintenanceTest, BringDownMachines)
       master.get(),
       "machine/down",
       headers,
-      stringify(JSON::Protobuf(machines)));
+      stringify(machines));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 }
@@ -818,12 +834,12 @@ TEST_F(MasterMaintenanceTest, BringUpMachines)
   ASSERT_SOME(master);
 
   // Try to bring up an unscheduled machine.
-  MachineIDs machines = createMachineList({machine1, machine2});
+  JSON::Array machines = createMachineList({machine1, machine2});
   Future<Response> response = process::http::post(
       master.get(),
       "machine/up",
       headers,
-      stringify(JSON::Protobuf(machines)));
+      stringify(machines));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response);
 
@@ -846,7 +862,7 @@ TEST_F(MasterMaintenanceTest, BringUpMachines)
       master.get(),
       "machine/up",
       headers,
-      stringify(JSON::Protobuf(machines)));
+      stringify(machines));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response);
 
@@ -856,7 +872,7 @@ TEST_F(MasterMaintenanceTest, BringUpMachines)
       master.get(),
       "machine/down",
       headers,
-      stringify(JSON::Protobuf(machines)));
+      stringify(machines));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 
@@ -865,7 +881,7 @@ TEST_F(MasterMaintenanceTest, BringUpMachines)
       master.get(),
       "machine/up",
       headers,
-      stringify(JSON::Protobuf(machines)));
+      stringify(machines));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 
@@ -894,7 +910,7 @@ TEST_F(MasterMaintenanceTest, BringUpMachines)
       master.get(),
       "machine/down",
       headers,
-      stringify(JSON::Protobuf(machines)));
+      stringify(machines));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 
@@ -903,7 +919,7 @@ TEST_F(MasterMaintenanceTest, BringUpMachines)
       master.get(),
       "machine/up",
       headers,
-      stringify(JSON::Protobuf(machines)));
+      stringify(machines));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 
@@ -962,12 +978,12 @@ TEST_F(MasterMaintenanceTest, MachineStatus)
   ASSERT_EQ(0, statuses.get().down_machines().size());
 
   // Deactivate machine1.
-  MachineIDs machines = createMachineList({machine1});
+  JSON::Array machines = createMachineList({machine1});
   response = process::http::post(
       master.get(),
       "machine/down",
       headers,
-      stringify(JSON::Protobuf(machines)));
+      stringify(machines));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 
@@ -992,7 +1008,7 @@ TEST_F(MasterMaintenanceTest, MachineStatus)
       master.get(),
       "machine/up",
       headers,
-      stringify(JSON::Protobuf(machines)));
+      stringify(machines));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 

@@ -38,6 +38,8 @@ namespace maintenance {
 
 using namespace mesos::maintenance;
 
+using google::protobuf::RepeatedPtrField;
+
 UpdateSchedule::UpdateSchedule(
     const maintenance::Schedule& _schedule)
   : schedule(_schedule) {}
@@ -114,9 +116,9 @@ Try<bool> UpdateSchedule::perform(
 
 
 StartMaintenance::StartMaintenance(
-    const MachineIDs& _ids)
+    const RepeatedPtrField<MachineID>& _ids)
 {
-  foreach (const MachineID& id, _ids.values()) {
+  foreach (const MachineID& id, _ids) {
     ids.insert(id);
   }
 }
@@ -144,9 +146,9 @@ Try<bool> StartMaintenance::perform(
 
 
 StopMaintenance::StopMaintenance(
-    const MachineIDs& _ids)
+    const RepeatedPtrField<MachineID>& _ids)
 {
-  foreach (const MachineID& id, _ids.values()) {
+  foreach (const MachineID& id, _ids) {
     ids.insert(id);
   }
 }
@@ -265,15 +267,15 @@ Try<Nothing> unavailability(const Unavailability& unavailability)
 }
 
 
-Try<Nothing> machines(const MachineIDs& ids)
+Try<Nothing> machines(const RepeatedPtrField<MachineID>& ids)
 {
-  if (ids.values().size() <= 0) {
+  if (ids.size() <= 0) {
     return Error("List of machines is empty");
   }
 
   // Verify that the machine has at least one non-empty field value.
   hashset<MachineID> uniques;
-  foreach (const MachineID& id, ids.values()) {
+  foreach (const MachineID& id, ids) {
     // Validate the single machine.
     Try<Nothing> validId = validation::machine(id);
     if (validId.isError()) {

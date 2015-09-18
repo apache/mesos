@@ -77,7 +77,7 @@ class StartMaintenance : public Operation
 {
 public:
   explicit StartMaintenance(
-      const MachineIDs& _ids);
+      const google::protobuf::RepeatedPtrField<MachineID>& _ids);
 
 protected:
   Try<bool> perform(
@@ -100,7 +100,7 @@ class StopMaintenance : public Operation
 {
 public:
   explicit StopMaintenance(
-      const MachineIDs& _ids);
+      const google::protobuf::RepeatedPtrField<MachineID>& _ids);
 
 protected:
   Try<bool> perform(
@@ -139,7 +139,7 @@ Try<Nothing> unavailability(
  *   - The list is non-empty.
  *   - All checks in the `machine` method below.
  */
-Try<Nothing> machines(const MachineIDs& ids);
+Try<Nothing> machines(const google::protobuf::RepeatedPtrField<MachineID>& ids);
 
 
 /**
