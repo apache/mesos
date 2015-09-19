@@ -51,7 +51,7 @@ namespace master {
 namespace allocator {
 
 // Forward declarations.
-class Filter;
+class OfferFilter;
 
 
 // We forward declare the hierarchical allocator process so that we
@@ -195,12 +195,12 @@ protected:
   void expire(
       const FrameworkID& frameworkId,
       const SlaveID& slaveId,
-      Filter* filter);
+      OfferFilter* offerFilter);
 
   // Checks whether the slave is whitelisted.
   bool isWhitelisted(const SlaveID& slaveId);
 
-  // Returns true if there is a filter for this framework
+  // Returns true if there is a resource offer filter for this framework
   // on this slave.
   bool isFiltered(
       const FrameworkID& frameworkId,
@@ -250,8 +250,8 @@ protected:
     // Whether the framework desires revocable resources.
     bool revocable;
 
-    // Active filters for the framework.
-    hashmap<SlaveID, hashset<Filter*>> filters;
+    // Active filters on offers for the framework.
+    hashmap<SlaveID, hashset<OfferFilter*>> offerFilters;
   };
 
   double _event_queue_dispatches()
@@ -291,7 +291,7 @@ protected:
     // slave, and the responses from frameworks as to whether they will be able
     // to gracefully handle this unavailability.
     // NOTE: We currently implement maintenance in the allocator to be able to
-    // leverage state and features such as the FrameworkSorter and Filters.
+    // leverage state and features such as the FrameworkSorter and OfferFilter.
     struct Maintenance
     {
       Maintenance(const Unavailability& _unavailability)
@@ -348,19 +348,19 @@ protected:
 
 
 // Used to represent "filters" for resources unused in offers.
-class Filter
+class OfferFilter
 {
 public:
-  virtual ~Filter() {}
+  virtual ~OfferFilter() {}
 
   virtual bool filter(const Resources& resources) = 0;
 };
 
 
-class RefusedFilter: public Filter
+class RefusedOfferFilter: public OfferFilter
 {
 public:
-  RefusedFilter(
+  RefusedOfferFilter(
       const Resources& _resources,
       const process::Timeout& _timeout)
     : resources(_resources), timeout(_timeout) {}
@@ -490,7 +490,7 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::removeFramework(
   }
 
   // Do not delete the filters contained in this
-  // framework's 'filters' hashset yet, see comments in
+  // framework's `offerFilters` hashset yet, see comments in
   // HierarchicalAllocatorProcess::reviveOffers and
   // HierarchicalAllocatorProcess::expire.
   frameworks.erase(frameworkId);
@@ -536,10 +536,10 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::deactivateFramework(
   // the added/removed and activated/deactivated in the future.
 
   // Do not delete the filters contained in this
-  // framework's 'filters' hashset yet, see comments in
+  // framework's `offerFilters` hashset yet, see comments in
   // HierarchicalAllocatorProcess::reviveOffers and
   // HierarchicalAllocatorProcess::expire.
-  frameworks[frameworkId].filters.clear();
+  frameworks[frameworkId].offerFilters.clear();
 
   LOG(INFO) << "Deactivated framework " << frameworkId;
 }
@@ -611,7 +611,7 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::addSlave(
   slaves[slaveId].hostname = slaveInfo.hostname();
 
   // NOTE: We currently implement maintenance in the allocator to be able to
-  // leverage state and features such as the FrameworkSorter and Filters.
+  // leverage state and features such as the FrameworkSorter and OfferFilter.
   if (unavailability.isSome()) {
     slaves[slaveId].maintenance =
       typename Slave::Maintenance(unavailability.get());
@@ -857,7 +857,7 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::updateUnavailability(
   CHECK(slaves.contains(slaveId));
 
   // NOTE: We currently implement maintenance in the allocator to be able to
-  // leverage state and features such as the FrameworkSorter and Filters.
+  // leverage state and features such as the FrameworkSorter and OfferFilter.
 
   // Remove any old unavailability.
   slaves[slaveId].maintenance = None();
@@ -885,7 +885,7 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::updateInverseOffer(
   CHECK(slaves[slaveId].maintenance.isSome());
 
   // NOTE: We currently implement maintenance in the allocator to be able to
-  // leverage state and features such as the FrameworkSorter and Filters.
+  // leverage state and features such as the FrameworkSorter and OfferFilter.
 
   // We use a reference by alias because we intend to modify the
   // `maintenance` and to improve readability.
@@ -1001,13 +1001,19 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::recoverResources(
             << " for " << seconds.get();
 
     // Create a new filter and delay its expiration.
-    Filter* filter = new RefusedFilter(
+    OfferFilter* offerFilter = new RefusedOfferFilter(
         resources,
         process::Timeout::in(seconds.get()));
 
-    frameworks[frameworkId].filters[slaveId].insert(filter);
+    frameworks[frameworkId].offerFilters[slaveId].insert(offerFilter);
 
-    delay(seconds.get(), self(), &Self::expire, frameworkId, slaveId, filter);
+    delay(
+        seconds.get(),
+        self(),
+        &Self::expire,
+        frameworkId,
+        slaveId,
+        offerFilter);
   }
 }
 
@@ -1029,17 +1035,17 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::reviveOffers(
 {
   CHECK(initialized);
 
-  frameworks[frameworkId].filters.clear();
+  frameworks[frameworkId].offerFilters.clear();
   frameworks[frameworkId].quiesced = false;
 
-  // We delete each actual Filter when
-  // HierarchicalAllocatorProcess::expire gets invoked. If we delete the
-  // Filter here it's possible that the same Filter (i.e., same
-  // address) could get reused and HierarchicalAllocatorProcess::expire
+  // We delete each actual `OfferFilter` when
+  // `HierarchicalAllocatorProcess::expire` gets invoked. If we delete the
+  // `OfferFilter` here it's possible that the same `OfferFilter` (i.e., same
+  // address) could get reused and `HierarchicalAllocatorProcess::expire`
   // would expire that filter too soon. Note that this only works
   // right now because ALL Filter types "expire".
 
-  LOG(INFO) << "Removed filters for framework " << frameworkId;
+  LOG(INFO) << "Removed offer filters for framework " << frameworkId;
 
   allocate();
 }
@@ -1266,7 +1272,7 @@ void
 HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::expire(
     const FrameworkID& frameworkId,
     const SlaveID& slaveId,
-    Filter* filter)
+    OfferFilter* offerFilter)
 {
   // The filter might have already been removed (e.g., if the
   // framework no longer exists or in
@@ -1274,15 +1280,15 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::expire(
   // keep the address from getting reused possibly causing premature
   // expiration).
   if (frameworks.contains(frameworkId) &&
-      frameworks[frameworkId].filters.contains(slaveId) &&
-      frameworks[frameworkId].filters[slaveId].contains(filter)) {
-    frameworks[frameworkId].filters[slaveId].erase(filter);
-    if (frameworks[frameworkId].filters[slaveId].empty()) {
-      frameworks[frameworkId].filters.erase(slaveId);
+      frameworks[frameworkId].offerFilters.contains(slaveId) &&
+      frameworks[frameworkId].offerFilters[slaveId].contains(offerFilter)) {
+    frameworks[frameworkId].offerFilters[slaveId].erase(offerFilter);
+    if (frameworks[frameworkId].offerFilters[slaveId].empty()) {
+      frameworks[frameworkId].offerFilters.erase(slaveId);
     }
   }
 
-  delete filter;
+  delete offerFilter;
 }
 
 
@@ -1312,18 +1318,21 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::isFiltered(
   // framework. This is a short term fix until the following is resolved:
   // https://issues.apache.org/jira/browse/MESOS-444.
   if (frameworks[frameworkId].checkpoint && !slaves[slaveId].checkpoint) {
-    VLOG(1) << "Filtered " << resources
+    VLOG(1) << "Filtered offer with " << resources
             << " on non-checkpointing slave " << slaveId
             << " for checkpointing framework " << frameworkId;
+
     return true;
   }
 
-  if (frameworks[frameworkId].filters.contains(slaveId)) {
-    foreach (Filter* filter, frameworks[frameworkId].filters[slaveId]) {
-      if (filter->filter(resources)) {
-        VLOG(1) << "Filtered " << resources
+  if (frameworks[frameworkId].offerFilters.contains(slaveId)) {
+    foreach (
+      OfferFilter* offerFilter, frameworks[frameworkId].offerFilters[slaveId]) {
+      if (offerFilter->filter(resources)) {
+        VLOG(1) << "Filtered offer with " << resources
                 << " on slave " << slaveId
                 << " for framework " << frameworkId;
+
         return true;
       }
     }
