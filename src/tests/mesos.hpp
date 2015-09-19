@@ -1361,7 +1361,7 @@ ACTION_P(InvokeUpdateUnavailability, allocator)
 
 ACTION_P(InvokeUpdateInverseOffer, allocator)
 {
-  return allocator->real->updateInverseOffer(arg0, arg1, arg2);
+  return allocator->real->updateInverseOffer(arg0, arg1, arg2, arg3);
 }
 
 
@@ -1499,9 +1499,9 @@ public:
     EXPECT_CALL(*this, updateUnavailability(_, _))
       .WillRepeatedly(DoDefault());
 
-    ON_CALL(*this, updateInverseOffer(_, _, _))
+    ON_CALL(*this, updateInverseOffer(_, _, _, _))
       .WillByDefault(InvokeUpdateInverseOffer(this));
-    EXPECT_CALL(*this, updateInverseOffer(_, _, _))
+    EXPECT_CALL(*this, updateInverseOffer(_, _, _, _))
       .WillRepeatedly(DoDefault());
 
     ON_CALL(*this, recoverResources(_, _, _, _))
@@ -1590,9 +1590,10 @@ public:
       const SlaveID&,
       const Option<Unavailability>&));
 
-  MOCK_METHOD3(updateInverseOffer, void(
+  MOCK_METHOD4(updateInverseOffer, void(
       const SlaveID&,
       const FrameworkID&,
+      const Option<UnavailableResources>&,
       const Option<mesos::master::InverseOfferStatus>&));
 
   MOCK_METHOD4(recoverResources, void(

@@ -153,10 +153,13 @@ public:
   // revoked. If `status` is not set then the inverse offer was not responded
   // to, possibly because the offer timed out or was rescinded. This might
   // require the implementation of the function to remove any inverse offers
-  // that are outstanding.
+  // that are outstanding. The `unavailableResources` can be used by the
+  // allocator to distinguish between different inverse offers sent to the same
+  // framework for the same slave.
   virtual void updateInverseOffer(
       const SlaveID& slaveId,
       const FrameworkID& frameworkId,
+      const Option<UnavailableResources>& unavailableResources,
       const Option<InverseOfferStatus>& status) = 0;
 
   // Informs the Allocator to recover resources that are considered

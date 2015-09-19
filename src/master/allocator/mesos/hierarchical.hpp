@@ -157,6 +157,7 @@ public:
   void updateInverseOffer(
       const SlaveID& slaveId,
       const FrameworkID& frameworkId,
+      const Option<UnavailableResources>& unavailableResources,
       const Option<mesos::master::InverseOfferStatus>& status);
 
   void recoverResources(
@@ -877,6 +878,7 @@ void
 HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::updateInverseOffer(
     const SlaveID& slaveId,
     const FrameworkID& frameworkId,
+    const Option<UnavailableResources>& unavailableResources,
     const Option<mesos::master::InverseOfferStatus>& status)
 {
   CHECK(initialized);

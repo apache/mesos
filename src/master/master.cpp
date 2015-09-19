@@ -2343,6 +2343,9 @@ void Master::_subscribe(
         allocator->updateInverseOffer(
             inverseOffer->slave_id(),
             inverseOffer->framework_id(),
+            UnavailableResources{
+                inverseOffer->resources(),
+                inverseOffer->unavailability()},
             None());
 
         removeInverseOffer(inverseOffer, true); // Rescind.
@@ -2508,6 +2511,9 @@ void Master::deactivate(Framework* framework)
     allocator->updateInverseOffer(
         inverseOffer->slave_id(),
         inverseOffer->framework_id(),
+        UnavailableResources{
+            inverseOffer->resources(),
+            inverseOffer->unavailability()},
         None());
 
     removeInverseOffer(inverseOffer, true); // Rescind.
@@ -2557,6 +2563,9 @@ void Master::deactivate(Slave* slave)
     allocator->updateInverseOffer(
         slave->id,
         inverseOffer->framework_id(),
+        UnavailableResources{
+            inverseOffer->resources(),
+            inverseOffer->unavailability()},
         None());
 
     removeInverseOffer(inverseOffer, true); // Rescind!
@@ -2838,6 +2847,9 @@ void Master::accept(
         allocator->updateInverseOffer(
             inverseOffer->slave_id(),
             inverseOffer->framework_id(),
+            UnavailableResources{
+                inverseOffer->resources(),
+                inverseOffer->unavailability()},
             status);
 
         removeInverseOffer(inverseOffer);
@@ -3309,6 +3321,9 @@ void Master::decline(
       allocator->updateInverseOffer(
           inverseOffer->slave_id(),
           inverseOffer->framework_id(),
+          UnavailableResources{
+              inverseOffer->resources(),
+              inverseOffer->unavailability()},
           status);
 
       removeInverseOffer(inverseOffer);
@@ -4320,6 +4335,9 @@ void Master::updateUnavailability(
         allocator->updateInverseOffer(
             slave->id,
             inverseOffer->framework_id(),
+            UnavailableResources{
+                inverseOffer->resources(),
+                inverseOffer->unavailability()},
             None());
 
         removeInverseOffer(inverseOffer, true); // Rescind!
@@ -5494,6 +5512,9 @@ void Master::_failoverFramework(Framework* framework)
     allocator->updateInverseOffer(
         inverseOffer->slave_id(),
         inverseOffer->framework_id(),
+        UnavailableResources{
+            inverseOffer->resources(),
+            inverseOffer->unavailability()},
         None());
 
     removeInverseOffer(inverseOffer);
@@ -5606,6 +5627,9 @@ void Master::removeFramework(Framework* framework)
     allocator->updateInverseOffer(
         inverseOffer->slave_id(),
         inverseOffer->framework_id(),
+        UnavailableResources{
+            inverseOffer->resources(),
+            inverseOffer->unavailability()},
         None());
 
     removeInverseOffer(inverseOffer);
@@ -6247,6 +6271,9 @@ void Master::inverseOfferTimeout(const OfferID& inverseOfferId)
     allocator->updateInverseOffer(
         inverseOffer->slave_id(),
         inverseOffer->framework_id(),
+        UnavailableResources{
+            inverseOffer->resources(),
+            inverseOffer->unavailability()},
         None());
 
     removeInverseOffer(inverseOffer, true);
