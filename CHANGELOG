@@ -1,3 +1,12 @@
+Release Notes - Mesos - Version 0.24.1
+--------------------------------------
+* This is a bug fix release.
+
+** Bug
+    * [MESOS-2986] - Docker version output is not compatible with Mesos
+    * [MESOS-3136] - COMMAND health checks with Marathon 0.10.0 are broken
+
+
 Release Notes - Mesos - Version 0.24.0
 --------------------------------------------
 This release contains experimental v1 scheduler HTTP API. This allows framework schedulers
@@ -519,6 +528,7 @@ Release Notes - Mesos - Version 0.22.1
   * [MESOS-2614] - Update name, hostname, failover_timeout, and webui_url
                    in master on framework re-registration
 
+
 Release Notes - Mesos - Version 0.22.0
 --------------------------------------
 
@@ -721,6 +731,7 @@ Release Notes - Mesos - Version 0.21.1
 ** Improvement
   * [MESOS-1925] Docker kill does not allow containers to exit gracefully
   * [MESOS-2113] Improve configure to find apr and svn libraries/headers in OSX
+
 
 Release Notes - Mesos - Version 0.21.0
 --------------------------------------
