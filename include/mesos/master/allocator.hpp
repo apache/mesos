@@ -160,7 +160,8 @@ public:
       const SlaveID& slaveId,
       const FrameworkID& frameworkId,
       const Option<UnavailableResources>& unavailableResources,
-      const Option<InverseOfferStatus>& status) = 0;
+      const Option<InverseOfferStatus>& status,
+      const Option<Filters>& filters = None()) = 0;
 
   // Informs the Allocator to recover resources that are considered
   // used by the framework.

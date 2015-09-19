@@ -120,7 +120,8 @@ public:
       const SlaveID& slaveId,
       const FrameworkID& frameworkId,
       const Option<UnavailableResources>& unavailableResources,
-      const Option<mesos::master::InverseOfferStatus>& status);
+      const Option<mesos::master::InverseOfferStatus>& status,
+      const Option<Filters>& filters);
 
   void recoverResources(
       const FrameworkID& frameworkId,
@@ -228,7 +229,8 @@ public:
       const SlaveID& slaveId,
       const FrameworkID& frameworkId,
       const Option<UnavailableResources>& unavailableResources,
-      const Option<mesos::master::InverseOfferStatus>& status) = 0;
+      const Option<mesos::master::InverseOfferStatus>& status,
+      const Option<Filters>& filters = None()) = 0;
 
   virtual void recoverResources(
       const FrameworkID& frameworkId,
@@ -489,7 +491,8 @@ inline void MesosAllocator<AllocatorProcess>::updateInverseOffer(
     const SlaveID& slaveId,
     const FrameworkID& frameworkId,
     const Option<UnavailableResources>& unavailableResources,
-    const Option<mesos::master::InverseOfferStatus>& status)
+    const Option<mesos::master::InverseOfferStatus>& status,
+    const Option<Filters>& filters)
 {
   return process::dispatch(
       process,
@@ -497,7 +500,8 @@ inline void MesosAllocator<AllocatorProcess>::updateInverseOffer(
       slaveId,
       frameworkId,
       unavailableResources,
-      status);
+      status,
+      filters);
 }
 
 

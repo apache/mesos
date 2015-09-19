@@ -2850,7 +2850,8 @@ void Master::accept(
             UnavailableResources{
                 inverseOffer->resources(),
                 inverseOffer->unavailability()},
-            status);
+            status,
+            accept.filters());
 
         removeInverseOffer(inverseOffer);
         continue;
@@ -3324,7 +3325,8 @@ void Master::decline(
           UnavailableResources{
               inverseOffer->resources(),
               inverseOffer->unavailability()},
-          status);
+          status,
+          decline.filters());
 
       removeInverseOffer(inverseOffer);
       continue;
