@@ -1987,7 +1987,25 @@ void Master::_subscribe(
     Framework* framework =
       CHECK_NOTNULL(frameworks.registered[frameworkInfo.id()]);
 
-    // Update the framework's info fields based on those passed during
+    // Note that if the scheduler is retrying we expect it
+    // to close its old connection. But, the master may not
+    // realize that the connection is closed before the retry
+    // occurs so we may kick off a scheduler unnecessarily.
+    if (framework->connected && !subscribe.force()) {
+      LOG(ERROR) << "Disallowing subscription attempt"
+                 << " of framework " << *framework
+                 << " because it is already connected";
+
+      FrameworkErrorMessage message;
+      message.set_message("Framework is already connected");
+
+      http.send(message);
+      http.close();
+      return;
+    }
+
+    // It is now safe to update the framework fields since the request is now
+    // guaranteed to be successful. We use the fields passed in during
     // re-registration.
     LOG(INFO) << "Updating info for framework " << framework->id();
 
@@ -1999,21 +2017,6 @@ void Master::_subscribe(
     if (subscribe.force()) {
       LOG(INFO) << "Framework " << *framework << " failed over";
       failoverFramework(framework, http);
-    } else if (framework->connected) {
-      // Note that if the scheduler is retrying we expect it
-      // to close its old connection. But, the master may not
-      // realize that the connection is closed before the retry
-      // occurs so we may kick off a scheduler unnecessarily.
-      LOG(ERROR) << "Disallowing subscription attempt"
-                 << " of framework " << *framework
-                 << " because it is already connected";
-
-      FrameworkErrorMessage message;
-      message.set_message("Framework is already connected");
-
-      http.send(message);
-      http.close();
-      return;
     } else {
       LOG(INFO) << "Allowing framework " << *framework
                 << " to subscribe with an already used id";
@@ -2220,6 +2223,7 @@ void Master::_subscribe(
 
     FrameworkErrorMessage message;
     message.set_message(authorizationError.get().message);
+
     send(from, message);
     return;
   }
@@ -2286,8 +2290,21 @@ void Master::_subscribe(
     Framework* framework =
       CHECK_NOTNULL(frameworks.registered[frameworkInfo.id()]);
 
-    // Update the framework's info fields based on those passed during
-    // subscription.
+    // Test for the error case first.
+    if ((framework->pid != from) && !subscribe.force()) {
+      LOG(ERROR) << "Disallowing subscription attempt of"
+                 << " framework " << *framework
+                 << " because it is not expected from " << from;
+
+      FrameworkErrorMessage message;
+      message.set_message("Framework failed over");
+      send(from, message);
+      return;
+    }
+
+    // It is now safe to update the framework fields since the request is now
+    // guaranteed to be successful. We use the fields passed in during
+    // re-registration.
     LOG(INFO) << "Updating info for framework " << framework->id();
 
     framework->updateFrameworkInfo(frameworkInfo);
@@ -2303,14 +2320,6 @@ void Master::_subscribe(
       // if necesssary.
       LOG(INFO) << "Framework " << *framework << " failed over";
       failoverFramework(framework, from);
-    } else if (framework->pid != from) {
-      LOG(ERROR) << "Disallowing subscription attempt of"
-                 << " framework " << *framework
-                 << " because it is not expected from " << from;
-      FrameworkErrorMessage message;
-      message.set_message("Framework failed over");
-      send(from, message);
-      return;
     } else {
       LOG(INFO) << "Allowing framework " << *framework
                 << " to subscribe with an already used id";
