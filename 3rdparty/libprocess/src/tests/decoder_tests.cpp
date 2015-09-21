@@ -94,8 +94,7 @@ TEST(DecoderTest, RequestHeaderContinuation)
 }
 
 
-// This is expected to fail for now, see my TODO(bmahler) on http::Request.
-TEST(DecoderTest, DISABLED_RequestHeaderCaseInsensitive)
+TEST(DecoderTest, RequestHeaderCaseInsensitive)
 {
   Try<Socket> socket = Socket::create();
   ASSERT_SOME(socket);
