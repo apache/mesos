@@ -168,6 +168,8 @@ struct Request
 
   std::string body;
 
+  // TODO(bmahler): Ensure this is consistent with the 'Connection'
+  // header; perhaps make this a function that checks the header.
   bool keepAlive;
 
   // For server requests, this contains the address of the client.
