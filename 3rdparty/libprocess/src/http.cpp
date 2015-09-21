@@ -622,8 +622,78 @@ ostream& operator<<(ostream& stream, const URL& url)
   return stream;
 }
 
-
 namespace internal {
+
+string encode(const Request& request)
+{
+  // TODO(bmahler): Replace this with a RequestEncoder.
+  std::ostringstream out;
+
+  out << request.method
+      << " /" << strings::remove(request.url.path, "/", strings::PREFIX);
+
+  if (!request.url.query.empty()) {
+    // Convert the query to a string that we join via '=' and '&'.
+    vector<string> query;
+
+    foreachpair (const string& key, const string& value, request.url.query) {
+      query.push_back(key + "=" + value);
+    }
+
+    out << "?" << strings::join("&", query);
+  }
+
+  if (request.url.fragment.isSome()) {
+    out << "#" << request.url.fragment.get();
+  }
+
+  out << " HTTP/1.1\r\n";
+
+  // Overwrite headers as necessary.
+  Headers headers = request.headers;
+
+  // Need to specify the 'Host' header.
+  CHECK(request.url.domain.isSome() || request.url.ip.isSome());
+
+  if (request.url.domain.isSome()) {
+    headers["Host"] = request.url.domain.get();
+  } else if (request.url.ip.isSome()) {
+    headers["Host"] = stringify(request.url.ip.get());
+  }
+
+  // Add port for non-standard ports.
+  if (request.url.port.isSome() &&
+      request.url.port != 80 &&
+      request.url.port != 443) {
+    headers["Host"] += ":" + stringify(request.url.port.get());
+  }
+
+  if (!request.keepAlive) {
+    // Tell the server to close the connection when it's done.
+    headers["Connection"] = "close";
+  }
+
+  // Make sure the Content-Length is set correctly.
+  headers["Content-Length"] = stringify(request.body.length());
+
+  // TODO(bmahler): Use a 'Request' and a 'RequestEncoder' here!
+  // Currently this does not handle 'gzip' content encoding,
+  // unless the caller manually compresses the 'body'. For
+  // streaming requests we must wipe 'gzip' as an acceptable
+  // encoding as we don't currently have streaming gzip utilities
+  // to support decoding a streaming gzip response!
+
+  // Emit the headers.
+  foreachpair (const string& key, const string& value, headers) {
+    out << key << ": " << value << "\r\n";
+  }
+
+  out << "\r\n";
+  out << request.body;
+
+  return out.str();
+}
+
 
 // Forward declarations.
 Future<string> _convert(
@@ -825,74 +895,12 @@ Future<Response> _request(
     const Request& request,
     bool streamedResponse)
 {
-  std::ostringstream out;
-
-  out << request.method
-      << " /" << strings::remove(request.url.path, "/", strings::PREFIX);
-
-  if (!request.url.query.empty()) {
-    // Convert the query to a string that we join via '=' and '&'.
-    vector<string> query;
-
-    foreachpair (const string& key, const string& value, request.url.query) {
-      query.push_back(key + "=" + value);
-    }
-
-    out << "?" << strings::join("&", query);
-  }
-
-  if (request.url.fragment.isSome()) {
-    out << "#" << request.url.fragment.get();
-  }
-
-  out << " HTTP/1.1\r\n";
-
-  // Overwrite headers as necessary.
-  Headers headers = request.headers;
-
-  // Need to specify the 'Host' header.
-  if (request.url.domain.isSome()) {
-    // Use ONLY domain for standard ports.
-    if (request.url.port.isNone() ||
-        request.url.port == 80 ||
-        request.url.port == 443) {
-      headers["Host"] = request.url.domain.get();
-    } else {
-      // Add port for non-standard ports.
-      headers["Host"] =
-        request.url.domain.get() + ":" + stringify(request.url.port.get());
-    }
-  } else {
-    headers["Host"] = stringify(address);
-  }
-
-  // Tell the server to close the connection when it's done.
-  headers["Connection"] = "close";
-
-  // Make sure the Content-Length is set correctly.
-  headers["Content-Length"] = stringify(request.body.length());
-
-  // TODO(bmahler): Use a 'Request' and a 'RequestEncoder' here!
-  // Currently this does not handle 'gzip' content encoding,
-  // unless the caller manually compresses the 'body'. For
-  // streaming requests we must wipe 'gzip' as an acceptable
-  // encoding as we don't currently have streaming gzip utilities
-  // to support decoding a streaming gzip response!
-
-  // Emit the headers.
-  foreachpair (const string& key, const string& value, headers) {
-    out << key << ": " << value << "\r\n";
-  }
-
-  out << "\r\n";
-  out << request.body;
-
   // Need to disambiguate the Socket::recv for binding below.
   Future<string> (Socket::*recv)(const Option<ssize_t>&) = &Socket::recv;
 
   Owned<StreamingResponseDecoder> decoder(new StreamingResponseDecoder());
 
-  Future<Response> pipeResponse = socket.send(out.str())
+  Future<Response> pipeResponse = socket.send(encode(request))
     .then(lambda::function<Future<string>(void)>(
               lambda::bind(recv, socket, None())))
     .then(lambda::bind(&internal::decode, socket, decoder, lambda::_1));
