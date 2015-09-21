@@ -162,7 +162,7 @@ TEST(DecoderTest, StreamingResponse)
   const string body = "hi";
 
   deque<Response*> responses = decoder.decode(headers.data(), headers.length());
-  ASSERT_FALSE(decoder.failed());
+  EXPECT_FALSE(decoder.failed());
   ASSERT_EQ(1, responses.size());
 
   Response* response = responses[0];
@@ -178,9 +178,11 @@ TEST(DecoderTest, StreamingResponse)
   EXPECT_TRUE(read.isPending());
 
   decoder.decode(body.data(), body.length());
+  EXPECT_FALSE(decoder.failed());
 
   // Feeding EOF to the decoder should be ok.
   decoder.decode("", 0);
+  EXPECT_FALSE(decoder.failed());
 
   EXPECT_TRUE(read.isReady());
   EXPECT_EQ("hi", read.get());
@@ -207,9 +209,9 @@ TEST(DecoderTest, StreamingResponseFailure)
   const string body = "1";
 
   deque<Response*> responses = decoder.decode(headers.data(), headers.length());
-  ASSERT_FALSE(decoder.failed());
-  ASSERT_EQ(1, responses.size());
+  EXPECT_FALSE(decoder.failed());
 
+  ASSERT_EQ(1, responses.size());
   Response* response = responses[0];
 
   EXPECT_EQ("200 OK", response->status);
@@ -223,6 +225,7 @@ TEST(DecoderTest, StreamingResponseFailure)
   EXPECT_TRUE(read.isPending());
 
   decoder.decode(body.data(), body.length());
+  EXPECT_FALSE(decoder.failed());
 
   EXPECT_TRUE(read.isReady());
   EXPECT_EQ("1", read.get());
@@ -233,6 +236,7 @@ TEST(DecoderTest, StreamingResponseFailure)
 
   // Feeding EOF to the decoder should trigger a failure!
   decoder.decode("", 0);
+  EXPECT_TRUE(decoder.failed());
 
   EXPECT_TRUE(read.isFailed());
   EXPECT_EQ("failed to decode body", read.failure());
