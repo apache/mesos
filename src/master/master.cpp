@@ -1782,7 +1782,7 @@ void Master::receive(
       break;
 
     case scheduler::Call::SUPPRESS:
-      quiesce(framework);
+      suppress(framework);
       break;
 
     default:
@@ -2619,7 +2619,7 @@ void Master::request(
 }
 
 
-void Master::quiesce(Framework* framework)
+void Master::suppress(Framework* framework)
 {
   CHECK_NOTNULL(framework);
 

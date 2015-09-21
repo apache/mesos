@@ -829,7 +829,7 @@ private:
       Framework* framework,
       const scheduler::Call::Request& request);
 
-  void quiesce(Framework* framework);
+  void suppress(Framework* framework);
 
   bool elected() const
   {

@@ -483,7 +483,7 @@ Future<Response> Master::Http::scheduler(const Request& request) const
       return Accepted();
 
     case scheduler::Call::SUPPRESS:
-      master->quiesce(framework);
+      master->suppress(framework);
       return Accepted();
 
     case scheduler::Call::KILL:
