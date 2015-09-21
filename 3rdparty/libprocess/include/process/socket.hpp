@@ -168,11 +168,13 @@ public:
     // enabling reuse of a pool of preallocated strings/buffers.
     virtual Future<Nothing> send(const std::string& data);
 
-    virtual void shutdown()
+    virtual Try<Nothing> shutdown()
     {
       if (::shutdown(s, SHUT_RD) < 0) {
-        PLOG(ERROR) << "Shutdown failed on fd=" << s;
+        return ErrnoError();
       }
+
+      return Nothing();
     }
 
     virtual Socket::Kind kind() const = 0;
@@ -291,9 +293,9 @@ public:
     return impl->send(data);
   }
 
-  void shutdown()
+  Try<Nothing> shutdown()
   {
-    impl->shutdown();
+    return impl->shutdown();
   }
 
 private:

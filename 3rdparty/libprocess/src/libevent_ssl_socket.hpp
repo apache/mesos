@@ -53,7 +53,7 @@ public:
   // This call is used to do the equivalent of shutting down the read
   // end. This means finishing the future of any outstanding read
   // request.
-  virtual void shutdown();
+  virtual Try<Nothing> shutdown();
 
   // We need a post-initializer because 'shared_from_this()' is not
   // valid until the constructor has finished.

@@ -1821,7 +1821,12 @@ Encoder* SocketManager::next(int s)
           // calling close the termination logic is not run twice.
           Socket* socket = iterator->second;
           sockets.erase(iterator);
-          socket->shutdown();
+
+          Try<Nothing> shutdown = socket->shutdown();
+          if (shutdown.isError()) {
+            LOG(ERROR) << "Failed to shutdown socket with fd " << socket->get()
+                       << ": " << shutdown.error();
+          }
 
           delete socket;
         }
@@ -1901,7 +1906,12 @@ void SocketManager::close(int s)
       // termination logic is not run twice.
       Socket* socket = iterator->second;
       sockets.erase(iterator);
-      socket->shutdown();
+
+      Try<Nothing> shutdown = socket->shutdown();
+      if (shutdown.isError()) {
+        LOG(ERROR) << "Failed to shutdown socket with fd " << socket->get()
+                   << ": " << shutdown.error();
+      }
 
       delete socket;
     }
