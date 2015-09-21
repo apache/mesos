@@ -31,6 +31,8 @@
 #include <stout/stringify.hpp>
 #include <stout/strings.hpp>
 
+#include <stout/os/shell.hpp>
+
 #include "linux/fs.hpp"
 #include "linux/ns.hpp"
 
@@ -65,6 +67,71 @@ Try<Isolator*> LinuxFilesystemIsolatorProcess::create(
 
   if (user.get() != "root") {
     return Error("LinuxFilesystemIsolator requires root privileges");
+  }
+
+  // Make slave's work_dir a shared mount so that when forking a child
+  // process (with a new mount namespace), the child process does not
+  // hold extra references to container's work directory mounts and
+  // provisioner mounts (e.g., when using the bind backend) because
+  // cleanup operations within work_dir can be propagted to all
+  // container namespaces. See MESOS-3483 for more details.
+  LOG(INFO) << "Making '" << flags.work_dir << "' a shared mount";
+
+  Try<fs::MountInfoTable> table = fs::MountInfoTable::read();
+  if (table.isError()) {
+    return Error("Failed to get mount table: " + table.error());
+  }
+
+  Option<fs::MountInfoTable::Entry> workDirMount;
+  foreach (const fs::MountInfoTable::Entry& entry, table.get().entries) {
+    // TODO(jieyu): Make sure 'flags.work_dir' is a canonical path.
+    if (entry.target == flags.work_dir) {
+      workDirMount = entry;
+      break;
+    }
+  }
+
+  // Do a self bind mount if needed.
+  if (workDirMount.isNone()) {
+    // NOTE: Instead of using fs::mount to perform the bind mount, we
+    // use the shell command here because the syscall 'mount' does not
+    // update the mount table (i.e., /etc/mtab). In other words, the
+    // mount will not be visible if the operator types command
+    // 'mount'. Since this mount will still be presented after all
+    // containers and the slave are stopped, it's better to make it
+    // visible. It's OK to use the blocking os::shell here because
+    // 'create' will only be invoked during initialization.
+    Try<string> mount = os::shell(
+        "mount --bind %s %s",
+        flags.work_dir.c_str(),
+        flags.work_dir.c_str());
+
+    if (mount.isError()) {
+      return Error(
+          "Failed to self bind mount '" + flags.work_dir +
+          "': " + mount.error());
+    }
+  }
+
+  // Mark the mount as a shared+slave mount.
+  Try<string> mount = os::shell(
+      "mount --make-slave %s",
+      flags.work_dir.c_str());
+
+  if (mount.isError()) {
+    return Error(
+        "Failed to mark '" + flags.work_dir +
+        "' as a slave mount: " + mount.error());
+  }
+
+  mount = os::shell(
+      "mount --make-shared %s",
+      flags.work_dir.c_str());
+
+  if (mount.isError()) {
+    return Error(
+        "Failed to mark '" + flags.work_dir +
+        "' as a shared mount: " + mount.error());
   }
 
   Owned<MesosIsolatorProcess> process(
@@ -431,7 +498,7 @@ Try<string> LinuxFilesystemIsolatorProcess::script(
   // doesn't work when the paths contain reserved characters such as
   // spaces either because such characters in mount info are encoded
   // in the escaped form (i.e. '\0xx').
-  out << "grep '" << flags.work_dir << "' /proc/self/mountinfo | "
+  out << "grep -E '" << flags.work_dir << "/.+' /proc/self/mountinfo | "
       << "grep -v '" << containerId.value() << "' | "
       << "cut -d' ' -f5 | " // '-f5' is the mount target. See MountInfoTable.
       << "xargs --no-run-if-empty umount -l || "

@@ -21,6 +21,7 @@
 #include <sys/wait.h>
 
 #include <string.h>
+#include <unistd.h>
 
 #include <list>
 #include <set>
@@ -39,8 +40,11 @@
 #include <stout/os.hpp>
 #include <stout/strings.hpp>
 
+#include <stout/os/shell.hpp>
+
 #ifdef __linux__
 #include "linux/cgroups.hpp"
+#include "linux/fs.hpp"
 #endif
 
 #ifdef WITH_NETWORK_ISOLATOR
@@ -441,6 +445,22 @@ void Environment::SetUp()
 void Environment::TearDown()
 {
   foreach (const string& directory, directories) {
+#ifdef __linux__
+    // Try to remove any mounts under 'directory'.
+    if (::geteuid() == 0) {
+      Try<string> umount = os::shell(
+          "grep '%s' /proc/mounts | "
+          "cut -d' ' -f2 | "
+          "xargs --no-run-if-empty umount -l",
+          directory.c_str());
+
+      if (umount.isError()) {
+        LOG(ERROR) << "Failed to umount for directory '" << directory
+                   << "': " << umount.error();
+      }
+    }
+#endif
+
     Try<Nothing> rmdir = os::rmdir(directory);
     if (rmdir.isError()) {
       LOG(ERROR) << "Failed to remove '" << directory
