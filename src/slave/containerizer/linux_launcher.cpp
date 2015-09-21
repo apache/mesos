@@ -181,7 +181,15 @@ static pid_t clone(
   // - unsigned long long used for best alignment.
   // - static is ok because each child gets their own copy after the clone.
   // - 8 MiB appears to be the default for "ulimit -s" on OSX and Linux.
-  static unsigned long long stack[(8*1024*1024)/sizeof(unsigned long long)];
+  //
+  // NOTE: We need to allocate the stack dynamically. This is because
+  // glibc's 'clone' will modify the stack passed to it, therefore the
+  // stack must NOT be shared as multiple 'clone's can be invoked
+  // simultaneously.
+  int stackSize = 8 * 1024 * 1024;
+
+  unsigned long long *stack =
+    new unsigned long long[stackSize/sizeof(unsigned long long)];
 
   int flags = namespaces.isSome() ? namespaces.get() : 0;
   flags |= SIGCHLD; // Specify SIGCHLD as child termination signal.
@@ -189,11 +197,15 @@ static pid_t clone(
   LOG(INFO) << "Cloning child process with flags = "
             << ns::stringify(flags);
 
-  return ::clone(
+  pid_t pid = ::clone(
       childMain,
-      &stack[sizeof(stack)/sizeof(stack[0]) - 1],  // stack grows down.
+      &stack[stackSize/sizeof(stack[0]) - 1],  // stack grows down.
       flags,
       (void*) &func);
+
+  delete[] stack;
+
+  return pid;
 }
 
 
