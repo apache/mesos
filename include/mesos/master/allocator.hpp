@@ -177,7 +177,7 @@ public:
       const FrameworkID& frameworkId) = 0;
 
   // Informs the allocator to stop sending resources for the framework
-  virtual void quiesceOffers(
+  virtual void suppressOffers(
       const FrameworkID& frameworkId) = 0;
 };
 

@@ -2625,9 +2625,9 @@ void Master::quiesce(Framework* framework)
 
   LOG(INFO) << "Processing SUPPRESS call for framework " << *framework;
 
-  ++metrics->messages_quiesce_offers;
+  ++metrics->messages_suppress_offers;
 
-  allocator->quiesceOffers(framework->id());
+  allocator->suppressOffers(framework->id());
 }
 
 

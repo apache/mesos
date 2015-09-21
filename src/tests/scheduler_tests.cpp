@@ -941,7 +941,7 @@ TEST_P(SchedulerTest, Revive)
 }
 
 
-TEST_P(SchedulerTest, Quiesce)
+TEST_P(SchedulerTest, Suppress)
 {
   master::Flags flags = CreateMasterFlags();
   flags.authenticate_frameworks = false;
@@ -1019,7 +1019,7 @@ TEST_P(SchedulerTest, Quiesce)
   }
 
   // No offers should be sent within 100 mins because the framework
-  // quiesced offers.
+  // suppressed offers.
   Clock::pause();
   Clock::advance(Minutes(100));
   Clock::settle();
@@ -1027,9 +1027,8 @@ TEST_P(SchedulerTest, Quiesce)
   event = events.get();
   ASSERT_TRUE(event.isPending());
 
-  // On revival the quiescent should be set as false and the scheduler
-  // should get another offer with same amount of resources. Framework
-  // should receive offers only after calling reviving offers.
+  // On reviving offers the scheduler should get another offer with same amount
+  // of resources.
   {
     Call call;
     call.mutable_framework_id()->CopyFrom(id);

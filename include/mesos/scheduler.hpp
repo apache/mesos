@@ -270,7 +270,7 @@ public:
 
   // Inform Mesos master to stop sending offers to the framework. The
   // scheduler should call reviveOffers() to resume getting offers.
-  virtual Status quiesceOffers() = 0;
+  virtual Status suppressOffers() = 0;
 
   // Acknowledges the status update. This should only be called
   // once the status update is processed durably by the scheduler.
@@ -420,7 +420,7 @@ public:
 
   virtual Status reviveOffers();
 
-  virtual Status quiesceOffers();
+  virtual Status suppressOffers();
 
   virtual Status acknowledgeStatusUpdate(
       const TaskStatus& status);

@@ -167,7 +167,7 @@ public:
       const Resources& resources,
       const Option<Filters>& filters);
 
-  void quiesceOffers(
+  void suppressOffers(
       const FrameworkID& frameworkId);
 
   void reviveOffers(
@@ -258,8 +258,8 @@ protected:
     std::string role;
     bool checkpoint;  // Whether the framework desires checkpointing.
 
-    // Whether the framework quiesces resources.
-    bool quiesced;
+    // Whether the framework suppresses offers.
+    bool suppressed;
 
     // Whether the framework desires revocable resources.
     bool revocable;
@@ -506,7 +506,7 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::addFramework(
     }
   }
 
-  frameworks[frameworkId].quiesced = false;
+  frameworks[frameworkId].suppressed = false;
 
   LOG(INFO) << "Added framework " << frameworkId;
 
@@ -1141,11 +1141,11 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::recoverResources(
 
 template <class RoleSorter, class FrameworkSorter>
 void
-HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::quiesceOffers(
+HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::suppressOffers(
     const FrameworkID& frameworkId)
 {
   CHECK(initialized);
-  frameworks[frameworkId].quiesced = true;
+  frameworks[frameworkId].suppressed = true;
 }
 
 
@@ -1158,7 +1158,7 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::reviveOffers(
 
   frameworks[frameworkId].offerFilters.clear();
   frameworks[frameworkId].inverseOfferFilters.clear();
-  frameworks[frameworkId].quiesced = false;
+  frameworks[frameworkId].suppressed = false;
 
   // We delete each actual `OfferFilter` when
   // `HierarchicalAllocatorProcess::expire` gets invoked. If we delete the
@@ -1248,8 +1248,8 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::allocate(
         FrameworkID frameworkId;
         frameworkId.set_value(frameworkId_);
 
-        // If the framework has quiesced, ignore.
-        if (frameworks[frameworkId].quiesced) {
+        // If the framework has suppressed offers, ignore.
+        if (frameworks[frameworkId].suppressed) {
           continue;
         }
 

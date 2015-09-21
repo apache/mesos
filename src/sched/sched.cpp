@@ -1242,10 +1242,10 @@ protected:
     send(master.get().pid(), call);
   }
 
-  void quiesceOffers()
+  void suppressOffers()
   {
     if (!connected) {
-      VLOG(1) << "Ignoring quiesce offers message as master is disconnected";
+      VLOG(1) << "Ignoring suppress offers message as master is disconnected";
       return;
     }
 
@@ -1951,7 +1951,7 @@ Status MesosSchedulerDriver::reviveOffers()
 }
 
 
-Status MesosSchedulerDriver::quiesceOffers()
+Status MesosSchedulerDriver::suppressOffers()
 {
   synchronized (mutex) {
     if (status != DRIVER_RUNNING) {
@@ -1960,7 +1960,7 @@ Status MesosSchedulerDriver::quiesceOffers()
 
     CHECK(process != NULL);
 
-    dispatch(process, &SchedulerProcess::quiesceOffers);
+    dispatch(process, &SchedulerProcess::suppressOffers);
 
     return status;
   }

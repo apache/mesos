@@ -258,7 +258,7 @@ public interface SchedulerDriver {
    *
    * @see Status
    */
-  Status quiesceOffers();
+  Status suppressOffers();
 
   /**
    * Acknowledges the status update. This should only be called

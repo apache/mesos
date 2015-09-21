@@ -143,10 +143,10 @@ PyMethodDef MesosSchedulerDriverImpl_methods[] = {
     METH_NOARGS,
     "Remove all filters and ask Mesos for new offers"
   },
-  { "quiesceOffers",
-    (PyCFunction) MesosSchedulerDriverImpl_quiesceOffers,
+  { "suppressOffers",
+    (PyCFunction) MesosSchedulerDriverImpl_suppressOffers,
     METH_NOARGS,
-    "Set quiescent attribute as true for the Framework"
+    "Set suppressed attribute as true for the Framework"
   },
   { "acknowledgeStatusUpdate",
     (PyCFunction) MesosSchedulerDriverImpl_acknowledgeStatusUpdate,
@@ -659,14 +659,15 @@ PyObject* MesosSchedulerDriverImpl_reviveOffers(MesosSchedulerDriverImpl* self)
 }
 
 
-PyObject* MesosSchedulerDriverImpl_quiesceOffers(MesosSchedulerDriverImpl* self)
+PyObject* MesosSchedulerDriverImpl_suppressOffers(
+    MesosSchedulerDriverImpl* self)
 {
   if (self->driver == NULL) {
     PyErr_Format(PyExc_Exception, "MesosSchedulerDriverImpl.driver is NULL");
     return NULL;
   }
 
-  Status status = self->driver->quiesceOffers();
+  Status status = self->driver->suppressOffers();
   return PyInt_FromLong(status); // Sets exception if creating long fails.
 }
 

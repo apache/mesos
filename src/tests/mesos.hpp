@@ -1380,9 +1380,9 @@ ACTION_P2(InvokeRecoverResourcesWithFilters, allocator, timeout)
 }
 
 
-ACTION_P(InvokeQuiesceOffers, allocator)
+ACTION_P(InvokeSuppressOffers, allocator)
 {
-  allocator->real->quiesceOffers(arg0);
+  allocator->real->suppressOffers(arg0);
 }
 
 
@@ -1514,9 +1514,9 @@ public:
     EXPECT_CALL(*this, reviveOffers(_))
       .WillRepeatedly(DoDefault());
 
-    ON_CALL(*this, quiesceOffers(_))
-      .WillByDefault(InvokeQuiesceOffers(this));
-    EXPECT_CALL(*this, quiesceOffers(_))
+    ON_CALL(*this, suppressOffers(_))
+      .WillByDefault(InvokeSuppressOffers(this));
+    EXPECT_CALL(*this, suppressOffers(_))
       .WillRepeatedly(DoDefault());
   }
 
@@ -1605,7 +1605,7 @@ public:
 
   MOCK_METHOD1(reviveOffers, void(const FrameworkID&));
 
-  MOCK_METHOD1(quiesceOffers, void(const FrameworkID&));
+  MOCK_METHOD1(suppressOffers, void(const FrameworkID&));
 
   process::Owned<mesos::master::allocator::Allocator> real;
 };
