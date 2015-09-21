@@ -111,6 +111,12 @@ Credential devolve(const v1::Credential& credential)
 }
 
 
+executor::Call devolve(const v1::executor::Call& call)
+{
+  return devolve<executor::Call>(call);
+}
+
+
 scheduler::Call devolve(const v1::scheduler::Call& call)
 {
   return devolve<scheduler::Call>(call);
