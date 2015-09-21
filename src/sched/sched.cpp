@@ -1253,7 +1253,7 @@ protected:
 
     CHECK(framework.has_id());
     call.mutable_framework_id()->CopyFrom(framework.id());
-    call.set_type(Call::QUIESCE);
+    call.set_type(Call::SUPPRESS);
 
     CHECK_SOME(master);
     send(master.get().pid(), call);

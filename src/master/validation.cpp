@@ -97,7 +97,7 @@ Option<Error> validate(const mesos::scheduler::Call& call)
     case mesos::scheduler::Call::REVIVE:
       return None();
 
-    case mesos::scheduler::Call::QUIESCE:
+    case mesos::scheduler::Call::SUPPRESS:
       return None();
 
     case mesos::scheduler::Call::KILL:

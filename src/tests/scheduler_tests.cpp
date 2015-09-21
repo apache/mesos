@@ -1013,7 +1013,7 @@ TEST_P(SchedulerTest, Quiesce)
   {
     Call call;
     call.mutable_framework_id()->CopyFrom(id);
-    call.set_type(Call::QUIESCE);
+    call.set_type(Call::SUPPRESS);
 
     mesos.send(call);
   }

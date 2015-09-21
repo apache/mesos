@@ -1781,7 +1781,7 @@ void Master::receive(
       request(framework, call.request());
       break;
 
-    case scheduler::Call::QUIESCE:
+    case scheduler::Call::SUPPRESS:
       quiesce(framework);
       break;
 
@@ -2623,7 +2623,7 @@ void Master::quiesce(Framework* framework)
 {
   CHECK_NOTNULL(framework);
 
-  LOG(INFO) << "Processing QUIESCE call for framework " << *framework;
+  LOG(INFO) << "Processing SUPPRESS call for framework " << *framework;
 
   ++metrics->messages_quiesce_offers;
 
