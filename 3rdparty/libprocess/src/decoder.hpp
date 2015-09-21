@@ -556,6 +556,13 @@ public:
     return failure;
   }
 
+  // Returns whether the decoder is currently writing a response
+  // body. Helpful for knowing if the latest response is complete.
+  bool writingBody() const
+  {
+    return writer.isSome();
+  }
+
 private:
   static int on_message_begin(http_parser* p)
   {
