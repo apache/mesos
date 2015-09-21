@@ -29,9 +29,9 @@ namespace internal {
 namespace slave {
 namespace docker {
 
-inline DockerImage::Name parseName(const std::string& value)
+inline Image::Name parseName(const std::string& value)
 {
-  DockerImage::Name imageName;
+  Image::Name imageName;
   Option<std::string> registry = None();
   std::vector<std::string> components = strings::split(value, "/");
   if (components.size() > 2) {
@@ -53,7 +53,7 @@ inline DockerImage::Name parseName(const std::string& value)
 
 inline std::ostream& operator<<(
     std::ostream& stream,
-    const DockerImage::Name& name)
+    const Image::Name& name)
 {
   if (name.has_registry()) {
     return stream << name.registry() << "/" << name.repository() << ":"

@@ -16,53 +16,31 @@
  * limitations under the License.
  */
 
-#ifndef __PROVISIONER_DOCKER_STORE_HPP__
-#define __PROVISIONER_DOCKER_STORE_HPP__
+#include "slave/containerizer/provisioner/docker/puller.hpp"
 
-#include <string>
+#include "slave/containerizer/provisioner/docker/local_puller.hpp"
 
-#include <stout/try.hpp>
+using std::string;
 
-#include <process/future.hpp>
-
-#include "slave/containerizer/provisioner/store.hpp"
-
-#include "slave/flags.hpp"
+using process::Owned;
 
 namespace mesos {
 namespace internal {
 namespace slave {
 namespace docker {
 
-// Forward Declarations.
-class Puller;
-class StoreProcess;
-
-
-// Store fetches the Docker images and stores them on disk.
-class Store : public slave::Store
+Try<Owned<Puller>> Puller::create(const Flags& flags)
 {
-public:
-  static Try<process::Owned<slave::Store>> create(const Flags& flags);
+  const string puller = flags.docker_puller;
 
-  ~Store();
+  if (puller == "local") {
+    return Owned<Puller>(new LocalPuller(flags));
+  }
 
-  process::Future<Nothing> recover();
-
-  process::Future<std::vector<std::string>> get(const mesos::Image& image);
-
-private:
-  explicit Store(const process::Owned<StoreProcess>& _process);
-
-  Store& operator=(const Store&) = delete; // Not assignable.
-  Store(const Store&) = delete; // Not copyable.
-
-  process::Owned<StoreProcess> process;
-};
+  return Error("Unknown or unsupported docker puller: " + puller);
+}
 
 } // namespace docker {
 } // namespace slave {
 } // namespace internal {
 } // namespace mesos {
-
-#endif // __PROVISIONER_DOCKER_STORE_HPP__

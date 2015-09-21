@@ -28,6 +28,8 @@
 
 #include "slave/containerizer/provisioner/appc/store.hpp"
 
+#include "slave/containerizer/provisioner/docker/store.hpp"
+
 using namespace process;
 
 using std::string;
@@ -44,6 +46,7 @@ Try<hashmap<Image::Type, Owned<Store>>> Store::create(const Flags& flags)
 
   hashmap<Image::Type, Try<Owned<Store>>(*)(const Flags&)> creators;
   creators.put(Image::APPC, &appc::Store::create);
+  creators.put(Image::DOCKER, &docker::Store::create);
 
   hashmap<Image::Type, Owned<Store>> stores;
 

@@ -16,6 +16,8 @@
  * limitations under the License.
  */
 
+#include "slave/containerizer/provisioner/docker/metadata_manager.hpp"
+
 #include <vector>
 
 #include <glog/logging.h>
@@ -33,7 +35,6 @@
 
 #include "slave/containerizer/provisioner/docker/paths.hpp"
 #include "slave/containerizer/provisioner/docker/message.hpp"
-#include "slave/containerizer/provisioner/docker/metadata_manager.hpp"
 
 #include "slave/state.hpp"
 
@@ -48,48 +49,41 @@ namespace internal {
 namespace slave {
 namespace docker {
 
-
 class MetadataManagerProcess : public process::Process<MetadataManagerProcess>
 {
 public:
+  MetadataManagerProcess(const Flags& _flags) : flags(_flags) {}
+
   ~MetadataManagerProcess() {}
 
-  static Try<process::Owned<MetadataManagerProcess>> create(
-      const Flags& flags);
-
-  Future<DockerImage> put(
-      const DockerImage::Name& name,
-      const std::list<std::string>& layerIds);
-
-  Future<Option<DockerImage>> get(const DockerImage::Name& name);
-
   Future<Nothing> recover();
+
+  Future<Image> put(
+      const Image::Name& name,
+      const std::vector<std::string>& layerIds);
+
+  Future<Option<Image>> get(const Image::Name& name);
 
   // TODO(chenlily): Implement removal of unreferenced images.
 
 private:
-  MetadataManagerProcess(const Flags& flags);
-
   // Write out metadata manager state to persistent store.
   Try<Nothing> persist();
 
   const Flags flags;
 
   // This is a lookup table for images that are stored in memory. It is keyed
-  // by the name of the DockerImage.
-  // For example, "ubuntu:14.04" -> ubuntu14:04 DockerImage.
-  hashmap<std::string, DockerImage> storedImages;
+  // by the name of the Image.
+  // For example, "ubuntu:14.04" -> ubuntu14:04 Image.
+  hashmap<std::string, Image> storedImages;
 };
 
 
 Try<Owned<MetadataManager>> MetadataManager::create(const Flags& flags)
 {
-  Try<Owned<MetadataManagerProcess>> process =
-    MetadataManagerProcess::create(flags);
-  if (process.isError()) {
-    return Error("Failed to create Metadata Manager: " + process.error());
-  }
-  return Owned<MetadataManager>(new MetadataManager(process.get()));
+  Owned<MetadataManagerProcess> process(new MetadataManagerProcess(flags));
+
+  return Owned<MetadataManager>(new MetadataManager(process));
 }
 
 
@@ -113,42 +107,31 @@ Future<Nothing> MetadataManager::recover()
 }
 
 
-Future<DockerImage> MetadataManager::put(
-    const DockerImage::Name& name,
-    const list<string>& layerIds)
+Future<Image> MetadataManager::put(
+    const Image::Name& name,
+    const vector<string>& layerIds)
 {
   return dispatch(
-      process.get(), &MetadataManagerProcess::put, name, layerIds);
+      process.get(),
+      &MetadataManagerProcess::put,
+      name,
+      layerIds);
 }
 
 
-Future<Option<DockerImage>> MetadataManager::get(const DockerImage::Name& name)
+Future<Option<Image>> MetadataManager::get(const Image::Name& name)
 {
   return dispatch(process.get(), &MetadataManagerProcess::get, name);
 }
 
 
-MetadataManagerProcess::MetadataManagerProcess(const Flags& flags)
-  : flags(flags) {}
-
-
-Try<Owned<MetadataManagerProcess>> MetadataManagerProcess::create(
-    const Flags& flags)
-{
-  Owned<MetadataManagerProcess> metadataManager =
-    Owned<MetadataManagerProcess>(new MetadataManagerProcess(flags));
-
-  return metadataManager;
-}
-
-
-Future<DockerImage> MetadataManagerProcess::put(
-    const DockerImage::Name& name,
-    const list<string>& layerIds)
+Future<Image> MetadataManagerProcess::put(
+    const Image::Name& name,
+    const vector<string>& layerIds)
 {
   const string imageName = stringify(name);
 
-  DockerImage dockerImage;
+  Image dockerImage;
   dockerImage.mutable_name()->CopyFrom(name);
   foreach (const string& layerId, layerIds) {
     dockerImage.add_layer_ids(layerId);
@@ -158,15 +141,15 @@ Future<DockerImage> MetadataManagerProcess::put(
 
   Try<Nothing> status = persist();
   if (status.isError()) {
-    return Failure("Failed to save state of Docker images" + status.error());
+    return Failure("Failed to save state of Docker images: " + status.error());
   }
 
   return dockerImage;
 }
 
 
-Future<Option<DockerImage>> MetadataManagerProcess::get(
-    const DockerImage::Name& name)
+Future<Option<Image>> MetadataManagerProcess::get(
+    const Image::Name& name)
 {
   const string imageName = stringify(name);
 
@@ -180,13 +163,13 @@ Future<Option<DockerImage>> MetadataManagerProcess::get(
 
 Try<Nothing> MetadataManagerProcess::persist()
 {
-  DockerImages images;
+  Images images;
 
-  foreachvalue (const DockerImage& image, storedImages) {
+  foreachvalue (const Image& image, storedImages) {
     images.add_images()->CopyFrom(image);
   }
 
-  Try<Nothing> status = mesos::internal::slave::state::checkpoint(
+  Try<Nothing> status = state::checkpoint(
       paths::getStoredImagesPath(flags.docker_store_dir), images);
   if (status.isError()) {
     return Error("Failed to perform checkpoint: " + status.error());
@@ -200,21 +183,19 @@ Future<Nothing> MetadataManagerProcess::recover()
 {
   string storedImagesPath = paths::getStoredImagesPath(flags.docker_store_dir);
 
-  storedImages.clear();
   if (!os::exists(storedImagesPath)) {
     LOG(INFO) << "No images to load from disk. Docker provisioner image "
-              << "storage path: " << storedImagesPath << " does not exist.";
+              << "storage path '" << storedImagesPath << "' does not exist";
     return Nothing();
   }
 
-  Result<DockerImages> images =
-    ::protobuf::read<DockerImages>(storedImagesPath);
+  Result<Images> images = ::protobuf::read<Images>(storedImagesPath);
   if (images.isError()) {
     return Failure("Failed to read protobuf for Docker provisioner image: " +
                    images.error());
   }
 
-  foreach (const DockerImage image, images.get().images()) {
+  foreach (const Image image, images.get().images()) {
     vector<string> missingLayerIds;
     foreach (const string layerId, image.layer_ids()) {
       const string rootfsPath =
@@ -226,21 +207,21 @@ Future<Nothing> MetadataManagerProcess::recover()
     }
 
     if (!missingLayerIds.empty()) {
-      LOG(WARNING) << "Skipped loading image: " << stringify(image.name())
-                   << " due to missing layers: " << stringify(missingLayerIds);
+      LOG(WARNING) << "Skipped loading image  '" << stringify(image.name())
+                   << "' due to missing layers: " << stringify(missingLayerIds);
       continue;
     }
 
     const string imageName = stringify(image.name());
     if (storedImages.contains(imageName)) {
-      LOG(WARNING) << "Found duplicate image in recovery for image name '" << imageName
-                   << "'";
+      LOG(WARNING) << "Found duplicate image in recovery for image name '"
+                   << imageName << "'";
     } else {
       storedImages[imageName] = image;
     }
   }
 
-  LOG(INFO) << "Loaded " << storedImages.size() << " Docker images.";
+  LOG(INFO) << "Loaded " << storedImages.size() << " Docker images";
 
   return Nothing();
 }

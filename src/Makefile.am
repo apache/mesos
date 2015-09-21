@@ -253,7 +253,6 @@ DOCKER_PROVISIONER_PROTOS =                                             \
   slave/containerizer/provisioner/docker/message.pb.cc			\
   slave/containerizer/provisioner/docker/message.pb.h
 
-
 BUILT_SOURCES += $(DOCKER_PROVISIONER_PROTOS)
 CLEANFILES += $(DOCKER_PROVISIONER_PROTOS)
 
@@ -488,7 +487,6 @@ libmesos_no_3rdparty_la_SOURCES =					\
 	master/validation.cpp						\
 	master/allocator/allocator.cpp					\
 	master/allocator/sorter/drf/sorter.cpp				\
-	messages/docker_provisioner.proto			        \
 	messages/flags.proto						\
 	messages/messages.cpp						\
 	messages/messages.proto						\
@@ -530,9 +528,11 @@ libmesos_no_3rdparty_la_SOURCES =					\
 	slave/containerizer/provisioner/appc/store.cpp			\
 	slave/containerizer/provisioner/backend.cpp			\
 	slave/containerizer/provisioner/backends/copy.cpp		\
-	slave/containerizer/provisioner/docker/local_store.cpp		\
+	slave/containerizer/provisioner/docker/local_puller.cpp		\
+	slave/containerizer/provisioner/docker/message.proto		\
 	slave/containerizer/provisioner/docker/metadata_manager.cpp	\
 	slave/containerizer/provisioner/docker/paths.cpp		\
+	slave/containerizer/provisioner/docker/puller.cpp		\
 	slave/containerizer/provisioner/docker/registry_client.cpp	\
 	slave/containerizer/provisioner/docker/store.cpp		\
 	slave/containerizer/provisioner/docker/token_manager.cpp	\
@@ -800,7 +800,6 @@ libmesos_no_3rdparty_la_SOURCES +=					\
 	master/allocator/mesos/hierarchical.hpp				\
 	master/allocator/sorter/drf/sorter.hpp				\
 	master/allocator/sorter/sorter.hpp				\
-	messages/docker_provisioner.hpp				        \
 	messages/flags.hpp						\
 	messages/messages.hpp						\
 	module/manager.hpp						\
@@ -830,10 +829,11 @@ libmesos_no_3rdparty_la_SOURCES +=					\
 	slave/containerizer/provisioner/backend.hpp			\
 	slave/containerizer/provisioner/backends/bind.hpp		\
 	slave/containerizer/provisioner/backends/copy.hpp		\
-	slave/containerizer/provisioner/docker.hpp			\
-	slave/containerizer/provisioner/docker/local_store.hpp		\
+	slave/containerizer/provisioner/docker/local_puller.hpp		\
+	slave/containerizer/provisioner/docker/message.hpp		\
 	slave/containerizer/provisioner/docker/metadata_manager.hpp	\
 	slave/containerizer/provisioner/docker/paths.hpp		\
+	slave/containerizer/provisioner/docker/puller.hpp		\
 	slave/containerizer/provisioner/docker/registry_client.hpp	\
 	slave/containerizer/provisioner/docker/store.hpp		\
 	slave/containerizer/provisioner/docker/token_manager.hpp	\
@@ -1776,7 +1776,6 @@ mesos_tests_DEPENDENCIES = # Initialized to allow += below.
 if OS_LINUX
   mesos_tests_SOURCES += tests/containerizer/cgroups_isolator_tests.cpp
   mesos_tests_SOURCES += tests/containerizer/cgroups_tests.cpp
-  mesos_tests_SOURCES += tests/containerizer/docker_provisioner_tests.cpp
   mesos_tests_SOURCES += tests/containerizer/filesystem_isolator_tests.cpp
   mesos_tests_SOURCES += tests/containerizer/fs_tests.cpp
   mesos_tests_SOURCES += tests/containerizer/launch_tests.cpp

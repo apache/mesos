@@ -25,7 +25,7 @@ package mesos.internal.slave.docker;
  * The layerIds are ordered, with the root layer id (no parent layer id) first
  * and the leaf layer id last.
  */
-message DockerImage {
+message Image {
   message Name {
     optional string registry = 1;
     required string repository = 2;
@@ -38,6 +38,7 @@ message DockerImage {
   repeated string layer_ids = 2;
 }
 
-message DockerImages {
-  repeated DockerImage images = 1;
+
+message Images {
+  repeated Image images = 1;
 }

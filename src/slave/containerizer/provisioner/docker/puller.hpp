@@ -16,16 +16,18 @@
  * limitations under the License.
  */
 
-#ifndef __PROVISIONER_DOCKER_STORE_HPP__
-#define __PROVISIONER_DOCKER_STORE_HPP__
+#ifndef __PROVISIONER_DOCKER_PULLER_HPP__
+#define __PROVISIONER_DOCKER_PULLER_HPP__
 
-#include <string>
+#include <list>
+#include <utility>
 
 #include <stout/try.hpp>
 
 #include <process/future.hpp>
+#include <process/owned.hpp>
 
-#include "slave/containerizer/provisioner/store.hpp"
+#include "slave/containerizer/provisioner/docker/message.hpp"
 
 #include "slave/flags.hpp"
 
@@ -34,30 +36,27 @@ namespace internal {
 namespace slave {
 namespace docker {
 
-// Forward Declarations.
-class Puller;
-class StoreProcess;
-
-
-// Store fetches the Docker images and stores them on disk.
-class Store : public slave::Store
+class Puller
 {
 public:
-  static Try<process::Owned<slave::Store>> create(const Flags& flags);
+  static Try<process::Owned<Puller>> create(const Flags& flags);
 
-  ~Store();
+  virtual ~Puller() {}
 
-  process::Future<Nothing> recover();
-
-  process::Future<std::vector<std::string>> get(const mesos::Image& image);
-
-private:
-  explicit Store(const process::Owned<StoreProcess>& _process);
-
-  Store& operator=(const Store&) = delete; // Not assignable.
-  Store(const Store&) = delete; // Not copyable.
-
-  process::Owned<StoreProcess> process;
+  /**
+   * Pull a Docker image layers into the specified directory, and
+   * return the list of layer ids in that image in the right
+   * dependency order, and also return the directory where
+   * the puller puts its changeset.
+   *
+   * @param name The name of the image.
+   * @param directory The target directory to store the layers.
+   * @return list of layers maped to its local directory ordered by its
+   *         dependency.
+   */
+  virtual process::Future<std::list<std::pair<std::string, std::string>>> pull(
+      const docker::Image::Name& name,
+      const std::string& directory) = 0;
 };
 
 } // namespace docker {
@@ -65,4 +64,5 @@ private:
 } // namespace internal {
 } // namespace mesos {
 
-#endif // __PROVISIONER_DOCKER_STORE_HPP__
+
+#endif // __PROVISIONER_DOCKER_PULLER_HPP__

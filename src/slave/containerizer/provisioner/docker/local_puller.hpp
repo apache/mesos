@@ -16,10 +16,15 @@
  * limitations under the License.
  */
 
-#ifndef __MESOS_DOCKER_LOCAL_STORE_HPP__
-#define __MESOS_DOCKER_LOCAL_STORE_HPP__
+#ifndef __PROVISIONER_DOCKER_LOCAL_PULLER_HPP__
+#define __PROVISIONER_DOCKER_LOCAL_PULLER_HPP__
 
 #include "slave/containerizer/provisioner/store.hpp"
+
+#include "slave/containerizer/provisioner/docker/message.hpp"
+#include "slave/containerizer/provisioner/docker/puller.hpp"
+
+#include "slave/flags.hpp"
 
 namespace mesos {
 namespace internal {
@@ -27,33 +32,30 @@ namespace slave {
 namespace docker {
 
 // Forward declaration.
-class LocalStoreProcess;
+class LocalPullerProcess;
 
 
 /**
- * LocalStore assumes Docker images are stored in a local directory
- * (configured with flags.docker_discovery_local_dir), with all the
- * images saved as tar with the name as the image name with tag (e.g:
- * ubuntu:14.04.tar).
+ * LocalPuller assumes Docker images are stored in a local directory
+ * (configured with flags.docker_local_archives_dir), with all the
+ * images saved as tars with file names in the form of <repo>:<tag>.tar.
  */
-class LocalStore : public slave::Store
+class LocalPuller : public Puller
 {
 public:
-  static Try<process::Owned<Store>> create(const Flags& flags);
+  explicit LocalPuller(const Flags& flags);
 
-  virtual ~LocalStore();
+  ~LocalPuller();
 
-  virtual process::Future<Nothing> recover();
-
-  virtual process::Future<std::vector<std::string>> get(const Image& image);
+  process::Future<std::list<std::pair<std::string, std::string>>> pull(
+      const Image::Name& name,
+      const std::string& directory);
 
 private:
-  explicit LocalStore(process::Owned<LocalStoreProcess> _process);
+  LocalPuller& operator=(const LocalPuller&) = delete; // Not assignable.
+  LocalPuller(const LocalPuller&) = delete; // Not copyable.
 
-  LocalStore& operator=(const LocalStore&) = delete; // Not assignable.
-  LocalStore(const LocalStore&) = delete; // Not copyable.
-
-  process::Owned<LocalStoreProcess> process;
+  process::Owned<LocalPullerProcess> process;
 };
 
 } // namespace docker {
@@ -61,4 +63,4 @@ private:
 } // namespace internal {
 } // namespace mesos {
 
-#endif // __MESOS_DOCKER_LOCAL_STORE_HPP__
+#endif // __PROVISIONER_DOCKER_LOCAL_PULLER_HPP__

@@ -16,8 +16,8 @@
  * limitations under the License.
  */
 
-#ifndef __MESOS_DOCKER_PATHS_HPP__
-#define __MESOS_DOCKER_PATHS_HPP__
+#ifndef __PROVISIONER_DOCKER_PATHS_HPP__
+#define __PROVISIONER_DOCKER_PATHS_HPP__
 
 #include <list>
 #include <string>
@@ -33,47 +33,59 @@ namespace paths {
 /**
  * The Docker store file system layout is as follows:
  * Image store dir ('--docker_store_dir' slave flag)
- *    |--staging (contains temp directories for downloads and extract)
+ *    |--staging
+ *       |-- <temp_dir_archive>
+ *           |-- <layer_id>
+ *               |-- rootfs
  *    |--layers
  *       |--<layer_id>
  *           |--rootfs
- *    |--rootfses
  *    |--storedImages (file holding on cached images)
  */
 
 std::string getStagingDir(const std::string& storeDir);
 
-std::string getTempStaging(const std::string& storeDir);
 
-std::string getLocalImageTarPath(
+std::string getStagingTempDir(const std::string& storeDir);
+
+
+std::string getImageArchiveTarPath(
     const std::string& discoveryDir,
     const std::string& name);
 
-std::string getLocalImageRepositoriesPath(const std::string& staging);
 
-std::string getLocalImageLayerPath(
-    const std::string& staging,
+std::string getImageArchiveRepositoriesPath(const std::string& archivePath);
+
+
+std::string getImageArchiveLayerPath(
+    const std::string& archivePath,
     const std::string& layerId);
 
-std::string getLocalImageLayerManifestPath(
-    const std::string& staging,
+
+std::string getImageArchiveLayerManifestPath(
+    const std::string& archivePath,
     const std::string& layerId);
 
-std::string getLocalImageLayerTarPath(
-  const std::string& staging,
+
+std::string getImageArchiveLayerTarPath(
+  const std::string& archivePath,
   const std::string& layerId);
 
-std::string getLocalImageLayerRootfsPath(
-  const std::string& staging,
+
+std::string getImageArchiveLayerRootfsPath(
+  const std::string& archivePath,
   const std::string& layerId);
+
 
 std::string getImageLayerPath(
     const std::string& storeDir,
     const std::string& layerId);
 
+
 std::string getImageLayerRootfsPath(
     const std::string& storeDir,
     const std::string& layerId);
+
 
 std::string getStoredImagesPath(const std::string& storeDir);
 
@@ -83,4 +95,4 @@ std::string getStoredImagesPath(const std::string& storeDir);
 } // namespace internal {
 } // namespace mesos {
 
-#endif // __MESOS_DOCKER_PATHS_HPP__
+#endif // __PROVISIONER_DOCKER_PATHS_HPP__

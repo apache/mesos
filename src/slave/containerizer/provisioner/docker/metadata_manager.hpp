@@ -16,8 +16,8 @@
  * limitations under the License.
  */
 
-#ifndef __MESOS_DOCKER_METADATA_MANAGER_HPP__
-#define __MESOS_DOCKER_METADATA_MANAGER_HPP__
+#ifndef __PROVISIONER_DOCKER_METADATA_MANAGER_HPP__
+#define __PROVISIONER_DOCKER_METADATA_MANAGER_HPP__
 
 #include <list>
 #include <string>
@@ -49,7 +49,7 @@ class MetadataManagerProcess;
 /**
  * The MetadataManager tracks the Docker images cached by the
  * provisioner that are stored on disk. It keeps track of the layers
- * that Docker images are composed of and recovers DockerImage objects
+ * that Docker images are composed of and recovers Image objects
  * upon initialization by checking for dependent layers stored on disk.
  * Currently, image layers are stored indefinitely, with no garbage
  * collection of unreferenced image layers.
@@ -59,10 +59,15 @@ class MetadataManager
 public:
   static Try<process::Owned<MetadataManager>> create(const Flags& flags);
 
-   ~MetadataManager();
+  ~MetadataManager();
 
   /**
-   * Create a Image, put it in metadata manager and persist the reference
+   * Recover all stored Image and its layer references.
+   */
+  process::Future<Nothing> recover();
+
+  /**
+   * Create an Image, put it in metadata manager and persist the reference
    * store state to disk.
    *
    * @param name     the name of the Docker image to place in the reference
@@ -71,22 +76,17 @@ public:
    *                 order where the root layer's id (no parent layer) is first
    *                 and the leaf layer's id is last.
    */
-  process::Future<DockerImage> put(
-      const DockerImage::Name& name,
-      const std::list<std::string>& layerIds);
+  process::Future<Image> put(
+      const Image::Name& name,
+      const std::vector<std::string>& layerIds);
 
   /**
-   * Retrieve DockerImage based on image name if it is among the DockerImages
+   * Retrieve Image based on image name if it is among the Images
    * stored in memory.
    *
    * @param name  the name of the Docker image to retrieve
    */
-  process::Future<Option<DockerImage>> get(const DockerImage::Name& name);
-
-  /**
-   * Recover all stored DockerImage and its layer references.
-   */
-  process::Future<Nothing> recover();
+  process::Future<Option<Image>> get(const Image::Name& name);
 
 private:
   explicit MetadataManager(process::Owned<MetadataManagerProcess> process);
@@ -103,4 +103,4 @@ private:
 } // namespace internal {
 } // namespace mesos {
 
-#endif // __MESOS_DOCKER_METADATA_MANAGER_HPP__
+#endif // __PROVISIONER_DOCKER_METADATA_MANAGER_HPP__
