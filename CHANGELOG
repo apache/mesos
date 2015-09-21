@@ -1,3 +1,13 @@
+Release Notes - Mesos - Version 0.23.1
+--------------------------------------
+
+* This is a bug fix release.
+
+** Bug
+  * [MESOS-2986] - Docker version output is not compatible with Mesos
+  * [MESOS-3136] - COMMAND health checks with Marathon 0.10.0 are broken
+
+
 Release Notes - Mesos - Version 0.23.0
 --------------------------------------------
 This release contains new features:
