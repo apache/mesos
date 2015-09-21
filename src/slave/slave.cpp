@@ -494,6 +494,13 @@ void Slave::initialize()
   // Setup HTTP routes.
   Http http = Http(this);
 
+  route("/api/v1/executor",
+        Http::EXECUTOR_HELP,
+        [http](const process::http::Request& request) {
+          Http::log(request);
+          return http.executor(request);
+        });
+
   // TODO(ijimenez): Remove this endpoint at the end of the
   // deprecation cycle on 0.26.
   route("/state.json",
