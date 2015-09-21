@@ -331,54 +331,7 @@ Future<Option<ContainerPrepareInfo>> LinuxFilesystemIsolatorProcess::__prepare(
   ContainerPrepareInfo prepareInfo;
   prepareInfo.set_namespaces(CLONE_NEWNS);
 
-  if (rootfs.isNone()) {
-    // It the container does not change its root filesystem, we need
-    // to do a self bind mount of the container's work directory and
-    // mark it as a shared mount. This is necessary for any mounts
-    // underneath it to be propagated into the container's mount
-    // namespace. This is how we can update persistent volumes.
-    LOG(INFO) << "Bind mounting work directory '" << directory
-              << "' for container " << containerId;
-
-    Try<Nothing> mount = fs::mount(
-        directory,
-        directory,
-        None(),
-        MS_BIND,
-        NULL);
-
-    if (mount.isError()) {
-      return Failure(
-          "Failed to self bind mount work directory '" +
-          directory + "': " + mount.error());
-    }
-
-    mount = fs::mount(
-        None(),
-        directory,
-        None(),
-        MS_SLAVE,
-        NULL);
-
-    if (mount.isError()) {
-      return Failure(
-          "Failed to mark work directory '" + directory +
-          "' as a slave mount: " + mount.error());
-    }
-
-    mount = fs::mount(
-        None(),
-        directory,
-        None(),
-        MS_SHARED,
-        NULL);
-
-    if (mount.isError()) {
-      return Failure(
-          "Failed to mark work directory '" + directory +
-          "' as a shared mount: " + mount.error());
-    }
-  } else {
+  if (rootfs.isSome()) {
     // If the container changes its root filesystem, we need to mount
     // the container's work directory into its root filesystem
     // (creating it if needed) so that the executor and the task can
@@ -854,10 +807,11 @@ Future<Nothing> LinuxFilesystemIsolatorProcess::cleanup(
   }
 
   if (!sandboxMountExists) {
-    // This could happen if the container is not launched by this
-    // isolator (e.g., slaves prior to 0.25.0).
-    LOG(WARNING) << "Ignoring unmounting sandbox/work directory"
-                 << " for container " << containerId;
+    // This could happen if the container was not launched by this
+    // isolator (e.g., slaves prior to 0.25.0), or the container did
+    // not specify a root filesystem.
+    LOG(INFO) << "Ignoring unmounting sandbox/work directory"
+              << " for container " << containerId;
   } else {
     LOG(INFO) << "Unmounting sandbox/work directory '" << sandbox
               << "' for container " << containerId;
