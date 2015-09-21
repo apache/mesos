@@ -1674,6 +1674,7 @@ mesos_tests_SOURCES =						\
   tests/environment.cpp						\
   tests/examples_tests.cpp					\
   tests/exception_tests.cpp					\
+  tests/executor_http_api_tests.cpp				\
   tests/health_check_tests.cpp					\
   tests/fault_tolerance_tests.cpp				\
   tests/fetcher_cache_tests.cpp					\
