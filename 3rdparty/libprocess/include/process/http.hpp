@@ -769,6 +769,9 @@ Future<Connection> connect(const URL& url);
 // TODO(bmahler): Consolidate these functions into a single
 // http::request function that takes a 'Request' object.
 
+// TODO(bmahler): Support discarding the future responses;
+// discarding should disconnect from the server.
+
 // TODO(joerg84): Make names consistent (see Mesos-3256).
 
 // Asynchronously sends an HTTP GET request to the specified URL
