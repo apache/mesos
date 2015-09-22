@@ -8,6 +8,7 @@ Operators regularly need to perform maintenance tasks on machines that comprise
 a Mesos cluster.  Most Mesos upgrades can be done without affecting running
 tasks, but there are situations where maintenance may affect running tasks.
 For example:
+
 * Hardware repair
 * Kernel upgrades
 * Agent upgrades (e.g. adjusting agent attributes or resources)
@@ -27,6 +28,7 @@ which manages the Mesos cluster.
 
 Maintenance primitives add several new concepts to the Mesos cluster.
 Those concepts are:
+
 * **Maintenance** - An operation that makes resources on a machine unavailable,
   either temporarily or permanently.
 * **Maintenance window** - A set of machines and an associated interval during
@@ -82,7 +84,8 @@ For example, in a cluster of three machines, the operator can schedule two
 machines for one hour of maintenance, followed by another hour for the last
 machine.  The timestamps for unavailability are in nanoseconds since the epoch.
 The schedule might look like:
-```json
+
+```
 {
   "windows" : [
     {
@@ -108,7 +111,8 @@ The schedule might look like:
 ```
 
 The operator then posts the schedule to the master's maintenance endpoints.
-```bash
+
+```
 curl http://localhost:5050/master/maintenance/schedule
   -H "Content-type: application/json"
   -X POST
@@ -150,6 +154,7 @@ To cancel a maintenance schedule, the operator should post an empty schedule.
 ### Draining mode
 
 As soon as a schedule is posted to the Mesos master, the following things occur:
+
 * The schedule is stored in the replicated log.  This means
   the schedule is persisted in case of master failover.
 * All machines in the schedule are immediately transitioned into Draining
@@ -165,6 +170,7 @@ With this additional information, frameworks should perform scheduling in a
 maintenance-aware fashion.  Inverse offers communicate the frameworks' ability
 to conform to the maintenance schedule.
 For example:
+
 * A framework with long-running tasks may choose agents with no unavailability
   or with unavailability further in the future.
 * A datastore may choose to start a new replica if one of its agents is
@@ -203,13 +209,15 @@ maintenance endpoint.
 See the definition of a [MachineID](https://github.com/apache/mesos/blob/016b02d7ed5a65bcad9261a133c8237c2df66e6e/include/mesos/v1/mesos.proto#L157-L167).
 
 For example, to start maintenance on two machines:
-```json
+
+```
 [
   { "hostname" : "machine1", "ip" : "10.0.0.1" },
   { "hostname" : "machine2", "ip" : "10.0.0.2" }
 ]
 ```
-```bash
+
+```
 curl http://localhost:5050/master/machine/down
   -H "Content-type: application/json"
   -X POST
@@ -217,6 +225,7 @@ curl http://localhost:5050/master/machine/down
 ```
 
 The master checks that a list of machines has the following properties:
+
 * The list of machines must not be empty.
 * Each machine must only appear once.
 * Each machine must have at least a hostname or IP included.
@@ -250,13 +259,15 @@ When maintenance is complete, or if maintenance needs to be cancelled,
 the operator can stop maintenance.  The process is very similar
 to starting maintenance (same validation criterion as the previous section).
 The operator posts a list of machines to the master's endpoints:
-```json
+
+```
 [
   { "hostname" : "machine1", "ip" : "10.0.0.1" },
   { "hostname" : "machine2", "ip" : "10.0.0.2" }
 ]
 ```
-```bash
+
+```
 curl http://localhost:5050/master/machine/up
   -H "Content-type: application/json"
   -X POST
