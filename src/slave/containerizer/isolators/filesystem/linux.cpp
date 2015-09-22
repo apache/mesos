@@ -24,6 +24,8 @@
 
 #include <process/collect.hpp>
 
+#include <process/metrics/metrics.hpp>
+
 #include <stout/error.hpp>
 #include <stout/foreach.hpp>
 #include <stout/os.hpp>
@@ -145,7 +147,8 @@ LinuxFilesystemIsolatorProcess::LinuxFilesystemIsolatorProcess(
     const Flags& _flags,
     const Owned<Provisioner>& _provisioner)
   : flags(_flags),
-    provisioner(_provisioner) {}
+    provisioner(_provisioner),
+    metrics(PID<LinuxFilesystemIsolatorProcess>(this)) {}
 
 
 LinuxFilesystemIsolatorProcess::~LinuxFilesystemIsolatorProcess() {}
@@ -827,6 +830,36 @@ Future<Nothing> LinuxFilesystemIsolatorProcess::cleanup(
   // Destroy the provisioned root filesystems.
   return provisioner->destroy(containerId)
     .then([]() -> Future<Nothing> { return Nothing(); });
+}
+
+
+LinuxFilesystemIsolatorProcess::Metrics::Metrics(
+    const PID<LinuxFilesystemIsolatorProcess>& isolator)
+  : containers_new_rootfs(
+      "containerizer/mesos/filesystem/containers_new_rootfs",
+      defer(isolator, &LinuxFilesystemIsolatorProcess::_containers_new_rootfs))
+{
+  process::metrics::add(containers_new_rootfs);
+}
+
+
+LinuxFilesystemIsolatorProcess::Metrics::~Metrics()
+{
+  process::metrics::remove(containers_new_rootfs);
+}
+
+
+double LinuxFilesystemIsolatorProcess::_containers_new_rootfs()
+{
+  double count = 0.0;
+
+  foreachvalue (const Owned<Info>& info, infos) {
+    if (info->sandbox.isSome()) {
+      ++count;
+    }
+  }
+
+  return count;
 }
 
 } // namespace slave {

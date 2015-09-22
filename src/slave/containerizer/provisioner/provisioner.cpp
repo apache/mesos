@@ -23,6 +23,9 @@
 #include <process/dispatch.hpp>
 #include <process/process.hpp>
 
+#include <process/metrics/counter.hpp>
+#include <process/metrics/metrics.hpp>
+
 #include <stout/foreach.hpp>
 #include <stout/hashmap.hpp>
 #include <stout/hashset.hpp>
@@ -73,6 +76,8 @@ private:
       const ContainerID& containerId,
       const vector<string>& layers);
 
+  Future<bool> _destroy(const ContainerID& containerId);
+
   const Flags flags;
 
   // Absolute path to the provisioner root directory. It can be
@@ -92,6 +97,14 @@ private:
   };
 
   hashmap<ContainerID, Owned<Info>> infos;
+
+  struct Metrics
+  {
+    Metrics();
+    ~Metrics();
+
+    process::metrics::Counter remove_container_errors;
+  } metrics;
 };
 
 
@@ -382,30 +395,48 @@ Future<bool> ProvisionerProcess::destroy(const ContainerID& containerId)
     }
   }
 
-  // NOTE: We calculate 'containerDir' here so that the following
-  // lambda does not need to bind 'this'.
+  // TODO(xujyan): Revisit the usefulness of this return value.
+  return collect(futures)
+    .then(defer(self(), &ProvisionerProcess::_destroy, containerId));
+}
+
+
+Future<bool> ProvisionerProcess::_destroy(const ContainerID& containerId)
+{
+  // This should be fairly cheap as the directory should only
+  // contain a few empty sub-directories at this point.
+  //
+  // TODO(jieyu): Currently, it's possible that some directories
+  // cannot be removed due to EBUSY. EBUSY is caused by the race
+  // between cleaning up this container and new containers copying
+  // the host mount table. It's OK to ignore them. The cleanup
+  // will be retried during slave recovery.
   string containerDir =
     provisioner::paths::getContainerDir(rootDir, containerId);
 
-  // TODO(xujyan): Revisit the usefulness of this return value.
-  return collect(futures)
-    .then([containerDir]() -> Future<bool> {
-      // This should be fairly cheap as the directory should only
-      // contain a few empty sub-directories at this point.
-      //
-      // TODO(jieyu): Currently, it's possible that some directories
-      // cannot be removed due to EBUSY. EBUSY is caused by the race
-      // between cleaning up this container and new containers copying
-      // the host mount table. It's OK to ignore them. The cleanup
-      // will be retried during slave recovery.
-      Try<Nothing> rmdir = os::rmdir(containerDir);
-      if (rmdir.isError()) {
-        LOG(ERROR) << "Failed to remove the provisioned container directory "
-                   << "at '" << containerDir << "': " << rmdir.error();
-      }
+  Try<Nothing> rmdir = os::rmdir(containerDir);
+  if (rmdir.isError()) {
+    LOG(ERROR) << "Failed to remove the provisioned container directory "
+               << "at '" << containerDir << "': " << rmdir.error();
 
-      return true;
-    });
+    ++metrics.remove_container_errors;
+  }
+
+  return true;
+}
+
+
+ProvisionerProcess::Metrics::Metrics()
+  : remove_container_errors(
+      "containerizer/mesos/provisioner/remove_container_errors")
+{
+  process::metrics::add(remove_container_errors);
+}
+
+
+ProvisionerProcess::Metrics::~Metrics()
+{
+  process::metrics::remove(remove_container_errors);
 }
 
 } // namespace slave {

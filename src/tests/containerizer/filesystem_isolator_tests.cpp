@@ -23,6 +23,8 @@
 #include <process/owned.hpp>
 #include <process/gtest.hpp>
 
+#include <process/metrics/metrics.hpp>
+
 #include <stout/error.hpp>
 #include <stout/foreach.hpp>
 #include <stout/gtest.hpp>
@@ -229,6 +231,66 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_ChangeRootFilesystem)
   // Check the executor exited correctly.
   EXPECT_TRUE(wait.get().has_status());
   EXPECT_EQ(0, wait.get().status());
+}
+
+
+TEST_F(LinuxFilesystemIsolatorTest, ROOT_Metrics)
+{
+  slave::Flags flags = CreateSlaveFlags();
+
+  ContainerID containerId;
+  containerId.set_value(UUID::random().toString());
+
+  string rootfsesDir = slave::provisioner::paths::getContainerDir(
+      slave::paths::getProvisionerDir(flags.work_dir),
+      containerId);
+
+  Try<Owned<MesosContainerizer>> containerizer = createContainerizer(
+      flags,
+      {{"test_image", path::join(rootfsesDir, "test_image")}});
+
+  ASSERT_SOME(containerizer);
+
+  // Use a long running task so we can reliably capture the moment it's alive.
+  ExecutorInfo executor = CREATE_EXECUTOR_INFO(
+      "test_executor",
+      "sleep 1000");
+
+  executor.mutable_container()->CopyFrom(createContainerInfo("test_image"));
+
+  string directory = path::join(os::getcwd(), "sandbox");
+  ASSERT_SOME(os::mkdir(directory));
+
+  Future<bool> launch = containerizer.get()->launch(
+      containerId,
+      executor,
+      directory,
+      None(),
+      SlaveID(),
+      PID<Slave>(),
+      false);
+
+  // Wait for the launch to complete.
+  AWAIT_READY(launch);
+
+  // Check metrics.
+  JSON::Object stats = Metrics();
+  EXPECT_EQ(1u, stats.values.count(
+      "containerizer/mesos/filesystem/containers_new_rootfs"));
+  EXPECT_EQ(
+      1, stats.values["containerizer/mesos/filesystem/containers_new_rootfs"]);
+
+  containerizer.get()->destroy(containerId);
+
+  // Wait on the container.
+  Future<containerizer::Termination> wait =
+    containerizer.get()->wait(containerId);
+
+  AWAIT_READY(wait);
+
+  // Executor was killed.
+  EXPECT_TRUE(wait.get().has_status());
+  EXPECT_EQ(9, wait.get().status());
 }
 
 

@@ -23,6 +23,9 @@
 #include <mesos/resources.hpp>
 
 #include <process/owned.hpp>
+#include <process/pid.hpp>
+
+#include <process/metrics/gauge.hpp>
 
 #include <stout/hashmap.hpp>
 
@@ -126,6 +129,17 @@ private:
   };
 
   hashmap<ContainerID, process::Owned<Info>> infos;
+
+  struct Metrics
+  {
+    explicit Metrics(
+        const process::PID<LinuxFilesystemIsolatorProcess>& isolator);
+    ~Metrics();
+
+    process::metrics::Gauge containers_new_rootfs;
+  } metrics;
+
+  double _containers_new_rootfs();
 };
 
 } // namespace slave {

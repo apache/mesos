@@ -23,6 +23,9 @@
 #include <process/dispatch.hpp>
 #include <process/process.hpp>
 
+#include <process/metrics/counter.hpp>
+#include <process/metrics/metrics.hpp>
+
 #include <stout/foreach.hpp>
 #include <stout/os.hpp>
 
@@ -45,6 +48,14 @@ public:
   Future<Nothing> provision(const vector<string>& layers, const string& rootfs);
 
   Future<bool> destroy(const string& rootfs);
+
+  struct Metrics
+  {
+    Metrics();
+    ~Metrics();
+
+    process::metrics::Counter remove_rootfs_errors;
+  } metrics;
 };
 
 
@@ -180,6 +191,7 @@ Future<bool> BindBackendProcess::destroy(const string& rootfs)
 
         if (errno == EBUSY) {
           LOG(ERROR) << message;
+          ++metrics.remove_rootfs_errors;
         } else {
           return Failure(message);
         }
@@ -190,6 +202,20 @@ Future<bool> BindBackendProcess::destroy(const string& rootfs)
   }
 
   return false;
+}
+
+
+BindBackendProcess::Metrics::Metrics()
+  : remove_rootfs_errors(
+      "containerizer/mesos/provisioner/bind/remove_rootfs_errors")
+{
+  process::metrics::add(remove_rootfs_errors);
+}
+
+
+BindBackendProcess::Metrics::~Metrics()
+{
+  process::metrics::remove(remove_rootfs_errors);
 }
 
 } // namespace slave {
