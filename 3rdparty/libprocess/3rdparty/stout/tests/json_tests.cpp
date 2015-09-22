@@ -51,11 +51,11 @@ TEST(JsonTest, BinaryData)
 TEST(JsonTest, NumberFormat)
 {
   // Test whole numbers (as doubles).
-  EXPECT_EQ("0.", stringify(JSON::Number(0.0)));
-  EXPECT_EQ("1.", stringify(JSON::Number(1.0)));
+  EXPECT_EQ("0.0", stringify(JSON::Number(0.0)));
+  EXPECT_EQ("1.0", stringify(JSON::Number(1.0)));
 
   // Negative.
-  EXPECT_EQ("-1.", stringify(JSON::Number(-1.0)));
+  EXPECT_EQ("-1.0", stringify(JSON::Number(-1.0)));
 
   // Test integers.
   EXPECT_EQ("0", stringify(JSON::Number(0)));

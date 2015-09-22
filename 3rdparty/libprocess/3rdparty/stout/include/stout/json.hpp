@@ -633,9 +633,11 @@ inline std::ostream& operator<<(std::ostream& out, const Number& number)
           std::numeric_limits<double>::digits10,
           number.value);
 
-      // Get rid of trailing zeroes before outputting.
+      // Get rid of excess trailing zeroes before outputting.
       // Otherwise, printing 1.0 would result in "1.00000000000000".
-      return out << strings::trim(buffer, strings::SUFFIX, "0");
+      // NOTE: valid JSON numbers cannot end with a '.'.
+      std::string trimmed = strings::trim(buffer, strings::SUFFIX, "0");
+      return out << trimmed << (trimmed.back() == '.' ? "0" : "");
     }
     case Number::SIGNED_INTEGER:
       return out << number.signed_integer;
