@@ -152,6 +152,33 @@ Future<Nothing> BindBackendProcess::provision(
         mount.error());
   }
 
+  // Mark the mount as shared+slave.
+  mount = fs::mount(
+      None(),
+      rootfs,
+      None(),
+      MS_SLAVE,
+      NULL);
+
+  if (mount.isError()) {
+    return Failure(
+        "Failed to mark mount '" + rootfs +
+        "' as a slave mount: " + mount.error());
+  }
+
+  mount = fs::mount(
+      None(),
+      rootfs,
+      None(),
+      MS_SHARED,
+      NULL);
+
+  if (mount.isError()) {
+    return Failure(
+        "Failed to mark mount '" + rootfs +
+        "' as a shared mount: " + mount.error());
+  }
+
   return Nothing();
 }
 
