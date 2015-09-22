@@ -217,7 +217,8 @@ which we specify with the resources to be unreserved.
 The unreserved resources may now be offered to other frameworks.
 
 
-### `/reserve` (_Coming Soon_)
+### `/reserve` (since 0.25.0)
+
 
 Suppose we want to reserve 8 CPUs and 4096 MB of RAM for the `ads` role on
 a slave with id=`<slave_id>`. We send an HTTP POST request to the `/reserve`
@@ -256,7 +257,8 @@ The user receives one of the following HTTP responses:
 * `409 Conflict`: Insufficient resources to satisfy the reserve operation.
 
 
-### `/unreserve` (_Coming Soon_)
+### `/unreserve` (since 0.25.0)
+
 
 Suppose we want to unreserve the resources that we dynamically reserved above.
 We can send an HTTP POST request to the `/unreserve` HTTP endpoint like so:
