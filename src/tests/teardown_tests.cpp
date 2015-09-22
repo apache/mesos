@@ -85,7 +85,7 @@ TEST_F(TeardownTest, TeardownEndpoint)
 
   AWAIT_READY(frameworkId);
 
-  hashmap<string, string> headers;
+  process::http::Headers headers;
   headers["Authorization"] = "Basic " +
     base64::encode(DEFAULT_CREDENTIAL.principal() +
                    ":" + DEFAULT_CREDENTIAL.secret());
@@ -124,7 +124,7 @@ TEST_F(TeardownTest, TeardownEndpointBadCredentials)
 
   AWAIT_READY(frameworkId);
 
-  hashmap<string, string> headers;
+  process::http::Headers headers;
   headers["Authorization"] = "Basic " +
     base64::encode("badPrincipal:badSecret");
 
@@ -174,7 +174,7 @@ TEST_F(TeardownTest, TeardownEndpointGoodACLs)
 
   AWAIT_READY(frameworkId);
 
-  hashmap<string, string> headers;
+  process::http::Headers headers;
   headers["Authorization"] = "Basic " +
     base64::encode(DEFAULT_CREDENTIAL.principal() +
                    ":" + DEFAULT_CREDENTIAL.secret());
@@ -222,7 +222,7 @@ TEST_F(TeardownTest, TeardownEndpointBadACLs)
 
   AWAIT_READY(frameworkId);
 
-  hashmap<string, string> headers;
+  process::http::Headers headers;
   headers["Authorization"] = "Basic " +
     base64::encode(DEFAULT_CREDENTIAL.principal() +
                    ":" + DEFAULT_CREDENTIAL.secret());
@@ -262,7 +262,7 @@ TEST_F(TeardownTest, TeardownEndpointNoFrameworkId)
   ASSERT_EQ(DRIVER_RUNNING, driver.start());
 
   AWAIT_READY(frameworkId);
-  hashmap<string, string> headers;
+  process::http::Headers headers;
   headers["Authorization"] = "Basic " +
     base64::encode("badPrincipal:badSecret");
   Future<Response> response =

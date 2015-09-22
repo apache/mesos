@@ -139,7 +139,7 @@ TEST_F(ExecutorHttpApiTest, ValidJsonButInvalidProtobuf)
   JSON::Object object;
   object.values["string"] = "valid_json";
 
-  hashmap<string, string> headers;
+  process::http::Headers headers;
   headers["Accept"] = APPLICATION_JSON;
 
   Future<Response> response = process::http::post(
@@ -176,7 +176,7 @@ TEST_P(ExecutorHttpApiTest, MalformedContent)
   const string body = "MALFORMED_CONTENT";
 
   const ContentType contentType = GetParam();
-  hashmap<string, string> headers;
+  process::http::Headers headers;
   headers["Accept"] = stringify(contentType);
 
   Future<Response> response = process::http::post(
@@ -211,7 +211,7 @@ TEST_P(ExecutorHttpApiTest, UnsupportedContentMediaType)
   Clock::settle();
 
   ContentType contentType = GetParam();
-  hashmap<string, string> headers;
+  process::http::Headers headers;
   headers["Accept"] = stringify(contentType);
 
   Call call;
@@ -254,7 +254,7 @@ TEST_P(ExecutorHttpApiTest, MessageFromUnknownFramework)
   Clock::settle();
 
   ContentType contentType = GetParam();
-  hashmap<string, string> headers;
+  process::http::Headers headers;
   headers["Accept"] = stringify(contentType);
 
   Call call;
@@ -325,7 +325,7 @@ TEST_P(ExecutorHttpApiTest, DefaultAccept)
   Clock::pause();
   Clock::settle();
 
-  hashmap<string, string> headers;
+  process::http::Headers headers;
   headers["Accept"] = "*/*";
 
   // Only subscribe needs to 'Accept' JSON or protobuf.
@@ -376,7 +376,7 @@ TEST_P(ExecutorHttpApiTest, NoAcceptHeader)
 
   // No 'Accept' header leads to all media types considered
   // acceptable. JSON will be chosen by default.
-  hashmap<string, string> headers;
+  process::http::Headers headers;
 
   // Only subscribe needs to 'Accept' JSON or protobuf.
   Call call;
@@ -420,7 +420,7 @@ TEST_P(ExecutorHttpApiTest, NotAcceptable)
   // Retrieve the parameter passed as content type to this test.
   const ContentType contentType = GetParam();
 
-  hashmap<string, string> headers;
+  process::http::Headers headers;
   headers["Accept"] = "foo";
 
   // Only subscribe needs to 'Accept' JSON or protobuf.

@@ -103,10 +103,10 @@ public:
     return info;
   }
 
-  hashmap<string, string> createBasicAuthHeaders(
+  process::http::Headers createBasicAuthHeaders(
       const Credential& credential) const
   {
-    return hashmap<string, string>{{
+    return process::http::Headers{{
       "Authorization",
       "Basic " +
         base64::encode(credential.principal() + ":" + credential.secret())
@@ -698,7 +698,7 @@ TEST_F(ReservationEndpointsTest, InsufficientResources)
       frameworkInfo.role(),
       createReservationInfo(DEFAULT_CREDENTIAL.principal()));
 
-  hashmap<string, string> headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
+  process::http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
   string body = createRequestBody(slaveId.get(), dynamicallyReserved);
 
   Future<Response> response =
@@ -791,7 +791,7 @@ TEST_F(ReservationEndpointsTest, BadCredentials)
   Resources dynamicallyReserved = unreserved.flatten(
       "role", createReservationInfo(DEFAULT_CREDENTIAL.principal()));
 
-  hashmap<string, string> headers = createBasicAuthHeaders(credential);
+  process::http::Headers headers = createBasicAuthHeaders(credential);
   string body = createRequestBody(slaveId.get(), dynamicallyReserved);
 
   Future<Response> response =
@@ -825,7 +825,7 @@ TEST_F(ReservationEndpointsTest, NoSlaveId)
   Resources dynamicallyReserved = unreserved.flatten(
       "role", createReservationInfo(DEFAULT_CREDENTIAL.principal()));
 
-  hashmap<string, string> headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
+  process::http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
   string body = "resources=" + stringify(toJSONArray(dynamicallyReserved));
 
   Future<Response> response =
@@ -860,7 +860,7 @@ TEST_F(ReservationEndpointsTest, NoResources)
   Try<PID<Slave>> slave = StartSlave();
   ASSERT_SOME(slave);
 
-  hashmap<string, string> headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
+  process::http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
   string body = "slaveId=" + slaveId.get().value();
 
   Future<Response> response =

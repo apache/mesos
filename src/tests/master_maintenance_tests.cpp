@@ -139,7 +139,7 @@ public:
   }
 
   // Default headers for all POST's to maintenance endpoints.
-  hashmap<string, string> headers;
+  process::http::Headers headers;
 
   const string maintenanceHostname = "maintenance-host";
 

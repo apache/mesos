@@ -181,7 +181,7 @@ TEST_F(HttpApiTest, ValidJsonButInvalidProtobuf)
   JSON::Object object;
   object.values["string"] = "valid_json";
 
-  hashmap<string, string> headers;
+  process::http::Headers headers;
   headers["Accept"] = APPLICATION_JSON;
 
   Future<Response> response = process::http::post(
@@ -209,7 +209,7 @@ TEST_P(HttpApiTest, MalformedContent)
   const string body = "MALFORMED_CONTENT";
 
   const string contentType = GetParam();
-  hashmap<string, string> headers;
+  process::http::Headers headers;
   headers["Accept"] = contentType;
 
   Future<Response> response = process::http::post(
@@ -235,7 +235,7 @@ TEST_P(HttpApiTest, UnsupportedContentMediaType)
   ASSERT_SOME(master);
 
   const string contentType = GetParam();
-  hashmap<string, string> headers;
+  process::http::Headers headers;
   headers["Accept"] = contentType;
 
   Call call;
@@ -277,7 +277,7 @@ TEST_P(HttpApiTest, Subscribe)
 
   // Retrieve the parameter passed as content type to this test.
   const string contentType = GetParam();
-  hashmap<string, string> headers;
+  process::http::Headers headers;
   headers["Accept"] = contentType;
 
   Future<Response> response = process::http::streaming::post(
@@ -347,7 +347,7 @@ TEST_P(HttpApiTest, SubscribedOnRetryWithForce)
 
   // Retrieve the parameter passed as content type to this test.
   const string contentType = GetParam();
-  hashmap<string, string> headers;
+  process::http::Headers headers;
   headers["Accept"] = contentType;
 
   auto deserializer =
@@ -472,7 +472,7 @@ TEST_P(HttpApiTest, UpdatePidToHttpScheduler)
 
   // Retrieve the parameter passed as content type to this test.
   const string contentType = GetParam();
-  hashmap<string, string> headers;
+  process::http::Headers headers;
   headers["Accept"] = contentType;
 
   Future<Response> response = process::http::streaming::post(
@@ -559,7 +559,7 @@ TEST_P(HttpApiTest, UpdatePidToHttpSchedulerWithoutForce)
 
   // Retrieve the parameter passed as content type to this test.
   const string contentType = GetParam();
-  hashmap<string, string> headers;
+  process::http::Headers headers;
   headers["Accept"] = contentType;
 
   Future<Response> response = process::http::streaming::post(
@@ -618,7 +618,7 @@ TEST_P(HttpApiTest, NotAcceptable)
   // Retrieve the parameter passed as content type to this test.
   const string contentType = GetParam();
 
-  hashmap<string, string> headers;
+  process::http::Headers headers;
   headers["Accept"] = "foo";
 
   // Only subscribe needs to 'Accept' json or protobuf.
@@ -653,7 +653,7 @@ TEST_P(HttpApiTest, NoAcceptHeader)
 
   // No 'Accept' header leads to all media types considered
   // acceptable. JSON will be chosen by default.
-  hashmap<string, string> headers;
+  process::http::Headers headers;
 
   // Only subscribe needs to 'Accept' json or protobuf.
   Call call;
@@ -683,7 +683,7 @@ TEST_P(HttpApiTest, DefaultAccept)
   Try<PID<Master> > master = StartMaster(flags);
   ASSERT_SOME(master);
 
-  hashmap<string, string> headers;
+  process::http::Headers headers;
   headers["Accept"] = "*/*";
 
   // Only subscribe needs to 'Accept' json or protobuf.

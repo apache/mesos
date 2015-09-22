@@ -20,6 +20,7 @@
 
 #include <process/defer.hpp>
 #include <process/dispatch.hpp>
+#include <process/http.hpp>
 #include <process/io.hpp>
 
 #include "slave/containerizer/provisioner/docker/registry_client.hpp"
@@ -81,12 +82,12 @@ private:
 
   Future<Response> doHttpGet(
       const URL& url,
-      const Option<hashmap<string, string>>& headers,
+      const Option<process::http::Headers>& headers,
       const Duration& timeout,
       bool resend,
       const Option<string>& lastResponse) const;
 
-  Try<hashmap<string, string>> getAuthenticationAttributes(
+  Try<process::http::Headers> getAuthenticationAttributes(
       const Response& httpResponse) const;
 
   Owned<TokenManager> tokenManager_;
@@ -197,8 +198,7 @@ RegistryClientProcess::RegistryClientProcess(
     credentials_(creds) {}
 
 
-Try<hashmap<string, string>>
-RegistryClientProcess::getAuthenticationAttributes(
+Try<process::http::Headers> RegistryClientProcess::getAuthenticationAttributes(
     const Response& httpResponse) const
 {
   if (httpResponse.headers.find("WWW-Authenticate") ==
@@ -217,7 +217,7 @@ RegistryClientProcess::getAuthenticationAttributes(
 
   const vector<string> authParams = strings::tokenize(authStringTokens[1], ",");
 
-  hashmap<string, string> authAttributes;
+  process::http::Headers authAttributes;
   auto addAttribute = [&authAttributes](
       const string& param) -> Try<Nothing> {
     const vector<string> paramTokens =
@@ -245,10 +245,9 @@ RegistryClientProcess::getAuthenticationAttributes(
 }
 
 
-Future<Response>
-RegistryClientProcess::doHttpGet(
+Future<Response> RegistryClientProcess::doHttpGet(
     const URL& url,
-    const Option<hashmap<string, string>>& headers,
+    const Option<process::http::Headers>& headers,
     const Duration& timeout,
     bool resend,
     const Option<string>& lastResponseStatus) const
@@ -319,7 +318,7 @@ RegistryClientProcess::doHttpGet(
 
       // Handle 401 Unauthorized.
       if (httpResponse.status == "401 Unauthorized") {
-        Try<hashmap<string, string>> authAttributes =
+        Try<process::http::Headers> authAttributes =
           getAuthenticationAttributes(httpResponse);
 
         if (authAttributes.isError()) {
@@ -343,7 +342,7 @@ RegistryClientProcess::doHttpGet(
           .then(defer(self(), [=](
               const Future<Token>& tokenResponse) {
             // Send request with acquired token.
-            hashmap<string, string> authHeaders = {
+            process::http::Headers authHeaders = {
               {"Authorization", "Bearer " + tokenResponse.get().raw}
             };
 
