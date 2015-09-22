@@ -50,6 +50,10 @@ namespace process {
 template <typename T>
 class Future;
 
+namespace network {
+class Socket;
+} // namespace network {
+
 namespace http {
 
 // Status code reason strings, from the HTTP1.1 RFC:
@@ -713,6 +717,53 @@ Try<hashmap<std::string, std::string>> decode(const std::string& query);
 std::string encode(const hashmap<std::string, std::string>& query);
 
 } // namespace query {
+
+
+/**
+ * Represents a connection to an HTTP server. Pipelining will be
+ * used when there are multiple requests in-flight.
+ *
+ * TODO(bmahler): This does not prevent pipelining with HTTP/1.0.
+ */
+class Connection
+{
+public:
+  Connection() = delete;
+
+  /**
+   * Sends a request to the server. If there are additional requests
+   * in flight, pipelining will occur. If 'streamedResponse' is set,
+   * the response body will be of type 'PIPE'. Note that if the
+   * request or response has a 'Connection: close' header, the
+   * connection will close after the response completes.
+   */
+  Future<Response> send(const Request& request, bool streamedResponse = false);
+
+  /**
+   * Disconnects from the server.
+   */
+  Future<Nothing> disconnect();
+
+  /**
+   * Returns a future that is satisfied when a disconnection occurs.
+   */
+  Future<Nothing> disconnected();
+
+  bool operator==(const Connection& c) const { return data == c.data; }
+  bool operator!=(const Connection& c) const { return !(*this == c); }
+
+private:
+  Connection(const network::Socket& s);
+  friend Future<Connection> connect(const URL&);
+
+  // Forward declaration.
+  struct Data;
+
+  std::shared_ptr<Data> data;
+};
+
+
+Future<Connection> connect(const URL& url);
 
 
 // TODO(bmahler): Consolidate these functions into a single

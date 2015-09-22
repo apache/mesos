@@ -28,6 +28,7 @@
 #include <process/gtest.hpp>
 #include <process/http.hpp>
 #include <process/io.hpp>
+#include <process/owned.hpp>
 #include <process/socket.hpp>
 
 #include <stout/base64.hpp>
@@ -40,6 +41,8 @@
 #include "encoder.hpp"
 
 using namespace process;
+
+using process::Owned;
 
 using process::http::URL;
 
@@ -643,6 +646,334 @@ TEST(HTTPTest, Delete)
 
   AWAIT_READY(future);
   ASSERT_EQ(http::statuses[200], future.get().status);
+}
+
+
+TEST(HTTPConnectionTest, Serial)
+{
+  Http http;
+
+  http::URL url = http::URL(
+      "http",
+      http.process->self().address.ip,
+      http.process->self().address.port,
+      http.process->self().id + "/get");
+
+  Future<http::Connection> connect = http::connect(url);
+  AWAIT_READY(connect);
+
+  http::Connection connection = connect.get();
+
+  // First test a regular (non-streaming) request.
+  Promise<http::Response> promise1;
+  Future<http::Request> get1;
+
+  EXPECT_CALL(*http.process, get(_))
+    .WillOnce(DoAll(FutureArg<0>(&get1), Return(promise1.future())));
+
+  http::Request request1;
+  request1.method = "GET";
+  request1.url = url;
+  request1.body = "1";
+  request1.keepAlive = true;
+
+  Future<http::Response> response1 = connection.send(request1);
+
+  AWAIT_READY(get1);
+  EXPECT_EQ("1", get1->body);
+
+  promise1.set(http::OK("1"));
+
+  AWAIT_EXPECT_RESPONSE_BODY_EQ("1", response1);
+
+  // Now test a streaming response.
+  Promise<http::Response> promise2;
+  Future<http::Request> get2;
+
+  EXPECT_CALL(*http.process, get(_))
+    .WillOnce(DoAll(FutureArg<0>(&get2), Return(promise2.future())));
+
+  http::Request request2 = request1;
+  request2.body = "2";
+
+  Future<http::Response> response2 = connection.send(request2, true);
+
+  AWAIT_READY(get2);
+  EXPECT_EQ("2", get2->body);
+
+  promise2.set(http::OK("2"));
+
+  AWAIT_READY(response2);
+  ASSERT_SOME(response2->reader);
+
+  http::Pipe::Reader reader = response2->reader.get();
+  AWAIT_EQ("2", reader.read());
+  AWAIT_EQ("", reader.read());
+
+  // Disconnect.
+  AWAIT_READY(connection.disconnect());
+  AWAIT_READY(connection.disconnected());
+
+  // After disconnection, sends should fail.
+  AWAIT_FAILED(connection.send(request1));
+}
+
+
+TEST(HTTPConnectionTest, Pipeline)
+{
+  Http http;
+
+  http::URL url = http::URL(
+      "http",
+      http.process->self().address.ip,
+      http.process->self().address.port,
+      http.process->self().id + "/get");
+
+  Future<http::Connection> connect = http::connect(url);
+  AWAIT_READY(connect);
+
+  http::Connection connection = connect.get();
+
+  // Send three pipelined requests.
+  Promise<http::Response> promise1, promise2, promise3;
+  Future<http::Request> get1, get2, get3;
+
+  EXPECT_CALL(*http.process, get(_))
+    .WillOnce(DoAll(FutureArg<0>(&get1),
+                    Return(promise1.future())))
+    .WillOnce(DoAll(FutureArg<0>(&get2),
+                    Return(promise2.future())))
+    .WillOnce(DoAll(FutureArg<0>(&get3),
+                    Return(promise3.future())));
+
+  http::Request request1, request2, request3;
+
+  request1.method = "GET";
+  request2.method = "GET";
+  request3.method = "GET";
+
+  request1.url = url;
+  request2.url = url;
+  request3.url = url;
+
+  request1.body = "1";
+  request2.body = "2";
+  request3.body = "3";
+
+  request1.keepAlive = true;
+  request2.keepAlive = true;
+  request3.keepAlive = true;
+
+  Future<http::Response> response1 = connection.send(request1);
+  Future<http::Response> response2 = connection.send(request2, true);
+  Future<http::Response> response3 = connection.send(request3);
+
+  // Ensure the requests are all received before any
+  // responses have been sent.
+  AWAIT_READY(get1);
+  AWAIT_READY(get2);
+  AWAIT_READY(get3);
+
+  EXPECT_EQ("1", get1->body);
+  EXPECT_EQ("2", get2->body);
+  EXPECT_EQ("3", get3->body);
+
+  // Complete the responses in the opposite order, and ensure
+  // that the pipelining in libprocess sends the responses in
+  // the same order as the requests were received.
+  promise3.set(http::OK("3"));
+  promise2.set(http::OK("2"));
+
+  EXPECT_TRUE(response1.isPending());
+  EXPECT_TRUE(response2.isPending());
+  EXPECT_TRUE(response3.isPending());
+
+  promise1.set(http::OK("1"));
+
+  AWAIT_READY(response1);
+  AWAIT_READY(response2);
+  AWAIT_READY(response3);
+
+  EXPECT_EQ("1", response1->body);
+
+  ASSERT_SOME(response2->reader);
+
+  http::Pipe::Reader reader = response2->reader.get();
+  AWAIT_EQ("2", reader.read());
+  AWAIT_EQ("", reader.read());
+
+  EXPECT_EQ("3", response3->body);
+
+  // Disconnect.
+  AWAIT_READY(connection.disconnect());
+  AWAIT_READY(connection.disconnected());
+
+  // After disconnection, sends should fail.
+  AWAIT_FAILED(connection.send(request1));
+}
+
+
+TEST(HTTPConnectionTest, ClosingRequest)
+{
+  Http http;
+
+  http::URL url = http::URL(
+      "http",
+      http.process->self().address.ip,
+      http.process->self().address.port,
+      http.process->self().id + "/get");
+
+  Future<http::Connection> connect = http::connect(url);
+  AWAIT_READY(connect);
+
+  http::Connection connection = connect.get();
+
+  // Issue two pipelined requests, the second will not have
+  // 'keepAlive' set. This prevents further requests and leads
+  // to a disconnection upon receiving the second response.
+  Promise<http::Response> promise1, promise2;
+  Future<http::Request> get1, get2;
+
+  EXPECT_CALL(*http.process, get(_))
+    .WillOnce(DoAll(FutureArg<0>(&get1),
+                    Return(promise1.future())))
+    .WillOnce(DoAll(FutureArg<0>(&get2),
+                    Return(promise2.future())));
+
+  http::Request request1, request2;
+
+  request1.method = "GET";
+  request2.method = "GET";
+
+  request1.url = url;
+  request2.url = url;
+
+  request1.keepAlive = true;
+  request2.keepAlive = false;
+
+  Future<http::Response> response1 = connection.send(request1);
+  Future<http::Response> response2 = connection.send(request2);
+
+  // After a closing request, sends should fail.
+  AWAIT_FAILED(connection.send(request1));
+
+  // Complete the responses.
+  promise1.set(http::OK("body"));
+  promise2.set(http::OK("body"));
+
+  AWAIT_READY(response1);
+  AWAIT_READY(response2);
+
+  AWAIT_READY(connection.disconnected());
+}
+
+
+TEST(HTTPConnectionTest, ClosingResponse)
+{
+  Http http;
+
+  http::URL url = http::URL(
+      "http",
+      http.process->self().address.ip,
+      http.process->self().address.port,
+      http.process->self().id + "/get");
+
+  Future<http::Connection> connect = http::connect(url);
+  AWAIT_READY(connect);
+
+  http::Connection connection = connect.get();
+
+  // Issue two pipelined requests, the server will respond
+  // with a 'Connection: close' for the first response, which
+  // will lead to a disconnection.
+  Promise<http::Response> promise1, promise2;
+  Future<http::Request> get1, get2;
+
+  EXPECT_CALL(*http.process, get(_))
+    .WillOnce(DoAll(FutureArg<0>(&get1), Return(promise1.future())))
+    .WillOnce(DoAll(FutureArg<0>(&get2), Return(promise2.future())));
+
+  http::Request request1, request2;
+
+  request1.method = "GET";
+  request2.method = "GET";
+
+  request1.url = url;
+  request2.url = url;
+
+  request1.keepAlive = true;
+  request2.keepAlive = true;
+
+  Future<http::Response> response1 = connection.send(request1);
+  Future<http::Response> response2 = connection.send(request2);
+
+  // The first response will close the connection.
+  http::Response ok = http::OK("body");
+  ok.headers["Connection"] = "close";
+
+  promise1.set(ok);
+
+  AWAIT_READY(response1);
+  AWAIT_FAILED(response2);
+
+  AWAIT_READY(connection.disconnected());
+}
+
+
+TEST(HTTPConnectionTest, ReferenceCounting)
+{
+  Http http;
+
+  http::URL url = http::URL(
+      "http",
+      http.process->self().address.ip,
+      http.process->self().address.port,
+      http.process->self().id + "/get");
+
+  // Capture the connection as a Owned in order to test that
+  // when the last copy of the Connection is destructed, a
+  // disconnection occurs.
+  auto connect = Owned<Future<http::Connection>>(
+      new Future<http::Connection>(http::connect(url)));
+
+  AWAIT_READY(*connect);
+
+  auto connection = Owned<http::Connection>(
+      new http::Connection(connect->get()));
+
+  connect.reset();
+
+  Future<Nothing> disconnected = connection->disconnected();
+
+  // This should be the last remaining copy of the connection.
+  connection.reset();
+
+  AWAIT_READY(disconnected);
+}
+
+
+TEST(HTTPConnectionTest, Equality)
+{
+  Http http;
+
+  http::URL url = http::URL(
+      "http",
+      http.process->self().address.ip,
+      http.process->self().address.port,
+      http.process->self().id + "/get");
+
+  Future<http::Connection> connect = http::connect(url);
+  AWAIT_READY(connect);
+
+  http::Connection connection1 = connect.get();
+
+  connect = http::connect(url);
+  AWAIT_READY(connect);
+
+  http::Connection connection2 = connect.get();
+
+  EXPECT_NE(connection1, connection2);
+  EXPECT_EQ(connection2, connection2);
 }
 
 

@@ -28,11 +28,17 @@
 #include <queue>
 #include <string>
 #include <sstream>
+#include <tuple>
 #include <vector>
 
+#include <process/async.hpp>
+#include <process/defer.hpp>
+#include <process/dispatch.hpp>
 #include <process/future.hpp>
 #include <process/http.hpp>
+#include <process/id.hpp>
 #include <process/owned.hpp>
+#include <process/process.hpp>
 #include <process/socket.hpp>
 
 #include <stout/foreach.hpp>
@@ -55,6 +61,7 @@ using std::ostream;
 using std::ostringstream;
 using std::queue;
 using std::string;
+using std::tuple;
 using std::vector;
 
 using process::http::Request;
@@ -747,6 +754,321 @@ Response __convert(const Response& pipeResponse, const string& body)
   return bodyResponse;
 }
 
+
+class ConnectionProcess : public Process<ConnectionProcess>
+{
+public:
+  ConnectionProcess(const Socket& _socket)
+    : ProcessBase(ID::generate("__http_connection__")),
+      socket(_socket),
+      sendChain(Nothing()),
+      close(false) {}
+
+  Future<Response> send(const Request& request, bool streamedResponse)
+  {
+    if (!disconnection.future().isPending()) {
+      return Failure("Disconnected");
+    }
+
+    if (close) {
+      return Failure("Cannot pipeline after 'Connection: close'");
+    }
+
+    if (!request.keepAlive) {
+      close = true;
+    }
+
+    // We must chain the calls to Socket::send as it
+    // otherwise interleaves data across calls.
+    Socket socket_ = socket;
+
+    sendChain = sendChain
+      .then([socket_, request]() mutable {
+        return socket_.send(encode(request));
+      });
+
+    // If we can't write to the socket, disconnect.
+    sendChain
+      .onFailed(defer(self(), [this](const string& failure) {
+        disconnect(failure);
+      }));
+
+    Promise<Response> promise;
+    Future<Response> response = promise.future();
+
+    pipeline.push(std::make_tuple(streamedResponse, std::move(promise)));
+
+    return response;
+  }
+
+  Future<Nothing> disconnect(const Option<std::string>& message = None())
+  {
+    Try<Nothing> shutdown = socket.shutdown();
+
+    disconnection.set(Nothing());
+
+    // If a response is still streaming, we send EOF to
+    // the decoder in order to fail the pipe reader.
+    if (decoder.writingBody()) {
+      decoder.decode("", 0);
+    }
+
+    // Fail any remaining pipelined responses.
+    while (!pipeline.empty()) {
+      std::get<1>(pipeline.front()).fail(
+          message.isSome() ? message.get() : "Disconnected");
+      pipeline.pop();
+    }
+
+    return shutdown;
+  }
+
+  Future<Nothing> disconnected()
+  {
+    return disconnection.future();
+  }
+
+protected:
+  virtual void initialize()
+  {
+    // Start the read loop on the socket. We read independently
+    // of the requests being sent in order to detect socket
+    // closure at any time.
+    read();
+  }
+
+  virtual void finalize()
+  {
+    disconnect("Connection object was destructed");
+  }
+
+private:
+  void read()
+  {
+    socket.recv()
+      .onAny(defer(self(), &Self::_read, lambda::_1));
+  }
+
+  void _read(const Future<string>& data)
+  {
+    deque<Response*> responses;
+
+    if (!data.isReady() || data->empty()) {
+      // Process EOF. Also send EOF to the decoder if a failure
+      // or discard is encountered.
+      responses = decoder.decode("", 0);
+    } else {
+      // We should only receive data if we're expecting a response
+      // in the pipeline, or if a response body is still streaming.
+      if (pipeline.empty() && !decoder.writingBody()) {
+        disconnect("Received data when none is expected");
+        return;
+      }
+
+      responses = decoder.decode(data->data(), data->length());
+    }
+
+    // Process any decoded responses.
+    while (!responses.empty()) {
+      // We do not expect any responses when the pipeline is empty.
+      // Note that this may occur when a 'Connection: close' header
+      // prematurely terminates the pipeline.
+      if (pipeline.empty()) {
+        while (!responses.empty()) {
+          delete responses.front();
+          responses.pop_front();
+        }
+
+        disconnect("Received response without a request");
+        return;
+      }
+
+      Response* response = responses.front();
+      responses.pop_front();
+
+      tuple<bool, Promise<Response>> t = std::move(pipeline.front());
+      pipeline.pop();
+
+      bool streamedResponse = std::get<0>(t);
+      Promise<Response> promise = std::move(std::get<1>(t));
+
+      if (streamedResponse) {
+        promise.set(*response);
+      } else {
+        // If the response should not be streamed, we convert
+        // the PIPE response into a BODY response.
+        promise.associate(convert(*response));
+      }
+
+      if (response->headers.contains("Connection") &&
+          response->headers.at("Connection") == "close") {
+        // This is the last response the server will send!
+        close = true;
+
+        // Fail the remainder of the pipeline.
+        while (!pipeline.empty()) {
+          std::get<1>(pipeline.front()).fail(
+              "Received 'Connection: close' from the server");
+          pipeline.pop();
+        }
+      }
+
+      delete response;
+    }
+
+    // We keep reading and feeding data to the decoder until
+    // EOF or a failure is encountered.
+    if (!data.isReady()) {
+      disconnect(data.isFailed() ? data.failure() : "discarded");
+      return;
+    } else if (data->empty()) {
+      disconnect(); // EOF.
+      return;
+    } else if (decoder.failed()) {
+      disconnect("Failed to decode response");
+      return;
+    }
+
+    // Close the connection if a 'Connection: close' header
+    // was found and we're done reading the last response.
+    if (close && pipeline.empty() && !decoder.writingBody()) {
+      disconnect();
+      return;
+    }
+
+    read();
+  }
+
+  Socket socket;
+  StreamingResponseDecoder decoder;
+  Future<Nothing> sendChain;
+  Promise<Nothing> disconnection;
+
+  // For each response in the pipeline, we store a bool for
+  // whether the caller wants the response to be streamed.
+  queue<tuple<bool, Promise<Response>>> pipeline;
+
+  // Whether the connection should be closed upon the
+  // completion of the last outstanding response.
+  bool close;
+};
+
+} // namespace internal {
+
+
+struct Connection::Data
+{
+  Data(const Socket& s)
+    : process(new internal::ConnectionProcess(s))
+  {
+    spawn(process.get());
+  }
+
+  ~Data()
+  {
+    // Note that we pass 'false' here to avoid injecting the
+    // termination event at the front of the queue. This is
+    // to ensure we don't drop any queued request dispatches
+    // which would leave the caller with a future stuck in
+    // a pending state.
+    terminate(process.get(), false);
+    wait(process.get());
+  }
+
+  Owned<internal::ConnectionProcess> process;
+};
+
+
+Connection::Connection(const Socket& s)
+  : data(std::make_shared<Connection::Data>(s)) {}
+
+
+Future<Response> Connection::send(
+    const http::Request& request,
+    bool streamedResponse)
+{
+  return dispatch(
+      data->process.get(),
+      &internal::ConnectionProcess::send,
+      request,
+      streamedResponse);
+}
+
+
+Future<Nothing> Connection::disconnect()
+{
+  return dispatch(
+      data->process.get(),
+      &internal::ConnectionProcess::disconnect,
+      None());
+}
+
+
+Future<Nothing> Connection::disconnected()
+{
+  return dispatch(
+      data->process.get(),
+      &internal::ConnectionProcess::disconnected);
+}
+
+
+Future<Connection> connect(const URL& url)
+{
+  // TODO(bmahler): Move address resolution into the URL class?
+  Address address;
+
+  if (url.ip.isNone() && url.domain.isNone()) {
+    return Failure("Expected URL.ip or URL.domain to be set");
+  }
+
+  if (url.ip.isSome()) {
+    address.ip = url.ip.get();
+  } else {
+    Try<net::IP> ip = net::getIP(url.domain.get(), AF_INET);
+
+    if (ip.isError()) {
+      return Failure("Failed to determine IP of domain '" +
+                     url.domain.get() + "': " + ip.error());
+    }
+
+    address.ip = ip.get();
+  }
+
+  if (url.port.isNone()) {
+    return Failure("Expecting url.port to be set");
+  }
+
+  address.port = url.port.get();
+
+  Try<Socket> socket = [&url]() -> Try<Socket> {
+    // Default to 'http' if no scheme was specified.
+    if (url.scheme.isNone() || url.scheme == string("http")) {
+      return Socket::create(Socket::POLL);
+    }
+
+    if (url.scheme == string("https")) {
+#ifdef USE_SSL_SOCKET
+      return Socket::create(Socket::SSL);
+#else
+      return Error("'https' scheme requires SSL enabled");
+#endif
+    }
+
+    return Error("Unsupported URL scheme");
+  }();
+
+  if (socket.isError()) {
+    return Failure("Failed to create socket: " + socket.error());
+  }
+
+  return socket->connect(address)
+    .then([socket]() {
+      return Connection(socket.get());
+    });
+}
+
+
+namespace internal {
 
 // Forward declaration.
 void _decode(
