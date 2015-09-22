@@ -26,6 +26,7 @@
 
 #include <boost/array.hpp>
 
+#include <mesos/attributes.hpp>
 #include <mesos/type_utils.hpp>
 
 #include <mesos/authorizer/authorizer.hpp>
@@ -53,7 +54,6 @@
 #include <stout/try.hpp>
 #include <stout/utils.hpp>
 
-#include "common/attributes.hpp"
 #include "common/build.hpp"
 #include "common/http.hpp"
 #include "common/protobuf_utils.hpp"

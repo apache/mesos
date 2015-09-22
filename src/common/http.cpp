@@ -22,6 +22,7 @@
 #include <utility>
 #include <vector>
 
+#include <mesos/attributes.hpp>
 #include <mesos/resources.hpp>
 
 #include <stout/foreach.hpp>
@@ -29,7 +30,6 @@
 #include <stout/stringify.hpp>
 #include <stout/unreachable.hpp>
 
-#include "common/attributes.hpp"
 #include "common/http.hpp"
 
 #include "messages/messages.hpp"

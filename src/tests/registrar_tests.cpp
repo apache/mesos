@@ -23,6 +23,7 @@
 #include <string>
 #include <vector>
 
+#include <mesos/attributes.hpp>
 #include <mesos/type_utils.hpp>
 
 #include <process/clock.hpp>
@@ -35,7 +36,6 @@
 #include <stout/stopwatch.hpp>
 #include <stout/uuid.hpp>
 
-#include "common/attributes.hpp"
 #include "common/protobuf_utils.hpp"
 
 #include "log/log.hpp"

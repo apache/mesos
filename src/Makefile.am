@@ -536,6 +536,7 @@ libmesos_no_3rdparty_la_SOURCES =					\
 
 
 pkginclude_HEADERS =							\
+  $(top_srcdir)/include/mesos/attributes.hpp				\
   $(top_srcdir)/include/mesos/executor.hpp				\
   $(top_srcdir)/include/mesos/hook.hpp					\
   $(top_srcdir)/include/mesos/http.hpp					\
@@ -740,7 +741,6 @@ libmesos_no_3rdparty_la_SOURCES +=					\
 	authentication/cram_md5/authenticator.hpp			\
 	authentication/cram_md5/auxprop.hpp				\
 	authorizer/local/authorizer.hpp					\
-	common/attributes.hpp						\
 	common/build.hpp						\
 	common/date_utils.hpp						\
 	common/http.hpp							\

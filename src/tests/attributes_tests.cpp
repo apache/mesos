@@ -21,7 +21,7 @@
 
 #include <gtest/gtest.h>
 
-#include "common/attributes.hpp"
+#include <mesos/attributes.hpp>
 
 using std::string;
 

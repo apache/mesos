@@ -28,6 +28,7 @@
 
 #include <boost/circular_buffer.hpp>
 
+#include <mesos/attributes.hpp>
 #include <mesos/resources.hpp>
 #include <mesos/type_utils.hpp>
 
@@ -62,7 +63,6 @@
 #include "slave/paths.hpp"
 #include "slave/state.hpp"
 
-#include "common/attributes.hpp"
 #include "common/protobuf_utils.hpp"
 
 #include "files/files.hpp"

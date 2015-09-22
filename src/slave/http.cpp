@@ -26,6 +26,7 @@
 
 #include <mesos/v1/executor/executor.hpp>
 
+#include <mesos/attributes.hpp>
 #include <mesos/type_utils.hpp>
 
 #include <process/help.hpp>
@@ -41,7 +42,6 @@
 #include <stout/stringify.hpp>
 #include <stout/strings.hpp>
 
-#include "common/attributes.hpp"
 #include "common/build.hpp"
 #include "common/http.hpp"
 

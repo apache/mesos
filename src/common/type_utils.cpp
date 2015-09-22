@@ -16,11 +16,10 @@
  * limitations under the License.
  */
 
+#include <mesos/attributes.hpp>
 #include <mesos/mesos.hpp>
 #include <mesos/resources.hpp>
 #include <mesos/type_utils.hpp>
-
-#include "common/attributes.hpp"
 
 #include "messages/messages.hpp"
 
@@ -333,8 +332,7 @@ bool operator==(const SlaveInfo& left, const SlaveInfo& right)
 {
   return left.hostname() == right.hostname() &&
     Resources(left.resources()) == Resources(right.resources()) &&
-    internal::Attributes(left.attributes()) ==
-      internal::Attributes(right.attributes()) &&
+    Attributes(left.attributes()) == Attributes(right.attributes()) &&
     left.id() == right.id() &&
     left.checkpoint() == right.checkpoint() &&
     left.port() == right.port();

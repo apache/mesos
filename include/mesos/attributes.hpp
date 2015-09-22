@@ -30,9 +30,6 @@ namespace mesos {
 
 std::ostream& operator<<(std::ostream& stream, const Attribute& attribute);
 
-namespace internal {
-
-
 class Attributes
 {
 public:
@@ -115,8 +112,6 @@ private:
   google::protobuf::RepeatedPtrField<Attribute> attributes;
 };
 
-
-} // namespace internal {
 } // namespace mesos {
 
 #endif // __ATTRIBUTES_HPP__

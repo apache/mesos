@@ -31,10 +31,10 @@
 namespace mesos {
 
 class Resources;
+class Attributes;
 
 namespace internal {
 
-class Attributes;
 class Task;
 
 
