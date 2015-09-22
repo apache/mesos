@@ -682,6 +682,7 @@ if OS_LINUX
   libmesos_no_3rdparty_la_SOURCES += linux/cgroups.cpp
   libmesos_no_3rdparty_la_SOURCES += linux/fs.cpp
   libmesos_no_3rdparty_la_SOURCES += linux/perf.cpp
+  libmesos_no_3rdparty_la_SOURCES += linux/systemd.cpp
   libmesos_no_3rdparty_la_SOURCES += slave/containerizer/isolators/cgroups/cpushare.cpp
   libmesos_no_3rdparty_la_SOURCES += slave/containerizer/isolators/cgroups/mem.cpp
   libmesos_no_3rdparty_la_SOURCES += slave/containerizer/isolators/cgroups/perf_event.cpp
@@ -693,6 +694,7 @@ if OS_LINUX
 else
   EXTRA_DIST += linux/cgroups.cpp
   EXTRA_DIST += linux/fs.cpp
+  EXTRA_DIST += linux/systemd.cpp
 endif
 
 if WITH_NETWORK_ISOLATOR
@@ -763,6 +765,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
 	linux/ns.hpp							\
 	linux/perf.hpp							\
 	linux/sched.hpp							\
+	linux/systemd.hpp						\
 	local/flags.hpp							\
 	local/local.hpp							\
 	logging/flags.hpp						\

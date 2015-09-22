@@ -34,6 +34,7 @@
 
 #include "linux/cgroups.hpp"
 #include "linux/ns.hpp"
+#include "linux/systemd.hpp"
 
 #include "mesos/resources.hpp"
 
@@ -65,42 +66,56 @@ static ContainerID container(const string& cgroup)
 }
 
 
+// `_systemdHierarchy` is only set if running on a systemd environment.
 LinuxLauncher::LinuxLauncher(
     const Flags& _flags,
-    const string& _hierarchy)
+    const string& _freezerHierarchy,
+    const Option<string>& _systemdHierarchy)
   : flags(_flags),
-    hierarchy(_hierarchy) {}
+    freezerHierarchy(_freezerHierarchy),
+    systemdHierarchy(_systemdHierarchy) {}
 
 
 Try<Launcher*> LinuxLauncher::create(const Flags& flags)
 {
-  Try<string> hierarchy = cgroups::prepare(
+  Try<string> freezerHierarchy = cgroups::prepare(
       flags.cgroups_hierarchy,
       "freezer",
       flags.cgroups_root);
 
-  if (hierarchy.isError()) {
-    return Error("Failed to create Linux launcher: " + hierarchy.error());
+  if (freezerHierarchy.isError()) {
+    return Error(
+        "Failed to create Linux launcher: " + freezerHierarchy.error());
   }
 
-  // Ensure that no other subsystem is attached to the hierarchy.
-  Try<set<string>> subsystems = cgroups::subsystems(hierarchy.get());
+  // Ensure that no other subsystem is attached to the freezer hierarchy.
+  Try<set<string>> subsystems = cgroups::subsystems(freezerHierarchy.get());
   if (subsystems.isError()) {
     return Error(
         "Failed to get the list of attached subsystems for hierarchy " +
-        hierarchy.get());
+        freezerHierarchy.get());
   } else if (subsystems.get().size() != 1) {
     return Error(
         "Unexpected subsystems found attached to the hierarchy " +
-        hierarchy.get());
+        freezerHierarchy.get());
   }
 
-  LOG(INFO) << "Using " << hierarchy.get()
+  LOG(INFO) << "Using " << freezerHierarchy.get()
             << " as the freezer hierarchy for the Linux launcher";
+
+  // On systemd environments we currently migrate executor pids into a separate
+  // executor slice. This allows the life-time of the executor to be extended
+  // past the life-time of the slave. See MESOS-3352.
+  // The LinuxLauncher takes responsibility for creating and starting this
+  // slice. It then migrates executor pids into this slice before it "unpauses"
+  // the executor. This is the same pattern as the freezer.
 
   return new LinuxLauncher(
       flags,
-      hierarchy.get());
+      freezerHierarchy.get(),
+      systemd::exists() ?
+        Some(flags.cgroups_hierarchy + "/systemd") :
+        Option<std::string>::none());
 }
 
 
@@ -131,7 +146,7 @@ Future<hashset<ContainerID>> LinuxLauncher::recover(
     // destroy() when we clean up.
     pids.put(containerId, pid);
 
-    Try<bool> exists = cgroups::exists(hierarchy, cgroup(containerId));
+    Try<bool> exists = cgroups::exists(freezerHierarchy, cgroup(containerId));
 
     if (!exists.get()) {
       // This may occur if the freezer cgroup was destroyed but the
@@ -147,7 +162,9 @@ Future<hashset<ContainerID>> LinuxLauncher::recover(
   }
 
   // Return the set of orphan containers.
-  Try<vector<string>> cgroups = cgroups::get(hierarchy, flags.cgroups_root);
+  Try<vector<string>> cgroups =
+    cgroups::get(freezerHierarchy, flags.cgroups_root);
+
   if (cgroups.isError()) {
     return Failure(cgroups.error());
   }
@@ -215,14 +232,15 @@ Try<pid_t> LinuxLauncher::fork(
     const Option<int>& namespaces)
 {
   // Create a freezer cgroup for this container if necessary.
-  Try<bool> exists = cgroups::exists(hierarchy, cgroup(containerId));
+  Try<bool> exists = cgroups::exists(freezerHierarchy, cgroup(containerId));
   if (exists.isError()) {
     return Error("Failed to check existence of freezer cgroup: " +
                  exists.error());
   }
 
   if (!exists.get()) {
-    Try<Nothing> created = cgroups::create(hierarchy, cgroup(containerId));
+    Try<Nothing> created =
+      cgroups::create(freezerHierarchy, cgroup(containerId));
 
     if (created.isError()) {
       return Error("Failed to create freezer cgroup: " + created.error());
@@ -266,7 +284,7 @@ Try<pid_t> LinuxLauncher::fork(
   // TODO(jieyu): Move this logic to the subprocess (i.e.,
   // mesos-containerizer launch).
   Try<Nothing> assign = cgroups::assign(
-      hierarchy,
+      freezerHierarchy,
       cgroup(containerId),
       child.get().pid());
 
@@ -313,7 +331,7 @@ Future<Nothing> LinuxLauncher::destroy(const ContainerID& containerId)
 
   // Just return if the cgroup was destroyed and the slave didn't receive the
   // notification. See comment in recover().
-  Try<bool> exists = cgroups::exists(hierarchy, cgroup(containerId));
+  Try<bool> exists = cgroups::exists(freezerHierarchy, cgroup(containerId));
   if (exists.isError()) {
     return Failure("Failed to check existence of freezer cgroup: " +
                    exists.error());
@@ -334,14 +352,14 @@ Future<Nothing> LinuxLauncher::destroy(const ContainerID& containerId)
             (Future<Nothing>(*)(const string&,
                                 const string&,
                                 const Duration&))(&cgroups::destroy),
-            hierarchy,
+            freezerHierarchy,
             cgroup(containerId),
             cgroups::DESTROY_TIMEOUT));
   }
 
   // Try to clean up using just the freezer cgroup.
   return cgroups::destroy(
-      hierarchy,
+      freezerHierarchy,
       cgroup(containerId),
       cgroups::DESTROY_TIMEOUT);
 }

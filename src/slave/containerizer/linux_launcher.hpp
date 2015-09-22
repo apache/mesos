@@ -54,11 +54,13 @@ public:
 private:
   LinuxLauncher(
       const Flags& flags,
-      const std::string& hierarchy);
+      const std::string& freezerHierarchy,
+      const Option<std::string>& systemdHierarchy);
 
   static const std::string subsystem;
   const Flags flags;
-  const std::string hierarchy;
+  const std::string freezerHierarchy;
+  const Option<std::string> systemdHierarchy;
 
   std::string cgroup(const ContainerID& containerId);
 
