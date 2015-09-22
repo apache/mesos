@@ -183,6 +183,22 @@ Future<hashset<ContainerID>> LinuxLauncher::recover(
 {
   hashset<string> recovered;
 
+  // On systemd environments, capture the pids under the
+  // `SYSTEMD_MESOS_EXECUTORS_SLICE` for validation during recovery.
+  Result<std::set<pid_t>> mesosExecutorSlicePids = None();
+  if (systemdHierarchy.isSome()) {
+    mesosExecutorSlicePids =
+      cgroups::processes(systemdHierarchy.get(), SYSTEMD_MESOS_EXECUTORS_SLICE);
+
+    // If we error out trying to read the pids from the
+    // `SYSTEMD_MESOS_EXECUTORS_SLICE` we fail. This is a programmer error as we
+    // did not set up the slice correctly.
+    if (mesosExecutorSlicePids.isError()) {
+      return Failure("Failed to read pids from systemd `" +
+                     stringify(SYSTEMD_MESOS_EXECUTORS_SLICE) + "`");
+    }
+  }
+
   foreach (const ContainerState& state, states) {
     const ContainerID& containerId = state.container_id();
     pid_t pid = state.pid();
@@ -215,6 +231,22 @@ Future<hashset<ContainerID>> LinuxLauncher::recover(
       LOG(INFO) << "Couldn't find freezer cgroup for container "
                 << containerId << ", assuming already destroyed";
       continue;
+    }
+
+    // If we are on a systemd environment, check that the pid is still in the
+    // `SYSTEMD_MESOS_EXECUTORS_SLICE`. If it is not, warn the operator that
+    // resource isolation may be invalidated.
+    // TODO(jmlvanre): Add a flag that enforces this matching (i.e. exits if a
+    // pid was found in the freezer but not in the
+    // `SYSTEMD_MESOS_EXECUTORS_SLICE`. We need to flag to support the upgrade
+    // path.
+    if (systemdHierarchy.isSome() && mesosExecutorSlicePids.isSome()) {
+      if (mesosExecutorSlicePids.get().count(pid) <= 0) {
+        LOG(WARNING)
+          << "Couldn't find pid `" << pid << "` in `"
+          << SYSTEMD_MESOS_EXECUTORS_SLICE << "`. This can lead to lack of"
+          << " proper resource isolation";
+      }
     }
 
     recovered.insert(cgroup(containerId));
