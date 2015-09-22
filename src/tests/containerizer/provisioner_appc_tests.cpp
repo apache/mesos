@@ -326,8 +326,8 @@ TEST_F(ProvisionerAppcTest, Recover)
   flags.work_dir = "work_dir";
 
   Fetcher fetcher;
-  Try<Owned<Provisioner>> provisioners1 = Provisioner::create(flags, &fetcher);
-  ASSERT_SOME(provisioners1);
+  Try<Owned<Provisioner>> provisioner1 = Provisioner::create(flags, &fetcher);
+  ASSERT_SOME(provisioner1);
 
   // Create a simple image in the store:
   // <store>
@@ -359,7 +359,7 @@ TEST_F(ProvisionerAppcTest, Recover)
       os::write(path::join(imagePath, "manifest"), stringify(manifest)));
 
   // Recover. This is when the image in the store is loaded.
-  AWAIT_READY(provisioners1.get()->recover({}, {}));
+  AWAIT_READY(provisioner1.get()->recover({}, {}));
 
   Image image;
   image.mutable_appc()->set_name("foo.com/bar");
@@ -367,12 +367,12 @@ TEST_F(ProvisionerAppcTest, Recover)
   ContainerID containerId;
   containerId.set_value(UUID::random().toString());
 
-  Future<string> rootfs = provisioners1.get()->provision(containerId, image);
+  Future<string> rootfs = provisioner1.get()->provision(containerId, image);
   AWAIT_READY(rootfs);
 
   // Create a new provisioner to recover the state from the container.
-  Try<Owned<Provisioner>> provisioners2 = Provisioner::create(flags, &fetcher);
-  ASSERT_SOME(provisioners2);
+  Try<Owned<Provisioner>> provisioner2 = Provisioner::create(flags, &fetcher);
+  ASSERT_SOME(provisioner2);
 
   mesos::slave::ContainerState state;
 
@@ -382,11 +382,11 @@ TEST_F(ProvisionerAppcTest, Recover)
   // ExecutorInfo.
   state.mutable_container_id()->CopyFrom(containerId);
 
-  AWAIT_READY(provisioners2.get()->recover({state}, {}));
+  AWAIT_READY(provisioner2.get()->recover({state}, {}));
 
   // It's possible for the user to provision two different rootfses
   // from the same image.
-  AWAIT_READY(provisioners2.get()->provision(containerId, image));
+  AWAIT_READY(provisioner2.get()->provision(containerId, image));
 
   string provisionerDir = slave::paths::getProvisionerDir(flags.work_dir);
 
@@ -406,7 +406,7 @@ TEST_F(ProvisionerAppcTest, Recover)
   ASSERT_TRUE(rootfses->contains(flags.image_provisioner_backend));
   EXPECT_EQ(2u, rootfses->get(flags.image_provisioner_backend)->size());
 
-  Future<bool> destroy = provisioners2.get()->destroy(containerId);
+  Future<bool> destroy = provisioner2.get()->destroy(containerId);
   AWAIT_READY(destroy);
   EXPECT_TRUE(destroy.get());
 
