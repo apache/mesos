@@ -762,7 +762,7 @@ Future<Response> _request(
     const URL& url,
     const string& method,
     bool streamingResponse,
-    const Option<hashmap<string, string>>& _headers,
+    const Option<Headers>& _headers,
     const Option<string>& body,
     const Option<string>& contentType);
 
@@ -771,7 +771,7 @@ Future<Response> request(
     const URL& url,
     const string& method,
     bool streamedResponse,
-    const Option<hashmap<string, string>>& headers,
+    const Option<Headers>& headers,
     const Option<string>& body,
     const Option<string>& contentType)
 {
@@ -838,7 +838,7 @@ Future<Response> _request(
     const URL& url,
     const string& method,
     bool streamedResponse,
-    const Option<hashmap<string, string>>& _headers,
+    const Option<Headers>& _headers,
     const Option<string>& body,
     const Option<string>& contentType)
 {
@@ -864,7 +864,7 @@ Future<Response> _request(
   out << " HTTP/1.1\r\n";
 
   // Set up the headers as necessary.
-  hashmap<string, string> headers;
+  Headers headers;
 
   if (_headers.isSome()) {
     headers = _headers.get();
@@ -937,7 +937,7 @@ Future<Response> _request(
 
 Future<Response> get(
     const URL& url,
-    const Option<hashmap<string, string>>& headers)
+    const Option<Headers>& headers)
 {
   return internal::request(url, "GET", false, headers, None(), None());
 }
@@ -947,7 +947,7 @@ Future<Response> get(
     const UPID& upid,
     const Option<string>& path,
     const Option<string>& query,
-    const Option<hashmap<string, string>>& headers)
+    const Option<Headers>& headers)
 {
   URL url("http", net::IP(upid.address.ip), upid.address.port, upid.id);
 
@@ -973,7 +973,7 @@ Future<Response> get(
 
 Future<Response> post(
     const URL& url,
-    const Option<hashmap<string, string>>& headers,
+    const Option<Headers>& headers,
     const Option<string>& body,
     const Option<string>& contentType)
 {
@@ -988,7 +988,7 @@ Future<Response> post(
 Future<Response> post(
     const UPID& upid,
     const Option<string>& path,
-    const Option<hashmap<string, string>>& headers,
+    const Option<Headers>& headers,
     const Option<string>& body,
     const Option<string>& contentType)
 {
@@ -1005,7 +1005,7 @@ Future<Response> post(
 
 Future<Response> requestDelete(
     const URL& url,
-    const Option<hashmap<string, string>>& headers)
+    const Option<Headers>& headers)
 {
   return internal::request(url, "DELETE", false, headers, None(), None());
 }
@@ -1014,7 +1014,7 @@ Future<Response> requestDelete(
 Future<Response> requestDelete(
     const UPID& upid,
     const Option<string>& path,
-    const Option<hashmap<string, string>>& headers)
+    const Option<Headers>& headers)
 {
   URL url("http", net::IP(upid.address.ip), upid.address.port, upid.id);
 
@@ -1033,7 +1033,7 @@ namespace streaming {
 
 Future<Response> get(
     const URL& url,
-    const Option<hashmap<string, string>>& headers)
+    const Option<Headers>& headers)
 {
   return internal::request(url, "GET", true, headers, None(), None());
 }
@@ -1043,7 +1043,7 @@ Future<Response> get(
     const UPID& upid,
     const Option<string>& path,
     const Option<string>& query,
-    const Option<hashmap<string, string>>& headers)
+    const Option<Headers>& headers)
 {
   URL url("http", net::IP(upid.address.ip), upid.address.port, upid.id);
 
@@ -1069,7 +1069,7 @@ Future<Response> get(
 
 Future<Response> post(
     const URL& url,
-    const Option<hashmap<string, string>>& headers,
+    const Option<Headers>& headers,
     const Option<string>& body,
     const Option<string>& contentType)
 {
@@ -1084,7 +1084,7 @@ Future<Response> post(
 Future<Response> post(
     const UPID& upid,
     const Option<string>& path,
-    const Option<hashmap<string, string>>& headers,
+    const Option<Headers>& headers,
     const Option<string>& body,
     const Option<string>& contentType)
 {

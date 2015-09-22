@@ -145,6 +145,12 @@ struct CaseInsensitiveEqual
 };
 
 
+typedef hashmap<std::string,
+                std::string,
+                CaseInsensitiveHash,
+                CaseInsensitiveEqual> Headers;
+
+
 struct Request
 {
   std::string method;
@@ -155,10 +161,7 @@ struct Request
   // For server requests, the URL may be a URI or a relative reference.
   URL url;
 
-  hashmap<std::string,
-          std::string,
-          CaseInsensitiveHash,
-          CaseInsensitiveEqual> headers;
+  Headers headers;
 
   // TODO(bmahler): Add a 'query' field which contains both
   // the URL query and the parsed form data from the body.
@@ -356,10 +359,7 @@ struct Response
   // TODO(benh): Add major/minor version.
   std::string status;
 
-  hashmap<std::string,
-          std::string,
-          CaseInsensitiveHash,
-          CaseInsensitiveEqual> headers;
+  Headers headers;
 
   // Either provide a 'body', an absolute 'path' to a file, or a
   // 'pipe' for streaming a response. Distinguish between the cases
@@ -723,7 +723,7 @@ std::string encode(const hashmap<std::string, std::string>& query);
 // response is received.
 Future<Response> get(
     const URL& url,
-    const Option<hashmap<std::string, std::string>>& headers = None());
+    const Option<Headers>& headers = None());
 
 
 // Asynchronously sends an HTTP GET request to the process with the
@@ -733,7 +733,7 @@ Future<Response> get(
     const UPID& upid,
     const Option<std::string>& path = None(),
     const Option<std::string>& query = None(),
-    const Option<hashmap<std::string, std::string>>& headers = None());
+    const Option<Headers>& headers = None());
 
 
 // Asynchronously sends an HTTP POST request to the specified URL
@@ -741,7 +741,7 @@ Future<Response> get(
 // response is received.
 Future<Response> post(
     const URL& url,
-    const Option<hashmap<std::string, std::string>>& headers = None(),
+    const Option<Headers>& headers = None(),
     const Option<std::string>& body = None(),
     const Option<std::string>& contentType = None());
 
@@ -752,7 +752,7 @@ Future<Response> post(
 Future<Response> post(
     const UPID& upid,
     const Option<std::string>& path = None(),
-    const Option<hashmap<std::string, std::string>>& headers = None(),
+    const Option<Headers>& headers = None(),
     const Option<std::string>& body = None(),
     const Option<std::string>& contentType = None());
 
@@ -767,7 +767,7 @@ Future<Response> post(
  */
 Future<Response> requestDelete(
     const URL& url,
-    const Option<hashmap<std::string, std::string>>& headers = None());
+    const Option<Headers>& headers = None());
 
 
 /**
@@ -783,7 +783,7 @@ Future<Response> requestDelete(
 Future<Response> requestDelete(
     const UPID& upid,
     const Option<std::string>& path = None(),
-    const Option<hashmap<std::string, std::string>>& headers = None());
+    const Option<Headers>& headers = None());
 
 
 namespace streaming {
@@ -794,7 +794,7 @@ namespace streaming {
 // from the Pipe::Reader.
 Future<Response> get(
     const URL& url,
-    const Option<hashmap<std::string, std::string>>& headers = None());
+    const Option<Headers>& headers = None());
 
 // Asynchronously sends an HTTP GET request to the process with the
 // given UPID and returns the HTTP response of type 'PIPE' once the
@@ -804,7 +804,7 @@ Future<Response> get(
     const UPID& upid,
     const Option<std::string>& path = None(),
     const Option<std::string>& query = None(),
-    const Option<hashmap<std::string, std::string>>& headers = None());
+    const Option<Headers>& headers = None());
 
 // Asynchronously sends an HTTP POST request to the specified URL
 // and returns the HTTP response of type 'PIPE' once the response
@@ -812,7 +812,7 @@ Future<Response> get(
 // from the Pipe::Reader.
 Future<Response> post(
     const URL& url,
-    const Option<hashmap<std::string, std::string>>& headers = None(),
+    const Option<Headers>& headers = None(),
     const Option<std::string>& body = None(),
     const Option<std::string>& contentType = None());
 
@@ -823,7 +823,7 @@ Future<Response> post(
 Future<Response> post(
     const UPID& upid,
     const Option<std::string>& path = None(),
-    const Option<hashmap<std::string, std::string>>& headers = None(),
+    const Option<Headers>& headers = None(),
     const Option<std::string>& body = None(),
     const Option<std::string>& contentType = None());
 

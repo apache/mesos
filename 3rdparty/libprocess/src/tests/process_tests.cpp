@@ -1371,7 +1371,7 @@ TEST(ProcessTest, Http1)
     .WillOnce(DoAll(FutureArg<0>(&pid),
                     FutureArg<1>(&body)));
 
-  hashmap<string, string> headers;
+  http::Headers headers;
   headers["User-Agent"] = "libprocess/";
 
   Future<http::Response> response =
@@ -1419,7 +1419,7 @@ TEST(ProcessTest, Http2)
     .WillOnce(DoAll(FutureArg<0>(&pid),
                     FutureArg<1>(&body)));
 
-  hashmap<string, string> headers;
+  http::Headers headers;
   headers["Libprocess-From"] = stringify(from);
 
   Future<http::Response> response =
@@ -1745,7 +1745,7 @@ TEST(ProcessTest, PercentEncodedURLs)
   EXPECT_CALL(process, handler1(_, _))
     .WillOnce(FutureSatisfy(&handler1));
 
-  hashmap<string, string> headers;
+  http::Headers headers;
   headers["User-Agent"] = "libprocess/";
 
   Future<http::Response> response = http::post(pid, "handler1", headers);

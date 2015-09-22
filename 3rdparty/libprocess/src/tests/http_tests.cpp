@@ -127,7 +127,7 @@ TEST(HTTPTest, Auth)
                  noAuthFuture.get().headers.get("WWW-authenticate"));
 
   // Now test passing wrong auth header.
-  hashmap<string, string> headers;
+  http::Headers headers;
   headers["Authorization"] = "Basic " + base64::encode("testuser:wrongpass");
 
   Future<http::Response> wrongAuthFuture =
@@ -606,7 +606,7 @@ TEST(HTTPTest, Post)
   ASSERT_EQ(http::statuses[200], future.get().status);
 
   // Now test passing headers instead.
-  hashmap<string, string> headers;
+  http::Headers headers;
   headers["Content-Type"] = "text/plain";
 
   EXPECT_CALL(*http.process, post(_))
