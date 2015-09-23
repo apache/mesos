@@ -1772,12 +1772,14 @@ Future<Response> Master::Http::maintenanceStatus(const Request& request) const
                 SlaveID,
                 hashmap<FrameworkID, mesos::master::InverseOfferStatus>> result)
           -> Future<Response> {
-
     // Unwrap the master's machine information into two arrays of machines.
     // The data is coming from the allocator and therefore could be stale.
     // Also, if the master fails over, this data is cleared.
     mesos::maintenance::ClusterStatus status;
-    foreachpair (const MachineID& id, const Machine& machine, master->machines) {
+    foreachpair (
+        const MachineID& id,
+        const Machine& machine,
+        master->machines) {
       switch (machine.info.mode()) {
         case MachineInfo::DRAINING: {
           mesos::maintenance::ClusterStatus::DrainingMachine* drainingMachine =
