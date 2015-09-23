@@ -215,13 +215,28 @@ Try<MesosContainerizer*> MesosContainerizer::create(
   }
 
 #ifdef __linux__
-  // Always use LinuxLauncher if running as root since we will be picking
-  // namespaces during the fork() call.
-  Try<Launcher*> launcher =
-    (geteuid() == 0)
-    ? LinuxLauncher::create(flags_)
-    : PosixLauncher::create(flags_);
+  Try<Launcher*> launcher = (Launcher*) NULL;
+  if (flags_.launcher.isSome()) {
+    // If the user has specified the launcher, use it.
+    if (flags_.launcher.get() == "linux") {
+      launcher = LinuxLauncher::create(flags_);
+    } else if (flags_.launcher.get() == "posix") {
+      launcher = PosixLauncher::create(flags_);
+    } else {
+      return Error("Unknown or unsupported launcher: " + flags_.launcher.get());
+    }
+  } else {
+    // If the user has not specified the launcher, use Linux launcher
+    // if running as root, posix launcher otherwise.
+    launcher = (::geteuid() == 0)
+      ? LinuxLauncher::create(flags_)
+      : PosixLauncher::create(flags_);
+  }
 #else
+  if (flags_.launcher.isSome() && flags_.launcher.get() != "posix") {
+    return Error("Unsupported launcher: " + flags_.launcher.get());
+  }
+
   Try<Launcher*> launcher = PosixLauncher::create(flags_);
 #endif // __linux__
 

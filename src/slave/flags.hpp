@@ -46,6 +46,7 @@ public:
   Option<std::string> hostname;
   Option<std::string> resources;
   std::string isolation;
+  Option<std::string> launcher;
 
   Option<std::string> image_providers;
   std::string image_provisioner_backend;

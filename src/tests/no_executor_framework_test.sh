@@ -30,5 +30,8 @@ export MESOS_RESOURCES="cpus:2;mem:10240"
 # Set isolation for the slave.
 export MESOS_ISOLATION="filesystem/posix,posix/cpu,posix/mem"
 
+# Set launcher for the slave.
+export MESOS_LAUNCHER="posix"
+
 # Check that the C++ test framework executes without crashing (returns 0).
 exec ${MESOS_BUILD_DIR}/src/no-executor-framework --master=local --num_tasks=5
