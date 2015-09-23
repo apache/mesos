@@ -48,13 +48,36 @@ const char* testRemoveLabelKey = "MESOS_Test_Remove_Label";
 class HookProcess : public ProtobufProcess<HookProcess>
 {
 public:
-  Future<Nothing> signal()
+  void initialize()
   {
+    install<internal::HookExecuted>(
+        &HookProcess::handler,
+        &internal::HookExecuted::module);
+  }
+
+  void signal()
+  {
+    LOG(INFO) << "HookProcess emitting signal";
+
     internal::HookExecuted message;
     message.set_module("org_apache_mesos_TestHook");
     send(self(), message);
-    return Nothing();
   }
+
+  void handler(const process::UPID& from, const string& module)
+  {
+    LOG(INFO) << "HookProcess caught signal: " << module;
+
+    promise.set(Nothing());
+  }
+
+  Future<Nothing> await()
+  {
+    return promise.future();
+  }
+
+private:
+  process::Promise<Nothing> promise;
 };
 
 
@@ -163,7 +186,15 @@ public:
     // indicates successful execution of this hook.
     HookProcess hookProcess;
     process::spawn(&hookProcess);
-    process::dispatch(hookProcess, &HookProcess::signal).await();
+    Future<Nothing> future =
+      process::dispatch(hookProcess, &HookProcess::await);
+
+    process::dispatch(hookProcess, &HookProcess::signal);
+
+    // Make sure we don't terminate the process before the message self-send has
+    // completed.
+    future.await();
+
     process::terminate(hookProcess);
     process::wait(hookProcess);
 
