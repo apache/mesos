@@ -162,53 +162,6 @@ Future<hashset<ContainerID>> LinuxLauncher::recover(
 }
 
 
-// Helper for clone() which expects an int(void*).
-static int childMain(void* _func)
-{
-  const lambda::function<int()>* func =
-    static_cast<const lambda::function<int()>*> (_func);
-
-  return (*func)();
-}
-
-
-// The customized clone function which will be used by 'subprocess()'.
-static pid_t clone(
-    const lambda::function<int()>& func,
-    const Option<int>& namespaces)
-{
-  // Stack for the child.
-  // - unsigned long long used for best alignment.
-  // - static is ok because each child gets their own copy after the clone.
-  // - 8 MiB appears to be the default for "ulimit -s" on OSX and Linux.
-  //
-  // NOTE: We need to allocate the stack dynamically. This is because
-  // glibc's 'clone' will modify the stack passed to it, therefore the
-  // stack must NOT be shared as multiple 'clone's can be invoked
-  // simultaneously.
-  int stackSize = 8 * 1024 * 1024;
-
-  unsigned long long *stack =
-    new unsigned long long[stackSize/sizeof(unsigned long long)];
-
-  int flags = namespaces.isSome() ? namespaces.get() : 0;
-  flags |= SIGCHLD; // Specify SIGCHLD as child termination signal.
-
-  LOG(INFO) << "Cloning child process with flags = "
-            << ns::stringify(flags);
-
-  pid_t pid = ::clone(
-      childMain,
-      &stack[stackSize/sizeof(stack[0]) - 1],  // stack grows down.
-      flags,
-      (void*) &func);
-
-  delete[] stack;
-
-  return pid;
-}
-
-
 static int childSetup(
     int pipes[2],
     const Option<lambda::function<int()>>& setup)
@@ -284,6 +237,12 @@ Try<pid_t> LinuxLauncher::fork(
   // use CHECK.
   CHECK_EQ(0, ::pipe(pipes));
 
+  int cloneFlags = namespaces.isSome() ? namespaces.get() : 0;
+  cloneFlags |= SIGCHLD; // Specify SIGCHLD as child termination signal.
+
+  LOG(INFO) << "Cloning child process with flags = "
+            << ns::stringify(cloneFlags);
+
   Try<Subprocess> child = subprocess(
       path,
       argv,
@@ -293,7 +252,7 @@ Try<pid_t> LinuxLauncher::fork(
       flags,
       environment,
       lambda::bind(&childSetup, pipes, setup),
-      lambda::bind(&clone, lambda::_1, namespaces));
+      lambda::bind(&os::clone, lambda::_1, cloneFlags));
 
   if (child.isError()) {
     return Error("Failed to clone child process: " + child.error());
