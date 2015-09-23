@@ -844,6 +844,66 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_MultipleContainers)
   EXPECT_TRUE(wait2.get().has_status());
   EXPECT_EQ(0, wait2.get().status());
 }
+
+
+// This test verifies that the environment variables for sandbox
+// (i.e., MESOS_DIRECTORY and MESOS_SANDBOX) are set properly.
+TEST_F(LinuxFilesystemIsolatorTest, ROOT_SandboxEnvironmentVariable)
+{
+  slave::Flags flags = CreateSlaveFlags();
+
+  ContainerID containerId;
+  containerId.set_value(UUID::random().toString());
+
+  string rootfsesDir = slave::provisioner::paths::getContainerDir(
+      slave::paths::getProvisionerDir(flags.work_dir),
+      containerId);
+
+  Try<Owned<MesosContainerizer>> containerizer = createContainerizer(
+      flags,
+      {{"test_image", path::join(rootfsesDir, "test_image")}});
+
+  ASSERT_SOME(containerizer);
+
+  string directory = path::join(os::getcwd(), "sandbox");
+  ASSERT_SOME(os::mkdir(directory));
+
+  Try<string> script = strings::format(
+      "if [ \"$MESOS_DIRECTORY\" != \"%s\" ]; then exit 1; fi &&"
+      "if [ \"$MESOS_SANDBOX\" != \"%s\" ]; then exit 1; fi",
+      directory,
+      flags.sandbox_directory);
+
+  ASSERT_SOME(script);
+
+  ExecutorInfo executor = CREATE_EXECUTOR_INFO(
+      "test_executor",
+      script.get());
+
+  executor.mutable_container()->CopyFrom(createContainerInfo("test_image"));
+
+  Future<bool> launch = containerizer.get()->launch(
+      containerId,
+      executor,
+      directory,
+      None(),
+      SlaveID(),
+      PID<Slave>(),
+      false);
+
+  // Wait for the launch to complete.
+  AWAIT_READY(launch);
+
+  // Wait on the container.
+  Future<containerizer::Termination> wait =
+    containerizer.get()->wait(containerId);
+
+  AWAIT_READY(wait);
+
+  // Check the executor exited correctly.
+  EXPECT_TRUE(wait.get().has_status());
+  EXPECT_EQ(0, wait.get().status());
+}
 #endif // __linux__
 
 } // namespace tests {

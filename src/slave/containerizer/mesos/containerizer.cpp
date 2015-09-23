@@ -771,11 +771,16 @@ Future<bool> MesosContainerizerProcess::_launch(
   // Prepare environment variables for the executor.
   map<string, string> environment = executorEnvironment(
       executorInfo,
-      rootfs.isSome() ? flags.sandbox_directory : directory,
+      directory,
       slaveId,
       slavePid,
       checkpoint,
       flags);
+
+  // TODO(jieyu): Consider moving this to 'executorEnvironment' and
+  // consolidating with docker containerizer.
+  environment["MESOS_SANDBOX"] =
+    rootfs.isSome() ? flags.sandbox_directory : directory;
 
   // Include any enviroment variables from CommandInfo.
   foreach (const Environment::Variable& variable,

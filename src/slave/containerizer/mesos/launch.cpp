@@ -53,6 +53,7 @@ MesosContainerizerLaunch::Flags::Flags()
       "command",
       "The command to execute.");
 
+  // TODO(jieyu): Consider renaming it to 'sandbox'.
   add(&directory,
       "directory",
       "The directory to chdir to. If rootfs is specified this must\n"
