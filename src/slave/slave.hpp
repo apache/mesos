@@ -52,7 +52,6 @@
 #include <stout/path.hpp>
 #include <stout/uuid.hpp>
 
-#include "common/attributes.hpp"
 #include "common/protobuf_utils.hpp"
 
 #include "files/files.hpp"
