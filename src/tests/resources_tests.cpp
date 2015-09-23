@@ -478,7 +478,7 @@ TEST(ResourcesTest, RangesSubset)
   EXPECT_EQ(1, ports2.ranges().range_size());
   EXPECT_EQ(1, ports3.ranges().range_size());
   EXPECT_EQ(2, ports4.ranges().range_size());
-  EXPECT_EQ(2, ports5.ranges().range_size());
+  EXPECT_EQ(1, ports5.ranges().range_size());
 
   Resources r1;
   r1 += ports1;
