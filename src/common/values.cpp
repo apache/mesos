@@ -18,7 +18,12 @@
 
 #include <stdint.h>
 
-#include <iostream>
+#include <algorithm>
+#include <initializer_list>
+#include <ostream>
+#include <string>
+#include <tuple>
+#include <utility>
 #include <vector>
 
 #include <glog/logging.h>
@@ -39,98 +44,6 @@ using std::string;
 using std::vector;
 
 namespace mesos {
-
-namespace internal {
-namespace values {
-
-Try<Value> parse(const std::string& text)
-{
-  Value value;
-
-  // Remove any spaces from the text.
-  string temp;
-  foreach (const char c, text) {
-    if (c != ' ') {
-      temp += c;
-    }
-  }
-
-  if (temp.length() == 0) {
-    return Error("Expecting non-empty string");
-  }
-
-  // TODO(ynie): Find a better way to check brackets.
-  if (!strings::checkBracketsMatching(temp, '{', '}') ||
-      !strings::checkBracketsMatching(temp, '[', ']') ||
-      !strings::checkBracketsMatching(temp, '(', ')')) {
-    return Error("Mismatched brackets");
-  }
-
-  size_t index = temp.find('[');
-  if (index == 0) {
-    // This is a ranges.
-    Value::Ranges ranges;
-    const vector<string>& tokens = strings::tokenize(temp, "[]-,\n");
-    if (tokens.size() % 2 != 0) {
-      return Error("Expecting one or more \"ranges\"");
-    } else {
-      for (size_t i = 0; i < tokens.size(); i += 2) {
-        Value::Range *range = ranges.add_range();
-
-        int j = i;
-        try {
-          range->set_begin(boost::lexical_cast<uint64_t>((tokens[j++])));
-          range->set_end(boost::lexical_cast<uint64_t>(tokens[j++]));
-        } catch (const boost::bad_lexical_cast&) {
-          return Error(
-              "Expecting non-negative integers in '" + tokens[j - 1] + "'");
-        }
-      }
-
-      value.set_type(Value::RANGES);
-      value.mutable_ranges()->MergeFrom(ranges);
-      return value;
-    }
-  } else if (index == string::npos) {
-    size_t index = temp.find('{');
-    if (index == 0) {
-      // This is a set.
-      Value::Set set;
-      const vector<string>& tokens = strings::tokenize(temp, "{},\n");
-      for (size_t i = 0; i < tokens.size(); i++) {
-        set.add_item(tokens[i]);
-      }
-
-      value.set_type(Value::SET);
-      value.mutable_set()->MergeFrom(set);
-      return value;
-    } else if (index == string::npos) {
-      try {
-        Value::Scalar scalar;
-        scalar.set_value(boost::lexical_cast<double>(temp));
-        // This is a Scalar.
-        value.set_type(Value::SCALAR);
-        value.mutable_scalar()->MergeFrom(scalar);
-        return value;
-      } catch (const boost::bad_lexical_cast&) {
-        // This is a Text.
-        Value::Text text;
-        text.set_value(temp);
-        value.set_type(Value::TEXT);
-        value.mutable_text()->MergeFrom(text);
-        return value;
-      }
-    } else {
-      return Error("Unexpected '{' found");
-    }
-  }
-
-  return Error("Unexpected '[' found");
-}
-
-} // namespace values {
-} // namespace internal {
-
 
 ostream& operator<<(ostream& stream, const Value::Scalar& scalar)
 {
@@ -179,115 +92,190 @@ Value::Scalar& operator-=(Value::Scalar& left, const Value::Scalar& right)
   return left;
 }
 
-namespace ranges {
 
-static void add(Value::Ranges* result, int64_t begin, int64_t end)
+namespace internal {
+
+struct Range
 {
-  if (begin > end) {
+  uint64_t start;
+  uint64_t end;
+};
+
+
+// Coalesces the vector of ranges provided and modifies `result` to contain the
+// solution.
+// The algorithm first sorts all the individual intervals so that we can iterate
+// over them sequentially.
+// The algorithm does a single pass, after the sort, and builds up the solution
+// in place. It then modifies the `result` with as few steps as possible. The
+// expensive part of this operation is modification of the protobuf, which is
+// why we prefer to build up the solution in a temporary vector.
+void coalesce(Value::Ranges* result, vector<Range> ranges)
+{
+  // Exit early if empty.
+  if (ranges.empty()) {
+    result->clear_range();
     return;
   }
-  Value::Range* range = result->add_range();
-  range->set_begin(begin);
-  range->set_end(end);
-}
 
-} // namespace ranges {
+  std::sort(
+      ranges.begin(),
+      ranges.end(),
+      [](const Range& left, const Range& right) {
+        return std::tie(left.start, left.end) <
+               std::tie(right.start, right.end);
+      });
 
+  // We build up initial state of the current range.
+  CHECK(!ranges.empty());
+  int count = 1;
+  Range current = ranges.front();
 
-// Coalesce the given 'range' into already coalesced 'ranges'.
-static void coalesce(Value::Ranges* ranges, const Value::Range& range)
-{
-  // Note that we assume that ranges has already been coalesced.
+  // In a single pass, we compute the size of the end result, as well as modify
+  // in place the intermediate data structure to build up result as we
+  // solve it.
+  foreach (const Range& range, ranges) {
+    // Skip if this range is equivalent to the current range.
+    if (range.start == current.start && range.end == current.end) {
+      continue;
+    }
 
-  Value::Ranges result;
-  Value::Range temp = range;
-
-  for (int i = 0; i < ranges->range_size(); i++) {
-    const Value::Range& current = ranges->range(i);
-
-    // Check if current and range overlap. Note, we only need to
-    // compare with range and not with temp to check for overlap
-    // because we expect ranges to be coalesced to begin with!
-    if (current.begin() <= range.end() + 1 &&
-        current.end() >= range.begin() - 1) {
-      // current:   |   |
-      // range:       |   |
-      // range:   |   |
-      // Update temp with new boundaries.
-      temp.set_begin(min(temp.begin(), min(range.begin(), current.begin())));
-      temp.set_end(max(temp.end(), max(range.end(), current.end())));
-    } else { // No overlap.
-      result.add_range()->MergeFrom(current);
+    // If the current range just needs to be extended on the right.
+    if (range.start == current.start && range.end > current.end) {
+      current.end = range.end;
+    } else if (range.start > current.start) {
+      // If we are starting farther ahead, then there are 2 cases:
+      if (range.start <= current.end + 1) {
+        // 1. Ranges are overlapping and we can merge them.
+        current.end = max(current.end, range.end);
+      } else {
+        // 2. No overlap and we are adding a new range.
+        ranges[count - 1] = current;
+        ++count;
+        current = range;
+      }
     }
   }
 
-  result.add_range()->MergeFrom(temp);
-  *ranges = result;
-}
+  // Record the state of the last range into of ranges vector.
+  ranges[count - 1] = current;
 
+  CHECK(count <= static_cast<int>(ranges.size()));
 
-// Coalesce the given un-coalesced 'uranges' into already coalesced 'ranges'.
-static void coalesce(Value::Ranges* ranges, const Value::Ranges& uranges)
-{
-  // Note that we assume that ranges has already been coalesced.
-
-  for (int i = 0; i < uranges.range_size(); i++) {
-    coalesce(ranges, uranges.range(i));
+  // Shrink result if it is too large by deleting trailing subrange.
+  if (count < result->range_size()) {
+    result->mutable_range()->DeleteSubrange(
+        count, result->range_size() - count);
   }
+
+  // Resize enough space so we allocate the pointer array just once.
+  result->mutable_range()->Reserve(count);
+
+  // Copy the solution from ranges vector into result.
+  for (int i = 0; i < count; ++i) {
+    // result might be small and needs to be extended.
+    if (i >= result->range_size()) {
+      result->add_range();
+    }
+
+    CHECK(i < result->range_size());
+    result->mutable_range(i)->set_begin(ranges[i].start);
+    result->mutable_range(i)->set_end(ranges[i].end);
+  }
+
+  CHECK_EQ(result->range_size(), count);
+}
+
+} // namespace internal {
+
+
+// Coalesce the given addedRanges  into 'result' ranges.
+void coalesce(
+    Value::Ranges* result,
+    std::initializer_list<Value::Ranges> addedRanges)
+{
+  size_t rangesSum = result->range_size();
+  foreach (const Value::Ranges& range, addedRanges) {
+    rangesSum += range.range_size();
+  }
+
+  vector<internal::Range> ranges;
+  ranges.reserve(rangesSum);
+
+  // Merges ranges into a vector.
+  auto fill = [&ranges](const Value::Ranges& inputs) {
+    foreach (const Value::Range& range, inputs.range()) {
+      ranges.push_back({range.begin(), range.end()});
+    }
+  };
+
+  // Merge both ranges into the vector;
+  fill(*result);
+  foreach (const Value::Ranges& range, addedRanges) {
+    fill(range);
+  }
+
+  internal::coalesce(result, std::move(ranges));
 }
 
 
-static void remove(Value::Ranges* ranges, const Value::Range& range)
+// Coalesce the given Value::Ranges 'ranges'.
+void coalesce(Value::Ranges* result)
 {
-  // Note that we assume that ranges has already been coalesced.
+  coalesce(result, {Value::Ranges()});
+}
 
-  Value::Ranges result;
 
-  for (int i = 0; i < ranges->range_size(); i++) {
-    const Value::Range& current = ranges->range(i);
+// Coalesce the given range 'addedRange' into 'result' ranges.
+void coalesce(Value::Ranges* result, const Value::Range& addedRange)
+{
+  Value::Ranges ranges;
+  Value::Range* range = ranges.add_range();
+  range->CopyFrom(addedRange);
+  coalesce(result, {ranges});
+}
 
-    // Note that these if/else if conditionals are in a particular
-    // order. In particular, the last two assume that the "subsumes"
-    // checks have already occurred.
-    if (range.begin() <= current.begin() && range.end() >= current.end()) {
-      // Range subsumes current.
-      // current:  |     |
-      // range:  |         |
-      // range:  |       |
-      // range:    |       |
-      // range:    |     |
-    } else if (range.begin() >= current.begin() &&
-               range.end() <= current.end()) {
-      // Range is subsumed by current.
-      // current:  |     |
-      // range:      | |
-      // range:    |   |
-      // range:      |   |
-      ranges::add(&result, current.begin(), range.begin() - 1);
-      ranges::add(&result, range.end() + 1, current.end());
-    } else if (range.begin() <= current.begin() &&
-               range.end() >= current.begin()) {
-      // Range overlaps to the left.
-      // current:  |     |
-      // range:  |     |
-      // range:  | |
-      ranges::add(&result, range.end() + 1, current.end());
-    } else if (range.begin() <= current.end() && range.end() >= current.end()) {
-      // Range overlaps to the right.
-      // current:  |     |
-      // range:      |      |
-      // range:          |  |
-      ranges::add(&result, current.begin(), range.begin() - 1);
+
+// Removes a range from already coalesced ranges.
+// The algorithms constructs a new vector of ranges which is then
+// coalesced into a Value::Ranges instance.
+static void remove(Value::Ranges* _ranges, const Value::Range& removal)
+{
+  vector<internal::Range> ranges;
+  ranges.reserve(_ranges->range_size());
+
+  foreach (const Value::Range& range, _ranges->range()) {
+    // Skip if the entire range is subsumed by `removal`.
+    if (range.begin() >= removal.begin() && range.end() <= removal.end()) {
+      continue;
+    }
+
+    // Divide if the range subsumes the `removal`.
+    if (range.begin() < removal.begin() && range.end() > removal.end()) {
+      // Front.
+      ranges.emplace_back(internal::Range{range.begin(), removal.begin() - 1});
+      // Back.
+      ranges.emplace_back(internal::Range{removal.end() + 1, range.end()});
+    }
+
+    // Fully Emplace if the range doesn't intersect.
+    if (range.end() < removal.begin() || range.begin() > removal.end()) {
+      ranges.emplace_back(internal::Range{range.begin(), range.end()});
     } else {
-      // Range doesn't overlap current.
-      // current:        |   |
-      // range:   |   |
-      // range:                |   |
-      ranges::add(&result, current.begin(), current.end());
+      // Trim if the range does intersect.
+      if (range.end() > removal.end()) {
+        // Trim front.
+        ranges.emplace_back(internal::Range{removal.end() + 1, range.end()});
+      } else {
+        // Trim back.
+        CHECK(range.begin() < removal.begin());
+        ranges.emplace_back(
+            internal::Range{range.begin(), removal.begin() - 1});
+      }
     }
   }
 
-  *ranges = result;
+  internal::coalesce(_ranges, std::move(ranges));
 }
 
 
@@ -308,10 +296,10 @@ ostream& operator<<(ostream& stream, const Value::Ranges& ranges)
 bool operator==(const Value::Ranges& _left, const Value::Ranges& _right)
 {
   Value::Ranges left;
-  coalesce(&left, _left);
+  coalesce(&left, {_left});
 
   Value::Ranges right;
-  coalesce(&right, _right);
+  coalesce(&right, {_right});
 
   if (left.range_size() == right.range_size()) {
     for (int i = 0; i < left.range_size(); i++) {
@@ -340,10 +328,10 @@ bool operator==(const Value::Ranges& _left, const Value::Ranges& _right)
 bool operator<=(const Value::Ranges& _left, const Value::Ranges& _right)
 {
   Value::Ranges left;
-  coalesce(&left, _left);
+  coalesce(&left, {_left});
 
   Value::Ranges right;
-  coalesce(&right, _right);
+  coalesce(&right, {_right});
 
   for (int i = 0; i < left.range_size(); i++) {
     // Make sure this range is a subset of a range in right.
@@ -367,10 +355,7 @@ bool operator<=(const Value::Ranges& _left, const Value::Ranges& _right)
 Value::Ranges operator+(const Value::Ranges& left, const Value::Ranges& right)
 {
   Value::Ranges result;
-
-  coalesce(&result, left);
-  coalesce(&result, right);
-
+  coalesce(&result, {left, right});
   return result;
 }
 
@@ -378,45 +363,24 @@ Value::Ranges operator+(const Value::Ranges& left, const Value::Ranges& right)
 Value::Ranges operator-(const Value::Ranges& left, const Value::Ranges& right)
 {
   Value::Ranges result;
-
-  coalesce(&result, left);
-  coalesce(&result, right);
-
-  for (int i = 0; i < right.range_size(); i++) {
-    remove(&result, right.range(i));
-  }
-
-  return result;
+  coalesce(&result, {left});
+  return result -= right;
 }
 
 
 Value::Ranges& operator+=(Value::Ranges& left, const Value::Ranges& right)
 {
-  Value::Ranges temp;
-
-  coalesce(&temp, left);
-
-  left = temp;
-
-  coalesce(&left, right);
-
+  coalesce(&left, {right});
   return left;
 }
 
 
 Value::Ranges& operator-=(Value::Ranges& left, const Value::Ranges& right)
 {
-  Value::Ranges temp;
-
-  coalesce(&temp, left);
-  coalesce(&temp, right);
-
-  left = temp;
-
-  for (int i = 0; i < right.range_size(); i++) {
+  coalesce(&left);
+  for (int i = 0; i < right.range_size(); ++i) {
     remove(&left, right.range(i));
   }
-
   return left;
 }
 
@@ -582,5 +546,94 @@ bool operator==(const Value::Text& left, const Value::Text& right)
 {
   return left.value() == right.value();
 }
+
+
+namespace internal {
+namespace values {
+
+Try<Value> parse(const string& text)
+{
+  Value value;
+
+  // Remove any spaces from the text.
+  string temp;
+  foreach (const char c, text) {
+    if (c != ' ') {
+      temp += c;
+    }
+  }
+
+  if (temp.length() == 0) {
+    return Error("Expecting non-empty string");
+  }
+
+  // TODO(ynie): Find a better way to check brackets.
+  if (!strings::checkBracketsMatching(temp, '{', '}') ||
+      !strings::checkBracketsMatching(temp, '[', ']') ||
+      !strings::checkBracketsMatching(temp, '(', ')')) {
+    return Error("Mismatched brackets");
+  }
+
+  size_t index = temp.find('[');
+  if (index == 0) {
+    // This is a Value::Ranges.
+    value.set_type(Value::RANGES);
+    Value::Ranges* ranges = value.mutable_ranges();
+    const vector<string>& tokens = strings::tokenize(temp, "[]-,\n");
+    if (tokens.size() % 2 != 0) {
+      return Error("Expecting one or more \"ranges\"");
+    } else {
+      for (size_t i = 0; i < tokens.size(); i += 2) {
+        Value::Range* range = ranges->add_range();
+
+        int j = i;
+        try {
+          range->set_begin(boost::lexical_cast<uint64_t>((tokens[j++])));
+          range->set_end(boost::lexical_cast<uint64_t>(tokens[j++]));
+        } catch (const boost::bad_lexical_cast&) {
+          return Error(
+              "Expecting non-negative integers in '" + tokens[j - 1] + "'");
+        }
+      }
+
+      coalesce(ranges);
+
+      return value;
+    }
+  } else if (index == string::npos) {
+    size_t index = temp.find('{');
+    if (index == 0) {
+      // This is a set.
+      value.set_type(Value::SET);
+      Value::Set* set = value.mutable_set();
+      const vector<string>& tokens = strings::tokenize(temp, "{},\n");
+      for (size_t i = 0; i < tokens.size(); i++) {
+        set->add_item(tokens[i]);
+      }
+      return value;
+    } else if (index == string::npos) {
+      try {
+        // This is a scalar.
+        value.set_type(Value::SCALAR);
+        Value::Scalar* scalar = value.mutable_scalar();
+        scalar->set_value(boost::lexical_cast<double>(temp));
+        return value;
+      } catch (const boost::bad_lexical_cast&) {
+        // This is a text.
+        value.set_type(Value::TEXT);
+        Value::Text* text = value.mutable_text();
+        text->set_value(temp);
+        return value;
+      }
+    } else {
+      return Error("Unexpected '{' found");
+    }
+  }
+
+  return Error("Unexpected '[' found");
+}
+
+} // namespace values {
+} // namespace internal {
 
 } // namespace mesos {
