@@ -102,7 +102,7 @@ message Event {
   // present if that type has a nested message definition.
   required Type type = 1;
 
-  optional Subscribed susbcribed = 2;
+  optional Subscribed subscribed = 2;
   optional Acknowledged acknowledged = 3;
   optional Launch launch = 4;
   optional Kill kill = 5;
