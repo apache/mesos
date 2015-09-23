@@ -104,37 +104,26 @@ Try<Isolator*> LinuxFilesystemIsolatorProcess::create(
     // visible. It's OK to use the blocking os::shell here because
     // 'create' will only be invoked during initialization.
     Try<string> mount = os::shell(
-        "mount --bind %s %s",
+        "mount --bind %s %s && "
+        "mount --make-slave %s && "
+        "mount --make-shared %s",
+        flags.work_dir.c_str(),
+        flags.work_dir.c_str(),
         flags.work_dir.c_str(),
         flags.work_dir.c_str());
 
     if (mount.isError()) {
       return Error(
           "Failed to self bind mount '" + flags.work_dir +
-          "': " + mount.error());
+          "' and make it a shared mount: " + mount.error());
     }
   }
 
-  // Mark the mount as a shared+slave mount.
-  Try<string> mount = os::shell(
-      "mount --make-slave %s",
-      flags.work_dir.c_str());
-
-  if (mount.isError()) {
-    return Error(
-        "Failed to mark '" + flags.work_dir +
-        "' as a slave mount: " + mount.error());
-  }
-
-  mount = os::shell(
-      "mount --make-shared %s",
-      flags.work_dir.c_str());
-
-  if (mount.isError()) {
-    return Error(
-        "Failed to mark '" + flags.work_dir +
-        "' as a shared mount: " + mount.error());
-  }
+  // TODO(jieyu): Currently, we don't check if the slave's work_dir
+  // mount is a shared mount or not. We just assume it is. We cannot
+  // simply mark the slave as shared again because that will create a
+  // new peer group for the mounts. This is a temporary workaround for
+  // now while we are thinking about fixes.
 
   Owned<MesosIsolatorProcess> process(
       new LinuxFilesystemIsolatorProcess(flags, provisioner));
