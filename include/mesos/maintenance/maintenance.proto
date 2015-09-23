@@ -17,6 +17,7 @@
  */
 
 import "mesos/mesos.proto";
+import "mesos/master/allocator.proto";
 
 package mesos.maintenance;
 
@@ -69,9 +70,17 @@ message Schedule {
 
 /**
  * Represents the maintenance status of each machine in the cluster.
- * Corresponds to the `MachineInfo.Mode` enumeration.
+ * The lists correspond to the `MachineInfo.Mode` enumeration.
  */
 message ClusterStatus {
-  repeated MachineID draining_machines = 1;
+  message DrainingMachine {
+    required MachineID id = 1;
+
+    // A list of the most recent responses to inverse offers from frameworks
+    // running on this draining machine.
+    repeated master.InverseOfferStatus statuses = 2;
+  }
+
+  repeated DrainingMachine draining_machines = 1;
   repeated MachineID down_machines = 2;
 }

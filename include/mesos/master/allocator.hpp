@@ -163,6 +163,11 @@ public:
       const Option<InverseOfferStatus>& status,
       const Option<Filters>& filters = None()) = 0;
 
+  // Retrieves the status of all inverse offers maintained by the allocator.
+  virtual process::Future<
+      hashmap<SlaveID, hashmap<FrameworkID, mesos::master::InverseOfferStatus>>>
+    getInverseOfferStatuses() = 0;
+
   // Informs the Allocator to recover resources that are considered
   // used by the framework.
   virtual void recoverResources(

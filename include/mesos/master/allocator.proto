@@ -16,6 +16,8 @@
  * limitations under the License.
  */
 
+import "mesos/mesos.proto";
+
 package mesos.master;
 
 
@@ -54,6 +56,10 @@ message InverseOfferStatus {
   }
 
   required Status status = 1;
+  required FrameworkID framework_id = 2;
+
+  // Time, since the epoch, when this status was last updated.
+  required TimeInfo timestamp = 3;
 
   // TODO(jmlvanre): Capture decline message.
 }

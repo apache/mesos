@@ -2843,6 +2843,8 @@ void Master::accept(
       if (inverseOffer != NULL) {
         mesos::master::InverseOfferStatus status;
         status.set_status(mesos::master::InverseOfferStatus::ACCEPT);
+        status.mutable_framework_id()->CopyFrom(inverseOffer->framework_id());
+        status.mutable_timestamp()->CopyFrom(protobuf::getCurrentTime());
 
         allocator->updateInverseOffer(
             inverseOffer->slave_id(),
@@ -3318,6 +3320,8 @@ void Master::decline(
     if (inverseOffer != NULL) { // If this is an inverse offer.
       mesos::master::InverseOfferStatus status;
       status.set_status(mesos::master::InverseOfferStatus::DECLINE);
+      status.mutable_framework_id()->CopyFrom(inverseOffer->framework_id());
+      status.mutable_timestamp()->CopyFrom(protobuf::getCurrentTime());
 
       allocator->updateInverseOffer(
           inverseOffer->slave_id(),

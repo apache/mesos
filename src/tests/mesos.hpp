@@ -1365,6 +1365,12 @@ ACTION_P(InvokeUpdateInverseOffer, allocator)
 }
 
 
+ACTION_P(InvokeGetInverseOfferStatuses, allocator)
+{
+  return allocator->real->getInverseOfferStatuses();
+}
+
+
 ACTION_P(InvokeRecoverResources, allocator)
 {
   allocator->real->recoverResources(arg0, arg1, arg2, arg3);
@@ -1504,6 +1510,11 @@ public:
     EXPECT_CALL(*this, updateInverseOffer(_, _, _, _, _))
       .WillRepeatedly(DoDefault());
 
+    ON_CALL(*this, getInverseOfferStatuses())
+      .WillByDefault(InvokeGetInverseOfferStatuses(this));
+    EXPECT_CALL(*this, getInverseOfferStatuses())
+      .WillRepeatedly(DoDefault());
+
     ON_CALL(*this, recoverResources(_, _, _, _))
       .WillByDefault(InvokeRecoverResources(this));
     EXPECT_CALL(*this, recoverResources(_, _, _, _))
@@ -1596,6 +1607,11 @@ public:
       const Option<UnavailableResources>&,
       const Option<mesos::master::InverseOfferStatus>&,
       const Option<Filters>&));
+
+  MOCK_METHOD0(getInverseOfferStatuses, process::Future<
+      hashmap<SlaveID, hashmap<
+          FrameworkID,
+          mesos::master::InverseOfferStatus>>>());
 
   MOCK_METHOD4(recoverResources, void(
       const FrameworkID&,

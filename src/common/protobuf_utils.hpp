@@ -84,6 +84,10 @@ MasterInfo createMasterInfo(const process::UPID& pid);
 
 Label createLabel(const std::string& key, const std::string& value);
 
+
+// Helper function that fills in a TimeInfo from the current time.
+TimeInfo getCurrentTime();
+
 namespace slave {
 
 mesos::slave::ContainerLimitation createContainerLimitation(

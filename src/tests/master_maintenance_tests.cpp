@@ -1025,11 +1025,13 @@ TEST_F(MasterMaintenanceTest, MachineStatus)
   ASSERT_SOME(statuses);
   ASSERT_EQ(1, statuses.get().draining_machines().size());
   ASSERT_EQ(0, statuses.get().down_machines().size());
-  ASSERT_EQ("0.0.0.2", statuses.get().draining_machines(0).ip());
+  ASSERT_EQ("0.0.0.2", statuses.get().draining_machines(0).id().ip());
 }
 
 
 // Test ensures that accept and decline works with inverse offers.
+// And that accepted/declined inverse offers will be reflected
+// in the maintenance status endpoint.
 TEST_F(MasterMaintenanceTest, InverseOffers)
 {
   // Set up a master.
@@ -1060,6 +1062,24 @@ TEST_F(MasterMaintenanceTest, InverseOffers)
       stringify(JSON::Protobuf(schedule)));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+
+  // Sanity check that this machine shows up in the status endpoint
+  // and there should be no inverse offer status.
+  response = process::http::get(master.get(), "maintenance/status");
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+
+  Try<JSON::Object> statuses_ = JSON::parse<JSON::Object>(response.get().body);
+  ASSERT_SOME(statuses_);
+  Try<maintenance::ClusterStatus> statuses =
+    ::protobuf::parse<maintenance::ClusterStatus>(statuses_.get());
+
+  ASSERT_SOME(statuses);
+  ASSERT_EQ(0, statuses.get().down_machines().size());
+  ASSERT_EQ(1, statuses.get().draining_machines().size());
+  ASSERT_EQ(
+      maintenanceHostname,
+      statuses.get().draining_machines(0).id().hostname());
+  ASSERT_EQ(0, statuses.get().draining_machines(0).statuses().size());
 
   // Now start a framework.
   Callbacks callbacks;
@@ -1194,6 +1214,30 @@ TEST_F(MasterMaintenanceTest, InverseOffers)
   EXPECT_EQ(1, event.get().offers().inverse_offers().size());
   inverseOffer = event.get().offers().inverse_offers(0);
 
+  // Check that the status endpoint shows the inverse offer as declined.
+  response = process::http::get(master.get(), "maintenance/status");
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+
+  statuses_ = JSON::parse<JSON::Object>(response.get().body);
+  ASSERT_SOME(statuses_);
+  statuses = ::protobuf::parse<maintenance::ClusterStatus>(statuses_.get());
+
+  ASSERT_SOME(statuses);
+  ASSERT_EQ(0, statuses.get().down_machines().size());
+  ASSERT_EQ(1, statuses.get().draining_machines().size());
+  ASSERT_EQ(
+      maintenanceHostname,
+      statuses.get().draining_machines(0).id().hostname());
+
+  ASSERT_EQ(1, statuses.get().draining_machines(0).statuses().size());
+  ASSERT_EQ(
+      mesos::master::InverseOfferStatus::DECLINE,
+      statuses.get().draining_machines(0).statuses(0).status());
+
+  ASSERT_EQ(
+      id,
+      evolve(statuses.get().draining_machines(0).statuses(0).framework_id()));
+
   {
     // Accept an inverse offer, with filter.
     Call call;
@@ -1217,6 +1261,30 @@ TEST_F(MasterMaintenanceTest, InverseOffers)
   EXPECT_EQ(Event::OFFERS, event.get().type());
   EXPECT_EQ(0, event.get().offers().offers().size());
   EXPECT_EQ(1, event.get().offers().inverse_offers().size());
+
+  // Check that the status endpoint shows the inverse offer as accepted.
+  response = process::http::get(master.get(), "maintenance/status");
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+
+  statuses_ = JSON::parse<JSON::Object>(response.get().body);
+  ASSERT_SOME(statuses_);
+  statuses = ::protobuf::parse<maintenance::ClusterStatus>(statuses_.get());
+
+  ASSERT_SOME(statuses);
+  ASSERT_EQ(0, statuses.get().down_machines().size());
+  ASSERT_EQ(1, statuses.get().draining_machines().size());
+  ASSERT_EQ(
+      maintenanceHostname,
+      statuses.get().draining_machines(0).id().hostname());
+
+  ASSERT_EQ(1, statuses.get().draining_machines(0).statuses().size());
+  ASSERT_EQ(
+      mesos::master::InverseOfferStatus::ACCEPT,
+      statuses.get().draining_machines(0).statuses(0).status());
+
+  ASSERT_EQ(
+      id,
+      evolve(statuses.get().draining_machines(0).statuses(0).framework_id()));
 
   EXPECT_CALL(exec, shutdown(_))
     .Times(AtMost(1));

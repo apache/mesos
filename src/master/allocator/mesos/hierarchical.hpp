@@ -161,6 +161,10 @@ public:
       const Option<mesos::master::InverseOfferStatus>& status,
       const Option<Filters>& filters);
 
+  process::Future<
+      hashmap<SlaveID, hashmap<FrameworkID, mesos::master::InverseOfferStatus>>>
+    getInverseOfferStatuses();
+
   void recoverResources(
       const FrameworkID& frameworkId,
       const SlaveID& slaveId,
@@ -1027,6 +1031,29 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::updateInverseOffer(
         slaveId,
         inverseOfferFilter);
   }
+}
+
+
+template <class RoleSorter, class FrameworkSorter>
+process::Future<
+    hashmap<SlaveID, hashmap<FrameworkID, mesos::master::InverseOfferStatus>>>
+HierarchicalAllocatorProcess<
+    RoleSorter, FrameworkSorter>::getInverseOfferStatuses()
+{
+  CHECK(initialized);
+
+  hashmap<
+      SlaveID,
+      hashmap<FrameworkID, mesos::master::InverseOfferStatus>> result;
+
+  // Make a copy of the most recent statuses.
+  foreachpair (const SlaveID& id, const Slave& slave, slaves) {
+    if (slave.maintenance.isSome()) {
+      result[id] = slave.maintenance.get().statuses;
+    }
+  }
+
+  return result;
 }
 
 

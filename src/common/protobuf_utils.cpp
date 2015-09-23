@@ -221,6 +221,14 @@ Label createLabel(const std::string& key, const std::string& value)
   return label;
 }
 
+
+TimeInfo getCurrentTime()
+{
+  TimeInfo timeInfo;
+  timeInfo.set_nanoseconds(process::Clock::now().duration().ns());
+  return timeInfo;
+}
+
 namespace slave {
 
 ContainerLimitation createContainerLimitation(

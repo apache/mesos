@@ -62,6 +62,7 @@
 
 #include "logging/logging.hpp"
 
+#include "master/machine.hpp"
 #include "master/maintenance.hpp"
 #include "master/master.hpp"
 #include "master/validation.hpp"
@@ -1749,7 +1750,11 @@ const string Master::Http::MAINTENANCE_STATUS_HELP = HELP(
     TLDR(
         "Retrieves the maintenance status of the cluster."),
     DESCRIPTION(
-        "Returns an object with one list of machines per machine mode."));
+        "Returns an object with one list of machines per machine mode.",
+        "For draining machines, this list includes the frameworks' responses",
+        "to inverse offers.  NOTE: Inverse offer responses are cleared if",
+        "the master fails over.  However, new inverse offers will be sent",
+        "once the master recovers."));
 
 
 // /master/maintenance/status endpoint handler.
@@ -1759,27 +1764,55 @@ Future<Response> Master::Http::maintenanceStatus(const Request& request) const
     return BadRequest("Expecting GET, got '" + request.method + "'");
   }
 
-  // Unwrap the master's machine information into two arrays of machines.
-  mesos::maintenance::ClusterStatus status;
-  foreachkey (const MachineID& id, master->machines) {
-    switch (master->machines[id].info.mode()) {
-      case MachineInfo::DRAINING: {
-        status.add_draining_machines()->CopyFrom(id);
-        break;
-      }
-      case MachineInfo::DOWN: {
-        status.add_down_machines()->CopyFrom(id);
-        break;
-      }
-      // Currently, `UP` machines are not specifically tracked in the master.
-      case MachineInfo::UP: {}
-      default: {
-        break;
+  return master->allocator->getInverseOfferStatuses()
+    .then(defer(
+        master->self(),
+        [=](
+            hashmap<
+                SlaveID,
+                hashmap<FrameworkID, mesos::master::InverseOfferStatus>> result)
+          -> Future<Response> {
+
+    // Unwrap the master's machine information into two arrays of machines.
+    // The data is coming from the allocator and therefore could be stale.
+    // Also, if the master fails over, this data is cleared.
+    mesos::maintenance::ClusterStatus status;
+    foreachpair (const MachineID& id, const Machine& machine, master->machines) {
+      switch (machine.info.mode()) {
+        case MachineInfo::DRAINING: {
+          mesos::maintenance::ClusterStatus::DrainingMachine* drainingMachine =
+            status.add_draining_machines();
+
+          drainingMachine->mutable_id()->CopyFrom(id);
+
+          // Unwrap inverse offer status information from the allocator.
+          foreach (const SlaveID& slave, machine.slaves) {
+            if (result.contains(slave)) {
+              foreachvalue (
+                  const mesos::master::InverseOfferStatus& status,
+                  result[slave]) {
+                drainingMachine->add_statuses()->CopyFrom(status);
+              }
+            }
+          }
+          break;
+        }
+
+        case MachineInfo::DOWN: {
+          status.add_down_machines()->CopyFrom(id);
+          break;
+        }
+
+        // Currently, `UP` machines are not specifically tracked in the master.
+        case MachineInfo::UP: {}
+        default: {
+          break;
+        }
       }
     }
-  }
 
-  return OK(JSON::Protobuf(status), request.query.get("jsonp"));
+    return OK(JSON::Protobuf(status), request.query.get("jsonp"));
+  }));
 }
 
 

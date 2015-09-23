@@ -25,6 +25,7 @@
 #include <process/future.hpp>
 #include <process/process.hpp>
 
+#include <stout/hashmap.hpp>
 #include <stout/try.hpp>
 
 namespace mesos {
@@ -122,6 +123,10 @@ public:
       const Option<UnavailableResources>& unavailableResources,
       const Option<mesos::master::InverseOfferStatus>& status,
       const Option<Filters>& filters);
+
+  process::Future<
+      hashmap<SlaveID, hashmap<FrameworkID, mesos::master::InverseOfferStatus>>>
+    getInverseOfferStatuses();
 
   void recoverResources(
       const FrameworkID& frameworkId,
@@ -231,6 +236,10 @@ public:
       const Option<UnavailableResources>& unavailableResources,
       const Option<mesos::master::InverseOfferStatus>& status,
       const Option<Filters>& filters = None()) = 0;
+
+  virtual process::Future<
+      hashmap<SlaveID, hashmap<FrameworkID, mesos::master::InverseOfferStatus>>>
+    getInverseOfferStatuses() = 0;
 
   virtual void recoverResources(
       const FrameworkID& frameworkId,
@@ -502,6 +511,17 @@ inline void MesosAllocator<AllocatorProcess>::updateInverseOffer(
       unavailableResources,
       status,
       filters);
+}
+
+
+template <typename AllocatorProcess>
+inline process::Future<
+    hashmap<SlaveID, hashmap<FrameworkID, mesos::master::InverseOfferStatus>>>
+  MesosAllocator<AllocatorProcess>::getInverseOfferStatuses()
+{
+  return process::dispatch(
+      process,
+      &MesosAllocatorProcess::getInverseOfferStatuses);
 }
 
 
