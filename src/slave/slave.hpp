@@ -52,7 +52,14 @@
 #include <stout/path.hpp>
 #include <stout/uuid.hpp>
 
+#include "common/attributes.hpp"
+#include "common/protobuf_utils.hpp"
+
+#include "files/files.hpp"
+
 #include "master/detector.hpp"
+
+#include "messages/messages.hpp"
 
 #include "slave/constants.hpp"
 #include "slave/containerizer/containerizer.hpp"
@@ -62,12 +69,6 @@
 #include "slave/monitor.hpp"
 #include "slave/paths.hpp"
 #include "slave/state.hpp"
-
-#include "common/protobuf_utils.hpp"
-
-#include "files/files.hpp"
-
-#include "messages/messages.hpp"
 
 namespace mesos {
 namespace internal {
