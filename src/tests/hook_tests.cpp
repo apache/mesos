@@ -18,6 +18,7 @@
 
 #include <mesos/module.hpp>
 
+#include <process/clock.hpp>
 #include <process/future.hpp>
 #include <process/gmock.hpp>
 #include <process/pid.hpp>
@@ -61,6 +62,7 @@ using mesos::internal::slave::Fetcher;
 using mesos::internal::slave::MesosContainerizer;
 using mesos::internal::slave::Slave;
 
+using process::Clock;
 using process::Future;
 using process::PID;
 using process::Shared;
@@ -71,6 +73,7 @@ using std::vector;
 
 using testing::_;
 using testing::DoAll;
+using testing::Eq;
 using testing::Return;
 using testing::SaveArg;
 
@@ -207,6 +210,56 @@ TEST_F(HookTest, VerifyMasterLaunchTaskHook)
 
   driver.stop();
   driver.join();
+
+  Shutdown(); // Must shutdown before 'containerizer' gets deallocated.
+}
+
+
+// This test forces a `SlaveLost` event. When this happens, we expect the
+// `masterSlaveLostHook` to be invoked and await an internal libprocess event
+// to trigger in the module code.
+TEST_F(HookTest, MasterSlaveLostHookTest)
+{
+  Future<HookExecuted> hookFuture = FUTURE_PROTOBUF(HookExecuted(), _, _);
+
+  DROP_MESSAGES(Eq(PingSlaveMessage().GetTypeName()), _, _);
+
+  master::Flags masterFlags = CreateMasterFlags();
+
+  // Speed up timeout cycles.
+  masterFlags.slave_ping_timeout = Seconds(1);
+  masterFlags.max_slave_ping_timeouts = 1;
+
+  Try<PID<Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+
+  TestContainerizer containerizer(&exec);
+
+  Future<SlaveRegisteredMessage> slaveRegisteredMessage =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
+
+  // Start a mock Agent since we aren't testing the slave hooks.
+  Try<PID<Slave>> slave = StartSlave(&containerizer);
+  ASSERT_SOME(slave);
+
+  // Make sure Agent is up and running.
+  AWAIT_READY(slaveRegisteredMessage);
+
+  // Forward clock slave timeout.
+  Duration totalTimeout =
+    masterFlags.slave_ping_timeout * masterFlags.max_slave_ping_timeouts;
+
+  Clock::pause();
+  Clock::advance(totalTimeout);
+  Clock::settle();
+  Clock::resume();
+
+  // `masterSlaveLostHook()` should be called from within module code.
+  AWAIT_READY(hookFuture);
+
+  // TODO(nnielsen): Verify hook signal type.
 
   Shutdown(); // Must shutdown before 'containerizer' gets deallocated.
 }

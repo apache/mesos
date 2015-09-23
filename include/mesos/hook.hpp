@@ -62,6 +62,16 @@ public:
     return None();
   }
 
+
+  // This hook is called when an Agent is removed i.e. deemed lost by the
+  // master. The hook is invoked after all frameworks have been informed about
+  // the loss.
+  virtual Try<Nothing> masterSlaveLostHook(const SlaveInfo& slaveInfo)
+  {
+    return Nothing();
+  }
+
+
   // This environment decorator hook is called from within slave when
   // launching a new executor. A module implementing the hook creates
   // and returns a set of environment variables. These environment

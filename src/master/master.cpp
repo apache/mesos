@@ -5998,6 +5998,11 @@ void Master::_removeSlave(
     message.mutable_slave_id()->MergeFrom(slaveInfo.id());
     framework->send(message);
   }
+
+  // Finally, notify the `SlaveLost` hooks.
+  if (HookManager::hooksAvailable()) {
+    HookManager::masterSlaveLostHook(slaveInfo);
+  }
 }
 
 

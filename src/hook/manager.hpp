@@ -45,6 +45,8 @@ public:
       const FrameworkInfo& frameworkInfo,
       const SlaveInfo& slaveInfo);
 
+  static void masterSlaveLostHook(const SlaveInfo& slaveInfo);
+
   static Labels slaveRunTaskLabelDecorator(
       const TaskInfo& taskInfo,
       const ExecutorInfo& executorInfo,

@@ -108,6 +108,32 @@ public:
     return labels;
   }
 
+  virtual Try<Nothing> masterSlaveLostHook(const SlaveInfo& slaveInfo)
+  {
+    LOG(INFO) << "Executing 'masterSlaveLostHook' in slave '"
+              << slaveInfo.id() << "'";
+
+    // TODO(nnielsen): Add argument to signal(), so we can filter messages from
+    // the `masterSlaveLostHook` from `slaveRemoveExecutorHook`.
+    // NOTE: Will not be a problem **as long as** the test doesn't start any
+    // tasks.
+    HookProcess hookProcess;
+    process::spawn(&hookProcess);
+    Future<Nothing> future =
+      process::dispatch(hookProcess, &HookProcess::await);
+
+    process::dispatch(hookProcess, &HookProcess::signal);
+
+    // Make sure we don't terminate the process before the message self-send has
+    // completed.
+    future.await();
+
+    process::terminate(hookProcess);
+    process::wait(hookProcess);
+
+    return Nothing();
+  }
+
   // TODO(nnielsen): Split hook tests into multiple modules to avoid
   // interference.
   virtual Result<Labels> slaveRunTaskLabelDecorator(

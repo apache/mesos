@@ -133,6 +133,18 @@ Labels HookManager::masterLaunchTaskLabelDecorator(
 }
 
 
+void HookManager::masterSlaveLostHook(const SlaveInfo& slaveInfo)
+{
+  foreachpair (const string& name, Hook* hook, availableHooks) {
+    Try<Nothing> result = hook->masterSlaveLostHook(slaveInfo);
+    if (result.isError()) {
+      LOG(WARNING) << "Master slave-lost hook failed for module '"
+                   << name << "': " << result.error();
+    }
+  }
+}
+
+
 Labels HookManager::slaveRunTaskLabelDecorator(
     const TaskInfo& taskInfo,
     const ExecutorInfo& executorInfo,
