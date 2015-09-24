@@ -1195,6 +1195,18 @@ file:///path/to/file (where file contains one of the above)</code></pre>
   </tr>
   <tr>
     <td>
+      --launcher=VALUE
+    </td>
+    <td>
+      The launcher to be used for Mesos containerizer. It could either be
+      'linux' or 'posix'. The Linux launcher is required for cgroups
+      isolation and for any isolators that require Linux namespaces such as
+      network, pid, etc. If unspecified, the slave will choose the Linux
+      launcher if it's running as root on Linux.
+    </td>
+  </tr>
+  <tr>
+    <td>
       --launcher_dir=VALUE
     </td>
     <td>
