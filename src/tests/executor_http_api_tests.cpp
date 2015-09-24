@@ -22,6 +22,7 @@
 
 #include <mesos/http.hpp>
 
+#include <process/clock.hpp>
 #include <process/future.hpp>
 #include <process/gtest.hpp>
 #include <process/http.hpp>
@@ -39,6 +40,7 @@ using mesos::internal::slave::Slave;
 
 using mesos::v1::executor::Call;
 
+using process::Clock;
 using process::Future;
 using process::PID;
 
@@ -85,12 +87,16 @@ TEST_F(ExecutorHttpApiTest, NoContentType)
   Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
+  Future<Nothing> __recover = FUTURE_DISPATCH(_, &Slave::__recover);
+
   Try<PID<Slave>> slave = StartSlave();
   ASSERT_SOME(slave);
 
-  // Wait for recovery to be complete.
-  Future<Nothing> __recover = FUTURE_DISPATCH(_, &Slave::__recover);
   AWAIT_READY(__recover);
+
+  // Wait for recovery to be complete.
+  Clock::pause();
+  Clock::settle();
 
   Call call;
   call.set_type(Call::MESSAGE);
@@ -119,11 +125,16 @@ TEST_F(ExecutorHttpApiTest, ValidJsonButInvalidProtobuf)
   Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
+  Future<Nothing> __recover = FUTURE_DISPATCH(_, &Slave::__recover);
+
   Try<PID<Slave>> slave = StartSlave();
   ASSERT_SOME(slave);
 
-  Future<Nothing> __recover = FUTURE_DISPATCH(_, &Slave::__recover);
   AWAIT_READY(__recover);
+
+  // Wait for recovery to be complete.
+  Clock::pause();
+  Clock::settle();
 
   JSON::Object object;
   object.values["string"] = "valid_json";
@@ -151,11 +162,16 @@ TEST_P(ExecutorHttpApiTest, MalformedContent)
   Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
+  Future<Nothing> __recover = FUTURE_DISPATCH(_, &Slave::__recover);
+
   Try<PID<Slave>> slave = StartSlave();
   ASSERT_SOME(slave);
 
-  Future<Nothing> __recover = FUTURE_DISPATCH(_, &Slave::__recover);
   AWAIT_READY(__recover);
+
+  // Wait for recovery to be complete.
+  Clock::pause();
+  Clock::settle();
 
   const string body = "MALFORMED_CONTENT";
 
@@ -183,11 +199,16 @@ TEST_P(ExecutorHttpApiTest, UnsupportedContentMediaType)
   Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
+  Future<Nothing> __recover = FUTURE_DISPATCH(_, &Slave::__recover);
+
   Try<PID<Slave>> slave = StartSlave();
   ASSERT_SOME(slave);
 
-  Future<Nothing> __recover = FUTURE_DISPATCH(_, &Slave::__recover);
   AWAIT_READY(__recover);
+
+  // Wait for recovery to be complete.
+  Clock::pause();
+  Clock::settle();
 
   ContentType contentType = GetParam();
   hashmap<string, string> headers;
@@ -221,11 +242,16 @@ TEST_P(ExecutorHttpApiTest, MessageFromUnknownFramework)
   Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
+  Future<Nothing> __recover = FUTURE_DISPATCH(_, &Slave::__recover);
+
   Try<PID<Slave>> slave = StartSlave();
   ASSERT_SOME(slave);
 
-  Future<Nothing> __recover = FUTURE_DISPATCH(_, &Slave::__recover);
   AWAIT_READY(__recover);
+
+  // Wait for recovery to be complete.
+  Clock::pause();
+  Clock::settle();
 
   ContentType contentType = GetParam();
   hashmap<string, string> headers;
@@ -258,11 +284,16 @@ TEST_F(ExecutorHttpApiTest, GetRequest)
   Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
+  Future<Nothing> __recover = FUTURE_DISPATCH(_, &Slave::__recover);
+
   Try<PID<Slave>> slave = StartSlave();
   ASSERT_SOME(slave);
 
-  Future<Nothing> __recover = FUTURE_DISPATCH(_, &Slave::__recover);
   AWAIT_READY(__recover);
+
+  // Wait for recovery to be complete.
+  Clock::pause();
+  Clock::settle();
 
   Future<Response> response = process::http::get(
       slave.get(),
@@ -283,11 +314,16 @@ TEST_P(ExecutorHttpApiTest, DefaultAccept)
   Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
+  Future<Nothing> __recover = FUTURE_DISPATCH(_, &Slave::__recover);
+
   Try<PID<Slave>> slave = StartSlave();
   ASSERT_SOME(slave);
 
-  Future<Nothing> __recover = FUTURE_DISPATCH(_, &Slave::__recover);
   AWAIT_READY(__recover);
+
+  // Wait for recovery to be complete.
+  Clock::pause();
+  Clock::settle();
 
   hashmap<string, string> headers;
   headers["Accept"] = "*/*";
@@ -324,11 +360,16 @@ TEST_P(ExecutorHttpApiTest, NoAcceptHeader)
   Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
+  Future<Nothing> __recover = FUTURE_DISPATCH(_, &Slave::__recover);
+
   Try<PID<Slave>> slave = StartSlave();
   ASSERT_SOME(slave);
 
-  Future<Nothing> __recover = FUTURE_DISPATCH(_, &Slave::__recover);
   AWAIT_READY(__recover);
+
+  // Wait for recovery to be complete.
+  Clock::pause();
+  Clock::settle();
 
   // Retrieve the parameter passed as content type to this test.
   const ContentType contentType = GetParam();
@@ -365,11 +406,16 @@ TEST_P(ExecutorHttpApiTest, NotAcceptable)
   Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
+  Future<Nothing> __recover = FUTURE_DISPATCH(_, &Slave::__recover);
+
   Try<PID<Slave>> slave = StartSlave();
   ASSERT_SOME(slave);
 
-  Future<Nothing> __recover = FUTURE_DISPATCH(_, &Slave::__recover);
   AWAIT_READY(__recover);
+
+  // Wait for recovery to be complete.
+  Clock::pause();
+  Clock::settle();
 
   // Retrieve the parameter passed as content type to this test.
   const ContentType contentType = GetParam();
