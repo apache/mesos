@@ -521,6 +521,14 @@ This release also includes several bug fixes and stability improvements.
                    another JSON object
 
 
+Release Notes - Mesos - Version 0.22.2
+--------------------------------------
+* This is a bug fix release.
+
+** Bug
+    * [MESOS-2986] - Docker version output is not compatible with Mesos
+
+
 Release Notes - Mesos - Version 0.22.1
 --------------------------------------
 
