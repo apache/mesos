@@ -480,6 +480,7 @@ libmesos_no_3rdparty_la_SOURCES =					\
 	master/allocator/allocator.cpp					\
 	master/allocator/sorter/drf/sorter.cpp				\
 	messages/flags.proto						\
+	messages/messages.cpp						\
 	messages/messages.proto						\
 	module/manager.cpp						\
 	sched/constants.cpp						\

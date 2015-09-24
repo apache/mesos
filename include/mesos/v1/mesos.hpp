@@ -42,6 +42,11 @@ bool operator==(
 bool operator==(const AgentInfo& left, const AgentInfo& right);
 bool operator==(const Volume& left, const Volume& right);
 
+bool operator==(const Label& left, const Label& right);
+bool operator==(const Labels& left, const Labels& right);
+
+bool operator==(const DiscoveryInfo& left, const DiscoveryInfo& right);
+
 bool operator==(const URL& left, const URL& right);
 
 bool operator==(const TaskStatus& left, const TaskStatus& right);
