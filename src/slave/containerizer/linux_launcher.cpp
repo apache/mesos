@@ -139,8 +139,8 @@ Try<Launcher*> LinuxLauncher::create(const Flags& flags)
       Try<Nothing> create = systemd::slices::create(path, unit);
 
       if (create.isError()) {
-        return Error("Failed to create systemd slice `" +
-                     stringify(SYSTEMD_MESOS_EXECUTORS_SLICE) + "`: " +
+        return Error("Failed to create systemd slice '" +
+                     stringify(SYSTEMD_MESOS_EXECUTORS_SLICE) + "': " +
                      create.error());
       }
     }
@@ -151,9 +151,9 @@ Try<Launcher*> LinuxLauncher::create(const Flags& flags)
     Try<Nothing> start = systemd::slices::start(SYSTEMD_MESOS_EXECUTORS_SLICE);
 
     if (start.isError()) {
-      return Error("Failed to start `" +
+      return Error("Failed to start '" +
                    stringify(SYSTEMD_MESOS_EXECUTORS_SLICE) +
-                   "`: " + start.error());
+                   "': " + start.error());
     }
 
     // Now the `SYSTEMD_MESOS_EXECUTORS_SLICE` is ready for us to assign any
@@ -194,8 +194,8 @@ Future<hashset<ContainerID>> LinuxLauncher::recover(
     // `SYSTEMD_MESOS_EXECUTORS_SLICE` we fail. This is a programmer error as we
     // did not set up the slice correctly.
     if (mesosExecutorSlicePids.isError()) {
-      return Failure("Failed to read pids from systemd `" +
-                     stringify(SYSTEMD_MESOS_EXECUTORS_SLICE) + "`");
+      return Failure("Failed to read pids from systemd '" +
+                     stringify(SYSTEMD_MESOS_EXECUTORS_SLICE) + "'");
     }
   }
 
@@ -243,8 +243,8 @@ Future<hashset<ContainerID>> LinuxLauncher::recover(
     if (systemdHierarchy.isSome() && mesosExecutorSlicePids.isSome()) {
       if (mesosExecutorSlicePids.get().count(pid) <= 0) {
         LOG(WARNING)
-          << "Couldn't find pid `" << pid << "` in `"
-          << SYSTEMD_MESOS_EXECUTORS_SLICE << "`. This can lead to lack of"
+          << "Couldn't find pid '" << pid << "' in '"
+          << SYSTEMD_MESOS_EXECUTORS_SLICE << "'. This can lead to lack of"
           << " proper resource isolation";
       }
     }
@@ -406,8 +406,8 @@ Try<pid_t> LinuxLauncher::fork(
       return Error("Failed to contain process on systemd");
     }
 
-    LOG(INFO) << "Assigned child process `" << child.get().pid() << "` to `"
-              << SYSTEMD_MESOS_EXECUTORS_SLICE << "`";
+    LOG(INFO) << "Assigned child process '" << child.get().pid() << "' to '"
+              << SYSTEMD_MESOS_EXECUTORS_SLICE << "'";
   }
 
   // Now that we've contained the child we can signal it to continue
