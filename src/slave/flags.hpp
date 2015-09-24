@@ -44,6 +44,7 @@ public:
 
   bool version;
   Option<std::string> hostname;
+  bool hostname_lookup;
   Option<std::string> resources;
   std::string isolation;
   Option<std::string> launcher;

@@ -36,7 +36,17 @@ mesos::internal::master::Flags::Flags()
       "hostname",
       "The hostname the master should advertise in ZooKeeper.\n"
       "If left unset, the hostname is resolved from the IP address\n"
-      "that the master binds to.");
+      "that the slave binds to; unless the user explicitly prevents\n"
+      "that, using --no-hostname_lookup, in which case the IP itself\n"
+      "is used.");
+
+  add(&Flags::hostname_lookup,
+      "hostname_lookup",
+      "Whether we should execute a lookup to find out the server's hostname,\n"
+      "if not explicitly set (via, e.g., `--hostname`).\n"
+      "True by default; if set to 'false' it will cause Mesos\n"
+      "to use the IP address, unless the hostname is explicitly set.",
+      true);
 
   add(&Flags::root_submissions,
       "root_submissions",

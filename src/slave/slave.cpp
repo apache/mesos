@@ -362,13 +362,19 @@ void Slave::initialize()
   string hostname;
 
   if (flags.hostname.isNone()) {
-    Try<string> result = net::getHostname(self().address.ip);
+    if (flags.hostname_lookup) {
+      Try<string> result = net::getHostname(self().address.ip);
 
-    if (result.isError()) {
-      LOG(FATAL) << "Failed to get hostname: " << result.error();
+      if (result.isError()) {
+        LOG(FATAL) << "Failed to get hostname: " << result.error();
+      }
+
+      hostname = result.get();
+    } else {
+      // We use the IP address for hostname if the user requested us
+      // NOT to look it up, and it wasn't explicitly set via --hostname:
+      hostname = stringify(self().address.ip);
     }
-
-    hostname = result.get();
   } else {
     hostname = flags.hostname.get();
   }

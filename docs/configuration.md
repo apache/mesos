@@ -407,9 +407,22 @@ file:///path/to/file (where file contains one of the above)</code></pre>
       --hostname=VALUE
     </td>
     <td>
-      The hostname the master should advertise in ZooKeeper.
+      The hostname the master should advertise in ZooKeeper.<br>
       If left unset, the hostname is resolved from the IP address
-      that the master binds to.
+      that the slave binds to; unless the user explicitly prevents
+      that, using --no-hostname_lookup, in which case the IP itself
+      is used.
+    </td>
+  </tr>
+  <tr>
+    <td>
+      --[no-]hostname_lookup
+    </td>
+    <td>
+      Whether we should execute a lookup to find out the server's hostname,
+      if not explicitly set (via, e.g., `--hostname`).
+      True by default; if set to 'false' it will cause Mesos
+      to use the IP address, unless the hostname is explicitly set.
     </td>
   </tr>
   <tr>
@@ -1141,10 +1154,22 @@ file:///path/to/file (where file contains one of the above)</code></pre>
       --hostname=VALUE
     </td>
     <td>
-      The hostname the slave should report.
-      <p/>
+      The hostname the agent node should report.<br>
       If left unset, the hostname is resolved from the IP address
-      that the slave binds to.
+      that the slave binds to; unless the user explicitly prevents
+      that, using --no-hostname_lookup, in which case the IP itself
+      is used.
+    </td>
+  </tr>
+  <tr>
+    <td>
+      --[no-]hostname_lookup
+    </td>
+    <td>
+      Whether we should execute a lookup to find out the server's hostname,
+      if not explicitly set (via, e.g., `--hostname`).
+      True by default; if set to 'false' it will cause Mesos
+      to use the IP address, unless the hostname is explicitly set.
     </td>
   </tr>
   <tr>

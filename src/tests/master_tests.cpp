@@ -1086,6 +1086,50 @@ TEST_F(WhitelistTest, WhitelistSlave)
 }
 
 
+class HostnameTest : public MasterTest {};
+
+
+TEST_F(HostnameTest, LookupEnabled)
+{
+  master::Flags flags = CreateMasterFlags();
+  EXPECT_TRUE(flags.hostname_lookup);
+
+  Try<PID<Master>> pid = StartMaster(flags);
+  ASSERT_SOME(pid);
+
+  Option<Master*> master = cluster.find(pid.get());
+  ASSERT_SOME(master);
+
+  EXPECT_EQ(
+      pid.get().address.hostname().get(),
+      master.get()->info().hostname());
+
+  Shutdown();
+}
+
+
+TEST_F(HostnameTest, LookupDisabled)
+{
+  master::Flags flags = CreateMasterFlags();
+  EXPECT_TRUE(flags.hostname_lookup);
+  EXPECT_NONE(flags.hostname);
+
+  flags.hostname_lookup = false;
+
+  Try<PID<Master>> pid = StartMaster(flags);
+  ASSERT_SOME(pid);
+
+  Option<Master*> master = cluster.find(pid.get());
+  ASSERT_SOME(master);
+
+  EXPECT_EQ(
+      stringify(pid.get().address.ip),
+      master.get()->info().hostname());
+
+  Shutdown();
+}
+
+
 TEST_F(MasterTest, MasterLost)
 {
   Try<PID<Master>> master = StartMaster();

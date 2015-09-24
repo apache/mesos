@@ -45,6 +45,7 @@ public:
   Flags();
   bool version;
   Option<std::string> hostname;
+  bool hostname_lookup;
   bool root_submissions;
   Option<std::string> work_dir;
   std::string registry;
