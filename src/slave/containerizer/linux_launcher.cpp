@@ -275,7 +275,7 @@ static int childSetup(
     const Option<lambda::function<int()>>& setup)
 {
   // In child.
-  while (::close(pipes[1]) == -1 && errno == EINTR);
+  ::close(pipes[1]);
 
   // Do a blocking read on the pipe until the parent signals us to
   // continue.
@@ -288,7 +288,7 @@ static int childSetup(
     ABORT("Failed to synchronize with parent");
   }
 
-  while (::close(pipes[0]) == -1 && errno == EINTR);
+  ::close(pipes[0]);
 
   // Move to a different session (and new process group) so we're
   // independent from the slave's session (otherwise children will

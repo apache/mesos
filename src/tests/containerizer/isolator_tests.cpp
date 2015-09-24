@@ -113,7 +113,7 @@ namespace tests {
 static int childSetup(int pipes[2])
 {
   // In child process.
-  while (::close(pipes[1]) == -1 && errno == EINTR);
+  ::close(pipes[1]);
 
   // Wait until the parent signals us to continue.
   char dummy;
@@ -125,7 +125,7 @@ static int childSetup(int pipes[2])
     ABORT("Failed to synchronize with parent");
   }
 
-  while (::close(pipes[0]) == -1 && errno == EINTR);
+  ::close(pipes[0]);
 
   return 0;
 }
