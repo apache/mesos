@@ -129,8 +129,16 @@ public:
   {
 #ifdef __linux__
     Try<set<string> > hierarchies_ = cgroups::hierarchies();
-    CHECK_SOME(hierarchies_);
-    if (!hierarchies_.get().empty()) {
+    if (hierarchies_.isError()) {
+      std::cerr
+        << "-------------------------------------------------------------\n"
+        << "We cannot run any cgroups tests that require mounting\n"
+        << "hierarchies because reading cgroup heirarchies failed:\n"
+        << hierarchies_.error() << "\n"
+        << "We'll disable the CgroupsNoHierarchyTest test fixture for now.\n"
+        << "-------------------------------------------------------------"
+        << std::endl;
+    } else if (!hierarchies_.get().empty()) {
       std::cerr
         << "-------------------------------------------------------------\n"
         << "We cannot run any cgroups tests that require mounting\n"
@@ -139,9 +147,9 @@ public:
         << "We'll disable the CgroupsNoHierarchyTest test fixture for now.\n"
         << "-------------------------------------------------------------"
         << std::endl;
+    } else {
+      hierarchies = hierarchies_.get();
     }
-
-    hierarchies = hierarchies_.get();
 #endif // __linux__
   }
 
