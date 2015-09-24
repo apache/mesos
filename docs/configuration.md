@@ -866,6 +866,15 @@ file:///path/to/file (where file contains one of the above)</code></pre>
   </tr>
   <tr>
     <td>
+      --systemd_runtime_directory=VALUE
+    </td>
+    <td>
+      The path to the systemd system run time directory
+      (default: /run/systemd/system)
+    </td>
+  </tr>
+  <tr>
+    <td>
       --container_disk_watch_interval=VALUE
     </td>
     <td>
