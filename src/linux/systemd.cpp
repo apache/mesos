@@ -21,9 +21,13 @@
 #include <string>
 #include <vector>
 
+#include <process/once.hpp>
+
 #include <stout/os.hpp>
 #include <stout/strings.hpp>
 #include <stout/try.hpp>
+
+using process::Once;
 
 using std::string;
 using std::vector;
@@ -31,6 +35,52 @@ using std::vector;
 namespace systemd {
 
 int DELEGATE_MINIMUM_VERSION = 218;
+
+
+Flags::Flags()
+{
+  add(&Flags::runtime_directory,
+      "runtime_directory",
+      "The path to the systemd system run time directory\n",
+      "/run/systemd/system");
+
+  add(&Flags::cgroups_hierarchy,
+      "cgroups_hierarchy",
+      "The path to the cgroups hierarchy root\n",
+      "/sys/fs/cgroup");
+}
+
+
+static Flags* systemd_flags = NULL;
+
+
+const Flags& flags()
+{
+  return *CHECK_NOTNULL(systemd_flags);
+}
+
+
+Try<Nothing> initialize(const Flags& flags)
+{
+  static Once* initialized = new Once();
+
+  if (initialized->once()) {
+    return Nothing();
+  }
+
+  systemd_flags = new Flags(flags);
+
+  // If flags->runtime_directory doesn't exist, then we can't proceed.
+  if (!os::exists(CHECK_NOTNULL(systemd_flags)->runtime_directory)) {
+    return Error("Failed to locate systemd runtime directory: " +
+                 CHECK_NOTNULL(systemd_flags)->runtime_directory);
+  }
+
+  initialized->done();
+
+  return Nothing();
+}
+
 
 bool exists()
 {
@@ -96,5 +146,72 @@ bool exists()
 
   return exists;
 }
+
+
+Path runtimeDirectory()
+{
+  return Path(flags().runtime_directory);
+}
+
+
+Path hierarchy()
+{
+  return Path(path::join(flags().cgroups_hierarchy, "systemd"));
+}
+
+
+Try<Nothing> daemonReload()
+{
+  Try<std::string> daemonReload = os::shell("systemctl daemon-reload");
+  if (daemonReload.isError()) {
+    return Error("Failed to reload systemd daemon: " + daemonReload.error());
+  }
+
+  return Nothing();
+}
+
+namespace slices {
+
+bool exists(const Path& path)
+{
+  return os::exists(path);
+}
+
+
+Try<Nothing> create(const Path& path, const string& data)
+{
+  Try<Nothing> write = os::write(path, data);
+  if (write.isError()) {
+    return Error(
+        "Failed to write systemd slice `" + path.value + "`: " + write.error());
+  }
+
+  LOG(INFO) << "Created systemd slice: `" << path << "`";
+
+  Try<Nothing> reload = daemonReload();
+  if (reload.isError()) {
+    return Error("Failed to create systemd slice `" + path.value + "`: " +
+                 reload.error());
+  }
+
+  return Nothing();
+}
+
+
+Try<Nothing> start(const std::string& name)
+{
+  Try<std::string> start = os::shell("systemctl start " + name);
+
+  if (start.isError()) {
+    return Error(
+        "Failed to start systemd slice `" + name + "`: " + start.error());
+  }
+
+  LOG(INFO) << "Started systemd slice `" << name << "`";
+
+  return Nothing();
+}
+
+} // namespace slices {
 
 } // namespace systemd {

@@ -110,11 +110,70 @@ Try<Launcher*> LinuxLauncher::create(const Flags& flags)
   // slice. It then migrates executor pids into this slice before it "unpauses"
   // the executor. This is the same pattern as the freezer.
 
+  // If this is a systemd environment, ensure that the
+  // `SYSTEMD_MESOS_EXECUTORS_SLICE` exists and is running.
+  // TODO(jmlvanre): Prevent racing between multiple agents for this creation
+  // logic.
+  if (systemd::exists()) {
+    systemd::Flags systemdFlags;
+    systemdFlags.runtime_directory = flags.systemd_runtime_directory;
+    systemdFlags.cgroups_hierarchy = flags.cgroups_hierarchy;
+    Try<Nothing> initialize = systemd::initialize(systemdFlags);
+    if (initialize.isError()) {
+      return Error("Failed to initialize systemd: " + initialize.error());
+    }
+
+    // Check whether the `SYSTEMD_MESOS_EXECUTORS_SLICE` already exists. Create
+    // it if it does not exist.
+    // We explicitly don't modify the file if it exists in case operators want
+    // to over-ride the settings for the slice that we provide when we create
+    // the `Unit` below.
+    const Path path(path::join(
+        systemd::runtimeDirectory(),
+        SYSTEMD_MESOS_EXECUTORS_SLICE));
+
+    if (!systemd::slices::exists(path)) {
+      // A simple systemd file to allow us to start a new slice.
+      string unit = "[Unit]\nDescription=Mesos Executors Slice\n";
+
+      Try<Nothing> create = systemd::slices::create(path, unit);
+
+      if (create.isError()) {
+        return Error("Failed to create systemd slice `" +
+                     stringify(SYSTEMD_MESOS_EXECUTORS_SLICE) + "`: " +
+                     create.error());
+      }
+    }
+
+    // Regardless of whether we created the file or it existed already, we
+    // `start` the executor slice. It is safe (a no-op) to `start` an already
+    // running slice.
+    Try<Nothing> start = systemd::slices::start(SYSTEMD_MESOS_EXECUTORS_SLICE);
+
+    if (start.isError()) {
+      return Error("Failed to start `" +
+                   stringify(SYSTEMD_MESOS_EXECUTORS_SLICE) +
+                   "`: " + start.error());
+    }
+
+    // Now the `SYSTEMD_MESOS_EXECUTORS_SLICE` is ready for us to assign any
+    // executors. We can verify that our cgroups assignments will work by
+    // testing the hierarchy.
+    Try<bool> exists = cgroups::exists(
+        systemd::hierarchy(),
+        SYSTEMD_MESOS_EXECUTORS_SLICE);
+
+    if (exists.isError() || !exists.get()) {
+      return Error("Failed to locate systemd cgroups hierarchy: " +
+                   (exists.isError() ? exists.error() : "does not exist"));
+    }
+  }
+
   return new LinuxLauncher(
       flags,
       freezerHierarchy.get(),
       systemd::exists() ?
-        Some(flags.cgroups_hierarchy + "/systemd") :
+        Some(systemd::hierarchy()) :
         Option<std::string>::none());
 }
 

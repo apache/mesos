@@ -316,6 +316,11 @@ mesos::internal::slave::Flags::Flags()
       "normal containers (non-revocable cpu). Currently only\n"
       "supported by the cgroups/cpu isolator.",
       true);
+
+  add(&Flags::systemd_runtime_directory,
+      "systemd_runtime_directory",
+      "The path to the systemd system run time directory\n",
+      "/run/systemd/system");
 #endif
 
   add(&Flags::firewall_rules,
