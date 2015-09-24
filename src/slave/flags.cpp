@@ -74,8 +74,8 @@ mesos::internal::slave::Flags::Flags()
       "The launcher to be used for Mesos containerizer. It could either be\n"
       "'linux' or 'posix'. The Linux launcher is required for cgroups\n"
       "isolation and for any isolators that require Linux namespaces such as\n"
-      "network, pid, etc. If unspecified, the slave will choose the Linux
-      launcher if it's running as root on Linux.");
+      "network, pid, etc. If unspecified, the slave will choose the Linux\n"
+      "launcher if it's running as root on Linux.");
 
   add(&Flags::image_providers,
       "image_providers",
