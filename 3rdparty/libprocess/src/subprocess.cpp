@@ -130,13 +130,13 @@ static int childMain(
 {
   // Close parent's end of the pipes.
   if (in.isPipe()) {
-    while (::close(stdinFd[1]) == -1 && errno == EINTR);
+    ::close(stdinFd[1]);
   }
   if (out.isPipe()) {
-    while (::close(stdoutFd[0]) == -1 && errno == EINTR);
+    ::close(stdoutFd[0]);
   }
   if (err.isPipe()) {
-    while (::close(stderrFd[0]) == -1 && errno == EINTR);
+    ::close(stderrFd[0]);
   }
 
   // Redirect I/O for stdin/stdout/stderr.
@@ -152,17 +152,17 @@ static int childMain(
   if (stdinFd[0] != STDIN_FILENO &&
       stdinFd[0] != STDOUT_FILENO &&
       stdinFd[0] != STDERR_FILENO) {
-    while (::close(stdinFd[0]) == -1 && errno == EINTR);
+    ::close(stdinFd[0]);
   }
   if (stdoutFd[1] != STDIN_FILENO &&
       stdoutFd[1] != STDOUT_FILENO &&
       stdoutFd[1] != STDERR_FILENO) {
-    while (::close(stdoutFd[1]) == -1 && errno == EINTR);
+    ::close(stdoutFd[1]);
   }
   if (stderrFd[1] != STDIN_FILENO &&
       stderrFd[1] != STDOUT_FILENO &&
       stderrFd[1] != STDERR_FILENO) {
-    while (::close(stderrFd[1]) == -1 && errno == EINTR);
+    ::close(stderrFd[1]);
   }
 
   if (setup.isSome()) {
