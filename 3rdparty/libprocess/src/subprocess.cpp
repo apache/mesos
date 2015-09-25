@@ -62,30 +62,32 @@ static void cleanup(
 
 static void close(int stdinFd[2], int stdoutFd[2], int stderrFd[2])
 {
-  os::close(stdinFd[0]);
-  os::close(stdinFd[1]);
-  os::close(stdoutFd[0]);
-  os::close(stdoutFd[1]);
-  os::close(stderrFd[0]);
-  os::close(stderrFd[1]);
+  int fds[6] = {
+    stdinFd[0], stdinFd[1],
+    stdoutFd[0], stdoutFd[1],
+    stderrFd[0], stderrFd[1]
+  };
+
+  foreach (int fd, fds) {
+    if (fd >= 0) {
+      os::close(fd);
+    }
+  }
 }
 
 // This function will invoke os::cloexec on all file descriptors in
 // these pairs that are valid (i.e., >= 0).
 static Try<Nothing> cloexec(int stdinFd[2], int stdoutFd[2], int stderrFd[2])
 {
-  int fd[6] = {
-    stdinFd[0],
-    stdinFd[1],
-    stdoutFd[0],
-    stdoutFd[1],
-    stderrFd[0],
-    stderrFd[1]
+  int fds[6] = {
+    stdinFd[0], stdinFd[1],
+    stdoutFd[0], stdoutFd[1],
+    stderrFd[0], stderrFd[1]
   };
 
-  for (int i = 0; i < 6; i++) {
-    if (fd[i] >= 0) {
-      Try<Nothing> cloexec = os::cloexec(fd[i]);
+  foreach (int fd, fds) {
+    if (fd >= 0) {
+      Try<Nothing> cloexec = os::cloexec(fd);
       if (cloexec.isError()) {
         return Error(cloexec.error());
       }
