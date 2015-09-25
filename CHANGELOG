@@ -5,6 +5,9 @@ TODO: Add 0.25.0 major features description here.
 * API Changes:
   * [MESOS-3037] - Add a SUPPRESS call to the scheduler
 
+* Work In Progress:
+  * Functionality for endpoint 'api/v1/executor' introduced on 'Agent' is incomplete.
+
 
 Release Notes - Mesos - Version 0.24.1
 --------------------------------------
