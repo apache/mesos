@@ -312,6 +312,7 @@ Future<size_t> peek(int fd, void* data, size_t size, size_t limit)
   // fixed in a newer version of libev (we use 3.8 at the time of
   // writing this comment).
   internal::read(fd, data, limit, internal::PEEK, promise, io::READ);
+  promise->future().onAny(lambda::bind(&os::close, fd));
 
   return promise->future();
 }
