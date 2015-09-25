@@ -127,7 +127,6 @@ static Try<map<string, SubsystemInfo>> subsystems()
 
     if (file.fail()) {
       if (!file.eof()) {
-        file.close();
         return Error("Failed to read /proc/cgroups");
       }
     } else {
@@ -149,7 +148,6 @@ static Try<map<string, SubsystemInfo>> subsystems()
 
         // Check for any read/parse errors.
         if (ss.fail() && !ss.eof()) {
-          file.close();
           return Error("Failed to parse /proc/cgroups");
         }
 
@@ -158,7 +156,6 @@ static Try<map<string, SubsystemInfo>> subsystems()
     }
   }
 
-  file.close();
   return infos;
 }
 
@@ -368,12 +365,10 @@ static Try<string> read(
   ss << file.rdbuf();
 
   if (file.fail()) {
-    ErrnoError error; // TODO(jieyu): Does ifstream actually set errno?
-    file.close();
-    return error;
+    // TODO(jieyu): Does ifstream actually set errno?
+    return ErrnoError();
   }
 
-  file.close();
   return ss.str();
 }
 
@@ -404,12 +399,10 @@ static Try<Nothing> write(
   file << value;
 
   if (file.fail()) {
-    ErrnoError error; // TODO(jieyu): Does ifstream actually set errno?
-    file.close();
-    return error;
+    // TODO(jieyu): Does ofstream actually set errno?
+    return ErrnoError();
   }
 
-  file.close();
   return Nothing();
 }
 

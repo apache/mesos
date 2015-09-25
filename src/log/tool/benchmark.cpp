@@ -196,7 +196,6 @@ Try<Nothing> Benchmark::execute(int argc, char** argv)
   while (getline(input, line)) {
     Try<Bytes> size = Bytes::parse(strings::trim(line));
     if (size.isError()) {
-      input.close();
       return Error("Failed to parse the trace file: " + size.error());
     }
 
@@ -255,8 +254,6 @@ Try<Nothing> Benchmark::execute(int argc, char** argv)
            << " Appended " << sizes[i].bytes() << " bytes"
            << " in " << durations[i].ms() << " ms" << endl;
   }
-
-  output.close();
 
   return Nothing();
 }
