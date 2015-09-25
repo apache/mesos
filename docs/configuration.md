@@ -1215,6 +1215,14 @@ file:///path/to/file (where file contains one of the above)</code></pre>
   </tr>
   <tr>
     <td>
+      --image_providers=VALUE
+    </td>
+    <td>
+      Comma separated list of supported image providers, e.g., 'APPC,DOCKER'.
+    </td>
+  </tr>
+  <tr>
+    <td>
       --modules=VALUE
     </td>
     <td>
