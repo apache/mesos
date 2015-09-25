@@ -506,7 +506,7 @@ TYPED_TEST(SlaveRecoveryTest, ReconnectExecutor)
 
 // The slave is stopped before the (command) executor is registered.
 // When it comes back up with recovery=reconnect, make sure the
-// executor is killed and the task is transitioned to FAILED.
+// executor is killed and the task is transitioned to LOST.
 TYPED_TEST(SlaveRecoveryTest, RecoverUnregisteredExecutor)
 {
   Try<PID<Master> > master = this->StartMaster();
@@ -591,9 +591,12 @@ TYPED_TEST(SlaveRecoveryTest, RecoverUnregisteredExecutor)
     Clock::settle();
   }
 
-  // Scheduler should receive the TASK_FAILED update.
+  // Scheduler should receive the TASK_LOST update.
   AWAIT_READY(status);
-  ASSERT_EQ(TASK_FAILED, status.get().state());
+  ASSERT_EQ(TASK_LOST, status->state());
+  EXPECT_EQ(TaskStatus::SOURCE_SLAVE, status->source());
+  EXPECT_EQ(TaskStatus::REASON_EXECUTOR_REREGISTRATION_TIMEOUT,
+            status->reason());
 
   // Master should subsequently reoffer the same resources.
   while (offers2.isPending()) {
@@ -616,7 +619,7 @@ TYPED_TEST(SlaveRecoveryTest, RecoverUnregisteredExecutor)
 // The slave is stopped after a non-terminal update is received.
 // The command executor terminates when the slave is down.
 // When it comes back up with recovery=reconnect, make
-// sure the task is properly transitioned to FAILED.
+// sure the task is properly transitioned to LOST.
 TYPED_TEST(SlaveRecoveryTest, RecoverTerminatedExecutor)
 {
   Try<PID<Master> > master = this->StartMaster();
@@ -710,9 +713,12 @@ TYPED_TEST(SlaveRecoveryTest, RecoverTerminatedExecutor)
     Clock::settle();
   }
 
-  // Scheduler should receive the TASK_FAILED update.
+  // Scheduler should receive the TASK_LOST update.
   AWAIT_READY(status);
-  ASSERT_EQ(TASK_FAILED, status.get().state());
+  ASSERT_EQ(TASK_LOST, status->state());
+  EXPECT_EQ(TaskStatus::SOURCE_SLAVE, status->source());
+  EXPECT_EQ(TaskStatus::REASON_EXECUTOR_REREGISTRATION_TIMEOUT,
+            status->reason());
 
   while (offers2.isPending()) {
     Clock::advance(Seconds(1));
@@ -3169,7 +3175,10 @@ TYPED_TEST(SlaveRecoveryTest, RestartBeforeContainerizerLaunch)
 
   // Scheduler should receive the TASK_FAILED update.
   AWAIT_READY(status);
-  ASSERT_EQ(TASK_FAILED, status.get().state());
+  ASSERT_EQ(TASK_FAILED, status->state());
+  EXPECT_EQ(TaskStatus::SOURCE_SLAVE, status->source());
+  EXPECT_EQ(TaskStatus::REASON_EXECUTOR_TERMINATED,
+            status->reason());
 
   driver.stop();
   driver.join();

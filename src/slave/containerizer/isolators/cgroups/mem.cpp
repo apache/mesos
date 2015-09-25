@@ -694,8 +694,11 @@ void CgroupsMemIsolatorProcess::oom(const ContainerID& containerId)
       stringify(usage.isSome() ? usage.get().megabytes() : 0),
       "*").get();
 
-  info->limitation.set(protobuf::slave::createContainerLimitation(
-        mem, message.str()));
+  info->limitation.set(
+      protobuf::slave::createContainerLimitation(
+          mem,
+          message.str(),
+          TaskStatus::REASON_CONTAINER_LIMITATION_MEMORY));
 }
 
 

@@ -1365,11 +1365,10 @@ void DockerContainerizerProcess::destroy(
     // This means we failed to launch the container and we're trying to
     // cleanup.
     CHECK_PENDING(container->status.future());
-    containerizer::Termination termination;
-    termination.set_killed(killed);
-    termination.set_message(
-        "Failed to launch container: " + container->launch.failure());
-    container->termination.set(termination);
+
+    // NOTE: The launch error message will be retrieved by the slave
+    // and properly set in the corresponding status update.
+    container->termination.set(containerizer::Termination());
 
     containers_.erase(containerId);
     delete container;
@@ -1409,7 +1408,6 @@ void DockerContainerizerProcess::destroy(
     fetcher->kill(containerId);
 
     containerizer::Termination termination;
-    termination.set_killed(killed);
     termination.set_message("Container destroyed while fetching");
     container->termination.set(termination);
 
@@ -1429,7 +1427,6 @@ void DockerContainerizerProcess::destroy(
     container->pull.discard();
 
     containerizer::Termination termination;
-    termination.set_killed(killed);
     termination.set_message("Container destroyed while pulling image");
     container->termination.set(termination);
 
@@ -1548,7 +1545,6 @@ void DockerContainerizerProcess::___destroy(
   Container* container = containers_[containerId];
 
   containerizer::Termination termination;
-  termination.set_killed(killed);
 
   if (status.isReady() && status.get().isSome()) {
     termination.set_status(status.get().get());

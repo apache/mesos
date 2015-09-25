@@ -229,8 +229,10 @@ TEST_F(SlaveTest, ShutdownUnregisteredExecutor)
   }
 
   AWAIT_READY(status);
-  ASSERT_EQ(TASK_FAILED, status.get().state());
-  EXPECT_EQ(TaskStatus::SOURCE_SLAVE, status.get().source());
+  ASSERT_EQ(TASK_FAILED, status->state());
+  EXPECT_EQ(TaskStatus::SOURCE_SLAVE, status->source());
+  EXPECT_EQ(TaskStatus::REASON_EXECUTOR_REGISTRATION_TIMEOUT,
+            status->reason());
 
   Clock::resume();
 
@@ -298,9 +300,9 @@ TEST_F(SlaveTest, RemoveUnregisteredTerminatedExecutor)
   containerizer.destroy(offers.get()[0].framework_id(), DEFAULT_EXECUTOR_ID);
 
   AWAIT_READY(status);
-  EXPECT_EQ(TASK_LOST, status.get().state());
-  EXPECT_EQ(TaskStatus::SOURCE_SLAVE, status.get().source());
-  EXPECT_EQ(TaskStatus::REASON_EXECUTOR_TERMINATED, status.get().reason());
+  EXPECT_EQ(TASK_FAILED, status->state());
+  EXPECT_EQ(TaskStatus::SOURCE_SLAVE, status->source());
+  EXPECT_EQ(TaskStatus::REASON_EXECUTOR_TERMINATED, status->reason());
 
   // We use 'gc.schedule' as a signal for the executor being cleaned
   // up by the slave.
@@ -427,7 +429,6 @@ TEST_F(SlaveTest, CommandExecutorWithOverride)
   AWAIT_READY(wait);
 
   containerizer::Termination termination;
-  termination.set_killed(false);
   termination.set_message("Killed executor");
   termination.set_status(0);
   promise.set(termination);
@@ -1371,9 +1372,9 @@ TEST_F(SlaveTest, TerminalTaskContainerizerUpdateFails)
   EXPECT_EQ(TaskStatus::SOURCE_EXECUTOR, status3.get().source());
 
   AWAIT_READY(status4);
-  EXPECT_EQ(TASK_LOST, status4.get().state());
-  EXPECT_EQ(TaskStatus::SOURCE_SLAVE, status4.get().source());
-  EXPECT_EQ(TaskStatus::REASON_EXECUTOR_TERMINATED, status4.get().reason());
+  EXPECT_EQ(TASK_LOST, status4->state());
+  EXPECT_EQ(TaskStatus::SOURCE_SLAVE, status4->source());
+  EXPECT_EQ(TaskStatus::REASON_CONTAINER_UPDATE_FAILED, status4->reason());
 
   driver.stop();
   driver.join();
@@ -1482,9 +1483,9 @@ TEST_F(SlaveTest, TaskLaunchContainerizerUpdateFails)
   driver.start();
 
   AWAIT_READY(status);
-  EXPECT_EQ(TASK_LOST, status.get().state());
-  EXPECT_EQ(TaskStatus::SOURCE_SLAVE, status.get().source());
-  EXPECT_EQ(TaskStatus::REASON_EXECUTOR_TERMINATED, status.get().reason());
+  EXPECT_EQ(TASK_LOST, status->state());
+  EXPECT_EQ(TaskStatus::SOURCE_SLAVE, status->source());
+  EXPECT_EQ(TaskStatus::REASON_CONTAINER_UPDATE_FAILED, status->reason());
 
   driver.stop();
   driver.join();

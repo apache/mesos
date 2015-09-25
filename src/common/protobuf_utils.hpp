@@ -92,7 +92,8 @@ namespace slave {
 
 mesos::slave::ContainerLimitation createContainerLimitation(
     const Resources& resources,
-    const std::string& message);
+    const std::string& message,
+    const TaskStatus::Reason& reason);
 
 
 mesos::slave::ContainerState createContainerState(

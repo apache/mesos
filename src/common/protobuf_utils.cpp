@@ -233,13 +233,15 @@ namespace slave {
 
 ContainerLimitation createContainerLimitation(
     const Resources& resources,
-    const std::string& message)
+    const std::string& message,
+    const TaskStatus::Reason& reason)
 {
   ContainerLimitation limitation;
   foreach (Resource resource, resources) {
     limitation.add_resources()->CopyFrom(resource);
   }
   limitation.set_message(message);
+  limitation.set_reason(reason);
   return limitation;
 }
 

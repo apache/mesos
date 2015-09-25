@@ -82,15 +82,14 @@ message Usage {
  * containerizer to the slave.
  */
 message Termination {
-  // A container may be killed if it exceeds its resources; this will
-  // be indicated by killed=true and described by the message string.
-  // TODO(jaybuff): As part of MESOS-2035 we should remove killed and
-  // replace it with a TaskStatus::Reason.
-  required bool killed = 1;
-  required string message = 2;
-
   // Exit status of the process.
   optional int32 status = 3;
+
+  // The 'state', 'reasons' and 'message' of a status update for
+  // non-terminal tasks when the executor is terminated.
+  optional TaskState state = 4;
+  repeated TaskStatus.Reason reasons = 5;
+  optional string message = 2;
 }
 
 

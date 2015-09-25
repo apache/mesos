@@ -158,7 +158,7 @@ public:
       const ContainerID& containerId,
       int pipeWrite);
 
-  virtual void destroy(const ContainerID& containerId, bool killed);
+  virtual void destroy(const ContainerID& containerId);
 
   virtual process::Future<hashset<ContainerID>> containers();
 
@@ -204,20 +204,18 @@ private:
       pid_t _pid);
 
   // Continues 'destroy()' once isolators has completed.
-  void _destroy(const ContainerID& containerId, bool killed);
+  void _destroy(const ContainerID& containerId);
 
   // Continues '_destroy()' once all processes have been killed by the launcher.
   void __destroy(
       const ContainerID& containerId,
-      const process::Future<Nothing>& future,
-      bool killed);
+      const process::Future<Nothing>& future);
 
   // Continues '__destroy()' once we get the exit status of the executor.
   void ___destroy(
       const ContainerID& containerId,
       const process::Future<Option<int>>& status,
-      const Option<std::string>& message,
-      bool killed);
+      const Option<std::string>& message);
 
   // Continues '___destroy()' once all isolators have completed
   // cleanup.
@@ -225,8 +223,7 @@ private:
       const ContainerID& containerId,
       const process::Future<Option<int>>& status,
       const process::Future<std::list<process::Future<Nothing>>>& cleanups,
-      Option<std::string> message,
-      bool killed);
+      Option<std::string> message);
 
   // Call back for when an isolator limits a container and impacts the
   // processes. This will trigger container destruction.

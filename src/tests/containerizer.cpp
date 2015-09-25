@@ -238,7 +238,6 @@ void TestContainerizer::destroy(const ContainerID& containerId)
 
   if (promises.contains(containerId)) {
     containerizer::Termination termination;
-    termination.set_killed(false);
     termination.set_message("Killed executor");
     termination.set_status(0);
 

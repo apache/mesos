@@ -669,7 +669,6 @@ TEST_F(MesosContainerizerDestroyTest, DestroyWhilePreparing)
       "Container destroyed while preparing isolators",
       termination.message());
 
-  EXPECT_TRUE(termination.killed());
   EXPECT_FALSE(termination.has_status());
 }
 

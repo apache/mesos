@@ -2402,9 +2402,9 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_ExecutorCleanupWhenLaunchFailed)
   task.mutable_command()->CopyFrom(command);
   task.mutable_container()->CopyFrom(containerInfo);
 
-  Future<TaskStatus> statusFailed;
+  Future<TaskStatus> statusLost;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
-    .WillOnce(FutureArg<1>(&statusFailed));
+    .WillOnce(FutureArg<1>(&statusLost));
 
   Future<ContainerID> containerId;
   EXPECT_CALL(dockerContainerizer, launch(_, _, _, _, _, _, _, _))
@@ -2420,9 +2420,10 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_ExecutorCleanupWhenLaunchFailed)
 
   AWAIT_READY_FOR(containerId, Seconds(60));
 
-  AWAIT_READY(statusFailed);
-
-  EXPECT_EQ(TASK_FAILED, statusFailed.get().state());
+  AWAIT_READY(statusLost);
+  EXPECT_EQ(TASK_LOST, statusLost.get().state());
+  EXPECT_EQ(TaskStatus::REASON_CONTAINER_UPDATE_FAILED,
+            statusLost.get().reason());
 
   driver.stop();
   driver.join();

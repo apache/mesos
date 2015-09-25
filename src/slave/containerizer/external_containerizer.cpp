@@ -676,11 +676,6 @@ void ExternalContainerizerProcess::__wait(
       if (status.isSome()) {
         VLOG(2) << "Wait got destroyed on '" << containerId << "'";
         containerizer::Termination termination;
-        // 'killed' must only be true when a resource limitation
-        // had to be enforced through terminating a task.
-        // TODO(tillt): Consider renaming 'killed' towards 'limited'.
-        termination.set_killed(false);
-        termination.set_message("");
         termination.set_status(status.get());
         actives[containerId]->termination.set(termination);
         cleanup(containerId);

@@ -247,10 +247,12 @@ void PosixDiskIsolatorProcess::_collect(
       CHECK_SOME(quota);
 
       if (future.get() > quota.get()) {
-        info->limitation.set(protobuf::slave::createContainerLimitation(
-            Resources(info->paths[path].quota),
-            "Disk usage (" + stringify(future.get()) +
-            ") exceeds quota (" + stringify(quota.get()) + ")"));
+        info->limitation.set(
+            protobuf::slave::createContainerLimitation(
+                Resources(info->paths[path].quota),
+                "Disk usage (" + stringify(future.get()) +
+                ") exceeds quota (" + stringify(quota.get()) + ")",
+                TaskStatus::REASON_CONTAINER_LIMITATION_DISK));
       }
     }
   }

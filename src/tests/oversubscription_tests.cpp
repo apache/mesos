@@ -872,8 +872,8 @@ TEST_F(OversubscriptionTest, QoSCorrectionKill)
 
   // Verify task status is TASK_LOST.
   AWAIT_READY(status2);
-  ASSERT_EQ(TASK_LOST, status2.get().state());
-  ASSERT_EQ(TaskStatus::REASON_EXECUTOR_PREEMPTED, status2.get().reason());
+  ASSERT_EQ(TASK_LOST, status2->state());
+  ASSERT_EQ(TaskStatus::REASON_CONTAINER_PREEMPTED, status2->reason());
 
   // Verify that slave incremented counter for preempted executors.
   snapshot = Metrics();

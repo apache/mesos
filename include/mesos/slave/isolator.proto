@@ -36,6 +36,12 @@ message ContainerLimitation
 
   // Description of the limitation.
   optional string message = 2;
+
+  // The container will be terminated when a resource limitation is
+  // reached. This field specifies the 'reason' that will be sent in
+  // the status update for any remaining non-terminal tasks when the
+  // container is terminated.
+  optional TaskStatus.Reason reason = 3;
 }
 
 
