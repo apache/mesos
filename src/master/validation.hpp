@@ -16,6 +16,9 @@
  * limitations under the License.
  */
 
+#ifndef __MASTER_VALIDATION_HPP__
+#define __MASTER_VALIDATION_HPP__
+
 #include <google/protobuf/repeated_field.h>
 
 #include <mesos/mesos.hpp>
@@ -133,3 +136,5 @@ Option<Error> validate(
 } // namespace master {
 } // namespace internal {
 } // namespace mesos {
+
+#endif // __MASTER_VALIDATION_HPP__
