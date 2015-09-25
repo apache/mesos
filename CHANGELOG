@@ -103,6 +103,9 @@ This release contains:
   * [MESOS-3459] - Change /machine/up and /machine/down endpoints to take an array.
   * [MESOS-3510] - Synchronize V1 helper functions with pre-v1.
 
+* Work In Progress:
+  * Functionality for endpoint 'api/v1/executor' introduced on 'Agent' is incomplete.
+
 
 Release Notes - Mesos - Version 0.24.1
 --------------------------------------
