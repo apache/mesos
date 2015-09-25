@@ -280,7 +280,6 @@ inline Result<std::string> cmdline(const Option<pid_t>& pid = None())
 
     // Check for any read errors.
     if (file.fail() && !file.eof()) {
-      file.close();
       return Error("Failed to read '" + path + "'");
     } else if (!file.eof()) {
       file.get(); // Read the null byte.
@@ -381,11 +380,8 @@ inline Try<SystemStatus> status()
   }
 
   if (file.fail() && !file.eof()) {
-    file.close();
     return Error("Failed to read /proc/stat");
   }
-
-  file.close();
 
   return SystemStatus(btime);
 }
@@ -507,11 +503,8 @@ inline Try<std::list<CPU> > cpus()
   }
 
   if (file.fail() && !file.eof()) {
-    file.close();
     return Error("Failed to read /proc/cpuinfo");
   }
-
-  file.close();
 
   return results;
 }

@@ -74,11 +74,12 @@ inline Result<std::string> read(int fd, size_t size)
 #ifdef __sun // getline is not available on Solaris, using STL.
 inline Try<std::string> read(const std::string& path)
 {
-  std::ifstream ifs(path.c_str());
-  if (!ifs.is_open()) {
+  std::ifstream file(path.c_str());
+  if (!file.is_open()) {
+    // Does ifstream actually set errno?
     return ErrnoError("Failed to open file '" + path + "'");
   }
-  return std::string((std::istreambuf_iterator<char>(ifs)),
+  return std::string((std::istreambuf_iterator<char>(file)),
                      (std::istreambuf_iterator<char>()));
 }
 #else
