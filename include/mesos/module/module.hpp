@@ -22,4 +22,15 @@
 // ONLY USEFUL AFTER RUNNING PROTOC.
 #include <mesos/module/module.pb.h>
 
+namespace mesos {
+
+inline std::ostream& operator<<(
+    std::ostream& stream,
+    const Modules& modules)
+{
+  return stream << modules.DebugString();
+}
+
+} // namespace mesos {
+
 #endif // __MESOS_MODULE_MODULE_HPP__
