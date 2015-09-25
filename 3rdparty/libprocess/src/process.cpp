@@ -956,9 +956,6 @@ void initialize(const string& delegate)
   // Initialize the mime types.
   mime::initialize();
 
-  // Initialize the response statuses.
-  http::initialize();
-
   // Add a route for getting process information.
   lambda::function<Future<Response>(const Request&)> __processes__ =
     lambda::bind(&ProcessManager::__processes__, process_manager, lambda::_1);

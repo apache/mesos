@@ -127,9 +127,11 @@ TEST(HTTPTest, Auth)
   Future<http::Response> noAuthFuture = http::get(http.process->self(), "auth");
 
   AWAIT_READY(noAuthFuture);
-  EXPECT_EQ(http::statuses[401], noAuthFuture.get().status);
+  EXPECT_EQ(http::Status::UNAUTHORIZED, noAuthFuture->code);
+  EXPECT_EQ(http::Status::string(http::Status::UNAUTHORIZED),
+            noAuthFuture->status);
   ASSERT_SOME_EQ("Basic realm=\"testrealm\"",
-                 noAuthFuture.get().headers.get("WWW-authenticate"));
+                 noAuthFuture->headers.get("WWW-authenticate"));
 
   // Now test passing wrong auth header.
   http::Headers headers;
@@ -139,9 +141,12 @@ TEST(HTTPTest, Auth)
     http::get(http.process->self(), "auth", None(), headers);
 
   AWAIT_READY(wrongAuthFuture);
-  EXPECT_EQ(http::statuses[401], wrongAuthFuture.get().status);
+  EXPECT_EQ(http::Status::UNAUTHORIZED, wrongAuthFuture->code);
+  EXPECT_EQ(http::Status::string(http::Status::UNAUTHORIZED),
+            wrongAuthFuture->status);
+
   ASSERT_SOME_EQ("Basic realm=\"testrealm\"",
-                 wrongAuthFuture.get().headers.get("WWW-authenticate"));
+                 wrongAuthFuture->headers.get("WWW-authenticate"));
 
   // Now test passing right auth header.
   headers["Authorization"] = "Basic " + base64::encode("testuser:testpass");
@@ -150,7 +155,9 @@ TEST(HTTPTest, Auth)
     http::get(http.process->self(), "auth", None(), headers);
 
   AWAIT_READY(rightAuthFuture);
-  EXPECT_EQ(http::statuses[200], rightAuthFuture.get().status);
+  EXPECT_EQ(http::Status::OK, rightAuthFuture->code);
+  EXPECT_EQ(http::Status::string(http::Status::OK),
+            rightAuthFuture->status);
 }
 
 
@@ -204,9 +211,11 @@ TEST(HTTPTest, Endpoints)
   EXPECT_TRUE(writer.close());
 
   AWAIT_READY(future);
-  EXPECT_EQ(http::statuses[200], future.get().status);
-  EXPECT_SOME_EQ("chunked", future.get().headers.get("Transfer-Encoding"));
-  EXPECT_EQ("Hello World\n", future.get().body);
+  EXPECT_EQ(http::Status::OK, future->code);
+  EXPECT_EQ(http::Status::string(http::Status::OK), future->status);
+
+  EXPECT_SOME_EQ("chunked", future->headers.get("Transfer-Encoding"));
+  EXPECT_EQ("Hello World\n", future->body);
 }
 
 
@@ -433,7 +442,8 @@ TEST(HTTPTest, Get)
   Future<http::Response> noQueryFuture = http::get(http.process->self(), "get");
 
   AWAIT_READY(noQueryFuture);
-  ASSERT_EQ(http::statuses[200], noQueryFuture.get().status);
+  EXPECT_EQ(http::Status::OK, noQueryFuture->code);
+  EXPECT_EQ(http::Status::string(http::Status::OK), noQueryFuture->status);
 
   EXPECT_CALL(*http.process, get(_))
     .WillOnce(Invoke(validateGetWithQuery));
@@ -442,7 +452,8 @@ TEST(HTTPTest, Get)
     http::get(http.process->self(), "get", "foo=bar");
 
   AWAIT_READY(queryFuture);
-  ASSERT_EQ(http::statuses[200], queryFuture.get().status);
+  ASSERT_EQ(http::Status::OK, queryFuture->code);
+  ASSERT_EQ(http::Status::string(http::Status::OK), queryFuture->status);
 }
 
 
@@ -460,14 +471,16 @@ TEST(HTTPTest, NestedGet)
   Future<http::Response> response = http::get(http.process->self(), "/a/b/c");
 
   AWAIT_READY(response);
-  ASSERT_EQ(http::statuses[200], response.get().status);
+  ASSERT_EQ(http::Status::OK, response->code);
+  ASSERT_EQ(http::Status::string(http::Status::OK), response->status);
 
   // "/a/b" should be handled by "/a" handler and return
   // 'http::Accepted()'.
   response = http::get(http.process->self(), "/a/b");
 
   AWAIT_READY(response);
-  ASSERT_EQ(http::statuses[202], response.get().status);
+  ASSERT_EQ(http::Status::ACCEPTED, response->code);
+  ASSERT_EQ(http::Status::string(http::Status::ACCEPTED), response->status);
 }
 
 
@@ -608,7 +621,8 @@ TEST(HTTPTest, Post)
       "text/plain");
 
   AWAIT_READY(future);
-  ASSERT_EQ(http::statuses[200], future.get().status);
+  ASSERT_EQ(http::Status::OK, future->code);
+  ASSERT_EQ(http::Status::string(http::Status::OK), future->status);
 
   // Now test passing headers instead.
   http::Headers headers;
@@ -621,7 +635,8 @@ TEST(HTTPTest, Post)
     http::post(http.process->self(), "post", headers, "This is the payload.");
 
   AWAIT_READY(future);
-  ASSERT_EQ(http::statuses[200], future.get().status);
+  ASSERT_EQ(http::Status::OK, future->code);
+  ASSERT_EQ(http::Status::string(http::Status::OK), future->status);
 }
 
 
@@ -647,7 +662,8 @@ TEST(HTTPTest, Delete)
     http::requestDelete(http.process->self(), "delete", None());
 
   AWAIT_READY(future);
-  ASSERT_EQ(http::statuses[200], future.get().status);
+  ASSERT_EQ(http::Status::OK, future->code);
+  ASSERT_EQ(http::Status::string(http::Status::OK), future->status);
 }
 
 

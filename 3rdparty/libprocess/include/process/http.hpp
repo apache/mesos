@@ -58,13 +58,7 @@ namespace http {
 
 // Status code reason strings, from the HTTP1.1 RFC:
 // http://www.w3.org/Protocols/rfc2616/rfc2616-sec6.html
-extern hashmap<uint16_t, std::string> statuses;
-
-// Initializes 'statuses'.
-// TODO(bmahler): Provide a function that returns the string for
-// a status code instead!
-void initialize();
-
+extern hashmap<uint16_t, std::string>* statuses;
 
 // Represents a Uniform Resource Locator:
 //   scheme://domain|ip:port/path?query#fragment
@@ -146,6 +140,53 @@ struct CaseInsensitiveEqual
     }
     return true;
   }
+};
+
+
+struct Status
+{
+  static const uint16_t CONTINUE;
+  static const uint16_t SWITCHING_PROTOCOLS;
+  static const uint16_t OK;
+  static const uint16_t CREATED;
+  static const uint16_t ACCEPTED;
+  static const uint16_t NON_AUTHORITATIVE_INFORMATION;
+  static const uint16_t NO_CONTENT;
+  static const uint16_t RESET_CONTENT;
+  static const uint16_t PARTIAL_CONTENT;
+  static const uint16_t MULTIPLE_CHOICES;
+  static const uint16_t MOVED_PERMANENTLY;
+  static const uint16_t FOUND;
+  static const uint16_t SEE_OTHER;
+  static const uint16_t NOT_MODIFIED;
+  static const uint16_t USE_PROXY;
+  static const uint16_t TEMPORARY_REDIRECT;
+  static const uint16_t BAD_REQUEST;
+  static const uint16_t UNAUTHORIZED;
+  static const uint16_t PAYMENT_REQUIRED;
+  static const uint16_t FORBIDDEN;
+  static const uint16_t NOT_FOUND;
+  static const uint16_t METHOD_NOT_ALLOWED;
+  static const uint16_t NOT_ACCEPTABLE;
+  static const uint16_t PROXY_AUTHENTICATION_REQUIRED;
+  static const uint16_t REQUEST_TIMEOUT;
+  static const uint16_t CONFLICT;
+  static const uint16_t GONE;
+  static const uint16_t LENGTH_REQUIRED;
+  static const uint16_t PRECONDITION_FAILED;
+  static const uint16_t REQUEST_ENTITY_TOO_LARGE;
+  static const uint16_t REQUEST_URI_TOO_LARGE;
+  static const uint16_t UNSUPPORTED_MEDIA_TYPE;
+  static const uint16_t REQUESTED_RANGE_NOT_SATISFIABLE;
+  static const uint16_t EXPECTATION_FAILED;
+  static const uint16_t INTERNAL_SERVER_ERROR;
+  static const uint16_t NOT_IMPLEMENTED;
+  static const uint16_t BAD_GATEWAY;
+  static const uint16_t SERVICE_UNAVAILABLE;
+  static const uint16_t GATEWAY_TIMEOUT;
+  static const uint16_t HTTP_VERSION_NOT_SUPPORTED;
+
+  static std::string string(uint16_t code);
 };
 
 
@@ -355,11 +396,21 @@ struct Response
     : type(NONE)
   {}
 
-  explicit Response(const std::string& _body)
+  Response(uint16_t _code)
+    : type(NONE), code(_code)
+  {
+    status = Status::string(code);
+  }
+
+  explicit Response(
+      const std::string& _body,
+      uint16_t _code)
     : type(BODY),
-      body(_body)
+      body(_body),
+      code(_code)
   {
     headers["Content-Length"] = stringify(body.size());
+    status = Status::string(code);
   }
 
   // TODO(benh): Add major/minor version.
@@ -399,31 +450,24 @@ struct Response
   std::string body;
   std::string path;
   Option<Pipe::Reader> reader;
+
+  uint16_t code;
 };
 
 
 struct OK : Response
 {
-  OK()
-  {
-    status = "200 OK";
-  }
+  OK() : Response(Status::OK) {}
 
-  explicit OK(const char* body) : Response(std::string(body))
-  {
-    status = "200 OK";
-  }
+  explicit OK(const char* body)
+    : Response(std::string(body), Status::OK) {}
 
-  explicit OK(const std::string& body) : Response(body)
-  {
-    status = "200 OK";
-  }
+  explicit OK(const std::string& body) : Response(body, Status::OK) {}
 
   OK(const JSON::Value& value, const Option<std::string>& jsonp = None())
+    : Response(Status::OK)
   {
     type = BODY;
-
-    status = "200 OK";
 
     std::ostringstream out;
 
@@ -448,23 +492,18 @@ struct OK : Response
 
 struct Accepted : Response
 {
-  Accepted()
-  {
-    status = "202 Accepted";
-  }
+  Accepted() : Response(Status::ACCEPTED) {}
 
-  explicit Accepted(const std::string& body) : Response(body)
-  {
-    status = "202 Accepted";
-  }
+  explicit Accepted(const std::string& body)
+    : Response(body, Status::ACCEPTED) {}
 };
 
 
 struct TemporaryRedirect : Response
 {
   explicit TemporaryRedirect(const std::string& url)
+    : Response(Status::TEMPORARY_REDIRECT)
   {
-    status = "307 Temporary Redirect";
     headers["Location"] = url;
   }
 };
@@ -472,31 +511,23 @@ struct TemporaryRedirect : Response
 
 struct BadRequest : Response
 {
-  BadRequest()
-  {
-    status = "400 Bad Request";
-  }
+  BadRequest() : Response(Status::BAD_REQUEST) {}
 
   explicit BadRequest(const std::string& body)
-    : Response(body)
-  {
-    status = "400 Bad Request";
-  }
+    : Response(body, Status::BAD_REQUEST) {}
 };
 
 
 struct Unauthorized : Response
 {
-  Unauthorized(const std::string& realm)
+  Unauthorized(const std::string& realm) : Response(Status::UNAUTHORIZED)
   {
-    status = "401 Unauthorized";
     headers["WWW-authenticate"] = "Basic realm=\"" + realm + "\"";
   }
 
   Unauthorized(const std::string& realm, const std::string& body)
-    : Response(body)
+    : Response(body, Status::UNAUTHORIZED)
   {
-    status = "401 Unauthorized";
     headers["WWW-authenticate"] = "Basic realm=\"" + realm + "\"";
   }
 };
@@ -504,144 +535,91 @@ struct Unauthorized : Response
 
 struct Forbidden : Response
 {
-  Forbidden()
-  {
-    status = "403 Forbidden";
-  }
+  Forbidden() : Response(Status::FORBIDDEN) {}
 
-  explicit Forbidden(const std::string& body) : Response(body)
-  {
-    status = "403 Forbidden";
-  }
+  explicit Forbidden(const std::string& body)
+    : Response(body, Status::FORBIDDEN) {}
 };
 
 
 struct NotFound : Response
 {
-  NotFound()
-  {
-    status = "404 Not Found";
-  }
+  NotFound() : Response(Status::NOT_FOUND) {}
 
-  explicit NotFound(const std::string& body) : Response(body)
-  {
-    status = "404 Not Found";
-  }
+  explicit NotFound(const std::string& body)
+    : Response(body, Status::NOT_FOUND) {}
 };
 
 
 struct MethodNotAllowed : Response
 {
-  MethodNotAllowed()
-  {
-    status = "405 Method Not Allowed";
-  }
+  MethodNotAllowed() : Response(Status::METHOD_NOT_ALLOWED) {}
 
-  explicit MethodNotAllowed(const std::string& body) : Response(body)
-  {
-    status = "405 Method Not Allowed";
-  }
+  explicit MethodNotAllowed(const std::string& body)
+    : Response(body, Status::METHOD_NOT_ALLOWED) {}
 };
 
 
 struct NotAcceptable : Response
 {
-  NotAcceptable()
-  {
-    status = "406 Not Acceptable";
-  }
+  NotAcceptable() : Response(Status::NOT_ACCEPTABLE) {}
 
   explicit NotAcceptable(const std::string& body)
-    : Response(body)
-  {
-    status = "406 Not Acceptable";
-  }
+    : Response(body, Status::NOT_ACCEPTABLE) {}
 };
 
 
 struct Conflict : Response
 {
-  Conflict()
-  {
-    status = "409 Conflict";
-  }
+  Conflict() : Response(Status::CONFLICT) {}
 
   explicit Conflict(const std::string& body)
-    : Response(body)
-  {
-    status = "409 Conflict";
-  }
-};
-
-
-struct UnsupportedMediaType : Response
-{
-  UnsupportedMediaType()
-  {
-    status = "415 Unsupported Media Type";
-  }
-
-  explicit UnsupportedMediaType(const std::string& body)
-    : Response(body)
-  {
-    status = "415 Unsupported Media Type";
-  }
+    : Response(body, Status::CONFLICT) {}
 };
 
 
 struct PreconditionFailed : Response
 {
-  PreconditionFailed()
-  {
-    status = "412 Precondition Failed";
-  }
+  PreconditionFailed() : Response(Status::PRECONDITION_FAILED) {}
 
-  explicit PreconditionFailed(const std::string& body) : Response(body)
-  {
-    status = "412 Precondition Failed";
-  }
+  explicit PreconditionFailed(const std::string& body)
+    : Response(body, Status::PRECONDITION_FAILED) {}
+};
+
+
+struct UnsupportedMediaType : Response
+{
+  UnsupportedMediaType() : Response(Status::UNSUPPORTED_MEDIA_TYPE) {}
+
+  explicit UnsupportedMediaType(const std::string& body)
+    : Response(body, Status::UNSUPPORTED_MEDIA_TYPE) {}
 };
 
 
 struct InternalServerError : Response
 {
-  InternalServerError()
-  {
-    status = "500 Internal Server Error";
-  }
+  InternalServerError() : Response(Status::INTERNAL_SERVER_ERROR) {}
 
-  explicit InternalServerError(const std::string& body) : Response(body)
-  {
-    status = "500 Internal Server Error";
-  }
+  explicit InternalServerError(const std::string& body)
+    : Response(body, Status::INTERNAL_SERVER_ERROR) {}
 };
 
 
 struct NotImplemented : Response
 {
-  NotImplemented()
-  {
-    status = "501 Not Implemented";
-  }
+  NotImplemented() : Response(Status::NOT_IMPLEMENTED) {}
 
-  explicit NotImplemented(const std::string& body) : Response(body)
-  {
-    status = "501 Not Implemented";
-  }
+  explicit NotImplemented(const std::string& body)
+    : Response(body, Status::NOT_IMPLEMENTED) {}
 };
 
 
 struct ServiceUnavailable : Response
 {
-  ServiceUnavailable()
-  {
-    status = "503 Service Unavailable";
-  }
+  ServiceUnavailable() : Response(Status::SERVICE_UNAVAILABLE) {}
 
-  explicit ServiceUnavailable(const std::string& body) : Response(body)
-  {
-    status = "503 Service Unavailable";
-  }
+  explicit ServiceUnavailable(const std::string& body)
+    : Response(body, Status::SERVICE_UNAVAILABLE) {}
 };
 
 

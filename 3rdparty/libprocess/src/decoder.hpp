@@ -436,11 +436,14 @@ private:
 
     CHECK_NOTNULL(decoder->response);
 
-    // Get the response status string.
-    if (http::statuses.contains(decoder->parser.status_code)) {
-      decoder->response->status = http::statuses[decoder->parser.status_code];
+    if (http::statuses->contains(decoder->parser.status_code)) {
+      decoder->response->code = decoder->parser.status_code;
+
+      decoder->response->status =
+        http::Status::string(decoder->parser.status_code);
     } else {
       decoder->failure = true;
+
       return 1;
     }
 
@@ -646,11 +649,14 @@ private:
     decoder->field.clear();
     decoder->value.clear();
 
-    // Get the response status string.
-    if (http::statuses.contains(decoder->parser.status_code)) {
-      decoder->response->status = http::statuses[decoder->parser.status_code];
+    if (http::statuses->contains(decoder->parser.status_code)) {
+      decoder->response->code = decoder->parser.status_code;
+
+      decoder->response->status =
+        http::Status::string(decoder->parser.status_code);
     } else {
       decoder->failure = true;
+
       return 1;
     }
 
