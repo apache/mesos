@@ -266,8 +266,6 @@ Future<Response> _read(int fd,
   object.values["offset"] = offset;
   object.values["data"] = string(data.get(), size);
 
-  os::close(fd);
-
   return OK(object, jsonp);
 }
 
@@ -383,6 +381,7 @@ Future<Response> FilesProcess::read(const Request& request)
     string error =
         "Failed to set file descriptor nonblocking: " + nonblock.error();
     LOG(WARNING) << error;
+    os::close(fd.get());
     return InternalServerError(error);
   }
 
@@ -396,7 +395,8 @@ Future<Response> FilesProcess::read(const Request& request)
         lambda::_1,
         offset,
         data,
-        request.query.get("jsonp")));
+        request.query.get("jsonp")))
+    .onAny(lambda::bind(&os::close, fd.get()));
 }
 
 
