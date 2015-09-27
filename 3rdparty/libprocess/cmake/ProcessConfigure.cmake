@@ -44,36 +44,6 @@ set(PROCESS_PACKAGE_VERSION 0.0.1)
 set(PROCESS_PACKAGE_SOVERSION 0)
 set(PROCESS_TARGET process-${PROCESS_PACKAGE_VERSION})
 
-# DEFINE DIRECTORY STRUCTURE FOR THIRD-PARTY LIBS.
-##################################################
-set(PROCESS_3RD_SRC ${CMAKE_SOURCE_DIR}/3rdparty/libprocess/3rdparty)
-set(PROCESS_3RD_BIN ${CMAKE_BINARY_DIR}/3rdparty/libprocess/3rdparty)
-
-set(STOUT ${PROCESS_3RD_SRC}/stout)
-
-EXTERNAL("boost"       ${BOOST_VERSION}       "${PROCESS_3RD_BIN}")
-EXTERNAL("picojson"    ${PICOJSON_VERSION}    "${PROCESS_3RD_BIN}")
-EXTERNAL("http_parser" ${HTTP_PARSER_VERSION} "${PROCESS_3RD_BIN}")
-EXTERNAL("libev"       ${LIBEV_VERSION}       "${PROCESS_3RD_BIN}")
-EXTERNAL("libevent"    ${LIBEVENT_VERSION}    "${PROCESS_3RD_BIN}")
-EXTERNAL("libapr"      ${LIBAPR_VERSION}      "${PROCESS_3RD_BIN}")
-
-if (NOT WIN32)
-  EXTERNAL("glog" ${GLOG_VERSION} "${PROCESS_3RD_BIN}")
-elseif (WIN32)
-  # Glog 0.3.3 does not compile out of the box on Windows. Therefore, we
-  # require 0.3.4.
-  EXTERNAL("glog" "0.3.4" "${PROCESS_3RD_BIN}")
-endif (NOT WIN32)
-
-set(GLOG_LIB ${GLOG_ROOT}-lib/lib)
-
-# Directory structure for windows-only third-party libs.
-########################################################
-if (WIN32)
-  EXTERNAL("curl" ${CURL_VERSION} "${PROCESS_3RD_BIN}")
-endif (WIN32)
-
 # Define process library dependencies. Tells the process library build targets
 # download/configure/build all third-party libraries before attempting to build.
 ################################################################################
@@ -84,6 +54,7 @@ set(PROCESS_DEPENDENCIES
   ${PICOJSON_TARGET}
   ${HTTP_PARSER_TARGET}
   ${LIBEV_TARGET}
+  ${PROTOBUF_TARGET}
   )
 
 # Define third-party include directories. Tells compiler toolchain where to get
@@ -91,35 +62,17 @@ set(PROCESS_DEPENDENCIES
 ###############################################################################
 set(PROCESS_INCLUDE_DIRS
   ${PROCESS_INCLUDE_DIRS}
-  ${PROCESS_3RD_SRC}/../include
-  ${STOUT}/include
-  ${BOOST_ROOT}
-  ${LIBEV_ROOT}
-  ${PICOJSON_ROOT}
-  )
-
-if (WIN32)
-  set(PROCESS_INCLUDE_DIRS
-    ${PROCESS_INCLUDE_DIRS}
-    ${GLOG_ROOT}/src/windows
-    )
-else (WIN32)
-  set(PROCESS_INCLUDE_DIRS
-    ${PROCESS_INCLUDE_DIRS}
-    ${GLOG_LIB}/include
-    )
-endif (WIN32)
-
-set(PROCESS_INCLUDE_DIRS
-  ${PROCESS_INCLUDE_DIRS}
-  ${HTTP_PARSER_ROOT}
+  ${PROCESS_INCLUDE_DIR}
+  ${STOUT_INCLUDE_DIR}
+  ${BOOST_INCLUDE_DIR}
+  ${LIBEV_INCLUDE_DIR}
+  ${PICOJSON_INCLUDE_DIR}
+  ${GLOG_INCLUDE_DIR}
+  ${HTTP_PARSER_INCLUDE_DIR}
   )
 
 if (HAS_GPERFTOOLS)
-  set(PROCESS_INCLUDE_DIRS
-    ${PROCESS_INCLUDE_DIRS}
-    ${GPERFTOOLS}/src
-    )
+  set(PROCESS_INCLUDE_DIRS ${PROCESS_INCLUDE_DIRS} ${GPERFTOOLS_INCLUDE_DIR})
 endif (HAS_GPERFTOOLS)
 
 # Define third-party lib install directories. Used to tell the compiler
@@ -128,9 +81,9 @@ endif (HAS_GPERFTOOLS)
 ########################################################################
 set(PROCESS_LIB_DIRS
   ${PROCESS_LIB_DIRS}
-  ${GLOG_LIB}/lib
-  ${LIBEV_ROOT}-build/.libs
-  ${HTTP_PARSER_ROOT}-build
+  ${GLOG_LIB_DIR}
+  ${LIBEV_LIB_DIR}
+  ${HTTP_PARSER_LIB_DIR}
   )
 
 # Define third-party libs. Used to generate flags that the linker uses to
@@ -141,9 +94,9 @@ find_package(Threads REQUIRED)
 set(PROCESS_LIBS
   ${PROCESS_LIBS}
   ${PROCESS_TARGET}
-  glog
-  ev
-  http_parser
+  ${GLOG_LFLAG}
+  ${LIBEV_LFLAG}
+  ${HTTP_PARSER_LFLAG}
   ${CMAKE_THREAD_LIBS_INIT}
   )
 
