@@ -55,7 +55,6 @@ if (NOT WIN32)
     mac_tests.cpp
     os_tests.cpp
     path_tests.cpp
-    proc_tests.cpp
     protobuf_tests.cpp
     protobuf_tests.pb.cc
     recordio_tests.cpp
@@ -66,6 +65,10 @@ if (NOT WIN32)
     os/signals_tests.cpp
     )
 endif (NOT WIN32)
+
+if (LINUX)
+  set(STOUT_TESTS_SRC ${STOUT_TESTS_SRC} proc_tests.cpp)
+endif (LINUX)
 
 # INCLUDE DIRECTIVES FOR STOUT TEST BINARY (generates, e.g., -I/path/to/thing
 # on Linux).
