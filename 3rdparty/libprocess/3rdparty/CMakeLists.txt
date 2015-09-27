@@ -231,15 +231,8 @@ endif (WIN32)
 
 # NOTE: `gmock` is "installed" into a lib directory, see "NOTE: (fix for
 # MESOS-3250)" comment above for explanation.
-if (APPLE)
-  set(GMOCK_CONFIG_CMD  ${GMOCK_ROOT}/configure --prefix=${GMOCK_ROOT}-lib)
-  # GTEST on OSX needs its own tr1 tuple.
-  set(GMOCK_BUILD_CMD   make CPPFLAGS=-DGTEST_USE_OWN_TR1_TUPLE)
-  set(GMOCK_INSTALL_CMD mkdir -p ${GMOCK_ROOT}-lib/lib && cp -r ${GMOCK_ROOT}-build/lib/.libs/. ${GMOCK_ROOT}-lib/lib && cp -r ${GMOCK_ROOT}-build/gtest/lib/.libs/. ${GMOCK_ROOT}-lib/lib)
-elseif (NOT WIN32)
-  set(GMOCK_CONFIG_CMD  ${GMOCK_ROOT}/configure --prefix=${GMOCK_ROOT}-lib)
-  set(GMOCK_BUILD_CMD   make)
-  set(GMOCK_INSTALL_CMD mkdir -p ${GMOCK_ROOT}-lib/lib && cp -r ${GMOCK_ROOT}-build/lib/.libs/. ${GMOCK_ROOT}-lib/lib && cp -r ${GMOCK_ROOT}-build/gtest/lib/.libs/. ${GMOCK_ROOT}-lib/lib)
+if (NOT WIN32)
+  set(GMOCK_INSTALL_CMD mkdir -p ${GMOCK_ROOT}-lib/lib && cp -r ${GMOCK_ROOT}-build/. ${GMOCK_ROOT}-lib/lib && cp -r ${GMOCK_ROOT}-build/gtest/. ${GMOCK_ROOT}-lib/lib)
 elseif (WIN32)
   set(GMOCK_CONFIG_CMD ${CMAKE_NOOP})
   VS_BUILD_CMD(
@@ -248,7 +241,7 @@ elseif (WIN32)
       ${CMAKE_BUILD_TYPE}
       "gmock gmock_main")
   set(GMOCK_INSTALL_CMD ${CMAKE_NOOP})
-endif (APPLE)
+endif (NOT WIN32)
 
 if (NOT WIN32)
   set(PROTOBUF_PATCH_CMD   ${CMAKE_NOOP})
@@ -266,9 +259,13 @@ elseif (WIN32)
       "libprotobuf libprotoc protoc")
 endif (NOT WIN32)
 
+# NOTE: An implicit consequence of the following code is that on non-Windows
+# platforms, gmock and gtest are assumed to be CMake projects, and are thus
+# configured and built using default CMake commands. The reason is that on
+# non-Windows platforms, we choose to set `GMOCK_CONFIG_CMD` and
+# `GMOCK_BUILD_CMD` with stub commands, which cause CMake to "fall back" to
+# trying to build them with CMake.
 ExternalProject_Add(
-  # See note about third-party libraries above to understand quirky actual
-  # parameters passed in here.
   ${GMOCK_TARGET}
   PREFIX            ${GMOCK_CMAKE_ROOT}
   CONFIGURE_COMMAND ${GMOCK_CONFIG_CMD}
@@ -278,8 +275,6 @@ ExternalProject_Add(
   )
 
 ExternalProject_Add(
-  # See note about third-party libraries above to understand quirky actual
-  # parameters passed in here.
   ${PROTOBUF_TARGET}
   PREFIX            ${PROTOBUF_CMAKE_ROOT}
   PATCH_COMMAND     ${PROTOBUF_PATCH_CMD}

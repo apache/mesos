@@ -49,7 +49,7 @@ set(GTEST_LIB_DIR ${GMOCK_ROOT}-build/gtest/lib/.libs)
 if (WIN32)
   set(GMOCK_LIB_DIR    ${GMOCK_ROOT}/msvc/2010/Debug)
 else (WIN32)
-  set(GMOCK_LIB_DIR    ${GMOCK_ROOT}-build/lib/.libs)
+  set(GMOCK_LIB_DIR    ${GMOCK_ROOT}-lib/lib/)
 endif (WIN32)
 
 # Convenience variables for "lflags", the symbols we pass to CMake to generate
