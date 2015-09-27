@@ -37,6 +37,10 @@ else (REBUNDLED)
   set(LIBEV_URL       ${UPSTREAM_URL}/libev-${LIBEV_VERSION}.tar.gz)
 endif (REBUNDLED)
 
+# NOTE: libevent doesn't come rebundled, so this URL is always the same. But,
+# it's only downloaded if `ENABLE_LIBEVENT` is set.
+set(LIBEVENT_URL ${UPSTREAM_URL}/libevent-release-${LIBEVENT_VERSION}.tar.gz)
+
 if (WIN32)
   # TODO(hausdorff): (MESOS-3394) Upgrade Windows to use glog v0.3.5, as that
   # release will contain fixes that will allow us to build glog on Windows.
@@ -58,9 +62,8 @@ if (WIN32)
   # (as well as all the other third-party dependencies) on MSVC 1900.
   #
   # [1] https://github.com/google/glog/pull/43
-  set(GLOG_URL https://github.com/hausdorff/glog/tarball/glog-${GLOG_VERSION}-msvc1900)
-
-  set(CURL_URL ${UPSTREAM_URL}/curl-static-${CURL_VERSION}.tar.gz)
+  set(GLOG_URL     https://github.com/hausdorff/glog/tarball/glog-${GLOG_VERSION}-msvc1900)
+  set(CURL_URL     ${UPSTREAM_URL}/curl-static-${CURL_VERSION}.tar.gz)
 endif (WIN32)
 
 # Define build/patch/configure commands for third-party libs.
@@ -116,10 +119,7 @@ elseif (WIN32)
   set(RY_BUILD_CMD   ${CMAKE_NOOP})
   set(RY_INSTALL_CMD ${CMAKE_NOOP})
 
-  set(LIBEV_PATCH_CMD    ${CMAKE_NOOP})
-  set(LIBEV_CONFIG_CMD   ${CMAKE_NOOP})
-  set(LIBEV_BUILD_CMD    ${CMAKE_NOOP})
-  set(LIBEV_INSTALL_CMD  ${CMAKE_NOOP})
+  set(LIBEVENT_INSTALL_CMD ${CMAKE_NOOP})
 endif (NOT WIN32)
 
 # Third-party libraries. Tell the build system how to pull in and build third-
@@ -163,15 +163,25 @@ ExternalProject_Add(
   URL               ${HTTP_PARSER_URL}
   )
 
-ExternalProject_Add(
-  ${LIBEV_TARGET}
-  PREFIX            ${LIBEV_CMAKE_ROOT}
-  PATCH_COMMAND     ${LIBEV_PATCH_CMD}
-  CONFIGURE_COMMAND ${LIBEV_CONFIG_CMD}
-  BUILD_COMMAND     ${LIBEV_BUILD_CMD}
-  INSTALL_COMMAND   ${LIBEV_INSTALL_CMD}
-  URL               ${LIBEV_URL}
-  )
+if (NOT ENABLE_LIBEVENT)
+  ExternalProject_Add(
+    ${LIBEV_TARGET}
+    PREFIX            ${LIBEV_CMAKE_ROOT}
+    PATCH_COMMAND     ${LIBEV_PATCH_CMD}
+    CONFIGURE_COMMAND ${LIBEV_CONFIG_CMD}
+    BUILD_COMMAND     ${LIBEV_BUILD_CMD}
+    INSTALL_COMMAND   ${LIBEV_INSTALL_CMD}
+    URL               ${LIBEV_URL}
+    )
+elseif (ENABLE_LIBEVENT)
+  ExternalProject_Add(
+    ${LIBEVENT_TARGET}
+    PREFIX          ${LIBEVENT_CMAKE_ROOT}
+    CMAKE_ARGS      -LH -DEVENT__DISABLE_OPENSSL=TRUE
+    INSTALL_COMMAND ${LIBEVENT_INSTALL_CMD}
+    URL             ${LIBEVENT_URL}
+    )
+endif (NOT ENABLE_LIBEVENT)
 
 # WINDOWS THIRD-PARTY LIBRARIES. Windows has no package manager, so we download
 # them here.
