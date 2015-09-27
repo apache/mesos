@@ -103,62 +103,44 @@ if (NOT WIN32)
   set(LIBEV_INSTALL_CMD mkdir -p ${LIBEV_ROOT}-lib/lib && cp -r ${LIBEV_ROOT}-build/.libs/. ${LIBEV_ROOT}-lib/lib)
   # Patch libev to keep it from reaping child processes.
   PATCH_CMD(${PROCESS_3RD_SRC}/libev-4.15.patch LIBEV_PATCH_CMD)
+elseif (WIN32)
+  set(GLOG_PATCH_CMD   ${CMAKE_NOOP})
+  set(GLOG_CONFIG_CMD  ${CMAKE_NOOP})
+  set(GLOG_INSTALL_CMD ${CMAKE_NOOP})
+  VS_BUILD_CMD(
+      GLOG
+      ${GLOG_ROOT}/google-glog.sln
+      ${CMAKE_BUILD_TYPE}
+      "libglog")
+
+  set(RY_BUILD_CMD   ${CMAKE_NOOP})
+  set(RY_INSTALL_CMD ${CMAKE_NOOP})
+
+  set(LIBEV_PATCH_CMD    ${CMAKE_NOOP})
+  set(LIBEV_CONFIG_CMD   ${CMAKE_NOOP})
+  set(LIBEV_BUILD_CMD    ${CMAKE_NOOP})
+  set(LIBEV_INSTALL_CMD  ${CMAKE_NOOP})
 endif (NOT WIN32)
 
 # Third-party libraries. Tell the build system how to pull in and build third-
 # party libraries at compile time, using the ExternalProject_Add macro.
 ##############################################################################
-# NOTE: On ExternalProject_Add calls in the next section, we pass some
-# quoted values into `ExternalProject_Add`. We do this because some of these
-# projects can't (or shouldn't) be built from the command line (for various
-# reasons), and we need to get creative about what values we pass in to make
-# sure these operations are no-ops.
-#
-# There are two flavors of work-around here. The first we use to avoid building
-# third-party projects (like Boost) that never need to be built for Mesos. This
-# looks like this:
-#
-#     BUILD_COMMAND ""
-#
-# In most of the major releases of CMake, if we don't set parameters like
-# `BUILD_COMMAND`, we will trigger the default behavior of that parameter;
-# usually, CMake attempts to configure/build/install/etc. the third-party
-# project as if it were a CMake (or perhaps make) project. Since these projects
-# are not CMake projects, they will error out. This work-around lets us avoid
-# that fate altogether.
-#
-# The second work-around allows us to build a project except on Windows. It
-# looks like this:
-#
-#     BUILD_COMMAND "${GLOG_BUILD_CMD}"
-#
-# The problem is that there is currently no way to build glog on Windows from
-# the command line. But, if GLOG_BUILD_CMD is not set (or if it's an empty
-# list), then we run into the same problem as last time; CMake sees that
-# `BUILD_COMMAND` is unset, and will default to the "normal" behavior of trying
-# to configure/build/install the project as if it was a CMake project. (Since
-# it is not, it will of course error out on Windows.)
-#
-# The work-around is to add quotes to the outside of the variable. In this case,
-# ${GLOG_BUILD_CMD} will expand to unset, which will cause us to pass the empty
-# string as a parameter to the function. This of course is different from not
-# setting the parameter value at all, and hence the work-around works.
 ExternalProject_Add(
   ${BOOST_TARGET}
   PREFIX            ${BOOST_CMAKE_ROOT}
-  CONFIGURE_COMMAND ""
-  BUILD_COMMAND     ""
-  INSTALL_COMMAND   ""
+  CONFIGURE_COMMAND ${CMAKE_NOOP}
+  BUILD_COMMAND     ${CMAKE_NOOP}
+  INSTALL_COMMAND   ${CMAKE_NOOP}
   URL               ${BOOST_URL}
   )
 
 ExternalProject_Add(
   ${GLOG_TARGET}
   PREFIX            ${GLOG_CMAKE_ROOT}
-  PATCH_COMMAND     "${GLOG_PATCH_CMD}"
-  CONFIGURE_COMMAND "${GLOG_CONFIG_CMD}"
-  BUILD_COMMAND     "${GLOG_BUILD_CMD}"
-  INSTALL_COMMAND   "${GLOG_INSTALL_CMD}"
+  PATCH_COMMAND     ${GLOG_PATCH_CMD}
+  CONFIGURE_COMMAND ${GLOG_CONFIG_CMD}
+  BUILD_COMMAND     ${GLOG_BUILD_CMD}
+  INSTALL_COMMAND   ${GLOG_INSTALL_CMD}
   URL               ${GLOG_URL}
   DOWNLOAD_NAME     glog-${GLOG_VERSION}.tar.gz
   )
@@ -166,28 +148,28 @@ ExternalProject_Add(
 ExternalProject_Add(
   ${PICOJSON_TARGET}
   PREFIX            ${PICOJSON_CMAKE_ROOT}
-  CONFIGURE_COMMAND ""
-  BUILD_COMMAND     ""
-  INSTALL_COMMAND   ""
+  CONFIGURE_COMMAND ${CMAKE_NOOP}
+  BUILD_COMMAND     ${CMAKE_NOOP}
+  INSTALL_COMMAND   ${CMAKE_NOOP}
   URL               ${PICOJSON_URL}
   )
 
 ExternalProject_Add(
   ${HTTP_PARSER_TARGET}
   PREFIX            ${HTTP_PARSER_CMAKE_ROOT}
-  CONFIGURE_COMMAND ""
-  BUILD_COMMAND     "${RY_BUILD_CMD}"
-  INSTALL_COMMAND   "${RY_INSTALL_CMD}"
+  CONFIGURE_COMMAND ${CMAKE_NOOP}
+  BUILD_COMMAND     ${RY_BUILD_CMD}
+  INSTALL_COMMAND   ${RY_INSTALL_CMD}
   URL               ${HTTP_PARSER_URL}
   )
 
 ExternalProject_Add(
   ${LIBEV_TARGET}
   PREFIX            ${LIBEV_CMAKE_ROOT}
-  PATCH_COMMAND     "${LIBEV_PATCH_CMD}"
-  CONFIGURE_COMMAND "${LIBEV_CONFIG_CMD}"
-  BUILD_COMMAND     "${LIBEV_BUILD_CMD}"
-  INSTALL_COMMAND   "${LIBEV_INSTALL_CMD}"
+  PATCH_COMMAND     ${LIBEV_PATCH_CMD}
+  CONFIGURE_COMMAND ${LIBEV_CONFIG_CMD}
+  BUILD_COMMAND     ${LIBEV_BUILD_CMD}
+  INSTALL_COMMAND   ${LIBEV_INSTALL_CMD}
   URL               ${LIBEV_URL}
   )
 
@@ -199,10 +181,10 @@ if (WIN32)
   ExternalProject_Add(
     ${CURL_TARGET}
     PREFIX            ${CURL_CMAKE_ROOT}
-    PATCH_COMMAND     ""
-    CONFIGURE_COMMAND ""
-    BUILD_COMMAND     ""
-    INSTALL_COMMAND   ""
+    PATCH_COMMAND     ${CMAKE_NOOP}
+    CONFIGURE_COMMAND ${CMAKE_NOOP}
+    BUILD_COMMAND     ${CMAKE_NOOP}
+    INSTALL_COMMAND   ${CMAKE_NOOP}
     URL               ${CURL_URL}
   )
 endif (WIN32)
@@ -217,6 +199,14 @@ else (REBUNDLED)
   set(PROTOBUF_URL ${UPSTREAM_URL}/protobuf-${PROTOBUF_VERSION}.tar.gz)
 endif (REBUNDLED)
 
+if (WIN32)
+  # TODO(hausdorff): (MESOS-3453) this is a patched version of the protobuf
+  # library that compiles on Windows. We need to either send this as a PR back
+  # to the protobuf project, or we need to apply these changes to our existing
+  # protobuf tarball in the patch step.
+  set(PROTOBUF_URL https://github.com/haosdent/3rdparty-packages/raw/master/protobuf-${PROTOBUF_VERSION}.tar.gz)
+endif (WIN32)
+
 # NOTE: `gmock` is "installed" into a lib directory, see "NOTE: (fix for
 # MESOS-3250)" comment above for explanation.
 if (APPLE)
@@ -228,12 +218,30 @@ elseif (NOT WIN32)
   set(GMOCK_CONFIG_CMD  ${GMOCK_ROOT}/configure --prefix=${GMOCK_ROOT}-lib)
   set(GMOCK_BUILD_CMD   make)
   set(GMOCK_INSTALL_CMD mkdir -p ${GMOCK_ROOT}-lib/lib && cp -r ${GMOCK_ROOT}-build/lib/.libs/. ${GMOCK_ROOT}-lib/lib && cp -r ${GMOCK_ROOT}-build/gtest/lib/.libs/. ${GMOCK_ROOT}-lib/lib)
+elseif (WIN32)
+  set(GMOCK_CONFIG_CMD ${CMAKE_NOOP})
+  VS_BUILD_CMD(
+      GMOCK
+      ${GMOCK_ROOT}/msvc/2010/gmock.sln
+      ${CMAKE_BUILD_TYPE}
+      "gmock gmock_main")
+  set(GMOCK_INSTALL_CMD ${CMAKE_NOOP})
 endif (APPLE)
 
 if (NOT WIN32)
+  set(PROTOBUF_PATCH_CMD   ${CMAKE_NOOP})
   set(PROTOBUF_CONFIG_CMD  ${PROTOBUF_ROOT}/src/../configure --prefix=${PROTOBUF_LIB})
   set(PROTOBUF_BUILD_CMD   make)
   set(PROTOBUF_INSTALL_CMD make install)
+elseif (WIN32)
+  set(PROTOBUF_PATCH_CMD   ${CMAKE_NOOP})
+  set(PROTOBUF_CONFIG_CMD  ${CMAKE_NOOP})
+  set(PROTOBUF_INSTALL_CMD ${CMAKE_NOOP})
+  VS_BUILD_CMD(
+      PROTOBUF
+      ${PROTOBUF_ROOT}/vsprojects/protobuf.sln
+      ${CMAKE_BUILD_TYPE}
+      "libprotobuf libprotoc protoc")
 endif (NOT WIN32)
 
 ExternalProject_Add(
@@ -241,9 +249,9 @@ ExternalProject_Add(
   # parameters passed in here.
   ${GMOCK_TARGET}
   PREFIX            ${GMOCK_CMAKE_ROOT}
-  CONFIGURE_COMMAND "${GMOCK_CONFIG_CMD}"
-  BUILD_COMMAND     "${GMOCK_BUILD_CMD}"
-  INSTALL_COMMAND   "${GMOCK_INSTALL_CMD}"
+  CONFIGURE_COMMAND ${GMOCK_CONFIG_CMD}
+  BUILD_COMMAND     ${GMOCK_BUILD_CMD}
+  INSTALL_COMMAND   ${GMOCK_INSTALL_CMD}
   URL               ${GMOCK_URL}
   )
 
@@ -252,10 +260,10 @@ ExternalProject_Add(
   # parameters passed in here.
   ${PROTOBUF_TARGET}
   PREFIX            ${PROTOBUF_CMAKE_ROOT}
-  PATCH_COMMAND     "${PROTOBUF_PATCH_CMD}"
-  CONFIGURE_COMMAND "${PROTOBUF_CONFIG_CMD}"
-  BUILD_COMMAND     "${PROTOBUF_BUILD_CMD}"
-  INSTALL_COMMAND   "${PROTOBUF_INSTALL_CMD}"
+  PATCH_COMMAND     ${PROTOBUF_PATCH_CMD}
+  CONFIGURE_COMMAND ${PROTOBUF_CONFIG_CMD}
+  BUILD_COMMAND     ${PROTOBUF_BUILD_CMD}
+  INSTALL_COMMAND   ${PROTOBUF_INSTALL_CMD}
   URL               ${PROTOBUF_URL}
   )
 
