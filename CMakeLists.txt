@@ -43,6 +43,7 @@ list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/3rdparty/libprocess/cmake/macr
 include(Common)
 include(External)
 include(PatchCommand)
+include(VsBuildCommand)
 
 # Configuration.
 include(MesosConfigure)

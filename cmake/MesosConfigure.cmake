@@ -116,6 +116,19 @@ endif (WIN32)
 # throughout the project, so it's important that this config script goes here.
 include(ProcessConfigure)
 
+# Generate a batch script that will build Mesos. Any project referencing Mesos
+# can then build it by calling this script.
+if (WIN32)
+  VS_BUILD_CMD(
+      MESOS
+      ${CMAKE_BINARY_DIR}/${PROJECT_NAME}.sln
+      ${CMAKE_BUILD_TYPE}
+      "")
+
+  string(REPLACE ";" " " MESOS_BUILD_CMD "${MESOS_BUILD_CMD}")
+  file(WRITE ${CMAKE_BINARY_DIR}/make.bat ${MESOS_BUILD_CMD})
+endif (WIN32)
+
 # Add preprocessor definitions required to build third-party libraries.
 #######################################################################
 # Enable the INT64 support for PicoJSON.
