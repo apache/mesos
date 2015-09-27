@@ -65,6 +65,26 @@ endif (WIN32)
 
 # Define build/patch/configure commands for third-party libs.
 #############################################################
+# NOTE: (fix for MESOS-3250) A few third-party libraries (libev, gmock) do not
+# have `make install` commands available, so below we have to add our own
+# "install" commands.
+#
+# The reason is: if we do not, we get runtime library load problems on OS X. In
+# particular, `dydl` will look for these libraries at the prefix we passed to
+# `configure` (or in `/usr/local` if we did not pass a prefix in), but since
+# they don't have a `make install` step, they never get placed in the prefix
+# folder.
+#
+# Our solution is to:
+#   (1) make a lib directory inside the Mesos folder for each of the libraries
+#       that has no install step, and
+#   (2) copy all such libraries into their respective directories.
+#
+# (Note that step (1) is not only convenient, but important: make will add a
+# `lib` to the end of your prefix path when linking, and since the built
+# libraries end up in a `.libs` folder, it's not enough to simply pass the
+# build directory into `configure` as a prefix; so if we're going to move the
+# libraries, we might as well move them to a library folder.)
 if (NOT WIN32)
   set(GLOG_CONFIG_CMD  ${GLOG_ROOT}/src/../configure --prefix=${GLOG_LIB})
   set(GLOG_BUILD_CMD   make)
@@ -76,8 +96,11 @@ if (NOT WIN32)
   set(RY_BUILD_CMD   make -C ${HTTP_PARSER_ROOT})
   set(RY_INSTALL_CMD ar -rv libhttp_parser.a ${HTTP_PARSER_ROOT}/http_parser_g.o)
 
-  set(LIBEV_CONFIG_CMD ${LIBEV_ROOT}/configure)
-  set(LIBEV_BUILD_CMD  make)
+  # NOTE: `libev` is "installed" into a lib directory, see "NOTE: (fix for
+  # MESOS-3250)" comment above for explanation.
+  set(LIBEV_CONFIG_CMD  ${LIBEV_ROOT}/configure --prefix=${LIBEV_ROOT}-lib)
+  set(LIBEV_BUILD_CMD   make)
+  set(LIBEV_INSTALL_CMD mkdir -p ${LIBEV_ROOT}-lib/lib && cp -r ${LIBEV_ROOT}-build/.libs/. ${LIBEV_ROOT}-lib/lib)
   # Patch libev to keep it from reaping child processes.
   PATCH_CMD(${PROCESS_3RD_SRC}/libev-4.15.patch LIBEV_PATCH_CMD)
 endif (NOT WIN32)
@@ -164,7 +187,7 @@ ExternalProject_Add(
   PATCH_COMMAND     "${LIBEV_PATCH_CMD}"
   CONFIGURE_COMMAND "${LIBEV_CONFIG_CMD}"
   BUILD_COMMAND     "${LIBEV_BUILD_CMD}"
-  INSTALL_COMMAND   ""
+  INSTALL_COMMAND   "${LIBEV_INSTALL_CMD}"
   URL               ${LIBEV_URL}
   )
 
@@ -194,13 +217,17 @@ else (REBUNDLED)
   set(PROTOBUF_URL ${UPSTREAM_URL}/protobuf-${PROTOBUF_VERSION}.tar.gz)
 endif (REBUNDLED)
 
+# NOTE: `gmock` is "installed" into a lib directory, see "NOTE: (fix for
+# MESOS-3250)" comment above for explanation.
 if (APPLE)
+  set(GMOCK_CONFIG_CMD  ${GMOCK_ROOT}/configure --prefix=${GMOCK_ROOT}-lib)
   # GTEST on OSX needs its own tr1 tuple.
-  set(GMOCK_BUILD_CMD  make CPPFLAGS=-DGTEST_USE_OWN_TR1_TUPLE)
-  set(GMOCK_CONFIG_CMD ${GMOCK_ROOT}/configure --prefix=${GMOCK_ROOT}-lib/lib)
+  set(GMOCK_BUILD_CMD   make CPPFLAGS=-DGTEST_USE_OWN_TR1_TUPLE)
+  set(GMOCK_INSTALL_CMD mkdir -p ${GMOCK_ROOT}-lib/lib && cp -r ${GMOCK_ROOT}-build/lib/.libs/. ${GMOCK_ROOT}-lib/lib && cp -r ${GMOCK_ROOT}-build/gtest/lib/.libs/. ${GMOCK_ROOT}-lib/lib)
 elseif (NOT WIN32)
-  set(GMOCK_CONFIG_CMD ${GMOCK_ROOT}/configure --prefix=${GMOCK_ROOT}-lib/lib)
-  set(GMOCK_BUILD_CMD  make)
+  set(GMOCK_CONFIG_CMD  ${GMOCK_ROOT}/configure --prefix=${GMOCK_ROOT}-lib)
+  set(GMOCK_BUILD_CMD   make)
+  set(GMOCK_INSTALL_CMD mkdir -p ${GMOCK_ROOT}-lib/lib && cp -r ${GMOCK_ROOT}-build/lib/.libs/. ${GMOCK_ROOT}-lib/lib && cp -r ${GMOCK_ROOT}-build/gtest/lib/.libs/. ${GMOCK_ROOT}-lib/lib)
 endif (APPLE)
 
 if (NOT WIN32)
@@ -216,7 +243,7 @@ ExternalProject_Add(
   PREFIX            ${GMOCK_CMAKE_ROOT}
   CONFIGURE_COMMAND "${GMOCK_CONFIG_CMD}"
   BUILD_COMMAND     "${GMOCK_BUILD_CMD}"
-  INSTALL_COMMAND   ""
+  INSTALL_COMMAND   "${GMOCK_INSTALL_CMD}"
   URL               ${GMOCK_URL}
   )
 
