@@ -129,6 +129,12 @@ void EventLoop::run()
 }
 
 
+void EventLoop::stop()
+{
+  event_base_loopexit(base, NULL);
+}
+
+
 namespace internal {
 
 struct Delay

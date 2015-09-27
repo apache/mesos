@@ -41,6 +41,9 @@ public:
 
   // Runs the event loop.
   static void run();
+
+  // Asynchronously tells the event loop to stop and then returns.
+  static void stop();
 };
 
 } // namespace process {
