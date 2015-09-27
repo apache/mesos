@@ -115,3 +115,13 @@ endif (WIN32)
 # NOTE: The third-party configuration variables exported here are used
 # throughout the project, so it's important that this config script goes here.
 include(ProcessConfigure)
+
+# Add preprocessor definitions required to build third-party libraries.
+#######################################################################
+# Enable the INT64 support for PicoJSON.
+add_definitions(-DPICOJSON_USE_INT64)
+# NOTE: PicoJson requires __STDC_FORMAT_MACROS to be defined before importing
+# 'inttypes.h'.  Since other libraries may also import this header, it must
+# be globally defined so that PicoJson has access to the macros, regardless
+# of the order of inclusion.
+add_definitions(-D__STDC_FORMAT_MACROS)
