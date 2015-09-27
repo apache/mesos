@@ -88,4 +88,4 @@ include(MesosConfigure)
 
 # SUBDIRECTORIES.
 #################
-add_subdirectory(3rdparty/libprocess)
+add_subdirectory(3rdparty)

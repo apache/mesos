@@ -114,6 +114,7 @@ endif (WIN32)
 ############################
 # NOTE: The third-party configuration variables exported here are used
 # throughout the project, so it's important that this config script goes here.
+include(Mesos3rdpartyConfigure)
 include(Process3rdpartyConfigure)
 
 # Generate a batch script that will build Mesos. Any project referencing Mesos
