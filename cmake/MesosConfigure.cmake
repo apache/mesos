@@ -62,3 +62,30 @@ if (WIN32)
   string(REPLACE ";" " " MESOS_BUILD_CMD "${MESOS_BUILD_CMD}")
   file(WRITE ${CMAKE_BINARY_DIR}/make.bat ${MESOS_BUILD_CMD})
 endif (WIN32)
+
+# DEFINE DIRECTORY STRUCTURE MESOS PROJECT.
+###########################################
+set(MESOS_SRC_DIR     ${CMAKE_SOURCE_DIR}/src)
+set(MESOS_BIN         ${CMAKE_BINARY_DIR})
+set(MESOS_BIN_SRC_DIR ${MESOS_BIN}/src)
+
+# Convenience variables for include directories of third-party dependencies.
+set(MESOS_PUBLIC_INCLUDE_DIR ${CMAKE_SOURCE_DIR}/include)
+set(MESOS_BIN_INCLUDE_DIR    ${CMAKE_BINARY_DIR}/include)
+
+# Make directories that generated Mesos code goes into.
+add_custom_target(
+  make_bin_include_dir ALL
+  COMMAND ${CMAKE_COMMAND} -E make_directory ${MESOS_BIN_INCLUDE_DIR})
+
+add_custom_target(
+  make_bin_src_dir ALL
+  COMMAND ${CMAKE_COMMAND} -E make_directory ${MESOS_BIN_SRC_DIR})
+
+# CONFIGURE AGENT.
+##################
+include(SlaveConfigure)
+
+# MESOS LIBRARY CONFIGURATION.
+##############################
+set(MESOS_TARGET mesos-${MESOS_PACKAGE_VERSION})
