@@ -33,8 +33,8 @@
 
 # DIRECTORY STRUCTURE FOR THIRD-PARTY LIBS REQUIRED FOR TEST INFRASTRUCTURE.
 ############################################################################
-EXTERNAL("gmock"    "1.7.0" "${PROCESS_3RD_BIN}")
-EXTERNAL("protobuf" "2.5.0" "${PROCESS_3RD_BIN}")
+EXTERNAL("gmock"    ${GMOCK_VERSION}    "${PROCESS_3RD_BIN}")
+EXTERNAL("protobuf" ${PROTOBUF_VERSION} "${PROCESS_3RD_BIN}")
 
 set(GTEST_SRC          ${GMOCK_ROOT}/gtest)
 set(GPERFTOOLS_VERSION 2.0)
