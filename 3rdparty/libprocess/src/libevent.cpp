@@ -100,32 +100,26 @@ void EventLoop::run()
   // Block SIGPIPE in the event loop because we can not force
   // underlying implementations such as SSL bufferevents to use
   // MSG_NOSIGNAL.
-  bool unblock = os::signals::block(SIGPIPE);
-
-  do {
-    int result = event_base_loop(base, EVLOOP_ONCE);
-    if (result < 0) {
-      LOG(FATAL) << "Failed to run event loop";
-    } else if (result > 0) {
-      // All events are handled, continue event loop.
-      continue;
-    } else {
-      CHECK_EQ(0, result);
-      if (event_base_got_break(base)) {
-        break;
-      } else if (event_base_got_exit(base)) {
-        break;
+  SUPPRESS(SIGPIPE) {
+    do {
+      int result = event_base_loop(base, EVLOOP_ONCE);
+      if (result < 0) {
+        LOG(FATAL) << "Failed to run event loop";
+      } else if (result > 0) {
+        // All events are handled, continue event loop.
+        continue;
+      } else {
+        CHECK_EQ(0, result);
+        if (event_base_got_break(base)) {
+          break;
+        } else if (event_base_got_exit(base)) {
+          break;
+        }
       }
-    }
-  } while (true);
+    } while (true);
+  }
 
   __in_event_loop__ = false;
-
-  if (unblock) {
-    if (!os::signals::unblock(SIGPIPE)) {
-      LOG(FATAL) << "Failure to unblock SIGPIPE";
-    }
-  }
 }
 
 
