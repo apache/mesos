@@ -128,27 +128,29 @@ public:
   CgroupsFilter()
   {
 #ifdef __linux__
-    Try<set<string> > hierarchies_ = cgroups::hierarchies();
-    if (hierarchies_.isError()) {
+    Try<set<string> > hierarchies = cgroups::hierarchies();
+    if (hierarchies.isError()) {
       std::cerr
         << "-------------------------------------------------------------\n"
         << "We cannot run any cgroups tests that require mounting\n"
         << "hierarchies because reading cgroup heirarchies failed:\n"
-        << hierarchies_.error() << "\n"
+        << hierarchies.error() << "\n"
         << "We'll disable the CgroupsNoHierarchyTest test fixture for now.\n"
         << "-------------------------------------------------------------"
         << std::endl;
-    } else if (!hierarchies_.get().empty()) {
+
+      error = hierarchies.error();
+    } else if (!hierarchies.get().empty()) {
       std::cerr
         << "-------------------------------------------------------------\n"
         << "We cannot run any cgroups tests that require mounting\n"
         << "hierarchies because you have the following hierarchies mounted:\n"
-        << strings::trim(stringify(hierarchies_.get()), " {},") << "\n"
+        << strings::trim(stringify(hierarchies.get()), " {},") << "\n"
         << "We'll disable the CgroupsNoHierarchyTest test fixture for now.\n"
         << "-------------------------------------------------------------"
         << std::endl;
-    } else {
-      hierarchies = hierarchies_.get();
+
+      error = Error("Hierarchies exist");
     }
 #endif // __linux__
   }
@@ -163,7 +165,7 @@ public:
       if (matches(test, "NOHIERARCHY_")) {
         return user.get() != "root" ||
                !cgroups::enabled() ||
-               !hierarchies.empty();
+               error.isSome();
       }
 
       return user.get() != "root" || !cgroups::enabled();
@@ -176,7 +178,7 @@ public:
   }
 
 private:
-  set<string> hierarchies;
+  Option<Error> error;
 };
 
 
