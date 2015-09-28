@@ -1003,3 +1003,38 @@ TEST_F(OsTest, Mknod)
 
   EXPECT_SOME(os::rm(another));
 }
+
+
+TEST_F(OsTest, Realpath)
+{
+  // Create a file.
+  const Try<std::string> _testFile = os::mktemp();
+  ASSERT_SOME(_testFile);
+  ASSERT_SOME(os::touch(_testFile.get()));
+  const std::string testFile = _testFile.get();
+
+  // Create a symlink pointing to a file.
+  const std::string testLink = UUID::random().toString();
+  ASSERT_SOME(fs::symlink(testFile, testLink));
+
+  // Validate the symlink.
+  const Try<ino_t> fileInode = os::stat::inode(testFile);
+  ASSERT_SOME(fileInode);
+  const Try<ino_t> linkInode = os::stat::inode(testLink);
+  ASSERT_SOME(linkInode);
+  ASSERT_EQ(fileInode.get(), linkInode.get());
+
+  // Verify that the symlink resolves correctly.
+  Result<std::string> resolved = os::realpath(testLink);
+  ASSERT_SOME(resolved);
+  EXPECT_TRUE(strings::contains(resolved.get(), testFile));
+
+  // Verify that the file itself resolves correctly.
+  resolved = os::realpath(testFile);
+  ASSERT_SOME(resolved);
+  EXPECT_TRUE(strings::contains(resolved.get(), testFile));
+
+  // Remove the file and the symlink.
+  os::rm(testFile);
+  os::rm(testLink);
+}
