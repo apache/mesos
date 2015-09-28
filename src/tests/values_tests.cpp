@@ -146,10 +146,10 @@ TEST(ValuesTest, RangesCoalesce)
 
   // Should be [1-5, 7-10].
   ASSERT_EQ(2, ranges.range_size());
-  EXPECT_EQ(1, ranges.range(0).begin());
-  EXPECT_EQ(5, ranges.range(0).end());
-  EXPECT_EQ(7, ranges.range(1).begin());
-  EXPECT_EQ(10, ranges.range(1).end());
+  EXPECT_EQ(1U, ranges.range(0).begin());
+  EXPECT_EQ(5U, ranges.range(0).end());
+  EXPECT_EQ(7U, ranges.range(1).begin());
+  EXPECT_EQ(10U, ranges.range(1).end());
 }
 
 
@@ -272,8 +272,8 @@ TEST(ValuesTest, AddRangeCoalesce)
 
   // Should be coalesced to [1-10].
   ASSERT_EQ(1, ranges.range_size());
-  EXPECT_EQ(1, ranges.range(0).begin());
-  EXPECT_EQ(10, ranges.range(0).end());
+  EXPECT_EQ(1U, ranges.range(0).begin());
+  EXPECT_EQ(10U, ranges.range(0).end());
 
   // Multiple neighboring with explicit coalesce.
   // Range [5-7].
@@ -284,8 +284,8 @@ TEST(ValuesTest, AddRangeCoalesce)
 
   // Should be coalesced to [1-10].
   ASSERT_EQ(1, ranges.range_size());
-  EXPECT_EQ(1, ranges.range(0).begin());
-  EXPECT_EQ(10, ranges.range(0).end());
+  EXPECT_EQ(1U, ranges.range(0).begin());
+  EXPECT_EQ(10U, ranges.range(0).end());
 
   // Completely subsumed.
   // Range [5-7] (as before).
@@ -296,8 +296,8 @@ TEST(ValuesTest, AddRangeCoalesce)
 
   // Should be coalesced to [1-10].
   ASSERT_EQ(1, ranges.range_size());
-  EXPECT_EQ(1, ranges.range(0).begin());
-  EXPECT_EQ(10, ranges.range(0).end());
+  EXPECT_EQ(1U, ranges.range(0).begin());
+  EXPECT_EQ(10U, ranges.range(0).end());
 
   // None overlapping.
   // Range [5-7] (as before).
@@ -308,10 +308,10 @@ TEST(ValuesTest, AddRangeCoalesce)
 
   // Should be coalesced to [1-10, 20-21].
   ASSERT_EQ(2, ranges.range_size());
-  EXPECT_EQ(1, ranges.range(0).begin());
-  EXPECT_EQ(10, ranges.range(0).end());
-  EXPECT_EQ(20, ranges.range(1).begin());
-  EXPECT_EQ(21, ranges.range(1).end());
+  EXPECT_EQ(1U, ranges.range(0).begin());
+  EXPECT_EQ(10U, ranges.range(0).end());
+  EXPECT_EQ(20U, ranges.range(1).begin());
+  EXPECT_EQ(21U, ranges.range(1).end());
 }
 
 // Test adding two ranges.
