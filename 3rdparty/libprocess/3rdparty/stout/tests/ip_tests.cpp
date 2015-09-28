@@ -98,11 +98,16 @@ TEST(NetTest, ConstructIPv4Network)
   EXPECT_ERROR(net::IPNetwork::create(net::IP(0x87654321), net::IP(0xff)));
   EXPECT_ERROR(net::IPNetwork::create(net::IP(0x87654321), net::IP(0xff00ff)));
 
-  EXPECT_SOME(net::IPNetwork::create(net::IP(0x12345678), 16));
-  EXPECT_SOME(net::IPNetwork::create(net::IP(0x12345678), 32));
-  EXPECT_SOME(net::IPNetwork::create(net::IP(0x12345678), 0));
+  Try<net::IPNetwork> n1 = net::IPNetwork::create(net::IP(0x12345678), 16);
+  Try<net::IPNetwork> n2 = net::IPNetwork::create(net::IP(0x12345678), 32);
+  Try<net::IPNetwork> n3 = net::IPNetwork::create(net::IP(0x12345678), 0);
+
+  EXPECT_SOME_EQ(net::IPNetwork::parse("18.52.86.120/16", AF_INET).get(), n1);
+  EXPECT_SOME_EQ(net::IPNetwork::parse("18.52.86.120/32", AF_INET).get(), n2);
+  EXPECT_SOME_EQ(net::IPNetwork::parse("18.52.86.120/0", AF_INET).get(), n3);
 
   EXPECT_ERROR(net::IPNetwork::create(net::IP(0x12345678), 123));
+  EXPECT_ERROR(net::IPNetwork::create(net::IP(0x12345678), -1));
 
   uint32_t address = 0x01020304;
   uint32_t netmask = 0xff000000;

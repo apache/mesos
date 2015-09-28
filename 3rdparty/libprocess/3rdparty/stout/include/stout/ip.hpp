@@ -396,7 +396,12 @@ inline Try<IPNetwork> IPNetwork::create(const IP& address, int prefix)
         return Error("Subnet prefix is larger than 32");
       }
 
-      return IPNetwork(address, IP(0xffffffff << (32 - prefix)));
+      // Avoid left-shifting by 32 bits when prefix is 0.
+      uint32_t mask = 0;
+      if (prefix > 0) {
+        mask = 0xffffffff << (32 - prefix);
+      }
+      return IPNetwork(address, IP(mask));
     }
     default: {
       UNREACHABLE();
