@@ -39,6 +39,7 @@ layout: documentation
 * [Hootsuite](https://hootsuite.com)
 * [HubSpot](http://www.hubspot.com)
 * [Ignidata](http://www.ignidata.com)
+* [Jobrapido](http://www.jobrapido.com)
 * [iQIYI](http://www.iqiyi.com/)
 * [Learnium](http://www.learnium.net/)
 * [LIFX](http://lifx.co)
