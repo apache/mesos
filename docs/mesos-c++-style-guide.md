@@ -6,6 +6,12 @@ layout: documentation
 
 The Mesos codebase follows the [Google C++ Style Guide](http://google-styleguide.googlecode.com/svn/trunk/cppguide.xml) with the following differences:
 
+## Scoping
+
+### Namespaces
+* We avoid `using namespace foo` statements as it is not explicit about which symbols are pulled in, and it can often pull in a lot of symbols, which sometimes lead to conflicts.
+* We suggest using namespace aliases to help pull in sub namespaces, such as `namespace bar = foo::bar;`; or using the full sub namespaces, such as `using namespace foo::bar;` where `bar` is the exact symbol you want to use. These should only be present at the top of the .cpp file.
+
 ## Naming
 
 ### Variable Names
@@ -37,9 +43,6 @@ void Slave::statusUpdate(StatusUpdate update, const UPID& pid)
 
 ### Function Names
 * We use [lowerCamelCase](http://en.wikipedia.org/wiki/CamelCase#Variations_and_synonyms) for function names (Google uses mixed case for regular functions; and their accessors and mutators match the name of the variable).
-
-### Namespace Names
-* We do not use namespace aliases.
 
 ## Strings
 * Strings used in log and error messages should end without a period.
