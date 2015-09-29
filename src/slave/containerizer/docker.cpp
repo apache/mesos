@@ -923,10 +923,6 @@ Future<pid_t> DockerContainerizerProcess::launchExecutorProcess(
   Try<Nothing> checkpointed = checkpoint(containerId, s.get().pid());
 
   if (checkpointed.isError()) {
-    // Close the subprocess's stdin so that it aborts.
-    CHECK_SOME(s.get().in());
-    os::close(s.get().in().get());
-
     return Failure(
         "Failed to checkpoint executor's pid: " + checkpointed.error());
   }
@@ -941,7 +937,6 @@ Future<pid_t> DockerContainerizerProcess::launchExecutorProcess(
 
   if (length != sizeof(c)) {
     string error = string(strerror(errno));
-    os::close(s.get().in().get());
     return Failure("Failed to synchronize with child process: " + error);
   }
 
