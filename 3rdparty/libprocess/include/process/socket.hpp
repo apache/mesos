@@ -61,7 +61,7 @@ public:
    *
    * @return An instance of a `Socket`.
    */
-  static Try<Socket> create(Kind kind = DEFAULT_KIND(), int s = -1);
+  static Try<Socket> create(Kind kind = DEFAULT_KIND(), Option<int> s = None());
 
   /**
    * Returns the default `Kind` of implementation of `Socket`.
