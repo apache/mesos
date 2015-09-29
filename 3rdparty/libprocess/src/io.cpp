@@ -537,6 +537,7 @@ Future<Nothing> redirect(int from, Option<int> to, size_t chunk)
   // Duplicate 'from' so that we're in control of its lifetime.
   from = dup(from);
   if (from == -1) {
+    os::close(to.get());
     return Failure(ErrnoError("Failed to duplicate 'from' file descriptor"));
   }
 
