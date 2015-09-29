@@ -206,6 +206,9 @@ struct MountInfoTable {
   // for the calling process.
   static Try<MountInfoTable> read(const Option<pid_t>& pid = None());
 
+  // TODO(jieyu): Introduce 'find' methods to find entries that match
+  // the given conditions (e.g., target, root, devno, etc.).
+
   std::vector<Entry> entries;
 };
 

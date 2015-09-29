@@ -93,7 +93,8 @@ Try<Isolator*> LinuxFilesystemIsolatorProcess::create(
     }
   }
 
-  // Do a self bind mount if needed.
+  // Do a self bind mount if needed. If the mount already exists, make
+  // sure it is a shared mount of its own peer group.
   if (workDirMount.isNone()) {
     // NOTE: Instead of using fs::mount to perform the bind mount, we
     // use the shell command here because the syscall 'mount' does not
@@ -117,13 +118,49 @@ Try<Isolator*> LinuxFilesystemIsolatorProcess::create(
           "Failed to self bind mount '" + flags.work_dir +
           "' and make it a shared mount: " + mount.error());
     }
-  }
+  } else {
+    if (workDirMount.get().shared().isNone()) {
+      // This is the case where the work directory mount is not a
+      // shared mount yet (possibly due to slave crash while preparing
+      // the work directory mount). It's safe to re-do the following.
+      Try<string> mount = os::shell(
+          "mount --make-slave %s && "
+          "mount --make-shared %s",
+          flags.work_dir.c_str(),
+          flags.work_dir.c_str());
 
-  // TODO(jieyu): Currently, we don't check if the slave's work_dir
-  // mount is a shared mount or not. We just assume it is. We cannot
-  // simply mark the slave as shared again because that will create a
-  // new peer group for the mounts. This is a temporary workaround for
-  // now while we are thinking about fixes.
+      if (mount.isError()) {
+        return Error(
+            "Failed to self bind mount '" + flags.work_dir +
+            "' and make it a shared mount: " + mount.error());
+      }
+    } else {
+      // We need to make sure that the shared mount is in its own peer
+      // group. To check that, we need to get the parent mount.
+      foreach (const fs::MountInfoTable::Entry& entry, table.get().entries) {
+        if (entry.id == workDirMount.get().parent) {
+          // If the work directory mount and its parent mount are in
+          // the same peer group, we need to re-do the following
+          // commands so that they are in different peer groups.
+          if (entry.shared() == workDirMount.get().shared()) {
+            Try<string> mount = os::shell(
+                "mount --make-slave %s && "
+                "mount --make-shared %s",
+                flags.work_dir.c_str(),
+                flags.work_dir.c_str());
+
+            if (mount.isError()) {
+              return Error(
+                  "Failed to self bind mount '" + flags.work_dir +
+                  "' and make it a shared mount: " + mount.error());
+            }
+          }
+
+          break;
+        }
+      }
+    }
+  }
 
   Owned<MesosIsolatorProcess> process(
       new LinuxFilesystemIsolatorProcess(flags, provisioner));

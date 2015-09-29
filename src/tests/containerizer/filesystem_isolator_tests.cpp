@@ -33,6 +33,10 @@
 #include <stout/path.hpp>
 #include <stout/uuid.hpp>
 
+#ifdef __linux__
+#include "linux/fs.hpp"
+#endif
+
 #include "slave/paths.hpp"
 
 #ifdef __linux__
@@ -903,6 +907,70 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_SandboxEnvironmentVariable)
   // Check the executor exited correctly.
   EXPECT_TRUE(wait.get().has_status());
   EXPECT_EQ(0, wait.get().status());
+}
+
+
+// This test verifies the slave's work directory mount preparation if
+// the mount does not exist initially.
+TEST_F(LinuxFilesystemIsolatorTest, ROOT_WorkDirMount)
+{
+  slave::Flags flags = CreateSlaveFlags();
+
+  Try<Isolator*> isolator =
+    LinuxFilesystemIsolatorProcess::create(flags, Owned<Provisioner>());
+
+  ASSERT_SOME(isolator);
+
+  Try<fs::MountInfoTable> table = fs::MountInfoTable::read();
+  ASSERT_SOME(table);
+
+  bool mountFound = false;
+  foreach (const fs::MountInfoTable::Entry& entry, table.get().entries) {
+    if (entry.target == flags.work_dir) {
+      EXPECT_SOME(entry.shared());
+      mountFound = true;
+    }
+  }
+
+  EXPECT_TRUE(mountFound);
+
+  delete isolator.get();
+}
+
+
+// This test verifies the slave's work directory mount preparation if
+// the mount already exists (e.g., to simulate the case when the slave
+// crashes while preparing the work directory mount).
+TEST_F(LinuxFilesystemIsolatorTest, ROOT_WorkDirMountPreExists)
+{
+  slave::Flags flags = CreateSlaveFlags();
+
+  // Simulate the situation in which the slave crashes while preparing
+  // the work directory mount.
+  ASSERT_SOME(os::shell(
+      "mount --bind %s %s",
+      flags.work_dir.c_str(),
+      flags.work_dir.c_str()));
+
+  Try<Isolator*> isolator =
+    LinuxFilesystemIsolatorProcess::create(flags, Owned<Provisioner>());
+
+  ASSERT_SOME(isolator);
+
+  Try<fs::MountInfoTable> table = fs::MountInfoTable::read();
+  ASSERT_SOME(table);
+
+  bool mountFound = false;
+  foreach (const fs::MountInfoTable::Entry& entry, table.get().entries) {
+    if (entry.target == flags.work_dir) {
+      EXPECT_SOME(entry.shared());
+      mountFound = true;
+    }
+  }
+
+  EXPECT_TRUE(mountFound);
+
+  delete isolator.get();
 }
 #endif // __linux__
 
