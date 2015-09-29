@@ -22,6 +22,7 @@
 
 #include <linux/limits.h>
 
+#include <stout/check.hpp>
 #include <stout/error.hpp>
 #include <stout/numify.hpp>
 #include <stout/path.hpp>
@@ -143,6 +144,38 @@ Try<MountInfoTable::Entry> MountInfoTable::Entry::parse(const string& s)
   entry.fsOptions = tokens[2];
 
   return entry;
+}
+
+
+Option<int> MountInfoTable::Entry::shared() const
+{
+  foreach (const string& token, strings::tokenize(optionalFields, " ")) {
+    if (strings::startsWith(token, "shared:")) {
+      Try<int> id = numify<int>(
+          strings::remove(token, "shared:", strings::PREFIX));
+
+      CHECK_SOME(id);
+      return id.get();
+    }
+  }
+
+  return None();
+}
+
+
+Option<int> MountInfoTable::Entry::master() const
+{
+  foreach (const string& token, strings::tokenize(optionalFields, " ")) {
+    if (strings::startsWith(token, "master:")) {
+      Try<int> id = numify<int>(
+          strings::remove(token, "master:", strings::PREFIX));
+
+      CHECK_SOME(id);
+      return id.get();
+    }
+  }
+
+  return None();
 }
 
 

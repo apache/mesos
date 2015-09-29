@@ -24,20 +24,27 @@
 #include <stout/gtest.hpp>
 #include <stout/none.hpp>
 #include <stout/option.hpp>
+#include <stout/os.hpp>
 #include <stout/try.hpp>
 
 #include "linux/fs.hpp"
+
+#include "tests/utils.hpp"
+
+using std::string;
+
+using mesos::internal::fs::MountTable;
+using mesos::internal::fs::FileSystemTable;
+using mesos::internal::fs::MountInfoTable;
 
 namespace mesos {
 namespace internal {
 namespace tests {
 
-using fs::MountTable;
-using fs::FileSystemTable;
-using fs::MountInfoTable;
+class FsTest : public TemporaryDirectoryTest {};
 
 
-TEST(FsTest, MountTableRead)
+TEST_F(FsTest, MountTableRead)
 {
   Try<MountTable> table = MountTable::read(_PATH_MOUNTED);
 
@@ -59,7 +66,7 @@ TEST(FsTest, MountTableRead)
 }
 
 
-TEST(FsTest, MountTableHasOption)
+TEST_F(FsTest, MountTableHasOption)
 {
   Try<MountTable> table = MountTable::read(_PATH_MOUNTED);
 
@@ -77,7 +84,7 @@ TEST(FsTest, MountTableHasOption)
 }
 
 
-TEST(FsTest, FileSystemTableRead)
+TEST_F(FsTest, FileSystemTableRead)
 {
   Try<FileSystemTable> table = FileSystemTable::read();
 
@@ -96,10 +103,10 @@ TEST(FsTest, FileSystemTableRead)
 }
 
 
-TEST(FsTest, MountInfoTableParse)
+TEST_F(FsTest, MountInfoTableParse)
 {
   // Parse a private mount (no optional fields).
-  const std::string privateMount =
+  const string privateMount =
     "19 1 8:1 / / rw,relatime - ext4 /dev/sda1 rw,seclabel,data=ordered";
   Try<MountInfoTable::Entry> entry = MountInfoTable::Entry::parse(privateMount);
 
@@ -116,7 +123,7 @@ TEST(FsTest, MountInfoTableParse)
   EXPECT_EQ("/dev/sda1", entry.get().source);
 
   // Parse a shared mount (includes one optional field).
-  const std::string sharedMount =
+  const string sharedMount =
     "19 1 8:1 / / rw,relatime shared:2 - ext4 /dev/sda1 rw,seclabel";
   entry = MountInfoTable::Entry::parse(sharedMount);
 
@@ -134,10 +141,10 @@ TEST(FsTest, MountInfoTableParse)
 }
 
 
-TEST(FsTest, DISABLED_MountInfoTableRead)
+TEST_F(FsTest, DISABLED_MountInfoTableRead)
 {
   // Examine the calling process's mountinfo table.
-  Try<fs::MountInfoTable> table = fs::MountInfoTable::read();
+  Try<MountInfoTable> table = MountInfoTable::read();
   ASSERT_SOME(table);
 
   // Every system should have at least a rootfs mounted.
@@ -151,7 +158,7 @@ TEST(FsTest, DISABLED_MountInfoTableRead)
   EXPECT_SOME(root);
 
   // Repeat for pid 1.
-  table = fs::MountInfoTable::read(1);
+  table = MountInfoTable::read(1);
   ASSERT_SOME(table);
 
   // Every system should have at least a rootfs mounted.
@@ -163,6 +170,88 @@ TEST(FsTest, DISABLED_MountInfoTableRead)
   }
 
   EXPECT_SOME(root);
+}
+
+
+TEST_F(FsTest, ROOT_SharedMount)
+{
+  string directory = os::getcwd();
+
+  // Do a self bind mount of the temporary directory.
+  ASSERT_SOME(fs::mount(directory, directory, None(), MS_BIND, None()));
+
+  // Mark the mount as a shared mount.
+  ASSERT_SOME(fs::mount(None(), directory, None(), MS_SHARED, None()));
+
+  // Find the above mount in the mount table.
+  Try<MountInfoTable> table = MountInfoTable::read();
+  ASSERT_SOME(table);
+
+  Option<MountInfoTable::Entry> entry;
+  foreach (const MountInfoTable::Entry& _entry, table.get().entries) {
+    if (_entry.target == directory) {
+      entry = _entry;
+    }
+  }
+
+  ASSERT_SOME(entry);
+  EXPECT_SOME(entry.get().shared());
+
+  // Clean up the mount.
+  EXPECT_SOME(fs::unmount(directory));
+}
+
+
+TEST_F(FsTest, ROOT_SlaveMount)
+{
+  string directory = os::getcwd();
+
+  // Do a self bind mount of the temporary directory.
+  ASSERT_SOME(fs::mount(directory, directory, None(), MS_BIND, None()));
+
+  // Mark the mount as a shared mount of its own peer group.
+  ASSERT_SOME(fs::mount(None(), directory, None(), MS_PRIVATE, None()));
+  ASSERT_SOME(fs::mount(None(), directory, None(), MS_SHARED, None()));
+
+  // Create a sub-mount under 'directory'.
+  string source = path::join(directory, "source");
+  string target = path::join(directory, "target");
+
+  ASSERT_SOME(os::mkdir(source));
+  ASSERT_SOME(os::mkdir(target));
+
+  ASSERT_SOME(fs::mount(source, target, None(), MS_BIND, None()));
+
+  // Mark the sub-mount as a slave mount.
+  ASSERT_SOME(fs::mount(None(), target, None(), MS_SLAVE, None()));
+
+  // Find the above sub-mount in the mount table, and check if it is a
+  // slave mount as expected.
+  Try<MountInfoTable> table = MountInfoTable::read();
+  ASSERT_SOME(table);
+
+  Option<MountInfoTable::Entry> parent;
+  Option<MountInfoTable::Entry> child;
+  foreach (const MountInfoTable::Entry& entry, table.get().entries) {
+    if (entry.target == directory) {
+      ASSERT_NONE(parent);
+      parent = entry;
+    } else if (entry.target == target) {
+      ASSERT_NONE(child);
+      child = entry;
+    }
+  }
+
+  ASSERT_SOME(parent);
+  ASSERT_SOME(child);
+
+  EXPECT_SOME(parent.get().shared());
+  EXPECT_SOME(child.get().master());
+  EXPECT_EQ(child.get().master(), parent.get().shared());
+
+  // Clean up the mount.
+  EXPECT_SOME(fs::unmount(target));
+  EXPECT_SOME(fs::unmount(directory));
 }
 
 } // namespace tests {
