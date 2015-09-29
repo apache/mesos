@@ -126,6 +126,18 @@ inline Try<mode_t> mode(const std::string& path)
 }
 
 
+inline Try<dev_t> dev(const std::string& path)
+{
+  struct stat s;
+
+  if (::stat(path.c_str(), &s) < 0) {
+    return ErrnoError("Error invoking stat for '" + path + "'");
+  }
+
+  return s.st_dev;
+}
+
+
 inline Try<dev_t> rdev(const std::string& path)
 {
   struct stat s;
