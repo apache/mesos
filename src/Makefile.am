@@ -495,6 +495,7 @@ libmesos_no_3rdparty_la_SOURCES =					\
 	master/repairer.cpp						\
 	master/validation.cpp						\
 	master/allocator/allocator.cpp					\
+	master/allocator/mesos/hierarchical.cpp				\
 	master/allocator/sorter/drf/sorter.cpp				\
 	messages/flags.proto						\
 	messages/messages.cpp						\

@@ -142,6 +142,7 @@ set(MASTER_SRC
   master/repairer.cpp
   master/validation.cpp
   master/allocator/allocator.cpp
+  master/allocator/mesos/hierarchical.cpp
   master/allocator/sorter/drf/sorter.cpp
   )
 
