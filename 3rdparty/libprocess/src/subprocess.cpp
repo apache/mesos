@@ -62,30 +62,32 @@ static void cleanup(
 
 static void close(int stdinFd[2], int stdoutFd[2], int stderrFd[2])
 {
-  os::close(stdinFd[0]);
-  os::close(stdinFd[1]);
-  os::close(stdoutFd[0]);
-  os::close(stdoutFd[1]);
-  os::close(stderrFd[0]);
-  os::close(stderrFd[1]);
+  int fds[6] = {
+    stdinFd[0], stdinFd[1],
+    stdoutFd[0], stdoutFd[1],
+    stderrFd[0], stderrFd[1]
+  };
+
+  foreach (int fd, fds) {
+    if (fd >= 0) {
+      os::close(fd);
+    }
+  }
 }
 
 // This function will invoke os::cloexec on all file descriptors in
 // these pairs that are valid (i.e., >= 0).
 static Try<Nothing> cloexec(int stdinFd[2], int stdoutFd[2], int stderrFd[2])
 {
-  int fd[6] = {
-    stdinFd[0],
-    stdinFd[1],
-    stdoutFd[0],
-    stdoutFd[1],
-    stderrFd[0],
-    stderrFd[1]
+  int fds[6] = {
+    stdinFd[0], stdinFd[1],
+    stdoutFd[0], stdoutFd[1],
+    stderrFd[0], stderrFd[1]
   };
 
-  for (int i = 0; i < 6; i++) {
-    if (fd[i] >= 0) {
-      Try<Nothing> cloexec = os::cloexec(fd[i]);
+  foreach (int fd, fds) {
+    if (fd >= 0) {
+      Try<Nothing> cloexec = os::cloexec(fd);
       if (cloexec.isError()) {
         return Error(cloexec.error());
       }
@@ -130,13 +132,13 @@ static int childMain(
 {
   // Close parent's end of the pipes.
   if (in.isPipe()) {
-    while (::close(stdinFd[1]) == -1 && errno == EINTR);
+    ::close(stdinFd[1]);
   }
   if (out.isPipe()) {
-    while (::close(stdoutFd[0]) == -1 && errno == EINTR);
+    ::close(stdoutFd[0]);
   }
   if (err.isPipe()) {
-    while (::close(stderrFd[0]) == -1 && errno == EINTR);
+    ::close(stderrFd[0]);
   }
 
   // Redirect I/O for stdin/stdout/stderr.
@@ -152,17 +154,17 @@ static int childMain(
   if (stdinFd[0] != STDIN_FILENO &&
       stdinFd[0] != STDOUT_FILENO &&
       stdinFd[0] != STDERR_FILENO) {
-    while (::close(stdinFd[0]) == -1 && errno == EINTR);
+    ::close(stdinFd[0]);
   }
   if (stdoutFd[1] != STDIN_FILENO &&
       stdoutFd[1] != STDOUT_FILENO &&
       stdoutFd[1] != STDERR_FILENO) {
-    while (::close(stdoutFd[1]) == -1 && errno == EINTR);
+    ::close(stdoutFd[1]);
   }
   if (stderrFd[1] != STDIN_FILENO &&
       stderrFd[1] != STDOUT_FILENO &&
       stderrFd[1] != STDERR_FILENO) {
-    while (::close(stderrFd[1]) == -1 && errno == EINTR);
+    ::close(stderrFd[1]);
   }
 
   if (setup.isSome()) {

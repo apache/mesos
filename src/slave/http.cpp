@@ -22,6 +22,11 @@
 #include <string>
 #include <vector>
 
+#include <mesos/executor/executor.hpp>
+
+#include <mesos/v1/executor/executor.hpp>
+
+#include <mesos/attributes.hpp>
 #include <mesos/type_utils.hpp>
 
 #include <process/help.hpp>
@@ -37,9 +42,10 @@
 #include <stout/stringify.hpp>
 #include <stout/strings.hpp>
 
-#include "common/attributes.hpp"
 #include "common/build.hpp"
 #include "common/http.hpp"
+
+#include "internal/devolve.hpp"
 
 #include "mesos/mesos.hpp"
 #include "mesos/resources.hpp"
@@ -55,8 +61,17 @@ using process::Owned;
 using process::TLDR;
 using process::USAGE;
 
+using process::http::Accepted;
+using process::http::BadRequest;
+using process::http::Forbidden;
 using process::http::InternalServerError;
+using process::http::MethodNotAllowed;
+using process::http::NotAcceptable;
+using process::http::NotImplemented;
 using process::http::OK;
+using process::http::Pipe;
+using process::http::ServiceUnavailable;
+using process::http::UnsupportedMediaType;
 
 using process::metrics::internal::MetricsProcess;
 
@@ -171,7 +186,7 @@ void Slave::Http::log(const Request& request)
   Option<string> userAgent = request.headers.get("User-Agent");
   Option<string> forwardedFor = request.headers.get("X-Forwarded-For");
 
-  LOG(INFO) << "HTTP " << request.method << " for " << request.path
+  LOG(INFO) << "HTTP " << request.method << " for " << request.url.path
             << " from " << request.client
             << (userAgent.isSome()
                 ? " with User-Agent='" + userAgent.get() + "'"
@@ -182,11 +197,131 @@ void Slave::Http::log(const Request& request)
 }
 
 
+const string Slave::Http::EXECUTOR_HELP = HELP(
+    TLDR(
+        "Endpoint for the Executor HTTP API."),
+    DESCRIPTION(
+        "This endpoint is used by the executors to interact with the ",
+        "agent via Call/Event messages."
+        "Returns 200 OK iff the initial SUBSCRIBE Call is successful."
+        "This would result in a streaming response via chunked "
+        "transfer encoding. The executors can process the response "
+        "incrementally."
+        "Returns 202 Accepted for all other Call messages iff the "
+        "request is accepted."));
+
+
+Future<Response> Slave::Http::executor(const Request& request) const
+{
+  // TODO(anand): Add metrics for rejected requests.
+
+  if (slave->state == Slave::RECOVERING) {
+    return ServiceUnavailable("Agent has not finished recovery");
+  }
+
+  if (request.method != "POST") {
+    return MethodNotAllowed(
+        "Expecting a 'POST' request, received '" + request.method + "'");
+  }
+
+  v1::executor::Call v1Call;
+
+  Option<string> contentType = request.headers.get("Content-Type");
+  if (contentType.isNone()) {
+    return BadRequest("Expecting 'Content-Type' to be present");
+  }
+
+  if (contentType.get() == APPLICATION_PROTOBUF) {
+    if (!v1Call.ParseFromString(request.body)) {
+      return BadRequest("Failed to parse body into Call protobuf");
+    }
+  } else if (contentType.get() == APPLICATION_JSON) {
+    Try<JSON::Value> value = JSON::parse(request.body);
+    if (value.isError()) {
+      return BadRequest("Failed to parse body into JSON: " + value.error());
+    }
+
+    Try<v1::executor::Call> parse =
+      ::protobuf::parse<v1::executor::Call>(value.get());
+
+    if (parse.isError()) {
+      return BadRequest("Failed to convert JSON into Call protobuf: " +
+                        parse.error());
+    }
+
+    v1Call = parse.get();
+  } else {
+    return UnsupportedMediaType(
+        string("Expecting 'Content-Type' of ") +
+        APPLICATION_JSON + " or " + APPLICATION_PROTOBUF);
+  }
+
+  const executor::Call call = devolve(v1Call);
+
+  // TODO(anand): Validate the protobuf (MESOS-2906) before proceeding
+  // further.
+
+  if (call.type() == executor::Call::SUBSCRIBE) {
+    // We default to JSON since an empty 'Accept' header
+    // results in all media types considered acceptable.
+    ContentType responseContentType;
+
+    if (request.acceptsMediaType(APPLICATION_JSON)) {
+      responseContentType = ContentType::JSON;
+    } else if (request.acceptsMediaType(APPLICATION_PROTOBUF)) {
+      responseContentType = ContentType::PROTOBUF;
+    } else {
+      return NotAcceptable(
+          string("Expecting 'Accept' to allow ") +
+          "'" + APPLICATION_PROTOBUF + "' or '" + APPLICATION_JSON + "'");
+    }
+
+    Pipe pipe;
+    OK ok;
+    ok.headers["Content-Type"] = stringify(responseContentType);
+
+    ok.type = Response::PIPE;
+    ok.reader = pipe.reader();
+
+    return ok;
+  }
+
+
+  // We consolidate the framework/executor lookup logic here because
+  // it is common for all the call handlers.
+  Framework* framework = slave->getFramework(call.framework_id());
+  if (framework == NULL) {
+    return BadRequest("Framework cannot be found");
+  }
+
+  Executor* executor = framework->getExecutor(call.executor_id());
+  if (executor == NULL) {
+    return BadRequest("Executor cannot be found");
+  }
+
+  if (executor->state == Executor::REGISTERING) {
+    return Forbidden("Executor is not subscribed");
+  }
+
+  switch (call.type()) {
+    case executor::Call::UPDATE:
+      return Accepted();
+
+    case executor::Call::MESSAGE:
+      return Accepted();
+
+    default:
+      // Should be caught during call validation above.
+      LOG(FATAL) << "Unexpected " << call.type() << " call";
+  }
+
+  return NotImplemented();
+}
+
+
 const string Slave::Http::HEALTH_HELP = HELP(
     TLDR(
         "Health check of the Slave."),
-    USAGE(
-        "/health"),
     DESCRIPTION(
         "Returns 200 OK iff the Slave is healthy.",
         "Delayed responses are also indicative of poor health."));
@@ -201,8 +336,6 @@ Future<Response> Slave::Http::health(const Request& request) const
 const string Slave::Http::STATE_HELP = HELP(
     TLDR(
         "Information about state of the Slave."),
-    USAGE(
-        "/state.json"),
     DESCRIPTION(
         "This endpoint shows information about the frameworks, executors",
         "and the slave's master as a JSON object."));
@@ -271,7 +404,7 @@ Future<Response> Slave::Http::state(const Request& request) const
   }
   object.values["flags"] = flags;
 
-  return OK(object, request.query.get("jsonp"));
+  return OK(object, request.url.query.get("jsonp"));
 }
 
 } // namespace slave {

@@ -268,6 +268,10 @@ public:
   // those filtered slaves.
   virtual Status reviveOffers() = 0;
 
+  // Inform Mesos master to stop sending offers to the framework. The
+  // scheduler should call reviveOffers() to resume getting offers.
+  virtual Status suppressOffers() = 0;
+
   // Acknowledges the status update. This should only be called
   // once the status update is processed durably by the scheduler.
   // Not that explicit acknowledgements must be requested via the
@@ -415,6 +419,8 @@ public:
       const Filters& filters = Filters());
 
   virtual Status reviveOffers();
+
+  virtual Status suppressOffers();
 
   virtual Status acknowledgeStatusUpdate(
       const TaskStatus& status);

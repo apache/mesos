@@ -607,7 +607,7 @@ jmethodID Jvm::findMethod(
 }
 
 
-template<>
+template <>
 void Jvm::invokeV<void>(
     const jobject receiver,
     const jmethodID id,
@@ -723,7 +723,7 @@ double Jvm::invokeV<double>(
 }
 
 
-template<>
+template <>
 void Jvm::invokeStaticV<void>(
     const Class& receiver,
     const jmethodID id,

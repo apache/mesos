@@ -15,6 +15,8 @@
 #ifndef __PROCESS_LATCH_HPP__
 #define __PROCESS_LATCH_HPP__
 
+#include <atomic>
+
 #include <process/pid.hpp>
 
 #include <stout/duration.hpp>
@@ -43,7 +45,7 @@ private:
   Latch(const Latch& that);
   Latch& operator=(const Latch& that);
 
-  bool triggered;
+  std::atomic_bool triggered;
   UPID pid;
 };
 

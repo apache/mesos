@@ -471,7 +471,7 @@ In the case of a network partition, the subscription connection between the sche
 
 ## Master detection
 
-Mesos has a high-availability mode that uses multiple Mesos masters; one active master (called the leader or leading master) and several standbys in case it fails. The masters elect the leader, with ZooKeeper coordinating the election. For more details please refer to the [documentation](high-availability.md).
+Mesos has a high-availability mode that uses multiple Mesos masters; one active master (called the leader or leading master) and several standbys in case it fails. The masters elect the leader, with ZooKeeper coordinating the election. For more details please refer to the [documentation](/documentation/latest/high-availability.md).
 
 Schedulers are expected to make HTTP requests to the leading master. If requests are made to a non-leading master a “HTTP 307 Temporary Redirect” will be received with the “Location” header pointing to the leading master.
 

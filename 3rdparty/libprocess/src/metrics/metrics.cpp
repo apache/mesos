@@ -68,7 +68,6 @@ string MetricsProcess::help()
 {
   return HELP(
       TLDR("Provides a snapshot of the current metrics."),
-      USAGE("/metrics/snapshot"),
       DESCRIPTION(
           "This endpoint provides information regarding the current metrics ",
           "tracked by the system.",
@@ -116,8 +115,8 @@ Future<http::Response> MetricsProcess::_snapshot(const http::Request& request)
   // Parse the 'timeout' parameter.
   Option<Duration> timeout;
 
-  if (request.query.contains("timeout")) {
-    string parameter = request.query.get("timeout").get();
+  if (request.url.query.contains("timeout")) {
+    string parameter = request.url.query.get("timeout").get();
 
     Try<Duration> duration = Duration::parse(parameter);
 
@@ -193,7 +192,7 @@ Future<http::Response> MetricsProcess::__snapshot(
     }
   }
 
-  return http::OK(object, request.query.get("jsonp"));
+  return http::OK(object, request.url.query.get("jsonp"));
 }
 
 }  // namespace internal {

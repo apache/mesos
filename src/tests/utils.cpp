@@ -72,6 +72,22 @@ void TemporaryDirectoryTest::TearDown()
   ASSERT_SOME(os::chdir(cwd));
 
   if (sandbox.isSome()) {
+#ifdef __linux__
+    // Try to remove any mounts under sandbox.
+    if (::geteuid() == 0) {
+      Try<string> umount = os::shell(
+          "grep '%s' /proc/mounts | "
+          "cut -d' ' -f2 | "
+          "xargs --no-run-if-empty umount -l",
+          sandbox.get().c_str());
+
+      if (umount.isError()) {
+        LOG(ERROR) << "Failed to umount for sandbox '" << sandbox.get()
+                   << "': " << umount.error();
+      }
+    }
+#endif
+
     ASSERT_SOME(os::rmdir(sandbox.get()));
   }
 }

@@ -27,11 +27,13 @@
 
 namespace process {
 
-// Defines the initial values for all of the declarations made in
+ev_async async_watcher;
+// We need an asynchronous watcher to receive the request to shutdown.
+ev_async shutdown_watcher;
+
+// Define the initial values for all of the declarations made in
 // libev.hpp (since these need to live in the static data space).
 struct ev_loop* loop = NULL;
-
-ev_async async_watcher;
 
 std::queue<ev_io*>* watchers = new std::queue<ev_io*>();
 
@@ -74,12 +76,21 @@ void handle_async(struct ev_loop* loop, ev_async* _, int revents)
 }
 
 
+void handle_shutdown(struct ev_loop* loop, ev_async* _, int revents)
+{
+  ev_unloop(loop, EVUNLOOP_ALL);
+}
+
+
 void EventLoop::initialize()
 {
   loop = ev_default_loop(EVFLAG_AUTO);
 
   ev_async_init(&async_watcher, handle_async);
+  ev_async_init(&shutdown_watcher, handle_shutdown);
+
   ev_async_start(loop, &async_watcher);
+  ev_async_start(loop, &shutdown_watcher);
 }
 
 
@@ -148,6 +159,11 @@ void EventLoop::run()
   ev_loop(loop, 0);
 
   __in_event_loop__ = false;
+}
+
+void EventLoop::stop()
+{
+  ev_async_send(loop, &shutdown_watcher);
 }
 
 } // namespace process {

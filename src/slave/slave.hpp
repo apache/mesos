@@ -28,6 +28,7 @@
 
 #include <boost/circular_buffer.hpp>
 
+#include <mesos/attributes.hpp>
 #include <mesos/resources.hpp>
 #include <mesos/type_utils.hpp>
 
@@ -51,7 +52,13 @@
 #include <stout/path.hpp>
 #include <stout/uuid.hpp>
 
+#include "common/protobuf_utils.hpp"
+
+#include "files/files.hpp"
+
 #include "master/detector.hpp"
+
+#include "messages/messages.hpp"
 
 #include "slave/constants.hpp"
 #include "slave/containerizer/containerizer.hpp"
@@ -61,13 +68,6 @@
 #include "slave/monitor.hpp"
 #include "slave/paths.hpp"
 #include "slave/state.hpp"
-
-#include "common/attributes.hpp"
-#include "common/protobuf_utils.hpp"
-
-#include "files/files.hpp"
-
-#include "messages/messages.hpp"
 
 namespace mesos {
 namespace internal {
@@ -399,14 +399,19 @@ private:
     // desired request handler to get consistent request logging.
     static void log(const process::http::Request& request);
 
+    // /slave/api/v1/executor
+    process::Future<process::http::Response> executor(
+        const process::http::Request& request) const;
+
     // /slave/health
     process::Future<process::http::Response> health(
         const process::http::Request& request) const;
 
-    // /slave/state.json
+    // /slave/state
     process::Future<process::http::Response> state(
         const process::http::Request& request) const;
 
+    static const std::string EXECUTOR_HELP;
     static const std::string HEALTH_HELP;
     static const std::string STATE_HELP;
 

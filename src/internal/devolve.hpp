@@ -23,9 +23,13 @@
 
 #include <mesos/mesos.hpp>
 
+#include <mesos/executor/executor.hpp>
+
 #include <mesos/scheduler/scheduler.hpp>
 
 #include <mesos/v1/mesos.hpp>
+
+#include <mesos/v1/executor/executor.hpp>
 
 #include <mesos/v1/scheduler/scheduler.hpp>
 
@@ -41,11 +45,13 @@ FrameworkID devolve(const v1::FrameworkID& frameworkId);
 FrameworkInfo devolve(const v1::FrameworkInfo& frameworkInfo);
 ExecutorID devolve(const v1::ExecutorID& executorId);
 Offer devolve(const v1::Offer& offer);
+InverseOffer devolve(const v1::InverseOffer& inverseOffer);
 Credential devolve(const v1::Credential& credential);
 
 scheduler::Call devolve(const v1::scheduler::Call& call);
 scheduler::Event devolve(const v1::scheduler::Event& event);
 
+executor::Call devolve(const v1::executor::Call& call);
 
 // Helper for repeated field devolving to 'T1' from 'T2'.
 template <typename T1, typename T2>

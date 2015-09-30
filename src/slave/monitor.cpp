@@ -47,8 +47,6 @@ static const string STATISTICS_HELP()
   return HELP(
       TLDR(
           "Retrieve resource monitoring information."),
-      USAGE(
-          "/statistics.json"),
       DESCRIPTION(
           "Returns the current resource consumption data for containers",
           "running under this slave.",
@@ -95,7 +93,13 @@ public:
 protected:
   virtual void initialize()
   {
+    // TODO(ijimenez): Remove this endpoint at the end of the
+    // deprecation cycle on 0.26.
     route("/statistics.json",
+          STATISTICS_HELP(),
+          &ResourceMonitorProcess::statistics);
+
+    route("/statistics",
           STATISTICS_HELP(),
           &ResourceMonitorProcess::statistics);
   }
@@ -143,13 +147,13 @@ private:
       }
     }
 
-    return http::OK(result, request.query.get("jsonp"));
+    return http::OK(result, request.url.query.get("jsonp"));
   }
 
   // Callback used to retrieve resource usage information from slave.
   const lambda::function<Future<ResourceUsage>()> usage;
 
-  // Used to rate limit the statistics.json endpoint.
+  // Used to rate limit the statistics endpoint.
   RateLimiter limiter;
 };
 

@@ -28,6 +28,7 @@
 #include <process/delay.hpp>
 #include <process/io.hpp>
 #include <process/pid.hpp>
+#include <process/reap.hpp>
 #include <process/subprocess.hpp>
 
 #include <stout/bytes.hpp>
@@ -46,17 +47,21 @@
 
 #include "slave/containerizer/isolators/cgroups/perf_event.hpp"
 
-using namespace process;
+using mesos::slave::ContainerLimitation;
+using mesos::slave::ContainerPrepareInfo;
+using mesos::slave::ContainerState;
+using mesos::slave::Isolator;
 
 using std::list;
 using std::set;
 using std::string;
 using std::vector;
 
-using mesos::slave::ContainerLimitation;
-using mesos::slave::ContainerPrepareInfo;
-using mesos::slave::ContainerState;
-using mesos::slave::Isolator;
+using process::Clock;
+using process::Failure;
+using process::Future;
+using process::PID;
+using process::Time;
 
 namespace mesos {
 namespace internal {
@@ -365,44 +370,33 @@ Future<hashmap<string, PerfStatistics>> discardSample(
 
 void CgroupsPerfEventIsolatorProcess::sample()
 {
+  // Collect a perf sample for all cgroups that are not being
+  // destroyed. Since destroyal is asynchronous, 'perf stat' may
+  // fail if the cgroup is destroyed before running perf.
   set<string> cgroups;
+
   foreachvalue (Info* info, infos) {
     CHECK_NOTNULL(info);
 
-    if (info->destroying) {
-      // Skip cgroups if destroy has started because it's asynchronous
-      // and "perf stat" will fail if the cgroup has been destroyed
-      // by the time we actually run perf.
-      continue;
+    if (!info->destroying) {
+      cgroups.insert(info->cgroup);
     }
-
-    cgroups.insert(info->cgroup);
   }
 
-  if (cgroups.size() > 0) {
-    // The timeout includes an allowance of twice the process::reap
-    // interval (currently one second) to ensure we see the perf
-    // process exit. If the sample is not ready after the timeout
-    // something very unexpected has occurred so we discard it and
-    // halt all sampling.
-    Duration timeout = flags.perf_duration + Seconds(2);
+  // The discard timeout includes an allowance of twice the
+  // reaper interval to ensure we see the perf process exit.
+  Duration timeout = flags.perf_duration + process::MAX_REAP_INTERVAL() * 2;
 
-    perf::sample(events, cgroups, flags.perf_duration)
-      .after(timeout,
-             lambda::bind(&discardSample,
-                          lambda::_1,
-                          flags.perf_duration,
-                          timeout))
-      .onAny(defer(PID<CgroupsPerfEventIsolatorProcess>(this),
-                   &CgroupsPerfEventIsolatorProcess::_sample,
-                   Clock::now() + flags.perf_interval,
-                   lambda::_1));
-  } else {
-    // No cgroups to sample for now so just schedule the next sample.
-    delay(flags.perf_interval,
-          PID<CgroupsPerfEventIsolatorProcess>(this),
-          &CgroupsPerfEventIsolatorProcess::sample);
-  }
+  perf::sample(events, cgroups, flags.perf_duration)
+    .after(timeout,
+           lambda::bind(&discardSample,
+                        lambda::_1,
+                        flags.perf_duration,
+                        timeout))
+    .onAny(defer(PID<CgroupsPerfEventIsolatorProcess>(this),
+                 &CgroupsPerfEventIsolatorProcess::_sample,
+                 Clock::now() + flags.perf_interval,
+                 lambda::_1));
 }
 
 
@@ -411,23 +405,23 @@ void CgroupsPerfEventIsolatorProcess::_sample(
     const Future<hashmap<string, PerfStatistics>>& statistics)
 {
   if (!statistics.isReady()) {
-    // Failure can occur for many reasons but all are unexpected and
-    // indicate something is not right so we'll stop sampling.
-    LOG(ERROR) << "Failed to get perf sample, sampling will be halted: "
-               << (statistics.isFailed() ? statistics.failure() : "discarded");
-    return;
-  }
+    // In case the failure is transient or this is due to a timeout,
+    // we continue sampling. Note that since sampling is done on an
+    // interval, it should be ok if this is a non-transient failure.
+    LOG(ERROR) << "Failed to get perf sample: "
+               << (statistics.isFailed()
+                   ? statistics.failure()
+                   : "discarded due to timeout");
+  } else {
+    // Store the latest statistics, note that cgroups added in the
+    // interim will be picked up by the next sample.
+    foreachvalue (Info* info, infos) {
+      CHECK_NOTNULL(info);
 
-  foreachvalue (Info* info, infos) {
-    CHECK_NOTNULL(info);
-
-    if (!statistics.get().contains(info->cgroup)) {
-      // This must be a newly added cgroup and isn't in this sample;
-      // it should be included in the next sample.
-      continue;
+      if (statistics->contains(info->cgroup)) {
+        info->statistics = statistics->get(info->cgroup).get();
+      }
     }
-
-    info->statistics = statistics.get().get(info->cgroup).get();
   }
 
   // Schedule sample for the next time.

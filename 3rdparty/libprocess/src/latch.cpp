@@ -25,10 +25,8 @@ namespace process {
 // within libprocess such that it doesn't cost a memory allocation, a
 // spawn, a message send, a wait, and two user-space context-switchs.
 
-Latch::Latch()
+Latch::Latch() : triggered(false)
 {
-  triggered = false;
-
   // Deadlock is possible if one thread is trying to delete a latch
   // but the libprocess thread(s) is trying to acquire a resource the
   // deleting thread is holding. Hence, we only save the PID for
@@ -40,7 +38,8 @@ Latch::Latch()
 
 Latch::~Latch()
 {
-  if (__sync_bool_compare_and_swap(&triggered, false, true)) {
+  bool expected = false;
+  if (triggered.compare_exchange_strong(expected, true)) {
     terminate(pid);
   }
 }
@@ -48,8 +47,8 @@ Latch::~Latch()
 
 bool Latch::trigger()
 {
-  // TODO(benh): Use std::atomic when C++11 rolls out.
-  if (__sync_bool_compare_and_swap(&triggered, false, true)) {
+  bool expected = false;
+  if (triggered.compare_exchange_strong(expected, true)) {
     terminate(pid);
     return true;
   }
@@ -59,7 +58,7 @@ bool Latch::trigger()
 
 bool Latch::await(const Duration& duration)
 {
-  if (!triggered) {
+  if (!triggered.load()) {
     process::wait(pid, duration); // Explict to disambiguate.
     // It's possible that we failed to wait because:
     //   (1) Our process has already terminated.
@@ -71,7 +70,7 @@ bool Latch::await(const Duration& duration)
     // 'triggered' (which will also capture cases where we actually
     // timed out but have since triggered, which seems like an
     // acceptable semantics given such a "tie").
-    return triggered;
+    return triggered.load();
   }
 
   return true;

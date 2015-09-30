@@ -45,20 +45,15 @@ namespace os {
  *
  * @param fmt the formatting string that contains the command to execute
  *   in the underlying shell.
- * @param varargs optional arguments for `fmt`.
+ * @param t optional arguments for `fmt`.
  *
  * @return the output from running the specified command with the shell; or
  *   an error message if the command's exit code is non-zero.
  */
-inline Try<std::string> shell(const std::string fmt, ...)
+template <typename... T>
+Try<std::string> shell(const std::string& fmt, const T&... t)
 {
-  va_list args;
-  va_start(args, fmt);
-
-  const Try<std::string> command = strings::internal::format(fmt, args);
-
-  va_end(args);
-
+  const Try<std::string> command = strings::internal::format(fmt, t...);
   if (command.isError()) {
     return Error(command.error());
   }

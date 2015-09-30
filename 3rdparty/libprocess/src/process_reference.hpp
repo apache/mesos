@@ -66,7 +66,7 @@ private:
     : process(_process)
   {
     if (process != NULL) {
-      __sync_fetch_and_add(&(process->refs), 1);
+      process->refs.fetch_add(1);
     }
   }
 
@@ -78,15 +78,15 @@ private:
       // There should be at least one reference to the process, so
       // we don't need to worry about checking if it's exiting or
       // not, since we know we can always create another reference.
-      CHECK(process->refs > 0);
-      __sync_fetch_and_add(&(process->refs), 1);
+      CHECK(process->refs.load() > 0);
+      process->refs.fetch_add(1);
     }
   }
 
   void cleanup()
   {
     if (process != NULL) {
-      __sync_fetch_and_sub(&(process->refs), 1);
+      process->refs.fetch_sub(1);
     }
   }
 

@@ -941,6 +941,111 @@ TEST_P(SchedulerTest, Revive)
 }
 
 
+TEST_P(SchedulerTest, Suppress)
+{
+  master::Flags flags = CreateMasterFlags();
+  flags.authenticate_frameworks = false;
+
+  Try<PID<Master>> master = StartMaster(flags);
+  ASSERT_SOME(master);
+
+  Try<PID<Slave>> slave = StartSlave();
+  ASSERT_SOME(slave);
+
+  Callbacks callbacks;
+
+  Future<Nothing> connected;
+  EXPECT_CALL(callbacks, connected())
+    .WillOnce(FutureSatisfy(&connected));
+
+  Mesos mesos(
+      master.get(),
+      GetParam(),
+      lambda::bind(&Callbacks::connected, lambda::ref(callbacks)),
+      lambda::bind(&Callbacks::disconnected, lambda::ref(callbacks)),
+      lambda::bind(&Callbacks::received, lambda::ref(callbacks), lambda::_1));
+
+  AWAIT_READY(connected);
+
+  Queue<Event> events;
+
+  EXPECT_CALL(callbacks, received(_))
+    .WillRepeatedly(Enqueue(&events));
+
+  {
+    Call call;
+    call.set_type(Call::SUBSCRIBE);
+
+    Call::Subscribe* subscribe = call.mutable_subscribe();
+    subscribe->mutable_framework_info()->CopyFrom(DEFAULT_V1_FRAMEWORK_INFO);
+
+    mesos.send(call);
+  }
+
+  Future<Event> event = events.get();
+  AWAIT_READY(event);
+  EXPECT_EQ(Event::SUBSCRIBED, event.get().type());
+
+  v1::FrameworkID id(event.get().subscribed().framework_id());
+
+  event = events.get();
+  AWAIT_READY(event);
+  EXPECT_EQ(Event::OFFERS, event.get().type());
+  EXPECT_NE(0, event.get().offers().offers().size());
+
+  v1::Offer offer = event.get().offers().offers(0);
+  {
+    Call call;
+    call.mutable_framework_id()->CopyFrom(id);
+    call.set_type(Call::DECLINE);
+
+    Call::Decline* decline = call.mutable_decline();
+    decline->add_offer_ids()->CopyFrom(offer.id());
+
+    // Set 1hr filter to not immediately get another offer.
+    v1::Filters filters;
+    filters.set_refuse_seconds(Hours(1).secs());
+    decline->mutable_filters()->CopyFrom(filters);
+
+    mesos.send(call);
+  }
+
+  {
+    Call call;
+    call.mutable_framework_id()->CopyFrom(id);
+    call.set_type(Call::SUPPRESS);
+
+    mesos.send(call);
+  }
+
+  // No offers should be sent within 100 mins because the framework
+  // suppressed offers.
+  Clock::pause();
+  Clock::advance(Minutes(100));
+  Clock::settle();
+
+  event = events.get();
+  ASSERT_TRUE(event.isPending());
+
+  // On reviving offers the scheduler should get another offer with same amount
+  // of resources.
+  {
+    Call call;
+    call.mutable_framework_id()->CopyFrom(id);
+    call.set_type(Call::REVIVE);
+
+    mesos.send(call);
+  }
+
+  AWAIT_READY(event);
+  EXPECT_EQ(Event::OFFERS, event.get().type());
+  EXPECT_NE(0, event.get().offers().offers().size());
+  ASSERT_EQ(offer.resources(), event.get().offers().offers(0).resources());
+
+  Shutdown(); // Must shutdown before 'containerizer' gets deallocated.
+}
+
+
 TEST_P(SchedulerTest, Message)
 {
   master::Flags flags = CreateMasterFlags();

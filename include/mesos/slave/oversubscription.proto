@@ -38,12 +38,16 @@ message QoSCorrection {
   }
 
   // Kill action which will be performed on an executor.
-  // NOTE: The framework id must be set for the specified executor.
+  // NOTE: Framework ID and either executor id or executor id and container_id
+  // must be set to kill a running container. In the latter case, the caller
+  // can be assured that the kill request doesn't target a new executor reusing
+  // an old executor id.
   // NOTE: In the future we may also kill individual tasks by
   // specifying an optional 'task_id'.
   message Kill {
     optional FrameworkID framework_id = 1;
     optional ExecutorID executor_id = 2;
+    optional ContainerID container_id = 3;
   }
 
   required Type type = 1;

@@ -100,7 +100,7 @@ extern const uint32_t MAX_COMPLETED_TASKS_PER_FRAMEWORK;
 // Time interval to check for updated watchers list.
 extern const Duration WHITELIST_WATCH_INTERVAL;
 
-// Default number of tasks (limit) for /master/tasks.json endpoint.
+// Default number of tasks (limit) for /master/tasks endpoint.
 extern const uint32_t TASK_LIMIT;
 
 /**

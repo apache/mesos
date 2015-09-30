@@ -97,7 +97,7 @@ TEST(MonitorTest, Statistics)
 
   UPID upid("monitor", process::address());
 
-  Future<http::Response> response = http::get(upid, "statistics.json");
+  Future<http::Response> response = http::get(upid, "statistics");
   AWAIT_READY(response);
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::OK().status, response);
@@ -106,48 +106,22 @@ TEST(MonitorTest, Statistics)
       "Content-Type",
       response);
 
-  // TODO(bmahler): Use JSON equality instead to avoid having to use
-  // numeric limits for double precision.
-  AWAIT_EXPECT_RESPONSE_BODY_EQ(
-      strings::format(
-          "[{"
-              "\"executor_id\":\"executor\","
-              "\"executor_name\":\"name\","
-              "\"framework_id\":\"framework\","
-              "\"source\":\"source\","
-              "\"statistics\":{"
-                  "\"cpus_limit\":%g,"
-                  "\"cpus_nr_periods\":%d,"
-                  "\"cpus_nr_throttled\":%d,"
-                  "\"cpus_system_time_secs\":%g,"
-                  "\"cpus_throttled_time_secs\":%g,"
-                  "\"cpus_user_time_secs\":%g,"
-                  "\"mem_anon_bytes\":%lu,"
-                  "\"mem_file_bytes\":%lu,"
-                  "\"mem_limit_bytes\":%lu,"
-                  "\"mem_mapped_file_bytes\":%lu,"
-                  "\"mem_rss_bytes\":%lu,"
-                  "\"timestamp\":"
-                      "%." + stringify(numeric_limits<double>::digits10) + "g"
-              "}"
-          "}]",
-          statistics.cpus_limit(),
-          statistics.cpus_nr_periods(),
-          statistics.cpus_nr_throttled(),
-          statistics.cpus_system_time_secs(),
-          statistics.cpus_throttled_time_secs(),
-          statistics.cpus_user_time_secs(),
-          statistics.mem_anon_bytes(),
-          statistics.mem_file_bytes(),
-          statistics.mem_limit_bytes(),
-          statistics.mem_mapped_file_bytes(),
-          statistics.mem_rss_bytes(),
-          statistics.timestamp()).get(),
-      response);
+  JSON::Array expected;
+  JSON::Object usage;
+  usage.values["executor_id"] = "executor";
+  usage.values["executor_name"] = "name";
+  usage.values["framework_id"] = "framework";
+  usage.values["source"] = "source";
+  usage.values["statistics"] = JSON::Protobuf(statistics);
+  expected.values.push_back(usage);
+
+  Try<JSON::Array> result = JSON::parse<JSON::Array>(response.get().body);
+  ASSERT_SOME(result);
+  ASSERT_EQ(expected, result.get());
 }
 
 
-// This test verifies the correct handling of the statistics.json
+// This test verifies the correct handling of the statistics
 // endpoint when there is no executor running.
 TEST(MonitorTest, NoExecutor)
 {
@@ -157,7 +131,7 @@ TEST(MonitorTest, NoExecutor)
 
   UPID upid("monitor", process::address());
 
-  Future<http::Response> response = http::get(upid, "statistics.json");
+  Future<http::Response> response = http::get(upid, "statistics");
   AWAIT_READY(response);
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::OK().status, response);
@@ -169,7 +143,7 @@ TEST(MonitorTest, NoExecutor)
 }
 
 
-// This test verifies the correct handling of the statistics.json
+// This test verifies the correct handling of the statistics
 // endpoint when statistics is missing in ResourceUsage.
 TEST(MonitorTest, MissingStatistics)
 {
@@ -198,7 +172,7 @@ TEST(MonitorTest, MissingStatistics)
 
   UPID upid("monitor", process::address());
 
-  Future<http::Response> response = http::get(upid, "statistics.json");
+  Future<http::Response> response = http::get(upid, "statistics");
   AWAIT_READY(response);
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::OK().status, response);
@@ -262,7 +236,7 @@ TEST_F(MonitorIntegrationTest, RunningExecutor)
   // resource statistics for the running container.
   UPID upid("monitor", process::address());
 
-  Future<http::Response> response = http::get(upid, "statistics.json");
+  Future<http::Response> response = http::get(upid, "statistics");
   AWAIT_READY(response);
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::OK().status, response);

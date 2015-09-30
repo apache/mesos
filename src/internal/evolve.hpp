@@ -42,6 +42,7 @@ v1::AgentInfo evolve(const SlaveInfo& slaveInfo);
 v1::FrameworkID evolve(const FrameworkID& frameworkId);
 v1::ExecutorID evolve(const ExecutorID& executorId);
 v1::Offer evolve(const Offer& offer);
+v1::InverseOffer evolve(const InverseOffer& inverseOffer);
 v1::OfferID evolve(const OfferID& offerId);
 v1::TaskInfo evolve(const TaskInfo& taskInfo);
 v1::TaskStatus evolve(const TaskStatus& status);

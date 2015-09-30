@@ -93,9 +93,8 @@ public:
     // Stop this nonsense if nobody cares.
     promise->future().onDiscard(defer(this, &CollectProcess::discarded));
 
-    typename std::list<Future<T>>::const_iterator iterator;
-    for (iterator = futures.begin(); iterator != futures.end(); ++iterator) {
-      (*iterator).onAny(defer(this, &CollectProcess::waited, lambda::_1));
+    foreach (const Future<T>& future, futures) {
+      future.onAny(defer(this, &CollectProcess::waited, lambda::_1));
     }
   }
 
@@ -103,6 +102,11 @@ private:
   void discarded()
   {
     promise->discard();
+
+    foreach (Future<T> future, futures) {
+      future.discard();
+    }
+
     terminate(this);
   }
 
@@ -155,9 +159,8 @@ public:
     // Stop this nonsense if nobody cares.
     promise->future().onDiscard(defer(this, &AwaitProcess::discarded));
 
-    typename std::list<Future<T>>::const_iterator iterator;
-    for (iterator = futures.begin(); iterator != futures.end(); ++iterator) {
-      (*iterator).onAny(defer(this, &AwaitProcess::waited, lambda::_1));
+    foreach (const Future<T>& future, futures) {
+      future.onAny(defer(this, &AwaitProcess::waited, lambda::_1));
     }
   }
 
@@ -165,6 +168,11 @@ private:
   void discarded()
   {
     promise->discard();
+
+    foreach (Future<T> future, futures) {
+      future.discard();
+    }
+
     terminate(this);
   }
 
@@ -242,15 +250,13 @@ Future<std::tuple<Future<T1>, Future<T2>>> await(
     const Future<T1>& future1,
     const Future<T2>& future2)
 {
-  Owned<Promise<Nothing>> promise1(new Promise<Nothing>());
-  Owned<Promise<Nothing>> promise2(new Promise<Nothing>());
+  Future<Nothing> wrapper1 = future1
+    .then([]() { return Nothing(); });
 
-  future1.onAny([=]() { promise1->set(Nothing()); });
-  future2.onAny([=]() { promise2->set(Nothing()); });
+  Future<Nothing> wrapper2 = future2
+    .then([]() { return Nothing(); });
 
-  std::list<Future<Nothing>> futures;
-  futures.push_back(promise1->future());
-  futures.push_back(promise2->future());
+  std::list<Future<Nothing>> futures = { wrapper1, wrapper2 };
 
   return await(futures)
     .then([=]() { return std::make_tuple(future1, future2); });
@@ -263,18 +269,16 @@ Future<std::tuple<Future<T1>, Future<T2>, Future<T3>>> await(
     const Future<T2>& future2,
     const Future<T3>& future3)
 {
-  Owned<Promise<Nothing>> promise1(new Promise<Nothing>());
-  Owned<Promise<Nothing>> promise2(new Promise<Nothing>());
-  Owned<Promise<Nothing>> promise3(new Promise<Nothing>());
+  Future<Nothing> wrapper1 = future1
+    .then([]() { return Nothing(); });
 
-  future1.onAny([=]() { promise1->set(Nothing()); });
-  future2.onAny([=]() { promise2->set(Nothing()); });
-  future3.onAny([=]() { promise3->set(Nothing()); });
+  Future<Nothing> wrapper2 = future2
+    .then([]() { return Nothing(); });
 
-  std::list<Future<Nothing>> futures;
-  futures.push_back(promise1->future());
-  futures.push_back(promise2->future());
-  futures.push_back(promise3->future());
+  Future<Nothing> wrapper3 = future3
+    .then([]() { return Nothing(); });
+
+  std::list<Future<Nothing>> futures = { wrapper1, wrapper2, wrapper3 };
 
   return await(futures)
     .then([=]() { return std::make_tuple(future1, future2, future3); });

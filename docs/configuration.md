@@ -29,6 +29,7 @@ If you have special compilation requirements, please refer to `./configure --hel
       <th>
         Explanation
       </th>
+    </tr>
   </thead>
 
   <tr>
@@ -57,7 +58,7 @@ If you have special compilation requirements, please refer to `./configure --hel
 <pre><code>{
   "disabled_endpoints" : {
     "paths" : [
-      "/files/browse.json",
+      "/files/browse",
       "/slave(0)/stats.json",
     ]
   }
@@ -155,6 +156,8 @@ If you have special compilation requirements, please refer to `./configure --hel
     </td>
     <td>
       Show version and exit. (default: false)
+    </td>
+  </tr>
 </table>
 
 ## Master Options
@@ -170,6 +173,7 @@ If you have special compilation requirements, please refer to `./configure --hel
       <th>
         Explanation
       </th>
+    </tr>
   </thead>
    <tr>
      <td>
@@ -239,6 +243,7 @@ file:///path/to/file (where file contains one of the above)</code></pre>
       <th>
         Explanation
       </th>
+    </tr>
   </thead>
   <tr>
     <td>
@@ -402,9 +407,22 @@ file:///path/to/file (where file contains one of the above)</code></pre>
       --hostname=VALUE
     </td>
     <td>
-      The hostname the master should advertise in ZooKeeper.
+      The hostname the master should advertise in ZooKeeper.<br>
       If left unset, the hostname is resolved from the IP address
-      that the master binds to.
+      that the slave binds to; unless the user explicitly prevents
+      that, using --no-hostname_lookup, in which case the IP itself
+      is used.
+    </td>
+  </tr>
+  <tr>
+    <td>
+      --[no-]hostname_lookup
+    </td>
+    <td>
+      Whether we should execute a lookup to find out the server's hostname,
+      if not explicitly set (via, e.g., `--hostname`).
+      True by default; if set to 'false' it will cause Mesos
+      to use the IP address, unless the hostname is explicitly set.
     </td>
   </tr>
   <tr>
@@ -704,6 +722,7 @@ file:///path/to/file (where file contains one of the above)</code></pre>
       <th>
         Explanation
       </th>
+    </tr>
   </thead>
   <tr>
   <tr>
@@ -735,6 +754,7 @@ file:///path/to/file (where file contains one of the above)</code></pre>
       <th>
         Explanation
       </th>
+    </tr>
   </thead>
   <tr>
     <td>
@@ -775,6 +795,7 @@ file:///path/to/file (where file contains one of the above)</code></pre>
       <th>
         Explanation
       </th>
+    </tr>
   </thead>
   <tr>
     <td>
@@ -841,6 +862,15 @@ file:///path/to/file (where file contains one of the above)</code></pre>
     <td>
       Name of the root cgroup
       (default: mesos)
+    </td>
+  </tr>
+  <tr>
+    <td>
+      --systemd_runtime_directory=VALUE
+    </td>
+    <td>
+      The path to the systemd system run time directory
+      (default: /run/systemd/system)
     </td>
   </tr>
   <tr>
@@ -1133,10 +1163,22 @@ file:///path/to/file (where file contains one of the above)</code></pre>
       --hostname=VALUE
     </td>
     <td>
-      The hostname the slave should report.
-      <p/>
+      The hostname the agent node should report.<br>
       If left unset, the hostname is resolved from the IP address
-      that the slave binds to.
+      that the slave binds to; unless the user explicitly prevents
+      that, using --no-hostname_lookup, in which case the IP itself
+      is used.
+    </td>
+  </tr>
+  <tr>
+    <td>
+      --[no-]hostname_lookup
+    </td>
+    <td>
+      Whether we should execute a lookup to find out the server's hostname,
+      if not explicitly set (via, e.g., `--hostname`).
+      True by default; if set to 'false' it will cause Mesos
+      to use the IP address, unless the hostname is explicitly set.
     </td>
   </tr>
   <tr>
@@ -1153,10 +1195,30 @@ file:///path/to/file (where file contains one of the above)</code></pre>
   </tr>
   <tr>
     <td>
+      --launcher=VALUE
+    </td>
+    <td>
+      The launcher to be used for Mesos containerizer. It could either be
+      'linux' or 'posix'. The Linux launcher is required for cgroups
+      isolation and for any isolators that require Linux namespaces such as
+      network, pid, etc. If unspecified, the slave will choose the Linux
+      launcher if it's running as root on Linux.
+    </td>
+  </tr>
+  <tr>
+    <td>
       --launcher_dir=VALUE
     </td>
     <td>
       Directory path of Mesos binaries (default: /usr/local/lib/mesos)
+    </td>
+  </tr>
+  <tr>
+    <td>
+      --image_providers=VALUE
+    </td>
+    <td>
+      Comma separated list of supported image providers, e.g., 'APPC,DOCKER'.
     </td>
   </tr>
   <tr>
@@ -1430,6 +1492,7 @@ file:///path/to/file (where file contains one of the above)</code></pre>
       <th>
         Explanation
       </th>
+    </tr>
   </thead>
   <tr>
     <td>
@@ -1494,6 +1557,64 @@ file:///path/to/file (where file contains one of the above)</code></pre>
 </table>
 
 
+## Libprocess Options
+
+*The bundled libprocess library can be controlled with the following environment variables.*
+
+<table class="table table-striped">
+  <thead>
+    <tr>
+      <th width="30%">
+        Variable
+      </th>
+      <th>
+        Explanation
+      </th>
+    </tr>
+  </thead>
+  <tr>
+    <td>
+      LIBPROCESS_IP
+    </td>
+    <td>
+      Sets the IP address for communication to and from libprocess.
+    </td>
+  </tr>
+  <tr>
+    <td>
+      LIBPROCESS_PORT
+    </td>
+    <td>
+      Sets the port for communication to and from libprocess.
+    </td>
+  </tr>
+  <tr>
+    <td>
+      LIBPROCESS_ADVERTISE_IP
+    </td>
+    <td>
+      If set, this provides the IP address that will be advertised to
+      the outside world for communication to and from libprocess.
+      This is useful, for example, for containerized tasks in which
+      communication is bound locally to a non-public IP that will be
+      inaccessible to the master.
+    </td>
+  </tr>
+  <tr>
+    <td>
+      LIBPROCESS_ADVERTISE_PORT
+    </td>
+    <td>
+      If set, this provides the port that will be advertised to the
+      outside world for communication to and from libprocess. Note that
+      this port will not actually be bound (the local LIBPROCESS_PORT
+      will be), so redirection to the local IP and port must be
+      provided separately.
+    </td>
+  </tr>
+</table>
+
+
 ## Mesos Build Configuration Options
 
 ###The configure script has the following flags for optional features:
@@ -1507,6 +1628,7 @@ file:///path/to/file (where file contains one of the above)</code></pre>
       <th>
         Explanation
       </th>
+    </tr>
   </thead>
   <tr>
     <td>
@@ -1637,6 +1759,7 @@ file:///path/to/file (where file contains one of the above)</code></pre>
       <th>
         Explanation
       </th>
+    </tr>
   </thead>
   <tr>
     <td>
@@ -1764,11 +1887,12 @@ it to find libraries and programs with nonstandard names/locations.
   <thead>
     <tr>
       <th width="30%">
-        Flag
+        Variable
       </th>
       <th>
         Explanation
       </th>
+    </tr>
   </thead>
   <tr>
     <td>

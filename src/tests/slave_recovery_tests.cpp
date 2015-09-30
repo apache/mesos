@@ -587,7 +587,7 @@ TYPED_TEST(SlaveRecoveryTest, RecoverUnregisteredExecutor)
 
   // Now advance time until the reaper reaps the executor.
   while (status.isPending()) {
-    Clock::advance(Seconds(1));
+    Clock::advance(process::MAX_REAP_INTERVAL());
     Clock::settle();
   }
 
@@ -706,7 +706,7 @@ TYPED_TEST(SlaveRecoveryTest, RecoverTerminatedExecutor)
 
   // Now advance time until the reaper reaps the executor.
   while (status.isPending()) {
-    Clock::advance(Seconds(1));
+    Clock::advance(process::MAX_REAP_INTERVAL());
     Clock::settle();
   }
 
@@ -1000,7 +1000,7 @@ TYPED_TEST(SlaveRecoveryTest, CleanupExecutor)
 
   // Now advance time until the reaper reaps the executor.
   while (status.isPending()) {
-    Clock::advance(Seconds(1));
+    Clock::advance(process::MAX_REAP_INTERVAL());
     Clock::settle();
   }
 
@@ -1685,7 +1685,7 @@ TYPED_TEST(SlaveRecoveryTest, ShutdownSlave)
 
   // Now advance time until the reaper reaps the executor.
   while (executorTerminated.isPending()) {
-    Clock::advance(Seconds(1));
+    Clock::advance(process::MAX_REAP_INTERVAL());
     Clock::settle();
   }
 
@@ -2143,14 +2143,14 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileTasksMissingFromSlave)
 {
   TestAllocator<master::allocator::HierarchicalDRFAllocator> allocator;
 
-  EXPECT_CALL(allocator, initialize(_, _, _));
+  EXPECT_CALL(allocator, initialize(_, _, _, _));
 
   Try<PID<Master> > master = this->StartMaster(&allocator);
   ASSERT_SOME(master);
 
   slave::Flags flags = this->CreateSlaveFlags();
 
-  EXPECT_CALL(allocator, addSlave(_, _, _, _));
+  EXPECT_CALL(allocator, addSlave(_, _, _, _, _));
 
   Fetcher fetcher;
 
@@ -2563,7 +2563,7 @@ TYPED_TEST(SlaveRecoveryTest, PartitionedSlave)
 
   // Wait for the executor to be terminated.
   while (executorTerminated.isPending()) {
-    Clock::advance(Seconds(1));
+    Clock::advance(process::MAX_REAP_INTERVAL());
     Clock::settle();
   }
 

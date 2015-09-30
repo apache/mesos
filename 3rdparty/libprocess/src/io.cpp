@@ -32,7 +32,8 @@ namespace process {
 namespace io {
 namespace internal {
 
-enum ReadFlags {
+enum ReadFlags
+{
   NONE = 0,
   PEEK
 };
@@ -311,6 +312,7 @@ Future<size_t> peek(int fd, void* data, size_t size, size_t limit)
   // fixed in a newer version of libev (we use 3.8 at the time of
   // writing this comment).
   internal::read(fd, data, limit, internal::PEEK, promise, io::READ);
+  promise->future().onAny(lambda::bind(&os::close, fd));
 
   return promise->future();
 }
@@ -535,6 +537,7 @@ Future<Nothing> redirect(int from, Option<int> to, size_t chunk)
   // Duplicate 'from' so that we're in control of its lifetime.
   from = dup(from);
   if (from == -1) {
+    os::close(to.get());
     return Failure(ErrnoError("Failed to duplicate 'from' file descriptor"));
   }
 

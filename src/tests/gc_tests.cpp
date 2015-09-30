@@ -465,7 +465,7 @@ TEST_F(GarbageCollectorIntegrationTest, ExitedFramework)
   process::UPID filesUpid("files", process::address());
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(
       process::http::NotFound().status,
-      process::http::get(filesUpid, "browse.json", "path=" + frameworkDir));
+      process::http::get(filesUpid, "browse", "path=" + frameworkDir));
 
   Clock::resume();
 
@@ -566,7 +566,7 @@ TEST_F(GarbageCollectorIntegrationTest, ExitedExecutor)
   process::UPID files("files", process::address());
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(
       process::http::NotFound().status,
-      process::http::get(files, "browse.json", "path=" + executorDir));
+      process::http::get(files, "browse", "path=" + executorDir));
 
   Clock::resume();
 
@@ -681,7 +681,7 @@ TEST_F(GarbageCollectorIntegrationTest, DiskUsage)
   process::UPID files("files", process::address());
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(
       process::http::NotFound().status,
-      process::http::get(files, "browse.json", "path=" + executorDir));
+      process::http::get(files, "browse", "path=" + executorDir));
 
   Clock::resume();
 

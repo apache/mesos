@@ -23,12 +23,19 @@
 #include <process/owned.hpp>
 #include <process/gtest.hpp>
 
+#include <process/metrics/metrics.hpp>
+
 #include <stout/error.hpp>
 #include <stout/foreach.hpp>
 #include <stout/gtest.hpp>
+#include <stout/hashmap.hpp>
 #include <stout/os.hpp>
 #include <stout/path.hpp>
 #include <stout/uuid.hpp>
+
+#ifdef __linux__
+#include "linux/fs.hpp"
+#endif
 
 #include "slave/paths.hpp"
 
@@ -39,6 +46,8 @@
 #endif
 
 #include "slave/containerizer/mesos/containerizer.hpp"
+
+#include "slave/containerizer/provisioner/paths.hpp"
 
 #include "tests/flags.hpp"
 #include "tests/mesos.hpp"
@@ -75,15 +84,17 @@ public:
   // LinuxFilesystemIsolator. The filesystem isolator takes a
   // TestAppcProvisioner which provisions APPC images by copying files
   // from the host filesystem.
+  // 'images' is a map of imageName -> rootfsPath.
+  // TODO(xujyan): The current assumption of one rootfs per image name
+  // is inconsistent with the real provisioner and we should fix it.
   Try<Owned<MesosContainerizer>> createContainerizer(
       const slave::Flags& flags,
-      const vector<string>& imageNames)
+      const hashmap<string, string>& images)
   {
     // Create the root filesystems.
     hashmap<string, Shared<Rootfs>> rootfses;
-    foreach (const string& imageName, imageNames) {
-      Try<Owned<Rootfs>> rootfs =
-        LinuxRootfs::create(path::join(os::getcwd(), "rootfses", imageName));
+    foreachpair (const string& imageName, const string& rootfsPath, images) {
+      Try<Owned<Rootfs>> rootfs = LinuxRootfs::create(rootfsPath);
 
       if (rootfs.isError()) {
         return Error("Failed to create LinuxRootfs: " + rootfs.error());
@@ -92,14 +103,10 @@ public:
       rootfses.put(imageName, rootfs.get().share());
     }
 
-    // Create the TestAppcProvisioner for the above root filesystems.
-    hashmap<Image::Type, Owned<Provisioner>> provisioners;
-    provisioners.put(
-        Image::APPC,
-        Owned<Provisioner>(new TestAppcProvisioner(rootfses)));
+    Owned<Provisioner> provisioner(new TestProvisioner(rootfses));
 
     Try<Isolator*> _isolator =
-      LinuxFilesystemIsolatorProcess::create(flags, provisioners);
+      LinuxFilesystemIsolatorProcess::create(flags, provisioner);
 
     if (_isolator.isError()) {
       return Error(
@@ -109,8 +116,7 @@ public:
 
     Owned<Isolator> isolator(_isolator.get());
 
-    Try<Launcher*> _launcher =
-      LinuxLauncher::create(flags, isolator->namespaces().get().get());
+    Try<Launcher*> _launcher = LinuxLauncher::create(flags);
 
     if (_launcher.isError()) {
       return Error("Failed to create LinuxLauncher: " + _launcher.error());
@@ -186,13 +192,18 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_ChangeRootFilesystem)
 {
   slave::Flags flags = CreateSlaveFlags();
 
-  Try<Owned<MesosContainerizer>> containerizer =
-    createContainerizer(flags, {"test_image"});
-
-  ASSERT_SOME(containerizer);
-
   ContainerID containerId;
   containerId.set_value(UUID::random().toString());
+
+  string rootfsesDir = slave::provisioner::paths::getContainerDir(
+      slave::paths::getProvisionerDir(flags.work_dir),
+      containerId);
+
+  Try<Owned<MesosContainerizer>> containerizer = createContainerizer(
+      flags,
+      {{"test_image", path::join(rootfsesDir, "test_image")}});
+
+  ASSERT_SOME(containerizer);
 
   ExecutorInfo executor = CREATE_EXECUTOR_INFO(
       "test_executor",
@@ -227,6 +238,66 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_ChangeRootFilesystem)
 }
 
 
+TEST_F(LinuxFilesystemIsolatorTest, ROOT_Metrics)
+{
+  slave::Flags flags = CreateSlaveFlags();
+
+  ContainerID containerId;
+  containerId.set_value(UUID::random().toString());
+
+  string rootfsesDir = slave::provisioner::paths::getContainerDir(
+      slave::paths::getProvisionerDir(flags.work_dir),
+      containerId);
+
+  Try<Owned<MesosContainerizer>> containerizer = createContainerizer(
+      flags,
+      {{"test_image", path::join(rootfsesDir, "test_image")}});
+
+  ASSERT_SOME(containerizer);
+
+  // Use a long running task so we can reliably capture the moment it's alive.
+  ExecutorInfo executor = CREATE_EXECUTOR_INFO(
+      "test_executor",
+      "sleep 1000");
+
+  executor.mutable_container()->CopyFrom(createContainerInfo("test_image"));
+
+  string directory = path::join(os::getcwd(), "sandbox");
+  ASSERT_SOME(os::mkdir(directory));
+
+  Future<bool> launch = containerizer.get()->launch(
+      containerId,
+      executor,
+      directory,
+      None(),
+      SlaveID(),
+      PID<Slave>(),
+      false);
+
+  // Wait for the launch to complete.
+  AWAIT_READY(launch);
+
+  // Check metrics.
+  JSON::Object stats = Metrics();
+  EXPECT_EQ(1u, stats.values.count(
+      "containerizer/mesos/filesystem/containers_new_rootfs"));
+  EXPECT_EQ(
+      1, stats.values["containerizer/mesos/filesystem/containers_new_rootfs"]);
+
+  containerizer.get()->destroy(containerId);
+
+  // Wait on the container.
+  Future<containerizer::Termination> wait =
+    containerizer.get()->wait(containerId);
+
+  AWAIT_READY(wait);
+
+  // Executor was killed.
+  EXPECT_TRUE(wait.get().has_status());
+  EXPECT_EQ(9, wait.get().status());
+}
+
+
 // This test verifies that a volume with a relative host path is
 // properly created in the container's sandbox and is properly mounted
 // in the container's mount namespace.
@@ -234,13 +305,18 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_VolumeFromSandbox)
 {
   slave::Flags flags = CreateSlaveFlags();
 
-  Try<Owned<MesosContainerizer>> containerizer =
-    createContainerizer(flags, {"test_image"});
-
-  ASSERT_SOME(containerizer);
-
   ContainerID containerId;
   containerId.set_value(UUID::random().toString());
+
+  string rootfsesDir = slave::provisioner::paths::getContainerDir(
+      slave::paths::getProvisionerDir(flags.work_dir),
+      containerId);
+
+  Try<Owned<MesosContainerizer>> containerizer = createContainerizer(
+      flags,
+      {{"test_image", path::join(rootfsesDir, "test_image")}});
+
+  ASSERT_SOME(containerizer);
 
   ExecutorInfo executor = CREATE_EXECUTOR_INFO(
       "test_executor",
@@ -286,13 +362,18 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_VolumeFromHost)
 {
   slave::Flags flags = CreateSlaveFlags();
 
-  Try<Owned<MesosContainerizer>> containerizer =
-    createContainerizer(flags, {"test_image"});
-
-  ASSERT_SOME(containerizer);
-
   ContainerID containerId;
   containerId.set_value(UUID::random().toString());
+
+  string rootfsesDir = slave::provisioner::paths::getContainerDir(
+      slave::paths::getProvisionerDir(flags.work_dir),
+      containerId);
+
+  Try<Owned<MesosContainerizer>> containerizer = createContainerizer(
+      flags,
+      {{"test_image", path::join(rootfsesDir, "test_image")}});
+
+  ASSERT_SOME(containerizer);
 
   ExecutorInfo executor = CREATE_EXECUTOR_INFO(
       "test_executor",
@@ -336,13 +417,18 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_VolumeFromHostSandboxMountPoint)
 {
   slave::Flags flags = CreateSlaveFlags();
 
-  Try<Owned<MesosContainerizer>> containerizer =
-    createContainerizer(flags, {"test_image"});
-
-  ASSERT_SOME(containerizer);
-
   ContainerID containerId;
   containerId.set_value(UUID::random().toString());
+
+  string rootfsesDir = slave::provisioner::paths::getContainerDir(
+      slave::paths::getProvisionerDir(flags.work_dir),
+      containerId);
+
+  Try<Owned<MesosContainerizer>> containerizer = createContainerizer(
+      flags,
+      {{"test_image", path::join(rootfsesDir, "test_image")}});
+
+  ASSERT_SOME(containerizer);
 
   ExecutorInfo executor = CREATE_EXECUTOR_INFO(
       "test_executor",
@@ -384,15 +470,23 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_VolumeFromHostSandboxMountPoint)
 TEST_F(LinuxFilesystemIsolatorTest, ROOT_PersistentVolumeWithRootFilesystem)
 {
   slave::Flags flags = CreateSlaveFlags();
+
+  // Need this otherwise the persistent volumes are not created
+  // within the slave work_dir and thus not retrievable.
   flags.work_dir = os::getcwd();
-
-  Try<Owned<MesosContainerizer>> containerizer =
-    createContainerizer(flags, {"test_image"});
-
-  ASSERT_SOME(containerizer);
 
   ContainerID containerId;
   containerId.set_value(UUID::random().toString());
+
+  string rootfsesDir = slave::provisioner::paths::getContainerDir(
+      slave::paths::getProvisionerDir(flags.work_dir),
+      containerId);
+
+  Try<Owned<MesosContainerizer>> containerizer = createContainerizer(
+      flags,
+      {{"test_image", path::join(rootfsesDir, "test_image")}});
+
+  ASSERT_SOME(containerizer);
 
   ExecutorInfo executor = CREATE_EXECUTOR_INFO(
       "test_executor",
@@ -446,15 +540,23 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_PersistentVolumeWithRootFilesystem)
 TEST_F(LinuxFilesystemIsolatorTest, ROOT_PersistentVolumeWithoutRootFilesystem)
 {
   slave::Flags flags = CreateSlaveFlags();
+
+  // Need this otherwise the persistent volumes are not created
+  // within the slave work_dir and thus not retrievable.
   flags.work_dir = os::getcwd();
-
-  Try<Owned<MesosContainerizer>> containerizer =
-    createContainerizer(flags, {"test_image"});
-
-  ASSERT_SOME(containerizer);
 
   ContainerID containerId;
   containerId.set_value(UUID::random().toString());
+
+  string rootfsesDir = slave::provisioner::paths::getContainerDir(
+      slave::paths::getProvisionerDir(flags.work_dir),
+      containerId);
+
+  Try<Owned<MesosContainerizer>> containerizer = createContainerizer(
+      flags,
+      {{"test_image", path::join(rootfsesDir, "test_image")}});
+
+  ASSERT_SOME(containerizer);
 
   ExecutorInfo executor = CREATE_EXECUTOR_INFO(
       "test_executor",
@@ -476,8 +578,14 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_PersistentVolumeWithoutRootFilesystem)
 
   ASSERT_SOME(os::mkdir(volume));
 
-  string directory = path::join(os::getcwd(), "sandbox");
-  ASSERT_SOME(os::mkdir(directory));
+  // To make sure the sandbox directory has the container ID in its
+  // path so it doesn't get unmounted by the launcher.
+  string directory = slave::paths::createExecutorDirectory(
+      flags.work_dir,
+      SlaveID(),
+      FrameworkID(),
+      executor.executor_id(),
+      containerId);
 
   Future<bool> launch = containerizer.get()->launch(
       containerId,
@@ -512,13 +620,18 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_ImageInVolumeWithoutRootFilesystem)
 {
   slave::Flags flags = CreateSlaveFlags();
 
-  Try<Owned<MesosContainerizer>> containerizer =
-    createContainerizer(flags, {"test_image"});
-
-  ASSERT_SOME(containerizer);
-
   ContainerID containerId;
   containerId.set_value(UUID::random().toString());
+
+  string rootfsesDir = slave::provisioner::paths::getContainerDir(
+      slave::paths::getProvisionerDir(flags.work_dir),
+      containerId);
+
+  Try<Owned<MesosContainerizer>> containerizer = createContainerizer(
+      flags,
+      {{"test_image", path::join(rootfsesDir, "test_image")}});
+
+  ASSERT_SOME(containerizer);
 
   ExecutorInfo executor = CREATE_EXECUTOR_INFO(
       "test_executor",
@@ -562,13 +675,20 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_ImageInVolumeWithRootFilesystem)
 {
   slave::Flags flags = CreateSlaveFlags();
 
-  Try<Owned<MesosContainerizer>> containerizer =
-    createContainerizer(flags, {"test_image_rootfs", "test_image_volume"});
-
-  ASSERT_SOME(containerizer);
-
   ContainerID containerId;
   containerId.set_value(UUID::random().toString());
+
+  string rootfsesDir = slave::provisioner::paths::getContainerDir(
+      slave::paths::getProvisionerDir(flags.work_dir),
+      containerId);
+
+  Try<Owned<MesosContainerizer>> containerizer =
+    createContainerizer(
+        flags,
+        {{"test_image_rootfs", path::join(rootfsesDir, "test_image_rootfs")},
+         {"test_image_volume", path::join(rootfsesDir, "test_image_volume")}});
+
+  ASSERT_SOME(containerizer);
 
   ExecutorInfo executor = CREATE_EXECUTOR_INFO(
       "test_executor",
@@ -602,6 +722,255 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_ImageInVolumeWithRootFilesystem)
   // Check the executor exited correctly.
   EXPECT_TRUE(wait.get().has_status());
   EXPECT_EQ(0, wait.get().status());
+}
+
+
+// This test verifies that multiple containers with images can be
+// launched simultaneously with no interference.
+TEST_F(LinuxFilesystemIsolatorTest, ROOT_MultipleContainers)
+{
+  slave::Flags flags = CreateSlaveFlags();
+
+  // Need this otherwise the persistent volumes are not created
+  // within the slave work_dir and thus not retrievable.
+  flags.work_dir = os::getcwd();
+
+  ContainerID containerId1;
+  containerId1.set_value(UUID::random().toString());
+
+  ContainerID containerId2;
+  containerId2.set_value(UUID::random().toString());
+
+  string rootfsesDir1 = slave::provisioner::paths::getContainerDir(
+      slave::paths::getProvisionerDir(flags.work_dir),
+      containerId1);
+
+  string rootfsesDir2 = slave::provisioner::paths::getContainerDir(
+      slave::paths::getProvisionerDir(flags.work_dir),
+      containerId2);
+
+  Try<Owned<MesosContainerizer>> containerizer =
+    createContainerizer(
+        flags,
+        {{"test_image1", path::join(rootfsesDir1, "test_image1")},
+         {"test_image2", path::join(rootfsesDir2, "test_image2")}});
+
+  ASSERT_SOME(containerizer);
+
+  SlaveID slaveId;
+  slaveId.set_value("test_slave");
+
+  // First launch container 1 which has a long running task which
+  // guarantees that its work directory mount is in the host mount
+  // table when container 2 is launched.
+  ExecutorInfo executor1 = CREATE_EXECUTOR_INFO(
+      "test_executor1",
+      "sleep 1000"); // Long running task.
+
+  executor1.mutable_container()->CopyFrom(createContainerInfo("test_image1"));
+
+  // Create a persistent volume for container 1. We do this because
+  // we want to test container 2 cleaning up multiple mounts.
+  executor1.add_resources()->CopyFrom(createPersistentVolume(
+      Megabytes(32),
+      "test_role",
+      "persistent_volume_id",
+      "volume"));
+
+  string volume = slave::paths::getPersistentVolumePath(
+      os::getcwd(),
+      "test_role",
+      "persistent_volume_id");
+
+  ASSERT_SOME(os::mkdir(volume));
+
+  string directory1 = slave::paths::createExecutorDirectory(
+      flags.work_dir,
+      slaveId,
+      DEFAULT_FRAMEWORK_INFO.id(),
+      executor1.executor_id(),
+      containerId1);
+
+  Future<bool> launch1 = containerizer.get()->launch(
+      containerId1,
+      executor1,
+      directory1,
+      None(),
+      slaveId,
+      PID<Slave>(),
+      false);
+
+  // Wait for the launch to complete.
+  AWAIT_READY(launch1);
+
+  // Now launch container 2 which will copy the host mount table with
+  // container 1's work directory mount in it.
+  ExecutorInfo executor2 = CREATE_EXECUTOR_INFO(
+      "test_executor2",
+      "[ ! -d '" + os::getcwd() + "' ]");
+
+  executor2.mutable_container()->CopyFrom(createContainerInfo("test_image2"));
+
+  string directory2 = slave::paths::createExecutorDirectory(
+      flags.work_dir,
+      slaveId,
+      DEFAULT_FRAMEWORK_INFO.id(),
+      executor2.executor_id(),
+      containerId2);
+
+  Future<bool> launch2 = containerizer.get()->launch(
+      containerId2,
+      executor2,
+      directory2,
+      None(),
+      slaveId,
+      PID<Slave>(),
+      false);
+
+  AWAIT_READY(launch2);
+
+  containerizer.get()->destroy(containerId1);
+
+  // Wait on the containers.
+  Future<containerizer::Termination> wait1 =
+    containerizer.get()->wait(containerId1);
+  Future<containerizer::Termination> wait2 =
+    containerizer.get()->wait(containerId2);
+
+  AWAIT_READY(wait1);
+  AWAIT_READY(wait2);
+
+  // Executor 1 was forcefully killed.
+  EXPECT_TRUE(wait1.get().has_status());
+  EXPECT_EQ(9, wait1.get().status());
+
+  // Executor 2 exited normally.
+  EXPECT_TRUE(wait2.get().has_status());
+  EXPECT_EQ(0, wait2.get().status());
+}
+
+
+// This test verifies that the environment variables for sandbox
+// (i.e., MESOS_DIRECTORY and MESOS_SANDBOX) are set properly.
+TEST_F(LinuxFilesystemIsolatorTest, ROOT_SandboxEnvironmentVariable)
+{
+  slave::Flags flags = CreateSlaveFlags();
+
+  ContainerID containerId;
+  containerId.set_value(UUID::random().toString());
+
+  string rootfsesDir = slave::provisioner::paths::getContainerDir(
+      slave::paths::getProvisionerDir(flags.work_dir),
+      containerId);
+
+  Try<Owned<MesosContainerizer>> containerizer = createContainerizer(
+      flags,
+      {{"test_image", path::join(rootfsesDir, "test_image")}});
+
+  ASSERT_SOME(containerizer);
+
+  string directory = path::join(os::getcwd(), "sandbox");
+  ASSERT_SOME(os::mkdir(directory));
+
+  Try<string> script = strings::format(
+      "if [ \"$MESOS_DIRECTORY\" != \"%s\" ]; then exit 1; fi &&"
+      "if [ \"$MESOS_SANDBOX\" != \"%s\" ]; then exit 1; fi",
+      directory,
+      flags.sandbox_directory);
+
+  ASSERT_SOME(script);
+
+  ExecutorInfo executor = CREATE_EXECUTOR_INFO(
+      "test_executor",
+      script.get());
+
+  executor.mutable_container()->CopyFrom(createContainerInfo("test_image"));
+
+  Future<bool> launch = containerizer.get()->launch(
+      containerId,
+      executor,
+      directory,
+      None(),
+      SlaveID(),
+      PID<Slave>(),
+      false);
+
+  // Wait for the launch to complete.
+  AWAIT_READY(launch);
+
+  // Wait on the container.
+  Future<containerizer::Termination> wait =
+    containerizer.get()->wait(containerId);
+
+  AWAIT_READY(wait);
+
+  // Check the executor exited correctly.
+  EXPECT_TRUE(wait.get().has_status());
+  EXPECT_EQ(0, wait.get().status());
+}
+
+
+// This test verifies the slave's work directory mount preparation if
+// the mount does not exist initially.
+TEST_F(LinuxFilesystemIsolatorTest, ROOT_WorkDirMount)
+{
+  slave::Flags flags = CreateSlaveFlags();
+
+  Try<Isolator*> isolator =
+    LinuxFilesystemIsolatorProcess::create(flags, Owned<Provisioner>());
+
+  ASSERT_SOME(isolator);
+
+  Try<fs::MountInfoTable> table = fs::MountInfoTable::read();
+  ASSERT_SOME(table);
+
+  bool mountFound = false;
+  foreach (const fs::MountInfoTable::Entry& entry, table.get().entries) {
+    if (entry.target == flags.work_dir) {
+      EXPECT_SOME(entry.shared());
+      mountFound = true;
+    }
+  }
+
+  EXPECT_TRUE(mountFound);
+
+  delete isolator.get();
+}
+
+
+// This test verifies the slave's work directory mount preparation if
+// the mount already exists (e.g., to simulate the case when the slave
+// crashes while preparing the work directory mount).
+TEST_F(LinuxFilesystemIsolatorTest, ROOT_WorkDirMountPreExists)
+{
+  slave::Flags flags = CreateSlaveFlags();
+
+  // Simulate the situation in which the slave crashes while preparing
+  // the work directory mount.
+  ASSERT_SOME(os::shell(
+      "mount --bind %s %s",
+      flags.work_dir.c_str(),
+      flags.work_dir.c_str()));
+
+  Try<Isolator*> isolator =
+    LinuxFilesystemIsolatorProcess::create(flags, Owned<Provisioner>());
+
+  ASSERT_SOME(isolator);
+
+  Try<fs::MountInfoTable> table = fs::MountInfoTable::read();
+  ASSERT_SOME(table);
+
+  bool mountFound = false;
+  foreach (const fs::MountInfoTable::Entry& entry, table.get().entries) {
+    if (entry.target == flags.work_dir) {
+      EXPECT_SOME(entry.shared());
+      mountFound = true;
+    }
+  }
+
+  EXPECT_TRUE(mountFound);
+
+  delete isolator.get();
 }
 #endif // __linux__
 

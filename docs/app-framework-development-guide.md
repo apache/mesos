@@ -206,18 +206,18 @@ virtual void error(ExecutorDriver* driver, const std::string& message) = 0;
 
 ## Install your Framework
 
-You need to put your framework somewhere that all slaves on the cluster can get it from. If you are running HDFS, you can put your executor into HDFS. Then, you tell Mesos where it is via the `ExecutorInfo` parameter of `MesosSchedulerDriver`'s constructor (e.g. see src/examples/java/TestFramework.java for an example of this). ExecutorInfo is a a Protocol Buffer Message class (defined in `include/mesos/mesos.proto`), and you set its URI field to something like "HDFS://path/to/executor/". Also, you can pass the `frameworks_home` configuration option (defaults to: `MESOS_HOME/frameworks`) to your `mesos-slave` daemons when you launch them to specify where all of your framework executors are stored (e.g. on an NFS mount that is available to all slaves), then set `ExecutorInfo` to be a relative path, and the slave will prepend the value of frameworks_home to the relative path provided.
+You need to put your framework somewhere that all slaves on the cluster can get it from. If you are running HDFS, you can put your executor into HDFS. Then, you tell Mesos where it is via the `ExecutorInfo` parameter of `MesosSchedulerDriver`'s constructor (e.g. see src/examples/java/TestFramework.java for an example of this). ExecutorInfo is a Protocol Buffer Message class (defined in `include/mesos/mesos.proto`), and you set its URI field to something like "HDFS://path/to/executor/". Also, you can pass the `frameworks_home` configuration option (defaults to: `MESOS_HOME/frameworks`) to your `mesos-slave` daemons when you launch them to specify where all of your framework executors are stored (e.g. on an NFS mount that is available to all slaves), then set `ExecutorInfo` to be a relative path, and the slave will prepend the value of frameworks_home to the relative path provided.
 
 Once you are sure that your executors are available to the mesos-slaves, you should be able to run your scheduler, which will register with the Mesos master, and start receiving resource offers!
 
 
 ## Labels
 
-`Labels` can be found in the `TaskInfo`, `DiscoveryInfo` and `TaskStatus`s and
-let's framework and module writers use Labels to tag and pass unstructured
-information around Mesos. Labels are free-form key-value pairs supplied by the
-framework scheduler or label decorator hooks. Below is the protobuf definitions
-of labels:
+`Labels` can be found in the `FrameworkInfo`, `TaskInfo`, `DiscoveryInfo` and
+`TaskStatus` messages; framework and module writers can use Labels to tag and
+pass unstructured information around Mesos. Labels are free-form key-value pairs
+supplied by the framework scheduler or label decorator hooks. Below is the
+protobuf definitions of labels:
 
 ~~~{.proto}
   optional Labels labels = 11;

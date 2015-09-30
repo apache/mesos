@@ -410,7 +410,7 @@ TEST_F(ReservationTest, DropReserveTooLarge)
   masterFlags.allocation_interval = Milliseconds(50);
   masterFlags.roles = frameworkInfo.role();
 
-  EXPECT_CALL(allocator, initialize(_, _, _));
+  EXPECT_CALL(allocator, initialize(_, _, _, _));
 
   Try<PID<Master>> master = StartMaster(&allocator, masterFlags);
   ASSERT_SOME(master);
@@ -418,7 +418,7 @@ TEST_F(ReservationTest, DropReserveTooLarge)
   slave::Flags slaveFlags = CreateSlaveFlags();
   slaveFlags.resources = "cpus:1;mem:512";
 
-  EXPECT_CALL(allocator, addSlave(_, _, _, _));
+  EXPECT_CALL(allocator, addSlave(_, _, _, _, _));
 
   Try<PID<Slave>> slave = StartSlave(slaveFlags);
   ASSERT_SOME(slave);
@@ -501,7 +501,7 @@ TEST_F(ReservationTest, DropReserveStaticReservation)
   masterFlags.allocation_interval = Milliseconds(50);
   masterFlags.roles = frameworkInfo.role();
 
-  EXPECT_CALL(allocator, initialize(_, _, _));
+  EXPECT_CALL(allocator, initialize(_, _, _, _));
 
   Try<PID<Master>> master = StartMaster(&allocator, masterFlags);
   ASSERT_SOME(master);
@@ -509,7 +509,7 @@ TEST_F(ReservationTest, DropReserveStaticReservation)
   slave::Flags slaveFlags = CreateSlaveFlags();
   slaveFlags.resources = "cpus(role):1;mem(role):512";
 
-  EXPECT_CALL(allocator, addSlave(_, _, _, _));
+  EXPECT_CALL(allocator, addSlave(_, _, _, _, _));
 
   Try<PID<Slave>> slave = StartSlave(slaveFlags);
   ASSERT_SOME(slave);

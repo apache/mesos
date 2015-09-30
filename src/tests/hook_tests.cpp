@@ -18,6 +18,7 @@
 
 #include <mesos/module.hpp>
 
+#include <process/clock.hpp>
 #include <process/future.hpp>
 #include <process/gmock.hpp>
 #include <process/pid.hpp>
@@ -61,6 +62,7 @@ using mesos::internal::slave::Fetcher;
 using mesos::internal::slave::MesosContainerizer;
 using mesos::internal::slave::Slave;
 
+using process::Clock;
 using process::Future;
 using process::PID;
 using process::Shared;
@@ -71,6 +73,7 @@ using std::vector;
 
 using testing::_;
 using testing::DoAll;
+using testing::Eq;
 using testing::Return;
 using testing::SaveArg;
 
@@ -212,6 +215,56 @@ TEST_F(HookTest, VerifyMasterLaunchTaskHook)
 }
 
 
+// This test forces a `SlaveLost` event. When this happens, we expect the
+// `masterSlaveLostHook` to be invoked and await an internal libprocess event
+// to trigger in the module code.
+TEST_F(HookTest, MasterSlaveLostHookTest)
+{
+  Future<HookExecuted> hookFuture = FUTURE_PROTOBUF(HookExecuted(), _, _);
+
+  DROP_MESSAGES(Eq(PingSlaveMessage().GetTypeName()), _, _);
+
+  master::Flags masterFlags = CreateMasterFlags();
+
+  // Speed up timeout cycles.
+  masterFlags.slave_ping_timeout = Seconds(1);
+  masterFlags.max_slave_ping_timeouts = 1;
+
+  Try<PID<Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+
+  TestContainerizer containerizer(&exec);
+
+  Future<SlaveRegisteredMessage> slaveRegisteredMessage =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
+
+  // Start a mock Agent since we aren't testing the slave hooks.
+  Try<PID<Slave>> slave = StartSlave(&containerizer);
+  ASSERT_SOME(slave);
+
+  // Make sure Agent is up and running.
+  AWAIT_READY(slaveRegisteredMessage);
+
+  // Forward clock slave timeout.
+  Duration totalTimeout =
+    masterFlags.slave_ping_timeout * masterFlags.max_slave_ping_timeouts;
+
+  Clock::pause();
+  Clock::advance(totalTimeout);
+  Clock::settle();
+  Clock::resume();
+
+  // `masterSlaveLostHook()` should be called from within module code.
+  AWAIT_READY(hookFuture);
+
+  // TODO(nnielsen): Verify hook signal type.
+
+  Shutdown(); // Must shutdown before 'containerizer' gets deallocated.
+}
+
+
 // Test that the environment decorator hook adds a new environment
 // variable to the executor runtime.
 // Test hook adds a new environment variable "FOO" to the executor
@@ -259,7 +312,7 @@ TEST_F(HookTest, VerifySlaveExecutorEnvironmentDecorator)
 // Test executor environment decorator hook and remove executor hook
 // for slave. We expect the environment-decorator hook to create a
 // temporary file and the remove-executor hook to delete that file.
-TEST_F(HookTest, DISABLED_VerifySlaveLaunchExecutorHook)
+TEST_F(HookTest, VerifySlaveLaunchExecutorHook)
 {
   master::Flags masterFlags = CreateMasterFlags();
 
@@ -428,7 +481,7 @@ TEST_F(HookTest, VerifySlaveRunTaskHook)
 // "bar":"baz") is sent from the executor. The labels get modified by
 // the slave hook to strip the "foo":"bar" pair and/ add a new
 // "baz":"qux" pair.
-TEST_F(HookTest, VerifySlaveTaskStatusLabelDecorator)
+TEST_F(HookTest, VerifySlaveTaskStatusDecorator)
 {
   Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -495,7 +548,7 @@ TEST_F(HookTest, VerifySlaveTaskStatusLabelDecorator)
 
   AWAIT_READY(status);
 
-  // The master hook will hang an extra label off.
+  // The hook will hang an extra label off.
   const Labels& labels_ = status.get().labels();
 
   EXPECT_EQ(2, labels_.labels_size());
@@ -509,6 +562,31 @@ TEST_F(HookTest, VerifySlaveTaskStatusLabelDecorator)
   // pair set by the test.
   EXPECT_EQ("bar", labels_.labels(1).key());
   EXPECT_EQ("baz", labels_.labels(1).value());
+
+  // Now validate TaskInfo.container_status. We must have received a
+  // container_status with one network_info set by the test hook module.
+  EXPECT_TRUE(status.get().has_container_status());
+  EXPECT_EQ(1, status.get().container_status().network_infos().size());
+
+  const NetworkInfo networkInfo =
+    status.get().container_status().network_infos(0);
+
+  // The hook module sets up '4.3.2.1' as the IP address and 'public' as the
+  // network isolation group.
+  EXPECT_TRUE(networkInfo.has_ip_address());
+  EXPECT_EQ("4.3.2.1", networkInfo.ip_address());
+
+  EXPECT_EQ(1, networkInfo.groups().size());
+  EXPECT_EQ("public", networkInfo.groups(0));
+
+  EXPECT_TRUE(networkInfo.has_labels());
+  EXPECT_EQ(1, networkInfo.labels().labels().size());
+
+  const Label networkInfoLabel = networkInfo.labels().labels(0);
+
+  // Finally, the labels set inside NetworkInfo by the hook module.
+  EXPECT_EQ("net_foo", networkInfoLabel.key());
+  EXPECT_EQ("net_bar", networkInfoLabel.value());
 
   driver.stop();
   driver.join();

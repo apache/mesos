@@ -802,6 +802,12 @@ TEST_F(OversubscriptionTest, QoSCorrectionKill)
         &corrections,
         &Queue<list<mesos::slave::QoSCorrection>>::get));
 
+  Future<lambda::function<Future<ResourceUsage>()>> usageCallback;
+
+  // Catching callback which is passed to the QoS Controller.
+  EXPECT_CALL(controller, initialize(_))
+    .WillOnce(DoAll(FutureArg<0>(&usageCallback), Return(Nothing())));
+
   Try<PID<Slave>> slave = StartSlave(&controller, CreateSlaveFlags());
   ASSERT_SOME(slave);
 
@@ -845,15 +851,22 @@ TEST_F(OversubscriptionTest, QoSCorrectionKill)
   AWAIT_READY(status1);
   ASSERT_EQ(TASK_RUNNING, status1.get().state());
 
+  AWAIT_READY(usageCallback);
+
+  Future<ResourceUsage> usage = usageCallback.get()();
+  AWAIT_READY(usage);
+
+  // Expecting the same statistics as these returned by mocked containerizer.
+  ASSERT_EQ(1, usage.get().executors_size());
+
+  const ResourceUsage::Executor& executor = usage.get().executors(0);
   // Carry out kill correction.
   QoSCorrection killCorrection;
 
   QoSCorrection::Kill* kill = killCorrection.mutable_kill();
   kill->mutable_framework_id()->CopyFrom(frameworkId.get());
-
-  // As we use a command executor to launch an actual sleep command,
-  // the executor id will be the task id.
-  kill->mutable_executor_id()->set_value(task.task_id().value());
+  kill->mutable_executor_id()->CopyFrom(executor.executor_info().executor_id());
+  kill->mutable_container_id()->CopyFrom(executor.container_id());
 
   corrections.put({killCorrection});
 

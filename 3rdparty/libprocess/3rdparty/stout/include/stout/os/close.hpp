@@ -15,13 +15,29 @@
 #define __STOUT_OS_CLOSE_HPP__
 
 
-// For readability, we minimize the number of #ifdef blocks in the code by
-// splitting platform specifc system calls into separate directories.
-#ifdef __WINDOWS__
-#include <stout/os/windows/close.hpp>
-#else
-#include <stout/os/posix/close.hpp>
+#ifndef __WINDOWS__
+#include <unistd.h>
 #endif // __WINDOWS__
+
+#include <stout/error.hpp>
+#include <stout/nothing.hpp>
+#include <stout/try.hpp>
+
+
+namespace os {
+
+
+inline Try<Nothing> close(int fd)
+{
+  if (::close(fd) != 0) {
+    return ErrnoError();
+  }
+
+  return Nothing();
+}
+
+
+} // namespace os {
 
 
 #endif // __STOUT_OS_CLOSE_HPP__

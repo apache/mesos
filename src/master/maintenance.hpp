@@ -27,6 +27,7 @@
 #include <stout/nothing.hpp>
 #include <stout/try.hpp>
 
+#include "master/machine.hpp"
 #include "master/registrar.hpp"
 #include "master/registry.hpp"
 
@@ -76,7 +77,7 @@ class StartMaintenance : public Operation
 {
 public:
   explicit StartMaintenance(
-      const MachineIDs& _ids);
+      const google::protobuf::RepeatedPtrField<MachineID>& _ids);
 
 protected:
   Try<bool> perform(
@@ -99,7 +100,7 @@ class StopMaintenance : public Operation
 {
 public:
   explicit StopMaintenance(
-      const MachineIDs& _ids);
+      const google::protobuf::RepeatedPtrField<MachineID>& _ids);
 
 protected:
   Try<bool> perform(
@@ -124,7 +125,7 @@ namespace validation {
  */
 Try<Nothing> schedule(
     const mesos::maintenance::Schedule& schedule,
-    const hashmap<MachineID, MachineInfo>& infos);
+    const hashmap<MachineID, Machine>& machines);
 
 
 // Checks that the `duration` of the unavailability is non-negative.
@@ -138,7 +139,7 @@ Try<Nothing> unavailability(
  *   - The list is non-empty.
  *   - All checks in the `machine` method below.
  */
-Try<Nothing> machines(const MachineIDs& ids);
+Try<Nothing> machines(const google::protobuf::RepeatedPtrField<MachineID>& ids);
 
 
 /**

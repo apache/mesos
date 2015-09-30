@@ -88,8 +88,6 @@ private:
     return HELP(
       TLDR(
           "Shows local system metrics."),
-      USAGE(
-          "/system/stats.json"),
       DESCRIPTION(
           ">        cpus_total          Total number of available CPUs",
           ">        load_1min           Average system load for last"
@@ -184,7 +182,7 @@ private:
       object.values["mem_free_bytes"] = memory.get().free.bytes();
     }
 
-    return http::OK(object, request.query.get("jsonp"));
+    return http::OK(object, request.url.query.get("jsonp"));
   }
 
   metrics::Gauge load_1min;

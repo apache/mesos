@@ -20,6 +20,8 @@
 #include <set>
 #include <utility>
 
+#include <stout/foreach.hpp>
+
 // Implementation of a multimap via std::multimap but with a better
 // interface. The rationale for creating this is that the
 // std::multimap interface is painful to use (requires lots of
@@ -29,6 +31,9 @@ template <typename K, typename V>
 class Multimap : public std::multimap<K, V>
 {
 public:
+  Multimap() {}
+  Multimap(std::initializer_list<std::pair<const K, V>> list);
+
   void put(const K& key, const V& value);
   std::list<V> get(const K& key) const;
   std::set<K> keys() const;
@@ -37,6 +42,12 @@ public:
   bool contains(const K& key) const;
   bool contains(const K& key, const V& value) const;
 };
+
+
+template <typename K, typename V>
+Multimap<K, V>::Multimap(std::initializer_list<std::pair<const K, V>> list)
+  : std::multimap<K, V>(list)
+{}
 
 
 template <typename K, typename V>

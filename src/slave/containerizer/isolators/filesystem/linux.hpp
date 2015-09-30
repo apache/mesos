@@ -23,13 +23,17 @@
 #include <mesos/resources.hpp>
 
 #include <process/owned.hpp>
+#include <process/pid.hpp>
+
+#include <process/metrics/gauge.hpp>
 
 #include <stout/hashmap.hpp>
 
 #include "slave/flags.hpp"
 
 #include "slave/containerizer/isolator.hpp"
-#include "slave/containerizer/provisioner.hpp"
+
+#include "slave/containerizer/provisioner/provisioner.hpp"
 
 namespace mesos {
 namespace internal {
@@ -44,11 +48,9 @@ class LinuxFilesystemIsolatorProcess : public MesosIsolatorProcess
 public:
   static Try<mesos::slave::Isolator*> create(
       const Flags& flags,
-      const hashmap<Image::Type, process::Owned<Provisioner>>& provisioners);
+      const process::Owned<Provisioner>& provisioner);
 
   virtual ~LinuxFilesystemIsolatorProcess();
-
-  virtual process::Future<Option<int>> namespaces();
 
   virtual process::Future<Nothing> recover(
       const std::list<mesos::slave::ContainerState>& states,
@@ -80,32 +82,34 @@ public:
 private:
   LinuxFilesystemIsolatorProcess(
       const Flags& flags,
-      const hashmap<Image::Type, process::Owned<Provisioner>>& provisioners);
+      const process::Owned<Provisioner>& provisioner);
 
   process::Future<Nothing> _recover(
       const std::list<mesos::slave::ContainerState>& states,
       const hashset<ContainerID>& orphans);
 
   process::Future<Option<mesos::slave::ContainerPrepareInfo>> _prepare(
-    const ContainerID& containerId,
-    const ExecutorInfo& executorInfo,
-    const std::string& directory,
-    const Option<std::string>& user,
-    const Option<std::string>& rootfs);
+      const ContainerID& containerId,
+      const ExecutorInfo& executorInfo,
+      const std::string& directory,
+      const Option<std::string>& user,
+      const Option<std::string>& rootfs);
 
   process::Future<Option<mesos::slave::ContainerPrepareInfo>> __prepare(
-    const ContainerID& containerId,
-    const ExecutorInfo& executorInfo,
-    const std::string& directory,
-    const Option<std::string>& user,
-    const Option<std::string>& rootfs);
+      const ContainerID& containerId,
+      const ExecutorInfo& executorInfo,
+      const std::string& directory,
+      const Option<std::string>& user,
+      const Option<std::string>& rootfs);
 
   Try<std::string> script(
-    const ExecutorInfo& executorInfo,
-    const std::string& directory,
-    const Option<std::string>& rootfs);
+      const ContainerID& containerId,
+      const ExecutorInfo& executorInfo,
+      const std::string& directory,
+      const Option<std::string>& rootfs);
 
   const Flags flags;
+  const process::Owned<Provisioner> provisioner;
 
   struct Info
   {
@@ -125,7 +129,17 @@ private:
   };
 
   hashmap<ContainerID, process::Owned<Info>> infos;
-  hashmap<Image::Type, process::Owned<Provisioner>> provisioners;
+
+  struct Metrics
+  {
+    explicit Metrics(
+        const process::PID<LinuxFilesystemIsolatorProcess>& isolator);
+    ~Metrics();
+
+    process::metrics::Gauge containers_new_rootfs;
+  } metrics;
+
+  double _containers_new_rootfs();
 };
 
 } // namespace slave {

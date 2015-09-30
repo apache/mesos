@@ -62,6 +62,18 @@ string getMetaRootDir(const string& rootDir)
 }
 
 
+string getSandboxRootDir(const string& rootDir)
+{
+  return path::join(rootDir, "slaves");
+}
+
+
+string getProvisionerDir(const string& rootDir)
+{
+  return path::join(rootDir, "provisioner");
+}
+
+
 string getArchiveDir(const string& rootDir)
 {
   return path::join(rootDir, "archive");
@@ -444,17 +456,6 @@ string createSlaveDirectory(
     << "' to '" << latest << "'";
 
   return directory;
-}
-
-
-string getProvisionerDir(
-    const string& rootDir,
-    const Image::Type& imageType)
-{
-  return path::join(
-      rootDir,
-      "provisioners",
-      stringify(imageType));
 }
 
 } // namespace paths {

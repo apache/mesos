@@ -47,12 +47,6 @@ MesosIsolator::~MesosIsolator()
 }
 
 
-Future<Option<int>> MesosIsolator::namespaces()
-{
-  return dispatch(process.get(), &MesosIsolatorProcess::namespaces);
-}
-
-
 Future<Nothing> MesosIsolator::recover(
     const list<ContainerState>& state,
     const hashset<ContainerID>& orphans)

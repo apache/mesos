@@ -247,14 +247,15 @@ Timer Clock::timer(
     const Duration& duration,
     const lambda::function<void(void)>& thunk)
 {
-  static uint64_t id = 1; // Start at 1 since Timer() instances use id 0.
+  // Start at 1 since Timer() instances use id 0.
+  static std::atomic<uint64_t> id(1);
 
   // Assumes Clock::now() does Clock::now(__process__).
   Timeout timeout = Timeout::in(duration);
 
   UPID pid = __process__ != NULL ? __process__->self() : UPID();
 
-  Timer timer(__sync_fetch_and_add(&id, 1), timeout, pid, thunk);
+  Timer timer(id.fetch_add(1), timeout, pid, thunk);
 
   VLOG(3) << "Created a timer for " << pid << " in " << stringify(duration)
           << " in the future (" << timeout.time() << ")";

@@ -306,7 +306,7 @@ protected:
     // the scheduler driver does.
 
     const string body = serialize(contentType, call);
-    const hashmap<string, string> headers{{"Accept", stringify(contentType)}};
+    const http::Headers headers{{"Accept", stringify(contentType)}};
 
     Future<Response> response;
 

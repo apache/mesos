@@ -28,15 +28,17 @@
 
 #include <boost/circular_buffer.hpp>
 
-#include <mesos/maintenance/maintenance.hpp>
 #include <mesos/mesos.hpp>
 #include <mesos/resources.hpp>
-#include <mesos/scheduler/scheduler.hpp>
 #include <mesos/type_utils.hpp>
+
+#include <mesos/maintenance/maintenance.hpp>
 
 #include <mesos/master/allocator.hpp>
 
 #include <mesos/module/authenticator.hpp>
+
+#include <mesos/scheduler/scheduler.hpp>
 
 #include <process/limiter.hpp>
 #include <process/http.hpp>
@@ -68,6 +70,7 @@
 #include "master/contender.hpp"
 #include "master/detector.hpp"
 #include "master/flags.hpp"
+#include "master/machine.hpp"
 #include "master/metrics.hpp"
 #include "master/registrar.hpp"
 #include "master/validation.hpp"
@@ -107,6 +110,7 @@ struct Slave
 {
   Slave(const SlaveInfo& _info,
         const process::UPID& _pid,
+        const MachineID& _machineId,
         const Option<std::string> _version,
         const process::Time& _registeredTime,
         const Resources& _checkpointedResources,
@@ -116,6 +120,7 @@ struct Slave
           std::vector<Task>())
     : id(_info.id()),
       info(_info),
+      machineId(_machineId),
       pid(_pid),
       version(_version),
       registeredTime(_registeredTime),
@@ -231,6 +236,22 @@ struct Slave
     offers.erase(offer);
   }
 
+  void addInverseOffer(InverseOffer* inverseOffer)
+  {
+    CHECK(!inverseOffers.contains(inverseOffer))
+      << "Duplicate inverse offer " << inverseOffer->id();
+
+    inverseOffers.insert(inverseOffer);
+  }
+
+  void removeInverseOffer(InverseOffer* inverseOffer)
+  {
+    CHECK(inverseOffers.contains(inverseOffer))
+      << "Unknown inverse offer " << inverseOffer->id();
+
+    inverseOffers.erase(inverseOffer);
+  }
+
   bool hasExecutor(const FrameworkID& frameworkId,
                    const ExecutorID& executorId) const
   {
@@ -278,6 +299,8 @@ struct Slave
   const SlaveID id;
   const SlaveInfo info;
 
+  const MachineID machineId;
+
   process::UPID pid;
 
   // The Mesos version of the slave. If set, the slave is >= 0.21.0.
@@ -311,6 +334,9 @@ struct Slave
 
   // Active offers on this slave.
   hashset<Offer*> offers;
+
+  // Active inverse offers on this slave.
+  hashset<InverseOffer*> inverseOffers;
 
   hashmap<FrameworkID, Resources> usedResources;  // Active task / executors.
   Resources offeredResources; // Offers.
@@ -461,6 +487,10 @@ public:
       const SlaveID& slaveId,
       const Resources& oversubscribedResources);
 
+  void updateUnavailability(
+      const MachineID& machineId,
+      const Option<Unavailability>& unavailability);
+
   void shutdownSlave(
       const SlaveID& slaveId,
       const std::string& message);
@@ -479,6 +509,10 @@ public:
   void offer(
       const FrameworkID& framework,
       const hashmap<SlaveID, Resources>& resources);
+
+  void inverseOffer(
+      const FrameworkID& framework,
+      const hashmap<SlaveID, UnavailableResources>& resources);
 
   // Invoked when there is a newly elected leading master.
   // Made public for testing purposes.
@@ -670,11 +704,21 @@ protected:
       const FrameworkID& frameworkId,
       const ExecutorID& executorId);
 
-  // Updates slave's resources by applying the given operation. It
-  // also updates the allocator and sends a CheckpointResourcesMessage
-  // to the slave with slave's current checkpointed resources.
-  void applyOfferOperation(
+  // Updates the allocator and updates the slave's resources by
+  // applying the given operation. It also sends a
+  // 'CheckpointResourcesMessage' to the slave with the updated
+  // checkpointed resources.
+  void apply(
       Framework* framework,
+      Slave* slave,
+      const Offer::Operation& operation);
+
+  // Attempts to update the allocator by applying the given operation.
+  // If successful, updates the slave's resources, sends a
+  // 'CheckpointResourcesMessage' to the slave with the updated
+  // checkpointed resources, and returns a 'Future' with 'Nothing'.
+  // Otherwise, no action is taken and returns a failed 'Future'.
+  process::Future<Nothing> apply(
       Slave* slave,
       const Offer::Operation& operation);
 
@@ -690,8 +734,15 @@ protected:
   // Remove an offer and optionally rescind the offer as well.
   void removeOffer(Offer* offer, bool rescind = false);
 
+  // Remove an inverse offer after specified timeout
+  void inverseOfferTimeout(const OfferID& inverseOfferId);
+
+  // Remove an inverse offer and optionally rescind it as well.
+  void removeInverseOffer(InverseOffer* inverseOffer, bool rescind = false);
+
   Framework* getFramework(const FrameworkID& frameworkId);
   Offer* getOffer(const OfferID& offerId);
+  InverseOffer* getInverseOffer(const OfferID& inverseOfferId);
 
   FrameworkID newFrameworkId();
   OfferID newOfferId();
@@ -700,6 +751,8 @@ protected:
   Option<Credentials> credentials;
 
 private:
+  void _apply(Slave* slave, const Offer::Operation& operation);
+
   void drop(
       const process::UPID& from,
       const scheduler::Call& call,
@@ -776,6 +829,8 @@ private:
       Framework* framework,
       const scheduler::Call::Request& request);
 
+  void suppress(Framework* framework);
+
   bool elected() const
   {
     return leader.isSome() && leader.get() == info_;
@@ -808,7 +863,11 @@ private:
     process::Future<process::http::Response> redirect(
         const process::http::Request& request) const;
 
-    // /master/roles.json
+    // /master/reserve
+    process::Future<process::http::Response> reserve(
+        const process::http::Request& request) const;
+
+    // /master/roles
     process::Future<process::http::Response> roles(
         const process::http::Request& request) const;
 
@@ -820,7 +879,7 @@ private:
     process::Future<process::http::Response> slaves(
         const process::http::Request& request) const;
 
-    // /master/state.json
+    // /master/state
     process::Future<process::http::Response> state(
         const process::http::Request& request) const;
 
@@ -828,7 +887,7 @@ private:
     process::Future<process::http::Response> stateSummary(
         const process::http::Request& request) const;
 
-    // /master/tasks.json
+    // /master/tasks
     process::Future<process::http::Response> tasks(
         const process::http::Request& request) const;
 
@@ -848,6 +907,10 @@ private:
     process::Future<process::http::Response> machineUp(
         const process::http::Request& request) const;
 
+    // /master/unreserve
+    process::Future<process::http::Response> unreserve(
+        const process::http::Request& request) const;
+
     const static std::string SCHEDULER_HELP;
     const static std::string HEALTH_HELP;
     const static std::string OBSERVE_HELP;
@@ -862,6 +925,8 @@ private:
     const static std::string MAINTENANCE_STATUS_HELP;
     const static std::string MACHINE_DOWN_HELP;
     const static std::string MACHINE_UP_HELP;
+    const static std::string RESERVE_HELP;
+    const static std::string UNRESERVE_HELP;
 
   private:
     // Helper for doing authentication, returns the credential used if
@@ -874,6 +939,29 @@ private:
     process::Future<process::http::Response> _teardown(
         const FrameworkID& id,
         bool authorized = true) const;
+
+    /**
+     * Continuation for operations: /reserve, /unreserve, /create and
+     * /destroy. First tries to recover 'remaining' amount of
+     * resources by rescinding outstanding offers, then tries to apply
+     * the operation by calling 'master->apply' and propagates the
+     * 'Future<Nothing>' as 'Future<Response>' where 'Nothing' -> 'OK'
+     * and Failed -> 'Conflict'.
+     *
+     * @param slaveId The ID of the slave that the operation is
+     *     updating.
+     * @param remaining The resources needed to satisfy the operation.
+     *     This is used for an optimization where we try to only
+     *     rescind offers that would contribute to satisfying the
+     *     operation.
+     * @param operation The operation to be performed.
+     *
+     * @return Returns 'OK' if successful, 'Conflict' otherwise.
+     */
+    process::Future<process::http::Response> _operation(
+        const SlaveID& slaveId,
+        Resources remaining,
+        const Offer::Operation& operation) const;
 
     Master* master;
   };
@@ -909,9 +997,10 @@ private:
 
   MasterInfo info_;
 
-  // Holds some info which affects how a machine behaves.
-  // See the `MachineInfo` protobuf for more information.
-  hashmap<MachineID, MachineInfo> machineInfos;
+  // Holds some info which affects how a machine behaves, as well as state that
+  // represent the master's view of this machine. See the `MachineInfo` protobuf
+  // and `Machine` struct for more information.
+  hashmap<MachineID, Machine> machines;
 
   struct Maintenance
   {
@@ -1074,6 +1163,9 @@ private:
 
   hashmap<OfferID, Offer*> offers;
   hashmap<OfferID, process::Timer> offerTimers;
+
+  hashmap<OfferID, InverseOffer*> inverseOffers;
+  hashmap<OfferID, process::Timer> inverseOfferTimers;
 
   hashmap<std::string, Role*> roles;
 
@@ -1499,6 +1591,21 @@ struct Framework
     offers.erase(offer);
   }
 
+  void addInverseOffer(InverseOffer* inverseOffer)
+  {
+    CHECK(!inverseOffers.contains(inverseOffer))
+      << "Duplicate inverse offer " << inverseOffer->id();
+    inverseOffers.insert(inverseOffer);
+  }
+
+  void removeInverseOffer(InverseOffer* inverseOffer)
+  {
+    CHECK(inverseOffers.contains(inverseOffer))
+      << "Unknown inverse offer " << inverseOffer->id();
+
+    inverseOffers.erase(inverseOffer);
+  }
+
   bool hasExecutor(const SlaveID& slaveId,
                    const ExecutorID& executorId)
   {
@@ -1707,6 +1814,8 @@ struct Framework
   boost::circular_buffer<std::shared_ptr<Task>> completedTasks;
 
   hashset<Offer*> offers; // Active offers for framework.
+
+  hashset<InverseOffer*> inverseOffers; // Active inverse offers for framework.
 
   hashmap<SlaveID, hashmap<ExecutorID, ExecutorInfo>> executors;
 

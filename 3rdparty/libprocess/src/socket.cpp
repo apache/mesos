@@ -34,9 +34,13 @@ using std::string;
 namespace process {
 namespace network {
 
-Try<Socket> Socket::create(Kind kind, int s)
+Try<Socket> Socket::create(Kind kind, Option<int> s)
 {
-  if (s < 0) {
+  // If the caller passed in a file descriptor, we do
+  // not own its life cycle and must not close it.
+  bool owned = s.isNone();
+
+  if (owned) {
     // Supported in Linux >= 2.6.27.
 #if defined(SOCK_NONBLOCK) && defined(SOCK_CLOEXEC)
     Try<int> fd =
@@ -53,11 +57,13 @@ Try<Socket> Socket::create(Kind kind, int s)
 
     Try<Nothing> nonblock = os::nonblock(fd.get());
     if (nonblock.isError()) {
+      os::close(fd.get());
       return Error("Failed to create socket, nonblock: " + nonblock.error());
     }
 
     Try<Nothing> cloexec = os::cloexec(fd.get());
     if (cloexec.isError()) {
+      os::close(fd.get());
       return Error("Failed to create socket, cloexec: " + cloexec.error());
     }
 #endif
@@ -67,8 +73,12 @@ Try<Socket> Socket::create(Kind kind, int s)
 
   switch (kind) {
     case POLL: {
-      Try<std::shared_ptr<Socket::Impl>> socket = PollSocketImpl::create(s);
+      Try<std::shared_ptr<Socket::Impl>> socket =
+        PollSocketImpl::create(s.get());
       if (socket.isError()) {
+        if (owned) {
+          os::close(s.get());
+        }
         return Error(socket.error());
       }
       return Socket(socket.get());
@@ -76,8 +86,11 @@ Try<Socket> Socket::create(Kind kind, int s)
 #ifdef USE_SSL_SOCKET
     case SSL: {
       Try<std::shared_ptr<Socket::Impl>> socket =
-        LibeventSSLSocketImpl::create(s);
+        LibeventSSLSocketImpl::create(s.get());
       if (socket.isError()) {
+        if (owned) {
+          os::close(s.get());
+        }
         return Error(socket.error());
       }
       return Socket(socket.get());

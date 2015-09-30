@@ -84,6 +84,10 @@ MasterInfo createMasterInfo(const process::UPID& pid);
 
 Label createLabel(const std::string& key, const std::string& value);
 
+
+// Helper function that fills in a TimeInfo from the current time.
+TimeInfo getCurrentTime();
+
 namespace slave {
 
 mesos::slave::ContainerLimitation createContainerLimitation(
@@ -111,11 +115,9 @@ Unavailability createUnavailability(
 
 /**
  * Helper for constructing a list of `MachineID`.
- *
- * TODO(josephw): Remove this when https://reviews.apache.org/r/37826/
- * is submitted.
  */
-MachineIDs createMachineList(std::initializer_list<MachineID> ids);
+google::protobuf::RepeatedPtrField<MachineID> createMachineList(
+    std::initializer_list<MachineID> ids);
 
 
 /**

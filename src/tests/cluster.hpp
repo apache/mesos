@@ -122,6 +122,24 @@ public:
     // Returns a new master detector for this instance of masters.
     process::Owned<MasterDetector> detector();
 
+    /**
+     * The internal map from UPID to Master processes is not available
+     * externally to test methods; this lookup method helps to expose this to
+     * `MesosTest` classes.
+     *
+     * @param pid the PID for the Master process being looked up.
+     * @return a pointer to the `master::Master` process, whose UPID corresponds
+     *     to the given value, if any.
+     */
+    Option<master::Master*> find(const process::PID<master::Master>& pid)
+    {
+      if (masters.count(pid) != 0) {
+        return masters[pid].master;
+      }
+
+      return None();
+    }
+
   private:
     // Not copyable, not assignable.
     Masters(const Masters&);
@@ -225,6 +243,20 @@ public:
     masters.shutdown();
     slaves.shutdown();
   }
+
+  /**
+   * Thin wrapper around the internal `Masters::find()` lookup method, which is
+   * otherwise inaccessible from test methods.
+   *
+   * @param pid the PID for the Master process being looked up.
+   * @return a pointer to the `master::Master` process, whose PID corresponds
+   *     to the given value, if any.
+   */
+  Option<master::Master*> find(const process::PID<master::Master>& pid)
+  {
+    return masters.find(pid);
+  }
+
 
   // Cluster wide shared abstractions.
   Files files;

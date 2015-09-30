@@ -59,14 +59,12 @@ nobase_include_HEADERS =		\
   stout/os/fork.hpp			\
   stout/os/killtree.hpp			\
   stout/os/linux.hpp			\
-  stout/os/posix/close.hpp		\
   stout/os/posix/exists.hpp		\
   stout/os/posix/fcntl.hpp		\
   stout/os/posix/fork.hpp		\
   stout/os/posix/killtree.hpp		\
   stout/os/posix/ls.hpp			\
   stout/os/posix/open.hpp		\
-  stout/os/posix/permissions.hpp	\
   stout/os/posix/process.hpp		\
   stout/os/posix/pstree.hpp		\
   stout/os/posix/read.hpp		\
@@ -88,14 +86,12 @@ nobase_include_HEADERS =		\
   stout/os/permissions.hpp		\
   stout/os/pstree.hpp			\
   stout/os/sysctl.hpp			\
-  stout/os/windows/close.hpp		\
   stout/os/windows/exists.hpp		\
   stout/os/windows/fcntl.hpp		\
   stout/os/windows/fork.hpp		\
   stout/os/windows/killtree.hpp		\
   stout/os/windows/ls.hpp		\
   stout/os/windows/open.hpp		\
-  stout/os/windows/permissions.hpp	\
   stout/os/windows/process.hpp		\
   stout/os/windows/pstree.hpp		\
   stout/os/windows/read.hpp		\

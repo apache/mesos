@@ -8,23 +8,31 @@ layout: documentation
 * We use [Apache Review Board](https://reviews.apache.org) for code reviews. If you don't already have an account, you'll need to create one (it's separate from your Apache JIRA account).
 * A code review request should be created for every JIRA that involves a change to the codebase.
 
-### Before you submit
+### Before you start writing code
 1. Check out the code from the Apache repository via Git. Instructions are on the [Getting Started](http://mesos.apache.org/gettingstarted/) page.
 
-2. Join the dev, issues, reviews and builds mailing lists by sending emails to dev-subscribe@mesos.apache.org, issues-subscribe@mesos.apache.org, reviews-subscribe@mesos.apache.org and builds-subscribe@mesos.apache.org respectively.
+2. Join the dev, issues, reviews and builds mailing lists by sending emails to [dev-subscribe@mesos.apache.org](mailto:dev-subscribe@mesos.apache.org), [issues-subscribe@mesos.apache.org](mailto:issues-subscribe@mesos.apache.org), [reviews-subscribe@mesos.apache.org](mailto:reviews-subscribe@mesos.apache.org) and [builds-subscribe@mesos.apache.org](mailto:builds-subscribe@mesos.apache.org) respectively.
 
-3. Find a JIRA that is currently unassigned that you want to work on at [JIRA issue tracker](https://issues.apache.org/jira/browse/MESOS), or create your own (you'll need a JIRA account for this, see below)!
+3. Find a JIRA issue that is currently unassigned that you want to work on at [JIRA issue tracker](https://issues.apache.org/jira/browse/MESOS), or create your own (you'll need a JIRA account for this, see below)!
     1. This could be a JIRA representing a bug (possibly a bug that you encountered and reported, e.g. when trying to build) or a new feature.
+    2. Prefer working on issues marked as "[Accepted](https://issues.apache.org/jira/browse/MESOS-1?jql=project%20%3D%20MESOS%20AND%20status%20%3D%20Accepted)", rather than merely "Open". If an issue has been accepted, it means at least one Mesos developer thought that the ideas proposed in the issue are worth pursuing further.
+    3. Issues marked with the "[newbie](https://issues.apache.org/jira/browse/MESOS-1?jql=project%20%3D%20MESOS%20AND%20status%20%3D%20Accepted%20AND%20labels%20%3D%20newbie)" label can be good candidates for "starter" projects.
 
 4. Assign the JIRA to yourself. To do this, you will need:
     1. An Apache JIRA user account (sign up for one [here](https://issues.apache.org/jira/secure/Signup!default.jspa)).
-    2. You need to be added to the list of Mesos "contributors" by a Mesos committer (send email to dev@mesos.apache.org) in order to be assigned (or to assign yourself) to a JIRA issue.
+    2. You need to be added to the list of Mesos "contributors" by a Mesos committer (send email to [dev@mesos.apache.org](mailto:dev@mesos.apache.org)) in order to be assigned (or to assign yourself) to a JIRA issue.
 
-5. Formulate a plan for resolving the issue, propose your plan via comments in the JIRA.
+5. Formulate a plan for resolving the issue. Propose your plan via comments in the JIRA.
 
-6. Create one or more test cases to exercise the bug or the feature (the Mesos team uses [test-driven development](http://en.wikipedia.org/wiki/Test-driven_development)), before you start coding, make sure these test cases all fail.
+6. Find a **shepherd** to collaborate on your patch. A shepherd is a Mesos committer that will work with you to give you feedback on your proposed design, and to eventually commit your change into the Mesos source tree.
+    1. To find a shepherd, email the dev mailing list (include a link to your JIRA issue). You can also try asking by adding a comment to your JIRA issue.
+    2. You can also find a shepherd by asking the developers on IRC (in the [mesos channel](irc://irc.freenode.net/mesos) on [Freenode](https://freenode.net)). You can find the current list of committers [here](committers.md): a developer that has previously worked on the component you are modifying might be a good candidate shepherd.
 
-7. Make your changes to the code (using whatever IDE/editor you choose) to actually fix the bug or implement the feature.
+### Create your patch
+1. Create one or more test cases to exercise the bug or the feature (the Mesos team uses [test-driven development](http://en.wikipedia.org/wiki/Test-driven_development)). Before you start coding, make sure these test cases all fail.
+    1. The [testing patterns](mesos-testing-patterns.md) page has some suggestions for writing test cases.
+
+2. Make your changes to the code (using whatever IDE/editor you choose) to actually fix the bug or implement the feature.
     1. Before beginning, please read the [Mesos C++ Style Guide](mesos-c++-style-guide.md). It is recommended to use the git pre-commit hook (`support/hooks/pre-commit`) to automatically check for style errors. See the hook script for instructions to enable it.
     2. Most of your changes will probably be to files inside of `BASE_MESOS_DIR`
     3. From inside of the root Mesos directory: `./bootstrap` (Only required if building from git repository).
@@ -34,10 +42,10 @@ layout: documentation
         3. `make`
         4. Now all of the files generated by the build process will be contained in the build directory you created, instead of being spread throughout the src directory, which is a bit messier. This is both cleaner, and makes it easy to clean up if you want to get rid of the files generated by `configure` and `make`. I.e. You can reset your build process without risking changes you made in the src directory, by simply deleting the build directory, and creating a new one.
 
-8. Make sure all of your test cases now pass.
-	1. `make check`
+3. Make sure that all of the unit tests pass, including the new test cases you have added: `make check`.
+    1. To execute a single unit test (helpful when trying to debug a test case failure), use something like: `make check GTEST_FILTER="HTTPTest.Delete"`.
 
-9. Make sure to pull in any changes that have been committed to master branch. Using Git, do this via something like:
+4. Make sure to pull in any changes that have been committed to master branch. Using Git, do this via something like:
     1. `git checkout master`
     2. `git pull`
     3. `git checkout my_branch`
@@ -45,25 +53,28 @@ layout: documentation
 
 ### Submit your patch
 1. You're ready to submit your patch for review!
-    1. Log in or create an account at [Apache Review Board](http://reviews.apache.org)
+    1. Log in or create an account at [Apache Review Board](http://reviews.apache.org).
     2. The easiest (and recommended) way to submit reviews is through `post-reviews.py` a wrapper around post-review.
-    3. First, install RBTools. [See Instructions](https://www.reviewboard.org/docs/rbtools/dev/)
-    4. Configure post-review. The easiest method is to symlink to the sample config: ln -s support/reviewboardrc .reviewboardrc
-    5. Log into Review Board from the command line: run `rbt status`
+    3. First, install RBTools. [See Instructions](https://www.reviewboard.org/docs/rbtools/dev/).
+    4. Configure post-review. The easiest method is to symlink to the sample config: `ln -s support/reviewboardrc .reviewboardrc`.
+    5. Log into Review Board from the command line: run `rbt status`.
     6. From your local branch run `support/post-reviews.py`.
     7. Note that `post-reviews.py` creates a new review for every commit on your branch that is different from the `master`.
-    8. Be sure to add your JIRA issue id (e.g. MESOS-01) to the field labeled "Bugs" (this will automatically link)
-    9. Under "Description" in addition to details about your changes, include a description of any documentation pages that need to be added, or are affected by your changes (e.g. did you change or add any configuration options/flags? Did you add a new binary?)
+    8. Be sure to add your JIRA issue id (e.g. MESOS-1) to the field labeled "Bugs" (this will automatically link).
+    9. Add your shepherd under the "People" field, in the "Reviewers" section. You should also include other Mesos community members who have contributed to the discussion of your proposed change.
+    10. Under "Description" in addition to details about your changes, include a description of any documentation pages that need to be added, or are affected by your changes (e.g. did you change or add any configuration options/flags? Did you add a new binary?)
+    11. Under "Testing Done", explain what new tests you have created, what tests were modified, and what procedures you went through to test your changes.
 
 2. Wait for a code review from another Mesos developer via Review Board, address their feedback and upload updated patches until you receive a "Ship It" from a Mesos committer.
-    1. When addressing feedback, adjust your existing commit(s) instead of creating new commits, otherwise `post-reviews.py` will create a new review (`git rebase -i` is your friend).
-    2. Review Board comments should be used for code-specific discussions, and JIRA comments for bigger-picture design discussions.
-    3. Always respond to each RB comment that you address directly (i.e. each comment can be responded to directly) with either "Done." or a comment explaining how you addressed it.
-    4. If an issue has been raised in the review, please resolve the issue as "Fixed" or "Dropped". If "Dropped" please add a comment explaining the reason. Also, if your fix warrants a comment (e.g., fixed differently than suggested by the reviewer) please add a comment.
+    1. If you don't receive any feedback, contact your shepherd to remind them. While the committers try their best to provide prompt feedback on proposed changes, they are busy and sometimes a patch gets overlooked.
+    2. When addressing feedback, adjust your existing commit(s) instead of creating new commits, otherwise `post-reviews.py` will create a new review (`git rebase -i` is your friend).
+    3. Review Board comments should be used for code-specific discussions, and JIRA comments for bigger-picture design discussions.
+    4. Always respond to each RB comment that you address directly (i.e. each comment can be responded to directly) with either "Done." or a comment explaining how you addressed it.
+    5. If an issue has been raised in the review, please resolve the issue as "Fixed" or "Dropped". If "Dropped" please add a comment explaining the reason. Also, if your fix warrants a comment (e.g., fixed differently than suggested by the reviewer) please add a comment.
 
 3. After consensus is reached on your JIRA/patch, you're review request will receive a "Ship It!" from a committer, and then a committer will commit your patch to the git repository. Congratulations and thanks for participating in our community!
 
 4. The last step is to ensure that the necessary documentation gets created or updated so the whole world knows about your new feature or bug fix.
 
 ## Style Guides
-* For patches to the core, we ask that you follow the [Mesos C++ Style Guide](mesos-c++-style-guide.md)
+* For patches to the core, we ask that you follow the [Mesos C++ Style Guide](mesos-c++-style-guide.md).

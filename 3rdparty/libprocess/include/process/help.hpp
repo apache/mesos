@@ -33,37 +33,36 @@ namespace process {
 // Constructs a Markdown based help "page" for a route with the
 // following template:
 //
-//     ### TL;DR; ###
-//     tldr
-//
 //     ### USAGE ###
 //     usage
+//
+//     ### TL;DR; ###
+//     tldr
 //
 //     ### DESCRIPTION ###
 //     description
 //
 //     references
 //
-// See the 'TLDR', 'USAGE', 'DESCRIPTION', and 'REFERENCES' helpers
+// See the 'USAGE', 'TLDR', 'DESCRIPTION', and 'REFERENCES' helpers
 // below to more easily construct your help pages.
 std::string HELP(
     std::string tldr,
-    std::string usage,
     std::string description,
     const Option<std::string>& references = None());
-
-// Helper for single-line TL;DR; that adds a newline.
-inline std::string TLDR(const std::string& tldr)
-{
-  return tldr + "\n";
-}
-
 
 // Helper for single-line usage that puts it in a blockquote as code
 // and adds a newline.
 inline std::string USAGE(const std::string& usage)
 {
   return ">        " + usage + "\n";
+}
+
+
+// Helper for single-line TL;DR; that adds a newline.
+inline std::string TLDR(const std::string& tldr)
+{
+  return tldr + "\n";
 }
 
 
@@ -118,7 +117,10 @@ private:
   // process.
   Future<http::Response> help(const http::Request& request);
 
-  std::map<std::string, std::map<std::string, std::string> > helps;
+  // Helper function to get usage path by process id and endpoint name.
+  std::string getUsagePath(const std::string& id, const std::string& name);
+
+  std::map<std::string, std::map<std::string, std::string>> helps;
 };
 
 } // namespace process {

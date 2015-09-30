@@ -14,7 +14,7 @@
   // Invokes the pailer for the specified host and path using the
   // specified window_title.
   function pailer(host, path, window_title) {
-    var url = '//' + host + '/files/read.json?path=' + path;
+    var url = '//' + host + '/files/read?path=' + path;
     var pailer =
       window.open('/static/pailer.html', url, 'width=580px, height=700px');
 
@@ -51,7 +51,7 @@
 
 
   // Update the outermost scope with the new state.
-  function update($scope, $timeout, data) {
+  function updateState($scope, $timeout, data) {
     // Don't do anything if the data hasn't changed.
     if ($scope.data == data) {
       return true; // Continue polling.
@@ -122,13 +122,6 @@
     $scope.used_mem = 0;
     $scope.offered_cpus = 0;
     $scope.offered_mem = 0;
-
-    $scope.staged_tasks = $scope.state.staged_tasks;
-    $scope.started_tasks = $scope.state.started_tasks;
-    $scope.finished_tasks = $scope.state.finished_tasks;
-    $scope.killed_tasks = $scope.state.killed_tasks;
-    $scope.failed_tasks = $scope.state.failed_tasks;
-    $scope.lost_tasks = $scope.state.lost_tasks;
 
     $scope.activated_slaves = $scope.state.activated_slaves;
     $scope.deactivated_slaves = $scope.state.deactivated_slaves;
@@ -206,6 +199,26 @@
     return true; // Continue polling.
   }
 
+  // Add a filter to convert small float number to decimal string
+  mesosApp.filter('decimalFloat', function() {
+    return function(num) {
+      return parseFloat(num.toFixed(4)).toString();
+    }
+  });
+
+  // Update the outermost scope with the metrics/snapshot endpoint.
+  function updateMetrics($scope, $timeout, data) {
+    var metrics = JSON.parse(data);
+    $scope.staged_tasks = metrics['master/tasks_staging'];
+    $scope.started_tasks = metrics['master/tasks_starting'];
+    $scope.finished_tasks = metrics['master/tasks_finished'];
+    $scope.killed_tasks = metrics['master/tasks_killed'];
+    $scope.failed_tasks = metrics['master/tasks_failed'];
+    $scope.lost_tasks = metrics['master/tasks_lost'];
+
+    return true; // Continue polling.
+  }
+
 
   // Main controller that can be used to handle "global" events. E.g.,:
   //     $scope.$on('$afterRouteChange', function() { ...; });
@@ -241,6 +254,7 @@
     $scope.delay = 2000;
     $scope.retry = 0;
     $scope.time_since_update = 0;
+    $scope.isErrorModalOpen = false;
 
     // Ordered Array of path => activeTab mappings. On successful route changes,
     // the `pathRegexp` values are matched against the current route. The first
@@ -275,66 +289,94 @@
       if (!matched) $scope.navbarActiveTab = null;
     });
 
-    var poll = function() {
+    var popupErrorModal = function() {
+      if ($scope.delay >= 128000) {
+        $scope.delay = 2000;
+      } else {
+        $scope.delay = $scope.delay * 2;
+      }
+
+      $scope.isErrorModalOpen = true;
+
+      var errorModal = $modal.open({
+        controller: function($scope, $modalInstance, scope) {
+          // Give the modal reference to the root scope so it can access the
+          // `retry` variable. It needs to be passed by reference, not by
+          // value, since its value is changed outside the scope of the
+          // modal.
+          $scope.rootScope = scope;
+        },
+        resolve: {
+          scope: function() { return $scope; }
+        },
+        templateUrl: "template/dialog/masterGone.html"
+      });
+
+      // Make it such that everytime we hide the error-modal, we stop the
+      // countdown and restart the polling.
+      errorModal.result.then(function() {
+        $scope.isErrorModalOpen = false;
+
+        if ($scope.countdown != null) {
+          if ($timeout.cancel($scope.countdown)) {
+            // Restart since they cancelled the countdown.
+            $scope.delay = 2000;
+          }
+        }
+
+        // Start polling again, but do it asynchronously (and wait at
+        // least a second because otherwise the error-modal won't get
+        // properly shown).
+        $timeout(pollState, 1000);
+        $timeout(pollMetrics, 1000);
+      });
+
+      $scope.retry = $scope.delay;
+      var countdown = function() {
+        if ($scope.retry === 0) {
+          errorModal.close();
+        } else {
+          $scope.retry = $scope.retry - 1000;
+          $scope.countdown = $timeout(countdown, 1000);
+        }
+      };
+      countdown();
+    };
+
+    var pollState = function() {
       $http.get('master/state.json',
                 {transformResponse: function(data) { return data; }})
         .success(function(data) {
-          if (update($scope, $timeout, data)) {
+          if (updateState($scope, $timeout, data)) {
             $scope.delay = updateInterval(_.size($scope.slaves));
-            $timeout(poll, $scope.delay);
+            $timeout(pollState, $scope.delay);
           }
         })
         .error(function() {
-          if ($scope.delay >= 128000) {
-            $scope.delay = 2000;
-          } else {
-            $scope.delay = $scope.delay * 2;
+          if ($scope.isErrorModalOpen === false) {
+            popupErrorModal();
           }
-
-          var errorModal = $modal.open({
-            controller: function($scope, $modalInstance, scope) {
-              // Give the modal reference to the root scope so it can access the
-              // `retry` variable. It needs to be passed by reference, not by
-              // value, since its value is changed outside the scope of the
-              // modal.
-              $scope.rootScope = scope;
-            },
-            resolve: {
-              scope: function() { return $scope; }
-            },
-            templateUrl: "template/dialog/masterGone.html"
-          });
-
-          // Make it such that everytime we hide the error-modal, we stop the
-          // countdown and restart the polling.
-          errorModal.result.then(function() {
-            if ($scope.countdown != null) {
-              if ($timeout.cancel($scope.countdown)) {
-                // Restart since they cancelled the countdown.
-                $scope.delay = 2000;
-              }
-            }
-
-            // Start polling again, but do it asynchronously (and wait at
-            // least a second because otherwise the error-modal won't get
-            // properly shown).
-            $timeout(poll, 1000);
-          });
-
-          $scope.retry = $scope.delay;
-          var countdown = function() {
-            if ($scope.retry === 0) {
-              errorModal.close();
-            } else {
-              $scope.retry = $scope.retry - 1000;
-              $scope.countdown = $timeout(countdown, 1000);
-            }
-          };
-          countdown();
         });
     };
 
-    poll();
+    var pollMetrics = function() {
+      $http.get('metrics/snapshot',
+                {transformResponse: function(data) { return data; }})
+        .success(function(data) {
+          if (updateMetrics($scope, $timeout, data)) {
+            $scope.delay = updateInterval(_.size($scope.slaves));
+            $timeout(pollMetrics, $scope.delay);
+          }
+        })
+        .error(function() {
+          if ($scope.isErrorModalOpen === false) {
+            popupErrorModal();
+          }
+        });
+    };
+
+    pollState();
+    pollMetrics();
   }]);
 
 
@@ -421,17 +463,13 @@
         $top.start(host, $scope);
       }
 
-      $http.jsonp('//' + host + '/' + id + '/state.json?jsonp=JSON_CALLBACK')
+      $http.jsonp('//' + host + '/' + id + '/state?jsonp=JSON_CALLBACK')
         .success(function (response) {
           $scope.state = response;
 
           $scope.slave = {};
           $scope.slave.frameworks = {};
           $scope.slave.completed_frameworks = {};
-
-          $scope.slave.staging_tasks = 0;
-          $scope.slave.starting_tasks = 0;
-          $scope.slave.running_tasks = 0;
 
           // Computes framework stats by setting new attributes on the 'framework'
           // object.
@@ -463,6 +501,24 @@
         })
         .error(function(reason) {
           $scope.alert_message = 'Failed to get slave usage / state: ' + reason;
+          $('#alert').show();
+        });
+
+      $http.jsonp('//' + host + '/metrics/snapshot?jsonp=JSON_CALLBACK')
+        .success(function (response) {
+          if (!$scope.state) {
+            $scope.state = {};
+          }
+
+          $scope.state.staged_tasks = response['slave/tasks_staging'];
+          $scope.state.started_tasks = response['slave/tasks_starting'];
+          $scope.state.finished_tasks = response['slave/tasks_finished'];
+          $scope.state.killed_tasks = response['slave/tasks_killed'];
+          $scope.state.failed_tasks = response['slave/tasks_failed'];
+          $scope.state.lost_tasks = response['slave/tasks_lost'];
+        })
+        .error(function(reason) {
+          $scope.alert_message = 'Failed to get slave metrics: ' + reason;
           $('#alert').show();
         });
     };
@@ -499,7 +555,7 @@
         $top.start(host, $scope);
       }
 
-      $http.jsonp('//' + host + '/' + id + '/state.json?jsonp=JSON_CALLBACK')
+      $http.jsonp('//' + host + '/' + id + '/state?jsonp=JSON_CALLBACK')
         .success(function (response) {
           $scope.state = response;
 
@@ -572,7 +628,7 @@
         $top.start(host, $scope);
       }
 
-      $http.jsonp('//' + host + '/' + id + '/state.json?jsonp=JSON_CALLBACK')
+      $http.jsonp('//' + host + '/' + id + '/state?jsonp=JSON_CALLBACK')
         .success(function (response) {
           $scope.state = response;
 
@@ -631,8 +687,8 @@
   // directory to browse is known by the slave but not by the master. Request
   // the directory from the slave, and then redirect to it.
   //
-  // TODO(ssorallen): Add `executor.directory` to the state.json output so this
-  // controller of rerouting is no longer necessary.
+  // TODO(ssorallen): Add `executor.directory` to the master's state endpoint
+  // output so this controller of rerouting is no longer necessary.
   mesosApp.controller('SlaveExecutorRerouterCtrl',
       function($alert, $http, $location, $routeParams, $scope, $window) {
 
@@ -677,7 +733,7 @@
 
     // Request slave details to get access to the route executor's "directory"
     // to navigate directly to the executor's sandbox.
-    $http.jsonp('//' + host + '/' + id + '/state.json?jsonp=JSON_CALLBACK')
+    $http.jsonp('//' + host + '/' + id + '/state?jsonp=JSON_CALLBACK')
       .success(function(response) {
 
         function matchFramework(framework) {
@@ -747,7 +803,7 @@
         var hostname = $scope.slaves[$routeParams.slave_id].hostname;
         var id = pid.substring(0, pid.indexOf('@'));
         var host = hostname + ":" + pid.substring(pid.lastIndexOf(':') + 1);
-        var url = '//' + host + '/files/browse.json?jsonp=JSON_CALLBACK';
+        var url = '//' + host + '/files/browse?jsonp=JSON_CALLBACK';
 
         $scope.slave_host = host;
 

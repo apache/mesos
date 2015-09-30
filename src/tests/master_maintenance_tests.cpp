@@ -16,9 +16,16 @@
  * limitations under the License.
  */
 
+#include <initializer_list>
 #include <string>
 
 #include <mesos/maintenance/maintenance.hpp>
+
+#include <mesos/v1/mesos.hpp>
+#include <mesos/v1/resources.hpp>
+#include <mesos/v1/scheduler.hpp>
+
+#include <mesos/v1/scheduler/scheduler.hpp>
 
 #include <process/clock.hpp>
 #include <process/future.hpp>
@@ -37,38 +44,65 @@
 
 #include "common/protobuf_utils.hpp"
 
+#include "internal/devolve.hpp"
+#include "internal/evolve.hpp"
+
 #include "master/master.hpp"
 
 #include "slave/flags.hpp"
 
+#include "tests/containerizer.hpp"
 #include "tests/mesos.hpp"
 #include "tests/utils.hpp"
+
+using google::protobuf::RepeatedPtrField;
 
 using mesos::internal::master::Master;
 
 using mesos::internal::slave::Slave;
 
+using mesos::v1::scheduler::Call;
+using mesos::v1::scheduler::Event;
+using mesos::v1::scheduler::Mesos;
+
 using process::Clock;
 using process::Future;
 using process::PID;
+using process::Queue;
 using process::Time;
 
 using process::http::BadRequest;
 using process::http::OK;
 using process::http::Response;
 
-using mesos::internal::protobuf::maintenance::createMachineList;
 using mesos::internal::protobuf::maintenance::createSchedule;
 using mesos::internal::protobuf::maintenance::createUnavailability;
 using mesos::internal::protobuf::maintenance::createWindow;
 
 using std::string;
+using std::vector;
 
+using testing::AtMost;
 using testing::DoAll;
+using testing::Not;
 
 namespace mesos {
 namespace internal {
 namespace tests {
+
+JSON::Array createMachineList(std::initializer_list<MachineID> _ids)
+{
+  RepeatedPtrField<MachineID> ids =
+    internal::protobuf::maintenance::createMachineList(_ids);
+
+  JSON::Array array;
+  foreach (const MachineID& id, ids) {
+    array.values.emplace_back(JSON::Protobuf(id));
+  }
+
+  return array;
+}
+
 
 class MasterMaintenanceTest : public MesosTest
 {
@@ -90,9 +124,24 @@ public:
     unavailability = createUnavailability(Clock::now());
   }
 
+  virtual master::Flags CreateMasterFlags()
+  {
+    master::Flags masterFlags = MesosTest::CreateMasterFlags();
+    masterFlags.authenticate_frameworks = false;
+    return masterFlags;
+  }
+
+  virtual slave::Flags CreateSlaveFlags()
+  {
+    slave::Flags slaveFlags = MesosTest::CreateSlaveFlags();
+    slaveFlags.hostname = maintenanceHostname;
+    return slaveFlags;
+  }
 
   // Default headers for all POST's to maintenance endpoints.
-  hashmap<string, string> headers;
+  process::http::Headers headers;
+
+  const string maintenanceHostname = "maintenance-host";
 
   // Some generic `MachineID`s that can be used in this test.
   MachineID machine1;
@@ -102,7 +151,38 @@ public:
   // Default unavailability.  Used when the test does not care
   // about the value of the unavailability.
   Unavailability unavailability;
+
+protected:
+  // Helper class for using EXPECT_CALL since the Mesos scheduler API
+  // is callback based.
+  class Callbacks
+  {
+  public:
+    MOCK_METHOD0(connected, void(void));
+    MOCK_METHOD0(disconnected, void(void));
+    MOCK_METHOD1(received, void(const std::queue<Event>&));
+  };
 };
+
+
+// Enqueues all received events into a libprocess queue.
+// TODO(jmlvanre): Factor this common code out of tests into V1
+// helper.
+ACTION_P(Enqueue, queue)
+{
+  std::queue<Event> events = arg0;
+  while (!events.empty()) {
+    // Note that we currently drop HEARTBEATs because most of these tests
+    // are not designed to deal with heartbeats.
+    // TODO(vinod): Implement DROP_HTTP_CALLS that can filter heartbeats.
+    if (events.front().type() == Event::HEARTBEAT) {
+      VLOG(1) << "Ignoring HEARTBEAT event";
+    } else {
+      queue->put(events.front());
+    }
+    events.pop();
+  }
+}
 
 
 // Posts valid and invalid schedules to the maintenance schedule endpoint.
@@ -259,12 +339,12 @@ TEST_F(MasterMaintenanceTest, FailToUnscheduleDeactivatedMachines)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 
   // Deactivate machine1.
-  MachineIDs machines = createMachineList({machine1});
+  JSON::Array machines = createMachineList({machine1});
   response = process::http::post(
       master.get(),
       "machine/down",
       headers,
-      stringify(JSON::Protobuf(machines)));
+      stringify(machines));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 
@@ -285,9 +365,370 @@ TEST_F(MasterMaintenanceTest, FailToUnscheduleDeactivatedMachines)
       master.get(),
       "machine/up",
       headers,
-      stringify(JSON::Protobuf(machines)));
+      stringify(machines));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+}
+
+
+// Test ensures that an offer will have an `unavailability` set if the
+// slave is scheduled to go down for maintenance.
+TEST_F(MasterMaintenanceTest, PendingUnavailabilityTest)
+{
+  Try<PID<Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+
+  Try<PID<Slave>> slave = StartSlave(&exec);
+  ASSERT_SOME(slave);
+
+  Callbacks callbacks;
+
+  Future<Nothing> connected;
+  EXPECT_CALL(callbacks, connected())
+    .WillOnce(FutureSatisfy(&connected));
+
+  Mesos mesos(
+      master.get(),
+      lambda::bind(&Callbacks::connected, lambda::ref(callbacks)),
+      lambda::bind(&Callbacks::disconnected, lambda::ref(callbacks)),
+      lambda::bind(&Callbacks::received, lambda::ref(callbacks), lambda::_1));
+
+  AWAIT_READY(connected);
+
+  Queue<Event> events;
+
+  EXPECT_CALL(callbacks, received(_))
+    .WillRepeatedly(Enqueue(&events));
+
+  {
+    Call call;
+    call.set_type(Call::SUBSCRIBE);
+
+    Call::Subscribe* subscribe = call.mutable_subscribe();
+    subscribe->mutable_framework_info()->CopyFrom(DEFAULT_V1_FRAMEWORK_INFO);
+
+    mesos.send(call);
+  }
+
+  Future<Event> event = events.get();
+  AWAIT_READY(event);
+  EXPECT_EQ(Event::SUBSCRIBED, event.get().type());
+
+  v1::FrameworkID id(event.get().subscribed().framework_id());
+
+  event = events.get();
+  AWAIT_READY(event);
+  EXPECT_EQ(Event::OFFERS, event.get().type());
+  EXPECT_NE(0, event.get().offers().offers().size());
+  const size_t numberOfOffers = event.get().offers().offers().size();
+
+  // Regular offers shouldn't have unavailability.
+  foreach (const v1::Offer& offer, event.get().offers().offers()) {
+    EXPECT_FALSE(offer.has_unavailability());
+  }
+
+  // Schedule this slave for maintenance.
+  MachineID machine;
+  machine.set_hostname(maintenanceHostname);
+  machine.set_ip(stringify(slave.get().address.ip));
+
+  const Time start = Clock::now() + Seconds(60);
+  const Duration duration = Seconds(120);
+  const Unavailability unavailability = createUnavailability(start, duration);
+
+  // Post a valid schedule with one machine.
+  maintenance::Schedule schedule = createSchedule(
+      {createWindow({machine}, unavailability)});
+
+  // We have a few seconds between the first set of offers and the
+  // next allocation of offers.  This should be enough time to perform
+  // a maintenance schedule update.  This update will also trigger the
+  // rescinding of offers from the scheduled slave.
+  Future<Response> response = process::http::post(
+      master.get(),
+      "maintenance/schedule",
+      headers,
+      stringify(JSON::Protobuf(schedule)));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+
+  // The original offers should be rescinded when the unavailability
+  // is changed. We expect as many rescind events as we received
+  // original offers.
+  for (size_t offerNumber = 0; offerNumber < numberOfOffers; ++offerNumber) {
+    event = events.get();
+    AWAIT_READY(event);
+    EXPECT_EQ(Event::RESCIND, event.get().type());
+  }
+
+  event = events.get();
+  AWAIT_READY(event);
+  EXPECT_EQ(Event::OFFERS, event.get().type());
+  EXPECT_NE(0, event.get().offers().offers().size());
+
+  // Make sure the new offers have the unavailability set.
+  foreach (const v1::Offer& offer, event.get().offers().offers()) {
+    EXPECT_TRUE(offer.has_unavailability());
+    EXPECT_EQ(
+        unavailability.start().nanoseconds(),
+        offer.unavailability().start().nanoseconds());
+
+    EXPECT_EQ(
+        unavailability.duration().nanoseconds(),
+        offer.unavailability().duration().nanoseconds());
+  }
+
+  // We also expect an inverse offer for the slave to go under
+  // maintenance.
+  event = events.get();
+  AWAIT_READY(event);
+  EXPECT_EQ(Event::OFFERS, event.get().type());
+  EXPECT_NE(0, event.get().offers().inverse_offers().size());
+
+  EXPECT_CALL(exec, shutdown(_))
+    .Times(AtMost(1));
+
+  Shutdown(); // Must shutdown before 'containerizer' gets deallocated.
+}
+
+
+// Test ensures that old schedulers gracefully handle inverse offers, even if
+// they aren't passed up to the top level API yet.
+TEST_F(MasterMaintenanceTest, PreV1SchedulerSupport)
+{
+  Try<PID<Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+
+  Try<PID<Slave>> slave = StartSlave(&exec);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .Times(1);
+
+  // Intercept offers sent to the scheduler.
+  Future<vector<Offer>> normalOffers;
+  Future<vector<Offer>> unavailabilityOffers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&normalOffers))
+    .WillOnce(FutureArg<1>(&unavailabilityOffers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  // The original offers should be rescinded when the unavailability is changed.
+  Future<Nothing> offerRescinded;
+  EXPECT_CALL(sched, offerRescinded(&driver, _))
+    .WillOnce(FutureSatisfy(&offerRescinded));
+
+  // Start the test.
+  driver.start();
+
+  // Wait for some normal offers.
+  AWAIT_READY(normalOffers);
+  EXPECT_NE(0u, normalOffers.get().size());
+
+  // Check that unavailability is not set.
+  foreach (const Offer& offer, normalOffers.get()) {
+    EXPECT_FALSE(offer.has_unavailability());
+  }
+
+  // Schedule this slave for maintenance.
+  MachineID machine;
+  machine.set_hostname(maintenanceHostname);
+  machine.set_ip(stringify(slave.get().address.ip));
+
+  const Time start = Clock::now() + Seconds(60);
+  const Duration duration = Seconds(120);
+  const Unavailability unavailability = createUnavailability(start, duration);
+
+  // Post a valid schedule with one machine.
+  maintenance::Schedule schedule = createSchedule(
+      {createWindow({machine}, unavailability)});
+
+  // We have a few seconds between the first set of offers and the next
+  // allocation of offers. This should be enough time to perform a maintenance
+  // schedule update. This update will also trigger the rescinding of offers
+  // from the scheduled slave.
+  Future<Response> response =
+    process::http::post(
+        master.get(),
+        "maintenance/schedule",
+        headers,
+        stringify(JSON::Protobuf(schedule)));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+
+  // Wait for some offers.
+  AWAIT_READY(unavailabilityOffers);
+  EXPECT_NE(0u, unavailabilityOffers.get().size());
+
+  // Check that each offer has an unavailability.
+  foreach (const Offer& offer, unavailabilityOffers.get()) {
+    EXPECT_TRUE(offer.has_unavailability());
+    EXPECT_EQ(unavailability.start(), offer.unavailability().start());
+    EXPECT_EQ(unavailability.duration(), offer.unavailability().duration());
+  }
+
+  driver.stop();
+  driver.join();
+
+  Shutdown(); // Must shutdown before 'containerizer' gets deallocated.
+}
+
+
+// Test ensures that slaves receive a shutdown message from the master when
+// maintenance is started, and frameworks receive a task lost message.
+TEST_F(MasterMaintenanceTest, EnterMaintenanceMode)
+{
+  Try<PID<Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+
+  Try<PID<Slave>> slave = StartSlave(&exec);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .Times(1);
+
+  // Launch a task.
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(LaunchTasks(DEFAULT_EXECUTOR_INFO, 1, 1, 64, "*"))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  EXPECT_CALL(exec, registered(_, _, _, _))
+    .Times(1);
+
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
+
+  EXPECT_CALL(exec, shutdown(_))
+    .Times(AtMost(1));
+
+  EXPECT_CALL(sched, offerRescinded(&driver, _))
+    .WillRepeatedly(Return()); // Ignore rescinds.
+
+  // Collect the status updates to verify the task is running and then lost.
+  Future<TaskStatus> startStatus, lostStatus;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&startStatus))
+    .WillOnce(FutureArg<1>(&lostStatus));
+
+  // Start the test.
+  driver.start();
+
+  // Wait till the task is running to schedule the maintenance.
+  AWAIT_READY(startStatus);
+  EXPECT_EQ(TASK_RUNNING, startStatus.get().state());
+
+  // Schedule this slave for maintenance.
+  MachineID machine;
+  machine.set_hostname(maintenanceHostname);
+  machine.set_ip(stringify(slave.get().address.ip));
+
+  const Time start = Clock::now() + Seconds(60);
+  const Duration duration = Seconds(120);
+  const Unavailability unavailability = createUnavailability(start, duration);
+
+  // Post a valid schedule with one machine.
+  maintenance::Schedule schedule = createSchedule(
+      {createWindow({machine}, unavailability)});
+
+  // We have a few seconds between the first set of offers and the next
+  // allocation of offers.  This should be enough time to perform a maintenance
+  // schedule update.  This update will also trigger the rescinding of offers
+  // from the scheduled slave.
+  Future<Response> response =
+    process::http::post(
+        master.get(),
+        "maintenance/schedule",
+        headers,
+        stringify(JSON::Protobuf(schedule)));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+
+  // Verify that the master forces the slave to be shut down after the
+  // maintenance is started.
+  Future<ShutdownMessage> shutdownMessage =
+    FUTURE_PROTOBUF(ShutdownMessage(), master.get(), slave.get());
+
+  // Verify that the framework will be informed that the slave is lost.
+  Future<Nothing> slaveLost;
+  EXPECT_CALL(sched, slaveLost(&driver, _))
+    .WillOnce(FutureSatisfy(&slaveLost));
+
+  // Start the maintenance.
+  response =
+    process::http::post(
+        master.get(),
+        "machine/down",
+        headers,
+        stringify(createMachineList({machine})));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+
+  // Wait for the slave to be told to shut down.
+  AWAIT_READY(shutdownMessage);
+
+  // Verify that we received a TASK_LOST.
+  AWAIT_READY(lostStatus);
+  EXPECT_EQ(TASK_LOST, lostStatus.get().state());
+
+  // Verify that the framework received the slave lost message.
+  AWAIT_READY(slaveLost);
+
+  // Wait on the agent to terminate so that it wipes out it's latest symlink.
+  // This way when we launch a new agent it will register with a new agent id.
+  wait(slave.get());
+
+  // Ensure that the slave gets shut down immediately if it tries to register
+  // from a machine that is under maintenance.
+  shutdownMessage = FUTURE_PROTOBUF(ShutdownMessage(), master.get(), _);
+  EXPECT_TRUE(shutdownMessage.isPending());
+
+  slave = StartSlave();
+  ASSERT_SOME(slave);
+
+  AWAIT_READY(shutdownMessage);
+
+  // Wait on the agent to terminate so that it wipes out it's latest symlink.
+  // This way when we launch a new agent it will register with a new agent id.
+  wait(slave.get());
+
+  // Stop maintenance.
+  response =
+    process::http::post(
+        master.get(),
+        "machine/up",
+        headers,
+        stringify(createMachineList({machine})));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+
+  // Capture the registration message.
+  Future<SlaveRegisteredMessage> slaveRegisteredMessage =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
+
+  // Start the agent again.
+  slave = StartSlave();
+
+  // Wait for agent registration.
+  AWAIT_READY(slaveRegisteredMessage);
+
+  driver.stop();
+  driver.join();
+
+  Shutdown(); // Must shutdown before 'containerizer' gets deallocated.
 }
 
 
@@ -303,12 +744,12 @@ TEST_F(MasterMaintenanceTest, BringDownMachines)
   MachineID badMachine;
 
   // Try to start maintenance on an unscheduled machine.
-  MachineIDs machines = createMachineList({machine1, machine2});
+  JSON::Array machines = createMachineList({machine1, machine2});
   Future<Response> response = process::http::post(
       master.get(),
       "machine/down",
       headers,
-      stringify(JSON::Protobuf(machines)));
+      stringify(machines));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response);
 
@@ -318,7 +759,7 @@ TEST_F(MasterMaintenanceTest, BringDownMachines)
       master.get(),
       "machine/down",
       headers,
-      stringify(JSON::Protobuf(machines)));
+      stringify(machines));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response);
 
@@ -328,7 +769,7 @@ TEST_F(MasterMaintenanceTest, BringDownMachines)
       master.get(),
       "machine/down",
       headers,
-      stringify(JSON::Protobuf(machines)));
+      stringify(machines));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response);
 
@@ -350,7 +791,7 @@ TEST_F(MasterMaintenanceTest, BringDownMachines)
       master.get(),
       "machine/down",
       headers,
-      stringify(JSON::Protobuf(machines)));
+      stringify(machines));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 
@@ -359,7 +800,7 @@ TEST_F(MasterMaintenanceTest, BringDownMachines)
       master.get(),
       "machine/down",
       headers,
-      stringify(JSON::Protobuf(machines)));
+      stringify(machines));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response);
 
@@ -369,7 +810,7 @@ TEST_F(MasterMaintenanceTest, BringDownMachines)
       master.get(),
       "machine/down",
       headers,
-      stringify(JSON::Protobuf(machines)));
+      stringify(machines));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response);
 
@@ -379,7 +820,7 @@ TEST_F(MasterMaintenanceTest, BringDownMachines)
       master.get(),
       "machine/down",
       headers,
-      stringify(JSON::Protobuf(machines)));
+      stringify(machines));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 }
@@ -393,12 +834,12 @@ TEST_F(MasterMaintenanceTest, BringUpMachines)
   ASSERT_SOME(master);
 
   // Try to bring up an unscheduled machine.
-  MachineIDs machines = createMachineList({machine1, machine2});
+  JSON::Array machines = createMachineList({machine1, machine2});
   Future<Response> response = process::http::post(
       master.get(),
       "machine/up",
       headers,
-      stringify(JSON::Protobuf(machines)));
+      stringify(machines));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response);
 
@@ -421,7 +862,7 @@ TEST_F(MasterMaintenanceTest, BringUpMachines)
       master.get(),
       "machine/up",
       headers,
-      stringify(JSON::Protobuf(machines)));
+      stringify(machines));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response);
 
@@ -431,7 +872,7 @@ TEST_F(MasterMaintenanceTest, BringUpMachines)
       master.get(),
       "machine/down",
       headers,
-      stringify(JSON::Protobuf(machines)));
+      stringify(machines));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 
@@ -440,7 +881,7 @@ TEST_F(MasterMaintenanceTest, BringUpMachines)
       master.get(),
       "machine/up",
       headers,
-      stringify(JSON::Protobuf(machines)));
+      stringify(machines));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 
@@ -469,7 +910,7 @@ TEST_F(MasterMaintenanceTest, BringUpMachines)
       master.get(),
       "machine/down",
       headers,
-      stringify(JSON::Protobuf(machines)));
+      stringify(machines));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 
@@ -478,7 +919,7 @@ TEST_F(MasterMaintenanceTest, BringUpMachines)
       master.get(),
       "machine/up",
       headers,
-      stringify(JSON::Protobuf(machines)));
+      stringify(machines));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 
@@ -537,12 +978,12 @@ TEST_F(MasterMaintenanceTest, MachineStatus)
   ASSERT_EQ(0, statuses.get().down_machines().size());
 
   // Deactivate machine1.
-  MachineIDs machines = createMachineList({machine1});
+  JSON::Array machines = createMachineList({machine1});
   response = process::http::post(
       master.get(),
       "machine/down",
       headers,
-      stringify(JSON::Protobuf(machines)));
+      stringify(machines));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 
@@ -567,7 +1008,7 @@ TEST_F(MasterMaintenanceTest, MachineStatus)
       master.get(),
       "machine/up",
       headers,
-      stringify(JSON::Protobuf(machines)));
+      stringify(machines));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 
@@ -584,7 +1025,589 @@ TEST_F(MasterMaintenanceTest, MachineStatus)
   ASSERT_SOME(statuses);
   ASSERT_EQ(1, statuses.get().draining_machines().size());
   ASSERT_EQ(0, statuses.get().down_machines().size());
-  ASSERT_EQ("0.0.0.2", statuses.get().draining_machines(0).ip());
+  ASSERT_EQ("0.0.0.2", statuses.get().draining_machines(0).id().ip());
+}
+
+
+// Test ensures that accept and decline works with inverse offers.
+// And that accepted/declined inverse offers will be reflected
+// in the maintenance status endpoint.
+TEST_F(MasterMaintenanceTest, InverseOffers)
+{
+  // Set up a master.
+  Try<PID<Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+
+  Try<PID<Slave>> slave = StartSlave(&exec);
+  ASSERT_SOME(slave);
+
+  // Before starting any frameworks, put the one machine into `DRAINING` mode.
+  MachineID machine;
+  machine.set_hostname(maintenanceHostname);
+  machine.set_ip(stringify(slave.get().address.ip));
+
+  const Time start = Clock::now() + Seconds(60);
+  const Duration duration = Seconds(120);
+  const Unavailability unavailability = createUnavailability(start, duration);
+
+  maintenance::Schedule schedule = createSchedule(
+      {createWindow({machine}, unavailability)});
+
+  Future<Response> response = process::http::post(
+      master.get(),
+      "maintenance/schedule",
+      headers,
+      stringify(JSON::Protobuf(schedule)));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+
+  // Sanity check that this machine shows up in the status endpoint
+  // and there should be no inverse offer status.
+  response = process::http::get(master.get(), "maintenance/status");
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+
+  Try<JSON::Object> statuses_ = JSON::parse<JSON::Object>(response.get().body);
+  ASSERT_SOME(statuses_);
+  Try<maintenance::ClusterStatus> statuses =
+    ::protobuf::parse<maintenance::ClusterStatus>(statuses_.get());
+
+  ASSERT_SOME(statuses);
+  ASSERT_EQ(0, statuses.get().down_machines().size());
+  ASSERT_EQ(1, statuses.get().draining_machines().size());
+  ASSERT_EQ(
+      maintenanceHostname,
+      statuses.get().draining_machines(0).id().hostname());
+  ASSERT_EQ(0, statuses.get().draining_machines(0).statuses().size());
+
+  // Now start a framework.
+  Callbacks callbacks;
+
+  Future<Nothing> connected;
+  EXPECT_CALL(callbacks, connected())
+    .WillOnce(FutureSatisfy(&connected));
+
+  Mesos mesos(
+      master.get(),
+      lambda::bind(&Callbacks::connected, lambda::ref(callbacks)),
+      lambda::bind(&Callbacks::disconnected, lambda::ref(callbacks)),
+      lambda::bind(&Callbacks::received, lambda::ref(callbacks), lambda::_1));
+
+  AWAIT_READY(connected);
+
+  Queue<Event> events;
+
+  EXPECT_CALL(callbacks, received(_))
+    .WillRepeatedly(Enqueue(&events));
+
+  {
+    Call call;
+    call.set_type(Call::SUBSCRIBE);
+
+    Call::Subscribe* subscribe = call.mutable_subscribe();
+    subscribe->mutable_framework_info()->CopyFrom(DEFAULT_V1_FRAMEWORK_INFO);
+
+    mesos.send(call);
+  }
+
+  Future<Event> event = events.get();
+  AWAIT_READY(event);
+  EXPECT_EQ(Event::SUBSCRIBED, event.get().type());
+
+  v1::FrameworkID id(event.get().subscribed().framework_id());
+
+  // Ensure we receive some regular resource offers.
+  event = events.get();
+  AWAIT_READY(event);
+  EXPECT_EQ(Event::OFFERS, event.get().type());
+  EXPECT_NE(0, event.get().offers().offers().size());
+  EXPECT_EQ(0, event.get().offers().inverse_offers().size());
+
+  // All the offers should have unavailability.
+  foreach (const v1::Offer& offer, event.get().offers().offers()) {
+    EXPECT_TRUE(offer.has_unavailability());
+  }
+
+  // Just work with a single offer to simplify the rest of the test.
+  v1::Offer offer = event.get().offers().offers(0);
+
+  EXPECT_CALL(exec, registered(_, _, _, _))
+    .Times(1);
+
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
+
+  // A dummy task just for confirming that the offer is accepted.
+  // TODO(josephw): Replace with v1 API createTask helper.
+  v1::TaskInfo taskInfo =
+    evolve(createTask(devolve(offer), "", DEFAULT_EXECUTOR_ID));
+
+  {
+    // Accept this one offer.
+    Call call;
+    call.mutable_framework_id()->CopyFrom(id);
+    call.set_type(Call::ACCEPT);
+
+    Call::Accept* accept = call.mutable_accept();
+    accept->add_offer_ids()->CopyFrom(offer.id());
+
+    v1::Offer::Operation* operation = accept->add_operations();
+    operation->set_type(v1::Offer::Operation::LAUNCH);
+    operation->mutable_launch()->add_task_infos()->CopyFrom(taskInfo);
+
+    mesos.send(call);
+  }
+
+  // Expect an inverse offer.
+  event = events.get();
+  AWAIT_READY(event);
+  EXPECT_EQ(Event::OFFERS, event.get().type());
+  EXPECT_EQ(0, event.get().offers().offers().size());
+  EXPECT_EQ(1, event.get().offers().inverse_offers().size());
+
+  // Save this inverse offer so we can decline it later.
+  v1::InverseOffer inverseOffer = event.get().offers().inverse_offers(0);
+
+  // Wait for the task to start running.
+  event = events.get();
+  AWAIT_READY(event);
+  EXPECT_EQ(Event::UPDATE, event.get().type());
+  EXPECT_EQ(v1::TASK_RUNNING, event.get().update().status().state());
+
+  {
+    // Acknowledge TASK_RUNNING update.
+    Call call;
+    call.mutable_framework_id()->CopyFrom(id);
+    call.set_type(Call::ACKNOWLEDGE);
+
+    Call::Acknowledge* acknowledge = call.mutable_acknowledge();
+    acknowledge->mutable_task_id()->CopyFrom(taskInfo.task_id());
+    acknowledge->mutable_agent_id()->CopyFrom(offer.agent_id());
+    acknowledge->set_uuid(event.get().update().status().uuid());
+
+    mesos.send(call);
+  }
+
+  {
+    // Decline an inverse offer, with a filter.
+    Call call;
+    call.mutable_framework_id()->CopyFrom(id);
+    call.set_type(Call::DECLINE);
+
+    Call::Decline* decline = call.mutable_decline();
+    decline->add_offer_ids()->CopyFrom(inverseOffer.id());
+
+    // Set a 0 second filter to immediately get another inverse offer.
+    v1::Filters filters;
+    filters.set_refuse_seconds(0);
+    decline->mutable_filters()->CopyFrom(filters);
+
+    mesos.send(call);
+  }
+
+  // Expect another inverse offer.
+  event = events.get();
+  AWAIT_READY(event);
+  EXPECT_EQ(Event::OFFERS, event.get().type());
+  EXPECT_EQ(0, event.get().offers().offers().size());
+  EXPECT_EQ(1, event.get().offers().inverse_offers().size());
+  inverseOffer = event.get().offers().inverse_offers(0);
+
+  // Check that the status endpoint shows the inverse offer as declined.
+  response = process::http::get(master.get(), "maintenance/status");
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+
+  statuses_ = JSON::parse<JSON::Object>(response.get().body);
+  ASSERT_SOME(statuses_);
+  statuses = ::protobuf::parse<maintenance::ClusterStatus>(statuses_.get());
+
+  ASSERT_SOME(statuses);
+  ASSERT_EQ(0, statuses.get().down_machines().size());
+  ASSERT_EQ(1, statuses.get().draining_machines().size());
+  ASSERT_EQ(
+      maintenanceHostname,
+      statuses.get().draining_machines(0).id().hostname());
+
+  ASSERT_EQ(1, statuses.get().draining_machines(0).statuses().size());
+  ASSERT_EQ(
+      mesos::master::InverseOfferStatus::DECLINE,
+      statuses.get().draining_machines(0).statuses(0).status());
+
+  ASSERT_EQ(
+      id,
+      evolve(statuses.get().draining_machines(0).statuses(0).framework_id()));
+
+  {
+    // Accept an inverse offer, with filter.
+    Call call;
+    call.mutable_framework_id()->CopyFrom(id);
+    call.set_type(Call::ACCEPT);
+
+    Call::Accept* accept = call.mutable_accept();
+    accept->add_offer_ids()->CopyFrom(inverseOffer.id());
+
+    // Set a 0 second filter to immediately get another inverse offer.
+    v1::Filters filters;
+    filters.set_refuse_seconds(0);
+    accept->mutable_filters()->CopyFrom(filters);
+
+    mesos.send(call);
+  }
+
+  // Expect yet another inverse offer.
+  event = events.get();
+  AWAIT_READY(event);
+  EXPECT_EQ(Event::OFFERS, event.get().type());
+  EXPECT_EQ(0, event.get().offers().offers().size());
+  EXPECT_EQ(1, event.get().offers().inverse_offers().size());
+
+  // Check that the status endpoint shows the inverse offer as accepted.
+  response = process::http::get(master.get(), "maintenance/status");
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+
+  statuses_ = JSON::parse<JSON::Object>(response.get().body);
+  ASSERT_SOME(statuses_);
+  statuses = ::protobuf::parse<maintenance::ClusterStatus>(statuses_.get());
+
+  ASSERT_SOME(statuses);
+  ASSERT_EQ(0, statuses.get().down_machines().size());
+  ASSERT_EQ(1, statuses.get().draining_machines().size());
+  ASSERT_EQ(
+      maintenanceHostname,
+      statuses.get().draining_machines(0).id().hostname());
+
+  ASSERT_EQ(1, statuses.get().draining_machines(0).statuses().size());
+  ASSERT_EQ(
+      mesos::master::InverseOfferStatus::ACCEPT,
+      statuses.get().draining_machines(0).statuses(0).status());
+
+  ASSERT_EQ(
+      id,
+      evolve(statuses.get().draining_machines(0).statuses(0).framework_id()));
+
+  EXPECT_CALL(exec, shutdown(_))
+    .Times(AtMost(1));
+
+  Shutdown(); // Must shutdown before 'containerizer' gets deallocated.
+}
+
+
+// Test ensures that inverse offers support filters.
+TEST_F(MasterMaintenanceTest, InverseOffersFilters)
+{
+  // Set up a master.
+  // NOTE: We don't use `StartMaster()` because we need to access these flags.
+  master::Flags flags = CreateMasterFlags();
+
+  Try<PID<Master>> master = StartMaster(flags);
+  ASSERT_SOME(master);
+
+  ExecutorInfo executor1 = CREATE_EXECUTOR_INFO("executor-1", "exit 1");
+  ExecutorInfo executor2 = CREATE_EXECUTOR_INFO("executor-2", "exit 2");
+
+  MockExecutor exec1(executor1.executor_id());
+  MockExecutor exec2(executor2.executor_id());
+
+  hashmap<ExecutorID, Executor*> execs;
+  execs[executor1.executor_id()] = &exec1;
+  execs[executor2.executor_id()] = &exec2;
+
+  TestContainerizer containerizer(execs);
+
+  EXPECT_CALL(exec1, registered(_, _, _, _))
+    .Times(1);
+
+  EXPECT_CALL(exec1, launchTask(_, _))
+    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
+
+  EXPECT_CALL(exec2, registered(_, _, _, _))
+    .Times(1);
+
+  EXPECT_CALL(exec2, launchTask(_, _))
+    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
+
+  // Capture the registration message for the first slave.
+  Future<SlaveRegisteredMessage> slave1RegisteredMessage =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), master.get(), _);
+
+  // We need two agents for this test.
+  Try<PID<Slave>> slave1 = StartSlave(&containerizer);
+  ASSERT_SOME(slave1);
+
+  // We need to make sure the first slave registers before we schedule the
+  // machine it is running on for maintenance.
+  AWAIT_READY(slave1RegisteredMessage);
+
+  // Capture the registration message for the second slave.
+  Future<SlaveRegisteredMessage> slave2RegisteredMessage =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), master.get(), Not(slave1.get()));
+
+  slave::Flags slaveFlags2 = MesosTest::CreateSlaveFlags();
+  slaveFlags2.hostname = maintenanceHostname + "-2";
+
+  Try<PID<Slave>> slave2 = StartSlave(&containerizer, slaveFlags2);
+  ASSERT_SOME(slave2);
+
+  // We need to make sure the second slave registers before we schedule the
+  // machine it is running on for maintenance.
+  AWAIT_READY(slave2RegisteredMessage);
+
+  // Before starting any frameworks, put the first machine into `DRAINING` mode.
+  MachineID machine1;
+  machine1.set_hostname(maintenanceHostname);
+  machine1.set_ip(stringify(slave1.get().address.ip));
+
+  MachineID machine2;
+  machine2.set_hostname(slaveFlags2.hostname.get());
+  machine2.set_ip(stringify(slave2.get().address.ip));
+
+  const Time start = Clock::now() + Seconds(60);
+  const Duration duration = Seconds(120);
+  const Unavailability unavailability = createUnavailability(start, duration);
+
+  maintenance::Schedule schedule = createSchedule(
+      {createWindow({machine1, machine2}, unavailability)});
+
+  Future<Response> response = process::http::post(
+      master.get(),
+      "maintenance/schedule",
+      headers,
+      stringify(JSON::Protobuf(schedule)));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+
+  // Pause the clock before starting a framework.
+  // This ensures deterministic offer-ing behavior during the test.
+  Clock::pause();
+
+  // Now start a framework.
+  Callbacks callbacks;
+
+  Future<Nothing> connected;
+  EXPECT_CALL(callbacks, connected())
+    .WillOnce(FutureSatisfy(&connected));
+
+  Mesos mesos(
+      master.get(),
+      lambda::bind(&Callbacks::connected, lambda::ref(callbacks)),
+      lambda::bind(&Callbacks::disconnected, lambda::ref(callbacks)),
+      lambda::bind(&Callbacks::received, lambda::ref(callbacks), lambda::_1));
+
+  AWAIT_READY(connected);
+
+  Queue<Event> events;
+
+  EXPECT_CALL(callbacks, received(_))
+    .WillRepeatedly(Enqueue(&events));
+
+  {
+    Call call;
+    call.set_type(Call::SUBSCRIBE);
+
+    Call::Subscribe* subscribe = call.mutable_subscribe();
+    subscribe->mutable_framework_info()->CopyFrom(DEFAULT_V1_FRAMEWORK_INFO);
+
+    mesos.send(call);
+  }
+
+  Future<Event> event = events.get();
+  AWAIT_READY(event);
+  EXPECT_EQ(Event::SUBSCRIBED, event.get().type());
+
+  v1::FrameworkID id(event.get().subscribed().framework_id());
+
+  // Trigger a batch allocation.
+  Clock::advance(flags.allocation_interval);
+  Clock::settle();
+
+  event = events.get();
+  AWAIT_READY(event);
+  EXPECT_EQ(Event::OFFERS, event.get().type());
+  EXPECT_EQ(2, event.get().offers().offers().size());
+  EXPECT_EQ(0, event.get().offers().inverse_offers().size());
+
+  // All the offers should have unavailability.
+  foreach (const v1::Offer& offer, event.get().offers().offers()) {
+    EXPECT_TRUE(offer.has_unavailability());
+  }
+
+  // Save both offers.
+  v1::Offer offer1 = event.get().offers().offers(0);
+  v1::Offer offer2 = event.get().offers().offers(1);
+
+  // Spawn dummy tasks using both offers.
+  v1::TaskInfo taskInfo1 =
+    evolve(createTask(devolve(offer1), "exit 1", executor1.executor_id()));
+
+  v1::TaskInfo taskInfo2 =
+    evolve(createTask(devolve(offer2), "exit 2", executor2.executor_id()));
+
+    sleep(2);
+
+  {
+    // Accept the first offer.
+    Call call;
+    call.mutable_framework_id()->CopyFrom(id);
+    call.set_type(Call::ACCEPT);
+
+    Call::Accept* accept = call.mutable_accept();
+    accept->add_offer_ids()->CopyFrom(offer1.id());
+
+    v1::Offer::Operation* operation = accept->add_operations();
+    operation->set_type(v1::Offer::Operation::LAUNCH);
+    operation->mutable_launch()->add_task_infos()->CopyFrom(taskInfo1);
+
+    mesos.send(call);
+  }
+
+  {
+    // Accept the second offer.
+    Call call;
+    call.mutable_framework_id()->CopyFrom(id);
+    call.set_type(Call::ACCEPT);
+
+    Call::Accept* accept = call.mutable_accept();
+    accept->add_offer_ids()->CopyFrom(offer2.id());
+
+    v1::Offer::Operation* operation = accept->add_operations();
+    operation->set_type(v1::Offer::Operation::LAUNCH);
+    operation->mutable_launch()->add_task_infos()->CopyFrom(taskInfo2);
+
+    mesos.send(call);
+  }
+
+  // The order of events is deterministic from here on.
+  Clock::resume();
+
+  // Expect two inverse offers.
+  event = events.get();
+  AWAIT_READY(event);
+  EXPECT_EQ(Event::OFFERS, event.get().type());
+  EXPECT_EQ(0, event.get().offers().offers().size());
+  EXPECT_EQ(2, event.get().offers().inverse_offers().size());
+
+  // Save these inverse offers.
+  v1::InverseOffer inverseOffer1 = event.get().offers().inverse_offers(0);
+  v1::InverseOffer inverseOffer2 = event.get().offers().inverse_offers(1);
+
+  event = events.get();
+  AWAIT_READY(event);
+  EXPECT_EQ(Event::UPDATE, event.get().type());
+  EXPECT_EQ(v1::TASK_RUNNING, event.get().update().status().state());
+
+  {
+    // Acknowledge TASK_RUNNING update for one task.
+    Call call;
+    call.mutable_framework_id()->CopyFrom(id);
+    call.set_type(Call::ACKNOWLEDGE);
+
+    Call::Acknowledge* acknowledge = call.mutable_acknowledge();
+    acknowledge->mutable_task_id()->CopyFrom(taskInfo1.task_id());
+    acknowledge->mutable_agent_id()->CopyFrom(offer1.agent_id());
+    acknowledge->set_uuid(event.get().update().status().uuid());
+
+    mesos.send(call);
+  }
+
+  event = events.get();
+  AWAIT_READY(event);
+  EXPECT_EQ(Event::UPDATE, event.get().type());
+  EXPECT_EQ(v1::TASK_RUNNING, event.get().update().status().state());
+
+  {
+    // Acknowledge TASK_RUNNING update for the other task.
+    Call call;
+    call.mutable_framework_id()->CopyFrom(id);
+    call.set_type(Call::ACKNOWLEDGE);
+
+    Call::Acknowledge* acknowledge = call.mutable_acknowledge();
+    acknowledge->mutable_task_id()->CopyFrom(taskInfo2.task_id());
+    acknowledge->mutable_agent_id()->CopyFrom(offer2.agent_id());
+    acknowledge->set_uuid(event.get().update().status().uuid());
+
+    mesos.send(call);
+  }
+
+  {
+    // Decline the second inverse offer, with a filter set such that we
+    // should not see this inverse offer in the next allocation.
+    Call call;
+    call.mutable_framework_id()->CopyFrom(id);
+    call.set_type(Call::DECLINE);
+
+    Call::Decline* decline = call.mutable_decline();
+    decline->add_offer_ids()->CopyFrom(inverseOffer2.id());
+
+    v1::Filters filters;
+    filters.set_refuse_seconds(flags.allocation_interval.secs() + 1);
+    decline->mutable_filters()->CopyFrom(filters);
+
+    mesos.send(call);
+  }
+
+  {
+    // Accept the first inverse offer, with a filter set such that we
+    // should immediately see this inverse offer again.
+    Call call;
+    call.mutable_framework_id()->CopyFrom(id);
+    call.set_type(Call::ACCEPT);
+
+    Call::Accept* accept = call.mutable_accept();
+    accept->add_offer_ids()->CopyFrom(inverseOffer1.id());
+
+    v1::Filters filters;
+    filters.set_refuse_seconds(0);
+    accept->mutable_filters()->CopyFrom(filters);
+
+    mesos.send(call);
+  }
+
+  // Expect one inverse offer.
+  event = events.get();
+  AWAIT_READY(event);
+  EXPECT_EQ(Event::OFFERS, event.get().type());
+  EXPECT_EQ(0, event.get().offers().offers().size());
+  EXPECT_EQ(1, event.get().offers().inverse_offers().size());
+  EXPECT_EQ(
+      inverseOffer1.agent_id(),
+      event.get().offers().inverse_offers(0).agent_id());
+
+  inverseOffer1 = event.get().offers().inverse_offers(0);
+
+  {
+    // Do another immediate filter, but decline it this time.
+    Call call;
+    call.mutable_framework_id()->CopyFrom(id);
+    call.set_type(Call::DECLINE);
+
+    Call::Decline* decline = call.mutable_decline();
+    decline->add_offer_ids()->CopyFrom(inverseOffer1.id());
+
+    v1::Filters filters;
+    filters.set_refuse_seconds(0);
+    decline->mutable_filters()->CopyFrom(filters);
+
+    mesos.send(call);
+  }
+
+  // Expect the same inverse offer.
+  event = events.get();
+  AWAIT_READY(event);
+  EXPECT_EQ(Event::OFFERS, event.get().type());
+  EXPECT_EQ(0, event.get().offers().offers().size());
+  EXPECT_EQ(1, event.get().offers().inverse_offers().size());
+  EXPECT_EQ(
+      inverseOffer1.agent_id(),
+      event.get().offers().inverse_offers(0).agent_id());
+
+  EXPECT_CALL(exec1, shutdown(_))
+    .Times(AtMost(1));
+
+  EXPECT_CALL(exec2, shutdown(_))
+    .Times(AtMost(1));
+
+  Shutdown(); // Must shutdown before 'containerizer' gets deallocated.
 }
 
 } // namespace tests {

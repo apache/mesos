@@ -107,7 +107,8 @@ Try<pid_t> PosixLauncher::fork(
     const Subprocess::IO& err,
     const Option<flags::FlagsBase>& flags,
     const Option<map<string, string>>& environment,
-    const Option<lambda::function<int()>>& setup)
+    const Option<lambda::function<int()>>& setup,
+    const Option<int>& namespaces)
 {
   if (pids.contains(containerId)) {
     return Error("Process has already been forked for container " +

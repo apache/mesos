@@ -33,13 +33,29 @@
 
 # DIRECTORY STRUCTURE FOR THIRD-PARTY LIBS REQUIRED FOR TEST INFRASTRUCTURE.
 ############################################################################
-EXTERNAL("gmock"    "1.7.0" "${PROCESS_3RD_BIN}")
-EXTERNAL("protobuf" "2.5.0" "${PROCESS_3RD_BIN}")
+EXTERNAL("gmock" ${GMOCK_VERSION} "${PROCESS_3RD_BIN}")
 
 set(GTEST_SRC          ${GMOCK_ROOT}/gtest)
 set(GPERFTOOLS_VERSION 2.0)
 set(GPERFTOOLS         ${PROCESS_3RD_BIN}/gperftools-${GPERFTOOLS_VERSION})
-set(PROTOBUF_LIB       ${PROTOBUF_ROOT}-lib/lib)
+
+# Convenience variables for include directories of third-party dependencies.
+set(GMOCK_INCLUDE_DIR ${GMOCK_ROOT}/include)
+set(GTEST_INCLUDE_DIR ${GTEST_SRC}/include)
+
+# Convenience variables for `lib` directories of built third-party dependencies.
+set(GTEST_LIB_DIR ${GMOCK_ROOT}-build/gtest/lib/.libs)
+
+if (WIN32)
+  set(GMOCK_LIB_DIR    ${GMOCK_ROOT}/msvc/2010/Debug)
+else (WIN32)
+  set(GMOCK_LIB_DIR    ${GMOCK_ROOT}-lib/lib/)
+endif (WIN32)
+
+# Convenience variables for "lflags", the symbols we pass to CMake to generate
+# things like `-L/path/to/glog` or `-lglog`.
+set(GMOCK_LFLAG gmock)
+set(GTEST_LFLAG gtest)
 
 # COMPILER CONFIGURATION.
 #########################
@@ -55,7 +71,6 @@ endif (APPLE)
 set(PROCESS_TEST_DEPENDENCIES
   ${PROCESS_TEST_DEPENDENCIES}
   ${PROCESS_DEPENDENCIES}
-  ${PROTOBUF_TARGET}
   ${GMOCK_TARGET}
   )
 
@@ -66,8 +81,8 @@ set(PROCESS_TEST_INCLUDE_DIRS
   ${PROCESS_TEST_INCLUDE_DIRS}
   ../   # includes, e.g., decoder.hpp
   ${PROCESS_INCLUDE_DIRS}
-  ${GMOCK_ROOT}/include
-  ${GTEST_SRC}/include
+  ${GMOCK_INCLUDE_DIR}
+  ${GTEST_INCLUDE_DIR}
   src
   )
 
@@ -78,8 +93,8 @@ set(PROCESS_TEST_INCLUDE_DIRS
 set(PROCESS_TEST_LIB_DIRS
   ${PROCESS_TEST_LIB_DIRS}
   ${PROCESS_LIB_DIRS}
-  ${GMOCK_ROOT}-build/lib/.libs
-  ${GMOCK_ROOT}-build/gtest/lib/.libs
+  ${GMOCK_LIB_DIR}
+  ${GTEST_LIB_DIR}
   )
 
 # DEFINE THIRD-PARTY LIBS. Used to generate flags that the linker uses to
@@ -88,6 +103,6 @@ set(PROCESS_TEST_LIB_DIRS
 set(PROCESS_TEST_LIBS
   ${PROCESS_TEST_LIBS}
   ${PROCESS_LIBS}
-  gmock
-  gtest
+  ${GMOCK_LFLAG}
+  ${GTEST_LFLAG}
   )

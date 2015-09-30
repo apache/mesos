@@ -25,6 +25,8 @@
 // ONLY USEFUL AFTER RUNNING PROTOC.
 #include <mesos/master/allocator.pb.h>
 
+#include <mesos/maintenance/maintenance.hpp>
+
 #include <mesos/resources.hpp>
 
 #include <process/future.hpp>
@@ -67,6 +69,10 @@ public:
       const lambda::function<
           void(const FrameworkID&,
                const hashmap<SlaveID, Resources>&)>& offerCallback,
+      const lambda::function<
+          void(const FrameworkID&,
+               const hashmap<SlaveID, UnavailableResources>&)>&
+        inverseOfferCallback,
       const hashmap<std::string, RoleInfo>& roles) = 0;
 
   virtual void addFramework(
@@ -96,6 +102,7 @@ public:
   virtual void addSlave(
       const SlaveID& slaveId,
       const SlaveInfo& slaveInfo,
+      const Option<Unavailability>& unavailability,
       const Resources& total,
       const hashmap<FrameworkID, Resources>& used) = 0;
 
@@ -134,6 +141,33 @@ public:
       const SlaveID& slaveId,
       const std::vector<Offer::Operation>& operations) = 0;
 
+  // We currently support storing the next unavailability, if there is one, per
+  // slave. If `unavailability` is not set then there is no known upcoming
+  // unavailability. This might require the implementation of the function to
+  // remove any inverse offers that are outstanding.
+  virtual void updateUnavailability(
+      const SlaveID& slaveId,
+      const Option<Unavailability>& unavailability) = 0;
+
+  // Informs the allocator that the inverse offer has been responded to or
+  // revoked. If `status` is not set then the inverse offer was not responded
+  // to, possibly because the offer timed out or was rescinded. This might
+  // require the implementation of the function to remove any inverse offers
+  // that are outstanding. The `unavailableResources` can be used by the
+  // allocator to distinguish between different inverse offers sent to the same
+  // framework for the same slave.
+  virtual void updateInverseOffer(
+      const SlaveID& slaveId,
+      const FrameworkID& frameworkId,
+      const Option<UnavailableResources>& unavailableResources,
+      const Option<InverseOfferStatus>& status,
+      const Option<Filters>& filters = None()) = 0;
+
+  // Retrieves the status of all inverse offers maintained by the allocator.
+  virtual process::Future<
+      hashmap<SlaveID, hashmap<FrameworkID, mesos::master::InverseOfferStatus>>>
+    getInverseOfferStatuses() = 0;
+
   // Informs the Allocator to recover resources that are considered
   // used by the framework.
   virtual void recoverResources(
@@ -145,6 +179,10 @@ public:
   // Whenever a framework that has filtered resources wants to revive
   // offers for those resources the master invokes this callback.
   virtual void reviveOffers(
+      const FrameworkID& frameworkId) = 0;
+
+  // Informs the allocator to stop sending resources for the framework
+  virtual void suppressOffers(
       const FrameworkID& frameworkId) = 0;
 };
 

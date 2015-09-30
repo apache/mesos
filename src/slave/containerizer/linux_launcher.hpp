@@ -25,14 +25,15 @@ namespace mesos {
 namespace internal {
 namespace slave {
 
+// TODO(jmlvanre): We may want to allow this to be configured.
+static const char SYSTEMD_MESOS_EXECUTORS_SLICE[] = "mesos_executors.slice";
+
 // Launcher for Linux systems with cgroups. Uses a freezer cgroup to
 // track pids.
 class LinuxLauncher : public Launcher
 {
 public:
-  static Try<Launcher*> create(
-      const Flags& flags,
-      const Option<int>& namespaces);
+  static Try<Launcher*> create(const Flags& flags);
 
   virtual ~LinuxLauncher() {}
 
@@ -48,20 +49,21 @@ public:
       const process::Subprocess::IO& err,
       const Option<flags::FlagsBase>& flags,
       const Option<std::map<std::string, std::string>>& environment,
-      const Option<lambda::function<int()>>& setup);
+      const Option<lambda::function<int()>>& setup,
+      const Option<int>& namespaces);
 
   virtual process::Future<Nothing> destroy(const ContainerID& containerId);
 
 private:
   LinuxLauncher(
       const Flags& flags,
-      int namespaces,
-      const std::string& hierarchy);
+      const std::string& freezerHierarchy,
+      const Option<std::string>& systemdHierarchy);
 
   static const std::string subsystem;
   const Flags flags;
-  const int namespaces;
-  const std::string hierarchy;
+  const std::string freezerHierarchy;
+  const Option<std::string> systemdHierarchy;
 
   std::string cgroup(const ContainerID& containerId);
 

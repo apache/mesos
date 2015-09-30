@@ -26,6 +26,7 @@
 #include <stout/hashset.hpp>
 #include <stout/ip.hpp>
 #include <stout/nothing.hpp>
+#include <stout/stringify.hpp>
 #include <stout/strings.hpp>
 
 #include "master/maintenance.hpp"
@@ -36,6 +37,8 @@ namespace master {
 namespace maintenance {
 
 using namespace mesos::maintenance;
+
+using google::protobuf::RepeatedPtrField;
 
 UpdateSchedule::UpdateSchedule(
     const maintenance::Schedule& _schedule)
@@ -113,9 +116,9 @@ Try<bool> UpdateSchedule::perform(
 
 
 StartMaintenance::StartMaintenance(
-    const MachineIDs& _ids)
+    const RepeatedPtrField<MachineID>& _ids)
 {
-  foreach (const MachineID& id, _ids.values()) {
+  foreach (const MachineID& id, _ids) {
     ids.insert(id);
   }
 }
@@ -143,9 +146,9 @@ Try<bool> StartMaintenance::perform(
 
 
 StopMaintenance::StopMaintenance(
-    const MachineIDs& _ids)
+    const RepeatedPtrField<MachineID>& _ids)
 {
-  foreach (const MachineID& id, _ids.values()) {
+  foreach (const MachineID& id, _ids) {
     ids.insert(id);
   }
 }
@@ -201,7 +204,7 @@ namespace validation {
 
 Try<Nothing> schedule(
     const maintenance::Schedule& schedule,
-    const hashmap<MachineID, MachineInfo>& infos)
+    const hashmap<MachineID, Machine>& machines)
 {
   hashset<MachineID> updated;
   foreach (const maintenance::Window& window, schedule.windows()) {
@@ -229,7 +232,7 @@ Try<Nothing> schedule(
       // Check that the machine is unique.
       if (updated.contains(id)) {
         return Error(
-            "Machine '" + id.DebugString() +
+            "Machine '" + stringify(JSON::Protobuf(id)) +
               "' appears more than once in the schedule");
       }
 
@@ -238,10 +241,10 @@ Try<Nothing> schedule(
   }
 
   // Ensure that no `DOWN` machine is removed from the schedule.
-  foreachpair (const MachineID& id, const MachineInfo& info, infos) {
-    if (info.mode() == MachineInfo::DOWN && !updated.contains(id)) {
+  foreachpair (const MachineID& id, const Machine& machine, machines) {
+    if (machine.info.mode() == MachineInfo::DOWN && !updated.contains(id)) {
       return Error(
-          "Machine '" + id.DebugString() +
+          "Machine '" + stringify(JSON::Protobuf(id)) +
             "' is deactivated and cannot be removed from the schedule");
     }
   }
@@ -264,15 +267,15 @@ Try<Nothing> unavailability(const Unavailability& unavailability)
 }
 
 
-Try<Nothing> machines(const MachineIDs& ids)
+Try<Nothing> machines(const RepeatedPtrField<MachineID>& ids)
 {
-  if (ids.values().size() <= 0) {
+  if (ids.size() <= 0) {
     return Error("List of machines is empty");
   }
 
   // Verify that the machine has at least one non-empty field value.
   hashset<MachineID> uniques;
-  foreach (const MachineID& id, ids.values()) {
+  foreach (const MachineID& id, ids) {
     // Validate the single machine.
     Try<Nothing> validId = validation::machine(id);
     if (validId.isError()) {
@@ -282,7 +285,7 @@ Try<Nothing> machines(const MachineIDs& ids)
     // Check machine uniqueness.
     if (uniques.contains(id)) {
       return Error(
-          "Machine '" + id.DebugString() +
+          "Machine '" + stringify(JSON::Protobuf(id)) +
             "' appears more than once in the schedule");
     }
 

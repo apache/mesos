@@ -632,6 +632,7 @@ Try<TaskState> TaskState::recover(
   off_t offset = lseek(fd.get(), 0, SEEK_CUR);
 
   if (offset < 0) {
+    os::close(fd.get());
     return ErrnoError("Failed to lseek status updates file '" + path + "'");
   }
 
@@ -640,6 +641,7 @@ Try<TaskState> TaskState::recover(
   // errors above, because the 'fd' is properly set to the end of the
   // last valid update by 'protobuf::read()'.
   if (ftruncate(fd.get(), offset) != 0) {
+    os::close(fd.get());
     return ErrnoError(
         "Failed to truncate status updates file '" + path + "'");
   }
@@ -649,6 +651,8 @@ Try<TaskState> TaskState::recover(
   if (record.isError()) {
     message = "Failed to read status updates file  '" + path +
               "': " + record.error();
+
+    os::close(fd.get());
 
     if (strict) {
       return Error(message);
@@ -660,20 +664,7 @@ Try<TaskState> TaskState::recover(
   }
 
   // Close the updates file.
-  Try<Nothing> close = os::close(fd.get());
-
-  if (close.isError()) {
-    message = "Failed to close status updates file '" + path +
-              "': " + close.error();
-
-    if (strict) {
-      return Error(message);
-    } else {
-      LOG(WARNING) << message;
-      state.errors++;
-      return state;
-    }
-  }
+  os::close(fd.get());
 
   return state;
 }
@@ -719,6 +710,7 @@ Try<ResourcesState> ResourcesState::recover(
 
   off_t offset = lseek(fd.get(), 0, SEEK_CUR);
   if (offset < 0) {
+    os::close(fd.get());
     return ErrnoError("Failed to lseek resources file '" + path + "'");
   }
 
@@ -727,6 +719,7 @@ Try<ResourcesState> ResourcesState::recover(
   // errors above, because the 'fd' is properly set to the end of the
   // last valid resource by 'protobuf::read()'.
   if (ftruncate(fd.get(), offset) != 0) {
+    os::close(fd.get());
     return ErrnoError("Failed to truncate resources file '" + path + "'");
   }
 
@@ -736,19 +729,7 @@ Try<ResourcesState> ResourcesState::recover(
     string message =
       "Failed to read resources file  '" + path + "': " + resource.error();
 
-    if (strict) {
-      return Error(message);
-    } else {
-      LOG(WARNING) << message;
-      state.errors++;
-      return state;
-    }
-  }
-
-  Try<Nothing> close = os::close(fd.get());
-  if (close.isError()) {
-    string message =
-      "Failed to close resources file '" + path + "': " + close.error();
+    os::close(fd.get());
 
     if (strict) {
       return Error(message);
@@ -758,6 +739,8 @@ Try<ResourcesState> ResourcesState::recover(
       return state;
     }
   }
+
+  os::close(fd.get());
 
   return state;
 }

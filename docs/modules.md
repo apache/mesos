@@ -83,7 +83,7 @@ Use `--modules="{...}"` to specify the list of modules inline.
                   ]
                 },
                 {
-                  "name": "org_apache_mesos_bar"
+                  "name": "org_apache_mesos_baz"
                 }
               ]
             }
@@ -97,7 +97,7 @@ Use `--modules="{...}"` to specify the list of modules inline.
 
 ### Library names
 
-For each library, at least one of the "file" or "path" parameter must be
+For each library, at least one of the "file" or "name" parameter must be
 specified.  The "file" parameter may refer to a filename (e.g., "libfoo.so"), a
 relative path (e.g., "myLibs/libfoo.so"), or an absolute path (e.g.,
 "/home/mesos/lib/libfoo.so").  The "name" parameter refers to a library name

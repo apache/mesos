@@ -97,6 +97,7 @@ TEST_F(MetricsTest, Master)
   EXPECT_EQ(1u, stats.values.count("master/messages_launch_tasks"));
   EXPECT_EQ(1u, stats.values.count("master/messages_decline_offers"));
   EXPECT_EQ(1u, stats.values.count("master/messages_revive_offers"));
+  EXPECT_EQ(1u, stats.values.count("master/messages_suppress_offers"));
   EXPECT_EQ(1u, stats.values.count("master/messages_reconcile_tasks"));
   EXPECT_EQ(1u, stats.values.count("master/messages_framework_to_executor"));
 

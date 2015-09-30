@@ -26,7 +26,7 @@
 #include <stout/hashmap.hpp>
 #include <stout/stringify.hpp>
 
-#include "slave/containerizer/provisioner.hpp"
+#include "slave/containerizer/provisioner/provisioner.hpp"
 
 #include "tests/containerizer/rootfs.hpp"
 
@@ -34,10 +34,10 @@ namespace mesos {
 namespace internal {
 namespace tests {
 
-class TestAppcProvisioner : public slave::Provisioner
+class TestProvisioner : public slave::Provisioner
 {
 public:
-  TestAppcProvisioner(
+  TestProvisioner(
       const hashmap<std::string, process::Shared<Rootfs>>& _rootfses)
     : rootfses(_rootfses)
   {
@@ -46,17 +46,17 @@ public:
     using testing::Invoke;
 
     ON_CALL(*this, recover(_, _))
-      .WillByDefault(Invoke(this, &TestAppcProvisioner::unmocked_recover));
+      .WillByDefault(Invoke(this, &TestProvisioner::unmocked_recover));
     EXPECT_CALL(*this, recover(_, _))
       .WillRepeatedly(DoDefault());
 
     ON_CALL(*this, provision(_, _))
-      .WillByDefault(Invoke(this, &TestAppcProvisioner::unmocked_provision));
+      .WillByDefault(Invoke(this, &TestProvisioner::unmocked_provision));
     EXPECT_CALL(*this, provision(_, _))
       .WillRepeatedly(DoDefault());
 
     ON_CALL(*this, destroy(_))
-      .WillByDefault(Invoke(this, &TestAppcProvisioner::unmocked_destroy));
+      .WillByDefault(Invoke(this, &TestProvisioner::unmocked_destroy));
     EXPECT_CALL(*this, destroy(_))
       .WillRepeatedly(DoDefault());
   }

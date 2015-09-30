@@ -30,6 +30,7 @@
 #include <process/owned.hpp>
 
 #include <stout/flags.hpp>
+#include <stout/protobuf.hpp>
 #include <stout/os.hpp>
 
 #include "common/status_utils.hpp"
@@ -40,10 +41,13 @@
 #include "logging/flags.hpp"
 #include "logging/logging.hpp"
 
+#include "messages/messages.hpp"
+
 using std::cerr;
 using std::cout;
 using std::endl;
 using std::string;
+using std::vector;
 
 namespace mesos {
 namespace internal {
@@ -70,8 +74,12 @@ public:
       const string& containerName,
       const string& sandboxDirectory,
       const string& mappedDirectory,
-      const Duration& stopTimeout)
+      const Duration& stopTimeout,
+      const string& healthCheckDir)
     : killed(false),
+      killedByHealthCheck(false),
+      healthPid(-1),
+      healthCheckDir(healthCheckDir),
       docker(docker),
       containerName(containerName),
       sandboxDirectory(sandboxDirectory),
@@ -159,21 +167,33 @@ public:
           status.set_state(TASK_RUNNING);
           status.set_data(container.output);
           if (container.ipAddress.isSome()) {
+            // TODO(karya): Deprecated -- Remove after 0.25.0 has shipped.
             Label* label = status.mutable_labels()->add_labels();
             label->set_key("Docker.NetworkSettings.IPAddress");
             label->set_value(container.ipAddress.get());
+
+            NetworkInfo* networkInfo =
+              status.mutable_container_status()->add_network_infos();
+            networkInfo->set_ip_address(container.ipAddress.get());
           }
           driver->sendStatusUpdate(status);
         }
 
         return Nothing();
       }));
+
+    inspect.onReady(
+        defer(self(), &Self::launchHealthCheck, containerName, task));
   }
 
   void killTask(ExecutorDriver* driver, const TaskID& taskId)
   {
     cout << "Killing docker task" << endl;
     shutdown(driver);
+    if (healthPid != -1) {
+      // Cleanup health check process.
+      ::kill(healthPid, SIGKILL);
+    }
   }
 
   void frameworkMessage(ExecutorDriver* driver, const string& data) {}
@@ -195,6 +215,40 @@ public:
   }
 
   void error(ExecutorDriver* driver, const string& message) {}
+
+protected:
+  virtual void initialize()
+  {
+    install<TaskHealthStatus>(
+        &Self::taskHealthUpdated,
+        &TaskHealthStatus::task_id,
+        &TaskHealthStatus::healthy,
+        &TaskHealthStatus::kill_task);
+  }
+
+  void taskHealthUpdated(
+      const TaskID& taskID,
+      const bool& healthy,
+      const bool& initiateTaskKill)
+  {
+    if (driver.isNone()) {
+      return;
+    }
+
+    cout << "Received task health update, healthy: "
+         << stringify(healthy) << endl;
+
+    TaskStatus status;
+    status.mutable_task_id()->CopyFrom(taskID);
+    status.set_healthy(healthy);
+    status.set_state(TASK_RUNNING);
+    driver.get()->sendStatusUpdate(status);
+
+    if (initiateTaskKill) {
+      killedByHealthCheck = true;
+      killTask(driver.get(), taskID);
+    }
+  }
 
 private:
   void reaped(
@@ -233,6 +287,9 @@ private:
           taskStatus.mutable_task_id()->CopyFrom(taskId);
           taskStatus.set_state(state);
           taskStatus.set_message(message);
+          if (killed && killedByHealthCheck) {
+            taskStatus.set_healthy(false);
+          }
 
           driver.get()->sendStatusUpdate(taskStatus);
 
@@ -247,7 +304,104 @@ private:
     }));
   }
 
+  void launchHealthCheck(const string& containerName, const TaskInfo& task)
+  {
+    if (!killed && task.has_health_check()) {
+      HealthCheck healthCheck = task.health_check();
+
+      // Wrap the original health check command in "docker exec".
+      if (healthCheck.has_command()) {
+          CommandInfo command = healthCheck.command();
+
+          // "docker exec" require docker version greater than 1.3.0.
+          Try<Nothing> validateVersion =
+            docker->validateVersion(Version(1, 3, 0));
+          if (validateVersion.isError()) {
+            cerr << "Unable to launch health process: "
+                 << validateVersion.error() << endl;
+            return;
+          }
+
+          vector<string> argv;
+          argv.push_back(docker->getPath());
+          argv.push_back("exec");
+          argv.push_back(containerName);
+
+          if (command.shell()) {
+            if (!command.has_value()) {
+              cerr << "Unable to launch health process: "
+                   << "Shell command is not specified." << endl;
+              return;
+            }
+
+            argv.push_back("sh");
+            argv.push_back("-c");
+            argv.push_back("\"");
+            argv.push_back(command.value());
+            argv.push_back("\"");
+          } else {
+            if (!command.has_value()) {
+              cerr << "Unable to launch health process: "
+                   << "Executable path is not specified." << endl;
+              return;
+            }
+
+            argv.push_back(command.value());
+            foreach (const string& argument, command.arguments()) {
+              argv.push_back(argument);
+            }
+          }
+
+          command.set_shell(true);
+          command.clear_arguments();
+          command.set_value(strings::join(" ", argv));
+          healthCheck.mutable_command()->CopyFrom(command);
+      } else {
+          cerr << "Unable to launch health process: "
+               << "Only command health check is supported now." << endl;
+          return;
+      }
+
+      JSON::Object json = JSON::Protobuf(healthCheck);
+
+      // Launch the subprocess using 'exec' style so that quotes can
+      // be properly handled.
+      vector<string> argv;
+      string path = path::join(healthCheckDir, "mesos-health-check");
+      argv.push_back(path);
+      argv.push_back("--executor=" + stringify(self()));
+      argv.push_back("--health_check_json=" + stringify(json));
+      argv.push_back("--task_id=" + task.task_id().value());
+
+      string cmd = strings::join(" ", argv);
+      cout << "Launching health check process: " << cmd << endl;
+
+      Try<Subprocess> healthProcess =
+        process::subprocess(
+          path,
+          argv,
+          // Intentionally not sending STDIN to avoid health check
+          // commands that expect STDIN input to block.
+          Subprocess::PATH("/dev/null"),
+          Subprocess::FD(STDOUT_FILENO),
+          Subprocess::FD(STDERR_FILENO));
+
+      if (healthProcess.isError()) {
+        cerr << "Unable to launch health process: "
+             << healthProcess.error() << endl;
+      } else {
+        healthPid = healthProcess.get().pid();
+
+        cout << "Health check process launched at pid: "
+             << stringify(healthPid) << endl;
+      }
+    }
+  }
+
   bool killed;
+  bool killedByHealthCheck;
+  pid_t healthPid;
+  string healthCheckDir;
   Owned<Docker> docker;
   string containerName;
   string sandboxDirectory;
@@ -268,14 +422,16 @@ public:
       const string& container,
       const string& sandboxDirectory,
       const string& mappedDirectory,
-      const Duration& stopTimeout)
+      const Duration& stopTimeout,
+      const string& healthCheckDir)
   {
     process = Owned<DockerExecutorProcess>(new DockerExecutorProcess(
         docker,
         container,
         sandboxDirectory,
         mappedDirectory,
-        stopTimeout));
+        stopTimeout,
+        healthCheckDir));
 
     spawn(process.get());
   }
@@ -414,12 +570,18 @@ int main(int argc, char** argv)
     return EXIT_FAILURE;
   }
 
+  const Option<string> envPath = os::getenv("MESOS_LAUNCHER_DIR");
+  string path =
+    envPath.isSome() ? envPath.get()
+                     : os::realpath(Path(argv[0]).dirname()).get();
+
   mesos::internal::docker::DockerExecutor executor(
       process::Owned<Docker>(docker.get()),
       flags.container.get(),
       flags.sandbox_directory.get(),
       flags.mapped_directory.get(),
-      flags.stop_timeout.get());
+      flags.stop_timeout.get(),
+      path);
 
   mesos::MesosExecutorDriver driver(&executor);
   return driver.run() == mesos::DRIVER_STOPPED ? EXIT_SUCCESS : EXIT_FAILURE;

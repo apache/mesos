@@ -45,6 +45,8 @@ public:
       const FrameworkInfo& frameworkInfo,
       const SlaveInfo& slaveInfo);
 
+  static void masterSlaveLostHook(const SlaveInfo& slaveInfo);
+
   static Labels slaveRunTaskLabelDecorator(
       const TaskInfo& taskInfo,
       const ExecutorInfo& executorInfo,
@@ -69,7 +71,7 @@ public:
       const FrameworkInfo& frameworkInfo,
       const ExecutorInfo& executorInfo);
 
-  static Labels slaveTaskStatusLabelDecorator(
+  static TaskStatus slaveTaskStatusDecorator(
       const FrameworkID& frameworkId,
       TaskStatus status);
 };

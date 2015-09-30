@@ -40,7 +40,7 @@ namespace os {
 inline ssize_t sendfile(int s, int fd, off_t offset, size_t length)
 {
 #if defined(__linux__) || defined(__sun)
-  suppress (SIGPIPE) {
+  SUPPRESS (SIGPIPE) {
     // This will set errno to EPIPE if a SIGPIPE occurs.
     return ::sendfile(s, fd, &offset, length);
   }

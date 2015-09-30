@@ -25,6 +25,7 @@
 #include <process/future.hpp>
 #include <process/process.hpp>
 
+#include <stout/hashmap.hpp>
 #include <stout/try.hpp>
 
 namespace mesos {
@@ -52,6 +53,10 @@ public:
       const lambda::function<
           void(const FrameworkID&,
                const hashmap<SlaveID, Resources>&)>& offerCallback,
+      const lambda::function<
+          void(const FrameworkID&,
+               const hashmap<SlaveID, UnavailableResources>&)>&
+        inverseOfferCallback,
       const hashmap<std::string, mesos::master::RoleInfo>& roles);
 
   void addFramework(
@@ -75,6 +80,7 @@ public:
   void addSlave(
       const SlaveID& slaveId,
       const SlaveInfo& slaveInfo,
+      const Option<Unavailability>& unavailability,
       const Resources& total,
       const hashmap<FrameworkID, Resources>& used);
 
@@ -107,11 +113,29 @@ public:
       const SlaveID& slaveId,
       const std::vector<Offer::Operation>& operations);
 
+  void updateUnavailability(
+      const SlaveID& slaveId,
+      const Option<Unavailability>& unavailability);
+
+  void updateInverseOffer(
+      const SlaveID& slaveId,
+      const FrameworkID& frameworkId,
+      const Option<UnavailableResources>& unavailableResources,
+      const Option<mesos::master::InverseOfferStatus>& status,
+      const Option<Filters>& filters);
+
+  process::Future<
+      hashmap<SlaveID, hashmap<FrameworkID, mesos::master::InverseOfferStatus>>>
+    getInverseOfferStatuses();
+
   void recoverResources(
       const FrameworkID& frameworkId,
       const SlaveID& slaveId,
       const Resources& resources,
       const Option<Filters>& filters);
+
+  void suppressOffers(
+      const FrameworkID& frameworkId);
 
   void reviveOffers(
       const FrameworkID& frameworkId);
@@ -142,6 +166,10 @@ public:
       const lambda::function<
           void(const FrameworkID&,
                const hashmap<SlaveID, Resources>&)>& offerCallback,
+      const lambda::function<
+          void(const FrameworkID&,
+               const hashmap<SlaveID, UnavailableResources>&)>&
+        inverseOfferCallback,
       const hashmap<std::string, mesos::master::RoleInfo>& roles) = 0;
 
   virtual void addFramework(
@@ -165,6 +193,7 @@ public:
   virtual void addSlave(
       const SlaveID& slaveId,
       const SlaveInfo& slaveInfo,
+      const Option<Unavailability>& unavailability,
       const Resources& total,
       const hashmap<FrameworkID, Resources>& used) = 0;
 
@@ -197,11 +226,29 @@ public:
       const SlaveID& slaveId,
       const std::vector<Offer::Operation>& operations) = 0;
 
+  virtual void updateUnavailability(
+      const SlaveID& slaveId,
+      const Option<Unavailability>& unavailability) = 0;
+
+  virtual void updateInverseOffer(
+      const SlaveID& slaveId,
+      const FrameworkID& frameworkId,
+      const Option<UnavailableResources>& unavailableResources,
+      const Option<mesos::master::InverseOfferStatus>& status,
+      const Option<Filters>& filters = None()) = 0;
+
+  virtual process::Future<
+      hashmap<SlaveID, hashmap<FrameworkID, mesos::master::InverseOfferStatus>>>
+    getInverseOfferStatuses() = 0;
+
   virtual void recoverResources(
       const FrameworkID& frameworkId,
       const SlaveID& slaveId,
       const Resources& resources,
       const Option<Filters>& filters) = 0;
+
+  virtual void suppressOffers(
+      const FrameworkID& frameworkId) = 0;
 
   virtual void reviveOffers(
       const FrameworkID& frameworkId) = 0;
@@ -240,6 +287,10 @@ inline void MesosAllocator<AllocatorProcess>::initialize(
     const lambda::function<
         void(const FrameworkID&,
              const hashmap<SlaveID, Resources>&)>& offerCallback,
+    const lambda::function<
+        void(const FrameworkID&,
+              const hashmap<SlaveID, UnavailableResources>&)>&
+      inverseOfferCallback,
     const hashmap<std::string, mesos::master::RoleInfo>& roles)
 {
   process::dispatch(
@@ -247,6 +298,7 @@ inline void MesosAllocator<AllocatorProcess>::initialize(
       &MesosAllocatorProcess::initialize,
       allocationInterval,
       offerCallback,
+      inverseOfferCallback,
       roles);
 }
 
@@ -316,6 +368,7 @@ template <typename AllocatorProcess>
 inline void MesosAllocator<AllocatorProcess>::addSlave(
     const SlaveID& slaveId,
     const SlaveInfo& slaveInfo,
+    const Option<Unavailability>& unavailability,
     const Resources& total,
     const hashmap<FrameworkID, Resources>& used)
 {
@@ -324,6 +377,7 @@ inline void MesosAllocator<AllocatorProcess>::addSlave(
       &MesosAllocatorProcess::addSlave,
       slaveId,
       slaveInfo,
+      unavailability,
       total,
       used);
 }
@@ -429,6 +483,49 @@ MesosAllocator<AllocatorProcess>::updateAvailable(
 
 
 template <typename AllocatorProcess>
+inline void MesosAllocator<AllocatorProcess>::updateUnavailability(
+    const SlaveID& slaveId,
+    const Option<Unavailability>& unavailability)
+{
+  return process::dispatch(
+      process,
+      &MesosAllocatorProcess::updateUnavailability,
+      slaveId,
+      unavailability);
+}
+
+
+template <typename AllocatorProcess>
+inline void MesosAllocator<AllocatorProcess>::updateInverseOffer(
+    const SlaveID& slaveId,
+    const FrameworkID& frameworkId,
+    const Option<UnavailableResources>& unavailableResources,
+    const Option<mesos::master::InverseOfferStatus>& status,
+    const Option<Filters>& filters)
+{
+  return process::dispatch(
+      process,
+      &MesosAllocatorProcess::updateInverseOffer,
+      slaveId,
+      frameworkId,
+      unavailableResources,
+      status,
+      filters);
+}
+
+
+template <typename AllocatorProcess>
+inline process::Future<
+    hashmap<SlaveID, hashmap<FrameworkID, mesos::master::InverseOfferStatus>>>
+  MesosAllocator<AllocatorProcess>::getInverseOfferStatuses()
+{
+  return process::dispatch(
+      process,
+      &MesosAllocatorProcess::getInverseOfferStatuses);
+}
+
+
+template <typename AllocatorProcess>
 inline void MesosAllocator<AllocatorProcess>::recoverResources(
     const FrameworkID& frameworkId,
     const SlaveID& slaveId,
@@ -442,6 +539,17 @@ inline void MesosAllocator<AllocatorProcess>::recoverResources(
       slaveId,
       resources,
       filters);
+}
+
+
+template <typename AllocatorProcess>
+inline void MesosAllocator<AllocatorProcess>::suppressOffers(
+    const FrameworkID& frameworkId)
+{
+  process::dispatch(
+      process,
+      &MesosAllocatorProcess::suppressOffers,
+      frameworkId);
 }
 
 

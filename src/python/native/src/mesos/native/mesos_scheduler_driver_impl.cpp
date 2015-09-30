@@ -143,6 +143,11 @@ PyMethodDef MesosSchedulerDriverImpl_methods[] = {
     METH_NOARGS,
     "Remove all filters and ask Mesos for new offers"
   },
+  { "suppressOffers",
+    (PyCFunction) MesosSchedulerDriverImpl_suppressOffers,
+    METH_NOARGS,
+    "Set suppressed attribute as true for the Framework"
+  },
   { "acknowledgeStatusUpdate",
     (PyCFunction) MesosSchedulerDriverImpl_acknowledgeStatusUpdate,
     METH_VARARGS,
@@ -650,6 +655,19 @@ PyObject* MesosSchedulerDriverImpl_reviveOffers(MesosSchedulerDriverImpl* self)
   }
 
   Status status = self->driver->reviveOffers();
+  return PyInt_FromLong(status); // Sets exception if creating long fails.
+}
+
+
+PyObject* MesosSchedulerDriverImpl_suppressOffers(
+    MesosSchedulerDriverImpl* self)
+{
+  if (self->driver == NULL) {
+    PyErr_Format(PyExc_Exception, "MesosSchedulerDriverImpl.driver is NULL");
+    return NULL;
+  }
+
+  Status status = self->driver->suppressOffers();
   return PyInt_FromLong(status); // Sets exception if creating long fails.
 }
 

@@ -988,6 +988,26 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_MesosSchedulerDriver_reviveOffer
 
 /*
  * Class:     org_apache_mesos_MesosSchedulerDriver
+ * Method:    suppressOffers
+ * Signature: ()Lorg/apache/mesos/Protos/Status;
+ */
+JNIEXPORT jobject JNICALL Java_org_apache_mesos_MesosSchedulerDriver_suppressOffers
+  (JNIEnv* env, jobject thiz)
+{
+  jclass clazz = env->GetObjectClass(thiz);
+
+  jfieldID __driver = env->GetFieldID(clazz, "__driver", "J");
+  MesosSchedulerDriver* driver =
+    (MesosSchedulerDriver*) env->GetLongField(thiz, __driver);
+
+  Status status = driver->suppressOffers();
+
+  return convert<Status>(env, status);
+}
+
+
+/*
+ * Class:     org_apache_mesos_MesosSchedulerDriver
  * Method:    requestResources
  * Signature: (Ljava/util/Collection;)Lorg/apache/mesos/Protos/Status;
  */

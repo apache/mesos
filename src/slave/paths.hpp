@@ -90,14 +90,19 @@ namespace paths {
 //   |   |-- roles
 //   |       |-- <role>
 //   |           |-- <persistence_id> (persistent volume)
-//   |-- provisioners
-//       |-- <image_type> (as defined in Image::Type)
+//   |-- provisioner
 
 const char LATEST_SYMLINK[] = "latest";
 
 // Helpers for obtaining paths in the layout:
 
 std::string getMetaRootDir(const std::string& rootDir);
+
+
+std::string getSandboxRootDir(const std::string& rootDir);
+
+
+std::string getProvisionerDir(const std::string& rootDir);
 
 
 std::string getArchiveDir(const std::string& rootDir);
@@ -273,12 +278,6 @@ std::string createExecutorDirectory(
 std::string createSlaveDirectory(
     const std::string& rootDir,
     const SlaveID& slaveId);
-
-
-// Contents of the provisioner directory are managed by the provisioner itself.
-std::string getProvisionerDir(
-    const std::string& rootDir,
-    const Image::Type& imageType);
 
 } // namespace paths {
 } // namespace slave {

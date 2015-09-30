@@ -33,6 +33,8 @@
 
 using std::string;
 
+using google::protobuf::RepeatedPtrField;
+
 using mesos::slave::ContainerLimitation;
 using mesos::slave::ContainerState;
 
@@ -137,7 +139,9 @@ Task createTask(
     t.mutable_executor_id()->CopyFrom(task.executor().executor_id());
   }
 
-  t.mutable_labels()->MergeFrom(task.labels());
+  if (task.has_labels()) {
+    t.mutable_labels()->CopyFrom(task.labels());
+  }
 
   if (task.has_discovery()) {
     t.mutable_discovery()->MergeFrom(task.discovery());
@@ -217,6 +221,14 @@ Label createLabel(const std::string& key, const std::string& value)
   return label;
 }
 
+
+TimeInfo getCurrentTime()
+{
+  TimeInfo timeInfo;
+  timeInfo.set_nanoseconds(process::Clock::now().duration().ns());
+  return timeInfo;
+}
+
 namespace slave {
 
 ContainerLimitation createContainerLimitation(
@@ -265,12 +277,13 @@ Unavailability createUnavailability(
 }
 
 
-MachineIDs createMachineList(std::initializer_list<MachineID> ids)
+RepeatedPtrField<MachineID> createMachineList(
+    std::initializer_list<MachineID> ids)
 {
-  MachineIDs array;
+  RepeatedPtrField<MachineID> array;
 
   foreach (const MachineID& id, ids) {
-    array.add_values()->CopyFrom(id);
+    array.Add()->CopyFrom(id);
   }
 
   return array;

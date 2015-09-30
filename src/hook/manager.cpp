@@ -133,6 +133,18 @@ Labels HookManager::masterLaunchTaskLabelDecorator(
 }
 
 
+void HookManager::masterSlaveLostHook(const SlaveInfo& slaveInfo)
+{
+  foreachpair (const string& name, Hook* hook, availableHooks) {
+    Try<Nothing> result = hook->masterSlaveLostHook(slaveInfo);
+    if (result.isError()) {
+      LOG(WARNING) << "Master slave-lost hook failed for module '"
+                   << name << "': " << result.error();
+    }
+  }
+}
+
+
 Labels HookManager::slaveRunTaskLabelDecorator(
     const TaskInfo& taskInfo,
     const ExecutorInfo& executorInfo,
@@ -231,25 +243,33 @@ void HookManager::slaveRemoveExecutorHook(
 }
 
 
-Labels HookManager::slaveTaskStatusLabelDecorator(
+TaskStatus HookManager::slaveTaskStatusDecorator(
     const FrameworkID& frameworkId,
     TaskStatus status)
 {
   synchronized (mutex) {
     foreachpair (const string& name, Hook* hook, availableHooks) {
-      const Result<Labels> result =
-        hook->slaveTaskStatusLabelDecorator(frameworkId, status);
+      const Result<TaskStatus> result =
+        hook->slaveTaskStatusDecorator(frameworkId, status);
 
-      // NOTE: Labels remain unchanged if the hook returns None().
+      // NOTE: Labels/ContainerStatus remain unchanged if the hook returns
+      // None().
       if (result.isSome()) {
-        status.mutable_labels()->CopyFrom(result.get());
+        if (result.get().has_labels()) {
+          status.mutable_labels()->CopyFrom(result.get().labels());
+        }
+
+        if (result.get().has_container_status()) {
+          status.mutable_container_status()->CopyFrom(
+              result.get().container_status());
+        }
       } else if (result.isError()) {
-        LOG(WARNING) << "Slave TaskStatus label decorator hook failed for "
+        LOG(WARNING) << "Slave TaskStatus decorator hook failed for "
                      << "module '" << name << "': " << result.error();
       }
     }
 
-    return status.labels();
+    return status;
   }
 }
 

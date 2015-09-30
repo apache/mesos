@@ -80,8 +80,8 @@ public:
       const network::Socket&,
       const http::Request& request)
   {
-    if (paths.contains(request.path)) {
-      return http::Forbidden("Endpoint '" + request.path + "' is disabled");
+    if (paths.contains(request.url.path)) {
+      return http::Forbidden("Endpoint '" + request.url.path + "' is disabled");
     }
 
     return None();

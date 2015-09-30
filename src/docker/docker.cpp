@@ -122,22 +122,10 @@ Try<Docker*> Docker::create(
   }
 #endif // __linux__
 
-  // Validate the version (and that we can use Docker at all).
-  Future<Version> version = docker->version();
-
-  if (!version.await(DOCKER_VERSION_WAIT_TIMEOUT)) {
+  Try<Nothing> validateVersion = docker->validateVersion(Version(1, 0, 0));
+  if (validateVersion.isError()) {
     delete docker;
-    return Error("Timed out getting docker version");
-  }
-
-  if (version.isFailed()) {
-    delete docker;
-    return Error("Failed to get docker version: " + version.failure());
-  }
-
-  if (version.get() < Version(1, 0, 0)) {
-    delete docker;
-    return Error("Insufficient version of Docker. Please upgrade to >= 1.0.0");
+    return Error(validateVersion.error());
   }
 
   return docker;
@@ -198,7 +186,18 @@ Future<Version> Docker::__version(const Future<string>& output)
     vector<string> subParts = strings::split(parts.front(), " ");
 
     if (!subParts.empty()) {
-      Try<Version> version = Version::parse(subParts.back());
+      // Docker version output in Fedora 22 is "x.x.x.fc22" which does not match
+      // the Semantic Versioning specification(<major>[.<minor>[.<patch>]]). We
+      // remove the overflow components here before parsing the docker version
+      // output to a Version struct.
+      string versionString = subParts.back();
+      vector<string> components = strings::split(versionString, ".");
+      if (components.size() > 3) {
+        components.erase(components.begin() + 3, components.end());
+      }
+      versionString = strings::join(".", components);
+
+      Try<Version> version = Version::parse(versionString);
 
       if (version.isError()) {
         return Failure("Failed to parse docker version: " +
@@ -213,6 +212,31 @@ Future<Version> Docker::__version(const Future<string>& output)
 }
 
 
+Try<Nothing> Docker::validateVersion(const Version& minVersion) const
+{
+  // Validate the version (and that we can use Docker at all).
+  Future<Version> version = this->version();
+
+  if (!version.await(DOCKER_VERSION_WAIT_TIMEOUT)) {
+    return Error("Timed out getting docker version");
+  }
+
+  if (version.isFailed()) {
+    return Error("Failed to get docker version: " + version.failure());
+  }
+
+  if (version.get() < minVersion) {
+    string msg = "Insufficient version '" + stringify(version.get()) +
+                 "' of Docker. Please upgrade to >=' " +
+                 stringify(minVersion) + "'";
+    return Error(msg);
+  }
+
+  return Nothing();
+}
+
+
+// TODO(josephw): Parse this string with a protobuf.
 Try<Docker::Container> Docker::Container::create(const string& output)
 {
   Try<JSON::Array> parse = JSON::parse<JSON::Array>(output);
@@ -263,7 +287,7 @@ Try<Docker::Container> Docker::Container::create(const string& output)
     return Error("Error finding Pid in State: " + pidValue.error());
   }
 
-  pid_t pid = pid_t(pidValue.get().value);
+  pid_t pid = pid_t(pidValue.get().as<int64_t>());
 
   Option<pid_t> optionalPid;
   if (pid != 0) {
@@ -400,6 +424,8 @@ Future<Nothing> Docker::run(
 
   argv.push_back("-e");
   argv.push_back("MESOS_SANDBOX=" + mappedDirectory);
+  argv.push_back("-e");
+  argv.push_back("MESOS_CONTAINER_NAME=" + name);
 
   foreach (const Volume& volume, containerInfo.volumes()) {
     string volumeConfig = volume.container_path();

@@ -24,12 +24,16 @@
 
 #include <process/collect.hpp>
 
+#include <process/metrics/metrics.hpp>
+
 #include <stout/error.hpp>
 #include <stout/foreach.hpp>
 #include <stout/os.hpp>
 #include <stout/path.hpp>
 #include <stout/stringify.hpp>
 #include <stout/strings.hpp>
+
+#include <stout/os/shell.hpp>
 
 #include "linux/fs.hpp"
 #include "linux/ns.hpp"
@@ -55,7 +59,7 @@ namespace slave {
 
 Try<Isolator*> LinuxFilesystemIsolatorProcess::create(
     const Flags& flags,
-    const hashmap<Image::Type, Owned<Provisioner>>& provisioners)
+    const Owned<Provisioner>& provisioner)
 {
   Result<string> user = os::user();
   if (!user.isSome()) {
@@ -67,8 +71,99 @@ Try<Isolator*> LinuxFilesystemIsolatorProcess::create(
     return Error("LinuxFilesystemIsolator requires root privileges");
   }
 
+  // Make slave's work_dir a shared mount so that when forking a child
+  // process (with a new mount namespace), the child process does not
+  // hold extra references to container's work directory mounts and
+  // provisioner mounts (e.g., when using the bind backend) because
+  // cleanup operations within work_dir can be propagted to all
+  // container namespaces. See MESOS-3483 for more details.
+  LOG(INFO) << "Making '" << flags.work_dir << "' a shared mount";
+
+  Try<fs::MountInfoTable> table = fs::MountInfoTable::read();
+  if (table.isError()) {
+    return Error("Failed to get mount table: " + table.error());
+  }
+
+  Option<fs::MountInfoTable::Entry> workDirMount;
+  foreach (const fs::MountInfoTable::Entry& entry, table.get().entries) {
+    // TODO(jieyu): Make sure 'flags.work_dir' is a canonical path.
+    if (entry.target == flags.work_dir) {
+      workDirMount = entry;
+      break;
+    }
+  }
+
+  // Do a self bind mount if needed. If the mount already exists, make
+  // sure it is a shared mount of its own peer group.
+  if (workDirMount.isNone()) {
+    // NOTE: Instead of using fs::mount to perform the bind mount, we
+    // use the shell command here because the syscall 'mount' does not
+    // update the mount table (i.e., /etc/mtab). In other words, the
+    // mount will not be visible if the operator types command
+    // 'mount'. Since this mount will still be presented after all
+    // containers and the slave are stopped, it's better to make it
+    // visible. It's OK to use the blocking os::shell here because
+    // 'create' will only be invoked during initialization.
+    Try<string> mount = os::shell(
+        "mount --bind %s %s && "
+        "mount --make-slave %s && "
+        "mount --make-shared %s",
+        flags.work_dir.c_str(),
+        flags.work_dir.c_str(),
+        flags.work_dir.c_str(),
+        flags.work_dir.c_str());
+
+    if (mount.isError()) {
+      return Error(
+          "Failed to self bind mount '" + flags.work_dir +
+          "' and make it a shared mount: " + mount.error());
+    }
+  } else {
+    if (workDirMount.get().shared().isNone()) {
+      // This is the case where the work directory mount is not a
+      // shared mount yet (possibly due to slave crash while preparing
+      // the work directory mount). It's safe to re-do the following.
+      Try<string> mount = os::shell(
+          "mount --make-slave %s && "
+          "mount --make-shared %s",
+          flags.work_dir.c_str(),
+          flags.work_dir.c_str());
+
+      if (mount.isError()) {
+        return Error(
+            "Failed to self bind mount '" + flags.work_dir +
+            "' and make it a shared mount: " + mount.error());
+      }
+    } else {
+      // We need to make sure that the shared mount is in its own peer
+      // group. To check that, we need to get the parent mount.
+      foreach (const fs::MountInfoTable::Entry& entry, table.get().entries) {
+        if (entry.id == workDirMount.get().parent) {
+          // If the work directory mount and its parent mount are in
+          // the same peer group, we need to re-do the following
+          // commands so that they are in different peer groups.
+          if (entry.shared() == workDirMount.get().shared()) {
+            Try<string> mount = os::shell(
+                "mount --make-slave %s && "
+                "mount --make-shared %s",
+                flags.work_dir.c_str(),
+                flags.work_dir.c_str());
+
+            if (mount.isError()) {
+              return Error(
+                  "Failed to self bind mount '" + flags.work_dir +
+                  "' and make it a shared mount: " + mount.error());
+            }
+          }
+
+          break;
+        }
+      }
+    }
+  }
+
   Owned<MesosIsolatorProcess> process(
-      new LinuxFilesystemIsolatorProcess(flags, provisioners));
+      new LinuxFilesystemIsolatorProcess(flags, provisioner));
 
   return new MesosIsolator(process);
 }
@@ -76,38 +171,16 @@ Try<Isolator*> LinuxFilesystemIsolatorProcess::create(
 
 LinuxFilesystemIsolatorProcess::LinuxFilesystemIsolatorProcess(
     const Flags& _flags,
-    const hashmap<Image::Type, Owned<Provisioner>>& _provisioners)
+    const Owned<Provisioner>& _provisioner)
   : flags(_flags),
-    provisioners(_provisioners) {}
+    provisioner(_provisioner),
+    metrics(PID<LinuxFilesystemIsolatorProcess>(this)) {}
 
 
 LinuxFilesystemIsolatorProcess::~LinuxFilesystemIsolatorProcess() {}
 
 
-Future<Option<int>> LinuxFilesystemIsolatorProcess::namespaces()
-{
-  return CLONE_NEWNS;
-}
-
-
 Future<Nothing> LinuxFilesystemIsolatorProcess::recover(
-    const list<ContainerState>& states,
-    const hashset<ContainerID>& orphans)
-{
-  list<Future<Nothing>> futures;
-  foreachvalue (const Owned<Provisioner>& provisioner, provisioners) {
-    futures.push_back(provisioner->recover(states, orphans));
-  }
-
-  return collect(futures)
-    .then(defer(PID<LinuxFilesystemIsolatorProcess>(this),
-                &LinuxFilesystemIsolatorProcess::_recover,
-                states,
-                orphans));
-}
-
-
-Future<Nothing> LinuxFilesystemIsolatorProcess::_recover(
     const list<ContainerState>& states,
     const hashset<ContainerID>& orphans)
 {
@@ -133,12 +206,66 @@ Future<Nothing> LinuxFilesystemIsolatorProcess::_recover(
     infos.put(state.container_id(), info);
   }
 
-  // TODO(jieyu): Clean up unknown containers' work directory mounts
-  // and the corresponding persistent volume mounts. This can be
-  // achieved by iterating the mount table and find those unknown
-  // mounts whose sources are under the slave 'work_dir'.
+  // Recover both known and unknown orphans by scanning the mount
+  // table and finding those mounts whose roots are under slave's
+  // sandbox root directory. Those mounts are container's work
+  // directory mounts. Mounts from unknown orphans will be cleaned up
+  // immediately. Mounts from known orphans will be cleaned up when
+  // those known orphan containers are being destroyed by the slave.
+  hashset<ContainerID> unknownOrphans;
 
-  return Nothing();
+  string sandboxRootDir = paths::getSandboxRootDir(flags.work_dir);
+
+  foreach (const fs::MountInfoTable::Entry& entry, table.get().entries) {
+    if (!strings::startsWith(entry.root, sandboxRootDir)) {
+      continue;
+    }
+
+    // TODO(jieyu): Here, we retrieve the container ID by taking the
+    // basename of 'entry.root'. This assumes that the slave's sandbox
+    // root directory are organized according to the comments in the
+    // beginning of slave/paths.hpp.
+    ContainerID containerId;
+    containerId.set_value(Path(entry.root).basename());
+
+    if (infos.contains(containerId)) {
+      continue;
+    }
+
+    Owned<Info> info(new Info(entry.root));
+
+    if (entry.root != entry.target) {
+      info->sandbox = entry.target;
+    }
+
+    infos.put(containerId, info);
+
+    // Remember all the unknown orphan containers.
+    if (!orphans.contains(containerId)) {
+      unknownOrphans.insert(containerId);
+    }
+  }
+
+  // Cleanup mounts from unknown orphans.
+  list<Future<Nothing>> futures;
+  foreach (const ContainerID& containerId, unknownOrphans) {
+    futures.push_back(cleanup(containerId));
+  }
+
+  return collect(futures)
+    .then(defer(PID<LinuxFilesystemIsolatorProcess>(this),
+                &LinuxFilesystemIsolatorProcess::_recover,
+                states,
+                orphans));
+}
+
+
+Future<Nothing> LinuxFilesystemIsolatorProcess::_recover(
+    const list<ContainerState>& states,
+    const hashset<ContainerID>& orphans)
+{
+  return provisioner->recover(states, orphans)
+    .then([]() -> Future<Nothing> { return Nothing(); });
 }
 
 
@@ -167,13 +294,7 @@ Future<Option<ContainerPrepareInfo>> LinuxFilesystemIsolatorProcess::prepare(
 
   const Image& image = executorInfo.container().mesos().image();
 
-  if (!provisioners.contains(image.type())) {
-    return Failure(
-        "No suitable provisioner found for container image type '" +
-        stringify(image.type()) + "'");
-  }
-
-  return provisioners[image.type()]->provision(containerId, image)
+  return provisioner->provision(containerId, image)
     .then(defer(PID<LinuxFilesystemIsolatorProcess>(this),
                 &LinuxFilesystemIsolatorProcess::_prepare,
                 containerId,
@@ -210,14 +331,8 @@ Future<Option<ContainerPrepareInfo>> LinuxFilesystemIsolatorProcess::_prepare(
 
     const Image& image = volume->image();
 
-    if (!provisioners.contains(image.type())) {
-      return Failure(
-          "No suitable provisioner found for image type '" +
-          stringify(image.type()) + "' in a volume");
-    }
-
     futures.push_back(
-        provisioners[image.type()]->provision(containerId, image)
+        provisioner->provision(containerId, image)
           .then([volume](const string& path) -> Future<Nothing> {
             volume->set_host_path(path);
             return Nothing();
@@ -243,17 +358,19 @@ Future<Option<ContainerPrepareInfo>> LinuxFilesystemIsolatorProcess::__prepare(
   const Owned<Info>& info = infos[containerId];
 
   ContainerPrepareInfo prepareInfo;
+  prepareInfo.set_namespaces(CLONE_NEWNS);
 
-  // If the container changes its root filesystem, we need to mount
-  // the container's work directory into its root filesystem (creating
-  // it if needed) so that the executor and the task can access the
-  // work directory.
-  //
-  // NOTE: The mount of the work directory must be a shared mount in
-  // the host filesystem so that any mounts underneath it will
-  // propagate into the container's mount namespace. This is how we
-  // can update persistent volumes for the container.
   if (rootfs.isSome()) {
+    // If the container changes its root filesystem, we need to mount
+    // the container's work directory into its root filesystem
+    // (creating it if needed) so that the executor and the task can
+    // access the work directory.
+    //
+    // NOTE: The mount of the work directory must be a shared mount in
+    // the host filesystem so that any mounts underneath it will
+    // propagate into the container's mount namespace. This is how we
+    // can update persistent volumes for the container.
+
     // This is the mount point of the work directory in the root filesystem.
     const string sandbox = path::join(rootfs.get(), flags.sandbox_directory);
 
@@ -268,6 +385,9 @@ Future<Option<ContainerPrepareInfo>> LinuxFilesystemIsolatorProcess::__prepare(
             sandbox + "': " + mkdir.error());
       }
     }
+
+    LOG(INFO) << "Bind mounting work directory from '" << directory
+              << "' to '" << sandbox << "' for container " << containerId;
 
     Try<Nothing> mount = fs::mount(
         directory,
@@ -286,12 +406,25 @@ Future<Option<ContainerPrepareInfo>> LinuxFilesystemIsolatorProcess::__prepare(
         None(),
         sandbox,
         None(),
+        MS_SLAVE,
+        NULL);
+
+    if (mount.isError()) {
+      return Failure(
+          "Failed to mark sandbox '" + sandbox +
+          "' as a slave mount: " + mount.error());
+    }
+
+    mount = fs::mount(
+        None(),
+        sandbox,
+        None(),
         MS_SHARED,
         NULL);
 
     if (mount.isError()) {
       return Failure(
-          "Failed to mark work directory '" + directory +
+          "Failed to mark sandbox '" + sandbox +
           "' as a shared mount: " + mount.error());
     }
 
@@ -302,16 +435,13 @@ Future<Option<ContainerPrepareInfo>> LinuxFilesystemIsolatorProcess::__prepare(
   // namespace right after forking the executor process. We use these
   // commands to mount those volumes specified in the container info
   // so that they don't pollute the host mount namespace.
-  if (executorInfo.has_container() &&
-      executorInfo.container().volumes_size() > 0) {
-    Try<string> _script = script(executorInfo, directory, rootfs);
-    if (_script.isError()) {
-      return Failure("Failed to generate isolation script: " + _script.error());
-    }
-
-    CommandInfo* command = prepareInfo.add_commands();
-    command->set_value(_script.get());
+  Try<string> _script = script(containerId, executorInfo, directory, rootfs);
+  if (_script.isError()) {
+    return Failure("Failed to generate isolation script: " + _script.error());
   }
+
+  CommandInfo* command = prepareInfo.add_commands();
+  command->set_value(_script.get());
 
   return update(containerId, executorInfo.resources())
     .then([prepareInfo]() -> Future<Option<ContainerPrepareInfo>> {
@@ -321,12 +451,11 @@ Future<Option<ContainerPrepareInfo>> LinuxFilesystemIsolatorProcess::__prepare(
 
 
 Try<string> LinuxFilesystemIsolatorProcess::script(
+    const ContainerID& containerId,
     const ExecutorInfo& executorInfo,
     const string& directory,
     const Option<string>& rootfs)
 {
-  CHECK(executorInfo.has_container());
-
   ostringstream out;
   out << "#!/bin/sh\n";
   out << "set -x -e\n";
@@ -334,6 +463,32 @@ Try<string> LinuxFilesystemIsolatorProcess::script(
   // Make sure mounts in the container mount namespace do not
   // propagate back to the host mount namespace.
   out << "mount --make-rslave /\n";
+
+  // Try to unmount work directory mounts and persistent volume mounts
+  // for other containers to release the extra references to them.
+  // NOTE:
+  // 1) This doesn't completely eliminate the race condition between
+  //    this container copying mount table and other containers being
+  //    cleaned up. This is instead a best-effort attempt.
+  // 2) This script assumes that all the mounts the container needs
+  //    under the slave work directory have its container ID in the
+  //    path either for the mount source (e.g. sandbox self-bind mount)
+  //    or the mount target (e.g. mounting sandbox into new rootfs).
+  //
+  // TODO(xujyan): This command may fail if --work_dir is not specified
+  // with a real path as real paths are used in the mount table. It
+  // doesn't work when the paths contain reserved characters such as
+  // spaces either because such characters in mount info are encoded
+  // in the escaped form (i.e. '\0xx').
+  out << "grep -E '" << flags.work_dir << "/.+' /proc/self/mountinfo | "
+      << "grep -v '" << containerId.value() << "' | "
+      << "cut -d' ' -f5 | " // '-f5' is the mount target. See MountInfoTable.
+      << "xargs --no-run-if-empty umount -l || "
+      << "true \n"; // We mask errors in this command.
+
+  if (!executorInfo.has_container()) {
+    return out.str();
+  }
 
   foreach (const Volume& volume, executorInfo.container().volumes()) {
     if (!volume.has_host_path()) {
@@ -649,23 +804,29 @@ Future<Nothing> LinuxFilesystemIsolatorProcess::cleanup(
     sandbox = info->directory;
   }
 
+  infos.erase(containerId);
+
   // Cleanup the mounts for this container in the host mount
-  // namespace, including container's work directory (if container
-  // root filesystem is used), and all the persistent volume mounts.
+  // namespace, including container's work directory and all the
+  // persistent volume mounts.
   Try<fs::MountInfoTable> table = fs::MountInfoTable::read();
   if (table.isError()) {
     return Failure("Failed to get mount table: " + table.error());
   }
 
+  bool sandboxMountExists = false;
+
   foreach (const fs::MountInfoTable::Entry& entry, table.get().entries) {
     // NOTE: All persistent volumes are mounted at targets under the
-    // container's work directory.
-    if (entry.target != sandbox &&
-        strings::startsWith(entry.target, sandbox)) {
+    // container's work directory. We unmount all the persistent
+    // volumes before unmounting the sandbox/work directory mount.
+    if (entry.target == sandbox) {
+      sandboxMountExists = true;
+    } else if (strings::startsWith(entry.target, sandbox)) {
       LOG(INFO) << "Unmounting volume '" << entry.target
                 << "' for container " << containerId;
 
-      Try<Nothing> unmount = fs::unmount(entry.target, MNT_DETACH);
+      Try<Nothing> unmount = fs::unmount(entry.target);
       if (unmount.isError()) {
         return Failure(
             "Failed to unmount volume '" + entry.target +
@@ -674,30 +835,57 @@ Future<Nothing> LinuxFilesystemIsolatorProcess::cleanup(
     }
   }
 
-  // Cleanup the container's work directory mount. We only need to do
-  // that if the container specifies a filesystem root.
-  if (info->sandbox.isSome()) {
-    LOG(INFO) << "Unmounting sandbox '" << info->sandbox.get()
+  if (!sandboxMountExists) {
+    // This could happen if the container was not launched by this
+    // isolator (e.g., slaves prior to 0.25.0), or the container did
+    // not specify a root filesystem.
+    LOG(INFO) << "Ignoring unmounting sandbox/work directory"
+              << " for container " << containerId;
+  } else {
+    LOG(INFO) << "Unmounting sandbox/work directory '" << sandbox
               << "' for container " << containerId;
 
-    Try<Nothing> unmount = fs::unmount(info->sandbox.get(), MNT_DETACH);
+    Try<Nothing> unmount = fs::unmount(sandbox);
     if (unmount.isError()) {
       return Failure(
-          "Failed to unmount sandbox '" + info->sandbox.get() +
+          "Failed to unmount sandbox/work directory '" + sandbox +
           "': " + unmount.error());
     }
   }
 
-  infos.erase(containerId);
-
   // Destroy the provisioned root filesystems.
-  list<Future<bool>> futures;
-  foreachvalue (const Owned<Provisioner>& provisioner, provisioners) {
-    futures.push_back(provisioner->destroy(containerId));
+  return provisioner->destroy(containerId)
+    .then([]() -> Future<Nothing> { return Nothing(); });
+}
+
+
+LinuxFilesystemIsolatorProcess::Metrics::Metrics(
+    const PID<LinuxFilesystemIsolatorProcess>& isolator)
+  : containers_new_rootfs(
+      "containerizer/mesos/filesystem/containers_new_rootfs",
+      defer(isolator, &LinuxFilesystemIsolatorProcess::_containers_new_rootfs))
+{
+  process::metrics::add(containers_new_rootfs);
+}
+
+
+LinuxFilesystemIsolatorProcess::Metrics::~Metrics()
+{
+  process::metrics::remove(containers_new_rootfs);
+}
+
+
+double LinuxFilesystemIsolatorProcess::_containers_new_rootfs()
+{
+  double count = 0.0;
+
+  foreachvalue (const Owned<Info>& info, infos) {
+    if (info->sandbox.isSome()) {
+      ++count;
+    }
   }
 
-  return collect(futures)
-    .then([]() -> Future<Nothing> { return Nothing(); });
+  return count;
 }
 
 } // namespace slave {

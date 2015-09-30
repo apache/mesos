@@ -167,7 +167,17 @@ struct MountInfoTable {
   // See the /proc/[pid]/mountinfo section in 'man proc' for further
   // details on each field.
   struct Entry {
+    static Try<Entry> parse(const std::string& s);
+
     Entry() {}
+
+    // Returns the ID of the peer group in which this mount resides.
+    // Returns none if this mount is not a shared mount.
+    Option<int> shared() const;
+
+    // Returns the ID of the peer group in which this mount's master
+    // resides in. Returns none if this mount is not a slave mount.
+    Option<int> master() const;
 
     int id;                     // mountinfo[1]: mount ID.
     int parent;                 // mountinfo[2]: parent ID.
@@ -190,13 +200,14 @@ struct MountInfoTable {
 
     std::string type;           // mountinfo[9]: filesystem type.
     std::string source;         // mountinfo[10]: source dev, other.
-
-    static Try<Entry> parse(const std::string& s);
   };
 
   // If pid is None() the "self" is used, i.e., the mountinfo table
   // for the calling process.
   static Try<MountInfoTable> read(const Option<pid_t>& pid = None());
+
+  // TODO(jieyu): Introduce 'find' methods to find entries that match
+  // the given conditions (e.g., target, root, devno, etc.).
 
   std::vector<Entry> entries;
 };

@@ -26,9 +26,9 @@ def read_forever(slave, task, file):
     # uses the same executor ID as task ID in the slave.
     if executor_id == "": executor_id = task['id']
 
-    # Get 'state.json' to get the executor directory.
+    # Get 'state' json to get the executor directory.
     try:
-      state = json.loads(http.get(slave['pid'], '/state.json'))
+      state = json.loads(http.get(slave['pid'], '/state'))
     except:
       fatal('Failed to get state from slave')
 
@@ -55,7 +55,7 @@ def read_forever(slave, task, file):
     while True:
         try:
             result = json.loads(http.get(slave['pid'],
-                '/files/read.json',
+                '/files/read',
                 {'path': path,
                  'offset': offset,
                  'length': PAGE_LENGTH}))
@@ -95,7 +95,7 @@ def main():
     # Get the master's state.
     try:
         master_state = json.loads(http.get(resolve(options.master),
-                                           '/master/state.json'))
+                                           '/master/state'))
     except:
         fatal('Failed to get the master state')
 

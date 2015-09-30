@@ -47,7 +47,7 @@ resources such as cpu shares, bandwidth, etc.
 ### Frameworks
 
  - (5) Frameworks can choose to launch tasks on revocable resources by using
-   the regular launchTasks() API. To safe-guard frameworks that are not
+   the regular `launchTasks()` API. To safe-guard frameworks that are not
 designed to deal with preemption, only frameworks registering with the
 `REVOCABLE_RESOURCES` capability set in its framework info will receive offers
 with revocable resources.  Further more, revocable resources cannot be
@@ -56,7 +56,7 @@ disk resources.
 
 ### Task launch
 
- - The revocable task is launched as usual when the runTask request is received
+ - The revocable task is launched as usual when the `runTask` request is received
    on the slave. The resources will still be marked as revocable and isolators
 can take appropriate actions, if certain resources need to be setup differently
 for revocable and regular tasks.
@@ -213,7 +213,7 @@ message QoSCorrection {
 }
 ~~~
 
-## Configuring Mesos for oversubscription
+## Configuring oversubscription
 
 Five new flags has been added to the slave:
 

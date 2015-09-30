@@ -23,6 +23,9 @@ namespace {
 const ::google::protobuf::Descriptor* Nested_descriptor_ = NULL;
 const ::google::protobuf::internal::GeneratedMessageReflection*
   Nested_reflection_ = NULL;
+const ::google::protobuf::Descriptor* SimpleMessage_descriptor_ = NULL;
+const ::google::protobuf::internal::GeneratedMessageReflection*
+  SimpleMessage_reflection_ = NULL;
 const ::google::protobuf::Descriptor* Message_descriptor_ = NULL;
 const ::google::protobuf::internal::GeneratedMessageReflection*
   Message_reflection_ = NULL;
@@ -52,7 +55,23 @@ void protobuf_AssignDesc_protobuf_5ftests_2eproto() {
       ::google::protobuf::DescriptorPool::generated_pool(),
       ::google::protobuf::MessageFactory::generated_factory(),
       sizeof(Nested));
-  Message_descriptor_ = file->message_type(1);
+  SimpleMessage_descriptor_ = file->message_type(1);
+  static const int SimpleMessage_offsets_[2] = {
+    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(SimpleMessage, id_),
+    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(SimpleMessage, numbers_),
+  };
+  SimpleMessage_reflection_ =
+    new ::google::protobuf::internal::GeneratedMessageReflection(
+      SimpleMessage_descriptor_,
+      SimpleMessage::default_instance_,
+      SimpleMessage_offsets_,
+      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(SimpleMessage, _has_bits_[0]),
+      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(SimpleMessage, _unknown_fields_),
+      -1,
+      ::google::protobuf::DescriptorPool::generated_pool(),
+      ::google::protobuf::MessageFactory::generated_factory(),
+      sizeof(SimpleMessage));
+  Message_descriptor_ = file->message_type(2);
   static const int Message_offsets_[29] = {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Message, b_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Message, str_),
@@ -111,6 +130,8 @@ void protobuf_RegisterTypes(const ::std::string&) {
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedMessage(
     Nested_descriptor_, &Nested::default_instance());
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedMessage(
+    SimpleMessage_descriptor_, &SimpleMessage::default_instance());
+  ::google::protobuf::MessageFactory::InternalRegisterGeneratedMessage(
     Message_descriptor_, &Message::default_instance());
 }
 
@@ -119,6 +140,8 @@ void protobuf_RegisterTypes(const ::std::string&) {
 void protobuf_ShutdownFile_protobuf_5ftests_2eproto() {
   delete Nested::default_instance_;
   delete Nested_reflection_;
+  delete SimpleMessage::default_instance_;
+  delete SimpleMessage_reflection_;
   delete Message::default_instance_;
   delete Message_reflection_;
 }
@@ -131,28 +154,32 @@ void protobuf_AddDesc_protobuf_5ftests_2eproto() {
 
   ::google::protobuf::DescriptorPool::InternalAddGeneratedFile(
     "\n\024protobuf_tests.proto\022\005tests\"\025\n\006Nested\022"
-    "\013\n\003str\030\001 \001(\t\"\376\004\n\007Message\022\t\n\001b\030\032 \002(\010\022\013\n\003s"
-    "tr\030\001 \002(\t\022\r\n\005bytes\030\002 \002(\014\022\r\n\005int32\030\003 \001(\005\022\r"
-    "\n\005int64\030\004 \001(\003\022\016\n\006uint32\030\005 \001(\r\022\016\n\006uint64\030"
-    "\006 \001(\004\022\016\n\006sint32\030\007 \001(\021\022\016\n\006sint64\030\010 \001(\022\022\t\n"
-    "\001f\030\t \002(\002\022\t\n\001d\030\n \002(\001\022\026\n\001e\030\013 \002(\0162\013.tests.E"
-    "num\022\035\n\006nested\030\014 \002(\0132\r.tests.Nested\022\025\n\rre"
-    "peated_bool\030\033 \003(\010\022\027\n\017repeated_string\030\r \003"
-    "(\t\022\026\n\016repeated_bytes\030\016 \003(\014\022\026\n\016repeated_i"
-    "nt32\030\017 \003(\005\022\026\n\016repeated_int64\030\020 \003(\003\022\027\n\017re"
-    "peated_uint32\030\021 \003(\r\022\027\n\017repeated_uint64\030\022"
-    " \003(\004\022\027\n\017repeated_sint32\030\023 \003(\021\022\027\n\017repeate"
-    "d_sint64\030\024 \003(\022\022\026\n\016repeated_float\030\025 \003(\002\022\027"
-    "\n\017repeated_double\030\026 \003(\001\022\"\n\rrepeated_enum"
-    "\030\027 \003(\0162\013.tests.Enum\022&\n\017repeated_nested\030\030"
-    " \003(\0132\r.tests.Nested\022\r\n\005empty\030\031 \003(\t\022\034\n\020op"
-    "tional_default\030\034 \001(\001:\00242\022\033\n\023optional_no_"
-    "default\030\035 \001(\001*\030\n\004Enum\022\007\n\003ONE\020\001\022\007\n\003TWO\020\002", 719);
+    "\013\n\003str\030\001 \001(\t\",\n\rSimpleMessage\022\n\n\002id\030\001 \002("
+    "\t\022\017\n\007numbers\030\002 \003(\005\"\376\004\n\007Message\022\t\n\001b\030\032 \002("
+    "\010\022\013\n\003str\030\001 \002(\t\022\r\n\005bytes\030\002 \002(\014\022\r\n\005int32\030\003"
+    " \001(\005\022\r\n\005int64\030\004 \001(\003\022\016\n\006uint32\030\005 \001(\r\022\016\n\006u"
+    "int64\030\006 \001(\004\022\016\n\006sint32\030\007 \001(\021\022\016\n\006sint64\030\010 "
+    "\001(\022\022\t\n\001f\030\t \002(\002\022\t\n\001d\030\n \002(\001\022\026\n\001e\030\013 \002(\0162\013.t"
+    "ests.Enum\022\035\n\006nested\030\014 \002(\0132\r.tests.Nested"
+    "\022\025\n\rrepeated_bool\030\033 \003(\010\022\027\n\017repeated_stri"
+    "ng\030\r \003(\t\022\026\n\016repeated_bytes\030\016 \003(\014\022\026\n\016repe"
+    "ated_int32\030\017 \003(\005\022\026\n\016repeated_int64\030\020 \003(\003"
+    "\022\027\n\017repeated_uint32\030\021 \003(\r\022\027\n\017repeated_ui"
+    "nt64\030\022 \003(\004\022\027\n\017repeated_sint32\030\023 \003(\021\022\027\n\017r"
+    "epeated_sint64\030\024 \003(\022\022\026\n\016repeated_float\030\025"
+    " \003(\002\022\027\n\017repeated_double\030\026 \003(\001\022\"\n\rrepeate"
+    "d_enum\030\027 \003(\0162\013.tests.Enum\022&\n\017repeated_ne"
+    "sted\030\030 \003(\0132\r.tests.Nested\022\r\n\005empty\030\031 \003(\t"
+    "\022\034\n\020optional_default\030\034 \001(\001:\00242\022\033\n\023option"
+    "al_no_default\030\035 \001(\001*\030\n\004Enum\022\007\n\003ONE\020\001\022\007\n\003"
+    "TWO\020\002", 765);
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedFile(
     "protobuf_tests.proto", &protobuf_RegisterTypes);
   Nested::default_instance_ = new Nested();
+  SimpleMessage::default_instance_ = new SimpleMessage();
   Message::default_instance_ = new Message();
   Nested::default_instance_->InitAsDefaultInstance();
+  SimpleMessage::default_instance_->InitAsDefaultInstance();
   Message::default_instance_->InitAsDefaultInstance();
   ::google::protobuf::internal::OnShutdown(&protobuf_ShutdownFile_protobuf_5ftests_2eproto);
 }
@@ -399,6 +426,280 @@ void Nested::Swap(Nested* other) {
   ::google::protobuf::Metadata metadata;
   metadata.descriptor = Nested_descriptor_;
   metadata.reflection = Nested_reflection_;
+  return metadata;
+}
+
+
+// ===================================================================
+
+#ifndef _MSC_VER
+const int SimpleMessage::kIdFieldNumber;
+const int SimpleMessage::kNumbersFieldNumber;
+#endif  // !_MSC_VER
+
+SimpleMessage::SimpleMessage()
+  : ::google::protobuf::Message() {
+  SharedCtor();
+}
+
+void SimpleMessage::InitAsDefaultInstance() {
+}
+
+SimpleMessage::SimpleMessage(const SimpleMessage& from)
+  : ::google::protobuf::Message() {
+  SharedCtor();
+  MergeFrom(from);
+}
+
+void SimpleMessage::SharedCtor() {
+  _cached_size_ = 0;
+  id_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
+  ::memset(_has_bits_, 0, sizeof(_has_bits_));
+}
+
+SimpleMessage::~SimpleMessage() {
+  SharedDtor();
+}
+
+void SimpleMessage::SharedDtor() {
+  if (id_ != &::google::protobuf::internal::kEmptyString) {
+    delete id_;
+  }
+  if (this != default_instance_) {
+  }
+}
+
+void SimpleMessage::SetCachedSize(int size) const {
+  GOOGLE_SAFE_CONCURRENT_WRITES_BEGIN();
+  _cached_size_ = size;
+  GOOGLE_SAFE_CONCURRENT_WRITES_END();
+}
+const ::google::protobuf::Descriptor* SimpleMessage::descriptor() {
+  protobuf_AssignDescriptorsOnce();
+  return SimpleMessage_descriptor_;
+}
+
+const SimpleMessage& SimpleMessage::default_instance() {
+  if (default_instance_ == NULL) protobuf_AddDesc_protobuf_5ftests_2eproto();
+  return *default_instance_;
+}
+
+SimpleMessage* SimpleMessage::default_instance_ = NULL;
+
+SimpleMessage* SimpleMessage::New() const {
+  return new SimpleMessage;
+}
+
+void SimpleMessage::Clear() {
+  if (_has_bits_[0 / 32] & (0xffu << (0 % 32))) {
+    if (has_id()) {
+      if (id_ != &::google::protobuf::internal::kEmptyString) {
+        id_->clear();
+      }
+    }
+  }
+  numbers_.Clear();
+  ::memset(_has_bits_, 0, sizeof(_has_bits_));
+  mutable_unknown_fields()->Clear();
+}
+
+bool SimpleMessage::MergePartialFromCodedStream(
+    ::google::protobuf::io::CodedInputStream* input) {
+#define DO_(EXPRESSION) if (!(EXPRESSION)) return false
+  ::google::protobuf::uint32 tag;
+  while ((tag = input->ReadTag()) != 0) {
+    switch (::google::protobuf::internal::WireFormatLite::GetTagFieldNumber(tag)) {
+      // required string id = 1;
+      case 1: {
+        if (::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
+            ::google::protobuf::internal::WireFormatLite::WIRETYPE_LENGTH_DELIMITED) {
+          DO_(::google::protobuf::internal::WireFormatLite::ReadString(
+                input, this->mutable_id()));
+          ::google::protobuf::internal::WireFormat::VerifyUTF8String(
+            this->id().data(), this->id().length(),
+            ::google::protobuf::internal::WireFormat::PARSE);
+        } else {
+          goto handle_uninterpreted;
+        }
+        if (input->ExpectTag(16)) goto parse_numbers;
+        break;
+      }
+
+      // repeated int32 numbers = 2;
+      case 2: {
+        if (::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
+            ::google::protobuf::internal::WireFormatLite::WIRETYPE_VARINT) {
+         parse_numbers:
+          DO_((::google::protobuf::internal::WireFormatLite::ReadRepeatedPrimitive<
+                   ::google::protobuf::int32, ::google::protobuf::internal::WireFormatLite::TYPE_INT32>(
+                 1, 16, input, this->mutable_numbers())));
+        } else if (::google::protobuf::internal::WireFormatLite::GetTagWireType(tag)
+                   == ::google::protobuf::internal::WireFormatLite::
+                      WIRETYPE_LENGTH_DELIMITED) {
+          DO_((::google::protobuf::internal::WireFormatLite::ReadPackedPrimitiveNoInline<
+                   ::google::protobuf::int32, ::google::protobuf::internal::WireFormatLite::TYPE_INT32>(
+                 input, this->mutable_numbers())));
+        } else {
+          goto handle_uninterpreted;
+        }
+        if (input->ExpectTag(16)) goto parse_numbers;
+        if (input->ExpectAtEnd()) return true;
+        break;
+      }
+
+      default: {
+      handle_uninterpreted:
+        if (::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
+            ::google::protobuf::internal::WireFormatLite::WIRETYPE_END_GROUP) {
+          return true;
+        }
+        DO_(::google::protobuf::internal::WireFormat::SkipField(
+              input, tag, mutable_unknown_fields()));
+        break;
+      }
+    }
+  }
+  return true;
+#undef DO_
+}
+
+void SimpleMessage::SerializeWithCachedSizes(
+    ::google::protobuf::io::CodedOutputStream* output) const {
+  // required string id = 1;
+  if (has_id()) {
+    ::google::protobuf::internal::WireFormat::VerifyUTF8String(
+      this->id().data(), this->id().length(),
+      ::google::protobuf::internal::WireFormat::SERIALIZE);
+    ::google::protobuf::internal::WireFormatLite::WriteString(
+      1, this->id(), output);
+  }
+
+  // repeated int32 numbers = 2;
+  for (int i = 0; i < this->numbers_size(); i++) {
+    ::google::protobuf::internal::WireFormatLite::WriteInt32(
+      2, this->numbers(i), output);
+  }
+
+  if (!unknown_fields().empty()) {
+    ::google::protobuf::internal::WireFormat::SerializeUnknownFields(
+        unknown_fields(), output);
+  }
+}
+
+::google::protobuf::uint8* SimpleMessage::SerializeWithCachedSizesToArray(
+    ::google::protobuf::uint8* target) const {
+  // required string id = 1;
+  if (has_id()) {
+    ::google::protobuf::internal::WireFormat::VerifyUTF8String(
+      this->id().data(), this->id().length(),
+      ::google::protobuf::internal::WireFormat::SERIALIZE);
+    target =
+      ::google::protobuf::internal::WireFormatLite::WriteStringToArray(
+        1, this->id(), target);
+  }
+
+  // repeated int32 numbers = 2;
+  for (int i = 0; i < this->numbers_size(); i++) {
+    target = ::google::protobuf::internal::WireFormatLite::
+      WriteInt32ToArray(2, this->numbers(i), target);
+  }
+
+  if (!unknown_fields().empty()) {
+    target = ::google::protobuf::internal::WireFormat::SerializeUnknownFieldsToArray(
+        unknown_fields(), target);
+  }
+  return target;
+}
+
+int SimpleMessage::ByteSize() const {
+  int total_size = 0;
+
+  if (_has_bits_[0 / 32] & (0xffu << (0 % 32))) {
+    // required string id = 1;
+    if (has_id()) {
+      total_size += 1 +
+        ::google::protobuf::internal::WireFormatLite::StringSize(
+          this->id());
+    }
+
+  }
+  // repeated int32 numbers = 2;
+  {
+    int data_size = 0;
+    for (int i = 0; i < this->numbers_size(); i++) {
+      data_size += ::google::protobuf::internal::WireFormatLite::
+        Int32Size(this->numbers(i));
+    }
+    total_size += 1 * this->numbers_size() + data_size;
+  }
+
+  if (!unknown_fields().empty()) {
+    total_size +=
+      ::google::protobuf::internal::WireFormat::ComputeUnknownFieldsSize(
+        unknown_fields());
+  }
+  GOOGLE_SAFE_CONCURRENT_WRITES_BEGIN();
+  _cached_size_ = total_size;
+  GOOGLE_SAFE_CONCURRENT_WRITES_END();
+  return total_size;
+}
+
+void SimpleMessage::MergeFrom(const ::google::protobuf::Message& from) {
+  GOOGLE_CHECK_NE(&from, this);
+  const SimpleMessage* source =
+    ::google::protobuf::internal::dynamic_cast_if_available<const SimpleMessage*>(
+      &from);
+  if (source == NULL) {
+    ::google::protobuf::internal::ReflectionOps::Merge(from, this);
+  } else {
+    MergeFrom(*source);
+  }
+}
+
+void SimpleMessage::MergeFrom(const SimpleMessage& from) {
+  GOOGLE_CHECK_NE(&from, this);
+  numbers_.MergeFrom(from.numbers_);
+  if (from._has_bits_[0 / 32] & (0xffu << (0 % 32))) {
+    if (from.has_id()) {
+      set_id(from.id());
+    }
+  }
+  mutable_unknown_fields()->MergeFrom(from.unknown_fields());
+}
+
+void SimpleMessage::CopyFrom(const ::google::protobuf::Message& from) {
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+void SimpleMessage::CopyFrom(const SimpleMessage& from) {
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+bool SimpleMessage::IsInitialized() const {
+  if ((_has_bits_[0] & 0x00000001) != 0x00000001) return false;
+
+  return true;
+}
+
+void SimpleMessage::Swap(SimpleMessage* other) {
+  if (other != this) {
+    std::swap(id_, other->id_);
+    numbers_.Swap(&other->numbers_);
+    std::swap(_has_bits_[0], other->_has_bits_[0]);
+    _unknown_fields_.Swap(&other->_unknown_fields_);
+    std::swap(_cached_size_, other->_cached_size_);
+  }
+}
+
+::google::protobuf::Metadata SimpleMessage::GetMetadata() const {
+  protobuf_AssignDescriptorsOnce();
+  ::google::protobuf::Metadata metadata;
+  metadata.descriptor = SimpleMessage_descriptor_;
+  metadata.reflection = SimpleMessage_reflection_;
   return metadata;
 }
 

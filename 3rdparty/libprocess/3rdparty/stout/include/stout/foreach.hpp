@@ -23,7 +23,7 @@ namespace __foreach__ {
 // new 'boost::tuples::ignore' does not work in our 'foreachkey' and
 // 'foreachvalue'.
 struct swallow_assign {
-  template<typename T>
+  template <typename T>
   swallow_assign const& operator=(const T&) const {
     return *this;
   }

@@ -131,18 +131,10 @@ Try<DockerContainerizer*> DockerContainerizer::create(
   Shared<Docker> docker(create.get());
 
   if (flags.docker_mesos_image.isSome()) {
-    Future<Version> version = docker->version();
-    if (!version.await(DOCKER_VERSION_WAIT_TIMEOUT)) {
-      return Error("Timed out waiting for docker version");
-    }
-
-    if (version.isFailed()) {
-      return Error(version.failure());
-    }
-
-    if (version.get() < Version(1, 5, 0)) {
-      string message = "Docker with mesos images requires docker 1.5+, found ";
-      message += stringify(version.get());
+    Try<Nothing> validateResult = docker->validateVersion(Version(1, 5, 0));
+    if (validateResult.isError()) {
+      string message = "Docker with mesos images requires docker 1.5+";
+      message += validateResult.error();
       return Error(message);
     }
   }
@@ -931,10 +923,6 @@ Future<pid_t> DockerContainerizerProcess::launchExecutorProcess(
   Try<Nothing> checkpointed = checkpoint(containerId, s.get().pid());
 
   if (checkpointed.isError()) {
-    // Close the subprocess's stdin so that it aborts.
-    CHECK_SOME(s.get().in());
-    os::close(s.get().in().get());
-
     return Failure(
         "Failed to checkpoint executor's pid: " + checkpointed.error());
   }
@@ -949,7 +937,6 @@ Future<pid_t> DockerContainerizerProcess::launchExecutorProcess(
 
   if (length != sizeof(c)) {
     string error = string(strerror(errno));
-    os::close(s.get().in().get());
     return Failure("Failed to synchronize with child process: " + error);
   }
 

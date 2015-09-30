@@ -221,7 +221,7 @@ protected:
 
   void detected(const Future<Option<MasterInfo> >& _master)
   {
-    if (!running) {
+    if (!running.load()) {
       VLOG(1) << "Ignoring the master change because the driver is not"
               << " running!";
       return;
@@ -292,7 +292,7 @@ protected:
 
   void authenticate()
   {
-    if (!running) {
+    if (!running.load()) {
       VLOG(1) << "Ignoring authenticate because the driver is not running!";
       return;
     }
@@ -360,7 +360,7 @@ protected:
 
   void _authenticate()
   {
-    if (!running) {
+    if (!running.load()) {
       VLOG(1) << "Ignoring _authenticate because the driver is not running!";
       return;
     }
@@ -415,7 +415,7 @@ protected:
 
   void authenticationTimeout(Future<bool> future)
   {
-    if (!running) {
+    if (!running.load()) {
       VLOG(1) << "Ignoring authentication timeout because "
               << "the driver is not running!";
       return;
@@ -505,6 +505,7 @@ protected:
         }
 
         resourceOffers(from, offers, pids);
+
         break;
       }
 
@@ -617,7 +618,7 @@ protected:
       const FrameworkID& frameworkId,
       const MasterInfo& masterInfo)
   {
-    if (!running) {
+    if (!running.load()) {
       VLOG(1) << "Ignoring framework registered message because "
               << "the driver is not running!";
       return;
@@ -659,7 +660,7 @@ protected:
       const FrameworkID& frameworkId,
       const MasterInfo& masterInfo)
   {
-    if (!running) {
+    if (!running.load()) {
       VLOG(1) << "Ignoring framework re-registered message because "
               << "the driver is not running!";
       return;
@@ -698,7 +699,7 @@ protected:
 
   void doReliableRegistration(Duration maxBackoff)
   {
-    if (!running) {
+    if (!running.load()) {
       return;
     }
 
@@ -755,7 +756,7 @@ protected:
       const vector<Offer>& offers,
       const vector<string>& pids)
   {
-    if (!running) {
+    if (!running.load()) {
       VLOG(1) << "Ignoring resource offers message because "
               << "the driver is not running!";
       return;
@@ -776,9 +777,16 @@ protected:
       return;
     }
 
+    // We exit early if `offers` is empty since we don't implement inverse
+    // offers in the old scheduler API. It could be empty when there are only
+    // inverse offers as part of the `ResourceOffersMessage`.
+    if (offers.empty()) {
+      return;
+    }
+
     VLOG(2) << "Received " << offers.size() << " offers";
 
-    CHECK(offers.size() == pids.size());
+    CHECK_EQ(offers.size(), pids.size());
 
     // Save the pid associated with each slave (one per offer) so
     // later we can send framework messages directly.
@@ -805,7 +813,7 @@ protected:
 
   void rescindOffer(const UPID& from, const OfferID& offerId)
   {
-    if (!running) {
+    if (!running.load()) {
       VLOG(1) << "Ignoring rescind offer message because "
               << "the driver is not running!";
       return;
@@ -845,7 +853,7 @@ protected:
       const StatusUpdate& update,
       const UPID& pid)
   {
-    if (!running) {
+    if (!running.load()) {
       VLOG(1) << "Ignoring task status update message because "
               << "the driver is not running!";
       return;
@@ -910,10 +918,10 @@ protected:
     VLOG(1) << "Scheduler::statusUpdate took " << stopwatch.elapsed();
 
     if (implicitAcknowledgements) {
-      // Note that we need to look at the volatile 'running' here
+      // Note that we need to look at the atomic 'running' here
       // so that we don't acknowledge the update if the driver was
       // aborted during the processing of the update.
-      if (!running) {
+      if (!running.load()) {
         VLOG(1) << "Not sending status update acknowledgment message because "
                 << "the driver is not running!";
         return;
@@ -948,7 +956,7 @@ protected:
 
   void lostSlave(const UPID& from, const SlaveID& slaveId)
   {
-    if (!running) {
+    if (!running.load()) {
       VLOG(1) << "Ignoring lost slave message because the driver is not"
               << " running!";
       return;
@@ -988,7 +996,7 @@ protected:
       const ExecutorID& executorId,
       const string& data)
   {
-    if (!running) {
+    if (!running.load()) {
       VLOG(1)
         << "Ignoring framework message because the driver is not running!";
       return;
@@ -1008,7 +1016,7 @@ protected:
 
   void error(const string& message)
   {
-    if (!running) {
+    if (!running.load()) {
       VLOG(1) << "Ignoring error message because the driver is not running!";
       return;
     }
@@ -1061,7 +1069,7 @@ protected:
   {
     LOG(INFO) << "Aborting framework '" << framework.id() << "'";
 
-    CHECK(!running);
+    CHECK(!running.load());
 
     if (!connected) {
       VLOG(1) << "Not sending a deactivate message as master is disconnected";
@@ -1234,6 +1242,23 @@ protected:
     send(master.get().pid(), call);
   }
 
+  void suppressOffers()
+  {
+    if (!connected) {
+      VLOG(1) << "Ignoring suppress offers message as master is disconnected";
+      return;
+    }
+
+    Call call;
+
+    CHECK(framework.has_id());
+    call.mutable_framework_id()->CopyFrom(framework.id());
+    call.set_type(Call::SUPPRESS);
+
+    CHECK_SOME(master);
+    send(master.get().pid(), call);
+  }
+
   void acknowledgeStatusUpdate(
       const TaskStatus& status)
   {
@@ -1248,11 +1273,11 @@ protected:
       return;
     }
 
-    // NOTE: By ignoring the volatile 'running' here, we ensure that
-    // all acknowledgements requested before the driver was stopped
-    // or aborted are processed. Any acknowledgement that is requested
-    // after the driver stops or aborts (running == false) will be
-    // dropped in the driver before reaching here.
+    // NOTE: By ignoring the atomic 'running' here, we ensure that all
+    // acknowledgements requested before the driver was stopped or
+    // aborted are processed. Any acknowledgement that is requested
+    // after the driver stops or aborts (running.load() == false) will
+    // be dropped in the driver before reaching here.
 
     // Only statuses with a 'uuid' and a 'slave_id' need to have
     // acknowledgements sent to the master. Note that the driver
@@ -1427,9 +1452,7 @@ private:
   // there may be one additional callback delivered to the scheduler.
   // This could happen if the SchedulerProcess is in the middle of
   // processing an event.
-  // TODO(vinod): Instead of 'volatile' use std::atomic() to guarantee
-  // atomicity.
-  volatile bool running; // Flag to indicate if the driver is running.
+  std::atomic_bool running; // Flag to indicate if the driver is running.
 
   MasterDetector* detector;
 
@@ -1757,7 +1780,7 @@ Status MesosSchedulerDriver::stop(bool failover)
     // it due to bad parameters (e.g. error in creating the detector
     // or loading flags).
     if (process != NULL) {
-      process->running =  false;
+      process->running.store(false);
       dispatch(process, &SchedulerProcess::stop, failover);
     }
 
@@ -1788,7 +1811,7 @@ Status MesosSchedulerDriver::abort()
     }
 
     CHECK_NOTNULL(process);
-    process->running = false;
+    process->running.store(false);
 
     // Dispatching here ensures that we still process the outstanding
     // requests *from* the scheduler, since those do proceed when
@@ -1922,6 +1945,22 @@ Status MesosSchedulerDriver::reviveOffers()
     CHECK(process != NULL);
 
     dispatch(process, &SchedulerProcess::reviveOffers);
+
+    return status;
+  }
+}
+
+
+Status MesosSchedulerDriver::suppressOffers()
+{
+  synchronized (mutex) {
+    if (status != DRIVER_RUNNING) {
+      return status;
+    }
+
+    CHECK(process != NULL);
+
+    dispatch(process, &SchedulerProcess::suppressOffers);
 
     return status;
   }

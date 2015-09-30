@@ -24,7 +24,7 @@
 #endif // __WINDOWS__
 
 
-#define suppress(signal) \
+#define SUPPRESS(signal) \
   if (os::signals::internal::Suppressor suppressor ## signal = \
       os::signals::internal::Suppressor(signal))
 

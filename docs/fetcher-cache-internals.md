@@ -4,7 +4,7 @@ layout: documentation
 
 # Mesos Fetcher Cache Internals
 
-It assumed that readers of this document are well familiar with the contents of the overview and user guide of the Mesos fetcher in "fetcher.md". The present document makes direct references to notions defined in the former.
+It assumed that readers of this document are familiar with the contents of the [Mesos fetcher user guide](/documentation/latest/fetcher/). The present document makes direct references to notions defined in the former.
 
 ## Design goals for the initial fetcher cache prototype:
 
@@ -16,6 +16,7 @@ It assumed that readers of this document are well familiar with the contents of 
 5. Slave recovery: Support slave recovery.
 
 For future releases, we foresee additional features:
+
 1. Automatic refreshing of cache content when a URI's content has changed.
 2. Prefetching URIs for subsequent tasks. Prefetching can run in parallel with task execution.
 
@@ -51,7 +52,7 @@ Based on this setup, the main program flow in the fetcher process is concerned w
 
 The fetcher process uses a private instance of class Cache to represent what URIs are cached, where the respective cache files are, what stage of processing they are in, and so on.
 
-The main data structure to hold all this information is a hashmap from URI/user combinations to Cache::Entry objects, which each contain information about an individual cache file on disk. These objects are referenced by shared_ptr, because they can be addressed by multiple callbacks on behalf of concurrent fetch attempts while also being held in the hashmap.
+The main data structure to hold all this information is a hashmap from URI/user combinations to `Cache::Entry` objects, which each contain information about an individual cache file on disk. These objects are referenced by shared_ptr, because they can be addressed by multiple callbacks on behalf of concurrent fetch attempts while also being held in the hashmap.
 
 A cache entry corresponds directly to a cache file on disk throughout the entire life time of the latter, including before and after its existence. It holds all pertinent state to inform about the phase and results of fetching the corresponding URI.
 
@@ -64,6 +65,7 @@ While a cache entry is referenced it cannot be evicted by a the current or any o
 The two blue states are essentially the same: no cache file exists. The two green disk states on the right are also the same.
 
 The figure only depicts what happens from the point of view of one isolated fetch run. Any given cache entry can be referenced simultaniously by another concurrent fetch run. It must not be evicted as long as it is referenced by any fetching activity. We implement this by reference counting. Every cache entry has a reference count field that gets incremented at the beginning of its use by a fetch run and decremented at its end. The latter must happen no matter whether the run has been successful or whether there has been an error. Increments happen when:
+
 - A new cache entry is created. It is immediately referenced.
 - An existing cache entry's file download is going to be waited for.
 - An existing cache entry has a resident cache file that is going to be retrieved.
@@ -78,16 +80,15 @@ As menitoned above, the fetcher process' main control flow concerns sorting out 
 
 ![Determining Fetcher Actions](images/fetch_flow.jpg?raw=true)
 
-After going through this procedure for each URI, the fetcher process assembles the gathered list of per-URI actions into a JSON object (FetcherInfo), which is passed to the mesos-fetcher program in an environment variable. The possible fetch actions for a URI are shown at the bottom of the flow chart. After they are determined, the fetcher process invokes mesos-fetcher.
+After going through this procedure for each URI, the fetcher process assembles the gathered list of per-URI actions into a JSON object (`FetcherInfo`), which is passed to the mesos-fetcher program in an environment variable. The possible fetch actions for a URI are shown at the bottom of the flow chart. After they are determined, the fetcher process invokes mesos-fetcher.
 
 The implementation is oriented at this control flow but its code structure cannot match it directly, because some of these branches must span multiple libprocess continuations. There are two layers of futures, one for each of these phases.
 
-1.  Before making fetcher cache items.
-- a) Wait for concurrent downloads for pre-existing cache entries
-- b) Wait for size fetching combined and then space reservation for new cache entries.
-
-2. After making fetcher cache items and running mesos-fetcher.
-- Complete new cache items with success/failure, which as an important side-effect informs concurrent fetch runs' futures in phase 1/a.
+  1. Before making fetcher cache items,
+    a. Wait for concurrent downloads for pre-existing cache entries.
+    b. Wait for size fetching combined and then space reservation for new cache entries.
+  2. After making fetcher cache items and running mesos-fetcher,
+    a. Complete new cache items with success/failure, which as an important side-effect informs concurrent fetch runs' futures in phase 1/a.
 
 The futures for phase 1 are not shared outside one fetch run. They exclusively guard asynchronous operations for the same fetch run. Their type parameter does not really matter. But each needs to correspond to one URI and eventual fetch item somehow. Multiple variants have been proposed for this. The complexity remains about the same.
 
@@ -105,6 +106,7 @@ Besides, everything touched in 1/a and 1/b needs to be prevented from being cach
 The resources named "A" and "B" have been fetched with caching into sandbox 1 and 2 below. In the course of this, two cache entries have been created and two files have been downloaded into the cache and named "1" and "2". (Cache file names have unique names that comprise serial numbers.)
 
 The next figure illustrates the state after fetching a different cached URI into sandbox 3, which in this case requires evicting a cache-resident file and its entry. Cache eviction removes cache entries in the order of the least recently used cache entries. Steps if "A" was fetched before "B":
+
 1. Remove the cache entry for "A" from the fetcher process' cache entry table. Its faded depiction is supposed to indicate this. This immediately makes it appear as if the URI has never been cached, even though the cache file is still around.
 2. Proceed with fetching "C". This creates a new cache file, which has a different unique name. (The fetcher process remembers in its cache entry which file name belongs to which URI.)
 

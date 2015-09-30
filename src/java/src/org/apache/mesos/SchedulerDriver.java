@@ -251,6 +251,16 @@ public interface SchedulerDriver {
   Status reviveOffers();
 
   /**
+   * Inform Mesos master to stop sending offers to the framework. The
+   * scheduler should call reviveOffers() to resume getting offers.
+   *
+   * @return    The state of the driver after the call.
+   *
+   * @see Status
+   */
+  Status suppressOffers();
+
+  /**
    * Acknowledges the status update. This should only be called
    * once the status update is processed durably by the scheduler.
    * Not that explicit acknowledgements must be requested via the

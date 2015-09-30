@@ -17,6 +17,11 @@
  */
 
 #include "tests/containerizer.hpp"
+
+#include <mutex>
+
+#include "stout/synchronized.hpp"
+
 #include "tests/mesos.hpp"
 
 using std::map;
@@ -99,56 +104,70 @@ Future<bool> TestContainerizer::_launch(
   containers_[key] = containerId;
 
   Executor* executor = executors[executorInfo.executor_id()];
-  Owned<MesosExecutorDriver> driver(new MesosExecutorDriver(executor));
-  drivers[containerId] = driver;
 
-  // Prepare additional environment variables for the executor.
-  // TODO(benh): Need to get flags passed into the TestContainerizer
-  // in order to properly use here.
-  slave::Flags flags;
-  flags.recovery_timeout = Duration::zero();
+  // We need to synchronize all reads and writes to the environment as this is
+  // global state.
+  // TODO(jmlvanre): Even this is not sufficient, as other aspects of the code
+  // may read an environment variable while we are manipulating it. The better
+  // solution is to pass the environment variables into the fork, or to set them
+  // on the command line. See MESOS-3475.
+  static std::mutex mutex;
 
-  // We need to save the original set of environment variables so we
-  // can reset the environment after calling 'driver->start()' below.
-  hashmap<string, string> original = os::environment();
+  synchronized(mutex) {
+    // Since the constructor for `MesosExecutorDriver` reads environment
+    // variables to load flags, even it needs to be within this synchronization
+    // section.
+    Owned<MesosExecutorDriver> driver(new MesosExecutorDriver(executor));
+    drivers[containerId] = driver;
 
-  const map<string, string> environment = executorEnvironment(
-      executorInfo,
-      directory,
-      slaveId,
-      slavePid,
-      checkpoint,
-      flags);
+    // Prepare additional environment variables for the executor.
+    // TODO(benh): Need to get flags passed into the TestContainerizer
+    // in order to properly use here.
+    slave::Flags flags;
+    flags.recovery_timeout = Duration::zero();
 
-  foreachpair (const string& name, const string variable, environment) {
-    os::setenv(name, variable);
-  }
+    // We need to save the original set of environment variables so we
+    // can reset the environment after calling 'driver->start()' below.
+    hashmap<string, string> original = os::environment();
 
-  // TODO(benh): Can this be removed and done exlusively in the
-  // 'executorEnvironment()' function? There are other places in the
-  // code where we do this as well and it's likely we can do this once
-  // in 'executorEnvironment()'.
-  foreach (const Environment::Variable& variable,
-           executorInfo.command().environment().variables()) {
-    os::setenv(variable.name(), variable.value());
-  }
+    const map<string, string> environment = executorEnvironment(
+        executorInfo,
+        directory,
+        slaveId,
+        slavePid,
+        checkpoint,
+        flags);
 
-  os::setenv("MESOS_LOCAL", "1");
+    foreachpair (const string& name, const string variable, environment) {
+      os::setenv(name, variable);
+    }
 
-  driver->start();
+    // TODO(benh): Can this be removed and done exlusively in the
+    // 'executorEnvironment()' function? There are other places in the
+    // code where we do this as well and it's likely we can do this once
+    // in 'executorEnvironment()'.
+    foreach (const Environment::Variable& variable,
+            executorInfo.command().environment().variables()) {
+      os::setenv(variable.name(), variable.value());
+    }
 
-  os::unsetenv("MESOS_LOCAL");
+    os::setenv("MESOS_LOCAL", "1");
 
-  // Unset the environment variables we set by resetting them to their
-  // original values and also removing any that were not part of the
-  // original environment.
-  foreachpair (const string& name, const string& value, original) {
-    os::setenv(name, value);
-  }
+    driver->start();
 
-  foreachkey (const string& name, environment) {
-    if (!original.contains(name)) {
-      os::unsetenv(name);
+    os::unsetenv("MESOS_LOCAL");
+
+    // Unset the environment variables we set by resetting them to their
+    // original values and also removing any that were not part of the
+    // original environment.
+    foreachpair (const string& name, const string& value, original) {
+      os::setenv(name, value);
+    }
+
+    foreachkey (const string& name, environment) {
+      if (!original.contains(name)) {
+        os::unsetenv(name);
+      }
     }
   }
 

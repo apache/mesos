@@ -93,6 +93,8 @@ libprocess_la_CPPFLAGS =			\
   -I$(BOOST)					\
   -I$(LIBEV)					\
   -I$(PICOJSON)					\
+  -DPICOJSON_USE_INT64				\
+  -D__STDC_FORMAT_MACROS			\
   $(AM_CPPFLAGS)
 
 if ENABLE_LIBEVENT
@@ -137,6 +139,7 @@ endif
 check_PROGRAMS = tests benchmarks
 
 tests_SOURCES =							\
+  src/tests/collect_tests.cpp					\
   src/tests/decoder_tests.cpp					\
   src/tests/encoder_tests.cpp					\
   src/tests/future_tests.cpp					\

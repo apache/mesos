@@ -56,32 +56,6 @@ namespace internal {
 namespace tests {
 
 
-// Helper for cloneChild() which expects an int(void*).
-static int cloneChildHelper(void* _func)
-{
-  const lambda::function<int()>* func =
-    static_cast<const lambda::function<int()>*> (_func);
-
-  return (*func)();
-}
-
-
-static pid_t cloneChild(
-    int flags,
-    const lambda::function<int()>& func)
-
-{
-  // 8 MiB stack for child.
-  static unsigned long long stack[(8*1024*1024)/sizeof(unsigned long long)];
-
-  return ::clone(
-      cloneChildHelper,
-      &stack[sizeof(stack)/sizeof(stack[0]) - 1], // Stack grows down.
-      flags | SIGCHLD,
-      (void*) &func);
-}
-
-
 // Test that a child in different namespace(s) can setns back to the
 // root namespace. We must fork a child to test this because setns
 // doesn't support multi-threaded processes (which gtest is).
@@ -121,7 +95,7 @@ TEST(NsTest, ROOT_setns)
       None(),
       None(),
       None(),
-      lambda::bind(&cloneChild, flags, lambda::_1));
+      lambda::bind(&os::clone, lambda::_1, flags | SIGCHLD));
 
   // Continue in parent.
   ASSERT_SOME(s);
@@ -164,9 +138,7 @@ TEST(NsTest, ROOT_setnsMultipleThreads)
 }
 
 
-// Use a different child function for clone because it requires
-// int(*)(void*).
-static int childGetns(void* arg)
+static int childGetns()
 {
   // Sleep until killed.
   while (true) { sleep(1); }
@@ -192,14 +164,7 @@ TEST(NsTest, ROOT_getns)
   Try<int> nstype = ns::nstype(ns);
   ASSERT_SOME(nstype);
 
-  // 8 MiB stack for child.
-  static unsigned long long stack[(8*1024*1024)/sizeof(unsigned long long)];
-
-  pid_t pid = clone(
-      childGetns,
-      &stack[sizeof(stack)/sizeof(stack[0]) - 1], // Stack grows down.
-      SIGCHLD | nstype.get(),
-      NULL);
+  pid_t pid = os::clone(childGetns, SIGCHLD | nstype.get());
 
   ASSERT_NE(-1, pid);
 
@@ -224,7 +189,7 @@ TEST(NsTest, ROOT_getns)
 }
 
 
-static int childDestroy(void* arg)
+static int childDestroy()
 {
   // Fork a bunch of children.
   ::fork();
@@ -251,14 +216,7 @@ TEST(NsTest, ROOT_destroy)
   Try<int> nstype = ns::nstype("pid");
   ASSERT_SOME(nstype);
 
-  // 8 MiB stack for child.
-  static unsigned long long stack[(8*1024*1024)/sizeof(unsigned long long)];
-
-  pid_t pid = clone(
-      childDestroy,
-      &stack[sizeof(stack)/sizeof(stack[0]) - 1], // Stack grows down.
-      SIGCHLD | nstype.get(),
-      NULL);
+  pid_t pid = os::clone(childDestroy, SIGCHLD | nstype.get());
 
   ASSERT_NE(-1, pid);
 

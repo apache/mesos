@@ -362,13 +362,19 @@ void Slave::initialize()
   string hostname;
 
   if (flags.hostname.isNone()) {
-    Try<string> result = net::getHostname(self().address.ip);
+    if (flags.hostname_lookup) {
+      Try<string> result = net::getHostname(self().address.ip);
 
-    if (result.isError()) {
-      LOG(FATAL) << "Failed to get hostname: " << result.error();
+      if (result.isError()) {
+        LOG(FATAL) << "Failed to get hostname: " << result.error();
+      }
+
+      hostname = result.get();
+    } else {
+      // We use the IP address for hostname if the user requested us
+      // NOT to look it up, and it wasn't explicitly set via --hostname:
+      hostname = stringify(self().address.ip);
     }
-
-    hostname = result.get();
   } else {
     hostname = flags.hostname.get();
   }
@@ -494,16 +500,31 @@ void Slave::initialize()
   // Setup HTTP routes.
   Http http = Http(this);
 
-  route("/health",
-        Http::HEALTH_HELP,
+  route("/api/v1/executor",
+        Http::EXECUTOR_HELP,
         [http](const process::http::Request& request) {
-          return http.health(request);
+          Http::log(request);
+          return http.executor(request);
         });
+
+  // TODO(ijimenez): Remove this endpoint at the end of the
+  // deprecation cycle on 0.26.
   route("/state.json",
         Http::STATE_HELP,
         [http](const process::http::Request& request) {
           Http::log(request);
           return http.state(request);
+        });
+  route("/state",
+        Http::STATE_HELP,
+        [http](const process::http::Request& request) {
+          Http::log(request);
+          return http.state(request);
+        });
+  route("/health",
+        Http::HEALTH_HELP,
+        [http](const process::http::Request& request) {
+          return http.health(request);
         });
 
   // Expose the log file for the webui. Fall back to 'log_dir' if
@@ -1468,7 +1489,7 @@ void Slave::_runTask(
           TASK_LOST,
           TaskStatus::SOURCE_SLAVE,
           UUID::random(),
-         "The checkpointed resources being used by the task are unknown to "
+          "The checkpointed resources being used by the task are unknown to "
           "the slave",
           TaskStatus::REASON_RESOURCES_UNKNOWN);
 
@@ -2751,10 +2772,30 @@ void Slave::statusUpdate(StatusUpdate update, const UPID& pid)
   }
 
   if (HookManager::hooksAvailable()) {
-    // Set TaskStatus labels from run task label decorator.
-    update.mutable_status()->mutable_labels()->CopyFrom(
-        HookManager::slaveTaskStatusLabelDecorator(
-            update.framework_id(), update.status()));
+    // Even though the hook(s) return a TaskStatus, we only use two fields:
+    // container_status and labels. Remaining fields are discarded.
+    TaskStatus statusFromHooks =
+      HookManager::slaveTaskStatusDecorator(
+          update.framework_id(), update.status());
+    if (statusFromHooks.has_labels()) {
+      update.mutable_status()->mutable_labels()->CopyFrom(
+          statusFromHooks.labels());
+    }
+
+    if (statusFromHooks.has_container_status()) {
+      update.mutable_status()->mutable_container_status()->CopyFrom(
+          statusFromHooks.container_status());
+    }
+  }
+
+  // Fill in the container IP address with the IP from the agent PID, if not
+  // already filled in.
+  // TODO(karya): Fill in the IP address by looking up the executor PID.
+  ContainerStatus* containerStatus =
+    update.mutable_status()->mutable_container_status();
+  if (containerStatus->network_infos().size() == 0) {
+    NetworkInfo* networkInfo = containerStatus->add_network_infos();
+    networkInfo->set_ip_address(stringify(self().address.ip));
   }
 
   TaskStatus status = update.status();
@@ -4364,10 +4405,21 @@ void Slave::_qosCorrections(const Future<list<QoSCorrection>>& future)
         continue;
       }
 
+      const ContainerID containerId =
+          kill.has_container_id() ? kill.container_id() : executor->containerId;
+      if (containerId != executor->containerId) {
+        LOG(WARNING) << "Ignoring QoS correction KILL on container '"
+                     << containerId << "' for executor '"
+                     << executorId << "' of framework " << frameworkId
+                     << ": container cannot be found";
+        continue;
+      }
+
       switch (executor->state) {
         case Executor::REGISTERING:
         case Executor::RUNNING: {
-          LOG(INFO) << "Killing executor '" << executorId
+          LOG(INFO) << "Killing container '" << containerId
+                    << "' for executor '" << executorId
                     << "' of framework " << frameworkId
                     << " as QoS correction";
 
@@ -4380,7 +4432,7 @@ void Slave::_qosCorrections(const Future<list<QoSCorrection>>& future)
           // (MESOS-2875).
           executor->state = Executor::TERMINATING;
           executor->reason = TaskStatus::REASON_EXECUTOR_PREEMPTED;
-          containerizer->destroy(executor->containerId);
+          containerizer->destroy(containerId);
 
           ++metrics.executors_preempted;
           break;
@@ -4419,6 +4471,7 @@ Future<ResourceUsage> Slave::usage()
       ResourceUsage::Executor* entry = usage->add_executors();
       entry->mutable_executor_info()->CopyFrom(executor->info);
       entry->mutable_allocated()->CopyFrom(executor->resources);
+      entry->mutable_container_id()->CopyFrom(executor->containerId);
 
       futures.push_back(containerizer->usage(executor->containerId));
     }

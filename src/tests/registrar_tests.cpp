@@ -23,6 +23,7 @@
 #include <string>
 #include <vector>
 
+#include <mesos/attributes.hpp>
 #include <mesos/type_utils.hpp>
 
 #include <process/clock.hpp>
@@ -35,7 +36,6 @@
 #include <stout/stopwatch.hpp>
 #include <stout/uuid.hpp>
 
-#include "common/attributes.hpp"
 #include "common/protobuf_utils.hpp"
 
 #include "log/log.hpp"
@@ -71,6 +71,8 @@ using std::string;
 using std::vector;
 
 using process::Clock;
+
+using google::protobuf::RepeatedPtrField;
 
 using mesos::internal::protobuf::maintenance::createMachineList;
 using mesos::internal::protobuf::maintenance::createSchedule;
@@ -530,7 +532,8 @@ TEST_P(RegistrarTest, StartMaintenance)
         Owned<Operation>(new UpdateSchedule(schedule))));
 
     // Transition machine two into `DOWN` mode.
-    MachineIDs machines = createMachineList({machine2});
+    RepeatedPtrField<MachineID> machines = createMachineList({machine2});
+
     AWAIT_READY(registrar.apply(
         Owned<Operation>(new StartMaintenance(machines))));
   }
@@ -558,7 +561,9 @@ TEST_P(RegistrarTest, StartMaintenance)
         Owned<Operation>(new UpdateSchedule(schedule))));
 
     // Deactivate the two `DRAINING` machines.
-    MachineIDs machines = createMachineList({machine1, machine3});
+    RepeatedPtrField<MachineID> machines =
+      createMachineList({machine1, machine3});
+
     AWAIT_READY(registrar.apply(
         Owned<Operation>(new StartMaintenance(machines))));
   }
@@ -615,7 +620,8 @@ TEST_P(RegistrarTest, StopMaintenance)
         Owned<Operation>(new UpdateSchedule(schedule))));
 
     // Transition machine three into `DOWN` mode.
-    MachineIDs machines = createMachineList({machine3});
+    RepeatedPtrField<MachineID> machines = createMachineList({machine3});
+
     AWAIT_READY(registrar.apply(
         Owned<Operation>(new StartMaintenance(machines))));
 
@@ -643,7 +649,9 @@ TEST_P(RegistrarTest, StopMaintenance)
         registry.get().machines().machines(1).info().mode());
 
     // Transition machine one and two into `DOWN` mode.
-    MachineIDs machines = createMachineList({machine1, machine2});
+    RepeatedPtrField<MachineID> machines =
+      createMachineList({machine1, machine2});
+
     AWAIT_READY(registrar.apply(
         Owned<Operation>(new StartMaintenance(machines))));
 

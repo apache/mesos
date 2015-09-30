@@ -374,6 +374,7 @@ Try<bool> setMTU(const string& _link, unsigned int mtu)
     return Error(message);
   }
 
+  os::close(fd);
   return true;
 }
 

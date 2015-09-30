@@ -50,11 +50,13 @@ EXTRA_DIST =					\
   tests/protobuf_tests.pb.cc			\
   tests/protobuf_tests.pb.h			\
   tests/protobuf_tests.proto			\
+  tests/recordio_tests.cpp			\
   tests/result_tests.cpp			\
   tests/set_tests.cpp				\
   tests/some_tests.cpp				\
   tests/strings_tests.cpp			\
   tests/subcommand_tests.cpp			\
   tests/svn_tests.cpp				\
+  tests/try_tests.cpp				\
   tests/uuid_tests.cpp				\
   tests/version_tests.cpp

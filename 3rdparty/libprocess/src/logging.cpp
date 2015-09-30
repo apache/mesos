@@ -29,8 +29,8 @@ namespace process {
 
 Future<http::Response> Logging::toggle(const http::Request& request)
 {
-  Option<std::string> level = request.query.get("level");
-  Option<std::string> duration = request.query.get("duration");
+  Option<std::string> level = request.url.query.get("level");
+  Option<std::string> duration = request.url.query.get("duration");
 
   if (level.isNone() && duration.isNone()) {
     return http::OK(stringify(FLAGS_v) + "\n");
@@ -80,8 +80,6 @@ const std::string Logging::TOGGLE_HELP()
   return HELP(
     TLDR(
         "Sets the logging verbosity level for a specified duration."),
-    USAGE(
-        "/logging/toggle?level=VALUE&duration=VALUE"),
     DESCRIPTION(
         "The libprocess library uses [glog][glog] for logging. The library",
         "only uses verbose logging which means nothing will be output unless",
@@ -91,7 +89,7 @@ const std::string Logging::TOGGLE_HELP()
         "**NOTE:** If your application uses glog this will also affect",
         "your verbose logging.",
         "",
-        "Required query parameters:",
+        "Query parameters:",
         "",
         ">        level=VALUE          Verbosity level (e.g., 1, 2, 3)",
         ">        duration=VALUE       Duration to keep verbosity level",

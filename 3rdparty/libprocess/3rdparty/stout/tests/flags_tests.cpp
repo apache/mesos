@@ -32,7 +32,9 @@
 
 #include <stout/tests/utils.hpp>
 
-using namespace flags;
+using flags::Flag;
+using flags::Flags;
+using flags::FlagsBase;
 
 using std::cout;
 using std::endl;
@@ -401,9 +403,10 @@ TEST(FlagsTest, DuplicatesFromEnvironment)
   };
 
   Try<Nothing> load = flags.load("FLAGSTEST_", arraySize(argv), argv);
-  EXPECT_ERROR(load);
+  EXPECT_SOME(load);
 
-  EXPECT_EQ("Duplicate flag 'name1' on command line", load.error());
+  // The environment variables are overwritten by command line flags.
+  EXPECT_EQ(flags.name1, "billy joel");
 
   os::unsetenv("FLAGSTEST_name1");
 }
@@ -419,10 +422,10 @@ TEST(FlagsTest, DuplicatesFromCommandLine)
     "--name1=ben folds"
   };
 
+  // TODO(klaus1982): Simply checking for the error. Once typed errors are
+  // introduced, capture it within the type system.
   Try<Nothing> load = flags.load("FLAGSTEST_", arraySize(argv), argv);
   EXPECT_ERROR(load);
-
-  EXPECT_EQ("Duplicate flag 'name1' on command line", load.error());
 }
 
 

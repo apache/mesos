@@ -98,22 +98,22 @@
         <tbody>
           <tr>
             <td>Total</td>
-            <td class="text-right">{{total_cpus | number}}</td>
+            <td class="text-right">{{total_cpus | decimalFloat}}</td>
             <td class="text-right">{{total_mem * (1024 * 1024) | dataSize}}</td>
           </tr>
           <tr>
             <td>Used</td>
-            <td class="text-right">{{used_cpus | number}}</td>
+            <td class="text-right">{{used_cpus | decimalFloat}}</td>
             <td class="text-right">{{used_mem * (1024 * 1024) | dataSize}}</td>
           </tr>
           <tr>
             <td>Offered</td>
-            <td class="text-right">{{offered_cpus | number}}</td>
+            <td class="text-right">{{offered_cpus | decimalFloat}}</td>
             <td class="text-right">{{offered_mem * (1024 * 1024) | dataSize}}</td>
           </tr>
           <tr>
             <td>Idle</td>
-            <td class="text-right">{{idle_cpus | number}}</td>
+            <td class="text-right">{{idle_cpus | decimalFloat}}</td>
             <td class="text-right">{{idle_mem * (1024 * 1024) | dataSize}}</td>
           </tr>
         </tbody>

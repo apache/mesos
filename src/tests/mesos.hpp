@@ -276,7 +276,7 @@ private:
   hashset<std::string> subsystems;
 };
 #else
-template<>
+template <>
 class ContainerizerTest<slave::MesosContainerizer> : public MesosTest
 {
 protected:
@@ -1265,7 +1265,7 @@ public:
 
 ACTION_P(InvokeInitialize, allocator)
 {
-  allocator->real->initialize(arg0, arg1, arg2);
+  allocator->real->initialize(arg0, arg1, arg2, arg3);
 }
 
 
@@ -1301,7 +1301,7 @@ ACTION_P(InvokeUpdateFramework, allocator)
 
 ACTION_P(InvokeAddSlave, allocator)
 {
-  allocator->real->addSlave(arg0, arg1, arg2, arg3);
+  allocator->real->addSlave(arg0, arg1, arg2, arg3, arg4);
 }
 
 
@@ -1353,6 +1353,24 @@ ACTION_P(InvokeUpdateResources, allocator)
 }
 
 
+ACTION_P(InvokeUpdateUnavailability, allocator)
+{
+  return allocator->real->updateUnavailability(arg0, arg1);
+}
+
+
+ACTION_P(InvokeUpdateInverseOffer, allocator)
+{
+  return allocator->real->updateInverseOffer(arg0, arg1, arg2, arg3, arg4);
+}
+
+
+ACTION_P(InvokeGetInverseOfferStatuses, allocator)
+{
+  return allocator->real->getInverseOfferStatuses();
+}
+
+
 ACTION_P(InvokeRecoverResources, allocator)
 {
   allocator->real->recoverResources(arg0, arg1, arg2, arg3);
@@ -1365,6 +1383,12 @@ ACTION_P2(InvokeRecoverResourcesWithFilters, allocator, timeout)
   filters.set_refuse_seconds(timeout);
 
   allocator->real->recoverResources(arg0, arg1, arg2, filters);
+}
+
+
+ACTION_P(InvokeSuppressOffers, allocator)
+{
+  allocator->real->suppressOffers(arg0);
 }
 
 
@@ -1401,9 +1425,9 @@ public:
     // to get the best of both worlds: the ability to use 'DoDefault'
     // and no warnings when expectations are not explicit.
 
-    ON_CALL(*this, initialize(_, _, _))
+    ON_CALL(*this, initialize(_, _, _, _))
       .WillByDefault(InvokeInitialize(this));
-    EXPECT_CALL(*this, initialize(_, _, _))
+    EXPECT_CALL(*this, initialize(_, _, _, _))
       .WillRepeatedly(DoDefault());
 
     ON_CALL(*this, addFramework(_, _, _))
@@ -1431,9 +1455,9 @@ public:
     EXPECT_CALL(*this, updateFramework(_, _))
       .WillRepeatedly(DoDefault());
 
-    ON_CALL(*this, addSlave(_, _, _, _))
+    ON_CALL(*this, addSlave(_, _, _, _, _))
       .WillByDefault(InvokeAddSlave(this));
-    EXPECT_CALL(*this, addSlave(_, _, _, _))
+    EXPECT_CALL(*this, addSlave(_, _, _, _, _))
       .WillRepeatedly(DoDefault());
 
     ON_CALL(*this, removeSlave(_))
@@ -1476,6 +1500,21 @@ public:
     EXPECT_CALL(*this, updateAvailable(_, _))
       .WillRepeatedly(DoDefault());
 
+    ON_CALL(*this, updateUnavailability(_, _))
+      .WillByDefault(InvokeUpdateUnavailability(this));
+    EXPECT_CALL(*this, updateUnavailability(_, _))
+      .WillRepeatedly(DoDefault());
+
+    ON_CALL(*this, updateInverseOffer(_, _, _, _, _))
+      .WillByDefault(InvokeUpdateInverseOffer(this));
+    EXPECT_CALL(*this, updateInverseOffer(_, _, _, _, _))
+      .WillRepeatedly(DoDefault());
+
+    ON_CALL(*this, getInverseOfferStatuses())
+      .WillByDefault(InvokeGetInverseOfferStatuses(this));
+    EXPECT_CALL(*this, getInverseOfferStatuses())
+      .WillRepeatedly(DoDefault());
+
     ON_CALL(*this, recoverResources(_, _, _, _))
       .WillByDefault(InvokeRecoverResources(this));
     EXPECT_CALL(*this, recoverResources(_, _, _, _))
@@ -1485,15 +1524,23 @@ public:
       .WillByDefault(InvokeReviveOffers(this));
     EXPECT_CALL(*this, reviveOffers(_))
       .WillRepeatedly(DoDefault());
+
+    ON_CALL(*this, suppressOffers(_))
+      .WillByDefault(InvokeSuppressOffers(this));
+    EXPECT_CALL(*this, suppressOffers(_))
+      .WillRepeatedly(DoDefault());
   }
 
   virtual ~TestAllocator() {}
 
-  MOCK_METHOD3(initialize, void(
+  MOCK_METHOD4(initialize, void(
       const Duration&,
       const lambda::function<
           void(const FrameworkID&,
                const hashmap<SlaveID, Resources>&)>&,
+      const lambda::function<
+          void(const FrameworkID&,
+               const hashmap<SlaveID, UnavailableResources>&)>&,
       const hashmap<std::string, mesos::master::RoleInfo>&));
 
   MOCK_METHOD3(addFramework, void(
@@ -1514,9 +1561,10 @@ public:
       const FrameworkID&,
       const FrameworkInfo&));
 
-  MOCK_METHOD4(addSlave, void(
+  MOCK_METHOD5(addSlave, void(
       const SlaveID&,
       const SlaveInfo&,
+      const Option<Unavailability>&,
       const Resources&,
       const hashmap<FrameworkID, Resources>&));
 
@@ -1549,6 +1597,22 @@ public:
       const SlaveID&,
       const std::vector<Offer::Operation>&));
 
+  MOCK_METHOD2(updateUnavailability, void(
+      const SlaveID&,
+      const Option<Unavailability>&));
+
+  MOCK_METHOD5(updateInverseOffer, void(
+      const SlaveID&,
+      const FrameworkID&,
+      const Option<UnavailableResources>&,
+      const Option<mesos::master::InverseOfferStatus>&,
+      const Option<Filters>&));
+
+  MOCK_METHOD0(getInverseOfferStatuses, process::Future<
+      hashmap<SlaveID, hashmap<
+          FrameworkID,
+          mesos::master::InverseOfferStatus>>>());
+
   MOCK_METHOD4(recoverResources, void(
       const FrameworkID&,
       const SlaveID&,
@@ -1556,6 +1620,8 @@ public:
       const Option<Filters>& filters));
 
   MOCK_METHOD1(reviveOffers, void(const FrameworkID&));
+
+  MOCK_METHOD1(suppressOffers, void(const FrameworkID&));
 
   process::Owned<mesos::master::allocator::Allocator> real;
 };

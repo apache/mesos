@@ -280,7 +280,7 @@ TEST_F(MasterTest, ShutdownFrameworkWhileTaskRunning)
 
   // Request master state.
   Future<process::http::Response> response =
-    process::http::get(master.get(), "state.json");
+    process::http::get(master.get(), "state");
   AWAIT_READY(response);
 
   // These checks are not essential for the test, but may help
@@ -1086,6 +1086,50 @@ TEST_F(WhitelistTest, WhitelistSlave)
 }
 
 
+class HostnameTest : public MasterTest {};
+
+
+TEST_F(HostnameTest, LookupEnabled)
+{
+  master::Flags flags = CreateMasterFlags();
+  EXPECT_TRUE(flags.hostname_lookup);
+
+  Try<PID<Master>> pid = StartMaster(flags);
+  ASSERT_SOME(pid);
+
+  Option<Master*> master = cluster.find(pid.get());
+  ASSERT_SOME(master);
+
+  EXPECT_EQ(
+      pid.get().address.hostname().get(),
+      master.get()->info().hostname());
+
+  Shutdown();
+}
+
+
+TEST_F(HostnameTest, LookupDisabled)
+{
+  master::Flags flags = CreateMasterFlags();
+  EXPECT_TRUE(flags.hostname_lookup);
+  EXPECT_NONE(flags.hostname);
+
+  flags.hostname_lookup = false;
+
+  Try<PID<Master>> pid = StartMaster(flags);
+  ASSERT_SOME(pid);
+
+  Option<Master*> master = cluster.find(pid.get());
+  ASSERT_SOME(master);
+
+  EXPECT_EQ(
+      stringify(pid.get().address.ip),
+      master.get()->info().hostname());
+
+  Shutdown();
+}
+
+
 TEST_F(MasterTest, MasterLost)
 {
   Try<PID<Master>> master = StartMaster();
@@ -1511,6 +1555,7 @@ TEST_F(MasterTest, MetricsInMetricsEndpoint)
   EXPECT_EQ(1u, snapshot.values.count("master/messages_launch_tasks"));
   EXPECT_EQ(1u, snapshot.values.count("master/messages_decline_offers"));
   EXPECT_EQ(1u, snapshot.values.count("master/messages_revive_offers"));
+  EXPECT_EQ(1u, snapshot.values.count("master/messages_suppress_offers"));
   EXPECT_EQ(1u, snapshot.values.count("master/messages_reconcile_tasks"));
   EXPECT_EQ(1u, snapshot.values.count("master/messages_framework_to_executor"));
 
@@ -2178,7 +2223,7 @@ TEST_F(MasterZooKeeperTest, MasterInfoAddress)
 
 // This test ensures that when a master fails over, those tasks that
 // belong to some currently unregistered frameworks will appear in the
-// "orphan_tasks" field in the state.json. And those unregistered frameworks
+// "orphan_tasks" field in the state endpoint. And those unregistered frameworks
 // will appear in the "unregistered_frameworks" field.
 TEST_F(MasterTest, OrphanTasks)
 {
@@ -2224,7 +2269,7 @@ TEST_F(MasterTest, OrphanTasks)
 
   // Get the master's state.
   Future<process::http::Response> response =
-    process::http::get(master.get(), "state.json");
+    process::http::get(master.get(), "state");
   AWAIT_READY(response);
 
   EXPECT_SOME_EQ(
@@ -2290,7 +2335,7 @@ TEST_F(MasterTest, OrphanTasks)
   AWAIT_READY(subscribeCall);
 
   // Get the master's state.
-  response = process::http::get(master.get(), "state.json");
+  response = process::http::get(master.get(), "state");
   AWAIT_READY(response);
 
   EXPECT_SOME_EQ(
@@ -2325,7 +2370,7 @@ TEST_F(MasterTest, OrphanTasks)
   AWAIT_READY(frameworkRegisteredMessage);
 
   // Get the master's state.
-  response = process::http::get(master.get(), "state.json");
+  response = process::http::get(master.get(), "state");
   AWAIT_READY(response);
 
   EXPECT_SOME_EQ(
@@ -2792,7 +2837,7 @@ TEST_F(MasterTest, StateEndpoint)
   ASSERT_SOME(master);
 
   Future<process::http::Response> response =
-    process::http::get(master.get(), "state.json");
+    process::http::get(master.get(), "state");
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(process::http::OK().status, response);
 
@@ -2826,7 +2871,7 @@ TEST_F(MasterTest, StateEndpoint)
   ASSERT_TRUE(state.values["start_time"].is<JSON::Number>());
   EXPECT_EQ(
       static_cast<int>(Clock::now().secs()),
-      static_cast<int>(state.values["start_time"].as<JSON::Number>().value));
+      state.values["start_time"].as<JSON::Number>().as<int>());
 
   ASSERT_TRUE(state.values["id"].is<JSON::String>());
   EXPECT_NE("", state.values["id"].as<JSON::String>().value);
@@ -2973,7 +3018,7 @@ TEST_F(MasterTest, StateSummaryEndpoint)
 
 
 // This test ensures that the web UI and capabilities of a framework
-// are included in the state.json endpoint, if provided by the
+// are included in the master's state endpoint, if provided by the
 // framework.
 TEST_F(MasterTest, FrameworkWebUIUrlandCapabilities)
 {
@@ -2998,7 +3043,7 @@ TEST_F(MasterTest, FrameworkWebUIUrlandCapabilities)
   AWAIT_READY(registered);
 
   Future<process::http::Response> masterState =
-    process::http::get(master.get(), "state.json");
+    process::http::get(master.get(), "state");
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(process::http::OK().status, masterState);
 
   Try<JSON::Object> parse = JSON::parse<JSON::Object>(masterState.get().body);
@@ -3035,7 +3080,7 @@ TEST_F(MasterTest, FrameworkWebUIUrlandCapabilities)
 }
 
 
-// This test verifies that label values are exposed over the master
+// This test verifies that label values are exposed over the master's
 // state endpoint.
 TEST_F(MasterTest, TaskLabels)
 {
@@ -3103,9 +3148,9 @@ TEST_F(MasterTest, TaskLabels)
 
   AWAIT_READY(update);
 
-  // Verify label key and value in master state.json.
+  // Verify label key and value in the master's state endpoint.
   Future<process::http::Response> response =
-    process::http::get(master.get(), "state.json");
+    process::http::get(master.get(), "state");
   AWAIT_READY(response);
 
   EXPECT_SOME_EQ(
@@ -3143,7 +3188,7 @@ TEST_F(MasterTest, TaskLabels)
 
 
 // This test verifies that TaskStatus label values are exposed over
-// the master state endpoint.
+// the master's state endpoint.
 TEST_F(MasterTest, TaskStatusLabels)
 {
   Try<PID<Master>> master = StartMaster();
@@ -3244,9 +3289,97 @@ TEST_F(MasterTest, TaskStatusLabels)
 }
 
 
-// This tests the 'active' field in slave entries from state.json. We
-// first verify an active slave, deactivate it and verify that the
-// 'active' field is false.
+// This test verifies that TaskStatus::container_status is exposed over the
+// master state endpoint.
+TEST_F(MasterTest, TaskStatusContainerStatus)
+{
+  Try<PID<Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+
+  Try<PID<Slave>> slave = StartSlave(&exec);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .Times(1);
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
+
+  TaskInfo task = createTask(offers.get()[0], "sleep 100", DEFAULT_EXECUTOR_ID);
+
+  ExecutorDriver* execDriver;
+  EXPECT_CALL(exec, registered(_, _, _, _))
+    .WillOnce(SaveArg<0>(&execDriver));
+
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
+
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status));
+
+  driver.launchTasks(offers.get()[0].id(), {task});
+
+  AWAIT_READY(status);
+
+  const string slaveIPAddress = stringify(slave.get().address.ip);
+
+  // Validate that the Slave has passed in its IP address in
+  // TaskStatus.container_status.network_infos[0].ip_address.
+  EXPECT_TRUE(status.get().has_container_status());
+  EXPECT_EQ(1, status.get().container_status().network_infos().size());
+  EXPECT_TRUE(
+      status.get().container_status().network_infos(0).has_ip_address());
+  EXPECT_EQ(
+      slaveIPAddress,
+      status.get().container_status().network_infos(0).ip_address());
+
+  // Now do the same validation with state endpoint.
+  Future<process::http::Response> response =
+    process::http::get(master.get(), "state.json");
+  AWAIT_READY(response);
+
+  EXPECT_SOME_EQ(
+      "application/json",
+      response.get().headers.get("Content-Type"));
+
+  Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+  ASSERT_SOME(parse);
+
+  // Validate that the IP address passed in by the Slave is available at the
+  // state endpoint.
+  ASSERT_SOME_EQ(
+      slaveIPAddress,
+      parse.get().find<JSON::String>(
+          "frameworks[0].tasks[0].statuses[0]"
+          ".container_status.network_infos[0].ip_address"));
+
+  EXPECT_CALL(exec, shutdown(_))
+    .Times(AtMost(1));
+
+  driver.stop();
+  driver.join();
+
+  Shutdown(); // Must shutdown before 'containerizer' gets deallocated.
+}
+
+
+// This tests the 'active' field in slave entries from the master's
+// state endpoint. We first verify an active slave, deactivate it
+// and verify that the 'active' field is false.
 TEST_F(MasterTest, SlaveActiveEndpoint)
 {
   // Start a master.
@@ -3263,7 +3396,7 @@ TEST_F(MasterTest, SlaveActiveEndpoint)
 
   // Verify slave is active.
   Future<process::http::Response> response =
-    process::http::get(master.get(), "state.json");
+    process::http::get(master.get(), "state");
   AWAIT_READY(response);
 
   Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
@@ -3285,7 +3418,7 @@ TEST_F(MasterTest, SlaveActiveEndpoint)
   AWAIT_READY(deactivateSlave);
 
   // Verify slave is inactive.
-  response = process::http::get(master.get(), "state.json");
+  response = process::http::get(master.get(), "state");
   AWAIT_READY(response);
 
   parse = JSON::parse<JSON::Object>(response.get().body);
@@ -3300,7 +3433,7 @@ TEST_F(MasterTest, SlaveActiveEndpoint)
 
 
 // This test verifies that service info for tasks is exposed over the
-// master state endpoint.
+// master's state endpoint.
 TEST_F(MasterTest, TaskDiscoveryInfo)
 {
   Try<PID<Master>> master = StartMaster();
@@ -3382,9 +3515,9 @@ TEST_F(MasterTest, TaskDiscoveryInfo)
 
   AWAIT_READY(update);
 
-  // Verify label key and value in master state.json.
+  // Verify label key and value in the master's state endpoint.
   Future<process::http::Response> response =
-    process::http::get(master.get(), "state.json");
+    process::http::get(master.get(), "state");
   AWAIT_READY(response);
 
   EXPECT_SOME_EQ(
@@ -3594,8 +3727,54 @@ TEST_F(MasterTest, MasterFailoverLongLivedExecutor)
   Shutdown(); // Must shutdown before 'containerizer' gets deallocated.
 }
 
-// This test ensures that if a framework scheduler provides any labels in its
-// FrameworkInfo message, those labels are included in the state.json endpoint.
+
+// This test ensures that a slave gets a unique SlaveID even after
+// master fails over. Please refer to MESOS-3351 for further details.
+TEST_F(MasterTest, DuplicatedSlaveIdWhenSlaveReregister)
+{
+  Try<PID<Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  Future<SlaveRegisteredMessage> slaveRegisteredMessage1 =
+      FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
+
+  StandaloneMasterDetector slaveDetector1 (master.get());
+  Try<PID<Slave>> slave1 = StartSlave(&slaveDetector1);
+  ASSERT_SOME(slave1);
+
+  AWAIT_READY(slaveRegisteredMessage1);
+
+  Stop(master.get());
+  master = StartMaster();
+  ASSERT_SOME(master);
+
+  Future<SlaveRegisteredMessage> slaveRegisteredMessage2 =
+      FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
+
+  // Start a new slave and make sure it registers before the old slave.
+  slave::Flags slaveFlags2 = CreateSlaveFlags();
+  Try<PID<Slave>> slave2 = StartSlave(slaveFlags2);
+  ASSERT_SOME(slave2);
+
+  AWAIT_READY(slaveRegisteredMessage2);
+
+  Future<SlaveReregisteredMessage> slaveReregisteredMessage1 =
+      FUTURE_PROTOBUF(SlaveReregisteredMessage(), master.get(), _);
+
+  // Now let the first slave re-register.
+  slaveDetector1.appoint(master.get());
+
+  // If both the slaves get the same SlaveID, the re-registration would
+  // fail here.
+  AWAIT_READY(slaveReregisteredMessage1);
+
+  Shutdown();
+}
+
+
+// This test ensures that if a framework scheduler provides any
+// labels in its FrameworkInfo message, those labels are included
+// in the master's state endpoint.
 TEST_F(MasterTest, FrameworkInfoLabels)
 {
   Try<PID<Master>> master = StartMaster();

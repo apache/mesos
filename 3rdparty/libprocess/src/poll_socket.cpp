@@ -79,6 +79,7 @@ Future<Socket> accept(int fd)
 
   Try<Socket> socket = Socket::create(Socket::DEFAULT_KIND(), s);
   if (socket.isError()) {
+    os::close(s);
     return Failure("Failed to accept, create socket: " + socket.error());
   }
   return socket.get();

@@ -22,4 +22,22 @@
 // ONLY USEFUL AFTER RUNNING PROTOC.
 #include <mesos/scheduler/scheduler.pb.h>
 
+namespace mesos {
+
+inline std::ostream& operator<<(std::ostream& stream,
+                                const scheduler::Call::Type& type)
+{
+  return stream << scheduler::Call_Type_Name(type);
+}
+
+
+inline std::ostream& operator<<(
+    std::ostream& stream,
+    const scheduler::Event::Type& type)
+{
+  return stream << scheduler::Event_Type_Name(type);
+}
+
+} // namespace mesos {
+
 #endif // __SCHEDULER_PROTO_HPP__

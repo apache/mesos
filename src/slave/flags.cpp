@@ -36,7 +36,17 @@ mesos::internal::slave::Flags::Flags()
       "hostname",
       "The hostname the slave should report.\n"
       "If left unset, the hostname is resolved from the IP address\n"
-      "that the slave binds to.");
+      "that the slave binds to; unless the user explicitly prevents\n"
+      "that, using --no-hostname_lookup, in which case the IP itself\n"
+      "is used.");
+
+  add(&Flags::hostname_lookup,
+      "hostname_lookup",
+      "Whether we should execute a lookup to find out the server's hostname,\n"
+      "if not explicitly set (via, e.g., `--hostname`).\n"
+      "True by default; if set to 'false' it will cause Mesos\n"
+      "to use the IP address, unless the hostname is explicitly set.",
+      true);
 
   add(&Flags::version,
       "version",
@@ -59,21 +69,44 @@ mesos::internal::slave::Flags::Flags()
       "for the Mesos Containerizer.",
       "posix/cpu,posix/mem");
 
-  add(&Flags::provisioners,
-      "provisioners",
-      "Comma separated list of image rootfs provisioners,\n"
-      "e.g., appc,docker");
+  add(&Flags::launcher,
+      "launcher",
+      "The launcher to be used for Mesos containerizer. It could either be\n"
+      "'linux' or 'posix'. The Linux launcher is required for cgroups\n"
+      "isolation and for any isolators that require Linux namespaces such as\n"
+      "network, pid, etc. If unspecified, the slave will choose the Linux\n"
+      "launcher if it's running as root on Linux.");
+
+  add(&Flags::image_providers,
+      "image_providers",
+      "Comma separated list of supported image providers,\n"
+      "e.g., 'APPC,DOCKER'.");
+
+  add(&Flags::image_provisioner_backend,
+      "image_provisioner_backend",
+      "Strategy for provisioning container rootfs from images,\n"
+      "e.g., 'bind', 'copy'.",
+      "copy");
 
   add(&Flags::appc_store_dir,
       "appc_store_dir",
-      "Directory the appc provisioner will store images in",
+      "Directory the appc provisioner will store images in.",
       "/tmp/mesos/store/appc");
 
-  // TODO(xujyan): Change the default to 'copy' once it's added.
-  add(&Flags::appc_backend,
-      "appc_backend",
-      "Strategy for provisioning container rootfs from appc images",
-      "bind");
+  add(&Flags::docker_local_archives_dir,
+      "docker_local_archives_dir",
+      "Directory for docker local puller to look in for image archives",
+      "/tmp/mesos/images/docker");
+
+  add(&Flags::docker_puller,
+      "docker_puller",
+      "Strategy for docker puller to fetch images",
+      "local");
+
+  add(&Flags::docker_store_dir,
+      "docker_store_dir",
+      "Directory the docker provisioner will store images in",
+      "/tmp/mesos/store/docker");
 
   add(&Flags::default_role,
       "default_role",
@@ -308,6 +341,11 @@ mesos::internal::slave::Flags::Flags()
       "normal containers (non-revocable cpu). Currently only\n"
       "supported by the cgroups/cpu isolator.",
       true);
+
+  add(&Flags::systemd_runtime_directory,
+      "systemd_runtime_directory",
+      "The path to the systemd system run time directory\n",
+      "/run/systemd/system");
 #endif
 
   add(&Flags::firewall_rules,
@@ -323,7 +361,7 @@ mesos::internal::slave::Flags::Flags()
       "{\n"
       "  \"disabled_endpoints\": {\n"
       "    \"paths\": [\n"
-      "      \"/files/browse.json\",\n"
+      "      \"/files/browse\",\n"
       "      \"/slave(0)/stats.json\",\n"
       "    ]\n"
       "  }\n"

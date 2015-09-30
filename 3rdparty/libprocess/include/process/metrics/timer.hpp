@@ -35,7 +35,7 @@ namespace metrics {
 
 // A Metric that represents a timed event. It is templated on a Duration
 // subclass that specifies the unit to use for the Timer.
-template<class T>
+template <class T>
 class Timer : public Metric
 {
 public:
@@ -90,7 +90,7 @@ public:
   }
 
   // Time an asynchronous event.
-  template<typename U>
+  template <typename U>
   Future<U> time(const Future<U>& future)
   {
     // We need to take a copy of 'this' here to ensure that the

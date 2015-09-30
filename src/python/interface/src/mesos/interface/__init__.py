@@ -230,6 +230,12 @@ class SchedulerDriver(object):
       those filtered slaves.
     """
 
+  def suppressOffers(self):
+    """
+      Inform Mesos master to stop sending offers to the framework. The
+      scheduler should call reviveOffers() to resume getting offers.
+    """
+
   def acknowledgeStatusUpdate(self, status):
     """
       Acknowledges the status update. This should only be called

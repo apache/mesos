@@ -14,13 +14,21 @@
 #ifndef __STOUT_JSON__
 #define __STOUT_JSON__
 
+// NOTE: This undef is necessary because we cannot reliably re-order the
+// include statements in all cases.  We define this flag globally since
+// PicoJson requires it before importing <inttypes.h>.  However, other
+// libraries may import <inttypes.h> before we import <picojson.h>.
+// Hence, we undefine the flag here to prevent the redefinition error.
+#undef __STDC_FORMAT_MACROS
 #include <picojson.h>
+#define __STDC_FORMAT_MACROS
 
 #include <iomanip>
 #include <iostream>
 #include <limits>
 #include <map>
 #include <string>
+#include <type_traits>
 #include <vector>
 
 #include <boost/type_traits/is_arithmetic.hpp>
@@ -72,11 +80,73 @@ struct String
 };
 
 
+// NOTE: Due to how PicoJson parses unsigned integers, a roundtrip from Number
+// to JSON and back to Number will result in:
+//   - a signed integer, if the value is less than or equal to INT64_MAX;
+//   - or a double, if the value is greater than INT64_MAX.
+// See: https://github.com/kazuho/picojson/blob/rel/v1.3.0/picojson.h#L777-L781
 struct Number
 {
   Number() : value(0) {}
-  Number(double _value) : value(_value) {}
-  double value;
+
+  template <typename T>
+  Number(
+      T _value,
+      typename std::enable_if<std::is_floating_point<T>::value, int>::type = 0)
+    : type(FLOATING), value(_value) {}
+
+  template <typename T>
+  Number(
+      T _value,
+      typename std::enable_if<
+          std::is_integral<T>::value && std::is_signed<T>::value,
+          int>::type = 0)
+    : type(SIGNED_INTEGER), signed_integer(_value) {}
+
+  template <typename T>
+  Number(
+      T _value,
+      typename std::enable_if<
+          std::is_integral<T>::value && std::is_unsigned<T>::value,
+          int>::type = 0)
+    : type(UNSIGNED_INTEGER), unsigned_integer(_value) {}
+
+  template <typename T>
+  T as() const
+  {
+    switch (type) {
+      case FLOATING:
+        return static_cast<T>(value);
+      case SIGNED_INTEGER:
+        return static_cast<T>(signed_integer);
+      case UNSIGNED_INTEGER:
+        return static_cast<T>(unsigned_integer);
+
+      // NOTE: By not setting a default we leverage the compiler
+      // errors when the enumeration is augmented to find all
+      // the cases we need to provide.
+    }
+
+    UNREACHABLE();
+  }
+
+  enum Type
+  {
+    FLOATING,
+    SIGNED_INTEGER,
+    UNSIGNED_INTEGER,
+  } type;
+
+private:
+  friend struct Value;
+  friend struct Comparator;
+  friend std::ostream& operator<<(std::ostream& stream, const Number& number);
+
+  union {
+    double value;
+    int64_t signed_integer;
+    uint64_t unsigned_integer;
+  };
 };
 
 
@@ -207,6 +277,8 @@ struct Value : internal::Variant
   bool contains(const Value& other) const;
 
 private:
+  friend struct Comparator;
+
   // A class which follows the visitor pattern and implements the
   // containment rules described in the documentation of 'contains'.
   // See 'bool Value::contains(const Value& other) const'.
@@ -255,7 +327,6 @@ inline const Value& Value::as<Value>() const
 {
   return *this;
 }
-
 
 
 template <typename T>
@@ -384,7 +455,55 @@ inline bool Value::ContainmentComparator::operator()(const Number& other) const
   if (!self.is<Number>()) {
     return false;
   }
-  return self.as<Number>().value == other.value;
+
+  // NOTE: For the following switch statements, we do not set a default
+  // case in order to leverage the compiler errors when the enumeration
+  // is augmented to find all the cases we need to provide.
+
+  // NOTE: Using '==' is unsafe for unsigned-signed integer comparisons.
+  // The compiler will automatically cast the signed integer to an
+  // unsigned integer.  i.e. If the signed integer was negative, it
+  // might be converted to a large positive number.
+  // Using the '==' operator *is* safe for double-integer comparisons.
+
+  const Number& number = self.as<Number>();
+  switch (number.type) {
+    case Number::FLOATING:
+      switch (other.type) {
+        case Number::FLOATING:
+          return number.value == other.value;
+        case Number::SIGNED_INTEGER:
+          return number.value == other.signed_integer;
+        case Number::UNSIGNED_INTEGER:
+          return number.value == other.unsigned_integer;
+      }
+
+    case Number::SIGNED_INTEGER:
+      switch (other.type) {
+        case Number::FLOATING:
+          return number.signed_integer == other.value;
+        case Number::SIGNED_INTEGER:
+          return number.signed_integer == other.signed_integer;
+        case Number::UNSIGNED_INTEGER:
+          // See note above for why this is not a simple '==' expression.
+          return number.signed_integer >= 0 &&
+            number.as<uint64_t>() == other.unsigned_integer;
+      }
+
+    case Number::UNSIGNED_INTEGER:
+      switch (other.type) {
+        case Number::FLOATING:
+          return number.unsigned_integer == other.value;
+        case Number::SIGNED_INTEGER:
+          // See note above for why this is not a simple '==' expression.
+          return other.signed_integer >= 0 &&
+            number.unsigned_integer == other.as<uint64_t>();
+        case Number::UNSIGNED_INTEGER:
+          return number.unsigned_integer == other.unsigned_integer;
+      }
+  }
+
+  UNREACHABLE();
 }
 
 
@@ -446,12 +565,11 @@ struct Comparator : boost::static_visitor<bool>
     return false;
   }
 
-  bool operator()(const Number& number) const
+  bool operator()(const Number& other) const
   {
-    if (value.is<Number>()) {
-      return value.as<Number>().value == number.value;
-    }
-    return false;
+    // Delegate to the containment comparator.
+    // See Value::ContainmentComparator::operator(Number).
+    return Value::ContainmentComparator(value)(other);
   }
 
   bool operator()(const Array& array) const
@@ -502,10 +620,36 @@ inline std::ostream& operator<<(std::ostream& out, const String& string)
 
 inline std::ostream& operator<<(std::ostream& out, const Number& number)
 {
-  // Use the guaranteed accurate precision, see:
-  // http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2006/n2005.pdf
-  return out << std::setprecision(std::numeric_limits<double>::digits10)
-             << number.value;
+  switch (number.type) {
+    case Number::FLOATING: {
+      // Prints a floating point value, with the specified precision, see:
+      // http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2006/n2005.pdf
+      // Additionally ensures that a decimal point is in the output.
+      char buffer[50] {}; // More than long enough for the specified precision.
+      snprintf(
+          buffer,
+          sizeof(buffer),
+          "%#.*g",
+          std::numeric_limits<double>::digits10,
+          number.value);
+
+      // Get rid of excess trailing zeroes before outputting.
+      // Otherwise, printing 1.0 would result in "1.00000000000000".
+      // NOTE: valid JSON numbers cannot end with a '.'.
+      std::string trimmed = strings::trim(buffer, strings::SUFFIX, "0");
+      return out << trimmed << (trimmed.back() == '.' ? "0" : "");
+    }
+    case Number::SIGNED_INTEGER:
+      return out << number.signed_integer;
+    case Number::UNSIGNED_INTEGER:
+      return out << number.unsigned_integer;
+
+    // NOTE: By not setting a default we leverage the compiler
+    // errors when the enumeration is augmented to find all
+    // the cases we need to provide.
+  }
+
+  UNREACHABLE();
 }
 
 
@@ -575,6 +719,8 @@ inline Value convert(const picojson::value& value)
       array.values.push_back(convert(value));
     }
     return array;
+  } else if (value.is<int64_t>()) {
+    return Number(value.get<int64_t>());
   } else if (value.is<double>()) {
     return Number(value.get<double>());
   } else if (value.is<std::string>()) {

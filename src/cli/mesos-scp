@@ -50,7 +50,7 @@ def main():
   # Get the master's state.
     try:
         state = json.loads(http.get(resolve(options.master),
-                                    '/master/state.json'))
+                                    '/master/state'))
     except:
         fatal('Failed to get the master state')
 

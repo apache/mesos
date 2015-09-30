@@ -12,11 +12,12 @@
 * limitations under the License
 */
 
-#include <string>
-
 #include <gtest/gtest.h>
 
 #include <gmock/gmock.h>
+
+#include <algorithm>
+#include <string>
 
 #include <stout/gtest.hpp>
 #include <stout/json.hpp>
@@ -28,6 +29,31 @@
 #include "protobuf_tests.pb.h"
 
 using std::string;
+
+using google::protobuf::RepeatedPtrField;
+
+namespace tests {
+
+// Trivial equality operators to enable gtest macros.
+bool operator==(const SimpleMessage& left, const SimpleMessage& right)
+{
+  if (left.id() != right.id() ||
+      left.numbers().size() != right.numbers().size()) {
+    return false;
+  }
+
+  return std::equal(
+      left.numbers().begin(), left.numbers().end(), right.numbers().begin());
+}
+
+
+bool operator!=(const SimpleMessage& left, const SimpleMessage& right)
+{
+  return !(left == right);
+}
+
+} // namespace tests {
+
 
 TEST(ProtobufTest, JSON)
 {
@@ -82,18 +108,18 @@ TEST(ProtobufTest, JSON)
       "{"
       "  \"b\": true,"
       "  \"bytes\": \"Ynl0ZXM=\","
-      "  \"d\": 1,"
+      "  \"d\": 1.0,"
       "  \"e\": \"ONE\","
-      "  \"f\": 1,"
+      "  \"f\": 1.0,"
       "  \"int32\": -1,"
       "  \"int64\": -1,"
       "  \"nested\": { \"str\": \"nested\"},"
-      "  \"optional_default\": 42,"
+      "  \"optional_default\": 42.0,"
       "  \"repeated_bool\": [true],"
       "  \"repeated_bytes\": [\"cmVwZWF0ZWRfYnl0ZXM=\"],"
-      "  \"repeated_double\": [1, 2],"
+      "  \"repeated_double\": [1.0, 2.0],"
       "  \"repeated_enum\": [\"TWO\"],"
-      "  \"repeated_float\": [1],"
+      "  \"repeated_float\": [1.0],"
       "  \"repeated_int32\": [-2],"
       "  \"repeated_int64\": [-2],"
       "  \"repeated_nested\": [ { \"str\": \"repeated_nested\" } ],"
@@ -134,4 +160,148 @@ TEST(ProtobufTest, JSON)
 
   // Now convert JSON to string and parse it back as JSON.
   ASSERT_SOME_EQ(object, JSON::parse(stringify(object)));
+}
+
+
+// Tests that integer precision is maintained between
+// JSON <-> Protobuf conversions.
+TEST(ProtobufTest, JsonLargeIntegers)
+{
+  // These numbers are equal or close to the integer limits.
+  tests::Message message;
+  message.set_int32(-2147483647);
+  message.set_int64(-9223372036854775807);
+  message.set_uint32(4294967295U);
+  message.set_uint64(9223372036854775807);
+  message.set_sint32(-1234567890);
+  message.set_sint64(-1234567890123456789);
+  message.add_repeated_int32(-2000000000);
+  message.add_repeated_int64(-9000000000000000000);
+  message.add_repeated_uint32(3000000000U);
+  message.add_repeated_uint64(7000000000000000000);
+  message.add_repeated_sint32(-1000000000);
+  message.add_repeated_sint64(-8000000000000000000);
+
+  // Parts of the protobuf that are required.  Copied from the above test.
+  message.set_b(true);
+  message.set_str("string");
+  message.set_bytes("bytes");
+  message.set_f(1.0);
+  message.set_d(1.0);
+  message.set_e(tests::ONE);
+  message.mutable_nested()->set_str("nested");
+
+  // The keys are in alphabetical order.
+  string expected = strings::remove(
+      "{"
+      "  \"b\": true,"
+      "  \"bytes\": \"Ynl0ZXM=\","
+      "  \"d\": 1.0,"
+      "  \"e\": \"ONE\","
+      "  \"f\": 1.0,"
+      "  \"int32\": -2147483647,"
+      "  \"int64\": -9223372036854775807,"
+      "  \"nested\": {\"str\": \"nested\"},"
+      "  \"optional_default\": 42.0,"
+      "  \"repeated_int32\": [-2000000000],"
+      "  \"repeated_int64\": [-9000000000000000000],"
+      "  \"repeated_sint32\": [-1000000000],"
+      "  \"repeated_sint64\": [-8000000000000000000],"
+      "  \"repeated_uint32\": [3000000000],"
+      "  \"repeated_uint64\": [7000000000000000000],"
+      "  \"sint32\": -1234567890,"
+      "  \"sint64\": -1234567890123456789,"
+      "  \"str\": \"string\","
+      "  \"uint32\": 4294967295,"
+      "  \"uint64\": 9223372036854775807"
+      "}",
+      " ");
+
+  // Check JSON -> String.
+  JSON::Object object = JSON::Protobuf(message);
+  EXPECT_EQ(expected, stringify(object));
+
+  // Check JSON -> Protobuf.
+  Try<tests::Message> parse = protobuf::parse<tests::Message>(object);
+  ASSERT_SOME(parse);
+
+  // Check Protobuf -> JSON.
+  EXPECT_EQ(object, JSON::Protobuf(parse.get()));
+
+  // Check String -> JSON.
+  Try<JSON::Object> json = JSON::parse<JSON::Object>(expected);
+  ASSERT_SOME(json);
+  EXPECT_EQ(object, json.get());
+}
+
+
+TEST(ProtobufTest, SimpleMessageEquals)
+{
+  tests::SimpleMessage message1;
+  message1.set_id("message1");
+  message1.add_numbers(1);
+  message1.add_numbers(2);
+
+  // Obviously, a message should equal to itself.
+  EXPECT_EQ(message1, message1);
+
+  // Messages with different IDs are not equal.
+  tests::SimpleMessage message2;
+  message2.set_id("message2");
+  message2.add_numbers(1);
+  message2.add_numbers(2);
+
+  EXPECT_NE(message1, message2);
+
+  // Messages with not identical collection of numbers are not equal.
+  tests::SimpleMessage message3;
+  message3.set_id("message1");
+  message3.add_numbers(1);
+
+  EXPECT_NE(message1, message3);
+
+  tests::SimpleMessage message4;
+  message4.set_id("message1");
+  message4.add_numbers(2);
+  message4.add_numbers(1);
+
+  EXPECT_NE(message1, message4);
+
+  // Different messages with the same ID and collection of numbers should
+  // be equal. Their JSON counterparts should be equal as well.
+  tests::SimpleMessage message5;
+  message5.set_id("message1");
+  message5.add_numbers(1);
+  message5.add_numbers(2);
+
+  EXPECT_EQ(message1, message5);
+  EXPECT_EQ(JSON::Protobuf(message1), JSON::Protobuf(message5));
+}
+
+
+TEST(ProtobufTest, ParseJSONArray)
+{
+  tests::SimpleMessage message;
+  message.set_id("message1");
+  message.add_numbers(1);
+  message.add_numbers(2);
+
+  // Convert protobuf message to a JSON object.
+  JSON::Object object = JSON::Protobuf(message);
+
+  // Populate JSON array with JSON objects, conversion JSON::Object ->
+  // JSON::Value is implicit.
+  JSON::Array array;
+  array.values.push_back(object);
+  array.values.push_back(object);
+
+  // Parse JSON array into a collection of protobuf messages.
+  auto parse =
+    protobuf::parse<RepeatedPtrField<tests::SimpleMessage>>(array);
+  ASSERT_SOME(parse);
+  auto repeated = parse.get();
+
+  // Make sure the parsed message equals to the original one.
+  EXPECT_EQ(message, repeated.Get(0));
+  EXPECT_EQ(message, repeated.Get(1));
 }

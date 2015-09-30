@@ -31,10 +31,10 @@
 namespace mesos {
 
 class Resources;
+class Attributes;
 
 namespace internal {
 
-class Attributes;
 class Task;
 
 
@@ -79,6 +79,9 @@ JSON::Object model(const hashmap<std::string, Resources>& roleResources);
 JSON::Object model(const Attributes& attributes);
 JSON::Object model(const CommandInfo& command);
 JSON::Object model(const ExecutorInfo& executorInfo);
+JSON::Array model(const Labels& labels);
+JSON::Object model(const NetworkInfo& info);
+JSON::Object model(const ContainerStatus& status);
 
 // These are the two identical ways to model a task, depending on
 // whether you have a 'Task' or a 'TaskInfo' available.

@@ -4,7 +4,13 @@ layout: documentation
 
 # Mesos C++ Style Guide
 
-The Mesos codebase follows the [Google C++ Style Guide](http://google-styleguide.googlecode.com/svn/trunk/cppguide.xml) with the following differences:
+The Mesos codebase follows the [Google C++ Style Guide](http://google-styleguide.googlecode.com/svn/trunk/cppguide.xml) with some notable differences, as described below. Note that the [clang-format](/documentation/latest/clang-format/) tool can be helpful to ensure that some of the mechanical style rules are obeyed.
+
+## Scoping
+
+### Namespaces
+* We avoid `using namespace foo` statements as it is not explicit about which symbols are pulled in, and it can often pull in a lot of symbols, which sometimes lead to conflicts.
+* It is OK to use namespace aliases to help pull in sub-namespaces, such as `namespace http = process::http;`. These should only be present at the top of the .cpp file.
 
 ## Naming
 
@@ -38,15 +44,11 @@ void Slave::statusUpdate(StatusUpdate update, const UPID& pid)
 ### Function Names
 * We use [lowerCamelCase](http://en.wikipedia.org/wiki/CamelCase#Variations_and_synonyms) for function names (Google uses mixed case for regular functions; and their accessors and mutators match the name of the variable).
 
-### Namespace Names
-* We do not use namespace aliases.
-
 ## Strings
 * Strings used in log and error messages should end without a period.
 
 ## Comments
 * End each sentence within a comment with a punctuation mark (please note that we generally prefer periods); this applies to incomplete sentences as well.
-* At most 70 characters per line in comments.
 * For trailing comments, leave one space.
 
 ## Breaks
@@ -237,9 +239,9 @@ We support C++11 and require GCC 4.8+ or Clang 3.5+ compilers. The whitelist of 
 
 ~~~{.cpp}
 // 1: OK.
-const auto& i = values.find(keys.front());
+const auto i = values.find(keys.front());
 // Compare with
-const typename map::iterator& i = values.find(keys.front());
+const typename map::iterator i = values.find(keys.front());
 
 // 2: OK.
 auto names = shared_ptr<list<string>>(new list<string>());
@@ -260,6 +262,9 @@ Try<Owned<LocalAuthorizer>> authorizer = LocalAuthorizer::create();
   * `std::mutex`
   * `std::lock_guard<std::mutex>`
   * `std::unique_lock<std::mutex>`
+* Atomics (`std::atomic`)
+  * The standard defines a number of predefined typedefs for atomic types (e.g., `std::atomic_int`), in addition to `std::atomic<T>`. When a typedef is available, it should be preferred over explicit template specialization of `std::atomic<T>`.
+  * When reading from and writing to atomic values, the `load` and `store` member functions should be used instead of the overloads of `operator T()` and `operator=`. Being explicit helps to draw the reader's attention to the fact that atomic values are being manipulated.
 * Shared from this.
   * `class T : public std::enable_shared_from_this<T>`
   * `shared_from_this()`
@@ -366,7 +371,7 @@ instance.method([]() {
 });
 ~~~
 
-  * Wrap capture lists indepedently of parameters, *use the same formatting as if the capture list were template parameters*:
+  * Wrap capture lists independently of parameters, *use the same formatting as if the capture list were template parameters*:
 
 ~~~{.cpp}
 // 1: OK.
@@ -558,7 +563,7 @@ auto lambda = [
   int array[SPAN()];
 ~~~
 
-Const expression constructors allow object initialization at compile time provided that all the constructor arguments are `constexpr` and the constuctor body is empty, i.e. all initialization is performed in the initialization list.  Classes which provide `constexpr` constructors should normally also provide `constexpr` copy constructors to allow the class to be used in the return value from a `constexpr` function.
+Const expression constructors allow object initialization at compile time provided that all the constructor arguments are `constexpr` and the constructor body is empty, i.e. all initialization is performed in the initialization list.  Classes which provide `constexpr` constructors should normally also provide `constexpr` copy constructors to allow the class to be used in the return value from a `constexpr` function.
 
 ~~~{.cpp}
   class C

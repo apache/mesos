@@ -22,4 +22,19 @@
 // ONLY USEFUL AFTER RUNNING PROTOC.
 #include <mesos/maintenance/maintenance.pb.h>
 
+#include <mesos/resources.hpp>
+
+namespace mesos {
+
+// A wrapper for resources and unavailability used to communicate between the
+// Allocator and Master in order to let the Master create InverseOffers from the
+// Allocator.
+struct UnavailableResources
+{
+  Resources resources;
+  Unavailability unavailability;
+};
+
+} // namespace mesos {
+
 #endif // __MAINTENANCE_PROTO_HPP__

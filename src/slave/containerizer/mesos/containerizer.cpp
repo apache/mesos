@@ -46,7 +46,6 @@
 #ifdef __linux__
 #include "slave/containerizer/linux_launcher.hpp"
 #endif
-#include "slave/containerizer/provisioner.hpp"
 
 #include "slave/containerizer/isolators/posix.hpp"
 
@@ -76,6 +75,8 @@
 
 #include "slave/containerizer/mesos/containerizer.hpp"
 #include "slave/containerizer/mesos/launch.hpp"
+
+#include "slave/containerizer/provisioner/provisioner.hpp"
 
 using std::list;
 using std::map;
@@ -128,29 +129,11 @@ Try<MesosContainerizer*> MesosContainerizer::create(
   // One and only one filesystem isolator is required. The filesystem
   // isolator is responsible for preparing the filesystems for
   // containers (e.g., prepare filesystem roots, volumes, etc.). If
-  // the user does not specify a filesystem isolator, the default
-  // 'filesystem/linux' isolator will be used if the slave runs on
-  // Linux and has root permission. Othersise, 'filesystem/posix' will
-  // be used as the default.
+  // the user does not specify one, 'filesystem/posix' will be used.
   //
   // TODO(jieyu): Check that only one filesystem isolator is used.
   if (!strings::contains(isolation, "filesystem/")) {
-#ifdef __linux__
-    Result<string> user = os::user();
-    if (!user.isSome()) {
-      return Error(
-          "Failed to get the current user: " +
-          (user.isError() ? user.error() : "Not found"));
-    }
-
-    if (user.get() == "root") {
-      isolation += ",filesystem/linux";
-    } else {
-      isolation += ",filesystem/posix";
-    }
-#else
     isolation += ",filesystem/posix";
-#endif
   }
 
   // Modify the flags to include any changes to isolation.
@@ -161,11 +144,9 @@ Try<MesosContainerizer*> MesosContainerizer::create(
 
 #ifdef __linux__
   // The provisioner will be used by the 'filesystem/linux' isolator.
-  Try<hashmap<Image::Type, Owned<Provisioner>>> provisioners =
-    Provisioner::create(flags, fetcher);
-
-  if (provisioners.isError()) {
-    return Error("Failed to create provisioner(s): " + provisioners.error());
+  Try<Owned<Provisioner>> provisioner = Provisioner::create(flags, fetcher);
+  if (provisioner.isError()) {
+    return Error("Failed to create provisioner: " + provisioner.error());
   }
 #endif
 
@@ -177,7 +158,7 @@ Try<MesosContainerizer*> MesosContainerizer::create(
 #ifdef __linux__
     {"filesystem/linux", lambda::bind(&LinuxFilesystemIsolatorProcess::create,
                                       lambda::_1,
-                                      provisioners.get())},
+                                      provisioner.get())},
 
     // TODO(jieyu): Deprecate this in favor of using filesystem/linux.
     {"filesystem/shared", &SharedFilesystemIsolatorProcess::create},
@@ -234,19 +215,28 @@ Try<MesosContainerizer*> MesosContainerizer::create(
   }
 
 #ifdef __linux__
-  int namespaces = 0;
-  foreach (const Owned<Isolator>& isolator, isolators) {
-    if (isolator->namespaces().get().isSome()) {
-      namespaces |= isolator->namespaces().get().get();
+  Try<Launcher*> launcher = (Launcher*) NULL;
+  if (flags_.launcher.isSome()) {
+    // If the user has specified the launcher, use it.
+    if (flags_.launcher.get() == "linux") {
+      launcher = LinuxLauncher::create(flags_);
+    } else if (flags_.launcher.get() == "posix") {
+      launcher = PosixLauncher::create(flags_);
+    } else {
+      return Error("Unknown or unsupported launcher: " + flags_.launcher.get());
     }
+  } else {
+    // If the user has not specified the launcher, use Linux launcher
+    // if running as root, posix launcher otherwise.
+    launcher = (::geteuid() == 0)
+      ? LinuxLauncher::create(flags_)
+      : PosixLauncher::create(flags_);
+  }
+#else
+  if (flags_.launcher.isSome() && flags_.launcher.get() != "posix") {
+    return Error("Unsupported launcher: " + flags_.launcher.get());
   }
 
-  // Determine which launcher to use based on the isolation flag.
-  Try<Launcher*> launcher =
-    (strings::contains(isolation, "cgroups") || namespaces != 0)
-    ? LinuxLauncher::create(flags_, namespaces)
-    : PosixLauncher::create(flags_);
-#else
   Try<Launcher*> launcher = PosixLauncher::create(flags_);
 #endif // __linux__
 
@@ -781,11 +771,16 @@ Future<bool> MesosContainerizerProcess::_launch(
   // Prepare environment variables for the executor.
   map<string, string> environment = executorEnvironment(
       executorInfo,
-      rootfs.isSome() ? flags.sandbox_directory : directory,
+      directory,
       slaveId,
       slavePid,
       checkpoint,
       flags);
+
+  // TODO(jieyu): Consider moving this to 'executorEnvironment' and
+  // consolidating with docker containerizer.
+  environment["MESOS_SANDBOX"] =
+    rootfs.isSome() ? flags.sandbox_directory : directory;
 
   // Include any enviroment variables from CommandInfo.
   foreach (const Environment::Variable& variable,
@@ -793,16 +788,35 @@ Future<bool> MesosContainerizerProcess::_launch(
     environment[variable.name()] = variable.value();
   }
 
-  // Include any environment variables returned from
-  // Isolator::prepare().
+  JSON::Array commandArray;
+  int namespaces = 0;
   foreach (const Option<ContainerPrepareInfo>& prepareInfo, prepareInfos) {
-    if (prepareInfo.isSome() && prepareInfo.get().has_environment()) {
+    if (!prepareInfo.isSome()) {
+      continue;
+    }
+
+    // Populate the list of additional commands to be run inside the container
+    // context.
+    foreach (const CommandInfo& command, prepareInfo.get().commands()) {
+      commandArray.values.push_back(JSON::Protobuf(command));
+    }
+
+    // Process additional environment variables returned by isolators.
+    if (prepareInfo.get().has_environment()) {
       foreach (const Environment::Variable& variable,
-               prepareInfo.get().environment().variables()) {
+          prepareInfo.get().environment().variables()) {
         environment[variable.name()] = variable.value();
       }
     }
+
+    if (prepareInfo.get().has_namespaces()) {
+      namespaces |= prepareInfo.get().namespaces();
+    }
   }
+
+  // TODO(jieyu): Use JSON::Array once we have generic parse support.
+  JSON::Object commands;
+  commands.values["commands"] = commandArray;
 
   // Use a pipe to block the child until it's been isolated.
   int pipes[2];
@@ -821,21 +835,7 @@ Future<bool> MesosContainerizerProcess::_launch(
   launchFlags.user = user;
   launchFlags.pipe_read = pipes[0];
   launchFlags.pipe_write = pipes[1];
-
-  // Prepare the additional prepareInfo commands.
-  // TODO(jieyu): Use JSON::Array once we have generic parse support.
-  JSON::Object object;
-  JSON::Array array;
-  foreach (const Option<ContainerPrepareInfo>& prepareInfo, prepareInfos) {
-    if (prepareInfo.isSome()) {
-      foreach (const CommandInfo& command, prepareInfo.get().commands()) {
-        array.values.push_back(JSON::Protobuf(command));
-      }
-    }
-  }
-  object.values["commands"] = array;
-
-  launchFlags.commands = object;
+  launchFlags.commands = commands;
 
   // Fork the child using launcher.
   vector<string> argv(2);
@@ -853,7 +853,8 @@ Future<bool> MesosContainerizerProcess::_launch(
              : Subprocess::PATH(path::join(directory, "stderr"))),
       launchFlags,
       environment,
-      None());
+      None(),
+      namespaces); // 'namespaces' will be ignored by PosixLauncher.
 
   if (forked.isError()) {
     return Failure("Failed to fork executor: " + forked.error());

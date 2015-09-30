@@ -40,7 +40,7 @@ TEST_F(OsSignalsTest, Suppress)
   const string data = "hello";
 
   // Let's make sure we can suppress SIGPIPE!
-  suppress(SIGPIPE) {
+  SUPPRESS(SIGPIPE) {
     // Writing to a pipe that has been closed generates SIGPIPE.
     ASSERT_EQ(-1, write(pipes[1], data.c_str(), data.length()));
 

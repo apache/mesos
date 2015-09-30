@@ -50,20 +50,20 @@ TEST(DecoderTest, Request)
 
   Request* request = requests[0];
   EXPECT_EQ("GET", request->method);
-  EXPECT_EQ("/path/file.json", request->path);
-  EXPECT_EQ("/path/file.json?key1=value1&key2=value2#fragment", request->url);
-  EXPECT_EQ("fragment", request->fragment);
+
+  EXPECT_EQ("/path/file.json", request->url.path);
+  EXPECT_SOME_EQ("fragment", request->url.fragment);
+  EXPECT_EQ(2u, request->url.query.size());
+  EXPECT_SOME_EQ("value1", request->url.query.get("key1"));
+  EXPECT_SOME_EQ("value2", request->url.query.get("key2"));
+
   EXPECT_TRUE(request->body.empty());
   EXPECT_FALSE(request->keepAlive);
 
-  EXPECT_EQ(3, request->headers.size());
+  EXPECT_EQ(3u, request->headers.size());
   EXPECT_SOME_EQ("localhost", request->headers.get("Host"));
   EXPECT_SOME_EQ("close", request->headers.get("Connection"));
   EXPECT_SOME_EQ("compress, gzip", request->headers.get("Accept-Encoding"));
-
-  EXPECT_EQ(2, request->query.size());
-  EXPECT_SOME_EQ("value1", request->query.get("key1"));
-  EXPECT_SOME_EQ("value2", request->query.get("key2"));
 
   delete request;
 }
@@ -94,8 +94,7 @@ TEST(DecoderTest, RequestHeaderContinuation)
 }
 
 
-// This is expected to fail for now, see my TODO(bmahler) on http::Request.
-TEST(DecoderTest, DISABLED_RequestHeaderCaseInsensitive)
+TEST(DecoderTest, RequestHeaderCaseInsensitive)
 {
   Try<Socket> socket = Socket::create();
   ASSERT_SOME(socket);
@@ -163,7 +162,7 @@ TEST(DecoderTest, StreamingResponse)
   const string body = "hi";
 
   deque<Response*> responses = decoder.decode(headers.data(), headers.length());
-  ASSERT_FALSE(decoder.failed());
+  EXPECT_FALSE(decoder.failed());
   ASSERT_EQ(1, responses.size());
 
   Response* response = responses[0];
@@ -179,9 +178,11 @@ TEST(DecoderTest, StreamingResponse)
   EXPECT_TRUE(read.isPending());
 
   decoder.decode(body.data(), body.length());
+  EXPECT_FALSE(decoder.failed());
 
   // Feeding EOF to the decoder should be ok.
   decoder.decode("", 0);
+  EXPECT_FALSE(decoder.failed());
 
   EXPECT_TRUE(read.isReady());
   EXPECT_EQ("hi", read.get());
@@ -208,9 +209,9 @@ TEST(DecoderTest, StreamingResponseFailure)
   const string body = "1";
 
   deque<Response*> responses = decoder.decode(headers.data(), headers.length());
-  ASSERT_FALSE(decoder.failed());
-  ASSERT_EQ(1, responses.size());
+  EXPECT_FALSE(decoder.failed());
 
+  ASSERT_EQ(1, responses.size());
   Response* response = responses[0];
 
   EXPECT_EQ("200 OK", response->status);
@@ -224,6 +225,7 @@ TEST(DecoderTest, StreamingResponseFailure)
   EXPECT_TRUE(read.isPending());
 
   decoder.decode(body.data(), body.length());
+  EXPECT_FALSE(decoder.failed());
 
   EXPECT_TRUE(read.isReady());
   EXPECT_EQ("1", read.get());
@@ -234,6 +236,7 @@ TEST(DecoderTest, StreamingResponseFailure)
 
   // Feeding EOF to the decoder should trigger a failure!
   decoder.decode("", 0);
+  EXPECT_TRUE(decoder.failed());
 
   EXPECT_TRUE(read.isFailed());
   EXPECT_EQ("failed to decode body", read.failure());

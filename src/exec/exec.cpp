@@ -20,6 +20,7 @@
 
 #include <sys/types.h>
 
+#include <atomic>
 #include <iostream>
 #include <string>
 #include <sstream>
@@ -198,7 +199,7 @@ protected:
                   const SlaveID& slaveId,
                   const SlaveInfo& slaveInfo)
   {
-    if (aborted) {
+    if (aborted.load()) {
       VLOG(1) << "Ignoring registered message from slave " << slaveId
               << " because the driver is aborted!";
       return;
@@ -221,7 +222,7 @@ protected:
 
   void reregistered(const SlaveID& slaveId, const SlaveInfo& slaveInfo)
   {
-    if (aborted) {
+    if (aborted.load()) {
       VLOG(1) << "Ignoring re-registered message from slave " << slaveId
               << " because the driver is aborted!";
       return;
@@ -244,7 +245,7 @@ protected:
 
   void reconnect(const UPID& from, const SlaveID& slaveId)
   {
-    if (aborted) {
+    if (aborted.load()) {
       VLOG(1) << "Ignoring reconnect message from slave " << slaveId
               << " because the driver is aborted!";
       return;
@@ -280,7 +281,7 @@ protected:
 
   void runTask(const TaskInfo& task)
   {
-    if (aborted) {
+    if (aborted.load()) {
       VLOG(1) << "Ignoring run task message for task " << task.task_id()
               << " because the driver is aborted!";
       return;
@@ -305,7 +306,7 @@ protected:
 
   void killTask(const TaskID& taskId)
   {
-    if (aborted) {
+    if (aborted.load()) {
       VLOG(1) << "Ignoring kill task message for task " << taskId
               <<" because the driver is aborted!";
       return;
@@ -329,7 +330,7 @@ protected:
       const TaskID& taskId,
       const string& uuid)
   {
-    if (aborted) {
+    if (aborted.load()) {
       VLOG(1) << "Ignoring status update acknowledgement "
               << UUID::fromBytes(uuid) << " for task " << taskId
               << " of framework " << frameworkId
@@ -353,7 +354,7 @@ protected:
                         const ExecutorID& executorId,
                         const string& data)
   {
-    if (aborted) {
+    if (aborted.load()) {
       VLOG(1) << "Ignoring framework message because the driver is aborted!";
       return;
     }
@@ -372,7 +373,7 @@ protected:
 
   void shutdown()
   {
-    if (aborted) {
+    if (aborted.load()) {
       VLOG(1) << "Ignoring shutdown message because the driver is aborted!";
       return;
     }
@@ -394,7 +395,7 @@ protected:
 
     VLOG(1) << "Executor::shutdown took " << stopwatch.elapsed();
 
-    aborted = true; // To make sure not to accept any new messages.
+    aborted.store(true); // To make sure not to accept any new messages.
 
     if (local) {
       terminate(this);
@@ -413,7 +414,7 @@ protected:
   void abort()
   {
     LOG(INFO) << "Deactivating the executor libprocess";
-    CHECK(aborted);
+    CHECK(aborted.load());
 
     synchronized (mutex) {
       CHECK_NOTNULL(latch)->trigger();
@@ -439,7 +440,7 @@ protected:
 
   virtual void exited(const UPID& pid)
   {
-    if (aborted) {
+    if (aborted.load()) {
       VLOG(1) << "Ignoring exited event because the driver is aborted!";
       return;
     }
@@ -478,7 +479,7 @@ protected:
 
     VLOG(1) << "Executor::shutdown took " << stopwatch.elapsed();
 
-    aborted = true; // To make sure not to accept any new messages.
+    aborted.store(true); // To make sure not to accept any new messages.
 
     // This is a pretty bad state ... no slave is left. Rather
     // than exit lets kill our process group (which includes
@@ -543,7 +544,7 @@ private:
   bool connected; // Registered with the slave.
   UUID connection; // UUID to identify the connection instance.
   bool local;
-  volatile bool aborted;
+  std::atomic_bool aborted;
   std::recursive_mutex* mutex;
   Latch* latch;
   const string directory;
@@ -750,12 +751,11 @@ Status MesosExecutorDriver::abort()
 
     CHECK(process != NULL);
 
-    // We set the volatile aborted to true here to prevent any further
+    // We set the atomic aborted to true here to prevent any further
     // messages from being processed in the ExecutorProcess. However,
     // if abort() is called from another thread as the ExecutorProcess,
     // there may be at most one additional message processed.
-    // TODO(bmahler): Use an atomic boolean.
-    process->aborted = true;
+    process->aborted.store(true);
 
     // Dispatching here ensures that we still process the outstanding
     // requests *from* the executor, since those do proceed when

@@ -81,32 +81,12 @@ public:
         launchFlags,
         None(),
         None(),
-        lambda::bind(&clone, lambda::_1));
+        lambda::bind(&os::clone, lambda::_1, CLONE_NEWNS | SIGCHLD));
 
     close(launchFlags.pipe_read.get());
     close(launchFlags.pipe_write.get());
 
     return s;
-  }
-
-private:
-  static pid_t clone(const lambda::function<int()>& f)
-  {
-    static unsigned long long stack[(8*1024*1024)/sizeof(unsigned long long)];
-
-    return ::clone(
-        _clone,
-        &stack[sizeof(stack)/sizeof(stack[0]) - 1],  // Stack grows down.
-        CLONE_NEWNS | SIGCHLD,   // Specify SIGCHLD as child termination signal.
-        (void*) &f);
-  }
-
-  static int _clone(void* f)
-  {
-    const lambda::function<int()>* _f =
-      static_cast<const lambda::function<int()>*> (f);
-
-    return (*_f)();
   }
 };
 
@@ -131,7 +111,7 @@ TEST_F(MesosContainerizerLaunchTest, ROOT_ChangeRootfs)
 
   // Advance time until the internal reaper reaps the subprocess.
   while (s.get().status().isPending()) {
-    Clock::advance(Seconds(1));
+    Clock::advance(process::MAX_REAP_INTERVAL());
     Clock::settle();
   }
 

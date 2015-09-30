@@ -23,8 +23,12 @@ int main(int argc, char** argv)
   // Initialize Google Mock/Test.
   testing::InitGoogleMock(&argc, argv);
 
-  // Install GLOG's signal handler.
+#ifndef __WINDOWS__
+  // Install glog's signal handler. NOTE: this function is declared but not
+  // defined on Windows, so if we attempt to compile this on Windows, we get
+  // a linker error.
   google::InstallFailureSignalHandler();
+#endif // __WINDOWS__
 
   return RUN_ALL_TESTS();
 }
