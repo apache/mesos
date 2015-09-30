@@ -2,7 +2,7 @@
 layout: documentation
 ---
 
-# Persistent Volume
+# Persistent Volumes
 
 Mesos provides a mechanism to create a persistent volume from disk
 resources. When launching a task, you can create a volume that exists outside

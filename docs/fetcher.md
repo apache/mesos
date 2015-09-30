@@ -4,8 +4,7 @@ layout: documentation
 
 # Mesos Fetcher
 
-Experimental support for the Mesos fetcher _cache_ is introduced in
-Mesos 0.23.0.
+Mesos 0.23.0 introduced experimental support for the Mesos _fetcher cache_.
 
 In this context we loosely regard the term "downloading" as to include copying
 from local file systems.
@@ -15,7 +14,7 @@ from local file systems.
 The Mesos fetcher is a mechanism to download resources into the sandbox
 directory of a task in preparation of running the task. As part of a TaskInfo
 message, the framework ordering the task's execution provides a list of
-CommandInfo::URI protobuf values, which becomes the input to the Mesos fetcher.
+`CommandInfo::URI` protobuf values, which becomes the input to the Mesos fetcher.
 
 By default, each requested URI is downloaded directly into the sandbox directory
 and repeated requests for the same URI leads to downloading another copy of the
@@ -30,7 +29,7 @@ fetcher instance that is used by every kind of containerizer (except the
 external containerizer variant, which is responsible for its own approach to
 fetching).
 
-2. The external program "mesos-fetcher" that is invoked by the former. It
+2. The external program `mesos-fetcher` that is invoked by the former. It
 performs all network and disk operations except file deletions and file size
 queries for cache-internal bookkeeping. It is run as an external OS process in
 order to shield the slave process from I/O-related hazards. It takes
@@ -39,14 +38,14 @@ detailed fetch action descriptions.
 
 ## The fetch procedure
 
-Frameworks launch tasks by calling the scheduler driver method launchTasks(),
-passing CommandInfo protobuf structures as arguments. This type of structure
+Frameworks launch tasks by calling the scheduler driver method `launchTasks()`,
+passing `CommandInfo` protobuf structures as arguments. This type of structure
 specifies (among other things) a command and a list of URIs that need to be
 "fetched" into the sandbox directory on the the slave node as a precondition for
 task execution. Hence, when the slave receives a request go launch a task, it
 calls upon its fetcher, first, to provision the specified resources into the
 sandbox directory. If fetching fails, the task is not started and the reported
-task status is TASK_FAILED.
+task status is `TASK_FAILED`.
 
 All URIs requested for a given task are fetched sequentially in a single
 invocation of mesos-fetcher. Here, avoiding download concurrency reduces the
@@ -57,7 +56,7 @@ active concurrently due to multiple task launch requests.
 
 Before mesos-fetcher is started, the specific fetch actions to be performed for
 each URI are determined based on the following protobuf structure. (See
-"include/mesos/mesos.proto" for more details.)
+`include/mesos/mesos.proto` for more details.)
 
     message CommandInfo {
       message URI {
@@ -87,7 +86,7 @@ the affected task.
 If a user name is specified either way, the fetcher first validates that it is
 in fact a valid user name on the slave. If it is not, fetching fails right here.
 Otherwise, the sandbox directory is assigned to the specified user as owner
-(using chown) at the end of the fetch procedure, before task execution begins.
+(using `chown`) at the end of the fetch procedure, before task execution begins.
 
 The user name in play has an important effect on caching.  Caching is managed on
 a per-user base, i.e. the combination of user name and "uri" uniquely
@@ -170,7 +169,7 @@ the URI.
 
 - Local file sizes are probed with systems calls (that follow symbolic links).
 - HTTP/HTTPS URIs are queried for the "content-length" field in the header. This
-  is performed by CURL. The reported asset size must be greater than zero or
+  is performed by `curl`. The reported asset size must be greater than zero or
   the URI is deemed invalid.
 - FTP/FTPS is not supported at the time of writing.
 - Everything else is queried by the local HDFS client.
@@ -253,3 +252,6 @@ The following features would be relatively easy to implement additionally.
 - Extract content while downloading when bypassing the cache.
 - Prefetch resources for subsequent tasks. This can happen concurrently with
   running the present task, right after fetching its own resources.
+
+## Implementation Details
+The [Mesos Fetcher Cache Internals](/documentation/latest/fetcher-cache-internals/) describes how the fetcher cache is implemented.

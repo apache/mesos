@@ -28,7 +28,7 @@ The following are the definitions of these types:
 
 ## Attributes
 
-Attributes are key value pairs (where value is optional) that Mesos passes along when it sends offers to frameworks. An attribute value supports 3 different *types*: scalar, range or text.
+Attributes are key-value pairs (where value is optional) that Mesos passes along when it sends offers to frameworks. An attribute value supports 3 different *types*: scalar, range or text.
 
     attributes : attribute ( ";" attribute )*
 
