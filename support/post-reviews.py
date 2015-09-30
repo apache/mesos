@@ -98,7 +98,7 @@ top_level_dir = execute(['git', 'rev-parse', '--show-toplevel']).strip()
 
 # Use the tracking_branch specified by the user if exists.
 parser = argparse.ArgumentParser(add_help=False)
-parser.add_argument('--reviewboard-url')
+parser.add_argument('--server')
 parser.add_argument('--tracking-branch')
 args, _ = parser.parse_known_args()
 
@@ -109,7 +109,7 @@ if os.path.exists(reviewboardrc_filepath):
     reviewboardrc = imp.load_source('reviewboardrc', reviewboardrc_filepath)
 
 reviewboard_url = (
-    args.reviewboard_url if args.reviewboard_url else
+    args.server if args.server else
     reviewboardrc.REVIEWBOARD_URL if 'REVIEWBOARD_URL' in dir(reviewboardrc) else
     'https://reviews.apache.org')
 
