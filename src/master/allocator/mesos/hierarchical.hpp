@@ -1173,6 +1173,8 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::suppressOffers(
 {
   CHECK(initialized);
   frameworks[frameworkId].suppressed = true;
+
+  LOG(INFO) << "Suppressed offers for framework " << frameworkId;
 }
 
 
