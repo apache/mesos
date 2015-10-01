@@ -19,7 +19,7 @@ layout: documentation
 * [Hama](http://wiki.apache.org/hama/GettingStartedMesos) is a distributed computing framework based on Bulk Synchronous Parallel computing techniques for massive scientific computations e.g., matrix, graph and network algorithms.
 * [MPI](https://github.com/mesosphere/mesos-hydra) is a message-passing system designed to function on a wide variety of parallel computers.
 * [Spark](http://spark.incubator.apache.org/) is a fast and general-purpose cluster computing system which makes parallel jobs easy to write.
-* [Storm](https://github.com/mesosphere/storm-mesos) is a distributed realtime computation system. Storm makes it easy to reliably process unbounded streams of data, doing for realtime processing what Hadoop did for batch processing.
+* [Storm](https://github.com/mesos/storm) is a distributed realtime computation system. Storm makes it easy to reliably process unbounded streams of data, doing for realtime processing what Hadoop did for batch processing.
 
 ## Batch Scheduling
 
