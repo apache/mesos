@@ -170,6 +170,9 @@ MAINTENANCE_PROTO =							\
 ALLOCATOR_PROTO =							\
   $(top_srcdir)/include/mesos/master/allocator.proto
 
+QUOTA_PROTO =								\
+  $(top_srcdir)/include/mesos/master/quota.proto
+
 MODULE_PROTO =								\
   $(top_srcdir)/include/mesos/module/module.proto
 
@@ -202,6 +205,8 @@ CXX_PROTOS =								\
   ../include/mesos/maintenance/maintenance.pb.h				\
   master/allocator.pb.cc						\
   ../include/mesos/master/allocator.pb.h				\
+  master/quota.pb.cc							\
+  ../include/mesos/master/quota.pb.h					\
   module/module.pb.cc							\
   ../include/mesos/module/module.pb.h					\
   scheduler/scheduler.pb.cc						\
@@ -315,11 +320,11 @@ maintenance/%.pb.cc ../include/mesos/maintenance/%.pb.h: $(MAINTENANCE_PROTO)
 	$(PROTOC) $(PROTOCFLAGS) --cpp_out=../include $^
 	mv ../include/mesos/maintenance/*.pb.cc $(@D)
 
-master/%.pb.cc ../include/mesos/master/%.pb.h: $(ALLOCATOR_PROTO)
+master/%.pb.cc ../include/mesos/master/%.pb.h: $(top_srcdir)/include/mesos/master/%.proto
 	$(MKDIR_P) $(@D)
 	$(MKDIR_P) ../include/mesos/master
 	$(PROTOC) $(PROTOCFLAGS) --cpp_out=../include $^
-	mv ../include/mesos/master/*.pb.cc $(@D)
+	mv ../include/mesos/master/$(*F).pb.cc $(@D)
 
 module/%.pb.cc ../include/mesos/module/%.pb.h: $(MODULE_PROTO)
 	$(MKDIR_P) $(@D)
@@ -613,9 +618,13 @@ masterdir = $(pkgincludedir)/master
 
 master_HEADERS =							\
   $(top_srcdir)/include/mesos/master/allocator.hpp			\
-  $(top_srcdir)/include/mesos/master/allocator.proto
+  $(top_srcdir)/include/mesos/master/allocator.proto			\
+  $(top_srcdir)/include/mesos/master/quota.hpp				\
+  $(top_srcdir)/include/mesos/master/quota.proto
 
-nodist_master_HEADERS = ../include/mesos/master/allocator.pb.h
+nodist_master_HEADERS =							\
+  ../include/mesos/master/allocator.pb.h				\
+  ../include/mesos/master/quota.pb.h
 
 moduledir = $(pkgincludedir)/module
 
@@ -988,6 +997,7 @@ lib_LTLIBRARIES += libmesos.la
 # Include as part of the distribution.
 libmesos_la_SOURCES =							\
   $(ALLOCATOR_PROTO)							\
+  $(QUOTA_PROTO)							\
   $(CONTAINERIZER_PROTO)						\
   $(FETCHER_PROTO)							\
   $(MAINTENANCE_PROTO)							\
@@ -1008,7 +1018,7 @@ libmesos_la_LDFLAGS = -release $(PACKAGE_VERSION)
 libmesos_la_LIBTOOLFLAGS = --tag=CXX
 
 # Add the convenience library.
-libmesos_la_LIBADD = 							\
+libmesos_la_LIBADD =							\
   libmesos_no_3rdparty.la						\
   -lsvn_subr-1								\
   -lsvn_delta-1								\
