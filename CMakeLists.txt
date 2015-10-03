@@ -88,4 +88,7 @@ include(MesosConfigure)
 # SUBDIRECTORIES.
 #################
 add_subdirectory(3rdparty)
-add_subdirectory(src)
+
+if (NOT WIN32)
+  add_subdirectory(src)
+endif (NOT WIN32)
