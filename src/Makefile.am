@@ -227,12 +227,16 @@ JAVA_PROTOS =								\
   java/generated/org/apache/mesos/Protos.java				\
   java/generated/org/apache/mesos/containerizer/Protos.java
 
+V1_JAVA_PROTOS =							\
+  java/generated/org/apache/mesos/v1/Protos.java			\
+  java/generated/org/apache/mesos/v1/scheduler/Protos.java
+
 PYTHON_PROTOS =								\
   python/interface/src/mesos/interface/mesos_pb2.py			\
   python/interface/src/mesos/interface/containerizer_pb2.py
 
-BUILT_SOURCES += $(CXX_PROTOS) $(JAVA_PROTOS) $(PYTHON_PROTOS)
-CLEANFILES += $(CXX_PROTOS) $(JAVA_PROTOS) $(PYTHON_PROTOS)
+BUILT_SOURCES += $(CXX_PROTOS) $(JAVA_PROTOS) $(V1_JAVA_PROTOS) $(PYTHON_PROTOS)
+CLEANFILES += $(CXX_PROTOS) $(JAVA_PROTOS) $(V1_JAVA_PROTOS) $(PYTHON_PROTOS)
 
 FLAGS_PROTOS = messages/flags.pb.cc messages/flags.pb.h
 
@@ -1242,7 +1246,7 @@ MESOS_JAR_SOURCE =							\
 	$(srcdir)/java/src/org/apache/mesos/state/State.java		\
 	$(srcdir)/java/src/org/apache/mesos/state/Variable.java		\
 	$(srcdir)/java/src/org/apache/mesos/state/ZooKeeperState.java
-MESOS_JAR_GENERATED = $(JAVA_PROTOS)					\
+MESOS_JAR_GENERATED = $(JAVA_PROTOS) $(V1_JAVA_PROTOS)			\
 	java/generated/org/apache/mesos/MesosNativeLibrary.java
 EXTRA_DIST += $(MESOS_JAR_SOURCE)					\
 	$(srcdir)/java/generated/org/apache/mesos/MesosNativeLibrary.java.in
