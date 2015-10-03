@@ -43,20 +43,11 @@ set(POSSIBLE_SVN_INCLUDE_DIRECTORIES
 
 set(SVN_LIB_NAMES
   ${SVN_LIB_NAMES}
-  svn_client-1
   svn_delta-1
   svn_diff-1
-  svn_fs-1
-  svn_fs_fs-1
-  svn_fs_util-1
-  svn_ra-1
-  svn_ra_local-1
-  svn_ra_serf-1
-  svn_ra_svn-1
-  svn_repos-1
   svn_subr-1
-  svn_wc-1
-  )
+   )
+
 
 set(POSSIBLE_SVN_LIB_DIRECTORIES
   ${POSSIBLE_SVN_LIB_DIRECTORIES}
