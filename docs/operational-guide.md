@@ -1,9 +1,14 @@
 # Operational Guide
 
-## Changing the master quorum
-Currently the master leverages a paxos-based replicated log as its storage backend (`--registry=replicated_log` is the only storage backend supported). Each master participates in the ensemble as a log replica. The `--quorum` flag determines a majority of the masters.
+## Using a process supervisor
+Mesos uses a "[fail-fast](https://en.wikipedia.org/wiki/Fail-fast)" approach to error handling: if a serious error occurs, Mesos will typically exit rather than trying to continue running in a possibly erroneous state. For example, when Mesos is configured for [high availability](/documentation/latest/high-availability), the leading master will abort itself when it discovers it has been partitioned away from the Zookeeper quorum. This is a safety precaution to ensure the previous leader doesn't continue communicating in an unsafe state.
 
-The following table shows the tolerance to master failures, for each quorum size:
+To ensure that such failures are handled appropriately, production deployments of Mesos typically use a _process supervisor_ (such as systemd or supervisord) to detect when Mesos processes exit. The supervisor can be configured to restart the failed process automatically and/or to notify the cluster operator to investigate the situation.
+
+## Changing the master quorum
+The master leverages a Paxos-based replicated log as its storage backend (`--registry=replicated_log` is the only storage backend currently supported). Each master participates in the ensemble as a log replica. The `--quorum` flag determines a majority of the masters.
+
+The following table shows the tolerance to master failures for each quorum size:
 
 | Masters  | Quorum Size | Failure Tolerance |
 | -------: | ----------: | ----------------: |
@@ -32,7 +37,7 @@ The following steps indicate how to increment the quorum size, using 3 -> 5 mast
 To increase the quorum by N, repeat this process to increment the quorum size N times.
 
 NOTE: Currently, moving out of a single master setup requires wiping the replicated log
-state and starting fresh. This will wipe all persistent data (e.g. slaves, maintenance
+state and starting fresh. This will wipe all persistent data (e.g., slaves, maintenance
 information, quota information, etc). To move from 1 master to 3 masters:
 
 1. Stop the standalone master.
@@ -44,7 +49,7 @@ information, quota information, etc). To move from 1 master to 3 masters:
 The following steps indicate how to decrement the quorum size, using 5 -> 3 masters as an example (quorum size 3 -> 2):
 
 1. Initially, 5 masters are running with `--quorum=3`
-2. Remove 2 masters from the cluster, ensure they will not be restarted (See NOTE section above). Now 3 masters are running with `--quorum=3`
+2. Remove 2 masters from the cluster, ensure they will not be restarted (see NOTE section above). Now 3 masters are running with `--quorum=3`
 3. Restart the 3 masters with `--quorum=2`
 
 To decrease the quorum by N, repeat this process to decrement the quorum size N times.
@@ -52,5 +57,5 @@ To decrease the quorum by N, repeat this process to decrement the quorum size N 
 ### Replacing a master
 Please see the NOTE section above. So long as the failed master is guaranteed to not re-join the ensemble, it is safe to start a new master _with an empty log_ and allow it to catch up.
 
-## External access for mesos master
-If the default ip (or the command line arg `--ip`) points to an internal IP, then external entities such as framework scheduler would not be able to reach the master. To address that scenario, an externally accessible IP:port can be setup via the `--advertise_ip` and `--advertise_port` command line arguments of mesos master. If configured, external entities such as framework scheduler interact with the advertise_ip:advertise_port from where the request needs to be proxied to the internal IP:Port on which mesos master is listening.
+## External access for Mesos master
+If the default IP (or the command line arg `--ip`) is an internal IP, then external entities such as framework schedulers will be unable to reach the master. To address that scenario, an externally accessible IP:port can be setup via the `--advertise_ip` and `--advertise_port` command line arguments of `mesos-master`. If configured, external entities such as framework schedulers interact with the advertise_ip:advertise_port from where the request needs to be proxied to the internal IP:port on which the Mesos master is listening.
