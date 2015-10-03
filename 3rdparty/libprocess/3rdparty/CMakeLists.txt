@@ -104,9 +104,11 @@ if (NOT WIN32)
   # MESOS-3250)" comment above for explanation.
   set(LIBEV_CONFIG_CMD  ${LIBEV_ROOT}/configure --prefix=${LIBEV_ROOT}-lib)
   set(LIBEV_BUILD_CMD   make)
-  set(LIBEV_INSTALL_CMD mkdir -p ${LIBEV_ROOT}-lib/lib && cp -r ${LIBEV_ROOT}-build/.libs/. ${LIBEV_ROOT}-lib/lib)
+  set(LIBEV_INSTALL_CMD mkdir -p ${LIBEV_LIB_ROOT} && cp -r ${LIBEV_ROOT}-build/.libs/. ${LIBEV_LIB_ROOT})
   # Patch libev to keep it from reaping child processes.
   PATCH_CMD(${PROCESS_3RD_SRC}/libev-4.15.patch LIBEV_PATCH_CMD)
+
+  set(LIBEVENT_INSTALL_CMD mkdir -p ${LIBEVENT_LIB_ROOT} && cp -r ${LIBEVENT_ROOT}-build/lib/. ${LIBEVENT_LIB_DIR} && cp -r ${LIBEVENT_ROOT}-build/include/. ${LIBEVENT_INCLUDE_DIR} && cp -r ${LIBEVENT_ROOT}/include/. ${LIBEVENT_INCLUDE_DIR})
 elseif (WIN32)
   set(GLOG_PATCH_CMD   ${CMAKE_NOOP})
   set(GLOG_CONFIG_CMD  ${CMAKE_NOOP})
@@ -245,7 +247,7 @@ endif (NOT WIN32)
 
 if (NOT WIN32)
   set(PROTOBUF_PATCH_CMD   ${CMAKE_NOOP})
-  set(PROTOBUF_CONFIG_CMD  ${PROTOBUF_ROOT}/src/../configure --prefix=${PROTOBUF_LIB})
+  set(PROTOBUF_CONFIG_CMD  ${PROTOBUF_ROOT}/src/../configure --prefix=${PROTOBUF_LIB_ROOT})
   set(PROTOBUF_BUILD_CMD   make)
   set(PROTOBUF_INSTALL_CMD make install)
 elseif (WIN32)

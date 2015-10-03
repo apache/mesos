@@ -42,8 +42,10 @@ elseif (WIN32)
 endif (NOT WIN32)
 
 # Intermediate convenience variables for oddly-structured directories.
-set(GLOG_LIB_ROOT ${GLOG_ROOT}-lib/lib)
-set(PROTOBUF_LIB  ${PROTOBUF_ROOT}-lib/lib)
+set(GLOG_LIB_ROOT     ${GLOG_ROOT}-lib/lib)
+set(PROTOBUF_LIB_ROOT ${PROTOBUF_ROOT}-lib/lib)
+set(LIBEV_LIB_ROOT    ${LIBEV_ROOT}-lib/lib)
+set(LIBEVENT_LIB_ROOT ${LIBEVENT_ROOT}-lib/lib)
 
 # Convenience variables for include directories of third-party dependencies.
 set(PROCESS_INCLUDE_DIR     ${PROCESS_3RD_SRC}/../include)
@@ -53,8 +55,9 @@ set(BOOST_INCLUDE_DIR       ${BOOST_ROOT})
 set(GPERFTOOLS_INCLUDE_DIR  ${GPERFTOOLS}/src)
 set(HTTP_PARSER_INCLUDE_DIR ${HTTP_PARSER_ROOT})
 set(LIBEV_INCLUDE_DIR       ${LIBEV_ROOT})
+set(LIBEVENT_INCLUDE_DIR    ${LIBEVENT_LIB_ROOT}/include)
 set(PICOJSON_INCLUDE_DIR    ${PICOJSON_ROOT})
-set(PROTOBUF_INCLUDE_DIR    ${PROTOBUF_LIB}/include)
+set(PROTOBUF_INCLUDE_DIR    ${PROTOBUF_LIB_ROOT}/include)
 
 if (WIN32)
   set(CURL_INCLUDE_DIR ${CURL_ROOT}/include)
@@ -66,6 +69,7 @@ endif (WIN32)
 # Convenience variables for `lib` directories of built third-party dependencies.
 set(HTTP_PARSER_LIB_DIR ${HTTP_PARSER_ROOT}-build)
 set(LIBEV_LIB_DIR       ${LIBEV_ROOT}-build/.libs)
+set(LIBEVENT_LIB_DIR    ${LIBEVENT_LIB_ROOT}/lib)
 
 if (WIN32)
   set(CURL_LIB_DIR     ${CURL_ROOT}/lib)
@@ -73,13 +77,14 @@ if (WIN32)
   set(PROTOBUF_LIB_DIR ${PROTOBUF_ROOT}/vsprojects/Debug)
 else (WIN32)
   set(GLOG_LIB_DIR     ${GLOG_LIB_ROOT}/lib)
-  set(PROTOBUF_LIB_DIR ${PROTOBUF_LIB}/lib)
+  set(PROTOBUF_LIB_DIR ${PROTOBUF_LIB_ROOT}/lib)
 endif (WIN32)
 
 # Convenience variables for "lflags", the symbols we pass to CMake to generate
 # things like `-L/path/to/glog` or `-lglog`.
 set(HTTP_PARSER_LFLAG http_parser)
 set(LIBEV_LFLAG       ev)
+set(LIBEVENT_LFLAG    event)
 
 if (WIN32)
   # Necessary because the lib names for (e.g.) glog are generated incorrectly
@@ -96,7 +101,7 @@ else (WIN32)
 endif (WIN32)
 
 # Convenience variable for `protoc`, the Protobuf compiler.
-set(PROTOC ${PROTOBUF_LIB}/bin/protoc)
+set(PROTOC ${PROTOBUF_LIB_ROOT}/bin/protoc)
 
 # Configure the process library, the last of our third-party libraries.
 #######################################################################
