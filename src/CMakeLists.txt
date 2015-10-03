@@ -37,6 +37,8 @@ PROTOC_TO_INCLUDE_DIR(OVERSUBSCRIPTION mesos/slave/oversubscription)
 
 PROTOC_TO_SRC_DIR(MESSAGES messages/messages)
 PROTOC_TO_SRC_DIR(FLAGS    messages/flags)
+PROTOC_TO_SRC_DIR(STATE    messages/state)
+PROTOC_TO_SRC_DIR(REGISTRY master/registry)
 
 set(MESOS_PROTOBUF_SRC
   ${MESOS_PROTO_CC}
@@ -52,10 +54,12 @@ set(MESOS_PROTOBUF_SRC
   ${MODULE_PROTO_CC}
   ${SCHEDULER_PROTO_CC}
   ${V1_SCHEDULER_PROTO_CC}
+  ${OVERSUBSCRIPTION_PROTO_CC}
   ${MESSAGES_PROTO_CC}
   ${FLAGS_PROTO_CC}
+  ${STATE_PROTO_CC}
   ${ISOLATOR_PROTO_CC}
-  ${OVERSUBSCRIPTION_PROTO_CC}
+  ${REGISTRY_PROTO_CC}
   )
 
 # Configure Mesos files.
@@ -67,6 +71,91 @@ configure_file(
 
 # SOURCE FILES FOR THE MESOS LIBRARY.
 #####################################
+set(AUTHENTICATION_SRC
+  authentication/cram_md5/authenticatee.cpp
+  authentication/cram_md5/authenticator.cpp
+  authentication/cram_md5/auxprop.cpp
+  )
+
+set(AUTHORIZER_SRC
+  authorizer/authorizer.cpp
+  authorizer/local/authorizer.cpp
+  )
+
+set(COMMON_SRC
+  common/attributes.cpp
+  common/date_utils.cpp
+  common/http.cpp
+  common/protobuf_utils.cpp
+  common/resources.cpp
+  common/resources_utils.cpp
+  common/type_utils.cpp
+  common/values.cpp
+  )
+
+set(DOCKER_SRC
+  docker/docker.hpp
+  docker/docker.cpp
+  docker/executor.hpp
+  )
+
+set(EXEC_SRC
+  exec/exec.cpp
+  )
+
+set(FILES_SRC
+  files/files.cpp
+  )
+
+set(HOOK_SRC
+  hook/manager.cpp
+  )
+
+set(INTERNAL_SRC
+  internal/devolve.cpp
+  internal/evolve.cpp
+  )
+
+set(LOCAL_SRC
+  local/local.cpp
+  )
+
+set(LOGGING_SRC
+  logging/flags.cpp
+  logging/logging.cpp
+  )
+
+set(MASTER_SRC
+  master/contender.cpp
+  master/constants.cpp
+  master/detector.cpp
+  master/flags.cpp
+  master/http.cpp
+  master/maintenance.cpp
+  master/master.cpp
+  master/metrics.cpp
+  master/registry.hpp
+  master/registry.proto
+  master/registrar.cpp
+  master/repairer.cpp
+  master/validation.cpp
+  master/allocator/allocator.cpp
+  master/allocator/sorter/drf/sorter.cpp
+  )
+
+set(MODULE_SRC
+  module/manager.cpp
+  )
+
+set(SCHED_SRC
+  sched/constants.cpp
+  sched/sched.cpp
+  )
+
+set(SCHEDULER_SRC
+  scheduler/scheduler.cpp
+  )
+
 set(AGENT_SRC
   slave/constants.cpp
   slave/gc.cpp
@@ -107,9 +196,50 @@ set(AGENT_SRC
   slave/resource_estimators/noop.cpp
   )
 
+set(USAGE_SRC
+  usage/usage.cpp
+  )
+
+set(V1_SRC
+  v1/attributes.cpp
+  v1/mesos.cpp
+  v1/resources.cpp
+  v1/values.cpp
+  )
+
+set(WATCHER_SRC
+  watcher/whitelist_watcher.cpp
+  )
+
+set(ZOOKEEPER_SRC
+  zookeeper/contender.cpp
+  zookeeper/detector.cpp
+  zookeeper/zookeeper.cpp
+  zookeeper/authentication.cpp
+  zookeeper/group.cpp
+  )
+
 set(MESOS_SRC
   ${MESOS_SRC}
+  ${AUTHENTICATION_SRC}
+  ${AUTHORIZER_SRC}
+  ${COMMON_SRC}
+  ${DOCKER_SRC}
+  ${EXEC_SRC}
+  ${FILES_SRC}
+  ${HOOK_SRC}
+  ${INTERNAL_SRC}
+  ${LOCAL_SRC}
+  ${LOGGING_SRC}
+  ${MASTER_SRC}
+  ${MODULE_SRC}
+  ${SCHED_SRC}
+  ${SCHEDULER_SRC}
   ${AGENT_SRC}
+  ${USAGE_SRC}
+  ${V1_SRC}
+  ${WATCHER_SRC}
+  ${ZOOKEEPER_SRC}
   ${MESOS_PROTOBUF_SRC}
   )
 
