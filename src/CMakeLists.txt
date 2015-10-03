@@ -118,6 +118,11 @@ set(MESOS_SRC
 #########################################################################
 include_directories(${AGENT_INCLUDE_DIRS})
 
+# LINKING LIBRARIES BY DIRECTORY (might generate, e.g., -L/path/to/thing on
+# Linux).
+###########################################################################
+link_directories(${AGENT_LIB_DIRS})
+
 # THE MESOS LIBRARY (generates, e.g., libmesos.so, etc., on Linux).
 ###################################################################
 add_library(${MESOS_TARGET} ${MESOS_SRC})
@@ -127,3 +132,7 @@ set_target_properties(
   SOVERSION ${MESOS_PACKAGE_SOVERSION}
   )
 add_dependencies(${MESOS_TARGET} ${AGENT_DEPENDENCIES})
+
+# ADD LINKER FLAGS (generates, e.g., -lglog on Linux).
+######################################################
+target_link_libraries(${MESOS_TARGET} ${AGENT_LIBS})

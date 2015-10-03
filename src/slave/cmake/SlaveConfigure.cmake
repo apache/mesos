@@ -66,6 +66,13 @@ set(AGENT_LIB_DIRS
 # include our third-party libs (e.g., -lglog on Linux).
 #########################################################################
 set(AGENT_LIBS
+  ${AGENT_LIBS}
   ${PROCESS_LIBS}
   ${GLOG_LFLAG}
   )
+
+if (NOT ENABLE_LIBEVENT)
+  set(AGENT_LIBS ${AGENT_LIBS} ${LIBEV_LFLAG})
+elseif (ENABLE_LIBEVENT)
+  set(AGENT_LIBS ${AGENT_LIBS} ${LIBEVENT_LFLAG})
+endif (NOT ENABLE_LIBEVENT)
