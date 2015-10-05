@@ -27,6 +27,15 @@ layout: documentation
 * [Tools](/documentation/latest/tools/) for setting up and running a Mesos cluster.
 * [SSL](/documentation/latest/mesos-ssl/) for enabling and enforcing SSL communication.
 
+## Advanced Features
+
+* [Attributes and Resources](/documentation/attributes-resources/) for how to describe the slaves that comprise a cluster.
+* [Fetcher Cache](/documentation/latest/fetcher/) for how to configure the Mesos fetcher cache.
+* [Networking for Mesos-managed Containers](/documentation/latest/networking-for-mesos-managed-containers/)
+* [Oversubscription](/documentation/latest/oversubscription/) for how to configure Mesos to take advantage of unused resources to launch "best-effort" tasks.
+* [Persistent Volume](/documentation/latest/persistent-volume/) for how to allow tasks to access persistent storage resources.
+* [Reservation](/documentation/latest/reservation/) for how to configure Mesos to allow slaves to reserve resources.
+
 ## Running Mesos Frameworks
 
  * [Mesos frameworks](/documentation/latest/mesos-frameworks/) for a list of apps built on top of Mesos, and instructions on how to run them.
