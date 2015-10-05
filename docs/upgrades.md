@@ -28,6 +28,16 @@ For both master and slave:
 * /files/read.json becomes /files/read
 
 
+In order to upgrade a running cluster:
+
+* Rebuild and install any modules so that upgraded masters/slaves can use them.
+* Install the new master binaries and restart the masters.
+* Install the new slave binaries and restart the slaves.
+* Upgrade the schedulers by linking the latest native library / jar / egg (if necessary).
+* Restart the schedulers.
+* Upgrade the executors by linking the latest native library / jar / egg (if necessary).
+
+
 ## Upgrading from 0.23.x to 0.24.x
 
 **NOTE** Support for live upgrading a driver based scheduler to HTTP based (experimental) scheduler has been added.
