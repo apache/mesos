@@ -29,6 +29,7 @@ PROTOC_TO_INCLUDE_DIR(V1_EXECUTOR      mesos/v1/executor/executor)
 PROTOC_TO_INCLUDE_DIR(FETCHER          mesos/fetcher/fetcher)
 PROTOC_TO_INCLUDE_DIR(MAINTENANCE      mesos/maintenance/maintenance)
 PROTOC_TO_INCLUDE_DIR(ALLOCATOR        mesos/master/allocator)
+PROTOC_TO_INCLUDE_DIR(QUOTA            mesos/master/quota)
 PROTOC_TO_INCLUDE_DIR(MODULE           mesos/module/module)
 PROTOC_TO_INCLUDE_DIR(SCHEDULER        mesos/scheduler/scheduler)
 PROTOC_TO_INCLUDE_DIR(V1_SCHEDULER     mesos/v1/scheduler/scheduler)
@@ -51,6 +52,7 @@ set(MESOS_PROTOBUF_SRC
   ${FETCHER_PROTO_CC}
   ${MAINTENANCE_PROTO_CC}
   ${ALLOCATOR_PROTO_CC}
+  ${QUOTA_PROTO_CC}
   ${MODULE_PROTO_CC}
   ${SCHEDULER_PROTO_CC}
   ${V1_SCHEDULER_PROTO_CC}
