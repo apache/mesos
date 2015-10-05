@@ -173,8 +173,7 @@ void FetcherCacheTest::SetUp()
   MesosTest::SetUp();
 
   flags = CreateSlaveFlags();
-  flags.resources =
-    Some(stringify(Resources::parse("cpus:1000;mem:1000").get()));
+  flags.resources = "cpus:1000;mem:1000";
 
   assetsDirectory = path::join(flags.work_dir, ASSETS_DIRECTORY_NAME);
   ASSERT_SOME(os::mkdir(assetsDirectory));
