@@ -1,9 +1,71 @@
-Release Notes - Mesos - Version 0.25.0 (WIP)
+Release Notes - Mesos - Version 0.25.0
 --------------------------------------------
-TODO: Add 0.25.0 major features description here.
+This release contains:
+ * [MESOS-1474] - Experimental support for maintenance primitives. Please refer
+                  to maintenance.md for more information.
+ * [MESOS-2600] - Added master endpoints /reserve and /unreserve for dynamic
+                  reservations. Please refer to reservation.md for more
+                  information.
+ * [MESOS-2044] - Extended Module APIs to enable IP per container assignment,
+                  isolation and resolution.
 
-* API Changes:
-  * [MESOS-3037] - Add a SUPPRESS call to the scheduler
+** API Changes
+  * [MESOS-3037] - Add a SUPPRESS call to the scheduler.
+
+** Bug
+  * [MESOS-2635] - Web UI Display Bug when starting lots of tasks with small cpu
+                   value.
+  * [MESOS-2986] - Docker version output is not compatible with Mesos.
+  * [MESOS-3046] - Stout's UUID re-seeds a new random generator during each call to UUID::random.
+  * [MESOS-3051] - performance issues with port ranges comparison.
+  * [MESOS-3052] - Allocator performance issue when using a large number of filters.
+  * [MESOS-3136] - COMMAND health checks with Marathon 0.10.0 are broken.
+  * [MESOS-3169] - FrameworkInfo should only be updated if the re-registration is valid.
+  * [MESOS-3185] - Refactor Subprocess logic in linux/perf.cpp to use common subroutine.
+  * [MESOS-3239] - Refactor master HTTP endpoints help messages such that they cannot be out of sync.
+  * [MESOS-3245] - The comments of DRFSorter::dirty is not correct.
+  * [MESOS-3253] - Add pid to network helper error messages.
+  * [MESOS-3254] - Cgroup CHECK fails test harness.
+  * [MESOS-3258] - Remove Frameworkinfo capabilities on re-registration.
+  * [MESOS-3269] - The comments of Master::updateSlave() is not correct.
+  * [MESOS-3336] - Remove TEARDOWN endpoint.
+  * [MESOS-3344] - Add more comments for strings::internal::fmt.
+  * [MESOS-3351] - duplicated slave id in master after master failover.
+  * [MESOS-3376] - mess-slave is not respecting --docker_socket.
+  * [MESOS-3408] - Labels field of FrameworkInfo should be added into v1 mesos.proto.
+  * [MESOS-3411] - ReservationEndpointsTest.AvailableResources appears to be faulty.
+  * [MESOS-3423] - Perf event isolator stops performing sampling if a single timeout occurs.
+  * [MESOS-3426] - process::collect and process::await do not perform discard propagation.
+  * [MESOS-3451] - Failing tests after changes to Isolator/MesosContainerizer API.
+  * [MESOS-3512] - Don't retry close() on EINTR.
+  * [MESOS-3513] - Cgroups Test Filters aborts tests on Centos 6.6.
+
+** Documentation
+  * [MESOS-2466] - Write documentation for all the LIBPROCESS_* environment variables.
+
+** Improvement
+  * [MESOS-2719] - Deprecating '.json' extension in master endpoints urls.
+  * [MESOS-2875] - Add containerId to ResourceUsage to enable QoS controller to target a container.
+  * [MESOS-2964] - libprocess io does not support peek().
+  * [MESOS-2983] - Deprecating '.json' extension in slave endpoints url.
+  * [MESOS-2984] - Deprecating '.json' extension in files endpoints url.
+  * [MESOS-3187] - Docker cli option support.
+  * [MESOS-3304] - Remove remnants of LIBPROCESS_STATISTICS_WINDOW.
+  * [MESOS-3312] - Factor out JSON to repeated protobuf conversion.
+  * [MESOS-3340] - Command-line flags should take precedence over OS Env variables.
+  * [MESOS-3347] - Remove dead code in src/linux/perf.cpp.
+  * [MESOS-3377] - mesos docker container with container_name as ENV variable.
+
+** Task
+  * [MESOS-1831] - Master should send PingSlaveMessage instead of "PING".
+  * [MESOS-1935] - Replace hard-coded reap interval with a constant.
+  * [MESOS-2600] - Add /reserve and /unreserve endpoints on the master for dynamic reservation.
+  * [MESOS-2907] - Agent : Create Basic Functionality to handle /call endpoint.
+  * [MESOS-3217] - Replace boost unordered_{set,map} and hash with std versions.
+  * [MESOS-3223] - Implement token manager for docker registry.
+  * [MESOS-3310] - Support provisioning images specified in volumes.
+  * [MESOS-3375] - Add executor protobuf to v1.
+  * [MESOS-3419] - Add HELP message for reserve/unreserve endpoint.
 
 
 Release Notes - Mesos - Version 0.24.1
