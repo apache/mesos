@@ -13,8 +13,7 @@ This release contains:
   * [MESOS-3037] - Add a SUPPRESS call to the scheduler.
 
 ** Bug
-  * [MESOS-2635] - Web UI Display Bug when starting lots of tasks with small cpu
-                   value.
+  * [MESOS-2635] - Web UI Display Bug when starting lots of tasks with small cpu value.
   * [MESOS-2986] - Docker version output is not compatible with Mesos.
   * [MESOS-3046] - Stout's UUID re-seeds a new random generator during each call to UUID::random.
   * [MESOS-3051] - performance issues with port ranges comparison.
@@ -24,48 +23,85 @@ This release contains:
   * [MESOS-3185] - Refactor Subprocess logic in linux/perf.cpp to use common subroutine.
   * [MESOS-3239] - Refactor master HTTP endpoints help messages such that they cannot be out of sync.
   * [MESOS-3245] - The comments of DRFSorter::dirty is not correct.
-  * [MESOS-3253] - Add pid to network helper error messages.
   * [MESOS-3254] - Cgroup CHECK fails test harness.
   * [MESOS-3258] - Remove Frameworkinfo capabilities on re-registration.
+  * [MESOS-3261] - Move QoS plug-ins to a specified folder like resource_estimator.
   * [MESOS-3269] - The comments of Master::updateSlave() is not correct.
-  * [MESOS-3336] - Remove TEARDOWN endpoint.
+  * [MESOS-3282] - Web UI no longer shows Tasks information.
   * [MESOS-3344] - Add more comments for strings::internal::fmt.
   * [MESOS-3351] - duplicated slave id in master after master failover.
-  * [MESOS-3376] - mess-slave is not respecting --docker_socket.
+  * [MESOS-3387] - Refactor MesosContainerizer to accept namespace dynamically.
   * [MESOS-3408] - Labels field of FrameworkInfo should be added into v1 mesos.proto.
   * [MESOS-3411] - ReservationEndpointsTest.AvailableResources appears to be faulty.
   * [MESOS-3423] - Perf event isolator stops performing sampling if a single timeout occurs.
   * [MESOS-3426] - process::collect and process::await do not perform discard propagation.
+  * [MESOS-3430] - LinuxFilesystemIsolatorTest.ROOT_PersistentVolumeWithoutRootFilesystem fails on CentOS 7.1.
+  * [MESOS-3450] - Update Mesos C++ Style Guide for namespace usage.
   * [MESOS-3451] - Failing tests after changes to Isolator/MesosContainerizer API.
+  * [MESOS-3458] - Segfault when accepting or declining inverse offers.
+  * [MESOS-3474] - ExamplesTest.{TestFramework, JavaFramework, PythonFramework} failed on CentOS 6.
+  * [MESOS-3489] - Add support for exposing Accept/Decline responses for inverse offers.
+  * [MESOS-3490] - Mesos UI fails to represent JSON entities.
   * [MESOS-3512] - Don't retry close() on EINTR.
   * [MESOS-3513] - Cgroups Test Filters aborts tests on Centos 6.6.
+  * [MESOS-3519] - Fix file descriptor leakage / double close in the code base.
+  * [MESOS-3538] - CgroupsNoHierarchyTest.ROOT_CGROUPS_NOHIERARCHY_MountUnmountHierarchy test is flaky.
+  * [MESOS-3575] - V1 API java/python protos are not generated.
 
 ** Documentation
+  * [MESOS-2083] - Add documentation for maintenance primitives.
   * [MESOS-2466] - Write documentation for all the LIBPROCESS_* environment variables.
+  * [MESOS-3230] - Create a HTTP based Authentication design doc.
+  * [MESOS-3492] - Expose maintenance user doc via the documentation home page.
+  * [MESOS-3508] - Update docs for Agent's --launcher flag.
+  * [MESOS-3516] - Add user doc for networking support in Mesos 0.25.0.
 
 ** Improvement
   * [MESOS-2719] - Deprecating '.json' extension in master endpoints urls.
+  * [MESOS-2757] - Add -> operator for Option<T>, Try<T>, Result<T>, Future<T>.
   * [MESOS-2875] - Add containerId to ResourceUsage to enable QoS controller to target a container.
   * [MESOS-2964] - libprocess io does not support peek().
   * [MESOS-2983] - Deprecating '.json' extension in slave endpoints url.
   * [MESOS-2984] - Deprecating '.json' extension in files endpoints url.
+  * [MESOS-3037] - Add a SUPPRESS call to the scheduler.
   * [MESOS-3187] - Docker cli option support.
   * [MESOS-3304] - Remove remnants of LIBPROCESS_STATISTICS_WINDOW.
   * [MESOS-3312] - Factor out JSON to repeated protobuf conversion.
   * [MESOS-3340] - Command-line flags should take precedence over OS Env variables.
   * [MESOS-3347] - Remove dead code in src/linux/perf.cpp.
   * [MESOS-3377] - mesos docker container with container_name as ENV variable.
+  * [MESOS-3457] - Add flag to disable hostname lookup.
 
 ** Task
   * [MESOS-1831] - Master should send PingSlaveMessage instead of "PING".
   * [MESOS-1935] - Replace hard-coded reap interval with a constant.
+  * [MESOS-2061] - Add InverseOffer protobuf message.
+  * [MESOS-2062] - Add InverseOffer to Event/Call API.
+  * [MESOS-2066] - Add optional 'Unavailability' to resource offers to provide maintenance awareness.
+  * [MESOS-2067] - Add HTTP API to the master for maintenance operations.
   * [MESOS-2600] - Add /reserve and /unreserve endpoints on the master for dynamic reservation.
   * [MESOS-2907] - Agent : Create Basic Functionality to handle /call endpoint.
+  * [MESOS-3015] - Add hooks for Slave exits.
+  * [MESOS-3038] - Resource offers do not contain Unavailability, given a maintenance schedule.
+  * [MESOS-3042] - Master/Allocator does not send InverseOffers to resources to be maintained.
+  * [MESOS-3043] - Master does not handle InverseOffers in the Accept call (Event/Call API).
+  * [MESOS-3045] - Maintenance information is not populated in case of failover.
+  * [MESOS-3066] - Replicated registry needs a representation of maintenance schedules.
+  * [MESOS-3069] - Registry operations do not exist for manipulating maintanence schedules.
   * [MESOS-3217] - Replace boost unordered_{set,map} and hash with std versions.
   * [MESOS-3223] - Implement token manager for docker registry.
+  * [MESOS-3265] - Starting maintenance needs to deactivate agents and kill tasks.
+  * [MESOS-3266] - Stopping/Completing maintenance needs to reactivate agents.
+  * [MESOS-3299] - Add a protobuf to represent time with integer precision.
   * [MESOS-3310] - Support provisioning images specified in volumes.
+  * [MESOS-3345] - Expand the range of integer precision when converting into/out of json.
+  * [MESOS-3346] - Add filter support for inverse offers.
   * [MESOS-3375] - Add executor protobuf to v1.
+  * [MESOS-3395] - In CMake build system, download third party dependencies from a "trusted channel" instead of from Mesos GitHub mirror.
   * [MESOS-3419] - Add HELP message for reserve/unreserve endpoint.
+  * [MESOS-3425] - Modify LinuxLauncher to support Systemd.
+  * [MESOS-3459] - Change /machine/up and /machine/down endpoints to take an array.
+  * [MESOS-3510] - Synchronize V1 helper functions with pre-v1.
 
 * Work In Progress:
   * Functionality for endpoint 'api/v1/executor' introduced on 'Agent' is incomplete.
