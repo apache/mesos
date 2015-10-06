@@ -871,7 +871,7 @@ private:
     process::Future<process::http::Response> roles(
         const process::http::Request& request) const;
 
-    // /master/teardown and /master/shutdown (deprecated).
+    // /master/teardown
     process::Future<process::http::Response> teardown(
         const process::http::Request& request) const;
 
