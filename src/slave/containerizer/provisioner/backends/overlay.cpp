@@ -114,7 +114,7 @@ Future<Nothing> OverlayBackendProcess::provision(
   }
 
   if (layers.size() == 1) {
-    return Failure("Need more than one image for overlay")
+    return Failure("Need more than one image for overlay");
   }
 
   Try<Nothing> mkdir = os::mkdir(rootfs);
@@ -130,14 +130,14 @@ Future<Nothing> OverlayBackendProcess::provision(
 
   Try<Nothing> mount = fs::mount(
       "overlay",
-      mountpoint,
+      rootfs,
       "overlay",
       MS_RDONLY,
       lowerDir);
 
   if (mount.isError()) {
     return Failure("Failed to remount rootfs '" + rootfs + "' read-only: " +
-        mount.error()););
+        mount.error());
   }
 
   return Nothing();
