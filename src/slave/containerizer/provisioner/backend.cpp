@@ -24,6 +24,7 @@
 
 #include "slave/containerizer/provisioner/backends/bind.hpp"
 #include "slave/containerizer/provisioner/backends/copy.hpp"
+#include "slave/containerizer/provisioner/backends/overlay.hpp"
 
 using namespace process;
 
@@ -39,6 +40,7 @@ hashmap<string, Owned<Backend>> Backend::create(const Flags& flags)
 
 #ifdef __linux__
   creators.put("bind", &BindBackend::create);
+  creators.put("overlay", &OverlayBackend::create);
 #endif // __linux__
   creators.put("copy", &CopyBackend::create);
 
