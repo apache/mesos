@@ -719,6 +719,7 @@ if OS_LINUX
   libmesos_no_3rdparty_la_SOURCES += slave/containerizer/isolators/filesystem/shared.cpp
   libmesos_no_3rdparty_la_SOURCES += slave/containerizer/linux_launcher.cpp
   libmesos_no_3rdparty_la_SOURCES += slave/containerizer/provisioner/backends/bind.cpp
+  libmesos_no_3rdparty_la_SOURCES += slave/containerizer/provisioner/backends/overlay.cpp
 else
   EXTRA_DIST += linux/cgroups.cpp
   EXTRA_DIST += linux/fs.cpp
@@ -842,6 +843,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
 	slave/containerizer/provisioner/backend.hpp			\
 	slave/containerizer/provisioner/backends/bind.hpp		\
 	slave/containerizer/provisioner/backends/copy.hpp		\
+	slave/containerizer/provisioner/backends/overlay.hpp		\
 	slave/containerizer/provisioner/docker/local_puller.hpp		\
 	slave/containerizer/provisioner/docker/message.hpp		\
 	slave/containerizer/provisioner/docker/metadata_manager.hpp	\
