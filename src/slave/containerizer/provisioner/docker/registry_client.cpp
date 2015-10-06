@@ -433,7 +433,6 @@ Future<ManifestResponse> RegistryClientProcess::getManifest(
     const Option<string>& tag,
     const Duration& timeout)
 {
-  //TODO(jojy): These validations belong in the URL class.
   if (strings::contains(path, " ")) {
     return Failure("Invalid repository path: " + path);
   }
@@ -518,7 +517,7 @@ Future<size_t> RegistryClientProcess::getBlob(
   auto prepare = ([&filePath]() -> Try<Nothing> {
       const string dirName = filePath.dirname();
 
-      //TODO(jojy): Return more state, for example - if the directory is new.
+      // TODO(jojy): Return more state, for example - if the directory is new.
       Try<Nothing> dirResult = os::mkdir(dirName, true);
       if (dirResult.isError()) {
         return Error(

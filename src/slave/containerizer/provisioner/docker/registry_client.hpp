@@ -48,8 +48,8 @@ public:
    * Encapsulates information about a file system layer.
    */
   struct FileSystemLayerInfo {
-    //TODO(jojy): This string includes the checksum type also now. Need to
-    //separate this into checksum method and checksum.
+    // TODO(jojy): This string includes the checksum type also now. Need to
+    // separate this into checksum method and checksum.
     std::string checksumInfo;
   };
 
