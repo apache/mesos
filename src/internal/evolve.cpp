@@ -80,9 +80,21 @@ v1::FrameworkID evolve(const FrameworkID& frameworkId)
 }
 
 
+v1::FrameworkInfo evolve(const FrameworkInfo& frameworkInfo)
+{
+  return evolve<v1::FrameworkInfo>(frameworkInfo);
+}
+
+
 v1::ExecutorID evolve(const ExecutorID& executorId)
 {
   return evolve<v1::ExecutorID>(executorId);
+}
+
+
+v1::ExecutorInfo evolve(const ExecutorInfo& executorInfo)
+{
+  return evolve<v1::ExecutorInfo>(executorInfo);
 }
 
 
@@ -101,6 +113,12 @@ v1::InverseOffer evolve(const InverseOffer& inverseOffer)
 v1::OfferID evolve(const OfferID& offerId)
 {
   return evolve<v1::OfferID>(offerId);
+}
+
+
+v1::TaskID evolve(const TaskID& taskId)
+{
+  return evolve<v1::TaskID>(taskId);
 }
 
 
@@ -266,6 +284,96 @@ v1::scheduler::Event evolve(const FrameworkErrorMessage& message)
 
   v1::scheduler::Event::Error* error = event.mutable_error();
   error->set_message(message.message());
+
+  return event;
+}
+
+
+v1::executor::Event evolve(const mesos::executor::Event& event)
+{
+  return evolve<v1::executor::Event>(event);
+}
+
+
+v1::executor::Event evolve(const KillTaskMessage& message)
+{
+  v1::executor::Event event;
+  event.set_type(v1::executor::Event::KILL);
+
+  v1::executor::Event::Kill* kill = event.mutable_kill();
+
+  kill->mutable_task_id()->CopyFrom(evolve(message.task_id()));
+
+  return event;
+}
+
+
+v1::executor::Event evolve(const RunTaskMessage& message)
+{
+  v1::executor::Event event;
+  event.set_type(v1::executor::Event::LAUNCH);
+
+  v1::executor::Event::Launch* launch = event.mutable_launch();
+
+  launch->mutable_task()->CopyFrom(evolve(message.task()));
+
+  return event;
+}
+
+
+v1::executor::Event evolve(
+    const StatusUpdateAcknowledgementMessage& message)
+{
+  v1::executor::Event event;
+  event.set_type(v1::executor::Event::ACKNOWLEDGED);
+
+  v1::executor::Event::Acknowledged* acknowledged =
+    event.mutable_acknowledged();
+
+  acknowledged->mutable_task_id()->CopyFrom(evolve(message.task_id()));
+  acknowledged->set_uuid(message.uuid());
+
+  return event;
+}
+
+
+v1::executor::Event evolve(const FrameworkToExecutorMessage& message)
+{
+  v1::executor::Event event;
+  event.set_type(v1::executor::Event::MESSAGE);
+
+  v1::executor::Event::Message* message_ = event.mutable_message();
+
+  message_->set_data(message.data());
+
+  return event;
+}
+
+
+v1::executor::Event evolve(const ExecutorRegisteredMessage& message)
+{
+  v1::executor::Event event;
+  event.set_type(v1::executor::Event::SUBSCRIBED);
+
+  v1::executor::Event::Subscribed* subscribed = event.mutable_subscribed();
+
+  subscribed->mutable_executor_info()->
+    CopyFrom(evolve(message.executor_info()));
+
+  subscribed->mutable_framework_info()->
+    CopyFrom(evolve(message.framework_info()));
+
+  subscribed->mutable_agent_info()->
+    CopyFrom(evolve(message.slave_info()));
+
+  return event;
+}
+
+
+v1::executor::Event evolve(const ShutdownExecutorMessage&)
+{
+  v1::executor::Event event;
+  event.set_type(v1::executor::Event::SHUTDOWN);
 
   return event;
 }

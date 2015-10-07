@@ -23,9 +23,13 @@
 
 #include <mesos/mesos.hpp>
 
+#include <mesos/executor/executor.hpp>
+
 #include <mesos/scheduler/scheduler.hpp>
 
 #include <mesos/v1/mesos.hpp>
+
+#include <mesos/v1/executor/executor.hpp>
 
 #include <mesos/v1/scheduler/scheduler.hpp>
 
@@ -40,10 +44,13 @@ namespace internal {
 v1::AgentID evolve(const SlaveID& slaveId);
 v1::AgentInfo evolve(const SlaveInfo& slaveInfo);
 v1::FrameworkID evolve(const FrameworkID& frameworkId);
+v1::FrameworkInfo evolve(const FrameworkInfo& frameworkInfo);
 v1::ExecutorID evolve(const ExecutorID& executorId);
+v1::ExecutorInfo evolve(const ExecutorInfo& executorInfo);
 v1::Offer evolve(const Offer& offer);
 v1::InverseOffer evolve(const InverseOffer& inverseOffer);
 v1::OfferID evolve(const OfferID& offerId);
+v1::TaskID evolve(const TaskID& taskId);
 v1::TaskInfo evolve(const TaskInfo& taskInfo);
 v1::TaskStatus evolve(const TaskStatus& status);
 
@@ -79,6 +86,19 @@ v1::scheduler::Event evolve(const LostSlaveMessage& message);
 v1::scheduler::Event evolve(const ExitedExecutorMessage& message);
 v1::scheduler::Event evolve(const ExecutorToFrameworkMessage& message);
 v1::scheduler::Event evolve(const FrameworkErrorMessage& message);
+
+
+v1::executor::Event evolve(const mesos::executor::Event& event);
+
+
+// Helper functions that evolve old style internal messages to a
+// v1::Executor::Event.
+v1::executor::Event evolve(const ExecutorRegisteredMessage& message);
+v1::executor::Event evolve(const FrameworkToExecutorMessage& message);
+v1::executor::Event evolve(const KillTaskMessage& message);
+v1::executor::Event evolve(const RunTaskMessage& message);
+v1::executor::Event evolve(const StatusUpdateAcknowledgementMessage& message);
+v1::executor::Event evolve(const ShutdownExecutorMessage& message);
 
 } // namespace internal {
 } // namespace mesos {
