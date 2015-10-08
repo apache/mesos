@@ -124,8 +124,8 @@ Future<Nothing> LocalPullerProcess::untarImage(
     const string& tarPath,
     const string& directory)
 {
-  VLOG(1) << "Untarring image from '" << directory
-          << "' to '" << tarPath << "'";
+  VLOG(1) << "Untarring image from '" << tarPath
+          << "' to '" << directory << "'";
 
   // Untar store_discovery_local_dir/name.tar into directory/.
   // TODO(tnachen): Terminate tar process when slave exits.
