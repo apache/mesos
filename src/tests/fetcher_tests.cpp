@@ -540,6 +540,45 @@ TEST_F(FetcherTest, ExtractNotExecutable)
 }
 
 
+TEST_F(FetcherTest, ExtractGzipFile)
+{
+  // First construct a temporary file that can be fetched and archive
+  // with gzip.
+  Try<string> path = os::mktemp();
+
+  ASSERT_SOME(path);
+
+  ASSERT_SOME(os::write(path.get(), "hello world"));
+  ASSERT_SOME(os::shell("gzip " + path.get()));
+
+  ContainerID containerId;
+  containerId.set_value(UUID::random().toString());
+
+  CommandInfo commandInfo;
+  CommandInfo::URI* uri = commandInfo.add_uris();
+  uri->set_value(path.get() + ".gz");
+  uri->set_extract(true);
+
+  slave::Flags flags;
+  flags.launcher_dir = path::join(tests::flags.build_dir, "src");
+
+  Fetcher fetcher;
+  SlaveID slaveId;
+
+  Future<Nothing> fetch = fetcher.fetch(
+      containerId, commandInfo, os::getcwd(), None(), slaveId, flags);
+
+  AWAIT_READY(fetch);
+
+  string extractFile = path::join(".", Path(path.get()).basename());
+  ASSERT_TRUE(os::exists(extractFile));
+
+  ASSERT_SOME_EQ("hello world", os::read(extractFile));
+
+  ASSERT_SOME(os::rm(path.get() + ".gz"));
+}
+
+
 // Tests fetching via the local HDFS client. Since we cannot rely on
 // Hadoop being installed, we use our own mock version that works on
 // the local file system only, but this lets us exercise the exact

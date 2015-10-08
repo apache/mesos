@@ -26,6 +26,7 @@
 #include <stout/net.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
+#include <stout/path.hpp>
 #include <stout/protobuf.hpp>
 #include <stout/strings.hpp>
 
@@ -65,6 +66,10 @@ static Try<bool> extract(
       strings::endsWith(sourcePath, ".txz") ||
       strings::endsWith(sourcePath, ".tar.xz")) {
     command = "tar -C '" + destinationDirectory + "' -xf";
+  } else if (strings::endsWith(sourcePath, ".gz")) {
+    string pathWithoutExtension = sourcePath.substr(0, sourcePath.length() - 3);
+    string filename = Path(pathWithoutExtension).basename();
+    command = "gzip -dc > '" + destinationDirectory + "/" + filename + "' <";
   } else if (strings::endsWith(sourcePath, ".zip")) {
     command = "unzip -d '" + destinationDirectory + "'";
   } else {
