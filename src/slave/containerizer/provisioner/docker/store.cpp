@@ -107,6 +107,7 @@ Try<Owned<slave::Store>> Store::create(const Flags& flags)
   if (!os::exists(paths::getStagingDir(flags.docker_store_dir))) {
     Try<Nothing> mkdir =
       os::mkdir(paths::getStagingDir(flags.docker_store_dir));
+
     if (mkdir.isError()) {
       return Error("Failed to create Docker store staging directory: " +
                    mkdir.error());
@@ -177,6 +178,7 @@ Future<Image> StoreProcess::_get(
 
   Try<string> staging =
     os::mkdtemp(paths::getStagingTempDir(flags.docker_store_dir));
+
   if (staging.isError()) {
     return Failure("Failed to create a staging directory");
   }
