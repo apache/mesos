@@ -551,6 +551,7 @@ libmesos_no_3rdparty_la_SOURCES =					\
 	v1/mesos.cpp							\
 	v1/resources.cpp						\
 	v1/values.cpp							\
+	version/version.cpp						\
 	watcher/whitelist_watcher.cpp					\
 	zookeeper/contender.cpp						\
 	zookeeper/detector.cpp						\
@@ -882,6 +883,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
 	tests/containerizer/rootfs.hpp					\
 	tests/containerizer/setns_test_helper.hpp			\
 	usage/usage.hpp							\
+	version/version.hpp						\
 	watcher/whitelist_watcher.hpp					\
 	zookeeper/authentication.hpp					\
 	zookeeper/contender.hpp						\

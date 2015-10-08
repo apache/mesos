@@ -72,6 +72,7 @@
 #include "state/protobuf.hpp"
 #include "state/storage.hpp"
 
+#include "version/version.hpp"
 
 #include "zookeeper/detector.hpp"
 
@@ -225,6 +226,8 @@ int main(int argc, char** argv)
   process::initialize("master");
 
   logging::initialize(argv[0], flags, true); // Catch signals.
+
+  spawn(new VersionProcess(), true);
 
   LOG(INFO) << "Build: " << build::DATE << " by " << build::USER;
 

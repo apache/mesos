@@ -54,6 +54,8 @@
 #include "slave/slave.hpp"
 #include "slave/status_update_manager.hpp"
 
+#include "version/version.hpp"
+
 using namespace mesos::internal;
 using namespace mesos::internal::slave;
 
@@ -182,6 +184,8 @@ int main(int argc, char** argv)
   process::initialize("slave(1)");
 
   logging::initialize(argv[0], flags, true); // Catch signals.
+
+  spawn(new VersionProcess(), true);
 
   LOG(INFO) << "Build: " << build::DATE << " by " << build::USER;
 

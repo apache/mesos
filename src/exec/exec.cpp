@@ -57,6 +57,8 @@
 #include "slave/constants.hpp"
 #include "slave/state.hpp"
 
+#include "version/version.hpp"
+
 using namespace mesos;
 using namespace mesos::internal;
 using namespace mesos::internal::slave;
@@ -597,6 +599,8 @@ MesosExecutorDriver::MesosExecutorDriver(Executor* _executor)
   } else {
     VLOG(1) << "Disabling initialization of GLOG logging";
   }
+
+  spawn(new VersionProcess(), true);
 }
 
 

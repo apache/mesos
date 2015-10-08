@@ -89,6 +89,8 @@
 #include "sched/constants.hpp"
 #include "sched/flags.hpp"
 
+#include "version/version.hpp"
+
 using namespace mesos;
 using namespace mesos::internal;
 using namespace mesos::internal::master;
@@ -1522,6 +1524,8 @@ void MesosSchedulerDriver::initialize() {
   } else {
     VLOG(1) << "Disabling initialization of GLOG logging";
   }
+
+  spawn(new VersionProcess(), true);
 
   // Initialize Latch.
   latch = new Latch();

@@ -34,6 +34,8 @@
 
 #include "logging/logging.hpp"
 
+#include "version/version.hpp"
+
 using namespace mesos::internal;
 
 using mesos::internal::master::Master;
@@ -92,6 +94,8 @@ int main(int argc, char **argv)
   process::initialize("master");
 
   logging::initialize(argv[0], flags);
+
+  spawn(new VersionProcess(), true);
 
   process::wait(local::launch(flags));
 
