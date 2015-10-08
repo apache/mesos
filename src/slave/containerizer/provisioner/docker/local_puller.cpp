@@ -106,7 +106,7 @@ Future<list<pair<string, string>>> LocalPullerProcess::pull(
     const Image::Name& name,
     const string& directory)
 {
-  string tarPath = paths::getImageArchiveTarPath(
+  const string tarPath = paths::getImageArchiveTarPath(
       flags.docker_local_archives_dir,
       stringify(name));
 
@@ -129,7 +129,7 @@ Future<Nothing> LocalPullerProcess::untarImage(
 
   // Untar store_discovery_local_dir/name.tar into directory/.
   // TODO(tnachen): Terminate tar process when slave exits.
-  vector<string> argv = {
+  const vector<string> argv = {
     "tar",
     "-C",
     directory,
@@ -171,6 +171,7 @@ static Result<string> getParentId(
 {
   Try<string> manifest =
     os::read(paths::getImageArchiveLayerManifestPath(directory, layerId));
+
   if (manifest.isError()) {
     return Error("Failed to read manifest: " + manifest.error());
   }
@@ -186,6 +187,7 @@ static Result<string> getParentId(
   } else if (parentId.isError()) {
     return Error("Failed to read parent of layer: " + parentId.error());
   }
+
   return parentId.get().value;
 }
 
@@ -196,6 +198,7 @@ Future<list<pair<string, string>>> LocalPullerProcess::putImage(
 {
   Try<string> value =
     os::read(paths::getImageArchiveRepositoriesPath(directory));
+
   if (value.isError()) {
     return Failure("Failed to read repository JSON: " + value.error());
   }
@@ -207,27 +210,30 @@ Future<list<pair<string, string>>> LocalPullerProcess::putImage(
 
   Result<JSON::Object> repositoryValue =
     json.get().find<JSON::Object>(name.repository());
+
   if (repositoryValue.isError()) {
     return Failure("Failed to find repository: " + repositoryValue.error());
   } else if (repositoryValue.isNone()) {
     return Failure("Repository '" + name.repository() + "' is not found");
   }
 
-  JSON::Object repositoryJson = repositoryValue.get();
+  const JSON::Object repositoryJson = repositoryValue.get();
 
   // We don't use JSON find here because a tag might contain a '.'.
   std::map<string, JSON::Value>::const_iterator entry =
     repositoryJson.values.find(name.tag());
+
   if (entry == repositoryJson.values.end()) {
     return Failure("Tag '" + name.tag() + "' is not found");
   } else if (!entry->second.is<JSON::String>()) {
     return Failure("Tag JSON value expected to be JSON::String");
   }
 
-  string layerId = entry->second.as<JSON::String>().value;
+  const string layerId = entry->second.as<JSON::String>().value;
 
   Try<string> manifest =
     os::read(paths::getImageArchiveLayerManifestPath(directory, layerId));
+
   if (manifest.isError()) {
     return Failure("Failed to read manifest: " + manifest.error());
   }
@@ -276,7 +282,7 @@ Future<pair<string, string>> LocalPullerProcess::putLayer(
   // store to make sure we don't end up with partially untarred layer
   // rootfs.
 
-  string localRootfsPath =
+  const string localRootfsPath =
     paths::getImageArchiveLayerRootfsPath(directory, layerId);
 
   // Image layer has been untarred but is not present in the store directory.
@@ -301,7 +307,7 @@ Future<pair<string, string>> LocalPullerProcess::putLayer(
   // Untar directory/id/layer.tar into directory/id/rootfs.
   // The tar file will be removed when the staging directory is
   // removed.
-  vector<string> argv = {
+  const vector<string> argv = {
     "tar",
     "-C",
     localRootfsPath,
