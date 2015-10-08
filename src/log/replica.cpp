@@ -105,16 +105,16 @@ public:
 private:
   // Handles a request from a proposer to promise not to accept writes
   // from any other proposer with lower proposal number.
-  void promise(const PromiseRequest& request);
+  void promise(const UPID& from, const PromiseRequest& request);
 
   // Handles a request from a proposer to write an action.
-  void write(const WriteRequest& request);
+  void write(const UPID& from, const WriteRequest& request);
 
   // Handles a request from a recover process.
-  void recover(const RecoverRequest& request);
+  void recover(const UPID& from, const RecoverRequest& request);
 
   // Handles a message notifying of a learned action.
-  void learned(const Action& action);
+  void learned(const UPID& from, const Action& action);
 
   // Helper routines that write a record corresponding to the
   // specified argument. Returns true on success and false otherwise.
@@ -365,18 +365,19 @@ bool ReplicaProcess::update(uint64_t promised)
 // procedure.
 
 
-void ReplicaProcess::promise(const PromiseRequest& request)
+void ReplicaProcess::promise(const UPID& from, const PromiseRequest& request)
 {
   // Ignore promise requests if this replica is not in VOTING status.
   if (status() != Metadata::VOTING) {
-    LOG(INFO) << "Replica ignoring promise request as it is in "
-              << status() << " status";
+    LOG(INFO) << "Replica ignoring promise request from " << from
+              << " as it is in " << status() << " status";
     return;
   }
 
   if (request.has_position()) {
-    LOG(INFO) << "Replica received explicit promise request for position "
-              << request.position() << " with proposal " << request.proposal();
+    LOG(INFO) << "Replica received explicit promise request from " << from
+              << " for position " << request.position()
+              << " with proposal " << request.proposal();
 
     // If the position has been truncated, tell the proposer that it's
     // a learned no-op. This can happen when a replica has missed some
@@ -474,8 +475,8 @@ void ReplicaProcess::promise(const PromiseRequest& request)
       }
     }
   } else {
-    LOG(INFO) << "Replica received implicit promise request with proposal "
-              << request.proposal();
+    LOG(INFO) << "Replica received implicit promise request from " << from
+              << " with proposal " << request.proposal();
 
     if (request.proposal() <= promised()) {
       // Only make an implicit promise once!
@@ -499,17 +500,17 @@ void ReplicaProcess::promise(const PromiseRequest& request)
 }
 
 
-void ReplicaProcess::write(const WriteRequest& request)
+void ReplicaProcess::write(const UPID& from, const WriteRequest& request)
 {
   // Ignore write requests if this replica is not in VOTING status.
   if (status() != Metadata::VOTING) {
-    LOG(INFO) << "Replica ignoring write request as it is in "
-              << status() << " status";
+    LOG(INFO) << "Replica ignoring write request from " << from
+              << " as it is in " << status() << " status";
     return;
   }
 
   LOG(INFO) << "Replica received write request for position "
-            << request.position();
+            << request.position() << " from " << from;
 
   Result<Action> result = read(request.position());
 
@@ -636,10 +637,11 @@ void ReplicaProcess::write(const WriteRequest& request)
 }
 
 
-void ReplicaProcess::recover(const RecoverRequest& request)
+void ReplicaProcess::recover(const UPID& from, const RecoverRequest& request)
 {
   LOG(INFO) << "Replica in " << status()
-            << " status received a broadcasted recover request";
+            << " status received a broadcasted recover request from "
+            << from;
 
   RecoverResponse response;
   response.set_status(status());
@@ -653,10 +655,10 @@ void ReplicaProcess::recover(const RecoverRequest& request)
 }
 
 
-void ReplicaProcess::learned(const Action& action)
+void ReplicaProcess::learned(const UPID& from, const Action& action)
 {
   LOG(INFO) << "Replica received learned notice for position "
-            << action.position();
+            << action.position() << " from " << from;
 
   CHECK(action.learned());
 
