@@ -272,7 +272,7 @@ mesos::modules::Module<TestModule> org_apache_mesos_TestModule(
   The following assumes that Mesos is installed in the standard location, i.e.
   the Mesos dynamic library and header files are available.
 
-    g++ -lmesos -fpic -o test_module.o test_module.cpp
+    g++ -lmesos -fpic -c -o test_module.o test_module.cpp
     $ gcc -shared -o libtest_module.so test_module.o
 
 ### Testing a modules
