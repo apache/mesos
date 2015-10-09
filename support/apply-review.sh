@@ -93,7 +93,7 @@ elif [[ "${REVIEW_LOCATION}" == "github" ]]; then
   SUMMARY=$(${JSONURL} ${API_URL} title)
   DESCRIPTION=$(${JSONURL} ${API_URL} body)
 
-  AUTHOR=$(head -2 ${REVIEW}.patch | grep "From: " | cut -d ' ' -f3-)
+  AUTHOR=$(head -2 ${REVIEW}.patch | grep "From: " | cut -d ' ' -f2-)
   REVIEW_URL="${GITHUB_URL}/${REVIEW}"
   REVIEW_DETAILS=$(cat <<__EOF__
 This closes: #${REVIEW}
