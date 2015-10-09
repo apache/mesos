@@ -51,12 +51,12 @@ end
 desc "Generate javadoc from the Java source files in the codebase"
 task :javadoc do
   # TODO: add version to the path. Uses 'current' for now.
-  system("javadoc -d source/api/latest/java -sourcepath ../src/java/src org.apache.mesos")
+  system("javadoc -d publish/api/latest/java -sourcepath ../src/java/src org.apache.mesos")
 end
 
 desc "Generate doxygen from the C++ source files in the codebase"
 task :doxygen do
-  system("pushd .. && doxygen && popd && rsync -avz ../docs/html/* source/api/latest/c++")
+  system("pushd .. && doxygen && popd && rsync -avz ../docs/html/* publish/api/latest/c++")
 end
 
 desc "Run the site in development mode. Preview available at http://localhost:4567/"
