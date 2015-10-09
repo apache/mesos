@@ -5,7 +5,7 @@ Documentation is an integral part of every good feature. It describes the intend
 We have three different kinds of documentation:
 
 
-1. [MarkDown User Guides](/documentation/latest/mesos-markdown-style-guide/)
+1. [MarkDown User Guides](/documentation/latest/markdown-style-guide/)
 
   User guides and non-code technical documentation are stored in markdown files in the `docs/` folder. These files get rendered for the [online documentation](http://mesos.apache.org/documentation/latest/).
 
