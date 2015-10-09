@@ -27,7 +27,7 @@ layout: documentation
 * [Slave Recovery](/documentation/latest/slave-recovery/) for doing seamless upgrades.
 * [Maintenance](/documentation/latest/maintenance/) for performing maintenance on a Mesos cluster.
 * [Tools](/documentation/latest/tools/) for setting up and running a Mesos cluster.
-* [SSL](/documentation/latest/mesos-ssl/) for enabling and enforcing SSL communication.
+* [SSL](/documentation/latest/ssl/) for enabling and enforcing SSL communication.
 
 ## Advanced Features
 
