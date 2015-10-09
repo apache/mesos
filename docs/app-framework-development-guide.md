@@ -128,11 +128,31 @@ virtual void executorLost(SchedulerDriver* driver,
 virtual void error(SchedulerDriver* driver, const std::string& message) = 0;
 ~~~
 
-## Create your Framework Executor
+## Working with Executors
+
+### Using the Mesos Command Executor
+
+Mesos provides a simple executor that can execute shell commands and Docker containers on behalf of the framework scheduler; enough functionality for a wide variety of framework requirements.
+
+Any scheduler can make use of the Mesos command executor by filling in the optional `CommandInfo` member of the `TaskInfo` protobuf message.
+
+~~~{.proto}
+message TaskInfo {
+  ...
+  optional CommandInfo command = 7;
+  ...
+}
+~~~
+
+The Mesos slave will fill in the rest of the ExecutorInfo for you when tasks are specified this way.
+
+### Creating a custom Framework Executor
+
+If your framework has special requirements, you might want to provide your own Executor implementation. For example, you may not want a 1:1 relationship between tasks and processes.
 
 Your framework executor must inherit from the Executor class. It must override the launchTask() method. You can use the $MESOS_HOME environment variable inside of your executor to determine where Mesos is running from.
 
-### Executor API
+#### Executor API
 
 Declared in `MESOS_HOME/include/mesos/executor.hpp`
 
@@ -204,9 +224,13 @@ virtual void shutdown(ExecutorDriver* driver) = 0;
 virtual void error(ExecutorDriver* driver, const std::string& message) = 0;
 ~~~
 
-## Install your Framework
+#### Install your custom Framework Executor
 
-You need to put your framework somewhere that all slaves on the cluster can get it from. If you are running HDFS, you can put your executor into HDFS. Then, you tell Mesos where it is via the `ExecutorInfo` parameter of `MesosSchedulerDriver`'s constructor (e.g. see src/examples/java/TestFramework.java for an example of this). ExecutorInfo is a Protocol Buffer Message class (defined in `include/mesos/mesos.proto`), and you set its URI field to something like "HDFS://path/to/executor/". Also, you can pass the `frameworks_home` configuration option (defaults to: `MESOS_HOME/frameworks`) to your `mesos-slave` daemons when you launch them to specify where all of your framework executors are stored (e.g. on an NFS mount that is available to all slaves), then set `ExecutorInfo` to be a relative path, and the slave will prepend the value of frameworks_home to the relative path provided.
+After creating your custom executor, you need to make it available to all slaves in the cluster.
+
+One way to distribute your framework executor is to let the [Mesos fetcher](/documentation/latest/fetcher/) download it on-demand when your scheduler launches tasks on that slave. `ExecutorInfo` is a Protocol Buffer Message class (defined in `include/mesos/mesos.proto`), and it contains a field of type `CommandInfo`.  `CommandInfo` allows schedulers to specify, among other things, a number of resources as URIs. These resources are fetched to a sandbox directory on the slave before attempting to execute the `ExecutorInfo` command. Several URI schemes are supported, including HTTP, FTP, HDFS, and S3 (e.g. see src/examples/java/TestFramework.java for an example of this).
+
+Alternatively, you can pass the `frameworks_home` configuration option (defaults to: `MESOS_HOME/frameworks`) to your `mesos-slave` daemons when you launch them to specify where your framework executors are stored (e.g. on an NFS mount that is available to all slaves), then use a relative path in `CommandInfo.uris`, and the slave will prepend the value of `frameworks_home` to the relative path provided.
 
 Once you are sure that your executors are available to the mesos-slaves, you should be able to run your scheduler, which will register with the Mesos master, and start receiving resource offers!
 
