@@ -136,9 +136,9 @@ libprocess_la_LIBADD += $(GPERFTOOLS)/libprofiler.la
 endif
 
 # Tests.
-check_PROGRAMS = tests benchmarks
+check_PROGRAMS = libprocess-tests benchmarks
 
-tests_SOURCES =							\
+libprocess_tests_SOURCES =					\
   src/tests/collect_tests.cpp					\
   src/tests/decoder_tests.cpp					\
   src/tests/encoder_tests.cpp					\
@@ -161,13 +161,13 @@ tests_SOURCES =							\
   src/tests/timeseries_tests.cpp				\
   src/tests/time_tests.cpp
 
-tests_CPPFLAGS =			\
+libprocess_tests_CPPFLAGS =		\
   -I$(top_srcdir)/src			\
   -I$(GTEST)/include			\
   -I$(GMOCK)/include			\
   $(libprocess_la_CPPFLAGS)
 
-tests_LDADD =				\
+libprocess_tests_LDADD =		\
   3rdparty/libgmock.la			\
   libprocess.la				\
   $(LIBGLOG)				\
@@ -177,10 +177,10 @@ tests_LDADD =				\
 if ENABLE_SSL
 check_PROGRAMS += ssl-client
 ssl_client_SOURCES = src/tests/ssl_client.cpp
-ssl_client_CPPFLAGS = $(tests_CPPFLAGS)
-ssl_client_LDADD = $(tests_LDADD)
+ssl_client_CPPFLAGS = $(libprocess_tests_CPPFLAGS)
+ssl_client_LDADD = $(libprocess_tests_LDADD)
 
-tests_SOURCES +=						\
+libprocess_tests_SOURCES +=		\
   src/tests/ssl_tests.cpp
 endif
 
@@ -204,8 +204,8 @@ benchmarks_LDADD =			\
 # runner that ships with newer versions of autotools.
 # See the following discussion for the workaround:
 # http://lists.gnu.org/archive/html/automake/2013-01/msg00051.html
-check-local: tests benchmarks
-	./tests
+check-local: libprocess-tests benchmarks
+	./libprocess-tests
 
 # TODO(benh): Fix shared builds (tests need libglog, libev, etc).
 
