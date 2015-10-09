@@ -351,7 +351,6 @@ void Slave::initialize()
   if (resources.isError()) {
     EXIT(1) << "Failed to determine slave resources: " << resources.error();
   }
-  LOG(INFO) << "Slave resources: " << resources.get();
 
   Attributes attributes;
   if (flags.attributes.isSome()) {
@@ -382,7 +381,15 @@ void Slave::initialize()
   // Initialize slave info.
   info.set_hostname(hostname);
   info.set_port(self().address.port);
+
   info.mutable_resources()->CopyFrom(resources.get());
+  if (HookManager::hooksAvailable()) {
+    info.mutable_resources()->CopyFrom(
+        HookManager::slaveResourcesDecorator(info));
+  }
+
+  LOG(INFO) << "Slave resources: " << info.resources();
+
   info.mutable_attributes()->CopyFrom(attributes);
   // Checkpointing of slaves is always enabled.
   info.set_checkpoint(true);

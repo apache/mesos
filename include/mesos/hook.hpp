@@ -123,6 +123,16 @@ public:
   {
     return None();
   }
+
+  // This hook is called from within the slave when it initializes. A module
+  // implementing the hook creates and returns a Resources object with the new
+  // list of resources available on the slave before they are advertised to the
+  // master. These new resources overwrite the previous ones in SlaveInfo.
+  virtual Result<Resources> slaveResourcesDecorator(
+      const SlaveInfo& slaveInfo)
+  {
+    return None();
+  }
 };
 
 } // namespace mesos {

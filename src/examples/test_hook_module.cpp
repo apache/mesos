@@ -265,6 +265,28 @@ public:
 
     return result;
   }
+
+
+  virtual Result<Resources> slaveResourcesDecorator(
+      const SlaveInfo& slaveInfo)
+  {
+    LOG(INFO) << "Executing 'slaveResourcesDecorator' hook";
+
+    Resources resources;
+    // Remove the existing "cpus" resource, it will be overwritten by the
+    // current hook. Keep other resources unchanged.
+    foreach (const Resource& resource, slaveInfo.resources()) {
+      if (resource.name() != "cpus") {
+        resources += resource;
+      }
+    }
+
+    // Force the value of "cpus" to 4 and add a new custom resource named "foo"
+    // of type set.
+    resources += Resources::parse("cpus:4;foo:{bar,baz}").get();
+
+    return resources;
+  }
 };
 
 

@@ -273,5 +273,32 @@ TaskStatus HookManager::slaveTaskStatusDecorator(
   }
 }
 
+Resources HookManager::slaveResourcesDecorator(
+    const SlaveInfo& slaveInfo)
+{
+  // We need a mutable copy of the Resources object. Each hook will see the
+  // changes made by previous hooks, so the order of execution matters. The
+  // execution order is currently unspecified since availableHooks uses a
+  // hashmap.
+  SlaveInfo slaveInfo_ = slaveInfo;
+
+  synchronized (mutex) {
+    foreachpair (const string& name, Hook* hook, availableHooks) {
+      const Result<Resources> result =
+        hook->slaveResourcesDecorator(slaveInfo_);
+
+      // NOTE: Resources remain unchanged if the hook returns None().
+      if (result.isSome()) {
+        slaveInfo_.mutable_resources()->CopyFrom(result.get());
+      } else if (result.isError()) {
+        LOG(WARNING) << "Slave Resources decorator hook failed for "
+                     << "module '" << name << "': " << result.error();
+      }
+    }
+
+    return slaveInfo_.resources();
+  }
+}
+
 } // namespace internal {
 } // namespace mesos {

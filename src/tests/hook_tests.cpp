@@ -707,6 +707,56 @@ TEST_F(HookTest, ROOT_DOCKER_VerifySlavePreLaunchDockerHook)
   Shutdown();
 }
 
+// Test that the changes made by the resources decorator hook are correctly
+// propagated to the resource offer.
+TEST_F(HookTest, VerifySlaveResourcesDecorator)
+{
+  Try<PID<Master>> master = StartMaster(CreateMasterFlags());
+  ASSERT_SOME(master);
+
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+
+  TestContainerizer containerizer(&exec);
+
+  // Start a mock slave since we aren't testing the slave hooks yet.
+  Try<PID<Slave>> slave = StartSlave(&containerizer);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+    &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
+
+  Resources resources = offers.get()[0].resources();
+
+  // The test hook sets "cpus" to 4.
+  EXPECT_EQ(4, resources.cpus().get());
+
+  // The test hook adds a resource named "foo" of type set with values "bar"
+  // and "baz".
+  EXPECT_EQ(Resources::parse("foo:{bar,baz}").get(), resources.get("foo"));
+
+  // The test hook does not modify "mem", the default value must still be
+  // present.
+  EXPECT_SOME(resources.mem());
+
+  driver.stop();
+  driver.join();
+
+  Shutdown();
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {
