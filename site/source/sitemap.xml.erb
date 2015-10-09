@@ -1,0 +1,10 @@
+<% pages = sitemap.resources.select { |page| page.path =~ /\.html/ } %>
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+<% pages.each do |page| %>
+  <url>
+    <loc>http://mesos.apache.org/<%= page.destination_path.gsub('index.html','') %></loc>
+    <lastmod><%= Date.today.to_time.iso8601 %></lastmod>
+  </url>
+<% end %>
+</urlset>

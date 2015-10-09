@@ -1,0 +1,17 @@
+<% content_for :page_title do %>
+Documentation
+<% end %>
+<% wrap_layout :layout do %>
+<div class="row-fluid">
+	<div class="col-md-4">
+		<h4>If you're new to Mesos</h4>
+		<p>See the <a href="/gettingstarted/">getting started</a> page for more information about downloading, building, and deploying Mesos.</p>
+		
+		<h4>If you'd like to get involved or you're looking for support</h4>
+		<p>See our <a href="/community/">community</a> page for more details.</p>
+	</div>
+	<div class="col-md-8">
+		<%= yield %>
+	</div>
+</div>
+<% end %>
