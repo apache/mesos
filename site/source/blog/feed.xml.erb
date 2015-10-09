@@ -1,0 +1,25 @@
+<% coder = HTMLEntities.new %>
+
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title>Apache Mesos Blog</title>
+  <id>http://mesos.apache.org/blog</id>
+  <link href="http://mesos.apache.org/blog" />
+  <link href="http://mesos.apache.org/blog/feed.xml" rel="self"/>
+  <updated><%= blog.articles.first.date.to_time.iso8601  %></updated>
+  <% blog.articles.each do |article| %>
+  <entry>
+    <id>http://mesos.apache.org<%= article.url %></id>
+    <link href="<%= article.url %>" />
+    <title>
+      <%= article.title %>
+    </title>
+    <updated><%= article.date.to_time.iso8601 %></updated>
+    <author>
+      <name><%= article.data.post_author.display_name %></name>
+    </author>
+    <content type="html">
+      <%= coder.encode(article.body) %>
+	</content>
+  </entry>
+  <% end %>
+</feed>

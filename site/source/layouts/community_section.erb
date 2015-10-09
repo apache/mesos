@@ -1,0 +1,15 @@
+<% wrap_layout :layout do  %>
+<div class="row">
+	<div class="col-md-2">
+		<ul class="list-group">
+			<li class="list-group-item"><a href="/documentation/latest/submitting-a-patch/">Contribute</a></li>
+			<li class="list-group-item"><a href="/documentation/latest/powered-by-mesos/">Mesos Adopters</a></li>
+			<li class="list-group-item"><a href="/community/user-groups/">User Groups</a></li>
+			<li class="list-group-item"><a href="/documentation/latest/committers/">Committers</a></li>
+		</li>
+	</div>
+	<div class="col-md-10">
+		<%= yield %>
+	</div>
+</div>
+<% end %>

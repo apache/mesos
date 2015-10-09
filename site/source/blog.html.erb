@@ -1,0 +1,18 @@
+---
+title: Apache Mesos | Blog
+breadcrumb: Blog
+---
+<div class="row">
+	<div class="col-md-3">
+		<h4>Apache Mesos Blog</h4>
+		<p>The Mesos blog is a place for announcements and for project committers to highlight features of the software.</p>
+	</div>
+	<div class="col-md-9">
+		<% blog.articles.each do |post| %>
+		  <article>
+		  	<h2><%= link_to(post.title, post.url)%></h2>
+			<p><em>Posted by <%= post.data.post_author.display_name %>, <%= post.date.strftime("%B %e, %Y") %></em></p>
+		  </article>
+		<% end %>
+	</div>
+</div>
