@@ -6,7 +6,7 @@ layout: documentation
 
 ## Mesos Fundamentals
 
-* [Mesos Architecture](/documentation/latest/mesos-architecture/) providing an overview of Mesos concepts.
+* [Mesos Architecture](/documentation/latest/architecture/) providing an overview of Mesos concepts.
 * [Video and Slides of Mesos Presentations](/documentation/latest/mesos-presentations/)
 
 ## Running Mesos
