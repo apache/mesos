@@ -47,19 +47,25 @@
 
 #include "slave/containerizer/mesos/containerizer.hpp"
 
+#include "slave/containerizer/mesos/provisioner/backend.hpp"
 #include "slave/containerizer/mesos/provisioner/paths.hpp"
+
+#include "slave/containerizer/mesos/provisioner/backends/copy.hpp"
 
 #include "tests/flags.hpp"
 #include "tests/mesos.hpp"
 
-#include "tests/containerizer/provisioner.hpp"
 #include "tests/containerizer/rootfs.hpp"
+#include "tests/containerizer/store.hpp"
 
 using namespace process;
 
 using std::string;
 using std::vector;
 
+using mesos::internal::master::Master;
+
+using mesos::internal::slave::Backend;
 using mesos::internal::slave::Fetcher;
 using mesos::internal::slave::Launcher;
 #ifdef __linux__
@@ -68,7 +74,9 @@ using mesos::internal::slave::LinuxLauncher;
 #endif
 using mesos::internal::slave::MesosContainerizer;
 using mesos::internal::slave::Provisioner;
+using mesos::internal::slave::ProvisionerProcess;
 using mesos::internal::slave::Slave;
+using mesos::internal::slave::Store;
 
 using mesos::slave::Isolator;
 
@@ -103,7 +111,28 @@ public:
       rootfses.put(imageName, rootfs.get().share());
     }
 
-    Owned<Provisioner> provisioner(new TestProvisioner(rootfses));
+    Owned<Store> store(new TestStore(rootfses));
+    hashmap<Image::Type, Owned<Store>> stores;
+    stores[Image::APPC] = store;
+
+    hashmap<string, Owned<Backend>> backends = Backend::create(flags);
+
+    const string rootDir = slave::paths::getProvisionerDir(flags.work_dir);
+
+    if (!os::exists(rootDir)) {
+      Try<Nothing> mkdir = os::mkdir(rootDir);
+      if (mkdir.isError()) {
+        return Error("Failed to create root dir: " + mkdir.isError());
+      }
+    }
+
+    Owned<ProvisionerProcess> provisionerProcess(new ProvisionerProcess(
+        flags,
+        rootDir,
+        stores,
+        backends));
+
+    Owned<Provisioner> provisioner(new Provisioner(provisionerProcess));
 
     Try<Isolator*> _isolator =
       LinuxFilesystemIsolatorProcess::create(flags, provisioner);
@@ -195,13 +224,9 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_ChangeRootFilesystem)
   ContainerID containerId;
   containerId.set_value(UUID::random().toString());
 
-  string rootfsesDir = slave::provisioner::paths::getContainerDir(
-      slave::paths::getProvisionerDir(flags.work_dir),
-      containerId);
-
   Try<Owned<MesosContainerizer>> containerizer = createContainerizer(
       flags,
-      {{"test_image", path::join(rootfsesDir, "test_image")}});
+      {{"test_image", path::join(os::getcwd(), "test_image")}});
 
   ASSERT_SOME(containerizer);
 
@@ -238,6 +263,86 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_ChangeRootFilesystem)
 }
 
 
+// This test verifies that the root filesystem of the container is
+// properly changed to the one that's provisioned by the provisioner.
+// Also runs the command executor with the new root filesystem.
+TEST_F(LinuxFilesystemIsolatorTest, ROOT_ChangeRootFilesystemCommandExecutor)
+{
+  Try<PID<Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.image_provisioner_backend = "copy";
+
+  ContainerID containerId;
+  containerId.set_value(UUID::random().toString());
+
+  Try<Owned<MesosContainerizer>> containerizer = createContainerizer(
+      flags,
+      {{"test_image", path::join(os::getcwd(), "test_image")}});
+
+  ASSERT_SOME(containerizer);
+
+  Try<PID<Slave>> slave = StartSlave(containerizer.get().get(), flags);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+    &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  Future<FrameworkID> frameworkId;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(frameworkId);
+
+  AWAIT_READY(offers);
+  ASSERT_NE(0u, offers.get().size());
+
+  const Offer& offer = offers.get()[0];
+
+  SlaveID slaveId = offer.slave_id();
+
+  TaskInfo task = createTask(
+      offer.slave_id(),
+      offer.resources(),
+      "test -d " + flags.sandbox_directory);
+
+  ContainerInfo containerInfo;
+  Image* image = containerInfo.mutable_mesos()->mutable_image();
+  image->set_type(Image::APPC);
+  image->mutable_appc()->set_name("test_image");
+  containerInfo.set_type(ContainerInfo::MESOS);
+  task.mutable_container()->CopyFrom(containerInfo);
+
+  driver.launchTasks(offers.get()[0].id(), {task});
+
+  Future<TaskStatus> statusRunning;
+  Future<TaskStatus> statusFinished;
+
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusRunning))
+    .WillOnce(FutureArg<1>(&statusFinished));
+
+  AWAIT_READY(statusRunning);
+  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
+  AWAIT_READY(statusFinished);
+  EXPECT_EQ(TASK_FINISHED, statusFinished.get().state());
+
+  driver.stop();
+  driver.join();
+
+  Shutdown();
+}
+
+
 TEST_F(LinuxFilesystemIsolatorTest, ROOT_Metrics)
 {
   slave::Flags flags = CreateSlaveFlags();
@@ -245,13 +350,9 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_Metrics)
   ContainerID containerId;
   containerId.set_value(UUID::random().toString());
 
-  string rootfsesDir = slave::provisioner::paths::getContainerDir(
-      slave::paths::getProvisionerDir(flags.work_dir),
-      containerId);
-
   Try<Owned<MesosContainerizer>> containerizer = createContainerizer(
       flags,
-      {{"test_image", path::join(rootfsesDir, "test_image")}});
+      {{"test_image", path::join(os::getcwd(), "test_image")}});
 
   ASSERT_SOME(containerizer);
 
@@ -308,13 +409,9 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_VolumeFromSandbox)
   ContainerID containerId;
   containerId.set_value(UUID::random().toString());
 
-  string rootfsesDir = slave::provisioner::paths::getContainerDir(
-      slave::paths::getProvisionerDir(flags.work_dir),
-      containerId);
-
   Try<Owned<MesosContainerizer>> containerizer = createContainerizer(
       flags,
-      {{"test_image", path::join(rootfsesDir, "test_image")}});
+      {{"test_image", path::join(os::getcwd(), "test_image")}});
 
   ASSERT_SOME(containerizer);
 
@@ -365,13 +462,9 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_VolumeFromHost)
   ContainerID containerId;
   containerId.set_value(UUID::random().toString());
 
-  string rootfsesDir = slave::provisioner::paths::getContainerDir(
-      slave::paths::getProvisionerDir(flags.work_dir),
-      containerId);
-
   Try<Owned<MesosContainerizer>> containerizer = createContainerizer(
       flags,
-      {{"test_image", path::join(rootfsesDir, "test_image")}});
+      {{"test_image", path::join(os::getcwd(), "test_image")}});
 
   ASSERT_SOME(containerizer);
 
@@ -420,13 +513,9 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_VolumeFromHostSandboxMountPoint)
   ContainerID containerId;
   containerId.set_value(UUID::random().toString());
 
-  string rootfsesDir = slave::provisioner::paths::getContainerDir(
-      slave::paths::getProvisionerDir(flags.work_dir),
-      containerId);
-
   Try<Owned<MesosContainerizer>> containerizer = createContainerizer(
       flags,
-      {{"test_image", path::join(rootfsesDir, "test_image")}});
+      {{"test_image", path::join(os::getcwd(), "test_image")}});
 
   ASSERT_SOME(containerizer);
 
@@ -478,13 +567,9 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_PersistentVolumeWithRootFilesystem)
   ContainerID containerId;
   containerId.set_value(UUID::random().toString());
 
-  string rootfsesDir = slave::provisioner::paths::getContainerDir(
-      slave::paths::getProvisionerDir(flags.work_dir),
-      containerId);
-
   Try<Owned<MesosContainerizer>> containerizer = createContainerizer(
       flags,
-      {{"test_image", path::join(rootfsesDir, "test_image")}});
+      {{"test_image", path::join(os::getcwd(), "test_image")}});
 
   ASSERT_SOME(containerizer);
 
@@ -548,13 +633,9 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_PersistentVolumeWithoutRootFilesystem)
   ContainerID containerId;
   containerId.set_value(UUID::random().toString());
 
-  string rootfsesDir = slave::provisioner::paths::getContainerDir(
-      slave::paths::getProvisionerDir(flags.work_dir),
-      containerId);
-
   Try<Owned<MesosContainerizer>> containerizer = createContainerizer(
       flags,
-      {{"test_image", path::join(rootfsesDir, "test_image")}});
+      {{"test_image", path::join(os::getcwd(), "test_image")}});
 
   ASSERT_SOME(containerizer);
 
@@ -623,13 +704,9 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_ImageInVolumeWithoutRootFilesystem)
   ContainerID containerId;
   containerId.set_value(UUID::random().toString());
 
-  string rootfsesDir = slave::provisioner::paths::getContainerDir(
-      slave::paths::getProvisionerDir(flags.work_dir),
-      containerId);
-
   Try<Owned<MesosContainerizer>> containerizer = createContainerizer(
       flags,
-      {{"test_image", path::join(rootfsesDir, "test_image")}});
+      {{"test_image", path::join(os::getcwd(), "test_image")}});
 
   ASSERT_SOME(containerizer);
 
@@ -678,15 +755,11 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_ImageInVolumeWithRootFilesystem)
   ContainerID containerId;
   containerId.set_value(UUID::random().toString());
 
-  string rootfsesDir = slave::provisioner::paths::getContainerDir(
-      slave::paths::getProvisionerDir(flags.work_dir),
-      containerId);
-
   Try<Owned<MesosContainerizer>> containerizer =
     createContainerizer(
         flags,
-        {{"test_image_rootfs", path::join(rootfsesDir, "test_image_rootfs")},
-         {"test_image_volume", path::join(rootfsesDir, "test_image_volume")}});
+        {{"test_image_rootfs", path::join(os::getcwd(), "test_image_rootfs")},
+         {"test_image_volume", path::join(os::getcwd(), "test_image_volume")}});
 
   ASSERT_SOME(containerizer);
 
@@ -741,19 +814,11 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_MultipleContainers)
   ContainerID containerId2;
   containerId2.set_value(UUID::random().toString());
 
-  string rootfsesDir1 = slave::provisioner::paths::getContainerDir(
-      slave::paths::getProvisionerDir(flags.work_dir),
-      containerId1);
-
-  string rootfsesDir2 = slave::provisioner::paths::getContainerDir(
-      slave::paths::getProvisionerDir(flags.work_dir),
-      containerId2);
-
   Try<Owned<MesosContainerizer>> containerizer =
     createContainerizer(
         flags,
-        {{"test_image1", path::join(rootfsesDir1, "test_image1")},
-         {"test_image2", path::join(rootfsesDir2, "test_image2")}});
+        {{"test_image1", path::join(os::getcwd(), "test_image1")},
+         {"test_image2", path::join(os::getcwd(), "test_image2")}});
 
   ASSERT_SOME(containerizer);
 
@@ -859,13 +924,9 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_SandboxEnvironmentVariable)
   ContainerID containerId;
   containerId.set_value(UUID::random().toString());
 
-  string rootfsesDir = slave::provisioner::paths::getContainerDir(
-      slave::paths::getProvisionerDir(flags.work_dir),
-      containerId);
-
   Try<Owned<MesosContainerizer>> containerizer = createContainerizer(
       flags,
-      {{"test_image", path::join(rootfsesDir, "test_image")}});
+      {{"test_image", path::join(os::getcwd(), "test_image")}});
 
   ASSERT_SOME(containerizer);
 

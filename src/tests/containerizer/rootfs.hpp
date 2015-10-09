@@ -105,7 +105,8 @@ public:
     std::vector<std::string> directories = {
       "/bin",
       "/lib",
-      "/lib64"
+      "/lib64",
+      "/etc"
     };
 
     foreach (const std::string& directory, directories) {
