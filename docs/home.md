@@ -46,7 +46,7 @@ layout: documentation
 
 * [Framework Development Guide](/documentation/latest/app-framework-development-guide/) describes how to build applications on top of Mesos.
 * [Reconciliation](/documentation/latest/reconciliation/) for ensuring a framework's state remains eventually consistent in the face of failures.
-* [Scheduler HTTP API](/documentation/latest/scheduler_http_api/) describes the new HTTP API for communication between schedulers and the Mesos master.
+* [Scheduler HTTP API](/documentation/latest/scheduler-http-api/) describes the new HTTP API for communication between schedulers and the Mesos master.
 * [Javadoc](/api/latest/java/) documents the Mesos Java API.
 * [Doxygen](/api/latest/c++/namespacemesos.html) documents the Mesos C++ API.
 * [Developer Tools](/documentation/latest/tools/) for hacking on Mesos or writing frameworks.
