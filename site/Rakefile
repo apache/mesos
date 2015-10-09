@@ -2,9 +2,9 @@ require 'rubygems'
 require 'rake/clean'
 require 'fileutils'
 
-task :default => [:update_docs, :build]
+task :default => [:update_docs, :build, :clean]
 
-#CLEAN.include("..", "**/.DS_Store")
+CLEAN.include("**/.DS_Store")
 
 desc "Build the website from source"
 task :build do
