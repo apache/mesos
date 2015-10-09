@@ -40,7 +40,7 @@ layout: documentation
 
 ## Running Mesos Frameworks
 
- * [Mesos frameworks](/documentation/latest/mesos-frameworks/) for a list of apps built on top of Mesos and instructions on how to run them.
+ * [Mesos frameworks](/documentation/latest/frameworks/) for a list of apps built on top of Mesos and instructions on how to run them.
 
 ## Developing Mesos Frameworks
 
