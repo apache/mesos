@@ -9,6 +9,8 @@ We have three different kinds of documentation:
 
   User guides and non-code technical documentation are stored in markdown files in the `docs/` folder. These files get rendered for the [online documentation](http://mesos.apache.org/documentation/latest/).
 
+  We will accept small documentation changes on [Github via a pull request](https://github.com/apache/mesos), larger documentation changes should go through the (reviewboard)[https://reviews.apache.org/groups/mesos/]
+
 
 2. [Doxygen API Documentation and Developer Guides as part of source code](/documentation/latest/mesos-doxygen-style-guide/)
 
