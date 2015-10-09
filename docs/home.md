@@ -68,7 +68,7 @@ layout: documentation
 * [Doxygen](/api/latest/c++/) documents the internal Mesos APIs.
 * [Documentation Guide](/documentation/latest/documentation-guide/)
   * [C++ Style Guide](/documentation/latest/c++-style-guide/)
-  * [Doxygen Style Guide](/documentation/latest/mesos-doxygen-style-guide/)
+  * [Doxygen Style Guide](/documentation/latest/doxygen-style-guide/)
   * [Markdown Style Guide](/documentation/latest/mesos-markdown-style-guide/)
 * [Development Roadmap](/documentation/latest/mesos-roadmap/)
 * [Release Guide](/documentation/latest/release-guide/)

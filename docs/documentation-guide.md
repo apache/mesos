@@ -12,7 +12,7 @@ We have three different kinds of documentation:
   We will accept small documentation changes on [Github via a pull request](https://github.com/apache/mesos), larger documentation changes should go through the (reviewboard)[https://reviews.apache.org/groups/mesos/]
 
 
-2. [Doxygen API Documentation and Developer Guides as part of source code](/documentation/latest/mesos-doxygen-style-guide/)
+2. [Doxygen API Documentation and Developer Guides as part of source code](/documentation/latest/doxygen-style-guide/)
 
   Doxygen API documentation needs only to be applied to source code parts that
   constitute an interface for which we want to generate Mesos API documentation
