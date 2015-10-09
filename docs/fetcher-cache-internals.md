@@ -45,7 +45,7 @@ Besides minor complications such as archive extraction and execution rights sett
 
 Based on this setup, the main program flow in the fetcher process is concerned with assembling a list of parameters to the mesos-fetcher program that describe items to be fetched. This figure illustrates the high-level collaboration of the fetcher process with mesos-fetcher program runs. It also depicts the next level of detail of the fetcher process, which will be described in the following section.
 
-![Fetcher Separation of Labor](images/fetch_components.jpg?raw=true)
+![Fetcher Separation of Labor](images/fetch_components.jpg)
 
 
 ### Cache state representation and manipulation
@@ -58,7 +58,7 @@ A cache entry corresponds directly to a cache file on disk throughout the entire
 
 This figure illustrates the different states which a cache entry can be in.
 
-![Fetcher Cache State](images/fetch_state.jpg?raw=true)
+![Fetcher Cache State](images/fetch_state.jpg)
 
 While a cache entry is referenced it cannot be evicted by a the current or any other concurrent fetch attempt in order to make space for a download of a new cache file.
 
@@ -78,7 +78,7 @@ Every increment is recorded in a list. At the very end of the fetch procedure, n
 
 As menitoned above, the fetcher process' main control flow concerns sorting out what to do with each URI presented to it in a fetch request. An overview of the ensuing control flow for a given URI is depicted in this figure.
 
-![Determining Fetcher Actions](images/fetch_flow.jpg?raw=true)
+![Determining Fetcher Actions](images/fetch_flow.jpg)
 
 After going through this procedure for each URI, the fetcher process assembles the gathered list of per-URI actions into a JSON object (`FetcherInfo`), which is passed to the mesos-fetcher program in an environment variable. The possible fetch actions for a URI are shown at the bottom of the flow chart. After they are determined, the fetcher process invokes mesos-fetcher.
 
@@ -101,7 +101,7 @@ Besides, everything touched in 1/a and 1/b needs to be prevented from being cach
 
 ### Cache eviction
 
-![Before eviction](images/fetch_evict1.jpg?raw=true)
+![Before eviction](images/fetch_evict1.jpg)
 
 The resources named "A" and "B" have been fetched with caching into sandbox 1 and 2 below. In the course of this, two cache entries have been created and two files have been downloaded into the cache and named "1" and "2". (Cache file names have unique names that comprise serial numbers.)
 
@@ -110,8 +110,8 @@ The next figure illustrates the state after fetching a different cached URI into
 1. Remove the cache entry for "A" from the fetcher process' cache entry table. Its faded depiction is supposed to indicate this. This immediately makes it appear as if the URI has never been cached, even though the cache file is still around.
 2. Proceed with fetching "C". This creates a new cache file, which has a different unique name. (The fetcher process remembers in its cache entry which file name belongs to which URI.)
 
-![After eviction](images/fetch_evict2.jpg?raw=true)
+![After eviction](images/fetch_evict2.jpg)
 
 The next figure then shows what happens if the first URI is fetched once again. Here we also assume the cache being so filled up that eviction is necessary and this time the entry and file for "B" are the victims.
 
-![After another eviction](images/fetch_evict3.jpg?raw=true)
+![After another eviction](images/fetch_evict3.jpg)

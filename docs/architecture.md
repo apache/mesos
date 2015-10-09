@@ -4,7 +4,7 @@ layout: documentation
 
 # Mesos Architecture
 
-![Mesos Architecture](http://mesos.apache.org/assets/img/documentation/architecture3.jpg)
+![Mesos Architecture](images/architecture3.jpg)
 
 The above figure shows the main components of Mesos.  Mesos consists of a *master* daemon that manages *slave* daemons running on each cluster node, and *mesos applications* (also called *frameworks*) that run *tasks* on these slaves.
 
@@ -16,7 +16,7 @@ A framework running on top of Mesos consists of two components: a *scheduler* th
 
 The figure below shows an example of how a framework gets scheduled to run a task.
 
-![Mesos Architecture](http://mesos.apache.org/assets/img/documentation/architecture-example.jpg)
+![Mesos Architecture](images/architecture-example.jpg)
 
 Let's walk through the events in the figure.
 
