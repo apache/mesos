@@ -30,6 +30,7 @@
 #include <process/future.hpp>
 #include <process/owned.hpp>
 
+#include <stout/net.hpp>
 #include <stout/strings.hpp>
 
 #include "slave/flags.hpp"
@@ -297,10 +298,15 @@ TEST_F(MesosContainerizerIsolatorPreparationTest, MultipleScripts)
 
 // The isolator sets an environment variable for the Executor. The
 // Executor then creates a file as pointed to by environment
-// varialble. Finally, after the executor has terminated, we check for
+// variable. Finally, after the executor has terminated, we check for
 // the existence of the file.
 TEST_F(MesosContainerizerIsolatorPreparationTest, ExecutorEnvironmentVariable)
 {
+  // Set LIBPROCESS_IP so that we can test if it gets passed to the executor.
+  Option<string> libprocessIP = os::getenv("LIBPROCESS_IP");
+  net::IP ip = net::IP(INADDR_LOOPBACK);
+  os::setenv("LIBPROCESS_IP", stringify(ip));
+
   string directory = os::getcwd(); // We're inside a temporary sandbox.
   string file = path::join(directory, "child.script.executed");
 
@@ -323,9 +329,15 @@ TEST_F(MesosContainerizerIsolatorPreparationTest, ExecutorEnvironmentVariable)
   ContainerID containerId;
   containerId.set_value("test_container");
 
+  // Ensure that LIBPROCESS_IP has been passed despite the explicit
+  // specification of the environment. If so, then touch the test file.
+  string executorCmd =
+    "if [ -n \"$LIBPROCESS_IP\" ]; "
+    "then touch $TEST_ENVIRONMENT; fi";
+
   Future<bool> launch = containerizer.get()->launch(
       containerId,
-      CREATE_EXECUTOR_INFO("executor", "touch $TEST_ENVIRONMENT"),
+      CREATE_EXECUTOR_INFO("executor", executorCmd),
       directory,
       None(),
       SlaveID(),
@@ -350,6 +362,13 @@ TEST_F(MesosContainerizerIsolatorPreparationTest, ExecutorEnvironmentVariable)
 
   // Destroy the container.
   containerizer.get()->destroy(containerId);
+
+  // Reset LIBPROCESS_IP if necessary.
+  if (libprocessIP.isSome()) {
+    os::setenv("LIBPROCESS_IP", libprocessIP.get());
+  } else {
+    os::unsetenv("LIBPROCESS_IP");
+  }
 
   delete containerizer.get();
 }
