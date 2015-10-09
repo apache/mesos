@@ -30,7 +30,7 @@ layout: documentation
 
 ### Create your patch
 1. Create one or more test cases to exercise the bug or the feature (the Mesos team uses [test-driven development](http://en.wikipedia.org/wiki/Test-driven_development)). Before you start coding, make sure these test cases all fail.
-    1. The [testing patterns](mesos-testing-patterns.md) page has some suggestions for writing test cases.
+    1. The [testing patterns](testing-patterns.md) page has some suggestions for writing test cases.
 
 2. Make your changes to the code (using whatever IDE/editor you choose) to actually fix the bug or implement the feature.
     1. Before beginning, please read the [Mesos C++ Style Guide](c++-style-guide.md). It is recommended to use the git pre-commit hook (`support/hooks/pre-commit`) to automatically check for style errors. See the hook script for instructions to enable it.
