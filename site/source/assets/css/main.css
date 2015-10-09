@@ -1,50 +1,32 @@
 body {
   padding-bottom: 40px;
 }
-
-.topnav {
-	background: #f5f5f5;
-}
-
-ul.breadcrumb {
-	margin: auto;
-	width: 940px;
-}
-
-/* Custom container */
-.container > hr {
-  margin: 20px 0;
-}
-
 .container {
-	width: 940px;
+  max-width:940px;
+}
+
+img {
+  max-width:100%;
 }
 
 /* Main marketing message and sign up button */
 .homepage.jumbotron {
-	padding: 10px 0px;
-	background: #fff;
-	padding-right: 0;
+  padding: 10px 0px;
+  background: #fff;
+  padding-right: 0;
 }
 .homepage.jumbotron h1 {
-	padding: 50px 0 10px 0;
+  padding: 50px 0 10px 0;
   font-size: 30px;
   line-height: 1;
 }
 .homepage.jumbotron .lead {
   font-size: 18px;
   line-height: 1.25;
-	margin-bottom: 50px;
-	padding-right: 65px;
+  margin-bottom: 50px;
 }
 
 .homepage-featured {
-  /*margin-left: 0;
-  margin-right: 0;
-  border-color: #ddd;
-  border-width: 1px;
-  border-radius: 4px 4px 0 0;
-  padding: 50px 0;*/
   margin: 0 -5px 5px;
   padding: 45px 15px 45px;
   background-color: #fff;
@@ -54,6 +36,7 @@ ul.breadcrumb {
   border-style: solid;
   -webkit-box-shadow: none;
   box-shadow: none;
+  margin-right:0px;
 }
 
 .homepage-featured:after {
@@ -69,8 +52,8 @@ ul.breadcrumb {
 }
 
 .nopadding {
-   padding: 0 !important;
-   margin: 0 !important;
+ padding: 0 !important;
+ margin: 0 !important;
 }
 
 .homepage.jumbotron .btn {
@@ -79,46 +62,36 @@ ul.breadcrumb {
 }
 
 .download {
-  padding: 50px 0px;
+  padding: 50px 0px 25px;
 }
 
-/* Customize the navbar links to be fill the entire space of the .navbar */
 .navbar {
-	position: relative;
-  z-index: 0;
+  background: #004561;
+  min-height:120px;
 }
 
-.navbar .navbar-inner {
-  padding: 0;
-	background: #004561;
-	height: 120px;
-}
-
-.navbar .nav, .navbar .nav a {
-	margin: 0;
-}
-
-.container .logo {
-	display: block;
-	float: left;
-	padding: 15px 0;
-}
-
-.container .nav {
-	padding: 30px 0 0 0;
-	color: #fff;
+.navbar-brand {
+  min-height:120px
 }
 
 .navbar .nav li a {
-	text-align: center;
-	padding: 20px 0 15px 15px;
-	margin: 0 10px;
-	color: rgba(255, 255, 255, .9);
+  color: #FFF;
 }
 
 .navbar .nav li a:hover {
-	color: rgba(255, 255, 255, 1);
-	background: none;
+  color: #CCC;
+  background: none;
+}
+
+.navbar-header {
+  height:120px;
+}
+
+.navbar-toggle {
+  position: relative;
+  top: 50%;
+  transform: translateY(-50%);
+  margin-top:0;
 }
 
 .splash {
@@ -126,14 +99,34 @@ ul.breadcrumb {
 }
 
 .author_contact {
-	display: inline-block;
+  display: inline-block;
 }
 
 .author_gravatar {
-	display: inline;
-	padding: 0 20px 20px 5px;
+  display: inline;
+  padding: 0 20px 20px 5px;
 }
 
 .share {
-	display: block;
+  display: block;
+}
+
+.navbar-default .navbar-toggle .icon-bar {
+  background-color:#FFF;
+}
+
+.navbar-default .navbar-toggle:focus .icon-bar {
+  background-color:#000;
+}
+
+@media (min-width: 992px) {
+  .navbar .nav li a {
+    height:120px;
+    line-height:120px;
+    padding:0 15px 0;
+  }
+}
+
+.footer .copyright {
+  color:#999;
 }
