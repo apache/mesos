@@ -66,7 +66,7 @@ layout: documentation
 * [Committing](/documentation/latest/committing/) guidelines for committing changes.
 * [Committers and Maintainers](/documentation/latest/committers/) a listing of project committers and component maintainers; useful when seeking feedback.
 * [Doxygen](/api/latest/c++/) documents the internal Mesos APIs.
-* [Documentation Guide](/documentation/latest/mesos-documentation-guide/)
+* [Documentation Guide](/documentation/latest/documentation-guide/)
   * [C++ Style Guide](/documentation/latest/c++-style-guide/)
   * [Doxygen Style Guide](/documentation/latest/mesos-doxygen-style-guide/)
   * [Markdown Style Guide](/documentation/latest/mesos-markdown-style-guide/)
