@@ -32,13 +32,20 @@ task :update_docs do
     Dir.glob('*.md').each { |doc|
       puts "working on: #{doc}"
       IO.write(doc, File.open(doc) { |f|
-        f.read.gsub(/\((.*)(\.md)\)/, '(/documentation/latest/\1/)')
+        f.read
+          .gsub(/\((.*)(\.md)\)/, '(/documentation/latest/\1/)')
+          .gsub(/\(images\/(.*)\)/, '(/assets/img/documentation/\1)')
       })
     }
   }
   puts "Moving documentation index to its own 'latest' directory"
   FileUtils.mv("source/documentation/latest/home.md", "source/documentation/latest.html.md")
   puts "Documentation updated"
+
+  # Copy the images from the docs
+  FileUtils.mkdir_p("source/assets/img/documentation/")
+  FileUtils.rm_f(Dir.glob("source/assets/img/documentation/*"))
+  FileUtils.cp_r(Dir.glob("../docs/images/*"), File.expand_path("source/assets/img/documentation/"))
 end
 
 desc "Generate javadoc from the Java source files in the codebase"
