@@ -1064,7 +1064,7 @@ Future<Nothing> DockerContainerizerProcess::__update(
     pid_t pid)
 {
 #ifdef __linux__
-  // Determine the the cgroups hierarchies where the 'cpu' and
+  // Determine the cgroups hierarchies where the 'cpu' and
   // 'memory' subsystems are mounted (they may be the same). Note that
   // we make these static so we can reuse the result for subsequent
   // calls.

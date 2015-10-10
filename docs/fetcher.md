@@ -41,7 +41,7 @@ detailed fetch action descriptions.
 Frameworks launch tasks by calling the scheduler driver method `launchTasks()`,
 passing `CommandInfo` protobuf structures as arguments. This type of structure
 specifies (among other things) a command and a list of URIs that need to be
-"fetched" into the sandbox directory on the the slave node as a precondition for
+"fetched" into the sandbox directory on the slave node as a precondition for
 task execution. Hence, when the slave receives a request go launch a task, it
 calls upon its fetcher, first, to provision the specified resources into the
 sandbox directory. If fetching fails, the task is not started and the reported

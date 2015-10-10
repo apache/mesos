@@ -1004,11 +1004,11 @@ message InverseOffer {
   //
   // For reserved resources, the resources are expected to be returned to the
   // framework after the unavailability interval.  This is an expectation,
-  // not a guarantee.  For example, if the unavailiability duration is not set,
-  // the resources may be removed permenantly.
+  // not a guarantee.  For example, if the unavailability duration is not set,
+  // the resources may be removed permanently.
   //
   // For other resources, there is no guarantee that requested resources will
-  // be returned after the unavailiability interval.  The allocator has no
+  // be returned after the unavailability interval.  The allocator has no
   // obligation to re-offer these resources to the prior framework after
   // the unavailability.
   required Unavailability unavailability = 5;
@@ -1241,7 +1241,7 @@ message RateLimit {
   optional double qps = 1;
 
   // Principal of framework(s) to be throttled. Should match
-  // FrameworkInfo.princpal and Credential.principal (if using authentication).
+  // FrameworkInfo.principal and Credential.principal (if using authentication).
   required string principal = 2;
 
   // Max number of outstanding messages from frameworks of this principal
@@ -1349,7 +1349,7 @@ message Volume {
 
 /**
  * Describes a network request by framework as well as network resolution
- * provided by the the executor or Agent.
+ * provided by the executor or Agent.
  *
  * A framework may request the network isolator on the Agent to assign an IP
  * address to the container being launched. Alternatively, it can provide a
