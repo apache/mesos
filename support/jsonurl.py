@@ -22,4 +22,4 @@ for arg in sys.argv[2:]:
     print >> sys.stderr, "'" + arg + "' was not found"
     sys.exit(1)
 
-print data
+print data.encode("utf-8")
