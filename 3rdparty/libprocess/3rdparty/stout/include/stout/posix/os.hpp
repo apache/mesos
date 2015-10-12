@@ -240,13 +240,17 @@ inline Try<Nothing> rmdir(const std::string& directory, bool recursive = true)
       switch (node->fts_info) {
         case FTS_DP:
           if (::rmdir(node->fts_path) < 0 && errno != ENOENT) {
-            return ErrnoError();
+            Error error = ErrnoError();
+            fts_close(tree);
+            return error;
           }
           break;
         case FTS_F:
         case FTS_SL:
           if (::unlink(node->fts_path) < 0 && errno != ENOENT) {
-            return ErrnoError();
+            Error error = ErrnoError();
+            fts_close(tree);
+            return error;
           }
           break;
         default:
@@ -255,7 +259,9 @@ inline Try<Nothing> rmdir(const std::string& directory, bool recursive = true)
     }
 
     if (errno != 0) {
-      return ErrnoError();
+      Error error = ErrnoError();
+      fts_close(tree);
+      return error;
     }
 
     if (fts_close(tree) < 0) {
