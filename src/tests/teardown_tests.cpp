@@ -264,7 +264,9 @@ TEST_F(TeardownTest, TeardownEndpointNoFrameworkId)
   AWAIT_READY(frameworkId);
   process::http::Headers headers;
   headers["Authorization"] = "Basic " +
-    base64::encode("badPrincipal:badSecret");
+    base64::encode(DEFAULT_CREDENTIAL.principal() +
+                   ":" + DEFAULT_CREDENTIAL.secret());
+
   Future<Response> response =
     process::http::post(master.get(), "teardown", headers, "");
   AWAIT_READY(response);
