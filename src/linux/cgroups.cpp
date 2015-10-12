@@ -922,7 +922,10 @@ Try<vector<string>> get(const string& hierarchy, const string& cgroup)
   }
 
   if (errno != 0) {
-    return ErrnoError("Failed to read a node while traversing file system");
+    Error error =
+      ErrnoError("Failed to read a node while traversing file system");
+    fts_close(tree);
+    return error;
   }
 
   if (fts_close(tree) != 0) {
