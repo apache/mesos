@@ -209,6 +209,10 @@ set(V1_SRC
   v1/values.cpp
   )
 
+set(VERSION_SRC
+  version/version.cpp
+  )
+
 set(WATCHER_SRC
   watcher/whitelist_watcher.cpp
   )
@@ -240,6 +244,7 @@ set(MESOS_SRC
   ${AGENT_SRC}
   ${USAGE_SRC}
   ${V1_SRC}
+  ${VERSION_SRC}
   ${WATCHER_SRC}
   ${ZOOKEEPER_SRC}
   ${MESOS_PROTOBUF_SRC}
