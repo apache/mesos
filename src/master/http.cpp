@@ -686,6 +686,11 @@ Future<Response> Master::Http::reserve(const Request& request) const
     return BadRequest("Expecting POST");
   }
 
+  Result<Credential> credential = authenticate(request);
+  if (credential.isError()) {
+    return Unauthorized("Mesos master", credential.error());
+  }
+
   // Parse the query string in the request body.
   Try<hashmap<string, string>> decode =
     process::http::query::decode(request.body);
@@ -728,11 +733,6 @@ Future<Response> Master::Http::reserve(const Request& request) const
           "Error in parsing 'resources' query parameter: " + resource.error());
     }
     resources += resource.get();
-  }
-
-  Result<Credential> credential = authenticate(request);
-  if (credential.isError()) {
-    return Unauthorized("Mesos master", credential.error());
   }
 
   // Create an offer operation.
@@ -1234,6 +1234,11 @@ Future<Response> Master::Http::teardown(const Request& request) const
     return BadRequest("Expecting POST");
   }
 
+  Result<Credential> credential = authenticate(request);
+  if (credential.isError()) {
+    return Unauthorized("Mesos master", credential.error());
+  }
+
   // Parse the query string in the request body (since this is a POST)
   // in order to determine the framework ID to shutdown.
   Try<hashmap<string, string>> decode =
@@ -1256,12 +1261,6 @@ Future<Response> Master::Http::teardown(const Request& request) const
 
   if (framework == NULL) {
     return BadRequest("No framework found with specified ID");
-  }
-
-  Result<Credential> credential = authenticate(request);
-
-  if (credential.isError()) {
-    return Unauthorized("Mesos master", credential.error());
   }
 
   // Skip authorization if no ACLs were provided to the master.
@@ -1833,6 +1832,11 @@ Future<Response> Master::Http::unreserve(const Request& request) const
     return BadRequest("Expecting POST");
   }
 
+  Result<Credential> credential = authenticate(request);
+  if (credential.isError()) {
+    return Unauthorized("Mesos master", credential.error());
+  }
+
   // Parse the query string in the request body.
   Try<hashmap<string, string>> decode =
     process::http::query::decode(request.body);
@@ -1875,11 +1879,6 @@ Future<Response> Master::Http::unreserve(const Request& request) const
           "Error in parsing 'resources' query parameter: " + resource.error());
     }
     resources += resource.get();
-  }
-
-  Result<Credential> credential = authenticate(request);
-  if (credential.isError()) {
-    return Unauthorized("Mesos master", credential.error());
   }
 
   // Create an offer operation.
