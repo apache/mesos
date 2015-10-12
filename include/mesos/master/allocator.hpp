@@ -42,28 +42,53 @@ namespace mesos {
 namespace master {
 namespace allocator {
 
-// Basic model of an allocator: resources are allocated to a framework
-// in the form of offers. A framework can refuse some resources in
-// offers and run tasks in others. Allocated resources can have offer
-// operations applied to them in order for frameworks to alter the
-// resource metadata (e.g. creating persistent volumes). Resources can
-// be recovered from a framework when tasks finish/fail (or are lost
-// due to a slave failure) or when an offer is rescinded.
-//
-// This is the public API for resource allocators.
-// TODO(alexr): Document API calls.
+/**
+ * Basic model of an allocator: resources are allocated to a framework
+ * in the form of offers. A framework can refuse some resources in
+ * offers and run tasks in others. Allocated resources can have offer
+ * operations applied to them in order for frameworks to alter the
+ * resource metadata (e.g. creating persistent volumes). Resources can
+ * be recovered from a framework when tasks finish/fail (or are lost
+ * due to an agent failure) or when an offer is rescinded.
+ *
+ * This is the public API for resource allocators.
+ */
 class Allocator
 {
 public:
-  // Attempts either to create a built-in DRF allocator or to load an
-  // allocator instance from a module using the given name. If Try
-  // does not report an error, the wrapped Allocator* is not null.
+  /**
+   * Attempts either to create a built-in DRF allocator or to load an
+   * allocator instance from a module using the given name. If `Try`
+   * does not report an error, the wrapped `Allocator*` is not null.
+   *
+   * @param name Name of the allocator.
+   */
   static Try<Allocator*> create(const std::string& name);
 
   Allocator() {}
 
   virtual ~Allocator() {}
 
+  /**
+   * Initializes the allocator.
+   *
+   * Initializes the allocator, it is invoked when the master starts up.
+   * Any errors in initialization should fail fast and result in an ABORT.
+   * The master expects the allocator to be successfully initialized if
+   * this call returns.
+   *
+   * @param allocationInterval The allocate interval for the allocator, it
+   *     determines how often the allocator should perform the batch
+   *     allocation. An allocator may also perform allocation based on events
+   *     (a framework is added and so on), this depends on the implementation.
+   * @param offerCallback A callback the allocator uses to send allocations
+   *     to the frameworks.
+   * @param inverseOfferCallback A callback the allocator uses to send reclaim
+   *     allocations from the frameworks.
+   * @param roles The roles are actually checked by the master (see
+   *     Master::subscribe). All frameworks that are added to the allocator
+   *     will fall into one of these roles.
+   */
   virtual void initialize(
       const Duration& allocationInterval,
       const lambda::function<
@@ -75,30 +100,79 @@ public:
         inverseOfferCallback,
       const hashmap<std::string, RoleInfo>& roles) = 0;
 
+  /**
+   * Adds a framework.
+   *
+   * Adds a framework to the Mesos cluster. The allocator is invoked when
+   * a new framework joins the Mesos cluster and is entitled to participate
+   * in resource sharing.
+   *
+   * @param used Resources used by this framework. The allocator should
+   *     account for these resources when updating the allocation of this
+   *     framework.
+   */
   virtual void addFramework(
       const FrameworkID& frameworkId,
       const FrameworkInfo& frameworkInfo,
       const hashmap<SlaveID, Resources>& used) = 0;
 
+  /**
+   * Removes a framework.
+   *
+   * Removes a framework from the Mesos cluster. It is up to an allocator to
+   * decide what to do with framework's resources. For example, they may be
+   * released and added back to the shared pool of resources.
+   */
   virtual void removeFramework(
       const FrameworkID& frameworkId) = 0;
 
-  // Offers are sent only to activated frameworks.
+  /**
+   * Activates a framework.
+   *
+   * Activates a framework in the Mesos cluster. Offers are only sent to
+   * active frameworks.
+   */
   virtual void activateFramework(
       const FrameworkID& frameworkId) = 0;
 
+   /**
+   * Deactivates a framework.
+   *
+   * Deactivates a framework in the Mesos cluster. Resource offers are not
+   * sent to deactivated frameworks.
+   */
   virtual void deactivateFramework(
       const FrameworkID& frameworkId) = 0;
 
+  /**
+   * Updates a framework.
+   *
+   * Updates capabilities of a framework in the Mesos cluster, it will be
+   * invoked when a framework is re-added. As some of the framework's
+   * capabilities may be updated when re-added, this API should update the
+   * capabilities of the newly added framework to Mesos cluster to reflect
+   * the latest framework info. Please refer to the design document here
+   * https://cwiki.apache.org/confluence/display/MESOS/Design+doc:+Updating+Framework+Info // NOLINT
+   * for more details related to framework update.
+   */
   virtual void updateFramework(
       const FrameworkID& frameworkId,
       const FrameworkInfo& frameworkInfo) = 0;
 
-  // Note that the 'total' resources are passed explicitly because it
-  // includes resources that are dynamically "checkpointed" on the
-  // slave (e.g. persistent volumes, dynamic reservations, etc). The
-  // slaveInfo resources, on the other hand, correspond directly to
-  // the static --resources flag value on the slave.
+  /**
+   * Adds an agent.
+   *
+   * Adds or re-adds an agent to the Mesos cluster. It is invoked when a
+   * new agent joins the cluster or in case of agent recovery.
+   *
+   * @param slaveId ID of the agent to be added or re-added.
+   * @param slaveInfo Detailed info of the agent. The slaveInfo resources
+   *     correspond directly to the static --resources flag value on the agent.
+   * @param total The `total` resources are passed explicitly because it
+   *     includes resources that are dynamically "checkpointed" on the agent
+   *     (e.g. persistent volumes, dynamic reservations, etc).
+   * @param used Resources that are allocated on the current agent.
+   */
   virtual void addSlave(
       const SlaveID& slaveId,
       const SlaveInfo& slaveInfo,
@@ -106,56 +180,126 @@ public:
       const Resources& total,
       const hashmap<FrameworkID, Resources>& used) = 0;
 
+  /**
+   * Removes an agent.
+   *
+   * Removes an agent from the Mesos cluster. All resources belonging to this
+   * agent should be released by the allocator.
+   */
   virtual void removeSlave(
       const SlaveID& slaveId) = 0;
 
-  // Note that 'oversubscribed' resources include the total amount of
-  // oversubscribed resources that are allocated and available.
-  // TODO(vinod): Instead of just oversubscribed resources have this
-  // method take total resources. We can then reuse this method to
-  // update slave's total resources in the future.
+  /**
+   * Updates an agent.
+   *
+   * Updates the latest oversubscribed resources for an agent.
+   * TODO(vinod): Instead of just oversubscribed resources have this
+   * method take total resources. We can then reuse this method to
+   * update Agent's total resources in the future.
+   *
+   * @param oversubscribed The new oversubscribed resources estimate from
+   *     the agent. The oversubscribed resources include the total amount
+   *     of oversubscribed resources that are allocated and available.
+   */
   virtual void updateSlave(
       const SlaveID& slave,
       const Resources& oversubscribed) = 0;
 
-  // Offers are sent only for activated slaves.
+  /**
+   * Activates an agent.
+   *
+   * Activates an agent. This is invoked when an agent reregisters. Offers
+   * are only sent for activated agents.
+   */
   virtual void activateSlave(
       const SlaveID& slaveId) = 0;
 
+  /**
+   * Deactivates an agent.
+   *
+   * This is triggered if an agent disconnects from the master. The allocator
+   * should treat all offers from the deactivated agent as rescinded. (There
+   * is no separate call to the allocator to handle this). Resources aren't
+   * "recovered" when an agent deactivates because the resources are lost.
+   */
   virtual void deactivateSlave(
       const SlaveID& slaveId) = 0;
 
+  /**
+   * Updates the list of trusted agents.
+   *
+   * This is invoked when the master starts up with the --whitelist flag.
+   *
+   * @param whitelist A set of agents that are allowed to contribute
+   *     their resources to the resource pool.
+   */
   virtual void updateWhitelist(
       const Option<hashset<std::string>>& whitelist) = 0;
 
+  /**
+   * Requests resources for a framework.
+   *
+   * A framework may request resources via this call. It is up to the allocator
+   * how to react to this request. For example, a request may be ignored, or
+   * may influence internal priorities the allocator may keep for frameworks.
+   */
   virtual void requestResources(
       const FrameworkID& frameworkId,
       const std::vector<Request>& requests) = 0;
 
+  /**
+   * Updates allocation by applying offer operations.
+   *
+   * This call is mainly intended to support persistence-related features
+   * (dynamic reservation and persistent volumes). The allocator may react
+   * differently for certain offer operations. The allocator should use this
+   * call to update bookkeeping information related to the framework.
+   */
   virtual void updateAllocation(
       const FrameworkID& frameworkId,
       const SlaveID& slaveId,
       const std::vector<Offer::Operation>& operations) = 0;
 
+  /**
+   * TODO (gyliu513): Add more comments after dynamic reservation finished
+   *
+   * @param slaveId ID of the agent.
+   * @param operations TODO(gyliu513)
+   */
   virtual process::Future<Nothing> updateAvailable(
       const SlaveID& slaveId,
       const std::vector<Offer::Operation>& operations) = 0;
 
-  // We currently support storing the next unavailability, if there is one, per
-  // slave. If `unavailability` is not set then there is no known upcoming
-  // unavailability. This might require the implementation of the function to
-  // remove any inverse offers that are outstanding.
+  /**
+   * Updates unavailability for an agent.
+   *
+   * We currently support storing the next unavailability, if there is one,
+   * per agent. If `unavailability` is not set then there is no known upcoming
+   * unavailability. This might require the implementation of the function to
+   * remove any inverse offers that are outstanding.
+   */
   virtual void updateUnavailability(
       const SlaveID& slaveId,
       const Option<Unavailability>& unavailability) = 0;
 
-  // Informs the allocator that the inverse offer has been responded to or
-  // revoked. If `status` is not set then the inverse offer was not responded
-  // to, possibly because the offer timed out or was rescinded. This might
-  // require the implementation of the function to remove any inverse offers
-  // that are outstanding. The `unavailableResources` can be used by the
-  // allocator to distinguish between different inverse offers sent to the same
-  // framework for the same slave.
+  /**
+   * Updates inverse offer.
+   *
+   * Informs the allocator that the inverse offer has been responded to or
+   * revoked.
+   *
+   * @param unavailableResources The `unavailableResources` can be used by the
+   *     allocator to distinguish between different inverse offers sent to the
+   *     same framework for the same slave.
+   * @param status If `status` is not set then the inverse offer was not
+   *     responded to, possibly because the offer timed out or was rescinded.
+   *     This might require the implementation of the function to remove any
+   *     inverse offers that are outstanding.
+   * @param filters A filter attached to the inverse offer can be used by the
+   *     framework to control when it wants to be contacted again with the
+   *     inverse offer. The "filters" for InverseOffers are identical to the
+   *     existing mechanism for re-offering Offers to frameworks.
+   */
   virtual void updateInverseOffer(
       const SlaveID& slaveId,
       const FrameworkID& frameworkId,
@@ -163,25 +307,40 @@ public:
       const Option<InverseOfferStatus>& status,
       const Option<Filters>& filters = None()) = 0;
 
-  // Retrieves the status of all inverse offers maintained by the allocator.
+  /**
+   * Retrieves the status of all inverse offers maintained by the allocator.
+   */
   virtual process::Future<
       hashmap<SlaveID, hashmap<FrameworkID, mesos::master::InverseOfferStatus>>>
     getInverseOfferStatuses() = 0;
 
-  // Informs the Allocator to recover resources that are considered
-  // used by the framework.
+  /**
+   * Recovers resources.
+   *
+   * Used to update the set of available resources for a specific agent. This
+   * method is invoked to inform the allocator about allocated resources that
+   * have been refused or are no longer in use.
+   */
   virtual void recoverResources(
       const FrameworkID& frameworkId,
       const SlaveID& slaveId,
       const Resources& resources,
       const Option<Filters>& filters) = 0;
 
-  // Whenever a framework that has filtered resources wants to revive
-  // offers for those resources the master invokes this callback.
+  /**
+   * Revives offers.
+   *
+   * Revives offers for a framework. This is invoked by a framework when
+   * it wishes to receive filtered resources or offers immediately.
+   */
   virtual void reviveOffers(
       const FrameworkID& frameworkId) = 0;
 
-  // Informs the allocator to stop sending resources for the framework
+  /**
+   * Suppresses offers.
+   *
+   * Informs the allocator to stop sending offers to the framework.
+   */
   virtual void suppressOffers(
       const FrameworkID& frameworkId) = 0;
 };
