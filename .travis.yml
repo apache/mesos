@@ -1,0 +1,35 @@
+# We use Apache Jenkins as default CI infrastructure. Only use this Travis file
+# to test one combination: "OS X + Clang".
+matrix:
+  fast_finish: true
+  include:
+    - os: osx
+      env:
+        - OS_TYPE=OSX
+language: cpp
+env:
+  global:
+    # Add this cpp flag to enable the generation of split DWARF when compile.
+    # So that could reduce 20~25% compile time in Travis CI.
+    - CXXFLAGS=-gsplit-dwarf
+before_install:
+  - |
+    if [ x"$OS_TYPE" = x"OSX" ]
+    then
+      brew tap caskroom/cask
+      brew install python brew-cask
+      brew link --overwrite python
+      brew cask install java
+    fi
+before_script:
+  - |
+    if [ x"$OS_TYPE" = x"OSX" ]
+    then
+      export JAVA_HOME=$(/usr/libexec/java_home)
+    fi
+  - ./bootstrap
+  - mkdir build
+  - cd build
+script:
+  - ../configure
+  - make -j2 check
