@@ -269,16 +269,6 @@ between these corrections is controlled by this flag. (default: 0ns)
     </td>
   </tr>
 
-  <tr>
-    <td>
-      --resource_monitoring_interval=VALUE
-    </td>
-    <td>
-      Periodic time interval for monitoring executor resource usage (e.g.,
-10secs, 1min, etc) (default: 1secs)
-    </td>
-  </tr>
-
 </table>
 
 The `fixed` resource estimator is enabled as follows:

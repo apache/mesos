@@ -1389,15 +1389,6 @@ file:///path/to/file (where file contains one of the above)</code></pre>
   </tr>
   <tr>
     <td>
-      --resource_monitoring_interval=VALUE
-    </td>
-    <td>
-      Periodic time interval for monitoring executor
-      resource usage (e.g., 10secs, 1min, etc) (default: 1secs)
-    </td>
-  </tr>
-  <tr>
-    <td>
       --resources=VALUE
     </td>
     <td>

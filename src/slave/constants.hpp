@@ -46,7 +46,6 @@ extern const Duration STATUS_UPDATE_RETRY_INTERVAL_MIN;
 extern const Duration STATUS_UPDATE_RETRY_INTERVAL_MAX;
 extern const Duration GC_DELAY;
 extern const Duration DISK_WATCH_INTERVAL;
-extern const Duration RESOURCE_MONITORING_INTERVAL;
 
 // Default backoff interval used by the slave to wait before registration.
 extern const Duration REGISTRATION_BACKOFF_FACTOR;

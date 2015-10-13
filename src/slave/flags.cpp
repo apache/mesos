@@ -242,12 +242,6 @@ mesos::internal::slave::Flags::Flags()
       "information and sandboxes.",
       DISK_WATCH_INTERVAL);
 
-  add(&Flags::resource_monitoring_interval,
-      "resource_monitoring_interval",
-      "Periodic time interval for monitoring executor\n"
-      "resource usage (e.g., 10secs, 1min, etc)",
-      RESOURCE_MONITORING_INTERVAL);
-
   add(&Flags::recover,
       "recover",
       "Whether to recover status updates and reconnect with old executors.\n"
