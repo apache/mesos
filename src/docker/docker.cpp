@@ -676,9 +676,10 @@ Future<Nothing> Docker::rm(
     const string& containerName,
     bool force) const
 {
+  // The `-v` flag removes Docker volumes that may be present.
   const string cmd =
     path + " -H " + socket +
-    (force ? " rm -f " : " rm ") + containerName;
+    (force ? " rm -f -v " : " rm -v ") + containerName;
 
   VLOG(1) << "Running " << cmd;
 
