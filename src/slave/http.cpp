@@ -321,6 +321,31 @@ Future<Response> Slave::Http::executor(const Request& request) const
 }
 
 
+string Slave::Http::FLAGS_HELP()
+{
+  return HELP(TLDR("Information about slave flags."));
+}
+
+
+Future<Response> Slave::Http::flags(const Request& request) const
+{
+  JSON::Object object;
+
+  {
+    JSON::Object flags;
+    foreachpair (const string& name, const flags::Flag& flag, slave->flags) {
+      Option<string> value = flag.stringify(slave->flags);
+      if (value.isSome()) {
+        flags.values[name] = value.get();
+      }
+    }
+    object.values["flags"] = std::move(flags);
+  }
+
+  return OK(object, request.url.query.get("jsonp"));
+}
+
+
 string Slave::Http::HEALTH_HELP()
 {
   return HELP(

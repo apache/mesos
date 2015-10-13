@@ -114,6 +114,7 @@ namespace slave {
 
 using namespace state;
 
+
 Slave::Slave(const slave::Flags& _flags,
              MasterDetector* _detector,
              Containerizer* _containerizer,
@@ -534,6 +535,12 @@ void Slave::initialize()
         [http](const process::http::Request& request) {
           Http::log(request);
           return http.state(request);
+        });
+  route("/flags",
+        Http::FLAGS_HELP(),
+        [http](const process::http::Request& request) {
+          Http::log(request);
+          return http.flags(request);
         });
   route("/health",
         Http::HEALTH_HELP(),

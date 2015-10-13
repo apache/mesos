@@ -407,6 +407,10 @@ private:
     process::Future<process::http::Response> executor(
         const process::http::Request& request) const;
 
+    // /slave/flags
+    process::Future<process::http::Response> flags(
+        const process::http::Request& request) const;
+
     // /slave/health
     process::Future<process::http::Response> health(
         const process::http::Request& request) const;
@@ -416,6 +420,7 @@ private:
         const process::http::Request& request) const;
 
     static std::string EXECUTOR_HELP();
+    static std::string FLAGS_HELP();
     static std::string HEALTH_HELP();
     static std::string STATE_HELP();
 

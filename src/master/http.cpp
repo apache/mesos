@@ -523,6 +523,31 @@ Future<Response> Master::Http::scheduler(const Request& request) const
 }
 
 
+string Master::Http::FLAGS_HELP()
+{
+  return HELP(TLDR("Information about master flags."));
+}
+
+
+Future<Response> Master::Http::flags(const Request& request) const
+{
+  JSON::Object object;
+
+  {
+    JSON::Object flags;
+    foreachpair (const string& name, const flags::Flag& flag, master->flags) {
+      Option<string> value = flag.stringify(master->flags);
+      if (value.isSome()) {
+        flags.values[name] = value.get();
+      }
+    }
+    object.values["flags"] = std::move(flags);
+  }
+
+  return OK(object, request.url.query.get("jsonp"));
+}
+
+
 string Master::Http::HEALTH_HELP()
 {
   return HELP(

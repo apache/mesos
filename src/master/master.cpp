@@ -762,6 +762,12 @@ void Master::initialize()
           Http::log(request);
           return http.scheduler(request);
         });
+  route("/flags",
+        Http::FLAGS_HELP(),
+        [http](const process::http::Request& request) {
+          Http::log(request);
+          return http.flags(request);
+        });
   route("/health",
         Http::HEALTH_HELP(),
         [http](const process::http::Request& request) {
