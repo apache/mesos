@@ -39,26 +39,29 @@ using std::vector;
 namespace process {
 
 string HELP(
-    string tldr,
-    string description,
+    const string& tldr,
+    const Option<string>& description,
     const Option<string>& references)
 {
-  // Make sure 'tldr' and 'description' end with a newline.
-  if (!strings::endsWith(tldr, "\n")) {
-    tldr += "\n";
-  }
-
-  if (!strings::endsWith(description, "\n")) {
-    description += "\n";
-  }
-
   // Construct the help string.
   string help =
     "### TL;DR; ###\n" +
-    tldr +
-    "\n" +
-    "### DESCRIPTION ###\n" +
-    description;
+    tldr;
+
+  if (!strings::endsWith(help, "\n")) {
+    help += "\n";
+  }
+
+  if (description.isSome()) {
+    help +=
+      "\n"
+      "### DESCRIPTION ###\n" +
+      description.get();
+  }
+
+  if (!strings::endsWith(help, "\n")) {
+    help += "\n";
+  }
 
   if (references.isSome()) {
     help += "\n";

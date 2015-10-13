@@ -47,8 +47,8 @@ namespace process {
 // See the 'USAGE', 'TLDR', 'DESCRIPTION', and 'REFERENCES' helpers
 // below to more easily construct your help pages.
 std::string HELP(
-    std::string tldr,
-    std::string description,
+    const std::string& tldr,
+    const Option<std::string>& description = None(),
     const Option<std::string>& references = None());
 
 // Helper for single-line usage that puts it in a blockquote as code
