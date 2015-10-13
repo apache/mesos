@@ -911,22 +911,22 @@ private:
     process::Future<process::http::Response> unreserve(
         const process::http::Request& request) const;
 
-    const static std::string SCHEDULER_HELP;
-    const static std::string HEALTH_HELP;
-    const static std::string OBSERVE_HELP;
-    const static std::string REDIRECT_HELP;
-    const static std::string ROLES_HELP;
-    const static std::string TEARDOWN_HELP;
-    const static std::string SLAVES_HELP;
-    const static std::string STATE_HELP;
-    const static std::string STATESUMMARY_HELP;
-    const static std::string TASKS_HELP;
-    const static std::string MAINTENANCE_SCHEDULE_HELP;
-    const static std::string MAINTENANCE_STATUS_HELP;
-    const static std::string MACHINE_DOWN_HELP;
-    const static std::string MACHINE_UP_HELP;
-    const static std::string RESERVE_HELP;
-    const static std::string UNRESERVE_HELP;
+    static std::string SCHEDULER_HELP();
+    static std::string HEALTH_HELP();
+    static std::string OBSERVE_HELP();
+    static std::string REDIRECT_HELP();
+    static std::string ROLES_HELP();
+    static std::string TEARDOWN_HELP();
+    static std::string SLAVES_HELP();
+    static std::string STATE_HELP();
+    static std::string STATESUMMARY_HELP();
+    static std::string TASKS_HELP();
+    static std::string MAINTENANCE_SCHEDULE_HELP();
+    static std::string MAINTENANCE_STATUS_HELP();
+    static std::string MACHINE_DOWN_HELP();
+    static std::string MACHINE_UP_HELP();
+    static std::string RESERVE_HELP();
+    static std::string UNRESERVE_HELP();
 
   private:
     // Helper for doing authentication, returns the credential used if

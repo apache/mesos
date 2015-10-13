@@ -197,7 +197,8 @@ void Slave::Http::log(const Request& request)
 }
 
 
-const string Slave::Http::EXECUTOR_HELP = HELP(
+string Slave::Http::EXECUTOR_HELP() {
+  return HELP(
     TLDR(
         "Endpoint for the Executor HTTP API."),
     DESCRIPTION(
@@ -209,6 +210,7 @@ const string Slave::Http::EXECUTOR_HELP = HELP(
         "incrementally."
         "Returns 202 Accepted for all other Call messages iff the "
         "request is accepted."));
+}
 
 
 Future<Response> Slave::Http::executor(const Request& request) const
@@ -319,12 +321,15 @@ Future<Response> Slave::Http::executor(const Request& request) const
 }
 
 
-const string Slave::Http::HEALTH_HELP = HELP(
+string Slave::Http::HEALTH_HELP()
+{
+  return HELP(
     TLDR(
         "Health check of the Slave."),
     DESCRIPTION(
         "Returns 200 OK iff the Slave is healthy.",
         "Delayed responses are also indicative of poor health."));
+}
 
 
 Future<Response> Slave::Http::health(const Request& request) const
@@ -333,12 +338,14 @@ Future<Response> Slave::Http::health(const Request& request) const
 }
 
 
-const string Slave::Http::STATE_HELP = HELP(
+string Slave::Http::STATE_HELP() {
+  return HELP(
     TLDR(
         "Information about state of the Slave."),
     DESCRIPTION(
         "This endpoint shows information about the frameworks, executors",
         "and the slave's master as a JSON object."));
+}
 
 
 Future<Response> Slave::Http::state(const Request& request) const

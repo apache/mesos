@@ -346,11 +346,14 @@ void Master::Http::log(const Request& request)
 
 // TODO(ijimenez): Add some information or pointers to help
 // users understand the HTTP Event/Call API.
-const string Master::Http::SCHEDULER_HELP = HELP(
+string Master::Http::SCHEDULER_HELP()
+{
+  return HELP(
     TLDR(
         "Endpoint for schedulers to make Calls against the master."),
     DESCRIPTION(
         "Returns 202 Accepted iff the request is accepted."));
+}
 
 
 Future<Response> Master::Http::scheduler(const Request& request) const
@@ -520,12 +523,15 @@ Future<Response> Master::Http::scheduler(const Request& request) const
 }
 
 
-const string Master::Http::HEALTH_HELP = HELP(
+string Master::Http::HEALTH_HELP()
+{
+  return HELP(
     TLDR(
         "Health check of the Master."),
     DESCRIPTION(
         "Returns 200 OK iff the Master is healthy.",
         "Delayed responses are also indicative of poor health."));
+}
 
 
 Future<Response> Master::Http::health(const Request& request) const
@@ -537,7 +543,9 @@ const static string HOSTS_KEY = "hosts";
 const static string LEVEL_KEY = "level";
 const static string MONITOR_KEY = "monitor";
 
-const string Master::Http::OBSERVE_HELP = HELP(
+string Master::Http::OBSERVE_HELP()
+{
+  return HELP(
     TLDR(
         "Observe a monitor health state for host(s)."),
     DESCRIPTION(
@@ -548,7 +556,7 @@ const string Master::Http::OBSERVE_HELP = HELP(
         "1. " + MONITOR_KEY + " - name of the monitor that is being reported",
         "2. " + HOSTS_KEY + " - comma separated list of hosts",
         "3. " + LEVEL_KEY + " - OK for healthy, anything else for unhealthy"));
-
+}
 
 Try<string> getFormValue(
     const string& key,
@@ -627,7 +635,9 @@ Future<Response> Master::Http::observe(const Request& request) const
 }
 
 
-const string Master::Http::REDIRECT_HELP = HELP(
+string Master::Http::REDIRECT_HELP()
+{
+  return HELP(
     TLDR(
         "Redirects to the leading Master."),
     DESCRIPTION(
@@ -641,6 +651,7 @@ const string Master::Http::REDIRECT_HELP = HELP(
         "2. This is broken currently \"on the cloud\" (e.g. EC2) as",
         "this will attempt to redirect to the private IP address, unless",
         "advertise_ip points to an externally accessible IP"));
+}
 
 
 Future<Response> Master::Http::redirect(const Request& request) const
@@ -671,13 +682,16 @@ Future<Response> Master::Http::redirect(const Request& request) const
 }
 
 
-const string Master::Http::RESERVE_HELP = HELP(
+string Master::Http::RESERVE_HELP()
+{
+  return HELP(
     TLDR(
         "Reserve resources dynamically on a specific slave."),
     DESCRIPTION(
         "Returns 200 OK if resource reservation was successful.",
         "Please provide \"slaveId\" and \"resources\" values designating ",
         "the resources to be reserved."));
+}
 
 
 Future<Response> Master::Http::reserve(const Request& request) const
@@ -756,12 +770,15 @@ Future<Response> Master::Http::reserve(const Request& request) const
 }
 
 
-const string Master::Http::SLAVES_HELP = HELP(
+string Master::Http::SLAVES_HELP()
+{
+  return HELP(
     TLDR(
         "Information about registered slaves."),
     DESCRIPTION(
         "This endpoint shows information about the slaves registered in",
         "this master formatted as a JSON object."));
+}
 
 
 Future<Response> Master::Http::slaves(const Request& request) const
@@ -784,12 +801,15 @@ Future<Response> Master::Http::slaves(const Request& request) const
 }
 
 
-const string Master::Http::STATE_HELP = HELP(
+string Master::Http::STATE_HELP()
+{
+  return HELP(
     TLDR(
         "Information about state of master."),
     DESCRIPTION(
         "This endpoint shows information about the frameworks, tasks,",
         "executors and slaves running in the cluster as a JSON object."));
+}
 
 
 Future<Response> Master::Http::state(const Request& request) const
@@ -1076,12 +1096,15 @@ private:
 };
 
 
-const string Master::Http::STATESUMMARY_HELP = HELP(
+string Master::Http::STATESUMMARY_HELP()
+{
+  return HELP(
     TLDR(
         "Summary of state of all tasks and registered frameworks in cluster."),
     DESCRIPTION(
         "This endpoint gives a summary of the state of all tasks and",
         "registered frameworks in the cluster as a JSON object."));
+}
 
 
 Future<Response> Master::Http::stateSummary(const Request& request) const
@@ -1192,12 +1215,15 @@ Future<Response> Master::Http::stateSummary(const Request& request) const
 }
 
 
-const string Master::Http::ROLES_HELP = HELP(
+string Master::Http::ROLES_HELP()
+{
+  return HELP(
     TLDR(
         "Information about roles that the master is configured with."),
     DESCRIPTION(
         "This endpoint gives information about the roles that are assigned",
         "to frameworks and resources as a JSON object."));
+}
 
 
 Future<Response> Master::Http::roles(const Request& request) const
@@ -1218,7 +1244,9 @@ Future<Response> Master::Http::roles(const Request& request) const
 }
 
 
-const string Master::Http::TEARDOWN_HELP = HELP(
+string Master::Http::TEARDOWN_HELP()
+{
+  return HELP(
     TLDR(
         "Tears down a running framework by shutting down all tasks/executors "
         "and removing the framework."),
@@ -1226,6 +1254,7 @@ const string Master::Http::TEARDOWN_HELP = HELP(
         "Please provide a \"frameworkId\" value designating the running "
         "framework to tear down.",
         "Returns 200 OK if the framework was correctly teared down."));
+}
 
 
 Future<Response> Master::Http::teardown(const Request& request) const
@@ -1312,7 +1341,9 @@ Future<Response> Master::Http::_teardown(
 }
 
 
-const string Master::Http::TASKS_HELP = HELP(
+string Master::Http::TASKS_HELP()
+{
+  return HELP(
     TLDR(
       "Lists tasks from all active frameworks."),
     DESCRIPTION(
@@ -1326,6 +1357,7 @@ const string Master::Http::TASKS_HELP = HELP(
       ">        order=(asc|desc)     Ascending or descending sort order "
       "(default is descending)."
       ""));
+}
 
 
 struct TaskComparator
@@ -1433,13 +1465,16 @@ Future<Response> Master::Http::tasks(const Request& request) const
 
 
 // /master/maintenance/schedule endpoint help.
-const string Master::Http::MAINTENANCE_SCHEDULE_HELP = HELP(
+string Master::Http::MAINTENANCE_SCHEDULE_HELP()
+{
+  return HELP(
     TLDR(
         "Returns or updates the cluster's maintenance schedule."),
     DESCRIPTION(
         "GET: Returns the current maintenance schedule as JSON.",
         "POST: Validates the request body as JSON",
         "  and updates the maintenance schedule."));
+}
 
 
 // /master/maintenance/schedule endpoint handler.
@@ -1548,13 +1583,16 @@ Future<Response> Master::Http::maintenanceSchedule(const Request& request) const
 
 
 // /master/machine/down endpoint help.
-const string Master::Http::MACHINE_DOWN_HELP = HELP(
+string Master::Http::MACHINE_DOWN_HELP()
+{
+  return HELP(
     TLDR(
         "Brings a set of machines down."),
     DESCRIPTION(
         "POST: Validates the request body as JSON and transitions",
         "  the list of machines into DOWN mode.  Currently, only",
         "  machines in DRAINING mode are allowed to be brought down."));
+}
 
 
 // /master/machine/down endpoint handler.
@@ -1647,13 +1685,16 @@ Future<Response> Master::Http::machineDown(const Request& request) const
 
 
 // /master/maintenance/start endpoint help.
-const string Master::Http::MACHINE_UP_HELP = HELP(
+string Master::Http::MACHINE_UP_HELP()
+{
+  return HELP(
     TLDR(
         "Brings a set of machines back up."),
     DESCRIPTION(
         "POST: Validates the request body as JSON and transitions",
         "  the list of machines into UP mode.  This also removes",
         "  the list of machines from the maintenance schedule."));
+}
 
 
 // /master/machine/up endpoint handler.
@@ -1745,7 +1786,9 @@ Future<Response> Master::Http::machineUp(const Request& request) const
 
 
 // /master/maintenance/status endpoint help.
-const string Master::Http::MAINTENANCE_STATUS_HELP = HELP(
+string Master::Http::MAINTENANCE_STATUS_HELP()
+{
+  return HELP(
     TLDR(
         "Retrieves the maintenance status of the cluster."),
     DESCRIPTION(
@@ -1754,6 +1797,7 @@ const string Master::Http::MAINTENANCE_STATUS_HELP = HELP(
         "to inverse offers.  NOTE: Inverse offer responses are cleared if",
         "the master fails over.  However, new inverse offers will be sent",
         "once the master recovers."));
+}
 
 
 // /master/maintenance/status endpoint handler.
@@ -1817,13 +1861,16 @@ Future<Response> Master::Http::maintenanceStatus(const Request& request) const
 }
 
 
-const string Master::Http::UNRESERVE_HELP = HELP(
+string Master::Http::UNRESERVE_HELP()
+{
+  return HELP(
     TLDR(
         "Unreserve resources dynamically on a specific slave."),
     DESCRIPTION(
         "Returns 200 OK if resource unreservation was successful.",
         "Please provide \"slaveId\" and \"resources\" values designating ",
         "the resources to be unreserved."));
+}
 
 
 Future<Response> Master::Http::unreserve(const Request& request) const

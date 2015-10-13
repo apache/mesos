@@ -415,9 +415,9 @@ private:
     process::Future<process::http::Response> state(
         const process::http::Request& request) const;
 
-    static const std::string EXECUTOR_HELP;
-    static const std::string HEALTH_HELP;
-    static const std::string STATE_HELP;
+    static std::string EXECUTOR_HELP();
+    static std::string HEALTH_HELP();
+    static std::string STATE_HELP();
 
   private:
     Slave* slave;

@@ -515,7 +515,7 @@ void Slave::initialize()
   Http http = Http(this);
 
   route("/api/v1/executor",
-        Http::EXECUTOR_HELP,
+        Http::EXECUTOR_HELP(),
         [http](const process::http::Request& request) {
           Http::log(request);
           return http.executor(request);
@@ -524,19 +524,19 @@ void Slave::initialize()
   // TODO(ijimenez): Remove this endpoint at the end of the
   // deprecation cycle on 0.26.
   route("/state.json",
-        Http::STATE_HELP,
+        Http::STATE_HELP(),
         [http](const process::http::Request& request) {
           Http::log(request);
           return http.state(request);
         });
   route("/state",
-        Http::STATE_HELP,
+        Http::STATE_HELP(),
         [http](const process::http::Request& request) {
           Http::log(request);
           return http.state(request);
         });
   route("/health",
-        Http::HEALTH_HELP,
+        Http::HEALTH_HELP(),
         [http](const process::http::Request& request) {
           return http.health(request);
         });
