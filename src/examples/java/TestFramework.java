@@ -246,7 +246,7 @@ public class TestFramework {
         .setPrincipal(System.getenv("DEFAULT_PRINCIPAL"));
 
       if (System.getenv("DEFAULT_SECRET") != null) {
-          credentialBuilder.setSecret(ByteString.copyFrom(System.getenv("DEFAULT_SECRET").getBytes()));
+          credentialBuilder.setSecret(System.getenv("DEFAULT_SECRET"));
       }
 
       frameworkBuilder.setPrincipal(System.getenv("DEFAULT_PRINCIPAL"));
