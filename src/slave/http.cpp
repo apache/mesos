@@ -323,7 +323,7 @@ Future<Response> Slave::Http::executor(const Request& request) const
 
 string Slave::Http::FLAGS_HELP()
 {
-  return HELP(TLDR("Information about slave flags."));
+  return HELP(TLDR("Exposes the agent's flag configuration."));
 }
 
 

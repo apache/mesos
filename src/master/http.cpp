@@ -525,7 +525,7 @@ Future<Response> Master::Http::scheduler(const Request& request) const
 
 string Master::Http::FLAGS_HELP()
 {
-  return HELP(TLDR("Information about master flags."));
+  return HELP(TLDR("Exposes the master's flag configuration."));
 }
 
 
