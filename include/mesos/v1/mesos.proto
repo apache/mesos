@@ -1207,7 +1207,7 @@ message Parameters {
  */
 message Credential {
   required string principal = 1;
-  optional bytes secret = 2;
+  optional string secret = 2;
 }
 
 
