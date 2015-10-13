@@ -6,6 +6,14 @@ layout: documentation
 
 This document serves as a guide for users who wish to upgrade an existing mesos cluster. Some versions require particular upgrade techniques when upgrading a running cluster. Some upgrades will have incompatible changes.
 
+## Upgrading from 0.25.x to 0.26.x ##
+
+**NOTE** The names of some TaskStatus::Reason enums have been changed. But the tag numbers remain unchanged, so it is backwards compatible. Frameworks using the new version might need to do some compile time adjustments:
+
+* REASON_MEM_LIMIT -> REASON_CONTAINER_LIMITATION_MEMORY
+* REASON_EXECUTOR_PREEMPTED -> REASON_CONTAINER_PREEMPTED
+
+
 ## Upgrading from 0.24.x to 0.25.x
 
 **NOTE** The following endpoints will be deprecated in favor of new endpoints. Both versions will be available in 0.25 but the deprecated endpoints will be removed in a subsequent release.
