@@ -134,6 +134,7 @@ public:
     return Nothing();
   }
 
+
   // TODO(nnielsen): Split hook tests into multiple modules to avoid
   // interference.
   virtual Result<Labels> slaveRunTaskLabelDecorator(
@@ -160,6 +161,7 @@ public:
 
     return labels;
   }
+
 
   // In this hook, we create a new environment variable "FOO" and set
   // it's value to "bar".
@@ -286,6 +288,18 @@ public:
     resources += Resources::parse("cpus:4;foo:{bar,baz}").get();
 
     return resources;
+  }
+
+
+  virtual Result<Attributes> slaveAttributesDecorator(
+      const SlaveInfo& slaveInfo)
+  {
+    LOG(INFO) << "Executing 'slaveAttributesDecorator' hook";
+
+    Attributes attributes = slaveInfo.attributes();
+    attributes.add(Attributes::parse("rack", "rack1"));
+
+    return attributes;
   }
 };
 

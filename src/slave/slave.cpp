@@ -391,6 +391,13 @@ void Slave::initialize()
   LOG(INFO) << "Slave resources: " << info.resources();
 
   info.mutable_attributes()->CopyFrom(attributes);
+  if (HookManager::hooksAvailable()) {
+    info.mutable_attributes()->CopyFrom(
+        HookManager::slaveAttributesDecorator(info));
+  }
+
+  LOG(INFO) << "Slave attributes: " << info.attributes();
+
   // Checkpointing of slaves is always enabled.
   info.set_checkpoint(true);
 

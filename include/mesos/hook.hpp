@@ -22,6 +22,7 @@
 #include <map>
 #include <string>
 
+#include <mesos/attributes.hpp>
 #include <mesos/mesos.hpp>
 #include <mesos/resources.hpp>
 
@@ -129,6 +130,16 @@ public:
   // list of resources available on the slave before they are advertised to the
   // master. These new resources overwrite the previous ones in SlaveInfo.
   virtual Result<Resources> slaveResourcesDecorator(
+      const SlaveInfo& slaveInfo)
+  {
+    return None();
+  }
+
+  // This hook is called from within the slave when it initializes. A module
+  // implementing the hook creates and returns an Attributes object with the
+  // new list of attributes for the slave before they are advertised to the
+  // master. These new attributes overwrite the previous ones in SlaveInfo.
+  virtual Result<Attributes> slaveAttributesDecorator(
       const SlaveInfo& slaveInfo)
   {
     return None();

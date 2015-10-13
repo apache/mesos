@@ -77,6 +77,9 @@ public:
 
   static Resources slaveResourcesDecorator(
       const SlaveInfo& slaveInfo);
+
+  static Attributes slaveAttributesDecorator(
+      const SlaveInfo& slaveInfo);
 };
 
 } // namespace internal {

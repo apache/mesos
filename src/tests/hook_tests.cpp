@@ -709,7 +709,7 @@ TEST_F(HookTest, ROOT_DOCKER_VerifySlavePreLaunchDockerHook)
 
 // Test that the changes made by the resources decorator hook are correctly
 // propagated to the resource offer.
-TEST_F(HookTest, VerifySlaveResourcesDecorator)
+TEST_F(HookTest, VerifySlaveResourcesAndAttributesDecorator)
 {
   Try<PID<Master>> master = StartMaster(CreateMasterFlags());
   ASSERT_SOME(master);
@@ -750,6 +750,11 @@ TEST_F(HookTest, VerifySlaveResourcesDecorator)
   // The test hook does not modify "mem", the default value must still be
   // present.
   EXPECT_SOME(resources.mem());
+
+  // The test hook adds an attribute named "rack" with value "rack1".
+  Attributes attributes = offers.get()[0].attributes();
+  ASSERT_EQ(attributes.get(0).name(), "rack");
+  ASSERT_EQ(attributes.get(0).text().value(), "rack1");
 
   driver.stop();
   driver.join();
