@@ -72,11 +72,15 @@ private:
 };
 
 
-Try<MasterContender*> MasterContender::create(const string& mechanism)
+Try<MasterContender*> MasterContender::create(const Option<string>& _mechanism)
 {
-  if (mechanism == "") {
+  if (_mechanism.isNone()) {
     return new StandaloneMasterContender();
-  } else if (strings::startsWith(mechanism, "zk://")) {
+  }
+
+  string mechanism = _mechanism.get();
+
+  if (strings::startsWith(mechanism, "zk://")) {
     Try<zookeeper::URL> url = zookeeper::URL::parse(mechanism);
     if (url.isError()) {
       return Error(url.error());
@@ -196,9 +200,8 @@ Future<Future<Nothing> > ZooKeeperMasterContender::contend()
 
 ZooKeeperMasterContenderProcess::ZooKeeperMasterContenderProcess(
     const zookeeper::URL& url)
-  : ProcessBase(ID::generate("zookeeper-master-contender")),
-    group(new Group(url, MASTER_CONTENDER_ZK_SESSION_TIMEOUT)),
-    contender(NULL) {}
+  : ZooKeeperMasterContenderProcess(Owned<Group>(
+    new Group(url, MASTER_CONTENDER_ZK_SESSION_TIMEOUT))) {}
 
 
 ZooKeeperMasterContenderProcess::ZooKeeperMasterContenderProcess(

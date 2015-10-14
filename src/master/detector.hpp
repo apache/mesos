@@ -55,7 +55,7 @@ public:
   //   - host:port
   //   - zk://host1:port1,host2:port2,.../path
   //   - zk://username:password@host1:port1,host2:port2,.../path
-  static Try<MasterDetector*> create(const std::string& mechanism);
+  static Try<MasterDetector*> create(const Option<std::string>& _mechanism);
   virtual ~MasterDetector() = 0;
 
   // Returns MasterInfo after an election has occurred and the elected
