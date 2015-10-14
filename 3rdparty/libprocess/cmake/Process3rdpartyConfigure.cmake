@@ -57,13 +57,14 @@ set(HTTP_PARSER_INCLUDE_DIR ${HTTP_PARSER_ROOT})
 set(LIBEV_INCLUDE_DIR       ${LIBEV_ROOT})
 set(LIBEVENT_INCLUDE_DIR    ${LIBEVENT_LIB_ROOT}/include)
 set(PICOJSON_INCLUDE_DIR    ${PICOJSON_ROOT})
-set(PROTOBUF_INCLUDE_DIR    ${PROTOBUF_LIB_ROOT}/include)
 
 if (WIN32)
-  set(CURL_INCLUDE_DIR ${CURL_ROOT}/include)
-  set(GLOG_INCLUDE_DIR ${GLOG_ROOT}/src/windows)
+  set(CURL_INCLUDE_DIR     ${CURL_ROOT}/include)
+  set(GLOG_INCLUDE_DIR     ${GLOG_ROOT}/src/windows)
+  set(PROTOBUF_INCLUDE_DIR ${PROTOBUF_ROOT}/src)
 else (WIN32)
-  set(GLOG_INCLUDE_DIR ${GLOG_LIB_ROOT}/include)
+  set(GLOG_INCLUDE_DIR     ${GLOG_LIB_ROOT}/include)
+  set(PROTOBUF_INCLUDE_DIR ${PROTOBUF_LIB_ROOT}/include)
 endif (WIN32)
 
 # Convenience variables for `lib` directories of built third-party dependencies.
@@ -73,8 +74,8 @@ set(LIBEVENT_LIB_DIR    ${LIBEVENT_LIB_ROOT}/lib)
 
 if (WIN32)
   set(CURL_LIB_DIR     ${CURL_ROOT}/lib)
-  set(GLOG_LIB_DIR     ${GLOG_ROOT}/Debug)
-  set(PROTOBUF_LIB_DIR ${PROTOBUF_ROOT}/vsprojects/Debug)
+  set(GLOG_LIB_DIR     ${GLOG_ROOT}/${CMAKE_BUILD_TYPE})
+  set(PROTOBUF_LIB_DIR ${PROTOBUF_ROOT}/vsprojects/${CMAKE_BUILD_TYPE})
 else (WIN32)
   set(GLOG_LIB_DIR     ${GLOG_LIB_ROOT}/lib)
   set(PROTOBUF_LIB_DIR ${PROTOBUF_LIB_ROOT}/lib)
@@ -101,7 +102,11 @@ else (WIN32)
 endif (WIN32)
 
 # Convenience variable for `protoc`, the Protobuf compiler.
-set(PROTOC ${PROTOBUF_LIB_ROOT}/bin/protoc)
+if (NOT WIN32)
+  set(PROTOC ${PROTOBUF_LIB_ROOT}/bin/protoc)
+else (NOT WIN32)
+  set(PROTOC ${PROTOBUF_ROOT}/vsprojects/${CMAKE_BUILD_TYPE}/protoc.exe)
+endif (NOT WIN32)
 
 # Configure the process library, the last of our third-party libraries.
 #######################################################################
