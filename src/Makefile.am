@@ -235,8 +235,24 @@ PYTHON_PROTOS =								\
   python/interface/src/mesos/interface/mesos_pb2.py			\
   python/interface/src/mesos/interface/containerizer_pb2.py
 
-BUILT_SOURCES += $(CXX_PROTOS) $(JAVA_PROTOS) $(V1_JAVA_PROTOS) $(PYTHON_PROTOS)
-CLEANFILES += $(CXX_PROTOS) $(JAVA_PROTOS) $(V1_JAVA_PROTOS) $(PYTHON_PROTOS)
+V1_PYTHON_PROTOS =							\
+  python/interface/src/mesos/v1/interface/mesos_pb2.py			\
+  python/interface/src/mesos/v1/interface/scheduler_pb2.py
+
+
+BUILT_SOURCES += 							\
+  $(CXX_PROTOS) 							\
+  $(JAVA_PROTOS) 							\
+  $(V1_JAVA_PROTOS) 							\
+  $(PYTHON_PROTOS) 							\
+  $(V1_PYTHON_PROTOS)
+
+CLEANFILES += 								\
+  $(CXX_PROTOS) 							\
+  $(JAVA_PROTOS) 							\
+  $(V1_JAVA_PROTOS) 							\
+  $(PYTHON_PROTOS) 							\
+  $(V1_PYTHON_PROTOS)
 
 FLAGS_PROTOS = messages/flags.pb.cc messages/flags.pb.h
 
@@ -1411,6 +1427,8 @@ PYTHON_SOURCE =								\
 	python/cli/src/mesos/http.py					\
 	python/interface/src/mesos/__init__.py				\
 	python/interface/src/mesos/interface/__init__.py		\
+	python/interface/src/mesos/v1/__init__.py			\
+	python/interface/src/mesos/v1/interface/__init__.py		\
 	python/native/src/mesos/__init__.py				\
 	python/native/src/mesos/native/__init__.py			\
 	python/native/src/mesos/native/mesos_executor_driver_impl.cpp	\
@@ -1484,6 +1502,7 @@ MESOS_WHLS =										\
 # and converts it into the correct directory path.
 $(MESOS_EGGS) $(MESOS_WHLS):								\
 		$(PYTHON_PROTOS)							\
+		$(V1_PYTHON_PROTOS)							\
 		$(PYTHON_SOURCE)							\
 		libmesos_no_3rdparty.la							\
 		$(PROTOBUF_EGG)
