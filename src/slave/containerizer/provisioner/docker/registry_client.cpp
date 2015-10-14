@@ -58,8 +58,8 @@ class RegistryClientProcess : public Process<RegistryClientProcess>
 {
 public:
   static Try<Owned<RegistryClientProcess>> create(
-      const URL& authServer,
       const URL& registry,
+      const URL& authServer,
       const Option<RegistryClient::Credentials>& creds);
 
   Future<RegistryClient::ManifestResponse> getManifest(
@@ -76,8 +76,8 @@ public:
 
 private:
   RegistryClientProcess(
-    const Owned<TokenManager>& tokenMgr,
     const URL& registryServer,
+    const Owned<TokenManager>& tokenManager,
     const Option<RegistryClient::Credentials>& creds);
 
   Future<Response> doHttpGet(
@@ -90,8 +90,8 @@ private:
   Try<process::http::Headers> getAuthenticationAttributes(
       const Response& httpResponse) const;
 
-  Owned<TokenManager> tokenManager_;
   const URL registryServer_;
+  Owned<TokenManager> tokenManager_;
   const Option<RegistryClient::Credentials> credentials_;
 
   RegistryClientProcess(const RegistryClientProcess&) = delete;
@@ -100,8 +100,8 @@ private:
 
 
 Try<Owned<RegistryClient>> RegistryClient::create(
-    const URL& authServer,
     const URL& registryServer,
+    const URL& authServer,
     const Option<Credentials>& creds)
 {
   Try<Owned<RegistryClientProcess>> process =
@@ -117,12 +117,12 @@ Try<Owned<RegistryClient>> RegistryClient::create(
 
 
 RegistryClient::RegistryClient(
-    const URL& authServer,
     const URL& registryServer,
+    const URL& authServer,
     const Option<Credentials>& creds,
     const Owned<RegistryClientProcess>& process)
-  : authServer_(authServer),
-    registryServer_(registryServer),
+  : registryServer_(registryServer),
+    authServer_(authServer),
     credentials_(creds),
     process_(process)
 {
@@ -175,8 +175,8 @@ Future<size_t> RegistryClient::getBlob(
 
 
 Try<Owned<RegistryClientProcess>> RegistryClientProcess::create(
-    const URL& authServer,
     const URL& registryServer,
+    const URL& authServer,
     const Option<RegistryClient::Credentials>& creds)
 {
   Try<Owned<TokenManager>> tokenMgr = TokenManager::create(authServer);
@@ -185,16 +185,16 @@ Try<Owned<RegistryClientProcess>> RegistryClientProcess::create(
   }
 
   return Owned<RegistryClientProcess>(
-      new RegistryClientProcess(tokenMgr.get(), registryServer, creds));
+      new RegistryClientProcess(registryServer, tokenMgr.get(), creds));
 }
 
 
 RegistryClientProcess::RegistryClientProcess(
-    const Owned<TokenManager>& tokenMgr,
     const URL& registryServer,
+    const Owned<TokenManager>& tokenMgr,
     const Option<RegistryClient::Credentials>& creds)
-  : tokenManager_(tokenMgr),
-    registryServer_(registryServer),
+  : registryServer_(registryServer),
+    tokenManager_(tokenMgr),
     credentials_(creds) {}
 
 

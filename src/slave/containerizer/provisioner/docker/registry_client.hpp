@@ -87,15 +87,15 @@ public:
   /**
    * Factory method for creating RegistryClient objects.
    *
-   * @param authServer URL of authorization server.
    * @param registryServer URL of docker registry server.
+   * @param authServer URL of authorization server.
    * @param credentials credentials for client session (optional).
    * @return RegistryClient on Success.
    *         Error on failure.
    */
   static Try<process::Owned<RegistryClient>> create(
-      const process::http::URL& authServer,
       const process::http::URL& registryServer,
+      const process::http::URL& authServer,
       const Option<Credentials>& credentials);
 
   /**
@@ -138,16 +138,16 @@ public:
 
 private:
   RegistryClient(
-    const process::http::URL& authServer,
     const process::http::URL& registryServer,
+    const process::http::URL& authServer,
     const Option<Credentials>& credentials,
     const process::Owned<RegistryClientProcess>& process);
 
   static const Duration DEFAULT_MANIFEST_TIMEOUT_SECS;
   static const size_t DEFAULT_MANIFEST_MAXSIZE_BYTES;
 
-  const process::http::URL authServer_;
   const process::http::URL registryServer_;
+  const process::http::URL authServer_;
   const Option<Credentials> credentials_;
   process::Owned<RegistryClientProcess> process_;
 
