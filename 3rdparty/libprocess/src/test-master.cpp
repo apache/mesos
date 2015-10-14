@@ -19,11 +19,9 @@
 
 #include "test.hpp"
 
+namespace tuple = process::tuple;
+
 using std::string;
-
-
-using namespace process::tuple;
-
 
 class Master : public Tuple<Process>
 {

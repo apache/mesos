@@ -24,7 +24,9 @@
 #include <stout/duration.hpp>
 #include <stout/nothing.hpp>
 
-using namespace process;
+using process::Clock;
+using process::Future;
+using process::RateLimiter;
 
 TEST(LimiterTest, Acquire)
 {

@@ -37,7 +37,12 @@
 
 #include <stout/tests/utils.hpp>
 
-using namespace process;
+namespace io = process::io;
+
+using process::Clock;
+using process::subprocess;
+using process::Subprocess;
+using process::MAX_REAP_INTERVAL;
 
 using std::map;
 using std::string;

@@ -27,7 +27,9 @@
 
 #include <stout/gtest.hpp>
 
-using namespace process;
+namespace http = process::http;
+
+using process::Future;
 
 using process::metrics::internal::MetricsProcess;
 

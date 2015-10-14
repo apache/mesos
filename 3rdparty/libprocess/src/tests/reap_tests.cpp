@@ -31,7 +31,9 @@
 #include <stout/os/pstree.hpp>
 #include <stout/try.hpp>
 
-using namespace process;
+using process::Clock;
+using process::Future;
+using process::MAX_REAP_INTERVAL;
 
 using os::Exec;
 using os::Fork;

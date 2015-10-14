@@ -40,9 +40,12 @@
 
 #include "encoder.hpp"
 
-using namespace process;
+namespace http = process::http;
 
+using process::Future;
 using process::Owned;
+using process::Process;
+using process::Promise;
 
 using process::http::URL;
 
@@ -57,7 +60,6 @@ using testing::DoAll;
 using testing::EndsWith;
 using testing::Invoke;
 using testing::Return;
-
 
 class HttpProcess : public Process<HttpProcess>
 {

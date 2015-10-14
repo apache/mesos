@@ -33,15 +33,24 @@
 #include <process/metrics/metrics.hpp>
 #include <process/metrics/timer.hpp>
 
-using namespace process;
+namespace http = process::http;
+namespace metrics = process::metrics;
 
-using process::http::BadRequest;
-using process::http::OK;
-using process::http::Response;
+using http::BadRequest;
+using http::OK;
+using http::Response;
 
-using process::metrics::Counter;
-using process::metrics::Gauge;
-using process::metrics::Timer;
+using metrics::Counter;
+using metrics::Gauge;
+using metrics::Timer;
+
+using process::Clock;
+using process::Failure;
+using process::Future;
+using process::PID;
+using process::Process;
+using process::Statistics;
+using process::UPID;
 
 using std::map;
 using std::string;

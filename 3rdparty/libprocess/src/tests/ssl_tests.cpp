@@ -35,8 +35,17 @@ using std::vector;
 // We only run these tests if we have configured with '--enable-ssl'.
 #ifdef USE_SSL_SOCKET
 
-using namespace process;
-using namespace process::network;
+namespace http = process::http;
+namespace io = process::io;
+namespace network = process::network;
+namespace openssl = network::openssl;
+
+using network::Address;
+using network::Socket;
+
+using process::Failure;
+using process::Future;
+using process::Subprocess;
 
 
 // Wait for a subprocess and test the status code for the following

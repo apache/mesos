@@ -20,8 +20,10 @@
 #include <stout/duration.hpp>
 #include <stout/gtest.hpp>
 
-using namespace process;
-
+using process::Clock;
+using process::Statistics;
+using process::Time;
+using process::TimeSeries;
 
 TEST(StatisticsTest, Empty)
 {

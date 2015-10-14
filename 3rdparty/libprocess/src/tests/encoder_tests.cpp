@@ -26,8 +26,10 @@
 #include "encoder.hpp"
 #include "decoder.hpp"
 
-using namespace process;
-using namespace process::http;
+namespace http = process::http;
+
+using process::HttpResponseEncoder;
+using process::ResponseDecoder;
 
 using std::deque;
 using std::string;
@@ -36,19 +38,21 @@ using std::vector;
 
 TEST(EncoderTest, Response)
 {
-  Request request;
-  const OK response("body");
+  http::Request request;
+  const http::OK response("body");
 
   // Encode the response.
   const string encoded = HttpResponseEncoder::encode(response, request);
 
   // Now decode it back, and verify the encoding was correct.
   ResponseDecoder decoder;
-  deque<Response*> responses = decoder.decode(encoded.data(), encoded.length());
+  deque<http::Response*> responses =
+    decoder.decode(encoded.data(), encoded.length());
+
   ASSERT_FALSE(decoder.failed());
   ASSERT_EQ(1, responses.size());
 
-  Response* decoded = responses[0];
+  http::Response* decoded = responses[0];
   EXPECT_EQ("200 OK", decoded->status);
   EXPECT_EQ("body", decoded->body);
 
@@ -64,7 +68,7 @@ TEST(EncoderTest, Response)
 TEST(EncoderTest, AcceptableEncodings)
 {
   // Create requests that do not accept gzip encoding.
-  vector<Request> requests(10);
+  vector<http::Request> requests(10);
   requests[0].headers["Accept-Encoding"] = "gzip;q=0.0,*";
   requests[1].headers["Accept-Encoding"] = "compress";
   requests[2].headers["Accept-Encoding"] = "compress, gzip;q=0.0";
@@ -76,14 +80,14 @@ TEST(EncoderTest, AcceptableEncodings)
   requests[8].headers["Accept-Encoding"] = "";
   requests[9].headers["Accept-Encoding"] = ",";
 
-  foreach (const Request& request, requests) {
+  foreach (const http::Request& request, requests) {
     EXPECT_FALSE(request.acceptsEncoding("gzip"))
       << "Gzip encoding is unacceptable for 'Accept-Encoding: "
       << request.headers.get("Accept-Encoding").get() << "'";
   }
 
   // Create requests that accept gzip encoding.
-  vector<Request> gzipRequests(12);
+  vector<http::Request> gzipRequests(12);
 
   // Using q values.
   gzipRequests[0].headers["Accept-Encoding"] = "gzip;q=0.1,*";
@@ -101,7 +105,7 @@ TEST(EncoderTest, AcceptableEncodings)
   gzipRequests[10].headers["Accept-Encoding"] = "compress,\tgzip";
   gzipRequests[11].headers["Accept-Encoding"] = "gzip";
 
-  foreach (const Request& gzipRequest, gzipRequests) {
+  foreach (const http::Request& gzipRequest, gzipRequests) {
     EXPECT_TRUE(gzipRequest.acceptsEncoding("gzip"))
       << "Gzip encoding is acceptable for 'Accept-Encoding: "
       << gzipRequest.headers.get("Accept-Encoding").get() << "'";

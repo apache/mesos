@@ -19,7 +19,8 @@
 #include <process/future.hpp>
 #include <process/queue.hpp>
 
-using namespace process;
+using process::Future;
+using process::Queue;
 
 using std::string;
 

@@ -105,8 +105,8 @@
 #endif
 #include "process_reference.hpp"
 
-using namespace process::firewall;
-using namespace process::metrics::internal;
+namespace firewall = process::firewall;
+namespace metrics = process::metrics;
 
 using process::wait; // Necessary on some OS's to disambiguate.
 
@@ -404,7 +404,7 @@ public:
   void terminate(const UPID& pid, bool inject, ProcessBase* sender = NULL);
   bool wait(const UPID& pid);
 
-  void installFirewall(vector<Owned<FirewallRule>>&& rules);
+  void installFirewall(vector<Owned<firewall::FirewallRule>>&& rules);
   string absolutePath(const string& path);
 
   void enqueue(ProcessBase* process);
@@ -440,7 +440,7 @@ private:
   std::atomic_bool joining_threads;
 
   // List of rules applied to all incoming HTTP requests.
-  vector<Owned<FirewallRule>> firewallRules;
+  vector<Owned<firewall::FirewallRule>> firewallRules;
   std::recursive_mutex firewall_mutex;
 };
 
@@ -948,7 +948,9 @@ void initialize(const string& delegate)
   // Ensure metrics process is running.
   // TODO(bmahler): Consider initializing this consistently with
   // the other global Processes.
-  MetricsProcess* metricsProcess = MetricsProcess::instance();
+  metrics::internal::MetricsProcess* metricsProcess =
+    metrics::internal::MetricsProcess::instance();
+
   CHECK_NOTNULL(metricsProcess);
 
   // Initialize the mime types.
@@ -2309,7 +2311,7 @@ bool ProcessManager::handle(
   synchronized (firewall_mutex) {
     // Don't use a const reference, since it cannot be guaranteed
     // that the rules don't keep an internal state.
-    foreach (Owned<FirewallRule>& rule, firewallRules) {
+    foreach (Owned<firewall::FirewallRule>& rule, firewallRules) {
       Option<Response> rejection = rule->apply(socket, *request);
       if (rejection.isSome()) {
         VLOG(1) << "Returning '"<< rejection.get().status << "' for '"
@@ -2756,7 +2758,8 @@ bool ProcessManager::wait(const UPID& pid)
 }
 
 
-void ProcessManager::installFirewall(vector<Owned<FirewallRule>>&& rules)
+void ProcessManager::installFirewall(
+    vector<Owned<firewall::FirewallRule>>&& rules)
 {
   synchronized (firewall_mutex) {
     firewallRules = std::move(rules);

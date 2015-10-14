@@ -57,7 +57,30 @@
 
 #include "encoder.hpp"
 
-using namespace process;
+namespace http = process::http;
+namespace inject = process::inject;
+
+using process::async;
+using process::Clock;
+using process::defer;
+using process::Deferred;
+using process::Event;
+using process::Executor;
+using process::ExitedEvent;
+using process::Failure;
+using process::Future;
+using process::Message;
+using process::MessageEncoder;
+using process::MessageEvent;
+using process::Owned;
+using process::PID;
+using process::Process;
+using process::ProcessBase;
+using process::Promise;
+using process::run;
+using process::TerminateEvent;
+using process::Time;
+using process::UPID;
 
 using process::firewall::DisabledEndpointsFirewallRule;
 using process::firewall::FirewallRule;

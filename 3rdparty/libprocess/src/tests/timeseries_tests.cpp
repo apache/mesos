@@ -21,8 +21,9 @@
 #include <stout/gtest.hpp>
 #include <stout/list.hpp>
 
-using namespace process;
-
+using process::Clock;
+using process::Time;
+using process::TimeSeries;
 
 List<int> toList(const TimeSeries<int>& series)
 {

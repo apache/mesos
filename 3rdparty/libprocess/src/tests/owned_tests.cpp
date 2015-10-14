@@ -18,7 +18,8 @@
 #include <process/owned.hpp>
 #include <process/shared.hpp>
 
-using namespace process;
+using process::Owned;
+using process::Shared;
 
 class Foo
 {

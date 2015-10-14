@@ -37,7 +37,14 @@
 #include <stout/hashset.hpp>
 #include <stout/stopwatch.hpp>
 
-using namespace process;
+namespace http = process::http;
+
+using process::Future;
+using process::Owned;
+using process::Process;
+using process::ProcessBase;
+using process::Promise;
+using process::UPID;
 
 using std::cout;
 using std::endl;

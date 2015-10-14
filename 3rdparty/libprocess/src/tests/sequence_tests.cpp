@@ -26,7 +26,11 @@
 
 #include <stout/nothing.hpp>
 
-using namespace process;
+using process::Clock;
+using process::Future;
+using process::Process;
+using process::Promise;
+using process::Sequence;
 
 using testing::_;
 using testing::Return;

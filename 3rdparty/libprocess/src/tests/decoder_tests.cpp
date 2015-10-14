@@ -23,13 +23,17 @@
 
 #include "decoder.hpp"
 
-using namespace process;
-using namespace process::http;
+namespace http = process::http;
+
+using process::DataDecoder;
+using process::Future;
+using process::ResponseDecoder;
+using process::StreamingResponseDecoder;
+
+using process::network::Socket;
 
 using std::deque;
 using std::string;
-
-using process::network::Socket;
 
 TEST(DecoderTest, Request)
 {
@@ -44,11 +48,11 @@ TEST(DecoderTest, Request)
     "Accept-Encoding: compress, gzip\r\n"
     "\r\n";
 
-  deque<Request*> requests = decoder.decode(data.data(), data.length());
+  deque<http::Request*> requests = decoder.decode(data.data(), data.length());
   ASSERT_FALSE(decoder.failed());
   ASSERT_EQ(1, requests.size());
 
-  Request* request = requests[0];
+  http::Request* request = requests[0];
   EXPECT_EQ("GET", request->method);
 
   EXPECT_EQ("/path/file.json", request->url.path);
@@ -83,11 +87,11 @@ TEST(DecoderTest, RequestHeaderContinuation)
     "                 gzip\r\n"
     "\r\n";
 
-  deque<Request*> requests = decoder.decode(data.data(), data.length());
+  deque<http::Request*> requests = decoder.decode(data.data(), data.length());
   ASSERT_FALSE(decoder.failed());
   ASSERT_EQ(1, requests.size());
 
-  Request* request = requests[0];
+  http::Request* request = requests[0];
   EXPECT_SOME_EQ("compress,                 gzip",
                  request->headers.get("Accept-Encoding"));
   delete request;
@@ -107,11 +111,11 @@ TEST(DecoderTest, RequestHeaderCaseInsensitive)
     "accept-ENCODING: compress, gzip\r\n"
     "\r\n";
 
-  deque<Request*> requests = decoder.decode(data.data(), data.length());
+  deque<http::Request*> requests = decoder.decode(data.data(), data.length());
   ASSERT_FALSE(decoder.failed());
   ASSERT_EQ(1, requests.size());
 
-  Request* request = requests[0];
+  http::Request* request = requests[0];
   EXPECT_FALSE(request->keepAlive);
 
   EXPECT_SOME_EQ("compress, gzip", request->headers.get("Accept-Encoding"));
@@ -132,14 +136,14 @@ TEST(DecoderTest, Response)
     "\r\n"
     "hi";
 
-  deque<Response*> responses = decoder.decode(data.data(), data.length());
+  deque<http::Response*> responses = decoder.decode(data.data(), data.length());
   ASSERT_FALSE(decoder.failed());
   ASSERT_EQ(1, responses.size());
 
-  Response* response = responses[0];
+  http::Response* response = responses[0];
 
   EXPECT_EQ("200 OK", response->status);
-  EXPECT_EQ(Response::BODY, response->type);
+  EXPECT_EQ(http::Response::BODY, response->type);
   EXPECT_EQ("hi", response->body);
 
   EXPECT_EQ(3, response->headers.size());
@@ -161,17 +165,19 @@ TEST(DecoderTest, StreamingResponse)
 
   const string body = "hi";
 
-  deque<Response*> responses = decoder.decode(headers.data(), headers.length());
+  deque<http::Response*> responses =
+    decoder.decode(headers.data(), headers.length());
+
   EXPECT_FALSE(decoder.failed());
   EXPECT_TRUE(decoder.writingBody());
   ASSERT_EQ(1, responses.size());
 
-  Response* response = responses[0];
+  http::Response* response = responses[0];
 
   EXPECT_EQ("200 OK", response->status);
   EXPECT_EQ(3, response->headers.size());
 
-  ASSERT_EQ(Response::PIPE, response->type);
+  ASSERT_EQ(http::Response::PIPE, response->type);
   ASSERT_SOME(response->reader);
 
   http::Pipe::Reader reader = response->reader.get();
@@ -211,17 +217,19 @@ TEST(DecoderTest, StreamingResponseFailure)
   // The body is shorter than the content length!
   const string body = "1";
 
-  deque<Response*> responses = decoder.decode(headers.data(), headers.length());
+  deque<http::Response*> responses =
+    decoder.decode(headers.data(), headers.length());
+
   EXPECT_FALSE(decoder.failed());
   EXPECT_TRUE(decoder.writingBody());
 
   ASSERT_EQ(1, responses.size());
-  Response* response = responses[0];
+  http::Response* response = responses[0];
 
   EXPECT_EQ("200 OK", response->status);
   EXPECT_EQ(3, response->headers.size());
 
-  ASSERT_EQ(Response::PIPE, response->type);
+  ASSERT_EQ(http::Response::PIPE, response->type);
   ASSERT_SOME(response->reader);
 
   http::Pipe::Reader reader = response->reader.get();

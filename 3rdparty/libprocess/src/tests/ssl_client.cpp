@@ -29,8 +29,13 @@
 
 #include "openssl.hpp"
 
-using namespace process;
-using namespace process::network;
+namespace network = process::network;
+namespace openssl = network::openssl;
+
+using network::Address;
+using network::Socket;
+
+using process::Future;
 
 using std::cout;
 using std::endl;

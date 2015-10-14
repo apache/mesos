@@ -25,10 +25,11 @@
 
 #include "encoder.hpp"
 
-using namespace process;
+namespace io = process::io;
+
+using process::Future;
 
 using std::string;
-
 
 TEST(IOTest, Poll)
 {

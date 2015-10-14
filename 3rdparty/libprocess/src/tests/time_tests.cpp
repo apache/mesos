@@ -23,8 +23,10 @@
 #include <stout/gtest.hpp>
 #include <stout/os.hpp>
 
-using namespace process;
-
+using process::Clock;
+using process::RFC1123;
+using process::RFC3339;
+using process::Time;
 
 TEST(TimeTest, Arithmetic)
 {

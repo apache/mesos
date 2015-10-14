@@ -17,7 +17,8 @@
 #include <process/future.hpp>
 #include <process/mutex.hpp>
 
-using namespace process;
+using process::Future;
+using process::Mutex;
 
 TEST(MutexTest, Lock)
 {

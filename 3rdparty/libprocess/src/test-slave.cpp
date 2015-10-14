@@ -14,7 +14,7 @@
 
 #include <test.hpp>
 
-using namespace process::record;
+namespace record = process::record;
 
 class Slave : public RecordProcess
 {
