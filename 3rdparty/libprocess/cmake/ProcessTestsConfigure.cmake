@@ -31,6 +31,10 @@
 #     dependencies (e.g., where to find the .so/.dll files) without having to also
 #     export the variables for the dependencies that only the test package has.
 
+set(
+  PROCESS_TESTS_TARGET process_tests
+  CACHE STRING "Target we use to refer to tests for the process library")
+
 # DIRECTORY STRUCTURE FOR THIRD-PARTY LIBS REQUIRED FOR TEST INFRASTRUCTURE.
 ############################################################################
 EXTERNAL("gmock" ${GMOCK_VERSION} "${PROCESS_3RD_BIN}")
