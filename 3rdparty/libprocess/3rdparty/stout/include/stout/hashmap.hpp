@@ -139,32 +139,6 @@ public:
     }
     return result;
   }
-
-  // Checks whether there exists a value in this map that returns the
-  // a result equal to 'r' when the specified method is invoked.
-  template <typename R, typename T>
-  bool existsValue(R (T::*method)(), R r) const
-  {
-    foreachvalue (const Value& value, *this) {
-      const T* t = boost::get_pointer(value);
-      if (t->*method() == r) {
-        return true;
-      }
-    }
-  }
-
-  // Checks whether there exists a value in this map whose specified
-  // member is equal to 'r'.
-  template <typename R, typename T>
-  bool existsValue(R (T::*member), R r) const
-  {
-    foreachvalue (const Value& value, *this) {
-      const T* t = boost::get_pointer(value);
-      if (t->*member == r) {
-        return true;
-      }
-    }
-  }
 };
 
 #endif // __STOUT_HASHMAP_HPP__
