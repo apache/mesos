@@ -411,35 +411,35 @@ python/interface/src/mesos/interface/containerizer_pb2.py:		\
 	$(PROTOC) -I$(top_srcdir)/include/mesos/containerizer		\
 		$(PROTOCFLAGS)						\
 		--python_out=python/interface/src/mesos/interface $^
-	sed -e 's/mesos\.mesos_pb2/mesos_pb2/' <$@ >$@
+	sed -i 's/mesos\.mesos_pb2/mesos_pb2/' $@
 
 python/interface/src/mesos/interface/scheduler_pb2.py: $(SCHEDULER_PROTO)
 	$(MKDIR_P) $(@D)
 	$(PROTOC) -I$(top_srcdir)/include/mesos/scheduler		\
           $(PROTOCFLAGS)						\
           --python_out=python/interface/src/mesos/interface $^
-	sed -e 's/mesos\.mesos_pb2/mesos_pb2/' <$@ >$@
+	sed -i 's/mesos\.mesos_pb2/mesos_pb2/' $@
 
 python/interface/src/mesos/v1/interface/scheduler_pb2.py: $(V1_SCHEDULER_PROTO)
 	$(MKDIR_P) $(@D)
 	$(PROTOC) -I$(top_srcdir)/include/mesos/v1/scheduler		\
           $(PROTOCFLAGS)						\
           --python_out=python/interface/src/mesos/v1/interface $^
-	sed -e 's/mesos\.mesos_pb2/mesos_pb2/' <$@ >$@
+	sed -i 's/mesos\.mesos_pb2/mesos_pb2/' $@
 
 python/interface/src/mesos/interface/executor_pb2.py: $(EXECUTOR_PROTO)
 	$(MKDIR_P) $(@D)
 	$(PROTOC) -I$(top_srcdir)/include/mesos/executor		\
           $(PROTOCFLAGS)						\
           --python_out=python/interface/src/mesos/interface $^
-	sed -e 's/mesos\.mesos_pb2/mesos_pb2/' <$@ >$@
+	sed -i 's/mesos\.mesos_pb2/mesos_pb2/' $@
 
 python/interface/src/mesos/v1/interface/executor_pb2.py: $(V1_EXECUTOR_PROTO)
 	$(MKDIR_P) $(@D)
 	$(PROTOC) -I$(top_srcdir)/include/mesos/v1/executor		\
           $(PROTOCFLAGS)						\
           --python_out=python/interface/src/mesos/v1/interface $^
-	sed -e 's/mesos\.mesos_pb2/mesos_pb2/' <$@ >$@
+	sed -i 's/mesos\.mesos_pb2/mesos_pb2/' $@
 
 # We even use a convenience library for most of Mesos so that we can
 # exclude third party libraries so setuptools/distribute can build a
