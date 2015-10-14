@@ -288,6 +288,7 @@ Future<Response> RegistryClientProcess::doHttpGet(
         foreach (const JSON::Value& error, errorObjects.get().values) {
           Result<JSON::String> message =
             error.as<JSON::Object>().find<JSON::String>("message");
+
           if (message.isError()) {
             return Failure("Failed to parse bad request error message: " +
                            message.error());
@@ -302,6 +303,7 @@ Future<Response> RegistryClientProcess::doHttpGet(
             out << ", " << message.get().value;
           }
         }
+
         return Failure("Received Bad request, errors: [" + out.str() + "]");
       }
 
@@ -471,18 +473,82 @@ Future<ManifestResponse> RegistryClientProcess::getManifest(
       return Error("Failed to find \"fsLayers\" in manifest response");
     }
 
+    Result<JSON::Array> historyArray =
+      responseJSON.get().find<JSON::Array>("history");
+
+    if (historyArray.isNone()) {
+      return Error("Failed to find \"history\" in manifest response");
+    }
+
+    if (historyArray.get().values.size() != fsLayers.get().values.size()) {
+      return Error(
+          "\"history\" and \"fsLayers\" array count mismatch"
+          "in manifest response");
+    }
+
     vector<FileSystemLayerInfo> fsLayerInfoList;
+    size_t index = 0;
+
     foreach (const JSON::Value& layer, fsLayers.get().values) {
+      if (!layer.is<JSON::Object>()) {
+        return Error(
+            "Failed to parse layer as a JSON object for index: " +
+            stringify(index));
+      }
+
       const JSON::Object& layerInfoJSON = layer.as<JSON::Object>();
-      Result<JSON::String> blobSumInfo =
+
+      // Get blobsum for layer.
+      const Result<JSON::String> blobSumInfo =
         layerInfoJSON.find<JSON::String>("blobSum");
 
       if (blobSumInfo.isNone()) {
         return Error("Failed to find \"blobSum\" in manifest response");
       }
 
+      // Get history for layer.
+      if (!historyArray.get().values[index].is<JSON::Object>()) {
+        return Error(
+            "Failed to parse history as a JSON object for index: " +
+            stringify(index));
+      }
+      const JSON::Object& historyObj =
+        historyArray.get().values[index].as<JSON::Object>();
+
+      // Get layer id.
+      const Result<JSON::String> v1CompatibilityJSON =
+        historyObj.find<JSON::String>("v1Compatibility");
+
+      if (!v1CompatibilityJSON.isSome()) {
+        return Error(
+            "Failed to obtain layer v1 compability json in manifest for layer: "
+            + stringify(index));
+      }
+
+      Try<JSON::Object> v1CompatibilityObj =
+        JSON::parse<JSON::Object>(v1CompatibilityJSON.get().value);
+
+      if (!v1CompatibilityObj.isSome()) {
+        return Error(
+            "Failed to parse v1 compability json in manifest for layer: "
+            + stringify(index));
+      }
+
+      const Result<JSON::String> id =
+        v1CompatibilityObj.get().find<JSON::String>("id");
+
+      if (!id.isSome()) {
+        return Error(
+            "Failed to find \"id\" in manifest for layer: " + stringify(index));
+      }
+
       fsLayerInfoList.emplace_back(
-          FileSystemLayerInfo{blobSumInfo.get().value});
+          FileSystemLayerInfo{
+            blobSumInfo.get().value,
+            id.get().value,
+          });
+
+      index++;
     }
 
     return ManifestResponse {

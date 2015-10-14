@@ -50,7 +50,8 @@ public:
   struct FileSystemLayerInfo {
     // TODO(jojy): This string includes the checksum type also now. Need to
     // separate this into checksum method and checksum.
-    std::string checksumInfo;
+    const std::string checksumInfo;
+    const std::string layerId;
   };
 
   /**
