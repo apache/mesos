@@ -646,8 +646,8 @@ TEST_F(FaultToleranceTest, SchedulerFailoverRetriedReregistration)
 
   AWAIT_READY(reregistrationMessage);
 
-  // Trigger the re-registration retry.
-  Clock::advance(internal::scheduler::REGISTRATION_BACKOFF_FACTOR);
+  // Trigger the re-registration retry instantly to avoid blocking the test.
+  Clock::advance(internal::scheduler::DEFAULT_REGISTRATION_BACKOFF_FACTOR);
 
   AWAIT_READY(sched2Registered);
 
@@ -700,8 +700,9 @@ TEST_F(FaultToleranceTest, FrameworkReliableRegistration)
 
   AWAIT_READY(frameworkRegisteredMessage);
 
+  // Trigger the re-registration retry instantly to avoid blocking the test.
   Clock::pause();
-  Clock::advance(internal::scheduler::REGISTRATION_BACKOFF_FACTOR);
+  Clock::advance(internal::scheduler::DEFAULT_REGISTRATION_BACKOFF_FACTOR);
 
   AWAIT_READY(registered); // Ensures registered message is received.
 
@@ -1561,8 +1562,9 @@ TEST_F(FaultToleranceTest, SlaveReliableRegistration)
 
   AWAIT_READY(slaveRegisteredMessage);
 
+  // Trigger the registration retry instantly to avoid blocking the test.
   Clock::pause();
-  Clock::advance(Seconds(1)); // TODO(benh): Pull out constant from Slave.
+  Clock::advance(internal::slave::DEFAULT_REGISTRATION_BACKOFF_FACTOR);
 
   AWAIT_READY(resourceOffers);
 

@@ -46,7 +46,7 @@ public:
         "3rd retry between [0, b * 2^2]...) up to a maximum of (framework\n"
         "failover timeout/10, if failover timeout is specified) or " +
         stringify(REGISTRATION_RETRY_INTERVAL_MAX) + ", whichever is smaller",
-        REGISTRATION_BACKOFF_FACTOR);
+        DEFAULT_REGISTRATION_BACKOFF_FACTOR);
 
     // This help message for --modules flag is the same for
     // {master,slave,tests,sched}/flags.hpp and should always be kept

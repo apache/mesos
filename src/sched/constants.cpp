@@ -27,7 +27,7 @@ namespace scheduler {
 // do an initial backoff for the very first attempt unlike the slave.
 // TODO(vinod): Once we fix the scheduler driver to do initial backoff
 // we can change the default to 1s.
-const Duration REGISTRATION_BACKOFF_FACTOR = Seconds(2);
+const Duration DEFAULT_REGISTRATION_BACKOFF_FACTOR = Seconds(2);
 
 const Duration REGISTRATION_RETRY_INTERVAL_MAX = Minutes(1);
 

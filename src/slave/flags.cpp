@@ -178,7 +178,7 @@ mesos::internal::slave::Flags::Flags()
       "2nd retry between [0, b * 2^2], 3rd retry between [0, b * 2^3] etc)\n"
       "up to a maximum of " +
         stringify(REGISTER_RETRY_INTERVAL_MAX),
-      REGISTRATION_BACKOFF_FACTOR);
+      DEFAULT_REGISTRATION_BACKOFF_FACTOR);
 
   add(&Flags::executor_environment_variables,
       "executor_environment_variables",

@@ -27,7 +27,7 @@ namespace scheduler {
 
 // Default backoff interval used by the scheduler driver to wait
 // before registration.
-extern const Duration REGISTRATION_BACKOFF_FACTOR;
+extern const Duration DEFAULT_REGISTRATION_BACKOFF_FACTOR;
 
 // The maximum interval the scheduler driver waits before retrying
 // registration.

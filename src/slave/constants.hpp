@@ -48,7 +48,7 @@ extern const Duration GC_DELAY;
 extern const Duration DISK_WATCH_INTERVAL;
 
 // Default backoff interval used by the slave to wait before registration.
-extern const Duration REGISTRATION_BACKOFF_FACTOR;
+extern const Duration DEFAULT_REGISTRATION_BACKOFF_FACTOR;
 
 // The maximum interval the slave waits before retrying registration.
 // Note that this value has to be << 'MIN_SLAVE_REREGISTER_TIMEOUT'
