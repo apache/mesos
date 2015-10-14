@@ -162,6 +162,8 @@ JSON::Object summarize(const Framework& framework)
   object.values["hostname"] = framework.info.hostname();
   object.values["webui_url"] = framework.info.webui_url();
 
+  object.values["active"] = framework.active;
+
   return object;
 }
 
