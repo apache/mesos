@@ -33,18 +33,10 @@ endif (NOT WIN32)
 
 # COMPILER CONFIGURATION.
 #########################
-if (WIN32)
-  # Used to #ifdef out (e.g.) some platform-specific parts of Stout. We choose
-  # to define a new flag rather than using an existing flag (e.g., `_WIN32`)
-  # because we want to give the build system fine-grained control over how what
-  # code is #ifdef'd out in the future, and using only flags defined by our
-  # build system to control this logic is the clearest and stablest way of
-  # doing this.
-  add_definitions(-D__WINDOWS__)
-elseif (APPLE)
+if (APPLE)
   # GTEST on OSX needs its own tr1 tuple.
   add_definitions(-DGTEST_USE_OWN_TR1_TUPLE=1 -DGTEST_LANG_CXX11)
-endif (WIN32)
+endif (APPLE)
 
 # DEFINE PROCESS LIBRARY DEPENDENCIES. Tells the process library build targets
 # download/configure/build all third-party libraries before attempting to build.
