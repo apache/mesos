@@ -65,10 +65,16 @@ else (WIN32)
     "flag. Please use a different C++ compiler.")
 endif (WIN32)
 
-# Convenience flags to simplify Windows support in C++ source.
-if (MSVC)
-  add_definitions(-DMESOS_MSVC)
-endif (MSVC)
+# Convenience flags to simplify Windows support in C++ source, used to #ifdef
+# out some platform-specific parts of Mesos. We choose to define a new flag
+# rather than using an existing flag (e.g., `_WIN32`) because we want to give
+# the build system fine-grained control over what code is #ifdef'd out in  the
+# future. Using only flags defined by our build system to control this logic is
+# the clearest and most stable way of accomplishing this.
+if (WIN32)
+  add_definitions(-D__WINDOWS__)
+endif (WIN32)
+
 
 # Configure directory structure for different platforms.
 ########################################################
