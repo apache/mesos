@@ -92,3 +92,9 @@ add_subdirectory(3rdparty)
 if (NOT WIN32)
   add_subdirectory(src)
 endif (NOT WIN32)
+
+add_custom_target(
+  check ${STOUT_TESTS_TARGET}
+  COMMAND ${PROCESS_TESTS_TARGET}
+  DEPENDS ${PROCESS_TESTS_TARGET} ${STOUT_TESTS_TARGET}
+  )
