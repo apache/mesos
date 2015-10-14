@@ -14,8 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-set(STOUT_TESTS_TARGET stout_tests)
-
 # STOUT TESTS.
 ##############
 set(STOUT_TESTS_SRC

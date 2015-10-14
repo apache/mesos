@@ -14,6 +14,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+set(
+  STOUT_TESTS_TARGET stout_tests
+  CACHE STRING "Target we use to refer to tests for the stout library")
+
 if (NOT WIN32)
   # TODO(hausdorff): (cf. MESOS-3181) Add support for attempting to find these
   # packages on Windows, and then if that fails, use CMake macros/functions to
