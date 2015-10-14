@@ -97,7 +97,7 @@ class FaultToleranceTest : public MesosTest {};
 // the scheduler might receive a re-registered callback.
 TEST_F(FaultToleranceTest, MasterFailover)
 {
-  Try<PID<Master> > master = StartMaster();
+  Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   MockScheduler sched;
@@ -154,7 +154,7 @@ TEST_F(FaultToleranceTest, MasterFailover)
 TEST_F(FaultToleranceTest, ReregisterCompletedFrameworks)
 {
   // Step 1. Start Master and Slave.
-  Try<PID<Master> > master = StartMaster();
+  Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   MockExecutor executor(DEFAULT_EXECUTOR_ID);
@@ -163,7 +163,7 @@ TEST_F(FaultToleranceTest, ReregisterCompletedFrameworks)
 
   StandaloneMasterDetector slaveDetector(master.get());
 
-  Try<PID<Slave> > slave = StartSlave(&containerizer, &slaveDetector);
+  Try<PID<Slave>> slave = StartSlave(&containerizer, &slaveDetector);
   ASSERT_SOME(slave);
 
   // Verify master/slave have 0 completed/running frameworks.
@@ -194,7 +194,7 @@ TEST_F(FaultToleranceTest, ReregisterCompletedFrameworks)
   EXPECT_CALL(sched, registered(&driver, _, _))
     .WillOnce(FutureArg<1>(&frameworkId));
 
-  Future<vector<Offer> > offers;
+  Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillOnce(FutureArg<1>(&offers))
     .WillRepeatedly(Return());        // Ignore subsequent offers.
@@ -359,10 +359,10 @@ TEST_F(FaultToleranceTest, ReregisterCompletedFrameworks)
 
 TEST_F(FaultToleranceTest, SchedulerFailover)
 {
-  Try<PID<Master> > master = StartMaster();
+  Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
-  Try<PID<Slave> > slave = StartSlave();
+  Try<PID<Slave>> slave = StartSlave();
   ASSERT_SOME(slave);
 
   // Launch the first (i.e., failing) scheduler and wait until
@@ -434,7 +434,7 @@ TEST_F(FaultToleranceTest, SchedulerFailover)
 // after its failover timeout has elapsed is disallowed.
 TEST_F(FaultToleranceTest, SchedulerReregisterAfterFailoverTimeout)
 {
-  Try<PID<Master> > master = StartMaster();
+  Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   // Launch the first (i.e., failing) scheduler and wait until
@@ -519,7 +519,7 @@ TEST_F(FaultToleranceTest, SchedulerReregisterAfterFailoverTimeout)
 // after it is unregistered is disallowed.
 TEST_F(FaultToleranceTest, SchedulerReregisterAfterUnregistration)
 {
-  Try<PID<Master> > master = StartMaster();
+  Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   // Launch the first (i.e., failing) scheduler and wait until
@@ -589,7 +589,7 @@ TEST_F(FaultToleranceTest, SchedulerReregisterAfterUnregistration)
 // to be sent to the new scheduler driver!
 TEST_F(FaultToleranceTest, SchedulerFailoverRetriedReregistration)
 {
-  Try<PID<Master> > master = StartMaster();
+  Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   // Launch the first (i.e., failing) scheduler and wait until
@@ -666,10 +666,10 @@ TEST_F(FaultToleranceTest, SchedulerFailoverRetriedReregistration)
 
 TEST_F(FaultToleranceTest, FrameworkReliableRegistration)
 {
-  Try<PID<Master> > master = StartMaster();
+  Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
-  Try<PID<Slave> > slave = StartSlave();
+  Try<PID<Slave>> slave = StartSlave();
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -717,12 +717,12 @@ TEST_F(FaultToleranceTest, FrameworkReliableRegistration)
 
 TEST_F(FaultToleranceTest, FrameworkReregister)
 {
-  Try<PID<Master> > master = StartMaster();
+  Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   StandaloneMasterDetector slaveDetector(master.get());
 
-  Try<PID<Slave> > slave = StartSlave(&slaveDetector);
+  Try<PID<Slave>> slave = StartSlave(&slaveDetector);
   ASSERT_SOME(slave);
 
   // Create a detector for the scheduler driver because we want the
@@ -784,10 +784,10 @@ TEST_F(FaultToleranceTest, FrameworkReregister)
 
 TEST_F(FaultToleranceTest, TaskLost)
 {
-  Try<PID<Master> > master = StartMaster();
+  Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
-  Try<PID<Slave> > slave = StartSlave();
+  Try<PID<Slave>> slave = StartSlave();
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -796,7 +796,7 @@ TEST_F(FaultToleranceTest, TaskLost)
 
   EXPECT_CALL(sched, registered(&driver, _, _));
 
-  Future<vector<Offer> > offers;
+  Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillOnce(FutureArg<1>(&offers))
     .WillRepeatedly(Return()); // Ignore subsequent offers.
@@ -847,12 +847,12 @@ TEST_F(FaultToleranceTest, TaskLost)
 // retried status update.
 TEST_F(FaultToleranceTest, SchedulerFailoverStatusUpdate)
 {
-  Try<PID<Master> > master = StartMaster();
+  Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
 
-  Try<PID<Slave> > slave = StartSlave(&exec);
+  Try<PID<Slave>> slave = StartSlave(&exec);
   ASSERT_SOME(slave);
 
   // Launch the first (i.e., failing) scheduler.
@@ -864,7 +864,7 @@ TEST_F(FaultToleranceTest, SchedulerFailoverStatusUpdate)
   EXPECT_CALL(sched1, registered(&driver1, _, _))
     .WillOnce(SaveArg<1>(&frameworkId));
 
-  Future<vector<Offer> > offers;
+  Future<vector<Offer>> offers;
   EXPECT_CALL(sched1, resourceOffers(&driver1, _))
     .WillOnce(FutureArg<1>(&offers))
     .WillRepeatedly(Return());
@@ -959,7 +959,7 @@ TEST_F(FaultToleranceTest, ReregisterFrameworkExitedExecutor)
 {
   // First we'll start a master and slave, then register a framework
   // so we can launch a task.
-  Try<PID<Master> > master = StartMaster();
+  Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
@@ -967,7 +967,7 @@ TEST_F(FaultToleranceTest, ReregisterFrameworkExitedExecutor)
 
   StandaloneMasterDetector slaveDetector(master.get());
 
-  Try<PID<Slave> > slave = StartSlave(&containerizer, &slaveDetector);
+  Try<PID<Slave>> slave = StartSlave(&containerizer, &slaveDetector);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -1061,12 +1061,12 @@ TEST_F(FaultToleranceTest, ReregisterFrameworkExitedExecutor)
 
 TEST_F(FaultToleranceTest, ForwardStatusUpdateUnknownExecutor)
 {
-  Try<PID<Master> > master = StartMaster();
+  Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
 
-  Try<PID<Slave> > slave = StartSlave(&exec);
+  Try<PID<Slave>> slave = StartSlave(&exec);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -1077,7 +1077,7 @@ TEST_F(FaultToleranceTest, ForwardStatusUpdateUnknownExecutor)
   EXPECT_CALL(sched, registered(&driver, _, _))
     .WillOnce(SaveArg<1>(&frameworkId));
 
-  Future<vector<Offer> > offers;
+  Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillOnce(FutureArg<1>(&offers));
 
@@ -1145,12 +1145,12 @@ TEST_F(FaultToleranceTest, ForwardStatusUpdateUnknownExecutor)
 
 TEST_F(FaultToleranceTest, SchedulerFailoverExecutorToFrameworkMessage)
 {
-  Try<PID<Master> > master = StartMaster();
+  Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
 
-  Try<PID<Slave> > slave = StartSlave(&exec);
+  Try<PID<Slave>> slave = StartSlave(&exec);
   ASSERT_SOME(slave);
 
   MockScheduler sched1;
@@ -1161,7 +1161,7 @@ TEST_F(FaultToleranceTest, SchedulerFailoverExecutorToFrameworkMessage)
   EXPECT_CALL(sched1, registered(&driver1, _, _))
     .WillOnce(SaveArg<1>(&frameworkId));
 
-  Future<vector<Offer> > offers;
+  Future<vector<Offer>> offers;
   EXPECT_CALL(sched1, resourceOffers(&driver1, _))
     .WillOnce(FutureArg<1>(&offers))
     .WillRepeatedly(Return()); // Ignore subsequent offers.
@@ -1245,12 +1245,12 @@ TEST_F(FaultToleranceTest, SchedulerFailoverExecutorToFrameworkMessage)
 
 TEST_F(FaultToleranceTest, SchedulerFailoverFrameworkToExecutorMessage)
 {
-  Try<PID<Master> > master = StartMaster();
+  Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
 
-  Try<PID<Slave> > slave = StartSlave(&exec);
+  Try<PID<Slave>> slave = StartSlave(&exec);
   ASSERT_SOME(slave);
 
   MockScheduler sched1;
@@ -1261,7 +1261,7 @@ TEST_F(FaultToleranceTest, SchedulerFailoverFrameworkToExecutorMessage)
   EXPECT_CALL(sched1, registered(&driver1, _, _))
     .WillOnce(SaveArg<1>(&frameworkId));
 
-  Future<vector<Offer> > offers;
+  Future<vector<Offer>> offers;
   EXPECT_CALL(sched1, resourceOffers(&driver1, _))
     .WillOnce(FutureArg<1>(&offers))
     .WillRepeatedly(Return()); // Ignore subsequent offers.
@@ -1354,12 +1354,12 @@ TEST_F(FaultToleranceTest, SchedulerFailoverFrameworkToExecutorMessage)
 // 5. First scheduler attempts to kill the task which is ignored by the master.
 TEST_F(FaultToleranceTest, IgnoreKillTaskFromUnregisteredFramework)
 {
-  Try<PID<Master> > master = StartMaster();
+  Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
 
-  Try<PID<Slave> > slave = StartSlave(&exec);
+  Try<PID<Slave>> slave = StartSlave(&exec);
   ASSERT_SOME(slave);
 
   // Start the first scheduler and launch a task.
@@ -1474,12 +1474,12 @@ TEST_F(FaultToleranceTest, IgnoreKillTaskFromUnregisteredFramework)
 // This test checks that a scheduler exit shuts down the executor.
 TEST_F(FaultToleranceTest, SchedulerExit)
 {
-  Try<PID<Master> > master = StartMaster();
+  Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
 
-  Try<PID<Slave> > slave = StartSlave(&exec);
+  Try<PID<Slave>> slave = StartSlave(&exec);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -1488,7 +1488,7 @@ TEST_F(FaultToleranceTest, SchedulerExit)
 
   EXPECT_CALL(sched, registered(&driver, _, _));
 
-  Future<vector<Offer> > offers;
+  Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillOnce(FutureArg<1>(&offers))
     .WillRepeatedly(Return()); // Ignore subsequent offers.
@@ -1533,14 +1533,14 @@ TEST_F(FaultToleranceTest, SchedulerExit)
 
 TEST_F(FaultToleranceTest, SlaveReliableRegistration)
 {
-  Try<PID<Master> > master = StartMaster();
+  Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   // Drop the first slave registered message, allow subsequent messages.
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
     DROP_PROTOBUF(SlaveRegisteredMessage(), _, _);
 
-  Try<PID<Slave> > slave = StartSlave();
+  Try<PID<Slave>> slave = StartSlave();
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -1579,7 +1579,7 @@ TEST_F(FaultToleranceTest, SlaveReliableRegistration)
 
 TEST_F(FaultToleranceTest, SlaveReregisterOnZKExpiration)
 {
-  Try<PID<Master> > master = StartMaster();
+  Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
@@ -1587,7 +1587,7 @@ TEST_F(FaultToleranceTest, SlaveReregisterOnZKExpiration)
 
   StandaloneMasterDetector detector(master.get());
 
-  Try<PID<Slave> > slave = StartSlave(&detector);
+  Try<PID<Slave>> slave = StartSlave(&detector);
   ASSERT_SOME(slave);
 
   AWAIT_READY(slaveRegisteredMessage);
@@ -1628,7 +1628,7 @@ TEST_F(FaultToleranceTest, SlaveReregisterOnZKExpiration)
 // on a slave. This was added to prevent regressions on MESOS-1821.
 TEST_F(FaultToleranceTest, FrameworkReregisterEmptyExecutor)
 {
-  Try<PID<Master> > master = StartMaster();
+  Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
@@ -1637,7 +1637,7 @@ TEST_F(FaultToleranceTest, FrameworkReregisterEmptyExecutor)
   StandaloneMasterDetector slaveDetector(master.get());
   StandaloneMasterDetector schedulerDetector(master.get());
 
-  Try<PID<Slave> > slave = StartSlave(&containerizer, &slaveDetector);
+  Try<PID<Slave>> slave = StartSlave(&containerizer, &slaveDetector);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -1732,12 +1732,12 @@ TEST_F(FaultToleranceTest, FrameworkReregisterEmptyExecutor)
 TEST_F(FaultToleranceTest, SplitBrainMasters)
 {
   // 1. Start a master, scheduler, and launch a task.
-  Try<PID<Master> > master = StartMaster();
+  Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
 
-  Try<PID<Slave> > slave = StartSlave(&exec);
+  Try<PID<Slave>> slave = StartSlave(&exec);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -1820,10 +1820,10 @@ TEST_F(FaultToleranceTest, SplitBrainMasters)
 //      FrameworkInfo object.
 TEST_F(FaultToleranceTest, UpdateFrameworkInfoOnSchedulerFailover)
 {
-  Try<PID<Master> > master = StartMaster();
+  Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
-  Try<PID<Slave> > slave = StartSlave();
+  Try<PID<Slave>> slave = StartSlave();
   ASSERT_SOME(slave);
 
   // Launch the first (i.e., failing) scheduler and wait until
