@@ -2,6 +2,12 @@
 layout: documentation
 ---
 
+# SSL in Mesos
+
+By default, all the messages that flow through the Mesos cluster are unencrypted, making it possible for anyone with access to the cluster to intercept and potentially control arbitrary tasks.
+
+SSL/TLS support was added to libprocess in Mesos 0.23.0, which encypts the low-level communication that Mesos uses for network communication between Mesos components.  Additionally, HTTPS support was added to the Mesos WebUI.
+
 # Configuration
 There is currently only one implementation of the [libprocess socket interface](https://github.com/apache/mesos/blob/master/3rdparty/libprocess/include/process/socket.hpp) that supports SSL. This implementation uses [libevent](https://github.com/libevent/libevent). Specifically it relies on the `libevent-openssl` library that wraps `openssl`.
 
@@ -15,16 +21,26 @@ After building Mesos 0.23.0 from source, assuming you have installed the require
 Once you have successfully built and installed your new binaries, here are the environment variables that are applicable to the `Master`, `Slave`, `Framework Scheduler/Executor`, or any `libprocess process`:
 
 #### SSL_ENABLED=(false|0,true|1) [default=false|0]
-Turn on or off SSL. When it is turned off it is the equivalent of default mesos with libevent as the backing for events. All sockets default to the non-SSL implementation. When it is turned on, the default configuration for sockets is SSL. This means outgoing connections will use SSL, and incoming connections will be expected to speak SSL as well. None of the below flags are relevant if SSL is not enabled.
+Turn on or off SSL. When it is turned off it is the equivalent of default mesos with libevent as the backing for events. All sockets default to the non-SSL implementation. When it is turned on, the default configuration for sockets is SSL. This means outgoing connections will use SSL, and incoming connections will be expected to speak SSL as well. None of the below flags are relevant if SSL is not enabled.  If SSL is enabled, `SSL_CERT_FILE` and `SSL_KEY_FILE` must be supplied.
 
 #### SSL_SUPPORT_DOWNGRADE=(false|0,true|1) [default=false|0]
 Control whether or not non-SSL connections can be established. If this is enabled __on the accepting side__, then the accepting side will downgrade to a non-SSL socket if the connecting side is attempting to communicate via non-SSL. (e.g. HTTP). See [Upgrading Your Cluster](#Upgrading) for more details.
 
+#### SSL_KEY_FILE=(path to key)
+The location of the private key used by OpenSSL.
+
+~~~
+// For example, to generate a key with OpenSSL:
+openssl genrsa -des3 -f4 -passout pass:some_password -out key.pem 4096
+~~~
+
 #### SSL_CERT_FILE=(path to certificate)
 The location of the certificate that will be presented.
 
-#### SSL_KEY_FILE=(path to key)
-The location of the private key used by OpenSSL.
+~~~
+// For example, to generate a certificate with OpenSSL:
+openssl req -new -x509 -passin pass:some_password -days 365 -key key.pem -out cert.pem
+~~~
 
 #### SSL_VERIFY_CERT=(false|0,true|1) [default=false|0]
 Control whether certificates are verified when presented. If this is false, even when a certificate is presented, it will not be verified. When `SSL_REQUIRE_CERT` is true, `SSL_VERIFY_CERT` is overridden and all certificates will be verified _and_ required.
@@ -87,6 +103,8 @@ __NOTE:__ Any tools you may use that communicate with your components must be ab
 
 # <a name="WebUI"></a>WebUI
 The default Mesos WebUI uses relative links. Some of these links transition between endpoints served by the master and slaves. The WebUI currently does not have enough information to change the 'http' vs 'https' links based on whether the target endpoint is currently being served by an SSL-enabled binary. This may cause certain links in the WebUI to be broken when a cluster is in a transition state between SSL and non-SSL. Any tools that hit these endpoints will still be able to access them as long as they hit the endpoint using the right protocol, or the `SSL_SUPPORT_DOWNGRADE` option is set to true.
+
+__NOTE:__ Frameworks with their own WebUI will need to add HTTPS support separately.
 
 ### Certificates
 Most browsers have built in protection that guard transitions between pages served using different certificates. For this reason you may choose to serve both the master and slave endpoints using a common certificate that covers multiple hostnames. If you do not do this, certain links, such as those to slave sandboxes, may seem broken as the browser treats the transition between differing certificates transition as unsafe.
