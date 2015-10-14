@@ -212,6 +212,11 @@ TEST_F(ReservationEndpointsTest, AvailableResources)
 
   EXPECT_TRUE(Resources(offer.resources()).contains(unreserved));
 
+  // Ignore subsequent `recoverResources` calls triggered from recovering the
+  // resources that this framework currently holding onto.
+  EXPECT_CALL(allocator, recoverResources(_, _, _, _))
+    .WillRepeatedly(DoDefault());
+
   driver.stop();
   driver.join();
 
@@ -475,8 +480,7 @@ TEST_F(ReservationEndpointsTest, ReserveAvailableAndOfferedResources)
   Future<Resources> availableResources;
   EXPECT_CALL(allocator, recoverResources(_, _, _, _))
     .WillOnce(DoAll(InvokeRecoverResources(&allocator),
-                    FutureArg<2>(&availableResources)))
-    .WillRepeatedly(DoDefault());
+                    FutureArg<2>(&availableResources)));
 
   // Send a KillTask message to the master.
   driver.killTask(taskInfo.task_id());
@@ -486,8 +490,10 @@ TEST_F(ReservationEndpointsTest, ReserveAvailableAndOfferedResources)
   // At this point, we have 'available' resources in the allocator, and
   // 'offered' resources offered to the framework.
 
-  // Expect an offer to be rescinded!
+  // Expect an offer to be rescinded and recovered!
   EXPECT_CALL(sched, offerRescinded(_, _));
+  EXPECT_CALL(allocator, recoverResources(_, _, _, _))
+    .WillOnce(DoDefault());
 
   Future<Response> response = process::http::post(
       master.get(),
@@ -509,6 +515,11 @@ TEST_F(ReservationEndpointsTest, ReserveAvailableAndOfferedResources)
   offer = offers.get()[0];
 
   EXPECT_TRUE(Resources(offer.resources()).contains(dynamicallyReserved));
+
+  // Ignore subsequent `recoverResources` calls triggered from recovering the
+  // resources that this framework currently holding onto.
+  EXPECT_CALL(allocator, recoverResources(_, _, _, _))
+    .WillRepeatedly(DoDefault());
 
   driver.stop();
   driver.join();
@@ -630,8 +641,7 @@ TEST_F(ReservationEndpointsTest, UnreserveAvailableAndOfferedResources)
   Future<Resources> availableResources;
   EXPECT_CALL(allocator, recoverResources(_, _, _, _))
     .WillOnce(DoAll(InvokeRecoverResources(&allocator),
-                    FutureArg<2>(&availableResources)))
-    .WillRepeatedly(DoDefault());
+                    FutureArg<2>(&availableResources)));
 
   // Send a KillTask message to the master.
   driver.killTask(taskInfo.task_id());
@@ -641,8 +651,10 @@ TEST_F(ReservationEndpointsTest, UnreserveAvailableAndOfferedResources)
   // At this point, we have 'available' resources in the allocator, and
   // 'offered' resources offered to the framework.
 
-  // Expect an offer to be rescinded!
+  // Expect an offer to be rescinded and recovered!
   EXPECT_CALL(sched, offerRescinded(_, _));
+  EXPECT_CALL(allocator, recoverResources(_, _, _, _))
+    .WillOnce(DoDefault());
 
   response = process::http::post(
       master.get(),
@@ -664,6 +676,11 @@ TEST_F(ReservationEndpointsTest, UnreserveAvailableAndOfferedResources)
   offer = offers.get()[0];
 
   EXPECT_TRUE(Resources(offer.resources()).contains(unreserved));
+
+  // Ignore subsequent `recoverResources` calls triggered from recovering the
+  // resources that this framework currently holding onto.
+  EXPECT_CALL(allocator, recoverResources(_, _, _, _))
+    .WillRepeatedly(DoDefault());
 
   driver.stop();
   driver.join();
