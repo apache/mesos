@@ -958,7 +958,7 @@ TEST_F(OsTest, Shell)
 
   // The `|| true`` necessary so that os::shell() sees a success
   // exit code and returns stdout (which we have piped stderr to).
-  result = os::shell("ls /tmp/foobar889076 2>&1 || true");
+  result = os::shell("LC_ALL=C ls /tmp/foobar889076 2>&1 || true");
   ASSERT_SOME(result);
   EXPECT_TRUE(strings::contains(result.get(), "No such file or directory"));
 
