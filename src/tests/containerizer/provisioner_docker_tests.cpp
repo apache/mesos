@@ -844,9 +844,6 @@ TEST_F(ProvisionerDockerLocalStoreTest, LocalStoreTestWithTar)
   Try<Owned<slave::Store>> store = slave::docker::Store::create(flags);
   ASSERT_SOME(store);
 
-  string sandbox = path::join(os::getcwd(), "sandbox");
-  ASSERT_SOME(os::mkdir(sandbox));
-
   Image mesosImage;
   mesosImage.set_type(Image::DOCKER);
   mesosImage.mutable_docker()->set_name("abc");
@@ -869,9 +866,6 @@ TEST_F(ProvisionerDockerLocalStoreTest, MetadataManagerInitialization)
 
   Try<Owned<slave::Store>> store = slave::docker::Store::create(flags);
   ASSERT_SOME(store);
-
-  string sandbox = path::join(os::getcwd(), "sandbox");
-  ASSERT_SOME(os::mkdir(sandbox));
 
   Image image;
   image.set_type(Image::DOCKER);
