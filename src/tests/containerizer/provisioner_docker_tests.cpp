@@ -744,11 +744,15 @@ public:
       const slave::Flags& flags,
       const vector<string>& layers)
   {
-    string layersPath = path::join(flags.docker_store_dir, "layers");
+    const string layersPath = path::join(flags.docker_store_dir, "layers");
 
     // Verify contents of the image in store directory.
-    string layerPath1 = getImageLayerRootfsPath(flags.docker_store_dir, "123");
-    string layerPath2 = getImageLayerRootfsPath(flags.docker_store_dir, "456");
+    const string layerPath1 =
+      getImageLayerRootfsPath(flags.docker_store_dir, "123");
+
+    const string layerPath2 =
+      getImageLayerRootfsPath(flags.docker_store_dir, "456");
+
     EXPECT_TRUE(os::exists(layerPath1));
     EXPECT_TRUE(os::exists(layerPath2));
     EXPECT_SOME_EQ(
@@ -770,8 +774,8 @@ protected:
   {
     TemporaryDirectoryTest::SetUp();
 
-    string imageDir = path::join(os::getcwd(), "images");
-    string image = path::join(imageDir, "abc:latest");
+    const string imageDir = path::join(os::getcwd(), "images");
+    const string image = path::join(imageDir, "abc:latest");
     ASSERT_SOME(os::mkdir(imageDir));
     ASSERT_SOME(os::mkdir(image));
 
@@ -831,8 +835,8 @@ protected:
 // stored in the proper locations accessible to the Docker provisioner.
 TEST_F(ProvisionerDockerLocalStoreTest, LocalStoreTestWithTar)
 {
-  string imageDir = path::join(os::getcwd(), "images");
-  string image = path::join(imageDir, "abc:latest");
+  const string imageDir = path::join(os::getcwd(), "images");
+  const string image = path::join(imageDir, "abc:latest");
   ASSERT_SOME(os::mkdir(imageDir));
   ASSERT_SOME(os::mkdir(image));
 
