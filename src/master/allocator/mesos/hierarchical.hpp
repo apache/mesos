@@ -62,45 +62,19 @@ class OfferFilter;
 class InverseOfferFilter;
 
 
-// A level of indirection that allows us to keep the allocator implementation
-// in an implementation file: `hierarchical.cpp`. This maps the static
-// templatization of `HierarchicalAllocatorProcess` to a polymorphic
-// implementation in the internal namespace.
-struct SorterFactoryBase
-{
-  virtual ~SorterFactoryBase() {}
-
-  virtual Sorter* createRoleSorter() const = 0;
-
-  virtual Sorter* createFrameworkSorter() const = 0;
-};
-
-
-template <typename RoleSorter, typename FrameworkSorter>
-struct SorterFactory : public SorterFactoryBase
-{
-  virtual Sorter* createRoleSorter() const
-  {
-    return new RoleSorter();
-  }
-
-  virtual Sorter* createFrameworkSorter() const
-  {
-    return new FrameworkSorter();
-  }
-};
-
-
 // Implements the basic allocator algorithm - first pick a role by
 // some criteria, then pick one of their frameworks to allocate to.
 class HierarchicalAllocatorProcess : public MesosAllocatorProcess
 {
 public:
-  HierarchicalAllocatorProcess(SorterFactoryBase* _sorterFactory)
+  HierarchicalAllocatorProcess(
+      const std::function<Sorter*()>& _roleSorterFactory,
+      const std::function<Sorter*()>& _frameworkSorterFactory)
     : ProcessBase(process::ID::generate("hierarchical-allocator")),
       initialized(false),
       metrics(*this),
-      sorterFactory(_sorterFactory),
+      roleSorterFactory(_roleSorterFactory),
+      frameworkSorterFactory(_frameworkSorterFactory),
       roleSorter(NULL) {}
 
   virtual ~HierarchicalAllocatorProcess() {}
@@ -386,7 +360,8 @@ protected:
   // resources as regular resources when doing fairness calculations.
   // TODO(vinod): Consider using a different fairness algorithm for
   // oversubscribed resources.
-  SorterFactoryBase* sorterFactory;
+  const std::function<Sorter*()> roleSorterFactory;
+  const std::function<Sorter*()> frameworkSorterFactory;
   Sorter* roleSorter;
   hashmap<std::string, Sorter*> frameworkSorters;
 };
@@ -396,7 +371,7 @@ protected:
 
 
 // We map the templatized version of the `HierarchicalAllocatorProcess` to one
-// that relies on polymorphic sorters in the internal namespace. This allows us
+// that relies on sorter factories in the internal namespace. This allows us
 // to keep the implemention of the allocator in the implementation file.
 template <typename RoleSorter, typename FrameworkSorter>
 class HierarchicalAllocatorProcess
@@ -405,7 +380,8 @@ class HierarchicalAllocatorProcess
 public:
   HierarchicalAllocatorProcess()
     : internal::HierarchicalAllocatorProcess(
-          new internal::SorterFactory<RoleSorter, FrameworkSorter>()) {}
+          []() -> Sorter* { return new RoleSorter(); },
+          []() -> Sorter* { return new FrameworkSorter(); }) {}
 };
 
 

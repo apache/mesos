@@ -126,11 +126,11 @@ void HierarchicalAllocatorProcess::initialize(
   roles = _roles;
   initialized = true;
 
-  roleSorter = sorterFactory->createRoleSorter();
+  roleSorter = roleSorterFactory();
   foreachpair (
       const std::string& name, const mesos::master::RoleInfo& roleInfo, roles) {
     roleSorter->add(name, roleInfo.weight());
-    frameworkSorters[name] = sorterFactory->createFrameworkSorter();
+    frameworkSorters[name] = frameworkSorterFactory();
   }
 
   if (roleSorter->count() == 0) {
