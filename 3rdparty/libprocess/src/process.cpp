@@ -2745,9 +2745,9 @@ bool ProcessManager::wait(const UPID& pid)
 
   // Now arrive at the gate and wait until it opens.
   if (gate != NULL) {
-    gate->arrive(old);
+    int remaining = gate->arrive(old);
 
-    if (gate->empty()) {
+    if (remaining == 0) {
       delete gate;
     }
 

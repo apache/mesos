@@ -77,16 +77,21 @@ public:
 
   // Blocks the current thread until the gate's state changes from
   // the specified 'old' state. The 'old' state can be obtained by
-  // calling 'approach()'.
-  void arrive(state_t old)
+  // calling 'approach()'. Returns the number of remaining waiters.
+  int arrive(state_t old)
   {
+    int remaining;
+
     synchronized (mutex) {
       while (old == state) {
         synchronized_wait(&cond, &mutex);
       }
 
       waiters--;
+      remaining = waiters;
     }
+
+    return remaining;
   }
 
   // Notifies the gate that a waiter (the current thread) is no
@@ -96,17 +101,6 @@ public:
     synchronized (mutex) {
       waiters--;
     }
-  }
-
-  // Returns true if there is no one waiting on the gate's state
-  // change.
-  bool empty()
-  {
-    bool occupied = true;
-    synchronized (mutex) {
-      occupied = waiters > 0 ? true : false;
-    }
-    return !occupied;
   }
 };
 
