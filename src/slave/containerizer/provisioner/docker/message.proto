@@ -29,6 +29,8 @@ message Image {
   message Name {
     optional string registry = 1;
     required string repository = 2;
+
+    // TODO(bmahler): This may hold a tag or a digest, split these?
     required string tag = 3;
   }
 

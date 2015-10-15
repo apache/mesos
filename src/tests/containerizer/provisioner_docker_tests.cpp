@@ -70,6 +70,65 @@ namespace mesos {
 namespace internal {
 namespace tests {
 
+
+TEST(DockerUtilsTest, ParseImageName)
+{
+  slave::docker::Image::Name name;
+
+  name = parseImageName("library/busybox");
+  EXPECT_FALSE(name.has_registry());
+  EXPECT_EQ("library/busybox", name.repository());
+  EXPECT_EQ("latest", name.tag());
+
+  name = parseImageName("busybox");
+  EXPECT_FALSE(name.has_registry());
+  EXPECT_EQ("busybox", name.repository());
+  EXPECT_EQ("latest", name.tag());
+
+  name = parseImageName("library/busybox:tag");
+  EXPECT_FALSE(name.has_registry());
+  EXPECT_EQ("library/busybox", name.repository());
+  EXPECT_EQ("tag", name.tag());
+
+  // Note that the digest is stored as a tag.
+  name = parseImageName(
+      "library/busybox"
+      "@sha256:bc8813ea7b3603864987522f02a7"
+      "6101c17ad122e1c46d790efc0fca78ca7bfb");
+  EXPECT_FALSE(name.has_registry());
+  EXPECT_EQ("library/busybox", name.repository());
+  EXPECT_EQ("sha256:bc8813ea7b3603864987522f02a7"
+            "6101c17ad122e1c46d790efc0fca78ca7bfb",
+            name.tag());
+
+  name = parseImageName("registry.io/library/busybox");
+  EXPECT_EQ("registry.io", name.registry());
+  EXPECT_EQ("library/busybox", name.repository());
+  EXPECT_EQ("latest", name.tag());
+
+  name = parseImageName("registry.io/library/busybox:tag");
+  EXPECT_EQ("registry.io", name.registry());
+  EXPECT_EQ("library/busybox", name.repository());
+  EXPECT_EQ("tag", name.tag());
+
+  name = parseImageName("registry.io:80/library/busybox:tag");
+  EXPECT_EQ("registry.io:80", name.registry());
+  EXPECT_EQ("library/busybox", name.repository());
+  EXPECT_EQ("tag", name.tag());
+
+  // Note that the digest is stored as a tag.
+  name = parseImageName(
+      "registry.io:80/library/busybox"
+      "@sha256:bc8813ea7b3603864987522f02a7"
+      "6101c17ad122e1c46d790efc0fca78ca7bfb");
+  EXPECT_EQ("registry.io:80", name.registry());
+  EXPECT_EQ("library/busybox", name.repository());
+  EXPECT_EQ("sha256:bc8813ea7b3603864987522f02a7"
+            "6101c17ad122e1c46d790efc0fca78ca7bfb",
+            name.tag());
+}
+
+
 /**
  * Provides token operations and defaults.
  */

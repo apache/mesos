@@ -157,13 +157,10 @@ Future<vector<string>> StoreProcess::get(const mesos::Image& image)
     return Failure("Docker provisioner store only supports Docker images");
   }
 
-  Try<Image::Name> imageName = parseName(image.docker().name());
-  if (imageName.isError()) {
-    return Failure("Unable to parse docker image name: " + imageName.error());
-  }
+  Image::Name imageName = parseImageName(image.docker().name());
 
-  return metadataManager->get(imageName.get())
-    .then(defer(self(), &Self::_get, imageName.get(), lambda::_1))
+  return metadataManager->get(imageName)
+    .then(defer(self(), &Self::_get, imageName, lambda::_1))
     .then(defer(self(), &Self::__get, lambda::_1));
 }
 

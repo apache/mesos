@@ -1313,7 +1313,10 @@ message Image {
   }
 
   message Docker {
-    // The name of the image. Expected in format repository[:tag].
+    // The name of the image. Expected format:
+    //   [REGISTRY_HOST[:REGISTRY_PORT]/]REPOSITORY[:TAG|@TYPE:DIGEST]
+    //
+    // See: https://docs.docker.com/reference/commandline/pull/
     required string name = 1;
   }
 
