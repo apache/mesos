@@ -73,7 +73,7 @@ namespace internal {
 namespace tests {
 
 
-class HttpApiTest
+class SchedulerHttpApiTest
   : public MesosTest,
     public WithParamInterface<string>
 {
@@ -109,7 +109,7 @@ public:
 // The HttpApi tests are parameterized by the content type.
 INSTANTIATE_TEST_CASE_P(
     ContentType,
-    HttpApiTest,
+    SchedulerHttpApiTest,
     ::testing::Values(APPLICATION_PROTOBUF, APPLICATION_JSON));
 
 
@@ -123,7 +123,7 @@ INSTANTIATE_TEST_CASE_P(
 //  timeout and should succeed.
 
 
-TEST_F(HttpApiTest, AuthenticationRequired)
+TEST_F(SchedulerHttpApiTest, AuthenticationRequired)
 {
   master::Flags flags = CreateMasterFlags();
   flags.authenticate_frameworks = true;
@@ -144,7 +144,7 @@ TEST_F(HttpApiTest, AuthenticationRequired)
 
 
 // TODO(anand): Add additional tests for validation.
-TEST_F(HttpApiTest, NoContentType)
+TEST_F(SchedulerHttpApiTest, NoContentType)
 {
   // HTTP schedulers cannot yet authenticate.
   master::Flags flags = CreateMasterFlags();
@@ -169,7 +169,7 @@ TEST_F(HttpApiTest, NoContentType)
 
 // This test sends a valid JSON blob that cannot be deserialized
 // into a valid protobuf resulting in a BadRequest.
-TEST_F(HttpApiTest, ValidJsonButInvalidProtobuf)
+TEST_F(SchedulerHttpApiTest, ValidJsonButInvalidProtobuf)
 {
   // HTTP schedulers cannot yet authenticate.
   master::Flags flags = CreateMasterFlags();
@@ -197,7 +197,7 @@ TEST_F(HttpApiTest, ValidJsonButInvalidProtobuf)
 
 // This test sends a malformed body that cannot be deserialized
 // into a valid protobuf resulting in a BadRequest.
-TEST_P(HttpApiTest, MalformedContent)
+TEST_P(SchedulerHttpApiTest, MalformedContent)
 {
   // HTTP schedulers cannot yet authenticate.
   master::Flags flags = CreateMasterFlags();
@@ -225,7 +225,7 @@ TEST_P(HttpApiTest, MalformedContent)
 
 // This test sets an unsupported media type as Content-Type. This
 // should result in a 415 (UnsupportedMediaType) response.
-TEST_P(HttpApiTest, UnsupportedContentMediaType)
+TEST_P(SchedulerHttpApiTest, UnsupportedContentMediaType)
 {
   // HTTP schedulers cannot yet authenticate.
   master::Flags flags = CreateMasterFlags();
@@ -260,7 +260,7 @@ TEST_P(HttpApiTest, UnsupportedContentMediaType)
 // This test verifies if the scheduler is able to receive a Subscribed
 // event and heartbeat events on the stream in response to a Subscribe
 // call request.
-TEST_P(HttpApiTest, Subscribe)
+TEST_P(SchedulerHttpApiTest, Subscribe)
 {
   // HTTP schedulers cannot yet authenticate.
   master::Flags flags = CreateMasterFlags();
@@ -295,7 +295,7 @@ TEST_P(HttpApiTest, Subscribe)
   ASSERT_SOME(reader);
 
   auto deserializer =
-    lambda::bind(&HttpApiTest::deserialize, this, contentType, lambda::_1);
+    lambda::bind(&SchedulerHttpApiTest::deserialize, this, contentType, lambda::_1);
 
   Reader<Event> responseDecoder(Decoder<Event>(deserializer), reader.get());
 
@@ -330,7 +330,7 @@ TEST_P(HttpApiTest, Subscribe)
 
 // This test verifies if the scheduler can subscribe on retrying,
 // e.g. after a ZK blip.
-TEST_P(HttpApiTest, SubscribedOnRetryWithForce)
+TEST_P(SchedulerHttpApiTest, SubscribedOnRetryWithForce)
 {
   // HTTP schedulers cannot yet authenticate.
   master::Flags flags = CreateMasterFlags();
@@ -351,7 +351,7 @@ TEST_P(HttpApiTest, SubscribedOnRetryWithForce)
   headers["Accept"] = contentType;
 
   auto deserializer =
-    lambda::bind(&HttpApiTest::deserialize, this, contentType, lambda::_1);
+    lambda::bind(&SchedulerHttpApiTest::deserialize, this, contentType, lambda::_1);
 
   v1::FrameworkID frameworkId;
 
@@ -424,7 +424,7 @@ TEST_P(HttpApiTest, SubscribedOnRetryWithForce)
 
 // This test verifies if we are able to upgrade from a PID based
 // framework to HTTP when force is set.
-TEST_P(HttpApiTest, UpdatePidToHttpScheduler)
+TEST_P(SchedulerHttpApiTest, UpdatePidToHttpScheduler)
 {
   // HTTP schedulers cannot yet authenticate.
   master::Flags flags = CreateMasterFlags();
@@ -490,7 +490,7 @@ TEST_P(HttpApiTest, UpdatePidToHttpScheduler)
   ASSERT_SOME(reader);
 
   auto deserializer =
-    lambda::bind(&HttpApiTest::deserialize, this, contentType, lambda::_1);
+    lambda::bind(&SchedulerHttpApiTest::deserialize, this, contentType, lambda::_1);
 
   Reader<Event> responseDecoder(Decoder<Event>(deserializer), reader.get());
 
@@ -520,7 +520,7 @@ TEST_P(HttpApiTest, UpdatePidToHttpScheduler)
 // This test verifies that updating a PID based framework to HTTP
 // framework fails when force is not set and the PID based
 // framework is already connected.
-TEST_P(HttpApiTest, UpdatePidToHttpSchedulerWithoutForce)
+TEST_P(SchedulerHttpApiTest, UpdatePidToHttpSchedulerWithoutForce)
 {
   // HTTP schedulers cannot yet authenticate.
   master::Flags flags = CreateMasterFlags();
@@ -577,7 +577,7 @@ TEST_P(HttpApiTest, UpdatePidToHttpSchedulerWithoutForce)
   ASSERT_SOME(reader);
 
   auto deserializer =
-    lambda::bind(&HttpApiTest::deserialize, this, contentType, lambda::_1);
+    lambda::bind(&SchedulerHttpApiTest::deserialize, this, contentType, lambda::_1);
 
   Reader<Event> responseDecoder(Decoder<Event>(deserializer), reader.get());
 
@@ -606,7 +606,7 @@ TEST_P(HttpApiTest, UpdatePidToHttpSchedulerWithoutForce)
 }
 
 
-TEST_P(HttpApiTest, NotAcceptable)
+TEST_P(SchedulerHttpApiTest, NotAcceptable)
 {
   // HTTP schedulers cannot yet authenticate.
   master::Flags flags = CreateMasterFlags();
@@ -639,7 +639,7 @@ TEST_P(HttpApiTest, NotAcceptable)
 }
 
 
-TEST_P(HttpApiTest, NoAcceptHeader)
+TEST_P(SchedulerHttpApiTest, NoAcceptHeader)
 {
   // HTTP schedulers cannot yet authenticate.
   master::Flags flags = CreateMasterFlags();
@@ -674,7 +674,7 @@ TEST_P(HttpApiTest, NoAcceptHeader)
 }
 
 
-TEST_P(HttpApiTest, DefaultAccept)
+TEST_P(SchedulerHttpApiTest, DefaultAccept)
 {
   // HTTP schedulers cannot yet authenticate.
   master::Flags flags = CreateMasterFlags();
@@ -708,7 +708,7 @@ TEST_P(HttpApiTest, DefaultAccept)
 }
 
 
-TEST_F(HttpApiTest, GetRequest)
+TEST_F(SchedulerHttpApiTest, GetRequest)
 {
   master::Flags flags = CreateMasterFlags();
   flags.authenticate_frameworks = false;

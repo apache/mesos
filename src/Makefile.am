@@ -1744,7 +1744,6 @@ mesos_tests_SOURCES =						\
   tests/gc_tests.cpp						\
   tests/hierarchical_allocator_tests.cpp			\
   tests/hook_tests.cpp						\
-  tests/http_api_tests.cpp					\
   tests/log_tests.cpp						\
   tests/logging_tests.cpp					\
   tests/main.cpp						\
@@ -1776,6 +1775,7 @@ mesos_tests_SOURCES =						\
   tests/scheduler_tests.cpp					\
   tests/scheduler_driver_tests.cpp				\
   tests/scheduler_event_call_tests.cpp				\
+  tests/scheduler_http_api_tests.cpp				\
   tests/script.cpp						\
   tests/slave_recovery_tests.cpp				\
   tests/slave_tests.cpp						\
