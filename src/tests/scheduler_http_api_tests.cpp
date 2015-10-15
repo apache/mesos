@@ -294,8 +294,8 @@ TEST_P(SchedulerHttpApiTest, Subscribe)
   Option<Pipe::Reader> reader = response.get().reader;
   ASSERT_SOME(reader);
 
-  auto deserializer =
-    lambda::bind(&SchedulerHttpApiTest::deserialize, this, contentType, lambda::_1);
+  auto deserializer = lambda::bind(
+      &SchedulerHttpApiTest::deserialize, this, contentType, lambda::_1);
 
   Reader<Event> responseDecoder(Decoder<Event>(deserializer), reader.get());
 
@@ -350,8 +350,8 @@ TEST_P(SchedulerHttpApiTest, SubscribedOnRetryWithForce)
   process::http::Headers headers;
   headers["Accept"] = contentType;
 
-  auto deserializer =
-    lambda::bind(&SchedulerHttpApiTest::deserialize, this, contentType, lambda::_1);
+  auto deserializer = lambda::bind(
+      &SchedulerHttpApiTest::deserialize, this, contentType, lambda::_1);
 
   v1::FrameworkID frameworkId;
 
@@ -489,8 +489,8 @@ TEST_P(SchedulerHttpApiTest, UpdatePidToHttpScheduler)
   Option<Pipe::Reader> reader = response.get().reader;
   ASSERT_SOME(reader);
 
-  auto deserializer =
-    lambda::bind(&SchedulerHttpApiTest::deserialize, this, contentType, lambda::_1);
+  auto deserializer = lambda::bind(
+      &SchedulerHttpApiTest::deserialize, this, contentType, lambda::_1);
 
   Reader<Event> responseDecoder(Decoder<Event>(deserializer), reader.get());
 
@@ -576,8 +576,8 @@ TEST_P(SchedulerHttpApiTest, UpdatePidToHttpSchedulerWithoutForce)
   Option<Pipe::Reader> reader = response.get().reader;
   ASSERT_SOME(reader);
 
-  auto deserializer =
-    lambda::bind(&SchedulerHttpApiTest::deserialize, this, contentType, lambda::_1);
+  auto deserializer = lambda::bind(
+      &SchedulerHttpApiTest::deserialize, this, contentType, lambda::_1);
 
   Reader<Event> responseDecoder(Decoder<Event>(deserializer), reader.get());
 
