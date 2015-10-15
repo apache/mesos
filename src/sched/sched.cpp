@@ -1114,13 +1114,19 @@ protected:
       return;
     }
 
-    ResourceRequestMessage message;
-    message.mutable_framework_id()->MergeFrom(framework.id());
-    foreach (const Request& request, requests) {
-      message.add_requests()->MergeFrom(request);
+    Call call;
+
+    CHECK(framework.has_id());
+    call.mutable_framework_id()->CopyFrom(framework.id());
+    call.set_type(Call::REQUEST);
+
+    Call::Request* request = call.mutable_request();
+    foreach (const Request& _request, requests) {
+      request->add_requests()->CopyFrom(_request);
     }
+
     CHECK_SOME(master);
-    send(master.get().pid(), message);
+    send(master.get().pid(), call);
   }
 
   void launchTasks(const vector<OfferID>& offerIds,
