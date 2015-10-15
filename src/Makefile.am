@@ -427,35 +427,35 @@ python/interface/src/mesos/interface/containerizer_pb2.py:		\
 	$(PROTOC) -I$(top_srcdir)/include/mesos/containerizer		\
 		$(PROTOCFLAGS)						\
 		--python_out=python/interface/src/mesos/interface $^
-	sed -i 's/mesos\.mesos_pb2/mesos_pb2/' $@
+	$(SED) -i.bak 's/mesos\.mesos_pb2/mesos_pb2/' $@ && rm $@.bak
 
 python/interface/src/mesos/interface/scheduler_pb2.py: $(SCHEDULER_PROTO)
 	$(MKDIR_P) $(@D)
 	$(PROTOC) -I$(top_srcdir)/include/mesos/scheduler		\
           $(PROTOCFLAGS)						\
           --python_out=python/interface/src/mesos/interface $^
-	sed -i 's/mesos\.mesos_pb2/mesos_pb2/' $@
+	$(SED) -i.bak 's/mesos\.mesos_pb2/mesos_pb2/' $@ && rm $@.bak
 
 python/interface/src/mesos/v1/interface/scheduler_pb2.py: $(V1_SCHEDULER_PROTO)
 	$(MKDIR_P) $(@D)
 	$(PROTOC) -I$(top_srcdir)/include/mesos/v1/scheduler		\
           $(PROTOCFLAGS)						\
           --python_out=python/interface/src/mesos/v1/interface $^
-	sed -i 's/mesos\.mesos_pb2/mesos_pb2/' $@
+	$(SED) -i.bak 's/mesos\.mesos_pb2/mesos_pb2/' $@ && rm $@.bak
 
 python/interface/src/mesos/interface/executor_pb2.py: $(EXECUTOR_PROTO)
 	$(MKDIR_P) $(@D)
 	$(PROTOC) -I$(top_srcdir)/include/mesos/executor		\
           $(PROTOCFLAGS)						\
           --python_out=python/interface/src/mesos/interface $^
-	sed -i 's/mesos\.mesos_pb2/mesos_pb2/' $@
+	$(SED) -i.bak 's/mesos\.mesos_pb2/mesos_pb2/' $@ && rm $@.bak
 
 python/interface/src/mesos/v1/interface/executor_pb2.py: $(V1_EXECUTOR_PROTO)
 	$(MKDIR_P) $(@D)
 	$(PROTOC) -I$(top_srcdir)/include/mesos/v1/executor		\
           $(PROTOCFLAGS)						\
           --python_out=python/interface/src/mesos/v1/interface $^
-	sed -i 's/mesos\.mesos_pb2/mesos_pb2/' $@
+	$(SED) -i.bak 's/mesos\.mesos_pb2/mesos_pb2/' $@ && rm $@.bak
 
 # We even use a convenience library for most of Mesos so that we can
 # exclude third party libraries so setuptools/distribute can build a
@@ -942,9 +942,9 @@ if GIT_REPO
 endif
 
 # We need to escape the build flags properly.
-BUILD_FLAGS = $(echo $(MESOS_CPPFLAGS) $(CPPFLAGS) | sed 's/\"/\\\"/g')	\
-              $(echo $(AM_CFLAGS) $(CFLAGS) | sed 's/\"/\\\"/g')	\
-              $(echo $(AM_CXXFLAGS) $(CXXFLAGS) | sed 's/\"/\\\"/g')
+BUILD_FLAGS = $(echo $(MESOS_CPPFLAGS) $(CPPFLAGS) | $(SED) 's/\"/\\\"/g')	\
+              $(echo $(AM_CFLAGS) $(CFLAGS) | $(SED) 's/\"/\\\"/g')		\
+              $(echo $(AM_CXXFLAGS) $(CXXFLAGS) | $(SED) 's/\"/\\\"/g')
 
 # TODO(benh): Provide other build flags.
 
