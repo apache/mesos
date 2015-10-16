@@ -1885,9 +1885,11 @@ dist_check_SCRIPTS +=							\
 # runner that ships with newer versions of autotools.
 # See the following discussion for the workaround:
 # http://lists.gnu.org/archive/html/automake/2013-01/msg00051.html
-check-local: mesos-tests
+check-local: tests
 	./mesos-tests
 
 clean-local: clean-java clean-python
+
+tests: all $(check_PROGRAMS) mesos-tests
 
 .PHONY: $(PHONY_TARGETS)

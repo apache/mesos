@@ -78,6 +78,9 @@ bench: all
 
 PHONY_TARGETS += bench
 
+tests: all
+	@cd 3rdparty && $(MAKE) $(AM_MAKEFLAGS) tests
+	@cd src && $(MAKE) $(AM_MAKEFLAGS) tests
 
 # Using LT_OUTPUT in configure.ac creates config.lt that doesn't get
 # cleaned up by distclean-libtool. See this bug patch (which doesn't

@@ -117,3 +117,6 @@ all-local: $(ALL_LOCAL)
 clean-local:
 	rm -r -f $(CLEAN_EXTRACTED)
 	rm -f *-stamp
+
+tests: all
+	@cd libprocess && $(MAKE) $(AM_MAKEFLAGS) tests
