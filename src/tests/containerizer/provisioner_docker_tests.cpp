@@ -291,6 +291,15 @@ TEST_F(DockerSpecTest, SerializeDockerManifest)
     "             \"parent\": "
     "\"cf2616975b4a3cba083ca99bc3f0bf25f5f528c3c52be1596b30f60b0b1c37ff\""
     "           }"
+    "      },"
+    "      {"
+    "         \"v1Compatibility\": "
+    "           {"
+    "             \"id\": "
+    "\"2ce2e90b0bc7224de3db1f0d646fe8e2c4dd37f1793928287f6074bc451a57ea\","
+    "             \"parent\": "
+    "\"cf2616975b4a3cba083ca99bc3f0bf25f5f528c3c52be1596b30f60b0b1c37ff\""
+    "           }"
     "      }"
     "   ],"
     "   \"schemaVersion\": 1,"
@@ -360,6 +369,71 @@ TEST_F(DockerSpecTest, SerializeDockerInvalidManifest)
     "   \"name\": \"dmcgowan/test-image\","
     "   \"tag\": \"latest\","
     "   \"architecture\": \"amd64\""
+    "}").get();
+
+  Try<JSON::Object> json = JSON::parse<JSON::Object>(stringify(manifest));
+  ASSERT_SOME(json);
+
+  Try<slave::docker::DockerImageManifest> dockerImageManifest =
+    spec::parse(json.get());
+
+  EXPECT_ERROR(dockerImageManifest);
+}
+
+// Test Manifest Validation with empty repeated 'fsLayers' field.
+TEST_F(DockerSpecTest, ValidationDockerManifestFsLayersNonEmpty)
+{
+  JSON::Value manifest = JSON::parse(
+    "{"
+    "   \"name\": \"dmcgowan/test-image\","
+    "   \"tag\": \"latest\","
+    "   \"architecture\": \"amd64\","
+    "   \"schemaVersion\": 1,"
+    "   \"signatures\": ["
+    "      {"
+    "         \"header\": {"
+    "            \"jwk\": {"
+    "               \"crv\": \"P-256\","
+    "               \"kid\": "
+    "\"LYRA:YAG2:QQKS:376F:QQXY:3UNK:SXH7:K6ES:Y5AU:XUN5:ZLVY:KBYL\","
+    "               \"kty\": \"EC\","
+    "               \"x\": \"Cu_UyxwLgHzE9rvlYSmvVdqYCXY42E9eNhBb0xNv0SQ\","
+    "               \"y\": \"zUsjWJkeKQ5tv7S-hl1Tg71cd-CqnrtiiLxSi6N_yc8\""
+    "            },"
+    "            \"alg\": \"ES256\""
+    "         },"
+    "         \"signature\": \"m3bgdBXZYRQ4ssAbrgj8Kjl7GNgrKQvmCSY-00yzQosKi-8"
+    "UBrIRrn3Iu5alj82B6u_jNrkGCjEx3TxrfT1rig\","
+    "         \"protected\": \"eyJmb3JtYXRMZW5ndGgiOjYwNjMsImZvcm1hdFRhaWwiOiJ"
+    "DbjAiLCJ0aW1lIjoiMjAxNC0wOS0xMVQxNzoxNDozMFoifQ\""
+    "      }"
+    "   ]"
+    "}").get();
+
+  Try<JSON::Object> json = JSON::parse<JSON::Object>(stringify(manifest));
+  ASSERT_SOME(json);
+
+  Try<slave::docker::DockerImageManifest> dockerImageManifest =
+    spec::parse(json.get());
+
+  EXPECT_ERROR(dockerImageManifest);
+}
+
+// Test Manifest Validation with empty repeated 'signatures' field.
+TEST_F(DockerSpecTest, ValidationDockerManifestSignaturesNonEmpty)
+{
+  JSON::Value manifest = JSON::parse(
+    "{"
+    "   \"name\": \"dmcgowan/test-image\","
+    "   \"tag\": \"latest\","
+    "   \"architecture\": \"amd64\","
+    "   \"fsLayers\": ["
+    "      {"
+    "         \"blobSum\": "
+  "\"sha256:2a7812e636235448785062100bb9103096aa6655a8f6bb9ac9b13fe8290f66df\""
+    "      }"
+    "   ],"
+    "   \"schemaVersion\": 1"
     "}").get();
 
   Try<JSON::Object> json = JSON::parse<JSON::Object>(stringify(manifest));

@@ -33,6 +33,9 @@ namespace slave {
 namespace docker {
 namespace spec {
 
+// Validate if the specified image manifest conforms to the Docker spec.
+Option<Error> validateManifest(const docker::DockerImageManifest& manifest);
+
 // TODO(Gilbert): add validations here, e.g., Manifest, Blob, Layout, ImageID.
 
 // Parse the DockerImageManifest from the specified JSON object.

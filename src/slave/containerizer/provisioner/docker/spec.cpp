@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 
+#include <stout/foreach.hpp>
 #include <stout/json.hpp>
 #include <stout/protobuf.hpp>
 #include <stout/strings.hpp>
@@ -30,6 +31,41 @@ namespace slave {
 namespace docker {
 namespace spec {
 
+// Validate if the specified image manifest conforms to the Docker spec.
+Option<Error> validateManifest(const DockerImageManifest& manifest)
+{
+  // Validate required fields are present,
+  // e.g., repeated fields that has to be >= 1.
+  if (manifest.fslayers_size() <= 0) {
+    return Error("FsLayers field must have at least one blobSum");
+  }
+
+  if (manifest.history_size() <= 0) {
+    return Error("History field must have at least one v1Compatibility");
+  }
+
+  if (manifest.signatures_size() <= 0) {
+    return Error("Signatures field must have at least one signature");
+  }
+
+  // Verify that blobSum and v1Compatibility numbers are equal.
+  if (manifest.fslayers_size() != manifest.history_size()) {
+    return Error("Size of blobSum and v1Compatibility must be equal");
+  }
+
+  // FsLayers field validation.
+  foreach (const docker::DockerImageManifest::FsLayers& fslayer,
+           manifest.fslayers()) {
+    const string& blobSum = fslayer.blobsum();
+    if (!strings::contains(blobSum, ":")) {
+      return Error("Incorrect blobSum format");
+    }
+  }
+
+  return None();
+}
+
+
 Try<docker::DockerImageManifest> parse(const JSON::Object& json)
 {
   Try<docker::DockerImageManifest> manifest =
@@ -37,6 +73,12 @@ Try<docker::DockerImageManifest> parse(const JSON::Object& json)
 
   if (manifest.isError()) {
     return Error("Protobuf parse failed: " + manifest.error());
+  }
+
+  Option<Error> error = validateManifest(manifest.get());
+  if (error.isSome()) {
+    return Error("Docker Image Manifest Validation failed: " +
+                 error.get().message);
   }
 
   return manifest.get();
