@@ -78,6 +78,8 @@ using process::Promise;
 using process::Queue;
 using process::Subprocess;
 
+using std::cout;
+using std::endl;
 using std::list;
 using std::string;
 using std::vector;
@@ -165,6 +167,10 @@ private:
   // Promises whose futures indicate that FetcherProcess::_fetch() has been
   // called for a task with a given index.
   vector<Owned<Promise<Nothing>>> fetchContentionWaypoints;
+
+  // If this test did not succeed as indicated by the above variable,
+  // the contents of these sandboxes will be dumped during tear down.
+  vector<Path> sandboxes;
 };
 
 
@@ -206,8 +212,54 @@ void FetcherCacheTest::SetUp()
 }
 
 
+// Dumps the contents of a text file to cout, assuming
+// there are only text files.
+static void logFile(const Path& path, const string& filename)
+{
+  string filePath = path::join(path.value, filename);
+  Try<string> text = os::read(filePath);
+  if (text.isSome()) {
+    cout << "Begin file contents of `" << filename << "`:" << endl;
+    cout << text.get() << endl;
+    cout << "End file" << endl;
+  } else {
+    cout << "File `" << filename << "` not readable: " << text.error() << endl;
+  }
+}
+
+
+// Dumps the contents of all files in the sandbox to cout, assuming
+// there are only text files.
+static void logSandbox(const Path& path)
+{
+  Try<list<string>> entries = os::ls(path.value);
+  if (entries.isSome()) {
+    cout << "Begin listing sandbox `" << path.value << "`:" << endl;
+    foreach (const string& entry, entries.get()) {
+      logFile(path, entry);
+    }
+    cout << "End sandbox" << endl;
+  } else {
+    cout << "Could not list sandbox `" << path.value
+         << "`: " << entries.error() << endl;
+  }
+}
+
+
 void FetcherCacheTest::TearDown()
 {
+  if (HasFatalFailure()) {
+    // A gtest macro has terminated the test prematurely. Now stream
+    // additional info that might help debug the situation to where
+    // gtest writes its output: cout.
+
+    cout << "Begin listing sandboxes" << endl;
+    foreach (const Path& path, sandboxes) {
+      logSandbox(path);
+    }
+    cout << "End sandboxes" << endl;
+  }
+
   driver->stop();
   driver->join();
   delete driver;
@@ -395,13 +447,15 @@ Try<FetcherCacheTest::Task> FetcherCacheTest::launchTask(
 
   driver->launchTasks(offer.id(), tasks);
 
-  const Path path = Path(slave::paths::getExecutorLatestRunPath(
+  const Path sandboxPath = Path(slave::paths::getExecutorLatestRunPath(
       flags.work_dir,
       slaveId,
       offer.framework_id(),
       executorId));
 
-  return Task{path, taskStatusQueue};
+  sandboxes.push_back(sandboxPath);
+
+  return Task{sandboxPath, taskStatusQueue};
 }
 
 
@@ -505,11 +559,13 @@ Try<vector<FetcherCacheTest::Task>> FetcherCacheTest::launchTasks(
     ExecutorID executorId;
     executorId.set_value(task.task_id().value());
 
-    Path runDirectory = Path(slave::paths::getExecutorLatestRunPath(
+    Path sandboxPath = Path(slave::paths::getExecutorLatestRunPath(
         flags.work_dir,
         slaveId,
         frameworkId,
         executorId));
+
+    sandboxes.push_back(sandboxPath);
 
     // Grabbing task status futures to wait for. We make a queue of futures
     // for each task. We can then wait until the front element indicates
@@ -517,7 +573,7 @@ Try<vector<FetcherCacheTest::Task>> FetcherCacheTest::launchTasks(
     // status update will be the one we have been waiting for.
     Queue<TaskStatus> taskStatusQueue;
 
-    result.push_back(Task {runDirectory, taskStatusQueue});
+    result.push_back(Task {sandboxPath, taskStatusQueue});
 
     EXPECT_CALL(scheduler, statusUpdate(driver, _))
       .WillRepeatedly(PushIndexedTaskStatus<1>(result));
