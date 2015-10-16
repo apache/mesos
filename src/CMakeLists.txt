@@ -195,6 +195,7 @@ set(AGENT_SRC
   slave/containerizer/provisioner/backend.cpp
   slave/containerizer/provisioner/backends/copy.cpp
   slave/containerizer/provisioner/docker/registry_client.cpp
+  slave/containerizer/provisioner/docker/spec.cpp
   slave/containerizer/provisioner/docker/token_manager.cpp
   slave/resource_estimators/noop.cpp
   )
