@@ -63,6 +63,28 @@ string serialize(
 // TODO(bmahler): Kill these in favor of automatic Proto->JSON
 // Conversion (when it becomes available).
 
+// Helper function that returns the JSON::value of a given resource (identified
+// by 'name' and 'type') inside the resources.
+static JSON::Value value(
+    const string& name,
+    const Value::Type& type,
+    Resources resources)
+{
+  switch (type) {
+    case Value::SCALAR:
+      return resources.get<Value::Scalar>(name).get().value();
+    case Value::RANGES:
+      return stringify(resources.get<Value::Ranges>(name).get());
+    case Value::SET:
+      return stringify(resources.get<Value::Set>(name).get());
+    default:
+      LOG(FATAL) << "Unexpected Value type: " << type;
+  }
+
+  UNREACHABLE();
+}
+
+
 JSON::Object model(const Resources& resources)
 {
   JSON::Object object;
@@ -70,29 +92,19 @@ JSON::Object model(const Resources& resources)
   object.values["mem"] = 0;
   object.values["disk"] = 0;
 
-  // To maintain backwards compatibility we exclude revocable
-  // resources in the reporting.
+  // Model non-revocable resources.
   Resources nonRevocable = resources - resources.revocable();
 
-  map<string, Value_Type> types = nonRevocable.types();
+  foreachpair (
+      const string& name, const Value::Type& type, nonRevocable.types()) {
+    object.values[name] = value(name, type, nonRevocable);
+  }
 
-  foreachpair (const string& name, const Value_Type& type, types) {
-    switch (type) {
-      case Value::SCALAR:
-        object.values[name] =
-          nonRevocable.get<Value::Scalar>(name).get().value();
-        break;
-      case Value::RANGES:
-        object.values[name] =
-          stringify(nonRevocable.get<Value::Ranges>(name).get());
-        break;
-      case Value::SET:
-        object.values[name] =
-          stringify(nonRevocable.get<Value::Set>(name).get());
-        break;
-      default:
-        LOG(FATAL) << "Unexpected Value type: " << type;
-    }
+  // Model revocable resources.
+  Resources revocable = resources.revocable();
+
+  foreachpair (const string& name, const Value::Type& type, revocable.types()) {
+    object.values[name + "_revocable"] = value(name, type, revocable);
   }
 
   return object;

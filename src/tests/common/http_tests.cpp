@@ -141,8 +141,11 @@ TEST(HTTPTest, ModelResources)
       "{"
       "  \"bar\":1,"
       "  \"cpus\":2,"
+      "  \"cpus_revocable\":1.1,"
       "  \"disk\":1024,"
+      "  \"disk_revocable\":1025,"
       "  \"mem\":512,"
+      "  \"mem_revocable\":513,"
       "  \"ports\":\"[1-10]\""
       "}");
 
