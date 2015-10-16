@@ -59,8 +59,6 @@ message Event {
 
     // This value will be set if the master is sending heartbeats. See
     // the comment above on 'HEARTBEAT' for more details.
-    // TODO(vinod): Implement heartbeats in the master once the master
-    // can send HTTP events.
     optional double heartbeat_interval_seconds = 2;
   }
 
