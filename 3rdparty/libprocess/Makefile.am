@@ -204,8 +204,14 @@ benchmarks_LDADD =			\
 # runner that ships with newer versions of autotools.
 # See the following discussion for the workaround:
 # http://lists.gnu.org/archive/html/automake/2013-01/msg00051.html
-check-local: libprocess-tests benchmarks
+check-local: tests
 	./libprocess-tests
+
+# Both libprocess-tests and benchmarks have a dependency on libgmock.la.
+3rdparty/libgmock.la:
+	@cd 3rdparty && $(MAKE) $(AM_MAKEFLAGS) tests
+
+tests: all libprocess-tests benchmarks
 
 # TODO(benh): Fix shared builds (tests need libglog, libev, etc).
 

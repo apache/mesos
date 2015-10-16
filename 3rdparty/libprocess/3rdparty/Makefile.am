@@ -240,8 +240,10 @@ stout_tests_LDADD =			\
 # runner that ships with newer versions of autotools.
 # See the following discussion for the workaround:
 # http://lists.gnu.org/archive/html/automake/2013-01/msg00051.html
-check-local: stout-tests
+check-local: tests
 	./stout-tests
+
+tests: all stout-tests
 
 # Dependencies for all-local.
 ALL_LOCAL += $(STOUT)/Makefile
