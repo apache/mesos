@@ -924,7 +924,9 @@ TEST_F(StatusUpdateManagerTest, DuplicatedTerminalStatusUpdate)
   AWAIT_READY(_statusUpdateAcknowledgement2);
 
   // Verify the latest task status.
-  Future<process::http::Response> tasks = process::http::get(master.get(), "tasks");
+  Future<process::http::Response> tasks =
+    process::http::get(master.get(), "tasks");
+
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(process::http::OK().status, tasks);
 
   AWAIT_EXPECT_RESPONSE_HEADER_EQ(
