@@ -6025,12 +6025,11 @@ void Master::updateTask(Task* task, const StatusUpdate& update)
   // Get the unacknowledged status.
   const TaskStatus& status = update.status();
 
-  // Out-of-order updates should not occur, however in case they
-  // do (e.g., due to bugs), prevent them here to ensure that the
-  // resource accounting is not affected.
-  if (protobuf::isTerminalState(task->state()) &&
-      !protobuf::isTerminalState(status.state())) {
-    LOG(ERROR) << "Ignoring out of order status update for task "
+  // Once a task's state has been transitioned to terminal state, no further
+  // terminal updates should result in a state change. These are the same
+  // semantics that are enforced by the slave.
+  if (protobuf::isTerminalState(task->state())) {
+    LOG(ERROR) << "Ignoring status update for the terminated task "
                << task->task_id()
                << " (" << task->state() << " -> " << status.state() << ")"
                << " of framework " << task->framework_id();
