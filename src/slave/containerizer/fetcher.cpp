@@ -26,6 +26,8 @@
 #include <stout/net.hpp>
 #include <stout/path.hpp>
 
+#include <stout/os/read.hpp>
+
 #include "hdfs/hdfs.hpp"
 
 #include "slave/slave.hpp"
@@ -698,9 +700,9 @@ Future<Nothing> FetcherProcess::run(
     return Failure("Failed to create 'stdout' file: " + out.error());
   }
 
-  // Repeat for stderr.
+  string stderr = path::join(info.sandbox_directory(), "stderr");
   Try<int> err = os::open(
-      path::join(info.sandbox_directory(), "stderr"),
+      stderr,
       O_WRONLY | O_CREAT | O_TRUNC | O_NONBLOCK | O_CLOEXEC,
       S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 
@@ -788,6 +790,20 @@ Future<Nothing> FetcherProcess::run(
       }
 
       return Nothing();
+    }))
+    .onFailed(defer(self(), [=](const string&) {
+      // To aid debugging what went wrong when attempting to fetch, grab the
+      // fetcher's local log output from the sandbox and log it here.
+      Try<string> text = os::read(stderr);
+      if (text.isSome()) {
+        LOG(WARNING) << "Begin fetcher log (stderr in sandbox) for container "
+                     << containerId << " from running command: " << command
+                     << "\n" << text.get() << "\n"
+                     << "End fetcher log for container " << containerId;
+      } else {
+        LOG(ERROR) << "Fetcher log (stderr in sandbox) for container "
+                   << containerId << " not readable: " << text.error();
+      }
     }))
     .onAny(defer(self(), [=](const Future<Nothing>&) {
       // Clear the subprocess PID remembered from running mesos-fetcher.
