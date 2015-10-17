@@ -51,6 +51,7 @@
 #define O_CREAT _O_CREAT
 #define O_TRUNC _O_TRUNC
 #define O_APPEND _O_APPEND
+#define O_CLOEXEC _O_NOINHERIT
 
 // TODO(hausdorff): (MESOS-3398) Not defined on Windows. This value is
 // temporary.

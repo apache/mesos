@@ -64,7 +64,6 @@ nobase_include_HEADERS =		\
   stout/os/posix/fork.hpp		\
   stout/os/posix/killtree.hpp		\
   stout/os/posix/ls.hpp			\
-  stout/os/posix/open.hpp		\
   stout/os/posix/process.hpp		\
   stout/os/posix/pstree.hpp		\
   stout/os/posix/read.hpp		\
@@ -91,7 +90,6 @@ nobase_include_HEADERS =		\
   stout/os/windows/fork.hpp		\
   stout/os/windows/killtree.hpp		\
   stout/os/windows/ls.hpp		\
-  stout/os/windows/open.hpp		\
   stout/os/windows/process.hpp		\
   stout/os/windows/pstree.hpp		\
   stout/os/windows/read.hpp		\
