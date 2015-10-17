@@ -97,9 +97,6 @@ if (NOT WIN32)
   # under the C++11 standard. cf. MESOS-860, MESOS-966.
   PATCH_CMD(${PROCESS_3RD_SRC}/glog-0.3.3.patch GLOG_PATCH_CMD)
 
-  set(RY_BUILD_CMD   make -C ${HTTP_PARSER_ROOT})
-  set(RY_INSTALL_CMD ar -rv libhttp_parser.a ${HTTP_PARSER_ROOT}/http_parser_g.o)
-
   # NOTE: `libev` is "installed" into a lib directory, see "NOTE: (fix for
   # MESOS-3250)" comment above for explanation.
   set(LIBEV_CONFIG_CMD  ${LIBEV_ROOT}/configure --prefix=${LIBEV_ROOT}-lib)
@@ -119,13 +116,12 @@ elseif (WIN32)
       ${CMAKE_BUILD_TYPE}
       "libglog")
 
-  set(RY_BUILD_CMD   ${CMAKE_NOOP})
-  set(RY_INSTALL_CMD ${CMAKE_NOOP})
-
   set(LIBEVENT_INSTALL_CMD ${CMAKE_NOOP})
 
   set(LIBAPR_INSTALL_CMD ${CMAKE_NOOP})
 endif (NOT WIN32)
+
+set(RY_UPDATE_CMD ${CMAKE_COMMAND} -E copy ${PROCESS_3RD_SRC}/http-parser/CMakeLists.txt.template ${HTTP_PARSER_ROOT}/CMakeLists.txt)
 
 # Third-party libraries. Tell the build system how to pull in and build third-
 # party libraries at compile time, using the ExternalProject_Add macro.
@@ -162,9 +158,8 @@ ExternalProject_Add(
 ExternalProject_Add(
   ${HTTP_PARSER_TARGET}
   PREFIX            ${HTTP_PARSER_CMAKE_ROOT}
-  CONFIGURE_COMMAND ${CMAKE_NOOP}
-  BUILD_COMMAND     ${RY_BUILD_CMD}
-  INSTALL_COMMAND   ${RY_INSTALL_CMD}
+  UPDATE_COMMAND    ${RY_UPDATE_CMD}
+  INSTALL_COMMAND   ${CMAKE_NOOP}
   URL               ${HTTP_PARSER_URL}
   )
 
@@ -236,12 +231,6 @@ endif (WIN32)
 if (NOT WIN32)
   set(GMOCK_INSTALL_CMD mkdir -p ${GMOCK_ROOT}-lib/lib && cp -r ${GMOCK_ROOT}-build/. ${GMOCK_ROOT}-lib/lib && cp -r ${GMOCK_ROOT}-build/gtest/. ${GMOCK_ROOT}-lib/lib)
 elseif (WIN32)
-  set(GMOCK_CONFIG_CMD ${CMAKE_NOOP})
-  VS_BUILD_CMD(
-      GMOCK
-      ${GMOCK_ROOT}/msvc/2010/gmock.sln
-      ${CMAKE_BUILD_TYPE}
-      "gmock gmock_main")
   set(GMOCK_INSTALL_CMD ${CMAKE_NOOP})
 endif (NOT WIN32)
 

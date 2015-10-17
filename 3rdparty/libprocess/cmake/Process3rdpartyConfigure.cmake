@@ -70,14 +70,15 @@ endif (WIN32)
 # Convenience variables for `lib` directories of built third-party dependencies.
 set(HTTP_PARSER_LIB_DIR ${HTTP_PARSER_ROOT}-build)
 set(LIBEV_LIB_DIR       ${LIBEV_ROOT}-build/.libs)
-set(LIBEVENT_LIB_DIR    ${LIBEVENT_LIB_ROOT}/lib)
 
 if (WIN32)
   set(CURL_LIB_DIR     ${CURL_ROOT}/lib)
   set(GLOG_LIB_DIR     ${GLOG_ROOT}/${CMAKE_BUILD_TYPE})
+  set(LIBEVENT_LIB_DIR ${LIBEVENT_ROOT}-build/lib)
   set(PROTOBUF_LIB_DIR ${PROTOBUF_ROOT}/vsprojects/${CMAKE_BUILD_TYPE})
 else (WIN32)
   set(GLOG_LIB_DIR     ${GLOG_LIB_ROOT}/lib)
+  set(LIBEVENT_LIB_DIR ${LIBEVENT_LIB_ROOT}/lib)
   set(PROTOBUF_LIB_DIR ${PROTOBUF_LIB_ROOT}/lib)
 endif (WIN32)
 

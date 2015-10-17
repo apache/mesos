@@ -62,6 +62,10 @@ elseif (ENABLE_LIBEVENT)
   set(PROCESS_DEPENDENCIES ${PROCESS_DEPENDENCIES} ${LIBEVENT_TARGET})
 endif (NOT ENABLE_LIBEVENT)
 
+if (WIN32)
+  set(PROCESS_DEPENDENCIES ${PROCESS_DEPENDENCIES} ${CURL_TARGET})
+endif (WIN32)
+
 # Define third-party include directories. Tells compiler toolchain where to get
 # headers for our third party libs (e.g., -I/path/to/glog on Linux).
 ###############################################################################
@@ -85,6 +89,10 @@ if (HAS_GPERFTOOLS)
   set(PROCESS_INCLUDE_DIRS ${PROCESS_INCLUDE_DIRS} ${GPERFTOOLS_INCLUDE_DIR})
 endif (HAS_GPERFTOOLS)
 
+if (WIN32)
+  set(PROCESS_INCLUDE_DIRS ${PROCESS_INCLUDE_DIRS} ${CURL_INCLUDE_DIR})
+endif (WIN32)
+
 # Define third-party lib install directories. Used to tell the compiler
 # toolchain where to find our third party libs (e.g., -L/path/to/glog on
 # Linux).
@@ -100,6 +108,10 @@ if (NOT ENABLE_LIBEVENT)
 elseif (ENABLE_LIBEVENT)
   set(PROCESS_LIB_DIRS ${PROCESS_LIB_DIRS} ${LIBEVENT_LIB_DIR})
 endif (NOT ENABLE_LIBEVENT)
+
+if (WIN32)
+  set(PROCESS_LIB_DIRS ${PROCESS_LIB_DIRS} ${CURL_LIB_DIR})
+endif (WIN32)
 
 
 # Define third-party libs. Used to generate flags that the linker uses to
@@ -121,7 +133,9 @@ elseif (ENABLE_LIBEVENT)
   set(PROCESS_LIBS ${PROCESS_LIBS} ${LIBEVENT_LFLAG})
 endif (NOT ENABLE_LIBEVENT)
 
-if (NOT WIN32)
+if (WIN32)
+  set(PROCESS_LIBS ${PROCESS_LIBS} ${CURL_LFLAG})
+elseif (NOT WIN32)
   find_package(ZLIB REQUIRED)
 
   # TODO(hausdorff): (MESOS-3396) The `LINUX` flag comes from MesosConfigure;
@@ -136,4 +150,4 @@ if (NOT WIN32)
     ${PROCESS_LIBS}
     ${ZLIB_LIBRARIES}
     )
-endif (NOT WIN32)
+endif (WIN32)

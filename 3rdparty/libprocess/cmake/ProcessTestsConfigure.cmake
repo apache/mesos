@@ -48,12 +48,12 @@ set(GMOCK_INCLUDE_DIR ${GMOCK_ROOT}/include)
 set(GTEST_INCLUDE_DIR ${GTEST_SRC}/include)
 
 # Convenience variables for `lib` directories of built third-party dependencies.
-set(GTEST_LIB_DIR ${GMOCK_ROOT}-build/gtest/lib/.libs)
-
 if (WIN32)
-  set(GMOCK_LIB_DIR    ${GMOCK_ROOT}/msvc/2010/Debug)
+  set(GMOCK_LIB_DIR ${GMOCK_ROOT}/msvc/2010/Debug)
+  set(GTEST_LIB_DIR ${GMOCK_ROOT}-build/gtest/Debug)
 else (WIN32)
-  set(GMOCK_LIB_DIR    ${GMOCK_ROOT}-lib/lib/)
+  set(GMOCK_LIB_DIR ${GMOCK_ROOT}-lib/lib/)
+  set(GTEST_LIB_DIR ${GMOCK_ROOT}-build/gtest/lib/.libs)
 endif (WIN32)
 
 # Convenience variables for "lflags", the symbols we pass to CMake to generate
