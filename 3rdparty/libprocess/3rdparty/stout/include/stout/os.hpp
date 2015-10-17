@@ -80,6 +80,7 @@
 #include <stout/os/permissions.hpp>
 #include <stout/os/os.hpp>
 #include <stout/os/read.hpp>
+#include <stout/os/realpath.hpp>
 #include <stout/os/rename.hpp>
 #include <stout/os/sendfile.hpp>
 #include <stout/os/shell.hpp>
@@ -183,19 +184,6 @@ inline Try<std::string> mktemp(const std::string& path = "/tmp/XXXXXX")
   std::string result(temp);
   delete[] temp;
   return result;
-}
-
-
-inline Result<std::string> realpath(const std::string& path)
-{
-  char temp[PATH_MAX];
-  if (::realpath(path.c_str(), temp) == NULL) {
-    if (errno == ENOENT || errno == ENOTDIR) {
-      return None();
-    }
-    return ErrnoError();
-  }
-  return std::string(temp);
 }
 
 
