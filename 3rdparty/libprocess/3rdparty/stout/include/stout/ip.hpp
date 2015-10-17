@@ -15,9 +15,7 @@
 #define __STOUT_IP_HPP__
 
 // For 'sockaddr'.
-#ifdef __WINDOWS__
-#include <Winsock2.h>
-#else
+#ifndef __WINDOWS__
 #include <arpa/inet.h>
 #endif // __WINDOWS__
 

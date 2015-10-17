@@ -18,9 +18,7 @@
 #include <limits.h> // For 'LLONG_(MAX|MIN)'.
 
 // For 'timeval'.
-#ifdef __WINDOWS__
-#include <Winsock2.h>
-#else
+#ifndef __WINDOWS__
 #include <time.h>
 #endif // __WINDOWS__
 

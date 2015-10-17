@@ -15,8 +15,13 @@
 #define __STOUT_WINDOWS_HPP__
 
 
+#include <direct.h> // For `_mkdir`.
 #include <fcntl.h>  // For file access flags like `_O_CREAT`.
+#include <io.h>     // For `_read`, `_write`.
 
+// We include `Winsock2.h` before `Windows.h` explicitly to avoid symbold
+// re-definitions. This is a known pattern in the windows community.
+#include <Winsock2.h>
 #include <Windows.h>
 
 
