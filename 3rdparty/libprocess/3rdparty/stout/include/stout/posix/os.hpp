@@ -94,7 +94,6 @@ namespace os {
 
 // Forward declarations.
 inline Try<Nothing> utime(const std::string&);
-inline Try<Nothing> write(int, const std::string&);
 
 inline char** environ()
 {
@@ -162,30 +161,6 @@ inline Try<Nothing> touch(const std::string& path)
 
   // Update the access and modification times.
   return utime(path);
-}
-
-
-// A wrapper function that wraps the above write() with
-// open and closing the file.
-inline Try<Nothing> write(const std::string& path, const std::string& message)
-{
-  Try<int> fd = os::open(
-      path,
-      O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC,
-      S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
-
-  if (fd.isError()) {
-    return ErrnoError("Failed to open file '" + path + "'");
-  }
-
-  Try<Nothing> result = write(fd.get(), message);
-
-  // We ignore the return value of close(). This is because users
-  // calling this function are interested in the return value of
-  // write(). Also an unsuccessful close() doesn't affect the write.
-  os::close(fd.get());
-
-  return result;
 }
 
 

@@ -83,6 +83,7 @@ nobase_include_HEADERS =		\
   stout/os/permissions.hpp		\
   stout/os/pstree.hpp			\
   stout/os/sysctl.hpp			\
+  stout/os/write.hpp			\
   stout/os/windows/exists.hpp		\
   stout/os/windows/fcntl.hpp		\
   stout/os/windows/fork.hpp		\
