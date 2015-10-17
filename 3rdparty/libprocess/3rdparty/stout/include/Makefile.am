@@ -41,7 +41,6 @@ nobase_include_HEADERS =		\
   stout/lambda.hpp			\
   stout/linkedhashmap.hpp		\
   stout/posix/gzip.hpp			\
-  stout/posix/net.hpp			\
   stout/posix/os.hpp			\
   stout/list.hpp			\
   stout/mac.hpp				\
@@ -122,5 +121,4 @@ nobase_include_HEADERS =		\
   stout/windows.hpp			\
   stout/windows/format.hpp		\
   stout/windows/gzip.hpp		\
-  stout/windows/net.hpp			\
   stout/windows/os.hpp
