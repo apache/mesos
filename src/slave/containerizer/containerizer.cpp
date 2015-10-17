@@ -278,7 +278,7 @@ map<string, string> executorEnvironment(
   // case the framework wants to override).
   // TODO(tillt): Adapt library towards JNI specific name once libmesos
   // has been split.
-  if (os::getenv("MESOS_NATIVE_JAVA_LIBRARY").isNone()) {
+  if (environment.count("MESOS_NATIVE_JAVA_LIBRARY") == 0) {
     string path =
 #ifdef __APPLE__
       LIBDIR "/libmesos-" VERSION ".dylib";
@@ -293,7 +293,7 @@ map<string, string> executorEnvironment(
   // Also add MESOS_NATIVE_LIBRARY if it's not already present.
   // This environment variable is kept for offering non JVM-based
   // frameworks a more compact and JNI independent library.
-  if (os::getenv("MESOS_NATIVE_LIBRARY").isNone()) {
+  if (environment.count("MESOS_NATIVE_LIBRARY") == 0) {
     string path =
 #ifdef __APPLE__
       LIBDIR "/libmesos-" VERSION ".dylib";
