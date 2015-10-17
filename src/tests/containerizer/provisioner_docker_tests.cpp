@@ -409,7 +409,7 @@ TEST_F(DockerSpecTest, SerializeDockerManifest)
   EXPECT_EQ(dockerImageManifest.get().history(2).v1compatibility().parent(),
     "cf2616975b4a3cba083ca99bc3f0bf25f5f528c3c52be1596b30f60b0b1c37ff");
 
-  EXPECT_EQ(dockerImageManifest.get().schemaversion(), 1);
+  EXPECT_EQ(dockerImageManifest.get().schemaversion(), 1u);
 
   EXPECT_EQ(dockerImageManifest.get().signatures(0).header().jwk().kid(),
     "LYRA:YAG2:QQKS:376F:QQXY:3UNK:SXH7:K6ES:Y5AU:XUN5:ZLVY:KBYL");
