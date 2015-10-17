@@ -1092,8 +1092,19 @@ message TaskStatus {
   // TODO(bmahler): Differentiate between agent removal reasons
   // (e.g. unhealthy vs. unregistered for maintenance).
   enum Reason {
+    // TODO(jieyu): The default value when a caller doesn't check for
+    // presence is 0 and so ideally the 0 reason is not a valid one.
+    // Since this is not used anywhere, consider removing this reason.
     REASON_COMMAND_EXECUTOR_FAILED = 0;
-    REASON_EXECUTOR_PREEMPTED = 17;
+
+    REASON_CONTAINER_LAUNCH_FAILED = 21;
+    REASON_CONTAINER_LIMITATION = 19;
+    REASON_CONTAINER_LIMITATION_DISK = 20;
+    REASON_CONTAINER_LIMITATION_MEMORY = 8;
+    REASON_CONTAINER_PREEMPTED = 17;
+    REASON_CONTAINER_UPDATE_FAILED = 22;
+    REASON_EXECUTOR_REGISTRATION_TIMEOUT = 23;
+    REASON_EXECUTOR_REREGISTRATION_TIMEOUT = 24;
     REASON_EXECUTOR_TERMINATED = 1;
     REASON_EXECUTOR_UNREGISTERED = 2;
     REASON_FRAMEWORK_REMOVED = 3;
@@ -1101,7 +1112,6 @@ message TaskStatus {
     REASON_INVALID_FRAMEWORKID = 5;
     REASON_INVALID_OFFERS = 6;
     REASON_MASTER_DISCONNECTED = 7;
-    REASON_MEMORY_LIMIT = 8;
     REASON_RECONCILIATION = 9;
     REASON_RESOURCES_UNKNOWN = 18;
     REASON_AGENT_DISCONNECTED = 10;
