@@ -36,6 +36,7 @@
 #include <process/timer.hpp>
 
 #include <stout/abort.hpp>
+#include <stout/check.hpp>
 #include <stout/duration.hpp>
 #include <stout/error.hpp>
 #include <stout/lambda.hpp>
