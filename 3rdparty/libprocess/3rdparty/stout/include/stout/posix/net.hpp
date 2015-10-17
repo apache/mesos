@@ -89,6 +89,8 @@ inline Try<Bytes> contentLength(const std::string& url)
   curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, true);
   curl_easy_setopt(curl, CURLOPT_HEADER, 1);
   curl_easy_setopt(curl, CURLOPT_NOBODY, 1);
+  curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 10);
+  curl_easy_setopt(curl, CURLOPT_TIMEOUT, 120);
 
   CURLcode curlErrorCode = curl_easy_perform(curl);
   if (curlErrorCode != 0) {
@@ -136,6 +138,8 @@ inline Try<int> download(const std::string& url, const std::string& path)
   curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
   curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, NULL);
   curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, true);
+  curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 10);
+  curl_easy_setopt(curl, CURLOPT_TIMEOUT, 120);
 
   FILE* file = fdopen(fd.get(), "w");
   if (file == NULL) {
