@@ -65,7 +65,6 @@ nobase_include_HEADERS =		\
   stout/os/posix/ls.hpp			\
   stout/os/posix/process.hpp		\
   stout/os/posix/pstree.hpp		\
-  stout/os/posix/read.hpp		\
   stout/os/posix/sendfile.hpp		\
   stout/os/posix/shell.hpp		\
   stout/os/posix/signals.hpp		\
@@ -91,7 +90,6 @@ nobase_include_HEADERS =		\
   stout/os/windows/ls.hpp		\
   stout/os/windows/process.hpp		\
   stout/os/windows/pstree.hpp		\
-  stout/os/windows/read.hpp		\
   stout/os/windows/sendfile.hpp		\
   stout/os/windows/shell.hpp		\
   stout/os/windows/signals.hpp		\
