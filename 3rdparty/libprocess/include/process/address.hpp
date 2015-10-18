@@ -16,9 +16,13 @@
 #define __PROCESS_ADDRESS_HPP__
 
 #include <stdint.h>
+#ifndef __WINDOWS__
 #include <unistd.h>
+#endif // __WINDOWS__
 
+#ifndef __WINDOWS__
 #include <arpa/inet.h>
+#endif // __WINDOWS__
 
 #include <glog/logging.h>
 
