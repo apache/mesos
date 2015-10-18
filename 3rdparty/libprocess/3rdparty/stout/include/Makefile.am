@@ -57,12 +57,14 @@ nobase_include_HEADERS =		\
   stout/os/exists.hpp			\
   stout/os/fcntl.hpp			\
   stout/os/fork.hpp			\
+  stout/os/ftruncate.hpp		\
   stout/os/killtree.hpp			\
   stout/os/linux.hpp			\
   stout/os/posix/bootid.hpp		\
   stout/os/posix/exists.hpp		\
   stout/os/posix/fcntl.hpp		\
   stout/os/posix/fork.hpp		\
+  stout/os/posix/ftruncate.hpp		\
   stout/os/posix/killtree.hpp		\
   stout/os/posix/ls.hpp			\
   stout/os/posix/process.hpp		\
@@ -91,6 +93,7 @@ nobase_include_HEADERS =		\
   stout/os/windows/exists.hpp		\
   stout/os/windows/fcntl.hpp		\
   stout/os/windows/fork.hpp		\
+  stout/os/windows/ftruncate.hpp	\
   stout/os/windows/killtree.hpp		\
   stout/os/windows/ls.hpp		\
   stout/os/windows/process.hpp		\

@@ -35,6 +35,7 @@
 #include <stout/try.hpp>
 
 #include <stout/os/close.hpp>
+#include <stout/os/ftruncate.hpp>
 #include <stout/os/process.hpp>
 
 
@@ -290,8 +291,10 @@ private:
       return ErrnoError("Failed to open a shared memory object");
     }
 
-    if (ftruncate(fd, sizeof(Tree::Memory)) == -1) {
-      return ErrnoError("Failed to set size of shared memory object");
+    Try<Nothing> truncated = ftruncate(fd, sizeof(Tree::Memory));
+    if (truncated.isError()) {
+      return Error(
+          "Failed to set size of shared memory object: " + truncated.error());
     }
 
     void* memory = mmap(
