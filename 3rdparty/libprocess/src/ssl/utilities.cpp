@@ -19,6 +19,7 @@
 #include <openssl/x509.h>
 #include <openssl/x509v3.h>
 
+#include <stout/check.hpp>
 #include <stout/net.hpp>
 #include <stout/stringify.hpp>
 
