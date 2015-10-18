@@ -339,7 +339,7 @@ Try<Subprocess> subprocess(
   // Like above, we need to construct the environment that we'll pass
   // to 'os::execvpe' as it might not be async-safe to perform the
   // memory allocations.
-  char** envp = os::environ();
+  char** envp = os::raw::environment();
 
   if (environment.isSome()) {
     // NOTE: We add 1 to the size for a NULL terminator.
@@ -380,7 +380,7 @@ Try<Subprocess> subprocess(
   // Need to delete 'envp' if we had environment variables passed to
   // us and we needed to allocate the space.
   if (environment.isSome()) {
-    CHECK_NE(os::environ(), envp);
+    CHECK_NE(os::raw::environment(), envp);
     delete[] envp;
   }
 
