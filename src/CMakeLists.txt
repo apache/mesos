@@ -36,10 +36,13 @@ PROTOC_TO_INCLUDE_DIR(V1_SCHEDULER     mesos/v1/scheduler/scheduler)
 PROTOC_TO_INCLUDE_DIR(ISOLATOR         mesos/slave/isolator)
 PROTOC_TO_INCLUDE_DIR(OVERSUBSCRIPTION mesos/slave/oversubscription)
 
+PROTOC_TO_SRC_DIR(REGISTRY master/registry)
+
 PROTOC_TO_SRC_DIR(MESSAGES messages/messages)
 PROTOC_TO_SRC_DIR(FLAGS    messages/flags)
 PROTOC_TO_SRC_DIR(STATE    messages/state)
-PROTOC_TO_SRC_DIR(REGISTRY master/registry)
+
+PROTOC_TO_SRC_DIR(MESSAGE slave/containerizer/provisioner/docker/message)
 
 set(MESOS_PROTOBUF_SRC
   ${MESOS_PROTO_CC}
@@ -62,6 +65,7 @@ set(MESOS_PROTOBUF_SRC
   ${STATE_PROTO_CC}
   ${ISOLATOR_PROTO_CC}
   ${REGISTRY_PROTO_CC}
+  ${MESSAGE_PROTO_CC}
   )
 
 # Configure Mesos files.
@@ -194,6 +198,7 @@ set(AGENT_SRC
   slave/containerizer/provisioner/appc/store.cpp
   slave/containerizer/provisioner/backend.cpp
   slave/containerizer/provisioner/backends/copy.cpp
+  slave/containerizer/provisioner/docker/message.proto
   slave/containerizer/provisioner/docker/registry_client.cpp
   slave/containerizer/provisioner/docker/spec.cpp
   slave/containerizer/provisioner/docker/token_manager.cpp
