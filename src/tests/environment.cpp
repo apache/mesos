@@ -420,7 +420,7 @@ Environment::Environment(const Flags& _flags) : flags(_flags)
 void Environment::SetUp()
 {
   // Clear any MESOS_ environment variables so they don't affect our tests.
-  char** environ = os::environ();
+  char** environ = os::raw::environment();
   for (int i = 0; environ[i] != NULL; i++) {
     string variable = environ[i];
     if (variable.find("MESOS_") == 0) {
