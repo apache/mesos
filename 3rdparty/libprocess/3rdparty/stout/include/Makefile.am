@@ -54,6 +54,7 @@ nobase_include_HEADERS =		\
   stout/os.hpp				\
   stout/os/bootid.hpp			\
   stout/os/close.hpp			\
+  stout/os/environment.hpp		\
   stout/os/exists.hpp			\
   stout/os/fcntl.hpp			\
   stout/os/fork.hpp			\
