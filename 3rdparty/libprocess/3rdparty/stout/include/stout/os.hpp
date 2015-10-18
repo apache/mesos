@@ -74,6 +74,7 @@
 #include <stout/unreachable.hpp>
 #include <stout/version.hpp>
 
+#include <stout/os/bootid.hpp>
 #include <stout/os/fork.hpp>
 #include <stout/os/killtree.hpp>
 #include <stout/os/ls.hpp>
@@ -86,9 +87,6 @@
 #include <stout/os/shell.hpp>
 #include <stout/os/signals.hpp>
 #include <stout/os/stat.hpp>
-#ifdef __APPLE__
-#include <stout/os/sysctl.hpp>
-#endif // __APPLE__
 #include <stout/os/write.hpp>
 
 
@@ -268,28 +266,6 @@ inline Try<Nothing> tar(const std::string& path, const std::string& archive)
   }
 
   return Nothing();
-}
-
-
-inline Try<std::string> bootId()
-{
-#ifdef __linux__
-  Try<std::string> read = os::read("/proc/sys/kernel/random/boot_id");
-  if (read.isError()) {
-    return read;
-  }
-  return strings::trim(read.get());
-#elif defined(__APPLE__)
-  // For OS X, we use the boot time in seconds as a unique boot id.
-  // Although imperfect, this works quite well in practice.
-  Try<timeval> bootTime = os::sysctl(CTL_KERN, KERN_BOOTTIME).time();
-  if (bootTime.isError()) {
-    return Error(bootTime.error());
-  }
-  return stringify(bootTime.get().tv_sec);
-#else
-  return Error("Not implemented");
-#endif
 }
 
 
