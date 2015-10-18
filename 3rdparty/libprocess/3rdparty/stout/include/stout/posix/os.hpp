@@ -14,9 +14,6 @@
 #ifndef __STOUT_POSIX_OS_HPP__
 #define __STOUT_POSIX_OS_HPP__
 
-#ifdef __APPLE__
-#include <crt_externs.h> // For _NSGetEnviron().
-#endif
 #include <errno.h>
 #ifdef __sun
 #include <sys/loadavg.h>
@@ -85,46 +82,12 @@
 #include <stout/os/sysctl.hpp>
 #endif // __APPLE__
 
-// Need to declare 'environ' pointer for non OS X platforms.
-#ifndef __APPLE__
-extern char** environ;
-#endif
+#include <stout/os/raw/environment.hpp>
 
 namespace os {
 
 // Forward declarations.
 inline Try<Nothing> utime(const std::string&);
-
-inline char** environ()
-{
-  // Accessing the list of environment variables is platform-specific.
-  // On OS X, the 'environ' symbol isn't visible to shared libraries,
-  // so we must use the _NSGetEnviron() function (see 'man environ' on
-  // OS X). On other platforms, it's fine to access 'environ' from
-  // shared libraries.
-#ifdef __APPLE__
-  return *_NSGetEnviron();
-#else
-  return ::environ;
-#endif
-}
-
-
-// Returns the address of os::environ().
-inline char*** environp()
-{
-  // Accessing the list of environment variables is platform-specific.
-  // On OS X, the 'environ' symbol isn't visible to shared libraries,
-  // so we must use the _NSGetEnviron() function (see 'man environ' on
-  // OS X). On other platforms, it's fine to access 'environ' from
-  // shared libraries.
-#ifdef __APPLE__
-  return _NSGetEnviron();
-#else
-  return &::environ;
-#endif
-}
-
 
 // Sets the value associated with the specified key in the set of
 // environment variables.
@@ -287,13 +250,13 @@ inline int system(const std::string& command)
 // async signal safe.
 inline int execvpe(const char* file, char** argv, char** envp)
 {
-  char** saved = os::environ();
+  char** saved = os::raw::environment();
 
-  *os::environp() = envp;
+  *os::raw::environmentp() = envp;
 
   int result = execvp(file, argv);
 
-  *os::environp() = saved;
+  *os::raw::environmentp() = saved;
 
   return result;
 }

@@ -80,7 +80,7 @@ TEST_F(OsTest, Environment)
   // Make sure the environment has some entries with '=' in the value.
   os::setenv("SOME_SPECIAL_FLAG", "--flag=foobar");
 
-  char** environ = os::environ();
+  char** environ = os::raw::environment();
 
   hashmap<string, string> environment = os::environment();
 

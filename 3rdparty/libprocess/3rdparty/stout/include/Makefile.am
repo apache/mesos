@@ -89,6 +89,7 @@ nobase_include_HEADERS =		\
   stout/os/pstree.hpp			\
   stout/os/sysctl.hpp			\
   stout/os/write.hpp			\
+  stout/os/raw/environment.hpp		\
   stout/os/windows/bootid.hpp		\
   stout/os/windows/exists.hpp		\
   stout/os/windows/fcntl.hpp		\

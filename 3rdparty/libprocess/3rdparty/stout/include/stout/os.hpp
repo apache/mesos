@@ -104,7 +104,7 @@ namespace os {
 
 inline std::map<std::string, std::string> environment()
 {
-  char** environ = os::environ();
+  char** environ = os::raw::environment();
 
   std::map<std::string, std::string> result;
 
