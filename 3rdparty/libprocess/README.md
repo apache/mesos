@@ -4,7 +4,7 @@
 
 The library _libprocess_ provides high level elements for an actor programming
 style with asynchronous message-handling and a variety of related basic system
-primitives. It's API and implementation are written in C++.
+primitives. Its API and implementation are written in C++.
 
 
 ## Introduction
@@ -64,7 +64,7 @@ Async defines a function template for asynchronously executing function closures
 
 ## `defer`
 
-`defer` allows the caller to postpone the decision wether to [dispatch](#dispatch) something by creating a callable object which can perform the dispatch at a later point in time.
+`defer` allows the caller to postpone the decision whether to [dispatch](#dispatch) something by creating a callable object which can perform the dispatch at a later point in time.
 
 <!---
 ~~~{.cpp}
