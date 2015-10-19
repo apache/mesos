@@ -2,9 +2,10 @@
 
 *Note* This Developer Guide is Work in Progress.
 
-The library _libprocess_ provides high level elements for an actor programming
-style with asynchronous message-handling and a variety of related basic system
-primitives. Its API and implementation are written in C++.
+The library _libprocess_ provides high level elements for an
+actor programming style with asynchronous message-handling and a
+variety of related basic system primitives. Its API and
+implementation are written in C++.
 
 
 ## Introduction
@@ -14,31 +15,17 @@ a language that implements the
 [actor model](http://en.wikipedia.org/wiki/Actor_model).
 
 As the name already suggests, one of the libprocess core concepts is a
-[Process](#process). This is a single threaded, independent actor which can
-communicate with other processes by sending and receiving [messages](#message).
-These are serialized into [Protobuf messages](#protobuf) format and stored in
-the recipient process' message buffer, from where its thread can process them
-in a serial fashion. In order to always be responsive processes should avoid blocking at all costs.
+[Process](#process). This is a single threaded, independent actor which
+communicates with other processes, locally and remotely, by sending and receiving [HTTP requests and responses](#http).
 
-A process can be identified symbolically by its [PID](#pid).
-
-Basic communication between processes is supported by [send](#send),
-[route](#route), and [install](#install).
-
-At a higher level, functional composition of interactions between processes is facilitated by the concept
-of a [Future](#future) and a [Promise](#promise). A `Future` is a
-read-only placeholder for a result which might be computed
-asynchronously. A Promise on the other side is a
-handle providing write access to a referenced `Future`.
-The following primitives compose closures with future results: [delay](#delay), [defer](#defer), and [dispatch](#dispatch). This gives rise to the pattern of [future chaining](#future-chaining).
-
-This is one of the major [patterns](#table-of-patterns) which combine the [main concepts](#table_of_concepts) of libprocess.
+At a higher level, functional composition of processes is facilitated using [futures and promises](#futures-and-promises).
 
 
 ## Overview
 
-### Table of Concepts
+### Table of Contents
 
+* [Processes and the Asynchronous Pimpl Pattern](#processes)
 * [Async](#async)
 * [Defer](#defer)
 * [Delay](#delay)
@@ -55,7 +42,7 @@ This is one of the major [patterns](#table-of-patterns) which combine the [main 
 * [Clock Test Pattern](#clock-test-pattern)
 
 
-## Concepts
+## Processes and the Asynchronous Pimpl Pattern
 
 ## `async`
 
@@ -129,6 +116,10 @@ int main(int argc, char** argv)
 ## `Future`
 
 The libprocess futures mimic futures in other languages like Scala. It is a placeholder for a future value which is not (necessarily) ready yet. A future in libprocess is a C++ template which is specialized for the return type, for example Try. A future can either be: ready (carrying along a value which can be extracted with .get()), failed (in which case .error() will encode the reason for the failure) or discarded.
+
+A `Future` acts as the read-side of a result which might be
+computed asynchronously. A `Promise` is the write-side handle
+from which a `Future` can be created.
 
 Futures can be created in numerous ways: awaiting the result of a method call with [defer](#defer), [dispatch](#dispatch), and [delay](#delay) or as the read-end of a [promise](#promise).
 
