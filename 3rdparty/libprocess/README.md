@@ -26,61 +26,49 @@ At a higher level, functional composition of processes is facilitated using [fut
 ### Table of Contents
 
 * [Processes and the Asynchronous Pimpl Pattern](#processes)
-* [Async](#async)
-* [Defer](#defer)
-* [Delay](#delay)
-* [Future](#future)
-* [ID](#id)
-* [PID](#pid)
-* [Process](#process)
-* [Promise](#promise)
+* [Futures and Promises](#futures-and-promises)
+* [HTTP](#http)
+* [Testing](#testing)
+* [Miscellaneous Primitives](#miscellaneous-primitives)
 
-
-### Table of Patterns
-
-* [Future Chaining](#future-chaining)
-* [Clock Test Pattern](#clock-test-pattern)
-
+---
 
 ## Processes and the Asynchronous Pimpl Pattern
 
-## `async`
+A `process` is an actor, effectively a cross between a thread and an object.
 
-Async defines a function template for asynchronously executing function closures. It provides their results as [Futures](#future).
+Creating/spawning a process is very cheap (no actual thread gets
+created, and no thread stack gets allocated).
 
+Each process has a queue of incoming events that it processes one at a
+time.
 
-## `defer`
-
-`defer` allows the caller to postpone the decision whether to [dispatch](#dispatch) something by creating a callable object which can perform the dispatch at a later point in time.
+Processes provide execution contexts (only one thread executing within
+a process at a time so no need for per process synchronization).
 
 <!---
 ~~~{.cpp}
 using namespace process;
 
-class SomeProcess : public Process<SomeProcess>
-{
-public:
-  void merge()
-  {
-    queue.get()
-      .then(defer(self(), [] (int i) {
-        ...;
-      }));
-  }
+class MyProcess : public Process<MyProcess> {};
 
-private:
-  Queue<int> queue;
-};
+int main(int argc, char** argv)
+{
+  MyProcess process;
+  spawn(process);
+  terminate(process);
+  wait(process);
+  return 0;
+}
 ~~~
 ---->
 
-
-## `delay`
+### `delay`
 
 `delay` instead of [dispatching](#dispatch) for execution right away, it allows it to be scheduled after a certain time duration.
 
 
-## `dispatch`
+### `dispatch`
 
 `dispatch` schedules a method for asynchronous execution.
 
@@ -113,48 +101,13 @@ int main(int argc, char** argv)
 ---->
 
 
-## `Future`
-
-The libprocess futures mimic futures in other languages like Scala. It is a placeholder for a future value which is not (necessarily) ready yet. A future in libprocess is a C++ template which is specialized for the return type, for example Try. A future can either be: ready (carrying along a value which can be extracted with .get()), failed (in which case .error() will encode the reason for the failure) or discarded.
-
-A `Future` acts as the read-side of a result which might be
-computed asynchronously. A `Promise` is the write-side handle
-from which a `Future` can be created.
-
-Futures can be created in numerous ways: awaiting the result of a method call with [defer](#defer), [dispatch](#dispatch), and [delay](#delay) or as the read-end of a [promise](#promise).
-
-
-
-### `Future::then`
-
-`Future::then` allows to invoke callbacks once a future is completed.
-
-~~~{.cpp}
-using namespace process;
-
-int main(int argc, char** argv)
-{
-  ...;
-
-  Future<int> i = dispatch(process, &QueueProcess<int>::dequeue);
-
-  dispatch(process, &QueueProcess<int>::enqueue, 42);
-
-  i.then([] (int i) {
-    // Use 'i'.
-  });
-
-  ...;
-}
-~~~
-
-## `ID`
+### `ID`
 
 Generates a unique identifier string given a prefix. This is used to
 provide `PID` names.
 
 
-## `PID`
+### `PID`
 
 A `PID` provides a level of indirection for naming a process without
 having an actual reference (pointer) to it (necessary for remote
@@ -181,39 +134,47 @@ int main(int argc, char** argv)
 ~~~
 ---->
 
+---
 
-## `Process`
+## Futures and Promises
 
-A `process` is an actor, effectively a cross between a thread and an object.
+### `Future`
 
-Creating/spawning a process is very cheap (no actual thread gets
-created, and no thread stack gets allocated).
+The libprocess futures mimic futures in other languages like Scala. It is a placeholder for a future value which is not (necessarily) ready yet. A future in libprocess is a C++ template which is specialized for the return type, for example Try. A future can either be: ready (carrying along a value which can be extracted with .get()), failed (in which case .error() will encode the reason for the failure) or discarded.
 
-Each process has a queue of incoming events that it processes one at a
-time.
+A `Future` acts as the read-side of a result which might be
+computed asynchronously. A `Promise` is the write-side handle
+from which a `Future` can be created.
 
-Processes provide execution contexts (only one thread executing within
-a process at a time so no need for per process synchronization).
+Futures can be created in numerous ways: awaiting the result of a method call with [defer](#defer), [dispatch](#dispatch), and [delay](#delay) or as the read-end of a [promise](#promise).
 
-<!---
+
+
+#### `Future::then`
+
+`Future::then` allows to invoke callbacks once a future is completed.
+
 ~~~{.cpp}
 using namespace process;
 
-class MyProcess : public Process<MyProcess> {};
-
 int main(int argc, char** argv)
 {
-  MyProcess process;
-  spawn(process);
-  terminate(process);
-  wait(process);
-  return 0;
+  ...;
+
+  Future<int> i = dispatch(process, &QueueProcess<int>::dequeue);
+
+  dispatch(process, &QueueProcess<int>::enqueue, 42);
+
+  i.then([] (int i) {
+    // Use 'i'.
+  });
+
+  ...;
 }
 ~~~
----->
 
 
-## `Promise`
+### `Promise`
 
 A `promise` is an object that can fulfill a [futures](#future), i.e. assign a result value to it.
 
@@ -255,8 +216,36 @@ int main(int argc, char** argv)
 ~~~
 ---->
 
+### `defer`
 
-## `route`
+`defer` allows the caller to postpone the decision whether to [dispatch](#dispatch) something by creating a callable object which can perform the dispatch at a later point in time.
+
+<!---
+~~~{.cpp}
+using namespace process;
+
+class SomeProcess : public Process<SomeProcess>
+{
+public:
+  void merge()
+  {
+    queue.get()
+      .then(defer(self(), [] (int i) {
+        ...;
+      }));
+  }
+
+private:
+  Queue<int> queue;
+};
+~~~
+---->
+
+---
+
+## HTTP
+
+### `route`
 
 `route` installs an http endpoint onto a process.
 
@@ -284,12 +273,14 @@ public:
 ~~~
 ---->
 
+---
 
+## Testing
 
-## Pattern/Examples
-TODO: ADD PATTERNS
+---
 
-### Future Chaining
+## Miscellaneous Primitives
 
+### `async`
 
-### Clock Test Pattern
+Async defines a function template for asynchronously executing function closures. It provides their results as [futures](#futures-and-promises).
