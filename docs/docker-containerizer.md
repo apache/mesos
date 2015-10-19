@@ -14,7 +14,7 @@ The following sections will describe the API changes along with Docker support, 
 
 To run the slave to enable the Docker Containerizer, you must launch the slave with "docker" as one of the containerizers option.
 
-Example: mesos-slave --containerizers=docker,mesos
+Example: `mesos-slave --containerizers=docker,mesos`
 
 Each slave that has the Docker containerizer should have Docker CLI client installed (version >= 1.0.0).
 
@@ -38,17 +38,19 @@ Note that the Docker image is expected to launch up as a Mesos executor that wil
 
 ## What does the Docker Containerizer do?
 
-The Docker Containerizer is translating Task/Executor Launch and Destroy calls to Docker CLI commands.
+The Docker Containerizer is translating Task/Executor `Launch` and `Destroy` calls to Docker CLI commands.
 
 Currently the Docker Containerizer when launching as task will do the following:
 
-1, Fetch all the files specified in the CommandInfo into the sandbox.
-2, Pull the docker image from the remote repository.
-3, Run the docker image with the Docker executor, and map the sandbox directory into the Docker container and set the directory mapping to the MESOS_SANDBOX environment variable.
-   The executor will also stream the container logs into stdout/stderr files in the sandbox.
+1. Fetch all the files specified in the CommandInfo into the sandbox.
+
+2. Pull the docker image from the remote repository.
+
+3. Run the docker image with the Docker executor, and map the sandbox directory into the Docker container and set the directory mapping to the MESOS_SANDBOX environment variable. The executor will also stream the container logs into stdout/stderr files in the sandbox.
+
 4. On container exit or containerizer destroy, stop and remove the docker container.
 
-The Docker Containerizer launches all containers with the "mesos-" prefix plus the slave id (ie: mesos-slave1-abcdefghji), and also assumes all containers with the "mesos-" prefix is managed by the slave and is free to stop or kill the containers.
+The Docker Containerizer launches all containers with the `mesos-` prefix plus the slave id (ie: `mesos-slave1-abcdefghji`), and also assumes all containers with the `mesos-` prefix is managed by the slave and is free to stop or kill the containers.
 
 When launching the docker image as an Executor, the only difference is that it skips launching a command executor but just reaps on the docker container executor pid.
 
@@ -58,20 +60,20 @@ The containerizer also supports optional force pulling of the image, and if disa
 
 ## Private Docker repository
 
-To run a image from a private repository, one can include the uri pointing to a .dockercfg that contains login information. The .dockercfg file will be pulled into the sandbox the Docker Containerizer
+To run a image from a private repository, one can include the uri pointing to a `.dockercfg` that contains login information. The `.dockercfg` file will be pulled into the sandbox the Docker Containerizer
 set the HOME environment variable pointing to the sandbox so docker cli will automatically pick up the config file.
 
 ## CommandInfo to run Docker images
 
 A docker image currently supports having an entrypoint and/or a default command.
 
-To run a docker image with the default command (ie: docker run image), the CommandInfo's value must not be set. If the value is set then it will override the default command.
+To run a docker image with the default command (ie: `docker run image`), the CommandInfo's value must not be set. If the value is set then it will override the default command.
 
 To run a docker image with an entrypoint defined, the CommandInfo's shell option must be set to false.
-If shell option is set to true the Docker Containerizer will run the user's command wrapped with /bin/sh -c which will also become parameters to the image entrypoint.
+If shell option is set to true the Docker Containerizer will run the user's command wrapped with `/bin/sh -c` which will also become parameters to the image entrypoint.
 
 ## Recover Docker containers on slave recovery
 
 The Docker containerizer supports recovering Docker containers when the slave restarts, which supports both when the slave is running in a Docker container or not.
 
-With the docker_mesos_image flag enabled, the Docker containerizer assumes the containerizer is running in a container itself and modifies the mechanism it recovers and launches docker containers accordingly.
+With the `--docker_mesos_image` flag enabled, the Docker containerizer assumes the containerizer is running in a container itself and modifies the mechanism it recovers and launches docker containers accordingly.

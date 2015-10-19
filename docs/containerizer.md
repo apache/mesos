@@ -20,7 +20,7 @@ filesystem.
 
 The modifications are specified in the ContainerInfo included in the
 ExecutorInfo, either by a framework or by using the
---default\_container\_info slave flag.
+`--default_container_info` slave flag.
 
 ContainerInfo specifies Volumes which map parts of the shared
 filesystem (host\_path) into the container's view of the filesystem
@@ -34,8 +34,8 @@ must exist) in the shared filesystem.
 
 The primary use-case for this isolator is to selectively make parts of
 the shared filesystem private to each container. For example, a
-private "/tmp" directory can be achieved with host\_path="tmp" and
-container\_path="/tmp" which will create a directory "tmp" inside the
+private "/tmp" directory can be achieved with `host_path="tmp"` and
+`container_path="/tmp"` which will create a directory "tmp" inside the
 executor's work directory (mode 1777) and simultaneously mount it as
 /tmp inside the container. This is transparent to processes running
 inside the container. Containers will not be able to see the host's
@@ -45,9 +45,11 @@ inside the container. Containers will not be able to see the host's
 
 The Pid Namespace isolator can be used to isolate each container in
 a separate pid namespace with two main benefits:
+
 1. Visibility: Processes running in the container (executor and
    descendants) are unable to see or signal processes outside the
    namespace.
+
 2. Clean termination: Termination of the leading process in a pid
    namespace will result in the kernel terminating all other processes
    in the namespace.
