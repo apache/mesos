@@ -35,6 +35,7 @@ For both master and slave:
 * /files/download.json becomes /files/download
 * /files/read.json becomes /files/read
 
+**NOTE** The C++/Java/Python scheduler bindings have been updated. In particular, the driver can make a suppressOffers() call to stop receiving offers (until reviveOffers() is called).
 
 In order to upgrade a running cluster:
 
