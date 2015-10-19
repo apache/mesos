@@ -138,18 +138,117 @@ int main(int argc, char** argv)
 
 ## Futures and Promises
 
-### `Future`
-
-The libprocess futures mimic futures in other languages like Scala. It is a placeholder for a future value which is not (necessarily) ready yet. A future in libprocess is a C++ template which is specialized for the return type, for example Try. A future can either be: ready (carrying along a value which can be extracted with .get()), failed (in which case .error() will encode the reason for the failure) or discarded.
+The `Future` and `Promise` primitives are used to enable
+programmers to write asynchronous, non-blocking, and highly
+concurrent software.
 
 A `Future` acts as the read-side of a result which might be
-computed asynchronously. A `Promise` is the write-side handle
-from which a `Future` can be created.
+computed asynchronously. A `Promise`, on the other hand, acts
+as the write-side "container". We'll use some examples to
+explain the concepts.
 
-Futures can be created in numerous ways: awaiting the result of a method call with [defer](#defer), [dispatch](#dispatch), and [delay](#delay) or as the read-end of a [promise](#promise).
+First, you can construct a `Promise` of a particular type by
+doing the following:
 
+~~~{.cpp}
+using namespace process;
 
+int main(int argc, char** argv)
+{
+  Promise<int> promise;
 
+  return 0;
+}
+~~~
+
+A `Promise` is not copyable or assignable, in order to encourage
+strict ownership rules between processes (i.e., it's hard to
+reason about multiple actors concurrently trying to complete a
+`Promise`, even if it's safe to do so concurrently).
+
+You can get a `Future` from a `Promise` using the
+`Promise::future()` method:
+
+~~~{.cpp}
+using namespace process;
+
+int main(int argc, char** argv)
+{
+  Promise<int> promise;
+
+  Future<int> future = promise.future();
+
+  return 0;
+}
+~~~
+
+Note that the templated type of the future must be the exact
+same as the promise, you can not create a covariant or
+contravariant future. Unlike `Promise`, a `Future` can be both
+copied and assigned:
+
+~~~{.cpp}
+using namespace process;
+
+int main(int argc, char** argv)
+{
+  Promise<int> promise;
+
+  Future<int> future = promise.future();
+
+  // You can copy a future.
+  Future<int> future2 = future;
+
+  // You can also assign a future (NOTE: this future will never
+  // complete because the Promise goes out of scope, but the
+  // Future is still valid and can be used normally.)
+  future = Promise<int>().future();
+
+  return 0;
+}
+~~~
+
+The result encapsulated in the `Future`/`Promise` can be in one
+of four states: `PENDING`, `READY`, `FAILED`, `DISCARDED`. When
+a `Promise` is first created the result is `PENDING`. When you
+complete a `Promise` using the `Promise::set()` method the
+result becomes `READY`:
+
+~~~{.cpp}
+using namespace process;
+
+int main(int argc, char** argv)
+{
+  Promise<int> promise;
+
+  Future<int> future = promise.future();
+
+  promise.set(42);
+
+  CHECK(future.isReady());
+
+  return 0;
+}
+~~~
+
+> NOTE: `CHECK` is a macro from `gtest` which acts like an
+> `assert` but prints a stack trace and does better signal
+> management. In addition to `CHECK`, we've also created
+> wrapper macros `CHECK_PENDING`, `CHECK_READY`, `CHECK_FAILED`,
+> `CHECK_DISCARDED` which enables you to more concisely do
+> things like `CHECK_READY(future)` in your code. We'll use
+> those throughout the rest of this guide.
+
+TODO(benh):
+* Using `Future` and `Promise` between actors, i.e., `dispatch` returning a `Future`
+* `Promise::fail()`
+* `Promise::discard()` and `Future::discard()`
+* `Future::onReady()`, `Future::onFailed()`, `Future::onDiscarded()`
+* `Future::then()`, `Future::repair()`, `Future::after`
+* `defer`
+* `Future::await()`
+
+<!--
 #### `Future::then`
 
 `Future::then` allows to invoke callbacks once a future is completed.
@@ -178,7 +277,7 @@ int main(int argc, char** argv)
 
 A `promise` is an object that can fulfill a [futures](#future), i.e. assign a result value to it.
 
-<!---
+
 ~~~{.cpp}
 using namespace process;
 
@@ -214,13 +313,12 @@ int main(int argc, char** argv)
   ...;
 }
 ~~~
----->
+
 
 ### `defer`
 
 `defer` allows the caller to postpone the decision whether to [dispatch](#dispatch) something by creating a callable object which can perform the dispatch at a later point in time.
 
-<!---
 ~~~{.cpp}
 using namespace process;
 
@@ -239,7 +337,7 @@ private:
   Queue<int> queue;
 };
 ~~~
----->
+-->
 
 ---
 
