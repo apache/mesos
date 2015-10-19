@@ -1022,7 +1022,7 @@ file:///path/to/file (where file contains one of the above)</code></pre>
   </tr>
   <tr>
     <td>
-      --docker_sock=VALUE
+      --docker_socket=VALUE
     </td>
     <td>
       The UNIX socket path to be mounted into the docker executor container to
