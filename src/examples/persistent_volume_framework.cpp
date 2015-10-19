@@ -463,10 +463,6 @@ int main(int argc, char** argv)
 
     // Configure slave.
     os::setenv("MESOS_DEFAULT_ROLE", flags.role);
-
-    const string launcherDir = Path(os::realpath(argv[0]).get()).dirname();
-    os::setenv("MESOS_LAUNCHER_DIR", launcherDir);
-    os::libraries::appendPaths(launcherDir);
   }
 
   PersistentVolumeScheduler scheduler(
