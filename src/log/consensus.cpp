@@ -162,6 +162,7 @@ private:
           // might return the actual action at this position. Picking
           // either action is _correct_, since eventually we know this
           // position will be truncated. Fun!
+          // TODO(neilc): Create a test case for this scenario.
           promise.set(response);
 
           // The remaining responses will be discarded in 'finalize'.
@@ -182,9 +183,9 @@ private:
           // promised to us. No need to do anything here.
         }
       } else {
-        // Received a response without an action associated with. This
-        // is the case where this proposer is this first one who asks
-        // promise for this log position.
+        // Received a response without an action associated with it.
+        // This is the case when this proposer is the first to request
+        // a promise for this log position.
         CHECK(response.has_position());
         CHECK_EQ(response.position(), position);
       }

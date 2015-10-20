@@ -276,7 +276,7 @@ Future<Nothing> LogStorageProcess::_start(
   // that entry when we read it instead.
   if (index.isSome()) {
     // If we've started before (i.e., have an 'index' position) we
-    // should also expect know the last 'truncated' position.
+    // should also expect to know the last 'truncated' position.
     CHECK_SOME(truncated);
     return reader.read(index.get(), position.get())
       .then(defer(self(), &Self::apply, lambda::_1));

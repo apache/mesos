@@ -64,7 +64,7 @@ public:
 
   // Returns all the actions between the specified positions, unless
   // those positions are invalid, in which case returns an error.
-  process::Future<std::list<Action> > read(
+  process::Future<std::list<Action>> read(
       uint64_t from,
       uint64_t to) const;
 
@@ -75,7 +75,7 @@ public:
   // Returns missing positions in the log (i.e., unlearned or holes)
   // within the specified range [from, to]. We use interval set, a
   // more compact representation of set, to store missing positions.
-  process::Future<IntervalSet<uint64_t> > missing(
+  process::Future<IntervalSet<uint64_t>> missing(
       uint64_t from,
       uint64_t to) const;
 

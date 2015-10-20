@@ -228,7 +228,7 @@ Future<IntervalSet<uint64_t> > CoordinatorProcess::getMissingPositions()
 Future<Nothing> CoordinatorProcess::catchupMissingPositions(
     const IntervalSet<uint64_t>& positions)
 {
-  LOG(INFO) << "Coordinator attemping to fill missing position";
+  LOG(INFO) << "Coordinator attempting to fill missing positions";
 
   // Notice that here we use "proposal + 1" as the proposal number for
   // fill operations in order to avoid unnecessary retries for those

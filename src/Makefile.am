@@ -1168,7 +1168,7 @@ dist_bin_SCRIPTS +=							\
   cli/mesos-tail
 
 # Need to distribute/install webui javascript. We use 'pkgdatadir'
-# instead of 'datadir' as the install directory so we get the the
+# instead of 'datadir' as the install directory so we get the
 # package name (i.e., 'mesos') as part of the path (i.e.,
 # /path/to/mesos/webui versus something like /path/to/webui). Note
 # that 'datadir' (e.g., /usr/local/share) is for read-only "data" and

@@ -76,7 +76,7 @@ public:
 
   // Returns all the actions between the specified positions, unless
   // those positions are invalid, in which case returns an error.
-  Future<list<Action> > read(uint64_t from, uint64_t to);
+  Future<list<Action>> read(uint64_t from, uint64_t to);
 
   // Returns true if the specified position is missing in the log
   // (i.e., unlearned or holes).
@@ -92,14 +92,14 @@ public:
   // Returns the last written position in the log.
   uint64_t ending();
 
-  // Returns the current status of the this replica.
+  // Returns the current status of this replica.
   Metadata::Status status();
 
   // Returns the highest implicit promise this replica has given.
   uint64_t promised();
 
-  // Updates the status of this replica. The update will persisted on
-  // the disk. Returns true on success and false otherwise.
+  // Updates the status of this replica. The update will be persisted
+  // to storage. Returns true on success and false otherwise.
   bool update(const Metadata::Status& status);
 
 private:
@@ -116,14 +116,14 @@ private:
   // Handles a message notifying of a learned action.
   void learned(const UPID& from, const Action& action);
 
-  // Helper routines that write a record corresponding to the
-  // specified argument. Returns true on success and false otherwise.
+  // Persists the specified action to storage. Returns true on success
+  // and false otherwise.
   bool persist(const Action& action);
 
-  // Helper routines that update metadata corresponding to the
-  // specified argument. The update will be persisted on the disk.
-  // Returns true on success and false otherwise.
-  bool update(uint64_t promised);
+  // Updates the highest promise this replica has given. The update
+  // will be persisted to storage. Returns true on success and false
+  // otherwise.
+  bool updatePromised(uint64_t promised);
 
   // Helper routine to restore log (e.g., on restart).
   void restore(const string& path);
@@ -206,18 +206,18 @@ Result<Action> ReplicaProcess::read(uint64_t position)
 
 // TODO(benh): Make this function actually return a Try once we change
 // the future semantics to not include failures.
-Future<list<Action> > ReplicaProcess::read(uint64_t from, uint64_t to)
+Future<list<Action>> ReplicaProcess::read(uint64_t from, uint64_t to)
 {
   if (to < from) {
-    process::Promise<list<Action> > promise;
+    process::Promise<list<Action>> promise;
     promise.fail("Bad read range (to < from)");
     return promise.future();
   } else if (from < begin) {
-    process::Promise<list<Action> > promise;
+    process::Promise<list<Action>> promise;
     promise.fail("Bad read range (truncated position)");
     return promise.future();
   } else if (end < to) {
-    process::Promise<list<Action> > promise;
+    process::Promise<list<Action>> promise;
     promise.fail("Bad read range (past end of log)");
     return promise.future();
   }
@@ -231,7 +231,7 @@ Future<list<Action> > ReplicaProcess::read(uint64_t from, uint64_t to)
     Result<Action> result = read(position);
 
     if (result.isError()) {
-      process::Promise<list<Action> > promise;
+      process::Promise<list<Action>> promise;
       promise.fail(result.error());
       return promise.future();
     } else if (result.isSome()) {
@@ -329,7 +329,7 @@ bool ReplicaProcess::update(const Metadata::Status& status)
 }
 
 
-bool ReplicaProcess::update(uint64_t promised)
+bool ReplicaProcess::updatePromised(uint64_t promised)
 {
   Metadata metadata_;
   metadata_.set_status(status());
@@ -487,7 +487,7 @@ void ReplicaProcess::promise(const UPID& from, const PromiseRequest& request)
       response.set_proposal(promised());
       reply(response);
     } else {
-      if (update(request.proposal())) {
+      if (updatePromised(request.proposal())) {
         // Return the last position written.
         PromiseResponse response;
         response.set_okay(true);
@@ -575,6 +575,8 @@ void ReplicaProcess::write(const UPID& from, const WriteRequest& request)
         // write request of that write (Yes! It is possible! See
         // MESOS-1271 for details). In that case, we want to prevent
         // this log entry from being overwritten.
+        //
+        // TODO(neilc): Create a test-case for this scenario.
         //
         // TODO(benh): If the value in the write request is the same
         // as the learned value, consider sending back an ACK which
@@ -765,7 +767,7 @@ Replica::~Replica()
 }
 
 
-Future<list<Action> > Replica::read(uint64_t from, uint64_t to) const
+Future<list<Action>> Replica::read(uint64_t from, uint64_t to) const
 {
   return dispatch(process, &ReplicaProcess::read, from, to);
 }
@@ -777,7 +779,7 @@ Future<bool> Replica::missing(uint64_t position) const
 }
 
 
-Future<IntervalSet<uint64_t> > Replica::missing(
+Future<IntervalSet<uint64_t>> Replica::missing(
     uint64_t from, uint64_t to) const
 {
   return dispatch(process, &ReplicaProcess::missing, from, to);
@@ -810,11 +812,7 @@ Future<uint64_t> Replica::promised() const
 
 Future<bool> Replica::update(const Metadata::Status& status)
 {
-  // Need to disambiguate overloaded function.
-  bool (ReplicaProcess::*update)(const Metadata::Status& status) =
-    &ReplicaProcess::update;
-
-  return dispatch(process, update, status);
+  return dispatch(process, &ReplicaProcess::update, status);
 }
 
 

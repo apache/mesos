@@ -948,14 +948,14 @@ TEST_F(CoordinatorTest, Demoted)
     EXPECT_SOME_EQ(0u, electing.get());
   }
 
-  uint64_t position;
+  uint64_t position1;
 
   {
     Future<Option<uint64_t> > appending = coord1.append("hello world");
     AWAIT_READY(appending);
     ASSERT_SOME(appending.get());
-    position = appending.get().get();
-    EXPECT_EQ(1u, position);
+    position1 = appending.get().get();
+    EXPECT_EQ(1u, position1);
   }
 
   Shared<Network> network2(new Network(pids));
@@ -965,7 +965,7 @@ TEST_F(CoordinatorTest, Demoted)
   {
     Future<Option<uint64_t> > electing = coord2.elect();
     AWAIT_READY(electing);
-    EXPECT_SOME_EQ(position, electing.get());
+    EXPECT_SOME_EQ(position1, electing.get());
   }
 
   {
@@ -974,19 +974,21 @@ TEST_F(CoordinatorTest, Demoted)
     EXPECT_NONE(appending.get());
   }
 
+  uint64_t position2;
+
   {
     Future<Option<uint64_t> > appending = coord2.append("hello hello");
     AWAIT_READY(appending);
     ASSERT_SOME(appending.get());
-    position = appending.get().get();
-    EXPECT_EQ(2u, position);
+    position2 = appending.get().get();
+    EXPECT_EQ(2u, position2);
   }
 
   {
-    Future<list<Action> > actions = replica2->read(position, position);
+    Future<list<Action> > actions = replica2->read(position2, position2);
     AWAIT_READY(actions);
     ASSERT_EQ(1u, actions.get().size());
-    EXPECT_EQ(position, actions.get().front().position());
+    EXPECT_EQ(position2, actions.get().front().position());
     ASSERT_TRUE(actions.get().front().has_type());
     ASSERT_EQ(Action::APPEND, actions.get().front().type());
     EXPECT_EQ("hello hello", actions.get().front().append().bytes());
@@ -1046,8 +1048,8 @@ TEST_F(CoordinatorTest, Fill)
   Coordinator coord2(2, replica3, network2);
 
   {
-    // Note that the first election should fail because 'coord2' get's
-    // it's proposal number from 'replica3' which is any empty log and
+    // Note that the first election should fail because 'coord2' gets
+    // its proposal number from 'replica3' which has an empty log and
     // thus a second attempt will need to be made.
     Future<Option<uint64_t> > electing = coord2.elect();
     AWAIT_READY(electing);
@@ -1126,8 +1128,8 @@ TEST_F(CoordinatorTest, NotLearnedFill)
   Coordinator coord2(2, replica3, network2);
 
   {
-    // Note that the first election should fail because 'coord2' get's
-    // it's proposal number from 'replica3' which is any empty log and
+    // Note that the first election should fail because 'coord2' gets
+    // its proposal number from 'replica3' which has an empty log and
     // thus a second attempt will need to be made.
     Future<Option<uint64_t> > electing = coord2.elect();
     AWAIT_READY(electing);
@@ -1248,8 +1250,8 @@ TEST_F(CoordinatorTest, MultipleAppendsNotLearnedFill)
   Coordinator coord2(2, replica3, network2);
 
   {
-    // Note that the first election should fail because 'coord2' get's
-    // it's proposal number from 'replica3' which is any empty log and
+    // Note that the first election should fail because 'coord2' gets
+    // its proposal number from 'replica3' which has an empty log and
     // thus a second attempt will need to be made.
     Future<Option<uint64_t> > electing = coord2.elect();
     AWAIT_READY(electing);
@@ -1389,8 +1391,8 @@ TEST_F(CoordinatorTest, TruncateNotLearnedFill)
   Coordinator coord2(2, replica3, network2);
 
   {
-    // Note that the first election should fail because 'coord2' get's
-    // it's proposal number from 'replica3' which is any empty log and
+    // Note that the first election should fail because 'coord2' gets
+    // its proposal number from 'replica3' which has an empty log and
     // thus a second attempt will need to be made.
     Future<Option<uint64_t> > electing = coord2.elect();
     AWAIT_READY(electing);
@@ -1474,8 +1476,8 @@ TEST_F(CoordinatorTest, TruncateLearnedFill)
   Coordinator coord2(2, replica3, network2);
 
   {
-    // Note that the first election should fail because 'coord2' get's
-    // it's proposal number from 'replica3' which is any empty log and
+    // Note that the first election should fail because 'coord2' gets
+    // its proposal number from 'replica3' which has an empty log and
     // thus a second attempt will need to be made.
     Future<Option<uint64_t> > electing = coord2.elect();
     AWAIT_READY(electing);
@@ -1577,8 +1579,8 @@ TEST_F(RecoverTest, RacingCatchup)
   Coordinator coord2(3, shared4, network2);
 
   {
-    // Note that the first election should fail because 'coord2' get's
-    // it's proposal number from 'replica3' which is any empty log and
+    // Note that the first election should fail because 'coord2' gets
+    // its proposal number from 'replica3' which has an empty log and
     // thus a second attempt will need to be made.
     Future<Option<uint64_t> > electing = coord2.elect();
     AWAIT_READY(electing);

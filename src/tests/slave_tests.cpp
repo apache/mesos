@@ -157,7 +157,8 @@ TEST_F(SlaveTest, ShutdownUnregisteredExecutor)
 
   // Need flags for 'executor_registration_timeout'.
   slave::Flags flags = CreateSlaveFlags();
-  // Set the isolation flag so we know a MesoContainerizer will be created.
+  // Set the isolation flag so we know a MesosContainerizer will
+  // be created.
   flags.isolation = "posix/cpu,posix/mem";
 
   Fetcher fetcher;
