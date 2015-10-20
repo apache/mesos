@@ -77,6 +77,11 @@ typedef DWORD pid_t;
 
 typedef SSIZE_T ssize_t;
 
+// Socket flags. Define behavior of a socket when it (e.g.) shuts down. We map
+// the Windows versions of these flags to their POSIX equivalents so we don't
+// have to change any socket code.
+constexpr int SHUT_RD = SD_RECEIVE;
+
 // File I/O function aliases.
 //
 // NOTE: The use of `auto` and the trailing return type in the following
