@@ -414,6 +414,8 @@ string createExecutorDirectory(
     // those may be conditional and in some cases leave the executor
     // directory owned by the slave user instead of the specified
     // framework or per-executor user.
+    LOG(INFO) << "Trying to chown '" << directory << "' to user '"
+              << user.get() << "'";
     Try<Nothing> chown = os::chown(user.get(), directory);
     if (chown.isError()) {
       // TODO(nnielsen): We currently have tests which depend on using
@@ -421,7 +423,10 @@ string createExecutorDirectory(
       // Therefore, we cannot make the chown validation a hard
       // CHECK().
       LOG(WARNING) << "Failed to chown executor directory '" << directory
-                   << "': " << chown.error();
+                   << "'. This may be due to attempting to run the executor "
+                   << "as a nonexistent user on the agent; see the description"
+                   << " for the `--switch_user` flag for more information: "
+                   << chown.error();
     }
   }
 

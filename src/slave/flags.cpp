@@ -160,9 +160,13 @@ mesos::internal::slave::Flags::Flags()
 
   add(&Flags::switch_user,
       "switch_user",
-      "Whether to run tasks as the user who\n"
-      "submitted them rather than the user running\n"
-      "the slave (requires setuid permission)",
+      "If set to `true`, the agent will attempt to run tasks as\n"
+      "the `user` who submitted them (as defined in `FrameworkInfo`)\n"
+      "(this requires `setuid` permission and that the given `user`\n"
+      "exists on the agent).\n"
+      "If the user does not exist, an error occurs and the task will fail.\n"
+      "If set to `false`, tasks will be run as the same user as the Mesos\n"
+      "Agent process.",
       true);
 
   add(&Flags::frameworks_home,

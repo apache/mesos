@@ -1438,9 +1438,13 @@ file:///path/to/file (where file contains one of the above)</code></pre>
       --[no-]switch_user
     </td>
     <td>
-      Whether to run tasks as the user who
-      submitted them rather than the user running
-      the slave (requires setuid permission) (default: true)
+      If set to `true`, the agent will attempt to run tasks as
+      the `user` who launched them (as defined in `FrameworkInfo`)
+      (this requires `setuid` permission and that the given `user`
+      exists on the agent).
+      If the user does not exist, an error occurs and the task will fail.
+      If set to `false`, tasks will be run as the same user as the Mesos
+      agent process.  (default: true)
     </td>
   </tr>
   <tr>
