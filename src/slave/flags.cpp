@@ -166,7 +166,7 @@ mesos::internal::slave::Flags::Flags()
       "exists on the agent).\n"
       "If the user does not exist, an error occurs and the task will fail.\n"
       "If set to `false`, tasks will be run as the same user as the Mesos\n"
-      "Agent process.",
+      "agent process.",
       true);
 
   add(&Flags::frameworks_home,
