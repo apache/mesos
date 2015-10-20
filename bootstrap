@@ -10,9 +10,13 @@ __EOF__
     exit 1
 fi
 
-# Install mesos default commit hook and gitignore template.
+# Install mesos default hooks and gitignore template.
 if test ! -e .git/hooks/pre-commit; then
   ln -s ../../support/hooks/pre-commit .git/hooks/pre-commit
+fi
+
+if test ! -e .git/hooks/post-rewrite; then
+  ln -s ../../support/hooks/post-rewrite .git/hooks/post-rewrite
 fi
 
 if test ! -e .gitignore; then
