@@ -15,6 +15,7 @@
 #ifndef __PROCESS_OWNED_HPP__
 #define __PROCESS_OWNED_HPP__
 
+#include <atomic>
 #include <memory>
 
 #include <glog/logging.h>
@@ -64,7 +65,7 @@ private:
     explicit Data(T* t);
     ~Data();
 
-    T* volatile t; // The pointer 't' is volatile.
+    std::atomic<T*> t;
   };
 
   std::shared_ptr<Data> data;
@@ -159,14 +160,14 @@ Shared<T> Owned<T>::share()
   }
 
   // Atomically set the pointer 'data->t' to NULL.
-  T* t = __sync_fetch_and_and(&data->t, NULL);
-  if (t == NULL) {
+  T* old = data->t.exchange(NULL);
+  if (old == NULL) {
     // The ownership of this pointer has already been lost.
     return Shared<T>(NULL);
   }
 
   data.reset();
-  return Shared<T>(t);
+  return Shared<T>(old);
 }
 
 
@@ -179,14 +180,14 @@ T* Owned<T>::release()
   }
 
   // Atomically set the pointer 'data->t' to NULL.
-  T* t = __sync_fetch_and_and(&data->t, NULL);
-  if (t == NULL) {
+  T* old = data->t.exchange(NULL);
+  if (old == NULL) {
     // The ownership of this pointer has already been lost.
     return NULL;
   }
 
   data.reset();
-  return t;
+  return old;
 }
 
 
@@ -198,9 +199,7 @@ Owned<T>::Data::Data(T* _t)
 template <typename T>
 Owned<T>::Data::~Data()
 {
-  if (t != NULL) {
-    delete t;
-  }
+  delete t.load();
 }
 
 } // namespace process {

@@ -15,6 +15,7 @@
 #ifndef __PROCESS_SHARED_HPP__
 #define __PROCESS_SHARED_HPP__
 
+#include <atomic>
 #include <memory>
 
 #include <glog/logging.h>
@@ -64,7 +65,7 @@ private:
     ~Data();
 
     T* t;
-    volatile bool owned;
+    std::atomic_bool owned;
     Promise<Owned<T>> promise;
   };
 
@@ -167,7 +168,8 @@ Future<Owned<T>> Shared<T>::own()
     return Owned<T>(NULL);
   }
 
-  if (!__sync_bool_compare_and_swap(&data->owned, false, true)) {
+  bool false_value = false;
+  if (!data->owned.compare_exchange_strong(false_value, true)) {
     return Failure("Ownership has already been transferred");
   }
 
@@ -185,7 +187,7 @@ Shared<T>::Data::Data(T* _t)
 template <typename T>
 Shared<T>::Data::~Data()
 {
-  if (owned) {
+  if (owned.load()) {
     promise.set(Owned<T>(t));
   } else {
     delete t;
