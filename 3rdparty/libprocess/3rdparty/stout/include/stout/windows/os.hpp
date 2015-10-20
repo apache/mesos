@@ -62,12 +62,6 @@ inline Try<Nothing> touch(const std::string& path)
 }
 
 
-inline Try<Nothing> rm(const std::string& path)
-{
-  UNIMPLEMENTED;
-}
-
-
 // Creates a temporary directory using the specified path
 // template. The template may be any path with _6_ `Xs' appended to
 // it, for example /tmp/temp.XXXXXX. The trailing `Xs' are replaced

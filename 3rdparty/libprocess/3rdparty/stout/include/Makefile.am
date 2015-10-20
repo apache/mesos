@@ -82,6 +82,7 @@ nobase_include_HEADERS =		\
   stout/os/read.hpp			\
   stout/os/realpath.hpp			\
   stout/os/rename.hpp			\
+  stout/os/rm.hpp			\
   stout/os/sendfile.hpp			\
   stout/os/shell.hpp			\
   stout/os/signals.hpp			\
