@@ -22,6 +22,7 @@
 #include <process/future.hpp>
 
 #include <stout/hashmap.hpp>
+#include <stout/os.hpp>
 
 #include <stout/os/pstree.hpp>
 

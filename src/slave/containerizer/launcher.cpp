@@ -25,6 +25,8 @@
 
 #include <stout/unreachable.hpp>
 
+#include <stout/os/killtree.hpp>
+
 #include "mesos/resources.hpp"
 
 #include "slave/containerizer/launcher.hpp"
