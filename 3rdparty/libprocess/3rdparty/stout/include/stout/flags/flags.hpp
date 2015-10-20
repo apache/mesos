@@ -28,7 +28,6 @@
 #include <stout/none.hpp>
 #include <stout/nothing.hpp>
 #include <stout/option.hpp>
-#include <stout/os.hpp>
 #include <stout/path.hpp>
 #include <stout/some.hpp>
 #include <stout/stringify.hpp>
@@ -37,6 +36,8 @@
 
 #include <stout/flags/fetch.hpp>
 #include <stout/flags/flag.hpp>
+
+#include <stout/os/environment.hpp>
 
 namespace flags {
 

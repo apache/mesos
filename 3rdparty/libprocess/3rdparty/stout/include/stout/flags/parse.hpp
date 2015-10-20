@@ -17,6 +17,7 @@
 #include <sstream> // For istringstream.
 #include <string>
 
+#include <stout/bytes.hpp>
 #include <stout/duration.hpp>
 #include <stout/error.hpp>
 #include <stout/json.hpp>
