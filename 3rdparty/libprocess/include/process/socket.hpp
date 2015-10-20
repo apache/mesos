@@ -15,6 +15,11 @@
 #ifndef __PROCESS_SOCKET_HPP__
 #define __PROCESS_SOCKET_HPP__
 
+#ifndef __WINDOWS__
+#include <sys/socket.h>
+#include <sys/wait.h>
+#endif // __WINDOWS__
+
 #include <memory>
 
 #include <process/address.hpp>
@@ -22,8 +27,10 @@
 
 #include <stout/abort.hpp>
 #include <stout/nothing.hpp>
-#include <stout/os.hpp>
 #include <stout/try.hpp>
+#ifdef __WINDOWS__
+#include <stout/windows.hpp>
+#endif // __WINDOWS__
 
 namespace process {
 namespace network {

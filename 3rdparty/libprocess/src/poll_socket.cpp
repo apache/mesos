@@ -18,6 +18,8 @@
 #include <process/network.hpp>
 #include <process/socket.hpp>
 
+#include <stout/os/sendfile.hpp>
+
 #include "config.hpp"
 #include "poll_socket.hpp"
 
