@@ -32,6 +32,8 @@
 #include <stout/option.hpp>
 #include <stout/version.hpp>
 
+#include <stout/os/rm.hpp>
+
 #include "mesos/resources.hpp"
 
 
