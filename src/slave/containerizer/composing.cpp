@@ -26,6 +26,7 @@
 #include <stout/hashmap.hpp>
 #include <stout/hashset.hpp>
 #include <stout/lambda.hpp>
+#include <stout/os.hpp>
 
 #include "slave/state.hpp"
 

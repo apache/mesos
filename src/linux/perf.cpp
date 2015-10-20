@@ -36,6 +36,7 @@
 #include <process/process.hpp>
 #include <process/subprocess.hpp>
 
+#include <stout/os.hpp>
 #include <stout/strings.hpp>
 #include <stout/unreachable.hpp>
 

@@ -32,6 +32,7 @@
 
 #include <stout/duration.hpp>
 #include <stout/foreach.hpp>
+#include <stout/os.hpp>
 #include <stout/path.hpp>
 #include <stout/strings.hpp>
 #include <stout/unreachable.hpp>

@@ -23,6 +23,8 @@
 #include <process/http.hpp>
 #include <process/io.hpp>
 
+#include <stout/os.hpp>
+
 #include "slave/containerizer/provisioner/docker/registry_client.hpp"
 #include "slave/containerizer/provisioner/docker/token_manager.hpp"
 
