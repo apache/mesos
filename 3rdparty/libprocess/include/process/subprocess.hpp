@@ -15,7 +15,9 @@
 #ifndef __PROCESS_SUBPROCESS_HPP__
 #define __PROCESS_SUBPROCESS_HPP__
 
+#ifndef __WINDOWS__
 #include <unistd.h>
+#endif // __WINDOWS__
 
 #include <sys/types.h>
 
@@ -29,7 +31,6 @@
 #include <stout/flags.hpp>
 #include <stout/lambda.hpp>
 #include <stout/option.hpp>
-#include <stout/os.hpp>
 #include <stout/try.hpp>
 
 namespace process {
