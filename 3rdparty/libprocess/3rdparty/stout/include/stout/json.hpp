@@ -734,13 +734,27 @@ inline Value convert(const picojson::value& value)
 
 inline Try<Value> parse(const std::string& s)
 {
+  const char* parseBegin = s.c_str();
   picojson::value value;
   std::string error;
 
-  picojson::parse(value, s.c_str(), s.c_str() + s.size(), &error);
+  // Because PicoJson supports repeated parsing of multiple objects/arrays in a
+  // stream, it will quietly ignore trailing non-whitespace characters. We would
+  // rather throw an error, however, so use `last_char` to check for this.
+  const char* lastVisibleChar =
+    parseBegin + s.find_last_not_of(strings::WHITESPACE);
+
+  // Parse the string, returning a pointer to the character
+  // immediately following the last one parsed.
+  const char* parseEnd =
+    picojson::parse(value, parseBegin, parseBegin + s.size(), &error);
 
   if (!error.empty()) {
     return Error(error);
+  } else if (parseEnd != lastVisibleChar + 1) {
+    return Error(
+        "Parsed JSON included non-whitespace trailing characters: "
+        + s.substr(parseEnd - parseBegin, lastVisibleChar + 1 - parseEnd));
   }
 
   return internal::convert(value);

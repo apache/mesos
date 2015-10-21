@@ -226,6 +226,52 @@ TEST(JsonTest, Parse)
   object.values["array"] = array;
 
   EXPECT_SOME_EQ(object, JSON::parse(stringify(object)));
+
+  // Test parsing with whitespace before and after a JSON object.
+  object = JSON::Object();
+  object.values["some"] = "stuff";
+  object.values["oh"] = "no";
+
+  string jsonString =
+    "      "
+    "{\n"
+    "  \"some\": \"stuff\","
+    "  \"oh\": \"no\""
+    "}\t   ";
+
+  EXPECT_SOME_EQ(object, JSON::parse<JSON::Object>(jsonString));
+}
+
+
+TEST(JsonTest, ParseError)
+{
+  string jsonString =
+    "{"
+    "  \"key1\": \"value1\","
+    "  \"key2\": \"value2\""
+    "}trailingcharacters";
+
+  EXPECT_ERROR(JSON::parse<JSON::Object>(jsonString));
+
+  jsonString =
+    "{"
+    "  \"key1\": \"value1\","
+    "  \"key2\": \"value2\""
+    "},"
+    "{"
+    "  \"key3\": \"value3\","
+    "  \"key4\": \"value4\""
+    "}";
+
+  EXPECT_ERROR(JSON::parse<JSON::Object>(jsonString));
+
+  jsonString =
+    "{"
+    "  \"key1\": \"value1\","
+    "  \"key2\": \"value2\""
+    " ";
+
+  EXPECT_ERROR(JSON::parse<JSON::Object>(jsonString));
 }
 
 

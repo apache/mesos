@@ -27,6 +27,8 @@
 
 namespace strings {
 
+const std::string WHITESPACE = " \t\n\r";
+
 // Flags indicating how 'remove' or 'trim' should operate.
 enum Mode
 {
@@ -65,7 +67,7 @@ inline std::string remove(
 inline std::string trim(
     const std::string& from,
     Mode mode = ANY,
-    const std::string& chars = " \t\n\r")
+    const std::string& chars = WHITESPACE)
 {
   size_t start = 0;
   Option<size_t> end = None();
