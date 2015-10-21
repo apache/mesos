@@ -21,10 +21,10 @@ git diff-index --check @~ -- || exit 1
 ## In git, '@' represent current head, '@~' represent previous commit. We check
 ## the style of changes between current head and previous commit after a commit
 ## is rewritten.
-exec git diff --name-only --diff-filter=AM @~..@ | xargs ./support/mesos-style.py || exit 1
+git diff --name-only --diff-filter=AM @~..@ | xargs ./support/mesos-style.py || exit 1
 
 # Check that the commits are properly split between mesos, libprocess and stout.
 ## In git, '@' represent current head, '@~' represent previous commit. We check
 ## the style of changes between current head and previous commit after a commit
 ## is rewritten.
-exec git diff --name-only --diff-filter=AMD @~..@ | xargs ./support/mesos_split.py || exit 1
+git diff --name-only --diff-filter=AMD @~..@ | xargs ./support/mesos_split.py || exit 1
