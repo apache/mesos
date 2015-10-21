@@ -164,46 +164,53 @@ set(SCHEDULER_SRC
   )
 
 set(AGENT_SRC
+  ${AGENT_SRC}
   slave/constants.cpp
-  slave/gc.cpp
-  slave/flags.cpp
-  slave/http.cpp
-  slave/metrics.cpp
-  slave/monitor.cpp
-  slave/paths.cpp
-  slave/qos_controller.cpp
-  slave/qos_controllers/noop.cpp
-  slave/resource_estimator.cpp
-  slave/slave.cpp
-  slave/state.cpp
-  slave/status_update_manager.cpp
-  slave/containerizer/containerizer.cpp
-  slave/containerizer/composing.cpp
-  slave/containerizer/composing.hpp
-  slave/containerizer/docker.cpp
-  slave/containerizer/docker.hpp
-  slave/containerizer/external_containerizer.cpp
-  slave/containerizer/fetcher.cpp
-  slave/containerizer/isolator.cpp
-  slave/containerizer/isolators/filesystem/posix.cpp
-  slave/containerizer/isolators/posix/disk.cpp
-  slave/containerizer/launcher.cpp
-  slave/containerizer/mesos/containerizer.cpp
-  slave/containerizer/mesos/launch.cpp
-  slave/containerizer/provisioner/paths.cpp
-  slave/containerizer/provisioner/provisioner.cpp
-  slave/containerizer/provisioner/store.cpp
-  slave/containerizer/provisioner/appc/paths.cpp
-  slave/containerizer/provisioner/appc/spec.cpp
-  slave/containerizer/provisioner/appc/store.cpp
-  slave/containerizer/provisioner/backend.cpp
-  slave/containerizer/provisioner/backends/copy.cpp
-  slave/containerizer/provisioner/docker/message.proto
-  slave/containerizer/provisioner/docker/registry_client.cpp
-  slave/containerizer/provisioner/docker/spec.cpp
-  slave/containerizer/provisioner/docker/token_manager.cpp
-  slave/resource_estimators/noop.cpp
   )
+
+if (NOT WIN32)
+  set(AGENT_SRC
+    ${AGENT_SRC}
+    slave/gc.cpp
+    slave/flags.cpp
+    slave/http.cpp
+    slave/metrics.cpp
+    slave/monitor.cpp
+    slave/paths.cpp
+    slave/qos_controller.cpp
+    slave/qos_controllers/noop.cpp
+    slave/resource_estimator.cpp
+    slave/slave.cpp
+    slave/state.cpp
+    slave/status_update_manager.cpp
+    slave/containerizer/containerizer.cpp
+    slave/containerizer/composing.cpp
+    slave/containerizer/composing.hpp
+    slave/containerizer/docker.cpp
+    slave/containerizer/docker.hpp
+    slave/containerizer/external_containerizer.cpp
+    slave/containerizer/fetcher.cpp
+    slave/containerizer/isolator.cpp
+    slave/containerizer/isolators/filesystem/posix.cpp
+    slave/containerizer/isolators/posix/disk.cpp
+    slave/containerizer/launcher.cpp
+    slave/containerizer/mesos/containerizer.cpp
+    slave/containerizer/mesos/launch.cpp
+    slave/containerizer/provisioner/paths.cpp
+    slave/containerizer/provisioner/provisioner.cpp
+    slave/containerizer/provisioner/store.cpp
+    slave/containerizer/provisioner/appc/paths.cpp
+    slave/containerizer/provisioner/appc/spec.cpp
+    slave/containerizer/provisioner/appc/store.cpp
+    slave/containerizer/provisioner/backend.cpp
+    slave/containerizer/provisioner/backends/copy.cpp
+    slave/containerizer/provisioner/docker/message.proto
+    slave/containerizer/provisioner/docker/registry_client.cpp
+    slave/containerizer/provisioner/docker/spec.cpp
+    slave/containerizer/provisioner/docker/token_manager.cpp
+    slave/resource_estimators/noop.cpp
+    )
+endif (NOT WIN32)
 
 set(USAGE_SRC
   usage/usage.cpp
@@ -234,28 +241,34 @@ set(ZOOKEEPER_SRC
 
 set(MESOS_SRC
   ${MESOS_SRC}
-  ${AUTHENTICATION_SRC}
-  ${AUTHORIZER_SRC}
-  ${COMMON_SRC}
-  ${DOCKER_SRC}
-  ${EXEC_SRC}
-  ${FILES_SRC}
-  ${HOOK_SRC}
-  ${INTERNAL_SRC}
-  ${LOCAL_SRC}
-  ${LOGGING_SRC}
-  ${MASTER_SRC}
-  ${MODULE_SRC}
-  ${SCHED_SRC}
-  ${SCHEDULER_SRC}
   ${AGENT_SRC}
-  ${USAGE_SRC}
-  ${V1_SRC}
-  ${VERSION_SRC}
-  ${WATCHER_SRC}
-  ${ZOOKEEPER_SRC}
-  ${MESOS_PROTOBUF_SRC}
   )
+
+if (NOT WIN32)
+  set(MESOS_SRC
+    ${MESOS_SRC}
+    ${AUTHENTICATION_SRC}
+    ${AUTHORIZER_SRC}
+    ${COMMON_SRC}
+    ${DOCKER_SRC}
+    ${EXEC_SRC}
+    ${FILES_SRC}
+    ${HOOK_SRC}
+    ${INTERNAL_SRC}
+    ${LOCAL_SRC}
+    ${LOGGING_SRC}
+    ${MASTER_SRC}
+    ${MODULE_SRC}
+    ${SCHED_SRC}
+    ${SCHEDULER_SRC}
+    ${USAGE_SRC}
+    ${V1_SRC}
+    ${VERSION_SRC}
+    ${WATCHER_SRC}
+    ${ZOOKEEPER_SRC}
+    ${MESOS_PROTOBUF_SRC}
+    )
+endif (NOT WIN32)
 
 # INCLUDE DIRECTIVES FOR MESOS LIBRARY (generates, e.g., -I/path/to/thing
 # on Linux).

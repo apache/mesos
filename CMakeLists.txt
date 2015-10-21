@@ -89,9 +89,7 @@ include(MesosConfigure)
 #################
 add_subdirectory(3rdparty)
 
-if (NOT WIN32)
-  add_subdirectory(src)
-endif (NOT WIN32)
+add_subdirectory(src)
 
 add_custom_target(
   check ${STOUT_TESTS_TARGET}
