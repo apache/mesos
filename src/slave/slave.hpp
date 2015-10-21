@@ -183,9 +183,6 @@ public:
       const ExecutorID& executorId,
       const std::string& data);
 
-  // TODO(vinod): Remove this in 0.23.0.
-  void pingOld(const process::UPID& from, const std::string& body);
-
   // NOTE: This handler is added to make it easy for upgrading slaves
   // and masters to 0.22.0. A 0.22.0 master will send PingSlaveMessage
   // which will call this method.

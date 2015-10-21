@@ -503,11 +503,6 @@ void Slave::initialize()
       &Slave::shutdown,
       &ShutdownMessage::message);
 
-  // Install the ping message handler.
-  // TODO(vinod): Remove this handler in 0.22.0 in favor of the
-  // new PingSlaveMessage handler.
-  install("PING", &Slave::pingOld);
-
   install<PingSlaveMessage>(
       &Slave::ping,
       &PingSlaveMessage::connected);
@@ -3166,46 +3161,6 @@ void Slave::executorMessage(
 
   metrics.valid_framework_messages++;
 }
-
-
-void Slave::pingOld(const UPID& from, const string& body)
-{
-  VLOG(1) << "Received ping from " << from;
-
-  if (!body.empty()) {
-    // This must be a ping from 0.21.0 master.
-    PingSlaveMessage message;
-    CHECK(message.ParseFromString(body))
-      << "Invalid ping message '" << body << "' from " << from;
-
-    if (!message.connected() && state == RUNNING) {
-      // This could happen if there is a one way partition between
-      // the master and slave, causing the master to get an exited
-      // event and marking the slave disconnected but the slave
-      // thinking it is still connected. Force a re-registration with
-      // the master to reconcile.
-      LOG(INFO) << "Master marked the slave as disconnected but the slave"
-                << " considers itself registered! Forcing re-registration.";
-      detection.discard();
-    }
-  }
-
-  // If we don't get a ping from the master, trigger a
-  // re-registration. This can occur when the master no
-  // longer considers the slave to be registered, so it is
-  // essential for the slave to attempt a re-registration
-  // when this occurs.
-  Clock::cancel(pingTimer);
-
-  pingTimer = delay(
-      masterPingTimeout,
-      self(),
-      &Slave::pingTimeout,
-      detection);
-
-  send(from, "PONG");
-}
-
 
 void Slave::ping(const UPID& from, bool connected)
 {

@@ -143,10 +143,6 @@ public:
       pinged(false),
       connected(true)
   {
-    // TODO(Wang Yong Qiao): For backwards compatibility, this handler is kept.
-    // Suggest to remove this handler in 0.26.0.
-    install("PONG", &SlaveObserver::pongOld);
-
     install<PongSlaveMessage>(&SlaveObserver::pong);
   }
 
@@ -174,11 +170,6 @@ protected:
 
     pinged = true;
     delay(slavePingTimeout, self(), &SlaveObserver::timeout);
-  }
-
-  void pongOld(const UPID& from, const string& body)
-  {
-    pong();
   }
 
   void pong()
