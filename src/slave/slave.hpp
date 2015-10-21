@@ -183,9 +183,6 @@ public:
       const ExecutorID& executorId,
       const std::string& data);
 
-  // NOTE: This handler is added to make it easy for upgrading slaves
-  // and masters to 0.22.0. A 0.22.0 master will send PingSlaveMessage
-  // which will call this method.
   void ping(const process::UPID& from, bool connected);
 
   // Handles the status update.
