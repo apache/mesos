@@ -1484,7 +1484,7 @@ struct Framework
   ~Framework()
   {
     if (http.isSome()) {
-      cleanupConnection();
+      closeHttpConnection();
     }
   }
 
@@ -1724,7 +1724,7 @@ struct Framework
     // Cleanup the HTTP connnection if this is a downgrade from HTTP
     // to PID. Note that the connection may already be closed.
     if (http.isSome()) {
-      cleanupConnection();
+      closeHttpConnection();
     }
 
     // TODO(benh): unlink(oldPid);
@@ -1742,7 +1742,7 @@ struct Framework
       // Note that master creates a new HTTP connection for every
       // subscribe request, so 'newHttp' should always be different
       // from 'http'.
-      cleanupConnection();
+      closeHttpConnection();
     }
 
     CHECK_NONE(http);
@@ -1750,10 +1750,11 @@ struct Framework
     http = newHttp;
   }
 
-  // Closes the connection and stops the heartbeat.
+  // Closes the HTTP connection and stops the heartbeat.
+  //
   // TODO(vinod): Currently 'connected' variable is set separately
   // from this method. We need to make sure these are in sync.
-  void cleanupConnection()
+  void closeHttpConnection()
   {
     CHECK_SOME(http);
 
