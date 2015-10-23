@@ -695,6 +695,7 @@ private:
 };
 
 
+std::ostream& operator<<(std::ostream& stream, const Executor& executor);
 std::ostream& operator<<(std::ostream& stream, Slave::State state);
 std::ostream& operator<<(std::ostream& stream, Framework::State state);
 std::ostream& operator<<(std::ostream& stream, Executor::State state);
