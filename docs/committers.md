@@ -33,6 +33,13 @@ We'd like to thank the following committers to the Apache Mesos project who have
       <td>ssorallen@apache.org</td>
     </tr>
     <tr>
+      <td>-5</td>
+      <td>Kapil Arya</td>
+      <td>Mesosphere / Northeastern University</td>
+      <td></td>
+      <td>kapil@apache.org</td>
+    </tr>
+    <tr>
       <td>-8</td>
       <td>Adam B</td>
       <td>Mesosphere</td>
@@ -241,7 +248,7 @@ When sending reviews, it can be valuable to consult the component maintainers, a
     </tr>
     <tr>
       <td>Modules / Hooks</td>
-      <td>Benjamin Hindman, Niklas Nielsen</td>
+      <td>Kapil Arya, Benjamin Hindman, Niklas Nielsen</td>
     </tr>
     <tr>
       <td>Oversubscription</td>
