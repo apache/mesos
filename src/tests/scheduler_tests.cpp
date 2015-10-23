@@ -1010,6 +1010,9 @@ TEST_P(SchedulerTest, Suppress)
     mesos.send(call);
   }
 
+  Future<Nothing> suppressOffers =
+    FUTURE_DISPATCH(_, &MesosAllocatorProcess::suppressOffers);
+
   {
     Call call;
     call.mutable_framework_id()->CopyFrom(id);
@@ -1018,9 +1021,14 @@ TEST_P(SchedulerTest, Suppress)
     mesos.send(call);
   }
 
+  AWAIT_READY(suppressOffers);
+
+  // Wait for allocator to finish executing 'suppressOffers()'.
+  Clock::pause();
+  Clock::settle();
+
   // No offers should be sent within 100 mins because the framework
   // suppressed offers.
-  Clock::pause();
   Clock::advance(Minutes(100));
   Clock::settle();
 
