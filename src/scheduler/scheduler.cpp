@@ -346,7 +346,7 @@ protected:
       return;
     }
 
-    if (response.get().status == process::http::statuses[200]) {
+    if (response->code == process::http::Status::OK) {
       // Only SUBSCRIBE call should get a "200 OK" response.
       CHECK_EQ(Call::SUBSCRIBE, call.type());
       CHECK_EQ(response.get().type, http::Response::PIPE);
@@ -367,13 +367,13 @@ protected:
       return;
     }
 
-    if (response.get().status == process::http::statuses[202]) {
+    if (response->code == process::http::Status::ACCEPTED) {
       // Only non SUBSCRIBE calls should get a "202 Accepted" response.
       CHECK_NE(Call::SUBSCRIBE, call.type());
       return;
     }
 
-    if (response.get().status == process::http::statuses[503]) {
+    if (response->code == process::http::Status::SERVICE_UNAVAILABLE) {
       // This could happen if the master hasn't realized it is the leader yet
       // or is still in the process of recovery.
       LOG(WARNING) << "Received '" << response.get().status << "' ("
