@@ -32,10 +32,14 @@
 #include <mesos/resources.hpp>
 #include <mesos/type_utils.hpp>
 
+#include <mesos/executor/executor.hpp>
+
 #include <mesos/module/authenticatee.hpp>
 
 #include <mesos/slave/qos_controller.hpp>
 #include <mesos/slave/resource_estimator.hpp>
+
+#include <mesos/v1/executor/executor.hpp>
 
 #include <process/http.hpp>
 #include <process/future.hpp>
@@ -50,11 +54,15 @@
 #include <stout/option.hpp>
 #include <stout/os.hpp>
 #include <stout/path.hpp>
+#include <stout/recordio.hpp>
 #include <stout/uuid.hpp>
 
+#include "common/http.hpp"
 #include "common/protobuf_utils.hpp"
 
 #include "files/files.hpp"
+
+#include "internal/evolve.hpp"
 
 #include "master/detector.hpp"
 
@@ -553,6 +561,43 @@ private:
 };
 
 
+// Represents the streaming HTTP connection to an executor.
+struct HttpConnection
+{
+  HttpConnection(const process::http::Pipe::Writer& _writer,
+                 ContentType _contentType)
+    : writer(_writer),
+      contentType(_contentType),
+      encoder(lambda::bind(serialize, contentType, lambda::_1)) {}
+
+  // Converts the message to an Event before sending.
+  template <typename Message>
+  bool send(const Message& message)
+  {
+    // We need to evolve the internal 'message' into a
+    // 'v1::executor::Event'.
+    return writer.write(encoder.encode(evolve(message)));
+  }
+
+  bool close()
+  {
+    return writer.close();
+  }
+
+  process::Future<Nothing> closed() const
+  {
+    return writer.readerClosed();
+  }
+
+  process::http::Pipe::Writer writer;
+  ContentType contentType;
+  ::recordio::Encoder<v1::executor::Event> encoder;
+};
+
+
+std::ostream& operator<<(std::ostream& stream, const Executor& executor);
+
+
 // Information describing an executor.
 struct Executor
 {
@@ -577,8 +622,37 @@ struct Executor
   // Returns true if there are any queued/launched/terminated tasks.
   bool incompleteTasks();
 
+  // Sends a message to the connected executor.
+  template <typename Message>
+  void send(const Message& message)
+  {
+    if (state == REGISTERING || state == TERMINATED) {
+      LOG(WARNING) << "Attempting to send message to disconnected"
+                   << " executor " << *this << " in state " << state;
+    }
+
+    if (http.isSome()) {
+      if (!http->send(message)) {
+        LOG(WARNING) << "Unable to send event to executor " << *this
+                     << ": connection closed";
+      }
+    } else if (pid.isSome()) {
+      slave->send(pid.get(), message);
+    } else {
+      LOG(WARNING) << "Unable to send event to executor " << *this
+                   << ": unknown connection type";
+    }
+  }
+
   // Returns true if this is a command executor.
   bool isCommandExecutor() const;
+
+  // Closes the HTTP connection.
+  void closeHttpConnection();
+
+  friend std::ostream& operator<<(
+      std::ostream& stream,
+      const Executor& executor);
 
   enum State
   {
@@ -604,7 +678,20 @@ struct Executor
 
   const bool checkpoint;
 
-  process::UPID pid;
+  // An Executor can either be connected via HTTP or by libprocess
+  // message passing. The following are the possible states:
+  //
+  // Agent State    Executor State       http       pid    Executor Type
+  // -----------    --------------       ----      ----    -------------
+  //  RECOVERING       REGISTERING       None     UPID()         Unknown
+  //                   REGISTERING       None       Some      Libprocess
+  //                   REGISTERING       None       None            HTTP
+  //
+  //           *       REGISTERING       None       None   Not known yet
+  //           *                 *       None       Some      Libprocess
+  //           *                 *       Some       None            HTTP
+  Option<HttpConnection> http;
+  Option<process::UPID> pid;
 
   // Currently consumed resources.
   Resources resources;
@@ -695,7 +782,6 @@ private:
 };
 
 
-std::ostream& operator<<(std::ostream& stream, const Executor& executor);
 std::ostream& operator<<(std::ostream& stream, Slave::State state);
 std::ostream& operator<<(std::ostream& stream, Framework::State state);
 std::ostream& operator<<(std::ostream& stream, Executor::State state);

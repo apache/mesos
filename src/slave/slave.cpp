@@ -1793,7 +1793,7 @@ void Slave::runTasks(
     // to decode the message, but do not use the field.
     message.set_pid(framework->pid.getOrElse(UPID()));
 
-    send(executor->pid, message);
+    executor->send(message);
   }
 }
 
@@ -1966,7 +1966,7 @@ void Slave::killTask(
         KillTaskMessage message;
         message.mutable_framework_id()->MergeFrom(frameworkId);
         message.mutable_task_id()->MergeFrom(taskId);
-        send(executor->pid, message);
+        executor->send(message);
       }
       break;
     }
@@ -2127,7 +2127,7 @@ void Slave::schedulerMessage(
       message.mutable_framework_id()->MergeFrom(frameworkId);
       message.mutable_executor_id()->MergeFrom(executorId);
       message.set_data(data);
-      send(executor->pid, message);
+      executor->send(message);
       metrics.valid_framework_messages++;
       break;
     }
@@ -2480,8 +2480,8 @@ void Slave::registerExecutor(
             executor->containerId);
 
         VLOG(1) << "Checkpointing executor pid '"
-                << executor->pid << "' to '" << path << "'";
-        CHECK_SOME(state::checkpoint(path, executor->pid));
+                << executor->pid.get() << "' to '" << path << "'";
+        CHECK_SOME(state::checkpoint(path, executor->pid.get()));
       }
 
       // Tell executor it's registered and give it any queued tasks.
@@ -2491,7 +2491,7 @@ void Slave::registerExecutor(
       message.mutable_framework_info()->MergeFrom(framework->info);
       message.mutable_slave_id()->MergeFrom(info.id());
       message.mutable_slave_info()->MergeFrom(info);
-      send(executor->pid, message);
+      executor->send(message);
 
       // Update the resource limits for the container. Note that the
       // resource limits include the currently queued tasks because we
@@ -2585,7 +2585,7 @@ void Slave::reregisterExecutor(
       ExecutorReregisteredMessage message;
       message.mutable_slave_id()->MergeFrom(info.id());
       message.mutable_slave_info()->MergeFrom(info);
-      send(executor->pid, message);
+      send(executor->pid.get(), message);
 
       // Handle all the pending updates.
       // The status update manager might have already checkpointed some
@@ -2595,7 +2595,7 @@ void Slave::reregisterExecutor(
       // manager correctly handles duplicate updates.
       foreach (const StatusUpdate& update, updates) {
         // NOTE: This also updates the executor's resources!
-        statusUpdate(update, executor->pid);
+        statusUpdate(update, executor->pid.get());
       }
 
       // Tell the containerizer to update the resources.
@@ -2870,6 +2870,7 @@ void Slave::statusUpdate(StatusUpdate update, const UPID& pid)
   // Failing this validation on the executor driver used to cause the
   // driver to abort. Now that the validation is done by the slave, it
   // should shutdown the executor to be consistent.
+  //
   // TODO(arojas): Once the HTTP API is the default, return a
   // 400 Bad Request response, indicating the reason in the body.
   if (status.source() == TaskStatus::SOURCE_EXECUTOR &&
@@ -2883,10 +2884,12 @@ void Slave::statusUpdate(StatusUpdate update, const UPID& pid)
 
   // TODO(vinod): Revisit these semantics when we disallow executors
   // from sending updates for tasks that belong to other executors.
-  if (pid != UPID() && executor->pid != pid) {
+  if (pid != UPID() &&
+      executor->pid.isSome() &&
+      executor->pid.get() != pid) {
     LOG(WARNING) << "Received status update " << update << " from " << pid
                  << " on behalf of a different executor " << executor->id
-                 << " (" << executor->pid << ")";
+                 << " (" << executor->pid.get() << ")";
   }
 
   metrics.valid_status_updates++;
@@ -3795,7 +3798,7 @@ void Slave::_shutdownExecutor(Framework* framework, Executor* executor)
 
   // If the executor hasn't yet registered, this message
   // will be dropped to the floor!
-  send(executor->pid, ShutdownExecutorMessage());
+  executor->send(ShutdownExecutorMessage());
 
   // Prepare for sending a kill if the executor doesn't comply.
   delay(flags.executor_shutdown_grace_period,
@@ -4081,24 +4084,37 @@ Future<Nothing> Slave::_recover()
                      lambda::_1));
 
       if (flags.recover == "reconnect") {
-        if (executor->pid) {
+        // We send a reconnect message for PID based executors
+        // as we can initiate communication with them. Recovered
+        // HTTP executors, on the other hand, are responsible for
+        // subscribing back with the agent using a retry interval.
+        // Note that recovered http executors are marked with
+        // http.isNone and pid.isNone (see comments in the header).
+        if (executor->pid.isSome() && executor->pid.get()) {
           LOG(INFO) << "Sending reconnect request to executor " << *executor;
 
           ReconnectExecutorMessage message;
           message.mutable_slave_id()->MergeFrom(info.id());
-          send(executor->pid, message);
+          send(executor->pid.get(), message);
+        } else if (executor->pid.isNone()) {
+          LOG(INFO) << "Waiting for executor " << *executor
+                    << " to subscribe";
         } else {
           LOG(INFO) << "Unable to reconnect to executor " << *executor
-                    << " because no libprocess PID was found";
+                    << " because no pid or http checkpoint file was found";
         }
       } else {
-        if (executor->pid) {
-          // Cleanup executors.
+        // For PID-based executors, we ask the executor to shut
+        // down and give it time to terminate. For HTTP executors,
+        // we do the same, however, the shutdown will only be sent
+        // when the executor subscribes.
+        if ((executor->pid.isSome() && executor->pid.get()) ||
+            executor->pid.isNone()) {
           LOG(INFO) << "Sending shutdown to executor " << *executor;
           _shutdownExecutor(framework, executor);
         } else {
           LOG(INFO) << "Killing executor " << *executor
-                    << " because no libprocess PID was found";
+                    << " because no pid or http checkpoint file was found";
 
           containerizer->destroy(executor->containerId);
         }
@@ -5165,6 +5181,10 @@ Executor::Executor(
 
 Executor::~Executor()
 {
+  if (http.isSome()) {
+    closeHttpConnection();
+  }
+
   // Delete the tasks.
   // TODO(vinod): Use foreachvalue instead once LinkedHashmap
   // supports it.
@@ -5359,12 +5379,29 @@ bool Executor::isCommandExecutor() const
 }
 
 
+void Executor::closeHttpConnection()
+{
+  CHECK_SOME(http);
+
+  if (!http.get().close()) {
+    LOG(WARNING) << "Failed to close HTTP pipe for " << *this;
+  }
+
+  http = None();
+}
+
+
 std::ostream& operator<<(std::ostream& stream, const Executor& executor)
 {
   stream << "'" << executor.id << "' of framework " << executor.frameworkId;
 
-  if (executor.pid) {
-    stream << " at " << executor.pid;
+  if (executor.pid.isSome() && executor.pid.get()) {
+    stream << " at " << executor.pid.get();
+  } else if (executor.http.isSome() ||
+             (executor.slave->state == Slave::RECOVERING &&
+              executor.state == Executor::REGISTERING &&
+              executor.http.isNone() && executor.pid.isNone())) {
+    stream << " (via HTTP)";
   }
 
   return stream;
