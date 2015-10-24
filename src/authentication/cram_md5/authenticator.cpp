@@ -41,6 +41,14 @@
 
 #include "messages/messages.hpp"
 
+// We need to disable the deprecation warnings as Apple has decided
+// to deprecate all of CyrusSASL's functions with OS 10.11
+// (see MESOS-3030). We are using GCC pragmas also for covering clang.
+#ifdef __APPLE__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#endif
+
 namespace mesos {
 namespace internal {
 namespace cram_md5 {
@@ -556,3 +564,7 @@ Future<Option<string>> CRAMMD5Authenticator::authenticate(
 } // namespace cram_md5 {
 } // namespace internal {
 } // namespace mesos {
+
+#ifdef __APPLE__
+#pragma GCC diagnostic pop
+#endif

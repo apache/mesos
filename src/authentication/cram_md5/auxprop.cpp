@@ -22,6 +22,14 @@
 
 #include "logging/logging.hpp"
 
+// We need to disable the deprecation warnings as Apple has decided
+// to deprecate all of CyrusSASL's functions with OS 10.11
+// (see MESOS-3030). We are using GCC pragmas also for covering clang.
+#ifdef __APPLE__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#endif
+
 using std::list;
 using std::string;
 
@@ -33,7 +41,6 @@ namespace cram_md5 {
 Multimap<string, Property> InMemoryAuxiliaryPropertyPlugin::properties;
 sasl_auxprop_plug_t InMemoryAuxiliaryPropertyPlugin::plugin;
 std::mutex InMemoryAuxiliaryPropertyPlugin::mutex;
-
 
 int InMemoryAuxiliaryPropertyPlugin::initialize(
     const sasl_utils_t* utils,
@@ -205,3 +212,7 @@ int InMemoryAuxiliaryPropertyPlugin::initialize(
 } // namespace cram_md5 {
 } // namespace internal {
 } // namespace mesos {
+
+#ifdef __APPLE__
+#pragma GCC diagnostic pop
+#endif
