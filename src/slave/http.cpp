@@ -263,11 +263,11 @@ Future<Response> Slave::Http::executor(const Request& request) const
   // TODO(anand): Validate the protobuf (MESOS-2906) before proceeding
   // further.
 
+  ContentType responseContentType;
+
   if (call.type() == executor::Call::SUBSCRIBE) {
     // We default to JSON since an empty 'Accept' header
     // results in all media types considered acceptable.
-    ContentType responseContentType;
-
     if (request.acceptsMediaType(APPLICATION_JSON)) {
       responseContentType = ContentType::JSON;
     } else if (request.acceptsMediaType(APPLICATION_PROTOBUF)) {
@@ -277,17 +277,7 @@ Future<Response> Slave::Http::executor(const Request& request) const
           string("Expecting 'Accept' to allow ") +
           "'" + APPLICATION_PROTOBUF + "' or '" + APPLICATION_JSON + "'");
     }
-
-    Pipe pipe;
-    OK ok;
-    ok.headers["Content-Type"] = stringify(responseContentType);
-
-    ok.type = Response::PIPE;
-    ok.reader = pipe.reader();
-
-    return ok;
   }
-
 
   // We consolidate the framework/executor lookup logic here because
   // it is common for all the call handlers.
@@ -301,16 +291,30 @@ Future<Response> Slave::Http::executor(const Request& request) const
     return BadRequest("Executor cannot be found");
   }
 
-  if (executor->state == Executor::REGISTERING) {
+  if (executor->state == Executor::REGISTERING &&
+      call.type() != executor::Call::SUBSCRIBE) {
     return Forbidden("Executor is not subscribed");
   }
 
   switch (call.type()) {
-    case executor::Call::UPDATE:
-      return Accepted();
+    case executor::Call::SUBSCRIBE: {
+      Pipe pipe;
+      OK ok;
+      ok.headers["Content-Type"] = stringify(responseContentType);
 
-    case executor::Call::MESSAGE:
+      ok.type = Response::PIPE;
+      ok.reader = pipe.reader();
+
+      return ok;
+    }
+
+    case executor::Call::UPDATE: {
       return Accepted();
+    }
+
+    case executor::Call::MESSAGE: {
+      return Accepted();
+    }
 
     default:
       // Should be caught during call validation above.

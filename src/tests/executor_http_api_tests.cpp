@@ -17,6 +17,7 @@
  */
 
 #include <string>
+#include <vector>
 
 #include <mesos/v1/executor/executor.hpp>
 
@@ -52,6 +53,7 @@ using process::http::Response;
 using process::http::UnsupportedMediaType;
 
 using std::string;
+using std::vector;
 
 using testing::WithParamInterface;
 
@@ -306,37 +308,68 @@ TEST_F(ExecutorHttpApiTest, GetRequest)
 }
 
 
-// This test sends in a Accept:*/* header meaning it would Accept any
-// media type as response. We return the default "application/json"
-// media type as response.
+// This test sends in a Accept:*/* header meaning it would
+// accept any media type in the response. We expect the
+// default "application/json" media type.
 TEST_P(ExecutorHttpApiTest, DefaultAccept)
 {
   Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
-  Future<Nothing> __recover = FUTURE_DISPATCH(_, &Slave::__recover);
+  ExecutorID executorId = DEFAULT_EXECUTOR_ID;
+  MockExecutor exec(executorId);
 
-  Try<PID<Slave>> slave = StartSlave();
+  Try<PID<Slave>> slave = StartSlave(&exec);
   ASSERT_SOME(slave);
 
-  AWAIT_READY(__recover);
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
 
-  // Wait for recovery to be complete.
-  Clock::pause();
-  Clock::settle();
+  Future<FrameworkID> frameworkId;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId));
 
-  process::http::Headers headers;
-  headers["Accept"] = "*/*";
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  Future<Nothing> statusUpdate;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureSatisfy(&statusUpdate));
+
+  driver.start();
+
+  AWAIT_READY(frameworkId);
+  AWAIT_READY(offers);
+
+  ASSERT_EQ(1, offers.get().size());
+
+  EXPECT_CALL(exec, registered(_, _, _, _))
+    .Times(1);
+
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
+
+  TaskInfo taskInfo = createTask(offers.get()[0], "", executorId);
+  driver.launchTasks(offers.get()[0].id(), {taskInfo});
+
+  // Wait until status update is received on the scheduler
+  // before sending an executor subscribe request.
+  AWAIT_READY(statusUpdate);
 
   // Only subscribe needs to 'Accept' JSON or protobuf.
   Call call;
   call.set_type(Call::SUBSCRIBE);
 
-  call.mutable_framework_id()->set_value("dummy_framework_id");
-  call.mutable_executor_id()->set_value("dummy_executor_id");
+  call.mutable_framework_id()->CopyFrom(evolve(frameworkId.get()));
+  call.mutable_executor_id()->CopyFrom(evolve(executorId));
 
   // Retrieve the parameter passed as content type to this test.
   const ContentType contentType = GetParam();
+
+  process::http::Headers headers;
+  headers["Accept"] = "*/*";
 
   Future<Response> response = process::http::streaming::post(
       slave.get(),
@@ -360,16 +393,54 @@ TEST_P(ExecutorHttpApiTest, NoAcceptHeader)
   Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
-  Future<Nothing> __recover = FUTURE_DISPATCH(_, &Slave::__recover);
+  ExecutorID executorId = DEFAULT_EXECUTOR_ID;
+  MockExecutor exec(executorId);
 
-  Try<PID<Slave>> slave = StartSlave();
+  Try<PID<Slave>> slave = StartSlave(&exec);
   ASSERT_SOME(slave);
 
-  AWAIT_READY(__recover);
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
 
-  // Wait for recovery to be complete.
-  Clock::pause();
-  Clock::settle();
+  Future<FrameworkID> frameworkId;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  Future<Nothing> statusUpdate;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureSatisfy(&statusUpdate));
+
+  driver.start();
+
+  AWAIT_READY(frameworkId);
+  AWAIT_READY(offers);
+
+  ASSERT_EQ(1, offers.get().size());
+
+  EXPECT_CALL(exec, registered(_, _, _, _))
+    .Times(1);
+
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
+
+  TaskInfo taskInfo = createTask(offers.get()[0], "", executorId);
+  driver.launchTasks(offers.get()[0].id(), {taskInfo});
+
+  // Wait until status update is received on the scheduler before sending
+  // an executor subscribe request.
+  AWAIT_READY(statusUpdate);
+
+  // Only subscribe needs to 'Accept' JSON or protobuf.
+  Call call;
+  call.set_type(Call::SUBSCRIBE);
+
+  call.mutable_framework_id()->CopyFrom(evolve(frameworkId.get()));
+  call.mutable_executor_id()->CopyFrom(evolve(executorId));
 
   // Retrieve the parameter passed as content type to this test.
   const ContentType contentType = GetParam();
@@ -377,13 +448,6 @@ TEST_P(ExecutorHttpApiTest, NoAcceptHeader)
   // No 'Accept' header leads to all media types considered
   // acceptable. JSON will be chosen by default.
   process::http::Headers headers;
-
-  // Only subscribe needs to 'Accept' JSON or protobuf.
-  Call call;
-  call.set_type(Call::SUBSCRIBE);
-
-  call.mutable_framework_id()->set_value("dummy_framework_id");
-  call.mutable_executor_id()->set_value("dummy_executor_id");
 
   Future<Response> response = process::http::streaming::post(
       slave.get(),
