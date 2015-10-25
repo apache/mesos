@@ -732,6 +732,7 @@ if OS_LINUX
   libmesos_no_3rdparty_la_SOURCES += linux/perf.cpp
   libmesos_no_3rdparty_la_SOURCES += linux/systemd.cpp
   libmesos_no_3rdparty_la_SOURCES += slave/containerizer/linux_launcher.cpp
+  libmesos_no_3rdparty_la_SOURCES += slave/containerizer/mesos/mount.cpp
   libmesos_no_3rdparty_la_SOURCES += slave/containerizer/mesos/isolators/cgroups/cpushare.cpp
   libmesos_no_3rdparty_la_SOURCES += slave/containerizer/mesos/isolators/cgroups/mem.cpp
   libmesos_no_3rdparty_la_SOURCES += slave/containerizer/mesos/isolators/cgroups/perf_event.cpp
@@ -856,6 +857,7 @@ libmesos_no_3rdparty_la_SOURCES +=						\
 	slave/containerizer/linux_launcher.hpp					\
 	slave/containerizer/mesos/containerizer.hpp				\
 	slave/containerizer/mesos/launch.hpp					\
+	slave/containerizer/mesos/mount.hpp					\
 	slave/containerizer/mesos/isolators/posix.hpp				\
 	slave/containerizer/mesos/isolators/posix/disk.hpp			\
 	slave/containerizer/mesos/isolators/cgroups/constants.hpp		\

@@ -20,6 +20,7 @@
 #include <stout/subcommand.hpp>
 
 #include "slave/containerizer/mesos/launch.hpp"
+#include "slave/containerizer/mesos/mount.hpp"
 
 using namespace mesos::internal::slave;
 
@@ -30,5 +31,6 @@ int main(int argc, char** argv)
       None(),
       argc,
       argv,
-      new MesosContainerizerLaunch());
+      new MesosContainerizerLaunch(),
+      new MesosContainerizerMount());
 }
