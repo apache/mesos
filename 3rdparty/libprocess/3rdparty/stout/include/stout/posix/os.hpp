@@ -107,26 +107,6 @@ inline void unsetenv(const std::string& key)
 }
 
 
-inline Try<Nothing> touch(const std::string& path)
-{
-  if (!exists(path)) {
-    Try<int> fd = open(
-        path,
-        O_RDWR | O_CREAT,
-        S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
-
-    if (fd.isError()) {
-      return Error("Failed to open file: " + fd.error());
-    }
-
-    return close(fd.get());
-  }
-
-  // Update the access and modification times.
-  return utime(path);
-}
-
-
 // Creates a temporary directory using the specified path
 // template. The template may be any path with _6_ `Xs' appended to
 // it, for example /tmp/temp.XXXXXX. The trailing `Xs' are replaced
