@@ -165,12 +165,6 @@ inline Try<Nothing> su(const std::string& user)
 }
 
 
-inline std::string getcwd()
-{
-  UNIMPLEMENTED;
-}
-
-
 inline Result<std::string> user(Option<uid_t> uid = None())
 {
   UNIMPLEMENTED;

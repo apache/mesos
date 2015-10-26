@@ -203,6 +203,13 @@ decltype(_close(fd))
 }
 
 
+inline auto getcwd(char* path, int maxlen) ->
+decltype(_getcwd(path, maxlen))
+{
+  return _getcwd(path, maxlen);
+}
+
+
 inline auto mkdir(const char* path, mode_t mode) ->
 decltype(_mkdir(path))
 {

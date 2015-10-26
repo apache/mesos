@@ -77,6 +77,7 @@
 #include <stout/os/bootid.hpp>
 #include <stout/os/environment.hpp>
 #include <stout/os/fork.hpp>
+#include <stout/os/getcwd.hpp>
 #include <stout/os/killtree.hpp>
 #include <stout/os/ls.hpp>
 #include <stout/os/mktemp.hpp>

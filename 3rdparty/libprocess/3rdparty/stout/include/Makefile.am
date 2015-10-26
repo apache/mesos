@@ -59,6 +59,7 @@ nobase_include_HEADERS =		\
   stout/os/fcntl.hpp			\
   stout/os/fork.hpp			\
   stout/os/ftruncate.hpp		\
+  stout/os/getcwd.hpp			\
   stout/os/killtree.hpp			\
   stout/os/linux.hpp			\
   stout/os/posix/bootid.hpp		\

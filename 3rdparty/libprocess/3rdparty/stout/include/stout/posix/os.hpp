@@ -460,30 +460,6 @@ inline Try<Nothing> su(const std::string& user)
 }
 
 
-inline std::string getcwd()
-{
-  size_t size = 100;
-
-  while (true) {
-    char* temp = new char[size];
-    if (::getcwd(temp, size) == temp) {
-      std::string result(temp);
-      delete[] temp;
-      return result;
-    } else {
-      if (errno != ERANGE) {
-        delete[] temp;
-        return std::string();
-      }
-      size *= 2;
-      delete[] temp;
-    }
-  }
-
-  return std::string();
-}
-
-
 inline Result<std::string> user(Option<uid_t> uid = None())
 {
   if (uid.isNone()) {
