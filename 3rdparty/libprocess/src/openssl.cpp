@@ -279,6 +279,11 @@ string error_string(unsigned long code)
 // running (this would be undefined behavior).
 void reinitialize()
 {
+  // Wipe out and recreate the default flags.
+  // This is especially important for tests, which might repeatedly
+  // change environment variables and call `reinitialize`.
+  *ssl_flags = Flags();
+
   // Load all the flags prefixed by SSL_ from the environment. See
   // comment at top of openssl.hpp for a full list.
   Try<Nothing> load = ssl_flags->load("SSL_");
