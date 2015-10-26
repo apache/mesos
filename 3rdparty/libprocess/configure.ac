@@ -617,12 +617,12 @@ if test "x$enable_libevent" = "xyes"; then
                                  [],
                                  [AC_MSG_ERROR([cannot find libevent
 -------------------------------------------------------------------
-libevent is required for libprocess to build.
+libevent version 2+ is required for libprocess to build.
 -------------------------------------------------------------------
                                  ])])],
                    [AC_MSG_ERROR([cannot find libevent headers
 -------------------------------------------------------------------
-libevent is required for libprocess to build.
+libevent version 2+ headers are required for libprocess to build.
 -------------------------------------------------------------------
   ])])
 
@@ -632,12 +632,12 @@ libevent is required for libprocess to build.
                                  [],
                                  [AC_MSG_ERROR([cannot find libevent_pthreads
 -------------------------------------------------------------------
-libevent_pthreads is required for libprocess to build.
+libevent_pthreads version 2+ is required for libprocess to build.
 -------------------------------------------------------------------
                                  ])])],
                    [AC_MSG_ERROR([cannot find libevent_pthreads headers
 -------------------------------------------------------------------
-libevent_pthreads is required for libprocess to build.
+libevent_pthreads version 2+ headers are required for libprocess to build.
 -------------------------------------------------------------------
   ])])
 fi
@@ -689,12 +689,12 @@ libcrypto is required for an SSL-enabled build.
                                    [],
                                    [AC_MSG_ERROR([cannot find libevent_openssl
 -------------------------------------------------------------------
-libevent_openssl is required for an SSL-enabled build.
+libevent_openssl version 2+ is required for an SSL-enabled build.
 -------------------------------------------------------------------
                                    ])])],
                      [AC_MSG_ERROR([cannot find libevent_openssl headers
 -------------------------------------------------------------------
-libevent_openssl is required for an SSL-enabled build.
+libevent_openssl version 2+ headers are required for an SSL-enabled build.
 -------------------------------------------------------------------
     ])])
   else
