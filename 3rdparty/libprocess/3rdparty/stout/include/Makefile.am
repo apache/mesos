@@ -90,6 +90,7 @@ nobase_include_HEADERS =		\
   stout/os/permissions.hpp		\
   stout/os/pstree.hpp			\
   stout/os/sysctl.hpp			\
+  stout/os/utime.hpp			\
   stout/os/write.hpp			\
   stout/os/raw/environment.hpp		\
   stout/os/windows/bootid.hpp		\

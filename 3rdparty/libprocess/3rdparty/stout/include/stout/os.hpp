@@ -89,6 +89,7 @@
 #include <stout/os/shell.hpp>
 #include <stout/os/signals.hpp>
 #include <stout/os/stat.hpp>
+#include <stout/os/utime.hpp>
 #include <stout/os/write.hpp>
 
 
@@ -130,17 +131,6 @@ inline Try<bool> access(const std::string& path, int how)
     }
   }
   return true;
-}
-
-
-// Sets the access and modification times of 'path' to the current time.
-inline Try<Nothing> utime(const std::string& path)
-{
-  if (::utime(path.c_str(), NULL) == -1) {
-    return ErrnoError();
-  }
-
-  return Nothing();
 }
 
 
