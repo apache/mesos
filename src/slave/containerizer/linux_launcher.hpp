@@ -35,6 +35,9 @@ class LinuxLauncher : public Launcher
 public:
   static Try<Launcher*> create(const Flags& flags);
 
+  // Returns 'true' if prerequisites for using LinuxLauncher are available.
+  static bool available();
+
   virtual ~LinuxLauncher() {}
 
   virtual process::Future<hashset<ContainerID>> recover(

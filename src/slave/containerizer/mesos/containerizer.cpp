@@ -225,9 +225,8 @@ Try<MesosContainerizer*> MesosContainerizer::create(
       return Error("Unknown or unsupported launcher: " + flags_.launcher.get());
     }
   } else {
-    // If the user has not specified the launcher, use Linux launcher
-    // if running as root, posix launcher otherwise.
-    launcher = (::geteuid() == 0)
+    // Use Linux launcher if it is available, POSIX otherwise.
+    launcher = LinuxLauncher::available()
       ? LinuxLauncher::create(flags_)
       : PosixLauncher::create(flags_);
   }

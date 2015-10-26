@@ -178,6 +178,19 @@ Try<Launcher*> LinuxLauncher::create(const Flags& flags)
 }
 
 
+bool LinuxLauncher::available()
+{
+  // Make sure:
+  //   - we run as root
+  //   - cgroups are enabled
+  //   - "freezer" subsytem is available.
+
+  return ::geteuid() == 0 &&
+         cgroups::enabled() &&
+         cgroups::hierarchy("freezer").isSome();
+}
+
+
 Future<hashset<ContainerID>> LinuxLauncher::recover(
     const std::list<ContainerState>& states)
 {
