@@ -1652,6 +1652,26 @@ file:///path/to/file (where file contains one of the above)</code></pre>
   </tr>
   <tr>
     <td>
+      --enable-libevent
+    </td>
+    <td>
+      use <a href="https://github.com/libevent/libevent">libevent</a>
+      instead of libev for the libprocess event loop [default=no].
+      Note that the libevent version 2+ development package is required
+    </td>
+  </tr>
+  <tr>
+    <td>
+      --enable-ssl
+    </td>
+    <td>
+      enable <a href="/documentation/latest/ssl">SSL</a> for libprocess
+      communication [default=no].
+      Note that --enable-libevent is currently required for SSL functionality
+    </td>
+  </tr>
+  <tr>
+    <td>
       --disable-libtool-lock
     </td>
     <td>
@@ -1865,10 +1885,36 @@ file:///path/to/file (where file contains one of the above)</code></pre>
   </tr>
   <tr>
     <td>
+      --with-libevent=[=DIR]
+    </td>
+    <td>
+      specify where to locate the libevent library
+    </td>
+  </tr>
+  <tr>
+    <td>
+      --with-ssl=[=DIR]
+    </td>
+    <td>
+      specify where to locate the ssl library
+    </td>
+  </tr>
+  <tr>
+    <td>
       --with-network-isolator
     </td>
     <td>
       builds the network isolator
+    </td>
+  </tr>
+  <tr>
+    <td>
+      --with-nl=[=DIR]
+    </td>
+    <td>
+      specify where to locate the
+      <a href="https://www.infradead.org/~tgr/libnl/">libnl3</a> library
+      (required for the network isolator)
     </td>
   </tr>
 </table>
