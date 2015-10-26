@@ -79,6 +79,7 @@
 #include <stout/os/fork.hpp>
 #include <stout/os/killtree.hpp>
 #include <stout/os/ls.hpp>
+#include <stout/os/mktemp.hpp>
 #include <stout/os/permissions.hpp>
 #include <stout/os/os.hpp>
 #include <stout/os/read.hpp>
@@ -132,31 +133,6 @@ inline Try<bool> access(const std::string& path, int how)
     }
   }
   return true;
-}
-
-
-// Creates a temporary file using the specified path template. The
-// template may be any path with _6_ `Xs' appended to it, for example
-// /tmp/temp.XXXXXX. The trailing `Xs' are replaced with a unique
-// alphanumeric combination.
-inline Try<std::string> mktemp(const std::string& path = "/tmp/XXXXXX")
-{
-  char* temp = new char[path.size() + 1];
-  int fd = ::mkstemp(::strcpy(temp, path.c_str()));
-
-  if (fd < 0) {
-    delete[] temp;
-    return ErrnoError();
-  }
-
-  // We ignore the return value of close(). This is because users
-  // calling this function are interested in the return value of
-  // mkstemp(). Also an unsuccessful close() doesn't affect the file.
-  os::close(fd);
-
-  std::string result(temp);
-  delete[] temp;
-  return result;
 }
 
 

@@ -75,6 +75,7 @@ nobase_include_HEADERS =		\
   stout/os/posix/signals.hpp		\
   stout/os/posix/stat.hpp		\
   stout/os/ls.hpp			\
+  stout/os/mktemp.hpp			\
   stout/os/open.hpp			\
   stout/os/os.hpp			\
   stout/os/osx.hpp			\
