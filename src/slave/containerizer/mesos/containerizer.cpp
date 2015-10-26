@@ -47,36 +47,35 @@
 #include "slave/containerizer/linux_launcher.hpp"
 #endif
 
-#include "slave/containerizer/isolators/posix.hpp"
+#include "slave/containerizer/mesos/isolators/posix.hpp"
 
-#include "slave/containerizer/isolators/posix/disk.hpp"
+#include "slave/containerizer/mesos/isolators/posix/disk.hpp"
 
 #ifdef __linux__
-#include "slave/containerizer/isolators/cgroups/cpushare.hpp"
-#include "slave/containerizer/isolators/cgroups/mem.hpp"
-#include "slave/containerizer/isolators/cgroups/perf_event.hpp"
+#include "slave/containerizer/mesos/isolators/cgroups/cpushare.hpp"
+#include "slave/containerizer/mesos/isolators/cgroups/mem.hpp"
+#include "slave/containerizer/mesos/isolators/cgroups/perf_event.hpp"
 #endif
 
 #ifdef __linux__
-#include "slave/containerizer/isolators/filesystem/linux.hpp"
+#include "slave/containerizer/mesos/isolators/filesystem/linux.hpp"
 #endif
-#include "slave/containerizer/isolators/filesystem/posix.hpp"
+#include "slave/containerizer/mesos/isolators/filesystem/posix.hpp"
 #ifdef __linux__
-#include "slave/containerizer/isolators/filesystem/shared.hpp"
+#include "slave/containerizer/mesos/isolators/filesystem/shared.hpp"
 #endif
 
 #ifdef __linux__
-#include "slave/containerizer/isolators/namespaces/pid.hpp"
+#include "slave/containerizer/mesos/isolators/namespaces/pid.hpp"
 #endif
 
 #ifdef WITH_NETWORK_ISOLATOR
-#include "slave/containerizer/isolators/network/port_mapping.hpp"
+#include "slave/containerizer/mesos/isolators/network/port_mapping.hpp"
 #endif
 
 #include "slave/containerizer/mesos/containerizer.hpp"
 #include "slave/containerizer/mesos/launch.hpp"
-
-#include "slave/containerizer/provisioner/provisioner.hpp"
+#include "slave/containerizer/mesos/provisioner/provisioner.hpp"
 
 using std::list;
 using std::map;

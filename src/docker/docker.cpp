@@ -38,8 +38,8 @@
 #include "linux/cgroups.hpp"
 #endif // __linux__
 
-#include "slave/containerizer/isolators/cgroups/cpushare.hpp"
-#include "slave/containerizer/isolators/cgroups/mem.hpp"
+#include "slave/containerizer/mesos/isolators/cgroups/cpushare.hpp"
+#include "slave/containerizer/mesos/isolators/cgroups/mem.hpp"
 
 #include "slave/constants.hpp"
 

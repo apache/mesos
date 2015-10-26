@@ -50,13 +50,13 @@
 #include "slave/slave.hpp"
 
 #ifdef __linux__
-#include "slave/containerizer/isolators/cgroups/constants.hpp"
-#include "slave/containerizer/isolators/cgroups/cpushare.hpp"
-#include "slave/containerizer/isolators/cgroups/mem.hpp"
-#include "slave/containerizer/isolators/cgroups/perf_event.hpp"
-#include "slave/containerizer/isolators/filesystem/shared.hpp"
+#include "slave/containerizer/mesos/isolators/cgroups/constants.hpp"
+#include "slave/containerizer/mesos/isolators/cgroups/cpushare.hpp"
+#include "slave/containerizer/mesos/isolators/cgroups/mem.hpp"
+#include "slave/containerizer/mesos/isolators/cgroups/perf_event.hpp"
+#include "slave/containerizer/mesos/isolators/filesystem/shared.hpp"
 #endif // __linux__
-#include "slave/containerizer/isolators/posix.hpp"
+#include "slave/containerizer/mesos/isolators/posix.hpp"
 
 #include "slave/containerizer/launcher.hpp"
 #ifdef __linux__

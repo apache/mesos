@@ -40,7 +40,7 @@
 
 #include "slave/containerizer/fetcher.hpp"
 
-#include "slave/containerizer/isolators/posix/disk.hpp"
+#include "slave/containerizer/mesos/isolators/posix/disk.hpp"
 
 #include "slave/containerizer/mesos/containerizer.hpp"
 

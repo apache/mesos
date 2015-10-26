@@ -48,7 +48,7 @@
 #include "slave/containerizer/docker.hpp"
 #include "slave/containerizer/fetcher.hpp"
 
-#include "slave/containerizer/isolators/cgroups/constants.hpp"
+#include "slave/containerizer/mesos/isolators/cgroups/constants.hpp"
 
 #include "usage/usage.hpp"
 

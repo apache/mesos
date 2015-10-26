@@ -25,7 +25,7 @@
 
 #include <stout/try.hpp>
 
-#include "slave/containerizer/isolators/posix.hpp"
+#include "slave/containerizer/mesos/isolators/posix.hpp"
 #include "slave/flags.hpp"
 
 using namespace mesos;

@@ -26,7 +26,7 @@
 #include <stout/hashmap.hpp>
 #include <stout/stringify.hpp>
 
-#include "slave/containerizer/provisioner/provisioner.hpp"
+#include "slave/containerizer/mesos/provisioner/provisioner.hpp"
 
 #include "tests/containerizer/rootfs.hpp"
 

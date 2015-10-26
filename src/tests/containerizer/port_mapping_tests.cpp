@@ -56,7 +56,7 @@
 #include "slave/flags.hpp"
 #include "slave/slave.hpp"
 
-#include "slave/containerizer/isolators/network/port_mapping.hpp"
+#include "slave/containerizer/mesos/isolators/network/port_mapping.hpp"
 
 #include "slave/containerizer/fetcher.hpp"
 #include "slave/containerizer/launcher.hpp"

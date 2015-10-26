@@ -42,12 +42,12 @@
 #ifdef __linux__
 #include "slave/containerizer/linux_launcher.hpp"
 
-#include "slave/containerizer/isolators/filesystem/linux.hpp"
+#include "slave/containerizer/mesos/isolators/filesystem/linux.hpp"
 #endif
 
 #include "slave/containerizer/mesos/containerizer.hpp"
 
-#include "slave/containerizer/provisioner/paths.hpp"
+#include "slave/containerizer/mesos/provisioner/paths.hpp"
 
 #include "tests/flags.hpp"
 #include "tests/mesos.hpp"

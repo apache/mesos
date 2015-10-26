@@ -37,12 +37,12 @@
 
 #include <process/ssl/gtest.hpp>
 
-#include "slave/containerizer/provisioner/docker/metadata_manager.hpp"
-#include "slave/containerizer/provisioner/docker/paths.hpp"
-#include "slave/containerizer/provisioner/docker/registry_client.hpp"
-#include "slave/containerizer/provisioner/docker/spec.hpp"
-#include "slave/containerizer/provisioner/docker/store.hpp"
-#include "slave/containerizer/provisioner/docker/token_manager.hpp"
+#include "slave/containerizer/mesos/provisioner/docker/metadata_manager.hpp"
+#include "slave/containerizer/mesos/provisioner/docker/paths.hpp"
+#include "slave/containerizer/mesos/provisioner/docker/registry_client.hpp"
+#include "slave/containerizer/mesos/provisioner/docker/spec.hpp"
+#include "slave/containerizer/mesos/provisioner/docker/store.hpp"
+#include "slave/containerizer/mesos/provisioner/docker/token_manager.hpp"
 
 #include "tests/mesos.hpp"
 #include "tests/utils.hpp"

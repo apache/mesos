@@ -275,8 +275,8 @@ BUILT_SOURCES += $(STATE_PROTOS)
 CLEANFILES += $(STATE_PROTOS)
 
 DOCKER_PROVISIONER_PROTOS =                                             \
-  slave/containerizer/provisioner/docker/message.pb.cc			\
-  slave/containerizer/provisioner/docker/message.pb.h
+  slave/containerizer/mesos/provisioner/docker/message.pb.cc		\
+  slave/containerizer/mesos/provisioner/docker/message.pb.h
 
 BUILT_SOURCES += $(DOCKER_PROVISIONER_PROTOS)
 CLEANFILES += $(DOCKER_PROVISIONER_PROTOS)
@@ -541,28 +541,28 @@ libmesos_no_3rdparty_la_SOURCES =					\
 	slave/containerizer/external_containerizer.cpp			\
 	slave/containerizer/fetcher.cpp					\
 	slave/containerizer/isolator.cpp				\
-	slave/containerizer/isolators/filesystem/posix.cpp		\
-	slave/containerizer/isolators/posix/disk.cpp			\
 	slave/containerizer/launcher.cpp				\
 	slave/containerizer/mesos/containerizer.cpp			\
+	slave/containerizer/mesos/isolators/filesystem/posix.cpp	\
+	slave/containerizer/mesos/isolators/posix/disk.cpp		\
 	slave/containerizer/mesos/launch.cpp				\
-        slave/containerizer/provisioner/paths.cpp			\
-	slave/containerizer/provisioner/provisioner.cpp			\
-        slave/containerizer/provisioner/store.cpp			\
-	slave/containerizer/provisioner/appc/paths.cpp			\
-	slave/containerizer/provisioner/appc/spec.cpp			\
-	slave/containerizer/provisioner/appc/store.cpp			\
-	slave/containerizer/provisioner/backend.cpp			\
-	slave/containerizer/provisioner/backends/copy.cpp		\
-	slave/containerizer/provisioner/docker/local_puller.cpp		\
-	slave/containerizer/provisioner/docker/message.proto		\
-	slave/containerizer/provisioner/docker/metadata_manager.cpp	\
-	slave/containerizer/provisioner/docker/paths.cpp		\
-	slave/containerizer/provisioner/docker/puller.cpp		\
-	slave/containerizer/provisioner/docker/registry_client.cpp	\
-	slave/containerizer/provisioner/docker/spec.cpp			\
-	slave/containerizer/provisioner/docker/store.cpp		\
-	slave/containerizer/provisioner/docker/token_manager.cpp	\
+	slave/containerizer/mesos/provisioner/paths.cpp			\
+	slave/containerizer/mesos/provisioner/provisioner.cpp		\
+	slave/containerizer/mesos/provisioner/store.cpp			\
+	slave/containerizer/mesos/provisioner/appc/paths.cpp		\
+	slave/containerizer/mesos/provisioner/appc/spec.cpp		\
+	slave/containerizer/mesos/provisioner/appc/store.cpp		\
+	slave/containerizer/mesos/provisioner/backend.cpp		\
+	slave/containerizer/mesos/provisioner/backends/copy.cpp		\
+	slave/containerizer/mesos/provisioner/docker/local_puller.cpp	\
+	slave/containerizer/mesos/provisioner/docker/message.proto	\
+	slave/containerizer/mesos/provisioner/docker/metadata_manager.cpp	\
+	slave/containerizer/mesos/provisioner/docker/paths.cpp		\
+	slave/containerizer/mesos/provisioner/docker/puller.cpp		\
+	slave/containerizer/mesos/provisioner/docker/registry_client.cpp	\
+	slave/containerizer/mesos/provisioner/docker/spec.cpp			\
+	slave/containerizer/mesos/provisioner/docker/store.cpp		\
+	slave/containerizer/mesos/provisioner/docker/token_manager.cpp	\
 	slave/resource_estimators/noop.cpp				\
 	usage/usage.cpp							\
 	v1/attributes.cpp						\
@@ -730,14 +730,14 @@ if OS_LINUX
   libmesos_no_3rdparty_la_SOURCES += linux/fs.cpp
   libmesos_no_3rdparty_la_SOURCES += linux/perf.cpp
   libmesos_no_3rdparty_la_SOURCES += linux/systemd.cpp
-  libmesos_no_3rdparty_la_SOURCES += slave/containerizer/isolators/cgroups/cpushare.cpp
-  libmesos_no_3rdparty_la_SOURCES += slave/containerizer/isolators/cgroups/mem.cpp
-  libmesos_no_3rdparty_la_SOURCES += slave/containerizer/isolators/cgroups/perf_event.cpp
-  libmesos_no_3rdparty_la_SOURCES += slave/containerizer/isolators/namespaces/pid.cpp
-  libmesos_no_3rdparty_la_SOURCES += slave/containerizer/isolators/filesystem/linux.cpp
-  libmesos_no_3rdparty_la_SOURCES += slave/containerizer/isolators/filesystem/shared.cpp
   libmesos_no_3rdparty_la_SOURCES += slave/containerizer/linux_launcher.cpp
-  libmesos_no_3rdparty_la_SOURCES += slave/containerizer/provisioner/backends/bind.cpp
+  libmesos_no_3rdparty_la_SOURCES += slave/containerizer/mesos/isolators/cgroups/cpushare.cpp
+  libmesos_no_3rdparty_la_SOURCES += slave/containerizer/mesos/isolators/cgroups/mem.cpp
+  libmesos_no_3rdparty_la_SOURCES += slave/containerizer/mesos/isolators/cgroups/perf_event.cpp
+  libmesos_no_3rdparty_la_SOURCES += slave/containerizer/mesos/isolators/namespaces/pid.cpp
+  libmesos_no_3rdparty_la_SOURCES += slave/containerizer/mesos/isolators/filesystem/linux.cpp
+  libmesos_no_3rdparty_la_SOURCES += slave/containerizer/mesos/isolators/filesystem/shared.cpp
+  libmesos_no_3rdparty_la_SOURCES += slave/containerizer/mesos/provisioner/backends/bind.cpp
 else
   EXTRA_DIST += linux/cgroups.cpp
   EXTRA_DIST += linux/fs.cpp
@@ -781,8 +781,8 @@ if WITH_NETWORK_ISOLATOR
 	linux/routing/queueing/statistics.hpp
 
   libmesos_no_3rdparty_la_SOURCES +=					\
-	slave/containerizer/isolators/network/port_mapping.cpp		\
-	slave/containerizer/isolators/network/port_mapping.hpp
+	slave/containerizer/mesos/isolators/network/port_mapping.cpp	\
+	slave/containerizer/mesos/isolators/network/port_mapping.hpp
 endif
 
 libmesos_no_3rdparty_la_SOURCES +=					\
@@ -852,36 +852,36 @@ libmesos_no_3rdparty_la_SOURCES +=					\
 	slave/containerizer/isolator.hpp				\
 	slave/containerizer/launcher.hpp				\
 	slave/containerizer/linux_launcher.hpp				\
-        slave/containerizer/provisioner/paths.hpp			\
-	slave/containerizer/provisioner/provisioner.hpp			\
-	slave/containerizer/provisioner/store.hpp			\
-	slave/containerizer/provisioner/appc/paths.hpp			\
-	slave/containerizer/provisioner/appc/spec.hpp			\
-	slave/containerizer/provisioner/appc/store.hpp			\
-	slave/containerizer/provisioner/backend.hpp			\
-	slave/containerizer/provisioner/backends/bind.hpp		\
-	slave/containerizer/provisioner/backends/copy.hpp		\
-	slave/containerizer/provisioner/docker/local_puller.hpp		\
-	slave/containerizer/provisioner/docker/message.hpp		\
-	slave/containerizer/provisioner/docker/metadata_manager.hpp	\
-	slave/containerizer/provisioner/docker/paths.hpp		\
-	slave/containerizer/provisioner/docker/puller.hpp		\
-	slave/containerizer/provisioner/docker/registry_client.hpp	\
-	slave/containerizer/provisioner/docker/spec.hpp			\
-	slave/containerizer/provisioner/docker/store.hpp		\
-	slave/containerizer/provisioner/docker/token_manager.hpp	\
-	slave/containerizer/isolators/posix.hpp				\
-	slave/containerizer/isolators/posix/disk.hpp			\
-	slave/containerizer/isolators/cgroups/constants.hpp		\
-	slave/containerizer/isolators/cgroups/cpushare.hpp		\
-	slave/containerizer/isolators/cgroups/mem.hpp			\
-	slave/containerizer/isolators/cgroups/perf_event.hpp		\
-	slave/containerizer/isolators/namespaces/pid.hpp		\
-	slave/containerizer/isolators/filesystem/linux.hpp		\
-	slave/containerizer/isolators/filesystem/posix.hpp		\
-	slave/containerizer/isolators/filesystem/shared.hpp		\
 	slave/containerizer/mesos/containerizer.hpp			\
+	slave/containerizer/mesos/isolators/posix.hpp			\
+	slave/containerizer/mesos/isolators/posix/disk.hpp		\
+	slave/containerizer/mesos/isolators/cgroups/constants.hpp	\
+	slave/containerizer/mesos/isolators/cgroups/cpushare.hpp	\
+	slave/containerizer/mesos/isolators/cgroups/mem.hpp		\
+	slave/containerizer/mesos/isolators/cgroups/perf_event.hpp	\
+	slave/containerizer/mesos/isolators/namespaces/pid.hpp		\
+	slave/containerizer/mesos/isolators/filesystem/linux.hpp	\
+	slave/containerizer/mesos/isolators/filesystem/posix.hpp	\
+	slave/containerizer/mesos/isolators/filesystem/shared.hpp	\
 	slave/containerizer/mesos/launch.hpp				\
+	slave/containerizer/mesos/provisioner/paths.hpp			\
+	slave/containerizer/mesos/provisioner/provisioner.hpp		\
+	slave/containerizer/mesos/provisioner/store.hpp			\
+	slave/containerizer/mesos/provisioner/appc/paths.hpp		\
+	slave/containerizer/mesos/provisioner/appc/spec.hpp		\
+	slave/containerizer/mesos/provisioner/appc/store.hpp		\
+	slave/containerizer/mesos/provisioner/backend.hpp		\
+	slave/containerizer/mesos/provisioner/backends/bind.hpp		\
+	slave/containerizer/mesos/provisioner/backends/copy.hpp		\
+	slave/containerizer/mesos/provisioner/docker/local_puller.hpp	\
+	slave/containerizer/mesos/provisioner/docker/message.hpp	\
+	slave/containerizer/mesos/provisioner/docker/metadata_manager.hpp	\
+	slave/containerizer/mesos/provisioner/docker/paths.hpp		\
+	slave/containerizer/mesos/provisioner/docker/puller.hpp		\
+	slave/containerizer/mesos/provisioner/docker/registry_client.hpp	\
+	slave/containerizer/mesos/provisioner/docker/spec.hpp			\
+	slave/containerizer/mesos/provisioner/docker/store.hpp		\
+	slave/containerizer/mesos/provisioner/docker/token_manager.hpp	\
 	slave/qos_controllers/noop.hpp					\
 	slave/resource_estimators/noop.hpp				\
 	tests/cluster.hpp						\
@@ -1120,7 +1120,7 @@ mesos_containerizer_LDADD = libmesos.la $(LDADD)
 
 if WITH_NETWORK_ISOLATOR
 pkglibexec_PROGRAMS += mesos-network-helper
-mesos_network_helper_SOURCES = slave/containerizer/isolators/network/helper.cpp
+mesos_network_helper_SOURCES = slave/containerizer/mesos/isolators/network/helper.cpp
 mesos_network_helper_CPPFLAGS = $(MESOS_CPPFLAGS)
 mesos_network_helper_LDADD = libmesos.la $(LDADD)
 endif

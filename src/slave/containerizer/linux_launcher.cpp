@@ -40,7 +40,7 @@
 
 #include "slave/containerizer/linux_launcher.hpp"
 
-#include "slave/containerizer/isolators/namespaces/pid.hpp"
+#include "slave/containerizer/mesos/isolators/namespaces/pid.hpp"
 
 using namespace process;
 
