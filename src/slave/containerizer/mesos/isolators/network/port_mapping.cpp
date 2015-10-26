@@ -2103,8 +2103,8 @@ Future<Option<ContainerPrepareInfo>> PortMappingIsolatorProcess::prepare(
   if (resources.ephemeral_ports().isSome()) {
     LOG(WARNING) << "Ignoring the specified ephemeral_ports '"
                  << resources.ephemeral_ports().get()
-                 << "' for container" << containerId
-                 << " of executor " << executorInfo.executor_id();
+                 << "' for container " << containerId
+                 << " of executor '" << executorInfo.executor_id() << "'";
   }
 
   // Allocate the ephemeral ports used by this container.
@@ -2118,8 +2118,8 @@ Future<Option<ContainerPrepareInfo>> PortMappingIsolatorProcess::prepare(
 
   LOG(INFO) << "Using non-ephemeral ports " << nonEphemeralPorts
             << " and ephemeral ports " << ephemeralPorts.get()
-            << " for container " << containerId << " of executor "
-            << executorInfo.executor_id();
+            << " for container " << containerId << " of executor '"
+            << executorInfo.executor_id() << "'";
 
   ContainerPrepareInfo prepareInfo;
   prepareInfo.add_commands()->set_value(scripts(infos[containerId]));
@@ -3530,7 +3530,7 @@ string PortMappingIsolatorProcess::scripts(Info* info)
 
   // Configure lo and eth0.
   script << "ip link set " << lo << " address " << hostMAC
-         << " mtu "<< hostEth0MTU << " up\n";
+         << " mtu " << hostEth0MTU << " up\n";
 
   script << "ip link set " << eth0 << " address " << hostMAC << " up\n";
   script << "ip addr add " << hostIPNetwork  << " dev " << eth0 << "\n";

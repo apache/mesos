@@ -310,7 +310,7 @@ protected:
   {
     if (aborted.load()) {
       VLOG(1) << "Ignoring kill task message for task " << taskId
-              <<" because the driver is aborted!";
+              << " because the driver is aborted!";
       return;
     }
 

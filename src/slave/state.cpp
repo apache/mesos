@@ -287,8 +287,8 @@ Try<FrameworkState> FrameworkState::recover(
       ExecutorState::recover(rootDir, slaveId, frameworkId, executorId, strict);
 
     if (executor.isError()) {
-      return Error("Failed to recover executor " + executorId.value() +
-                   ": " + executor.error());
+      return Error("Failed to recover executor '" + executorId.value() +
+                   "': " + executor.error());
     }
 
     state.executors[executorId] = executor.get();

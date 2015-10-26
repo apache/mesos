@@ -88,13 +88,13 @@ Future<bool> TestContainerizer::_launch(
     bool checkpoint)
 {
   CHECK(!drivers.contains(containerId))
-    << "Failed to launch executor " << executorInfo.executor_id()
-    << " of framework " << executorInfo.framework_id()
+    << "Failed to launch executor '" << executorInfo.executor_id()
+    << "' of framework " << executorInfo.framework_id()
     << " because it is already launched";
 
   CHECK(executors.contains(executorInfo.executor_id()))
-    << "Failed to launch executor " << executorInfo.executor_id()
-    << " of framework " << executorInfo.framework_id()
+    << "Failed to launch executor '" << executorInfo.executor_id()
+    << "' of framework " << executorInfo.framework_id()
     << " because it is unknown to the containerizer";
 
   // Store mapping from (frameworkId, executorId) -> containerId to facilitate

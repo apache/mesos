@@ -263,8 +263,8 @@ struct Slave
                    const ExecutorInfo& executorInfo)
   {
     CHECK(!hasExecutor(frameworkId, executorInfo.executor_id()))
-      << "Duplicate executor " << executorInfo.executor_id()
-      << " of framework " << frameworkId;
+      << "Duplicate executor '" << executorInfo.executor_id()
+      << "' of framework " << frameworkId;
 
     executors[frameworkId][executorInfo.executor_id()] = executorInfo;
     usedResources[frameworkId] += executorInfo.resources();
@@ -274,7 +274,7 @@ struct Slave
                       const ExecutorID& executorId)
   {
     CHECK(hasExecutor(frameworkId, executorId))
-      << "Unknown executor " << executorId << " of framework " << frameworkId;
+      << "Unknown executor '" << executorId << "' of framework " << frameworkId;
 
     usedResources[frameworkId] -=
       executors[frameworkId][executorId].resources();
@@ -1622,8 +1622,8 @@ struct Framework
                    const ExecutorInfo& executorInfo)
   {
     CHECK(!hasExecutor(slaveId, executorInfo.executor_id()))
-      << "Duplicate executor " << executorInfo.executor_id()
-      << " on slave " << slaveId;
+      << "Duplicate executor '" << executorInfo.executor_id()
+      << "' on slave " << slaveId;
 
     executors[slaveId][executorInfo.executor_id()] = executorInfo;
     totalUsedResources += executorInfo.resources();
@@ -1634,8 +1634,8 @@ struct Framework
                       const ExecutorID& executorId)
   {
     CHECK(hasExecutor(slaveId, executorId))
-      << "Unknown executor " << executorId
-      << " of framework " << id()
+      << "Unknown executor '" << executorId
+      << "' of framework " << id()
       << " of slave " << slaveId;
 
     totalUsedResources -= executors[slaveId][executorId].resources();

@@ -1215,8 +1215,8 @@ void Slave::doReliableRegistration(Duration maxBackoff)
 
       foreach (const Owned<Executor>& executor,
                completedFramework->completedExecutors) {
-        VLOG(2) << "Reregistering completed executor " << executor->id
-                << " with " << executor->terminatedTasks.size()
+        VLOG(2) << "Reregistering completed executor '" << executor->id
+                << "' with " << executor->terminatedTasks.size()
                 << " terminated tasks, " << executor->completedTasks.size()
                 << " completed tasks";
 
@@ -1528,8 +1528,8 @@ void Slave::_runTask(
     foreach (const Resource& resource, checkpointedExecutorResources) {
       if (!checkpointedResources.contains(resource)) {
         LOG(WARNING) << "Unknown checkpointed resource " << resource
-                     << " for executor " << task.executor().executor_id()
-                     << " of framework " << frameworkId;
+                     << " for executor '" << task.executor().executor_id()
+                     << "' of framework " << frameworkId;
 
         const StatusUpdate update = protobuf::createStatusUpdate(
             frameworkId,
@@ -1618,7 +1618,7 @@ void Slave::_runTask(
 
       // Queue task if the executor has not yet registered.
       LOG(INFO) << "Queuing task '" << task.task_id()
-                  << "' for executor " << *executor;
+                << "' for executor '" << *executor << "'";
 
       executor->queuedTasks[task.task_id()] = task;
       break;
@@ -1631,7 +1631,7 @@ void Slave::_runTask(
       // Queue task until the containerizer is updated with new
       // resource limits (MESOS-998).
       LOG(INFO) << "Queuing task '" << task.task_id()
-                  << "' for executor " << *executor;
+                << "' for executor '" << *executor << "'";
 
       executor->queuedTasks[task.task_id()] = task;
 
@@ -1783,7 +1783,7 @@ void Slave::runTasks(
     executor->addTask(task);
 
     LOG(INFO) << "Sending queued task '" << task.task_id()
-              << "' to executor " << *executor;
+              << "' to executor '" << *executor << "'";
 
     RunTaskMessage message;
     message.mutable_framework()->MergeFrom(framework->info);
@@ -1923,8 +1923,8 @@ void Slave::killTask(
       // task within a timeout.
       if (executor->queuedTasks.empty()) {
         CHECK(executor->launchedTasks.empty())
-            << " Unregistered executor " << executor->id
-            << " has launched tasks";
+            << " Unregistered executor '" << executor->id
+            << "' has launched tasks";
 
         LOG(WARNING) << "Killing the unregistered executor " << *executor
                      << " because it has no tasks";
@@ -1971,8 +1971,8 @@ void Slave::killTask(
       break;
     }
     default:
-      LOG(FATAL) << "Executor " << *executor
-                 << " is in unexpected state " << executor->state;
+      LOG(FATAL) << "Executor '" << *executor
+                 << "' is in unexpected state " << executor->state;
       break;
   }
 }
@@ -2075,7 +2075,7 @@ void Slave::schedulerMessage(
     << state;
 
   if (state != RUNNING) {
-    LOG(WARNING) << "Dropping message from framework "<< frameworkId
+    LOG(WARNING) << "Dropping message from framework " << frameworkId
                  << " because the slave is in " << state << " state";
     metrics.invalid_framework_messages++;
     return;
@@ -2084,7 +2084,7 @@ void Slave::schedulerMessage(
 
   Framework* framework = getFramework(frameworkId);
   if (framework == NULL) {
-    LOG(WARNING) << "Dropping message from framework "<< frameworkId
+    LOG(WARNING) << "Dropping message from framework " << frameworkId
                  << " because framework does not exist";
     metrics.invalid_framework_messages++;
     return;
@@ -2095,7 +2095,7 @@ void Slave::schedulerMessage(
     << framework->state;
 
   if (framework->state == Framework::TERMINATING) {
-    LOG(WARNING) << "Dropping message from framework "<< frameworkId
+    LOG(WARNING) << "Dropping message from framework " << frameworkId
                  << " because framework is terminating";
     metrics.invalid_framework_messages++;
     return;
@@ -2132,8 +2132,8 @@ void Slave::schedulerMessage(
       break;
     }
     default:
-      LOG(FATAL) << "Executor " << *executor
-                 << " is in unexpected state " << executor->state;
+      LOG(FATAL) << "Executor '" << *executor
+                 << "' is in unexpected state " << executor->state;
       break;
   }
 }
@@ -2148,7 +2148,7 @@ void Slave::updateFramework(
     << state;
 
   if (state != RUNNING) {
-    LOG(WARNING) << "Dropping updateFramework message for "<< frameworkId
+    LOG(WARNING) << "Dropping updateFramework message for " << frameworkId
                  << " because the slave is in " << state << " state";
     metrics.invalid_framework_messages++;
     return;
@@ -2420,7 +2420,7 @@ void Slave::registerExecutor(
 
   Framework* framework = getFramework(frameworkId);
   if (framework == NULL) {
-    LOG(WARNING) << " Shutting down executor '" << executorId
+    LOG(WARNING) << "Shutting down executor '" << executorId
                  << "' as the framework " << frameworkId
                  << " does not exist";
 
@@ -2433,7 +2433,7 @@ void Slave::registerExecutor(
     << framework->state;
 
   if (framework->state == Framework::TERMINATING) {
-    LOG(WARNING) << " Shutting down executor '" << executorId
+    LOG(WARNING) << "Shutting down executor '" << executorId
                  << "' as the framework " << frameworkId
                  << " is terminating";
 
@@ -2542,8 +2542,8 @@ void Slave::reregisterExecutor(
     return;
   }
 
-  LOG(INFO) << "Re-registering executor " << executorId
-            << " of framework " << frameworkId;
+  LOG(INFO) << "Re-registering executor '" << executorId
+            << "' of framework " << frameworkId;
 
   CHECK(frameworks.contains(frameworkId))
     << "Unknown framework " << frameworkId;
@@ -2555,7 +2555,7 @@ void Slave::reregisterExecutor(
     << framework->state;
 
   if (framework->state == Framework::TERMINATING) {
-    LOG(WARNING) << " Shutting down executor '" << executorId
+    LOG(WARNING) << "Shutting down executor '" << executorId
                  << "' as the framework " << frameworkId
                  << " is terminating";
 
@@ -2628,8 +2628,8 @@ void Slave::reregisterExecutor(
         if (task->state() == TASK_STAGING &&
             !unackedTasks.contains(task->task_id())) {
           LOG(INFO) << "Transitioning STAGED task " << task->task_id()
-                    << " to LOST because it is unknown to the executor "
-                    << executorId;
+                    << " to LOST because it is unknown to the executor '"
+                    << executorId << "'";
 
           const StatusUpdate update = protobuf::createStatusUpdate(
               frameworkId,
@@ -2888,8 +2888,8 @@ void Slave::statusUpdate(StatusUpdate update, const UPID& pid)
       executor->pid.isSome() &&
       executor->pid.get() != pid) {
     LOG(WARNING) << "Received status update " << update << " from " << pid
-                 << " on behalf of a different executor " << executor->id
-                 << " (" << executor->pid.get() << ")";
+                 << " on behalf of a different executor '" << executor->id
+                 << "' (" << executor->pid.get() << ")";
   }
 
   metrics.valid_status_updates++;
@@ -2947,8 +2947,8 @@ void Slave::_statusUpdate(
 {
   if (future.isSome() && !future->isReady()) {
     LOG(ERROR) << "Failed to update resources for container " << containerId
-               << " of executor " << executorId
-               << " running task " << update.status().task_id()
+               << " of executor '" << executorId
+               << "' running task " << update.status().task_id()
                << " on status update for terminal task, destroying container: "
                << (future->isFailed() ? future->failure() : "discarded");
 
@@ -3095,8 +3095,8 @@ void Slave::executorMessage(
     << state;
 
   if (state != RUNNING) {
-    LOG(WARNING) << "Dropping framework message from executor "
-                 << executorId << " to framework " << frameworkId
+    LOG(WARNING) << "Dropping framework message from executor '"
+                 << executorId << "' to framework " << frameworkId
                  << " because the slave is in " << state << " state";
     metrics.invalid_framework_messages++;
     return;
@@ -3104,8 +3104,8 @@ void Slave::executorMessage(
 
   Framework* framework = getFramework(frameworkId);
   if (framework == NULL) {
-    LOG(WARNING) << "Cannot send framework message from executor "
-                 << executorId << " to framework " << frameworkId
+    LOG(WARNING) << "Cannot send framework message from executor '"
+                 << executorId << "' to framework " << frameworkId
                  << " because framework does not exist";
     metrics.invalid_framework_messages++;
     return;
@@ -3116,8 +3116,8 @@ void Slave::executorMessage(
     << framework->state;
 
   if (framework->state == Framework::TERMINATING) {
-    LOG(WARNING) << "Ignoring framework message from executor "
-                 << executorId << " to framework " << frameworkId
+    LOG(WARNING) << "Ignoring framework message from executor '"
+                 << executorId << "' to framework " << frameworkId
                  << " because framework is terminating";
     metrics.invalid_framework_messages++;
     return;
@@ -3365,8 +3365,8 @@ void Slave::executorLaunched(
   if (!future.isReady()) {
     LOG(ERROR) << "Container '" << containerId
                << "' for executor '" << executorId
-               << "' of framework '" << frameworkId
-               << "' failed to start: "
+               << "' of framework " << frameworkId
+               << " failed to start: "
                << (future.isFailed() ? future.failure() : " future discarded");
 
     ++metrics.container_launch_errors;
@@ -3391,10 +3391,10 @@ void Slave::executorLaunched(
   } else if (!future.get()) {
     LOG(ERROR) << "Container '" << containerId
                << "' for executor '" << executorId
-               << "' of framework '" << frameworkId
-               << "' failed to start: None of the enabled containerizers ("
+               << "' of framework " << frameworkId
+               << " failed to start: None of the enabled containerizers ("
                << flags.containerizers << ") could create a container for the "
-               << "provided TaskInfo/ExecutorInfo message.";
+               << "provided TaskInfo/ExecutorInfo message";
 
     ++metrics.container_launch_errors;
     return;
@@ -3414,8 +3414,8 @@ void Slave::executorLaunched(
 
   if (framework->state == Framework::TERMINATING) {
     LOG(WARNING) << "Killing executor '" << executorId
-                 << "' of framework '" << frameworkId
-                 << "' because the framework is terminating";
+                 << "' of framework " << frameworkId
+                 << " because the framework is terminating";
     containerizer->destroy(containerId);
     return;
   }
@@ -3423,15 +3423,16 @@ void Slave::executorLaunched(
   Executor* executor = framework->getExecutor(executorId);
   if (executor == NULL) {
     LOG(WARNING) << "Killing unknown executor '" << executorId
-                 << "' of framework '" << frameworkId << "'";
+                 << "' of framework " << frameworkId;
     containerizer->destroy(containerId);
     return;
   }
 
   switch (executor->state) {
     case Executor::TERMINATING:
-      LOG(WARNING) << "Killing executor " << *executor
+      LOG(WARNING) << "Killing executor '" << *executor
                    << "' because the executor is terminating";
+
       containerizer->destroy(containerId);
       break;
     case Executor::REGISTERING:
@@ -3439,8 +3440,9 @@ void Slave::executorLaunched(
       break;
     case Executor::TERMINATED:
     default:
-      LOG(FATAL) << "Executor " << *executor
+      LOG(FATAL) << "Executor '" << *executor
                  << "' is in an unexpected state " << executor->state;
+
       break;
   }
 }
@@ -3459,8 +3461,8 @@ void Slave::executorTerminated(
   // this occurs.
   if (!termination.isReady()) {
     LOG(ERROR) << "Termination of executor '" << executorId
-               << "' of framework '" << frameworkId
-               << "' failed: "
+               << "' of framework " << frameworkId
+               << " failed: "
                << (termination.isFailed()
                    ? termination.failure()
                    : "discarded");
@@ -3725,7 +3727,7 @@ void Slave::shutdownExecutor(
   }
 
   LOG(INFO) << "Asked to shut down executor '" << executorId
-            << "' of framework "<< frameworkId << " by " << from;
+            << "' of framework " << frameworkId << " by " << from;
 
   CHECK(state == RECOVERING || state == DISCONNECTED ||
         state == RUNNING || state == TERMINATING)
@@ -3908,8 +3910,8 @@ void Slave::registerExecutorTimeout(
       // Ignore the registration timeout.
       break;
     case Executor::REGISTERING: {
-      LOG(INFO) << "Terminating executor " << *executor
-                << " because it did not register within "
+      LOG(INFO) << "Terminating executor '" << *executor
+                << "' because it did not register within "
                 << flags.executor_registration_timeout;
 
       // Immediately kill the executor.
@@ -4091,17 +4093,18 @@ Future<Nothing> Slave::_recover()
         // Note that recovered http executors are marked with
         // http.isNone and pid.isNone (see comments in the header).
         if (executor->pid.isSome() && executor->pid.get()) {
-          LOG(INFO) << "Sending reconnect request to executor " << *executor;
+          LOG(INFO)
+            << "Sending reconnect request to executor '" << *executor << "'";
 
           ReconnectExecutorMessage message;
           message.mutable_slave_id()->MergeFrom(info.id());
           send(executor->pid.get(), message);
         } else if (executor->pid.isNone()) {
-          LOG(INFO) << "Waiting for executor " << *executor
-                    << " to subscribe";
+          LOG(INFO) << "Waiting for executor '" << *executor
+                    << "' to subscribe";
         } else {
-          LOG(INFO) << "Unable to reconnect to executor " << *executor
-                    << " because no pid or http checkpoint file was found";
+          LOG(INFO) << "Unable to reconnect to executor '" << *executor
+                    << "' because no pid or http checkpoint file was found";
         }
       } else {
         // For PID-based executors, we ask the executor to shut
@@ -4110,11 +4113,11 @@ Future<Nothing> Slave::_recover()
         // when the executor subscribes.
         if ((executor->pid.isSome() && executor->pid.get()) ||
             executor->pid.isNone()) {
-          LOG(INFO) << "Sending shutdown to executor " << *executor;
+          LOG(INFO) << "Sending shutdown to executor '" << *executor << "'";
           _shutdownExecutor(framework, executor);
         } else {
-          LOG(INFO) << "Killing executor " << *executor
-                    << " because no pid or http checkpoint file was found";
+          LOG(INFO) << "Killing executor '" << *executor
+                    << "' because no pid or http checkpoint file was found";
 
           containerizer->destroy(executor->containerId);
         }
@@ -4492,8 +4495,8 @@ void Slave::_qosCorrections(const Future<list<QoSCorrection>>& future)
                        << executor->state << " state";
           break;
         default:
-          LOG(FATAL) << "Executor " << *executor
-                     << " is in unexpected state " << executor->state;
+          LOG(FATAL) << "Executor '" << *executor
+                     << "' is in unexpected state " << executor->state;
           break;
       }
     } else {

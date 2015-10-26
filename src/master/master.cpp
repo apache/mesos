@@ -2746,8 +2746,8 @@ Resources Master::addTask(
     // TODO(benh): Refactor this code into Slave::addTask.
     if (!slave->hasExecutor(framework->id(), task.executor().executor_id())) {
       CHECK(!framework->hasExecutor(slave->id, task.executor().executor_id()))
-        << "Executor " << task.executor().executor_id()
-        << " known to the framework " << *framework
+        << "Executor '" << task.executor().executor_id()
+        << "' known to the framework " << *framework
         << " but unknown to the slave " << *slave;
 
       slave->addExecutor(framework->id(), task.executor());
@@ -3635,8 +3635,8 @@ void Master::schedulerMessage(
 
   if (framework->pid != from) {
     LOG(WARNING)
-      << "Ignoring framework message for executor " << executorId
-      << " of framework " << *framework
+      << "Ignoring framework message for executor '" << executorId
+      << "' of framework " << *framework
       << " because it is not expected from " << from;
     metrics->invalid_framework_to_executor_messages++;
     return;
@@ -4502,8 +4502,8 @@ void Master::exitedExecutor(
     return;
   }
 
-  LOG(INFO) << "Executor " << executorId
-            << " of framework " << frameworkId
+  LOG(INFO) << "Executor '" << executorId
+            << "' of framework " << frameworkId
             << " on slave " << *slave << ": "
             << WSTRINGIFY(status);
 
@@ -5295,8 +5295,8 @@ void Master::reconcile(
     // in the scheduler driver.
     if (!executor.has_framework_id()) {
       LOG(ERROR) << "Slave " << *slave
-                 << " re-registered with executor " << executor.executor_id()
-                 << " without setting the framework id";
+                 << " re-registered with executor '" << executor.executor_id()
+                 << "' without setting the framework id";
       continue;
     }
     slaveExecutors.put(executor.framework_id(), executor.executor_id());
@@ -5311,8 +5311,8 @@ void Master::reconcile(
         // TODO(bmahler): Reconcile executors correctly between the
         // master and the slave, see:
         // MESOS-1466, MESOS-1800, and MESOS-1720.
-        LOG(WARNING) << "Executor " << executorId
-                     << " of framework " << frameworkId
+        LOG(WARNING) << "Executor '" << executorId
+                     << "' of framework " << frameworkId
                      << " possibly unknown to the slave " << *slave;
 
         removeExecutor(slave, frameworkId, executorId);
