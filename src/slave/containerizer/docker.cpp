@@ -110,7 +110,11 @@ Option<ContainerID> parse(const Docker::Container& container)
     vector<string> parts = strings::split(name.get(), DOCKER_NAME_SEPERATOR);
     if (parts.size() == 2 || parts.size() == 3) {
       ContainerID id;
-      id.set_value(parts[1]);
+
+      // set id equal to 'slaveID.containerId`
+      std::ostringstream oss;
+      oss << parts[0] << "." << parts[1];
+      id.set_value(oss.str());
       return id;
     }
   }
