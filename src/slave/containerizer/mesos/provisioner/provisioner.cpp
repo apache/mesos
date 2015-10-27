@@ -23,9 +23,6 @@
 #include <process/dispatch.hpp>
 #include <process/process.hpp>
 
-#include <process/metrics/counter.hpp>
-#include <process/metrics/metrics.hpp>
-
 #include <stout/foreach.hpp>
 #include <stout/hashmap.hpp>
 #include <stout/hashset.hpp>
@@ -51,62 +48,6 @@ using mesos::slave::ContainerState;
 namespace mesos {
 namespace internal {
 namespace slave {
-
-class ProvisionerProcess : public Process<ProvisionerProcess>
-{
-public:
-  ProvisionerProcess(
-      const Flags& flags,
-      const string& rootDir,
-      const hashmap<Image::Type, Owned<Store>>& stores,
-      const hashmap<string, Owned<Backend>>& backends);
-
-  Future<Nothing> recover(
-      const list<ContainerState>& states,
-      const hashset<ContainerID>& orphans);
-
-  Future<string> provision(
-      const ContainerID& containerId,
-      const Image& image);
-
-  Future<bool> destroy(const ContainerID& containerId);
-
-private:
-  Future<string> _provision(
-      const ContainerID& containerId,
-      const vector<string>& layers);
-
-  Future<bool> _destroy(const ContainerID& containerId);
-
-  const Flags flags;
-
-  // Absolute path to the provisioner root directory. It can be
-  // derived from '--work_dir' but we keep a separate copy here
-  // because we converted it into an absolute path so managed rootfs
-  // paths match the ones in 'mountinfo' (important if mount-based
-  // backends are used).
-  const string rootDir;
-
-  const hashmap<Image::Type, Owned<Store>> stores;
-  const hashmap<string, Owned<Backend>> backends;
-
-  struct Info
-  {
-    // Mappings: backend -> {rootfsId, ...}
-    hashmap<string, hashset<string>> rootfses;
-  };
-
-  hashmap<ContainerID, Owned<Info>> infos;
-
-  struct Metrics
-  {
-    Metrics();
-    ~Metrics();
-
-    process::metrics::Counter remove_container_errors;
-  } metrics;
-};
-
 
 Try<Owned<Provisioner>> Provisioner::create(
     const Flags& flags,
