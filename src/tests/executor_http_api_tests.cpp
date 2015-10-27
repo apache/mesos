@@ -513,6 +513,198 @@ TEST_P(ExecutorHttpApiTest, NotAcceptable)
   Shutdown();
 }
 
+
+TEST_P(ExecutorHttpApiTest, ValidProtobufInvalidCall)
+{
+  Try<PID<Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  Future<Nothing> __recover = FUTURE_DISPATCH(_, &Slave::__recover);
+
+  Try<PID<Slave>> slave = StartSlave();
+  ASSERT_SOME(slave);
+
+  AWAIT_READY(__recover);
+
+  // Wait for recovery to be complete.
+  Clock::pause();
+  Clock::settle();
+
+  // We send a Call protobuf message with missing
+  // required message per type.
+  {
+    Call call;
+    call.set_type(Call::SUBSCRIBE);
+    call.mutable_framework_id()->set_value("dummy_framework_id");
+    call.mutable_executor_id()->set_value("dummy_executor_id");
+
+    process::http::Headers headers;
+    headers["Accept"] = APPLICATION_JSON;
+
+    Future<Response> response = process::http::post(
+        slave.get(),
+        "api/v1/executor",
+        headers,
+        serialize(ContentType::PROTOBUF, call),
+        APPLICATION_PROTOBUF);
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response);
+  }
+
+  {
+    Call call;
+    call.set_type(Call::UPDATE);
+    call.mutable_framework_id()->set_value("dummy_framework_id");
+    call.mutable_executor_id()->set_value("dummy_executor_id");
+
+    process::http::Headers headers;
+    headers["Accept"] = APPLICATION_JSON;
+
+    Future<Response> response = process::http::post(
+        slave.get(),
+        "api/v1/executor",
+        headers,
+        serialize(ContentType::PROTOBUF, call),
+        APPLICATION_PROTOBUF);
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response);
+  }
+
+  {
+    Call call;
+    call.set_type(Call::MESSAGE);
+    call.mutable_framework_id()->set_value("dummy_framework_id");
+    call.mutable_executor_id()->set_value("dummy_executor_id");
+
+    process::http::Headers headers;
+    headers["Accept"] = APPLICATION_JSON;
+
+    Future<Response> response = process::http::post(
+        slave.get(),
+        "api/v1/executor",
+        headers,
+        serialize(ContentType::PROTOBUF, call),
+        APPLICATION_PROTOBUF);
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response);
+  }
+
+  Shutdown();
+}
+
+
+TEST_P(ExecutorHttpApiTest, StatusUpdateCallFailedValidation)
+{
+  Try<PID<Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  Future<Nothing> __recover = FUTURE_DISPATCH(_, &Slave::__recover);
+
+  Try<PID<Slave>> slave = StartSlave();
+  ASSERT_SOME(slave);
+
+  AWAIT_READY(__recover);
+
+  // Wait for recovery to be complete.
+  Clock::pause();
+  Clock::settle();
+
+  // We send a Call::Update message with inconsistent executor id between
+  // Call::executor_id and Call::Update::TaskInfo::executor_id.
+  // This should result in failed validation.
+  {
+    Call call;
+    call.set_type(Call::UPDATE);
+    call.mutable_framework_id()->set_value("dummy_framework_id");
+    call.mutable_executor_id()->set_value("call_level_executor_id");
+
+    call.mutable_update()->set_uuid(UUID::random().toBytes());
+    call.mutable_update()->set_timestamp(0);
+
+    v1::TaskStatus* status = call.mutable_update()->mutable_status();
+
+    status->mutable_executor_id()->set_value("update_level_executor_id");
+    status->set_state(mesos::v1::TaskState::TASK_STARTING);
+    status->mutable_task_id()->set_value("dummy_task_id");
+
+    process::http::Headers headers;
+    headers["Accept"] = APPLICATION_JSON;
+
+    Future<Response> response = process::http::post(
+        slave.get(),
+        "api/v1/executor",
+        headers,
+        serialize(ContentType::PROTOBUF, call),
+        APPLICATION_PROTOBUF);
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response);
+  }
+
+  // We send a Call Update message with a TASK_STAGING
+  // status update. This should fail validation.
+  {
+    Call call;
+    call.set_type(Call::UPDATE);
+    call.mutable_framework_id()->set_value("dummy_framework_id");
+    call.mutable_executor_id()->set_value("call_level_executor_id");
+
+    call.mutable_update()->set_uuid(UUID::random().toBytes());
+    call.mutable_update()->set_timestamp(0);
+
+    v1::TaskStatus* status = call.mutable_update()->mutable_status();
+
+    status->mutable_executor_id()->set_value("call_level_executor_id");
+    status->mutable_task_id()->set_value("dummy_task_id");
+    status->set_state(mesos::v1::TaskState::TASK_STAGING);
+
+    process::http::Headers headers;
+    headers["Accept"] = APPLICATION_JSON;
+
+    Future<Response> responseStatusUpdate = process::http::post(
+        slave.get(),
+        "api/v1/executor",
+        headers,
+        serialize(ContentType::PROTOBUF, call),
+        APPLICATION_PROTOBUF);
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, responseStatusUpdate);
+  }
+
+  // We send a Call Update message with a different source than
+  // SOURCE_EXECUTOR in the status update. This should fail validation.
+  {
+    Call call;
+    call.set_type(Call::UPDATE);
+    call.mutable_framework_id()->set_value("dummy_framework_id");
+    call.mutable_executor_id()->set_value("call_level_executor_id");
+
+    call.mutable_update()->set_uuid(UUID::random().toBytes());
+    call.mutable_update()->set_timestamp(0);
+
+    v1::TaskStatus* status = call.mutable_update()->mutable_status();
+
+    status->mutable_executor_id()->set_value("call_level_executor_id");
+    status->mutable_task_id()->set_value("dummy_task_id");
+    status->set_state(mesos::v1::TaskState::TASK_STARTING);
+    status->set_source(mesos::v1::TaskStatus::SOURCE_MASTER);
+
+    process::http::Headers headers;
+    headers["Accept"] = APPLICATION_JSON;
+
+    Future<Response> responseStatusUpdate = process::http::post(
+        slave.get(),
+        "api/v1/executor",
+        headers,
+        serialize(ContentType::PROTOBUF, call),
+        APPLICATION_PROTOBUF);
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, responseStatusUpdate);
+  }
+
+  Shutdown();
+}
+
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {
