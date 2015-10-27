@@ -51,6 +51,7 @@
 #include "mesos/resources.hpp"
 
 #include "slave/slave.hpp"
+#include "slave/validation.hpp"
 
 
 using process::Clock;
@@ -260,8 +261,13 @@ Future<Response> Slave::Http::executor(const Request& request) const
 
   const executor::Call call = devolve(v1Call);
 
-  // TODO(anand): Validate the protobuf (MESOS-2906) before proceeding
-  // further.
+
+  Option<Error> error = validation::executor::call::validate(call);
+
+  if (error.isSome()) {
+    return BadRequest("Failed to validate Executor::Call: " +
+                      error.get().message);
+  }
 
   ContentType responseContentType;
 

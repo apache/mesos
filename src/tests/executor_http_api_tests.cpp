@@ -363,6 +363,7 @@ TEST_P(ExecutorHttpApiTest, DefaultAccept)
   Call call;
   call.mutable_framework_id()->CopyFrom(evolve(frameworkId.get()));
   call.mutable_executor_id()->CopyFrom(evolve(executorId));
+
   call.set_type(Call::SUBSCRIBE);
 
   call.mutable_subscribe();
@@ -439,7 +440,6 @@ TEST_P(ExecutorHttpApiTest, NoAcceptHeader)
 
   // Only subscribe needs to 'Accept' JSON or protobuf.
   Call call;
-
   call.mutable_framework_id()->CopyFrom(evolve(frameworkId.get()));
   call.mutable_executor_id()->CopyFrom(evolve(executorId));
 
@@ -496,6 +496,7 @@ TEST_P(ExecutorHttpApiTest, NotAcceptable)
   Call call;
   call.mutable_framework_id()->set_value("dummy_framework_id");
   call.mutable_executor_id()->set_value("dummy_executor_id");
+
   call.set_type(Call::SUBSCRIBE);
 
   call.mutable_subscribe();

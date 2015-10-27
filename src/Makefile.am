@@ -533,6 +533,7 @@ libmesos_no_3rdparty_la_SOURCES =						\
 	slave/slave.cpp								\
 	slave/state.cpp								\
 	slave/status_update_manager.cpp						\
+	slave/validation.cpp							\
 	slave/containerizer/containerizer.cpp					\
 	slave/containerizer/composing.cpp					\
 	slave/containerizer/composing.hpp					\
@@ -846,6 +847,7 @@ libmesos_no_3rdparty_la_SOURCES +=						\
 	slave/slave.hpp								\
 	slave/state.hpp								\
 	slave/status_update_manager.hpp						\
+	slave/validation.hpp							\
 	slave/containerizer/containerizer.hpp					\
 	slave/containerizer/external_containerizer.hpp				\
 	slave/containerizer/fetcher.hpp						\
