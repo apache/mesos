@@ -5465,16 +5465,16 @@ void Master::failoverFramework(Framework* framework, const UPID& newPid)
   const Option<UPID> oldPid = framework->pid;
 
   // There are a few failover cases to consider:
-  //   1. The pid has changed. In this case we definitely want to
-  //      send a FrameworkErrorMessage to shut down the older
-  //      scheduler.
+  //   1. The pid has changed or it was previously a HTTP based scheduler.
+  //      In these cases we definitely want to send a FrameworkErrorMessage to
+  //      shut down the older scheduler.
   //   2. The pid has not changed.
   //      2.1 The old scheduler on that pid failed over to a new
   //          instance on the same pid. No need to shut down the old
   //          scheduler as it is necessarily dead.
   //      2.2 This is a duplicate message. In this case, the scheduler
   //          has not failed over, so we do not want to shut it down.
-  if (oldPid.isSome() && oldPid != newPid) {
+  if (oldPid != newPid && framework->connected) {
     FrameworkErrorMessage message;
     message.set_message("Framework failed over");
     framework->send(message);
