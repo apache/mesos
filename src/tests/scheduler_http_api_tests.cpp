@@ -517,6 +517,82 @@ TEST_P(SchedulerHttpApiTest, UpdatePidToHttpScheduler)
 }
 
 
+// This test verifies that we are able to downgrade from a HTTP based
+// framework to PID.
+TEST_P(SchedulerHttpApiTest, UpdateHttpToPidScheduler)
+{
+  // HTTP schedulers cannot yet authenticate.
+  master::Flags flags = CreateMasterFlags();
+  flags.authenticate_frameworks = false;
+
+  Try<PID<Master>> master = StartMaster(flags);
+  ASSERT_SOME(master);
+
+  v1::FrameworkInfo frameworkInfo = DEFAULT_V1_FRAMEWORK_INFO;
+
+  Call call;
+  call.set_type(Call::SUBSCRIBE);
+
+  Call::Subscribe* subscribe = call.mutable_subscribe();
+  subscribe->mutable_framework_info()->CopyFrom(frameworkInfo);
+
+  // Retrieve the parameter passed as content type to this test.
+  const string contentType = GetParam();
+  process::http::Headers headers;
+  headers["Accept"] = contentType;
+
+  Future<Response> response = process::http::streaming::post(
+      master.get(),
+      "api/v1/scheduler",
+      headers,
+      serialize(call, contentType),
+      contentType);
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  EXPECT_SOME_EQ("chunked", response.get().headers.get("Transfer-Encoding"));
+  ASSERT_EQ(Response::PIPE, response.get().type);
+
+  Option<Pipe::Reader> reader = response.get().reader;
+  ASSERT_SOME(reader);
+
+  auto deserializer = lambda::bind(
+      &SchedulerHttpApiTest::deserialize, this, contentType, lambda::_1);
+
+  Reader<Event> responseDecoder(Decoder<Event>(deserializer), reader.get());
+
+  Future<Result<Event>> event = responseDecoder.read();
+  AWAIT_READY(event);
+  ASSERT_SOME(event.get());
+
+  // Check event type is subscribed and the framework id is set.
+  ASSERT_EQ(Event::SUBSCRIBED, event.get().get().type());
+  frameworkInfo.mutable_id()->
+    CopyFrom(event.get().get().subscribed().framework_id());
+
+  // Make sure it receives a heartbeat.
+  event = responseDecoder.read();
+  AWAIT_READY(event);
+  ASSERT_SOME(event.get());
+
+  ASSERT_EQ(Event::HEARTBEAT, event.get().get().type());
+
+  // Start PID based scheduler without credentials.
+  MockScheduler sched;
+  MesosSchedulerDriver driver(&sched, devolve(frameworkInfo), master.get());
+
+  Future<FrameworkID> frameworkId;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId));
+
+  driver.start();
+
+  AWAIT_READY(frameworkId);
+  ASSERT_EQ(evolve(frameworkId.get()), frameworkInfo.id());
+
+  Shutdown();
+}
+
+
 // This test verifies that updating a PID based framework to HTTP
 // framework fails when force is not set and the PID based
 // framework is already connected.
