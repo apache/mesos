@@ -53,6 +53,7 @@ nobase_include_HEADERS =		\
   stout/option.hpp			\
   stout/os.hpp				\
   stout/os/bootid.hpp			\
+  stout/os/chdir.hpp			\
   stout/os/close.hpp			\
   stout/os/environment.hpp		\
   stout/os/exists.hpp			\

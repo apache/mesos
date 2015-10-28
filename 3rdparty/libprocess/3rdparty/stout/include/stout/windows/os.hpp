@@ -126,12 +126,6 @@ inline Try<Nothing> chmod(const std::string& path, int mode)
 }
 
 
-inline Try<Nothing> chdir(const std::string& directory)
-{
-  UNIMPLEMENTED;
-}
-
-
 inline Try<Nothing> chroot(const std::string& directory)
 {
   UNIMPLEMENTED;

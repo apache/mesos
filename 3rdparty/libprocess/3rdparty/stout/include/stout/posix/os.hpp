@@ -286,16 +286,6 @@ inline Try<Nothing> chmod(const std::string& path, int mode)
 }
 
 
-inline Try<Nothing> chdir(const std::string& directory)
-{
-  if (::chdir(directory.c_str()) < 0) {
-    return ErrnoError();
-  }
-
-  return Nothing();
-}
-
-
 inline Try<Nothing> chroot(const std::string& directory)
 {
   if (::chroot(directory.c_str()) < 0) {

@@ -203,6 +203,13 @@ decltype(_close(fd))
 }
 
 
+inline auto chdir(const char* path) ->
+decltype(_chdir(path))
+{
+  return _chdir(path);
+}
+
+
 inline auto getcwd(char* path, int maxlen) ->
 decltype(_getcwd(path, maxlen))
 {
