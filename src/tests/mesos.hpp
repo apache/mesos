@@ -47,6 +47,8 @@
 #include <process/process.hpp>
 #include <process/queue.hpp>
 
+#include <process/ssl/gtest.hpp>
+
 #include <stout/bytes.hpp>
 #include <stout/foreach.hpp>
 #include <stout/gtest.hpp>
@@ -96,7 +98,9 @@ namespace tests {
 class MockExecutor;
 
 
-class MesosTest : public TemporaryDirectoryTest
+// NOTE: `SSLTemporaryDirectoryTest` exists even when SSL is not compiled into
+// Mesos.  In this case, the class is an alias of `TemporaryDirectoryTest`.
+class MesosTest : public SSLTemporaryDirectoryTest
 {
 protected:
   MesosTest(const Option<zookeeper::URL>& url = None());
