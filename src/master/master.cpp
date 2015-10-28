@@ -2024,12 +2024,6 @@ void Master::_subscribe(
       LOG(INFO) << "Allowing framework " << *framework
                 << " to subscribe with an already used id";
 
-      // Convert the framework to an http framework if it was
-      // pid based in the past.
-      if (framework->pid.isSome()) {
-        framework->pid = None();
-      }
-
       framework->connected = true;
       framework->updateConnection(http);
 
