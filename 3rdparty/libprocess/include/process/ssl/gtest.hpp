@@ -20,7 +20,6 @@
 #define __PROCESS_SSL_TEST_HPP__
 
 #ifdef USE_SSL_SOCKET
-
 #include <string>
 
 #include <openssl/rsa.h>
@@ -29,7 +28,9 @@
 #include <openssl/x509v3.h>
 
 #include <process/io.hpp>
+#include <process/process.hpp>
 #include <process/socket.hpp>
+#include <process/subprocess.hpp>
 
 #include <process/ssl/utilities.hpp>
 
@@ -37,9 +38,11 @@
 #include <stout/option.hpp>
 #include <stout/try.hpp>
 #include <stout/result.hpp>
+#endif // USE_SSL_SOCKET
 
 #include <stout/tests/utils.hpp>
 
+#ifdef USE_SSL_SOCKET
 namespace process {
 namespace network {
 namespace openssl {
@@ -51,8 +54,14 @@ void reinitialize();
 } // namespace openssl {
 } // namespace network {
 } // namespace process {
+#endif // USE_SSL_SOCKET
 
-
+// When SSL is not compiled in, we want the `SSLTemporaryDirectoryTest` class
+// to exist, so that other tests can inherit it; this class is equivalent
+// to the `TemporaryDirectoryTest` under that condition.
+#ifndef USE_SSL_SOCKET
+class SSLTemporaryDirectoryTest : public TemporaryDirectoryTest {};
+#else
 /**
  * A Test fixture that contains helpers for setting up SSL keys
  * and certificates, as well as cleaning them up afterwards.
