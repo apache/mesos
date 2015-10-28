@@ -293,6 +293,9 @@ static Try<string> fetchFromCache(
 
   string destinationPath = path::join(sandboxDirectory, basename.get());
 
+  // Non-empty cache filename is guaranteed by the callers of this function.
+  CHECK(!item.cache_filename().empty());
+
   string sourcePath = path::join(cacheDirectory, item.cache_filename());
 
   if (item.uri().executable()) {
@@ -337,10 +340,10 @@ static Try<string> fetchThroughCache(
     return Error("No cache file name for: " + item.uri().value());
   }
 
-  if (item.action() != FetcherInfo::Item::RETRIEVE_FROM_CACHE) {
-    CHECK_EQ(FetcherInfo::Item::DOWNLOAD_AND_CACHE, item.action())
-      << "Unexpected fetcher action selector";
+  CHECK_NE(FetcherInfo::Item::BYPASS_CACHE, item.action())
+    << "Unexpected fetcher action selector";
 
+  if (item.action() == FetcherInfo::Item::DOWNLOAD_AND_CACHE) {
     LOG(INFO) << "Downloading into cache";
 
     Try<Nothing> mkdir = os::mkdir(cacheDirectory.get());
