@@ -515,10 +515,7 @@ protected:
 
   static void SetUpTestCase()
   {
-    SSLTest::SetUpTestCase();
-
     if (os::mkdir(RegistryClientTest::OUTPUT_DIR).isError()) {
-      SSLTest::cleanup_directories();
       ABORT("Could not create temporary directory: " +
           RegistryClientTest::OUTPUT_DIR);
     }
@@ -526,8 +523,6 @@ protected:
 
   static void TearDownTestCase()
   {
-    SSLTest::TearDownTestCase();
-
     os::rmdir(RegistryClientTest::OUTPUT_DIR);
   }
 
