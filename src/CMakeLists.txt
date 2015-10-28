@@ -42,7 +42,7 @@ PROTOC_TO_SRC_DIR(MESSAGES messages/messages)
 PROTOC_TO_SRC_DIR(FLAGS    messages/flags)
 PROTOC_TO_SRC_DIR(STATE    messages/state)
 
-PROTOC_TO_SRC_DIR(MESSAGE slave/containerizer/provisioner/docker/message)
+PROTOC_TO_SRC_DIR(MESSAGE slave/containerizer/mesos/provisioner/docker/message)
 
 set(MESOS_PROTOBUF_SRC
   ${MESOS_PROTO_CC}
@@ -192,23 +192,23 @@ if (NOT WIN32)
     slave/containerizer/external_containerizer.cpp
     slave/containerizer/fetcher.cpp
     slave/containerizer/isolator.cpp
-    slave/containerizer/isolators/filesystem/posix.cpp
-    slave/containerizer/isolators/posix/disk.cpp
+    slave/containerizer/mesos/isolators/filesystem/posix.cpp
+    slave/containerizer/mesos/isolators/posix/disk.cpp
     slave/containerizer/launcher.cpp
     slave/containerizer/mesos/containerizer.cpp
     slave/containerizer/mesos/launch.cpp
-    slave/containerizer/provisioner/paths.cpp
-    slave/containerizer/provisioner/provisioner.cpp
-    slave/containerizer/provisioner/store.cpp
-    slave/containerizer/provisioner/appc/paths.cpp
-    slave/containerizer/provisioner/appc/spec.cpp
-    slave/containerizer/provisioner/appc/store.cpp
-    slave/containerizer/provisioner/backend.cpp
-    slave/containerizer/provisioner/backends/copy.cpp
-    slave/containerizer/provisioner/docker/message.proto
-    slave/containerizer/provisioner/docker/registry_client.cpp
-    slave/containerizer/provisioner/docker/spec.cpp
-    slave/containerizer/provisioner/docker/token_manager.cpp
+    slave/containerizer/mesos/provisioner/paths.cpp
+    slave/containerizer/mesos/provisioner/provisioner.cpp
+    slave/containerizer/mesos/provisioner/store.cpp
+    slave/containerizer/mesos/provisioner/appc/paths.cpp
+    slave/containerizer/mesos/provisioner/appc/spec.cpp
+    slave/containerizer/mesos/provisioner/appc/store.cpp
+    slave/containerizer/mesos/provisioner/backend.cpp
+    slave/containerizer/mesos/provisioner/backends/copy.cpp
+    slave/containerizer/mesos/provisioner/docker/message.proto
+    slave/containerizer/mesos/provisioner/docker/registry_client.cpp
+    slave/containerizer/mesos/provisioner/docker/spec.cpp
+    slave/containerizer/mesos/provisioner/docker/token_manager.cpp
     slave/resource_estimators/noop.cpp
     )
 endif (NOT WIN32)
