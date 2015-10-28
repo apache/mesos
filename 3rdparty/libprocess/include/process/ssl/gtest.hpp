@@ -54,23 +54,12 @@ void reinitialize();
 
 
 /**
- * A Test fixture that sets up SSL keys and certificates.
- *
- * This class sets up a private key and certificate pair at
- * SSLTest::key_path and SSLTest::certificate_path.
- * It also sets up an independent 'scrap' pair that can be used to
- * test an invalid certificate authority chain. These can be found at
- * SSLTest::scrap_key_path and SSLTest::scrap_certificate_path.
- *
- * There are some helper functions like SSLTest::setup_server and
- * SSLTest::launch_client that factor out common behavior used in
- * tests.
+ * A Test fixture that contains helpers for setting up SSL keys
+ * and certificates, as well as cleaning them up afterwards.
  */
-class SSLTest : public TemporaryDirectoryTest
+class SSLTemporaryDirectoryTest : public TemporaryDirectoryTest
 {
 protected:
-  SSLTest() : data("Hello World!") {}
-
   /**
    * @return The path to the authorized private key.
    */
@@ -103,10 +92,13 @@ protected:
     return Path(path::join(os::getcwd(), "scrap_cert.pem"));
   }
 
-  virtual void SetUp()
+  /**
+   * Wipes out existing SSL environment variables and replaces them
+   * with the given map.  The SSL library is reinitialized afterwards.
+   */
+  void set_environment_variables(
+      const std::map<std::string, std::string>& environment)
   {
-    TemporaryDirectoryTest::SetUp();
-
     // This unsets all the SSL environment variables. Necessary for
     // ensuring a clean starting slate between tests.
     os::unsetenv("SSL_ENABLED");
@@ -124,6 +116,24 @@ protected:
     os::unsetenv("SSL_ENABLE_TLS_V1_1");
     os::unsetenv("SSL_ENABLE_TLS_V1_2");
 
+    // Copy the given map into the clean slate.
+    foreachpair (
+        const std::string& name, const std::string& value, environment) {
+      os::setenv(name, value);
+    }
+
+    // Make sure the library internally reflects the new environment variables.
+    process::network::openssl::reinitialize();
+  }
+
+  /**
+   * Sets up a private key and certificate pair at SSLTest::key_path
+   * and SSLTest::certificate_path.  Also sets up an independent 'scrap'
+   * pair that can be used to test an invalid certificate authority chain.
+   * These can be found at SSLTest::scrap_key_path and
+   * SSLTest::scrap_certificate_path.
+   */
+  void generate_keys_and_certs() {
     // We store the allocated objects in these results so that we can
     // have a consolidated 'cleanup()' function. This makes all the
     // 'EXIT()' calls more readable and less error prone.
@@ -232,6 +242,26 @@ protected:
     // without an abort message (so as not to abort).
     cleanup();
   }
+};
+
+
+/**
+ * A Test fixture that sets up SSL keys and certificates.
+ *
+ * There are some helper functions like SSLTest::setup_server and
+ * SSLTest::launch_client that factor out common behavior used in
+ * tests.
+ */
+class SSLTest : public SSLTemporaryDirectoryTest
+{
+protected:
+  SSLTest() : data("Hello World!") {}
+
+  virtual void SetUp()
+  {
+    SSLTemporaryDirectoryTest::SetUp();
+    generate_keys_and_certs();
+  }
 
   /**
    * Initializes a listening server.
@@ -244,12 +274,7 @@ protected:
   Try<process::network::Socket> setup_server(
       const std::map<std::string, std::string>& environment)
   {
-    foreachpair (
-        const std::string& name, const std::string& value, environment) {
-      os::setenv(name, value);
-    }
-
-    process::network::openssl::reinitialize();
+    set_environment_variables(environment);
 
     const Try<process::network::Socket> create =
       process::network::Socket::create(process::network::Socket::SSL);
