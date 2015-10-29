@@ -559,6 +559,11 @@ int main(int argc, char** argv)
     return EXIT_FAILURE;
   }
 
+  if (flags.launcher_dir.isNone()) {
+    cerr << flags.usage("Missing required option --launcher_dir") << endl;
+    return EXIT_FAILURE;
+  }
+
   // The 2nd argument for docker create is set to false so we skip
   // validation when creating a docker abstraction, as the slave
   // should have already validated docker.
@@ -570,18 +575,13 @@ int main(int argc, char** argv)
     return EXIT_FAILURE;
   }
 
-  const Option<string> envPath = os::getenv("MESOS_LAUNCHER_DIR");
-  string path =
-    envPath.isSome() ? envPath.get()
-                     : os::realpath(Path(argv[0]).dirname()).get();
-
   mesos::internal::docker::DockerExecutor executor(
       process::Owned<Docker>(docker.get()),
       flags.container.get(),
       flags.sandbox_directory.get(),
       flags.mapped_directory.get(),
       flags.stop_timeout.get(),
-      path);
+      flags.launcher_dir.get());
 
   mesos::MesosExecutorDriver driver(&executor);
   return driver.run() == mesos::DRIVER_STOPPED ? EXIT_SUCCESS : EXIT_FAILURE;
