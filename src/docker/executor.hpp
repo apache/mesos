@@ -58,6 +58,12 @@ struct Flags : public mesos::internal::logging::Flags
         "stop_timeout",
         "The duration for docker to wait after stopping a running container\n"
         "before it kills that container.");
+
+    add(&launcher_dir,
+        "launcher_dir",
+        "Directory path of Mesos binaries. Mesos would find health-check,\n"
+        "fetcher, containerizer and executor binary files under this\n"
+        "directory.");
   }
 
   Option<std::string> container;
@@ -66,6 +72,7 @@ struct Flags : public mesos::internal::logging::Flags
   Option<std::string> sandbox_directory;
   Option<std::string> mapped_directory;
   Option<Duration> stop_timeout;
+  Option<std::string> launcher_dir;
 };
 
 } // namespace docker {

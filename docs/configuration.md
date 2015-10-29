@@ -1210,7 +1210,9 @@ file:///path/to/file (where file contains one of the above)</code></pre>
       --launcher_dir=VALUE
     </td>
     <td>
-      Directory path of Mesos binaries (default: /usr/local/lib/mesos)
+      Directory path of Mesos binaries. Mesos would find health-check, fetcher,
+      containerizer and executor binary files under this directory.
+      (default: /usr/local/libexec/mesos)
     </td>
   </tr>
   <tr>

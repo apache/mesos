@@ -147,7 +147,9 @@ mesos::internal::slave::Flags::Flags()
 
   add(&Flags::launcher_dir, // TODO(benh): This needs a better name.
       "launcher_dir",
-      "Directory path of Mesos binaries",
+      "Directory path of Mesos binaries. Mesos would find health-check,\n"
+      "fetcher, containerizer and executor binary files under this\n"
+      "directory.",
       PKGLIBEXECDIR);
 
   add(&Flags::hadoop_home,

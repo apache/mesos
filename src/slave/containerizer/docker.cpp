@@ -180,6 +180,7 @@ docker::Flags dockerFlags(
   dockerFlags.mapped_directory = flags.sandbox_directory;
   dockerFlags.stop_timeout = flags.docker_stop_timeout;
   dockerFlags.docker_socket = flags.docker_socket;
+  dockerFlags.launcher_dir = flags.launcher_dir;
   return dockerFlags;
 }
 
