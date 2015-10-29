@@ -177,6 +177,7 @@ docker::Flags dockerFlags(
   dockerFlags.sandbox_directory = directory;
   dockerFlags.mapped_directory = flags.sandbox_directory;
   dockerFlags.stop_timeout = flags.docker_stop_timeout;
+  dockerFlags.launcher_dir = flags.launcher_dir;
   return dockerFlags;
 }
 
