@@ -17,17 +17,31 @@
  */
 
 #include <vector>
+#include <ostream>
 
 #include <process/defer.hpp>
 #include <process/dispatch.hpp>
 #include <process/http.hpp>
 #include <process/io.hpp>
+#include <process/owned.hpp>
+#include <process/process.hpp>
 
-#include <stout/os.hpp>
+#include <stout/duration.hpp>
+#include <stout/error.hpp>
+#include <stout/foreach.hpp>
+#include <stout/json.hpp>
+#include <stout/numify.hpp>
+#include <stout/option.hpp>
+#include <stout/os/close.hpp>
+#include <stout/os/mkdir.hpp>
+#include <stout/os/open.hpp>
+#include <stout/strings.hpp>
+#include <stout/try.hpp>
 
 #include "slave/containerizer/mesos/provisioner/docker/registry_client.hpp"
 #include "slave/containerizer/mesos/provisioner/docker/token_manager.hpp"
 
+using std::ostringstream;
 using std::string;
 using std::vector;
 
@@ -36,9 +50,9 @@ using process::Future;
 using process::Owned;
 using process::Process;
 
-using process::http::Request;
-using process::http::Response;
-using process::http::URL;
+namespace http = process::http;
+
+using http::URL;
 
 namespace mesos {
 namespace internal {
@@ -47,13 +61,10 @@ namespace docker {
 namespace registry {
 
 using FileSystemLayerInfo = RegistryClient::FileSystemLayerInfo;
-
 using ManifestResponse = RegistryClient::ManifestResponse;
 
 const Duration RegistryClient::DEFAULT_MANIFEST_TIMEOUT_SECS = Seconds(10);
-
 const size_t RegistryClient::DEFAULT_MANIFEST_MAXSIZE_BYTES = 4096;
-
 static const uint16_t DEFAULT_SSL_PORT = 443;
 
 class RegistryClientProcess : public Process<RegistryClientProcess>
@@ -82,15 +93,15 @@ private:
     const Owned<TokenManager>& tokenManager,
     const Option<RegistryClient::Credentials>& creds);
 
-  Future<Response> doHttpGet(
+  Future<http::Response> doHttpGet(
       const URL& url,
-      const Option<process::http::Headers>& headers,
+      const Option<http::Headers>& headers,
       const Duration& timeout,
       bool resend,
       const Option<string>& lastResponse) const;
 
-  Try<process::http::Headers> getAuthenticationAttributes(
-      const Response& httpResponse) const;
+  Try<http::Headers> getAuthenticationAttributes(
+      const http::Response& httpResponse) const;
 
   const URL registryServer_;
   Owned<TokenManager> tokenManager_;
@@ -200,8 +211,8 @@ RegistryClientProcess::RegistryClientProcess(
     credentials_(creds) {}
 
 
-Try<process::http::Headers> RegistryClientProcess::getAuthenticationAttributes(
-    const Response& httpResponse) const
+Try<http::Headers> RegistryClientProcess::getAuthenticationAttributes(
+    const http::Response& httpResponse) const
 {
   if (httpResponse.headers.find("WWW-Authenticate") ==
       httpResponse.headers.end()) {
@@ -219,7 +230,7 @@ Try<process::http::Headers> RegistryClientProcess::getAuthenticationAttributes(
 
   const vector<string> authParams = strings::tokenize(authStringTokens[1], ",");
 
-  process::http::Headers authAttributes;
+  http::Headers authAttributes;
   auto addAttribute = [&authAttributes](
       const string& param) -> Try<Nothing> {
     const vector<string> paramTokens =
@@ -247,20 +258,20 @@ Try<process::http::Headers> RegistryClientProcess::getAuthenticationAttributes(
 }
 
 
-Future<Response> RegistryClientProcess::doHttpGet(
+Future<http::Response> RegistryClientProcess::doHttpGet(
     const URL& url,
-    const Option<process::http::Headers>& headers,
+    const Option<http::Headers>& headers,
     const Duration& timeout,
     bool resend,
     const Option<string>& lastResponseStatus) const
 {
-  return process::http::get(url, headers)
-    .after(timeout, [](
-        const Future<Response>& httpResponseFuture) -> Future<Response> {
+  return http::get(url, headers)
+    .after(timeout, [](const Future<http::Response>& httpResponseFuture)
+        -> Future<http::Response> {
       return Failure("Response timeout");
     })
-    .then(defer(self(), [=](
-        const Response& httpResponse) -> Future<Response> {
+    .then(defer(self(), [=](const http::Response& httpResponse)
+        -> Future<http::Response> {
       VLOG(1) << "Response status: " + httpResponse.status;
 
       // Set the future if we get a OK response.
@@ -275,7 +286,7 @@ Future<Response> RegistryClientProcess::doHttpGet(
                          errorResponse.error());
         }
 
-        std::ostringstream out;
+        ostringstream out;
         bool first = true;
         Result<JSON::Array> errorObjects =
           errorResponse.get().find<JSON::Array>("errors");
@@ -322,7 +333,7 @@ Future<Response> RegistryClientProcess::doHttpGet(
 
       // Handle 401 Unauthorized.
       if (httpResponse.status == "401 Unauthorized") {
-        Try<process::http::Headers> authAttributes =
+        Try<http::Headers> authAttributes =
           getAuthenticationAttributes(httpResponse);
 
         if (authAttributes.isError()) {
@@ -346,7 +357,7 @@ Future<Response> RegistryClientProcess::doHttpGet(
           .then(defer(self(), [=](
               const Future<Token>& tokenResponse) {
             // Send request with acquired token.
-            process::http::Headers authHeaders = {
+            http::Headers authHeaders = {
               {"Authorization", "Bearer " + tokenResponse.get().raw}
             };
 
@@ -450,8 +461,8 @@ Future<ManifestResponse> RegistryClientProcess::getManifest(
   manifestURL.path =
     "v2/" + path + "/manifests/" + repoTag;
 
-  auto getManifestResponse = [](
-      const Response& httpResponse) -> Try<ManifestResponse> {
+  auto getManifestResponse = [](const http::Response& httpResponse)
+      -> Try<ManifestResponse> {
     if (!httpResponse.headers.contains("Docker-Content-Digest")) {
       return Error("Docker-Content-Digest header missing in response");
     }
@@ -561,8 +572,8 @@ Future<ManifestResponse> RegistryClientProcess::getManifest(
   };
 
   return doHttpGet(manifestURL, None(), timeout, true, None())
-    .then([getManifestResponse] (
-        const Response& response) -> Future<ManifestResponse> {
+    .then([getManifestResponse] (const http::Response& response)
+        -> Future<ManifestResponse> {
       Try<ManifestResponse> manifestResponse = getManifestResponse(response);
 
       if (manifestResponse.isError()) {
@@ -610,8 +621,8 @@ Future<size_t> RegistryClientProcess::getBlob(
   blobURL.path =
     "v2/" + path + "/blobs/" + digest.getOrElse("");
 
-  auto saveBlob = [filePath](
-      const Response& httpResponse) -> Future<size_t> {
+  auto saveBlob = [filePath](const http::Response& httpResponse)
+      -> Future<size_t> {
     // TODO(jojy): Add verification step.
     // TODO(jojy): Add check for max size.
     size_t size = httpResponse.body.length();
@@ -631,7 +642,9 @@ Future<size_t> RegistryClientProcess::getBlob(
   };
 
   return doHttpGet(blobURL, None(), timeout, true, None())
-    .then([saveBlob](const Response& response) { return saveBlob(response); });
+    .then([saveBlob](const http::Response& response) {
+      return saveBlob(response);
+    });
 }
 
 } // namespace registry {
