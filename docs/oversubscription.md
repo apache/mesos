@@ -18,7 +18,7 @@ components: a Resource Estimator and a Quality of Service (QoS) Controller,
 alongside extending the existing resource allocator, resource monitor, and
 mesos slave. The new components and their interactions are illustrated below.
 
-![Oversubscription overview](images/oversubscription-overview.jpg)
+![Oversubscription overview](../images/oversubscription-overview.jpg)
 
 ### Resource estimation
 
@@ -294,4 +294,4 @@ In the example above, a fixed amount of 14 cpus will be offered as revocable
 resources.
 
 To install a custom resource estimator and QoS controller, please refer to the
-[modules documentation](modules.md).
+[modules documentation](../modules.md).

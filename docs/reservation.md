@@ -49,7 +49,7 @@ be unreserved. Dynamic Reservation enables operators and authorized frameworks
 to reserve and unreserve resources post slave-startup.
 
 We require a `principal` from the operator or framework in order to
-authenticate/authorize the operations. [Authorization](authorization.md) is
+authenticate/authorize the operations. [Authorization](../authorization.md) is
 specified via the existing ACL mechanism. (_Coming Soon_)
 
 * `Offer::Operation::Reserve` and `Offer::Operation::Unreserve` messages are

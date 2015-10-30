@@ -26,7 +26,7 @@ framework changes.
 
 ## How does it work?
 
-![Mesos Networking Architecture](images/networking-architecture.png)
+![Mesos Networking Architecture](../images/networking-architecture.png)
 
 
 A key observation is that the networking support is enabled via a Mesos module
@@ -113,7 +113,7 @@ The network isolator module is not part of standard Mesos distribution. However,
 there is an example implementation at https://github.com/mesosphere/net-modules.
 
 Once the network isolation module has been built into a shared dynamic library,
-we can load it into Mesos Agent (see [modules documentation](modules.md) on
+we can load it into Mesos Agent (see [modules documentation](../modules.md) on
 instructions for building and loading a module).
 
 ## Enabling frameworks for IP-per-container capability

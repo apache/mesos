@@ -80,4 +80,4 @@ KillMode=process
 
 ## Upgrading to 0.14.0
 
-If you want to upgrade a running Mesos cluster to 0.14.0 to take advantage of slave recovery please follow the [upgrade instructions](upgrades.md).
+If you want to upgrade a running Mesos cluster to 0.14.0 to take advantage of slave recovery please follow the [upgrade instructions](../upgrades.md).
