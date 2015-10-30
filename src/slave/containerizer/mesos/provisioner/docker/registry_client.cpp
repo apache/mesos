@@ -74,7 +74,7 @@ public:
       const URL& authServer,
       const Option<Credentials>& creds);
 
-  Future<ManifestResponse> getManifest(
+  Future<Manifest> getManifest(
       const string& path,
       const Option<string>& tag,
       const Duration& timeout);
@@ -149,7 +149,7 @@ RegistryClient::~RegistryClient()
 }
 
 
-Future<ManifestResponse> RegistryClient::getManifest(
+Future<Manifest> RegistryClient::getManifest(
     const string& _path,
     const Option<string>& _tag,
     const Option<Duration>& _timeout)
@@ -442,7 +442,7 @@ Future<http::Response> RegistryClientProcess::doHttpGet(
 }
 
 
-Future<ManifestResponse> RegistryClientProcess::getManifest(
+Future<Manifest> RegistryClientProcess::getManifest(
     const string& path,
     const Option<string>& tag,
     const Duration& timeout)
@@ -460,8 +460,7 @@ Future<ManifestResponse> RegistryClientProcess::getManifest(
   manifestURL.path =
     "v2/" + path + "/manifests/" + repoTag;
 
-  auto getManifestResponse = [](const http::Response& httpResponse)
-      -> Try<ManifestResponse> {
+  auto getManifest = [](const http::Response& httpResponse) -> Try<Manifest> {
     if (!httpResponse.headers.contains("Docker-Content-Digest")) {
       return Error("Docker-Content-Digest header missing in response");
     }
@@ -563,7 +562,7 @@ Future<ManifestResponse> RegistryClientProcess::getManifest(
       index++;
     }
 
-    return ManifestResponse {
+    return Manifest {
       name.get().value,
       httpResponse.headers.at("Docker-Content-Digest"),
       fsLayerInfoList,
@@ -571,16 +570,15 @@ Future<ManifestResponse> RegistryClientProcess::getManifest(
   };
 
   return doHttpGet(manifestURL, None(), timeout, true, None())
-    .then([getManifestResponse] (const http::Response& response)
-        -> Future<ManifestResponse> {
-      Try<ManifestResponse> manifestResponse = getManifestResponse(response);
+    .then([getManifest] (const http::Response& response) -> Future<Manifest> {
+      Try<Manifest> manifest = getManifest(response);
 
-      if (manifestResponse.isError()) {
+      if (manifest.isError()) {
         return Failure(
-            "Failed to parse manifest response: " + manifestResponse.error());
+            "Failed to parse manifest response: " + manifest.error());
       }
 
-      return manifestResponse.get();
+      return manifest.get();
     });
 }
 

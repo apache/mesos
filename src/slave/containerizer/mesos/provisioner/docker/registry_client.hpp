@@ -58,7 +58,7 @@ struct FileSystemLayerInfo
  *
  * Reference: https://docs.docker.com/registry/spec/api
  */
-struct ManifestResponse
+struct Manifest
 {
   const std::string name;
   const std::string digest;
@@ -105,7 +105,7 @@ public:
    * @return JSON object on success.
    *         Failure on process failure.
    */
-  process::Future<ManifestResponse> getManifest(
+  process::Future<Manifest> getManifest(
       const std::string& path,
       const Option<std::string>& tag,
       const Option<Duration>& timeout);
