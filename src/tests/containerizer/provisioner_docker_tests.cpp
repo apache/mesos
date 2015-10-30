@@ -64,8 +64,6 @@ using namespace mesos::internal::slave::docker;
 using namespace mesos::internal::slave::docker::paths;
 using namespace mesos::internal::slave::docker::registry;
 
-using ManifestResponse = RegistryClient::ManifestResponse;
-
 namespace mesos {
 namespace internal {
 namespace tests {

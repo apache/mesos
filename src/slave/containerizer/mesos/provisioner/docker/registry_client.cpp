@@ -60,12 +60,11 @@ namespace slave {
 namespace docker {
 namespace registry {
 
-using FileSystemLayerInfo = RegistryClient::FileSystemLayerInfo;
-using ManifestResponse = RegistryClient::ManifestResponse;
 
 const Duration RegistryClient::DEFAULT_MANIFEST_TIMEOUT_SECS = Seconds(10);
 const size_t RegistryClient::DEFAULT_MANIFEST_MAXSIZE_BYTES = 4096;
 static const uint16_t DEFAULT_SSL_PORT = 443;
+
 
 class RegistryClientProcess : public Process<RegistryClientProcess>
 {
@@ -73,9 +72,9 @@ public:
   static Try<Owned<RegistryClientProcess>> create(
       const URL& registry,
       const URL& authServer,
-      const Option<RegistryClient::Credentials>& creds);
+      const Option<Credentials>& creds);
 
-  Future<RegistryClient::ManifestResponse> getManifest(
+  Future<ManifestResponse> getManifest(
       const string& path,
       const Option<string>& tag,
       const Duration& timeout);
@@ -91,7 +90,7 @@ private:
   RegistryClientProcess(
     const URL& registryServer,
     const Owned<TokenManager>& tokenManager,
-    const Option<RegistryClient::Credentials>& creds);
+    const Option<Credentials>& creds);
 
   Future<http::Response> doHttpGet(
       const URL& url,
@@ -105,7 +104,7 @@ private:
 
   const URL registryServer_;
   Owned<TokenManager> tokenManager_;
-  const Option<RegistryClient::Credentials> credentials_;
+  const Option<Credentials> credentials_;
 
   RegistryClientProcess(const RegistryClientProcess&) = delete;
   RegistryClientProcess& operator = (const RegistryClientProcess&) = delete;
@@ -190,7 +189,7 @@ Future<size_t> RegistryClient::getBlob(
 Try<Owned<RegistryClientProcess>> RegistryClientProcess::create(
     const URL& registryServer,
     const URL& authServer,
-    const Option<RegistryClient::Credentials>& creds)
+    const Option<Credentials>& creds)
 {
   Try<Owned<TokenManager>> tokenMgr = TokenManager::create(authServer);
   if (tokenMgr.isError()) {
@@ -205,7 +204,7 @@ Try<Owned<RegistryClientProcess>> RegistryClientProcess::create(
 RegistryClientProcess::RegistryClientProcess(
     const URL& registryServer,
     const Owned<TokenManager>& tokenMgr,
-    const Option<RegistryClient::Credentials>& creds)
+    const Option<Credentials>& creds)
   : registryServer_(registryServer),
     tokenManager_(tokenMgr),
     credentials_(creds) {}

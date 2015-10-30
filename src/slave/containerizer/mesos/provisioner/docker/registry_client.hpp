@@ -41,49 +41,45 @@ namespace registry {
 class RegistryClientProcess;
 
 
+// TODO(bmahler): Replace these with the existing protobuf counterparts.
+
+
+struct FileSystemLayerInfo
+{
+  // TODO(jojy): This includes both the checksum and
+  // the type of the checksum; separate these.
+  const std::string checksumInfo;
+  const std::string layerId;
+};
+
+
+/**
+ * Response for a "GET Manifest" request.
+ *
+ * Reference: https://docs.docker.com/registry/spec/api
+ */
+struct ManifestResponse
+{
+  const std::string name;
+  const std::string digest;
+  const std::vector<FileSystemLayerInfo> fsLayerInfos;
+};
+
+
+/**
+ * Authentication credentials for the client sessions.
+ */
+struct Credentials
+{
+  const Option<std::string> userId;
+  const Option<std::string> password;
+  const Option<std::string> account;
+};
+
+
 class RegistryClient
 {
 public:
-  /**
-   * Encapsulates information about a file system layer.
-   */
-  struct FileSystemLayerInfo {
-    // TODO(jojy): This string includes the checksum type also now. Need to
-    // separate this into checksum method and checksum.
-    const std::string checksumInfo;
-    const std::string layerId;
-  };
-
-  /**
-   * Encapsulates response of "GET Manifest" request.
-   *
-   * Reference: https://docs.docker.com/registry/spec/api
-   */
-  struct ManifestResponse {
-    const std::string name;
-    const std::string digest;
-    const std::vector<FileSystemLayerInfo> fsLayerInfoList;
-  };
-
-  /**
-   * Encapsulates auth credentials for the client sessions.
-   * TODO(jojy): Secure heap to protect the credentials.
-   */
-  struct Credentials {
-    /**
-     * UserId for basic authentication.
-     */
-    const Option<std::string> userId;
-    /**
-     * Password for basic authentication.
-     */
-    const Option<std::string> password;
-    /**
-     * Account for fetching data from registry.
-     */
-    const Option<std::string> account;
-  };
-
   /**
    * Factory method for creating RegistryClient objects.
    *
