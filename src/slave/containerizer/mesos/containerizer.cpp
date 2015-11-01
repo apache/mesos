@@ -1217,7 +1217,7 @@ void MesosContainerizerProcess::____destroy(
     if (!cleanup.isReady()) {
       container->promise.fail(
           "Failed to clean up an isolator when destroying container '" +
-          stringify(containerId) + "' :" +
+          stringify(containerId) + "': " +
           (cleanup.isFailed() ? cleanup.failure() : "discarded future"));
 
       containers_.erase(containerId);
