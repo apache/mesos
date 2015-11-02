@@ -317,7 +317,7 @@ unhealthy or that they are not able to connect to the elected master.
 </tr>
 <tr>
   <td>
-  <code>master/slave_shutdowns_cancelled</code>
+  <code>master/slave_shutdowns_canceled</code>
   </td>
   <td>Number of cancelled slave shutdowns. This happens when the slave removal
       rate limit allows for a slave to reconnect and send a <code>PONG</code>
@@ -490,6 +490,13 @@ messages may indicate that there is a problem with the network.
 </thead>
 <tr>
   <td>
+  <code>master/invalid_executor_to_framework_messages</code>
+  </td>
+  <td>Number of invalid executor to framework messages</td>
+  <td>Counter</td>
+</tr>
+<tr>
+  <td>
   <code>master/invalid_framework_to_executor_messages</code>
   </td>
   <td>Number of invalid framework to executor messages</td>
@@ -528,6 +535,20 @@ messages may indicate that there is a problem with the network.
   <code>master/messages_deactivate_framework</code>
   </td>
   <td>Number of framework deactivation messages</td>
+  <td>Counter</td>
+</tr>
+<tr>
+  <td>
+  <code>master/messages_decline_offers</code>
+  </td>
+  <td>Number of offers declined</td>
+  <td>Counter</td>
+</tr>
+<tr>
+  <td>
+  <code>master/messages_executor_to_framework</code>
+  </td>
+  <td>Number of executor to framework messages</td>
   <td>Counter</td>
 </tr>
 <tr>
@@ -609,7 +630,7 @@ messages may indicate that there is a problem with the network.
 </tr>
 <tr>
   <td>
-  <code>master/messages_status_udpate</code>
+  <code>master/messages_status_update</code>
   </td>
   <td>Number of status update messages</td>
   <td>Counter</td>
@@ -637,6 +658,41 @@ messages may indicate that there is a problem with the network.
 </tr>
 <tr>
   <td>
+  <code>master/messages_update_slave</code>
+  </td>
+  <td>Number of update slave messages</td>
+  <td>Counter</td>
+</tr>
+<tr>
+  <td>
+  <code>master/recovery_slave_removals</code>
+  </td>
+  <td>Number of slaves not re-registered during master failover</td>
+  <td>Counter</td>
+</tr>
+<tr>
+  <td>
+  <code>master/slave_removals/reason_registered</code>
+  </td>
+  <td>Number of slaves removed when new slaves registered at the same address</td>
+  <td>Counter</td>
+</tr>
+<tr>
+  <td>
+  <code>master/slave_removals/reason_unhealthy</code>
+  </td>
+  <td>Number of slaves failed due to failed health checks</td>
+  <td>Counter</td>
+</tr>
+<tr>
+  <td>
+  <code>master/slave_removals/reason_unregistered</code>
+  </td>
+  <td>Number of slaves unregistered</td>
+  <td>Counter</td>
+</tr>
+<tr>
+  <td>
   <code>master/valid_framework_to_executor_messages</code>
   </td>
   <td>Number of valid framework to executor messages</td>
@@ -654,6 +710,34 @@ messages may indicate that there is a problem with the network.
   <code>master/valid_status_updates</code>
   </td>
   <td>Number of valid status update messages</td>
+  <td>Counter</td>
+</tr>
+<tr>
+  <td>
+  <code>master/task_lost/source_master/reason_invalid_offers</code>
+  </td>
+  <td>Number of tasks lost due to invalid offers</code>
+  <td>Counter</td>
+</tr>
+<tr>
+  <td>
+  <code>master/task_lost/source_master/reason_slave_removed</code>
+  </td>
+  <td>Number of tasks lost due to slave removal</code>
+  <td>Counter</td>
+</tr>
+<tr>
+  <td>
+  <code>master/task_lost/source_slave/reason_executor_terminated</code>
+  </td>
+  <td>Number of tasks lost due to executor termination</code>
+  <td>Counter</td>
+</tr>
+<tr>
+  <td>
+  <code>master/valid_executor_to_framework_messages</code>
+  </td>
+  <td>Number of valid executor to framework messages</code>
   <td>Counter</td>
 </tr>
 </table>
@@ -1049,9 +1133,37 @@ on the slave.
 </thead>
 <tr>
   <td>
+  <code>containerizer/mesos/container_destroy_errors</code>
+  </td>
+  <td>Number of containers destroyed due to launch errors</td>
+  <td>Counter</td>
+</tr>
+<tr>
+  <td>
+  <code>slave/container_launch_errors</code>
+  </td>
+  <td>Number of container launch errors</td>
+  <td>Counter</td>
+</tr>
+<tr>
+  <td>
+  <code>slave/executors_preempted</code>
+  </td>
+  <td>Number of executors destroyed due to preemption</td>
+  <td>Counter</td>
+</tr>
+<tr>
+  <td>
   <code>slave/frameworks_active</code>
   </td>
   <td>Number of active frameworks</td>
+  <td>Gauge</td>
+</tr>
+<tr>
+  <td>
+  <code>slave/executor_directory_max_allowed_age_secs</code>
+  </td>
+  <td>Maximum allowed age in seconds to delete executor directory</td>
   <td>Gauge</td>
 </tr>
 <tr>
@@ -1080,6 +1192,13 @@ on the slave.
   <code>slave/executors_terminating</code>
   </td>
   <td>Number of terminating executors</td>
+  <td>Gauge</td>
+</tr>
+<tr>
+  <td>
+  <code>slave/recovery_errors</code>
+  </td>
+  <td>Number of errors encountered during slave recovery</td>
   <td>Gauge</td>
 </tr>
 </table>
@@ -1161,7 +1280,7 @@ the master it is registered with.
 </tr>
 <tr>
   <td>
-  <code>slave/invalid_status_udpates</code>
+  <code>slave/invalid_status_updates</code>
   </td>
   <td>Number of invalid status updates</td>
   <td>Counter</td>
@@ -1175,7 +1294,7 @@ the master it is registered with.
 </tr>
 <tr>
   <td>
-  <code>slave/valid_status_udpates</code>
+  <code>slave/valid_status_updates</code>
   </td>
   <td>Number of valid status updates</td>
   <td>Counter</td>
