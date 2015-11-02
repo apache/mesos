@@ -46,7 +46,11 @@ layout: documentation
     1. To build all tests without executing them, use something like: `make tests`.
     2. To execute a single unit test (helpful when trying to debug a test case failure), use something like: `make check GTEST_FILTER="HTTPTest.Delete"`.
 
-4. Make sure to pull in any changes that have been committed to master branch. Using Git, do this via something like:
+4. Divide your change into one or more Git commits. Each commit should represent a single logical (atomic) change to the Mesos source code: this makes your changes easier to review. For more information, see the [reviewer guidelines](effective-code-reviewing.md).
+    1. Try to avoid including other, unrelated cleanups (e.g., typo fixes or style nits) in the same commit that makes functional changes. While typo fixes are great, including them in the same commit as functional changes makes the commit history harder to read.
+    2. Developers often make incremental commits to save their progress when working on a change, and then "rewrite history" (e.g., using `git rebase -i`) to create a clean set of commits once the change is ready to be reviewed.
+
+5. Make sure to pull in any changes that have been committed to master branch. Using Git, do this via something like:
     1. `git checkout master`
     2. `git pull`
     3. `git checkout my_branch`
