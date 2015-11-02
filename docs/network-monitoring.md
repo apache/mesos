@@ -181,7 +181,7 @@ on the `/monitor/statistics.json` slave endpoint.
 From the network interface inside the container, we report the following
 counters (since container creation) under the `statistics` key:
 
-<table>
+<table class="table table-striped">
 <thead>
 <tr><th>Metric</th><th>Description</th><th>Type</th>
 </thead>
@@ -233,7 +233,7 @@ statistics for the elements which implement bandwidth limiting and bloat
 reduction under the `statistics/net_traffic_control_statistics` key. The entry
 for each of these elements includes:
 
-<table>
+<table class="table table-striped">
 <thead>
 <tr><th>Metric</th><th>Description</th><th>Type</th>
 </thead>
@@ -284,9 +284,9 @@ for each of these elements includes:
 </tr>
 </table>
 
-[1] Backlog is only reported on the bloat_reduction interface
+[1] `backlog` is only reported on the bloat_reduction interface
 
-[2] Overlimits are only reported on the bw_limit interface
+[2] `overlimits` are only reported on the bw_limit interface
 
 [3] Currently always reported as 0 by the underlying Traffic Control element.
 
