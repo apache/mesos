@@ -118,6 +118,9 @@ const int DOCKER_PS_MAX_INSPECT_CALLS = 100;
 // trigger a re-detection of the master to cause a re-registration.
 Duration DEFAULT_MASTER_PING_TIMEOUT();
 
+// Container path that the slave sets to mount the command executor rootfs to.
+extern const std::string COMMAND_EXECUTOR_ROOTFS_CONTAINER_PATH;
+
 } // namespace slave {
 } // namespace internal {
 } // namespace mesos {

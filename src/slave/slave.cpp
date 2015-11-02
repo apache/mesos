@@ -1351,7 +1351,7 @@ void Slave::runTask(
     }
   }
 
-  const ExecutorInfo executorInfo = getExecutorInfo(frameworkId, task);
+  const ExecutorInfo executorInfo = getExecutorInfo(frameworkInfo, task);
   const ExecutorID& executorId = executorInfo.executor_id();
 
   if (HookManager::hooksAvailable()) {
@@ -1410,7 +1410,7 @@ void Slave::_runTask(
     return;
   }
 
-  const ExecutorInfo executorInfo = getExecutorInfo(frameworkId, task);
+  const ExecutorInfo executorInfo = getExecutorInfo(frameworkInfo, task);
   const ExecutorID& executorId = executorInfo.executor_id();
 
   if (framework->pending.contains(executorId) &&
@@ -3232,7 +3232,7 @@ Executor* Slave::getExecutor(
 
 
 ExecutorInfo Slave::getExecutorInfo(
-    const FrameworkID& frameworkId,
+    const FrameworkInfo& frameworkInfo,
     const TaskInfo& task)
 {
   CHECK_NE(task.has_executor(), task.has_command())
@@ -3244,7 +3244,7 @@ ExecutorInfo Slave::getExecutorInfo(
 
     // Command executors share the same id as the task.
     executor.mutable_executor_id()->set_value(task.task_id().value());
-    executor.mutable_framework_id()->CopyFrom(frameworkId);
+    executor.mutable_framework_id()->CopyFrom(frameworkInfo.id());
 
     if (task.has_container() &&
         task.container().type() != ContainerInfo::MESOS) {
@@ -3252,6 +3252,22 @@ ExecutorInfo Slave::getExecutorInfo(
       // be checkpointed. This allows the correct containerizer to
       // recover this task on restart.
       executor.mutable_container()->CopyFrom(task.container());
+    }
+
+    bool hasRootfs = task.has_container() &&
+                     task.container().type() == ContainerInfo::MESOS &&
+                     task.container().mesos().has_image();
+
+    if (hasRootfs) {
+      ContainerInfo* container = executor.mutable_container();
+      container->set_type(ContainerInfo::MESOS);
+      Volume* volume = container->add_volumes();
+      volume->mutable_image()->CopyFrom(task.container().mesos().image());
+      volume->set_container_path(COMMAND_EXECUTOR_ROOTFS_CONTAINER_PATH);
+      volume->set_mode(Volume::RW);
+      // We need to set the executor user as root as it needs to
+      // perform chroot (even when switch_user is set to false).
+      executor.mutable_command()->set_user("root");
     }
 
     // Prepare an executor name which includes information on the
@@ -3307,7 +3323,11 @@ ExecutorInfo Slave::getExecutorInfo(
           task.command().container());
     }
 
-    if (task.command().has_user()) {
+    // We skip setting the user for the command executor that has
+    // a rootfs image since we need root permissions to chroot.
+    // We assume command executor will change to the correct user
+    // later on.
+    if (!hasRootfs && task.command().has_user()) {
       executor.mutable_command()->set_user(task.command().user());
     }
 
@@ -3320,6 +3340,27 @@ ExecutorInfo Slave::getExecutorInfo(
     executor.mutable_command()->set_shell(true);
 
     if (path.isSome()) {
+      if (hasRootfs) {
+        executor.mutable_command()->set_shell(false);
+        executor.mutable_command()->add_arguments("mesos-executor");
+        executor.mutable_command()->add_arguments(
+            "--sandbox_directory=" + flags.sandbox_directory);
+
+        if (flags.switch_user) {
+          Option<string> user;
+          if (task.command().has_user()) {
+            user = task.command().user();
+          } else if (frameworkInfo.has_user()) {
+            user = frameworkInfo.user();
+          }
+
+          if (user.isSome()) {
+            executor.mutable_command()->add_arguments(
+                "--user=" + user.get());
+          }
+        }
+      }
+
       executor.mutable_command()->set_value(path.get());
     } else {
       executor.mutable_command()->set_value(

@@ -312,7 +312,7 @@ public:
   // Returns an ExecutorInfo for a TaskInfo (possibly
   // constructing one if the task has a CommandInfo).
   ExecutorInfo getExecutorInfo(
-      const FrameworkID& frameworkId,
+      const FrameworkInfo& frameworkInfo,
       const TaskInfo& task);
 
   // Shuts down the executor if it did not register yet.

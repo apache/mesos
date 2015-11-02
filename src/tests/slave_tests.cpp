@@ -543,6 +543,9 @@ TEST_F(SlaveTest, GetExecutorInfo)
   FrameworkID frameworkId;
   frameworkId.set_value("20141010-221431-251662764-60288-32120-0000");
 
+  FrameworkInfo frameworkInfo;
+  frameworkInfo.mutable_id()->CopyFrom(frameworkId);
+
   // Launch a task with the command executor.
   TaskInfo task;
   task.set_name("task");
@@ -560,7 +563,7 @@ TEST_F(SlaveTest, GetExecutorInfo)
 
   task.mutable_command()->MergeFrom(command);
 
-  const ExecutorInfo& executor = slave.getExecutorInfo(frameworkId, task);
+  const ExecutorInfo& executor = slave.getExecutorInfo(frameworkInfo, task);
 
   // Now assert that it actually is running mesos-executor without any
   // bleedover from the command we intend on running.

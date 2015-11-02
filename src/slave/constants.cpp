@@ -53,6 +53,7 @@ const Duration DOCKER_INSPECT_DELAY = Seconds(1);
 // TODO(tnachen): Make this a flag.
 const Duration DOCKER_VERSION_WAIT_TIMEOUT = Seconds(5);
 const std::string DEFAULT_AUTHENTICATEE = "crammd5";
+const std::string COMMAND_EXECUTOR_ROOTFS_CONTAINER_PATH = ".rootfs";
 
 Duration DEFAULT_MASTER_PING_TIMEOUT()
 {
