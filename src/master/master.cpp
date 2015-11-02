@@ -3562,6 +3562,9 @@ void Master::acknowledge(
     return;
   }
 
+  LOG(INFO) << "Processing ACKNOWLEDGE call " << uuid << " for task " << taskId
+            << " of framework " << *framework << " on slave " << slaveId;
+
   Task* task = slave->getTask(framework->id(), taskId);
 
   if (task != NULL) {
@@ -3593,9 +3596,6 @@ void Master::acknowledge(
       removeTask(task);
      }
   }
-
-  LOG(INFO) << "Processing ACKNOWLEDGE call " << uuid << " for task " << taskId
-            << " of framework " << *framework << " on slave " << slaveId;
 
   StatusUpdateAcknowledgementMessage message;
   message.mutable_slave_id()->CopyFrom(slaveId);
