@@ -1233,6 +1233,29 @@ protected:
     send(master.get().pid(), call);
   }
 
+  void declineOffer(
+      const OfferID& offerId,
+      const Filters& filters)
+  {
+    if (!connected) {
+      VLOG(1) << "Ignoring decline offer message as master is disconnected";
+      return;
+    }
+
+    Call call;
+
+    CHECK(framework.has_id());
+    call.mutable_framework_id()->CopyFrom(framework.id());
+    call.set_type(Call::DECLINE);
+
+    Call::Decline* decline = call.mutable_decline();
+    decline->add_offer_ids()->CopyFrom(offerId);
+    decline->mutable_filters()->CopyFrom(filters);
+
+    CHECK_SOME(master);
+    send(master.get().pid(), call);
+  }
+
   void reviveOffers()
   {
     if (!connected) {
@@ -1938,10 +1961,21 @@ Status MesosSchedulerDriver::declineOffer(
     const OfferID& offerId,
     const Filters& filters)
 {
-  vector<OfferID> offerIds;
-  offerIds.push_back(offerId);
+  synchronized (mutex) {
+    if (status != DRIVER_RUNNING) {
+      return status;
+    }
 
-  return launchTasks(offerIds, vector<TaskInfo>(), filters);
+    CHECK(process != NULL);
+
+    dispatch(
+        process,
+        &SchedulerProcess::declineOffer,
+        offerId,
+        filters);
+
+    return status;
+  }
 }
 
 

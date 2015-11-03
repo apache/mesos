@@ -2635,8 +2635,8 @@ TEST_F(MasterTest, OfferNotRescindedOnceDeclined)
   EXPECT_CALL(sched, resourceOffers(_, _))
     .WillRepeatedly(DeclineOffers()); // Decline all offers.
 
-  Future<mesos::scheduler::Call> acceptCall = FUTURE_CALL(
-      mesos::scheduler::Call(), mesos::scheduler::Call::ACCEPT, _, _);
+  Future<mesos::scheduler::Call> declineCall = FUTURE_CALL(
+      mesos::scheduler::Call(), mesos::scheduler::Call::DECLINE, _, _);
 
   EXPECT_CALL(sched, offerRescinded(&driver, _))
     .Times(0);
@@ -2645,7 +2645,7 @@ TEST_F(MasterTest, OfferNotRescindedOnceDeclined)
   AWAIT_READY(registered);
 
   // Wait for the framework to decline the offers.
-  AWAIT_READY(acceptCall);
+  AWAIT_READY(declineCall);
 
   // Now advance to the offer timeout, we need to settle the clock to
   // ensure that the offer rescind timeout would be processed
