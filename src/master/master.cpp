@@ -753,6 +753,12 @@ void Master::initialize()
           Http::log(request);
           return http.scheduler(request);
         });
+  route("/frameworks",
+        Http::FRAMEWORKS(),
+        [http](const process::http::Request& request) {
+          Http::log(request);
+          return http.frameworks(request);
+        });
   route("/flags",
         Http::FLAGS_HELP(),
         [http](const process::http::Request& request) {

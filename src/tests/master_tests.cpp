@@ -3830,6 +3830,86 @@ TEST_F(MasterTest, FrameworkInfoLabels)
   Shutdown();
 }
 
+
+TEST_F(MasterTest, FrameworksEndpointWithoutFrameworks)
+{
+  master::Flags flags = CreateMasterFlags();
+
+  flags.hostname = "localhost";
+  flags.cluster = "test-cluster";
+
+  // Capture the start time deterministically.
+  Clock::pause();
+
+  Try<PID<Master>> master = StartMaster(flags);
+  ASSERT_SOME(master);
+
+  Future<process::http::Response> response =
+    process::http::get(master.get(), "frameworks");
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(process::http::OK().status, response);
+  EXPECT_SOME_EQ(
+      "application/json",
+      response.get().headers.get("Content-Type"));
+
+  Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+  ASSERT_SOME(parse);
+
+  JSON::Object frameworks = parse.get();
+
+  ASSERT_TRUE(frameworks.values["frameworks"].is<JSON::Array>());
+  EXPECT_TRUE(frameworks.values["frameworks"].as<JSON::Array>().values.empty());
+
+  ASSERT_TRUE(
+      frameworks.values["completed_frameworks"].is<JSON::Array>());
+  EXPECT_TRUE(
+      frameworks.values["completed_frameworks"].as<JSON::Array>().values
+      .empty());
+
+  ASSERT_TRUE(
+      frameworks.values["unregistered_frameworks"].is<JSON::Array>());
+  EXPECT_TRUE(
+      frameworks.values["unregistered_frameworks"].as<JSON::Array>().values
+      .empty());
+}
+
+
+TEST_F(MasterTest, FrameworksEndpointOneFramework)
+{
+  Try<PID<Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  FrameworkInfo framework = DEFAULT_FRAMEWORK_INFO;
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, framework, master.get(), DEFAULT_CREDENTIAL);
+
+  Future<Nothing> registered;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureSatisfy(&registered));
+
+  driver.start();
+
+  AWAIT_READY(registered);
+
+  Future<process::http::Response> response =
+    process::http::get(master.get(), "frameworks");
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(process::http::OK().status, response);
+
+  Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+  ASSERT_SOME(parse);
+
+  Result<JSON::Array> array = parse.get().find<JSON::Array>("frameworks");
+  ASSERT_SOME(array);
+  EXPECT_EQ(1u, array.get().values.size());
+
+  driver.stop();
+  driver.join();
+
+  Shutdown();
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {

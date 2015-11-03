@@ -525,6 +525,63 @@ Future<Response> Master::Http::scheduler(const Request& request) const
 }
 
 
+string Master::Http::FRAMEWORKS()
+{
+  return HELP(TLDR("Exposes the frameworks info."));
+}
+
+
+Future<Response> Master::Http::frameworks(const Request& request) const
+{
+  JSON::Object object;
+
+  // Model all of the frameworks.
+  {
+    JSON::Array array;
+    array.values.reserve(master->frameworks.registered.size()); // MESOS-2353.
+
+    foreachvalue (Framework* framework, master->frameworks.registered) {
+      array.values.push_back(model(*framework));
+    }
+
+    object.values["frameworks"] = std::move(array);
+  }
+
+  // Model all of the completed frameworks.
+  {
+    JSON::Array array;
+    array.values.reserve(master->frameworks.completed.size()); // MESOS-2353.
+
+    foreach (const std::shared_ptr<Framework>& framework,
+             master->frameworks.completed) {
+      array.values.push_back(model(*framework));
+    }
+
+    object.values["completed_frameworks"] = std::move(array);
+  }
+
+  // Model all currently unregistered frameworks.
+  // This could happen when the framework has yet to re-register
+  // after master failover.
+  {
+    JSON::Array array;
+
+    // Find unregistered frameworks.
+    foreachvalue (const Slave* slave, master->slaves.registered) {
+      foreachkey (const FrameworkID& frameworkId, slave->tasks) {
+        if (!master->frameworks.registered.contains(frameworkId)) {
+          array.values.push_back(frameworkId.value());
+        }
+      }
+    }
+
+    object.values["unregistered_frameworks"] = std::move(array);
+  }
+
+  return OK(object, request.url.query.get("jsonp"));
+}
+
+
 string Master::Http::FLAGS_HELP()
 {
   return HELP(TLDR("Exposes the master's flag configuration."));
