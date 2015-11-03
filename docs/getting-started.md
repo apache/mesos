@@ -54,8 +54,9 @@ Following are the instructions for stock Mac OS X Yosemite. If you are using a d
 
 Following are the instructions for stock CentOS 6.6. If you are using a different OS, please install the packages accordingly.
 
-        # Install a few utility tools
-        $ sudo yum install -y tar wget which
+        # Install a few utility tools. This also forces an update of `nss`,
+        # which is necessary for the Java bindings to build properly.
+        $ sudo yum install -y tar wget which nss
 
         # 'Mesos > 0.21.0' requires a C++ compiler with full C++11 support,
         # (e.g. GCC > 4.8) which is available via 'devtoolset-2'.
