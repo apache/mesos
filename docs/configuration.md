@@ -763,9 +763,9 @@ file:///path/to/file (where file contains one of the above)</code></pre>
     <td>
       This specifies how to connect to a master or a quorum of masters. This flag works with 3 different techniques. It may be one of:
       <ol>
-        <li> hostname or ip to a master or comma-delimited list of masters, e.g.,
+        <li> hostname or ip to a master, e.g.,
 <pre><code>--master=localhost:5050
---master=10.0.0.5:5050,10.0.0.6:5050
+--master=10.0.0.5:5050
 </code></pre>
         </li>
 
