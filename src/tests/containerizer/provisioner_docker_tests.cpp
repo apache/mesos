@@ -830,7 +830,8 @@ TEST_F(RegistryClientTest, SimpleGetManifest)
 
 
 // Tests docker registry's getBlob API.
-TEST_F(RegistryClientTest, SimpleGetBlob)
+// TODO(jojy): Re-enable this test when MESOS-3798 is resolved.
+TEST_F(RegistryClientTest, DISABLED_SimpleGetBlob)
 {
   Try<Socket> server = setup_server({
       {"SSL_ENABLED", "true"},
