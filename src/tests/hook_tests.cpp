@@ -572,9 +572,15 @@ TEST_F(HookTest, VerifySlaveTaskStatusDecorator)
     status.get().container_status().network_infos(0);
 
   // The hook module sets up '4.3.2.1' as the IP address and 'public' as the
-  // network isolation group.
+  // network isolation group. The `ip_address` field is deprecated, but the
+  // hook module should continue to set it as well as the new `ip_addresses`
+  // field for now.
   EXPECT_TRUE(networkInfo.has_ip_address());
   EXPECT_EQ("4.3.2.1", networkInfo.ip_address());
+
+  EXPECT_EQ(1, networkInfo.ip_addresses().size());
+  EXPECT_TRUE(networkInfo.ip_addresses(0).has_ip_address());
+  EXPECT_EQ("4.3.2.1", networkInfo.ip_addresses(0).ip_address());
 
   EXPECT_EQ(1, networkInfo.groups().size());
   EXPECT_EQ("public", networkInfo.groups(0));

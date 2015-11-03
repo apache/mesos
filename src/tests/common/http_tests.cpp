@@ -188,3 +188,39 @@ TEST(HTTP, ModelRoleResources)
   ASSERT_SOME(expected);
   EXPECT_EQ(expected.get(), object);
 }
+
+// This test ensures we don't break the API when it comes to JSON
+// representation of NetworkInfo.
+TEST(HTTP, SerializeNetworkInfo)
+{
+  NetworkInfo networkInfo;
+  NetworkInfo::IPAddress* address = networkInfo.add_ip_addresses();
+  address->set_protocol(NetworkInfo::IPv4);
+  address->set_ip_address("10.0.0.1");
+  networkInfo.set_protocol(NetworkInfo::IPv6);
+  networkInfo.set_ip_address("10.0.0.2");
+  networkInfo.add_groups("foo");
+  networkInfo.add_groups("bar");
+
+  JSON::Value object = JSON::Protobuf(networkInfo);
+
+  Try<JSON::Value> expected = JSON::parse(
+      "{"
+      "  \"ip_addresses\":"
+      "  ["
+      "    {"
+      "      \"protocol\": \"IPv4\","
+      "      \"ip_address\": \"10.0.0.1\""
+      "    }"
+      "  ],"
+      "  \"protocol\": \"IPv6\","
+      "  \"ip_address\": \"10.0.0.2\","
+      "  \"groups\": ["
+      "    \"foo\","
+      "    \"bar\""
+      "  ]"
+      "}");
+
+  ASSERT_SOME(expected);
+  EXPECT_EQ(expected.get(), object);
+}

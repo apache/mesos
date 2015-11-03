@@ -2832,7 +2832,13 @@ void Slave::statusUpdate(StatusUpdate update, const UPID& pid)
     update.mutable_status()->mutable_container_status();
   if (containerStatus->network_infos().size() == 0) {
     NetworkInfo* networkInfo = containerStatus->add_network_infos();
+
+    // TODO(CD): Deprecated -- Remove after 0.27.0.
     networkInfo->set_ip_address(stringify(self().address.ip));
+
+    NetworkInfo::IPAddress* ipAddress =
+      networkInfo->add_ip_addresses();
+    ipAddress->set_ip_address(stringify(self().address.ip));
   }
 
   TaskStatus status = update.status();

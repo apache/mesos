@@ -183,6 +183,15 @@ JSON::Object model(const NetworkInfo& info)
     object.values["labels"] = std::move(model(info.labels()));
   }
 
+  if (info.ip_addresses().size() > 0) {
+    JSON::Array array;
+    array.values.reserve(info.ip_addresses().size()); // MESOS-2353.
+    foreach (const NetworkInfo::IPAddress& ipAddress, info.ip_addresses()) {
+      array.values.push_back(JSON::Protobuf(ipAddress));
+    }
+    object.values["ip_addresses"] = std::move(array);
+  }
+
   return object;
 }
 

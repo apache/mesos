@@ -258,7 +258,11 @@ public:
     // 'HookTest.VerifySlaveTaskStatusDecorator' test.
     NetworkInfo* networkInfo =
       result.mutable_container_status()->add_network_infos();
+    // TODO(CD): Deprecated -- remove after 0.27.0.
     networkInfo->set_ip_address("4.3.2.1");
+    NetworkInfo::IPAddress* ipAddress =
+      networkInfo->add_ip_addresses();
+    ipAddress->set_ip_address("4.3.2.1");
     networkInfo->add_groups("public");
 
     Label* networkInfoLabel = networkInfo->mutable_labels()->add_labels();
