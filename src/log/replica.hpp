@@ -60,7 +60,7 @@ public:
   // process will later decide if this replica can be re-allowed to
   // vote depending on the status of other replicas.
   explicit Replica(const std::string& path);
-  ~Replica();
+  virtual ~Replica();
 
   // Returns all the actions between the specified positions, unless
   // those positions are invalid, in which case returns an error.
@@ -91,8 +91,10 @@ public:
   // Returns the highest implicit promise this replica has given.
   process::Future<uint64_t> promised() const;
 
-  // Updates the status of this replica.
-  process::Future<bool> update(const Metadata::Status& status);
+  // Updates the status of this replica. Returns true if status was
+  // updated successfully, false otherwise. Made "virtual" for
+  // mocking in tests.
+  virtual process::Future<bool> update(const Metadata::Status& status);
 
   // Returns the PID associated with this replica.
   process::PID<ReplicaProcess> pid() const;

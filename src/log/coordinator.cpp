@@ -194,15 +194,24 @@ Future<PromiseResponse> CoordinatorProcess::runPromisePhase()
 Future<Option<uint64_t> > CoordinatorProcess::checkPromisePhase(
     const PromiseResponse& response)
 {
-  if (!response.okay()) {
+  CHECK(response.has_type());
+
+  switch (response.type()) {
+  case PromiseResponse::IGNORE:
+    // A quorum of replicas ignored the request, but it can be
+    // retried.
+    return None();
+
+  case PromiseResponse::REJECT:
     // Lost an election, but can be retried. We save the proposal
     // number here so that most likely we will have a high enough
     // proposal number when we retry.
     CHECK_LE(proposal, response.proposal());
     proposal = response.proposal();
-
     return None();
-  } else {
+
+  default:
+    CHECK(response.type() == PromiseResponse::ACCEPT);
     CHECK(response.has_position());
     index = response.position();
 

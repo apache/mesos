@@ -126,18 +126,38 @@ message PromiseRequest {
   optional uint64 position = 2;
 }
 
-
-// Represents a "promise" response from a replica back to a proposer.
-// A replica represents a NACK (because it has promised a proposer
-// with a higher proposal number) by setting the okay field to false.
+// Represents a promise response corresponding to a promise request.
+// The kind of the response is given by the "type" field:
+//
+//   1. IGNORE: The recipient of the promise request was not in VOTING
+//      state, so it ignored the request.
+//   2. REJECT: The recipient of the proposal has already promised a
+//      proposer with a higher proposal number. This is called a
+//      "NACK" in the code.
+//   3. ACCEPT: The promise request was accepted.
+//
+// Before 0.26, we only sent responses for cases 2 and 3, so the
+// 'okay' field was used to distinguish these responses. For backward
+// compatibility, we continue setting 'okay' to false for both cases 1
+// and 2; this means old masters will treat IGNORE as a NACK: this
+// might result in demoting the current coordinator, but that should
+// be tolerable. TODO(neilc): Remove 'okay' in 0.27.
+//
 // The 'proposal' is either the aforementioned higher proposal number
-// when the response is a NACK, or the corresponding request's
-// proposal number if it is an ACK. The replica either sends back the
-// highest position it has recorded in the log (using the 'position'
-// field) or the specific action (if any) it has at the position
-// requested in PromiseRequest (using the 'action' field).
+// (for case 2), or the corresponding request's proposal number (for
+// cases 1 and 3). The replica either sends back the highest position
+// it has recorded in the log (using the 'position' field) or the
+// specific action (if any) it has at the position requested in
+// PromiseRequest (using the 'action' field).
 message PromiseResponse {
-  required bool okay = 1;
+  enum Type {
+    ACCEPT = 1;
+    REJECT = 2;
+    IGNORE = 3;
+  }
+
+  required bool okay = 1; // DEPRECATED
+  optional Type type = 5;
   required uint64 proposal = 2;
   optional uint64 position = 4;
   optional Action action = 3;
@@ -159,16 +179,36 @@ message WriteRequest {
 }
 
 
-// Represents a write response corresponding to a write request. A
-// replica represents a NACK (because it has promised a proposer with
-// a higher proposal number) by setting the okay field to false. If
-// the proposer is a coordinator, then it has been demoted. The
-// 'position' should always correspond to the position set in the
+// Represents a write response corresponding to a write request. The
+// kind of the response is given by the "type" field:
+//
+//   1. IGNORE: The recipient of the write request was not in VOTING
+//      state, so it ignored the request.
+//   2. REJECT: The recipient of the proposal has already promised a
+//      proposer with a higher proposal number. This is called a
+//      "NACK" in the code.
+//   3. ACCEPT: The promise request was accepted.
+//
+// Before 0.26, we only sent responses for cases 2 and 3, so the
+// 'okay' field was used to distinguish these responses. For backward
+// compatibility, we continue setting 'okay' to false for both cases 1
+// and 2; this means old masters will treat IGNORE as a NACK: this
+// might result in demoting the current coordinator, but that should
+// be tolerable. TODO(neilc): Remove 'okay' in 0.27.
+//
+// The 'position' should always correspond to the position set in the
 // request. The 'proposal' is either the same proposal number set in
-// the request in the case of an ACK, or the higher proposal number
-// this position has been promised to in the case of a NACK.
+// the request (cases 1 and 3), or the higher proposal number
+// this position has been promised to (case 2).
 message WriteResponse {
-  required bool okay = 1;
+  enum Type {
+    ACCEPT = 1;
+    REJECT = 2;
+    IGNORE = 3;
+  }
+
+  required bool okay = 1; // DEPRECATED
+  optional Type type = 4;
   required uint64 proposal = 2;
   required uint64 position = 3;
 }

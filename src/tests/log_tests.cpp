@@ -69,6 +69,7 @@ using std::string;
 
 using testing::_;
 using testing::Eq;
+using testing::Invoke;
 using testing::Return;
 
 namespace mesos {
@@ -522,8 +523,8 @@ TEST_F(ReplicaTest, Restore)
 }
 
 
-// This test verifies that a non-VOTING replica does not reply to
-// promise or write requests.
+// This test verifies that a non-VOTING replica replies to promise and
+// write requests with an "ignored" response.
 TEST_F(ReplicaTest, NonVoting)
 {
   const string path = os::getcwd() + "/.log";
@@ -533,17 +534,14 @@ TEST_F(ReplicaTest, NonVoting)
   PromiseRequest promiseRequest;
   promiseRequest.set_proposal(2);
 
-  Future<PromiseResponse> promiseResponse =
+  Future<PromiseResponse> promiseResponse_ =
     protocol::promise(replica.pid(), promiseRequest);
 
-  // Flush the event queue to make sure that if the replica could
-  // reply to the promise request, the future 'promiseResponse' would
-  // be satisfied before the pending check below.
-  Clock::pause();
-  Clock::settle();
-  Clock::resume();
-
-  EXPECT_TRUE(promiseResponse.isPending());
+  AWAIT_READY(promiseResponse_);
+  PromiseResponse promiseResponse = promiseResponse_.get();
+  EXPECT_EQ(PromiseResponse::IGNORE, promiseResponse.type());
+  EXPECT_FALSE(promiseResponse.okay());
+  EXPECT_EQ(2u, promiseResponse.proposal());
 
   WriteRequest writeRequest;
   writeRequest.set_proposal(3);
@@ -551,17 +549,15 @@ TEST_F(ReplicaTest, NonVoting)
   writeRequest.set_type(Action::APPEND);
   writeRequest.mutable_append()->set_bytes("hello world");
 
-  Future<WriteResponse> writeResponse =
+  Future<WriteResponse> writeResponse_ =
     protocol::write(replica.pid(), writeRequest);
 
-  // Flush the event queue to make sure that if the replica could
-  // reply to the write request, the future 'writeResponse' would be
-  // satisfied before the pending check below.
-  Clock::pause();
-  Clock::settle();
-  Clock::resume();
-
-  EXPECT_TRUE(writeResponse.isPending());
+  AWAIT_READY(writeResponse_);
+  WriteResponse writeResponse = writeResponse_.get();
+  EXPECT_EQ(WriteResponse::IGNORE, writeResponse.type());
+  EXPECT_FALSE(writeResponse.okay());
+  EXPECT_EQ(3u, writeResponse.proposal());
+  EXPECT_EQ(1u, writeResponse.position());
 }
 
 
@@ -1503,6 +1499,142 @@ TEST_F(CoordinatorTest, TruncateLearnedFill)
       ASSERT_EQ(Action::APPEND, action.type());
       EXPECT_EQ(stringify(action.position()), action.append().bytes());
     }
+  }
+}
+
+
+class MockReplica : public Replica
+{
+public:
+  explicit MockReplica(const string& path) :
+    Replica(path) {}
+
+  virtual ~MockReplica() {}
+
+  MOCK_METHOD1(update, Future<bool>(const Metadata::Status& status));
+
+  Future<bool> _update(const Metadata::Status& status)
+  {
+    return Replica::update(status);
+  }
+};
+
+
+// If a coordinator tries to get elected while there is not a quorum
+// of replicas in VOTING state, the non-VOTING replicas should
+// instruct the coordinator that they have ignored the coordinator's
+// request, so the coordinator can promptly retry. MESOS-3280.
+TEST_F(CoordinatorTest, RecoveryRace)
+{
+  const string path1 = os::getcwd() + "/.log1";
+  const string path2 = os::getcwd() + "/.log2";
+  const string path3 = os::getcwd() + "/.log3";
+
+  MockReplica* replica1(new MockReplica(path1));
+  MockReplica* replica2(new MockReplica(path2));
+  MockReplica* replica3(new MockReplica(path3));
+
+  set<UPID> pids{replica1->pid(), replica2->pid(), replica3->pid()};
+  Shared<Network> network(new Network(pids));
+
+  // Set when each replica transitions from EMPTY -> STARTING; the
+  // replica will then block until the associated "continue" promise
+  // is set.
+  Future<Nothing> replica1Starting;
+  Future<Nothing> replica2Starting;
+  Future<Nothing> replica3Starting;
+  process::Promise<bool> replica1ContinueStarting;
+  process::Promise<bool> replica2ContinueStarting;
+  process::Promise<bool> replica3ContinueStarting;
+
+  // Set when each replica transitions from STARTING -> VOTING.
+  Future<Nothing> replica1Voting;
+  Future<Nothing> replica2Voting;
+  process::Promise<bool> replica1ContinueVoting;
+  process::Promise<bool> replica2ContinueVoting;
+
+  // Arrange mocks to allow us to block and unblock each replica when
+  // it changes state.
+  // TODO(neilc): Refactor this to reduce duplicated code.
+  EXPECT_CALL(*replica1, update(_))
+    .WillOnce(DoAll(IgnoreResult(Invoke(replica1, &MockReplica::_update)),
+                    FutureSatisfy(&replica1Starting),
+                    Return(replica1ContinueStarting.future())))
+    .WillOnce(DoAll(IgnoreResult(Invoke(replica1, &MockReplica::_update)),
+                    FutureSatisfy(&replica1Voting),
+                    Return(replica1ContinueVoting.future())));
+  EXPECT_CALL(*replica2, update(_))
+    .WillOnce(DoAll(IgnoreResult(Invoke(replica2, &MockReplica::_update)),
+                    FutureSatisfy(&replica2Starting),
+                    Return(replica2ContinueStarting.future())))
+    .WillOnce(DoAll(IgnoreResult(Invoke(replica2, &MockReplica::_update)),
+                    FutureSatisfy(&replica2Voting),
+                    Return(replica2ContinueVoting.future())));
+  EXPECT_CALL(*replica3, update(_))
+    .WillOnce(DoAll(IgnoreResult(Invoke(replica3, &MockReplica::_update)),
+                    FutureSatisfy(&replica3Starting),
+                    Return(replica3ContinueStarting.future())))
+    .WillRepeatedly(Invoke(replica3, &MockReplica::_update));
+
+  Future<Owned<Replica>> recovering1 =
+    recover(2, Owned<Replica>(replica1), network, true);
+  Future<Owned<Replica>> recovering2 =
+    recover(2, Owned<Replica>(replica2), network, true);
+  Future<Owned<Replica>> recovering3 =
+    recover(2, Owned<Replica>(replica3), network, true);
+
+  AWAIT_READY(replica1Starting);
+  AWAIT_READY(replica2Starting);
+  AWAIT_READY(replica3Starting);
+
+  // Allow replica1 to advance from STARTING -> VOTING.
+  // TODO(neilc): Due to an apparent bug in FutureResult (MESOS-3812),
+  // we can't save the return value of _update() when setting up the
+  // mocks above. Hence, we have to assume that _update() returned
+  // true, which we then use to unblock the process.
+  replica1ContinueStarting.set(true);
+  AWAIT_READY(replica1Voting);
+  replica1ContinueVoting.set(true);
+
+  AWAIT_READY(recovering1);
+  Owned<Replica> shared_ = recovering1.get();
+  Shared<Replica> shared = shared_.share();
+
+  // Electing a coordinator should fail because we don't have a quorum
+  // of replicas in VOTING status.
+  {
+    Coordinator coord1(2, shared, network);
+    Future<Option<uint64_t>> electing = coord1.elect();
+    AWAIT_READY(electing);
+    ASSERT_NONE(electing.get());
+  }
+
+  // Allow replica2 to advance from STARTING -> VOTING.
+  replica2ContinueStarting.set(true);
+  AWAIT_READY(replica2Voting);
+  replica2ContinueVoting.set(true);
+
+  AWAIT_READY(recovering2);
+
+  // Electing a coordinator should now succeed.
+  Coordinator coord2(2, shared, network);
+  {
+    Future<Option<uint64_t>> electing = coord2.elect();
+    AWAIT_READY(electing);
+    EXPECT_SOME_EQ(0u, electing.get());
+  }
+
+  // Allow replica3 to advance from STARTING -> RECOVERING -> VOTING.
+  // TODO(neilc): Transition to RECOVERING is dubious and should
+  // probably be omitted.
+  replica3ContinueStarting.set(true);
+
+  AWAIT_READY(recovering3);
+
+  {
+    Future<Option<uint64_t>> appending = coord2.append("hello world");
+    AWAIT_READY(appending);
+    EXPECT_SOME_EQ(1u, appending.get());
   }
 }
 
