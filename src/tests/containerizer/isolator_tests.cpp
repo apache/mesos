@@ -689,14 +689,12 @@ TEST_F(LimitedCpuIsolatorTest, ROOT_CGROUPS_Pids_and_Tids)
   int pipes[2];
   ASSERT_NE(-1, ::pipe(pipes));
 
-  vector<string> argv(3);
-  argv[0] = "sh";
-  argv[1] = "-c";
-  argv[2] = "while true; do sleep 1; done;";
+  vector<string> argv(1);
+  argv[0] = "cat";
 
   Try<pid_t> pid = launcher.get()->fork(
       containerId,
-      "sh",
+      "cat",
       argv,
       Subprocess::FD(STDIN_FILENO),
       Subprocess::FD(STDOUT_FILENO),
