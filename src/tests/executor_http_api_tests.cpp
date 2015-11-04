@@ -344,7 +344,7 @@ TEST_P(ExecutorHttpApiTest, DefaultAccept)
   AWAIT_READY(frameworkId);
   AWAIT_READY(offers);
 
-  ASSERT_EQ(1, offers.get().size());
+  ASSERT_EQ(1u, offers.get().size());
 
   EXPECT_CALL(exec, registered(_, _, _, _))
     .Times(1);
@@ -423,7 +423,7 @@ TEST_P(ExecutorHttpApiTest, NoAcceptHeader)
   AWAIT_READY(frameworkId);
   AWAIT_READY(offers);
 
-  ASSERT_EQ(1, offers.get().size());
+  ASSERT_EQ(1u, offers.get().size());
 
   EXPECT_CALL(exec, registered(_, _, _, _))
     .Times(1);
