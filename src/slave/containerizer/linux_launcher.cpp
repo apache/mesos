@@ -182,12 +182,12 @@ bool LinuxLauncher::available()
 {
   // Make sure:
   //   - we run as root
-  //   - cgroups are enabled
-  //   - "freezer" subsytem is available.
+  //   - "freezer" subsytem is enabled.
 
+  Try<bool> freezer = cgroups::enabled("freezer");
   return ::geteuid() == 0 &&
-         cgroups::enabled() &&
-         cgroups::hierarchy("freezer").isSome();
+         freezer.isSome() &&
+         freezer.get();
 }
 
 
