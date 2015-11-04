@@ -50,6 +50,7 @@ inline NORETURN void _Abort(const char* prefix, const char* message)
   while (message != NULL &&
          write(STDERR_FILENO, message, strlen(message)) == -1 &&
          errno == EINTR);
+  while (write(STDERR_FILENO, "\n", 1) == -1 && errno == EINTR);
   abort();
 }
 
