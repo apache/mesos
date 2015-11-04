@@ -83,8 +83,7 @@ struct HDFS
 
   Try<bool> exists(std::string path)
   {
-    // Make sure 'path' starts with a '/'.
-    path = path::join("", path);
+    path = absolutePath(path);
 
     Try<std::string> command = strings::format(
         "%s fs -test -e '%s'", hadoop, path);
@@ -104,8 +103,7 @@ struct HDFS
 
   Try<Bytes> du(std::string path)
   {
-    // Make sure 'path' starts with a '/'.
-    path = path::join("", path);
+    path = absolutePath(path);
 
     Try<std::string> command = strings::format(
         "%s fs -du '%s'", hadoop, path);
@@ -153,8 +151,7 @@ struct HDFS
 
   Try<Nothing> rm(std::string path)
   {
-    // Make sure 'to' starts with a '/'.
-    path = path::join("", path);
+    path = absolutePath(path);
 
     Try<std::string> command = strings::format(
         "%s fs -rm '%s'", hadoop, path);
@@ -178,8 +175,7 @@ struct HDFS
       return Error("Failed to find " + from);
     }
 
-    // Make sure 'to' starts with a '/'.
-    to = path::join("", to);
+    to = absolutePath(to);
 
     // Copy to HDFS.
     Try<std::string> command = strings::format(
@@ -197,9 +193,11 @@ struct HDFS
   }
 
   Try<Nothing> copyToLocal(
-      const std::string& from,
+      std::string from,
       const std::string& to)
   {
+    from = absolutePath(from);
+
     // Copy from HDFS.
     Try<std::string> command = strings::format(
         "%s fs -copyToLocal '%s' '%s'", hadoop, from, to);
@@ -216,6 +214,18 @@ struct HDFS
   }
 
 private:
+  // Normalize an HDFS path such that it is either an absolute path
+  // or a full hdfs:// URL.
+  std::string absolutePath(const std::string& hdfsPath)
+  {
+    if (strings::startsWith(hdfsPath, "hdfs://") ||
+        strings::startsWith(hdfsPath, "/")) {
+      return hdfsPath;
+    }
+
+    return path::join("", hdfsPath);
+  }
+
   const std::string hadoop;
 };
 
