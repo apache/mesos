@@ -2,6 +2,7 @@ Release Notes - Mesos - Version 0.26.0 (WIP)
 --------------------------------------------
 
 ** API Changes:
+  * [MESOS-3560] - Fix JSON-based credential files by changing protobuf `Credential` field `secret` from bytes to string.
   * [MESOS-3824] - Add /frameworks endpoint to master
 
 
@@ -159,7 +160,7 @@ This release also includes several bug fixes and stability improvements.
     * [MESOS-2559] - Do not use RunTaskMessage.framework_id.
     * [MESOS-2660] - ROOT_CGROUPS_Listen and ROOT_IncreaseRSS tests are flaky
     * [MESOS-2862] - mesos-fetcher won't fetch uris which begin with a " "
-    * [MESOS-2868] - --attributes flag in slave cannot take a value with ':' 
+    * [MESOS-2868] - --attributes flag in slave cannot take a value with ':'
     * [MESOS-2882] - Duplicate name-value env-vars in '-e' option of docker run
     * [MESOS-2900] - Display capabilities in state.json
     * [MESOS-2989] - Changing to "framework" from "framwork"
@@ -222,8 +223,8 @@ This release also includes several bug fixes and stability improvements.
     * [MESOS-2947] - Authorizer Module: Implementation, Integration & Tests
     * [MESOS-2951] - Inefficient container usage collection
     * [MESOS-2965] - Add implicit cast to string operator to Path.
-    * [MESOS-2967] - Missing doxygen documentation for libprocess socket interface 
-    * [MESOS-3020] - Expose major, minor and patch components from stout Version  
+    * [MESOS-2967] - Missing doxygen documentation for libprocess socket interface
+    * [MESOS-3020] - Expose major, minor and patch components from stout Version
     * [MESOS-3054] - update gitignore
     * [MESOS-3093] - Support HTTPS requests in libprocess
     * [MESOS-3112] - Fetcher should perform cache eviction based on cache file usage patterns.

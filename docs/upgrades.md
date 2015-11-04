@@ -13,6 +13,7 @@ This document serves as a guide for users who wish to upgrade an existing mesos 
 * REASON_MEM_LIMIT -> REASON_CONTAINER_LIMITATION_MEMORY
 * REASON_EXECUTOR_PREEMPTED -> REASON_CONTAINER_PREEMPTED
 
+**NOTE** `Credential` protobuf was changed. `Credential` field `secret` is now a string, it used to be bytes. This will affect framework developers and language bindings ought to update their generated protobuf with the new version. This fixes JSON based credentials file support.
 
 ## Upgrading from 0.24.x to 0.25.x
 
