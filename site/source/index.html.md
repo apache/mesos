@@ -2,33 +2,34 @@
 title: Apache Mesos
 ---
 
-<div class="container-fluid homepage jumbotron">
-	<div class="row">
-	  <div class="col-md-7">
-	    <h1>Program against your datacenter like it’s a single pool of resources</h1>
-	    <p class="lead">Apache Mesos abstracts CPU, memory, storage, and other compute resources away from machines (physical or virtual), enabling fault-tolerant and elastic distributed systems to easily be built and run effectively.</p>
+<div class="row">
+  <div class="homepage jumbotron">
+    <div class="col-md-7 col-xs-12">
+      <h1 class="hidden-xs">Program against your datacenter like it’s a single pool of resources</h1>
+      <h2 class="visible-xs-block">Program against your datacenter like it’s a single pool of resources</h2>
+      <p class="lead">Apache Mesos abstracts CPU, memory, storage, and other compute resources away from machines (physical or virtual), enabling fault-tolerant and elastic distributed systems to easily be built and run effectively.</p>
 
-			<p> <a href="downloads/"><span class="glyphicon glyphicon-download"></span> Download Mesos 0.24.1</a> or learn how to <a href="gettingstarted/">get started</a></p>
-	  </div>
-    <div class="col-md-5 text-center download">
-			<div class="homepage-featured">
-				<h2>MesosCon Europe</h2>
-				<p>Dublin, October 8 - 9th, 2015</p>
-				#MesosCon Europe is conference organized by the Apache Mesos community, bringing together users and developers to share and learn about the project and its growing ecosystem.
-				<br /><br />
-				<a class="btn btn-default btn-success" href="http://events.linuxfoundation.org/events/mesoscon-europe/attend/register" role="button">REGISTER TODAY</a>
-			</div>
+      <p> <a href="downloads/"><span class="glyphicon glyphicon-download"></span> Download Mesos 0.24.1</a> or learn how to <a href="gettingstarted/">get started</a></p>
     </div>
-	</div>
+    <div class="col-md-5 col-xs-12 text-center download">
+      <div class="homepage-featured">
+        <h2>MesosCon Europe</h2>
+        <p>Dublin, October 8 - 9th, 2015</p>
+        #MesosCon Europe is conference organized by the Apache Mesos community, bringing together users and developers to share and learn about the project and its growing ecosystem.
+        <br /><br />
+        <a class="btn btn-default btn-success" href="http://events.linuxfoundation.org/events/mesoscon-europe/attend/register" role="button">REGISTER TODAY</a>
+      </div>
+    </div>
+  </div>
 </div>
 
-<!-- lowersection -->
+
 <div class="row">
-  <div class="col-md-7">
+  <div class="col-md-7 col-xs-12">
     <h3>What is Mesos?</h3>
       <h4>A distributed systems kernel</h4>
       <p>Mesos is built using the same principles as the Linux kernel, only at a different level of abstraction. The Mesos kernel runs on every machine and provides applications (e.g., Hadoop, Spark, Kafka, Elastic Search) with API’s for resource management and scheduling across entire datacenter and cloud environments.</p>
-
+    
     <h3>Project Features</h3>
     <ul>
      <li>Scalability to 10,000s of nodes</li>
@@ -40,15 +41,15 @@ title: Apache Mesos
      <li>Web UI for viewing cluster state</li>
     </ul>
   </div>
-  <div class="col-md-5">
+  <div class="col-md-5 col-xs-12">
     <h3>News</h3>
       <ul>
-			<li><em>September 30, 2015</em> - Announcing the #MesosCon Europe Hackathon! See the <a href="/blog/announcing-mesoscon-eu-2015-hackathon/">blog post</a> for details.</li>
+      <li><em>September 30, 2015</em> - Announcing the #MesosCon Europe Hackathon! See the <a href="/blog/announcing-mesoscon-eu-2015-hackathon/">blog post</a> for details.</li>
       <li><em>September 24, 2015</em> - Mesos 0.24.1 is released! See the <a href="https://git-wip-us.apache.org/repos/asf?p=mesos.git;a=blob_plain;f=CHANGELOG;hb=0.24.1">CHANGELOG</a> and <a href="/blog/mesos-0-24-1-and-more-released/">blog post</a> for details.</li>
       <li><em>September 21, 2015</em> - Mesos 0.24.0 is released! See the <a href="https://git-wip-us.apache.org/repos/asf?p=mesos.git;a=blob_plain;f=CHANGELOG;hb=0.24.0">CHANGELOG</a> and <a href="/blog/mesos-0-24-0-released/">blog post</a> for details.</li>
-	    <li><em>September 17, 2015</em> - <a href="/blog/mesoscon-europe-2015-schedule-announced/">MesosCon Europe Schedule and Diversity Scholarship</a></li>
-	    <li><em>August 5, 2015</em> - <a href="/blog/mesoscon-goes-europe/">MesosCon goes Europe</a></li>
-	    <li><em>July 22, 2015</em> - Mesos 0.23.0 is released! See the <a href="https://git-wip-us.apache.org/repos/asf?p=mesos.git;a=blob_plain;f=CHANGELOG;hb=0.23.0">CHANGELOG</a> and <a href="/blog/mesos-0-23-0-released/">blog post</a> for more details.</li>
+      <li><em>September 17, 2015</em> - <a href="/blog/mesoscon-europe-2015-schedule-announced/">MesosCon Europe Schedule and Diversity Scholarship</a></li>
+      <li><em>August 5, 2015</em> - <a href="/blog/mesoscon-goes-europe/">MesosCon goes Europe</a></li>
+      <li><em>July 22, 2015</em> - Mesos 0.23.0 is released! See the <a href="https://git-wip-us.apache.org/repos/asf?p=mesos.git;a=blob_plain;f=CHANGELOG;hb=0.23.0">CHANGELOG</a> and <a href="/blog/mesos-0-23-0-released/">blog post</a> for more details.</li>
       </ul>
 
     <h3>Follow Us</h3>
@@ -60,4 +61,3 @@ title: Apache Mesos
     </span>
  </div>
 </div>
-<!-- /lowersection -->
