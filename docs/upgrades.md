@@ -15,6 +15,11 @@ This document serves as a guide for users who wish to upgrade an existing mesos 
 
 **NOTE** `Credential` protobuf was changed. `Credential` field `secret` is now a string, it used to be bytes. This will affect framework developers and language bindings ought to update their generated protobuf with the new version. This fixes JSON based credentials file support.
 
+**NOTE** The `/state` endpoints on master and slave will no longer include `data` fields as part of the JSON models for `ExecutorInfo` and `TaskInfo` out of consideration for memory scalability (see [MESOS-3794](https://issues.apache.org/jira/browse/MESOS-3794) and [this email thread](http://www.mail-archive.com/dev@mesos.apache.org/msg33536.html)).
+On master, the affected `data` field was originally found via `frameworks[*].executors[*].data`.
+On slaves, the affected `data` field was originally found via `executors[*].tasks[*].data`.
+
+
 ## Upgrading from 0.24.x to 0.25.x
 
 **NOTE** The following endpoints will be deprecated in favor of new endpoints. Both versions will be available in 0.25 but the deprecated endpoints will be removed in a subsequent release.

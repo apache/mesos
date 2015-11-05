@@ -101,7 +101,6 @@ JSON::Object model(const TaskInfo& task)
   object.values["name"] = task.name();
   object.values["slave_id"] = task.slave_id().value();
   object.values["resources"] = model(task.resources());
-  object.values["data"] = task.data();
 
   if (task.has_command()) {
     object.values["command"] = model(task.command());

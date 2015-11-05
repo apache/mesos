@@ -323,7 +323,6 @@ JSON::Object model(const ExecutorInfo& executorInfo)
   JSON::Object object;
   object.values["executor_id"] = executorInfo.executor_id().value();
   object.values["name"] = executorInfo.name();
-  object.values["data"] = executorInfo.data();
   object.values["framework_id"] = executorInfo.framework_id().value();
   object.values["command"] = model(executorInfo.command());
   object.values["resources"] = model(executorInfo.resources());
