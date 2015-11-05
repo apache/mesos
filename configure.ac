@@ -1419,12 +1419,21 @@ if test "x$without_bundled_protobuf" = "xyes" || \
   fi
 
   # Check for protobuf.
-  # TODO(jieyu): Symbol _init is not available for libs on OS X.
-  # Consider checking lib using AX_CXX_CHECK_LIB.
-  AC_CHECK_HEADERS([google/protobuf/message.h],
-                   [AC_CHECK_LIB([protobuf],
-                                 [_init],
-                                 [found_protobuf=yes])])
+
+  AC_CHECK_HEADERS([google/protobuf/message.h], [found_protobuf=yes],
+                   [found_protobuf=no])
+
+  if test "x$found_protobuf" = "xyes"; then
+    saved_LIBS="$LIBS"
+    LIBS="-lprotobuf $LIBS"
+    AC_LANG_PUSH([C++])
+    AC_LINK_IFELSE([AC_LANG_PROGRAM([#include <google/protobuf/stubs/common.h>],
+                    [ google::protobuf::ShutdownProtobufLibrary(); ])],
+            [ found_protobuf=yes ],
+            [ found_protobuf=no ])
+    AC_LANG_POP()
+    LIBS="$saved_LIBS"
+  fi
 
   if test "x$found_protobuf" = "xyes"; then
     with_bundled_protobuf=no
