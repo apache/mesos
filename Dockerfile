@@ -15,7 +15,7 @@ MAINTAINER Gabriel Monroy <gabriel@opdemand.com>
 ENV DEBIAN_FRONTEND noninteractive
 RUN apt-get update
 RUN apt-get install -yq build-essential autoconf libtool zlib1g-dev
-RUN apt-get install -yq libcurl4-nss-dev libsasl2-dev
+RUN apt-get install -yq libcurl4-openssl-dev libsasl2-dev
 RUN apt-get install -yq openjdk-6-jdk maven
 RUN apt-get install -yq python-dev python-boto
 RUN apt-get install -yq libsvn-dev libapr1-dev
