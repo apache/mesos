@@ -3339,13 +3339,11 @@ TEST_F(MasterTest, TaskStatusContainerStatus)
 
   // Validate that the Slave has passed in its IP address in
   // TaskStatus.container_status.network_infos[0].ip_address.
-  EXPECT_TRUE(status.get().has_container_status());
-  EXPECT_EQ(1, status.get().container_status().network_infos().size());
-  EXPECT_TRUE(
-      status.get().container_status().network_infos(0).has_ip_address());
-  EXPECT_EQ(
-      slaveIPAddress,
-      status.get().container_status().network_infos(0).ip_address());
+  EXPECT_TRUE(status->has_container_status());
+  ContainerStatus containerStatus = status->container_status();
+  EXPECT_EQ(1, containerStatus.network_infos().size());
+  EXPECT_TRUE(containerStatus.network_infos(0).has_ip_address());
+  EXPECT_EQ(slaveIPAddress, containerStatus.network_infos(0).ip_address());
 
   // Now do the same validation with state endpoint.
   Future<process::http::Response> response =
@@ -3366,6 +3364,44 @@ TEST_F(MasterTest, TaskStatusContainerStatus)
       parse.get().find<JSON::String>(
           "frameworks[0].tasks[0].statuses[0]"
           ".container_status.network_infos[0].ip_address"));
+
+  // Now test for explicit reconciliation.
+  Future<TaskStatus> explicitReconciliationStatus;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&explicitReconciliationStatus));
+
+  // Send a task status to trigger explicit reconciliation.
+  TaskStatus taskStatus;
+  taskStatus.mutable_task_id()->CopyFrom(status->task_id());
+  // State is not checked by reconciliation, but is required to be
+  // a valid task status.
+  taskStatus.set_state(TASK_RUNNING);
+  driver.reconcileTasks({taskStatus});
+
+  AWAIT_READY(explicitReconciliationStatus);
+  EXPECT_EQ(TASK_RUNNING, explicitReconciliationStatus->state());
+  EXPECT_TRUE(explicitReconciliationStatus->has_container_status());
+
+  containerStatus = explicitReconciliationStatus->container_status();
+  EXPECT_EQ(1, containerStatus.network_infos().size());
+  EXPECT_TRUE(containerStatus.network_infos(0).has_ip_address());
+  EXPECT_EQ(slaveIPAddress, containerStatus.network_infos(0).ip_address());
+
+  Future<TaskStatus> implicitReconciliationStatus;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&implicitReconciliationStatus));
+
+  // Send an empty vector of task statuses to trigger implicit reconciliation.
+  driver.reconcileTasks({});
+
+  AWAIT_READY(implicitReconciliationStatus);
+  EXPECT_EQ(TASK_RUNNING, implicitReconciliationStatus->state());
+  EXPECT_TRUE(implicitReconciliationStatus->has_container_status());
+
+  containerStatus = implicitReconciliationStatus->container_status();
+  EXPECT_EQ(1, containerStatus.network_infos().size());
+  EXPECT_TRUE(containerStatus.network_infos(0).has_ip_address());
+  EXPECT_EQ(slaveIPAddress, containerStatus.network_infos(0).ip_address());
 
   EXPECT_CALL(exec, shutdown(_))
     .Times(AtMost(1));

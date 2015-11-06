@@ -66,7 +66,8 @@ StatusUpdate createStatusUpdate(
     const Option<TaskStatus::Reason>& reason = None(),
     const Option<ExecutorID>& executorId = None(),
     const Option<bool>& healthy = None(),
-    const Option<Labels>& labels = None());
+    const Option<Labels>& labels = None(),
+    const Option<ContainerStatus>& containerStatus = None());
 
 
 Task createTask(
@@ -76,6 +77,9 @@ Task createTask(
 
 
 Option<bool> getTaskHealth(const Task& task);
+
+
+Option<ContainerStatus> getTaskContainerStatus(const Task& task);
 
 
 // Helper function that creates a MasterInfo from UPID.

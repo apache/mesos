@@ -65,7 +65,8 @@ StatusUpdate createStatusUpdate(
     const Option<TaskStatus::Reason>& reason,
     const Option<ExecutorID>& executorId,
     const Option<bool>& healthy,
-    const Option<Labels>& labels)
+    const Option<Labels>& labels,
+    const Option<ContainerStatus>& containerStatus)
 {
   StatusUpdate update;
 
@@ -107,6 +108,10 @@ StatusUpdate createStatusUpdate(
 
   if (labels.isSome()) {
     status->mutable_labels()->CopyFrom(labels.get());
+  }
+
+  if (containerStatus.isSome()) {
+    status->mutable_container_status()->CopyFrom(containerStatus.get());
   }
 
   return update;
@@ -157,6 +162,23 @@ Option<bool> getTaskHealth(const Task& task)
   }
   return healthy;
 }
+
+
+Option<ContainerStatus> getTaskContainerStatus(const Task& task)
+{
+  // The statuses list only keeps the most recent TaskStatus for
+  // each state, and appends later states at the end. Let's find
+  // the most recent TaskStatus with a valid container_status.
+  for (auto status = task.statuses().rbegin();
+       status != task.statuses().rend();
+       ++status) {
+    if (status->has_container_status()) {
+      return status->container_status();
+    }
+  }
+  return None();
+}
+
 
 /**
  * Creates a MasterInfo protobuf from the process's UPID.
