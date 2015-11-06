@@ -73,8 +73,7 @@ public:
       const Option<Credentials>& creds);
 
   Future<Manifest> getManifest(
-      const string& path,
-      const Option<string>& tag,
+      const Image::Name& imageName,
       const Duration& timeout);
 
   Future<size_t> getBlob(
@@ -148,8 +147,7 @@ RegistryClient::~RegistryClient()
 
 
 Future<Manifest> RegistryClient::getManifest(
-    const string& _path,
-    const Option<string>& _tag,
+    const Image::Name& imageName,
     const Option<Duration>& _timeout)
 {
   Duration timeout = _timeout.getOrElse(DEFAULT_MANIFEST_TIMEOUT_SECS);
@@ -157,8 +155,7 @@ Future<Manifest> RegistryClient::getManifest(
   return dispatch(
       process_.get(),
       &RegistryClientProcess::getManifest,
-      _path,
-      _tag,
+      imageName,
       timeout);
 }
 
@@ -453,22 +450,12 @@ Future<http::Response> RegistryClientProcess::doHttpGet(
 
 
 Future<Manifest> RegistryClientProcess::getManifest(
-    const string& path,
-    const Option<string>& tag,
+    const Image::Name& imageName,
     const Duration& timeout)
 {
-  if (strings::contains(path, " ")) {
-    return Failure("Invalid repository path: " + path);
-  }
-
-  string repoTag = tag.getOrElse("latest");
-  if (strings::contains(repoTag, " ")) {
-    return Failure("Invalid repository tag: " + repoTag);
-  }
-
   http::URL manifestURL(registryServer_);
   manifestURL.path =
-    "v2/" + path + "/manifests/" + repoTag;
+    "v2/" + imageName.repository() + "/manifests/" + imageName.tag();
 
   auto getManifest = [](const http::Response& httpResponse) -> Try<Manifest> {
     if (!httpResponse.headers.contains("Docker-Content-Digest")) {

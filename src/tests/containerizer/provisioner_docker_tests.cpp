@@ -687,7 +687,9 @@ TEST_F(RegistryClientTest, SimpleGetManifest)
   ASSERT_SOME(registryClient);
 
   Future<Manifest> manifestResponseFuture =
-    registryClient.get()->getManifest("library/busybox", "latest", None());
+    registryClient.get()->getManifest(
+        parseImageName("library/busybox"),
+        None());
 
   const string unauthResponseHeaders = "Www-Authenticate: Bearer"
     " realm=\"https://auth.docker.io/token\","

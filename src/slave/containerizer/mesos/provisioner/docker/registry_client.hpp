@@ -31,6 +31,8 @@
 #include <process/http.hpp>
 #include <process/process.hpp>
 
+#include "slave/containerizer/mesos/provisioner/docker/message.hpp"
+
 namespace mesos {
 namespace internal {
 namespace slave {
@@ -97,18 +99,16 @@ public:
   /**
    * Fetches manifest for a repository from the client's remote registry server.
    *
-   * @param path path of the repository on the registry.
-   * @param tag unique tag that identifies the repository. Will default to
-   *    latest.
+   * @param imageName Image information(Name, tag).
    * @param timeout Maximum time ater which the request will timeout and return
    *    a failure. Will default to RESPONSE_TIMEOUT.
    * @return JSON object on success.
    *         Failure on process failure.
    */
   process::Future<Manifest> getManifest(
-      const std::string& path,
-      const Option<std::string>& tag,
+      const Image::Name& imageName,
       const Option<Duration>& timeout);
+
 
   /**
    * Fetches blob for a repository from the client's remote registry server.
