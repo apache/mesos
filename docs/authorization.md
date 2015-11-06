@@ -17,23 +17,23 @@ Authorization is implemented via Access Control Lists (ACLs). For each of the 3 
 
 Each ACL specifies a set of `Subjects` that can perform an `Action` on a set of `Objects`.
 
-The currently supported `Actions` are :
+The currently supported `Actions` are:
 
-1. "register_frameworks" : Register Frameworks
-2. "run_tasks" : Run tasks/executors
-3. "shutdown_frameworks" : Shutdown frameworks
+1. "register_frameworks": Register Frameworks
+2. "run_tasks": Run tasks/executors
+3. "shutdown_frameworks": Shutdown frameworks
 
-The currently supported `Subjects` are :
+The currently supported `Subjects` are:
 
 1. "principals"
 	- Framework principals (used by "register_frameworks" and "run_tasks" actions)
 	- Usernames (used by "shutdown_frameworks" action)
 
-The currently supported `Objects` are :
+The currently supported `Objects` are:
 
-1. "roles" : Resource roles that framework can register with (used by "register_frameworks" action)
-2. "users" : Unix user to launch the task/executor as (used by "run_tasks" action)
-3. "framework_principals" : Framework principals that can be shutdown by HTTP POST (used by "shutdown_frameworks" action).
+1. "roles": Resource [roles](roles.md) that framework can register with (used by "register_frameworks" action)
+2. "users": Unix user to launch the task/executor as (used by "run_tasks" action)
+3. "framework_principals": Framework principals that can be shutdown by HTTP POST (used by "shutdown_frameworks" action).
 
 > NOTE: Both `Subjects` and `Objects` can take a list of strings or special values (`ANY` or `NONE`).
 

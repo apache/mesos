@@ -46,6 +46,8 @@ The Mesos system can manage 3 different *types* of resources: scalars, ranges, a
 
     resourceRole : text | "*"
 
+Note that `resourceRole` must be one of the [roles](roles.md) that was defined when the Mesos master was started.
+
 ## Predefined Uses & Conventions
 
 The Mesos master has a few resources that it pre-defines in how it handles them.  At the current time, this list consist of:

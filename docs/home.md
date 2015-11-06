@@ -16,6 +16,7 @@ layout: documentation
 * [Mesos Containerizer](/documentation/latest/containerizer/) default containerizer, supports both Linux and POSIX systems.
 * [Docker Containerizer](/documentation/latest/docker-containerizer/) for launching a Docker image as a Task, or as an Executor.
 * [External Containerizer](/documentation/latest/external-containerizer/) for custom containerization implementations.
+* [Roles](/documentation/latest/roles/)
 * [Framework Authentication](/documentation/latest/authentication/)
 * [Framework Authorization](/documentation/latest/authorization/)
 * [Framework Rate Limiting](/documentation/latest/framework-rate-limiting/)

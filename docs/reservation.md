@@ -10,10 +10,7 @@ which enabled operators to specify the reserved resources on slave startup.
 This was extended with __dynamic reservation__ in 0.23.0 which enabled operators
 and authorized __frameworks__ to dynamically reserve resources in the cluster.
 
-No breaking changes were introduced with dynamic reservation, which means the
-existing static reservation mechanism continues to be fully supported.
-
-In both types of reservations, resources are reserved for a __role__.
+In both types of reservations, resources are reserved for a [__role__](roles.md).
 
 
 ## Static Reservation (since 0.14.0)
