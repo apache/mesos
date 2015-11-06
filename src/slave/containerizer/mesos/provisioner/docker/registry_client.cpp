@@ -52,8 +52,6 @@ using process::Process;
 
 namespace http = process::http;
 
-using http::URL;
-
 namespace mesos {
 namespace internal {
 namespace slave {
@@ -70,8 +68,8 @@ class RegistryClientProcess : public Process<RegistryClientProcess>
 {
 public:
   static Try<Owned<RegistryClientProcess>> create(
-      const URL& registry,
-      const URL& authServer,
+      const http::URL& registry,
+      const http::URL& authServer,
       const Option<Credentials>& creds);
 
   Future<Manifest> getManifest(
@@ -88,12 +86,12 @@ public:
 
 private:
   RegistryClientProcess(
-    const URL& registryServer,
+    const http::URL& registryServer,
     const Owned<TokenManager>& tokenManager,
     const Option<Credentials>& creds);
 
   Future<http::Response> doHttpGet(
-      const URL& url,
+      const http::URL& url,
       const Option<http::Headers>& headers,
       const Duration& timeout,
       bool resend,
@@ -102,7 +100,7 @@ private:
   Try<http::Headers> getAuthenticationAttributes(
       const http::Response& httpResponse) const;
 
-  const URL registryServer_;
+  const http::URL registryServer_;
   Owned<TokenManager> tokenManager_;
   const Option<Credentials> credentials_;
 
@@ -112,8 +110,8 @@ private:
 
 
 Try<Owned<RegistryClient>> RegistryClient::create(
-    const URL& registryServer,
-    const URL& authServer,
+    const http::URL& registryServer,
+    const http::URL& authServer,
     const Option<Credentials>& creds)
 {
   Try<Owned<RegistryClientProcess>> process =
@@ -129,8 +127,8 @@ Try<Owned<RegistryClient>> RegistryClient::create(
 
 
 RegistryClient::RegistryClient(
-    const URL& registryServer,
-    const URL& authServer,
+    const http::URL& registryServer,
+    const http::URL& authServer,
     const Option<Credentials>& creds,
     const Owned<RegistryClientProcess>& process)
   : registryServer_(registryServer),
@@ -187,8 +185,8 @@ Future<size_t> RegistryClient::getBlob(
 
 
 Try<Owned<RegistryClientProcess>> RegistryClientProcess::create(
-    const URL& registryServer,
-    const URL& authServer,
+    const http::URL& registryServer,
+    const http::URL& authServer,
     const Option<Credentials>& creds)
 {
   Try<Owned<TokenManager>> tokenMgr = TokenManager::create(authServer);
@@ -202,7 +200,7 @@ Try<Owned<RegistryClientProcess>> RegistryClientProcess::create(
 
 
 RegistryClientProcess::RegistryClientProcess(
-    const URL& registryServer,
+    const http::URL& registryServer,
     const Owned<TokenManager>& tokenMgr,
     const Option<Credentials>& creds)
   : registryServer_(registryServer),
@@ -258,7 +256,7 @@ Try<http::Headers> RegistryClientProcess::getAuthenticationAttributes(
 
 
 Future<http::Response> RegistryClientProcess::doHttpGet(
-    const URL& url,
+    const http::URL& url,
     const Option<http::Headers>& headers,
     const Duration& timeout,
     bool resend,
@@ -373,7 +371,7 @@ Future<http::Response> RegistryClientProcess::doHttpGet(
         // TODO(jojy): Add redirect functionality in http::get.
 
         auto toURL = [](
-            const string& urlString) -> Try<URL> {
+            const string& urlString) -> Try<http::URL> {
           // TODO(jojy): Need to add functionality to URL class that parses a
           // string to its URL components. For now, assuming:
           //  - scheme is https
@@ -413,7 +411,7 @@ Future<http::Response> RegistryClientProcess::doHttpGet(
             port = tryPort.get();
           }
 
-          return URL("https", domain, port, path);
+          return http::URL("https", domain, port, path);
         };
 
         if (httpResponse.headers.find("Location") ==
@@ -423,7 +421,7 @@ Future<http::Response> RegistryClientProcess::doHttpGet(
         }
 
         const string& location = httpResponse.headers.at("Location");
-        Try<URL> tryUrl = toURL(location);
+        Try<http::URL> tryUrl = toURL(location);
         if (tryUrl.isError()) {
           return Failure(
               "Failed to parse '" + location + "': " + tryUrl.error());
@@ -456,7 +454,7 @@ Future<Manifest> RegistryClientProcess::getManifest(
     return Failure("Invalid repository tag: " + repoTag);
   }
 
-  URL manifestURL(registryServer_);
+  http::URL manifestURL(registryServer_);
   manifestURL.path =
     "v2/" + path + "/manifests/" + repoTag;
 
@@ -614,7 +612,7 @@ Future<size_t> RegistryClientProcess::getBlob(
     return Failure("Invalid repository path: " + path);
   }
 
-  URL blobURL(registryServer_);
+  http::URL blobURL(registryServer_);
   blobURL.path =
     "v2/" + path + "/blobs/" + digest.getOrElse("");
 
