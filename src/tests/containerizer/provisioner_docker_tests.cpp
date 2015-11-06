@@ -686,7 +686,7 @@ TEST_F(RegistryClientTest, SimpleGetManifest)
 
   ASSERT_SOME(registryClient);
 
-  Future<Manifest> manifestResponseFuture =
+  Future<Manifest> manifestResponse =
     registryClient.get()->getManifest(parseImageName("library/busybox"));
 
   const string unauthResponseHeaders = "Www-Authenticate: Bearer"
@@ -702,16 +702,16 @@ TEST_F(RegistryClientTest, SimpleGetManifest)
   AWAIT_ASSERT_READY(socket);
 
   // Send 401 Unauthorized response for a manifest request.
-  Future<string> manifestHttpRequestFuture = Socket(socket.get()).recv();
-  AWAIT_ASSERT_READY(manifestHttpRequestFuture);
+  Future<string> manifestHttpRequest = Socket(socket.get()).recv();
+  AWAIT_ASSERT_READY(manifestHttpRequest);
   AWAIT_ASSERT_READY(Socket(socket.get()).send(unauthHttpResponse));
 
   // Token response.
   socket = server.get().accept();
   AWAIT_ASSERT_READY(socket);
 
-  Future<string> tokenRequestFuture = Socket(socket.get()).recv();
-  AWAIT_ASSERT_READY(tokenRequestFuture);
+  Future<string> tokenRequest = Socket(socket.get()).recv();
+  AWAIT_ASSERT_READY(tokenRequest);
 
   const string tokenResponse =
     "{\"token\":\"" + getDefaultTokenString() + "\"}";
@@ -729,10 +729,10 @@ TEST_F(RegistryClientTest, SimpleGetManifest)
   socket = server.get().accept();
   AWAIT_ASSERT_READY(socket);
 
-  manifestHttpRequestFuture = Socket(socket.get()).recv();
-  AWAIT_ASSERT_READY(manifestHttpRequestFuture);
+  manifestHttpRequest = Socket(socket.get()).recv();
+  AWAIT_ASSERT_READY(manifestHttpRequest);
 
-  const string manifestResponse = " \
+  const string manifestJSON = " \
     { \
       \"schemaVersion\": 1, \
       \"name\": \"library/busybox\", \
@@ -804,27 +804,27 @@ TEST_F(RegistryClientTest, SimpleGetManifest)
   const string manifestHttpResponse =
     string("HTTP/1.1 200 OK\r\n") +
     "Content-Length : " +
-    stringify(manifestResponse.length()) + "\r\n" +
+    stringify(manifestJSON.length()) + "\r\n" +
     "Docker-Content-Digest: "
     "sha256:df9e13f36d2d5b30c16bfbf2a6110c45ebed0bfa1ea42d357651bc6c736d5322"
     + "\r\n" +
     "\r\n" +
-    manifestResponse;
+    manifestJSON;
 
   AWAIT_ASSERT_READY(Socket(socket.get()).send(manifestHttpResponse));
 
-  AWAIT_ASSERT_READY(manifestResponseFuture);
+  AWAIT_ASSERT_READY(manifestResponse);
 
   ASSERT_EQ(
-      manifestResponseFuture.get().fsLayerInfos[2].layerId,
+      manifestResponse.get().fsLayerInfos[2].layerId,
       "1ce2e90b0bc7224de3db1f0d646fe8e2c4dd37f1793928287f6074bc451a57ea");
 
   ASSERT_EQ(
-      manifestResponseFuture.get().fsLayerInfos[1].layerId,
+      manifestResponse.get().fsLayerInfos[1].layerId,
       "2ce2e90b0bc7224de3db1f0d646fe8e2c4dd37f1793928287f6074bc451a57ea");
 
   ASSERT_EQ(
-      manifestResponseFuture.get().fsLayerInfos[0].layerId,
+      manifestResponse.get().fsLayerInfos[0].layerId,
       "3ce2e90b0bc7224de3db1f0d646fe8e2c4dd37f1793928287f6074bc451a57ea");
 }
 
@@ -856,7 +856,7 @@ TEST_F(RegistryClientTest, DISABLED_SimpleGetBlob)
 
   const Path blobPath(RegistryClientTest::OUTPUT_DIR + "/blob");
 
-  Future<size_t> resultFuture =
+  Future<size_t> result =
     registryClient.get()->getBlob(
         "/blob",
         "digest",
@@ -875,16 +875,16 @@ TEST_F(RegistryClientTest, DISABLED_SimpleGetBlob)
   AWAIT_ASSERT_READY(socket);
 
   // Send 401 Unauthorized response.
-  Future<string> blobHttpRequestFuture = Socket(socket.get()).recv();
-  AWAIT_ASSERT_READY(blobHttpRequestFuture);
+  Future<string> blobHttpRequest = Socket(socket.get()).recv();
+  AWAIT_ASSERT_READY(blobHttpRequest);
   AWAIT_ASSERT_READY(Socket(socket.get()).send(unauthHttpResponse));
 
   // Send token response.
   socket = server.get().accept();
   AWAIT_ASSERT_READY(socket);
 
-  Future<string> tokenRequestFuture = Socket(socket.get()).recv();
-  AWAIT_ASSERT_READY(tokenRequestFuture);
+  Future<string> tokenRequest = Socket(socket.get()).recv();
+  AWAIT_ASSERT_READY(tokenRequest);
 
   const string tokenResponse =
     "{\"token\":\"" + getDefaultTokenString() + "\"}";
@@ -902,8 +902,8 @@ TEST_F(RegistryClientTest, DISABLED_SimpleGetBlob)
   socket = server.get().accept();
   AWAIT_ASSERT_READY(socket);
 
-  blobHttpRequestFuture = Socket(socket.get()).recv();
-  AWAIT_ASSERT_READY(blobHttpRequestFuture);
+  blobHttpRequest = Socket(socket.get()).recv();
+  AWAIT_ASSERT_READY(blobHttpRequest);
 
   const string redirectHttpResponse =
     string("HTTP/1.1 307 Temporary Redirect\r\n") +
@@ -917,8 +917,8 @@ TEST_F(RegistryClientTest, DISABLED_SimpleGetBlob)
   socket = server.get().accept();
   AWAIT_ASSERT_READY(socket);
 
-  blobHttpRequestFuture = Socket(socket.get()).recv();
-  AWAIT_ASSERT_READY(blobHttpRequestFuture);
+  blobHttpRequest = Socket(socket.get()).recv();
+  AWAIT_ASSERT_READY(blobHttpRequest);
 
   const string blobResponse = stringify(Clock::now());
 
@@ -931,7 +931,7 @@ TEST_F(RegistryClientTest, DISABLED_SimpleGetBlob)
 
   AWAIT_ASSERT_READY(Socket(socket.get()).send(blobHttpResponse));
 
-  AWAIT_ASSERT_READY(resultFuture);
+  AWAIT_ASSERT_READY(result);
 
   Try<string> blob = os::read(blobPath);
   ASSERT_SOME(blob);
@@ -964,7 +964,7 @@ TEST_F(RegistryClientTest, BadRequest)
 
   const Path blobPath(RegistryClientTest::OUTPUT_DIR + "/blob");
 
-  Future<size_t> resultFuture =
+  Future<size_t> result =
     registryClient.get()->getBlob(
         "/blob",
         "digest",
@@ -982,14 +982,14 @@ TEST_F(RegistryClientTest, BadRequest)
   AWAIT_ASSERT_READY(socket);
 
   // Send 400 Bad Request.
-  Future<string> blobHttpRequestFuture = Socket(socket.get()).recv();
-  AWAIT_ASSERT_READY(blobHttpRequestFuture);
+  Future<string> blobHttpRequest = Socket(socket.get()).recv();
+  AWAIT_ASSERT_READY(blobHttpRequest);
   AWAIT_ASSERT_READY(Socket(socket.get()).send(badRequestHttpResponse));
 
-  AWAIT_FAILED(resultFuture);
+  AWAIT_FAILED(result);
 
-  ASSERT_TRUE(strings::contains(resultFuture.failure(), "Error1"));
-  ASSERT_TRUE(strings::contains(resultFuture.failure(), "Error2"));
+  ASSERT_TRUE(strings::contains(result.failure(), "Error1"));
+  ASSERT_TRUE(strings::contains(result.failure(), "Error2"));
 }
 
 
