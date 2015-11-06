@@ -230,10 +230,9 @@ Try<http::Headers> RegistryClientProcess::getAuthenticationAttributes(
     strings::tokenize(authStringTokens[1], ",");
 
   http::Headers authenticationAttributes;
-  auto addAttribute = [&authenticationAttributes](
-      const string& param) -> Try<Nothing> {
-    const vector<string> paramTokens =
-      strings::tokenize(param, "=\"");
+
+  foreach (const string& param, authenticationParams) {
+    const vector<string> paramTokens = strings::tokenize(param, "=\"");
 
     if (paramTokens.size() != 2) {
       return Error(
@@ -242,15 +241,6 @@ Try<http::Headers> RegistryClientProcess::getAuthenticationAttributes(
     }
 
     authenticationAttributes.insert({paramTokens[0], paramTokens[1]});
-
-    return Nothing();
-  };
-
-  foreach (const string& param, authenticationParams) {
-    Try<Nothing> addRes = addAttribute(param);
-    if (addRes.isError()) {
-      return Error(addRes.error());
-    }
   }
 
   return authenticationAttributes;
@@ -616,24 +606,12 @@ Future<size_t> RegistryClientProcess::getBlob(
     const Option<string>& digest,
     const Path& filePath)
 {
-  auto prepare = ([&filePath]() -> Try<Nothing> {
-      const string dirName = filePath.dirname();
+  const string dirName = filePath.dirname();
 
-      // TODO(jojy): Return more state, for example - if the directory is new.
-      Try<Nothing> dirResult = os::mkdir(dirName, true);
-      if (dirResult.isError()) {
-        return Error(
-            "Failed to create directory to download blob: " +
-            dirResult.error());
-      }
-
-      return dirResult;
-  })();
-
-  // TODO(jojy): This currently leaves a residue in failure cases. Would be
-  // ideal if we can completely rollback.
-  if (prepare.isError()) {
-     return Failure(prepare.error());
+  Try<Nothing> mkdir = os::mkdir(dirName, true);
+  if (mkdir.isError()) {
+    return Failure(
+        "Failed to create directory to download blob: " + mkdir.error());
   }
 
   if (strings::contains(path, " ")) {
