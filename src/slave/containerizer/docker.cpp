@@ -583,15 +583,15 @@ Future<Nothing> DockerContainerizerProcess::_recover(
     foreachvalue (const ExecutorState& executor, framework.executors) {
       if (executor.info.isNone()) {
         LOG(WARNING) << "Skipping recovery of executor '" << executor.id
-                     << "' of framework " << framework.id
-                     << " because its info could not be recovered";
+                     << "' of framework '" << framework.id
+                     << "' because its info could not be recovered";
         continue;
       }
 
       if (executor.latest.isNone()) {
         LOG(WARNING) << "Skipping recovery of executor '" << executor.id
-                     << "' of framework " << framework.id
-                     << " because its latest run could not be recovered";
+                     << "' of framework '" << framework.id
+                     << "' because its latest run could not be recovered";
         continue;
       }
 
@@ -613,8 +613,8 @@ Future<Nothing> DockerContainerizerProcess::_recover(
 
       if (run.get().completed) {
         VLOG(1) << "Skipping recovery of executor '" << executor.id
-                << "' of framework " << framework.id
-                << " because its latest run "
+                << "' of framework '" << framework.id
+                << "' because its latest run "
                 << containerId << " is completed";
         continue;
       }
@@ -623,23 +623,23 @@ Future<Nothing> DockerContainerizerProcess::_recover(
       if (executorInfo.has_container() &&
           executorInfo.container().type() != ContainerInfo::DOCKER) {
         LOG(INFO) << "Skipping recovery of executor '" << executor.id
-                  << "' of framework " << framework.id
-                  << " because it was not launched from docker containerizer";
+                  << "' of framework '" << framework.id
+                  << "' because it was not launched from docker containerizer";
         continue;
       }
 
       if (!executorInfo.has_container() &&
           !existingContainers.contains(containerId)) {
         LOG(INFO) << "Skipping recovery of executor '" << executor.id
-                  << "' of framework " << framework.id
-                  << " because its executor is not marked as docker "
+                  << "' of framework '" << framework.id
+                  << "' because its executor is not marked as docker "
                   << "and the docker container doesn't exist";
         continue;
       }
 
       LOG(INFO) << "Recovering container '" << containerId
                 << "' for executor '" << executor.id
-                << "' of framework " << framework.id;
+                << "' of framework '" << framework.id << "'";
 
       // Create and store a container.
       Container* container = new Container(containerId);

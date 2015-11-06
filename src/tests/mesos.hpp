@@ -973,7 +973,7 @@ class MockDocker : public Docker
 public:
   MockDocker(
       const std::string& path,
-      const std::string &socket)
+      const std::string& socket)
     : Docker(path, socket)
   {
     EXPECT_CALL(*this, pull(_, _, _))
