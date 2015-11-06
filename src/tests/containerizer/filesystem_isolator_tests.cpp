@@ -122,7 +122,7 @@ public:
     if (!os::exists(rootDir)) {
       Try<Nothing> mkdir = os::mkdir(rootDir);
       if (mkdir.isError()) {
-        return Error("Failed to create root dir: " + mkdir.isError());
+        return Error("Failed to create root dir: " + mkdir.error());
       }
     }
 
