@@ -3028,6 +3028,15 @@ void Slave::forward(StatusUpdate update)
     return;
   }
 
+  // Ensure that task status uuid is set even if this update was sent by the
+  // status update manager after recovering a pre 0.23.x slave/executor driver's
+  // updates. This allows us to simplify the master code (in >= 0.27.0) to asume
+  // the uuid is always set for retryable updates.
+  CHECK(update.has_uuid())
+    << "Expecting updates without 'uuid' to have been rejected";
+
+  update.mutable_status()->set_uuid(update.uuid());
+
   // Update the status update state of the task and include the latest
   // state of the task in the status update.
   Framework* framework = getFramework(update.framework_id());
@@ -3047,9 +3056,6 @@ void Slave::forward(StatusUpdate update)
       }
 
       if (task != NULL) {
-        CHECK(update.has_uuid())
-          << "Expecting updates without 'uuid' to have been rejected";
-
         // We set the status update state of the task here because in
         // steady state master updates the status update state of the
         // task when it receives this update. If the master fails over,

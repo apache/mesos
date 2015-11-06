@@ -4368,7 +4368,9 @@ void Master::updateUnavailability(
 
 // TODO(vinod): Since 0.22.0, we can use 'from' instead of 'pid'
 // because the status updates will be sent by the slave.
-void Master::statusUpdate(const StatusUpdate& update, const UPID& pid)
+//
+// TODO(vinod): Add a benchmark test for status update handling.
+void Master::statusUpdate(StatusUpdate update, const UPID& pid)
 {
   ++metrics->messages_status_update;
 
@@ -4410,6 +4412,15 @@ void Master::statusUpdate(const StatusUpdate& update, const UPID& pid)
   }
 
   LOG(INFO) << "Status update " << update << " from slave " << *slave;
+
+  // We ensure that the uuid of task status matches the update's uuid, in case
+  // the task status uuid is not set by the slave.
+  //
+  // TODO(vinod): This can be `CHECK(update.status().has_uuid())` from 0.27.0
+  // since a >= 0.26.0 slave will always correctly set task status uuid.
+  if (update.has_uuid()) {
+    update.mutable_status()->set_uuid(update.uuid());
+  }
 
   // Forward the update to the framework.
   forward(update, pid, framework);

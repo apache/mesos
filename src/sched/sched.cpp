@@ -900,8 +900,9 @@ protected:
     // update uuid check here, until then we must still check for
     // this being sent from the driver (from == UPID()) or from
     // the master (pid == UPID()).
-    // TODO(vinod): Get rid of this logic in 0.25.0 because master
-    // and slave correctly set task status in 0.24.0.
+    //
+    // TODO(vinod): Get rid of this logic in 0.27.0 because master
+    // correctly sets task status since 0.26.0.
     if (!update.has_uuid() || update.uuid() == "") {
       status.clear_uuid();
     } else if (from == UPID() || pid == UPID()) {
