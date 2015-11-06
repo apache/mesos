@@ -104,8 +104,6 @@ private:
       const http::Response& httpResponse,
       const Option<http::Headers>& headers);
 
-  Try<Manifest> getManifestResponse(const http::Response& httpResponse);
-
   const http::URL registryServer_;
   Owned<TokenManager> tokenManager_;
   const Option<Credentials> credentials_;
@@ -464,34 +462,28 @@ Future<http::Response> RegistryClientProcess::doHttpGet(
 }
 
 
-Try<Manifest> RegistryClientProcess::getManifestResponse(
-    const http::Response& httpResponse)
+Try<Manifest> Manifest::create(const string& jsonString)
 {
-    if (!httpResponse.headers.contains("Docker-Content-Digest")) {
-      return Error("Docker-Content-Digest header missing in response");
+    Try<JSON::Object> manifestJSON = JSON::parse<JSON::Object>(jsonString);
+
+    if (manifestJSON.isError()) {
+      return Error(manifestJSON.error());
     }
 
-    Try<JSON::Object> responseJSON =
-      JSON::parse<JSON::Object>(httpResponse.body);
-
-    if (responseJSON.isError()) {
-      return Error(responseJSON.error());
-    }
-
-    Result<JSON::String> name = responseJSON.get().find<JSON::String>("name");
+    Result<JSON::String> name = manifestJSON.get().find<JSON::String>("name");
     if (name.isNone()) {
       return Error("Failed to find \"name\" in manifest response");
     }
 
     Result<JSON::Array> fsLayersJSON =
-      responseJSON.get().find<JSON::Array>("fsLayers");
+      manifestJSON.get().find<JSON::Array>("fsLayers");
 
     if (fsLayersJSON.isNone()) {
       return Error("Failed to find \"fsLayers\" in manifest response");
     }
 
     Result<JSON::Array> historyArray =
-      responseJSON.get().find<JSON::Array>("history");
+      manifestJSON.get().find<JSON::Array>("history");
 
     if (historyArray.isNone()) {
       return Error("Failed to find \"history\" in manifest response");
@@ -571,11 +563,7 @@ Try<Manifest> RegistryClientProcess::getManifestResponse(
           });
     }
 
-    return Manifest {
-      name.get().value,
-      httpResponse.headers.at("Docker-Content-Digest"),
-      fsLayers
-    };
+    return Manifest{name.get().value, fsLayers};
 }
 
 
@@ -589,8 +577,10 @@ Future<Manifest> RegistryClientProcess::getManifest(
   return doHttpGet(manifestURL, None(), true, None())
     .then(defer(self(), [this] (
         const http::Response& response) -> Future<Manifest> {
-      Try<Manifest> manifest = getManifestResponse(response);
+      // TODO(jojy): We dont use the digest that is returned in header.
+      // This is a good place to validate the manifest.
 
+      Try<Manifest> manifest = Manifest::create(response.body);
       if (manifest.isError()) {
         return Failure(
             "Failed to parse manifest response: " + manifest.error());

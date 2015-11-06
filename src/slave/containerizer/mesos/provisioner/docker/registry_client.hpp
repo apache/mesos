@@ -58,12 +58,14 @@ struct FileSystemLayerInfo
 /**
  * Response for a "GET Manifest" request.
  *
- * Reference: https://docs.docker.com/registry/spec/api
+ * Reference:
+ * https://github.com/docker/distribution/blob/master/docs/spec/manifest-v2-1.md
  */
 struct Manifest
 {
+  static Try<Manifest> create(const std::string& jsonString);
+
   const std::string name;
-  const std::string digest;
   const std::vector<FileSystemLayerInfo> fsLayerInfos;
 };
 
