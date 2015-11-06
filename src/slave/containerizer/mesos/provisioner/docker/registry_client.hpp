@@ -100,14 +100,11 @@ public:
    * Fetches manifest for a repository from the client's remote registry server.
    *
    * @param imageName Image information(Name, tag).
-   * @param timeout Maximum time ater which the request will timeout and return
-   *    a failure. Will default to RESPONSE_TIMEOUT.
-   * @return JSON object on success.
+   * @return Manifest on success.
    *         Failure on process failure.
    */
   process::Future<Manifest> getManifest(
-      const Image::Name& imageName,
-      const Option<Duration>& timeout);
+      const Image::Name& imageName);
 
 
   /**
@@ -116,8 +113,6 @@ public:
    * @param path path of the repository on the registry.
    * @param digest digest of the blob (from manifest).
    * @param filePath file path to store the fetched blob.
-   * @param timeout Maximum time ater which the request will timeout and return
-   *    a failure. Will default to RESPONSE_TIMEOUT.
    * @param maxSize Maximum size of the response thats acceptable. Will default
    *    to MAX_RESPONSE_SIZE.
    * @return size of downloaded blob on success.
@@ -126,9 +121,7 @@ public:
   process::Future<size_t> getBlob(
       const std::string& path,
       const Option<std::string>& digest,
-      const Path& filePath,
-      const Option<Duration>& timeout,
-      const Option<size_t>& maxSize);
+      const Path& filePath);
 
   ~RegistryClient();
 
@@ -138,9 +131,6 @@ private:
     const process::http::URL& authServer,
     const Option<Credentials>& credentials,
     const process::Owned<RegistryClientProcess>& process);
-
-  static const Duration DEFAULT_MANIFEST_TIMEOUT_SECS;
-  static const size_t DEFAULT_MANIFEST_MAXSIZE_BYTES;
 
   const process::http::URL registryServer_;
   const process::http::URL authServer_;

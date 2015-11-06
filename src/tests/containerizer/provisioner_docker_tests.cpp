@@ -687,9 +687,7 @@ TEST_F(RegistryClientTest, SimpleGetManifest)
   ASSERT_SOME(registryClient);
 
   Future<Manifest> manifestResponseFuture =
-    registryClient.get()->getManifest(
-        parseImageName("library/busybox"),
-        None());
+    registryClient.get()->getManifest(parseImageName("library/busybox"));
 
   const string unauthResponseHeaders = "Www-Authenticate: Bearer"
     " realm=\"https://auth.docker.io/token\","
@@ -818,7 +816,7 @@ TEST_F(RegistryClientTest, SimpleGetManifest)
   AWAIT_ASSERT_READY(manifestResponseFuture);
 
   ASSERT_EQ(
-      manifestResponseFuture.get().fsLayerInfos[0].layerId,
+      manifestResponseFuture.get().fsLayerInfos[2].layerId,
       "1ce2e90b0bc7224de3db1f0d646fe8e2c4dd37f1793928287f6074bc451a57ea");
 
   ASSERT_EQ(
@@ -826,7 +824,7 @@ TEST_F(RegistryClientTest, SimpleGetManifest)
       "2ce2e90b0bc7224de3db1f0d646fe8e2c4dd37f1793928287f6074bc451a57ea");
 
   ASSERT_EQ(
-      manifestResponseFuture.get().fsLayerInfos[2].layerId,
+      manifestResponseFuture.get().fsLayerInfos[0].layerId,
       "3ce2e90b0bc7224de3db1f0d646fe8e2c4dd37f1793928287f6074bc451a57ea");
 }
 
@@ -862,9 +860,7 @@ TEST_F(RegistryClientTest, DISABLED_SimpleGetBlob)
     registryClient.get()->getBlob(
         "/blob",
         "digest",
-        blobPath,
-        None(),
-        None());
+        blobPath);
 
   const string unauthResponseHeaders = "WWW-Authenticate: Bearer"
     " realm=\"https://auth.docker.io/token\","
@@ -972,9 +968,7 @@ TEST_F(RegistryClientTest, BadRequest)
     registryClient.get()->getBlob(
         "/blob",
         "digest",
-        blobPath,
-        None(),
-        None());
+        blobPath);
 
   const string badRequestResponse =
     "{\"errors\": [{\"message\": \"Error1\" }, {\"message\": \"Error2\"}]}";
