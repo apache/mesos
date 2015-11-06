@@ -24,7 +24,9 @@
 #include <stout/nothing.hpp>
 #include <stout/try.hpp>
 
+#ifdef __linux__
 #include "linux/fs.hpp"
+#endif // __linux__
 
 using std::cerr;
 using std::endl;
@@ -52,6 +54,7 @@ MesosContainerizerMount::Flags::Flags()
 
 int MesosContainerizerMount::execute()
 {
+#ifdef __linux__
   if (flags.operation.isNone()) {
     cerr << "Flag --operation is not specified" << endl;
     return 1;
@@ -81,6 +84,11 @@ int MesosContainerizerMount::execute()
   }
 
   return 0;
+#else
+  cerr << "Mount is only supported on Linux";
+
+  return 1;
+#endif // __linux__
 }
 
 } // namespace slave {
