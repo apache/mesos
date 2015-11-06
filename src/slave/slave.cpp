@@ -3030,8 +3030,8 @@ void Slave::forward(StatusUpdate update)
 
   // Ensure that task status uuid is set even if this update was sent by the
   // status update manager after recovering a pre 0.23.x slave/executor driver's
-  // updates. This allows us to simplify the master code (in >= 0.27.0) to asume
-  // the uuid is always set for retryable updates.
+  // updates. This allows us to simplify the master code (in >= 0.27.0) to
+  // assume the uuid is always set for retryable updates.
   CHECK(update.has_uuid())
     << "Expecting updates without 'uuid' to have been rejected";
 
