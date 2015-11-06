@@ -573,9 +573,10 @@ TEST_F(SlaveTest, GetExecutorInfo)
   EXPECT_NE(string::npos, executor.command().value().find("mesos-executor"));
 }
 
-// Ensure getExecutorInfo for mesos-executor gets the ContainerInfo, if
-// present.  This ensures the MesosContainerizer can get the NetworkInfo even
-// when using the command executor.
+
+// Ensure getExecutorInfo for mesos-executor gets the ContainerInfo,
+// if present. This ensures the MesosContainerizer can get the
+// NetworkInfo even when using the command executor.
 TEST_F(SlaveTest, GetExecutorInfoForTaskWithContainer)
 {
   TestContainerizer containerizer;
@@ -615,7 +616,7 @@ TEST_F(SlaveTest, GetExecutorInfoForTaskWithContainer)
 
   // Now assert that the executor has both the command and ContainerInfo
   EXPECT_TRUE(executor.command().shell());
-  // CommandInfo.container is not included.  In this test the ContainerInfo
+  // CommandInfo.container is not included. In this test the ContainerInfo
   // must be included in Executor.container (copied from TaskInfo.container).
   EXPECT_FALSE(executor.command().has_container());
   EXPECT_TRUE(executor.has_container());
@@ -625,10 +626,11 @@ TEST_F(SlaveTest, GetExecutorInfoForTaskWithContainer)
   EXPECT_EQ("public", executor.container().network_infos(0).groups(0));
 }
 
-// This tests ensures that MesosContainerizer will launch a command executor
-// even if it contains a ContainerInfo in the TaskInfo.  Prior to 0.26.0, this
-// was only used to launch Docker containers, so MesosContainerizer would fail
-// the launch.
+
+// This tests ensures that MesosContainerizer will launch a command
+// executor even if it contains a ContainerInfo in the TaskInfo.
+// Prior to 0.26.0, this was only used to launch Docker containers, so
+// MesosContainerizer would fail the launch.
 TEST_F(SlaveTest, LaunchTaskInfoWithContainerInfo)
 {
   Try<PID<Master>> master = StartMaster();
