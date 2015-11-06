@@ -6003,16 +6003,8 @@ void Master::updateTask(Task* task, const StatusUpdate& update)
   // Get the unacknowledged status.
   const TaskStatus& status = update.status();
 
-  // Once a task's state has been transitioned to terminal state, no further
-  // terminal updates should result in a state change. These are the same
-  // semantics that are enforced by the slave.
-  if (protobuf::isTerminalState(task->state())) {
-    LOG(ERROR) << "Ignoring status update for the terminated task "
-               << task->task_id()
-               << " (" << task->state() << " -> " << status.state() << ")"
-               << " of framework " << task->framework_id();
-    return;
-  }
+  // NOTE: Refer to comments on `StatusUpdate` message in messages.proto for
+  // the difference between `update.latest_state()` and `status.state()`.
 
   // Updates from the slave have 'latest_state' set.
   Option<TaskState> latestState;
@@ -6027,17 +6019,26 @@ void Master::updateTask(Task* task, const StatusUpdate& update)
     terminated = !protobuf::isTerminalState(task->state()) &&
                  protobuf::isTerminalState(latestState.get());
 
-    task->set_state(latestState.get());
+    // If the task has already transitioned to a terminal state,
+    // do not update its state.
+    if (!protobuf::isTerminalState(task->state())) {
+      task->set_state(latestState.get());
+    }
   } else {
     terminated = !protobuf::isTerminalState(task->state()) &&
                  protobuf::isTerminalState(status.state());
 
-    task->set_state(status.state());
+    // If the task has already transitioned to a terminal state, do not update
+    // its state. Note that we are being defensive here because this should not
+    // happen unless there is a bug in the master code.
+    if (!protobuf::isTerminalState(task->state())) {
+      task->set_state(status.state());
+    }
   }
 
   // Set the status update state and uuid for the task. Note that
   // master-generated updates are terminal and do not have a uuid
-  // (in which case the master also calls removeTask()).
+  // (in which case the master also calls `removeTask()`).
   if (update.has_uuid()) {
     task->set_status_update_state(status.state());
     task->set_status_update_uuid(update.uuid());
