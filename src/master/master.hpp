@@ -111,7 +111,7 @@ struct Slave
   Slave(const SlaveInfo& _info,
         const process::UPID& _pid,
         const MachineID& _machineId,
-        const Option<std::string> _version,
+        const std::string& _version,
         const process::Time& _registeredTime,
         const Resources& _checkpointedResources,
         const std::vector<ExecutorInfo> executorInfos =
@@ -303,10 +303,8 @@ struct Slave
 
   process::UPID pid;
 
-  // The Mesos version of the slave. If set, the slave is >= 0.21.0.
   // TODO(bmahler): Use stout's Version when it can parse labels, etc.
-  // TODO(bmahler): Make this required once it is always set.
-  const Option<std::string> version;
+  const std::string version;
 
   process::Time registeredTime;
   Option<process::Time> reregisteredTime;

@@ -295,10 +295,8 @@ JSON::Object summarize(const Slave& slave)
 
   object.values["attributes"] = model(slave.info.attributes());
   object.values["active"] = slave.active;
+  object.values["version"] = slave.version;
 
-  if (slave.version.isSome()) {
-    object.values["version"] = slave.version.get();
-  }
   return object;
 }
 

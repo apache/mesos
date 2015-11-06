@@ -3906,7 +3906,7 @@ void Master::_registerSlave(
         slaveInfo,
         pid,
         machineId,
-        version.empty() ? Option<string>::none() : version,
+        version,
         Clock::now(),
         checkpointedResources);
 
@@ -4147,7 +4147,7 @@ void Master::_reregisterSlave(
         slaveInfo,
         pid,
         machineId,
-        version.empty() ? Option<string>::none() : version,
+        version,
         Clock::now(),
         checkpointedResources,
         executorInfos,
@@ -5243,51 +5243,27 @@ void Master::reconcile(
         LOG(WARNING) << "Task " << task->task_id()
                      << " of framework " << task->framework_id()
                      << " unknown to the slave " << *slave
-                     << " during re-registration"
-                     << (slave->version.isSome()
-                         ? ": reconciling with the slave"
-                         : ": sending TASK_LOST");
+                     << " during re-registration : reconciling with the slave";
 
-        if (slave->version.isSome()) {
-          // NOTE: Currently the slave doesn't look at the task state
-          // when it reconciles the task state; we include the correct
-          // state for correctness and consistency.
-          const TaskState& state = task->has_status_update_state()
-              ? task->status_update_state()
-              : task->state();
+        // NOTE: Currently the slave doesn't look at the task state
+        // when it reconciles the task state; we include the correct
+        // state for correctness and consistency.
+        const TaskState& state = task->has_status_update_state()
+            ? task->status_update_state()
+            : task->state();
 
-          TaskStatus* status = reconcile.add_statuses();
-          status->mutable_task_id()->CopyFrom(task->task_id());
-          status->mutable_slave_id()->CopyFrom(slave->id);
-          status->set_state(state);
-          status->set_source(TaskStatus::SOURCE_MASTER);
-          status->set_message("Reconciliation request");
-          status->set_reason(TaskStatus::REASON_RECONCILIATION);
-          status->set_timestamp(Clock::now().secs());
-        } else {
-          // TODO(bmahler): Remove this case in 0.22.0.
-          const StatusUpdate& update = protobuf::createStatusUpdate(
-              task->framework_id(),
-              slave->id,
-              task->task_id(),
-              TASK_LOST,
-              TaskStatus::SOURCE_MASTER,
-              None(),
-              "Task is unknown to the slave",
-              TaskStatus::REASON_TASK_UNKNOWN);
-
-          updateTask(task, update);
-          removeTask(task);
-
-          Framework* framework = getFramework(frameworkId);
-          if (framework != NULL) {
-            forward(update, UPID(), framework);
-          }
-        }
+        TaskStatus* status = reconcile.add_statuses();
+        status->mutable_task_id()->CopyFrom(task->task_id());
+        status->mutable_slave_id()->CopyFrom(slave->id);
+        status->set_state(state);
+        status->set_source(TaskStatus::SOURCE_MASTER);
+        status->set_message("Reconciliation request");
+        status->set_reason(TaskStatus::REASON_RECONCILIATION);
+        status->set_timestamp(Clock::now().secs());
       }
     }
 
-    if (slave->version.isSome() && reconcile.statuses_size() > 0) {
+    if (reconcile.statuses_size() > 0) {
       reregistered.add_reconciliations()->CopyFrom(reconcile);
     }
   }
