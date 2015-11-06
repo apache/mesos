@@ -67,8 +67,8 @@ class RegistryClientProcess : public Process<RegistryClientProcess>
 public:
   static Try<Owned<RegistryClientProcess>> create(
       const http::URL& registry,
-      const http::URL& authServer,
-      const Option<Credentials>& creds);
+      const http::URL& authenticationServer,
+      const Option<Credentials>& credentials);
 
   Future<Manifest> getManifest(
       const Image::Name& imageName);
@@ -82,7 +82,7 @@ private:
   RegistryClientProcess(
       const http::URL& registryServer,
       const Owned<TokenManager>& tokenManager,
-      const Option<Credentials>& creds);
+      const Option<Credentials>& credentials);
 
   Future<http::Response> doHttpGet(
       const http::URL& url,
@@ -117,29 +117,36 @@ private:
 
 Try<Owned<RegistryClient>> RegistryClient::create(
     const http::URL& registryServer,
-    const http::URL& authServer,
-    const Option<Credentials>& creds)
+    const http::URL& authorizationServer,
+    const Option<Credentials>& credentials)
 {
   Try<Owned<RegistryClientProcess>> process =
-    RegistryClientProcess::create(authServer, registryServer, creds);
+    RegistryClientProcess::create(
+        registryServer,
+        authorizationServer,
+        credentials);
 
   if (process.isError()) {
     return Error(process.error());
   }
 
   return Owned<RegistryClient>(
-      new RegistryClient(authServer, registryServer, creds, process.get()));
+      new RegistryClient(
+          registryServer,
+          authorizationServer,
+          credentials,
+          process.get()));
 }
 
 
 RegistryClient::RegistryClient(
     const http::URL& registryServer,
-    const http::URL& authServer,
-    const Option<Credentials>& creds,
+    const http::URL& authorizationServer,
+    const Option<Credentials>& credentials,
     const Owned<RegistryClientProcess>& process)
   : registryServer_(registryServer),
-    authServer_(authServer),
-    credentials_(creds),
+    authorizationServer_(authorizationServer),
+    credentials_(credentials),
     process_(process)
 {
   spawn(CHECK_NOTNULL(process_.get()));
@@ -179,28 +186,29 @@ Future<size_t> RegistryClient::getBlob(
 
 Try<Owned<RegistryClientProcess>> RegistryClientProcess::create(
     const http::URL& registryServer,
-    const http::URL& authServer,
-    const Option<Credentials>& creds)
+    const http::URL& authorizationServer,
+    const Option<Credentials>& credentials)
 {
-  Try<Owned<TokenManager>> tokenMgr = TokenManager::create(authServer);
+  Try<Owned<TokenManager>> tokenMgr = TokenManager::create(authorizationServer);
   if (tokenMgr.isError()) {
     return Error("Failed to create token manager: " + tokenMgr.error());
   }
 
   return Owned<RegistryClientProcess>(
-      new RegistryClientProcess(registryServer, tokenMgr.get(), creds));
+      new RegistryClientProcess(registryServer, tokenMgr.get(), credentials));
 }
 
 
 RegistryClientProcess::RegistryClientProcess(
     const http::URL& registryServer,
     const Owned<TokenManager>& tokenMgr,
-    const Option<Credentials>& creds)
+    const Option<Credentials>& credentials)
   : registryServer_(registryServer),
     tokenManager_(tokenMgr),
-    credentials_(creds) {}
+    credentials_(credentials) {}
 
 
+// RFC6750, section 3.
 Try<http::Headers> RegistryClientProcess::getAuthenticationAttributes(
     const http::Response& httpResponse) const
 {
@@ -218,10 +226,11 @@ Try<http::Headers> RegistryClientProcess::getAuthenticationAttributes(
     return Error("Invalid authentication header value: " + authString);
   }
 
-  const vector<string> authParams = strings::tokenize(authStringTokens[1], ",");
+  const vector<string> authenticationParams =
+    strings::tokenize(authStringTokens[1], ",");
 
-  http::Headers authAttributes;
-  auto addAttribute = [&authAttributes](
+  http::Headers authenticationAttributes;
+  auto addAttribute = [&authenticationAttributes](
       const string& param) -> Try<Nothing> {
     const vector<string> paramTokens =
       strings::tokenize(param, "=\"");
@@ -232,19 +241,19 @@ Try<http::Headers> RegistryClientProcess::getAuthenticationAttributes(
           param);
     }
 
-    authAttributes.insert({paramTokens[0], paramTokens[1]});
+    authenticationAttributes.insert({paramTokens[0], paramTokens[1]});
 
     return Nothing();
   };
 
-  foreach (const string& param, authParams) {
+  foreach (const string& param, authenticationParams) {
     Try<Nothing> addRes = addAttribute(param);
     if (addRes.isError()) {
       return Error(addRes.error());
     }
   }
 
-  return authAttributes;
+  return authenticationAttributes;
 }
 
 
@@ -252,22 +261,22 @@ Future<http::Response> RegistryClientProcess::handleHttpUnauthResponse(
     const http::Response& httpResponse,
     const http::URL& url)
 {
-  Try<http::Headers> authAttributes =
+  Try<http::Headers> authenticationAttributes =
     getAuthenticationAttributes(httpResponse);
 
-  if (authAttributes.isError()) {
+  if (authenticationAttributes.isError()) {
     return Failure(
         "Failed to get authentication attributes: " +
-        authAttributes.error());
+        authenticationAttributes.error());
   }
 
-  if (!authAttributes.get().contains("service")) {
+  if (!authenticationAttributes.get().contains("service")) {
     return Failure(
         "Failed to find authentication attribute \"service\" in response"
         "from authorization server");
   }
 
-  if (!authAttributes.get().contains("scope")) {
+  if (!authenticationAttributes.get().contains("scope")) {
     return Failure(
         "Failed to find authentication attribute \"scope\" in response"
         "from authorization server");
@@ -275,8 +284,8 @@ Future<http::Response> RegistryClientProcess::handleHttpUnauthResponse(
 
   // TODO(jojy): Currently only handling TLS/cert authentication.
   Future<Token> tokenResponse = tokenManager_->getToken(
-      authAttributes.get().at("service"),
-      authAttributes.get().at("scope"),
+      authenticationAttributes.get().at("service"),
+      authenticationAttributes.get().at("scope"),
       None());
 
   return tokenResponse

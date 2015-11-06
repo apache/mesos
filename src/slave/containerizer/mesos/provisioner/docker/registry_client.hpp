@@ -86,14 +86,14 @@ public:
    * Factory method for creating RegistryClient objects.
    *
    * @param registryServer URL of docker registry server.
-   * @param authServer URL of authorization server.
+   * @param authorizationServer URL of authorization server.
    * @param credentials credentials for client session (optional).
    * @return RegistryClient on Success.
    *         Error on failure.
    */
   static Try<process::Owned<RegistryClient>> create(
       const process::http::URL& registryServer,
-      const process::http::URL& authServer,
+      const process::http::URL& authorizationServer,
       const Option<Credentials>& credentials);
 
   /**
@@ -128,12 +128,12 @@ public:
 private:
   RegistryClient(
     const process::http::URL& registryServer,
-    const process::http::URL& authServer,
+    const process::http::URL& authorizationServer,
     const Option<Credentials>& credentials,
     const process::Owned<RegistryClientProcess>& process);
 
   const process::http::URL registryServer_;
-  const process::http::URL authServer_;
+  const process::http::URL authorizationServer_;
   const Option<Credentials> credentials_;
   process::Owned<RegistryClientProcess> process_;
 
