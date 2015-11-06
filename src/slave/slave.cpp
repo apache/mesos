@@ -3346,6 +3346,10 @@ ExecutorInfo Slave::getExecutorInfo(
         executor.mutable_command()->add_arguments(
             "--sandbox_directory=" + flags.sandbox_directory);
 
+        // NOTE: if switch_user flag is false and the slave runs under
+        // a non-root user, the task will be rejected by the Posix
+        // filesystem isolator. Linux filesystem isolator requires slave
+        // to have root permission.
         if (flags.switch_user) {
           Option<string> user;
           if (task.command().has_user()) {
