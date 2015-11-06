@@ -56,26 +56,27 @@ public:
       return Error("Not an absolute path");
     }
 
+    std::string dirname = Path(path).dirname();
+    std::string target = path::join(root, dirname);
+
+    if (!os::exists(target)) {
+      Try<Nothing> mkdir = os::mkdir(target);
+      if (mkdir.isError()) {
+        return Error("Failed to create directory in rootfs: " +
+                     mkdir.error());
+      }
+    }
+
     // TODO(jieyu): Make sure 'path' is not under 'root'.
 
     if (os::stat::isdir(path)) {
-      if (os::system("cp -r '" + path + "' '" + root + "'") != 0) {
-        return ErrnoError("Failed to copy '" + path + "' to rootfs");
-      }
-    } else if (os::stat::isfile(path)) {
-      std::string dirname = Path(path).dirname();
-      std::string target = path::join(root, dirname);
-
-      Try<Nothing> mkdir = os::mkdir(target);
-      if (mkdir.isError()) {
-        return Error("Failed to create directory in rootfs: " + mkdir.error());
-      }
-
-      if (os::system("cp '" + path + "' '" + target + "'") != 0) {
+      if (os::system("cp -r '" + path + "' '" + target + "'") != 0) {
         return ErrnoError("Failed to copy '" + path + "' to rootfs");
       }
     } else {
-      return Error("Unsupported file or directory");
+      if (os::system("cp '" + path + "' '" + target + "'") != 0) {
+        return ErrnoError("Failed to copy '" + path + "' to rootfs");
+      }
     }
 
     return Nothing();
@@ -124,6 +125,14 @@ public:
       if (result.isError()) {
         return Error("Failed to add '" + realpath.get() +
                      "' to rootfs: " + result.error());
+      }
+
+      if (os::stat::islink(directory)) {
+        result = rootfs->add(directory);
+        if (result.isError()) {
+          return Error("Failed to add '" + directory + "' to rootfs: " +
+                       result.error());
+        }
       }
     }
 
