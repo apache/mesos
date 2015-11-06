@@ -1282,6 +1282,7 @@ message RateLimits {
 message Image {
   enum Type {
     APPC = 1;
+    DOCKER = 2;
   }
 
   // Protobuf for specifying an Appc container image. See:
@@ -1300,11 +1301,20 @@ message Image {
     optional Labels labels = 3;
   }
 
+  message Docker {
+    // The name of the image. Expected format:
+    //   [REGISTRY_HOST[:REGISTRY_PORT]/]REPOSITORY[:TAG|@TYPE:DIGEST]
+    //
+    // See: https://docs.docker.com/reference/commandline/pull/
+    required string name = 1;
+  }
+
   required Type type = 1;
 
   // Only one of the following image messages should be set to match
   // the type.
   optional AppC appc = 2;
+  optional Docker docker = 3;
 }
 
 
