@@ -573,6 +573,134 @@ TEST_F(SlaveTest, GetExecutorInfo)
   EXPECT_NE(string::npos, executor.command().value().find("mesos-executor"));
 }
 
+// Ensure getExecutorInfo for mesos-executor gets the ContainerInfo, if
+// present.  This ensures the MesosContainerizer can get the NetworkInfo even
+// when using the command executor.
+TEST_F(SlaveTest, GetExecutorInfoForTaskWithContainer)
+{
+  TestContainerizer containerizer;
+  StandaloneMasterDetector detector;
+
+  MockSlave slave(CreateSlaveFlags(), &detector, &containerizer);
+
+  // Launch a task with the command executor and ContainerInfo with
+  // NetworkInfo.
+  TaskInfo task;
+  task.set_name("task");
+  task.mutable_task_id()->set_value("1");
+  task.mutable_slave_id()->set_value(
+      "20141010-221431-251662764-60288-12345-0001");
+  task.mutable_resources()->MergeFrom(
+      Resources::parse("cpus:0.1;mem:32").get());
+
+  CommandInfo command;
+  command.set_shell(false);
+  command.set_value("/bin/echo");
+  command.add_arguments("/bin/echo");
+  command.add_arguments("--author");
+
+  task.mutable_command()->MergeFrom(command);
+
+  ContainerInfo *container = task.mutable_container();
+  container->set_type(ContainerInfo::MESOS);
+
+  NetworkInfo *network = container->add_network_infos();
+  network->set_ip_address("4.3.2.1");
+  network->add_groups("public");
+
+  FrameworkInfo frameworkInfo;
+  frameworkInfo.mutable_id()->set_value(
+      "20141010-221431-251662764-60288-12345-0000");
+  const ExecutorInfo& executor = slave.getExecutorInfo(frameworkInfo, task);
+
+  // Now assert that the executor has both the command and ContainerInfo
+  EXPECT_TRUE(executor.command().shell());
+  // CommandInfo.container is not included.  In this test the ContainerInfo
+  // must be included in Executor.container (copied from TaskInfo.container).
+  EXPECT_FALSE(executor.command().has_container());
+  EXPECT_TRUE(executor.has_container());
+
+  EXPECT_EQ("4.3.2.1", executor.container().network_infos(0).ip_address());
+  EXPECT_EQ(1, executor.container().network_infos(0).groups_size());
+  EXPECT_EQ("public", executor.container().network_infos(0).groups(0));
+}
+
+// This tests ensures that MesosContainerizer will launch a command executor
+// even if it contains a ContainerInfo in the TaskInfo.  Prior to 0.26.0, this
+// was only used to launch Docker containers, so MesosContainerizer would fail
+// the launch.
+TEST_F(SlaveTest, LaunchTaskInfoWithContainerInfo)
+{
+  Try<PID<Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  // Need flags for 'executor_registration_timeout'.
+  slave::Flags flags = CreateSlaveFlags();
+  flags.isolation = "posix/cpu,posix/mem";
+
+  Fetcher fetcher;
+
+  Try<MesosContainerizer*> containerizer =
+    MesosContainerizer::create(flags, false, &fetcher);
+  CHECK_SOME(containerizer);
+
+  StandaloneMasterDetector detector;
+  MockSlave slave(flags, &detector, containerizer.get());
+
+  // Launch a task with the command executor and ContainerInfo with
+  // NetworkInfo.
+  TaskInfo task;
+  task.set_name("task");
+  task.mutable_task_id()->set_value("1");
+  task.mutable_slave_id()->set_value(
+      "20141010-221431-251662764-60288-12345-0001");
+  task.mutable_resources()->MergeFrom(
+      Resources::parse("cpus:0.1;mem:32").get());
+
+  CommandInfo command;
+  command.set_shell(false);
+  command.set_value("/bin/echo");
+  command.add_arguments("/bin/echo");
+  command.add_arguments("--author");
+
+  task.mutable_command()->MergeFrom(command);
+
+  ContainerID containerId;
+  containerId.set_value(UUID::random().toString());
+  ContainerInfo *container = task.mutable_container();
+  container->set_type(ContainerInfo::MESOS);
+
+  NetworkInfo *network = container->add_network_infos();
+  network->set_ip_address("4.3.2.1");
+  network->add_groups("public");
+
+  FrameworkInfo frameworkInfo;
+  frameworkInfo.mutable_id()->set_value(
+      "20141010-221431-251662764-60288-12345-0000");
+  const ExecutorInfo& executor = slave.getExecutorInfo(frameworkInfo, task);
+
+  Future<bool> result;
+  SlaveID slaveID;
+  slaveID.set_value(UUID::random().toString());
+  result = containerizer.get()->launch(
+      containerId,
+      task,
+      executor,
+      "/tmp",
+      "test",
+      slaveID,
+      slave.self(),
+      false);
+  AWAIT_READY(result);
+
+  // TODO(spikecurtis): With agent capabilities (MESOS-3362), the
+  // Containerizer should fail this request since none of the listed
+  // isolators can handle NetworkInfo, which implies
+  // IP-per-container.
+  EXPECT_TRUE(result.get());
+  Shutdown(); // Must shutdown before 'containerizer' gets deallocated.
+}
+
 
 // This test runs a command without the command user field set. The
 // command will verify the assumption that the command is run as the
