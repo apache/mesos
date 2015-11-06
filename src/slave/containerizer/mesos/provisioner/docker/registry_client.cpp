@@ -339,6 +339,18 @@ Future<http::Response> RegistryClientProcess::doHttpGet(
               authAttributes.error());
         }
 
+        if (!authAttributes.get().contains("service")) {
+          return Failure(
+              "Failed to find authentication attribute \"service\" in response"
+              "from authorization server");
+        }
+
+        if (!authAttributes.get().contains("scope")) {
+          return Failure(
+              "Failed to find authentication attribute \"scope\" in response"
+              "from authorization server");
+        }
+
         // TODO(jojy): Currently only handling TLS/cert authentication.
         Future<Token> tokenResponse = tokenManager_->getToken(
           authAttributes.get().at("service"),
