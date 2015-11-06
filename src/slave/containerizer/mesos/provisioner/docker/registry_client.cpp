@@ -94,15 +94,15 @@ private:
       const http::Response& httpResponse) const;
 
   Future<http::Response> handleHttpBadResponse(
-      const http::Response& httpResponse);
+      const http::Response& httpResponse) const;
 
   Future<http::Response> handleHttpUnauthResponse(
       const http::Response& httpResponse,
-      const http::URL& url);
+      const http::URL& url) const;
 
   Future<http::Response> handleHttpRedirect(
       const http::Response& httpResponse,
-      const Option<http::Headers>& headers);
+      const Option<http::Headers>& headers) const;
 
   const http::URL registryServer_;
   Owned<TokenManager> tokenManager_;
@@ -247,7 +247,7 @@ Try<http::Headers> RegistryClientProcess::getAuthenticationAttributes(
 
 Future<http::Response> RegistryClientProcess::handleHttpUnauthResponse(
     const http::Response& httpResponse,
-    const http::URL& url)
+    const http::URL& url) const
 {
   Try<http::Headers> authenticationAttributes =
     getAuthenticationAttributes(httpResponse);
@@ -293,7 +293,7 @@ Future<http::Response> RegistryClientProcess::handleHttpUnauthResponse(
 
 
 Future<http::Response> RegistryClientProcess::handleHttpBadResponse(
-    const http::Response& httpResponse)
+    const http::Response& httpResponse) const
 {
   Try<JSON::Object> errorResponse =
     JSON::parse<JSON::Object>(httpResponse.body);
@@ -348,7 +348,7 @@ Future<http::Response> RegistryClientProcess::handleHttpBadResponse(
 
 Future<http::Response> RegistryClientProcess::handleHttpRedirect(
     const http::Response& httpResponse,
-    const Option<http::Headers>& headers)
+    const Option<http::Headers>& headers) const
 {
   // TODO(jojy): Add redirect functionality in http::get.
   auto toURL = [](
