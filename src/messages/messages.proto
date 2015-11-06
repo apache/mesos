@@ -82,12 +82,14 @@ message StatusUpdate {
   required FrameworkID framework_id = 1;
   optional ExecutorID executor_id = 2;
   optional SlaveID slave_id = 3;
+
+  // Since 0.23.0 we set 'status.uuid' in the executor
+  // driver for all retryable status updates.
   required TaskStatus status = 4;
+
   required double timestamp = 5;
 
-  // This is being deprecated in favor of TaskStatus.uuid. In 0.23.0,
-  // we set the TaskStatus 'uuid' in the executor driver for all
-  // retryable status updates.
+  // Since 0.26.0 this is deprecated in favor of 'status.uuid'.
   optional bytes uuid = 6;
 
   // This corresponds to the latest state of the task according to the
