@@ -159,7 +159,6 @@ stout_tests_SOURCES =				\
   $(STOUT)/tests/bits_tests.cpp			\
   $(STOUT)/tests/bytes_tests.cpp		\
   $(STOUT)/tests/cache_tests.cpp		\
-  $(STOUT)/tests/svn_tests.cpp			\
   $(STOUT)/tests/duration_tests.cpp		\
   $(STOUT)/tests/dynamiclibrary_tests.cpp	\
   $(STOUT)/tests/error_tests.cpp		\
@@ -190,6 +189,7 @@ stout_tests_SOURCES =				\
   $(STOUT)/tests/some_tests.cpp			\
   $(STOUT)/tests/strings_tests.cpp		\
   $(STOUT)/tests/subcommand_tests.cpp		\
+  $(STOUT)/tests/svn_tests.cpp			\
   $(STOUT)/tests/try_tests.cpp			\
   $(STOUT)/tests/uuid_tests.cpp			\
   $(STOUT)/tests/version_tests.cpp

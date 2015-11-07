@@ -147,8 +147,8 @@ libprocess_tests_SOURCES =					\
   src/tests/io_tests.cpp					\
   src/tests/limiter_tests.cpp					\
   src/tests/main.cpp						\
-  src/tests/mutex_tests.cpp					\
   src/tests/metrics_tests.cpp					\
+  src/tests/mutex_tests.cpp					\
   src/tests/owned_tests.cpp					\
   src/tests/process_tests.cpp					\
   src/tests/queue_tests.cpp					\

@@ -37,13 +37,13 @@ nobase_include_HEADERS =		\
   process/limiter.hpp			\
   process/logging.hpp			\
   process/message.hpp			\
+  process/mime.hpp			\
+  process/mutex.hpp			\
   process/metrics/counter.hpp		\
   process/metrics/gauge.hpp		\
   process/metrics/metric.hpp		\
   process/metrics/metrics.hpp		\
   process/metrics/timer.hpp		\
-  process/mime.hpp			\
-  process/mutex.hpp			\
   process/network.hpp			\
   process/once.hpp			\
   process/owned.hpp			\
@@ -57,11 +57,11 @@ nobase_include_HEADERS =		\
   process/sequence.hpp			\
   process/shared.hpp			\
   process/socket.hpp			\
-  process/ssl/gtest.hpp			\
-  process/ssl/utilities.hpp		\
   process/statistics.hpp		\
   process/system.hpp			\
   process/subprocess.hpp		\
+  process/ssl/gtest.hpp			\
+  process/ssl/utilities.hpp		\
   process/time.hpp			\
   process/timeout.hpp			\
   process/timer.hpp			\
