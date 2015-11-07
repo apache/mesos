@@ -19,7 +19,7 @@
 #include "slave/containerizer/mesos/provisioner/docker/puller.hpp"
 
 #include "slave/containerizer/mesos/provisioner/docker/local_puller.hpp"
-#include "slave/containerizer/mesos/provisioner/docker/remote_puller.hpp"
+#include "slave/containerizer/mesos/provisioner/docker/registry_puller.hpp"
 
 using std::string;
 
@@ -38,10 +38,10 @@ Try<Owned<Puller>> Puller::create(const Flags& flags)
     return Owned<Puller>(new LocalPuller(flags));
   }
 
-  if (puller == "remote") {
-    Try<Owned<Puller>> puller = RemotePuller::create(flags);
+  if (puller == "registry") {
+    Try<Owned<Puller>> puller = RegistryPuller::create(flags);
     if (puller.isError()) {
-      return Error("Failed to create remote puller: " + puller.error());
+      return Error("Failed to create registry puller: " + puller.error());
     }
 
     return puller.get();

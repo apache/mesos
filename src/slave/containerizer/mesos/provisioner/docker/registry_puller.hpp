@@ -16,8 +16,8 @@
  * limitations under the License.
  */
 
-#ifndef __PROVISIONER_DOCKER_REMOTE_PULLER_HPP__
-#define __PROVISIONER_DOCKER_REMOTE_PULLER_HPP__
+#ifndef __PROVISIONER_DOCKER_REGISTRY_PULLER_HPP__
+#define __PROVISIONER_DOCKER_REGISTRY_PULLER_HPP__
 
 #include <list>
 #include <string>
@@ -39,23 +39,23 @@ namespace slave {
 namespace docker {
 
 // Forward declarations.
-class RemotePullerProcess;
+class RegistryPullerProcess;
 
 /*
  * Pulls an image from remote registry.
  */
-class RemotePuller : public Puller
+class RegistryPuller : public Puller
 {
 public:
   typedef std::pair<std::string, std::string> PulledLayerInfo;
   typedef std::list<PulledLayerInfo> PulledImageInfo;
 
   /**
-   * Factory method for creating RemotePuller.
+   * Factory method for creating RegistryPuller.
    */
   static Try<process::Owned<Puller>> create(const Flags& flags);
 
-  ~RemotePuller();
+  ~RegistryPuller();
 
   /**
    * Pulls an image into a download directory.
@@ -69,12 +69,12 @@ public:
 
 
 private:
-  RemotePuller(const process::Owned<RemotePullerProcess>& process);
+  RegistryPuller(const process::Owned<RegistryPullerProcess>& process);
 
-  process::Owned<RemotePullerProcess> process_;
+  process::Owned<RegistryPullerProcess> process_;
 
-  RemotePuller(const RemotePuller&) = delete;
-  RemotePuller& operator=(const RemotePuller&) = delete;
+  RegistryPuller(const RegistryPuller&) = delete;
+  RegistryPuller& operator=(const RegistryPuller&) = delete;
 };
 
 } // namespace docker {
@@ -82,4 +82,4 @@ private:
 } // namespace internal {
 } // namespace mesos {
 
-#endif //  __PROVISIONER_DOCKER_REMOTE_PULLER_HPP__
+#endif //  __PROVISIONER_DOCKER_REGISTRY_PULLER_HPP__

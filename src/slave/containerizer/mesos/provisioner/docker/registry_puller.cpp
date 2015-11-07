@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-#include "slave/containerizer/mesos/provisioner/docker/remote_puller.hpp"
+#include "slave/containerizer/mesos/provisioner/docker/registry_puller.hpp"
 
 #include <list>
 
@@ -52,10 +52,10 @@ using Manifest = registry::Manifest;
 using RegistryClient = registry::RegistryClient;
 
 
-class RemotePullerProcess : public Process<RemotePullerProcess>
+class RegistryPullerProcess : public Process<RegistryPullerProcess>
 {
 public:
-  static Try<Owned<RemotePullerProcess>> create(const Flags& flags);
+  static Try<Owned<RegistryPullerProcess>> create(const Flags& flags);
 
   process::Future<PulledImageInfo> pull(
       const Image::Name& imageName,
@@ -67,7 +67,7 @@ public:
   }
 
 private:
-  explicit RemotePullerProcess(
+  explicit RegistryPullerProcess(
       const Owned<RegistryClient>& registry,
       const Duration& timeout);
 
@@ -82,44 +82,45 @@ private:
   const Duration pullTimeout_;
   hashmap<string, Owned<Promise<PulledLayerInfo>>> downloadTracker_;
 
-  RemotePullerProcess(const RemotePullerProcess&) = delete;
-  RemotePullerProcess& operator=(const RemotePullerProcess&) = delete;
+  RegistryPullerProcess(const RegistryPullerProcess&) = delete;
+  RegistryPullerProcess& operator=(const RegistryPullerProcess&) = delete;
 };
 
 
-Try<Owned<Puller>> RemotePuller::create(const Flags& flags)
+Try<Owned<Puller>> RegistryPuller::create(const Flags& flags)
 {
-  Try<Owned<RemotePullerProcess>> process = RemotePullerProcess::create(flags);
+  Try<Owned<RegistryPullerProcess>> process =
+    RegistryPullerProcess::create(flags);
 
   if (process.isError()) {
     return Error(process.error());
   }
 
-  return Owned<Puller>(new RemotePuller(process.get()));
+  return Owned<Puller>(new RegistryPuller(process.get()));
 }
 
 
-RemotePuller::RemotePuller(const Owned<RemotePullerProcess>& process)
+RegistryPuller::RegistryPuller(const Owned<RegistryPullerProcess>& process)
   : process_(process)
 {
   spawn(CHECK_NOTNULL(process_.get()));
 }
 
 
-RemotePuller::~RemotePuller()
+RegistryPuller::~RegistryPuller()
 {
   terminate(process_.get());
   process::wait(process_.get());
 }
 
 
-Future<PulledImageInfo> RemotePuller::pull(
+Future<PulledImageInfo> RegistryPuller::pull(
     const Image::Name& imageName,
     const Path& downloadDir)
 {
   return dispatch(
       process_.get(),
-      &RemotePullerProcess::pull,
+      &RegistryPullerProcess::pull,
       imageName,
       downloadDir)
     // We have 'after' here because the local puller need not have a timeout.
@@ -137,7 +138,8 @@ Future<PulledImageInfo> RemotePuller::pull(
 }
 
 
-Try<Owned<RemotePullerProcess>> RemotePullerProcess::create(const Flags& flags)
+Try<Owned<RegistryPullerProcess>> RegistryPullerProcess::create(
+    const Flags& flags)
 {
   Result<double> timeoutSecs = numify<double>(flags.docker_puller_timeout_secs);
   if ((timeoutSecs.isError()) || (timeoutSecs.get() <= 0)) {
@@ -178,20 +180,20 @@ Try<Owned<RemotePullerProcess>> RemotePullerProcess::create(const Flags& flags)
     return Error("Failed to create registry client: " + registry.error());
   }
 
-  return Owned<RemotePullerProcess>(new RemotePullerProcess(
+  return Owned<RegistryPullerProcess>(new RegistryPullerProcess(
       registry.get(),
       Seconds(timeoutSecs.get())));
 }
 
 
-RemotePullerProcess::RemotePullerProcess(
+RegistryPullerProcess::RegistryPullerProcess(
     const Owned<RegistryClient>& registry,
     const Duration& timeout)
   : registryClient_(registry),
     pullTimeout_(timeout) {}
 
 
-Future<PulledLayerInfo> RemotePullerProcess::downloadLayer(
+Future<PulledLayerInfo> RegistryPullerProcess::downloadLayer(
     const string& remoteName,
     const Path& downloadDir,
     const FileSystemLayerInfo& layer)
@@ -252,7 +254,7 @@ Future<PulledLayerInfo> RemotePullerProcess::downloadLayer(
 }
 
 
-Try<Image::Name> RemotePullerProcess::getRemoteNameFromLocalName(
+Try<Image::Name> RegistryPullerProcess::getRemoteNameFromLocalName(
     const Image::Name& imageName)
 {
   //TODO(jojy): Canonical names could be something like "ubuntu14.04" but the
@@ -345,7 +347,7 @@ Future<Nothing> untar(const string& file, const string& directory)
 }
 
 
-Future<PulledImageInfo> RemotePullerProcess::pull(
+Future<PulledImageInfo> RegistryPullerProcess::pull(
     const Image::Name& imageName,
     const Path& downloadDir)
 {
