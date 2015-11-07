@@ -19,31 +19,11 @@
 #ifndef __TESTS_UTILS_HPP__
 #define __TESTS_UTILS_HPP__
 
-#include <gtest/gtest.h>
-
-#include <string>
-
 #include <stout/json.hpp>
-#include <stout/option.hpp>
 
 namespace mesos {
 namespace internal {
 namespace tests {
-
-// Test fixture for creating a temporary directory for each test.
-// TODO(vinod): Fold this into stout/tests/utils.hpp.
-class TemporaryDirectoryTest : public ::testing::Test
-{
-protected:
-  virtual void SetUp();
-  virtual void TearDown();
-
-  Option<std::string> sandbox;
-
-private:
-  std::string cwd;
-};
-
 
 // Get the metrics snapshot.
 // TODO(vinod): Move this into a libprocess utility header.

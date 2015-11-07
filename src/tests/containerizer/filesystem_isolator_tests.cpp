@@ -85,9 +85,28 @@ namespace internal {
 namespace tests {
 
 #ifdef __linux__
-class LinuxFilesystemIsolatorTest: public MesosTest
+class LinuxFilesystemIsolatorTest : public MesosTest
 {
-public:
+protected:
+  virtual void TearDown()
+  {
+    // Try to remove any mounts under sandbox.
+    if (::geteuid() == 0) {
+      Try<string> umount = os::shell(
+          "grep '%s' /proc/mounts | "
+          "cut -d' ' -f2 | "
+          "xargs --no-run-if-empty umount -l",
+          sandbox.get().c_str());
+
+      if (umount.isError()) {
+        LOG(ERROR) << "Failed to umount for sandbox '" << sandbox.get()
+                   << "': " << umount.error();
+      }
+    }
+
+    MesosTest::TearDown();
+  }
+
   // This helper creates a MesosContainerizer instance that uses the
   // LinuxFilesystemIsolator. The filesystem isolator takes a
   // TestAppcProvisioner which provisions APPC images by copying files

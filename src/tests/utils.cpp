@@ -16,10 +16,6 @@
  * limitations under the License.
  */
 
-#include <ctype.h>
-#include <stdlib.h>
-#include <unistd.h>
-
 #include <gtest/gtest.h>
 
 #include <process/future.hpp>
@@ -29,69 +25,13 @@
 #include <process/process.hpp>
 
 #include <stout/gtest.hpp>
-#include <stout/os.hpp>
-#include <stout/path.hpp>
-#include <stout/strings.hpp>
 
-#include "tests/environment.hpp"
 #include "tests/flags.hpp"
 #include "tests/utils.hpp"
-
-using std::string;
 
 namespace mesos {
 namespace internal {
 namespace tests {
-
-void TemporaryDirectoryTest::SetUp()
-{
-  // Save the current working directory.
-  cwd = os::getcwd();
-
-  // Create a temporary directory for the test.
-  Try<string> directory = environment->mkdtemp();
-
-  ASSERT_SOME(directory) << "Failed to mkdtemp";
-
-  sandbox = directory.get();
-
-  if (flags.verbose) {
-    std::cout << "Using temporary directory '"
-              << sandbox.get() << "'" << std::endl;
-  }
-
-  // Run the test out of the temporary directory we created.
-  ASSERT_SOME(os::chdir(sandbox.get()))
-    << "Failed to chdir into '" << sandbox.get() << "'";
-}
-
-
-void TemporaryDirectoryTest::TearDown()
-{
-  // Return to previous working directory and cleanup the sandbox.
-  ASSERT_SOME(os::chdir(cwd));
-
-  if (sandbox.isSome()) {
-#ifdef __linux__
-    // Try to remove any mounts under sandbox.
-    if (::geteuid() == 0) {
-      Try<string> umount = os::shell(
-          "grep '%s' /proc/mounts | "
-          "cut -d' ' -f2 | "
-          "xargs --no-run-if-empty umount -l",
-          sandbox.get().c_str());
-
-      if (umount.isError()) {
-        LOG(ERROR) << "Failed to umount for sandbox '" << sandbox.get()
-                   << "': " << umount.error();
-      }
-    }
-#endif
-
-    ASSERT_SOME(os::rmdir(sandbox.get()));
-  }
-}
-
 
 JSON::Object Metrics()
 {
