@@ -497,17 +497,17 @@ libmesos_no_3rdparty_la_SOURCES =						\
 	local/local.cpp								\
 	logging/flags.cpp							\
 	logging/logging.cpp							\
-	master/contender.cpp							\
 	master/constants.cpp							\
+	master/contender.cpp							\
 	master/detector.cpp							\
 	master/flags.cpp							\
 	master/http.cpp								\
 	master/maintenance.cpp							\
 	master/master.cpp							\
 	master/metrics.cpp							\
+	master/registrar.cpp							\
 	master/registry.hpp							\
 	master/registry.proto							\
-	master/registrar.cpp							\
 	master/repairer.cpp							\
 	master/validation.cpp							\
 	master/allocator/allocator.cpp						\
@@ -534,9 +534,9 @@ libmesos_no_3rdparty_la_SOURCES =						\
 	slave/state.cpp								\
 	slave/status_update_manager.cpp						\
 	slave/validation.cpp							\
-	slave/containerizer/containerizer.cpp					\
 	slave/containerizer/composing.cpp					\
 	slave/containerizer/composing.hpp					\
+	slave/containerizer/containerizer.cpp					\
 	slave/containerizer/docker.cpp						\
 	slave/containerizer/docker.hpp						\
 	slave/containerizer/external_containerizer.cpp				\
@@ -548,13 +548,13 @@ libmesos_no_3rdparty_la_SOURCES =						\
 	slave/containerizer/mesos/mount.cpp					\
 	slave/containerizer/mesos/isolators/filesystem/posix.cpp		\
 	slave/containerizer/mesos/isolators/posix/disk.cpp			\
+	slave/containerizer/mesos/provisioner/backend.cpp			\
 	slave/containerizer/mesos/provisioner/paths.cpp				\
 	slave/containerizer/mesos/provisioner/provisioner.cpp			\
 	slave/containerizer/mesos/provisioner/store.cpp				\
 	slave/containerizer/mesos/provisioner/appc/paths.cpp			\
 	slave/containerizer/mesos/provisioner/appc/spec.cpp			\
 	slave/containerizer/mesos/provisioner/appc/store.cpp			\
-	slave/containerizer/mesos/provisioner/backend.cpp			\
 	slave/containerizer/mesos/provisioner/backends/copy.cpp			\
 	slave/containerizer/mesos/provisioner/docker/local_puller.cpp		\
 	slave/containerizer/mesos/provisioner/docker/message.proto		\
@@ -573,10 +573,10 @@ libmesos_no_3rdparty_la_SOURCES =						\
 	v1/values.cpp								\
 	version/version.cpp							\
 	watcher/whitelist_watcher.cpp						\
+	zookeeper/authentication.cpp						\
 	zookeeper/contender.cpp							\
 	zookeeper/detector.cpp							\
 	zookeeper/zookeeper.cpp							\
-	zookeeper/authentication.cpp						\
 	zookeeper/group.cpp
 
 
@@ -819,21 +819,21 @@ libmesos_no_3rdparty_la_SOURCES +=						\
 	local/local.hpp								\
 	logging/flags.hpp							\
 	logging/logging.hpp							\
-	master/contender.hpp							\
 	master/constants.hpp							\
+	master/contender.hpp							\
 	master/detector.hpp							\
 	master/flags.hpp							\
 	master/machine.hpp							\
 	master/maintenance.hpp							\
 	master/master.hpp							\
 	master/metrics.hpp							\
-	master/repairer.hpp							\
 	master/registrar.hpp							\
+	master/repairer.hpp							\
 	master/validation.hpp							\
 	master/allocator/mesos/allocator.hpp					\
 	master/allocator/mesos/hierarchical.hpp					\
-	master/allocator/sorter/drf/sorter.hpp					\
 	master/allocator/sorter/sorter.hpp					\
+	master/allocator/sorter/drf/sorter.hpp					\
 	messages/flags.hpp							\
 	messages/messages.hpp							\
 	module/manager.hpp							\
@@ -859,7 +859,6 @@ libmesos_no_3rdparty_la_SOURCES +=						\
 	slave/containerizer/mesos/launch.hpp					\
 	slave/containerizer/mesos/mount.hpp					\
 	slave/containerizer/mesos/isolators/posix.hpp				\
-	slave/containerizer/mesos/isolators/posix/disk.hpp			\
 	slave/containerizer/mesos/isolators/cgroups/constants.hpp		\
 	slave/containerizer/mesos/isolators/cgroups/cpushare.hpp		\
 	slave/containerizer/mesos/isolators/cgroups/mem.hpp			\
@@ -868,13 +867,14 @@ libmesos_no_3rdparty_la_SOURCES +=						\
 	slave/containerizer/mesos/isolators/filesystem/posix.hpp		\
 	slave/containerizer/mesos/isolators/filesystem/shared.hpp		\
 	slave/containerizer/mesos/isolators/namespaces/pid.hpp			\
+	slave/containerizer/mesos/isolators/posix/disk.hpp			\
+	slave/containerizer/mesos/provisioner/backend.hpp			\
 	slave/containerizer/mesos/provisioner/paths.hpp				\
 	slave/containerizer/mesos/provisioner/provisioner.hpp			\
 	slave/containerizer/mesos/provisioner/store.hpp				\
 	slave/containerizer/mesos/provisioner/appc/paths.hpp			\
 	slave/containerizer/mesos/provisioner/appc/spec.hpp			\
 	slave/containerizer/mesos/provisioner/appc/store.hpp			\
-	slave/containerizer/mesos/provisioner/backend.hpp			\
 	slave/containerizer/mesos/provisioner/backends/bind.hpp			\
 	slave/containerizer/mesos/provisioner/backends/copy.hpp			\
 	slave/containerizer/mesos/provisioner/docker/local_puller.hpp		\
@@ -1178,10 +1178,10 @@ dist_bin_SCRIPTS +=							\
 # that 'datadir' (e.g., /usr/local/share) is for read-only "data" and
 # 'sysconfdir' (e.g., /usr/local/var) is for modifiable "data".
 nobase_dist_pkgdata_DATA +=						\
-  webui/master/static/js/controllers.js					\
   webui/master/static/js/app.js						\
-  webui/master/static/js/services.js					\
-  webui/master/static/js/jquery.pailer.js
+  webui/master/static/js/controllers.js					\
+  webui/master/static/js/jquery.pailer.js				\
+  webui/master/static/js/services.js
 
 # Need to distribute/install webui CSS.
 nobase_dist_pkgdata_DATA +=						\
@@ -1201,15 +1201,14 @@ nobase_dist_pkgdata_DATA +=						\
   webui/master/static/slave_executor.html				\
   webui/master/static/slave_framework.html				\
   webui/master/static/slaves.html					\
-  webui/master/static/directives/timestamp.html				\
   webui/master/static/directives/pagination.html			\
-  webui/master/static/directives/tableHeader.html
-
+  webui/master/static/directives/tableHeader.html			\
+  webui/master/static/directives/timestamp.html
 
 # Need to distribute/install webui images.
 nobase_dist_pkgdata_DATA +=						\
-  webui/master/static/img/loading.gif					\
-  webui/master/static/ico/favicon.ico
+  webui/master/static/ico/favicon.ico					\
+  webui/master/static/img/loading.gif
 
 # Need to distribute/install webui fonts.
 nobase_dist_pkgdata_DATA +=						\
@@ -1224,32 +1223,38 @@ nobase_dist_pkgdata_DATA +=						\
   webui/master/static/js/angular-1.2.3.min.js				\
   webui/master/static/js/angular-route-1.2.3.js				\
   webui/master/static/js/angular-route-1.2.3.min.js			\
+  webui/master/static/js/jquery-1.7.1.js				\
+  webui/master/static/js/jquery-1.7.1.min.js				\
+  webui/master/static/js/relative-date.js				\
   webui/master/static/js/ui-bootstrap-tpls-0.9.0.js			\
   webui/master/static/js/ui-bootstrap-tpls-0.9.0.min.js			\
   webui/master/static/js/underscore-1.4.3.js				\
   webui/master/static/js/underscore-1.4.3.min.js			\
-  webui/master/static/js/jquery-1.7.1.js				\
-  webui/master/static/js/jquery-1.7.1.min.js				\
-  webui/master/static/js/relative-date.js				\
   webui/master/static/js/zeroclipboard-1.1.7.js				\
   webui/master/static/js/zeroclipboard-1.1.7.min.js			\
   webui/master/static/obj/zeroclipboard-1.1.7.swf
 
 # And the deploy related stuff.
-nodist_sbin_SCRIPTS += deploy/mesos-daemon.sh				\
-  deploy/mesos-start-cluster.sh deploy/mesos-start-masters.sh		\
-  deploy/mesos-start-slaves.sh deploy/mesos-stop-cluster.sh		\
-  deploy/mesos-stop-masters.sh deploy/mesos-stop-slaves.sh
+nodist_sbin_SCRIPTS +=							\
+  deploy/mesos-daemon.sh						\
+  deploy/mesos-start-cluster.sh						\
+  deploy/mesos-start-masters.sh						\
+  deploy/mesos-start-slaves.sh						\
+  deploy/mesos-stop-cluster.sh						\
+  deploy/mesos-stop-masters.sh						\
+  deploy/mesos-stop-slaves.sh
 
-pkgsysconf_DATA += deploy/mesos-deploy-env.sh.template			\
-                   deploy/mesos-master-env.sh.template			\
-                   deploy/mesos-slave-env.sh.template
+pkgsysconf_DATA +=							\
+  deploy/mesos-deploy-env.sh.template					\
+  deploy/mesos-master-env.sh.template					\
+  deploy/mesos-slave-env.sh.template
 
 # Need to explicitly add this because by default DATA files are not
 # included in distributions.
-EXTRA_DIST += deploy/mesos-deploy-env.sh.template			\
-              deploy/mesos-master-env.sh.template			\
-              deploy/mesos-slave-env.sh.template
+EXTRA_DIST +=								\
+  deploy/mesos-deploy-env.sh.template					\
+  deploy/mesos-master-env.sh.template					\
+  deploy/mesos-slave-env.sh.template
 
 # Java related files are listed outside if HAS_JAVA so we can add them
 # to EXTRA_DIST unconditionally.
@@ -1282,8 +1287,8 @@ EXAMPLES_SOURCE =							\
 	$(srcdir)/examples/java/TestExceptionFramework.java		\
 	$(srcdir)/examples/java/TestExecutor.java			\
 	$(srcdir)/examples/java/TestFramework.java			\
-	$(srcdir)/examples/java/TestMultipleExecutorsFramework.java	\
-	$(srcdir)/examples/java/TestLog.java
+	$(srcdir)/examples/java/TestLog.java				\
+	$(srcdir)/examples/java/TestMultipleExecutorsFramework.java
 EXTRA_DIST += $(EXAMPLES_SOURCE)
 
 
@@ -1305,9 +1310,9 @@ libjava_la_SOURCES =							\
 	java/jni/construct.cpp						\
 	java/jni/construct.hpp						\
 	java/jni/org_apache_mesos_Log.cpp				\
+	java/jni/org_apache_mesos_MesosExecutorDriver.cpp		\
 	java/jni/org_apache_mesos_MesosNativeLibrary.cpp		\
 	java/jni/org_apache_mesos_MesosSchedulerDriver.cpp		\
-	java/jni/org_apache_mesos_MesosExecutorDriver.cpp		\
 	java/jni/org_apache_mesos_state_AbstractState.cpp		\
 	java/jni/org_apache_mesos_state_LevelDBState.cpp		\
 	java/jni/org_apache_mesos_state_LogState.cpp			\
@@ -1347,9 +1352,9 @@ libmesos_la_LIBADD += libjava.la
 # and should not get exposed.
 
 nodist_libjava_la_SOURCES =						\
-	java/jni/org_apache_mesos_MesosSchedulerDriver.h		\
-	java/jni/org_apache_mesos_MesosExecutorDriver.h			\
 	java/jni/org_apache_mesos_Log.h					\
+	java/jni/org_apache_mesos_MesosExecutorDriver.h			\
+	java/jni/org_apache_mesos_MesosSchedulerDriver.h		\
 	java/jni/org_apache_mesos_state_AbstractState.h			\
 	java/jni/org_apache_mesos_state_LevelDBState.h			\
 	java/jni/org_apache_mesos_state_LogState.h			\
@@ -1426,7 +1431,6 @@ PHONY_TARGETS += clean-java
 # Python files listed outside HAS_PYTHON so they are included with the
 # distribution unconditionally.
 PYTHON_SOURCE =								\
-	python/src/mesos/__init__.py					\
 	python/cli/src/mesos/__init__.py				\
 	python/cli/src/mesos/cli.py					\
 	python/cli/src/mesos/futures.py					\
@@ -1446,7 +1450,8 @@ PYTHON_SOURCE =								\
 	python/native/src/mesos/native/proxy_executor.cpp		\
 	python/native/src/mesos/native/proxy_executor.hpp		\
 	python/native/src/mesos/native/proxy_scheduler.cpp		\
-	python/native/src/mesos/native/proxy_scheduler.hpp
+	python/native/src/mesos/native/proxy_scheduler.hpp		\
+	python/src/mesos/__init__.py
 
 EXTRA_DIST += $(PYTHON_SOURCE)
 
@@ -1741,13 +1746,13 @@ mesos_tests_SOURCES =						\
   tests/examples_tests.cpp					\
   tests/exception_tests.cpp					\
   tests/executor_http_api_tests.cpp				\
-  tests/health_check_tests.cpp					\
   tests/fault_tolerance_tests.cpp				\
   tests/fetcher_cache_tests.cpp					\
   tests/fetcher_tests.cpp					\
   tests/files_tests.cpp						\
   tests/flags.cpp						\
   tests/gc_tests.cpp						\
+  tests/health_check_tests.cpp					\
   tests/hierarchical_allocator_tests.cpp			\
   tests/hook_tests.cpp						\
   tests/log_tests.cpp						\
@@ -1774,14 +1779,14 @@ mesos_tests_SOURCES =						\
   tests/reconciliation_tests.cpp				\
   tests/registrar_tests.cpp					\
   tests/repair_tests.cpp					\
+  tests/reservation_endpoints_tests.cpp				\
   tests/reservation_tests.cpp					\
-  tests/reservation_endpoints_tests.cpp                         \
   tests/resource_offers_tests.cpp				\
   tests/resources_tests.cpp					\
-  tests/scheduler_tests.cpp					\
   tests/scheduler_driver_tests.cpp				\
   tests/scheduler_event_call_tests.cpp				\
   tests/scheduler_http_api_tests.cpp				\
+  tests/scheduler_tests.cpp					\
   tests/script.cpp						\
   tests/slave_recovery_tests.cpp				\
   tests/slave_tests.cpp						\
@@ -1829,8 +1834,8 @@ if OS_LINUX
 endif
 
 if WITH_NETWORK_ISOLATOR
-  mesos_tests_SOURCES += tests/containerizer/routing_tests.cpp
   mesos_tests_SOURCES += tests/containerizer/port_mapping_tests.cpp
+  mesos_tests_SOURCES += tests/containerizer/routing_tests.cpp
 endif
 
 if HAS_JAVA
@@ -1845,11 +1850,11 @@ if HAS_JAVA
   mesos_tests_LDFLAGS = $(AM_LDFLAGS)
   mesos_tests_DEPENDENCIES += $(EXAMPLES_JAR)
 
-  EXAMPLESCRIPTSJAVA = examples/java/test-framework			\
-                       examples/java/test-executor			\
+  EXAMPLESCRIPTSJAVA = examples/java/test-executor			\
                        examples/java/test-exception-framework		\
-                       examples/java/test-multiple-executors-framework	\
-                       examples/java/test-log
+                       examples/java/test-framework			\
+                       examples/java/test-log				\
+                       examples/java/test-multiple-executors-framework
 
   check_SCRIPTS += $(EXAMPLESCRIPTSJAVA)
   mesos_tests_DEPENDENCIES += $(EXAMPLESCRIPTSJAVA)
@@ -1860,10 +1865,10 @@ if HAS_PYTHON
 
   EXAMPLESCRIPTSPYTHON = examples/python/test_containerizer.py		\
 			 examples/python/test-containerizer		\
-			 examples/python/test_framework.py		\
-			 examples/python/test-framework			\
 			 examples/python/test_executor.py		\
-			 examples/python/test-executor
+			 examples/python/test-executor			\
+			 examples/python/test_framework.py		\
+			 examples/python/test-framework
 
   check_SCRIPTS += $(EXAMPLESCRIPTSPYTHON)
   mesos_tests_DEPENDENCIES += $(EXAMPLESCRIPTSPYTHON)
