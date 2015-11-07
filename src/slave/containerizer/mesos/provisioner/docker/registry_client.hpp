@@ -115,8 +115,6 @@ public:
    * @param path path of the repository on the registry.
    * @param digest digest of the blob (from manifest).
    * @param filePath file path to store the fetched blob.
-   * @param maxSize Maximum size of the response thats acceptable. Will default
-   *    to MAX_RESPONSE_SIZE.
    * @return size of downloaded blob on success.
    *         Failure in case of any errors.
    */
