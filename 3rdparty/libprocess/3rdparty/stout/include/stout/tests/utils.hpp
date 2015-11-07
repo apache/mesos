@@ -53,9 +53,12 @@ protected:
     }
   }
 
+  // A temporary directory for test purposes.
+  // Not to be confused with the "sandbox" that tasks are run in.
+  Option<std::string> sandbox;
+
 private:
   std::string cwd;
-  Option<std::string> sandbox;
 };
 
 #endif // __STOUT_TESTS_UTILS_HPP__
