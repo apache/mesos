@@ -25,6 +25,8 @@
 #include <stout/path.hpp>
 #include <stout/strings.hpp>
 
+#include <stout/tests/utils.hpp>
+
 #ifdef __linux__
 #include "linux/fs.hpp"
 #endif // __linux__
@@ -33,7 +35,6 @@
 #include "slave/containerizer/mesos/provisioner/backends/copy.hpp"
 
 #include "tests/flags.hpp"
-#include "tests/utils.hpp"
 
 using namespace process;
 

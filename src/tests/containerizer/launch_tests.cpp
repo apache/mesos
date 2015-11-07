@@ -27,6 +27,8 @@
 #include <stout/os.hpp>
 #include <stout/try.hpp>
 
+#include <stout/tests/utils.hpp>
+
 #include <process/gtest.hpp>
 #include <process/reap.hpp>
 #include <process/subprocess.hpp>
@@ -34,7 +36,6 @@
 #include "slave/containerizer/mesos/launch.hpp"
 
 #include "tests/flags.hpp"
-#include "tests/utils.hpp"
 
 #include "tests/containerizer/rootfs.hpp"
 

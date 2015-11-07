@@ -34,9 +34,10 @@
 #include <stout/gtest.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
+#include <stout/protobuf.hpp>
 #include <stout/try.hpp>
 
-#include <stout/protobuf.hpp>
+#include <stout/tests/utils.hpp>
 
 #include "log/log.hpp"
 #include "log/replica.hpp"
@@ -54,7 +55,6 @@
 #include "state/storage.hpp"
 #include "state/zookeeper.hpp"
 
-#include "tests/utils.hpp"
 #ifdef MESOS_HAS_JAVA
 #include "tests/zookeeper.hpp"
 #endif

@@ -36,6 +36,8 @@
 #include <stout/stopwatch.hpp>
 #include <stout/uuid.hpp>
 
+#include <stout/tests/utils.hpp>
+
 #include "common/protobuf_utils.hpp"
 
 #include "log/log.hpp"
@@ -53,8 +55,6 @@
 #include "state/log.hpp"
 #include "state/protobuf.hpp"
 #include "state/storage.hpp"
-
-#include "tests/utils.hpp"
 
 using namespace mesos::internal::master;
 
@@ -83,8 +83,6 @@ using testing::_;
 using testing::DoAll;
 using testing::Eq;
 using testing::Return;
-
-using mesos::internal::tests::TemporaryDirectoryTest;
 
 using ::testing::WithParamInterface;
 

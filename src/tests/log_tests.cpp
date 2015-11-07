@@ -42,6 +42,8 @@
 #include <stout/stopwatch.hpp>
 #include <stout/try.hpp>
 
+#include <stout/tests/utils.hpp>
+
 #include "log/catchup.hpp"
 #include "log/coordinator.hpp"
 #include "log/leveldb.hpp"
@@ -53,7 +55,6 @@
 #include "log/tool/initialize.hpp"
 
 #include "tests/environment.hpp"
-#include "tests/utils.hpp"
 
 #ifdef MESOS_HAS_JAVA
 #include "tests/zookeeper.hpp"

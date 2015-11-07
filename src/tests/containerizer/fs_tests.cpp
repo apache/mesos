@@ -27,9 +27,9 @@
 #include <stout/os.hpp>
 #include <stout/try.hpp>
 
-#include "linux/fs.hpp"
+#include <stout/tests/utils.hpp>
 
-#include "tests/utils.hpp"
+#include "linux/fs.hpp"
 
 using std::string;
 

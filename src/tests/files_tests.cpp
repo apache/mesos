@@ -31,9 +31,9 @@
 #include <stout/os.hpp>
 #include <stout/stringify.hpp>
 
-#include "files/files.hpp"
+#include <stout/tests/utils.hpp>
 
-#include "tests/utils.hpp"
+#include "files/files.hpp"
 
 using process::Future;
 

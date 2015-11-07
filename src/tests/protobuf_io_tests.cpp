@@ -28,9 +28,9 @@
 #include <stout/protobuf.hpp>
 #include <stout/result.hpp>
 
-#include "messages/messages.hpp"
+#include <stout/tests/utils.hpp>
 
-#include "tests/utils.hpp"
+#include "messages/messages.hpp"
 
 using std::string;
 
