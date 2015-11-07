@@ -643,13 +643,21 @@ void Slave::shutdown(const UPID& from, const string& message)
     LOG(INFO) << "Slave asked to shut down by " << from
               << (message.empty() ? "" : " because '" + message + "'");
   } else if (info.has_id()) {
-    LOG(INFO) << message << "; unregistering and shutting down";
+    if (message.empty()) {
+      LOG(INFO) << "Unregistering and shutting down";
+    } else {
+      LOG(INFO) << message << "; unregistering and shutting down";
+    }
 
     UnregisterSlaveMessage message_;
     message_.mutable_slave_id()->MergeFrom(info.id());
     send(master.get(), message_);
   } else {
-    LOG(INFO) << message << "; shutting down";
+    if (message.empty()) {
+      LOG(INFO) << "Shutting down";
+    } else {
+      LOG(INFO) << message << "; shutting down";
+    }
   }
 
   state = TERMINATING;
