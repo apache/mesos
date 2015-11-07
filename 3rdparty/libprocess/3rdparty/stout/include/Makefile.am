@@ -40,8 +40,6 @@ nobase_include_HEADERS =		\
   stout/json.hpp			\
   stout/lambda.hpp			\
   stout/linkedhashmap.hpp		\
-  stout/posix/gzip.hpp			\
-  stout/posix/os.hpp			\
   stout/list.hpp			\
   stout/mac.hpp				\
   stout/multihashmap.hpp		\
@@ -64,19 +62,6 @@ nobase_include_HEADERS =		\
   stout/os/getcwd.hpp			\
   stout/os/killtree.hpp			\
   stout/os/linux.hpp			\
-  stout/os/posix/bootid.hpp		\
-  stout/os/posix/exists.hpp		\
-  stout/os/posix/fcntl.hpp		\
-  stout/os/posix/fork.hpp		\
-  stout/os/posix/ftruncate.hpp		\
-  stout/os/posix/killtree.hpp		\
-  stout/os/posix/ls.hpp			\
-  stout/os/posix/process.hpp		\
-  stout/os/posix/pstree.hpp		\
-  stout/os/posix/sendfile.hpp		\
-  stout/os/posix/shell.hpp		\
-  stout/os/posix/signals.hpp		\
-  stout/os/posix/stat.hpp		\
   stout/os/ls.hpp			\
   stout/os/mkdir.hpp			\
   stout/os/mktemp.hpp			\
@@ -98,6 +83,19 @@ nobase_include_HEADERS =		\
   stout/os/touch.hpp			\
   stout/os/utime.hpp			\
   stout/os/write.hpp			\
+  stout/os/posix/bootid.hpp		\
+  stout/os/posix/exists.hpp		\
+  stout/os/posix/fcntl.hpp		\
+  stout/os/posix/fork.hpp		\
+  stout/os/posix/ftruncate.hpp		\
+  stout/os/posix/killtree.hpp		\
+  stout/os/posix/ls.hpp			\
+  stout/os/posix/process.hpp		\
+  stout/os/posix/pstree.hpp		\
+  stout/os/posix/sendfile.hpp		\
+  stout/os/posix/shell.hpp		\
+  stout/os/posix/signals.hpp		\
+  stout/os/posix/stat.hpp		\
   stout/os/raw/environment.hpp		\
   stout/os/windows/bootid.hpp		\
   stout/os/windows/exists.hpp		\
@@ -116,6 +114,8 @@ nobase_include_HEADERS =		\
   stout/preprocessor.hpp		\
   stout/proc.hpp			\
   stout/protobuf.hpp			\
+  stout/posix/gzip.hpp			\
+  stout/posix/os.hpp			\
   stout/recordio.hpp			\
   stout/result.hpp			\
   stout/set.hpp				\
@@ -126,9 +126,9 @@ nobase_include_HEADERS =		\
   stout/subcommand.hpp			\
   stout/svn.hpp				\
   stout/synchronized.hpp		\
-  stout/tests/utils.hpp			\
   stout/thread_local.hpp		\
   stout/try.hpp				\
+  stout/tests/utils.hpp			\
   stout/unimplemented.hpp		\
   stout/unreachable.hpp			\
   stout/utils.hpp			\
