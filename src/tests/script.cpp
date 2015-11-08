@@ -153,7 +153,7 @@ void execute(const string& script)
 
     const string& aclsPath = path::join(directory.get(), "acls");
 
-    CHECK_SOME(os::write(aclsPath, stringify(JSON::Protobuf(acls))))
+    CHECK_SOME(os::write(aclsPath, stringify(JSON::protobuf(acls))))
       << "Failed to write ACLs to '" << aclsPath << "'";
 
     os::setenv("MESOS_ACLS", "file://" + aclsPath);

@@ -141,7 +141,7 @@ private:
         entry.values["executor_id"] = info.executor_id().value();
         entry.values["executor_name"] = info.name();
         entry.values["source"] = info.source();
-        entry.values["statistics"] = JSON::Protobuf(executor.statistics());
+        entry.values["statistics"] = JSON::protobuf(executor.statistics());
 
         result.values.push_back(entry);
       }

@@ -435,7 +435,7 @@ JSON::Object json(const Iterable& ranges)
 
     values.add_range()->CopyFrom(value);
   }
-  return JSON::Protobuf(values);
+  return JSON::protobuf(values);
 }
 
 
@@ -914,7 +914,7 @@ int PortMappingStatistics::execute()
          << " in namespace " << flags.pid.get() << endl;
   }
 
-  cout << stringify(JSON::Protobuf(result));
+  cout << stringify(JSON::protobuf(result));
   return 0;
 }
 

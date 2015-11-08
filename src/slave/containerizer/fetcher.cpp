@@ -749,7 +749,7 @@ Future<Nothing> FetcherProcess::run(
   // environment variable.
   map<string, string> environment = os::environment();
 
-  environment["MESOS_FETCHER_INFO"] = stringify(JSON::Protobuf(info));
+  environment["MESOS_FETCHER_INFO"] = stringify(JSON::protobuf(info));
 
   if (!flags.hadoop_home.empty()) {
     environment["HADOOP_HOME"] = flags.hadoop_home;

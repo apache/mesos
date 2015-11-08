@@ -776,7 +776,7 @@ Future<bool> MesosContainerizerProcess::_launch(
     // Populate the list of additional commands to be run inside the container
     // context.
     foreach (const CommandInfo& command, prepareInfo.get().commands()) {
-      commandArray.values.push_back(JSON::Protobuf(command));
+      commandArray.values.emplace_back(JSON::protobuf(command));
     }
 
     // Process additional environment variables returned by isolators.
@@ -806,7 +806,7 @@ Future<bool> MesosContainerizerProcess::_launch(
   // Prepare the flags to pass to the launch process.
   MesosContainerizerLaunch::Flags launchFlags;
 
-  launchFlags.command = JSON::Protobuf(executorInfo.command());
+  launchFlags.command = JSON::protobuf(executorInfo.command());
 
   launchFlags.directory = rootfs.isSome() ? flags.sandbox_directory : directory;
   launchFlags.rootfs = rootfs;

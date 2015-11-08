@@ -2235,13 +2235,13 @@ TEST_F(SlaveTest, TaskLabels)
 
   // Verify the contents of 'foo:bar', 'bar:baz', and 'bar:qux' pairs.
   EXPECT_EQ(
-      JSON::Value(JSON::Protobuf(createLabel("foo", "bar"))),
+      JSON::Value(JSON::protobuf(createLabel("foo", "bar"))),
       labelsObject.values[0]);
   EXPECT_EQ(
-      JSON::Value(JSON::Protobuf(createLabel("bar", "baz"))),
+      JSON::Value(JSON::protobuf(createLabel("bar", "baz"))),
       labelsObject.values[1]);
   EXPECT_EQ(
-      JSON::Value(JSON::Protobuf(createLabel("bar", "qux"))),
+      JSON::Value(JSON::protobuf(createLabel("bar", "qux"))),
       labelsObject.values[2]);
 
   EXPECT_CALL(exec, shutdown(_))
@@ -2337,13 +2337,13 @@ TEST_F(SlaveTest, TaskStatusLabels)
 
   // Verify the contents of 'foo:bar', 'bar:baz', and 'bar:qux' pairs.
   EXPECT_EQ(
-      JSON::Value(JSON::Protobuf(createLabel("foo", "bar"))),
+      JSON::Value(JSON::protobuf(createLabel("foo", "bar"))),
       labelsObject.values[0]);
   EXPECT_EQ(
-      JSON::Value(JSON::Protobuf(createLabel("bar", "baz"))),
+      JSON::Value(JSON::protobuf(createLabel("bar", "baz"))),
       labelsObject.values[1]);
   EXPECT_EQ(
-      JSON::Value(JSON::Protobuf(createLabel("bar", "qux"))),
+      JSON::Value(JSON::protobuf(createLabel("bar", "qux"))),
       labelsObject.values[2]);
 
   EXPECT_CALL(exec, shutdown(_))

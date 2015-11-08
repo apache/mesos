@@ -242,7 +242,7 @@ Future<Response> RegistrarProcess::registry(const Request& request)
   JSON::Object result;
 
   if (variable.isSome()) {
-    result = JSON::Protobuf(variable.get().get());
+    result = JSON::protobuf(variable.get().get());
   }
 
   return OK(result, request.url.query.get("jsonp"));

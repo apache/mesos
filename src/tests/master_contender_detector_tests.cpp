@@ -873,7 +873,7 @@ TEST_F(ZooKeeperMasterContenderDetectorTest, MasterDetectorUsesJson)
   pid.address.port = 8080;
 
   MasterInfo leader = internal::protobuf::createMasterInfo(pid);
-  JSON::Object masterInfo = JSON::Protobuf(leader);
+  JSON::Object masterInfo = JSON::protobuf(leader);
 
   // Simulate a leading master.
   Owned<zookeeper::Group> group(

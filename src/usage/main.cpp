@@ -97,7 +97,7 @@ int main(int argc, char** argv)
       return EXIT_FAILURE;
     }
   } else {
-    cout << stringify(JSON::Protobuf(statistics.get())) << endl;
+    cout << stringify(JSON::protobuf(statistics.get())) << endl;
   }
 
   return EXIT_SUCCESS;

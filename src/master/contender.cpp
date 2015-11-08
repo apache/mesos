@@ -239,7 +239,7 @@ Future<Future<Nothing> > ZooKeeperMasterContenderProcess::contend()
   }
 
   // Serialize the MasterInfo to JSON.
-  JSON::Object json = JSON::Protobuf(masterInfo.get());
+  JSON::Object json = JSON::protobuf(masterInfo.get());
 
   contender = new LeaderContender(
       group.get(),

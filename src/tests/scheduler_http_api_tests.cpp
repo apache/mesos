@@ -101,7 +101,7 @@ public:
       return call.SerializeAsString();
     }
 
-    return stringify(JSON::Protobuf(call));
+    return stringify(JSON::protobuf(call));
   }
 };
 

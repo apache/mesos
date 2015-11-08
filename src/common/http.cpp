@@ -51,7 +51,7 @@ string serialize(
       return message.SerializeAsString();
     }
     case ContentType::JSON: {
-      JSON::Object object = JSON::Protobuf(message);
+      JSON::Object object = JSON::protobuf(message);
       return stringify(object);
     }
   }
@@ -153,12 +153,7 @@ JSON::Object model(const Attributes& attributes)
 
 JSON::Array model(const Labels& labels)
 {
-  JSON::Array array;
-  array.values.reserve(labels.labels().size()); // MESOS-2353.
-  foreach (const Label& label, labels.labels()) {
-    array.values.push_back(JSON::Protobuf(label));
-  }
-  return array;
+  return JSON::protobuf(labels.labels());
 }
 
 
@@ -187,7 +182,7 @@ JSON::Object model(const NetworkInfo& info)
     JSON::Array array;
     array.values.reserve(info.ip_addresses().size()); // MESOS-2353.
     foreach (const NetworkInfo::IPAddress& ipAddress, info.ip_addresses()) {
-      array.values.push_back(JSON::Protobuf(ipAddress));
+      array.values.push_back(JSON::protobuf(ipAddress));
     }
     object.values["ip_addresses"] = std::move(array);
   }
@@ -265,7 +260,7 @@ JSON::Object model(const Task& task)
   }
 
   if (task.has_discovery()) {
-    object.values["discovery"] = JSON::Protobuf(task.discovery());
+    object.values["discovery"] = JSON::protobuf(task.discovery());
   }
 
   return object;
@@ -367,7 +362,7 @@ JSON::Object model(
   }
 
   if (task.has_discovery()) {
-    object.values["discovery"] = JSON::Protobuf(task.discovery());
+    object.values["discovery"] = JSON::protobuf(task.discovery());
   }
 
   return object;

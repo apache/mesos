@@ -569,7 +569,7 @@ private:
   void launchHealthCheck(const TaskInfo& task)
   {
     if (task.has_health_check()) {
-      JSON::Object json = JSON::Protobuf(task.health_check());
+      JSON::Object json = JSON::protobuf(task.health_check());
 
       // Launch the subprocess using 'exec' style so that quotes can
       // be properly handled.

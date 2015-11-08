@@ -459,7 +459,7 @@ int main(int argc, char** argv)
     acl->mutable_principals()->set_type(ACL::Entity::ANY);
     acl->mutable_roles()->add_values(flags.role);
 
-    os::setenv("MESOS_ACLS", stringify(JSON::Protobuf(acls)));
+    os::setenv("MESOS_ACLS", stringify(JSON::protobuf(acls)));
 
     // Configure slave.
     os::setenv("MESOS_DEFAULT_ROLE", flags.role);

@@ -368,7 +368,7 @@ private:
           return;
       }
 
-      JSON::Object json = JSON::Protobuf(healthCheck);
+      JSON::Object json = JSON::protobuf(healthCheck);
 
       // Launch the subprocess using 'exec' style so that quotes can
       // be properly handled.

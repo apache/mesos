@@ -202,7 +202,7 @@ TEST(HTTP, SerializeNetworkInfo)
   networkInfo.add_groups("foo");
   networkInfo.add_groups("bar");
 
-  JSON::Value object = JSON::Protobuf(networkInfo);
+  JSON::Value object = JSON::protobuf(networkInfo);
 
   Try<JSON::Value> expected = JSON::parse(
       "{"

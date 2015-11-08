@@ -232,7 +232,7 @@ Try<Nothing> schedule(
       // Check that the machine is unique.
       if (updated.contains(id)) {
         return Error(
-            "Machine '" + stringify(JSON::Protobuf(id)) +
+            "Machine '" + stringify(JSON::protobuf(id)) +
               "' appears more than once in the schedule");
       }
 
@@ -244,7 +244,7 @@ Try<Nothing> schedule(
   foreachpair (const MachineID& id, const Machine& machine, machines) {
     if (machine.info.mode() == MachineInfo::DOWN && !updated.contains(id)) {
       return Error(
-          "Machine '" + stringify(JSON::Protobuf(id)) +
+          "Machine '" + stringify(JSON::protobuf(id)) +
             "' is deactivated and cannot be removed from the schedule");
     }
   }
@@ -285,7 +285,7 @@ Try<Nothing> machines(const RepeatedPtrField<MachineID>& ids)
     // Check machine uniqueness.
     if (uniques.contains(id)) {
       return Error(
-          "Machine '" + stringify(JSON::Protobuf(id)) +
+          "Machine '" + stringify(JSON::protobuf(id)) +
             "' appears more than once in the schedule");
     }
 

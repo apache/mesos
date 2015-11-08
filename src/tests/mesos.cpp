@@ -110,7 +110,7 @@ master::Flags MesosTest::CreateMasterFlags()
   credential->set_principal(DEFAULT_CREDENTIAL.principal());
   credential->set_secret(DEFAULT_CREDENTIAL.secret());
 
-  CHECK_SOME(os::write(fd.get(), stringify(JSON::Protobuf(credentials))))
+  CHECK_SOME(os::write(fd.get(), stringify(JSON::protobuf(credentials))))
      << "Failed to write credentials to '" << path << "'";
   CHECK_SOME(os::close(fd.get()));
 
@@ -159,7 +159,7 @@ slave::Flags MesosTest::CreateSlaveFlags()
   credential.set_principal(DEFAULT_CREDENTIAL.principal());
   credential.set_secret(DEFAULT_CREDENTIAL.secret());
 
-  CHECK_SOME(os::write(fd.get(), stringify(JSON::Protobuf(credential))))
+  CHECK_SOME(os::write(fd.get(), stringify(JSON::protobuf(credential))))
      << "Failed to write slave credential to '" << path << "'";
 
   CHECK_SOME(os::close(fd.get()));

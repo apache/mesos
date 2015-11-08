@@ -112,7 +112,7 @@ TEST(MonitorTest, Statistics)
   usage.values["executor_name"] = "name";
   usage.values["framework_id"] = "framework";
   usage.values["source"] = "source";
-  usage.values["statistics"] = JSON::Protobuf(statistics);
+  usage.values["statistics"] = JSON::protobuf(statistics);
   expected.values.push_back(usage);
 
   Try<JSON::Array> result = JSON::parse<JSON::Array>(response.get().body);

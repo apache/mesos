@@ -151,11 +151,8 @@ TEST(ResourcesTest, ParsingFromJSON)
   Resources resources = Resources::parse("cpus:2;mem:3").get();
 
   // Convert to an array of JSON objects.
-  JSON::Array array;
-  foreach (const Resource& resource, resources) {
-    JSON::Object object = JSON::Protobuf(resource);
-    array.values.push_back(object);
-  }
+  JSON::Array array =
+    JSON::protobuf(static_cast<const RepeatedPtrField<Resource>&>(resources));
 
   // Parse JSON array into a collection of Resource messages and convert them
   // into Resources object.

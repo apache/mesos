@@ -309,7 +309,7 @@ protected:
     // The flags to pass to the helper process.
     MesosContainerizerLaunch::Flags launchFlags;
 
-    launchFlags.command = JSON::Protobuf(commandInfo);
+    launchFlags.command = JSON::protobuf(commandInfo);
     launchFlags.directory = os::getcwd();
 
     CHECK_SOME(os::user());
@@ -324,7 +324,7 @@ protected:
 
     JSON::Object commands;
     JSON::Array array;
-    array.values.push_back(JSON::Protobuf(preparation.get().commands(0)));
+    array.values.push_back(JSON::protobuf(preparation.get().commands(0)));
     commands.values["commands"] = array;
 
     launchFlags.commands = commands;
