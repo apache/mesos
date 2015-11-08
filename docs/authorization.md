@@ -165,12 +165,12 @@ There are couple of important things to note:
             }
 
 
-## Enabling authorization.
+## Enabling authorization
 
 As part of this feature, a new flag was added to the master.
 
-* `acls` :  The value could be a JSON formatted string of ACLs
-            or a file path containing the JSON formatted ACLs used
+* `acls` :  The value could be a JSON-formatted string of ACLs
+            or a file path containing the JSON-formatted ACLs used
             for authorization. Path could be of the form 'file:///path/to/file'
             or '/path/to/file'.
             See the ACLs protobuf in mesos.proto for the expected format.

@@ -79,7 +79,7 @@ mesos::internal::slave::Flags::Flags()
 
   add(&Flags::image_providers,
       "image_providers",
-      "Comma separated list of supported image providers,\n"
+      "Comma-separated list of supported image providers,\n"
       "e.g., 'APPC,DOCKER'.");
 
   add(&Flags::image_provisioner_backend,
@@ -350,8 +350,8 @@ mesos::internal::slave::Flags::Flags()
 
   add(&Flags::firewall_rules,
       "firewall_rules",
-      "The value could be a JSON formatted string of rules or a\n"
-      "file path containing the JSON formated rules used in the endpoints\n"
+      "The value could be a JSON-formatted string of rules or a\n"
+      "file path containing the JSON-formatted rules used in the endpoints\n"
       "firewall. Path must be of the form 'file:///path/to/file'\n"
       "or '/path/to/file'.\n"
       "\n"
@@ -372,8 +372,8 @@ mesos::internal::slave::Flags::Flags()
       "Either a path to a text with a single line\n"
       "containing 'principal' and 'secret' separated by "
       "whitespace.\n"
-      "Or a path containing the JSON "
-      "formatted information used for one credential.\n"
+      "Or a path containing the JSON-formatted "
+      "information used for one credential.\n"
       "Path could be of the form 'file:///path/to/file' or '/path/to/file'."
       "\n"
       "Example:\n"
@@ -389,7 +389,7 @@ mesos::internal::slave::Flags::Flags()
 
   add(&Flags::containerizers,
       "containerizers",
-      "Comma separated list of containerizer implementations\n"
+      "Comma-separated list of containerizer implementations\n"
       "to compose in order to provide containerization.\n"
       "Available options are 'mesos', 'external', and\n"
       "'docker' (on Linux). The order the containerizers\n"
@@ -449,7 +449,7 @@ mesos::internal::slave::Flags::Flags()
 
   add(&Flags::default_container_info,
       "default_container_info",
-      "JSON formatted ContainerInfo that will be included into\n"
+      "JSON-formatted ContainerInfo that will be included into\n"
       "any ExecutorInfo that does not specify a ContainerInfo.\n"
       "\n"
       "See the ContainerInfo protobuf in mesos.proto for\n"
@@ -549,7 +549,7 @@ mesos::internal::slave::Flags::Flags()
       "subsystems.\n"
       "\n"
       "Use --modules=filepath to specify the list of modules via a\n"
-      "file containing a JSON formatted string. 'filepath' can be\n"
+      "file containing a JSON-formatted string. 'filepath' can be\n"
       "of the form 'file:///path/to/file' or '/path/to/file'.\n"
       "\n"
       "Use --modules=\"{...}\" to specify the list of modules inline.\n"
@@ -596,7 +596,7 @@ mesos::internal::slave::Flags::Flags()
 
   add(&Flags::hooks,
       "hooks",
-      "A comma separated list of hook modules to be\n"
+      "A comma-separated list of hook modules to be\n"
       "installed inside the slave.");
 
   add(&Flags::resource_estimator,

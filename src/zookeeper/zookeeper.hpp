@@ -117,7 +117,7 @@ public:
    * establishment is asynchronous, meaning that the session should
    * not be considered established until (and unless) an event of
    * state ZOO_CONNECTED_STATE is received.
-   * \param servers comma separated host:port pairs, each corresponding
+   * \param servers comma-separated host:port pairs, each corresponding
    *    to a ZooKeeper server. e.g. "127.0.0.1:3000,127.0.0.1:3001"
    * \param watcher the instance of Watcher that receives event
    *    callbacks. When notifications are triggered the Watcher::process

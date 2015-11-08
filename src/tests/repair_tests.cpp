@@ -187,7 +187,7 @@ TEST_F(HealthTest, ObserveEndpoint)
       "monitor=a&hosts=b&level=true");
   VALIDATE_GOOD_RESPONSE(response, stringify(expected) );
 
-  // Comma seperated hosts are parsed into an array.
+  // Comma-separated hosts are parsed into an array.
   expected.hosts.push_back("e");
   response = process::http::post(
       master.get(),

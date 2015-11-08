@@ -36,7 +36,7 @@ tests to specify a list of modules to be loaded and be available to the internal
 subsystems.
 
 Use `--modules=filepath` to specify the list of modules via a
-file containing a JSON formatted string. 'filepath' can be
+file containing a JSON-formatted string. 'filepath' can be
 of the form 'file:///path/to/file' or '/path/to/file'.
 
 Use `--modules="{...}"` to specify the list of modules inline.

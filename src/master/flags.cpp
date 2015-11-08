@@ -186,13 +186,13 @@ mesos::internal::master::Flags::Flags()
   // TODO(vinod): Deprecate this in favor of '--acls'.
   add(&Flags::roles,
       "roles",
-      "A comma separated list of the allocation\n"
+      "A comma-separated list of the allocation\n"
       "roles that frameworks in this cluster may\n"
       "belong to.");
 
   add(&Flags::weights,
       "weights",
-      "A comma separated list of role/weight pairs\n"
+      "A comma-separated list of role/weight pairs\n"
       "of the form 'role=weight,role=weight'. Weights\n"
       "are used to indicate forms of priority.");
 
@@ -232,8 +232,8 @@ mesos::internal::master::Flags::Flags()
 
   add(&Flags::acls,
       "acls",
-      "The value could be a JSON formatted string of ACLs\n"
-      "or a file path containing the JSON formatted ACLs used\n"
+      "The value could be a JSON-formatted string of ACLs\n"
+      "or a file path containing the JSON-formatted ACLs used\n"
       "for authorization. Path could be of the form 'file:///path/to/file'\n"
       "or '/path/to/file'.\n"
       "\n"
@@ -266,8 +266,8 @@ mesos::internal::master::Flags::Flags()
 
   add(&Flags::firewall_rules,
       "firewall_rules",
-      "The value could be a JSON formatted string of rules or a\n"
-      "file path containing the JSON formated rules used in the endpoints\n"
+      "The value could be a JSON-formatted string of rules or a\n"
+      "file path containing the JSON-formatted rules used in the endpoints\n"
       "firewall. Path must be of the form 'file:///path/to/file'\n"
       "or '/path/to/file'.\n"
       "\n"
@@ -285,8 +285,8 @@ mesos::internal::master::Flags::Flags()
 
   add(&Flags::rate_limits,
       "rate_limits",
-      "The value could be a JSON formatted string of rate limits\n"
-      "or a file path containing the JSON formatted rate limits used\n"
+      "The value could be a JSON-formatted string of rate limits\n"
+      "or a file path containing the JSON-formatted rate limits used\n"
       "for framework rate limiting.\n"
       "Path could be of the form 'file:///path/to/file'\n"
       "or '/path/to/file'.\n"
@@ -335,7 +335,7 @@ mesos::internal::master::Flags::Flags()
       "subsystems.\n"
       "\n"
       "Use --modules=filepath to specify the list of modules via a\n"
-      "file containing a JSON formatted string. 'filepath' can be\n"
+      "file containing a JSON-formatted string. 'filepath' can be\n"
       "of the form 'file:///path/to/file' or '/path/to/file'.\n"
       "\n"
       "Use --modules=\"{...}\" to specify the list of modules inline.\n"
@@ -387,7 +387,7 @@ mesos::internal::master::Flags::Flags()
 
   add(&Flags::hooks,
       "hooks",
-      "A comma separated list of hook modules to be\n"
+      "A comma-separated list of hook modules to be\n"
       "installed inside master.");
 
   add(&Flags::slave_ping_timeout,

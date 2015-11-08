@@ -47,8 +47,8 @@ If you have special compilation requirements, please refer to `./configure --hel
       --firewall_rules=VALUE
     </td>
     <td>
-      The value could be a JSON formatted string of rules or a file path
-      containing the JSON formated rules used in the endpoints firewall. Path
+      The value could be a JSON-formatted string of rules or a file path
+      containing the JSON-formatted rules used in the endpoints firewall. Path
       could be of the form <code>file:///path/to/file</code> or
       <code>/path/to/file</code>.
       <p/>
@@ -250,9 +250,9 @@ file:///path/to/file (where file contains one of the above)</code></pre>
       --acls=VALUE
     </td>
     <td>
-      The value is a JSON formatted string of ACLs. Remember you can also use
+      The value is a JSON-formatted string of ACLs. Remember you can also use
       the <code>file:///path/to/file</code> or <code>/path/to/file</code>
-      argument value format to write the JSON in a file.
+      argument value format to read the JSON from a file.
       <p/>
       See the ACLs protobuf in mesos.proto for the expected format.
       <p/>
@@ -398,7 +398,7 @@ file:///path/to/file (where file contains one of the above)</code></pre>
       --hooks=VALUE
     </td>
     <td>
-      A comma separated list of hook modules to be
+      A comma-separated list of hook modules to be
       installed inside master.
     </td>
   </tr>
@@ -455,7 +455,7 @@ file:///path/to/file (where file contains one of the above)</code></pre>
       subsystems.
       <p/>
       Use <code>--modules=filepath</code> to specify the list of modules via a
-      file containing a JSON formatted string.
+      file containing a JSON-formatted string.
       Remember you can also use the <code>file:///path/to/file</code> or
       <code>/path/to/file</code> argument value format to write the JSON in a
       file.<p/>
@@ -510,13 +510,13 @@ file:///path/to/file (where file contains one of the above)</code></pre>
       --rate_limits=VALUE
     </td>
     <td>
-      The value could be a JSON formatted string of rate limits
-      or a file path containing the JSON formatted rate limits used
+      The value could be a JSON-formatted string of rate limits
+      or a file path containing the JSON-formatted rate limits used
       for framework rate limiting.
       <p/>
       Remember you can also use
       the <code>file:///path/to/file</code> or <code>/path/to/file</code>
-      argument value format to write the JSON in a file.
+      argument value format to read the JSON from a file.
       <p/>
 
       See the RateLimits protobuf in mesos.proto for the expected format.
@@ -607,7 +607,7 @@ file:///path/to/file (where file contains one of the above)</code></pre>
       --roles=VALUE
     </td>
     <td>
-      A comma separated list of the allocation
+      A comma-separated list of the allocation
       roles that frameworks in this cluster may
       belong to.
     </td>
@@ -680,7 +680,7 @@ file:///path/to/file (where file contains one of the above)</code></pre>
       --weights=VALUE
     </td>
     <td>
-      A comma separated list of role/weight pairs
+      A comma-separated list of role/weight pairs
       of the form 'role=weight,role=weight'. Weights
       are used to indicate forms of priority.
     </td>
@@ -897,7 +897,7 @@ file:///path/to/file (where file contains one of the above)</code></pre>
       --containerizers=VALUE
     </td>
     <td>
-      Comma separated list of containerizer implementations
+      Comma-separated list of containerizer implementations
       to compose in order to provide containerization.
       <p/>
       Available options are 'mesos', 'external', and
@@ -916,7 +916,7 @@ file:///path/to/file (where file contains one of the above)</code></pre>
       containing 'principal' and 'secret' separated by whitespace.
 
       <p/>
-      Or a path containing the JSON formatted information used for one credential.
+      Or a path containing the JSON-formatted information used for one credential.
       <p/>
       Path should be of the form <code>file://path/to/file</code>.
       <p/>
@@ -946,7 +946,7 @@ file:///path/to/file (where file contains one of the above)</code></pre>
       --default_container_info=VALUE
     </td>
     <td>
-      JSON formatted ContainerInfo that will be included into
+      JSON-formatted ContainerInfo that will be included into
       any ExecutorInfo that does not specify a ContainerInfo.
       <p/>
       See the ContainerInfo protobuf in mesos.proto for
@@ -1154,7 +1154,7 @@ file:///path/to/file (where file contains one of the above)</code></pre>
       --hooks=VALUE
     </td>
     <td>
-      A comma separated list of hook modules to be
+      A comma-separated list of hook modules to be
       installed inside master.
     </td>
   </tr>
@@ -1220,7 +1220,7 @@ file:///path/to/file (where file contains one of the above)</code></pre>
       --image_providers=VALUE
     </td>
     <td>
-      Comma separated list of supported image providers, e.g., 'APPC,DOCKER'.
+      Comma-separated list of supported image providers, e.g., 'APPC,DOCKER'.
     </td>
   </tr>
   <tr>

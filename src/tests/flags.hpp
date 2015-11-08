@@ -96,7 +96,7 @@ public:
         "subsystems.\n"
         "\n"
         "Use --modules=filepath to specify the list of modules via a\n"
-        "file containing a JSON formatted string. 'filepath' can be\n"
+        "file containing a JSON-formatted string. 'filepath' can be\n"
         "of the form 'file:///path/to/file' or '/path/to/file'.\n"
         "\n"
         "Use --modules=\"{...}\" to specify the list of modules inline.\n"
