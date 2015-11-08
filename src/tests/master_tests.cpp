@@ -3523,6 +3523,7 @@ TEST_F(MasterTest, TaskDiscoveryInfo)
   port2->set_number(9999);
   port2->set_name("myport2");
   port2->set_protocol("udp");
+  port2->set_visibility(DiscoveryInfo::CLUSTER);
 
   // Add two labels to the discovery info.
   Labels* labels = info->mutable_labels();
@@ -3619,7 +3620,8 @@ TEST_F(MasterTest, TaskDiscoveryInfo)
       "{"
       "  \"number\":9999,"
       "  \"name\":\"myport2\","
-      "  \"protocol\":\"udp\""
+      "  \"protocol\":\"udp\","
+      "  \"visibility\":\"CLUSTER\""
       "}");
   ASSERT_SOME(expected);
   EXPECT_EQ(expected.get(), portsArray.values[1]);
