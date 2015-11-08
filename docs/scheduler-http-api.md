@@ -22,7 +22,50 @@ All the subsequent (non subscribe) requests to “/scheduler” endpoint (see de
 
 The following calls are currently accepted by the master. The canonical source of this information is [scheduler.proto](https://github.com/apache/mesos/blob/master/include/mesos/v1/scheduler/scheduler.proto) (NOTE: The protobuf definitions are subject to change before the beta API is finalized). Note that when sending JSON encoded Calls, schedulers should encode raw bytes in Base64 and strings in UTF-8.
 
-### SUBSCRIBE
+### RecordIO response format
+
+The response returned from the `SUBSCRIBE` call (see [below](#subscribe) is encoded in RecordIO format, which essentially prepends to a single record (either JSON or serialized Protobuf) its length in bytes, followed by a newline and then the data:
+
+The [BNF grammar](http://www.w3.org/Protocols/rfc2616/rfc2616-sec2.html#sec2.1) for a RecordIO-encoded streaming response is:
+
+```
+    records         = *record
+
+    record          = record-size LF record-data
+
+    record-size     = 1*DIGIT
+    record-data     = record-size(OCTET)
+```
+
+`record-size` should be interpreted as an unsigned 64-bit integer (`uint64`).
+
+For example, a stream may look like:
+
+```
+128\n
+{“type”: “SUBSCRIBED”,“subscribed”: {“framework_id”: {“value”:“12220-3440-12532-2345”},...}104\n
+{“framework_id”: {“value”: “12220-3440-12532-2345”},...{“value” : “12220-3440-12532-O12”},}208\n
+...
+```
+
+In pseudo-code, this could be parsed with something like the following:
+
+```
+  while (true) {
+    do {
+      lengthBytes = readline()
+    } while (lengthBytes.length < 1)
+
+    messageLength = parseInt(lengthBytes);
+    messageBytes = read(messageLength);
+    process(messageBytes);
+  }
+```
+
+Network intermediaries e.g. proxies are free to change the chunk boundaries and this should not have any effect on the recipient application (scheduler layer). We wanted a way to delimit/encode two events for JSON/Protobuf responses consistently and RecordIO format allowed us to do that.
+
+
+### <a id="subscribe"></a>SUBSCRIBE
 
 This is the first step in the communication process between the scheduler and the master. This is also to be considered as subscription to the “/scheduler” events stream.
 
