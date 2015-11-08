@@ -37,6 +37,7 @@ void protobuf_ShutdownFile_protobuf_5ftests_2eproto();
 class Nested;
 class SimpleMessage;
 class Message;
+class ArrayMessage;
 
 enum Enum {
   ONE = 1,
@@ -635,9 +636,9 @@ class Message : public ::google::protobuf::Message {
   ::google::protobuf::int32 int32_;
   ::std::string* bytes_;
   ::google::protobuf::int64 int64_;
+  ::google::protobuf::uint64 uint64_;
   ::google::protobuf::uint32 uint32_;
   ::google::protobuf::int32 sint32_;
-  ::google::protobuf::uint64 uint64_;
   ::google::protobuf::int64 sint64_;
   float f_;
   int e_;
@@ -669,6 +670,91 @@ class Message : public ::google::protobuf::Message {
 
   void InitAsDefaultInstance();
   static Message* default_instance_;
+};
+// -------------------------------------------------------------------
+
+class ArrayMessage : public ::google::protobuf::Message {
+ public:
+  ArrayMessage();
+  virtual ~ArrayMessage();
+
+  ArrayMessage(const ArrayMessage& from);
+
+  inline ArrayMessage& operator=(const ArrayMessage& from) {
+    CopyFrom(from);
+    return *this;
+  }
+
+  inline const ::google::protobuf::UnknownFieldSet& unknown_fields() const {
+    return _unknown_fields_;
+  }
+
+  inline ::google::protobuf::UnknownFieldSet* mutable_unknown_fields() {
+    return &_unknown_fields_;
+  }
+
+  static const ::google::protobuf::Descriptor* descriptor();
+  static const ArrayMessage& default_instance();
+
+  void Swap(ArrayMessage* other);
+
+  // implements Message ----------------------------------------------
+
+  ArrayMessage* New() const;
+  void CopyFrom(const ::google::protobuf::Message& from);
+  void MergeFrom(const ::google::protobuf::Message& from);
+  void CopyFrom(const ArrayMessage& from);
+  void MergeFrom(const ArrayMessage& from);
+  void Clear();
+  bool IsInitialized() const;
+
+  int ByteSize() const;
+  bool MergePartialFromCodedStream(
+      ::google::protobuf::io::CodedInputStream* input);
+  void SerializeWithCachedSizes(
+      ::google::protobuf::io::CodedOutputStream* output) const;
+  ::google::protobuf::uint8* SerializeWithCachedSizesToArray(::google::protobuf::uint8* output) const;
+  int GetCachedSize() const { return _cached_size_; }
+  private:
+  void SharedCtor();
+  void SharedDtor();
+  void SetCachedSize(int size) const;
+  public:
+
+  ::google::protobuf::Metadata GetMetadata() const;
+
+  // nested types ----------------------------------------------------
+
+  // accessors -------------------------------------------------------
+
+  // repeated .tests.SimpleMessage values = 1;
+  inline int values_size() const;
+  inline void clear_values();
+  static const int kValuesFieldNumber = 1;
+  inline const ::tests::SimpleMessage& values(int index) const;
+  inline ::tests::SimpleMessage* mutable_values(int index);
+  inline ::tests::SimpleMessage* add_values();
+  inline const ::google::protobuf::RepeatedPtrField< ::tests::SimpleMessage >&
+      values() const;
+  inline ::google::protobuf::RepeatedPtrField< ::tests::SimpleMessage >*
+      mutable_values();
+
+  // @@protoc_insertion_point(class_scope:tests.ArrayMessage)
+ private:
+
+  ::google::protobuf::UnknownFieldSet _unknown_fields_;
+
+  ::google::protobuf::RepeatedPtrField< ::tests::SimpleMessage > values_;
+
+  mutable int _cached_size_;
+  ::google::protobuf::uint32 _has_bits_[(1 + 31) / 32];
+
+  friend void  protobuf_AddDesc_protobuf_5ftests_2eproto();
+  friend void protobuf_AssignDesc_protobuf_5ftests_2eproto();
+  friend void protobuf_ShutdownFile_protobuf_5ftests_2eproto();
+
+  void InitAsDefaultInstance();
+  static ArrayMessage* default_instance_;
 };
 // ===================================================================
 
@@ -1700,6 +1786,35 @@ inline double Message::optional_no_default() const {
 inline void Message::set_optional_no_default(double value) {
   set_has_optional_no_default();
   optional_no_default_ = value;
+}
+
+// -------------------------------------------------------------------
+
+// ArrayMessage
+
+// repeated .tests.SimpleMessage values = 1;
+inline int ArrayMessage::values_size() const {
+  return values_.size();
+}
+inline void ArrayMessage::clear_values() {
+  values_.Clear();
+}
+inline const ::tests::SimpleMessage& ArrayMessage::values(int index) const {
+  return values_.Get(index);
+}
+inline ::tests::SimpleMessage* ArrayMessage::mutable_values(int index) {
+  return values_.Mutable(index);
+}
+inline ::tests::SimpleMessage* ArrayMessage::add_values() {
+  return values_.Add();
+}
+inline const ::google::protobuf::RepeatedPtrField< ::tests::SimpleMessage >&
+ArrayMessage::values() const {
+  return values_;
+}
+inline ::google::protobuf::RepeatedPtrField< ::tests::SimpleMessage >*
+ArrayMessage::mutable_values() {
+  return &values_;
 }
 
 

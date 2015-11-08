@@ -74,3 +74,9 @@ message Message {
   optional double optional_default = 28 [default = 42.0];
   optional double optional_no_default = 29;
 }
+
+
+// A message for testing Proto->JSON conversion.
+message ArrayMessage {
+  repeated SimpleMessage values = 1;
+}

@@ -612,170 +612,185 @@ Try<T> parse(const JSON::Value& value)
 
 namespace JSON {
 
-struct Protobuf
+// TODO(bmahler): This currently uses the default value for optional
+// fields but we may want to revisit this decision.
+inline Object protobuf(const google::protobuf::Message& message)
 {
-  // TODO(bmahler): This currently uses the default value for optional
-  // fields but we may want to revisit this decision.
-  Protobuf(const google::protobuf::Message& message)
-  {
-    const google::protobuf::Descriptor* descriptor = message.GetDescriptor();
-    const google::protobuf::Reflection* reflection = message.GetReflection();
+  Object object;
 
-    // We first look through all the possible fields to determine both
-    // the set fields _and_ the optional fields with a default that
-    // are not set. Reflection::ListFields() alone will only include
-    // set fields and is therefore insufficient.
-    std::vector<const google::protobuf::FieldDescriptor*> fields;
-    for (int i = 0; i < descriptor->field_count(); i++) {
-      const google::protobuf::FieldDescriptor* field = descriptor->field(i);
-      if (field->is_repeated()) {
-        if (reflection->FieldSize(message, descriptor->field(i)) > 0) {
-          // Has repeated field with members, output as JSON.
-          fields.push_back(field);
-        }
-      } else if (reflection->HasField(message, field) ||
-                 field->has_default_value()) {
-        // Field is set or has default, output as JSON.
+  const google::protobuf::Descriptor* descriptor = message.GetDescriptor();
+  const google::protobuf::Reflection* reflection = message.GetReflection();
+
+  // We first look through all the possible fields to determine both
+  // the set fields _and_ the optional fields with a default that
+  // are not set. Reflection::ListFields() alone will only include
+  // set fields and is therefore insufficient.
+  std::vector<const google::protobuf::FieldDescriptor*> fields;
+  fields.reserve(descriptor->field_count());
+  for (int i = 0; i < descriptor->field_count(); i++) {
+    const google::protobuf::FieldDescriptor* field = descriptor->field(i);
+    if (field->is_repeated()) {
+      if (reflection->FieldSize(message, descriptor->field(i)) > 0) {
+        // Has repeated field with members, output as JSON.
         fields.push_back(field);
       }
+    } else if (reflection->HasField(message, field) ||
+               field->has_default_value()) {
+      // Field is set or has default, output as JSON.
+      fields.push_back(field);
     }
+  }
 
-    foreach (const google::protobuf::FieldDescriptor* field, fields) {
-      if (field->is_repeated()) {
-        JSON::Array array;
-        for (int i = 0; i < reflection->FieldSize(message, field); ++i) {
-          switch (field->type()) {
-            case google::protobuf::FieldDescriptor::TYPE_DOUBLE:
-              array.values.push_back(JSON::Number(
-                  reflection->GetRepeatedDouble(message, field, i)));
-              break;
-            case google::protobuf::FieldDescriptor::TYPE_FLOAT:
-              array.values.push_back(JSON::Number(
-                  reflection->GetRepeatedFloat(message, field, i)));
-              break;
-            case google::protobuf::FieldDescriptor::TYPE_INT64:
-            case google::protobuf::FieldDescriptor::TYPE_SINT64:
-            case google::protobuf::FieldDescriptor::TYPE_SFIXED64:
-              array.values.push_back(JSON::Number(
-                  reflection->GetRepeatedInt64(message, field, i)));
-              break;
-            case google::protobuf::FieldDescriptor::TYPE_UINT64:
-            case google::protobuf::FieldDescriptor::TYPE_FIXED64:
-              array.values.push_back(JSON::Number(
-                  reflection->GetRepeatedUInt64(message, field, i)));
-              break;
-            case google::protobuf::FieldDescriptor::TYPE_INT32:
-            case google::protobuf::FieldDescriptor::TYPE_SINT32:
-            case google::protobuf::FieldDescriptor::TYPE_SFIXED32:
-              array.values.push_back(JSON::Number(
-                  reflection->GetRepeatedInt32(message, field, i)));
-              break;
-            case google::protobuf::FieldDescriptor::TYPE_UINT32:
-            case google::protobuf::FieldDescriptor::TYPE_FIXED32:
-              array.values.push_back(JSON::Number(
-                  reflection->GetRepeatedUInt32(message, field, i)));
-              break;
-            case google::protobuf::FieldDescriptor::TYPE_BOOL:
-              if (reflection->GetRepeatedBool(message, field, i)) {
-                array.values.push_back(JSON::True());
-              } else {
-                array.values.push_back(JSON::False());
-              }
-              break;
-            case google::protobuf::FieldDescriptor::TYPE_STRING:
-              array.values.push_back(JSON::String(
-                  reflection->GetRepeatedString(message, field, i)));
-              break;
-            case google::protobuf::FieldDescriptor::TYPE_BYTES:
-              array.values.push_back(JSON::String(base64::encode(
-                  reflection->GetRepeatedString(message, field, i))));
-              break;
-            case google::protobuf::FieldDescriptor::TYPE_MESSAGE:
-              array.values.push_back(Protobuf(
-                  reflection->GetRepeatedMessage(message, field, i)));
-              break;
-            case google::protobuf::FieldDescriptor::TYPE_ENUM:
-              array.values.push_back(JSON::String(
-                  reflection->GetRepeatedEnum(message, field, i)->name()));
-              break;
-            case google::protobuf::FieldDescriptor::TYPE_GROUP:
-              // Deprecated!
-            default:
-              ABORT("Unhandled protobuf field type: " +
-                    stringify(field->type()));
-          }
-        }
-        object.values[field->name()] = array;
-      } else {
+  foreach (const google::protobuf::FieldDescriptor* field, fields) {
+    if (field->is_repeated()) {
+      JSON::Array array;
+      int fieldSize = reflection->FieldSize(message, field);
+      array.values.reserve(fieldSize);
+      for (int i = 0; i < fieldSize; ++i) {
         switch (field->type()) {
           case google::protobuf::FieldDescriptor::TYPE_DOUBLE:
-            object.values[field->name()] =
-                JSON::Number(reflection->GetDouble(message, field));
+            array.values.push_back(JSON::Number(
+                reflection->GetRepeatedDouble(message, field, i)));
             break;
           case google::protobuf::FieldDescriptor::TYPE_FLOAT:
-            object.values[field->name()] =
-                JSON::Number(reflection->GetFloat(message, field));
+            array.values.push_back(JSON::Number(
+                reflection->GetRepeatedFloat(message, field, i)));
             break;
           case google::protobuf::FieldDescriptor::TYPE_INT64:
           case google::protobuf::FieldDescriptor::TYPE_SINT64:
           case google::protobuf::FieldDescriptor::TYPE_SFIXED64:
-            object.values[field->name()] =
-                JSON::Number(reflection->GetInt64(message, field));
+            array.values.push_back(JSON::Number(
+                reflection->GetRepeatedInt64(message, field, i)));
             break;
           case google::protobuf::FieldDescriptor::TYPE_UINT64:
           case google::protobuf::FieldDescriptor::TYPE_FIXED64:
-            object.values[field->name()] =
-                JSON::Number(reflection->GetUInt64(message, field));
+            array.values.push_back(JSON::Number(
+                reflection->GetRepeatedUInt64(message, field, i)));
             break;
           case google::protobuf::FieldDescriptor::TYPE_INT32:
           case google::protobuf::FieldDescriptor::TYPE_SINT32:
           case google::protobuf::FieldDescriptor::TYPE_SFIXED32:
-            object.values[field->name()] =
-                JSON::Number(reflection->GetInt32(message, field));
+            array.values.push_back(JSON::Number(
+                reflection->GetRepeatedInt32(message, field, i)));
             break;
           case google::protobuf::FieldDescriptor::TYPE_UINT32:
           case google::protobuf::FieldDescriptor::TYPE_FIXED32:
-            object.values[field->name()] =
-                JSON::Number(reflection->GetUInt32(message, field));
+            array.values.push_back(JSON::Number(
+                reflection->GetRepeatedUInt32(message, field, i)));
             break;
           case google::protobuf::FieldDescriptor::TYPE_BOOL:
-            if (reflection->GetBool(message, field)) {
-              object.values[field->name()] = JSON::True();
+            if (reflection->GetRepeatedBool(message, field, i)) {
+              array.values.push_back(JSON::True());
             } else {
-              object.values[field->name()] = JSON::False();
+              array.values.push_back(JSON::False());
             }
             break;
           case google::protobuf::FieldDescriptor::TYPE_STRING:
-            object.values[field->name()] =
-                JSON::String(reflection->GetString(message, field));
+            array.values.push_back(JSON::String(
+                reflection->GetRepeatedString(message, field, i)));
             break;
           case google::protobuf::FieldDescriptor::TYPE_BYTES:
-            object.values[field->name()] = JSON::String(
-                base64::encode(reflection->GetString(message, field)));
+            array.values.push_back(JSON::String(base64::encode(
+                reflection->GetRepeatedString(message, field, i))));
             break;
           case google::protobuf::FieldDescriptor::TYPE_MESSAGE:
-            object.values[field->name()] =
-                Protobuf(reflection->GetMessage(message, field));
+            array.values.push_back(protobuf(
+                reflection->GetRepeatedMessage(message, field, i)));
             break;
           case google::protobuf::FieldDescriptor::TYPE_ENUM:
-            object.values[field->name()] =
-                JSON::String(reflection->GetEnum(message, field)->name());
+            array.values.push_back(JSON::String(
+                reflection->GetRepeatedEnum(message, field, i)->name()));
             break;
           case google::protobuf::FieldDescriptor::TYPE_GROUP:
-            // Deprecated!
-          default:
+            // Deprecated! We abort here instead of using a Try as return value,
+            // because we expect this code path to never be taken.
             ABORT("Unhandled protobuf field type: " +
                   stringify(field->type()));
         }
       }
+      object.values[field->name()] = array;
+    } else {
+      switch (field->type()) {
+        case google::protobuf::FieldDescriptor::TYPE_DOUBLE:
+          object.values[field->name()] =
+              JSON::Number(reflection->GetDouble(message, field));
+          break;
+        case google::protobuf::FieldDescriptor::TYPE_FLOAT:
+          object.values[field->name()] =
+              JSON::Number(reflection->GetFloat(message, field));
+          break;
+        case google::protobuf::FieldDescriptor::TYPE_INT64:
+        case google::protobuf::FieldDescriptor::TYPE_SINT64:
+        case google::protobuf::FieldDescriptor::TYPE_SFIXED64:
+          object.values[field->name()] =
+              JSON::Number(reflection->GetInt64(message, field));
+          break;
+        case google::protobuf::FieldDescriptor::TYPE_UINT64:
+        case google::protobuf::FieldDescriptor::TYPE_FIXED64:
+          object.values[field->name()] =
+              JSON::Number(reflection->GetUInt64(message, field));
+          break;
+        case google::protobuf::FieldDescriptor::TYPE_INT32:
+        case google::protobuf::FieldDescriptor::TYPE_SINT32:
+        case google::protobuf::FieldDescriptor::TYPE_SFIXED32:
+          object.values[field->name()] =
+              JSON::Number(reflection->GetInt32(message, field));
+          break;
+        case google::protobuf::FieldDescriptor::TYPE_UINT32:
+        case google::protobuf::FieldDescriptor::TYPE_FIXED32:
+          object.values[field->name()] =
+              JSON::Number(reflection->GetUInt32(message, field));
+          break;
+        case google::protobuf::FieldDescriptor::TYPE_BOOL:
+          if (reflection->GetBool(message, field)) {
+            object.values[field->name()] = JSON::True();
+          } else {
+            object.values[field->name()] = JSON::False();
+          }
+          break;
+        case google::protobuf::FieldDescriptor::TYPE_STRING:
+          object.values[field->name()] =
+              JSON::String(reflection->GetString(message, field));
+          break;
+        case google::protobuf::FieldDescriptor::TYPE_BYTES:
+          object.values[field->name()] = JSON::String(
+              base64::encode(reflection->GetString(message, field)));
+          break;
+        case google::protobuf::FieldDescriptor::TYPE_MESSAGE:
+          object.values[field->name()] =
+              protobuf(reflection->GetMessage(message, field));
+          break;
+        case google::protobuf::FieldDescriptor::TYPE_ENUM:
+          object.values[field->name()] =
+              JSON::String(reflection->GetEnum(message, field)->name());
+          break;
+        case google::protobuf::FieldDescriptor::TYPE_GROUP:
+          // Deprecated! We abort here instead of using a Try as return value,
+          // because we expect this code path to never be taken.
+          ABORT("Unhandled protobuf field type: " +
+                stringify(field->type()));
+      }
     }
   }
 
-  operator Object() const { return object; }
+  return object;
+}
 
-private:
-  JSON::Object object;
-};
+
+template <typename T>
+Array protobuf(const google::protobuf::RepeatedPtrField<T>& repeated)
+{
+  static_assert(std::is_convertible<T*, google::protobuf::Message*>::value,
+                "T must be a protobuf message");
+
+  JSON::Array array;
+  array.values.reserve(repeated.size());
+  foreach (const T& elem, repeated) {
+    array.values.emplace_back(JSON::protobuf(elem));
+  }
+
+  return array;
+}
 
 } // namespace JSON {
 

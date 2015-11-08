@@ -136,7 +136,7 @@ TEST(ProtobufTest, JSON)
       "}",
       " ");
 
-  JSON::Object object = JSON::Protobuf(message);
+  JSON::Object object = JSON::protobuf(message);
 
   EXPECT_EQ(expected, stringify(object));
 
@@ -144,22 +144,59 @@ TEST(ProtobufTest, JSON)
   Try<tests::Message> parse = protobuf::parse<tests::Message>(object);
   ASSERT_SOME(parse);
 
-  EXPECT_EQ(object, JSON::Protobuf(parse.get()));
+  EXPECT_EQ(object, JSON::protobuf(parse.get()));
 
   // Modify the message to test (de-)serialization of random bytes generated
   // by UUID.
   message.set_bytes(UUID::random().toBytes());
 
-  object = JSON::Protobuf(message);
+  object = JSON::protobuf(message);
 
   // Test parsing too.
   parse = protobuf::parse<tests::Message>(object);
   ASSERT_SOME(parse);
 
-  EXPECT_EQ(object, JSON::Protobuf(parse.get()));
+  EXPECT_EQ(object, JSON::protobuf(parse.get()));
 
   // Now convert JSON to string and parse it back as JSON.
   ASSERT_SOME_EQ(object, JSON::parse(stringify(object)));
+}
+
+
+TEST(ProtobufTest, JSONArray)
+{
+  tests::SimpleMessage message1;
+  message1.set_id("message1");
+  message1.add_numbers(1);
+  message1.add_numbers(2);
+
+  // Messages with different IDs are not equal.
+  tests::SimpleMessage message2;
+  message2.set_id("message2");
+  message2.add_numbers(1);
+  message2.add_numbers(2);
+
+  // The keys are in alphabetical order.
+  string expected = strings::remove(
+      "["
+      "  {"
+      "    \"id\": \"message1\","
+      "    \"numbers\": [1, 2]"
+      "  },"
+      "  {"
+      "    \"id\": \"message2\","
+      "    \"numbers\": [1, 2]"
+      "  }"
+      "]",
+      " ");
+
+  tests::ArrayMessage arrayMessage;
+  arrayMessage.add_values()->CopyFrom(message1);
+  arrayMessage.add_values()->CopyFrom(message2);
+
+  JSON::Array array = JSON::protobuf(arrayMessage.values());
+
+  EXPECT_EQ(expected, stringify(array));
 }
 
 
@@ -218,7 +255,7 @@ TEST(ProtobufTest, JsonLargeIntegers)
       " ");
 
   // Check JSON -> String.
-  JSON::Object object = JSON::Protobuf(message);
+  JSON::Object object = JSON::protobuf(message);
   EXPECT_EQ(expected, stringify(object));
 
   // Check JSON -> Protobuf.
@@ -226,7 +263,7 @@ TEST(ProtobufTest, JsonLargeIntegers)
   ASSERT_SOME(parse);
 
   // Check Protobuf -> JSON.
-  EXPECT_EQ(object, JSON::Protobuf(parse.get()));
+  EXPECT_EQ(object, JSON::protobuf(parse.get()));
 
   // Check String -> JSON.
   Try<JSON::Object> json = JSON::parse<JSON::Object>(expected);
@@ -275,7 +312,7 @@ TEST(ProtobufTest, SimpleMessageEquals)
   message5.add_numbers(2);
 
   EXPECT_EQ(message1, message5);
-  EXPECT_EQ(JSON::Protobuf(message1), JSON::Protobuf(message5));
+  EXPECT_EQ(JSON::protobuf(message1), JSON::protobuf(message5));
 }
 
 
@@ -287,7 +324,7 @@ TEST(ProtobufTest, ParseJSONArray)
   message.add_numbers(2);
 
   // Convert protobuf message to a JSON object.
-  JSON::Object object = JSON::Protobuf(message);
+  JSON::Object object = JSON::protobuf(message);
 
   // Populate JSON array with JSON objects, conversion JSON::Object ->
   // JSON::Value is implicit.

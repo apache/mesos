@@ -292,12 +292,12 @@ The `proc` namespace provides some abstractions for working with the Linux `proc
 
 Helpers for reading and writing protobufs from files and file descriptors are provided via `protobuf::read` and `protobuf::write`. These assume a "recordio" format where the length of the serialized data is read/written first followed by the actual data.
 
-There is also a protobuf to JSON converter via `JSON::Protobuf` that enables serializing a protobuf into JSON:
+There is also a protobuf to JSON converter via `JSON::protobuf` that enables serializing a protobuf into JSON:
 
 ~~~{.cpp}
     google::protobuf::Message message;
     ... fill in message ...
-    JSON::Object o = JSON::Protobuf(message);
+    JSON::Object o = JSON::protobuf(message);
 ~~~
 
 
