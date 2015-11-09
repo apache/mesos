@@ -208,6 +208,7 @@ if (NOT WIN32)
     slave/containerizer/mesos/provisioner/backends/copy.cpp
     slave/containerizer/mesos/provisioner/docker/message.proto
     slave/containerizer/mesos/provisioner/docker/registry_client.cpp
+    slave/containerizer/mesos/provisioner/docker/remote_puller.cpp
     slave/containerizer/mesos/provisioner/docker/spec.cpp
     slave/containerizer/mesos/provisioner/docker/token_manager.cpp
     slave/resource_estimators/noop.cpp

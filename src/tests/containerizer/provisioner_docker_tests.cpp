@@ -16,6 +16,8 @@
  * limitations under the License.
  */
 
+#include <utility>
+
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
@@ -40,6 +42,7 @@
 #include "slave/containerizer/mesos/provisioner/docker/metadata_manager.hpp"
 #include "slave/containerizer/mesos/provisioner/docker/paths.hpp"
 #include "slave/containerizer/mesos/provisioner/docker/registry_client.hpp"
+#include "slave/containerizer/mesos/provisioner/docker/registry_puller.hpp"
 #include "slave/containerizer/mesos/provisioner/docker/spec.hpp"
 #include "slave/containerizer/mesos/provisioner/docker/store.hpp"
 #include "slave/containerizer/mesos/provisioner/docker/token_manager.hpp"
@@ -49,6 +52,7 @@
 
 using std::list;
 using std::map;
+using std::pair;
 using std::string;
 using std::vector;
 
@@ -511,6 +515,13 @@ class RegistryClientTest : public virtual SSLTest, public TokenHelper
 protected:
   RegistryClientTest() {}
 
+  Try<Socket> getServer() {
+    return setup_server({
+        {"SSL_ENABLED", "true"},
+        {"SSL_KEY_FILE", key_path().value},
+        {"SSL_CERT_FILE", certificate_path().value}});
+  }
+
   static void SetUpTestCase()
   {
     if (os::mkdir(RegistryClientTest::OUTPUT_DIR).isError()) {
@@ -532,10 +543,7 @@ const string RegistryClientTest::OUTPUT_DIR = "output_dir";
 // Tests TokenManager for a simple token request.
 TEST_F(RegistryClientTest, SimpleGetToken)
 {
-  Try<Socket> server = setup_server({
-      {"SSL_ENABLED", "true"},
-      {"SSL_KEY_FILE", key_path().value},
-      {"SSL_CERT_FILE", certificate_path().value}});
+  Try<Socket> server = getServer();
 
   ASSERT_SOME(server);
   ASSERT_SOME(server.get().address());
@@ -599,10 +607,7 @@ TEST_F(RegistryClientTest, SimpleGetToken)
 // Tests TokenManager for bad token response from server.
 TEST_F(RegistryClientTest, BadTokenResponse)
 {
-  Try<Socket> server = setup_server({
-      {"SSL_ENABLED", "true"},
-      {"SSL_KEY_FILE", key_path().value},
-      {"SSL_CERT_FILE", certificate_path().value}});
+  Try<Socket> server = getServer();
 
   ASSERT_SOME(server);
   ASSERT_SOME(server.get().address());
@@ -665,10 +670,7 @@ TEST_F(RegistryClientTest, BadTokenServerAddress)
 // Tests docker registry's getManifest API.
 TEST_F(RegistryClientTest, SimpleGetManifest)
 {
-  Try<Socket> server = setup_server({
-      {"SSL_ENABLED", "true"},
-      {"SSL_KEY_FILE", key_path().value},
-      {"SSL_CERT_FILE", certificate_path().value}});
+  Try<Socket> server = getServer();
 
   ASSERT_SOME(server);
   ASSERT_SOME(server.get().address());
@@ -830,13 +832,9 @@ TEST_F(RegistryClientTest, SimpleGetManifest)
 
 
 // Tests docker registry's getBlob API.
-// TODO(jojy): Re-enable this test when MESOS-3798 is resolved.
-TEST_F(RegistryClientTest, DISABLED_SimpleGetBlob)
+TEST_F(RegistryClientTest, SimpleGetBlob)
 {
-  Try<Socket> server = setup_server({
-      {"SSL_ENABLED", "true"},
-      {"SSL_KEY_FILE", key_path().value},
-      {"SSL_CERT_FILE", certificate_path().value}});
+  Try<Socket> server = getServer();
 
   ASSERT_SOME(server);
   ASSERT_SOME(server.get().address());
@@ -941,10 +939,7 @@ TEST_F(RegistryClientTest, DISABLED_SimpleGetBlob)
 
 TEST_F(RegistryClientTest, BadRequest)
 {
-  Try<Socket> server = setup_server({
-      {"SSL_ENABLED", "true"},
-      {"SSL_KEY_FILE", key_path().value},
-      {"SSL_CERT_FILE", certificate_path().value}});
+  Try<Socket> server = getServer();
 
   ASSERT_SOME(server);
   ASSERT_SOME(server.get().address());
@@ -992,6 +987,244 @@ TEST_F(RegistryClientTest, BadRequest)
   ASSERT_TRUE(strings::contains(result.failure(), "Error2"));
 }
 
+
+// Tests docker RegistryPuller component. It simulates pulling an image layer
+// from remote registry and then verifies the content saved on disk.
+TEST_F(RegistryClientTest, SimpleRegistryPuller)
+{
+  Try<Socket> server = getServer();
+
+  ASSERT_SOME(server);
+  ASSERT_SOME(server.get().address());
+  ASSERT_SOME(server.get().address().get().hostname());
+
+  Future<Socket> socket = server.get().accept();
+
+  Flags flags;
+  flags.docker_registry = server.get().address().get().hostname().get();
+  flags.docker_registry_port = stringify(server.get().address().get().port);
+  flags.docker_auth_server = server.get().address().get().hostname().get();
+  flags.docker_auth_server_port = stringify(server.get().address().get().port);
+
+  Try<Owned<Puller>> registryPuller = RegistryPuller::create(flags);
+
+  ASSERT_SOME(registryPuller);
+
+  const Path registryPullerPath(RegistryClientTest::OUTPUT_DIR);
+
+  Try<slave::docker::Image::Name> imageName =
+    parseImageName("busybox");
+
+  ASSERT_SOME(imageName);
+
+  Future<list<pair<string, string>>> registryPullerFuture =
+    registryPuller.get()->pull(imageName.get(), registryPullerPath);
+
+  const string unauthResponseHeaders = "WWW-Authenticate: Bearer"
+    " realm=\"https://auth.docker.io/token\","
+    "service=" + stringify(server.get().address().get()) + ","
+    "scope=\"repository:library/busybox:pull\"";
+
+  const string unauthHttpResponse =
+    string("HTTP/1.1 401 Unauthorized\r\n") +
+    unauthResponseHeaders + "\r\n" +
+    "\r\n";
+
+  AWAIT_ASSERT_READY(socket);
+
+  // Send 401 Unauthorized response for a manifest request.
+  Future<string> registryPullerHttpRequestFuture = Socket(socket.get()).recv();
+  AWAIT_ASSERT_READY(registryPullerHttpRequestFuture);
+  AWAIT_ASSERT_READY(Socket(socket.get()).send(unauthHttpResponse));
+
+  // Token response.
+  socket = server.get().accept();
+  AWAIT_ASSERT_READY(socket);
+
+  Future<string> tokenRequestFuture = Socket(socket.get()).recv();
+  AWAIT_ASSERT_READY(tokenRequestFuture);
+
+  const string tokenResponse =
+    "{\"token\":\"" + getDefaultTokenString() + "\"}";
+
+  const string tokenHttpResponse =
+    string("HTTP/1.1 200 OK\r\n") +
+    "Content-Length : " +
+    stringify(tokenResponse.length()) + "\r\n" +
+    "\r\n" +
+    tokenResponse;
+
+  AWAIT_ASSERT_READY(Socket(socket.get()).send(tokenHttpResponse));
+
+  // Manifest response.
+  socket = server.get().accept();
+  AWAIT_ASSERT_READY(socket);
+
+  registryPullerHttpRequestFuture = Socket(socket.get()).recv();
+  AWAIT_ASSERT_READY(registryPullerHttpRequestFuture);
+
+  const string manifestResponse = " \
+    { \
+      \"schemaVersion\": 1, \
+      \"name\": \"library/busybox\", \
+      \"tag\": \"latest\",  \
+      \"architecture\": \"amd64\",  \
+      \"fsLayers\": [ \
+        { \
+          \"blobSum\": \
+  \"sha256:a3ed95caeb02ffe68cdd9fd84406680ae93d633cb16422d00e8a7c22955b46d4\"  \
+        } \
+      ],  \
+    \"history\": [  \
+      { \
+        \"v1Compatibility\": \
+          \"{\\\"id\\\": \
+    \\\"1ce2e90b0bc7224de3db1f0d646fe8e2c4dd37f1793928287f6074bc451a57ea\\\", \
+            \\\"parent\\\": \
+    \\\"cf2616975b4a3cba083ca99bc3f0bf25f5f528c3c52be1596b30f60b0b1c37ff\\\" \
+            }\" \
+      } \
+    ], \
+       \"signatures\": [  \
+          { \
+             \"header\": {  \
+                \"jwk\": {  \
+                   \"crv\": \"P-256\",  \
+                   \"kid\": \
+           \"OOI5:SI3T:LC7D:O7DX:FY6S:IAYW:WDRN:VQEM:BCFL:OIST:Q3LO:GTQQ\",  \
+                   \"kty\": \"EC\", \
+                   \"x\": \"J2N5ePGhlblMI2cdsR6NrAG_xbNC_X7s1HRtk5GXvzM\", \
+                   \"y\": \"Idr-tEBjnNnfq6_71aeXBi3Z9ah_rrE209l4wiaohk0\" \
+                },  \
+                \"alg\": \"ES256\"  \
+             }, \
+             \"signature\": \
+\"65vq57TakC_yperuhfefF4uvTbKO2L45gYGDs5bIEgOEarAs7_"
+"4dbEV5u-W7uR8gF6EDKfowUCmTq3a5vEOJ3w\", \
+       \"protected\": \
+       \"eyJmb3JtYXRMZW5ndGgiOjUwNTgsImZvcm1hdFRhaWwiOiJDbjAiLCJ0aW1lIjoiMjAxNS"
+       "0wOC0xMVQwMzo0Mjo1OVoifQ\"  \
+          } \
+       ]  \
+    }";
+
+  const string manifestHttpResponse =
+    string("HTTP/1.1 200 OK\r\n") +
+    "Content-Length : " +
+    stringify(manifestResponse.length()) + "\r\n" +
+    "Docker-Content-Digest: "
+    "sha256:df9e13f36d2d5b30c16bfbf2a6110c45ebed0bfa1ea42d357651bc6c736d5322"
+    + "\r\n" +
+    "\r\n" +
+    manifestResponse;
+
+  AWAIT_ASSERT_READY(Socket(socket.get()).send(manifestHttpResponse));
+
+  // Redirect response.
+  socket = server.get().accept();
+  AWAIT_ASSERT_READY(socket);
+
+  registryPullerHttpRequestFuture = Socket(socket.get()).recv();
+  AWAIT_ASSERT_READY(registryPullerHttpRequestFuture);
+
+  const string redirectHttpResponse =
+    string("HTTP/1.1 307 Temporary Redirect\r\n") +
+    "Location: https://" +
+    stringify(server.get().address().get()) + "\r\n" +
+    "\r\n";
+
+  AWAIT_ASSERT_READY(Socket(socket.get()).send(redirectHttpResponse));
+
+  // Prepare the blob response from the server. The blob response buffer is a
+  // tarball. So we create a tarball of our test response and send that.
+  const string BLOB_FILE = "blob";
+  const string blobResponse = "hello docker";
+
+  Path blobPath(path::join(registryPullerPath, BLOB_FILE));
+  ASSERT_SOME(os::write(blobPath, blobResponse));
+
+  Path blobTarPath(path::join(registryPullerPath, BLOB_FILE + ".tar"));
+
+  vector<string> argv = {
+    "tar",
+    "-C",
+    registryPullerPath,
+    "-c",
+    "-f",
+    blobTarPath,
+    BLOB_FILE
+  };
+
+  Try<Subprocess> s = subprocess(
+      "tar",
+      argv,
+      Subprocess::PATH("/dev/null"),
+      Subprocess::PATH("/dev/null"),
+      Subprocess::PATH("/dev/null"));
+  ASSERT_SOME(s);
+  AWAIT_ASSERT_READY(s.get().status());
+
+  Try<Bytes> tarSize = os::stat::size(blobTarPath);
+  ASSERT_SOME(tarSize);
+
+  ASSERT_SOME(os::rm(blobPath));
+
+  std::unique_ptr<char[]> tarBuffer(new char[tarSize.get().bytes()]);
+  ASSERT_NE(tarBuffer.get(), nullptr);
+
+  Try<int> fd = os::open(
+      blobTarPath,
+      O_RDONLY,
+      S_IRUSR | S_IRGRP | S_IROTH);
+  ASSERT_SOME(fd);
+
+  ASSERT_SOME(os::nonblock(fd.get()));
+
+  AWAIT_ASSERT_READY(io::read(
+      fd.get(),
+      tarBuffer.get(),
+      tarSize.get().bytes()));
+
+  const string blobHttpResponse =
+    string("HTTP/1.1 200 OK\r\n") +
+    "Content-type : application/octet-stream\r\n" +
+    "Content-Length : " +
+    stringify(tarSize.get().bytes()) + "\r\n" +
+    "\r\n";
+
+  const size_t blobResponseSize =
+    blobHttpResponse.length() + tarSize.get().bytes();
+
+  std::unique_ptr<char[]> responseBuffer(
+      new char[blobResponseSize]);
+
+  ASSERT_NE(responseBuffer.get(), nullptr);
+
+  memcpy(
+      responseBuffer.get(),
+      blobHttpResponse.c_str(),
+      blobHttpResponse.length());
+  memcpy(
+      responseBuffer.get() + blobHttpResponse.length(),
+      tarBuffer.get(),
+      tarSize.get().bytes());
+
+  socket = server.get().accept();
+  AWAIT_ASSERT_READY(socket);
+
+  registryPullerHttpRequestFuture = Socket(socket.get()).recv();
+  AWAIT_ASSERT_READY(registryPullerHttpRequestFuture);
+
+  AWAIT_ASSERT_READY(Socket(socket.get()).send(
+      responseBuffer.get(),
+      blobResponseSize));
+
+  AWAIT_ASSERT_READY(registryPullerFuture);
+
+  Try<string> blob = os::read(blobPath);
+  ASSERT_SOME(blob);
+  ASSERT_EQ(blob.get(), blobResponse);
+}
 
 #endif // USE_SSL_SOCKET
 

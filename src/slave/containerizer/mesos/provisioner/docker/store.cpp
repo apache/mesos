@@ -179,7 +179,7 @@ Future<Image> StoreProcess::_get(
     return Failure("Failed to create a staging directory");
   }
 
-  return puller->pull(name, staging.get())
+  return puller->pull(name, Path(staging.get()))
     .then(defer(self(), &Self::moveLayers, lambda::_1))
     .then(defer(self(), &Self::storeImage, name, lambda::_1))
     .onAny([staging]() {

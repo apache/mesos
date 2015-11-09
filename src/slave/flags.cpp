@@ -120,6 +120,16 @@ mesos::internal::slave::Flags::Flags()
       "Directory the appc provisioner will store images in.",
       "/tmp/mesos/store/appc");
 
+  add(&Flags::docker_auth_server,
+      "docker_auth_server",
+      "Docker authentication server",
+      "auth.docker.io");
+
+  add(&Flags::docker_auth_server_port,
+      "docker_auth_server_port",
+      "Docker authentication server port",
+      "443");
+
   add(&Flags::docker_local_archives_dir,
       "docker_local_archives_dir",
       "Directory for docker local puller to look in for image archives",
@@ -129,6 +139,21 @@ mesos::internal::slave::Flags::Flags()
       "docker_puller",
       "Strategy for docker puller to fetch images",
       "local");
+
+  add(&Flags::docker_puller_timeout_secs,
+      "docker_puller_timeout",
+      "Timeout value in seconds for pulling images from Docker registry",
+      "60");
+
+  add(&Flags::docker_registry,
+      "docker_registry",
+      "Default Docker image registry server host",
+      "registry-1.docker.io");
+
+  add(&Flags::docker_registry_port,
+      "docker_registry_port",
+      "Default Docker registry server port",
+      "443");
 
   add(&Flags::docker_store_dir,
       "docker_store_dir",

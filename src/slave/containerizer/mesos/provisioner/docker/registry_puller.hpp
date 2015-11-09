@@ -16,50 +16,65 @@
  * limitations under the License.
  */
 
-#ifndef __PROVISIONER_DOCKER_PULLER_HPP__
-#define __PROVISIONER_DOCKER_PULLER_HPP__
+#ifndef __PROVISIONER_DOCKER_REGISTRY_PULLER_HPP__
+#define __PROVISIONER_DOCKER_REGISTRY_PULLER_HPP__
 
 #include <list>
+#include <string>
 #include <utility>
 
 #include <stout/duration.hpp>
-#include <stout/option.hpp>
 #include <stout/path.hpp>
-#include <stout/try.hpp>
 
 #include <process/future.hpp>
-#include <process/owned.hpp>
+#include <process/http.hpp>
+#include <process/process.hpp>
 
 #include "slave/containerizer/mesos/provisioner/docker/message.hpp"
-
-#include "slave/flags.hpp"
+#include "slave/containerizer/mesos/provisioner/docker/puller.hpp"
 
 namespace mesos {
 namespace internal {
 namespace slave {
 namespace docker {
 
-class Puller
+// Forward declarations.
+class RegistryPullerProcess;
+
+/*
+ * Pulls an image from registry.
+ */
+class RegistryPuller : public Puller
 {
 public:
-  static Try<process::Owned<Puller>> create(const Flags& flags);
-
-  virtual ~Puller() {}
+  typedef std::pair<std::string, std::string> PulledLayerInfo;
+  typedef std::list<PulledLayerInfo> PulledImageInfo;
 
   /**
-   * Pull a Docker image layers into the specified directory, and
-   * return the list of layer ids in that image in the right
-   * dependency order, and also return the directory where
-   * the puller puts its changeset.
-   *
-   * @param name The name of the image.
-   * @param directory The target directory to store the layers.
-   * @return list of layers maped to its local directory ordered by its
-   *         dependency.
+   * Factory method for creating RegistryPuller.
    */
-  virtual process::Future<std::list<std::pair<std::string, std::string>>> pull(
-      const docker::Image::Name& name,
-      const Path& directory) = 0;
+  static Try<process::Owned<Puller>> create(const Flags& flags);
+
+  ~RegistryPuller();
+
+  /**
+   * Pulls an image into a download directory. This image could consist
+   * multiple layers of blobs.
+   *
+   * @param imageName local name of the image.
+   * @param downloadDir path to which the layers should be downloaded.
+   */
+  process::Future<PulledImageInfo> pull(
+      const Image::Name& imageName,
+      const Path& downloadDir);
+
+private:
+  RegistryPuller(const process::Owned<RegistryPullerProcess>& process);
+
+  process::Owned<RegistryPullerProcess> process_;
+
+  RegistryPuller(const RegistryPuller&) = delete;
+  RegistryPuller& operator=(const RegistryPuller&) = delete;
 };
 
 } // namespace docker {
@@ -67,5 +82,4 @@ public:
 } // namespace internal {
 } // namespace mesos {
 
-
-#endif // __PROVISIONER_DOCKER_PULLER_HPP__
+#endif //  __PROVISIONER_DOCKER_REGISTRY_PULLER_HPP__
