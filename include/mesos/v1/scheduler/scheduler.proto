@@ -64,7 +64,7 @@ message Event {
 
   // Received whenever there are new resources that are offered to the
   // scheduler or resources requested back from the scheduler. Each
-  // offer corresponds to a set of resources on a slave. Until the
+  // offer corresponds to a set of resources on an agent. Until the
   // scheduler accepts or declines an offer the resources are
   // considered allocated to the scheduler. Accepting or Declining an
   // inverse offer informs the allocator of the scheduler's ability to
