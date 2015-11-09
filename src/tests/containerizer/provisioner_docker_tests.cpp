@@ -42,7 +42,7 @@
 #include "slave/containerizer/mesos/provisioner/docker/metadata_manager.hpp"
 #include "slave/containerizer/mesos/provisioner/docker/paths.hpp"
 #include "slave/containerizer/mesos/provisioner/docker/registry_client.hpp"
-#include "slave/containerizer/mesos/provisioner/docker/registry_puller.hpp"
+#include "slave/containerizer/mesos/provisioner/docker/remote_puller.hpp"
 #include "slave/containerizer/mesos/provisioner/docker/spec.hpp"
 #include "slave/containerizer/mesos/provisioner/docker/store.hpp"
 #include "slave/containerizer/mesos/provisioner/docker/token_manager.hpp"
@@ -988,9 +988,9 @@ TEST_F(RegistryClientTest, BadRequest)
 }
 
 
-// Tests Docker RegistryPuller component. It simulates pulling an image layer
-// from Docker registry and then verifies the content saved on disk.
-TEST_F(RegistryClientTest, SimpleRegistryPuller)
+// Tests docker RemotePuller component. It simulates pulling an image layer from
+// remote registry and then verifies the content saved on disk.
+TEST_F(RegistryClientTest, SimpleRemotePuller)
 {
   Try<Socket> server = getServer();
 
@@ -1006,19 +1006,19 @@ TEST_F(RegistryClientTest, SimpleRegistryPuller)
   flags.docker_auth_server = server.get().address().get().hostname().get();
   flags.docker_auth_server_port = stringify(server.get().address().get().port);
 
-  Try<Owned<Puller>> registryPuller = RegistryPuller::create(flags);
+  Try<Owned<Puller>> remotePuller = RemotePuller::create(flags);
 
-  ASSERT_SOME(registryPuller);
+  ASSERT_SOME(remotePuller);
 
-  const Path registryPullerPath(RegistryClientTest::OUTPUT_DIR);
+  const Path remotePullerPath(RegistryClientTest::OUTPUT_DIR);
 
   Try<slave::docker::Image::Name> imageName =
     parseImageName("busybox");
 
   ASSERT_SOME(imageName);
 
-  Future<list<pair<string, string>>> registryPullerFuture =
-    registryPuller.get()->pull(imageName.get(), registryPullerPath);
+  Future<list<pair<string, string>>> remotePullerFuture =
+    remotePuller.get()->pull(imageName.get(), remotePullerPath);
 
   const string unauthResponseHeaders = "WWW-Authenticate: Bearer"
     " realm=\"https://auth.docker.io/token\","
@@ -1033,8 +1033,8 @@ TEST_F(RegistryClientTest, SimpleRegistryPuller)
   AWAIT_ASSERT_READY(socket);
 
   // Send 401 Unauthorized response for a manifest request.
-  Future<string> registryPullerHttpRequestFuture = Socket(socket.get()).recv();
-  AWAIT_ASSERT_READY(registryPullerHttpRequestFuture);
+  Future<string> remotePullerHttpRequestFuture = Socket(socket.get()).recv();
+  AWAIT_ASSERT_READY(remotePullerHttpRequestFuture);
   AWAIT_ASSERT_READY(Socket(socket.get()).send(unauthHttpResponse));
 
   // Token response.
@@ -1060,8 +1060,8 @@ TEST_F(RegistryClientTest, SimpleRegistryPuller)
   socket = server.get().accept();
   AWAIT_ASSERT_READY(socket);
 
-  registryPullerHttpRequestFuture = Socket(socket.get()).recv();
-  AWAIT_ASSERT_READY(registryPullerHttpRequestFuture);
+  remotePullerHttpRequestFuture = Socket(socket.get()).recv();
+  AWAIT_ASSERT_READY(remotePullerHttpRequestFuture);
 
   const string manifestResponse = " \
     { \
@@ -1124,8 +1124,8 @@ TEST_F(RegistryClientTest, SimpleRegistryPuller)
   socket = server.get().accept();
   AWAIT_ASSERT_READY(socket);
 
-  registryPullerHttpRequestFuture = Socket(socket.get()).recv();
-  AWAIT_ASSERT_READY(registryPullerHttpRequestFuture);
+  remotePullerHttpRequestFuture = Socket(socket.get()).recv();
+  AWAIT_ASSERT_READY(remotePullerHttpRequestFuture);
 
   const string redirectHttpResponse =
     string("HTTP/1.1 307 Temporary Redirect\r\n") +
@@ -1140,15 +1140,15 @@ TEST_F(RegistryClientTest, SimpleRegistryPuller)
   const string BLOB_FILE = "blob";
   const string blobResponse = "hello docker";
 
-  Path blobPath(path::join(registryPullerPath, BLOB_FILE));
+  Path blobPath(path::join(remotePullerPath, BLOB_FILE));
   ASSERT_SOME(os::write(blobPath, blobResponse));
 
-  Path blobTarPath(path::join(registryPullerPath, BLOB_FILE + ".tar"));
+  Path blobTarPath(path::join(remotePullerPath, BLOB_FILE + ".tar"));
 
   vector<string> argv = {
     "tar",
     "-C",
-    registryPullerPath,
+    remotePullerPath,
     "-c",
     "-f",
     blobTarPath,
@@ -1212,14 +1212,14 @@ TEST_F(RegistryClientTest, SimpleRegistryPuller)
   socket = server.get().accept();
   AWAIT_ASSERT_READY(socket);
 
-  registryPullerHttpRequestFuture = Socket(socket.get()).recv();
-  AWAIT_ASSERT_READY(registryPullerHttpRequestFuture);
+  remotePullerHttpRequestFuture = Socket(socket.get()).recv();
+  AWAIT_ASSERT_READY(remotePullerHttpRequestFuture);
 
   AWAIT_ASSERT_READY(Socket(socket.get()).send(
       responseBuffer.get(),
       blobResponseSize));
 
-  AWAIT_ASSERT_READY(registryPullerFuture);
+  AWAIT_ASSERT_READY(remotePullerFuture);
 
   Try<string> blob = os::read(blobPath);
   ASSERT_SOME(blob);
