@@ -96,7 +96,7 @@ LocalPuller::~LocalPuller()
 
 Future<list<pair<string, string>>> LocalPuller::pull(
     const Image::Name& name,
-    const Path& directory)
+    const string& directory)
 {
   return dispatch(process.get(), &LocalPullerProcess::pull, name, directory);
 }

@@ -22,9 +22,6 @@
 #include <list>
 #include <utility>
 
-#include <stout/duration.hpp>
-#include <stout/option.hpp>
-#include <stout/path.hpp>
 #include <stout/try.hpp>
 
 #include <process/future.hpp>
@@ -59,7 +56,7 @@ public:
    */
   virtual process::Future<std::list<std::pair<std::string, std::string>>> pull(
       const docker::Image::Name& name,
-      const Path& directory) = 0;
+      const std::string& directory) = 0;
 };
 
 } // namespace docker {

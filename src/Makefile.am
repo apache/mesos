@@ -562,7 +562,6 @@ libmesos_no_3rdparty_la_SOURCES =						\
 	slave/containerizer/mesos/provisioner/docker/paths.cpp			\
 	slave/containerizer/mesos/provisioner/docker/puller.cpp			\
 	slave/containerizer/mesos/provisioner/docker/registry_client.cpp	\
-	slave/containerizer/mesos/provisioner/docker/remote_puller.cpp		\
 	slave/containerizer/mesos/provisioner/docker/spec.cpp			\
 	slave/containerizer/mesos/provisioner/docker/store.cpp			\
 	slave/containerizer/mesos/provisioner/docker/token_manager.cpp		\
@@ -884,7 +883,6 @@ libmesos_no_3rdparty_la_SOURCES +=						\
 	slave/containerizer/mesos/provisioner/docker/paths.hpp			\
 	slave/containerizer/mesos/provisioner/docker/puller.hpp			\
 	slave/containerizer/mesos/provisioner/docker/registry_client.hpp	\
-	slave/containerizer/mesos/provisioner/docker/remote_puller.hpp		\
 	slave/containerizer/mesos/provisioner/docker/spec.hpp			\
 	slave/containerizer/mesos/provisioner/docker/store.hpp			\
 	slave/containerizer/mesos/provisioner/docker/token_manager.hpp		\

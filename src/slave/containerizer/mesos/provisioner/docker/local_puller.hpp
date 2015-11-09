@@ -49,7 +49,7 @@ public:
 
   process::Future<std::list<std::pair<std::string, std::string>>> pull(
       const Image::Name& name,
-      const Path& directory);
+      const std::string& directory);
 
 private:
   LocalPuller& operator=(const LocalPuller&) = delete; // Not assignable.
