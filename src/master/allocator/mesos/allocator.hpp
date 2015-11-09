@@ -140,6 +140,13 @@ public:
   void reviveOffers(
       const FrameworkID& frameworkId);
 
+  void setQuota(
+      const std::string& role,
+      const mesos::quota::QuotaInfo& quota);
+
+  void removeQuota(
+      const std::string& role);
+
 private:
   MesosAllocator();
   MesosAllocator(const MesosAllocator&); // Not copyable.
@@ -252,6 +259,13 @@ public:
 
   virtual void reviveOffers(
       const FrameworkID& frameworkId) = 0;
+
+  virtual void setQuota(
+      const std::string& role,
+      const mesos::quota::QuotaInfo& quota) = 0;
+
+  virtual void removeQuota(
+      const std::string& role) = 0;
 };
 
 
@@ -561,6 +575,30 @@ inline void MesosAllocator<AllocatorProcess>::reviveOffers(
       process,
       &MesosAllocatorProcess::reviveOffers,
       frameworkId);
+}
+
+
+template <typename AllocatorProcess>
+inline void MesosAllocator<AllocatorProcess>::setQuota(
+    const std::string& role,
+    const mesos::quota::QuotaInfo& quota)
+{
+  process::dispatch(
+      process,
+      &MesosAllocatorProcess::setQuota,
+      role,
+      quota);
+}
+
+
+template <typename AllocatorProcess>
+inline void MesosAllocator<AllocatorProcess>::removeQuota(
+    const std::string& role)
+{
+  process::dispatch(
+      process,
+      &MesosAllocatorProcess::removeQuota,
+      role);
 }
 
 } // namespace allocator {

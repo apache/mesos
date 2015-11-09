@@ -27,6 +27,8 @@
 
 #include <mesos/maintenance/maintenance.hpp>
 
+#include <mesos/quota/quota.hpp>
+
 #include <mesos/resources.hpp>
 
 #include <process/future.hpp>
@@ -328,6 +330,14 @@ public:
       const Option<Filters>& filters) = 0;
 
   /**
+   * Suppresses offers.
+   *
+   * Informs the allocator to stop sending offers to the framework.
+   */
+  virtual void suppressOffers(
+      const FrameworkID& frameworkId) = 0;
+
+  /**
    * Revives offers.
    *
    * Revives offers for a framework. This is invoked by a framework when
@@ -337,12 +347,43 @@ public:
       const FrameworkID& frameworkId) = 0;
 
   /**
-   * Suppresses offers.
+   * Informs the allocator to set quota for the given role.
    *
-   * Informs the allocator to stop sending offers to the framework.
+   * It is up to the allocator implementation how to satisfy quota. An
+   * implementation may employ different strategies for roles with or
+   * without quota. Hence an empty (or zero) quota is not necessarily the
+   * same as an absence of quota. Logically, this method implies that the
+   * given role should be transitioned to the group of roles with quota
+   * set. An allocator implementation may assert quota for the given role
+   * is not set prior to the call and react accordingly if this assumption
+   * is violated (i.e. fail).
+   *
+   * TODO(alexr): Consider returning a future which an allocator can fail
+   * in order to report failure.
+   *
+   * TODO(alexr): Consider adding an `updateQuota()` method which allows
+   * updating existing quota.
    */
-  virtual void suppressOffers(
-      const FrameworkID& frameworkId) = 0;
+  virtual void setQuota(
+      const std::string& role,
+      const mesos::quota::QuotaInfo& quota) = 0;
+
+  /**
+   * Informs the allocator to remove quota for the given role.
+   *
+   * An allocator implementation may employ different strategies for roles
+   * with or without quota. Hence an empty (or zero) quota is not necessarily
+   * the same as an absence of quota. Logically, this method implies that the
+   * given role should be transitioned to the group of roles without quota
+   * set (absence of quota). An allocator implementation may assert quota
+   * for the given role is set prior to the call and react accordingly if
+   * this assumption is violated (i.e. fail).
+   *
+   * TODO(alexr): Consider returning a future which an allocator can fail in
+   * order to report failure.
+   */
+  virtual void removeQuota(
+      const std::string& role) = 0;
 };
 
 } // namespace allocator {
