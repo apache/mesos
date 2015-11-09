@@ -31,6 +31,7 @@
 
 #include "slave/slave.hpp"
 
+#include "tests/allocator.hpp"
 #include "tests/mesos.hpp"
 
 using mesos::internal::master::Master;

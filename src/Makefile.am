@@ -890,6 +890,7 @@ libmesos_no_3rdparty_la_SOURCES +=						\
 	slave/containerizer/mesos/provisioner/docker/token_manager.hpp		\
 	slave/qos_controllers/noop.hpp						\
 	slave/resource_estimators/noop.hpp					\
+	tests/allocator.hpp							\
 	tests/cluster.hpp							\
 	tests/containerizer.hpp							\
 	tests/environment.hpp							\

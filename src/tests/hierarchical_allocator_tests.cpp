@@ -45,6 +45,7 @@
 
 #include "master/allocator/mesos/hierarchical.hpp"
 
+#include "tests/allocator.hpp"
 #include "tests/mesos.hpp"
 
 using mesos::internal::master::MIN_CPUS;

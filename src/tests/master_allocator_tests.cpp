@@ -45,6 +45,7 @@
 
 #include "master/allocator/mesos/hierarchical.hpp"
 
+#include "tests/allocator.hpp"
 #include "tests/containerizer.hpp"
 #include "tests/mesos.hpp"
 #include "tests/module.hpp"

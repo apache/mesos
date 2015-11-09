@@ -36,6 +36,7 @@
 #include "master/flags.hpp"
 #include "master/master.hpp"
 
+#include "tests/allocator.hpp"
 #include "tests/mesos.hpp"
 #include "tests/utils.hpp"
 

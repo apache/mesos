@@ -58,6 +58,7 @@
 
 #include "messages/messages.hpp"
 
+#include "tests/allocator.hpp"
 #include "tests/containerizer.hpp"
 #include "tests/mesos.hpp"
 #include "tests/utils.hpp"
