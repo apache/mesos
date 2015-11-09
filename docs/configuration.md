@@ -1394,9 +1394,41 @@ file:///path/to/file (where file contains one of the above)</code></pre>
       --resources=VALUE
     </td>
     <td>
-      Total consumable resources per slave, in the form
+      <p>
+      Total consumable resources per slave. Can be provided in JSON format or as
+      a semicolon-delimited list of key:value pairs, with the role optionally
+      specified.
+      </p><p>
+      As a key:value list:
+      </p><p>
+      <code>name(role):value;name:value...</code>
+      </p><p>
+      To use JSON, pass a JSON-formatted string or use --resources=filepath to
+      specify the resources via a file containing a JSON-formatted string.
+      'filepath' can be of the form 'file:///path/to/file' or '/path/to/file'.
+      </p><p>
+      Example JSON:
+</p><pre><code>[
+  {
+    "name": "cpus",
+    "type": "SCALAR",
+    "scalar": {
+      "value": 24
+    }
+  },
+  {
+    "name": "mem",
+    "type": "SCALAR",
+    "scalar": {
+      "value": 24576
+    }
+  }
+]</code></pre>
+      <p>
+      See the documentation on
+      <a href="/documentation/latest/attributes-resources/">Attributes and
+      Resources</a> for more information.
       </p>
-      <code>name(role):value;name(role):value...</code>.
     </td>
   </tr>
   <tr>

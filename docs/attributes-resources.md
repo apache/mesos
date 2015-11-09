@@ -36,7 +36,46 @@ Attributes are key-value pairs (where value is optional) that Mesos passes along
 
 ## Resources
 
-The Mesos system can manage 3 different *types* of resources: scalars, ranges, and sets.  These are used to represent the different resources that a Mesos slave has to offer.  For example, a scalar resource type could be used to represent the amount of memory on a slave.  Each resource is identified by a key string.
+The Mesos system can manage 3 different *types* of resources: scalars, ranges, and sets.  These are used to represent the different resources that a Mesos slave has to offer.  For example, a scalar resource type could be used to represent the amount of memory on a slave.  Resources can be specified either with a JSON array or a semicolon-delimited string of key:value pairs.  If, after examining the examples below, you have questions about the format of the JSON, inspect the `Resource` protobuf message definition in `include/mesos/mesos.proto`.
+
+As JSON:
+
+    [
+      {
+        "name": "<resource_name>",
+        "type": "SCALAR",
+        "scalar": {
+          "value": <resource_value>
+        }
+      },
+      {
+        "name": "<resource_name>",
+        "type": "RANGES",
+        "ranges": {
+          "range": [
+            {
+              "begin": <range_beginning>,
+              "end": <range_ending>
+            },
+            ...
+          ]
+        }
+      },
+      {
+        "name": "<resource_name>",
+        "type": "SET",
+        "set": {
+          "item": [
+            "<first_item>",
+            ...
+          ]
+        },
+        "role": "<role_name>"
+      },
+      ...
+    ]
+
+As a list of key:value pairs:
 
     resources : resource ( ";" resource )*
 
@@ -63,18 +102,81 @@ In particular, a slave without `cpus` and `mem` resources will never have its re
 
 Here are some examples for configuring the Mesos slaves.
 
-    --resources='cpus:24;mem:24576;disk:409600;ports:[21000-24000];bugs:{a,b,c}'
+    --resources='cpus:24;mem:24576;disk:409600;ports:[21000-24000,30000-34000];bugs(debug_role):{a,b,c}'
+
+    --resources='[{"name":"cpus","type":"SCALAR","scalar":{"value":24}},{"name":"mem","type":"SCALAR","scalar":{"value":24576}},{"name":"disk","type":"SCALAR","scalar":{"value":409600}},{"name":"ports","type":"RANGES","ranges":{"range":[{"begin":21000,"end":24000},{"begin":30000,"end":34000}]}},{"name":"bugs","type":"SET","set":{"item":["a","b","c"]},"role":"debug_role"}]'
+
     --attributes='rack:abc;zone:west;os:centos5;level:10;keys:[1000-1500]'
 
-In this case, we have three different types of resources, scalars, a range, and a set.  They are called `cpus`, `mem`, `disk`, and the range type is `ports`.
+Or given a file `resources.txt` containing the following:
+
+    [
+      {
+        "name": "cpus",
+        "type": "SCALAR",
+        "scalar": {
+          "value": 24
+        }
+      },
+      {
+        "name": "mem",
+        "type": "SCALAR",
+        "scalar": {
+          "value": 24576
+        }
+      },
+      {
+        "name": "disk",
+        "type": "SCALAR",
+        "scalar": {
+          "value": 409600
+        }
+      },
+      {
+        "name": "ports",
+        "type": "RANGES",
+        "ranges": {
+          "range": [
+            {
+              "begin": 21000,
+              "end": 24000
+            },
+            {
+              "begin": 30000,
+              "end": 34000
+            }
+          ]
+        }
+      },
+      {
+        "name": "bugs",
+        "type": "SET",
+        "set": {
+          "item": [
+            "a",
+            "b",
+            "c"
+          ]
+        },
+        "role": "debug_role"
+      }
+    ]
+
+You can do:
+
+    $ path/to/mesos-slave --resources=file:///path/to/resources.txt ...
+
+In this case, we have five resources of three different types: scalars, a range, and a set.  There are scalars called `cpus`, `mem` and `disk`, a range called `ports`, and a set called `bugs`. `bugs` is assigned to the role `debug_role`, while the other resources do not specify a role and are thus assigned to the default role.
+
+Note: the "default role" can be set by the `--default_role` flag.
 
   - scalar called `cpus`, with the value `24`
   - scalar called `mem`, with the value `24576`
   - scalar called `disk`, with the value `409600`
-  - range called `ports`, with values `21000` through `24000` (inclusive)
-  - set called `bugs`, with the values `a`, `b` and `c`
+  - range called `ports`, with values `21000` through `24000` and `30000` through `34000` (inclusive)
+  - set called `bugs`, with the values `a`, `b` and `c`, assigned to the role `debug_role`
 
-In the case of attributes, we end up with three attributes:
+In the case of attributes, we end up with five attributes:
 
   - `rack` with text value `abc`
   - `zone` with text value `west`
