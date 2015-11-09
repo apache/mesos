@@ -47,6 +47,8 @@
 
 #include "master/master.hpp"
 
+#include "master/allocator/mesos/allocator.hpp"
+
 #include "sched/constants.hpp"
 
 #include "slave/constants.hpp"

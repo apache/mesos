@@ -35,6 +35,8 @@
 
 #include "master/master.hpp"
 
+#include "master/allocator/mesos/allocator.hpp"
+
 #include "messages/messages.hpp"
 
 #include "slave/slave.hpp"

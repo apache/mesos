@@ -53,6 +53,8 @@
 #include "master/flags.hpp"
 #include "master/master.hpp"
 
+#include "master/allocator/mesos/allocator.hpp"
+
 #include "slave/constants.hpp"
 #include "slave/gc.hpp"
 #include "slave/flags.hpp"
