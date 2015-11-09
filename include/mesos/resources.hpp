@@ -62,32 +62,73 @@ namespace mesos {
 class Resources
 {
 public:
-  // Parses the text and returns a Resource object with the given name
-  // and role. For example, "Resource r = parse("mem", "1024", "*");".
+  /**
+   * Returns a Resource with the given name, value, and role.
+   *
+   * Parses the text and returns a Resource object with the given name, value,
+   * and role. For example, "Resource r = parse("mem", "1024", "*");".
+   *
+   * @param name The name of the Resource.
+   * @param value The Resource's value.
+   * @param role The role associated with the Resource.
+   * @return A `Try` which contains the parsed Resource if parsing was
+   *     successful, or an Error otherwise.
+   */
   static Try<Resource> parse(
       const std::string& name,
       const std::string& value,
       const std::string& role);
 
-  // Parses Resources from text in the form "name:value(role);
-  // name:value;...". Any name/value pair that doesn't specify a role
-  // is assigned to defaultRole.
+  /**
+   * Parses Resources from an input string.
+   *
+   * Parses Resources from text in the form of a JSON array. If that fails,
+   * parses text in the form "name(role):value;name:value;...". Any resource
+   * that doesn't specify a role is assigned to the provided default role. See
+   * the `Resource` protobuf definition for precise JSON formatting.
+   *
+   * Example JSON: [{"name":cpus","type":"SCALAR","scalar":{"value":8}}]
+   *
+   * @param text The input string.
+   * @param defaultRole The default role.
+   * @return A `Try` which contains the parsed Resources if parsing was
+   *     successful, or an Error otherwise.
+   */
   static Try<Resources> parse(
       const std::string& text,
       const std::string& defaultRole = "*");
 
-  // Validates the given Resource object. Returns Error if it is not
-  // valid. A Resource object is valid if it has a name, a valid type,
-  // i.e. scalar, range, or set, has the appropriate value set, and
-  // a valid (role, reservation) pair for dynamic reservation.
+  /**
+   * Validates a Resource object.
+   *
+   * Validates the given Resource object. Returns Error if it is not valid. A
+   * Resource object is valid if it has a name, a valid type, i.e. scalar,
+   * range, or set, has the appropriate value set, and a valid (role,
+   * reservation) pair for dynamic reservation.
+   *
+   * @param resource The input resource to be validated.
+   * @return An `Option` which contains None() if the validation was successful,
+   *     or an Error if not.
+   */
   static Option<Error> validate(const Resource& resource);
 
-  // Validates the given protobufs.
-  // TODO(jieyu): Right now, it's the same as checking each individual
-  // Resource object in the protobufs. In the future, we could add
-  // more checks that are not possible if checking each Resource
-  // object individually. For example, we could check multiple usage
-  // of an item in a set or a ranges, etc.
+  /**
+   * Validates the given repeated Resource protobufs.
+   *
+   * Validates the given repeated Resource protobufs. Returns Error if an
+   * invalid Resource is found. A Resource object is valid if it has a name, a
+   * valid type, i.e. scalar, range, or set, has the appropriate value set, and
+   * a valid (role, reservation) pair for dynamic reservation.
+   *
+   * TODO(jieyu): Right now, it's the same as checking each individual Resource
+   * object in the protobufs. In the future, we could add more checks that are
+   * not possible if checking each Resource object individually. For example, we
+   * could check multiple usage of an item in a set or a range, etc.
+   *
+   * @param resources The repeated Resource objects to be validated.
+   * @return An `Option` which contains None() if the validation was successful,
+   *     or an Error if not.
+   */
   static Option<Error> validate(
       const google::protobuf::RepeatedPtrField<Resource>& resources);
 

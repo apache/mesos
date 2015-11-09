@@ -160,6 +160,577 @@ TEST(ResourcesTest, ParsingFromJSON)
   ASSERT_SOME(parse);
 
   EXPECT_EQ(resources, Resources(parse.get()));
+
+  // Use JSON strings both with and without newline characters.
+  string jsonString =
+    "[\n"
+    "  {\n"
+    "    \"name\": \"cpus\",\n"
+    "    \"type\": \"SCALAR\",\n"
+    "    \"scalar\": {\n"
+    "      \"value\": 45.55\n"
+    "    }\n"
+    "  }\n"
+    "]";
+
+  Try<Resources> resourcesTry = Resources::parse(jsonString);
+  ASSERT_SOME(resourcesTry);
+
+  Resources cpuResources(resourcesTry.get());
+  auto cpus = cpuResources.begin();
+
+  EXPECT_EQ(Value::SCALAR, cpus->type());
+  EXPECT_EQ(45.55, cpus->scalar().value());
+
+  // Make sure there is only one Resource in cpuResources.
+  EXPECT_EQ(cpus + 1, cpuResources.end());
+
+  jsonString =
+    "["
+    "  {"
+    "    \"name\": \"ports\","
+    "    \"type\": \"RANGES\","
+    "    \"ranges\": {"
+    "      \"range\": ["
+    "        {"
+    "          \"begin\": 10000,"
+    "          \"end\": 20000"
+    "        },"
+    "        {"
+    "          \"begin\": 30000,"
+    "          \"end\": 50000"
+    "        }"
+    "      ]"
+    "    }"
+    "  }"
+    "]";
+
+  resourcesTry = Resources::parse(jsonString);
+  ASSERT_SOME(resourcesTry);
+
+  Resources portResources(resourcesTry.get());
+  auto ports = portResources.begin();
+
+  EXPECT_EQ(Value::RANGES, ports->type());
+  EXPECT_EQ(2, ports->ranges().range_size());
+
+  // Do not specify the ordering of ranges, only check the values.
+  if (10000 != ports->ranges().range(0).begin()) {
+    EXPECT_EQ(30000, ports->ranges().range(0).begin());
+    EXPECT_EQ(10000, ports->ranges().range(1).begin());
+  } else {
+    EXPECT_EQ(30000, ports->ranges().range(1).begin());
+  }
+
+  jsonString =
+    "["
+    "  {"
+    "    \"name\": \"pandas\","
+    "    \"type\": \"SET\","
+    "    \"set\": {"
+    "      \"item\": ["
+    "        \"lun_lun\","
+    "        \"yang_yang\""
+    "      ]"
+    "    }"
+    "  }"
+    "]";
+
+  resourcesTry = Resources::parse(jsonString);
+  ASSERT_SOME(resourcesTry);
+
+  Resources pandaResources(resourcesTry.get());
+  auto pandas = pandaResources.begin();
+
+  EXPECT_EQ(Value::SET, pandas->type());
+  EXPECT_EQ(2, pandas->set().item_size());
+  EXPECT_EQ("pandas", pandas->name());
+
+  // Do not specify the ordering of the set's items, only check the values.
+  if ("lun_lun" != pandas->set().item(0)) {
+    EXPECT_EQ("yang_yang", pandas->set().item(0));
+    EXPECT_EQ("lun_lun", pandas->set().item(1));
+  } else {
+    EXPECT_EQ("yang_yang", pandas->set().item(1));
+  }
+
+  jsonString =
+    "[\n"
+    "  {\n"
+    "    \"name\": \"cpus\",\n"
+    "    \"type\": \"SCALAR\",\n"
+    "    \"scalar\": {\n"
+    "      \"value\": 45.55\n"
+    "    }\n"
+    "  },\n"
+    "  {\n"
+    "    \"name\": \"ports\",\n"
+    "    \"type\": \"RANGES\",\n"
+    "    \"ranges\": {\n"
+    "      \"range\": [\n"
+    "        {\n"
+    "          \"begin\": 10000,\n"
+    "          \"end\": 20000\n"
+    "        },\n"
+    "        {\n"
+    "          \"begin\": 30000,\n"
+    "          \"end\": 50000\n"
+    "        }\n"
+    "      ]\n"
+    "    }\n"
+    "  },\n"
+    "  {\n"
+    "    \"name\": \"pandas\",\n"
+    "    \"type\": \"SET\",\n"
+    "    \"set\": {\n"
+    "      \"item\": [\n"
+    "        \"lun_lun\",\n"
+    "        \"yang_yang\"\n"
+    "      ]\n"
+    "    }\n"
+    "  }\n"
+    "]";
+
+  resourcesTry = Resources::parse(jsonString);
+  ASSERT_SOME(resourcesTry);
+
+  Resources r1(resourcesTry.get());
+
+  Resources r2;
+  r2 += *cpus;
+  r2 += *ports;
+  r2 += *pandas;
+
+  EXPECT_EQ(r1, r2);
+}
+
+
+TEST(ResourcesTest, ParsingFromJSONWithRoles)
+{
+  string jsonString =
+    "[\n"
+    "  {\n"
+    "    \"name\": \"cpus\",\n"
+    "    \"type\": \"SCALAR\",\n"
+    "    \"scalar\": {\n"
+    "      \"value\": 45.55\n"
+    "    },\n"
+    "    \"role\": \"role1\"\n"
+    "  }\n"
+    "]";
+
+  Try<Resources> resourcesTry = Resources::parse(jsonString);
+  ASSERT_SOME(resourcesTry);
+
+  Resources cpuResources(resourcesTry.get());
+  auto cpus = cpuResources.begin();
+
+  EXPECT_EQ("role1", cpus->role());
+
+  jsonString =
+    "[\n"
+    "  {\n"
+    "    \"name\": \"cpus\",\n"
+    "    \"type\": \"SCALAR\",\n"
+    "    \"scalar\": {\n"
+    "      \"value\": 54.44\n"
+    "    },\n"
+    "    \"role\": \"role2\"\n"
+    "  }\n"
+    "]";
+
+  resourcesTry = Resources::parse(jsonString);
+  ASSERT_SOME(resourcesTry);
+
+  Resources cpuResources2(resourcesTry.get());
+  auto cpus2 = cpuResources2.begin();
+
+  Resources resources;
+  resources += *cpus2;
+  resources += *cpus;
+  resources += *cpus;
+
+  EXPECT_TRUE(resources.contains(Resources(*cpus)));
+  EXPECT_EQ(145.54, resources.cpus().get());
+
+  foreach (Resource& resource, resources) {
+    if (resource.role() == "role1") {
+      EXPECT_EQ(91.1, resource.scalar().value());
+    } else {
+      EXPECT_EQ(54.44, resource.scalar().value());
+    }
+  }
+
+  jsonString =
+    "["
+    "  {"
+    "    \"name\": \"ports\","
+    "    \"type\": \"RANGES\","
+    "    \"ranges\": {"
+    "      \"range\": ["
+    "        {"
+    "          \"begin\": 10000,"
+    "          \"end\": 20000"
+    "        },"
+    "        {"
+    "          \"begin\": 30000,"
+    "          \"end\": 50000"
+    "        }"
+    "      ]"
+    "    },"
+    "    \"role\": \"role1\""
+    "  },"
+    "  {"
+    "    \"name\": \"pandas\","
+    "    \"type\": \"SET\","
+    "    \"set\": {"
+    "      \"item\": ["
+    "        \"lun_lun\","
+    "        \"yang_yang\""
+    "      ]"
+    "    },"
+    "    \"role\": \"panda_liason\""
+    "  }"
+    "]";
+
+  resourcesTry = Resources::parse(jsonString);
+  ASSERT_SOME(resourcesTry);
+
+  resources = resourcesTry.get();
+
+  foreach (Resource& resource, resources) {
+    if (resource.role() == "role1") {
+      EXPECT_EQ(Value::RANGES, resource.type());
+      EXPECT_EQ(2, resource.ranges().range_size());
+    } else {
+      EXPECT_EQ(Value::SET, resource.type());
+      EXPECT_EQ(2, resource.set().item_size());
+    }
+  }
+}
+
+
+TEST(ResourcesTest, ParsingFromJSONError)
+{
+  // A single JSON object, not an array.
+  string jsonString =
+    "{"
+    "  \"name\": \"sad_pandas\","
+    "  \"type\": \"SET\","
+    "  \"set\": {"
+    "    \"item\": ["
+    "      \"bai_yun\","
+    "      \"gao_gao\""
+    "    ]"
+    "  }"
+    "}";
+
+  EXPECT_ERROR(Resources::parse(jsonString));
+
+  // Missing comma in Resource array.
+  jsonString =
+    "["
+    "  {"
+    "    \"name\": \"sad_pandas\","
+    "    \"type\": \"SET\","
+    "    \"set\": {"
+    "      \"item\": ["
+    "        \"bai_yun\","
+    "        \"gao_gao\""
+    "      ]"
+    "    }"
+    "  }"
+    "  {"
+    "    \"name\": \"happy_pandas\","
+    "    \"type\": \"SET\","
+    "    \"set\": {"
+    "      \"item\": ["
+    "        \"yun_zi\","
+    "        \"xiao_liwu\""
+    "      ]"
+    "    }"
+    "  }"
+    "]";
+
+  EXPECT_ERROR(Resources::parse(jsonString));
+
+  // Missing comma in Set list.
+  jsonString =
+    "["
+    "  {"
+    "    \"name\": \"sad_pandas\","
+    "    \"type\": \"SET\","
+    "    \"set\": {"
+    "      \"item\": ["
+    "        \"bai_yun\","
+    "        \"gao_gao\""
+    "      ]"
+    "    }"
+    "  },"
+    "  {"
+    "    \"name\": \"happy_pandas\","
+    "    \"type\": \"SET\","
+    "    \"set\": {"
+    "      \"item\": ["
+    "        \"yun_zi\","
+    "        \"xiao_liwu\""
+    "        \"xi_lan\""
+    "      ]"
+    "    }"
+    "  }"
+    "]";
+
+  EXPECT_ERROR(Resources::parse(jsonString));
+
+  // An array of arrays.
+  jsonString =
+    "["
+    "  ["
+    "    {"
+    "      \"name\": \"sad_pandas\","
+    "      \"type\": \"SET\","
+    "      \"set\": {"
+    "        \"item\": ["
+    "          \"bai_yun\","
+    "          \"gao_gao\""
+    "        ]"
+    "      }"
+    "    },"
+    "    {"
+    "      \"name\": \"happy_pandas\","
+    "      \"type\": \"SET\","
+    "      \"set\": {"
+    "        \"item\": ["
+    "          \"yun_zi\","
+    "          \"xiao_liwu\""
+    "        ]"
+    "      }"
+    "    }"
+    "  ]"
+    "]";
+
+  EXPECT_ERROR(Resources::parse(jsonString));
+
+  // Missing array brackets.
+  jsonString =
+    "{"
+    "  \"name\": \"sad_pandas\","
+    "  \"type\": \"SET\","
+    "  \"set\": {"
+    "    \"item\": ["
+    "      \"bai_yun\","
+    "      \"gao_gao\""
+    "    ]"
+    "  }"
+    "},"
+    "{"
+    "  \"name\": \"happy_pandas\","
+    "  \"type\": \"SET\","
+    "  \"set\": {"
+    "    \"item\": ["
+    "      \"yun_zi\","
+    "      \"xiao_liwu\""
+    "    ]"
+    "  }"
+    "}";
+
+  EXPECT_ERROR(Resources::parse(jsonString));
+
+  // Contains extraneous text.
+  jsonString =
+    "["
+    "  {"
+    "    \"name\": \"sad_pandas\","
+    "    \"type\": \"SET\","
+    "    \"set\": {"
+    "      \"item\": ["
+    "        \"bai_yun\","
+    "        \"gao_gao\""
+    "      ]"
+    "    }"
+    "  }"
+    "]"
+    "once upon a time there was a sad panda...";
+
+  EXPECT_ERROR(Resources::parse(jsonString));
+
+  // Wrong type of bracket.
+  jsonString =
+    "["
+    "  {"
+    "    \"name\": \"pandas\","
+    "    \"type\": \"SET\","
+    "    \"set\": {"
+    "      \"item\": ["
+    "        \"lun_lun\","
+    "        \"yang_yang\""
+    "      }"
+    "    }"
+    "  }"
+    "]";
+
+  EXPECT_ERROR(Resources::parse(jsonString));
+
+  // Missing 'type' field.
+  jsonString =
+    "["
+    "  {"
+    "    \"name\": \"pandas\","
+    "    \"set\": {"
+    "      \"item\": ["
+    "        \"lun_lun\","
+    "        \"yang_yang\""
+    "      ]"
+    "    }"
+    "  }"
+    "]";
+
+  EXPECT_ERROR(Resources::parse(jsonString));
+
+  // Empty name.
+  jsonString =
+    "["
+    "  {"
+    "    \"name\": \"\","
+    "    \"type\": \"SET\","
+    "    \"set\": {"
+    "      \"item\": ["
+    "        \"lun_lun\","
+    "        \"yang_yang\""
+    "      ]"
+    "    }"
+    "  }"
+    "]";
+
+  EXPECT_ERROR(Resources::parse(jsonString));
+
+  // Unrecognized Resource 'type'.
+  jsonString =
+    "["
+    "  {"
+    "    \"name\": \"pandas\","
+    "    \"type\": \"FLOATINGPOINT\","
+    "    \"set\": {"
+    "      \"item\": ["
+    "        \"lun_lun\","
+    "        \"yang_yang\""
+    "      ]"
+    "    }"
+    "  }"
+    "]";
+
+  EXPECT_ERROR(Resources::parse(jsonString));
+
+  // Empty Resources.
+  jsonString =
+    "["
+    "  {"
+    "    \"name\": \"panda_power\","
+    "    \"type\": \"SCALAR\","
+    "    \"scalar\": {"
+    "      \"value\": 0"
+    "    }"
+    "  },"
+    "  {"
+    "    \"name\": \"panda_window\","
+    "    \"type\": \"RANGES\","
+    "    \"ranges\": {"
+    "      \"range\": []"
+    "    },"
+    "    \"role\": \"role1\""
+    "  },"
+    "  {"
+    "    \"name\": \"actual_pandas\","
+    "    \"type\": \"SET\","
+    "    \"set\": {"
+    "      \"item\": []"
+    "    }"
+    "  }"
+    "]";
+
+  EXPECT_ERROR(Resources::parse(jsonString));
+
+  // Resources with the same name but different types.
+  jsonString =
+    "["
+    "  {"
+    "    \"name\": \"happy_pandas\","
+    "    \"type\": \"SCALAR\","
+    "    \"scalar\": {"
+    "      \"value\": 14"
+    "    }"
+    "  },"
+    "  {"
+    "    \"name\": \"happy_pandas\","
+    "    \"type\": \"SET\","
+    "    \"set\": {"
+    "      \"item\": ["
+    "        \"yun_zi\","
+    "        \"xiao_liwu\","
+    "        \"xi_lan\""
+    "      ]"
+    "    }"
+    "  }"
+    "]";
+
+  EXPECT_ERROR(Resources::parse(jsonString));
+
+  // Attempts to specify a persistent volume.
+  jsonString =
+    "["
+    "  {"
+    "    \"name\" : \"disk\","
+    "    \"type\" : \"SCALAR\","
+    "    \"scalar\" : {"
+    "      \"value\" : 2048"
+    "    },"
+    "    \"disk\": {"
+    "      \"persistence\": {"
+    "        \"id\" : \"persistent_volume_1\""
+    "      },"
+    "      \"volume\" : {"
+    "        \"container_path\" : \"/var/lib/mesos/persist\","
+    "        \"mode\" : \"RW\""
+    "      }"
+    "    }"
+    "  }"
+    "]";
+
+  EXPECT_ERROR(Resources::parse(jsonString));
+
+  // Attempts to specify a dynamic reservation.
+  jsonString =
+    "["
+    "  {"
+    "    \"name\" : \"disk\","
+    "    \"type\" : \"SCALAR\","
+    "    \"scalar\" : {"
+    "      \"value\" : 2048"
+    "    },"
+    "    \"reservation\" : {"
+    "      \"principal\" : \"default_principal\""
+    "    },"
+    "    \"role\": \"new_role\""
+    "  }"
+    "]";
+
+  EXPECT_ERROR(Resources::parse(jsonString));
+
+  // Attempts to specify revocable resources.
+  jsonString =
+    "[\n"
+    "  {\n"
+    "    \"name\": \"cpus\",\n"
+    "    \"type\": \"SCALAR\",\n"
+    "    \"scalar\": {\n"
+    "      \"value\": 54.44\n"
+    "    },\n"
+    "    \"role\": \"role2\",\n"
+    "    \"revocable\": {}\n"
+    "  }\n"
+    "]";
+
+  EXPECT_ERROR(Resources::parse(jsonString));
 }
 
 
