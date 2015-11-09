@@ -183,7 +183,7 @@ int main(int argc, char** argv)
 ~~~
 
 Note that the templated type of the future must be the exact
-same as the promise, you can not create a covariant or
+same as the promise: you cannot create a covariant or
 contravariant future. Unlike `Promise`, a `Future` can be both
 copied and assigned:
 
@@ -442,9 +442,89 @@ Future<Response> response = connection.send(request);
 It's also worth noting that if multiple requests are sent in succession on a
 `Connection`, they will be automatically pipelined.
 
-## Testing
+## Clock Management and Timeouts
 
----
+Asynchronous programs often use timeouts, e.g., because a process that initiates
+an asynchronous operation wants to take action if the operation hasn't completed
+within a certain time bound. To facilitate this, libprocess provides a set of
+abstractions that simplify writing timeout logic. Importantly, test code has the
+ability to manipulate the clock, in order to ensure that timeout logic is
+exercised (without needing to block the test program until the appropriate
+amount of system time has elapsed).
+
+To invoke a function after a certain amount of time has elapsed, use `delay`:
+
+~~~{.cpp}
+using namespace process;
+
+class DelayedProcess : public Process<DelayedProcess>
+{
+public:
+  void action(const string& name)
+  {
+    LOG(INFO) << "hello, " << name;
+
+    promise.set(Nothing());
+  }
+
+  Promise<Nothing> promise;
+};
+
+
+int main()
+{
+  DelayedProcess process;
+
+  spawn(process);
+
+  LOG(INFO) << "Starting to wait";
+
+  delay(Seconds(5), process.self(), &DelayedProcess::action, "Neil");
+
+  AWAIT_READY(process.promise.future());
+
+  LOG(INFO) << "Done waiting";
+
+  terminate(process);
+  wait(process);
+
+  return 0;
+}
+~~~
+
+This invokes the `action` function after (at least) five seconds of time
+have elapsed. When writing unit tests for this code, blocking the test for five
+seconds is undesirable. To avoid this, we can use `Clock::advance`:
+
+~~~{.cpp}
+
+int main()
+{
+  DelayedProcess process;
+
+  spawn(process);
+
+  LOG(INFO) << "Starting to wait";
+
+  Clock::pause();
+
+  delay(Seconds(5), process.self(), &DelayedProcess::action, "Neil");
+
+  Clock::advance(Seconds(5));
+
+  AWAIT_READY(process.promise.future());
+
+  LOG(INFO) << "Done waiting";
+
+  terminate(process);
+  wait(process);
+
+  Clock::resume();
+
+  return 0;
+}
+~~~
+
 
 ## Miscellaneous Primitives
 
