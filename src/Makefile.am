@@ -170,11 +170,11 @@ MAINTENANCE_PROTO =							\
 ALLOCATOR_PROTO =							\
   $(top_srcdir)/include/mesos/master/allocator.proto
 
-QUOTA_PROTO =								\
-  $(top_srcdir)/include/mesos/master/quota.proto
-
 MODULE_PROTO =								\
   $(top_srcdir)/include/mesos/module/module.proto
+
+QUOTA_PROTO =								\
+  $(top_srcdir)/include/mesos/quota/quota.proto
 
 SCHEDULER_PROTO =							\
   $(top_srcdir)/include/mesos/scheduler/scheduler.proto
@@ -205,10 +205,10 @@ CXX_PROTOS =								\
   ../include/mesos/maintenance/maintenance.pb.h				\
   master/allocator.pb.cc						\
   ../include/mesos/master/allocator.pb.h				\
-  master/quota.pb.cc							\
-  ../include/mesos/master/quota.pb.h					\
   module/module.pb.cc							\
   ../include/mesos/module/module.pb.h					\
+  quota/quota.pb.cc							\
+  ../include/mesos/quota/quota.pb.h					\
   scheduler/scheduler.pb.cc						\
   ../include/mesos/scheduler/scheduler.pb.h				\
   slave/isolator.pb.cc							\
@@ -351,6 +351,12 @@ module/%.pb.cc ../include/mesos/module/%.pb.h: $(MODULE_PROTO)
 	$(MKDIR_P) ../include/mesos/module
 	$(PROTOC) $(PROTOCFLAGS) --cpp_out=../include $^
 	mv ../include/mesos/module/*.pb.cc $(@D)
+
+quota/%.pb.cc ../include/mesos/quota/%.pb.h: $(QUOTA_PROTO)
+	$(MKDIR_P) $(@D)
+	$(MKDIR_P) ../include/mesos/quota
+	$(PROTOC) $(PROTOCFLAGS) --cpp_out=../include $^
+	mv ../include/mesos/quota/*.pb.cc $(@D)
 
 scheduler/%.pb.cc ../include/mesos/scheduler/%.pb.h: $(SCHEDULER_PROTO)
 	$(MKDIR_P) $(@D)
@@ -643,13 +649,10 @@ masterdir = $(pkgincludedir)/master
 
 master_HEADERS =							\
   $(top_srcdir)/include/mesos/master/allocator.hpp			\
-  $(top_srcdir)/include/mesos/master/allocator.proto			\
-  $(top_srcdir)/include/mesos/master/quota.hpp				\
-  $(top_srcdir)/include/mesos/master/quota.proto
+  $(top_srcdir)/include/mesos/master/allocator.proto
 
 nodist_master_HEADERS =							\
-  ../include/mesos/master/allocator.pb.h				\
-  ../include/mesos/master/quota.pb.h
+  ../include/mesos/master/allocator.pb.h
 
 moduledir = $(pkgincludedir)/module
 
@@ -667,6 +670,14 @@ module_HEADERS =							\
   $(top_srcdir)/include/mesos/module/resource_estimator.hpp
 
 nodist_module_HEADERS = ../include/mesos/module/module.pb.h
+
+quotadir = $(pkgincludedir)/quota
+
+quota_HEADERS =								\
+$(top_srcdir)/include/mesos/quota/quota.hpp				\
+$(top_srcdir)/include/mesos/quota/quota.proto
+
+nodist_quota_HEADERS = ../include/mesos/quota/quota.pb.h
 
 schedulerdir = $(pkgincludedir)/scheduler
 
@@ -1027,12 +1038,12 @@ lib_LTLIBRARIES += libmesos.la
 # Include as part of the distribution.
 libmesos_la_SOURCES =							\
   $(ALLOCATOR_PROTO)							\
-  $(QUOTA_PROTO)							\
   $(CONTAINERIZER_PROTO)						\
   $(FETCHER_PROTO)							\
   $(MAINTENANCE_PROTO)							\
   $(MESOS_PROTO)							\
   $(MODULE_PROTO)							\
+  $(QUOTA_PROTO)							\
   $(SCHEDULER_PROTO)							\
   $(EXECUTOR_PROTO)							\
   $(ISOLATOR_PROTO)							\

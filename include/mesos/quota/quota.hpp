@@ -16,10 +16,10 @@
  * limitations under the License.
  */
 
-#ifndef __MESOS_MASTER_QUOTA_PROTO_HPP__
-#define __MESOS_MASTER_QUOTA_PROTO_HPP__
+#ifndef __MESOS_QUOTA_PROTO_HPP__
+#define __MESOS_QUOTA_PROTO_HPP__
 
 // ONLY USEFUL AFTER RUNNING PROTOC.
-#include <mesos/master/quota.pb.h>
+#include <mesos/quota/quota.pb.h>
 
-#endif // __MESOS_MASTER_QUOTA_PROTO_HPP__
+#endif // __MESOS_QUOTA_PROTO_HPP__

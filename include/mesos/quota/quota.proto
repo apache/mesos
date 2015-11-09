@@ -18,12 +18,20 @@
 
 import "mesos/mesos.proto";
 
-package mesos.master;
+package mesos.quota;
+
+option java_package = "org.apache.mesos.quota";
+option java_outer_classname = "Protos";
 
 
 /**
- * QuotaInfo describes the guaranteed resource allocation that a role
+ * `QuotaInfo` describes the guaranteed resource allocation that a role
  * may rely on (i.e. minimum share a role is entitled to receive).
+ *
+ * As for now, `QuotaInfo` is an internal message used by the master and
+ * therefore does not require versioning. However, in the future we may
+ * want to expose it in the Framework API, which will render it being
+ * external facing.
  */
 // TODO(joerg84): Add limits, i.e. upper bounds of resources that a
 // role is allowed to use.
@@ -33,7 +41,7 @@ message QuotaInfo {
   optional string role = 1;
 
   // Resources which are guaranteed to be allocatable by role.
-  // NOTE: Each guarantees.role must match the above role and
-  // resource names must be unique.
+  // NOTE: Each `guarantee.role` must match the above role and resource
+  // names must be unique.
   repeated Resource guarantee = 3;
 }
