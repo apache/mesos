@@ -1626,7 +1626,7 @@ void Slave::_runTask(
 
       // Queue task if the executor has not yet registered.
       LOG(INFO) << "Queuing task '" << task.task_id()
-                << "' for executor '" << *executor << "'";
+                << "' for executor " << *executor;
 
       executor->queuedTasks[task.task_id()] = task;
       break;
@@ -1639,7 +1639,7 @@ void Slave::_runTask(
       // Queue task until the containerizer is updated with new
       // resource limits (MESOS-998).
       LOG(INFO) << "Queuing task '" << task.task_id()
-                << "' for executor '" << *executor << "'";
+                << "' for executor " << *executor;
 
       executor->queuedTasks[task.task_id()] = task;
 
@@ -1666,7 +1666,7 @@ void Slave::_runTask(
       break;
     }
     default:
-      LOG(FATAL) << "Executor '" << *executor << " is in unexpected state "
+      LOG(FATAL) << "Executor " << *executor << " is in unexpected state "
                  << executor->state;
       break;
   }
@@ -1791,7 +1791,7 @@ void Slave::runTasks(
     executor->addTask(task);
 
     LOG(INFO) << "Sending queued task '" << task.task_id()
-              << "' to executor '" << *executor << "'";
+              << "' to executor " << *executor;
 
     RunTaskMessage message;
     message.mutable_framework()->MergeFrom(framework->info);
@@ -1979,8 +1979,8 @@ void Slave::killTask(
       break;
     }
     default:
-      LOG(FATAL) << "Executor '" << *executor
-                 << "' is in unexpected state " << executor->state;
+      LOG(FATAL) << "Executor " << *executor << " is in unexpected state "
+                 << executor->state;
       break;
   }
 }
@@ -2140,8 +2140,8 @@ void Slave::schedulerMessage(
       break;
     }
     default:
-      LOG(FATAL) << "Executor '" << *executor
-                 << "' is in unexpected state " << executor->state;
+      LOG(FATAL) << "Executor " << *executor << " is in unexpected state "
+                 << executor->state;
       break;
   }
 }
@@ -2524,8 +2524,8 @@ void Slave::registerExecutor(
       break;
     }
     default:
-      LOG(FATAL) << "Executor " << *executor
-                 << " is in unexpected state " << executor->state;
+      LOG(FATAL) << "Executor " << *executor << " is in unexpected state "
+                 << executor->state;
       break;
   }
 }
@@ -2656,8 +2656,8 @@ void Slave::reregisterExecutor(
       break;
     }
     default:
-      LOG(FATAL) << "Executor " << *executor
-                 << " is in unexpected state " << executor->state;
+      LOG(FATAL) << "Executor " << *executor << " is in unexpected state "
+                 << executor->state;
       break;
   }
 }
@@ -2735,8 +2735,8 @@ void Slave::reregisterExecutorTimeout()
           break;
         }
         default:
-          LOG(FATAL) << "Executor " << *executor
-                     << " is in unexpected state " << executor->state;
+          LOG(FATAL) << "Executor " << *executor << " is in unexpected state "
+                     << executor->state;
           break;
       }
     }
@@ -3504,8 +3504,8 @@ void Slave::executorLaunched(
 
   switch (executor->state) {
     case Executor::TERMINATING:
-      LOG(WARNING) << "Killing executor '" << *executor
-                   << "' because the executor is terminating";
+      LOG(WARNING) << "Killing executor " << *executor
+                   << " because the executor is terminating";
 
       containerizer->destroy(containerId);
       break;
@@ -3514,8 +3514,8 @@ void Slave::executorLaunched(
       break;
     case Executor::TERMINATED:
     default:
-      LOG(FATAL) << "Executor '" << *executor
-                 << "' is in an unexpected state " << executor->state;
+      LOG(FATAL) << "Executor " << *executor << " is in an unexpected state "
+                 << executor->state;
 
       break;
   }
@@ -3930,8 +3930,8 @@ void Slave::shutdownExecutorTimeout(
       containerizer->destroy(executor->containerId);
       break;
     default:
-      LOG(FATAL) << "Executor " << *executor
-                 << " is in unexpected state " << executor->state;
+      LOG(FATAL) << "Executor " << *executor << " is in unexpected state "
+                 << executor->state;
       break;
   }
 }
@@ -4004,8 +4004,8 @@ void Slave::registerExecutorTimeout(
       break;
     }
     default:
-      LOG(FATAL) << "Executor " << *executor
-                 << " is in unexpected state " << executor->state;
+      LOG(FATAL) << "Executor " << *executor << " is in unexpected state "
+                 << executor->state;
       break;
   }
 }
@@ -4168,17 +4168,17 @@ Future<Nothing> Slave::_recover()
         // http.isNone and pid.isNone (see comments in the header).
         if (executor->pid.isSome() && executor->pid.get()) {
           LOG(INFO)
-            << "Sending reconnect request to executor '" << *executor << "'";
+            << "Sending reconnect request to executor " << *executor;
 
           ReconnectExecutorMessage message;
           message.mutable_slave_id()->MergeFrom(info.id());
           send(executor->pid.get(), message);
         } else if (executor->pid.isNone()) {
-          LOG(INFO) << "Waiting for executor '" << *executor
-                    << "' to subscribe";
+          LOG(INFO) << "Waiting for executor " << *executor
+                    << " to subscribe";
         } else {
-          LOG(INFO) << "Unable to reconnect to executor '" << *executor
-                    << "' because no pid or http checkpoint file was found";
+          LOG(INFO) << "Unable to reconnect to executor " << *executor
+                    << " because no pid or http checkpoint file was found";
         }
       } else {
         // For PID-based executors, we ask the executor to shut
@@ -4187,11 +4187,11 @@ Future<Nothing> Slave::_recover()
         // when the executor subscribes.
         if ((executor->pid.isSome() && executor->pid.get()) ||
             executor->pid.isNone()) {
-          LOG(INFO) << "Sending shutdown to executor '" << *executor << "'";
+          LOG(INFO) << "Sending shutdown to executor " << *executor;
           _shutdownExecutor(framework, executor);
         } else {
-          LOG(INFO) << "Killing executor '" << *executor
-                    << "' because no pid or http checkpoint file was found";
+          LOG(INFO) << "Killing executor " << *executor
+                    << " because no pid or http checkpoint file was found";
 
           containerizer->destroy(executor->containerId);
         }
@@ -4569,8 +4569,8 @@ void Slave::_qosCorrections(const Future<list<QoSCorrection>>& future)
                        << executor->state << " state";
           break;
         default:
-          LOG(FATAL) << "Executor '" << *executor
-                     << "' is in unexpected state " << executor->state;
+          LOG(FATAL) << "Executor " << *executor << " is in unexpected state "
+                     << executor->state;
           break;
       }
     } else {
