@@ -16,9 +16,9 @@
  * limitations under the License.
  */
 
-#include <gtest/gtest.h>
-
 #include <vector>
+
+#include <gtest/gtest.h>
 
 #include <mesos/mesos.hpp>
 #include <mesos/resources.hpp>

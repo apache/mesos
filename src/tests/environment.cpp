@@ -16,8 +16,6 @@
  * limitations under the License.
  */
 
-#include <gtest/gtest.h>
-
 #include <sys/wait.h>
 
 #include <string.h>
@@ -27,6 +25,8 @@
 #include <set>
 #include <string>
 #include <vector>
+
+#include <gtest/gtest.h>
 
 #include "docker/docker.hpp"
 

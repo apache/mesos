@@ -18,13 +18,13 @@
 
 #include <unistd.h>
 
-#include <gmock/gmock.h>
-
 #include <algorithm>
 #include <map>
 #include <memory>
 #include <string>
 #include <vector>
+
+#include <gmock/gmock.h>
 
 #include <mesos/executor.hpp>
 #include <mesos/scheduler.hpp>

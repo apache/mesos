@@ -21,10 +21,10 @@
 
 #include <unistd.h>
 
-#include <gmock/gmock.h>
-
 #include <map>
 #include <string>
+
+#include <gmock/gmock.h>
 
 #include <process/dispatch.hpp>
 #include <process/future.hpp>

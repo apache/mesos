@@ -17,6 +17,7 @@
  */
 
 #include <gmock/gmock.h>
+
 #include <gtest/gtest.h>
 
 #include <process/future.hpp>

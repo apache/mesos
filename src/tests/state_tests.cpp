@@ -16,12 +16,12 @@
  * limitations under the License.
  */
 
-#include <gmock/gmock.h>
-
 #include <list>
 #include <set>
 #include <string>
 #include <vector>
+
+#include <gmock/gmock.h>
 
 #include <mesos/mesos.hpp>
 #include <mesos/type_utils.hpp>

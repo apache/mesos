@@ -16,10 +16,11 @@
  * limitations under the License.
  */
 
-#include <gmock/gmock.h>
-#include <gtest/gtest.h>
-
 #include <vector>
+
+#include <gmock/gmock.h>
+
+#include <gtest/gtest.h>
 
 #include <process/future.hpp>
 #include <process/gmock.hpp>

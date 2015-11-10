@@ -16,9 +16,9 @@
  * limitations under the License.
  */
 
-#include <gmock/gmock.h>
-
 #include <string>
+
+#include <gmock/gmock.h>
 
 #include <mesos/executor.hpp>
 #include <mesos/scheduler.hpp>

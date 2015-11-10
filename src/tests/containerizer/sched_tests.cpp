@@ -16,12 +16,12 @@
  * limitations under the License.
  */
 
+#include <gtest/gtest.h>
+
 #include "linux/sched.hpp"
 
 #include <process/gtest.hpp>
 #include <process/reap.hpp>
-
-#include <gtest/gtest.h>
 
 #include <stout/gtest.hpp>
 

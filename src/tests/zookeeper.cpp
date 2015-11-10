@@ -19,11 +19,11 @@
 #include <signal.h>
 #include <stdint.h>
 
-#include <gtest/gtest.h>
-
 #include <list>
 #include <string>
 #include <vector>
+
+#include <gtest/gtest.h>
 
 #include <jvm/jvm.hpp>
 

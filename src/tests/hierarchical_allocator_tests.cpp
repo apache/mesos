@@ -16,13 +16,13 @@
  * limitations under the License.
  */
 
-#include <gmock/gmock.h>
-
 #include <atomic>
 #include <iostream>
 #include <string>
 #include <queue>
 #include <vector>
+
+#include <gmock/gmock.h>
 
 #include <mesos/master/allocator.hpp>
 

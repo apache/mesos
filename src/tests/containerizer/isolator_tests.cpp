@@ -18,11 +18,11 @@
 
 #include <unistd.h>
 
-#include <gmock/gmock.h>
-
 #include <iostream>
 #include <string>
 #include <vector>
+
+#include <gmock/gmock.h>
 
 #include <mesos/resources.hpp>
 

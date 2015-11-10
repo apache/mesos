@@ -16,11 +16,11 @@
  * limitations under the License.
  */
 
-#include <gmock/gmock.h>
-
 #include <google/protobuf/repeated_field.h>
 
 #include <vector>
+
+#include <gmock/gmock.h>
 
 #include <mesos/executor.hpp>
 #include <mesos/mesos.hpp>

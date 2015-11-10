@@ -16,10 +16,10 @@
  * limitations under the License.
  */
 
-#include <gmock/gmock.h>
-
 #include <string>
 #include <vector>
+
+#include <gmock/gmock.h>
 
 #include <mesos/executor.hpp>
 #include <mesos/mesos.hpp>

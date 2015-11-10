@@ -19,10 +19,10 @@
 #ifndef __TESTS_ENVIRONMENT_HPP__
 #define __TESTS_ENVIRONMENT_HPP__
 
-#include <gtest/gtest.h>
-
 #include <list>
 #include <string>
+
+#include <gtest/gtest.h>
 
 #include <stout/try.hpp>
 

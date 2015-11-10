@@ -19,10 +19,10 @@
 #include <stdarg.h>
 #include <stdint.h>
 
-#include <gmock/gmock.h>
-
 #include <list>
 #include <string>
+
+#include <gmock/gmock.h>
 
 #include <mesos/resources.hpp>
 

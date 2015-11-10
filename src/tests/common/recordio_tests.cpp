@@ -16,10 +16,10 @@
  * limitations under the License.
  */
 
-#include <gtest/gtest.h>
-
 #include <ostream>
 #include <string>
+
+#include <gtest/gtest.h>
 
 #include <process/gtest.hpp>
 

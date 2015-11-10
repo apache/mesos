@@ -19,9 +19,9 @@
 #include <stdint.h>
 #include <unistd.h>
 
-#include <gmock/gmock.h>
-
 #include <vector>
+
+#include <gmock/gmock.h>
 
 #include <mesos/mesos.hpp>
 #include <mesos/scheduler.hpp>

@@ -19,6 +19,7 @@
 #include <utility>
 
 #include <gmock/gmock.h>
+
 #include <gtest/gtest.h>
 
 #include <stout/duration.hpp>

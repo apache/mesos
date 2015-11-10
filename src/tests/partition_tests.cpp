@@ -16,9 +16,9 @@
  * limitations under the License.
  */
 
-#include <gmock/gmock.h>
-
 #include <vector>
+
+#include <gmock/gmock.h>
 
 #include <process/clock.hpp>
 #include <process/future.hpp>

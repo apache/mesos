@@ -21,11 +21,11 @@
 
 #include <stdint.h>
 
-#include <gtest/gtest.h>
-
 #include <condition_variable>
 #include <mutex>
 #include <queue>
+
+#include <gtest/gtest.h>
 
 #include <stout/duration.hpp>
 

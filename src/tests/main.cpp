@@ -18,9 +18,9 @@
 
 #include <signal.h>
 
-#include <gtest/gtest.h>
-
 #include <string>
+
+#include <gtest/gtest.h>
 
 #include <process/process.hpp>
 
