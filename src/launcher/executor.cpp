@@ -91,7 +91,6 @@ public:
       pid(-1),
       healthPid(-1),
       escalationTimeout(slave::EXECUTOR_SIGNAL_ESCALATION_TIMEOUT),
-      executorInfo(None()),
       driver(None()),
       healthCheckDir(_healthCheckDir),
       override(override),
@@ -107,7 +106,6 @@ public:
       const SlaveInfo& slaveInfo)
   {
     cout << "Registered executor on " << slaveInfo.hostname() << endl;
-    executorInfo = _executorInfo;
     driver = _driver;
   }
 
@@ -181,8 +179,6 @@ public:
       abort();
     }
 
-    CHECK_SOME(executorInfo);
-
     Option<string> rootfs;
     if (sandboxDirectory.isSome()) {
       // If 'sandbox_diretory' is specified, that means the user
@@ -203,8 +199,6 @@ public:
         cerr << "The command executor requires root with rootfs" << endl;
         abort();
       }
-
-      CHECK(executorInfo.get().has_container());
 
       rootfs = path::join(
           os::getcwd(), COMMAND_EXECUTOR_ROOTFS_CONTAINER_PATH);
@@ -611,7 +605,6 @@ private:
   pid_t healthPid;
   Duration escalationTimeout;
   Timer escalationTimer;
-  Option<ExecutorInfo> executorInfo;
   Option<ExecutorDriver*> driver;
   string healthCheckDir;
   Option<char**> override;
