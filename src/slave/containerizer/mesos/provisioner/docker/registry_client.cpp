@@ -75,7 +75,7 @@ public:
       const Image::Name& imageName);
 
   Future<size_t> getBlob(
-      const string& path,
+      const Image::Name& imageName,
       const Option<string>& digest,
       const Path& filePath);
 
@@ -112,6 +112,10 @@ private:
   Future<size_t> saveBlob(
       int fd,
       Pipe::Reader reader);
+
+  std::string getRepositoryPath(const Image::Name& imageName) const;
+
+  std::string getAPIVersion() const;
 
   const http::URL registryServer_;
   Owned<TokenManager> tokenManager_;
@@ -178,16 +182,16 @@ Future<Manifest> RegistryClient::getManifest(
 
 
 Future<size_t> RegistryClient::getBlob(
-    const string& _path,
-    const Option<string>& _digest,
-    const Path& _filePath)
+    const Image::Name& imageName,
+    const Option<string>& digest,
+    const Path& filePath)
 {
   return dispatch(
         process_.get(),
         &RegistryClientProcess::getBlob,
-        _path,
-        _digest,
-        _filePath);
+        imageName,
+        digest,
+        filePath);
 }
 
 
@@ -653,12 +657,32 @@ Try<Manifest> Manifest::create(const string& jsonString)
 }
 
 
+// TODO(tnachen): Support other Docker registry API versions.
+string RegistryClientProcess::getAPIVersion() const
+{
+  return "v2";
+}
+
+
+// Returns the path to the repository that is used to construct
+// URL to call the Docker registry server.
+// Currently we only support offical repositories that always prefix
+// repository with library/.
+// TODO(tnachen): Support unoffical repositories and loading in repository
+// information.
+string RegistryClientProcess::getRepositoryPath(
+    const Image::Name& imageName) const
+{
+  return getAPIVersion() + "/library/" + imageName.repository();
+}
+
+
 Future<Manifest> RegistryClientProcess::getManifest(
     const Image::Name& imageName)
 {
   http::URL manifestURL(registryServer_);
   manifestURL.path =
-    "v2/" + imageName.repository() + "/manifests/" + imageName.tag();
+    getRepositoryPath(imageName) + "/manifests/" + imageName.tag();
 
   return doHttpGet(manifestURL, None(), false, true, None())
     .then(defer(self(), [this] (
@@ -711,23 +735,18 @@ Future<size_t> RegistryClientProcess::saveBlob(
 
 
 Future<size_t> RegistryClientProcess::getBlob(
-    const string& path,
+    const Image::Name& imageName,
     const Option<string>& digest,
     const Path& filePath)
 {
-  const string dirName = filePath.dirname();
-
-  Try<Nothing> mkdir = os::mkdir(dirName, true);
+  Try<Nothing> mkdir = os::mkdir(filePath.dirname(), true);
   if (mkdir.isError()) {
     return Failure(
         "Failed to create directory to download blob: " + mkdir.error());
   }
 
-  if (strings::contains(path, " ")) {
-    return Failure("Invalid repository path: " + path);
-  }
-
-  const string blobURLPath = "v2/" + path + "/blobs/" + digest.getOrElse("");
+  const string blobURLPath = getRepositoryPath(imageName) + "/blobs/" +
+                             digest.getOrElse("");
 
   http::URL blobURL(registryServer_);
   blobURL.path = blobURLPath;

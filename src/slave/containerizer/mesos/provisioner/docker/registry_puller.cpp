@@ -30,6 +30,7 @@
 #include "slave/containerizer/mesos/provisioner/docker/registry_client.hpp"
 
 using std::list;
+using std::pair;
 using std::string;
 using std::vector;
 
@@ -47,10 +48,6 @@ namespace internal {
 namespace slave {
 namespace docker {
 
-
-using PulledLayerInfo = RegistryPuller::PulledLayerInfo;
-using PulledImageInfo = RegistryPuller::PulledImageInfo;
-
 using FileSystemLayerInfo = registry::FileSystemLayerInfo;
 using Manifest = registry::Manifest;
 using RegistryClient = registry::RegistryClient;
@@ -61,43 +58,36 @@ class RegistryPullerProcess : public Process<RegistryPullerProcess>
 public:
   static Try<Owned<RegistryPullerProcess>> create(const Flags& flags);
 
-  process::Future<PulledImageInfo> pull(
+  process::Future<list<pair<string, string>>> pull(
       const Image::Name& imageName,
-      const Path& downloadDir);
-
-  Duration getTimeout() const
-  {
-    return pullTimeout_;
-  }
+      const Path& downloadDirectory);
 
 private:
   explicit RegistryPullerProcess(
       const Owned<RegistryClient>& registry,
       const Duration& timeout);
 
-  Try<Image::Name> getRemoteNameFromLocalName(const Image::Name& name);
-
-  Future<PulledLayerInfo> downloadLayer(
-      const string& remoteName,
-      const Path& downloadDir,
+  Future<pair<string, string>> downloadLayer(
+      const Image::Name& imageName,
+      const Path& downloadDirectory,
       const FileSystemLayerInfo& layer);
 
-  Future<PulledImageInfo> downloadLayers(
+  Future<list<pair<string, string>>> downloadLayers(
       const Manifest& manifest,
-      const Image::Name& remoteImageName,
-      const Path& downloadDir);
-
-  process::Future<PulledImageInfo> _pull(
       const Image::Name& imageName,
       const Path& downloadDir);
 
-  Future<PulledImageInfo> untarLayers(
-    const Future<list<PulledLayerInfo>>& layerFutures,
+  process::Future<list<pair<string, string>>> _pull(
+      const Image::Name& imageName,
+      const Path& downloadDir);
+
+  Future<list<pair<string, string>>> untarLayers(
+    const Future<list<pair<string, string>>>& layerFutures,
     const Path& downloadDir);
 
   Owned<RegistryClient> registryClient_;
   const Duration pullTimeout_;
-  hashmap<string, Owned<Promise<PulledLayerInfo>>> downloadTracker_;
+  hashmap<string, Owned<Promise<pair<string, string>>>> downloadTracker_;
 
   RegistryPullerProcess(const RegistryPullerProcess&) = delete;
   RegistryPullerProcess& operator=(const RegistryPullerProcess&) = delete;
@@ -131,7 +121,7 @@ RegistryPuller::~RegistryPuller()
 }
 
 
-Future<PulledImageInfo> RegistryPuller::pull(
+Future<list<pair<string, string>>> RegistryPuller::pull(
     const Image::Name& imageName,
     const Path& downloadDir)
 {
@@ -198,114 +188,53 @@ RegistryPullerProcess::RegistryPullerProcess(
     pullTimeout_(timeout) {}
 
 
-Future<PulledLayerInfo> RegistryPullerProcess::downloadLayer(
-    const string& remoteName,
-    const Path& downloadDir,
+Future<pair<string, string>> RegistryPullerProcess::downloadLayer(
+    const Image::Name& imageName,
+    const Path& downloadDirectory,
     const FileSystemLayerInfo& layer)
 {
   VLOG(1) << "Downloading layer '"  << layer.layerId
-          << "' for image '" << remoteName << "'";
+          << "' for image '" << stringify(imageName) << "'";
 
-  Owned<Promise<PulledLayerInfo>> downloadPromise;
-
-  if (!downloadTracker_.contains(layer.layerId)) {
-    downloadPromise =
-      Owned<Promise<PulledLayerInfo>>(new Promise<PulledLayerInfo>());
-
-    downloadTracker_.insert({layer.layerId, downloadPromise});
-  } else {
-    VLOG(1) << "Download already in progress for image '" << remoteName
-            << "''s layer '" << layer.layerId << "'";
+  if (downloadTracker_.contains(layer.layerId)) {
+    VLOG(1) << "Download already in progress for image '"
+            << stringify(imageName) << "', layer '" << layer.layerId << "'";
 
     return downloadTracker_.at(layer.layerId)->future();
   }
 
-  const Path downloadFile(path::join(downloadDir, layer.layerId));
+  Owned<Promise<pair<string, string>>> downloadPromise(
+      new Promise<pair<string, string>>());
+
+  downloadTracker_.insert({layer.layerId, downloadPromise});
+
+  const Path downloadFile(path::join(downloadDirectory, layer.layerId));
 
   registryClient_->getBlob(
-      remoteName,
+      imageName,
       layer.checksumInfo,
       downloadFile)
     .onAny(process::defer(
         self(),
-        [this, remoteName, downloadDir, layer, downloadPromise, downloadFile](
-            const Future<size_t>& blobSizeFuture) {
+        [this, layer, downloadPromise, downloadFile](
+            const Future<size_t>& future) {
           downloadTracker_.erase(layer.layerId);
 
-          if(!blobSizeFuture.isReady()) {
-            if (blobSizeFuture.isDiscarded()) {
-              downloadPromise->fail(
-                  "Failed to download layer '" + layer.layerId +
-                  "': future discarded");
-            } else {
+          if (!future.isReady()) {
               downloadPromise->fail(
                   "Failed to download layer '" + layer.layerId + "': " +
-                  blobSizeFuture.failure());
-            }
-
-            return;
-          }
-
-          if (blobSizeFuture.get() <= 0) {
+                  (future.isFailed() ? future.failure() : "future discarded"));
+          } else if (future.get() == 0) {
+            // We don't expect Docker registry to return empty response
+            // even with empty layers.
             downloadPromise->fail(
                 "Failed to download layer '" + layer.layerId + "': no content");
-            return;
+          } else {
+            downloadPromise->set({layer.layerId, downloadFile});
           }
-
-          downloadPromise->set(PulledLayerInfo(layer.layerId, downloadFile));
         }));
 
   return downloadPromise->future();
-}
-
-
-Try<Image::Name> RegistryPullerProcess::getRemoteNameFromLocalName(
-    const Image::Name& imageName)
-{
-  //TODO(jojy): Canonical names could be something like "ubuntu14.04" but the
-  //remote name for it could be library/ubuntu14.04. This mapping has to come
-  //from a configuration in the near future. Docker has different namings
-  //depending on whether its an "official" repo or not.
-
-  // From the docker github code documentation:
-  // RepositoryInfo Examples:
-  // {
-  //   "Index" : {
-  //     "Name" : "docker.io",
-  //     "Mirrors" : ["https://registry-2.docker.io/v1/",
-  //                  "https://registry-3.docker.io/v1/"],
-  //     "Secure" : true,
-  //     "Official" : true,
-  //   },
-  //   "RemoteName" : "library/debian",
-  //   "LocalName" : "debian",
-  //   "CanonicalName" : "docker.io/debian"
-  //   "Official" : true,
-  // }
-  //
-  // {
-  //   "Index" : {
-  //     "Name" : "127.0.0.1:5000",
-  //     "Mirrors" : [],
-  //     "Secure" : false,
-  //     "Official" : false,
-  //   },
-  //   "RemoteName" : "user/repo",
-  //   "LocalName" : "127.0.0.1:5000/user/repo",
-  //   "CanonicalName" : "127.0.0.1:5000/user/repo",
-  //   "Official" : false,
-  // }
-
-  // For now, assuming that its an "official" repo.
-  if (strings::contains(imageName.repository(), "/")) {
-    return Error("Unexpected '/' in local image name");
-  }
-
-  // Create a remote Image::Name from the given input name.
-  Image::Name remoteImageName = imageName;
-  remoteImageName.set_repository("library/" + imageName.repository());
-
-  return remoteImageName;
 }
 
 
@@ -352,36 +281,40 @@ Future<Nothing> untar(const string& file, const string& directory)
 }
 
 
-Future<PulledImageInfo> RegistryPullerProcess::pull(
+Future<list<pair<string, string>>> RegistryPullerProcess::pull(
     const Image::Name& imageName,
-    const Path& downloadDir)
+    const Path& downloadDirectory)
 {
-  return _pull(imageName, downloadDir)
-    .after(getTimeout(), [imageName](
-        Future<PulledImageInfo> future) {
-      LOG(WARNING) << "Failed to download image '"
-                   << imageName.repository()
-                   << "': timeout";
+  // TODO(jojy): Have one outgoing manifest request per image.
+  return registryClient_->getManifest(imageName)
+    .then(process::defer(self(), [this, downloadDirectory, imageName](
+        const Manifest& manifest) {
+      return downloadLayers(manifest, imageName, downloadDirectory);
+    }))
+    .then(process::defer(self(), [this, downloadDirectory](
+        const Future<list<pair<string, string>>>& layerFutures)
+        -> Future<list<pair<string, string>>> {
+      return untarLayers(layerFutures, downloadDirectory);
+    }))
+    .after(pullTimeout_, [imageName](
+        Future<list<pair<string, string>>> future) {
       future.discard();
 
-      return Failure(
-          "Failed to download image '" + imageName.repository() + "': timeout");
+      return Failure("Timed out");
     });
 }
 
 
-Future<PulledImageInfo> RegistryPullerProcess::downloadLayers(
+Future<list<pair<string, string>>> RegistryPullerProcess::downloadLayers(
     const Manifest& manifest,
-    const Image::Name& remoteImageName,
-    const Path& downloadDir)
+    const Image::Name& imageName,
+    const Path& downloadDirectory)
 {
-  list<Future<PulledLayerInfo>> downloadFutures;
+  list<Future<pair<string, string>>> downloadFutures;
 
   foreach (const FileSystemLayerInfo& layer, manifest.fsLayerInfos) {
-    downloadFutures.push_back(downloadLayer(
-        remoteImageName.repository(),
-        downloadDir,
-        layer));
+    downloadFutures.push_back(
+        downloadLayer(imageName, downloadDirectory, layer));
   }
 
   // TODO(jojy): Delete downloaded files in the directory on discard and
@@ -391,50 +324,28 @@ Future<PulledImageInfo> RegistryPullerProcess::downloadLayers(
 }
 
 
-Future<PulledImageInfo> RegistryPullerProcess::untarLayers(
-    const Future<list<PulledLayerInfo>>& layerFutures,
-    const Path& downloadDir)
+Future<list<pair<string, string>>> RegistryPullerProcess::untarLayers(
+    const Future<list<pair<string, string>>>& layerFutures,
+    const Path& downloadDirectory)
 {
   list<Future<Nothing>> untarFutures;
 
-  foreach (const PulledLayerInfo layerInfo, layerFutures.get()) {
-    untarFutures.emplace_back(untar(layerInfo.second, downloadDir));
+  pair<string, string> layerInfo;
+  foreach (layerInfo, layerFutures.get()) {
+    untarFutures.emplace_back(untar(layerInfo.second, downloadDirectory));
   }
 
   return collect(untarFutures)
     .then([layerFutures]() {
-      PulledImageInfo layers;
+      list<pair<string, string>> layers;
 
-      foreach (const PulledLayerInfo layerInfo, layerFutures.get()) {
+      pair<string, string> layerInfo;
+      foreach (layerInfo, layerFutures.get()) {
         layers.emplace_back(layerInfo);
       }
 
       return layers;
     });
-}
-
-
-Future<PulledImageInfo> RegistryPullerProcess::_pull(
-    const Image::Name& imageName,
-    const Path& downloadDir)
-{
-  Try<Image::Name> remoteImageName = getRemoteNameFromLocalName(imageName);
-  if (remoteImageName.isError()) {
-    return Failure(
-        "Failed to get remote name from local name for '" +
-        imageName.repository() + "': " + remoteImageName.error());
-  }
-
-  return registryClient_->getManifest(remoteImageName.get())
-    .then(process::defer(self(), [this, downloadDir, remoteImageName](
-        const Manifest& manifest) {
-      return downloadLayers(manifest, remoteImageName.get(), downloadDir);
-    }))
-    .then(process::defer(self(), [this, downloadDir](
-        const Future<list<PulledLayerInfo>>& layerFutures)
-        -> Future<PulledImageInfo> {
-      return untarLayers(layerFutures, downloadDir);
-    }));
 }
 
 } // namespace docker {

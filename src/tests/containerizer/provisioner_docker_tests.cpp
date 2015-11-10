@@ -856,7 +856,7 @@ TEST_F(RegistryClientTest, SimpleGetBlob)
 
   Future<size_t> result =
     registryClient.get()->getBlob(
-        "/blob",
+        parseImageName("blob"),
         "digest",
         blobPath);
 
@@ -961,7 +961,7 @@ TEST_F(RegistryClientTest, BadRequest)
 
   Future<size_t> result =
     registryClient.get()->getBlob(
-        "/blob",
+        parseImageName("blob"),
         "digest",
         blobPath);
 

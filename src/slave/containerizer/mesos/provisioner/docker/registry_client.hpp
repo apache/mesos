@@ -112,14 +112,14 @@ public:
   /**
    * Fetches blob for a repository from the client's remote registry server.
    *
-   * @param path path of the repository on the registry.
+   * @param imageName the Docker image to download.
    * @param digest digest of the blob (from manifest).
    * @param filePath file path to store the fetched blob.
    * @return size of downloaded blob on success.
    *         Failure in case of any errors.
    */
   process::Future<size_t> getBlob(
-      const std::string& path,
+      const Image::Name& imageName,
       const Option<std::string>& digest,
       const Path& filePath);
 
