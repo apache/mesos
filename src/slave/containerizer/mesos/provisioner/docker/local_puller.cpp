@@ -60,10 +60,6 @@ public:
       const string& directory);
 
 private:
-  process::Future<Nothing> untarImage(
-      const std::string& tarPath,
-      const std::string& directory);
-
   process::Future<list<pair<string, string>>> putImage(
       const Image::Name& name,
       const std::string& directory);
@@ -115,53 +111,11 @@ Future<list<pair<string, string>>> LocalPullerProcess::pull(
                    "' at '" + tarPath + "'");
   }
 
-  return untarImage(tarPath, directory)
-    .then(defer(self(), &Self::putImage, name, directory));
-}
-
-
-Future<Nothing> LocalPullerProcess::untarImage(
-    const string& tarPath,
-    const string& directory)
-{
   VLOG(1) << "Untarring image from '" << tarPath
           << "' to '" << directory << "'";
 
-  // Untar store_discovery_local_dir/name.tar into directory/.
-  // TODO(tnachen): Terminate tar process when slave exits.
-  const vector<string> argv = {
-    "tar",
-    "-C",
-    directory,
-    "-x",
-    "-f",
-    tarPath
-  };
-
-  Try<Subprocess> s = subprocess(
-      "tar",
-      argv,
-      Subprocess::PATH("/dev/null"),
-      Subprocess::PATH("/dev/null"),
-      Subprocess::PATH("/dev/null"));
-
-  if (s.isError()) {
-    return Failure("Failed to create tar subprocess: " + s.error());
-  }
-
-  return s.get().status()
-    .then([tarPath](const Option<int>& status) -> Future<Nothing> {
-      if (status.isNone()) {
-        return Failure("Failed to reap status for tar subprocess in " +
-                        tarPath);
-      }
-      if (!WIFEXITED(status.get()) || WEXITSTATUS(status.get()) != 0) {
-          return Failure("Untar image failed with exit code: " +
-                          WSTRINGIFY(status.get()));
-      }
-
-      return Nothing();
-    });
+  return untar(tarPath, directory)
+    .then(defer(self(), &Self::putImage, name, directory));
 }
 
 
@@ -307,36 +261,10 @@ Future<pair<string, string>> LocalPullerProcess::putLayer(
   // Untar directory/id/layer.tar into directory/id/rootfs.
   // The tar file will be removed when the staging directory is
   // removed.
-  const vector<string> argv = {
-    "tar",
-    "-C",
-    localRootfsPath,
-    "-x",
-    "-f",
-    paths::getImageArchiveLayerTarPath(directory, layerId)
-  };
-
-  Try<Subprocess> s = subprocess(
-      "tar",
-      argv,
-      Subprocess::PATH("/dev/null"),
-      Subprocess::PATH("/dev/null"),
-      Subprocess::PATH("/dev/null"));
-
-  if (s.isError()) {
-    return Failure("Failed to create tar subprocess: " + s.error());
-  }
-
-  return s.get().status()
-    .then([directory, layerId](
-        const Option<int>& status) -> Future<pair<string, string>> {
-      if (status.isNone()) {
-        return Failure("Failed to reap subprocess to untar image");
-      } else if (!WIFEXITED(status.get()) || WEXITSTATUS(status.get()) != 0) {
-        return Failure("Untar failed with exit code: " +
-                        WSTRINGIFY(status.get()));
-      }
-
+  return untar(
+      paths::getImageArchiveLayerTarPath(directory, layerId),
+      localRootfsPath)
+    .then([directory, layerId]() -> Future<pair<string, string>> {
       const string rootfsPath =
         paths::getImageArchiveLayerRootfsPath(directory, layerId);
 

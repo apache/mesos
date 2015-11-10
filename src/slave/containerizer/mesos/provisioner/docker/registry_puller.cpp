@@ -238,49 +238,6 @@ Future<pair<string, string>> RegistryPullerProcess::downloadLayer(
 }
 
 
-Future<Nothing> untar(const string& file, const string& directory)
-{
-  const vector<string> argv = {
-    "tar",
-    "-C",
-    directory,
-    "-x",
-    "-f",
-    file
-  };
-
-  Try<Subprocess> s = subprocess(
-      "tar",
-      argv,
-      Subprocess::PATH("/dev/null"),
-      Subprocess::PATH("/dev/null"),
-      Subprocess::PATH("/dev/null"));
-
-  if (s.isError()) {
-    return Failure(
-        "Failed to create untar subprocess for file '" +
-        file + "': " + s.error());
-  }
-
-  return s.get().status()
-    .then([file](const Option<int>& status) -> Future<Nothing> {
-      if (status.isNone()) {
-        return Failure(
-            "Failed to reap untar subprocess for file '" + file + "'");
-      }
-
-      if (!WIFEXITED(status.get()) ||
-          WEXITSTATUS(status.get()) != 0) {
-        return Failure(
-            "Untar process for file '" + file + "' failed with exit code: " +
-            WSTRINGIFY(status.get()));
-      }
-
-      return Nothing();
-    });
-}
-
-
 Future<list<pair<string, string>>> RegistryPullerProcess::pull(
     const Image::Name& imageName,
     const Path& downloadDirectory)

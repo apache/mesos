@@ -62,6 +62,19 @@ public:
       const Path& directory) = 0;
 };
 
+
+/**
+ * Untars(extracts) the tar file(input param) to the given output directory.
+ *
+ * @param file tar file to be extracted.
+ * @param directory target directory for extracting the tar file.
+ * @return Nothing in case of success.
+ *         Failure otherwise.
+ */
+process::Future<Nothing> untar(
+    const std::string& file,
+    const std::string& directory);
+
 } // namespace docker {
 } // namespace slave {
 } // namespace internal {
