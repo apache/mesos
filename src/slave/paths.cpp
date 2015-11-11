@@ -50,6 +50,7 @@ const char FRAMEWORK_INFO_FILE[] = "framework.info";
 const char LIBPROCESS_PID_FILE[] = "libprocess.pid";
 const char EXECUTOR_INFO_FILE[] = "executor.info";
 const char EXECUTOR_SENTINEL_FILE[] = "executor.sentinel";
+const char HTTP_MARKER_FILE[] = "http.marker";
 const char FORKED_PID_FILE[] = "forked.pid";
 const char TASK_INFO_FILE[] = "task.info";
 const char TASK_UPDATES_FILE[] = "task.updates";
@@ -208,6 +209,24 @@ string getExecutorRunPath(
       getExecutorPath(rootDir, slaveId, frameworkId, executorId),
       "runs",
       stringify(containerId));
+}
+
+
+string getExecutorHttpMarkerPath(
+    const string& rootDir,
+    const SlaveID& slaveId,
+    const FrameworkID& frameworkId,
+    const ExecutorID& executorId,
+    const ContainerID& containerId)
+{
+  return path::join(
+      getExecutorRunPath(
+          rootDir,
+          slaveId,
+          frameworkId,
+          executorId,
+          containerId),
+          HTTP_MARKER_FILE);
 }
 
 

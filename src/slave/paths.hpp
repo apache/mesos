@@ -182,6 +182,14 @@ std::string getExecutorRunPath(
     const ContainerID& containerId);
 
 
+std::string getExecutorHttpMarkerPath(
+    const std::string& rootDir,
+    const SlaveID& slaveId,
+    const FrameworkID& frameworkId,
+    const ExecutorID& executorId,
+    const ContainerID& containerId);
+
+
 std::string getExecutorSentinelPath(
     const std::string& rootDir,
     const SlaveID& slaveId,
