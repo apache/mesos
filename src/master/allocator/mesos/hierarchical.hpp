@@ -334,7 +334,7 @@ protected:
       // master being invalidated, and new offers being sent out.
       hashmap<FrameworkID, mesos::master::InverseOfferStatus> statuses;
 
-      // Represent the "unit of accounting" for maintenance. When a
+      // Represents the "unit of accounting" for maintenance. When a
       // `FrameworkID` is present in the hashset it means an inverse offer has
       // been sent out. When it is not present it means no offer is currently
       // outstanding.
