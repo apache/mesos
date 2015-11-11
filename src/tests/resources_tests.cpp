@@ -216,10 +216,10 @@ TEST(ResourcesTest, ParsingFromJSON)
 
   // Do not specify the ordering of ranges, only check the values.
   if (10000 != ports->ranges().range(0).begin()) {
-    EXPECT_EQ(30000, ports->ranges().range(0).begin());
-    EXPECT_EQ(10000, ports->ranges().range(1).begin());
+    EXPECT_EQ(30000u, ports->ranges().range(0).begin());
+    EXPECT_EQ(10000u, ports->ranges().range(1).begin());
   } else {
-    EXPECT_EQ(30000, ports->ranges().range(1).begin());
+    EXPECT_EQ(30000u, ports->ranges().range(1).begin());
   }
 
   jsonString =
