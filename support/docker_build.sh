@@ -107,7 +107,7 @@ append_dockerfile "CMD ./bootstrap && ./configure $CONFIGURATION && DISTCHECK_CO
 # Generate a random image tag.
 TAG=mesos-`date +%s`-$RANDOM
 
-# Build the Docker imeage.
+# Build the Docker image.
 # TODO(vinod): Instead of building Docker images on the fly host the
 # images on DockerHub and use them.
 docker build --no-cache=true -t $TAG .
