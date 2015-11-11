@@ -115,12 +115,12 @@ def verify_review(review_request):
         applied = []
         apply_reviews(review_request, applied)
 
-        # Make sure build succeeds.
-        shell("./bootstrap")
-        shell("./configure")
+        # Launch docker build script.
 
-	# Make sure tests pass.
-        shell("make -j3 distcheck")
+        # TODO(jojy): Launch docker_build in subprocess so that verifications
+        # can be run parallely for various configurations.
+        configuration = "export OS=ubuntu;export CONFIGURATION=\"--enable-libev\";export COMPILER=gcc"
+        shell("%s; ./support/docker_build.sh" % configuration)
 
         # Success!
         post_review(
