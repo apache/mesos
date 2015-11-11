@@ -34,7 +34,8 @@
 #include "slave/state.hpp"
 
 #include "slave/containerizer/containerizer.hpp"
-#include "slave/containerizer/launcher.hpp"
+
+#include "slave/containerizer/mesos/launcher.hpp"
 
 namespace mesos {
 namespace internal {

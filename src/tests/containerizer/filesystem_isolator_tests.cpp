@@ -40,7 +40,7 @@
 #include "slave/paths.hpp"
 
 #ifdef __linux__
-#include "slave/containerizer/linux_launcher.hpp"
+#include "slave/containerizer/mesos/linux_launcher.hpp"
 
 #include "slave/containerizer/mesos/isolators/filesystem/linux.hpp"
 #endif

@@ -58,13 +58,12 @@
 #endif // __linux__
 #include "slave/containerizer/mesos/isolators/posix.hpp"
 
-#include "slave/containerizer/launcher.hpp"
+#include "slave/containerizer/mesos/launcher.hpp"
 #ifdef __linux__
 #include "slave/containerizer/fetcher.hpp"
-#include "slave/containerizer/linux_launcher.hpp"
-
 #include "slave/containerizer/mesos/containerizer.hpp"
 #include "slave/containerizer/mesos/launch.hpp"
+#include "slave/containerizer/mesos/linux_launcher.hpp"
 #endif // __linux__
 
 #include "tests/flags.hpp"

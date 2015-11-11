@@ -36,9 +36,9 @@
 #include "slave/flags.hpp"
 
 #include "slave/containerizer/fetcher.hpp"
-#include "slave/containerizer/launcher.hpp"
 
 #include "slave/containerizer/mesos/containerizer.hpp"
+#include "slave/containerizer/mesos/launcher.hpp"
 
 #include "tests/flags.hpp"
 #include "tests/mesos.hpp"

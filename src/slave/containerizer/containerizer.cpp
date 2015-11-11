@@ -34,16 +34,16 @@
 #include "slave/flags.hpp"
 #include "slave/slave.hpp"
 
-#ifdef __linux__
-#include "slave/containerizer/linux_launcher.hpp"
-#endif // __linux__
 #include "slave/containerizer/composing.hpp"
 #include "slave/containerizer/containerizer.hpp"
 #include "slave/containerizer/docker.hpp"
-#include "slave/containerizer/launcher.hpp"
 #include "slave/containerizer/external_containerizer.hpp"
 
 #include "slave/containerizer/mesos/containerizer.hpp"
+#include "slave/containerizer/mesos/launcher.hpp"
+#ifdef __linux__
+#include "slave/containerizer/mesos/linux_launcher.hpp"
+#endif // __linux__
 
 using std::map;
 using std::string;

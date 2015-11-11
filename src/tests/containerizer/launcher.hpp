@@ -39,7 +39,7 @@
 #include <stout/nothing.hpp>
 #include <stout/option.hpp>
 
-#include "slave/containerizer/launcher.hpp"
+#include "slave/containerizer/mesos/launcher.hpp"
 
 namespace mesos {
 namespace internal {

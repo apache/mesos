@@ -192,12 +192,12 @@ if (NOT WIN32)
     slave/containerizer/external_containerizer.cpp
     slave/containerizer/fetcher.cpp
     slave/containerizer/isolator.cpp
-    slave/containerizer/mesos/isolators/filesystem/posix.cpp
-    slave/containerizer/mesos/isolators/posix/disk.cpp
-    slave/containerizer/launcher.cpp
     slave/containerizer/mesos/containerizer.cpp
     slave/containerizer/mesos/launch.cpp
+    slave/containerizer/mesos/launcher.cpp
     slave/containerizer/mesos/mount.cpp
+    slave/containerizer/mesos/isolators/filesystem/posix.cpp
+    slave/containerizer/mesos/isolators/posix/disk.cpp
     slave/containerizer/mesos/provisioner/paths.cpp
     slave/containerizer/mesos/provisioner/provisioner.cpp
     slave/containerizer/mesos/provisioner/store.cpp

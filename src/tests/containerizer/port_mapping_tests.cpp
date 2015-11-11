@@ -56,14 +56,14 @@
 #include "slave/flags.hpp"
 #include "slave/slave.hpp"
 
-#include "slave/containerizer/mesos/isolators/network/port_mapping.hpp"
-
 #include "slave/containerizer/fetcher.hpp"
-#include "slave/containerizer/launcher.hpp"
-#include "slave/containerizer/linux_launcher.hpp"
 
 #include "slave/containerizer/mesos/containerizer.hpp"
 #include "slave/containerizer/mesos/launch.hpp"
+#include "slave/containerizer/mesos/launcher.hpp"
+#include "slave/containerizer/mesos/linux_launcher.hpp"
+
+#include "slave/containerizer/mesos/isolators/network/port_mapping.hpp"
 
 #include "tests/flags.hpp"
 #include "tests/mesos.hpp"

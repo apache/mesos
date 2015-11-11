@@ -29,7 +29,7 @@
 
 #include "mesos/resources.hpp"
 
-#include "slave/containerizer/launcher.hpp"
+#include "slave/containerizer/mesos/launcher.hpp"
 
 using namespace process;
 

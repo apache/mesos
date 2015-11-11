@@ -19,7 +19,7 @@
 #ifndef __LINUX_LAUNCHER_HPP__
 #define __LINUX_LAUNCHER_HPP__
 
-#include "slave/containerizer/launcher.hpp"
+#include "slave/containerizer/mesos/launcher.hpp"
 
 namespace mesos {
 namespace internal {

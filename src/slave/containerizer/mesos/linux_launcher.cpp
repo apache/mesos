@@ -38,7 +38,7 @@
 
 #include "mesos/resources.hpp"
 
-#include "slave/containerizer/linux_launcher.hpp"
+#include "slave/containerizer/mesos/linux_launcher.hpp"
 
 #include "slave/containerizer/mesos/isolators/namespaces/pid.hpp"
 
