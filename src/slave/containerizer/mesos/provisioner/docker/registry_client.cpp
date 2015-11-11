@@ -509,7 +509,8 @@ Future<http::Response> RegistryClientProcess::doHttpGet(
   return response
     .then(defer(self(), [=](const http::Response& httpResponse)
         -> Future<http::Response> {
-      VLOG(1) << "Response status: " + httpResponse.status;
+      VLOG(1) << "Response status for url '" << url << "': "
+              << httpResponse.status;
 
       // Set the future if we get a OK response.
       if (httpResponse.status == "200 OK") {
