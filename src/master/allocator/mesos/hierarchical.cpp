@@ -159,13 +159,12 @@ void HierarchicalAllocatorProcess::addFramework(
     const FrameworkInfo& frameworkInfo,
     const hashmap<SlaveID, Resources>& used)
 {
-  CHECK(initialized);
-
   const string& role = frameworkInfo.role();
 
+  CHECK(initialized);
   CHECK(roles.contains(role));
-
   CHECK(!frameworkSorters[role]->contains(frameworkId.value()));
+
   frameworkSorters[role]->add(frameworkId.value());
 
   // TODO(bmahler): Validate that the reserved resources have the
@@ -203,8 +202,8 @@ void HierarchicalAllocatorProcess::removeFramework(
     const FrameworkID& frameworkId)
 {
   CHECK(initialized);
-
   CHECK(frameworks.contains(frameworkId));
+
   const string& role = frameworks[frameworkId].role;
 
   // Might not be in 'frameworkSorters[role]' because it was previously
@@ -236,8 +235,8 @@ void HierarchicalAllocatorProcess::activateFramework(
     const FrameworkID& frameworkId)
 {
   CHECK(initialized);
-
   CHECK(frameworks.contains(frameworkId));
+
   const string& role = frameworks[frameworkId].role;
 
   frameworkSorters[role]->activate(frameworkId.value());
@@ -252,8 +251,8 @@ void HierarchicalAllocatorProcess::deactivateFramework(
     const FrameworkID& frameworkId)
 {
   CHECK(initialized);
-
   CHECK(frameworks.contains(frameworkId));
+
   const string& role = frameworks[frameworkId].role;
 
   frameworkSorters[role]->deactivate(frameworkId.value());
@@ -280,7 +279,6 @@ void HierarchicalAllocatorProcess::updateFramework(
     const FrameworkInfo& frameworkInfo)
 {
   CHECK(initialized);
-
   CHECK(frameworks.contains(frameworkId));
 
   // TODO(jmlvanre): Once we allow frameworks to re-register with a
@@ -470,12 +468,14 @@ void HierarchicalAllocatorProcess::updateAllocation(
   CHECK(slaves.contains(slaveId));
   CHECK(frameworks.contains(frameworkId));
 
+  const string& role = frameworks[frameworkId].role;
+
   // Here we apply offer operations to the allocated resources, which
   // in turns leads to an update of the total. The available resources
   // remain unchanged.
 
   // Update the allocated resources.
-  Sorter* frameworkSorter = frameworkSorters[frameworks[frameworkId].role];
+  Sorter* frameworkSorter = frameworkSorters[role];
 
   Resources frameworkAllocation =
     frameworkSorter->allocation(frameworkId.value(), slaveId);
@@ -492,7 +492,7 @@ void HierarchicalAllocatorProcess::updateAllocation(
       updatedFrameworkAllocation.get());
 
   roleSorter->update(
-      frameworks[frameworkId].role,
+      role,
       slaveId,
       frameworkAllocation.unreserved(),
       updatedFrameworkAllocation.get().unreserved());
@@ -517,8 +517,7 @@ void HierarchicalAllocatorProcess::updateAllocation(
 }
 
 
-Future<Nothing>
-HierarchicalAllocatorProcess::updateAvailable(
+Future<Nothing> HierarchicalAllocatorProcess::updateAvailable(
     const SlaveID& slaveId,
     const vector<Offer::Operation>& operations)
 {
@@ -812,6 +811,7 @@ void HierarchicalAllocatorProcess::suppressOffers(
     const FrameworkID& frameworkId)
 {
   CHECK(initialized);
+
   frameworks[frameworkId].suppressed = true;
 
   LOG(INFO) << "Suppressed offers for framework " << frameworkId;
@@ -1126,8 +1126,7 @@ void HierarchicalAllocatorProcess::expire(
 }
 
 
-bool
-HierarchicalAllocatorProcess::isWhitelisted(
+bool HierarchicalAllocatorProcess::isWhitelisted(
     const SlaveID& slaveId)
 {
   CHECK(slaves.contains(slaveId));
@@ -1137,8 +1136,7 @@ HierarchicalAllocatorProcess::isWhitelisted(
 }
 
 
-bool
-HierarchicalAllocatorProcess::isFiltered(
+bool HierarchicalAllocatorProcess::isFiltered(
     const FrameworkID& frameworkId,
     const SlaveID& slaveId,
     const Resources& resources)
@@ -1198,8 +1196,7 @@ bool HierarchicalAllocatorProcess::isFiltered(
 }
 
 
-bool
-HierarchicalAllocatorProcess::allocatable(
+bool HierarchicalAllocatorProcess::allocatable(
     const Resources& resources)
 {
   Option<double> cpus = resources.cpus();
