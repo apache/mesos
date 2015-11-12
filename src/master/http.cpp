@@ -182,6 +182,10 @@ JSON::Object model(const Framework& framework)
   object.values["unregistered_time"] = framework.unregisteredTime.secs();
   object.values["active"] = framework.active;
 
+  if (framework.info.has_principal()) {
+    object.values["principal"] = framework.info.principal();
+  }
+
   // TODO(bmahler): Consider deprecating this in favor of the split
   // used and offered resources added in 'summarize'.
   object.values["resources"] =
