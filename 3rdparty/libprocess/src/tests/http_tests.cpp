@@ -739,15 +739,24 @@ TEST(HTTPConnectionTest, Serial)
 
 TEST(HTTPConnectionTest, Pipeline)
 {
-  Http http;
+  // We use two Processes here to ensure that libprocess performs
+  // pipelining correctly when requests on a single connection
+  // are going to different Processes.
+  Http http1, http2;
 
-  http::URL url = http::URL(
+  http::URL url1 = http::URL(
       "http",
-      http.process->self().address.ip,
-      http.process->self().address.port,
-      http.process->self().id + "/get");
+      http1.process->self().address.ip,
+      http1.process->self().address.port,
+      http1.process->self().id + "/get");
 
-  Future<http::Connection> connect = http::connect(url);
+  http::URL url2 = http::URL(
+      "http",
+      http2.process->self().address.ip,
+      http2.process->self().address.port,
+      http2.process->self().id + "/get");
+
+  Future<http::Connection> connect = http::connect(url1);
   AWAIT_READY(connect);
 
   http::Connection connection = connect.get();
@@ -756,13 +765,15 @@ TEST(HTTPConnectionTest, Pipeline)
   Promise<http::Response> promise1, promise2, promise3;
   Future<http::Request> get1, get2, get3;
 
-  EXPECT_CALL(*http.process, get(_))
+  EXPECT_CALL(*http1.process, get(_))
     .WillOnce(DoAll(FutureArg<0>(&get1),
                     Return(promise1.future())))
-    .WillOnce(DoAll(FutureArg<0>(&get2),
-                    Return(promise2.future())))
     .WillOnce(DoAll(FutureArg<0>(&get3),
                     Return(promise3.future())));
+
+  EXPECT_CALL(*http2.process, get(_))
+    .WillOnce(DoAll(FutureArg<0>(&get2),
+                    Return(promise2.future())));
 
   http::Request request1, request2, request3;
 
@@ -770,9 +781,9 @@ TEST(HTTPConnectionTest, Pipeline)
   request2.method = "GET";
   request3.method = "GET";
 
-  request1.url = url;
-  request2.url = url;
-  request3.url = url;
+  request1.url = url1;
+  request2.url = url2;
+  request3.url = url1;
 
   request1.body = "1";
   request2.body = "2";
