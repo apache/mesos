@@ -132,17 +132,17 @@ mesos::internal::slave::Flags::Flags()
 
   add(&Flags::docker_local_archives_dir,
       "docker_local_archives_dir",
-      "Directory for docker local puller to look in for image archives",
+      "Directory for Docker local puller to look in for image archives",
       "/tmp/mesos/images/docker");
 
   add(&Flags::docker_puller,
       "docker_puller",
-      "Strategy for docker puller to fetch images",
+      "Strategy for Docker puller to fetch images",
       "local");
 
   add(&Flags::docker_puller_timeout_secs,
       "docker_puller_timeout",
-      "Timeout value in seconds for pulling images from Docker registry",
+      "Timeout in seconds for pulling images from the Docker registry",
       "60");
 
   add(&Flags::docker_registry,
@@ -157,7 +157,7 @@ mesos::internal::slave::Flags::Flags()
 
   add(&Flags::docker_store_dir,
       "docker_store_dir",
-      "Directory the docker provisioner will store images in",
+      "Directory the Docker provisioner will store images in",
       "/tmp/mesos/store/docker");
 
   add(&Flags::default_role,
