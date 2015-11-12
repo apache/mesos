@@ -13,11 +13,13 @@ This document serves as a guide for users who wish to upgrade an existing mesos 
 * REASON_MEM_LIMIT -> REASON_CONTAINER_LIMITATION_MEMORY
 * REASON_EXECUTOR_PREEMPTED -> REASON_CONTAINER_PREEMPTED
 
-**NOTE** `Credential` protobuf was changed. `Credential` field `secret` is now a string, it used to be bytes. This will affect framework developers and language bindings ought to update their generated protobuf with the new version. This fixes JSON based credentials file support.
+**NOTE** The `Credential` protobuf has been changed. `Credential` field `secret` is now a string, it used to be bytes. This will affect framework developers and language bindings ought to update their generated protobuf with the new version. This fixes JSON based credentials file support.
 
 **NOTE** The `/state` endpoints on master and slave will no longer include `data` fields as part of the JSON models for `ExecutorInfo` and `TaskInfo` out of consideration for memory scalability (see [MESOS-3794](https://issues.apache.org/jira/browse/MESOS-3794) and [this email thread](http://www.mail-archive.com/dev@mesos.apache.org/msg33536.html)).
 On master, the affected `data` field was originally found via `frameworks[*].executors[*].data`.
 On slaves, the affected `data` field was originally found via `executors[*].tasks[*].data`.
+
+**NOTE** The `NetworkInfo` protobuf has been changed. The fields `protocol` and `ip_address` are now deprecated. The new field `ip_addresses` subsumes the information provided by them.
 
 
 ## Upgrading from 0.24.x to 0.25.x
