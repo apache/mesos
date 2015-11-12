@@ -248,95 +248,93 @@ CLEANFILES +=								\
   $(V1_PYTHON_PROTOS)
 
 
-# Targets for generating protocol buffer code.
+# Targets for generating C++ protocol buffer code.
 ../include/mesos/%.pb.cc ../include/mesos/%.pb.h: $(top_srcdir)/include/mesos/%.proto
 	$(PROTOC) $(PROTOCFLAGS) --cpp_out=../include $^
 
 %.pb.cc %.pb.h: %.proto
 	$(PROTOC) $(PROTOCFLAGS) --cpp_out=. $^
 
-java/generated/org/apache/mesos/Protos.java: $(MESOS_PROTO)
-	$(MKDIR_P)  $(@D)
-	$(PROTOC) $(PROTOCFLAGS) --java_out=java/generated $^
 
-java/generated/org/apache/mesos/v1/Protos.java: $(V1_MESOS_PROTO)
-	$(MKDIR_P)  $(@D)
-	$(PROTOC) $(PROTOCFLAGS) --java_out=java/generated $^
-
-java/generated/org/apache/mesos/containerizer/Protos.java:		\
-		$(CONTAINERIZER_PROTO)
-	$(MKDIR_P)  $(@D)
-	$(PROTOC) $(PROTOCFLAGS) --java_out=java/generated $^
-
-java/generated/org/apache/mesos/fetcher/Protos.java: $(FETCHER_PROTO)
-	$(MKDIR_P)  $(@D)
-	$(PROTOC) $(PROTOCFLAGS) --java_out=java/generated $^
-
-java/generated/org/apache/mesos/scheduler/Protos.java: $(SCHEDULER_PROTO)
-	$(MKDIR_P)  $(@D)
-	$(PROTOC) $(PROTOCFLAGS) --java_out=java/generated $^
-
-java/generated/org/apache/mesos/v1/scheduler/Protos.java: $(V1_SCHEDULER_PROTO)
-	$(MKDIR_P)  $(@D)
+# Targets for generating Java protocol buffer code.
+java/generated/org/apache/mesos/containerizer/Protos.java: $(CONTAINERIZER_PROTO)
+	$(MKDIR_P) $(@D)
 	$(PROTOC) $(PROTOCFLAGS) --java_out=java/generated $^
 
 java/generated/org/apache/mesos/executor/Protos.java: $(EXECUTOR_PROTO)
-	$(MKDIR_P)  $(@D)
+	$(MKDIR_P) $(@D)
+	$(PROTOC) $(PROTOCFLAGS) --java_out=java/generated $^
+
+java/generated/org/apache/mesos/fetcher/Protos.java: $(FETCHER_PROTO)
+	$(MKDIR_P) $(@D)
+	$(PROTOC) $(PROTOCFLAGS) --java_out=java/generated $^
+
+java/generated/org/apache/mesos/Protos.java: $(MESOS_PROTO)
+	$(MKDIR_P) $(@D)
+	$(PROTOC) $(PROTOCFLAGS) --java_out=java/generated $^
+
+java/generated/org/apache/mesos/scheduler/Protos.java: $(SCHEDULER_PROTO)
+	$(MKDIR_P) $(@D)
 	$(PROTOC) $(PROTOCFLAGS) --java_out=java/generated $^
 
 java/generated/org/apache/mesos/v1/executor/Protos.java: $(V1_EXECUTOR_PROTO)
-	$(MKDIR_P)  $(@D)
+	$(MKDIR_P) $(@D)
 	$(PROTOC) $(PROTOCFLAGS) --java_out=java/generated $^
 
-python/interface/src/mesos/interface/mesos_pb2.py: $(MESOS_PROTO)
+java/generated/org/apache/mesos/v1/Protos.java: $(V1_MESOS_PROTO)
 	$(MKDIR_P) $(@D)
-	$(PROTOC) -I$(top_srcdir)/include/mesos				\
-          $(PROTOCFLAGS) --python_out=python/interface/src/mesos/interface $^
+	$(PROTOC) $(PROTOCFLAGS) --java_out=java/generated $^
 
-python/interface/src/mesos/v1/interface/mesos_pb2.py: $(V1_MESOS_PROTO)
+java/generated/org/apache/mesos/v1/scheduler/Protos.java: $(V1_SCHEDULER_PROTO)
 	$(MKDIR_P) $(@D)
-	$(PROTOC) -I$(top_srcdir)/include/mesos/v1			\
-          $(PROTOCFLAGS) --python_out=python/interface/src/mesos/v1/interface $^
+	$(PROTOC) $(PROTOCFLAGS) --java_out=java/generated $^
 
-# All python protocol buffer code that imports from mesos.proto has
-# to get patched using sed, removing the leading 'mesos.' namespace
-# qualifier due to the flat hierachy in the resulting mesos.interface
-# egg. See MESOS-1750 for more.
-python/interface/src/mesos/interface/containerizer_pb2.py:		\
-		$(CONTAINERIZER_PROTO)
+
+# Targets for generating Python protocol buffer code.
+# NOTE: All python protocol buffer code that imports from mesos.proto
+# has to get patched using sed, removing the leading 'mesos.'
+# namespace qualifier due to the flat hierachy in the resulting
+# mesos.interface egg. See MESOS-1750 for more.
+python/interface/src/mesos/interface/containerizer_pb2.py: $(CONTAINERIZER_PROTO)
 	$(MKDIR_P) $(@D)
-	$(PROTOC) -I$(top_srcdir)/include/mesos/containerizer		\
-		$(PROTOCFLAGS)						\
+	$(PROTOC) -I$(top_srcdir)/include/mesos/containerizer $(PROTOCFLAGS)	\
 		--python_out=python/interface/src/mesos/interface $^
-	$(SED) -i.bak 's/mesos\.mesos_pb2/mesos_pb2/' $@ && rm $@.bak
-
-python/interface/src/mesos/interface/scheduler_pb2.py: $(SCHEDULER_PROTO)
-	$(MKDIR_P) $(@D)
-	$(PROTOC) -I$(top_srcdir)/include/mesos/scheduler		\
-          $(PROTOCFLAGS)						\
-          --python_out=python/interface/src/mesos/interface $^
-	$(SED) -i.bak 's/mesos\.mesos_pb2/mesos_pb2/' $@ && rm $@.bak
-
-python/interface/src/mesos/v1/interface/scheduler_pb2.py: $(V1_SCHEDULER_PROTO)
-	$(MKDIR_P) $(@D)
-	$(PROTOC) -I$(top_srcdir)/include/mesos/v1/scheduler		\
-          $(PROTOCFLAGS)						\
-          --python_out=python/interface/src/mesos/v1/interface $^
 	$(SED) -i.bak 's/mesos\.mesos_pb2/mesos_pb2/' $@ && rm $@.bak
 
 python/interface/src/mesos/interface/executor_pb2.py: $(EXECUTOR_PROTO)
 	$(MKDIR_P) $(@D)
-	$(PROTOC) -I$(top_srcdir)/include/mesos/executor		\
-          $(PROTOCFLAGS)						\
-          --python_out=python/interface/src/mesos/interface $^
+	$(PROTOC) -I$(top_srcdir)/include/mesos/executor $(PROTOCFLAGS)		\
+		--python_out=python/interface/src/mesos/interface $^
+	$(SED) -i.bak 's/mesos\.mesos_pb2/mesos_pb2/' $@ && rm $@.bak
+
+python/interface/src/mesos/interface/mesos_pb2.py: $(MESOS_PROTO)
+	$(MKDIR_P) $(@D)
+	$(PROTOC) -I$(top_srcdir)/include/mesos $(PROTOCFLAGS)			\
+		--python_out=python/interface/src/mesos/interface $^
+
+python/interface/src/mesos/interface/scheduler_pb2.py: $(SCHEDULER_PROTO)
+	$(MKDIR_P) $(@D)
+	$(PROTOC) -I$(top_srcdir)/include/mesos/scheduler $(PROTOCFLAGS)	\
+		--python_out=python/interface/src/mesos/interface $^
 	$(SED) -i.bak 's/mesos\.mesos_pb2/mesos_pb2/' $@ && rm $@.bak
 
 python/interface/src/mesos/v1/interface/executor_pb2.py: $(V1_EXECUTOR_PROTO)
 	$(MKDIR_P) $(@D)
-	$(PROTOC) -I$(top_srcdir)/include/mesos/v1/executor		\
-          $(PROTOCFLAGS)						\
-          --python_out=python/interface/src/mesos/v1/interface $^
+	$(PROTOC) -I$(top_srcdir)/include/mesos/v1/executor $(PROTOCFLAGS)	\
+		--python_out=python/interface/src/mesos/v1/interface $^
 	$(SED) -i.bak 's/mesos\.mesos_pb2/mesos_pb2/' $@ && rm $@.bak
+
+python/interface/src/mesos/v1/interface/mesos_pb2.py: $(V1_MESOS_PROTO)
+	$(MKDIR_P) $(@D)
+	$(PROTOC) -I$(top_srcdir)/include/mesos/v1 $(PROTOCFLAGS)		\
+		--python_out=python/interface/src/mesos/v1/interface $^
+
+python/interface/src/mesos/v1/interface/scheduler_pb2.py: $(V1_SCHEDULER_PROTO)
+	$(MKDIR_P) $(@D)
+	$(PROTOC) -I$(top_srcdir)/include/mesos/v1/scheduler $(PROTOCFLAGS)	\
+		--python_out=python/interface/src/mesos/v1/interface $^
+	$(SED) -i.bak 's/mesos\.mesos_pb2/mesos_pb2/' $@ && rm $@.bak
+
 
 # We even use a convenience library for most of Mesos so that we can
 # exclude third party libraries so setuptools/distribute can build a
