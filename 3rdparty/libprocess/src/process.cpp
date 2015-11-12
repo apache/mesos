@@ -186,7 +186,7 @@ public:
   // Enqueues a future to a response that will get waited on (up to
   // some timeout) and then sent once all previously enqueued
   // responses have been processed (e.g., waited for and sent).
-  void handle(Future<Response>* future, const Request& request);
+  void handle(const Future<Response>& future, const Request& request);
 
 private:
   // Starts "waiting" on the next available future response.
@@ -209,16 +209,11 @@ private:
   // are acceptable and whether to persist the connection.
   struct Item
   {
-    Item(const Request& _request, Future<Response>* _future)
+    Item(const Request& _request, const Future<Response>& _future)
       : request(_request), future(_future) {}
 
-    ~Item()
-    {
-      delete future;
-    }
-
     const Request request; // Make a copy.
-    Future<Response>* future;
+    Future<Response> future; // Make a copy.
   };
 
   queue<Item*> items;
@@ -1010,12 +1005,12 @@ HttpProxy::~HttpProxy()
     Item* item = items.front();
 
     // Attempt to discard the future.
-    item->future->discard();
+    item->future.discard();
 
     // But it might have already been ready. In general, we need to
     // wait until this future is potentially ready in order to attempt
     // to close a pipe if one exists.
-    item->future->onReady([](const Response& response) {
+    item->future.onReady([](const Response& response) {
       // Cleaning up a response (i.e., closing any open Pipes in the
       // event Response::type is PIPE).
       if (response.type == Response::PIPE) {
@@ -1033,11 +1028,11 @@ HttpProxy::~HttpProxy()
 
 void HttpProxy::enqueue(const Response& response, const Request& request)
 {
-  handle(new Future<Response>(response), request);
+  handle(Future<Response>(response), request);
 }
 
 
-void HttpProxy::handle(Future<Response>* future, const Request& request)
+void HttpProxy::handle(const Future<Response>& future, const Request& request)
 {
   items.push(new Item(request, future));
 
@@ -1051,7 +1046,7 @@ void HttpProxy::next()
 {
   if (items.size() > 0) {
     // Wait for any transition of the future.
-    items.front()->future->onAny(
+    items.front()->future.onAny(
         defer(self(), &HttpProxy::waited, lambda::_1));
   }
 }
@@ -1062,11 +1057,11 @@ void HttpProxy::waited(const Future<Response>& future)
   CHECK(items.size() > 0);
   Item* item = items.front();
 
-  CHECK(future == *item->future);
+  CHECK(future == item->future);
 
   // Process the item and determine if we're done or not (so we know
   // whether to start waiting on the next responses).
-  bool processed = process(*item->future, item->request);
+  bool processed = process(item->future, item->request);
 
   items.pop();
   delete item;
@@ -3097,13 +3092,11 @@ void ProcessBase::visit(const HttpEvent& event)
       // as a future to wait for the response.
       std::shared_ptr<Promise<Response>> promise(new Promise<Response>());
 
-      Future<Response>* future = new Future<Response>(promise->future());
-
       // Get the HttpProxy pid for this socket.
       PID<HttpProxy> proxy = socket_manager->proxy(event.socket);
 
       // Let the HttpProxy know about this request (via the future).
-      dispatch(proxy, &HttpProxy::handle, future, *event.request);
+      dispatch(proxy, &HttpProxy::handle, promise->future(), *event.request);
 
       // Now call the handler and associate the response with the promise.
       promise->associate(handlers.http[name](*event.request));
