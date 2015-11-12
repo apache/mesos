@@ -1,0 +1,54 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package mesos;
+
+
+/**
+ * Represents a Uniform Resource Identifier (URI).
+ * RFC 3986 (https://www.ietf.org/rfc/rfc3986.txt)
+ *
+ * scheme:[//[user:password@]host[:port]]path[?query][#fragment]
+ *
+ * Examples:
+ *   ftp://ftp.is.co.za/rfc/rfc1808.txt
+ *   http://www.ietf.org/rfc/rfc2396.txt
+ *   ldap://[2001:db8::7]/c=GB?objectClass?one
+ *   mailto:John.Doe@example.com
+ *   news:comp.infosystems.www.servers.unix
+ *   tel:+1-816-555-1212
+ *   telnet://192.0.2.16:80/
+ *   urn:oasis:names:specification:docbook:dtd:xml:4.1.2
+ *   magnet:?xt=urn:btih:c12fe1c06bba254a9dc9f519b335aa7c1367a88a&dn
+ */
+message URI {
+  // NOTE: There is a difference between not setting the field and
+  // setting the field with an empty string. We treat them differently
+  // when generating the actual URI string. See more details in the
+  // RFC. For instance, the RFC states that the 'path' component is
+  // required, but may be empty (no characters).
+
+  required string scheme = 1;
+  optional string user = 2;
+  optional string password = 3;
+  optional string host = 4;
+  optional int32 port = 5;
+  required string path = 6;
+  optional string query = 7;
+  optional string fragment = 8;
+}

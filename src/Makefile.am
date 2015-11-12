@@ -155,6 +155,7 @@ QUOTA_PROTO = $(top_srcdir)/include/mesos/quota/quota.proto
 SCHEDULER_PROTO = $(top_srcdir)/include/mesos/scheduler/scheduler.proto
 ISOLATOR_PROTO = $(top_srcdir)/include/mesos/slave/isolator.proto
 OVERSUBSCRIPTION_PROTO = $(top_srcdir)/include/mesos/slave/oversubscription.proto
+URI_PROTO = $(top_srcdir)/include/mesos/uri/uri.proto
 V1_EXECUTOR_PROTO = $(top_srcdir)/include/mesos/v1/executor/executor.proto
 V1_MESOS_PROTO = $(top_srcdir)/include/mesos/v1/mesos.proto
 V1_SCHEDULER_PROTO = $(top_srcdir)/include/mesos/v1/scheduler/scheduler.proto
@@ -187,6 +188,8 @@ CXX_PROTOS =								\
   ../include/mesos/slave/isolator.pb.h					\
   ../include/mesos/slave/oversubscription.pb.cc				\
   ../include/mesos/slave/oversubscription.pb.h				\
+  ../include/mesos/uri/uri.pb.cc					\
+  ../include/mesos/uri/uri.pb.h						\
   ../include/mesos/v1/mesos.pb.cc					\
   ../include/mesos/v1/mesos.pb.h					\
   ../include/mesos/v1/executor/executor.pb.cc				\
@@ -467,6 +470,15 @@ slave_HEADERS =								\
 nodist_slave_HEADERS =							\
   ../include/mesos/slave/isolator.pb.h					\
   ../include/mesos/slave/oversubscription.pb.h
+
+uridir = $(pkgincludedir)/uri
+
+uri_HEADERS =								\
+  $(top_srcdir)/include/mesos/uri/uri.hpp				\
+  $(top_srcdir)/include/mesos/uri/uri.proto
+
+nodist_uri_HEADERS =							\
+  ../include/mesos/uri/uri.pb.h
 
 v1dir = $(pkgincludedir)/v1
 
@@ -943,6 +955,7 @@ libmesos_la_SOURCES =							\
   $(SCHEDULER_PROTO)							\
   $(ISOLATOR_PROTO)							\
   $(OVERSUBSCRIPTION_PROTO)						\
+  $(URI_PROTO)								\
   $(V1_EXECUTOR_PROTO)							\
   $(V1_MESOS_PROTO)							\
   $(V1_SCHEDULER_PROTO)

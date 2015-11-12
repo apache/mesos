@@ -35,6 +35,7 @@ PROTOC_TO_INCLUDE_DIR(SCHEDULER        mesos/scheduler/scheduler)
 PROTOC_TO_INCLUDE_DIR(V1_SCHEDULER     mesos/v1/scheduler/scheduler)
 PROTOC_TO_INCLUDE_DIR(ISOLATOR         mesos/slave/isolator)
 PROTOC_TO_INCLUDE_DIR(OVERSUBSCRIPTION mesos/slave/oversubscription)
+PROTOC_TO_INCLUDE_DIR(URI              mesos/uri/uri)
 
 PROTOC_TO_SRC_DIR(REGISTRY master/registry)
 
@@ -66,6 +67,7 @@ set(MESOS_PROTOBUF_SRC
   ${ISOLATOR_PROTO_CC}
   ${REGISTRY_PROTO_CC}
   ${MESSAGE_PROTO_CC}
+  ${URI_PROTO_CC}
   )
 
 # Configure Mesos files.
