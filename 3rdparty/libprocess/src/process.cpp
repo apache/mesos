@@ -2331,9 +2331,19 @@ bool ProcessManager::handle(
   }
 
   if (receiver) {
+    // The promise is created here but its ownership is passed
+    // into the HttpEvent created below.
+    Promise<Response>* promise(new Promise<Response>());
+
+    PID<HttpProxy> proxy = socket_manager->proxy(socket);
+
+    // Enqueue the response with the HttpProxy so that it respects the
+    // order of requests to account for HTTP/1.1 pipelining.
+    dispatch(proxy, &HttpProxy::handle, promise->future(), *request);
+
     // TODO(benh): Use the sender PID in order to capture
     // happens-before timing relationships for testing.
-    return deliver(receiver, new HttpEvent(socket, request));
+    return deliver(receiver, new HttpEvent(socket, request, promise));
   }
 
   // This has no receiver, send error response.
@@ -3088,18 +3098,8 @@ void ProcessBase::visit(const HttpEvent& event)
 
   while (Path(name).dirname() != name) {
     if (handlers.http.count(name) > 0) {
-      // Create the promise to link with whatever gets returned, as well
-      // as a future to wait for the response.
-      std::shared_ptr<Promise<Response>> promise(new Promise<Response>());
-
-      // Get the HttpProxy pid for this socket.
-      PID<HttpProxy> proxy = socket_manager->proxy(event.socket);
-
-      // Let the HttpProxy know about this request (via the future).
-      dispatch(proxy, &HttpProxy::handle, promise->future(), *event.request);
-
       // Now call the handler and associate the response with the promise.
-      promise->associate(handlers.http[name](*event.request));
+      event.response->associate(handlers.http[name](*event.request));
 
       return;
     }
@@ -3134,12 +3134,7 @@ void ProcessBase::visit(const HttpEvent& event)
     // extension or we don't have a mapping for? It might be better to
     // just let the browser guess (or do it's own default).
 
-    // Get the HttpProxy pid for this socket.
-    PID<HttpProxy> proxy = socket_manager->proxy(event.socket);
-
-    // Enqueue the response with the HttpProxy so that it respects the
-    // order of requests to account for HTTP/1.1 pipelining.
-    dispatch(proxy, &HttpProxy::enqueue, response, *event.request);
+    event.response->associate(response);
 
     return;
   }
@@ -3147,12 +3142,7 @@ void ProcessBase::visit(const HttpEvent& event)
   VLOG(1) << "Returning '404 Not Found' for"
           << " '" << event.request->url.path << "'";
 
-  // Get the HttpProxy pid for this socket.
-  PID<HttpProxy> proxy = socket_manager->proxy(event.socket);
-
-  // Enqueue the response with the HttpProxy so that it respects the
-  // order of requests to account for HTTP/1.1 pipelining.
-  dispatch(proxy, &HttpProxy::enqueue, NotFound(), *event.request);
+  event.response->associate(NotFound());
 }
 
 

@@ -117,12 +117,18 @@ private:
 
 struct HttpEvent : Event
 {
-  HttpEvent(const network::Socket& _socket, http::Request* _request)
-    : socket(_socket), request(_request) {}
+  HttpEvent(
+      const network::Socket& _socket,
+      http::Request* _request,
+      Promise<http::Response>* _response)
+    : socket(_socket),
+      request(_request),
+      response(_response) {}
 
   virtual ~HttpEvent()
   {
     delete request;
+    delete response;
   }
 
   virtual void visit(EventVisitor* visitor) const
@@ -132,6 +138,7 @@ struct HttpEvent : Event
 
   const network::Socket socket;
   http::Request* const request;
+  Promise<http::Response>* response;
 
 private:
   // Not copyable, not assignable.
