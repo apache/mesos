@@ -160,15 +160,6 @@ V1_MESOS_PROTO = $(top_srcdir)/include/mesos/v1/mesos.proto
 V1_SCHEDULER_PROTO = $(top_srcdir)/include/mesos/v1/scheduler/scheduler.proto
 
 
-LOG_PROTOS =								\
-  messages/log.pb.cc							\
-  messages/log.pb.h
-
-STATE_PROTOS =								\
-  messages/state.pb.cc							\
-  messages/state.pb.h
-
-
 CXX_PROTOS =								\
   ../include/mesos/mesos.pb.cc						\
   ../include/mesos/mesos.pb.h						\
@@ -201,7 +192,9 @@ CXX_PROTOS =								\
   ../include/mesos/v1/executor/executor.pb.cc				\
   ../include/mesos/v1/executor/executor.pb.h				\
   ../include/mesos/v1/scheduler/scheduler.pb.cc				\
-  ../include/mesos/v1/scheduler/scheduler.pb.h				\
+  ../include/mesos/v1/scheduler/scheduler.pb.h
+
+CXX_PROTOS +=								\
   master/registry.pb.cc							\
   master/registry.pb.h							\
   messages/flags.pb.cc							\
@@ -211,6 +204,13 @@ CXX_PROTOS =								\
   slave/containerizer/mesos/provisioner/docker/message.pb.cc		\
   slave/containerizer/mesos/provisioner/docker/message.pb.h
 
+CXX_LOG_PROTOS =							\
+  messages/log.pb.cc							\
+  messages/log.pb.h
+
+CXX_STATE_PROTOS =							\
+  messages/state.pb.cc							\
+  messages/state.pb.h
 
 JAVA_PROTOS =								\
   java/generated/org/apache/mesos/Protos.java				\
@@ -229,93 +229,30 @@ V1_PYTHON_PROTOS =							\
   python/interface/src/mesos/v1/interface/scheduler_pb2.py
 
 
-BUILT_SOURCES += 							\
-  $(CXX_PROTOS) 							\
-  $(LOG_PROTOS)								\
-  $(JAVA_PROTOS) 							\
-  $(PYTHON_PROTOS) 							\
-  $(STATE_PROTOS)							\
-  $(V1_JAVA_PROTOS) 							\
+BUILT_SOURCES +=							\
+  $(CXX_LOG_PROTOS)							\
+  $(CXX_PROTOS)								\
+  $(CXX_STATE_PROTOS)							\
+  $(JAVA_PROTOS)							\
+  $(PYTHON_PROTOS)							\
+  $(V1_JAVA_PROTOS)							\
   $(V1_PYTHON_PROTOS)
 
-CLEANFILES += 								\
-  $(CXX_PROTOS) 							\
-  $(LOG_PROTOS)								\
-  $(JAVA_PROTOS) 							\
-  $(PYTHON_PROTOS) 							\
-  $(STATE_PROTOS)							\
-  $(V1_JAVA_PROTOS) 							\
+CLEANFILES +=								\
+  $(CXX_LOG_PROTOS)							\
+  $(CXX_PROTOS)								\
+  $(CXX_STATE_PROTOS)							\
+  $(JAVA_PROTOS)							\
+  $(PYTHON_PROTOS)							\
+  $(V1_JAVA_PROTOS)							\
   $(V1_PYTHON_PROTOS)
 
 
 # Targets for generating protocol buffer code.
-# TODO(jieyu): Consolidate the following rules.
-../include/mesos/master/%.pb.cc ../include/mesos/master/%.pb.h: $(ALLOCATOR_PROTO)
-	$(MKDIR_P) $(@D)
-	$(PROTOC) $(PROTOCFLAGS) --cpp_out=../include $^
-
-../include/mesos/authentication/%.pb.cc ../include/mesos/authentication/%.pb.h: $(AUTHENTICATION_PROTO)
-	$(MKDIR_P) $(@D)
-	$(PROTOC) $(PROTOCFLAGS) --cpp_out=../include $^
-
-../include/mesos/authorizer/%.pb.cc ../include/mesos/authorizer/%.pb.h: $(AUTHORIZATION_PROTO)
-	$(MKDIR_P) $(@D)
-	$(PROTOC) $(PROTOCFLAGS) --cpp_out=../include $^
-
-../include/mesos/containerizer/%.pb.cc ../include/mesos/containerizer/%.pb.h: $(CONTAINERIZER_PROTO)
-	$(MKDIR_P) $(@D)
-	$(PROTOC) $(PROTOCFLAGS) --cpp_out=../include $^
-
-../include/mesos/executor/%.pb.cc ../include/mesos/executor/%.pb.h: $(EXECUTOR_PROTO)
-	$(MKDIR_P) $(@D)
-	$(PROTOC) $(PROTOCFLAGS) --cpp_out=../include $^
-
-../include/mesos/fetcher/%.pb.cc ../include/mesos/fetcher/%.pb.h: $(FETCHER_PROTO)
-	$(MKDIR_P) $(@D)
-	$(PROTOC) $(PROTOCFLAGS) --cpp_out=../include $^
-
-../include/mesos/maintenance/%.pb.cc ../include/mesos/maintenance/%.pb.h: $(MAINTENANCE_PROTO)
-	$(MKDIR_P) $(@D)
-	$(PROTOC) $(PROTOCFLAGS) --cpp_out=../include $^
-
-../include/mesos/mesos.pb.cc ../include/mesos/mesos.pb.h: $(MESOS_PROTO)
-	$(MKDIR_P) $(@D)
-	$(PROTOC) $(PROTOCFLAGS) --cpp_out=../include $^
-
-../include/mesos/module/%.pb.cc ../include/mesos/module/%.pb.h: $(MODULE_PROTO)
-	$(MKDIR_P) $(@D)
-	$(PROTOC) $(PROTOCFLAGS) --cpp_out=../include $^
-
-../include/mesos/quota/%.pb.cc ../include/mesos/quota/%.pb.h: $(QUOTA_PROTO)
-	$(MKDIR_P) $(@D)
-	$(PROTOC) $(PROTOCFLAGS) --cpp_out=../include $^
-
-../include/mesos/scheduler/%.pb.cc ../include/mesos/scheduler/%.pb.h: $(SCHEDULER_PROTO)
-	$(MKDIR_P) $(@D)
-	$(PROTOC) $(PROTOCFLAGS) --cpp_out=../include $^
-
-../include/mesos/slave/isolator.pb.cc ../include/mesos/slave/isolator.pb.h: $(ISOLATOR_PROTO)
-	$(MKDIR_P) $(@D)
-	$(PROTOC) $(PROTOCFLAGS) --cpp_out=../include $^
-
-../include/mesos/slave/oversubscription.pb.cc ../include/mesos/slave/oversubscription.pb.h: $(OVERSUBSCRIPTION_PROTO)
-	$(MKDIR_P) $(@D)
-	$(PROTOC) $(PROTOCFLAGS) --cpp_out=../include $^
-
-../include/mesos/v1/executor/%.pb.cc ../include/mesos/v1/executor/%.pb.h: $(V1_EXECUTOR_PROTO)
-	$(MKDIR_P) $(@D)
-	$(PROTOC) $(PROTOCFLAGS) --cpp_out=../include $^
-
-../include/mesos/v1/mesos.pb.cc ../include/mesos/v1/mesos.pb.h: $(V1_MESOS_PROTO)
-	$(MKDIR_P) $(@D)
-	$(PROTOC) $(PROTOCFLAGS) --cpp_out=../include $^
-
-../include/mesos/v1/scheduler/%.pb.cc ../include/mesos/v1/scheduler/%.pb.h: $(V1_SCHEDULER_PROTO)
-	$(MKDIR_P) $(@D)
+../include/mesos/%.pb.cc ../include/mesos/%.pb.h: $(top_srcdir)/include/mesos/%.proto
 	$(PROTOC) $(PROTOCFLAGS) --cpp_out=../include $^
 
 %.pb.cc %.pb.h: %.proto
-	$(MKDIR_P) $(@D)
 	$(PROTOC) $(PROTOCFLAGS) --cpp_out=. $^
 
 java/generated/org/apache/mesos/Protos.java: $(MESOS_PROTO)
@@ -938,7 +875,7 @@ liblog_la_SOURCES +=							\
   log/tool/replica.hpp							\
   messages/log.hpp							\
   messages/log.proto
-nodist_liblog_la_SOURCES = $(LOG_PROTOS)
+nodist_liblog_la_SOURCES = $(CXX_LOG_PROTOS)
 liblog_la_CPPFLAGS = $(MESOS_CPPFLAGS)
 
 libmesos_no_3rdparty_la_LIBADD += liblog.la
@@ -962,7 +899,7 @@ libstate_la_SOURCES +=							\
   state/zookeeper.hpp							\
   messages/state.hpp							\
   messages/state.proto
-nodist_libstate_la_SOURCES = $(STATE_PROTOS)
+nodist_libstate_la_SOURCES = $(CXX_STATE_PROTOS)
 libstate_la_CPPFLAGS = $(MESOS_CPPFLAGS)
 
 libmesos_no_3rdparty_la_LIBADD += libstate.la
