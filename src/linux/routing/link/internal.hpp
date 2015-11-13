@@ -147,7 +147,7 @@ inline Try<bool> set(const std::string& _link, unsigned int flags)
       return false;
     } else {
       // Save the error string as os::close may overwrite errno.
-      std::string message = strerror(errno);
+      const std::string message = os::strerror(errno);
       os::close(fd);
       return Error(message);
     }

@@ -18,7 +18,6 @@
 
 #include <signal.h> // For strsignal.
 #include <stdio.h>  // For freopen.
-#include <string.h> // For strlen, strerror.
 
 #include <sys/wait.h> // For wait (and associated macros).
 
@@ -98,7 +97,7 @@ void execute(const string& script)
       if (freopen("/dev/null", "w", stdout) == NULL ||
           freopen("/dev/null", "w", stderr) == NULL) {
         std::cerr << "Failed to redirect stdout/stderr to /dev/null:"
-                  << strerror(errno) << std::endl;
+                  << os::strerror(errno) << std::endl;
         abort();
       }
     }
@@ -162,7 +161,7 @@ void execute(const string& script)
     execl(path.get().c_str(), path.get().c_str(), (char*) NULL);
 
     std::cerr << "Failed to execute '" << script << "': "
-              << strerror(errno) << std::endl;
+              << os::strerror(errno) << std::endl;
     abort();
   }
 }

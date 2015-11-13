@@ -41,12 +41,11 @@
 
 #include <stout/duration.hpp>
 #include <stout/flags.hpp>
-#include <stout/path.hpp>
-#include <stout/protobuf.hpp>
 #include <stout/lambda.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
 #include <stout/path.hpp>
+#include <stout/protobuf.hpp>
 #include <stout/strings.hpp>
 
 #include "common/http.hpp"
@@ -260,7 +259,7 @@ public:
 
     if ((pid = fork()) == -1) {
       cerr << "Failed to fork to run " << command << ": "
-           << strerror(errno) << endl;
+           << os::strerror(errno) << endl;
       abort();
     }
 
@@ -368,8 +367,8 @@ public:
 
     // Get the child's pid via the pipe.
     if (read(pipes[0], &pid, sizeof(pid)) == -1) {
-      cerr << "Failed to get child PID from pipe, read: " << strerror(errno)
-           << endl;
+      cerr << "Failed to get child PID from pipe, read: "
+           << os::strerror(errno) << endl;
       abort();
     }
 

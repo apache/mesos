@@ -126,8 +126,8 @@ int main(int argc, char** argv)
       cerr << "'" << command << "' is not a valid command "
            << "(or can not be found)" << endl;
     } else {
-      cerr << "Failed to execute " << command
-           << ": " << strerror(errno) << endl;
+      cerr << "Failed to execute '" << command << "': "
+           << os::strerror(errno) << endl;
     }
     return EXIT_FAILURE;
   }

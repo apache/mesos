@@ -937,8 +937,8 @@ Future<pid_t> DockerContainerizerProcess::launchExecutorProcess(
          errno == EINTR);
 
   if (length != sizeof(c)) {
-    string error = string(strerror(errno));
-    return Failure("Failed to synchronize with child process: " + error);
+    return Failure("Failed to synchronize with child process: " +
+                   os::strerror(errno));
   }
 
   return s.get().pid();

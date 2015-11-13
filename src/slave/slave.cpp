@@ -585,7 +585,7 @@ void Slave::initialize()
   action.sa_sigaction = signalHandler;
 
   if (sigaction(SIGUSR1, &action, NULL) < 0) {
-    EXIT(1) << "Failed to set sigaction: " << strerror(errno);
+    EXIT(1) << "Failed to set sigaction: " << os::strerror(errno);
   }
 
   // Do recovery.

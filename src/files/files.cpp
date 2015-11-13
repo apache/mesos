@@ -345,8 +345,11 @@ Future<Response> FilesProcess::read(const Request& request)
   off_t size = lseek(fd.get(), 0, SEEK_END);
 
   if (size == -1) {
-    string error = strings::format("Failed to open file at '%s': %s",
-        resolvedPath.get(), strerror(errno)).get();
+    string error = strings::format(
+        "Failed to open file at '%s': %s",
+        resolvedPath.get(),
+        os::strerror(errno)).get();
+
     LOG(WARNING) << error;
     os::close(fd.get());
     return InternalServerError(error + ".\n");
@@ -374,8 +377,11 @@ Future<Response> FilesProcess::read(const Request& request)
 
   // Seek to the offset we want to read from.
   if (lseek(fd.get(), offset, SEEK_SET) == -1) {
-    string error = strings::format("Failed to seek file at '%s': %s",
-        resolvedPath.get(), strerror(errno)).get();
+    string error = strings::format(
+        "Failed to seek file at '%s': %s",
+        resolvedPath.get(),
+        os::strerror(errno)).get();
+
     LOG(WARNING) << error;
     os::close(fd.get());
     return InternalServerError(error);

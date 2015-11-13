@@ -935,7 +935,7 @@ Future<bool> MesosContainerizerProcess::exec(
 
   if (length != sizeof(dummy)) {
     return Failure("Failed to synchronize child process: " +
-                   string(strerror(errno)));
+                   os::strerror(errno));
   }
 
   containers_[containerId]->state = RUNNING;

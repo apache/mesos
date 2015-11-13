@@ -213,8 +213,8 @@ Future<bool> BindBackendProcess::destroy(const string& rootfs)
       // rootfses for the terminated containers.
       if (::rmdir(rootfs.c_str()) != 0) {
         string message =
-          "Failed to remove rootfs mount point '" + rootfs +
-          "': " + strerror(errno);
+          "Failed to remove rootfs mount point '" + rootfs + "':" +
+          os::strerror(errno);
 
         if (errno == EBUSY) {
           LOG(ERROR) << message;

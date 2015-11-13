@@ -18,6 +18,8 @@
 
 #include <set>
 
+#include <stout/os/strerror.hpp>
+
 #include "linux/ns.hpp"
 
 #include "slave/containerizer/mesos/isolators/filesystem/shared.hpp"
@@ -176,8 +178,8 @@ Future<Option<ContainerPrepareInfo>> SharedFilesystemIsolatorProcess::prepare(
       struct stat stat;
       if (::stat(volume.container_path().c_str(), &stat) < 0) {
         return Failure("Failed to get permissions on '" +
-                        volume.container_path() + "'" +
-                        ": " + strerror(errno));
+                       volume.container_path() + "'" + ": " +
+                       os::strerror(errno));
       }
 
       Try<Nothing> chmod = os::chmod(hostPath, stat.st_mode);

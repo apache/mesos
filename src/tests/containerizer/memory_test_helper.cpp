@@ -169,7 +169,7 @@ static Try<Nothing> increasePageCache(const vector<string>& tokens)
     if (fsync(fd.get()) == -1) {
       // Save the error message because os::close below might
       // overwrite the errno.
-      const string message = strerror(errno);
+      const string message = os::strerror(errno);
 
       os::close(fd.get());
       return Error("Failed to fsync: " + message);

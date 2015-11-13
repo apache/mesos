@@ -34,6 +34,7 @@
 #include <stout/strings.hpp>
 
 #include <stout/os/shell.hpp>
+#include <stout/os/strerror.hpp>
 
 #include "linux/fs.hpp"
 #include "linux/ns.hpp"
@@ -714,9 +715,8 @@ Future<Nothing> LinuxFilesystemIsolatorProcess::update(
     // user/group of the persistent volumes.
     struct stat s;
     if (::stat(info->directory.c_str(), &s) < 0) {
-      return Failure(
-          "Failed to get ownership for '" + info->directory +
-          "': " + strerror(errno));
+      return Failure("Failed to get ownership for '" + info->directory + "': " +
+                     os::strerror(errno));
     }
 
     LOG(INFO) << "Changing the ownership of the persistent volume at '"

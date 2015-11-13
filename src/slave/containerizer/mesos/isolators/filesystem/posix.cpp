@@ -202,9 +202,8 @@ Future<Nothing> PosixFilesystemIsolatorProcess::update(
     // user/group of the persistent volumes.
     struct stat s;
     if (::stat(info->directory.c_str(), &s) < 0) {
-      return Failure(
-          "Failed to get ownership for '" + info->directory +
-          "': " + strerror(errno));
+      return Failure("Failed to get ownership for '" + info->directory + "': " +
+                     os::strerror(errno));
     }
 
     LOG(INFO) << "Changing the ownership of the persistent volume at '"

@@ -40,8 +40,8 @@
 #include <process/pid.hpp>
 #include <process/process.hpp>
 
-#include <stout/error.hpp>
 #include <stout/duration.hpp>
+#include <stout/error.hpp>
 #include <stout/lambda.hpp>
 #include <stout/net.hpp>
 #include <stout/none.hpp>
@@ -297,7 +297,7 @@ Try<bool> setMAC(const string& link, const net::MAC& mac)
       return false;
     } else {
       // Save the error string as os::close may overwrite errno.
-      const string message = strerror(errno);
+      const string message = os::strerror(errno);
       os::close(fd);
       return Error(message);
     }
@@ -316,7 +316,7 @@ Try<bool> setMAC(const string& link, const net::MAC& mac)
       return false;
     } else {
       // Save the error string as os::close may overwrite errno.
-      const string message = strerror(errno);
+      const string message = os::strerror(errno);
       os::close(fd);
       return Error(message);
     }
@@ -369,7 +369,7 @@ Try<bool> setMTU(const string& _link, unsigned int mtu)
     }
 
     // Save the error string as os::close may overwrite errno.
-    const string message = strerror(errno);
+    const string message = os::strerror(errno);
     os::close(fd);
     return Error(message);
   }
