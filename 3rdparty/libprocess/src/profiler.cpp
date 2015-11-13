@@ -28,6 +28,7 @@
 #include "stout/format.hpp"
 #include "stout/option.hpp"
 #include "stout/os.hpp"
+#include "stout/os/strerror.hpp"
 
 namespace process {
 
@@ -84,10 +85,10 @@ Future<http::Response> Profiler::start(const http::Request& request)
   // https://groups.google.com/d/topic/google-perftools/Df10Uy4Djrg/discussion
   // NOTE: We have not tested this with libunwind > 1.0.1.
   if (!ProfilerStart(PROFILE_FILE.c_str())) {
-    std::string error =
-      strings::format("Failed to start profiler: %s", strerror(errno)).get();
-    LOG(ERROR) << error;
-    return http::InternalServerError(error);
+    Try<std::string> error =
+      strings::format("Failed to start profiler: %s", os::strerror(errno));
+    LOG(ERROR) << error.get();
+    return http::InternalServerError(error.get());
   }
 
   started = true;

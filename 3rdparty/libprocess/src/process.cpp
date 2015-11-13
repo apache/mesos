@@ -89,6 +89,7 @@
 #include <stout/numify.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
+#include <stout/os/strerror.hpp>
 #include <stout/path.hpp>
 #include <stout/strings.hpp>
 #include <stout/synchronized.hpp>
@@ -1096,14 +1097,14 @@ bool HttpProxy::process(const Future<Response>& future, const Request& request)
           VLOG(1) << "Returning '404 Not Found' for path '" << path << "'";
           socket_manager->send(NotFound(), request, socket);
       } else {
-        const char* error = strerror(errno);
+        const string error = os::strerror(errno);
         VLOG(1) << "Failed to send file at '" << path << "': " << error;
         socket_manager->send(InternalServerError(), request, socket);
       }
     } else {
       struct stat s; // Need 'struct' because of function named 'stat'.
       if (fstat(fd, &s) != 0) {
-        const char* error = strerror(errno);
+        const string error = os::strerror(errno);
         VLOG(1) << "Failed to send file at '" << path << "': " << error;
         socket_manager->send(InternalServerError(), request, socket);
       } else if (S_ISDIR(s.st_mode)) {

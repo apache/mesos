@@ -24,6 +24,7 @@
 #include <stout/lambda.hpp>
 #include <stout/nothing.hpp>
 #include <stout/os.hpp>
+#include <stout/os/strerror.hpp>
 #include <stout/try.hpp>
 
 using std::string;
@@ -92,7 +93,7 @@ void read(
                          WeakFuture<short>(future)));
       } else {
         // Error occurred.
-        promise->fail(strerror(errno));
+        promise->fail(os::strerror(errno));
       }
     } else {
       promise->set(length);
@@ -183,7 +184,7 @@ void write(
                          WeakFuture<short>(future)));
       } else {
         // Error occurred.
-        promise->fail(strerror(errno));
+        promise->fail(os::strerror(errno));
       }
     } else {
       // TODO(benh): Retry if 'length' is 0?
@@ -276,7 +277,7 @@ Future<size_t> peek(int fd, void* data, size_t size, size_t limit)
   // also make sure it's non-blocking and will close-on-exec. Start by
   // checking we've got a "valid" file descriptor before dup'ing.
   if (fd < 0) {
-    return Failure(strerror(EBADF));
+    return Failure(os::strerror(EBADF));
   }
 
   fd = dup(fd);
@@ -429,7 +430,7 @@ Future<string> read(int fd)
   // also make sure it's non-blocking and will close-on-exec. Start by
   // checking we've got a "valid" file descriptor before dup'ing.
   if (fd < 0) {
-    return Failure(strerror(EBADF));
+    return Failure(os::strerror(EBADF));
   }
 
   fd = dup(fd);
@@ -475,7 +476,7 @@ Future<Nothing> write(int fd, const std::string& data)
   // also make sure it's non-blocking and will close-on-exec. Start by
   // checking we've got a "valid" file descriptor before dup'ing.
   if (fd < 0) {
-    return Failure(strerror(EBADF));
+    return Failure(os::strerror(EBADF));
   }
 
   fd = dup(fd);
@@ -510,7 +511,7 @@ Future<Nothing> redirect(int from, Option<int> to, size_t chunk)
 {
   // Make sure we've got "valid" file descriptors.
   if (from < 0 || (to.isSome() && to.get() < 0)) {
-    return Failure(strerror(EBADF));
+    return Failure(os::strerror(EBADF));
   }
 
   if (to.isNone()) {

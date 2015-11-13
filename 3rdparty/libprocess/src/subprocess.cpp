@@ -30,6 +30,7 @@
 #include <stout/foreach.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
+#include <stout/os/strerror.hpp>
 #include <stout/strings.hpp>
 #include <stout/try.hpp>
 #include <stout/unreachable.hpp>
@@ -176,7 +177,7 @@ static int childMain(
 
   os::execvpe(path.c_str(), argv, envp);
 
-  ABORT("Failed to os::execvpe on path '" + path + "': " + strerror(errno));
+  ABORT("Failed to os::execvpe in childMain: " + os::strerror(errno));
 }
 
 

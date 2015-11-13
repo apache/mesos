@@ -19,6 +19,7 @@
 #include <process/socket.hpp>
 
 #include <stout/os/sendfile.hpp>
+#include <stout/os/strerror.hpp>
 
 #include "config.hpp"
 #include "poll_socket.hpp"
@@ -72,7 +73,7 @@ Future<Socket> accept(int fd)
   // Turn off Nagle (TCP_NODELAY) so pipelined requests don't wait.
   int on = 1;
   if (setsockopt(s, SOL_TCP, TCP_NODELAY, &on, sizeof(on)) < 0) {
-    const char* error = strerror(errno);
+    const string error = os::strerror(errno);
     VLOG(1) << "Failed to turn off the Nagle algorithm: " << error;
     os::close(s);
     return Failure(
@@ -159,7 +160,7 @@ Future<size_t> socket_send_data(int s, const char* data, size_t size)
     } else if (length <= 0) {
       // Socket error or closed.
       if (length < 0) {
-        const char* error = strerror(errno);
+        const string error = os::strerror(errno);
         VLOG(1) << "Socket error while sending: " << error;
       } else {
         VLOG(1) << "Socket closed while sending";
@@ -195,7 +196,7 @@ Future<size_t> socket_send_file(int s, int fd, off_t offset, size_t size)
     } else if (length <= 0) {
       // Socket error or closed.
       if (length < 0) {
-        const char* error = strerror(errno);
+        const string error = os::strerror(errno);
         VLOG(1) << "Socket error while sending: " << error;
       } else {
         VLOG(1) << "Socket closed while sending";
