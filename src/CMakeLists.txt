@@ -219,6 +219,10 @@ if (NOT WIN32)
     )
 endif (NOT WIN32)
 
+set(URI_SRC
+  uri/fetcher.cpp
+  )
+
 set(USAGE_SRC
   usage/usage.cpp
   )
@@ -268,6 +272,7 @@ if (NOT WIN32)
     ${MODULE_SRC}
     ${SCHED_SRC}
     ${SCHEDULER_SRC}
+    ${URI_SRC}
     ${USAGE_SRC}
     ${V1_SRC}
     ${VERSION_SRC}

@@ -474,6 +474,7 @@ nodist_slave_HEADERS =							\
 uridir = $(pkgincludedir)/uri
 
 uri_HEADERS =								\
+  $(top_srcdir)/include/mesos/uri/fetcher.hpp				\
   $(top_srcdir)/include/mesos/uri/uri.hpp				\
   $(top_srcdir)/include/mesos/uri/uri.proto
 
@@ -617,6 +618,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   slave/containerizer/mesos/provisioner/docker/store.cpp		\
   slave/containerizer/mesos/provisioner/docker/token_manager.cpp	\
   slave/resource_estimators/noop.cpp					\
+  uri/fetcher.cpp							\
   usage/usage.cpp							\
   v1/attributes.cpp							\
   v1/mesos.cpp								\
