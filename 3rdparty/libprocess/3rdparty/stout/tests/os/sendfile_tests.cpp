@@ -61,7 +61,7 @@ TEST_F(OsSendfileTest, Sendfile)
 
   // Construct a socket pair and use sendfile to transmit the text.
   int s[2];
-  ASSERT_NE(-1, socketpair(AF_UNIX, SOCK_STREAM, 0, s)) << strerror(errno);
+  ASSERT_NE(-1, socketpair(AF_UNIX, SOCK_STREAM, 0, s)) << os::strerror(errno);
   ASSERT_EQ(
       LOREM_IPSUM.size(),
       os::sendfile(s[0], fd.get(), 0, LOREM_IPSUM.size()));
@@ -82,9 +82,9 @@ TEST_F(OsSendfileTest, Sendfile)
   ASSERT_EQ(-1, result);
 
 #ifdef __linux__
-  ASSERT_EQ(EPIPE, _errno) << strerror(_errno);
+  ASSERT_EQ(EPIPE, _errno) << os::strerror(_errno);
 #elif defined __APPLE__
-  ASSERT_EQ(ENOTCONN, _errno) << strerror(_errno);
+  ASSERT_EQ(ENOTCONN, _errno) << os::strerror(_errno);
 #endif
 
   ASSERT_SOME(os::close(fd.get()));

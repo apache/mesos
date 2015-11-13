@@ -15,9 +15,10 @@
 #define __STOUT_ERROR_HPP__
 
 #include <errno.h>
-#include <string.h> // For strerror.
 
 #include <string>
+
+#include <stout/os/strerror.hpp>
 
 // A useful type that can be used to represent a Try that has
 // failed. You can also use 'ErrnoError' to append the error message
@@ -44,11 +45,10 @@ public:
 class ErrnoError : public Error
 {
 public:
-  ErrnoError()
-    : Error(std::string(strerror(errno))) {}
+  ErrnoError() : Error(os::strerror(errno)) {}
 
   ErrnoError(const std::string& message)
-    : Error(message + ": " + std::string(strerror(errno))) {}
+    : Error(message + ": " + os::strerror(errno)) {}
 };
 
 #endif // __STOUT_ERROR_HPP__

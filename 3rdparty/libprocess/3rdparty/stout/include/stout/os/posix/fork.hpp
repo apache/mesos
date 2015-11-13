@@ -31,6 +31,7 @@
 #include <stout/error.hpp>
 #include <stout/exit.hpp>
 #include <stout/foreach.hpp>
+#include <stout/os/strerror.hpp>
 #include <stout/stringify.hpp>
 #include <stout/try.hpp>
 
@@ -262,11 +263,11 @@ private:
     void operator()(Tree::Memory* process) const
     {
       if (munmap(process, sizeof(Tree::Memory)) == -1) {
-        ABORT(std::string("Failed to unmap memory: ") + strerror(errno));
+        ABORT(std::string("Failed to unmap memory: ") + os::strerror(errno));
       }
       if (::close(fd) == -1) {
         ABORT(std::string("Failed to close shared memory file descriptor: ") +
-              strerror(errno));
+              os::strerror(errno));
       }
     }
 
@@ -366,7 +367,8 @@ private:
       // Execute the command (via '/bin/sh -c command').
       const char* command = exec.get().command.c_str();
       execlp("sh", "sh", "-c", command, (char*) NULL);
-      EXIT(1) << "Failed to execute '" << command << "': " << strerror(errno);
+      EXIT(1) << "Failed to execute '" << command
+              << "': " << os::strerror(errno);
     } else if (wait.isSome()) {
       foreach (pid_t pid, pids) {
         // TODO(benh): Check for signal interruption or other errors.

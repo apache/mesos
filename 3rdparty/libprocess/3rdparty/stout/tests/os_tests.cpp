@@ -543,7 +543,7 @@ TEST_F(OsTest, Processes)
 void dosetsid(void)
 {
   if (::setsid() == -1) {
-    ABORT(string("Failed to setsid: ") + strerror(errno));
+    ABORT(string("Failed to setsid: ") + os::strerror(errno));
   }
 }
 
