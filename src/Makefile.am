@@ -336,126 +336,6 @@ python/interface/src/mesos/v1/interface/scheduler_pb2.py: $(V1_SCHEDULER_PROTO)
 	$(SED) -i.bak 's/mesos\.mesos_pb2/mesos_pb2/' $@ && rm $@.bak
 
 
-# We even use a convenience library for most of Mesos so that we can
-# exclude third party libraries so setuptools/distribute can build a
-# self-contained Python library and statically link in the third party
-# libraries themselves.
-noinst_LTLIBRARIES += libmesos_no_3rdparty.la
-
-nodist_libmesos_no_3rdparty_la_SOURCES = $(CXX_PROTOS)
-
-
-# TODO(tillt): Remove authentication/cram_md5/* which will enable us to
-# lose the immediate cyrus-sasl2 dependency.
-libmesos_no_3rdparty_la_SOURCES =					\
-  authentication/cram_md5/authenticatee.cpp				\
-  authentication/cram_md5/authenticator.cpp				\
-  authentication/cram_md5/auxprop.cpp					\
-  authorizer/authorizer.cpp						\
-  authorizer/local/authorizer.cpp					\
-  common/attributes.cpp							\
-  common/date_utils.cpp							\
-  common/http.cpp							\
-  common/protobuf_utils.cpp						\
-  common/resources.cpp							\
-  common/resources_utils.cpp						\
-  common/type_utils.cpp							\
-  common/values.cpp							\
-  docker/docker.hpp							\
-  docker/docker.cpp							\
-  docker/executor.hpp							\
-  exec/exec.cpp								\
-  files/files.cpp							\
-  hook/manager.cpp							\
-  internal/devolve.cpp							\
-  internal/evolve.cpp							\
-  local/local.cpp							\
-  logging/flags.cpp							\
-  logging/logging.cpp							\
-  master/constants.cpp							\
-  master/contender.cpp							\
-  master/detector.cpp							\
-  master/flags.cpp							\
-  master/http.cpp							\
-  master/maintenance.cpp						\
-  master/master.cpp							\
-  master/metrics.cpp							\
-  master/registrar.cpp							\
-  master/registry.hpp							\
-  master/registry.proto							\
-  master/repairer.cpp							\
-  master/validation.cpp							\
-  master/allocator/allocator.cpp					\
-  master/allocator/mesos/hierarchical.cpp				\
-  master/allocator/sorter/drf/sorter.cpp				\
-  messages/flags.proto							\
-  messages/messages.cpp							\
-  messages/messages.proto						\
-  module/manager.cpp							\
-  sched/constants.cpp							\
-  sched/sched.cpp							\
-  scheduler/scheduler.cpp						\
-  slave/constants.cpp							\
-  slave/gc.cpp								\
-  slave/flags.cpp							\
-  slave/http.cpp							\
-  slave/metrics.cpp							\
-  slave/monitor.cpp							\
-  slave/paths.cpp							\
-  slave/qos_controller.cpp						\
-  slave/qos_controllers/noop.cpp					\
-  slave/resource_estimator.cpp						\
-  slave/slave.cpp							\
-  slave/state.cpp							\
-  slave/status_update_manager.cpp					\
-  slave/validation.cpp							\
-  slave/containerizer/composing.cpp					\
-  slave/containerizer/composing.hpp					\
-  slave/containerizer/containerizer.cpp					\
-  slave/containerizer/docker.cpp					\
-  slave/containerizer/docker.hpp					\
-  slave/containerizer/external_containerizer.cpp			\
-  slave/containerizer/fetcher.cpp					\
-  slave/containerizer/isolator.cpp					\
-  slave/containerizer/mesos/containerizer.cpp				\
-  slave/containerizer/mesos/launch.cpp					\
-  slave/containerizer/mesos/launcher.cpp				\
-  slave/containerizer/mesos/mount.cpp					\
-  slave/containerizer/mesos/isolators/filesystem/posix.cpp		\
-  slave/containerizer/mesos/isolators/posix/disk.cpp			\
-  slave/containerizer/mesos/provisioner/backend.cpp			\
-  slave/containerizer/mesos/provisioner/paths.cpp			\
-  slave/containerizer/mesos/provisioner/provisioner.cpp			\
-  slave/containerizer/mesos/provisioner/store.cpp			\
-  slave/containerizer/mesos/provisioner/appc/paths.cpp			\
-  slave/containerizer/mesos/provisioner/appc/spec.cpp			\
-  slave/containerizer/mesos/provisioner/appc/store.cpp			\
-  slave/containerizer/mesos/provisioner/backends/copy.cpp		\
-  slave/containerizer/mesos/provisioner/docker/local_puller.cpp		\
-  slave/containerizer/mesos/provisioner/docker/message.proto		\
-  slave/containerizer/mesos/provisioner/docker/metadata_manager.cpp	\
-  slave/containerizer/mesos/provisioner/docker/paths.cpp		\
-  slave/containerizer/mesos/provisioner/docker/puller.cpp		\
-  slave/containerizer/mesos/provisioner/docker/registry_client.cpp	\
-  slave/containerizer/mesos/provisioner/docker/registry_puller.cpp	\
-  slave/containerizer/mesos/provisioner/docker/spec.cpp			\
-  slave/containerizer/mesos/provisioner/docker/store.cpp		\
-  slave/containerizer/mesos/provisioner/docker/token_manager.cpp	\
-  slave/resource_estimators/noop.cpp					\
-  usage/usage.cpp							\
-  v1/attributes.cpp							\
-  v1/mesos.cpp								\
-  v1/resources.cpp							\
-  v1/values.cpp								\
-  version/version.cpp							\
-  watcher/whitelist_watcher.cpp						\
-  zookeeper/authentication.cpp						\
-  zookeeper/contender.cpp						\
-  zookeeper/detector.cpp						\
-  zookeeper/zookeeper.cpp						\
-  zookeeper/group.cpp
-
-
 pkginclude_HEADERS =							\
   $(top_srcdir)/include/mesos/attributes.hpp				\
   $(top_srcdir)/include/mesos/executor.hpp				\
@@ -620,66 +500,121 @@ nodist_v1scheduler_HEADERS =						\
   ../include/mesos/v1/scheduler/scheduler.pb.h
 
 
-if OS_LINUX
-libmesos_no_3rdparty_la_SOURCES +=					\
-  linux/cgroups.cpp							\
-  linux/fs.cpp								\
-  linux/perf.cpp							\
-  linux/systemd.cpp							\
-  slave/containerizer/mesos/linux_launcher.cpp				\
-  slave/containerizer/mesos/isolators/cgroups/cpushare.cpp		\
-  slave/containerizer/mesos/isolators/cgroups/mem.cpp			\
-  slave/containerizer/mesos/isolators/cgroups/perf_event.cpp		\
-  slave/containerizer/mesos/isolators/filesystem/linux.cpp		\
-  slave/containerizer/mesos/isolators/filesystem/shared.cpp		\
-  slave/containerizer/mesos/isolators/namespaces/pid.cpp		\
-  slave/containerizer/mesos/provisioner/backends/bind.cpp
-else
-EXTRA_DIST += linux/cgroups.cpp
-EXTRA_DIST += linux/fs.cpp
-EXTRA_DIST += linux/systemd.cpp
-endif
+# We even use a convenience library for most of Mesos so that we can
+# exclude third party libraries so setuptools/distribute can build a
+# self-contained Python library and statically link in the third party
+# libraries themselves.
+noinst_LTLIBRARIES += libmesos_no_3rdparty.la
 
-if WITH_NETWORK_ISOLATOR
-libmesos_no_3rdparty_la_SOURCES +=					\
-  linux/routing/route.cpp						\
-  linux/routing/utils.cpp						\
-  linux/routing/diagnosis/diagnosis.cpp					\
-  linux/routing/filter/basic.cpp					\
-  linux/routing/filter/icmp.cpp						\
-  linux/routing/filter/ip.cpp						\
-  linux/routing/link/link.cpp						\
-  linux/routing/queueing/fq_codel.cpp					\
-  linux/routing/queueing/htb.cpp					\
-  linux/routing/queueing/ingress.cpp
+nodist_libmesos_no_3rdparty_la_SOURCES = $(CXX_PROTOS)
 
-libmesos_no_3rdparty_la_SOURCES +=					\
-  linux/routing/handle.hpp						\
-  linux/routing/internal.hpp						\
-  linux/routing/route.hpp						\
-  linux/routing/utils.hpp						\
-  linux/routing/diagnosis/diagnosis.hpp					\
-  linux/routing/filter/action.hpp					\
-  linux/routing/filter/basic.hpp					\
-  linux/routing/filter/filter.hpp					\
-  linux/routing/filter/handle.hpp					\
-  linux/routing/filter/icmp.hpp						\
-  linux/routing/filter/internal.hpp					\
-  linux/routing/filter/ip.hpp						\
-  linux/routing/filter/priority.hpp					\
-  linux/routing/link/internal.hpp					\
-  linux/routing/link/link.hpp						\
-  linux/routing/queueing/discipline.hpp					\
-  linux/routing/queueing/fq_codel.hpp					\
-  linux/routing/queueing/htb.hpp					\
-  linux/routing/queueing/ingress.hpp					\
-  linux/routing/queueing/internal.hpp					\
-  linux/routing/queueing/statistics.hpp
 
+libmesos_no_3rdparty_la_SOURCES =					\
+  master/registry.proto							\
+  messages/flags.proto							\
+  messages/messages.proto						\
+  slave/containerizer/mesos/provisioner/docker/message.proto
+
+# TODO(tillt): Remove authentication/cram_md5/* which will enable us to
+# lose the immediate cyrus-sasl2 dependency.
 libmesos_no_3rdparty_la_SOURCES +=					\
-  slave/containerizer/mesos/isolators/network/port_mapping.cpp		\
-  slave/containerizer/mesos/isolators/network/port_mapping.hpp
-endif
+  authentication/cram_md5/authenticatee.cpp				\
+  authentication/cram_md5/authenticator.cpp				\
+  authentication/cram_md5/auxprop.cpp					\
+  authorizer/authorizer.cpp						\
+  authorizer/local/authorizer.cpp					\
+  common/attributes.cpp							\
+  common/date_utils.cpp							\
+  common/http.cpp							\
+  common/protobuf_utils.cpp						\
+  common/resources.cpp							\
+  common/resources_utils.cpp						\
+  common/type_utils.cpp							\
+  common/values.cpp							\
+  docker/docker.cpp							\
+  exec/exec.cpp								\
+  files/files.cpp							\
+  hook/manager.cpp							\
+  internal/devolve.cpp							\
+  internal/evolve.cpp							\
+  local/local.cpp							\
+  logging/flags.cpp							\
+  logging/logging.cpp							\
+  master/constants.cpp							\
+  master/contender.cpp							\
+  master/detector.cpp							\
+  master/flags.cpp							\
+  master/http.cpp							\
+  master/maintenance.cpp						\
+  master/master.cpp							\
+  master/metrics.cpp							\
+  master/registrar.cpp							\
+  master/repairer.cpp							\
+  master/validation.cpp							\
+  master/allocator/allocator.cpp					\
+  master/allocator/mesos/hierarchical.cpp				\
+  master/allocator/sorter/drf/sorter.cpp				\
+  messages/messages.cpp							\
+  module/manager.cpp							\
+  sched/constants.cpp							\
+  sched/sched.cpp							\
+  scheduler/scheduler.cpp						\
+  slave/constants.cpp							\
+  slave/gc.cpp								\
+  slave/flags.cpp							\
+  slave/http.cpp							\
+  slave/metrics.cpp							\
+  slave/monitor.cpp							\
+  slave/paths.cpp							\
+  slave/qos_controller.cpp						\
+  slave/qos_controllers/noop.cpp					\
+  slave/resource_estimator.cpp						\
+  slave/slave.cpp							\
+  slave/state.cpp							\
+  slave/status_update_manager.cpp					\
+  slave/validation.cpp							\
+  slave/containerizer/composing.cpp					\
+  slave/containerizer/containerizer.cpp					\
+  slave/containerizer/docker.cpp					\
+  slave/containerizer/external_containerizer.cpp			\
+  slave/containerizer/fetcher.cpp					\
+  slave/containerizer/isolator.cpp					\
+  slave/containerizer/mesos/containerizer.cpp				\
+  slave/containerizer/mesos/launch.cpp					\
+  slave/containerizer/mesos/launcher.cpp				\
+  slave/containerizer/mesos/mount.cpp					\
+  slave/containerizer/mesos/isolators/filesystem/posix.cpp		\
+  slave/containerizer/mesos/isolators/posix/disk.cpp			\
+  slave/containerizer/mesos/provisioner/backend.cpp			\
+  slave/containerizer/mesos/provisioner/paths.cpp			\
+  slave/containerizer/mesos/provisioner/provisioner.cpp			\
+  slave/containerizer/mesos/provisioner/store.cpp			\
+  slave/containerizer/mesos/provisioner/appc/paths.cpp			\
+  slave/containerizer/mesos/provisioner/appc/spec.cpp			\
+  slave/containerizer/mesos/provisioner/appc/store.cpp			\
+  slave/containerizer/mesos/provisioner/backends/copy.cpp		\
+  slave/containerizer/mesos/provisioner/docker/local_puller.cpp		\
+  slave/containerizer/mesos/provisioner/docker/metadata_manager.cpp	\
+  slave/containerizer/mesos/provisioner/docker/paths.cpp		\
+  slave/containerizer/mesos/provisioner/docker/puller.cpp		\
+  slave/containerizer/mesos/provisioner/docker/registry_client.cpp	\
+  slave/containerizer/mesos/provisioner/docker/registry_puller.cpp	\
+  slave/containerizer/mesos/provisioner/docker/spec.cpp			\
+  slave/containerizer/mesos/provisioner/docker/store.cpp		\
+  slave/containerizer/mesos/provisioner/docker/token_manager.cpp	\
+  slave/resource_estimators/noop.cpp					\
+  usage/usage.cpp							\
+  v1/attributes.cpp							\
+  v1/mesos.cpp								\
+  v1/resources.cpp							\
+  v1/values.cpp								\
+  version/version.cpp							\
+  watcher/whitelist_watcher.cpp						\
+  zookeeper/authentication.cpp						\
+  zookeeper/contender.cpp						\
+  zookeeper/detector.cpp						\
+  zookeeper/zookeeper.cpp						\
+  zookeeper/group.cpp
 
 libmesos_no_3rdparty_la_SOURCES +=					\
   authentication/cram_md5/authenticatee.hpp				\
@@ -695,6 +630,8 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   common/resources_utils.hpp						\
   common/status_utils.hpp						\
   credentials/credentials.hpp						\
+  docker/docker.hpp							\
+  docker/executor.hpp							\
   examples/test_anonymous_module.hpp					\
   examples/test_module.hpp						\
   examples/utils.hpp							\
@@ -703,12 +640,6 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   hook/manager.hpp							\
   internal/devolve.hpp							\
   internal/evolve.hpp							\
-  linux/cgroups.hpp							\
-  linux/fs.hpp								\
-  linux/ns.hpp								\
-  linux/perf.hpp							\
-  linux/sched.hpp							\
-  linux/systemd.hpp							\
   local/flags.hpp							\
   local/local.hpp							\
   logging/flags.hpp							\
@@ -722,6 +653,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   master/master.hpp							\
   master/metrics.hpp							\
   master/registrar.hpp							\
+  master/registry.hpp							\
   master/repairer.hpp							\
   master/validation.hpp							\
   master/allocator/mesos/allocator.hpp					\
@@ -743,24 +675,18 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   slave/state.hpp							\
   slave/status_update_manager.hpp					\
   slave/validation.hpp							\
+  slave/containerizer/composing.hpp					\
   slave/containerizer/containerizer.hpp					\
+  slave/containerizer/docker.hpp					\
   slave/containerizer/external_containerizer.hpp			\
   slave/containerizer/fetcher.hpp					\
   slave/containerizer/isolator.hpp					\
   slave/containerizer/mesos/containerizer.hpp				\
   slave/containerizer/mesos/launch.hpp					\
   slave/containerizer/mesos/launcher.hpp				\
-  slave/containerizer/mesos/linux_launcher.hpp				\
   slave/containerizer/mesos/mount.hpp					\
   slave/containerizer/mesos/isolators/posix.hpp				\
-  slave/containerizer/mesos/isolators/cgroups/constants.hpp		\
-  slave/containerizer/mesos/isolators/cgroups/cpushare.hpp		\
-  slave/containerizer/mesos/isolators/cgroups/mem.hpp			\
-  slave/containerizer/mesos/isolators/cgroups/perf_event.hpp		\
-  slave/containerizer/mesos/isolators/filesystem/linux.hpp		\
   slave/containerizer/mesos/isolators/filesystem/posix.hpp		\
-  slave/containerizer/mesos/isolators/filesystem/shared.hpp		\
-  slave/containerizer/mesos/isolators/namespaces/pid.hpp		\
   slave/containerizer/mesos/isolators/posix/disk.hpp			\
   slave/containerizer/mesos/provisioner/backend.hpp			\
   slave/containerizer/mesos/provisioner/paths.hpp			\
@@ -769,7 +695,6 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   slave/containerizer/mesos/provisioner/appc/paths.hpp			\
   slave/containerizer/mesos/provisioner/appc/spec.hpp			\
   slave/containerizer/mesos/provisioner/appc/store.hpp			\
-  slave/containerizer/mesos/provisioner/backends/bind.hpp		\
   slave/containerizer/mesos/provisioner/backends/copy.hpp		\
   slave/containerizer/mesos/provisioner/docker/local_puller.hpp		\
   slave/containerizer/mesos/provisioner/docker/message.hpp		\
@@ -811,6 +736,86 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   zookeeper/url.hpp							\
   zookeeper/watcher.hpp							\
   zookeeper/zookeeper.hpp
+
+MESOS_LINUX_FILES =							\
+  linux/cgroups.cpp							\
+  linux/fs.cpp								\
+  linux/perf.cpp							\
+  linux/systemd.cpp							\
+  slave/containerizer/mesos/linux_launcher.cpp				\
+  slave/containerizer/mesos/isolators/cgroups/cpushare.cpp		\
+  slave/containerizer/mesos/isolators/cgroups/mem.cpp			\
+  slave/containerizer/mesos/isolators/cgroups/perf_event.cpp		\
+  slave/containerizer/mesos/isolators/filesystem/linux.cpp		\
+  slave/containerizer/mesos/isolators/filesystem/shared.cpp		\
+  slave/containerizer/mesos/isolators/namespaces/pid.cpp		\
+  slave/containerizer/mesos/provisioner/backends/bind.cpp
+
+MESOS_LINUX_FILES +=							\
+  linux/cgroups.hpp							\
+  linux/fs.hpp								\
+  linux/ns.hpp								\
+  linux/perf.hpp							\
+  linux/sched.hpp							\
+  linux/systemd.hpp							\
+  slave/containerizer/mesos/linux_launcher.hpp				\
+  slave/containerizer/mesos/isolators/cgroups/constants.hpp		\
+  slave/containerizer/mesos/isolators/cgroups/cpushare.hpp		\
+  slave/containerizer/mesos/isolators/cgroups/mem.hpp			\
+  slave/containerizer/mesos/isolators/cgroups/perf_event.hpp		\
+  slave/containerizer/mesos/isolators/filesystem/linux.hpp		\
+  slave/containerizer/mesos/isolators/filesystem/shared.hpp		\
+  slave/containerizer/mesos/isolators/namespaces/pid.hpp		\
+  slave/containerizer/mesos/provisioner/backends/bind.hpp
+
+MESOS_NETWORK_ISOLATOR_FILES =						\
+  linux/routing/route.cpp						\
+  linux/routing/utils.cpp						\
+  linux/routing/diagnosis/diagnosis.cpp					\
+  linux/routing/filter/basic.cpp					\
+  linux/routing/filter/icmp.cpp						\
+  linux/routing/filter/ip.cpp						\
+  linux/routing/link/link.cpp						\
+  linux/routing/queueing/fq_codel.cpp					\
+  linux/routing/queueing/htb.cpp					\
+  linux/routing/queueing/ingress.cpp					\
+  slave/containerizer/mesos/isolators/network/port_mapping.cpp
+
+MESOS_NETWORK_ISOLATOR_FILES +=						\
+  linux/routing/handle.hpp						\
+  linux/routing/internal.hpp						\
+  linux/routing/route.hpp						\
+  linux/routing/utils.hpp						\
+  linux/routing/diagnosis/diagnosis.hpp					\
+  linux/routing/filter/action.hpp					\
+  linux/routing/filter/basic.hpp					\
+  linux/routing/filter/filter.hpp					\
+  linux/routing/filter/handle.hpp					\
+  linux/routing/filter/icmp.hpp						\
+  linux/routing/filter/internal.hpp					\
+  linux/routing/filter/ip.hpp						\
+  linux/routing/filter/priority.hpp					\
+  linux/routing/link/internal.hpp					\
+  linux/routing/link/link.hpp						\
+  linux/routing/queueing/discipline.hpp					\
+  linux/routing/queueing/fq_codel.hpp					\
+  linux/routing/queueing/htb.hpp					\
+  linux/routing/queueing/ingress.hpp					\
+  linux/routing/queueing/internal.hpp					\
+  linux/routing/queueing/statistics.hpp					\
+  slave/containerizer/mesos/isolators/network/port_mapping.hpp
+
+if OS_LINUX
+libmesos_no_3rdparty_la_SOURCES += $(MESOS_LINUX_FILES)
+else
+EXTRA_DIST += $(MESOS_LINUX_FILES)
+endif
+
+if WITH_NETWORK_ISOLATOR
+libmesos_no_3rdparty_la_SOURCES += $(MESOS_NETWORK_ISOLATOR_FILES)
+else
+EXTRA_DIST += $(MESOS_NETWORK_ISOLATOR_FILES)
+endif
 
 libmesos_no_3rdparty_la_CPPFLAGS = $(MESOS_CPPFLAGS)
 
