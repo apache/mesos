@@ -61,6 +61,7 @@ if (NOT WIN32)
     try_tests.cpp
     os/sendfile_tests.cpp
     os/signals_tests.cpp
+    os/strerror_tests.cpp
     )
 endif (NOT WIN32)
 

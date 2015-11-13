@@ -44,6 +44,7 @@ EXTRA_DIST =					\
   tests/os_tests.cpp				\
   tests/os/sendfile_tests.cpp			\
   tests/os/signals_tests.cpp			\
+  tests/os/strerror_tests.cpp			\
   tests/path_tests.cpp				\
   tests/proc_tests.cpp				\
   tests/protobuf_tests.cpp			\

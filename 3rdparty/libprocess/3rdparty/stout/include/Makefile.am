@@ -79,6 +79,7 @@ nobase_include_HEADERS =		\
   stout/os/shell.hpp			\
   stout/os/signals.hpp			\
   stout/os/stat.hpp			\
+  stout/os/strerror.hpp			\
   stout/os/sysctl.hpp			\
   stout/os/touch.hpp			\
   stout/os/utime.hpp			\
