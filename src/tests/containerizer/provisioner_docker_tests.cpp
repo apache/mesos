@@ -1138,13 +1138,13 @@ TEST_F(RegistryClientTest, SimpleRegistryPuller)
 
   // Prepare the blob response from the server. The blob response buffer is a
   // tarball. So we create a tarball of our test response and send that.
-  const string BLOB_FILE = "blob";
+  const string blobFile = "blob";
   const string blobResponse = "hello docker";
 
-  Path blobPath(path::join(registryPullerPath, BLOB_FILE));
+  Path blobPath(path::join(registryPullerPath, blobFile));
   ASSERT_SOME(os::write(blobPath, blobResponse));
 
-  Path blobTarPath(path::join(registryPullerPath, BLOB_FILE + ".tar"));
+  Path blobTarPath(path::join(registryPullerPath, blobFile + ".tar"));
 
   vector<string> argv = {
     "tar",
@@ -1153,7 +1153,7 @@ TEST_F(RegistryClientTest, SimpleRegistryPuller)
     "-c",
     "-f",
     blobTarPath,
-    BLOB_FILE
+    blobFile
   };
 
   Try<Subprocess> s = subprocess(
@@ -1181,10 +1181,8 @@ TEST_F(RegistryClientTest, SimpleRegistryPuller)
 
   ASSERT_SOME(os::nonblock(fd.get()));
 
-  AWAIT_ASSERT_READY(io::read(
-      fd.get(),
-      tarBuffer.get(),
-      tarSize.get().bytes()));
+  AWAIT_ASSERT_READY(
+      io::read(fd.get(), tarBuffer.get(), tarSize.get().bytes()));
 
   const string blobHttpResponse =
     string("HTTP/1.1 200 OK\r\n") +
@@ -1196,15 +1194,14 @@ TEST_F(RegistryClientTest, SimpleRegistryPuller)
   const size_t blobResponseSize =
     blobHttpResponse.length() + tarSize.get().bytes();
 
-  std::unique_ptr<char[]> responseBuffer(
-      new char[blobResponseSize]);
-
+  std::unique_ptr<char[]> responseBuffer(new char[blobResponseSize]);
   ASSERT_NE(responseBuffer.get(), nullptr);
 
   memcpy(
       responseBuffer.get(),
       blobHttpResponse.c_str(),
       blobHttpResponse.length());
+
   memcpy(
       responseBuffer.get() + blobHttpResponse.length(),
       tarBuffer.get(),
@@ -1221,8 +1218,13 @@ TEST_F(RegistryClientTest, SimpleRegistryPuller)
       blobResponseSize));
 
   AWAIT_ASSERT_READY(registryPullerFuture);
+  list<pair<string, string>> layers = registryPullerFuture.get();
+  ASSERT_EQ(1, layers.size());
+  ASSERT_EQ(layers.front().first,
+            "1ce2e90b0bc7224de3db1f0d646fe8e2c4dd37f1793928287f6074bc451a57ea");
 
-  Try<string> blob = os::read(blobPath);
+  Try<string> blob = os::read(
+      path::join(layers.front().second, blobFile));
   ASSERT_SOME(blob);
   ASSERT_EQ(blob.get(), blobResponse);
 }

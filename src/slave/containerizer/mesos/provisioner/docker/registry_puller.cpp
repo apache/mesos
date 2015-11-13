@@ -27,6 +27,7 @@
 
 #include "common/status_utils.hpp"
 
+#include "slave/containerizer/mesos/provisioner/docker/paths.hpp"
 #include "slave/containerizer/mesos/provisioner/docker/registry_client.hpp"
 
 using std::list;
@@ -60,7 +61,7 @@ public:
 
   process::Future<list<pair<string, string>>> pull(
       const Image::Name& imageName,
-      const Path& downloadDirectory);
+      const Path& directory);
 
 private:
   explicit RegistryPullerProcess(
@@ -69,7 +70,7 @@ private:
 
   Future<pair<string, string>> downloadLayer(
       const Image::Name& imageName,
-      const Path& downloadDirectory,
+      const Path& directory,
       const FileSystemLayerInfo& layer);
 
   Future<list<pair<string, string>>> downloadLayers(
@@ -190,7 +191,7 @@ RegistryPullerProcess::RegistryPullerProcess(
 
 Future<pair<string, string>> RegistryPullerProcess::downloadLayer(
     const Image::Name& imageName,
-    const Path& downloadDirectory,
+    const Path& directory,
     const FileSystemLayerInfo& layer)
 {
   VLOG(1) << "Downloading layer '"  << layer.layerId
@@ -208,7 +209,7 @@ Future<pair<string, string>> RegistryPullerProcess::downloadLayer(
 
   downloadTracker_.insert({layer.layerId, downloadPromise});
 
-  const Path downloadFile(path::join(downloadDirectory, layer.layerId));
+  const Path downloadFile(path::join(directory, layer.layerId + ".tar"));
 
   registryClient_->getBlob(
       imageName,
@@ -240,18 +241,18 @@ Future<pair<string, string>> RegistryPullerProcess::downloadLayer(
 
 Future<list<pair<string, string>>> RegistryPullerProcess::pull(
     const Image::Name& imageName,
-    const Path& downloadDirectory)
+    const Path& directory)
 {
   // TODO(jojy): Have one outgoing manifest request per image.
   return registryClient_->getManifest(imageName)
-    .then(process::defer(self(), [this, downloadDirectory, imageName](
+    .then(process::defer(self(), [this, directory, imageName](
         const Manifest& manifest) {
-      return downloadLayers(manifest, imageName, downloadDirectory);
+      return downloadLayers(manifest, imageName, directory);
     }))
-    .then(process::defer(self(), [this, downloadDirectory](
+    .then(process::defer(self(), [this, directory](
         const Future<list<pair<string, string>>>& layerFutures)
         -> Future<list<pair<string, string>>> {
-      return untarLayers(layerFutures, downloadDirectory);
+      return untarLayers(layerFutures, directory);
     }))
     .after(pullTimeout_, [imageName](
         Future<list<pair<string, string>>> future) {
@@ -265,13 +266,13 @@ Future<list<pair<string, string>>> RegistryPullerProcess::pull(
 Future<list<pair<string, string>>> RegistryPullerProcess::downloadLayers(
     const Manifest& manifest,
     const Image::Name& imageName,
-    const Path& downloadDirectory)
+    const Path& directory)
 {
   list<Future<pair<string, string>>> downloadFutures;
 
   foreach (const FileSystemLayerInfo& layer, manifest.fsLayerInfos) {
     downloadFutures.push_back(
-        downloadLayer(imageName, downloadDirectory, layer));
+        downloadLayer(imageName, directory, layer));
   }
 
   // TODO(jojy): Delete downloaded files in the directory on discard and
@@ -283,26 +284,19 @@ Future<list<pair<string, string>>> RegistryPullerProcess::downloadLayers(
 
 Future<list<pair<string, string>>> RegistryPullerProcess::untarLayers(
     const Future<list<pair<string, string>>>& layerFutures,
-    const Path& downloadDirectory)
+    const Path& directory)
 {
-  list<Future<Nothing>> untarFutures;
+  list<Future<pair<string, string>>> untarFutures;
 
   pair<string, string> layerInfo;
   foreach (layerInfo, layerFutures.get()) {
-    untarFutures.emplace_back(untar(layerInfo.second, downloadDirectory));
+    VLOG(1) << "Untarring layer '" << layerInfo.first
+            << "' downloaded from registry to directory '" << directory << "'";
+    untarFutures.emplace_back(
+        untarLayer(layerInfo.second, directory, layerInfo.first));
   }
 
-  return collect(untarFutures)
-    .then([layerFutures]() {
-      list<pair<string, string>> layers;
-
-      pair<string, string> layerInfo;
-      foreach (layerInfo, layerFutures.get()) {
-        layers.emplace_back(layerInfo);
-      }
-
-      return layers;
-    });
+  return collect(untarFutures);
 }
 
 } // namespace docker {

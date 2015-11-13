@@ -68,12 +68,27 @@ public:
  *
  * @param file tar file to be extracted.
  * @param directory target directory for extracting the tar file.
- * @return Nothing in case of success.
- *         Failure otherwise.
  */
 process::Future<Nothing> untar(
     const std::string& file,
     const std::string& directory);
+
+
+/**
+ * Untars a tarred layer changeset into staging directory with the
+ * directory structure:
+ *    |--staging directory
+ *        |-- <layer_id>
+ *            |-- rootfs
+ *
+ * @param layerPath path to the tar file holding the Docker layer.
+ * @param directory staging directory.
+ * @return layer Id mapping to the rootfs path of the layer.
+ */
+process::Future<std::pair<std::string, std::string>> untarLayer(
+    const std::string& layerPath,
+    const std::string& directory,
+    const std::string& layerId);
 
 } // namespace docker {
 } // namespace slave {

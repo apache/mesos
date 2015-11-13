@@ -68,10 +68,6 @@ private:
       const std::string& directory,
       const std::vector<std::string>& layerIds);
 
-  process::Future<pair<string, string>> putLayer(
-      const std::string& directory,
-      const std::string& layerId);
-
   const Flags flags;
 };
 
@@ -220,61 +216,12 @@ Future<list<pair<string, string>>> LocalPullerProcess::putLayers(
 {
   list<Future<pair<string, string>>> futures;
   foreach (const string& layerId, layerIds) {
-    futures.push_back(putLayer(directory, layerId));
+    const string tarredLayer =
+      paths::getImageArchiveLayerTarPath(directory, layerId);
+    futures.push_back(untarLayer(tarredLayer, directory, layerId));
   }
 
   return collect(futures);
-}
-
-
-Future<pair<string, string>> LocalPullerProcess::putLayer(
-    const string& directory,
-    const string& layerId)
-{
-  // We untar the layer from source into a directory, then move the
-  // layer into store. We do this instead of untarring directly to
-  // store to make sure we don't end up with partially untarred layer
-  // rootfs.
-
-  const string localRootfsPath =
-    paths::getImageArchiveLayerRootfsPath(directory, layerId);
-
-  // Image layer has been untarred but is not present in the store directory.
-  if (os::exists(localRootfsPath)) {
-    LOG(WARNING) << "Image layer '" << layerId << "' rootfs present at but not "
-                 << "in store directory '" << localRootfsPath << "'. Removing "
-                 << "staged rootfs and untarring layer again.";
-
-    Try<Nothing> rmdir = os::rmdir(localRootfsPath);
-    if (rmdir.isError()) {
-      return Failure("Failed to remove incomplete staged rootfs for layer '" +
-                     layerId + "': " + rmdir.error());
-    }
-  }
-
-  Try<Nothing> mkdir = os::mkdir(localRootfsPath);
-  if (mkdir.isError()) {
-    return Failure("Failed to create rootfs path '" + localRootfsPath +
-                   "': " + mkdir.error());
-  }
-
-  // Untar directory/id/layer.tar into directory/id/rootfs.
-  // The tar file will be removed when the staging directory is
-  // removed.
-  return untar(
-      paths::getImageArchiveLayerTarPath(directory, layerId),
-      localRootfsPath)
-    .then([directory, layerId]() -> Future<pair<string, string>> {
-      const string rootfsPath =
-        paths::getImageArchiveLayerRootfsPath(directory, layerId);
-
-      if (!os::exists(rootfsPath)) {
-        return Failure("Failed to find the rootfs path after extracting layer"
-                       " '" + layerId + "'");
-      }
-
-      return pair<string, string>(layerId, rootfsPath);
-    });
 }
 
 } // namespace docker {

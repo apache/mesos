@@ -16,16 +16,21 @@
  * limitations under the License.
  */
 
+#include "slave/containerizer/mesos/provisioner/docker/puller.hpp"
+
 #include <vector>
+
+#include <stout/os.hpp>
 
 #include <process/subprocess.hpp>
 
 #include "common/status_utils.hpp"
 
-#include "slave/containerizer/mesos/provisioner/docker/puller.hpp"
+#include "slave/containerizer/mesos/provisioner/docker/paths.hpp"
 #include "slave/containerizer/mesos/provisioner/docker/local_puller.hpp"
 #include "slave/containerizer/mesos/provisioner/docker/registry_puller.hpp"
 
+using std::pair;
 using std::string;
 using std::vector;
 
@@ -101,6 +106,59 @@ Future<Nothing> untar(const string& file, const string& directory)
       return Nothing();
     });
 }
+
+
+Future<pair<string, string>> untarLayer(
+    const string& layerPath,
+    const string& directory,
+    const string& layerId)
+{
+  // We untar the layer from source into a directory, then move the
+  // layer into store. We do this instead of untarring directly to
+  // store to make sure we don't end up with partially untarred layer
+  // rootfs.
+
+  const string localRootfsPath =
+    paths::getImageArchiveLayerRootfsPath(directory, layerId);
+
+  // Image layer has been untarred but is not present in the store directory.
+  if (os::exists(localRootfsPath)) {
+    LOG(WARNING) << "Image layer '" << layerId << "' rootfs present in staging "
+                 << "directory but not in store directory '"
+                 << localRootfsPath << "'. Removing staged rootfs and untarring"
+                 << "layer again.";
+
+    Try<Nothing> rmdir = os::rmdir(localRootfsPath);
+    if (rmdir.isError()) {
+      return Failure("Failed to remove incomplete staged rootfs for layer '" +
+                     layerId + "': " + rmdir.error());
+    }
+  }
+
+  Try<Nothing> mkdir = os::mkdir(localRootfsPath);
+  if (mkdir.isError()) {
+    return Failure("Failed to create rootfs path '" + localRootfsPath +
+                   "': " + mkdir.error());
+  }
+
+  // The tar file will be removed when the staging directory is
+  // removed.
+  return untar(
+      layerPath,
+      localRootfsPath)
+    .then([directory, layerId]() -> Future<pair<string, string>> {
+      const string rootfsPath =
+        paths::getImageArchiveLayerRootfsPath(directory, layerId);
+
+      if (!os::exists(rootfsPath)) {
+        return Failure("Failed to find the rootfs path after extracting layer"
+                       " '" + layerId + "'");
+      }
+
+      return pair<string, string>(layerId, rootfsPath);
+    });
+}
+
 
 } // namespace docker {
 } // namespace slave {
