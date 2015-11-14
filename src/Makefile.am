@@ -48,10 +48,10 @@ pkglibexecdir = $(libexecdir)/$(PACKAGE)
 pkgsysconfdir = $(sysconfdir)/$(PACKAGE)
 
 if WITH_BUNDLED_PROTOBUF
-  # Protocol buffer compiler.
-  PROTOC = ../$(PROTOBUF)/src/protoc
+# Protocol buffer compiler.
+PROTOC = ../$(PROTOBUF)/src/protoc
 else
-  PROTOC = @PROTOCOMPILER@
+PROTOC = @PROTOCOMPILER@
 endif
 
 PROTOCFLAGS = -I$(top_srcdir)/include -I$(srcdir)
