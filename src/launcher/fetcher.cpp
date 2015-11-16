@@ -58,8 +58,9 @@ static Try<bool> extract(
     const string& destinationDirectory)
 {
   string command;
-  // Extract any .tgz, tar.gz, tar.bz2 or zip files.
-  if (strings::endsWith(sourcePath, ".tgz") ||
+  // Extract any .tar, .tgz, tar.gz, tar.bz2 or zip files.
+  if (strings::endsWith(sourcePath, ".tar") ||
+      strings::endsWith(sourcePath, ".tgz") ||
       strings::endsWith(sourcePath, ".tar.gz") ||
       strings::endsWith(sourcePath, ".tbz2") ||
       strings::endsWith(sourcePath, ".tar.bz2") ||
