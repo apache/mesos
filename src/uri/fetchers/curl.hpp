@@ -16,49 +16,34 @@
  * limitations under the License.
  */
 
+#ifndef __URI_FETCHERS_CURL_HPP__
+#define __URI_FETCHERS_CURL_HPP__
+
+#include <process/owned.hpp>
+
+#include <stout/try.hpp>
+
 #include <mesos/uri/fetcher.hpp>
-
-#include "uri/fetchers/curl.hpp"
-
-using namespace process;
-
-using std::string;
 
 namespace mesos {
 namespace uri {
 
-Try<Owned<Fetcher>> Fetcher::create()
+class CurlFetcherPlugin : public Fetcher::Plugin
 {
-  hashmap<string, Owned<Plugin>> plugins;
+public:
+  virtual ~CurlFetcherPlugin() {}
 
-  hashmap<string, Try<Owned<Plugin>>(*)()> creators;
-  creators.put("http", &CurlFetcherPlugin::create);
+  static Try<process::Owned<Fetcher::Plugin>> create();
 
-  foreachkey (const string& scheme, creators) {
-    Try<Owned<Plugin>> plugin = creators[scheme]();
-    if (plugin.isError()) {
-      return Error(
-          "Failed to create plugin for scheme '" +
-          scheme + "': " + plugin.error());
-    }
+  virtual process::Future<Nothing> fetch(
+      const URI& uri,
+      const std::string& directory);
 
-    plugins.put(scheme, plugin.get());
-  }
-
-  return Owned<Fetcher>(new Fetcher(plugins));
-}
-
-
-Future<Nothing> Fetcher::fetch(
-    const URI& uri,
-    const string& directory)
-{
-  if (!plugins.contains(uri.scheme())) {
-    return Failure("Scheme '" + uri.scheme() + "' is not supported");
-  }
-
-  return plugins[uri.scheme()]->fetch(uri, directory);
-}
+private:
+  CurlFetcherPlugin() {}
+};
 
 } // namespace uri {
 } // namespace mesos {
+
+#endif // __URI_FETCHERS_CURL_HPP__

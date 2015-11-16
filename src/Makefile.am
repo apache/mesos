@@ -620,6 +620,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   slave/resource_estimators/noop.cpp					\
   uri/fetcher.cpp							\
   uri/utils.cpp								\
+  uri/fetchers/curl.cpp							\
   usage/usage.cpp							\
   v1/attributes.cpp							\
   v1/mesos.cpp								\
@@ -745,6 +746,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   tests/containerizer/setns_test_helper.hpp				\
   tests/containerizer/store.hpp						\
   uri/utils.hpp								\
+  uri/fetchers/curl.hpp							\
   uri/schemes/file.hpp							\
   uri/schemes/http.hpp							\
   usage/usage.hpp							\
@@ -1723,6 +1725,7 @@ mesos_tests_SOURCES =						\
   tests/status_update_manager_tests.cpp				\
   tests/teardown_tests.cpp					\
   tests/uri_tests.cpp						\
+  tests/uri_fetcher_tests.cpp					\
   tests/utils.cpp						\
   tests/values_tests.cpp					\
   tests/zookeeper_url_tests.cpp					\
