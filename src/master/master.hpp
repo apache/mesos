@@ -55,7 +55,6 @@
 #include <stout/foreach.hpp>
 #include <stout/hashmap.hpp>
 #include <stout/hashset.hpp>
-#include <stout/json.hpp>
 #include <stout/multihashmap.hpp>
 #include <stout/option.hpp>
 #include <stout/recordio.hpp>

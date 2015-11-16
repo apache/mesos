@@ -26,6 +26,7 @@
 #include <process/future.hpp>
 #include <process/http.hpp>
 
+#include <stout/json.hpp>
 #include <stout/protobuf.hpp>
 
 #include "logging/logging.hpp"
