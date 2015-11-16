@@ -73,6 +73,19 @@ public:
     return mesos::modules::ModuleManager::create<T>(moduleName.get());
   }
 
+  // Create is used by the type_param'ed tests.  T here denotes the
+  // module type, whereas N denotes the module name.
+  static Try<T*> create(const Parameters& parameters)
+  {
+    Try<std::string> moduleName = getModuleName(N);
+    if (moduleName.isError()) {
+      return Error(moduleName.error());
+    }
+    return mesos::modules::ModuleManager::create<T>(
+        moduleName.get(),
+        parameters);
+  }
+
   static Try<T*> create(const logging::Flags& flags)
   {
     return create();

@@ -47,6 +47,8 @@ public:
   virtual int bar(float a, double b) = 0;
 
   virtual int baz(int a, int b) = 0;
+
+  virtual mesos::Parameters parameters() const = 0;
 };
 
 

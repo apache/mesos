@@ -290,6 +290,33 @@ TEST_F(ModuleTest, ValidParameters)
 }
 
 
+// Tests overriding of module parameters programatically.
+TEST_F(ModuleTest, OverrideJson)
+{
+  Modules modules = getModules(
+      DEFAULT_MODULE_LIBRARY_NAME,
+      DEFAULT_MODULE_NAME,
+      "operation",
+      "sum");
+
+  EXPECT_SOME(ModuleManager::load(modules));
+
+  Parameters parameters;
+  Parameter* parameter = parameters.add_parameter();
+  parameter->set_key("foo");
+  parameter->set_value("foovalue");
+
+  module = ModuleManager::create<TestModule>(DEFAULT_MODULE_NAME, parameters);
+  EXPECT_SOME(module);
+
+  parameters = module.get()->parameters();
+
+  EXPECT_EQ(1, parameters.parameter_size());
+  EXPECT_EQ("foo", parameters.parameter(0).key());
+  EXPECT_EQ("foovalue", parameters.parameter(0).value());
+}
+
+
 // Test Json parsing to generate Modules protobuf.
 TEST_F(ModuleTest, JsonParseTest)
 {

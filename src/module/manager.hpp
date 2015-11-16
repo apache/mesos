@@ -68,7 +68,9 @@ public:
 
   // create() should be called only after load().
   template <typename T>
-  static Try<T*> create(const std::string& moduleName)
+  static Try<T*> create(
+      const std::string& moduleName,
+      const Option<Parameters>& params = None())
   {
     synchronized (mutex) {
       if (!moduleBases.contains(moduleName)) {
@@ -91,7 +93,9 @@ public:
             "kind is '" + expectedKind + "'");
       }
 
-      T* instance = module->create(moduleParameters[moduleName]);
+      T* instance =
+        module->create(
+            params.isSome() ? params.get() : moduleParameters[moduleName]);
       if (instance == NULL) {
         return Error("Error creating Module instance for '" + moduleName + "'");
       }

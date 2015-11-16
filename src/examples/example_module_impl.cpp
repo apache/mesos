@@ -73,6 +73,19 @@ public:
     return -1;
   }
 
+  virtual mesos::Parameters parameters() const
+  {
+    mesos::Parameters parameters;
+
+    foreachpair (const std::string& key, const std::string& value, flags) {
+      mesos::Parameter* parameter = parameters.add_parameter();
+      parameter->set_key(key);
+      parameter->set_value(value);
+    }
+
+    return parameters;
+  }
+
 private:
   hashmap<std::string, std::string> flags;
 };
