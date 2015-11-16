@@ -349,7 +349,14 @@ protected:
 
   hashmap<SlaveID, Slave> slaves;
 
-  hashmap<std::string, mesos::master::RoleInfo> roles;
+  // Represents a role and data associated with it.
+  struct Role
+  {
+    mesos::master::RoleInfo info;
+  };
+
+  hashmap<std::string, Role> roles;
+
 
   // Slaves to send offers for.
   Option<hashset<std::string>> whitelist;

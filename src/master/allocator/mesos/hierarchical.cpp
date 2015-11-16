@@ -135,11 +135,13 @@ void HierarchicalAllocatorProcess::initialize(
   allocationInterval = _allocationInterval;
   offerCallback = _offerCallback;
   inverseOfferCallback = _inverseOfferCallback;
-  roles = _roles;
   initialized = true;
 
   roleSorter = roleSorterFactory();
-  foreachpair (const string& name, const RoleInfo& roleInfo, roles) {
+  foreachpair (const string& name, const RoleInfo& roleInfo, _roles) {
+    roles[name] = Role();
+    roles[name].info = roleInfo;
+
     roleSorter->add(name, roleInfo.weight());
     frameworkSorters[name] = frameworkSorterFactory();
   }
