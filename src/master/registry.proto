@@ -18,6 +18,7 @@
 
 import "mesos/mesos.proto";
 import "mesos/maintenance/maintenance.proto";
+import "mesos/quota/quota.proto";
 
 package mesos.internal;
 
@@ -50,6 +51,10 @@ message Registry {
     repeated Machine machines = 1;
   }
 
+  message Quota {
+    required quota.QuotaInfo info = 1;
+  }
+
   // Most recent leading master.
   optional Master master = 1;
 
@@ -65,4 +70,9 @@ message Registry {
   // unavailability of resources.  The `schedules` are related to the status
   // information found in `machines`.
   repeated maintenance.Schedule schedules = 4;
+
+  // A list of recorded quotas in the cluster. It does not hold an actual
+  // assignment of resources, a newly elected master shall reconstruct it
+  // from the cluster.
+  repeated Quota quotas = 5;
 }
