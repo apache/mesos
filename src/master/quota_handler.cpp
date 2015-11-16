@@ -88,6 +88,67 @@ static Try<QuotaInfo> createQuotaInfo(
 }
 
 
+Option<Error> Master::QuotaHandler::capacityHeuristic(
+    const QuotaInfo& request) const
+{
+  VLOG(1) << "Performing capacity heuristic check for a set quota request";
+
+  // This should have been validated earlier.
+  CHECK(master->roles.contains(request.role()));
+  CHECK(!master->quotas.contains(request.role()));
+
+  // Calculate the total amount of resources requested by all quotas
+  // (including the request) in the cluster.
+  // NOTE: We have validated earlier that the quota for the role in the
+  // request does not exist, hence `master->quotas` is guaranteed not to
+  // contain the request role's quota yet.
+  // TODO(alexr): Relax this constraint once we allow updating quotas.
+  Resources totalQuota = request.guarantee();
+  foreachvalue (const Quota& quota, master->quotas) {
+    totalQuota += quota.info.guarantee();
+  }
+
+  // Remove roles via `flatten()` to facilitate resource math.
+  totalQuota = totalQuota.flatten();
+
+  // Determine whether the total quota, including the new request, does
+  // not exceed the sum of non-static cluster resources.
+  // NOTE: We do not necessarily calculate the full sum of non-static
+  // cluster resources. We apply the early termination logic as it can
+  // reduce the cost of the function significantly. This early exit does
+  // not influence the declared inequality check.
+  Resources nonStaticClusterResources;
+  foreachvalue (Slave* slave, master->slaves.registered) {
+    // We do not consider disconnected or inactive agents, because they
+    // do not participate in resource allocation.
+    if (!slave->connected || !slave->active) {
+      continue;
+    }
+
+    // NOTE: Dynamic reservations are not excluded here because they do
+    // not show up in `SlaveInfo` resources. In contrast to static
+    // reservations, dynamic reservations may be unreserved at any time,
+    // hence making resources available for quota'ed frameworks.
+    Resources nonStaticAgentResources =
+      Resources(slave->info.resources()).unreserved();
+
+    nonStaticClusterResources += nonStaticAgentResources;
+
+    // If we have found enough resources to satisfy the inequality, then
+    // we can return early.
+    if (nonStaticClusterResources.contains(totalQuota)) {
+      return None();
+    }
+  }
+
+  // If we reached this point, there are not enough available resources
+  // in the cluster, hence the request does not pass the heuristic.
+  return Error(
+      "Not enough available cluster capacity to reasonably satisfy quota "
+      "request; the force flag can be used to override this check");
+}
+
+
 Future<http::Response> Master::QuotaHandler::set(
     const http::Request& request) const
 {
@@ -159,7 +220,11 @@ Future<http::Response> Master::QuotaHandler::set(
   const QuotaInfo& quotaInfo = create.get();
 
   // Validate whether a quota request can be satisfied.
-  // TODO(alexr): Implement as per MESOS-3073.
+  Option<Error> error = capacityHeuristic(quotaInfo);
+  if (error.isSome()) {
+    return Conflict("Heuristic capacity check for set quota request failed: " +
+                    error.get().message);
+  }
 
   // Populate master's quota-related local state. We do this before updating
   // the registry in order to make sure that we are not already trying to

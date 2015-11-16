@@ -847,8 +847,6 @@ private:
   class QuotaHandler
   {
   public:
-    // TODO(joerg84): For now this is just a stub. It will be filled as
-    // part of MESOS-1791.
     explicit QuotaHandler(Master* _master) : master(_master)
     {
       CHECK_NOTNULL(master);
@@ -874,6 +872,28 @@ private:
     }
 
   private:
+    // Heuristically tries to determine whether a quota request could
+    // reasonably be satisfied given the current cluster capacity. The
+    // goal is to determine whether a user may accidentally request an
+    // amount of resources that would prevent frameworks without quota
+    // from getting any offers. A force flag will allow users to bypass
+    // this check.
+    //
+    // The heuristic tests whether the total quota, including the new
+    // request, does not exceed the sum of non-static cluster resources,
+    // i.e. the following inequality holds:
+    //   total - statically reserved >= total quota + quota request
+    //
+    // Please be advised that:
+    //   * It is up to an allocator how to satisfy quota (for example,
+    //     what resources to account towards quota, as well as which
+    //     resources to consider allocatable for quota).
+    //   * Even if there are enough resources at the moment of this check,
+    //     agents may terminate at any time, rendering the cluster under
+    //     quota.
+    Option<Error> capacityHeuristic(
+        const mesos::quota::QuotaInfo& request) const;
+
     // To perform actions related to quota management, we require access to the
     // master data structures. No synchronization primitives are needed here
     // since `QuotaHandler`'s functions are invoked in the Master's actor.
