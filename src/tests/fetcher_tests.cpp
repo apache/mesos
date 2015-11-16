@@ -559,11 +559,18 @@ TEST_F(FetcherTest, HdfsURI)
 
   const string& proof = path::join(hadoopPath, "proof");
 
-  // This acts exactly as "hadoop" for testing purposes.
+  // This acts exactly as "hadoop" for testing purposes. On some platforms, the
+  // "hadoop" wrapper command will emit a warning that Hadoop installation has
+  // no native code support. We always emit that here to make sure it is parsed
+  // correctly.
   string mockHadoopScript =
     "#!/usr/bin/env bash\n"
     "\n"
     "touch " + proof + "\n"
+    "\n"
+    "now=$(date '+%y/%m/%d %I:%M:%S')\n"
+    "echo \"$now WARN util.NativeCodeLoader: "
+      "Unable to load native-hadoop library for your platform...\" 1>&2\n"
     "\n"
     "if [[ 'version' == $1 ]]; then\n"
     "  echo $0 'for Mesos testing'\n"
