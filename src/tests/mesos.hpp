@@ -240,6 +240,9 @@ protected:
 
   // Containerizer(s) created during test that we need to cleanup.
   std::map<process::PID<slave::Slave>, slave::Containerizer*> containerizers;
+
+  const std::string defaultAgentResourcesString{
+    "cpus:2;mem:1024;disk:1024;ports:[31000-32000]"};
 };
 
 
