@@ -38,6 +38,8 @@
 
 #include <mesos/module/authenticator.hpp>
 
+#include <mesos/quota/quota.hpp>
+
 #include <mesos/scheduler/scheduler.hpp>
 
 #include <process/limiter.hpp>
@@ -860,12 +862,7 @@ private:
     }
 
     process::Future<process::http::Response> set(
-        const process::http::Request& request) const
-    {
-      // TODO(joerg84): For now this is just a stub. It will be filled as
-      // part of MESOS-1791.
-      return process::http::NotImplemented();
-    }
+        const process::http::Request& request) const;
 
     process::Future<process::http::Response> remove(
         const process::http::Request& request) const
@@ -1233,6 +1230,15 @@ private:
   hashmap<OfferID, process::Timer> inverseOfferTimers;
 
   hashmap<std::string, Role*> roles;
+
+  struct Quota
+  {
+    // Holds the quota protobuf, as constructed from an operator's request.
+    mesos::quota::QuotaInfo info;
+  };
+
+  // We store quotas by role because we set them at the role level.
+  hashmap<std::string, Quota> quotas;
 
   // Authenticator names as supplied via flags.
   std::vector<std::string> authenticatorNames;
@@ -1968,6 +1974,10 @@ struct Role
   }
 
   mesos::master::RoleInfo info;
+
+  // NOTE: The quota for this role is stored in the master. This avoids
+  // duplication of this information and prevents a strict association of quota
+  // with roles in the future.
 
   hashmap<FrameworkID, Framework*> frameworks;
 };
