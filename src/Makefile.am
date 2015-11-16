@@ -548,6 +548,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   master/maintenance.cpp						\
   master/master.cpp							\
   master/metrics.cpp							\
+  master/quota_handler.cpp						\
   master/registrar.cpp							\
   master/repairer.cpp							\
   master/validation.cpp							\

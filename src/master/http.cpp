@@ -885,6 +885,40 @@ Future<Response> Master::Http::slaves(const Request& request) const
 }
 
 
+string Master::Http::QUOTA_HELP()
+{
+  return HELP(
+    TLDR(
+        "Sets quota for a role."),
+    DESCRIPTION(
+        "POST: Validates the request body as JSON",
+        " and sets quota for a role."));
+}
+
+
+Future<Response> Master::Http::quota(const Request& request) const
+{
+  // Dispatch based on HTTP method to separate `QuotaHandler`.
+  if (request.method == "GET") {
+    return quotaHandler.status(request);
+  }
+
+  if (request.method == "POST") {
+    return quotaHandler.set(request);
+  }
+
+  if (request.method == "DELETE") {
+    return quotaHandler.remove(request);
+  }
+
+  // TODO(joerg84): Add update logic for PUT requests
+  // once Quota supports updates.
+
+  return BadRequest(
+      "Expecting GET, DELETE or POST, got '" + request.method + "'");
+}
+
+
 string Master::Http::STATE_HELP()
 {
   return HELP(

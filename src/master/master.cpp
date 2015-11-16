@@ -877,6 +877,12 @@ void Master::initialize()
           Http::log(request);
           return http.unreserve(request);
         });
+  route("/quota",
+        Http::QUOTA_HELP(),
+        [http](const process::http::Request& request) {
+          Http::log(request);
+          return http.quota(request);
+        });
 
   // Provide HTTP assets from a "webui" directory. This is either
   // specified via flags (which is necessary for running out of the
