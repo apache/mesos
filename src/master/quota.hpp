@@ -21,12 +21,22 @@
 
 #include <mesos/quota/quota.hpp>
 
+#include <stout/nothing.hpp>
+#include <stout/try.hpp>
+
 namespace mesos {
 namespace internal {
 namespace master {
 namespace quota {
 
 namespace validation {
+
+// `QuotaInfo` is valid if the following conditions are met:
+//   - Request includes a single role across all resources.
+//   - Irrelevant fields in `Resources` are not set
+//     (e.g. `ReservationInfo`).
+//   - Request only contains scalar `Resources`.
+Try<Nothing> quotaInfo(const mesos::quota::QuotaInfo& quotaInfo);
 
 } // namespace validation {
 
