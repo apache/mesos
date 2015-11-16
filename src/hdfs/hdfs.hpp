@@ -106,7 +106,7 @@ struct HDFS
     path = absolutePath(path);
 
     Try<std::string> command = strings::format(
-        "%s fs -du -h '%s'", hadoop, path);
+        "%s fs -du '%s'", hadoop, path);
 
     CHECK_SOME(command);
 
@@ -121,20 +121,28 @@ struct HDFS
       return Error("HDFS du failed: " + out.error());
     }
 
-    const std::vector<std::string>& s = strings::split(out.get(), " ");
-    if (s.size() != 2) {
-      return Error("HDFS du returned an unexpected number of results: '" +
-                   out.get() + "'");
+    // We expect 2 space-separated output fields; a number of bytes then the
+    // name of the path we gave. The 'hadoop' command can emit various WARN
+    // or other log messages, so we make an effort to scan for the field we
+    // want.
+    foreach (const std::string& line, strings::tokenize(out.get(), "\n")) {
+      // Note that we use tokenize() rather than split() since fields can be
+      // delimited by multiple spaces.
+      std::vector<std::string> fields = strings::tokenize(line, " ");
+
+      if (fields.size() == 2 && fields[1] == path) {
+        Result<size_t> size = numify<size_t>(fields[0]);
+        if (size.isError()) {
+          return Error("HDFS du returned unexpected format: " + size.error());
+        } else if (size.isNone()) {
+          return Error("HDFS du returned unexpected format");
+        }
+
+        return Bytes(size.get());
+      }
     }
 
-    Result<size_t> size = numify<size_t>(s[0]);
-    if (size.isError()) {
-      return Error("HDFS du returned unexpected format: " + size.error());
-    } else if (size.isNone()) {
-      return Error("HDFS du returned unexpected format");
-    }
-
-    return Bytes(size.get());
+    return Error("HDFS du returned an unexpected format: '" + out.get() + "'");
   }
 
   Try<Nothing> rm(std::string path)
