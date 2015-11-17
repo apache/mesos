@@ -120,14 +120,16 @@ def verify_review(review_request):
         # TODO(jojy): Launch docker_build in subprocess so that verifications
         # can be run parallely for various configurations.
         configuration = "export OS=ubuntu:14.04;export CONFIGURATION=\"--verbose\";export COMPILER=gcc"
-        shell("%s; ./support/docker_build.sh" % configuration)
+        command = "%s; ./support/docker_build.sh" % configuration
+
+        shell(command)
 
         # Success!
         post_review(
             review_request,
             "Patch looks great!\n\n" \
             "Reviews applied: %s\n\n" \
-            "All tests passed." % applied)
+            "Passed command: %s" % (applied, command))
     except subprocess.CalledProcessError as e:
         post_review(
             review_request,
