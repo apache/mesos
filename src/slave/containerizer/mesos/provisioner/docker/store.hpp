@@ -45,6 +45,11 @@ class Store : public slave::Store
 public:
   static Try<process::Owned<slave::Store>> create(const Flags& flags);
 
+  // This allows the puller to be mocked for testing.
+  static Try<process::Owned<slave::Store>> create(
+      const Flags& flags,
+      const process::Owned<Puller>& puller);
+
   ~Store();
 
   process::Future<Nothing> recover();
