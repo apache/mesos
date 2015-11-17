@@ -16,18 +16,28 @@
  * limitations under the License.
  */
 
-#ifndef __URI_PROTO_HPP__
-#define __URI_PROTO_HPP__
+#ifndef __URI_SCHEMES_FILE_HPP__
+#define __URI_SCHEMES_FILE_HPP__
 
-#include <ostream>
+#include <string>
 
-// ONLY USEFUL AFTER RUNNING PROTOC.
-#include <mesos/uri/uri.pb.h>
+#include <mesos/uri/uri.hpp>
+
+#include "uri/utils.hpp"
 
 namespace mesos {
+namespace uri {
 
-std::ostream& operator<<(std::ostream& stream, const URI& uri);
+/**
+ * Creates a file URI with the given path on the local host. For
+ * example, 'file:///etc/hosts'.
+ */
+inline URI file(const std::string& path)
+{
+  return construct("file", path, "");
+}
 
+} // namespace uri {
 } // namespace mesos {
 
-#endif // __URI_PROTO_HPP__
+#endif // __URI_SCHEMES_FILE_HPP__

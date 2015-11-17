@@ -619,6 +619,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   slave/containerizer/mesos/provisioner/docker/token_manager.cpp	\
   slave/resource_estimators/noop.cpp					\
   uri/fetcher.cpp							\
+  uri/utils.cpp								\
   usage/usage.cpp							\
   v1/attributes.cpp							\
   v1/mesos.cpp								\
@@ -743,6 +744,9 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   tests/containerizer/rootfs.hpp					\
   tests/containerizer/setns_test_helper.hpp				\
   tests/containerizer/store.hpp						\
+  uri/utils.hpp								\
+  uri/schemes/file.hpp							\
+  uri/schemes/http.hpp							\
   usage/usage.hpp							\
   version/version.hpp							\
   watcher/whitelist_watcher.hpp						\
@@ -1718,6 +1722,7 @@ mesos_tests_SOURCES =						\
   tests/state_tests.cpp						\
   tests/status_update_manager_tests.cpp				\
   tests/teardown_tests.cpp					\
+  tests/uri_tests.cpp						\
   tests/utils.cpp						\
   tests/values_tests.cpp					\
   tests/zookeeper_url_tests.cpp					\

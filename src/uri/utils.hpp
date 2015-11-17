@@ -16,18 +16,34 @@
  * limitations under the License.
  */
 
-#ifndef __URI_PROTO_HPP__
-#define __URI_PROTO_HPP__
+#ifndef __URI_UTILS_HPP__
+#define __URI_UTILS_HPP__
 
-#include <ostream>
+#include <string>
 
-// ONLY USEFUL AFTER RUNNING PROTOC.
-#include <mesos/uri/uri.pb.h>
+#include <stout/none.hpp>
+#include <stout/option.hpp>
+
+#include <mesos/uri/uri.hpp>
 
 namespace mesos {
+namespace uri {
 
-std::ostream& operator<<(std::ostream& stream, const URI& uri);
+/**
+ * Construct an URI with the given parameters. No validation will be
+ * performed in this function.
+ */
+URI construct(
+    const std::string& scheme,
+    const std::string& path = "",
+    const Option<std::string>& host = None(),
+    const Option<int>& port = None(),
+    const Option<std::string>& query = None(),
+    const Option<std::string>& fragment = None(),
+    const Option<std::string>& user = None(),
+    const Option<std::string>& password = None());
 
+} // namespace uri {
 } // namespace mesos {
 
-#endif // __URI_PROTO_HPP__
+#endif // __URI_UTILS_HPP__

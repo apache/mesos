@@ -16,18 +16,37 @@
  * limitations under the License.
  */
 
-#ifndef __URI_PROTO_HPP__
-#define __URI_PROTO_HPP__
+#ifndef __URI_SCHEMES_HTTP_HPP__
+#define __URI_SCHEMES_HTTP_HPP__
 
-#include <ostream>
+#include <string>
 
-// ONLY USEFUL AFTER RUNNING PROTOC.
-#include <mesos/uri/uri.pb.h>
+#include <stout/none.hpp>
+#include <stout/option.hpp>
+
+#include <mesos/uri/uri.hpp>
+
+#include "uri/utils.hpp"
 
 namespace mesos {
+namespace uri {
 
-std::ostream& operator<<(std::ostream& stream, const URI& uri);
+/**
+ * Creates an http URI with the given parameters.
+ */
+inline URI http(
+    const std::string& host,
+    const std::string& path = "/",
+    const Option<int>& port = None(),
+    const Option<std::string>& query = None(),
+    const Option<std::string>& fragment = None(),
+    const Option<std::string>& user = None(),
+    const Option<std::string>& password = None())
+{
+  return construct("http", path, host, port, query, fragment, user, password);
+}
 
+} // namespace uri {
 } // namespace mesos {
 
-#endif // __URI_PROTO_HPP__
+#endif // __URI_SCHEMES_HTTP_HPP__
