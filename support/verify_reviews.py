@@ -119,7 +119,7 @@ def verify_review(review_request):
 
         # TODO(jojy): Launch docker_build in subprocess so that verifications
         # can be run parallely for various configurations.
-        configuration = "export OS=ubuntu;export CONFIGURATION=\"--verbose\";export COMPILER=gcc"
+        configuration = "export OS=ubuntu:14.04;export CONFIGURATION=\"--verbose\";export COMPILER=gcc"
         shell("%s; ./support/docker_build.sh" % configuration)
 
         # Success!
