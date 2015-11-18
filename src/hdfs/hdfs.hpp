@@ -44,8 +44,9 @@
 // HTTP GET on hostname:port and grab the information in the
 // <title>...</title> (this is the best hack I can think of to get
 // 'fs.default.name' given the tools available).
-struct HDFS
+class HDFS
 {
+public:
   // Look for `hadoop' first where proposed, otherwise, look for
   // HADOOP_HOME, otherwise, assume it's on the PATH.
   explicit HDFS(const std::string& _hadoop)
