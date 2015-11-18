@@ -128,6 +128,9 @@ struct HttpEvent : Event
   virtual ~HttpEvent()
   {
     delete request;
+
+    // Fail the response in case it wasn't set.
+    response->set(http::InternalServerError());
     delete response;
   }
 
