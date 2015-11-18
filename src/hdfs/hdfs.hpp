@@ -19,15 +19,11 @@
 #ifndef __HDFS_HPP__
 #define __HDFS_HPP__
 
-#include <sstream>
-#include <vector>
+#include <string>
 
-#include <stout/check.hpp>
-#include <stout/error.hpp>
+#include <stout/bytes.hpp>
 #include <stout/nothing.hpp>
-#include <stout/os.hpp>
-#include <stout/path.hpp>
-#include <stout/strings.hpp>
+#include <stout/try.hpp>
 
 
 // TODO(benh): We should get the hostname:port (or ip:port) of the
@@ -49,179 +45,26 @@ class HDFS
 public:
   // Look for `hadoop' first where proposed, otherwise, look for
   // HADOOP_HOME, otherwise, assume it's on the PATH.
-  explicit HDFS(const std::string& _hadoop)
-    : hadoop(os::exists(_hadoop)
-             ? _hadoop
-             : (os::getenv("HADOOP_HOME").isSome()
-                ? path::join(os::getenv("HADOOP_HOME").get(), "bin/hadoop")
-                : "hadoop")) {}
+  explicit HDFS(const std::string& _hadoop);
 
   // Look for `hadoop' in HADOOP_HOME or assume it's on the PATH.
-  HDFS()
-    : hadoop(os::getenv("HADOOP_HOME").isSome()
-             ? path::join(os::getenv("HADOOP_HOME").get(), "bin/hadoop")
-             : "hadoop") {}
+  HDFS();
 
   // Check if hadoop client is available at the path that was set.
   // This can be done by executing `hadoop version` command and
   // checking for status code == 0.
-  Try<bool> available()
-  {
-    Try<std::string> command = strings::format("%s version", hadoop);
+  Try<bool> available();
 
-    CHECK_SOME(command);
-
-    // We are piping stderr to stdout so that we can see the error (if
-    // any) in the logs emitted by `os::shell()` in case of failure.
-    Try<std::string> out = os::shell(command.get() + " 2>&1");
-
-    if (out.isError()) {
-      return Error(out.error());
-    }
-
-    return true;
-  }
-
-  Try<bool> exists(std::string path)
-  {
-    path = absolutePath(path);
-
-    Try<std::string> command = strings::format(
-        "%s fs -test -e '%s'", hadoop, path);
-
-    CHECK_SOME(command);
-
-    // We are piping stderr to stdout so that we can see the error (if
-    // any) in the logs emitted by `os::shell()` in case of failure.
-    Try<std::string> out = os::shell(command.get() + " 2>&1");
-
-    if (out.isError()) {
-      return Error(out.error());
-    }
-
-    return true;
-  }
-
-  Try<Bytes> du(std::string path)
-  {
-    path = absolutePath(path);
-
-    Try<std::string> command = strings::format(
-        "%s fs -du '%s'", hadoop, path);
-
-    CHECK_SOME(command);
-
-    // We are piping stderr to stdout so that we can see the error (if
-    // any) in the logs emitted by `os::shell()` in case of failure.
-    //
-    // TODO(marco): this was the existing logic, but not sure it is
-    // actually needed.
-    Try<std::string> out = os::shell(command.get() + " 2>&1");
-
-    if (out.isError()) {
-      return Error("HDFS du failed: " + out.error());
-    }
-
-    // We expect 2 space-separated output fields; a number of bytes then the
-    // name of the path we gave. The 'hadoop' command can emit various WARN
-    // or other log messages, so we make an effort to scan for the field we
-    // want.
-    foreach (const std::string& line, strings::tokenize(out.get(), "\n")) {
-      // Note that we use tokenize() rather than split() since fields can be
-      // delimited by multiple spaces.
-      std::vector<std::string> fields = strings::tokenize(line, " ");
-
-      if (fields.size() == 2 && fields[1] == path) {
-        Result<size_t> size = numify<size_t>(fields[0]);
-        if (size.isError()) {
-          return Error("HDFS du returned unexpected format: " + size.error());
-        } else if (size.isNone()) {
-          return Error("HDFS du returned unexpected format");
-        }
-
-        return Bytes(size.get());
-      }
-    }
-
-    return Error("HDFS du returned an unexpected format: '" + out.get() + "'");
-  }
-
-  Try<Nothing> rm(std::string path)
-  {
-    path = absolutePath(path);
-
-    Try<std::string> command = strings::format(
-        "%s fs -rm '%s'", hadoop, path);
-
-    CHECK_SOME(command);
-
-    Try<std::string> out = os::shell(command.get());
-
-    if (out.isError()) {
-      return Error(out.error());
-    }
-
-    return Nothing();
-  }
-
-  Try<Nothing> copyFromLocal(
-      const std::string& from,
-      std::string to)
-  {
-    if (!os::exists(from)) {
-      return Error("Failed to find " + from);
-    }
-
-    to = absolutePath(to);
-
-    // Copy to HDFS.
-    Try<std::string> command = strings::format(
-        "%s fs -copyFromLocal '%s' '%s'", hadoop, from, to);
-
-    CHECK_SOME(command);
-
-    Try<std::string> out = os::shell(command.get());
-
-    if (out.isError()) {
-      return Error(out.error());
-    }
-
-    return Nothing();
-  }
-
-  Try<Nothing> copyToLocal(
-      std::string from,
-      const std::string& to)
-  {
-    from = absolutePath(from);
-
-    // Copy from HDFS.
-    Try<std::string> command = strings::format(
-        "%s fs -copyToLocal '%s' '%s'", hadoop, from, to);
-
-    CHECK_SOME(command);
-
-    Try<std::string> out = os::shell(command.get());
-
-    if (out.isError()) {
-      return Error(out.error());
-    }
-
-    return Nothing();
-  }
+  Try<bool> exists(std::string path);
+  Try<Bytes> du(std::string path);
+  Try<Nothing> rm(std::string path);
+  Try<Nothing> copyFromLocal(const std::string& from, std::string to);
+  Try<Nothing> copyToLocal(std::string from, const std::string& to);
 
 private:
   // Normalize an HDFS path such that it is either an absolute path
   // or a full hdfs:// URL.
-  std::string absolutePath(const std::string& hdfsPath)
-  {
-    if (strings::startsWith(hdfsPath, "hdfs://") ||
-        strings::startsWith(hdfsPath, "/")) {
-      return hdfsPath;
-    }
-
-    return path::join("", hdfsPath);
-  }
+  std::string absolutePath(const std::string& hdfsPath);
 
   const std::string hadoop;
 };
