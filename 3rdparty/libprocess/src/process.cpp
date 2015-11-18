@@ -96,7 +96,6 @@
 #include <stout/thread_local.hpp>
 #include <stout/unreachable.hpp>
 
-#include "authentication_router.hpp"
 #include "config.hpp"
 #include "decoder.hpp"
 #include "encoder.hpp"
@@ -121,10 +120,6 @@ using process::http::OK;
 using process::http::Request;
 using process::http::Response;
 using process::http::ServiceUnavailable;
-
-using process::http::authentication::Authenticator;
-using process::http::authentication::AuthenticationResult;
-using process::http::authentication::AuthenticationRouter;
 
 using process::network::Address;
 using process::network::Socket;
@@ -466,9 +461,6 @@ static ProcessManager* process_manager = NULL;
 
 // Scheduling gate that threads wait at when there is nothing to run.
 static Gate* gate = new Gate();
-
-// Used for authenticating HTTP requests.
-static AuthenticationRouter* authentication_router = NULL;
 
 // Filter. Synchronized support for using the filterer needs to be
 // recursive in case a filterer wants to do anything fancy (which is
@@ -949,9 +941,6 @@ void initialize(const string& delegate)
   // Create the global system statistics process.
   spawn(new System(), true);
 
-  // Create the global HTTP authentication router.
-  authentication_router = new AuthenticationRouter();
-
   // Ensure metrics process is running.
   // TODO(bmahler): Consider initializing this consistently with
   // the other global Processes.
@@ -976,10 +965,6 @@ void initialize(const string& delegate)
 
 void finalize()
 {
-  // TODO(arojas): The HTTP authentication logic in ProcessManager
-  // does not handle the case where the process_manager is deleted
-  // while authentication was in progress!!
-
   delete process_manager;
 
   // TODO(benh): Finalize/shutdown Clock so that it doesn't attempt
@@ -2295,25 +2280,25 @@ void ProcessManager::handle(
   vector<string> tokens = strings::tokenize(request->url.path, "/");
 
   // Try and determine a receiver, otherwise try and delegate.
-  UPID receiver;
+  ProcessReference receiver;
 
   if (tokens.size() == 0 && delegate != "") {
     request->url.path = "/" + delegate;
-    receiver = UPID(delegate, __address__);
+    receiver = use(UPID(delegate, __address__));
   } else if (tokens.size() > 0) {
     // Decode possible percent-encoded path.
     Try<string> decode = http::decode(tokens[0]);
     if (!decode.isError()) {
-      receiver = UPID(decode.get(), __address__);
+      receiver = use(UPID(decode.get(), __address__));
     } else {
       VLOG(1) << "Failed to decode URL path: " << decode.error();
     }
   }
 
-  if (!use(receiver) && delegate != "") {
+  if (!receiver && delegate != "") {
     // Try and delegate the request.
     request->url.path = "/" + delegate + request->url.path;
-    receiver = UPID(delegate, __address__);
+    receiver = use(UPID(delegate, __address__));
   }
 
   synchronized (firewall_mutex) {
@@ -2346,7 +2331,7 @@ void ProcessManager::handle(
     }
   }
 
-  if (use(receiver)) {
+  if (receiver) {
     // The promise is created here but its ownership is passed
     // into the HttpEvent created below.
     Promise<Response>* promise(new Promise<Response>());
@@ -2357,68 +2342,9 @@ void ProcessManager::handle(
     // order of requests to account for HTTP/1.1 pipelining.
     dispatch(proxy, &HttpProxy::handle, promise->future(), *request);
 
-    // NOTE: We capture `process_manager` in the lambda below, but
-    // it may have been deleted while authentication was in progress.
-    // This is problematic for libprocess finalization, a potential
-    // workaround is to ensure that the authentication future is
-    // satisfied within a Process.
-    authentication_router->authenticate(*request)
-      .onAny([this, request, socket, promise, receiver](
-          const Future<Option<AuthenticationResult>>& authentication) {
-        if (!authentication.isReady()) {
-          promise->set(InternalServerError());
-
-          VLOG(1) << "Returning '" << promise->future()->status << "'"
-                  << " for '" << request->url.path << "'"
-                  << " (authentication failed: "
-                  << (authentication.isFailed()
-                      ? authentication.failure()
-                      : "discarded")
-                  << ")";
-
-          delete request;
-          delete promise;
-          return;
-        }
-
-        // NOTE: The `receiver` process may have terminated while
-        // authentication was in progress. In this case `deliver`
-        // will fail and delete the `HttpEvent` which results in
-        // an `InternalServerError` response.
-
-        if (authentication.get().isNone()) {
-          // Request didn't need authentication or authentication
-          // is not applicable, just forward the request.
-          //
-          // TODO(benh): Use the sender PID in order to capture
-          // happens-before timing relationships for testing.
-          deliver(receiver, new HttpEvent(socket, request, promise));
-          return;
-        }
-
-        if (authentication.get()->unauthorized.isSome()) {
-          // Request is not authorized.
-          promise->set(authentication.get()->unauthorized.get());
-          delete request;
-          delete promise;
-        } else if (authentication.get()->forbidden.isSome()) {
-          // Request is not authorized.
-          promise->set(authentication.get()->forbidden.get());
-          delete request;
-          delete promise;
-        } else {
-          // The authentication router should validate this.
-          const Option<string>& principal = authentication.get()->principal;
-          CHECK_SOME(principal);
-
-          // Authentication succeeded.
-          //
-          // TODO(benh): Use the sender PID in order to capture
-          // happens-before timing relationships for testing.
-          deliver(receiver, new HttpEvent(socket, request, promise, principal));
-        }
-      });
-
+    // TODO(benh): Use the sender PID in order to capture
+    // happens-before timing relationships for testing.
+    deliver(receiver, new HttpEvent(socket, request, promise));
     return;
   }
 

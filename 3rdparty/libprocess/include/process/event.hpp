@@ -120,12 +120,10 @@ struct HttpEvent : Event
   HttpEvent(
       const network::Socket& _socket,
       http::Request* _request,
-      Promise<http::Response>* _response,
-      Option<std::string> _principal = None())
+      Promise<http::Response>* _response)
     : socket(_socket),
       request(_request),
-      response(_response),
-      principal(_principal) {}
+      response(_response) {}
 
   virtual ~HttpEvent()
   {
@@ -144,9 +142,6 @@ struct HttpEvent : Event
   const network::Socket socket;
   http::Request* const request;
   Promise<http::Response>* response;
-
-  // This will be set for authenticated requests.
-  Option<std::string> principal;
 
 private:
   // Not copyable, not assignable.

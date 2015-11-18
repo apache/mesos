@@ -43,8 +43,6 @@ PICOJSON = 3rdparty/picojson-$(PICOJSON_VERSION)
 noinst_LTLIBRARIES = libprocess.la
 
 libprocess_la_SOURCES =		\
-  src/authentication_router.hpp	\
-  src/authentication_router.cpp	\
   src/clock.cpp			\
   src/config.hpp		\
   src/decoder.hpp		\
