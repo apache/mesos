@@ -520,16 +520,40 @@ struct BadRequest : Response
 
 struct Unauthorized : Response
 {
-  Unauthorized(const std::string& realm) : Response(Status::UNAUTHORIZED)
+  Unauthorized(const std::vector<std::string>& challenges)
+    : Response(Status::UNAUTHORIZED)
   {
-    headers["WWW-authenticate"] = "Basic realm=\"" + realm + "\"";
+    // TODO(arojas): Many HTTP client implementations do not support
+    // multiple challenges within a single 'WWW-Authenticate' header.
+    // Once MESOS-3306 is fixed, we can use multiple entries for the
+    // same header.
+    headers["WWW-Authenticate"] = strings::join(", ", challenges);
   }
 
-  Unauthorized(const std::string& realm, const std::string& body)
+  Unauthorized(
+      const std::vector<std::string>& challenges,
+      const std::string& body)
     : Response(body, Status::UNAUTHORIZED)
   {
-    headers["WWW-authenticate"] = "Basic realm=\"" + realm + "\"";
+    // TODO(arojas): Many HTTP client implementations do not support
+    // multiple challenges within a single 'WWW-Authenticate' header.
+    // Once MESOS-3306 is fixed, we can use multiple entries for the
+    // same header.
+    headers["WWW-Authenticate"] = strings::join(", ", challenges);
   }
+
+  // TODO(arojas): Remove this in favor of the
+  // explicit challenge constructor above.
+  Unauthorized(const std::string& realm)
+    : Unauthorized(
+          std::vector<std::string>{"Basic realm=\"" + realm + "\""}) {}
+
+  // TODO(arojas): Remove this in favor of the
+  // explicit challenge constructor above.
+  Unauthorized(const std::string& realm, const std::string& body)
+    : Unauthorized(
+          std::vector<std::string>{"Basic realm=\"" + realm + "\""},
+          body) {}
 };
 
 
