@@ -44,12 +44,12 @@ public:
     return *this;
   }
 
-  ProcessBase* operator->()
+  ProcessBase* operator->() const
   {
     return process;
   }
 
-  operator ProcessBase*()
+  operator ProcessBase*() const
   {
     return process;
   }
