@@ -1638,6 +1638,18 @@ file:///path/to/file (where file contains one of the above)</code></pre>
   </tr>
   <tr>
     <td>
+      --[no-]-egress_unique_flow_per_container
+    </td>
+    <td>
+      Whether to assign an individual flow for each container for the
+      egress traffic. fq_codel qdisc is used to isolate egress traffic for
+      containers. This flag is used for the 'network/port_mapping' isolator.
+      Note, fq_codel qdisc is installed at root and is not removed after mesos
+      slave exits.
+    </td>
+  </tr>
+  <tr>
+    <td>
       --[no-]network_enable_socket_statistics_summary
     </td>
     <td>
