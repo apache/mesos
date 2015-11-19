@@ -1387,19 +1387,38 @@ Try<Isolator*> PortMappingIsolatorProcess::create(const Flags& flags)
   if (flags.egress_unique_flow_per_container) {
     // Prepare a fq_codel queueing discipline on host public interface
     // (eth0) for egress flow classification.
-    //
-    // TODO(cwang): Maybe we can continue when some other egress qdisc
-    // exists because this is not a necessary qdisc for network
-    // isolation, but we don't want inconsistency, so we just fail in
-    // this case. See details in MESOS-2370.
-    Try<bool> createHostEth0EgressQdisc = fq_codel::create(
-        eth0.get(),
-        EGRESS_ROOT,
-        HOST_TX_FQ_CODEL_HANDLE);
-    if (createHostEth0EgressQdisc.isError()) {
+    Try<bool> existHostEth0EgressFqCodel =
+      fq_codel::exists(eth0.get(), EGRESS_ROOT);
+
+    if (existHostEth0EgressFqCodel.isError()) {
       return Error(
-          "Failed to create the egress qdisc on " + eth0.get() +
-          ": " + createHostEth0EgressQdisc.error());
+          "Failed to check egress qdisc existence on " + eth0.get() +
+          ": " + existHostEth0EgressFqCodel.error());
+    }
+
+    if (existHostEth0EgressFqCodel.get()) {
+      // TODO(cwang): We don't know if this existed fq_codel qdisc is
+      // created by ourselves or someone else.
+      LOG(INFO) << "Using an existed egress qdisc on " << eth0.get();
+    } else {
+      // Either there is no qdisc at all, or there is some non-fq_codel
+      // qdisc at root. We try to create one to check which is true.
+      Try<bool> createHostEth0EgressQdisc = fq_codel::create(
+          eth0.get(),
+          EGRESS_ROOT,
+          HOST_TX_FQ_CODEL_HANDLE);
+
+      if (createHostEth0EgressQdisc.isError()) {
+        return Error(
+            "Failed to create the egress qdisc on " + eth0.get() +
+            ": " + createHostEth0EgressQdisc.error());
+      } else if (!createHostEth0EgressQdisc.get()) {
+        // TODO(cwang): Maybe we can continue when some other egress
+        // qdisc exists because this is not a necessary qdisc for
+        // network isolation, but we don't want inconsistency, so we
+        // just fail in this case. See details in MESOS-2370.
+        return Error("Egress qdisc already exists on " + eth0.get());
+      }
     }
 
     // TODO(cwang): Make sure DEFAULT_FLOWS is large enough so that
