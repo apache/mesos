@@ -23,6 +23,7 @@
 #include <mesos/scheduler.hpp>
 #include <mesos/type_utils.hpp>
 
+#include <process/owned.hpp>
 #include <process/pid.hpp>
 
 #include <stout/check.hpp>
@@ -41,6 +42,7 @@
 using namespace mesos;
 using namespace mesos::internal;
 
+using process::Owned;
 using process::UPID;
 
 using std::cerr;
@@ -338,7 +340,11 @@ int main(int argc, char** argv)
   Option<string> uri = None();
 
   if (flags.package.isSome()) {
-    HDFS hdfs(flags.hadoop);
+    Try<Owned<HDFS>> hdfs = HDFS::create(flags.hadoop);
+    if (hdfs.isError()) {
+      cerr << "Failed to create HDFS client: " << hdfs.error() << endl;
+      return EXIT_FAILURE;
+    }
 
     // TODO(benh): If HDFS is not properly configured with
     // 'fs.default.name' then we'll copy to the local
@@ -351,12 +357,12 @@ int main(int argc, char** argv)
     string path = path::join("/", user.get(), flags.package.get());
 
     // Check if the file exists and remove it if we're overwriting.
-    Try<bool> exists = hdfs.exists(path);
+    Try<bool> exists = hdfs.get()->exists(path);
     if (exists.isError()) {
       cerr << "Failed to check if file exists: " << exists.error() << endl;
       return EXIT_FAILURE;
     } else if (exists.get() && flags.overwrite) {
-      Try<Nothing> rm = hdfs.rm(path);
+      Try<Nothing> rm = hdfs.get()->rm(path);
       if (rm.isError()) {
         cerr << "Failed to remove existing file: " << rm.error() << endl;
         return EXIT_FAILURE;
@@ -366,7 +372,7 @@ int main(int argc, char** argv)
       return EXIT_FAILURE;
     }
 
-    Try<Nothing> copy = hdfs.copyFromLocal(flags.package.get(), path);
+    Try<Nothing> copy = hdfs.get()->copyFromLocal(flags.package.get(), path);
     if (copy.isError()) {
       cerr << "Failed to copy package: " << copy.error() << endl;
       return EXIT_FAILURE;

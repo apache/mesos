@@ -21,8 +21,12 @@
 
 #include <string>
 
+#include <process/owned.hpp>
+
 #include <stout/bytes.hpp>
+#include <stout/none.hpp>
 #include <stout/nothing.hpp>
+#include <stout/option.hpp>
 #include <stout/try.hpp>
 
 
@@ -43,17 +47,8 @@
 class HDFS
 {
 public:
-  // Look for `hadoop' first where proposed, otherwise, look for
-  // HADOOP_HOME, otherwise, assume it's on the PATH.
-  explicit HDFS(const std::string& _hadoop);
-
-  // Look for `hadoop' in HADOOP_HOME or assume it's on the PATH.
-  HDFS();
-
-  // Check if hadoop client is available at the path that was set.
-  // This can be done by executing `hadoop version` command and
-  // checking for status code == 0.
-  Try<bool> available();
+  static Try<process::Owned<HDFS>> create(
+      const Option<std::string>& hadoop = None());
 
   Try<bool> exists(const std::string& path);
   Try<Bytes> du(const std::string& path);
@@ -62,6 +57,9 @@ public:
   Try<Nothing> copyToLocal(const std::string& from, const std::string& to);
 
 private:
+  explicit HDFS(const std::string& _hadoop)
+    : hadoop(_hadoop) {}
+
   // Normalize an HDFS path such that it is either an absolute path or
   // a full hdfs:// URL.
   std::string absolutePath(const std::string& hdfsPath);

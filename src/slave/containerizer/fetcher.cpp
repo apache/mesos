@@ -22,6 +22,7 @@
 #include <process/check.hpp>
 #include <process/collect.hpp>
 #include <process/dispatch.hpp>
+#include <process/owned.hpp>
 
 #include <stout/net.hpp>
 #include <stout/path.hpp>
@@ -42,6 +43,7 @@ using std::transform;
 using std::vector;
 
 using process::Future;
+using process::Owned;
 
 namespace mesos {
 namespace internal {
@@ -274,14 +276,12 @@ static Try<Bytes> fetchSize(
     return size.get();
   }
 
-  HDFS hdfs;
-
-  Try<bool> available = hdfs.available();
-  if (available.isError() || !available.get()) {
-    return Error("Hadoop client not available: " + available.error());
+  Try<Owned<HDFS>> hdfs = HDFS::create();
+  if (hdfs.isError()) {
+    return Error("Failed to create HDFS client: " + hdfs.error());
   }
 
-  Try<Bytes> size = hdfs.du(uri);
+  Try<Bytes> size = hdfs.get()->du(uri);
   if (size.isError()) {
     return Error("Hadoop client could not determine size: " + size.error());
   }

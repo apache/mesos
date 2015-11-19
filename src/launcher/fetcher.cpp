@@ -18,9 +18,7 @@
 
 #include <string>
 
-#include <mesos/mesos.hpp>
-
-#include <mesos/fetcher/fetcher.hpp>
+#include <process/owned.hpp>
 
 #include <stout/json.hpp>
 #include <stout/net.hpp>
@@ -29,6 +27,10 @@
 #include <stout/path.hpp>
 #include <stout/protobuf.hpp>
 #include <stout/strings.hpp>
+
+#include <mesos/mesos.hpp>
+
+#include <mesos/fetcher/fetcher.hpp>
 
 #include "hdfs/hdfs.hpp"
 
@@ -39,14 +41,16 @@
 
 #include "slave/containerizer/fetcher.hpp"
 
+using namespace process;
+
 using namespace mesos;
 using namespace mesos::internal;
+
+using std::string;
 
 using mesos::fetcher::FetcherInfo;
 
 using mesos::internal::slave::Fetcher;
-
-using std::string;
 
 
 // Try to extract sourcePath into directory. If sourcePath is
@@ -99,19 +103,15 @@ static Try<string> downloadWithHadoopClient(
     const string& sourceUri,
     const string& destinationPath)
 {
-  HDFS hdfs;
-  Try<bool> available = hdfs.available();
-
-  if (available.isError() || !available.get()) {
-      return Error(
-          "Skipping fetch with Hadoop client: " +
-          (available.isError() ? available.error() : " client not found"));
+  Try<Owned<HDFS>> hdfs = HDFS::create();
+  if (hdfs.isError()) {
+    return Error("Failed to create HDFS client: " + hdfs.error());
   }
 
   LOG(INFO) << "Downloading resource with Hadoop client from '" << sourceUri
             << "' to '" << destinationPath << "'";
 
-  Try<Nothing> result = hdfs.copyToLocal(sourceUri, destinationPath);
+  Try<Nothing> result = hdfs.get()->copyToLocal(sourceUri, destinationPath);
   if (result.isError()) {
     return Error("HDFS copyToLocal failed: " + result.error());
   }

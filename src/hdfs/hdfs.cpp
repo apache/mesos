@@ -33,39 +33,37 @@
 
 #include "hdfs/hdfs.hpp"
 
+using namespace process;
+
 using std::string;
 using std::vector;
 
 
-HDFS::HDFS(const string& _hadoop)
-  : hadoop(os::exists(_hadoop)
-           ? _hadoop
-           : (os::getenv("HADOOP_HOME").isSome()
-              ? path::join(os::getenv("HADOOP_HOME").get(), "bin/hadoop")
-              : "hadoop")) {}
-
-
-HDFS::HDFS()
-    : hadoop(os::getenv("HADOOP_HOME").isSome()
-             ? path::join(os::getenv("HADOOP_HOME").get(), "bin/hadoop")
-             : "hadoop") {}
-
-
-Try<bool> HDFS::available()
+Try<Owned<HDFS>> HDFS::create(const Option<string>& _hadoop)
 {
-  Try<string> command = strings::format("%s version", hadoop);
+  // Determine the hadoop client to use. If the user has specified
+  // it, use it. If not, look for environment variable HADOOP_HOME. If
+  // the environment variable is not set, assume it's on the PATH.
+  string hadoop;
 
-  CHECK_SOME(command);
+  if (_hadoop.isSome()) {
+    hadoop = _hadoop.get();
+  } else {
+    Option<string> hadoopHome = os::getenv("HADOOP_HOME");
+    if (hadoopHome.isSome()) {
+      hadoop = path::join(hadoopHome.get(), "bin", "hadoop");
+    } else {
+      hadoop = "hadoop";
+    }
+  }
 
-  // We are piping stderr to stdout so that we can see the error (if
-  // any) in the logs emitted by `os::shell()` in case of failure.
-  Try<string> out = os::shell(command.get() + " 2>&1");
-
+  // Check if the hadoop client is available.
+  Try<string> out = os::shell(hadoop + " version 2>&1");
   if (out.isError()) {
     return Error(out.error());
   }
 
-  return true;
+  return Owned<HDFS>(new HDFS(hadoop));
 }
 
 
