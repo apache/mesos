@@ -278,7 +278,12 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Launch_Executor)
 // We're assuming that the custom executor is registering it's public
 // ip instead of 0.0.0.0 or equivelent to the slave as that's the
 // default behavior for libprocess.
-TEST_F(DockerContainerizerTest, ROOT_DOCKER_Launch_Executor_Bridged)
+//
+// Currently this test fails on ubuntu and centos since the slave is
+// binding and advertising 127.0.x.x address and unreachable by executor
+// in bridge network.
+// TODO(tnachen): Re-enable this test when we are able to fix MESOS-3123.
+TEST_F(DockerContainerizerTest, DISABLED_ROOT_DOCKER_Launch_Executor_Bridged)
 {
   Try<PID<Master> > master = StartMaster();
   ASSERT_SOME(master);
