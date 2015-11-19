@@ -69,12 +69,10 @@ Try<bool> HDFS::available()
 }
 
 
-Try<bool> HDFS::exists(string path)
+Try<bool> HDFS::exists(const string& path)
 {
-  path = absolutePath(path);
-
   Try<string> command = strings::format(
-      "%s fs -test -e '%s'", hadoop, path);
+      "%s fs -test -e '%s'", hadoop, absolutePath(path));
 
   CHECK_SOME(command);
 
@@ -90,9 +88,9 @@ Try<bool> HDFS::exists(string path)
 }
 
 
-Try<Bytes> HDFS::du(string path)
+Try<Bytes> HDFS::du(const string& _path)
 {
-  path = absolutePath(path);
+  const string path = absolutePath(_path);
 
   Try<string> command = strings::format(
       "%s fs -du '%s'", hadoop, path);
@@ -110,13 +108,13 @@ Try<Bytes> HDFS::du(string path)
     return Error("HDFS du failed: " + out.error());
   }
 
-  // We expect 2 space-separated output fields; a number of bytes then the
-  // name of the path we gave. The 'hadoop' command can emit various WARN
-  // or other log messages, so we make an effort to scan for the field we
-  // want.
+  // We expect 2 space-separated output fields; a number of bytes then
+  // the name of the path we gave. The 'hadoop' command can emit
+  // various WARN or other log messages, so we make an effort to scan
+  // for the field we want.
   foreach (const string& line, strings::tokenize(out.get(), "\n")) {
-    // Note that we use tokenize() rather than split() since fields can be
-    // delimited by multiple spaces.
+    // Note that we use tokenize() rather than split() since fields
+    // can be delimited by multiple spaces.
     vector<string> fields = strings::tokenize(line, " ");
 
     if (fields.size() == 2 && fields[1] == path) {
@@ -135,12 +133,10 @@ Try<Bytes> HDFS::du(string path)
 }
 
 
-Try<Nothing> HDFS::rm(string path)
+Try<Nothing> HDFS::rm(const string& path)
 {
-  path = absolutePath(path);
-
   Try<string> command = strings::format(
-      "%s fs -rm '%s'", hadoop, path);
+      "%s fs -rm '%s'", hadoop, absolutePath(path));
 
   CHECK_SOME(command);
 
@@ -154,15 +150,14 @@ Try<Nothing> HDFS::rm(string path)
 }
 
 
-Try<Nothing> HDFS::copyFromLocal(const string& from, string to)
+Try<Nothing> HDFS::copyFromLocal(const string& from, const string& _to)
 {
   if (!os::exists(from)) {
     return Error("Failed to find " + from);
   }
 
-  to = absolutePath(to);
+  const string to = absolutePath(_to);
 
-  // Copy to HDFS.
   Try<string> command = strings::format(
       "%s fs -copyFromLocal '%s' '%s'", hadoop, from, to);
 
@@ -178,11 +173,10 @@ Try<Nothing> HDFS::copyFromLocal(const string& from, string to)
 }
 
 
-Try<Nothing> HDFS::copyToLocal(string from, const string& to)
+Try<Nothing> HDFS::copyToLocal(const string& _from, const string& to)
 {
-  from = absolutePath(from);
+  const string from = absolutePath(_from);
 
-  // Copy from HDFS.
   Try<string> command = strings::format(
       "%s fs -copyToLocal '%s' '%s'", hadoop, from, to);
 

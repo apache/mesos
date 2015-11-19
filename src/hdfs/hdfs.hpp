@@ -55,15 +55,15 @@ public:
   // checking for status code == 0.
   Try<bool> available();
 
-  Try<bool> exists(std::string path);
-  Try<Bytes> du(std::string path);
-  Try<Nothing> rm(std::string path);
-  Try<Nothing> copyFromLocal(const std::string& from, std::string to);
-  Try<Nothing> copyToLocal(std::string from, const std::string& to);
+  Try<bool> exists(const std::string& path);
+  Try<Bytes> du(const std::string& path);
+  Try<Nothing> rm(const std::string& path);
+  Try<Nothing> copyFromLocal(const std::string& from, const std::string& to);
+  Try<Nothing> copyToLocal(const std::string& from, const std::string& to);
 
 private:
-  // Normalize an HDFS path such that it is either an absolute path
-  // or a full hdfs:// URL.
+  // Normalize an HDFS path such that it is either an absolute path or
+  // a full hdfs:// URL.
   std::string absolutePath(const std::string& hdfsPath);
 
   const std::string hadoop;
