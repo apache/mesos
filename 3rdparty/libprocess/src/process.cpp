@@ -2344,7 +2344,7 @@ void ProcessManager::handle(
 
     // TODO(benh): Use the sender PID in order to capture
     // happens-before timing relationships for testing.
-    deliver(receiver, new HttpEvent(socket, request, promise));
+    deliver(receiver, new HttpEvent(request, promise));
     return;
   }
 
