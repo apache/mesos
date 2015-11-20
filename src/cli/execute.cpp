@@ -112,6 +112,11 @@ public:
         "docker_image",
         "Docker image that follows the Docker CLI naming <image>:<tag>."
         "(ie: ubuntu, busybox:latest).");
+
+    add(&containerizer,
+        "containerizer",
+        "Containerizer to be used (ie: docker, mesos)",
+        "mesos");
   }
 
   Option<string> master;
@@ -125,6 +130,7 @@ public:
   bool overwrite;
   bool checkpoint;
   Option<string> docker_image;
+  string containerizer;
 };
 
 
@@ -137,13 +143,15 @@ public:
       const Option<hashmap<string, string>>& _environment,
       const string& _resources,
       const Option<string>& _uri,
-      const Option<string>& _dockerImage)
+      const Option<string>& _dockerImage,
+      const string& _containerizer)
     : name(_name),
       command(_command),
       environment(_environment),
       resources(_resources),
       uri(_uri),
       dockerImage(_dockerImage),
+      containerizer(_containerizer),
       launched(false) {}
 
   virtual ~CommandScheduler() {}
@@ -206,12 +214,33 @@ public:
 
         if (dockerImage.isSome()) {
           ContainerInfo containerInfo;
-          containerInfo.set_type(ContainerInfo::DOCKER);
 
-          ContainerInfo::DockerInfo dockerInfo;
-          dockerInfo.set_image(dockerImage.get());
+          if (containerizer == "mesos") {
+            containerInfo.set_type(ContainerInfo::MESOS);
 
-          containerInfo.mutable_docker()->CopyFrom(dockerInfo);
+            ContainerInfo::MesosInfo mesosInfo;
+
+            Image mesosImage;
+            mesosImage.set_type(Image::DOCKER);
+            mesosImage.mutable_docker()->set_name(dockerImage.get());
+            mesosInfo.mutable_image()->CopyFrom(mesosImage);
+
+            containerInfo.mutable_mesos()->CopyFrom(mesosInfo);
+          } else if (containerizer == "docker") {
+            containerInfo.set_type(ContainerInfo::DOCKER);
+
+            ContainerInfo::DockerInfo dockerInfo;
+            dockerInfo.set_image(dockerImage.get());
+
+            containerInfo.mutable_docker()->CopyFrom(dockerInfo);
+          } else {
+            cerr << "Unsupported containerizer: " << containerizer << endl;;
+
+            driver->abort();
+
+            return;
+          }
+
           task.mutable_container()->CopyFrom(containerInfo);
         }
 
@@ -272,6 +301,7 @@ private:
   const string resources;
   const Option<string> uri;
   const Option<string> dockerImage;
+  const string containerizer;
   bool launched;
 };
 
@@ -394,7 +424,8 @@ int main(int argc, char** argv)
       environment,
       flags.resources,
       uri,
-      dockerImage);
+      dockerImage,
+      flags.containerizer);
 
   FrameworkInfo framework;
   framework.set_user(user.get());
