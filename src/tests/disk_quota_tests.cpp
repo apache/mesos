@@ -476,10 +476,10 @@ TEST_F(DiskQuotaTest, SlaveRecovery)
   Stop(slave.get());
   delete containerizer.get();
 
-  Future<Nothing> _recover = FUTURE_DISPATCH(_, &Slave::_recover);
+  Future<ReregisterExecutorMessage> reregisterExecutorMessage =
+    FUTURE_PROTOBUF(ReregisterExecutorMessage(), _, _);
 
-  Future<SlaveReregisteredMessage> slaveReregisteredMessage =
-    FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
+  Future<Nothing> _recover = FUTURE_DISPATCH(_, &Slave::_recover);
 
   containerizer = MesosContainerizer::create(flags, true, &fetcher);
   ASSERT_SOME(containerizer);
@@ -494,15 +494,15 @@ TEST_F(DiskQuotaTest, SlaveRecovery)
   // Wait for slave to schedule reregister timeout.
   Clock::settle();
 
+  // Ensure the executor re-registers before completing recovery.
+  AWAIT_READY(reregisterExecutorMessage);
+
   // Ensure the slave considers itself recovered.
   Clock::advance(slave::EXECUTOR_REREGISTER_TIMEOUT);
 
   // NOTE: We resume the clock because we need the reaper to reap the
   // 'du' subprocess.
   Clock::resume();
-
-  // Wait for the slave to re-register.
-  AWAIT_READY(slaveReregisteredMessage);
 
   // Wait until disk usage can be retrieved.
   Duration elapsed = Duration::zero();
