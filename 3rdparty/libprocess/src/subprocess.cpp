@@ -177,7 +177,7 @@ static int childMain(
 
   os::execvpe(path.c_str(), argv, envp);
 
-  ABORT("Failed to os::execvpe in childMain: " + os::strerror(errno));
+  ABORT("Failed to os::execvpe on path '" + path + "': " + os::strerror(errno));
 }
 
 
