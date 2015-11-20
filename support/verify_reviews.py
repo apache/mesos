@@ -52,17 +52,21 @@ HEAD = shell("git rev-parse HEAD")
 
 
 def api(url, data=None):
-    auth_handler = urllib2.HTTPBasicAuthHandler()
-    auth_handler.add_password(
-        realm="Web API",
-        uri="reviews.apache.org",
-        user=USER,
-        passwd=PASSWORD)
+    try:
+        auth_handler = urllib2.HTTPBasicAuthHandler()
+        auth_handler.add_password(
+            realm="Web API",
+            uri="reviews.apache.org",
+            user=USER,
+            passwd=PASSWORD)
 
-    opener = urllib2.build_opener(auth_handler)
-    urllib2.install_opener(opener)
+        opener = urllib2.build_opener(auth_handler)
+        urllib2.install_opener(opener)
 
-    return json.loads(urllib2.urlopen(url, data=data).read())
+        return json.loads(urllib2.urlopen(url, data=data).read())
+    except urllib2.URLError as e:
+        print "Error handling URL %s: %s" % (url, e.reason)
+        exit(1)
 
 
 def apply_review(review_id):
