@@ -107,9 +107,22 @@ Try<Duration> failoverTimeout =
 ~~~
 
 ## Empty Lines
-* 1 blank line at the end of the file.
-* Elements outside classes (classes, structs, global functions, etc.) should be spaced apart by 2 blank lines.
-* Elements inside classes (member variables and functions) should not be spaced apart by more than 1 blank line.
+* One empty line at the end of the file.
+* Inside a code block, every multi-line statement should be followed by one empty line.
+
+~~~{.cpp}
+Try<very_very_long_type> long_name =
+    ::protobuf::parse<very_very_long_type>(
+        request);
+
+for (int i = 0; i < very_very_long_expression();
+     i++) {
+  // No empty line here for control constructs.
+}
+~~~
+
+* Elements outside classes (classes, structs, global functions, etc.) should be spaced apart by two empty lines.
+* Elements inside classes (member variables and functions) should not be spaced apart by more than one empty line.
 
 ## Capture by Reference
 
