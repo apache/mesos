@@ -278,6 +278,31 @@ private:
 };
 
 
+class CurlFilter : public TestFilter
+{
+public:
+  CurlFilter()
+  {
+    curlError = os::system("which curl") != 0;
+    if (curlError) {
+      std::cerr
+        << "-------------------------------------------------------------\n"
+        << "No 'curl' command found so no 'curl' tests will be run\n"
+        << "-------------------------------------------------------------"
+        << std::endl;
+    }
+  }
+
+  bool disable(const ::testing::TestInfo* test) const
+  {
+    return matches(test, "CURL_") && curlError;
+  }
+
+private:
+  bool curlError;
+};
+
+
 class BenchmarkFilter : public TestFilter
 {
 public:
@@ -399,6 +424,7 @@ Environment::Environment(const Flags& _flags) : flags(_flags)
   filters.push_back(Owned<TestFilter>(new NetworkIsolatorTestFilter()));
   filters.push_back(Owned<TestFilter>(new PerfFilter()));
   filters.push_back(Owned<TestFilter>(new NetcatFilter()));
+  filters.push_back(Owned<TestFilter>(new CurlFilter()));
 
   // Construct the filter string to handle system or platform specific tests.
   ::testing::UnitTest* unitTest = ::testing::UnitTest::GetInstance();

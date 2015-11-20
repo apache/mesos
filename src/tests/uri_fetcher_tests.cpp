@@ -79,7 +79,7 @@ protected:
 };
 
 
-TEST_F(CurlFetcherPluginTest, ValidUri)
+TEST_F(CurlFetcherPluginTest, CURL_ValidUri)
 {
   URI uri = uri::http(
       stringify(server.self().address.ip),
@@ -98,7 +98,7 @@ TEST_F(CurlFetcherPluginTest, ValidUri)
 }
 
 
-TEST_F(CurlFetcherPluginTest, InvalidUri)
+TEST_F(CurlFetcherPluginTest, CURL_InvalidUri)
 {
   URI uri = uri::http(
       stringify(server.self().address.ip),
