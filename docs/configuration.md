@@ -5,16 +5,30 @@ layout: documentation
 
 # Mesos Configuration
 
-The Mesos master and slave can take a variety of configuration options through command-line arguments, or environment variables. A list of the available options can be seen by running `mesos-master --help` or `mesos-slave --help`. Each option can be set in two ways:
+The Mesos master and slave can take a variety of configuration options
+through command-line arguments, or environment variables. A list of
+the available options can be seen by running `mesos-master --help` or
+`mesos-slave --help`. Each option can be set in two ways:
 
-* By passing it to the binary using `--option_name=value`, either specifying the value directly, or specifying a file in which the value resides (`--option_name=file://path/to/file`). The path can be absolute or relative to the current working directory.
-* By setting the environment variable `MESOS_OPTION_NAME` (the option name with a `MESOS_` prefix added to it).
+* By passing it to the binary using `--option_name=value`, either
+specifying the value directly, or specifying a file in which the value
+resides (`--option_name=file://path/to/file`). The path can be
+absolute or relative to the current working directory.
 
-Configuration values are searched for first in the environment, then on the command-line.
+* By setting the environment variable `MESOS_OPTION_NAME` (the option
+name with a `MESOS_` prefix added to it).
+
+Configuration values are searched for first in the environment, then
+on the command-line.
 
 **Important Options**
 
-If you have special compilation requirements, please refer to `./configure --help` when configuring Mesos. Additionally, this documentation lists only a recent snapshot of the options in Mesos. A definitive source for which flags your version of Mesos supports can be found by running the binary with the flag `--help`, for example `mesos-master --help`.
+If you have special compilation requirements, please refer to
+`./configure --help` when configuring Mesos. Additionally, this
+documentation lists only a recent snapshot of the options in Mesos. A
+definitive source for which flags your version of Mesos supports can
+be found by running the binary with the flag `--help`, for example
+`mesos-master --help`.
 
 ## Master and Slave Options
 
@@ -1263,7 +1277,9 @@ file:///path/to/file (where file contains one of the above)</code></pre>
       'cgroups/cpu,cgroups/mem', or network/port_mapping
       (configure with flag: --with-network-isolator to enable),
       or 'external', or load an alternate isolator module using
-      the <code>--modules</code> flag. Note that this flag is only relevant for the Mesos Containerizer. (default: posix/cpu,posix/mem)
+      the <code>--modules</code> flag. Note that this flag is only
+      relevant for the Mesos Containerizer.
+      (default: posix/cpu,posix/mem)
     </td>
   </tr>
   <tr>
@@ -1568,9 +1584,16 @@ file:///path/to/file (where file contains one of the above)</code></pre>
       --fetcher_cache_dir=VALUE
     </td>
     <td>
-      Parent directory for fetcher cache directories (one subdirectory per slave). By default this directory is held inside the work directory, so everything can be deleted or archived in one swoop, in particular during testing. However, a typical production scenario is to use a separate cache volume. First, it is not meant to be backed up. Second, you want to avoid that sandbox directories and the cache directory can interfere with each other in unpredictable ways by occupying shared space. So it is recommended to set the cache directory explicitly.
-      (default: /tmp/mesos/fetch)
-    </td>
+      Parent directory for fetcher cache directories (one subdirectory
+      per slave). By default this directory is held inside the work
+      directory, so everything can be deleted or archived in one
+      swoop, in particular during testing. However, a typical
+      production scenario is to use a separate cache volume. First, it
+      is not meant to be backed up. Second, you want to avoid that
+      sandbox directories and the cache directory can interfere with
+      each other in unpredictable ways by occupying shared space. So
+      it is recommended to set the cache directory explicitly.
+      (default: /tmp/mesos/fetch) </td>
   </tr>
   <tr>
     <td>
@@ -1642,10 +1665,10 @@ file:///path/to/file (where file contains one of the above)</code></pre>
     </td>
     <td>
       Whether to assign an individual flow for each container for the
-      egress traffic. fq_codel qdisc is used to isolate egress traffic for
-      containers. This flag is used for the 'network/port_mapping' isolator.
-      Note, fq_codel qdisc is installed at root and is not removed after mesos
-      slave exits.
+      egress traffic. fq_codel qdisc is used to isolate egress traffic
+      for containers. This flag is used for the 'network/port_mapping'
+      isolator. Note, fq_codel qdisc is installed at root and is not
+      removed after mesos slave exits. (default: false)
     </td>
   </tr>
   <tr>
