@@ -18,6 +18,8 @@
 #######################################
 set(PROCESS_SRC
   ${PROCESS_SRC}
+  authentication_router.cpp
+  authentication_router.hpp
   clock.cpp
   config.hpp
   decoder.hpp
