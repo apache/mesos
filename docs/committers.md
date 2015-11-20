@@ -152,6 +152,13 @@ We'd like to thank the following committers to the Apache Mesos project who have
       <td>nnielsen@apache.org</td>
     </tr>
     <tr>
+      <td>-5</td>
+      <td>Michael Park</td>
+      <td>Mesosphere</td>
+      <td>mpark</td>
+      <td>mpark@apache.org</td>
+    </tr>
+    <tr>
       <td>-8</td>
       <td>Charles Reiss</td>
       <td>UC Berkeley</td>
