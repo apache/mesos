@@ -2382,72 +2382,6 @@ Future<Nothing> PortMappingIsolatorProcess::isolate(
       return Failure(
           "The ARP packet filter on host " + eth0 + " already exists");
     }
-
-    if (flags.egress_unique_flow_per_container) {
-      // Create a new ICMP filter on host eth0 egress for classifying
-      // packets into a reserved flow.
-      Try<bool> icmpEth0Egress = filter::icmp::create(
-          eth0,
-          HOST_TX_FQ_CODEL_HANDLE,
-          icmp::Classifier(None()),
-          Priority(ICMP_FILTER_PRIORITY, NORMAL),
-          Handle(HOST_TX_FQ_CODEL_HANDLE, ICMP_FLOWID));
-
-      if (icmpEth0Egress.isError()) {
-        ++metrics.adding_eth0_egress_filters_errors;
-
-        return Failure(
-            "Failed to create the ICMP flow classifier on host " +
-            eth0 + ": " + icmpEth0Egress.error());
-      } else if (!icmpEth0Egress.get()) {
-        ++metrics.adding_eth0_egress_filters_already_exist;
-
-        return Failure(
-            "The ICMP flow classifier on host " + eth0 + " already exists");
-      }
-
-      // Create a new ARP filter on host eth0 egress for classifying
-      // packets into a reserved flow.
-      Try<bool> arpEth0Egress = filter::basic::create(
-          eth0,
-          HOST_TX_FQ_CODEL_HANDLE,
-          ETH_P_ARP,
-          Priority(ARP_FILTER_PRIORITY, NORMAL),
-          Handle(HOST_TX_FQ_CODEL_HANDLE, ARP_FLOWID));
-
-      if (arpEth0Egress.isError()) {
-        ++metrics.adding_eth0_egress_filters_errors;
-
-        return Failure(
-            "Failed to create the ARP flow classifier on host " +
-            eth0 + ": " + arpEth0Egress.error());
-      } else if (!arpEth0Egress.get()) {
-        ++metrics.adding_eth0_egress_filters_already_exist;
-
-        return Failure(
-            "The ARP flow classifier on host " + eth0 + " already exists");
-      }
-
-      // Rest of the host packets go to a reserved flow.
-      Try<bool> defaultEth0Egress = filter::basic::create(
-          eth0,
-          HOST_TX_FQ_CODEL_HANDLE,
-          ETH_P_ALL,
-          Priority(DEFAULT_FILTER_PRIORITY, NORMAL),
-          Handle(HOST_TX_FQ_CODEL_HANDLE, HOST_FLOWID));
-
-      if (defaultEth0Egress.isError()) {
-        ++metrics.adding_eth0_egress_filters_errors;
-
-        return Failure(
-            "Failed to create the default flow classifier on host " +
-            eth0 + ": " + defaultEth0Egress.error());
-      } else if (!defaultEth0Egress.get()) {
-        // NOTE: Since we don't remove this filter on purpose in
-        // _cleanup() (see the comments there), we just continue even
-        // if it already exists, so do nothing here.
-      }
-    }
   } else {
     // This is not the first container in which case we should update
     // filters for ICMP and ARP packets.
@@ -2490,6 +2424,68 @@ Future<Nothing> PortMappingIsolatorProcess::isolate(
 
       return Failure(
           "The ARP packet filter on host " + eth0 + " already exists");
+    }
+  }
+
+  if (flags.egress_unique_flow_per_container) {
+    // Create a new ICMP filter on host eth0 egress for classifying
+    // packets into a reserved flow.
+    Try<bool> icmpEth0Egress = filter::icmp::create(
+        eth0,
+        HOST_TX_FQ_CODEL_HANDLE,
+        icmp::Classifier(None()),
+        Priority(ICMP_FILTER_PRIORITY, NORMAL),
+        Handle(HOST_TX_FQ_CODEL_HANDLE, ICMP_FLOWID));
+
+    if (icmpEth0Egress.isError()) {
+      ++metrics.adding_eth0_egress_filters_errors;
+
+      return Failure(
+          "Failed to create the ICMP flow classifier on host " +
+          eth0 + ": " + icmpEth0Egress.error());
+    } else if (!icmpEth0Egress.get()) {
+      // We try to create the filter every time a container is
+      // launched. Ignore if it already exists.
+    }
+
+    // Create a new ARP filter on host eth0 egress for classifying
+    // packets into a reserved flow.
+    Try<bool> arpEth0Egress = filter::basic::create(
+        eth0,
+        HOST_TX_FQ_CODEL_HANDLE,
+        ETH_P_ARP,
+        Priority(ARP_FILTER_PRIORITY, NORMAL),
+        Handle(HOST_TX_FQ_CODEL_HANDLE, ARP_FLOWID));
+
+    if (arpEth0Egress.isError()) {
+      ++metrics.adding_eth0_egress_filters_errors;
+
+      return Failure(
+          "Failed to create the ARP flow classifier on host " +
+          eth0 + ": " + arpEth0Egress.error());
+    } else if (!arpEth0Egress.get()) {
+      // We try to create the filter every time a container is
+      // launched. Ignore if it already exists.
+    }
+
+    // Rest of the host packets go to a reserved flow.
+    Try<bool> defaultEth0Egress = filter::basic::create(
+        eth0,
+        HOST_TX_FQ_CODEL_HANDLE,
+        ETH_P_ALL,
+        Priority(DEFAULT_FILTER_PRIORITY, NORMAL),
+        Handle(HOST_TX_FQ_CODEL_HANDLE, HOST_FLOWID));
+
+    if (defaultEth0Egress.isError()) {
+      ++metrics.adding_eth0_egress_filters_errors;
+
+      return Failure(
+          "Failed to create the default flow classifier on host " +
+          eth0 + ": " + defaultEth0Egress.error());
+    } else if (!defaultEth0Egress.get()) {
+      // NOTE: Since we don't remove this filter on purpose in
+      // _cleanup() (see the comments there), we just continue even
+      // if it already exists, so do nothing here.
     }
   }
 
