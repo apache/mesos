@@ -400,7 +400,7 @@ public:
     shutdown(driver);
     if (healthPid != -1) {
       // Cleanup health check process.
-      ::kill(healthPid, SIGKILL);
+      os::killtree(healthPid, SIGKILL);
     }
   }
 

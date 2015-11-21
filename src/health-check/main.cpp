@@ -205,11 +205,14 @@ private:
     CHECK_SOME(external);
 
     if (external.get().isError()) {
-      promise.fail("Error creating subprocess for healthcheck");
+      failure("Error creating subprocess for healthcheck: " +
+              external.get().error());
       return;
     }
 
-    Future<Option<int> > status = external.get().get().status();
+    pid_t commandPid = external.get().get().pid();
+
+    Future<Option<int>> status = external.get().get().status();
     status.await(Seconds(check.timeout_seconds()));
 
     if (!status.isReady()) {
@@ -223,7 +226,13 @@ private:
                stringify(Seconds(check.timeout_seconds()));
       }
 
-      promise.fail(msg);
+      if (commandPid != -1) {
+        // Cleanup the external command process.
+        os::killtree(commandPid, SIGKILL);
+        VLOG(1) << "Kill health check command " << commandPid;
+      }
+
+      failure(msg);
       return;
     }
 
