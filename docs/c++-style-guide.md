@@ -50,6 +50,20 @@ void Slave::statusUpdate(StatusUpdate update, const UPID& pid)
 ## Comments
 * End each sentence within a comment with a punctuation mark (please note that we generally prefer periods); this applies to incomplete sentences as well.
 * For trailing comments, leave one space.
+* Use backticks when quoting code excerpts or object/variable/function names. For example:
+
+~~~{.cpp}
+// Use `SchedulerDriver::acceptOffers()` to send several offer
+// operations. This makes use of the `RESERVE()` and `UNRESERVE()`
+// helpers, which take a `Resources` object as input and produce
+// appropriate offer operations. Note that we are unreserving the
+// resources contained in `dynamicallyReserved1`.
+driver.acceptOffers({offer.id()},
+    {UNRESERVE(dynamicallyReserved1),
+     RESERVE(dynamicallyReserved2),
+     RESERVE(dynamicallyReserved3)},
+    filters);
+~~~
 
 ## Breaks
 * Break before braces on enum, function, and record (i.e. struct, class, union) definitions.
