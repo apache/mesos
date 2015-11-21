@@ -22,6 +22,7 @@
 
 #include <stout/os.hpp>
 
+#include <process/io.hpp>
 #include <process/subprocess.hpp>
 
 #include "common/status_utils.hpp"
@@ -37,6 +38,7 @@ using std::vector;
 using process::Failure;
 using process::Future;
 using process::Owned;
+using process::Promise;
 using process::Subprocess;
 
 namespace mesos {
@@ -81,7 +83,7 @@ Future<Nothing> untar(const string& file, const string& directory)
       argv,
       Subprocess::PATH("/dev/null"),
       Subprocess::PATH("/dev/null"),
-      Subprocess::PATH("/dev/null"));
+      Subprocess::PIPE());
 
   if (s.isError()) {
     return Failure(
@@ -89,22 +91,55 @@ Future<Nothing> untar(const string& file, const string& directory)
         file + "': " + s.error());
   }
 
-  return s.get().status()
-    .then([file](const Option<int>& status) -> Future<Nothing> {
-      if (status.isNone()) {
-        return Failure(
-            "Failed to reap untar subprocess for file '" + file + "'");
+  Owned<Promise<Nothing>> promise(new Promise<Nothing>());
+  s.get().status()
+    .onAny([s, file, promise](const Future<Option<int>>& future) {
+      if (!future.isReady()) {
+        promise->fail(
+            "Failed to launch untar subprocess for file '" + file
+            + "': " +
+            (future.isFailed() ? future.failure() : "future discarded"));
+
+        return;
       }
 
-      if (!WIFEXITED(status.get()) ||
-          WEXITSTATUS(status.get()) != 0) {
-        return Failure(
-            "Untar process for file '" + file + "' failed with exit code: " +
-            WSTRINGIFY(status.get()));
+      if (future.get().isNone()) {
+        promise->fail(
+            "Failed to get status for untar subprocess for file '" +
+            file + "'");
+
+        return;
       }
 
-      return Nothing();
+      int status = future.get().get();
+
+      if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
+        const string errorMessage =
+          "Failed to run ntar process for file '" + file + "' (exit code: " +
+          WSTRINGIFY(status) + ")";
+
+        // Read stderr from the process(if any) to add to the failure report.
+        process::io::read(s.get().err().get())
+          .onAny([file, promise, errorMessage](const Future<string>& future) {
+            if (!future.isReady()) {
+              LOG(WARNING) << "Failed to read stderr from untar process for"
+                           << "file: '" << file << "': "
+                           << (future.isFailed() ? future.failure()
+                              : "future discarded");
+
+              promise->fail(errorMessage);
+            } else {
+              promise->fail(errorMessage + ": " + future.get());
+            }
+          });
+
+        return;
+      }
+
+      promise->set(Nothing());
     });
+
+    return promise->future();
 }
 
 
