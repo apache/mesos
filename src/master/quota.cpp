@@ -35,6 +35,54 @@ namespace internal {
 namespace master {
 namespace quota {
 
+UpdateQuota::UpdateQuota(const mesos::quota::QuotaInfo& quotaInfo)
+  : info(quotaInfo) {}
+
+
+Try<bool> UpdateQuota::perform(
+    Registry* registry,
+    hashset<SlaveID>*,
+    bool)
+{
+  // If there is already quota stored for the role, update the entry.
+  foreach (Registry::Quota& quota, *registry->mutable_quotas()) {
+    if (quota.info().role() == info.role()) {
+      quota.mutable_info()->CopyFrom(info);
+      return true; // Mutation.
+    }
+  }
+
+  // If there is no quota yet for the role, create a new entry.
+  registry->add_quotas()->mutable_info()->CopyFrom(info);
+
+  return true; // Mutation.
+}
+
+
+RemoveQuota::RemoveQuota(const std::string& _role) : role(_role) {}
+
+
+Try<bool> RemoveQuota::perform(
+    Registry* registry,
+    hashset<SlaveID>*,
+    bool)
+{
+  // Remove quota for the role if a corresponding entry exists.
+  for (int i = 0; i < registry->quotas().size(); ++i) {
+    const Registry::Quota& quota = registry->quotas(i);
+
+    if (quota.info().role() == role) {
+      registry->mutable_quotas()->DeleteSubrange(i, 1);
+
+      // NOTE: Multiple entries per role are not allowed.
+      return true; // Mutation.
+    }
+  }
+
+  return false;
+}
+
+
 namespace validation {
 
 Try<Nothing> quotaInfo(const QuotaInfo& quotaInfo)

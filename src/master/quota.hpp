@@ -19,15 +19,84 @@
 #ifndef __MASTER_QUOTA_HPP__
 #define __MASTER_QUOTA_HPP__
 
+#include <string>
+
+#include <mesos/mesos.hpp>
+
 #include <mesos/quota/quota.hpp>
 
+#include <stout/hashset.hpp>
 #include <stout/nothing.hpp>
 #include <stout/try.hpp>
+
+#include "master/registrar.hpp"
+#include "master/registry.hpp"
 
 namespace mesos {
 namespace internal {
 namespace master {
 namespace quota {
+
+// We do not impose any constraints upon quota registry operations.
+// It is up to the master and allocator to determine whether a quota
+// request is valid. Hence quota registry operations never fail (i.e.
+// `perform()` never returns an `Error`). Note that this does not
+// influence registry failures, e.g. a network partition may occur and
+// will render the operation hanging (i.e. `Future` for the operation
+// will not be set).
+
+// The `strict` flag is not relevant for quota operations: they will
+// always succeed, even if the flag is set to `true`.
+
+/**
+ * Sets quota for a role. No assumptions are made here: the role may
+ * be unknown to the master, or quota can be already set for the role.
+ * If there is no quota stored for the role, a new entry is created,
+ * otherwise an existing one is updated. This operation always mutates
+ * the registry.
+ *
+ * TODO(alexr): Introduce equality operator in `Registry::Quota` or
+ * `QuotaInfo` to avoid mutation in case of update to an equal value.
+ * However, even if we return `false` (i.e. no mutation), the current
+ * implementation of the registrar will still save the object again.
+ */
+class UpdateQuota : public Operation
+{
+public:
+  explicit UpdateQuota(const mesos::quota::QuotaInfo& quotaInfo);
+
+protected:
+  Try<bool> perform(
+      Registry* registry,
+      hashset<SlaveID>* slaveIDs,
+      bool strict);
+
+private:
+  const mesos::quota::QuotaInfo info;
+};
+
+
+/**
+ * Removes quota for a role. If there is no quota stored for the role,
+ * no action is performed.
+ *
+ * TODO(alexr): Consider uniting this operation with `UpdateQuota`.
+ */
+class RemoveQuota : public Operation
+{
+public:
+  explicit RemoveQuota(const std::string& _role);
+
+protected:
+  Try<bool> perform(
+      Registry* registry,
+      hashset<SlaveID>* slaveIDs,
+      bool strict);
+
+private:
+  const std::string role;
+};
+
 
 namespace validation {
 
