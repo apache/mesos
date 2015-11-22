@@ -1418,6 +1418,24 @@ Future<Nothing> Master::_recover(const Registry& registry)
     machines[machine.info().id()] = Machine(machine.info());
   }
 
+  // Save the quotas for each role.
+  foreach (const Registry::Quota& quota, registry.quotas()) {
+    quotas[quota.info().role()] = Quota{quota.info()};
+  }
+
+  // We notify the allocator via the `recover()` call. This has to be
+  // done before the first agent reregisters and makes its resources
+  // available for allocation. This is necessary because at this point
+  // the allocator is already initialized and ready to perform
+  // allocations. An allocator may decide to hold off with allocation
+  // until after it restores a view of the cluster state.
+  int expectedAgentCount = registry.slaves().slaves().size();
+  allocator->recover(expectedAgentCount, quotas);
+
+  // TODO(alexr): Consider adding a sanity check: whether quotas are
+  // satisfiable given all recovering agents reregister. We may want
+  // to notify operators early if total quota cannot be met.
+
   // Recovery is now complete!
   LOG(INFO) << "Recovered " << registry.slaves().slaves().size() << " slaves"
             << " from the Registry (" << Bytes(registry.ByteSize()) << ")"
