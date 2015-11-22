@@ -156,6 +156,16 @@ void HierarchicalAllocatorProcess::initialize(
 }
 
 
+void HierarchicalAllocatorProcess::recover(
+    const int expectedAgentCount,
+    const hashmap<string, Quota>& quotas)
+{
+  CHECK(initialized);
+
+  LOG(INFO) << "Allocator recovery is not supported yet";
+}
+
+
 void HierarchicalAllocatorProcess::addFramework(
     const FrameworkID& frameworkId,
     const FrameworkInfo& frameworkInfo,

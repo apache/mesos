@@ -22,4 +22,12 @@
 // ONLY USEFUL AFTER RUNNING PROTOC.
 #include <mesos/quota/quota.pb.h>
 
+// A C++ wrapper for `quotaInfo` used to communicate between the
+// Allocator and Master.
+struct Quota
+{
+  // Holds the quota protobuf, as constructed from an operator's request.
+  mesos::quota::QuotaInfo info;
+};
+
 #endif // __MESOS_QUOTA_PROTO_HPP__

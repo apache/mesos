@@ -59,6 +59,10 @@ public:
         inverseOfferCallback,
       const hashmap<std::string, mesos::master::RoleInfo>& roles);
 
+  void recover(
+      const int expectedAgentCount,
+      const hashmap<std::string, Quota>& quotas);
+
   void addFramework(
       const FrameworkID& frameworkId,
       const FrameworkInfo& frameworkInfo,
@@ -178,6 +182,10 @@ public:
                const hashmap<SlaveID, UnavailableResources>&)>&
         inverseOfferCallback,
       const hashmap<std::string, mesos::master::RoleInfo>& roles) = 0;
+
+  virtual void recover(
+      const int expectedAgentCount,
+      const hashmap<std::string, Quota>& quotas) = 0;
 
   virtual void addFramework(
       const FrameworkID& frameworkId,
@@ -314,6 +322,19 @@ inline void MesosAllocator<AllocatorProcess>::initialize(
       offerCallback,
       inverseOfferCallback,
       roles);
+}
+
+
+template <typename AllocatorProcess>
+inline void MesosAllocator<AllocatorProcess>::recover(
+    const int expectedAgentCount,
+    const hashmap<std::string, Quota>& quotas)
+{
+  process::dispatch(
+      process,
+      &MesosAllocatorProcess::recover,
+      expectedAgentCount,
+      quotas);
 }
 
 

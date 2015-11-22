@@ -103,6 +103,24 @@ public:
       const hashmap<std::string, RoleInfo>& roles) = 0;
 
   /**
+   * Informs the allocator of the recovered state from the master.
+   *
+   *
+   * Because it is hard to define recovery for a running allocator, this
+   * method should be called after `initialize()`, but before actual
+   * allocation starts (i.e. `addSlave()` is called).
+   *
+   * TODO(alexr): Consider extending the signature with expected
+   * frameworks count once it is available upon the master failover.
+   *
+   * @param quotas A (possibly empty) collection of quotas, keyed by
+   *     their role, known to the master.
+   */
+  virtual void recover(
+      const int expectedAgentCount,
+      const hashmap<std::string, Quota>& quotas) = 0;
+
+  /**
    * Adds a framework.
    *
    * Adds a framework to the Mesos cluster. The allocator is invoked when

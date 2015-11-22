@@ -1251,12 +1251,6 @@ private:
 
   hashmap<std::string, Role*> roles;
 
-  struct Quota
-  {
-    // Holds the quota protobuf, as constructed from an operator's request.
-    mesos::quota::QuotaInfo info;
-  };
-
   // We store quotas by role because we set them at the role level.
   hashmap<std::string, Quota> quotas;
 
