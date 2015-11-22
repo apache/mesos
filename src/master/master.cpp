@@ -1398,10 +1398,7 @@ Future<Nothing> Master::_recover(const Registry& registry)
     slaves.recovered.insert(slave.info().id());
   }
 
-  // Set up a timeout for slaves to re-register. This timeout is based
-  // on the maximum amount of time the SlaveObserver allows slaves to
-  // not respond to health checks.
-  // TODO(bmahler): Consider making this configurable.
+  // Set up a timeout for slaves to re-register.
   slaves.recoveredTimer =
     delay(flags.slave_reregister_timeout,
           self(),
