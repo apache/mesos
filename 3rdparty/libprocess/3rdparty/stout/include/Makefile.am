@@ -96,6 +96,7 @@ nobase_include_HEADERS =		\
   stout/os/utime.hpp			\
   stout/os/write.hpp			\
   stout/os/posix/bootid.hpp		\
+  stout/os/posix/chown.hpp		\
   stout/os/posix/direntsize.hpp		\
   stout/os/posix/exists.hpp		\
   stout/os/posix/fcntl.hpp		\
