@@ -653,6 +653,7 @@ struct Framework
   Executor* getExecutor(const ExecutorID& executorId);
   Executor* getExecutor(const TaskID& taskId);
   void recoverExecutor(const state::ExecutorState& state);
+  void checkpointFramework() const;
 
   const FrameworkID id() const { return info.id(); }
 
