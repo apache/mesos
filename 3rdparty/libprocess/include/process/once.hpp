@@ -16,9 +16,6 @@
 #include <condition_variable>
 #include <mutex>
 
-#include <process/future.hpp>
-
-#include <stout/nothing.hpp>
 #include <stout/synchronized.hpp>
 
 namespace process {
