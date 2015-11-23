@@ -938,12 +938,23 @@ void initialize(const string& delegate)
 }
 
 
+// Gracefully winds down libprocess in roughly the reverse order of
+// initialization.
 void finalize()
 {
-  delete process_manager;
+  // The clock is only paused during tests.  Pausing may lead to infinite waits
+  // during clean up, so we make sure the clock is running normally.
+  Clock::resume();
 
-  // TODO(benh): Finalize/shutdown Clock so that it doesn't attempt
-  // to dereference 'process_manager' in the 'timedout' callback.
+  // This will terminate any existing processes created via `spawn()`,
+  // like `gc`, `help`, `Logging()`, `Profiler()`, and `System()`.
+  // NOTE: This will also stop the event loop.
+  delete process_manager;
+  process_manager = NULL;
+
+  // The clock must be cleaned up after the `process_manager` as processes
+  // may otherwise add timers after cleaning up.
+  Clock::finalize();
 }
 
 

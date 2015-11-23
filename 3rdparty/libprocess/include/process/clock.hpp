@@ -48,6 +48,17 @@ public:
       lambda::function<void(const std::list<Timer>&)>&& callback);
 
   /**
+   * Clears all timers without executing them.
+   *
+   * The process manager must be properly finalized before the clock is
+   * finalized.  This will eliminate the need for timers to activate and
+   * prevent further timers from being added after finalization.
+   *
+   * Also, the Clock must not be paused when finalizing.
+   */
+  static void finalize();
+
+  /**
    * The current clock time for either the current process that makes
    * this call or the global clock time if not invoked from a process.
    *

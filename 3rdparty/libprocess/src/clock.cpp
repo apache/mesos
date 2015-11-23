@@ -136,6 +136,9 @@ void scheduleTick(const map<Time, list<Timer>>& timers, set<Time>* ticks)
 }
 
 
+// NOTE: This method must remain robust to arbitrary invocations.
+// i.e. `tick` should not make any assumptions of what is held in `timers`,
+// which can be empty or have timers that trigger later than the current time.
 void tick(const Time& time)
 {
   list<Timer> timedout;
@@ -203,6 +206,24 @@ void tick(const Time& time)
 void Clock::initialize(lambda::function<void(const list<Timer>&)>&& callback)
 {
   (*clock::callback) = callback;
+}
+
+
+void Clock::finalize()
+{
+  // We keep track of state differently when the clock is paused.
+  // Finalization only handles cleanup of a running clock.
+  CHECK(!clock::paused) << "Clock must not be paused when finalizing";
+
+  synchronized (timers_mutex) {
+    // NOTE: `currents` is only non-empty when the clock is paused.
+
+    // This, along with the `timers_mutex`, is all that is required to clean
+    // up any pending timers.  Timers are triggered via "ticks".  However,
+    // we do not need to clear `ticks` because a "tick" with an empty `timers`
+    // map will effectively be a no-op.
+    timers->clear();
+  }
 }
 
 
