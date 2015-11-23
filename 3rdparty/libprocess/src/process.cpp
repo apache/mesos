@@ -733,9 +733,6 @@ void initialize(const string& delegate)
   // TODO(benh): Return an error if attempting to initialize again
   // with a different delegate than originally specified.
 
-  // static pthread_once_t init = PTHREAD_ONCE_INIT;
-  // pthread_once(&init, ...);
-
   static std::atomic_bool initialized(false);
   static std::atomic_bool initializing(true);
 
@@ -754,28 +751,6 @@ void initialize(const string& delegate)
       return;
     }
   }
-
-//   // Install signal handler.
-//   struct sigaction sa;
-
-//   sa.sa_handler = (void (*) (int)) sigbad;
-//   sigemptyset (&sa.sa_mask);
-//   sa.sa_flags = SA_RESTART;
-
-//   sigaction (SIGTERM, &sa, NULL);
-//   sigaction (SIGINT, &sa, NULL);
-//   sigaction (SIGQUIT, &sa, NULL);
-//   sigaction (SIGSEGV, &sa, NULL);
-//   sigaction (SIGILL, &sa, NULL);
-// #ifdef SIGBUS
-//   sigaction (SIGBUS, &sa, NULL);
-// #endif
-// #ifdef SIGSTKFLT
-//   sigaction (SIGSTKFLT, &sa, NULL);
-// #endif
-//   sigaction (SIGABRT, &sa, NULL);
-
-//   sigaction (SIGFPE, &sa, NULL);
 
 #ifdef __sun__
   /* Need to ignore this since we can't do MSG_NOSIGNAL on Solaris. */
@@ -802,21 +777,6 @@ void initialize(const string& delegate)
   long cpus = process_manager->init_threads();
 
   Clock::initialize(lambda::bind(&timedout, lambda::_1));
-
-//   ev_child_init(&child_watcher, child_exited, pid, 0);
-//   ev_child_start(loop, &cw);
-
-//   /* Install signal handler. */
-//   struct sigaction sa;
-
-//   sa.sa_handler = ev_sighandler;
-//   sigfillset (&sa.sa_mask);
-//   sa.sa_flags = SA_RESTART; /* if restarting works we save one iteration */
-//   sigaction (w->signum, &sa, 0);
-
-//   sigemptyset (&sa.sa_mask);
-//   sigaddset (&sa.sa_mask, w->signum);
-//   sigprocmask (SIG_UNBLOCK, &sa.sa_mask, 0);
 
   __address__ = Address::LOCALHOST_ANY();
 
