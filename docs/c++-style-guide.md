@@ -252,6 +252,42 @@ s += "world"; // THIS IS A DANGLING REFERENCE!
          // See the License for the specific language governing permissions and
          // limitations under the License
 
+## Order of includes
+
+In addition to the ordering rules from the Google style guide, Mesos related headers are separated into sections. Newline to separate each section.
+Mesos related headers in `include` directories are partitioned by their subfolders, sorted alphabetically, and included using brackets.
+Header in `src` directories are included afterwards, using the same rules but with quotes instead of brackets.
+
+Example for `src/common/foo.cpp`:
+~~~{.cpp}
+#include "common/foo.hpp"
+
+#include <stdint.h>
+
+#include <string>
+#include <vector>
+
+#include <boost/circular_buffer.hpp>
+
+#include <mesos/mesos.hpp>
+#include <mesos/type_utils.hpp>
+
+#include <mesos/module/authenticator.hpp>
+
+#include <mesos/scheduler/scheduler.hpp>
+
+#include <process/http.hpp>
+#include <process/protobuf.hpp>
+
+#include <stout/foreach.hpp>
+#include <stout/hashmap.hpp>
+
+#include "common/build.hpp"
+#include "common/protobuf_utils.hpp"
+
+#include "master/flags.hpp"
+~~~
+
 ## C++11
 
 We support C++11 and require GCC 4.8+ or Clang 3.5+ compilers. The whitelist of supported C++11 features is:
