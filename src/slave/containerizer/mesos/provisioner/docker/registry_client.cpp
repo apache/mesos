@@ -751,7 +751,7 @@ Future<size_t> RegistryClientProcess::getBlob(
   blobURL.path = blobURLPath;
 
   return doHttpGet(blobURL, None(), true, true, None())
-    .then([this, blobURLPath, digest, filePath](
+    .then(defer(self(), [this, blobURLPath, digest, filePath](
         const http::Response& response) -> Future<size_t> {
       Try<int> fd = os::open(
           filePath.value,
@@ -810,7 +810,7 @@ Future<size_t> RegistryClientProcess::getBlob(
                          << "': future discarded";
           }
         });
-    });
+    }));
 }
 
 } // namespace registry {
