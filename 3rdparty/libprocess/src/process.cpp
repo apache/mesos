@@ -733,21 +733,38 @@ void initialize(const string& delegate)
   // TODO(benh): Return an error if attempting to initialize again
   // with a different delegate than originally specified.
 
-  static std::atomic_bool initialized(false);
-  static std::atomic_bool initializing(true);
+  // NOTE: Rather than calling `initialize` once at the root of the
+  // dependency tree; we currently rely on libprocess dependency
+  // declaration by invoking `initialize` prior to use. This is done
+  // frequently throughout the code base. Therefore we chose to use
+  // atomics rather than `Once`, as the overhead of a mutex and
+  // condition variable is exessive here.
+  static std::atomic_bool initialize_started(false);
+  static std::atomic_bool initialize_complete(false);
 
   // Try and do the initialization or wait for it to complete.
-  // TODO(neilc): Try to simplify and/or document this logic.
-  if (initialized.load() && !initializing.load()) {
+
+  // If already initialized, there's nothing more to do.
+  // NOTE: This condition is true as soon as the thread performing
+  // initialization sets `initialize_complete` to `true` in the *middle*
+  // of initialization.  This is done because some methods called by
+  // initialization will themselves call `process::initialize`.
+  if (initialize_started.load() && initialize_complete.load()) {
     return;
-  } else if (initialized.load() && initializing.load()) {
-    while (initializing.load());
-    return;
+
   } else {
-    // `compare_exchange_strong` needs an lvalue.
+    // NOTE: `compare_exchange_strong` needs an lvalue.
     bool expected = false;
-    if (!initialized.compare_exchange_strong(expected, true)) {
-      while (initializing.load());
+
+    // Any thread that calls `initialize` prior to when `initialize_complete`
+    // is set to `true` will reach this.
+
+    // Atomically sets `initialize_started` to `true`.  The thread that
+    // successfully sets `initialize_started` to `true` will move on to
+    // perform the initialization logic.  All others will wait here for
+    // initialization to complete.
+    if (!initialize_started.compare_exchange_strong(expected, true)) {
+      while (!initialize_complete.load());
       return;
     }
   }
@@ -873,9 +890,9 @@ void initialize(const string& delegate)
     PLOG(FATAL) << "Failed to initialize: " << listen.error();
   }
 
-  // Need to set `initializing` here so that we can actually invoke `spawn()`
-  // below for the garbage collector.
-  initializing.store(false);
+  // Need to set `initialize_complete` here so that we can actually
+  // invoke `accept()` and `spawn()` below.
+  initialize_complete.store(true);
 
   __s__->accept()
     .onAny(lambda::bind(&internal::on_accept, lambda::_1));
