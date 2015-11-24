@@ -1487,6 +1487,9 @@ message ContainerInfo {
     // pull the docker image from the registry even if the image
     // is already downloaded on the slave.
     optional bool force_pull_image = 6;
+
+    // The name of volume driver plugin.
+    optional string volume_driver = 7;
   }
 
   message MesosInfo {

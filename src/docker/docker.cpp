@@ -428,13 +428,16 @@ Future<Nothing> Docker::run(
   foreach (const Volume& volume, containerInfo.volumes()) {
     string volumeConfig = volume.container_path();
     if (volume.has_host_path()) {
-      if (!strings::startsWith(volume.host_path(), "/")) {
-        // Support mapping relative paths from the sandbox.
+      if (!strings::startsWith(volume.host_path(), "/") &&
+          !dockerInfo.has_volume_driver()) {
+        // When volume dirver is empty and host path is a relative path, mapping
+        // host path from the sandbox.
         volumeConfig =
           path::join(sandboxDirectory, volume.host_path()) + ":" + volumeConfig;
       } else {
         volumeConfig = volume.host_path() + ":" + volumeConfig;
       }
+
       if (volume.has_mode()) {
         switch (volume.mode()) {
           case Volume::RW: volumeConfig += ":rw"; break;
@@ -453,6 +456,10 @@ Future<Nothing> Docker::run(
   // Mapping sandbox directory into the container mapped directory.
   argv.push_back("-v");
   argv.push_back(sandboxDirectory + ":" + mappedDirectory);
+
+  if (dockerInfo.has_volume_driver()) {
+    argv.push_back("--volume-driver=" + dockerInfo.volume_driver());
+  }
 
   const string& image = dockerInfo.image();
 
