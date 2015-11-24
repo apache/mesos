@@ -801,13 +801,15 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_ImageInVolumeWithRootFilesystem)
       false);
 
   // Wait for the launch to complete.
-  AWAIT_READY(launch);
+  // Because copy rootfs spents a lot of time, we use 60s as timeout here.
+  AWAIT_READY_FOR(launch, Seconds(60));
 
   // Wait on the container.
   Future<containerizer::Termination> wait =
     containerizer.get()->wait(containerId);
 
-  AWAIT_READY(wait);
+  // Because destroy rootfs spents a lot of time, we use 30s as timeout here.
+  AWAIT_READY_FOR(wait, Seconds(30));
 
   // Check the executor exited correctly.
   EXPECT_TRUE(wait.get().has_status());
