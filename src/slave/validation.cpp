@@ -54,6 +54,10 @@ Option<Error> validate(const mesos::executor::Call& call)
 
       const TaskStatus& status = call.update().status();
 
+      if (!status.has_uuid()) {
+        return Error("Expecting 'uuid' to be present");
+      }
+
       if (status.has_executor_id() &&
           status.executor_id().value()
           != call.executor_id().value()) {
