@@ -616,9 +616,6 @@ TEST_P(ExecutorHttpApiTest, StatusUpdateCallFailedValidation)
     call.mutable_framework_id()->set_value("dummy_framework_id");
     call.mutable_executor_id()->set_value("call_level_executor_id");
 
-    call.mutable_update()->set_uuid(UUID::random().toBytes());
-    call.mutable_update()->set_timestamp(0);
-
     v1::TaskStatus* status = call.mutable_update()->mutable_status();
 
     status->mutable_executor_id()->set_value("update_level_executor_id");
@@ -646,9 +643,6 @@ TEST_P(ExecutorHttpApiTest, StatusUpdateCallFailedValidation)
     call.mutable_framework_id()->set_value("dummy_framework_id");
     call.mutable_executor_id()->set_value("call_level_executor_id");
 
-    call.mutable_update()->set_uuid(UUID::random().toBytes());
-    call.mutable_update()->set_timestamp(0);
-
     v1::TaskStatus* status = call.mutable_update()->mutable_status();
 
     status->mutable_executor_id()->set_value("call_level_executor_id");
@@ -675,9 +669,6 @@ TEST_P(ExecutorHttpApiTest, StatusUpdateCallFailedValidation)
     call.set_type(Call::UPDATE);
     call.mutable_framework_id()->set_value("dummy_framework_id");
     call.mutable_executor_id()->set_value("call_level_executor_id");
-
-    call.mutable_update()->set_uuid(UUID::random().toBytes());
-    call.mutable_update()->set_timestamp(0);
 
     v1::TaskStatus* status = call.mutable_update()->mutable_status();
 

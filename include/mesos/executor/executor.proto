@@ -143,8 +143,6 @@ message Event {
   // 'Acknowledged' in the 'Events' section above for the semantics.
   message Update {
     required TaskStatus status = 1;
-    required double timestamp = 2;
-    required bytes uuid = 3;
   }
 
   // Sends arbitrary binary data to the scheduler. Note that Mesos
