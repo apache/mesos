@@ -197,7 +197,7 @@ TEST_F(ReservationEndpointsTest, AvailableResources)
   EXPECT_TRUE(Resources(offer.resources()).contains(unreserved));
 
   // Ignore subsequent `recoverResources` calls triggered from recovering the
-  // resources that this framework currently holding onto.
+  // resources that this framework is currently holding onto.
   EXPECT_CALL(allocator, recoverResources(_, _, _, _))
     .WillRepeatedly(DoDefault());
 
@@ -501,7 +501,7 @@ TEST_F(ReservationEndpointsTest, ReserveAvailableAndOfferedResources)
   EXPECT_TRUE(Resources(offer.resources()).contains(dynamicallyReserved));
 
   // Ignore subsequent `recoverResources` calls triggered from recovering the
-  // resources that this framework currently holding onto.
+  // resources that this framework is currently holding onto.
   EXPECT_CALL(allocator, recoverResources(_, _, _, _))
     .WillRepeatedly(DoDefault());
 
@@ -662,7 +662,7 @@ TEST_F(ReservationEndpointsTest, UnreserveAvailableAndOfferedResources)
   EXPECT_TRUE(Resources(offer.resources()).contains(unreserved));
 
   // Ignore subsequent `recoverResources` calls triggered from recovering the
-  // resources that this framework currently holding onto.
+  // resources that this framework is currently holding onto.
   EXPECT_CALL(allocator, recoverResources(_, _, _, _))
     .WillRepeatedly(DoDefault());
 
@@ -716,7 +716,7 @@ TEST_F(ReservationEndpointsTest, InsufficientResources)
 
 
 // This tests that an attempt to reserve with no authorization header results in
-// a 'Unauthorized' HTTP error.
+// an 'Unauthorized' HTTP error.
 TEST_F(ReservationEndpointsTest, NoHeader)
 {
   TestAllocator<> allocator;
@@ -765,7 +765,7 @@ TEST_F(ReservationEndpointsTest, NoHeader)
 }
 
 
-// This tests that an attempt to reserve with bad credentials results in a
+// This tests that an attempt to reserve with bad credentials results in an
 // 'Unauthorized' HTTP error.
 TEST_F(ReservationEndpointsTest, BadCredentials)
 {

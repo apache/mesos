@@ -2114,7 +2114,7 @@ void Master::_subscribe(
 
     // TODO(anand): We set 'pid' to UPID() for http frameworks
     // as 'pid' was made optional in 0.24.0. In 0.25.0, we
-    // no longer have to set pid here for http frameowrks.
+    // no longer have to set pid here for http frameworks.
     message.set_pid(UPID());
     send(slave->pid, message);
   }
@@ -3271,7 +3271,7 @@ void Master::_accept(
 
             // TODO(anand): We set 'pid' to UPID() for http frameworks
             // as 'pid' was made optional in 0.24.0. In 0.25.0, we
-            // no longer have to set pid here for http frameowrks.
+            // no longer have to set pid here for http frameworks.
             message.set_pid(framework->pid.getOrElse(UPID()));
             message.mutable_task()->MergeFrom(task_);
 
@@ -4212,7 +4212,7 @@ void Master::__reregisterSlave(Slave* slave, const vector<Task>& tasks)
 
       // TODO(anand): We set 'pid' to UPID() for http frameworks
       // as 'pid' was made optional in 0.24.0. In 0.25.0, we
-      // no longer have to set pid here for http frameowrks.
+      // no longer have to set pid here for http frameworks.
       message.set_pid(framework->pid.getOrElse(UPID()));
 
       send(slave->pid, message);
@@ -4371,7 +4371,7 @@ void Master::updateUnavailability(
         removeInverseOffer(inverseOffer, true); // Rescind!
       }
 
-      // We remove / resind all the offers first so that any calls to the
+      // We remove / rescind all the offers first so that any calls to the
       // allocator to modify its internal state are queued before the update of
       // the unavailability in the allocator. We do this so that the allocator's
       // state can start from a "clean slate" for the new unavailability.
@@ -5050,9 +5050,9 @@ void Master::inverseOffer(
 
     InverseOffer* inverseOffer = new InverseOffer();
 
-    // We use the same id generator as regular offers so that we can have unique
-    // ids accross both. This way we can re-use some of the `OfferID` only
-    // messages.
+    // We use the same id generator as regular offers so that we can
+    // have unique ids across both. This way we can re-use some of the
+    // `OfferID` only messages.
     inverseOffer->mutable_id()->CopyFrom(newOfferId());
     inverseOffer->mutable_framework_id()->CopyFrom(framework->id());
     inverseOffer->mutable_slave_id()->CopyFrom(slave->id);

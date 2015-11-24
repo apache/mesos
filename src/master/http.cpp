@@ -676,7 +676,7 @@ Future<Response> Master::Http::observe(const Request& request) const
 
   hashmap<string, string> values = decode.get();
 
-  // Build up a JSON object of the values we recieved and send them back
+  // Build up a JSON object of the values we received and send them back
   // down the wire as JSON for validation / confirmation.
   JSON::Object response;
 
@@ -1532,7 +1532,7 @@ Future<Response> Master::Http::tasks(const Request& request) const
   // TODO(nnielsen): Currently, formatting errors in offset and/or limit
   // will silently be ignored. This could be reported to the user instead.
 
-  // Construct framework list with both active and completed framwworks.
+  // Construct framework list with both active and completed frameworks.
   vector<const Framework*> frameworks;
   foreachvalue (Framework* framework, master->frameworks.registered) {
     frameworks.push_back(framework);
@@ -2151,7 +2151,7 @@ Future<Response> Master::Http::_operation(
     }
   }
 
-  // Propogate the 'Future<Nothing>' as 'Future<Response>' where
+  // Propagate the 'Future<Nothing>' as 'Future<Response>' where
   // 'Nothing' -> 'OK' and Failed -> 'Conflict'.
   return master->apply(slave, operation)
     .then([]() -> Response { return OK(); })

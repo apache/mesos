@@ -455,7 +455,7 @@ TEST_F(PersistentVolumeTest, IncompatibleCheckpointedResources)
   terminate(slave1);
   wait(slave1);
 
-  // Simulate a reboot of the slave machine by modify the boot ID.
+  // Simulate a reboot of the slave machine by modifying the boot ID.
   ASSERT_SOME(os::write(slave::paths::getBootIdPath(
       slave::paths::getMetaRootDir(slaveFlags.work_dir)),
       "rebooted! ;)"));
