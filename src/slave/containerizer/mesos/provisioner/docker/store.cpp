@@ -273,12 +273,10 @@ Future<Nothing> StoreProcess::moveLayer(const pair<string, string>& layerPath)
   const string imageLayerPath =
     paths::getImageLayerPath(flags.docker_store_dir, layerPath.first);
 
-  if (!os::exists(imageLayerPath)) {
-    Try<Nothing> mkdir = os::mkdir(imageLayerPath);
-    if (mkdir.isError()) {
-      return Failure("Failed to create layer path in store for id '" +
-                     layerPath.first + "': " + mkdir.error());
-    }
+  Try<Nothing> mkdir = os::mkdir(imageLayerPath);
+  if (mkdir.isError()) {
+    return Failure("Failed to create layer path in store for id '" +
+                   layerPath.first + "': " + mkdir.error());
   }
 
   Try<Nothing> status = os::rename(

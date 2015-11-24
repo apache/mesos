@@ -221,12 +221,10 @@ DockerContainerizerProcess::Container::create(
       paths::getSlavePath(flags.work_dir, slaveId),
       DOCKER_SYMLINK_DIRECTORY);
 
-  if (!os::exists(dockerSymlinkPath)) {
-    Try<Nothing> mkdir = os::mkdir(dockerSymlinkPath);
-    if (mkdir.isError()) {
-      return Error("Unable to create symlink folder for docker " +
-                   dockerSymlinkPath + ": " + mkdir.error());
-    }
+  Try<Nothing> mkdir = os::mkdir(dockerSymlinkPath);
+  if (mkdir.isError()) {
+    return Error("Unable to create symlink folder for docker " +
+                 dockerSymlinkPath + ": " + mkdir.error());
   }
 
   bool symlinked = false;
