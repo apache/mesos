@@ -2850,7 +2850,7 @@ void Slave::statusUpdate(StatusUpdate update, const UPID& pid)
     ipAddress->set_ip_address(stringify(self().address.ip));
   }
 
-  TaskStatus status = update.status();
+  const TaskStatus& status = update.status();
 
   Executor* executor = framework->getExecutor(status.task_id());
   if (executor == NULL) {
