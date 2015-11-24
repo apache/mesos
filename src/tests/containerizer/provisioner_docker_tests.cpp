@@ -688,7 +688,7 @@ TEST_F(RegistryClientTest, SimpleGetManifest)
 
   ASSERT_SOME(registryClient);
 
-  Future<Manifest> manifestResponse =
+  Future<DockerImageManifest> manifestResponse =
     registryClient.get()->getManifest(parseImageName("library/busybox"));
 
   const string unauthResponseHeaders = "Www-Authenticate: Bearer"
@@ -734,74 +734,75 @@ TEST_F(RegistryClientTest, SimpleGetManifest)
   manifestHttpRequest = Socket(socket.get()).recv();
   AWAIT_ASSERT_READY(manifestHttpRequest);
 
-  const string manifestJSON = " \
-    { \
-      \"schemaVersion\": 1, \
-      \"name\": \"library/busybox\", \
-      \"tag\": \"latest\",  \
-      \"architecture\": \"amd64\",  \
-      \"fsLayers\": [ \
-        { \
-          \"blobSum\": \
-  \"sha256:a3ed95caeb02ffe68cdd9fd84406680ae93d633cb16422d00e8a7c22955b46d4\"  \
-        },  \
-        { \
-          \"blobSum\": \
-  \"sha256:1db09adb5ddd7f1a07b6d585a7db747a51c7bd17418d47e91f901bdf420abd66\"  \
-        },  \
-        { \
-          \"blobSum\": \
-  \"sha256:a3ed95caeb02ffe68cdd9fd84406680ae93d633cb16422d00e8a7c22955b46d4\"  \
-        } \
-      ],  \
-    \"history\": [  \
-      { \
-        \"v1Compatibility\": \
-          \"{\\\"id\\\": \
-    \\\"1ce2e90b0bc7224de3db1f0d646fe8e2c4dd37f1793928287f6074bc451a57ea\\\", \
-            \\\"parent\\\": \
-    \\\"cf2616975b4a3cba083ca99bc3f0bf25f5f528c3c52be1596b30f60b0b1c37ff\\\" \
-            }\" \
-      }, \
-      { \
-        \"v1Compatibility\": \
-          \"{\\\"id\\\": \
-    \\\"2ce2e90b0bc7224de3db1f0d646fe8e2c4dd37f1793928287f6074bc451a57ea\\\", \
-            \\\"parent\\\": \
-    \\\"cf2616975b4a3cba083ca99bc3f0bf25f5f528c3c52be1596b30f60b0b1c37ff\\\" \
-            }\" \
-      }, \
-      { \
-        \"v1Compatibility\": \
-          \"{\\\"id\\\": \
-    \\\"3ce2e90b0bc7224de3db1f0d646fe8e2c4dd37f1793928287f6074bc451a57ea\\\", \
-            \\\"parent\\\": \
-    \\\"cf2616975b4a3cba083ca99bc3f0bf25f5f528c3c52be1596b30f60b0b1c37ff\\\" \
-            }\" \
-      } \
-    ], \
-       \"signatures\": [  \
-          { \
-             \"header\": {  \
-                \"jwk\": {  \
-                   \"crv\": \"P-256\",  \
-                   \"kid\": \
-           \"OOI5:SI3T:LC7D:O7DX:FY6S:IAYW:WDRN:VQEM:BCFL:OIST:Q3LO:GTQQ\",  \
-                   \"kty\": \"EC\", \
-                   \"x\": \"J2N5ePGhlblMI2cdsR6NrAG_xbNC_X7s1HRtk5GXvzM\", \
-                   \"y\": \"Idr-tEBjnNnfq6_71aeXBi3Z9ah_rrE209l4wiaohk0\" \
-                },  \
-                \"alg\": \"ES256\"  \
-             }, \
-             \"signature\": \
-\"65vq57TakC_yperuhfefF4uvTbKO2L45gYGDs5bIEgOEarAs7_"
-"4dbEV5u-W7uR8gF6EDKfowUCmTq3a5vEOJ3w\", \
-       \"protected\": \
-       \"eyJmb3JtYXRMZW5ndGgiOjUwNTgsImZvcm1hdFRhaWwiOiJDbjAiLCJ0aW1lIjoiMjAxNS"
-       "0wOC0xMVQwMzo0Mjo1OVoifQ\"  \
-          } \
-       ]  \
-    }";
+  const string manifestJSON =
+    "{"
+    "   \"schemaVersion\": 1,"
+    "   \"name\": \"library/busybox\","
+    "   \"tag\": \"latest\","
+    "   \"architecture\": \"amd64\","
+    "   \"fsLayers\": ["
+    "      {"
+    "         \"blobSum\": "
+  "\"sha256:a3ed95caeb02ffe68cdd9fd84406680ae93d633cb16422d00e8a7c22955b46d4\""
+    "      },"
+    "      {"
+    "         \"blobSum\": "
+  "\"sha256:1db09adb5ddd7f1a07b6d585a7db747a51c7bd17418d47e91f901bdf420abd66\""
+    "      },"
+    "      {"
+    "         \"blobSum\": "
+  "\"sha256:a3ed95caeb02ffe68cdd9fd84406680ae93d633cb16422d00e8a7c22955b46d4\""
+    "      }"
+    "   ],"
+    "   \"history\": ["
+    "      {"
+    "         \"v1Compatibility\": "
+    "           {"
+    "             \"id\": "
+    "\"1ce2e90b0bc7224de3db1f0d646fe8e2c4dd37f1793928287f6074bc451a57ea\","
+    "             \"parent\": "
+    "\"cf2616975b4a3cba083ca99bc3f0bf25f5f528c3c52be1596b30f60b0b1c37ff\""
+    "           }"
+    "      },"
+    "      {"
+    "         \"v1Compatibility\": "
+    "           {"
+    "             \"id\": "
+    "\"2ce2e90b0bc7224de3db1f0d646fe8e2c4dd37f1793928287f6074bc451a57ea\","
+    "             \"parent\": "
+    "\"cf2616975b4a3cba083ca99bc3f0bf25f5f528c3c52be1596b30f60b0b1c37ff\""
+    "           }"
+    "      },"
+    "      {"
+    "         \"v1Compatibility\": "
+    "           {"
+    "             \"id\": "
+    "\"3ce2e90b0bc7224de3db1f0d646fe8e2c4dd37f1793928287f6074bc451a57ea\","
+    "             \"parent\": "
+    "\"cf2616975b4a3cba083ca99bc3f0bf25f5f528c3c52be1596b30f60b0b1c37ff\""
+    "           }"
+    "      }"
+    "   ],"
+    "   \"signatures\": ["
+    "      {"
+    "         \"header\": {"
+    "            \"jwk\": {"
+    "               \"crv\": \"P-256\","
+    "               \"kid\": "
+    "\"OOI5:SI3T:LC7D:O7DX:FY6S:IAYW:WDRN:VQEM:BCFL:OIST:Q3LO:GTQQ\","
+    "               \"kty\": \"EC\","
+    "               \"x\": \"J2N5ePGhlblMI2cdsR6NrAG_xbNC_X7s1HRtk5GXvzM\","
+    "               \"y\": \"Idr-tEBjnNnfq6_71aeXBi3Z9ah_rrE209l4wiaohk0\""
+    "            },"
+    "            \"alg\": \"ES256\""
+    "         },"
+    "         \"signature\": \"65vq57TakC_yperuhfefF4uvTbKO2L45gYGDs5bIEgO"
+    "EarAs7_4dbEV5u-W7uR8gF6EDKfowUCmTq3a5vEOJ3w\","
+    "         \"protected\": \"eyJmb3JtYXRMZW5ndGgiOjYwNjMsImZvcm1hdFRhaWwiOiJ"
+    "DbjAiLCJ0aW1lIjoiMjAxNC0wOS0xMVQxNzoxNDozMFoifQ\""
+    "      }"
+    "   ]"
+    "}";
 
   const string manifestHttpResponse =
     string("HTTP/1.1 200 OK\r\n") +
@@ -817,16 +818,16 @@ TEST_F(RegistryClientTest, SimpleGetManifest)
 
   AWAIT_ASSERT_READY(manifestResponse);
 
-  ASSERT_EQ(
-      manifestResponse.get().fsLayerInfos[2].layerId,
+  EXPECT_EQ(
+      manifestResponse.get().history(2).v1compatibility().id(),
       "1ce2e90b0bc7224de3db1f0d646fe8e2c4dd37f1793928287f6074bc451a57ea");
 
-  ASSERT_EQ(
-      manifestResponse.get().fsLayerInfos[1].layerId,
+  EXPECT_EQ(
+      manifestResponse.get().history(1).v1compatibility().id(),
       "2ce2e90b0bc7224de3db1f0d646fe8e2c4dd37f1793928287f6074bc451a57ea");
 
-  ASSERT_EQ(
-      manifestResponse.get().fsLayerInfos[0].layerId,
+  EXPECT_EQ(
+      manifestResponse.get().history(0).v1compatibility().id(),
       "3ce2e90b0bc7224de3db1f0d646fe8e2c4dd37f1793928287f6074bc451a57ea");
 }
 
@@ -1063,50 +1064,49 @@ TEST_F(RegistryClientTest, SimpleRegistryPuller)
   registryPullerHttpRequestFuture = Socket(socket.get()).recv();
   AWAIT_ASSERT_READY(registryPullerHttpRequestFuture);
 
-  const string manifestResponse = " \
-    { \
-      \"schemaVersion\": 1, \
-      \"name\": \"library/busybox\", \
-      \"tag\": \"latest\",  \
-      \"architecture\": \"amd64\",  \
-      \"fsLayers\": [ \
-        { \
-          \"blobSum\": \
-  \"sha256:a3ed95caeb02ffe68cdd9fd84406680ae93d633cb16422d00e8a7c22955b46d4\"  \
-        } \
-      ],  \
-    \"history\": [  \
-      { \
-        \"v1Compatibility\": \
-          \"{\\\"id\\\": \
-    \\\"1ce2e90b0bc7224de3db1f0d646fe8e2c4dd37f1793928287f6074bc451a57ea\\\", \
-            \\\"parent\\\": \
-    \\\"cf2616975b4a3cba083ca99bc3f0bf25f5f528c3c52be1596b30f60b0b1c37ff\\\" \
-            }\" \
-      } \
-    ], \
-       \"signatures\": [  \
-          { \
-             \"header\": {  \
-                \"jwk\": {  \
-                   \"crv\": \"P-256\",  \
-                   \"kid\": \
-           \"OOI5:SI3T:LC7D:O7DX:FY6S:IAYW:WDRN:VQEM:BCFL:OIST:Q3LO:GTQQ\",  \
-                   \"kty\": \"EC\", \
-                   \"x\": \"J2N5ePGhlblMI2cdsR6NrAG_xbNC_X7s1HRtk5GXvzM\", \
-                   \"y\": \"Idr-tEBjnNnfq6_71aeXBi3Z9ah_rrE209l4wiaohk0\" \
-                },  \
-                \"alg\": \"ES256\"  \
-             }, \
-             \"signature\": \
-\"65vq57TakC_yperuhfefF4uvTbKO2L45gYGDs5bIEgOEarAs7_"
-"4dbEV5u-W7uR8gF6EDKfowUCmTq3a5vEOJ3w\", \
-       \"protected\": \
-       \"eyJmb3JtYXRMZW5ndGgiOjUwNTgsImZvcm1hdFRhaWwiOiJDbjAiLCJ0aW1lIjoiMjAxNS"
-       "0wOC0xMVQwMzo0Mjo1OVoifQ\"  \
-          } \
-       ]  \
-    }";
+  const string manifestResponse =
+    "{"
+    "   \"schemaVersion\": 1,"
+    "   \"name\": \"library/busybox\","
+    "   \"tag\": \"latest\","
+    "   \"architecture\": \"amd64\","
+    "   \"fsLayers\": ["
+    "      {"
+    "         \"blobSum\": "
+  "\"sha256:a3ed95caeb02ffe68cdd9fd84406680ae93d633cb16422d00e8a7c22955b46d4\""
+    "      }"
+    "   ],"
+    "   \"history\": ["
+    "      {"
+    "         \"v1Compatibility\": "
+    "           {"
+    "             \"id\": "
+    "\"1ce2e90b0bc7224de3db1f0d646fe8e2c4dd37f1793928287f6074bc451a57ea\","
+    "             \"parent\": "
+    "\"cf2616975b4a3cba083ca99bc3f0bf25f5f528c3c52be1596b30f60b0b1c37ff\""
+    "           }"
+    "      }"
+    "   ],"
+    "   \"signatures\": ["
+    "      {"
+    "         \"header\": {"
+    "            \"jwk\": {"
+    "               \"crv\": \"P-256\","
+    "               \"kid\": "
+    "\"OOI5:SI3T:LC7D:O7DX:FY6S:IAYW:WDRN:VQEM:BCFL:OIST:Q3LO:GTQQ\","
+    "               \"kty\": \"EC\","
+    "               \"x\": \"J2N5ePGhlblMI2cdsR6NrAG_xbNC_X7s1HRtk5GXvzM\","
+    "               \"y\": \"Idr-tEBjnNnfq6_71aeXBi3Z9ah_rrE209l4wiaohk0\""
+    "            },"
+    "            \"alg\": \"ES256\""
+    "         },"
+    "         \"signature\": \"65vq57TakC_yperuhfefF4uvTbKO2L45gYGDs5bIEgO"
+    "EarAs7_4dbEV5u-W7uR8gF6EDKfowUCmTq3a5vEOJ3w\","
+    "         \"protected\": \"eyJmb3JtYXRMZW5ndGgiOjYwNjMsImZvcm1hdFRhaWwiOiJ"
+    "DbjAiLCJ0aW1lIjoiMjAxNC0wOS0xMVQxNzoxNDozMFoifQ\""
+    "      }"
+    "   ]"
+    "}";
 
   const string manifestHttpResponse =
     string("HTTP/1.1 200 OK\r\n") +

@@ -47,8 +47,6 @@ namespace internal {
 namespace slave {
 namespace docker {
 
-using FileSystemLayerInfo = registry::FileSystemLayerInfo;
-using Manifest = registry::Manifest;
 using RegistryClient = registry::RegistryClient;
 
 
@@ -69,10 +67,11 @@ private:
   Future<pair<string, string>> downloadLayer(
       const Image::Name& imageName,
       const Path& directory,
-      const FileSystemLayerInfo& layer);
+      const string& blobSum,
+      const string& id);
 
   Future<list<pair<string, string>>> downloadLayers(
-      const Manifest& manifest,
+      const DockerImageManifest& manifest,
       const Image::Name& imageName,
       const Path& downloadDir);
 
@@ -190,46 +189,47 @@ RegistryPullerProcess::RegistryPullerProcess(
 Future<pair<string, string>> RegistryPullerProcess::downloadLayer(
     const Image::Name& imageName,
     const Path& directory,
-    const FileSystemLayerInfo& layer)
+    const string& blobSum,
+    const string& layerId)
 {
-  VLOG(1) << "Downloading layer '"  << layer.layerId
+  VLOG(1) << "Downloading layer '"  << layerId
           << "' for image '" << stringify(imageName) << "'";
 
-  if (downloadTracker_.contains(layer.layerId)) {
+  if (downloadTracker_.contains(layerId)) {
     VLOG(1) << "Download already in progress for image '"
-            << stringify(imageName) << "', layer '" << layer.layerId << "'";
+            << stringify(imageName) << "', layer '" << layerId << "'";
 
-    return downloadTracker_.at(layer.layerId)->future();
+    return downloadTracker_.at(layerId)->future();
   }
 
   Owned<Promise<pair<string, string>>> downloadPromise(
       new Promise<pair<string, string>>());
 
-  downloadTracker_.insert({layer.layerId, downloadPromise});
+  downloadTracker_.insert({layerId, downloadPromise});
 
-  const Path downloadFile(path::join(directory, layer.layerId + ".tar"));
+  const Path downloadFile(path::join(directory, layerId + ".tar"));
 
   registryClient_->getBlob(
       imageName,
-      layer.checksumInfo,
+      blobSum,
       downloadFile)
     .onAny(process::defer(
         self(),
-        [this, layer, downloadPromise, downloadFile](
+        [this, layerId, downloadPromise, downloadFile](
             const Future<size_t>& future) {
-          downloadTracker_.erase(layer.layerId);
+          downloadTracker_.erase(layerId);
 
           if (!future.isReady()) {
               downloadPromise->fail(
-                  "Failed to download layer '" + layer.layerId + "': " +
+                  "Failed to download layer '" + layerId + "': " +
                   (future.isFailed() ? future.failure() : "future discarded"));
           } else if (future.get() == 0) {
             // We don't expect Docker registry to return empty response
             // even with empty layers.
             downloadPromise->fail(
-                "Failed to download layer '" + layer.layerId + "': no content");
+                "Failed to download layer '" + layerId + "': no content");
           } else {
-            downloadPromise->set({layer.layerId, downloadFile});
+            downloadPromise->set({layerId, downloadFile});
           }
         }));
 
@@ -244,7 +244,7 @@ Future<list<pair<string, string>>> RegistryPullerProcess::pull(
   // TODO(jojy): Have one outgoing manifest request per image.
   return registryClient_->getManifest(imageName)
     .then(process::defer(self(), [this, directory, imageName](
-        const Manifest& manifest) {
+        const DockerImageManifest& manifest) {
       return downloadLayers(manifest, imageName, directory);
     }))
     .then(process::defer(self(), [this, directory](
@@ -262,15 +262,18 @@ Future<list<pair<string, string>>> RegistryPullerProcess::pull(
 
 
 Future<list<pair<string, string>>> RegistryPullerProcess::downloadLayers(
-    const Manifest& manifest,
+    const DockerImageManifest& manifest,
     const Image::Name& imageName,
     const Path& directory)
 {
   list<Future<pair<string, string>>> downloadFutures;
 
-  foreach (const FileSystemLayerInfo& layer, manifest.fsLayerInfos) {
+  for (int i = 0; i < manifest.fslayers_size(); i++) {
     downloadFutures.push_back(
-        downloadLayer(imageName, directory, layer));
+        downloadLayer(imageName,
+                      directory,
+                      manifest.fslayers(i).blobsum(),
+                      manifest.history(i).v1compatibility().id()));
   }
 
   // TODO(jojy): Delete downloaded files in the directory on discard and

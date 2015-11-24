@@ -44,30 +44,6 @@ class RegistryClientProcess;
 // TODO(bmahler): Replace these with the existing protobuf counterparts.
 
 
-struct FileSystemLayerInfo
-{
-  // TODO(jojy): This includes both the checksum and
-  // the type of the checksum; separate these.
-  const std::string checksumInfo;
-  const std::string layerId;
-};
-
-
-/**
- * Response for a "GET Manifest" request.
- *
- * Reference:
- * https://github.com/docker/distribution/blob/master/docs/spec/manifest-v2-1.md
- */
-struct Manifest
-{
-  static Try<Manifest> create(const std::string& jsonString);
-
-  const std::string name;
-  const std::vector<FileSystemLayerInfo> fsLayerInfos;
-};
-
-
 /**
  * Authentication credentials for the client sessions.
  */
@@ -103,7 +79,7 @@ public:
    * @return Manifest on success.
    *         Failure on process failure.
    */
-  process::Future<Manifest> getManifest(
+  process::Future<DockerImageManifest> getManifest(
       const Image::Name& imageName);
 
 

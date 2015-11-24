@@ -37,6 +37,7 @@
 #include <stout/try.hpp>
 
 #include "slave/containerizer/mesos/provisioner/docker/registry_client.hpp"
+#include "slave/containerizer/mesos/provisioner/docker/spec.hpp"
 #include "slave/containerizer/mesos/provisioner/docker/token_manager.hpp"
 
 using std::string;
@@ -69,7 +70,7 @@ public:
       const http::URL& authenticationServer,
       const Option<Credentials>& credentials);
 
-  Future<Manifest> getManifest(
+  Future<DockerImageManifest> getManifest(
       const Image::Name& imageName);
 
   Future<size_t> getBlob(
@@ -169,7 +170,7 @@ RegistryClient::~RegistryClient()
 }
 
 
-Future<Manifest> RegistryClient::getManifest(
+Future<DockerImageManifest> RegistryClient::getManifest(
     const Image::Name& imageName)
 {
   return dispatch(
@@ -551,111 +552,6 @@ Future<http::Response> RegistryClientProcess::doHttpGet(
 }
 
 
-Try<Manifest> Manifest::create(const string& jsonString)
-{
-    Try<JSON::Object> manifestJSON = JSON::parse<JSON::Object>(jsonString);
-
-    if (manifestJSON.isError()) {
-      return Error(manifestJSON.error());
-    }
-
-    Result<JSON::String> name = manifestJSON.get().find<JSON::String>("name");
-    if (name.isNone()) {
-      return Error("Failed to find \"name\" in manifest response");
-    }
-
-    Result<JSON::Array> fsLayersJSON =
-      manifestJSON.get().find<JSON::Array>("fsLayers");
-
-    if (fsLayersJSON.isNone()) {
-      return Error("Failed to find \"fsLayers\" in manifest response");
-    }
-
-    Result<JSON::Array> historyArray =
-      manifestJSON.get().find<JSON::Array>("history");
-
-    if (historyArray.isNone()) {
-      return Error("Failed to find \"history\" in manifest response");
-    }
-
-    if (historyArray.get().values.size() != fsLayersJSON.get().values.size()) {
-      return Error(
-          "\"history\" and \"fsLayers\" array count mismatch"
-          "in manifest response");
-    }
-
-    vector<FileSystemLayerInfo> fsLayers;
-
-    // We add layers in reverse order because 'fsLayers' in the manifest
-    // response is ordered with the latest layer on the top. When we apply the
-    // layer changes, we want the filesystem modification order to be the same
-    // as its history(oldest layer applied first).
-    for (size_t index = fsLayersJSON.get().values.size(); index-- > 0; ) {
-      const JSON::Value& layer = fsLayersJSON.get().values[index];
-
-      if (!layer.is<JSON::Object>()) {
-        return Error(
-            "Failed to parse layer as a JSON object for index: " +
-            stringify(index));
-      }
-
-      const JSON::Object& layerInfoJSON = layer.as<JSON::Object>();
-
-      // Get blobsum for layer.
-      const Result<JSON::String> blobSumInfo =
-        layerInfoJSON.find<JSON::String>("blobSum");
-
-      if (blobSumInfo.isNone()) {
-        return Error("Failed to find \"blobSum\" in manifest response");
-      }
-
-      // Get history for layer.
-      if (!historyArray.get().values[index].is<JSON::Object>()) {
-        return Error(
-            "Failed to parse history as a JSON object for index: " +
-            stringify(index));
-      }
-      const JSON::Object& historyObj =
-        historyArray.get().values[index].as<JSON::Object>();
-
-      // Get layer id.
-      const Result<JSON::String> v1CompatibilityJSON =
-        historyObj.find<JSON::String>("v1Compatibility");
-
-      if (!v1CompatibilityJSON.isSome()) {
-        return Error(
-            "Failed to obtain layer v1 compability json in manifest for layer: "
-            + stringify(index));
-      }
-
-      Try<JSON::Object> v1CompatibilityObj =
-        JSON::parse<JSON::Object>(v1CompatibilityJSON.get().value);
-
-      if (!v1CompatibilityObj.isSome()) {
-        return Error(
-            "Failed to parse v1 compability json in manifest for layer: "
-            + stringify(index));
-      }
-
-      const Result<JSON::String> id =
-        v1CompatibilityObj.get().find<JSON::String>("id");
-
-      if (!id.isSome()) {
-        return Error(
-            "Failed to find \"id\" in manifest for layer: " + stringify(index));
-      }
-
-      fsLayers.emplace_back(
-          FileSystemLayerInfo{
-            blobSumInfo.get().value,
-            id.get().value,
-          });
-    }
-
-    return Manifest{name.get().value, fsLayers};
-}
-
-
 // TODO(tnachen): Support other Docker registry API versions.
 string RegistryClientProcess::getAPIVersion() const
 {
@@ -676,7 +572,7 @@ string RegistryClientProcess::getRepositoryPath(
 }
 
 
-Future<Manifest> RegistryClientProcess::getManifest(
+Future<DockerImageManifest> RegistryClientProcess::getManifest(
     const Image::Name& imageName)
 {
   http::URL manifestURL(registryServer_);
@@ -685,14 +581,26 @@ Future<Manifest> RegistryClientProcess::getManifest(
 
   return doHttpGet(manifestURL, None(), false, true, None())
     .then(defer(self(), [this] (
-        const http::Response& response) -> Future<Manifest> {
+        const http::Response& response) -> Future<DockerImageManifest> {
       // TODO(jojy): We dont use the digest that is returned in header.
       // This is a good place to validate the manifest.
 
-      Try<Manifest> manifest = Manifest::create(response.body);
+      Try<DockerImageManifest> manifest =
+        spec::parse(JSON::parse<JSON::Object>(response.body).get());
       if (manifest.isError()) {
         return Failure(
             "Failed to parse manifest response: " + manifest.error());
+      }
+
+      // We reverse the order of fsLayers and history because in
+      // manifest response the latest layer is on the top.
+      // We assume fslayers and history has the same length as
+      // it's already checked in spec::parse.
+      for (int i = 0; i < manifest.get().fslayers_size() / 2; i++) {
+        manifest.get().mutable_fslayers()->SwapElements(i,
+          manifest.get().fslayers_size() - 1 - i);
+        manifest.get().mutable_history()->SwapElements(i,
+          manifest.get().fslayers_size() - 1 - i);
       }
 
       return manifest.get();
