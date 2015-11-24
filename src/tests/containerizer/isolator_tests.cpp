@@ -98,11 +98,6 @@ using std::set;
 using std::string;
 using std::vector;
 
-using testing::_;
-using testing::DoAll;
-using testing::Return;
-using testing::SaveArg;
-
 namespace mesos {
 namespace internal {
 namespace tests {

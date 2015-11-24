@@ -53,7 +53,6 @@ using std::vector;
 using testing::_;
 using testing::DoAll;
 using testing::Return;
-using testing::SaveArg;
 using testing::Invoke;
 
 namespace mesos {

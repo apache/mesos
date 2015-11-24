@@ -81,7 +81,6 @@ using testing::AtMost;
 using testing::DoAll;
 using testing::Eq;
 using testing::Invoke;
-using testing::InvokeWithoutArgs;
 using testing::Return;
 using testing::SaveArg;
 using testing::Sequence;

@@ -50,9 +50,6 @@ using process::http::Response;
 using process::http::Unauthorized;
 
 using testing::_;
-using testing::Eq;
-using testing::SaveArg;
-using testing::Return;
 
 namespace mesos {
 namespace internal {

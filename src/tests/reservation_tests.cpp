@@ -60,11 +60,8 @@ using std::string;
 using std::vector;
 
 using testing::_;
-using testing::AtMost;
 using testing::DoAll;
 using testing::DoDefault;
-using testing::Eq;
-using testing::SaveArg;
 
 namespace mesos {
 namespace internal {
