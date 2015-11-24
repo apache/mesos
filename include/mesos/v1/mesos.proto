@@ -1515,6 +1515,7 @@ message Port {
   required uint32 number = 1;
   optional string name = 2;
   optional string protocol = 3;
+  optional DiscoveryInfo.Visibility visibility = 4;
 }
 
 
@@ -1528,15 +1529,16 @@ message Ports {
 
 /**
 * Service discovery information.
-* The visibility field restricts discovery within a framework
-* (FRAMEWORK), within a Mesos cluster (CLUSTER), or  places no
-* restrictions (EXTERNAL).
-* The environment, location, and version fields provide first class
-* support for common attributes used to differentiate between
-* similar services. The environment may receive values such as
-* PROD/QA/DEV, the location field may receive values like
-* EAST-US/WEST-US/EUROPE/AMEA, and the version field may receive
-* values like v2.0/v0.9. The exact use of these fields is up to each
+* The visibility field restricts discovery within a framework (FRAMEWORK),
+* within a Mesos cluster (CLUSTER), or places no restrictions (EXTERNAL).
+* Each port in the ports field also has an optional visibility field.
+* If visibility is specified for a port, it overrides the default service-wide
+* DiscoveryInfo.visibility for that port.
+* The environment, location, and version fields provide first class support for
+* common attributes used to differentiate between similar services. The
+* environment may receive values such as PROD/QA/DEV, the location field may
+* receive values like EAST-US/WEST-US/EUROPE/AMEA, and the version field may
+* receive values like v2.0/v0.9. The exact use of these fields is up to each
 * service discovery system.
 */
 message DiscoveryInfo {
