@@ -577,6 +577,10 @@ message Resource {
   optional Value.Scalar scalar = 3;
   optional Value.Ranges ranges = 4;
   optional Value.Set set = 5;
+
+  // The role that this resource is reserved for. If "*", this indicates
+  // that the resource is unreserved. Otherwise, the resource will only
+  // be offered to frameworks that belong to this role.
   optional string role = 6 [default = "*"];
 
   message ReservationInfo {
