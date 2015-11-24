@@ -51,4 +51,8 @@ layout: community_section
 	<script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0],p=/^http:/.test(d.location)?'http':'https';if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src=p+"://platform.twitter.com/widgets.js";fjs.parentNode.insertBefore(js,fjs);}}(document,"script","twitter-wjs");</script>
 
 </div>
+<div class="col-md-12">
+  <h3 name="calendar">Events Calendar</h3>
+  <iframe src="https://calendar.google.com/calendar/embed?src=2hecvndc0mnaqlir34cqnfvtak%40group.calendar.google.com" style="border: 0" width="100%" height="600" frameborder="0" scrolling="no"></iframe>
+</div>
 </div>
