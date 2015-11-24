@@ -4,7 +4,7 @@ layout: documentation
 
 # Upgrading Mesos
 
-This document serves as a guide for users who wish to upgrade an existing mesos cluster. Some versions require particular upgrade techniques when upgrading a running cluster. Some upgrades will have incompatible changes.
+This document serves as a guide for users who wish to upgrade an existing Mesos cluster. Some versions require particular upgrade techniques when upgrading a running cluster. Some upgrades will have incompatible changes.
 
 ## Upgrading from 0.25.x to 0.26.x ##
 
