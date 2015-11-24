@@ -68,6 +68,12 @@ StatusUpdate createStatusUpdate(
     const Option<ContainerStatus>& containerStatus = None());
 
 
+StatusUpdate createStatusUpdate(
+    const FrameworkID& frameworkId,
+    const TaskStatus& status,
+    const Option<SlaveID>& slaveId);
+
+
 Task createTask(
     const TaskInfo& task,
     const TaskState& state,

@@ -116,6 +116,39 @@ StatusUpdate createStatusUpdate(
 }
 
 
+StatusUpdate createStatusUpdate(
+    const FrameworkID& frameworkId,
+    const TaskStatus& status,
+    const Option<SlaveID>& slaveId)
+{
+  StatusUpdate update;
+
+  update.mutable_framework_id()->MergeFrom(frameworkId);
+
+  if (status.has_executor_id()) {
+    update.mutable_executor_id()->MergeFrom(status.executor_id());
+  }
+
+  if (slaveId.isSome()) {
+    update.mutable_slave_id()->MergeFrom(slaveId.get());
+  }
+
+  update.mutable_status()->MergeFrom(status);
+
+  if (!status.has_timestamp()) {
+    update.set_timestamp(process::Clock::now().secs());
+  } else {
+    update.set_timestamp(status.timestamp());
+  }
+
+  if (status.has_uuid()) {
+    update.set_uuid(status.uuid());
+  }
+
+  return update;
+}
+
+
 Task createTask(
     const TaskInfo& task,
     const TaskState& state,
