@@ -53,16 +53,25 @@ specified via the existing ACL mechanism. (_Coming Soon_)
   available for __frameworks__ to send back via the `acceptOffers` API as a
   response to a resource offer.
 * `/reserve` and `/unreserve` HTTP endpoints are available for __operators__
-  to manage dynamic reservations through the master. (_Coming Soon_).
+  to manage dynamic reservations through the master.
 
 In the following sections, we will walk through examples of each of the
 interfaces described above.
 
+Note that if two dynamic reservations are made for resources at a single slave,
+the reservations will be combined by adding together the resources reserved by
+each request. Similarly, "partial" unreserve operations are allowed: an
+unreserve operation can release only some of the resources at a slave that have
+been reserved for a given role. In this case, the unreserved resources will be
+subtracted from the previous reservation, and any remaining resources will still
+be reserved.
 
-### `Offer::Operation::Reserve`
+### Framework Scheduler API
 
-A framework is able to reserve resources through the resource offer cycle.
-Suppose we receive a resource offer with 12 CPUs and 6144 MB of RAM unreserved.
+#### `Offer::Operation::Reserve`
+
+A framework can reserve resources through the resource offer cycle.  Suppose we
+receive a resource offer with 12 CPUs and 6144 MB of RAM unreserved.
 
         {
           "id": <offer_id>,
@@ -116,7 +125,8 @@ the `role` and `principal` fields with the framework's role and principal.
           }
         }
 
-The subsequent resource offer will __contain__ the following reserved resources:
+If the reservation is successful, a subsequent resource offer will contain the
+following reserved resources:
 
         {
           "id": <offer_id>,
@@ -146,13 +156,14 @@ The subsequent resource offer will __contain__ the following reserved resources:
         }
 
 
-### `Offer::Operation::Unreserve`
+#### `Offer::Operation::Unreserve`
 
-A framework is able to unreserve resources through the resource offer cycle.
+A framework can unreserve resources through the resource offer cycle.
 In [Offer::Operation::Reserve](#offeroperationreserve), we reserved 8 CPUs
-and 4096 MB of RAM for our `role`. The master will continue to offer these
-resources to our `role`. Suppose we would like to unreserve these resources.
-First, we receive a resource offer (copy/pasted from above):
+and 4096 MB of RAM on a particular slave for our `role`. The master will
+continue to only offer these resources to our `role`. Suppose we would like to
+unreserve these resources. First, we receive a resource offer (copy/pasted
+from above):
 
         {
           "id": <offer_id>,
@@ -181,9 +192,9 @@ First, we receive a resource offer (copy/pasted from above):
           ]
         }
 
-We unreserve the 8 CPUs and 4096 MB of RAM by sending the following
+We can unreserve the 8 CPUs and 4096 MB of RAM by sending the following
 `Offer::Operation` message. `Offer::Operation::Unreserve` has a `resources` field
-which we specify with the resources to be unreserved.
+which we can use to specify the resources to be unreserved.
 
         {
           "type": Offer::Operation::UNRESERVE,
@@ -213,49 +224,55 @@ which we specify with the resources to be unreserved.
 
 The unreserved resources may now be offered to other frameworks.
 
+### Operator HTTP Endpoints
 
-### `/reserve` (since 0.25.0)
+As described above, dynamic reservations can be made by a framework scheduler,
+typically in response to a resource offer. However, dynamic reservations can
+also be created and deleted by sending HTTP requests to the `/reserve` and
+`/unreserve` endpoints, respectively. This capability is intended for use by
+operators and administrative tools.
 
+#### `/reserve` (since 0.25.0)
 
-Suppose we want to reserve 8 CPUs and 4096 MB of RAM for the `ads` role on
-a slave with id=`<slave_id>`. We send an HTTP POST request to the `/reserve`
-HTTP endpoint like so:
+Suppose we want to reserve 8 CPUs and 4096 MB of RAM for the `ads` role on a
+slave with id=`<slave_id>` (note that it is up to the user to find the ID of the
+slave that hosts the desired resources; the request will fail if sufficient
+unreserved resources cannot be found on the slave). We send an HTTP POST request
+to the `/reserve` HTTP endpoint like so:
 
         $ curl -i \
           -u <operator_principal>:<password> \
           -d slaveId=<slave_id> \
-          -d resources='[ \
-            { \
-              "name": "cpus", \
-              "type": "SCALAR", \
-              "scalar": { "value": 8 }, \
-              "role": "ads", \
-              "reservation": { \
-                "principal": <operator_principal> \
-              } \
-            }, \
-            { \
-              "name": "mem", \
-              "type": "SCALAR", \
-              "scalar": { "value": 4096 }, \
-              "role": "ads", \
-              "reservation": { \
-                "principal": <operator_principal> \
-              } \
-            } \
+          -d resources='[
+            {
+              "name": "cpus",
+              "type": "SCALAR",
+              "scalar": { "value": 8 },
+              "role": "ads",
+              "reservation": {
+                "principal": <operator_principal>
+              }
+            },
+            {
+              "name": "mem",
+              "type": "SCALAR",
+              "scalar": { "value": 4096 },
+              "role": "ads",
+              "reservation": {
+                "principal": <operator_principal>
+              }
+            }
           ]' \
           -X POST http://<ip>:<port>/master/reserve
 
 The user receives one of the following HTTP responses:
 
-* `200 OK`: Success
-* `400 BadRequest`: Invalid arguments (e.g. missing parameters).
+* `200 OK`: Success (the requested resources have been reserved).
+* `400 BadRequest`: Invalid arguments (e.g., missing parameters).
 * `401 Unauthorized`: Unauthorized request.
 * `409 Conflict`: Insufficient resources to satisfy the reserve operation.
 
-
-### `/unreserve` (since 0.25.0)
-
+#### `/unreserve` (since 0.25.0)
 
 Suppose we want to unreserve the resources that we dynamically reserved above.
 We can send an HTTP POST request to the `/unreserve` HTTP endpoint like so:
@@ -263,31 +280,31 @@ We can send an HTTP POST request to the `/unreserve` HTTP endpoint like so:
         $ curl -i \
           -u <operator_principal>:<password> \
           -d slaveId=<slave_id> \
-          -d resources='[ \
-            { \
-              "name": "cpus", \
-              "type": "SCALAR", \
-              "scalar": { "value": 8 }, \
-              "role": "ads", \
-              "reservation": { \
-                "principal": <operator_principal> \
-              } \
-            }, \
-            { \
-              "name": "mem", \
-              "type": "SCALAR", \
-              "scalar": { "value": 4096 }, \
-              "role": "ads", \
-              "reservation": { \
-                "principal": <operator_principal> \
-              } \
-            } \
+          -d resources='[
+            {
+              "name": "cpus",
+              "type": "SCALAR",
+              "scalar": { "value": 8 },
+              "role": "ads",
+              "reservation": {
+                "principal": <operator_principal>
+              }
+            },
+            {
+              "name": "mem",
+              "type": "SCALAR",
+              "scalar": { "value": 4096 },
+              "role": "ads",
+              "reservation": {
+                "principal": <operator_principal>
+              }
+            }
           ]' \
           -X POST http://<ip>:<port>/master/unreserve
 
 The user receives one of the following HTTP responses:
 
-* `200 OK`: Success
-* `400 BadRequest`: Invalid arguments (e.g. missing parameters).
+* `200 OK`: Success (the requested resources have been unreserved).
+* `400 BadRequest`: Invalid arguments (e.g., missing parameters).
 * `401 Unauthorized`: Unauthorized request.
-* `409 Conflict`: Insufficient resources to satisfy unreserve operation.
+* `409 Conflict`: Insufficient resources to satisfy the unreserve operation.

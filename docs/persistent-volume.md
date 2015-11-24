@@ -17,10 +17,10 @@ that is mounted at a well-known location outside the task's sandbox).
 
 Persistent volumes can only be created from __reserved__ disk resources, whether
 it be statically reserved or dynamically reserved. A dynamically reserved
-persistent volume also cannot be unreserved without having explicitly destroyed
-the volume. These rules exist to limit the accidental mistakes such as:
-a persistent volume containing sensitive data being offered to other frameworks
-in the cluster.
+persistent volume also cannot be unreserved without first explicitly destroying
+the volume. These rules exist to limit accidental mistakes, such as a persistent
+volume containing sensitive data being offered to other frameworks in the
+cluster.
 
 Please refer to the [Reservation](reservation.md) documentation for details
 regarding reservation mechanisms available in Mesos.
@@ -39,11 +39,12 @@ specified via the existing ACL mechanism. (___Coming Soon___)
 In the following sections, we will walk through examples of each of the
 interfaces described above.
 
+### Framework Scheduler API
 
-## `Offer::Operation::Create`
+#### `Offer::Operation::Create`
 
-A framework is able to create volumes through the resource offer cycle.
-Suppose we receive a resource offer with 2048 MB of dynamically reserved disk.
+A framework can create volumes through the resource offer cycle.  Suppose we
+receive a resource offer with 2048 MB of dynamically reserved disk.
 
 ```
 {
@@ -66,11 +67,11 @@ Suppose we receive a resource offer with 2048 MB of dynamically reserved disk.
 ```
 
 We can create a persistent volume from the 2048 MB of disk resources by sending
-the following `Offer::Operation` message via the `acceptOffers` API.
-`Offer::Operation::Create` has a `volumes` field which we specify with the
-persistent volume information. We need to specify the following:
+an `Offer::Operation` message via the `acceptOffers` API.
+`Offer::Operation::Create` has a `volumes` field which specifies the persistent
+volume information. We need to specify the following:
 
-1. ID of the persistent volume which needs to be unique per role on each slave.
+1. The ID for the persistent volume; this must be unique per role on each slave.
 1. The non-nested relative path within the container to mount the volume.
 1. The permissions for the volume. Currently, `"RW"` is the only possible value.
 
@@ -102,7 +103,8 @@ persistent volume information. We need to specify the following:
 }
 ```
 
-The subsequent resource offer will __contain__ the following persistent volume:
+If this succeeds, a subsequent resource offer will contain the following
+persistent volume:
 
 ```
 {
@@ -134,12 +136,12 @@ The subsequent resource offer will __contain__ the following persistent volume:
 ```
 
 
-## `Offer::Operation::Destroy`
+#### `Offer::Operation::Destroy`
 
-A framework is able to destroy persistent volumes through the resource offer
-cycle. In [Offer::Operation::Create](#offeroperationcreate), we created a
-persistent volume from 2048 MB of disk resources. Mesos will not garbage-collect
-this volume until we explicitly destroy it. Suppose we would like to destroy the
+A framework can destroy persistent volumes through the resource offer cycle. In
+[Offer::Operation::Create](#offeroperationcreate), we created a persistent
+volume from 2048 MB of disk resources. Mesos will not garbage-collect this
+volume until we explicitly destroy it. Suppose we would like to destroy the
 volume we created. First, we receive a resource offer (copy/pasted from above):
 
 ```
@@ -173,7 +175,7 @@ volume we created. First, we receive a resource offer (copy/pasted from above):
 
 We destroy the persistent volume by sending the `Offer::Operation` message via
 the `acceptOffers` API. `Offer::Operation::Destroy` has a `volumes` field which
-we specify the persistent volumes to be destroyed.
+specifies the persistent volumes to be destroyed.
 
 ```
 {
@@ -203,9 +205,9 @@ we specify the persistent volumes to be destroyed.
 }
 ```
 
-The persistent volume will be destroyed, but the disk resources will still be
-reserved. As such, the subsequent resource offer will __contain__ the following
-reserved disk resources:
+If this request succeeds, the persistent volume will be destroyed but the disk
+resources will still be reserved. As such, a subsequent resource offer will
+contain the following reserved disk resources:
 
 ```
 {
@@ -226,6 +228,9 @@ reserved disk resources:
   ]
 }
 ```
+
+Those reserved resources can then be used as normal: e.g., they can be used to
+create another persistent volume or can be unreserved.
 
 Note that in 0.23, even after you destroy the persistent volume, its content
 will still be on the disk. The garbage collection for persistent volumes is

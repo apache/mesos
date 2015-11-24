@@ -38,7 +38,7 @@ layout: documentation
 * [Networking for Mesos-managed Containers](/documentation/latest/networking-for-mesos-managed-containers/)
 * [Oversubscription](/documentation/latest/oversubscription/) for how to configure Mesos to take advantage of unused resources to launch "best-effort" tasks.
 * [Persistent Volume](/documentation/latest/persistent-volume/) for how to allow tasks to access persistent storage resources.
-* [Reservation](/documentation/latest/reservation/) for how to configure Mesos to allow slaves to reserve resources.
+* [Reservation](/documentation/latest/reservation/) for how operators and frameworks can reserve resources for use by a role.
 
 ## Running Mesos Frameworks
 
