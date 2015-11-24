@@ -312,6 +312,12 @@ Future<Response> Slave::Http::executor(const Request& request) const
     }
 
     case executor::Call::UPDATE: {
+      slave->statusUpdate(protobuf::createStatusUpdate(
+          call.framework_id(),
+          call.update().status(),
+          slave->info.id()),
+          None());
+
       return Accepted();
     }
 

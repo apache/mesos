@@ -195,17 +195,18 @@ public:
   // NOTE: If 'pid' is a valid UPID an ACK is sent to this pid
   // after the update is successfully handled. If pid == UPID()
   // no ACK is sent. The latter is used by the slave to send
-  // status updates it generated (e.g., TASK_LOST).
+  // status updates it generated (e.g., TASK_LOST). If pid == None()
+  // an ACK is sent to the corresponding HTTP based executor.
   // NOTE: StatusUpdate is passed by value because it is modified
   // to ensure source field is set.
-  void statusUpdate(StatusUpdate update, const process::UPID& pid);
+  void statusUpdate(StatusUpdate update, const Option<process::UPID>& pid);
 
   // Continue handling the status update after optionally updating the
   // container's resources.
   void _statusUpdate(
       const Option<Future<Nothing>>& future,
       const StatusUpdate& update,
-      const UPID& pid,
+      const Option<process::UPID>& pid,
       const ExecutorID& executorId,
       const ContainerID& containerId,
       bool checkpoint);
@@ -216,7 +217,7 @@ public:
   void __statusUpdate(
       const process::Future<Nothing>& future,
       const StatusUpdate& update,
-      const process::UPID& pid);
+      const Option<process::UPID>& pid);
 
   // This is called by status update manager to forward a status
   // update to the master. Note that the latest state of the task is

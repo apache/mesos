@@ -2758,9 +2758,10 @@ void Slave::reregisterExecutorTimeout()
 // reliable delivery of status updates. Since executor driver caches
 // unacked updates it is important that whoever sent the update gets
 // acknowledgement for it.
-void Slave::statusUpdate(StatusUpdate update, const UPID& pid)
+void Slave::statusUpdate(StatusUpdate update, const Option<UPID>& pid)
 {
-  LOG(INFO) << "Handling status update " << update << " from " << pid;
+  LOG(INFO) << "Handling status update " << update
+            << (pid.isSome() ? " from " + stringify(pid.get()) : "");
 
   CHECK(state == RECOVERING || state == DISCONNECTED ||
         state == RUNNING || state == TERMINATING)
@@ -2787,7 +2788,8 @@ void Slave::statusUpdate(StatusUpdate update, const UPID& pid)
   if (update.has_executor_id()) {
     if (update.status().has_executor_id() &&
         update.status().executor_id() != update.executor_id()) {
-      LOG(WARNING) << "Executor ID mismatch in status update from " << pid
+      LOG(WARNING) << "Executor ID mismatch in status update"
+                   << (pid.isSome() ? " from " + stringify(pid.get()) : "")
                    << "; overwriting received '"
                    << update.status().executor_id() << "' with expected'"
                    << update.executor_id() << "'";
@@ -2899,10 +2901,11 @@ void Slave::statusUpdate(StatusUpdate update, const UPID& pid)
 
   // TODO(vinod): Revisit these semantics when we disallow executors
   // from sending updates for tasks that belong to other executors.
-  if (pid != UPID() &&
+  if (pid.isSome() &&
+      pid != UPID() &&
       executor->pid.isSome() &&
-      executor->pid.get() != pid) {
-    LOG(WARNING) << "Received status update " << update << " from " << pid
+      executor->pid != pid) {
+    LOG(WARNING) << "Received status update " << update << " from " << pid.get()
                  << " on behalf of a different executor '" << executor->id
                  << "' (" << executor->pid.get() << ")";
   }
@@ -2955,7 +2958,7 @@ void Slave::statusUpdate(StatusUpdate update, const UPID& pid)
 void Slave::_statusUpdate(
     const Option<Future<Nothing>>& future,
     const StatusUpdate& update,
-    const UPID& pid,
+    const Option<UPID>& pid,
     const ExecutorID& executorId,
     const ContainerID& containerId,
     bool checkpoint)
@@ -2999,25 +3002,49 @@ void Slave::_statusUpdate(
 void Slave::__statusUpdate(
     const Future<Nothing>& future,
     const StatusUpdate& update,
-    const UPID& pid)
+    const Option<UPID>& pid)
 {
   CHECK_READY(future) << "Failed to handle status update " << update;
 
   VLOG(1) << "Status update manager successfully handled status update "
           << update;
 
+  if (pid == UPID()) {
+    return;
+  }
+
+  StatusUpdateAcknowledgementMessage message;
+  message.mutable_framework_id()->MergeFrom(update.framework_id());
+  message.mutable_slave_id()->MergeFrom(update.slave_id());
+  message.mutable_task_id()->MergeFrom(update.status().task_id());
+  message.set_uuid(update.uuid());
+
   // Status update manager successfully handled the status update.
   // Acknowledge the executor, if we have a valid pid.
-  if (pid != UPID()) {
+  if (pid.isSome()) {
     LOG(INFO) << "Sending acknowledgement for status update " << update
-              << " to " << pid;
-    StatusUpdateAcknowledgementMessage message;
-    message.mutable_framework_id()->MergeFrom(update.framework_id());
-    message.mutable_slave_id()->MergeFrom(update.slave_id());
-    message.mutable_task_id()->MergeFrom(update.status().task_id());
-    message.set_uuid(update.uuid());
+              << " to " << pid.get();
 
-    send(pid, message);
+    send(pid.get(), message);
+  } else {
+    // Acknowledge the HTTP based executor.
+    Framework* framework = getFramework(update.framework_id());
+    if (framework == NULL) {
+      LOG(WARNING) << "Ignoring sending acknowledgement for status update "
+                   << update << " of unknown framework";
+      return;
+    }
+
+    Executor* executor = framework->getExecutor(update.status().task_id());
+    if (executor == NULL) {
+      // Refer to the comments in 'statusUpdate()' on when this can
+      // happen.
+      LOG(WARNING) << "Ignoring sending acknowledgement for status update "
+                   << update << " of unknown executor";
+      return;
+    }
+
+    executor->send(message);
   }
 }
 
