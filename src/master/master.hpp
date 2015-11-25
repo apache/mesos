@@ -1987,9 +1987,12 @@ struct Role
 
   mesos::master::RoleInfo info;
 
-  // NOTE: The quota for this role is stored in the master. This avoids
-  // duplication of this information and prevents a strict association of quota
-  // with roles in the future.
+  // NOTE: The dynamic role/quota relation is stored in and administrated
+  // by the master. There is no direct representation of quota information
+  // here to avoid duplication and to support that an operator can associate
+  // quota with a role before the role is created. Such ordering of operator
+  // requests prevents a race of premature unbounded allocation that setting
+  // quota first is intended to contain.
 
   hashmap<FrameworkID, Framework*> frameworks;
 };
