@@ -78,20 +78,13 @@ def review_chain(review_id):
 def shell(command):
   """Runs a command in a shell, unless the dry-run option is present (in which
   case it just prints the command."""
-
   if options['dry_run']:
     print command
     return
 
-  try:
-    output = subprocess.check_output(command,
-                                     stderr=subprocess.STDOUT,
-                                     shell=True)
-    if output:
-      print output.rstrip()
-  except subprocess.CalledProcessError as e:
-    sys.stderr.write(e.output)
-    sys.exit(e.returncode)
+  error_code = subprocess.call(command, stderr=subprocess.STDOUT, shell=True)
+  if error_code != 0:
+    sys.exit(error_code)
 
 
 def remove_patch(review_id):
