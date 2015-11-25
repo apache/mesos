@@ -717,7 +717,10 @@ TEST_F(FaultToleranceTest, FrameworkReliableRegistration)
 
 TEST_F(FaultToleranceTest, FrameworkReregister)
 {
-  Try<PID<Master>> master = StartMaster();
+  // NOTE: We do not use `StartMaster()` because we need to access flags later.
+  master::Flags masterFlags = CreateMasterFlags();
+
+  Try<PID<Master>> master = StartMaster(masterFlags);
   ASSERT_SOME(master);
 
   StandaloneMasterDetector slaveDetector(master.get());
@@ -771,6 +774,12 @@ TEST_F(FaultToleranceTest, FrameworkReregister)
   AWAIT_READY(disconnected);
 
   AWAIT_READY(reregistered);
+
+  // Trigger the allocation and therefore resource offer instantly to
+  // avoid blocking the test.
+  Clock::pause();
+  Clock::advance(masterFlags.allocation_interval);
+  Clock::resume();
 
   // The re-registered framework should get offers.
   AWAIT_READY(resourceOffers2);
