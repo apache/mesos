@@ -81,6 +81,46 @@ inline Try<Nothing> symlink(
   return internal::windows::create_symbolic_link(original, link);
 }
 
+
+// Returns a list of all files matching the given pattern. This is meant to
+// be a lightweight alternative to glob() - the only supported wildcards are
+// `?` and `*`, and only when they appear at the tail end of `pattern` (e.g.
+// `/root/dir/subdir/*.txt` or `/root/dir/subdir/file?.txt`.
+inline Try<std::list<std::string>> list(const std::string& pattern)
+{
+  WIN32_FIND_DATA find_data;
+  const HANDLE search_handle = ::FindFirstFile(pattern.c_str(), &find_data);
+  if (search_handle == INVALID_HANDLE_VALUE) {
+    return WindowsError(
+        "'fs::list' failed when searching for files with pattern '" +
+        pattern + "'");
+  }
+
+  std::list<std::string> found_files;
+
+  do {
+    const std::string current_file(find_data.cFileName);
+
+    // Ignore `.` and `..` entries
+    if (current_file.compare(".") != 0 && current_file.compare("..") != 0) {
+      found_files.push_back(current_file);
+    }
+  } while (::FindNextFile(search_handle, &find_data));
+
+  // Cache `FindNextFile` error, `FindClose` will overwrite it
+  const DWORD error = ::GetLastError();
+  ::FindClose(search_handle);
+
+  if (error != ERROR_NO_MORE_FILES) {
+    ::SetLastError(error);
+    return WindowsError(
+        "'fs::list': 'FindNextFile' failed when searching for files with "
+        "'pattern '" + pattern + "'");
+  }
+
+  return found_files;
+}
+
 } // namespace fs {
 
 #endif // __STOUT_WINDOWS_FS_HPP__

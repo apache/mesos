@@ -159,3 +159,33 @@ TEST_F(FsTest, Symlink)
   // Test symlink
   EXPECT_TRUE(os::stat::islink(link));
 }
+
+
+TEST_F(FsTest, List)
+{
+  const string testdir = path::join(os::getcwd(), UUID::random().toString());
+  ASSERT_SOME(os::mkdir(testdir)); // Create the directories.
+
+  // Now write some files.
+  const string file1 = testdir + "/file1.txt";
+  const string file2 = testdir + "/file2.txt";
+  const string file3 = testdir + "/file3.jpg";
+
+  ASSERT_SOME(os::touch(file1));
+  ASSERT_SOME(os::touch(file2));
+  ASSERT_SOME(os::touch(file3));
+
+  // Search all files in folder
+  Try<std::list<std::string>> allFiles = fs::list(path::join(testdir, "*"));
+  ASSERT_TRUE(allFiles.get().size() == 3);
+
+  // Search .jpg files in folder
+  Try<std::list<std::string>> jpgFiles = fs::list(path::join(testdir, "*.jpg"));
+  ASSERT_TRUE(jpgFiles.get().size() == 1);
+
+  // Search test*.txt files in folder
+  Try<std::list<std::string>> testTxtFiles =
+    fs::list(path::join(testdir, "*.txt"));
+
+  ASSERT_TRUE(testTxtFiles.get().size() == 2);
+}
