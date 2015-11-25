@@ -121,11 +121,18 @@ protected:
   }
 
   // Generates a quota request from the specified resources.
-  string createRequestBody(const Resources& resources) const
+  string createRequestBody(const Resources& resources, bool force = false) const
   {
-    return strings::format("resources=%s", JSON::protobuf(
+    string request = strings::format("resources=%s", JSON::protobuf(
         static_cast<const RepeatedPtrField<Resource>&>(resources))).get();
+
+    if (force) {
+      request += "&force=true";
+    }
+
+    return request;
   }
+
 
 protected:
   const std::string ROLE1{"role1"};
@@ -428,7 +435,6 @@ TEST_F(MasterQuotaTest, SetInvalidResourceInfos)
 //   * Multiple quotas in the cluster, sufficient free resources for a new
 //     request, but some resources are blocked in outstanding offers
 //     (rescinding).
-//   * Sanity check is disabled with the `--force` flag.
 //   * Deactivated or disconnected agents are not considered during quota
 //     capability heuristics.
 
@@ -474,6 +480,53 @@ TEST_F(MasterQuotaTest, InsufficientResourcesSingleAgent)
       createRequestBody(quotaResources));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(Conflict().status, response)
+    << response.get().body;
+
+  Shutdown();
+}
+
+
+// Checks that the force flag overrides the `capacityHeuristic` check.
+TEST_F(MasterQuotaTest, InsufficientResourcesForce)
+{
+  TestAllocator<> allocator;
+  EXPECT_CALL(allocator, initialize(_, _, _, _));
+
+  Try<PID<Master>> master = StartMaster(&allocator);
+  ASSERT_SOME(master);
+
+  // Wait until the agent registers.
+  Future<Resources> agentTotalResources;
+  EXPECT_CALL(allocator, addSlave(_, _, _, _, _))
+    .WillOnce(DoAll(InvokeAddSlave(&allocator),
+                    FutureArg<3>(&agentTotalResources)));
+
+  Try<PID<Slave>> agent = StartSlave();
+  ASSERT_SOME(agent);
+
+  AWAIT_READY(agentTotalResources);
+  EXPECT_EQ(defaultAgentResources, agentTotalResources.get());
+
+  // Our quota request requires more resources than are available on the agent
+  // (and in the cluster).
+  Resources quotaResources =
+    agentTotalResources.get().filter(
+        [=](const Resource& resource) {
+          return (resource.name() == "cpus" || resource.name() == "mem");
+        }) +
+    Resources::parse("cpus:1;mem:1024").get();
+
+  quotaResources = quotaResources.flatten(ROLE1);
+
+  EXPECT_FALSE(agentTotalResources.get().contains(quotaResources.flatten()));
+
+  Future<Response> response = process::http::post(
+      master.get(),
+      "quota",
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL),
+      createRequestBody(quotaResources, true));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
     << response.get().body;
 
   Shutdown();

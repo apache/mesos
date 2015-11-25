@@ -27,6 +27,7 @@
 
 #include <stout/json.hpp>
 #include <stout/protobuf.hpp>
+#include <stout/strings.hpp>
 
 #include "logging/logging.hpp"
 
@@ -221,11 +222,16 @@ Future<http::Response> Master::QuotaHandler::set(
 
   const QuotaInfo& quotaInfo = create.get();
 
-  // Validate whether a quota request can be satisfied.
-  Option<Error> error = capacityHeuristic(quotaInfo);
-  if (error.isSome()) {
-    return Conflict("Heuristic capacity check for set quota request failed: " +
-                    error.get().message);
+  // The force flag can be used to overwrite the capacityHeuristic check.
+  if (values.contains("force") && strings::lower(values["force"]) == "true") {
+    VLOG(1) << "Using force flag to override quota capacityHeuristic check";
+  } else {
+    // Validate whether a quota request can be satisfied.
+    Option<Error> error = capacityHeuristic(quotaInfo);
+    if (error.isSome()) {
+      return Conflict("Heuristic capacity check for set quota request "
+                      "failed: " + error.get().message);
+    }
   }
 
   // Populate master's quota-related local state. We do this before updating
