@@ -44,51 +44,12 @@ namespace internal {
 namespace tests {
 
 
-ACTION_P(InvokeRecover, launcher)
-{
-  return launcher->real->recover(arg0);
-}
-
-
-ACTION_P(InvokeFork, launcher)
-{
-  return launcher->real->fork(
-      arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9);
-}
-
-
-ACTION_P(InvokeDestroy, launcher)
-{
-  return launcher->real->destroy(arg0);
-}
-
-
 class TestLauncher : public slave::Launcher
 {
 public:
-  TestLauncher(const process::Owned<slave::Launcher>& _real)
-    : real(_real)
-  {
-    using testing::_;
-    using testing::DoDefault;
+  TestLauncher(const process::Owned<slave::Launcher>& _real);
 
-    ON_CALL(*this, recover(_))
-      .WillByDefault(InvokeRecover(this));
-    EXPECT_CALL(*this, recover(_))
-      .WillRepeatedly(DoDefault());
-
-    ON_CALL(*this, fork(_, _, _, _, _, _, _, _, _, _))
-      .WillByDefault(InvokeFork(this));
-    EXPECT_CALL(*this, fork(_, _, _, _, _, _, _, _, _, _))
-      .WillRepeatedly(DoDefault());
-
-    ON_CALL(*this, destroy(_))
-      .WillByDefault(InvokeDestroy(this));
-    EXPECT_CALL(*this, destroy(_))
-      .WillRepeatedly(DoDefault());
-  }
-
-  ~TestLauncher() {}
+  ~TestLauncher();
 
   MOCK_METHOD1(
       recover,

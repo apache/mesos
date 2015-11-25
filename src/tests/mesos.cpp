@@ -442,6 +442,74 @@ void MesosTest::ShutdownSlaves()
   containerizers.clear();
 }
 
+// Although the constructors and destructors for mock classes are
+// often trivial, defining them out-of-line (in a separate compilation
+// unit) improves compilation time: see MESOS-3827.
+
+MockScheduler::MockScheduler() {}
+
+
+MockScheduler::~MockScheduler() {}
+
+
+MockExecutor::MockExecutor(const ExecutorID& _id) : id(_id) {}
+
+
+MockExecutor::~MockExecutor() {}
+
+
+MockGarbageCollector::MockGarbageCollector()
+{
+  // NOTE: We use 'EXPECT_CALL' and 'WillRepeatedly' here instead of
+  // 'ON_CALL' and 'WillByDefault'. See 'TestContainerizer::SetUp()'
+  // for more details.
+  EXPECT_CALL(*this, schedule(_, _))
+    .WillRepeatedly(Return(Nothing()));
+
+  EXPECT_CALL(*this, unschedule(_))
+    .WillRepeatedly(Return(true));
+
+  EXPECT_CALL(*this, prune(_))
+    .WillRepeatedly(Return());
+}
+
+
+MockGarbageCollector::~MockGarbageCollector() {}
+
+
+MockResourceEstimator::MockResourceEstimator()
+{
+  ON_CALL(*this, initialize(_))
+    .WillByDefault(Return(Nothing()));
+  EXPECT_CALL(*this, initialize(_))
+    .WillRepeatedly(DoDefault());
+
+  ON_CALL(*this, oversubscribable())
+    .WillByDefault(Return(process::Future<Resources>()));
+  EXPECT_CALL(*this, oversubscribable())
+    .WillRepeatedly(DoDefault());
+}
+
+MockResourceEstimator::~MockResourceEstimator() {}
+
+
+MockQoSController::MockQoSController()
+{
+  ON_CALL(*this, initialize(_))
+    .WillByDefault(Return(Nothing()));
+  EXPECT_CALL(*this, initialize(_))
+    .WillRepeatedly(DoDefault());
+
+  ON_CALL(*this, corrections())
+    .WillByDefault(
+        Return(process::Future<std::list<mesos::slave::QoSCorrection>>()));
+  EXPECT_CALL(*this, corrections())
+    .WillRepeatedly(DoDefault());
+}
+
+
+MockQoSController::~MockQoSController() {}
+
 
 MockSlave::MockSlave(const slave::Flags& flags,
                      MasterDetector* detector,
@@ -535,6 +603,91 @@ MockFetcherProcess::MockFetcherProcess()
   EXPECT_CALL(*this, run(_, _, _, _, _)).
     WillRepeatedly(Invoke(this, &MockFetcherProcess::unmocked_run));
 }
+
+
+MockFetcherProcess::~MockFetcherProcess() {}
+
+
+MockDocker::MockDocker(
+    const std::string& path,
+    const std::string &socket)
+  : Docker(path, socket)
+{
+  EXPECT_CALL(*this, pull(_, _, _))
+    .WillRepeatedly(Invoke(this, &MockDocker::_pull));
+
+  EXPECT_CALL(*this, stop(_, _, _))
+    .WillRepeatedly(Invoke(this, &MockDocker::_stop));
+
+  EXPECT_CALL(*this, run(_, _, _, _, _, _, _, _, _))
+    .WillRepeatedly(Invoke(this, &MockDocker::_run));
+
+  EXPECT_CALL(*this, inspect(_, _))
+    .WillRepeatedly(Invoke(this, &MockDocker::_inspect));
+}
+
+
+MockDocker::~MockDocker() {}
+
+
+MockDockerContainerizer::MockDockerContainerizer(
+    const slave::Flags& flags,
+    slave::Fetcher* fetcher,
+    process::Shared<Docker> docker)
+  : slave::DockerContainerizer(flags, fetcher, docker)
+{
+  initialize();
+}
+
+
+MockDockerContainerizer::MockDockerContainerizer(
+    const process::Owned<slave::DockerContainerizerProcess>& process)
+  : slave::DockerContainerizer(process)
+{
+  initialize();
+}
+
+
+MockDockerContainerizer::~MockDockerContainerizer() {}
+
+
+MockDockerContainerizerProcess::MockDockerContainerizerProcess(
+    const slave::Flags& flags,
+    slave::Fetcher* fetcher,
+    const process::Shared<Docker>& docker)
+  : slave::DockerContainerizerProcess(flags, fetcher, docker)
+{
+  EXPECT_CALL(*this, fetch(_, _))
+    .WillRepeatedly(Invoke(this, &MockDockerContainerizerProcess::_fetch));
+
+  EXPECT_CALL(*this, pull(_))
+    .WillRepeatedly(Invoke(this, &MockDockerContainerizerProcess::_pull));
+}
+
+
+MockDockerContainerizerProcess::~MockDockerContainerizerProcess() {}
+
+
+MockAuthorizer::MockAuthorizer()
+{
+  // NOTE: We use 'EXPECT_CALL' and 'WillRepeatedly' here instead of
+  // 'ON_CALL' and 'WillByDefault'. See 'TestContainerizer::SetUp()'
+  // for more details.
+  EXPECT_CALL(*this, authorize(An<const mesos::ACL::RegisterFramework&>()))
+    .WillRepeatedly(Return(true));
+
+  EXPECT_CALL(*this, authorize(An<const mesos::ACL::RunTask&>()))
+    .WillRepeatedly(Return(true));
+
+  EXPECT_CALL(*this, authorize(An<const mesos::ACL::ShutdownFramework&>()))
+    .WillRepeatedly(Return(true));
+
+  EXPECT_CALL(*this, initialize(An<const Option<ACLs>&>()))
+    .WillRepeatedly(Return(Nothing()));
+}
+
+
+MockAuthorizer::~MockAuthorizer() {}
 
 
 process::Future<Nothing> MockFetcherProcess::unmocked__fetch(

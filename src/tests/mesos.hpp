@@ -582,6 +582,9 @@ inline Offer::Operation LAUNCH(const std::vector<TaskInfo>& tasks)
 class MockScheduler : public Scheduler
 {
 public:
+  MockScheduler();
+  virtual ~MockScheduler();
+
   MOCK_METHOD3(registered, void(SchedulerDriver*,
                                 const FrameworkID&,
                                 const MasterInfo&));
@@ -679,7 +682,8 @@ ACTION_P(DeclineOffers, filters)
 class MockExecutor : public Executor
 {
 public:
-  MockExecutor(const ExecutorID& _id) : id(_id) {}
+  MockExecutor(const ExecutorID& _id);
+  virtual ~MockExecutor();
 
   MOCK_METHOD4(registered, void(ExecutorDriver*,
                                 const ExecutorInfo&,
@@ -759,20 +763,8 @@ public:
 class MockGarbageCollector : public slave::GarbageCollector
 {
 public:
-  MockGarbageCollector()
-  {
-    // NOTE: We use 'EXPECT_CALL' and 'WillRepeatedly' here instead of
-    // 'ON_CALL' and 'WillByDefault'. See 'TestContainerizer::SetUp()'
-    // for more details.
-    EXPECT_CALL(*this, schedule(_, _))
-      .WillRepeatedly(Return(Nothing()));
-
-    EXPECT_CALL(*this, unschedule(_))
-      .WillRepeatedly(Return(true));
-
-    EXPECT_CALL(*this, prune(_))
-      .WillRepeatedly(Return());
-  }
+  MockGarbageCollector();
+  virtual ~MockGarbageCollector();
 
   MOCK_METHOD2(
       schedule,
@@ -789,20 +781,8 @@ public:
 class MockResourceEstimator : public mesos::slave::ResourceEstimator
 {
 public:
-  MockResourceEstimator()
-  {
-    ON_CALL(*this, initialize(_))
-      .WillByDefault(Return(Nothing()));
-    EXPECT_CALL(*this, initialize(_))
-      .WillRepeatedly(DoDefault());
-
-    ON_CALL(*this, oversubscribable())
-      .WillByDefault(Return(process::Future<Resources>()));
-    EXPECT_CALL(*this, oversubscribable())
-      .WillRepeatedly(DoDefault());
-  }
-
-  virtual ~MockResourceEstimator() {}
+  MockResourceEstimator();
+  virtual ~MockResourceEstimator();
 
   MOCK_METHOD1(
       initialize,
@@ -819,19 +799,8 @@ public:
 class MockQoSController : public mesos::slave::QoSController
 {
 public:
-  MockQoSController()
-  {
-    ON_CALL(*this, initialize(_))
-      .WillByDefault(Return(Nothing()));
-    EXPECT_CALL(*this, initialize(_))
-      .WillRepeatedly(DoDefault());
-
-    ON_CALL(*this, corrections())
-      .WillByDefault(
-          Return(process::Future<std::list<mesos::slave::QoSCorrection>>()));
-    EXPECT_CALL(*this, corrections())
-      .WillRepeatedly(DoDefault());
-  }
+  MockQoSController();
+  virtual ~MockQoSController();
 
   MOCK_METHOD1(
       initialize,
@@ -923,8 +892,7 @@ class MockFetcherProcess : public slave::FetcherProcess
 {
 public:
   MockFetcherProcess();
-
-  virtual ~MockFetcherProcess() {}
+  virtual ~MockFetcherProcess();
 
   MOCK_METHOD6(_fetch, process::Future<Nothing>(
       const hashmap<
@@ -970,21 +938,8 @@ class MockDocker : public Docker
 public:
   MockDocker(
       const std::string& path,
-      const std::string& socket)
-    : Docker(path, socket)
-  {
-    EXPECT_CALL(*this, pull(_, _, _))
-      .WillRepeatedly(Invoke(this, &MockDocker::_pull));
-
-    EXPECT_CALL(*this, stop(_, _, _))
-      .WillRepeatedly(Invoke(this, &MockDocker::_stop));
-
-    EXPECT_CALL(*this, run(_, _, _, _, _, _, _, _, _))
-      .WillRepeatedly(Invoke(this, &MockDocker::_run));
-
-    EXPECT_CALL(*this, inspect(_, _))
-      .WillRepeatedly(Invoke(this, &MockDocker::_inspect));
-  }
+      const std::string& socket);
+  virtual ~MockDocker();
 
   MOCK_CONST_METHOD9(
       run,
@@ -1073,18 +1028,12 @@ public:
   MockDockerContainerizer(
       const slave::Flags& flags,
       slave::Fetcher* fetcher,
-      process::Shared<Docker> docker)
-    : slave::DockerContainerizer(flags, fetcher, docker)
-  {
-    initialize();
-  }
+      process::Shared<Docker> docker);
 
   MockDockerContainerizer(
-      const process::Owned<slave::DockerContainerizerProcess>& process)
-    : slave::DockerContainerizer(process)
-  {
-    initialize();
-  }
+      const process::Owned<slave::DockerContainerizerProcess>& process);
+
+  virtual ~MockDockerContainerizer();
 
   void initialize()
   {
@@ -1191,15 +1140,9 @@ public:
   MockDockerContainerizerProcess(
       const slave::Flags& flags,
       slave::Fetcher* fetcher,
-      const process::Shared<Docker>& docker)
-    : slave::DockerContainerizerProcess(flags, fetcher, docker)
-  {
-    EXPECT_CALL(*this, fetch(_, _))
-      .WillRepeatedly(Invoke(this, &MockDockerContainerizerProcess::_fetch));
+      const process::Shared<Docker>& docker);
 
-    EXPECT_CALL(*this, pull(_))
-      .WillRepeatedly(Invoke(this, &MockDockerContainerizerProcess::_pull));
-  }
+  virtual ~MockDockerContainerizerProcess();
 
   MOCK_METHOD2(
       fetch,
@@ -1229,23 +1172,8 @@ public:
 class MockAuthorizer : public Authorizer
 {
 public:
-  MockAuthorizer()
-  {
-    // NOTE: We use 'EXPECT_CALL' and 'WillRepeatedly' here instead of
-    // 'ON_CALL' and 'WillByDefault'. See 'TestContainerizer::SetUp()'
-    // for more details.
-    EXPECT_CALL(*this, authorize(An<const mesos::ACL::RegisterFramework&>()))
-      .WillRepeatedly(Return(true));
-
-    EXPECT_CALL(*this, authorize(An<const mesos::ACL::RunTask&>()))
-      .WillRepeatedly(Return(true));
-
-    EXPECT_CALL(*this, authorize(An<const mesos::ACL::ShutdownFramework&>()))
-      .WillRepeatedly(Return(true));
-
-    EXPECT_CALL(*this, initialize(An<const Option<ACLs>&>()))
-      .WillRepeatedly(Return(Nothing()));
-  }
+  MockAuthorizer();
+  virtual ~MockAuthorizer();
 
   MOCK_METHOD1(
       initialize, Try<Nothing>(const Option<ACLs>& acls));

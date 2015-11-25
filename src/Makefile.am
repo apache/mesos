@@ -1738,6 +1738,7 @@ mesos_tests_SOURCES =						\
   tests/containerizer/docker_tests.cpp				\
   tests/containerizer/external_containerizer_test.cpp		\
   tests/containerizer/isolator_tests.cpp			\
+  tests/containerizer/launcher.cpp				\
   tests/containerizer/memory_test_helper.cpp			\
   tests/containerizer/mesos_containerizer_tests.cpp		\
   tests/containerizer/provisioner_appc_tests.cpp		\
