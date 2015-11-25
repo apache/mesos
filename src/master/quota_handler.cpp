@@ -37,6 +37,7 @@
 namespace http = process::http;
 
 using std::string;
+using std::vector;
 
 using http::Accepted;
 using http::BadRequest;
@@ -253,6 +254,60 @@ Future<http::Response> Master::QuotaHandler::set(
       return OK();
     }));
 }
+
+
+Future<http::Response> Master::QuotaHandler::remove(
+    const http::Request& request) const
+{
+  VLOG(1) << "Remove quota request for path: '" << request.url.path << "'";
+
+  // Authenticate and authorize the request.
+  // TODO(alexr): Check Master::Http::authenticate() for an example.
+
+  // Check that the request type is DELETE which is guaranteed by the master.
+  CHECK_EQ("DELETE", request.method);
+
+  // Extract role from url.
+  vector<string> tokens = strings::tokenize(request.url.path, "/");
+
+  // Check that there are exactly 3 parts: {master,quota,'role'}.
+  if (tokens.size() != 3u) {
+    return BadRequest("Failed to parse request path: ('" + request.url.path +
+                      "'): Requires 3 tokens: 'master', 'quota', and 'role': " +
+                      "Found " + stringify(tokens.size()) + " tokens");
+  }
+
+  // Check that "quota" is the second to last token.
+  if (tokens.end()[-2] != "quota") {
+    return BadRequest("Failed to parse request path: ('" + request.url.path +
+                      "'): Missing 'quota' endpoint");
+  }
+
+  const string& role = tokens.back();
+
+  // Check that the role is known by the master.
+  if (!master->roles.contains(role)) {
+    return BadRequest("Failed to validate remove quota request for path: ('" +
+                      request.url.path +"')': Unknown role: '" + role + "'");
+  }
+
+  // Check that we are removing an existing quota.
+  if (!master->quotas.contains(role)) {
+    return BadRequest("Failed to remove quota for path ('" + request.url.path +
+                      "'): Role '" + role + "' has no quota set");
+  }
+
+  master->quotas.erase(role);
+
+  // Update registry with the removed quota.
+  // TODO(alexr): MESOS-3165.
+
+  // Notfify allocator.
+  master->allocator->removeQuota(role);
+
+  return OK();
+}
+
 
 } // namespace master {
 } // namespace internal {
