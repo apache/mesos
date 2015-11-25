@@ -894,7 +894,6 @@ void HierarchicalAllocatorProcess::setQuota(
     const QuotaInfo& quota)
 {
   CHECK(initialized);
-
   CHECK(roles.contains(role));
   CHECK(frameworkSorters.contains(role));
 
@@ -902,7 +901,7 @@ void HierarchicalAllocatorProcess::setQuota(
   // the role is not set. Setting quota differs from updating it because
   // the former moves the role to a different allocation group with a
   // dedicated sorter, while the later just updates the actual quota.
-  CHECK(roles[role].quota.isNone());
+  CHECK_NONE(roles[role].quota);
 
   // Persist quota in memory and add the role into the corresponding allocation
   // group.
@@ -923,12 +922,11 @@ void HierarchicalAllocatorProcess::removeQuota(
     const string& role)
 {
   CHECK(initialized);
-
   CHECK(roles.contains(role));
   CHECK(frameworkSorters.contains(role));
 
   // Do not allow removing quota if it is not set.
-  CHECK(roles[role].quota.isSome());
+  CHECK_SOME(roles[role].quota);
 
   // TODO(alexr): Print all quota info for the role.
   LOG(INFO) << "Removed quota " << roles[role].quota.get().guarantee()

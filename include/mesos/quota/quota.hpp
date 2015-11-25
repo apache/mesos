@@ -20,7 +20,7 @@
 // ONLY USEFUL AFTER RUNNING PROTOC.
 #include <mesos/quota/quota.pb.h>
 
-// A C++ wrapper for `quotaInfo` used to communicate between the
+// A C++ wrapper for `QuotaInfo` used to communicate between the
 // Allocator and Master.
 struct Quota
 {
