@@ -17,6 +17,7 @@
  */
 
 #include <string>
+#include <vector>
 
 #include <gmock/gmock.h>
 
@@ -43,6 +44,7 @@
 #include "tests/mesos.hpp"
 
 using std::string;
+using std::vector;
 
 using google::protobuf::RepeatedPtrField;
 
@@ -516,9 +518,6 @@ TEST_F(MasterQuotaTest, RemoveSingleQuota)
 //     request.
 //   * Multiple quotas in the cluster, insufficient free resources for a new
 //     request.
-//   * Multiple quotas in the cluster, sufficient free resources for a new
-//     request, but some resources are blocked in outstanding offers
-//     (rescinding).
 //   * Deactivated or disconnected agents are not considered during quota
 //     capability heuristics.
 
@@ -795,6 +794,167 @@ TEST_F(MasterQuotaTest, AvailableResourcesMultipleAgents)
   AWAIT_READY(receivedQuotaRequest);
 
   EXPECT_EQ(ROLE1, receivedQuotaRequest.get().role());
+  EXPECT_EQ(quotaResources, Resources(receivedQuotaRequest.get().guarantee()));
+
+  Shutdown();
+}
+
+
+// Checks that a quota request succeeds if there are sufficient total
+// resources in the cluster, even though they are blocked in outstanding
+// offers, i.e. quota request rescinds offers.
+TEST_F(MasterQuotaTest, AvailableResourcesAfterRescinding)
+{
+  TestAllocator<> allocator;
+  EXPECT_CALL(allocator, initialize(_, _, _, _));
+
+  Try<PID<Master>> master = StartMaster(&allocator);
+  ASSERT_SOME(master);
+
+  // Start one agent and wait until it registers.
+  Future<Resources> agent1TotalResources;
+  EXPECT_CALL(allocator, addSlave(_, _, _, _, _))
+    .WillOnce(DoAll(InvokeAddSlave(&allocator),
+                    FutureArg<3>(&agent1TotalResources)));
+
+  Try<PID<Slave>> agent1 = StartSlave();
+  ASSERT_SOME(agent1);
+
+  AWAIT_READY(agent1TotalResources);
+  EXPECT_EQ(defaultAgentResources, agent1TotalResources.get());
+
+  // Start another agent and wait until it registers.
+  Future<Resources> agent2TotalResources;
+  EXPECT_CALL(allocator, addSlave(_, _, _, _, _))
+    .WillOnce(DoAll(InvokeAddSlave(&allocator),
+                    FutureArg<3>(&agent2TotalResources)));
+
+  Try<PID<Slave>> agent2 = StartSlave();
+  ASSERT_SOME(agent2);
+
+  AWAIT_READY(agent2TotalResources);
+  EXPECT_EQ(defaultAgentResources, agent2TotalResources.get());
+
+  // Start one more agent and wait until it registers.
+  Future<Resources> agent3TotalResources;
+  EXPECT_CALL(allocator, addSlave(_, _, _, _, _))
+    .WillOnce(DoAll(InvokeAddSlave(&allocator),
+                    FutureArg<3>(&agent3TotalResources)));
+
+  Try<PID<Slave>> agent3 = StartSlave();
+  ASSERT_SOME(agent3);
+
+  AWAIT_READY(agent3TotalResources);
+  EXPECT_EQ(defaultAgentResources, agent3TotalResources.get());
+
+  // We start with the following cluster setup.
+  // Total cluster resources (3 identical agents): cpus=6, mem=3072.
+  // role1 share = 0
+  // role2 share = 0
+
+  // We create a "hoarding" framework that will hog the resources but
+  // will not use them.
+  FrameworkInfo frameworkInfo1 = createFrameworkInfo(ROLE1);
+  MockScheduler sched1;
+  MesosSchedulerDriver framework1(
+      &sched1, frameworkInfo1, master.get(), DEFAULT_CREDENTIAL);
+
+  // We use `offers` to capture offers from the `resourceOffers()` callback.
+  Future<vector<Offer>> offers;
+
+  // Set expectations for the first offer and launch the framework.
+  EXPECT_CALL(sched1, registered(&framework1, _, _));
+  EXPECT_CALL(sched1, resourceOffers(&framework1, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  framework1.start();
+
+  // In the first offer, expect offers from all available agents.
+  AWAIT_READY(offers);
+  ASSERT_EQ(3u, offers.get().size());
+
+  // `framework1` hoards the resources, i.e. does not accept them.
+  // Now we add two new frameworks to `ROLE2`, for which we should
+  // make space if we can.
+
+  FrameworkInfo frameworkInfo2 = createFrameworkInfo(ROLE2);
+  MockScheduler sched2;
+  MesosSchedulerDriver framework2(
+      &sched2, frameworkInfo2, master.get(), DEFAULT_CREDENTIAL);
+
+  Future<Nothing> registered2;
+  EXPECT_CALL(sched2, registered(&framework2, _, _))
+    .WillOnce(FutureSatisfy(&registered2));
+
+  FrameworkInfo frameworkInfo3 = createFrameworkInfo(ROLE2);
+  MockScheduler sched3;
+  MesosSchedulerDriver framework3(
+      &sched3, frameworkInfo3, master.get(), DEFAULT_CREDENTIAL);
+
+  Future<Nothing> registered3;
+  EXPECT_CALL(sched3, registered(&framework3, _, _))
+    .WillOnce(FutureSatisfy(&registered3));
+
+  framework2.start();
+  framework3.start();
+
+  AWAIT_READY(registered2);
+  AWAIT_READY(registered3);
+
+  // There should be no offers made to `framework2` and `framework3`
+  // since there are no free resources.
+  EXPECT_CALL(sched2, resourceOffers(&framework2, _))
+    .Times(0);
+  EXPECT_CALL(sched3, resourceOffers(&framework3, _))
+    .Times(0);
+
+  // Total cluster resources (3 identical agents): cpus=6, mem=3072.
+  // role1 share = 1 (cpus=6, mem=3072)
+  //   framework1 share = 1
+  // role2 share = 0
+  //   framework2 share = 0
+  //   framework3 share = 0
+
+  // We request quota for a portion of resources which is smaller than
+  // the total cluster capacity and can fit into any single agent.
+  Resources quotaResources = Resources::parse("cpus:1;mem:512", ROLE2).get();
+
+  // Once the quota request reaches the master, it should trigger a series
+  // of rescinds. Even though quota request resources can be satisfied with
+  // resources from a single agent, offers from two agents must be rescinded,
+  // because there are two frameworks in the quota'ed role `ROLE2`.
+  EXPECT_CALL(sched1, offerRescinded(&framework1, _))
+    .Times(2);
+
+  // Send a quota request for the specified role.
+  Future<QuotaInfo> receivedQuotaRequest;
+  EXPECT_CALL(allocator, setQuota(Eq(ROLE2), _))
+    .WillOnce(DoAll(InvokeSetQuota(&allocator),
+                    FutureArg<1>(&receivedQuotaRequest)));
+
+  Future<Response> response = process::http::post(
+      master.get(),
+      "quota",
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL),
+      createRequestBody(quotaResources));
+
+  // At some point before the response is sent, offers are rescinded,
+  // but resources are not yet allocated. At this moment the cluster
+  // state looks like this.
+
+  // Total cluster resources (3 identical agents): cpus=6, mem=3072.
+  // role1 share = 0.33 (cpus=2, mem=1024)
+  //   framework1 share = 1
+  // role2 share = 0
+  //   framework2 share = 0
+  //   framework3 share = 0
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response) << response.get().body;
+
+  // The quota request is granted and reached the allocator. Make sure nothing
+  // got lost in-between.
+  AWAIT_READY(receivedQuotaRequest);
+  EXPECT_EQ(ROLE2, receivedQuotaRequest.get().role());
   EXPECT_EQ(quotaResources, Resources(receivedQuotaRequest.get().guarantee()));
 
   Shutdown();
