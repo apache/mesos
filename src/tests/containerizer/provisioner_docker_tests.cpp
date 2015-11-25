@@ -1218,7 +1218,7 @@ TEST_F(RegistryClientTest, SimpleRegistryPuller)
 
   AWAIT_ASSERT_READY(registryPullerFuture);
   list<pair<string, string>> layers = registryPullerFuture.get();
-  ASSERT_EQ(1, layers.size());
+  ASSERT_EQ(1u, layers.size());
   ASSERT_EQ(layers.front().first,
             "1ce2e90b0bc7224de3db1f0d646fe8e2c4dd37f1793928287f6074bc451a57ea");
 
