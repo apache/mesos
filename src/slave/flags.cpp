@@ -412,7 +412,7 @@ mesos::internal::slave::Flags::Flags()
       "  \"disabled_endpoints\": {\n"
       "    \"paths\": [\n"
       "      \"/files/browse\",\n"
-      "      \"/slave(0)/stats.json\",\n"
+      "      \"/slave(0)/stats.json\"\n"
       "    ]\n"
       "  }\n"
       "}");
@@ -428,8 +428,8 @@ mesos::internal::slave::Flags::Flags()
       "\n"
       "Example:\n"
       "{\n"
-      "    \"principal\": \"username\",\n"
-      "    \"secret\": \"secret\",\n"
+      "  \"principal\": \"username\",\n"
+      "  \"secret\": \"secret\"\n"
       "}");
 
   add(&Flags::containerizer_path,
@@ -507,14 +507,14 @@ mesos::internal::slave::Flags::Flags()
       "\n"
       "Example:\n"
       "{\n"
-      "\"type\": \"MESOS\",\n"
-      "\"volumes\": [\n"
-      "  {\n"
-      "    \"host_path\": \"./.private/tmp\",\n"
-      "    \"container_path\": \"/tmp\",\n"
-      "    \"mode\": \"RW\"\n"
-      "  }\n"
-      " ]\n"
+      "  \"type\": \"MESOS\",\n"
+      "  \"volumes\": [\n"
+      "    {\n"
+      "      \"host_path\": \"./.private/tmp\",\n"
+      "      \"container_path\": \"/tmp\",\n"
+      "      \"mode\": \"RW\"\n"
+      "    }\n"
+      "  ]\n"
       "}");
 
   add(&Flags::docker_stop_timeout,

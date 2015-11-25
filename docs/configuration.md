@@ -93,7 +93,7 @@ be found by running the binary with the flag `--help`, for example
   "disabled_endpoints" : {
     "paths" : [
       "/files/browse",
-      "/slave(0)/stats.json",
+      "/slave(0)/stats.json"
     ]
   }
 }</code></pre>
