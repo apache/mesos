@@ -886,6 +886,28 @@ private:
     Option<Error> capacityHeuristic(
         const mesos::quota::QuotaInfo& request) const;
 
+    // We always want to rescind offers after the capacity heuristic. The
+    // reason for this is the race between the allocator and the master:
+    // it can happen that there are not enough free resources at the
+    // allocator's disposal when it is notified about the quota request,
+    // but at this point it's too late to rescind.
+    //
+    // While rescinding, we adhere to the following rules:
+    //   * Rescind at least as many resources as there are in the quota request.
+    //   * Rescind all offers from an agent in order to make the potential
+    //     offer bigger, which increases the chances that a quota'ed framework
+    //     will be able to use the offer.
+    //   * Rescind offers from at least `numF` agents to make it possible
+    //     (but not guaranteed, due to fair sharing) that each framework in
+    //     the role for which quota is set gets an offer (`numF` is the
+    //     number of frameworks in the quota'ed role). Though this is not
+    //     strictly necessary, we think this will increase the debugability
+    //     and will improve user experience.
+    //
+    // TODO(alexr): Consider removing this function once offer management
+    // (including rescinding) is moved to allocator.
+    void rescindOffers(const mesos::quota::QuotaInfo& request) const;
+
     // To perform actions related to quota management, we require access to the
     // master data structures. No synchronization primitives are needed here
     // since `QuotaHandler`'s functions are invoked in the Master's actor.
