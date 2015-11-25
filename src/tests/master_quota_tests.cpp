@@ -140,15 +140,10 @@ protected:
 // while irrelevant fields are not present.
 
 // TODO(alexr): Tests to implement:
-//   * Malformed JSON (parsing fails).
-//   * JSON is OK but could not be converted to QuotaInfo proto
-//     (merge with the previous one)?
-//   * Non-existent role.
 //   * Role is absent.
 //   * Role is an empty string.
 //   * Role is '*'?
 //   * Resources with the same name are present.
-//   * Irrelevant fields (reservation info, disk info, etc).
 
 // Verifies that a request for a non-existent role is rejected.
 // TODO(alexr): This may be revisited once we allow dynamic roles and
@@ -174,6 +169,242 @@ TEST_F(MasterQuotaTest, NonExistentRole)
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response)
     << response.get().body;
+
+  Shutdown();
+}
+
+
+// Quota requests with invalid structure should return a '400 Bad Request'.
+TEST_F(MasterQuotaTest, SetInvalidRequest)
+{
+  Try<PID<Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  // We do not need an agent since a request should be rejected before
+  // we start looking at available resources.
+
+  // We wrap the `http::post` into a lambda for readability of the tests.
+  auto postQuota = [this, &master](const string& request) {
+    return process::http::post(
+        master.get(),
+        "quota",
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL),
+        request);
+  };
+
+  // Tests whether a quota request with missing 'resource=[]' fails.
+  {
+    string badRequest =
+      "{"
+      "  invalidJson"
+      "}";
+
+    Future<Response> response = postQuota(badRequest);
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response)
+      << response.get().body;
+  }
+
+  // Tests whether a quota requests with invalid json fails.
+  {
+    string badRequest =
+      "resources=["
+      "  \"invalidJson\" : 1"
+      "]";
+
+    Future<Response> response = postQuota(badRequest);
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response)
+      << response.get().body;
+  }
+
+  // Tests whether a quota request with invalid resources fails.
+  {
+    string badRequest =
+      "resources=["
+      "  {\"invalidResource\" : 1}"
+      "]";
+
+    Future<Response> response = postQuota(badRequest);
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response)
+      << response.get().body;
+  }
+
+  Shutdown();
+}
+
+
+// A quota request with non-scalar resources should return a '400 Bad Request'.
+TEST_F(MasterQuotaTest, SetNonScalar)
+{
+  Try<PID<Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  // We do not need an agent since a request should be rejected before
+  // we start looking at available resources.
+
+  // Quota set request including non-scalar port resources.
+  Resources quotaResources =
+    Resources::parse("cpus:1;mem:512;ports:[31000-31001]", ROLE1).get();
+
+  Future<Response> response = process::http::post(
+      master.get(),
+      "quota",
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL),
+      createRequestBody(quotaResources));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response)
+    << response.get().body;
+
+  Shutdown();
+}
+
+
+// A quota request with multiple roles should return a '400 Bad Request'.
+TEST_F(MasterQuotaTest, SetMultipleRoles)
+{
+  Try<PID<Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  // We do not need an agent since a request should be rejected before
+  // we start looking at available resources.
+
+  // Create a quota request with resources belonging to different roles.
+  Resources quotaResources = Resources::parse("cpus:1;mem:512;", ROLE1).get();
+  quotaResources += Resources::parse("cpus:1;mem:512;", ROLE2).get();
+
+  Future<Response> response = process::http::post(
+      master.get(),
+      "quota",
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL),
+      createRequestBody(quotaResources));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response)
+    << response.get().body;
+
+  Shutdown();
+}
+
+
+// Updating an exiting quota via POST to the '/master/quota endpoint' should
+// return a '400 BadRequest'.
+TEST_F(MasterQuotaTest, SetExistingQuota)
+{
+  TestAllocator<> allocator;
+  EXPECT_CALL(allocator, initialize(_, _, _, _));
+
+  Try<PID<Master>> master = StartMaster(&allocator);
+  ASSERT_SOME(master);
+
+  // Wait until the agent registers.
+  Future<Resources> agentTotalResources;
+  EXPECT_CALL(allocator, addSlave(_, _, _, _, _))
+    .WillOnce(DoAll(InvokeAddSlave(&allocator),
+                    FutureArg<3>(&agentTotalResources)));
+
+  Try<PID<Slave>> agent = StartSlave();
+  ASSERT_SOME(agent);
+
+  AWAIT_READY(agentTotalResources);
+  EXPECT_EQ(defaultAgentResources, agentTotalResources.get());
+
+  // We request quota for a portion of resources available on the agent.
+  Resources quotaResources = Resources::parse("cpus:1;mem:512;", ROLE1).get();
+  EXPECT_TRUE(agentTotalResources.get().contains(quotaResources.flatten()));
+
+  Future<Response> response = process::http::post(
+      master.get(),
+      "quota",
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL),
+      createRequestBody(quotaResources));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response) << response.get().body;
+
+  // Try to set quota via post a second time.
+  response = process::http::post(
+      master.get(),
+      "quota",
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL),
+      createRequestBody(quotaResources));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response)
+    << response.get().body;
+
+  Shutdown();
+}
+
+
+// Checks whether a quota request with any invalid field set is rejected:
+//   * `ReservationInfo`.
+//   * `RevocableInfo`.
+//   * `DiskInfo`.
+TEST_F(MasterQuotaTest, SetInvalidResourceInfos)
+{
+  Try<PID<Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  // We do not need an agent since a request should be rejected before
+  // we start looking at available resources.
+
+  // Create a quota set request with `DiskInfo` and check that the
+  // request returns a '400 Bad Request' return code.
+  {
+    Resources quotaResources = Resources::parse("cpus:1;mem:512", ROLE1).get();
+
+    Resource volume = Resources::parse("disk", "128", ROLE1).get();
+    volume.mutable_disk()->CopyFrom(createDiskInfo("id1", "path1"));
+    quotaResources += volume;
+
+    Future<Response> response = process::http::post(
+        master.get(),
+        "quota",
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL),
+        createRequestBody(quotaResources));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response)
+      << response.get().body;
+  }
+
+  // Create a quota set request with `RevocableInfo` and check that
+  // the request returns a '400 Bad Request' return code.
+  {
+    Resources quotaResources = Resources::parse("cpus:1;mem:512", ROLE1).get();
+
+    Resource revocable = Resources::parse("cpus", "1", ROLE1).get();
+    revocable.mutable_revocable();
+    quotaResources += revocable;
+
+    Future<Response> response = process::http::post(
+        master.get(),
+        "quota",
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL),
+        createRequestBody(quotaResources));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response)
+      << response.get().body;
+  }
+
+  // Create a quota set request with `ReservationInfo` and check that
+  // the request returns a '400 Bad Request' return code.
+  {
+    Resources quotaResources = Resources::parse("cpus:4;mem:512", ROLE1).get();
+
+    Resource volume = Resources::parse("disk", "128", ROLE1).get();
+    volume.mutable_reservation()->CopyFrom(
+        createReservationInfo(DEFAULT_CREDENTIAL.principal()));
+
+    quotaResources += volume;
+
+    Future<Response> response = process::http::post(
+        master.get(),
+        "quota",
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL),
+        createRequestBody(quotaResources));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response)
+      << response.get().body;
+  }
 
   Shutdown();
 }
