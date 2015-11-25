@@ -21,6 +21,8 @@ There are different ways you can get Mesos:
 
 Mesos runs on Linux (64 Bit) and Mac OS X (64 Bit).
 
+For full support of process isolation under Linux a recent kernel >=3.10 is required.
+
 ### Ubuntu 14.04
 
 Following are the instructions for stock Ubuntu 14.04. If you are using a different OS, please install the packages accordingly.
@@ -53,6 +55,15 @@ Following are the instructions for stock Mac OS X Yosemite. If you are using a d
 ### CentOS 6.6
 
 Following are the instructions for stock CentOS 6.6. If you are using a different OS, please install the packages accordingly.
+
+        # Install a recent kernel for full support of process isolation.
+        $ sudo rpm --import https://www.elrepo.org/RPM-GPG-KEY-elrepo.org
+        $ sudo rpm -Uvh http://www.elrepo.org/elrepo-release-6-6.el6.elrepo.noarch.rpm
+        $ sudo yum --enablerepo=elrepo-kernel install -y kernel-lt
+
+        # Make the just installed kernel the one booted by default, and reboot.
+        $ sudo sed -i 's/default=1/default=0/g' /boot/grub/grub.conf
+        $ sudo reboot
 
         # Install a few utility tools. This also forces an update of `nss`,
         # which is necessary for the Java bindings to build properly.
