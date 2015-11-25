@@ -369,6 +369,11 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
 
     qosControllers->push_back(qosController.get());
 
+    // Set default launcher to 'posix'(see MESOS-3793).
+    if (flags.launcher.isNone()) {
+      flags.launcher = "posix";
+    }
+
     Try<Containerizer*> containerizer =
       Containerizer::create(flags, true, fetchers->back());
 
