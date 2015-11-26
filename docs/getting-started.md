@@ -23,6 +23,8 @@ Mesos runs on Linux (64 Bit) and Mac OS X (64 Bit).
 
 For full support of process isolation under Linux a recent kernel >=3.10 is required.
 
+Make sure your hostname is resolvable via DNS or via `/etc/hosts` to allow full support of Docker's host-networking capabilities, needed for some of the Mesos tests. When in doubt, please validate that `/etc/hosts` contains your hostname.
+
 ### Ubuntu 14.04
 
 Following are the instructions for stock Ubuntu 14.04. If you are using a different OS, please install the packages accordingly.
