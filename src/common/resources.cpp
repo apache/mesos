@@ -34,6 +34,7 @@
 #include <stout/lambda.hpp>
 #include <stout/protobuf.hpp>
 #include <stout/strings.hpp>
+#include <master/constants.hpp>
 
 using std::map;
 using std::ostream;
@@ -42,6 +43,7 @@ using std::string;
 using std::vector;
 
 using google::protobuf::RepeatedPtrField;
+using mesos::internal::master::MIN_CPUS;
 
 
 namespace mesos {
@@ -89,7 +91,6 @@ bool operator!=(const Resource::DiskInfo& left, const Resource::DiskInfo& right)
 {
   return !(left == right);
 }
-
 
 bool operator==(const Resource& left, const Resource& right)
 {
@@ -944,10 +945,10 @@ Try<Resources> Resources::apply(const Offer::Operation& operation) const
   // resource does not change.
   // TODO(jieyu): Currently, we only check known resource types like
   // cpus, mem, disk, ports, etc. We should generalize this.
-  CHECK(result.cpus() == cpus() &&
-        result.mem() == mem() &&
+  CHECK(result.mem() == mem() &&
         result.disk() == disk() &&
         result.ports() == ports());
+  CHECK_NEAR(result.cpus().get(), cpus().get(), MIN_CPUS);
 
   return result;
 }
