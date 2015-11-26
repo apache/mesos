@@ -52,7 +52,7 @@ class AuthenticationTest : public MesosTest {};
 // denied registration by the master.
 TEST_F(AuthenticationTest, UnauthenticatedFramework)
 {
-  Try<PID<Master> > master = StartMaster();
+  Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   MockScheduler sched;
@@ -78,7 +78,7 @@ TEST_F(AuthenticationTest, UnauthenticatedFramework)
 // denied registration by the master.
 TEST_F(AuthenticationTest, UnauthenticatedSlave)
 {
-  Try<PID<Master> > master = StartMaster();
+  Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   Future<ShutdownMessage> shutdownMessage =
@@ -88,7 +88,7 @@ TEST_F(AuthenticationTest, UnauthenticatedSlave)
   slave::Flags flags = CreateSlaveFlags();
   flags.credential = None();
 
-  Try<PID<Slave> > slave = StartSlave(flags);
+  Try<PID<Slave>> slave = StartSlave(flags);
   ASSERT_SOME(slave);
 
   // Slave should get error message from the master.
@@ -106,7 +106,7 @@ TEST_F(AuthenticationTest, DisableFrameworkAuthentication)
   master::Flags flags = CreateMasterFlags();
   flags.authenticate_frameworks = false; // Disable authentication.
 
-  Try<PID<Master> > master = StartMaster(flags);
+  Try<PID<Master>> master = StartMaster(flags);
   ASSERT_SOME(master);
 
   // Start the scheduler without credentials.
@@ -136,7 +136,7 @@ TEST_F(AuthenticationTest, DisableSlaveAuthentication)
   master::Flags flags = CreateMasterFlags();
   flags.authenticate_slaves = false; // Disable authentication.
 
-  Try<PID<Master> > master = StartMaster(flags);
+  Try<PID<Master>> master = StartMaster(flags);
   ASSERT_SOME(master);
 
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
@@ -146,7 +146,7 @@ TEST_F(AuthenticationTest, DisableSlaveAuthentication)
   slave::Flags slaveFlags = CreateSlaveFlags();
   slaveFlags.credential = None();
 
-  Try<PID<Slave> > slave = StartSlave(slaveFlags);
+  Try<PID<Slave>> slave = StartSlave(slaveFlags);
   ASSERT_SOME(slave);
 
   // Slave should be able to get registered.
@@ -162,7 +162,7 @@ TEST_F(AuthenticationTest, DisableSlaveAuthentication)
 // FrameworkInfo.principal than Credential.principal.
 TEST_F(AuthenticationTest, MismatchedFrameworkInfoPrincipal)
 {
-  Try<PID<Master> > master = StartMaster();
+  Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   MockScheduler sched;
@@ -200,7 +200,7 @@ TEST_F(AuthenticationTest, DisabledFrameworkAuthenticationPrincipalMismatch)
   master::Flags flags = CreateMasterFlags();
   flags.authenticate_frameworks = false; // Authentication not required.
 
-  Try<PID<Master> > master = StartMaster(flags);
+  Try<PID<Master>> master = StartMaster(flags);
   ASSERT_SOME(master);
 
   MockScheduler sched;
@@ -234,7 +234,7 @@ TEST_F(AuthenticationTest, DisabledFrameworkAuthenticationPrincipalMismatch)
 // register.
 TEST_F(AuthenticationTest, UnspecifiedFrameworkInfoPrincipal)
 {
-  Try<PID<Master> > master = StartMaster();
+  Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   MockScheduler sched;
@@ -270,7 +270,7 @@ TEST_F(AuthenticationTest, AuthenticatedFramework)
   master::Flags flags = CreateMasterFlags();
   flags.authenticate_frameworks = false; // Disable authentication.
 
-  Try<PID<Master> > master = StartMaster(flags);
+  Try<PID<Master>> master = StartMaster(flags);
   ASSERT_SOME(master);
 
   // Start the scheduler with credentials.
@@ -301,14 +301,14 @@ TEST_F(AuthenticationTest, AuthenticatedSlave)
   master::Flags flags = CreateMasterFlags();
   flags.authenticate_slaves = false; // Disable authentication.
 
-  Try<PID<Master> > master = StartMaster(flags);
+  Try<PID<Master>> master = StartMaster(flags);
   ASSERT_SOME(master);
 
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
     FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
 
   // Start the slave with credentials.
-  Try<PID<Slave> > slave = StartSlave();
+  Try<PID<Slave>> slave = StartSlave();
   ASSERT_SOME(slave);
 
   // Slave should be able to get registered.
@@ -323,7 +323,7 @@ TEST_F(AuthenticationTest, AuthenticatedSlave)
 // authentication when authenticate message is lost.
 TEST_F(AuthenticationTest, RetryFrameworkAuthentication)
 {
-  Try<PID<Master> > master = StartMaster();
+  Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   MockScheduler sched;
@@ -362,14 +362,14 @@ TEST_F(AuthenticationTest, RetryFrameworkAuthentication)
 // authentication when authenticate message is lost.
 TEST_F(AuthenticationTest, RetrySlaveAuthentication)
 {
-  Try<PID<Master> > master = StartMaster();
+  Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   // Drop the first authenticate message from the slave.
   Future<AuthenticateMessage> authenticateMessage =
     DROP_PROTOBUF(AuthenticateMessage(), _, _);
 
-  Try<PID<Slave> > slave = StartSlave();
+  Try<PID<Slave>> slave = StartSlave();
   ASSERT_SOME(slave);
 
   AWAIT_READY(authenticateMessage);
@@ -396,7 +396,7 @@ TEST_F(AuthenticationTest, RetrySlaveAuthentication)
 // is lost.
 TEST_F(AuthenticationTest, DropIntermediateSASLMessage)
 {
-  Try<PID<Master> > master = StartMaster();
+  Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   MockScheduler sched;
@@ -442,14 +442,14 @@ TEST_F(AuthenticationTest, DropIntermediateSASLMessage)
 // is lost.
 TEST_F(AuthenticationTest, DropIntermediateSASLMessageForSlave)
 {
-  Try<PID<Master> > master = StartMaster();
+  Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   // Drop the AuthenticationStepMessage from authenticator.
   Future<AuthenticationStepMessage> authenticationStepMessage =
     DROP_PROTOBUF(AuthenticationStepMessage(), _, _);
 
-  Try<PID<Slave> > slave = StartSlave();
+  Try<PID<Slave>> slave = StartSlave();
   ASSERT_SOME(slave);
 
   AWAIT_READY(authenticationStepMessage);
@@ -485,7 +485,7 @@ TEST_F(AuthenticationTest, DropIntermediateSASLMessageForSlave)
 // eventually register.
 TEST_F(AuthenticationTest, DropFinalSASLMessage)
 {
-  Try<PID<Master> > master = StartMaster();
+  Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   MockScheduler sched;
@@ -534,14 +534,14 @@ TEST_F(AuthenticationTest, DropFinalSASLMessage)
 // eventually register.
 TEST_F(AuthenticationTest, DropFinalSASLMessageForSlave)
 {
-  Try<PID<Master> > master = StartMaster();
+  Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   // Drop the AuthenticationCompletedMessage from authenticator.
   Future<AuthenticationCompletedMessage> authenticationCompletedMessage =
     DROP_PROTOBUF(AuthenticationCompletedMessage(), _, _);
 
-  Try<PID<Slave> > slave = StartSlave();
+  Try<PID<Slave>> slave = StartSlave();
   ASSERT_SOME(slave);
 
   AWAIT_READY(authenticationCompletedMessage);
@@ -574,7 +574,7 @@ TEST_F(AuthenticationTest, DropFinalSASLMessageForSlave)
 // authenticates.
 TEST_F(AuthenticationTest, MasterFailover)
 {
-  Try<PID<Master> > master = StartMaster();
+  Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   MockScheduler sched;
@@ -618,7 +618,7 @@ TEST_F(AuthenticationTest, MasterFailover)
 // authenticates.
 TEST_F(AuthenticationTest, MasterFailoverDuringSlaveAuthentication)
 {
-  Try<PID<Master> > master = StartMaster();
+  Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   // Drop the authenticate message from the slave.
@@ -627,7 +627,7 @@ TEST_F(AuthenticationTest, MasterFailoverDuringSlaveAuthentication)
 
   StandaloneMasterDetector detector(master.get());
   slave::Flags slaveFlags = CreateSlaveFlags();
-  Try<PID<Slave> > slave = StartSlave(&detector, slaveFlags);
+  Try<PID<Slave>> slave = StartSlave(&detector, slaveFlags);
   ASSERT_SOME(slave);
 
   AWAIT_READY(authenticateMessage);
@@ -657,7 +657,7 @@ TEST_F(AuthenticationTest, MasterFailoverDuringSlaveAuthentication)
 // detected due to leader election), it is handled properly.
 TEST_F(AuthenticationTest, LeaderElection)
 {
-  Try<PID<Master> > master = StartMaster();
+  Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   MockScheduler sched;
@@ -696,7 +696,7 @@ TEST_F(AuthenticationTest, LeaderElection)
 // detected due to leader election), it is handled properly.
 TEST_F(AuthenticationTest, LeaderElectionDuringSlaveAuthentication)
 {
-  Try<PID<Master> > master = StartMaster();
+  Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   // Drop the AuthenticationStepMessage from authenticator.
@@ -705,7 +705,7 @@ TEST_F(AuthenticationTest, LeaderElectionDuringSlaveAuthentication)
 
   StandaloneMasterDetector detector(master.get());
   slave::Flags slaveFlags = CreateSlaveFlags();
-  Try<PID<Slave> > slave = StartSlave(&detector, slaveFlags);
+  Try<PID<Slave>> slave = StartSlave(&detector, slaveFlags);
   ASSERT_SOME(slave);
 
   // Drop the intermediate SASL message so that authentication fails.
@@ -730,7 +730,7 @@ TEST_F(AuthenticationTest, LeaderElectionDuringSlaveAuthentication)
 // with the master when it comes back up.
 TEST_F(AuthenticationTest, SchedulerFailover)
 {
-  Try<PID<Master> > master = StartMaster();
+  Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   // Launch the first (i.e., failing) scheduler.
@@ -799,7 +799,7 @@ TEST_F(AuthenticationTest, SchedulerFailover)
 // authentication.
 TEST_F(AuthenticationTest, RejectedSchedulerFailover)
 {
-  Try<PID<Master> > master = StartMaster();
+  Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   // Launch the first scheduler.
