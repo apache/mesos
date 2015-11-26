@@ -308,8 +308,7 @@ TEST_F(AuthenticationTest, AuthenticatedSlave)
     FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
 
   // Start the slave with credentials.
-  slave::Flags slaveFlags = CreateSlaveFlags();
-  Try<PID<Slave> > slave = StartSlave(slaveFlags);
+  Try<PID<Slave> > slave = StartSlave();
   ASSERT_SOME(slave);
 
   // Slave should be able to get registered.
@@ -370,8 +369,7 @@ TEST_F(AuthenticationTest, RetrySlaveAuthentication)
   Future<AuthenticateMessage> authenticateMessage =
     DROP_PROTOBUF(AuthenticateMessage(), _, _);
 
-  slave::Flags slaveFlags = CreateSlaveFlags();
-  Try<PID<Slave> > slave = StartSlave(slaveFlags);
+  Try<PID<Slave> > slave = StartSlave();
   ASSERT_SOME(slave);
 
   AWAIT_READY(authenticateMessage);
@@ -451,8 +449,7 @@ TEST_F(AuthenticationTest, DropIntermediateSASLMessageForSlave)
   Future<AuthenticationStepMessage> authenticationStepMessage =
     DROP_PROTOBUF(AuthenticationStepMessage(), _, _);
 
-  slave::Flags slaveFlags = CreateSlaveFlags();
-  Try<PID<Slave> > slave = StartSlave(slaveFlags);
+  Try<PID<Slave> > slave = StartSlave();
   ASSERT_SOME(slave);
 
   AWAIT_READY(authenticationStepMessage);
@@ -544,8 +541,7 @@ TEST_F(AuthenticationTest, DropFinalSASLMessageForSlave)
   Future<AuthenticationCompletedMessage> authenticationCompletedMessage =
     DROP_PROTOBUF(AuthenticationCompletedMessage(), _, _);
 
-  slave::Flags slaveFlags = CreateSlaveFlags();
-  Try<PID<Slave> > slave = StartSlave(slaveFlags);
+  Try<PID<Slave> > slave = StartSlave();
   ASSERT_SOME(slave);
 
   AWAIT_READY(authenticationCompletedMessage);
