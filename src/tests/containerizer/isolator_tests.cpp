@@ -444,7 +444,7 @@ TEST_F(RevocableCpuIsolatorTest, ROOT_CGROUPS_RevocableCpu)
 class LimitedCpuIsolatorTest : public MesosTest {};
 
 
-TEST_F(LimitedCpuIsolatorTest, ROOT_CGROUPS_Cfs)
+TEST_F(LimitedCpuIsolatorTest, ROOT_CGROUPS_CFS_Enable_Cfs)
 {
   slave::Flags flags;
 
@@ -558,7 +558,7 @@ TEST_F(LimitedCpuIsolatorTest, ROOT_CGROUPS_Cfs)
 // observed in MESOS-1049.
 // TODO(vinod): Revisit this if/when the isolator restricts the number
 // of cpus that an executor can use based on the slave cpus.
-TEST_F(LimitedCpuIsolatorTest, ROOT_CGROUPS_Cfs_Big_Quota)
+TEST_F(LimitedCpuIsolatorTest, ROOT_CGROUPS_CFS_Big_Quota)
 {
   slave::Flags flags;
 

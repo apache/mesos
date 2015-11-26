@@ -122,6 +122,42 @@ public:
 };
 
 
+class CfsFilter : public TestFilter
+{
+public:
+  CfsFilter()
+  {
+#ifdef __linux__
+    Result<string> hierarchy = cgroups::hierarchy("cpu");
+    if (hierarchy.isSome()) {
+      cfsError = os::system(
+          "ls " + path::join(hierarchy.get(), "cpu.cfs_quota_us")) != 0;
+    } else {
+      cfsError = true;
+    }
+
+    if (cfsError) {
+      std::cerr
+        << "-------------------------------------------------------------\n"
+        << "No kernel support for CFS so no 'CFS' tests will be run\n"
+        << "-------------------------------------------------------------"
+        << std::endl;
+    }
+#else
+      cfsError = true;
+#endif // __linux__
+  }
+
+  bool disable(const ::testing::TestInfo* test) const
+  {
+    return matches(test, "CFS_") && cfsError;
+  }
+
+private:
+  bool cfsError;
+};
+
+
 class CgroupsFilter : public TestFilter
 {
 public:
@@ -393,6 +429,7 @@ Environment::Environment(const Flags& _flags) : flags(_flags)
   vector<Owned<TestFilter> > filters;
 
   filters.push_back(Owned<TestFilter>(new RootFilter()));
+  filters.push_back(Owned<TestFilter>(new CfsFilter()));
   filters.push_back(Owned<TestFilter>(new CgroupsFilter()));
   filters.push_back(Owned<TestFilter>(new DockerFilter()));
   filters.push_back(Owned<TestFilter>(new BenchmarkFilter()));
