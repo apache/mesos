@@ -277,13 +277,13 @@ void FetcherCacheTest::startSlave()
   ASSERT_SOME(create);
   containerizer = create.get();
 
+  Future<SlaveRegisteredMessage> slaveRegisteredMessage =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
+
   Try<PID<Slave>> pid = StartSlave(containerizer, flags);
   ASSERT_SOME(pid);
   slavePid = pid.get();
 
-  // Obtain the slave ID.
-  Future<SlaveRegisteredMessage> slaveRegisteredMessage =
-    FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
   AWAIT_READY(slaveRegisteredMessage);
   slaveId = slaveRegisteredMessage.get().slave_id();
 
