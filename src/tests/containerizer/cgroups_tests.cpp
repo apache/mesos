@@ -497,7 +497,7 @@ TEST_F(CgroupsAnyHierarchyTest, ROOT_CGROUPS_Write)
 }
 
 
-TEST_F(CgroupsAnyHierarchyTest, ROOT_CGROUPS_Cfs_Big_Quota)
+TEST_F(CgroupsAnyHierarchyTest, ROOT_CGROUPS_CFS_Big_Quota)
 {
   string hierarchy = path::join(baseHierarchy, "cpu");
   ASSERT_SOME(cgroups::create(hierarchy, TEST_CGROUPS_ROOT));
