@@ -20,6 +20,6 @@
 # still need to update version numbers in src/python/setup.py.in too!
 
 DISTRIBUTE_VERSION = 0.6.26
-PIP_VERSION = 1.5.6
+PIP_VERSION = 7.1.2
 WHEEL_VERSION = 0.24.0
 ZOOKEEPER_VERSION = 3.4.5
