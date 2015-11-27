@@ -751,6 +751,18 @@ void Master::initialize()
           Http::log(request);
           return http.scheduler(request);
         });
+    route("/create-volumes",
+        Http::CREATE_VOLUMES_HELP(),
+        [http](const process::http::Request& request) {
+          Http::log(request);
+          return http.createVolumes(request);
+        });
+    route("/destroy-volumes",
+        Http::DESTROY_VOLUMES_HELP(),
+        [http](const process::http::Request& request) {
+          Http::log(request);
+          return http.destroyVolumes(request);
+        });
   route("/frameworks",
         Http::FRAMEWORKS(),
         [http](const process::http::Request& request) {

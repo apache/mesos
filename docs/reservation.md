@@ -52,8 +52,8 @@ specified via the existing ACL mechanism. (_Coming Soon_)
 * `Offer::Operation::Reserve` and `Offer::Operation::Unreserve` messages are
   available for __frameworks__ to send back via the `acceptOffers` API as a
   response to a resource offer.
-* `/reserve` and `/unreserve` HTTP endpoints are available for __operators__
-  to manage dynamic reservations through the master.
+* `/reserve` and `/unreserve` HTTP endpoints allow __operators__ to manage
+  dynamic reservations through the master.
 
 In the following sections, we will walk through examples of each of the
 interfaces described above.

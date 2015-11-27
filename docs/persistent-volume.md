@@ -33,8 +33,8 @@ specified via the existing ACL mechanism. (___Coming Soon___)
 * `Offer::Operation::Create` and `Offer::Operation::Destroy` messages are
   available for __frameworks__ to send back via the `acceptOffers` API as a
   response to a resource offer.
-* `/create` and `/destroy` HTTP endpoints are available for __operators__
-  to manage persistent volumes through the master. (___Coming Soon___).
+* `/create-volumes` and `/destroy-volumes` HTTP endpoints allow
+  __operators__ to manage persistent volumes through the master.
 
 In the following sections, we will walk through examples of each of the
 interfaces described above.
@@ -232,10 +232,102 @@ contain the following reserved disk resources:
 Those reserved resources can then be used as normal: e.g., they can be used to
 create another persistent volume or can be unreserved.
 
-Note that in 0.23, even after you destroy the persistent volume, its content
-will still be on the disk. The garbage collection for persistent volumes is
-coming soon: [MESOS-2048](https://issues.apache.org/jira/browse/MESOS-2408).
+Garbage collection for persistent volumes is planned but has not been
+implemented yet -- [MESOS-2408](https://issues.apache.org/jira/browse/MESOS-2408).
+In the mean time, even after you destroy a persistent volume, its content will
+remain on disk.
 
+### Operator HTTP Endpoints
 
-### `/create` (_Coming Soon_)
-### `/destroy` (_Coming Soon_)
+As described above, persistent volumes can be created by a framework scheduler
+as part of the resource offer cycle. Persistent volumes can also be created and
+destroyed by sending HTTP requests to the `/create-volumes` and
+`/destroy-volumes` endpoints, respectively. This capability is intended for use
+by operators and administrative tools.
+
+#### `/create-volumes`
+
+To use this endpoint, the operator should first ensure that a reservation for
+the necessary resources has been made on the appropriate slave (e.g., by using
+the `/reserve` HTTP endpoint or by configuring a static reservation).
+
+To create a 512MB persistent volume for the `ads` role on a dynamically reserved
+disk resource, we can send a request like so:
+
+```
+curl -i \
+     -u <operator_principal>:<password> \
+     -d slaveId=<slave_id> \
+     -d volumes='[
+       {
+         "name": "disk",
+         "type": "SCALAR",
+         "scalar": { "value": 512 },
+         "role": "ads",
+         "reservation": {
+           "principal": <operator_principal>
+         },
+         "disk": {
+           "persistence": {
+             "id" : <persistence_id>
+           },
+           "volume": {
+             "mode": "RW",
+             "container_path": <path>
+           }
+         }
+       }
+     ]' \
+     -X POST http://<ip>:<port>/master/create-volumes
+```
+
+The user receives one of the following HTTP responses:
+
+* `200 OK`: Success (the persistent volumes have been created).
+* `400 BadRequest`: Invalid arguments (e.g., missing parameters).
+* `401 Unauthorized`: Unauthorized request.
+* `409 Conflict`: Insufficient resources to create the volumes.
+
+Note that a single `/create-volumes` request can create multiple persistent
+volumes, but all of the volumes must be on the same slave.
+
+#### `/destroy-volumes`
+
+To destroy the volume created above, we can send an HTTP POST like so:
+
+```
+curl -i \
+     -u <operator_principal>:<password> \
+     -d slaveId=<slave_id> \
+     -d volumes='[
+       {
+         "name": "disk",
+         "type": "SCALAR",
+         "scalar": { "value": 512 },
+         "role": "ads",
+         "reservation": {
+           "principal": <operator_principal>
+         },
+         "disk": {
+           "persistence": {
+             "id" : <persistence_id>
+           },
+           "volume": {
+             "mode": "RW",
+             "container_path": <path>
+           }
+         }
+       }
+     ]' \
+     -X POST http://<ip>:<port>/master/destroy-volumes
+```
+
+The user receives one of the following HTTP responses:
+
+* `200 OK`: Success (the volumes have been destroyed).
+* `400 BadRequest`: Invalid arguments (e.g., missing parameters).
+* `401 Unauthorized`: Unauthorized request.
+* `409 Conflict`: Insufficient resources to destroy the volumes.
+
+Note that a single `/destroy-volumes` request can destroy multiple persistent
+volumes, but all of the volumes must be on the same slave.

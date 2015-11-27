@@ -523,6 +523,192 @@ Future<Response> Master::Http::scheduler(const Request& request) const
 }
 
 
+string Master::Http::CREATE_VOLUMES_HELP()
+{
+  return HELP(
+    TLDR(
+        "Create persistent volumes on reserved resources."),
+    DESCRIPTION(
+        "Returns 200 OK if volume creation was successful.",
+        "Please provide \"slaveId\" and \"volumes\" values designating ",
+        "the volumes to be created."
+      ));
+}
+
+
+static Resources removeDiskInfos(const Resources& resources)
+{
+  Resources result = resources;
+
+  foreach (Resource& resource, result) {
+    resource.clear_disk();
+  }
+
+  return result;
+}
+
+
+Future<Response> Master::Http::createVolumes(const Request& request) const
+{
+  if (request.method != "POST") {
+    return BadRequest("Expecting POST");
+  }
+
+  Result<Credential> credential = authenticate(request);
+  if (credential.isError()) {
+    return Unauthorized("Mesos master", credential.error());
+  }
+
+  // Parse the query string in the request body.
+  Try<hashmap<string, string>> decode =
+    process::http::query::decode(request.body);
+
+  if (decode.isError()) {
+    return BadRequest("Unable to decode query string: " + decode.error());
+  }
+
+  const hashmap<string, string>& values = decode.get();
+
+  if (values.get("slaveId").isNone()) {
+    return BadRequest("Missing 'slaveId' query parameter");
+  }
+
+  SlaveID slaveId;
+  slaveId.set_value(values.get("slaveId").get());
+
+  Slave* slave = master->slaves.registered.get(slaveId);
+  if (slave == NULL) {
+    return BadRequest("No slave found with specified ID");
+  }
+
+  if (values.get("volumes").isNone()) {
+    return BadRequest("Missing 'volumes' query parameter");
+  }
+
+  Try<JSON::Array> parse =
+    JSON::parse<JSON::Array>(values.get("volumes").get());
+
+  if (parse.isError()) {
+    return BadRequest(
+        "Error in parsing 'volumes' query parameter: " + parse.error());
+  }
+
+  Resources volumes;
+  foreach (const JSON::Value& value, parse.get().values) {
+    Try<Resource> volume = ::protobuf::parse<Resource>(value);
+    if (volume.isError()) {
+      return BadRequest(
+          "Error in parsing 'volumes' query parameter: " + volume.error());
+    }
+    volumes += volume.get();
+  }
+
+  // Create an offer operation.
+  Offer::Operation operation;
+  operation.set_type(Offer::Operation::CREATE);
+  operation.mutable_create()->mutable_volumes()->CopyFrom(volumes);
+
+  Option<Error> validate = validation::operation::validate(
+      operation.create(), slave->checkpointedResources);
+
+  if (validate.isSome()) {
+    return BadRequest("Invalid CREATE operation: " + validate.get().message);
+  }
+
+  // TODO(neilc): Add a create-volumes ACL for authorization.
+
+  // The resources required for this operation are equivalent to the
+  // volumes specified by the user minus any DiskInfo (DiskInfo will
+  // be created when this operation is applied).
+  return _operation(slaveId, removeDiskInfos(volumes), operation);
+}
+
+
+string Master::Http::DESTROY_VOLUMES_HELP()
+{
+  return HELP(
+    TLDR(
+        "Destroy persistent volumes."),
+    DESCRIPTION(
+        "Returns 200 OK if volume deletion was successful.",
+        "Please provide \"slaveId\" and \"volumes\" values designating "
+        "the volumes to be destroyed."));
+}
+
+
+Future<Response> Master::Http::destroyVolumes(const Request& request) const
+{
+  if (request.method != "POST") {
+    return BadRequest("Expecting POST");
+  }
+
+  Result<Credential> credential = authenticate(request);
+  if (credential.isError()) {
+    return Unauthorized("Mesos master", credential.error());
+  }
+
+  // Parse the query string in the request body.
+  Try<hashmap<string, string>> decode =
+    process::http::query::decode(request.body);
+
+  if (decode.isError()) {
+    return BadRequest("Unable to decode query string: " + decode.error());
+  }
+
+  const hashmap<string, string>& values = decode.get();
+
+  if (values.get("slaveId").isNone()) {
+    return BadRequest("Missing 'slaveId' query parameter");
+  }
+
+  SlaveID slaveId;
+  slaveId.set_value(values.get("slaveId").get());
+
+  Slave* slave = master->slaves.registered.get(slaveId);
+  if (slave == NULL) {
+    return BadRequest("No slave found with specified ID");
+  }
+
+  if (values.get("volumes").isNone()) {
+    return BadRequest("Missing 'volumes' query parameter");
+  }
+
+  Try<JSON::Array> parse =
+    JSON::parse<JSON::Array>(values.get("volumes").get());
+
+  if (parse.isError()) {
+    return BadRequest(
+        "Error in parsing 'volumes' query parameter: " + parse.error());
+  }
+
+  Resources volumes;
+  foreach (const JSON::Value& value, parse.get().values) {
+    Try<Resource> volume = ::protobuf::parse<Resource>(value);
+    if (volume.isError()) {
+      return BadRequest(
+          "Error in parsing 'volumes' query parameter: " + volume.error());
+    }
+    volumes += volume.get();
+  }
+
+  // Create an offer operation.
+  Offer::Operation operation;
+  operation.set_type(Offer::Operation::DESTROY);
+  operation.mutable_destroy()->mutable_volumes()->CopyFrom(volumes);
+
+  Option<Error> validate = validation::operation::validate(
+      operation.destroy(), slave->checkpointedResources);
+
+  if (validate.isSome()) {
+    return BadRequest("Invalid DESTROY operation: " + validate.get().message);
+  }
+
+  // TODO(neilc): Add a destroy-volumes ACL for authorization.
+
+  return _operation(slaveId, volumes, operation);
+}
+
+
 string Master::Http::FRAMEWORKS()
 {
   return HELP(TLDR("Exposes the frameworks info."));
@@ -848,6 +1034,10 @@ Future<Response> Master::Http::reserve(const Request& request) const
 
   // TODO(mpark): Add a reserve ACL for authorization.
 
+  // NOTE: flatten() is important. To make a dynamic reservation,
+  // we want to ensure that the required resources are available
+  // and unreserved; flatten() removes the role and
+  // ReservationInfo from the resources.
   return _operation(slaveId, resources.flatten(), operation);
 }
 
@@ -877,7 +1067,6 @@ Future<Response> Master::Http::slaves(const Request& request) const
 
     object.values["slaves"] = std::move(array);
   }
-
 
   return OK(object, request.url.query.get("jsonp"));
 }

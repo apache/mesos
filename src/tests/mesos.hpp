@@ -508,11 +508,14 @@ inline Resource::DiskInfo createDiskInfo(
 }
 
 
+// Note that `reservationPrincipal` should be specified if and only if
+// the volume uses dynamically reserved resources.
 inline Resource createPersistentVolume(
     const Bytes& size,
     const std::string& role,
     const std::string& persistenceId,
-    const std::string& containerPath)
+    const std::string& containerPath,
+    const Option<std::string>& reservationPrincipal = None())
 {
   Resource volume = Resources::parse(
       "disk",
@@ -521,6 +524,10 @@ inline Resource createPersistentVolume(
 
   volume.mutable_disk()->CopyFrom(
       createDiskInfo(persistenceId, containerPath));
+
+  if (reservationPrincipal.isSome()) {
+    volume.mutable_reservation()->set_principal(reservationPrincipal.get());
+  }
 
   return volume;
 }
