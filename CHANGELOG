@@ -3,8 +3,118 @@ Release Notes - Mesos - Version 0.26.0 (WIP)
 
 ** API Changes:
   * [MESOS-3560] - Fix JSON-based credential files by changing protobuf `Credential` field `secret` from bytes to string.
-  * [MESOS-3824] - Add /frameworks endpoint to master
+  * [MESOS-3824] - Add /frameworks endpoint to master.
 
+** Bug
+  * [MESOS-1867] - Precision errors in UI.
+  * [MESOS-2864] - Master should not change the state of a terminal task if it receives another terminal update.
+  * [MESOS-3030] - Build failure on OS 10.11 using Xcode 7.
+  * [MESOS-3280] - Master fails to access replicated log after network partition.
+  * [MESOS-3293] - Failing ROOT_ tests on CentOS 7.1 - LimitedCpuIsolatorTest.
+  * [MESOS-3326] - Make use of C++11 atomics.
+  * [MESOS-3329] - Unused hashmap::existsValue functions have incomplete code paths.
+  * [MESOS-3411] - ReservationEndpointsTest.AvailableResources appears to be faulty.
+  * [MESOS-3428] - Support running filesystem isolation with Command Executor in MesosContainerizer.
+  * [MESOS-3470] - UserCgroupIsolatorTest failed on CentOS 6.6.
+  * [MESOS-3501] - Configure cannot find libevent headers in CentOS 6.
+  * [MESOS-3506] - Build instructions for CentOS 6.6 should include `sudo yum update`.
+  * [MESOS-3517] - Building mesos from source fails when OS language is not English.
+  * [MESOS-3519] - Fix file descriptor leakage / double close in the code base.
+  * [MESOS-3522] - MesosScheduler declineOffer results in an acceptOffer.
+  * [MESOS-3552] - CHECK failure due to floating point precision on reservation request.
+  * [MESOS-3553] - LIBPROCESS_IP not passed when executor's environment is specified.
+  * [MESOS-3560] - JSON-based credential files do not work correctly.
+  * [MESOS-3563] - Revocable task CPU shows as zero in /state.json.
+  * [MESOS-3569] - Typos in Mesos Monitoring doc page.
+  * [MESOS-3584] - Rename libprocess tests to "libprocess-tests".
+  * [MESOS-3591] - mesos-slave: --help output for "--master" is incomplete.
+  * [MESOS-3594] - Rename http_api_tests.cpp to scheduler_http_api_tests.cpp.
+  * [MESOS-3597] - Running tests with CMake are annoying and have a bad reporting story.
+  * [MESOS-3600] - Unable to build with non-default protobuf.
+  * [MESOS-3602] - hdfs du fails due to prepended / on path.
+  * [MESOS-3603] - Test build failure due to comparison between signed and unsigned integers.
+  * [MESOS-3604] - ExamplesTest.PersistentVolumeFramework does not work in OS X El Capitan.
+  * [MESOS-3605] - hdfs.du() fails on os x due to lack of native-hadoop library.
+  * [MESOS-3694] - Enable building mesos.apache.org locally in a Docker container.
+  * [MESOS-3698] - JSON parsing allows non-whitespace trailing characters.
+  * [MESOS-3700] - Deprecate resource_monitoring_interval flag.
+  * [MESOS-3708] - Improve process::subprocess ABORT message.
+  * [MESOS-3715] - Enable Request resource using Call::REQUEST in scheduler driver.
+  * [MESOS-3716] - Update Allocator interface to support quota.
+  * [MESOS-3728] - Libprocess: Flaky behavior on test suite when finalizing.
+  * [MESOS-3733] - ContentType/SchedulerTest.Suppress/0 is flaky.
+  * [MESOS-3734] - Incorrect sed syntax for Mac OSX.
+  * [MESOS-3738] - Mesos health check is invoked incorrectly when Mesos slave is within the docker container.
+  * [MESOS-3743] - Provide diagnostic output in agent log when fetching fails.
+  * [MESOS-3748] - HTTP scheduler library does not gracefully parse invalid resource identifiers.
+  * [MESOS-3751] - MESOS_NATIVE_JAVA_LIBRARY not set on MesosContainerize tasks with --executor_environmnent_variables.
+  * [MESOS-3769] - Agent logs are misleading during agent shutdown.
+  * [MESOS-3770] - SlaveRecoveryTest/0.RecoverCompletedExecutor is flaky.
+  * [MESOS-3771] - Mesos JSON API creates invalid JSON due to lack of binary data / non-ASCII handling.
+  * [MESOS-3773] - RegistryClientTest.SimpleGetBlob is flaky.
+  * [MESOS-3793] - Cannot start mesos local on a Debian GNU/Linux 8 docker machine.
+  * [MESOS-3800] - Containerizer attempts to create Linux launcher by default.
+  * [MESOS-3806] - 'mount --make-rslave /' does not work as expected on ubuntu 14.04.
+  * [MESOS-3809] - Expose advertise_ip and advertise_port as command line options in mesos slave.
+  * [MESOS-3810] - Must be able to use NetworkInfo with mesos-executor.
+  * [MESOS-3822] - Cannot specify multiple masters when slave start up.
+  * [MESOS-3834] - Slave upgrade framework checkpoint incompatibility.
+  * [MESOS-3837] - Rootfs in provisioner test doesn't handle symlink directories properly.
+  * [MESOS-3840] - Build broken: 'adding 'bool' to a string does not append to the string' in filesystem tests.
+  * [MESOS-3847] - Root tests for LinuxFilesystemIsolatorTest are broken.
+  * [MESOS-3849] - Corrected style in Makefiles.
+  * [MESOS-3937] - Test DockerContainerizerTest.ROOT_DOCKER_Launch_Executor fails.
+  * [MESOS-3953] - DockerTest.ROOT_DOCKER_CheckPortResource fails.
+  * [MESOS-3964] - LimitedCpuIsolatorTest.ROOT_CGROUPS_Cfs and LimitedCpuIsolatorTest.ROOT_CGROUPS_Cfs_Big_Quota fail on Debian 8.
+  * [MESOS-3966] - LinuxFilesystemIsolatorTest.ROOT_ImageInVolumeWithRootFilesystem fails on Centos 7.1.
+  * [MESOS-3969] - Failing 'make distcheck' on Debian 8, somehow SSL-related.
+  * [MESOS-3974] - CgroupsAnyHierarchyMemoryPressureTest tests fail on CentOS 6.7.
+  * [MESOS-3989] - Add missing DiscoveryInfo field to v1/mesos.proto.
+
+** Documentation
+  * [MESOS-2783] - Document the fetcher.
+  * [MESOS-3692] - Clarify error message 'could not chown work directory'.
+  * [MESOS-3749] - Configuration docs are missing --enable-libevent and --enable-ssl.
+  * [MESOS-3752] - CentOS 6 dependency install fails at Maven.
+  * [MESOS-3905] - Five new docker-related slave flags are not covered by the configuration documentation.
+
+** Improvement
+  * [MESOS-1841] - Mesos components should expose their version on an endpoint.
+  * [MESOS-2035] - Add reason to containerizer proto Termination.
+  * [MESOS-2273] - Add "tests" target to Makefile for building-but-not-running tests.
+  * [MESOS-2467] - Allow --resources flag to take JSON.
+  * [MESOS-2613] - Change docker rm command.
+  * [MESOS-2924] - Allow simple construction via initializer list on hashset.
+  * [MESOS-2960] - Configure DiscoveryInfo and Visibility per port.
+  * [MESOS-2972] - Serialize Docker image spec as protobuf.
+  * [MESOS-3099] - Validation of Docker Image Manifests from Docker Registry.
+  * [MESOS-3366] - Allow resources/attributes discovery.
+  * [MESOS-3417] - Log source address replicated log received broadcasts.
+  * [MESOS-3429] - Allow HTTP response codes in libprocess to be matched.
+  * [MESOS-3468] - Improve apply_reviews.sh script to apply chain of reviews.
+  * [MESOS-3554] - Allocator changes trigger large re-compiles.
+  * [MESOS-3566] - Add a section to the Scheduler HTTP API docs around RecordIO specification.
+  * [MESOS-3721] - We need the active flag on frameworks in the /state-summary endpoint.
+  * [MESOS-3735] - Mesos master should expose the version of registered agents.
+  * [MESOS-3759] - Document messages.proto.
+  * [MESOS-3788] - Clarify NetworkInfo semantics for IP addresses and group policies.
+  * [MESOS-3819] - Add documentation explaining "roles".
+
+** Task
+  * [MESOS-1832] - Slave should accept PingSlaveMessage but not "PING" message.
+  * [MESOS-2224] - Add explanatory comments for Allocator interface.
+  * [MESOS-2295] - Implement the Call endpoint on Slave.
+  * [MESOS-2906] - Slave : Synchronous Validation for Calls.
+  * [MESOS-3104] - Add an endpoint that exposes component flags.
+  * [MESOS-3129] - Move all MesosContainerizer related files under src/slave/containerizer/mesos.
+  * [MESOS-3332] - Support HTTP Pipelining in libprocess (http::post).
+  * [MESOS-3405] - Add JSON::protobuf for google::protobuf::RepeatedPtrField.
+  * [MESOS-3407] - Mesos fetcher automatically extract gz files.
+  * [MESOS-3480] - Refactor Executor struct in Slave to handle HTTP based executors.
+  * [MESOS-3762] - Refactor SSLTest fixture such that MesosTest can use the same helpers.
+  * [MESOS-3824] - Add /frameworks endpoint to master.
+  * [MESOS-3845] - Send TaskStatus::container_status inside reconciliation updates.
+  * [MESOS-3900] - Enable mesos-reviewbot project on jenkins to use docker.
 
 Release Notes - Mesos - Version 0.25.0
 --------------------------------------------
