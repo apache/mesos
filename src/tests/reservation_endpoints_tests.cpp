@@ -147,10 +147,10 @@ TEST_F(ReservationEndpointsTest, AvailableResources)
 
   Future<vector<Offer>> offers;
 
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillOnce(FutureArg<1>(&offers));
-
-  EXPECT_CALL(sched, registered(&driver, _, _));
 
   driver.start();
 
@@ -237,10 +237,10 @@ TEST_F(ReservationEndpointsTest, ReserveOfferedResources)
 
   Future<vector<Offer>> offers;
 
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillOnce(FutureArg<1>(&offers));
-
-  EXPECT_CALL(sched, registered(&driver, _, _));
 
   driver.start();
 
@@ -319,10 +319,10 @@ TEST_F(ReservationEndpointsTest, UnreserveOfferedResources)
 
   Future<vector<Offer>> offers;
 
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillOnce(FutureArg<1>(&offers));
-
-  EXPECT_CALL(sched, registered(&driver, _, _));
 
   driver.start();
 
