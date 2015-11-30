@@ -650,6 +650,8 @@ void ContainerizerTest<slave::MesosContainerizer>::SetUpTestCase()
 
 void ContainerizerTest<slave::MesosContainerizer>::TearDownTestCase()
 {
+  MesosTest::TearDownTestCase();
+
   Result<string> user = os::user();
   EXPECT_SOME(user);
 

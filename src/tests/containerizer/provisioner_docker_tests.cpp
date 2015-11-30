@@ -533,6 +533,8 @@ protected:
 
   static void TearDownTestCase()
   {
+    SSLTest::TearDownTestCase();
+
     os::rmdir(RegistryClientTest::OUTPUT_DIR);
   }
 
