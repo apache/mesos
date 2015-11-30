@@ -2427,11 +2427,12 @@ Future<Nothing> freeze(
   LOG(INFO) << "Freezing cgroup " << path::join(hierarchy, cgroup);
 
   internal::Freezer* freezer = new internal::Freezer(hierarchy, cgroup);
+  PID<internal::Freezer> pid = freezer->self();
 
   Future<Nothing> future = freezer->future();
   spawn(freezer, true);
 
-  dispatch(freezer, &internal::Freezer::freeze);
+  dispatch(pid, &internal::Freezer::freeze);
 
   return future;
 }
@@ -2444,11 +2445,12 @@ Future<Nothing> thaw(
   LOG(INFO) << "Thawing cgroup " << path::join(hierarchy, cgroup);
 
   internal::Freezer* freezer = new internal::Freezer(hierarchy, cgroup);
+  PID<internal::Freezer> pid = freezer->self();
 
   Future<Nothing> future = freezer->future();
   spawn(freezer, true);
 
-  dispatch(freezer, &internal::Freezer::thaw);
+  dispatch(pid, &internal::Freezer::thaw);
 
   return future;
 }
