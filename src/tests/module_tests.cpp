@@ -80,6 +80,8 @@ protected:
 
   static void TearDownTestCase()
   {
+    MesosTest::TearDownTestCase();
+
     // Close the module library.
     dynamicLibrary.close();
 
