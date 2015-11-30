@@ -68,6 +68,13 @@ class SSLTemporaryDirectoryTest : public TemporaryDirectoryTest {};
  */
 class SSLTemporaryDirectoryTest : public TemporaryDirectoryTest
 {
+public:
+  static void TearDownTestCase()
+  {
+    // Clear and reset any environment variables.
+    set_environment_variables({});
+  }
+
 protected:
   /**
    * @return The path to the authorized private key.
@@ -105,7 +112,7 @@ protected:
    * Wipes out existing SSL environment variables and replaces them
    * with the given map.  The SSL library is reinitialized afterwards.
    */
-  void set_environment_variables(
+  static void set_environment_variables(
       const std::map<std::string, std::string>& environment)
   {
     // This unsets all the SSL environment variables. Necessary for
