@@ -322,6 +322,12 @@ Future<Response> Slave::Http::executor(const Request& request) const
     }
 
     case executor::Call::MESSAGE: {
+      slave->executorMessage(
+          slave->info.id(),
+          framework->id(),
+          executor->id,
+          call.message().data());
+
       return Accepted();
     }
 
