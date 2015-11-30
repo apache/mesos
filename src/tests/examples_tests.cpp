@@ -26,7 +26,9 @@ TEST_SCRIPT(ExamplesTest, TestFramework, "test_framework_test.sh")
 TEST_SCRIPT(ExamplesTest, NoExecutorFramework, "no_executor_framework_test.sh")
 
 
-TEST_SCRIPT(ExamplesTest, EventCallFramework, "event_call_framework_test.sh")
+// TODO(tillt): Disabled for MESOS-3273.
+TEST_SCRIPT(ExamplesTest, DISABLED_EventCallFramework,
+            "event_call_framework_test.sh")
 
 
 TEST_SCRIPT(ExamplesTest, PersistentVolumeFramework,
