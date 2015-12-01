@@ -1950,16 +1950,20 @@ TEST(RevocableResourceTest, Contains)
 }
 
 
-// This test verifies that revocable resources can be filtered.
+// This test verifies that revocable and non-revocable resources
+// can be filtered.
 TEST(RevocableResourceTest, Filter)
 {
   Resources r1 = createRevocableResource("cpus", "1", "*", true);
   EXPECT_EQ(r1, r1.revocable());
+  EXPECT_TRUE(r1.nonRevocable().empty());
 
   Resources r2 = createRevocableResource("cpus", "1", "*", false);
+  EXPECT_EQ(r2, r2.nonRevocable());
   EXPECT_TRUE(r2.revocable().empty());
 
   EXPECT_EQ(r1, (r1 + r2).revocable());
+  EXPECT_EQ(r2, (r1 + r2).nonRevocable());
 }
 
 } // namespace tests {

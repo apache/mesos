@@ -772,6 +772,13 @@ Resources Resources::revocable() const
 }
 
 
+Resources Resources::nonRevocable() const
+{
+  return filter(
+      [](const Resource& resource) { return !isRevocable(resource); });
+}
+
+
 Resources Resources::flatten(
     const string& role,
     const Option<Resource::ReservationInfo>& reservation) const
