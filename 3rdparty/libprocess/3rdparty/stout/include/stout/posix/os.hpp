@@ -584,9 +584,13 @@ inline Try<Memory> memory()
 # if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 3, 23)
   memory.total = Bytes(info.totalram * info.mem_unit);
   memory.free = Bytes(info.freeram * info.mem_unit);
+  memory.totalSwap = Bytes(info.totalswap * info.mem_unit);
+  memory.freeSwap = Bytes(info.freeswap * info.mem_unit);
 # else
   memory.total = Bytes(info.totalram);
   memory.free = Bytes(info.freeram);
+  memory.totalSwap = Bytes(info.totalswap);
+  memory.freeSwap = Bytes(info.freeswap);
 # endif
 
   return memory;
@@ -618,6 +622,19 @@ inline Try<Memory> memory()
     return ErrnoError();
   }
   memory.free = Bytes(freeCount * pageSize);
+
+  struct xsw_usage usage;
+  length = sizeof(struct xsw_usage);
+  if (sysctlbyname(
+        "vm.swapusage",
+        &usage,
+        &length,
+        NULL,
+        0) != 0) {
+    return ErrnoError();
+  }
+  memory.totalSwap = Bytes(usage.xsu_total * pageSize);
+  memory.freeSwap = Bytes(usage.xsu_avail * pageSize);
 
   return memory;
 

@@ -35,6 +35,8 @@ struct Memory
 {
   Bytes total;
   Bytes free;
+  Bytes totalSwap;
+  Bytes freeSwap;
 };
 
 
