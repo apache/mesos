@@ -91,7 +91,7 @@ JSON::Object model(const Resources& resources)
   object.values["disk"] = 0;
 
   // Model non-revocable resources.
-  Resources nonRevocable = resources - resources.revocable();
+  Resources nonRevocable = resources.nonRevocable();
 
   foreachpair (
       const string& name, const Value::Type& type, nonRevocable.types()) {

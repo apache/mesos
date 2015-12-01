@@ -4874,8 +4874,7 @@ double Slave::_resources_used(const string& name)
 
   foreachvalue (Framework* framework, frameworks) {
     foreachvalue (Executor* executor, framework->executors) {
-      foreach (const Resource& resource,
-               executor->resources - executor->resources.revocable()) {
+      foreach (const Resource& resource, executor->resources.nonRevocable()) {
         if (resource.name() == name && resource.type() == Value::SCALAR) {
           used += resource.scalar().value();
         }

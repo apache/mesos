@@ -4319,8 +4319,8 @@ void Master::updateSlave(
   // NOTE: We don't need to rescind inverse offers here as they are unrelated to
   // oversubscription.
 
-  slave->totalResources -= slave->totalResources.revocable();
-  slave->totalResources += oversubscribedResources.revocable();
+  slave->totalResources =
+    slave->totalResources.nonRevocable() + oversubscribedResources.revocable();
 
   // Now, update the allocator with the new estimate.
   allocator->updateSlave(slaveId, oversubscribedResources);
@@ -6587,7 +6587,7 @@ double Master::_resources_used(const string& name)
 
   foreachvalue (Slave* slave, slaves.registered) {
     foreachvalue (const Resources& resources, slave->usedResources) {
-      foreach (const Resource& resource, resources - resources.revocable()) {
+      foreach (const Resource& resource, resources.nonRevocable()) {
         if (resource.name() == name && resource.type() == Value::SCALAR) {
           used += resource.scalar().value();
         }

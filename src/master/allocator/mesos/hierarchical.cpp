@@ -423,11 +423,9 @@ void HierarchicalAllocatorProcess::updateSlave(
 
   // Update the total resources.
 
-  // First remove the old oversubscribed resources from the total.
-  slaves[slaveId].total -= slaves[slaveId].total.revocable();
-
-  // Now add the new estimate of oversubscribed resources.
-  slaves[slaveId].total += oversubscribed;
+  // Remove the old oversubscribed resources from the total and then
+  // add the new estimate of oversubscribed resources.
+  slaves[slaveId].total = slaves[slaveId].total.nonRevocable() + oversubscribed;
 
   // Now, update the total resources in the role sorters.
   roleSorter->update(slaveId, slaves[slaveId].total.unreserved());
@@ -1024,7 +1022,7 @@ void HierarchicalAllocatorProcess::allocate(
         // Remove revocable resources if the framework has not opted
         // for them.
         if (!frameworks[frameworkId].revocable) {
-          resources -= resources.revocable();
+          resources = resources.nonRevocable();
         }
 
         // If the resources are not allocatable, ignore.
