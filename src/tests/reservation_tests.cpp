@@ -110,11 +110,11 @@ TEST_F(ReservationTest, ReserveThenUnreserve)
   // We use this to capture offers from 'resourceOffers'.
   Future<vector<Offer>> offers;
 
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
   // The expectation for the first offer.
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillOnce(FutureArg<1>(&offers));
-
-  EXPECT_CALL(sched, registered(&driver, _, _));
 
   driver.start();
 
@@ -202,11 +202,11 @@ TEST_F(ReservationTest, ReserveAndLaunchThenUnreserve)
   // We use this to capture offers from 'resourceOffers'.
   Future<vector<Offer>> offers;
 
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
   // The expectation for the first offer.
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillOnce(FutureArg<1>(&offers));
-
-  EXPECT_CALL(sched, registered(&driver, _, _));
 
   driver.start();
 
@@ -321,11 +321,11 @@ TEST_F(ReservationTest, ReserveShareWithinRole)
   // We use this to capture offers from 'resourceOffers'.
   Future<vector<Offer>> offers;
 
+  EXPECT_CALL(sched1, registered(&driver1, _, _));
+
   // The expectation for the first offer.
   EXPECT_CALL(sched1, resourceOffers(&driver1, _))
     .WillOnce(FutureArg<1>(&offers));
-
-  EXPECT_CALL(sched1, registered(&driver1, _, _));
 
   driver1.start();
 
@@ -365,11 +365,11 @@ TEST_F(ReservationTest, ReserveShareWithinRole)
   // receive the resources.
   driver1.declineOffer(offer.id(), filtersForever);
 
+  EXPECT_CALL(sched2, registered(&driver2, _, _));
+
   // The expectation for the next offer.
   EXPECT_CALL(sched2, resourceOffers(&driver2, _))
     .WillOnce(FutureArg<1>(&offers));
-
-  EXPECT_CALL(sched2, registered(&driver2, _, _));
 
   driver2.start();
 
@@ -431,13 +431,13 @@ TEST_F(ReservationTest, DropReserveTooLarge)
   // We use this to capture the offers from 'resourceOffers'.
   Future<vector<Offer>> offers;
 
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
   // The expectation for the first offer.
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillOnce(FutureArg<1>(&offers));
 
   EXPECT_CALL(allocator, addFramework(_, _, _));
-
-  EXPECT_CALL(sched, registered(&driver, _, _));
 
   driver.start();
 
@@ -522,13 +522,13 @@ TEST_F(ReservationTest, DropReserveStaticReservation)
   // We use this to capture offers from 'resourceOffers'.
   Future<vector<Offer>> offers;
 
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
   // The expectation for the first offer.
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillOnce(FutureArg<1>(&offers));
 
   EXPECT_CALL(allocator, addFramework(_, _, _));
-
-  EXPECT_CALL(sched, registered(&driver, _, _));
 
   driver.start();
 
@@ -610,12 +610,12 @@ TEST_F(ReservationTest, SendingCheckpointResourcesMessage)
   // We use this to capture offers from 'resourceOffers'.
   Future<vector<Offer>> offers;
 
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
   // The expectation for the first offer.
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillOnce(FutureArg<1>(&offers))
     .WillRepeatedly(Return()); // Ignore subsequent offers.
-
-  EXPECT_CALL(sched, registered(&driver, _, _));
 
   driver.start();
 
@@ -707,12 +707,12 @@ TEST_F(ReservationTest, ResourcesCheckpointing)
   // We use this to capture offers from 'resourceOffers'.
   Future<vector<Offer>> offers;
 
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
   // The expectation for the offer.
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillOnce(FutureArg<1>(&offers))
     .WillRepeatedly(Return()); // Ignore subsequent offers.
-
-  EXPECT_CALL(sched, registered(&driver, _, _));
 
   driver.start();
 
@@ -798,12 +798,12 @@ TEST_F(ReservationTest, MasterFailover)
   // We use this to capture offers from 'resourceOffers'.
   Future<vector<Offer>> offers;
 
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
   // The expectation for the first offer.
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillOnce(FutureArg<1>(&offers))
     .WillRepeatedly(Return()); // Ignore subsequent offers.
-
-  EXPECT_CALL(sched, registered(&driver, _, _));
 
   driver.start();
 
@@ -843,11 +843,11 @@ TEST_F(ReservationTest, MasterFailover)
   Future<SlaveReregisteredMessage> slaveReregistered =
     FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
 
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
   // The expectation for the next offer.
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillOnce(FutureArg<1>(&offers));
-
-  EXPECT_CALL(sched, registered(&driver, _, _));
 
   // Simulate a new master detected event on the slave so that the
   // slave will do a re-registration.
@@ -918,12 +918,12 @@ TEST_F(ReservationTest, CompatibleCheckpointedResources)
   // We use this to capture offers from 'resourceOffers'.
   Future<vector<Offer>> offers;
 
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
   // The expectation for the first offer.
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillOnce(FutureArg<1>(&offers))
     .WillRepeatedly(Return()); // Ignore subsequent offers.
-
-  EXPECT_CALL(sched, registered(&driver, _, _));
 
   driver.start();
 
@@ -1034,11 +1034,11 @@ TEST_F(ReservationTest, CompatibleCheckpointedResourcesWithPersistentVolumes)
   // We use this to capture offers from 'resourceOffers'.
   Future<vector<Offer>> offers;
 
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillOnce(FutureArg<1>(&offers))
     .WillRepeatedly(Return()); // Ignore subsequent offers.
-
-  EXPECT_CALL(sched, registered(&driver, _, _));
 
   driver.start();
 
@@ -1149,11 +1149,11 @@ TEST_F(ReservationTest, IncompatibleCheckpointedResources)
   // We use this to capture offers from 'resourceOffers'.
   Future<vector<Offer>> offers;
 
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillOnce(FutureArg<1>(&offers))
     .WillRepeatedly(Return()); // Ignore subsequent offers.
-
-  EXPECT_CALL(sched, registered(&driver, _, _));
 
   driver.start();
 
