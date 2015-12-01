@@ -559,6 +559,14 @@ mesos::internal::slave::Flags::Flags()
       "isolator.",
       false);
 
+  add(&Flags::egress_flow_classifier_parent,
+      "egress_flow_classifier_parent",
+      "When egress_unique_flow_per_container is enabled, we need to install\n"
+      "a flow classifier (fq_codel) qdisc on egress side. This flag specifies\n"
+      "where to install it in the hierarchy. By default, we install it at\n"
+      "root.",
+      "root");
+
   add(&Flags::network_enable_socket_statistics_summary,
       "network_enable_socket_statistics_summary",
       "Whether to collect socket statistics summary for each container.\n"

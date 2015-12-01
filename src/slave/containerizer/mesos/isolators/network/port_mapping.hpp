@@ -255,6 +255,7 @@ private:
       const net::IPNetwork& _hostIPNetwork,
       const size_t _hostEth0MTU,
       const net::IP& _hostDefaultGateway,
+      const routing::Handle& _hostTxFqCodelHandle,
       const hashmap<std::string, std::string>& _hostNetworkConfigurations,
       const Option<Bytes>& _egressRateLimitPerContainer,
       const IntervalSet<uint16_t>& _managedNonEphemeralPorts,
@@ -267,6 +268,7 @@ private:
       hostIPNetwork(_hostIPNetwork),
       hostEth0MTU(_hostEth0MTU),
       hostDefaultGateway(_hostDefaultGateway),
+      hostTxFqCodelHandle(_hostTxFqCodelHandle),
       hostNetworkConfigurations(_hostNetworkConfigurations),
       egressRateLimitPerContainer(_egressRateLimitPerContainer),
       managedNonEphemeralPorts(_managedNonEphemeralPorts),
@@ -313,6 +315,7 @@ private:
   const net::IPNetwork hostIPNetwork;
   const size_t hostEth0MTU;
   const net::IP hostDefaultGateway;
+  const routing::Handle hostTxFqCodelHandle;
 
   // Describe the host network configurations. It is a map between
   // configure proc files (e.g., /proc/sys/net/core/somaxconn) and

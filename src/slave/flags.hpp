@@ -113,6 +113,7 @@ public:
   Option<std::string> lo_name;
   Option<Bytes> egress_rate_limit_per_container;
   bool egress_unique_flow_per_container;
+  std::string egress_flow_classifier_parent;
   bool network_enable_socket_statistics_summary;
   bool network_enable_socket_statistics_details;
 #endif

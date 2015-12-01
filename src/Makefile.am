@@ -793,6 +793,7 @@ MESOS_LINUX_FILES +=							\
   slave/containerizer/mesos/provisioner/backends/bind.hpp
 
 MESOS_NETWORK_ISOLATOR_FILES =						\
+  linux/routing/handle.cpp						\
   linux/routing/route.cpp						\
   linux/routing/utils.cpp						\
   linux/routing/diagnosis/diagnosis.cpp					\

@@ -23,6 +23,8 @@
 
 #include <netlink/route/tc.h>
 
+#include <stout/try.hpp>
+
 namespace routing {
 
 // The Linux kernel Traffic Control (TC) uses handles to uniqely
@@ -56,6 +58,8 @@ public:
   {
     return handle != that.handle;
   }
+
+  static Try<Handle> parse(const std::string& str);
 
   constexpr uint16_t primary() const { return handle >> 16; }
   constexpr uint16_t secondary() const { return handle & 0x0000ffff; }

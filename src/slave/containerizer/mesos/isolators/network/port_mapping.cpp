@@ -1382,11 +1382,28 @@ Try<Isolator*> PortMappingIsolatorProcess::create(const Flags& flags)
   }
 
   set<uint16_t> freeFlowIds;
+  Handle hostTxFqCodelHandle = HOST_TX_FQ_CODEL_HANDLE;
+
   if (flags.egress_unique_flow_per_container) {
+    Try<Handle> egressParentHandle = Handle::parse(
+        flags.egress_flow_classifier_parent);
+
+    if (egressParentHandle.isError()) {
+      return Error(
+          "Failed to parse egress_flow_classifier_parent: " +
+          egressParentHandle.error());
+    }
+
+    if (egressParentHandle.get() != EGRESS_ROOT) {
+      // TODO(cwang): This is just a guess, we do not know if this
+      // handle is available or not.
+      hostTxFqCodelHandle = Handle(egressParentHandle.get().primary() + 1, 0);
+    }
+
     // Prepare a fq_codel queueing discipline on host public interface
     // (eth0) for egress flow classification.
     Try<bool> existHostEth0EgressFqCodel =
-      fq_codel::exists(eth0.get(), EGRESS_ROOT);
+      fq_codel::exists(eth0.get(), egressParentHandle.get());
 
     if (existHostEth0EgressFqCodel.isError()) {
       return Error(
@@ -1403,8 +1420,8 @@ Try<Isolator*> PortMappingIsolatorProcess::create(const Flags& flags)
       // qdisc at root. We try to create one to check which is true.
       Try<bool> createHostEth0EgressQdisc = fq_codel::create(
           eth0.get(),
-          EGRESS_ROOT,
-          HOST_TX_FQ_CODEL_HANDLE);
+          egressParentHandle.get(),
+          hostTxFqCodelHandle);
 
       if (createHostEth0EgressQdisc.isError()) {
         return Error(
@@ -1628,6 +1645,7 @@ Try<Isolator*> PortMappingIsolatorProcess::create(const Flags& flags)
           hostIPNetwork.get(),
           hostEth0MTU.get(),
           hostDefaultGateway.get(),
+          hostTxFqCodelHandle,
           hostNetworkConfigurations,
           egressRateLimitPerContainer,
           nonEphemeralPorts,
@@ -1956,7 +1974,7 @@ PortMappingIsolatorProcess::_recover(pid_t pid)
   if (flags.egress_unique_flow_per_container) {
     // Get all egress IP flow classifiers on eth0.
     Result<vector<filter::Filter<ip::Classifier>>> eth0EgressFilters =
-      ip::filters(eth0, HOST_TX_FQ_CODEL_HANDLE);
+      ip::filters(eth0, hostTxFqCodelHandle);
 
     if (eth0EgressFilters.isError()) {
       return Error(
@@ -2430,10 +2448,10 @@ Future<Nothing> PortMappingIsolatorProcess::isolate(
     // packets into a reserved flow.
     Try<bool> icmpEth0Egress = filter::icmp::create(
         eth0,
-        HOST_TX_FQ_CODEL_HANDLE,
+        hostTxFqCodelHandle,
         icmp::Classifier(None()),
         Priority(ICMP_FILTER_PRIORITY, NORMAL),
-        Handle(HOST_TX_FQ_CODEL_HANDLE, ICMP_FLOWID));
+        Handle(hostTxFqCodelHandle, ICMP_FLOWID));
 
     if (icmpEth0Egress.isError()) {
       ++metrics.adding_eth0_egress_filters_errors;
@@ -2450,10 +2468,10 @@ Future<Nothing> PortMappingIsolatorProcess::isolate(
     // packets into a reserved flow.
     Try<bool> arpEth0Egress = filter::basic::create(
         eth0,
-        HOST_TX_FQ_CODEL_HANDLE,
+        hostTxFqCodelHandle,
         ETH_P_ARP,
         Priority(ARP_FILTER_PRIORITY, NORMAL),
-        Handle(HOST_TX_FQ_CODEL_HANDLE, ARP_FLOWID));
+        Handle(hostTxFqCodelHandle, ARP_FLOWID));
 
     if (arpEth0Egress.isError()) {
       ++metrics.adding_eth0_egress_filters_errors;
@@ -2469,10 +2487,10 @@ Future<Nothing> PortMappingIsolatorProcess::isolate(
     // Rest of the host packets go to a reserved flow.
     Try<bool> defaultEth0Egress = filter::basic::create(
         eth0,
-        HOST_TX_FQ_CODEL_HANDLE,
+        hostTxFqCodelHandle,
         ETH_P_ALL,
         Priority(DEFAULT_FILTER_PRIORITY, NORMAL),
-        Handle(HOST_TX_FQ_CODEL_HANDLE, HOST_FLOWID));
+        Handle(hostTxFqCodelHandle, HOST_FLOWID));
 
     if (defaultEth0Egress.isError()) {
       ++metrics.adding_eth0_egress_filters_errors;
@@ -3048,7 +3066,7 @@ Try<Nothing> PortMappingIsolatorProcess::_cleanup(
       // Remove the ICMP flow classifier on host eth0.
       Try<bool> icmpEth0Egress = filter::icmp::remove(
           eth0,
-          HOST_TX_FQ_CODEL_HANDLE,
+          hostTxFqCodelHandle,
           icmp::Classifier(None()));
 
       if (icmpEth0Egress.isError()) {
@@ -3067,7 +3085,7 @@ Try<Nothing> PortMappingIsolatorProcess::_cleanup(
       // Remove the ARP flow classifier on host eth0.
       Try<bool> arpEth0Egress = filter::basic::remove(
           eth0,
-          HOST_TX_FQ_CODEL_HANDLE,
+          hostTxFqCodelHandle,
           ETH_P_ARP);
 
       if (arpEth0Egress.isError()) {
@@ -3352,10 +3370,10 @@ Try<Nothing> PortMappingIsolatorProcess::addHostIPFilters(
     // classified to different flows defined by fq_codel.
     Try<bool> hostEth0Egress = filter::ip::create(
         eth0,
-        HOST_TX_FQ_CODEL_HANDLE,
+        hostTxFqCodelHandle,
         ip::Classifier(None(), None(), range, None()),
         Priority(IP_FILTER_PRIORITY, LOW),
-        Handle(HOST_TX_FQ_CODEL_HANDLE, flowId.get()));
+        Handle(hostTxFqCodelHandle, flowId.get()));
 
     if (hostEth0Egress.isError()) {
       ++metrics.adding_eth0_egress_filters_errors;
@@ -3430,7 +3448,7 @@ Try<Nothing> PortMappingIsolatorProcess::removeHostIPFilters(
     // Remove the egress flow classifier on host eth0.
     Try<bool> hostEth0Egress = filter::ip::remove(
         eth0,
-        HOST_TX_FQ_CODEL_HANDLE,
+        hostTxFqCodelHandle,
         ip::Classifier(None(), None(), range, None()));
 
     if (hostEth0Egress.isError()) {

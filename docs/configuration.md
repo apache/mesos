@@ -1673,6 +1673,21 @@ file:///path/to/file (where file contains one of the above)</code></pre>
   </tr>
   <tr>
     <td>
+      --egress_flow_classifier_parent=root/X:Y
+    </td>
+    <td>
+      When --egress_unique_flow_per_container is enabled, we need to install
+      a flow classifier (fq_codel qdisc) on egress side. This flag specifies
+      where to install it in the whole qdisc hierarchy. By default, we install
+      it at root. But, for example, if you have already installed an HTB qdisc
+      at root, you may want this to be installed in other place than root,
+      specify an HTB class ID (X:Y) as its parent. X:Y must be hexadecimal
+      numbers without "0x" prefix. Note, it is always your responsibility to
+      ensure the whole qdisc hierarchy is meaningful and correct.
+    </td>
+  </tr>
+  <tr>
+    <td>
       --[no-]network_enable_socket_statistics_summary
     </td>
     <td>
