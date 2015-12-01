@@ -222,10 +222,11 @@ message Call {
   //     ]
   //   }
   //
-  // Note that any of the offer’s resources not used in the 'Accept'
-  // call (e.g., to launch a task) are considered unused and might be
-  // reoffered to other frameworks. In other words, the same OfferID
-  // cannot be used in more than one 'Accept' call.
+  // NOTE: Any of the offer’s resources not used in the `Accept` call
+  // (e.g., to launch a task) are considered unused and might be
+  // reoffered to other frameworks. In other words, the same `OfferID`
+  // cannot be used in more than one `Accept` call.
+  // NOTE: All offers must belong to the same agent.
   message Accept {
     repeated OfferID offer_ids = 1;
     repeated Offer.Operation operations = 2;
