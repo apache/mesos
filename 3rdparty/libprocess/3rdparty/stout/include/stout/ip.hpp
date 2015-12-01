@@ -47,6 +47,7 @@
 #include <string>
 #include <vector>
 
+#include <boost/functional/hash.hpp>
 
 #include <stout/abort.hpp>
 #include <stout/bits.hpp>
