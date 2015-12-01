@@ -13,6 +13,7 @@
 #ifndef __STOUT_NUMIFY_HPP__
 #define __STOUT_NUMIFY_HPP__
 
+#include <sstream>
 #include <string>
 
 #include <boost/lexical_cast.hpp>
@@ -21,6 +22,7 @@
 #include "none.hpp"
 #include "option.hpp"
 #include "result.hpp"
+#include "strings.hpp"
 #include "try.hpp"
 
 template <typename T>
@@ -29,6 +31,20 @@ Try<T> numify(const std::string& s)
   try {
     return boost::lexical_cast<T>(s);
   } catch (const boost::bad_lexical_cast&) {
+    // Unfortunately boost::lexical_cast can not cast a hexadecimal
+    // number even with a "0x" prefix, we have to workaround this
+    // issue here.
+    if (strings::startsWith(s, "0x") || strings::startsWith(s, "0X")) {
+      T result;
+      std::stringstream ss;
+      ss << std::hex << s;
+      ss >> result;
+      // Make sure we really hit the end of the string.
+      if (!ss.fail() && ss.eof()) {
+        return result;
+      }
+    }
+
     return Error("Failed to convert '" + s + "' to number");
   }
 }

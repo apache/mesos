@@ -33,6 +33,7 @@ set(STOUT_TESTS_SRC
   main.cpp
   multimap_tests.cpp
   none_tests.cpp
+  numify_tests.cpp
   option_tests.cpp
   protobuf_tests.pb.h
   protobuf_tests.proto
