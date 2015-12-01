@@ -69,6 +69,7 @@ Release Notes - Mesos - Version 0.26.0 (WIP)
   * [MESOS-3966] - LinuxFilesystemIsolatorTest.ROOT_ImageInVolumeWithRootFilesystem fails on Centos 7.1.
   * [MESOS-3969] - Failing 'make distcheck' on Debian 8, somehow SSL-related.
   * [MESOS-3974] - CgroupsAnyHierarchyMemoryPressureTest tests fail on CentOS 6.7.
+  * [MESOS-3975] - SSL build of mesos causes flaky testsuite.
   * [MESOS-3989] - Add missing DiscoveryInfo field to v1/mesos.proto.
 
 ** Documentation
