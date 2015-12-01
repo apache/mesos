@@ -555,6 +555,17 @@ TEST_F(CgroupsAnyHierarchyWithCpuMemoryTest, ROOT_CGROUPS_Listen)
     << "this test.\n"
     << "-------------------------------------------------------------";
 
+  Try<os::Memory> memory = os::memory();
+  ASSERT_SOME(memory);
+
+  // TODO(vinod): Instead of asserting here dynamically disable
+  // the test if swap is enabled on the host.
+  ASSERT_EQ(memory.get().totalSwap, Bytes(0))
+    << "-------------------------------------------------------------\n"
+    << "We cannot run this test because it appears you have swap\n"
+    << "enabled, but feel free to disable this test.\n"
+    << "-------------------------------------------------------------";
+
   const Bytes limit =  Megabytes(64);
 
   ASSERT_SOME(cgroups::memory::limit_in_bytes(
@@ -1073,6 +1084,17 @@ protected:
 
 TEST_F(CgroupsAnyHierarchyMemoryPressureTest, ROOT_IncreaseRSS)
 {
+  Try<os::Memory> memory = os::memory();
+  ASSERT_SOME(memory);
+
+  // TODO(vinod): Instead of asserting here dynamically disable
+  // the test if swap is enabled on the host.
+  ASSERT_EQ(memory.get().totalSwap, Bytes(0))
+    << "-------------------------------------------------------------\n"
+    << "We cannot run this test because it appears you have swap\n"
+    << "enabled, but feel free to disable this test.\n"
+    << "-------------------------------------------------------------";
+
   MemoryTestHelper helper;
   ASSERT_SOME(helper.spawn());
   ASSERT_SOME(helper.pid());
