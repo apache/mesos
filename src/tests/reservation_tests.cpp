@@ -1214,6 +1214,497 @@ TEST_F(ReservationTest, IncompatibleCheckpointedResources)
   Shutdown();
 }
 
+
+// This test verifies that reserve and unreserve operations complete
+// successfully when authorization succeeds.
+TEST_F(ReservationTest, GoodACLReserveThenUnreserve)
+{
+  ACLs acls;
+
+  // This principal can reserve any resources.
+  mesos::ACL::ReserveResources* reserve = acls.add_reserve_resources();
+  reserve->mutable_principals()->add_values(DEFAULT_CREDENTIAL.principal());
+  reserve->mutable_resources()->set_type(mesos::ACL::Entity::ANY);
+
+  // This principal can unreserve any resources.
+  mesos::ACL::UnreserveResources* unreserve = acls.add_unreserve_resources();
+  unreserve->mutable_principals()->add_values(DEFAULT_CREDENTIAL.principal());
+  unreserve->mutable_reserver_principals()->add_values(
+      DEFAULT_CREDENTIAL.principal());
+
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_role("role");
+
+  // Create a master.
+  master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.acls = acls;
+  masterFlags.allocation_interval = Milliseconds(50);
+  masterFlags.roles = frameworkInfo.role();
+
+  Try<PID<Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  // Create a slave.
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  slaveFlags.resources = "cpus:1;mem:512";
+
+  Try<PID<Slave>> slave = StartSlave(slaveFlags);
+  ASSERT_SOME(slave);
+
+  // Create a scheduler.
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
+
+  // We use the filter explicitly here so that the resources will not
+  // be filtered for 5 seconds (by default).
+  Filters filters;
+  filters.set_refuse_seconds(0);
+
+  Resources unreserved = Resources::parse("cpus:1;mem:512").get();
+  Resources dynamicallyReserved = unreserved.flatten(
+      frameworkInfo.role(), createReservationInfo(frameworkInfo.principal()));
+
+  // We use this to capture offers from 'resourceOffers'.
+  Future<vector<Offer>> offers;
+
+  // The expectation for the first offer.
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  driver.start();
+
+  // In the first offer, expect an offer with unreserved resources.
+  AWAIT_READY(offers);
+
+  ASSERT_EQ(1u, offers.get().size());
+  Offer offer = offers.get()[0];
+
+  EXPECT_TRUE(Resources(offer.resources()).contains(unreserved));
+
+  // The expectation for the next offer.
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  // Reserve the resources.
+  driver.acceptOffers({offer.id()}, {RESERVE(dynamicallyReserved)}, filters);
+
+  // In the next offer, expect an offer with reserved resources.
+  AWAIT_READY(offers);
+
+  ASSERT_EQ(1u, offers.get().size());
+  offer = offers.get()[0];
+
+  EXPECT_TRUE(Resources(offer.resources()).contains(dynamicallyReserved));
+
+  // The expectation for the next offer.
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  // Unreserve the resources.
+  driver.acceptOffers({offer.id()}, {UNRESERVE(dynamicallyReserved)}, filters);
+
+  // In the next offer, expect an offer with unreserved resources.
+  AWAIT_READY(offers);
+
+  ASSERT_EQ(1u, offers.get().size());
+  offer = offers.get()[0];
+
+  EXPECT_TRUE(Resources(offer.resources()).contains(unreserved));
+
+  driver.stop();
+  driver.join();
+
+  Shutdown();
+}
+
+
+// This test verifies that a reserve operation
+// gets dropped if authorization fails.
+TEST_F(ReservationTest, BadACLDropReserve)
+{
+  ACLs acls;
+
+  // No entity can reserve any resources.
+  mesos::ACL::ReserveResources* reserve = acls.add_reserve_resources();
+  reserve->mutable_principals()->set_type(mesos::ACL::Entity::NONE);
+  reserve->mutable_resources()->set_type(mesos::ACL::Entity::ANY);
+
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_role("role");
+
+  // Create a master.
+  master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.acls = acls;
+  masterFlags.allocation_interval = Milliseconds(50);
+  masterFlags.roles = frameworkInfo.role();
+
+  Try<PID<Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  // Create a slave.
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  slaveFlags.resources = "cpus:1;mem:512";
+
+  Try<PID<Slave>> slave = StartSlave(slaveFlags);
+  ASSERT_SOME(slave);
+
+  // Create a scheduler.
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
+
+  // We use the filter explicitly here so that the resources will not
+  // be filtered for 5 seconds (by default).
+  Filters filters;
+  filters.set_refuse_seconds(0);
+
+  Resources unreserved = Resources::parse("cpus:1;mem:512").get();
+  Resources dynamicallyReserved = unreserved.flatten(
+      frameworkInfo.role(), createReservationInfo(frameworkInfo.principal()));
+
+  // We use this to capture offers from 'resourceOffers'.
+  Future<vector<Offer>> offers;
+
+  // The expectation for the first offer.
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  driver.start();
+
+  // In the first offer, expect an offer with unreserved resources.
+  AWAIT_READY(offers);
+
+  ASSERT_EQ(1u, offers.get().size());
+  Offer offer = offers.get()[0];
+
+  EXPECT_TRUE(Resources(offer.resources()).contains(unreserved));
+
+  // The expectation for the next offer.
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  // Reserve the resources.
+  driver.acceptOffers({offer.id()}, {RESERVE(dynamicallyReserved)}, filters);
+
+  // In the next offer, still expect an offer with unreserved
+  // resources.
+  AWAIT_READY(offers);
+
+  ASSERT_EQ(1u, offers.get().size());
+  offer = offers.get()[0];
+
+  EXPECT_TRUE(Resources(offer.resources()).contains(unreserved));
+
+  driver.stop();
+  driver.join();
+
+  Shutdown();
+}
+
+
+// This test verifies that an unreserve operation
+// gets dropped if authorization fails.
+TEST_F(ReservationTest, BadACLDropUnreserve)
+{
+  ACLs acls;
+
+  // This principal can reserve any resources.
+  mesos::ACL::ReserveResources* reserve = acls.add_reserve_resources();
+  reserve->mutable_principals()->add_values(DEFAULT_CREDENTIAL.principal());
+  reserve->mutable_resources()->set_type(mesos::ACL::Entity::ANY);
+
+  // This principal cannot unreserve any resources.
+  mesos::ACL::UnreserveResources* unreserve = acls.add_unreserve_resources();
+  unreserve->mutable_principals()->add_values(DEFAULT_CREDENTIAL.principal());
+  unreserve->mutable_reserver_principals()->set_type(mesos::ACL::Entity::NONE);
+
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_role("role");
+
+  // Create a master.
+  master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.acls = acls;
+  masterFlags.allocation_interval = Milliseconds(50);
+  masterFlags.roles = frameworkInfo.role();
+
+  Try<PID<Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  // Create a slave.
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  slaveFlags.resources = "cpus:2;mem:1024";
+
+  Try<PID<Slave>> slave = StartSlave(slaveFlags);
+  ASSERT_SOME(slave);
+
+  // Create a scheduler.
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
+
+  // We use the filter explicitly here so that the resources will not
+  // be filtered for 5 seconds (by default).
+  Filters filters;
+  filters.set_refuse_seconds(0);
+
+  // Define the resources to be reserved.
+  Resources unreserved1 = Resources::parse("cpus:1;mem:512").get();
+  Resources dynamicallyReserved1 = unreserved1.flatten(
+      frameworkInfo.role(), createReservationInfo(frameworkInfo.principal()));
+  Resources unreserved2 = Resources::parse("cpus:0.5;mem:256").get();
+  Resources dynamicallyReserved2 = unreserved2.flatten(
+      frameworkInfo.role(), createReservationInfo(frameworkInfo.principal()));
+
+  // We use this to capture offers from 'resourceOffers'.
+  Future<vector<Offer>> offers;
+
+  // The expectation for the first offer.
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  driver.start();
+
+  // In the first offer, expect an offer with unreserved resources.
+  AWAIT_READY(offers);
+
+  ASSERT_EQ(1u, offers.get().size());
+  Offer offer = offers.get()[0];
+
+  // The slave's total resources are twice those defined by `unreserved1`.
+  EXPECT_TRUE(Resources(offer.resources()).contains(unreserved1 + unreserved1));
+
+  // The expectation for the next offer.
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  // Reserve the first set of resources.
+  driver.acceptOffers({offer.id()}, {RESERVE(dynamicallyReserved1)}, filters);
+
+  // In the next offer, expect an offer with reserved resources.
+  AWAIT_READY(offers);
+
+  ASSERT_EQ(1u, offers.get().size());
+  offer = offers.get()[0];
+
+  // The reserved resources and an equal portion of
+  // unreserved resources should be present.
+  EXPECT_TRUE(
+      Resources(offer.resources()).contains(
+          dynamicallyReserved1 +
+          unreserved1));
+
+  // The expectation for the next offer.
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  // Unreserve the first set of resources, and reserve the second set.
+  driver.acceptOffers({offer.id()},
+      {UNRESERVE(dynamicallyReserved1),
+       RESERVE(dynamicallyReserved2)},
+      filters);
+
+  // In the next offer, expect to find both sets of reserved
+  // resources, since the Unreserve operation should fail.
+  AWAIT_READY(offers);
+
+  ASSERT_EQ(1u, offers.get().size());
+  offer = offers.get()[0];
+
+  EXPECT_TRUE(
+      Resources(offer.resources()).contains(
+          dynamicallyReserved1 +
+          dynamicallyReserved2 +
+          unreserved2));
+
+  driver.stop();
+  driver.join();
+
+  Shutdown();
+}
+
+
+// Tests a couple more complex combinations of `RESERVE`, `UNRESERVE`, and
+// `LAUNCH` offer operations to verify that they work with authorization.
+TEST_F(ReservationTest, ACLMultipleOperations)
+{
+  ACLs acls;
+
+  // This principal can reserve any resources.
+  mesos::ACL::ReserveResources* reserve = acls.add_reserve_resources();
+  reserve->mutable_principals()->add_values(DEFAULT_CREDENTIAL.principal());
+  reserve->mutable_resources()->set_type(mesos::ACL::Entity::ANY);
+
+  // This principal can unreserve any resources.
+  mesos::ACL::UnreserveResources* unreserve = acls.add_unreserve_resources();
+  unreserve->mutable_principals()->add_values(DEFAULT_CREDENTIAL.principal());
+  unreserve->mutable_reserver_principals()->set_type(mesos::ACL::Entity::ANY);
+
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_role("role");
+
+  // Create a master.
+  master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.acls = acls;
+  masterFlags.allocation_interval = Milliseconds(50);
+  masterFlags.roles = frameworkInfo.role();
+
+  Try<PID<Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+
+  // Create a slave.
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  slaveFlags.resources = "cpus:2;mem:1024";
+
+  Try<PID<Slave>> slave = StartSlave(&exec, slaveFlags);
+  ASSERT_SOME(slave);
+
+  // Create a scheduler.
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
+
+  // We use the filter explicitly here so that the resources will not
+  // be filtered for 5 seconds (by default).
+  Filters filters;
+  filters.set_refuse_seconds(0);
+
+  // Define the resources to be reserved.
+  Resources unreserved1 = Resources::parse("cpus:1;mem:512").get();
+  Resources dynamicallyReserved1 = unreserved1.flatten(
+      frameworkInfo.role(), createReservationInfo(frameworkInfo.principal()));
+  Resources unreserved2 = Resources::parse("cpus:0.5;mem:256").get();
+  Resources dynamicallyReserved2 = unreserved2.flatten(
+      frameworkInfo.role(), createReservationInfo(frameworkInfo.principal()));
+
+  // We use this to capture offers from 'resourceOffers'.
+  Future<vector<Offer>> offers;
+
+  // The expectation for the first offer.
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  driver.start();
+
+  // In the first offer, expect an offer with unreserved resources.
+  AWAIT_READY(offers);
+
+  ASSERT_EQ(1u, offers.get().size());
+  Offer offer = offers.get()[0];
+
+  // The slave's total resources are twice those defined by `unreserved1`.
+  EXPECT_TRUE(Resources(offer.resources()).contains(unreserved1 + unreserved1));
+
+  // The expectation for the next offer.
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  // Reserve the first set of resources.
+  driver.acceptOffers({offer.id()}, {RESERVE(dynamicallyReserved1)}, filters);
+
+  // In the next offer, expect an offer with reserved resources.
+  AWAIT_READY(offers);
+
+  ASSERT_EQ(1u, offers.get().size());
+  offer = offers.get()[0];
+
+  // The reserved resources and an equal portion of
+  // unreserved resources should be present.
+  EXPECT_TRUE(
+      Resources(offer.resources()).contains(
+          dynamicallyReserved1 +
+          unreserved1));
+
+  // The expectation for the next offer.
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  // Create a task to launch with the resources of `dynamicallyReserved2`.
+  TaskInfo taskInfo =
+    createTask(offer.slave_id(), dynamicallyReserved2, "exit 1", exec.id);
+
+  EXPECT_CALL(exec, registered(_, _, _, _));
+
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillOnce(SendStatusUpdateFromTask(TASK_FINISHED));
+
+  // Expect a TASK_RUNNING status.
+  Future<TaskStatus> statusUpdateAcknowledgement;
+  EXPECT_CALL(sched, statusUpdate(_, _))
+    .WillOnce(FutureArg<1>(&statusUpdateAcknowledgement));
+
+  // Attempt to unreserve an invalid set of resources (not dynamically
+  // reserved), reserve the second set, and launch a task.
+  driver.acceptOffers({offer.id()},
+      {UNRESERVE(unreserved1),
+       RESERVE(dynamicallyReserved2),
+       LAUNCH({taskInfo})},
+      filters);
+
+  // Wait for TASK_FINISHED update ack.
+  AWAIT_READY(statusUpdateAcknowledgement);
+  EXPECT_EQ(TASK_FINISHED, statusUpdateAcknowledgement.get().state());
+
+  // In the next offer, expect to find both sets of reserved
+  // resources, since the Unreserve operation should fail.
+  AWAIT_READY(offers);
+
+  ASSERT_EQ(1u, offers.get().size());
+  offer = offers.get()[0];
+
+  EXPECT_TRUE(
+      Resources(offer.resources()).contains(
+          dynamicallyReserved1 +
+          dynamicallyReserved2 +
+          unreserved2));
+
+  // The expectation for the next offer.
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  // Create a task to launch with the resources of `dynamicallyReserved1`.
+  taskInfo =
+    createTask(offer.slave_id(), dynamicallyReserved1, "exit 1", exec.id);
+
+  Future<TaskStatus> failedTaskStatus;
+  EXPECT_CALL(sched, statusUpdate(_, _))
+    .WillOnce(FutureArg<1>(&failedTaskStatus));
+
+  // Unreserve all the dynamically reserved resources and attempt to launch a
+  // task on `dynamicallyReserved1`. This attempt should fail.
+  driver.acceptOffers({offer.id()},
+      {UNRESERVE(dynamicallyReserved1),
+       UNRESERVE(dynamicallyReserved2),
+       LAUNCH({taskInfo})},
+      filters);
+
+  // In the next offer, expect to find no reserved resources.
+  AWAIT_READY(offers);
+
+  ASSERT_EQ(1u, offers.get().size());
+  offer = offers.get()[0];
+
+  EXPECT_TRUE(
+      Resources(offer.resources()).contains(unreserved1 + unreserved1));
+
+  // Check that the task failed to launch as expected.
+  EXPECT_EQ(TASK_ERROR, failedTaskStatus.get().state());
+
+  driver.stop();
+  driver.join();
+
+  Shutdown();
+}
 }  // namespace tests {
 }  // namespace internal {
 }  // namespace mesos {
