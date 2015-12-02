@@ -1617,22 +1617,18 @@ Future<Response> Master::Http::teardown(const Request& request) const
     shutdown.mutable_framework_principals()->set_type(ACL::Entity::ANY);
   }
 
-  lambda::function<Future<Response>(bool)> _teardown =
-    lambda::bind(&Master::Http::_teardown, this, id, lambda::_1);
-
   return master->authorizer.get()->authorize(shutdown)
-    .then(defer(master->self(), _teardown));
+    .then(defer(master->self(), [=](bool authorized) -> Future<Response> {
+      if (!authorized) {
+        return Unauthorized("Mesos master");
+      }
+      return _teardown(id);
+    }));
 }
 
 
-Future<Response> Master::Http::_teardown(
-    const FrameworkID& id,
-    bool authorized) const
+Future<Response> Master::Http::_teardown(const FrameworkID& id) const
 {
-  if (!authorized) {
-    return Unauthorized("Mesos master");
-  }
-
   Framework* framework = master->getFramework(id);
 
   if (framework == NULL) {

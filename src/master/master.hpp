@@ -1040,8 +1040,7 @@ private:
 
     // Continuations.
     process::Future<process::http::Response> _teardown(
-        const FrameworkID& id,
-        bool authorized = true) const;
+        const FrameworkID& id) const;
 
     /**
      * Continuation for operations: /reserve, /unreserve,
