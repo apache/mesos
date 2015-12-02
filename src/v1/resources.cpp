@@ -799,10 +799,6 @@ Resources Resources::flatten(
 }
 
 
-// A predicate that returns true for any resource.
-static bool any(const Resource&) { return true; }
-
-
 Option<Resources> Resources::find(const Resources& targets) const
 {
   Resources total;
@@ -1141,11 +1137,10 @@ Option<Resources> Resources::find(const Resource& target) const
   Resources remaining = Resources(target).flatten();
 
   // First look in the target role, then unreserved, then any remaining role.
-  // TODO(mpark): Use a lambda for 'any' instead once we get full C++11.
   vector<lambda::function<bool(const Resource&)>> predicates = {
     lambda::bind(isReserved, lambda::_1, target.role()),
     isUnreserved,
-    any
+    [](const Resource&) { return true; }
   };
 
   foreach (const auto& predicate, predicates) {
