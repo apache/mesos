@@ -636,7 +636,7 @@ bool Resources::isPersistentVolume(const Resource& resource)
 
 bool Resources::isReserved(
     const Resource& resource,
-    const Option<std::string>& role)
+    const Option<string>& role)
 {
   if (role.isSome()) {
     return !isUnreserved(resource) && role.get() == resource.role();
