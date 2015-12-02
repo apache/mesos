@@ -246,7 +246,6 @@ Future<http::Response> Master::QuotaHandler::set(
   CHECK_EQ("POST", request.method);
 
   // Validate request and extract JSON.
-
   Try<hashmap<string, string>> decode = http::query::decode(request.body);
   if (decode.isError()) {
     return BadRequest("Failed to decode set quota request query string ('" +
@@ -352,7 +351,7 @@ Future<http::Response> Master::QuotaHandler::set(
 Future<http::Response> Master::QuotaHandler::remove(
     const http::Request& request) const
 {
-  VLOG(1) << "Remove quota request for path: '" << request.url.path << "'";
+  VLOG(1) << "Removing quota for request path: '" << request.url.path << "'";
 
   // Authenticate and authorize the request.
   // TODO(alexr): Check Master::Http::authenticate() for an example.
@@ -400,7 +399,6 @@ Future<http::Response> Master::QuotaHandler::remove(
 
   return OK();
 }
-
 
 } // namespace master {
 } // namespace internal {

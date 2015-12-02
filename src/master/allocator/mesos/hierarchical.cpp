@@ -901,8 +901,8 @@ void HierarchicalAllocatorProcess::setQuota(
   // dedicated sorter, while the later just updates the actual quota.
   CHECK_NONE(roles[role].quota);
 
-  // Persist quota in memory and add the role into the corresponding allocation
-  // group.
+  // Persist quota in memory and add the role into the corresponding
+  // allocation group.
   roles[role].quota = quota;
   quotaRoleSorter->add(role, roles[role].info.weight());
 

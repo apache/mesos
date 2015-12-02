@@ -135,7 +135,6 @@ protected:
     return request;
   }
 
-
 protected:
   const std::string ROLE1{"role1"};
   const std::string ROLE2{"role2"};
@@ -193,7 +192,7 @@ TEST_F(MasterQuotaTest, SetInvalidRequest)
   // We do not need an agent since a request should be rejected before
   // we start looking at available resources.
 
-  // We wrap the `http::post` into a lambda for readability of the tests.
+  // Wrap the `http::post` into a lambda for readability of the test.
   auto postQuota = [this, &master](const string& request) {
     return process::http::post(
         master.get(),
@@ -442,12 +441,17 @@ TEST_F(MasterQuotaTest, RemoveSingleQuota)
   AWAIT_READY(agentTotalResources);
   EXPECT_EQ(defaultAgentResources, agentTotalResources.get());
 
+  // Wrap the `http::requestDelete` into a lambda for readability of the test.
+  auto removeQuota = [this, &master](const string& path) {
+    return process::http::requestDelete(
+        master.get(),
+        path,
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+  };
+
   // Ensure that we can't remove quota for a role that is unknown to the master.
   {
-    Future<Response> response = process::http::requestDelete(
-        master.get(),
-        "quota/" + UNKNOWN_ROLE,
-        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+    Future<Response> response = removeQuota("quota/" + UNKNOWN_ROLE);
 
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response)
       << response.get().body;
@@ -455,17 +459,15 @@ TEST_F(MasterQuotaTest, RemoveSingleQuota)
 
   // Ensure that we can't remove quota for a role that has no quota set.
   {
-    Future<Response> response = process::http::requestDelete(
-        master.get(),
-        "quota/" + ROLE1,
-        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+    Future<Response> response = removeQuota("quota/" + ROLE1);
 
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response)
       << response.get().body;
   }
 
-  // We request quota for a portion of the resources available on the agent.
+  // Ensure we can remove the quota we have requested before.
   {
+    // Request quota for a portion of the resources available on the agent.
     Resources quotaResources = Resources::parse("cpus:1;mem:512", ROLE1).get();
     EXPECT_TRUE(agentTotalResources.get().contains(quotaResources.flatten()));
 
@@ -477,25 +479,19 @@ TEST_F(MasterQuotaTest, RemoveSingleQuota)
 
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
       << response.get().body;
-  }
 
-  // Ensure we can remove the quota.
-  {
+    // Remove the previously requested quota.
     Future<Nothing> receivedRemoveRequest;
     EXPECT_CALL(allocator, removeQuota(Eq(ROLE1)))
-      .WillOnce(FutureSatisfy(&receivedRemoveRequest));
+      .WillOnce(DoAll(InvokeRemoveQuota(&allocator),
+                      FutureSatisfy(&receivedRemoveRequest)));
 
-    Future<Response> response = process::http::requestDelete(
-        master.get(),
-        "quota/" + ROLE1,
-        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+    response = removeQuota("quota/" + ROLE1);
 
-    // TODO(joerg84): Add more detailed error message.
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
-      << "Quota remove request failed:";
+      << response.get().body;
 
-    // Quota request is granted and reached the allocator. Make sure nothing
-    // got lost in-between.
+    // Ensure that the quota remove request has reached the allocator.
     AWAIT_READY(receivedRemoveRequest);
   }
 
