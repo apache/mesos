@@ -37,7 +37,10 @@ TEST_F(OsSignalsTest, Suppress)
 
   const string data = "hello";
 
-  // Let's make sure we can suppress SIGPIPE!
+  // Let's make sure we can suppress SIGPIPE. Note that this
+  // only works on OS X because we are single threaded. In
+  // multi-threaded applications, OS X delivers SIGPIPE to
+  // the process, not necessarily to the triggering thread.
   SUPPRESS(SIGPIPE) {
     // Writing to a pipe that has been closed generates SIGPIPE.
     ASSERT_EQ(-1, write(pipes[1], data.c_str(), data.length()));
