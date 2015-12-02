@@ -23,11 +23,9 @@ option java_outer_classname = "Protos";
 
 
 /**
- * ACLs used for local authorization (See authorization.md file in the
- * docs).
+ * ACLs used for local authorization (See authorization.md file in the docs).
  */
 message ACL {
-
   // Entity is used to describe a subject(s) or an object(s) of an ACL.
   // NOTE:
   // To allow everyone access to an Entity set its type to 'ANY'.
@@ -68,6 +66,26 @@ message ACL {
     // Objects.
     required Entity framework_principals = 2;
   }
+
+  // Specifies which Resources a principal can reserve.
+  message ReserveResources {
+    // Subjects: Framework principal or Operator username.
+    required Entity principals = 1;
+
+    // Objects: The kind of Resources that can be reserved.
+    // NOTE: Currently the only valid values are ANY and NONE.
+    required Entity resources = 2;
+  }
+
+  // Specifies which principals can unreserve which principals'
+  // reserved resources.
+  message UnreserveResources {
+    // Subjects: Framework principal or Operator username.
+    required Entity principals = 1;
+
+    // Objects: Principal of the entity that reserved the resources.
+    required Entity reserver_principals = 2;
+  }
 }
 
 
@@ -95,4 +113,6 @@ message ACLs {
   repeated ACL.RegisterFramework register_frameworks = 2;
   repeated ACL.RunTask run_tasks = 3;
   repeated ACL.ShutdownFramework shutdown_frameworks = 4;
+  repeated ACL.ReserveResources reserve_resources = 5;
+  repeated ACL.UnreserveResources unreserve_resources = 6;
 }
