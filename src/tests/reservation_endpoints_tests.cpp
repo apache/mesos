@@ -105,9 +105,6 @@ public:
 };
 
 
-// TODO(mpark): Add tests for ACLs once they are introduced.
-
-
 // This tests that an operator can reserve/unreserve available resources.
 TEST_F(ReservationEndpointsTest, AvailableResources)
 {
@@ -801,6 +798,214 @@ TEST_F(ReservationEndpointsTest, BadCredentials)
 
   response = process::http::post(master.get(), "unreserve", headers, body);
 
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(
+      Unauthorized("Mesos master").status,
+      response);
+
+  Shutdown();
+}
+
+
+// This tests that correct setup of Reserve/Unreserve ACLs allows
+// the operator to perform reserve/unreserve operations successfully.
+TEST_F(ReservationEndpointsTest, GoodReserveAndUnreserveACL)
+{
+  TestAllocator<> allocator;
+  ACLs acls;
+
+  // This ACL asserts that the DEFAULT_CREDENTIAL's
+  // principal can reserve ANY resources.
+  mesos::ACL::ReserveResources* reserve = acls.add_reserve_resources();
+  reserve->mutable_principals()->add_values(DEFAULT_CREDENTIAL.principal());
+  reserve->mutable_resources()->set_type(mesos::ACL::Entity::ANY);
+
+  // This ACL asserts that the DEFAULT_CREDENTIAL's
+  // principal can unreserve its own resources.
+  mesos::ACL::UnreserveResources* unreserve = acls.add_unreserve_resources();
+  unreserve->mutable_principals()->add_values(DEFAULT_CREDENTIAL.principal());
+  unreserve->mutable_reserver_principals()->add_values(
+      DEFAULT_CREDENTIAL.principal());
+
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_role("role");
+
+  // Create a master.
+  master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.acls = acls;
+  masterFlags.allocation_interval = Milliseconds(50);
+  masterFlags.roles = frameworkInfo.role();
+
+  EXPECT_CALL(allocator, initialize(_, _, _, _));
+
+  Try<PID<Master>> master = StartMaster(&allocator, masterFlags);
+  ASSERT_SOME(master);
+
+  // Create a slave.
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  slaveFlags.resources = "cpus:1;mem:512";
+
+  Future<SlaveID> slaveId;
+  EXPECT_CALL(allocator, addSlave(_, _, _, _, _))
+    .WillOnce(DoAll(InvokeAddSlave(&allocator),
+                    FutureArg<0>(&slaveId)));
+
+  Try<PID<Slave>> slave = StartSlave(slaveFlags);
+  ASSERT_SOME(slave);
+
+  process::http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
+
+  Resources unreserved = Resources::parse("cpus:1;mem:512").get();
+  Resources dynamicallyReserved = unreserved.flatten(
+      frameworkInfo.role(),
+      createReservationInfo(DEFAULT_CREDENTIAL.principal()));
+
+  // Reserve the resources.
+  Future<Response> response = process::http::post(
+      master.get(),
+      "reserve",
+      headers,
+      createRequestBody(slaveId.get(), dynamicallyReserved));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+
+  // Unreserve the resources.
+  response = process::http::post(
+      master.get(),
+      "unreserve",
+      headers,
+      createRequestBody(slaveId.get(), dynamicallyReserved));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+
+  Shutdown();
+}
+
+
+// This tests that an incorrect set-up of Reserve ACL disallows the
+// operator from performing reserve operations.
+TEST_F(ReservationEndpointsTest, BadReserveACL)
+{
+  TestAllocator<> allocator;
+  ACLs acls;
+
+  // This ACL asserts that ANY principal can reserve NONE,
+  // i.e. no principals can reserve anything.
+  mesos::ACL::ReserveResources* reserve = acls.add_reserve_resources();
+  reserve->mutable_principals()->set_type(mesos::ACL::Entity::ANY);
+  reserve->mutable_resources()->set_type(mesos::ACL::Entity::NONE);
+
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_role("role");
+
+  // Create a master.
+  master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.acls = acls;
+  masterFlags.allocation_interval = Milliseconds(50);
+  masterFlags.roles = frameworkInfo.role();
+
+  EXPECT_CALL(allocator, initialize(_, _, _, _));
+
+  Try<PID<Master>> master = StartMaster(&allocator, masterFlags);
+  ASSERT_SOME(master);
+
+  // Create a slave.
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  slaveFlags.resources = "cpus:1;mem:512";
+
+  Future<SlaveID> slaveId;
+  EXPECT_CALL(allocator, addSlave(_, _, _, _, _))
+    .WillOnce(DoAll(InvokeAddSlave(&allocator),
+                    FutureArg<0>(&slaveId)));
+
+  Try<PID<Slave>> slave = StartSlave(slaveFlags);
+  ASSERT_SOME(slave);
+
+  process::http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
+
+  Resources unreserved = Resources::parse("cpus:1;mem:512").get();
+  Resources dynamicallyReserved = unreserved.flatten(
+      frameworkInfo.role(),
+      createReservationInfo(DEFAULT_CREDENTIAL.principal()));
+
+  // Attempt to reserve the resources.
+  Future<Response> response = process::http::post(
+      master.get(),
+      "reserve",
+      headers,
+      createRequestBody(slaveId.get(), dynamicallyReserved));
+
+  // Expect a failed authorization.
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(
+      Unauthorized("Mesos master").status,
+      response);
+
+  Shutdown();
+}
+
+
+// This tests that correct set-up of Unreserve ACLs disallows the
+// operator from performing unreserve operations.
+TEST_F(ReservationEndpointsTest, BadUnreserveACL)
+{
+  TestAllocator<> allocator;
+  ACLs acls;
+
+  // This ACL asserts that ANY principal can reserve NONE,
+  // i.e. no principals can reserve anything.
+  mesos::ACL::UnreserveResources* unreserve = acls.add_unreserve_resources();
+  unreserve->mutable_principals()->set_type(mesos::ACL::Entity::ANY);
+  unreserve->mutable_reserver_principals()->set_type(mesos::ACL::Entity::NONE);
+
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_role("role");
+
+  // Create a master.
+  master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.acls = acls;
+  masterFlags.allocation_interval = Milliseconds(50);
+  masterFlags.roles = frameworkInfo.role();
+
+  EXPECT_CALL(allocator, initialize(_, _, _, _));
+
+  Try<PID<Master>> master = StartMaster(&allocator, masterFlags);
+  ASSERT_SOME(master);
+
+  // Create a slave.
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  slaveFlags.resources = "cpus:1;mem:512";
+
+  Future<SlaveID> slaveId;
+  EXPECT_CALL(allocator, addSlave(_, _, _, _, _))
+    .WillOnce(DoAll(InvokeAddSlave(&allocator),
+                    FutureArg<0>(&slaveId)));
+
+  Try<PID<Slave>> slave = StartSlave(slaveFlags);
+  ASSERT_SOME(slave);
+
+  process::http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
+
+  Resources unreserved = Resources::parse("cpus:1;mem:512").get();
+  Resources dynamicallyReserved = unreserved.flatten(
+      frameworkInfo.role(),
+      createReservationInfo(DEFAULT_CREDENTIAL.principal()));
+
+  // Reserve the resources.
+  Future<Response> response = process::http::post(
+      master.get(),
+      "reserve",
+      headers,
+      createRequestBody(slaveId.get(), dynamicallyReserved));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+
+  // Attempt to unreserve the resources.
+  response = process::http::post(
+      master.get(),
+      "unreserve",
+      headers,
+      createRequestBody(slaveId.get(), dynamicallyReserved));
+
+  // Expect a failed authorization.
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(
       Unauthorized("Mesos master").status,
       response);

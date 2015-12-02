@@ -1025,20 +1025,25 @@ Future<Response> Master::Http::reserve(const Request& request) const
   Option<string> principal =
     credential.isSome() ? credential.get().principal() : Option<string>::none();
 
-  Option<Error> validate =
-    validation::operation::validate(operation.reserve(), None(), principal);
+  Option<Error> error = validation::operation::validate(
+      operation.reserve(), None(), principal);
 
-  if (validate.isSome()) {
-    return BadRequest("Invalid RESERVE operation: " + validate.get().message);
+  if (error.isSome()) {
+    return BadRequest("Invalid RESERVE operation: " + error.get().message);
   }
 
-  // TODO(mpark): Add a reserve ACL for authorization.
+  return master->authorizeReserveResources(operation.reserve(), principal)
+    .then(defer(master->self(), [=](bool authorized) -> Future<Response> {
+      if (!authorized) {
+        return Unauthorized("Mesos master");
+      }
 
-  // NOTE: flatten() is important. To make a dynamic reservation,
-  // we want to ensure that the required resources are available
-  // and unreserved; flatten() removes the role and
-  // ReservationInfo from the resources.
-  return _operation(slaveId, resources.flatten(), operation);
+      // NOTE: `flatten()` is important. To make a dynamic reservation,
+      // we want to ensure that the required resources are available
+      // and unreserved; `flatten()` removes the role and
+      // ReservationInfo from the resources.
+      return _operation(slaveId, resources.flatten(), operation);
+    }));
 }
 
 
@@ -2234,16 +2239,25 @@ Future<Response> Master::Http::unreserve(const Request& request) const
   operation.set_type(Offer::Operation::UNRESERVE);
   operation.mutable_unreserve()->mutable_resources()->CopyFrom(resources);
 
-  Option<Error> validate =
-    validation::operation::validate(operation.unreserve(), credential.isSome());
+  Option<string> principal =
+    credential.isSome() ? credential.get().principal() : Option<string>::none();
 
-  if (validate.isSome()) {
-    return BadRequest("Invalid UNRESERVE operation: " + validate.get().message);
+  Option<Error> error = validation::operation::validate(
+      operation.unreserve(), principal.isSome());
+
+  if (error.isSome()) {
+    return BadRequest(
+        "Invalid UNRESERVE operation: " + error.get().message);
   }
 
-  // TODO(mpark): Add a unreserve ACL for authorization.
+  return master->authorizeUnreserveResources(operation.unreserve(), principal)
+    .then(defer(master->self(), [=](bool authorized) -> Future<Response> {
+      if (!authorized) {
+        return Unauthorized("Mesos master");
+      }
 
-  return _operation(slaveId, resources, operation);
+      return _operation(slaveId, resources, operation);
+    }));
 }
 
 
