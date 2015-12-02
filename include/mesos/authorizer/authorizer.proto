@@ -44,19 +44,19 @@ message ACL {
 
   // ACLs.
   message RegisterFramework {
-    // Subjects.
-    required Entity principals = 1; // Framework principals.
+    // Subjects: Framework principals.
+    required Entity principals = 1;
 
-    // Objects.
-    required Entity roles = 2; // Roles for resource offers.
+    // Objects: Roles for resource offers.
+    required Entity roles = 2;
   }
 
   message RunTask {
-    // Subjects.
-    required Entity principals = 1; // Framework principals.
+    // Subjects: Framework principals.
+    required Entity principals = 1;
 
-    // Objects.
-    required Entity users = 2; // Users to run the tasks/executors as.
+    // Objects: Users to run the tasks/executors as.
+    required Entity users = 2;
   }
 
   // Which principals are authorized to shutdown frameworks of other
