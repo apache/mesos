@@ -29,7 +29,7 @@
 
 #include "slave/flags.hpp"
 
-#include "slave/containerizer/isolator.hpp"
+#include "slave/containerizer/mesos/isolator.hpp"
 
 #include "slave/containerizer/mesos/provisioner/provisioner.hpp"
 

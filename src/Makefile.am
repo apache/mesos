@@ -594,8 +594,8 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   slave/containerizer/docker.cpp					\
   slave/containerizer/external_containerizer.cpp			\
   slave/containerizer/fetcher.cpp					\
-  slave/containerizer/isolator.cpp					\
   slave/containerizer/mesos/containerizer.cpp				\
+  slave/containerizer/mesos/isolator.cpp				\
   slave/containerizer/mesos/launch.cpp					\
   slave/containerizer/mesos/launcher.cpp				\
   slave/containerizer/mesos/mount.cpp					\
@@ -700,8 +700,8 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   slave/containerizer/docker.hpp					\
   slave/containerizer/external_containerizer.hpp			\
   slave/containerizer/fetcher.hpp					\
-  slave/containerizer/isolator.hpp					\
   slave/containerizer/mesos/containerizer.hpp				\
+  slave/containerizer/mesos/isolator.hpp				\
   slave/containerizer/mesos/launch.hpp					\
   slave/containerizer/mesos/launcher.hpp				\
   slave/containerizer/mesos/mount.hpp					\

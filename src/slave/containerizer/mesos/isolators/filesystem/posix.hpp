@@ -21,7 +21,7 @@
 
 #include "slave/flags.hpp"
 
-#include "slave/containerizer/isolator.hpp"
+#include "slave/containerizer/mesos/isolator.hpp"
 
 namespace mesos {
 namespace internal {

@@ -195,8 +195,8 @@ if (NOT WIN32)
     slave/containerizer/docker.hpp
     slave/containerizer/external_containerizer.cpp
     slave/containerizer/fetcher.cpp
-    slave/containerizer/isolator.cpp
     slave/containerizer/mesos/containerizer.cpp
+    slave/containerizer/mesos/isolator.cpp
     slave/containerizer/mesos/launch.cpp
     slave/containerizer/mesos/launcher.cpp
     slave/containerizer/mesos/mount.cpp

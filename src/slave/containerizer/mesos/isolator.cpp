@@ -16,7 +16,7 @@
 
 #include <process/dispatch.hpp>
 
-#include "slave/containerizer/isolator.hpp"
+#include "slave/containerizer/mesos/isolator.hpp"
 
 using namespace process;
 
