@@ -683,6 +683,48 @@ protected:
       const TaskInfo& task,
       Framework* framework);
 
+  /**
+   * Authorizes a `RESERVE` offer operation.
+   *
+   * Returns whether the Reserve operation is authorized with the
+   * provided principal. This function is used for authorization of
+   * operations originating from both frameworks and operators. Note
+   * that operations may be validated AFTER authorization, so it's
+   * possible that `reserve` could be malformed.
+   *
+   * @param reserve The `RESERVE` operation to be performed.
+   * @param principal An `Option` containing the principal attempting
+   *     this operation.
+   *
+   * @return A `Future` containing a boolean value representing the
+   *     success or failure of this authorization. A failed `Future`
+   *     implies that validation of the operation did not succeed.
+   */
+  process::Future<bool> authorizeReserveResources(
+      const Offer::Operation::Reserve& reserve,
+      const Option<std::string>& principal);
+
+  /**
+   * Authorizes an `UNRESERVE` offer operation.
+   *
+   * Returns whether the Unreserve operation is authorized with the
+   * provided principal. This function is used for authorization of
+   * operations originating both from frameworks and operators. Note
+   * that operations may be validated AFTER authorization, so it's
+   * possible that `unreserve` could be malformed.
+   *
+   * @param unreserve The `UNRESERVE` operation to be performed.
+   * @param principal An `Option` containing the principal attempting
+   *     this operation.
+   *
+   * @return A `Future` containing a boolean value representing the
+   *     success or failure of this authorization. A failed `Future`
+   *     implies that validation of the operation did not succeed.
+   */
+  process::Future<bool> authorizeUnreserveResources(
+      const Offer::Operation::Unreserve& unreserve,
+      const Option<std::string>& principal);
+
   // Add the task and its executor (if not already running) to the
   // framework and slave. Returns the resources consumed as a result,
   // which includes resources for the task and its executor

@@ -2756,6 +2756,70 @@ Future<bool> Master::authorizeTask(
 }
 
 
+Future<bool> Master::authorizeReserveResources(
+    const Offer::Operation::Reserve& reserve,
+    const Option<string>& principal)
+{
+  if (authorizer.isNone()) {
+    return true; // Authorization is disabled.
+  }
+
+  mesos::ACL::ReserveResources request;
+
+  if (principal.isSome()) {
+    request.mutable_principals()->add_values(principal.get());
+  } else {
+    request.mutable_principals()->set_type(ACL::Entity::ANY);
+  }
+
+  // TODO(mpark): Determine what kinds of constraints we may want to
+  // enforce on resources. Currently, we simply use ANY.
+  request.mutable_resources()->set_type(ACL::Entity::ANY);
+
+  LOG(INFO) << "Authorizing principal '"
+            << (principal.isSome() ? principal.get() : "ANY")
+            << "' to reserve resources '" << reserve.resources() << "'";
+
+  return authorizer.get()->authorize(request);
+}
+
+
+Future<bool> Master::authorizeUnreserveResources(
+    const Offer::Operation::Unreserve& unreserve,
+    const Option<string>& principal)
+{
+  if (authorizer.isNone()) {
+    return true; // Authorization is disabled.
+  }
+
+  mesos::ACL::UnreserveResources request;
+
+  if (principal.isSome()) {
+    request.mutable_principals()->add_values(principal.get());
+  } else {
+    request.mutable_principals()->set_type(ACL::Entity::ANY);
+  }
+
+  foreach (const Resource& resource, unreserve.resources()) {
+    // NOTE: Since validation of this operation is performed after
+    // authorization, we must check here that this resource is
+    // dynamically reserved. If it isn't, the error will be caught
+    // during validation.
+    if (Resources::isDynamicallyReserved(resource)) {
+      request.mutable_reserver_principals()->add_values(
+          resource.reservation().principal());
+    }
+  }
+
+  LOG(INFO)
+    << "Authorizing principal '"
+    << (principal.isSome() ? principal.get() : "ANY")
+    << "' to unreserve resources '" << unreserve.resources() << "'";
+
+  return authorizer.get()->authorize(request);
+}
+
+
 Resources Master::addTask(
     const TaskInfo& task,
     Framework* framework,
