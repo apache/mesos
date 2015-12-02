@@ -130,6 +130,47 @@ public:
   virtual process::Future<bool> authorize(
       const ACL::ShutdownFramework& request) = 0;
 
+  /**
+   * Used to verify if a principal is allowed to reserve particular resources.
+   * The principal and resources parameters are packed in the request. If the
+   * principal is allowed to perform the action, this method returns true,
+   * otherwise it returns false. A third possible outcome is that the future
+   * fails, which indicates that the request could not be checked at the moment.
+   * This may be a temporary condition.
+   *
+   * @param request An instance of an `ACL::ReserveResources` protobuf message.
+   *     It packs all the parameters needed to verify the given principal is
+   *     allowed to reserve one or more types of resources.
+   *
+   * @return true if the principal can reserve the types of resources contained
+   *     in the request, false otherwise. A failed future is neither true nor
+   *     false. It indicates a problem processing the request and the request
+   *     can be retried.
+   */
+  virtual process::Future<bool> authorize(
+      const ACL::ReserveResources& request) = 0;
+
+  /**
+   * Used to verify if a principal is allowed to unreserve resources reserved
+   * by another principal. The principal and reserver_principal parameters are
+   * packed in the request. If the principal is allowed to perform the action,
+   * this method returns true, otherwise it returns false. A third possible
+   * outcome is that the future fails, which indicates that the request could
+   * not be checked at the moment. This may be a temporary condition.
+   *
+   * @param request An instance of an ACL::UnreserveResources protobuf message.
+   *     It packs all the parameters needed to verify the given principal is
+   *     allowed to unreserve resources which were reserved by the reserver
+   *     principal contained in the request.
+   *
+   * @return true if the principal can unreserve resources which were reserved
+   *     by the reserver_principal, false otherwise. A failed future is neither
+   *     true nor false. It indicates a problem processing the request and the
+   *     request can be retried.
+   */
+  virtual process::Future<bool> authorize(
+      const ACL::UnreserveResources& request) = 0;
+
 protected:
   Authorizer() {}
 };

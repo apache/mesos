@@ -89,6 +89,36 @@ public:
     return acls.permissive(); // None of the ACLs match.
   }
 
+  Future<bool> authorize(const ACL::ReserveResources& request)
+  {
+    foreach (const ACL::ReserveResources& acl, acls.reserve_resources()) {
+      // ACL matches if both subjects and objects match.
+      if (matches(request.principals(), acl.principals()) &&
+          matches(request.resources(), acl.resources())) {
+        // ACL is allowed if both subjects and objects are allowed.
+        return allows(request.principals(), acl.principals()) &&
+               allows(request.resources(), acl.resources());
+      }
+    }
+
+    return acls.permissive(); // None of the ACLs match.
+  }
+
+  Future<bool> authorize(const ACL::UnreserveResources& request)
+  {
+    foreach (const ACL::UnreserveResources& acl, acls.unreserve_resources()) {
+      // ACL matches if both subjects and objects match.
+      if (matches(request.principals(), acl.principals()) &&
+          matches(request.reserver_principals(), acl.reserver_principals())) {
+        // ACL is allowed if both subjects and objects are allowed.
+        return allows(request.principals(), acl.principals()) &&
+               allows(request.reserver_principals(), acl.reserver_principals());
+      }
+    }
+
+    return acls.permissive(); // None of the ACLs match.
+  }
+
 private:
   // Match matrix:
   //
@@ -285,6 +315,36 @@ Future<bool> LocalAuthorizer::authorize(const ACL::ShutdownFramework& request)
   // Necessary to disambiguate.
   typedef Future<bool>(LocalAuthorizerProcess::*F)(
       const ACL::ShutdownFramework&);
+
+  return dispatch(
+      process, static_cast<F>(&LocalAuthorizerProcess::authorize), request);
+}
+
+
+Future<bool> LocalAuthorizer::authorize(const ACL::ReserveResources& request)
+{
+  if (process == NULL) {
+    return Failure("Authorizer not initialized");
+  }
+
+  // Necessary to disambiguate.
+  typedef Future<bool>(
+      LocalAuthorizerProcess::*F)(const ACL::ReserveResources&);
+
+  return dispatch(
+      process, static_cast<F>(&LocalAuthorizerProcess::authorize), request);
+}
+
+
+Future<bool> LocalAuthorizer::authorize(const ACL::UnreserveResources& request)
+{
+  if (process == NULL) {
+    return Failure("Authorizer not initialized");
+  }
+
+  // Necessary to disambiguate.
+  typedef Future<bool>(
+      LocalAuthorizerProcess::*F)(const ACL::UnreserveResources&);
 
   return dispatch(
       process, static_cast<F>(&LocalAuthorizerProcess::authorize), request);

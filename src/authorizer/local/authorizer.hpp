@@ -57,6 +57,10 @@ public:
       const ACL::RunTask& request);
   virtual process::Future<bool> authorize(
       const ACL::ShutdownFramework& request);
+  virtual process::Future<bool> authorize(
+      const ACL::ReserveResources& request);
+  virtual process::Future<bool> authorize(
+      const ACL::UnreserveResources& request);
 
 private:
   LocalAuthorizer();

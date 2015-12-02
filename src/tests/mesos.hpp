@@ -1190,6 +1190,10 @@ public:
       authorize, process::Future<bool>(const ACL::RunTask& request));
   MOCK_METHOD1(
       authorize, process::Future<bool>(const ACL::ShutdownFramework& request));
+  MOCK_METHOD1(
+      authorize, process::Future<bool>(const ACL::ReserveResources& request));
+  MOCK_METHOD1(
+      authorize, process::Future<bool>(const ACL::UnreserveResources& request));
 };
 
 

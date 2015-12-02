@@ -405,6 +405,157 @@ TYPED_TEST(AuthorizationTest, PrincipalNotOfferedAnyRoleRestrictive)
   AWAIT_EXPECT_EQ(false, authorizer.get()->authorize(request3));
 }
 
+
+// This tests the authorization of ACLs used for the dynamic
+// reservation of resources.
+//
+// NOTE: at this time, principals can only be authorized to reserve ANY or NONE.
+// However, this test exercises the full capabilities of ACL authorization, so
+// specific resource types are tested as well.
+TYPED_TEST(AuthorizationTest, Reserve)
+{
+  ACLs acls;
+
+  // "foo" and "bar" principals can reserve any resources.
+  mesos::ACL::ReserveResources* acl1 = acls.add_reserve_resources();
+  acl1->mutable_principals()->add_values("foo");
+  acl1->mutable_principals()->add_values("bar");
+  acl1->mutable_resources()->set_type(mesos::ACL::Entity::ANY);
+
+  // "baz" principal can reserve memory.
+  mesos::ACL::ReserveResources* acl2 = acls.add_reserve_resources();
+  acl2->mutable_principals()->add_values("baz");
+  acl2->mutable_resources()->add_values("mem");
+
+  // No other principals can reserve resources.
+  mesos::ACL::ReserveResources* acl3 = acls.add_reserve_resources();
+  acl3->mutable_principals()->set_type(mesos::ACL::Entity::ANY);
+  acl3->mutable_resources()->set_type(mesos::ACL::Entity::NONE);
+
+  // Create an Authorizer with the ACLs.
+  Try<Authorizer*> create = TypeParam::create();
+  ASSERT_SOME(create);
+  Owned<Authorizer> authorizer(create.get());
+
+  Try<Nothing> initialized = authorizer.get()->initialize(acls);
+  ASSERT_SOME(initialized);
+
+  // Principals "foo" and "bar" can reserve any resources,
+  // so requests 1 and 2 will pass.
+  mesos::ACL::ReserveResources request1;
+  request1.mutable_principals()->add_values("foo");
+  request1.mutable_principals()->add_values("bar");
+  request1.mutable_resources()->set_type(mesos::ACL::Entity::ANY);
+  AWAIT_EXPECT_TRUE(authorizer.get()->authorize(request1));
+
+  mesos::ACL::ReserveResources request2;
+  request2.mutable_principals()->add_values("foo");
+  request2.mutable_principals()->add_values("bar");
+  request2.mutable_resources()->add_values("disk");
+  AWAIT_EXPECT_TRUE(authorizer.get()->authorize(request2));
+
+  // Principal "baz" can reserve memory, so this will pass.
+  mesos::ACL::ReserveResources request3;
+  request3.mutable_principals()->add_values("baz");
+  request3.mutable_resources()->add_values("mem");
+  AWAIT_EXPECT_TRUE(authorizer.get()->authorize(request3));
+
+  // Principal "baz" can only reserve memory, so requests 4 and 5 will fail.
+  mesos::ACL::ReserveResources request4;
+  request4.mutable_principals()->add_values("baz");
+  request4.mutable_resources()->add_values("disk");
+  AWAIT_EXPECT_FALSE(authorizer.get()->authorize(request4));
+
+  mesos::ACL::ReserveResources request5;
+  request5.mutable_principals()->add_values("baz");
+  request5.mutable_resources()->set_type(mesos::ACL::Entity::ANY);
+  AWAIT_EXPECT_FALSE(authorizer.get()->authorize(request5));
+
+  // Principal "zelda" is not mentioned in the ACLs of the Authorizer, so it
+  // will be caught by the final ACL, which provides a default case that denies
+  // access for all other principals. This case will fail.
+  mesos::ACL::ReserveResources request6;
+  request6.mutable_principals()->add_values("zelda");
+  request6.mutable_resources()->set_type(mesos::ACL::Entity::ANY);
+  AWAIT_EXPECT_FALSE(authorizer.get()->authorize(request6));
+}
+
+
+// This tests the authorization of ACLs used for unreserve
+// operations on dynamically-reserved resources.
+TYPED_TEST(AuthorizationTest, Unreserve)
+{
+  ACLs acls;
+
+  // "foo" principal can unreserve its own resources.
+  mesos::ACL::UnreserveResources* acl1 = acls.add_unreserve_resources();
+  acl1->mutable_principals()->add_values("foo");
+  acl1->mutable_reserver_principals()->add_values("foo");
+
+  // "bar" principal cannot unreserve anyone's resources.
+  mesos::ACL::UnreserveResources* acl2 = acls.add_unreserve_resources();
+  acl2->mutable_principals()->add_values("bar");
+  acl2->mutable_reserver_principals()->set_type(mesos::ACL::Entity::NONE);
+
+  // "ops" principal can unreserve anyone's resources.
+  mesos::ACL::UnreserveResources* acl3 = acls.add_unreserve_resources();
+  acl3->mutable_principals()->add_values("ops");
+  acl3->mutable_reserver_principals()->set_type(mesos::ACL::Entity::ANY);
+
+  // No other principals can unreserve resources.
+  mesos::ACL::UnreserveResources* acl4 = acls.add_unreserve_resources();
+  acl4->mutable_principals()->set_type(mesos::ACL::Entity::ANY);
+  acl4->mutable_reserver_principals()->set_type(mesos::ACL::Entity::NONE);
+
+  // Create an Authorizer with the ACLs.
+  Try<Authorizer*> create = TypeParam::create();
+  ASSERT_SOME(create);
+  Owned<Authorizer> authorizer(create.get());
+
+  Try<Nothing> initialized = authorizer.get()->initialize(acls);
+  ASSERT_SOME(initialized);
+
+  // Principal "foo" can unreserve its own resources.
+  mesos::ACL::UnreserveResources request1;
+  request1.mutable_principals()->add_values("foo");
+  request1.mutable_reserver_principals()->add_values("foo");
+  AWAIT_EXPECT_TRUE(authorizer.get()->authorize(request1));
+
+  // Principal "bar" cannot unreserve anyone's
+  // resources, so requests 2 and 3 will fail.
+  mesos::ACL::UnreserveResources request2;
+  request2.mutable_principals()->add_values("bar");
+  request2.mutable_reserver_principals()->add_values("foo");
+  AWAIT_EXPECT_FALSE(authorizer.get()->authorize(request2));
+
+  mesos::ACL::UnreserveResources request3;
+  request3.mutable_principals()->add_values("bar");
+  request3.mutable_reserver_principals()->add_values("bar");
+  AWAIT_EXPECT_FALSE(authorizer.get()->authorize(request3));
+
+  // Principal "ops" can unreserve anyone's resources,
+  // so requests 4 and 5 will succeed.
+  mesos::ACL::UnreserveResources request4;
+  request4.mutable_principals()->add_values("ops");
+  request4.mutable_reserver_principals()->add_values("foo");
+  AWAIT_EXPECT_TRUE(authorizer.get()->authorize(request4));
+
+  mesos::ACL::UnreserveResources request5;
+  request5.mutable_principals()->add_values("ops");
+  request5.mutable_reserver_principals()->add_values("foo");
+  request5.mutable_reserver_principals()->add_values("bar");
+  request5.mutable_reserver_principals()->add_values("ops");
+  AWAIT_EXPECT_TRUE(authorizer.get()->authorize(request5));
+
+  // Principal "zelda" is not mentioned in the ACLs of the Authorizer, so it
+  // will be caught by the final ACL, which provides a default case that denies
+  // access for all other principals. This case will fail.
+  mesos::ACL::UnreserveResources request6;
+  request6.mutable_principals()->add_values("zelda");
+  request6.mutable_reserver_principals()->add_values("foo");
+  AWAIT_EXPECT_FALSE(authorizer.get()->authorize(request6));
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {
