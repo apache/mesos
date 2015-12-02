@@ -389,15 +389,25 @@ Future<http::Response> Master::QuotaHandler::remove(
                       "'): Role '" + role + "' has no quota set");
   }
 
+  // Remove quota from the quota-related local state. We do this before
+  // updating the registry in order to make sure that we are not already
+  // trying to remove quota for this role (since this is a multi-phase event).
+  // NOTE: We do not need to restore quota for the role if the registry
+  // update fails because in this case the master fails as well and quota
+  // will be restored automatically during the recovery.
   master->quotas.erase(role);
 
-  // Update registry with the removed quota.
-  // TODO(alexr): MESOS-3165.
+  // Update the registry with the removed quota and acknowledge the request.
+  return master->registrar->apply(Owned<Operation>(
+      new quota::RemoveQuota(role)))
+    .then(defer(master->self(), [=](bool result) -> Future<http::Response> {
+      // See the top comment in "master/quota.hpp" for why this check is here.
+      CHECK(result);
 
-  // Notfify allocator.
-  master->allocator->removeQuota(role);
+      master->allocator->removeQuota(role);
 
-  return OK();
+      return OK();
+    }));
 }
 
 } // namespace master {
