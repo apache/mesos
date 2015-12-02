@@ -8,15 +8,20 @@ import sys
 import urllib2
 
 
-REVIEW_REQUEST_URL = 'https://reviews.apache.org/api/review-requests'
+REVIEW_REQUEST_BASE_URL = 'https://reviews.apache.org/r'
+REVIEW_REQUEST_API_URL = 'https://reviews.apache.org/api/review-requests'
 USER_URL = 'https://reviews.apache.org/api/users'
-PATCH_URL = 'https://reviews.apache.org/r'
+
+
+def review_api_url(review_id):
+  """Returns a Review Board API URL given a review ID."""
+  # Reviewboard REST API expects '/' at the end of the URL.
+  return '{api}/{review}/'.format(api=REVIEW_REQUEST_API_URL, review=review_id)
 
 
 def review_url(review_id):
-  """Returns a Review Board URL given a review ID."""
-  # Reviewboard REST API expects '/' at the end of the URL.
-  return '{base}/{review}/'.format(base=REVIEW_REQUEST_URL, review=review_id)
+  """Returns a Review Board UI URL given a review ID."""
+  return '{base}/{review}'.format(base=REVIEW_REQUEST_BASE_URL, review=review_id)
 
 
 def user_url(username):
@@ -28,7 +33,8 @@ def user_url(username):
 def patch_url(review_id):
   """Returns a Review Board URL for a patch given a review ID."""
   # Reviewboard REST API expects '/' at the end of the URL.
-  return '{base}/{review}/diff/raw/'.format(base=PATCH_URL, review=review_id)
+  return '{base}/{review}/diff/raw/'.format(base=REVIEW_REQUEST_BASE_URL,
+                                            review=review_id)
 
 
 def url_to_json(url):
@@ -39,14 +45,14 @@ def url_to_json(url):
 
 def extract_review_id(url):
   """Extracts review ID from Review Board URL."""
-  review_id = re.search(REVIEW_REQUEST_URL + '/(\d+)/', url)
+  review_id = re.search(REVIEW_REQUEST_API_URL + '/(\d+)/', url)
   if review_id:
     return review_id.group(1)
 
 
 def review_chain(review_id):
   """Returns a parent review chain for a given review ID."""
-  json_obj = url_to_json(review_url(review_id))
+  json_obj = url_to_json(review_api_url(review_id))
 
   # Stop as soon as we stumble upon a submitted request.
   status = json_obj.get('review_request').get('status')
@@ -136,7 +142,7 @@ def commit_patch(review):
 def review_data(review_id):
   """Fetches review data and populates internal data structure."""
   # Populate review object.
-  review = url_to_json(review_url(review_id)).get('review_request')
+  review = url_to_json(review_api_url(review_id)).get('review_request')
 
   url = review_url(review_id)
 
