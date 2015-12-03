@@ -280,6 +280,12 @@ public:
     route("/test", None(), &HttpProcess::test);
   }
 
+  ~HttpProcess()
+  {
+    terminate(this);
+    wait(this);
+  }
+
   MOCK_METHOD1(test, Future<http::Response>(const http::Request&));
 };
 
