@@ -92,7 +92,7 @@ Future<std::string> read(int fd);
  *     If writing to a socket or pipe, an error will be returned if the
  *     the read end of the socket or pipe has been closed.
  */
-Future<size_t> write(int fd, void* data, size_t size);
+Future<size_t> write(int fd, const void* data, size_t size);
 
 
 /**

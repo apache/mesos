@@ -102,7 +102,7 @@ void read(
 
 void write(
     int fd,
-    void* data,
+    const void* data,
     size_t size,
     const std::shared_ptr<Promise<size_t>>& promise,
     const Future<short>& future)
@@ -227,7 +227,7 @@ Future<size_t> read(int fd, void* data, size_t size)
 }
 
 
-Future<size_t> write(int fd, void* data, size_t size)
+Future<size_t> write(int fd, const void* data, size_t size)
 {
   process::initialize();
 
@@ -341,7 +341,7 @@ Future<Nothing> _write(
     Owned<string> data,
     size_t index)
 {
-  return io::write(fd, (void*) (data->data() + index), data->size() - index)
+  return io::write(fd, data->data() + index, data->size() - index)
     .then([=](size_t length) -> Future<Nothing> {
       if (index + length == data->size()) {
         return Nothing();
