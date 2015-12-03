@@ -397,22 +397,22 @@ TEST_F(ReservationEndpointsTest, ReserveAvailableAndOfferedResources)
 
   EXPECT_CALL(sched, registered(&driver, _, _));
 
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers));
+
   driver.start();
 
   // We want to get the cluster in a state where 'available' resources are left
   // in the allocator, and 'offered' resources are offered to the framework.
   // To achieve this state, we perform the following steps:
-  //   (1) Summon an offer containing 'total' = 'available' + 'offered'.
+  //   (1) Receive an offer containing 'total' = 'available' + 'offered'.
   //   (2) Launch a "forever-running" task with 'available' resources.
   //   (3) Summon an offer containing 'offered'.
   //   (4) Kill the task, which recovers 'available' resources.
 
-  // Summon an offer and expect to receive 'available + offered' resources.
-  Future<vector<Offer>> offers;
-  EXPECT_CALL(sched, resourceOffers(&driver, _))
-    .WillOnce(FutureArg<1>(&offers));
-
-  driver.reviveOffers();
+  // Expect to receive 'available + offered' resources.
+  AWAIT_READY(offers);
 
   ASSERT_EQ(1u, offers.get().size());
   Offer offer = offers.get()[0];
@@ -445,6 +445,8 @@ TEST_F(ReservationEndpointsTest, ReserveAvailableAndOfferedResources)
     .WillOnce(FutureArg<1>(&offers));
 
   driver.reviveOffers();
+
+  AWAIT_READY(offers);
 
   ASSERT_EQ(1u, offers.get().size());
   offer = offers.get()[0];
@@ -558,22 +560,22 @@ TEST_F(ReservationEndpointsTest, UnreserveAvailableAndOfferedResources)
 
   EXPECT_CALL(sched, registered(&driver, _, _));
 
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers));
+
   driver.start();
 
   // We want to get the cluster in a state where 'available' resources are left
   // in the allocator, and 'offered' resources are offered to the framework.
   // To achieve this state, we perform the following steps:
-  //   (1) Summon an offer containing 'total' = 'available' + 'offered'.
+  //   (1) Receive an offer containing 'total' = 'available' + 'offered'.
   //   (2) Launch a "forever-running" task with 'available' resources.
   //   (3) Summon an offer containing 'offered'.
   //   (4) Kill the task, which recovers 'available' resources.
 
-  // Summon an offer and expect to receive 'available + offered' resources.
-  Future<vector<Offer>> offers;
-  EXPECT_CALL(sched, resourceOffers(&driver, _))
-    .WillOnce(FutureArg<1>(&offers));
-
-  driver.reviveOffers();
+  // Expect to receive 'available + offered' resources.
+  AWAIT_READY(offers);
 
   ASSERT_EQ(1u, offers.get().size());
   Offer offer = offers.get()[0];
@@ -606,6 +608,8 @@ TEST_F(ReservationEndpointsTest, UnreserveAvailableAndOfferedResources)
     .WillOnce(FutureArg<1>(&offers));
 
   driver.reviveOffers();
+
+  AWAIT_READY(offers);
 
   ASSERT_EQ(1u, offers.get().size());
   offer = offers.get()[0];
