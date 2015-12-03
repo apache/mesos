@@ -1,31 +1,11 @@
 #!/usr/bin/env python
 
-# Runs style checker using Google's cpplint.
-# http://google-styleguide.googlecode.com/svn/trunk/cpplint/cpplint.py
+''' Runs checks for mesos style. '''
 
 import os
 import re
 import subprocess
 import sys
-
-# See cpplint.py for full list of rules.
-active_rules = ['build/class',
-                'build/deprecated',
-                'build/endif_comment',
-                'readability/todo',
-                'readability/namespace',
-                'runtime/vlog',
-                'whitespace/blank_line',
-                'whitespace/comma',
-                'whitespace/end_of_line',
-                'whitespace/ending_newline',
-                'whitespace/forcolon',
-                'whitespace/indent',
-                'whitespace/line_length',
-                'whitespace/operators',
-                'whitespace/semicolon',
-                'whitespace/tab',
-                'whitespace/todo']
 
 # Root source paths (will be traversed recursively).
 source_dirs = ['src',
@@ -52,23 +32,66 @@ def find_candidates(root_dir):
                 yield path
 
 def run_lint(source_paths):
+    '''
+    Runs cpplint over given files.
+
+    http://google-styleguide.googlecode.com/svn/trunk/cpplint/cpplint.py
+    '''
+
+    # See cpplint.py for full list of rules.
+    active_rules = [
+        'build/class',
+        'build/deprecated',
+        'build/endif_comment',
+        'readability/todo',
+        'readability/namespace',
+        'runtime/vlog',
+        'whitespace/blank_line',
+        'whitespace/comma',
+        'whitespace/end_of_line',
+        'whitespace/ending_newline',
+        'whitespace/forcolon',
+        'whitespace/indent',
+        'whitespace/line_length',
+        'whitespace/operators',
+        'whitespace/semicolon',
+        'whitespace/tab',
+        'whitespace/todo']
+
     rules_filter = '--filter=-,+' + ',+'.join(active_rules)
-    print 'Checking ' + str(len(source_paths)) + ' files using filter ' \
-        + rules_filter
     p = subprocess.Popen(
         ['python', 'support/cpplint.py', rules_filter] + source_paths,
         stderr=subprocess.PIPE,
         close_fds=True)
 
     # Lines are stored and filtered, only showing found errors instead
-    # of 'Done processing XXX.' which tends to be dominant output.
-    lint_out_regex = re.compile(':')
+    # of e.g., 'Done processing XXX.' which tends to be dominant output.
     for line in p.stderr:
-        if lint_out_regex.search(line) is not None:
-            sys.stdout.write(line)
+        if re.match('^(Done processing |Total errors found: )', line):
+            continue
+        sys.stderr.write(line)
 
     p.wait()
     return p.returncode
+
+def check_license_header(source_paths):
+    ''' Checks the license headers of the given files. '''
+    error_count = 0
+    for path in source_paths:
+        with open(path) as source_file:
+            head = source_file.readline()
+
+            # Check that opening comment has correct style.
+            # TODO(bbannier) We allow `Copyright` for currently deviating files.
+            # This should be removed one we have a uniform license format.
+            if not re.match(r'^\/\/ [Licensed|Copyright]', head):
+                sys.stderr.write(
+                    "{path}:1:  A license header should appear on the file's "
+                    " first line starting with '// Licensed'.: {head}".\
+                        format(path=path, head=head))
+                error_count += 1
+
+    return error_count
 
 
 if __name__ == '__main__':
@@ -77,7 +100,7 @@ if __name__ == '__main__':
     # (possibly nested) paths.
     for source_dir in source_dirs:
         if not os.path.exists(source_dir):
-            print 'Could not find "' + source_dir + '"'
+            print "Could not find '{dir}'".format(dir=source_dir)
             print 'Please run from the root of the mesos source directory'
             exit(1)
 
@@ -87,22 +110,26 @@ if __name__ == '__main__':
         for candidate in find_candidates(source_dir):
             candidates.append(candidate)
 
-    if len(sys.argv) == 1:
-        # No file paths specified, run lint on all candidates.
-        sys.exit(run_lint(candidates))
+    # If file paths are specified, check all file paths that are
+    # candidates; else check all candidates.
+    file_paths = sys.argv[1:] if len(sys.argv) > 1 else candidates
+
+    # Compute the set intersect of the input file paths and candidates.
+    # This represents the reduced set of candidates to run lint on.
+    candidates_set = set(candidates)
+    clean_file_paths_set = set(map(lambda x: x.rstrip(), file_paths))
+    filtered_candidates_set = clean_file_paths_set.intersection(
+        candidates_set)
+
+    if filtered_candidates_set:
+        print 'Checking {num_files} files'.\
+                format(num_files=len(filtered_candidates_set))
+        license_errors = check_license_header(filtered_candidates_set)
+        lint_errors = run_lint(list(filtered_candidates_set))
+        total_errors = license_errors + lint_errors
+        sys.stderr.write('Total errors found: {num_errors}\n'.\
+                            format(num_errors=total_errors))
+        sys.exit(total_errors)
     else:
-        # File paths specified, run lint on all file paths that are candidates.
-        file_paths = sys.argv[1:]
-
-        # Compute the set intersect of the input file paths and candidates.
-        # This represents the reduced set of candidates to run lint on.
-        candidates_set = set(candidates)
-        clean_file_paths_set = set(map(lambda x: x.rstrip(), file_paths))
-        filtered_candidates_set = clean_file_paths_set.intersection(
-            candidates_set)
-
-        if filtered_candidates_set:
-            sys.exit(run_lint(list(filtered_candidates_set)))
-        else:
-            print "No files to lint\n"
-            sys.exit(0)
+        print "No files to lint\n"
+        sys.exit(0)
