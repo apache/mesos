@@ -506,7 +506,10 @@ TEST_F(FetcherTest, ExtractNotExecutable)
   // TODO(benh): Update os::tar so that we can capture or ignore
   // stdout/stderr output.
 
-  ASSERT_SOME(os::tar(path.get(), path.get() + ".tar.gz"));
+  // Create an uncompressed archive (see MESOS-3579), but with
+  // extension `.tar.gz` to verify we can unpack files such names.
+  ASSERT_SOME(os::shell(
+      "tar cf '" + path.get() + ".tar.gz' '" + path.get() + "' 2>&1"));
 
   ContainerID containerId;
   containerId.set_value(UUID::random().toString());
@@ -556,7 +559,9 @@ TEST_F(FetcherTest, ExtractTar)
   // TODO(benh): Update os::tar so that we can capture or ignore
   // stdout/stderr output.
 
-  ASSERT_SOME(os::tar(path.get(), path.get() + ".tar"));
+  // Create an uncompressed archive (see MESOS-3579).
+  ASSERT_SOME(os::shell(
+      "tar cf '" + path.get() + ".tar' '" + path.get() + "' 2>&1"));
 
   ContainerID containerId;
   containerId.set_value(UUID::random().toString());

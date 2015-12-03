@@ -322,7 +322,9 @@ void FetcherCacheTest::setupArchiveAsset()
 
   const string cwd = os::getcwd();
   ASSERT_SOME(os::chdir(assetsDirectory));
-  ASSERT_SOME(os::tar(ARCHIVED_COMMAND_NAME, ARCHIVE_NAME));
+  // Create an uncompressed archive (see MESOS-3579).
+  ASSERT_SOME(os::shell(
+      "tar cf '" + ARCHIVE_NAME + "' '" + ARCHIVED_COMMAND_NAME + "' 2>&1"));
   ASSERT_SOME(os::chdir(cwd));
   archivePath = path::join(assetsDirectory, ARCHIVE_NAME);
 
