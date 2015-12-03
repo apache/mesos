@@ -134,6 +134,20 @@ int main(int argc, char** argv)
 ~~~
 ---->
 
+> NOTE: In most cases, a process should have a destructor that terminates
+> and waits on the process to finish.  The process does not automatically
+> terminate when the `Process` is deallocated.  i.e.:
+
+~~~{.cpp}
+class MyProcess : public Process<MyProcess> {
+  virtual ~MyProcess()
+  {
+    terminate(this);
+    wait(this);
+  }
+};
+~~~
+
 ---
 
 ## Futures and Promises
