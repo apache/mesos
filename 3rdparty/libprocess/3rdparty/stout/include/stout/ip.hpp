@@ -211,23 +211,38 @@ inline Try<IP> IP::parse(const std::string& value, int family)
 
 inline Try<IP> IP::create(const struct sockaddr_storage& _storage)
 {
-  switch (_storage.ss_family) {
-    case AF_INET: {
-      struct sockaddr_in addr = *((struct sockaddr_in*) &_storage);
-      return IP(addr.sin_addr);
-    }
-    default: {
-      return Error(
-          "Unsupported family type: " +
-          stringify(_storage.ss_family));
-    }
-  }
+  // According to POSIX: (IEEE Std 1003.1, 2004)
+  //
+  // (1) `sockaddr_storage` is "aligned at an appropriate boundary so that
+  // pointers to it can be cast as pointers to protocol-specific address
+  // structures and used to access the fields of those structures without
+  // alignment problems."
+  //
+  // (2) "When a `sockaddr_storage` structure is cast as a `sockaddr`
+  // structure, the `ss_family` field of the `sockaddr_storage` structure
+  // shall map onto the `sa_family` field of the `sockaddr` structure."
+  //
+  // Therefore, casting from `const sockaddr_storage*` to `const sockaddr*`
+  // (then subsequently dereferencing the `const sockaddr*`) should be safe.
+  // Note that casting in the reverse direction (`const sockaddr*` to
+  // `const sockaddr_storage*`) would NOT be safe, since the former might
+  // not be aligned appropriately.
+  const auto* addr = reinterpret_cast<const struct sockaddr*>(&_storage);
+  return create(*addr);
 }
 
 
 inline Try<IP> IP::create(const struct sockaddr& _storage)
 {
-  return create(*((struct sockaddr_storage*) &_storage));
+  switch (_storage.sa_family) {
+    case AF_INET: {
+      const auto* addr = reinterpret_cast<const struct sockaddr_in*>(&_storage);
+      return IP(addr->sin_addr);
+    }
+    default: {
+      return Error("Unsupported family type: " + stringify(_storage.sa_family));
+    }
+  }
 }
 
 
