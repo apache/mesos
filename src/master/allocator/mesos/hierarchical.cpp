@@ -975,6 +975,7 @@ void HierarchicalAllocatorProcess::allocate(
 }
 
 
+// TODO(alexr): Consider factoring out the quota allocation logic.
 void HierarchicalAllocatorProcess::allocate(
     const hashset<SlaveID>& slaveIds_)
 {
@@ -990,15 +991,160 @@ void HierarchicalAllocatorProcess::allocate(
   //       to a framework of any role.
   hashmap<FrameworkID, hashmap<SlaveID, Resources>> offerable;
 
+  // NOTE: This function can operate on a small subset of slaves, we have to
+  // make sure that we don't assume cluster knowledge when summing resources
+  // from that set.
+
   // Randomize the order in which slaves' resources are allocated.
   // TODO(vinod): Implement a smarter sorting algorithm.
   vector<SlaveID> slaveIds(slaveIds_.begin(), slaveIds_.end());
   std::random_shuffle(slaveIds.begin(), slaveIds.end());
 
+  // Quota comes first and fair share second. Here we process only those
+  // roles, for which quota is set (quota'ed roles). Such roles form a
+  // special allocation group with a dedicated sorter.
+  foreach (const SlaveID& slaveId, slaveIds) {
+    // Don't send offers for non-whitelisted and deactivated slaves.
+    // TODO(alexr): We skip non-whitelisted or deactivated agents in every
+    // loop. Consider doing it once at the beginning before shuffling.
+    if (!isWhitelisted(slaveId) || !slaves[slaveId].activated) {
+      continue;
+    }
+
+    foreach (const string& role, quotaRoleSorter->sort()) {
+      CHECK_SOME(roles[role].quota);
+
+      // Summing up resources is fine because quota is only for scalar
+      // resources.
+      // NOTE: Allocation for a quota'ed role may contain revocable resources
+      // from the WDRF stage, which we should not count towards quota.
+      // TODO(alexr): Consider including dynamically reserved resources.
+      Resources roleConsumedResources =
+        Resources::sum(quotaRoleSorter->allocation(role));
+
+      roleConsumedResources -= roleConsumedResources.revocable();
+
+      // If quota for the role is satisfied, we do not need to do any further
+      // allocations, at least at this stage.
+      // TODO(alexr): Skipping satisfied roles is pessimistic. Better
+      // alternatives are:
+      //   * A custom sorter that is aware of quotas and sorts accordingly.
+      //   * Removing satisfied roles from the sorter.
+      if (roleConsumedResources.contains(
+              roles[role].quota.get().guarantee())) {
+        break;
+      }
+
+      // Fetch frameworks according to their fair share.
+      foreach (const string& frameworkId_, frameworkSorters[role]->sort()) {
+        FrameworkID frameworkId;
+        frameworkId.set_value(frameworkId_);
+
+        // If the framework has suppressed offers, ignore. The Unallocated
+        // part of the quota will not be allocated to other roles.
+        if (frameworks[frameworkId].suppressed) {
+          continue;
+        }
+
+        // Quota is satisfied from the available unreserved non-revocable
+        // resources on the agent.
+        // TODO(alexr): Consider adding dynamically reserved resources.
+        Resources available = slaves[slaveId].total - slaves[slaveId].allocated;
+        Resources resources = available.unreserved();
+        resources -= resources.revocable();
+
+        // NOTE: The resources may not be allocatable here, but they can be
+        // accepted by some framework during the DRF allocation stage.
+        if (!allocatable(resources)) {
+          continue;
+        }
+
+        // If the framework filters these resources, ignore. The unallocated
+        // part of the quota will not be allocated to other roles.
+        if (isFiltered(frameworkId, slaveId, resources)) {
+          continue;
+        }
+
+        VLOG(2) << "Allocating " << resources << " on slave " << slaveId
+                << " to framework " << frameworkId
+                << " as part of its role quota";
+
+        // NOTE: We perform "coarse-grained" allocation for quota'ed
+        // resources, which may lead to overcommitment of resources beyond
+        // quota. This is fine since quota currently represents a guarantee.
+        offerable[frameworkId][slaveId] += resources;
+        slaves[slaveId].allocated += resources;
+
+        // Resources allocated as part of the quota count towards the
+        // role's and the framework's fair share.
+        // NOTE: Reserved and revocable resources have already been excluded.
+        frameworkSorters[role]->add(slaveId, resources);
+        frameworkSorters[role]->allocated(frameworkId_, slaveId, resources);
+        roleSorter->allocated(role, slaveId, resources);
+        quotaRoleSorter->allocated(role, slaveId, resources);
+      }
+    }
+  }
+
+  // Calculate how many resources (including revocable and reserved) are
+  // available for allocation in the next round. We need this in order to
+  // ensure we do not over-allocate resources during the WDRF phase.
+  Resources remainingClusterResources;
+  foreach (const SlaveID& slaveId, slaveIds) {
+    // Don't consider non-whitelisted and deactivated agents.
+    if (!isWhitelisted(slaveId) || !slaves[slaveId].activated) {
+      continue;
+    }
+
+    remainingClusterResources +=
+      slaves[slaveId].total - slaves[slaveId].allocated;
+  }
+
+  // Frameworks in a quota'ed role may temporarily reject resources by
+  // filtering or suppressing offers. Hence quotas may not be fully allocated.
+  Resources unallocatedQuotaResources;
+  foreachpair (const string& name, const Role& role, roles) {
+    if (role.quota.isNone()) {
+      continue;
+    }
+
+    // Compute the amount of quota that the role does not have allocated.
+    // NOTE: Allocation for a quota'ed role may contain revocable resources
+    // from the WDRF stage, which we should not count towards quota.
+    Resources allocated = Resources::sum(quotaRoleSorter->allocation(name));
+    allocated -= allocated.revocable();
+
+    const Resources required = role.quota.get().guarantee();
+
+    unallocatedQuotaResources += (required - allocated);
+  }
+
+  // Determine how many resources we may allocate during the WDRF stage.
+  // NOTE: Resources for quota allocations are already accounted in
+  // `remainingClusterResources`.
+  remainingClusterResources -= unallocatedQuotaResources;
+
+  // To ensure we do not over-allocate resources during the WDRF stage, we
+  // use 2 stopping criteria:
+  //   * No available resources for WDRF left, i.e.
+  //     `remainingClusterResources` - `allocatedForWDRF` is empty.
+  //   * A potential offer will force the WDRF stage to use more resources
+  //     than available, i.e. `remainingClusterResources` does not contain
+  //     (`allocatedForWDRF` + potential offer). In this case we skip this
+  //     agent and continue to the next one.
+  Resources allocatedForWDRF;
+
+  // At this point resources for quotas are allocated or accounted for.
+  // Proceed with allocating the remaining free pool using WDRF.
   foreach (const SlaveID& slaveId, slaveIds) {
     // Don't send offers for non-whitelisted and deactivated slaves.
     if (!isWhitelisted(slaveId) || !slaves[slaveId].activated) {
       continue;
+    }
+
+    // If there are no resources available for the current WDRF stage, stop.
+    if ((remainingClusterResources - allocatedForWDRF).empty()) {
+      break;
     }
 
     foreach (const string& role, roleSorter->sort()) {
@@ -1035,13 +1181,23 @@ void HierarchicalAllocatorProcess::allocate(
           continue;
         }
 
+        // If the offer generated by `resources` would force this WDRF stage
+        // to use more than `remainingClusterResources`, move along. We do
+        // not terminate early, as offers generated further in the loop may
+        // be small enough to fit within `remainingClusterResources`.
+        if (!remainingClusterResources.contains(allocatedForWDRF + resources)) {
+          continue;
+        }
+
         VLOG(2) << "Allocating " << resources << " on slave " << slaveId
                 << " to framework " << frameworkId;
 
-        // Note that we perform "coarse-grained" allocation,
-        // meaning that we always allocate the entire remaining
-        // slave resources to a single framework.
-        offerable[frameworkId][slaveId] = resources;
+        // NOTE: We perform "coarse-grained" allocation, meaning that we always
+        // allocate the entire remaining slave resources to a single framework.
+        // NOTE: We may have already allocated some resources on the current
+        // agent as part of quota.
+        offerable[frameworkId][slaveId] += resources;
+        allocatedForWDRF += resources;
         slaves[slaveId].allocated += resources;
 
         // Reserved resources are only accounted for in the framework
