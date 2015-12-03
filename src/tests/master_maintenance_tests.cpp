@@ -1412,7 +1412,6 @@ TEST_F(MasterMaintenanceTest, InverseOffersFilters)
 
   // Trigger a batch allocation.
   Clock::advance(flags.allocation_interval);
-  Clock::settle();
 
   event = events.get();
   AWAIT_READY(event);
@@ -1435,8 +1434,6 @@ TEST_F(MasterMaintenanceTest, InverseOffersFilters)
 
   v1::TaskInfo taskInfo2 =
     evolve(createTask(devolve(offer2), "exit 2", executor2.executor_id()));
-
-    sleep(2);
 
   {
     // Accept the first offer.
@@ -1469,9 +1466,6 @@ TEST_F(MasterMaintenanceTest, InverseOffersFilters)
 
     mesos.send(call);
   }
-
-  // The order of events is deterministic from here on.
-  Clock::resume();
 
   // Expect two inverse offers.
   event = events.get();
@@ -1523,8 +1517,9 @@ TEST_F(MasterMaintenanceTest, InverseOffersFilters)
   }
 
   {
-    // Decline the second inverse offer, with a filter set such that we
-    // should not see this inverse offer in the next allocation.
+    // Decline the second inverse offer, with a filter set such that
+    // we should not see this inverse offer in subsequent batch
+    // allocations for the remainder of this test.
     Call call;
     call.mutable_framework_id()->CopyFrom(id);
     call.set_type(Call::DECLINE);
@@ -1533,7 +1528,7 @@ TEST_F(MasterMaintenanceTest, InverseOffersFilters)
     decline->add_offer_ids()->CopyFrom(inverseOffer2.id());
 
     v1::Filters filters;
-    filters.set_refuse_seconds(flags.allocation_interval.secs() + 1);
+    filters.set_refuse_seconds(flags.allocation_interval.secs() + 100);
     decline->mutable_filters()->CopyFrom(filters);
 
     mesos.send(call);
@@ -1541,7 +1536,7 @@ TEST_F(MasterMaintenanceTest, InverseOffersFilters)
 
   {
     // Accept the first inverse offer, with a filter set such that we
-    // should immediately see this inverse offer again.
+    // should see this inverse offer again in the next batch allocation.
     Call call;
     call.mutable_framework_id()->CopyFrom(id);
     call.set_type(Call::ACCEPT);
@@ -1556,9 +1551,13 @@ TEST_F(MasterMaintenanceTest, InverseOffersFilters)
     mesos.send(call);
   }
 
-  // Expect one inverse offer.
+  Clock::settle();
+  Clock::advance(flags.allocation_interval);
+
+  // Expect one inverse offer in this batch allocation.
   event = events.get();
   AWAIT_READY(event);
+
   EXPECT_EQ(Event::OFFERS, event.get().type());
   EXPECT_EQ(0, event.get().offers().offers().size());
   EXPECT_EQ(1, event.get().offers().inverse_offers().size());
@@ -1584,9 +1583,13 @@ TEST_F(MasterMaintenanceTest, InverseOffersFilters)
     mesos.send(call);
   }
 
-  // Expect the same inverse offer.
+  Clock::settle();
+  Clock::advance(flags.allocation_interval);
+
+  // Expect the same inverse offer in this batch allocation.
   event = events.get();
   AWAIT_READY(event);
+
   EXPECT_EQ(Event::OFFERS, event.get().type());
   EXPECT_EQ(0, event.get().offers().offers().size());
   EXPECT_EQ(1, event.get().offers().inverse_offers().size());
