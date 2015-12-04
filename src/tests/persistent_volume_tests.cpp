@@ -674,14 +674,15 @@ TEST_F(PersistentVolumeTest, SlaveRecovery)
   Future<SlaveReregisteredMessage> slaveReregisteredMessage =
     FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
 
-  Future<Nothing> _recover = FUTURE_DISPATCH(_, &Slave::_recover);
+  Future<ReregisterExecutorMessage> reregisterExecutorMessage =
+    FUTURE_PROTOBUF(ReregisterExecutorMessage(), _, _);
 
   slave = StartSlave(slaveFlags);
   ASSERT_SOME(slave);
 
   Clock::pause();
 
-  AWAIT_READY(_recover);
+  AWAIT_READY(reregisterExecutorMessage);
 
   // Wait for slave to schedule reregister timeout.
   Clock::settle();
