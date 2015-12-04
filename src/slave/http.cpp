@@ -308,6 +308,9 @@ Future<Response> Slave::Http::executor(const Request& request) const
       ok.type = Response::PIPE;
       ok.reader = pipe.reader();
 
+      HttpConnection http {pipe.writer(), responseContentType};
+      slave->subscribe(http, call.subscribe(), framework, executor);
+
       return ok;
     }
 

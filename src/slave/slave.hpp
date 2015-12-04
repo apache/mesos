@@ -88,6 +88,7 @@ using namespace process;
 class StatusUpdateManager;
 struct Executor;
 struct Framework;
+struct HttpConnection;
 
 class Slave : public ProtobufProcess<Slave>
 {
@@ -160,6 +161,12 @@ public:
       const process::UPID& pid);
 
   void checkpointResources(const std::vector<Resource>& checkpointedResources);
+
+  void subscribe(
+    HttpConnection http,
+    const executor::Call::Subscribe& subscribe,
+    Framework* framework,
+    Executor* executor);
 
   void registerExecutor(
       const process::UPID& from,

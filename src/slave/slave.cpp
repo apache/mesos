@@ -87,6 +87,8 @@
 #include "slave/slave.hpp"
 #include "slave/status_update_manager.hpp"
 
+using mesos::executor::Call;
+
 using mesos::slave::QoSController;
 using mesos::slave::QoSCorrection;
 using mesos::slave::ResourceEstimator;
@@ -2394,6 +2396,176 @@ void Slave::_statusUpdateAcknowledgement(
   // Remove this framework if it has no pending executors and tasks.
   if (framework->executors.empty() && framework->pending.empty()) {
     removeFramework(framework);
+  }
+}
+
+
+void Slave::subscribe(
+    HttpConnection http,
+    const Call::Subscribe& subscribe,
+    Framework* framework,
+    Executor* executor)
+{
+  CHECK_NOTNULL(framework);
+  CHECK_NOTNULL(executor);
+
+  LOG(INFO) << "Received Subscribe request for HTTP executor " << *executor;
+
+  CHECK(state == DISCONNECTED || state == RUNNING ||
+        state == TERMINATING) << state;
+
+  if (state == TERMINATING) {
+    LOG(WARNING) << "Shutting down executor " << *executor << " as the slave "
+                 << "is terminating";
+    http.send(ShutdownExecutorMessage());
+    http.close();
+    return;
+  }
+
+  CHECK(framework->state == Framework::RUNNING ||
+        framework->state == Framework::TERMINATING)
+    << framework->state;
+
+  if (framework->state == Framework::TERMINATING) {
+    LOG(WARNING) << "Shutting down executor " << *executor << " as the "
+                 << "framework is terminating";
+    http.send(ShutdownExecutorMessage());
+    http.close();
+    return;
+  }
+
+  switch (executor->state) {
+    case Executor::TERMINATING:
+    case Executor::TERMINATED:
+      // TERMINATED is possible if the executor forks, the parent process
+      // terminates and the child process (driver) tries to register!
+      LOG(WARNING) << "Shutting down executor " << *executor
+                   << " because it is in unexpected state " << executor->state;
+      http.send(ShutdownExecutorMessage());
+      http.close();
+      break;
+    case Executor::RUNNING:
+    case Executor::REGISTERING: {
+      // Close the earlier connection if one existed. This can even
+      // be a retried Subscribe request from an already connected
+      // executor.
+      if (executor->http.isSome()) {
+        LOG(WARNING) << "Closing already existing HTTP connection from "
+                     << "executor " << *executor;
+        executor->http->close();
+      }
+
+      executor->state = Executor::RUNNING;
+
+      // Save the connection for the executor.
+      executor->http = http;
+      executor->pid = None();
+
+      if (framework->info.checkpoint()) {
+        // Write a marker file to indicate that this executor
+        // is HTTP based.
+        const string path = paths::getExecutorHttpMarkerPath(
+            metaDir,
+            info.id(),
+            framework->id(),
+            executor->id,
+            executor->containerId);
+
+        LOG(INFO) << "Creating a marker file for HTTP based executor "
+                  << *executor << " at path '" << path << "'";
+        CHECK_SOME(os::touch(path));
+      }
+
+      // Tell executor it's registered and give it any queued tasks.
+      ExecutorRegisteredMessage message;
+      message.mutable_executor_info()->MergeFrom(executor->info);
+      message.mutable_framework_id()->MergeFrom(framework->id());
+      message.mutable_framework_info()->MergeFrom(framework->info);
+      message.mutable_slave_id()->MergeFrom(info.id());
+      message.mutable_slave_info()->MergeFrom(info);
+      executor->send(message);
+
+      // Handle all the pending updates.
+      // The status update manager might have already checkpointed some
+      // of these pending updates (for example, if the slave died right
+      // after it checkpointed the update but before it could send the
+      // ACK to the executor). This is ok because the status update
+      // manager correctly handles duplicate updates.
+      foreach (const Call::Update& update, subscribe.updates()) {
+        // NOTE: This also updates the executor's resources!
+        statusUpdate(protobuf::createStatusUpdate(
+            framework->id(),
+            update.status(),
+            info.id()),
+            None());
+      }
+
+      // Update the resource limits for the container. Note that the
+      // resource limits include the currently queued tasks because we
+      // want the container to have enough resources to hold the
+      // upcoming tasks.
+      Resources resources = executor->resources;
+
+      // TODO(jieyu): Use foreachvalue instead once LinkedHashmap
+      // supports it.
+      foreach (const TaskInfo& task, executor->queuedTasks.values()) {
+        resources += task.resources();
+      }
+
+      containerizer->update(executor->containerId, resources)
+        .onAny(defer(self(),
+                     &Self::runTasks,
+                     lambda::_1,
+                     framework->id(),
+                     executor->id,
+                     executor->containerId,
+                     executor->queuedTasks.values()));
+
+      hashmap<TaskID, TaskInfo> unackedTasks;
+      foreach (const TaskInfo& task, subscribe.tasks()) {
+        unackedTasks[task.task_id()] = task;
+      }
+
+      // Now, if there is any task still in STAGING state and not in
+      // unacknowledged 'tasks' known to the executor, the slave must
+      // have died before the executor received the task! We should
+      // transition it to TASK_LOST. We only consider/store
+      // unacknowledged 'tasks' at the executor driver because if a
+      // task has been acknowledged, the slave must have received
+      // an update for that task and transitioned it out of STAGING!
+      // TODO(vinod): Consider checkpointing 'TaskInfo' instead of
+      // 'Task' so that we can relaunch such tasks! Currently we
+      // don't do it because 'TaskInfo.data' could be huge.
+      // TODO(vinod): Use foreachvalue instead once LinkedHashmap
+      // supports it.
+      foreach (Task* task, executor->launchedTasks.values()) {
+        if (task->state() == TASK_STAGING &&
+            !unackedTasks.contains(task->task_id())) {
+          LOG(INFO) << "Transitioning STAGED task " << task->task_id()
+                    << " to LOST because it is unknown to the executor "
+                    << executor->id;
+
+          const StatusUpdate update = protobuf::createStatusUpdate(
+              framework->id(),
+              info.id(),
+              task->task_id(),
+              TASK_LOST,
+              TaskStatus::SOURCE_SLAVE,
+              UUID::random(),
+              "Task launched during slave restart",
+              TaskStatus::REASON_SLAVE_RESTARTED,
+              executor->id);
+
+          statusUpdate(update, UPID());
+        }
+      }
+
+      break;
+    }
+    default:
+      LOG(FATAL) << "Executor " << *executor << " is in unexpected state "
+                 << executor->state;
+      break;
   }
 }
 
@@ -5206,18 +5378,28 @@ void Framework::recoverExecutor(const ExecutorState& state)
   Executor* executor = new Executor(
       slave, id(), state.info.get(), latest, directory, info.checkpoint());
 
-  // Recover the libprocess PID if possible.
-  if (run.get().libprocessPid.isSome()) {
-    // When recovering in non-strict mode, the assumption is that the
-    // slave can die after checkpointing the forked pid but before the
-    // libprocess pid. So, it is not possible for the libprocess pid
-    // to exist but not the forked pid. If so, it is a really bad
-    // situation (e.g., disk corruption).
-    CHECK_SOME(run.get().forkedPid)
-      << "Failed to get forked pid for executor " << state.id
-      << " of framework " << id();
+  // Recover the libprocess PID if possible for PID based executors.
+  if (run.get().http.isSome()) {
+    if (!run.get().http.get()) {
+      // When recovering in non-strict mode, the assumption is that the
+      // slave can die after checkpointing the forked pid but before the
+      // libprocess pid. So, it is not possible for the libprocess pid
+      // to exist but not the forked pid. If so, it is a really bad
+      // situation (e.g., disk corruption).
+      CHECK_SOME(run.get().forkedPid)
+        << "Failed to get forked pid for executor " << state.id
+        << " of framework " << id();
 
-    executor->pid = run.get().libprocessPid.get();
+      executor->pid = run.get().libprocessPid.get();
+    } else {
+      // We set the PID to None() to signify that this is a HTTP based
+      // executor.
+      executor->pid = None();
+    }
+  } else {
+    // We set the PID to UPID() to signify that the connection type for this
+    // executor is unknown.
+    executor->pid = UPID();
   }
 
   // And finally recover all the executor's tasks.
