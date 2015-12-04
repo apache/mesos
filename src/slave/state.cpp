@@ -500,37 +500,47 @@ Try<RunState> RunState::recover(
   path = paths::getLibprocessPidPath(
       rootDir, slaveId, frameworkId, executorId, containerId);
 
+  if (os::exists(path)) {
+    pid = os::read(path);
+
+    if (pid.isError()) {
+      message = "Failed to read executor libprocess pid from '" + path +
+                "': " + pid.error();
+
+      if (strict) {
+        return Error(message);
+      } else {
+        LOG(WARNING) << message;
+        state.errors++;
+        return state;
+      }
+    }
+
+    if (pid.get().empty()) {
+      // This could happen if the slave died after opening the file for
+      // writing but before it checkpointed anything.
+      LOG(WARNING) << "Found empty executor libprocess pid file '" << path
+                   << "'";
+      return state;
+    }
+
+    state.libprocessPid = process::UPID(pid.get());
+    state.http = false;
+
+    return state;
+  }
+
+  path = paths::getExecutorHttpMarkerPath(
+      rootDir, slaveId, frameworkId, executorId, containerId);
+
   if (!os::exists(path)) {
     // This could happen if the slave died before the executor
     // registered with the slave.
-    LOG(WARNING)
-      << "Failed to find executor libprocess pid file '" << path << "'";
+    LOG(WARNING) << "Failed to find executor libprocess pid/http marker file";
     return state;
   }
 
-  pid = os::read(path);
-
-  if (pid.isError()) {
-    message = "Failed to read executor libprocess pid from '" + path +
-              "': " + pid.error();
-
-    if (strict) {
-      return Error(message);
-    } else {
-      LOG(WARNING) << message;
-      state.errors++;
-      return state;
-    }
-  }
-
-  if (pid.get().empty()) {
-    // This could happen if the slave died after opening the file for
-    // writing but before it checkpointed anything.
-    LOG(WARNING) << "Found empty executor libprocess pid file '" << path << "'";
-    return state;
-  }
-
-  state.libprocessPid = process::UPID(pid.get());
+  state.http = true;
 
   return state;
 }

@@ -207,6 +207,10 @@ struct RunState
   Option<pid_t> forkedPid;
   Option<process::UPID> libprocessPid;
 
+  // This represents if the executor is connected via HTTP. It can be None()
+  // when the connection type is unknown.
+  Option<bool> http;
+
   // Executor terminated and all its updates acknowledged.
   bool completed;
 
