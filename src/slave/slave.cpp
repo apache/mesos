@@ -2475,6 +2475,7 @@ void Slave::registerExecutor(
 
       // Save the pid for the executor.
       executor->pid = from;
+      link(from);
 
       if (framework->info.checkpoint()) {
         // TODO(vinod): This checkpointing should be done
@@ -2589,6 +2590,7 @@ void Slave::reregisterExecutor(
       executor->state = Executor::RUNNING;
 
       executor->pid = from; // Update the pid.
+      link(from);
 
       // Send re-registration message to the executor.
       ExecutorReregisteredMessage message;
