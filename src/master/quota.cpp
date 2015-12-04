@@ -85,10 +85,25 @@ namespace validation {
 
 Try<Nothing> quotaInfo(const QuotaInfo& quotaInfo)
 {
-  // The reference role for the quota request.
-  string role = quotaInfo.role();
+  if (!quotaInfo.has_role()) {
+    return Error("QuotaInfo must specify a role");
+  }
 
-  // Check that QuotaInfo contains at least one guarantee.
+  if (quotaInfo.role().empty()) {
+    return Error("QuotaInfo must specify a non-empty role");
+  }
+
+  // Disallow quota for '*' role.
+  // TODO(alexr): Consider allowing setting quota for '*' role, see MESOS-3938.
+  if (quotaInfo.role() == "*") {
+    return Error("QuotaInfo must not specify the default '*' role");
+  }
+
+  // Check that `QuotaInfo` contains at least one guarantee.
+  // TODO(alexr): Relaxing this may make sense once quota is the
+  // only way that we offer non-revocable resources. Setting quota
+  // with an empty guarantee would mean the role is not entitled to
+  // get non-revocable offers.
   if (quotaInfo.guarantee().size() == 0) {
     return Error("QuotaInfo with empty 'guarantee'");
   }
@@ -101,7 +116,7 @@ Try<Nothing> quotaInfo(const QuotaInfo& quotaInfo)
           "QuotaInfo with invalid resource: " + error.get().message);
     }
 
-    // Check that `Resource` does not contain non-relevant fields for quota.
+    // Check that `resource` does not contain non-relevant fields for quota.
 
     if (resource.has_reservation()) {
       return Error("QuotaInfo may not contain ReservationInfo");
@@ -119,22 +134,9 @@ Try<Nothing> quotaInfo(const QuotaInfo& quotaInfo)
           "QuotaInfo may not include non-scalar resources");
     }
 
-    // Check that all roles are set and equal.
-
-    if (!resource.has_role()) {
-      return Error("QuotaInfo resources must specify a role");
-    }
-    if (resource.role().empty()) {
-      return Error("QuotaInfo resources must specify a non-empty role");
-    }
-
-    if (role.empty()) {
-      // Store first encountered role as reference.
-      role = resource.role();
-    } else if (role != resource.role()) {
-      // All roles should be equal across a quota request.
-      return Error("Quota request with different roles: '" + role +
-                   "', '" + resource.role() + "'");
+    // Check that the role is either unset or default.
+    if (resource.has_role() && resource.role() != "*") {
+      return Error("QuotaInfo resources must not specify a role");
     }
   }
 

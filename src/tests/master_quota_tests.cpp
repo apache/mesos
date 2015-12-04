@@ -717,7 +717,8 @@ TEST_F(MasterQuotaTest, AvailableResourcesSingleAgent)
   AWAIT_READY(receivedQuotaRequest);
 
   EXPECT_EQ(ROLE1, receivedQuotaRequest.get().role());
-  EXPECT_EQ(quotaResources, Resources(receivedQuotaRequest.get().guarantee()));
+  EXPECT_EQ(quotaResources.flatten(),
+            Resources(receivedQuotaRequest.get().guarantee()));
 
   Shutdown();
 }
@@ -788,7 +789,8 @@ TEST_F(MasterQuotaTest, AvailableResourcesMultipleAgents)
   AWAIT_READY(receivedQuotaRequest);
 
   EXPECT_EQ(ROLE1, receivedQuotaRequest.get().role());
-  EXPECT_EQ(quotaResources, Resources(receivedQuotaRequest.get().guarantee()));
+  EXPECT_EQ(quotaResources.flatten(),
+            Resources(receivedQuotaRequest.get().guarantee()));
 
   Shutdown();
 }
@@ -946,7 +948,8 @@ TEST_F(MasterQuotaTest, AvailableResourcesAfterRescinding)
   // got lost in-between.
   AWAIT_READY(receivedQuotaRequest);
   EXPECT_EQ(ROLE2, receivedQuotaRequest.get().role());
-  EXPECT_EQ(quotaResources, Resources(receivedQuotaRequest.get().guarantee()));
+  EXPECT_EQ(quotaResources.flatten(),
+            Resources(receivedQuotaRequest.get().guarantee()));
 
   Shutdown();
 }

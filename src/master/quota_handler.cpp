@@ -78,17 +78,35 @@ static Try<google::protobuf::RepeatedPtrField<Resource>> parseResources(
 
 // Creates a `QuotaInfo` protobuf from the quota request.
 static Try<QuotaInfo> createQuotaInfo(
-    const google::protobuf::RepeatedPtrField<Resource>& resources)
+    google::protobuf::RepeatedPtrField<Resource> resources)
 {
   VLOG(1) << "Constructing QuotaInfo from resources protobuf";
 
   QuotaInfo quota;
-  quota.mutable_guarantee()->CopyFrom(resources);
 
-  // Set the role if we have one.
+  // Set the role if we have one. Since all roles must be the same, pick
+  // any, e.g. the first one.
   if (resources.size() > 0) {
      quota.set_role(resources.begin()->role());
   }
+
+  // Check that all roles are set and equal.
+  // TODO(alexr): Remove this check as per MESOS-4058.
+  foreach (const Resource& resource, resources) {
+    if (resource.role() != quota.role()) {
+      return Error("Resources with different roles: '" + quota.role() + "', '" +
+                   resource.role() + "'");
+    }
+  }
+
+  // Remove the role from each resource.
+  // TODO(alexr): Remove this as per MESOS-4058. Corresponding validation
+  // is in `internal::master::quota::validation::quotaInfo()`.
+  foreach (Resource& resource, resources) {
+    resource.clear_role();
+  }
+
+  quota.mutable_guarantee()->CopyFrom(resources);
 
   return quota;
 }
@@ -113,9 +131,6 @@ Option<Error> Master::QuotaHandler::capacityHeuristic(
   foreachvalue (const Quota& quota, master->quotas) {
     totalQuota += quota.info.guarantee();
   }
-
-  // Remove roles via `flatten()` to facilitate resource math.
-  totalQuota = totalQuota.flatten();
 
   // Determine whether the total quota, including the new request, does
   // not exceed the sum of non-static cluster resources.
@@ -201,7 +216,7 @@ void Master::QuotaHandler::rescindOffers(const QuotaInfo& request) const
   foreachvalue (const Slave* slave, master->slaves.registered) {
     // If we have rescinded offers with at least as many resources as the
     // quota request resources, then we are done.
-    if (rescinded.contains(Resources(request.guarantee()).flatten()) &&
+    if (rescinded.contains(request.guarantee()) &&
         (visitedAgents >= frameworksInRole)) {
       break;
     }

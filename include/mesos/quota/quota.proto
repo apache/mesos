@@ -39,7 +39,7 @@ message QuotaInfo {
   optional string role = 1;
 
   // Resources which are guaranteed to be allocatable by role.
-  // NOTE: Each `guarantee.role` must match the above role and resource
-  // names must be unique.
+  // NOTE: `guarantee.role` should not specify any role except '*',
+  // because quota does not reserve specific resources.
   repeated Resource guarantee = 3;
 }
