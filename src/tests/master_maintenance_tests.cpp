@@ -32,6 +32,7 @@
 #include <process/time.hpp>
 
 #include <stout/duration.hpp>
+#include <stout/hashset.hpp>
 #include <stout/json.hpp>
 #include <stout/net.hpp>
 #include <stout/option.hpp>
@@ -47,6 +48,8 @@
 
 #include "master/master.hpp"
 
+#include "master/allocator/mesos/allocator.hpp"
+
 #include "slave/flags.hpp"
 
 #include "tests/containerizer.hpp"
@@ -56,6 +59,8 @@
 using google::protobuf::RepeatedPtrField;
 
 using mesos::internal::master::Master;
+
+using mesos::internal::master::allocator::MesosAllocatorProcess;
 
 using mesos::internal::slave::Slave;
 
@@ -1478,21 +1483,31 @@ TEST_F(MasterMaintenanceTest, InverseOffersFilters)
   v1::InverseOffer inverseOffer1 = event.get().offers().inverse_offers(0);
   v1::InverseOffer inverseOffer2 = event.get().offers().inverse_offers(1);
 
+  // We want to acknowledge TASK_RUNNING updates for the two tasks we
+  // have launched. We don't know which task will be launched first,
+  // so just send acknowledgments in response to the TASK_RUNNING
+  // events we receive. We track which task ids we acknowledge, and
+  // then verify them with the expected task ids.
+  hashset<v1::TaskID> acknowledgedTaskIds;
   event = events.get();
   AWAIT_READY(event);
   EXPECT_EQ(Event::UPDATE, event.get().type());
-  EXPECT_EQ(v1::TASK_RUNNING, event.get().update().status().state());
+
+  v1::TaskStatus updateStatus = event.get().update().status();
+  EXPECT_EQ(v1::TASK_RUNNING, updateStatus.state());
 
   {
-    // Acknowledge TASK_RUNNING update for one task.
     Call call;
     call.mutable_framework_id()->CopyFrom(id);
     call.set_type(Call::ACKNOWLEDGE);
 
     Call::Acknowledge* acknowledge = call.mutable_acknowledge();
-    acknowledge->mutable_task_id()->CopyFrom(taskInfo1.task_id());
-    acknowledge->mutable_agent_id()->CopyFrom(offer1.agent_id());
-    acknowledge->set_uuid(event.get().update().status().uuid());
+    acknowledge->mutable_task_id()->CopyFrom(updateStatus.task_id());
+    acknowledge->mutable_agent_id()->CopyFrom(updateStatus.agent_id());
+    acknowledge->set_uuid(updateStatus.uuid());
+
+    EXPECT_FALSE(acknowledgedTaskIds.contains(updateStatus.task_id()));
+    acknowledgedTaskIds.insert(updateStatus.task_id());
 
     mesos.send(call);
   }
@@ -1500,21 +1515,29 @@ TEST_F(MasterMaintenanceTest, InverseOffersFilters)
   event = events.get();
   AWAIT_READY(event);
   EXPECT_EQ(Event::UPDATE, event.get().type());
-  EXPECT_EQ(v1::TASK_RUNNING, event.get().update().status().state());
+
+  updateStatus = event.get().update().status();
+  EXPECT_EQ(v1::TASK_RUNNING, updateStatus.state());
 
   {
-    // Acknowledge TASK_RUNNING update for the other task.
     Call call;
     call.mutable_framework_id()->CopyFrom(id);
     call.set_type(Call::ACKNOWLEDGE);
 
     Call::Acknowledge* acknowledge = call.mutable_acknowledge();
-    acknowledge->mutable_task_id()->CopyFrom(taskInfo2.task_id());
-    acknowledge->mutable_agent_id()->CopyFrom(offer2.agent_id());
-    acknowledge->set_uuid(event.get().update().status().uuid());
+    acknowledge->mutable_task_id()->CopyFrom(updateStatus.task_id());
+    acknowledge->mutable_agent_id()->CopyFrom(updateStatus.agent_id());
+    acknowledge->set_uuid(updateStatus.uuid());
+
+    EXPECT_FALSE(acknowledgedTaskIds.contains(updateStatus.task_id()));
+    acknowledgedTaskIds.insert(updateStatus.task_id());
 
     mesos.send(call);
   }
+
+  // Now we can verify that we acknowledged the expected task ids.
+  EXPECT_TRUE(acknowledgedTaskIds.contains(taskInfo1.task_id()));
+  EXPECT_TRUE(acknowledgedTaskIds.contains(taskInfo2.task_id()));
 
   {
     // Decline the second inverse offer, with a filter set such that
@@ -1534,9 +1557,17 @@ TEST_F(MasterMaintenanceTest, InverseOffersFilters)
     mesos.send(call);
   }
 
+  // Accept the first inverse offer, with a filter set such that we
+  // should see this inverse offer again in the next batch
+  // allocation.
+  //
+  // To ensure that the accept call has reached the allocator before
+  // we advance the clock for the next batch allocation, we block on
+  // the appropriate allocator interface method being dispatched.
+  Future<Nothing> updateInverseOffer =
+    FUTURE_DISPATCH(_, &MesosAllocatorProcess::updateInverseOffer);
+
   {
-    // Accept the first inverse offer, with a filter set such that we
-    // should see this inverse offer again in the next batch allocation.
     Call call;
     call.mutable_framework_id()->CopyFrom(id);
     call.set_type(Call::ACCEPT);
@@ -1551,6 +1582,7 @@ TEST_F(MasterMaintenanceTest, InverseOffersFilters)
     mesos.send(call);
   }
 
+  AWAIT_READY(updateInverseOffer);
   Clock::settle();
   Clock::advance(flags.allocation_interval);
 
@@ -1566,6 +1598,9 @@ TEST_F(MasterMaintenanceTest, InverseOffersFilters)
       event.get().offers().inverse_offers(0).agent_id());
 
   inverseOffer1 = event.get().offers().inverse_offers(0);
+
+  updateInverseOffer =
+    FUTURE_DISPATCH(_, &MesosAllocatorProcess::updateInverseOffer);
 
   {
     // Do another immediate filter, but decline it this time.
@@ -1583,6 +1618,7 @@ TEST_F(MasterMaintenanceTest, InverseOffersFilters)
     mesos.send(call);
   }
 
+  AWAIT_READY(updateInverseOffer);
   Clock::settle();
   Clock::advance(flags.allocation_interval);
 
