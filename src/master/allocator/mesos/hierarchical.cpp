@@ -210,6 +210,7 @@ void HierarchicalAllocatorProcess::recover(
   // Setup recovery timer.
   delay(ALLOCATION_HOLD_OFF_RECOVERY_TIMEOUT, self(), &Self::resume);
 
+  // NOTE: `quotaRoleSorter` is updated implicitly in `setQuota()`.
   foreachpair (const string& role, const Quota& quota, quotas) {
     setQuota(role, quota.info);
   }
