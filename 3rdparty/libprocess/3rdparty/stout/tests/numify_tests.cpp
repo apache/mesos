@@ -18,10 +18,14 @@
 
 TEST(NumifyTest, DecNumberTest)
 {
-  Try<unsigned int> num = numify<unsigned int>("10");
-  ASSERT_SOME(num);
-  EXPECT_EQ(10u, num.get());
+  Try<unsigned int> num1 = numify<unsigned int>("10");
+  EXPECT_SOME_EQ(10u, num1);
 
+  Try<int> num2 = numify<int>("-10");
+  EXPECT_SOME_EQ(-10, num2);
+
+  EXPECT_ERROR(numify<unsigned int>(""));
+  EXPECT_ERROR(numify<int>("-10."));
   EXPECT_ERROR(numify<unsigned int>("123xyz"));
 }
 
@@ -29,13 +33,15 @@ TEST(NumifyTest, DecNumberTest)
 TEST(NumifyTest, HexNumberTest)
 {
   Try<unsigned int> num1 = numify<unsigned int>("0xdeadbeef");
-  ASSERT_SOME(num1);
-  EXPECT_EQ(0xdeadbeefu, num1.get());
+  EXPECT_SOME_EQ(0xdeadbeefu, num1);
 
   Try<unsigned int> num2 = numify<unsigned int>("0x10");
-  ASSERT_SOME(num2);
-  EXPECT_EQ(16u, num2.get());
+  EXPECT_SOME_EQ(16u, num2);
 
+  // TODO(neilc): This is inconsistent with the handling of non-hex numbers.
+  EXPECT_ERROR(numify<int>("-0x10"));
+
+  EXPECT_ERROR(numify<unsigned int>(""));
   EXPECT_ERROR(numify<unsigned int>("0xxyz"));
   EXPECT_ERROR(numify<unsigned int>("abc"));
   EXPECT_ERROR(numify<unsigned int>("0x0x1"));

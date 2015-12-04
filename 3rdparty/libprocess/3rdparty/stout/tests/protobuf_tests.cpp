@@ -265,8 +265,7 @@ TEST(ProtobufTest, JsonLargeIntegers)
 
   // Check String -> JSON.
   Try<JSON::Object> json = JSON::parse<JSON::Object>(expected);
-  ASSERT_SOME(json);
-  EXPECT_EQ(object, json.get());
+  EXPECT_SOME_EQ(object, json);
 }
 
 

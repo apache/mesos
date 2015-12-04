@@ -179,14 +179,12 @@ TEST_F(OsTest, Nonblock)
   Try<bool> isNonBlock = false;
 
   isNonBlock = os::isNonblock(pipes[0]);
-  ASSERT_SOME(isNonBlock);
-  EXPECT_FALSE(isNonBlock.get());
+  EXPECT_SOME_FALSE(isNonBlock);
 
   ASSERT_SOME(os::nonblock(pipes[0]));
 
   isNonBlock = os::isNonblock(pipes[0]);
-  ASSERT_SOME(isNonBlock);
-  EXPECT_TRUE(isNonBlock.get());
+  EXPECT_SOME_TRUE(isNonBlock);
 
   close(pipes[0]);
   close(pipes[1]);
@@ -214,8 +212,7 @@ TEST_F(OsTest, ReadWriteString)
 
   Try<string> readstr = os::read(testfile);
 
-  ASSERT_SOME(readstr);
-  EXPECT_EQ(teststr, readstr.get());
+  EXPECT_SOME_EQ(teststr, readstr);
 }
 
 
@@ -363,13 +360,11 @@ TEST_F(OsTest, Sysctl)
 
   Try<string> release = os::sysctl(CTL_KERN, KERN_OSRELEASE).string();
 
-  ASSERT_SOME(release);
-  EXPECT_EQ(uname.get().release, release.get());
+  EXPECT_SOME_EQ(uname.get().release, release);
 
   Try<string> type = os::sysctl(CTL_KERN, KERN_OSTYPE).string();
 
-  ASSERT_SOME(type);
-  EXPECT_EQ(uname.get().sysname, type.get());
+  EXPECT_SOME_EQ(uname.get().sysname, type);
 
   // Integer test.
   Try<int> maxproc = os::sysctl(CTL_KERN, KERN_MAXPROC).integer();

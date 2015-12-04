@@ -32,22 +32,17 @@ using std::vector;
 TEST(StringsTest, Format)
 {
   Try<std::string> result = strings::format("%s %s", "hello", "world");
-  ASSERT_SOME(result);
-  EXPECT_EQ("hello world", result.get());
+  EXPECT_SOME_EQ("hello world", result);
 
   result = strings::format("hello %d", 42);
-  ASSERT_SOME(result);
-  EXPECT_EQ("hello 42", result.get());
+  EXPECT_SOME_EQ("hello 42", result);
 
   result = strings::format("hello %s", "fourty-two");
-  ASSERT_SOME(result);
-  EXPECT_EQ("hello fourty-two", result.get());
+  EXPECT_SOME_EQ("hello fourty-two", result);
 
   string hello = "hello";
-
   result = strings::format("%s %s", hello, "fourty-two");
-  ASSERT_SOME(result);
-  EXPECT_EQ("hello fourty-two", result.get());
+  EXPECT_SOME_EQ("hello fourty-two", result);
 }
 
 
