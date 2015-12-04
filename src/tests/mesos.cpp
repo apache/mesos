@@ -52,6 +52,8 @@ using std::string;
 using testing::_;
 using testing::Invoke;
 
+using mesos::fetcher::FetcherInfo;
+
 using namespace process;
 
 #ifdef WITH_NETWORK_ISOLATOR

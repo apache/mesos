@@ -58,6 +58,8 @@
 #include "tests/flags.hpp"
 #include "tests/mesos.hpp"
 
+using mesos::fetcher::FetcherInfo;
+
 using mesos::internal::master::Master;
 
 using mesos::internal::slave::Slave;

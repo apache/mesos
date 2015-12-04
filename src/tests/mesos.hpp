@@ -927,14 +927,14 @@ public:
       const ContainerID& containerId,
       const std::string& sandboxDirectory,
       const Option<std::string>& user,
-      const FetcherInfo& info,
+      const mesos::fetcher::FetcherInfo& info,
       const slave::Flags& flags));
 
   process::Future<Nothing> unmocked_run(
       const ContainerID& containerId,
       const std::string& sandboxDirectory,
       const Option<std::string>& user,
-      const FetcherInfo& info,
+      const mesos::fetcher::FetcherInfo& info,
       const slave::Flags& flags);
 };
 

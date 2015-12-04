@@ -40,6 +40,8 @@ using std::string;
 using std::transform;
 using std::vector;
 
+using mesos::fetcher::FetcherInfo;
+
 using process::Future;
 using process::Owned;
 

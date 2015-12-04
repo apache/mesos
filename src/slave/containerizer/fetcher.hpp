@@ -34,8 +34,6 @@
 
 #include "slave/flags.hpp"
 
-using mesos::fetcher::FetcherInfo;
-
 namespace mesos {
 namespace internal {
 namespace slave {
@@ -134,7 +132,7 @@ public:
       const ContainerID& containerId,
       const std::string& sandboxDirectory,
       const Option<std::string>& user,
-      const FetcherInfo& info,
+      const mesos::fetcher::FetcherInfo& info,
       const Flags& flags);
 
   // Best effort attempt to kill the external mesos-fetcher process
