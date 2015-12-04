@@ -399,6 +399,8 @@ protected:
   // A dedicated sorter for roles for which quota is set. Quota'ed roles
   // belong to an extra allocation group and have resources allocated up
   // to their alloted quota prior to non-quota'ed roles.
+  // NOTE: This sorter counts only unreserved non-revocable resources.
+  // TODO(alexr): Consider including dynamically reserved resources.
   Sorter* quotaRoleSorter;
 
   Sorter* roleSorter;
