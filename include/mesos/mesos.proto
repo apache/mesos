@@ -322,7 +322,7 @@ message HealthCheck {
   // Amount of time to wait for the health check to complete.
   optional double timeout_seconds = 4 [default = 20.0];
 
-  // Number of consecutive failures until considered unhealthy.
+  // Number of consecutive failures until signaling kill task.
   optional uint32 consecutive_failures = 5 [default = 3];
 
   // Amount of time to allow failed health checks since launch.
