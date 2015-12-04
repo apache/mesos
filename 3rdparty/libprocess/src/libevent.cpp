@@ -10,7 +10,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License
 
-#include <signal.h>
 #include <unistd.h>
 
 #include <mutex>
@@ -22,7 +21,6 @@
 #include <process/logging.hpp>
 #include <process/once.hpp>
 
-#include <stout/os/signals.hpp>
 #include <stout/synchronized.hpp>
 #include <stout/thread_local.hpp>
 
@@ -95,27 +93,22 @@ void EventLoop::run()
 {
   __in_event_loop__ = true;
 
-  // Block SIGPIPE in the event loop because we can not force
-  // underlying implementations such as SSL bufferevents to use
-  // MSG_NOSIGNAL.
-  SUPPRESS(SIGPIPE) {
-    do {
-      int result = event_base_loop(base, EVLOOP_ONCE);
-      if (result < 0) {
-        LOG(FATAL) << "Failed to run event loop";
-      } else if (result > 0) {
-        // All events are handled, continue event loop.
-        continue;
-      } else {
-        CHECK_EQ(0, result);
-        if (event_base_got_break(base)) {
-          break;
-        } else if (event_base_got_exit(base)) {
-          break;
-        }
+  do {
+    int result = event_base_loop(base, EVLOOP_ONCE);
+    if (result < 0) {
+      LOG(FATAL) << "Failed to run event loop";
+    } else if (result > 0) {
+      // All events are handled, continue event loop.
+      continue;
+    } else {
+      CHECK_EQ(0, result);
+      if (event_base_got_break(base)) {
+        break;
+      } else if (event_base_got_exit(base)) {
+        break;
       }
-    } while (true);
-  }
+    }
+  } while (true);
 
   __in_event_loop__ = false;
 }

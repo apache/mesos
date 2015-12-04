@@ -123,46 +123,7 @@ void write(
   } else if (future.isFailed()) {
     promise->fail(future.failure());
   } else {
-    // Do a write but ignore SIGPIPE so we can return an error when
-    // writing to a pipe or socket where the reading end is closed.
-    // TODO(benh): The 'suppress' macro failed to work on OS X as it
-    // appears that signal delivery was happening asynchronously.
-    // That is, the signal would not appear to be pending when the
-    // 'suppress' block was closed thus the destructor for
-    // 'Suppressor' was not waiting/removing the signal via 'sigwait'.
-    // It also appeared that the signal would be delivered to another
-    // thread even if it remained blocked in this thiread. The
-    // workaround here is to check explicitly for EPIPE and then do
-    // 'sigwait' regardless of what 'os::signals::pending' returns. We
-    // don't have that luxury with 'Suppressor' and arbitrary signals
-    // because we don't always have something like EPIPE to tell us
-    // that a signal is (or will soon be) pending.
-    bool pending = os::signals::pending(SIGPIPE);
-    bool unblock = !pending ? os::signals::block(SIGPIPE) : false;
-
     ssize_t length = ::write(fd, data, size);
-
-    // Save the errno so we can restore it after doing sig* functions
-    // below.
-    int errno_ = errno;
-
-    if (length < 0 && errno == EPIPE && !pending) {
-      sigset_t mask;
-      sigemptyset(&mask);
-      sigaddset(&mask, SIGPIPE);
-
-      int result;
-      do {
-        int ignored;
-        result = sigwait(&mask, &ignored);
-      } while (result == -1 && errno == EINTR);
-    }
-
-    if (unblock) {
-      os::signals::unblock(SIGPIPE);
-    }
-
-    errno = errno_;
 
     if (length < 0) {
       if (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK) {

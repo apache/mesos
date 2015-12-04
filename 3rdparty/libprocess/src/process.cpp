@@ -769,10 +769,20 @@ void initialize(const string& delegate)
     }
   }
 
-#ifdef __sun__
-  /* Need to ignore this since we can't do MSG_NOSIGNAL on Solaris. */
+  // We originally tried to leave SIGPIPE unblocked and to work
+  // around SIGPIPE in order to avoid imposing policy on users
+  // of libprocess. However, for pipes and files, the manual
+  // suppression of SIGPIPE had become onerous. Also, OS X
+  // appears to deliver SIGPIPE to the process rather than
+  // the triggering thread. It is better to just silence it
+  // and use EPIPE instead. See MESOS-2079 and related tickets.
+  //
+  // TODO(bmahler): Should libprocess finalization restore the
+  // previous handler?
+  //
+  // TODO(bmahler): Consider removing SO_NOSIGPIPE and MSG_NOSIGNAL
+  // to avoid confusion, now that they are no longer relevant.
   signal(SIGPIPE, SIG_IGN);
-#endif // __sun__
 
 #ifdef USE_SSL_SOCKET
   // Notify users of the 'SSL_SUPPORT_DOWNGRADE' flag that this
