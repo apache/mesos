@@ -594,8 +594,11 @@ message Resource {
     // that reserved this resource. It is used in conjunction with the
     // "unreserve" ACL to determine whether the entity attempting to
     // unreserve this resource is permitted to do so.
+    //
     // NOTE: This field should match the FrameworkInfo.principal of
     // the framework that reserved this resource.
+    //
+    // TODO(greggomann): We may want to make this field optional.
     required string principal = 1;
   }
 
@@ -620,6 +623,20 @@ message Resource {
       // A unique ID for the persistent disk volume.
       // NOTE: The ID needs to be unique per role on each agent.
       required string id = 1;
+
+      // This field indicates the principal of the operator or
+      // framework that created this volume. It is used in conjunction
+      // with the "destroy" ACL to determine whether an entity
+      // attempting to destroy the volume is permitted to do so.
+      //
+      // NOTE: This field is optional, while the `principal` found in
+      // `ReservationInfo` is required. This field is optional to
+      // allow for the possibility of volume creation without a
+      // principal, though currently it must be provided.
+      //
+      // NOTE: This field should match the FrameworkInfo.principal of
+      // the framework that created the volume.
+      optional string principal = 2;
     }
 
     optional Persistence persistence = 1;
