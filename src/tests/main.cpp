@@ -14,8 +14,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <signal.h>
-
 #include <string>
 
 #include <gtest/gtest.h>
@@ -26,8 +24,6 @@
 #include <stout/nothing.hpp>
 #include <stout/os.hpp>
 #include <stout/try.hpp>
-
-#include <stout/os/signals.hpp>
 
 #include "logging/logging.hpp"
 
@@ -84,14 +80,6 @@ int main(int argc, char** argv)
 
   // Initialize logging.
   logging::initialize(argv[0], flags, true);
-
-  // We reset the signal handler setup by 'logging::initialize()'
-  // because some Mesos tests run an in-process ZooKeeper which
-  // results in SIGPIPE during ZooKeeeper server shutdown. See
-  // MESOS-1729 for details. This is ok because if a non-ZooKeeper
-  // test throws a SIGPIPE the default handler will still terminate
-  // the process, thus not masking SIGPIPE issues elsewhere.
-  os::signals::reset(SIGPIPE);
 
   // Initialize gmock/gtest.
   testing::InitGoogleTest(&argc, argv);

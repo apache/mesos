@@ -85,9 +85,6 @@ inline void handler(int signal, siginfo_t *siginfo, void *context)
     // a stack trace.
     os::signals::reset(signal);
     raise(signal);
-  } else if (signal == SIGPIPE) {
-    RAW_LOG(WARNING, "Received signal SIGPIPE; escalating to SIGABRT");
-    raise(SIGABRT);
   } else {
     RAW_LOG(FATAL, "Unexpected signal in signal handler: %d", signal);
   }
@@ -190,13 +187,6 @@ void initialize(
     // The SA_SIGINFO flag tells sigaction() to use
     // the sa_sigaction field, not sa_handler.
     action.sa_flags = SA_SIGINFO;
-
-    // Set up the SIGPIPE signal handler to escalate to SIGABRT
-    // in order to have the glog handler catch it and print all
-    // of its lovely information.
-    if (sigaction(SIGPIPE, &action, NULL) < 0) {
-      PLOG(FATAL) << "Failed to set sigaction";
-    }
 
     // We also do not want SIGTERM to dump a stacktrace, as this
     // can imply that we crashed, when we were in fact terminated
