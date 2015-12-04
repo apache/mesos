@@ -40,4 +40,5 @@ TEST(NumifyTest, HexNumberTest)
   EXPECT_ERROR(numify<unsigned int>("abc"));
   EXPECT_ERROR(numify<unsigned int>("0x0x1"));
   EXPECT_ERROR(numify<double>("0x10.9"));
+  EXPECT_ERROR(numify<double>("0x1p-5"));
 }
