@@ -133,8 +133,9 @@ def quote(string):
 
 def commit_patch(review):
   """Commit patch locally."""
-  command = 'git commit --author \'{author}\' -am \'{message}\''\
+  command = 'git commit --author \'{author} <{email}>\' -am \'{message}\''\
             .format(author=quote(review['author']),
+                    email=quote(review['email']),
                     message=quote(review['message']))
   shell(command)
 
