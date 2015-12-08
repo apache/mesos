@@ -373,5 +373,184 @@ JSON::Object model(
 }
 
 
+void json(JSON::ObjectWriter* writer, const Task& task)
+{
+  writer->field("id", task.task_id().value());
+  writer->field("name", task.name());
+  writer->field("framework_id", task.framework_id().value());
+  writer->field("executor_id", task.executor_id().value());
+  writer->field("slave_id", task.slave_id().value());
+  writer->field("state", TaskState_Name(task.state()));
+  writer->field("resources", Resources(task.resources()));
+  writer->field("statuses", task.statuses());
+
+  if (task.has_labels()) {
+    writer->field("labels", task.labels());
+  }
+
+  if (task.has_discovery()) {
+    writer->field("discovery", task.discovery());
+  }
+}
+
 }  // namespace internal {
+
+void json(JSON::ObjectWriter* writer, const Attributes& attributes)
+{
+  foreach (const Attribute& attribute, attributes) {
+    switch (attribute.type()) {
+      case Value::SCALAR:
+        writer->field(attribute.name(), attribute.scalar());
+        break;
+      case Value::RANGES:
+        writer->field(attribute.name(), attribute.ranges());
+        break;
+      case Value::SET:
+        writer->field(attribute.name(), attribute.set());
+        break;
+      case Value::TEXT:
+        writer->field(attribute.name(), attribute.text());
+        break;
+      default:
+        LOG(FATAL) << "Unexpected Value type: " << attribute.type();
+    }
+  }
+}
+
+
+void json(JSON::ObjectWriter* writer, const CommandInfo& command)
+{
+  if (command.has_shell()) {
+    writer->field("shell", command.shell());
+  }
+
+  if (command.has_value()) {
+    writer->field("value", command.value());
+  }
+
+  writer->field("argv", command.arguments());
+
+  if (command.has_environment()) {
+    writer->field("environment", command.environment());
+  }
+
+  writer->field("uris", [&command](JSON::ArrayWriter* writer) {
+    foreach (const CommandInfo::URI& uri, command.uris()) {
+      writer->element([&uri](JSON::ObjectWriter* writer) {
+        writer->field("value", uri.value());
+        writer->field("executable", uri.executable());
+      });
+    }
+  });
+}
+
+
+void json(JSON::ObjectWriter* writer, const ExecutorInfo& executorInfo)
+{
+  writer->field("executor_id", executorInfo.executor_id().value());
+  writer->field("name", executorInfo.name());
+  writer->field("framework_id", executorInfo.framework_id().value());
+  writer->field("command", executorInfo.command());
+  writer->field("resources", Resources(executorInfo.resources()));
+}
+
+
+void json(JSON::ArrayWriter* writer, const Labels& labels)
+{
+  json(writer, labels.labels());
+}
+
+
+void json(JSON::ObjectWriter* writer, const NetworkInfo& info)
+{
+  if (info.has_ip_address()) {
+    writer->field("ip_address", info.ip_address());
+  }
+
+  if (info.groups().size() > 0) {
+    writer->field("groups", info.groups());
+  }
+
+  if (info.has_labels()) {
+    writer->field("labels", info.labels());
+  }
+
+  if (info.ip_addresses().size() > 0) {
+    writer->field("ip_addresses", info.ip_addresses());
+  }
+}
+
+
+void json(JSON::ObjectWriter* writer, const Resources& resources)
+{
+  hashmap<std::string, double> scalars = {{"cpus", 0}, {"mem", 0}, {"disk", 0}};
+  hashmap<std::string, Value::Ranges> ranges;
+  hashmap<std::string, Value::Set> sets;
+
+  foreach (const Resource& resource, resources) {
+    std::string name =
+      resource.name() + (Resources::isRevocable(resource) ? "_revocable" : "");
+    switch (resource.type()) {
+      case Value::SCALAR:
+        scalars[name] += resource.scalar().value();
+        break;
+      case Value::RANGES:
+        ranges[name] += resource.ranges();
+        break;
+      case Value::SET:
+        sets[name] += resource.set();
+        break;
+      default:
+        LOG(FATAL) << "Unexpected Value type: " << resource.type();
+    }
+  }
+
+  json(writer, scalars);
+  json(writer, ranges);
+  json(writer, sets);
+}
+
+
+void json(JSON::ObjectWriter* writer, const TaskStatus& status)
+{
+  writer->field("state", TaskState_Name(status.state()));
+  writer->field("timestamp", status.timestamp());
+
+  if (status.has_labels()) {
+    writer->field("labels", status.labels());
+  }
+
+  if (status.has_container_status()) {
+    writer->field("container_status", status.container_status());
+  }
+
+  if (status.has_healthy()) {
+    writer->field("healthy", status.healthy());
+  }
+}
+
+
+void json(JSON::NumberWriter* writer, const Value::Scalar& scalar)
+{
+  writer->set(scalar.value());
+}
+
+
+void json(JSON::StringWriter* writer, const Value::Ranges& ranges)
+{
+  writer->append(stringify(ranges));
+}
+
+
+void json(JSON::StringWriter* writer, const Value::Set& set)
+{
+  writer->append(stringify(set));
+}
+
+
+void json(JSON::StringWriter* writer, const Value::Text& text)
+{
+  writer->append(text.value());
+}
+
 }  // namespace mesos {

@@ -26,6 +26,7 @@
 
 #include <stout/hashmap.hpp>
 #include <stout/json.hpp>
+#include <stout/jsonify.hpp>
 #include <stout/protobuf.hpp>
 
 namespace mesos {
@@ -91,7 +92,16 @@ JSON::Object model(
     const TaskState& state,
     const std::vector<TaskStatus>& statuses);
 
+
+void json(JSON::ObjectWriter* writer, const Task& task);
+
 } // namespace internal {
+
+void json(JSON::ObjectWriter* writer, const Attributes& attributes);
+void json(JSON::ArrayWriter* writer, const Labels& labels);
+void json(JSON::ObjectWriter* writer, const Resources& resources);
+void json(JSON::ObjectWriter* writer, const TaskStatus& status);
+
 } // namespace mesos {
 
 #endif // __COMMON_HTTP_HPP__
