@@ -1638,7 +1638,7 @@ TEST_F(ReservationTest, ACLMultipleOperations)
   EXPECT_CALL(exec, launchTask(_, _))
     .WillOnce(SendStatusUpdateFromTask(TASK_FINISHED));
 
-  // Expect a TASK_RUNNING status.
+  // Expect a TASK_FINISHED status.
   Future<TaskStatus> statusUpdateAcknowledgement;
   EXPECT_CALL(sched, statusUpdate(_, _))
     .WillOnce(FutureArg<1>(&statusUpdateAcknowledgement));
