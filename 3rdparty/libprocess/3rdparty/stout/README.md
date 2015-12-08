@@ -21,6 +21,7 @@ Note that the library is designed to completely avoid exceptions. See [exception
 * <a href="#fs">fs::</a>
 * <a href="#gzip">gzip::</a>
 * <a href="#json">JSON::</a>
+* <a href="#jsonify">`jsonify`</a>
 * <a href="#lambda">lambda::</a>
 * <a href="#net">net::</a>
 * <a href="#os">os::</a>
@@ -217,6 +218,71 @@ Of course, nesting of a `JSON::Value` is also permitted as per the JSON specific
 
 You can "render" a JSON value using `std::ostream operator<<` (or by using `stringify` (see [here](#stringify)).
 
+
+<a href="jsonify"></a>
+
+## `jsonify`
+
+`jsonify` takes an instance of a C++ object and returns a representation of `JSON` string captured in a light-weight proxy object. The proxy object can either be implicitly converted to a `std::string`, or directly inserted into an output stream.
+
+`jsonify(const T&)` is implemented by calling the function `json`. We perform unqualified function call so that it can detect overloads via argument dependent lookup. That is, we will search for, and use a free function named `json` in the same namespace as `T`.
+
+> NOTE: This relationship is similar to `boost::hash` and `hash_value`.
+
+`json` takes two parameters: a pointer to a writer type, and the type of the object. The following are the available writers and their member functions:
+
+* `BooleanWriter` -- `set(value)`
+* `NumberWriter`  -- `set(value)`
+* `StringWriter`  -- `append(value)`
+* `ArrayWriter`   -- `element(value)`
+* `ObjectWriter`  -- `field(key, value)`
+
+~~~{.cpp}
+namespace store {
+
+struct Customer
+{
+  std::string first_name;
+  std::string last_name;
+  int age;
+};
+
+void json(JSON::ObjectWriter* writer, const Customer& customer)
+{
+  writer->field("first name", customer.first_name);
+  writer->field("last name", customer.last_name);
+  writer->field("age", customer.age);
+}
+
+} // namespace store {
+
+store::Customer customer{"michael", "park", 25};
+std::cout << jsonify(customer);
+// prints: {"first name":"michael","last name":"park","age":25}
+~~~
+
+`jsonify(const F&)` overload takes a function object `F` that takes a pointer to writer. This is useful in cases where we don't want to define a public `json` function out-ouf-line.
+
+~~~{.cpp}
+namespace store {
+
+struct Customer
+{
+  std::string first_name;
+  std::string last_name;
+  int age;
+};
+
+} // namespace store {
+
+store::Customer customer{"michael", "park", 25};
+std::cout << jsonify([&customer](JSON::ObjectWriter* writer) {
+  writer->field("first name", customer.first_name);
+  writer->field("last name", customer.last_name);
+  writer->field("age", customer.age);
+});
+// prints: {"first name":"michael","last name":"park","age":25}
+~~~
 
 <a href="lambda"></a>
 

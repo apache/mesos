@@ -21,6 +21,7 @@
 
 #include <stout/gtest.hpp>
 #include <stout/json.hpp>
+#include <stout/jsonify.hpp>
 #include <stout/protobuf.hpp>
 #include <stout/stringify.hpp>
 #include <stout/strings.hpp>
@@ -304,4 +305,148 @@ TEST(ProtobufTest, ParseJSONArray)
   // Make sure the parsed message equals to the original one.
   EXPECT_EQ(message, repeated.Get(0));
   EXPECT_EQ(message, repeated.Get(1));
+}
+
+
+TEST(ProtobufTest, Jsonify)
+{
+  tests::Message message;
+  message.set_b(true);
+  message.set_str("string");
+  message.set_bytes("bytes");
+  message.set_int32(-1);
+  message.set_int64(-1);
+  message.set_uint32(1);
+  message.set_uint64(1);
+  message.set_sint32(-1);
+  message.set_sint64(-1);
+  message.set_f(1.0);
+  message.set_d(1.0);
+  message.set_e(tests::ONE);
+  message.mutable_nested()->set_str("nested");
+  message.add_repeated_bool(true);
+  message.add_repeated_string("repeated_string");
+  message.add_repeated_bytes("repeated_bytes");
+  message.add_repeated_int32(-2);
+  message.add_repeated_int64(-2);
+  message.add_repeated_uint32(2);
+  message.add_repeated_uint64(2);
+  message.add_repeated_sint32(-2);
+  message.add_repeated_sint64(-2);
+  message.add_repeated_float(1.0);
+  message.add_repeated_double(1.0);
+  message.add_repeated_double(2.0);
+  message.add_repeated_enum(tests::TWO);
+  message.add_repeated_nested()->set_str("repeated_nested");
+
+  // TODO(bmahler): To dynamically generate a protobuf message,
+  // see the commented-out code below.
+//  DescriptorProto proto;
+//
+//  proto.set_name("Message");
+//
+//  FieldDescriptorProto* field = proto.add_field();
+//  field->set_name("str");
+//  field->set_type(FieldDescriptorProto::TYPE_STRING);
+//
+//  const Descriptor* descriptor = proto.descriptor();
+//
+//  DynamicMessageFactory factory;
+//  Message* message = factory.GetPrototype(descriptor);
+//
+//  Reflection* message.getReflection();
+
+  // The keys are in alphabetical order.
+  string expected = strings::remove(
+      "{"
+      "  \"b\": true,"
+      "  \"str\": \"string\","
+      "  \"bytes\": \"Ynl0ZXM=\","
+      "  \"int32\": -1,"
+      "  \"int64\": -1,"
+      "  \"uint32\": 1,"
+      "  \"uint64\": 1,"
+      "  \"sint32\": -1,"
+      "  \"sint64\": -1,"
+      "  \"f\": 1.0,"
+      "  \"d\": 1.0,"
+      "  \"e\": \"ONE\","
+      "  \"nested\": { \"str\": \"nested\"},"
+      "  \"repeated_bool\": [true],"
+      "  \"repeated_string\": [\"repeated_string\"],"
+      "  \"repeated_bytes\": [\"cmVwZWF0ZWRfYnl0ZXM=\"],"
+      "  \"repeated_int32\": [-2],"
+      "  \"repeated_int64\": [-2],"
+      "  \"repeated_uint32\": [2],"
+      "  \"repeated_uint64\": [2],"
+      "  \"repeated_sint32\": [-2],"
+      "  \"repeated_sint64\": [-2],"
+      "  \"repeated_float\": [1.0],"
+      "  \"repeated_double\": [1.0, 2.0],"
+      "  \"repeated_enum\": [\"TWO\"],"
+      "  \"repeated_nested\": [ { \"str\": \"repeated_nested\" } ],"
+      "  \"optional_default\": 42.0"
+      "}",
+      " ");
+
+  EXPECT_EQ(expected, string(jsonify(message)));
+}
+
+
+// Tests that integer precision is maintained between
+// JSON <-> Protobuf conversions.
+TEST(ProtobufTest, JsonifyLargeIntegers)
+{
+  // These numbers are equal or close to the integer limits.
+  tests::Message message;
+  message.set_int32(-2147483647);
+  message.set_int64(-9223372036854775807);
+  message.set_uint32(4294967295U);
+  message.set_uint64(9223372036854775807);
+  message.set_sint32(-1234567890);
+  message.set_sint64(-1234567890123456789);
+  message.add_repeated_int32(-2000000000);
+  message.add_repeated_int64(-9000000000000000000);
+  message.add_repeated_uint32(3000000000U);
+  message.add_repeated_uint64(7000000000000000000);
+  message.add_repeated_sint32(-1000000000);
+  message.add_repeated_sint64(-8000000000000000000);
+
+  // Parts of the protobuf that are required.  Copied from the above test.
+  message.set_b(true);
+  message.set_str("string");
+  message.set_bytes("bytes");
+  message.set_f(1.0);
+  message.set_d(1.0);
+  message.set_e(tests::ONE);
+  message.mutable_nested()->set_str("nested");
+
+  // The keys are in alphabetical order.
+  string expected = strings::remove(
+      "{"
+      "  \"b\": true,"
+      "  \"str\": \"string\","
+      "  \"bytes\": \"Ynl0ZXM=\","
+      "  \"int32\": -2147483647,"
+      "  \"int64\": -9223372036854775807,"
+      "  \"uint32\": 4294967295,"
+      "  \"uint64\": 9223372036854775807,"
+      "  \"sint32\": -1234567890,"
+      "  \"sint64\": -1234567890123456789,"
+      "  \"f\": 1.0,"
+      "  \"d\": 1.0,"
+      "  \"e\": \"ONE\","
+      "  \"nested\": {\"str\": \"nested\"},"
+      "  \"repeated_int32\": [-2000000000],"
+      "  \"repeated_int64\": [-9000000000000000000],"
+      "  \"repeated_uint32\": [3000000000],"
+      "  \"repeated_uint64\": [7000000000000000000],"
+      "  \"repeated_sint32\": [-1000000000],"
+      "  \"repeated_sint64\": [-8000000000000000000],"
+      "  \"optional_default\": 42.0"
+      "}",
+      " ");
+
+  // Check JSON -> String.
+  EXPECT_EQ(expected, string(jsonify(message)));
 }

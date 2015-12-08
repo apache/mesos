@@ -30,6 +30,7 @@ set(STOUT_TESTS_SRC
   hashset_tests.cpp
   interval_tests.cpp
   json_tests.cpp
+  jsonify_tests.cpp
   linkedhashmap_tests.cpp
   main.cpp
   multimap_tests.cpp

@@ -35,6 +35,7 @@
 #include <stout/base64.hpp>
 #include <stout/error.hpp>
 #include <stout/json.hpp>
+#include <stout/jsonify.hpp>
 #include <stout/none.hpp>
 #include <stout/os.hpp>
 #include <stout/result.hpp>
@@ -605,6 +606,137 @@ Try<T> parse(const JSON::Value& value)
 
 namespace JSON {
 
+// `json` function for protobuf messages. Refer to `jsonify.hpp` for details.
+// TODO(mpark): This currently uses the default value for optional fields with
+// a default that are not set, but we may want to revisit this decision.
+inline void json(ObjectWriter* writer, const google::protobuf::Message& message)
+{
+  using google::protobuf::FieldDescriptor;
+
+  const google::protobuf::Descriptor* descriptor = message.GetDescriptor();
+  const google::protobuf::Reflection* reflection = message.GetReflection();
+
+  // We first look through all the possible fields to determine both the set
+  // fields __and__ the optional fields with a default that are not set.
+  // `Reflection::ListFields()` alone will only include set fields and
+  // is therefore insufficient.
+  int fieldCount = descriptor->field_count();
+  std::vector<const FieldDescriptor*> fields;
+  fields.reserve(fieldCount);
+  for (int i = 0; i < fieldCount; ++i) {
+    const FieldDescriptor* field = descriptor->field(i);
+    if (field->is_repeated()) {
+      if (reflection->FieldSize(message, field) > 0) {
+        // Has repeated field with members, output as JSON.
+        fields.push_back(field);
+      }
+    } else if (reflection->HasField(message, field) ||
+               field->has_default_value()) {
+      // Field is set or has default, output as JSON.
+      fields.push_back(field);
+    }
+  }
+
+  foreach (const FieldDescriptor* field, fields) {
+    if (field->is_repeated()) {
+      writer->field(
+          field->name(),
+          [&field, &reflection, &message](JSON::ArrayWriter* writer) {
+            int fieldSize = reflection->FieldSize(message, field);
+            for (int i = 0; i < fieldSize; ++i) {
+              switch (field->cpp_type()) {
+                case FieldDescriptor::CPPTYPE_BOOL:
+                  writer->element(
+                      reflection->GetRepeatedBool(message, field, i));
+                  break;
+                case FieldDescriptor::CPPTYPE_INT32:
+                  writer->element(
+                      reflection->GetRepeatedInt32(message, field, i));
+                  break;
+                case FieldDescriptor::CPPTYPE_INT64:
+                  writer->element(
+                      reflection->GetRepeatedInt64(message, field, i));
+                  break;
+                case FieldDescriptor::CPPTYPE_UINT32:
+                  writer->element(
+                      reflection->GetRepeatedUInt32(message, field, i));
+                  break;
+                case FieldDescriptor::CPPTYPE_UINT64:
+                  writer->element(
+                      reflection->GetRepeatedUInt64(message, field, i));
+                  break;
+                case FieldDescriptor::CPPTYPE_FLOAT:
+                  writer->element(
+                      reflection->GetRepeatedFloat(message, field, i));
+                  break;
+                case FieldDescriptor::CPPTYPE_DOUBLE:
+                  writer->element(
+                      reflection->GetRepeatedDouble(message, field, i));
+                  break;
+                case FieldDescriptor::CPPTYPE_MESSAGE:
+                  writer->element(
+                      reflection->GetRepeatedMessage(message, field, i));
+                  break;
+                case FieldDescriptor::CPPTYPE_ENUM:
+                  writer->element(
+                      reflection->GetRepeatedEnum(message, field, i)->name());
+                  break;
+                case FieldDescriptor::CPPTYPE_STRING:
+                  std::string s =
+                    reflection->GetRepeatedString(message, field, i);
+                  if (field->type() == FieldDescriptor::TYPE_BYTES) {
+                    s = base64::encode(s);
+                  }
+                  writer->element(s);
+                  break;
+              }
+            }
+          });
+    } else {
+      switch (field->cpp_type()) {
+        case FieldDescriptor::CPPTYPE_BOOL:
+          writer->field(field->name(), reflection->GetBool(message, field));
+          break;
+        case FieldDescriptor::CPPTYPE_INT32:
+          writer->field(field->name(), reflection->GetInt32(message, field));
+          break;
+        case FieldDescriptor::CPPTYPE_INT64:
+          writer->field(field->name(), reflection->GetInt64(message, field));
+          break;
+        case FieldDescriptor::CPPTYPE_UINT32:
+          writer->field(field->name(), reflection->GetUInt32(message, field));
+          break;
+        case FieldDescriptor::CPPTYPE_UINT64:
+          writer->field(field->name(), reflection->GetUInt64(message, field));
+          break;
+        case FieldDescriptor::CPPTYPE_FLOAT:
+          writer->field(field->name(), reflection->GetFloat(message, field));
+          break;
+        case FieldDescriptor::CPPTYPE_DOUBLE:
+          writer->field(field->name(), reflection->GetDouble(message, field));
+          break;
+        case FieldDescriptor::CPPTYPE_MESSAGE:
+          writer->field(field->name(), reflection->GetMessage(message, field));
+          break;
+        case FieldDescriptor::CPPTYPE_ENUM:
+          writer->field(
+              field->name(), reflection->GetEnum(message, field)->name());
+          break;
+        case FieldDescriptor::CPPTYPE_STRING:
+          std::string str = reflection->GetString(message, field);
+          if (field->type() == FieldDescriptor::TYPE_BYTES) {
+            str = base64::encode(str);
+          }
+          writer->field(field->name(), str);
+          break;
+      }
+    }
+  }
+}
+
+
+// TODO(bmahler): This currently uses the default value for optional
+// fields but we may want to revisit this decision.
 struct Protobuf
 {
   // TODO(bmahler): This currently uses the default value for optional

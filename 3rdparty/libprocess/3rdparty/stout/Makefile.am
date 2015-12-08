@@ -35,6 +35,7 @@ EXTRA_DIST =					\
   tests/interval_tests.cpp			\
   tests/ip_tests.cpp                            \
   tests/json_tests.cpp				\
+  tests/jsonify_tests.cpp			\
   tests/linkedhashmap_tests.cpp			\
   tests/mac_tests.cpp                           \
   tests/main.cpp				\
