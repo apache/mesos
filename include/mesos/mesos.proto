@@ -1544,7 +1544,7 @@ message ContainerStatus {
  * Collection of labels.
  */
 message Labels {
-    repeated Label labels = 1;
+  repeated Label labels = 1;
 }
 
 
