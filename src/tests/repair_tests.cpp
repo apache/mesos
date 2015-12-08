@@ -96,15 +96,15 @@ TEST_F(HealthTest, ObserveEndpoint)
 
   // Empty get to the observe endpoint.
   Future<Response> response = process::http::get(master.get(), "observe");
-  VALIDATE_BAD_RESPONSE(response, "Missing value for 'monitor'.");
+  VALIDATE_BAD_RESPONSE(response, "Missing value for 'monitor'");
 
   // Empty post to the observe endpoint.
   response = process::http::post(master.get(), "observe");
-  VALIDATE_BAD_RESPONSE(response, "Missing value for 'monitor'.");
+  VALIDATE_BAD_RESPONSE(response, "Missing value for 'monitor'");
 
   // Query string is ignored.
   response = process::http::post(master.get(), "observe?monitor=foo");
-  VALIDATE_BAD_RESPONSE(response, "Missing value for 'monitor'.");
+  VALIDATE_BAD_RESPONSE(response, "Missing value for 'monitor'");
 
   // Malformed value causes error.
   response = process::http::post(
@@ -122,7 +122,7 @@ TEST_F(HealthTest, ObserveEndpoint)
       "observe",
       None(),
       "monitor=");
-  VALIDATE_BAD_RESPONSE(response, "Empty string for 'monitor'.");
+  VALIDATE_BAD_RESPONSE(response, "Empty string for 'monitor'");
 
   // Missing hosts.
   response = process::http::post(
@@ -130,7 +130,7 @@ TEST_F(HealthTest, ObserveEndpoint)
       "observe",
       None(),
       "monitor=a");
-  VALIDATE_BAD_RESPONSE(response, "Missing value for 'hosts'.");
+  VALIDATE_BAD_RESPONSE(response, "Missing value for 'hosts'");
 
   // Missing level.
   response = process::http::post(
@@ -138,7 +138,7 @@ TEST_F(HealthTest, ObserveEndpoint)
       "observe",
       None(),
       "monitor=a&hosts=b");
-  VALIDATE_BAD_RESPONSE(response, "Missing value for 'level'.");
+  VALIDATE_BAD_RESPONSE(response, "Missing value for 'level'");
 
   // Good request is successful.
   JsonResponse expected;
@@ -151,7 +151,7 @@ TEST_F(HealthTest, ObserveEndpoint)
       "observe",
       None(),
       "monitor=a&hosts=b&level=ok");
-  VALIDATE_GOOD_RESPONSE(response, stringify(expected) );
+  VALIDATE_GOOD_RESPONSE(response, stringify(expected));
 
   // ok is case-insensitive.
   response = process::http::post(
@@ -159,21 +159,21 @@ TEST_F(HealthTest, ObserveEndpoint)
       "observe",
       None(),
       "monitor=a&hosts=b&level=Ok");
-  VALIDATE_GOOD_RESPONSE(response, stringify(expected) );
+  VALIDATE_GOOD_RESPONSE(response, stringify(expected));
 
   response = process::http::post(
       master.get(),
       "observe",
       None(),
       "monitor=a&hosts=b&level=oK");
-  VALIDATE_GOOD_RESPONSE(response, stringify(expected) );
+  VALIDATE_GOOD_RESPONSE(response, stringify(expected));
 
   response = process::http::post(
       master.get(),
       "observe",
       None(),
       "monitor=a&hosts=b&level=OK");
-  VALIDATE_GOOD_RESPONSE(response, stringify(expected) );
+  VALIDATE_GOOD_RESPONSE(response, stringify(expected));
 
   // level != OK  is unhealthy.
   expected.isHealthy = false;
@@ -183,7 +183,7 @@ TEST_F(HealthTest, ObserveEndpoint)
       "observe",
       None(),
       "monitor=a&hosts=b&level=true");
-  VALIDATE_GOOD_RESPONSE(response, stringify(expected) );
+  VALIDATE_GOOD_RESPONSE(response, stringify(expected));
 
   // Comma-separated hosts are parsed into an array.
   expected.hosts.push_back("e");
@@ -192,7 +192,7 @@ TEST_F(HealthTest, ObserveEndpoint)
       "observe",
       None(),
       "monitor=a&hosts=b,e&level=true");
-  VALIDATE_GOOD_RESPONSE(response, stringify(expected) );
+  VALIDATE_GOOD_RESPONSE(response, stringify(expected));
 
   Shutdown();
 }
