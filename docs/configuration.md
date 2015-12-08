@@ -1214,6 +1214,7 @@ file:///path/to/file (where file contains one of the above)</code></pre>
   </tr>
   <tr>
     <td>
+      <a name="gc_disk_headroom"></a>
       --gc_disk_headroom=VALUE
     </td>
     <td>

@@ -11,10 +11,11 @@ from local file systems.
 
 ## What is the Mesos fetcher?
 
-The Mesos fetcher is a mechanism to download resources into the sandbox
-directory of a task in preparation of running the task. As part of a TaskInfo
-message, the framework ordering the task's execution provides a list of
-`CommandInfo::URI` protobuf values, which becomes the input to the Mesos fetcher.
+The Mesos fetcher is a mechanism to download resources into the [sandbox
+directory](/documentation/latest/sandbox/) of a task in preparation of running
+the task. As part of a TaskInfo message, the framework ordering the task's
+execution provides a list of `CommandInfo::URI` protobuf values, which becomes
+the input to the Mesos fetcher.
 
 The Mesos fetcher can copy files from a local filesytem and it also natively
 supports the HTTP, HTTPS, FTP and FTPS protocols. If the requested URI is based
