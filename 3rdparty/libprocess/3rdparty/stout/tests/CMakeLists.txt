@@ -35,6 +35,7 @@ set(STOUT_TESTS_SRC
   interval_tests.cpp
   ip_tests.cpp
   json_tests.cpp
+  jsonify_tests.cpp
   linkedhashmap_tests.cpp
   mac_tests.cpp
   main.cpp
