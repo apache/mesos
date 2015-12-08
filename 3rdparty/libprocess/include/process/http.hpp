@@ -37,6 +37,7 @@
 #include <stout/hashmap.hpp>
 #include <stout/ip.hpp>
 #include <stout/json.hpp>
+#include <stout/jsonify.hpp>
 #include <stout/none.hpp>
 #include <stout/nothing.hpp>
 #include <stout/option.hpp>
@@ -464,29 +465,9 @@ struct OK : Response
 
   explicit OK(const std::string& body) : Response(body, Status::OK) {}
 
-  OK(const JSON::Value& value, const Option<std::string>& jsonp = None())
-    : Response(Status::OK)
-  {
-    type = BODY;
+  OK(const JSON::Value& value, const Option<std::string>& jsonp = None());
 
-    std::ostringstream out;
-
-    if (jsonp.isSome()) {
-      out << jsonp.get() << "(";
-    }
-
-    out << value;
-
-    if (jsonp.isSome()) {
-      out << ");";
-      headers["Content-Type"] = "text/javascript";
-    } else {
-      headers["Content-Type"] = "application/json";
-    }
-
-    headers["Content-Length"] = stringify(out.str().size());
-    body = out.str().data();
-  }
+  OK(JSON::Proxy&& value, const Option<std::string>& jsonp = None());
 };
 
 
