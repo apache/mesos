@@ -89,7 +89,7 @@ public:
   {
   public:
     // A factory for new Java reference type class descriptors given
-    // the fully-qualified class name (e.g., 'java/io/File'). To
+    // the fully qualified class name (e.g., 'java/io/File'). To
     // obtain class descriptors for native types (int, short, etc),
     // use the fields in Jvm.
     static const Class named(const std::string& name);

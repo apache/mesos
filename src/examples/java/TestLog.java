@@ -116,7 +116,7 @@ public class TestLog {
     // required to ensure that the test server shutdown is complete
     // before the JVM starts running native object destructors after
     // System.exit() is called. 500ms proved successful in test runs,
-    // but on a heavily-loaded machine it might not.
+    // but on a heavily loaded machine it might not.
     // TODO(greg): Ideally, we would inspect the status of the server
     // via the Java API and wait until its teardown is complete to
     // exit.

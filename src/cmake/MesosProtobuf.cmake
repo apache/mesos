@@ -17,7 +17,7 @@
 # PROTO_TO_INCLUDE_DIR is a convenience function that will: (1) compile .proto
 # files found in the Mesos public-facing `include/` directory, (2) place the
 # generated files in the build folder, but with an identical directory
-# structure, and (3) export variables holding the fully-qualified path to the
+# structure, and (3) export variables holding the fully qualified path to the
 # generated files, based on a name structure the user specifies with the
 # `BASE_NAME` and `BASE_DIR_STRUCTURE` parameters.
 #

@@ -409,9 +409,9 @@ TYPED_TEST(AuthorizationTest, PrincipalNotOfferedAnyRoleRestrictive)
 // This tests the authorization of ACLs used for the dynamic
 // reservation of resources.
 //
-// NOTE: at this time, principals can only be authorized to reserve ANY or NONE.
-// However, this test exercises the full capabilities of ACL authorization, so
-// specific resource types are tested as well.
+// NOTE: at this time, principals can only be authorized to reserve
+// ANY or NONE.  However, this test exercises the full capabilities of
+// ACL authorization, so specific resource types are tested as well.
 TYPED_TEST(AuthorizationTest, Reserve)
 {
   ACLs acls;
@@ -482,7 +482,7 @@ TYPED_TEST(AuthorizationTest, Reserve)
 
 
 // This tests the authorization of ACLs used for unreserve
-// operations on dynamically-reserved resources.
+// operations on dynamically reserved resources.
 TYPED_TEST(AuthorizationTest, Unreserve)
 {
   ACLs acls;
