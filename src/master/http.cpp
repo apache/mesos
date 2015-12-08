@@ -833,7 +833,7 @@ Try<string> getFormValue(
   Option<string> value = values.get(key);
 
   if (value.isNone()) {
-    return Error("Missing value for '" + key + "'.");
+    return Error("Missing value for '" + key + "'");
   }
 
   // HTTP decode the value.
@@ -844,7 +844,7 @@ Try<string> getFormValue(
 
   // Treat empty string as an error.
   if (decodedValue.isSome() && decodedValue.get().empty()) {
-    return Error("Empty string for '" + key + "'.");
+    return Error("Empty string for '" + key + "'");
   }
 
   return decodedValue.get();

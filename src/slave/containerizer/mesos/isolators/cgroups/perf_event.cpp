@@ -82,7 +82,7 @@ Try<Isolator*> CgroupsPerfEventIsolatorProcess::create(const Flags& flags)
   }
 
   if (!flags.perf_events.isSome()) {
-    return Error("No perf events specified.");
+    return Error("No perf events specified");
   }
 
   set<string> events;

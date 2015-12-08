@@ -678,7 +678,7 @@ Option<Error> validate(
   }
 
   if (principal.isNone()) {
-    return Error("Cannot reserve resources without a principal.");
+    return Error("Cannot reserve resources without a principal");
   }
 
   foreach (const Resource& resource, reserve.resources()) {
@@ -725,7 +725,7 @@ Option<Error> validate(
   }
 
   if (!hasPrincipal) {
-    return Error("Resources cannot be unreserved without a principal.");
+    return Error("Resources cannot be unreserved without a principal");
   }
 
   // NOTE: We don't check that 'FrameworkInfo.principal' matches
