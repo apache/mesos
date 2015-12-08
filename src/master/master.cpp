@@ -751,13 +751,13 @@ void Master::initialize()
           Http::log(request);
           return http.scheduler(request);
         });
-    route("/create-volumes",
+  route("/create-volumes",
         Http::CREATE_VOLUMES_HELP(),
         [http](const process::http::Request& request) {
           Http::log(request);
           return http.createVolumes(request);
         });
-    route("/destroy-volumes",
+  route("/destroy-volumes",
         Http::DESTROY_VOLUMES_HELP(),
         [http](const process::http::Request& request) {
           Http::log(request);
