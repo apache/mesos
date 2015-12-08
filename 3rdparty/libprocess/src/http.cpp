@@ -415,6 +415,31 @@ Future<Nothing> Pipe::Writer::readerClosed() const
 }
 
 
+OK::OK(JSON::Proxy&& value, const Option<std::string>& jsonp)
+{
+  type = BODY;
+
+  status = "200 OK";
+
+  std::ostringstream out;
+
+  if (jsonp.isSome()) {
+    out << jsonp.get() << "(";
+  }
+
+  out << std::move(value);
+
+  if (jsonp.isSome()) {
+    out << ");";
+    headers["Content-Type"] = "text/javascript";
+  } else {
+    headers["Content-Type"] = "application/json";
+  }
+
+  body = out.str();
+  headers["Content-Length"] = stringify(body.size());
+}
+
 namespace path {
 
 Try<hashmap<string, string>> parse(const string& pattern, const string& path)
