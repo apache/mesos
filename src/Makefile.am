@@ -103,7 +103,11 @@ MESOS_CPPFLAGS += -I../include
 MESOS_CPPFLAGS += -I../include/mesos
 
 # Header only dependencies will be ignored for --disable-bundled.
-MESOS_CPPFLAGS += -I../$(BOOST)
+#
+# We use "-isystem" instead of "-I" to add Boost to the include search
+# path. This disables compiler warnings inside Boost headers since we
+# can't easily fix them. See MESOS-3799.
+MESOS_CPPFLAGS += -isystem ../$(BOOST)
 MESOS_CPPFLAGS += -I../$(PICOJSON)
 
 # Enable the INT64 support for PicoJson.
