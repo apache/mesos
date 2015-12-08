@@ -764,6 +764,7 @@ message ResourceStatistics {
   optional uint64 mem_mapped_file_bytes = 12;
   // This is only set if swap is enabled.
   optional uint64 mem_swap_bytes = 40;
+  optional uint64 mem_unevictable_bytes = 41;
 
   // Number of occurrences of different levels of memory pressure
   // events reported by memory cgroup. Pressure listening (re)starts
@@ -822,6 +823,9 @@ message ResourceUsage {
     // Current resource usage. If absent, the containerizer
     // cannot provide resource usage.
     optional ResourceStatistics statistics = 3;
+
+    // The container id for the executor specified in the executor_info field.
+    required ContainerID container_id = 4;
   }
 
   repeated Executor executors = 1;
@@ -1175,6 +1179,10 @@ message TaskStatus {
   // labels should be used to tag TaskStatus message with light-weight
   // meta-data.
   optional Labels labels = 12;
+
+  // Container related information that is resolved dynamically such as
+  // network address.
+  optional ContainerStatus container_status = 13;
 }
 
 
@@ -1306,7 +1314,7 @@ message Image {
 
   // Protobuf for specifying an Appc container image. See:
   // https://github.com/appc/spec/blob/master/spec/aci.md
-  message AppC {
+  message Appc {
     // The name of the image.
     required string name = 1;
 
@@ -1314,7 +1322,7 @@ message Image {
     // "hash" is the hash algorithm used and "value" is the hex
     // encoded string of the digest. Currently the only permitted
     // hash algorithm is sha512.
-    required string id = 2;
+    optional string id = 2;
 
     // Optional labels. Suggested labels: "version", "os", and "arch".
     optional Labels labels = 3;
@@ -1332,7 +1340,7 @@ message Image {
 
   // Only one of the following image messages should be set to match
   // the type.
-  optional AppC appc = 2;
+  optional Appc appc = 2;
   optional Docker docker = 3;
 }
 
@@ -1349,7 +1357,10 @@ message Volume {
 
   required Mode mode = 3;
 
-  // Absolute path pointing to a directory or file in the container.
+  // Path pointing to a directory or file in the container. If the
+  // path is a relative path, it is relative to the container work
+  // directory. If the path is an absolute path, that path must
+  // already exist.
   required string container_path = 1;
 
   // The following specifies the source of this volume. At most one of
@@ -1394,9 +1405,10 @@ message NetworkInfo {
   // Specifies either a request for an IP address, or the actual assigned
   // IP address.
   //
-  // On a request (included in ContainerInfo) specifying neither `protocol`
-  // nor `ip_address` means that the isolator is free to assign any available
-  // address.
+  // Users can request an automatically assigned IP (for example, via an
+  // IPAM service) or a specific IP by adding a NetworkInfo to the
+  // ContainerInfo for a task.  On a request, specifying neither `protocol`
+  // nor `ip_address` means that any available address may be assigned.
   message IPAddress {
     // Specify IP address requirement. Set protocol to the desired value to
     // request the network isolator on the Agent to assign an IP address to the
@@ -1507,6 +1519,20 @@ message ContainerInfo {
   // the type.
   optional DockerInfo docker = 3;
   optional MesosInfo mesos = 5;
+
+  // A list of network requests. A framework can request multiple IP addresses
+  // for the container.
+  repeated NetworkInfo network_infos = 7;
+}
+
+
+/**
+ * Container related information that is resolved during container setup. The
+ * information is sent back to the framework as part of the TaskStatus message.
+ */
+message ContainerStatus {
+  // This field can be reliably used to identify the container IP address.
+  repeated NetworkInfo network_infos = 1;
 }
 
 
