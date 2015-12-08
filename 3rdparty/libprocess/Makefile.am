@@ -88,11 +88,15 @@ libprocess_la_SOURCES +=	\
     src/ssl/utilities.cpp
 endif
 
+
+# We use "-isystem" instead of "-I" to add Boost to the include search
+# path. This disables compiler warnings inside Boost headers since we
+# can't easily fix them. See MESOS-3799.
 libprocess_la_CPPFLAGS =			\
   -DBUILD_DIR=\"$(LIBPROCESS_BUILD_DIR)\"	\
   -I$(srcdir)/include				\
   -I$(srcdir)/$(STOUT)/include			\
-  -I$(BOOST)					\
+  -isystem $(BOOST)				\
   -I$(LIBEV)					\
   -I$(PICOJSON)					\
   -DPICOJSON_USE_INT64				\

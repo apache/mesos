@@ -204,8 +204,11 @@ fi
 # build stout/tests/proc_tests.cpp on Linux).
 AM_CONDITIONAL([OS_LINUX], [test "x$OS_NAME" = "xlinux"])
 
+# We use "-isystem" instead of "-I" to add Boost to the include search
+# path. This disables compiler warnings inside Boost headers since we
+# can't easily fix them. See MESOS-3799.
 if test -n "`echo $with_boost`"; then
-  CPPFLAGS="$CPPFLAGS -I${with_boost}/include"
+  CPPFLAGS="$CPPFLAGS -isystem ${with_boost}/include"
 fi
 
 if test -n "`echo $with_picojson`"; then

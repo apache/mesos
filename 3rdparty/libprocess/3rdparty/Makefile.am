@@ -210,8 +210,11 @@ if WITH_BUNDLED_GMOCK
   stout_tests_CPPFLAGS += -I$(GMOCK)/include
 endif
 
+# We use "-isystem" instead of "-I" to add Boost to the include search
+# path. This disables compiler warnings inside Boost headers since we
+# can't easily fix them. See MESOS-3799.
 if WITH_BUNDLED_BOOST
-  stout_tests_CPPFLAGS += -I$(BOOST)
+  stout_tests_CPPFLAGS += -isystem $(BOOST)
 endif
 
 if WITH_BUNDLED_PICOJSON
