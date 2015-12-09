@@ -1534,6 +1534,10 @@ TEST_F(ReservationTest, BadACLDropUnreserve)
 // `LAUNCH` offer operations to verify that they work with authorization.
 TEST_F(ReservationTest, ACLMultipleOperations)
 {
+  // Pause the clock and control it manually in order to
+  // control the timing of the offer cycle.
+  process::Clock::pause();
+
   ACLs acls;
 
   // This principal can reserve any resources.
@@ -1596,6 +1600,10 @@ TEST_F(ReservationTest, ACLMultipleOperations)
 
   driver.start();
 
+  // Advance the clock to generate an offer.
+  process::Clock::settle();
+  process::Clock::advance(masterFlags.allocation_interval);
+
   // In the first offer, expect an offer with unreserved resources.
   AWAIT_READY(offers);
 
@@ -1611,6 +1619,9 @@ TEST_F(ReservationTest, ACLMultipleOperations)
 
   // Reserve the first set of resources.
   driver.acceptOffers({offer.id()}, {RESERVE(dynamicallyReserved1)}, filters);
+
+  process::Clock::settle();
+  process::Clock::advance(masterFlags.allocation_interval);
 
   // In the next offer, expect an offer with reserved resources.
   AWAIT_READY(offers);
@@ -1655,6 +1666,9 @@ TEST_F(ReservationTest, ACLMultipleOperations)
   AWAIT_READY(statusUpdateAcknowledgement);
   EXPECT_EQ(TASK_FINISHED, statusUpdateAcknowledgement.get().state());
 
+  process::Clock::settle();
+  process::Clock::advance(masterFlags.allocation_interval);
+
   // In the next offer, expect to find both sets of reserved
   // resources, since the Unreserve operation should fail.
   AWAIT_READY(offers);
@@ -1687,6 +1701,9 @@ TEST_F(ReservationTest, ACLMultipleOperations)
        UNRESERVE(dynamicallyReserved2),
        LAUNCH({taskInfo})},
       filters);
+
+  process::Clock::settle();
+  process::Clock::advance(masterFlags.allocation_interval);
 
   // In the next offer, expect to find no reserved resources.
   AWAIT_READY(offers);
