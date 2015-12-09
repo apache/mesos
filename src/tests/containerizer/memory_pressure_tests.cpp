@@ -19,6 +19,7 @@
 #include <mesos/resources.hpp>
 #include <mesos/scheduler.hpp>
 
+#include <process/clock.hpp>
 #include <process/gtest.hpp>
 
 #include <stout/gtest.hpp>
@@ -130,16 +131,16 @@ TEST_F(MemoryPressureMesosTest, CGROUPS_ROOT_Statistics)
 
   ContainerID containerId = *(containers.get().begin());
 
+  // Wait a while for some memory pressure events to occur.
   Duration waited = Duration::zero();
   do {
     Future<ResourceStatistics> usage = containerizer.get()->usage(containerId);
     AWAIT_READY(usage);
 
     if (usage.get().mem_low_pressure_counter() > 0) {
-      EXPECT_GE(usage.get().mem_low_pressure_counter(),
-                usage.get().mem_medium_pressure_counter());
-      EXPECT_GE(usage.get().mem_medium_pressure_counter(),
-                usage.get().mem_critical_pressure_counter());
+      // We will check the correctness of the memory pressure counters
+      // later, because the memory-hammering task is still active
+      // and potentially incrementing these counters.
       break;
     }
 
@@ -148,6 +149,23 @@ TEST_F(MemoryPressureMesosTest, CGROUPS_ROOT_Statistics)
   } while (waited < Seconds(5));
 
   EXPECT_LE(waited, Seconds(5));
+
+  // Stop the memory-hammering task.
+  driver.killTask(task.task_id());
+
+  // Process any queued up events through before proceeding.
+  process::Clock::pause();
+  process::Clock::settle();
+  process::Clock::resume();
+
+  // Now check the correctness of the memory pressure counters.
+  Future<ResourceStatistics> usage = containerizer.get()->usage(containerId);
+  AWAIT_READY(usage);
+
+  EXPECT_GE(usage.get().mem_low_pressure_counter(),
+            usage.get().mem_medium_pressure_counter());
+  EXPECT_GE(usage.get().mem_medium_pressure_counter(),
+            usage.get().mem_critical_pressure_counter());
 
   driver.stop();
   driver.join();
@@ -259,16 +277,16 @@ TEST_F(MemoryPressureMesosTest, CGROUPS_ROOT_SlaveRecovery)
 
   ContainerID containerId = *(containers.get().begin());
 
+  // Wait a while for some memory pressure events to occur.
   Duration waited = Duration::zero();
   do {
     Future<ResourceStatistics> usage = containerizer2.get()->usage(containerId);
     AWAIT_READY(usage);
 
     if (usage.get().mem_low_pressure_counter() > 0) {
-      EXPECT_GE(usage.get().mem_low_pressure_counter(),
-                usage.get().mem_medium_pressure_counter());
-      EXPECT_GE(usage.get().mem_medium_pressure_counter(),
-                usage.get().mem_critical_pressure_counter());
+      // We will check the correctness of the memory pressure counters
+      // later, because the memory-hammering task is still active
+      // and potentially incrementing these counters.
       break;
     }
 
@@ -277,6 +295,23 @@ TEST_F(MemoryPressureMesosTest, CGROUPS_ROOT_SlaveRecovery)
   } while (waited < Seconds(5));
 
   EXPECT_LE(waited, Seconds(5));
+
+  // Stop the memory-hammering task.
+  driver.killTask(task.task_id());
+
+  // Process any queued up events through before proceeding.
+  process::Clock::pause();
+  process::Clock::settle();
+  process::Clock::resume();
+
+  // Now check the correctness of the memory pressure counters.
+  Future<ResourceStatistics> usage = containerizer2.get()->usage(containerId);
+  AWAIT_READY(usage);
+
+  EXPECT_GE(usage.get().mem_low_pressure_counter(),
+            usage.get().mem_medium_pressure_counter());
+  EXPECT_GE(usage.get().mem_medium_pressure_counter(),
+            usage.get().mem_critical_pressure_counter());
 
   driver.stop();
   driver.join();
