@@ -101,6 +101,28 @@ set(COMMON_SRC
   common/values.cpp
   )
 
+set(HDFS_SRC
+  ${HDFS_SRC}
+  hdfs/hdfs.cpp
+  )
+
+set(LINUX_SRC
+  ${LINUX_SRC}
+  linux/cgroups.cpp
+  linux/fs.cpp
+  linux/perf.cpp
+  linux/systemd.cpp
+  slave/containerizer/mesos/linux_launcher.cpp
+  slave/containerizer/mesos/isolators/cgroups/cpushare.cpp
+  slave/containerizer/mesos/isolators/cgroups/mem.cpp
+  slave/containerizer/mesos/isolators/cgroups/perf_event.cpp
+  slave/containerizer/mesos/isolators/filesystem/linux.cpp
+  slave/containerizer/mesos/isolators/filesystem/posix.cpp
+  slave/containerizer/mesos/isolators/filesystem/shared.cpp
+  slave/containerizer/mesos/isolators/namespaces/pid.cpp
+  slave/containerizer/mesos/provisioner/backends/bind.cpp
+  )
+
 set(DOCKER_SRC
   docker/docker.hpp
   docker/docker.cpp
@@ -188,9 +210,9 @@ if (NOT WIN32)
     slave/state.cpp
     slave/status_update_manager.cpp
     slave/validation.cpp
-    slave/containerizer/containerizer.cpp
     slave/containerizer/composing.cpp
     slave/containerizer/composing.hpp
+    slave/containerizer/containerizer.cpp
     slave/containerizer/docker.cpp
     slave/containerizer/docker.hpp
     slave/containerizer/external_containerizer.cpp
@@ -200,7 +222,6 @@ if (NOT WIN32)
     slave/containerizer/mesos/launch.cpp
     slave/containerizer/mesos/launcher.cpp
     slave/containerizer/mesos/mount.cpp
-    slave/containerizer/mesos/isolators/filesystem/posix.cpp
     slave/containerizer/mesos/isolators/posix/disk.cpp
     slave/containerizer/mesos/provisioner/paths.cpp
     slave/containerizer/mesos/provisioner/provisioner.cpp
@@ -211,8 +232,12 @@ if (NOT WIN32)
     slave/containerizer/mesos/provisioner/backend.cpp
     slave/containerizer/mesos/provisioner/backends/copy.cpp
     slave/containerizer/mesos/provisioner/docker/message.proto
+    slave/containerizer/mesos/provisioner/docker/metadata_manager.cpp
+    slave/containerizer/mesos/provisioner/docker/paths.cpp
+    slave/containerizer/mesos/provisioner/docker/puller.cpp
     slave/containerizer/mesos/provisioner/docker/registry_client.cpp
     slave/containerizer/mesos/provisioner/docker/registry_puller.cpp
+    slave/containerizer/mesos/provisioner/docker/store.cpp
     slave/containerizer/mesos/provisioner/docker/spec.cpp
     slave/containerizer/mesos/provisioner/docker/token_manager.cpp
     slave/resource_estimators/noop.cpp
@@ -252,6 +277,11 @@ set(ZOOKEEPER_SRC
   zookeeper/group.cpp
   )
 
+set(MESSAGES_SRC
+  ${MESSAGES_SRC}
+  messages/messages.cpp
+  )
+
 set(MESOS_SRC
   ${MESOS_SRC}
   ${AGENT_SRC}
@@ -266,10 +296,12 @@ if (NOT WIN32)
     ${DOCKER_SRC}
     ${EXEC_SRC}
     ${FILES_SRC}
+    ${HDFS_SRC}
     ${HOOK_SRC}
     ${INTERNAL_SRC}
     ${LOCAL_SRC}
     ${LOGGING_SRC}
+    ${MESSAGES_SRC}
     ${MASTER_SRC}
     ${MODULE_SRC}
     ${SCHED_SRC}
@@ -283,6 +315,11 @@ if (NOT WIN32)
     ${MESOS_PROTOBUF_SRC}
     )
 endif (NOT WIN32)
+
+# Include source for linux build.
+if (LINUX)
+  set(MESOS_SRC ${MESOS_SRC} ${LINUX_SRC})
+endif (LINUX)
 
 # INCLUDE DIRECTIVES FOR MESOS LIBRARY (generates, e.g., -I/path/to/thing
 # on Linux).
