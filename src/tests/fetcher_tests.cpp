@@ -275,34 +275,47 @@ TEST_F(FetcherTest, RelativeFilePath)
 class HttpProcess : public Process<HttpProcess>
 {
 public:
-  HttpProcess()
+  HttpProcess() {}
+
+  MOCK_METHOD1(test, Future<http::Response>(const http::Request&));
+
+protected:
+  virtual void initialize()
   {
     route("/test", None(), &HttpProcess::test);
   }
+};
 
-  ~HttpProcess()
+
+class Http
+{
+public:
+  Http() : process(new HttpProcess())
   {
-    terminate(this);
-    wait(this);
+    spawn(process.get());
   }
 
-  MOCK_METHOD1(test, Future<http::Response>(const http::Request&));
+  ~Http()
+  {
+    terminate(process.get());
+    wait(process.get());
+  }
+
+  Owned<HttpProcess> process;
 };
 
 
 TEST_F(FetcherTest, OSNetUriTest)
 {
-  HttpProcess process;
+  Http http;
 
-  spawn(process);
-
-  const network::Address& address = process.self().address;
+  const network::Address& address = http.process->self().address;
 
   process::http::URL url(
       "http",
       address.ip,
       address.port,
-      path::join(process.self().id, "test"));
+      path::join(http.process->self().id, "test"));
 
   string localFile = path::join(os::getcwd(), "test");
   EXPECT_FALSE(os::exists(localFile));
@@ -321,7 +334,7 @@ TEST_F(FetcherTest, OSNetUriTest)
   Fetcher fetcher;
   SlaveID slaveId;
 
-  EXPECT_CALL(process, test(_))
+  EXPECT_CALL(*http.process, test(_))
     .WillOnce(Return(http::OK()));
 
   Future<Nothing> fetch = fetcher.fetch(
@@ -339,17 +352,15 @@ TEST_F(FetcherTest, OSNetUriTest)
 // TODO(hartem): This test case should be merged with the previous one.
 TEST_F(FetcherTest, OSNetUriSpaceTest)
 {
-  HttpProcess process;
+  Http http;
 
-  spawn(process);
-
-  const network::Address& address = process.self().address;
+  const network::Address& address = http.process->self().address;
 
   process::http::URL url(
       "http",
       address.ip,
       address.port,
-      path::join(process.self().id, "test"));
+      path::join(http.process->self().id, "test"));
 
   string localFile = path::join(os::getcwd(), "test");
   EXPECT_FALSE(os::exists(localFile));
@@ -371,7 +382,7 @@ TEST_F(FetcherTest, OSNetUriSpaceTest)
   SlaveID slaveId;
 
   // Verify that the intended endpoint is hit.
-  EXPECT_CALL(process, test(_))
+  EXPECT_CALL(*http.process, test(_))
     .WillOnce(Return(http::OK()));
 
   Future<Nothing> fetch = fetcher.fetch(
