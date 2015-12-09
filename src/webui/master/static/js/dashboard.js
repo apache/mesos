@@ -131,6 +131,22 @@ function metric_mem(context) {
 }
 
 
+function metric_disk(context) {
+  return context.metric(function(start, stop, step, callback) {
+    // Convert the start and stop "dates" into milliseconds.
+    start = +start, stop = +stop;
+
+    var values = [];
+    _((stop - start) / step).times(function() {
+      values.push(34);
+    });
+
+    // Return the data requested.
+    callback(null, values);
+  }, "disk");
+}
+
+
 function random(context, name) {
   var value = 0,
       values = [],

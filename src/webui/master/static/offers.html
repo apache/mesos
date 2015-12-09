@@ -16,6 +16,7 @@
       <th data-key="hostname">Host</th>
       <th data-key="resources.cpus">CPUs</th>
       <th data-key="resources.mem">Mem</th>
+      <th data-key="resources.disk">Mem</th>
     </tr>
   </thead>
   <tbody>
@@ -35,6 +36,7 @@
       </td>
       <td>{{offer.resources.cpus | number}}</td>
       <td>{{offer.resources.mem * (1024 * 1024) | dataSize}}</td>
+      <td>{{offer.resources.disk * (1024 * 1024) | dataSize}}</td>
     </tr>
   </tbody>
 </table>

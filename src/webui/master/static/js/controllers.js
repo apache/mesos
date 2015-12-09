@@ -118,10 +118,13 @@
     $scope.cluster = $scope.state.cluster;
     $scope.total_cpus = 0;
     $scope.total_mem = 0;
+    $scope.total_disk = 0;
     $scope.used_cpus = 0;
     $scope.used_mem = 0;
+    $scope.used_disk = 0;
     $scope.offered_cpus = 0;
     $scope.offered_mem = 0;
+    $scope.offered_disk = 0;
 
     $scope.activated_slaves = $scope.state.activated_slaves;
     $scope.deactivated_slaves = $scope.state.deactivated_slaves;
@@ -130,6 +133,7 @@
       $scope.slaves[slave.id] = slave;
       $scope.total_cpus += slave.resources.cpus;
       $scope.total_mem += slave.resources.mem;
+      $scope.total_disk += slave.resources.disk;
     });
 
     var setTaskMetadata = function(task) {
@@ -150,12 +154,14 @@
         $scope.offers[offer.id] = offer;
         $scope.offered_cpus += offer.resources.cpus;
         $scope.offered_mem += offer.resources.mem;
+        $scope.offered_disk += offer.resources.disk;
         offer.framework_name = $scope.frameworks[offer.framework_id].name;
         offer.hostname = $scope.slaves[offer.slave_id].hostname;
       });
 
       $scope.used_cpus += framework.resources.cpus;
       $scope.used_mem += framework.resources.mem;
+      $scope.used_disk += framework.resources.disk;
 
       framework.cpus_share = 0;
       if ($scope.total_cpus > 0) {
@@ -167,7 +173,12 @@
         framework.mem_share = framework.resources.mem / $scope.total_mem;
       }
 
-      framework.max_share = Math.max(framework.cpus_share, framework.mem_share);
+      framework.disk_share = 0;
+      if ($scope.total_disk > 0) {
+        framework.disk_share = framework.resources.disk / $scope.total_disk;
+      }
+
+      framework.max_share = Math.max(framework.cpus_share, framework.mem_share, framework.disk_share);
 
       // If the executor ID is empty, this is a command executor with an
       // internal executor ID generated from the task ID.
@@ -189,9 +200,11 @@
 
     $scope.used_cpus -= $scope.offered_cpus;
     $scope.used_mem -= $scope.offered_mem;
+    $scope.used_disk -= $scope.offered_disk;
 
     $scope.idle_cpus = $scope.total_cpus - ($scope.offered_cpus + $scope.used_cpus);
     $scope.idle_mem = $scope.total_mem - ($scope.offered_mem + $scope.used_mem);
+    $scope.idle_disk = $scope.total_disk - ($scope.offered_disk + $scope.used_disk);
 
     $scope.time_since_update = 0;
     $scope.$broadcast('state_updated');
@@ -477,11 +490,13 @@
             framework.num_tasks = 0;
             framework.cpus = 0;
             framework.mem = 0;
+            framework.disk = 0;
 
             _.each(framework.executors, function(executor) {
               framework.num_tasks += _.size(executor.tasks);
               framework.cpus += executor.resources.cpus;
               framework.mem += executor.resources.mem;
+              framework.disk += executor.resources.disk;
             });
           }
 
@@ -580,11 +595,13 @@
           $scope.framework.num_tasks = 0;
           $scope.framework.cpus = 0;
           $scope.framework.mem = 0;
+          $scope.framework.disk = 0;
 
           _.each($scope.framework.executors, function(executor) {
             $scope.framework.num_tasks += _.size(executor.tasks);
             $scope.framework.cpus += executor.resources.cpus;
             $scope.framework.mem += executor.resources.mem;
+            $scope.framework.disk += executor.resources.disk;
           });
 
           $('#slave').show();

@@ -79,7 +79,8 @@
           </tr>
           <tr>
             <td>Disk</td>
-            <td class="text-right">{{0 | dataSize}}</td>
+            <td class="text-right">
+              {{monitor.frameworks[framework.id].executors[executor.id].statistics.disk_used_bytes | dataSize}}</td>
             <td class="text-right">
               {{(executor.resources.disk || 0) * (1024 * 1024) | dataSize}}
             </td>
@@ -98,6 +99,7 @@
           <th data-key="name">Name</th>
           <th data-key="resources.cpus">CPUs</th>
           <th data-key="resources.mem">Mem</th>
+          <th data-key="resources.disk">Disk</th>
         </tr>
       </thead>
       <tbody>
@@ -106,6 +108,7 @@
           <td>{{queued_task.name}}</td>
           <td>{{queued_task.resources.cpus | number}}</td>
           <td>{{queued_task.resources.mem * (1024 * 1024) | dataSize}}</td>
+          <td>{{queued_task.resources.disk * (1024 * 1024) | dataSize}}</td>
         </tr>
       </tbody>
     </table>
@@ -119,6 +122,7 @@
           <th data-key="state">State</th>
           <th data-key="resources.cpus">CPUs (allocated)</th>
           <th data-key="resources.mem">Mem (allocated)</th>
+          <th data-key="resources.disk">Disk (allocated)</th>
           <th></th>
         </tr>
       </thead>
@@ -129,6 +133,7 @@
           <td>{{task.state}}</td>
           <td>{{task.resources.cpus | number}}</td>
           <td>{{task.resources.mem * (1024 * 1024) | dataSize}}</td>
+          <td>{{task.resources.disk * (1024 * 1024) | dataSize}}</td>
           <td>
             <a href="{{'#/slaves/' + slave_id + '/browse?path=' +
                        encodeURIComponent(executor.directory)}}">
@@ -148,6 +153,7 @@
           <th data-key="state">State</th>
           <th data-key="resources.cpus">CPUs (allocated)</th>
           <th data-key="resources.mem">Mem (allocated)</th>
+          <th data-key="resources.disk">Disk (allocated)</th>
           <th></th>
         </tr>
       </thead>
@@ -158,6 +164,7 @@
           <td>{{completed_task.state}}</td>
           <td>{{completed_task.resources.cpus | number}}</td>
           <td>{{completed_task.resources.mem * (1024 * 1024) | dataSize}}</td>
+          <td>{{completed_task.resources.disk * (1024 * 1024) | dataSize}}</td>
           <td>
             <a href="{{'#/slaves/' + slave_id + '/browse?path=' +
                        encodeURIComponent(executor.directory)}}">

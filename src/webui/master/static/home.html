@@ -93,6 +93,7 @@
             <td></td>
             <td class="text-right">CPUs</td>
             <td class="text-right">Mem</td>
+            <td class="text-right">Disk</td>
           </tr>
         </thead>
         <tbody>
@@ -100,21 +101,25 @@
             <td>Total</td>
             <td class="text-right">{{total_cpus | decimalFloat}}</td>
             <td class="text-right">{{total_mem * (1024 * 1024) | dataSize}}</td>
+            <td class="text-right">{{total_disk * (1024 * 1024) | dataSize}}</td>
           </tr>
           <tr>
             <td>Used</td>
             <td class="text-right">{{used_cpus | decimalFloat}}</td>
             <td class="text-right">{{used_mem * (1024 * 1024) | dataSize}}</td>
+            <td class="text-right">{{used_disk * (1024 * 1024) | dataSize}}</td>
           </tr>
           <tr>
             <td>Offered</td>
             <td class="text-right">{{offered_cpus | decimalFloat}}</td>
             <td class="text-right">{{offered_mem * (1024 * 1024) | dataSize}}</td>
+            <td class="text-right">{{offered_disk * (1024 * 1024) | dataSize}}</td>
           </tr>
           <tr>
             <td>Idle</td>
             <td class="text-right">{{idle_cpus | decimalFloat}}</td>
             <td class="text-right">{{idle_mem * (1024 * 1024) | dataSize}}</td>
+            <td class="text-right">{{idle_disk * (1024 * 1024) | dataSize}}</td>
           </tr>
         </tbody>
       </table>

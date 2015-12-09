@@ -16,6 +16,7 @@
       <th data-key="tasks.length">Active Tasks</th>
       <th data-key="resources.cpus">CPUs</th>
       <th data-key="resources.mem">Mem</th>
+      <th data-key="resources.disk">Disk</th>
       <th data-key="max_share">Max Share</th>
       <th data-key="registered_time">Registered</th>
       <th data-key="reregistered_time">Re-Registered</th>
@@ -43,6 +44,7 @@
       <td>{{framework.tasks.length}}</td>
       <td>{{framework.resources.cpus | number}}</td>
       <td>{{framework.resources.mem * (1024 * 1024) | dataSize}}</td>
+      <td>{{framework.resources.disk * (1024 * 1024) | dataSize}}</td>
       <td>{{framework.max_share * 100 | number}}%</td>
       <td>
         <m-timestamp value="{{framework.registered_time * 1000}}"></m-timestamp>

@@ -113,6 +113,8 @@
     this.cpus_total_usage = 0.0;
     this.mem_rss_bytes = 0.0;
     this.mem_limit_bytes = 0.0;
+    this.disk_used_bytes = 0.0;
+    this.disk_limit_bytes = 0.0;
     this.timestamp = 0.0;
   }
 
@@ -123,6 +125,8 @@
     this.cpus_limit += statistics.cpus_limit;
     this.mem_rss_bytes += statistics.mem_rss_bytes;
     this.mem_limit_bytes += statistics.mem_limit_bytes;
+    this.disk_used_bytes += statistics.disk_used_bytes;
+    this.disk_limit_bytes += statistics.disk_limit_bytes;
 
     // Set instead of add the timestamp since this is an instantaneous view of
     // CPU usage since the last poll.

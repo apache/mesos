@@ -98,7 +98,7 @@
           </tr>
           <tr>
             <td>Disk</td>
-            <td class="text-right">{{0 | dataSize}}</td>
+            <td class="text-right">{{monitor.statistics.disk_used_bytes | dataSize}}</td>
             <td class="text-right">
               {{state.resources.disk * (1024 * 1024) | dataSize}}
             </td>
@@ -119,6 +119,7 @@
           <th data-key="num_tasks">Active Tasks</th>
           <th data-key="cpus">CPUs (Used / Allocated)</th>
           <th data-key="Mem">Mem (Used / Allocated)</th>
+          <th data-key="Disk">Disk (Used / Allocated)</th>
         </tr>
       </thead>
       <tbody>
@@ -139,6 +140,7 @@
           <td>{{framework.num_tasks | number}}</td>
           <td>{{monitor.frameworks[framework.id].statistics.cpus_total_usage | number}} / {{framework.cpus | number}}</td>
           <td>{{monitor.frameworks[framework.id].statistics.mem_rss_bytes | dataSize}} / {{framework.mem * (1024 * 1024) | dataSize}}</td>
+          <td>{{monitor.frameworks[framework.id].statistics.disk_used_bytes | dataSize}} / {{framework.disk * (1024 * 1024) | dataSize}}</td>
         </tr>
       </tbody>
     </table>
@@ -153,6 +155,7 @@
           <th data-key="tasks.length">Active Tasks</th>
           <th data-key="resources.cpus">CPUs</th>
           <th data-key="resources.mem">Mem</th>
+          <th data-key="resources.disk">Mem</th>
         </tr>
       </thead>
       <tbody>
@@ -173,6 +176,7 @@
           <td>{{completed_framework.num_tasks | number}}</td>
           <td>{{completed_framework.cpus | number}}</td>
           <td>{{completed_framework.mem * (1024 * 1024) | dataSize}}</td>
+          <td>{{completed_framework.disk * (1024 * 1024) | dataSize}}</td>
         </tr>
       </tbody>
     </table>
