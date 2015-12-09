@@ -89,6 +89,7 @@ This guide describes the process of doing an official release of Mesos.
 6. If this is a major release, please ensure that user documentation has been
    added for any new features.
 
+7. Make sure that for any updates of the API, specifically the scheduler API, the public mesos protobuf definitions are part of both, `include/mesos` as well as `include/mesos/v1`. NOTE: This might actually demand code updates if any omissions were identified.
 
 ## Tagging the release candidate
 
