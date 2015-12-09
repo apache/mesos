@@ -24,7 +24,17 @@ exec 1>&2
 git diff-index --check --cached $against -- || exit 1
 
 # Check Mesos style.
-git diff --cached --name-only --diff-filter=AM | xargs ./support/mesos-style.py || exit 1
+ADDED_OR_MODIFIED=$(git diff --cached --name-only --diff-filter=AM)
+if [ -n "$ADDED_OR_MODIFIED" ]; then
+    # NOTE: We choose to implement this as a conditional rather than a call to
+    # `xargs` on purpose. Some implementations of `xargs` will call your script
+    # even if the arguments you pass in are empty. In our case, this would
+    # cause us to erroneously lint every file in the repository. Additionally,
+    # many implementations do not support the `-r` flag, (which instructs
+    # `xargs` to not run the script if the arguments are empty), so we also
+    # cannot use that.
+    ./support/mesos-style.py $ADDED_OR_MODIFIED || exit 1
+fi
 
 # Check that the commits are properly split between mesos, libprocess and stout.
 git diff --cached --name-only --diff-filter=AMD | xargs ./support/mesos_split.py || exit 1
