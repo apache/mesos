@@ -1545,10 +1545,10 @@ TEST_F(ReservationTest, ACLMultipleOperations)
   reserve->mutable_principals()->add_values(DEFAULT_CREDENTIAL.principal());
   reserve->mutable_resources()->set_type(mesos::ACL::Entity::ANY);
 
-  // This principal can unreserve any resources.
+  // This principal cannot unreserve any resources.
   mesos::ACL::UnreserveResources* unreserve = acls.add_unreserve_resources();
   unreserve->mutable_principals()->add_values(DEFAULT_CREDENTIAL.principal());
-  unreserve->mutable_reserver_principals()->set_type(mesos::ACL::Entity::ANY);
+  unreserve->mutable_reserver_principals()->set_type(mesos::ACL::Entity::NONE);
 
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_role("role");
@@ -1641,7 +1641,7 @@ TEST_F(ReservationTest, ACLMultipleOperations)
     .WillOnce(FutureArg<1>(&offers));
 
   // Create a task to launch with the resources of `dynamicallyReserved2`.
-  TaskInfo taskInfo =
+  TaskInfo taskInfo1 =
     createTask(offer.slave_id(), dynamicallyReserved2, "exit 1", exec.id);
 
   EXPECT_CALL(exec, registered(_, _, _, _));
@@ -1654,12 +1654,12 @@ TEST_F(ReservationTest, ACLMultipleOperations)
   EXPECT_CALL(sched, statusUpdate(_, _))
     .WillOnce(FutureArg<1>(&statusUpdateAcknowledgement));
 
-  // Attempt to unreserve an invalid set of resources (not dynamically
-  // reserved), reserve the second set, and launch a task.
+  // Attempt to unreserve a set of resources,
+  // reserve a second set, and launch a task.
   driver.acceptOffers({offer.id()},
-      {UNRESERVE(unreserved1),
+      {UNRESERVE(dynamicallyReserved1),
        RESERVE(dynamicallyReserved2),
-       LAUNCH({taskInfo})},
+       LAUNCH({taskInfo1})},
       filters);
 
   // Wait for TASK_FINISHED update ack.
@@ -1687,35 +1687,41 @@ TEST_F(ReservationTest, ACLMultipleOperations)
     .WillOnce(FutureArg<1>(&offers));
 
   // Create a task to launch with the resources of `dynamicallyReserved1`.
-  taskInfo =
+  TaskInfo taskInfo2 =
     createTask(offer.slave_id(), dynamicallyReserved1, "exit 1", exec.id);
+
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillOnce(SendStatusUpdateFromTask(TASK_FINISHED));
 
   Future<TaskStatus> failedTaskStatus;
   EXPECT_CALL(sched, statusUpdate(_, _))
     .WillOnce(FutureArg<1>(&failedTaskStatus));
 
-  // Unreserve all the dynamically reserved resources and attempt to launch a
-  // task on `dynamicallyReserved1`. This attempt should fail.
+  // Attempt to unreserve all the dynamically reserved resources
+  // and launch a task on `dynamicallyReserved1`.
   driver.acceptOffers({offer.id()},
       {UNRESERVE(dynamicallyReserved1),
        UNRESERVE(dynamicallyReserved2),
-       LAUNCH({taskInfo})},
+       LAUNCH({taskInfo2})},
       filters);
 
   process::Clock::settle();
   process::Clock::advance(masterFlags.allocation_interval);
 
-  // In the next offer, expect to find no reserved resources.
+  // In the next offer, expect to find the reserved resources.
   AWAIT_READY(offers);
 
   ASSERT_EQ(1u, offers.get().size());
   offer = offers.get()[0];
 
   EXPECT_TRUE(
-      Resources(offer.resources()).contains(unreserved1 + unreserved1));
+      Resources(offer.resources()).contains(
+          dynamicallyReserved1 +
+          dynamicallyReserved2 +
+          unreserved2));
 
-  // Check that the task failed to launch as expected.
-  EXPECT_EQ(TASK_ERROR, failedTaskStatus.get().state());
+  // Check that the task launched as expected.
+  EXPECT_EQ(TASK_FINISHED, failedTaskStatus.get().state());
 
   driver.stop();
   driver.join();
