@@ -954,8 +954,8 @@ TEST_F(ReservationEndpointsTest, BadUnreserveACL)
   TestAllocator<> allocator;
   ACLs acls;
 
-  // This ACL asserts that ANY principal can reserve NONE,
-  // i.e. no principals can reserve anything.
+  // This ACL asserts that ANY principal can unreserve NONE,
+  // i.e. no principals can unreserve anything.
   mesos::ACL::UnreserveResources* unreserve = acls.add_unreserve_resources();
   unreserve->mutable_principals()->set_type(mesos::ACL::Entity::ANY);
   unreserve->mutable_reserver_principals()->set_type(mesos::ACL::Entity::NONE);
