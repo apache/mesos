@@ -521,13 +521,6 @@ protected:
         {"SSL_KEY_FILE", key_path().value},
         {"SSL_CERT_FILE", certificate_path().value}});
   }
-
-  // Abstracts the concept of the directory the tests would be sandboxed to.
-  // TODO(jojy): Have uuid based unique working directory.
-  string working_directory()
-  {
-    return os::getcwd();
-  }
 };
 
 
@@ -834,6 +827,14 @@ TEST_F(RegistryClientTest, SimpleGetBlob)
 
   Future<Socket> socket = server.get().accept();
 
+  Try<Socket> blobServer = getServer();
+
+  ASSERT_SOME(blobServer);
+  ASSERT_SOME(blobServer.get().address());
+  ASSERT_SOME(blobServer.get().address().get().hostname());
+
+  Future<Socket> blobServerAcceptSocket = blobServer.get().accept();
+
   const process::http::URL url(
       "https",
       server.get().address().get().hostname().get(),
@@ -844,7 +845,7 @@ TEST_F(RegistryClientTest, SimpleGetBlob)
 
   ASSERT_SOME(registryClient);
 
-  const Path blobPath(path::join(working_directory(), "blob"));
+  const Path blobPath(path::join(os::getcwd(), "blob"));
 
   Future<size_t> result =
     registryClient.get()->getBlob(
@@ -898,16 +899,16 @@ TEST_F(RegistryClientTest, SimpleGetBlob)
   const string redirectHttpResponse =
     string("HTTP/1.1 307 Temporary Redirect\r\n") +
     "Location: https://" +
-    stringify(server.get().address().get()) + "\r\n" +
+    blobServer.get().address().get().hostname().get() + ":" +
+    stringify(blobServer.get().address().get().port) + "/blob \r\n" +
     "\r\n";
 
   AWAIT_ASSERT_READY(Socket(socket.get()).send(redirectHttpResponse));
 
   // Finally send blob response.
-  socket = server.get().accept();
-  AWAIT_ASSERT_READY(socket);
+  AWAIT_ASSERT_READY(blobServerAcceptSocket);
 
-  blobHttpRequest = Socket(socket.get()).recv();
+  blobHttpRequest = Socket(blobServerAcceptSocket.get()).recv();
   AWAIT_ASSERT_READY(blobHttpRequest);
 
   const string blobResponse = stringify(Clock::now());
@@ -919,7 +920,8 @@ TEST_F(RegistryClientTest, SimpleGetBlob)
     "\r\n" +
     blobResponse;
 
-  AWAIT_ASSERT_READY(Socket(socket.get()).send(blobHttpResponse));
+  AWAIT_ASSERT_READY(Socket(blobServerAcceptSocket.get()).send(
+      blobHttpResponse));
 
   AWAIT_ASSERT_READY(result);
 
@@ -949,7 +951,7 @@ TEST_F(RegistryClientTest, BadRequest)
 
   ASSERT_SOME(registryClient);
 
-  const Path blobPath(path::join(working_directory(), "blob"));
+  const Path blobPath(path::join(os::getcwd(), "blob"));
 
   Future<size_t> result =
     registryClient.get()->getBlob(
@@ -992,6 +994,14 @@ TEST_F(RegistryClientTest, SimpleRegistryPuller)
 
   Future<Socket> socket = server.get().accept();
 
+  Try<Socket> blobServer = getServer();
+
+  ASSERT_SOME(blobServer);
+  ASSERT_SOME(blobServer.get().address());
+  ASSERT_SOME(blobServer.get().address().get().hostname());
+
+  Future<Socket> blobServerAcceptSock = blobServer.get().accept();
+
   Flags flags;
   flags.docker_registry = server.get().address().get().hostname().get();
   flags.docker_registry_port = stringify(server.get().address().get().port);
@@ -1002,7 +1012,7 @@ TEST_F(RegistryClientTest, SimpleRegistryPuller)
 
   ASSERT_SOME(registryPuller);
 
-  const Path registryPullerPath(working_directory());
+  const Path registryPullerPath(os::getcwd());
 
   Try<slave::docker::Image::Name> imageName =
     parseImageName("busybox");
@@ -1120,11 +1130,18 @@ TEST_F(RegistryClientTest, SimpleRegistryPuller)
 
   const string redirectHttpResponse =
     string("HTTP/1.1 307 Temporary Redirect\r\n") +
+    "Content-Length : 0\r\n" +
     "Location: https://" +
-    stringify(server.get().address().get()) + "\r\n" +
+    blobServer.get().address().get().hostname().get() + ":" +
+    stringify(blobServer.get().address().get().port) + "/blob \r\n" +
     "\r\n";
 
   AWAIT_ASSERT_READY(Socket(socket.get()).send(redirectHttpResponse));
+
+  AWAIT_ASSERT_READY(blobServerAcceptSock);
+
+  registryPullerHttpRequestFuture = Socket(blobServerAcceptSock.get()).recv();
+  AWAIT_ASSERT_READY(registryPullerHttpRequestFuture);
 
   // Prepare the blob response from the server. The blob response buffer is a
   // tarball. So we create a tarball of our test response and send that.
@@ -1152,6 +1169,7 @@ TEST_F(RegistryClientTest, SimpleRegistryPuller)
       Subprocess::PATH("/dev/null"),
       Subprocess::PATH("/dev/null"),
       Subprocess::PATH("/dev/null"));
+
   ASSERT_SOME(s);
   AWAIT_ASSERT_READY(s.get().status());
 
@@ -1197,13 +1215,7 @@ TEST_F(RegistryClientTest, SimpleRegistryPuller)
       tarBuffer.get(),
       tarSize.get().bytes());
 
-  socket = server.get().accept();
-  AWAIT_ASSERT_READY(socket);
-
-  registryPullerHttpRequestFuture = Socket(socket.get()).recv();
-  AWAIT_ASSERT_READY(registryPullerHttpRequestFuture);
-
-  AWAIT_ASSERT_READY(Socket(socket.get()).send(
+  AWAIT_ASSERT_READY(Socket(blobServerAcceptSock.get()).send(
       responseBuffer.get(),
       blobResponseSize));
 
