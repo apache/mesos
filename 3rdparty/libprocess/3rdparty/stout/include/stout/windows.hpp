@@ -174,6 +174,13 @@ const mode_t S_ISGID = 0x04000000;        // No-op.
 const mode_t S_ISVTX = 0x02000000;        // No-op.
 
 
+inline auto strerror_r(int errnum, char* buffer, size_t length) ->
+decltype(strerror_s(buffer, length, errnum))
+{
+  return strerror_s(buffer, length, errnum);
+}
+
+
 // File I/O function aliases.
 //
 // NOTE: The use of `auto` and the trailing return type in the following
