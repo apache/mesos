@@ -45,9 +45,9 @@ message Images {
 
 
 /**
-* Protobuf for the Docker image manifest JSON schema:
-* https://github.com/docker/distribution/blob/master/docs/spec/manifest-v2-1.md
-*/
+ * Protobuf for the Docker image manifest JSON schema:
+ * https://github.com/docker/distribution/blob/master/docs/spec/manifest-v2-1.md
+ */
 message DockerImageManifest {
   required string name = 1;
   required string tag = 2;
