@@ -1094,6 +1094,12 @@ Try<Isolator*> PortMappingIsolatorProcess::create(const Flags& flags)
     return Error("Check command 'tc' failed: " + checkCommandTc.error());
   }
 
+  Try<string> checkCommandEthtool = os::shell("ethtool --version");
+  if (checkCommandEthtool.isError()) {
+    return Error("Check command 'ethtool' failed: "
+                 + checkCommandEthtool.error());
+  }
+
   Try<string> checkCommandIp = os::shell("ip link show");
   if (checkCommandIp.isError()) {
     return Error("Check command 'ip' failed: " + checkCommandIp.error());
@@ -3563,6 +3569,13 @@ string PortMappingIsolatorProcess::scripts(Info* info)
   script << "ip link set " << lo << " address " << hostMAC
          << " mtu " << hostEth0MTU << " up\n";
 
+  // NOTE: This is mostly a kernel issue: in veth_xmit() the kernel
+  // tags the packet's checksum as UNNECESSARY if we do not disable it
+  // here, this causes a corrupt packet to be delivered into the stack
+  // when we receive a packet with a bad checksum. Disabling rx
+  // checksum offloading ensures the TCP layer will checksum and drop
+  // it.
+  script << "ethtool -K " << eth0 << " rx off\n";
   script << "ip link set " << eth0 << " address " << hostMAC << " up\n";
   script << "ip addr add " << hostIPNetwork  << " dev " << eth0 << "\n";
 
