@@ -71,6 +71,7 @@ Release Notes - Mesos - Version 0.26.0 (WIP)
   * [MESOS-3974] - CgroupsAnyHierarchyMemoryPressureTest tests fail on CentOS 6.7.
   * [MESOS-3975] - SSL build of mesos causes flaky testsuite.
   * [MESOS-3989] - Add missing DiscoveryInfo field to v1/mesos.proto.
+  * [MESOS-4106] - The health checker may fail to inform the executor to kill an unhealthy task after max_consecutive_failures.
 
 ** Documentation
   * [MESOS-2783] - Document the fetcher.
@@ -100,6 +101,7 @@ Release Notes - Mesos - Version 0.26.0 (WIP)
   * [MESOS-3759] - Document messages.proto.
   * [MESOS-3788] - Clarify NetworkInfo semantics for IP addresses and group policies.
   * [MESOS-3819] - Add documentation explaining "roles".
+  * [MESOS-4015] - Expose task / executor health in master & slave state.json.
 
 ** Task
   * [MESOS-1832] - Slave should accept PingSlaveMessage but not "PING" message.
