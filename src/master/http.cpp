@@ -382,7 +382,7 @@ Future<Response> Master::Http::scheduler(const Request& request) const
 
   if (request.method != "POST") {
     return MethodNotAllowed(
-        "Expecting a 'POST' request, received '" + request.method + "'");
+        {"POST"}, "Expecting 'POST', received '" + request.method + "'");
   }
 
   v1::scheduler::Call v1Call;

@@ -221,7 +221,7 @@ Future<Response> Slave::Http::executor(const Request& request) const
 
   if (request.method != "POST") {
     return MethodNotAllowed(
-        "Expecting a 'POST' request, received '" + request.method + "'");
+        {"POST"}, "Expecting 'POST', received '" + request.method + "'");
   }
 
   v1::executor::Call v1Call;

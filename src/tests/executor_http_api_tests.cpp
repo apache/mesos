@@ -312,7 +312,7 @@ TEST_F(ExecutorHttpApiTest, GetRequest)
       "api/v1/executor");
 
   AWAIT_READY(response);
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(MethodNotAllowed().status, response);
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(MethodNotAllowed({"POST"}).status, response);
 
   Shutdown();
 }

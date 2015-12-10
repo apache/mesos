@@ -795,7 +795,7 @@ TEST_F(SchedulerHttpApiTest, GetRequest)
       "api/v1/scheduler");
 
   AWAIT_READY(response);
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(MethodNotAllowed().status, response);
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(MethodNotAllowed({"POST"}).status, response);
 }
 
 } // namespace tests {
