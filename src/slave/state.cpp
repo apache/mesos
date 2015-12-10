@@ -32,6 +32,7 @@
 #include <stout/try.hpp>
 
 #include <stout/os/bootid.hpp>
+#include <stout/os/close.hpp>
 #include <stout/os/exists.hpp>
 #include <stout/os/ftruncate.hpp>
 #include <stout/os/read.hpp>
