@@ -68,7 +68,7 @@ TEST_F(GroupTest, Group)
 
   Future<bool> cancellation = group.cancel(membership.get());
 
-  AWAIT_EXPECT_EQ(true, cancellation);
+  AWAIT_EXPECT_TRUE(cancellation);
 
   memberships = group.watch(memberships.get());
 
@@ -143,7 +143,7 @@ TEST_F(GroupTest, GroupDataWithRemovedMembership)
   EXPECT_EQ(1u, memberships.get().size());
   EXPECT_EQ(1u, memberships.get().count(membership.get()));
 
-  AWAIT_EXPECT_EQ(true, group.cancel(membership.get()));
+  AWAIT_EXPECT_TRUE(group.cancel(membership.get()));
 
   Future<Option<string> > data = group.data(membership.get());
 
@@ -179,7 +179,7 @@ TEST_F(GroupTest, GroupCancelWithDisconnect)
 
   server->startNetwork();
 
-  AWAIT_EXPECT_EQ(true, cancellation);
+  AWAIT_EXPECT_TRUE(cancellation);
 
   memberships = group.watch(memberships.get());
 
@@ -422,7 +422,7 @@ TEST_F(GroupTest, LabelledGroup)
 
   Future<bool> cancellation = group.cancel(membership.get());
 
-  AWAIT_EXPECT_EQ(true, cancellation);
+  AWAIT_EXPECT_TRUE(cancellation);
 
   memberships = group.watch(memberships.get());
 
