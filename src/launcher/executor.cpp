@@ -524,8 +524,10 @@ private:
 
     driver->sendStatusUpdate(taskStatus);
 
-    // A hack for now ... but we need to wait until the status update
-    // is sent to the slave before we shut ourselves down.
+    // This is a hack to ensure the message is sent to the
+    // slave before we exit the process. Without this, we
+    // may exit before libprocess has sent the data over
+    // the socket. See MESOS-4111.
     os::sleep(Seconds(1));
     driver->stop();
   }
