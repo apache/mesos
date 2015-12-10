@@ -14,23 +14,28 @@
 // See the License for the specific language governing permissions and
 // limitations under the License
 
-#include <unistd.h>
-
 #include <glog/logging.h>
 
 #include <iostream>
 
 #include <process/pid.hpp>
 
+#include <stout/check.hpp>
 #include <stout/error.hpp>
 #include <stout/foreach.hpp>
 #include <stout/format.hpp>
 #include <stout/none.hpp>
+#include <stout/nothing.hpp>
 #include <stout/numify.hpp>
-#include <stout/os.hpp>
 #include <stout/path.hpp>
 #include <stout/protobuf.hpp>
 #include <stout/try.hpp>
+
+#include <stout/os/bootid.hpp>
+#include <stout/os/exists.hpp>
+#include <stout/os/ftruncate.hpp>
+#include <stout/os/read.hpp>
+#include <stout/os/realpath.hpp>
 
 #include "messages/messages.hpp"
 
@@ -648,10 +653,13 @@ Try<TaskState> TaskState::recover(
   // NOTE: This is safe even though we ignore partial protobuf read
   // errors above, because the 'fd' is properly set to the end of the
   // last valid update by 'protobuf::read()'.
-  if (ftruncate(fd.get(), offset) != 0) {
+  Try<Nothing> truncated = os::ftruncate(fd.get(), offset);
+
+  if (truncated.isError()) {
     os::close(fd.get());
-    return ErrnoError(
-        "Failed to truncate status updates file '" + path + "'");
+    return Error(
+        "Failed to truncate status updates file '" + path +
+        "': " + truncated.error());
   }
 
   // After reading a non-corrupted updates file, 'record' should be
@@ -726,9 +734,13 @@ Try<ResourcesState> ResourcesState::recover(
   // NOTE: This is safe even though we ignore partial protobuf read
   // errors above, because the 'fd' is properly set to the end of the
   // last valid resource by 'protobuf::read()'.
-  if (ftruncate(fd.get(), offset) != 0) {
+  Try<Nothing> truncated = os::ftruncate(fd.get(), offset);
+
+  if (truncated.isError()) {
     os::close(fd.get());
-    return ErrnoError("Failed to truncate resources file '" + path + "'");
+    return Error(
+      "Failed to truncate resources file '" + path +
+      "': " + truncated.error());
   }
 
   // After reading a non-corrupted resources file, 'record' should be

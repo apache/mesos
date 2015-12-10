@@ -17,7 +17,9 @@
 #ifndef __SLAVE_STATE_HPP__
 #define __SLAVE_STATE_HPP__
 
+#ifndef __WINDOWS__
 #include <unistd.h>
+#endif // __WINDOWS__
 
 #include <vector>
 
@@ -29,12 +31,17 @@
 #include <stout/foreach.hpp>
 #include <stout/hashmap.hpp>
 #include <stout/hashset.hpp>
-#include <stout/os.hpp>
 #include <stout/path.hpp>
 #include <stout/protobuf.hpp>
 #include <stout/strings.hpp>
 #include <stout/utils.hpp>
 #include <stout/uuid.hpp>
+
+#include <stout/os/mkdir.hpp>
+#include <stout/os/mktemp.hpp>
+#include <stout/os/rename.hpp>
+#include <stout/os/rm.hpp>
+#include <stout/os/write.hpp>
 
 #include "messages/messages.hpp"
 
