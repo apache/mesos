@@ -690,10 +690,11 @@ TEST_F(RegistryClientTest, SimpleGetManifest)
   // Send 401 Unauthorized response for a manifest request.
   Future<string> manifestHttpRequest = Socket(socket.get()).recv();
   AWAIT_ASSERT_READY(manifestHttpRequest);
+
+  socket = server.get().accept();
   AWAIT_ASSERT_READY(Socket(socket.get()).send(unauthHttpResponse));
 
   // Token response.
-  socket = server.get().accept();
   AWAIT_ASSERT_READY(socket);
 
   Future<string> tokenRequest = Socket(socket.get()).recv();
@@ -709,10 +710,10 @@ TEST_F(RegistryClientTest, SimpleGetManifest)
     "\r\n" +
     tokenResponse;
 
+  socket = server.get().accept();
   AWAIT_ASSERT_READY(Socket(socket.get()).send(tokenHttpResponse));
 
   // Manifest response.
-  socket = server.get().accept();
   AWAIT_ASSERT_READY(socket);
 
   manifestHttpRequest = Socket(socket.get()).recv();
@@ -868,10 +869,11 @@ TEST_F(RegistryClientTest, SimpleGetBlob)
   // Send 401 Unauthorized response.
   Future<string> blobHttpRequest = Socket(socket.get()).recv();
   AWAIT_ASSERT_READY(blobHttpRequest);
+
+  socket = server.get().accept();
   AWAIT_ASSERT_READY(Socket(socket.get()).send(unauthHttpResponse));
 
   // Send token response.
-  socket = server.get().accept();
   AWAIT_ASSERT_READY(socket);
 
   Future<string> tokenRequest = Socket(socket.get()).recv();
@@ -887,10 +889,10 @@ TEST_F(RegistryClientTest, SimpleGetBlob)
     "\r\n" +
     tokenResponse;
 
+  socket = server.get().accept();
   AWAIT_ASSERT_READY(Socket(socket.get()).send(tokenHttpResponse));
 
   // Send redirect.
-  socket = server.get().accept();
   AWAIT_ASSERT_READY(socket);
 
   blobHttpRequest = Socket(socket.get()).recv();
@@ -1037,10 +1039,11 @@ TEST_F(RegistryClientTest, SimpleRegistryPuller)
   // Send 401 Unauthorized response for a manifest request.
   Future<string> registryPullerHttpRequestFuture = Socket(socket.get()).recv();
   AWAIT_ASSERT_READY(registryPullerHttpRequestFuture);
+
+  socket = server.get().accept();
   AWAIT_ASSERT_READY(Socket(socket.get()).send(unauthHttpResponse));
 
   // Token response.
-  socket = server.get().accept();
   AWAIT_ASSERT_READY(socket);
 
   Future<string> tokenRequestFuture = Socket(socket.get()).recv();
@@ -1056,10 +1059,10 @@ TEST_F(RegistryClientTest, SimpleRegistryPuller)
     "\r\n" +
     tokenResponse;
 
+  socket = server.get().accept();
   AWAIT_ASSERT_READY(Socket(socket.get()).send(tokenHttpResponse));
 
   // Manifest response.
-  socket = server.get().accept();
   AWAIT_ASSERT_READY(socket);
 
   registryPullerHttpRequestFuture = Socket(socket.get()).recv();
@@ -1119,10 +1122,10 @@ TEST_F(RegistryClientTest, SimpleRegistryPuller)
     "\r\n" +
     manifestResponse;
 
+  socket = server.get().accept();
   AWAIT_ASSERT_READY(Socket(socket.get()).send(manifestHttpResponse));
 
   // Redirect response.
-  socket = server.get().accept();
   AWAIT_ASSERT_READY(socket);
 
   registryPullerHttpRequestFuture = Socket(socket.get()).recv();
