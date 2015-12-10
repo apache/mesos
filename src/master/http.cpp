@@ -551,7 +551,8 @@ static Resources removeDiskInfos(const Resources& resources)
 Future<Response> Master::Http::createVolumes(const Request& request) const
 {
   if (request.method != "POST") {
-    return BadRequest("Expecting POST");
+    return MethodNotAllowed(
+        {"POST"}, "Expecting 'POST', received '" + request.method + "'");
   }
 
   Result<Credential> credential = authenticate(request);
@@ -639,7 +640,8 @@ string Master::Http::DESTROY_VOLUMES_HELP()
 Future<Response> Master::Http::destroyVolumes(const Request& request) const
 {
   if (request.method != "POST") {
-    return BadRequest("Expecting POST");
+    return MethodNotAllowed(
+        {"POST"}, "Expecting 'POST', received '" + request.method + "'");
   }
 
   Result<Credential> credential = authenticate(request);
@@ -965,7 +967,8 @@ string Master::Http::RESERVE_HELP()
 Future<Response> Master::Http::reserve(const Request& request) const
 {
   if (request.method != "POST") {
-    return BadRequest("Expecting POST");
+    return MethodNotAllowed(
+        {"POST"}, "Expecting 'POST', received '" + request.method + "'");
   }
 
   Result<Credential> credential = authenticate(request);
@@ -1106,8 +1109,9 @@ Future<Response> Master::Http::quota(const Request& request) const
   // TODO(joerg84): Add update logic for PUT requests
   // once Quota supports updates.
 
-  return BadRequest(
-      "Expecting GET, DELETE or POST, got '" + request.method + "'");
+  return MethodNotAllowed(
+      {"GET", "POST", "DELETE"},
+      "Expecting 'GET', 'POST' or 'DELETE', received '" + request.method + "'");
 }
 
 
@@ -1570,7 +1574,8 @@ string Master::Http::TEARDOWN_HELP()
 Future<Response> Master::Http::teardown(const Request& request) const
 {
   if (request.method != "POST") {
-    return BadRequest("Expecting POST");
+    return MethodNotAllowed(
+        {"POST"}, "Expecting 'POST', received '" + request.method + "'");
   }
 
   Result<Credential> credential = authenticate(request);
@@ -1787,7 +1792,9 @@ string Master::Http::MAINTENANCE_SCHEDULE_HELP()
 Future<Response> Master::Http::maintenanceSchedule(const Request& request) const
 {
   if (request.method != "GET" && request.method != "POST") {
-    return BadRequest("Expecting GET or POST, got '" + request.method + "'");
+    return MethodNotAllowed(
+        {"GET", "POST"},
+        "Expecting 'GET' or 'POST', received '" + request.method + "'");
   }
 
   // JSON-ify and return the current maintenance schedule.
@@ -1905,7 +1912,8 @@ string Master::Http::MACHINE_DOWN_HELP()
 Future<Response> Master::Http::machineDown(const Request& request) const
 {
   if (request.method != "POST") {
-    return BadRequest("Expecting POST, got '" + request.method + "'");
+    return MethodNotAllowed(
+        {"POST"}, "Expecting 'POST', received '" + request.method + "'");
   }
 
   // Parse the POST body as JSON.
@@ -2007,7 +2015,8 @@ string Master::Http::MACHINE_UP_HELP()
 Future<Response> Master::Http::machineUp(const Request& request) const
 {
   if (request.method != "POST") {
-    return BadRequest("Expecting POST, got '" + request.method + "'");
+    return MethodNotAllowed(
+        {"POST"}, "Expecting 'POST', received '" + request.method + "'");
   }
 
   // Parse the POST body as JSON.
@@ -2110,7 +2119,8 @@ string Master::Http::MAINTENANCE_STATUS_HELP()
 Future<Response> Master::Http::maintenanceStatus(const Request& request) const
 {
   if (request.method != "GET") {
-    return BadRequest("Expecting GET, got '" + request.method + "'");
+    return MethodNotAllowed(
+        {"GET"}, "Expecting 'GET', received '" + request.method + "'");
   }
 
   return master->allocator->getInverseOfferStatuses()
@@ -2182,7 +2192,8 @@ string Master::Http::UNRESERVE_HELP()
 Future<Response> Master::Http::unreserve(const Request& request) const
 {
   if (request.method != "POST") {
-    return BadRequest("Expecting POST");
+    return MethodNotAllowed(
+        {"POST"}, "Expecting 'POST', received '" + request.method + "'");
   }
 
   Result<Credential> credential = authenticate(request);
