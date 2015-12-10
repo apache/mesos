@@ -278,6 +278,7 @@ Master::Master(
     const Flags& _flags)
   : ProcessBase("master"),
     flags(_flags),
+    http(this),
     allocator(_allocator),
     registrar(_registrar),
     repairer(_repairer),
@@ -743,57 +744,55 @@ void Master::initialize()
       &AuthenticateMessage::pid);
 
   // Setup HTTP routes.
-  Http http = Http(this);
-
   route("/api/v1/scheduler",
         Http::SCHEDULER_HELP(),
-        [http](const process::http::Request& request) {
+        [this](const process::http::Request& request) {
           Http::log(request);
           return http.scheduler(request);
         });
   route("/create-volumes",
         Http::CREATE_VOLUMES_HELP(),
-        [http](const process::http::Request& request) {
+        [this](const process::http::Request& request) {
           Http::log(request);
           return http.createVolumes(request);
         });
   route("/destroy-volumes",
         Http::DESTROY_VOLUMES_HELP(),
-        [http](const process::http::Request& request) {
+        [this](const process::http::Request& request) {
           Http::log(request);
           return http.destroyVolumes(request);
         });
   route("/frameworks",
         Http::FRAMEWORKS(),
-        [http](const process::http::Request& request) {
+        [this](const process::http::Request& request) {
           Http::log(request);
           return http.frameworks(request);
         });
   route("/flags",
         Http::FLAGS_HELP(),
-        [http](const process::http::Request& request) {
+        [this](const process::http::Request& request) {
           Http::log(request);
           return http.flags(request);
         });
   route("/health",
         Http::HEALTH_HELP(),
-        [http](const process::http::Request& request) {
+        [this](const process::http::Request& request) {
           return http.health(request);
         });
   route("/observe",
         Http::OBSERVE_HELP(),
-        [http](const process::http::Request& request) {
+        [this](const process::http::Request& request) {
           Http::log(request);
           return http.observe(request);
         });
   route("/redirect",
         Http::REDIRECT_HELP(),
-        [http](const process::http::Request& request) {
+        [this](const process::http::Request& request) {
           return http.redirect(request);
         });
   route("/reserve",
         Http::RESERVE_HELP(),
-        [http](const process::http::Request& request) {
+        [this](const process::http::Request& request) {
           Http::log(request);
           return http.reserve(request);
         });
@@ -801,25 +800,25 @@ void Master::initialize()
   // deprecation cycle on 0.26.
   route("/roles.json",
         Http::ROLES_HELP(),
-        [http](const process::http::Request& request) {
+        [this](const process::http::Request& request) {
           Http::log(request);
           return http.roles(request);
         });
   route("/roles",
         Http::ROLES_HELP(),
-        [http](const process::http::Request& request) {
+        [this](const process::http::Request& request) {
           Http::log(request);
           return http.roles(request);
         });
   route("/teardown",
         Http::TEARDOWN_HELP(),
-        [http](const process::http::Request& request) {
+        [this](const process::http::Request& request) {
           Http::log(request);
           return http.teardown(request);
         });
   route("/slaves",
         Http::SLAVES_HELP(),
-        [http](const process::http::Request& request) {
+        [this](const process::http::Request& request) {
           Http::log(request);
           return http.slaves(request);
         });
@@ -827,19 +826,19 @@ void Master::initialize()
   // deprecation cycle on 0.26.
   route("/state.json",
         Http::STATE_HELP(),
-        [http](const process::http::Request& request) {
+        [this](const process::http::Request& request) {
           Http::log(request);
           return http.state(request);
         });
   route("/state",
         Http::STATE_HELP(),
-        [http](const process::http::Request& request) {
+        [this](const process::http::Request& request) {
           Http::log(request);
           return http.state(request);
         });
   route("/state-summary",
         Http::STATESUMMARY_HELP(),
-        [http](const process::http::Request& request) {
+        [this](const process::http::Request& request) {
           Http::log(request);
           return http.stateSummary(request);
         });
@@ -847,49 +846,49 @@ void Master::initialize()
   // deprecation cycle.
   route("/tasks.json",
         Http::TASKS_HELP(),
-        [http](const process::http::Request& request) {
+        [this](const process::http::Request& request) {
           Http::log(request);
           return http.tasks(request);
         });
   route("/tasks",
         Http::TASKS_HELP(),
-        [http](const process::http::Request& request) {
+        [this](const process::http::Request& request) {
           Http::log(request);
           return http.tasks(request);
         });
   route("/maintenance/schedule",
         Http::MAINTENANCE_SCHEDULE_HELP(),
-        [http](const process::http::Request& request) {
+        [this](const process::http::Request& request) {
           Http::log(request);
           return http.maintenanceSchedule(request);
         });
   route("/maintenance/status",
         Http::MAINTENANCE_STATUS_HELP(),
-        [http](const process::http::Request& request) {
+        [this](const process::http::Request& request) {
           Http::log(request);
           return http.maintenanceStatus(request);
         });
   route("/machine/down",
         Http::MACHINE_DOWN_HELP(),
-        [http](const process::http::Request& request) {
+        [this](const process::http::Request& request) {
           Http::log(request);
           return http.machineDown(request);
         });
   route("/machine/up",
         Http::MACHINE_UP_HELP(),
-        [http](const process::http::Request& request) {
+        [this](const process::http::Request& request) {
           Http::log(request);
           return http.machineUp(request);
         });
   route("/unreserve",
         Http::UNRESERVE_HELP(),
-        [http](const process::http::Request& request) {
+        [this](const process::http::Request& request) {
           Http::log(request);
           return http.unreserve(request);
         });
   route("/quota",
         Http::QUOTA_HELP(),
-        [http](const process::http::Request& request) {
+        [this](const process::http::Request& request) {
           Http::log(request);
           return http.quota(request);
         });

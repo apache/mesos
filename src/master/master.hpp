@@ -1131,6 +1131,8 @@ private:
 
   const Flags flags;
 
+  Http http;
+
   Option<MasterInfo> leader; // Current leading master.
 
   mesos::master::allocator::Allocator* allocator;
