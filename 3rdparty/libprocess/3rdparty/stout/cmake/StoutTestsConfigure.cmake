@@ -111,7 +111,7 @@ else (WIN32)
   set(STOUT_TEST_LIBS
     ${STOUT_TEST_LIBS}
     ${GTEST_LFLAG}
-    dl
+    ${DL_LFLAG}
     apr-1
     )
 endif (WIN32)
