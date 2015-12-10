@@ -621,8 +621,7 @@ TEST_F(HealthCheckTest, ROOT_DOCKER_DockerHealthStatusChange)
 
 
 // Testing killing task after number of consecutive failures.
-// Temporarily disabled due to MESOS-1613.
-TEST_F(HealthCheckTest, DISABLED_ConsecutiveFailures)
+TEST_F(HealthCheckTest, ConsecutiveFailures)
 {
   Try<PID<Master> > master = StartMaster();
   ASSERT_SOME(master);
