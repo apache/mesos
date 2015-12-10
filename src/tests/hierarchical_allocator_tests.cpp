@@ -1772,6 +1772,51 @@ TEST_F(HierarchicalAllocatorTest, QuotaAgainstStarvation)
 }
 
 
+// This test checks that quota is respected even for roles that don't
+// have any frameworks currently registered.
+TEST_F(HierarchicalAllocatorTest, QuotaAbsentFramework)
+{
+  Clock::pause();
+
+  const string QUOTA_ROLE{"quota-role"};
+  const string NO_QUOTA_ROLE{"no-quota-role"};
+
+  hashmap<FrameworkID, Resources> EMPTY;
+
+  initialize(vector<string>{QUOTA_ROLE, NO_QUOTA_ROLE});
+
+  SlaveInfo agent1 = createSlaveInfo("cpus:2;mem:1024;disk:0");
+  SlaveInfo agent2 = createSlaveInfo("cpus:1;mem:512;disk:0");
+
+  allocator->addSlave(agent1.id(), agent1, None(), agent1.resources(), EMPTY);
+  allocator->addSlave(agent2.id(), agent2, None(), agent2.resources(), EMPTY);
+
+  // Set quota for the quota'ed role.
+  const QuotaInfo quota1 = createQuotaInfo(QUOTA_ROLE, "cpus:2;mem:1024");
+  allocator->setQuota(QUOTA_ROLE, quota1);
+
+  // Add `framework1` in the non-quota'ed role.
+  FrameworkInfo framework1 = createFrameworkInfo(NO_QUOTA_ROLE);
+  allocator->addFramework(
+      framework1.id(), framework1, hashmap<SlaveID, Resources>());
+
+  // `framework1` can only be allocated resources on `agent2`. This
+  // is due to the coarse-grained nature of the allocations. All the
+  // free resources on `agent1` would be considered to construct an
+  // offer, and that would exceed the resources allowed to be offered
+  // to the non-quota'ed role.
+  //
+  // NOTE: We would prefer to test that, without the presence of
+  // `agent2`, `framework` is not allocated anything. However, we
+  // can't easily test for the absence of an allocation from the
+  // framework side, so we make due with this instead.
+  Future<Allocation> allocation = allocations.get();
+  AWAIT_READY(allocation);
+  EXPECT_EQ(framework1.id(), allocation.get().frameworkId);
+  EXPECT_EQ(agent2.resources(), Resources::sum(allocation.get().resources));
+}
+
+
 class HierarchicalAllocator_BENCHMARK_Test
   : public HierarchicalAllocatorTestBase,
     public WithParamInterface<std::tr1::tuple<size_t, size_t>>
