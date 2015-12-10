@@ -661,12 +661,11 @@ message Archive {
 
 
 /**
- * Message describing task current health status that is sent by
- * the task health checker to the command executor.
- * The command executor reports the task status back to the
- * on each receive. If the health checker configured failure
- * condition meets, then `kill_task` flag will be set to true which
- * the executor on message receive will kill the task.
+ * Message describing a task's current health status, which is sent by
+ * the health check program to the executor.
+ * On each receive, if the number of consecutive failed health checks
+ * meets the `consecutive_failure` configuration, then `kill_task`
+ * flag will be set to true.
  */
 message TaskHealthStatus {
   required TaskID task_id = 1;
@@ -676,7 +675,7 @@ message TaskHealthStatus {
   // Flag to initiate task kill.
   optional bool kill_task = 3 [default = false];
 
-  // Number of consecutive counts in current status.
+  // Number of consecutive failures observed by the health check program.
   // This will not be populated if task is healthy.
   optional int32 consecutive_failures = 4;
 }
