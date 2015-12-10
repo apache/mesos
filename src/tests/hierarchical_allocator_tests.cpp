@@ -16,7 +16,6 @@
 
 #include <atomic>
 #include <iostream>
-#include <queue>
 #include <string>
 #include <utility>
 #include <vector>
@@ -28,7 +27,6 @@
 #include <process/clock.hpp>
 #include <process/future.hpp>
 #include <process/gtest.hpp>
-#include <process/shared.hpp>
 #include <process/queue.hpp>
 
 #include <stout/duration.hpp>
@@ -59,12 +57,10 @@ using mesos::quota::QuotaInfo;
 
 using process::Clock;
 using process::Future;
-using process::Shared;
 
 using std::atomic;
 using std::cout;
 using std::endl;
-using std::queue;
 using std::string;
 using std::vector;
 
@@ -1168,8 +1164,8 @@ TEST_F(HierarchicalAllocatorTest, QuotaProvidesQuarantee)
   // would slow down the test.
   Clock::pause();
 
-  const std::string QUOTA_ROLE{"quota-role"};
-  const std::string NO_QUOTA_ROLE{"no-quota-role"};
+  const string QUOTA_ROLE{"quota-role"};
+  const string NO_QUOTA_ROLE{"no-quota-role"};
 
   hashmap<FrameworkID, Resources> EMPTY;
 
@@ -1287,8 +1283,8 @@ TEST_F(HierarchicalAllocatorTest, RemoveQuota)
   // would slow down the test.
   Clock::pause();
 
-  const std::string QUOTA_ROLE{"quota-role"};
-  const std::string NO_QUOTA_ROLE{"no-quota-role"};
+  const string QUOTA_ROLE{"quota-role"};
+  const string NO_QUOTA_ROLE{"no-quota-role"};
 
   initialize(vector<string>{QUOTA_ROLE, NO_QUOTA_ROLE});
 
@@ -1382,8 +1378,8 @@ TEST_F(HierarchicalAllocatorTest, MultipleFrameworksInRoleWithQuota)
   // would slow down the test.
   Clock::pause();
 
-  const std::string QUOTA_ROLE{"quota-role"};
-  const std::string NO_QUOTA_ROLE{"no-quota-role"};
+  const string QUOTA_ROLE{"quota-role"};
+  const string NO_QUOTA_ROLE{"no-quota-role"};
 
   hashmap<FrameworkID, Resources> EMPTY;
 
@@ -1502,8 +1498,8 @@ TEST_F(HierarchicalAllocatorTest, QuotaAllocationGranularity)
   // would slow down the test.
   Clock::pause();
 
-  const std::string QUOTA_ROLE{"quota-role"};
-  const std::string NO_QUOTA_ROLE{"no-quota-role"};
+  const string QUOTA_ROLE{"quota-role"};
+  const string NO_QUOTA_ROLE{"no-quota-role"};
 
   hashmap<FrameworkID, Resources> EMPTY;
 
@@ -1556,8 +1552,8 @@ TEST_F(HierarchicalAllocatorTest, DRFWithQuota)
   // would slow down the test.
   Clock::pause();
 
-  const std::string QUOTA_ROLE{"quota-role"};
-  const std::string NO_QUOTA_ROLE{"no-quota-role"};
+  const string QUOTA_ROLE{"quota-role"};
+  const string NO_QUOTA_ROLE{"no-quota-role"};
 
   initialize(vector<string>{QUOTA_ROLE, NO_QUOTA_ROLE});
 
@@ -1655,8 +1651,8 @@ TEST_F(HierarchicalAllocatorTest, QuotaAgainstStarvation)
   // would slow down the test.
   Clock::pause();
 
-  const std::string QUOTA_ROLE{"quota-role"};
-  const std::string NO_QUOTA_ROLE{"no-quota-role"};
+  const string QUOTA_ROLE{"quota-role"};
+  const string NO_QUOTA_ROLE{"no-quota-role"};
 
   initialize(vector<string>{QUOTA_ROLE, NO_QUOTA_ROLE});
 
