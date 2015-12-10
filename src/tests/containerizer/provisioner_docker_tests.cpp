@@ -522,25 +522,14 @@ protected:
         {"SSL_CERT_FILE", certificate_path().value}});
   }
 
-  static void SetUpTestCase()
+  // Abstracts the concept of the directory the tests would be sandboxed to.
+  // TODO(jojy): Have uuid based unique working directory.
+  string working_directory()
   {
-    if (os::mkdir(RegistryClientTest::OUTPUT_DIR).isError()) {
-      ABORT("Could not create temporary directory: " +
-          RegistryClientTest::OUTPUT_DIR);
-    }
+    return os::getcwd();
   }
-
-  static void TearDownTestCase()
-  {
-    SSLTest::TearDownTestCase();
-
-    os::rmdir(RegistryClientTest::OUTPUT_DIR);
-  }
-
-  static const string OUTPUT_DIR;
 };
 
-const string RegistryClientTest::OUTPUT_DIR = "output_dir";
 
 // Tests TokenManager for a simple token request.
 TEST_F(RegistryClientTest, SimpleGetToken)
@@ -855,7 +844,7 @@ TEST_F(RegistryClientTest, SimpleGetBlob)
 
   ASSERT_SOME(registryClient);
 
-  const Path blobPath(RegistryClientTest::OUTPUT_DIR + "/blob");
+  const Path blobPath(path::join(working_directory(), "blob"));
 
   Future<size_t> result =
     registryClient.get()->getBlob(
@@ -960,7 +949,7 @@ TEST_F(RegistryClientTest, BadRequest)
 
   ASSERT_SOME(registryClient);
 
-  const Path blobPath(RegistryClientTest::OUTPUT_DIR + "/blob");
+  const Path blobPath(path::join(working_directory(), "blob"));
 
   Future<size_t> result =
     registryClient.get()->getBlob(
@@ -1013,7 +1002,7 @@ TEST_F(RegistryClientTest, SimpleRegistryPuller)
 
   ASSERT_SOME(registryPuller);
 
-  const Path registryPullerPath(RegistryClientTest::OUTPUT_DIR);
+  const Path registryPullerPath(working_directory());
 
   Try<slave::docker::Image::Name> imageName =
     parseImageName("busybox");
