@@ -223,6 +223,10 @@ JSON::Object model(const TaskStatus& status)
     object.values["container_status"] = model(status.container_status());
   }
 
+  if (status.has_healthy()) {
+    object.values["healthy"] = status.healthy();
+  }
+
   return object;
 }
 

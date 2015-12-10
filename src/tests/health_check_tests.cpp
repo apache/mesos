@@ -36,6 +36,8 @@
 #include "tests/mesos.hpp"
 #include "tests/utils.hpp"
 
+namespace http = process::http;
+
 using mesos::internal::master::Master;
 
 using mesos::internal::slave::Containerizer;
@@ -243,6 +245,32 @@ TEST_F(HealthCheckTest, HealthyTask)
   EXPECT_EQ(TASK_RUNNING, implicitReconciliation.get().state());
   EXPECT_TRUE(implicitReconciliation.get().has_healthy());
   EXPECT_TRUE(implicitReconciliation.get().healthy());
+
+  // Verify that task health is exposed in the master's state endpoint.
+  {
+    Future<http::Response> response = http::get(master.get(), "state");
+    AWAIT_READY(response);
+
+    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+    ASSERT_SOME(parse);
+
+    Result<JSON::Value> find = parse.get().find<JSON::Value>(
+        "frameworks[0].tasks[0].statuses[0].healthy");
+    EXPECT_SOME_EQ(true, find);
+  }
+
+  // Verify that task health is exposed in the slave's state endpoint.
+  {
+    Future<http::Response> response = http::get(slave.get(), "state");
+    AWAIT_READY(response);
+
+    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+    ASSERT_SOME(parse);
+
+    Result<JSON::Value> find = parse.get().find<JSON::Value>(
+        "frameworks[0].executors[0].tasks[0].statuses[0].healthy");
+    EXPECT_SOME_EQ(true, find);
+  }
 
   driver.stop();
   driver.join();
@@ -483,13 +511,95 @@ TEST_F(HealthCheckTest, HealthStatusChange)
   EXPECT_EQ(TASK_RUNNING, statusHealth1.get().state());
   EXPECT_TRUE(statusHealth1.get().healthy());
 
+  // Verify that task health is exposed in the master's state endpoint.
+  {
+    Future<http::Response> response = http::get(master.get(), "state");
+    AWAIT_READY(response);
+
+    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+    ASSERT_SOME(parse);
+
+    Result<JSON::Value> find = parse.get().find<JSON::Value>(
+        "frameworks[0].tasks[0].statuses[0].healthy");
+    EXPECT_SOME_EQ(true, find);
+  }
+
+  // Verify that task health is exposed in the slave's state endpoint.
+  {
+    Future<http::Response> response = http::get(slave.get(), "state");
+    AWAIT_READY(response);
+
+    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+    ASSERT_SOME(parse);
+
+    Result<JSON::Value> find = parse.get().find<JSON::Value>(
+        "frameworks[0].executors[0].tasks[0].statuses[0].healthy");
+    EXPECT_SOME_EQ(true, find);
+  }
+
   AWAIT_READY(statusHealth2);
   EXPECT_EQ(TASK_RUNNING, statusHealth2.get().state());
   EXPECT_FALSE(statusHealth2.get().healthy());
 
+  // Verify that the task health change is reflected in the master's
+  // state endpoint.
+  {
+    Future<http::Response> response = http::get(master.get(), "state");
+    AWAIT_READY(response);
+
+    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+    ASSERT_SOME(parse);
+
+    Result<JSON::Value> find = parse.get().find<JSON::Value>(
+        "frameworks[0].tasks[0].statuses[0].healthy");
+    EXPECT_SOME_EQ(false, find);
+  }
+
+  // Verify that the task health change is reflected in the slave's
+  // state endpoint.
+  {
+    Future<http::Response> response = http::get(slave.get(), "state");
+    AWAIT_READY(response);
+
+    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+    ASSERT_SOME(parse);
+
+    Result<JSON::Value> find = parse.get().find<JSON::Value>(
+        "frameworks[0].executors[0].tasks[0].statuses[0].healthy");
+    EXPECT_SOME_EQ(false, find);
+  }
+
   AWAIT_READY(statusHealth3);
   EXPECT_EQ(TASK_RUNNING, statusHealth3.get().state());
   EXPECT_TRUE(statusHealth3.get().healthy());
+
+  // Verify through master's state endpoint that the task is back to a
+  // healthy state.
+  {
+    Future<http::Response> response = http::get(master.get(), "state");
+    AWAIT_READY(response);
+
+    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+    ASSERT_SOME(parse);
+
+    Result<JSON::Value> find = parse.get().find<JSON::Value>(
+        "frameworks[0].tasks[0].statuses[0].healthy");
+    EXPECT_SOME_EQ(true, find);
+  }
+
+  // Verify through slave's state endpoint that the task is back to a
+  // healthy state.
+  {
+    Future<http::Response> response = http::get(slave.get(), "state");
+    AWAIT_READY(response);
+
+    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+    ASSERT_SOME(parse);
+
+    Result<JSON::Value> find = parse.get().find<JSON::Value>(
+        "frameworks[0].executors[0].tasks[0].statuses[0].healthy");
+    EXPECT_SOME_EQ(true, find);
+  }
 
   os::rm(tmpPath); // Clean up the temporary file.
 
