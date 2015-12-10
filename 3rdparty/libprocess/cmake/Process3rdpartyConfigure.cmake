@@ -98,8 +98,11 @@ if (WIN32)
   set(GLOG_LFLAG     libglog)
   set(PROTOBUF_LFLAG libprotobuf)
 else (WIN32)
+  set(CURL_LFLAG     curl)
+  set(DL_LFLAG       dl)
   set(GLOG_LFLAG     glog)
   set(PROTOBUF_LFLAG protobuf)
+  set(SASL_LFLAG     sasl2)
 endif (WIN32)
 
 # Convenience variable for `protoc`, the Protobuf compiler.
@@ -112,3 +115,9 @@ endif (NOT WIN32)
 # Configure the process library, the last of our third-party libraries.
 #######################################################################
 include(ProcessConfigure)
+
+# Define target for AGENT.
+##########################
+set(
+  AGENT_TARGET mesos-slave
+  CACHE STRING "Target we use to refer to slave executable")
