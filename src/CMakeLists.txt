@@ -192,6 +192,7 @@ set(SCHEDULER_SRC
 set(AGENT_SRC
   ${AGENT_SRC}
   slave/constants.cpp
+  slave/state.cpp
   )
 
 if (NOT WIN32)
@@ -207,7 +208,6 @@ if (NOT WIN32)
     slave/qos_controllers/noop.cpp
     slave/resource_estimator.cpp
     slave/slave.cpp
-    slave/state.cpp
     slave/status_update_manager.cpp
     slave/validation.cpp
     slave/containerizer/composing.cpp
