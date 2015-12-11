@@ -14,9 +14,12 @@
 #define __STOUT_WINDOWS_HPP__
 
 
-#include <direct.h> // For `_mkdir`.
-#include <fcntl.h>  // For file access flags like `_O_CREAT`.
-#include <io.h>     // For `_read`, `_write`.
+#include <direct.h>   // For `_mkdir`.
+#include <fcntl.h>    // For file access flags like `_O_CREAT`.
+#include <io.h>       // For `_read`, `_write`.
+#include <stdlib.h>   // For `_PATH_MAX`.
+
+#include <sys/stat.h> // For permissions flags.
 
 #include <BaseTsd.h> // For `SSIZE_T`.
 // We include `Winsock2.h` before `Windows.h` explicitly to avoid symbold
