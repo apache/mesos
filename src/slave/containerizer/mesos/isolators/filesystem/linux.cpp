@@ -378,13 +378,11 @@ Future<Option<ContainerPrepareInfo>> LinuxFilesystemIsolatorProcess::__prepare(
     // Save the path 'sandbox' which will be used in 'cleanup()'.
     info->sandbox = sandbox;
 
-    if (!os::exists(sandbox)) {
-      Try<Nothing> mkdir = os::mkdir(sandbox);
-      if (mkdir.isError()) {
-        return Failure(
-            "Failed to create sandbox mount point at '" +
-            sandbox + "': " + mkdir.error());
-      }
+    Try<Nothing> mkdir = os::mkdir(sandbox);
+    if (mkdir.isError()) {
+      return Failure(
+          "Failed to create sandbox mount point at '" +
+          sandbox + "': " + mkdir.error());
     }
 
     LOG(INFO) << "Bind mounting work directory from '" << directory
@@ -530,16 +528,14 @@ Try<string> LinuxFilesystemIsolatorProcess::script(
       // work directory because a user can potentially use a container
       // path like '../../abc'.
 
-      if (!os::exists(source)) {
-        Try<Nothing> mkdir = os::mkdir(source);
-        if (mkdir.isError()) {
-          return Error(
-              "Failed to create the source of the mount at '" +
-              source + "': " + mkdir.error());
-        }
-
-        // TODO(idownes): Consider setting ownership and mode.
+      Try<Nothing> mkdir = os::mkdir(source);
+      if (mkdir.isError()) {
+        return Error(
+            "Failed to create the source of the mount at '" +
+            source + "': " + mkdir.error());
       }
+
+      // TODO(idownes): Consider setting ownership and mode.
     }
 
     // Determine the target of the mount.
@@ -575,13 +571,11 @@ Try<string> LinuxFilesystemIsolatorProcess::script(
       // sandbox because a user can potentially use a container path
       // like '../../abc'.
 
-      if (!os::exists(target)) {
-        Try<Nothing> mkdir = os::mkdir(target);
-        if (mkdir.isError()) {
-          return Error(
-              "Failed to create the target of the mount at '" +
-              target + "': " + mkdir.error());
-        }
+      Try<Nothing> mkdir = os::mkdir(target);
+      if (mkdir.isError()) {
+        return Error(
+            "Failed to create the target of the mount at '" +
+            target + "': " + mkdir.error());
       }
     }
 
