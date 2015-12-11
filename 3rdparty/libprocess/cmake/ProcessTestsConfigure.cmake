@@ -49,8 +49,8 @@ set(GTEST_INCLUDE_DIR ${GTEST_SRC}/include)
 
 # Convenience variables for `lib` directories of built third-party dependencies.
 if (WIN32)
-  set(GMOCK_LIB_DIR ${GMOCK_ROOT}/msvc/2010/Debug)
-  set(GTEST_LIB_DIR ${GMOCK_ROOT}-build/gtest/Debug)
+  set(GMOCK_LIB_DIR ${GMOCK_ROOT}-build/${CMAKE_BUILD_TYPE})
+  set(GTEST_LIB_DIR ${GMOCK_ROOT}-build/gtest/${CMAKE_BUILD_TYPE})
 else (WIN32)
   set(GMOCK_LIB_DIR ${GMOCK_ROOT}-lib/lib/)
   set(GTEST_LIB_DIR ${GMOCK_ROOT}-build/gtest/lib/.libs)
