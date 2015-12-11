@@ -1094,7 +1094,8 @@ Try<Isolator*> PortMappingIsolatorProcess::create(const Flags& flags)
     return Error("Check command 'tc' failed: " + checkCommandTc.error());
   }
 
-  Try<string> checkCommandEthtool = os::shell("ethtool --version");
+  // NOTE: loopback device always exists.
+  Try<string> checkCommandEthtool = os::shell("ethtool -k lo");
   if (checkCommandEthtool.isError()) {
     return Error("Check command 'ethtool' failed: "
                  + checkCommandEthtool.error());
