@@ -25,6 +25,7 @@
 
 #include <stout/check.hpp>
 #include <stout/error.hpp>
+#include <stout/exit.hpp>
 #include <stout/foreach.hpp>
 #include <stout/none.hpp>
 #include <stout/nothing.hpp>
@@ -195,8 +196,6 @@ Result<Action> ReplicaProcess::read(uint64_t position)
   if (action.isError()) {
     return Error(action.error());
   }
-
-  CHECK_SOME(action);
 
   return action.get();
 }
@@ -755,7 +754,9 @@ void ReplicaProcess::restore(const string& path)
 {
   Try<Storage::State> state = storage->restore(path);
 
-  CHECK_SOME(state) << "Failed to recover the log";
+  if (state.isError()) {
+    EXIT(EXIT_FAILURE) << "Failed to recover the log: " << state.error();
+  }
 
   // Pull out and save some of the state.
   metadata = state.get().metadata;
