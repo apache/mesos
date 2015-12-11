@@ -910,15 +910,17 @@ TEST(HTTPConnectionTest, ClosingResponse)
 
   http::Connection connection = connect.get();
 
-  // Issue two pipelined requests, the server will respond
+  // Issue two pipelined requests; the server will respond
   // with a 'Connection: close' for the first response, which
-  // will lead to a disconnection.
-  Promise<http::Response> promise1, promise2;
-  Future<http::Request> get1, get2;
+  // will trigger a disconnection and break the pipeline. This
+  // means that the second request arrives at the server but
+  // the response cannot be received due to the disconnection.
+  Promise<http::Response> promise1;
+  Future<Nothing> get2;
 
   EXPECT_CALL(*http.process, get(_))
-    .WillOnce(DoAll(FutureArg<0>(&get1), Return(promise1.future())))
-    .WillOnce(DoAll(FutureArg<0>(&get2), Return(promise2.future())));
+    .WillOnce(Return(promise1.future()))
+    .WillOnce(DoAll(FutureSatisfy(&get2), Return(http::OK())));
 
   http::Request request1, request2;
 
@@ -934,12 +936,14 @@ TEST(HTTPConnectionTest, ClosingResponse)
   Future<http::Response> response1 = connection.send(request1);
   Future<http::Response> response2 = connection.send(request2);
 
-  // The first response will close the connection.
-  http::Response ok = http::OK("body");
-  ok.headers["Connection"] = "close";
+  http::Response close = http::OK("body");
+  close.headers["Connection"] = "close";
 
-  promise1.set(ok);
+  // Wait for both requests to arrive, then issue the closing response.
+  AWAIT_READY(get2);
+  promise1.set(close);
 
+  // The second response will fail because of 'Connection: close'.
   AWAIT_READY(response1);
   AWAIT_FAILED(response2);
 
