@@ -1192,6 +1192,8 @@ TEST_F(RegistryClientTest, SimpleRegistryPuller)
   AWAIT_ASSERT_READY(
       io::read(fd.get(), tarBuffer.get(), tarSize.get().bytes()));
 
+  ASSERT_SOME(os::close(fd.get()));
+
   const string blobHttpResponse =
     string("HTTP/1.1 200 OK\r\n") +
     "Content-type : application/octet-stream\r\n" +
