@@ -14,29 +14,33 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "slave/containerizer/mesos/provisioner/docker/puller.hpp"
-
+#include <string>
+#include <tuple>
+#include <utility>
 #include <vector>
 
 #include <stout/os.hpp>
 
+#include <process/check.hpp>
+#include <process/collect.hpp>
 #include <process/io.hpp>
 #include <process/subprocess.hpp>
 
 #include "common/status_utils.hpp"
 
-#include "slave/containerizer/mesos/provisioner/docker/paths.hpp"
 #include "slave/containerizer/mesos/provisioner/docker/local_puller.hpp"
+#include "slave/containerizer/mesos/provisioner/docker/paths.hpp"
+#include "slave/containerizer/mesos/provisioner/docker/puller.hpp"
 #include "slave/containerizer/mesos/provisioner/docker/registry_puller.hpp"
 
 using std::pair;
 using std::string;
+using std::tuple;
 using std::vector;
 
 using process::Failure;
 using process::Future;
 using process::Owned;
-using process::Promise;
 using process::Subprocess;
 
 namespace mesos {
@@ -84,60 +88,42 @@ Future<Nothing> untar(const string& file, const string& directory)
       Subprocess::PIPE());
 
   if (s.isError()) {
-    return Failure(
-        "Failed to create untar subprocess for file '" +
-        file + "': " + s.error());
+    return Failure("Failed to execute the subprocess: " + s.error());
   }
 
-  Owned<Promise<Nothing>> promise(new Promise<Nothing>());
-  s.get().status()
-    .onAny([s, file, promise](const Future<Option<int>>& future) {
-      if (!future.isReady()) {
-        promise->fail(
-            "Failed to launch untar subprocess for file '" + file
-            + "': " +
-            (future.isFailed() ? future.failure() : "future discarded"));
-
-        return;
+  return await(
+      s.get().status(),
+      process::io::read(s.get().err().get()))
+    .then([](const tuple<
+        Future<Option<int>>,
+        Future<string>>& t) -> Future<Nothing> {
+      Future<Option<int>> status = std::get<0>(t);
+      if (!status.isReady()) {
+        return Failure(
+          "Failed to get the exit status of the subprocess: " +
+          (status.isFailed() ? status.failure() : "discarded"));
       }
 
-      if (future.get().isNone()) {
-        promise->fail(
-            "Failed to get status for untar subprocess for file '" +
-            file + "'");
-
-        return;
+      Future<string> error = std::get<1>(t);
+      if (!error.isReady()) {
+        return Failure(
+          "Failed to read stderr from the subprocess: " +
+          (error.isFailed() ? error.failure() : "discarded"));
       }
 
-      int status = future.get().get();
-
-      if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
-        const string errorMessage =
-          "Failed to run ntar process for file '" + file + "' (exit code: " +
-          WSTRINGIFY(status) + ")";
-
-        // Read stderr from the process(if any) to add to the failure report.
-        process::io::read(s.get().err().get())
-          .onAny([file, promise, errorMessage](const Future<string>& future) {
-            if (!future.isReady()) {
-              LOG(WARNING) << "Failed to read stderr from untar process for"
-                           << "file: '" << file << "': "
-                           << (future.isFailed() ? future.failure()
-                              : "future discarded");
-
-              promise->fail(errorMessage);
-            } else {
-              promise->fail(errorMessage + ": " + future.get());
-            }
-          });
-
-        return;
+      if (status->isNone()) {
+        return Failure("Failed to reap the subprocess");
       }
 
-      promise->set(Nothing());
+      if (status->get() != 0) {
+        return Failure(
+            "Unexpected result from the subprocess: " +
+            WSTRINGIFY(status->get()) +
+            ", stderr='" + error.get() + "'");
+      }
+
+      return Nothing();
     });
-
-    return promise->future();
 }
 
 
