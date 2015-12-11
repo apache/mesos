@@ -14,8 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "slave/containerizer/mesos/provisioner/docker/metadata_manager.hpp"
-
+#include <string>
 #include <vector>
 
 #include <glog/logging.h>
@@ -31,10 +30,11 @@
 
 #include "common/status_utils.hpp"
 
+#include "slave/state.hpp"
+
 #include "slave/containerizer/mesos/provisioner/docker/paths.hpp"
 #include "slave/containerizer/mesos/provisioner/docker/message.hpp"
-
-#include "slave/state.hpp"
+#include "slave/containerizer/mesos/provisioner/docker/metadata_manager.hpp"
 
 using namespace process;
 
@@ -58,7 +58,7 @@ public:
 
   Future<Image> put(
       const Image::Name& name,
-      const std::vector<std::string>& layerIds);
+      const vector<string>& layerIds);
 
   Future<Option<Image>> get(const Image::Name& name);
 
@@ -71,9 +71,9 @@ private:
   const Flags flags;
 
   // This is a lookup table for images that are stored in memory. It is keyed
-  // by the name of the Image.
+  // by image name.
   // For example, "ubuntu:14.04" -> ubuntu14:04 Image.
-  hashmap<std::string, Image> storedImages;
+  hashmap<string, Image> storedImages;
 };
 
 
@@ -88,20 +88,20 @@ Try<Owned<MetadataManager>> MetadataManager::create(const Flags& flags)
 MetadataManager::MetadataManager(Owned<MetadataManagerProcess> process)
   : process(process)
 {
-  process::spawn(CHECK_NOTNULL(process.get()));
+  spawn(CHECK_NOTNULL(process.get()));
 }
 
 
 MetadataManager::~MetadataManager()
 {
-  process::terminate(process.get());
-  process::wait(process.get());
+  terminate(process.get());
+  wait(process.get());
 }
 
 
 Future<Nothing> MetadataManager::recover()
 {
-  return process::dispatch(process.get(), &MetadataManagerProcess::recover);
+  return dispatch(process.get(), &MetadataManagerProcess::recover);
 }
 
 
@@ -189,13 +189,20 @@ Future<Nothing> MetadataManagerProcess::recover()
 
   Result<Images> images = ::protobuf::read<Images>(storedImagesPath);
   if (images.isError()) {
-    return Failure("Failed to read protobuf for Docker provisioner image: " +
+    return Failure("Failed to read images from '" + storedImagesPath + "' " +
                    images.error());
   }
 
-  foreach (const Image image, images.get().images()) {
+  if (images.isNone()) {
+    // This could happen if the slave died after opening the file for
+    // writing but before persisted on disk.
+    return Failure("Unexpected empty images file '" + storedImagesPath + "'");
+  }
+
+  foreach (const Image& image, images.get().images()) {
     vector<string> missingLayerIds;
-    foreach (const string layerId, image.layer_ids()) {
+
+    foreach (const string& layerId, image.layer_ids()) {
       const string rootfsPath =
         paths::getImageLayerRootfsPath(flags.docker_store_dir, layerId);
 
@@ -204,13 +211,13 @@ Future<Nothing> MetadataManagerProcess::recover()
       }
     }
 
+    const string imageName = stringify(image.name());
+
     if (!missingLayerIds.empty()) {
-      LOG(WARNING) << "Skipped loading image  '" << stringify(image.name())
-                   << "' due to missing layers: " << stringify(missingLayerIds);
+      LOG(WARNING) << "Skipped loading image '" << imageName << "'";
       continue;
     }
 
-    const string imageName = stringify(image.name());
     if (storedImages.contains(imageName)) {
       LOG(WARNING) << "Found duplicate image in recovery for image name '"
                    << imageName << "'";
