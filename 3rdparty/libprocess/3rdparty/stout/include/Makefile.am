@@ -64,6 +64,7 @@ nobase_include_HEADERS =		\
   stout/os/linux.hpp			\
   stout/os/ls.hpp			\
   stout/os/mkdir.hpp			\
+  stout/os/mkdtemp.hpp			\
   stout/os/mktemp.hpp			\
   stout/os/open.hpp			\
   stout/os/os.hpp			\
@@ -91,6 +92,7 @@ nobase_include_HEADERS =		\
   stout/os/posix/ftruncate.hpp		\
   stout/os/posix/killtree.hpp		\
   stout/os/posix/ls.hpp			\
+  stout/os/posix/mkdtemp.hpp		\
   stout/os/posix/process.hpp		\
   stout/os/posix/pstree.hpp		\
   stout/os/posix/sendfile.hpp		\
@@ -105,6 +107,7 @@ nobase_include_HEADERS =		\
   stout/os/windows/ftruncate.hpp	\
   stout/os/windows/killtree.hpp		\
   stout/os/windows/ls.hpp		\
+  stout/os/windows/mkdtemp.hpp		\
   stout/os/windows/process.hpp		\
   stout/os/windows/pstree.hpp		\
   stout/os/windows/sendfile.hpp		\

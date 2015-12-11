@@ -106,24 +106,6 @@ inline void unsetenv(const std::string& key)
 }
 
 
-// Creates a temporary directory using the specified path
-// template. The template may be any path with _6_ `Xs' appended to
-// it, for example /tmp/temp.XXXXXX. The trailing `Xs' are replaced
-// with a unique alphanumeric combination.
-inline Try<std::string> mkdtemp(const std::string& path = "/tmp/XXXXXX")
-{
-  char* temp = new char[path.size() + 1];
-  if (::mkdtemp(::strcpy(temp, path.c_str())) != NULL) {
-    std::string result(temp);
-    delete[] temp;
-    return result;
-  } else {
-    delete[] temp;
-    return ErrnoError();
-  }
-}
-
-
 // By default, recursively deletes a directory akin to: 'rm -r'. If the
 // programmer sets recursive to false, it deletes a directory akin to: 'rmdir'.
 // Note that this function expects an absolute path.
