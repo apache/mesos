@@ -1002,7 +1002,7 @@ TEST_F(ReservationTest, CompatibleCheckpointedResourcesWithPersistentVolumes)
   ASSERT_SOME(master);
 
   slave::Flags slaveFlags = CreateSlaveFlags();
-  slaveFlags.resources = "cpus:8;mem:4096";
+  slaveFlags.resources = "cpus:8;mem:4096;disk:2048";
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
 
