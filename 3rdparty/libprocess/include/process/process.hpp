@@ -61,6 +61,7 @@ void install(std::vector<Owned<FirewallRule>>&& rules);
 
 } // namespace firewall {
 
+
 class ProcessBase : public EventVisitor
 {
 public:
@@ -235,6 +236,50 @@ protected:
   }
 
   /**
+   * Any function which takes a `process::http::Request` and an
+   * `Option<std::string>` and returns a `process::http::Response`.
+   *
+   * If the string is set, it represents the authenticated principal
+   * for the request.
+   *
+   * The default visit implementation for HTTP events invokes
+   * installed HTTP handlers.
+   *
+   * @see process::ProcessBase::route
+   */
+  // TODO(arojas): Consider introducing an `authentication::Principal` type.
+  typedef lambda::function<Future<http::Response>(
+      const http::Request&, const Option<std::string>&)>
+      AuthenticatedHttpRequestHandler;
+
+  // TODO(arojas): Consider introducing an `authentication::Realm` type.
+  void route(
+      const std::string& name,
+      const std::string& realm,
+      const Option<std::string>& help,
+      const AuthenticatedHttpRequestHandler& handler);
+
+  /**
+   * @copydoc process::ProcessBase::route
+   */
+  template <typename T>
+  void route(
+      const std::string& name,
+      const std::string& realm,
+      const Option<std::string>& help,
+      Future<http::Response> (T::*method)(
+          const http::Request&,
+          const Option<std::string>&))
+  {
+    // Note that we use dynamic_cast here so a process can use
+    // multiple inheritance if it sees so fit (e.g., to implement
+    // multiple callback interfaces).
+    AuthenticatedHttpRequestHandler handler =
+      lambda::bind(method, dynamic_cast<T*>(this), lambda::_1, lambda::_2);
+    route(name, realm, help, handler);
+  }
+
+  /**
    * Sets up the default HTTP request handler to provide the static
    * asset(s) at the specified _absolute_ path for the specified name.
    *
@@ -313,7 +358,12 @@ private:
   // Handlers for messages and HTTP requests.
   struct {
     std::map<std::string, MessageHandler> message;
-    std::map<std::string, HttpRequestHandler> http;
+
+    // `HttpRequestHandlers` are equivalent to their authenticated
+    // counterparts where the principal is always `None`. Therefore
+    // we convert the regular handler to an authenticated one in
+    // order to store only a single map here.
+    std::map<std::string, AuthenticatedHttpRequestHandler> http;
   } handlers;
 
   // Definition of a static asset.

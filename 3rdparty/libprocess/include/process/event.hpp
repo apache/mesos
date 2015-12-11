@@ -117,9 +117,11 @@ struct HttpEvent : Event
 {
   HttpEvent(
       http::Request* _request,
-      Promise<http::Response>* _response)
+      Promise<http::Response>* _response,
+      const Option<std::string>& _principal = None())
     : request(_request),
-      response(_response) {}
+      response(_response),
+      principal(_principal) {}
 
   virtual ~HttpEvent()
   {
@@ -137,6 +139,9 @@ struct HttpEvent : Event
 
   http::Request* const request;
   Promise<http::Response>* response;
+
+  // This will be set for authenticated requests.
+  Option<std::string> principal;
 
 private:
   // Not copyable, not assignable.

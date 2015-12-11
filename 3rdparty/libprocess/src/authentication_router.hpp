@@ -49,6 +49,9 @@ public:
   // Unsets the authenticator for the realm.
   Future<Nothing> unsetAuthenticator(const std::string& realm);
 
+  // TODO(arojas): Consider making the realm a property
+  // of the endpoint handler in `ProcessBase` rather than
+  // having the router maintain the mapping.
   Future<Nothing> addEndpoint(
       const std::string& endpoint,
       const std::string& realm);

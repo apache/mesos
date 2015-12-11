@@ -55,6 +55,32 @@ class Socket;
 
 namespace http {
 
+namespace authentication {
+
+class Authenticator;
+
+/**
+ * Sets (or overwrites) the authenticator for the realm.
+ *
+ * Every incoming HTTP request to an endpoint associated
+ * with the realm will be authenticated with the given
+ * authenticator.
+ */
+Future<Nothing> setAuthenticator(
+    const std::string& realm,
+    Owned<Authenticator> authenticator);
+
+
+/**
+ * Unsets the authenticator for the realm.
+ *
+ * Any endpoint mapped to the realm will no
+ * longer be authenticated.
+ */
+Future<Nothing> unsetAuthenticator(const std::string& realm);
+
+} // namespace authentication {
+
 // Status code reason strings, from the HTTP1.1 RFC:
 // http://www.w3.org/Protocols/rfc2616/rfc2616-sec6.html
 extern hashmap<uint16_t, std::string>* statuses;
