@@ -132,11 +132,9 @@ Future<pair<string, string>> untarLayer(
     const string& directory,
     const string& layerId)
 {
-  // We untar the layer from source into a directory, then move the
-  // layer into store. We do this instead of untarring directly to
-  // store to make sure we don't end up with partially untarred layer
-  // rootfs.
-
+  // We untar the layer from source into a directory, then move the layer
+  // into store. We do this instead of untarring directly to store to make
+  // sure we don't end up with partially untarred layer rootfs.
   const string localRootfsPath =
     paths::getImageArchiveLayerRootfsPath(directory, layerId);
 
@@ -149,29 +147,29 @@ Future<pair<string, string>> untarLayer(
 
     Try<Nothing> rmdir = os::rmdir(localRootfsPath);
     if (rmdir.isError()) {
-      return Failure("Failed to remove incomplete staged rootfs for layer '" +
-                     layerId + "': " + rmdir.error());
+      return Failure(
+          "Failed to remove incomplete staged rootfs for layer "
+          "'" + layerId + "': " + rmdir.error());
     }
   }
 
   Try<Nothing> mkdir = os::mkdir(localRootfsPath);
   if (mkdir.isError()) {
-    return Failure("Failed to create rootfs path '" + localRootfsPath +
-                   "': " + mkdir.error());
+    return Failure(
+        "Failed to create rootfs path '" + localRootfsPath + "'"
+        ": " + mkdir.error());
   }
 
-  // The tar file will be removed when the staging directory is
-  // removed.
-  return untar(
-      layerPath,
-      localRootfsPath)
+  // The tar file will be removed when the staging directory is removed.
+  return untar(layerPath, localRootfsPath)
     .then([directory, layerId]() -> Future<pair<string, string>> {
       const string rootfsPath =
         paths::getImageArchiveLayerRootfsPath(directory, layerId);
 
       if (!os::exists(rootfsPath)) {
-        return Failure("Failed to find the rootfs path after extracting layer"
-                       " '" + layerId + "'");
+        return Failure(
+            "Failed to find the rootfs path after extracting layer"
+            " '" + layerId + "'");
       }
 
       return pair<string, string>(layerId, rootfsPath);
