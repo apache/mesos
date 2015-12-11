@@ -21,14 +21,14 @@ def usage(message, parser):
     import sys
     sys.stderr.write(message + '\n')
     parser.print_help()
-    sys.exit(-1)
+    sys.exit(1)
 
 
 # Helper for printing out a message and then exiting.
 def fatal(message):
     import sys
     sys.stderr.write(message + '\n')
-    sys.exit(-1)
+    sys.exit(1)
 
 
 # Helper that uses 'mesos-resolve' to resolve a master IP:port from
