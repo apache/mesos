@@ -128,7 +128,7 @@ Future<Nothing> untar(const string& file, const string& directory)
 
 
 Future<pair<string, string>> untarLayer(
-    const string& layerPath,
+    const string& file,
     const string& directory,
     const string& layerId)
 {
@@ -161,7 +161,7 @@ Future<pair<string, string>> untarLayer(
   }
 
   // The tar file will be removed when the staging directory is removed.
-  return untar(layerPath, localRootfsPath)
+  return untar(file, localRootfsPath)
     .then([directory, layerId]() -> Future<pair<string, string>> {
       const string rootfsPath =
         paths::getImageArchiveLayerRootfsPath(directory, layerId);

@@ -79,12 +79,12 @@ process::Future<Nothing> untar(
  *        |-- <layer_id>
  *            |-- rootfs
  *
- * @param layerPath path to the tar file holding the Docker layer.
+ * @param file path to the tar file holding the Docker layer.
  * @param directory staging directory.
  * @return layer Id mapping to the rootfs path of the layer.
  */
 process::Future<std::pair<std::string, std::string>> untarLayer(
-    const std::string& layerPath,
+    const std::string& file,
     const std::string& directory,
     const std::string& layerId);
 
