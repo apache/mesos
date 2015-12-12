@@ -197,6 +197,9 @@ public:
   // passed on to the route handlers.
   Future<Option<AuthenticationResult>> authenticate(const Request& request);
 
+protected:
+  void initialize() override;
+
 private:
   // Starts "waiting" on the next available future response.
   void next();
@@ -236,7 +239,7 @@ private:
   // the authentication router does expose ordered completion
   // of its Futures (it doesn't have the knowledge of sockets
   // necessary to do it in a per-connection manner).
-  Sequence authentications;
+  Owned<Sequence> authentications;
 };
 
 
@@ -1077,6 +1080,16 @@ HttpProxy::~HttpProxy()
 }
 
 
+void HttpProxy::initialize()
+{
+  // We have to construct the sequence outside of the HttpProxy
+  // constructor in order to prevent a deadlock between the
+  // SocketManager and the ProcessManager (see the comment in
+  // SocketManager::proxy).
+  authentications.reset(new Sequence());
+}
+
+
 void HttpProxy::enqueue(const Response& response, const Request& request)
 {
   handle(Future<Response>(response), request);
@@ -1104,7 +1117,7 @@ Future<Option<AuthenticationResult>> HttpProxy::authenticate(
   Future<Option<AuthenticationResult>> authentication =
     authentication_router->authenticate(request);
 
-  return authentications.add<Option<AuthenticationResult>>(
+  return authentications->add<Option<AuthenticationResult>>(
       [=]() { return authentication; });
 }
 
