@@ -1186,7 +1186,7 @@ public:
 };
 
 
-// Definition of a MockAuthozier that can be used in tests with gmock.
+// Definition of a MockAuthorizer that can be used in tests with gmock.
 class MockAuthorizer : public Authorizer
 {
 public:
