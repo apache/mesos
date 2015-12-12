@@ -133,6 +133,7 @@ nobase_include_HEADERS =		\
   stout/recordio.hpp			\
   stout/representation.hpp			\
   stout/result.hpp			\
+  stout/result_of.hpp			\
   stout/set.hpp				\
   stout/some.hpp			\
   stout/stopwatch.hpp			\
