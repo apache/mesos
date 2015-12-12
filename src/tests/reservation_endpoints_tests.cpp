@@ -84,16 +84,6 @@ public:
     return info;
   }
 
-  process::http::Headers createBasicAuthHeaders(
-      const Credential& credential) const
-  {
-    return process::http::Headers{{
-      "Authorization",
-      "Basic " +
-        base64::encode(credential.principal() + ":" + credential.secret())
-    }};
-  }
-
   string createRequestBody(
       const SlaveID& slaveId, const RepeatedPtrField<Resource>& resources) const
   {

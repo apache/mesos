@@ -98,16 +98,6 @@ protected:
     return flags;
   }
 
-  process::http::Headers createBasicAuthHeaders(
-      const Credential& credential) const
-  {
-    return process::http::Headers{{
-      "Authorization",
-      "Basic " +
-        base64::encode(credential.principal() + ":" + credential.secret())
-    }};
-  }
-
   // Creates a FrameworkInfo with the specified role.
   FrameworkInfo createFrameworkInfo(const string& role)
   {

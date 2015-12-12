@@ -533,6 +533,17 @@ inline Resource createPersistentVolume(
 }
 
 
+inline process::http::Headers createBasicAuthHeaders(
+    const Credential& credential)
+{
+  return process::http::Headers{{
+      "Authorization",
+      "Basic " +
+        base64::encode(credential.principal() + ":" + credential.secret())
+  }};
+}
+
+
 // Helpers for creating reserve operations.
 inline Offer::Operation RESERVE(const Resources& resources)
 {
