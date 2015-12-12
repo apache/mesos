@@ -84,7 +84,7 @@ set(STOUT_TEST_LIB_DIRS
   ${APR_LIBS}
   ${SVN_LIBS}
   ${GMOCK_LIB_DIR}
-  ${GMOCK_ROOT}-build/gtest/lib/.libs
+  ${GTEST_LIB_DIR}
   ${GLOG_LIB_DIR}
   ${PROTOBUF_LIB_DIR}
   )
