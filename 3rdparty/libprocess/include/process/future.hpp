@@ -41,6 +41,7 @@
 #include <stout/option.hpp>
 #include <stout/preprocessor.hpp>
 #include <stout/result.hpp>
+#include <stout/result_of.hpp>
 #include <stout/synchronized.hpp>
 #include <stout/try.hpp>
 
@@ -210,7 +211,7 @@ private:
   struct LessPrefer {};
   struct Prefer : LessPrefer {};
 
-  template <typename F, typename = typename std::result_of<F(const T&)>::type>
+  template <typename F, typename = typename result_of<F(const T&)>::type>
   const Future<T>& onReady(F&& f, Prefer) const
   {
     return onReady(std::function<void(const T&)>(
@@ -240,7 +241,7 @@ private:
         }));
   }
 
-  template <typename F, typename = typename std::result_of<F(const std::string&)>::type> // NOLINT(whitespace/line_length)
+  template <typename F, typename = typename result_of<F(const std::string&)>::type> // NOLINT(whitespace/line_length)
   const Future<T>& onFailed(F&& f, Prefer) const
   {
     return onFailed(std::function<void(const std::string&)>(
@@ -264,7 +265,7 @@ private:
         }));
   }
 
-  template <typename F, typename = typename std::result_of<F(const Future<T>&)>::type> // NOLINT(whitespace/line_length)
+  template <typename F, typename = typename result_of<F(const Future<T>&)>::type> // NOLINT(whitespace/line_length)
   const Future<T>& onAny(F&& f, Prefer) const
   {
     return onAny(std::function<void(const Future<T>&)>(
@@ -347,7 +348,10 @@ public:
   }
 
 private:
-  template <typename F, typename X = typename internal::unwrap<typename std::result_of<F(const T&)>::type>::type> // NOLINT(whitespace/line_length)
+  template <
+      typename F,
+      typename X =
+        typename internal::unwrap<typename result_of<F(const T&)>::type>::type>
   Future<X> then(_Deferred<F>&& f, Prefer) const
   {
     // note the then<X> is necessary to not have an infinite loop with
@@ -368,7 +372,7 @@ private:
     return then<X>(f.operator std::function<Future<X>()>());
   }
 
-  template <typename F, typename X = typename internal::unwrap<typename std::result_of<F(const T&)>::type>::type> // NOLINT(whitespace/line_length)
+  template <typename F, typename X = typename internal::unwrap<typename result_of<F(const T&)>::type>::type> // NOLINT(whitespace/line_length)
   Future<X> then(F&& f, Prefer) const
   {
     return then<X>(std::function<Future<X>(const T&)>(f));
