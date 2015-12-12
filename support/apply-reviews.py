@@ -285,6 +285,9 @@ def parse_options():
   parser.add_argument('-n', '--no-amend',
                       action='store_true',
                       help='Do not amend commit message.')
+  parser.add_argument('-c', '--chain',
+                      action='store_true',
+                      help='Recursively apply parent review chain.')
 
   # Add -g and -r and make them mutually exclusive.
   group = parser.add_mutually_exclusive_group(required=True)
@@ -301,19 +304,21 @@ def parse_options():
   options['dry_run'] = args.dry_run
   options['no_amend'] = args.no_amend
   options['github'] = args.github
+  options['chain'] = args.chain
 
 
 def reviewboard():
-  """Applies a chain of reviewboard patches."""
-  # Retrieve the list of reviews to apply.
-  reviews = review_chain(options['review_id'])
-
-  applied = set()
-  for review_id, summary in reviews:
-    if review_id not in applied:
-      applied.add(review_id)
-      options['review_id'] = review_id
-      apply_review()
+  """Applies either a chain of reviewboard patches or a single patch."""
+  if options['chain']:
+    # Retrieve the list of reviews to apply.
+    applied = set()
+    for review_id, summary in review_chain(options['review_id']):
+      if review_id not in applied:
+        applied.add(review_id)
+        options['review_id'] = review_id
+        apply_review()
+  else:
+    apply_review()
 
 
 def github():
