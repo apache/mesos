@@ -251,6 +251,9 @@ TEST_F(SubprocessTest, PipeRedirect)
   ASSERT_SOME(os::nonblock(s.get().out().get()));
   AWAIT_READY(io::redirect(s.get().out().get(), fd.get()));
 
+  // Close our copy of the fd.
+  EXPECT_SOME(os::close(fd.get()));
+
   // Advance time until the internal reaper reaps the subprocess.
   Clock::pause();
   while (s.get().status().isPending()) {
