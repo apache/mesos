@@ -1379,7 +1379,7 @@ TEST(ProcessTest, Remote)
 }
 
 
-// Like the 'remote' test but uses http::post.
+// Like the 'remote' test but uses http::connect.
 TEST(ProcessTest, Http1)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
@@ -1387,17 +1387,33 @@ TEST(ProcessTest, Http1)
   RemoteProcess process;
   spawn(process);
 
+  http::URL url = http::URL(
+      "http",
+      process.self().address.ip,
+      process.self().address.port,
+      process.self().id + "/handler");
+
+  Future<http::Connection> connect = http::connect(url);
+  AWAIT_READY(connect);
+
+  http::Connection connection = connect.get();
+
   Future<UPID> pid;
   Future<string> body;
   EXPECT_CALL(process, handler(_, _))
     .WillOnce(DoAll(FutureArg<0>(&pid),
                     FutureArg<1>(&body)));
 
-  http::Headers headers;
-  headers["User-Agent"] = "libprocess/";
+  http::Request request;
+  request.method = "POST";
+  request.url = url;
+  request.headers["User-Agent"] = "libprocess/";
+  request.body = "hello world";
 
-  Future<http::Response> response =
-    http::post(process.self(), "handler", headers, "hello world");
+  // Send the libprocess request. Note that we will not
+  // receive a 202 due to the use of the `User-Agent`
+  // header, therefore we need to explicitly disconnect!
+  Future<http::Response> response = connection.send(request);
 
   AWAIT_READY(body);
   ASSERT_EQ("hello world", body.get());
@@ -1405,12 +1421,17 @@ TEST(ProcessTest, Http1)
   AWAIT_READY(pid);
   ASSERT_EQ(UPID(), pid.get());
 
+  EXPECT_TRUE(response.isPending());
+
+  AWAIT_READY(connection.disconnect());
+
   terminate(process);
   wait(process);
 }
 
 
-// Like 'http1' but using a 'Libprocess-From' header.
+// Like 'http1' but uses the 'Libprocess-From' header. We can
+// also use http::post here since we expect a 202 response.
 TEST(ProcessTest, Http2)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
@@ -1762,30 +1783,49 @@ TEST(ProcessTest, PercentEncodedURLs)
   spawn(process);
 
   // Construct the PID using percent-encoding.
-  UPID pid("id%2842%29", process.self().address);
+  http::URL url = http::URL(
+      "http",
+      process.self().address.ip,
+      process.self().address.port,
+      http::encode(process.self().id) + "/handler1");
+
+  Future<http::Connection> connect = http::connect(url);
+  AWAIT_READY(connect);
+
+  http::Connection connection = connect.get();
 
   // Mimic a libprocess message sent to an installed handler.
   Future<Nothing> handler1;
   EXPECT_CALL(process, handler1(_, _))
     .WillOnce(FutureSatisfy(&handler1));
 
-  http::Headers headers;
-  headers["User-Agent"] = "libprocess/";
+  http::Request request;
+  request.method = "POST";
+  request.url = url;
+  request.headers["User-Agent"] = "libprocess/";
 
-  Future<http::Response> response = http::post(pid, "handler1", headers);
+  // Send the libprocess request. Note that we will not
+  // receive a 202 due to the use of the `User-Agent`
+  // header, therefore we need to explicitly disconnect!
+  Future<http::Response> response = connection.send(request);
 
   AWAIT_READY(handler1);
+  EXPECT_TRUE(response.isPending());
+
+  AWAIT_READY(connection.disconnect());
 
   // Now an HTTP request.
   EXPECT_CALL(process, handler2(_))
     .WillOnce(Return(http::OK()));
 
+  // Construct the PID using percent-encoding.
+  UPID pid(http::encode(process.self().id), process.self().address);
+
   response = http::get(pid, "handler2");
 
   AWAIT_READY(response);
   EXPECT_EQ(http::Status::OK, response->code);
-  EXPECT_EQ(http::Status::string(http::Status::OK),
-            response->status);
+  EXPECT_EQ(http::Status::string(http::Status::OK), response->status);
 
   terminate(process);
   wait(process);
