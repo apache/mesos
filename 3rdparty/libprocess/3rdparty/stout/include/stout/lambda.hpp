@@ -21,7 +21,6 @@ using std::bind;
 using std::cref;
 using std::function;
 using std::ref;
-using std::result_of;
 
 using namespace std::placeholders;
 
