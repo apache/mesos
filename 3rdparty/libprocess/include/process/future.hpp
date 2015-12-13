@@ -48,9 +48,6 @@
 namespace process {
 
 // Forward declarations (instead of include to break circular dependency).
-template <typename _F>
-struct _Defer;
-
 template <typename G>
 struct _Deferred;
 
