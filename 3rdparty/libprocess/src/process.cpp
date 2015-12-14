@@ -2711,7 +2711,8 @@ void ProcessManager::cleanup(ProcessBase* process)
   // Remove all routes from the authentication router, we don't
   // need to wait for these operations to complete.
   foreachkey (const string& endpoint, process->handlers.http) {
-    authentication_router->removeEndpoint('/' + process->self().id + endpoint);
+    authentication_router->removeEndpoint(
+        '/' + process->self().id + '/' + endpoint);
   }
 
   // Possible gate non-libprocess threads are waiting at.
