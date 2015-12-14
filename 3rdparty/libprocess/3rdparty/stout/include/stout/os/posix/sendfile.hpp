@@ -18,11 +18,11 @@
 #if defined(__linux__) || defined(__sun)
 #include <sys/sendfile.h>
 #endif
-#ifdef __APPLE__
+#if defined(__APPLE__) || defined(__FreeBSD__)
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <sys/uio.h>
-#endif // __APPLE__
+#endif // __APPLE__ || __FreeBSD__
 
 #include <stout/os/signals.hpp>
 #include <stout/unreachable.hpp>
@@ -56,7 +56,20 @@ inline ssize_t sendfile(int s, int fd, off_t offset, size_t length)
   }
 
   return _length;
-#endif // __APPLE__
+#elif defined __FreeBSD__
+  off_t _length = 0;
+
+  SUPPRESS (SIGPIPE) {
+      if (::sendfile(fd, s, offset, length, NULL, &_length, 0) < 0) {
+        if (errno == EAGAIN && length > 0) {
+          return _length;
+        }
+        return -1;
+      }
+  }
+
+  return _length;
+#endif
 }
 
 } // namespace os {

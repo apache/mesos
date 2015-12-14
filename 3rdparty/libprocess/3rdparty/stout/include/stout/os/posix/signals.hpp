@@ -144,7 +144,12 @@ struct Suppressor
       // We chose to use the latter technique as it works on all
       // POSIX systems and is less likely to swallow process signals,
       // provided the thread signal and process signal are not merged.
+
+      // Delivering on this thread an extra time will require an extra sigwait
+      // call on FreeBSD, so we skip it.
+#ifndef __FreeBSD__
       pthread_kill(pthread_self(), signal);
+#endif
 
       sigset_t mask;
       sigemptyset(&mask);

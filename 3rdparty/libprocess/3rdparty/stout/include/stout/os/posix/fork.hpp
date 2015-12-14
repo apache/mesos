@@ -17,6 +17,9 @@
 #include <unistd.h>
 
 #include <sys/mman.h>
+#ifdef __FreeBSD__
+#include <sys/stat.h>
+#endif // __FreeBSD__
 #include <sys/types.h>
 #include <sys/wait.h>
 

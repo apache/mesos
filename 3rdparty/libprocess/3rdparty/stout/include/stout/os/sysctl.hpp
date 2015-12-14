@@ -14,8 +14,8 @@
 #define __STOUT_OS_SYSCTL_HPP__
 
 // Only provide sysctl support for OS X.
-#ifndef __APPLE__
-#error "stout/os/sysctl.hpp is only available on OS X."
+#if !defined(__APPLE__) && !defined(__FreeBSD__)
+#error "stout/os/sysctl.hpp is only available on OS X and FreeBSD."
 #endif
 
 #include <sys/sysctl.h>

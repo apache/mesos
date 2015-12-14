@@ -15,7 +15,7 @@
 
 #ifdef __APPLE__
 #include <crt_externs.h> // For _NSGetEnviron().
-#elif defined(__linux__)
+#elif !defined(__WINDOWS__)
 // Need to declare 'environ' pointer for platforms that are not OS X or Windows.
 extern char** environ;
 #endif

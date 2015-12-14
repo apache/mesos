@@ -13,7 +13,7 @@
 #ifndef __STOUT_MAC_HPP__
 #define __STOUT_MAC_HPP__
 
-#if defined(__linux__) || defined(__APPLE__)
+#if defined(__linux__) || defined(__APPLE__) || defined(__FreeBSD__)
 #include <ifaddrs.h>
 #endif
 #include <stdint.h>
@@ -138,7 +138,7 @@ inline std::ostream& operator<<(std::ostream& stream, const MAC& mac)
 // does not have a MAC address (e.g., loopback).
 inline Result<MAC> mac(const std::string& name)
 {
-#if !defined(__linux__) && !defined(__APPLE__)
+#if !defined(__linux__) && !defined(__APPLE__) && !defined(__FreeBSD__)
   return Error("Not implemented");
 #else
   struct ifaddrs* ifaddr = NULL;

@@ -31,6 +31,10 @@
 #include <net/if_types.h>
 #endif // __APPLE__
 
+#ifdef __FreeBSD__
+#include <ifaddrs.h>
+#endif // __FreeBSD__
+
 // Note: Header grouping and ordering is considered before
 // inclusion/exclusion by platform.
 #ifndef __WINDOWS__
@@ -248,7 +252,11 @@ inline Try<std::string> getHostname(const IP& ip)
 
   int error = getnameinfo(
       (struct sockaddr*) &storage,
+#ifdef __FreeBSD__
+      sizeof(struct sockaddr_in),
+#else
       sizeof(storage),
+#endif
       hostname,
       MAXHOSTNAMELEN,
       NULL,
@@ -266,7 +274,7 @@ inline Try<std::string> getHostname(const IP& ip)
 // Returns the names of all the link devices in the system.
 inline Try<std::set<std::string>> links()
 {
-#if !defined(__linux__) && !defined(__APPLE__)
+#if !defined(__linux__) && !defined(__APPLE__) && !defined(__FreeBSD__)
   return Error("Not implemented");
 #else
   struct ifaddrs* ifaddr = NULL;

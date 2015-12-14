@@ -23,6 +23,8 @@ TEST(DynamicLibraryTest, LoadKnownSymbol)
 
 #ifdef __linux__
   Try<Nothing> result = dltest.open("libdl.so");
+#elif defined(__FreeBSD__)
+  Try<Nothing> result = dltest.open("libc.so.7");
 #else
   Try<Nothing> result = dltest.open("libdl.dylib");
 #endif

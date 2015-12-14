@@ -216,9 +216,10 @@ inline Try<Version> release()
     return Error(info.error());
   }
 
+  int major, minor, patch = 0;
+#ifndef __FreeBSD__
   // TODO(karya): Replace sscanf with Version::parse() once Version
   // starts supporting labels and build metadata.
-  int major, minor, patch;
   if (::sscanf(
           info.get().release.c_str(),
           "%d.%d.%d",
@@ -227,7 +228,12 @@ inline Try<Version> release()
           &patch) != 3) {
     return Error("Failed to parse: " + info.get().release);
   }
-
+#else
+  // TODO(dforsyth): Handle FreeBSD patch versions (-pX).
+  if (::sscanf(info.get().release.c_str(), "%d.%d-%*s", &major, &minor) != 2) {
+    return Error("Failed to parse: " + info.get().release);
+  }
+#endif
   return Version(major, minor, patch);
 }
 
@@ -294,10 +300,10 @@ inline std::string expandName(const std::string& libraryName)
 {
   const char* prefix = "lib";
   const char* extension =
-#ifdef __linux__
-    ".so";
-#else
+#ifdef __APPLE__
     ".dylib";
+#else
+    ".so";
 #endif
 
   return prefix + libraryName + extension;
@@ -308,10 +314,10 @@ inline std::string expandName(const std::string& libraryName)
 inline std::string paths()
 {
   const char* environmentVariable =
-#ifdef __linux__
-    "LD_LIBRARY_PATH";
-#else
+#ifdef __APPLE__
     "DYLD_LIBRARY_PATH";
+#else
+    "LD_LIBRARY_PATH";
 #endif
   const Option<std::string> path = getenv(environmentVariable);
   return path.isSome() ? path.get() : std::string();
@@ -322,10 +328,10 @@ inline std::string paths()
 inline void setPaths(const std::string& newPaths)
 {
   const char* environmentVariable =
-#ifdef __linux__
-    "LD_LIBRARY_PATH";
-#else
+#ifdef __APPLE__
     "DYLD_LIBRARY_PATH";
+#else
+    "LD_LIBRARY_PATH";
 #endif
   setenv(environmentVariable, newPaths);
 }

@@ -23,9 +23,9 @@
 #include <stout/try.hpp>
 
 #include <stout/os/read.hpp>
-#ifdef __APPLE__
+#if defined(__APPLE__) || defined(__FreeBSD__)
 #include <stout/os/sysctl.hpp>
-#endif // __APPLE__
+#endif // __APPLE__ || __FreeBSD__
 
 
 namespace os {
@@ -38,7 +38,7 @@ inline Try<std::string> bootId()
     return read;
   }
   return strings::trim(read.get());
-#elif defined(__APPLE__)
+#elif defined(__APPLE__) || defined(__FreeBSD__)
   // For OS X, we use the boot time in seconds as a unique boot id.
   // Although imperfect, this works quite well in practice. NOTE: we can't use
   // milliseconds here instead of seconds because the relatively high

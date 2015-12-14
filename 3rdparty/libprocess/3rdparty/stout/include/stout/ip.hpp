@@ -18,9 +18,9 @@
 #include <arpa/inet.h>
 #endif // __WINDOWS__
 
-#if defined(__linux__) || defined(__APPLE__)
+#if defined(__linux__) || defined(__APPLE__) || defined(__FreeBSD__)
 #include <ifaddrs.h>
-#endif // __linux__ || __APPLE__
+#endif // __linux__ || __APPLE__ || __FreeBSD__
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
@@ -427,7 +427,7 @@ inline Result<IPNetwork> IPNetwork::fromLinkDevice(
     const std::string& name,
     int family)
 {
-#if !defined(__linux__) && !defined(__APPLE__)
+#if !defined(__linux__) && !defined(__APPLE__) && !defined(__FreeBSD__)
   return Error("Not implemented");
 #else
   if (family != AF_INET) {
