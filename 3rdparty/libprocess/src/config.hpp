@@ -47,4 +47,10 @@
 #endif
 #endif /* __linux__ */
 
+#ifdef __FreeBSD__
+#ifndef SOL_TCP
+#define SOL_TCP IPPROTO_TCP
+#endif
+#endif /* __FreeBSD__ */
+
 #endif // __CONFIG_HPP__

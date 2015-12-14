@@ -125,6 +125,10 @@ endif
 # gets unarchived first.
 BUILT_SOURCES += $(nodist_libgmock_la_SOURCES)
 
+GLOG_LDFLAGS = # Initialize to empty
+if OS_FREEBSD
+  GLOG_LDFLAGS += "LDFLAGS='-L/usr/local/lib -lexecinfo'"
+endif
 
 if WITH_BUNDLED_GLOG
 # NOTE: We explicitely set GTEST_CONFIG=no so that we don't attempt to
@@ -133,7 +137,7 @@ if WITH_BUNDLED_GLOG
 # when building with clang).
 $(GLOG)/libglog.la: $(GLOG)-stamp
 	cd $(GLOG) && ./configure GTEST_CONFIG=no $(CONFIGURE_ARGS) && \
-          $(MAKE) $(AM_MAKEFLAGS)
+          $(MAKE) $(AM_MAKEFLAGS) $(GLOG_LDFLAGS)
 endif
 
 if HAS_GPERFTOOLS
@@ -236,10 +240,14 @@ stout_tests_LDADD =			\
   libgmock.la				\
   $(LIBGLOG)				\
   $(LIBPROTOBUF)			\
-  -ldl					\
   -lsvn_subr-1				\
   -lsvn_delta-1				\
   -lapr-1
+
+# FreeBSD makes the dynamic linking interface available in libc
+if !OS_FREEBSD
+  stout_tests_LDADD += -ldl
+endif
 
 # We use a check-local target for now to avoid the parallel test
 # runner that ships with newer versions of autotools.
