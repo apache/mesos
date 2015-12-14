@@ -1204,7 +1204,8 @@ public:
 };
 
 
-class HttpAuthenticationTest : public ::testing::Test
+// TODO(bmahler): These are disabled while MESOS-4142 is fixed.
+class DISABLED_HttpAuthenticationTest : public ::testing::Test
 {
 protected:
   Future<Nothing> setAuthenticator(
@@ -1234,7 +1235,7 @@ private:
 
 // Ensures that when there is no authenticator for a realm,
 // requests are not authenticated (i.e. the principal is None).
-TEST_F(HttpAuthenticationTest, NoAuthenticator)
+TEST_F(DISABLED_HttpAuthenticationTest, NoAuthenticator)
 {
   Http http;
 
@@ -1249,7 +1250,7 @@ TEST_F(HttpAuthenticationTest, NoAuthenticator)
 
 
 // Tests that an authentication Unauthorized result is exposed correctly.
-TEST_F(HttpAuthenticationTest, Unauthorized)
+TEST_F(DISABLED_HttpAuthenticationTest, Unauthorized)
 {
   MockAuthenticator* authenticator = new MockAuthenticator();
   setAuthenticator("realm", Owned<Authenticator>(authenticator));
@@ -1277,7 +1278,7 @@ TEST_F(HttpAuthenticationTest, Unauthorized)
 
 
 // Tests that an authentication Forbidden result is exposed correctly.
-TEST_F(HttpAuthenticationTest, Forbidden)
+TEST_F(DISABLED_HttpAuthenticationTest, Forbidden)
 {
   MockAuthenticator* authenticator = new MockAuthenticator();
   setAuthenticator("realm", Owned<Authenticator>(authenticator));
@@ -1298,7 +1299,7 @@ TEST_F(HttpAuthenticationTest, Forbidden)
 
 
 // Tests that a successful authentication hits the endpoint.
-TEST_F(HttpAuthenticationTest, Authenticated)
+TEST_F(DISABLED_HttpAuthenticationTest, Authenticated)
 {
   MockAuthenticator* authenticator = new MockAuthenticator();
   setAuthenticator("realm", Owned<Authenticator>(authenticator));
@@ -1325,7 +1326,7 @@ TEST_F(HttpAuthenticationTest, Authenticated)
 
 // Tests that HTTP pipelining is respected even when
 // authentications are satisfied out-of-order.
-TEST_F(HttpAuthenticationTest, Pipelining)
+TEST_F(DISABLED_HttpAuthenticationTest, Pipelining)
 {
   MockAuthenticator* authenticator = new MockAuthenticator();
   setAuthenticator("realm", Owned<Authenticator>(authenticator));
