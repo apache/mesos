@@ -21,6 +21,7 @@
 #include <mesos/scheduler.hpp>
 #include <mesos/type_utils.hpp>
 
+#include <process/future.hpp>
 #include <process/owned.hpp>
 #include <process/pid.hpp>
 
@@ -40,6 +41,7 @@
 using namespace mesos;
 using namespace mesos::internal;
 
+using process::Future;
 using process::Owned;
 using process::UPID;
 
@@ -385,9 +387,12 @@ int main(int argc, char** argv)
     string path = path::join("/", user.get(), flags.package.get());
 
     // Check if the file exists and remove it if we're overwriting.
-    Try<bool> exists = hdfs.get()->exists(path);
-    if (exists.isError()) {
-      cerr << "Failed to check if file exists: " << exists.error() << endl;
+    Future<bool> exists = hdfs.get()->exists(path);
+    exists.await();
+
+    if (!exists.isReady()) {
+      cerr << "Failed to check if file exists: "
+           << (exists.isFailed() ? exists.failure() : "discarded") << endl;
       return EXIT_FAILURE;
     } else if (exists.get() && flags.overwrite) {
       Try<Nothing> rm = hdfs.get()->rm(path);

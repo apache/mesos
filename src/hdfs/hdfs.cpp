@@ -122,22 +122,40 @@ Try<Owned<HDFS>> HDFS::create(const Option<string>& _hadoop)
 }
 
 
-Try<bool> HDFS::exists(const string& path)
+Future<bool> HDFS::exists(const string& path)
 {
-  Try<string> command = strings::format(
-      "%s fs -test -e '%s'", hadoop, absolutePath(path));
+  Try<Subprocess> s = subprocess(
+      hadoop,
+      {"hadoop", "fs", "-test", "-e", absolutePath(path)},
+      Subprocess::PATH("/dev/null"),
+      Subprocess::PIPE(),
+      Subprocess::PIPE());
 
-  CHECK_SOME(command);
-
-  // We are piping stderr to stdout so that we can see the error (if
-  // any) in the logs emitted by `os::shell()` in case of failure.
-  Try<string> out = os::shell(command.get() + " 2>&1");
-
-  if (out.isError()) {
-    return Error(out.error());
+  if (s.isError()) {
+    return Failure("Failed to execute the subprocess: " + s.error());
   }
 
-  return true;
+  return result(s.get())
+    .then([](const CommandResult& result) -> Future<bool> {
+      if (result.status.isNone()) {
+        return Failure("Failed to reap the subprocess");
+      }
+
+      if (WIFEXITED(result.status.get())) {
+        int exitCode = WEXITSTATUS(result.status.get());
+        if (exitCode == 0) {
+          return true;
+        } else if (exitCode == 1) {
+          return false;
+        }
+      }
+
+      return Failure(
+          "Unexpected result from the subprocess: "
+          "status='" + stringify(result.status.get()) + "', " +
+          "stdout='" + result.out + "', " +
+          "stderr='" + result.err + "'");
+    });
 }
 
 
