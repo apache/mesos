@@ -109,9 +109,12 @@ static Try<string> downloadWithHadoopClient(
   LOG(INFO) << "Downloading resource with Hadoop client from '" << sourceUri
             << "' to '" << destinationPath << "'";
 
-  Try<Nothing> result = hdfs.get()->copyToLocal(sourceUri, destinationPath);
-  if (result.isError()) {
-    return Error("HDFS copyToLocal failed: " + result.error());
+  Future<Nothing> result = hdfs.get()->copyToLocal(sourceUri, destinationPath);
+  result.await();
+
+  if (!result.isReady()) {
+    return Error("HDFS copyToLocal failed: " +
+                 (result.isFailed() ? result.failure() : "discarded"));
   }
 
   return destinationPath;

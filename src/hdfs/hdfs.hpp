@@ -57,7 +57,9 @@ public:
       const std::string& from,
       const std::string& to);
 
-  Try<Nothing> copyToLocal(const std::string& from, const std::string& to);
+  process::Future<Nothing> copyToLocal(
+      const std::string& from,
+      const std::string& to);
 
 private:
   explicit HDFS(const std::string& _hadoop)
