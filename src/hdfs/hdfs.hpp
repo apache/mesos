@@ -50,7 +50,7 @@ public:
       const Option<std::string>& hadoop = None());
 
   process::Future<bool> exists(const std::string& path);
-  Try<Bytes> du(const std::string& path);
+  process::Future<Bytes> du(const std::string& path);
   process::Future<Nothing> rm(const std::string& path);
 
   process::Future<Nothing> copyFromLocal(

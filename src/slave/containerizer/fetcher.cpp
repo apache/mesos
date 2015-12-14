@@ -281,9 +281,12 @@ static Try<Bytes> fetchSize(
     return Error("Failed to create HDFS client: " + hdfs.error());
   }
 
-  Try<Bytes> size = hdfs.get()->du(uri);
-  if (size.isError()) {
-    return Error("Hadoop client could not determine size: " + size.error());
+  Future<Bytes> size = hdfs.get()->du(uri);
+  size.await();
+
+  if (!size.isReady()) {
+    return Error("Hadoop client could not determine size: " +
+                 (size.isFailed() ? size.failure() : "discarded"));
   }
 
   return size.get();
