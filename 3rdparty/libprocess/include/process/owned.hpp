@@ -117,7 +117,9 @@ T* Owned<T>::get() const
   if (data.get() == NULL) {
     return NULL;
   } else {
-    CHECK(data->t != NULL) << "This owned pointer has already been shared";
+    // Static cast to avoid ambiguity in Visual Studio compiler.
+    CHECK(data->t != static_cast<T*>(NULL))
+      << "This owned pointer has already been shared";
 
     return data->t;
   }
