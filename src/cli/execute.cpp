@@ -395,9 +395,12 @@ int main(int argc, char** argv)
            << (exists.isFailed() ? exists.failure() : "discarded") << endl;
       return EXIT_FAILURE;
     } else if (exists.get() && flags.overwrite) {
-      Try<Nothing> rm = hdfs.get()->rm(path);
-      if (rm.isError()) {
-        cerr << "Failed to remove existing file: " << rm.error() << endl;
+      Future<Nothing> rm = hdfs.get()->rm(path);
+      rm.await();
+
+      if (!rm.isReady()) {
+        cerr << "Failed to remove existing file: "
+             << (rm.isFailed() ? rm.failure() : "discarded") << endl;
         return EXIT_FAILURE;
       }
     } else if (exists.get()) {
