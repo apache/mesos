@@ -13,41 +13,17 @@
 #ifndef __STOUT_ERROR_HPP__
 #define __STOUT_ERROR_HPP__
 
-#include <errno.h>
+// NOTE: The order of these `#include`s is important. This file is structured
+// as a series of `#include`s for historical reasons. Before, `stout/error`
+// simply contained the definitions of `Error` and `ErrnoError`. The addition
+// of Windows required the addition of `WindowsError`. But, we try to avoid
+// `#ifdef`'ing code, opting instead to `#ifdef` `#include` statements. Hence,
+// we simply move the `error.hpp` code to `errorbase.hpp` and include the
+// Windows error code below it.
+#include <stout/errorbase.hpp>
 
-#include <string>
-
-#include <stout/os/strerror.hpp>
-
-// A useful type that can be used to represent a Try that has
-// failed. You can also use 'ErrnoError' to append the error message
-// associated with the current 'errno' to your own error message.
-//
-// Examples:
-//
-//   Result<int> result = Error("uninitialized");
-//   Try<std::string> = Error("uninitialized");
-//
-//   void foo(Try<std::string> t) {}
-//
-//   foo(Error("some error here"));
-
-class Error
-{
-public:
-  explicit Error(const std::string& _message) : message(_message) {}
-
-  const std::string message;
-};
-
-
-class ErrnoError : public Error
-{
-public:
-  ErrnoError() : Error(os::strerror(errno)) {}
-
-  ErrnoError(const std::string& message)
-    : Error(message + ": " + os::strerror(errno)) {}
-};
+#ifdef __WINDOWS__
+#include <stout/windows/error.hpp>
+#endif // __WINDOWS__
 
 #endif // __STOUT_ERROR_HPP__

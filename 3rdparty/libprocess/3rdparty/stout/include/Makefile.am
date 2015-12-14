@@ -22,6 +22,7 @@ nobase_include_HEADERS =		\
   stout/duration.hpp			\
   stout/dynamiclibrary.hpp		\
   stout/error.hpp			\
+  stout/errorbase.hpp			\
   stout/exit.hpp			\
   stout/flags.hpp			\
   stout/flags/fetch.hpp			\
@@ -139,6 +140,7 @@ nobase_include_HEADERS =		\
   stout/uuid.hpp			\
   stout/version.hpp			\
   stout/windows.hpp			\
+  stout/windows/error.hpp		\
   stout/windows/format.hpp		\
   stout/windows/gzip.hpp		\
   stout/windows/os.hpp

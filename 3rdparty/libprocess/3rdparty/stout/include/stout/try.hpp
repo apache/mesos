@@ -57,6 +57,11 @@ public:
   Try(const ErrnoError& error)
     : message(error.message) {}
 
+#ifdef __WINDOWS__
+  Try(const WindowsError& error)
+    : message(error.message) {}
+#endif // __WINDOWS__
+
   // TODO(bmahler): Add move constructor.
 
   // We don't need to implement these because we are leveraging
