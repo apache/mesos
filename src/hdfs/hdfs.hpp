@@ -52,7 +52,11 @@ public:
   process::Future<bool> exists(const std::string& path);
   Try<Bytes> du(const std::string& path);
   process::Future<Nothing> rm(const std::string& path);
-  Try<Nothing> copyFromLocal(const std::string& from, const std::string& to);
+
+  process::Future<Nothing> copyFromLocal(
+      const std::string& from,
+      const std::string& to);
+
   Try<Nothing> copyToLocal(const std::string& from, const std::string& to);
 
 private:

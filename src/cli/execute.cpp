@@ -408,9 +408,12 @@ int main(int argc, char** argv)
       return EXIT_FAILURE;
     }
 
-    Try<Nothing> copy = hdfs.get()->copyFromLocal(flags.package.get(), path);
-    if (copy.isError()) {
-      cerr << "Failed to copy package: " << copy.error() << endl;
+    Future<Nothing> copy = hdfs.get()->copyFromLocal(flags.package.get(), path);
+    copy.await();
+
+    if (!copy.isReady()) {
+      cerr << "Failed to copy package: "
+           << (copy.isFailed() ? copy.failure() : "discarded") << endl;
       return EXIT_FAILURE;
     }
 

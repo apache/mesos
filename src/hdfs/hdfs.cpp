@@ -236,26 +236,39 @@ Future<Nothing> HDFS::rm(const string& path)
 }
 
 
-Try<Nothing> HDFS::copyFromLocal(const string& from, const string& _to)
+Future<Nothing> HDFS::copyFromLocal(const string& from, const string& to)
 {
   if (!os::exists(from)) {
-    return Error("Failed to find " + from);
+    return Failure("Failed to find '" + from + "'");
   }
 
-  const string to = absolutePath(_to);
+  Try<Subprocess> s = subprocess(
+      hadoop,
+      {"hadoop", "fs", "-copyFromLocal", from, absolutePath(to)},
+      Subprocess::PATH("/dev/null"),
+      Subprocess::PIPE(),
+      Subprocess::PIPE());
 
-  Try<string> command = strings::format(
-      "%s fs -copyFromLocal '%s' '%s'", hadoop, from, to);
-
-  CHECK_SOME(command);
-
-  Try<string> out = os::shell(command.get());
-
-  if (out.isError()) {
-    return Error(out.error());
+  if (s.isError()) {
+    return Failure("Failed to execute the subprocess: " + s.error());
   }
 
-  return Nothing();
+  return result(s.get())
+    .then([](const CommandResult& result) -> Future<Nothing> {
+      if (result.status.isNone()) {
+        return Failure("Failed to reap the subprocess");
+      }
+
+      if (result.status.get() != 0) {
+        return Failure(
+            "Unexpected result from the subprocess: "
+            "status='" + stringify(result.status.get()) + "', " +
+            "stdout='" + result.out + "', " +
+            "stderr='" + result.err + "'");
+      }
+
+      return Nothing();
+    });
 }
 
 
