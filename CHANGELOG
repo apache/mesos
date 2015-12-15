@@ -1,5 +1,9 @@
-Release Notes - Mesos - Version 0.26.0 (WIP)
+Release Notes - Mesos - Version 0.27.0 (WIP)
 --------------------------------------------
+
+
+Release Notes - Mesos - Version 0.26.0
+--------------------------------------
 
 ** API Changes:
   * [MESOS-3560] - Fix JSON-based credential files by changing protobuf `Credential` field `secret` from bytes to string.
@@ -117,7 +121,7 @@ Release Notes - Mesos - Version 0.26.0 (WIP)
   * [MESOS-3900] - Enable mesos-reviewbot project on jenkins to use docker.
 
 Release Notes - Mesos - Version 0.25.0
---------------------------------------------
+--------------------------------------
 This release contains:
  * [MESOS-1474] - Experimental support for maintenance primitives. Please refer
                   to maintenance.md for more information.
@@ -235,7 +239,7 @@ Release Notes - Mesos - Version 0.24.1
 
 
 Release Notes - Mesos - Version 0.24.0
---------------------------------------------
+--------------------------------------
 This release contains experimental v1 scheduler HTTP API. This allows framework schedulers
 to send HTTP requests to master endpoint ('/api/v1/scheduler') without the need for a driver.
 
@@ -387,7 +391,7 @@ Release Notes - Mesos - Version 0.23.1
 
 
 Release Notes - Mesos - Version 0.23.0
---------------------------------------------
+--------------------------------------
 This release contains new features:
 
 * [MESOS-1585] - Per-container network isolation: bandwidth capping and unique
