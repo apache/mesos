@@ -1688,6 +1688,7 @@ mesos_tests_SOURCES =						\
   tests/files_tests.cpp						\
   tests/flags.cpp						\
   tests/gc_tests.cpp						\
+  tests/hdfs_tests.cpp						\
   tests/health_check_tests.cpp					\
   tests/hierarchical_allocator_tests.cpp			\
   tests/hook_tests.cpp						\
