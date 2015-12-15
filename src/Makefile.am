@@ -636,6 +636,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   uri/fetcher.cpp							\
   uri/utils.cpp								\
   uri/fetchers/curl.cpp							\
+  uri/fetchers/hadoop.cpp						\
   usage/usage.cpp							\
   v1/attributes.cpp							\
   v1/mesos.cpp								\
@@ -761,8 +762,10 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   tests/containerizer/rootfs.hpp					\
   tests/containerizer/setns_test_helper.hpp				\
   tests/containerizer/store.hpp						\
+  uri/fetcher.hpp							\
   uri/utils.hpp								\
   uri/fetchers/curl.hpp							\
+  uri/fetchers/hadoop.hpp						\
   uri/schemes/file.hpp							\
   uri/schemes/http.hpp							\
   usage/usage.hpp							\

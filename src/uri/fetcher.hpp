@@ -14,39 +14,39 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef __URI_FETCHERS_CURL_HPP__
-#define __URI_FETCHERS_CURL_HPP__
+#ifndef __URI_FETCHER_HPP__
+#define __URI_FETCHER_HPP__
 
 #include <process/owned.hpp>
 
-#include <stout/flags.hpp>
+#include <stout/none.hpp>
+#include <stout/option.hpp>
 #include <stout/try.hpp>
 
 #include <mesos/uri/fetcher.hpp>
 
+#include "uri/fetchers/curl.hpp"
+#include "uri/fetchers/hadoop.hpp"
+
 namespace mesos {
 namespace uri {
+namespace fetcher {
 
-class CurlFetcherPlugin : public Fetcher::Plugin
-{
-public:
-  class Flags : public virtual flags::FlagsBase {};
+/**
+ * The combined flags for all built-in plugins.
+ */
+class Flags :
+  public CurlFetcherPlugin::Flags,
+  public HadoopFetcherPlugin::Flags {};
 
-  static Try<process::Owned<Fetcher::Plugin>> create(const Flags& flags);
 
-  virtual ~CurlFetcherPlugin() {}
+/**
+ * Factory method for creating a Fetcher instance.
+ */
+Try<process::Owned<Fetcher>> create(const Option<Flags>& flags = None());
 
-  virtual std::set<std::string> schemes();
-
-  virtual process::Future<Nothing> fetch(
-      const URI& uri,
-      const std::string& directory);
-
-private:
-  CurlFetcherPlugin() {}
-};
-
+} // namespace fetcher {
 } // namespace uri {
 } // namespace mesos {
 
-#endif // __URI_FETCHERS_CURL_HPP__
+#endif // __URI_FETCHER_HPP__

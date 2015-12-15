@@ -35,6 +35,7 @@
 
 using namespace process;
 
+using std::set;
 using std::string;
 using std::vector;
 
@@ -48,11 +49,17 @@ static Future<Nothing> _fetch(const Future<std::tuple<
     Future<string>>>& future);
 
 
-Try<Owned<Fetcher::Plugin>> CurlFetcherPlugin::create()
+Try<Owned<Fetcher::Plugin>> CurlFetcherPlugin::create(const Flags& flags)
 {
   // TODO(jieyu): Make sure curl is available.
 
   return Owned<Fetcher::Plugin>(new CurlFetcherPlugin());
+}
+
+
+set<string> CurlFetcherPlugin::schemes()
+{
+  return {"http", "https", "ftp", "ftps"};
 }
 
 

@@ -14,27 +14,38 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef __URI_FETCHERS_CURL_HPP__
-#define __URI_FETCHERS_CURL_HPP__
+#ifndef __URI_FETCHERS_HADOOP_HPP__
+#define __URI_FETCHERS_HADOOP_HPP__
 
 #include <process/owned.hpp>
 
 #include <stout/flags.hpp>
+#include <stout/option.hpp>
 #include <stout/try.hpp>
 
+#include <mesos/mesos.hpp>
+
 #include <mesos/uri/fetcher.hpp>
+
+#include "hdfs/hdfs.hpp"
 
 namespace mesos {
 namespace uri {
 
-class CurlFetcherPlugin : public Fetcher::Plugin
+class HadoopFetcherPlugin : public Fetcher::Plugin
 {
 public:
-  class Flags : public virtual flags::FlagsBase {};
+  class Flags : public virtual flags::FlagsBase
+  {
+  public:
+    Flags();
+
+    Option<std::string> hadoop;
+  };
 
   static Try<process::Owned<Fetcher::Plugin>> create(const Flags& flags);
 
-  virtual ~CurlFetcherPlugin() {}
+  virtual ~HadoopFetcherPlugin() {}
 
   virtual std::set<std::string> schemes();
 
@@ -43,10 +54,12 @@ public:
       const std::string& directory);
 
 private:
-  CurlFetcherPlugin() {}
+  HadoopFetcherPlugin(process::Owned<HDFS> _hdfs) : hdfs(_hdfs) {}
+
+  process::Owned<HDFS> hdfs;
 };
 
 } // namespace uri {
 } // namespace mesos {
 
-#endif // __URI_FETCHERS_CURL_HPP__
+#endif // __URI_FETCHERS_HADOOP_HPP__

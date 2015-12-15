@@ -14,8 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef __URI_PROTO_HPP__
-#define __URI_PROTO_HPP__
+#ifndef __MESOS_URI_PROTO_HPP__
+#define __MESOS_URI_PROTO_HPP__
 
 #include <ostream>
 
@@ -28,4 +28,4 @@ std::ostream& operator<<(std::ostream& stream, const URI& uri);
 
 } // namespace mesos {
 
-#endif // __URI_PROTO_HPP__
+#endif // __MESOS_URI_PROTO_HPP__

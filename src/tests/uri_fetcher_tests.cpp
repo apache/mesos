@@ -29,15 +29,18 @@
 
 #include <stout/tests/utils.hpp>
 
-#include <mesos/uri/fetcher.hpp>
-#include <mesos/uri/uri.hpp>
+#include "uri/fetcher.hpp"
 
 #include "uri/schemes/http.hpp"
 
-using namespace process;
+namespace http = process::http;
 
 using testing::_;
 using testing::Return;
+
+using process::Future;
+using process::Owned;
+using process::Process;
 
 namespace mesos {
 namespace internal {
@@ -87,7 +90,7 @@ TEST_F(CurlFetcherPluginTest, CURL_ValidUri)
   EXPECT_CALL(server, test(_))
     .WillOnce(Return(http::OK("test")));
 
-  Try<Owned<uri::Fetcher>> fetcher = uri::Fetcher::create();
+  Try<Owned<uri::Fetcher>> fetcher = uri::fetcher::create();
   ASSERT_SOME(fetcher);
 
   AWAIT_READY(fetcher.get()->fetch(uri, os::getcwd()));
@@ -106,7 +109,7 @@ TEST_F(CurlFetcherPluginTest, CURL_InvalidUri)
   EXPECT_CALL(server, test(_))
     .WillOnce(Return(http::NotFound()));
 
-  Try<Owned<uri::Fetcher>> fetcher = uri::Fetcher::create();
+  Try<Owned<uri::Fetcher>> fetcher = uri::fetcher::create();
   ASSERT_SOME(fetcher);
 
   AWAIT_FAILED(fetcher.get()->fetch(uri, os::getcwd()));

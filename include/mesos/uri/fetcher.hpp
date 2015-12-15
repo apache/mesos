@@ -14,9 +14,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef __URI_FETCHER_HPP__
-#define __URI_FETCHER_HPP__
+#ifndef __MESOS_URI_FETCHER_HPP__
+#define __MESOS_URI_FETCHER_HPP__
 
+#include <set>
 #include <string>
 
 #include <process/future.hpp>
@@ -24,12 +25,15 @@
 
 #include <stout/hashmap.hpp>
 #include <stout/nothing.hpp>
-#include <stout/try.hpp>
 
 #include <mesos/uri/uri.hpp>
 
 namespace mesos {
 namespace uri {
+
+// Forward declarations.
+class Flags;
+
 
 /**
  * Provides an abstraction for fetching URIs. It is pluggable through
@@ -50,6 +54,11 @@ public:
     virtual ~Plugin() {}
 
     /**
+     * Returns the URI schemes that this plugin handles.
+     */
+    virtual std::set<std::string> schemes() = 0;
+
+    /**
      * Fetches a URI to the given directory. To avoid blocking or
      * crashing the current thread, this method might choose to fork
      * subprocesses for third party commands.
@@ -63,9 +72,12 @@ public:
   };
 
   /**
-   * Factory method for creating a Fetcher instance.
+   * Create the Fetcher instance with the given plugins.
+   *
+   * @param _plugins a URI scheme to plugin map
    */
-  static Try<process::Owned<Fetcher>> create();
+  Fetcher(const hashmap<std::string, process::Owned<Plugin>>& _plugins)
+    : plugins(_plugins) {}
 
   /**
    * Fetches a URI to the given directory. This method will dispatch
@@ -79,9 +91,6 @@ public:
       const std::string& directory);
 
 private:
-  Fetcher(const hashmap<std::string, process::Owned<Plugin>>& _plugins)
-    : plugins(_plugins) {}
-
   Fetcher(const Fetcher&) = delete; // Not copyable.
   Fetcher& operator=(const Fetcher&) = delete; // Not assignable.
 
@@ -91,4 +100,4 @@ private:
 } // namespace uri {
 } // namespace mesos {
 
-#endif // __URI_FETCHER_HPP__
+#endif // __MESOS_URI_FETCHER_HPP__

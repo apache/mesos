@@ -14,37 +14,65 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <mesos/uri/fetcher.hpp>
+#include <string>
 
-#include "uri/fetchers/curl.hpp"
+#include <stout/foreach.hpp>
+#include <stout/lambda.hpp>
+#include <stout/hashmap.hpp>
 
-using namespace process;
+#include "uri/fetcher.hpp"
 
 using std::string;
 
+using process::Failure;
+using process::Future;
+using process::Owned;
+
 namespace mesos {
 namespace uri {
+namespace fetcher {
 
-Try<Owned<Fetcher>> Fetcher::create()
+Try<Owned<Fetcher>> create(const Option<Flags>& _flags)
 {
-  hashmap<string, Owned<Plugin>> plugins;
+  // Use the default flags if not specified.
+  Flags flags;
+  if (_flags.isSome()) {
+    flags = _flags.get();
+  }
 
-  hashmap<string, Try<Owned<Plugin>>(*)()> creators;
-  creators.put("http", &CurlFetcherPlugin::create);
+  // Load built-in plugins.
+  typedef lambda::function<Try<Owned<Fetcher::Plugin>>()> Creator;
 
-  foreachkey (const string& scheme, creators) {
-    Try<Owned<Plugin>> plugin = creators[scheme]();
+  hashmap<string, Creator> creators;
+  creators.put("curl", lambda::bind(&CurlFetcherPlugin::create, flags));
+  creators.put("hadoop", lambda::bind(&HadoopFetcherPlugin::create, flags));
+
+  hashmap<string, Owned<Fetcher::Plugin>> plugins;
+
+  foreachpair (const string& name, const Creator& creator, creators) {
+    Try<Owned<Fetcher::Plugin>> plugin = creator();
     if (plugin.isError()) {
-      return Error(
-          "Failed to create plugin for scheme '" +
-          scheme + "': " + plugin.error());
+      // NOTE: We skip the plugin if it cannot be created, instead of
+      // returning an Error so that we can still use other plugins.
+      LOG(ERROR) << "Failed to create URI fetcher plugin "
+                 << "'"  << name << "': " << plugin.error();
+      continue;
     }
 
-    plugins.put(scheme, plugin.get());
+    foreach (const string& scheme, plugin.get()->schemes()) {
+      if (plugins.contains(scheme)) {
+        LOG(WARNING) << "Multiple URI fetcher plugins register "
+                     << "URI scheme '" << scheme << "'";
+      }
+
+      plugins.put(scheme, plugin.get());
+    }
   }
 
   return Owned<Fetcher>(new Fetcher(plugins));
 }
+
+} // namespace fetcher {
 
 
 Future<Nothing> Fetcher::fetch(
