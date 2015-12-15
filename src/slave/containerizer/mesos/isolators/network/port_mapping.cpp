@@ -2249,6 +2249,13 @@ Future<Nothing> PortMappingIsolatorProcess::isolate(
         createVethPair.error());
   }
 
+  // We can not reuse the existing veth pair, because one of them is
+  // still inside another container.
+  if (!createVethPair.get()) {
+    return Failure(
+        "Virtual ethernet pair " + veth(pid) + " already exists");
+  }
+
   // Disable IPv6 for veth as IPv6 packets won't be forwarded anyway.
   const string disableIPv6 =
     path::join("/proc/sys/net/ipv6/conf", veth(pid), "disable_ipv6");
