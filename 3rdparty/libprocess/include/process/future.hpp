@@ -170,31 +170,32 @@ public:
   template <typename F>
   const Future<T>& onDiscard(_Deferred<F>&& deferred) const
   {
-    return onDiscard(std::function<void()>(deferred));
+    return onDiscard(deferred.operator std::function<void()>());
   }
 
   template <typename F>
   const Future<T>& onReady(_Deferred<F>&& deferred) const
   {
-    return onReady(std::function<void(const T&)>(deferred));
+    return onReady(deferred.operator std::function<void(const T&)>());
   }
 
   template <typename F>
   const Future<T>& onFailed(_Deferred<F>&& deferred) const
   {
-    return onFailed(std::function<void(const std::string&)>(deferred));
+    return onFailed(
+        deferred.operator std::function<void(const std::string&)>());
   }
 
   template <typename F>
   const Future<T>& onDiscarded(_Deferred<F>&& deferred) const
   {
-    return onDiscarded(std::function<void()>(deferred));
+    return onDiscarded(deferred.operator std::function<void()>());
   }
 
   template <typename F>
   const Future<T>& onAny(_Deferred<F>&& deferred) const
   {
-    return onAny(std::function<void(const Future<T>&)>(deferred));
+    return onAny(deferred.operator std::function<void(const Future<T>&)>());
   }
 
 private:
@@ -327,13 +328,13 @@ private:
   {
     // note the then<X> is necessary to not have an infinite loop with
     // then(F&& f)
-    return then<X>(std::function<Future<X>(const T&)>(f));
+    return then<X>(f.operator std::function<Future<X>(const T&)>());
   }
 
   template <typename F, typename X = typename internal::unwrap<typename std::result_of<F()>::type>::type> // NOLINT(whitespace/line_length)
   Future<X> then(_Deferred<F>&& f, LessPrefer) const
   {
-    return then<X>(std::function<Future<X>()>(f));
+    return then<X>(f.operator std::function<Future<X>()>());
   }
 
   template <typename F, typename X = typename internal::unwrap<typename std::result_of<F(const T&)>::type>::type> // NOLINT(whitespace/line_length)
