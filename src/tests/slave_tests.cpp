@@ -565,7 +565,6 @@ TEST_F(SlaveTest, GetExecutorInfo)
   // Now assert that it actually is running mesos-executor without any
   // bleedover from the command we intend on running.
   EXPECT_TRUE(executor.command().shell());
-  EXPECT_FALSE(executor.command().has_container());
   EXPECT_EQ(0, executor.command().arguments_size());
   EXPECT_NE(string::npos, executor.command().value().find("mesos-executor"));
 }
@@ -615,7 +614,6 @@ TEST_F(SlaveTest, GetExecutorInfoForTaskWithContainer)
   EXPECT_TRUE(executor.command().shell());
   // CommandInfo.container is not included. In this test the ContainerInfo
   // must be included in Executor.container (copied from TaskInfo.container).
-  EXPECT_FALSE(executor.command().has_container());
   EXPECT_TRUE(executor.has_container());
 
   EXPECT_EQ("4.3.2.1", executor.container().network_infos(0).ip_address());

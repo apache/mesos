@@ -1,6 +1,9 @@
 Release Notes - Mesos - Version 0.27.0 (WIP)
 --------------------------------------------
 
+** API Changes:
+  * [MESOS-2315] - Removed deprecated CommandInfo::ContainerInfo.
+
 
 Release Notes - Mesos - Version 0.26.0
 --------------------------------------

@@ -367,27 +367,6 @@ message CommandInfo {
     optional bool cache = 4;
   }
 
-  // Describes a container.
-  // Not all containerizers currently implement ContainerInfo, so it
-  // is possible that a launched task will fail due to supplying this
-  // attribute.
-  // NOTE: The containerizer API is currently in an early beta or
-  // even alpha state. Some details, like the exact semantics of an
-  // "image" or "options" are not yet hardened.
-  // TODO(tillt): Describe the exact scheme and semantics of "image"
-  // and "options".
-  message ContainerInfo {
-    // URI describing the container image name.
-    required string image = 1;
-
-    // Describes additional options passed to the containerizer.
-    repeated string options = 2;
-  }
-
-  // NOTE: MesosContainerizer does currently not support this
-  // attribute and tasks supplying a 'container' will fail.
-  optional ContainerInfo container = 4;
-
   repeated URI uris = 1;
 
   optional Environment environment = 2;

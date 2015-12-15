@@ -3543,11 +3543,6 @@ ExecutorInfo Slave::getExecutorInfo(
           task.command().environment());
     }
 
-    if (task.command().has_container()) {
-      executor.mutable_command()->mutable_container()->MergeFrom(
-          task.command().container());
-    }
-
     // We skip setting the user for the command executor that has
     // a rootfs image since we need root permissions to chroot.
     // We assume command executor will change to the correct user

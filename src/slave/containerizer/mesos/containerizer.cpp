@@ -609,11 +609,6 @@ Future<bool> MesosContainerizerProcess::launch(
         flags.default_container_info.get());
   }
 
-  // MesosContainerizer does not support ContainerInfo in CommandInfo.
-  if (executorInfo.command().has_container()) {
-    return false;
-  }
-
   LOG(INFO) << "Starting container '" << containerId
             << "' for executor '" << executorInfo.executor_id()
             << "' of framework '" << executorInfo.framework_id() << "'";
