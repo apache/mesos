@@ -22,12 +22,12 @@ the volume. These rules exist to limit accidental mistakes, such as a persistent
 volume containing sensitive data being offered to other frameworks in the
 cluster.
 
-Please refer to the [Reservation](reservation.md) documentation for details
+Please refer to the [Reservation](../reservation.md) documentation for details
 regarding reservation mechanisms available in Mesos.
 
 Persistent volumes can be created by __operators__ and authorized
 __frameworks__. We require a `principal` from the operator or framework in order
-to authenticate/authorize the operations. [Authorization](authorization.md) is
+to authenticate/authorize the operations. [Authorization](../authorization.md) is
 specified via the existing ACL mechanism. (___Coming Soon___)
 
 * `Offer::Operation::Create` and `Offer::Operation::Destroy` messages are

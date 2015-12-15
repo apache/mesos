@@ -89,7 +89,7 @@ via fork-exec within the ECP.
 A container is in a staging state and now gets started and observed
 until it gets into a final state.
 
-![Container Launching Scheme](images/ec_launch_seqdiag.png?raw=true)
+![Container Launching Scheme](../images/ec_launch_seqdiag.png?raw=true)
 
 ### Container Running
 
@@ -98,14 +98,14 @@ being in a non terminal state by the slave. The following commands
 will get triggered multiple times at the ECP over the lifetime of a
 container. Their order however is not determined.
 
-![Container Running Scheme](images/ec_lifecycle_seqdiag.png?raw=true)
+![Container Running Scheme](../images/ec_lifecycle_seqdiag.png?raw=true)
 
 ### Resource Limitation
 
 While a container is active, a resource limitation was identified
 (e.g. out of memory) by the ECP isolation mechanism of choice.
 
-![Resource Limitation Scheme](images/ec_kill_seqdiag.png?raw=true)
+![Resource Limitation Scheme](../images/ec_kill_seqdiag.png?raw=true)
 
 ## Slave Recovery Overview
 
@@ -136,14 +136,14 @@ ultimate command reaper.
 
 While containers are active, the slave fails over.
 
-![Recovery Scheme](images/ec_recover_seqdiag.png?raw=true)
+![Recovery Scheme](../images/ec_recover_seqdiag.png?raw=true)
 
 ### Orphan Destruction
 
 Containers identified by the ECP as being active but not slave state
 recoverable are getting terminated.
 
-![Orphan Destruction Scheme](images/ec_orphan_seqdiag.png?raw=true)
+![Orphan Destruction Scheme](../images/ec_orphan_seqdiag.png?raw=true)
 
 
 # Command Details

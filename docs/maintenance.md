@@ -61,7 +61,7 @@ resources or resource preemption.
 Maintenance primitives were introduced in Mesos 0.25.0.  Several machine
 maintenance modes were also introduced.  Those modes are illustrated below.
 
-![Maintenance mode transitions](images/maintenance-primitives-modes.png)
+![Maintenance mode transitions](../images/maintenance-primitives-modes.png)
 
 All mode transitions must be initiated by the operator.  Mesos will not
 change the mode of any machine, regardless of the estimate provided in
