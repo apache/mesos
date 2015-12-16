@@ -14,6 +14,7 @@ layout: documentation
 * [Getting Started](/documentation/latest/getting-started/) for basic instructions on compiling and installing Mesos.
 * [Upgrades](/documentation/latest/upgrades/) for upgrading a Mesos cluster.
 * [Configuration](/documentation/latest/configuration/) for command-line arguments.
+* [Containerizer Internals](/documentation/latest/containerizer-internals) for implementation details of containerizers.
 * [Mesos Containerizer](/documentation/latest/containerizer/) default containerizer, supports both Linux and POSIX systems.
 * [Docker Containerizer](/documentation/latest/docker-containerizer/) for launching a Docker image as a Task, or as an Executor.
 * [External Containerizer](/documentation/latest/external-containerizer/) for custom containerization implementations.
