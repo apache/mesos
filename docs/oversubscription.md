@@ -197,6 +197,16 @@ The QoS Controller informs the slave that particular corrective actions need to
 be made. Each corrective action contains information about executor or task and
 the type of action to perform.
 
+Mesos comes with a `noop` and a `load` qos controller. The `noop` controller
+does not provide any corrections, thus does not assure any quality of service
+for regular tasks. The `load` controller is ensuring the total system load
+doesn't exceed a configurable thresholds and as a result try to avoid the cpu
+congestion on the node. If the load is above the thresholds controller evicts
+all the revocable executors. These thresholds are configurable via two module
+parameters `load_threshold_5min` and `load_threshold_15min`. They represent
+standard unix load averages in the system. 1 minute system load is ignored,
+since for oversubscription use case it can be a misleading signal.
+
 ~~~{.proto}
 message QoSCorrection {
   enum Type {
@@ -292,6 +302,38 @@ The `fixed` resource estimator is enabled as follows:
 
 In the example above, a fixed amount of 14 cpus will be offered as revocable
 resources.
+
+The `load` qos controller is enabled as follows:
+
+```
+--qos_controller="org_apache_mesos_LoadQoSController"
+
+--qos_correction_interval_min="20secs"
+
+--modules='{
+  "libraries": {
+    "file": "/usr/local/lib64/libload_qos_controller.so",
+    "modules": {
+      "name": "org_apache_mesos_LoadQoSController",
+      "parameters": [
+        {
+          "key": "load_threshold_5min",
+          "value": "6"
+        },
+        {
+	  "key": "load_threshold_15min",
+	  "value": "4"
+        }
+      ]
+    }
+  }
+}'
+```
+
+In the example above, when standard unix system load average for 5 minutes will
+be above 6, or for 15 minutes will be above 4 then slave will evict all the
+`revocable` executors. `LoadQoSController` will be effectively run every 20
+seconds.
 
 To install a custom resource estimator and QoS controller, please refer to the
 [modules documentation](modules.md).
