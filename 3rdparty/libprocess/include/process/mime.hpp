@@ -13,6 +13,9 @@
 #ifndef __PROCESS_MIME_HPP__
 #define __PROCESS_MIME_HPP__
 
+#include <map>
+#include <string>
+
 namespace process {
 namespace mime {
 
