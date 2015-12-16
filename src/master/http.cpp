@@ -261,8 +261,7 @@ JSON::Object model(const Framework& framework)
 
   // Model all of the labels associated with a framework.
   if (framework.info.has_labels()) {
-    const mesos::Labels labels = framework.info.labels();
-    object.values["labels"] = std::move(JSON::protobuf(labels.labels()));
+    object.values["labels"] = model(framework.info.labels());
   }
 
   return object;
