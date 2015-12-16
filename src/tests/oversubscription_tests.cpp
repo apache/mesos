@@ -43,6 +43,7 @@
 #include "slave/flags.hpp"
 #include "slave/monitor.hpp"
 #include "slave/slave.hpp"
+#include "slave/qos_controllers/load.hpp"
 
 #include "tests/flags.hpp"
 #include "tests/containerizer.hpp"
@@ -53,6 +54,7 @@ using namespace process;
 
 using mesos::internal::master::Master;
 
+using mesos::internal::slave::LoadQoSController;
 using mesos::internal::slave::ResourceMonitor;
 using mesos::internal::slave::Slave;
 
@@ -154,6 +156,23 @@ protected:
     statistics.set_timestamp(0);
 
     return statistics;
+  }
+
+  ExecutorInfo createExecutorInfo(
+      const string& _frameworkId,
+      const string& _executorId)
+  {
+    FrameworkID frameworkId;
+    frameworkId.set_value(_frameworkId);
+
+    ExecutorID executorId;
+    executorId.set_value(_executorId);
+
+    ExecutorInfo executorInfo;
+    executorInfo.mutable_executor_id()->CopyFrom(executorId);
+    executorInfo.mutable_framework_id()->CopyFrom(frameworkId);
+
+    return executorInfo;
   }
 
 private:
@@ -1104,6 +1123,83 @@ TEST_F(OversubscriptionTest, RemoveCapabilitiesOnSchedulerFailover)
 
   Shutdown();
 }
+
+
+// This test verifies the functionality of the Load QoS Controller.
+// If the total system load on the agent exceeds the configured threshold then
+// it should evict all revocable executors.
+// 1. Run first correction iteration with two revocable executors and the system
+//    load below the thresholds. Eviction should not appear.
+// 2. Run second correction iteration with the same executors and the system
+//    5min load above the threshold. QoSCorrection message should appear.
+TEST_F(OversubscriptionTest, LoadQoSController)
+{
+  // Configure Load QoS Controller. Revocable tasks will be killed when
+  // the load 5min value will be above 7 or load 15min above 6.
+  // This configuration could be a reasonable one for an 8 CPUs machine.
+  const double loadThreshold5Min = 7;
+  const double loadThreshold15Min = 6;
+
+  // Prepare stubbed os::Load whose values are below thresholds.
+  os::Load stubLoad;
+
+  stubLoad.one = 1;
+  stubLoad.five = loadThreshold5Min - 0.2;
+  stubLoad.fifteen = loadThreshold15Min - 0.2;
+
+  // Construct `LoadQoSController` with configured thresholds and fake
+  // loadAverage lambda.
+  LoadQoSController controller(loadThreshold5Min,
+                               loadThreshold15Min,
+                               [&stubLoad]() { return stubLoad; });
+
+  // Prepare lambda creating ResourceUsage stub with two revocable executors.
+  controller.initialize([this]() -> Future<ResourceUsage> {
+    ResourceUsage usage;
+    ResourceStatistics statistics = createResourceStatistics();
+
+    Resources resources = Resources::parse("mem:128").get();
+    resources += createRevocableResources("cpus", "1");
+
+    // Prepare first revocable executor.
+    ResourceUsage::Executor* executor = usage.add_executors();
+    executor->mutable_executor_info()->CopyFrom(
+        createExecutorInfo("framework", "executor1"));
+    executor->mutable_allocated()->CopyFrom(resources);
+    executor->mutable_statistics()->CopyFrom(statistics);
+
+    // Prepare second revocable executor.
+    resources = Resources::parse("mem:256").get();
+    resources += createRevocableResources("cpus", "7");
+
+    executor = usage.add_executors();
+    executor->mutable_executor_info()->CopyFrom(
+        createExecutorInfo("framework", "executor2"));
+    executor->mutable_allocated()->CopyFrom(resources);
+    executor->mutable_statistics()->CopyFrom(statistics);
+
+    return usage;
+  });
+
+  // First correction iteration. All system loads are below the threshold.
+  Future<list<QoSCorrection>> qosCorrections = controller.corrections();
+
+  AWAIT(qosCorrections);
+
+  // Expect no corrections.
+  ASSERT_EQ(qosCorrections.get().size(), 0u);
+
+  // Second correction iteration. Make system 5 minutes load above the
+  // threshold.
+  stubLoad.five = loadThreshold5Min + 0.2;
+  qosCorrections = controller.corrections();
+
+  AWAIT(qosCorrections);
+
+  // Expect two corrections, since there were two revocable executors.
+  ASSERT_EQ(qosCorrections.get().size(), 2u);
+}
+
 
 } // namespace tests {
 } // namespace internal {

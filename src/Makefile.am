@@ -1602,6 +1602,13 @@ libfixed_resource_estimator_la_SOURCES = slave/resource_estimators/fixed.cpp
 libfixed_resource_estimator_la_CPPFLAGS = $(MESOS_CPPFLAGS)
 libfixed_resource_estimator_la_LDFLAGS = $(MESOS_MODULE_LDFLAGS)
 
+# Library containing the load qos controller.
+lib_LTLIBRARIES += libload_qos_controller.la
+libload_qos_controller_la_SOURCES = slave/qos_controllers/load.hpp
+libload_qos_controller_la_SOURCES += slave/qos_controllers/load.cpp
+libload_qos_controller_la_CPPFLAGS = $(MESOS_CPPFLAGS)
+libload_qos_controller_la_LDFLAGS = $(MESOS_MODULE_LDFLAGS)
+
 # We need to build the test module libraries for running the test suite but
 # don't need to install them.  The 'noinst_' prefix ensures that these libraries
 # will not be installed.  However, it also skips building the shared libraries.
@@ -1669,6 +1676,7 @@ libtestqos_controller_la_CPPFLAGS = $(MESOS_CPPFLAGS)
 libtestqos_controller_la_LDFLAGS = $(MESOS_TEST_MODULE_LDFLAGS)
 
 mesos_tests_SOURCES =						\
+  slave/qos_controllers/load.cpp				\
   tests/anonymous_tests.cpp					\
   tests/attributes_tests.cpp					\
   tests/authentication_tests.cpp				\
