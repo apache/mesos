@@ -190,3 +190,9 @@ described in the ***Building Mesos*** section above.
 
     # Run Python framework (Exits after successfully running some tasks.).
     $ ./src/examples/python/test-framework 127.0.0.1:5050
+
+*Note: These examples assume you are running Mesos on your local machine.
+Following them will not allow you to access the Mesos web page in a production
+environment (e.g. on AWS). For that you will need to specify the actual IP of
+your host when launching the Mesos master and ensure your firewall settings
+allow access to port 5050 from the outside world.*
