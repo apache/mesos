@@ -2819,6 +2819,71 @@ Future<bool> Master::authorizeUnreserveResources(
 }
 
 
+Future<bool> Master::authorizeCreateVolume(
+    const Offer::Operation::Create& create,
+    const Option<string>& principal)
+{
+  if (authorizer.isNone()) {
+    return true; // Authorization is disabled.
+  }
+
+  mesos::ACL::CreateVolume request;
+
+  if (principal.isSome()) {
+    request.mutable_principals()->add_values(principal.get());
+  } else {
+    request.mutable_principals()->set_type(ACL::Entity::ANY);
+  }
+
+  // TODO(greggomann): Determine what `volume_types` we may want to
+  // allow/prevent creation of. Currently, we simply use ANY.
+  request.mutable_volume_types()->set_type(ACL::Entity::ANY);
+
+  LOG(INFO)
+    << "Authorizing principal '"
+    << (principal.isSome() ? principal.get() : "ANY")
+    << "' to create volumes";
+
+  return authorizer.get()->authorize(request);
+}
+
+
+Future<bool> Master::authorizeDestroyVolume(
+    const Offer::Operation::Destroy& destroy,
+    const Option<string>& principal)
+{
+  if (authorizer.isNone()) {
+    return true; // Authorization is disabled.
+  }
+
+  mesos::ACL::DestroyVolume request;
+
+  if (principal.isSome()) {
+    request.mutable_principals()->add_values(principal.get());
+  } else {
+    request.mutable_principals()->set_type(ACL::Entity::ANY);
+  }
+
+  foreach (const Resource& volume, destroy.volumes()) {
+    // NOTE: Since validation of this operation may be performed after
+    // authorization, we must check here that this resource is a persistent
+    // volume. If it isn't, the error will be caught during validation.
+    if (Resources::isPersistentVolume(volume)) {
+      request.mutable_creator_principals()->add_values(
+          volume.disk().persistence().principal());
+    }
+  }
+
+  LOG(INFO)
+    << "Authorizing principal '"
+    << (principal.isSome() ? principal.get() : "ANY")
+    << "' to destroy volumes '"
+    << stringify(destroy.volumes()) << "'";
+
+  return authorizer.get()->authorize(request);
+}
+
+
 Resources Master::addTask(
     const TaskInfo& task,
     Framework* framework,
