@@ -119,6 +119,36 @@ public:
     return acls.permissive(); // None of the ACLs match.
   }
 
+  Future<bool> authorize(const ACL::CreateVolume& request)
+  {
+    foreach (const ACL::CreateVolume& acl, acls.create_volumes()) {
+      // ACL matches if both subjects and objects match.
+      if (matches(request.principals(), acl.principals()) &&
+          matches(request.volume_types(), acl.volume_types())) {
+        // ACL is allowed if both subjects and objects are allowed.
+        return allows(request.principals(), acl.principals()) &&
+               allows(request.volume_types(), acl.volume_types());
+      }
+    }
+
+    return acls.permissive(); // None of the ACLs match.
+  }
+
+  Future<bool> authorize(const ACL::DestroyVolume& request)
+  {
+    foreach (const ACL::DestroyVolume& acl, acls.destroy_volumes()) {
+      // ACL matches if both subjects and objects match.
+      if (matches(request.principals(), acl.principals()) &&
+          matches(request.creator_principals(), acl.creator_principals())) {
+        // ACL is allowed if both subjects and objects are allowed.
+        return allows(request.principals(), acl.principals()) &&
+               allows(request.creator_principals(), acl.creator_principals());
+      }
+    }
+
+    return acls.permissive(); // None of the ACLs match.
+  }
+
 private:
   // Match matrix:
   //
@@ -345,6 +375,34 @@ Future<bool> LocalAuthorizer::authorize(const ACL::UnreserveResources& request)
   // Necessary to disambiguate.
   typedef Future<bool>(
       LocalAuthorizerProcess::*F)(const ACL::UnreserveResources&);
+
+  return dispatch(
+      process, static_cast<F>(&LocalAuthorizerProcess::authorize), request);
+}
+
+
+Future<bool> LocalAuthorizer::authorize(const ACL::CreateVolume& request)
+{
+  if (process == NULL) {
+    return Failure("Authorizer not initialized");
+  }
+
+  // Necessary to disambiguate.
+  typedef Future<bool>(LocalAuthorizerProcess::*F)(const ACL::CreateVolume&);
+
+  return dispatch(
+      process, static_cast<F>(&LocalAuthorizerProcess::authorize), request);
+}
+
+
+Future<bool> LocalAuthorizer::authorize(const ACL::DestroyVolume& request)
+{
+  if (process == NULL) {
+    return Failure("Authorizer not initialized");
+  }
+
+  // Necessary to disambiguate.
+  typedef Future<bool>(LocalAuthorizerProcess::*F)(const ACL::DestroyVolume&);
 
   return dispatch(
       process, static_cast<F>(&LocalAuthorizerProcess::authorize), request);

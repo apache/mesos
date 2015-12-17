@@ -555,6 +555,134 @@ TYPED_TEST(AuthorizationTest, Unreserve)
   AWAIT_EXPECT_FALSE(authorizer.get()->authorize(request6));
 }
 
+
+// This tests the authorization of ACLs used for the creation
+// of persistent volumes.
+TYPED_TEST(AuthorizationTest, CreateVolume)
+{
+  ACLs acls;
+
+  // "foo" and "bar" principals can create any volumes.
+  mesos::ACL::CreateVolume* acl1 = acls.add_create_volumes();
+  acl1->mutable_principals()->add_values("foo");
+  acl1->mutable_principals()->add_values("bar");
+  acl1->mutable_volume_types()->set_type(mesos::ACL::Entity::ANY);
+
+  // "baz" principal cannot create volumes.
+  mesos::ACL::CreateVolume* acl2 = acls.add_create_volumes();
+  acl2->mutable_principals()->add_values("baz");
+  acl2->mutable_volume_types()->set_type(mesos::ACL::Entity::NONE);
+
+  // No other principals can create volumes.
+  mesos::ACL::CreateVolume* acl3 = acls.add_create_volumes();
+  acl3->mutable_principals()->set_type(mesos::ACL::Entity::ANY);
+  acl3->mutable_volume_types()->set_type(mesos::ACL::Entity::NONE);
+
+  // Create an Authorizer with the ACLs.
+  Try<Authorizer*> create = TypeParam::create();
+  ASSERT_SOME(create);
+  Owned<Authorizer> authorizer(create.get());
+
+  Try<Nothing> initialized = authorizer.get()->initialize(acls);
+  ASSERT_SOME(initialized);
+
+  // Principals "foo" and "bar" can create volumes, so this request will pass.
+  mesos::ACL::CreateVolume request1;
+  request1.mutable_principals()->add_values("foo");
+  request1.mutable_principals()->add_values("bar");
+  request1.mutable_volume_types()->set_type(mesos::ACL::Entity::ANY);
+  AWAIT_EXPECT_TRUE(authorizer.get()->authorize(request1));
+
+  // Principal "baz" cannot create volumes, so this request will fail.
+  mesos::ACL::CreateVolume request2;
+  request2.mutable_principals()->add_values("baz");
+  request2.mutable_volume_types()->set_type(mesos::ACL::Entity::ANY);
+  AWAIT_EXPECT_FALSE(authorizer.get()->authorize(request2));
+
+  // Principal "zelda" is not mentioned in the ACLs of the Authorizer, so it
+  // will be caught by the final ACL, which provides a default case that denies
+  // access for all other principals. This case will fail.
+  mesos::ACL::CreateVolume request3;
+  request3.mutable_principals()->add_values("zelda");
+  request3.mutable_volume_types()->set_type(mesos::ACL::Entity::ANY);
+  AWAIT_EXPECT_FALSE(authorizer.get()->authorize(request3));
+}
+
+
+// This tests the authorization of ACLs used for destruction
+// operations on persistent volumes.
+TYPED_TEST(AuthorizationTest, DestroyVolume)
+{
+  ACLs acls;
+
+  // "foo" principal can destroy its own volumes.
+  mesos::ACL::DestroyVolume* acl1 = acls.add_destroy_volumes();
+  acl1->mutable_principals()->add_values("foo");
+  acl1->mutable_creator_principals()->add_values("foo");
+
+  // "bar" principal cannot destroy anyone's volumes.
+  mesos::ACL::DestroyVolume* acl2 = acls.add_destroy_volumes();
+  acl2->mutable_principals()->add_values("bar");
+  acl2->mutable_creator_principals()->set_type(mesos::ACL::Entity::NONE);
+
+  // "ops" principal can destroy anyone's volumes.
+  mesos::ACL::DestroyVolume* acl3 = acls.add_destroy_volumes();
+  acl3->mutable_principals()->add_values("ops");
+  acl3->mutable_creator_principals()->set_type(mesos::ACL::Entity::ANY);
+
+  // No other principals can destroy volumes.
+  mesos::ACL::DestroyVolume* acl4 = acls.add_destroy_volumes();
+  acl4->mutable_principals()->set_type(mesos::ACL::Entity::ANY);
+  acl4->mutable_creator_principals()->set_type(mesos::ACL::Entity::NONE);
+
+  // Create an Authorizer with the ACLs.
+  Try<Authorizer*> create = TypeParam::create();
+  ASSERT_SOME(create);
+  Owned<Authorizer> authorizer(create.get());
+
+  Try<Nothing> initialized = authorizer.get()->initialize(acls);
+  ASSERT_SOME(initialized);
+
+  // Principal "foo" can destroy its own volumes, so this will pass.
+  mesos::ACL::DestroyVolume request1;
+  request1.mutable_principals()->add_values("foo");
+  request1.mutable_creator_principals()->add_values("foo");
+  AWAIT_EXPECT_TRUE(authorizer.get()->authorize(request1));
+
+  // Principal "bar" cannot destroy anyone's
+  // volumes, so requests 2 and 3 will fail.
+  mesos::ACL::DestroyVolume request2;
+  request2.mutable_principals()->add_values("bar");
+  request2.mutable_creator_principals()->add_values("foo");
+  AWAIT_EXPECT_FALSE(authorizer.get()->authorize(request2));
+
+  mesos::ACL::DestroyVolume request3;
+  request3.mutable_principals()->add_values("bar");
+  request3.mutable_creator_principals()->add_values("bar");
+  AWAIT_EXPECT_FALSE(authorizer.get()->authorize(request3));
+
+  // Principal "ops" can destroy anyone's volumes,
+  // so requests 4 and 5 will succeed.
+  mesos::ACL::DestroyVolume request4;
+  request4.mutable_principals()->add_values("ops");
+  request4.mutable_creator_principals()->add_values("foo");
+  AWAIT_EXPECT_TRUE(authorizer.get()->authorize(request4));
+
+  mesos::ACL::DestroyVolume request5;
+  request5.mutable_principals()->add_values("ops");
+  request5.mutable_creator_principals()->add_values("bar");
+  request5.mutable_creator_principals()->add_values("ops");
+  AWAIT_EXPECT_TRUE(authorizer.get()->authorize(request5));
+
+  // Principal "zelda" is not mentioned in the ACLs of the Authorizer, so it
+  // will be caught by the final ACL, which provides a default case that denies
+  // access for all other principals. This case will fail.
+  mesos::ACL::DestroyVolume request6;
+  request6.mutable_principals()->add_values("zelda");
+  request6.mutable_creator_principals()->add_values("foo");
+  AWAIT_EXPECT_FALSE(authorizer.get()->authorize(request6));
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {

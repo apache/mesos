@@ -1205,6 +1205,10 @@ public:
       authorize, process::Future<bool>(const ACL::ReserveResources& request));
   MOCK_METHOD1(
       authorize, process::Future<bool>(const ACL::UnreserveResources& request));
+  MOCK_METHOD1(
+      authorize, process::Future<bool>(const ACL::CreateVolume& request));
+  MOCK_METHOD1(
+      authorize, process::Future<bool>(const ACL::DestroyVolume& request));
 };
 
 

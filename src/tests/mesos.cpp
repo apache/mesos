@@ -690,6 +690,12 @@ MockAuthorizer::MockAuthorizer()
   EXPECT_CALL(*this, authorize(An<const mesos::ACL::UnreserveResources&>()))
     .WillRepeatedly(Return(true));
 
+  EXPECT_CALL(*this, authorize(An<const mesos::ACL::CreateVolume&>()))
+    .WillRepeatedly(Return(true));
+
+  EXPECT_CALL(*this, authorize(An<const mesos::ACL::DestroyVolume&>()))
+    .WillRepeatedly(Return(true));
+
   EXPECT_CALL(*this, initialize(An<const Option<ACLs>&>()))
     .WillRepeatedly(Return(Nothing()));
 }

@@ -171,6 +171,46 @@ public:
   virtual process::Future<bool> authorize(
       const ACL::UnreserveResources& request) = 0;
 
+  /**
+   * Used to verify if a principal is allowed to create a persistent volume.
+   * The `principals` and `volume_types` parameters are packed in the request.
+   * If the principal is allowed to perform the action, this method returns
+   * true. Otherwise it returns false. A third possible outcome is that the
+   * future fails, which indicates that the request could not be checked at the
+   * moment. This may be a temporary condition.
+   *
+   * @param request An instance of an `ACL::CreateVolume` protobuf message. It
+   *     packs all the parameters needed to verify the given principal is
+   *     allowed to create the given type of volume.
+   *
+   * @return true if the principal can create a persistent volume, false
+   *     otherwise. A failed future is neither true nor false. It indicates a
+   *     problem processing the request and the request can be retried.
+   */
+  virtual process::Future<bool> authorize(
+      const ACL::CreateVolume& request) = 0;
+
+  /**
+   * Used to verify if a principal is allowed to destroy a volume created by
+   * another principal. The `principals` and `creator_principals` parameters are
+   * packed in the request. If the principal is allowed to perform the action,
+   * this method returns true. Otherwise it returns false. A third possible
+   * outcome is that the future fails, which indicates that the request could
+   * not be checked at the moment. This may be a temporary condition.
+   *
+   * @param request An instance of an `ACL::DestroyVolume` protobuf message. It
+   *     packs all the parameters needed to verify the given principal is
+   *     allowed to destroy volumes which were created by the creator principal
+   *     contained in the request.
+   *
+   * @return true if the principal can destroy volumes which were created by the
+   *     creator principal, false otherwise. A failed future is neither true nor
+   *     false. It indicates a problem processing the request and the request
+   *     can be retried.
+   */
+  virtual process::Future<bool> authorize(
+      const ACL::DestroyVolume& request) = 0;
+
 protected:
   Authorizer() {}
 };
