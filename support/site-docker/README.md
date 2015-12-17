@@ -17,5 +17,11 @@ This will start a container, generate the website from your local Mesos Git repo
  - On Linux, the site will be available at http://localhost:4567.
  - On OS X, run `docker-machine ls` to find the IP address of your boot-to-docker VM; the site will be available at that IP, port 4567.
 
+If you are running the container on a remote machine and need to tunnel it to localhost, you can run the following command to make the site available locally:
+
+```
+ssh -NT -L 4567:localhost:4567 <remote-machine>
+```
+
 Any changes to the `site/source` directory will cause middleman to reload and regenerate the website, so you can just edit, save, refresh.
 When you are done with the webserver, hit Ctrl-C in the docker terminal to kill the middleman webserver and destroy/remove the container.
