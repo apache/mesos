@@ -31,6 +31,7 @@ layout: documentation
 * [Maintenance](/documentation/latest/maintenance/) for performing maintenance on a Mesos cluster.
 * [Tools](/documentation/latest/tools/) for setting up and running a Mesos cluster.
 * [SSL](/documentation/latest/ssl/) for enabling and enforcing SSL communication.
+* [Mesos Image Provisioner](/documentation/latest/mesos-provisioner/) for provisioning container filesystems from different image formats.
 
 ## Advanced Features
 
