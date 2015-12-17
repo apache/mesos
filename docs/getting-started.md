@@ -124,6 +124,10 @@ Following are the instructions for stock CentOS 7.1. If you are using a differen
     # Fetch the Apache Maven repo file.
     $ sudo wget http://repos.fedorapeople.org/repos/dchen/apache-maven/epel-apache-maven.repo -O /etc/yum.repos.d/epel-apache-maven.repo
 
+    # Install the EPEL repo so that we can pull in 'libserf-1' as part of our
+    # subversion install below.
+    $ sudo yum install -y epel-release
+
     # 'Mesos > 0.21.0' requires 'subversion > 1.8' devel package,
     # which is not available in the default repositories.
     # Create a WANdisco SVN repo file to install the correct version:
@@ -140,7 +144,7 @@ Following are the instructions for stock CentOS 7.1. If you are using a differen
     $ sudo yum groupinstall -y "Development Tools"
 
     # Install other Mesos dependencies.
-    $ sudo yum install -y apache-maven python-devel java-1.7.0-openjdk-devel zlib-devel libcurl-devel openssl-devel cyrus-sasl-devel cyrus-sasl-md5 apr-devel subversion-devel apr-util-devel
+    $ sudo yum install -y apache-maven python-devel java-1.8.0-openjdk-devel zlib-devel libcurl-devel openssl-devel cyrus-sasl-devel cyrus-sasl-md5 apr-devel subversion-devel apr-util-devel
 
 ## Building Mesos
 
