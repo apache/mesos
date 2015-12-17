@@ -167,6 +167,8 @@ In order to speed up the build and reduce verbosity of the logs, you can append 
 ## Examples
 
 Mesos comes bundled with example frameworks written in C++, Java and Python.
+The framework binaries will only be available after running `make check`, as
+described in the ***Building Mesos*** section above.
 
     # Change into build directory.
     $ cd build
@@ -188,5 +190,3 @@ Mesos comes bundled with example frameworks written in C++, Java and Python.
 
     # Run Python framework (Exits after successfully running some tasks.).
     $ ./src/examples/python/test-framework 127.0.0.1:5050
-
-*NOTE: To build the example frameworks, make sure you build the test suite by doing `make check`.*
