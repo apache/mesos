@@ -2,7 +2,7 @@
 layout: documentation
 ---
 
-# Mesos High Availability Mode
+# Mesos High-Availability Mode
 
 If the Mesos master is unavailable, existing tasks can continue to execute, but new resources cannot be allocated and new tasks cannot be launched. To reduce the chance of this situation occurring, Mesos has a high-availability mode that uses multiple Mesos masters: one active master (called the _leader_ or leading master) and several _backups_ in case it fails. The masters elect the leader, with [Apache ZooKeeper](http://zookeeper.apache.org/) both coordinating the election and handling leader detection by masters, slaves, and scheduler drivers. More information regarding [how leader election works](http://zookeeper.apache.org/doc/trunk/recipes.html#sc_leaderElection) is available on the Apache Zookeeper website.
 
@@ -19,11 +19,11 @@ To put Mesos into high-availability mode:
 
     * Start the mesos-slave binaries with `--master=zk://host1:port1,host2:port2,.../path`
 
-    * Start any framework schedulers using the same `zk` path as in the last two steps. The SchedulerDriver must be constructed with this path, as shown in the [Framework Development Guide]( http://mesos.apache.org/documentation/latest/app-framework-development-guide/).
+    * Start any framework schedulers using the same `zk` path as in the last two steps. The SchedulerDriver must be constructed with this path, as shown in the [Framework Development Guide](/documentation/latest/app-framework-development-guide/).
 
 From now on, the Mesos masters and slaves all communicate with ZooKeeper to find out which master is the current leading master. This is in addition to the usual communication between the leading master and the slaves.
 
-Refer to the [Scheduler API](http://mesos.apache.org/documentation/latest/app-framework-development-guide/) for how to deal with leadership changes.
+Refer to the [Scheduler API](/documentation/latest/app-framework-development-guide/) for how to deal with leadership changes.
 
 ## Component Disconnection Handling
 When a network partition disconnects a component (master, slave, or scheduler driver) from ZooKeeper, the component's Master Detector induces a timeout event. This notifies the component that it has no leading master. Depending on the component, the following happens. (Note that while a component is disconnected from ZooKeeper, a master may still be in communication with slaves or schedulers and vice versa.)
@@ -43,7 +43,7 @@ When a network partition disconnects a slave from the leader:
 
 * The slave fails health checks from the leader.
 
-* The leader marks the slave as deactivated and sends its tasks to the LOST state. The  [Framework Development Guide](http://mesos.apache.org/documentation/latest/app-framework-development-guide/) describes these various task states.
+* The leader marks the slave as deactivated and sends its tasks to the LOST state. The  [Framework Development Guide](/documentation/latest/app-framework-development-guide/) describes these various task states.
 
 * Deactivated slaves may not re-register with the leader and are told to shut down upon any post-deactivation communication.
 
