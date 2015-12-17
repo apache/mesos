@@ -259,6 +259,7 @@ Mesos related headers in `include` directories are partitioned by their subfolde
 Header in `src` directories are included afterwards, using the same rules but with quotes instead of brackets.
 
 Example for `src/common/foo.cpp`:
+
 ~~~{.cpp}
 #include "common/foo.hpp"
 
