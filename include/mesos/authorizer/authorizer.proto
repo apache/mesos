@@ -86,6 +86,27 @@ message ACL {
     // Objects: Principal of the entity that reserved the resources.
     required Entity reserver_principals = 2;
   }
+
+  // Specifies what types of volumes, if any, a principal can create.
+  message CreateVolume {
+    // Subjects: Framework principal or Operator username.
+    required Entity principals = 1;
+
+    // Objects: The principal(s) can create volumes of these types.
+    // NOTE: Currently, the only valid values in the default authorizer
+    // implementation are ANY and NONE.
+    required Entity volume_types = 2;
+  }
+
+  // Specifies which principals can destroy volumes
+  // created by which other principals.
+  message DestroyVolume {
+    // Subjects: Framework principal or Operator username.
+    required Entity principals = 1;
+
+    // Objects: Principal of the entity that created the volume.
+    required Entity creator_principals = 2;
+  }
 }
 
 
@@ -115,4 +136,6 @@ message ACLs {
   repeated ACL.ShutdownFramework shutdown_frameworks = 4;
   repeated ACL.ReserveResources reserve_resources = 5;
   repeated ACL.UnreserveResources unreserve_resources = 6;
+  repeated ACL.CreateVolume create_volumes = 7;
+  repeated ACL.DestroyVolume destroy_volumes = 8;
 }
