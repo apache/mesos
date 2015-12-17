@@ -17,6 +17,8 @@ There are different ways you can get Mesos:
 
     $ git clone https://git-wip-us.apache.org/repos/asf/mesos.git
 
+*NOTE: If you have problems running the above commands, you may need to first run through the ***System Requirements*** section below to install the `wget`, `tar`, and `git` utilities for your system.*
+
 ## System Requirements
 
 Mesos runs on Linux (64 Bit) and Mac OS X (64 Bit).
@@ -31,6 +33,9 @@ Following are the instructions for stock Ubuntu 14.04. If you are using a differ
 
     # Update the packages.
     $ sudo apt-get update
+
+    # Install a few utility tools.
+    $ sudo apt-get install -y tar wget git
 
     # Install the latest OpenJDK.
     $ sudo apt-get install -y openjdk-7-jdk
@@ -52,7 +57,7 @@ Following are the instructions for stock Mac OS X Yosemite and El Capitan. If yo
     $ ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
 
     # Install libraries.
-    $ brew install autoconf automake libtool subversion maven
+    $ brew install wget git autoconf automake libtool subversion maven
 
 *NOTE: When upgrading from Yosemite to El Capitan, make sure to rerun `xcode-select --install` after the upgrade.*
 
@@ -71,7 +76,7 @@ Following are the instructions for stock CentOS 6.6. If you are using a differen
 
     # Install a few utility tools. This also forces an update of `nss`,
     # which is necessary for the Java bindings to build properly.
-    $ sudo yum install -y tar wget which nss
+    $ sudo yum install -y tar wget git which nss
 
     # 'Mesos > 0.21.0' requires a C++ compiler with full C++11 support,
     # (e.g. GCC > 4.8) which is available via 'devtoolset-2'.
@@ -114,7 +119,7 @@ Following are the instructions for stock CentOS 6.6. If you are using a differen
 Following are the instructions for stock CentOS 7.1. If you are using a different OS, please install the packages accordingly.
 
     # Install a few utility tools
-    $ sudo yum install -y tar wget
+    $ sudo yum install -y tar wget git
 
     # Fetch the Apache Maven repo file.
     $ sudo wget http://repos.fedorapeople.org/repos/dchen/apache-maven/epel-apache-maven.repo -O /etc/yum.repos.d/epel-apache-maven.repo
