@@ -140,6 +140,14 @@ Following are the instructions for stock CentOS 7.1. If you are using a differen
     gpgkey=http://opensource.wandisco.com/RPM-GPG-KEY-WANdisco
     EOF
 
+    # Parts of Mesos require systemd in order to operate. However, Mesos
+    # only supports versions of systemd that contain the 'Delegate' flag.
+    # This flag was first introduced in 'systemd version 218', which is
+    # lower than the default version installed by centos. Luckily, centos
+    # 7.1 has a patched 'systemd < 218' that contains the 'Delegate' flag.
+    # Explicity update systemd to this patched version.
+    $ sudo yum update systemd
+
     # Install essential development tools.
     $ sudo yum groupinstall -y "Development Tools"
 
