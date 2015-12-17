@@ -41,9 +41,9 @@ Following are the instructions for stock Ubuntu 14.04. If you are using a differ
         # Install other Mesos dependencies.
         $ sudo apt-get -y install build-essential python-dev python-boto libcurl4-nss-dev libsasl2-dev maven libapr1-dev libsvn-dev
 
-### Mac OS X Yosemite
+### Mac OS X Yosemite & El Capitan
 
-Following are the instructions for stock Mac OS X Yosemite. If you are using a different OS, please install the packages accordingly.
+Following are the instructions for stock Mac OS X Yosemite and El Capitan. If you are using a different OS, please install the packages accordingly.
 
         # Install Command Line Tools.
         $ xcode-select --install
@@ -53,6 +53,8 @@ Following are the instructions for stock Mac OS X Yosemite. If you are using a d
 
         # Install libraries.
         $ brew install autoconf automake libtool subversion maven
+
+*NOTE: When upgrading from Yosemite to El Capitan, make sure to rerun `xcode-select --install` after the upgrade.*
 
 ### CentOS 6.6
 
