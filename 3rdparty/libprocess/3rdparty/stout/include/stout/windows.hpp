@@ -120,6 +120,9 @@ typedef int mode_t;
 // including functions like `OpenProcess`.
 typedef DWORD pid_t;
 
+typedef int uid_t;
+typedef int gid_t;
+
 typedef SSIZE_T ssize_t;
 
 // Socket flags. Define behavior of a socket when it (e.g.) shuts down. We map
@@ -127,6 +130,14 @@ typedef SSIZE_T ssize_t;
 // have to change any socket code.
 constexpr int SHUT_RD = SD_RECEIVE;
 
+// Macros that test whether a `stat` struct represents a directory or a file.
+#define S_ISDIR(mode)  (((mode) & S_IFMT) == S_IFDIR)  // Directory.
+#define S_ISREG(mode)  (((mode) & S_IFMT) == S_IFREG)  // File.
+#define S_ISCHR(mode)  (((mode) & S_IFMT) == S_IFCHR)  // Character device.
+#define S_ISFIFO(mode) (((mode) & S_IFMT) == _S_IFIFO) // Pipe.
+#define S_ISBLK(mode)  0                               // Block special device.
+#define S_ISSOCK(mode) 0                               // Socket.
+#define S_ISLNK(mode)  0                               // Symbolic link.
 
 // Permissions API. (cf. MESOS-3176 to track ongoing permissions work.)
 //
