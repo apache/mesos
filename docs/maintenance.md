@@ -17,7 +17,7 @@ Frameworks require visibility into any actions that disrupt cluster operation
 in order to meet Service Level Agreements or to ensure uninterrupted services
 for their end users.  Therefore, to reconcile the requirements of frameworks
 and operators, frameworks must be aware of planned maintenance events and
-operators must be aware of frameworks’ ability to adapt to maintenance.
+operators must be aware of frameworks' ability to adapt to maintenance.
 Maintenance primitives add a layer to facilitate communication between the
 frameworks and operator.
 

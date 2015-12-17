@@ -9,7 +9,7 @@ A collection of common testing patterns used in Mesos tests. If you have found a
 ## Expediting events with `Clock`
 Some events in Mesos are separated by certain timeouts, for example framework registration attempts. Simple waiting for such events to fire leads to blocking the test thread for the duration of the associated timeout. This increases the duration of `make check` for no good reason.
 
-If an event is triggered by an act of processing a message from an actor's mailbox, it can be expedited with the help of libprocess' `Clock` routines. Delayed messages are maintained in sorted order by their due time and are dispatched — i.e. pushed into destination mailboxes — when this time comes. An important bit here is that time is driven by the internal libprocess clock. We can shift this clock into the future by calling `Clock::advance(<duration>)`, rendering certain front messages in the collection due now. These messages are dispatched instantly, effectively overriding the associated event's timeout.
+If an event is triggered by an act of processing a message from an actor's mailbox, it can be expedited with the help of libprocess' `Clock` routines. Delayed messages are maintained in sorted order by their due time and are dispatched - i.e. pushed into destination mailboxes - when this time comes. An important bit here is that time is driven by the internal libprocess clock. We can shift this clock into the future by calling `Clock::advance(<duration>)`, rendering certain front messages in the collection due now. These messages are dispatched instantly, effectively overriding the associated event's timeout.
 
 **NOTE**: Without calling `Clock::settle()` there is no guarantee a dispatched message has been already processed.
 
