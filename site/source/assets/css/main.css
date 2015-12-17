@@ -11,6 +11,15 @@ ul.breadcrumb {
 	width: 940px;
 }
 
+pre {
+    overflow-x: auto;
+}
+
+pre code {
+    word-wrap: normal;
+    white-space: pre;
+}
+
 /* Custom container */
 .container > hr {
   margin: 20px 0;
