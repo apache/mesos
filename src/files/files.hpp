@@ -17,8 +17,13 @@
 #ifndef __FILES_HPP__
 #define __FILES_HPP__
 
+#ifdef __WINDOWS__
+#include <stout/internal/windows/grp.hpp>
+#include <stout/internal/windows/pwd.hpp>
+#else
 #include <grp.h>
 #include <pwd.h>
+#endif // __WINDOWS__
 
 #include <sys/stat.h>
 
@@ -31,6 +36,12 @@
 #include <stout/json.hpp>
 #include <stout/nothing.hpp>
 #include <stout/path.hpp>
+
+#include <stout/os/permissions.hpp>
+
+#ifdef __WINDOWS__
+#include <stout/windows.hpp>
+#endif // __WINDOWS__
 
 namespace mesos {
 namespace internal {
@@ -105,22 +116,22 @@ inline JSON::Object jsonFileInfo(const std::string& path,
     filetype = '-';
   }
 
-  int owner = (s.st_mode & 0700) >> 6;
-  int group = (s.st_mode & 0070) >> 3;
-  int other = s.st_mode & 0007;
+  struct os::Permissions permissions(s.st_mode);
 
-  file.values["mode"] = strings::format("%c%c%c%c%c%c%c%c%c%c",
+  file.values["mode"] = strings::format(
+      "%c%c%c%c%c%c%c%c%c%c",
       filetype,
-      (owner & 0x4) ? 'r' : '-',
-      (owner & 0x2) ? 'w' : '-',
-      (owner & 0x1) ? 'x' : '-',
-      (group & 0x4) ? 'r' : '-',
-      (group & 0x2) ? 'w' : '-',
-      (group & 0x1) ? 'x' : '-',
-      (other & 0x4) ? 'r' : '-',
-      (other & 0x2) ? 'w' : '-',
-      (other & 0x1) ? 'x' : '-').get();
+      permissions.owner.r ? 'r' : '-',
+      permissions.owner.w ? 'w' : '-',
+      permissions.owner.x ? 'x' : '-',
+      permissions.group.r ? 'r' : '-',
+      permissions.group.w ? 'w' : '-',
+      permissions.group.x ? 'x' : '-',
+      permissions.others.r ? 'r' : '-',
+      permissions.others.w ? 'w' : '-',
+      permissions.others.x ? 'x' : '-').get();
 
+  // NOTE: `getpwuid` and `getgrgid` return `NULL` on Windows.
   passwd* p = getpwuid(s.st_uid);
   if (p != NULL) {
     file.values["uid"] = p->pw_name;
