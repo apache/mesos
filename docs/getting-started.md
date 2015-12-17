@@ -86,14 +86,15 @@ Following are the instructions for stock CentOS 6.6. If you are using a differen
 
     # 'Mesos > 0.21.0' requires 'subversion > 1.8' devel package, which is
     # not available in the default repositories.
-    # Add the WANdisco SVN repo file: '/etc/yum.repos.d/wandisco-svn.repo' with content:
-
-      [WANdiscoSVN]
-      name=WANdisco SVN Repo 1.8
-      enabled=1
-      baseurl=http://opensource.wandisco.com/centos/6/svn-1.8/RPMS/$basearch/
-      gpgcheck=1
-      gpgkey=http://opensource.wandisco.com/RPM-GPG-KEY-WANdisco
+    # Create a WANdisco SVN repo file to install the correct version:
+    $ sudo cat > /etc/yum.repos.d/wandisco-svn.repo <<EOF
+    [WANdiscoSVN]
+    name=WANdisco SVN Repo 1.8
+    enabled=1
+    baseurl=http://opensource.wandisco.com/centos/6/svn-1.8/RPMS/$basearch/
+    gpgcheck=1
+    gpgkey=http://opensource.wandisco.com/RPM-GPG-KEY-WANdisco
+    EOF
 
     # Install essential development tools.
     $ sudo yum groupinstall -y "Development Tools"
@@ -118,16 +119,17 @@ Following are the instructions for stock CentOS 7.1. If you are using a differen
     # Fetch the Apache Maven repo file.
     $ sudo wget http://repos.fedorapeople.org/repos/dchen/apache-maven/epel-apache-maven.repo -O /etc/yum.repos.d/epel-apache-maven.repo
 
-    # 'Mesos > 0.21.0' requires 'subversion > 1.8' devel package, which is
-    # not available in the default repositories.
-    # Add the WANdisco SVN repo file: '/etc/yum.repos.d/wandisco-svn.repo' with content:
-
-      [WANdiscoSVN]
-      name=WANdisco SVN Repo 1.9
-      enabled=1
-      baseurl=http://opensource.wandisco.com/centos/7/svn-1.9/RPMS/$basearch/
-      gpgcheck=1
-      gpgkey=http://opensource.wandisco.com/RPM-GPG-KEY-WANdisco
+    # 'Mesos > 0.21.0' requires 'subversion > 1.8' devel package,
+    # which is not available in the default repositories.
+    # Create a WANdisco SVN repo file to install the correct version:
+    $ sudo cat > /etc/yum.repos.d/wandisco-svn.repo <<EOF
+    [WANdiscoSVN]
+    name=WANdisco SVN Repo 1.9
+    enabled=1
+    baseurl=http://opensource.wandisco.com/centos/7/svn-1.9/RPMS/$basearch/
+    gpgcheck=1
+    gpgkey=http://opensource.wandisco.com/RPM-GPG-KEY-WANdisco
+    EOF
 
     # Install essential development tools.
     $ sudo yum groupinstall -y "Development Tools"
