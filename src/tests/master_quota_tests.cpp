@@ -144,9 +144,8 @@ protected:
 //   * Role is '*'?
 //   * Resources with the same name are present.
 
-// Verifies that a request for a non-existent role is rejected.
-// TODO(alexr): This may be revisited once we allow dynamic roles and
-// therefore allow setting quota before a role is known to the master.
+// Verifies that a request for a non-existent role is rejected when
+// using an explicitly configured list of role names.
 TEST_F(MasterQuotaTest, NonExistentRole)
 {
   Try<PID<Master>> master = StartMaster();

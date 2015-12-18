@@ -113,7 +113,6 @@ namespace mesos {
 namespace internal {
 namespace master {
 
-using mesos::master::RoleInfo;
 using mesos::master::allocator::Allocator;
 
 
@@ -548,22 +547,22 @@ void Master::initialize()
               << flags.slave_removal_rate_limit.get();
   }
 
-  hashmap<string, RoleInfo> roleInfos;
-
-  // Add the default role.
-  RoleInfo roleInfo;
-  roleInfo.set_name("*");
-  roleInfos["*"] = roleInfo;
-
-  // Add other roles.
+  // If "--roles" is set, configure the role whitelist.
+  // TODO(neilc): Remove support for explicit roles in ~Mesos 0.32.
   if (flags.roles.isSome()) {
+    LOG(WARNING) << "The '--roles' flag is deprecated. This flag will be "
+                 << "removed in the future. See the Mesos 0.27 upgrade "
+                 << "notes for more information";
+
     vector<string> tokens = strings::tokenize(flags.roles.get(), ",");
 
+    roleWhitelist = hashset<string>();
     foreach (const std::string& role, tokens) {
-      RoleInfo roleInfo;
-      roleInfo.set_name(role);
-      roleInfos[role] = roleInfo;
+      roleWhitelist.get().insert(role);
     }
+
+    // The default role is always allowed.
+    roleWhitelist.get().insert("*");
   }
 
   // Add role weights.
@@ -575,7 +574,7 @@ void Master::initialize()
       if (pair.size() != 2) {
         EXIT(1) << "Invalid weight: '" << token << "'. --weights should"
           "be of the form 'role=weight,role=weight'\n";
-      } else if (!roleInfos.contains(pair[0])) {
+      } else if (!isWhitelistedRole(pair[0])) {
         EXIT(1) << "Invalid weight: '" << token << "'. " << pair[0]
                 << " is not a valid role.";
       }
@@ -586,14 +585,8 @@ void Master::initialize()
                 << "'. Weights must be positive.";
       }
 
-      roleInfos[pair[0]].set_weight(weight);
+      weights[pair[0]] = weight;
     }
-  }
-
-  foreachpair (const std::string& role,
-               const RoleInfo& roleInfo,
-               roleInfos) {
-    roles[role] = new Role(roleInfo);
   }
 
   // Verify the timeout is greater than zero.
@@ -608,7 +601,7 @@ void Master::initialize()
       flags.allocation_interval,
       defer(self(), &Master::offer, lambda::_1, lambda::_2),
       defer(self(), &Master::inverseOffer, lambda::_1, lambda::_2),
-      roleInfos);
+      weights);
 
   // Parse the whitelist. Passing Allocator::updateWhitelist()
   // callback is safe because we shut down the whitelistWatcher in
@@ -1022,10 +1015,10 @@ void Master::finalize()
     future.discard();
   }
 
-  foreachvalue (Role* role, roles) {
+  foreachvalue (Role* role, activeRoles) {
     delete role;
   }
-  roles.clear();
+  activeRoles.clear();
 
   // NOTE: This is necessary during tests because we don't want the
   // timer to fire in a different test and invoke the callback.
@@ -1900,8 +1893,7 @@ void Master::subscribe(
 
   Option<Error> validationError = None();
 
-  // TODO(vinod): Deprecate this in favor of ACLs.
-  if (validationError.isNone() && !roles.contains(frameworkInfo.role())) {
+  if (validationError.isNone() && !isWhitelistedRole(frameworkInfo.role())) {
     validationError = Error("Role '" + frameworkInfo.role() + "' is not" +
                             " present in the master's --roles");
   }
@@ -2159,8 +2151,7 @@ void Master::subscribe(
 
   Option<Error> validationError = None();
 
-  // TODO(vinod): Deprecate this in favor of ACLs.
-  if (validationError.isNone() && !roles.contains(frameworkInfo.role())) {
+  if (validationError.isNone() && !isWhitelistedRole(frameworkInfo.role())) {
     validationError = Error("Role '" + frameworkInfo.role() + "' is not" +
                             " present in the master's --roles");
   }
@@ -2661,6 +2652,16 @@ void Master::suppress(Framework* framework)
   ++metrics->messages_suppress_offers;
 
   allocator->suppressOffers(framework->id());
+}
+
+
+bool Master::isWhitelistedRole(const string& name)
+{
+  if (roleWhitelist.isNone()) {
+    return true;
+  }
+
+  return roleWhitelist.get().contains(name);
 }
 
 
@@ -5643,12 +5644,15 @@ void Master::addFramework(Framework* framework)
       .onAny(defer(self(), &Self::exited, framework->id(), http));
   }
 
-  // Enforced by Master::registerFramework.
-  CHECK(roles.contains(framework->info.role()))
-    << "Unknown role " << framework->info.role()
+  const string& role = framework->info.role();
+  CHECK(isWhitelistedRole(role))
+    << "Unknown role " << role
     << " of framework " << *framework;
 
-  roles[framework->info.role()]->addFramework(framework);
+  if (!activeRoles.contains(role)) {
+    activeRoles[role] = new Role();
+  }
+  activeRoles[role]->addFramework(framework);
 
   // There should be no offered resources yet!
   CHECK_EQ(Resources(), framework->totalOfferedResources);
@@ -5931,11 +5935,16 @@ void Master::removeFramework(Framework* framework)
   // The completedFramework buffer now owns the framework pointer.
   frameworks.completed.push_back(shared_ptr<Framework>(framework));
 
-  CHECK(roles.contains(framework->info.role()))
-    << "Unknown role " << framework->info.role()
+  const string& role = framework->info.role();
+  CHECK(activeRoles.contains(role))
+    << "Unknown role " << role
     << " of framework " << *framework;
 
-  roles[framework->info.role()]->removeFramework(framework);
+  activeRoles[role]->removeFramework(framework);
+  if (activeRoles[role]->frameworks.empty()) {
+    delete activeRoles[role];
+    activeRoles.erase(role);
+  }
 
   // TODO(anand): This only works for pid based frameworks. We would
   // need similar authentication logic for http frameworks.

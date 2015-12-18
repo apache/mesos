@@ -354,7 +354,7 @@ public:
       const lambda::function<
           void(const FrameworkID&,
                const hashmap<SlaveID, UnavailableResources>&)>&,
-      const hashmap<std::string, mesos::master::RoleInfo>&));
+      const hashmap<std::string, double>&));
 
   MOCK_METHOD2(recover, void(
       const int expectedAgentCount,

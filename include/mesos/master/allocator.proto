@@ -20,17 +20,6 @@ package mesos.master;
 
 
 /**
- * Describes a role, which is used to group frameworks for allocation
- * decisions, depending on the allocation policy being used.
- * The weight field can be used to indicate forms of priority.
- */
-message RoleInfo {
-  required string name = 1;
-  optional double weight = 2 [default = 1];
-}
-
-
-/**
  * Describes the status of an inverse offer.
  *
  * This is a protobuf so as to be able to share the status to inverse offers

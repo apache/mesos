@@ -919,6 +919,15 @@ private:
   }
 
   /**
+   * Returns whether the given role is on the whitelist.
+   *
+   * When using explicit roles, this consults the configured (static)
+   * role whitelist. When using implicit roles, any role is allowed
+   * (and access control is done via ACLs).
+   */
+  bool isWhitelistedRole(const std::string& name);
+
+  /**
    * Inner class used to namespace the handling of quota requests.
    *
    * It operates inside the Master actor. It is responsible for validating
@@ -1371,9 +1380,19 @@ private:
   hashmap<OfferID, InverseOffer*> inverseOffers;
   hashmap<OfferID, process::Timer> inverseOfferTimers;
 
-  hashmap<std::string, Role*> roles;
+  // Roles with > 0 frameworks currently registered.
+  hashmap<std::string, Role*> activeRoles;
 
-  // We store quotas by role because we set them at the role level.
+  // Configured role whitelist if using the (deprecated) "explicit
+  // roles" feature. If this is `None`, any role is allowed.
+  Option<hashset<std::string>> roleWhitelist;
+
+  // Configured weight for each role, if any. If a role does not
+  // appear here, it has the default weight of 1.
+  hashmap<std::string, double> weights;
+
+  // Configured quota for each role, if any. We store quotas by role
+  // because we set them at the role level.
   hashmap<std::string, Quota> quotas;
 
   // Authenticator names as supplied via flags.
@@ -2085,9 +2104,6 @@ private:
 // Information about an active role.
 struct Role
 {
-  explicit Role(const mesos::master::RoleInfo& _info)
-    : info(_info) {}
-
   void addFramework(Framework* framework)
   {
     frameworks[framework->id()] = framework;
@@ -2108,8 +2124,6 @@ struct Role
 
     return resources;
   }
-
-  mesos::master::RoleInfo info;
 
   // NOTE: The dynamic role/quota relation is stored in and administrated
   // by the master. There is no direct representation of quota information

@@ -121,7 +121,7 @@ Option<Error> Master::QuotaHandler::capacityHeuristic(
   VLOG(1) << "Performing capacity heuristic check for a set quota request";
 
   // This should have been validated earlier.
-  CHECK(master->roles.contains(request.role()));
+  CHECK(master->isWhitelistedRole(request.role()));
   CHECK(!master->quotas.contains(request.role()));
 
   // Calculate the total amount of resources requested by all quotas
@@ -178,19 +178,22 @@ void Master::QuotaHandler::rescindOffers(const QuotaInfo& request) const
   const string& role = request.role();
 
   // This should have been validated earlier.
-  CHECK(master->roles.contains(role));
-
-  int visitedAgents = 0;
+  CHECK(master->isWhitelistedRole(role));
 
   int frameworksInRole = 0;
-  foreachvalue (const Framework* framework, master->roles[role]->frameworks) {
-    if (framework->connected && framework->active) {
-      ++frameworksInRole;
+  if (master->activeRoles.contains(role)) {
+    Role* roleState = master->activeRoles[role];
+    foreachvalue (const Framework* framework, roleState->frameworks) {
+      if (framework->connected && framework->active) {
+        ++frameworksInRole;
+      }
     }
   }
 
   // The resources recovered by rescinding outstanding offers.
   Resources rescinded;
+
+  int visitedAgents = 0;
 
   // Because resources are allocated in the allocator, there can be a race
   // between rescinding and allocating. This race makes it hard to determine
@@ -304,11 +307,8 @@ Future<http::Response> Master::QuotaHandler::set(
                       request.body + "'): " + validate.error());
   }
 
-  // Check that the role is known by the master.
-  // TODO(alexr): Once we are able to dynamically add roles, we should stop
-  // checking whether the requested role is known to the master, because an
-  // operator may set quota for a role that is about to be introduced.
-  if (!master->roles.contains(create.get().role())) {
+  // Check that the role is on the role whitelist, if it exists.
+  if (!master->isWhitelistedRole(create.get().role())) {
     return BadRequest("Failed to validate set quota request query string: ('" +
                       request.body +"')': Unknown role: '" +
                       create.get().role() + "'");
@@ -424,8 +424,8 @@ Future<http::Response> Master::QuotaHandler::remove(
 
   const string& role = tokens.back();
 
-  // Check that the role is known by the master.
-  if (!master->roles.contains(role)) {
+  // Check that the role is on the role whitelist, if it exists.
+  if (!master->isWhitelistedRole(role)) {
     return BadRequest("Failed to validate remove quota request for path: ('" +
                       request.url.path +"')': Unknown role: '" + role + "'");
   }

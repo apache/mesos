@@ -36,7 +36,6 @@ using std::string;
 using std::vector;
 
 using mesos::master::InverseOfferStatus;
-using mesos::master::RoleInfo;
 
 using mesos::quota::QuotaInfo;
 
@@ -128,11 +127,12 @@ void HierarchicalAllocatorProcess::initialize(
         void(const FrameworkID&,
              const hashmap<SlaveID, UnavailableResources>&)>&
       _inverseOfferCallback,
-    const hashmap<string, RoleInfo>& _roles)
+    const hashmap<string, double>& _weights)
 {
   allocationInterval = _allocationInterval;
   offerCallback = _offerCallback;
   inverseOfferCallback = _inverseOfferCallback;
+  weights = _weights;
   initialized = true;
   paused = false;
 
@@ -143,22 +143,6 @@ void HierarchicalAllocatorProcess::initialize(
   // TODO(alexr): Consider introducing a sorter type for quota'ed roles.
   roleSorter = roleSorterFactory();
   quotaRoleSorter = roleSorterFactory();
-
-  foreachpair (const string& name, const RoleInfo& roleInfo, _roles) {
-    roles[name] = Role();
-    roles[name].info = roleInfo;
-
-    roleSorter->add(name, roleInfo.weight());
-    frameworkSorters[name] = frameworkSorterFactory();
-
-    // We update the `quotaRoleSorter` separately during the `recover()`
-    // call since we don't know what quotas are associated with which
-    // roles yet.
-  }
-
-  if (roleSorter->count() == 0) {
-    LOG(ERROR) << "No roles specified, cannot allocate resources!";
-  }
 
   VLOG(1) << "Initialized hierarchical allocator process";
 
@@ -226,12 +210,21 @@ void HierarchicalAllocatorProcess::addFramework(
     const FrameworkInfo& frameworkInfo,
     const hashmap<SlaveID, Resources>& used)
 {
+  CHECK(initialized);
+
   const string& role = frameworkInfo.role();
 
-  CHECK(initialized);
-  CHECK(roles.contains(role));
-  CHECK(!frameworkSorters[role]->contains(frameworkId.value()));
+  // If this is the first framework to register as this role,
+  // initialize state as necessary.
+  if (!activeRoles.contains(role)) {
+    activeRoles[role] = 1;
+    roleSorter->add(role, roleWeight(role));
+    frameworkSorters[role] = frameworkSorterFactory();
+  } else {
+    activeRoles[role]++;
+  }
 
+  CHECK(!frameworkSorters[role]->contains(frameworkId.value()));
   frameworkSorters[role]->add(frameworkId.value());
 
   // TODO(bmahler): Validate that the reserved resources have the
@@ -243,7 +236,7 @@ void HierarchicalAllocatorProcess::addFramework(
     frameworkSorters[role]->add(slaveId, allocated);
     frameworkSorters[role]->allocated(frameworkId.value(), slaveId, allocated);
 
-    if (roles[role].quota.isSome()) {
+    if (quotas.contains(role)) {
       quotaRoleSorter->allocated(
           role, slaveId, allocated.unreserved().nonRevocable());
     }
@@ -277,6 +270,7 @@ void HierarchicalAllocatorProcess::removeFramework(
   CHECK(frameworks.contains(frameworkId));
 
   const string& role = frameworks[frameworkId].role;
+  CHECK(activeRoles.contains(role));
 
   // Might not be in 'frameworkSorters[role]' because it was previously
   // deactivated and never re-added.
@@ -290,13 +284,32 @@ void HierarchicalAllocatorProcess::removeFramework(
       roleSorter->unallocated(role, slaveId, allocated.unreserved());
       frameworkSorters[role]->remove(slaveId, allocated);
 
-      if (roles[role].quota.isSome()) {
+      if (quotas.contains(role)) {
         quotaRoleSorter->unallocated(
             role, slaveId, allocated.unreserved().nonRevocable());
       }
     }
 
     frameworkSorters[role]->remove(frameworkId.value());
+  }
+
+  // If this is the last framework that was registered for this role,
+  // cleanup associated state. This is not necessary for correctness
+  // (roles with no registered frameworks will not be offered any
+  // resources), but since many different role names might be used
+  // over time, we want to avoid leaking resources for no-longer-used
+  // role names. Note that we don't remove the role from
+  // `quotaRoleSorter` if it exists there, since roles with a quota
+  // set still influence allocation even if they don't have any
+  // registered frameworks.
+  activeRoles[role]--;
+  if (activeRoles[role] == 0) {
+    activeRoles.erase(role);
+    roleSorter->remove(role);
+
+    CHECK(frameworkSorters.contains(role));
+    delete frameworkSorters[role];
+    frameworkSorters.erase(role);
   }
 
   // Do not delete the filters contained in this
@@ -317,6 +330,7 @@ void HierarchicalAllocatorProcess::activateFramework(
 
   const string& role = frameworks[frameworkId].role;
 
+  CHECK(frameworkSorters.contains(role));
   frameworkSorters[role]->activate(frameworkId.value());
 
   LOG(INFO) << "Activated framework " << frameworkId;
@@ -333,6 +347,7 @@ void HierarchicalAllocatorProcess::deactivateFramework(
 
   const string& role = frameworks[frameworkId].role;
 
+  CHECK(frameworkSorters.contains(role));
   frameworkSorters[role]->deactivate(frameworkId.value());
 
   // Note that the Sorter *does not* remove the resources allocated
@@ -400,13 +415,15 @@ void HierarchicalAllocatorProcess::addSlave(
 
       // TODO(bmahler): Validate that the reserved resources have the
       // framework's role.
+      CHECK(roleSorter->contains(role));
+      CHECK(frameworkSorters.contains(role));
 
       roleSorter->allocated(role, slaveId, allocated.unreserved());
       frameworkSorters[role]->add(slaveId, allocated);
       frameworkSorters[role]->allocated(
           frameworkId.value(), slaveId, allocated);
 
-      if (roles[role].quota.isSome()) {
+      if (quotas.contains(role)) {
         quotaRoleSorter->allocated(
             role, slaveId, allocated.unreserved().nonRevocable());
       }
@@ -601,7 +618,7 @@ void HierarchicalAllocatorProcess::updateAllocation(
       frameworkAllocation.unreserved(),
       updatedFrameworkAllocation.get().unreserved());
 
-  if (roles[role].quota.isSome()) {
+  if (quotas.contains(role)) {
     quotaRoleSorter->update(
         role,
         slaveId,
@@ -843,7 +860,7 @@ void HierarchicalAllocatorProcess::recoverResources(
       frameworkSorters[role]->remove(slaveId, resources);
       roleSorter->unallocated(role, slaveId, resources.unreserved());
 
-      if (roles[role].quota.isSome()) {
+      if (quotas.contains(role)) {
         quotaRoleSorter->unallocated(
             role, slaveId, resources.unreserved().nonRevocable());
       }
@@ -964,26 +981,26 @@ void HierarchicalAllocatorProcess::setQuota(
     const QuotaInfo& quota)
 {
   CHECK(initialized);
-  CHECK(roles.contains(role));
-  CHECK(frameworkSorters.contains(role));
 
   // This method should be called by the master only if the quota for
   // the role is not set. Setting quota differs from updating it because
   // the former moves the role to a different allocation group with a
   // dedicated sorter, while the later just updates the actual quota.
-  CHECK_NONE(roles[role].quota);
+  CHECK(!quotas.contains(role));
 
   // Persist quota in memory and add the role into the corresponding
   // allocation group.
-  roles[role].quota = quota;
-  quotaRoleSorter->add(role, roles[role].info.weight());
+  quotas[role] = quota;
+  quotaRoleSorter->add(role, roleWeight(role));
 
   // Copy allocation information for the quota'ed role.
-  hashmap<SlaveID, Resources> roleAllocation = roleSorter->allocation(role);
-  foreachpair (
-      const SlaveID& slaveId, const Resources& resources, roleAllocation) {
-    quotaRoleSorter->allocated(
-        role, slaveId, resources.unreserved().nonRevocable());
+  if (roleSorter->contains(role)) {
+    hashmap<SlaveID, Resources> roleAllocation = roleSorter->allocation(role);
+    foreachpair (
+        const SlaveID& slaveId, const Resources& resources, roleAllocation) {
+      quotaRoleSorter->allocated(
+          role, slaveId, resources.unreserved().nonRevocable());
+    }
   }
 
   // TODO(alexr): Print all quota info for the role.
@@ -1000,18 +1017,17 @@ void HierarchicalAllocatorProcess::removeQuota(
     const string& role)
 {
   CHECK(initialized);
-  CHECK(roles.contains(role));
-  CHECK(frameworkSorters.contains(role));
 
   // Do not allow removing quota if it is not set.
-  CHECK_SOME(roles[role].quota);
+  CHECK(quotas.contains(role));
+  CHECK(quotaRoleSorter->contains(role));
 
   // TODO(alexr): Print all quota info for the role.
-  LOG(INFO) << "Removed quota " << roles[role].quota.get().guarantee()
+  LOG(INFO) << "Removed quota " << quotas[role].guarantee()
             << " for role '" << role << "'";
 
   // Remove the role from the quota'ed allocation group.
-  roles[role].quota = None();
+  quotas.erase(role);
   quotaRoleSorter->remove(role);
 
   // Trigger the allocation explicitly in order to promptly react to the
@@ -1091,11 +1107,6 @@ void HierarchicalAllocatorProcess::allocate(
 void HierarchicalAllocatorProcess::allocate(
     const hashset<SlaveID>& slaveIds_)
 {
-  if (roleSorter->count() == 0) {
-    LOG(ERROR) << "No roles specified, cannot allocate resources!";
-    return;
-  }
-
   // Compute the offerable resources, per framework:
   //   (1) For reserved resources on the slave, allocate these to a
   //       framework having the corresponding role.
@@ -1127,7 +1138,13 @@ void HierarchicalAllocatorProcess::allocate(
   // special allocation group with a dedicated sorter.
   foreach (const SlaveID& slaveId, slaveIds) {
     foreach (const string& role, quotaRoleSorter->sort()) {
-      CHECK_SOME(roles[role].quota);
+      CHECK(quotas.contains(role));
+
+      // If there are no active frameworks in this role, we do not
+      // need to do any allocations.
+      if (!activeRoles.contains(role)) {
+        break;
+      }
 
       // Summing up resources is fine because quota is only for scalar
       // resources.
@@ -1143,8 +1160,7 @@ void HierarchicalAllocatorProcess::allocate(
       // alternatives are:
       //   * A custom sorter that is aware of quotas and sorts accordingly.
       //   * Removing satisfied roles from the sorter.
-      if (roleConsumedResources.contains(
-              roles[role].quota.get().guarantee())) {
+      if (roleConsumedResources.contains(quotas[role].guarantee())) {
         break;
       }
 
@@ -1210,15 +1226,11 @@ void HierarchicalAllocatorProcess::allocate(
   // Frameworks in a quota'ed role may temporarily reject resources by
   // filtering or suppressing offers. Hence quotas may not be fully allocated.
   Resources unallocatedQuotaResources;
-  foreachpair (const string& name, const Role& role, roles) {
-    if (role.quota.isNone()) {
-      continue;
-    }
-
+  foreachpair (const string& name, const QuotaInfo& quota, quotas) {
     // Compute the amount of quota that the role does not have allocated.
     // NOTE: Reserved and revocable resources are excluded in `quotaRoleSorter`.
     Resources allocated = Resources::sum(quotaRoleSorter->allocation(name));
-    const Resources required = role.quota.get().guarantee();
+    const Resources required = quota.guarantee();
     unallocatedQuotaResources += (required - allocated);
   }
 
@@ -1305,7 +1317,7 @@ void HierarchicalAllocatorProcess::allocate(
         frameworkSorters[role]->allocated(frameworkId_, slaveId, resources);
         roleSorter->allocated(role, slaveId, resources.unreserved());
 
-        if (roles[role].quota.isSome()) {
+        if (quotas.contains(role)) {
           quotaRoleSorter->allocated(
               role, slaveId, resources.unreserved().nonRevocable());
         }
@@ -1332,10 +1344,11 @@ void HierarchicalAllocatorProcess::allocate(
 void HierarchicalAllocatorProcess::deallocate(
     const hashset<SlaveID>& slaveIds_)
 {
-  if (frameworkSorters.empty()) {
-    LOG(ERROR) << "No frameworks specified, cannot send inverse offers!";
+  // If no frameworks are currently registered, no work to do.
+  if (activeRoles.empty()) {
     return;
   }
+  CHECK(!frameworkSorters.empty());
 
   // In this case, `offerable` is actually the slaves and/or resources that we
   // want the master to create `InverseOffer`s from.
@@ -1463,6 +1476,16 @@ void HierarchicalAllocatorProcess::expire(
   }
 
   delete inverseOfferFilter;
+}
+
+
+double HierarchicalAllocatorProcess::roleWeight(const string& name)
+{
+  if (weights.contains(name)) {
+    return weights[name];
+  } else {
+    return 1.0; // Default weight.
+  }
 }
 
 

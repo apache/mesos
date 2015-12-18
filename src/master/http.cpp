@@ -17,6 +17,7 @@
 #include <iomanip>
 #include <map>
 #include <memory>
+#include <set>
 #include <sstream>
 #include <string>
 #include <utility>
@@ -96,6 +97,7 @@ using process::metrics::internal::MetricsProcess;
 
 using std::list;
 using std::map;
+using std::set;
 using std::string;
 using std::vector;
 
@@ -302,28 +304,6 @@ JSON::Object summarize(const Slave& slave)
 JSON::Object model(const Slave& slave)
 {
   return summarize(slave);
-}
-
-
-// Returns a JSON object modeled after a Role.
-JSON::Object model(const Role& role)
-{
-  JSON::Object object;
-  object.values["name"] = role.info.name();
-  object.values["weight"] = role.info.weight();
-  object.values["resources"] = model(role.resources());
-
-  {
-    JSON::Array array;
-
-    foreachkey (const FrameworkID& frameworkId, role.frameworks) {
-      array.values.push_back(frameworkId.value());
-    }
-
-    object.values["frameworks"] = std::move(array);
-  }
-
-  return object;
 }
 
 
@@ -1532,10 +1512,51 @@ string Master::Http::ROLES_HELP()
 {
   return HELP(
     TLDR(
-        "Information about roles that the master is configured with."),
+        "Information about roles."),
     DESCRIPTION(
-        "This endpoint gives information about the roles that are assigned",
-        "to frameworks and resources as a JSON object."));
+        "This endpoint provides information about roles as a JSON object."
+        "It returns information about every role that is on the role"
+        "whitelist (if enabled), has one or more registered frameworks,"
+        "or has a non-default weight or quota. For each role, it returns"
+        "the weight, total allocated resources, and registered frameworks."));
+}
+
+
+// Returns a JSON object modeled after a role.
+JSON::Object model(
+    const string& name,
+    Option<double> weight,
+    Option<Role*> _role)
+{
+  JSON::Object object;
+  object.values["name"] = name;
+
+  if (weight.isSome()) {
+    object.values["weight"] = weight.get();
+  } else {
+    object.values["weight"] = 1.0; // Default weight.
+  }
+
+  if (_role.isNone()) {
+    object.values["resources"] = model(Resources());
+    object.values["frameworks"] = JSON::Array();
+  } else {
+    Role* role = _role.get();
+
+    object.values["resources"] = model(role->resources());
+
+    {
+      JSON::Array array;
+
+      foreachkey (const FrameworkID& frameworkId, role->frameworks) {
+        array.values.push_back(frameworkId.value());
+      }
+
+      object.values["frameworks"] = std::move(array);
+    }
+  }
+
+  return object;
 }
 
 
@@ -1543,11 +1564,48 @@ Future<Response> Master::Http::roles(const Request& request) const
 {
   JSON::Object object;
 
-  // Model all of the roles.
+  // Compute the role names to return results for. When an explicit
+  // role whitelist has been configured, we use that list of names.
+  // When using implicit roles, the right behavior is a bit more
+  // subtle. There are no constraints on possible role names, so we
+  // instead list all the "interesting" roles: the default role ("*"),
+  // all roles with one or more registered frameworks, and all roles
+  // with a non-default weight or quota.
+  //
+  // NOTE: we use a `std::set` to store the role names to ensure a
+  // deterministic output order.
+  set<string> roleList;
+  if (master->roleWhitelist.isSome()) {
+    const hashset<string>& whitelist = master->roleWhitelist.get();
+    roleList.insert(whitelist.begin(), whitelist.end());
+  } else {
+    roleList.insert("*"); // Default role.
+    roleList.insert(
+        master->activeRoles.keys().begin(),
+        master->activeRoles.keys().end());
+    roleList.insert(
+        master->weights.keys().begin(),
+        master->weights.keys().end());
+    roleList.insert(
+        master->quotas.keys().begin(),
+        master->quotas.keys().end());
+  }
+
   {
     JSON::Array array;
-    foreachvalue (Role* role, master->roles) {
-      array.values.push_back(model(*role));
+
+    foreach (const string& name, roleList) {
+      Option<double> weight = None();
+      if (master->weights.contains(name)) {
+        weight = master->weights[name];
+      }
+
+      Option<Role*> role = None();
+      if (master->activeRoles.contains(name)) {
+        role = master->activeRoles[name];
+      }
+
+      array.values.push_back(model(name, weight, role));
     }
 
     object.values["roles"] = std::move(array);

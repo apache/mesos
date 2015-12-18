@@ -93,7 +93,7 @@ public:
           void(const FrameworkID&,
                const hashmap<SlaveID, UnavailableResources>&)>&
         inverseOfferCallback,
-      const hashmap<std::string, mesos::master::RoleInfo>& roles);
+      const hashmap<std::string, double>& weights);
 
   void recover(
       const int _expectedAgentCount,
@@ -222,6 +222,9 @@ protected:
       const FrameworkID& frameworkId,
       const SlaveID& slaveId,
       InverseOfferFilter* inverseOfferFilter);
+
+  // Returns the weight of the specified role name.
+  double roleWeight(const std::string& name);
 
   // Checks whether the slave is whitelisted.
   bool isWhitelisted(const SlaveID& slaveId);
@@ -361,21 +364,23 @@ protected:
 
   hashmap<SlaveID, Slave> slaves;
 
-  // Represents a role and data associated with it.
-  // NOTE: We currently associate quota with roles, but this may change in
-  // the future.
-  struct Role
-  {
-    mesos::master::RoleInfo info;
+  // Number of registered frameworks for each role. When a role's active
+  // count drops to zero, it is removed from this map; the role is also
+  // removed from `roleSorter` and its `frameworkSorter` is deleted.
+  hashmap<std::string, int> activeRoles;
 
-    // Setting quota for a role changes the order that the role's frameworks
-    // are offered resources. Quota comes before fair share, hence setting
-    // quota moves the role's frameworks towards the front of the allocation
-    // queue.
-    Option<mesos::quota::QuotaInfo> quota;
-  };
+  // Configured weight for each role, if any; if a role does not
+  // appear here, it has the default weight of 1.
+  hashmap<std::string, double> weights;
 
-  hashmap<std::string, Role> roles;
+  // Configured quota for each role, if any. Setting quota for a role
+  // changes the order that the role's frameworks are offered
+  // resources. Quota comes before fair share, hence setting quota moves
+  // the role's frameworks towards the front of the allocation queue.
+  //
+  // NOTE: We currently associate quota with roles, but this may
+  // change in the future.
+  hashmap<std::string, mesos::quota::QuotaInfo> quotas;
 
   // Slaves to send offers for.
   Option<hashset<std::string>> whitelist;
@@ -399,6 +404,12 @@ protected:
   // A dedicated sorter for roles for which quota is set. Quota'ed roles
   // belong to an extra allocation group and have resources allocated up
   // to their alloted quota prior to non-quota'ed roles.
+  //
+  // Note that a role appears in `quotaRoleSorter` if it has a quota
+  // (even if no frameworks are currently registered in that role). In
+  // contrast, `roleSorter` only contains entries for roles with one or
+  // more registered frameworks.
+  //
   // NOTE: This sorter counts only unreserved non-revocable resources.
   // TODO(alexr): Consider including dynamically reserved resources.
   Sorter* quotaRoleSorter;
