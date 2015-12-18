@@ -33,6 +33,11 @@
 #include <stout/protobuf.hpp>
 #include <stout/strings.hpp>
 
+// TODO(bernd-mesos): Remove this interim dependency in the course of
+// solving MESOS-3997.
+#include <master/constants.hpp>
+
+
 using std::map;
 using std::ostream;
 using std::set;
@@ -40,6 +45,8 @@ using std::string;
 using std::vector;
 
 using google::protobuf::RepeatedPtrField;
+
+using mesos::internal::master::MIN_CPUS;
 
 
 namespace mesos {
@@ -942,14 +949,22 @@ Try<Resources> Resources::apply(const Offer::Operation& operation) const
       return Error("Unknown offer operation " + stringify(operation.type()));
   }
 
-  // This is a sanity check to ensure the amount of each type of
+  // The following are sanity checks to ensure the amount of each type of
   // resource does not change.
   // TODO(jieyu): Currently, we only check known resource types like
   // cpus, mem, disk, ports, etc. We should generalize this.
-  CHECK(result.cpus() == cpus() &&
-        result.mem() == mem() &&
+
+  CHECK(result.mem() == mem() &&
         result.disk() == disk() &&
         result.ports() == ports());
+
+  // This comparison is an interim fix - see MESOS-3552. We are making it
+  // reasonably certain that almost equal values are correctly regarded as
+  // equal. Small, usually acceptable, differences occur due to numeric
+  // operations such as unparsing and then parsing a floating point number.
+  // TODO(bernd-mesos): Of course, they might also accumulate, so we need a
+  // better long-term fix. Apply one here when solving MESOS-3997.
+  CHECK_NEAR(result.cpus().getOrElse(0.0), cpus().getOrElse(0.0), MIN_CPUS);
 
   return result;
 }

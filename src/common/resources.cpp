@@ -962,9 +962,7 @@ Try<Resources> Resources::apply(const Offer::Operation& operation) const
   // operations such as unparsing and then parsing a floating point number.
   // TODO(bernd-mesos): Of course, they might also accumulate, so we need a
   // better long-term fix. Apply one here when solving MESOS-3997.
-  CHECK_NEAR(result.cpus().isNone() ? 0.0 : result.cpus().get(),
-             cpus().isNone()? 0.0 : cpus().get(),
-             MIN_CPUS);
+  CHECK_NEAR(result.cpus().getOrElse(0.0), cpus().getOrElse(0.0), MIN_CPUS);
 
   return result;
 }
