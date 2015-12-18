@@ -65,6 +65,8 @@ public:
       const ACL::CreateVolume& request);
   virtual process::Future<bool> authorize(
       const ACL::DestroyVolume& request);
+  virtual process::Future<bool> authorize(
+      const ACL::SetQuota& request);
 
 private:
   LocalAuthorizer();

@@ -211,6 +211,25 @@ public:
   virtual process::Future<bool> authorize(
       const ACL::DestroyVolume& request) = 0;
 
+  /**
+   * Used to verify if a principal is allowed to set a quota for a specific
+   * role. The principal and role parameters are packed in `request`. If the
+   * principal is allowed to perform the action, this method returns true,
+   * otherwise it returns false. A third possible outcome is that the future
+   * fails. This indicates that the request could not be checked at the
+   * moment. This may be a temporary condition.
+   *
+   * @param request An instance of an `ACL::SetQuota` protobuf message. It
+   *     packs all the parameters needed to verify if the given principal is
+   *     allowed to request a quota with the specified role.
+   *
+   * @return true if the principal is allowed to set a quota for the specified
+   *     role or false otherwise. A failed future however indicates a problem
+   *     processing the request and the request can be retried.
+   */
+  virtual process::Future<bool> authorize(
+      const ACL::SetQuota& request) = 0;
+
 protected:
   Authorizer() {}
 };
