@@ -91,20 +91,20 @@ private:
       const ExecutorInfo& executorInfo,
       const std::string& directory,
       const Option<std::string>& user,
-      const Option<std::string>& rootfs);
+      const Option<ProvisionInfo>& provisionInfo);
 
   process::Future<Option<mesos::slave::ContainerPrepareInfo>> __prepare(
       const ContainerID& containerId,
       const ExecutorInfo& executorInfo,
       const std::string& directory,
       const Option<std::string>& user,
-      const Option<std::string>& rootfs);
+      const Option<ProvisionInfo>& provisionInfo);
 
   Try<std::string> script(
       const ContainerID& containerId,
       const ExecutorInfo& executorInfo,
       const std::string& directory,
-      const Option<std::string>& rootfs);
+      const Option<ProvisionInfo>& provisionInfo);
 
   const Flags flags;
   const process::Owned<Provisioner> provisioner;

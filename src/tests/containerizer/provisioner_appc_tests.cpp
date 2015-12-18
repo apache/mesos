@@ -276,8 +276,9 @@ TEST_F(ProvisionerAppcTest, ROOT_Provision)
   ContainerID containerId;
   containerId.set_value("12345");
 
-  Future<string> rootfs = provisioner.get()->provision(containerId, image);
-  AWAIT_READY(rootfs);
+  Future<slave::ProvisionInfo> provisionInfo =
+    provisioner.get()->provision(containerId, image);
+  AWAIT_READY(provisionInfo);
 
   string provisionerDir = slave::paths::getProvisionerDir(flags.work_dir);
 
@@ -297,7 +298,7 @@ TEST_F(ProvisionerAppcTest, ROOT_Provision)
   ASSERT_TRUE(rootfses->contains(flags.image_provisioner_backend));
   ASSERT_EQ(1u, rootfses->get(flags.image_provisioner_backend)->size());
   EXPECT_EQ(*rootfses->get(flags.image_provisioner_backend)->begin(),
-            Path(rootfs.get()).basename());
+            Path(provisionInfo.get().rootfs).basename());
 
   Future<bool> destroy = provisioner.get()->destroy(containerId);
   AWAIT_READY(destroy);
@@ -365,8 +366,9 @@ TEST_F(ProvisionerAppcTest, Recover)
   ContainerID containerId;
   containerId.set_value(UUID::random().toString());
 
-  Future<string> rootfs = provisioner1.get()->provision(containerId, image);
-  AWAIT_READY(rootfs);
+  Future<slave::ProvisionInfo> provisionInfo =
+    provisioner1.get()->provision(containerId, image);
+  AWAIT_READY(provisionInfo);
 
   // Create a new provisioner to recover the state from the container.
   Try<Owned<Provisioner>> provisioner2 = Provisioner::create(flags, &fetcher);

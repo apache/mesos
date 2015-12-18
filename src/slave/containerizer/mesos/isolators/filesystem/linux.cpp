@@ -311,7 +311,7 @@ Future<Option<ContainerPrepareInfo>> LinuxFilesystemIsolatorProcess::_prepare(
     const ExecutorInfo& executorInfo,
     const string& directory,
     const Option<string>& user,
-    const Option<string>& rootfs)
+    const Option<ProvisionInfo>& provisionInfo)
 {
   CHECK(executorInfo.has_container());
   CHECK_EQ(executorInfo.container().type(), ContainerInfo::MESOS);
@@ -334,15 +334,20 @@ Future<Option<ContainerPrepareInfo>> LinuxFilesystemIsolatorProcess::_prepare(
 
     futures.push_back(
         provisioner->provision(containerId, image)
-          .then([volume](const string& path) -> Future<Nothing> {
-            volume->set_host_path(path);
+          .then([volume](const ProvisionInfo& info) -> Future<Nothing> {
+            volume->set_host_path(info.rootfs);
             return Nothing();
           }));
   }
 
   return collect(futures)
     .then([=]() -> Future<Option<ContainerPrepareInfo>> {
-      return __prepare(containerId, *_executorInfo, directory, user, rootfs);
+      return __prepare(
+          containerId,
+          *_executorInfo,
+          directory,
+          user,
+          provisionInfo);
     });
 }
 
@@ -352,7 +357,7 @@ Future<Option<ContainerPrepareInfo>> LinuxFilesystemIsolatorProcess::__prepare(
     const ExecutorInfo& executorInfo,
     const string& directory,
     const Option<string>& user,
-    const Option<string>& rootfs)
+    const Option<ProvisionInfo>& provisionInfo)
 {
   CHECK(infos.contains(containerId));
 
@@ -361,7 +366,7 @@ Future<Option<ContainerPrepareInfo>> LinuxFilesystemIsolatorProcess::__prepare(
   ContainerPrepareInfo prepareInfo;
   prepareInfo.set_namespaces(CLONE_NEWNS);
 
-  if (rootfs.isSome()) {
+  if (provisionInfo.isSome()) {
     // If the container changes its root filesystem, we need to mount
     // the container's work directory into its root filesystem
     // (creating it if needed) so that the executor and the task can
@@ -373,7 +378,9 @@ Future<Option<ContainerPrepareInfo>> LinuxFilesystemIsolatorProcess::__prepare(
     // can update persistent volumes for the container.
 
     // This is the mount point of the work directory in the root filesystem.
-    const string sandbox = path::join(rootfs.get(), flags.sandbox_directory);
+    const string sandbox = path::join(
+        provisionInfo.get().rootfs,
+        flags.sandbox_directory);
 
     // Save the path 'sandbox' which will be used in 'cleanup()'.
     info->sandbox = sandbox;
@@ -427,14 +434,15 @@ Future<Option<ContainerPrepareInfo>> LinuxFilesystemIsolatorProcess::__prepare(
           "' as a shared mount: " + mount.error());
     }
 
-    prepareInfo.set_rootfs(rootfs.get());
+    prepareInfo.set_rootfs(provisionInfo.get().rootfs);
   }
 
   // Prepare the commands that will be run in the container's mount
   // namespace right after forking the executor process. We use these
   // commands to mount those volumes specified in the container info
   // so that they don't pollute the host mount namespace.
-  Try<string> _script = script(containerId, executorInfo, directory, rootfs);
+  Try<string> _script =
+    script(containerId, executorInfo, directory, provisionInfo);
   if (_script.isError()) {
     return Failure("Failed to generate isolation script: " + _script.error());
   }
@@ -453,7 +461,7 @@ Try<string> LinuxFilesystemIsolatorProcess::script(
     const ContainerID& containerId,
     const ExecutorInfo& executorInfo,
     const string& directory,
-    const Option<string>& rootfs)
+    const Option<ProvisionInfo>& provisionInfo)
 {
   ostringstream out;
   out << "#!/bin/sh\n";
@@ -542,8 +550,10 @@ Try<string> LinuxFilesystemIsolatorProcess::script(
     string target;
 
     if (strings::startsWith(volume.container_path(), "/")) {
-      if (rootfs.isSome()) {
-        target = path::join(rootfs.get(), volume.container_path());
+      if (provisionInfo.isSome()) {
+        target = path::join(
+            provisionInfo.get().rootfs,
+            volume.container_path());
       } else {
         target = volume.container_path();
       }
@@ -559,8 +569,8 @@ Try<string> LinuxFilesystemIsolatorProcess::script(
       // 'rootfs' because a user can potentially use a container path
       // like '/../../abc'.
     } else {
-      if (rootfs.isSome()) {
-        target = path::join(rootfs.get(),
+      if (provisionInfo.isSome()) {
+        target = path::join(provisionInfo.get().rootfs,
                             flags.sandbox_directory,
                             volume.container_path());
       } else {

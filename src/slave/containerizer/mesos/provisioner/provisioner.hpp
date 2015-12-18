@@ -36,6 +36,8 @@
 
 #include "slave/containerizer/fetcher.hpp"
 
+#include "slave/containerizer/mesos/provisioner/store.hpp"
+
 namespace mesos {
 namespace internal {
 namespace slave {
@@ -44,6 +46,15 @@ namespace slave {
 class Backend;
 class ProvisionerProcess;
 class Store;
+
+// Provision info struct includes root filesystem for the container
+// with specified image, all runtime configurations from the image
+// that will be passed to Mesos Containerizer.
+struct ProvisionInfo
+{
+  std::string rootfs;
+  Option<RuntimeConfig> runtimeConfig;
+};
 
 
 class Provisioner
@@ -71,7 +82,7 @@ public:
 
   // Provision a root filesystem for the container using the specified
   // image and return the absolute path to the root filesystem.
-  virtual process::Future<std::string> provision(
+  virtual process::Future<ProvisionInfo> provision(
       const ContainerID& containerId,
       const Image& image);
 
@@ -106,14 +117,14 @@ public:
       const std::list<mesos::slave::ContainerState>& states,
       const hashset<ContainerID>& orphans);
 
-  process::Future<std::string> provision(
+  process::Future<ProvisionInfo> provision(
       const ContainerID& containerId,
       const Image& image);
 
   process::Future<bool> destroy(const ContainerID& containerId);
 
 private:
-  process::Future<std::string> _provision(
+  process::Future<ProvisionInfo> _provision(
       const ContainerID& containerId,
       const std::vector<std::string>& layers);
 
