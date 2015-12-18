@@ -15,6 +15,7 @@
 // limitations under the License.
 
 #include <list>
+#include <map>
 #include <vector>
 
 #include <glog/logging.h>
@@ -37,6 +38,7 @@
 using namespace process;
 
 using std::list;
+using std::map;
 using std::pair;
 using std::string;
 using std::vector;
@@ -46,25 +48,25 @@ namespace internal {
 namespace slave {
 namespace docker {
 
-class LocalPullerProcess : public process::Process<LocalPullerProcess>
+class LocalPullerProcess : public Process<LocalPullerProcess>
 {
 public:
   LocalPullerProcess(const Flags& _flags) : flags(_flags) {}
 
   ~LocalPullerProcess() {}
 
-  process::Future<list<pair<string, string>>> pull(
+  Future<list<pair<string, string>>> pull(
       const Image::Name& name,
       const string& directory);
 
 private:
-  process::Future<list<pair<string, string>>> putImage(
+  Future<list<pair<string, string>>> putImage(
       const Image::Name& name,
-      const std::string& directory);
+      const string& directory);
 
-  process::Future<list<pair<string, string>>> putLayers(
-      const std::string& directory,
-      const std::vector<std::string>& layerIds);
+  Future<list<pair<string, string>>> putLayers(
+      const string& directory,
+      const vector<string>& layerIds);
 
   const Flags flags;
 };
@@ -73,14 +75,14 @@ private:
 LocalPuller::LocalPuller(const Flags& flags)
 {
   process = Owned<LocalPullerProcess>(new LocalPullerProcess(flags));
-  process::spawn(process.get());
+  spawn(process.get());
 }
 
 
 LocalPuller::~LocalPuller()
 {
-  process::terminate(process.get());
-  process::wait(process.get());
+  terminate(process.get());
+  wait(process.get());
 }
 
 
@@ -168,7 +170,7 @@ Future<list<pair<string, string>>> LocalPullerProcess::putImage(
   const JSON::Object repositoryJson = repositoryValue.get();
 
   // We don't use JSON find here because a tag might contain a '.'.
-  std::map<string, JSON::Value>::const_iterator entry =
+  map<string, JSON::Value>::const_iterator entry =
     repositoryJson.values.find(name.tag());
 
   if (entry == repositoryJson.values.end()) {
@@ -179,21 +181,10 @@ Future<list<pair<string, string>>> LocalPullerProcess::putImage(
 
   const string layerId = entry->second.as<JSON::String>().value;
 
-  Try<string> manifest =
-    os::read(paths::getImageArchiveLayerManifestPath(directory, layerId));
-
-  if (manifest.isError()) {
-    return Failure("Failed to read manifest: " + manifest.error());
-  }
-
-  Try<JSON::Object> manifestJson = JSON::parse<JSON::Object>(manifest.get());
-  if (manifestJson.isError()) {
-    return Failure("Failed to parse manifest: " + manifestJson.error());
-  }
-
   vector<string> layerIds;
   layerIds.push_back(layerId);
   Result<string> parentId = getParentId(directory, layerId);
+
   while (parentId.isSome()) {
     layerIds.insert(layerIds.begin(), parentId.get());
     parentId = getParentId(directory, parentId.get());
