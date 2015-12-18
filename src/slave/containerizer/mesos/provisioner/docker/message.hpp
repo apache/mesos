@@ -21,6 +21,7 @@
 
 // ONLY USEFUL AFTER RUNNING PROTOC.
 #include "slave/containerizer/mesos/provisioner/docker/message.pb.h"
+#include "slave/containerizer/mesos/provisioner/docker/v2.pb.h"
 
 namespace mesos {
 namespace internal {

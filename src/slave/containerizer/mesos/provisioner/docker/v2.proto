@@ -1,0 +1,72 @@
+// Licensed to the Apache Software Foundation (ASF) under one
+// or more contributor license agreements.  See the NOTICE file
+// distributed with this work for additional information
+// regarding copyright ownership.  The ASF licenses this file
+// to you under the Apache License, Version 2.0 (the
+// "License"); you may not use this file except in compliance
+// with the License.  You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+import "mesos/mesos.proto";
+
+package mesos.internal.slave.docker.v2;
+
+/**
+ * Protobuf for the Docker v2 image manifest JSON schema:
+ * https://github.com/docker/distribution/blob/master/docs/spec/manifest-v2-1.md
+ */
+message ImageManifest {
+  required string name = 1;
+  required string tag = 2;
+  required string architecture = 3;
+
+  message FsLayers {
+    required string blobSum = 1;
+  }
+
+  repeated FsLayers fsLayers = 4;
+
+  message History {
+    message V1Compatibility {
+      required string id = 1;
+      required string parent = 2;
+    }
+
+    required V1Compatibility v1Compatibility = 1;
+  }
+
+  repeated History history = 5;
+  required uint32 schemaVersion = 6;
+
+  message Signatures {
+
+    //JOSE (A JSON Web Signature).
+    message Header {
+
+      //JSON Web Key.
+      message Jwk {
+        required string crv = 1;
+        required string kid = 2;
+        required string kty = 3;
+        required string x = 4;
+        required string y = 5;
+      }
+
+      optional Jwk jwk = 1;
+      required string alg = 2;
+    }
+
+    required Header header = 1;
+    required string signature = 2;
+    required string protected = 3;
+  }
+
+  repeated Signatures signatures = 7;
+}

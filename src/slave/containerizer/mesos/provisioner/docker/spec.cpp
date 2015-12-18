@@ -30,7 +30,7 @@ namespace docker {
 namespace spec {
 
 // Validate if the specified image manifest conforms to the Docker spec.
-Option<Error> validateManifest(const DockerImageManifest& manifest)
+Option<Error> validateManifest(const docker::v2::ImageManifest& manifest)
 {
   // Validate required fields are present,
   // e.g., repeated fields that has to be >= 1.
@@ -53,7 +53,7 @@ Option<Error> validateManifest(const DockerImageManifest& manifest)
   }
 
   // FsLayers field validation.
-  foreach (const DockerImageManifest::FsLayers& fslayer,
+  foreach (const docker::v2::ImageManifest::FsLayers& fslayer,
            manifest.fslayers()) {
     const string& blobSum = fslayer.blobsum();
     if (!strings::contains(blobSum, ":")) {
@@ -65,10 +65,10 @@ Option<Error> validateManifest(const DockerImageManifest& manifest)
 }
 
 
-Try<DockerImageManifest> parse(const JSON::Object& json)
+Try<docker::v2::ImageManifest> parse(const JSON::Object& json)
 {
-  Try<DockerImageManifest> manifest =
-    protobuf::parse<DockerImageManifest>(json);
+  Try<docker::v2::ImageManifest> manifest =
+    protobuf::parse<docker::v2::ImageManifest>(json);
 
   if (manifest.isError()) {
     return Error("Protobuf parse failed: " + manifest.error());
@@ -76,7 +76,7 @@ Try<DockerImageManifest> parse(const JSON::Object& json)
 
   Option<Error> error = validateManifest(manifest.get());
   if (error.isSome()) {
-    return Error("Docker Image Manifest Validation failed: " +
+    return Error("Docker v2 Image Manifest Validation failed: " +
                  error.get().message);
   }
 

@@ -71,7 +71,7 @@ private:
       const string& id);
 
   Future<list<pair<string, string>>> downloadLayers(
-      const DockerImageManifest& manifest,
+      const v2::ImageManifest& manifest,
       const Image::Name& imageName,
       const Path& downloadDir);
 
@@ -244,7 +244,7 @@ Future<list<pair<string, string>>> RegistryPullerProcess::pull(
   // TODO(jojy): Have one outgoing manifest request per image.
   return registryClient_->getManifest(imageName)
     .then(process::defer(self(), [this, directory, imageName](
-        const DockerImageManifest& manifest) {
+        const v2::ImageManifest& manifest) {
       return downloadLayers(manifest, imageName, directory);
     }))
     .then(process::defer(self(), [this, directory](
@@ -262,7 +262,7 @@ Future<list<pair<string, string>>> RegistryPullerProcess::pull(
 
 
 Future<list<pair<string, string>>> RegistryPullerProcess::downloadLayers(
-    const DockerImageManifest& manifest,
+    const v2::ImageManifest& manifest,
     const Image::Name& imageName,
     const Path& directory)
 {

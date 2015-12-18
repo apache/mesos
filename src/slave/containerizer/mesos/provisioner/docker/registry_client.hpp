@@ -79,7 +79,7 @@ public:
    * @return Manifest on success.
    *         Failure on process failure.
    */
-  process::Future<DockerImageManifest> getManifest(
+  process::Future<v2::ImageManifest> getManifest(
       const Image::Name& imageName);
 
 

@@ -70,7 +70,7 @@ public:
       const http::URL& authenticationServer,
       const Option<Credentials>& credentials);
 
-  Future<DockerImageManifest> getManifest(
+  Future<v2::ImageManifest> getManifest(
       const Image::Name& imageName);
 
   Future<size_t> getBlob(
@@ -170,7 +170,7 @@ RegistryClient::~RegistryClient()
 }
 
 
-Future<DockerImageManifest> RegistryClient::getManifest(
+Future<v2::ImageManifest> RegistryClient::getManifest(
     const Image::Name& imageName)
 {
   return dispatch(
@@ -572,7 +572,7 @@ string RegistryClientProcess::getRepositoryPath(
 }
 
 
-Future<DockerImageManifest> RegistryClientProcess::getManifest(
+Future<v2::ImageManifest> RegistryClientProcess::getManifest(
     const Image::Name& imageName)
 {
   http::URL manifestURL(registryServer_);
@@ -581,11 +581,11 @@ Future<DockerImageManifest> RegistryClientProcess::getManifest(
 
   return doHttpGet(manifestURL, None(), false, true, None())
     .then(defer(self(), [this] (
-        const http::Response& response) -> Future<DockerImageManifest> {
+        const http::Response& response) -> Future<v2::ImageManifest> {
       // TODO(jojy): We dont use the digest that is returned in header.
       // This is a good place to validate the manifest.
 
-      Try<DockerImageManifest> manifest =
+      Try<v2::ImageManifest> manifest =
         spec::parse(JSON::parse<JSON::Object>(response.body).get());
       if (manifest.isError()) {
         return Failure(

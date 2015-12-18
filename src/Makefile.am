@@ -209,7 +209,9 @@ CXX_PROTOS +=								\
   messages/messages.pb.cc						\
   messages/messages.pb.h						\
   slave/containerizer/mesos/provisioner/docker/message.pb.cc		\
-  slave/containerizer/mesos/provisioner/docker/message.pb.h
+  slave/containerizer/mesos/provisioner/docker/message.pb.h		\
+  slave/containerizer/mesos/provisioner/docker/v2.pb.cc		\
+  slave/containerizer/mesos/provisioner/docker/v2.pb.h
 
 CXX_LOG_PROTOS =							\
   messages/log.pb.cc							\
@@ -530,7 +532,8 @@ libmesos_no_3rdparty_la_SOURCES =					\
   master/registry.proto							\
   messages/flags.proto							\
   messages/messages.proto						\
-  slave/containerizer/mesos/provisioner/docker/message.proto
+  slave/containerizer/mesos/provisioner/docker/message.proto		\
+  slave/containerizer/mesos/provisioner/docker/v2.proto
 
 # TODO(tillt): Remove authentication/cram_md5/* which will enable us to
 # lose the immediate cyrus-sasl2 dependency.

@@ -32,12 +32,12 @@ namespace docker {
 namespace spec {
 
 // Validate if the specified image manifest conforms to the Docker spec.
-Option<Error> validateManifest(const docker::DockerImageManifest& manifest);
+Option<Error> validateManifest(const docker::v2::ImageManifest& manifest);
 
 // TODO(Gilbert): add validations here, e.g., Manifest, Blob, Layout, ImageID.
 
-// Parse the DockerImageManifest from the specified JSON object.
-Try<docker::DockerImageManifest> parse(const JSON::Object& json);
+// Parse the v2::ImageManifest from the specified JSON object.
+Try<docker::v2::ImageManifest> parse(const JSON::Object& json);
 
 } // namespace spec {
 } // namespace docker {

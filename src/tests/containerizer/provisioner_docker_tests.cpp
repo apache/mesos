@@ -300,9 +300,9 @@ TEST_F(RegistryTokenTest, NotBeforeInFuture)
 
 class DockerSpecTest : public ::testing::Test {};
 
-TEST_F(DockerSpecTest, SerializeDockerManifest)
+TEST_F(DockerSpecTest, SerializeV2DockerManifest)
 {
-  JSON::Value manifest = JSON::parse(
+  JSON::Value manifestJson = JSON::parse(
     "{"
     "   \"name\": \"dmcgowan/test-image\","
     "   \"tag\": \"latest\","
@@ -385,66 +385,66 @@ TEST_F(DockerSpecTest, SerializeDockerManifest)
     "   ]"
     "}").get();
 
-  Try<JSON::Object> json = JSON::parse<JSON::Object>(stringify(manifest));
+  Try<JSON::Object> json = JSON::parse<JSON::Object>(stringify(manifestJson));
   ASSERT_SOME(json);
 
-  Try<slave::docker::DockerImageManifest> dockerImageManifest =
+  Try<slave::docker::v2::ImageManifest> manifest =
     spec::parse(json.get());
 
-  ASSERT_SOME(dockerImageManifest);
+  ASSERT_SOME(manifest);
 
-  EXPECT_EQ(dockerImageManifest.get().name(), "dmcgowan/test-image");
-  EXPECT_EQ(dockerImageManifest.get().tag(), "latest");
-  EXPECT_EQ(dockerImageManifest.get().architecture(), "amd64");
+  EXPECT_EQ(manifest.get().name(), "dmcgowan/test-image");
+  EXPECT_EQ(manifest.get().tag(), "latest");
+  EXPECT_EQ(manifest.get().architecture(), "amd64");
 
-  EXPECT_EQ(dockerImageManifest.get().fslayers(0).blobsum(),
+  EXPECT_EQ(manifest.get().fslayers(0).blobsum(),
     "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");
-  EXPECT_EQ(dockerImageManifest.get().fslayers(1).blobsum(),
+  EXPECT_EQ(manifest.get().fslayers(1).blobsum(),
     "sha256:cea0d2071b01b0a79aa4a05ea56ab6fdf3fafa03369d9f4eea8d46ea33c43e5f");
-  EXPECT_EQ(dockerImageManifest.get().fslayers(2).blobsum(),
+  EXPECT_EQ(manifest.get().fslayers(2).blobsum(),
     "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");
-  EXPECT_EQ(dockerImageManifest.get().fslayers(3).blobsum(),
+  EXPECT_EQ(manifest.get().fslayers(3).blobsum(),
     "sha256:2a7812e636235448785062100bb9103096aa6655a8f6bb9ac9b13fe8290f66df");
 
-  EXPECT_EQ(dockerImageManifest.get().history(1).v1compatibility().id(),
+  EXPECT_EQ(manifest.get().history(1).v1compatibility().id(),
     "2ce2e90b0bc7224de3db1f0d646fe8e2c4dd37f1793928287f6074bc451a57ea");
-  EXPECT_EQ(dockerImageManifest.get().history(2).v1compatibility().parent(),
+  EXPECT_EQ(manifest.get().history(2).v1compatibility().parent(),
     "cf2616975b4a3cba083ca99bc3f0bf25f5f528c3c52be1596b30f60b0b1c37ff");
 
-  EXPECT_EQ(dockerImageManifest.get().schemaversion(), 1u);
+  EXPECT_EQ(manifest.get().schemaversion(), 1u);
 
-  EXPECT_EQ(dockerImageManifest.get().signatures(0).header().jwk().kid(),
+  EXPECT_EQ(manifest.get().signatures(0).header().jwk().kid(),
     "LYRA:YAG2:QQKS:376F:QQXY:3UNK:SXH7:K6ES:Y5AU:XUN5:ZLVY:KBYL");
-  EXPECT_EQ(dockerImageManifest.get().signatures(0).signature(),
+  EXPECT_EQ(manifest.get().signatures(0).signature(),
     "m3bgdBXZYRQ4ssAbrgj8Kjl7GNgrKQvmCSY-00yzQosKi-8"
     "UBrIRrn3Iu5alj82B6u_jNrkGCjEx3TxrfT1rig");
 }
 
 // Test invalid JSON object, expecting an error.
-TEST_F(DockerSpecTest, SerializeDockerInvalidManifest)
+TEST_F(DockerSpecTest, SerializeV2DockerInvalidManifest)
 {
   // This is an invalid manifest. The repeated fields 'history' and 'fsLayers'
   // must be >= 1. The 'signatures' and 'schemaVersion' are not set.
-  JSON::Value manifest = JSON::parse(
+  JSON::Value manifestJson = JSON::parse(
     "{"
     "   \"name\": \"dmcgowan/test-image\","
     "   \"tag\": \"latest\","
     "   \"architecture\": \"amd64\""
     "}").get();
 
-  Try<JSON::Object> json = JSON::parse<JSON::Object>(stringify(manifest));
+  Try<JSON::Object> json = JSON::parse<JSON::Object>(stringify(manifestJson));
   ASSERT_SOME(json);
 
-  Try<slave::docker::DockerImageManifest> dockerImageManifest =
+  Try<slave::docker::v2::ImageManifest> manifest =
     spec::parse(json.get());
 
-  EXPECT_ERROR(dockerImageManifest);
+  EXPECT_ERROR(manifest);
 }
 
 // Test Manifest Validation with empty repeated 'fsLayers' field.
-TEST_F(DockerSpecTest, ValidationDockerManifestFsLayersNonEmpty)
+TEST_F(DockerSpecTest, ValidationV2DockerManifestFsLayersNonEmpty)
 {
-  JSON::Value manifest = JSON::parse(
+  JSON::Value manifestJson = JSON::parse(
     "{"
     "   \"name\": \"dmcgowan/test-image\","
     "   \"tag\": \"latest\","
@@ -471,19 +471,19 @@ TEST_F(DockerSpecTest, ValidationDockerManifestFsLayersNonEmpty)
     "   ]"
     "}").get();
 
-  Try<JSON::Object> json = JSON::parse<JSON::Object>(stringify(manifest));
+  Try<JSON::Object> json = JSON::parse<JSON::Object>(stringify(manifestJson));
   ASSERT_SOME(json);
 
-  Try<slave::docker::DockerImageManifest> dockerImageManifest =
+  Try<slave::docker::v2::ImageManifest> manifest =
     spec::parse(json.get());
 
-  EXPECT_ERROR(dockerImageManifest);
+  EXPECT_ERROR(manifest);
 }
 
 // Test Manifest Validation with empty repeated 'signatures' field.
-TEST_F(DockerSpecTest, ValidationDockerManifestSignaturesNonEmpty)
+TEST_F(DockerSpecTest, ValidationV2DockerManifestSignaturesNonEmpty)
 {
-  JSON::Value manifest = JSON::parse(
+  JSON::Value manifestJson = JSON::parse(
     "{"
     "   \"name\": \"dmcgowan/test-image\","
     "   \"tag\": \"latest\","
@@ -497,13 +497,13 @@ TEST_F(DockerSpecTest, ValidationDockerManifestSignaturesNonEmpty)
     "   \"schemaVersion\": 1"
     "}").get();
 
-  Try<JSON::Object> json = JSON::parse<JSON::Object>(stringify(manifest));
+  Try<JSON::Object> json = JSON::parse<JSON::Object>(stringify(manifestJson));
   ASSERT_SOME(json);
 
-  Try<slave::docker::DockerImageManifest> dockerImageManifest =
+  Try<slave::docker::v2::ImageManifest> manifest =
     spec::parse(json.get());
 
-  EXPECT_ERROR(dockerImageManifest);
+  EXPECT_ERROR(manifest);
 }
 
 
@@ -672,7 +672,7 @@ TEST_F(RegistryClientTest, SimpleGetManifest)
 
   ASSERT_SOME(registryClient);
 
-  Future<DockerImageManifest> manifestResponse =
+  Future<v2::ImageManifest> manifestResponse =
     registryClient.get()->getManifest(parseImageName("library/busybox"));
 
   const string unauthResponseHeaders = "Www-Authenticate: Bearer"
