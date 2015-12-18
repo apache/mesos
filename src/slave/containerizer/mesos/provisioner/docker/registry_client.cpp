@@ -586,7 +586,7 @@ Future<v2::ImageManifest> RegistryClientProcess::getManifest(
       // This is a good place to validate the manifest.
 
       Try<v2::ImageManifest> manifest =
-        spec::parse(JSON::parse<JSON::Object>(response.body).get());
+        spec::v2::parse(JSON::parse<JSON::Object>(response.body).get());
       if (manifest.isError()) {
         return Failure(
             "Failed to parse manifest response: " + manifest.error());

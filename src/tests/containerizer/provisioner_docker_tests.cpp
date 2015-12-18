@@ -389,7 +389,7 @@ TEST_F(DockerSpecTest, SerializeV2DockerManifest)
   ASSERT_SOME(json);
 
   Try<slave::docker::v2::ImageManifest> manifest =
-    spec::parse(json.get());
+    spec::v2::parse(json.get());
 
   ASSERT_SOME(manifest);
 
@@ -435,8 +435,9 @@ TEST_F(DockerSpecTest, SerializeV2DockerInvalidManifest)
   Try<JSON::Object> json = JSON::parse<JSON::Object>(stringify(manifestJson));
   ASSERT_SOME(json);
 
+
   Try<slave::docker::v2::ImageManifest> manifest =
-    spec::parse(json.get());
+    spec::v2::parse(json.get());
 
   EXPECT_ERROR(manifest);
 }
@@ -475,7 +476,7 @@ TEST_F(DockerSpecTest, ValidationV2DockerManifestFsLayersNonEmpty)
   ASSERT_SOME(json);
 
   Try<slave::docker::v2::ImageManifest> manifest =
-    spec::parse(json.get());
+    spec::v2::parse(json.get());
 
   EXPECT_ERROR(manifest);
 }
@@ -501,7 +502,7 @@ TEST_F(DockerSpecTest, ValidationV2DockerManifestSignaturesNonEmpty)
   ASSERT_SOME(json);
 
   Try<slave::docker::v2::ImageManifest> manifest =
-    spec::parse(json.get());
+    spec::v2::parse(json.get());
 
   EXPECT_ERROR(manifest);
 }

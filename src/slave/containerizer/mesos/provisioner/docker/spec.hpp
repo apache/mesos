@@ -31,13 +31,30 @@ namespace slave {
 namespace docker {
 namespace spec {
 
-// Validate if the specified image manifest conforms to the Docker spec.
-Option<Error> validateManifest(const docker::v2::ImageManifest& manifest);
+namespace v1 {
 
-// TODO(Gilbert): add validations here, e.g., Manifest, Blob, Layout, ImageID.
+// Validate if the specified v1 image manifest conforms to
+// the Docker v1 spec.
+Option<Error> validate(const docker::v1::ImageManifest& manifest);
+
+// Parse the v1::ImageManifest from the specified JSON object.
+Try<docker::v1::ImageManifest> parse(const JSON::Object& json);
+
+} // namespace v1 {
+
+
+namespace v2 {
+
+// Validate if the specified v2 image manifest conforms to
+// the Docker v2 spec.
+Option<Error> validate(const docker::v2::ImageManifest& manifest);
+
+// TODO(gilbert): Add validations here, e.g., Manifest, Blob, Layout, ImageID.
 
 // Parse the v2::ImageManifest from the specified JSON object.
 Try<docker::v2::ImageManifest> parse(const JSON::Object& json);
+
+} // namespace v2 {
 
 } // namespace spec {
 } // namespace docker {
