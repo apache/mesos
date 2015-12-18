@@ -163,16 +163,16 @@ Future<pair<string, string>> untarLayer(
   // The tar file will be removed when the staging directory is removed.
   return untar(file, localRootfsPath)
     .then([directory, layerId]() -> Future<pair<string, string>> {
-      const string rootfsPath =
-        paths::getImageArchiveLayerRootfsPath(directory, layerId);
+      const string layerPath =
+        paths::getImageArchiveLayerPath(directory, layerId);
 
-      if (!os::exists(rootfsPath)) {
+      if (!os::exists(layerPath)) {
         return Failure(
             "Failed to find the rootfs path after extracting layer"
             " '" + layerId + "'");
       }
 
-      return pair<string, string>(layerId, rootfsPath);
+      return pair<string, string>(layerId, layerPath);
     });
 }
 

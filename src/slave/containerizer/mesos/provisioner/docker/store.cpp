@@ -80,7 +80,8 @@ private:
       const Image::Name& name,
       const std::vector<std::string>& layerIds);
 
-  Future<Nothing> moveLayer(const pair<string, string>& layerPath);
+  Future<Nothing> moveLayer(
+      const pair<string, string>& layerPath);
 
   const Flags flags;
   Owned<MetadataManager> metadataManager;
@@ -268,7 +269,8 @@ Future<Image> StoreProcess::storeImage(
 }
 
 
-Future<Nothing> StoreProcess::moveLayer(const pair<string, string>& layerPath)
+Future<Nothing> StoreProcess::moveLayer(
+    const pair<string, string>& layerPath)
 {
   if (!os::exists(layerPath.second)) {
     return Failure("Unable to find layer '" + layerPath.first + "' in '" +
@@ -278,6 +280,16 @@ Future<Nothing> StoreProcess::moveLayer(const pair<string, string>& layerPath)
   const string imageLayerPath =
     paths::getImageLayerPath(flags.docker_store_dir, layerPath.first);
 
+  // If image layer path exists, we should remove it and make an empty
+  // directory, because os::rename can only have empty or non-existed
+  // directory as destination.
+  if (os::exists(imageLayerPath)) {
+    Try<Nothing> rmdir = os::rmdir(imageLayerPath);
+    if (rmdir.isError()) {
+      return Failure("Failed to remove existing layer: " + rmdir.error());
+    }
+  }
+
   Try<Nothing> mkdir = os::mkdir(imageLayerPath);
   if (mkdir.isError()) {
     return Failure("Failed to create layer path in store for id '" +
@@ -286,8 +298,7 @@ Future<Nothing> StoreProcess::moveLayer(const pair<string, string>& layerPath)
 
   Try<Nothing> status = os::rename(
       layerPath.second,
-      paths::getImageLayerRootfsPath(
-          flags.docker_store_dir, layerPath.first));
+      imageLayerPath);
 
   if (status.isError()) {
     return Failure("Failed to move layer '" + layerPath.first +

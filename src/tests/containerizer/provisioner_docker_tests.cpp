@@ -1228,7 +1228,7 @@ TEST_F(RegistryClientTest, SimpleRegistryPuller)
             "1ce2e90b0bc7224de3db1f0d646fe8e2c4dd37f1793928287f6074bc451a57ea");
 
   Try<string> blob = os::read(
-      path::join(layers.front().second, blobFile));
+      path::join(layers.front().second, "rootfs", blobFile));
   ASSERT_SOME(blob);
   ASSERT_EQ(blob.get(), blobResponse);
 }
