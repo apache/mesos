@@ -85,7 +85,7 @@ As a list of key:value pairs:
 
     resourceRole : text | "*"
 
-Note that `resourceRole` must be one of the [roles](roles.md) that was defined when the Mesos master was started.
+Note that `resourceRole` must be a valid role name; see the [roles](roles.md) documentation for details.
 
 ## Predefined Uses & Conventions
 

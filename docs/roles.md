@@ -12,21 +12,35 @@ resources are offered to frameworks. Some use-cases for roles include:
 * arranging for all the resources on a particular agent to only be offered to a
   particular framework.
 * dividing a cluster between two organizations: resources assigned for use by
-  organization _A_ will only be offered to that frameworks that have registered
+  organization _A_ will only be offered to frameworks that have registered
   using organization _A_'s role.
 * ensuring that [persistent volumes](persistent-volume.md) created by one
   framework are not offered to frameworks registered with a different role.
 * expressing that one group of frameworks should be considered "higher priority"
   (and offered more resources) than another group of frameworks.
 
-## Defining roles
+## Roles and access control
 
-The set of legal roles is configured statically, when the Mesos master is
-started. The `--roles` command-line argument specifies a comma-separated list of
-role names. To change the set of roles, the Mesos master must be restarted.
+There are two ways to control which roles a framework is allowed to register
+as. First, ACLs can be used to specify which framework principals can register
+as which roles. For more information, see the [authorization](authorization.md)
+documentation.
 
-Note that you should take care to ensure that all Mesos masters are configured
-to use the same set of roles.
+Second, a _role whitelist_ can be configured by passing the `--roles` flag to
+the Mesos master at startup. This flag specifies a comma-separated list of role
+names. If the whitelist is specified, only roles that appear in the whitelist
+can be used. To change the whitelist, the Mesos master must be restarted. Note
+that in a high-availability deployment of Mesos, you should take care to ensure
+that all Mesos masters are configured with the same whitelist.
+
+In Mesos 0.26 and earlier, you should typically configure _both_ ACLs and the
+whitelist, because in these versions of Mesos, any role that does not appear in
+the whitelist cannot be used.
+
+In Mesos 0.27, this behavior has changed: if `--roles` is not specified, the
+whitelist permits _any role name_ to be used. Hence, in Mesos 0.27, the
+recommended practice is to only use ACLs to define which roles can be used; the
+`--roles` command-line flag is deprecated.
 
 ## Associating frameworks with roles
 
@@ -40,10 +54,6 @@ As a user, you can typically specify which role a framework will use when you
 start the framework. How to do this depends on the user interface of the
 framework you're using; for example, Marathon takes a `--mesos_role`
 command-line flag.
-
-As an administrator, you can use ACLs to specify which framework principals can
-register as which roles. For more information, see the
-[authorization](authorization.md) documentation.
 
 ## Associating resources with roles
 

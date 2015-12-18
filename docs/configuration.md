@@ -622,9 +622,9 @@ file:///path/to/file (where file contains one of the above)</code></pre>
       --roles=VALUE
     </td>
     <td>
-      A comma-separated list of the allocation
-      roles that frameworks in this cluster may
-      belong to.
+      A comma-separated list of the allocation roles that frameworks
+      in this cluster may belong to. This flag is deprecated;
+      if it is not specified, any role name can be used.
     </td>
   </tr>
   <tr>
