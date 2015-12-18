@@ -1539,10 +1539,20 @@ message Label {
  * Named port used for service discovery.
  */
 message Port {
+  // Port number on which the framework exposes a service.
   required uint32 number = 1;
+  // Name of the service hosted on this port.
   optional string name = 2;
+  // Layer 4-7 protocol on which the framework exposes its services.
   optional string protocol = 3;
+  // This field restricts discovery within a framework (FRAMEWORK),
+  // within a Mesos cluster (CLUSTER), or places no restrictions (EXTERNAL).
+  // The visibility setting for a Port overrides the general visibility setting
+  // in the DiscoveryInfo.
   optional DiscoveryInfo.Visibility visibility = 4;
+  // This can be used to decorate the message with metadata to be
+  // interpreted by external applications such as firewalls.
+  optional Labels labels = 5;
 }
 
 
