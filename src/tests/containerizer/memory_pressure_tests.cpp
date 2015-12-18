@@ -42,6 +42,7 @@ using mesos::internal::master::Master;
 
 using mesos::internal::slave::Fetcher;
 using mesos::internal::slave::MesosContainerizer;
+using mesos::internal::slave::MesosContainerizerProcess;
 using mesos::internal::slave::Slave;
 
 using std::vector;
@@ -242,34 +243,21 @@ TEST_F(MemoryPressureMesosTest, CGROUPS_ROOT_SlaveRecovery)
   Stop(slave.get());
   delete containerizer1.get();
 
-  Future<Nothing> _recover = FUTURE_DISPATCH(_, &Slave::_recover);
-
-  Future<SlaveReregisteredMessage> slaveReregisteredMessage =
-    FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
+  // Set up so we can wait until the new slave updates the container's
+  // resources (this occurs after the executor has re-registered).
+  Future<Nothing> update =
+    FUTURE_DISPATCH(_, &MesosContainerizerProcess::update);
 
   // Use the same flags.
   Try<MesosContainerizer*> containerizer2 =
     MesosContainerizer::create(flags, true, &fetcher);
-
   ASSERT_SOME(containerizer2);
 
   slave = StartSlave(containerizer2.get(), flags);
   ASSERT_SOME(slave);
 
-  Clock::pause();
-
-  AWAIT_READY(_recover);
-
-  // Wait for slave to schedule reregister timeout.
-  Clock::settle();
-
-  // Ensure the slave considers itself recovered.
-  Clock::advance(slave::EXECUTOR_REREGISTER_TIMEOUT);
-
-  Clock::resume();
-
-  // Wait for the slave to re-register.
-  AWAIT_READY(slaveReregisteredMessage);
+  // Wait until the containerizer is updated.
+  AWAIT_READY(update);
 
   Future<hashset<ContainerID>> containers = containerizer2.get()->containers();
   AWAIT_READY(containers);
