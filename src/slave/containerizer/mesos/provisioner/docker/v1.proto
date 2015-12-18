@@ -1,0 +1,70 @@
+// Licensed to the Apache Software Foundation (ASF) under one
+// or more contributor license agreements.  See the NOTICE file
+// distributed with this work for additional information
+// regarding copyright ownership.  The ASF licenses this file
+// to you under the Apache License, Version 2.0 (the
+// "License"); you may not use this file except in compliance
+// with the License.  You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+import "mesos/mesos.proto";
+
+package mesos.internal.slave.docker.v1;
+
+/**
+ * Protobuf for the Docker v1 image manifest JSON schema:
+ * https://github.com/docker/docker/blob/master/image/spec/v1.md
+ */
+message ImageManifest {
+  // Following docker code to define and order protobuf fields.
+  // https://github.com/docker/docker/blob/master/image/image.go
+  optional string id = 1;
+  optional string parent = 2;
+
+  // This field is used to comment user added comment. It is not
+  // covered in docker v1 doc, but it is included in docker code.
+  optional string comment = 3;
+
+  optional string created = 4;
+
+  // Container is the id of the container used to commit. It is
+  // not covered in docker v1 doc, but included in docker code.
+  optional string container = 5;
+
+  // TODO(gilbert): Add other config fields.
+  // Currently necessary rumtime config fields only. Please see:
+  // https://github.com/docker/docker/blob/master/runconfig/config.go
+  message Config {
+    optional string Hostname = 1;
+    repeated string Entrypoint = 2;
+    repeated string Env = 3;
+    optional string User = 4;
+    repeated string Cmd = 5;
+    optional string WorkingDir = 6;
+    optional string Volumes = 7;
+
+    // Name of the image as it was passed by the operator.
+    optional string Image = 8;
+
+    // TODO(gilbert): Create a message including string-message
+    // pair to match ExposedPoarts' map (map[nat.Port]struct{}).
+  }
+
+  optional Config container_config = 6;
+
+  optional string docker_version = 7;
+  optional string author = 8;
+
+  optional Config config = 9;
+
+  optional string architecture = 10;
+  optional string os = 11;
+  optional uint32 Size = 12;
+}
