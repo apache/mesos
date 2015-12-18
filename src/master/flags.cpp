@@ -259,6 +259,12 @@ mesos::internal::master::Flags::Flags()
       "      \"principals\": { \"values\": [\"a\", \"b\"] },\n"
       "      \"framework_principals\": { \"values\": [\"c\"] }\n"
       "    }\n"
+      "  ],\n"
+      "  \"set_quotas\": [\n"
+      "    {\n"
+      "      \"principals\": { \"values\": [\"a\"] },\n"
+      "      \"roles\": { \"values\": [\"a\", \"b\"] }\n"
+      "    }\n"
       "  ]\n"
       "}");
 

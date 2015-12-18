@@ -4,16 +4,17 @@ layout: documentation
 
 # Authorization
 
-Mesos 0.20.0 adds support for framework authorization. Authorization allows
+Authorization currently allows
 
  1. Frameworks to (re-)register with authorized _roles_.
  2. Frameworks to launch tasks/executors as authorized _users_.
  3. Authorized _principals_ to shutdown frameworks through the "/teardown" HTTP endpoint.
+ 4. Authorized _principals_ to set quotas through the "/quota" HTTP endpoint.
 
 
 ## ACLs
 
-Authorization is implemented via Access Control Lists (ACLs). For each of the 3 cases described above, ACLs can be used to restrict access. Operators can setup ACLs in JSON format. See [mesos.proto](https://github.com/apache/mesos/blob/master/include/mesos/mesos.proto) for details.
+Authorization is implemented via Access Control Lists (ACLs). For each of the above cases, ACLs can be used to restrict access. Operators can setup ACLs in JSON format. See [mesos.proto](https://github.com/apache/mesos/blob/master/include/mesos/mesos.proto) for details.
 
 Each ACL specifies a set of `Subjects` that can perform an `Action` on a set of `Objects`.
 
@@ -22,16 +23,17 @@ The currently supported `Actions` are:
 1. "register_frameworks": Register frameworks
 2. "run_tasks": Run tasks/executors
 3. "shutdown_frameworks": Shutdown frameworks
+4. "set_quotas": Set quotas
 
 The currently supported `Subjects` are:
 
 1. "principals"
 	- Framework principals (used by "register_frameworks" and "run_tasks" actions)
-	- Usernames (used by "shutdown_frameworks" action)
+	- Usernames (used by "shutdown_frameworks" and "set_quotas" actions)
 
 The currently supported `Objects` are:
 
-1. "roles": Resource [roles](roles.md) that framework can register with (used by "register_frameworks" actions)
+1. "roles": Resource [roles](roles.md) that framework can register with (used by "register_frameworks" and "set_quotas" actions)
 2. "users": Unix user to launch the task/executor as (used by "run_tasks" actions)
 3. "framework_principals": Framework principals that can be shutdown by HTTP POST (used by "shutdown_frameworks" actions).
 
@@ -47,6 +49,8 @@ For example, when a framework (re-)registers with the master, "register_framewor
 Similarly, when a framework launches a task, "run_tasks" ACLs are checked to see if the framework (`FrameworkInfo.principal`) is authorized to run the task/executor as the given user. If not authorized, the launch is rejected and the framework gets a TASK_LOST.
 
 In the same vein, when a user/principal attempts to shutdown a framework using the "/teardown" HTTP endpoint on the master, "shutdown_frameworks" ACLs are checked to see if the principal is authorized to shutdown the given framework. If not authorized, the shutdown is rejected and the user receives an `Unauthorized` HTTP response.
+
+If no user/principal is provided in a request to an HTTP endpoint and authentication is disabled, the `ANY` subject is used in the authorization.
 
 There are couple of important things to note:
 
