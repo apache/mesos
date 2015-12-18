@@ -263,8 +263,6 @@ Future<http::Response> Master::QuotaHandler::set(
     return Unauthorized("Mesos master", credential.error());
   }
 
-  // TODO(nfnt): Authorize the request.
-
   // Check that the request type is POST which is guaranteed by the master.
   CHECK_EQ("POST", request.method);
 
@@ -327,7 +325,28 @@ Future<http::Response> Master::QuotaHandler::set(
   const QuotaInfo& quotaInfo = create.get();
 
   // The force flag can be used to overwrite the capacityHeuristic check.
-  if (values.contains("force") && strings::lower(values["force"]) == "true") {
+  bool forced = values.contains("force") &&
+                strings::lower(values["force"]) == "true";
+
+  Option<string> principal =
+    credential.isSome() ? credential.get().principal() : Option<string>::none();
+
+  return authorize(principal, quotaInfo.role())
+    .then(defer(master->self(), [=](bool authorized) -> Future<http::Response> {
+      if (!authorized) {
+        return Unauthorized("Mesos master");
+      }
+
+      return _set(quotaInfo, forced);
+    }));
+}
+
+
+Future<http::Response> Master::QuotaHandler::_set(
+    const QuotaInfo& quotaInfo,
+    bool forced) const
+{
+  if (forced) {
     VLOG(1) << "Using force flag to override quota capacityHeuristic check";
   } else {
     // Validate whether a quota request can be satisfied.
@@ -436,6 +455,32 @@ Future<http::Response> Master::QuotaHandler::remove(
 
       return OK();
     }));
+}
+
+
+Future<bool> Master::QuotaHandler::authorize(
+    const Option<string>& principal,
+    const string& role) const
+{
+  if (master->authorizer.isNone()) {
+    return true;
+  }
+
+  LOG(INFO) << "Authorizing principal '"
+            << (principal.isSome() ? principal.get() : "ANY")
+            << "' to request quota for role '" << role << "'";
+
+  mesos::ACL::SetQuota request;
+
+  if (principal.isSome()) {
+    request.mutable_principals()->add_values(principal.get());
+  } else {
+    request.mutable_principals()->set_type(mesos::ACL::Entity::ANY);
+  }
+
+  request.mutable_roles()->add_values(role);
+
+  return master->authorizer.get()->authorize(request);
 }
 
 } // namespace master {

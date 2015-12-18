@@ -992,6 +992,14 @@ private:
     // (including rescinding) is moved to allocator.
     void rescindOffers(const mesos::quota::QuotaInfo& request) const;
 
+    process::Future<bool> authorize(
+        const Option<std::string>& principal,
+        const std::string& role) const;
+
+    process::Future<process::http::Response> _set(
+        const mesos::quota::QuotaInfo& quota,
+        bool forced) const;
+
     // To perform actions related to quota management, we require access to the
     // master data structures. No synchronization primitives are needed here
     // since `QuotaHandler`'s functions are invoked in the Master's actor.
