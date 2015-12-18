@@ -1736,6 +1736,7 @@ mesos_tests_SOURCES =						\
   tests/reservation_tests.cpp					\
   tests/resource_offers_tests.cpp				\
   tests/resources_tests.cpp					\
+  tests/role_tests.cpp						\
   tests/scheduler_driver_tests.cpp				\
   tests/scheduler_event_call_tests.cpp				\
   tests/scheduler_http_api_tests.cpp				\

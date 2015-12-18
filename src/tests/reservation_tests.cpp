@@ -52,8 +52,8 @@ using mesos::internal::master::Master;
 
 using mesos::internal::slave::Slave;
 
-using process::PID;
 using process::Future;
+using process::PID;
 
 using std::map;
 using std::string;
