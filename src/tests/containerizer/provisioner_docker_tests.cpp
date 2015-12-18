@@ -300,6 +300,134 @@ TEST_F(RegistryTokenTest, NotBeforeInFuture)
 
 class DockerSpecTest : public ::testing::Test {};
 
+
+TEST_F(DockerSpecTest, SerializeV1DockerManifest)
+{
+  JSON::Value manifestJson = JSON::parse(
+    "{"
+    "    \"container\": "
+    "\"7f652467f9e6d1b3bf51172868b9b0c2fa1c711b112f4e987029b1624dd6295f\","
+    "    \"parent\": "
+    "\"cfa753dfea5e68a24366dfba16e6edf573daa447abf65bc11619c1a98a3aff54\","
+    "    \"created\": \"2015-09-21T20:15:47.866196515Z\","
+    "    \"config\": {"
+    "        \"Hostname\": \"5f8e0e129ff1\","
+    "        \"Entrypoint\": null,"
+    "        \"Env\": null,"
+    "        \"OnBuild\": null,"
+    "        \"OpenStdin\": false,"
+    "        \"MacAddress\": \"\","
+    "        \"User\": \"\","
+    "        \"VolumeDriver\": \"\","
+    "        \"AttachStderr\": false,"
+    "        \"AttachStdout\": false,"
+    "        \"PublishService\": \"\","
+    "        \"NetworkDisabled\": false,"
+    "        \"StdinOnce\": false,"
+    "        \"Cmd\": ["
+    "            \"sh\""
+    "        ],"
+    "        \"WorkingDir\": \"\","
+    "        \"AttachStdin\": false,"
+    "        \"Volumes\": null,"
+    "        \"Tty\": false,"
+    "        \"Domainname\": \"\","
+    "        \"Image\": "
+    "\"cfa753dfea5e68a24366dfba16e6edf573daa447abf65bc11619c1a98a3aff54\","
+    "        \"Labels\": null,"
+    "        \"ExposedPorts\": null"
+    "    },"
+    "    \"container_config\": {"
+    "        \"Hostname\": \"5f8e0e129ff1\","
+    "        \"Entrypoint\": ["
+    "            \"./bin/start\""
+    "        ],"
+    "        \"Env\": ["
+    "            \"LANG=C.UTF-8\","
+    "            \"JAVA_VERSION=8u66\","
+    "            \"JAVA_DEBIAN_VERSION=8u66-b01-1~bpo8+1\","
+    "            \"CA_CERTIFICATES_JAVA_VERSION=20140324\""
+    "        ],"
+    "        \"OnBuild\": null,"
+    "        \"OpenStdin\": false,"
+    "        \"MacAddress\": \"\","
+    "        \"User\": \"\","
+    "        \"VolumeDriver\": \"\","
+    "        \"AttachStderr\": false,"
+    "        \"AttachStdout\": false,"
+    "        \"PublishService\": \"\","
+    "        \"NetworkDisabled\": false,"
+    "        \"StdinOnce\": false,"
+    "        \"Cmd\": ["
+    "            \"/bin/sh\","
+    "            \"-c\","
+    "            \"#(nop) CMD [\\\"sh\\\"]\""
+    "        ],"
+    "        \"WorkingDir\": \"/marathon\","
+    "        \"AttachStdin\": false,"
+    "        \"Volumes\": null,"
+    "        \"Tty\": false,"
+    "        \"Domainname\": \"\","
+    "        \"Image\": "
+    "\"cfa753dfea5e68a24366dfba16e6edf573daa447abf65bc11619c1a98a3aff54\","
+    "        \"Labels\": null,"
+    "        \"ExposedPorts\": null"
+    "    },"
+    "    \"architecture\": \"amd64\","
+    "    \"docker_version\": \"1.8.2\","
+    "    \"os\": \"linux\","
+    "    \"id\": "
+    "\"d7057cb020844f245031d27b76cb18af05db1cc3a96a29fa7777af75f5ac91a3\","
+    "    \"Size\": 0"
+    "}").get();
+
+  Try<JSON::Object> json = JSON::parse<JSON::Object>(stringify(manifestJson));
+  ASSERT_SOME(json);
+
+  Try<slave::docker::v1::ImageManifest> manifest =
+    spec::v1::parse(json.get());
+
+  ASSERT_SOME(manifest);
+
+  EXPECT_EQ(
+      "7f652467f9e6d1b3bf51172868b9b0c2fa1c711b112f4e987029b1624dd6295f",
+      manifest.get().container());
+  EXPECT_EQ(
+      "cfa753dfea5e68a24366dfba16e6edf573daa447abf65bc11619c1a98a3aff54",
+      manifest.get().parent());
+
+  EXPECT_EQ(
+      "./bin/start",
+      manifest.get().container_config().entrypoint(0));
+
+  EXPECT_EQ(
+      "LANG=C.UTF-8",
+      manifest.get().container_config().env(0));
+  EXPECT_EQ(
+      "JAVA_VERSION=8u66",
+      manifest.get().container_config().env(1));
+  EXPECT_EQ(
+      "JAVA_DEBIAN_VERSION=8u66-b01-1~bpo8+1",
+      manifest.get().container_config().env(2));
+  EXPECT_EQ(
+      "CA_CERTIFICATES_JAVA_VERSION=20140324",
+      manifest.get().container_config().env(3));
+
+  EXPECT_EQ("/bin/sh", manifest.get().container_config().cmd(0));
+  EXPECT_EQ("-c", manifest.get().container_config().cmd(1));
+  EXPECT_EQ(
+      "#(nop) CMD [\"sh\"]",
+      manifest.get().container_config().cmd(2));
+
+  EXPECT_EQ("sh", manifest.get().config().cmd(0));
+
+  EXPECT_EQ("1.8.2", manifest.get().docker_version());
+  EXPECT_EQ("amd64", manifest.get().architecture());
+  EXPECT_EQ("linux", manifest.get().os());
+  EXPECT_EQ(0u, manifest.get().size());
+}
+
+
 TEST_F(DockerSpecTest, SerializeV2DockerManifest)
 {
   JSON::Value manifestJson = JSON::parse(
