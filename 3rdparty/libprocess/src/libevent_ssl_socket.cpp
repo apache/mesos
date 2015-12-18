@@ -108,9 +108,10 @@ LibeventSSLSocketImpl::~LibeventSSLSocketImpl()
   evconnlistener* _listener = listener;
   bufferevent* _bev = bev;
   std::weak_ptr<LibeventSSLSocketImpl>* _event_loop_handle = event_loop_handle;
+  int ssl_socket_fd = ssl_connect_fd;
 
   run_in_event_loop(
-      [_listener, _bev, _event_loop_handle]() {
+      [_listener, _bev, _event_loop_handle, ssl_socket_fd]() {
         // Once this lambda is called, it should not be possible for
         // more event loop callbacks to be triggered with 'this->bev'.
         // This is important because we delete event_loop_handle which
@@ -141,6 +142,14 @@ LibeventSSLSocketImpl::~LibeventSSLSocketImpl()
           // 'BEV_OPT_CLOSE_ON_FREE' we rely on the base class
           // 'Socket::Impl' to clean up the fd.
           bufferevent_free(_bev);
+        }
+
+        if (ssl_socket_fd >= 0) {
+          Try<Nothing> close = os::close(ssl_socket_fd);
+          if (close.isError()) {
+            LOG(WARNING) << "Failed to close socket "
+                         << stringify(ssl_socket_fd) << ": " << close.error();
+          }
         }
 
         delete _event_loop_handle;
@@ -420,7 +429,8 @@ LibeventSSLSocketImpl::LibeventSSLSocketImpl(int _s)
     recv_request(NULL),
     send_request(NULL),
     connect_request(NULL),
-    event_loop_handle(NULL) {}
+    event_loop_handle(NULL),
+    ssl_connect_fd(-1) {}
 
 
 LibeventSSLSocketImpl::LibeventSSLSocketImpl(
@@ -435,7 +445,8 @@ LibeventSSLSocketImpl::LibeventSSLSocketImpl(
     send_request(NULL),
     connect_request(NULL),
     event_loop_handle(NULL),
-    peer_hostname(std::move(_peer_hostname)) {}
+    peer_hostname(std::move(_peer_hostname)),
+    ssl_connect_fd(-1) {}
 
 
 Future<Nothing> LibeventSSLSocketImpl::connect(const Address& address)
@@ -453,13 +464,26 @@ Future<Nothing> LibeventSSLSocketImpl::connect(const Address& address)
     return Failure("Failed to connect: SSL_new");
   }
 
+  ssl_connect_fd = ::dup(get());
+  if (ssl_connect_fd < 0) {
+    return Failure("Failed to 'dup' socket for new openssl socket handle");
+  }
+
+  // Reapply FD_CLOEXEC on the duplicate file descriptor.
+  Try<Nothing> closeexec = os::cloexec(ssl_connect_fd);
+  if (closeexec.isError()) {
+    return Failure(
+        "Failed to set FD_CLOEXEC flag for the dup'ed openssl socket handle: " +
+        closeexec.error());
+  }
+
   // Construct the bufferevent in the connecting state.
   // We set 'BEV_OPT_DEFER_CALLBACKS' to avoid calling the
   // 'event_callback' before 'bufferevent_socket_connect' returns.
   CHECK(bev == NULL);
   bev = bufferevent_openssl_socket_new(
       base,
-      get(),
+      ssl_connect_fd,
       ssl,
       BUFFEREVENT_SSL_CONNECTING,
       BEV_OPT_THREADSAFE | BEV_OPT_DEFER_CALLBACKS);
