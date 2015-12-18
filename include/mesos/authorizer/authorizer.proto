@@ -107,6 +107,15 @@ message ACL {
     // Objects: Principal of the entity that created the volume.
     required Entity creator_principals = 2;
   }
+
+  // Which principals are authorized to set quotas for given roles.
+  message SetQuota {
+    // Subjects: Operator username.
+    required Entity principals = 1;
+
+    // Objects: The list of roles for which a quota can be set.
+    required Entity roles = 2;
+  }
 }
 
 
@@ -138,4 +147,5 @@ message ACLs {
   repeated ACL.UnreserveResources unreserve_resources = 6;
   repeated ACL.CreateVolume create_volumes = 7;
   repeated ACL.DestroyVolume destroy_volumes = 8;
+  repeated ACL.SetQuota set_quotas = 9;
 }
