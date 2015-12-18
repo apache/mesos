@@ -32,15 +32,21 @@ namespace paths {
  * The Docker store file system layout is as follows:
  * Image store dir ('--docker_store_dir' slave flag)
  *    |--staging
+ *       |-- repositories(containing all images info as JSON)
  *       |-- <temp_dir_archive>
  *           |-- <layer_id>
  *               |-- rootfs
+ *               |-- json(manifest)
+ *               |-- VERSION
  *    |--layers
  *       |--<layer_id>
- *           |--rootfs
+ *           |-- rootfs
+ *           |-- json(manifest)
+ *           |-- VERSION
  *    |--storedImages (file holding on cached images)
  */
 
+// TODO(gilbert): Clean up any unused method after refactoring.
 std::string getStagingDir(const std::string& storeDir);
 
 
@@ -76,6 +82,11 @@ std::string getImageArchiveLayerRootfsPath(
 
 
 std::string getImageLayerPath(
+    const std::string& storeDir,
+    const std::string& layerId);
+
+
+std::string getImageLayerManifestPath(
     const std::string& storeDir,
     const std::string& layerId);
 

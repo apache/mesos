@@ -52,7 +52,7 @@ string getImageArchiveRepositoriesPath(const string& archivePath)
 }
 
 
-std::string getImageArchiveLayerPath(
+string getImageArchiveLayerPath(
     const string& archivePath,
     const string& layerId)
 {
@@ -69,8 +69,8 @@ string getImageArchiveLayerManifestPath(
 
 
 string getImageArchiveLayerTarPath(
-  const string& archivePath,
-  const string& layerId)
+    const string& archivePath,
+    const string& layerId)
 {
   return path::join(
       getImageArchiveLayerPath(archivePath, layerId), "layer.tar");
@@ -90,6 +90,14 @@ string getImageLayerPath(
     const string& layerId)
 {
   return path::join(storeDir, "layers", layerId);
+}
+
+
+string getImageLayerManifestPath(
+    const std::string& storeDir,
+    const std::string& layerId)
+{
+  return path::join(getImageLayerPath(storeDir, layerId), "json");
 }
 
 
