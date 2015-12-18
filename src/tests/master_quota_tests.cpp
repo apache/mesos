@@ -59,6 +59,7 @@ using process::http::BadRequest;
 using process::http::Conflict;
 using process::http::OK;
 using process::http::Response;
+using process::http::Unauthorized;
 
 using testing::_;
 using testing::DoAll;
@@ -74,7 +75,8 @@ namespace tests {
 //   * Request validation tests.
 //   * Sanity check tests.
 //   * Quota functionality tests.
-//   * Failover, and recovery tests.
+//   * Failover and recovery tests.
+//   * Authentication and authorization tests.
 
 // TODO(alexr): Once we have other allocators, convert this test into a
 // typed test over multiple allocators.
@@ -974,6 +976,194 @@ TEST_F(MasterQuotaTest, AvailableResourcesAfterRescinding)
 //     during the recovery (total quota sanity check).
 //   * Master fails simultaneously with multiple agents, rendering the cluster
 //     under quota (total quota sanity check).
+
+
+// These tests verify the authentication and authorization of quota requests.
+
+// Checks that a set quota request is rejected for unauthenticated principals.
+TEST_F(MasterQuotaTest, UnauthenticatedQuotaRequest)
+{
+  Try<PID<Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  // We do not need an agent since a request should be rejected before
+  // we start looking at available resources.
+
+  // A request can contain any amount of resources because it will be rejected
+  // before we start looking at available resources.
+  Resources quotaResources = Resources::parse("cpus:1;mem:512", ROLE1).get();
+
+  // The master is configured so that only requests from `DEFAULT_CREDENTIAL`
+  // are authenticated.
+  Credential credential;
+  credential.set_principal("unknown-principal");
+  credential.set_secret("test-secret");
+
+  Future<Response> response1 = process::http::post(
+      master.get(),
+      "quota",
+      createBasicAuthHeaders(credential),
+      createRequestBody(quotaResources));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(
+      Unauthorized("Mesos master").status, response1) << response1.get().body;
+
+  // The absense of credentials leads to authentication failure as well.
+  Future<Response> response2 = process::http::post(
+      master.get(),
+      "quota",
+      None(),
+      createRequestBody(quotaResources));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(
+      Unauthorized("Mesos master").status, response2) << response2.get().body;
+
+  Shutdown();
+}
+
+
+// Checks that an authorized principal can set quota.
+TEST_F(MasterQuotaTest, AuthorizedQuotaSetRequest)
+{
+  TestAllocator<> allocator;
+  EXPECT_CALL(allocator, initialize(_, _, _, _));
+
+  // Setup ACLs so that the default principal can set quotas for `ROLE1`.
+  ACLs acls;
+  mesos::ACL::SetQuota* acl = acls.add_set_quotas();
+  acl->mutable_principals()->add_values(DEFAULT_CREDENTIAL.principal());
+  acl->mutable_roles()->add_values(ROLE1);
+
+  master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.acls = acls;
+
+  Try<PID<Master>> master = StartMaster(&allocator, masterFlags);
+  ASSERT_SOME(master);
+
+  // Start an agent and wait until it registers.
+  Future<Resources> agentTotalResources;
+  EXPECT_CALL(allocator, addSlave(_, _, _, _, _))
+    .WillOnce(DoAll(InvokeAddSlave(&allocator),
+                    FutureArg<3>(&agentTotalResources)));
+
+  Try<PID<Slave>> agent = StartSlave();
+  ASSERT_SOME(agent);
+
+  AWAIT_READY(agentTotalResources);
+  EXPECT_EQ(defaultAgentResources, agentTotalResources.get());
+
+  // Request quota for a portion of the resources available on the agent.
+  Resources quotaResources = Resources::parse("cpus:1;mem:512;", ROLE1).get();
+  EXPECT_TRUE(agentTotalResources.get().contains(quotaResources.flatten()));
+
+  Future<QuotaInfo> quotaInfo;
+  EXPECT_CALL(allocator, setQuota(Eq(ROLE1), _))
+    .WillOnce(DoAll(InvokeSetQuota(&allocator),
+                    FutureArg<1>(&quotaInfo)));
+
+  Future<Response> response = process::http::post(
+      master.get(),
+      "quota",
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL),
+      createRequestBody(quotaResources));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response) << response.get().body;
+
+  AWAIT_READY(quotaInfo);
+
+  // TODO(nfnt): Quota removal authorization will add a principal field to
+  // `QuotaInfo`. Check it for the correct principal value.
+  EXPECT_EQ(ROLE1, quotaInfo.get().role());
+  EXPECT_EQ(quotaResources.flatten(), quotaInfo.get().guarantee());
+
+  Shutdown();
+}
+
+
+// Checks that set quota requests can be authorized without authentication
+// if an authorization rule exists that applies to anyone. The authorizer
+// will map the absence of a principal to "ANY".
+TEST_F(MasterQuotaTest, AuthorizedQuotaSetRequestWithoutPrincipal)
+{
+  TestAllocator<> allocator;
+  EXPECT_CALL(allocator, initialize(_, _, _, _));
+
+  // Setup ACLs so that the default principal can set quotas for `ROLE1`.
+  ACLs acls;
+  mesos::ACL::SetQuota* acl = acls.add_set_quotas();
+  acl->mutable_principals()->set_type(mesos::ACL::Entity::ANY);
+  acl->mutable_roles()->add_values(ROLE1);
+
+  // Disable authentication by not providing credentials.
+  master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.acls = acls;
+  masterFlags.credentials = None();
+
+  Try<PID<Master>> master = StartMaster(&allocator, masterFlags);
+  ASSERT_SOME(master);
+
+  // Start an agent and wait until it registers.
+  Future<Resources> agentTotalResources;
+  EXPECT_CALL(allocator, addSlave(_, _, _, _, _))
+    .WillOnce(DoAll(InvokeAddSlave(&allocator),
+                    FutureArg<3>(&agentTotalResources)));
+
+  Try<PID<Slave>> agent = StartSlave();
+  ASSERT_SOME(agent);
+
+  AWAIT_READY(agentTotalResources);
+  EXPECT_EQ(defaultAgentResources, agentTotalResources.get());
+
+  // Request quota for a portion of the resources available on the agent.
+  Resources quotaResources = Resources::parse("cpus:1;mem:512;", ROLE1).get();
+  EXPECT_TRUE(agentTotalResources.get().contains(quotaResources.flatten()));
+
+  // Create a HTTP request without authorization headers.
+  Future<Response> response = process::http::post(
+      master.get(),
+      "quota",
+      None(),
+      createRequestBody(quotaResources));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response) << response.get().body;
+
+  Shutdown();
+}
+
+
+// Checks that an unauthorized principal cannot set quota.
+TEST_F(MasterQuotaTest, UnauthorizedQuotaSetRequest)
+{
+  // Setup ACLs so that no principal can set quotas for `ROLE1`.
+  ACLs acls;
+  mesos::ACL::SetQuota* acl = acls.add_set_quotas();
+  acl->mutable_principals()->set_type(mesos::ACL::Entity::NONE);
+  acl->mutable_roles()->add_values(ROLE1);
+
+  master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.acls = acls;
+
+  Try<PID<Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  // We do not need an agent since a request should be rejected before
+  // we start looking at available resources.
+
+  // A request can contain any amount of resources because it will be rejected
+  // before we start looking at available resources.
+  Resources quotaResources = Resources::parse("cpus:1;mem:512", ROLE1).get();
+
+  Future<Response> response = process::http::post(
+      master.get(),
+      "quota",
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL),
+      createRequestBody(quotaResources));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(
+      Unauthorized("Mesos master").status, response) << response.get().body;
+
+  Shutdown();
+}
 
 } // namespace tests {
 } // namespace internal {
