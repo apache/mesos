@@ -35,6 +35,7 @@ using namespace mesos::internal;
 
 using std::vector;
 
+using mesos::internal::protobuf::createLabel;
 using mesos::internal::protobuf::createTask;
 
 // TODO(bmahler): Add tests for other JSON models.
@@ -69,11 +70,25 @@ TEST(HTTPTest, ModelTask)
 
   statuses.push_back(status);
 
+  Labels labels;
+  labels.add_labels()->CopyFrom(createLabel("ACTION", "port:7987 DENY"));
+
+  Ports ports;
+  Port* port = ports.add_ports();
+  port->set_number(80);
+  port->mutable_labels()->CopyFrom(labels);
+
+  DiscoveryInfo discovery;
+  discovery.set_visibility(DiscoveryInfo::CLUSTER);
+  discovery.set_name("discover");
+  discovery.mutable_ports()->CopyFrom(ports);
+
   TaskInfo task;
   task.set_name("task");
   task.mutable_task_id()->CopyFrom(taskId);
   task.mutable_slave_id()->CopyFrom(slaveId);
   task.mutable_command()->set_value("echo hello");
+  task.mutable_discovery()->CopyFrom(discovery);
 
   Task task_ = createTask(task, state, frameworkId);
   task_.add_statuses()->CopyFrom(statuses[0]);
@@ -101,7 +116,31 @@ TEST(HTTPTest, ModelTask)
       "      \"state\":\"TASK_RUNNING\","
       "      \"timestamp\":0"
       "    }"
-      "  ]"
+      "  ],"
+      " \"discovery\":"
+      " {"
+      "   \"name\":\"discover\","
+      "   \"ports\":"
+      "   {"
+      "     \"ports\":"
+      "     ["
+      "       {"
+      "         \"number\":80,"
+      "         \"labels\":"
+      "         {"
+      "           \"labels\":"
+      "           ["
+      "             {"
+      "              \"key\":\"ACTION\","
+      "              \"value\":\"port:7987 DENY\""
+      "             }"
+      "           ]"
+      "         }"
+      "       }"
+      "     ]"
+      "   },"
+      "   \"visibility\":\"CLUSTER\""
+      " }"
       "}");
 
   ASSERT_SOME(expected);

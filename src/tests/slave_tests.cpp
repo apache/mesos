@@ -2142,6 +2142,113 @@ TEST_F(SlaveTest, ContainerizerUsageFailure)
 }
 
 
+// This test verifies that DiscoveryInfo and Port messages, set in TaskInfo,
+// are exposed over the slave state endpoint. The test launches a task with
+// the DiscoveryInfo and Port message fields populated. It then makes an HTTP
+// request to the state endpoint of the slave and retrieves the JSON data from
+// the endpoint. The test passes if the DiscoveryInfo and Port message data in
+// JSON matches the corresponding data set in the TaskInfo used to launch the
+// task.
+TEST_F(SlaveTest, DiscoveryInfoAndPorts)
+{
+  Try<PID<Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+
+  Try<PID<Slave>> slave = StartSlave(&exec);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
+
+  TaskInfo task = createTask(offers.get()[0], "sleep 100", DEFAULT_EXECUTOR_ID);
+
+  Labels labels1;
+  labels1.add_labels()->CopyFrom(createLabel("ACTION", "port:7987 DENY"));
+
+  Labels labels2;
+  labels2.add_labels()->CopyFrom(createLabel("ACTION", "port:7789 PERMIT"));
+
+  Ports ports;
+  Port* port1 = ports.add_ports();
+  port1->set_number(80);
+  port1->mutable_labels()->CopyFrom(labels1);
+
+  Port* port2 = ports.add_ports();
+  port2->set_number(8081);
+  port2->mutable_labels()->CopyFrom(labels2);
+
+  DiscoveryInfo discovery;
+  discovery.set_name("test_discovery");
+  discovery.set_visibility(DiscoveryInfo::CLUSTER);
+  discovery.mutable_ports()->CopyFrom(ports);
+
+  task.mutable_discovery()->CopyFrom(discovery);
+
+  EXPECT_CALL(exec, registered(_, _, _, _));
+
+  Future<Nothing> launchTask;
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillOnce(FutureSatisfy(&launchTask));
+
+  driver.launchTasks(offers.get()[0].id(), {task});
+
+  AWAIT_READY(launchTask);
+
+  // Verify label key and value in slave state.json.
+  Future<process::http::Response> response =
+    process::http::get(slave.get(), "state.json");
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(process::http::OK().status, response);
+  EXPECT_SOME_EQ(APPLICATION_JSON, response.get().headers.get("Content-Type"));
+
+  Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+  ASSERT_SOME(parse);
+
+  Result<JSON::Object> discoveryResult = parse.get().find<JSON::Object>(
+      "frameworks[0].executors[0].tasks[0].discovery");
+  EXPECT_SOME(discoveryResult);
+
+  JSON::Object discoveryObject = discoveryResult.get();
+  EXPECT_EQ(JSON::Object(JSON::protobuf(discovery)), discoveryObject);
+
+  // Check the ports are set in the `DiscoveryInfo` object.
+  Result<JSON::Object> portResult1 = parse.get().find<JSON::Object>(
+      "frameworks[0].executors[0].tasks[0].discovery.ports.ports[0]");
+  Result<JSON::Object> portResult2 = parse.get().find<JSON::Object>(
+      "frameworks[0].executors[0].tasks[0].discovery.ports.ports[1]");
+
+  EXPECT_SOME(portResult1);
+  EXPECT_SOME(portResult2);
+
+  // Verify that the ports retrieved from state.json are the ones that were set.
+  EXPECT_EQ(JSON::Object(JSON::protobuf(*port1)), portResult1.get());
+  EXPECT_EQ(JSON::Object(JSON::protobuf(*port2)), portResult2.get());
+
+  EXPECT_CALL(exec, shutdown(_))
+    .Times(AtMost(1));
+
+  driver.stop();
+  driver.join();
+
+  Shutdown(); // Must shutdown before 'containerizer' gets deallocated.
+}
+
+
 // This test verifies that label values can be set for tasks and that
 // they are exposed over the slave state endpoint.
 TEST_F(SlaveTest, TaskLabels)

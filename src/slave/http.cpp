@@ -106,6 +106,9 @@ JSON::Object model(const TaskInfo& task)
   if (task.has_executor()) {
     object.values["executor_id"] = task.executor().executor_id().value();
   }
+  if (task.has_discovery()) {
+    object.values["discovery"] = JSON::protobuf(task.discovery());
+  }
 
   return object;
 }
