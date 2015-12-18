@@ -980,6 +980,84 @@ TEST_F(MasterQuotaTest, AvailableResourcesAfterRescinding)
 
 // These tests verify the authentication and authorization of quota requests.
 
+// Checks that quota set and remove requests succeed if both authentication
+// and authorization are disabled.
+TEST_F(MasterQuotaTest, NoAuthenticationNoAuthorization)
+{
+  TestAllocator<> allocator;
+  EXPECT_CALL(allocator, initialize(_, _, _, _));
+
+  // Disable authentication and authorization by providing neither
+  // credentials nor ACLs.
+  // TODO(alexr): Setting master `--acls` flag to `ACLs()` or `None()` seems
+  // to be semantically equal, however, the test harness currently does not
+  // allow `None()`. Once MESOS-4196 is resolved, use `None()` for clarity.
+  master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.credentials = None();
+  masterFlags.acls = ACLs();
+
+  Try<PID<Master>> master = StartMaster(&allocator, masterFlags);
+  ASSERT_SOME(master);
+
+  // Start an agent and wait until it registers.
+  Future<Resources> agentTotalResources;
+  EXPECT_CALL(allocator, addSlave(_, _, _, _, _))
+    .WillOnce(DoAll(InvokeAddSlave(&allocator),
+                    FutureArg<3>(&agentTotalResources)));
+
+  Try<PID<Slave>> agent = StartSlave();
+  ASSERT_SOME(agent);
+
+  AWAIT_READY(agentTotalResources);
+  EXPECT_EQ(defaultAgentResources, agentTotalResources.get());
+
+  // Check whether quota can be set.
+  {
+    // Request quota for a portion of the resources available on the agent.
+    Resources quotaResources = Resources::parse("cpus:1;mem:512", ROLE1).get();
+    EXPECT_TRUE(agentTotalResources.get().contains(quotaResources.flatten()));
+
+    Future<QuotaInfo> receivedSetRequest;
+    EXPECT_CALL(allocator, setQuota(Eq(ROLE1), _))
+      .WillOnce(DoAll(InvokeSetQuota(&allocator),
+                      FutureArg<1>(&receivedSetRequest)));
+
+    // Send a set quota request with absent credentials.
+    Future<Response> response = process::http::post(
+        master.get(),
+        "quota",
+        None(),
+        createRequestBody(quotaResources));
+
+    // Quota request succeeds and reaches the allocator.
+    AWAIT_READY(receivedSetRequest);
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
+      << response.get().body;
+  }
+
+  // Check whether quota can be removed.
+  {
+    Future<Nothing> receivedRemoveRequest;
+    EXPECT_CALL(allocator, removeQuota(Eq(ROLE1)))
+      .WillOnce(DoAll(InvokeRemoveQuota(&allocator),
+                      FutureSatisfy(&receivedRemoveRequest)));
+
+    // Send a remove quota request with absent credentials.
+    Future<Response> response = process::http::requestDelete(
+        master.get(),
+        "quota/" + ROLE1,
+        None());
+
+    // Quota request succeeds and reaches the allocator.
+    AWAIT_READY(receivedRemoveRequest);
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
+      << response.get().body;
+  }
+
+  Shutdown();
+}
+
+
 // Checks that a set quota request is rejected for unauthenticated principals.
 TEST_F(MasterQuotaTest, UnauthenticatedQuotaRequest)
 {
