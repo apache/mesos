@@ -43,6 +43,15 @@ struct RuntimeConfig
 };
 
 
+// Includes a vector of rootfs layers in topological order corresponding
+// to a specific image, and its runtime configuration.
+struct ImageInfo
+{
+  std::vector<std::string> layers;
+  Option<RuntimeConfig> runtimeConfig;
+};
+
+
 // An image store abstraction that "stores" images. It serves as a
 // read-through cache (cache misses are fetched remotely and
 // transparently) for images.
@@ -73,7 +82,7 @@ public:
   //
   // The returned future fails if the requested image or any of its
   // dependencies cannot be found or failed to be fetched.
-  virtual process::Future<std::vector<std::string>> get(const Image& image) = 0;
+  virtual process::Future<ImageInfo> get(const Image& image) = 0;
 };
 
 } // namespace slave {

@@ -64,14 +64,14 @@ public:
 
   Future<Nothing> recover();
 
-  Future<vector<string>> get(const mesos::Image& image);
+  Future<ImageInfo> get(const mesos::Image& image);
 
 private:
   Future<Image> _get(
       const Image::Name& name,
       const Option<Image>& image);
 
-  Future<vector<string>> __get(const Image& image);
+  Future<ImageInfo> __get(const Image& image);
 
   Future<vector<string>> moveLayers(
       const std::list<pair<string, string>>& layerPaths);
@@ -152,13 +152,13 @@ Future<Nothing> Store::recover()
 }
 
 
-Future<vector<string>> Store::get(const mesos::Image& image)
+Future<ImageInfo> Store::get(const mesos::Image& image)
 {
   return dispatch(process.get(), &StoreProcess::get, image);
 }
 
 
-Future<vector<string>> StoreProcess::get(const mesos::Image& image)
+Future<ImageInfo> StoreProcess::get(const mesos::Image& image)
 {
   if (image.type() != mesos::Image::DOCKER) {
     return Failure("Docker provisioner store only supports Docker images");
@@ -216,7 +216,7 @@ Future<Image> StoreProcess::_get(
 }
 
 
-Future<vector<string>> StoreProcess::__get(const Image& image)
+Future<ImageInfo> StoreProcess::__get(const Image& image)
 {
   vector<string> layerDirectories;
   foreach (const string& layer, image.layer_ids()) {
@@ -225,7 +225,12 @@ Future<vector<string>> StoreProcess::__get(const Image& image)
             flags.docker_store_dir, layer));
   }
 
-  return layerDirectories;
+  // TODO(gilbert): We should be able to support storing all image
+  // spec locally, and simply grab neccessary runtime config from
+  // local manifest.
+  Option<RuntimeConfig> runtimeConfig = None();
+
+  return ImageInfo{layerDirectories, runtimeConfig};
 }
 
 

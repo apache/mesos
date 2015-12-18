@@ -148,7 +148,7 @@ public:
 
   Future<Nothing> recover();
 
-  Future<vector<string>> get(const Image& image);
+  Future<ImageInfo> get(const Image& image);
 
 private:
   // Absolute path to the root directory of the store as defined by
@@ -205,7 +205,7 @@ Future<Nothing> Store::recover()
 }
 
 
-Future<vector<string>> Store::get(const Image& image)
+Future<ImageInfo> Store::get(const Image& image)
 {
   return dispatch(process.get(), &StoreProcess::get, image);
 }
@@ -247,7 +247,7 @@ Future<Nothing> StoreProcess::recover()
 }
 
 
-Future<vector<string>> StoreProcess::get(const Image& image)
+Future<ImageInfo> StoreProcess::get(const Image& image)
 {
   if (image.type() != Image::APPC) {
     return Failure("Not an Appc image: " + stringify(image.type()));
@@ -268,11 +268,15 @@ Future<vector<string>> StoreProcess::get(const Image& image)
       LOG(INFO) << "Found match for Appc image '" << appc.name()
                 << "' in the store";
 
+      // TODO(gilbert): Get Appc runtime config from manifest.
+
       // The Appc store current doesn't support dependencies and this
       // is enforced by manifest validation: if the image's manifest
       // contains dependencies it would fail the validation and
       // wouldn't be stored in the store.
-      return vector<string>({candidate.rootfs()});
+      return ImageInfo{
+          vector<string>({candidate.rootfs()}),
+          None()};
     }
   }
 

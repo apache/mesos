@@ -59,7 +59,7 @@ public:
 
   MOCK_METHOD1(
       get,
-      process::Future<std::vector<std::string>>(
+      process::Future<slave::ImageInfo>(
           const Image& image));
 
   process::Future<Nothing> unmocked_recover()
@@ -67,7 +67,7 @@ public:
     return Nothing();
   }
 
-  process::Future<std::vector<std::string>> unmocked_get(const Image& image)
+  process::Future<slave::ImageInfo> unmocked_get(const Image& image)
   {
     if (!image.has_appc()) {
       return process::Failure("Expecting APPC image");
@@ -75,7 +75,8 @@ public:
 
     Option<process::Shared<Rootfs>> rootfs = rootfses.at(image.appc().name());
     if (rootfs.isSome()) {
-      return std::vector<std::string>({rootfs.get()->root});
+      return slave::ImageInfo{
+          std::vector<std::string>({rootfs.get()->root}), None()};
     }
 
     return process::Failure("Cannot find image '" + image.appc().name());

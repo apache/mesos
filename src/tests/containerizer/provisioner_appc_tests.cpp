@@ -186,14 +186,14 @@ TEST_F(AppcStoreTest, Recover)
 
   Image image;
   image.mutable_appc()->set_name("foo.com/bar");
-  Future<vector<string>> layers = store.get()->get(image);
-  AWAIT_READY(layers);
+  Future<slave::ImageInfo> ImageInfo = store.get()->get(image);
+  AWAIT_READY(ImageInfo);
 
-  EXPECT_EQ(1u, layers.get().size());
+  EXPECT_EQ(1u, ImageInfo.get().layers.size());
   ASSERT_SOME(os::realpath(imagePath));
   EXPECT_EQ(
       os::realpath(path::join(imagePath, "rootfs")).get(),
-      layers.get().front());
+      ImageInfo.get().layers.front());
 }
 
 

@@ -52,7 +52,7 @@ public:
 
   process::Future<Nothing> recover();
 
-  process::Future<std::vector<std::string>> get(const mesos::Image& image);
+  process::Future<ImageInfo> get(const mesos::Image& image);
 
 private:
   explicit Store(const process::Owned<StoreProcess>& _process);
