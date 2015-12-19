@@ -2899,7 +2899,6 @@ Resources Master::addTask(
 
   // Determine if this task launches an executor, and if so make sure
   // the slave and framework state has been updated accordingly.
-  Option<ExecutorID> executorId;
 
   if (task.has_executor()) {
     // TODO(benh): Refactor this code into Slave::addTask.
@@ -2914,29 +2913,10 @@ Resources Master::addTask(
 
       resources += task.executor().resources();
     }
-
-    executorId = task.executor().executor_id();
   }
 
   // Add the task to the framework and slave.
-  Task* t = new Task();
-  t->mutable_framework_id()->MergeFrom(framework->id());
-  t->set_state(TASK_STAGING);
-  t->set_name(task.name());
-  t->mutable_task_id()->MergeFrom(task.task_id());
-  t->mutable_slave_id()->MergeFrom(task.slave_id());
-  t->mutable_resources()->MergeFrom(task.resources());
-
-  if (executorId.isSome()) {
-    t->mutable_executor_id()->MergeFrom(executorId.get());
-  }
-
-  if (task.has_labels()) {
-    t->mutable_labels()->MergeFrom(task.labels());
-  }
-  if (task.has_discovery()) {
-    t->mutable_discovery()->MergeFrom(task.discovery());
-  }
+  Task* t = new Task(protobuf::createTask(task, TASK_STAGING, framework->id()));
 
   slave->addTask(t);
   framework->addTask(t);
