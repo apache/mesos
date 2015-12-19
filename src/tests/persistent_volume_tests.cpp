@@ -97,7 +97,12 @@ TEST_F(PersistentVolumeTest, SendingCheckpointResourcesMessage)
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_role("role1");
 
-  Try<PID<Master>> master = StartMaster(MasterFlags({frameworkInfo}));
+  // Create a master.
+  master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.allocation_interval = Milliseconds(50);
+  masterFlags.roles = frameworkInfo.role();
+
+  Try<PID<Master>> master = StartMaster(masterFlags);
   ASSERT_SOME(master);
 
   slave::Flags slaveFlags = CreateSlaveFlags();
@@ -115,7 +120,7 @@ TEST_F(PersistentVolumeTest, SendingCheckpointResourcesMessage)
   Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillOnce(FutureArg<1>(&offers))
-    .WillRepeatedly(Return());        // Ignore subsequent offers.
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
 
   driver.start();
 
@@ -145,20 +150,50 @@ TEST_F(PersistentVolumeTest, SendingCheckpointResourcesMessage)
       "id2",
       "path2");
 
+  // We use the filter explicitly here so that the resources will not
+  // be filtered for 5 seconds (by default).
+  Filters filters;
+  filters.set_refuse_seconds(0);
+
+  // Create the persistent volumes via `acceptOffers`.
   driver.acceptOffers(
       {offer.id()},
       {CREATE(volume1),
-       CREATE(volume2),
-       DESTROY(volume1)});
+       CREATE(volume2)},
+      filters);
+
+  // Expect an offer containing the persistent volumes.
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
 
   // NOTE: Currently, we send one message per operation. But this is
   // an implementation detail which is subject to change.
   AWAIT_READY(message1);
   EXPECT_EQ(Resources(message1.get().resources()), volume1);
 
+  // Await the `CheckpointResourcesMessage` and ensure that it contains
+  // both volume1 and volume2.
   AWAIT_READY(message2);
   EXPECT_EQ(Resources(message2.get().resources()), volume1 + volume2);
 
+  AWAIT_READY(offers);
+  EXPECT_FALSE(offers.get().empty());
+
+  offer = offers.get()[0];
+
+  // Expect that the offer contains the persistent volumes we created.
+  EXPECT_TRUE(Resources(offer.resources()).contains(volume1));
+  EXPECT_TRUE(Resources(offer.resources()).contains(volume2));
+
+  // Destroy `volume1`.
+  driver.acceptOffers(
+      {offer.id()},
+      {DESTROY(volume1)},
+      filters);
+
+  // Await the `CheckpointResourcesMessage` and ensure that it contains
+  // volume2 but not volume1.
   AWAIT_READY(message3);
   EXPECT_EQ(Resources(message3.get().resources()), volume2);
 
