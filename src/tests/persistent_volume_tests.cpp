@@ -34,6 +34,7 @@
 
 #include <stout/os/exists.hpp>
 
+#include "master/constants.hpp"
 #include "master/flags.hpp"
 #include "master/master.hpp"
 
@@ -709,6 +710,698 @@ TEST_F(PersistentVolumeTest, SlaveRecovery)
 
   driver.stop();
   driver.join();
+
+  Shutdown();
+}
+
+
+// This test verifies that the `create` and `destroy` operations complete
+// successfully when authorization succeeds.
+TEST_F(PersistentVolumeTest, GoodACLCreateThenDestroy)
+{
+  // Manipulate the clock manually in order to
+  // control the timing of the offer cycle.
+  Clock::pause();
+
+  ACLs acls;
+
+  // This ACL declares that the principal of `DEFAULT_CREDENTIAL`
+  // can create any persistent volumes.
+  mesos::ACL::CreateVolume* create = acls.add_create_volumes();
+  create->mutable_principals()->add_values(DEFAULT_CREDENTIAL.principal());
+  create->mutable_volume_types()->set_type(mesos::ACL::Entity::ANY);
+
+  // This ACL declares that the principal of `DEFAULT_CREDENTIAL`
+  // can destroy its own persistent volumes.
+  mesos::ACL::DestroyVolume* destroy = acls.add_destroy_volumes();
+  destroy->mutable_principals()->add_values(DEFAULT_CREDENTIAL.principal());
+  destroy->mutable_creator_principals()->add_values(
+      DEFAULT_CREDENTIAL.principal());
+
+  // We use the filter explicitly here so that the resources will not
+  // be filtered for 5 seconds (by default).
+  Filters filters;
+  filters.set_refuse_seconds(0);
+
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_role("role1");
+
+  // Create a master.
+  master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.acls = acls;
+  masterFlags.roles = frameworkInfo.role();
+
+  Try<PID<Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  // Create a slave. Resources are being statically reserved because persistent
+  // volume creation requires reserved resources.
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  slaveFlags.resources = "cpus:2;mem:1024;disk(role1):2048";
+
+  Try<PID<Slave>> slave = StartSlave(slaveFlags);
+  ASSERT_SOME(slave);
+
+  // Create a scheduler/framework.
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  // Expect an offer from the slave.
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  driver.start();
+
+  // Advance the clock to generate an offer.
+  Clock::settle();
+  Clock::advance(masterFlags.allocation_interval);
+
+  AWAIT_READY(offers);
+  EXPECT_FALSE(offers.get().empty());
+
+  Offer offer = offers.get()[0];
+
+  Resources volume = createPersistentVolume(
+      Megabytes(128),
+      "role1",
+      "id1",
+      "path1");
+
+  Future<CheckpointResourcesMessage> checkpointResources1 =
+    FUTURE_PROTOBUF(CheckpointResourcesMessage(), _, slave.get());
+
+  // Create the persistent volume using `acceptOffers`.
+  driver.acceptOffers(
+      {offer.id()},
+      {CREATE(volume)},
+      filters);
+
+  // Await the CheckpointResourceMessage response after the volume is created
+  // and check that it contains the volume.
+  AWAIT_READY(checkpointResources1);
+  EXPECT_EQ(Resources(checkpointResources1.get().resources()), volume);
+
+  // Expect an offer containing the persistent volume.
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  Clock::settle();
+  Clock::advance(masterFlags.allocation_interval);
+
+  // Await the offer containing the persistent volume.
+  AWAIT_READY(offers);
+  EXPECT_FALSE(offers.get().empty());
+
+  offer = offers.get()[0];
+
+  // Check that the persistent volume was created successfully.
+  EXPECT_TRUE(Resources(offer.resources()).contains(volume));
+  EXPECT_TRUE(
+      os::exists(slave::paths::getPersistentVolumePath(
+          slaveFlags.work_dir,
+          "role1",
+          "id1")));
+
+  Future<CheckpointResourcesMessage> checkpointResources2 =
+    FUTURE_PROTOBUF(CheckpointResourcesMessage(), _, slave.get());
+
+  // Destroy the persistent volume using `acceptOffers`.
+  driver.acceptOffers(
+      {offer.id()},
+      {DESTROY(volume)},
+      filters);
+
+  AWAIT_READY(checkpointResources2);
+  EXPECT_FALSE(
+      Resources(checkpointResources2.get().resources()).contains(volume));
+
+  // Expect an offer that does not contain the persistent volume.
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  Clock::settle();
+  Clock::advance(masterFlags.allocation_interval);
+
+  AWAIT_READY(offers);
+  EXPECT_FALSE(offers.get().empty());
+
+  offer = offers.get()[0];
+
+  // Check that the persistent volume is not in the offer.
+  EXPECT_FALSE(Resources(offer.resources()).contains(volume));
+
+  driver.stop();
+  driver.join();
+
+  Shutdown();
+}
+
+
+// This test verifies that the `create` and `destroy` operations complete
+// successfully when authorization succeeds and no principal is provided.
+TEST_F(PersistentVolumeTest, GoodACLNoPrincipal)
+{
+  // Manipulate the clock manually in order to
+  // control the timing of the offer cycle.
+  Clock::pause();
+
+  ACLs acls;
+
+  // This ACL declares that any principal (and also frameworks without a
+  // principal) can create persistent volumes.
+  mesos::ACL::CreateVolume* create = acls.add_create_volumes();
+  create->mutable_principals()->set_type(mesos::ACL::Entity::ANY);
+  create->mutable_volume_types()->set_type(mesos::ACL::Entity::ANY);
+
+  // This ACL declares that any principal (and also frameworks without a
+  // principal) can destroy persistent volumes.
+  mesos::ACL::DestroyVolume* destroy = acls.add_destroy_volumes();
+  destroy->mutable_principals()->set_type(mesos::ACL::Entity::ANY);
+  destroy->mutable_creator_principals()->set_type(mesos::ACL::Entity::ANY);
+
+  // We use the filter explicitly here so that the resources will not be
+  // filtered for 5 seconds (by default).
+  Filters filters;
+  filters.set_refuse_seconds(0);
+
+  // Create a `FrameworkInfo` with no principal.
+  FrameworkInfo frameworkInfo;
+  frameworkInfo.set_name("no-principal");
+  frameworkInfo.set_user(os::user().get());
+  frameworkInfo.set_role("role1");
+
+  // Create a master. Since the framework has no
+  // principal, we don't authenticate frameworks.
+  master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.acls = acls;
+  masterFlags.roles = frameworkInfo.role();
+  masterFlags.authenticate_frameworks = false;
+
+  Try<PID<Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  // Create a slave. Resources are being statically reserved because persistent
+  // volume creation requires reserved resources.
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  slaveFlags.resources = "cpus:2;mem:1024;disk(role1):2048";
+
+  Try<PID<Slave>> slave = StartSlave(slaveFlags);
+  ASSERT_SOME(slave);
+
+  // Create a scheduler/framework.
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  // Expect an offer from the slave.
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  driver.start();
+
+  // Advance the clock to generate an offer.
+  Clock::settle();
+  Clock::advance(masterFlags.allocation_interval);
+
+  AWAIT_READY(offers);
+  EXPECT_FALSE(offers.get().empty());
+
+  Offer offer = offers.get()[0];
+
+  Resources volume = createPersistentVolume(
+      Megabytes(128),
+      "role1",
+      "id1",
+      "path1");
+
+  Future<CheckpointResourcesMessage> checkpointResources1 =
+    FUTURE_PROTOBUF(CheckpointResourcesMessage(), _, slave.get());
+
+  // Create the persistent volume using `acceptOffers`.
+  driver.acceptOffers(
+      {offer.id()},
+      {CREATE(volume)},
+      filters);
+
+  // Await the CheckpointResourceMessage response after the volume is created
+  // and check that it contains the volume.
+  AWAIT_READY(checkpointResources1);
+  EXPECT_EQ(Resources(checkpointResources1.get().resources()), volume);
+
+  // Expect an offer containing the persistent volume.
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  Clock::settle();
+  Clock::advance(masterFlags.allocation_interval);
+
+  // Await the offer containing the persistent volume.
+  AWAIT_READY(offers);
+  EXPECT_FALSE(offers.get().empty());
+
+  offer = offers.get()[0];
+
+  // Check that the persistent volume was successfully created.
+  EXPECT_TRUE(Resources(offer.resources()).contains(volume));
+  EXPECT_TRUE(
+      os::exists(slave::paths::getPersistentVolumePath(
+          slaveFlags.work_dir,
+          "role1",
+          "id1")));
+
+  Future<CheckpointResourcesMessage> checkpointResources2 =
+    FUTURE_PROTOBUF(CheckpointResourcesMessage(), _, slave.get());
+
+  // Destroy the persistent volume using `acceptOffers`.
+  driver.acceptOffers(
+      {offer.id()},
+      {DESTROY(volume)},
+      filters);
+
+  AWAIT_READY(checkpointResources2);
+
+  // Expect an offer that does not contain the persistent volume.
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  Clock::settle();
+  Clock::advance(masterFlags.allocation_interval);
+
+  AWAIT_READY(offers);
+  EXPECT_FALSE(offers.get().empty());
+
+  offer = offers.get()[0];
+
+  // Check that the persistent volume was not created
+  EXPECT_FALSE(Resources(offer.resources()).contains(volume));
+  EXPECT_FALSE(
+      Resources(checkpointResources2.get().resources()).contains(volume));
+
+  driver.stop();
+  driver.join();
+
+  Shutdown();
+}
+
+
+// This test verifies that `create` and `destroy` operations fail as expected
+// when authorization fails and no principal is supplied.
+TEST_F(PersistentVolumeTest, BadACLNoPrincipal)
+{
+  // Manipulate the clock manually in order to
+  // control the timing of the offer cycle.
+  Clock::pause();
+
+  ACLs acls;
+
+  // This ACL declares that the principal of `DEFAULT_FRAMEWORK_INFO`
+  // can create persistent volumes.
+  mesos::ACL::CreateVolume* create1 = acls.add_create_volumes();
+  create1->mutable_principals()->add_values(DEFAULT_FRAMEWORK_INFO.principal());
+  create1->mutable_volume_types()->set_type(mesos::ACL::Entity::ANY);
+
+  // This ACL declares that any other principals
+  // cannot create persistent volumes.
+  mesos::ACL::CreateVolume* create2 = acls.add_create_volumes();
+  create2->mutable_principals()->set_type(mesos::ACL::Entity::ANY);
+  create2->mutable_volume_types()->set_type(mesos::ACL::Entity::NONE);
+
+  // We use this filter so that resources will not
+  // be filtered for 5 seconds (by default).
+  Filters filters;
+  filters.set_refuse_seconds(0);
+
+  // Create a `FrameworkInfo` with no principal.
+  FrameworkInfo frameworkInfo1;
+  frameworkInfo1.set_name("no-principal");
+  frameworkInfo1.set_user(os::user().get());
+  frameworkInfo1.set_role("role1");
+
+  // Create a `FrameworkInfo` with a principal.
+  FrameworkInfo frameworkInfo2 = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo2.set_role("role1");
+
+  // Create a master. Since one framework has no
+  // principal, we don't authenticate frameworks.
+  master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.acls = acls;
+  masterFlags.roles = frameworkInfo1.role();
+  masterFlags.authenticate_frameworks = false;
+
+  Try<PID<Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  // Create a slave.
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  slaveFlags.resources = "cpus:2;mem:1024;disk(role1):2048";
+
+  Try<PID<Slave>> slave = StartSlave(slaveFlags);
+  ASSERT_SOME(slave);
+
+  // Create a scheduler/framework.
+  MockScheduler sched1;
+  MesosSchedulerDriver driver1(&sched1, frameworkInfo1, master.get());
+
+  EXPECT_CALL(sched1, registered(&driver1, _, _));
+
+  // Expect an offer from the slave.
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched1, resourceOffers(&driver1, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  driver1.start();
+
+  // Advance the clock to generate an offer.
+  Clock::settle();
+  Clock::advance(masterFlags.allocation_interval);
+
+  AWAIT_READY(offers);
+  EXPECT_FALSE(offers.get().empty());
+
+  Offer offer = offers.get()[0];
+
+  Resources volume = createPersistentVolume(
+      Megabytes(128),
+      "role1",
+      "id1",
+      "path1");
+
+  // Attempt to create the persistent volume using `acceptOffers`.
+  driver1.acceptOffers(
+      {offer.id()},
+      {CREATE(volume)},
+      filters);
+
+  // Expect another offer.
+  EXPECT_CALL(sched1, resourceOffers(&driver1, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  Clock::settle();
+  Clock::advance(masterFlags.allocation_interval);
+
+  AWAIT_READY(offers);
+  EXPECT_FALSE(offers.get().empty());
+
+  offer = offers.get()[0];
+
+  // Check that the persistent volume is not contained in this offer.
+  EXPECT_FALSE(Resources(offer.resources()).contains(volume));
+
+  // Decline the offer and suppress so the second
+  // framework will receive the offer instead.
+  driver1.declineOffer(offer.id(), filters);
+  driver1.suppressOffers();
+
+  // Create a second framework which can create volumes.
+  MockScheduler sched2;
+  MesosSchedulerDriver driver2(&sched2, frameworkInfo2, master.get());
+
+  EXPECT_CALL(sched2, registered(&driver2, _, _));
+
+  // Expect an offer to the second framework.
+  EXPECT_CALL(sched2, resourceOffers(&driver2, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  driver2.start();
+
+  // Advance the clock to generate an offer.
+  Clock::settle();
+  Clock::advance(masterFlags.allocation_interval);
+
+  AWAIT_READY(offers);
+  EXPECT_FALSE(offers.get().empty());
+
+  offer = offers.get()[0];
+
+  // Create the persistent volume using `acceptOffers`.
+  driver2.acceptOffers(
+      {offer.id()},
+      {CREATE(volume)},
+      filters);
+
+  // Expect another offer.
+  EXPECT_CALL(sched2, resourceOffers(&driver2, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  Clock::settle();
+  Clock::advance(masterFlags.allocation_interval);
+
+  AWAIT_READY(offers);
+  EXPECT_FALSE(offers.get().empty());
+
+  offer = offers.get()[0];
+
+  // Check that the persistent volume is contained in this offer.
+  EXPECT_TRUE(Resources(offer.resources()).contains(volume));
+
+  // Decline, suppress, and revive offers appropriately so that `driver1` can
+  // receive an offer.
+  driver2.declineOffer(offer.id(), filters);
+  driver2.suppressOffers();
+  driver1.reviveOffers();
+
+  // Expect an offer to the first framework.
+  EXPECT_CALL(sched1, resourceOffers(&driver1, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  // Advance the clock to generate an offer.
+  Clock::settle();
+  Clock::advance(masterFlags.allocation_interval);
+
+  AWAIT_READY(offers);
+  EXPECT_FALSE(offers.get().empty());
+
+  offer = offers.get()[0];
+
+  // Attempt to destroy the persistent volume using `acceptOffers`.
+  driver1.acceptOffers(
+      {offer.id()},
+      {DESTROY(volume)},
+      filters);
+
+  // Expect another offer.
+  EXPECT_CALL(sched1, resourceOffers(&driver1, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  Clock::settle();
+  Clock::advance(masterFlags.allocation_interval);
+
+  AWAIT_READY(offers);
+  EXPECT_FALSE(offers.get().empty());
+
+  // Check that the persistent volume is still contained in this offer.
+  EXPECT_TRUE(Resources(offer.resources()).contains(volume));
+
+  driver1.stop();
+  driver1.join();
+
+  driver2.stop();
+  driver2.join();
+
+  Shutdown();
+}
+
+
+// This test verifies that `create` and `destroy` operations
+// get dropped if authorization fails.
+TEST_F(PersistentVolumeTest, BadACLDropCreateAndDestroy)
+{
+  // Manipulate the clock manually in order to
+  // control the timing of the offer cycle.
+  Clock::pause();
+
+  ACLs acls;
+
+  // This ACL declares that the principal 'creator-principal'
+  // can create persistent volumes.
+  mesos::ACL::CreateVolume* create1 = acls.add_create_volumes();
+  create1->mutable_principals()->add_values("creator-principal");
+  create1->mutable_volume_types()->set_type(mesos::ACL::Entity::ANY);
+
+  // This ACL declares that all other principals
+  // cannot create any persistent volumes.
+  mesos::ACL::CreateVolume* create = acls.add_create_volumes();
+  create->mutable_principals()->set_type(mesos::ACL::Entity::ANY);
+  create->mutable_volume_types()->set_type(mesos::ACL::Entity::NONE);
+
+  // We use the filter explicitly here so that the resources will not
+  // be filtered for 5 seconds (by default).
+  Filters filters;
+  filters.set_refuse_seconds(0);
+
+  // Create a `FrameworkInfo` that cannot create or destroy volumes.
+  FrameworkInfo frameworkInfo1 = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo1.set_role("role1");
+
+  // Create a `FrameworkInfo` that can create volumes.
+  FrameworkInfo frameworkInfo2;
+  frameworkInfo2.set_name("creator-framework");
+  frameworkInfo2.set_user(os::user().get());
+  frameworkInfo2.set_role("role1");
+  frameworkInfo2.set_principal("creator-principal");
+
+  // Create a master.
+  master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.acls = acls;
+  masterFlags.roles = frameworkInfo1.role();
+  masterFlags.authenticate_frameworks = false;
+
+  Try<PID<Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  // Create a slave.
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  slaveFlags.resources = "cpus:2;mem:1024;disk(role1):2048";
+
+  Try<PID<Slave>> slave = StartSlave(slaveFlags);
+  ASSERT_SOME(slave);
+
+  // Create a scheduler/framework.
+  MockScheduler sched1;
+  MesosSchedulerDriver driver1(&sched1, frameworkInfo1, master.get());
+
+  EXPECT_CALL(sched1, registered(&driver1, _, _));
+
+  // Expect an offer from the slave.
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched1, resourceOffers(&driver1, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  driver1.start();
+
+  // Advance the clock to generate an offer.
+  Clock::settle();
+  Clock::advance(masterFlags.allocation_interval);
+
+  AWAIT_READY(offers);
+  EXPECT_FALSE(offers.get().empty());
+
+  Offer offer = offers.get()[0];
+
+  Resources volume = createPersistentVolume(
+      Megabytes(128),
+      "role1",
+      "id1",
+      "path1");
+
+  // Attempt to create a persistent volume using `acceptOffers`.
+  driver1.acceptOffers(
+      {offer.id()},
+      {CREATE(volume)},
+      filters);
+
+  // Expect another offer.
+  EXPECT_CALL(sched1, resourceOffers(&driver1, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  Clock::settle();
+  Clock::advance(masterFlags.allocation_interval);
+
+  AWAIT_READY(offers);
+  EXPECT_FALSE(offers.get().empty());
+
+  offer = offers.get()[0];
+
+  // Check that the persistent volume is not contained in this offer.
+  EXPECT_FALSE(Resources(offer.resources()).contains(volume));
+
+  // Decline the offer and suppress so the second
+  // framework will receive the offer instead.
+  driver1.declineOffer(offer.id(), filters);
+  driver1.suppressOffers();
+
+  // Create a second framework which can create volumes.
+  MockScheduler sched2;
+  MesosSchedulerDriver driver2(&sched2, frameworkInfo2, master.get());
+
+  EXPECT_CALL(sched2, registered(&driver2, _, _));
+
+  // Expect an offer to the second framework.
+  EXPECT_CALL(sched2, resourceOffers(&driver2, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  driver2.start();
+
+  // Advance the clock to generate an offer.
+  Clock::settle();
+  Clock::advance(masterFlags.allocation_interval);
+
+  AWAIT_READY(offers);
+  EXPECT_FALSE(offers.get().empty());
+
+  offer = offers.get()[0];
+
+  // Create a persistent volume using `acceptOffers`.
+  driver2.acceptOffers(
+      {offer.id()},
+      {CREATE(volume)},
+      filters);
+
+  // Expect another offer.
+  EXPECT_CALL(sched2, resourceOffers(&driver2, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  Clock::settle();
+  Clock::advance(masterFlags.allocation_interval);
+
+  AWAIT_READY(offers);
+  EXPECT_FALSE(offers.get().empty());
+
+  offer = offers.get()[0];
+
+  // Check that the persistent volume is contained in this offer.
+  EXPECT_TRUE(Resources(offer.resources()).contains(volume));
+
+  // Decline, suppress, and revive offers appropriately so that `driver1` can
+  // receive an offer.
+  driver2.declineOffer(offer.id(), filters);
+  driver2.suppressOffers();
+  driver1.reviveOffers();
+
+  // Expect an offer to the first framework.
+  EXPECT_CALL(sched1, resourceOffers(&driver1, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  // Advance the clock to generate an offer.
+  Clock::settle();
+  Clock::advance(masterFlags.allocation_interval);
+
+  AWAIT_READY(offers);
+  EXPECT_FALSE(offers.get().empty());
+
+  offer = offers.get()[0];
+
+  // Attempt to destroy the persistent volume using `acceptOffers`.
+  driver1.acceptOffers(
+      {offer.id()},
+      {DESTROY(volume)},
+      filters);
+
+  // Expect another offer.
+  EXPECT_CALL(sched1, resourceOffers(&driver1, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  Clock::settle();
+  Clock::advance(masterFlags.allocation_interval);
+
+  AWAIT_READY(offers);
+  EXPECT_FALSE(offers.get().empty());
+
+  // Check that the persistent volume is still contained in this offer.
+  EXPECT_TRUE(Resources(offer.resources()).contains(volume));
+
+  driver1.stop();
+  driver1.join();
+
+  driver2.stop();
+  driver2.join();
 
   Shutdown();
 }
