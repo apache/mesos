@@ -56,7 +56,7 @@ When launching the docker image as an Executor, the only difference is that it s
 
 Note that we currently default to host networking when running a docker image, to easier support running a docker image as an Executor.
 
-The containerizer also supports optional force pulling of the image, and if disabled the docker image will only be updated again if it's not available on the host.
+The containerizer also supports optional force pulling of the image. It is set disabled as default, so the docker image will only be updated again if it's not available on the host. To enable force pulling an image, `force_pull_image` has to be set as true.
 
 ## Private Docker repository
 
