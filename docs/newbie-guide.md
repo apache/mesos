@@ -126,5 +126,5 @@ A: Mesos documentation is located in the ‘docs’ directory of the Mesos distr
 [http://mesos.apache.org/documentation/latest/index.html](http://mesos.apache.org/documentation/latest/index.html)
 
 
-Q: What is a Shephard?
-A: An identified PMC/committer that works with a contributor to help shephard a JIRA item to completion.  Shepards should be as identified at the beginning of the design/development phase.
+Q: What is a Shepherd?
+A: An identified PMC/committer that works with a contributor to help shepherd a JIRA item to completion.  Shepherds should be as identified at the beginning of the design/development phase.
