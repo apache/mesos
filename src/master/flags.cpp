@@ -174,7 +174,7 @@ mesos::internal::master::Flags::Flags()
       "allocation_interval",
       "Amount of time to wait between performing\n"
       " (batch) allocations (e.g., 500ms, 1sec, etc).",
-      Seconds(1));
+      DEFAULT_ALLOCATION_INTERVAL);
 
   add(&Flags::cluster,
       "cluster",

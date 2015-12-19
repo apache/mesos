@@ -125,6 +125,9 @@ extern const std::string DEFAULT_AUTHENTICATOR;
 // Name of the default, HierarchicalDRF authenticator.
 extern const std::string DEFAULT_ALLOCATOR;
 
+// The default interval between allocations.
+extern const Duration DEFAULT_ALLOCATION_INTERVAL;
+
 // Name of the default, local authorizer.
 extern const std::string DEFAULT_AUTHORIZER;
 
