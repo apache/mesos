@@ -155,12 +155,12 @@ Task createTask(
     const FrameworkID& frameworkId)
 {
   Task t;
-  t.mutable_framework_id()->MergeFrom(frameworkId);
+  t.mutable_framework_id()->CopyFrom(frameworkId);
   t.set_state(state);
   t.set_name(task.name());
-  t.mutable_task_id()->MergeFrom(task.task_id());
-  t.mutable_slave_id()->MergeFrom(task.slave_id());
-  t.mutable_resources()->MergeFrom(task.resources());
+  t.mutable_task_id()->CopyFrom(task.task_id());
+  t.mutable_slave_id()->CopyFrom(task.slave_id());
+  t.mutable_resources()->CopyFrom(task.resources());
 
   if (task.has_executor()) {
     t.mutable_executor_id()->CopyFrom(task.executor().executor_id());
@@ -171,7 +171,7 @@ Task createTask(
   }
 
   if (task.has_discovery()) {
-    t.mutable_discovery()->MergeFrom(task.discovery());
+    t.mutable_discovery()->CopyFrom(task.discovery());
   }
 
   if (task.has_container()) {
