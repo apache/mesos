@@ -174,6 +174,10 @@ Task createTask(
     t.mutable_discovery()->MergeFrom(task.discovery());
   }
 
+  if (task.has_container()) {
+    t.mutable_container()->CopyFrom(task.container());
+  }
+
   return t;
 }
 
