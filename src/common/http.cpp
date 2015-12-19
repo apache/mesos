@@ -265,6 +265,10 @@ JSON::Object model(const Task& task)
     object.values["discovery"] = JSON::protobuf(task.discovery());
   }
 
+  if (task.has_container()) {
+    object.values["container"] = JSON::protobuf(task.container());
+  }
+
   return object;
 }
 
@@ -365,6 +369,10 @@ JSON::Object model(
 
   if (task.has_discovery()) {
     object.values["discovery"] = JSON::protobuf(task.discovery());
+  }
+
+  if (task.has_container()) {
+    object.values["container"] = JSON::protobuf(task.container());
   }
 
   return object;

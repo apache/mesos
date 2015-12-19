@@ -471,8 +471,32 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Launch)
   EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
   ASSERT_TRUE(statusRunning.get().has_data());
 
-  Try<JSON::Array> parse = JSON::parse<JSON::Array>(statusRunning.get().data());
+  Try<JSON::Array> array = JSON::parse<JSON::Array>(statusRunning.get().data());
+  ASSERT_SOME(array);
+
+  // Check if container information is exposed through master's state endpoint.
+  Future<http::Response> response = http::get(master.get(), "state");
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(process::http::OK().status, response);
+
+  Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
   ASSERT_SOME(parse);
+
+  Result<JSON::Value> find = parse.get().find<JSON::Value>(
+      "frameworks[0].tasks[0].container.docker.privileged");
+
+  EXPECT_SOME_EQ(false, find);
+
+  // Check if container information is exposed through slave's state endpoint.
+  response = http::get(slave.get(), "state");
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(process::http::OK().status, response);
+
+  parse = JSON::parse<JSON::Object>(response.get().body);
+  ASSERT_SOME(parse);
+
+  find = parse.get().find<JSON::Value>(
+      "frameworks[0].executors[0].tasks[0].container.docker.privileged");
+
+  EXPECT_SOME_EQ(false, find);
 
   // Now verify that the Docker.NetworkSettings.IPAddress label is
   // present.
