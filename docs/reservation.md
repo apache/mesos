@@ -39,15 +39,17 @@ __NOTE:__ This feature is supported for backwards compatibility.
 
 ## Dynamic Reservation (since 0.23.0)
 
-As mentioned in [Static Reservation](#static-reservation-since-0140), specifying the
-reserved resources via the `--resources` flag makes the reservation static.
+As mentioned in [Static Reservation](#static-reservation-since-0140), specifying
+the reserved resources via the `--resources` flag makes the reservation static.
 This is, statically reserved resources cannot be reserved for another role nor
 be unreserved. Dynamic Reservation enables operators and authorized frameworks
 to reserve and unreserve resources post slave-startup.
 
 We require a `principal` from the operator or framework in order to
-authenticate/authorize the operations. [Authorization](authorization.md) is
-specified via the existing ACL mechanism. (_Coming Soon_)
+authenticate/authorize the operations. Permissions are specified via the
+existing ACL mechanism. To use authorization with reserve/unreserve operations,
+the Mesos master must be configured with the desired ACLs. For more information,
+see the [authorization documentation](authorization.md).
 
 * `Offer::Operation::Reserve` and `Offer::Operation::Unreserve` messages are
   available for __frameworks__ to send back via the `acceptOffers` API as a

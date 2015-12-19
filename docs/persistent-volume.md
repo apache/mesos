@@ -27,8 +27,10 @@ regarding reservation mechanisms available in Mesos.
 
 Persistent volumes can be created by __operators__ and authorized
 __frameworks__. We require a `principal` from the operator or framework in order
-to authenticate/authorize the operations. [Authorization](authorization.md) is
-specified via the existing ACL mechanism. (___Coming Soon___)
+to authenticate/authorize the operations. Permissions are specified via the
+existing ACL mechanism. To use authorization with reserve/unreserve operations,
+the Mesos master must be configured with the desired ACLs. For more information,
+see the [authorization documentation](authorization.md).
 
 * `Offer::Operation::Create` and `Offer::Operation::Destroy` messages are
   available for __frameworks__ to send back via the `acceptOffers` API as a
