@@ -2132,6 +2132,9 @@ TEST_F(SlaveTest, ContainerizerUsageFailure)
   ASSERT_EQ(1, usage.get().executors_size());
   EXPECT_FALSE(usage.get().executors(0).has_statistics());
 
+  EXPECT_CALL(exec, shutdown(_))
+    .Times(AtMost(1));
+
   driver.stop();
   driver.join();
 
