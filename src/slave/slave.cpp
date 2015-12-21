@@ -4032,6 +4032,7 @@ void Slave::shutdownExecutor(
   if (!framework->executors.contains(executorId)) {
     LOG(WARNING) << "Ignoring shutdown of unknown executor '" << executorId
                  << "' of framework " << frameworkId;
+    return;
   }
 
   Executor* executor = framework->executors[executorId];
@@ -4046,6 +4047,7 @@ void Slave::shutdownExecutor(
     LOG(WARNING) << "Ignoring shutdown executor '" << executorId
                  << "' of framework " << frameworkId
                  << " because the executor is terminating/terminated";
+    return;
   }
 
   _shutdownExecutor(framework, executor);
