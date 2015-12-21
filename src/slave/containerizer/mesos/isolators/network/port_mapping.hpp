@@ -87,7 +87,7 @@ public:
       const IntervalSet<uint16_t>& total,
       size_t _portsPerContainer)
     : free(total),
-      portsPerContainer_(_portsPerContainer) {};
+      portsPerContainer_(_portsPerContainer) {}
 
   // Returns the number of ephemeral ports for each container.
   size_t portsPerContainer() const { return portsPerContainer_; }

@@ -34,7 +34,7 @@ namespace mesos {
 class Hook
 {
 public:
-  virtual ~Hook() {};
+  virtual ~Hook() {}
 
   // This label decorator hook is called from within master during
   // the launchTask routine. A module implementing the hook creates

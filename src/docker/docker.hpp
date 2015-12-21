@@ -169,7 +169,7 @@ protected:
   // Uses the specified path to the Docker CLI tool.
   Docker(const std::string& _path,
          const std::string& _socket)
-       : path(_path), socket("unix://" + _socket) {};
+       : path(_path), socket("unix://" + _socket) {}
 
 private:
   static process::Future<Nothing> _run(

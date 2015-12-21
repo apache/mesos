@@ -34,7 +34,7 @@ namespace tests {
 class MemoryTestHelper
 {
 public:
-  MemoryTestHelper() {};
+  MemoryTestHelper() {}
   ~MemoryTestHelper();
 
   // Spawns a subprocess.
@@ -74,7 +74,7 @@ class MemoryTestHelperMain : public Subcommand
 public:
   static const char NAME[];
 
-  MemoryTestHelperMain() : Subcommand(NAME) {};
+  MemoryTestHelperMain() : Subcommand(NAME) {}
 
 protected:
   virtual int execute();
