@@ -13,11 +13,10 @@
 #ifndef __STOUT_WINDOWS_OS_HPP__
 #define __STOUT_WINDOWS_OS_HPP__
 
-#include <stddef.h>
-#include <stdio.h>
-#include <stdlib.h>
+#include <direct.h>
+#include <io.h>
 
-#include <sys/types.h>
+#include <sys/utime.h>
 
 #include <list>
 #include <map>
@@ -34,9 +33,10 @@
 
 #include <stout/os/raw/environment.hpp>
 
-
 namespace os {
 
+
+/*
 // Sets the value associated with the specified key in the set of
 // environment variables.
 inline void setenv(const std::string& key,
@@ -203,7 +203,7 @@ inline Try<std::set<pid_t>> pids(Option<pid_t> group, Option<pid_t> session)
 {
   UNIMPLEMENTED;
 }
-
+*/
 } // namespace os {
 
 #endif // __STOUT_WINDOWS_OS_HPP__
