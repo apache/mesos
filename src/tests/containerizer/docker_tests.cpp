@@ -455,6 +455,118 @@ TEST_F(DockerTest, ROOT_DOCKER_MountAbsolute)
 }
 
 
+class DockerImageTest : public MesosTest {};
+
+// This test verifies that docker image constructor is able to read
+// entrypoint and environment from a docker inspect JSON object.
+TEST_F(DockerImageTest, ParseInspectonImage)
+{
+  JSON::Value inspect = JSON::parse(
+    "{"
+    "    \"Id\": "
+    "\"0a8ee093d995e48aa8af626b8a4c48fe3949e474b0ccca9be9d5cf08abd9eda1\","
+    "    \"Parent\": "
+    "\"6fbfa9a156a7655f1bbc2b3ca3624850d373fa403555ae42ed05fe5b478588fa\","
+    "    \"Comment\": \"\","
+    "    \"Created\": \"2015-10-01T13:24:42.549270714Z\","
+    "    \"Container\": "
+    "\"d87a718e07e151623b0310d82b27d2f0acdb1376755ce4aea7a26313cdab379a\","
+    "    \"ContainerConfig\": {"
+    "        \"Hostname\": \"7b840bf4fc5e\","
+    "        \"Domainname\": \"\","
+    "        \"User\": \"\","
+    "        \"AttachStdin\": false,"
+    "        \"AttachStdout\": false,"
+    "        \"AttachStderr\": false,"
+    "        \"PortSpecs\": null,"
+    "        \"ExposedPorts\": null,"
+    "        \"Tty\": false,"
+    "        \"OpenStdin\": false,"
+    "        \"StdinOnce\": false,"
+    "        \"Env\": ["
+    "            \"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:"
+    "/sbin:/bin\","
+    "            \"LANG=C.UTF-8\","
+    "            \"JAVA_VERSION=8u66\","
+    "            \"JAVA_DEBIAN_VERSION=8u66-b01-1~bpo8+1\","
+    "            \"CA_CERTIFICATES_JAVA_VERSION=20140324\""
+    "        ],"
+    "        \"Cmd\": ["
+    "            \"/bin/sh\","
+    "            \"-c\","
+    "            \"#(nop) ENTRYPOINT \\u0026{[\\\"./bin/start\\\"]}\""
+    "        ],"
+    "        \"Image\": "
+    "\"6fbfa9a156a7655f1bbc2b3ca3624850d373fa403555ae42ed05fe5b478588fa\","
+    "        \"Volumes\": null,"
+    "        \"VolumeDriver\": \"\","
+    "        \"WorkingDir\": \"/marathon\","
+    "        \"Entrypoint\": ["
+    "            \"./bin/start\""
+    "        ],"
+    "        \"NetworkDisabled\": false,"
+    "        \"MacAddress\": \"\","
+    "        \"OnBuild\": [],"
+    "        \"Labels\": {}"
+    "    },"
+    "    \"DockerVersion\": \"1.8.3-rc1\","
+    "    \"Author\": \"\","
+    "    \"Config\": {"
+    "        \"Hostname\": \"7b840bf4fc5e\","
+    "        \"Domainname\": \"\","
+    "        \"User\": \"\","
+    "        \"AttachStdin\": false,"
+    "        \"AttachStdout\": false,"
+    "        \"AttachStderr\": false,"
+    "        \"PortSpecs\": null,"
+    "        \"ExposedPorts\": null,"
+    "        \"Tty\": false,"
+    "        \"OpenStdin\": false,"
+    "        \"StdinOnce\": false,"
+    "        \"Env\": ["
+    "            \"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:"
+    "/sbin:/bin\","
+    "            \"LANG=C.UTF-8\","
+    "            \"JAVA_VERSION=8u66\","
+    "            \"JAVA_DEBIAN_VERSION=8u66-b01-1~bpo8+1\","
+    "            \"CA_CERTIFICATES_JAVA_VERSION=20140324\""
+    "        ],"
+    "        \"Cmd\": null,"
+    "        \"Image\": "
+    "\"6fbfa9a156a7655f1bbc2b3ca3624850d373fa403555ae42ed05fe5b478588fa\","
+    "        \"Volumes\": null,"
+    "        \"VolumeDriver\": \"\","
+    "        \"WorkingDir\": \"/marathon\","
+    "        \"Entrypoint\": ["
+    "            \"./bin/start\""
+    "        ],"
+    "        \"NetworkDisabled\": false,"
+    "        \"MacAddress\": \"\","
+    "        \"OnBuild\": [],"
+    "        \"Labels\": {}"
+    "    },"
+    "    \"Architecture\": \"amd64\","
+    "    \"Os\": \"linux\","
+    "    \"Size\": 0,"
+    "    \"VirtualSize\": 977664708"
+    "}").get();
+
+  Try<JSON::Object> json = JSON::parse<JSON::Object>(stringify(inspect));
+  ASSERT_SOME(json);
+
+  Try<Docker::Image> image = Docker::Image::create(json.get());
+  ASSERT_SOME(image);
+
+  EXPECT_EQ("./bin/start", image.get().entrypoint.get().front());
+  EXPECT_EQ("C.UTF-8", image.get().environment.get().at("LANG"));
+  EXPECT_EQ("8u66", image.get().environment.get().at("JAVA_VERSION"));
+  EXPECT_EQ("8u66-b01-1~bpo8+1",
+            image.get().environment.get().at("JAVA_DEBIAN_VERSION"));
+  EXPECT_EQ("20140324",
+            image.get().environment.get().at("CA_CERTIFICATES_JAVA_VERSION"));
+}
+
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {
