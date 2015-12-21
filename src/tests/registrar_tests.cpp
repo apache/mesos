@@ -996,9 +996,9 @@ TEST_P(RegistrarTest, Abort)
 }
 
 
-class Registrar_BENCHMARK_Test : public RegistrarTestBase,
-                                 public WithParamInterface<size_t>
-{};
+class Registrar_BENCHMARK_Test
+  : public RegistrarTestBase,
+    public WithParamInterface<size_t> {};
 
 
 // The Registrar benchmark tests are parameterized by the number of slaves.

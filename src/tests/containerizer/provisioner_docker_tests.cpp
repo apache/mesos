@@ -185,8 +185,7 @@ protected:
 /**
  * Fixture for testing TokenManager component.
  */
-class RegistryTokenTest : public TokenHelper, public ::testing::Test
-{};
+class RegistryTokenTest : public TokenHelper, public ::testing::Test {};
 
 
 // Tests JSON Web Token parsing for a valid token string.
