@@ -18,6 +18,7 @@
 #define __DOCKER_HPP__
 
 #include <list>
+#include <map>
 #include <string>
 
 #include <process/future.hpp>
@@ -99,9 +100,13 @@ public:
 
     Option<std::vector<std::string>> entrypoint;
 
+    Option<std::map<std::string, std::string>> environment;
+
   private:
-    Image(const Option<std::vector<std::string>>& _entrypoint)
-      : entrypoint(_entrypoint) {}
+    Image(const Option<std::vector<std::string>>& _entrypoint,
+          const Option<std::map<std::string, std::string>>& _environment)
+      : entrypoint(_entrypoint),
+        environment(_environment) {}
   };
 
   // Performs 'docker run IMAGE'.

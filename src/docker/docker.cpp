@@ -331,29 +331,75 @@ Try<Docker::Image> Docker::Image::create(const JSON::Object& json)
     return Error("Unable to find 'ContainerConfig.Entrypoint'");
   }
 
-  if (entrypoint.get().is<JSON::Null>()) {
-    return Docker::Image(None());
-  }
+  Option<vector<string>> entrypointOption = None();
 
-  if (!entrypoint.get().is<JSON::Array>()) {
-    return Error("Unexpected type found for 'ContainerConfig.Entrypoint'");
-  }
-
-  const vector<JSON::Value>& values = entrypoint.get().as<JSON::Array>().values;
-  if (values.size() == 0) {
-    return Docker::Image(None());
-  }
-
-  vector<string> result;
-
-  foreach (const JSON::Value& value, values) {
-    if (!value.is<JSON::String>()) {
-      return Error("Expecting 'ContainerConfig.EntryPoint' array of strings");
+  if (!entrypoint.get().is<JSON::Null>()) {
+    if (!entrypoint.get().is<JSON::Array>()) {
+      return Error("Unexpected type found for 'ContainerConfig.Entrypoint'");
     }
-    result.push_back(value.as<JSON::String>().value);
+
+    const vector<JSON::Value>& values =
+        entrypoint.get().as<JSON::Array>().values;
+    if (values.size() != 0) {
+      vector<string> result;
+
+      foreach (const JSON::Value& value, values) {
+        if (!value.is<JSON::String>()) {
+          return Error("Expecting entrypoint value to be type string");
+        }
+        result.push_back(value.as<JSON::String>().value);
+      }
+
+      entrypointOption = result;
+    }
   }
 
-  return Docker::Image(result);
+  Result<JSON::Value> env =
+    json.find<JSON::Value>("ContainerConfig.Env");
+
+  if (env.isError()) {
+    return Error("Failed to find 'ContainerConfig.Env': " +
+                 env.error());
+  } else if (env.isNone()) {
+    return Error("Unable to find 'ContainerConfig.Env'");
+  }
+
+  Option<map<string, string>> envOption = None();
+
+  if (!env.get().is<JSON::Null>()) {
+    if (!env.get().is<JSON::Array>()) {
+      return Error("Unexpected type found for 'ContainerConfig.Env'");
+    }
+
+    const vector<JSON::Value>& values = env.get().as<JSON::Array>().values;
+    if (values.size() != 0) {
+      map<string, string> result;
+
+      foreach (const JSON::Value& value, values) {
+        if (!value.is<JSON::String>()) {
+          return Error("Expecting environment value to be type string");
+        }
+
+        const std::vector<std::string> tokens =
+            strings::tokenize(value.as<JSON::String>().value, "=");
+
+        if (tokens.size() != 2) {
+          return Error("Unexpected Env format for 'ContainerConfig.Env'");
+        }
+
+        if (result.count(tokens[0])) {
+          return Error("Unexpected duplicate environment variables '"
+                        + tokens[0] + "'");
+        }
+
+        result[tokens[0]] = tokens[1];
+      }
+
+      envOption = result;
+    }
+  }
+
+  return Docker::Image(entrypointOption, envOption);
 }
 
 
