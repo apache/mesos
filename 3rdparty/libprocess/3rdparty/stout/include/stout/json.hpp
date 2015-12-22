@@ -188,7 +188,7 @@ struct Boolean
 // JSON::Boolean(true).
 struct True : Boolean
 {
-  True() : Boolean(true) {};
+  True() : Boolean(true) {}
 };
 
 
