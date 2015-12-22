@@ -231,15 +231,36 @@ void LibeventSSLSocketImpl::recv_callback(bufferevent* /*bev*/, void* arg)
 
 
 // Only runs in event loop. Member function continuation of static
-// 'recv_callback'.
+// 'recv_callback'. This function can be called from two places -
+// a) `LibeventSSLSocketImpl::recv` when a new Socket::recv is called and there
+//    is buffer available to read.
+// b) `LibeventSSLSocketImpl::recv_callback when libevent calls the deferred
+//    read callback.
 void LibeventSSLSocketImpl::recv_callback()
 {
   CHECK(__in_event_loop__);
 
   Owned<RecvRequest> request;
 
-  synchronized (lock) {
-    std::swap(request, recv_request);
+  const size_t buffer_length = evbuffer_get_length(bufferevent_get_input(bev));
+
+  // Swap out the request object IFF there is buffer available to read. We check
+  // this here because it is possible that when the libevent deferred callback
+  // was called, a Socket::recv context already read the buffer from the event.
+  // Following sequence is possible:
+  // a. libevent finds a buffer ready to be read.
+  // b. libevent queues buffer event to be dispatched.
+  // c. Socket::recv is called that creates a new request.
+  // d. Socket::recv finds buffer length > 0.
+  // e. Socket::recv reads the buffer.
+  // f. A new request Socket::recv is called which creates a new request.
+  // g. libevent callback is called for the event queued at step b.
+  // h. libevent callback finds the length of the buffer as 0 but the request is
+  //    a non-NULL due to step f.
+  if (buffer_length > 0) {
+    synchronized (lock) {
+      std::swap(request, recv_request);
+    }
   }
 
   if (request.get() != NULL) {
