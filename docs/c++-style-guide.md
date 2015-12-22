@@ -72,13 +72,13 @@ driver.acceptOffers({offer.id()},
 
 ### Class Format
 * Access modifiers are not indented (Google uses one space indentation).
-* Constructor initializers are indented by 2 spaces (Google indents by 4).
+* Constructor initializers are indented by two spaces (Google indents by four).
 
 ### Templates
 * Leave one space after the `template` keyword, e.g. `template <typename T>` rather than `template<typename T>`.
 
 ### Function Definition/Invocation
-* Newline when calling or defining a function: indent with 4 spaces.
+* Newline when calling or defining a function: indent with four spaces.
 * We do not follow Google's style of wrapping on the open parenthesis, the general goal is to reduce visual "jaggedness" in the code. Prefer (1), (4), (5), sometimes (3), never (2):
 
 ~~~{.cpp}
@@ -113,7 +113,7 @@ allocator->resourcesRecovered(
 ~~~
 
 ### Continuation
-* Newline for an assignment statement: indent with 2 spaces.
+* Newline for an assignment statement: indent with two spaces.
 
 ~~~{.cpp}
 Try<Duration> failoverTimeout =
