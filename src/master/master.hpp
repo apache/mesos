@@ -1174,6 +1174,8 @@ private:
     QuotaHandler quotaHandler;
 
     // Access to `authenticate`.
+    // TODO(alexr): Remove this once `authenticate` is moved to libprocess,
+    // see MESOS-4149.
     friend class QuotaHandler;
   };
 
