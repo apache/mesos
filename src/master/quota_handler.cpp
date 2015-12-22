@@ -74,8 +74,9 @@ static Try<QuotaInfo> createQuotaInfo(
   // TODO(alexr): Remove this check as per MESOS-4058.
   foreach (const Resource& resource, resources) {
     if (resource.role() != quota.role()) {
-      return Error("Resources with different roles: '" + quota.role() + "', '" +
-                   resource.role() + "'");
+      return Error(
+          "Resources with different roles: '" + quota.role() + "', '" +
+          resource.role() + "'");
     }
   }
 
@@ -251,8 +252,9 @@ Future<http::Response> Master::QuotaHandler::set(
   // move the `force` field out of the request JSON, we can reuse `QuotaInfo`.
   Try<JSON::Object> parse = JSON::parse<JSON::Object>(request.body);
   if (parse.isError()) {
-    return BadRequest("Failed to parse set quota request JSON '" +
-                      request.body + "': " + parse.error());
+    return BadRequest(
+        "Failed to parse set quota request JSON '" + request.body + "': " +
+        parse.error());
   }
 
   Result<JSON::Array> resourcesJSON =
@@ -262,13 +264,15 @@ Future<http::Response> Master::QuotaHandler::set(
     // An `Error` usually indicates that a search string is malformed
     // (which is not the case here), however it may also indicate that
     // the `resources` field is not an array.
-    return BadRequest("Failed to extract 'resources' from set quota request "
-                      "JSON '" + request.body + "': " + resourcesJSON.error());
+    return BadRequest(
+        "Failed to extract 'resources' from set quota request JSON '" +
+        request.body + "': " + resourcesJSON.error());
   }
 
   if (resourcesJSON.isNone()) {
-    return BadRequest("Failed to extract 'resources' from set quota request "
-                      "JSON '" + request.body + "': Field is missing");
+    return BadRequest(
+        "Failed to extract 'resources' from set quota request JSON '" +
+        request.body + "': Field is missing");
   }
 
   // Create protobuf representation of resources.
@@ -277,39 +281,40 @@ Future<http::Response> Master::QuotaHandler::set(
         resourcesJSON.get());
 
   if (resources.isError()) {
-    return BadRequest("Failed to parse 'resources' from set quota "
-                      "request JSON '" + request.body + "': " +
-                      resources.error());
+    return BadRequest(
+        "Failed to parse 'resources' from set quota request JSON '" +
+        request.body + "': " + resources.error());
   }
 
   // Create the `QuotaInfo` protobuf message from the request JSON.
   Try<QuotaInfo> create = createQuotaInfo(resources.get());
   if (create.isError()) {
-    return BadRequest("Failed to create 'QuotaInfo' from set quota request "
-                      "JSON '" + request.body + "': " +
-                      create.error());
+    return BadRequest(
+        "Failed to create 'QuotaInfo' from set quota request JSON '" +
+        request.body + "': " + create.error());
   }
 
   // Check that the `QuotaInfo` is a valid quota request.
   Try<Nothing> validate = quota::validation::quotaInfo(create.get());
   if (validate.isError()) {
-    return BadRequest("Failed to validate set quota request JSON '" +
-                      request.body + "': " + validate.error());
+    return BadRequest(
+        "Failed to validate set quota request JSON '" + request.body + "': " +
+        validate.error());
   }
 
   // Check that the role is on the role whitelist, if it exists.
   if (!master->isWhitelistedRole(create.get().role())) {
-    return BadRequest("Failed to validate set quota request JSON '" +
-                      request.body + "': Unknown role '" +
-                      create.get().role() + "'");
+    return BadRequest(
+        "Failed to validate set quota request JSON '" + request.body +
+        "': Unknown role '" + create.get().role() + "'");
   }
 
   // Check that we are not updating an existing quota.
   // TODO(joerg84): Update error message once quota update is in place.
   if (master->quotas.contains(create.get().role())) {
-    return BadRequest("Failed to validate set quota request JSON '" +
-                      request.body + "': "
-                      "Can not set quota for a role that already has quota");
+    return BadRequest(
+        "Failed to validate set quota request JSON '" + request.body +
+        "': Can not set quota for a role that already has quota");
   }
 
   const QuotaInfo& quotaInfo = create.get();
@@ -320,8 +325,9 @@ Future<http::Response> Master::QuotaHandler::set(
     // An `Error` usually indicates that a search string is malformed
     // (which is not the case here), however it may also indicate that
     // the `force` field is not a boolean.
-    return BadRequest("Failed to extract 'force' from set quota request "
-                      "JSON '" + request.body + "': " + force.error());
+    return BadRequest(
+        "Failed to extract 'force' from set quota request JSON '" +
+        request.body + "': " + force.error());
   }
 
   const bool forced = force.isSome() ? force.get().value : false;
@@ -351,8 +357,9 @@ Future<http::Response> Master::QuotaHandler::_set(
     // Validate whether a quota request can be satisfied.
     Option<Error> error = capacityHeuristic(quotaInfo);
     if (error.isSome()) {
-      return Conflict("Heuristic capacity check for set quota request "
-                      "failed: " + error.get().message);
+      return Conflict(
+          "Heuristic capacity check for set quota request failed: " +
+          error.get().message);
     }
   }
 
@@ -410,29 +417,33 @@ Future<http::Response> Master::QuotaHandler::remove(
 
   // Check that there are exactly 3 parts: {master,quota,'role'}.
   if (tokens.size() != 3u) {
-    return BadRequest("Failed to parse request path: ('" + request.url.path +
-                      "'): Requires 3 tokens: 'master', 'quota', and 'role': " +
-                      "Found " + stringify(tokens.size()) + " tokens");
+    return BadRequest(
+        "Failed to parse request path '" + request.url.path +
+        "': 3 tokens ('master', 'quota', 'role') required, found " +
+        stringify(tokens.size()) + " token(s)");
   }
 
   // Check that "quota" is the second to last token.
   if (tokens.end()[-2] != "quota") {
-    return BadRequest("Failed to parse request path: ('" + request.url.path +
-                      "'): Missing 'quota' endpoint");
+    return BadRequest(
+        "Failed to parse request path '" + request.url.path +
+        "': Missing 'quota' endpoint");
   }
 
   const string& role = tokens.back();
 
   // Check that the role is on the role whitelist, if it exists.
   if (!master->isWhitelistedRole(role)) {
-    return BadRequest("Failed to validate remove quota request for path: ('" +
-                      request.url.path +"')': Unknown role: '" + role + "'");
+    return BadRequest(
+        "Failed to validate remove quota request for path '" +
+        request.url.path +"': Unknown role '" + role + "'");
   }
 
   // Check that we are removing an existing quota.
   if (!master->quotas.contains(role)) {
-    return BadRequest("Failed to remove quota for path ('" + request.url.path +
-                      "'): Role '" + role + "' has no quota set");
+    return BadRequest(
+        "Failed to remove quota for path '" + request.url.path +
+        "': Role '" + role + "' has no quota set");
   }
 
   // Remove quota from the quota-related local state. We do this before
