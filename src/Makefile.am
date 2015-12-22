@@ -210,9 +210,9 @@ CXX_PROTOS +=								\
   messages/messages.pb.h						\
   slave/containerizer/mesos/provisioner/docker/message.pb.cc		\
   slave/containerizer/mesos/provisioner/docker/message.pb.h		\
-  slave/containerizer/mesos/provisioner/docker/v1.pb.cc		\
-  slave/containerizer/mesos/provisioner/docker/v1.pb.h		\
-  slave/containerizer/mesos/provisioner/docker/v2.pb.cc		\
+  slave/containerizer/mesos/provisioner/docker/v1.pb.cc			\
+  slave/containerizer/mesos/provisioner/docker/v1.pb.h			\
+  slave/containerizer/mesos/provisioner/docker/v2.pb.cc			\
   slave/containerizer/mesos/provisioner/docker/v2.pb.h
 
 CXX_LOG_PROTOS =							\
@@ -535,7 +535,7 @@ libmesos_no_3rdparty_la_SOURCES =					\
   messages/flags.proto							\
   messages/messages.proto						\
   slave/containerizer/mesos/provisioner/docker/message.proto		\
-  slave/containerizer/mesos/provisioner/docker/v1.proto		\
+  slave/containerizer/mesos/provisioner/docker/v1.proto			\
   slave/containerizer/mesos/provisioner/docker/v2.proto
 
 # TODO(tillt): Remove authentication/cram_md5/* which will enable us to
@@ -1725,7 +1725,7 @@ mesos_tests_SOURCES =						\
   tests/oversubscription_tests.cpp				\
   tests/partition_tests.cpp					\
   tests/paths_tests.cpp						\
-  tests/persistent_volume_endpoints_tests.cpp                         \
+  tests/persistent_volume_endpoints_tests.cpp			\
   tests/persistent_volume_tests.cpp				\
   tests/protobuf_io_tests.cpp					\
   tests/rate_limiting_tests.cpp					\
