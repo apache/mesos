@@ -41,9 +41,6 @@
 #include "tests/allocator.hpp"
 #include "tests/mesos.hpp"
 
-using std::string;
-using std::vector;
-
 using google::protobuf::RepeatedPtrField;
 
 using mesos::internal::master::Master;
@@ -60,6 +57,9 @@ using process::http::Conflict;
 using process::http::OK;
 using process::http::Response;
 using process::http::Unauthorized;
+
+using std::string;
+using std::vector;
 
 using testing::_;
 using testing::DoAll;
@@ -197,7 +197,7 @@ TEST_F(MasterQuotaTest, SetInvalidRequest)
 
   // Tests whether a quota request with invalid JSON fails.
   {
-    string badRequest =
+    const string badRequest =
       "{"
       "  invalidJson"
       "}";
@@ -210,7 +210,7 @@ TEST_F(MasterQuotaTest, SetInvalidRequest)
 
   // Tests whether a quota request with missing 'resource' field fails.
   {
-    string badRequest =
+    const string badRequest =
       "{"
       "  \"unknownField\":\"unknownValue\""
       "}";
@@ -223,7 +223,7 @@ TEST_F(MasterQuotaTest, SetInvalidRequest)
 
   // Tests whether a quota request with invalid resources fails.
   {
-    string badRequest =
+    const string badRequest =
       "{"
       "  \"resources\":"
       "  ["

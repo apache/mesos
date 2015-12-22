@@ -18,6 +18,8 @@
 
 #include <vector>
 
+#include <google/protobuf/repeated_field.h>
+
 #include <mesos/resources.hpp>
 
 #include <mesos/quota/quota.hpp>
@@ -29,6 +31,7 @@
 
 #include <stout/json.hpp>
 #include <stout/protobuf.hpp>
+#include <stout/stringify.hpp>
 #include <stout/strings.hpp>
 #include <stout/utils.hpp>
 
@@ -39,8 +42,7 @@
 
 namespace http = process::http;
 
-using std::string;
-using std::vector;
+using google::protobuf::RepeatedPtrField;
 
 using http::Accepted;
 using http::BadRequest;
@@ -48,17 +50,20 @@ using http::Conflict;
 using http::OK;
 using http::Unauthorized;
 
+using mesos::quota::QuotaInfo;
+
 using process::Future;
 using process::Owned;
 
-using mesos::quota::QuotaInfo;
+using std::string;
+using std::vector;
+
 namespace mesos {
 namespace internal {
 namespace master {
 
 // Creates a `QuotaInfo` protobuf from the quota request.
-static Try<QuotaInfo> createQuotaInfo(
-    google::protobuf::RepeatedPtrField<Resource> resources)
+static Try<QuotaInfo> createQuotaInfo(RepeatedPtrField<Resource> resources)
 {
   VLOG(1) << "Constructing QuotaInfo from resources protobuf";
 
@@ -276,9 +281,8 @@ Future<http::Response> Master::QuotaHandler::set(
   }
 
   // Create protobuf representation of resources.
-  Try<google::protobuf::RepeatedPtrField<Resource>> resources =
-    ::protobuf::parse<google::protobuf::RepeatedPtrField<Resource>>(
-        resourcesJSON.get());
+  Try<RepeatedPtrField<Resource>> resources =
+    ::protobuf::parse<RepeatedPtrField<Resource>>(resourcesJSON.get());
 
   if (resources.isError()) {
     return BadRequest(
@@ -294,8 +298,10 @@ Future<http::Response> Master::QuotaHandler::set(
         request.body + "': " + create.error());
   }
 
+  const QuotaInfo& quotaInfo = create.get();
+
   // Check that the `QuotaInfo` is a valid quota request.
-  Try<Nothing> validate = quota::validation::quotaInfo(create.get());
+  Try<Nothing> validate = quota::validation::quotaInfo(quotaInfo);
   if (validate.isError()) {
     return BadRequest(
         "Failed to validate set quota request JSON '" + request.body + "': " +
@@ -303,21 +309,19 @@ Future<http::Response> Master::QuotaHandler::set(
   }
 
   // Check that the role is on the role whitelist, if it exists.
-  if (!master->isWhitelistedRole(create.get().role())) {
+  if (!master->isWhitelistedRole(quotaInfo.role())) {
     return BadRequest(
         "Failed to validate set quota request JSON '" + request.body +
-        "': Unknown role '" + create.get().role() + "'");
+        "': Unknown role '" + quotaInfo.role() + "'");
   }
 
   // Check that we are not updating an existing quota.
   // TODO(joerg84): Update error message once quota update is in place.
-  if (master->quotas.contains(create.get().role())) {
+  if (master->quotas.contains(quotaInfo.role())) {
     return BadRequest(
         "Failed to validate set quota request JSON '" + request.body +
         "': Can not set quota for a role that already has quota");
   }
-
-  const QuotaInfo& quotaInfo = create.get();
 
   // The force flag can be used to overwrite the `capacityHeuristic` check.
   Result<JSON::Boolean> force = parse.get().find<JSON::Boolean>("force");
