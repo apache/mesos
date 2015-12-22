@@ -44,6 +44,8 @@ PROTOC_TO_SRC_DIR(FLAGS    messages/flags)
 PROTOC_TO_SRC_DIR(STATE    messages/state)
 
 PROTOC_TO_SRC_DIR(MESSAGE slave/containerizer/mesos/provisioner/docker/message)
+PROTOC_TO_SRC_DIR(DOCKER_V1 slave/containerizer/mesos/provisioner/docker/v1)
+PROTOC_TO_SRC_DIR(DOCKER_V2 slave/containerizer/mesos/provisioner/docker/v2)
 
 set(MESOS_PROTOBUF_SRC
   ${MESOS_PROTO_CC}
@@ -67,6 +69,8 @@ set(MESOS_PROTOBUF_SRC
   ${ISOLATOR_PROTO_CC}
   ${REGISTRY_PROTO_CC}
   ${MESSAGE_PROTO_CC}
+  ${DOCKER_V1_PROTO_CC}
+  ${DOCKER_V2_PROTO_CC}
   ${URI_PROTO_CC}
   )
 
