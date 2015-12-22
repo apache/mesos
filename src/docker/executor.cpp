@@ -146,8 +146,8 @@ public:
         mappedDirectory,
         task.resources() + task.executor().resources(),
         None(),
-        path::join(sandboxDirectory, "stdout"),
-        path::join(sandboxDirectory, "stderr"))
+        Subprocess::FD(STDOUT_FILENO),
+        Subprocess::FD(STDERR_FILENO))
       .onAny(defer(
         self(),
         &Self::reaped,

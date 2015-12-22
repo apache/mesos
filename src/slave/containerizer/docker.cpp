@@ -838,8 +838,8 @@ Future<Docker::Container> DockerContainerizerProcess::launchExecutorContainer(
       flags.sandbox_directory,
       container->resources,
       container->environment,
-      path::join(container->directory, "stdout"),
-      path::join(container->directory, "stderr"));
+      Subprocess::PATH(path::join(container->directory, "stdout")),
+      Subprocess::PATH(path::join(container->directory, "stderr")));
 
   Owned<Promise<Docker::Container>> promise(new Promise<Docker::Container>());
   // We like to propogate the run failure when run fails so slave can

@@ -411,8 +411,8 @@ Future<Nothing> Docker::run(
     const string& mappedDirectory,
     const Option<Resources>& resources,
     const Option<map<string, string>>& env,
-    const Option<string>& stdoutPath,
-    const Option<string>& stderrPath) const
+    const process::Subprocess::IO& stdout,
+    const process::Subprocess::IO& stderr) const
 {
   if (!containerInfo.has_docker()) {
     return Failure("No docker info found in container info");
@@ -623,22 +623,12 @@ Future<Nothing> Docker::run(
   // URI downloads.
   environment["HOME"] = sandboxDirectory;
 
-  Subprocess::IO stdoutIo = Subprocess::PIPE();
-  Subprocess::IO stderrIo = Subprocess::PIPE();
-  if (stdoutPath.isSome()) {
-    stdoutIo = Subprocess::PATH(stdoutPath.get());
-  }
-
-  if (stderrPath.isSome()) {
-    stderrIo = Subprocess::PATH(stderrPath.get());
-  }
-
   Try<Subprocess> s = subprocess(
       path,
       argv,
       Subprocess::PATH("/dev/null"),
-      stdoutIo,
-      stderrIo,
+      stdout,
+      stderr,
       None(),
       environment);
 

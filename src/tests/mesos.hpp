@@ -969,8 +969,8 @@ public:
           const std::string&,
           const Option<mesos::Resources>&,
           const Option<std::map<std::string, std::string>>&,
-          const Option<std::string>&,
-          const Option<std::string>&));
+          const process::Subprocess::IO&,
+          const process::Subprocess::IO&));
 
   MOCK_CONST_METHOD3(
       pull,
@@ -1000,8 +1000,8 @@ public:
       const std::string& mappedDirectory,
       const Option<mesos::Resources>& resources,
       const Option<std::map<std::string, std::string>>& env,
-      const Option<std::string>& stdoutPath,
-      const Option<std::string>& stderrPath) const
+      const process::Subprocess::IO& stdout,
+      const process::Subprocess::IO& stderr) const
   {
     return Docker::run(
         containerInfo,
@@ -1011,8 +1011,8 @@ public:
         mappedDirectory,
         resources,
         env,
-        stdoutPath,
-        stderrPath);
+        stdout,
+        stderr);
   }
 
   process::Future<Docker::Image> _pull(
