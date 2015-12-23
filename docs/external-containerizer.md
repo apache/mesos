@@ -4,6 +4,8 @@ layout: documentation
 
 # External Containerizer
 
+**NOTE:**  The external containerizer is deprecated. See
+[MESOS-3370](https://issues.apache.org/jira/browse/MESOS-3370) for details.
 
 * EC = external containerizer. A part of the mesos slave that provides
 an API for containerizing via external plugin executables.
