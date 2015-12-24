@@ -35,6 +35,7 @@ layout: documentation
 * [Foursquare](http://www.foursquare.com)
 * [GoCardless](http://www.gocardless.com)
 * [Groupon](http://www.groupon.com)
+* [GSShop](http://www.gsshop.com)
 * [Gutefrage.net](http://www.gutefrage.net)
 * [Hootsuite](https://hootsuite.com)
 * [HubSpot](http://www.hubspot.com)
