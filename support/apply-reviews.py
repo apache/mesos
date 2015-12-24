@@ -219,7 +219,7 @@ def github_data():
   author = get_author('{pr}.patch'.format(pr=pull_request_number))
   message = '\n\n'.join(['{summary}',
                          '{description}',
-                         'This closes: {pr}'])\
+                         'This closes #{pr}'])\
                          .format(summary=title,
                                  description=description,
                                  pr=pull_request_number)
