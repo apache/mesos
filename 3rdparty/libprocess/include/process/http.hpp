@@ -123,6 +123,8 @@ struct URL
       query(_query),
       fragment(_fragment) {}
 
+  static Try<URL> parse(const std::string& urlString);
+
   Option<std::string> scheme;
 
   // TODO(benh): Consider using unrestricted union for 'domain' and 'ip'.

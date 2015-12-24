@@ -1197,6 +1197,41 @@ TEST(URLTest, Stringification)
 }
 
 
+TEST(URLTest, ParseUrls)
+{
+  Try<http::URL> url = URL::parse("https://auth.docker.com");
+  EXPECT_SOME(url);
+  EXPECT_SOME_EQ("https", url.get().scheme);
+  EXPECT_SOME_EQ(443, url.get().port);
+  EXPECT_SOME_EQ("auth.docker.com", url.get().domain);
+  EXPECT_EQ("/", url.get().path);
+
+  url = URL::parse("http://docker.com/");
+  EXPECT_SOME(url);
+  EXPECT_SOME_EQ("http", url.get().scheme);
+  EXPECT_SOME_EQ(80, url.get().port);
+  EXPECT_SOME_EQ("docker.com", url.get().domain);
+  EXPECT_EQ("/", url.get().path);
+
+  url = URL::parse("http://registry.docker.com:1234/abc/1");
+  EXPECT_SOME(url);
+  EXPECT_SOME_EQ("http", url.get().scheme);
+  EXPECT_SOME_EQ(1234, url.get().port);
+  EXPECT_SOME_EQ("registry.docker.com", url.get().domain);
+  EXPECT_EQ("/abc/1", url.get().path);
+
+  // Missing scheme.
+  EXPECT_ERROR(URL::parse("mesos.com"));
+  // Unknown scheme with no port.
+  EXPECT_ERROR(URL::parse("abc://abc.com"));
+  // Invalid urls.
+  EXPECT_ERROR(URL::parse("://///"));
+  EXPECT_ERROR(URL::parse("://"));
+  EXPECT_ERROR(URL::parse("http://"));
+  EXPECT_ERROR(URL::parse("http:////"));
+}
+
+
 class MockAuthenticator : public Authenticator
 {
 public:

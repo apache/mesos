@@ -165,6 +165,83 @@ string Status::string(uint16_t code)
 }
 
 
+// Returns the default port for a given URL scheme.
+static Option<uint16_t> defaultPort(const string& scheme)
+{
+  // TODO(tnachen): Make default port a lookup table.
+  if (scheme == "http") {
+    return 80;
+  } else if (scheme == "https") {
+    return 443;
+  }
+
+  return None();
+}
+
+
+Try<URL> URL::parse(const string& urlString)
+{
+  // TODO(tnachen): Consider using C++11 regex support instead.
+
+  size_t schemePos = urlString.find_first_of("://");
+  if (schemePos == string::npos) {
+    return Error("Missing scheme in url string");
+  }
+
+  const string scheme = strings::lower(urlString.substr(0, schemePos));
+  const string urlPath = urlString.substr(schemePos + 3);
+
+  size_t pathPos = urlPath.find_first_of("/");
+  if (pathPos == 0) {
+    return Error("Host not found in url");
+  }
+
+  // If path is specified in the URL, try to capture the host and path
+  // seperately.
+  string host = urlPath;
+  string path = "/";
+  if (pathPos != string::npos) {
+    host = host.substr(0, pathPos);
+    path = urlPath.substr(pathPos);
+  }
+
+  if (host.empty()) {
+    return Error("Host not found in url");
+  }
+
+  const vector<string> tokens = strings::tokenize(host, ":");
+
+  if (tokens[0].empty()) {
+    return Error("Host not found in url");
+  }
+
+  if (tokens.size() > 2) {
+    return Error("Found multiple ports in url");
+  }
+
+  Option<uint16_t> port;
+  if (tokens.size() == 2) {
+    Try<uint16_t> numifyPort = numify<uint16_t>(tokens[1]);
+    if (numifyPort.isError()) {
+      return Error("Failed to parse port: " + numifyPort.error());
+    }
+
+    port = numifyPort.get();
+  } else {
+    // Attempt to resolve the port based on the URL scheme.
+    port = defaultPort(scheme);
+  }
+
+  if (port.isNone()) {
+    return Error("Unable to determine port from url");
+  }
+
+  // TODO(tnachen): Support parsing query and fragment.
+
+  return URL(scheme, tokens[0], port.get(), path);
+}
+
+
 bool Request::acceptsEncoding(const string& encoding) const
 {
   // From RFC 2616:
