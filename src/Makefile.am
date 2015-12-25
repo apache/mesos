@@ -767,6 +767,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   uri/fetchers/curl.hpp							\
   uri/fetchers/hadoop.hpp						\
   uri/schemes/file.hpp							\
+  uri/schemes/hdfs.hpp							\
   uri/schemes/http.hpp							\
   usage/usage.hpp							\
   version/version.hpp							\

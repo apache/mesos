@@ -21,26 +21,32 @@
 #include <process/http.hpp>
 #include <process/process.hpp>
 
+#include <stout/check.hpp>
 #include <stout/gtest.hpp>
+#include <stout/os.hpp>
 #include <stout/path.hpp>
 
 #include <stout/os/exists.hpp>
 #include <stout/os/getcwd.hpp>
+#include <stout/os/write.hpp>
 
 #include <stout/tests/utils.hpp>
 
 #include "uri/fetcher.hpp"
 
+#include "uri/schemes/hdfs.hpp"
 #include "uri/schemes/http.hpp"
 
 namespace http = process::http;
 
-using testing::_;
-using testing::Return;
+using std::string;
 
 using process::Future;
 using process::Owned;
 using process::Process;
+
+using testing::_;
+using testing::Return;
 
 namespace mesos {
 namespace internal {
@@ -113,6 +119,84 @@ TEST_F(CurlFetcherPluginTest, CURL_InvalidUri)
   ASSERT_SOME(fetcher);
 
   AWAIT_FAILED(fetcher.get()->fetch(uri, os::getcwd()));
+}
+
+
+class HadoopFetcherPluginTest : public TemporaryDirectoryTest
+{
+public:
+  virtual void SetUp()
+  {
+    TemporaryDirectoryTest::SetUp();
+
+    // Create a fake hadoop command line tool. It emulates the hadoop
+    // client's logic while operating on the local filesystem.
+    hadoop = path::join(os::getcwd(), "hadoop");
+
+    // The script emulating 'hadoop fs -copyToLocal <from> <to>'.
+    // NOTE: We emulate a version call here which is exercised when
+    // creating the HDFS client. But, we don't expect any other
+    // command to be called.
+    ASSERT_SOME(os::write(
+        hadoop,
+        "#!/bin/sh\n"
+        "if [ \"$1\" = \"version\" ]; then\n"
+        "  exit 0\n"
+        "fi\n"
+        "if [ \"$1\" != \"fs\" ]; then\n"
+        "  exit 1\n"
+        "fi\n"
+        "if [ \"$2\" != \"-copyToLocal\" ]; then\n"
+        "  exit 1\n"
+        "fi\n"
+        "cp $3 $4\n"));
+
+    // Make sure the script has execution permission.
+    ASSERT_SOME(os::chmod(
+        hadoop,
+        S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH));
+  }
+
+protected:
+  string hadoop;
+};
+
+
+TEST_F(HadoopFetcherPluginTest, FetchExistingFile)
+{
+  string file = path::join(os::getcwd(), "file");
+
+  ASSERT_SOME(os::write(file, "abc"));
+
+  URI uri = uri::hdfs(file);
+
+  uri::fetcher::Flags flags;
+  flags.hadoop = hadoop;
+
+  Try<Owned<uri::Fetcher>> fetcher = uri::fetcher::create(flags);
+  ASSERT_SOME(fetcher);
+
+  string dir = path::join(os::getcwd(), "dir");
+
+  AWAIT_READY(fetcher.get()->fetch(uri, dir));
+
+  EXPECT_SOME_EQ("abc", os::read(path::join(dir, "file")));
+}
+
+
+TEST_F(HadoopFetcherPluginTest, FetchNonExistingFile)
+{
+  URI uri = uri::hdfs(path::join(os::getcwd(), "non-exist"));
+
+  uri::fetcher::Flags flags;
+  flags.hadoop = hadoop;
+
+  Try<Owned<uri::Fetcher>> fetcher = uri::fetcher::create(flags);
+  ASSERT_SOME(fetcher);
+
+  string dir = path::join(os::getcwd(), "dir");
+
+  AWAIT_FAILED(fetcher.get()->fetch(uri, dir));
 }
 
 } // namespace tests {
