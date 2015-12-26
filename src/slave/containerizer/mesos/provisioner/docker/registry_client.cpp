@@ -59,9 +59,6 @@ namespace docker {
 namespace registry {
 
 
-static const uint16_t DEFAULT_SSL_PORT = 443;
-
-
 class RegistryClientProcess : public Process<RegistryClientProcess>
 {
 public:
@@ -340,7 +337,8 @@ Future<string> _processErrorBody(const string& errorBody)
     JSON::parse<JSON::Object>(errorBody);
 
   if (errorResponse.isError()) {
-    return Failure("Failed to parse bad request response JSON: " +
+    return Failure(
+        "Failed to parse bad request response JSON: " +
         errorResponse.error());
   }
 
@@ -350,7 +348,8 @@ Future<string> _processErrorBody(const string& errorBody)
     errorResponse.get().find<JSON::Array>("errors");
 
   if (errorObjects.isError()) {
-    return Failure("Failed to find 'errors' in bad request response: " +
+    return Failure(
+        "Failed to find 'errors' in bad request response: " +
         errorObjects.error());
   } else if (errorObjects.isNone()) {
     return Failure("Errors not found in bad request response");
@@ -358,9 +357,8 @@ Future<string> _processErrorBody(const string& errorBody)
 
   foreach (const JSON::Value& error, errorObjects.get().values) {
     if (!error.is<JSON::Object>()) {
-      LOG(WARNING) <<
-        "Failed to parse error message: "
-        "'error' expected to be JSON object";
+      LOG(WARNING) << "Failed to parse error message: "
+                   << "'error' expected to be JSON object";
 
       continue;
     }
@@ -369,7 +367,8 @@ Future<string> _processErrorBody(const string& errorBody)
       error.as<JSON::Object>().find<JSON::String>("message");
 
     if (message.isError()) {
-      return Failure("Failed to parse bad request error message: " +
+      return Failure(
+          "Failed to parse bad request error message: " +
           message.error());
     } else if (message.isNone()) {
       continue;
@@ -423,51 +422,6 @@ Future<http::Response> RegistryClientProcess::handleHttpRedirect(
     const Option<http::Headers>& headers,
     bool isStreaming) const
 {
-  // TODO(jojy): Add redirect functionality in http::get.
-  auto toURL = [](
-      const string& urlString) -> Try<http::URL> {
-    // TODO(jojy): Need to add functionality to URL class that parses a
-    // string to its URL components. For now, assuming:
-    //  - scheme is https
-    //  - path always ends with /
-
-    static const string schemePrefix = "https://";
-
-    if (!strings::contains(urlString, schemePrefix)) {
-      return Error(
-          "Failed to find expected token '" + schemePrefix +
-          "' in redirect url");
-    }
-
-    const string schemeSuffix = urlString.substr(schemePrefix.length());
-
-    const vector<string> components =
-      strings::tokenize(schemeSuffix, "/");
-
-    const string path = schemeSuffix.substr(components[0].length());
-
-    const vector<string> addrComponents =
-      strings::tokenize(components[0], ":");
-
-    uint16_t port = DEFAULT_SSL_PORT;
-    string domain = components[0];
-
-    // Parse the port.
-    if (addrComponents.size() == 2) {
-      domain = addrComponents[0];
-
-      Try<uint16_t> tryPort = numify<uint16_t>(addrComponents[1]);
-      if (tryPort.isError()) {
-        return Error(
-            "Failed to parse location: " + urlString + " for port.");
-      }
-
-      port = tryPort.get();
-    }
-
-    return http::URL("https", domain, port, path);
-  };
-
   if (httpResponse.headers.find("Location") ==
       httpResponse.headers.end()) {
     return Failure(
@@ -475,14 +429,22 @@ Future<http::Response> RegistryClientProcess::handleHttpRedirect(
   }
 
   const string& location = httpResponse.headers.at("Location");
-  Try<http::URL> tryUrl = toURL(location);
-  if (tryUrl.isError()) {
+  Try<http::URL> locationUrl = http::URL::parse(location);
+  if (locationUrl.isError()) {
     return Failure(
-        "Failed to parse '" + location + "': " + tryUrl.error());
+        "Failed to parse '" + location + "': " + locationUrl.error());
+  }
+
+  if (locationUrl.get().scheme.isNone()) {
+    return Failure("No scheme found in redirect location");
+  } else if (locationUrl.get().scheme.get() != "https") {
+    return Failure(
+        "Unexpected scheme '" + locationUrl.get().scheme.get() +
+        "' found in redirect location");
   }
 
   return doHttpGet(
-      tryUrl.get(),
+      locationUrl.get(),
       headers,
       isStreaming,
       false,
@@ -667,8 +629,9 @@ Future<size_t> RegistryClientProcess::getBlob(
           S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 
       if (fd.isError()) {
-        return Failure("Failed to open file '" + filePath.value + "': " +
-                       fd.error());
+        return Failure(
+            "Failed to open file '" + filePath.value + "': " +
+            fd.error());
       }
 
       Try<Nothing> nonblock = os::nonblock(fd.get());
