@@ -123,16 +123,6 @@ mesos::internal::slave::Flags::Flags()
       "Docker authentication server used to authenticate with Docker registry",
       "https://auth.docker.io");
 
-  add(&Flags::docker_local_archives_dir,
-      "docker_local_archives_dir",
-      "Directory for Docker local puller to look in for image archives",
-      "/tmp/mesos/images/docker");
-
-  add(&Flags::docker_puller,
-      "docker_puller",
-      "Strategy for Docker puller to fetch images",
-      "local");
-
   add(&Flags::docker_puller_timeout_secs,
       "docker_puller_timeout",
       "Timeout in seconds for pulling images from the Docker registry",
@@ -140,7 +130,10 @@ mesos::internal::slave::Flags::Flags()
 
   add(&Flags::docker_registry,
       "docker_registry",
-      "Default Docker image registry server",
+      "The default url for pulling Docker images. It could either be a Docker\n"
+      "registry server url (i.e: https://registry.docker.io), or a local path\n"
+      "(i.e: file:///tmp/docker/images) in which Docker image archives\n"
+      "(result of 'docker save') are stored.",
       "https://registry-1.docker.io");
 
   add(&Flags::docker_store_dir,

@@ -23,6 +23,7 @@
 #include <stout/json.hpp>
 #include <stout/os.hpp>
 #include <stout/result.hpp>
+#include <stout/strings.hpp>
 
 #include <process/collect.hpp>
 #include <process/defer.hpp>
@@ -51,7 +52,7 @@ namespace docker {
 class LocalPullerProcess : public Process<LocalPullerProcess>
 {
 public:
-  LocalPullerProcess(const Flags& _flags) : flags(_flags) {}
+  LocalPullerProcess(const string& _archivesDir) : archivesDir(_archivesDir) {}
 
   ~LocalPullerProcess() {}
 
@@ -68,13 +69,31 @@ private:
       const string& directory,
       const vector<string>& layerIds);
 
-  const Flags flags;
+  const string archivesDir;
 };
 
 
-LocalPuller::LocalPuller(const Flags& flags)
+Try<Owned<Puller>> LocalPuller::create(const Flags& flags)
 {
-  process = Owned<LocalPullerProcess>(new LocalPullerProcess(flags));
+  // This should already been verified at puller.cpp.
+  if (!strings::startsWith(flags.docker_registry, "file://")) {
+    return Error("Expecting registry url to have file:// scheme");
+  }
+
+  const string archivesDir = strings::remove(
+      flags.docker_registry,
+      "file://",
+      strings::Mode::PREFIX);
+
+  Owned<LocalPullerProcess> process(new LocalPullerProcess(archivesDir));
+
+  return Owned<Puller>(new LocalPuller(process));
+}
+
+
+LocalPuller::LocalPuller(Owned<LocalPullerProcess>& _process)
+  : process(_process)
+{
   spawn(process.get());
 }
 
@@ -99,7 +118,7 @@ Future<list<pair<string, string>>> LocalPullerProcess::pull(
     const string& directory)
 {
   const string tarPath = paths::getImageArchiveTarPath(
-      flags.docker_local_archives_dir,
+      archivesDir,
       stringify(name));
 
   if (!os::exists(tarPath)) {

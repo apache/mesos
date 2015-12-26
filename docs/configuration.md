@@ -1047,7 +1047,10 @@ file:///path/to/file (where file contains one of the above)</code></pre>
       --docker_registry=VALUE
     </td>
     <td>
-      Default Docker image registry server.
+      The default url for pulling Docker images. It could either be a Docker
+      registry server url (i.e: https://registry.docker.io), or a local path
+      (i.e: file:///tmp/docker/images) in which Docker image archives
+      (result of 'docker save') are stored.
       (default: https://registry-1.docker.io)
     </td>
   </tr>

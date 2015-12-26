@@ -52,11 +52,11 @@ Image can both be configured in a Volume and in ContainerInfo at the same time.
 
 ## Setup and Agent Flags
 
-To run the agent to enable Mesos containerizer, you must launch the agent with mesos as a containerizer option, which is the default containerizer for the mesos agent. It also has to enable linux/filesystem as part of the enabled isolators. The supported image providers can also be configured through agent flags, as well as the supported image provider backend.
+To run the agent to enable Mesos containerizer, you must launch the agent with mesos as a containerizer option, which is the default containerizer for the mesos agent. It also has to enable filesystem/linux as part of the enabled isolators. The supported image providers can also be configured through agent flags, as well as the supported image provider backend.
 
 Mesos agent also needs to be running under linux with root permissions.
 
-* Example: `mesos-slave --containerizers=mesos --image_providers=appc,docker --image_provisioner_backend=copy --isolation=linux/filesystem`
+* Example: `mesos-slave --containerizers=mesos --image_providers=appc,docker --image_provisioner_backend=copy --isolation=filesystem/linux`
 
 Each Image provider can have additional configurations that can be set.
 
@@ -79,11 +79,11 @@ TODO(tnachen): Add Appc information.
 
 https://github.com/docker/docker/blob/master/image/spec/v1.md
 
-Docker image provider supports two different methods of finding and pulling images: local and registry. The `docker_puller` agent flag allows the slave to choose between these methods.
+Docker image provider supports two different methods of finding and pulling images: local and registry. The `docker_registry` agent flag allows the slave to choose between these methods based on the URL scheme.
 
-Local puller finds docker images based on image name and tag in the host filesystem, in the directory configured by `docker_local_archives_dir`.
+By specifying a URL in `docker_registry` agent flag pointing to a local directory (file:///tmp/mesos/images/docker), the provisioner will use the Local puller to find docker images based on image name and tag in the host filesystem.
 
-Registry puller finds and downloads images by contacting Docker registry, and by default contacts server configured by `docker_registry` and `docker_registry_port` agent flag when no custom registry is specified.
+If the URL configured in `docker_registry` isn't pointing to a local directory, it will be assumed to be a registry referring to a Docker registry. The Registry puller will find and download images by contacting Docker registry with the configured URL when no custom registry is specified.
 
 Note that to run the Registry puller Mesos agent must be running with SSL enabled.
 

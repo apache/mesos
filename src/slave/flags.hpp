@@ -52,8 +52,6 @@ public:
   std::string appc_store_dir;
 
   std::string docker_auth_server;
-  std::string docker_local_archives_dir;
-  std::string docker_puller;
   std::string docker_puller_timeout_secs;
   std::string docker_registry;
   std::string docker_store_dir;

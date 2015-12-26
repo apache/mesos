@@ -50,22 +50,22 @@ namespace docker {
 
 Try<Owned<Puller>> Puller::create(const Flags& flags)
 {
-  const string puller = flags.docker_puller;
-
-  if (puller == "local") {
-    return Owned<Puller>(new LocalPuller(flags));
-  }
-
-  if (puller == "registry") {
-    Try<Owned<Puller>> puller = RegistryPuller::create(flags);
+  // TODO(tnachen): Support multiple registries in the puller.
+  if (strings::startsWith(flags.docker_registry, "file://")) {
+    Try<Owned<Puller>> puller = LocalPuller::create(flags);
     if (puller.isError()) {
-      return Error("Failed to create registry puller: " + puller.error());
+      return Error("Failed to create local puller: " + puller.error());
     }
 
     return puller.get();
   }
 
-  return Error("Unknown or unsupported docker puller: " + puller);
+  Try<Owned<Puller>> puller = RegistryPuller::create(flags);
+  if (puller.isError()) {
+    return Error("Failed to create registry puller: " + puller.error());
+  }
+
+  return puller.get();
 }
 
 

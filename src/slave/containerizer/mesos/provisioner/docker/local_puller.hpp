@@ -41,7 +41,7 @@ class LocalPullerProcess;
 class LocalPuller : public Puller
 {
 public:
-  explicit LocalPuller(const Flags& flags);
+  static Try<process::Owned<Puller>> create(const Flags& flags);
 
   ~LocalPuller();
 
@@ -50,8 +50,11 @@ public:
       const Path& directory);
 
 private:
-  LocalPuller& operator=(const LocalPuller&) = delete; // Not assignable.
+  explicit LocalPuller(process::Owned<LocalPullerProcess>& _process);
+
   LocalPuller(const LocalPuller&) = delete; // Not copyable.
+
+  LocalPuller& operator=(const LocalPuller&) = delete; // Not assignable.
 
   process::Owned<LocalPullerProcess> process;
 };

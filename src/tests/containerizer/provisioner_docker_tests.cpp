@@ -1072,9 +1072,9 @@ protected:
   {
     TemporaryDirectoryTest::SetUp();
 
-    const string imageDir = path::join(os::getcwd(), "images");
-    const string image = path::join(imageDir, "abc:latest");
-    ASSERT_SOME(os::mkdir(imageDir));
+    const string archivesDir = path::join(os::getcwd(), "images");
+    const string image = path::join(archivesDir, "abc:latest");
+    ASSERT_SOME(os::mkdir(archivesDir));
     ASSERT_SOME(os::mkdir(image));
 
     JSON::Value repositories = JSON::parse(
@@ -1133,15 +1133,14 @@ protected:
 // stored in the proper locations accessible to the Docker provisioner.
 TEST_F(ProvisionerDockerLocalStoreTest, LocalStoreTestWithTar)
 {
-  const string imageDir = path::join(os::getcwd(), "images");
-  const string image = path::join(imageDir, "abc:latest");
-  ASSERT_SOME(os::mkdir(imageDir));
+  const string archivesDir = path::join(os::getcwd(), "images");
+  const string image = path::join(archivesDir, "abc:latest");
+  ASSERT_SOME(os::mkdir(archivesDir));
   ASSERT_SOME(os::mkdir(image));
 
   slave::Flags flags;
-  flags.docker_puller = "local";
+  flags.docker_registry = "file://" + archivesDir;
   flags.docker_store_dir = path::join(os::getcwd(), "store");
-  flags.docker_local_archives_dir = imageDir;
 
   Try<Owned<slave::Store>> store = slave::docker::Store::create(flags);
   ASSERT_SOME(store);
@@ -1162,9 +1161,8 @@ TEST_F(ProvisionerDockerLocalStoreTest, LocalStoreTestWithTar)
 TEST_F(ProvisionerDockerLocalStoreTest, MetadataManagerInitialization)
 {
   slave::Flags flags;
-  flags.docker_puller = "local";
+  flags.docker_registry = "file://" + path::join(os::getcwd(), "images");
   flags.docker_store_dir = path::join(os::getcwd(), "store");
-  flags.docker_local_archives_dir = path::join(os::getcwd(), "images");
 
   Try<Owned<slave::Store>> store = slave::docker::Store::create(flags);
   ASSERT_SOME(store);
@@ -1222,15 +1220,14 @@ public:
 // when multiple requests for the same image is in flight.
 TEST_F(ProvisionerDockerLocalStoreTest, PullingSameImageSimutanuously)
 {
-  const string imageDir = path::join(os::getcwd(), "images");
-  const string image = path::join(imageDir, "abc:latest");
-  ASSERT_SOME(os::mkdir(imageDir));
+  const string archivesDir = path::join(os::getcwd(), "images");
+  const string image = path::join(archivesDir, "abc:latest");
+  ASSERT_SOME(os::mkdir(archivesDir));
   ASSERT_SOME(os::mkdir(image));
 
   slave::Flags flags;
-  flags.docker_puller = "local";
+  flags.docker_registry = "file://" + archivesDir;
   flags.docker_store_dir = path::join(os::getcwd(), "store");
-  flags.docker_local_archives_dir = imageDir;
 
   MockPuller* puller = new MockPuller();
   Future<Nothing> pull;
