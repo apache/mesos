@@ -70,7 +70,7 @@ public:
   static Try<process::Owned<RegistryClient>> create(
       const process::http::URL& registryServer,
       const process::http::URL& authorizationServer,
-      const Option<Credentials>& credentials);
+      const Option<Credentials>& credentials = None());
 
   /**
    * Fetches manifest for a repository from the client's remote registry server.

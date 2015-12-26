@@ -141,33 +141,19 @@ Try<Owned<RegistryPullerProcess>> RegistryPullerProcess::create(
         flags.docker_puller_timeout_secs);
   }
 
-  auto getPort = [](
-      const string& stringVal) -> Try<uint16_t> {
-    Result<uint16_t> port = numify<uint16_t>(stringVal);
-    if (port.isError()) {
-      return Error("Failed to parse '" + stringVal + "' as port");
-    }
-
-    return port.get();
-  };
-
-  // TODO(jojy): Maybe do a nslookup/tcp dial of these servers.
-  Try<uint16_t> registryPort = getPort(flags.docker_registry_port);
-  if (registryPort.isError()) {
-    return Error("Failed to parse registry port: " + registryPort.error());
+  Try<http::URL> registryUrl = http::URL::parse(flags.docker_registry);
+  if (registryUrl.isError()) {
+    return Error("Failed to parse Docker registry: " + registryUrl.error());
   }
 
-  Try<uint16_t> authServerPort = getPort(flags.docker_auth_server_port);
-  if (authServerPort.isError()) {
-    return Error(
-        "Failed to parse authentication server port: " +
-        authServerPort.error());
+  Try<http::URL> authServerUrl = http::URL::parse(flags.docker_auth_server);
+  if (authServerUrl.isError()) {
+    return Error("Failed to parse Docker auth server: " +
+                 authServerUrl.error());
   }
 
   Try<Owned<RegistryClient>> registry = RegistryClient::create(
-      http::URL("https", flags.docker_registry, registryPort.get()),
-      http::URL("https", flags.docker_auth_server, authServerPort.get()),
-      None());
+      registryUrl.get(), authServerUrl.get());
 
   if (registry.isError()) {
     return Error("Failed to create registry client: " + registry.error());

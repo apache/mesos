@@ -1016,17 +1016,8 @@ file:///path/to/file (where file contains one of the above)</code></pre>
       --docker_auth_server=VALUE
     </td>
     <td>
-      Docker authentication server.
-      (default: auth.docker.io)
-    </td>
-  </tr>
-  <tr>
-    <td>
-      --docker_auth_server_port=VALUE
-    </td>
-    <td>
-      Docker authentication server port.
-      (default: 443)
+      Docker authentication server used to authenticate with Docker registry
+      (default: https://auth.docker.io)
     </td>
   </tr>
   <tr>
@@ -1061,17 +1052,8 @@ file:///path/to/file (where file contains one of the above)</code></pre>
       --docker_registry=VALUE
     </td>
     <td>
-      Default Docker image registry server host.
-      (default: registry-1.docker.io)
-    </td>
-  </tr>
-  <tr>
-    <td>
-      --docker_registry_port=VALUE
-    </td>
-    <td>
-      Default Docker registry server port.
-      (default: 443)
+      Default Docker image registry server.
+      (default: https://registry-1.docker.io)
     </td>
   </tr>
   <tr>

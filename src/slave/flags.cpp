@@ -120,13 +120,8 @@ mesos::internal::slave::Flags::Flags()
 
   add(&Flags::docker_auth_server,
       "docker_auth_server",
-      "Docker authentication server",
-      "auth.docker.io");
-
-  add(&Flags::docker_auth_server_port,
-      "docker_auth_server_port",
-      "Docker authentication server port",
-      "443");
+      "Docker authentication server used to authenticate with Docker registry",
+      "https://auth.docker.io");
 
   add(&Flags::docker_local_archives_dir,
       "docker_local_archives_dir",
@@ -145,13 +140,8 @@ mesos::internal::slave::Flags::Flags()
 
   add(&Flags::docker_registry,
       "docker_registry",
-      "Default Docker image registry server host",
-      "registry-1.docker.io");
-
-  add(&Flags::docker_registry_port,
-      "docker_registry_port",
-      "Default Docker registry server port",
-      "443");
+      "Default Docker image registry server",
+      "https://registry-1.docker.io");
 
   add(&Flags::docker_store_dir,
       "docker_store_dir",

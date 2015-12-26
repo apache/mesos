@@ -72,7 +72,6 @@ namespace mesos {
 namespace internal {
 namespace tests {
 
-
 TEST(DockerUtilsTest, ParseImageName)
 {
   slave::docker::Image::Name name;
@@ -1131,20 +1130,18 @@ TEST_F(RegistryClientTest, SimpleRegistryPuller)
   Future<Socket> blobServerAcceptSock = blobServer.get().accept();
 
   Flags flags;
-  flags.docker_registry = server.get().address().get().hostname().get();
-  flags.docker_registry_port = stringify(server.get().address().get().port);
-  flags.docker_auth_server = server.get().address().get().hostname().get();
-  flags.docker_auth_server_port = stringify(server.get().address().get().port);
+  process::network::Address address = server.get().address().get();
+  const string url = "https://" + address.hostname().get() + ":" +
+                     stringify(address.port);
+  flags.docker_registry = url;
+  flags.docker_auth_server = url;
 
   Try<Owned<Puller>> registryPuller = RegistryPuller::create(flags);
-
   ASSERT_SOME(registryPuller);
 
   const Path registryPullerPath(os::getcwd());
 
-  Try<slave::docker::Image::Name> imageName =
-    parseImageName("busybox");
-
+  Try<slave::docker::Image::Name> imageName = parseImageName("busybox");
   ASSERT_SOME(imageName);
 
   Future<list<pair<string, string>>> registryPullerFuture =
