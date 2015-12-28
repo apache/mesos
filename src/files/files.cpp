@@ -452,12 +452,10 @@ Future<Response> FilesProcess::download(const Request& request)
     strings::format("attachment; filename=%s", basename).get();
 
   // Attempt to detect the mime type.
-  size_t index = basename.find_last_of('.');
-  if (index != string::npos) {
-    string extension = basename.substr(index);
-    if (mime::types.count(extension) > 0) {
-      response.headers["Content-Type"] = mime::types[extension];
-    }
+  Option<string> extension = Path(resolvedPath.get()).extension();
+
+  if (extension.isSome() && mime::types.count(extension.get()) > 0) {
+    response.headers["Content-Type"] = mime::types[extension.get()];
   }
 
   return response;
