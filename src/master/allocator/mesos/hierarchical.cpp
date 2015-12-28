@@ -877,7 +877,7 @@ void HierarchicalAllocatorProcess::recoverResources(
 
     slaves[slaveId].allocated -= resources;
 
-    LOG(INFO) << "Recovered " << resources
+    VLOG(1) << "Recovered " << resources
               << " (total: " << slaves[slaveId].total
               << ", allocated: " << slaves[slaveId].allocated
               << ") on slave " << slaveId
