@@ -93,6 +93,29 @@ TEST(PathTest, Dirname)
 }
 
 
+TEST(PathTest, Extension)
+{
+  EXPECT_NONE(Path(".").extension());
+  EXPECT_NONE(Path("..").extension());
+
+  EXPECT_NONE(Path("a").extension());
+  EXPECT_NONE(Path("/a").extension());
+  EXPECT_NONE(Path("/").extension());
+
+  EXPECT_NONE(Path("/a.b/c").extension());
+
+  EXPECT_SOME_EQ(".txt", Path("a.txt").extension());
+  EXPECT_SOME_EQ(".txt", Path("/a/b.txt").extension());
+  EXPECT_SOME_EQ(".txt", Path("/a.b/c.txt").extension());
+
+  EXPECT_SOME_EQ(".gz", Path("a.tar.gz").extension());
+  EXPECT_SOME_EQ(".gz", Path("/a.tar.gz").extension());
+
+  EXPECT_SOME_EQ(".bashrc", Path(".bashrc").extension());
+  EXPECT_SOME_EQ(".bashrc", Path("/.bashrc").extension());
+}
+
+
 TEST(PathTest, Join)
 {
   EXPECT_EQ("a/b/c", path::join("a", "b", "c"));

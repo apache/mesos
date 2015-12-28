@@ -147,6 +147,35 @@ public:
     return value.substr(0, end + 1);
   }
 
+  /**
+   * Returns the file extension of the path, including the dot.
+   *
+   * Returns None if the basename contains no dots, or consists
+   * entirely of dots (i.e. '.', '..').
+   *
+   * Examples:
+   *
+   *   path         | extension
+   *   ----------   | -----------
+   *   "a.txt"      |  ".txt"
+   *   "a.tar.gz"   |  ".gz"
+   *   ".bashrc"    |  ".bashrc"
+   *   "a"          |  None
+   *   "."          |  None
+   *   ".."         |  None
+   */
+  inline Option<std::string> extension() const
+  {
+    std::string _basename = basename();
+    size_t index = _basename.rfind(".");
+
+    if (_basename == "." || _basename == ".." || index == std::string::npos) {
+      return None();
+    }
+
+    return _basename.substr(index);
+  }
+
   // Implicit conversion from Path to string.
   operator std::string() const
   {
