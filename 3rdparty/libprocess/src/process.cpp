@@ -3267,13 +3267,10 @@ void ProcessBase::visit(const HttpEvent& event)
     }
 
     // Try and determine the Content-Type from an extension.
-    string basename = Path(response.path).basename();
-    size_t index = basename.find_last_of('.');
-    if (index != string::npos) {
-      string extension = basename.substr(index);
-      if (assets[name].types.count(extension) > 0) {
-        response.headers["Content-Type"] = assets[name].types[extension];
-      }
+    Option<string> extension = Path(response.path).extension();
+
+    if (extension.isSome() && assets[name].types.count(extension.get()) > 0) {
+      response.headers["Content-Type"] = assets[name].types[extension.get()];
     }
 
     // TODO(benh): Use "text/plain" for assets that don't have an
