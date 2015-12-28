@@ -27,18 +27,19 @@ namespace process {
 namespace http {
 namespace authentication {
 
-class AuthenticationRouterProcess;
+class AuthenticatorManagerProcess;
 
 
-// Manages the authentication routing via authentication
-// "realms". Endpoints may map to a realm. Each realm may
-// have an authenticator, through which all requests to
-// matching endpoints must be authenticated.
-class AuthenticationRouter
+// Manages the realm -> Authenticator mapping for HTTP
+// authentication in libprocess. Endpoints may map to
+// a realm. Each realm may have an authenticator set
+// here, through which all requests to matching
+// endpoints will be authenticated.
+class AuthenticatorManager
 {
 public:
-  AuthenticationRouter();
-  ~AuthenticationRouter();
+  AuthenticatorManager();
+  ~AuthenticatorManager();
 
   // Sets the authenticator for the realm; this will
   // overwrite any previous authenticator for the realm.
@@ -49,23 +50,15 @@ public:
   // Unsets the authenticator for the realm.
   Future<Nothing> unsetAuthenticator(const std::string& realm);
 
-  // TODO(arojas): Consider making the realm a property
-  // of the endpoint handler in `ProcessBase` rather than
-  // having the router maintain the mapping.
-  Future<Nothing> addEndpoint(
-      const std::string& endpoint,
+  // Authenticates the request, will return None if no
+  // authentication is required because there is no
+  // authenticator for the realm.
+  Future<Option<AuthenticationResult>> authenticate(
+      const Request& request,
       const std::string& realm);
 
-  Future<Nothing> removeEndpoint(const std::string& endpoint);
-
-  // Authenticates the request, will return None if no
-  // authentication is required. None occurs when either
-  // the request endpoint does not match a realm, or there
-  // is no authenticator for the realm.
-  Future<Option<AuthenticationResult>> authenticate(const Request& request);
-
 private:
-  Owned<AuthenticationRouterProcess> process;
+  Owned<AuthenticatorManagerProcess> process;
 };
 
 } // namespace authentication {

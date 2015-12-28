@@ -1208,8 +1208,7 @@ public:
 };
 
 
-// TODO(bmahler): These are disabled while MESOS-4142 is fixed.
-class DISABLED_HttpAuthenticationTest : public ::testing::Test
+class HttpAuthenticationTest : public ::testing::Test
 {
 protected:
   Future<Nothing> setAuthenticator(
@@ -1239,7 +1238,7 @@ private:
 
 // Ensures that when there is no authenticator for a realm,
 // requests are not authenticated (i.e. the principal is None).
-TEST_F(DISABLED_HttpAuthenticationTest, NoAuthenticator)
+TEST_F(HttpAuthenticationTest, NoAuthenticator)
 {
   Http http;
 
@@ -1254,7 +1253,7 @@ TEST_F(DISABLED_HttpAuthenticationTest, NoAuthenticator)
 
 
 // Tests that an authentication Unauthorized result is exposed correctly.
-TEST_F(DISABLED_HttpAuthenticationTest, Unauthorized)
+TEST_F(HttpAuthenticationTest, Unauthorized)
 {
   MockAuthenticator* authenticator = new MockAuthenticator();
   setAuthenticator("realm", Owned<Authenticator>(authenticator));
@@ -1282,7 +1281,7 @@ TEST_F(DISABLED_HttpAuthenticationTest, Unauthorized)
 
 
 // Tests that an authentication Forbidden result is exposed correctly.
-TEST_F(DISABLED_HttpAuthenticationTest, Forbidden)
+TEST_F(HttpAuthenticationTest, Forbidden)
 {
   MockAuthenticator* authenticator = new MockAuthenticator();
   setAuthenticator("realm", Owned<Authenticator>(authenticator));
@@ -1303,7 +1302,7 @@ TEST_F(DISABLED_HttpAuthenticationTest, Forbidden)
 
 
 // Tests that a successful authentication hits the endpoint.
-TEST_F(DISABLED_HttpAuthenticationTest, Authenticated)
+TEST_F(HttpAuthenticationTest, Authenticated)
 {
   MockAuthenticator* authenticator = new MockAuthenticator();
   setAuthenticator("realm", Owned<Authenticator>(authenticator));
@@ -1330,7 +1329,7 @@ TEST_F(DISABLED_HttpAuthenticationTest, Authenticated)
 
 // Tests that HTTP pipelining is respected even when
 // authentications are satisfied out-of-order.
-TEST_F(DISABLED_HttpAuthenticationTest, Pipelining)
+TEST_F(HttpAuthenticationTest, Pipelining)
 {
   MockAuthenticator* authenticator = new MockAuthenticator();
   setAuthenticator("realm", Owned<Authenticator>(authenticator));

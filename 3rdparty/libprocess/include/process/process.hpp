@@ -38,6 +38,9 @@
 
 namespace process {
 
+// Forward declaration.
+class Sequence;
+
 namespace firewall {
 
 /**
@@ -60,7 +63,6 @@ namespace firewall {
 void install(std::vector<Owned<FirewallRule>>&& rules);
 
 } // namespace firewall {
-
 
 class ProcessBase : public EventVisitor
 {
@@ -237,10 +239,12 @@ protected:
 
   /**
    * Any function which takes a `process::http::Request` and an
-   * `Option<std::string>` and returns a `process::http::Response`.
+   * `Option<std::string>` principal and returns a
+   * `process::http::Response`.
    *
-   * If the string is set, it represents the authenticated principal
-   * for the request.
+   * If the authentication principal string is set, the realm
+   * requires authentication and authentication succeeded. If
+   * it is not set, the realm does not require authentication.
    *
    * The default visit implementation for HTTP events invokes
    * installed HTTP handlers.
@@ -355,15 +359,37 @@ private:
   // Delegates for messages.
   std::map<std::string, UPID> delegates;
 
+  // Definition of an HTTP endpoint. The endpoint can be
+  // associated with an authentication realm, in which case:
+  //
+  //  (1) `realm` and `authenticatedHandler` will be set.
+  //      Libprocess will perform HTTP authentication for
+  //      all requests to this endpoint (by default during
+  //      HttpEvent visitation). The authentication principal
+  //      will be passed to the `authenticatedHandler`.
+  //
+  //  Otherwise, if the endpoint is not associated with an
+  //  authentication realm:
+  //
+  //  (2) Only `handler` will be set, and no authentication
+  //      takes place.
+  struct HttpEndpoint
+  {
+    Option<HttpRequestHandler> handler;
+
+    Option<std::string> realm;
+    Option<AuthenticatedHttpRequestHandler> authenticatedHandler;
+  };
+
   // Handlers for messages and HTTP requests.
   struct {
     std::map<std::string, MessageHandler> message;
+    std::map<std::string, HttpEndpoint> http;
 
-    // `HttpRequestHandlers` are equivalent to their authenticated
-    // counterparts where the principal is always `None`. Therefore
-    // we convert the regular handler to an authenticated one in
-    // order to store only a single map here.
-    std::map<std::string, AuthenticatedHttpRequestHandler> http;
+    // Used for delivering HTTP requests in the correct order.
+    // Initialized lazily to avoid ProcessBase requiring
+    // another Process!
+    Owned<Sequence> httpSequence;
   } handlers;
 
   // Definition of a static asset.

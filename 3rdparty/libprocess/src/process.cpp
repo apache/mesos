@@ -95,7 +95,7 @@
 #include <stout/thread_local.hpp>
 #include <stout/unreachable.hpp>
 
-#include "authentication_router.hpp"
+#include "authenticator_manager.hpp"
 #include "config.hpp"
 #include "decoder.hpp"
 #include "encoder.hpp"
@@ -123,7 +123,7 @@ using process::http::ServiceUnavailable;
 
 using process::http::authentication::Authenticator;
 using process::http::authentication::AuthenticationResult;
-using process::http::authentication::AuthenticationRouter;
+using process::http::authentication::AuthenticatorManager;
 
 using process::network::Address;
 using process::network::Socket;
@@ -192,10 +192,6 @@ public:
   // some timeout) and then sent once all previously enqueued
   // responses have been processed (e.g., waited for and sent).
   void handle(const Future<Response>& future, const Request& request);
-
-  // All requests must go through authentication here before being
-  // passed on to the route handlers.
-  Future<Option<AuthenticationResult>> authenticate(const Request& request);
 
 protected:
   void initialize() override;
@@ -483,7 +479,7 @@ static ProcessManager* process_manager = NULL;
 static Gate* gate = new Gate();
 
 // Used for authenticating HTTP requests.
-static AuthenticationRouter* authentication_router = NULL;
+static AuthenticatorManager* authenticator_manager = NULL;
 
 // Filter. Synchronized support for using the filterer needs to be
 // recursive in case a filterer wants to do anything fancy (which is
@@ -513,7 +509,7 @@ Future<Nothing> setAuthenticator(
 {
   process::initialize();
 
-  return authentication_router->setAuthenticator(realm, authenticator);
+  return authenticator_manager->setAuthenticator(realm, authenticator);
 }
 
 
@@ -521,7 +517,7 @@ Future<Nothing> unsetAuthenticator(const string& realm)
 {
   process::initialize();
 
-  return authentication_router->unsetAuthenticator(realm);
+  return authenticator_manager->unsetAuthenticator(realm);
 }
 
 } // namespace authentication {
@@ -976,7 +972,7 @@ void initialize(const string& delegate)
   spawn(new System(), true);
 
   // Create the global HTTP authentication router.
-  authentication_router = new AuthenticationRouter();
+  authenticator_manager = new AuthenticatorManager();
 
   // Ensure metrics process is running.
   // TODO(bmahler): Consider initializing this consistently with
@@ -1103,22 +1099,6 @@ void HttpProxy::handle(const Future<Response>& future, const Request& request)
   if (items.size() == 1) {
     next();
   }
-}
-
-
-Future<Option<AuthenticationResult>> HttpProxy::authenticate(
-    const Request& request)
-{
-  // Start the authentication immediately so that
-  // authentications run in parallel, but expose
-  // a future that is only satisfied after all
-  // previous authentications are satisfied (in
-  // order to respect HTTP pipelining).
-  Future<Option<AuthenticationResult>> authentication =
-    authentication_router->authenticate(request);
-
-  return authentications->add<Option<AuthenticationResult>>(
-      [=]() { return authentication; });
 }
 
 
@@ -2421,66 +2401,9 @@ void ProcessManager::handle(
     // order of requests to account for HTTP/1.1 pipelining.
     dispatch(proxy, &HttpProxy::handle, promise->future(), *request);
 
-    // NOTE: We capture `process_manager` in the lambda below, but
-    // it may have been deleted while authentication was in progress.
-    // This is problematic for libprocess finalization, a potential
-    // workaround is to ensure that the authentication future is
-    // satisfied within a Process' execution context.
-    dispatch(proxy, &HttpProxy::authenticate, *request)
-      .onAny([this, request, promise, receiver](
-          const Future<Option<AuthenticationResult>>& authentication) {
-        if (!authentication.isReady()) {
-          promise->set(InternalServerError());
-
-          VLOG(1) << "Returning '" << promise->future()->status << "'"
-                  << " for '" << request->url.path << "'"
-                  << " (authentication failed: "
-                  << (authentication.isFailed()
-                      ? authentication.failure()
-                      : "discarded")
-                  << ")";
-
-          delete request;
-          delete promise;
-          return;
-        }
-
-        // NOTE: The `receiver` process may have terminated while
-        // authentication was in progress. In this case `deliver`
-        // will fail and delete the `HttpEvent` which results in
-        // an `InternalServerError` response.
-
-        if (authentication->isNone()) {
-          // Request didn't need authentication or authentication
-          // is not applicable, just forward the request.
-          //
-          // TODO(benh): Use the sender PID in order to capture
-          // happens-before timing relationships for testing.
-          deliver(receiver, new HttpEvent(request, promise));
-          return;
-        }
-
-        if (authentication.get()->unauthorized.isSome()) {
-          // Request was not authenticated, challenged issued.
-          promise->set(authentication.get()->unauthorized.get());
-          delete request;
-          delete promise;
-        } else if (authentication.get()->forbidden.isSome()) {
-          // Request was not authenticated, no challenge issued.
-          promise->set(authentication.get()->forbidden.get());
-          delete request;
-          delete promise;
-        } else {
-          // Authentication succeeded.
-          const Option<string>& principal = authentication.get()->principal;
-
-          CHECK_SOME(principal); // The authentication router validates this.
-
-          // TODO(benh): Use the sender PID in order to capture
-          // happens-before timing relationships for testing.
-          deliver(receiver, new HttpEvent(request, promise, principal));
-        }
-      });
+    // TODO(benh): Use the sender PID in order to capture
+    // happens-before timing relationships for testing.
+    deliver(receiver, new HttpEvent(request, promise));
 
     return;
   }
@@ -2706,13 +2629,6 @@ void ProcessManager::cleanup(ProcessBase* process)
     Event* event = events.front();
     events.pop_front();
     delete event;
-  }
-
-  // Remove all routes from the authentication router, we don't
-  // need to wait for these operations to complete.
-  foreachkey (const string& endpoint, process->handlers.http) {
-    authentication_router->removeEndpoint(
-        '/' + process->self().id + '/' + endpoint);
   }
 
   // Possible gate non-libprocess threads are waiting at.
@@ -3225,11 +3141,17 @@ void ProcessBase::visit(const HttpEvent& event)
   VLOG(1) << "Handling HTTP event for process '" << pid.id << "'"
           << " with path: '" << event.request->url.path << "'";
 
+  // Lazily initialize the Sequence needed for ordering requests
+  // across authentication.
+  if (handlers.httpSequence.get() == NULL) {
+    handlers.httpSequence.reset(new Sequence());
+  }
+
   CHECK(event.request->url.path.find('/') == 0); // See ProcessManager::handle.
 
   // Split the path by '/'.
   vector<string> tokens = strings::tokenize(event.request->url.path, "/");
-  CHECK(tokens.size() >= 1);
+  CHECK(!tokens.empty());
   CHECK_EQ(pid.id, http::decode(tokens[0]).get());
 
   // First look to see if there is an HTTP handler that can handle the
@@ -3242,15 +3164,77 @@ void ProcessBase::visit(const HttpEvent& event)
   name = strings::trim(name, strings::PREFIX, "/");
 
   while (Path(name).dirname() != name) {
-    if (handlers.http.count(name) > 0) {
-      // Now call the handler and associate the response with the promise.
-      event.response->associate(
-          handlers.http[name](*event.request, event.principal));
-
-      return;
+    if (handlers.http.count(name) == 0) {
+      name = Path(name).dirname();
+      continue;
     }
 
-    name = Path(name).dirname();
+    HttpEndpoint endpoint = handlers.http[name];
+    Future<Option<AuthenticationResult>> authentication = None();
+
+    if (endpoint.realm.isSome()) {
+      authentication = authenticator_manager->authenticate(
+          *event.request, endpoint.realm.get());
+    }
+
+    // Sequence the authentication future to ensure the handlers
+    // are invoked in the same order that requests arrive.
+    authentication = handlers.httpSequence->add<Option<AuthenticationResult>>(
+        [authentication]() { return authentication; });
+
+    Request request = *event.request;
+    Promise<Response>* response = new Promise<Response>();
+    event.response->associate(response->future());
+
+    authentication
+      .onAny(defer(self(), [endpoint, request, response](
+          const Future<Option<AuthenticationResult>>& authentication) {
+        if (!authentication.isReady()) {
+          response->set(InternalServerError());
+
+          VLOG(1) << "Returning '" << response->future()->status << "'"
+                  << " for '" << request.url.path << "'"
+                  << " (authentication failed: "
+                  << (authentication.isFailed()
+                      ? authentication.failure()
+                      : "discarded") << ")";
+
+          delete response;
+          return;
+        }
+
+        if (authentication->isNone()) {
+          // Request didn't need authentication or authentication
+          // is not applicable, just forward the request.
+          if (endpoint.realm.isNone()) {
+            response->associate(endpoint.handler.get()(request));
+          } else {
+            response->associate(endpoint.authenticatedHandler.get()(
+                request, None()));
+          }
+
+          delete response;
+          return;
+        }
+
+        if (authentication.get()->unauthorized.isSome()) {
+          // Request was not authenticated, challenged issued.
+          response->set(authentication.get()->unauthorized.get());
+        } else if (authentication.get()->forbidden.isSome()) {
+          // Request was not authenticated, no challenge issued.
+          response->set(authentication.get()->forbidden.get());
+        } else {
+          Option<string> principal = authentication.get()->principal;
+
+          response->associate(endpoint.authenticatedHandler.get()(
+              request, principal));
+        }
+
+        delete response;
+        return;
+    }));
+
+    return;
   }
 
   // If no HTTP handler is found look in assets.
@@ -3321,11 +3305,10 @@ void ProcessBase::route(
   // Routes must start with '/'.
   CHECK(name.find('/') == 0);
 
-  auto wrapper = [handler](const Request& request, const Option<string>&) {
-    return handler(request);
-  };
+  HttpEndpoint endpoint;
+  endpoint.handler = handler;
 
-  handlers.http[name.substr(1)] = wrapper;
+  handlers.http[name.substr(1)] = endpoint;
 
   dispatch(help, &Help::add, pid.id, name, help_);
 }
@@ -3339,11 +3322,12 @@ void ProcessBase::route(
 {
   // Routes must start with '/'.
   CHECK(name.find('/') == 0);
-  handlers.http[name.substr(1)] = handler;
 
-  // Add the endpoint to the authentication router, we don't need
-  // to wait for the operation to complete.
-  authentication_router->addEndpoint('/' + self().id + name, realm);
+  HttpEndpoint endpoint;
+  endpoint.realm = realm;
+  endpoint.authenticatedHandler = handler;
+
+  handlers.http[name.substr(1)] = endpoint;
 
   dispatch(help, &Help::add, pid.id, name, help_);
 }
