@@ -14,8 +14,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "slave/containerizer/mesos/provisioner/docker/store.hpp"
-
 #include <list>
 #include <vector>
 
@@ -24,7 +22,6 @@
 #include <stout/hashmap.hpp>
 #include <stout/json.hpp>
 #include <stout/os.hpp>
-#include <stout/result.hpp>
 
 #include <process/collect.hpp>
 #include <process/defer.hpp>
@@ -34,10 +31,9 @@
 #include "common/status_utils.hpp"
 
 #include "slave/containerizer/mesos/provisioner/docker/metadata_manager.hpp"
+#include "slave/containerizer/mesos/provisioner/docker/store.hpp"
 #include "slave/containerizer/mesos/provisioner/docker/paths.hpp"
 #include "slave/containerizer/mesos/provisioner/docker/puller.hpp"
-
-#include "slave/flags.hpp"
 
 using namespace process;
 
@@ -58,7 +54,9 @@ public:
       const Flags& _flags,
       const Owned<MetadataManager>& _metadataManager,
       const Owned<Puller>& _puller)
-    : flags(_flags), metadataManager(_metadataManager), puller(_puller) {}
+    : flags(_flags),
+      metadataManager(_metadataManager),
+      puller(_puller) {}
 
   ~StoreProcess() {}
 
@@ -67,10 +65,7 @@ public:
   Future<ImageInfo> get(const mesos::Image& image);
 
 private:
-  Future<Image> _get(
-      const Image::Name& name,
-      const Option<Image>& image);
-
+  Future<Image> _get(const Image::Name& name, const Option<Image>& image);
   Future<ImageInfo> __get(const Image& image);
 
   Future<vector<string>> moveLayers(
@@ -136,14 +131,14 @@ Try<Owned<slave::Store>> Store::create(
 
 Store::Store(const Owned<StoreProcess>& _process) : process(_process)
 {
-  process::spawn(CHECK_NOTNULL(process.get()));
+  spawn(CHECK_NOTNULL(process.get()));
 }
 
 
 Store::~Store()
 {
-  process::terminate(process.get());
-  process::wait(process.get());
+  terminate(process.get());
+  wait(process.get());
 }
 
 
@@ -251,12 +246,12 @@ Future<vector<string>> StoreProcess::moveLayers(
 
   return collect(futures)
     .then([layerPaths]() {
-        vector<string> layerIds;
-        foreach (const auto& layerPath, layerPaths) {
-          layerIds.push_back(layerPath.first);
-        }
+      vector<string> layerIds;
+      foreach (const auto& layerPath, layerPaths) {
+        layerIds.push_back(layerPath.first);
+      }
 
-        return layerIds;
+      return layerIds;
     });
 }
 

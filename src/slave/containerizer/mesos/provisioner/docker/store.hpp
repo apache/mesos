@@ -17,15 +17,13 @@
 #ifndef __PROVISIONER_DOCKER_STORE_HPP__
 #define __PROVISIONER_DOCKER_STORE_HPP__
 
-#include <string>
+#include <process/owned.hpp>
 
 #include <stout/try.hpp>
 
-#include <process/future.hpp>
+#include "slave/flags.hpp"
 
 #include "slave/containerizer/mesos/provisioner/store.hpp"
-
-#include "slave/flags.hpp"
 
 namespace mesos {
 namespace internal {
@@ -48,14 +46,14 @@ public:
       const Flags& flags,
       const process::Owned<Puller>& puller);
 
-  ~Store();
+  virtual ~Store();
 
-  process::Future<Nothing> recover();
+  virtual process::Future<Nothing> recover();
 
-  process::Future<ImageInfo> get(const mesos::Image& image);
+  virtual process::Future<ImageInfo> get(const mesos::Image& image);
 
 private:
-  explicit Store(const process::Owned<StoreProcess>& _process);
+  explicit Store(const process::Owned<StoreProcess>& process);
 
   Store& operator=(const Store&) = delete; // Not assignable.
   Store(const Store&) = delete; // Not copyable.
