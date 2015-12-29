@@ -103,7 +103,7 @@ append_dockerfile "RUN chown -R mesos /mesos"
 append_dockerfile "USER mesos"
 
 # Build and check Mesos.
-append_dockerfile "CMD ./bootstrap && ./configure $CONFIGURATION && DISTCHECK_CONFIGURE_FLAGS=\"$CONFIGURATION\" GLOG_v=1 MESOS_VERBOSE=1 make -j8 distcheck"
+append_dockerfile "CMD ./bootstrap && ./configure $CONFIGURATION && DISTCHECK_CONFIGURE_FLAGS=\"$CONFIGURATION\" GLOG_v=1 MESOS_VERBOSE=1 GTEST_OUTPUT=xml:report.xml make -j8 distcheck"
 
 # Generate a random image tag.
 TAG=mesos-`date +%s`-$RANDOM
