@@ -168,6 +168,13 @@ Try<Containerizer*> Containerizer::create(
                  << "please update your flags to"
                  << " '--containerizers=external'.";
 
+    if (flags.container_logger.isSome()) {
+      return Error(
+          "The external containerizer does not support custom container "
+          "logger modules.  The '--isolation=external' flag cannot be "
+          " set along with '--container_logger=...'");
+    }
+
     Try<ExternalContainerizer*> containerizer =
       ExternalContainerizer::create(flags);
     if (containerizer.isError()) {
@@ -204,6 +211,13 @@ Try<Containerizer*> Containerizer::create(
         containerizers.push_back(containerizer.get());
       }
     } else if (type == "external") {
+      if (flags.container_logger.isSome()) {
+        return Error(
+            "The external containerizer does not support custom container "
+            "logger modules.  The '--containerizers=external' flag cannot be "
+            "set along with '--container_logger=...'");
+      }
+
       Try<ExternalContainerizer*> containerizer =
         ExternalContainerizer::create(flags);
       if (containerizer.isError()) {
