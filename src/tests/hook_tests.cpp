@@ -16,9 +16,12 @@
 
 #include <mesos/module.hpp>
 
+#include <mesos/slave/container_logger.hpp>
+
 #include <process/clock.hpp>
 #include <process/future.hpp>
 #include <process/gmock.hpp>
+#include <process/owned.hpp>
 #include <process/pid.hpp>
 
 #include <stout/option.hpp>
@@ -60,8 +63,11 @@ using mesos::internal::slave::Fetcher;
 using mesos::internal::slave::MesosContainerizer;
 using mesos::internal::slave::Slave;
 
+using mesos::slave::ContainerLogger;
+
 using process::Clock;
 using process::Future;
+using process::Owned;
 using process::PID;
 using process::Shared;
 
@@ -611,13 +617,23 @@ TEST_F(HookTest, ROOT_DOCKER_VerifySlavePreLaunchDockerHook)
 
   MockDocker* mockDocker =
     new MockDocker(tests::flags.docker, tests::flags.docker_socket);
+
   Shared<Docker> docker(mockDocker);
 
   slave::Flags flags = CreateSlaveFlags();
 
   Fetcher fetcher;
 
-  MockDockerContainerizer dockerContainerizer(flags, &fetcher, docker);
+  Try<ContainerLogger*> logger =
+    ContainerLogger::create(flags.container_logger);
+
+  ASSERT_SOME(logger);
+
+  MockDockerContainerizer dockerContainerizer(
+      flags,
+      &fetcher,
+      Owned<ContainerLogger>(logger.get()),
+      docker);
 
   Try<PID<Slave>> slave = StartSlave(&dockerContainerizer, flags);
   ASSERT_SOME(slave);

@@ -18,6 +18,8 @@
 
 #include <gtest/gtest.h>
 
+#include <mesos/slave/container_logger.hpp>
+
 #include <process/future.hpp>
 #include <process/gmock.hpp>
 #include <process/owned.hpp>
@@ -50,6 +52,8 @@ using mesos::internal::slave::DockerContainerizer;
 using mesos::internal::slave::DockerContainerizerProcess;
 using mesos::internal::slave::Fetcher;
 using mesos::internal::slave::Slave;
+
+using mesos::slave::ContainerLogger;
 
 using process::Future;
 using process::Message;
@@ -141,8 +145,7 @@ public:
   virtual void TearDown()
   {
     Try<Docker*> docker =
-      Docker::create(tests::flags.docker, tests::flags.docker_socket,
-      false);
+      Docker::create(tests::flags.docker, tests::flags.docker_socket, false);
 
     ASSERT_SOME(docker);
     Future<list<Docker::Container>> containers =
@@ -178,7 +181,16 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Launch_Executor)
 
   Fetcher fetcher;
 
-  MockDockerContainerizer dockerContainerizer(flags, &fetcher, docker);
+  Try<ContainerLogger*> logger =
+    ContainerLogger::create(flags.container_logger);
+
+  ASSERT_SOME(logger);
+
+  MockDockerContainerizer dockerContainerizer(
+      flags,
+      &fetcher,
+      Owned<ContainerLogger>(logger.get()),
+      docker);
 
   Try<PID<Slave> > slave = StartSlave(&dockerContainerizer, flags);
   ASSERT_SOME(slave);
@@ -295,7 +307,16 @@ TEST_F(DockerContainerizerTest, DISABLED_ROOT_DOCKER_Launch_Executor_Bridged)
 
   Fetcher fetcher;
 
-  MockDockerContainerizer dockerContainerizer(flags, &fetcher, docker);
+  Try<ContainerLogger*> logger =
+    ContainerLogger::create(flags.container_logger);
+
+  ASSERT_SOME(logger);
+
+  MockDockerContainerizer dockerContainerizer(
+      flags,
+      &fetcher,
+      Owned<ContainerLogger>(logger.get()),
+      docker);
 
   Try<PID<Slave> > slave = StartSlave(&dockerContainerizer, flags);
   ASSERT_SOME(slave);
@@ -404,7 +425,16 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Launch)
 
   Fetcher fetcher;
 
-  MockDockerContainerizer dockerContainerizer(flags, &fetcher, docker);
+  Try<ContainerLogger*> logger =
+    ContainerLogger::create(flags.container_logger);
+
+  ASSERT_SOME(logger);
+
+  MockDockerContainerizer dockerContainerizer(
+      flags,
+      &fetcher,
+      Owned<ContainerLogger>(logger.get()),
+      docker);
 
   Try<PID<Slave> > slave = StartSlave(&dockerContainerizer, flags);
   ASSERT_SOME(slave);
@@ -535,7 +565,16 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Kill)
 
   Fetcher fetcher;
 
-  MockDockerContainerizer dockerContainerizer(flags, &fetcher, docker);
+  Try<ContainerLogger*> logger =
+    ContainerLogger::create(flags.container_logger);
+
+  ASSERT_SOME(logger);
+
+  MockDockerContainerizer dockerContainerizer(
+      flags,
+      &fetcher,
+      Owned<ContainerLogger>(logger.get()),
+      docker);
 
   Try<PID<Slave> > slave = StartSlave(&dockerContainerizer, flags);
   ASSERT_SOME(slave);
@@ -643,7 +682,16 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Usage)
 
   Fetcher fetcher;
 
-  MockDockerContainerizer dockerContainerizer(flags, &fetcher, docker);
+  Try<ContainerLogger*> logger =
+    ContainerLogger::create(flags.container_logger);
+
+  ASSERT_SOME(logger);
+
+  MockDockerContainerizer dockerContainerizer(
+      flags,
+      &fetcher,
+      Owned<ContainerLogger>(logger.get()),
+      docker);
 
   Try<PID<Slave> > slave = StartSlave(&dockerContainerizer, flags);
   ASSERT_SOME(slave);
@@ -769,16 +817,25 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Update)
   Try<PID<Master> > master = StartMaster();
   ASSERT_SOME(master);
 
-  slave::Flags flags = CreateSlaveFlags();
-
   MockDocker* mockDocker =
     new MockDocker(tests::flags.docker, tests::flags.docker_socket);
 
   Shared<Docker> docker(mockDocker);
 
+  slave::Flags flags = CreateSlaveFlags();
+
   Fetcher fetcher;
 
-  MockDockerContainerizer dockerContainerizer(flags, &fetcher, docker);
+  Try<ContainerLogger*> logger =
+    ContainerLogger::create(flags.container_logger);
+
+  ASSERT_SOME(logger);
+
+  MockDockerContainerizer dockerContainerizer(
+      flags,
+      &fetcher,
+      Owned<ContainerLogger>(logger.get()),
+      docker);
 
   Try<PID<Slave> > slave = StartSlave(&dockerContainerizer, flags);
   ASSERT_SOME(slave);
@@ -923,21 +980,30 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Update)
 
 TEST_F(DockerContainerizerTest, ROOT_DOCKER_Recover)
 {
-  slave::Flags flags = CreateSlaveFlags();
-
   MockDocker* mockDocker =
     new MockDocker(tests::flags.docker, tests::flags.docker_socket);
 
   Shared<Docker> docker(mockDocker);
 
+  slave::Flags flags = CreateSlaveFlags();
+
+  Fetcher fetcher;
+
+  Try<ContainerLogger*> logger =
+    ContainerLogger::create(flags.container_logger);
+
+  ASSERT_SOME(logger);
+
+  MockDockerContainerizer dockerContainerizer(
+      flags,
+      &fetcher,
+      Owned<ContainerLogger>(logger.get()),
+      docker);
+
   Future<string> stoppedContainer;
   EXPECT_CALL(*mockDocker, stop(_, _, _))
     .WillOnce(DoAll(FutureArg<0>(&stoppedContainer),
                     Return(Nothing())));
-
-  Fetcher fetcher;
-
-  MockDockerContainerizer dockerContainerizer(flags, &fetcher, docker);
 
   SlaveID slaveId;
   slaveId.set_value("s1");
@@ -1040,16 +1106,25 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Recover)
 // that were started by another containerizer (e.g: mesos).
 TEST_F(DockerContainerizerTest, ROOT_DOCKER_SkipRecoverNonDocker)
 {
-  slave::Flags flags = CreateSlaveFlags();
-
   MockDocker* mockDocker =
     new MockDocker(tests::flags.docker, tests::flags.docker_socket);
 
   Shared<Docker> docker(mockDocker);
 
+  slave::Flags flags = CreateSlaveFlags();
+
   Fetcher fetcher;
 
-  MockDockerContainerizer dockerContainerizer(flags, &fetcher, docker);
+  Try<ContainerLogger*> logger =
+    ContainerLogger::create(flags.container_logger);
+
+  ASSERT_SOME(logger);
+
+  MockDockerContainerizer dockerContainerizer(
+      flags,
+      &fetcher,
+      Owned<ContainerLogger>(logger.get()),
+      docker);
 
   ContainerID containerId;
   containerId.set_value("c1");
@@ -1095,22 +1170,31 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Logs)
   Try<PID<Master> > master = StartMaster();
   ASSERT_SOME(master);
 
-  slave::Flags flags = CreateSlaveFlags();
-
   MockDocker* mockDocker =
     new MockDocker(tests::flags.docker, tests::flags.docker_socket);
 
   Shared<Docker> docker(mockDocker);
+
+  slave::Flags flags = CreateSlaveFlags();
+
+  Fetcher fetcher;
+
+  Try<ContainerLogger*> logger =
+    ContainerLogger::create(flags.container_logger);
+
+  ASSERT_SOME(logger);
+
+  MockDockerContainerizer dockerContainerizer(
+      flags,
+      &fetcher,
+      Owned<ContainerLogger>(logger.get()),
+      docker);
 
   // We skip stopping the docker container because stopping a container
   // even when it terminated might not flush the logs and we end up
   // not getting stdout/stderr in our tests.
   EXPECT_CALL(*mockDocker, stop(_, _, _))
     .WillRepeatedly(Return(Nothing()));
-
-  Fetcher fetcher;
-
-  MockDockerContainerizer dockerContainerizer(flags, &fetcher, docker);
 
   Try<PID<Slave> > slave = StartSlave(&dockerContainerizer, flags);
   ASSERT_SOME(slave);
@@ -1215,22 +1299,31 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Default_CMD)
   Try<PID<Master> > master = StartMaster();
   ASSERT_SOME(master);
 
-  slave::Flags flags = CreateSlaveFlags();
-
   MockDocker* mockDocker =
     new MockDocker(tests::flags.docker, tests::flags.docker_socket);
 
   Shared<Docker> docker(mockDocker);
+
+  slave::Flags flags = CreateSlaveFlags();
+
+  Fetcher fetcher;
+
+  Try<ContainerLogger*> logger =
+    ContainerLogger::create(flags.container_logger);
+
+  ASSERT_SOME(logger);
+
+  MockDockerContainerizer dockerContainerizer(
+      flags,
+      &fetcher,
+      Owned<ContainerLogger>(logger.get()),
+      docker);
 
   // We skip stopping the docker container because stopping a container
   // even when it terminated might not flush the logs and we end up
   // not getting stdout/stderr in our tests.
   EXPECT_CALL(*mockDocker, stop(_, _, _))
     .WillRepeatedly(Return(Nothing()));
-
-  Fetcher fetcher;
-
-  MockDockerContainerizer dockerContainerizer(flags, &fetcher, docker);
 
   Try<PID<Slave> > slave = StartSlave(&dockerContainerizer, flags);
   ASSERT_SOME(slave);
@@ -1338,22 +1431,31 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Default_CMD_Override)
   Try<PID<Master> > master = StartMaster();
   ASSERT_SOME(master);
 
-  slave::Flags flags = CreateSlaveFlags();
-
   MockDocker* mockDocker =
     new MockDocker(tests::flags.docker, tests::flags.docker_socket);
 
   Shared<Docker> docker(mockDocker);
+
+  slave::Flags flags = CreateSlaveFlags();
+
+  Fetcher fetcher;
+
+  Try<ContainerLogger*> logger =
+    ContainerLogger::create(flags.container_logger);
+
+  ASSERT_SOME(logger);
+
+  MockDockerContainerizer dockerContainerizer(
+      flags,
+      &fetcher,
+      Owned<ContainerLogger>(logger.get()),
+      docker);
 
   // We skip stopping the docker container because stopping  a container
   // even when it terminated might not flush the logs and we end up
   // not getting stdout/stderr in our tests.
   EXPECT_CALL(*mockDocker, stop(_, _, _))
     .WillRepeatedly(Return(Nothing()));
-
-  Fetcher fetcher;
-
-  MockDockerContainerizer dockerContainerizer(flags, &fetcher, docker);
 
   Try<PID<Slave> > slave = StartSlave(&dockerContainerizer, flags);
   ASSERT_SOME(slave);
@@ -1464,22 +1566,31 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Default_CMD_Args)
   Try<PID<Master> > master = StartMaster();
   ASSERT_SOME(master);
 
-  slave::Flags flags = CreateSlaveFlags();
-
   MockDocker* mockDocker =
     new MockDocker(tests::flags.docker, tests::flags.docker_socket);
 
   Shared<Docker> docker(mockDocker);
+
+  slave::Flags flags = CreateSlaveFlags();
+
+  Fetcher fetcher;
+
+  Try<ContainerLogger*> logger =
+    ContainerLogger::create(flags.container_logger);
+
+  ASSERT_SOME(logger);
+
+  MockDockerContainerizer dockerContainerizer(
+      flags,
+      &fetcher,
+      Owned<ContainerLogger>(logger.get()),
+      docker);
 
   // We skip stopping the docker container because stopping a container
   // even when it terminated might not flush the logs and we end up
   // not getting stdout/stderr in our tests.
   EXPECT_CALL(*mockDocker, stop(_, _, _))
     .WillRepeatedly(Return(Nothing()));
-
-  Fetcher fetcher;
-
-  MockDockerContainerizer dockerContainerizer(flags, &fetcher, docker);
 
   Try<PID<Slave> > slave = StartSlave(&dockerContainerizer, flags);
   ASSERT_SOME(slave);
@@ -1592,19 +1703,29 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_SlaveRecoveryTaskContainer)
   Try<PID<Master> > master = StartMaster();
   ASSERT_SOME(master);
 
-  slave::Flags flags = CreateSlaveFlags();
-
   MockDocker* mockDocker =
     new MockDocker(tests::flags.docker, tests::flags.docker_socket);
 
   Shared<Docker> docker(mockDocker);
 
+  slave::Flags flags = CreateSlaveFlags();
+
   Fetcher fetcher;
+
+  // This is owned by the containerizer, so we'll need one per containerizer.
+  Try<ContainerLogger*> logger =
+    ContainerLogger::create(flags.container_logger);
+
+  ASSERT_SOME(logger);
 
   // We put the containerizer on the heap so we can more easily
   // control it's lifetime, i.e., when we invoke the destructor.
   MockDockerContainerizer* dockerContainerizer1 =
-    new MockDockerContainerizer(flags, &fetcher, docker);
+    new MockDockerContainerizer(
+        flags,
+        &fetcher,
+        Owned<ContainerLogger>(logger.get()),
+        docker);
 
   Try<PID<Slave> > slave1 = StartSlave(dockerContainerizer1, flags);
   ASSERT_SOME(slave1);
@@ -1686,8 +1807,16 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_SlaveRecoveryTaskContainer)
     .WillOnce(FutureArg<1>(&status))
     .WillRepeatedly(Return());       // Ignore subsequent updates.
 
+  // This is owned by the containerizer, so we'll need one per containerizer.
+  logger = ContainerLogger::create(flags.container_logger);
+  ASSERT_SOME(logger);
+
   MockDockerContainerizer* dockerContainerizer2 =
-    new MockDockerContainerizer(flags, &fetcher, docker);
+    new MockDockerContainerizer(
+        flags,
+        &fetcher,
+        Owned<ContainerLogger>(logger.get()),
+        docker);
 
   Try<PID<Slave> > slave2 = StartSlave(dockerContainerizer2, flags);
   ASSERT_SOME(slave2);
@@ -1743,17 +1872,29 @@ TEST_F(DockerContainerizerTest,
   Try<PID<Master> > master = StartMaster();
   ASSERT_SOME(master);
 
-  slave::Flags flags = CreateSlaveFlags();
-
   MockDocker* mockDocker =
     new MockDocker(tests::flags.docker, tests::flags.docker_socket);
 
   Shared<Docker> docker(mockDocker);
 
+  slave::Flags flags = CreateSlaveFlags();
+
   Fetcher fetcher;
 
+  // This is owned by the containerizer, so we'll need one per containerizer.
+  Try<ContainerLogger*> logger =
+    ContainerLogger::create(flags.container_logger);
+
+  ASSERT_SOME(logger);
+
+  // We put the containerizer on the heap so we can more easily
+  // control it's lifetime, i.e., when we invoke the destructor.
   MockDockerContainerizer* dockerContainerizer1 =
-    new MockDockerContainerizer(flags, &fetcher, docker);
+    new MockDockerContainerizer(
+        flags,
+        &fetcher,
+        Owned<ContainerLogger>(logger.get()),
+        docker);
 
   Try<PID<Slave> > slave1 = StartSlave(dockerContainerizer1, flags);
   ASSERT_SOME(slave1);
@@ -1860,8 +2001,16 @@ TEST_F(DockerContainerizerTest,
     .WillOnce(FutureArg<1>(&status))
     .WillRepeatedly(Return());       // Ignore subsequent updates.
 
+  // This is owned by the containerizer, so we'll need one per containerizer.
+  logger = ContainerLogger::create(flags.container_logger);
+  ASSERT_SOME(logger);
+
   MockDockerContainerizer* dockerContainerizer2 =
-    new MockDockerContainerizer(flags, &fetcher, docker);
+    new MockDockerContainerizer(
+        flags,
+        &fetcher,
+        Owned<ContainerLogger>(logger.get()),
+        docker);
 
   Try<PID<Slave> > slave2 = StartSlave(dockerContainerizer2, flags);
   ASSERT_SOME(slave2);
@@ -1901,24 +2050,32 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_NC_PortMapping)
   Try<PID<Master> > master = StartMaster();
   ASSERT_SOME(master);
 
-  slave::Flags flags = CreateSlaveFlags();
-
-  flags.resources = "cpus:1;mem:1024;ports:[10000-10000]";
-
   MockDocker* mockDocker =
     new MockDocker(tests::flags.docker, tests::flags.docker_socket);
 
   Shared<Docker> docker(mockDocker);
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.resources = "cpus:1;mem:1024;ports:[10000-10000]";
+
+  Fetcher fetcher;
+
+  Try<ContainerLogger*> logger =
+    ContainerLogger::create(flags.container_logger);
+
+  ASSERT_SOME(logger);
+
+  MockDockerContainerizer dockerContainerizer(
+      flags,
+      &fetcher,
+      Owned<ContainerLogger>(logger.get()),
+      docker);
 
   // We skip stopping the docker container because stopping a container
   // even when it terminated might not flush the logs and we end up
   // not getting stdout/stderr in our tests.
   EXPECT_CALL(*mockDocker, stop(_, _, _))
     .WillRepeatedly(Return(Nothing()));
-
-  Fetcher fetcher;
-
-  MockDockerContainerizer dockerContainerizer(flags, &fetcher, docker);
 
   Try<PID<Slave> > slave = StartSlave(&dockerContainerizer, flags);
   ASSERT_SOME(slave);
@@ -2046,16 +2203,25 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_LaunchSandboxWithColon)
   Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
-  slave::Flags flags = CreateSlaveFlags();
-
   MockDocker* mockDocker =
     new MockDocker(tests::flags.docker, tests::flags.docker_socket);
 
   Shared<Docker> docker(mockDocker);
 
+  slave::Flags flags = CreateSlaveFlags();
+
   Fetcher fetcher;
 
-  MockDockerContainerizer dockerContainerizer(flags, &fetcher, docker);
+  Try<ContainerLogger*> logger =
+    ContainerLogger::create(flags.container_logger);
+
+  ASSERT_SOME(logger);
+
+  MockDockerContainerizer dockerContainerizer(
+      flags,
+      &fetcher,
+      Owned<ContainerLogger>(logger.get()),
+      docker);
 
   Try<PID<Slave> > slave = StartSlave(&dockerContainerizer, flags);
   ASSERT_SOME(slave);
@@ -2140,19 +2306,28 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_DestroyWhileFetching)
   Try<PID<Master> > master = StartMaster();
   ASSERT_SOME(master);
 
-  slave::Flags flags = CreateSlaveFlags();
-
   MockDocker* mockDocker =
     new MockDocker(tests::flags.docker, tests::flags.docker_socket);
 
   Shared<Docker> docker(mockDocker);
 
+  slave::Flags flags = CreateSlaveFlags();
+
   Fetcher fetcher;
+
+  Try<ContainerLogger*> logger =
+    ContainerLogger::create(flags.container_logger);
+
+  ASSERT_SOME(logger);
 
   // The docker containerizer will free the process, so we must
   // allocate on the heap.
   MockDockerContainerizerProcess* process =
-    new MockDockerContainerizerProcess(flags, &fetcher, docker);
+    new MockDockerContainerizerProcess(
+        flags,
+        &fetcher,
+        Owned<ContainerLogger>(logger.get()),
+        docker);
 
   MockDockerContainerizer dockerContainerizer(
       (Owned<DockerContainerizerProcess>(process)));
@@ -2247,19 +2422,28 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_DestroyWhilePulling)
   Try<PID<Master> > master = StartMaster();
   ASSERT_SOME(master);
 
-  slave::Flags flags = CreateSlaveFlags();
-
   MockDocker* mockDocker =
     new MockDocker(tests::flags.docker, tests::flags.docker_socket);
 
   Shared<Docker> docker(mockDocker);
 
+  slave::Flags flags = CreateSlaveFlags();
+
   Fetcher fetcher;
+
+  Try<ContainerLogger*> logger =
+    ContainerLogger::create(flags.container_logger);
+
+  ASSERT_SOME(logger);
 
   // The docker containerizer will free the process, so we must
   // allocate on the heap.
   MockDockerContainerizerProcess* process =
-    new MockDockerContainerizerProcess(flags, &fetcher, docker);
+    new MockDockerContainerizerProcess(
+        flags,
+        &fetcher,
+        Owned<ContainerLogger>(logger.get()),
+        docker);
 
   MockDockerContainerizer dockerContainerizer(
       (Owned<DockerContainerizerProcess>(process)));
@@ -2361,19 +2545,28 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_ExecutorCleanupWhenLaunchFailed)
   Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
-  slave::Flags flags = CreateSlaveFlags();
-
   MockDocker* mockDocker =
     new MockDocker(tests::flags.docker, tests::flags.docker_socket);
 
   Shared<Docker> docker(mockDocker);
 
+  slave::Flags flags = CreateSlaveFlags();
+
   Fetcher fetcher;
+
+  Try<ContainerLogger*> logger =
+    ContainerLogger::create(flags.container_logger);
+
+  ASSERT_SOME(logger);
 
   // The docker containerizer will free the process, so we must
   // allocate on the heap.
   MockDockerContainerizerProcess* process =
-    new MockDockerContainerizerProcess(flags, &fetcher, docker);
+    new MockDockerContainerizerProcess(
+        flags,
+        &fetcher,
+        Owned<ContainerLogger>(logger.get()),
+        docker);
 
   MockDockerContainerizer dockerContainerizer(
       (Owned<DockerContainerizerProcess>(process)));
@@ -2461,19 +2654,28 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_FetchFailure)
   Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
-  slave::Flags flags = CreateSlaveFlags();
-
   MockDocker* mockDocker =
     new MockDocker(tests::flags.docker, tests::flags.docker_socket);
 
   Shared<Docker> docker(mockDocker);
 
+  slave::Flags flags = CreateSlaveFlags();
+
   Fetcher fetcher;
+
+  Try<ContainerLogger*> logger =
+    ContainerLogger::create(flags.container_logger);
+
+  ASSERT_SOME(logger);
 
   // The docker containerizer will free the process, so we must
   // allocate on the heap.
   MockDockerContainerizerProcess* process =
-    new MockDockerContainerizerProcess(flags, &fetcher, docker);
+    new MockDockerContainerizerProcess(
+        flags,
+        &fetcher,
+        Owned<ContainerLogger>(logger.get()),
+        docker);
 
   MockDockerContainerizer dockerContainerizer(
       (Owned<DockerContainerizerProcess>(process)));
@@ -2564,19 +2766,28 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_DockerPullFailure)
   Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
-  slave::Flags flags = CreateSlaveFlags();
-
   MockDocker* mockDocker =
     new MockDocker(tests::flags.docker, tests::flags.docker_socket);
 
   Shared<Docker> docker(mockDocker);
 
+  slave::Flags flags = CreateSlaveFlags();
+
   Fetcher fetcher;
+
+  Try<ContainerLogger*> logger =
+    ContainerLogger::create(flags.container_logger);
+
+  ASSERT_SOME(logger);
 
   // The docker containerizer will free the process, so we must
   // allocate on the heap.
   MockDockerContainerizerProcess* process =
-    new MockDockerContainerizerProcess(flags, &fetcher, docker);
+    new MockDockerContainerizerProcess(
+        flags,
+        &fetcher,
+        Owned<ContainerLogger>(logger.get()),
+        docker);
 
   MockDockerContainerizer dockerContainerizer(
       (Owned<DockerContainerizerProcess>(process)));
@@ -2667,12 +2878,31 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_DockerInspectDiscard)
   Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
-  slave::Flags flags = CreateSlaveFlags();
-
   MockDocker* mockDocker =
     new MockDocker(tests::flags.docker, tests::flags.docker_socket);
 
   Shared<Docker> docker(mockDocker);
+
+  slave::Flags flags = CreateSlaveFlags();
+
+  Fetcher fetcher;
+
+  Try<ContainerLogger*> logger =
+    ContainerLogger::create(flags.container_logger);
+
+  ASSERT_SOME(logger);
+
+  // The docker containerizer will free the process, so we must
+  // allocate on the heap.
+  MockDockerContainerizerProcess* process =
+    new MockDockerContainerizerProcess(
+        flags,
+        &fetcher,
+        Owned<ContainerLogger>(logger.get()),
+        docker);
+
+  MockDockerContainerizer dockerContainerizer(
+      (Owned<DockerContainerizerProcess>(process)));
 
   Future<Docker::Container> inspect;
   EXPECT_CALL(*mockDocker, inspect(_, _))
@@ -2682,16 +2912,6 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_DockerInspectDiscard)
 
   EXPECT_CALL(*mockDocker, run(_, _, _, _, _, _, _, _, _))
     .WillOnce(Return(Failure("Run failed")));
-
-  Fetcher fetcher;
-
-  // The docker containerizer will free the process, so we must
-  // allocate on the heap.
-  MockDockerContainerizerProcess* process =
-    new MockDockerContainerizerProcess(flags, &fetcher, docker);
-
-  MockDockerContainerizer dockerContainerizer(
-      (Owned<DockerContainerizerProcess>(process)));
 
   Try<PID<Slave>> slave = StartSlave(&dockerContainerizer);
   ASSERT_SOME(slave);
