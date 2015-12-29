@@ -437,6 +437,7 @@ module_HEADERS =							\
   $(top_srcdir)/include/mesos/module/authenticatee.hpp			\
   $(top_srcdir)/include/mesos/module/authenticator.hpp			\
   $(top_srcdir)/include/mesos/module/authorizer.hpp			\
+  $(top_srcdir)/include/mesos/module/container_logger.hpp		\
   $(top_srcdir)/include/mesos/module/hook.hpp				\
   $(top_srcdir)/include/mesos/module/isolator.hpp			\
   $(top_srcdir)/include/mesos/module/module.hpp				\
@@ -468,6 +469,7 @@ nodist_scheduler_HEADERS =						\
 slavedir = $(pkgincludedir)/slave
 
 slave_HEADERS =								\
+  $(top_srcdir)/include/mesos/slave/container_logger.hpp		\
   $(top_srcdir)/include/mesos/slave/isolator.hpp			\
   $(top_srcdir)/include/mesos/slave/isolator.proto			\
   $(top_srcdir)/include/mesos/slave/oversubscription.hpp		\
@@ -586,8 +588,9 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   sched/sched.cpp							\
   scheduler/scheduler.cpp						\
   slave/constants.cpp							\
-  slave/gc.cpp								\
+  slave/container_logger.cpp						\
   slave/flags.cpp							\
+  slave/gc.cpp								\
   slave/http.cpp							\
   slave/metrics.cpp							\
   slave/monitor.cpp							\
@@ -599,6 +602,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   slave/state.cpp							\
   slave/status_update_manager.cpp					\
   slave/validation.cpp							\
+  slave/container_loggers/sandbox.cpp					\
   slave/containerizer/composing.cpp					\
   slave/containerizer/containerizer.cpp					\
   slave/containerizer/docker.cpp					\
@@ -705,6 +709,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   slave/state.hpp							\
   slave/status_update_manager.hpp					\
   slave/validation.hpp							\
+  slave/container_loggers/sandbox.hpp					\
   slave/containerizer/composing.hpp					\
   slave/containerizer/containerizer.hpp					\
   slave/containerizer/docker.hpp					\
@@ -1654,6 +1659,13 @@ noinst_LTLIBRARIES += libtestallocator.la
 libtestallocator_la_SOURCES = examples/test_allocator_module.cpp
 libtestallocator_la_CPPFLAGS = $(MESOS_CPPFLAGS)
 libtestallocator_la_LDFLAGS = $(MESOS_TEST_MODULE_LDFLAGS)
+
+# Library containing example test sandbox container logger module.
+noinst_LTLIBRARIES += libtestcontainer_logger.la
+libtestcontainer_logger_la_SOURCES =		\
+  examples/test_container_logger_module.cpp
+libtestcontainer_logger_la_CPPFLAGS = $(MESOS_CPPFLAGS)
+libtestcontainer_logger_la_LDFLAGS = $(MESOS_TEST_MODULE_LDFLAGS)
 
 # Library containing test Hook module.
 noinst_LTLIBRARIES += libtesthook.la

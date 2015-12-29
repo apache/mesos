@@ -47,7 +47,8 @@ enum ModuleID
   TestAnonymous,
   TestDRFAllocator,
   TestNoopResourceEstimator,
-  TestLocalAuthorizer
+  TestLocalAuthorizer,
+  TestSandboxContainerLogger,
 };
 
 

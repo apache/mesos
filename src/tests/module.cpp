@@ -96,6 +96,29 @@ static void addAuthenticationModules(Modules* modules)
 }
 
 
+// Add available ContainerLogger modules.
+static void addContainerLoggerModules(Modules* modules)
+{
+  CHECK_NOTNULL(modules);
+
+  const string libraryPath = path::join(
+      tests::flags.build_dir,
+      "src",
+      ".libs",
+      os::libraries::expandName("testcontainer_logger"));
+
+  // Add our test container logger module.
+  Modules::Library* library = modules->add_libraries();
+  library->set_file(libraryPath);
+
+  // To add a new module from this library, create a new ModuleID enum
+  // and tie it with a module name.
+  addModule(library,
+            TestSandboxContainerLogger,
+            "org_apache_mesos_TestSandboxContainerLogger");
+}
+
+
 static void addHookModules(Modules* modules)
 {
   CHECK_NOTNULL(modules);
@@ -216,6 +239,9 @@ Try<Nothing> initModules(const Option<Modules>& modules)
 
   // Add authentication modules from testauthentication library.
   addAuthenticationModules(&mergedModules);
+
+  // Add container logger modules from testcontainer_logger library.
+  addContainerLoggerModules(&mergedModules);
 
   // Add hook modules from testhook library.
   addHookModules(&mergedModules);
