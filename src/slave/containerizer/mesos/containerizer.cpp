@@ -108,30 +108,22 @@ Try<MesosContainerizer*> MesosContainerizer::create(
     bool local,
     Fetcher* fetcher)
 {
-  // Create and initialize the container logger module.
-  Try<ContainerLogger*> logger =
-    ContainerLogger::create(flags.container_logger);
-
-  if (logger.isError()) {
-    return Error("Failed to create container logger: " + logger.error());
-  }
-
-  string isolation;
+  // Modify `flags` based on the deprecated `isolation` flag (and then
+  // use `flags_` in the rest of this function).
+  Flags flags_ = flags;
 
   if (flags.isolation == "process") {
     LOG(WARNING) << "The 'process' isolation flag is deprecated, "
                  << "please update your flags to"
                  << " '--isolation=posix/cpu,posix/mem'.";
 
-    isolation = "posix/cpu,posix/mem";
+    flags_.isolation = "posix/cpu,posix/mem";
   } else if (flags.isolation == "cgroups") {
     LOG(WARNING) << "The 'cgroups' isolation flag is deprecated, "
                  << "please update your flags to"
                  << " '--isolation=cgroups/cpu,cgroups/mem'.";
 
-    isolation = "cgroups/cpu,cgroups/mem";
-  } else {
-    isolation = flags.isolation;
+    flags_.isolation = "cgroups/cpu,cgroups/mem";
   }
 
   // One and only one filesystem isolator is required. The filesystem
@@ -140,25 +132,61 @@ Try<MesosContainerizer*> MesosContainerizer::create(
   // the user does not specify one, 'filesystem/posix' will be used.
   //
   // TODO(jieyu): Check that only one filesystem isolator is used.
-  if (!strings::contains(isolation, "filesystem/")) {
-    isolation += ",filesystem/posix";
+  if (!strings::contains(flags_.isolation, "filesystem/")) {
+    flags_.isolation += ",filesystem/posix";
   }
 
-  // Modify the flags to include any changes to isolation.
-  Flags flags_ = flags;
-  flags_.isolation = isolation;
+  LOG(INFO) << "Using isolation: " << flags_.isolation;
 
-  LOG(INFO) << "Using isolation: " << isolation;
+  // Create the container logger for the MesosContainerizer.
+  Try<ContainerLogger*> logger =
+    ContainerLogger::create(flags_.container_logger);
+
+  if (logger.isError()) {
+    return Error("Failed to create container logger: " + logger.error());
+  }
+
+  // Create the launcher for the MesosContainerizer.
+  Try<Launcher*> launcher = [&flags_]() -> Try<Launcher*> {
+#ifdef __linux__
+    if (flags_.launcher.isSome()) {
+      // If the user has specified the launcher, use it.
+      if (flags_.launcher.get() == "linux") {
+        return LinuxLauncher::create(flags_);
+      } else if (flags_.launcher.get() == "posix") {
+        return PosixLauncher::create(flags_);
+      } else {
+        return Error(
+            "Unknown or unsupported launcher: " + flags_.launcher.get());
+      }
+    }
+
+    // Use Linux launcher if it is available, POSIX otherwise.
+    return LinuxLauncher::available()
+      ? LinuxLauncher::create(flags_)
+      : PosixLauncher::create(flags_);
+#else
+    if (flags_.launcher.isSome() && flags_.launcher.get() != "posix") {
+      return Error("Unsupported launcher: " + flags_.launcher.get());
+    }
+
+    return PosixLauncher::create(flags_);
+#endif // __linux__
+  }();
+
+  if (launcher.isError()) {
+    return Error("Failed to create launcher: " + launcher.error());
+  }
 
 #ifdef __linux__
   // The provisioner will be used by the 'filesystem/linux' isolator.
-  Try<Owned<Provisioner>> provisioner = Provisioner::create(flags, fetcher);
+  Try<Owned<Provisioner>> provisioner = Provisioner::create(flags_, fetcher);
   if (provisioner.isError()) {
     return Error("Failed to create provisioner: " + provisioner.error());
   }
 #endif
 
-  // Create a MesosContainerizerProcess using isolators and a launcher.
+  // Create the isolators for the MesosContainerizer.
   const hashmap<string, lambda::function<Try<Isolator*>(const Flags&)>>
     creators = {
     // Filesystem isolators.
@@ -189,66 +217,29 @@ Try<MesosContainerizer*> MesosContainerizer::create(
 
   vector<Owned<Isolator>> isolators;
 
-  foreach (const string& type, strings::tokenize(isolation, ",")) {
-    Owned<Isolator> isolator;
-
-    if (creators.contains(type)) {
-      Try<Isolator*> _isolator = creators.at(type)(flags_);
-      if (_isolator.isError()) {
-        return Error(
-            "Could not create isolator " + type + ": " + _isolator.error());
+  foreach (const string& type, strings::tokenize(flags_.isolation, ",")) {
+    Try<Isolator*> isolator = [&creators, &type, &flags_]() -> Try<Isolator*> {
+      if (creators.contains(type)) {
+        return creators.at(type)(flags_);
+      } else if (ModuleManager::contains<Isolator>(type)) {
+        return ModuleManager::create<Isolator>(type);
       }
+      return Error("Unknown or unsupported isolator");
+    }();
 
-      isolator.reset(_isolator.get());
-    } else if (ModuleManager::contains<Isolator>(type)) {
-      Try<Isolator*> _isolator = ModuleManager::create<Isolator>(type);
-      if (_isolator.isError()) {
-        return Error(
-            "Could not create isolator " + type + ": " + _isolator.error());
-      }
-
-      isolator.reset(_isolator.get());
-    } else {
-      return Error("Unknown or unsupported isolator: " + type);
+    if (isolator.isError()) {
+      return Error(
+          "Could not create isolator '" + type + "': " + isolator.error());
     }
 
     // NOTE: The filesystem isolator must be the first isolator used
     // so that the runtime isolators can have a consistent view on the
     // prepared filesystem (e.g., any volume mounts are performed).
     if (strings::contains(type, "filesystem/")) {
-      isolators.insert(isolators.begin(), isolator);
+      isolators.insert(isolators.begin(), Owned<Isolator>(isolator.get()));
     } else {
-      isolators.push_back(isolator);
+      isolators.push_back(Owned<Isolator>(isolator.get()));
     }
-  }
-
-#ifdef __linux__
-  Try<Launcher*> launcher = (Launcher*) NULL;
-  if (flags_.launcher.isSome()) {
-    // If the user has specified the launcher, use it.
-    if (flags_.launcher.get() == "linux") {
-      launcher = LinuxLauncher::create(flags_);
-    } else if (flags_.launcher.get() == "posix") {
-      launcher = PosixLauncher::create(flags_);
-    } else {
-      return Error("Unknown or unsupported launcher: " + flags_.launcher.get());
-    }
-  } else {
-    // Use Linux launcher if it is available, POSIX otherwise.
-    launcher = LinuxLauncher::available()
-      ? LinuxLauncher::create(flags_)
-      : PosixLauncher::create(flags_);
-  }
-#else
-  if (flags_.launcher.isSome() && flags_.launcher.get() != "posix") {
-    return Error("Unsupported launcher: " + flags_.launcher.get());
-  }
-
-  Try<Launcher*> launcher = PosixLauncher::create(flags_);
-#endif // __linux__
-
-  if (launcher.isError()) {
-    return Error("Failed to create launcher: " + launcher.error());
   }
 
   return new MesosContainerizer(
@@ -820,8 +811,9 @@ Future<bool> MesosContainerizerProcess::_launch(
 
     launchFlags.command = JSON::protobuf(executorInfo.command());
 
-    launchFlags.directory =
-      rootfs.isSome() ? flags.sandbox_directory : directory;
+    launchFlags.directory = rootfs.isSome()
+      ? flags.sandbox_directory
+      : directory;
     launchFlags.rootfs = rootfs;
     launchFlags.user = user;
     launchFlags.pipe_read = pipes[0];
@@ -839,9 +831,9 @@ Future<bool> MesosContainerizerProcess::_launch(
         argv,
         Subprocess::FD(STDIN_FILENO),
         (local ? Subprocess::FD(STDOUT_FILENO)
-               : (Subprocess::IO) subprocessInfo.out),
+               : Subprocess::IO(subprocessInfo.out)),
         (local ? Subprocess::FD(STDERR_FILENO)
-               : (Subprocess::IO) subprocessInfo.err),
+               : Subprocess::IO(subprocessInfo.err)),
         launchFlags,
         environment,
         None(),
