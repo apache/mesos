@@ -298,6 +298,13 @@ mesos::internal::slave::Flags::Flags()
       "information and sandboxes.",
       DISK_WATCH_INTERVAL);
 
+  add(&Flags::container_logger,
+      "container_logger",
+      "The name of the container logger to use for logging container\n"
+      "(i.e., executor and task) stdout and stderr. The default\n"
+      "container logger writes to 'stdout' and 'stderr' files\n"
+      "in the sandbox directory.");
+
   add(&Flags::recover,
       "recover",
       "Whether to recover status updates and reconnect with old executors.\n"

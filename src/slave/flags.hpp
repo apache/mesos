@@ -77,6 +77,8 @@ public:
   double gc_disk_headroom;
   Duration disk_watch_interval;
 
+  Option<std::string> container_logger;
+
   std::string recover;
   Duration recovery_timeout;
   bool strict;
