@@ -18,6 +18,8 @@
 
 #include <mesos/mesos.hpp>
 
+#include <mesos/slave/container_logger.hpp>
+
 #include <process/owned.hpp>
 #include <process/gtest.hpp>
 
@@ -76,6 +78,7 @@ using mesos::internal::slave::ProvisionerProcess;
 using mesos::internal::slave::Slave;
 using mesos::internal::slave::Store;
 
+using mesos::slave::ContainerLogger;
 using mesos::slave::Isolator;
 
 namespace mesos {
@@ -151,32 +154,37 @@ protected:
 
     Owned<Provisioner> provisioner(new Provisioner(provisionerProcess));
 
-    Try<Isolator*> _isolator =
+    Try<Isolator*> isolator =
       LinuxFilesystemIsolatorProcess::create(flags, provisioner);
 
-    if (_isolator.isError()) {
+    if (isolator.isError()) {
       return Error(
           "Failed to create LinuxFilesystemIsolatorProcess: " +
-          _isolator.error());
+          isolator.error());
     }
 
-    Owned<Isolator> isolator(_isolator.get());
+    Try<Launcher*> launcher = LinuxLauncher::create(flags);
 
-    Try<Launcher*> _launcher = LinuxLauncher::create(flags);
-
-    if (_launcher.isError()) {
-      return Error("Failed to create LinuxLauncher: " + _launcher.error());
+    if (launcher.isError()) {
+      return Error("Failed to create LinuxLauncher: " + launcher.error());
     }
 
-    Owned<Launcher> launcher(_launcher.get());
+    // Create and initialize a new container logger.
+    Try<ContainerLogger*> logger =
+      ContainerLogger::create(flags.container_logger);
+
+    if (logger.isError()) {
+      return Error("Failed to create container logger: " + logger.error());
+    }
 
     return Owned<MesosContainerizer>(
         new MesosContainerizer(
             flags,
             true,
             &fetcher,
-            launcher,
-            {isolator}));
+            Owned<ContainerLogger>(logger.get()),
+            Owned<Launcher>(launcher.get()),
+            {Owned<Isolator>(isolator.get())}));
   }
 
   ContainerInfo createContainerInfo(

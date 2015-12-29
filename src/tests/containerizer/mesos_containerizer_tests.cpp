@@ -23,6 +23,7 @@
 
 #include <mesos/mesos.hpp>
 
+#include <mesos/slave/container_logger.hpp>
 #include <mesos/slave/isolator.hpp>
 
 #include <process/future.hpp>
@@ -62,6 +63,7 @@ using mesos::internal::slave::state::RunState;
 using mesos::internal::slave::state::SlaveState;
 
 using mesos::slave::ContainerLimitation;
+using mesos::slave::ContainerLogger;
 using mesos::slave::ContainerPrepareInfo;
 using mesos::slave::ContainerState;
 using mesos::slave::Isolator;
@@ -109,10 +111,19 @@ public:
       return Error(launcher.error());
     }
 
+    // Create and initialize a new container logger.
+    Try<ContainerLogger*> logger =
+      ContainerLogger::create(flags.container_logger);
+
+    if (logger.isError()) {
+      return Error("Failed to create container logger: " + logger.error());
+    }
+
     return new MesosContainerizer(
         flags,
         false,
         fetcher,
+        Owned<ContainerLogger>(logger.get()),
         Owned<Launcher>(launcher.get()),
         isolators);
   }
@@ -443,12 +454,14 @@ public:
       const slave::Flags& flags,
       bool local,
       Fetcher* fetcher,
+      const Owned<ContainerLogger>& logger,
       const Owned<Launcher>& launcher,
       const vector<Owned<Isolator>>& isolators)
     : MesosContainerizerProcess(
           flags,
           local,
           fetcher,
+          logger,
           launcher,
           isolators)
   {
@@ -552,10 +565,16 @@ TEST_F(MesosContainerizerDestroyTest, DestroyWhileFetching)
 
   Fetcher fetcher;
 
+  Try<ContainerLogger*> logger =
+    ContainerLogger::create(flags.container_logger);
+
+  ASSERT_SOME(logger);
+
   MockMesosContainerizerProcess* process = new MockMesosContainerizerProcess(
       flags,
       true,
       &fetcher,
+      Owned<ContainerLogger>(logger.get()),
       Owned<Launcher>(launcher.get()),
       vector<Owned<Isolator>>());
 
@@ -618,10 +637,16 @@ TEST_F(MesosContainerizerDestroyTest, DestroyWhilePreparing)
 
   Fetcher fetcher;
 
+  Try<ContainerLogger*> logger =
+    ContainerLogger::create(flags.container_logger);
+
+  ASSERT_SOME(logger);
+
   MockMesosContainerizerProcess* process = new MockMesosContainerizerProcess(
       flags,
       true,
       &fetcher,
+      Owned<ContainerLogger>(logger.get()),
       Owned<Launcher>(launcher.get()),
       {Owned<Isolator>(isolator)});
 
@@ -694,10 +719,16 @@ TEST_F(MesosContainerizerDestroyTest, LauncherDestroyFailure)
 
   Fetcher fetcher;
 
+  Try<ContainerLogger*> logger =
+    ContainerLogger::create(flags.container_logger);
+
+  ASSERT_SOME(logger);
+
   MesosContainerizerProcess* process = new MesosContainerizerProcess(
       flags,
       true,
       &fetcher,
+      Owned<ContainerLogger>(logger.get()),
       Owned<Launcher>(launcher),
       vector<Owned<Isolator>>());
 
