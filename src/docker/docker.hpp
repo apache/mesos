@@ -44,9 +44,9 @@ class Docker
 public:
   // Create Docker abstraction and optionally validate docker.
   static Try<Docker*> create(
-    const std::string& path,
-    const std::string& socket,
-    bool validate = true);
+      const std::string& path,
+      const std::string& socket,
+      bool validate = true);
 
   virtual ~Docker() {}
 

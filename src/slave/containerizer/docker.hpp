@@ -17,6 +17,9 @@
 #ifndef __DOCKER_CONTAINERIZER_HPP__
 #define __DOCKER_CONTAINERIZER_HPP__
 
+#include <mesos/slave/container_logger.hpp>
+
+#include <process/owned.hpp>
 #include <process/shared.hpp>
 
 #include <stout/flags.hpp>
@@ -61,6 +64,7 @@ public:
   DockerContainerizer(
       const Flags& flags,
       Fetcher* fetcher,
+      const process::Owned<mesos::slave::ContainerLogger>& logger,
       process::Shared<Docker> docker);
 
   // This is only public for tests.
@@ -118,9 +122,11 @@ public:
   DockerContainerizerProcess(
       const Flags& _flags,
       Fetcher* _fetcher,
+      const process::Owned<mesos::slave::ContainerLogger>& _logger,
       process::Shared<Docker> _docker)
     : flags(_flags),
       fetcher(_fetcher),
+      logger(_logger),
       docker(_docker) {}
 
   virtual process::Future<Nothing> recover(
@@ -231,6 +237,8 @@ private:
   const Flags flags;
 
   Fetcher* fetcher;
+
+  process::Owned<mesos::slave::ContainerLogger> logger;
 
   process::Shared<Docker> docker;
 

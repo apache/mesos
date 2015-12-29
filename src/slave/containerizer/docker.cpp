@@ -19,10 +19,13 @@
 #include <string>
 #include <vector>
 
+#include <mesos/slave/container_logger.hpp>
+
 #include <process/check.hpp>
 #include <process/defer.hpp>
 #include <process/delay.hpp>
 #include <process/io.hpp>
+#include <process/owned.hpp>
 #include <process/reap.hpp>
 #include <process/subprocess.hpp>
 
@@ -57,6 +60,8 @@ using std::string;
 using std::vector;
 
 using namespace process;
+
+using mesos::slave::ContainerLogger;
 
 namespace mesos {
 namespace internal {
@@ -121,7 +126,16 @@ Try<DockerContainerizer*> DockerContainerizer::create(
     const Flags& flags,
     Fetcher* fetcher)
 {
+  // Create and initialize the container logger module.
+  Try<ContainerLogger*> logger =
+    ContainerLogger::create(flags.container_logger);
+
+  if (logger.isError()) {
+    return Error("Failed to create container logger: " + logger.error());
+  }
+
   Try<Docker*> create = Docker::create(flags.docker, flags.docker_socket, true);
+
   if (create.isError()) {
     return Error("Failed to create docker: " + create.error());
   }
@@ -137,7 +151,11 @@ Try<DockerContainerizer*> DockerContainerizer::create(
     }
   }
 
-  return new DockerContainerizer(flags, fetcher, docker);
+  return new DockerContainerizer(
+      flags,
+      fetcher,
+      Owned<ContainerLogger>(logger.get()),
+      docker);
 }
 
 
@@ -152,8 +170,13 @@ DockerContainerizer::DockerContainerizer(
 DockerContainerizer::DockerContainerizer(
     const Flags& flags,
     Fetcher* fetcher,
+    const Owned<ContainerLogger>& logger,
     Shared<Docker> docker)
-  : process(new DockerContainerizerProcess(flags, fetcher, docker))
+  : process(new DockerContainerizerProcess(
+      flags,
+      fetcher,
+      logger,
+      docker))
 {
   spawn(process.get());
 }
@@ -827,40 +850,46 @@ Future<Docker::Container> DockerContainerizerProcess::launchExecutorContainer(
   Container* container = containers_[containerId];
   container->state = Container::RUNNING;
 
-  // Start the executor in a Docker container.
-  // This executor could either be a custom executor specified by an
-  // ExecutorInfo, or the docker executor.
-  Future<Nothing> run = docker->run(
-      container->container,
-      container->command,
-      containerName,
-      container->directory,
-      flags.sandbox_directory,
-      container->resources,
-      container->environment,
-      Subprocess::PATH(path::join(container->directory, "stdout")),
-      Subprocess::PATH(path::join(container->directory, "stderr")));
+  return logger->prepare(container->executor, container->directory)
+    .then(defer(
+        self(),
+        [=](const ContainerLogger::SubprocessInfo& subprocessInfo)
+          -> Future<Docker::Container> {
+    // Start the executor in a Docker container.
+    // This executor could either be a custom executor specified by an
+    // ExecutorInfo, or the docker executor.
+    Future<Nothing> run = docker->run(
+        container->container,
+        container->command,
+        containerName,
+        container->directory,
+        flags.sandbox_directory,
+        container->resources,
+        container->environment,
+        subprocessInfo.out,
+        subprocessInfo.err);
 
-  Owned<Promise<Docker::Container>> promise(new Promise<Docker::Container>());
-  // We like to propogate the run failure when run fails so slave can
-  // send this failure back to the scheduler. Otherwise we return
-  // inspect's result or its failure, which should not fail when
-  // the container isn't launched.
-  Future<Docker::Container> inspect =
-    docker->inspect(containerName, slave::DOCKER_INSPECT_DELAY)
-      .onAny([=](Future<Docker::Container> f) {
-          // We cannot associate the promise outside of the callback
-          // because we like to propagate run's failure when
-          // available.
-          promise->associate(f);
-      });
+    Owned<Promise<Docker::Container>> promise(new Promise<Docker::Container>());
+    // We like to propogate the run failure when run fails so slave can
+    // send this failure back to the scheduler. Otherwise we return
+    // inspect's result or its failure, which should not fail when
+    // the container isn't launched.
+    Future<Docker::Container> inspect =
+      docker->inspect(containerName, slave::DOCKER_INSPECT_DELAY)
+        .onAny([=](Future<Docker::Container> f) {
+            // We cannot associate the promise outside of the callback
+            // because we like to propagate run's failure when
+            // available.
+            promise->associate(f);
+        });
 
-  run.onFailed([=](const string& failure) mutable {
-    inspect.discard();
-    promise->fail(failure);
-  });
+    run.onFailed([=](const string& failure) mutable {
+      inspect.discard();
+      promise->fail(failure);
+    });
 
-  return promise->future();
+    return promise->future();
+  }));
 }
 
 
@@ -899,45 +928,51 @@ Future<pid_t> DockerContainerizerProcess::launchExecutorProcess(
   vector<string> argv;
   argv.push_back("mesos-docker-executor");
 
-  // Construct the mesos-docker-executor using the "name" we gave the
-  // container (to distinguish it from Docker containers not created
-  // by Mesos).
-  Try<Subprocess> s = subprocess(
-      path::join(flags.launcher_dir, "mesos-docker-executor"),
-      argv,
-      Subprocess::PIPE(),
-      Subprocess::PATH(path::join(container->directory, "stdout")),
-      Subprocess::PATH(path::join(container->directory, "stderr")),
-      dockerFlags(flags, container->name(), container->directory),
-      environment,
-      lambda::bind(&setup, container->directory));
+  return logger->prepare(container->executor, container->directory)
+    .then(defer(
+        self(),
+        [=](const ContainerLogger::SubprocessInfo& subprocessInfo)
+          -> Future<pid_t> {
+    // Construct the mesos-docker-executor using the "name" we gave the
+    // container (to distinguish it from Docker containers not created
+    // by Mesos).
+    Try<Subprocess> s = subprocess(
+        path::join(flags.launcher_dir, "mesos-docker-executor"),
+        argv,
+        Subprocess::PIPE(),
+        subprocessInfo.out,
+        subprocessInfo.err,
+        dockerFlags(flags, container->name(), container->directory),
+        environment,
+        lambda::bind(&setup, container->directory));
 
-  if (s.isError()) {
-    return Failure("Failed to fork executor: " + s.error());
-  }
+    if (s.isError()) {
+      return Failure("Failed to fork executor: " + s.error());
+    }
 
-  // Checkpoint the executor's pid (if necessary).
-  Try<Nothing> checkpointed = checkpoint(containerId, s.get().pid());
+    // Checkpoint the executor's pid (if necessary).
+    Try<Nothing> checkpointed = checkpoint(containerId, s.get().pid());
 
-  if (checkpointed.isError()) {
-    return Failure(
-        "Failed to checkpoint executor's pid: " + checkpointed.error());
-  }
+    if (checkpointed.isError()) {
+      return Failure(
+          "Failed to checkpoint executor's pid: " + checkpointed.error());
+    }
 
-  // Checkpoing complete, now synchronize with the process so that it
-  // can continue to execute.
-  CHECK_SOME(s.get().in());
-  char c;
-  ssize_t length;
-  while ((length = write(s.get().in().get(), &c, sizeof(c))) == -1 &&
-         errno == EINTR);
+    // Checkpoing complete, now synchronize with the process so that it
+    // can continue to execute.
+    CHECK_SOME(s.get().in());
+    char c;
+    ssize_t length;
+    while ((length = write(s.get().in().get(), &c, sizeof(c))) == -1 &&
+           errno == EINTR);
 
-  if (length != sizeof(c)) {
-    return Failure("Failed to synchronize with child process: " +
-                   os::strerror(errno));
-  }
+    if (length != sizeof(c)) {
+      return Failure("Failed to synchronize with child process: " +
+                     os::strerror(errno));
+    }
 
-  return s.get().pid();
+    return s.get().pid();
+  }));
 }
 
 
