@@ -83,7 +83,6 @@ using testing::Eq;
 using testing::Invoke;
 using testing::Return;
 using testing::SaveArg;
-using testing::Sequence;
 
 namespace mesos {
 namespace internal {
@@ -1543,7 +1542,7 @@ TEST_F(SlaveTest, ContainerUpdatedBeforeTaskReachesExecutor)
   // `containerizer->update` or `exec->launchTask`. We want to make
   // sure that containerizer update always finishes before the task is
   // sent to the executor.
-  Sequence sequence;
+  testing::Sequence sequence;
 
   EXPECT_CALL(containerizer, update(_, _))
     .InSequence(sequence)
