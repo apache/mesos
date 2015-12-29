@@ -19,6 +19,8 @@
 
 #include <mesos/authorizer/authorizer.hpp>
 
+#include <mesos/slave/container_logger.hpp>
+
 #include <stout/check.hpp>
 #include <stout/foreach.hpp>
 #include <stout/json.hpp>
@@ -53,6 +55,8 @@ using testing::_;
 using testing::Invoke;
 
 using mesos::fetcher::FetcherInfo;
+
+using mesos::slave::ContainerLogger;
 
 using namespace process;
 
@@ -635,8 +639,9 @@ MockDocker::~MockDocker() {}
 MockDockerContainerizer::MockDockerContainerizer(
     const slave::Flags& flags,
     slave::Fetcher* fetcher,
+    const process::Owned<ContainerLogger>& logger,
     process::Shared<Docker> docker)
-  : slave::DockerContainerizer(flags, fetcher, docker)
+  : slave::DockerContainerizer(flags, fetcher, logger, docker)
 {
   initialize();
 }
@@ -656,8 +661,9 @@ MockDockerContainerizer::~MockDockerContainerizer() {}
 MockDockerContainerizerProcess::MockDockerContainerizerProcess(
     const slave::Flags& flags,
     slave::Fetcher* fetcher,
+    const process::Owned<ContainerLogger>& logger,
     const process::Shared<Docker>& docker)
-  : slave::DockerContainerizerProcess(flags, fetcher, docker)
+  : slave::DockerContainerizerProcess(flags, fetcher, logger, docker)
 {
   EXPECT_CALL(*this, fetch(_, _))
     .WillRepeatedly(Invoke(this, &MockDockerContainerizerProcess::_fetch));

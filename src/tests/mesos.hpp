@@ -1046,6 +1046,7 @@ public:
   MockDockerContainerizer(
       const slave::Flags& flags,
       slave::Fetcher* fetcher,
+      const process::Owned<mesos::slave::ContainerLogger>& logger,
       process::Shared<Docker> docker);
 
   MockDockerContainerizer(
@@ -1158,6 +1159,7 @@ public:
   MockDockerContainerizerProcess(
       const slave::Flags& flags,
       slave::Fetcher* fetcher,
+      const process::Owned<mesos::slave::ContainerLogger>& logger,
       const process::Shared<Docker>& docker);
 
   virtual ~MockDockerContainerizerProcess();
