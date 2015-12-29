@@ -16,6 +16,7 @@
 
 #include <mesos/module/isolator.hpp>
 
+#include <mesos/slave/container_logger.hpp>
 #include <mesos/slave/isolator.hpp>
 
 #include <process/collect.hpp>
@@ -90,6 +91,7 @@ namespace slave {
 using mesos::modules::ModuleManager;
 
 using mesos::slave::ContainerLimitation;
+using mesos::slave::ContainerLogger;
 using mesos::slave::ContainerPrepareInfo;
 using mesos::slave::ContainerState;
 using mesos::slave::Isolator;
@@ -106,6 +108,14 @@ Try<MesosContainerizer*> MesosContainerizer::create(
     bool local,
     Fetcher* fetcher)
 {
+  // Create and initialize the container logger module.
+  Try<ContainerLogger*> logger =
+    ContainerLogger::create(flags.container_logger);
+
+  if (logger.isError()) {
+    return Error("Failed to create container logger: " + logger.error());
+  }
+
   string isolation;
 
   if (flags.isolation == "process") {
@@ -245,6 +255,7 @@ Try<MesosContainerizer*> MesosContainerizer::create(
       flags_,
       local,
       fetcher,
+      Owned<ContainerLogger>(logger.get()),
       Owned<Launcher>(launcher.get()),
       isolators);
 }
@@ -254,12 +265,14 @@ MesosContainerizer::MesosContainerizer(
     const Flags& flags,
     bool local,
     Fetcher* fetcher,
+    const Owned<ContainerLogger>& logger,
     const Owned<Launcher>& launcher,
     const vector<Owned<Isolator>>& isolators)
   : process(new MesosContainerizerProcess(
       flags,
       local,
       fetcher,
+      logger,
       launcher,
       isolators))
 {
@@ -790,89 +803,96 @@ Future<bool> MesosContainerizerProcess::_launch(
   JSON::Object commands;
   commands.values["commands"] = commandArray;
 
-  // Use a pipe to block the child until it's been isolated.
-  int pipes[2];
+  return logger->prepare(executorInfo, directory)
+    .then(defer(
+        self(),
+        [=](const ContainerLogger::SubprocessInfo& subprocessInfo)
+          -> Future<bool> {
+    // Use a pipe to block the child until it's been isolated.
+    int pipes[2];
 
-  // We assume this should not fail under reasonable conditions so we
-  // use CHECK.
-  CHECK(pipe(pipes) == 0);
+    // We assume this should not fail under reasonable conditions so we
+    // use CHECK.
+    CHECK(pipe(pipes) == 0);
 
-  // Prepare the flags to pass to the launch process.
-  MesosContainerizerLaunch::Flags launchFlags;
+    // Prepare the flags to pass to the launch process.
+    MesosContainerizerLaunch::Flags launchFlags;
 
-  launchFlags.command = JSON::protobuf(executorInfo.command());
+    launchFlags.command = JSON::protobuf(executorInfo.command());
 
-  launchFlags.directory = rootfs.isSome() ? flags.sandbox_directory : directory;
-  launchFlags.rootfs = rootfs;
-  launchFlags.user = user;
-  launchFlags.pipe_read = pipes[0];
-  launchFlags.pipe_write = pipes[1];
-  launchFlags.commands = commands;
+    launchFlags.directory =
+      rootfs.isSome() ? flags.sandbox_directory : directory;
+    launchFlags.rootfs = rootfs;
+    launchFlags.user = user;
+    launchFlags.pipe_read = pipes[0];
+    launchFlags.pipe_write = pipes[1];
+    launchFlags.commands = commands;
 
-  // Fork the child using launcher.
-  vector<string> argv(2);
-  argv[0] = MESOS_CONTAINERIZER;
-  argv[1] = MesosContainerizerLaunch::NAME;
+    // Fork the child using launcher.
+    vector<string> argv(2);
+    argv[0] = MESOS_CONTAINERIZER;
+    argv[1] = MesosContainerizerLaunch::NAME;
 
-  Try<pid_t> forked = launcher->fork(
-      containerId,
-      path::join(flags.launcher_dir, MESOS_CONTAINERIZER),
-      argv,
-      Subprocess::FD(STDIN_FILENO),
-      (local ? Subprocess::FD(STDOUT_FILENO)
-             : Subprocess::PATH(path::join(directory, "stdout"))),
-      (local ? Subprocess::FD(STDERR_FILENO)
-             : Subprocess::PATH(path::join(directory, "stderr"))),
-      launchFlags,
-      environment,
-      None(),
-      namespaces); // 'namespaces' will be ignored by PosixLauncher.
+    Try<pid_t> forked = launcher->fork(
+        containerId,
+        path::join(flags.launcher_dir, MESOS_CONTAINERIZER),
+        argv,
+        Subprocess::FD(STDIN_FILENO),
+        (local ? Subprocess::FD(STDOUT_FILENO)
+               : (Subprocess::IO) subprocessInfo.out),
+        (local ? Subprocess::FD(STDERR_FILENO)
+               : (Subprocess::IO) subprocessInfo.err),
+        launchFlags,
+        environment,
+        None(),
+        namespaces); // 'namespaces' will be ignored by PosixLauncher.
 
-  if (forked.isError()) {
-    return Failure("Failed to fork executor: " + forked.error());
-  }
-  pid_t pid = forked.get();
-
-  // Checkpoint the executor's pid if requested.
-  if (checkpoint) {
-    const string& path = slave::paths::getForkedPidPath(
-        slave::paths::getMetaRootDir(flags.work_dir),
-        slaveId,
-        executorInfo.framework_id(),
-        executorInfo.executor_id(),
-        containerId);
-
-    LOG(INFO) << "Checkpointing executor's forked pid " << pid
-              << " to '" << path <<  "'";
-
-    Try<Nothing> checkpointed =
-      slave::state::checkpoint(path, stringify(pid));
-
-    if (checkpointed.isError()) {
-      LOG(ERROR) << "Failed to checkpoint executor's forked pid to '"
-                 << path << "': " << checkpointed.error();
-
-      return Failure("Could not checkpoint executor's pid");
+    if (forked.isError()) {
+      return Failure("Failed to fork executor: " + forked.error());
     }
-  }
+    pid_t pid = forked.get();
 
-  // Monitor the executor's pid. We keep the future because we'll
-  // refer to it again during container destroy.
-  Future<Option<int>> status = process::reap(pid);
-  status.onAny(defer(self(), &Self::reaped, containerId));
-  containers_[containerId]->status = status;
+    // Checkpoint the executor's pid if requested.
+    if (checkpoint) {
+      const string& path = slave::paths::getForkedPidPath(
+          slave::paths::getMetaRootDir(flags.work_dir),
+          slaveId,
+          executorInfo.framework_id(),
+          executorInfo.executor_id(),
+          containerId);
 
-  return isolate(containerId, pid)
-    .then(defer(self(),
-                &Self::fetch,
-                containerId,
-                executorInfo.command(),
-                directory,
-                user,
-                slaveId))
-    .then(defer(self(), &Self::exec, containerId, pipes[1]))
-    .onAny(lambda::bind(&os::close, pipes[0]))
-    .onAny(lambda::bind(&os::close, pipes[1]));
+      LOG(INFO) << "Checkpointing executor's forked pid " << pid
+                << " to '" << path <<  "'";
+
+      Try<Nothing> checkpointed =
+        slave::state::checkpoint(path, stringify(pid));
+
+      if (checkpointed.isError()) {
+        LOG(ERROR) << "Failed to checkpoint executor's forked pid to '"
+                   << path << "': " << checkpointed.error();
+
+        return Failure("Could not checkpoint executor's pid");
+      }
+    }
+
+    // Monitor the executor's pid. We keep the future because we'll
+    // refer to it again during container destroy.
+    Future<Option<int>> status = process::reap(pid);
+    status.onAny(defer(self(), &Self::reaped, containerId));
+    containers_[containerId]->status = status;
+
+    return isolate(containerId, pid)
+      .then(defer(self(),
+                  &Self::fetch,
+                  containerId,
+                  executorInfo.command(),
+                  directory,
+                  user,
+                  slaveId))
+      .then(defer(self(), &Self::exec, containerId, pipes[1]))
+      .onAny(lambda::bind(&os::close, pipes[0]))
+      .onAny(lambda::bind(&os::close, pipes[1]));
+  }));
 }
 
 

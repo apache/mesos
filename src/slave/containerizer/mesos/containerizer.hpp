@@ -20,6 +20,7 @@
 #include <list>
 #include <vector>
 
+#include <mesos/slave/container_logger.hpp>
 #include <mesos/slave/isolator.hpp>
 
 #include <process/metrics/counter.hpp>
@@ -54,6 +55,7 @@ public:
       const Flags& flags,
       bool local,
       Fetcher* fetcher,
+      const process::Owned<mesos::slave::ContainerLogger>& logger,
       const process::Owned<Launcher>& launcher,
       const std::vector<process::Owned<mesos::slave::Isolator>>& isolators);
 
@@ -111,11 +113,13 @@ public:
       const Flags& _flags,
       bool _local,
       Fetcher* _fetcher,
+      const process::Owned<mesos::slave::ContainerLogger>& _logger,
       const process::Owned<Launcher>& _launcher,
       const std::vector<process::Owned<mesos::slave::Isolator>>& _isolators)
     : flags(_flags),
       local(_local),
       fetcher(_fetcher),
+      logger(_logger),
       launcher(_launcher),
       isolators(_isolators) {}
 
@@ -233,6 +237,7 @@ private:
   const Flags flags;
   const bool local;
   Fetcher* fetcher;
+  process::Owned<mesos::slave::ContainerLogger> logger;
   const process::Owned<Launcher> launcher;
   const std::vector<process::Owned<mesos::slave::Isolator>> isolators;
 
