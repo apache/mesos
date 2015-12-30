@@ -82,7 +82,8 @@ public:
       const string& _healthCheckDir,
       const Option<string>& _sandboxDirectory,
       const Option<string>& _user)
-    : launched(false),
+    : state(REGISTERING),
+      launched(false),
       killed(false),
       killedByHealthCheck(false),
       pid(-1),
@@ -102,21 +103,29 @@ public:
       const FrameworkInfo& frameworkInfo,
       const SlaveInfo& slaveInfo)
   {
+    CHECK_EQ(REGISTERING, state);
+
     cout << "Registered executor on " << slaveInfo.hostname() << endl;
     driver = _driver;
+    state = REGISTERED;
   }
 
   void reregistered(
       ExecutorDriver* driver,
       const SlaveInfo& slaveInfo)
   {
+    CHECK(state == REGISTERED || state == REGISTERING) << state;
+
     cout << "Re-registered executor on " << slaveInfo.hostname() << endl;
+    state = REGISTERED;
   }
 
   void disconnected(ExecutorDriver* driver) {}
 
   void launchTask(ExecutorDriver* driver, const TaskInfo& task)
   {
+    CHECK_EQ(REGISTERED, state);
+
     if (launched) {
       TaskStatus status;
       status.mutable_task_id()->MergeFrom(task.task_id());
@@ -482,31 +491,31 @@ private:
       pid_t pid,
       const Future<Option<int> >& status_)
   {
-    TaskState state;
+    TaskState taskState;
     string message;
 
     Clock::cancel(escalationTimer);
 
     if (!status_.isReady()) {
-      state = TASK_FAILED;
+      taskState = TASK_FAILED;
       message =
         "Failed to get exit status for Command: " +
         (status_.isFailed() ? status_.failure() : "future discarded");
     } else if (status_.get().isNone()) {
-      state = TASK_FAILED;
+      taskState = TASK_FAILED;
       message = "Failed to get exit status for Command";
     } else {
       int status = status_.get().get();
       CHECK(WIFEXITED(status) || WIFSIGNALED(status)) << status;
 
       if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
-        state = TASK_FINISHED;
+        taskState = TASK_FINISHED;
       } else if (killed) {
         // Send TASK_KILLED if the task was killed as a result of
         // killTask() or shutdown().
-        state = TASK_KILLED;
+        taskState = TASK_KILLED;
       } else {
-        state = TASK_FAILED;
+        taskState = TASK_FAILED;
       }
 
       message = "Command " + WSTRINGIFY(status);
@@ -516,7 +525,7 @@ private:
 
     TaskStatus taskStatus;
     taskStatus.mutable_task_id()->MergeFrom(taskId);
-    taskStatus.set_state(state);
+    taskStatus.set_state(taskState);
     taskStatus.set_message(message);
     if (killed && killedByHealthCheck) {
       taskStatus.set_healthy(false);
@@ -596,6 +605,12 @@ private:
       }
     }
   }
+
+  enum State
+  {
+    REGISTERING, // Executor is launched but not (re-)registered yet.
+    REGISTERED,  // Executor has (re-)registered.
+  } state;
 
   bool launched;
   bool killed;
