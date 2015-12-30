@@ -1435,7 +1435,7 @@ public:
     }
 
     if (state.get() == "THAWED") {
-      LOG(INFO) << "Successfullly thawed cgroup "
+      LOG(INFO) << "Successfully thawed cgroup "
                 << path::join(hierarchy, cgroup)
                 << " after " << (Clock::now() - start);
       promise.set(Nothing());
