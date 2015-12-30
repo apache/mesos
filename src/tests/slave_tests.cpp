@@ -2953,6 +2953,10 @@ TEST_F(SlaveTest, HTTPSchedulerSlaveRestart)
   ASSERT_SOME(slave);
 
   Clock::settle();
+
+  // Ensure the slave considers itself recovered.
+  Clock::advance(slave::EXECUTOR_REREGISTER_TIMEOUT);
+
   Clock::resume();
 
   AWAIT_READY(slaveReregisteredMessage);
