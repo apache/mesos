@@ -38,9 +38,11 @@ namespace registry {
 
 
 /**
- * Encapsulates JSON Web Token.
+ * Encapsulates JSON Web Token used by Docker.
  *
- * Reference: https://tools.ietf.org/html/rfc7519.
+ * References:
+ *   https://docs.docker.com/registry/spec/auth/jwt/
+ *   https://tools.ietf.org/html/rfc7519.
  */
 struct Token
 {
