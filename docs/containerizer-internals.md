@@ -60,18 +60,20 @@ A) Mesos agent runs in a docker container
   `--docker_mesos_image`. In this case, the value of flag
   `--docker_mesos_image` is assumed to be the docker image used to
   launch the Mesos agent.
-* If the task uses an executor to run (not the default command
-  executor), then that executor is launched in a docker container.
-* If the task uses `TaskInfo`, then the default executor
-  `mesos-docker-executor` is lunched in a docker container.
+* If the task includes an executor (custom executor), then that executor is
+  launched in a docker container.
+* If the task does not include an executor i.e. it defines a command, the
+  default executor `mesos-docker-executor` is launched in a docker container to
+  execute the command via Docker CLI.
 
 B) Mesos agent does not run in a docker container
 
-* If task uses `TaskInfo`, then it forks a subprocess to execute
-  `mesos-docker-executor`. mesos-docker-executor spawns shell to
-  execute docker commands (e.g., docker run).
-* If the task uses a custom executor, then its launched in a docker
-  container.
+* If the task includes an executor (custom executor), then that executor is
+  launched in a docker container.
+* If task does not include an executor i.e. it defines a command, a subprocess
+  is forked to execute the default executor `mesos-docker-executor`.
+  `mesos-docker-executor` then spawns a shell to execute the command via Docker
+  CLI.
 
 #### Mesos Containerizer
 
