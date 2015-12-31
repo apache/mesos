@@ -651,6 +651,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   uri/fetcher.cpp							\
   uri/utils.cpp								\
   uri/fetchers/curl.cpp							\
+  uri/fetchers/docker.cpp						\
   uri/fetchers/hadoop.cpp						\
   usage/usage.cpp							\
   v1/attributes.cpp							\
@@ -780,6 +781,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   uri/fetcher.hpp							\
   uri/utils.hpp								\
   uri/fetchers/curl.hpp							\
+  uri/fetchers/docker.hpp						\
   uri/fetchers/hadoop.hpp						\
   uri/schemes/file.hpp							\
   uri/schemes/hdfs.hpp							\

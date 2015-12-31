@@ -14,41 +14,46 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef __URI_FETCHER_HPP__
-#define __URI_FETCHER_HPP__
+#ifndef __URI_FETCHERS_DOCKER_HPP__
+#define __URI_FETCHERS_DOCKER_HPP__
 
 #include <process/owned.hpp>
 
-#include <stout/none.hpp>
-#include <stout/option.hpp>
+#include <stout/flags.hpp>
 #include <stout/try.hpp>
 
 #include <mesos/uri/fetcher.hpp>
 
-#include "uri/fetchers/curl.hpp"
-#include "uri/fetchers/docker.hpp"
-#include "uri/fetchers/hadoop.hpp"
-
 namespace mesos {
 namespace uri {
-namespace fetcher {
 
-/**
- * The combined flags for all built-in plugins.
- */
-class Flags :
-  public CurlFetcherPlugin::Flags,
-  public HadoopFetcherPlugin::Flags,
-  public DockerFetcherPlugin::Flags {};
+// Forward declarations.
+class DockerFetcherPluginProcess;
 
 
-/**
- * Factory method for creating a Fetcher instance.
- */
-Try<process::Owned<Fetcher>> create(const Option<Flags>& flags = None());
+class DockerFetcherPlugin : public Fetcher::Plugin
+{
+public:
+  class Flags : public virtual flags::FlagsBase {};
 
-} // namespace fetcher {
+  static Try<process::Owned<Fetcher::Plugin>> create(const Flags& flags);
+
+  virtual ~DockerFetcherPlugin();
+
+  virtual std::set<std::string> schemes();
+
+  virtual process::Future<Nothing> fetch(
+      const URI& uri,
+      const std::string& directory);
+
+private:
+  explicit DockerFetcherPlugin(
+      process::Owned<DockerFetcherPluginProcess> _process);
+
+  process::Owned<DockerFetcherPluginProcess> process;
+};
+
 } // namespace uri {
 } // namespace mesos {
 
-#endif // __URI_FETCHER_HPP__
+#endif // __URI_FETCHERS_DOCKER_HPP__
