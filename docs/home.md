@@ -54,6 +54,7 @@ layout: documentation
 * [Javadoc](/api/latest/java/) documents the Mesos Java API.
 * [Doxygen](/api/latest/c++/namespacemesos.html) documents the Mesos C++ API.
 * [Developer Tools](/documentation/latest/tools/) for hacking on Mesos or writing frameworks.
+* [Versioning](/documentation/latest/versioning/) describes how Mesos does API and release versioning.
 
 ## Extending Mesos
 
