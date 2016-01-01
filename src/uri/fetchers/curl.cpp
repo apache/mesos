@@ -28,7 +28,6 @@
 #include <stout/path.hpp>
 #include <stout/strings.hpp>
 
-#include <stout/os/exists.hpp>
 #include <stout/os/mkdir.hpp>
 
 #include "uri/fetchers/curl.hpp"
@@ -73,13 +72,11 @@ Future<Nothing> CurlFetcherPlugin::fetch(
     return Failure("URI path is not specified");
   }
 
-  if (!os::exists(directory)) {
-    Try<Nothing> mkdir = os::mkdir(directory);
-    if (mkdir.isError()) {
-      return Failure(
-          "Failed to create directory '" +
-          directory + "': " + mkdir.error());
-    }
+  Try<Nothing> mkdir = os::mkdir(directory);
+  if (mkdir.isError()) {
+    return Failure(
+        "Failed to create directory '" +
+        directory + "': " + mkdir.error());
   }
 
   // TODO(jieyu): Allow user to specify the name of the output file.
