@@ -27,11 +27,11 @@ message ImageManifest {
   required string tag = 2;
   required string architecture = 3;
 
-  message FsLayers {
+  message FsLayer {
     required string blobSum = 1;
   }
 
-  repeated FsLayers fsLayers = 4;
+  repeated FsLayer fsLayers = 4;
 
   message History {
     message V1Compatibility {

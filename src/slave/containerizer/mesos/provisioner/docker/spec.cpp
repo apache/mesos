@@ -87,8 +87,8 @@ Option<Error> validate(const docker::v2::ImageManifest& manifest)
                  "with corresponding 'history'");
   }
 
-  // FsLayers field validation.
-  foreach (const docker::v2::ImageManifest::FsLayers& fslayer,
+  // Verify 'fsLayers' field.
+  foreach (const docker::v2::ImageManifest::FsLayer& fslayer,
            manifest.fslayers()) {
     const string& blobSum = fslayer.blobsum();
     if (!strings::contains(blobSum, ":")) {
