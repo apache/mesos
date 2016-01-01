@@ -29,6 +29,8 @@
 #include <process/http.hpp>
 #include <process/process.hpp>
 
+#include "docker/spec.hpp"
+
 #include "slave/containerizer/mesos/provisioner/docker/message.hpp"
 
 namespace mesos {
@@ -79,7 +81,7 @@ public:
    * @return Manifest on success.
    *         Failure on process failure.
    */
-  process::Future<v2::ImageManifest> getManifest(
+  process::Future<::docker::spec::v2::ImageManifest> getManifest(
       const Image::Name& imageName);
 
 

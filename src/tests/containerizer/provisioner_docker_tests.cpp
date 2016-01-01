@@ -32,23 +32,29 @@
 #include <process/clock.hpp>
 #include <process/future.hpp>
 #include <process/gmock.hpp>
+#include <process/io.hpp>
 #include <process/owned.hpp>
 #include <process/socket.hpp>
 #include <process/subprocess.hpp>
 
 #include <process/ssl/gtest.hpp>
 
+#include "docker/spec.hpp"
+
 #include "slave/containerizer/mesos/provisioner/docker/metadata_manager.hpp"
 #include "slave/containerizer/mesos/provisioner/docker/paths.hpp"
 #include "slave/containerizer/mesos/provisioner/docker/puller.hpp"
 #include "slave/containerizer/mesos/provisioner/docker/registry_client.hpp"
 #include "slave/containerizer/mesos/provisioner/docker/registry_puller.hpp"
-#include "slave/containerizer/mesos/provisioner/docker/spec.hpp"
 #include "slave/containerizer/mesos/provisioner/docker/store.hpp"
 #include "slave/containerizer/mesos/provisioner/docker/token_manager.hpp"
 
 #include "tests/mesos.hpp"
 #include "tests/utils.hpp"
+
+namespace io = process::io;
+namespace slave = mesos::internal::slave;
+namespace spec = ::docker::spec;
 
 using std::list;
 using std::map;
@@ -59,14 +65,20 @@ using std::vector;
 using process::Clock;
 using process::Future;
 using process::Owned;
+using process::Promise;
+using process::Subprocess;
 
 using process::network::Socket;
 
-using namespace process;
-using namespace mesos::internal::slave;
-using namespace mesos::internal::slave::docker;
-using namespace mesos::internal::slave::docker::paths;
-using namespace mesos::internal::slave::docker::registry;
+using slave::docker::parseImageName;
+using slave::docker::Puller;
+using slave::docker::RegistryPuller;
+
+using slave::docker::paths::getImageLayerRootfsPath;
+
+using slave::docker::registry::RegistryClient;
+using slave::docker::registry::Token;
+using slave::docker::registry::TokenManager;
 
 namespace mesos {
 namespace internal {
@@ -382,9 +394,7 @@ TEST_F(DockerSpecTest, SerializeV1DockerManifest)
   Try<JSON::Object> json = JSON::parse<JSON::Object>(stringify(manifestJson));
   ASSERT_SOME(json);
 
-  Try<slave::docker::v1::ImageManifest> manifest =
-    spec::v1::parse(json.get());
-
+  Try<spec::v1::ImageManifest> manifest = spec::v1::parse(json.get());
   ASSERT_SOME(manifest);
 
   EXPECT_EQ(
@@ -514,9 +524,7 @@ TEST_F(DockerSpecTest, SerializeV2DockerManifest)
   Try<JSON::Object> json = JSON::parse<JSON::Object>(stringify(manifestJson));
   ASSERT_SOME(json);
 
-  Try<slave::docker::v2::ImageManifest> manifest =
-    spec::v2::parse(json.get());
-
+  Try<spec::v2::ImageManifest> manifest = spec::v2::parse(json.get());
   ASSERT_SOME(manifest);
 
   EXPECT_EQ(manifest.get().name(), "dmcgowan/test-image");
@@ -562,9 +570,7 @@ TEST_F(DockerSpecTest, SerializeV2DockerInvalidManifest)
   ASSERT_SOME(json);
 
 
-  Try<slave::docker::v2::ImageManifest> manifest =
-    spec::v2::parse(json.get());
-
+  Try<spec::v2::ImageManifest> manifest = spec::v2::parse(json.get());
   EXPECT_ERROR(manifest);
 }
 
@@ -601,9 +607,7 @@ TEST_F(DockerSpecTest, ValidationV2DockerManifestFsLayersNonEmpty)
   Try<JSON::Object> json = JSON::parse<JSON::Object>(stringify(manifestJson));
   ASSERT_SOME(json);
 
-  Try<slave::docker::v2::ImageManifest> manifest =
-    spec::v2::parse(json.get());
-
+  Try<spec::v2::ImageManifest> manifest = spec::v2::parse(json.get());
   EXPECT_ERROR(manifest);
 }
 
@@ -627,9 +631,7 @@ TEST_F(DockerSpecTest, ValidationV2DockerManifestSignaturesNonEmpty)
   Try<JSON::Object> json = JSON::parse<JSON::Object>(stringify(manifestJson));
   ASSERT_SOME(json);
 
-  Try<slave::docker::v2::ImageManifest> manifest =
-    spec::v2::parse(json.get());
-
+  Try<spec::v2::ImageManifest> manifest = spec::v2::parse(json.get());
   EXPECT_ERROR(manifest);
 }
 
@@ -799,7 +801,7 @@ TEST_F(RegistryClientTest, SimpleGetManifest)
 
   ASSERT_SOME(registryClient);
 
-  Future<v2::ImageManifest> manifestResponse =
+  Future<spec::v2::ImageManifest> manifestResponse =
     registryClient.get()->getManifest(parseImageName("library/busybox"));
 
   const string unauthResponseHeaders = "Www-Authenticate: Bearer"
@@ -1129,7 +1131,7 @@ TEST_F(RegistryClientTest, SimpleRegistryPuller)
 
   Future<Socket> blobServerAcceptSock = blobServer.get().accept();
 
-  Flags flags;
+  slave::Flags flags;
   process::network::Address address = server.get().address().get();
   const string url = "https://" + address.hostname().get() + ":" +
                      stringify(address.port);

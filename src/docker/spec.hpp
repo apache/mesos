@@ -14,52 +14,51 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef __PROVISIONER_DOCKER_SPEC_HPP__
-#define __PROVISIONER_DOCKER_SPEC_HPP__
+#ifndef __DOCKER_SPEC_HPP__
+#define __DOCKER_SPEC_HPP__
 
 #include <stout/error.hpp>
 #include <stout/json.hpp>
 #include <stout/option.hpp>
 
-#include <mesos/mesos.hpp>
+#include "docker/v1.hpp"
+#include "docker/v2.hpp"
 
-#include "slave/containerizer/mesos/provisioner/docker/message.hpp"
-
-namespace mesos {
-namespace internal {
-namespace slave {
 namespace docker {
 namespace spec {
-
 namespace v1 {
 
-// Validate if the specified v1 image manifest conforms to
-// the Docker v1 spec.
-Option<Error> validate(const docker::v1::ImageManifest& manifest);
+/**
+ * Validates if the specified docker v1 image manifest conforms to the
+ * Docker v1 spec. Returns the error if the validation fails.
+ */
+Option<Error> validate(const ImageManifest& manifest);
 
-// Parse the v1::ImageManifest from the specified JSON object.
-Try<docker::v1::ImageManifest> parse(const JSON::Object& json);
+
+/**
+ * Returns the docker v1 image manifest from the given JSON object.
+ */
+Try<ImageManifest> parse(const JSON::Object& json);
 
 } // namespace v1 {
 
 
 namespace v2 {
 
-// Validate if the specified v2 image manifest conforms to
-// the Docker v2 spec.
-Option<Error> validate(const docker::v2::ImageManifest& manifest);
+/**
+ * Validates if the specified v2 image manifest conforms to the Docker
+ * v2 spec. Returns the error if the validation fails.
+ */
+Option<Error> validate(const ImageManifest& manifest);
 
-// TODO(gilbert): Add validations here, e.g., Manifest, Blob, Layout, ImageID.
 
-// Parse the v2::ImageManifest from the specified JSON object.
-Try<docker::v2::ImageManifest> parse(const JSON::Object& json);
+/**
+ * Returns the docker v1 image manifest from the given JSON object.
+ */
+Try<ImageManifest> parse(const JSON::Object& json);
 
 } // namespace v2 {
-
 } // namespace spec {
 } // namespace docker {
-} // namespace slave {
-} // namespace internal {
-} // namespace mesos {
 
-#endif // __PROVISIONER_DOCKER_SPEC_HPP__
+#endif // __DOCKER_SPEC_HPP__

@@ -28,6 +28,9 @@
 #include "slave/containerizer/mesos/provisioner/docker/paths.hpp"
 #include "slave/containerizer/mesos/provisioner/docker/registry_client.hpp"
 
+namespace http = process::http;
+namespace spec = docker::spec;
+
 using std::list;
 using std::pair;
 using std::string;
@@ -39,8 +42,6 @@ using process::Owned;
 using process::Process;
 using process::Promise;
 using process::Subprocess;
-
-namespace http = process::http;
 
 namespace mesos {
 namespace internal {
@@ -71,7 +72,7 @@ private:
       const string& id);
 
   Future<list<pair<string, string>>> downloadLayers(
-      const v2::ImageManifest& manifest,
+      const spec::v2::ImageManifest& manifest,
       const Image::Name& imageName,
       const Path& downloadDir);
 
@@ -230,7 +231,7 @@ Future<list<pair<string, string>>> RegistryPullerProcess::pull(
   // TODO(jojy): Have one outgoing manifest request per image.
   return registryClient_->getManifest(imageName)
     .then(process::defer(self(), [this, directory, imageName](
-        const v2::ImageManifest& manifest) {
+        const spec::v2::ImageManifest& manifest) {
       return downloadLayers(manifest, imageName, directory);
     }))
     .then(process::defer(self(), [this, directory](
@@ -248,7 +249,7 @@ Future<list<pair<string, string>>> RegistryPullerProcess::pull(
 
 
 Future<list<pair<string, string>>> RegistryPullerProcess::downloadLayers(
-    const v2::ImageManifest& manifest,
+    const spec::v2::ImageManifest& manifest,
     const Image::Name& imageName,
     const Path& directory)
 {

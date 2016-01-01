@@ -202,6 +202,10 @@ CXX_PROTOS =								\
   ../include/mesos/v1/scheduler/scheduler.pb.h
 
 CXX_PROTOS +=								\
+  docker/v1.pb.cc							\
+  docker/v1.pb.h							\
+  docker/v2.pb.cc							\
+  docker/v2.pb.h							\
   master/registry.pb.cc							\
   master/registry.pb.h							\
   messages/flags.pb.cc							\
@@ -209,11 +213,7 @@ CXX_PROTOS +=								\
   messages/messages.pb.cc						\
   messages/messages.pb.h						\
   slave/containerizer/mesos/provisioner/docker/message.pb.cc		\
-  slave/containerizer/mesos/provisioner/docker/message.pb.h		\
-  slave/containerizer/mesos/provisioner/docker/v1.pb.cc			\
-  slave/containerizer/mesos/provisioner/docker/v1.pb.h			\
-  slave/containerizer/mesos/provisioner/docker/v2.pb.cc			\
-  slave/containerizer/mesos/provisioner/docker/v2.pb.h
+  slave/containerizer/mesos/provisioner/docker/message.pb.h
 
 CXX_LOG_PROTOS =							\
   messages/log.pb.cc							\
@@ -533,12 +533,12 @@ nodist_libmesos_no_3rdparty_la_SOURCES = $(CXX_PROTOS)
 
 
 libmesos_no_3rdparty_la_SOURCES =					\
+  docker/v1.proto							\
+  docker/v2.proto							\
   master/registry.proto							\
   messages/flags.proto							\
   messages/messages.proto						\
-  slave/containerizer/mesos/provisioner/docker/message.proto		\
-  slave/containerizer/mesos/provisioner/docker/v1.proto			\
-  slave/containerizer/mesos/provisioner/docker/v2.proto
+  slave/containerizer/mesos/provisioner/docker/message.proto
 
 # TODO(tillt): Remove authentication/cram_md5/* which will enable us to
 # lose the immediate cyrus-sasl2 dependency.
@@ -557,6 +557,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   common/type_utils.cpp							\
   common/values.cpp							\
   docker/docker.cpp							\
+  docker/spec.cpp							\
   exec/exec.cpp								\
   files/files.cpp							\
   hdfs/hdfs.cpp								\
@@ -629,7 +630,6 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   slave/containerizer/mesos/provisioner/docker/puller.cpp		\
   slave/containerizer/mesos/provisioner/docker/registry_client.cpp	\
   slave/containerizer/mesos/provisioner/docker/registry_puller.cpp	\
-  slave/containerizer/mesos/provisioner/docker/spec.cpp			\
   slave/containerizer/mesos/provisioner/docker/store.cpp		\
   slave/containerizer/mesos/provisioner/docker/token_manager.cpp	\
   slave/resource_estimators/noop.cpp					\
@@ -666,6 +666,9 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   credentials/credentials.hpp						\
   docker/docker.hpp							\
   docker/executor.hpp							\
+  docker/spec.hpp							\
+  docker/v1.hpp								\
+  docker/v2.hpp								\
   examples/test_anonymous_module.hpp					\
   examples/test_module.hpp						\
   examples/utils.hpp							\
@@ -739,7 +742,6 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   slave/containerizer/mesos/provisioner/docker/puller.hpp		\
   slave/containerizer/mesos/provisioner/docker/registry_client.hpp	\
   slave/containerizer/mesos/provisioner/docker/registry_puller.hpp	\
-  slave/containerizer/mesos/provisioner/docker/spec.hpp			\
   slave/containerizer/mesos/provisioner/docker/store.hpp		\
   slave/containerizer/mesos/provisioner/docker/token_manager.hpp	\
   slave/qos_controllers/noop.hpp					\

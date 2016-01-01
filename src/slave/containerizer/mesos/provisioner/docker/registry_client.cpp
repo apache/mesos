@@ -37,7 +37,6 @@
 #include <stout/try.hpp>
 
 #include "slave/containerizer/mesos/provisioner/docker/registry_client.hpp"
-#include "slave/containerizer/mesos/provisioner/docker/spec.hpp"
 #include "slave/containerizer/mesos/provisioner/docker/token_manager.hpp"
 
 using std::string;
@@ -49,6 +48,7 @@ using process::Owned;
 using process::Process;
 
 namespace http = process::http;
+namespace spec = docker::spec;
 
 using http::Pipe;
 
@@ -67,7 +67,7 @@ public:
       const http::URL& authenticationServer,
       const Option<Credentials>& credentials);
 
-  Future<v2::ImageManifest> getManifest(
+  Future<spec::v2::ImageManifest> getManifest(
       const Image::Name& imageName);
 
   Future<size_t> getBlob(
@@ -167,7 +167,7 @@ RegistryClient::~RegistryClient()
 }
 
 
-Future<v2::ImageManifest> RegistryClient::getManifest(
+Future<spec::v2::ImageManifest> RegistryClient::getManifest(
     const Image::Name& imageName)
 {
   return dispatch(
@@ -534,7 +534,7 @@ string RegistryClientProcess::getRepositoryPath(
 }
 
 
-Future<v2::ImageManifest> RegistryClientProcess::getManifest(
+Future<spec::v2::ImageManifest> RegistryClientProcess::getManifest(
     const Image::Name& imageName)
 {
   http::URL manifestURL(registryServer_);
@@ -543,11 +543,11 @@ Future<v2::ImageManifest> RegistryClientProcess::getManifest(
 
   return doHttpGet(manifestURL, None(), false, true, None())
     .then(defer(self(), [this] (
-        const http::Response& response) -> Future<v2::ImageManifest> {
+        const http::Response& response) -> Future<spec::v2::ImageManifest> {
       // TODO(jojy): We dont use the digest that is returned in header.
       // This is a good place to validate the manifest.
 
-      Try<v2::ImageManifest> manifest =
+      Try<spec::v2::ImageManifest> manifest =
         spec::v2::parse(JSON::parse<JSON::Object>(response.body).get());
       if (manifest.isError()) {
         return Failure(

@@ -16,42 +16,35 @@
 
 #include <stout/foreach.hpp>
 #include <stout/json.hpp>
+#include <stout/none.hpp>
 #include <stout/protobuf.hpp>
 #include <stout/strings.hpp>
 
-#include "slave/containerizer/mesos/provisioner/docker/spec.hpp"
+#include "docker/spec.hpp"
 
 using std::string;
 
-namespace mesos {
-namespace internal {
-namespace slave {
 namespace docker {
 namespace spec {
-
 namespace v1 {
 
-// Validate if the specified v1 image manifest conforms to
-// the Docker v1 spec.
-Option<Error> validate(const docker::v1::ImageManifest& manifest)
+Option<Error> validate(const ImageManifest& manifest)
 {
-  // TODO(gilbert): Add constraints to validate manifest.
+  // TODO(gilbert): Add validations.
   return None();
 }
 
 
-Try<docker::v1::ImageManifest> parse(const JSON::Object& json)
+Try<ImageManifest> parse(const JSON::Object& json)
 {
-  Try<docker::v1::ImageManifest> manifest =
-    protobuf::parse<docker::v1::ImageManifest>(json);
-
+  Try<ImageManifest> manifest = protobuf::parse<ImageManifest>(json);
   if (manifest.isError()) {
     return Error("Protobuf parse failed: " + manifest.error());
   }
 
   Option<Error> error = validate(manifest.get());
   if (error.isSome()) {
-    return Error("Docker v1 Image Manifest Validation failed: " +
+    return Error("Docker v1 image manifest validation failed: " +
                  error.get().message);
   }
 
@@ -63,9 +56,7 @@ Try<docker::v1::ImageManifest> parse(const JSON::Object& json)
 
 namespace v2 {
 
-// Validate if the specified v2 image manifest conforms to
-// the Docker v2 spec.
-Option<Error> validate(const docker::v2::ImageManifest& manifest)
+Option<Error> validate(const ImageManifest& manifest)
 {
   // Validate required fields are present,
   // e.g., repeated fields that has to be >= 1.
@@ -83,13 +74,12 @@ Option<Error> validate(const docker::v2::ImageManifest& manifest)
 
   // Verify that blobSum and v1Compatibility numbers are equal.
   if (manifest.fslayers_size() != manifest.history_size()) {
-    return Error("There should be equal size of 'fsLayers' "
-                 "with corresponding 'history'");
+    return Error("The size of 'fsLayers' should be equal "
+                 "to the size of 'history'");
   }
 
   // Verify 'fsLayers' field.
-  foreach (const docker::v2::ImageManifest::FsLayer& fslayer,
-           manifest.fslayers()) {
+  foreach (const ImageManifest::FsLayer& fslayer, manifest.fslayers()) {
     const string& blobSum = fslayer.blobsum();
     if (!strings::contains(blobSum, ":")) {
       return Error("Incorrect 'blobSum' format: " + blobSum);
@@ -100,18 +90,16 @@ Option<Error> validate(const docker::v2::ImageManifest& manifest)
 }
 
 
-Try<docker::v2::ImageManifest> parse(const JSON::Object& json)
+Try<ImageManifest> parse(const JSON::Object& json)
 {
-  Try<docker::v2::ImageManifest> manifest =
-    protobuf::parse<docker::v2::ImageManifest>(json);
-
+  Try<ImageManifest> manifest = protobuf::parse<ImageManifest>(json);
   if (manifest.isError()) {
     return Error("Protobuf parse failed: " + manifest.error());
   }
 
   Option<Error> error = validate(manifest.get());
   if (error.isSome()) {
-    return Error("Docker v2 Image Manifest Validation failed: " +
+    return Error("Docker v2 image manifest validation failed: " +
                  error.get().message);
   }
 
@@ -119,9 +107,5 @@ Try<docker::v2::ImageManifest> parse(const JSON::Object& json)
 }
 
 } // namespace v2 {
-
 } // namespace spec {
 } // namespace docker {
-} // namespace slave {
-} // namespace internal {
-} // namespace mesos {
