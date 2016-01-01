@@ -43,7 +43,7 @@ message ImageManifest {
   repeated History history = 5;
   required uint32 schemaVersion = 6;
 
-  message Signatures {
+  message Signature {
 
     //JOSE (A JSON Web Signature).
     message Header {
@@ -66,5 +66,5 @@ message ImageManifest {
     required string protected = 3;
   }
 
-  repeated Signatures signatures = 7;
+  repeated Signature signatures = 7;
 }
