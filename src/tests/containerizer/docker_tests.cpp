@@ -70,6 +70,7 @@ class DockerTest : public MesosTest
   }
 };
 
+
 // This test tests the functionality of the docker's interfaces.
 TEST_F(DockerTest, ROOT_DOCKER_interface)
 {
@@ -457,6 +458,7 @@ TEST_F(DockerTest, ROOT_DOCKER_MountAbsolute)
 
 class DockerImageTest : public MesosTest {};
 
+
 // This test verifies that docker image constructor is able to read
 // entrypoint and environment from a docker inspect JSON object.
 TEST_F(DockerImageTest, ParseInspectonImage)
@@ -565,7 +567,6 @@ TEST_F(DockerImageTest, ParseInspectonImage)
   EXPECT_EQ("20140324",
             image.get().environment.get().at("CA_CERTIFICATES_JAVA_VERSION"));
 }
-
 
 } // namespace tests {
 } // namespace internal {
