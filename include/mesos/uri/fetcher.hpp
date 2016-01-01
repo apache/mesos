@@ -83,6 +83,7 @@ public:
    * @param uri the URI to fetch
    * @param directory the directory the URI will be downloaded to
    */
+  // TODO(jieyu): Consider using 'Path' for 'directory' here.
   process::Future<Nothing> fetch(
       const URI& uri,
       const std::string& directory);
