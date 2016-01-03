@@ -1554,10 +1554,9 @@ message Port {
   // This can be used to decorate the message with metadata to be
   // interpreted by external applications such as firewalls.
   optional Labels labels = 5;
-  // This field represents the backend port on which the task is
-  // running. It could potentially be different than the `number` field (1), for
-  // instance, when an agent achieves network isolation between containers using
-  // port (layer 4) segregation.
+  // The backend port on which the task is running. This could be different than
+  // the `number` field (1), e.g. when an agent achieves network isolation
+  // between containers using port (layer 4) segregation.
   optional uint32 instance_port = 6;
 }
 
@@ -1574,9 +1573,9 @@ message Ports {
  * An IP address.
  */
 message IPAddress {
-  // TODO (asridharan): We are setting the positional identifier of this
-  // field to 2, in order to maintain backward compatibility with the `IPAddress`
-  // message definition within `NetworkInfo`. See MESOS-4243 for more details.
+  // TODO(asridharan): We skip tag number 1 in case we later want to be binary
+  // compatible with `NetworkInfo.IPAddress`. See MESOS-4243 for more details.
+  // optional Protocol protocol = 1;
   optional string ip_address = 2;
 }
 
