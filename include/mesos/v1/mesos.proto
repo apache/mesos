@@ -1553,6 +1553,11 @@ message Port {
   // This can be used to decorate the message with metadata to be
   // interpreted by external applications such as firewalls.
   optional Labels labels = 5;
+  // This field represents the backend port on which the task is
+  // running. It could potentially be different than the `number` field (1), for
+  // instance, when an agent achieves network isolation between containers using
+  // port (layer 4) segregation.
+  optional uint32 instance_port = 6;
 }
 
 
@@ -1561,6 +1566,25 @@ message Port {
  */
 message Ports {
   repeated Port ports = 1;
+}
+
+
+/**
+ * An IP address.
+ */
+message IPAddress {
+  // TODO (asridharan): We are setting the positional identifier of this
+  // field to 2, in order to maintain backward compatibility with the `IPAddress`
+  // message definition within `NetworkInfo`. See MESOS-4243 for more details.
+  optional string ip_address = 2;
+}
+
+
+/**
+ * Holds information about a virtual IP.
+ */
+message VIPInfo {
+  required IPAddress vip = 1;
 }
 
 
@@ -1592,4 +1616,9 @@ message DiscoveryInfo {
   optional string version = 5;
   optional Ports ports = 6;
   optional Labels labels = 7;
+  // The virtual IP is used as a single endpoint to represent multiple instances
+  // of a given service. An application might need multiple virtual IPs if it
+  // exposes multiple services, or if the same service is exposed on different
+  // virtual IPs.
+  repeated VIPInfo vips = 8;
 }
