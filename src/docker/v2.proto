@@ -16,6 +16,8 @@
 
 package docker.spec.v2;
 
+import "docker/v1.proto";
+
 /**
  * Protobuf for the Docker v2 image manifest JSON schema:
  * https://github.com/docker/distribution/blob/master/docs/spec/manifest-v2-1.md
@@ -32,12 +34,12 @@ message ImageManifest {
   repeated FsLayer fsLayers = 4;
 
   message History {
-    message V1Compatibility {
-      required string id = 1;
-      required string parent = 2;
-    }
+    required string v1Compatibility = 1;
 
-    required V1Compatibility v1Compatibility = 1;
+    // NOTE: This field does not exist in the Docker v2 image manifest
+    // specification. It is the parsed version of 'v1Compatibility'
+    // above (which is a raw JSON).
+    optional v1.ImageManifest v1 = 2;
   }
 
   repeated History history = 5;

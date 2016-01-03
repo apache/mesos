@@ -167,28 +167,16 @@ TEST_F(DockerSpecTest, ParseV2ImageManifest)
         ],
         "history": [
           {
-            "v1Compatibility": {
-              "id": "2ce2e90b0bc7224de3db1f0d646fe8e2c4dd37f1793928287f6074bc451a57ea",
-              "parent": "cf2616975b4a3cba083ca99bc3f0bf25f5f528c3c52be1596b30f60b0b1c37ff"
-            }
+            "v1Compatibility": "{\"id\": \"2ce2e90b0bc7224de3db1f0d646fe8e2c4dd37f1793928287f6074bc451a57ea\",\"parent\": \"cf2616975b4a3cba083ca99bc3f0bf25f5f528c3c52be1596b30f60b0b1c37ff\"}"
           },
           {
-            "v1Compatibility": {
-              "id": "2ce2e90b0bc7224de3db1f0d646fe8e2c4dd37f1793928287f6074bc451a57ea",
-              "parent": "cf2616975b4a3cba083ca99bc3f0bf25f5f528c3c52be1596b30f60b0b1c37ff"
-            }
+            "v1Compatibility": "{\"id\": \"2ce2e90b0bc7224de3db1f0d646fe8e2c4dd37f1793928287f6074bc451a57ea\",\"parent\": \"cf2616975b4a3cba083ca99bc3f0bf25f5f528c3c52be1596b30f60b0b1c37ff\"}"
           },
           {
-            "v1Compatibility": {
-              "id": "2ce2e90b0bc7224de3db1f0d646fe8e2c4dd37f1793928287f6074bc451a57ea",
-              "parent": "cf2616975b4a3cba083ca99bc3f0bf25f5f528c3c52be1596b30f60b0b1c37ff"
-            }
+            "v1Compatibility": "{\"id\": \"2ce2e90b0bc7224de3db1f0d646fe8e2c4dd37f1793928287f6074bc451a57ea\",\"parent\": \"cf2616975b4a3cba083ca99bc3f0bf25f5f528c3c52be1596b30f60b0b1c37ff\"}"
           },
           {
-            "v1Compatibility": {
-              "id": "2ce2e90b0bc7224de3db1f0d646fe8e2c4dd37f1793928287f6074bc451a57ea",
-              "parent": "cf2616975b4a3cba083ca99bc3f0bf25f5f528c3c52be1596b30f60b0b1c37ff"
-            }
+            "v1Compatibility": "{\"id\": \"2ce2e90b0bc7224de3db1f0d646fe8e2c4dd37f1793928287f6074bc451a57ea\",\"parent\": \"cf2616975b4a3cba083ca99bc3f0bf25f5f528c3c52be1596b30f60b0b1c37ff\"}"
           }
         ],
         "schemaVersion": 1,
@@ -235,13 +223,11 @@ TEST_F(DockerSpecTest, ParseV2ImageManifest)
       manifest.get().fslayers(3).blobsum(),
       "sha256:2a7812e636235448785062100bb9103096aa6655a8f6bb9ac9b13fe8290f66df"); // NOLINT(whitespace/line_length)
 
-  EXPECT_EQ(
-      manifest.get().history(1).v1compatibility().id(),
-      "2ce2e90b0bc7224de3db1f0d646fe8e2c4dd37f1793928287f6074bc451a57ea");
+  EXPECT_EQ(manifest.get().history(1).v1().id(),
+          "2ce2e90b0bc7224de3db1f0d646fe8e2c4dd37f1793928287f6074bc451a57ea");
 
-  EXPECT_EQ(
-      manifest.get().history(2).v1compatibility().parent(),
-      "cf2616975b4a3cba083ca99bc3f0bf25f5f528c3c52be1596b30f60b0b1c37ff");
+  EXPECT_EQ(manifest.get().history(2).v1().parent(),
+            "cf2616975b4a3cba083ca99bc3f0bf25f5f528c3c52be1596b30f60b0b1c37ff");
 
   EXPECT_EQ(manifest.get().schemaversion(), 1u);
 

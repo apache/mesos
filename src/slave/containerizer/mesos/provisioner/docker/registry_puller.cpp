@@ -255,12 +255,16 @@ Future<list<pair<string, string>>> RegistryPullerProcess::downloadLayers(
 {
   list<Future<pair<string, string>>> downloadFutures;
 
+  CHECK_EQ(manifest.fslayers_size(), manifest.history_size());
+
   for (int i = 0; i < manifest.fslayers_size(); i++) {
+    CHECK(manifest.history(i).has_v1());
+
     downloadFutures.push_back(
         downloadLayer(imageName,
                       directory,
                       manifest.fslayers(i).blobsum(),
-                      manifest.history(i).v1compatibility().id()));
+                      manifest.history(i).v1().id()));
   }
 
   // TODO(jojy): Delete downloaded files in the directory on discard and

@@ -97,6 +97,25 @@ Try<ImageManifest> parse(const JSON::Object& json)
     return Error("Protobuf parse failed: " + manifest.error());
   }
 
+  for (int i = 0; i < manifest.get().history_size(); i++) {
+    Try<JSON::Object> v1Compatibility = JSON::parse<JSON::Object>(
+        manifest.get().history(i).v1compatibility());
+
+    if (v1Compatibility.isError()) {
+      return Error("Parsing v1Compatibility JSON failed: " +
+                   v1Compatibility.error());
+    }
+
+    Try<v1::ImageManifest> v1 = v1::parse(v1Compatibility.get());
+    if (v1.isError()) {
+      return Error("Parsing v1Compatibility protobuf failed: " + v1.error());
+    }
+
+    CHECK(!manifest.get().history(i).has_v1());
+
+    manifest->mutable_history(i)->mutable_v1()->CopyFrom(v1.get());
+  }
+
   Option<Error> error = validate(manifest.get());
   if (error.isSome()) {
     return Error("Docker v2 image manifest validation failed: " +
