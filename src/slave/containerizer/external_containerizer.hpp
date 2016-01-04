@@ -18,7 +18,6 @@
 #define __EXTERNAL_CONTAINERIZER_HPP__
 
 #include <list>
-#include <sstream>
 #include <string>
 #include <tuple>
 

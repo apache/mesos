@@ -14,15 +14,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <iostream>
-#include <iomanip>
-#include <list>
-#include <tuple>
-
 #include <errno.h>
 #include <poll.h>
 #include <signal.h>
 #include <stdio.h>
+
+#include <list>
+#include <tuple>
 
 #include <mesos/type_utils.hpp>
 
@@ -49,14 +47,12 @@
 
 #include "slave/containerizer/external_containerizer.hpp"
 
-
 using lambda::bind;
 
 using std::list;
 using std::map;
 using std::set;
 using std::string;
-using std::stringstream;
 using std::tuple;
 using std::vector;
 
@@ -70,7 +66,6 @@ using state::ExecutorState;
 using state::FrameworkState;
 using state::RunState;
 using state::SlaveState;
-
 
 Try<ExternalContainerizer*> ExternalContainerizer::create(const Flags& flags)
 {
@@ -433,8 +428,8 @@ Future<bool> ExternalContainerizerProcess::launch(
     const ContainerID& containerId,
     const Option<TaskInfo>& taskInfo,
     const ExecutorInfo& executor,
-    const std::string& directory,
-    const Option<std::string>& user,
+    const string& directory,
+    const Option<string>& user,
     const SlaveID& slaveId,
     const PID<Slave>& slavePid,
     bool checkpoint)
