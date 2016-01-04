@@ -718,6 +718,35 @@ Try<string> decode(const string& s)
 }
 
 
+Try<vector<Response>> decodeResponses(const string& s)
+{
+  ResponseDecoder decoder;
+
+  deque<http::Response*> responses = decoder.decode(s.data(), s.length());
+
+  if (decoder.failed()) {
+    foreach (Response* response, responses) {
+      delete response;
+    }
+
+    return Error("Decoding failed");
+  }
+
+  if (responses.empty()) {
+    return Error("No response decoded");
+  }
+
+  vector<Response> result;
+
+  foreach (Response* response, responses) {
+    result.push_back(*response);
+    delete response;
+  }
+
+  return result;
+}
+
+
 namespace query {
 
 Try<hashmap<std::string, std::string>> decode(const std::string& query)

@@ -718,6 +718,14 @@ std::string encode(const std::string& s);
 Try<std::string> decode(const std::string& s);
 
 
+/**
+ * Decode HTTP responses from the given string.
+ *
+ * @param s the given string.
+ */
+Try<std::vector<Response>> decodeResponses(const std::string& s);
+
+
 namespace query {
 
 // Decodes an HTTP query string into a map. For example:
