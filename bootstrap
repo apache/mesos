@@ -19,6 +19,10 @@ if test ! -e .git/hooks/post-rewrite; then
   ln -s ../../support/hooks/post-rewrite .git/hooks/post-rewrite
 fi
 
+if test ! -e .git/hooks/commit-msg; then
+  ln -s ../../support/hooks/commit-msg .git/hooks/commit-msg
+fi
+
 if test ! -e .gitignore; then
   ln -s .gitignore-template .gitignore
 fi

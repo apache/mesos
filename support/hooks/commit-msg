@@ -1,0 +1,31 @@
+#!/bin/bash
+#
+# A hook script to verify commit message format. Called by "git commit"
+# with one argument, the name of the file that has the commit message.
+# The hook exits with non-zero status after issuing an appropriate
+# message if it wants to stop the commit. The hook is allowed to edit the
+# commit message file.
+#
+# To enable this hook, run `bootstrap` or do this from the root of the repo:
+#
+# $ ln -s ../../support/hooks/commit-msg .git/hooks/commit-msg
+
+FIRST_LINE=$(head -n 1 $1)
+LAST_CHAR=$(echo -n $FIRST_LINE | tail -c 1)
+FIRST_CHAR=$(echo -n $FIRST_LINE | head -c 1)
+
+if [[ ! "$FIRST_CHAR" =~ [A-Z] ]]; then
+    echo >&2 "Error: Commit message summary (the first line) must start with a capital letter."
+    exit 1
+fi
+
+LENGTH=$(echo $FIRST_LINE | wc -c)
+if [ "$LENGTH" -gt "72" ]; then
+    echo >&2 "Error: Commit message summary (the first line) must not exceed 72 characters."
+    exit 1
+fi
+
+if [ "$LAST_CHAR" != "." ]; then
+    echo >&2 "Error: Commit message summary (the first line) must end in a period."
+    exit 1
+fi
