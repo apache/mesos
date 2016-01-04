@@ -178,7 +178,7 @@ TEST_F(DiskQuotaTest, DiskUsageExceedsQuota)
   AWAIT_READY(offers);
   EXPECT_FALSE(offers.get().empty());
 
-  Offer offer = offers.get()[0];
+  const Offer& offer = offers.get()[0];
 
   // Create a task which requests 1MB disk, but actually uses more
   // than 2MB disk.
@@ -201,6 +201,98 @@ TEST_F(DiskQuotaTest, DiskUsageExceedsQuota)
 
   AWAIT_READY(status2);
   EXPECT_EQ(task.task_id(), status2.get().task_id());
+  EXPECT_EQ(TASK_FAILED, status2.get().state());
+
+  driver.stop();
+  driver.join();
+
+  Shutdown();
+}
+
+
+// This test verifies that the container will be killed if the volume
+// usage exceeds its quota.
+TEST_F(DiskQuotaTest, VolumeUsageExceedsQuota)
+{
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_role("role1");
+
+  master::Flags masterFlags = CreateMasterFlags();
+
+  Try<PID<Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  slaveFlags.isolation = "posix/cpu,posix/mem,posix/disk";
+
+  // NOTE: We can't pause the clock because we need the reaper to reap
+  // the 'du' subprocess.
+  slaveFlags.container_disk_watch_interval = Milliseconds(1);
+  slaveFlags.enforce_container_disk_quota = true;
+  slaveFlags.resources = "cpus:2;mem:128;disk(role1):128";
+
+  Try<PID<Slave>> slave = StartSlave(slaveFlags);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
+
+  Future<FrameworkID> frameworkId;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(frameworkId);
+
+  AWAIT_READY(offers);
+  EXPECT_FALSE(offers.get().empty());
+
+  Offer offer = offers.get()[0];
+
+  // Create a task that requests a 1 MB persistent volume but atempts
+  // to use 2MB.
+  Resources volume = createPersistentVolume(
+      Megabytes(1),
+      "role1",
+      "id1",
+      "volume_path");
+
+  // We intentionally request a sandbox that is much bugger (16MB) than
+  // the file the task writes (2MB) to the persistent volume (1MB). This
+  // makes sure that the quota is indeed enforced on the persistent volume.
+  Resources taskResources =
+    Resources::parse("cpus:1;mem:64;disk(role1):16").get() + volume;
+
+  TaskInfo task = createTask(
+      offer.slave_id(),
+      taskResources,
+      "dd if=/dev/zero of=volume_path/file bs=1048576 count=2 && sleep 1000");
+
+  Future<TaskStatus> status1;
+  Future<TaskStatus> status2;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status1))
+    .WillOnce(FutureArg<1>(&status2));
+
+  // Create the volume and launch the task.
+  driver.acceptOffers(
+      {offer.id()},
+      {CREATE(volume),
+      LAUNCH({task})});
+
+  AWAIT_READY(status1);
+  EXPECT_EQ(task.task_id(), status1.get().task_id());
+  EXPECT_EQ(TASK_RUNNING, status1.get().state());
+
+  AWAIT_READY(status2);
+  EXPECT_EQ(task.task_id(), status1.get().task_id());
   EXPECT_EQ(TASK_FAILED, status2.get().state());
 
   driver.stop();
