@@ -63,7 +63,6 @@ Release Notes - Mesos - Version 0.26.0
   * [MESOS-3793] - Cannot start mesos local on a Debian GNU/Linux 8 docker machine.
   * [MESOS-3800] - Containerizer attempts to create Linux launcher by default.
   * [MESOS-3806] - 'mount --make-rslave /' does not work as expected on ubuntu 14.04.
-  * [MESOS-3809] - Expose advertise_ip and advertise_port as command line options in mesos slave.
   * [MESOS-3810] - Must be able to use NetworkInfo with mesos-executor.
   * [MESOS-3822] - Cannot specify multiple masters when slave start up.
   * [MESOS-3834] - Slave upgrade framework checkpoint incompatibility.
