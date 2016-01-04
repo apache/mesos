@@ -20,6 +20,7 @@ set(PROCESS_SRC
   ${PROCESS_SRC}
   authentication_router.cpp
   authentication_router.hpp
+  authenticator.cpp
   clock.cpp
   config.hpp
   decoder.hpp

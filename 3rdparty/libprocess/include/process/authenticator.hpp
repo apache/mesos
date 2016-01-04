@@ -18,11 +18,14 @@
 #include <process/future.hpp>
 #include <process/http.hpp>
 
+#include <stout/hashmap.hpp>
 #include <stout/option.hpp>
 
 namespace process {
 namespace http {
 namespace authentication {
+
+class BasicAuthenticatorProcess;
 
 /**
  * Represents the result of authenticating a request.
@@ -75,6 +78,29 @@ public:
    * Returns the name of the authentication scheme implemented.
    */
   virtual std::string scheme() const = 0;
+};
+
+
+/**
+ * Implements the "Basic" authentication scheme using a
+ * fixed set of credentials.
+ */
+class BasicAuthenticator : public Authenticator
+{
+public:
+  BasicAuthenticator(
+      const std::string& realm,
+      const hashmap<std::string, std::string>& credentials);
+
+  virtual ~BasicAuthenticator();
+
+  virtual Future<AuthenticationResult> authenticate(
+      const http::Request& request) override;
+
+  virtual std::string scheme() const override;
+
+private:
+  Owned<BasicAuthenticatorProcess> process_;
 };
 
 } // namespace authentication {

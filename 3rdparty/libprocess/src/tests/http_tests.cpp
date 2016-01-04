@@ -47,6 +47,7 @@ namespace http = process::http;
 
 using authentication::Authenticator;
 using authentication::AuthenticationResult;
+using authentication::BasicAuthenticator;
 
 using process::Future;
 using process::Owned;
@@ -1423,4 +1424,68 @@ TEST_F(HttpAuthenticationTest, Pipelining)
 
   AWAIT_EXPECT_EQ(authentiation1.principal, principal1);
   AWAIT_EXPECT_EQ(authentiation2.principal, principal2);
+}
+
+
+// Tests the "Basic" authenticator.
+TEST_F(HttpAuthenticationTest, Basic)
+{
+  Http http;
+
+  Owned<Authenticator> authenticator(
+    new BasicAuthenticator("realm", {{"user", "password"}}));
+
+  AWAIT_READY(setAuthenticator("realm", authenticator));
+
+  // No credentials provided.
+  {
+    Future<http::Response> response = http::get(*http.process, "authenticated");
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(
+        http::Unauthorized(vector<string>()).status,
+        response);
+  }
+
+  // Wrong password provided.
+  {
+    http::Headers headers;
+    headers["Authorization"] =
+      "Basic " + base64::encode("user:wrongpassword");
+
+    Future<http::Response> response =
+      http::get(http.process->self(), "authenticated", None(), headers);
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(
+        http::Unauthorized(vector<string>()).status,
+        response);
+  }
+
+  // Wrong username provided.
+  {
+    http::Headers headers;
+    headers["Authorization"] =
+      "Basic " + base64::encode("wronguser:password");
+
+    Future<http::Response> response =
+      http::get(http.process->self(), "authenticated", None(), headers);
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(
+        http::Unauthorized(vector<string>()).status,
+        response);
+  }
+
+  // Right credentials provided.
+  {
+    EXPECT_CALL(*http.process, authenticated(_, Option<string>("user")))
+      .WillOnce(Return(http::OK()));
+
+    http::Headers headers;
+    headers["Authorization"] =
+      "Basic " + base64::encode("user:password");
+
+    Future<http::Response> response =
+      http::get(http.process->self(), "authenticated", None(), headers);
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::OK().status, response);
+  }
 }

@@ -45,6 +45,7 @@ noinst_LTLIBRARIES = libprocess.la
 libprocess_la_SOURCES =		\
   src/authenticator_manager.hpp	\
   src/authenticator_manager.cpp	\
+  src/authenticator.cpp		\
   src/clock.cpp			\
   src/config.hpp		\
   src/decoder.hpp		\
