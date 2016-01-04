@@ -16,8 +16,12 @@
 
 #include "messages/messages.hpp"
 
+#include <ostream>
+
 #include <mesos/resources.hpp>
 #include <mesos/type_utils.hpp>
+
+using std::ostream;
 
 namespace mesos {
 namespace internal {
@@ -49,9 +53,7 @@ bool operator==(const Task& left, const Task& right)
 }
 
 
-std::ostream& operator<<(
-    std::ostream& stream,
-    const StatusUpdate& update)
+ostream& operator<<(ostream& stream, const StatusUpdate& update)
 {
   stream << update.status().state()
          << (update.has_uuid()
@@ -65,6 +67,13 @@ std::ostream& operator<<(
   }
 
   return stream << " of framework " << update.framework_id();
+}
+
+
+ostream& operator<<(ostream& stream, const StatusUpdateRecord::Type& type)
+{
+  return stream
+    << StatusUpdateRecord::Type_descriptor()->FindValueByNumber(type)->name();
 }
 
 } // namespace internal {

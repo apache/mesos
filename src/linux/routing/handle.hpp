@@ -19,7 +19,7 @@
 
 #include <stdint.h>
 
-#include <ostream>
+#include <iosfwd>
 
 #include <netlink/route/tc.h>
 
@@ -70,11 +70,7 @@ protected:
 };
 
 
-inline std::ostream& operator<<(std::ostream& out, const Handle& handle)
-{
-  out << std::hex << handle.primary() << ":" << handle.secondary() << std::dec;
-  return out;
-}
+std::ostream& operator<<(std::ostream& out, const Handle& handle);
 
 
 // Packets flowing from the device driver to the network stack are

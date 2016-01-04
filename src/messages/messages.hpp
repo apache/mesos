@@ -21,7 +21,7 @@
 
 #include <google/protobuf/io/zero_copy_stream_impl.h> // For ArrayInputStream.
 
-#include <ostream>
+#include <iosfwd>
 #include <string>
 
 #include <stout/error.hpp>
@@ -69,17 +69,12 @@ namespace internal {
 bool operator==(const Task& left, const Task& right);
 
 
+std::ostream& operator<<(std::ostream& stream, const StatusUpdate& update);
+
+
 std::ostream& operator<<(
     std::ostream& stream,
-    const StatusUpdate& update);
-
-inline std::ostream& operator<<(
-    std::ostream& stream,
-    const StatusUpdateRecord::Type& type)
-{
-  return stream
-    << StatusUpdateRecord::Type_descriptor()->FindValueByNumber(type)->name();
-}
+    const StatusUpdateRecord::Type& type);
 
 } // namespace internal {
 } // namespace mesos {

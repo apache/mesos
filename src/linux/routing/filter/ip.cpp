@@ -20,6 +20,8 @@
 
 #include <netlink/route/cls/u32.h>
 
+#include <ostream>
+
 #include <stout/error.hpp>
 #include <stout/none.hpp>
 
@@ -32,6 +34,7 @@
 #include "linux/routing/filter/ip.hpp"
 #include "linux/routing/filter/priority.hpp"
 
+using std::ostream;
 using std::string;
 using std::vector;
 
@@ -449,6 +452,12 @@ Try<PortRange> PortRange::fromBeginMask(uint16_t begin, uint16_t mask)
 {
   uint16_t size = ~mask + 1;
   return fromBeginEnd(begin, begin + size - 1);
+}
+
+
+ostream& operator<<(ostream& stream, const PortRange& range)
+{
+  return stream << "[" << range.begin() << "," << range.end() << "]";
 }
 
 

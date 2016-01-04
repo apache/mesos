@@ -19,7 +19,7 @@
 
 #include <stdint.h>
 
-#include <iostream>
+#include <iosfwd>
 #include <string>
 #include <vector>
 
@@ -82,12 +82,7 @@ private:
 };
 
 
-inline std::ostream& operator<<(
-    std::ostream& stream,
-    const PortRange& range)
-{
-  return stream << "[" << range.begin() << "," << range.end() << "]";
-}
+std::ostream& operator<<(std::ostream& stream, const PortRange& range);
 
 
 struct Classifier

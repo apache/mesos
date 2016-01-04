@@ -14,6 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <ios>
+#include <ostream>
 #include <string>
 #include <vector>
 
@@ -22,12 +24,13 @@
 
 #include "handle.hpp"
 
+using std::ostream;
 using std::string;
 using std::vector;
 
 namespace routing {
 
-Try<Handle> Handle::parse(const std::string& str)
+Try<Handle> Handle::parse(const string& str)
 {
   if (str == "root") {
     return EGRESS_ROOT;
@@ -51,6 +54,13 @@ Try<Handle> Handle::parse(const std::string& str)
   }
 
   return Handle(primary.get(), secondary.get());
+}
+
+
+ostream& operator<<(ostream& out, const Handle& handle)
+{
+  out << std::hex << handle.primary() << ":" << handle.secondary() << std::dec;
+  return out;
 }
 
 } // namespace routing {

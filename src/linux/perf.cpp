@@ -23,7 +23,7 @@
 #include <sys/wait.h>
 
 #include <list>
-#include <ostream>
+#include <sstream>
 #include <tuple>
 #include <vector>
 
