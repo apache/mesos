@@ -367,6 +367,8 @@ int main(int argc, char** argv)
 
     LOG(INFO) << "Using '" << authorizerName << "' authorizer";
 
+    // Only default authorizer requires initialization, see the comment
+    // for `initialize()` in "mesos/authorizer/authorizer.hpp".
     if (authorizerName == master::DEFAULT_AUTHORIZER) {
       Try<Nothing> initialize = authorizer.get()->initialize(flags.acls.get());
 
