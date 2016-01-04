@@ -15,8 +15,7 @@
 
 #include <stdint.h>
 
-#include <iostream>
-#include <sstream>
+#include <iosfwd>
 #include <string>
 
 #include <boost/functional/hash.hpp>

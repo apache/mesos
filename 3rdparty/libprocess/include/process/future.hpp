@@ -17,7 +17,6 @@
 #include <stdlib.h> // For abort.
 
 #include <atomic>
-#include <iostream>
 #include <list>
 #include <memory> // TODO(benh): Replace shared_ptr with unique_ptr.
 #include <set>

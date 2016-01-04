@@ -24,7 +24,7 @@
 
 #include <glog/logging.h>
 
-#include <sstream>
+#include <ostream>
 
 #include <boost/functional/hash.hpp>
 

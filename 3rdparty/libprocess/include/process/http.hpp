@@ -21,7 +21,6 @@
 #include <iosfwd>
 #include <memory>
 #include <queue>
-#include <sstream>
 #include <string>
 #include <vector>
 
@@ -491,29 +490,7 @@ struct OK : Response
 
   explicit OK(const std::string& body) : Response(body, Status::OK) {}
 
-  OK(const JSON::Value& value, const Option<std::string>& jsonp = None())
-    : Response(Status::OK)
-  {
-    type = BODY;
-
-    std::ostringstream out;
-
-    if (jsonp.isSome()) {
-      out << jsonp.get() << "(";
-    }
-
-    out << value;
-
-    if (jsonp.isSome()) {
-      out << ");";
-      headers["Content-Type"] = "text/javascript";
-    } else {
-      headers["Content-Type"] = "application/json";
-    }
-
-    headers["Content-Length"] = stringify(out.str().size());
-    body = out.str().data();
-  }
+  OK(const JSON::Value& value, const Option<std::string>& jsonp = None());
 };
 
 
