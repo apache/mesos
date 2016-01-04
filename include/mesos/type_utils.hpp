@@ -17,9 +17,13 @@
 #ifndef __MESOS_TYPE_UTILS_H__
 #define __MESOS_TYPE_UTILS_H__
 
-#include <ostream>
+#include <iosfwd>
+#include <string>
+#include <vector>
 
 #include <boost/functional/hash.hpp>
+
+#include <google/protobuf/repeated_field.h>
 
 #include <mesos/mesos.hpp>
 
@@ -246,141 +250,61 @@ inline bool operator<(const TaskID& left, const TaskID& right)
 }
 
 
-inline std::ostream& operator<<(
+std::ostream& operator<<(std::ostream& stream, const ContainerID& containerId);
+
+
+std::ostream& operator<<(
     std::ostream& stream,
-    const ContainerID& containerId)
-{
-  return stream << containerId.value();
-}
+    const ContainerInfo& containerInfo);
 
 
-inline std::ostream& operator<<(
+std::ostream& operator<<(std::ostream& stream, const ExecutorID& executorId);
+
+
+std::ostream& operator<<(std::ostream& stream, const ExecutorInfo& executor);
+
+
+std::ostream& operator<<(std::ostream& stream, const FrameworkID& frameworkId);
+
+
+std::ostream& operator<<(std::ostream& stream, const MasterInfo& master);
+
+
+std::ostream& operator<<(std::ostream& stream, const OfferID& offerId);
+
+
+std::ostream& operator<<(std::ostream& stream, const RateLimits& limits);
+
+
+std::ostream& operator<<(std::ostream& stream, const SlaveID& slaveId);
+
+
+std::ostream& operator<<(std::ostream& stream, const SlaveInfo& slave);
+
+
+std::ostream& operator<<(std::ostream& stream, const TaskID& taskId);
+
+
+std::ostream& operator<<(std::ostream& stream, const MachineID& machineId);
+
+
+std::ostream& operator<<(std::ostream& stream, const TaskInfo& task);
+
+
+std::ostream& operator<<(std::ostream& stream, const TaskState& state);
+
+
+std::ostream& operator<<(
     std::ostream& stream,
-    const ContainerInfo& containerInfo)
-{
-  return stream << containerInfo.DebugString();
-}
+    const std::vector<TaskID>& taskIds);
 
 
-inline std::ostream& operator<<(
+std::ostream& operator<<(
     std::ostream& stream,
-    const ExecutorID& executorId)
-{
-  return stream << executorId.value();
-}
+    const FrameworkInfo::Capability& capability);
 
 
-inline std::ostream& operator<<(
-    std::ostream& stream,
-    const ExecutorInfo& executor)
-{
-  return stream << executor.DebugString();
-}
-
-
-inline std::ostream& operator<<(
-    std::ostream& stream,
-    const FrameworkID& frameworkId)
-{
-  return stream << frameworkId.value();
-}
-
-
-inline std::ostream& operator<<(std::ostream& stream, const MasterInfo& master)
-{
-  return stream << master.DebugString();
-}
-
-
-inline std::ostream& operator<<(std::ostream& stream, const OfferID& offerId)
-{
-  return stream << offerId.value();
-}
-
-
-inline std::ostream& operator<<(std::ostream& stream, const RateLimits& limits)
-{
-  return stream << limits.DebugString();
-}
-
-
-inline std::ostream& operator<<(std::ostream& stream, const SlaveID& slaveId)
-{
-  return stream << slaveId.value();
-}
-
-
-inline std::ostream& operator<<(std::ostream& stream, const SlaveInfo& slave)
-{
-  return stream << slave.DebugString();
-}
-
-
-inline std::ostream& operator<<(std::ostream& stream, const TaskID& taskId)
-{
-  return stream << taskId.value();
-}
-
-
-inline std::ostream& operator<<(
-    std::ostream& stream,
-    const MachineID& machineId)
-{
-  if (machineId.has_hostname() && machineId.has_ip()) {
-    return stream << machineId.hostname() << " (" << machineId.ip() << ")";
-  }
-
-  // If only a hostname is present.
-  if (machineId.has_hostname()) {
-    return stream << machineId.hostname();
-  } else { // If there is no hostname, then there is an IP.
-    return stream << "(" << machineId.ip() << ")";
-  }
-}
-
-
-inline std::ostream& operator<<(std::ostream& stream, const TaskInfo& task)
-{
-  return stream << task.DebugString();
-}
-
-
-inline std::ostream& operator<<(std::ostream& stream, const TaskState& state)
-{
-  return stream << TaskState_Name(state);
-}
-
-
-inline std::ostream& operator<<(
-    std::ostream& stream,
-    const std::vector<TaskID>& taskIds)
-{
-  stream << "[ ";
-  for (auto it = taskIds.begin(); it != taskIds.end(); ++it) {
-    if (it != taskIds.begin()) {
-      stream << ", ";
-    }
-    stream << *it;
-  }
-  stream << " ]";
-  return stream;
-}
-
-
-inline std::ostream& operator<<(
-    std::ostream& stream,
-    const FrameworkInfo::Capability& capability)
-{
-  return stream << FrameworkInfo::Capability::Type_Name(capability.type());
-}
-
-
-inline std::ostream& operator<<(
-    std::ostream& stream,
-    const Image::Type& imageType)
-{
-  return stream << Image::Type_Name(imageType);
-}
+std::ostream& operator<<(std::ostream& stream, const Image::Type& imageType);
 
 
 template <typename T>
@@ -400,13 +324,9 @@ inline std::ostream& operator<<(
 }
 
 
-inline std::ostream& operator<<(
+std::ostream& operator<<(
     std::ostream& stream,
-    const hashmap<std::string, std::string>& map)
-{
-  stream << stringify(map);
-  return stream;
-}
+    const hashmap<std::string, std::string>& map);
 
 } // namespace mesos {
 

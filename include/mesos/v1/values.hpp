@@ -17,6 +17,8 @@
 #ifndef __MESOS_V1_VALUES_HPP__
 #define __MESOS_V1_VALUES_HPP__
 
+#include <iosfwd>
+
 #include <mesos/v1/mesos.hpp>
 
 #include <stout/try.hpp>

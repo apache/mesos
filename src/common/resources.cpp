@@ -16,11 +16,14 @@
 
 #include <stdint.h>
 
+#include <ostream>
 #include <set>
 #include <string>
 #include <vector>
 
 #include <glog/logging.h>
+
+#include <google/protobuf/repeated_field.h>
 
 #include <mesos/resources.hpp>
 #include <mesos/values.hpp>
@@ -1390,6 +1393,14 @@ ostream& operator<<(ostream& stream, const Resources& resources)
   }
 
   return stream;
+}
+
+
+ostream& operator<<(
+    ostream& stream,
+    const google::protobuf::RepeatedPtrField<Resource>& resources)
+{
+  return stream << Resources(resources);
 }
 
 } // namespace mesos {

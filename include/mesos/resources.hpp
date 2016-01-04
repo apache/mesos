@@ -18,10 +18,12 @@
 #define __RESOURCES_HPP__
 
 #include <map>
-#include <iostream>
+#include <iosfwd>
 #include <set>
 #include <string>
 #include <vector>
+
+#include <google/protobuf/repeated_field.h>
 
 #include <mesos/mesos.hpp>
 #include <mesos/type_utils.hpp>
@@ -369,15 +371,14 @@ private:
 
 
 std::ostream& operator<<(std::ostream& stream, const Resource& resource);
+
+
 std::ostream& operator<<(std::ostream& stream, const Resources& resources);
 
 
-inline std::ostream& operator<<(
+std::ostream& operator<<(
     std::ostream& stream,
-    const google::protobuf::RepeatedPtrField<Resource>& resources)
-{
-  return stream << Resources(resources);
-}
+    const google::protobuf::RepeatedPtrField<Resource>& resources);
 
 
 inline Resources operator+(

@@ -14,12 +14,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <ostream>
+
 #include <mesos/attributes.hpp>
 #include <mesos/mesos.hpp>
 #include <mesos/resources.hpp>
 #include <mesos/type_utils.hpp>
 
 #include "messages/messages.hpp"
+
+using std::ostream;
+using std::string;
+using std::vector;
 
 namespace mesos {
 
@@ -358,6 +364,133 @@ bool operator==(const TaskStatus& left, const TaskStatus& right)
 bool operator!=(const TaskStatus& left, const TaskStatus& right)
 {
   return !(left == right);
+}
+
+
+ostream& operator<<(ostream& stream, const ContainerID& containerId)
+{
+  return stream << containerId.value();
+}
+
+
+ostream& operator<<(ostream& stream, const ContainerInfo& containerInfo)
+{
+  return stream << containerInfo.DebugString();
+}
+
+
+ostream& operator<<(ostream& stream, const ExecutorID& executorId)
+{
+  return stream << executorId.value();
+}
+
+
+ostream& operator<<(ostream& stream, const ExecutorInfo& executor)
+{
+  return stream << executor.DebugString();
+}
+
+
+ostream& operator<<(std::ostream& stream, const FrameworkID& frameworkId)
+{
+  return stream << frameworkId.value();
+}
+
+
+ostream& operator<<(ostream& stream, const MasterInfo& master)
+{
+  return stream << master.DebugString();
+}
+
+
+ostream& operator<<(ostream& stream, const OfferID& offerId)
+{
+  return stream << offerId.value();
+}
+
+
+ostream& operator<<(ostream& stream, const RateLimits& limits)
+{
+  return stream << limits.DebugString();
+}
+
+
+ostream& operator<<(ostream& stream, const SlaveID& slaveId)
+{
+  return stream << slaveId.value();
+}
+
+
+ostream& operator<<(ostream& stream, const SlaveInfo& slave)
+{
+  return stream << slave.DebugString();
+}
+
+
+ostream& operator<<(ostream& stream, const TaskID& taskId)
+{
+  return stream << taskId.value();
+}
+
+
+ostream& operator<<(ostream& stream, const MachineID& machineId)
+{
+  if (machineId.has_hostname() && machineId.has_ip()) {
+    return stream << machineId.hostname() << " (" << machineId.ip() << ")";
+  }
+
+  // If only a hostname is present.
+  if (machineId.has_hostname()) {
+    return stream << machineId.hostname();
+  } else { // If there is no hostname, then there is an IP.
+    return stream << "(" << machineId.ip() << ")";
+  }
+}
+
+
+ostream& operator<<(ostream& stream, const TaskInfo& task)
+{
+  return stream << task.DebugString();
+}
+
+
+ostream& operator<<(ostream& stream, const TaskState& state)
+{
+  return stream << TaskState_Name(state);
+}
+
+
+ostream& operator<<(ostream& stream, const vector<TaskID>& taskIds)
+{
+  stream << "[ ";
+  for (auto it = taskIds.begin(); it != taskIds.end(); ++it) {
+    if (it != taskIds.begin()) {
+      stream << ", ";
+    }
+    stream << *it;
+  }
+  stream << " ]";
+  return stream;
+}
+
+
+ostream& operator<<(
+    ostream& stream,
+    const FrameworkInfo::Capability& capability)
+{
+  return stream << FrameworkInfo::Capability::Type_Name(capability.type());
+}
+
+
+ostream& operator<<(ostream& stream, const Image::Type& imageType)
+{
+  return stream << Image::Type_Name(imageType);
+}
+
+
+ostream& operator<<(ostream& stream, const hashmap<string, string>& map)
+{
+  return stream << stringify(map);
 }
 
 } // namespace mesos {
