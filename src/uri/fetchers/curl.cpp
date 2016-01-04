@@ -32,21 +32,24 @@
 
 #include "uri/fetchers/curl.hpp"
 
-using namespace process;
+namespace http = process::http;
+namespace io = process::io;
 
 using std::set;
 using std::string;
+using std::tuple;
 using std::vector;
+
+using process::await;
+using process::subprocess;
+
+using process::Failure;
+using process::Future;
+using process::Owned;
+using process::Subprocess;
 
 namespace mesos {
 namespace uri {
-
-// Forward declarations.
-static Future<Nothing> _fetch(const Future<std::tuple<
-    Future<Option<int>>,
-    Future<string>,
-    Future<string>>>& future);
-
 
 Try<Owned<Fetcher::Plugin>> CurlFetcherPlugin::create(const Flags& flags)
 {
@@ -107,59 +110,53 @@ Future<Nothing> CurlFetcherPlugin::fetch(
       s.get().status(),
       io::read(s.get().out().get()),
       io::read(s.get().err().get()))
-    .then(_fetch);
-}
+    .then([](const std::tuple<
+        Future<Option<int>>,
+        Future<string>,
+        Future<string>>& t) -> Future<Nothing> {
+      Future<Option<int>> status = std::get<0>(t);
+      if (!status.isReady()) {
+        return Failure(
+            "Failed to get the exit status of the curl subprocess: " +
+            (status.isFailed() ? status.failure() : "discarded"));
+      }
 
+      if (status->isNone()) {
+        return Failure("Failed to reap the curl subprocess");
+      }
 
-static Future<Nothing> _fetch(const Future<std::tuple<
-    Future<Option<int>>,
-    Future<string>,
-    Future<string>>>& future)
-{
-  CHECK_READY(future);
+      if (status->get() != 0) {
+        Future<string> error = std::get<2>(t);
+        if (!error.isReady()) {
+          return Failure(
+              "Failed to perform 'curl'. Reading stderr failed: " +
+              (error.isFailed() ? error.failure() : "discarded"));
+        }
 
-  Future<Option<int>> status = std::get<0>(future.get());
-  if (!status.isReady()) {
-    return Failure(
-        "Failed to get the exit status of the curl subprocess: " +
-        (status.isFailed() ? status.failure() : "discarded"));
-  }
+        return Failure("Failed to perform 'curl': " + error.get());
+      }
 
-  if (status->isNone()) {
-    return Failure("Failed to reap the curl subprocess");
-  }
+      Future<string> output = std::get<1>(t);
+      if (!output.isReady()) {
+        return Failure(
+            "Failed to read stdout from 'curl': " +
+            (output.isFailed() ? output.failure() : "discarded"));
+      }
 
-  if (status->get() != 0) {
-    Future<string> error = std::get<2>(future.get());
-    if (!error.isReady()) {
-      return Failure(
-          "Failed to perform 'curl'. Reading stderr failed: " +
-          (error.isFailed() ? error.failure() : "discarded"));
-    }
+      // Parse the output and get the HTTP response code.
+      Try<int> code = numify<int>(output.get());
+      if (code.isError()) {
+        return Failure("Unexpected output from 'curl': " + output.get());
+      }
 
-    return Failure("Failed to perform 'curl': " + error.get());
-  }
+      if (code.get() != http::Status::OK) {
+        return Failure(
+            "Unexpected HTTP response code: " +
+            http::Status::string(code.get()));
+      }
 
-  Future<string> output = std::get<1>(future.get());
-  if (!output.isReady()) {
-    return Failure(
-        "Failed to read stdout from 'curl': " +
-        (output.isFailed() ? output.failure() : "discarded"));
-  }
-
-  // Parse the output and get the HTTP response code.
-  Try<int> code = numify<int>(output.get());
-  if (code.isError()) {
-    return Failure("Unexpected output from 'curl': " + output.get());
-  }
-
-  if (code.get() != http::Status::OK) {
-    return Failure(
-        "Unexpected HTTP response code: " +
-        http::Status::string(code.get()));
-  }
-
-  return Nothing();
+      return Nothing();
+    });
 }
 
 } // namespace uri {
