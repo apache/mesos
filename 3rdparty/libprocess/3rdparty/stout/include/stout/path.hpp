@@ -19,6 +19,52 @@
 
 #include <stout/strings.hpp>
 
+namespace path {
+
+// Base case.
+inline std::string join(const std::string& path1, const std::string& path2)
+{
+  return strings::remove(path1, "/", strings::SUFFIX) + "/" +
+         strings::remove(path2, "/", strings::PREFIX);
+}
+
+
+template <typename... Paths>
+inline std::string join(
+    const std::string& path1,
+    const std::string& path2,
+    Paths&&... paths)
+{
+  return join(path1, join(path2, std::forward<Paths>(paths)...));
+}
+
+
+inline std::string join(const std::vector<std::string>& paths)
+{
+  if (paths.empty()) {
+    return "";
+  }
+
+  std::string result = paths[0];
+  for (size_t i = 1; i < paths.size(); ++i) {
+    result = join(result, paths[i]);
+  }
+  return result;
+}
+
+
+inline bool absolute(const std::string& path)
+{
+  if (path.empty() || path[0] != '/') {
+    return false;
+  }
+
+  return true;
+}
+
+} // namespace path {
+
+
 /**
  * Represents a POSIX file systems path and offers common path
  * manipulations.
@@ -29,8 +75,8 @@ public:
   explicit Path(const std::string& path)
     : value(strings::remove(path, "file://", strings::PREFIX)) {}
 
-  // TODO(cmaloney): Add more useful operations such as 'absolute()',
-  // 'directoryname()', 'filename()', etc.
+  // TODO(cmaloney): Add more useful operations such as 'directoryname()',
+  // 'filename()', etc.
 
   /**
    * Extracts the component following the final '/'. Trailing '/'
@@ -176,6 +222,12 @@ public:
     return _basename.substr(index);
   }
 
+  // Checks whether the path is absolute.
+  inline bool absolute() const
+  {
+    return path::absolute(value);
+  }
+
   // Implicit conversion from Path to string.
   operator std::string() const
   {
@@ -192,41 +244,5 @@ inline std::ostream& operator<<(
 {
   return stream << path.value;
 }
-
-
-namespace path {
-
-// Base case.
-inline std::string join(const std::string& path1, const std::string& path2)
-{
-  return strings::remove(path1, "/", strings::SUFFIX) + "/" +
-         strings::remove(path2, "/", strings::PREFIX);
-}
-
-
-template <typename... Paths>
-inline std::string join(
-    const std::string& path1,
-    const std::string& path2,
-    Paths&&... paths)
-{
-  return join(path1, join(path2, std::forward<Paths>(paths)...));
-}
-
-
-inline std::string join(const std::vector<std::string>& paths)
-{
-  if (paths.empty()) {
-    return "";
-  }
-
-  std::string result = paths[0];
-  for (size_t i = 1; i < paths.size(); ++i) {
-    result = join(result, paths[i]);
-  }
-  return result;
-}
-
-} // namespace path {
 
 #endif // __STOUT_PATH_HPP__

@@ -143,6 +143,24 @@ TEST(PathTest, Join)
 }
 
 
+TEST(PathTest, Absolute)
+{
+  // Check absolute paths.
+  EXPECT_TRUE(path::absolute("/"));
+  EXPECT_TRUE(path::absolute("/foo"));
+  EXPECT_TRUE(path::absolute("/foo/bar"));
+  EXPECT_TRUE(path::absolute("/foo/bar/../baz"));
+
+  // Check relative paths.
+  EXPECT_FALSE(path::absolute(""));
+  EXPECT_FALSE(path::absolute("."));
+  EXPECT_FALSE(path::absolute(".."));
+  EXPECT_FALSE(path::absolute("../"));
+  EXPECT_FALSE(path::absolute("./foo"));
+  EXPECT_FALSE(path::absolute("../foo"));
+}
+
+
 class PathFileTest : public TemporaryDirectoryTest {};
 
 
