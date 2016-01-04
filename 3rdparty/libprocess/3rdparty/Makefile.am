@@ -39,7 +39,6 @@ LIBEV = libev-$(LIBEV_VERSION)
 PROTOBUF = protobuf-$(PROTOBUF_VERSION)
 PICOJSON = picojson-$(PICOJSON_VERSION)
 
-
 EXTRA_DIST =			\
   $(BOOST).tar.gz		\
   $(GLOG).tar.gz		\
@@ -227,6 +226,11 @@ if WITH_BUNDLED_PICOJSON
   # Enable the INT64 support for PicoJSON.
   stout_tests_CPPFLAGS += -DPICOJSON_USE_INT64
   stout_tests_CPPFLAGS += -D__STDC_FORMAT_MACROS
+
+  # Stout depends on <picojson.h>. Install picojson.h into $PREFIX/include
+  # but don't add it to the source tarball.
+  nodist_include_HEADERS = $(PICOJSON)/picojson.h
+  $(PICOJSON)/picojson.h: $(PICOJSON)-stamp
 endif
 
 if WITH_BUNDLED_GLOG
