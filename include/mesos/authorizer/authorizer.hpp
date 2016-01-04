@@ -17,7 +17,7 @@
 #ifndef __MESOS_AUTHORIZER_AUTHORIZER_HPP__
 #define __MESOS_AUTHORIZER_AUTHORIZER_HPP__
 
-#include <ostream>
+#include <iosfwd>
 #include <string>
 
 // ONLY USEFUL AFTER RUNNING PROTOC.
@@ -192,10 +192,7 @@ protected:
 };
 
 
-inline std::ostream& operator<<(std::ostream& stream, const ACLs& acls)
-{
-  return stream << acls.DebugString();
-}
+std::ostream& operator<<(std::ostream& stream, const ACLs& acls);
 
 } // namespace mesos {
 

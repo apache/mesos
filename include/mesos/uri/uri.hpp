@@ -17,7 +17,7 @@
 #ifndef __MESOS_URI_PROTO_HPP__
 #define __MESOS_URI_PROTO_HPP__
 
-#include <ostream>
+#include <iosfwd>
 
 // ONLY USEFUL AFTER RUNNING PROTOC.
 #include <mesos/uri/uri.pb.h>

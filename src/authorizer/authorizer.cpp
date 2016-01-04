@@ -14,6 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <ostream>
+
 #include <mesos/authorizer/authorizer.hpp>
 
 #include <mesos/module/authorizer.hpp>
@@ -24,6 +26,7 @@
 
 #include "module/manager.hpp"
 
+using std::ostream;
 using std::string;
 
 using mesos::internal::LocalAuthorizer;
@@ -41,6 +44,12 @@ Try<Authorizer*> Authorizer::create(const string& name)
   }
 
   return modules::ModuleManager::create<Authorizer>(name);
+}
+
+
+ostream& operator<<(ostream& stream, const ACLs& acls)
+{
+  return stream << acls.DebugString();
 }
 
 } // namespace mesos {

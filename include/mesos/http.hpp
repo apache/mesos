@@ -17,9 +17,7 @@
 #ifndef __MESOS_HTTP_HPP__
 #define __MESOS_HTTP_HPP__
 
-#include <ostream>
-
-#include <stout/unreachable.hpp>
+#include <iosfwd>
 
 namespace mesos {
 
@@ -35,19 +33,7 @@ enum class ContentType
 };
 
 
-inline std::ostream& operator<<(std::ostream& stream, ContentType contentType)
-{
-  switch (contentType) {
-    case ContentType::PROTOBUF: {
-      return stream << APPLICATION_PROTOBUF;
-    }
-    case ContentType::JSON: {
-      return stream << APPLICATION_JSON;
-    }
-  }
-
-  UNREACHABLE();
-}
+std::ostream& operator<<(std::ostream& stream, ContentType contentType);
 
 } // namespace mesos {
 

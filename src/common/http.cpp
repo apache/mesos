@@ -15,12 +15,14 @@
 // limitations under the License.
 
 #include <map>
+#include <ostream>
 #include <set>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include <mesos/attributes.hpp>
+#include <mesos/http.hpp>
 #include <mesos/resources.hpp>
 
 #include <stout/foreach.hpp>
@@ -33,11 +35,27 @@
 #include "messages/messages.hpp"
 
 using std::map;
+using std::ostream;
 using std::set;
 using std::string;
 using std::vector;
 
 namespace mesos {
+
+ostream& operator<<(ostream& stream, ContentType contentType)
+{
+  switch (contentType) {
+    case ContentType::PROTOBUF: {
+      return stream << APPLICATION_PROTOBUF;
+    }
+    case ContentType::JSON: {
+      return stream << APPLICATION_JSON;
+    }
+  }
+
+  UNREACHABLE();
+}
+
 namespace internal {
 
 string serialize(
@@ -377,7 +395,6 @@ JSON::Object model(
 
   return object;
 }
-
 
 }  // namespace internal {
 }  // namespace mesos {
