@@ -154,13 +154,13 @@ private:
 
     if (result == 0) {
       if (url.field_set & (1 << UF_PATH)) {
-        decoder->request->path.append(
+        decoder->request->url.path.append(
             data + url.field_data[UF_PATH].off,
             url.field_data[UF_PATH].len);
       }
 
       if (url.field_set & (1 << UF_FRAGMENT)) {
-        decoder->request->fragment.append(
+        decoder->request->url.fragment->append(
             data + url.field_data[UF_FRAGMENT].off,
             url.field_data[UF_FRAGMENT].len);
       }
