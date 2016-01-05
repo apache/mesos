@@ -55,6 +55,25 @@ start the framework. How to do this depends on the user interface of the
 framework you're using; for example, Marathon takes a `--mesos_role`
 command-line flag.
 
+### Multiple frameworks in the same role
+
+Multiple frameworks can use the same role. This can be useful: for example, one
+framework can create a persistent volume and write data to it. Once the task
+that writes data to the persistent volume has finished, the volume will be
+offered to other frameworks in the same role; this might give a second
+("consumer") framework the opportunity to launch a task that reads the data
+produced by the first ("producer") framework.
+
+However, configuring multiple frameworks to use the same role should be done
+with caution, because all the frameworks will have access to any resources that
+have been reserved for that role. For example, if a framework stores sensitive
+information on a persistent volume, that volume might be offered to a different
+framework in the same role. Similarly, if one framework creates a persistent
+volume, another framework in the same role might "steal" the volume and use it
+to launch a task of its own. In general, multiple frameworks sharing the same
+role should be prepared to collaborate with one another to ensure that
+role-specific resources are used appropriately.
+
 ## Associating resources with roles
 
 A resource is assigned to a role using a _reservation_. Resources can either be
