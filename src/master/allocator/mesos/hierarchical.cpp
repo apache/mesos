@@ -878,10 +878,10 @@ void HierarchicalAllocatorProcess::recoverResources(
     slaves[slaveId].allocated -= resources;
 
     VLOG(1) << "Recovered " << resources
-              << " (total: " << slaves[slaveId].total
-              << ", allocated: " << slaves[slaveId].allocated
-              << ") on slave " << slaveId
-              << " from framework " << frameworkId;
+            << " (total: " << slaves[slaveId].total
+            << ", allocated: " << slaves[slaveId].allocated
+            << ") on slave " << slaveId
+            << " from framework " << frameworkId;
   }
 
   // No need to install the filter if 'filters' is none.
