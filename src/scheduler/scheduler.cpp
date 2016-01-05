@@ -528,15 +528,6 @@ Mesos::Mesos(
 }
 
 
-// Default ContentType is protobuf for HTTP requests.
-Mesos::Mesos(
-    const string& master,
-    const lambda::function<void(void)>& connected,
-    const lambda::function<void(void)>& disconnected,
-    const lambda::function<void(const queue<Event>&)>& received)
-  : Mesos(master, ContentType::PROTOBUF, connected, disconnected, received) {}
-
-
 Mesos::~Mesos()
 {
   terminate(process);

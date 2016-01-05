@@ -389,6 +389,7 @@ TEST_F(MasterMaintenanceTest, PendingUnavailabilityTest)
 
   Mesos mesos(
       master.get(),
+      ContentType::PROTOBUF,
       lambda::bind(&Callbacks::connected, lambda::ref(callbacks)),
       lambda::bind(&Callbacks::disconnected, lambda::ref(callbacks)),
       lambda::bind(&Callbacks::received, lambda::ref(callbacks), lambda::_1));
@@ -1088,6 +1089,7 @@ TEST_F(MasterMaintenanceTest, InverseOffers)
 
   Mesos mesos(
       master.get(),
+      ContentType::PROTOBUF,
       lambda::bind(&Callbacks::connected, lambda::ref(callbacks)),
       lambda::bind(&Callbacks::disconnected, lambda::ref(callbacks)),
       lambda::bind(&Callbacks::received, lambda::ref(callbacks), lambda::_1));
@@ -1388,6 +1390,7 @@ TEST_F(MasterMaintenanceTest, InverseOffersFilters)
 
   Mesos mesos(
       master.get(),
+      ContentType::PROTOBUF,
       lambda::bind(&Callbacks::connected, lambda::ref(callbacks)),
       lambda::bind(&Callbacks::disconnected, lambda::ref(callbacks)),
       lambda::bind(&Callbacks::received, lambda::ref(callbacks), lambda::_1));
