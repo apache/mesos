@@ -109,6 +109,7 @@ nobase_include_HEADERS =		\
   stout/proc.hpp			\
   stout/protobuf.hpp			\
   stout/recordio.hpp			\
+  stout/representation.hpp			\
   stout/result.hpp			\
   stout/set.hpp				\
   stout/some.hpp			\
