@@ -45,10 +45,13 @@ using mesos::internal::slave::MesosContainerizer;
 using mesos::internal::slave::MesosContainerizerProcess;
 using mesos::internal::slave::Slave;
 
+using mesos::slave::ContainerLogger;
+
 using process::Clock;
 using process::Future;
 using process::Owned;
 using process::PID;
+using process::Shared;
 
 using testing::_;
 using testing::AtMost;
@@ -288,9 +291,11 @@ TEST_F(HealthCheckTest, HealthyTask)
 // docker executor.
 TEST_F(HealthCheckTest, ROOT_DOCKER_DockerHealthyTask)
 {
-  Owned<Docker> docker(Docker::create(tests::flags.docker,
-                                      tests::flags.docker_socket,
-                                      false).get());
+  MockDocker* mockDocker =
+    new MockDocker(tests::flags.docker, tests::flags.docker_socket);
+
+  Shared<Docker> docker(mockDocker);
+
   Try<Nothing> validateResult = docker->validateVersion(Version(1, 3, 0));
   ASSERT_SOME(validateResult)
     << "-------------------------------------------------------------\n"
@@ -307,11 +312,18 @@ TEST_F(HealthCheckTest, ROOT_DOCKER_DockerHealthyTask)
 
   Fetcher fetcher;
 
-  Try<DockerContainerizer*> containerizer =
-    DockerContainerizer::create(flags, &fetcher);
-  CHECK_SOME(containerizer);
+  Try<ContainerLogger*> logger =
+    ContainerLogger::create(flags.container_logger);
 
-  Try<PID<Slave>> slave = StartSlave(containerizer.get());
+  ASSERT_SOME(logger);
+
+  MockDockerContainerizer containerizer(
+      flags,
+      &fetcher,
+      Owned<ContainerLogger>(logger.get()),
+      docker);
+
+  Try<PID<Slave>> slave = StartSlave(&containerizer, flags);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -342,6 +354,12 @@ TEST_F(HealthCheckTest, ROOT_DOCKER_DockerHealthyTask)
   vector<TaskInfo> tasks = populateTasks(
     "sleep 120", "exit 0", offers.get()[0], 0, None(), None(), containerInfo);
 
+  Future<ContainerID> containerId;
+  EXPECT_CALL(containerizer, launch(_, _, _, _, _, _, _, _))
+    .WillOnce(DoAll(FutureArg<0>(&containerId),
+                    Invoke(&containerizer,
+                           &MockDockerContainerizer::_launch)));
+
   Future<TaskStatus> statusRunning;
   Future<TaskStatus> statusHealth;
 
@@ -351,6 +369,8 @@ TEST_F(HealthCheckTest, ROOT_DOCKER_DockerHealthyTask)
 
   driver.launchTasks(offers.get()[0].id(), tasks);
 
+  AWAIT_READY(containerId);
+
   AWAIT_READY(statusRunning);
   EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
 
@@ -359,8 +379,13 @@ TEST_F(HealthCheckTest, ROOT_DOCKER_DockerHealthyTask)
   EXPECT_TRUE(statusHealth.get().has_healthy());
   EXPECT_TRUE(statusHealth.get().healthy());
 
+  Future<containerizer::Termination> termination =
+    containerizer.wait(containerId.get());
+
   driver.stop();
   driver.join();
+
+  AWAIT_READY(termination);
 
   Shutdown();
 
@@ -618,9 +643,11 @@ TEST_F(HealthCheckTest, HealthStatusChange)
 // Testing health status change reporting to scheduler for docker executor.
 TEST_F(HealthCheckTest, ROOT_DOCKER_DockerHealthStatusChange)
 {
-  Owned<Docker> docker(Docker::create(tests::flags.docker,
-                                      tests::flags.docker_socket,
-                                      false).get());
+  MockDocker* mockDocker =
+    new MockDocker(tests::flags.docker, tests::flags.docker_socket);
+
+  Shared<Docker> docker(mockDocker);
+
   Try<Nothing> validateResult = docker->validateVersion(Version(1, 3, 0));
   ASSERT_SOME(validateResult)
     << "-------------------------------------------------------------\n"
@@ -637,11 +664,18 @@ TEST_F(HealthCheckTest, ROOT_DOCKER_DockerHealthStatusChange)
 
   Fetcher fetcher;
 
-  Try<DockerContainerizer*> containerizer =
-    DockerContainerizer::create(flags, &fetcher);
-  CHECK_SOME(containerizer);
+  Try<ContainerLogger*> logger =
+    ContainerLogger::create(flags.container_logger);
 
-  Try<PID<Slave>> slave = StartSlave(containerizer.get());
+  ASSERT_SOME(logger);
+
+  MockDockerContainerizer containerizer(
+      flags,
+      &fetcher,
+      Owned<ContainerLogger>(logger.get()),
+      docker);
+
+  Try<PID<Slave>> slave = StartSlave(&containerizer, flags);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -689,6 +723,12 @@ TEST_F(HealthCheckTest, ROOT_DOCKER_DockerHealthStatusChange)
   vector<TaskInfo> tasks = populateTasks(
       "sleep 120", alt, offers.get()[0], 0, 3, None(), containerInfo);
 
+  Future<ContainerID> containerId;
+  EXPECT_CALL(containerizer, launch(_, _, _, _, _, _, _, _))
+    .WillOnce(DoAll(FutureArg<0>(&containerId),
+                    Invoke(&containerizer,
+                           &MockDockerContainerizer::_launch)));
+
   Future<TaskStatus> statusRunning;
   Future<TaskStatus> statusHealth1;
   Future<TaskStatus> statusHealth2;
@@ -722,8 +762,13 @@ TEST_F(HealthCheckTest, ROOT_DOCKER_DockerHealthStatusChange)
   ASSERT_SOME(os::read(tmpPath));
   EXPECT_EQ("bar", os::read(tmpPath).get());
 
+  Future<containerizer::Termination> termination =
+    containerizer.wait(containerId.get());
+
   driver.stop();
   driver.join();
+
+  AWAIT_READY(termination);
 
   Shutdown();
 
