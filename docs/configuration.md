@@ -61,9 +61,10 @@ be found by running the binary with the flag `--help`, for example
       --advertise_port=VALUE
     </td>
     <td>
-      Port advertised to reach mesos master/slave (alongwith advertise_ip).
-      Mesos master/slave does not bind using this port. However, this port
-      (alongwith advertise_ip) may be used to access Mesos master/slave.
+      Port advertised to reach mesos master/slave (along with
+      <code>advertise_ip</code>). Mesos master/slave does not bind using this
+      port. However, this port (along with <code>advertise_ip</code>) may be
+      used to access Mesos master/slave.
     </td>
   </tr>
   <tr>
@@ -71,8 +72,8 @@ be found by running the binary with the flag `--help`, for example
       --external_log_file=VALUE
     </td>
     <td>
-      Specified the externally managed log file. This file will be
-      exposed in the webui and HTTP api. This is useful when using
+      Specify the externally managed log file. This file will be
+      exposed in the webui and HTTP API. This is useful when using
       stderr logging as the log file is otherwise unknown to Mesos.
     </td>
   </tr>
@@ -86,7 +87,8 @@ be found by running the binary with the flag `--help`, for example
       could be of the form <code>file:///path/to/file</code> or
       <code>/path/to/file</code>.
       <p/>
-      See the Firewall message in flags.proto for the expected format.
+      See the <code>Firewall</code> message in <code>flags.proto</code>
+      for the expected format.
       <p/>
       Example:
 <pre><code>{
@@ -104,8 +106,7 @@ be found by running the binary with the flag `--help`, for example
       --[no-]help
     </td>
     <td>
-      Prints this help message (default: false)
-
+      Prints this help message. (default: false)
     </td>
   </tr>
   <tr>
@@ -123,7 +124,7 @@ be found by running the binary with the flag `--help`, for example
     </td>
     <td>
       IP address to listen on; this cannot be used in conjunction
-      with --ip_discovery_command.
+      with <code>--ip_discovery_command</code>.
     </td>
   </tr>
   <tr>
@@ -133,17 +134,16 @@ be found by running the binary with the flag `--help`, for example
     <td>
       Optional IP discovery command: if set, it is expected to emit
       the IP address which Master will try to bind to.  Cannot be used
-      in conjunction with --ip.
+      in conjunction with <code>--ip</code>.
     </td>
-  </tr>  <tr>
+  </tr>
+  <tr>
     <td>
       --log_dir=VALUE
     </td>
     <td>
-      Location to put log files (no default, nothing
-      is written to disk unless specified;
-      does not affect logging to stderr)
-
+      Location to put log files. (no default, nothing is written to disk unless
+      specified; does not affect logging to stderr)
     </td>
   </tr>
   <tr>
@@ -151,8 +151,7 @@ be found by running the binary with the flag `--help`, for example
       --logbufsecs=VALUE
     </td>
     <td>
-      How many seconds to buffer log messages for (default: 0)
-
+      How many seconds to buffer log messages for. (default: 0)
     </td>
   </tr>
   <tr>
@@ -160,10 +159,10 @@ be found by running the binary with the flag `--help`, for example
       --logging_level=VALUE
     </td>
     <td>
-      Log message at or above this level; possible values:
-      'INFO', 'WARNING', 'ERROR'; if quiet flag is used, this
-      will affect just the logs from log_dir (if specified) (default: INFO)
-
+      Log message at or above this level. Possible values: <code>INFO</code>,
+      <code>WARNING</code>, <code>ERROR</code>; if quiet flag is used, this will
+      affect just the logs from <code>log_dir</code>, if specified.
+      (default: INFO)
     </td>
   </tr>
   <tr>
@@ -171,8 +170,7 @@ be found by running the binary with the flag `--help`, for example
       --port=VALUE
     </td>
     <td>
-      Port to listen on (master default: 5050 and slave default: 5051)
-
+      Port to listen on. (master default: 5050; slave default: 5051)
     </td>
   </tr>
   <tr>
@@ -180,8 +178,7 @@ be found by running the binary with the flag `--help`, for example
       --[no-]quiet
     </td>
     <td>
-      Disable logging to stderr (default: false)
-
+      Disable logging to stderr. (default: false)
     </td>
   </tr>
   <tr>
@@ -214,7 +211,8 @@ be found by running the binary with the flag `--help`, for example
       --quorum=VALUE
     </td>
     <td>
-      The size of the quorum of replicas when using 'replicated_log' based
+      The size of the quorum of replicas when using
+      <code>replicated_log</code>-based
       registry. It is imperative to set this value to be a majority of
       masters i.e., quorum > (number of masters)/2.
       <p/>
@@ -228,7 +226,6 @@ be found by running the binary with the flag `--help`, for example
     </td>
     <td>
       Where to store the persistent information stored in the Registry.
-
     </td>
   </tr>
   <tr>
@@ -265,11 +262,13 @@ file:///path/to/file (where file contains one of the above)</code></pre>
       --acls=VALUE
     </td>
     <td>
-      The value is a JSON-formatted string of ACLs. Remember you can also use
-      the <code>file:///path/to/file</code> or <code>/path/to/file</code>
-      argument value format to read the JSON from a file.
+      Specify the ACLs used for framework/operator authentication and
+      authorization. The value is a JSON-formatted string of ACLs. Remember you
+      can also use the <code>file:///path/to/file</code> or
+      <code>/path/to/file</code> argument value format to read the JSON from a
+      file.
       <p/>
-      See the ACLs protobuf in mesos.proto for the expected format.
+      See the ACLs protobuf in authorizer.proto for the expected format.
       <p/>
       JSON file example:
 <pre><code>{
@@ -319,9 +318,9 @@ file:///path/to/file (where file contains one of the above)</code></pre>
       --[no-]authenticate
     </td>
     <td>
-      If authenticate is 'true' only authenticated frameworks are allowed
-      to register. If 'false' unauthenticated frameworks are also
-      allowed to register. (default: false)
+      If <code>authenticate</code> is <code>true</code> only authenticated
+      frameworks are allowed to register. If <code>false</code> unauthenticated
+      frameworks are also allowed to register. (default: false)
     </td>
   </tr>
   <tr>
@@ -329,9 +328,10 @@ file:///path/to/file (where file contains one of the above)</code></pre>
       --[no-]authenticate_slaves
     </td>
     <td>
-      If 'true' only authenticated slaves are allowed to register.
+      If <code>true</code> only authenticated slaves are allowed to register.
       <p/>
-      If 'false' unauthenticated slaves are also allowed to register. (default: false)
+      If <code>false</code> unauthenticated slaves are also allowed to register.
+      (default: false)
     </td>
   </tr>
   <tr>
@@ -358,8 +358,8 @@ file:///path/to/file (where file contains one of the above)</code></pre>
       value different than the default <code>local</code>, the ACLs passed
       through the <code>--acls</code> flag will be ignored.
       <br/>
-      Currently there's no support for multiple authorizers.<br/>
-      (default: <code>local</code>)
+      Currently there's no support for multiple authorizers.
+      (default: local)
     </td>
   </tr>
   <tr>
@@ -367,8 +367,7 @@ file:///path/to/file (where file contains one of the above)</code></pre>
       --cluster=VALUE
     </td>
     <td>
-      Human readable name for the cluster,
-      displayed in the webui.
+      Human readable name for the cluster, displayed in the webui.
     </td>
   </tr>
   <tr>
@@ -377,10 +376,10 @@ file:///path/to/file (where file contains one of the above)</code></pre>
     </td>
     <td>
       Either a path to a text file with a list of credentials,
-      each line containing 'principal' and 'secret' separated by whitespace,
-      or, a path to a JSON-formatted file containing credentials.
-      Path should be of the form <code>file:///path/to/file</code> or
-      <code>/path/to/file</code>
+      each line containing <code>principal</code> and <code>secret</code>
+      separated by whitespace, or a path to a JSON-formatted file containing
+      credentials. Path should be of the form <code>file:///path/to/file</code>
+      or <code>/path/to/file</code>.
       <p/>
       JSON file Example:
 <pre><code>{
@@ -403,9 +402,8 @@ file:///path/to/file (where file contains one of the above)</code></pre>
       --framework_sorter=VALUE
     </td>
     <td>
-      Policy to use for allocating resources
-      between a given user's frameworks. Options
-      are the same as for user_allocator. (default: drf)
+      Policy to use for allocating resources between a given user's frameworks.
+      Options are the same as for user_allocator. (default: drf)
     </td>
   </tr>
   <tr>
@@ -413,8 +411,7 @@ file:///path/to/file (where file contains one of the above)</code></pre>
       --hooks=VALUE
     </td>
     <td>
-      A comma-separated list of hook modules to be
-      installed inside master.
+      A comma-separated list of hook modules to be installed inside master.
     </td>
   </tr>
   <tr>
@@ -423,10 +420,9 @@ file:///path/to/file (where file contains one of the above)</code></pre>
     </td>
     <td>
       The hostname the master should advertise in ZooKeeper.<br>
-      If left unset, the hostname is resolved from the IP address
-      that the slave binds to; unless the user explicitly prevents
-      that, using --no-hostname_lookup, in which case the IP itself
-      is used.
+      If left unset, the hostname is resolved from the IP address that the slave
+      binds to; unless the user explicitly prevents that, using
+      <code>--no-hostname_lookup</code>, in which case the IP itself is used.
     </td>
   </tr>
   <tr>
@@ -434,10 +430,10 @@ file:///path/to/file (where file contains one of the above)</code></pre>
       --[no-]hostname_lookup
     </td>
     <td>
-      Whether we should execute a lookup to find out the server's hostname,
-      if not explicitly set (via, e.g., `--hostname`).
-      True by default; if set to 'false' it will cause Mesos
-      to use the IP address, unless the hostname is explicitly set.
+      Whether we should execute a lookup to find out the server's hostname, if
+      not explicitly set (via, e.g., <code>--hostname</code>). If set to
+      <code>false</code> it will cause Mesos to use the IP address, unless the
+      hostname is explicitly set. (default: true)
     </td>
   </tr>
   <tr>
@@ -446,8 +442,8 @@ file:///path/to/file (where file contains one of the above)</code></pre>
     </td>
     <td>
       Whether to automatically initialize the replicated log used for the
-      registry. If this is set to false, the log has to be manually
-      initialized when used for the very first time. (default: true)
+      registry. If this is set to false, the log has to be manually initialized
+      when used for the very first time. (default: true)
     </td>
   </tr>
   <tr>
@@ -455,10 +451,9 @@ file:///path/to/file (where file contains one of the above)</code></pre>
       --max_slave_ping_timeouts=VALUE
     </td>
     <td>
-      The number of times a slave can fail to respond to a
-      ping from the master. Slaves that incur more than
-      `max_slave_ping_timeouts` timeouts will be removed.
-      (default: 5)
+      The number of times a slave can fail to respond to a ping from the master.
+      Slaves that incur more than <code>max_slave_ping_timeouts</code> timeouts
+      will be removed. (default: 5)
     </td>
   </tr>
   <tr>
@@ -466,8 +461,7 @@ file:///path/to/file (where file contains one of the above)</code></pre>
       --modules=VALUE
     </td>
     <td>
-      List of modules to be loaded and be available to the internal
-      subsystems.
+      List of modules to be loaded and be available to the internal subsystems.
       <p/>
       Use <code>--modules=filepath</code> to specify the list of modules via a
       file containing a JSON-formatted string.
@@ -517,7 +511,6 @@ file:///path/to/file (where file contains one of the above)</code></pre>
       <p/>
       This helps fairness when running frameworks that hold on to offers,
       or frameworks that accidentally drop offers.
-
     </td>
   </tr>
   <tr>
@@ -529,9 +522,9 @@ file:///path/to/file (where file contains one of the above)</code></pre>
       or a file path containing the JSON-formatted rate limits used
       for framework rate limiting.
       <p/>
-      Remember you can also use
-      the <code>file:///path/to/file</code> or <code>/path/to/file</code>
-      argument value format to read the JSON from a file.
+      Remember you can also use the <code>file:///path/to/file</code> or
+      <code>/path/to/file</code> argument value format to read the JSON from a
+      file.
       <p/>
 
       See the RateLimits protobuf in mesos.proto for the expected format.
@@ -565,7 +558,7 @@ file:///path/to/file (where file contains one of the above)</code></pre>
       This can be used to provide safety guarantees for production
       environments. Production environments may expect that across Master
       failovers, at most a certain percentage of slaves will fail
-      permanently (e.g. due to rack-level failures).
+      permanently (e.g., due to rack-level failures).
       <p/>
       Setting this limit would ensure that a human needs to get
       involved should an unexpected widespread failure of slaves occur
@@ -579,9 +572,10 @@ file:///path/to/file (where file contains one of the above)</code></pre>
       --registry=VALUE
     </td>
     <td>
-      Persistence strategy for the registry;
+      Persistence strategy for the registry.
       <p/>
-      available options are 'replicated_log', 'in_memory' (for testing). (default: replicated_log)
+      Available options are <code>replicated_log</code>, <code>in_memory</code>
+      (for testing). (default: replicated_log)
     </td>
   </tr>
   <tr>
@@ -589,8 +583,8 @@ file:///path/to/file (where file contains one of the above)</code></pre>
       --registry_fetch_timeout=VALUE
     </td>
     <td>
-      Duration of time to wait in order to fetch data from the registry
-      after which the operation is considered a failure. (default: 1mins)
+      Duration of time to wait in order to fetch data from the registry after
+      which the operation is considered a failure. (default: 1mins)
     </td>
   </tr>
   <tr>
@@ -598,8 +592,8 @@ file:///path/to/file (where file contains one of the above)</code></pre>
       --registry_store_timeout=VALUE
     </td>
     <td>
-      Duration of time to wait in order to store data in the registry
-      after which the operation is considered a failure. (default: 5secs)
+      Duration of time to wait in order to store data in the registry after
+      which the operation is considered a failure. (default: 5secs)
     </td>
   </tr>
   <tr>
@@ -610,7 +604,7 @@ file:///path/to/file (where file contains one of the above)</code></pre>
       Whether the Master will take actions based on the persistent
       information stored in the Registry. Setting this to false means
       that the Registrar will never reject the admission, readmission,
-      or removal of a slave. Consequently, 'false' can be used to
+      or removal of a slave. Consequently, <code>false</code> can be used to
       bootstrap the persistent state on a running cluster.
       <p/>
       NOTE: This flag is *experimental* and should not be used in
@@ -642,7 +636,7 @@ file:///path/to/file (where file contains one of the above)</code></pre>
     <td>
       The timeout within which each slave is expected to respond to a
       ping from the master. Slaves that do not respond within
-      `max_slave_ping_timeouts` ping retries will be removed.
+      <code>max_slave_ping_timeouts</code> ping retries will be removed.
       (default: 15secs)
     </td>
   </tr>
@@ -651,11 +645,13 @@ file:///path/to/file (where file contains one of the above)</code></pre>
       --slave_removal_rate_limit=VALUE
     </td>
     <td>
-      The maximum rate (e.g., 1/10mins, 2/3hrs, etc) at which slaves will
-      be removed from the master when they fail health checks. By default
-      slaves will be removed as soon as they fail the health checks.
+      The maximum rate (e.g., <code>1/10mins</code>, <code>2/3hrs</code>, etc)
+      at which slaves will be removed from the master when they fail health
+      checks. By default slaves will be removed as soon as they fail the health
+      checks.
       <p/>
-      The value is of the form 'Number of slaves'/'Duration'
+      The value is of the form
+      <code>Number of slaves</code>/<code>Duration</code>.
     </td>
   </tr>
   <tr>
@@ -668,7 +664,7 @@ file:///path/to/file (where file contains one of the above)</code></pre>
       re-register within the timeout will be removed from the registry
       and will be shutdown if they attempt to communicate with master.
       <p/>
-      NOTE: This value has to be atleast 10mins. (default: 10mins)
+      NOTE: This value has to be at least 10mins. (default: 10mins)
     </td>
   </tr>
   <tr>
@@ -676,8 +672,7 @@ file:///path/to/file (where file contains one of the above)</code></pre>
       --user_sorter=VALUE
     </td>
     <td>
-      Policy to use for allocating resources
-      between users. May be one of:
+      Policy to use for allocating resources between users. May be one of:
       <p/>
       dominant_resource_fairness (drf) (default: drf)
     </td>
@@ -687,7 +682,8 @@ file:///path/to/file (where file contains one of the above)</code></pre>
       --webui_dir=VALUE
     </td>
     <td>
-      Directory path of the webui files/assets (default: /usr/local/share/mesos/webui)
+      Directory path of the webui files/assets.
+      (default: /usr/local/share/mesos/webui)
     </td>
   </tr>
   <tr>
@@ -695,9 +691,9 @@ file:///path/to/file (where file contains one of the above)</code></pre>
       --weights=VALUE
     </td>
     <td>
-      A comma-separated list of role/weight pairs
-      of the form 'role=weight,role=weight'. Weights
-      are used to indicate forms of priority.
+      A comma-separated list of role/weight pairs of the form
+      <code>role=weight,role=weight</code>. Weights are used
+      to indicate forms of priority.
     </td>
   </tr>
   <tr>
@@ -726,7 +722,7 @@ file:///path/to/file (where file contains one of the above)</code></pre>
   </tr>
 </table>
 
-*Flags available when configured with '--with-network-isolator'*
+*Flags available when configured with `--with-network-isolator`*
 
 <table class="table table-striped">
   <thead>
@@ -829,7 +825,8 @@ file:///path/to/file (where file contains one of the above)</code></pre>
     <td>
       Authenticatee implementation to use when authenticating against the
       master. Use the default <code>crammd5</code>, or
-      load an alternate authenticatee module using <code>--modules</code>. (default: crammd5)
+      load an alternate authenticatee module using <code>--modules</code>.
+      (default: crammd5)
     </td>
   </tr>
   <tr>
@@ -856,7 +853,7 @@ file:///path/to/file (where file contains one of the above)</code></pre>
       --cgroups_hierarchy=VALUE
     </td>
     <td>
-      The path to the cgroups hierarchy root
+      The path to the cgroups hierarchy root.
       (default: /sys/fs/cgroup)
     </td>
   </tr>
@@ -875,7 +872,7 @@ file:///path/to/file (where file contains one of the above)</code></pre>
       --cgroups_root=VALUE
     </td>
     <td>
-      Name of the root cgroup
+      Name of the root cgroup.
       (default: mesos)
     </td>
   </tr>
@@ -884,7 +881,7 @@ file:///path/to/file (where file contains one of the above)</code></pre>
       --systemd_runtime_directory=VALUE
     </td>
     <td>
-      The path to the systemd system run time directory
+      The path to the systemd system run time directory.
       (default: /run/systemd/system)
     </td>
   </tr>
@@ -903,8 +900,7 @@ file:///path/to/file (where file contains one of the above)</code></pre>
     </td>
     <td>
       The path to the external containerizer executable used when
-      external isolation is activated (--isolation=external).
-
+      external isolation is activated (<code>--isolation=external</code>).
     </td>
   </tr>
   <tr>
@@ -918,7 +914,7 @@ file:///path/to/file (where file contains one of the above)</code></pre>
       Available options are 'mesos', 'external', and
       'docker' (on Linux). The order the containerizers
       are specified is the order they are tried
-      (--containerizers=mesos).
+      (<code>--containerizers=mesos</code>).
       (default: mesos)
     </td>
   </tr>
@@ -953,7 +949,6 @@ file:///path/to/file (where file contains one of the above)</code></pre>
     <td>
       The default container image to use if not specified by a task,
       when using external containerizer.
-
     </td>
   </tr>
   <tr>
@@ -998,7 +993,7 @@ file:///path/to/file (where file contains one of the above)</code></pre>
     </td>
     <td>
       Periodic time interval (e.g., 10secs, 2mins, etc)
-      to check the disk usage (default: 1mins)
+      to check the disk usage. (default: 1mins)
     </td>
   </tr>
   <tr>
@@ -1016,7 +1011,7 @@ file:///path/to/file (where file contains one of the above)</code></pre>
       --docker_auth_server=VALUE
     </td>
     <td>
-      Docker authentication server used to authenticate with Docker registry
+      Docker authentication server used to authenticate with Docker registry.
       (default: https://auth.docker.io)
     </td>
   </tr>
@@ -1071,7 +1066,7 @@ file:///path/to/file (where file contains one of the above)</code></pre>
     </td>
     <td>
       The amount of time to wait before removing Docker containers
-      (e.g., 3days, 2weeks, etc).
+      (e.g., <code>3days</code>, <code>2weeks</code>, etc).
       (default: 6hrs)
     </td>
   </tr>
@@ -1162,7 +1157,8 @@ file:///path/to/file (where file contains one of the above)</code></pre>
     <td>
       Amount of time to wait for an executor
       to register with the slave before considering it hung and
-      shutting it down (e.g., 60secs, 3mins, etc) (default: 1mins)
+      shutting it down (e.g., <code>60secs</code>, <code>3mins</code>, etc)
+      (default: 1mins)
     </td>
   </tr>
   <tr>
@@ -1170,8 +1166,8 @@ file:///path/to/file (where file contains one of the above)</code></pre>
       --executor_shutdown_grace_period=VALUE
     </td>
     <td>
-      Amount of time to wait for an executor
-      to shut down (e.g., 60secs, 3mins, etc) (default: 5secs)
+      Amount of time to wait for an executor to shut down.
+      (e.g., <code>60secs</code>, <code>3mins</code>, etc). (default: 5secs)
     </td>
   </tr>
   <tr>
@@ -1179,7 +1175,7 @@ file:///path/to/file (where file contains one of the above)</code></pre>
       --frameworks_home=VALUE
     </td>
     <td>
-      Directory path prepended to relative executor URIs (default: )
+      Directory path prepended to relative executor URIs. (empty by default)
     </td>
   </tr>
   <tr>
@@ -1213,10 +1209,9 @@ file:///path/to/file (where file contains one of the above)</code></pre>
       --hadoop_home=VALUE
     </td>
     <td>
-      Path to find Hadoop installed (for
-      fetching framework executors from HDFS)
-      (no default, look for HADOOP_HOME in
-      environment or find hadoop on PATH) (default: )
+      Path to find Hadoop installed (for fetching framework executors from HDFS)
+      (no default, look for <code>HADOOP_HOME</code> in environment or find
+      hadoop on <code>PATH</code>).
     </td>
   </tr>
   <tr>
@@ -1358,7 +1353,7 @@ file:///path/to/file (where file contains one of the above)</code></pre>
     </td>
     <td>
       Duration of a perf stat sample. The duration must be less
-      that the perf_interval. (default: 10secs)
+      that the <code>perf_interval</code>. (default: 10secs)
     </td>
   </tr>
   <tr>
@@ -1367,7 +1362,7 @@ file:///path/to/file (where file contains one of the above)</code></pre>
     </td>
     <td>
       List of command-separated perf events to sample for each container
-      when using the perf_event isolator. Default is none.
+      when using the perf_event isolator. (none by default)
       <p/>
       Run command 'perf list' to see all events. Event names are
       sanitized by downcasing and replacing hyphens with underscores
@@ -1381,10 +1376,10 @@ file:///path/to/file (where file contains one of the above)</code></pre>
     </td>
     <td>
       Interval between the start of perf stat samples. Perf samples are
-      obtained periodically according to perf_interval and the most
+      obtained periodically according to <code>perf_interval</code> and the most
       recently obtained sample is returned rather than sampling on
-      demand. For this reason, perf_interval is independent of the
-      resource monitoring interval (default: 1mins)
+      demand. For this reason, <code>perf_interval</code> is independent of the
+      resource monitoring interval. (default: 1mins)
     </td>
   </tr>
   <tr>
@@ -1423,7 +1418,8 @@ file:///path/to/file (where file contains one of the above)</code></pre>
       or executor upgrade!).
       <p/>
       NOTE: If checkpointed slave doesn't exist, no recovery is performed
-      and the slave registers with the master as a new slave. (default: reconnect)
+      and the slave registers with the master as a new slave.
+      (default: reconnect)
     </td>
   </tr>
   <tr>
@@ -1450,7 +1446,7 @@ file:///path/to/file (where file contains one of the above)</code></pre>
       Subsequent retries are exponentially backed off based on this
       interval (e.g., 1st retry uses a random value between [0, b * 2^1],
       2nd retry between [0, b * 2^2], 3rd retry between [0, b * 2^3] etc)
-      up to a maximum of 1mins (default: 1secs)
+      up to a maximum of <code>1mins</code>. (default: 1secs)
     </td>
   </tr>
   <tr>
@@ -1530,13 +1526,13 @@ file:///path/to/file (where file contains one of the above)</code></pre>
       --[no-]strict
     </td>
     <td>
-      If strict=true, any and all recovery errors are considered fatal.
+      If <code>strict=true</code>, any and all recovery errors are considered
+      fatal.
       <p/>
-      If strict=false, any expected errors (e.g., slave cannot recover
-      information about an executor, because the slave died right before
+      If <code>strict=false</code>, any expected errors (e.g., slave cannot
+      recover information about an executor, because the slave died right before
       the executor registered.) during recovery are ignored and as much
-      state as possible is recovered.
-      (default: true)
+      state as possible is recovered. (default: true)
     </td>
   </tr>
   <tr>
@@ -1544,13 +1540,13 @@ file:///path/to/file (where file contains one of the above)</code></pre>
       --[no-]switch_user
     </td>
     <td>
-      If set to `true`, the agent will attempt to run tasks as
-      the `user` who launched them (as defined in `FrameworkInfo`)
-      (this requires `setuid` permission and that the given `user`
-      exists on the agent).
+      If set to <code>true</code>, the agent will attempt to run tasks as
+      the <code>user</code> who launched them (as defined in FrameworkInfo).
+      Note that this requires <code>setuid</code> permission and that the given
+      <code>user</code> exists on the agent).
       If the user does not exist, an error occurs and the task will fail.
-      If set to `false`, tasks will be run as the same user as the Mesos
-      agent process.  (default: true)
+      If set to <code>false</code>, tasks will be run as the same user as the
+      Mesos agent process. (default: true)
     </td>
   </tr>
   <tr>
@@ -1576,20 +1572,21 @@ file:///path/to/file (where file contains one of the above)</code></pre>
       sandbox directories and the cache directory can interfere with
       each other in unpredictable ways by occupying shared space. So
       it is recommended to set the cache directory explicitly.
-      (default: /tmp/mesos/fetch) </td>
+      (default: /tmp/mesos/fetch)
+    </td>
   </tr>
   <tr>
     <td>
       --work_dir=VALUE
     </td>
     <td>
-      Directory path to place framework work directories
+      Directory path to place framework work directories.
       (default: /tmp/mesos)
     </td>
   </tr>
 </table>
 
-*Flags available when configured with '--with-network-isolator'*
+*Flags available when configured with `--with-network-isolator`*
 
 <table class="table table-striped">
   <thead>
@@ -1770,7 +1767,7 @@ file:///path/to/file (where file contains one of the above)</code></pre>
       --enable-shared[=PKGS]
     </td>
     <td>
-      build shared libraries [default=yes]
+      Build shared libraries. [default=yes]
     </td>
   </tr>
   <tr>
@@ -1778,7 +1775,7 @@ file:///path/to/file (where file contains one of the above)</code></pre>
       --enable-static[=PKGS]
     </td>
     <td>
-      build static libraries [default=yes]
+      Build static libraries. [default=yes]
     </td>
   </tr>
   <tr>
@@ -1786,8 +1783,7 @@ file:///path/to/file (where file contains one of the above)</code></pre>
       --enable-fast-install[=PKGS]
     </td>
     <td>
-
-      optimize for fast installation [default=yes]
+      Optimize for fast installation. [default=yes]
     </td>
   </tr>
   <tr>
@@ -1795,9 +1791,9 @@ file:///path/to/file (where file contains one of the above)</code></pre>
       --enable-libevent
     </td>
     <td>
-      use <a href="https://github.com/libevent/libevent">libevent</a>
-      instead of libev for the libprocess event loop [default=no].
-      Note that the libevent version 2+ development package is required
+      Use <a href="https://github.com/libevent/libevent">libevent</a>
+      instead of libev for the libprocess event loop. Note that the libevent
+      version 2+ development package is required. [default=no]
     </td>
   </tr>
   <tr>
@@ -1805,9 +1801,9 @@ file:///path/to/file (where file contains one of the above)</code></pre>
       --enable-ssl
     </td>
     <td>
-      enable <a href="/documentation/latest/ssl">SSL</a> for libprocess
-      communication [default=no].
-      Note that --enable-libevent is currently required for SSL functionality
+      Enable <a href="/documentation/latest/ssl">SSL</a> for libprocess
+      communication. Note that <code>--enable-libevent</code> is currently
+      required for SSL functionality. [default=no]
     </td>
   </tr>
   <tr>
@@ -1815,7 +1811,7 @@ file:///path/to/file (where file contains one of the above)</code></pre>
       --disable-libtool-lock
     </td>
     <td>
-      avoid locking (might break parallel builds)
+      Avoid locking. Note that this might break parallel builds.
     </td>
   </tr>
   <tr>
@@ -1823,7 +1819,7 @@ file:///path/to/file (where file contains one of the above)</code></pre>
       --disable-java
     </td>
     <td>
-      don't build Java bindings
+      Don't build Java bindings.
     </td>
   </tr>
   <tr>
@@ -1831,7 +1827,7 @@ file:///path/to/file (where file contains one of the above)</code></pre>
       --disable-python
     </td>
     <td>
-      don't build Python bindings
+      Don't build Python bindings.
     </td>
   </tr>
   <tr>
@@ -1839,8 +1835,8 @@ file:///path/to/file (where file contains one of the above)</code></pre>
       --enable-debug
     </td>
     <td>
-      enable debugging. If CFLAGS/CXXFLAGS are set, this
-      option won't change them default: no
+      Whether debugging is enabled. If CFLAGS/CXXFLAGS are set, this
+      option won't change them. [default=no]
     </td>
   </tr>
   <tr>
@@ -1848,8 +1844,8 @@ file:///path/to/file (where file contains one of the above)</code></pre>
       --enable-optimize
     </td>
     <td>
-      enable optimizations. If CFLAGS/CXXFLAGS are set,
-      this option won't change them default: no
+      Whether optimizations are enabled. If CFLAGS/CXXFLAGS are set,
+      this option won't change them. [default=no]
     </td>
   </tr>
   <tr>
@@ -1857,8 +1853,8 @@ file:///path/to/file (where file contains one of the above)</code></pre>
       --disable-bundled
     </td>
     <td>
-      build against preinstalled dependencies instead of
-      bundled libraries
+      Configures Mesos to build against preinstalled dependencies
+      instead of bundled libraries.
     </td>
   </tr>
   <tr>
@@ -1866,10 +1862,8 @@ file:///path/to/file (where file contains one of the above)</code></pre>
       --disable-bundled-distribute
     </td>
     <td>
-
-      excludes building and using the bundled distribute
-      package in lieu of an installed version in
-      PYTHONPATH
+      Excludes building and using the bundled distribute package in lieu of an
+      installed version in <code>PYTHONPATH</code>.
     </td>
   </tr>
   <tr>
@@ -1877,8 +1871,8 @@ file:///path/to/file (where file contains one of the above)</code></pre>
       --disable-bundled-pip
     </td>
     <td>
-      excludes building and using the bundled pip package
-      in lieu of an installed version in PYTHONPATH
+      Excludes building and using the bundled pip package in lieu of an
+      installed version in <code>PYTHONPATH</code>.
     </td>
   </tr>
   <tr>
@@ -1886,9 +1880,8 @@ file:///path/to/file (where file contains one of the above)</code></pre>
       --disable-bundled-wheel
     </td>
     <td>
-      excludes building and using the bundled wheel
-      package in lieu of an installed version in
-      PYTHONPATH
+      Excludes building and using the bundled wheel package in lieu of an
+      installed version in <code>PYTHONPATH</code>.
     </td>
   </tr>
   <tr>
@@ -1896,9 +1889,8 @@ file:///path/to/file (where file contains one of the above)</code></pre>
       --disable-python-dependency-install
     </td>
     <td>
-      when the python packages are installed during make
-      install, no external dependencies are downloaded or
-      installed
+      When the python packages are installed during make install, no external
+      dependencies will be downloaded or installed.
     </td>
   </tr>
 </table>
@@ -1921,7 +1913,7 @@ file:///path/to/file (where file contains one of the above)</code></pre>
       --with-gnu-ld
     </td>
     <td>
-      assume the C compiler uses GNU ld [default=no]
+      Assume the C compiler uses GNU <code>ld</code>. [default=no]
     </td>
   </tr>
   <tr>
@@ -1929,7 +1921,7 @@ file:///path/to/file (where file contains one of the above)</code></pre>
       --with-sysroot=DIR
     </td>
     <td>
-      Search for dependent libraries within DIR
+      Search for dependent libraries within <code>DIR</code>
       (or the compiler's sysroot if not specified).
     </td>
   </tr>
@@ -1938,9 +1930,8 @@ file:///path/to/file (where file contains one of the above)</code></pre>
       --with-zookeeper[=DIR]
     </td>
     <td>
-      excludes building and using the bundled ZooKeeper
-      package in lieu of an installed version at a
-      location prefixed by the given path
+      Excludes building and using the bundled ZooKeeper package in lieu of an
+      installed version at a location prefixed by the given path.
     </td>
   </tr>
   <tr>
@@ -1948,9 +1939,8 @@ file:///path/to/file (where file contains one of the above)</code></pre>
       --with-leveldb[=DIR]
     </td>
     <td>
-      excludes building and using the bundled LevelDB
-      package in lieu of an installed version at a
-      location prefixed by the given path
+      Excludes building and using the bundled LevelDB package in lieu of an
+      installed version at a location prefixed by the given path.
     </td>
   </tr>
   <tr>
@@ -1958,9 +1948,8 @@ file:///path/to/file (where file contains one of the above)</code></pre>
       --with-glog[=DIR]
     </td>
     <td>
-      excludes building and using the bundled glog package
-      in lieu of an installed version at a location
-      prefixed by the given path
+      excludes building and using the bundled glog package in lieu of an
+      installed version at a location prefixed by the given path.
     </td>
   </tr>
   <tr>
@@ -1968,9 +1957,8 @@ file:///path/to/file (where file contains one of the above)</code></pre>
       --with-protobuf[=DIR]
     </td>
     <td>
-      excludes building and using the bundled protobuf
-      package in lieu of an installed version at a
-      location prefixed by the given path
+      Excludes building and using the bundled protobuf package in lieu of an
+      installed version at a location prefixed by the given path.
     </td>
   </tr>
   <tr>
@@ -1978,65 +1966,64 @@ file:///path/to/file (where file contains one of the above)</code></pre>
       --with-gmock[=DIR]
     </td>
     <td>
-      excludes building and using the bundled gmock
-      package in lieu of an installed version at a
-      location prefixed by the given path
+      Excludes building and using the bundled gmock package in lieu of an
+      installed version at a location prefixed by the given path.
     </td>
   </tr>
   <tr>
     <td>
-      --with-curl=[=DIR]
+      --with-curl[=DIR]
     </td>
     <td>
-      specify where to locate the curl library
-    </td>
-  </tr>
-  <tr>
-    <td>
-      --with-sasl=[=DIR]
-    </td>
-    <td>
-      specify where to locate the sasl2 library
+      Specify where to locate the curl library.
     </td>
   </tr>
   <tr>
     <td>
-      --with-zlib=[=DIR]
+      --with-sasl[=DIR]
     </td>
     <td>
-      specify where to locate the zlib library
-    </td>
-  </tr>
-  <tr>
-    <td>
-      --with-apr=[=DIR]
-    </td>
-    <td>
-      specify where to locate the apr-1 library
+      Specify where to locate the sasl2 library.
     </td>
   </tr>
   <tr>
     <td>
-      --with-svn=[=DIR]
+      --with-zlib[=DIR]
     </td>
     <td>
-      specify where to locate the svn-1 library
-    </td>
-  </tr>
-  <tr>
-    <td>
-      --with-libevent=[=DIR]
-    </td>
-    <td>
-      specify where to locate the libevent library
+      Specify where to locate the zlib library.
     </td>
   </tr>
   <tr>
     <td>
-      --with-ssl=[=DIR]
+      --with-apr[=DIR]
     </td>
     <td>
-      specify where to locate the ssl library
+      Specify where to locate the apr-1 library.
+    </td>
+  </tr>
+  <tr>
+    <td>
+      --with-svn[=DIR]
+    </td>
+    <td>
+      Specify where to locate the svn-1 library.
+    </td>
+  </tr>
+  <tr>
+    <td>
+      --with-libevent[=DIR]
+    </td>
+    <td>
+      Specify where to locate the libevent library.
+    </td>
+  </tr>
+  <tr>
+    <td>
+      --with-ssl[=DIR]
+    </td>
+    <td>
+      Specify where to locate the ssl library.
     </td>
   </tr>
   <tr>
@@ -2044,24 +2031,24 @@ file:///path/to/file (where file contains one of the above)</code></pre>
       --with-network-isolator
     </td>
     <td>
-      builds the network isolator
+      Builds the network isolator.
     </td>
   </tr>
   <tr>
     <td>
-      --with-nl=[=DIR]
+      --with-nl[=DIR]
     </td>
     <td>
-      specify where to locate the
-      <a href="https://www.infradead.org/~tgr/libnl/">libnl3</a> library
-      (required for the network isolator)
+      Specify where to locate the
+      <a href="https://www.infradead.org/~tgr/libnl/">libnl3</a> library,
+      which is required for the network isolator.
     </td>
   </tr>
 </table>
 
 ### Some influential environment variables for configure script:
 
-Use these variables to override the choices made by `configure' or to help
+Use these variables to override the choices made by `configure` or to help
 it to find libraries and programs with nonstandard names/locations.
 
 <table class="table table-striped">
@@ -2080,7 +2067,7 @@ it to find libraries and programs with nonstandard names/locations.
       JAVA_HOME
     </td>
     <td>
-      location of Java Development Kit (JDK)
+      Location of Java Development Kit (JDK).
     </td>
   </tr>
   <tr>
@@ -2088,7 +2075,7 @@ it to find libraries and programs with nonstandard names/locations.
       JAVA_CPPFLAGS
     </td>
     <td>
-      preprocessor flags for JNI
+      Preprocessor flags for JNI.
     </td>
   </tr>
   <tr>
@@ -2096,7 +2083,7 @@ it to find libraries and programs with nonstandard names/locations.
       JAVA_JVM_LIBRARY
     </td>
     <td>
-      full path to libjvm.so
+      Full path to <code>libjvm.so</code>.
     </td>
   </tr>
   <tr>
@@ -2104,7 +2091,7 @@ it to find libraries and programs with nonstandard names/locations.
       MAVEN_HOME
     </td>
     <td>
-      looks for mvn at MAVEN_HOME/bin/mvn
+      Looks for <code>mvn</code> at <code>MAVEN_HOME/bin/mvn</code>.
     </td>
   </tr>
   <tr>
@@ -2112,7 +2099,7 @@ it to find libraries and programs with nonstandard names/locations.
       PROTOBUF_JAR
     </td>
     <td>
-      full path to protobuf jar on prefixed builds
+      Full path to protobuf jar on prefixed builds.
     </td>
   </tr>
   <tr>
@@ -2120,7 +2107,7 @@ it to find libraries and programs with nonstandard names/locations.
       PYTHON
     </td>
     <td>
-      which Python interpreter to use
+      Which Python interpreter to use.
     </td>
   </tr>
   <tr>
@@ -2128,9 +2115,8 @@ it to find libraries and programs with nonstandard names/locations.
       PYTHON_VERSION
     </td>
     <td>
-      The installed Python version to use, for example '2.3'. This
-      string will be appended to the Python interpreter canonical
-      name.
+      The installed Python version to use, for example '2.3'. This string will
+      be appended to the Python interpreter canonical name.
     </td>
   </tr>
 </table>
