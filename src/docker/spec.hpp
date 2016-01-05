@@ -21,8 +21,8 @@
 #include <stout/json.hpp>
 #include <stout/option.hpp>
 
-#include "docker/v1.hpp"
-#include "docker/v2.hpp"
+#include <mesos/docker/v1.hpp>
+#include <mesos/docker/v2.hpp>
 
 namespace docker {
 namespace spec {

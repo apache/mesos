@@ -174,6 +174,10 @@ CXX_PROTOS =								\
   ../include/mesos/authorizer/authorizer.pb.h				\
   ../include/mesos/containerizer/containerizer.pb.cc			\
   ../include/mesos/containerizer/containerizer.pb.h			\
+  ../include/mesos/docker/v1.pb.cc					\
+  ../include/mesos/docker/v1.pb.h					\
+  ../include/mesos/docker/v2.pb.cc					\
+  ../include/mesos/docker/v2.pb.h					\
   ../include/mesos/executor/executor.pb.cc				\
   ../include/mesos/executor/executor.pb.h				\
   ../include/mesos/fetcher/fetcher.pb.cc				\
@@ -202,10 +206,6 @@ CXX_PROTOS =								\
   ../include/mesos/v1/scheduler/scheduler.pb.h
 
 CXX_PROTOS +=								\
-  docker/v1.pb.cc							\
-  docker/v1.pb.h							\
-  docker/v2.pb.cc							\
-  docker/v2.pb.h							\
   master/registry.pb.cc							\
   master/registry.pb.h							\
   messages/flags.pb.cc							\
@@ -393,6 +393,18 @@ containerizer_HEADERS =							\
 nodist_containerizer_HEADERS =						\
   ../include/mesos/containerizer/containerizer.pb.h
 
+dockerdir = $(pkgincludedir)/docker
+
+docker_HEADERS =							\
+  $(top_srcdir)/include/mesos/docker/v1.hpp				\
+  $(top_srcdir)/include/mesos/docker/v1.proto				\
+  $(top_srcdir)/include/mesos/docker/v2.hpp				\
+  $(top_srcdir)/include/mesos/docker/v2.proto
+
+nodist_docker_HEADERS =							\
+  ../include/mesos/docker/v1.pb.h					\
+  ../include/mesos/docker/v2.pb.h
+
 executordir = $(pkgincludedir)/executor
 
 executor_HEADERS =							\
@@ -533,8 +545,6 @@ nodist_libmesos_no_3rdparty_la_SOURCES = $(CXX_PROTOS)
 
 
 libmesos_no_3rdparty_la_SOURCES =					\
-  docker/v1.proto							\
-  docker/v2.proto							\
   master/registry.proto							\
   messages/flags.proto							\
   messages/messages.proto						\
@@ -667,8 +677,6 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   docker/docker.hpp							\
   docker/executor.hpp							\
   docker/spec.hpp							\
-  docker/v1.hpp								\
-  docker/v2.hpp								\
   examples/test_anonymous_module.hpp					\
   examples/test_module.hpp						\
   examples/utils.hpp							\

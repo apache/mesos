@@ -16,7 +16,7 @@
 
 package docker.spec.v2;
 
-import "docker/v1.proto";
+import "mesos/docker/v1.proto";
 
 /**
  * Protobuf for the Docker v2 image manifest JSON schema:
