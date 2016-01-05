@@ -94,7 +94,7 @@
           <td>{{executor.source}}</td>
           <td>{{executor.tasks.length | number}}</td>
           <td>{{executor.queued_tasks.length | number}}</td>
-          <td>{{monitor.frameworks[framework.id].executors[executor.id].statistics.cpus_user_usage + monitor.frameworks[framework.id].executors[executor.id].statistics.cpus_system_usage | number}} /
+          <td>{{monitor.frameworks[framework.id].executors[executor.id].statistics.cpus_total_usage | number}} /
               {{executor.resources.cpus | number}}</td>
           <td>{{monitor.frameworks[framework.id].executors[executor.id].statistics.mem_rss_bytes | dataSize}} /
               {{executor.resources.mem * (1024 * 1024) | dataSize}}</td>

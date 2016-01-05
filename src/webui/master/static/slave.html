@@ -137,7 +137,7 @@
           <td>{{framework.user}}</td>
           <td>{{framework.name}}</td>
           <td>{{framework.num_tasks | number}}</td>
-          <td>{{monitor.frameworks[framework.id].statistics.cpus_user_usage + monitor.frameworks[framework.id].statistics.cpus_system_usage | number}} / {{framework.cpus | number}}</td>
+          <td>{{monitor.frameworks[framework.id].statistics.cpus_total_usage | number}} / {{framework.cpus | number}}</td>
           <td>{{monitor.frameworks[framework.id].statistics.mem_rss_bytes | dataSize}} / {{framework.mem * (1024 * 1024) | dataSize}}</td>
         </tr>
       </tbody>
