@@ -1542,6 +1542,12 @@ TEST_F(MasterMaintenanceTest, InverseOffersFilters)
   EXPECT_TRUE(acknowledgedTaskIds.contains(taskInfo1.task_id()));
   EXPECT_TRUE(acknowledgedTaskIds.contains(taskInfo2.task_id()));
 
+  // To ensure that the accept call has reached the allocator before
+  // we advance the clock for the next batch allocation, we block on
+  // the appropriate allocator interface method being dispatched.
+  Future<Nothing> updateInverseOffer =
+    FUTURE_DISPATCH(_, &MesosAllocatorProcess::updateInverseOffer);
+
   {
     // Decline the second inverse offer, with a filter set such that
     // we should not see this inverse offer in subsequent batch
@@ -1560,14 +1566,12 @@ TEST_F(MasterMaintenanceTest, InverseOffersFilters)
     mesos.send(call);
   }
 
+  AWAIT_READY(updateInverseOffer);
+
   // Accept the first inverse offer, with a filter set such that we
   // should see this inverse offer again in the next batch
   // allocation.
-  //
-  // To ensure that the accept call has reached the allocator before
-  // we advance the clock for the next batch allocation, we block on
-  // the appropriate allocator interface method being dispatched.
-  Future<Nothing> updateInverseOffer =
+  updateInverseOffer =
     FUTURE_DISPATCH(_, &MesosAllocatorProcess::updateInverseOffer);
 
   {
