@@ -78,17 +78,18 @@ Future<Option<ContainerPrepareInfo>> PosixFilesystemIsolatorProcess::prepare(
     return Failure("Container has already been prepared");
   }
 
-  // Return failure if the container change the filesystem root
-  // because the symlinks will become invalid in the new root.
   if (executorInfo.has_container()) {
     CHECK_EQ(executorInfo.container().type(), ContainerInfo::MESOS);
 
+    // Return failure if the container change the filesystem root
+    // because the symlinks will become invalid in the new root.
     if (executorInfo.container().mesos().has_image()) {
       return Failure("Container root filesystems not supported");
     }
 
-    // TODO(jieyu): Also return a failure if there exists images in
-    // the specified volumes.
+    if (executorInfo.container().volumes().size() > 0) {
+      return Failure("Volumes in ContainerInfo is not supported");
+    }
   }
 
   infos.put(containerId, Owned<Info>(new Info(directory)));
