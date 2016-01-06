@@ -110,9 +110,14 @@ master::Flags MesosTest::CreateMasterFlags()
 
   // JSON default format for credentials.
   Credentials credentials;
+
   Credential* credential = credentials.add_credentials();
   credential->set_principal(DEFAULT_CREDENTIAL.principal());
   credential->set_secret(DEFAULT_CREDENTIAL.secret());
+
+  credential = credentials.add_credentials();
+  credential->set_principal(DEFAULT_CREDENTIAL_2.principal());
+  credential->set_secret(DEFAULT_CREDENTIAL_2.secret());
 
   CHECK_SOME(os::write(fd.get(), stringify(JSON::protobuf(credentials))))
      << "Failed to write credentials to '" << path << "'";

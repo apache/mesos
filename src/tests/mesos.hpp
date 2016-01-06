@@ -375,6 +375,13 @@ protected:
         credential; })
 
 
+#define DEFAULT_CREDENTIAL_2                                           \
+     ({ Credential credential;                                         \
+        credential.set_principal("test-principal-2");                  \
+        credential.set_secret("test-secret-2");                        \
+        credential; })
+
+
 #define DEFAULT_V1_CREDENTIAL                                          \
      ({ v1::Credential credential;                                     \
         credential.set_principal("test-principal");                    \
