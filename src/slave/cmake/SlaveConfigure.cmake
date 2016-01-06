@@ -34,8 +34,6 @@ set(AGENT_DEPENDENCIES
 set(AGENT_INCLUDE_DIRS
   ${AGENT_INCLUDE_DIRS}
   ${MESOS_PUBLIC_INCLUDE_DIR}
-  # Protobuf headers that depend on mesos.pb.h need this.
-  ${MESOS_PUBLIC_INCLUDE_DIR}/mesos
   # Contains (e.g.) compiled *.pb.h files.
   ${MESOS_BIN_INCLUDE_DIR}
   ${MESOS_BIN_INCLUDE_DIR}/mesos
