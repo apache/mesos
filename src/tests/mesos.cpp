@@ -710,6 +710,9 @@ MockAuthorizer::MockAuthorizer()
   EXPECT_CALL(*this, authorize(An<const mesos::ACL::SetQuota&>()))
     .WillRepeatedly(Return(true));
 
+  EXPECT_CALL(*this, authorize(An<const mesos::ACL::RemoveQuota&>()))
+    .WillRepeatedly(Return(true));
+
   EXPECT_CALL(*this, initialize(An<const Option<ACLs>&>()))
     .WillRepeatedly(Return(Nothing()));
 }

@@ -164,6 +164,21 @@ public:
     return acls.permissive(); // None of the ACLs match.
   }
 
+  Future<bool> authorize(const ACL::RemoveQuota& request)
+  {
+    foreach (const ACL::RemoveQuota& acl, acls.remove_quotas()) {
+      // ACL matches if both subjects and objects match.
+      if (matches(request.principals(), acl.principals()) &&
+          matches(request.quota_principals(), acl.quota_principals())) {
+        // ACL is allowed if both subjects and objects are allowed.
+        return allows(request.principals(), acl.principals()) &&
+               allows(request.quota_principals(), acl.quota_principals());
+      }
+    }
+
+    return acls.permissive(); // None of the ACLs match.
+  }
+
 private:
   // Match matrix:
   //
@@ -433,6 +448,20 @@ Future<bool> LocalAuthorizer::authorize(const ACL::SetQuota& request)
 
   // Necessary to disambiguate.
   typedef Future<bool>(LocalAuthorizerProcess::*F)(const ACL::SetQuota&);
+
+  return dispatch(
+      process, static_cast<F>(&LocalAuthorizerProcess::authorize), request);
+}
+
+
+Future<bool> LocalAuthorizer::authorize(const ACL::RemoveQuota& request)
+{
+  if (process == NULL) {
+    return Failure("Authorizer not initialized");
+  }
+
+  // Necessary to disambiguate.
+  typedef Future<bool>(LocalAuthorizerProcess::*F)(const ACL::RemoveQuota&);
 
   return dispatch(
       process, static_cast<F>(&LocalAuthorizerProcess::authorize), request);

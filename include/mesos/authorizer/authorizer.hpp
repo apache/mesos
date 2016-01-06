@@ -187,6 +187,20 @@ public:
   virtual process::Future<bool> authorize(
       const ACL::SetQuota& request) = 0;
 
+  /**
+   * Verifies whether a principal can remove a quota set by another principal.
+   *
+   * @param request `ACL::RemoveQuota` packing all the parameters needed to
+   *     verify the given principal can remove quotas which were set by the
+   *     principal contained in the set request.
+   *
+   * @return true if the principal can remove quotas which were set by the quota
+   *     principal, false otherwise. A failed future indicates a problem
+   *     processing the request; the request can be retried.
+   */
+  virtual process::Future<bool> authorize(
+      const ACL::RemoveQuota& request) = 0;
+
 protected:
   Authorizer() {}
 };

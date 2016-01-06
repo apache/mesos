@@ -1220,6 +1220,8 @@ public:
       authorize, process::Future<bool>(const ACL::DestroyVolume& request));
   MOCK_METHOD1(
       authorize, process::Future<bool>(const ACL::SetQuota& request));
+  MOCK_METHOD1(
+      authorize, process::Future<bool>(const ACL::RemoveQuota& request));
 };
 
 
