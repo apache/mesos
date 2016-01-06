@@ -24,6 +24,8 @@ PROTOC_TO_INCLUDE_DIR(V1_MESOS         mesos/v1/mesos)
 PROTOC_TO_INCLUDE_DIR(AUTHENTICATION   mesos/authentication/authentication)
 PROTOC_TO_INCLUDE_DIR(AUTHORIZATION    mesos/authorizer/authorizer)
 PROTOC_TO_INCLUDE_DIR(CONTAINERIZER    mesos/containerizer/containerizer)
+PROTOC_TO_INCLUDE_DIR(DOCKER_V1        mesos/docker/v1)
+PROTOC_TO_INCLUDE_DIR(DOCKER_V2        mesos/docker/v2)
 PROTOC_TO_INCLUDE_DIR(EXECUTOR         mesos/executor/executor)
 PROTOC_TO_INCLUDE_DIR(V1_EXECUTOR      mesos/v1/executor/executor)
 PROTOC_TO_INCLUDE_DIR(FETCHER          mesos/fetcher/fetcher)
@@ -44,8 +46,6 @@ PROTOC_TO_SRC_DIR(FLAGS    messages/flags)
 PROTOC_TO_SRC_DIR(STATE    messages/state)
 
 PROTOC_TO_SRC_DIR(MESSAGE slave/containerizer/mesos/provisioner/docker/message)
-PROTOC_TO_SRC_DIR(DOCKER_V1 slave/containerizer/mesos/provisioner/docker/v1)
-PROTOC_TO_SRC_DIR(DOCKER_V2 slave/containerizer/mesos/provisioner/docker/v2)
 
 set(MESOS_PROTOBUF_SRC
   ${MESOS_PROTO_CC}
@@ -53,6 +53,8 @@ set(MESOS_PROTOBUF_SRC
   ${AUTHENTICATION_PROTO_CC}
   ${AUTHORIZATION_PROTO_CC}
   ${CONTAINERIZER_PROTO_CC}
+  ${DOCKER_V1_PROTO_CC}
+  ${DOCKER_V2_PROTO_CC}
   ${EXECUTOR_PROTO_CC}
   ${V1_EXECUTOR_PROTO_CC}
   ${FETCHER_PROTO_CC}
@@ -69,8 +71,6 @@ set(MESOS_PROTOBUF_SRC
   ${ISOLATOR_PROTO_CC}
   ${REGISTRY_PROTO_CC}
   ${MESSAGE_PROTO_CC}
-  ${DOCKER_V1_PROTO_CC}
-  ${DOCKER_V2_PROTO_CC}
   ${URI_PROTO_CC}
   )
 
@@ -131,6 +131,7 @@ set(DOCKER_SRC
   docker/docker.hpp
   docker/docker.cpp
   docker/executor.hpp
+  docker/spec.cpp
   )
 
 set(EXEC_SRC
@@ -242,7 +243,6 @@ if (NOT WIN32)
     slave/containerizer/mesos/provisioner/docker/registry_client.cpp
     slave/containerizer/mesos/provisioner/docker/registry_puller.cpp
     slave/containerizer/mesos/provisioner/docker/store.cpp
-    slave/containerizer/mesos/provisioner/docker/spec.cpp
     slave/containerizer/mesos/provisioner/docker/token_manager.cpp
     slave/resource_estimators/noop.cpp
     )
@@ -252,6 +252,7 @@ set(URI_SRC
   uri/fetcher.cpp
   uri/utils.cpp
   uri/fetchers/curl.cpp
+  uri/fetchers/hadoop.cpp
   )
 
 set(USAGE_SRC
