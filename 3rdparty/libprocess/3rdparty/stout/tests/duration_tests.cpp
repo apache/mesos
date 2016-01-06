@@ -75,7 +75,7 @@ TEST(DurationTest, Arithmetic)
 
   EXPECT_EQ(Seconds(20), Seconds(11) + Seconds(9));
   EXPECT_EQ(Seconds(-10), Seconds(11) - Seconds(21));
-  EXPECT_EQ(Duration::create(3.3).get(), Seconds(10) * 0.33);
+  EXPECT_EQ(Duration::create(2.5).get(), Seconds(10) * 0.25);
   EXPECT_EQ(Duration::create(1.25).get(), Seconds(10) / 8);
 
   EXPECT_EQ(Duration::create(Days(11).secs() + 9).get(), Days(11) + Seconds(9));
