@@ -109,5 +109,5 @@ The Bind backend currently has these two limitations:
 The design doc is available [here](https://docs.google.com/document/d/1Fx5TS0LytV7u5MZExQS0-g-gScX2yKCKQg9UPFzhp6U).
 
 ## Related Docs
-For more information on the Mesos containerizer filesystem, namespace, and isolator features, visit [here](https://github.com/apache/mesos/blob/master/docs/containerizer.md).
+For more information on the Mesos containerizer filesystem, namespace, and isolator features, visit [here](https://github.com/apache/mesos/blob/master/docs/mesos-containerizer.md).
 For more information on launching Docker containers through the Docker containerizer, visit [here](https://github.com/apache/mesos/blob/master/docs/docker-containerizer.md).
