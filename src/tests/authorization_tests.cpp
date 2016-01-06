@@ -761,6 +761,78 @@ TYPED_TEST(AuthorizationTest, SetQuota)
   AWAIT_EXPECT_FALSE(authorizer.get()->authorize(request7));
 }
 
+
+// This tests the authorization of requests to remove quotas.
+TYPED_TEST(AuthorizationTest, RemoveQuota)
+{
+  ACLs acls;
+
+  // "foo" principal can remove its own quotas.
+  mesos::ACL::RemoveQuota* acl1 = acls.add_remove_quotas();
+  acl1->mutable_principals()->add_values("foo");
+  acl1->mutable_quota_principals()->add_values("foo");
+
+  // "bar" principal cannot remove anyone's quotas.
+  mesos::ACL::RemoveQuota* acl2 = acls.add_remove_quotas();
+  acl2->mutable_principals()->add_values("bar");
+  acl2->mutable_quota_principals()->set_type(mesos::ACL::Entity::NONE);
+
+  // "ops" principal can remove anyone's quotas.
+  mesos::ACL::RemoveQuota* acl3 = acls.add_remove_quotas();
+  acl3->mutable_principals()->add_values("ops");
+  acl3->mutable_quota_principals()->set_type(mesos::ACL::Entity::ANY);
+
+  // No other principals can remove quotas.
+  mesos::ACL::RemoveQuota* acl4 = acls.add_remove_quotas();
+  acl4->mutable_principals()->set_type(mesos::ACL::Entity::ANY);
+  acl4->mutable_quota_principals()->set_type(mesos::ACL::Entity::NONE);
+
+  // Create an `Authorizer` with the ACLs.
+  Try<Authorizer*> create = TypeParam::create();
+  ASSERT_SOME(create);
+  Owned<Authorizer> authorizer(create.get());
+
+  Try<Nothing> initialized = authorizer.get()->initialize(acls);
+  ASSERT_SOME(initialized);
+
+  // Principal "foo" can remove its own quotas, so request 1 will pass.
+  mesos::ACL::RemoveQuota request1;
+  request1.mutable_principals()->add_values("foo");
+  request1.mutable_quota_principals()->add_values("foo");
+  AWAIT_EXPECT_TRUE(authorizer.get()->authorize(request1));
+
+  // Principal "bar" cannot remove anyone's quotas, so requests 2 and 3 will
+  // fail.
+  mesos::ACL::RemoveQuota request2;
+  request2.mutable_principals()->add_values("bar");
+  request2.mutable_quota_principals()->add_values("bar");
+  AWAIT_EXPECT_FALSE(authorizer.get()->authorize(request2));
+
+  mesos::ACL::RemoveQuota request3;
+  request3.mutable_principals()->add_values("bar");
+  request3.mutable_quota_principals()->add_values("foo");
+  AWAIT_EXPECT_FALSE(authorizer.get()->authorize(request3));
+
+  // Principal "ops" can remove anyone's quotas, so requests 4 and 5 will pass.
+  mesos::ACL::RemoveQuota request4;
+  request4.mutable_principals()->add_values("ops");
+  request4.mutable_quota_principals()->add_values("foo");
+  AWAIT_EXPECT_TRUE(authorizer.get()->authorize(request4));
+
+  mesos::ACL::RemoveQuota request5;
+  request5.mutable_principals()->add_values("ops");
+  request5.mutable_quota_principals()->set_type(mesos::ACL::Entity::ANY);
+  AWAIT_EXPECT_TRUE(authorizer.get()->authorize(request5));
+
+  // Principal "jeff" is not mentioned in the ACLs of the `Authorizer`, so it
+  // will be caught by the final rule, which provides a default case that denies
+  // access for all other principals. This case will fail.
+  mesos::ACL::RemoveQuota request6;
+  request6.mutable_principals()->add_values("jeff");
+  request6.mutable_quota_principals()->add_values("foo");
+  AWAIT_EXPECT_FALSE(authorizer.get()->authorize(request6));
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {
