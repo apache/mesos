@@ -9,7 +9,7 @@ Authorization currently allows
  1. Frameworks to (re-)register with authorized _roles_.
  2. Frameworks to launch tasks/executors as authorized _users_.
  3. Authorized _principals_ to shutdown frameworks through the "/teardown" HTTP endpoint.
- 4. Authorized _principals_ to set quotas through the "/quota" HTTP endpoint.
+ 4. Authorized _principals_ to set and remove quotas through the "/quota" HTTP endpoint.
  5. Authorized _principals_ to reserve and unreserve resources through the "/reserve" and "/unreserve" HTTP endpoints, as well as with the `RESERVE` and `UNRESERVE` offer operations.
  6. Authorized _principals_ to create and destroy persistent volumes through the `CREATE` and `DESTROY` offer operations.
 
@@ -26,16 +26,17 @@ The currently supported `Actions` are:
 2. "run_tasks": Run tasks/executors
 3. "shutdown_frameworks": Shutdown frameworks
 4. "set_quotas": Set quotas
-5. "reserve_resources": Reserve resources
-6. "unreserve_resources": Unreserve resources
-7. "create_volumes": Create persistent volumes
-8. "destroy_volumes": Destroy persistent volumes
+5. "remove_quotas": Remove quotas
+6. "reserve_resources": Reserve resources
+7. "unreserve_resources": Unreserve resources
+8. "create_volumes": Create persistent volumes
+9. "destroy_volumes": Destroy persistent volumes
 
 The currently supported `Subjects` are:
 
 1. "principals"
 	- Framework principals (used by "register_frameworks", "run_tasks", "reserve", "unreserve", "create_volumes", and "destroy_volumes" actions)
-	- Usernames (used by "shutdown_frameworks", "set_quotas", "reserve", "unreserve", "create_volumes", and "destroy_volumes" actions)
+	- Usernames (used by "shutdown_frameworks", "set_quotas", "remove_quotas", "reserve", "unreserve", "create_volumes", and "destroy_volumes" actions)
 
 The currently supported `Objects` are:
 
@@ -46,6 +47,7 @@ The currently supported `Objects` are:
 5. "reserver_principals": Framework principals whose reserved resources can be unreserved (used by "unreserves" action).
 6. "volume_types": Types of volumes that can be created by a given principal. Currently the only types considered by the default authorizer are `ANY` and `NONE` (used by "create_volumes" action).
 7. "creator_principals": Principals whose persistent volumes can be destroyed (used by "destroy_volumes" action).
+8. "quota_principals": Principals that set the quota to be removed (used by "remove_quotas" action)
 
 > NOTE: Both `Subjects` and `Objects` can be either an array of strings or one of the special values `ANY` or `NONE`.
 
