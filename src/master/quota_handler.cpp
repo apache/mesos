@@ -299,7 +299,7 @@ Future<http::Response> Master::QuotaHandler::set(
         request.body + "': " + create.error());
   }
 
-  const QuotaInfo& quotaInfo = create.get();
+  QuotaInfo quotaInfo = create.get();
 
   // Check that the `QuotaInfo` is a valid quota request.
   Try<Nothing> validate = quota::validation::quotaInfo(quotaInfo);
@@ -335,13 +335,16 @@ Future<http::Response> Master::QuotaHandler::set(
         request.body + "': " + force.error());
   }
 
+  // Extract principal from request credentials.
+  Option<string> principal = None();
+  if (credential.isSome()) {
+    principal = credential.get().principal();
+    quotaInfo.set_principal(principal.get());
+  }
+
   const bool forced = force.isSome() ? force.get().value : false;
 
-  // Extract principal from request credentials.
-  Option<string> principal =
-    credential.isSome() ? credential.get().principal() : Option<string>::none();
-
-  return authorize(principal, quotaInfo.role())
+  return authorizeSetQuota(principal, quotaInfo.role())
     .then(defer(master->self(), [=](bool authorized) -> Future<http::Response> {
       if (!authorized) {
         return Unauthorized("Mesos master");
@@ -406,13 +409,11 @@ Future<http::Response> Master::QuotaHandler::remove(
 {
   VLOG(1) << "Removing quota for request path: '" << request.url.path << "'";
 
-    // Authenticate the request.
+  // Authenticate the request.
   Result<Credential> credential = master->http.authenticate(request);
   if (credential.isError()) {
     return Unauthorized("Mesos master", credential.error());
   }
-
-  // TODO(nfnt): Authorize the request.
 
   // Check that the request type is DELETE which is guaranteed by the master.
   CHECK_EQ("DELETE", request.method);
@@ -451,6 +452,27 @@ Future<http::Response> Master::QuotaHandler::remove(
         "': Role '" + role + "' has no quota set");
   }
 
+  // Extract principal from request credentials.
+  Option<string> principal =
+    credential.isSome() ? credential.get().principal() : Option<string>::none();
+
+  Option<string> quota_principal = master->quotas[role].info.has_principal()
+    ? master->quotas[role].info.principal()
+    : Option<string>::none();
+
+  return authorizeRemoveQuota(principal, quota_principal)
+    .then(defer(master->self(), [=](bool authorized) -> Future<http::Response> {
+      if (!authorized) {
+        return Unauthorized("Mesos master");
+      }
+
+      return _remove(role);
+    }));
+}
+
+
+Future<http::Response> Master::QuotaHandler::_remove(const string& role) const
+{
   // Remove quota from the quota-related local state. We do this before
   // updating the registry in order to make sure that we are not already
   // trying to remove quota for this role (since this is a multi-phase event).
@@ -493,7 +515,7 @@ Future<http::Response> Master::QuotaHandler::status(
 }
 
 
-Future<bool> Master::QuotaHandler::authorize(
+Future<bool> Master::QuotaHandler::authorizeSetQuota(
     const Option<string>& principal,
     const string& role) const
 {
@@ -514,6 +536,38 @@ Future<bool> Master::QuotaHandler::authorize(
   }
 
   request.mutable_roles()->add_values(role);
+
+  return master->authorizer.get()->authorize(request);
+}
+
+
+Future<bool> Master::QuotaHandler::authorizeRemoveQuota(
+    const Option<string>& requestPrincipal,
+    const Option<string>& quotaPrincipal) const
+{
+  if (master->authorizer.isNone()) {
+    return true;
+  }
+
+  LOG(INFO) << "Authorizing principal '"
+            << (requestPrincipal.isSome() ? requestPrincipal.get() : "ANY")
+            << "' to remove quota set by '"
+            << (quotaPrincipal.isSome() ? quotaPrincipal.get() : "ANY")
+            << "'";
+
+  mesos::ACL::RemoveQuota request;
+
+  if (requestPrincipal.isSome()) {
+    request.mutable_principals()->add_values(requestPrincipal.get());
+  } else {
+    request.mutable_principals()->set_type(mesos::ACL::Entity::ANY);
+  }
+
+  if (quotaPrincipal.isSome()) {
+    request.mutable_quota_principals()->add_values(quotaPrincipal.get());
+  } else {
+    request.mutable_quota_principals()->set_type(mesos::ACL::Entity::ANY);
+  }
 
   return master->authorizer.get()->authorize(request);
 }

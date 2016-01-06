@@ -38,6 +38,9 @@ message QuotaInfo {
   // dynamic reservations.
   optional string role = 1;
 
+  // Principal which set the quota. Currently only operators can set quotas.
+  optional string principal = 2;
+
   // Resources which are guaranteed to be allocatable by role.
   // NOTE: `guarantee.role` should not specify any role except '*',
   // because quota does not reserve specific resources.
