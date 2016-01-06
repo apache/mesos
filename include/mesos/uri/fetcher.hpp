@@ -31,9 +31,6 @@
 namespace mesos {
 namespace uri {
 
-// Forward declarations.
-class Flags;
-
 
 /**
  * Provides an abstraction for fetching URIs. It is pluggable through
