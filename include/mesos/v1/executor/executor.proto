@@ -128,8 +128,8 @@ message Event {
   // it must include a list of all the tasks and updates which haven't been
   // acknowledged by the scheduler.
   message Subscribe {
-    repeated TaskInfo tasks = 1;
-    repeated Update updates = 2;
+    repeated TaskInfo unacknowledged_tasks = 1;
+    repeated Update unacknowledged_updates = 2;
   }
 
   // Notifies the scheduler that a task has transitioned from one

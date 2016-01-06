@@ -2491,7 +2491,7 @@ void Slave::subscribe(
       // after it checkpointed the update but before it could send the
       // ACK to the executor). This is ok because the status update
       // manager correctly handles duplicate updates.
-      foreach (const Call::Update& update, subscribe.updates()) {
+      foreach (const Call::Update& update, subscribe.unacknowledged_updates()) {
         // NOTE: This also updates the executor's resources!
         statusUpdate(protobuf::createStatusUpdate(
             framework->id(),
@@ -2522,7 +2522,7 @@ void Slave::subscribe(
                      executor->queuedTasks.values()));
 
       hashmap<TaskID, TaskInfo> unackedTasks;
-      foreach (const TaskInfo& task, subscribe.tasks()) {
+      foreach (const TaskInfo& task, subscribe.unacknowledged_tasks()) {
         unackedTasks[task.task_id()] = task;
       }
 
