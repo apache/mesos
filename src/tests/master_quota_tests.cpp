@@ -48,6 +48,7 @@ using mesos::internal::master::Master;
 using mesos::internal::slave::Slave;
 
 using mesos::quota::QuotaInfo;
+using mesos::quota::QuotaStatus;
 
 using process::Future;
 using process::PID;
@@ -491,6 +492,101 @@ TEST_F(MasterQuotaTest, RemoveSingleQuota)
     // Ensure that the quota remove request has reached the allocator.
     AWAIT_READY(receivedRemoveRequest);
   }
+
+  Shutdown();
+}
+
+
+// Tests whether we can retrieve empty quota status (i.e. no quota set)
+// from /master/quota endpoint via a GET request against /quota.
+TEST_F(MasterQuotaTest, StatusNoQuotas)
+{
+  Try<PID<Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  // Query the master quota endpoint.
+  Future<Response> response = process::http::get(
+      master.get(),
+      "quota",
+      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response) << response.get().body;
+
+  EXPECT_SOME_EQ(
+      "application/json",
+      response.get().headers.get("Content-Type"));
+
+  const Try<JSON::Object> parse =
+    JSON::parse<JSON::Object>(response.get().body);
+
+  ASSERT_SOME(parse);
+
+  // Convert JSON response to `QuotaStatus` protobuf.
+  const Try<QuotaStatus> status = ::protobuf::parse<QuotaStatus>(parse.get());
+  ASSERT_FALSE(status.isError());
+
+  EXPECT_EQ(0, status.get().infos().size());
+
+  Shutdown();
+}
+
+
+// Tests whether we can retrieve the current quota status from
+// /master/quota endpoint via a GET request against /quota.
+TEST_F(MasterQuotaTest, StatusSingleQuota)
+{
+  TestAllocator<> allocator;
+  EXPECT_CALL(allocator, initialize(_, _, _, _));
+
+  Try<PID<Master>> master = StartMaster(&allocator);
+  ASSERT_SOME(master);
+
+  Future<Resources> agentTotalResources;
+  EXPECT_CALL(allocator, addSlave(_, _, _, _, _))
+    .WillOnce(DoAll(InvokeAddSlave(&allocator),
+                    FutureArg<3>(&agentTotalResources)));
+
+  // Start one agent and wait until it registers.
+  Try<PID<Slave>> agent = StartSlave();
+  ASSERT_SOME(agent);
+
+  AWAIT_READY(agentTotalResources);
+  EXPECT_EQ(defaultAgentResources, agentTotalResources.get());
+
+  // We request quota for a portion of resources available on the agents.
+  Resources quotaResources = Resources::parse("cpus:1;mem:512", ROLE1).get();
+
+  EXPECT_TRUE(agentTotalResources.get().contains(quotaResources.flatten()));
+
+  // Send a quota request for the specified role.
+  Future<Response> response = process::http::post(
+      master.get(),
+      "quota",
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL),
+      createRequestBody(quotaResources));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response) << response.get().body;
+
+  // Query the master quota endpoint.
+  response = process::http::get(master.get(), "quota");
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response) << response.get().body;
+
+  EXPECT_SOME_EQ(
+      "application/json",
+      response.get().headers.get("Content-Type"));
+
+  const Try<JSON::Object> parse =
+    JSON::parse<JSON::Object>(response.get().body);
+
+  ASSERT_SOME(parse);
+
+  // Convert JSON response to `QuotaStatus` protobuf.
+  const Try<QuotaStatus> status = ::protobuf::parse<QuotaStatus>(parse.get());
+  ASSERT_FALSE(status.isError());
+
+  ASSERT_EQ(1, status.get().infos().size());
+  EXPECT_EQ(quotaResources.flatten(), status.get().infos(0).guarantee());
 
   Shutdown();
 }
