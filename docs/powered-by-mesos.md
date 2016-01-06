@@ -33,6 +33,7 @@ layout: documentation
 * [eBay](http://www.ebay.com)
 * [Ericsson](http://www.ericsson.com/)
 * [Foursquare](http://www.foursquare.com)
+* [GenOuest](http://www.genouest.org)
 * [GoCardless](http://www.gocardless.com)
 * [Groupon](http://www.groupon.com)
 * [GSShop](http://www.gsshop.com)
