@@ -76,19 +76,12 @@ TEST(HTTPTest, ModelTask)
   Ports ports;
   Port* port = ports.add_ports();
   port->set_number(80);
-  port->set_instance_port(8081);
   port->mutable_labels()->CopyFrom(labels);
 
   DiscoveryInfo discovery;
   discovery.set_visibility(DiscoveryInfo::CLUSTER);
   discovery.set_name("discover");
   discovery.mutable_ports()->CopyFrom(ports);
-
-  IPAddress* vip1 = discovery.add_vips()->mutable_vip();
-  vip1->set_ip_address("10.0.0.1");
-
-  IPAddress* vip2 = discovery.add_vips()->mutable_vip();
-  vip2->set_ip_address("10.0.0.2");
 
   TaskInfo task;
   task.set_name("task");
@@ -142,26 +135,10 @@ TEST(HTTPTest, ModelTask)
       "              \"value\":\"port:7987 DENY\""
       "             }"
       "           ]"
-      "         },"
-      "         \"instance_port\":8081"
+      "         }"
       "       }"
       "     ]"
       "   },"
-      "   \"vips\":"
-      "    ["
-      "      {"
-      "        \"vip\" :"
-      "         {"
-      "           \"ip_address\":\"10.0.0.1\""
-      "         }"
-      "      },"
-      "      {"
-      "        \"vip\" :"
-      "         { "
-      "           \"ip_address\":\"10.0.0.2\""
-      "         }"
-      "      }"
-      "    ],"
       "   \"visibility\":\"CLUSTER\""
       " }"
       "}");

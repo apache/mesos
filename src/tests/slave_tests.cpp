@@ -2189,24 +2189,15 @@ TEST_F(SlaveTest, DiscoveryInfoAndPorts)
   Port* port1 = ports.add_ports();
   port1->set_number(80);
   port1->mutable_labels()->CopyFrom(labels1);
-  port1->set_instance_port(2222);
 
   Port* port2 = ports.add_ports();
   port2->set_number(8081);
   port2->mutable_labels()->CopyFrom(labels2);
-  port2->set_instance_port(2223);
-
 
   DiscoveryInfo discovery;
   discovery.set_name("test_discovery");
   discovery.set_visibility(DiscoveryInfo::CLUSTER);
   discovery.mutable_ports()->CopyFrom(ports);
-
-  IPAddress* vip1 = discovery.add_vips()->mutable_vip();
-  vip1->set_ip_address("10.0.0.1");
-
-  IPAddress* vip2 = discovery.add_vips()->mutable_vip();
-  vip2->set_ip_address("10.0.0.2");
 
   task.mutable_discovery()->CopyFrom(discovery);
 
@@ -2237,23 +2228,18 @@ TEST_F(SlaveTest, DiscoveryInfoAndPorts)
   JSON::Object discoveryObject = discoveryResult.get();
   EXPECT_EQ(JSON::Object(JSON::protobuf(discovery)), discoveryObject);
 
-  // Verify that the VIPs retrieved from state.json are the ones that were set.
-  Result<JSON::Object> vipResult1 = parse.get().find<JSON::Object>(
-      "frameworks[0].executors[0].tasks[0].discovery.vips[0]");
-  Result<JSON::Object> vipResult2 = parse.get().find<JSON::Object>(
-      "frameworks[0].executors[0].tasks[0].discovery.vips[1]");
-
-  EXPECT_SOME_EQ(JSON::Object(JSON::protobuf(discovery.vips(0))), vipResult1);
-  EXPECT_SOME_EQ(JSON::Object(JSON::protobuf(discovery.vips(1))), vipResult2);
-
-  // Verify that the ports retrieved from state.json are the ones that were set.
+  // Check the ports are set in the `DiscoveryInfo` object.
   Result<JSON::Object> portResult1 = parse.get().find<JSON::Object>(
       "frameworks[0].executors[0].tasks[0].discovery.ports.ports[0]");
   Result<JSON::Object> portResult2 = parse.get().find<JSON::Object>(
       "frameworks[0].executors[0].tasks[0].discovery.ports.ports[1]");
 
-  EXPECT_SOME_EQ(JSON::Object(JSON::protobuf(*port1)), portResult1);
-  EXPECT_SOME_EQ(JSON::Object(JSON::protobuf(*port2)), portResult2);
+  EXPECT_SOME(portResult1);
+  EXPECT_SOME(portResult2);
+
+  // Verify that the ports retrieved from state.json are the ones that were set.
+  EXPECT_EQ(JSON::Object(JSON::protobuf(*port1)), portResult1.get());
+  EXPECT_EQ(JSON::Object(JSON::protobuf(*port2)), portResult2.get());
 
   EXPECT_CALL(exec, shutdown(_))
     .Times(AtMost(1));
