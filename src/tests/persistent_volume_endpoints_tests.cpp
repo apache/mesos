@@ -22,6 +22,7 @@
 #include <mesos/executor.hpp>
 #include <mesos/scheduler.hpp>
 
+#include <process/clock.hpp>
 #include <process/future.hpp>
 #include <process/gmock.hpp>
 #include <process/http.hpp>
@@ -31,6 +32,7 @@
 #include <stout/hashmap.hpp>
 #include <stout/option.hpp>
 
+#include "master/constants.hpp"
 #include "master/flags.hpp"
 #include "master/master.hpp"
 
@@ -43,9 +45,11 @@ using std::vector;
 
 using google::protobuf::RepeatedPtrField;
 
+using mesos::internal::master::DEFAULT_ALLOCATION_INTERVAL;
 using mesos::internal::master::Master;
 using mesos::internal::slave::Slave;
 
+using process::Clock;
 using process::Future;
 using process::PID;
 
@@ -699,6 +703,377 @@ TEST_F(PersistentVolumeEndpointsTest, BadCredentials)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(
       Unauthorized("Mesos master").status,
       response);
+
+  Shutdown();
+}
+
+
+// This tests that correct setup of CreateVolume/DestroyVolume ACLs allows an
+// operator to perform volume creation/destruction operations successfully.
+TEST_F(PersistentVolumeEndpointsTest, GoodCreateAndDestroyACL)
+{
+  // Pause the clock to gain control over the offer cycle.
+  Clock::pause();
+
+  TestAllocator<> allocator;
+  ACLs acls;
+
+  // This ACL asserts that the principal of `DEFAULT_CREDENTIAL`
+  // can create ANY volumes.
+  mesos::ACL::CreateVolume* create = acls.add_create_volumes();
+  create->mutable_principals()->add_values(DEFAULT_CREDENTIAL.principal());
+  create->mutable_volume_types()->set_type(mesos::ACL::Entity::ANY);
+
+  // This ACL asserts that the principal of `DEFAULT_CREDENTIAL`
+  // can destroy volumes that it created.
+  mesos::ACL::DestroyVolume* destroy = acls.add_destroy_volumes();
+  destroy->mutable_principals()->add_values(DEFAULT_CREDENTIAL.principal());
+  destroy->mutable_creator_principals()->add_values(
+      DEFAULT_CREDENTIAL.principal());
+
+  // Create a master.
+  master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.acls = acls;
+
+  EXPECT_CALL(allocator, initialize(_, _, _, _));
+
+  Try<PID<Master>> master = StartMaster(&allocator, masterFlags);
+  ASSERT_SOME(master);
+
+  // Create a slave. Disk resources are statically reserved to allow the
+  // creation of a persistent volume.
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  slaveFlags.resources = "cpus:1;mem:512;disk(role1):1024";
+
+  Future<SlaveID> slaveId;
+  EXPECT_CALL(allocator, addSlave(_, _, _, _, _))
+    .WillOnce(DoAll(InvokeAddSlave(&allocator), FutureArg<0>(&slaveId)));
+
+  Try<PID<Slave>> slave = StartSlave(slaveFlags);
+  ASSERT_SOME(slave);
+
+  process::http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
+
+  Resources volume = createPersistentVolume(
+      Megabytes(64),
+      "role1",
+      "id1",
+      "path1");
+
+  Future<Response> createResponse = process::http::post(
+      master.get(),
+      "create-volumes",
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL),
+      createRequestBody(slaveId.get(), "volumes", volume));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, createResponse);
+
+  FrameworkInfo frameworkInfo = createFrameworkInfo();
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
+
+  Future<vector<Offer>> offers;
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  driver.start();
+
+  Clock::settle();
+  Clock::advance(DEFAULT_ALLOCATION_INTERVAL);
+
+  AWAIT_READY(offers);
+
+  ASSERT_EQ(1u, offers.get().size());
+  Offer offer = offers.get()[0];
+
+  EXPECT_TRUE(Resources(offer.resources()).contains(volume));
+
+  Future<OfferID> rescindedOfferId;
+
+  EXPECT_CALL(sched, offerRescinded(&driver, _))
+    .WillOnce(FutureArg<1>(&rescindedOfferId));
+
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  Future<Response> destroyResponse = process::http::post(
+      master.get(),
+      "destroy-volumes",
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL),
+      createRequestBody(slaveId.get(), "volumes", volume));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, destroyResponse);
+
+  Clock::settle();
+  Clock::advance(DEFAULT_ALLOCATION_INTERVAL);
+
+  AWAIT_READY(rescindedOfferId);
+
+  EXPECT_EQ(rescindedOfferId.get(), offer.id());
+
+  AWAIT_READY(offers);
+
+  ASSERT_EQ(1u, offers.get().size());
+  offer = offers.get()[0];
+
+  EXPECT_FALSE(Resources(offer.resources()).contains(volume));
+
+  driver.stop();
+  driver.join();
+
+  Shutdown();
+}
+
+
+// This tests that an ACL prohibiting the creation of a persistent volume by a
+// principal will lead to a properly failed request.
+TEST_F(PersistentVolumeEndpointsTest, BadCreateAndDestroyACL)
+{
+  // Pause the clock to gain control over the offer cycle.
+  Clock::pause();
+
+  TestAllocator<> allocator;
+  ACLs acls;
+
+  // This ACL asserts that the principal of `DEFAULT_CREDENTIAL`
+  // cannot create persistent volumes.
+  mesos::ACL::CreateVolume* cannotCreate = acls.add_create_volumes();
+  cannotCreate->mutable_principals()->add_values(
+      DEFAULT_CREDENTIAL.principal());
+  cannotCreate->mutable_volume_types()->set_type(mesos::ACL::Entity::NONE);
+
+  // This ACL asserts that the principal of `DEFAULT_CREDENTIAL_2`
+  // can create persistent volumes.
+  mesos::ACL::CreateVolume* canCreate = acls.add_create_volumes();
+  canCreate->mutable_principals()->add_values(DEFAULT_CREDENTIAL_2.principal());
+  canCreate->mutable_volume_types()->set_type(mesos::ACL::Entity::ANY);
+
+  // This ACL asserts that the principal of `DEFAULT_CREDENTIAL`
+  // cannot destroy persistent volumes.
+  mesos::ACL::DestroyVolume* cannotDestroy = acls.add_destroy_volumes();
+  cannotDestroy->mutable_principals()->add_values(
+      DEFAULT_CREDENTIAL.principal());
+  cannotDestroy->mutable_creator_principals()->set_type(
+      mesos::ACL::Entity::NONE);
+
+  // Create a master.
+  master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.acls = acls;
+
+  EXPECT_CALL(allocator, initialize(_, _, _, _));
+
+  Try<PID<Master>> master = StartMaster(&allocator, masterFlags);
+  ASSERT_SOME(master);
+
+  // Create a slave. Disk resources are statically reserved to allow the
+  // creation of a persistent volume.
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  slaveFlags.resources = "cpus:1;mem:512;disk(role1):1024";
+
+  Future<SlaveID> slaveId;
+  EXPECT_CALL(allocator, addSlave(_, _, _, _, _))
+    .WillOnce(DoAll(InvokeAddSlave(&allocator),
+                    FutureArg<0>(&slaveId)));
+
+  Try<PID<Slave>> slave = StartSlave(slaveFlags);
+  ASSERT_SOME(slave);
+
+  Resources volume = createPersistentVolume(
+      Megabytes(64),
+      "role1",
+      "id1",
+      "path1");
+
+  // The failed creation attempt.
+  Future<Response> createResponse = process::http::post(
+      master.get(),
+      "create-volumes",
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL),
+      createRequestBody(slaveId.get(), "volumes", volume));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(
+      Unauthorized("Mesos master").status,
+      createResponse);
+
+  // The successful creation attempt.
+  createResponse = process::http::post(
+      master.get(),
+      "create-volumes",
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL_2),
+      createRequestBody(slaveId.get(), "volumes", volume));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, createResponse);
+
+  FrameworkInfo frameworkInfo = createFrameworkInfo();
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
+
+  Future<vector<Offer>> offers;
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  driver.start();
+
+  Clock::settle();
+  Clock::advance(DEFAULT_ALLOCATION_INTERVAL);
+
+  AWAIT_READY(offers);
+
+  ASSERT_EQ(1u, offers.get().size());
+  Offer offer = offers.get()[0];
+
+  EXPECT_TRUE(Resources(offer.resources()).contains(volume));
+
+  // The failed destruction attempt.
+  Future<Response> destroyResponse = process::http::post(
+      master.get(),
+      "destroy-volumes",
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL),
+      createRequestBody(slaveId.get(), "volumes", volume));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(
+      Unauthorized("Mesos master").status,
+      destroyResponse);
+
+  driver.stop();
+  driver.join();
+
+  Shutdown();
+}
+
+
+// This tests that a request containing a credential which is not listed in the
+// master for authentication will not succeed, even if a good authorization ACL
+// is provided.
+TEST_F(PersistentVolumeEndpointsTest, GoodCreateAndDestroyACLBadCredential)
+{
+  // Pause the clock to gain control over the offer cycle.
+  Clock::pause();
+
+  // Create a credential which will not be listed
+  // for valid authentication with the master.
+  Credential failedCredential;
+  failedCredential.set_principal("awesome-principal");
+  failedCredential.set_secret("super-secret-secret");
+
+  TestAllocator<> allocator;
+  ACLs acls;
+
+  // This ACL asserts that the principal of `failedCredential`
+  // can create persistent volumes.
+  mesos::ACL::CreateVolume* failedCreate = acls.add_create_volumes();
+  failedCreate->mutable_principals()->add_values(failedCredential.principal());
+  failedCreate->mutable_volume_types()->set_type(mesos::ACL::Entity::ANY);
+
+  // This ACL asserts that the principal of `failedCredential`
+  // can destroy persistent volumes.
+  mesos::ACL::DestroyVolume* failedDestroy = acls.add_destroy_volumes();
+  failedDestroy->mutable_principals()->add_values(failedCredential.principal());
+  failedDestroy->mutable_creator_principals()->set_type(
+      mesos::ACL::Entity::ANY);
+
+  // This ACL asserts that the principal of `DEFAULT_CREDENTIAL`
+  // can create persistent volumes.
+  mesos::ACL::CreateVolume* canCreate = acls.add_create_volumes();
+  canCreate->mutable_principals()->add_values(DEFAULT_CREDENTIAL.principal());
+  canCreate->mutable_volume_types()->set_type(mesos::ACL::Entity::ANY);
+
+  // Create a master.
+  master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.acls = acls;
+
+  EXPECT_CALL(allocator, initialize(_, _, _, _));
+
+  Try<PID<Master>> master = StartMaster(&allocator, masterFlags);
+  ASSERT_SOME(master);
+
+  // Create a slave. Disk resources are statically reserved to allow the
+  // creation of a persistent volume.
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  slaveFlags.resources = "cpus:1;mem:512;disk(role1):1024";
+
+  Future<SlaveID> slaveId;
+  EXPECT_CALL(allocator, addSlave(_, _, _, _, _))
+    .WillOnce(DoAll(InvokeAddSlave(&allocator),
+                    FutureArg<0>(&slaveId)));
+
+  Try<PID<Slave>> slave = StartSlave(slaveFlags);
+  ASSERT_SOME(slave);
+
+  Resources volume = createPersistentVolume(
+      Megabytes(64),
+      "role1",
+      "id1",
+      "path1");
+
+  // The failed creation attempt.
+  Future<Response> createResponse = process::http::post(
+      master.get(),
+      "create-volumes",
+      createBasicAuthHeaders(failedCredential),
+      createRequestBody(slaveId.get(), "volumes", volume));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(
+      Unauthorized("Mesos master").status,
+      createResponse);
+
+  // The successful creation attempt.
+  createResponse = process::http::post(
+      master.get(),
+      "create-volumes",
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL),
+      createRequestBody(slaveId.get(), "volumes", volume));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, createResponse);
+
+  FrameworkInfo frameworkInfo = createFrameworkInfo();
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
+
+  Future<vector<Offer>> offers;
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  driver.start();
+
+  Clock::settle();
+  Clock::advance(DEFAULT_ALLOCATION_INTERVAL);
+
+  AWAIT_READY(offers);
+
+  ASSERT_EQ(1u, offers.get().size());
+  Offer offer = offers.get()[0];
+
+  EXPECT_TRUE(Resources(offer.resources()).contains(volume));
+
+  // The failed destruction attempt.
+  Future<Response> destroyResponse = process::http::post(
+      master.get(),
+      "destroy-volumes",
+      createBasicAuthHeaders(failedCredential),
+      createRequestBody(slaveId.get(), "volumes", volume));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(
+      Unauthorized("Mesos master").status,
+      destroyResponse);
+
+  driver.stop();
+  driver.join();
 
   Shutdown();
 }

@@ -595,12 +595,20 @@ Future<Response> Master::Http::createVolumes(const Request& request) const
     return BadRequest("Invalid CREATE operation: " + validate.get().message);
   }
 
-  // TODO(neilc): Add a create-volumes ACL for authorization.
+  Option<string> principal =
+    credential.isSome() ? credential.get().principal() : Option<string>::none();
 
-  // The resources required for this operation are equivalent to the
-  // volumes specified by the user minus any DiskInfo (DiskInfo will
-  // be created when this operation is applied).
-  return _operation(slaveId, removeDiskInfos(volumes), operation);
+  return master->authorizeCreateVolume(operation.create(), principal)
+    .then(defer(master->self(), [=](bool authorized) -> Future<Response> {
+      if (!authorized) {
+        return Unauthorized("Mesos master");
+      }
+
+      // The resources required for this operation are equivalent to the
+      // volumes specified by the user minus any DiskInfo (DiskInfo will
+      // be created when this operation is applied).
+      return _operation(slaveId, removeDiskInfos(volumes), operation);
+    }));
 }
 
 
@@ -684,9 +692,17 @@ Future<Response> Master::Http::destroyVolumes(const Request& request) const
     return BadRequest("Invalid DESTROY operation: " + validate.get().message);
   }
 
-  // TODO(neilc): Add a destroy-volumes ACL for authorization.
+  Option<string> principal =
+    credential.isSome() ? credential.get().principal() : Option<string>::none();
 
-  return _operation(slaveId, volumes, operation);
+  return master->authorizeDestroyVolume(operation.destroy(), principal)
+    .then(defer(master->self(), [=](bool authorized) -> Future<Response> {
+      if (!authorized) {
+        return Unauthorized("Mesos master");
+      }
+
+      return _operation(slaveId, volumes, operation);
+    }));
 }
 
 
