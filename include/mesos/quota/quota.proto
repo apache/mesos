@@ -43,3 +43,13 @@ message QuotaInfo {
   // because quota does not reserve specific resources.
   repeated Resource guarantee = 3;
 }
+
+
+/**
+ * `QuotaStatus` describes the internal representation for the /quota/status
+ * response.
+ */
+message QuotaStatus {
+  // Quotas which are currently set, i.e. known to the master.
+  repeated QuotaInfo infos = 1;
+}

@@ -51,6 +51,7 @@ using http::OK;
 using http::Unauthorized;
 
 using mesos::quota::QuotaInfo;
+using mesos::quota::QuotaStatus;
 
 using process::Future;
 using process::Owned;
@@ -469,6 +470,26 @@ Future<http::Response> Master::QuotaHandler::remove(
 
       return OK();
     }));
+}
+
+
+Future<http::Response> Master::QuotaHandler::status(
+    const http::Request& request) const
+{
+  VLOG(1) << "Handling quota status request";
+
+  // Check that the request type is GET which is guaranteed by the master.
+  CHECK_EQ("GET", request.method);
+
+  QuotaStatus status;
+  status.mutable_infos()->Reserve(static_cast<int>(master->quotas.size()));
+
+  // Create an entry (including role and resources) for each quota.
+  foreachvalue (const Quota& quota, master->quotas) {
+    status.add_infos()->CopyFrom(quota.info);
+  }
+
+  return OK(JSON::protobuf(status), request.url.query.get("jsonp"));
 }
 
 

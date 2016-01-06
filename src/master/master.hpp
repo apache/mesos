@@ -942,13 +942,9 @@ private:
       CHECK_NOTNULL(master);
     }
 
+    // Returns a list of set quotas.
     process::Future<process::http::Response> status(
-        const process::http::Request& request) const
-    {
-      // TODO(joerg84): For now this is just a stub. It will be filled as
-      // part of MESOS-1791.
-      return process::http::NotImplemented();
-    }
+        const process::http::Request& request) const;
 
     process::Future<process::http::Response> set(
         const process::http::Request& request) const;
