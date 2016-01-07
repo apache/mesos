@@ -3236,13 +3236,24 @@ void Master::_accept(
         Future<bool> authorization = authorizations.front();
         authorizations.pop_front();
 
-        CHECK(!authorization.isDiscarded() && !authorization.isFailed());
+        CHECK(!authorization.isDiscarded());
 
-        if (!authorization.get()) {
+        if (authorization.isFailed()) {
+          // TODO(greggomann): We may want to retry this failed authorization
+          // request rather than dropping it immediately.
+          drop(framework,
+               operation,
+               "Authorization of principal '" + framework->info.principal() +
+               "' to reserve resources failed: " +
+               authorization.failure());
+
+          continue;
+        } else if (!authorization.get()) {
           drop(framework,
                operation,
                "Not authorized to reserve resources as '" +
                  framework->info.principal() + "'");
+
           continue;
         }
 
@@ -3281,13 +3292,24 @@ void Master::_accept(
         Future<bool> authorization = authorizations.front();
         authorizations.pop_front();
 
-        CHECK(!authorization.isDiscarded() && !authorization.isFailed());
+        CHECK(!authorization.isDiscarded());
 
-        if (!authorization.get()) {
+        if (authorization.isFailed()) {
+          // TODO(greggomann): We may want to retry this failed authorization
+          // request rather than dropping it immediately.
+          drop(framework,
+               operation,
+               "Authorization of principal '" + framework->info.principal() +
+               "' to unreserve resources failed: " +
+               authorization.failure());
+
+          continue;
+        } else if (!authorization.get()) {
           drop(framework,
                operation,
                "Not authorized to unreserve resources as '" +
                  framework->info.principal() + "'");
+
           continue;
         }
 
