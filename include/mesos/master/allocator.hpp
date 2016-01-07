@@ -70,11 +70,9 @@ public:
   virtual ~Allocator() {}
 
   /**
-   * Initializes the allocator.
-   *
-   * Invoked when the master starts up. Any errors in initialization
-   * should fail fast and result in an ABORT. The master expects the
-   * allocator to be successfully initialized if this call returns.
+   * Initializes the allocator when the master starts up. Any errors in
+   * initialization should fail fast and result in an ABORT. The master expects
+   * the allocator to be successfully initialized if this call returns.
    *
    * @param allocationInterval The allocate interval for the allocator, it
    *     determines how often the allocator should perform the batch
@@ -116,8 +114,6 @@ public:
       const hashmap<std::string, Quota>& quotas) = 0;
 
   /**
-   * Adds a framework.
-   *
    * Adds a framework to the Mesos cluster. The allocator is invoked when
    * a new framework joins the Mesos cluster and is entitled to participate
    * in resource sharing.
@@ -132,8 +128,6 @@ public:
       const hashmap<SlaveID, Resources>& used) = 0;
 
   /**
-   * Removes a framework.
-   *
    * Removes a framework from the Mesos cluster. It is up to an allocator to
    * decide what to do with framework's resources. For example, they may be
    * released and added back to the shared pool of resources.
@@ -142,31 +136,26 @@ public:
       const FrameworkID& frameworkId) = 0;
 
   /**
-   * Activates a framework.
-   *
-   * Activates a framework in the Mesos cluster. Offers are only sent to
-   * active frameworks.
+   * Activates a framework in the Mesos cluster.
+   * Offers are only sent to active frameworks.
    */
   virtual void activateFramework(
       const FrameworkID& frameworkId) = 0;
 
    /**
-   * Deactivates a framework.
-   *
-   * Deactivates a framework in the Mesos cluster. Resource offers are not
-   * sent to deactivated frameworks.
+   * Deactivates a framework in the Mesos cluster.
+   * Resource offers are not sent to deactivated frameworks.
    */
   virtual void deactivateFramework(
       const FrameworkID& frameworkId) = 0;
 
   /**
-   * Updates a framework.
+   * Updates capabilities of a framework in the Mesos cluster.
    *
-   * Updates capabilities of a framework in the Mesos cluster, it will be
-   * invoked when a framework is re-added. As some of the framework's
-   * capabilities may be updated when re-added, this API should update the
-   * capabilities of the newly added framework to Mesos cluster to reflect
-   * the latest framework info. Please refer to the design document here
+   * This will be invoked when a framework is re-added. As some of the
+   * framework's capabilities may be updated when re-added, this API should
+   * update the capabilities of the newly added framework to Mesos cluster to
+   * reflect the latest framework info. Please refer to the design document here
    * https://cwiki.apache.org/confluence/display/MESOS/Design+doc:+Updating+Framework+Info // NOLINT
    * for more details related to framework update.
    */
@@ -175,8 +164,6 @@ public:
       const FrameworkInfo& frameworkInfo) = 0;
 
   /**
-   * Adds an agent.
-   *
    * Adds or re-adds an agent to the Mesos cluster. It is invoked when a
    * new agent joins the cluster or in case of agent recovery.
    *
@@ -196,8 +183,6 @@ public:
       const hashmap<FrameworkID, Resources>& used) = 0;
 
   /**
-   * Removes an agent.
-   *
    * Removes an agent from the Mesos cluster. All resources belonging to this
    * agent should be released by the allocator.
    */
@@ -221,8 +206,6 @@ public:
       const Resources& oversubscribed) = 0;
 
   /**
-   * Activates an agent.
-   *
    * Activates an agent. This is invoked when an agent reregisters. Offers
    * are only sent for activated agents.
    */
@@ -276,10 +259,11 @@ public:
       const std::vector<Offer::Operation>& operations) = 0;
 
   /**
-   * TODO (gyliu513): Add more comments after dynamic reservation finished
+   * Updates available resources on an agent based on a sequence of offer
+   * operations. Operations may include reserve, unreserve, create or destroy.
    *
    * @param slaveId ID of the agent.
-   * @param operations TODO(gyliu513)
+   * @param operations The offer operations to apply to this agent's resources.
    */
   virtual process::Future<Nothing> updateAvailable(
       const SlaveID& slaveId,
@@ -351,8 +335,6 @@ public:
       const FrameworkID& frameworkId) = 0;
 
   /**
-   * Revives offers.
-   *
    * Revives offers for a framework. This is invoked by a framework when
    * it wishes to receive filtered resources or offers immediately.
    */
