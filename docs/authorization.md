@@ -11,7 +11,7 @@ Authorization currently allows
  3. Authorized _principals_ to shutdown frameworks through the "/teardown" HTTP endpoint.
  4. Authorized _principals_ to set and remove quotas through the "/quota" HTTP endpoint.
  5. Authorized _principals_ to reserve and unreserve resources through the "/reserve" and "/unreserve" HTTP endpoints, as well as with the `RESERVE` and `UNRESERVE` offer operations.
- 6. Authorized _principals_ to create and destroy persistent volumes through the `CREATE` and `DESTROY` offer operations.
+ 6. Authorized _principals_ to create and destroy persistent volumes through the "/create-volumes" and "/destroy-volumes" HTTP endpoints, as well as with the `CREATE` and `DESTROY` offer operations.
 
 
 ## ACLs
