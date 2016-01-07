@@ -1320,7 +1320,7 @@ TEST_F(SlaveTest, StateEndpoint)
 
 // This test ensures that when a slave is shutting down, it will not
 // try to re-register with the master.
-TEST_F(SlaveTest, TerminatingSlaveDoesNotReregister)
+TEST_F(SlaveTest, DISABLED_TerminatingSlaveDoesNotReregister)
 {
   // Start a master.
   Try<PID<Master>> master = StartMaster();
