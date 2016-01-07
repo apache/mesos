@@ -1196,19 +1196,17 @@ TEST_F(PersistentVolumeTest, BadACLNoPrincipal)
   // Check that the persistent volume is contained in this offer.
   EXPECT_TRUE(Resources(offer.resources()).contains(volume));
 
-  // Decline, suppress, and revive offers appropriately so that `driver1` can
-  // receive an offer.
+  // Decline and suppress offers to `driver2` so that
+  // `driver1` can receive an offer.
   driver2.declineOffer(offer.id(), filters);
   driver2.suppressOffers();
-  driver1.reviveOffers();
 
-  // Expect an offer to the first framework.
   EXPECT_CALL(sched1, resourceOffers(&driver1, _))
     .WillOnce(FutureArg<1>(&offers));
 
-  // Advance the clock to generate an offer.
-  Clock::settle();
-  Clock::advance(masterFlags.allocation_interval);
+  // Revive offers to `driver1`. Settling and advancing the clock after this is
+  // unnecessary, since calling `reviveOffers` triggers an offer.
+  driver1.reviveOffers();
 
   AWAIT_READY(offers);
   EXPECT_FALSE(offers.get().empty());
@@ -1394,19 +1392,17 @@ TEST_F(PersistentVolumeTest, BadACLDropCreateAndDestroy)
   // Check that the persistent volume is contained in this offer.
   EXPECT_TRUE(Resources(offer.resources()).contains(volume));
 
-  // Decline, suppress, and revive offers appropriately so that `driver1` can
-  // receive an offer.
+  // Decline and suppress offers to `driver2` so that
+  // `driver1` can receive an offer.
   driver2.declineOffer(offer.id(), filters);
   driver2.suppressOffers();
-  driver1.reviveOffers();
 
-  // Expect an offer to the first framework.
   EXPECT_CALL(sched1, resourceOffers(&driver1, _))
     .WillOnce(FutureArg<1>(&offers));
 
-  // Advance the clock to generate an offer.
-  Clock::settle();
-  Clock::advance(masterFlags.allocation_interval);
+  // Revive offers to `driver1`. Settling and advancing the clock after this is
+  // unnecessary, since calling `reviveOffers` triggers an offer.
+  driver1.reviveOffers();
 
   AWAIT_READY(offers);
   EXPECT_FALSE(offers.get().empty());
