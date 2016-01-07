@@ -207,6 +207,13 @@ mesos::internal::master::Flags::Flags()
       "If 'false' unauthenticated slaves are also allowed to register.",
       false);
 
+  add(&Flags::authenticate_http,
+      "authenticate_http",
+      "If 'true' only authenticated requests for HTTP endpoints supporting\n"
+      "authentication are allowed.\n"
+      "If 'false' unauthenticated HTTP endpoint requests are also allowed.\n",
+      false);
+
   add(&Flags::credentials,
       "credentials",
       "Either a path to a text file with a list of credentials,\n"

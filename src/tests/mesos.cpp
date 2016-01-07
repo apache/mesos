@@ -95,6 +95,7 @@ master::Flags MesosTest::CreateMasterFlags()
 
   CHECK_SOME(os::mkdir(flags.work_dir.get()));
 
+  flags.authenticate_http = true;
   flags.authenticate_frameworks = true;
   flags.authenticate_slaves = true;
 

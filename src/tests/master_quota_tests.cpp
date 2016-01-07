@@ -1094,14 +1094,14 @@ TEST_F(MasterQuotaTest, NoAuthenticationNoAuthorization)
   TestAllocator<> allocator;
   EXPECT_CALL(allocator, initialize(_, _, _, _));
 
-  // Disable authentication and authorization by providing neither
-  // credentials nor ACLs.
+  // Disable authentication and authorization.
   // TODO(alexr): Setting master `--acls` flag to `ACLs()` or `None()` seems
   // to be semantically equal, however, the test harness currently does not
   // allow `None()`. Once MESOS-4196 is resolved, use `None()` for clarity.
   master::Flags masterFlags = CreateMasterFlags();
-  masterFlags.credentials = None();
   masterFlags.acls = ACLs();
+  masterFlags.authenticate_http = false;
+  masterFlags.credentials = None();
 
   Try<PID<Master>> master = StartMaster(&allocator, masterFlags);
   ASSERT_SOME(master);
@@ -1353,9 +1353,9 @@ TEST_F(MasterQuotaTest, AuthorizeQuotaRequestsWithoutPrincipal)
   acl2->mutable_principals()->set_type(mesos::ACL::Entity::ANY);
   acl2->mutable_quota_principals()->set_type(mesos::ACL::Entity::ANY);
 
-  // Disable authentication by not providing credentials.
   master::Flags masterFlags = CreateMasterFlags();
   masterFlags.acls = acls;
+  masterFlags.authenticate_http = false;
   masterFlags.credentials = None();
 
   Try<PID<Master>> master = StartMaster(&allocator, masterFlags);

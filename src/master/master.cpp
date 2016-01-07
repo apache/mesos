@@ -522,30 +522,37 @@ void Master::initialize()
 
   Option<authentication::Authenticator*> httpAuthenticator;
 
-  if (httpAuthenticatorNames[0] == DEFAULT_HTTP_AUTHENTICATOR &&
-      credentials.isSome()) {
-    LOG(INFO) << "Using default '" << DEFAULT_HTTP_AUTHENTICATOR
-              << "' HTTP authenticator";
+  if (flags.authenticate_http) {
+    if (httpAuthenticatorNames[0] == DEFAULT_HTTP_AUTHENTICATOR) {
+      if (credentials.isNone()) {
+        EXIT(1) << "No credentials provided for the default '"
+                << DEFAULT_HTTP_AUTHENTICATOR
+                << "' HTTP authenticator";
+      }
 
-    Try<authentication::Authenticator*> authenticator =
-      BasicAuthenticatorFactory::create(credentials.get());
-    if (authenticator.isError()) {
-      EXIT(1) << "Could not create HTTP authenticator module '"
-              << httpAuthenticatorNames[0] << "': " << authenticator.error();
-    }
+      LOG(INFO) << "Using default '" << DEFAULT_HTTP_AUTHENTICATOR
+                << "' HTTP authenticator";
 
-    httpAuthenticator = authenticator.get();
-  } else if (httpAuthenticatorNames[0] != DEFAULT_HTTP_AUTHENTICATOR) {
-    Try<authentication::Authenticator*> module =
-      modules::ModuleManager::create<authentication::Authenticator>(
-          httpAuthenticatorNames[0]);
-    if (module.isError()) {
-      EXIT(1) << "Could not create HTTP authenticator module '"
-              << httpAuthenticatorNames[0] << "': " << module.error();
+      Try<authentication::Authenticator*> authenticator =
+        BasicAuthenticatorFactory::create(credentials.get());
+      if (authenticator.isError()) {
+        EXIT(1) << "Could not create HTTP authenticator module '"
+                << httpAuthenticatorNames[0] << "': " << authenticator.error();
+      }
+
+      httpAuthenticator = authenticator.get();
+    } else {
+      Try<authentication::Authenticator*> module =
+        modules::ModuleManager::create<authentication::Authenticator>(
+            httpAuthenticatorNames[0]);
+      if (module.isError()) {
+        EXIT(1) << "Could not create HTTP authenticator module '"
+                << httpAuthenticatorNames[0] << "': " << module.error();
+      }
+      LOG(INFO) << "Using '" << httpAuthenticatorNames[0]
+                << "' HTTP authenticator";
+      httpAuthenticator = module.get();
     }
-    LOG(INFO) << "Using '" << httpAuthenticatorNames[0]
-              << "' HTTP authenticator";
-    httpAuthenticator = module.get();
   }
 
   if (httpAuthenticator.isSome() && httpAuthenticator.get() != NULL) {
