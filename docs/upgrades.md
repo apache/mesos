@@ -12,6 +12,8 @@ This document serves as a guide for users who wish to upgrade an existing Mesos 
 
 * The Allocator API has changed due to the introduction of implicit roles. Custom allocator implementations will need to be updated. See [MESOS-4000](https://issues.apache.org/jira/browse/MESOS-4000) for more information.
 
+* The `executorLost` callback in the Scheduler interface will now be called whenever the slave detects termination of a custom executor. This callback was never called in previous versions, so please make sure any framework schedulers can now safely handle this callback. Note that this callback may not be reliably delivered.
+
 ## Upgrading from 0.25.x to 0.26.x ##
 
 **NOTE** The names of some TaskStatus::Reason enums have been changed. But the tag numbers remain unchanged, so it is backwards compatible. Frameworks using the new version might need to do some compile time adjustments:
@@ -26,7 +28,6 @@ On master, the affected `data` field was originally found via `frameworks[*].exe
 On slaves, the affected `data` field was originally found via `executors[*].tasks[*].data`.
 
 **NOTE** The `NetworkInfo` protobuf has been changed. The fields `protocol` and `ip_address` are now deprecated. The new field `ip_addresses` subsumes the information provided by them.
-
 
 ## Upgrading from 0.24.x to 0.25.x
 

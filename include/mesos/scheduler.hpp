@@ -149,6 +149,7 @@ public:
   // Invoked when an executor has exited/terminated. Note that any
   // tasks running will have TASK_LOST status updates automagically
   // generated.
+  // NOTE: This callback is not reliably delivered.
   virtual void executorLost(
       SchedulerDriver* driver,
       const ExecutorID& executorId,

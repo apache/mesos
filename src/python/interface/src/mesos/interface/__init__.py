@@ -118,6 +118,7 @@ class Scheduler(object):
     """
       Invoked when an executor has exited/terminated. Note that any tasks
       running will have TASK_LOST status updates automatically generated.
+      NOTE: This callback is not reliabily delivered.
     """
 
   def error(self, driver, message):

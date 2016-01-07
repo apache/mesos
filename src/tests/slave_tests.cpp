@@ -293,6 +293,7 @@ TEST_F(SlaveTest, RemoveUnregisteredTerminatedExecutor)
   Future<Nothing> schedule =
     FUTURE_DISPATCH(_, &GarbageCollectorProcess::schedule);
 
+  EXPECT_CALL(sched, executorLost(&driver, DEFAULT_EXECUTOR_ID, _, _));
   // Now kill the executor.
   containerizer.destroy(offers.get()[0].framework_id(), DEFAULT_EXECUTOR_ID);
 
@@ -1133,6 +1134,9 @@ TEST_F(SlaveTest, MetricsSlaveLaunchErrors)
 
   EXPECT_CALL(sched, statusUpdate(&driver, _));
 
+  // The above injected containerizer failure also triggers executorLost.
+  EXPECT_CALL(sched, executorLost(&driver, DEFAULT_EXECUTOR_ID, _, _));
+
   // Try to start a task
   TaskInfo task = createTask(
       offer.slave_id(),
@@ -1396,6 +1400,10 @@ TEST_F(SlaveTest, TerminatingSlaveDoesNotReregister)
   // stay in TERMINATING for a while.
   DROP_PROTOBUFS(ShutdownExecutorMessage(), slave.get(), _);
 
+  Future<Nothing> executorLost;
+  EXPECT_CALL(sched, executorLost(&driver, DEFAULT_EXECUTOR_ID, _, _))
+    .WillOnce(FutureSatisfy(&executorLost));
+
   // Send a ShutdownMessage instead of calling Stop() directly
   // to avoid blocking.
   post(master.get(), slave.get(), ShutdownMessage());
@@ -1404,6 +1412,8 @@ TEST_F(SlaveTest, TerminatingSlaveDoesNotReregister)
   Clock::advance(slave::REGISTER_RETRY_INTERVAL_MAX * 2);
   Clock::settle();
   Clock::resume();
+
+  AWAIT_READY(executorLost);
 
   // Clean up.
   driver.stop();
@@ -1491,6 +1501,10 @@ TEST_F(SlaveTest, TerminalTaskContainerizerUpdateFails)
   EXPECT_CALL(exec, killTask(_, _))
     .WillOnce(SendStatusUpdateFromTaskID(TASK_KILLED));
 
+  Future<Nothing> executorLost;
+  EXPECT_CALL(sched, executorLost(&driver, DEFAULT_EXECUTOR_ID, _, _))
+    .WillOnce(FutureSatisfy(&executorLost));
+
   // Kill one of the tasks. The failed update should result in the
   // second task going lost when the container is destroyed.
   driver.killTask(tasks[0].task_id());
@@ -1503,6 +1517,8 @@ TEST_F(SlaveTest, TerminalTaskContainerizerUpdateFails)
   EXPECT_EQ(TASK_LOST, status4->state());
   EXPECT_EQ(TaskStatus::SOURCE_SLAVE, status4->source());
   EXPECT_EQ(TaskStatus::REASON_CONTAINER_UPDATE_FAILED, status4->reason());
+
+  AWAIT_READY(executorLost);
 
   driver.stop();
   driver.join();
@@ -1607,6 +1623,7 @@ TEST_F(SlaveTest, TaskLaunchContainerizerUpdateFails)
   Future<TaskStatus> status;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillOnce(FutureArg<1>(&status));
+  EXPECT_CALL(sched, executorLost(&driver, DEFAULT_EXECUTOR_ID, _, _));
 
   driver.start();
 

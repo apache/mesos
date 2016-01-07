@@ -584,17 +584,27 @@ TEST_F(SchedulerDriverEventTest, Failure)
   AWAIT_READY(frameworkRegisteredMessage);
   UPID frameworkPid = frameworkRegisteredMessage.get().to;
 
-  // Send a failure for an executor, this should be dropped
-  // to match the existing behavior of the scheduler driver.
+  // Send a failure for an executor, which should trigger executorLost callback.
   SlaveID slaveId;
   slaveId.set_value("S");
+
+  ExecutorID executorId = DEFAULT_EXECUTOR_ID;
+
+  const int32_t status = 255;
 
   Event event;
   event.set_type(Event::FAILURE);
   event.mutable_failure()->mutable_slave_id()->CopyFrom(slaveId);
-  event.mutable_failure()->mutable_executor_id()->set_value("E");
+  event.mutable_failure()->mutable_executor_id()->CopyFrom(executorId);
+  event.mutable_failure()->set_status(status);
+
+  Future<Nothing> executorLost;
+  EXPECT_CALL(sched, executorLost(&driver, executorId, slaveId, status))
+    .WillOnce(FutureSatisfy(&executorLost));
 
   process::post(master.get(), frameworkPid, event);
+
+  AWAIT_READY(executorLost);
 
   // Now, post a failure for a slave and expect a 'slaveLost'.
   event.mutable_failure()->clear_executor_id();

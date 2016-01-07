@@ -204,6 +204,12 @@ protected:
         &SchedulerProcess::lostSlave,
         &LostSlaveMessage::slave_id);
 
+    install<ExitedExecutorMessage>(
+        &SchedulerProcess::lostExecutor,
+        &ExitedExecutorMessage::executor_id,
+        &ExitedExecutorMessage::slave_id,
+        &ExitedExecutorMessage::status);
+
     install<ExecutorToFrameworkMessage>(
         &SchedulerProcess::frameworkMessage,
         &ExecutorToFrameworkMessage::slave_id,
@@ -583,10 +589,12 @@ protected:
 
         if (event.failure().has_slave_id() &&
             event.failure().has_executor_id()) {
-          // NOTE: We silently drop executor FAILURE messages
-          // because this matches the existing behavior of the
-          // scheduler driver: there is currently no install
-          // handler for ExitedExecutorMessage.
+          CHECK(event.failure().has_status());
+          lostExecutor(
+              from,
+              event.failure().executor_id(),
+              event.failure().slave_id(),
+              event.failure().status());
         } else if (event.failure().has_slave_id()) {
           lostSlave(from, event.failure().slave_id());
         } else {
@@ -990,6 +998,46 @@ protected:
     scheduler->slaveLost(driver, slaveId);
 
     VLOG(1) << "Scheduler::slaveLost took " << stopwatch.elapsed();
+  }
+
+  void lostExecutor(
+      const UPID& from,
+      const ExecutorID& executorId,
+      const SlaveID& slaveId,
+      int32_t status)
+  {
+    if (!running.load()) {
+      VLOG(1)
+        << "Ignoring lost executor message because the driver is not running!";
+      return;
+    }
+
+    if (!connected) {
+      VLOG(1)
+        << "Ignoring lost executor message because the driver is disconnected!";
+      return;
+    }
+
+    CHECK_SOME(master);
+    if (from != master.get().pid()) {
+      VLOG(1) << "Ignoring lost executor message because it was sent "
+              << "from '" << from << "' instead of the leading master '"
+              << master.get().pid() << "'";
+      return;
+    }
+
+    VLOG(1)
+      << "Executor " << executorId << " on slave " << slaveId
+      << " exited with status " << status;
+
+    Stopwatch stopwatch;
+    if (FLAGS_v >= 1) {
+      stopwatch.start();
+    }
+
+    scheduler->executorLost(driver, executorId, slaveId, status);
+
+    VLOG(1) << "Scheduler::executorLost took " << stopwatch.elapsed();
   }
 
   void frameworkMessage(

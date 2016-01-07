@@ -547,6 +547,8 @@ TEST_F(GarbageCollectorIntegrationTest, ExitedExecutor)
   EXPECT_CALL(sched, statusUpdate(_, _))
     .Times(AtMost(1)); // Ignore TASK_LOST from killed executor.
 
+  EXPECT_CALL(sched, executorLost(&driver, DEFAULT_EXECUTOR_ID, _, _));
+
   // Kill the executor and inform the slave.
   containerizer.destroy(frameworkId.get(), DEFAULT_EXECUTOR_ID);
 
@@ -645,6 +647,8 @@ TEST_F(GarbageCollectorIntegrationTest, DiskUsage)
 
   EXPECT_CALL(sched, statusUpdate(_, _))
     .Times(AtMost(1)); // Ignore TASK_LOST from killed executor.
+
+  EXPECT_CALL(sched, executorLost(&driver, DEFAULT_EXECUTOR_ID, slaveId, _));
 
   // Kill the executor and inform the slave.
   containerizer.destroy(frameworkId.get(), DEFAULT_EXECUTOR_ID);
@@ -789,6 +793,8 @@ TEST_F(GarbageCollectorIntegrationTest, Unschedule)
 
   EXPECT_CALL(exec2, launchTask(_, _))
     .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
+
+  EXPECT_CALL(sched, executorLost(&driver, exec1.id, _, _));
 
   Clock::pause();
 

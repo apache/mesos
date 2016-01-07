@@ -177,6 +177,8 @@ public interface Scheduler {
    * tasks running will have TASK_LOST status updates automagically
    * generated.
    *
+   * NOTE: This callback is not reliably delivered.
+   *
    * @param driver      The driver that was used to run this scheduler.
    * @param executorId  The ID of the executor that was lost.
    * @param slaveId     The ID of the slave that launched the executor.

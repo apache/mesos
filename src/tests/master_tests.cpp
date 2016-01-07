@@ -731,6 +731,8 @@ TEST_F(MasterTest, RecoverResources)
   EXPECT_CALL(exec, shutdown(_))
     .Times(AtMost(1));
 
+  EXPECT_CALL(sched, executorLost(&driver, DEFAULT_EXECUTOR_ID, _, _));
+
   // Now kill the executor, scheduler should get an offer it's resources.
   containerizer.destroy(offer.framework_id(), executorInfo.executor_id());
 

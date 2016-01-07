@@ -286,17 +286,16 @@ TEST_F(FaultToleranceTest, ReregisterCompletedFrameworks)
   Future<Nothing> executorTerminated =
     FUTURE_DISPATCH(_, &Slave::executorTerminated);
 
+  Future<Nothing> executorLost;
+  EXPECT_CALL(sched, executorLost(&driver, DEFAULT_EXECUTOR_ID, _, _))
+    .WillOnce(FutureSatisfy(&executorLost));
   // Induce an ExitedExecutorMessage from the slave.
   containerizer.destroy(
       frameworkId.get(), DEFAULT_EXECUTOR_INFO.executor_id());
 
   AWAIT_READY(executorTerminated);
 
-  // Slave should consider the framework completed after it executes
-  // "executorTerminated".
-  Clock::pause();
-  Clock::settle();
-  Clock::resume();
+  AWAIT_READY(executorLost);
 
   // Verify slave sees completed framework.
   slaveState = process::http::get(slave.get(), "state");
@@ -1712,14 +1711,15 @@ TEST_F(FaultToleranceTest, FrameworkReregisterEmptyExecutor)
     FUTURE_PROTOBUF(ExitedExecutorMessage(), slave.get(), master.get());
 
   // Now kill the executor.
+  Future<Nothing> executorLost;
+  EXPECT_CALL(sched, executorLost(&driver, DEFAULT_EXECUTOR_ID, _, _))
+    .WillOnce(FutureSatisfy(&executorLost));
   containerizer.destroy(frameworkId.get(), DEFAULT_EXECUTOR_ID);
 
   // Ensure the master correctly handles the exited executor
   // with no tasks!
   AWAIT_READY(executorExitedMessage);
-  Clock::pause();
-  Clock::settle();
-  Clock::resume();
+  AWAIT_READY(executorLost);
 
   driver.stop();
   driver.join();

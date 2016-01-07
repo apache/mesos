@@ -134,6 +134,8 @@ TEST_F(MasterSlaveReconciliationTest, SlaveReregisterTerminatedExecutor)
   // Ensure the update was sent.
   AWAIT_READY(statusUpdateMessage);
 
+  EXPECT_CALL(sched, executorLost(&driver, DEFAULT_EXECUTOR_ID, _, _));
+
   // Now kill the executor.
   containerizer.destroy(frameworkId.get(), DEFAULT_EXECUTOR_ID);
 

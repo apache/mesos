@@ -2,6 +2,7 @@ Release Notes - Mesos - Version 0.27.0 (WIP)
 --------------------------------------------
 
 ** API Changes:
+  * [MESOS-313]  - Report executor termination to framework schedulers.
   * [MESOS-2315] - Removed deprecated CommandInfo::ContainerInfo.
   * [MESOS-3988] - Implicit roles.
 
