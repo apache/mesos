@@ -237,7 +237,7 @@ mesos::internal::master::Flags::Flags()
       "Note that if the flag --authorizers is provided with a value different\n"
       "than '" + DEFAULT_AUTHORIZER + "', the ACLs contents will be ignored.\n"
       "\n"
-      "See the ACLs protobuf in mesos.proto for the expected format.\n"
+      "See the ACLs protobuf in authorizer.proto for the expected format.\n"
       "\n"
       "Example:\n"
       "{\n"
