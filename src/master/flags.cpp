@@ -444,4 +444,14 @@ mesos::internal::master::Flags::Flags()
       "\n"
       "Currently there's no support for multiple authorizers.",
       DEFAULT_AUTHORIZER);
+
+  add(&Flags::max_completed_frameworks,
+      "max_completed_frameworks",
+      "Maximum number of completed frameworks to store in the cache.",
+      DEFAULT_MAX_COMPLETED_FRAMEWORKS);
+
+  add(&Flags::max_completed_tasks_per_framework,
+      "max_completed_tasks_per_framework",
+      "Maximum number of completed tasks per framework to store in the cache.",
+      DEFAULT_MAX_COMPLETED_TASKS_PER_FRAMEWORK);
 }

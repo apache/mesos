@@ -375,6 +375,14 @@ void Master::initialize()
                  << "**************************************************";
   }
 
+  LOG(INFO) << "Keeping max "
+            << flags.max_completed_frameworks
+            << " completed frameworks in cache";
+  frameworks.completed = boost::circular_buffer<std::shared_ptr<mesos::internal::master::Framework>>(flags.max_completed_frameworks);
+  LOG(INFO) << "Keeping max "
+            << flags.max_completed_tasks_per_framework
+            << " completed tasks per framework in cache";
+
   // NOTE: We enforce a minimum slave re-register timeout because the
   // slave bounds its (re-)registration retries based on the minimum.
   if (flags.slave_reregister_timeout < MIN_SLAVE_REREGISTER_TIMEOUT) {
