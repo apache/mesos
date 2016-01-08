@@ -87,6 +87,7 @@ set(AUTHENTICATION_SRC
   authentication/cram_md5/authenticatee.cpp
   authentication/cram_md5/authenticator.cpp
   authentication/cram_md5/auxprop.cpp
+  authentication/http/basic_authenticator_factory.cpp
   )
 
 set(AUTHORIZER_SRC

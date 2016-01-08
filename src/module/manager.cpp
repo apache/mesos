@@ -66,6 +66,7 @@ void ModuleManager::initialize()
   kindToVersion["Authorizer"] = MESOS_VERSION;
   kindToVersion["ContainerLogger"] = MESOS_VERSION;
   kindToVersion["Hook"] = MESOS_VERSION;
+  kindToVersion["HttpAuthenticator"] = MESOS_VERSION;
   kindToVersion["Isolator"] = MESOS_VERSION;
   kindToVersion["QoSController"] = MESOS_VERSION;
   kindToVersion["ResourceEstimator"] = MESOS_VERSION;

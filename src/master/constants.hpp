@@ -131,6 +131,9 @@ extern const Duration DEFAULT_ALLOCATION_INTERVAL;
 // Name of the default, local authorizer.
 extern const std::string DEFAULT_AUTHORIZER;
 
+// Name of the default, basic authenticator.
+extern const std::string DEFAULT_HTTP_AUTHENTICATOR;
+
 } // namespace master {
 } // namespace internal {
 } // namespace mesos {

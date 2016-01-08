@@ -226,6 +226,29 @@ static void addAuthorizerModules(Modules* modules)
 }
 
 
+static void addHttpAuthenticatorModules(Modules* modules)
+{
+  CHECK_NOTNULL(modules);
+
+  const string libraryPath = path::join(
+      tests::flags.build_dir,
+      "src",
+      ".libs",
+      os::libraries::expandName("testhttpauthenticator"));
+
+  // Now add our test HTTP authenticator module.
+  Modules::Library* library = modules->add_libraries();
+  library->set_file(libraryPath);
+
+  // To add a new module from this library, create a new ModuleID enum
+  // and tie it with a module name.
+  addModule(
+      library,
+      TestHttpBasicAuthenticator,
+      "org_apache_mesos_TestHttpBasicAuthenticator");
+}
+
+
 Try<Nothing> initModules(const Option<Modules>& modules)
 {
   // First get the user provided modules.
@@ -257,6 +280,9 @@ Try<Nothing> initModules(const Option<Modules>& modules)
 
   // Add authorizer modules from testauthorizer library.
   addAuthorizerModules(&mergedModules);
+
+  // Add HTTP authenticator modules from testhttpauthenticator library.
+  addHttpAuthenticatorModules(&mergedModules);
 
   return ModuleManager::load(mergedModules);
 }
