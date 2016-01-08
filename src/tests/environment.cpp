@@ -35,9 +35,14 @@
 #include <stout/check.hpp>
 #include <stout/error.hpp>
 #include <stout/exit.hpp>
+#include <stout/none.hpp>
+#include <stout/option.hpp>
 #include <stout/os.hpp>
+#include <stout/path.hpp>
+#include <stout/result.hpp>
 #include <stout/strings.hpp>
 
+#include <stout/os/exists.hpp>
 #include <stout/os/shell.hpp>
 
 #ifdef __linux__
@@ -128,31 +133,42 @@ public:
 #ifdef __linux__
     Result<string> hierarchy = cgroups::hierarchy("cpu");
     if (hierarchy.isSome()) {
-      cfsError = os::system(
-          "ls " + path::join(hierarchy.get(), "cpu.cfs_quota_us")) != 0;
+      bool cfsQuotaEnabled =
+        os::exists(path::join(hierarchy.get(), "cpu.cfs_quota_us"));
+
+      if (cfsQuotaEnabled) {
+        cfsError = None();
+      } else {
+        cfsError = Error("CFS bandwidth control is not available");
+      }
     } else {
-      cfsError = true;
+      cfsError = Error(
+          "There was an error finding the 'cpu' cgroup hierarchy:\n" +
+          hierarchy.error());
     }
 
-    if (cfsError) {
+    if (cfsError.isSome()) {
       std::cerr
         << "-------------------------------------------------------------\n"
-        << "No kernel support for CFS so no 'CFS' tests will be run\n"
+        << "The 'CFS_' tests cannot be run because:\n"
+        << cfsError.get().message << "\n"
         << "-------------------------------------------------------------"
         << std::endl;
     }
 #else
-      cfsError = true;
+    cfsError = Error(
+        "These tests require CFS bandwidth control, which is a "
+        "Linux kernel feature, but Linux has not been detected");
 #endif // __linux__
   }
 
   bool disable(const ::testing::TestInfo* test) const
   {
-    return matches(test, "CFS_") && cfsError;
+    return matches(test, "CFS_") && cfsError.isSome();
   }
 
 private:
-  bool cfsError;
+  Option<Error> cfsError;
 };
 
 
@@ -267,7 +283,7 @@ public:
         << std::endl;
     }
 #else
-      perfError = true;
+    perfError = true;
 #endif // __linux__
   }
 
