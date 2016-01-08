@@ -81,7 +81,7 @@ class Scheduler(object):
       another framework used resources in the offer.) If for whatever reason
       an offer is never rescinded (e.g., dropped message, failing over
       framework, etc.), a framework that attempts to launch tasks using an
-      invalid offer will receive TASK_LOST status updats for those tasks
+      invalid offer will receive TASK_LOST status updates for those tasks
       (see Scheduler.resourceOffers).
     """
 
@@ -118,7 +118,7 @@ class Scheduler(object):
     """
       Invoked when an executor has exited/terminated. Note that any tasks
       running will have TASK_LOST status updates automatically generated.
-      NOTE: This callback is not reliabily delivered.
+      NOTE: This callback is not reliably delivered.
     """
 
   def error(self, driver, message):
@@ -323,7 +323,7 @@ class Executor(object):
 
   def error(self, driver, message):
     """
-      Invoked when a fatal error has occured with the executor and/or
+      Invoked when a fatal error has occurred with the executor and/or
       executor driver.  The driver will be aborted BEFORE invoking this
       callback.
     """
