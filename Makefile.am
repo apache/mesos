@@ -88,6 +88,9 @@ tests: all
 # http://lists.gnu.org/archive/html/automake-commit/2008-11/msg00015.html.
 distclean-local:
 	-rm -f config.lt
+	-rm -f ./3rdparty/libprocess/3rdparty/report.xml
+	-rm -f ./3rdparty/libprocess/report.xml
+	-rm -f ./src/report.xml
 
 
 .PHONY: $(PHONY_TARGETS)

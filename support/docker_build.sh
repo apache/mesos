@@ -66,6 +66,9 @@ case $OS in
 
     # Disable any tests failing on Ubuntu.
     append_dockerfile "ENV GTEST_FILTER -FsTest.FileSystemTableRead"
+
+    # Generate xml reports to be displayed by jenkins xUnit plugin
+    append_dockerfile "ENV GTEST_OUTPUT xml:report.xml"
     ;;
   *)
     echo "Unknown OS $OS"
