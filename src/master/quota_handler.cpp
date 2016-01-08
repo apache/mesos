@@ -240,15 +240,10 @@ void Master::QuotaHandler::rescindOffers(const QuotaInfo& request) const
 
 
 Future<http::Response> Master::QuotaHandler::set(
-    const http::Request& request) const
+    const http::Request& request,
+    const Option<string>& principal) const
 {
   VLOG(1) << "Setting quota from request: '" << request.body << "'";
-
-  // Authenticate the request.
-  Result<Credential> credential = master->http.authenticate(request);
-  if (credential.isError()) {
-    return Unauthorized("Mesos master", credential.error());
-  }
 
   // Check that the request type is POST which is guaranteed by the master.
   CHECK_EQ("POST", request.method);
@@ -335,14 +330,11 @@ Future<http::Response> Master::QuotaHandler::set(
         request.body + "': " + force.error());
   }
 
-  // Extract principal from request credentials.
-  Option<string> principal = None();
-  if (credential.isSome()) {
-    principal = credential.get().principal();
+  const bool forced = force.isSome() ? force.get().value : false;
+
+  if (principal.isSome()) {
     quotaInfo.set_principal(principal.get());
   }
-
-  const bool forced = force.isSome() ? force.get().value : false;
 
   return authorizeSetQuota(principal, quotaInfo.role())
     .then(defer(master->self(), [=](bool authorized) -> Future<http::Response> {
@@ -405,15 +397,10 @@ Future<http::Response> Master::QuotaHandler::_set(
 
 
 Future<http::Response> Master::QuotaHandler::remove(
-    const http::Request& request) const
+    const http::Request& request,
+    const Option<string>& principal) const
 {
   VLOG(1) << "Removing quota for request path: '" << request.url.path << "'";
-
-  // Authenticate the request.
-  Result<Credential> credential = master->http.authenticate(request);
-  if (credential.isError()) {
-    return Unauthorized("Mesos master", credential.error());
-  }
 
   // Check that the request type is DELETE which is guaranteed by the master.
   CHECK_EQ("DELETE", request.method);
@@ -451,10 +438,6 @@ Future<http::Response> Master::QuotaHandler::remove(
         "Failed to remove quota for path '" + request.url.path +
         "': Role '" + role + "' has no quota set");
   }
-
-  // Extract principal from request credentials.
-  Option<string> principal =
-    credential.isSome() ? credential.get().principal() : Option<string>::none();
 
   Option<string> quota_principal = master->quotas[role].info.has_principal()
     ? master->quotas[role].info.principal()

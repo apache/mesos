@@ -134,6 +134,9 @@ extern const std::string DEFAULT_AUTHORIZER;
 // Name of the default, basic authenticator.
 extern const std::string DEFAULT_HTTP_AUTHENTICATOR;
 
+// Name of the default, "mesos" HTTP authentication realm.
+extern const std::string DEFAULT_HTTP_AUTHENTICATION_REALM;
+
 } // namespace master {
 } // namespace internal {
 } // namespace mesos {

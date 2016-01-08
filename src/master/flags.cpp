@@ -430,7 +430,6 @@ mesos::internal::master::Flags::Flags()
         return None();
       });
 
-
   add(&Flags::authorizers,
       "authorizers",
       "Authorizer implementation to use when authorizating actions that\n"
@@ -444,4 +443,14 @@ mesos::internal::master::Flags::Flags()
       "\n"
       "Currently there's no support for multiple authorizers.",
       DEFAULT_AUTHORIZER);
+
+  add(&Flags::http_authenticators,
+      "http_authenticators",
+      "HTTP authenticator implementation to use when handling requests to\n"
+      "authenticated endpoints. Use the default\n"
+      "'" + DEFAULT_HTTP_AUTHENTICATOR + "', or load an alternate HTTP\n"
+      "authenticator module using --modules.\n"
+      "\n"
+      "Currently there is no support for multiple HTTP authenticators.",
+      DEFAULT_HTTP_AUTHENTICATOR);
 }

@@ -569,7 +569,11 @@ TEST_F(MasterQuotaTest, StatusSingleQuota)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response) << response.get().body;
 
   // Query the master quota endpoint.
-  response = process::http::get(master.get(), "quota");
+  response = process::http::get(
+      master.get(),
+      "quota",
+      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL));
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response) << response.get().body;
 
   EXPECT_SOME_EQ(
@@ -1187,7 +1191,7 @@ TEST_F(MasterQuotaTest, UnauthenticatedQuotaRequest)
       createRequestBody(quotaResources));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(
-      Unauthorized("Mesos master").status, response1) << response1.get().body;
+      Unauthorized(vector<string>()).status, response1) << response1.get().body;
 
   // The absense of credentials leads to authentication failure as well.
   Future<Response> response2 = process::http::post(
@@ -1197,7 +1201,7 @@ TEST_F(MasterQuotaTest, UnauthenticatedQuotaRequest)
       createRequestBody(quotaResources));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(
-      Unauthorized("Mesos master").status, response2) << response2.get().body;
+      Unauthorized(vector<string>()).status, response2) << response2.get().body;
 
   Shutdown();
 }

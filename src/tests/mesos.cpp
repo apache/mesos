@@ -432,6 +432,11 @@ void MesosTest::Stop(const PID<slave::Slave>& pid, bool shutdown)
 
 void MesosTest::Shutdown()
 {
+  // TODO(arojas): Authenticators' lifetimes are tied to libprocess's lifetime.
+  // Consider unsetting the authenticator in the master shutdown.
+  // NOTE: This means that multiple masters in tests are not supported.
+  process::http::authentication::unsetAuthenticator(
+      master::DEFAULT_HTTP_AUTHENTICATION_REALM);
   ShutdownMasters();
   ShutdownSlaves();
 }

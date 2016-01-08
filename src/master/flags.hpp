@@ -78,6 +78,7 @@ public:
   Duration slave_ping_timeout;
   size_t max_slave_ping_timeouts;
   std::string authorizers;
+  std::string http_authenticators;
 
 #ifdef WITH_NETWORK_ISOLATOR
   Option<size_t> max_executors_per_slave;

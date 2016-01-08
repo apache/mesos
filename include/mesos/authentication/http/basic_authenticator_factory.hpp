@@ -38,6 +38,9 @@ public:
       const Parameters& parameters);
 
   static Try<process::http::authentication::Authenticator*> create(
+      const Credentials& credentials);
+
+  static Try<process::http::authentication::Authenticator*> create(
       const hashmap<std::string, std::string>& credentials);
 
 protected:

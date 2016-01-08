@@ -28,11 +28,14 @@
 
 #include <mesos/authentication/authenticator.hpp>
 
+#include <mesos/authentication/http/basic_authenticator_factory.hpp>
+
 #include <mesos/authorizer/authorizer.hpp>
 
 #include <mesos/master/allocator.hpp>
 
 #include <mesos/module/authenticator.hpp>
+#include <mesos/module/http_authenticator.hpp>
 
 #include <process/check.hpp>
 #include <process/collect.hpp>
@@ -113,7 +116,11 @@ namespace mesos {
 namespace internal {
 namespace master {
 
+namespace authentication = process::http::authentication;
+
 using mesos::master::allocator::Allocator;
+
+using mesos::http::authentication::BasicAuthenticatorFactory;
 
 
 class SlaveObserver : public ProtobufProcess<SlaveObserver>
@@ -420,6 +427,7 @@ void Master::initialize()
   }
 
   // Load credentials.
+  Option<Credentials> credentials;
   if (flags.credentials.isSome()) {
     Result<Credentials> _credentials =
       credentials::read(flags.credentials.get());
@@ -487,6 +495,65 @@ void Master::initialize()
       delete authenticator.get();
       authenticator = None();
     }
+  }
+
+  // TODO(arojas): Consider creating a factory function for the instantiation
+  // of the HTTP authenticator the same way the allocator does.
+  vector<string> httpAuthenticatorNames =
+    strings::split(flags.http_authenticators, ",");
+
+  // At least the default authenticator is always specified.
+  // Passing an empty string into the `http_authenticators`
+  // flag is considered an error.
+  if (httpAuthenticatorNames.empty()) {
+    EXIT(1) << "No HTTP authenticator specified";
+  }
+  if (httpAuthenticatorNames.size() > 1) {
+    EXIT(1) << "Multiple HTTP authenticators not supported";
+  }
+  if (httpAuthenticatorNames[0] != DEFAULT_HTTP_AUTHENTICATOR &&
+      !modules::ModuleManager::contains<Authenticator>(
+          httpAuthenticatorNames[0])) {
+    EXIT(1) << "HTTP authenticator '" << httpAuthenticatorNames[0] << "' not "
+            << "found. Check the spelling (compare to '"
+            << DEFAULT_HTTP_AUTHENTICATOR << "'') or verify that the "
+            << "authenticator was loaded successfully (see --modules)";
+  }
+
+  Option<authentication::Authenticator*> httpAuthenticator;
+
+  if (httpAuthenticatorNames[0] == DEFAULT_HTTP_AUTHENTICATOR &&
+      credentials.isSome()) {
+    LOG(INFO) << "Using default '" << DEFAULT_HTTP_AUTHENTICATOR
+              << "' HTTP authenticator";
+
+    Try<authentication::Authenticator*> authenticator =
+      BasicAuthenticatorFactory::create(credentials.get());
+    if (authenticator.isError()) {
+      EXIT(1) << "Could not create HTTP authenticator module '"
+              << httpAuthenticatorNames[0] << "': " << authenticator.error();
+    }
+
+    httpAuthenticator = authenticator.get();
+  } else if (httpAuthenticatorNames[0] != DEFAULT_HTTP_AUTHENTICATOR) {
+    Try<authentication::Authenticator*> module =
+      modules::ModuleManager::create<authentication::Authenticator>(
+          httpAuthenticatorNames[0]);
+    if (module.isError()) {
+      EXIT(1) << "Could not create HTTP authenticator module '"
+              << httpAuthenticatorNames[0] << "': " << module.error();
+    }
+    LOG(INFO) << "Using '" << httpAuthenticatorNames[0]
+              << "' HTTP authenticator";
+    httpAuthenticator = module.get();
+  }
+
+  if (httpAuthenticator.isSome() && httpAuthenticator.get() != NULL) {
+    // Ownership of the `httpAuthenticator` is passed to libprocess.
+    process::http::authentication::setAuthenticator(
+        DEFAULT_HTTP_AUTHENTICATION_REALM,
+        Owned<authentication::Authenticator>(httpAuthenticator.get()));
+    httpAuthenticator = None();
   }
 
   if (authorizer.isSome()) {
@@ -744,16 +811,20 @@ void Master::initialize()
           return http.scheduler(request);
         });
   route("/create-volumes",
+        DEFAULT_HTTP_AUTHENTICATION_REALM,
         Http::CREATE_VOLUMES_HELP(),
-        [this](const process::http::Request& request) {
+        [this](const process::http::Request& request,
+               const Option<string>& principal) {
           Http::log(request);
-          return http.createVolumes(request);
+          return http.createVolumes(request, principal);
         });
   route("/destroy-volumes",
+        DEFAULT_HTTP_AUTHENTICATION_REALM,
         Http::DESTROY_VOLUMES_HELP(),
-        [this](const process::http::Request& request) {
+        [this](const process::http::Request& request,
+               const Option<string>& principal) {
           Http::log(request);
-          return http.destroyVolumes(request);
+          return http.destroyVolumes(request, principal);
         });
   route("/frameworks",
         Http::FRAMEWORKS(),
@@ -784,10 +855,12 @@ void Master::initialize()
           return http.redirect(request);
         });
   route("/reserve",
+        DEFAULT_HTTP_AUTHENTICATION_REALM,
         Http::RESERVE_HELP(),
-        [this](const process::http::Request& request) {
+        [this](const process::http::Request& request,
+               const Option<string>& principal) {
           Http::log(request);
-          return http.reserve(request);
+          return http.reserve(request, principal);
         });
   // TODO(ijimenez): Remove this endpoint at the end of the
   // deprecation cycle on 0.26.
@@ -804,10 +877,12 @@ void Master::initialize()
           return http.roles(request);
         });
   route("/teardown",
+        DEFAULT_HTTP_AUTHENTICATION_REALM,
         Http::TEARDOWN_HELP(),
-        [this](const process::http::Request& request) {
+        [this](const process::http::Request& request,
+               const Option<string>& principal) {
           Http::log(request);
-          return http.teardown(request);
+          return http.teardown(request, principal);
         });
   route("/slaves",
         Http::SLAVES_HELP(),
@@ -874,16 +949,20 @@ void Master::initialize()
           return http.machineUp(request);
         });
   route("/unreserve",
+        DEFAULT_HTTP_AUTHENTICATION_REALM,
         Http::UNRESERVE_HELP(),
-        [this](const process::http::Request& request) {
+        [this](const process::http::Request& request,
+               const Option<string>& principal) {
           Http::log(request);
-          return http.unreserve(request);
+          return http.unreserve(request, principal);
         });
   route("/quota",
+        DEFAULT_HTTP_AUTHENTICATION_REALM,
         Http::QUOTA_HELP(),
-        [this](const process::http::Request& request) {
+        [this](const process::http::Request& request,
+               const Option<string>& principal) {
           Http::log(request);
-          return http.quota(request);
+          return http.quota(request, principal);
         });
 
   // Provide HTTP assets from a "webui" directory. This is either

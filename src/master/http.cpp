@@ -527,16 +527,13 @@ static Resources removeDiskInfos(const Resources& resources)
 }
 
 
-Future<Response> Master::Http::createVolumes(const Request& request) const
+Future<Response> Master::Http::createVolumes(
+    const Request& request,
+    const Option<string>& principal) const
 {
   if (request.method != "POST") {
     return MethodNotAllowed(
         {"POST"}, "Expecting 'POST', received '" + request.method + "'");
-  }
-
-  Result<Credential> credential = authenticate(request);
-  if (credential.isError()) {
-    return Unauthorized("Mesos master", credential.error());
   }
 
   // Parse the query string in the request body.
@@ -595,9 +592,6 @@ Future<Response> Master::Http::createVolumes(const Request& request) const
     return BadRequest("Invalid CREATE operation: " + validate.get().message);
   }
 
-  Option<string> principal =
-    credential.isSome() ? credential.get().principal() : Option<string>::none();
-
   return master->authorizeCreateVolume(operation.create(), principal)
     .then(defer(master->self(), [=](bool authorized) -> Future<Response> {
       if (!authorized) {
@@ -624,16 +618,13 @@ string Master::Http::DESTROY_VOLUMES_HELP()
 }
 
 
-Future<Response> Master::Http::destroyVolumes(const Request& request) const
+Future<Response> Master::Http::destroyVolumes(
+    const Request& request,
+    const Option<string>& principal) const
 {
   if (request.method != "POST") {
     return MethodNotAllowed(
         {"POST"}, "Expecting 'POST', received '" + request.method + "'");
-  }
-
-  Result<Credential> credential = authenticate(request);
-  if (credential.isError()) {
-    return Unauthorized("Mesos master", credential.error());
   }
 
   // Parse the query string in the request body.
@@ -691,9 +682,6 @@ Future<Response> Master::Http::destroyVolumes(const Request& request) const
   if (validate.isSome()) {
     return BadRequest("Invalid DESTROY operation: " + validate.get().message);
   }
-
-  Option<string> principal =
-    credential.isSome() ? credential.get().principal() : Option<string>::none();
 
   return master->authorizeDestroyVolume(operation.destroy(), principal)
     .then(defer(master->self(), [=](bool authorized) -> Future<Response> {
@@ -959,16 +947,13 @@ string Master::Http::RESERVE_HELP()
 }
 
 
-Future<Response> Master::Http::reserve(const Request& request) const
+Future<Response> Master::Http::reserve(
+    const Request& request,
+    const Option<string>& principal) const
 {
   if (request.method != "POST") {
     return MethodNotAllowed(
         {"POST"}, "Expecting 'POST', received '" + request.method + "'");
-  }
-
-  Result<Credential> credential = authenticate(request);
-  if (credential.isError()) {
-    return Unauthorized("Mesos master", credential.error());
   }
 
   // Parse the query string in the request body.
@@ -1019,9 +1004,6 @@ Future<Response> Master::Http::reserve(const Request& request) const
   Offer::Operation operation;
   operation.set_type(Offer::Operation::RESERVE);
   operation.mutable_reserve()->mutable_resources()->CopyFrom(resources);
-
-  Option<string> principal =
-    credential.isSome() ? credential.get().principal() : Option<string>::none();
 
   Option<Error> error = validation::operation::validate(
       operation.reserve(), None(), principal);
@@ -1086,7 +1068,9 @@ string Master::Http::QUOTA_HELP()
 }
 
 
-Future<Response> Master::Http::quota(const Request& request) const
+Future<Response> Master::Http::quota(
+    const Request& request,
+    const Option<string>& principal) const
 {
   // Dispatch based on HTTP method to separate `QuotaHandler`.
   if (request.method == "GET") {
@@ -1094,11 +1078,11 @@ Future<Response> Master::Http::quota(const Request& request) const
   }
 
   if (request.method == "POST") {
-    return quotaHandler.set(request);
+    return quotaHandler.set(request, principal);
   }
 
   if (request.method == "DELETE") {
-    return quotaHandler.remove(request);
+    return quotaHandler.remove(request, principal);
   }
 
   // TODO(joerg84): Add update logic for PUT requests
@@ -1644,16 +1628,13 @@ string Master::Http::TEARDOWN_HELP()
 }
 
 
-Future<Response> Master::Http::teardown(const Request& request) const
+Future<Response> Master::Http::teardown(
+    const Request& request,
+    const Option<string>& principal) const
 {
   if (request.method != "POST") {
     return MethodNotAllowed(
         {"POST"}, "Expecting 'POST', received '" + request.method + "'");
-  }
-
-  Result<Credential> credential = authenticate(request);
-  if (credential.isError()) {
-    return Unauthorized("Mesos master", credential.error());
   }
 
   // Parse the query string in the request body (since this is a POST)
@@ -1687,8 +1668,8 @@ Future<Response> Master::Http::teardown(const Request& request) const
 
   mesos::ACL::ShutdownFramework shutdown;
 
-  if (credential.isSome()) {
-    shutdown.mutable_principals()->add_values(credential.get().principal());
+  if (principal.isSome()) {
+    shutdown.mutable_principals()->add_values(principal.get());
   } else {
     shutdown.mutable_principals()->set_type(ACL::Entity::ANY);
   }
@@ -2262,16 +2243,13 @@ string Master::Http::UNRESERVE_HELP()
 }
 
 
-Future<Response> Master::Http::unreserve(const Request& request) const
+Future<Response> Master::Http::unreserve(
+    const Request& request,
+    const Option<string>& principal) const
 {
   if (request.method != "POST") {
     return MethodNotAllowed(
         {"POST"}, "Expecting 'POST', received '" + request.method + "'");
-  }
-
-  Result<Credential> credential = authenticate(request);
-  if (credential.isError()) {
-    return Unauthorized("Mesos master", credential.error());
   }
 
   // Parse the query string in the request body.
@@ -2323,9 +2301,6 @@ Future<Response> Master::Http::unreserve(const Request& request) const
   operation.set_type(Offer::Operation::UNRESERVE);
   operation.mutable_unreserve()->mutable_resources()->CopyFrom(resources);
 
-  Option<string> principal =
-    credential.isSome() ? credential.get().principal() : Option<string>::none();
-
   Option<Error> error = validation::operation::validate(
       operation.unreserve(), principal.isSome());
 
@@ -2342,48 +2317,6 @@ Future<Response> Master::Http::unreserve(const Request& request) const
 
       return _operation(slaveId, resources, operation);
     }));
-}
-
-
-Result<Credential> Master::Http::authenticate(const Request& request) const
-{
-  // By default, assume everyone is authenticated if no credentials
-  // were provided.
-  if (master->credentials.isNone()) {
-    return None();
-  }
-
-  Option<string> authorization = request.headers.get("Authorization");
-
-  if (authorization.isNone()) {
-    return Error("Missing 'Authorization' request header");
-  }
-
-  Try<string> decode =
-    base64::decode(strings::split(authorization.get(), " ", 2)[1]);
-
-  if (decode.isError()) {
-    return Error("Failed to decode 'Authorization' header: " + decode.error());
-  }
-
-  vector<string> pairs = strings::split(decode.get(), ":", 2);
-
-  if (pairs.size() != 2) {
-    return Error("Malformed 'Authorization' request header");
-  }
-
-  const string& username = pairs[0];
-  const string& password = pairs[1];
-
-  foreach (const Credential& credential,
-          master->credentials.get().credentials()) {
-    if (credential.principal() == username &&
-        credential.secret() == password) {
-      return credential;
-    }
-  }
-
-  return Error("Could not authenticate '" + username + "'");
 }
 
 

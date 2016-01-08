@@ -18,6 +18,8 @@
 
 #include <mesos/module/http_authenticator.hpp>
 
+#include <stout/foreach.hpp>
+
 #include "master/constants.hpp"
 
 #include "module/manager.hpp"
@@ -30,6 +32,19 @@ using std::string;
 
 using process::http::authentication::Authenticator;
 using process::http::authentication::BasicAuthenticator;
+
+
+Try<Authenticator*> BasicAuthenticatorFactory::create(
+    const Credentials& credentials)
+{
+  hashmap<string, string> credentialMap;
+
+  foreach (const Credential& credential, credentials.credentials()) {
+    credentialMap.put(credential.principal(), credential.secret());
+  }
+
+  return create(credentialMap);
+}
 
 
 Try<Authenticator*> BasicAuthenticatorFactory::create(
