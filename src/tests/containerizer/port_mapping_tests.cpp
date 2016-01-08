@@ -1839,7 +1839,7 @@ TEST_F(PortMappingMesosTest, CGROUPS_ROOT_RecoverMixedContainers)
   filters.set_refuse_seconds(0);
 
   // NOTE: We set filter explicitly here so that the resources will
-  // not be filtered for 5 seconds (by default).
+  // not be filtered for 5 seconds (the default).
   Future<vector<Offer> > offers1;
   EXPECT_CALL(sched, resourceOffers(_, _))
     .WillOnce(FutureArg<1>(&offers1))

@@ -99,7 +99,7 @@ TEST_F(ReservationTest, ReserveThenUnreserve)
       &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
 
   // We use the filter explicitly here so that the resources will not
-  // be filtered for 5 seconds (by default).
+  // be filtered for 5 seconds (the default).
   Filters filters;
   filters.set_refuse_seconds(0);
 
@@ -253,7 +253,7 @@ TEST_F(ReservationTest, ReserveAndLaunchThenUnreserve)
     .WillOnce(FutureArg<1>(&offers));
 
   // We use the filter explicitly here so that the resources will not
-  // be filtered for 5 seconds (by default).
+  // be filtered for 5 seconds (the default).
   Filters filters;
   filters.set_refuse_seconds(0);
 
@@ -342,7 +342,7 @@ TEST_F(ReservationTest, ReserveShareWithinRole)
     .WillOnce(FutureArg<1>(&offers));
 
   // We use the filter explicitly here so that the resources will not
-  // be filtered for 5 seconds (by default).
+  // be filtered for 5 seconds (the default).
   Filters filters;
   filters.set_refuse_seconds(0);
 
@@ -458,7 +458,7 @@ TEST_F(ReservationTest, DropReserveTooLarge)
     .Times(0);
 
   // We use the filter explicitly here so that the resources will not
-  // be filtered for 5 seconds (by default).
+  // be filtered for 5 seconds (the default).
   Filters filters;
   filters.set_refuse_seconds(0);
 
@@ -550,7 +550,7 @@ TEST_F(ReservationTest, DropReserveStaticReservation)
     .Times(0);
 
   // We use the filter explicitly here so that the resources
-  // will not be filtered for 5 seconds (by default).
+  // will not be filtered for 5 seconds (the default).
   Filters filters;
   filters.set_refuse_seconds(0);
 
@@ -638,7 +638,7 @@ TEST_F(ReservationTest, SendingCheckpointResourcesMessage)
     FUTURE_PROTOBUF(CheckpointResourcesMessage(), _, _);
 
   // We use the filter explicitly here so that the resources will not
-  // be filtered for 5 seconds (by default).
+  // be filtered for 5 seconds (the default).
   Filters filters;
   filters.set_refuse_seconds(0);
 
@@ -728,7 +728,7 @@ TEST_F(ReservationTest, ResourcesCheckpointing)
     FUTURE_PROTOBUF(CheckpointResourcesMessage(), _, slave.get());
 
   // We use the filter explicitly here so that the resources
-  // will not be filtered for 5 seconds (by default).
+  // will not be filtered for 5 seconds (the default).
   Filters filters;
   filters.set_refuse_seconds(0);
 
@@ -817,7 +817,7 @@ TEST_F(ReservationTest, MasterFailover)
     FUTURE_PROTOBUF(CheckpointResourcesMessage(), _, slave.get());
 
   // We use the filter explicitly here so that the resources
-  // will not be filtered for 5 seconds (by default).
+  // will not be filtered for 5 seconds (the default).
   Filters filters;
   filters.set_refuse_seconds(0);
 
@@ -939,7 +939,7 @@ TEST_F(ReservationTest, CompatibleCheckpointedResources)
     FUTURE_PROTOBUF(CheckpointResourcesMessage(), _, _);
 
   // We use the filter explicitly here so that the resources
-  // will not be filtered for 5 seconds (by default).
+  // will not be filtered for 5 seconds (the default).
   Filters filters;
   filters.set_refuse_seconds(0);
 
@@ -1057,7 +1057,7 @@ TEST_F(ReservationTest, CompatibleCheckpointedResourcesWithPersistentVolumes)
     FUTURE_PROTOBUF(CheckpointResourcesMessage(), _, _);
 
   // We use the filter explicitly here so that the resources
-  // will not be filtered for 5 seconds (by default).
+  // will not be filtered for 5 seconds (the default).
   Filters filters;
   filters.set_refuse_seconds(0);
 
@@ -1169,7 +1169,7 @@ TEST_F(ReservationTest, IncompatibleCheckpointedResources)
     FUTURE_PROTOBUF(CheckpointResourcesMessage(), _, _);
 
   // We use the filter explicitly here so that the resources
-  // will not be filtered for 5 seconds (by default).
+  // will not be filtered for 5 seconds (the default).
   Filters filters;
   filters.set_refuse_seconds(0);
 
@@ -1257,7 +1257,7 @@ TEST_F(ReservationTest, GoodACLReserveThenUnreserve)
       &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
 
   // We use the filter explicitly here so that the resources will not
-  // be filtered for 5 seconds (by default).
+  // be filtered for 5 seconds (the default).
   Filters filters;
   filters.set_refuse_seconds(0);
 
@@ -1357,7 +1357,7 @@ TEST_F(ReservationTest, BadACLDropReserve)
       &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
 
   // We use the filter explicitly here so that the resources will not
-  // be filtered for 5 seconds (by default).
+  // be filtered for 5 seconds (the default).
   Filters filters;
   filters.set_refuse_seconds(0);
 
@@ -1448,7 +1448,7 @@ TEST_F(ReservationTest, BadACLDropUnreserve)
       &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
 
   // We use the filter explicitly here so that the resources will not
-  // be filtered for 5 seconds (by default).
+  // be filtered for 5 seconds (the default).
   Filters filters;
   filters.set_refuse_seconds(0);
 
@@ -1577,7 +1577,7 @@ TEST_F(ReservationTest, ACLMultipleOperations)
       &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
 
   // We use the filter explicitly here so that the resources will not
-  // be filtered for 5 seconds (by default).
+  // be filtered for 5 seconds (the default).
   Filters filters;
   filters.set_refuse_seconds(0);
 

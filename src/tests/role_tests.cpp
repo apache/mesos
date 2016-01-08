@@ -102,7 +102,7 @@ TEST_F(RoleTest, ImplicitRoleRegister)
       &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
 
   // We use the filter explicitly here so that the resources will not
-  // be filtered for 5 seconds (by default).
+  // be filtered for 5 seconds (the default).
   Filters filters;
   filters.set_refuse_seconds(0);
 
@@ -202,7 +202,7 @@ TEST_F(RoleTest, ImplicitRoleStaticReservation)
       &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
 
   // We use the filter explicitly here so that the resources will not
-  // be filtered for 5 seconds (by default).
+  // be filtered for 5 seconds (the default).
   Filters filters;
   filters.set_refuse_seconds(0);
 
