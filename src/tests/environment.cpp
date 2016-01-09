@@ -141,10 +141,14 @@ public:
       } else {
         cfsError = Error("CFS bandwidth control is not available");
       }
-    } else {
+    } else if (hierarchy.isError()) {
       cfsError = Error(
           "There was an error finding the 'cpu' cgroup hierarchy:\n" +
           hierarchy.error());
+    } else {
+      cfsError = Error(
+          "The 'cpu' cgroup hierarchy was not found, which means\n"
+          "that CFS bandwidth control is not available");
     }
 
     if (cfsError.isSome()) {
