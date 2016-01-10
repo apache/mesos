@@ -20,12 +20,67 @@
 #include <stout/protobuf.hpp>
 #include <stout/strings.hpp>
 
-#include "docker/spec.hpp"
+#include <mesos/docker/spec.hpp>
 
 using std::string;
+using std::vector;
 
 namespace docker {
 namespace spec {
+
+// TODO(jieyu): Use regex to parse and verify the reference.
+Try<ImageReference> parseImageReference(const string& _s)
+{
+  ImageReference reference;
+  string s(_s);
+
+  // Extract the digest.
+  if (strings::contains(s, "@")) {
+    vector<string> split = strings::split(s, "@");
+    if (split.size() != 2) {
+      return Error("Multiple '@' symbols found");
+    }
+
+    s = split[0];
+    reference.set_digest(split[1]);
+  }
+
+  // Remove the tag. We need to watch out for a
+  // host:port registry, which also contains ':'.
+  if (strings::contains(s, ":")) {
+    vector<string> split = strings::split(s, ":");
+
+    // The tag must be the last component. If a slash is
+    // present there is a registry port and no tag.
+    if (!strings::contains(split.back(), "/")) {
+      reference.set_tag(split.back());
+      split.pop_back();
+
+      s = strings::join(":", split);
+    }
+  }
+
+  // Extract the registry and repository. The first component can
+  // either be the registry, or the first part of the repository!
+  // We resolve this ambiguity using the same hacks used in the
+  // docker code ('.', ':', 'localhost' indicate a registry).
+  vector<string> split = strings::split(s, "/", 2);
+
+  if (split.size() == 1) {
+    reference.set_repository(s);
+  } else if (strings::contains(split[0], ".") ||
+             strings::contains(split[0], ":") ||
+             split[0] == "localhost") {
+    reference.set_registry(split[0]);
+    reference.set_repository(split[1]);
+  } else {
+    reference.set_repository(s);
+  }
+
+  return reference;
+}
+
+
 namespace v1 {
 
 Option<Error> validate(const ImageManifest& manifest)

@@ -19,7 +19,7 @@
 #include <stout/gtest.hpp>
 #include <stout/json.hpp>
 
-#include "docker/spec.hpp"
+#include <mesos/docker/spec.hpp>
 
 namespace spec = docker::spec;
 
@@ -28,6 +28,75 @@ namespace internal {
 namespace tests {
 
 class DockerSpecTest : public ::testing::Test {};
+
+
+TEST_F(DockerSpecTest, ParseImageReference)
+{
+  Try<spec::ImageReference> reference =
+    spec::parseImageReference("library/busybox");
+
+  ASSERT_SOME(reference);
+  EXPECT_FALSE(reference->has_registry());
+  EXPECT_EQ("library/busybox", reference->repository());
+  EXPECT_FALSE(reference->has_tag());
+  EXPECT_FALSE(reference->has_digest());
+
+  reference = spec::parseImageReference("busybox");
+
+  ASSERT_SOME(reference);
+  EXPECT_FALSE(reference->has_registry());
+  EXPECT_EQ("busybox", reference->repository());
+  EXPECT_FALSE(reference->has_tag());
+  EXPECT_FALSE(reference->has_digest());
+
+  reference = spec::parseImageReference("library/busybox:tag");
+
+  ASSERT_SOME(reference);
+  EXPECT_FALSE(reference->has_registry());
+  EXPECT_EQ("library/busybox", reference->repository());
+  EXPECT_EQ("tag", reference->tag());
+  EXPECT_FALSE(reference->has_digest());
+
+  reference = spec::parseImageReference("library/busybox@sha256:bc8813ea7b3603864987522f02a76101c17ad122e1c46d790efc0fca78ca7bfb"); // NOLINT(whitespace/line_length)
+
+  ASSERT_SOME(reference);
+  EXPECT_FALSE(reference->has_registry());
+  EXPECT_EQ("library/busybox", reference->repository());
+  EXPECT_FALSE(reference->has_tag());
+  EXPECT_EQ("sha256:bc8813ea7b3603864987522f02a76101c17ad122e1c46d790efc0fca78ca7bfb", reference->digest()); // NOLINT(whitespace/line_length)
+
+  reference = spec::parseImageReference("registry.io/library/busybox");
+
+  ASSERT_SOME(reference);
+  EXPECT_EQ("registry.io", reference->registry());
+  EXPECT_EQ("library/busybox", reference->repository());
+  EXPECT_FALSE(reference->has_tag());
+  EXPECT_FALSE(reference->has_digest());
+
+  reference = spec::parseImageReference("registry.io/library/busybox:tag");
+
+  ASSERT_SOME(reference);
+  EXPECT_EQ("registry.io", reference->registry());
+  EXPECT_EQ("library/busybox", reference->repository());
+  EXPECT_EQ("tag", reference->tag());
+  EXPECT_FALSE(reference->has_digest());
+
+  reference = spec::parseImageReference("registry.io:80/library/busybox:tag");
+
+  ASSERT_SOME(reference);
+  EXPECT_EQ("registry.io:80", reference->registry());
+  EXPECT_EQ("library/busybox", reference->repository());
+  EXPECT_EQ("tag", reference->tag());
+  EXPECT_FALSE(reference->has_digest());
+
+  reference = spec::parseImageReference("registry.io:80/library/busybox@sha256:bc8813ea7b3603864987522f02a76101c17ad122e1c46d790efc0fca78ca7bfb"); // NOLINT(whitespace/line_length)
+
+  ASSERT_SOME(reference);
+  EXPECT_EQ("registry.io:80", reference->registry());
+  EXPECT_EQ("library/busybox", reference->repository());
+  EXPECT_FALSE(reference->has_tag());
+  EXPECT_EQ("sha256:bc8813ea7b3603864987522f02a76101c17ad122e1c46d790efc0fca78ca7bfb", reference->digest()); // NOLINT(whitespace/line_length)
+}
 
 
 TEST_F(DockerSpecTest, ParseV1ImageManifest)

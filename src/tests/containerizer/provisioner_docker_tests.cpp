@@ -39,7 +39,7 @@
 
 #include <process/ssl/gtest.hpp>
 
-#include "docker/spec.hpp"
+#include <mesos/docker/spec.hpp>
 
 #include "slave/containerizer/mesos/provisioner/docker/metadata_manager.hpp"
 #include "slave/containerizer/mesos/provisioner/docker/paths.hpp"
@@ -84,6 +84,8 @@ namespace mesos {
 namespace internal {
 namespace tests {
 
+// TODO(jieyu): Remove this test in favor of using
+// DockerSpecTest.ParseImageReference.
 TEST(DockerUtilsTest, ParseImageName)
 {
   slave::docker::Image::Name name;

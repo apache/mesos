@@ -150,6 +150,7 @@ ALLOCATOR_PROTO = $(top_srcdir)/include/mesos/master/allocator.proto
 AUTHENTICATION_PROTO = $(top_srcdir)/include/mesos/authentication/authentication.proto
 AUTHORIZATION_PROTO = $(top_srcdir)/include/mesos/authorizer/authorizer.proto
 CONTAINERIZER_PROTO = $(top_srcdir)/include/mesos/containerizer/containerizer.proto
+DOCKER_SPEC_PROTO = $(top_srcdir)/include/mesos/docker/spec.proto
 DOCKER_V1_PROTO = $(top_srcdir)/include/mesos/docker/v1.proto
 DOCKER_V2_PROTO = $(top_srcdir)/include/mesos/docker/v2.proto
 EXECUTOR_PROTO = $(top_srcdir)/include/mesos/executor/executor.proto
@@ -176,6 +177,8 @@ CXX_PROTOS =								\
   ../include/mesos/authorizer/authorizer.pb.h				\
   ../include/mesos/containerizer/containerizer.pb.cc			\
   ../include/mesos/containerizer/containerizer.pb.h			\
+  ../include/mesos/docker/spec.pb.cc					\
+  ../include/mesos/docker/spec.pb.h					\
   ../include/mesos/docker/v1.pb.cc					\
   ../include/mesos/docker/v1.pb.h					\
   ../include/mesos/docker/v2.pb.cc					\
@@ -400,12 +403,15 @@ nodist_containerizer_HEADERS =						\
 dockerdir = $(pkgincludedir)/docker
 
 docker_HEADERS =							\
+  $(top_srcdir)/include/mesos/docker/spec.hpp				\
+  $(top_srcdir)/include/mesos/docker/spec.proto				\
   $(top_srcdir)/include/mesos/docker/v1.hpp				\
   $(top_srcdir)/include/mesos/docker/v1.proto				\
   $(top_srcdir)/include/mesos/docker/v2.hpp				\
   $(top_srcdir)/include/mesos/docker/v2.proto
 
 nodist_docker_HEADERS =							\
+  ../include/mesos/docker/spec.pb.h					\
   ../include/mesos/docker/v1.pb.h					\
   ../include/mesos/docker/v2.pb.h
 
@@ -684,7 +690,6 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   credentials/credentials.hpp						\
   docker/docker.hpp							\
   docker/executor.hpp							\
-  docker/spec.hpp							\
   examples/test_anonymous_module.hpp					\
   examples/test_module.hpp						\
   examples/utils.hpp							\
@@ -995,6 +1000,7 @@ libmesos_la_SOURCES =							\
   $(AUTHORIZATION_PROTO)						\
   $(CONTAINERIZER_PROTO)						\
   $(EXECUTOR_PROTO)							\
+  $(DOCKER_SPEC_PROTO)							\
   $(DOCKER_V1_PROTO)							\
   $(DOCKER_V2_PROTO)							\
   $(FETCHER_PROTO)							\

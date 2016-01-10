@@ -14,32 +14,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import "mesos/mesos.proto";
-
-package mesos.internal.slave.docker;
+package docker.spec;
 
 /**
- * A Docker Image name and the layer ids of the layers that comprise the image.
- * The layerIds are ordered, with the root layer id (no parent layer id) first
- * and the leaf layer id last.
+ * The docker image reference:
+ *   [REGISTRY_HOST[:REGISTRY_PORT]/]REPOSITORY[:TAG|@DIGEST]
+ *
+ * See more details in:
+ * https://github.com/docker/distribution/blob/master/reference/reference.go
  */
-message Image {
-  // TODO(jieyu): Remove this in favor of using spec::ImageReference.
-  message Name {
-    optional string registry = 1;
-    required string repository = 2;
+message ImageReference {
+  // The registry in the following format: 'HOST:PORT'.
+  optional string registry = 1;
 
-    // TODO(bmahler): This may hold a tag or a digest, split these?
-    required string tag = 3;
-  }
+  // The repository name (e.g., library/busybox, ubuntu).
+  required string repository = 2;
 
-  required Name name = 1;
+  // For example: latest, 2.0.2, etc.
+  optional string tag = 3;
 
-  // The order of the layers represents the dependency between layers.
-  repeated string layer_ids = 2;
-}
-
-
-message Images {
-  repeated Image images = 1;
+  // In the format of 'ALGORITHM:HEX'.
+  optional string digest = 4;
 }

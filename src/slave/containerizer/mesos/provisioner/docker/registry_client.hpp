@@ -29,7 +29,7 @@
 #include <process/http.hpp>
 #include <process/process.hpp>
 
-#include "docker/spec.hpp"
+#include <mesos/docker/spec.hpp>
 
 #include "slave/containerizer/mesos/provisioner/docker/message.hpp"
 

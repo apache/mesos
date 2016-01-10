@@ -41,6 +41,8 @@ namespace docker {
 //
 // TODO(bmahler): Validate based on docker's validation logic
 // and return a Try here.
+//
+// TODO(jieyu): Remove this in favor of using 'spec::parseImageName'.
 inline Image::Name parseImageName(std::string s)
 {
   Image::Name name;
