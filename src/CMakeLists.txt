@@ -253,6 +253,7 @@ set(URI_SRC
   uri/fetcher.cpp
   uri/utils.cpp
   uri/fetchers/curl.cpp
+  uri/fetchers/docker.cpp
   uri/fetchers/hadoop.cpp
   )
 
