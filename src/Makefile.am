@@ -150,6 +150,8 @@ ALLOCATOR_PROTO = $(top_srcdir)/include/mesos/master/allocator.proto
 AUTHENTICATION_PROTO = $(top_srcdir)/include/mesos/authentication/authentication.proto
 AUTHORIZATION_PROTO = $(top_srcdir)/include/mesos/authorizer/authorizer.proto
 CONTAINERIZER_PROTO = $(top_srcdir)/include/mesos/containerizer/containerizer.proto
+DOCKER_V1_PROTO = $(top_srcdir)/include/mesos/docker/v1.proto
+DOCKER_V2_PROTO = $(top_srcdir)/include/mesos/docker/v2.proto
 EXECUTOR_PROTO = $(top_srcdir)/include/mesos/executor/executor.proto
 FETCHER_PROTO = $(top_srcdir)/include/mesos/fetcher/fetcher.proto
 MAINTENANCE_PROTO = $(top_srcdir)/include/mesos/maintenance/maintenance.proto
@@ -989,6 +991,8 @@ libmesos_la_SOURCES =							\
   $(AUTHORIZATION_PROTO)						\
   $(CONTAINERIZER_PROTO)						\
   $(EXECUTOR_PROTO)							\
+  $(DOCKER_V1_PROTO)							\
+  $(DOCKER_V2_PROTO)							\
   $(FETCHER_PROTO)							\
   $(MAINTENANCE_PROTO)							\
   $(MESOS_PROTO)							\
