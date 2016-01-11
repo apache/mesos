@@ -76,7 +76,7 @@ public:
 
   static Try<Duration> create(double seconds);
 
-  Duration() : nanos(0) {}
+  constexpr Duration() : nanos(0) {}
 
   explicit Duration(const timeval& t)
   {
@@ -159,15 +159,13 @@ public:
     return quotient;
   }
 
-  // TODO(xujyan): Use constexpr for the following variables after
-  // switching to C++11.
   // A constant holding the maximum value a Duration can have.
-  static Duration max();
+  static constexpr Duration max();
   // A constant holding the minimum (negative) value a Duration can
   // have.
-  static Duration min();
+  static constexpr Duration min();
   // A constant holding a Duration of a "zero" value.
-  static Duration zero() { return Duration(); }
+  static constexpr Duration zero() { return Duration(); }
 
 protected:
   static const int64_t NANOSECONDS  = 1;
@@ -180,16 +178,16 @@ protected:
   static const int64_t WEEKS        = 7 * DAYS;
 
   // For the Seconds, Minutes, Hours, Days & Weeks constructor.
-  Duration(int32_t value, int64_t unit)
+  constexpr Duration(int32_t value, int64_t unit)
     : nanos(value * unit) {}
 
   // For the Nanoseconds, Microseconds, Milliseconds constructor.
-  Duration(int64_t value, int64_t unit)
+  constexpr Duration(int64_t value, int64_t unit)
     : nanos(value * unit) {}
 
 private:
   // Used only by "parse".
-  Duration(double value, int64_t unit)
+  constexpr Duration(double value, int64_t unit)
     : nanos(static_cast<int64_t>(value * unit)) {}
 
   int64_t nanos;
@@ -203,10 +201,10 @@ private:
 class Nanoseconds : public Duration
 {
 public:
-  explicit Nanoseconds(int64_t nanoseconds)
+  explicit constexpr Nanoseconds(int64_t nanoseconds)
     : Duration(nanoseconds, NANOSECONDS) {}
 
-  Nanoseconds(const Duration& d) : Duration(d) {}
+  constexpr Nanoseconds(const Duration& d) : Duration(d) {}
 
   double value() const { return static_cast<double>(this->ns()); }
 
@@ -217,10 +215,10 @@ public:
 class Microseconds : public Duration
 {
 public:
-  explicit Microseconds(int64_t microseconds)
+  explicit constexpr Microseconds(int64_t microseconds)
     : Duration(microseconds, MICROSECONDS) {}
 
-  Microseconds(const Duration& d) : Duration(d) {}
+  constexpr Microseconds(const Duration& d) : Duration(d) {}
 
   double value() const { return this->us(); }
 
@@ -231,10 +229,10 @@ public:
 class Milliseconds : public Duration
 {
 public:
-  explicit Milliseconds(int64_t milliseconds)
+  explicit constexpr Milliseconds(int64_t milliseconds)
     : Duration(milliseconds, MILLISECONDS) {}
 
-  Milliseconds(const Duration& d) : Duration(d) {}
+  constexpr Milliseconds(const Duration& d) : Duration(d) {}
 
   double value() const { return this->ms(); }
 
@@ -245,10 +243,10 @@ public:
 class Seconds : public Duration
 {
 public:
-  explicit Seconds(int64_t seconds)
+  explicit constexpr Seconds(int64_t seconds)
     : Duration(seconds, SECONDS) {}
 
-  Seconds(const Duration& d) : Duration(d) {}
+  constexpr Seconds(const Duration& d) : Duration(d) {}
 
   double value() const { return this->secs(); }
 
@@ -259,10 +257,10 @@ public:
 class Minutes : public Duration
 {
 public:
-  explicit Minutes(int32_t minutes)
+  explicit constexpr Minutes(int32_t minutes)
     : Duration(minutes, MINUTES) {}
 
-  Minutes(const Duration& d) : Duration(d) {}
+  constexpr Minutes(const Duration& d) : Duration(d) {}
 
   double value() const { return this->mins(); }
 
@@ -273,10 +271,10 @@ public:
 class Hours : public Duration
 {
 public:
-  explicit Hours(int32_t hours)
+  explicit constexpr Hours(int32_t hours)
     : Duration(hours, HOURS) {}
 
-  Hours(const Duration& d) : Duration(d) {}
+  constexpr Hours(const Duration& d) : Duration(d) {}
 
   double value() const { return this->hrs(); }
 
@@ -301,9 +299,9 @@ public:
 class Weeks : public Duration
 {
 public:
-  explicit Weeks(int32_t value) : Duration(value, WEEKS) {}
+  explicit constexpr Weeks(int32_t value) : Duration(value, WEEKS) {}
 
-  Weeks(const Duration& d) : Duration(d) {}
+  constexpr Weeks(const Duration& d) : Duration(d) {}
 
   double value() const { return this->weeks(); }
 
@@ -410,9 +408,9 @@ inline Try<Duration> Duration::create(double seconds)
 }
 
 
-inline Duration Duration::max() { return Nanoseconds(LLONG_MAX); }
+inline constexpr Duration Duration::max() { return Nanoseconds(LLONG_MAX); }
 
 
-inline Duration Duration::min() { return Nanoseconds(LLONG_MIN); }
+inline constexpr Duration Duration::min() { return Nanoseconds(LLONG_MIN); }
 
 #endif // __STOUT_DURATION_HPP__
