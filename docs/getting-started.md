@@ -21,7 +21,7 @@ There are different ways you can get Mesos:
 
 ## System Requirements
 
-Mesos runs on Linux (64 Bit) and Mac OS X (64 Bit).
+Mesos runs on Linux (64 Bit) and Mac OS X (64 Bit). To build Mesos from source, GCC 4.8.1+ or Clang 3.5+ is required.
 
 For full support of process isolation under Linux a recent kernel >=3.10 is required.
 
