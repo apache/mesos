@@ -83,7 +83,7 @@ inline Try<JSON::Object> parse(const std::string& value)
   // 'fetch' mechanism for flags that first fetches the data from URIs
   // such as 'file://').
   if (strings::startsWith(value, "/")) {
-    LOG(WARNING) << "Specifying a absolute filename to read a command line "
+    LOG(WARNING) << "Specifying an absolute filename to read a command line "
                     "option out of without using 'file:// is deprecated and "
                     "will be removed in a future release. Simply adding "
                     "'file://' to the beginning of the path should eliminate "
