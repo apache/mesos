@@ -980,7 +980,7 @@ TEST(HTTPConnectionTest, ReferenceCounting)
       http.process->self().address.port,
       http.process->self().id + "/get");
 
-  // Capture the connection as a Owned in order to test that
+  // Capture the connection as an Owned in order to test that
   // when the last copy of the Connection is destructed, a
   // disconnection occurs.
   auto connect = Owned<Future<http::Connection>>(

@@ -47,7 +47,7 @@ public:
     // TODO(benh): Note that this doesn't wait because that could
     // cause a deadlock ... thus, the semantics here are that no more
     // dispatches will occur after this function returns but one may
-    // be occuring concurrently.
+    // be occurring concurrently.
   }
 
   template <typename F>

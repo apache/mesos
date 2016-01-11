@@ -1222,7 +1222,7 @@ Future<Response> request(const Request& request, bool streamedResponse)
   // This is a one time request which will close the connection when
   // the response is received. Since 'Connection' is reference-counted,
   // we must keep a copy around until the disconnection occurs. Note
-  // that in order to avoid a deadlock (Connection destruction occuring
+  // that in order to avoid a deadlock (Connection destruction occurring
   // from the ConnectionProcess execution context), we use 'async'.
   return http::connect(request.url)
     .then([=](Connection connection) {

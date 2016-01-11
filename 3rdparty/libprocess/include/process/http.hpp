@@ -267,7 +267,7 @@ struct Request
 // processes.
 //
 // Much like unix pipes, data is read until end-of-file is
-// encountered; this occurs when the the write-end of the pipe is
+// encountered; this occurs when the write-end of the pipe is
 // closed and there is no outstanding data left to read.
 //
 // Unlike unix pipes, if the read-end of the pipe is closed before

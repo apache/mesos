@@ -1821,7 +1821,7 @@ Encoder* SocketManager::next(int s)
 
   synchronized (mutex) {
     // We cannot assume 'sockets.count(s) > 0' here because it's
-    // possible that 's' has been removed with a a call to
+    // possible that 's' has been removed with a call to
     // SocketManager::close. For example, it could be the case that a
     // socket has gone to CLOSE_WAIT and the call to read in
     // io::read returned 0 causing SocketManager::close to get
