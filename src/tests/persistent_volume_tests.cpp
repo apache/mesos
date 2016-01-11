@@ -1201,6 +1201,10 @@ TEST_F(PersistentVolumeTest, BadACLNoPrincipal)
   driver2.declineOffer(offer.id(), filters);
   driver2.suppressOffers();
 
+  // Settle the clock to ensure that `driver2`
+  // suppresses before `driver1` revives.
+  Clock::settle();
+
   EXPECT_CALL(sched1, resourceOffers(&driver1, _))
     .WillOnce(FutureArg<1>(&offers));
 
@@ -1396,6 +1400,10 @@ TEST_F(PersistentVolumeTest, BadACLDropCreateAndDestroy)
   // `driver1` can receive an offer.
   driver2.declineOffer(offer.id(), filters);
   driver2.suppressOffers();
+
+  // Settle the clock to ensure that `driver2`
+  // suppresses before `driver1` revives.
+  Clock::settle();
 
   EXPECT_CALL(sched1, resourceOffers(&driver1, _))
     .WillOnce(FutureArg<1>(&offers));
