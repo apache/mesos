@@ -44,6 +44,22 @@ inline URI http(
   return construct("http", path, host, port, query, fragment, user, password);
 }
 
+
+/**
+ * Creates an https URI with the given parameters.
+ */
+inline URI https(
+    const std::string& host,
+    const std::string& path = "/",
+    const Option<int>& port = None(),
+    const Option<std::string>& query = None(),
+    const Option<std::string>& fragment = None(),
+    const Option<std::string>& user = None(),
+    const Option<std::string>& password = None())
+{
+  return construct("https", path, host, port, query, fragment, user, password);
+}
+
 } // namespace uri {
 } // namespace mesos {
 
