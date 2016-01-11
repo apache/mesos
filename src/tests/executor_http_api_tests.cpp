@@ -318,7 +318,7 @@ TEST_F(ExecutorHttpApiTest, GetRequest)
 }
 
 
-// This test sends in a Accept:*/* header meaning it would
+// This test sends in an Accept:*/* header meaning it would
 // accept any media type in the response. We expect the
 // default "application/json" media type.
 TEST_P(ExecutorHttpApiTest, DefaultAccept)

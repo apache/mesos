@@ -457,7 +457,7 @@ private:
     // on destroy.
     Option<pid_t> executorPid;
 
-    // Marks if this container launches a executor in a docker
+    // Marks if this container launches an executor in a docker
     // container.
     bool launchesExecutorContainer;
   };

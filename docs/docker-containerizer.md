@@ -25,7 +25,7 @@ iptables -A INPUT -s 172.17.0.0/16 -i docker0 -p tcp -j ACCEPT
 
 ## How do I use the Docker Containerizer?
 
-TaskInfo before 0.20.0 used to only support either setting a CommandInfo that launches a task running the bash command, or a ExecutorInfo that launches a custom Executor
+TaskInfo before 0.20.0 used to only support either setting a CommandInfo that launches a task running the bash command, or an ExecutorInfo that launches a custom Executor
 that will launches the task.
 
 With 0.20.0 we added a ContainerInfo field to TaskInfo and ExecutorInfo that allows a Containerizer such as Docker to be configured to run the task or executor.
@@ -60,7 +60,7 @@ The containerizer also supports optional force pulling of the image. It is set d
 
 ## Private Docker repository
 
-To run a image from a private repository, one can include the uri pointing to a `.dockercfg` that contains login information. The `.dockercfg` file will be pulled into the sandbox the Docker Containerizer
+To run an image from a private repository, one can include the uri pointing to a `.dockercfg` that contains login information. The `.dockercfg` file will be pulled into the sandbox the Docker Containerizer
 set the HOME environment variable pointing to the sandbox so docker cli will automatically pick up the config file.
 
 ## CommandInfo to run Docker images

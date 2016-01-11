@@ -19,7 +19,7 @@
 
 #include <stout/os.hpp>
 
-// This helper program takes a an expected user.
+// This helper program takes an expected user.
 // Returns 0 if the current username equals the expected username.
 // Returns 1 otherwise.
 int main(int argc, char **argv) {

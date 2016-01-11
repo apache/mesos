@@ -903,7 +903,7 @@ message Request {
 
 
 /**
- * Describes some resources available on a agent. An offer only
+ * Describes some resources available on an agent. An offer only
  * contains resources from a single agent.
  */
 message Offer {
@@ -981,7 +981,7 @@ message InverseOffer {
 
   // URL for reaching the agent running on the host.  This enables some
   // optimizations as described in MESOS-3012, such as allowing the
-  // scheduler driver to bypass the master and talk directly with a agent.
+  // scheduler driver to bypass the master and talk directly with an agent.
   optional URL url = 2;
 
   // The framework that should release its resources.
@@ -1357,7 +1357,7 @@ message Volume {
 
 /**
  * Describes a network request by framework as well as network resolution
- * provided by the the executor or Agent.
+ * provided by the executor or Agent.
  *
  * A framework may request the network isolator on the Agent to isolate the
  * container in a network namespace and create a virtual network interface.

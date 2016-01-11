@@ -104,7 +104,7 @@ message Event {
     required bytes data = 3;
   }
 
-  // Received when a agent is removed from the cluster (e.g., failed
+  // Received when an agent is removed from the cluster (e.g., failed
   // health checks) or when an executor is terminated. Note that, this
   // event coincides with receipt of terminal UPDATE events for any
   // active tasks belonging to the agent or executor and receipt of

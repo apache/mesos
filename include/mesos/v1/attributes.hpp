@@ -70,7 +70,7 @@ public:
     return attributes.size();
   }
 
-  // Using this operator makes it easy to copy a attributes object into
+  // Using this operator makes it easy to copy an attributes object into
   // a protocol buffer field.
   operator const google::protobuf::RepeatedPtrField<Attribute>&() const
   {

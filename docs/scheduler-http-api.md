@@ -375,7 +375,7 @@ The first event sent by the master when the scheduler sends a `SUBSCRIBE` reques
 
 
 ### OFFERS
-Sent by the master whenever there are new resources that can be offered to the framework. Each offer corresponds to a set of resources on a agent. Until the scheduler 'Accept's or 'Decline's an offer the resources are considered allocated to the scheduler, unless the offer is otherwise rescinded, e.g. due to a lost agent or `--offer_timeout`.
+Sent by the master whenever there are new resources that can be offered to the framework. Each offer corresponds to a set of resources on an agent. Until the scheduler 'Accept's or 'Decline's an offer the resources are considered allocated to the scheduler, unless the offer is otherwise rescinded, e.g. due to a lost agent or `--offer_timeout`.
 
 ```
 OFFERS Event (JSON)
@@ -452,7 +452,7 @@ MESSAGE Event (JSON)
 
 
 ### FAILURE
-Sent by the master when a agent is removed from the cluster (e.g., failed health checks) or when an executor is terminated. Note that, this event coincides with receipt of terminal `UPDATE` events for any active tasks belonging to the agent or executor and receipt of `RESCIND` events for any outstanding offers belonging to the agent. Note that there is no guaranteed order between the `FAILURE`, `UPDATE` and `RESCIND` events.
+Sent by the master when an agent is removed from the cluster (e.g., failed health checks) or when an executor is terminated. Note that, this event coincides with receipt of terminal `UPDATE` events for any active tasks belonging to the agent or executor and receipt of `RESCIND` events for any outstanding offers belonging to the agent. Note that there is no guaranteed order between the `FAILURE`, `UPDATE` and `RESCIND` events.
 
 ```
 FAILURE Event (JSON)

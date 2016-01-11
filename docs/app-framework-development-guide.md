@@ -71,7 +71,7 @@ virtual void resourceOffers(SchedulerDriver* driver,
  * whatever reason an offer is never rescinded (e.g., dropped
  * message, failing over framework, etc.), a framework that attempts
  * to launch tasks using an invalid offer will receive TASK_LOST
- * status updats for those tasks (see Scheduler::resourceOffers).
+ * status updates for those tasks (see Scheduler::resourceOffers).
  */
 virtual void offerRescinded(SchedulerDriver* driver,
                             const OfferID& offerId) = 0;

@@ -36,7 +36,7 @@ static Authorizer* createAuthorizer(const Parameters& parameters)
 }
 
 
-// Declares a Authorizer module named
+// Declares an Authorizer module named
 // 'org_apache_mesos_TestLocalAuthorizer'.
 mesos::modules::Module<Authorizer> org_apache_mesos_TestLocalAuthorizer(
     MESOS_MODULE_API_VERSION,

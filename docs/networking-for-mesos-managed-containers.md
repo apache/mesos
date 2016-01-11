@@ -60,7 +60,7 @@ isolation using new data structures in the TaskInfo message.
     isolation
 
 * Cleanup Module:
-  * responsible for doing a cleanup (releasing IPs, etc.) during a Agent lost
+  * responsible for doing a cleanup (releasing IPs, etc.) during an Agent lost
     event, dormant otherwise
 
 ### Framework requests IP address for containers

@@ -662,7 +662,7 @@ TEST_F(LogStateTest, Diff)
 
   AWAIT_READY(entries);
 
-  // Convert each Log::Entry to a Operation.
+  // Convert each Log::Entry to an Operation.
   vector<Operation> operations;
 
   foreach (const Log::Entry& entry, entries.get()) {

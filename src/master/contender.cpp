@@ -99,7 +99,7 @@ Try<MasterContender*> MasterContender::create(const Option<string>& _mechanism)
     // A "flags" endpoint where the framework can pass the command
     // line arguments and they will be parsed by <stout/flags> and the
     // needed flags extracted, and then change this interface to
-    // require final values from teh flags. This means that a
+    // require final values from the flags. This means that a
     // framework doesn't need to know how the flags are passed to
     // match mesos' command line arguments if it wants, but if it
     // needs to inspect/manipulate arguments, it can.

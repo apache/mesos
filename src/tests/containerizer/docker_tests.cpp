@@ -414,7 +414,7 @@ TEST_F(DockerTest, ROOT_DOCKER_MountRelative)
 }
 
 
-// This test verifies mounting in a absolute path when running a
+// This test verifies mounting in an absolute path when running a
 // docker container works.
 TEST_F(DockerTest, ROOT_DOCKER_MountAbsolute)
 {
