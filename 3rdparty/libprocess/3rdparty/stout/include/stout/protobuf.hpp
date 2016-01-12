@@ -327,10 +327,25 @@ struct Parser : boost::static_visitor<Try<Nothing> >
   {
     switch (field->type()) {
       case google::protobuf::FieldDescriptor::TYPE_MESSAGE:
+        // TODO(gilbert): We currently push up the nested error
+        // messages without wrapping the error message (due to
+        // the recursive nature of parse). We should pass along
+        // variable information in order to construct a helpful
+        // error message, e.g. "Failed to parse field 'a.b.c': ...".
         if (field->is_repeated()) {
-          parse(reflection->AddMessage(message, field), object);
+          Try<Nothing> parse =
+            internal::parse(reflection->AddMessage(message, field), object);
+
+          if (parse.isError()) {
+            return parse;
+          }
         } else {
-          parse(reflection->MutableMessage(message, field), object);
+          Try<Nothing> parse =
+            internal::parse(reflection->MutableMessage(message, field), object);
+
+          if (parse.isError()) {
+            return parse;
+          }
         }
         break;
       default:
