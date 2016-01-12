@@ -1313,6 +1313,11 @@ message Image {
     //
     // See: https://docs.docker.com/reference/commandline/pull/
     required string name = 1;
+
+    // Credential to authenticate with docker registry.
+    // NOTE: This is not encrypted, therefore framework and operators
+    // should enable SSL when passing this information.
+    optional Credential credential = 2;
   }
 
   required Type type = 1;
