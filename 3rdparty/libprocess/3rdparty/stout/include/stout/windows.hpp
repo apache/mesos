@@ -110,6 +110,13 @@ inline BOOL GetMessage(
 
 #define PATH_MAX _MAX_PATH
 
+// NOTE: for details on what this value should be, consult [1], [2], and [3].
+//
+// [1] http://www.opensource.apple.com/source/gnumake/gnumake-119/make/w32/include/dirent.h
+// [2] https://en.wikipedia.org/wiki/Comparison_of_file_systems#Limits
+// [3] https://msdn.microsoft.com/en-us/library/930f87yf.aspx
+const int NAME_MAX = PATH_MAX;
+
 // Corresponds to `mode_t` defined in sys/types.h of the POSIX spec.
 // See large "permissions API" comment below for an explanation of
 // why this is an int instead of unsigned short (as is common on

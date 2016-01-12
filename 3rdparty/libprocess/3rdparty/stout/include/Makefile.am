@@ -36,6 +36,7 @@ nobase_include_HEADERS =		\
   stout/gzip.hpp			\
   stout/hashmap.hpp			\
   stout/hashset.hpp			\
+  stout/internal/windows/dirent.hpp	\
   stout/internal/windows/grp.hpp	\
   stout/internal/windows/pwd.hpp	\
   stout/interval.hpp			\
