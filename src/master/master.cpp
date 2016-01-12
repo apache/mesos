@@ -1156,37 +1156,23 @@ void Master::exited(const UPID& pid)
     }
   }
 
-  // The semantics when a registered slave gets disconnected are as
-  // follows:
-  //
-  // 1) If the slave is not checkpointing, the slave is immediately
-  //    removed and all tasks running on it are transitioned to LOST.
-  //    No resources are recovered, because the slave is removed.
-  // 2) If the slave is checkpointing, the frameworks running on it
-  //    fall into one of the 2 cases:
-  //    2.1) Framework is checkpointing: No immediate action is taken.
-  //         The slave is given a chance to reconnect until the slave
-  //         observer times out (75s) and removes the slave (Case 1).
-  //    2.2) Framework is not-checkpointing: The slave is not removed
-  //         but the framework is removed from the slave's structs,
-  //         its tasks transitioned to LOST and resources recovered.
   if (slaves.registered.contains(pid)) {
     Slave* slave = slaves.registered.get(pid);
     CHECK_NOTNULL(slave);
 
     LOG(INFO) << "Slave " << *slave << " disconnected";
 
-    if (!slave->info.checkpoint()) {
-      // Remove the slave, if it is not checkpointing.
-      LOG(INFO) << "Removing disconnected slave " << *slave
-                << " because it is not checkpointing!";
-      removeSlave(slave, "slave is non-checkpointing and disconnected");
-      return;
-    } else if (slave->connected) {
-      // Checkpointing slaves can just be disconnected.
+    if (slave->connected) {
       disconnect(slave);
 
-      // Remove all non-checkpointing frameworks.
+      // The semantics when a registered slave gets disconnected are as
+      // follows for each framework running on that slave:
+      // 1) If the framework is checkpointing: No immediate action is taken.
+      //    The slave is given a chance to reconnect until the slave
+      //    observer times out (75s) and removes the slave (Case 1).
+      // 2) If the framework is not-checkpointing: The slave is not removed
+      //    but the framework is removed from the slave's structs,
+      //    its tasks transitioned to LOST and resources recovered.
       hashset<FrameworkID> frameworkIds =
         slave->tasks.keys() | slave->executors.keys();
 
@@ -1205,7 +1191,7 @@ void Master::exited(const UPID& pid)
       // because its PID doesn't change on restart. See MESOS-675
       // for details.
       LOG(WARNING) << "Ignoring duplicate exited() notification for "
-                   << "checkpointing slave " << *slave;
+                   << "slave " << *slave;
     }
   }
 }
@@ -4423,8 +4409,7 @@ void Master::reregisterSlave(
     // NOTE: Re-linking the slave here always rather than only when
     // the slave is disconnected can lead to multiple exited events
     // in succession for a disconnected slave. As a result, we
-    // ignore duplicate exited events for disconnected checkpointing
-    // slaves.
+    // ignore duplicate exited events for disconnected slaves.
     // See: https://issues.apache.org/jira/browse/MESOS-675
     slave->pid = from;
     link(slave->pid);
@@ -5244,10 +5229,6 @@ void Master::offer(const FrameworkID& frameworkId,
 
     Slave* slave = slaves.registered.get(slaveId);
     CHECK_NOTNULL(slave);
-
-    CHECK(slave->info.checkpoint() || !framework->info.checkpoint())
-        << "Resources of non checkpointing slave " << *slave
-        << " are being offered to checkpointing framework " << *framework;
 
     // This could happen if the allocator dispatched 'Master::offer' before
     // the slave was deactivated in the allocator.

@@ -130,8 +130,8 @@ TEST_F(SlaveTest, Shutdown)
   EXPECT_CALL(sched, slaveLost(&driver, offers.get()[0].slave_id()))
     .WillOnce(FutureSatisfy(&slaveLost));
 
-  // Stop the checkpointing slave with explicit shutdown message
-  // so that the slave unregisters.
+  // Stop the slave with explicit shutdown message so that the slave
+  // unregisters.
   Stop(slave.get(), true);
 
   AWAIT_READY(offerRescinded);

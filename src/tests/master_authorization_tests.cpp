@@ -419,8 +419,8 @@ TEST_F(MasterAuthorizationTest, SlaveDisconnected)
   Future<Nothing> deactivateSlave =
     FUTURE_DISPATCH(_, &MesosAllocatorProcess::deactivateSlave);
 
-  // Stop the checkpointing slave with explicit shutdown message
-  // so that the master does not wait for it to reconnect.
+  // Stop the slave with explicit shutdown message so that the master does not
+  // wait for it to reconnect.
   Stop(slave.get(), true);
 
   AWAIT_READY(deactivateSlave);

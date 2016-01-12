@@ -135,7 +135,7 @@ public:
  * @param directory Path to the sandbox directory.
  * @param slaveId SlaveID where this executor is being launched.
  * @param slavePid PID of the slave launching the executor.
- * @param checkpoint Whether or not the slave is checkpointing.
+ * @param checkpoint Whether or not the framework is checkpointing.
  * @param flags Flags used to launch the slave.
  *
  * @return Map of environment variables (name, value).

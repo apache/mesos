@@ -1106,9 +1106,7 @@ file:///path/to/file (where file contains one of the above)</code></pre>
       Enable docker containerizer to kill orphaned containers.
       You should consider setting this to false when you launch multiple
       slaves in the same OS, to avoid one of the DockerContainerizer removing
-      docker tasks launched by other slaves. However you should also make sure
-      you enable checkpoint for the slave so the same slave id can be reused,
-      otherwise docker tasks on slave restart will not be cleaned up.
+      docker tasks launched by other slaves.
       (default: true)
     </td>
   </tr>
@@ -1442,11 +1440,7 @@ file:///path/to/file (where file contains one of the above)</code></pre>
       <p/>
       cleanup  : Kill any old live executors and exit.
       <p/>
-      Use this option when doing an incompatible slave
-      or executor upgrade!).
-      <p/>
-      NOTE: If checkpointed slave doesn't exist, no recovery is performed
-      and the slave registers with the master as a new slave.
+      Use this option when doing an incompatible slave or executor upgrade.
       (default: reconnect)
     </td>
   </tr>
@@ -1455,11 +1449,9 @@ file:///path/to/file (where file contains one of the above)</code></pre>
       --recovery_timeout=VALUE
     </td>
     <td>
-      Amount of time alloted for the slave to recover. If the slave takes
+      Amount of time allotted for the slave to recover. If the slave takes
       longer than recovery_timeout to recover, any executors that are
       waiting to reconnect to the slave will self-terminate.
-      <p/>
-      NOTE: This flag is only applicable when checkpoint is enabled.
       (default: 15mins)
     </td>
   </tr>

@@ -244,7 +244,6 @@ void HierarchicalAllocatorProcess::addFramework(
 
   frameworks[frameworkId] = Framework();
   frameworks[frameworkId].role = frameworkInfo.role();
-  frameworks[frameworkId].checkpoint = frameworkInfo.checkpoint();
 
   // Check if the framework desires revocable resources.
   frameworks[frameworkId].revocable = false;
@@ -374,12 +373,10 @@ void HierarchicalAllocatorProcess::updateFramework(
   CHECK(initialized);
   CHECK(frameworks.contains(frameworkId));
 
-  // TODO(jmlvanre): Once we allow frameworks to re-register with a
-  // new 'role' or 'checkpoint' flag, we need to update our internal
-  // 'frameworks' structure. See MESOS-703 for progress on allowing
-  // these fields to be updated.
+  // TODO(jmlvanre): Once we allow frameworks to re-register with a new 'role',
+  // we need to update our internal 'frameworks' structure. See MESOS-703 for
+  // progress on allowing these fields to be updated.
   CHECK_EQ(frameworks[frameworkId].role, frameworkInfo.role());
-  CHECK_EQ(frameworks[frameworkId].checkpoint, frameworkInfo.checkpoint());
 
   frameworks[frameworkId].revocable = false;
 
@@ -434,7 +431,6 @@ void HierarchicalAllocatorProcess::addSlave(
   slaves[slaveId].total = total;
   slaves[slaveId].allocated = Resources::sum(used);
   slaves[slaveId].activated = true;
-  slaves[slaveId].checkpoint = slaveInfo.checkpoint();
   slaves[slaveId].hostname = slaveInfo.hostname();
 
   // NOTE: We currently implement maintenance in the allocator to be able to
@@ -1506,17 +1502,6 @@ bool HierarchicalAllocatorProcess::isFiltered(
 {
   CHECK(frameworks.contains(frameworkId));
   CHECK(slaves.contains(slaveId));
-
-  // Do not offer a non-checkpointing slave's resources to a checkpointing
-  // framework. This is a short term fix until the following is resolved:
-  // https://issues.apache.org/jira/browse/MESOS-444.
-  if (frameworks[frameworkId].checkpoint && !slaves[slaveId].checkpoint) {
-    VLOG(1) << "Filtered offer with " << resources
-            << " on non-checkpointing slave " << slaveId
-            << " for checkpointing framework " << frameworkId;
-
-    return true;
-  }
 
   if (frameworks[frameworkId].offerFilters.contains(slaveId)) {
     foreach (

@@ -374,22 +374,6 @@ Option<Error> validateExecutorInfo(
 }
 
 
-// Validates that a task that asks for checkpointing is not being
-// launched on a slave that has not enabled checkpointing.
-// TODO(jieyu): Remove this in favor of a CHECK, because the allocator
-// should filter these out.
-Option<Error> validateCheckpoint(Framework* framework, Slave* slave)
-{
-  if (framework->info.checkpoint() && !slave->info.checkpoint()) {
-    return Error(
-        "Task asked to be checkpointed but slave " +
-        stringify(slave->id) + " has checkpointing disabled");
-  }
-
-  return None();
-}
-
-
 // Validates that the task and the executor are using proper amount of
 // resources. For instance, the used resources by a task on a slave
 // should not exceed the total resources offered on that slave.
@@ -516,7 +500,6 @@ Option<Error> validate(
     lambda::bind(internal::validateUniqueTaskID, task, framework),
     lambda::bind(internal::validateSlaveID, task, slave),
     lambda::bind(internal::validateExecutorInfo, task, framework, slave),
-    lambda::bind(internal::validateCheckpoint, framework, slave),
     lambda::bind(internal::validateResources, task),
     lambda::bind(
         internal::validateResourceUsage, task, framework, slave, offered)

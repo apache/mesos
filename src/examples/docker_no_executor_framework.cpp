@@ -179,13 +179,7 @@ int main(int argc, char** argv)
   FrameworkInfo framework;
   framework.set_user(""); // Have Mesos fill in the current user.
   framework.set_name("Docker No Executor Framework (C++)");
-
-  // TODO(vinod): Make checkpointing the default when it is default
-  // on the slave.
-  if (os::getenv("MESOS_CHECKPOINT").isSome()) {
-    cout << "Enabling checkpoint for the framework" << endl;
-    framework.set_checkpoint(true);
-  }
+  framework.set_checkpoint(true);
 
   MesosSchedulerDriver* driver;
   if (os::getenv("MESOS_AUTHENTICATE").isSome()) {

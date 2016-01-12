@@ -403,11 +403,6 @@ void Slave::initialize()
   info.set_checkpoint(true);
 
   LOG(INFO) << "Slave hostname: " << info.hostname();
-  // Checkpointing of slaves is always enabled.
-  // We keep this line to be compatible with
-  // older monitoring tools.
-  // TODO(joerg84): Delete after 0.23.
-  LOG(INFO) << "Slave checkpoint: " << stringify(true);
 
   statusUpdateManager->initialize(defer(self(), &Slave::forward, lambda::_1));
 

@@ -281,7 +281,6 @@ protected:
   struct Framework
   {
     std::string role;
-    bool checkpoint;  // Whether the framework desires checkpointing.
 
     // Whether the framework suppresses offers.
     bool suppressed;
@@ -323,7 +322,6 @@ protected:
     // In this case, allocated > total.
 
     bool activated;  // Whether to offer resources.
-    bool checkpoint; // Whether slave supports checkpointing.
 
     std::string hostname;
 

@@ -105,7 +105,7 @@ public:
 
     add(&checkpoint,
         "checkpoint",
-        "Enable checkpointing for the framework (requires slave checkpointing)",
+        "Enable checkpointing for the framework",
         false);
 
     add(&docker_image,

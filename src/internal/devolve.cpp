@@ -66,7 +66,7 @@ SlaveInfo devolve(const v1::AgentInfo& agentInfo)
 
   // We set 'checkpoint' to 'true' since the v1::AgentInfo doesn't
   // have 'checkpoint' but all "slaves" were checkpointing by default
-  // when v1:;AgentInfo was introduced. See MESOS-2317.
+  // when v1::AgentInfo was introduced. See MESOS-2317.
   info.set_checkpoint(true);
 
   return info;

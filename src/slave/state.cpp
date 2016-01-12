@@ -58,8 +58,8 @@ Result<State> recover(const string& rootDir, bool strict)
   LOG(INFO) << "Recovering state from '" << rootDir << "'";
 
   // We consider the absence of 'rootDir' to mean that this is either
-  // the first time this slave was started with checkpointing enabled
-  // or this slave was started after an upgrade (--recover=cleanup).
+  // the first time this slave was started or this slave was started after
+  // an upgrade (--recover=cleanup).
   if (!os::exists(rootDir)) {
     return None();
   }

@@ -148,7 +148,7 @@ typedef ::testing::Types<slave::MesosContainerizer> ContainerizerTypes;
 
 TYPED_TEST_CASE(SlaveRecoveryTest, ContainerizerTypes);
 
-// Enable checkpointing on the slave and ensure recovery works.
+// Ensure slave recovery works.
 TYPED_TEST(SlaveRecoveryTest, RecoverSlaveState)
 {
   Try<PID<Master> > master = this->StartMaster();
@@ -1025,7 +1025,7 @@ TYPED_TEST(SlaveRecoveryTest, CleanupExecutor)
 
 
 // This test checks whether a non-checkpointing framework is
-// properly removed, when a checkpointing slave is disconnected.
+// properly removed, when a slave is disconnected.
 TYPED_TEST(SlaveRecoveryTest, RemoveNonCheckpointingFramework)
 {
   Try<PID<Master> > master = this->StartMaster();
@@ -1826,9 +1826,9 @@ TYPED_TEST(SlaveRecoveryTest, ShutdownSlaveSIGUSR1)
 }
 
 
-// The checkpointing slave fails to do recovery and tries to register
-// as a new slave. The master should give it a new id and transition
-// all the tasks of the old slave to LOST.
+// The slave fails to do recovery and tries to register as a new slave. The
+// master should give it a new id and transition all the tasks of the old slave
+// to LOST.
 TYPED_TEST(SlaveRecoveryTest, RegisterDisconnectedSlave)
 {
   master::Flags masterFlags = this->CreateMasterFlags();
@@ -1908,10 +1908,9 @@ TYPED_TEST(SlaveRecoveryTest, RegisterDisconnectedSlave)
   EXPECT_CALL(sched, statusUpdate(_, _))
     .WillOnce(FutureArg<1>(&status2));
 
-  // Spoof the registration attempt of a checkpointing slave
-  // that failed recovery. We do this because simply restarting
-  // the slave will result in a slave with a different pid than
-  // the previous one.
+  // Spoof the registration attempt of a slave that failed recovery.
+  // We do this because simply restarting the slave will result in a slave
+  // with a different pid than the previous one.
   post(slave.get(), master.get(), registerSlaveMessage.get());
 
   // Scheduler should get a TASK_LOST message.
@@ -1940,9 +1939,8 @@ TYPED_TEST(SlaveRecoveryTest, RegisterDisconnectedSlave)
 }
 
 
-// This test verifies that a KillTask message received by the
-// master when a checkpointing slave is disconnected is properly
-// reconciled when the slave reregisters.
+// This test verifies that a KillTask message received by the master when a
+// slave is disconnected is properly reconciled when the slave reregisters.
 TYPED_TEST(SlaveRecoveryTest, ReconcileKillTask)
 {
   Try<PID<Master> > master = this->StartMaster();

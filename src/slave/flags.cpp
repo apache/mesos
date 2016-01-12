@@ -460,10 +460,7 @@ mesos::internal::slave::Flags::Flags()
       "Enable docker containerizer to kill orphaned containers.\n"
       "You should consider setting this to false when you launch multiple\n"
       "slaves in the same OS, to avoid one of the DockerContainerizer \n"
-      "removing docker tasks launched by other slaves. However you should\n"
-      "also make sure to enable checkpoint for the slave so the same slave id\n"
-      "can be reused, otherwise docker tasks on slave restart will not be\n"
-      "cleaned up.\n",
+      "removing docker tasks launched by other slaves.\n",
       true);
 
   add(&Flags::docker_mesos_image,
