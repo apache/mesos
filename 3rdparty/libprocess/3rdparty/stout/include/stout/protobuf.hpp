@@ -338,19 +338,9 @@ struct Parser : boost::static_visitor<Try<Nothing> >
         // variable information in order to construct a helpful
         // error message, e.g. "Failed to parse field 'a.b.c': ...".
         if (field->is_repeated()) {
-          Try<Nothing> parse =
-            internal::parse(reflection->AddMessage(message, field), object);
-
-          if (parse.isError()) {
-            return parse;
-          }
+          return parse(reflection->AddMessage(message, field), object);
         } else {
-          Try<Nothing> parse =
-            internal::parse(reflection->MutableMessage(message, field), object);
-
-          if (parse.isError()) {
-            return parse;
-          }
+          return parse(reflection->MutableMessage(message, field), object);
         }
         break;
       default:
