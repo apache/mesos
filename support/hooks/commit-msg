@@ -20,7 +20,7 @@ if [[ ! "$FIRST_CHAR" =~ [A-Z] ]]; then
 fi
 
 LENGTH=$(echo $FIRST_LINE | wc -c)
-if [ "$LENGTH" -gt "72" ]; then
+if [ "$LENGTH" -gt "73" ]; then
     echo >&2 "Error: Commit message summary (the first line) must not exceed 72 characters."
     exit 1
 fi
