@@ -226,11 +226,13 @@ TEST_F(RegistryTokenTest, ValidToken)
 }
 
 
-// Tests JSON Web Token parsing for a token string with expiration date in the
-// past.
+// Tests JSON Web Token parsing for a token string with expiration
+// date in the past.
 TEST_F(RegistryTokenTest, ExpiredToken)
 {
-  const double expirySecs = Clock::now().secs() - Days(365).secs();
+  // Use an arbitrary fixed date that is far in the past (12 weeks
+  // after the Unix epoch).
+  const double expirySecs = Weeks(12).secs();
 
   claimsJsonString =
     "{\"access\" \
