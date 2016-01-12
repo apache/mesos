@@ -44,8 +44,10 @@ void protobuf_AssignDesc_protobuf_5ftests_2eproto() {
       "protobuf_tests.proto");
   GOOGLE_CHECK(file != NULL);
   Nested_descriptor_ = file->message_type(0);
-  static const int Nested_offsets_[1] = {
+  static const int Nested_offsets_[3] = {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Nested, str_),
+    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Nested, optional_str_),
+    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Nested, repeated_str_),
   };
   Nested_reflection_ =
     new ::google::protobuf::internal::GeneratedMessageReflection(
@@ -175,27 +177,28 @@ void protobuf_AddDesc_protobuf_5ftests_2eproto() {
   GOOGLE_PROTOBUF_VERIFY_VERSION;
 
   ::google::protobuf::DescriptorPool::InternalAddGeneratedFile(
-    "\n\024protobuf_tests.proto\022\005tests\"\025\n\006Nested\022"
-    "\013\n\003str\030\001 \001(\t\",\n\rSimpleMessage\022\n\n\002id\030\001 \002("
-    "\t\022\017\n\007numbers\030\002 \003(\005\"\376\004\n\007Message\022\t\n\001b\030\032 \002("
-    "\010\022\013\n\003str\030\001 \002(\t\022\r\n\005bytes\030\002 \002(\014\022\r\n\005int32\030\003"
-    " \001(\005\022\r\n\005int64\030\004 \001(\003\022\016\n\006uint32\030\005 \001(\r\022\016\n\006u"
-    "int64\030\006 \001(\004\022\016\n\006sint32\030\007 \001(\021\022\016\n\006sint64\030\010 "
-    "\001(\022\022\t\n\001f\030\t \002(\002\022\t\n\001d\030\n \002(\001\022\026\n\001e\030\013 \002(\0162\013.t"
-    "ests.Enum\022\035\n\006nested\030\014 \002(\0132\r.tests.Nested"
-    "\022\025\n\rrepeated_bool\030\033 \003(\010\022\027\n\017repeated_stri"
-    "ng\030\r \003(\t\022\026\n\016repeated_bytes\030\016 \003(\014\022\026\n\016repe"
-    "ated_int32\030\017 \003(\005\022\026\n\016repeated_int64\030\020 \003(\003"
-    "\022\027\n\017repeated_uint32\030\021 \003(\r\022\027\n\017repeated_ui"
-    "nt64\030\022 \003(\004\022\027\n\017repeated_sint32\030\023 \003(\021\022\027\n\017r"
-    "epeated_sint64\030\024 \003(\022\022\026\n\016repeated_float\030\025"
-    " \003(\002\022\027\n\017repeated_double\030\026 \003(\001\022\"\n\rrepeate"
-    "d_enum\030\027 \003(\0162\013.tests.Enum\022&\n\017repeated_ne"
-    "sted\030\030 \003(\0132\r.tests.Nested\022\r\n\005empty\030\031 \003(\t"
-    "\022\034\n\020optional_default\030\034 \001(\001:\00242\022\033\n\023option"
-    "al_no_default\030\035 \001(\001\"4\n\014ArrayMessage\022$\n\006v"
-    "alues\030\001 \003(\0132\024.tests.SimpleMessage*\030\n\004Enu"
-    "m\022\007\n\003ONE\020\001\022\007\n\003TWO\020\002", 819);
+    "\n\024protobuf_tests.proto\022\005tests\"A\n\006Nested\022"
+    "\013\n\003str\030\001 \002(\t\022\024\n\014optional_str\030\002 \001(\t\022\024\n\014re"
+    "peated_str\030\003 \003(\t\",\n\rSimpleMessage\022\n\n\002id\030"
+    "\001 \002(\t\022\017\n\007numbers\030\002 \003(\005\"\376\004\n\007Message\022\t\n\001b\030"
+    "\032 \002(\010\022\013\n\003str\030\001 \002(\t\022\r\n\005bytes\030\002 \002(\014\022\r\n\005int"
+    "32\030\003 \001(\005\022\r\n\005int64\030\004 \001(\003\022\016\n\006uint32\030\005 \001(\r\022"
+    "\016\n\006uint64\030\006 \001(\004\022\016\n\006sint32\030\007 \001(\021\022\016\n\006sint6"
+    "4\030\010 \001(\022\022\t\n\001f\030\t \002(\002\022\t\n\001d\030\n \002(\001\022\026\n\001e\030\013 \002(\016"
+    "2\013.tests.Enum\022\035\n\006nested\030\014 \002(\0132\r.tests.Ne"
+    "sted\022\025\n\rrepeated_bool\030\033 \003(\010\022\027\n\017repeated_"
+    "string\030\r \003(\t\022\026\n\016repeated_bytes\030\016 \003(\014\022\026\n\016"
+    "repeated_int32\030\017 \003(\005\022\026\n\016repeated_int64\030\020"
+    " \003(\003\022\027\n\017repeated_uint32\030\021 \003(\r\022\027\n\017repeate"
+    "d_uint64\030\022 \003(\004\022\027\n\017repeated_sint32\030\023 \003(\021\022"
+    "\027\n\017repeated_sint64\030\024 \003(\022\022\026\n\016repeated_flo"
+    "at\030\025 \003(\002\022\027\n\017repeated_double\030\026 \003(\001\022\"\n\rrep"
+    "eated_enum\030\027 \003(\0162\013.tests.Enum\022&\n\017repeate"
+    "d_nested\030\030 \003(\0132\r.tests.Nested\022\r\n\005empty\030\031"
+    " \003(\t\022\034\n\020optional_default\030\034 \001(\001:\00242\022\033\n\023op"
+    "tional_no_default\030\035 \001(\001\"4\n\014ArrayMessage\022"
+    "$\n\006values\030\001 \003(\0132\024.tests.SimpleMessage*\030\n"
+    "\004Enum\022\007\n\003ONE\020\001\022\007\n\003TWO\020\002", 863);
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedFile(
     "protobuf_tests.proto", &protobuf_RegisterTypes);
   Nested::default_instance_ = new Nested();
@@ -234,6 +237,8 @@ bool Enum_IsValid(int value) {
 
 #ifndef _MSC_VER
 const int Nested::kStrFieldNumber;
+const int Nested::kOptionalStrFieldNumber;
+const int Nested::kRepeatedStrFieldNumber;
 #endif  // !_MSC_VER
 
 Nested::Nested()
@@ -253,6 +258,7 @@ Nested::Nested(const Nested& from)
 void Nested::SharedCtor() {
   _cached_size_ = 0;
   str_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
+  optional_str_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
 }
 
@@ -263,6 +269,9 @@ Nested::~Nested() {
 void Nested::SharedDtor() {
   if (str_ != &::google::protobuf::internal::kEmptyString) {
     delete str_;
+  }
+  if (optional_str_ != &::google::protobuf::internal::kEmptyString) {
+    delete optional_str_;
   }
   if (this != default_instance_) {
   }
@@ -296,7 +305,13 @@ void Nested::Clear() {
         str_->clear();
       }
     }
+    if (has_optional_str()) {
+      if (optional_str_ != &::google::protobuf::internal::kEmptyString) {
+        optional_str_->clear();
+      }
+    }
   }
+  repeated_str_.Clear();
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
   mutable_unknown_fields()->Clear();
 }
@@ -307,7 +322,7 @@ bool Nested::MergePartialFromCodedStream(
   ::google::protobuf::uint32 tag;
   while ((tag = input->ReadTag()) != 0) {
     switch (::google::protobuf::internal::WireFormatLite::GetTagFieldNumber(tag)) {
-      // optional string str = 1;
+      // required string str = 1;
       case 1: {
         if (::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
             ::google::protobuf::internal::WireFormatLite::WIRETYPE_LENGTH_DELIMITED) {
@@ -319,6 +334,42 @@ bool Nested::MergePartialFromCodedStream(
         } else {
           goto handle_uninterpreted;
         }
+        if (input->ExpectTag(18)) goto parse_optional_str;
+        break;
+      }
+
+      // optional string optional_str = 2;
+      case 2: {
+        if (::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
+            ::google::protobuf::internal::WireFormatLite::WIRETYPE_LENGTH_DELIMITED) {
+         parse_optional_str:
+          DO_(::google::protobuf::internal::WireFormatLite::ReadString(
+                input, this->mutable_optional_str()));
+          ::google::protobuf::internal::WireFormat::VerifyUTF8String(
+            this->optional_str().data(), this->optional_str().length(),
+            ::google::protobuf::internal::WireFormat::PARSE);
+        } else {
+          goto handle_uninterpreted;
+        }
+        if (input->ExpectTag(26)) goto parse_repeated_str;
+        break;
+      }
+
+      // repeated string repeated_str = 3;
+      case 3: {
+        if (::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
+            ::google::protobuf::internal::WireFormatLite::WIRETYPE_LENGTH_DELIMITED) {
+         parse_repeated_str:
+          DO_(::google::protobuf::internal::WireFormatLite::ReadString(
+                input, this->add_repeated_str()));
+          ::google::protobuf::internal::WireFormat::VerifyUTF8String(
+            this->repeated_str(this->repeated_str_size() - 1).data(),
+            this->repeated_str(this->repeated_str_size() - 1).length(),
+            ::google::protobuf::internal::WireFormat::PARSE);
+        } else {
+          goto handle_uninterpreted;
+        }
+        if (input->ExpectTag(26)) goto parse_repeated_str;
         if (input->ExpectAtEnd()) return true;
         break;
       }
@@ -341,13 +392,31 @@ bool Nested::MergePartialFromCodedStream(
 
 void Nested::SerializeWithCachedSizes(
     ::google::protobuf::io::CodedOutputStream* output) const {
-  // optional string str = 1;
+  // required string str = 1;
   if (has_str()) {
     ::google::protobuf::internal::WireFormat::VerifyUTF8String(
       this->str().data(), this->str().length(),
       ::google::protobuf::internal::WireFormat::SERIALIZE);
     ::google::protobuf::internal::WireFormatLite::WriteString(
       1, this->str(), output);
+  }
+
+  // optional string optional_str = 2;
+  if (has_optional_str()) {
+    ::google::protobuf::internal::WireFormat::VerifyUTF8String(
+      this->optional_str().data(), this->optional_str().length(),
+      ::google::protobuf::internal::WireFormat::SERIALIZE);
+    ::google::protobuf::internal::WireFormatLite::WriteString(
+      2, this->optional_str(), output);
+  }
+
+  // repeated string repeated_str = 3;
+  for (int i = 0; i < this->repeated_str_size(); i++) {
+  ::google::protobuf::internal::WireFormat::VerifyUTF8String(
+    this->repeated_str(i).data(), this->repeated_str(i).length(),
+    ::google::protobuf::internal::WireFormat::SERIALIZE);
+    ::google::protobuf::internal::WireFormatLite::WriteString(
+      3, this->repeated_str(i), output);
   }
 
   if (!unknown_fields().empty()) {
@@ -358,7 +427,7 @@ void Nested::SerializeWithCachedSizes(
 
 ::google::protobuf::uint8* Nested::SerializeWithCachedSizesToArray(
     ::google::protobuf::uint8* target) const {
-  // optional string str = 1;
+  // required string str = 1;
   if (has_str()) {
     ::google::protobuf::internal::WireFormat::VerifyUTF8String(
       this->str().data(), this->str().length(),
@@ -366,6 +435,25 @@ void Nested::SerializeWithCachedSizes(
     target =
       ::google::protobuf::internal::WireFormatLite::WriteStringToArray(
         1, this->str(), target);
+  }
+
+  // optional string optional_str = 2;
+  if (has_optional_str()) {
+    ::google::protobuf::internal::WireFormat::VerifyUTF8String(
+      this->optional_str().data(), this->optional_str().length(),
+      ::google::protobuf::internal::WireFormat::SERIALIZE);
+    target =
+      ::google::protobuf::internal::WireFormatLite::WriteStringToArray(
+        2, this->optional_str(), target);
+  }
+
+  // repeated string repeated_str = 3;
+  for (int i = 0; i < this->repeated_str_size(); i++) {
+    ::google::protobuf::internal::WireFormat::VerifyUTF8String(
+      this->repeated_str(i).data(), this->repeated_str(i).length(),
+      ::google::protobuf::internal::WireFormat::SERIALIZE);
+    target = ::google::protobuf::internal::WireFormatLite::
+      WriteStringToArray(3, this->repeated_str(i), target);
   }
 
   if (!unknown_fields().empty()) {
@@ -379,14 +467,28 @@ int Nested::ByteSize() const {
   int total_size = 0;
 
   if (_has_bits_[0 / 32] & (0xffu << (0 % 32))) {
-    // optional string str = 1;
+    // required string str = 1;
     if (has_str()) {
       total_size += 1 +
         ::google::protobuf::internal::WireFormatLite::StringSize(
           this->str());
     }
 
+    // optional string optional_str = 2;
+    if (has_optional_str()) {
+      total_size += 1 +
+        ::google::protobuf::internal::WireFormatLite::StringSize(
+          this->optional_str());
+    }
+
   }
+  // repeated string repeated_str = 3;
+  total_size += 1 * this->repeated_str_size();
+  for (int i = 0; i < this->repeated_str_size(); i++) {
+    total_size += ::google::protobuf::internal::WireFormatLite::StringSize(
+      this->repeated_str(i));
+  }
+
   if (!unknown_fields().empty()) {
     total_size +=
       ::google::protobuf::internal::WireFormat::ComputeUnknownFieldsSize(
@@ -412,9 +514,13 @@ void Nested::MergeFrom(const ::google::protobuf::Message& from) {
 
 void Nested::MergeFrom(const Nested& from) {
   GOOGLE_CHECK_NE(&from, this);
+  repeated_str_.MergeFrom(from.repeated_str_);
   if (from._has_bits_[0 / 32] & (0xffu << (0 % 32))) {
     if (from.has_str()) {
       set_str(from.str());
+    }
+    if (from.has_optional_str()) {
+      set_optional_str(from.optional_str());
     }
   }
   mutable_unknown_fields()->MergeFrom(from.unknown_fields());
@@ -433,6 +539,7 @@ void Nested::CopyFrom(const Nested& from) {
 }
 
 bool Nested::IsInitialized() const {
+  if ((_has_bits_[0] & 0x00000001) != 0x00000001) return false;
 
   return true;
 }
@@ -440,6 +547,8 @@ bool Nested::IsInitialized() const {
 void Nested::Swap(Nested* other) {
   if (other != this) {
     std::swap(str_, other->str_);
+    std::swap(optional_str_, other->optional_str_);
+    repeated_str_.Swap(&other->repeated_str_);
     std::swap(_has_bits_[0], other->_has_bits_[0]);
     _unknown_fields_.Swap(&other->_unknown_fields_);
     std::swap(_cached_size_, other->_cached_size_);
@@ -2139,6 +2248,12 @@ void Message::CopyFrom(const Message& from) {
 bool Message::IsInitialized() const {
   if ((_has_bits_[0] & 0x00001e07) != 0x00001e07) return false;
 
+  if (has_nested()) {
+    if (!this->nested().IsInitialized()) return false;
+  }
+  for (int i = 0; i < repeated_nested_size(); i++) {
+    if (!this->repeated_nested(i).IsInitialized()) return false;
+  }
   return true;
 }
 

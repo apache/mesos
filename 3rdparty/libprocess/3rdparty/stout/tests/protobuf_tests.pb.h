@@ -114,7 +114,7 @@ class Nested : public ::google::protobuf::Message {
 
   // accessors -------------------------------------------------------
 
-  // optional string str = 1;
+  // required string str = 1;
   inline bool has_str() const;
   inline void clear_str();
   static const int kStrFieldNumber = 1;
@@ -126,17 +126,49 @@ class Nested : public ::google::protobuf::Message {
   inline ::std::string* release_str();
   inline void set_allocated_str(::std::string* str);
 
+  // optional string optional_str = 2;
+  inline bool has_optional_str() const;
+  inline void clear_optional_str();
+  static const int kOptionalStrFieldNumber = 2;
+  inline const ::std::string& optional_str() const;
+  inline void set_optional_str(const ::std::string& value);
+  inline void set_optional_str(const char* value);
+  inline void set_optional_str(const char* value, size_t size);
+  inline ::std::string* mutable_optional_str();
+  inline ::std::string* release_optional_str();
+  inline void set_allocated_optional_str(::std::string* optional_str);
+
+  // repeated string repeated_str = 3;
+  inline int repeated_str_size() const;
+  inline void clear_repeated_str();
+  static const int kRepeatedStrFieldNumber = 3;
+  inline const ::std::string& repeated_str(int index) const;
+  inline ::std::string* mutable_repeated_str(int index);
+  inline void set_repeated_str(int index, const ::std::string& value);
+  inline void set_repeated_str(int index, const char* value);
+  inline void set_repeated_str(int index, const char* value, size_t size);
+  inline ::std::string* add_repeated_str();
+  inline void add_repeated_str(const ::std::string& value);
+  inline void add_repeated_str(const char* value);
+  inline void add_repeated_str(const char* value, size_t size);
+  inline const ::google::protobuf::RepeatedPtrField< ::std::string>& repeated_str() const;
+  inline ::google::protobuf::RepeatedPtrField< ::std::string>* mutable_repeated_str();
+
   // @@protoc_insertion_point(class_scope:tests.Nested)
  private:
   inline void set_has_str();
   inline void clear_has_str();
+  inline void set_has_optional_str();
+  inline void clear_has_optional_str();
 
   ::google::protobuf::UnknownFieldSet _unknown_fields_;
 
   ::std::string* str_;
+  ::std::string* optional_str_;
+  ::google::protobuf::RepeatedPtrField< ::std::string> repeated_str_;
 
   mutable int _cached_size_;
-  ::google::protobuf::uint32 _has_bits_[(1 + 31) / 32];
+  ::google::protobuf::uint32 _has_bits_[(3 + 31) / 32];
 
   friend void  protobuf_AddDesc_protobuf_5ftests_2eproto();
   friend void protobuf_AssignDesc_protobuf_5ftests_2eproto();
@@ -763,7 +795,7 @@ class ArrayMessage : public ::google::protobuf::Message {
 
 // Nested
 
-// optional string str = 1;
+// required string str = 1;
 inline bool Nested::has_str() const {
   return (_has_bits_[0] & 0x00000001u) != 0;
 }
@@ -831,6 +863,120 @@ inline void Nested::set_allocated_str(::std::string* str) {
     clear_has_str();
     str_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
   }
+}
+
+// optional string optional_str = 2;
+inline bool Nested::has_optional_str() const {
+  return (_has_bits_[0] & 0x00000002u) != 0;
+}
+inline void Nested::set_has_optional_str() {
+  _has_bits_[0] |= 0x00000002u;
+}
+inline void Nested::clear_has_optional_str() {
+  _has_bits_[0] &= ~0x00000002u;
+}
+inline void Nested::clear_optional_str() {
+  if (optional_str_ != &::google::protobuf::internal::kEmptyString) {
+    optional_str_->clear();
+  }
+  clear_has_optional_str();
+}
+inline const ::std::string& Nested::optional_str() const {
+  return *optional_str_;
+}
+inline void Nested::set_optional_str(const ::std::string& value) {
+  set_has_optional_str();
+  if (optional_str_ == &::google::protobuf::internal::kEmptyString) {
+    optional_str_ = new ::std::string;
+  }
+  optional_str_->assign(value);
+}
+inline void Nested::set_optional_str(const char* value) {
+  set_has_optional_str();
+  if (optional_str_ == &::google::protobuf::internal::kEmptyString) {
+    optional_str_ = new ::std::string;
+  }
+  optional_str_->assign(value);
+}
+inline void Nested::set_optional_str(const char* value, size_t size) {
+  set_has_optional_str();
+  if (optional_str_ == &::google::protobuf::internal::kEmptyString) {
+    optional_str_ = new ::std::string;
+  }
+  optional_str_->assign(reinterpret_cast<const char*>(value), size);
+}
+inline ::std::string* Nested::mutable_optional_str() {
+  set_has_optional_str();
+  if (optional_str_ == &::google::protobuf::internal::kEmptyString) {
+    optional_str_ = new ::std::string;
+  }
+  return optional_str_;
+}
+inline ::std::string* Nested::release_optional_str() {
+  clear_has_optional_str();
+  if (optional_str_ == &::google::protobuf::internal::kEmptyString) {
+    return NULL;
+  } else {
+    ::std::string* temp = optional_str_;
+    optional_str_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
+    return temp;
+  }
+}
+inline void Nested::set_allocated_optional_str(::std::string* optional_str) {
+  if (optional_str_ != &::google::protobuf::internal::kEmptyString) {
+    delete optional_str_;
+  }
+  if (optional_str) {
+    set_has_optional_str();
+    optional_str_ = optional_str;
+  } else {
+    clear_has_optional_str();
+    optional_str_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
+  }
+}
+
+// repeated string repeated_str = 3;
+inline int Nested::repeated_str_size() const {
+  return repeated_str_.size();
+}
+inline void Nested::clear_repeated_str() {
+  repeated_str_.Clear();
+}
+inline const ::std::string& Nested::repeated_str(int index) const {
+  return repeated_str_.Get(index);
+}
+inline ::std::string* Nested::mutable_repeated_str(int index) {
+  return repeated_str_.Mutable(index);
+}
+inline void Nested::set_repeated_str(int index, const ::std::string& value) {
+  repeated_str_.Mutable(index)->assign(value);
+}
+inline void Nested::set_repeated_str(int index, const char* value) {
+  repeated_str_.Mutable(index)->assign(value);
+}
+inline void Nested::set_repeated_str(int index, const char* value, size_t size) {
+  repeated_str_.Mutable(index)->assign(
+    reinterpret_cast<const char*>(value), size);
+}
+inline ::std::string* Nested::add_repeated_str() {
+  return repeated_str_.Add();
+}
+inline void Nested::add_repeated_str(const ::std::string& value) {
+  repeated_str_.Add()->assign(value);
+}
+inline void Nested::add_repeated_str(const char* value) {
+  repeated_str_.Add()->assign(value);
+}
+inline void Nested::add_repeated_str(const char* value, size_t size) {
+  repeated_str_.Add()->assign(reinterpret_cast<const char*>(value), size);
+}
+inline const ::google::protobuf::RepeatedPtrField< ::std::string>&
+Nested::repeated_str() const {
+  return repeated_str_;
+}
+inline ::google::protobuf::RepeatedPtrField< ::std::string>*
+Nested::mutable_repeated_str() {
+  return &repeated_str_;
 }
 
 // -------------------------------------------------------------------

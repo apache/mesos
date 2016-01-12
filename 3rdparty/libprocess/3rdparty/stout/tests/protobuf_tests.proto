@@ -28,7 +28,9 @@ enum Enum {
 
 
 message Nested {
-  optional string str = 1;
+  required string str = 1;
+  optional string optional_str = 2;
+  repeated string repeated_str = 3;
 }
 
 
