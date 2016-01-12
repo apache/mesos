@@ -1299,6 +1299,8 @@ Try<ResourceStatistics> DockerContainerizerProcess::cgroupsStatistics(
     return Error(
         "Failed to determine cgroup for the 'cpu' subsystem: " +
         cpuCgroup.error());
+  } else if (cpuCgroup.isNone()) {
+    return Error("Unable to find 'cpu' cgroup subsystem");
   }
 
   const Result<string> memCgroup = cgroups::memory::cgroup(pid);
@@ -1306,6 +1308,8 @@ Try<ResourceStatistics> DockerContainerizerProcess::cgroupsStatistics(
     return Error(
         "Failed to determine cgroup for the 'memory' subsystem: " +
         memCgroup.error());
+  } else if (memCgroup.isNone()) {
+    return Error("Unable to find 'memory' cgroup subsystem");
   }
 
   const Try<cgroups::cpuacct::Stats> cpuAcctStat =
