@@ -522,3 +522,30 @@ TEST(ProtobufTest, JsonifyLargeIntegers)
   // Check JSON -> String.
   EXPECT_EQ(expected, string(jsonify(message)));
 }
+
+
+TEST(ProtobufTest, ParseJSONNestedError)
+{
+  // Here we trigger an error parsing the 'nested' message.
+  string message =
+    "{"
+    "  \"b\": true,"
+    "  \"str\": \"string\","
+    "  \"bytes\": \"Ynl0ZXM=\","
+    "  \"f\": 1.0,"
+    "  \"d\": 1.0,"
+    "  \"e\": \"ONE\","
+    "  \"nested\": {"
+    "      \"str\": 1.0" // Error due to int for string type.
+    "  }"
+    "}";
+
+  Try<JSON::Object> json = JSON::parse<JSON::Object>(message);
+  ASSERT_SOME(json);
+
+  Try<tests::Message> parse = protobuf::parse<tests::Message>(json.get());
+  ASSERT_ERROR(parse);
+
+  EXPECT_TRUE(strings::contains(
+      parse.error(), "Not expecting a JSON number for field"));
+}
