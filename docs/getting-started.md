@@ -56,6 +56,9 @@ Following are the instructions for stock Mac OS X Yosemite and El Capitan. If yo
     # Install Homebrew.
     $ ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
 
+    # Install Java.
+    $ brew install Caskroom/cask/java
+
     # Install libraries.
     $ brew install wget git autoconf automake libtool subversion maven
 
