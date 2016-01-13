@@ -28,7 +28,6 @@
 
 #include <stout/foreach.hpp>
 #include <stout/gtest.hpp>
-#include <stout/list.hpp>
 #include <stout/path.hpp>
 
 #include <stout/os/read.hpp>

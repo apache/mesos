@@ -10,6 +10,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License
 
+#include <list>
+
 #include <gmock/gmock.h>
 
 #include <process/clock.hpp>
@@ -17,15 +19,16 @@
 
 #include <stout/foreach.hpp>
 #include <stout/gtest.hpp>
-#include <stout/list.hpp>
+
+using std::list;
 
 using process::Clock;
 using process::Time;
 using process::TimeSeries;
 
-List<int> toList(const TimeSeries<int>& series)
+list<int> toList(const TimeSeries<int>& series)
 {
-  List<int> result;
+  list<int> result;
   foreach (const TimeSeries<int>::Value& value, series.get()) {
     result.push_back(value.data);
   }
@@ -71,40 +74,40 @@ TEST(TimeSeriesTest, Sparsify)
   series.set(8, now + Seconds(8));
   series.set(9, now + Seconds(9));
 
-  ASSERT_EQ(List<int>(0, 1, 2, 3, 4, 5, 6, 7, 8, 9), toList(series));
+  ASSERT_EQ(list<int>({0, 1, 2, 3, 4, 5, 6, 7, 8, 9}), toList(series));
 
   // Verify the sparsification pattern.
   series.set(10, now + Seconds(10));
-  ASSERT_EQ(List<int>(0, 2, 3, 4, 5, 6, 7, 8, 9, 10), toList(series));
+  ASSERT_EQ(list<int>({0, 2, 3, 4, 5, 6, 7, 8, 9, 10}), toList(series));
 
   series.set(11, now + Seconds(11));
-  ASSERT_EQ(List<int>(0, 2, 4, 5, 6, 7, 8, 9, 10, 11), toList(series));
+  ASSERT_EQ(list<int>({0, 2, 4, 5, 6, 7, 8, 9, 10, 11}), toList(series));
 
   series.set(12, now + Seconds(12));
-  ASSERT_EQ(List<int>(0, 2, 4, 6, 7, 8, 9, 10, 11, 12), toList(series));
+  ASSERT_EQ(list<int>({0, 2, 4, 6, 7, 8, 9, 10, 11, 12}), toList(series));
 
   series.set(13, now + Seconds(13));
-  ASSERT_EQ(List<int>(0, 2, 4, 6, 8, 9, 10, 11, 12, 13), toList(series));
+  ASSERT_EQ(list<int>({0, 2, 4, 6, 8, 9, 10, 11, 12, 13}), toList(series));
 
   series.set(14, now + Seconds(14));
-  ASSERT_EQ(List<int>(0, 2, 4, 6, 8, 10, 11, 12, 13, 14), toList(series));
+  ASSERT_EQ(list<int>({0, 2, 4, 6, 8, 10, 11, 12, 13, 14}), toList(series));
 
   // Now we expect a new round of sparsification to occur, starting
   // again from the beginning.
   series.set(15, now + Seconds(15));
-  ASSERT_EQ(List<int>(0, 4, 6, 8, 10, 11, 12, 13, 14, 15), toList(series));
+  ASSERT_EQ(list<int>({0, 4, 6, 8, 10, 11, 12, 13, 14, 15}), toList(series));
 
   series.set(16, now + Seconds(16));
-  ASSERT_EQ(List<int>(0, 4, 8, 10, 11, 12, 13, 14, 15, 16), toList(series));
+  ASSERT_EQ(list<int>({0, 4, 8, 10, 11, 12, 13, 14, 15, 16}), toList(series));
 
   series.set(17, now + Seconds(17));
-  ASSERT_EQ(List<int>(0, 4, 8, 11, 12, 13, 14, 15, 16, 17), toList(series));
+  ASSERT_EQ(list<int>({0, 4, 8, 11, 12, 13, 14, 15, 16, 17}), toList(series));
 
   series.set(18, now + Seconds(18));
-  ASSERT_EQ(List<int>(0, 4, 8, 11, 13, 14, 15, 16, 17, 18), toList(series));
+  ASSERT_EQ(list<int>({0, 4, 8, 11, 13, 14, 15, 16, 17, 18}), toList(series));
 
   series.set(19, now + Seconds(19));
-  ASSERT_EQ(List<int>(0, 4, 8, 11, 13, 15, 16, 17, 18, 19), toList(series));
+  ASSERT_EQ(list<int>({0, 4, 8, 11, 13, 15, 16, 17, 18, 19}), toList(series));
 
   Clock::resume();
 }
@@ -130,13 +133,13 @@ TEST(TimeSeriesTest, Truncate)
   series.set(8, now + Seconds(8));
   series.set(9, now + Seconds(9));
 
-  ASSERT_EQ(List<int>(0, 1, 2, 3, 4, 5, 6, 7, 8, 9), toList(series));
+  ASSERT_EQ(list<int>({0, 1, 2, 3, 4, 5, 6, 7, 8, 9}), toList(series));
 
   // Cause the first 6 tasks to be truncated from the window.
   Clock::advance(Seconds(10 + 6));
   series.set(10, now + Seconds(10));
 
-  ASSERT_EQ(List<int>(7, 8, 9, 10), toList(series));
+  ASSERT_EQ(list<int>({7, 8, 9, 10}), toList(series));
 
   Clock::resume();
 
@@ -158,41 +161,41 @@ TEST(TimeSeriesTest, Truncate)
   series.set(8, now + Seconds(8));
   series.set(9, now + Seconds(9));
 
-  ASSERT_EQ(List<int>(0, 1, 2, 3, 4, 5, 6, 7, 8, 9), toList(series));
+  ASSERT_EQ(list<int>({0, 1, 2, 3, 4, 5, 6, 7, 8, 9}), toList(series));
 
   // Move the sparsification candidate forward to ensure sparsification
   // is correct after a truncation occurs.
   series.set(10, now + Seconds(10));
-  ASSERT_EQ(List<int>(0, 2, 3, 4, 5, 6, 7, 8, 9, 10), toList(series));
+  ASSERT_EQ(list<int>({0, 2, 3, 4, 5, 6, 7, 8, 9, 10}), toList(series));
 
   series.set(11, now + Seconds(11));
-  ASSERT_EQ(List<int>(0, 2, 4, 5, 6, 7, 8, 9, 10, 11), toList(series));
+  ASSERT_EQ(list<int>({0, 2, 4, 5, 6, 7, 8, 9, 10, 11}), toList(series));
 
   series.set(12, now + Seconds(12));
-  ASSERT_EQ(List<int>(0, 2, 4, 6, 7, 8, 9, 10, 11, 12), toList(series));
+  ASSERT_EQ(list<int>({0, 2, 4, 6, 7, 8, 9, 10, 11, 12}), toList(series));
 
   // Now the next sparsification candidate is '7'. First, we will
   // truncate exluding '7' and ensure sparsification proceeds as
   // expected.
   Clock::advance(Seconds(10 + 2));
   series.truncate();
-  ASSERT_EQ(List<int>(4, 6, 7, 8, 9, 10, 11, 12), toList(series));
+  ASSERT_EQ(list<int>({4, 6, 7, 8, 9, 10, 11, 12}), toList(series));
 
   // Add 2 more items to return to capacity.
   series.set(13, now + Seconds(13));
   series.set(14, now + Seconds(14));
-  ASSERT_EQ(List<int>(4, 6, 7, 8, 9, 10, 11, 12, 13, 14), toList(series));
+  ASSERT_EQ(list<int>({4, 6, 7, 8, 9, 10, 11, 12, 13, 14}), toList(series));
 
   // Now cause the time series to exceed capacity and ensure we
   // correctly remove '7'.
   series.set(15, now + Seconds(15));
-  ASSERT_EQ(List<int>(4, 6, 8, 9, 10, 11, 12, 13, 14, 15), toList(series));
+  ASSERT_EQ(list<int>({4, 6, 8, 9, 10, 11, 12, 13, 14, 15}), toList(series));
 
   // Finally, let's truncate into the next sparsification candidate
   // '9', and ensure sparsification is reset.
   Clock::advance(Seconds(7)); // 2 + 7 = 9.
   series.truncate();
-  ASSERT_EQ(List<int>(10, 11, 12, 13, 14, 15), toList(series));
+  ASSERT_EQ(list<int>({10, 11, 12, 13, 14, 15}), toList(series));
 
   // Get back to capacity and ensure sparsification starts from the
   // beginning.
@@ -200,11 +203,13 @@ TEST(TimeSeriesTest, Truncate)
   series.set(17, now + Seconds(17));
   series.set(18, now + Seconds(18));
   series.set(19, now + Seconds(19));
-  ASSERT_EQ(List<int>(10, 11, 12, 13, 14, 15, 16, 17, 18, 19), toList(series));
+  ASSERT_EQ(list<int>({10, 11, 12, 13, 14, 15, 16, 17, 18, 19}),
+            toList(series));
 
   // Did we sparsify from the beginning?
   series.set(20, now + Seconds(20));
-  ASSERT_EQ(List<int>(10, 12, 13, 14, 15, 16, 17, 18, 19, 20), toList(series));
+  ASSERT_EQ(list<int>({10, 12, 13, 14, 15, 16, 17, 18, 19, 20}),
+            toList(series));
 
   // Done!
   Clock::resume();
