@@ -60,6 +60,7 @@ using std::string;
 using std::vector;
 
 using testing::_;
+using testing::AtMost;
 using testing::DoAll;
 using testing::DoDefault;
 
@@ -267,6 +268,9 @@ TEST_F(ReservationTest, ReserveAndLaunchThenUnreserve)
   offer = offers.get()[0];
 
   EXPECT_TRUE(Resources(offer.resources()).contains(unreserved));
+
+  EXPECT_CALL(exec, shutdown(_))
+    .Times(AtMost(1));
 
   driver.stop();
   driver.join();
@@ -978,6 +982,9 @@ TEST_F(ReservationTest, CompatibleCheckpointedResources)
   terminate(slave2);
   wait(slave2);
 
+  EXPECT_CALL(exec, shutdown(_))
+    .Times(AtMost(1));
+
   driver.stop();
   driver.join();
 
@@ -1104,6 +1111,9 @@ TEST_F(ReservationTest, CompatibleCheckpointedResourcesWithPersistentVolumes)
   terminate(slave2);
   wait(slave2);
 
+  EXPECT_CALL(exec, shutdown(_))
+    .Times(AtMost(1));
+
   driver.stop();
   driver.join();
 
@@ -1207,6 +1217,9 @@ TEST_F(ReservationTest, IncompatibleCheckpointedResources)
 
   terminate(slave2);
   wait(slave2);
+
+  EXPECT_CALL(exec, shutdown(_))
+    .Times(AtMost(1));
 
   driver.stop();
   driver.join();
@@ -1722,6 +1735,9 @@ TEST_F(ReservationTest, ACLMultipleOperations)
 
   // Check that the task launched as expected.
   EXPECT_EQ(TASK_FINISHED, failedTaskStatus.get().state());
+
+  EXPECT_CALL(exec, shutdown(_))
+    .Times(AtMost(1));
 
   driver.stop();
   driver.join();
