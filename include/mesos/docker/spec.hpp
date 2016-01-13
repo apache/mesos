@@ -64,6 +64,12 @@ Option<Error> validate(const ImageManifest& manifest);
  */
 Try<ImageManifest> parse(const JSON::Object& json);
 
+
+/**
+ * Returns the docker v1 image manifest from the given string.
+ */
+Try<ImageManifest> parse(const std::string& s);
+
 } // namespace v1 {
 
 
@@ -80,6 +86,12 @@ Option<Error> validate(const ImageManifest& manifest);
  * Returns the docker v2 image manifest from the given JSON object.
  */
 Try<ImageManifest> parse(const JSON::Object& json);
+
+
+/**
+ * Returns the docker v2 image manifest from the given string.
+ */
+Try<ImageManifest> parse(const std::string& s);
 
 } // namespace v2 {
 } // namespace spec {

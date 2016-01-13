@@ -106,6 +106,17 @@ Try<ImageManifest> parse(const JSON::Object& json)
   return manifest.get();
 }
 
+
+Try<ImageManifest> parse(const string& s)
+{
+  Try<JSON::Object> json = JSON::parse<JSON::Object>(s);
+  if (json.isError()) {
+    return Error("JSON parse failed: " + json.error());
+  }
+
+  return parse(json.get());
+}
+
 } // namespace v1 {
 
 
@@ -178,6 +189,17 @@ Try<ImageManifest> parse(const JSON::Object& json)
   }
 
   return manifest.get();
+}
+
+
+Try<ImageManifest> parse(const string& s)
+{
+  Try<JSON::Object> json = JSON::parse<JSON::Object>(s);
+  if (json.isError()) {
+    return Error("JSON parse failed: " + json.error());
+  }
+
+  return parse(json.get());
 }
 
 } // namespace v2 {
