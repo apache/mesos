@@ -176,11 +176,7 @@ protected:
   static const int64_t DAYS         = 24 * HOURS;
   static const int64_t WEEKS        = 7 * DAYS;
 
-  // For the Seconds, Minutes, Hours, Days & Weeks constructor.
-  constexpr Duration(int32_t value, int64_t unit)
-    : nanos(value * unit) {}
-
-  // For the Nanoseconds, Microseconds, Milliseconds constructor.
+  // Construct from a (value, unit) pair.
   constexpr Duration(int64_t value, int64_t unit)
     : nanos(value * unit) {}
 
@@ -256,7 +252,7 @@ public:
 class Minutes : public Duration
 {
 public:
-  explicit constexpr Minutes(int32_t minutes)
+  explicit constexpr Minutes(int64_t minutes)
     : Duration(minutes, MINUTES) {}
 
   constexpr Minutes(const Duration& d) : Duration(d) {}
@@ -270,7 +266,7 @@ public:
 class Hours : public Duration
 {
 public:
-  explicit constexpr Hours(int32_t hours)
+  explicit constexpr Hours(int64_t hours)
     : Duration(hours, HOURS) {}
 
   constexpr Hours(const Duration& d) : Duration(d) {}
@@ -284,7 +280,7 @@ public:
 class Days : public Duration
 {
 public:
-  explicit Days(int32_t days)
+  explicit Days(int64_t days)
     : Duration(days, DAYS) {}
 
   Days(const Duration& d) : Duration(d) {}
@@ -298,7 +294,7 @@ public:
 class Weeks : public Duration
 {
 public:
-  explicit constexpr Weeks(int32_t value) : Duration(value, WEEKS) {}
+  explicit constexpr Weeks(int64_t value) : Duration(value, WEEKS) {}
 
   constexpr Weeks(const Duration& d) : Duration(d) {}
 
