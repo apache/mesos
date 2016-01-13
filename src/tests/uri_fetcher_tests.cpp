@@ -28,17 +28,22 @@
 
 #include <stout/os/exists.hpp>
 #include <stout/os/getcwd.hpp>
+#include <stout/os/ls.hpp>
 #include <stout/os/write.hpp>
 
 #include <stout/tests/utils.hpp>
 
+#include <mesos/docker/spec.hpp>
+
 #include "uri/fetcher.hpp"
 
+#include "uri/schemes/docker.hpp"
 #include "uri/schemes/hdfs.hpp"
 #include "uri/schemes/http.hpp"
 
 namespace http = process::http;
 
+using std::list;
 using std::string;
 
 using process::Future;
@@ -198,6 +203,96 @@ TEST_F(HadoopFetcherPluginTest, FetchNonExistingFile)
 
   AWAIT_FAILED(fetcher.get()->fetch(uri, dir));
 }
+
+
+// TODO(jieyu): Expose this constant so that other docker related
+// tests can use this as well.
+static constexpr char DOCKER_REGISTRY_HOST[] = "registry-1.docker.io";
+
+
+class DockerFetcherPluginTest : public TemporaryDirectoryTest {};
+
+
+TEST_F(DockerFetcherPluginTest, INTERNET_CURL_FetchManifest)
+{
+  URI uri = uri::docker::manifest(
+      "library/busybox",
+      "latest",
+      DOCKER_REGISTRY_HOST);
+
+  Try<Owned<uri::Fetcher>> fetcher = uri::fetcher::create();
+  ASSERT_SOME(fetcher);
+
+  string dir = path::join(os::getcwd(), "dir");
+
+  AWAIT_READY(fetcher.get()->fetch(uri, dir));
+
+  Try<string> _manifest = os::read(path::join(dir, "manifest"));
+  ASSERT_SOME(_manifest);
+
+  Try<docker::spec::v2::ImageManifest> manifest =
+    docker::spec::v2::parse(_manifest.get());
+
+  ASSERT_SOME(manifest);
+  EXPECT_EQ("library/busybox", manifest->name());
+  EXPECT_EQ("latest", manifest->tag());
+}
+
+
+TEST_F(DockerFetcherPluginTest, INTERNET_CURL_FetchBlob)
+{
+  const string digest =
+    "sha256:a3ed95caeb02ffe68cdd9fd84406680ae93d633cb16422d00e8a7c22955b46d4";
+
+  URI uri = uri::docker::blob(
+      "library/busybox",
+      digest,
+      DOCKER_REGISTRY_HOST);
+
+  Try<Owned<uri::Fetcher>> fetcher = uri::fetcher::create();
+  ASSERT_SOME(fetcher);
+
+  string dir = path::join(os::getcwd(), "dir");
+
+  AWAIT_READY(fetcher.get()->fetch(uri, dir));
+
+  EXPECT_TRUE(os::exists(path::join(dir, digest)));
+}
+
+
+// Fetches the image manifest and all blobs in that image.
+TEST_F(DockerFetcherPluginTest, INTERNET_CURL_FetchImage)
+{
+  URI uri = uri::docker::image(
+      "library/busybox",
+      "latest",
+      DOCKER_REGISTRY_HOST);
+
+  Try<Owned<uri::Fetcher>> fetcher = uri::fetcher::create();
+  ASSERT_SOME(fetcher);
+
+  string dir = path::join(os::getcwd(), "dir");
+
+  AWAIT_READY(fetcher.get()->fetch(uri, dir));
+
+  Try<string> _manifest = os::read(path::join(dir, "manifest"));
+  ASSERT_SOME(_manifest);
+
+  Try<docker::spec::v2::ImageManifest> manifest =
+    docker::spec::v2::parse(_manifest.get());
+
+  ASSERT_SOME(manifest);
+  EXPECT_EQ("library/busybox", manifest->name());
+  EXPECT_EQ("latest", manifest->tag());
+
+  for (int i = 0; i < manifest->fslayers_size(); i++) {
+    EXPECT_TRUE(os::exists(path::join(dir, manifest->fslayers(i).blobsum())));
+  }
+}
+
+
+// TODO(jieyu): Add Docker fetcher plugin tests to test with a local
+// registry server (w/ or w/o authentication).
 
 } // namespace tests {
 } // namespace internal {
