@@ -17,6 +17,8 @@
 #include <map>
 #include <ostream>
 #include <string>
+#include <tuple>
+#include <type_traits>
 #include <typeinfo> // For typeid.
 #include <vector>
 
@@ -237,28 +239,22 @@ private:
 };
 
 
-// Need to declare/define some explicit subclasses of FlagsBase so
-// that we can overload the 'Flags::operator FlagsN() const'
-// functions for each possible type.
-class _Flags1 : public virtual FlagsBase {};
-class _Flags2 : public virtual FlagsBase {};
-class _Flags3 : public virtual FlagsBase {};
-class _Flags4 : public virtual FlagsBase {};
-class _Flags5 : public virtual FlagsBase {};
+template <typename... FlagsTypes>
+class Flags : public virtual FlagsTypes...
+{
+  // Construct tuple types of sizeof...(FlagsTypes) compile-time bools to check
+  // non-recursively that all FlagsTypes derive from FlagsBase; as a helper we
+  // use is_object<FlagTypes> to construct sizeof...(FlagTypes) true types for
+  // the RHS (is_object<T> is a true type for anything one would inherit from).
+  static_assert(
+    std::is_same<
+      std::tuple<typename std::is_base_of<FlagsBase, FlagsTypes>::type...>,
+      std::tuple<typename std::is_object<FlagsTypes>::type...>>::value,
+    "Can only instantiate Flags with FlagsBase types.");
+};
 
-
-// TODO(benh): Add some "type constraints" for template parameters to
-// make sure they are all of type FlagsBase.
-template <typename Flags1 = _Flags1,
-          typename Flags2 = _Flags2,
-          typename Flags3 = _Flags3,
-          typename Flags4 = _Flags4,
-          typename Flags5 = _Flags5>
-class Flags : public virtual Flags1,
-              public virtual Flags2,
-              public virtual Flags3,
-              public virtual Flags4,
-              public virtual Flags5 {};
+template <>
+class Flags<> : public virtual FlagsBase {};
 
 
 template <typename T1, typename T2, typename F>
