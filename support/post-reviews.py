@@ -95,6 +95,7 @@ if diff_stat:
   sys.exit(1)
 
 top_level_dir = execute(['git', 'rev-parse', '--show-toplevel']).strip()
+git_dir = execute(['git', 'rev-parse', '--git-common-dir']).strip()
 
 # Use the tracking_branch specified by the user if exists.
 parser = argparse.ArgumentParser(add_help=False)
@@ -295,7 +296,7 @@ for i in range(len(shas)):
 
     # Now rebase all remaining shas on top of this amended commit.
     j = i + 1
-    old_sha = execute(['cat', os.path.join(top_level_dir, '.git/refs/heads', temporary_branch)]).strip()
+    old_sha = execute(['cat', os.path.join(git_dir, 'refs/heads', temporary_branch)]).strip()
     previous = old_sha
     while j < len(shas):
         execute(['git', 'checkout', shas[j]])
@@ -313,7 +314,7 @@ for i in range(len(shas)):
 
     # Okay, now update the actual branch to our temporary branch.
     new_sha = old_sha
-    old_sha = execute(['cat', os.path.join(top_level_dir, '.git/refs/heads', branch)]).strip()
+    old_sha = execute(['cat', os.path.join(git_dir, 'refs/heads', branch)]).strip()
     execute(['git', 'update-ref', 'refs/heads/' + branch, new_sha, old_sha])
 
     i = i + 1
