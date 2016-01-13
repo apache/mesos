@@ -20,6 +20,7 @@
 
 #include <linux/limits.h>
 
+#include <stout/adaptor.hpp>
 #include <stout/check.hpp>
 #include <stout/error.hpp>
 #include <stout/numify.hpp>
@@ -334,6 +335,27 @@ Try<Nothing> unmount(const string& target, int flags)
   // int umount2(const char *target, int flags);
   if (::umount2(target.c_str(), flags) < 0) {
     return ErrnoError("Failed to unmount '" + target + "'");
+  }
+
+  return Nothing();
+}
+
+
+Try<Nothing> unmountAll(const string& target, int flags)
+{
+  Try<fs::MountTable> mountTable = fs::MountTable::read("/proc/mounts");
+  if (mountTable.isError()) {
+    return Error("Failed to read mount table: " + mountTable.error());
+  }
+
+  foreach (const MountTable::Entry& entry,
+           adaptor::reverse(mountTable.get().entries)) {
+    if (strings::startsWith(entry.dir, target)) {
+      Try<Nothing> unmount = fs::unmount(entry.dir, flags);
+      if (unmount.isError()) {
+        return unmount;
+      }
+    }
   }
 
   return Nothing();

@@ -336,6 +336,13 @@ Try<Nothing> mount(const Option<std::string>& source,
 Try<Nothing> unmount(const std::string& target, int flags = 0);
 
 
+// Unmount a file system and all mounts under that file system.
+// @param   target    The (topmost) directory where the file system attaches.
+// @param   flags     Unmount flags.
+// @return  Whether the unmountAll operation succeeds.
+Try<Nothing> unmountAll(const std::string& target, int flags = 0);
+
+
 // Change the root filesystem.
 Try<Nothing> pivot_root(const std::string& newRoot, const std::string& putOld);
 
