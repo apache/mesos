@@ -1041,20 +1041,16 @@ TEST_F(HealthCheckTest, CheckCommandTimeout)
   EXPECT_NE(0u, offers.get().size());
 
   vector<TaskInfo> tasks = populateTasks(
-    "sleep 120", "sleep 120", offers.get()[0], 0, 3, None(), None(), 5);
+    "sleep 120", "sleep 120", offers.get()[0], 0, 1, None(), None(), 1);
 
-  // Expecting four unhealthy updates and one final kill update.
+  // Expecting one unhealthy update and one final kill update.
   Future<TaskStatus> statusRunning;
-  Future<TaskStatus> status1;
-  Future<TaskStatus> status2;
-  Future<TaskStatus> status3;
+  Future<TaskStatus> statusUnhealthy;
   Future<TaskStatus> statusKilled;
 
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillOnce(FutureArg<1>(&statusRunning))
-    .WillOnce(FutureArg<1>(&status1))
-    .WillOnce(FutureArg<1>(&status2))
-    .WillOnce(FutureArg<1>(&status3))
+    .WillOnce(FutureArg<1>(&statusUnhealthy))
     .WillOnce(FutureArg<1>(&statusKilled));
 
   driver.launchTasks(offers.get()[0].id(), tasks);
@@ -1062,17 +1058,9 @@ TEST_F(HealthCheckTest, CheckCommandTimeout)
   AWAIT_READY(statusRunning);
   EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
 
-  AWAIT_READY(status1);
-  EXPECT_EQ(TASK_RUNNING, status1.get().state());
-  EXPECT_FALSE(status1.get().healthy());
-
-  AWAIT_READY(status2);
-  EXPECT_EQ(TASK_RUNNING, status2.get().state());
-  EXPECT_FALSE(status2.get().healthy());
-
-  AWAIT_READY(status3);
-  EXPECT_EQ(TASK_RUNNING, status3.get().state());
-  EXPECT_FALSE(status3.get().healthy());
+  AWAIT_READY(statusUnhealthy);
+  EXPECT_EQ(TASK_RUNNING, statusUnhealthy.get().state());
+  EXPECT_FALSE(statusUnhealthy.get().healthy());
 
   AWAIT_READY(statusKilled);
   EXPECT_EQ(TASK_KILLED, statusKilled.get().state());
