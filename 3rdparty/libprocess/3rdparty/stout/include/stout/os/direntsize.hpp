@@ -10,20 +10,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef __STOUT_OS_WINDOWS_LS_HPP__
-#define __STOUT_OS_WINDOWS_LS_HPP__
-
-#include <list>
-#include <string>
+#ifndef __STOUT_OS_DIRENTSIZE_HPP__
+#define __STOUT_OS_DIRENTSIZE_HPP__
 
 
-namespace os {
+// For readability, we minimize the number of #ifdef blocks in the code by
+// splitting platform specifc system calls into separate directories.
+#ifdef __WINDOWS__
+#include <stout/os/windows/direntsize.hpp>
+#else
+#include <stout/os/posix/direntsize.hpp>
+#endif // __WINDOWS__
 
-inline Try<std::list<std::string>> ls(const std::string& directory)
-{
-  UNIMPLEMENTED;
-}
 
-} // namespace os {
-
-#endif // __STOUT_OS_WINDOWS_LS_HPP__
+#endif // __STOUT_OS_DIRENTSIZE_HPP__

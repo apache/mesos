@@ -13,14 +13,64 @@
 #ifndef __STOUT_OS_LS_HPP__
 #define __STOUT_OS_LS_HPP__
 
-
-// For readability, we minimize the number of #ifdef blocks in the code by
-// splitting platform specifc system calls into separate directories.
 #ifdef __WINDOWS__
-#include <stout/os/windows/ls.hpp>
+#include <stout/internal/windows/dirent.hpp>
 #else
-#include <stout/os/posix/ls.hpp>
+#include <dirent.h>
 #endif // __WINDOWS__
+#include <stdlib.h>
 
+#include <list>
+#include <string>
+
+#include <stout/error.hpp>
+#include <stout/try.hpp>
+
+#include <stout/os/direntsize.hpp>
+
+
+namespace os {
+
+inline Try<std::list<std::string>> ls(const std::string& directory)
+{
+  DIR* dir = opendir(directory.c_str());
+
+  if (dir == NULL) {
+    // Preserve `opendir` error.
+    return ErrnoError("Failed to opendir '" + directory + "'");
+  }
+
+  dirent* temp = (dirent*) malloc(os::dirent_size(dir));
+
+  if (temp == NULL) {
+    // Preserve `malloc` error.
+    ErrnoError error("Failed to allocate directory entries");
+    closedir(dir);
+    return error;
+  }
+
+  std::list<std::string> result;
+  struct dirent* entry;
+  int error;
+
+  while ((error = readdir_r(dir, temp, &entry)) == 0 && entry != NULL) {
+    if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
+      continue;
+    }
+    result.push_back(entry->d_name);
+  }
+
+  free(temp);
+  closedir(dir);
+
+  if (error != 0) {
+    // Preserve `readdir_r` error.
+    return ErrnoError("Failed to read directories");
+  }
+
+  return result;
+}
+
+} // namespace os {
 
 #endif // __STOUT_OS_LS_HPP__
