@@ -790,6 +790,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   uri/fetchers/curl.hpp							\
   uri/fetchers/docker.hpp						\
   uri/fetchers/hadoop.hpp						\
+  uri/schemes/docker.hpp						\
   uri/schemes/file.hpp							\
   uri/schemes/hdfs.hpp							\
   uri/schemes/http.hpp							\
