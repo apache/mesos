@@ -61,7 +61,7 @@ We use single backticks to highlight sample commands as follows:
 
 Files and path references should be specified as follows:
 
-~~~{.text}
+~~~{.txt}
 Remember you can also use the `file:///path/to/file` or `/path/to/file`
 ~~~
 
@@ -70,36 +70,33 @@ Remember you can also use the `file:///path/to/file` or `/path/to/file`
 
 In order to avoid problems with markdown formatting we should specify tables in html directly:
 
-~~~{.html}
-<table class="table table-striped">
-  <thead>
-    <tr>
-      <th width="30%">
-        Flag
-      </th>
-      <th>
-        Explanation
-      </th>
-  </thead>
-  <tr>
-    <td>
-      --ip=VALUE
-    </td>
-    <td>
-      IP address to listen on
-    </td>
-  </tr>
-  <tr>
-    <td>
-      --[no-]help
-    </td>
-    <td>
-      Prints this help message (default: false)
-
-    </td>
-  </tr>
-</table>
-~~~
+    <table class="table table-striped">
+      <thead>
+        <tr>
+          <th width="30%">
+            Flag
+          </th>
+          <th>
+            Explanation
+          </th>
+      </thead>
+      <tr>
+        <td>
+          --ip=VALUE
+        </td>
+        <td>
+          IP address to listen on
+        </td>
+      </tr>
+      <tr>
+        <td>
+          --[no-]help
+        </td>
+        <td>
+          Prints this help message (default: false)
+        </td>
+      </tr>
+    </table>
 
 
 ## Indendation and Whitespace
