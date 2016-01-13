@@ -44,7 +44,6 @@ nobase_include_HEADERS =		\
   stout/json.hpp			\
   stout/lambda.hpp			\
   stout/linkedhashmap.hpp		\
-  stout/list.hpp			\
   stout/mac.hpp				\
   stout/multihashmap.hpp		\
   stout/multimap.hpp			\
