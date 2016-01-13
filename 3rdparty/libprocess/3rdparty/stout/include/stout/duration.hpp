@@ -14,7 +14,6 @@
 #define __STOUT_DURATION_HPP__
 
 #include <ctype.h> // For 'isdigit'.
-#include <limits.h> // For 'LLONG_(MAX|MIN)'.
 
 // For 'timeval'.
 #ifndef __WINDOWS__
@@ -399,7 +398,8 @@ inline std::ostream& operator<<(std::ostream& stream, const Duration& duration_)
 
 inline Try<Duration> Duration::create(double seconds)
 {
-  if (seconds * SECONDS > LLONG_MAX || seconds * SECONDS < LLONG_MIN) {
+  if (seconds * SECONDS > std::numeric_limits<int64_t>::max() ||
+      seconds * SECONDS < std::numeric_limits<int64_t>::min()) {
     return Error("Argument out of the range that a Duration can represent due "
                  "to int64_t's size limit");
   }
@@ -407,10 +407,15 @@ inline Try<Duration> Duration::create(double seconds)
   return Nanoseconds(static_cast<int64_t>(seconds * SECONDS));
 }
 
+inline constexpr Duration Duration::max()
+{
+  return Nanoseconds(std::numeric_limits<int64_t>::max());
+}
 
-inline constexpr Duration Duration::max() { return Nanoseconds(LLONG_MAX); }
 
-
-inline constexpr Duration Duration::min() { return Nanoseconds(LLONG_MIN); }
+inline constexpr Duration Duration::min()
+{
+  return Nanoseconds(std::numeric_limits<int64_t>::min());
+}
 
 #endif // __STOUT_DURATION_HPP__
