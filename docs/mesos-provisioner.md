@@ -18,6 +18,7 @@ Image: An image in this documentation refers to a container filesystem image. A 
 
 We introduced a new protobuf message `Image` that describes a container filesystem image.
 
+~~~{.proto}
 message Image {
   enum Type {
     APPC = 1;
@@ -40,6 +41,7 @@ message Image {
   optional Appc appc = 2;
   optional Docker docker = 3;
 }
+~~~
 
 This `Image` message type contains the type of image specification and the corresponding configurations for that type.
 
