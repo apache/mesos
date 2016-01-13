@@ -117,6 +117,13 @@ Following are the instructions for stock CentOS 6.6. If you are using a differen
     $ scl enable devtoolset-2 bash
     $ g++ --version  # Make sure you've got GCC > 4.8!
 
+    # Process isolation is using cgroups that are managed by 'cgconfig'.
+    # The 'cgconfig' service is not started by default on CentOS 6.6.
+    # Also the default configuration does not attach the 'perf_event' subsystem.
+    # To do this, add 'perf_event = /cgroup/perf_event;' to the entries in '/etc/cgconfig.conf'.
+    $ sudo yum install -y libcgroup
+    $ sudo service cgconfig start
+
 ### CentOS 7.1
 
 Following are the instructions for stock CentOS 7.1. If you are using a different OS, please install the packages accordingly.
