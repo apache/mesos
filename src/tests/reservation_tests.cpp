@@ -1239,7 +1239,7 @@ TEST_F(ReservationTest, GoodACLReserveThenUnreserve)
   reserve->mutable_principals()->add_values(DEFAULT_CREDENTIAL.principal());
   reserve->mutable_resources()->set_type(mesos::ACL::Entity::ANY);
 
-  // This principal can unreserve any resources.
+  // This principal can unreserve its own reserved resources.
   mesos::ACL::UnreserveResources* unreserve = acls.add_unreserve_resources();
   unreserve->mutable_principals()->add_values(DEFAULT_CREDENTIAL.principal());
   unreserve->mutable_reserver_principals()->add_values(
