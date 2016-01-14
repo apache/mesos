@@ -61,6 +61,7 @@ nobase_include_HEADERS =		\
   stout/os/environment.hpp		\
   stout/os/exists.hpp			\
   stout/os/fcntl.hpp			\
+  stout/os/find.hpp			\
   stout/os/fork.hpp			\
   stout/os/ftruncate.hpp		\
   stout/os/getcwd.hpp			\
