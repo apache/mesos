@@ -104,6 +104,7 @@ using std::vector;
 
 using filter::ip::PortRange;
 
+using mesos::slave::ContainerConfig;
 using mesos::slave::ContainerLimitation;
 using mesos::slave::ContainerPrepareInfo;
 using mesos::slave::ContainerState;
@@ -2109,8 +2110,7 @@ PortMappingIsolatorProcess::_recover(pid_t pid)
 Future<Option<ContainerPrepareInfo>> PortMappingIsolatorProcess::prepare(
     const ContainerID& containerId,
     const ExecutorInfo& executorInfo,
-    const string& directory,
-    const Option<string>& user)
+    const ContainerConfig& containerConfig)
 {
   if (unmanaged.contains(containerId)) {
     return Failure("Asked to prepare an unmanaged container");

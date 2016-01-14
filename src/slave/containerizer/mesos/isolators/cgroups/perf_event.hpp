@@ -46,8 +46,7 @@ public:
   virtual process::Future<Option<mesos::slave::ContainerPrepareInfo>> prepare(
       const ContainerID& containerId,
       const ExecutorInfo& executorInfo,
-      const std::string& directory,
-      const Option<std::string>& user);
+      const mesos::slave::ContainerConfig& containerConfig);
 
   virtual process::Future<Nothing> isolate(
       const ContainerID& containerId,

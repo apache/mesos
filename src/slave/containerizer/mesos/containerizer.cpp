@@ -688,7 +688,7 @@ static Future<list<Option<ContainerPrepareInfo>>> _prepare(
     const list<Option<ContainerPrepareInfo>> prepareInfos)
 {
   // Propagate any failure.
-  return isolator->prepare(containerId, executorInfo, directory, user)
+  return isolator->prepare(containerId, executorInfo, containerConfig)
     .then(lambda::bind(&accumulate, prepareInfos, lambda::_1));
 }
 

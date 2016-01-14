@@ -53,6 +53,7 @@ using std::set;
 using std::string;
 using std::vector;
 
+using mesos::slave::ContainerConfig;
 using mesos::slave::ContainerLimitation;
 using mesos::slave::ContainerPrepareInfo;
 using mesos::slave::ContainerState;
@@ -233,8 +234,7 @@ Future<Nothing> CgroupsMemIsolatorProcess::recover(
 Future<Option<ContainerPrepareInfo>> CgroupsMemIsolatorProcess::prepare(
     const ContainerID& containerId,
     const ExecutorInfo& executorInfo,
-    const string& directory,
-    const Option<string>& user)
+    const ContainerConfig& containerConfig)
 {
   if (infos.contains(containerId)) {
     return Failure("Container has already been prepared");
@@ -266,9 +266,9 @@ Future<Option<ContainerPrepareInfo>> CgroupsMemIsolatorProcess::prepare(
   // Chown the cgroup so the executor can create nested cgroups. Do
   // not recurse so the control files are still owned by the slave
   // user and thus cannot be changed by the executor.
-  if (user.isSome()) {
+  if (containerConfig.has_user()) {
     Try<Nothing> chown = os::chown(
-        user.get(),
+        containerConfig.user(),
         path::join(hierarchy, info->cgroup),
         false);
     if (chown.isError()) {

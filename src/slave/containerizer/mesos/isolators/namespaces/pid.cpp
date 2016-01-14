@@ -37,6 +37,7 @@ using std::list;
 using std::set;
 using std::string;
 
+using mesos::slave::ContainerConfig;
 using mesos::slave::ContainerLimitation;
 using mesos::slave::ContainerPrepareInfo;
 using mesos::slave::ContainerState;
@@ -154,8 +155,7 @@ Future<Nothing> NamespacesPidIsolatorProcess::recover(
 Future<Option<ContainerPrepareInfo>> NamespacesPidIsolatorProcess::prepare(
     const ContainerID& containerId,
     const ExecutorInfo& executorInfo,
-    const string& directory,
-    const Option<string>& user)
+    const ContainerConfig& containerConfig)
 {
   ContainerPrepareInfo prepareInfo;
   prepareInfo.set_namespaces(CLONE_NEWPID | CLONE_NEWNS);

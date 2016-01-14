@@ -23,6 +23,7 @@ using namespace process;
 using std::string;
 using std::list;
 
+using mesos::slave::ContainerConfig;
 using mesos::slave::ContainerLimitation;
 using mesos::slave::ContainerPrepareInfo;
 using mesos::slave::ContainerState;

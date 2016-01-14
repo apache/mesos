@@ -54,6 +54,7 @@ using std::list;
 using std::string;
 using std::vector;
 
+using mesos::slave::ContainerConfig;
 using mesos::slave::ContainerLimitation;
 using mesos::slave::ContainerPrepareInfo;
 using mesos::slave::ContainerState;
@@ -105,14 +106,13 @@ Future<Nothing> PosixDiskIsolatorProcess::recover(
 Future<Option<ContainerPrepareInfo>> PosixDiskIsolatorProcess::prepare(
     const ContainerID& containerId,
     const ExecutorInfo& executorInfo,
-    const string& directory,
-    const Option<string>& user)
+    const ContainerConfig& containerConfig)
 {
   if (infos.contains(containerId)) {
     return Failure("Container has already been prepared");
   }
 
-  infos.put(containerId, Owned<Info>(new Info(directory)));
+  infos.put(containerId, Owned<Info>(new Info(containerConfig.directory())));
 
   return None();
 }

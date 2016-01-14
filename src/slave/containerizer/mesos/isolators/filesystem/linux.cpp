@@ -49,6 +49,7 @@ using std::list;
 using std::ostringstream;
 using std::string;
 
+using mesos::slave::ContainerConfig;
 using mesos::slave::ContainerState;
 using mesos::slave::ContainerLimitation;
 using mesos::slave::ContainerPrepareInfo;
@@ -273,9 +274,15 @@ Future<Nothing> LinuxFilesystemIsolatorProcess::_recover(
 Future<Option<ContainerPrepareInfo>> LinuxFilesystemIsolatorProcess::prepare(
     const ContainerID& containerId,
     const ExecutorInfo& executorInfo,
-    const string& directory,
-    const Option<string>& user)
+    const ContainerConfig& containerConfig)
 {
+  const string& directory = containerConfig.directory();
+
+  Option<string> user;
+  if (containerConfig.has_user()) {
+    user = containerConfig.user();
+  }
+
   if (infos.contains(containerId)) {
     return Failure("Container has already been prepared");
   }
