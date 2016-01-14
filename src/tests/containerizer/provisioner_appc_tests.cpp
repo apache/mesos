@@ -214,7 +214,7 @@ TEST_F(ProvisionerAppcTest, ROOT_Provision)
 
   Fetcher fetcher;
 
-  Try<Owned<Provisioner>> provisioner = Provisioner::create(flags, &fetcher);
+  Try<Owned<Provisioner>> provisioner = Provisioner::create(flags);
   ASSERT_SOME(provisioner);
 
   // Create a simple image in the store:
@@ -325,7 +325,7 @@ TEST_F(ProvisionerAppcTest, Recover)
   flags.work_dir = "work_dir";
 
   Fetcher fetcher;
-  Try<Owned<Provisioner>> provisioner1 = Provisioner::create(flags, &fetcher);
+  Try<Owned<Provisioner>> provisioner1 = Provisioner::create(flags);
   ASSERT_SOME(provisioner1);
 
   // Create a simple image in the store:
@@ -371,7 +371,7 @@ TEST_F(ProvisionerAppcTest, Recover)
   AWAIT_READY(provisionInfo);
 
   // Create a new provisioner to recover the state from the container.
-  Try<Owned<Provisioner>> provisioner2 = Provisioner::create(flags, &fetcher);
+  Try<Owned<Provisioner>> provisioner2 = Provisioner::create(flags);
   ASSERT_SOME(provisioner2);
 
   mesos::slave::ContainerState state;

@@ -47,9 +47,7 @@ namespace mesos {
 namespace internal {
 namespace slave {
 
-Try<Owned<Provisioner>> Provisioner::create(
-    const Flags& flags,
-    Fetcher* fetcher)
+Try<Owned<Provisioner>> Provisioner::create(const Flags& flags)
 {
   string _rootDir = slave::paths::getProvisionerDir(flags.work_dir);
 

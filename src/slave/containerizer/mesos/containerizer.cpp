@@ -180,7 +180,7 @@ Try<MesosContainerizer*> MesosContainerizer::create(
 
 #ifdef __linux__
   // The provisioner will be used by the 'filesystem/linux' isolator.
-  Try<Owned<Provisioner>> provisioner = Provisioner::create(flags_, fetcher);
+  Try<Owned<Provisioner>> provisioner = Provisioner::create(flags_);
   if (provisioner.isError()) {
     return Error("Failed to create provisioner: " + provisioner.error());
   }
