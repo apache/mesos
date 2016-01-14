@@ -391,7 +391,7 @@ TEST_P(ExecutorHttpApiTest, DefaultAccept)
       stringify(contentType));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
-  EXPECT_SOME_EQ(APPLICATION_JSON, response.get().headers.get("Content-Type"));
+  AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
 
   Shutdown();
 }
@@ -471,7 +471,7 @@ TEST_P(ExecutorHttpApiTest, NoAcceptHeader)
       stringify(contentType));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
-  EXPECT_SOME_EQ(APPLICATION_JSON, response.get().headers.get("Content-Type"));
+  AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
 
   Shutdown();
 }
@@ -759,23 +759,21 @@ TEST_P(ExecutorHttpApiTest, Subscribe)
 
   // Retrieve the parameter passed as content type to this test.
   const ContentType contentType = GetParam();
+  const string contentTypeString = stringify(contentType);
 
   process::http::Headers headers;
-  headers["Accept"] = stringify(contentType);
+  headers["Accept"] = contentTypeString;
 
   Future<Response> response = process::http::streaming::post(
       slave.get(),
       "api/v1/executor",
       headers,
       serialize(contentType, call),
-      stringify(contentType));
+      contentTypeString);
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
-  EXPECT_SOME_EQ(stringify(contentType),
-                 response.get().headers.get("Content-Type"));
-
-  EXPECT_SOME_EQ("chunked",
-                 response.get().headers.get("Transfer-Encoding"));
+  AWAIT_EXPECT_RESPONSE_HEADER_EQ("chunked", "Transfer-Encoding", response);
+  AWAIT_EXPECT_RESPONSE_HEADER_EQ(contentTypeString, "Content-Type", response);
 
   ASSERT_EQ(Response::PIPE, response.get().type);
 

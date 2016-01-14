@@ -71,6 +71,9 @@ using process::PID;
 using process::Promise;
 using process::UPID;
 
+using process::http::OK;
+using process::http::Response;
+
 using std::map;
 using std::shared_ptr;
 using std::string;
@@ -100,10 +103,10 @@ class SlaveTest : public MesosTest {};
 // immediately and rescinds any offers.
 TEST_F(SlaveTest, Shutdown)
 {
-  Try<PID<Master> > master = StartMaster();
+  Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
-  Try<PID<Slave> > slave = StartSlave();
+  Try<PID<Slave>> slave = StartSlave();
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -112,7 +115,7 @@ TEST_F(SlaveTest, Shutdown)
 
   EXPECT_CALL(sched, registered(&driver, _, _));
 
-  Future<vector<Offer> > offers;
+  Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillOnce(FutureArg<1>(&offers))
     .WillRepeatedly(Return()); // Ignore subsequent offers.
@@ -1178,14 +1181,10 @@ TEST_F(SlaveTest, StateEndpoint)
   Try<PID<Slave>> slave = StartSlave(&containerizer, flags);
   ASSERT_SOME(slave);
 
-  Future<process::http::Response> response =
-    process::http::get(slave.get(), "state");
+  Future<Response> response = process::http::get(slave.get(), "state");
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(process::http::OK().status, response);
-
-  EXPECT_SOME_EQ(
-      "application/json",
-      response.get().headers.get("Content-Type"));
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
 
   Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
 
@@ -1294,10 +1293,7 @@ TEST_F(SlaveTest, StateEndpoint)
   response = http::get(slave.get(), "state");
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::OK().status, response);
-
-  EXPECT_SOME_EQ(
-      "application/json",
-      response.get().headers.get("Content-Type"));
+  AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
 
   parse = JSON::parse<JSON::Object>(response.get().body);
   ASSERT_SOME(parse);
@@ -2229,11 +2225,10 @@ TEST_F(SlaveTest, DiscoveryInfoAndPorts)
   AWAIT_READY(launchTask);
 
   // Verify label key and value in slave state.json.
-  Future<process::http::Response> response =
-    process::http::get(slave.get(), "state.json");
+  Future<Response> response = process::http::get(slave.get(), "state.json");
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(process::http::OK().status, response);
-  EXPECT_SOME_EQ(APPLICATION_JSON, response.get().headers.get("Content-Type"));
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
 
   Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
   ASSERT_SOME(parse);
@@ -2337,13 +2332,10 @@ TEST_F(SlaveTest, TaskLabels)
   AWAIT_READY(update);
 
   // Verify label key and value in slave state endpoint.
-  Future<process::http::Response> response =
-    process::http::get(slave.get(), "state");
-  AWAIT_READY(response);
+  Future<Response> response = process::http::get(slave.get(), "state");
 
-  EXPECT_SOME_EQ(
-      "application/json",
-      response.get().headers.get("Content-Type"));
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
 
   Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
   ASSERT_SOME(parse);
@@ -2439,13 +2431,10 @@ TEST_F(SlaveTest, TaskStatusLabels)
   AWAIT_READY(status);
 
   // Verify label key and value in master state.json.
-  Future<process::http::Response> response =
-    process::http::get(slave.get(), "state.json");
-  AWAIT_READY(response);
+  Future<Response> response = process::http::get(slave.get(), "state.json");
 
-  EXPECT_SOME_EQ(
-      "application/json",
-      response.get().headers.get("Content-Type"));
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
 
   Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
   ASSERT_SOME(parse);
@@ -2536,13 +2525,10 @@ TEST_F(SlaveTest, TaskStatusContainerStatus)
       status.get().container_status().network_infos(0).ip_address());
 
   // Now do the same validation with state endpoint.
-  Future<process::http::Response> response =
-    process::http::get(slave.get(), "state.json");
-  AWAIT_READY(response);
+  Future<Response> response = process::http::get(slave.get(), "state.json");
 
-  EXPECT_SOME_EQ(
-      "application/json",
-      response.get().headers.get("Content-Type"));
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
 
   Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
   ASSERT_SOME(parse);
@@ -2874,7 +2860,7 @@ TEST_F(SlaveTest, HTTPSchedulerLiveUpgrade)
 // master (instead of directly to the scheduler!).
 TEST_F(SlaveTest, HTTPSchedulerSlaveRestart)
 {
-  Try<PID<Master> > master = this->StartMaster();
+  Try<PID<Master>> master = this->StartMaster();
   ASSERT_SOME(master);
 
   slave::Flags flags = this->CreateSlaveFlags();
@@ -2886,7 +2872,7 @@ TEST_F(SlaveTest, HTTPSchedulerSlaveRestart)
 
   ASSERT_SOME(containerizer);
 
-  Try<PID<Slave> > slave = this->StartSlave(containerizer.get(), flags);
+  Try<PID<Slave>> slave = this->StartSlave(containerizer.get(), flags);
   ASSERT_SOME(slave);
 
   // Enable checkpointing for the framework.
@@ -2901,7 +2887,7 @@ TEST_F(SlaveTest, HTTPSchedulerSlaveRestart)
   EXPECT_CALL(sched, registered(_, _, _))
     .WillOnce(SaveArg<1>(&frameworkId));
 
-  Future<vector<Offer> > offers;
+  Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(_, _))
     .WillOnce(FutureArg<1>(&offers))
     .WillRepeatedly(Return());      // Ignore subsequent offers.

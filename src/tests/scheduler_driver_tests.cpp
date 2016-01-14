@@ -97,10 +97,7 @@ TEST_F(MesosSchedulerDriverTest, MetricsEndpoint)
     process::http::get(MetricsProcess::instance()->self(), "/snapshot");
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
-
-  EXPECT_SOME_EQ(
-      "application/json",
-      response.get().headers.get("Content-Type"));
+  AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
 
   Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
 

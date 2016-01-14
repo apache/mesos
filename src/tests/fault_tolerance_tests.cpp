@@ -68,6 +68,7 @@ using process::Owned;
 using process::PID;
 using process::Promise;
 using process::UPID;
+
 using process::http::OK;
 using process::http::Response;
 
@@ -168,10 +169,10 @@ TEST_F(FaultToleranceTest, ReregisterCompletedFrameworks)
 
   // Verify master/slave have 0 completed/running frameworks.
   Future<Response> masterState = process::http::get(master.get(), "state");
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, masterState);
 
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, masterState);
   AWAIT_EXPECT_RESPONSE_HEADER_EQ(
-      "application/json",
+      APPLICATION_JSON,
       "Content-Type",
       masterState);
 
@@ -1903,9 +1904,8 @@ TEST_F(FaultToleranceTest, UpdateFrameworkInfoOnSchedulerFailover)
 
   AWAIT_READY(sched1Error);
 
-  Future<process::http::Response> response = process::http::get(
-    master.get(), "state.json");
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(process::http::OK().status, response);
+  Future<Response> response = process::http::get(master.get(), "state.json");
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 
   Try<JSON::Object> parse =
     JSON::parse<JSON::Object>(response.get().body);

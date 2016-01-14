@@ -82,16 +82,16 @@ string stringify(const JsonResponse& response)
 #define VALIDATE_GOOD_RESPONSE(response, jsonResponse)                     \
     AWAIT_READY(response);                                                 \
     AWAIT_EXPECT_RESPONSE_HEADER_EQ(                                       \
-        "application/json",                                                \
+        APPLICATION_JSON,                                                  \
         "Content-Type",                                                    \
-      response);                                                           \
+        response);                                                         \
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);                \
     AWAIT_EXPECT_RESPONSE_BODY_EQ(jsonResponse, response);
 
 
 TEST_F(HealthTest, ObserveEndpoint)
 {
-  Try<PID<Master> > master = StartMaster();
+  Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   // Empty get to the observe endpoint.

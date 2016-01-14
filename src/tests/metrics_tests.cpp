@@ -45,11 +45,9 @@ TEST_F(MetricsTest, Master)
 
   process::Future<process::http::Response> response =
       process::http::get(upid, "snapshot");
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(process::http::OK().status, response);
 
-  EXPECT_SOME_EQ(
-      "application/json",
-      response.get().headers.get("Content-Type"));
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(process::http::OK().status, response);
+  AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
 
   Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
   ASSERT_SOME(parse);
@@ -163,11 +161,9 @@ TEST_F(MetricsTest, Slave)
 
   process::Future<process::http::Response> response =
       process::http::get(upid, "snapshot");
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(process::http::OK().status, response);
 
-  EXPECT_SOME_EQ(
-      "application/json",
-      response.get().headers.get("Content-Type"));
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(process::http::OK().status, response);
+  AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
 
   Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
   ASSERT_SOME(parse);

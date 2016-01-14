@@ -81,6 +81,9 @@ using process::Future;
 using process::PID;
 using process::Promise;
 
+using process::http::OK;
+using process::http::Response;
+
 using std::shared_ptr;
 using std::string;
 using std::vector;
@@ -279,9 +282,10 @@ TEST_F(MasterTest, ShutdownFrameworkWhileTaskRunning)
   Clock::resume();
 
   // Request master state.
-  Future<process::http::Response> response =
-    process::http::get(master.get(), "state");
-  AWAIT_READY(response);
+  Future<Response> response = process::http::get(master.get(), "state");
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
 
   // These checks are not essential for the test, but may help
   // understand what went wrong.
@@ -1629,17 +1633,12 @@ TEST_F(MasterTest, SlavesEndpointWithoutSlaves)
   ASSERT_SOME(master);
 
   // Query the master.
-  Future<process::http::Response> response =
-    process::http::get(master.get(), "slaves");
+  Future<Response> response = process::http::get(master.get(), "slaves");
 
-  AWAIT_READY(response);
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
 
-  EXPECT_SOME_EQ(
-      "application/json",
-      response.get().headers.get("Content-Type"));
-
-  const Try<JSON::Value> parse =
-    JSON::parse(response.get().body);
+  const Try<JSON::Value> parse = JSON::parse(response.get().body);
   ASSERT_SOME(parse);
 
   Try<JSON::Value> expected = JSON::parse(
@@ -1678,14 +1677,10 @@ TEST_F(MasterTest, SlavesEndpointTwoSlaves)
   AWAIT_READY(slave2RegisteredMessage);
 
   // Query the master.
-  Future<process::http::Response> response =
-    process::http::get(master.get(), "slaves");
+  Future<Response> response = process::http::get(master.get(), "slaves");
 
-  AWAIT_READY(response);
-
-  EXPECT_SOME_EQ(
-      "application/json",
-      response.get().headers.get("Content-Type"));
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
 
   const Try<JSON::Object> parse =
     JSON::parse<JSON::Object>(response.get().body);
@@ -2270,13 +2265,10 @@ TEST_F(MasterTest, OrphanTasks)
   EXPECT_EQ(TASK_RUNNING, status.get().state());
 
   // Get the master's state.
-  Future<process::http::Response> response =
-    process::http::get(master.get(), "state");
-  AWAIT_READY(response);
+  Future<Response> response = process::http::get(master.get(), "state");
 
-  EXPECT_SOME_EQ(
-      "application/json",
-      response.get().headers.get("Content-Type"));
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
 
   Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
   ASSERT_SOME(parse);
@@ -2338,11 +2330,9 @@ TEST_F(MasterTest, OrphanTasks)
 
   // Get the master's state.
   response = process::http::get(master.get(), "state");
-  AWAIT_READY(response);
 
-  EXPECT_SOME_EQ(
-      "application/json",
-      response.get().headers.get("Content-Type"));
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
 
   parse = JSON::parse<JSON::Object>(response.get().body);
   ASSERT_SOME(parse);
@@ -2373,11 +2363,9 @@ TEST_F(MasterTest, OrphanTasks)
 
   // Get the master's state.
   response = process::http::get(master.get(), "state");
-  AWAIT_READY(response);
 
-  EXPECT_SOME_EQ(
-      "application/json",
-      response.get().headers.get("Content-Type"));
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
 
   parse = JSON::parse<JSON::Object>(response.get().body);
   ASSERT_SOME(parse);
@@ -2838,14 +2826,10 @@ TEST_F(MasterTest, StateEndpoint)
   Try<PID<Master>> master = StartMaster(flags);
   ASSERT_SOME(master);
 
-  Future<process::http::Response> response =
-    process::http::get(master.get(), "state");
+  Future<Response> response = process::http::get(master.get(), "state");
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(process::http::OK().status, response);
-
-  EXPECT_SOME_EQ(
-      "application/json",
-      response.get().headers.get("Content-Type"));
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
 
   Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
   ASSERT_SOME(parse);
@@ -2935,7 +2919,7 @@ TEST_F(MasterTest, StateSummaryEndpoint)
   EXPECT_CALL(sched, registered(&driver, _, _))
     .Times(1);
 
-  Future<vector<Offer> > offers;
+  Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillOnce(FutureArg<1>(&offers))
     .WillRepeatedly(Return()); // Ignore subsequent offers.
@@ -2984,14 +2968,10 @@ TEST_F(MasterTest, StateSummaryEndpoint)
   EXPECT_CALL(exec, shutdown(_))
     .Times(AtMost(1));
 
-  Future<process::http::Response> response =
-    process::http::get(master.get(), "state-summary");
+  Future<Response> response = process::http::get(master.get(), "state-summary");
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(process::http::OK().status, response);
-
-  EXPECT_SOME_EQ(
-      "application/json",
-      response.get().headers.get("Content-Type"));
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
 
   Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
   ASSERT_SOME(parse);
@@ -3044,9 +3024,8 @@ TEST_F(MasterTest, FrameworkWebUIUrlandCapabilities)
 
   AWAIT_READY(registered);
 
-  Future<process::http::Response> masterState =
-    process::http::get(master.get(), "state");
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(process::http::OK().status, masterState);
+  Future<Response> masterState = process::http::get(master.get(), "state");
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, masterState);
 
   Try<JSON::Object> parse = JSON::parse<JSON::Object>(masterState.get().body);
   ASSERT_SOME(parse);
@@ -3151,13 +3130,10 @@ TEST_F(MasterTest, TaskLabels)
   AWAIT_READY(update);
 
   // Verify label key and value in the master's state endpoint.
-  Future<process::http::Response> response =
-    process::http::get(master.get(), "state");
-  AWAIT_READY(response);
+  Future<Response> response = process::http::get(master.get(), "state");
 
-  EXPECT_SOME_EQ(
-      "application/json",
-      response.get().headers.get("Content-Type"));
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
 
   Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
   ASSERT_SOME(parse);
@@ -3253,13 +3229,10 @@ TEST_F(MasterTest, TaskStatusLabels)
   AWAIT_READY(status);
 
   // Verify label key and value in master state.json.
-  Future<process::http::Response> response =
-    process::http::get(master.get(), "state.json");
-  AWAIT_READY(response);
+  Future<Response> response = process::http::get(master.get(), "state.json");
 
-  EXPECT_SOME_EQ(
-      "application/json",
-      response.get().headers.get("Content-Type"));
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
 
   Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
   ASSERT_SOME(parse);
@@ -3348,13 +3321,10 @@ TEST_F(MasterTest, TaskStatusContainerStatus)
   EXPECT_EQ(slaveIPAddress, containerStatus.network_infos(0).ip_address());
 
   // Now do the same validation with state endpoint.
-  Future<process::http::Response> response =
-    process::http::get(master.get(), "state.json");
-  AWAIT_READY(response);
+  Future<Response> response = process::http::get(master.get(), "state.json");
 
-  EXPECT_SOME_EQ(
-      "application/json",
-      response.get().headers.get("Content-Type"));
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
 
   Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
   ASSERT_SOME(parse);
@@ -3433,9 +3403,10 @@ TEST_F(MasterTest, SlaveActiveEndpoint)
   AWAIT_READY(slaveRegisteredMessage);
 
   // Verify slave is active.
-  Future<process::http::Response> response =
-    process::http::get(master.get(), "state");
-  AWAIT_READY(response);
+  Future<Response> response = process::http::get(master.get(), "state");
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
 
   Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
   ASSERT_SOME(parse);
@@ -3555,13 +3526,10 @@ TEST_F(MasterTest, TaskDiscoveryInfo)
   AWAIT_READY(update);
 
   // Verify label key and value in the master's state endpoint.
-  Future<process::http::Response> response =
-    process::http::get(master.get(), "state");
-  AWAIT_READY(response);
+  Future<Response> response = process::http::get(master.get(), "state");
 
-  EXPECT_SOME_EQ(
-      "application/json",
-      response.get().headers.get("Content-Type"));
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
 
   Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
   ASSERT_SOME(parse);
@@ -3839,9 +3807,10 @@ TEST_F(MasterTest, FrameworkInfoLabels)
 
   AWAIT_READY(registered);
 
-  Future<process::http::Response> response =
-    process::http::get(master.get(), "state.json");
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(process::http::OK().status, response);
+  Future<Response> response = process::http::get(master.get(), "state.json");
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
 
   Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
   ASSERT_SOME(parse);
@@ -3884,13 +3853,10 @@ TEST_F(MasterTest, FrameworksEndpointWithoutFrameworks)
   Try<PID<Master>> master = StartMaster(flags);
   ASSERT_SOME(master);
 
-  Future<process::http::Response> response =
-    process::http::get(master.get(), "frameworks");
+  Future<Response> response = process::http::get(master.get(), "frameworks");
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(process::http::OK().status, response);
-  EXPECT_SOME_EQ(
-      "application/json",
-      response.get().headers.get("Content-Type"));
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
 
   Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
   ASSERT_SOME(parse);
@@ -3933,9 +3899,10 @@ TEST_F(MasterTest, FrameworksEndpointOneFramework)
 
   AWAIT_READY(registered);
 
-  Future<process::http::Response> response =
-    process::http::get(master.get(), "frameworks");
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(process::http::OK().status, response);
+  Future<Response> response = process::http::get(master.get(), "frameworks");
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
 
   Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
   ASSERT_SOME(parse);

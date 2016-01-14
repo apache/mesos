@@ -286,7 +286,7 @@ TEST_P(SchedulerHttpApiTest, Subscribe)
       contentType);
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
-  EXPECT_SOME_EQ("chunked", response.get().headers.get("Transfer-Encoding"));
+  AWAIT_EXPECT_RESPONSE_HEADER_EQ("chunked", "Transfer-Encoding", response);
   ASSERT_EQ(Response::PIPE, response.get().type);
 
   Option<Pipe::Reader> reader = response.get().reader;
@@ -481,7 +481,7 @@ TEST_P(SchedulerHttpApiTest, UpdatePidToHttpScheduler)
       contentType);
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
-  EXPECT_SOME_EQ("chunked", response.get().headers.get("Transfer-Encoding"));
+  AWAIT_EXPECT_RESPONSE_HEADER_EQ("chunked", "Transfer-Encoding", response);
   ASSERT_EQ(Response::PIPE, response.get().type);
 
   Option<Pipe::Reader> reader = response.get().reader;
@@ -547,7 +547,7 @@ TEST_P(SchedulerHttpApiTest, UpdateHttpToPidScheduler)
       contentType);
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
-  EXPECT_SOME_EQ("chunked", response.get().headers.get("Transfer-Encoding"));
+  AWAIT_EXPECT_RESPONSE_HEADER_EQ("chunked", "Transfer-Encoding", response);
   ASSERT_EQ(Response::PIPE, response.get().type);
 
   Option<Pipe::Reader> reader = response.get().reader;
@@ -644,7 +644,7 @@ TEST_P(SchedulerHttpApiTest, UpdatePidToHttpSchedulerWithoutForce)
       contentType);
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
-  EXPECT_SOME_EQ("chunked", response.get().headers.get("Transfer-Encoding"));
+  AWAIT_EXPECT_RESPONSE_HEADER_EQ("chunked", "Transfer-Encoding", response);
   ASSERT_EQ(Response::PIPE, response.get().type);
 
   Option<Pipe::Reader> reader = response.get().reader;
@@ -744,7 +744,7 @@ TEST_P(SchedulerHttpApiTest, NoAcceptHeader)
       contentType);
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
-  EXPECT_SOME_EQ(APPLICATION_JSON, response.get().headers.get("Content-Type"));
+  AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
 }
 
 
@@ -778,7 +778,7 @@ TEST_P(SchedulerHttpApiTest, DefaultAccept)
       contentType);
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
-  EXPECT_SOME_EQ(APPLICATION_JSON, response.get().headers.get("Content-Type"));
+  AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
 }
 
 

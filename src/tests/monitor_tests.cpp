@@ -96,13 +96,9 @@ TEST(MonitorTest, Statistics)
   UPID upid("monitor", process::address());
 
   Future<http::Response> response = http::get(upid, "statistics");
-  AWAIT_READY(response);
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::OK().status, response);
-  AWAIT_EXPECT_RESPONSE_HEADER_EQ(
-      "application/json",
-      "Content-Type",
-      response);
+  AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
 
   JSON::Array expected;
   JSON::Object usage;
@@ -130,13 +126,9 @@ TEST(MonitorTest, NoExecutor)
   UPID upid("monitor", process::address());
 
   Future<http::Response> response = http::get(upid, "statistics");
-  AWAIT_READY(response);
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::OK().status, response);
-  AWAIT_EXPECT_RESPONSE_HEADER_EQ(
-      "application/json",
-      "Content-Type",
-      response);
+  AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
   AWAIT_EXPECT_RESPONSE_BODY_EQ("[]", response);
 }
 
@@ -171,13 +163,9 @@ TEST(MonitorTest, MissingStatistics)
   UPID upid("monitor", process::address());
 
   Future<http::Response> response = http::get(upid, "statistics");
-  AWAIT_READY(response);
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::OK().status, response);
-  AWAIT_EXPECT_RESPONSE_HEADER_EQ(
-      "application/json",
-      "Content-Type",
-      response);
+  AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
   AWAIT_EXPECT_RESPONSE_BODY_EQ("[]", response);
 }
 
@@ -235,13 +223,9 @@ TEST_F(MonitorIntegrationTest, RunningExecutor)
   UPID upid("monitor", process::address());
 
   Future<http::Response> response = http::get(upid, "statistics");
-  AWAIT_READY(response);
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::OK().status, response);
-  AWAIT_EXPECT_RESPONSE_HEADER_EQ(
-      "application/json",
-      "Content-Type",
-      response);
+  AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
 
   // Verify that the statistics in the response contains the proper
   // resource limits for the container.

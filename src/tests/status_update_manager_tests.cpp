@@ -926,11 +926,7 @@ TEST_F(StatusUpdateManagerTest, DuplicatedTerminalStatusUpdate)
     process::http::get(master.get(), "tasks");
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(process::http::OK().status, tasks);
-
-  AWAIT_EXPECT_RESPONSE_HEADER_EQ(
-      "application/json",
-      "Content-Type",
-      tasks);
+  AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", tasks);
 
   Try<JSON::Object> parse = JSON::parse<JSON::Object>(tasks.get().body);
   ASSERT_SOME(parse);
