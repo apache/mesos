@@ -90,6 +90,7 @@ namespace slave {
 
 using mesos::modules::ModuleManager;
 
+using mesos::slave::ContainerConfig;
 using mesos::slave::ContainerLimitation;
 using mesos::slave::ContainerLogger;
 using mesos::slave::ContainerPrepareInfo;
@@ -624,7 +625,14 @@ Future<bool> MesosContainerizerProcess::launch(
 
   containers_.put(containerId, Owned<Container>(container));
 
-  return prepare(containerId, executorInfo, directory, user)
+  return provision(containerId, executorInfo)
+    .then(defer(self(),
+                &Self::prepare,
+                containerId,
+                executorInfo,
+                directory,
+                user,
+                lambda::_1))
     .then(defer(self(),
                 &Self::_launch,
                 containerId,
@@ -635,6 +643,31 @@ Future<bool> MesosContainerizerProcess::launch(
                 slavePid,
                 checkpoint,
                 lambda::_1));
+}
+
+
+Future<Option<ProvisionInfo>> MesosContainerizerProcess::provision(
+    const ContainerID& containerId,
+    const ExecutorInfo& executorInfo)
+{
+  if (!executorInfo.has_container()) {
+    return None();
+  }
+
+  // Provision the root filesystem if needed.
+  CHECK_EQ(executorInfo.container().type(), ContainerInfo::MESOS);
+
+  if (!executorInfo.container().mesos().has_image()) {
+    return None();
+  }
+
+  const Image& image = executorInfo.container().mesos().image();
+
+  return provisioner->provision(containerId, image)
+    .then([](const ProvisionInfo& provisionInfo)
+        -> Future<Option<ProvisionInfo>> {
+      return provisionInfo;
+    });
 }
 
 
@@ -651,8 +684,7 @@ static Future<list<Option<ContainerPrepareInfo>>> _prepare(
     const Owned<Isolator>& isolator,
     const ContainerID& containerId,
     const ExecutorInfo& executorInfo,
-    const string& directory,
-    const Option<string>& user,
+    const ContainerConfig& containerConfig,
     const list<Option<ContainerPrepareInfo>> prepareInfos)
 {
   // Propagate any failure.
@@ -665,9 +697,22 @@ Future<list<Option<ContainerPrepareInfo>>> MesosContainerizerProcess::prepare(
     const ContainerID& containerId,
     const ExecutorInfo& executorInfo,
     const string& directory,
-    const Option<string>& user)
+    const Option<string>& user,
+    const Option<ProvisionInfo>& provisionInfo)
 {
   CHECK(containers_.contains(containerId));
+
+  // Construct ContainerConfig.
+  ContainerConfig containerConfig;
+  containerConfig.set_directory(directory);
+
+  if (user.isSome()) {
+    containerConfig.set_user(user.get());
+  }
+
+  if (provisionInfo.isSome()) {
+    containerConfig.set_rootfs(provisionInfo.get().rootfs);
+  }
 
   // We prepare the isolators sequentially according to their ordering
   // to permit basic dependency specification, e.g., preparing a
@@ -681,8 +726,7 @@ Future<list<Option<ContainerPrepareInfo>>> MesosContainerizerProcess::prepare(
                             isolator,
                             containerId,
                             executorInfo,
-                            directory,
-                            user,
+                            containerConfig,
                             lambda::_1));
   }
 

@@ -175,11 +175,16 @@ private:
       const std::list<mesos::slave::ContainerState>& recovered,
       const hashset<ContainerID>& orphans);
 
+  process::Future<Option<ProvisionInfo>> provision(
+      const ContainerID& containerId,
+      const ExecutorInfo& executorInfo);
+
   process::Future<std::list<Option<mesos::slave::ContainerPrepareInfo>>>
     prepare(const ContainerID& containerId,
             const ExecutorInfo& executorInfo,
             const std::string& directory,
-            const Option<std::string>& user);
+            const Option<std::string>& user,
+            const Option<ProvisionInfo>& provisionInfo);
 
   process::Future<Nothing> fetch(
       const ContainerID& containerId,
