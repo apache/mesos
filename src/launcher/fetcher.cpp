@@ -225,7 +225,7 @@ static Try<string> download(
 
 
 // TODO(bernd-mesos): Refactor this into stout so that we can more easily
-// chmod an exectuable. For example, we could define some static flags
+// chmod an executable. For example, we could define some static flags
 // so that someone can do: os::chmod(path, EXECUTABLE_CHMOD_FLAGS).
 static Try<string> chmodExecutable(const string& filePath)
 {
