@@ -58,8 +58,7 @@ public:
   virtual process::Future<Option<ContainerPrepareInfo>> prepare(
       const ContainerID& containerId,
       const ExecutorInfo& executorInfo,
-      const std::string& directory,
-      const Option<std::string>& user) = 0;
+      const ContainerConfig& containerConfig) = 0;
 
   // Isolate the executor.
   virtual process::Future<Nothing> isolate(
