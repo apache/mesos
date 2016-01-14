@@ -392,14 +392,14 @@ Future<Nothing> Docker::run(
     if (cpus.isSome()) {
       uint64_t cpuShare =
         std::max((uint64_t) (CPU_SHARES_PER_CPU * cpus.get()), MIN_CPU_SHARES);
-      argv.push_back("-c");
+      argv.push_back("--cpu-shares");
       argv.push_back(stringify(cpuShare));
     }
 
     Option<Bytes> mem = resources.get().mem();
     if (mem.isSome()) {
       Bytes memLimit = std::max(mem.get(), MIN_MEMORY);
-      argv.push_back("-m");
+      argv.push_back("--memory");
       argv.push_back(stringify(memLimit.bytes()));
     }
   }
