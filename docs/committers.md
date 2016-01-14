@@ -28,7 +28,7 @@ We'd like to thank the following committers to the Apache Mesos project who have
     <tr>
       <td>-8</td>
       <td>Ross Allen</td>
-      <td></td>
+      <td>Facebook</td>
       <td></td>
       <td>ssorallen@apache.org</td>
     </tr>
@@ -43,7 +43,7 @@ We'd like to thank the following committers to the Apache Mesos project who have
       <td>-8</td>
       <td>Adam B</td>
       <td>Mesosphere</td>
-      <td></td>
+      <td>adam-mesos</td>
       <td>me@apache.org</td>
     </tr>
     <tr>
@@ -70,7 +70,7 @@ We'd like to thank the following committers to the Apache Mesos project who have
     <tr>
       <td>-8</td>
       <td>Dominic Hamon</td>
-      <td></td>
+      <td>YouTube</td>
       <td></td>
       <td>dma@apache.org</td>
     </tr>
@@ -91,14 +91,14 @@ We'd like to thank the following committers to the Apache Mesos project who have
     <tr>
       <td>-8</td>
       <td>Vinod Kone</td>
-      <td>Twitter</td>
+      <td>Mesosphere</td>
       <td>vinodkone</td>
       <td>vinodkone@apache.org</td>
     </tr>
     <tr>
       <td>-8</td>
       <td>Andy Konwinski</td>
-      <td>UC Berkeley</td>
+      <td>Databricks</td>
       <td></td>
       <td>andrew@apache.org</td>
     </tr>
@@ -112,7 +112,7 @@ We'd like to thank the following committers to the Apache Mesos project who have
     <tr>
       <td>-8</td>
       <td>Benjamin Mahler</td>
-      <td>Twitter</td>
+      <td>Mesosphere</td>
       <td>bmahler</td>
       <td>bmahler@apache.org</td>
     </tr>
@@ -147,7 +147,7 @@ We'd like to thank the following committers to the Apache Mesos project who have
     <tr>
       <td>-8</td>
       <td>Niklas Quarfot Nielsen</td>
-      <td>Mesosphere</td>
+      <td>Intel</td>
       <td>niq_</td>
       <td>nnielsen@apache.org</td>
     </tr>
@@ -196,7 +196,7 @@ We'd like to thank the following committers to the Apache Mesos project who have
     <tr>
       <td>-8</td>
       <td>Jie Yu</td>
-      <td>Twitter</td>
+      <td>Mesosphere</td>
       <td>jieyu</td>
       <td>jieyu@apache.org</td>
     </tr>
