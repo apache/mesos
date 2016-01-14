@@ -31,8 +31,6 @@
 
 #include "slave/containerizer/mesos/isolator.hpp"
 
-#include "slave/containerizer/mesos/provisioner/provisioner.hpp"
-
 namespace mesos {
 namespace internal {
 namespace slave {
@@ -44,9 +42,7 @@ namespace slave {
 class LinuxFilesystemIsolatorProcess : public MesosIsolatorProcess
 {
 public:
-  static Try<mesos::slave::Isolator*> create(
-      const Flags& flags,
-      const process::Owned<Provisioner>& provisioner);
+  static Try<mesos::slave::Isolator*> create(const Flags& flags);
 
   virtual ~LinuxFilesystemIsolatorProcess();
 
@@ -77,36 +73,14 @@ public:
       const ContainerID& containerId);
 
 private:
-  LinuxFilesystemIsolatorProcess(
-      const Flags& flags,
-      const process::Owned<Provisioner>& provisioner);
-
-  process::Future<Nothing> _recover(
-      const std::list<mesos::slave::ContainerState>& states,
-      const hashset<ContainerID>& orphans);
-
-  process::Future<Option<mesos::slave::ContainerPrepareInfo>> _prepare(
-      const ContainerID& containerId,
-      const ExecutorInfo& executorInfo,
-      const std::string& directory,
-      const Option<std::string>& user,
-      const Option<ProvisionInfo>& provisionInfo);
-
-  process::Future<Option<mesos::slave::ContainerPrepareInfo>> __prepare(
-      const ContainerID& containerId,
-      const ExecutorInfo& executorInfo,
-      const std::string& directory,
-      const Option<std::string>& user,
-      const Option<ProvisionInfo>& provisionInfo);
+  LinuxFilesystemIsolatorProcess(const Flags& flags);
 
   Try<std::string> script(
       const ContainerID& containerId,
       const ExecutorInfo& executorInfo,
-      const std::string& directory,
-      const Option<ProvisionInfo>& provisionInfo);
+      const mesos::slave::ContainerConfig& containerConfig);
 
   const Flags flags;
-  const process::Owned<Provisioner> provisioner;
 
   struct Info
   {

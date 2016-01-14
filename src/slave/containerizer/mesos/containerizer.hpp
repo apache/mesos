@@ -171,13 +171,17 @@ private:
       const std::list<mesos::slave::ContainerState>& recoverable,
       const hashset<ContainerID>& orphans);
 
+  process::Future<std::list<Nothing>> recoverIsolators(
+      const std::list<mesos::slave::ContainerState>& recoverable,
+      const hashset<ContainerID>& orphans);
+
+  process::Future<Nothing> recoverProvisioner(
+      const std::list<mesos::slave::ContainerState>& recoverable,
+      const hashset<ContainerID>& orphans);
+
   process::Future<Nothing> __recover(
       const std::list<mesos::slave::ContainerState>& recovered,
       const hashset<ContainerID>& orphans);
-
-  process::Future<Option<ProvisionInfo>> provision(
-      const ContainerID& containerId,
-      const ExecutorInfo& executorInfo);
 
   process::Future<std::list<Option<mesos::slave::ContainerPrepareInfo>>>
     prepare(const ContainerID& containerId,
@@ -194,6 +198,16 @@ private:
       const SlaveID& slaveId);
 
   process::Future<bool> _launch(
+      const ContainerID& containerId,
+      const ExecutorInfo& executorInfo,
+      const std::string& directory,
+      const Option<std::string>& user,
+      const SlaveID& slaveId,
+      const process::PID<Slave>& slavePid,
+      bool checkpoint,
+      const Option<ProvisionInfo>& provisionInfo);
+
+  process::Future<bool> __launch(
       const ContainerID& containerId,
       const ExecutorInfo& executorInfo,
       const std::string& directory,
@@ -227,6 +241,13 @@ private:
       const ContainerID& containerId,
       const process::Future<Option<int>>& status,
       const process::Future<std::list<process::Future<Nothing>>>& cleanups,
+      Option<std::string> message);
+
+  // Continues '____destroy()' once provisioner have completed destroy.
+  void _____destroy(
+      const ContainerID& containerId,
+      const process::Future<Option<int>>& status,
+      const process::Future<bool>& destroy,
       Option<std::string> message);
 
   // Call back for when an isolator limits a container and impacts the

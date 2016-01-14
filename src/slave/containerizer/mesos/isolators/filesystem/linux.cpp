@@ -59,9 +59,7 @@ namespace mesos {
 namespace internal {
 namespace slave {
 
-Try<Isolator*> LinuxFilesystemIsolatorProcess::create(
-    const Flags& flags,
-    const Owned<Provisioner>& provisioner)
+Try<Isolator*> LinuxFilesystemIsolatorProcess::create(const Flags& flags)
 {
   Result<string> user = os::user();
   if (!user.isSome()) {
@@ -165,17 +163,15 @@ Try<Isolator*> LinuxFilesystemIsolatorProcess::create(
   }
 
   Owned<MesosIsolatorProcess> process(
-      new LinuxFilesystemIsolatorProcess(flags, provisioner));
+      new LinuxFilesystemIsolatorProcess(flags));
 
   return new MesosIsolator(process);
 }
 
 
 LinuxFilesystemIsolatorProcess::LinuxFilesystemIsolatorProcess(
-    const Flags& _flags,
-    const Owned<Provisioner>& _provisioner)
+    const Flags& _flags)
   : flags(_flags),
-    provisioner(_provisioner),
     metrics(PID<LinuxFilesystemIsolatorProcess>(this)) {}
 
 
@@ -255,18 +251,6 @@ Future<Nothing> LinuxFilesystemIsolatorProcess::recover(
   }
 
   return collect(futures)
-    .then(defer(PID<LinuxFilesystemIsolatorProcess>(this),
-                &LinuxFilesystemIsolatorProcess::_recover,
-                states,
-                orphans));
-}
-
-
-Future<Nothing> LinuxFilesystemIsolatorProcess::_recover(
-    const list<ContainerState>& states,
-    const hashset<ContainerID>& orphans)
-{
-  return provisioner->recover(states, orphans)
     .then([]() -> Future<Nothing> { return Nothing(); });
 }
 
@@ -289,91 +273,12 @@ Future<Option<ContainerPrepareInfo>> LinuxFilesystemIsolatorProcess::prepare(
 
   infos.put(containerId, Owned<Info>(new Info(directory)));
 
-  if (!executorInfo.has_container()) {
-    return __prepare(containerId, executorInfo, directory, user, None());
-  }
-
-  // Provision the root filesystem if needed.
-  CHECK_EQ(executorInfo.container().type(), ContainerInfo::MESOS);
-
-  if (!executorInfo.container().mesos().has_image()) {
-    return _prepare(containerId, executorInfo, directory, user, None());
-  }
-
-  const Image& image = executorInfo.container().mesos().image();
-
-  return provisioner->provision(containerId, image)
-    .then(defer(PID<LinuxFilesystemIsolatorProcess>(this),
-                &LinuxFilesystemIsolatorProcess::_prepare,
-                containerId,
-                executorInfo,
-                directory,
-                user,
-                lambda::_1));
-}
-
-
-Future<Option<ContainerPrepareInfo>> LinuxFilesystemIsolatorProcess::_prepare(
-    const ContainerID& containerId,
-    const ExecutorInfo& executorInfo,
-    const string& directory,
-    const Option<string>& user,
-    const Option<ProvisionInfo>& provisionInfo)
-{
-  CHECK(executorInfo.has_container());
-  CHECK_EQ(executorInfo.container().type(), ContainerInfo::MESOS);
-
-  // We will provision the images specified in ContainerInfo::volumes
-  // as well. We will mutate ContainerInfo::volumes to include the
-  // paths to the provisioned root filesystems (by setting the
-  // 'host_path') if the volume specifies an image as the source.
-  Owned<ExecutorInfo> _executorInfo(new ExecutorInfo(executorInfo));
-  list<Future<Nothing>> futures;
-
-  for (int i = 0; i < _executorInfo->container().volumes_size(); i++) {
-    Volume* volume = _executorInfo->mutable_container()->mutable_volumes(i);
-
-    if (!volume->has_image()) {
-      continue;
-    }
-
-    const Image& image = volume->image();
-
-    futures.push_back(
-        provisioner->provision(containerId, image)
-          .then([volume](const ProvisionInfo& info) -> Future<Nothing> {
-            volume->set_host_path(info.rootfs);
-            return Nothing();
-          }));
-  }
-
-  return collect(futures)
-    .then([=]() -> Future<Option<ContainerPrepareInfo>> {
-      return __prepare(
-          containerId,
-          *_executorInfo,
-          directory,
-          user,
-          provisionInfo);
-    });
-}
-
-
-Future<Option<ContainerPrepareInfo>> LinuxFilesystemIsolatorProcess::__prepare(
-    const ContainerID& containerId,
-    const ExecutorInfo& executorInfo,
-    const string& directory,
-    const Option<string>& user,
-    const Option<ProvisionInfo>& provisionInfo)
-{
-  CHECK(infos.contains(containerId));
-
   const Owned<Info>& info = infos[containerId];
 
   ContainerPrepareInfo prepareInfo;
   prepareInfo.set_namespaces(CLONE_NEWNS);
 
-  if (provisionInfo.isSome()) {
+  if (containerConfig.has_rootfs()) {
     // If the container changes its root filesystem, we need to mount
     // the container's work directory into its root filesystem
     // (creating it if needed) so that the executor and the task can
@@ -383,11 +288,10 @@ Future<Option<ContainerPrepareInfo>> LinuxFilesystemIsolatorProcess::__prepare(
     // the host filesystem so that any mounts underneath it will
     // propagate into the container's mount namespace. This is how we
     // can update persistent volumes for the container.
+    const string rootfs = containerConfig.rootfs();
 
     // This is the mount point of the work directory in the root filesystem.
-    const string sandbox = path::join(
-        provisionInfo.get().rootfs,
-        flags.sandbox_directory);
+    const string sandbox = path::join(rootfs, flags.sandbox_directory);
 
     // Save the path 'sandbox' which will be used in 'cleanup()'.
     info->sandbox = sandbox;
@@ -441,7 +345,7 @@ Future<Option<ContainerPrepareInfo>> LinuxFilesystemIsolatorProcess::__prepare(
           "' as a shared mount: " + mount.error());
     }
 
-    prepareInfo.set_rootfs(provisionInfo.get().rootfs);
+    prepareInfo.set_rootfs(rootfs);
   }
 
   // Prepare the commands that will be run in the container's mount
@@ -449,7 +353,7 @@ Future<Option<ContainerPrepareInfo>> LinuxFilesystemIsolatorProcess::__prepare(
   // commands to mount those volumes specified in the container info
   // so that they don't pollute the host mount namespace.
   Try<string> _script =
-    script(containerId, executorInfo, directory, provisionInfo);
+    script(containerId, executorInfo, containerConfig);
   if (_script.isError()) {
     return Failure("Failed to generate isolation script: " + _script.error());
   }
@@ -467,8 +371,7 @@ Future<Option<ContainerPrepareInfo>> LinuxFilesystemIsolatorProcess::__prepare(
 Try<string> LinuxFilesystemIsolatorProcess::script(
     const ContainerID& containerId,
     const ExecutorInfo& executorInfo,
-    const string& directory,
-    const Option<ProvisionInfo>& provisionInfo)
+    const ContainerConfig& containerConfig)
 {
   ostringstream out;
   out << "#!/bin/sh\n";
@@ -537,7 +440,7 @@ Try<string> LinuxFilesystemIsolatorProcess::script(
       }
     } else {
       // Path is interpreted as relative to the work directory.
-      source = path::join(directory, volume.host_path());
+      source = path::join(containerConfig.directory(), volume.host_path());
 
       // TODO(jieyu): We need to check that source resolves under the
       // work directory because a user can potentially use a container
@@ -557,9 +460,9 @@ Try<string> LinuxFilesystemIsolatorProcess::script(
     string target;
 
     if (strings::startsWith(volume.container_path(), "/")) {
-      if (provisionInfo.isSome()) {
+      if (containerConfig.has_rootfs()) {
         target = path::join(
-            provisionInfo.get().rootfs,
+            containerConfig.rootfs(),
             volume.container_path());
       } else {
         target = volume.container_path();
@@ -576,12 +479,13 @@ Try<string> LinuxFilesystemIsolatorProcess::script(
       // 'rootfs' because a user can potentially use a container path
       // like '/../../abc'.
     } else {
-      if (provisionInfo.isSome()) {
-        target = path::join(provisionInfo.get().rootfs,
+      if (containerConfig.has_rootfs()) {
+        target = path::join(containerConfig.rootfs(),
                             flags.sandbox_directory,
                             volume.container_path());
       } else {
-        target = path::join(directory, volume.container_path());
+        target = path::join(containerConfig.directory(),
+                            volume.container_path());
       }
 
       // TODO(jieyu): We need to check that target resolves under the
@@ -871,9 +775,7 @@ Future<Nothing> LinuxFilesystemIsolatorProcess::cleanup(
     }
   }
 
-  // Destroy the provisioned root filesystems.
-  return provisioner->destroy(containerId)
-    .then([]() -> Future<Nothing> { return Nothing(); });
+  return Nothing();
 }
 
 
