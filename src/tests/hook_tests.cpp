@@ -76,6 +76,7 @@ using std::string;
 using std::vector;
 
 using testing::_;
+using testing::AtMost;
 using testing::DoAll;
 using testing::Eq;
 using testing::Return;
@@ -211,6 +212,9 @@ TEST_F(HookTest, VerifyMasterLaunchTaskHook)
 
   EXPECT_EQ(testLabelKey, labels_.labels().Get(0).key());
   EXPECT_EQ(testLabelValue, labels_.labels().Get(0).value());
+
+  EXPECT_CALL(exec, shutdown(_))
+    .Times(AtMost(1));
 
   driver.stop();
   driver.join();
@@ -472,6 +476,9 @@ TEST_F(HookTest, VerifySlaveRunTaskHook)
   EXPECT_EQ("bar", labels_.labels(2).key());
   EXPECT_EQ("baz", labels_.labels(2).value());
 
+  EXPECT_CALL(exec, shutdown(_))
+    .Times(AtMost(1));
+
   driver.stop();
   driver.join();
 
@@ -597,6 +604,9 @@ TEST_F(HookTest, VerifySlaveTaskStatusDecorator)
   // Finally, the labels set inside NetworkInfo by the hook module.
   EXPECT_EQ("net_foo", networkInfoLabel.key());
   EXPECT_EQ("net_bar", networkInfoLabel.value());
+
+  EXPECT_CALL(exec, shutdown(_))
+    .Times(AtMost(1));
 
   driver.stop();
   driver.join();
