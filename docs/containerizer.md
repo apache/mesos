@@ -63,7 +63,8 @@ Use cases:
 * If task needs to be run with the tooling that comes with the docker package.
 * If Mesos agent is running inside a docker container.
 
-For more details, [see](/documentation/latest/docker-containerizer/)
+For more details, see
+[Docker Containerizer](/documentation/latest/docker-containerizer/).
 
 <a name="Mesos"></a>
 ### Mesos containerizer
@@ -83,7 +84,8 @@ Use cases:
   might not be provided by other container technologies.
 * Want to add custom isolation for tasks.
 
-For more details, [see](/documentation/latest/mesos-containerizer/)
+For more details, see
+[Mesos Containerizer](/documentation/latest/mesos-containerizer/).
 
 
 ## References
