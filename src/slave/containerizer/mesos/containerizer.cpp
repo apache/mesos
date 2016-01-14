@@ -178,13 +178,10 @@ Try<MesosContainerizer*> MesosContainerizer::create(
     return Error("Failed to create launcher: " + launcher.error());
   }
 
-#ifdef __linux__
-  // The provisioner will be used by the 'filesystem/linux' isolator.
   Try<Owned<Provisioner>> provisioner = Provisioner::create(flags_);
   if (provisioner.isError()) {
     return Error("Failed to create provisioner: " + provisioner.error());
   }
-#endif
 
   // Create the isolators for the MesosContainerizer.
   const hashmap<string, lambda::function<Try<Isolator*>(const Flags&)>>
@@ -248,6 +245,7 @@ Try<MesosContainerizer*> MesosContainerizer::create(
       fetcher,
       Owned<ContainerLogger>(logger.get()),
       Owned<Launcher>(launcher.get()),
+      provisioner.get(),
       isolators);
 }
 
@@ -258,6 +256,7 @@ MesosContainerizer::MesosContainerizer(
     Fetcher* fetcher,
     const Owned<ContainerLogger>& logger,
     const Owned<Launcher>& launcher,
+    const Owned<Provisioner>& provisioner,
     const vector<Owned<Isolator>>& isolators)
   : process(new MesosContainerizerProcess(
       flags,
@@ -265,6 +264,7 @@ MesosContainerizer::MesosContainerizer(
       fetcher,
       logger,
       launcher,
+      provisioner,
       isolators))
 {
   spawn(process.get());

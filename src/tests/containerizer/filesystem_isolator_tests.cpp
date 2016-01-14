@@ -184,6 +184,7 @@ protected:
             &fetcher,
             Owned<ContainerLogger>(logger.get()),
             Owned<Launcher>(launcher.get()),
+            provisioner,
             {Owned<Isolator>(isolator.get())}));
   }
 

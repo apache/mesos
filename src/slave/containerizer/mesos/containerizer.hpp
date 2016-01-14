@@ -34,6 +34,8 @@
 
 #include "slave/containerizer/mesos/launcher.hpp"
 
+#include "slave/containerizer/mesos/provisioner/provisioner.hpp"
+
 namespace mesos {
 namespace internal {
 namespace slave {
@@ -57,6 +59,7 @@ public:
       Fetcher* fetcher,
       const process::Owned<mesos::slave::ContainerLogger>& logger,
       const process::Owned<Launcher>& launcher,
+      const process::Owned<Provisioner>& provisioner,
       const std::vector<process::Owned<mesos::slave::Isolator>>& isolators);
 
   // Used for testing.
@@ -115,12 +118,14 @@ public:
       Fetcher* _fetcher,
       const process::Owned<mesos::slave::ContainerLogger>& _logger,
       const process::Owned<Launcher>& _launcher,
+      const process::Owned<Provisioner>& _provisioner,
       const std::vector<process::Owned<mesos::slave::Isolator>>& _isolators)
     : flags(_flags),
       local(_local),
       fetcher(_fetcher),
       logger(_logger),
       launcher(_launcher),
+      provisioner(_provisioner),
       isolators(_isolators) {}
 
   virtual ~MesosContainerizerProcess() {}
@@ -239,6 +244,7 @@ private:
   Fetcher* fetcher;
   process::Owned<mesos::slave::ContainerLogger> logger;
   const process::Owned<Launcher> launcher;
+  const process::Owned<Provisioner> provisioner;
   const std::vector<process::Owned<mesos::slave::Isolator>> isolators;
 
   enum State

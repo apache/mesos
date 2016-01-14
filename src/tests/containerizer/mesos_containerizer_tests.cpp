@@ -39,6 +39,8 @@
 #include "slave/containerizer/mesos/containerizer.hpp"
 #include "slave/containerizer/mesos/launcher.hpp"
 
+#include "slave/containerizer/mesos/provisioner/provisioner.hpp"
+
 #include "tests/flags.hpp"
 #include "tests/mesos.hpp"
 #include "tests/utils.hpp"
@@ -55,6 +57,7 @@ using mesos::internal::slave::Launcher;
 using mesos::internal::slave::MesosContainerizer;
 using mesos::internal::slave::MesosContainerizerProcess;
 using mesos::internal::slave::PosixLauncher;
+using mesos::internal::slave::Provisioner;
 using mesos::internal::slave::Slave;
 
 using mesos::internal::slave::state::ExecutorState;
@@ -119,12 +122,18 @@ public:
       return Error("Failed to create container logger: " + logger.error());
     }
 
+    Try<Owned<Provisioner>> provisioner = Provisioner::create(flags);
+    if (provisioner.isError()) {
+      return Error("Failed to create provisioner: " + provisioner.error());
+    }
+
     return new MesosContainerizer(
         flags,
         false,
         fetcher,
         Owned<ContainerLogger>(logger.get()),
         Owned<Launcher>(launcher.get()),
+        provisioner.get(),
         isolators);
   }
 
@@ -456,6 +465,7 @@ public:
       Fetcher* fetcher,
       const Owned<ContainerLogger>& logger,
       const Owned<Launcher>& launcher,
+      const Owned<Provisioner>& provisioner,
       const vector<Owned<Isolator>>& isolators)
     : MesosContainerizerProcess(
           flags,
@@ -463,6 +473,7 @@ public:
           fetcher,
           logger,
           launcher,
+          provisioner,
           isolators)
   {
     // NOTE: See TestContainerizer::setup for why we use
@@ -570,12 +581,16 @@ TEST_F(MesosContainerizerDestroyTest, DestroyWhileFetching)
 
   ASSERT_SOME(logger);
 
+  Try<Owned<Provisioner>> provisioner = Provisioner::create(flags);
+  ASSERT_SOME(provisioner);
+
   MockMesosContainerizerProcess* process = new MockMesosContainerizerProcess(
       flags,
       true,
       &fetcher,
       Owned<ContainerLogger>(logger.get()),
       Owned<Launcher>(launcher.get()),
+      provisioner.get(),
       vector<Owned<Isolator>>());
 
   Future<Nothing> exec;
@@ -642,12 +657,16 @@ TEST_F(MesosContainerizerDestroyTest, DestroyWhilePreparing)
 
   ASSERT_SOME(logger);
 
+  Try<Owned<Provisioner>> provisioner = Provisioner::create(flags);
+  ASSERT_SOME(provisioner);
+
   MockMesosContainerizerProcess* process = new MockMesosContainerizerProcess(
       flags,
       true,
       &fetcher,
       Owned<ContainerLogger>(logger.get()),
       Owned<Launcher>(launcher.get()),
+      provisioner.get(),
       {Owned<Isolator>(isolator)});
 
   MesosContainerizer containerizer((Owned<MesosContainerizerProcess>(process)));
@@ -724,12 +743,16 @@ TEST_F(MesosContainerizerDestroyTest, LauncherDestroyFailure)
 
   ASSERT_SOME(logger);
 
+  Try<Owned<Provisioner>> provisioner = Provisioner::create(flags);
+  ASSERT_SOME(provisioner);
+
   MesosContainerizerProcess* process = new MesosContainerizerProcess(
       flags,
       true,
       &fetcher,
       Owned<ContainerLogger>(logger.get()),
       Owned<Launcher>(launcher),
+      provisioner.get(),
       vector<Owned<Isolator>>());
 
   MesosContainerizer containerizer((Owned<MesosContainerizerProcess>(process)));
