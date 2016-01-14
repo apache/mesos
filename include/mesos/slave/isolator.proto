@@ -14,9 +14,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+package mesos.slave;
+
 import "mesos/mesos.proto";
 
-package mesos.slave;
+import "mesos/docker/v1.proto";
 
 
 /**
@@ -58,6 +60,31 @@ message ContainerState
 
   required uint64 pid = 3;            // Executor pid.
   required string directory = 4;      // Executor work directory.
+}
+
+
+/**
+ * The container configuration that will be passed to each isolator
+ * during `prepare`.
+ */
+message ContainerConfig {
+  // The root filesystem for the container.
+  optional string rootfs = 1;
+
+  // The work directory for the container in the host filesystem.
+  required string directory = 2;
+
+  // The user the task will be run as.
+  optional string user = 3;
+
+  // Docker v1 image manifest.
+  message Docker {
+    optional docker.spec.v1.ImageManifest manifest = 1;
+  }
+
+  optional Docker docker = 4;
+
+  // TODO(gilbert): Add appc image manifest.
 }
 
 
