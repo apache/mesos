@@ -18,6 +18,7 @@
 #include <vector>
 
 #include <mesos/http.hpp>
+#include <mesos/roles.hpp>
 
 #include <process/pid.hpp>
 
@@ -574,6 +575,56 @@ TEST_F(RoleTest, EndpointImplicitRolesQuotas)
   EXPECT_EQ(expected.get(), parse.get());
 
   Shutdown();
+}
+
+
+// This tests the parse function of roles.
+TEST(RolesTest, Parsing)
+{
+  vector<string> v = {"abc", "edf", "hgi"};
+
+  Try<vector<string>> r1 = roles::parse("abc,edf,hgi");
+  EXPECT_SOME_EQ(v, r1);
+
+  Try<vector<string>> r2 = roles::parse("abc,edf,hgi,");
+  EXPECT_SOME_EQ(v, r2);
+
+  Try<vector<string>> r3 = roles::parse(",abc,edf,hgi");
+  EXPECT_SOME_EQ(v, r3);
+
+  Try<vector<string>> r4 = roles::parse("abc,,edf,hgi");
+  EXPECT_SOME_EQ(v, r4);
+
+  EXPECT_ERROR(roles::parse("foo,.,*"));
+}
+
+
+// This tests the validate functions of roles. Keep in mind that
+// roles::validate returns Option<Error>, so it will return None() when
+// validation succeeds, or Error() when validation fails.
+TEST(RolesTest, Validate)
+{
+  EXPECT_NONE(roles::validate("foo"));
+  EXPECT_NONE(roles::validate("123"));
+  EXPECT_NONE(roles::validate("foo_123"));
+  EXPECT_NONE(roles::validate("*"));
+  EXPECT_NONE(roles::validate("foo-bar"));
+  EXPECT_NONE(roles::validate("foo.bar"));
+  EXPECT_NONE(roles::validate("foo..bar"));
+
+  EXPECT_SOME(roles::validate(""));
+  EXPECT_SOME(roles::validate("."));
+  EXPECT_SOME(roles::validate(".."));
+  EXPECT_SOME(roles::validate("-foo"));
+  EXPECT_SOME(roles::validate("/"));
+  EXPECT_SOME(roles::validate("/foo"));
+  EXPECT_SOME(roles::validate("foo bar"));
+  EXPECT_SOME(roles::validate("foo\tbar"));
+  EXPECT_SOME(roles::validate("foo\nbar"));
+
+  EXPECT_NONE(roles::validate({"foo", "bar", "*"}));
+
+  EXPECT_SOME(roles::validate({"foo", ".", "*"}));
 }
 
 }  // namespace tests {

@@ -97,6 +97,15 @@ unreserving the resource, e.g., using the `/unreserve` operator HTTP
 endpoint). Similarly, persistent volumes cannot be created on unreserved
 resources.
 
+## Invalid role
+
+A role name must be a valid directory name, so it cannot:
+
+* Be an empty string
+* Be `.` or `..`
+* Start with `-`
+* Contain any slash, backspace, or whitespace character
+
 ## Roles and resource allocation
 
 By default, the Mesos master uses Dominant Resource Fairness (DRF) to allocate

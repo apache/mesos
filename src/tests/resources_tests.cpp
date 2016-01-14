@@ -1568,6 +1568,10 @@ TEST(ReservedResourcesTest, Validation)
   EXPECT_SOME(Resources::validate(createReservedResource(
       "cpus", "8", "*", createReservationInfo("principal1"))));
 
+  // Invalid role name.
+  EXPECT_SOME(Resources::validate(createReservedResource(
+      "cpus", "8", ".", createReservationInfo("principal1"))));
+
   // Dynamically role reserved.
   EXPECT_NONE(Resources::validate(createReservedResource(
       "cpus", "8", "role", createReservationInfo("principal2"))));
