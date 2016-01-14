@@ -114,7 +114,7 @@ mesos::internal::master::Flags::Flags()
       "when a new master is elected as the leader. Slaves that do not\n"
       "re-register within the timeout will be removed from the registry\n"
       "and will be shutdown if they attempt to communicate with master.\n"
-      "NOTE: This value has to be atleast " +
+      "NOTE: This value has to be at least " +
         stringify(MIN_SLAVE_REREGISTER_TIMEOUT) + ".",
       MIN_SLAVE_REREGISTER_TIMEOUT);
 
