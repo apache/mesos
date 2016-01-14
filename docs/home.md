@@ -15,10 +15,10 @@ layout: documentation
 * [Upgrades](/documentation/latest/upgrades/) for upgrading a Mesos cluster.
 * [Configuration](/documentation/latest/configuration/) for command-line arguments.
 * [Containerizer](/documentation/latest/containerizer/) for containerizer overview and use cases.
-* [Containerizer Internals](/documentation/latest/containerizer-internals) for implementation details of containerizers.
-* [Mesos Containerizer](/documentation/latest/mesos-containerizer/) default containerizer, supports both Linux and POSIX systems.
-* [Docker Containerizer](/documentation/latest/docker-containerizer/) for launching a Docker image as a Task, or as an Executor.
-* [External Containerizer](/documentation/latest/external-containerizer/) for custom containerization implementations (deprecated).
+  * [Containerizer Internals](/documentation/latest/containerizer-internals) for implementation details of containerizers.
+  * [Mesos Containerizer](/documentation/latest/mesos-containerizer/) default containerizer, supports both Linux and POSIX systems.
+  * [Docker Containerizer](/documentation/latest/docker-containerizer/) for launching a Docker image as a Task, or as an Executor.
+  * [External Containerizer](/documentation/latest/external-containerizer/) for custom containerization implementations (deprecated).
 * [Roles](/documentation/latest/roles/)
 * [Framework Authentication](/documentation/latest/authentication/)
 * [Framework Authorization](/documentation/latest/authorization/)
