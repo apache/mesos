@@ -95,7 +95,7 @@ message ContainerConfig {
  * ignored; only the command value is used. Further, we only accept
  * shell commands for the preparation commands.
  */
-message ContainerPrepareInfo
+message ContainerLaunchInfo
 {
   repeated CommandInfo commands = 1;
   optional Environment environment = 2;

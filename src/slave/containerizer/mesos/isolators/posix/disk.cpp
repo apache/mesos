@@ -55,8 +55,8 @@ using std::string;
 using std::vector;
 
 using mesos::slave::ContainerConfig;
+using mesos::slave::ContainerLaunchInfo;
 using mesos::slave::ContainerLimitation;
-using mesos::slave::ContainerPrepareInfo;
 using mesos::slave::ContainerState;
 using mesos::slave::Isolator;
 
@@ -103,7 +103,7 @@ Future<Nothing> PosixDiskIsolatorProcess::recover(
 }
 
 
-Future<Option<ContainerPrepareInfo>> PosixDiskIsolatorProcess::prepare(
+Future<Option<ContainerLaunchInfo>> PosixDiskIsolatorProcess::prepare(
     const ContainerID& containerId,
     const ExecutorInfo& executorInfo,
     const ContainerConfig& containerConfig)

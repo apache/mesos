@@ -105,8 +105,8 @@ using std::vector;
 using filter::ip::PortRange;
 
 using mesos::slave::ContainerConfig;
+using mesos::slave::ContainerLaunchInfo;
 using mesos::slave::ContainerLimitation;
-using mesos::slave::ContainerPrepareInfo;
 using mesos::slave::ContainerState;
 using mesos::slave::Isolator;
 
@@ -2107,7 +2107,7 @@ PortMappingIsolatorProcess::_recover(pid_t pid)
 }
 
 
-Future<Option<ContainerPrepareInfo>> PortMappingIsolatorProcess::prepare(
+Future<Option<ContainerLaunchInfo>> PortMappingIsolatorProcess::prepare(
     const ContainerID& containerId,
     const ExecutorInfo& executorInfo,
     const ContainerConfig& containerConfig)
@@ -2163,17 +2163,17 @@ Future<Option<ContainerPrepareInfo>> PortMappingIsolatorProcess::prepare(
             << " for container " << containerId << " of executor '"
             << executorInfo.executor_id() << "'";
 
-  ContainerPrepareInfo prepareInfo;
-  prepareInfo.add_commands()->set_value(scripts(infos[containerId]));
+  ContainerLaunchInfo launchInfo;
+  launchInfo.add_commands()->set_value(scripts(infos[containerId]));
 
   // NOTE: the port mapping isolator itself doesn't require mount
   // namespace. However, if mount namespace is enabled because of
   // other isolators, we need to set mount sharing accordingly for
   // PORT_MAPPING_BIND_MOUNT_ROOT to avoid races described in
   // MESOS-1558. So we turn on mount namespace here for consistency.
-  prepareInfo.set_namespaces(CLONE_NEWNET | CLONE_NEWNS);
+  launchInfo.set_namespaces(CLONE_NEWNET | CLONE_NEWNS);
 
-  return prepareInfo;
+  return launchInfo;
 }
 
 

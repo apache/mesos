@@ -24,8 +24,8 @@ using std::string;
 using std::list;
 
 using mesos::slave::ContainerConfig;
+using mesos::slave::ContainerLaunchInfo;
 using mesos::slave::ContainerLimitation;
-using mesos::slave::ContainerPrepareInfo;
 using mesos::slave::ContainerState;
 
 namespace mesos {
@@ -57,7 +57,7 @@ Future<Nothing> MesosIsolator::recover(
 }
 
 
-Future<Option<ContainerPrepareInfo>> MesosIsolator::prepare(
+Future<Option<ContainerLaunchInfo>> MesosIsolator::prepare(
     const ContainerID& containerId,
     const ExecutorInfo& executorInfo,
     const ContainerConfig& containerConfig)

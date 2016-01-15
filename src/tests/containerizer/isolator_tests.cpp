@@ -91,7 +91,7 @@ using mesos::internal::slave::PosixMemIsolatorProcess;
 using mesos::internal::slave::Slave;
 
 using mesos::slave::ContainerConfig;
-using mesos::slave::ContainerPrepareInfo;
+using mesos::slave::ContainerLaunchInfo;
 using mesos::slave::Isolator;
 
 using std::ostringstream;
@@ -472,7 +472,7 @@ TEST_F(LimitedCpuIsolatorTest, ROOT_CGROUPS_CFS_Enable_Cfs)
   ContainerConfig containerConfig;
   containerConfig.set_directory(dir.get());
 
-  Future<Option<ContainerPrepareInfo>> prepare =
+  Future<Option<ContainerLaunchInfo>> prepare =
     isolator.get()->prepare(
         containerId,
         executorInfo,
@@ -588,7 +588,7 @@ TEST_F(LimitedCpuIsolatorTest, ROOT_CGROUPS_CFS_Big_Quota)
   ContainerConfig containerConfig;
   containerConfig.set_directory(dir.get());
 
-  Future<Option<ContainerPrepareInfo>> prepare =
+  Future<Option<ContainerLaunchInfo>> prepare =
     isolator.get()->prepare(
         containerId,
         executorInfo,
@@ -676,7 +676,7 @@ TEST_F(LimitedCpuIsolatorTest, ROOT_CGROUPS_Pids_and_Tids)
   ContainerConfig containerConfig;
   containerConfig.set_directory(dir.get());
 
-  Future<Option<ContainerPrepareInfo>> prepare =
+  Future<Option<ContainerLaunchInfo>> prepare =
     isolator.get()->prepare(
         containerId,
         executorInfo,
@@ -964,7 +964,7 @@ TEST_F(SharedFilesystemIsolatorTest, DISABLED_ROOT_RelativeVolume)
   ContainerConfig containerConfig;
   containerConfig.set_directory(flags.work_dir);
 
-  Future<Option<ContainerPrepareInfo> > prepare =
+  Future<Option<ContainerLaunchInfo> > prepare =
     isolator.get()->prepare(
         containerId,
         executorInfo,
@@ -1071,7 +1071,7 @@ TEST_F(SharedFilesystemIsolatorTest, DISABLED_ROOT_AbsoluteVolume)
   ContainerConfig containerConfig;
   containerConfig.set_directory(flags.work_dir);
 
-  Future<Option<ContainerPrepareInfo> > prepare =
+  Future<Option<ContainerLaunchInfo> > prepare =
     isolator.get()->prepare(
         containerId,
         executorInfo,

@@ -38,8 +38,8 @@ using std::set;
 using std::string;
 
 using mesos::slave::ContainerConfig;
+using mesos::slave::ContainerLaunchInfo;
 using mesos::slave::ContainerLimitation;
-using mesos::slave::ContainerPrepareInfo;
 using mesos::slave::ContainerState;
 using mesos::slave::Isolator;
 
@@ -152,18 +152,18 @@ Future<Nothing> NamespacesPidIsolatorProcess::recover(
 }
 
 
-Future<Option<ContainerPrepareInfo>> NamespacesPidIsolatorProcess::prepare(
+Future<Option<ContainerLaunchInfo>> NamespacesPidIsolatorProcess::prepare(
     const ContainerID& containerId,
     const ExecutorInfo& executorInfo,
     const ContainerConfig& containerConfig)
 {
-  ContainerPrepareInfo prepareInfo;
-  prepareInfo.set_namespaces(CLONE_NEWPID | CLONE_NEWNS);
+  ContainerLaunchInfo launchInfo;
+  launchInfo.set_namespaces(CLONE_NEWPID | CLONE_NEWNS);
 
   // Mask the bind mount root directory in each container so
   // containers cannot see the namespace bind mount of other
   // containers.
-  prepareInfo.add_commands()->set_value(
+  launchInfo.add_commands()->set_value(
       "mount -n --bind " + string(PID_NS_BIND_MOUNT_MASK_DIR) +
       " " + string(PID_NS_BIND_MOUNT_ROOT));
 
@@ -176,12 +176,12 @@ Future<Option<ContainerPrepareInfo>> NamespacesPidIsolatorProcess::prepare(
   // taken from unshare.c in utils-linux for --mount-proc. We use the
   // -n flag so the mount is not added to the mtab where it will not
   // be correctly removed with the namespace terminates.
-  prepareInfo.add_commands()->set_value(
+  launchInfo.add_commands()->set_value(
       "mount none /proc --make-private -o rec");
-  prepareInfo.add_commands()->set_value(
+  launchInfo.add_commands()->set_value(
       "mount -n -t proc proc /proc -o nosuid,noexec,nodev");
 
-  return prepareInfo;
+  return launchInfo;
 }
 
 

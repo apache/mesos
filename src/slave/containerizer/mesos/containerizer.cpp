@@ -91,9 +91,9 @@ namespace slave {
 using mesos::modules::ModuleManager;
 
 using mesos::slave::ContainerConfig;
+using mesos::slave::ContainerLaunchInfo;
 using mesos::slave::ContainerLimitation;
 using mesos::slave::ContainerLogger;
-using mesos::slave::ContainerPrepareInfo;
 using mesos::slave::ContainerState;
 using mesos::slave::Isolator;
 
@@ -751,29 +751,29 @@ Future<bool> MesosContainerizerProcess::_launch(
 }
 
 
-static list<Option<ContainerPrepareInfo>> accumulate(
-    list<Option<ContainerPrepareInfo>> l,
-    const Option<ContainerPrepareInfo>& e)
+static list<Option<ContainerLaunchInfo>> accumulate(
+    list<Option<ContainerLaunchInfo>> l,
+    const Option<ContainerLaunchInfo>& e)
 {
   l.push_back(e);
   return l;
 }
 
 
-static Future<list<Option<ContainerPrepareInfo>>> _prepare(
+static Future<list<Option<ContainerLaunchInfo>>> _prepare(
     const Owned<Isolator>& isolator,
     const ContainerID& containerId,
     const ExecutorInfo& executorInfo,
     const ContainerConfig& containerConfig,
-    const list<Option<ContainerPrepareInfo>> prepareInfos)
+    const list<Option<ContainerLaunchInfo>> launchInfos)
 {
   // Propagate any failure.
   return isolator->prepare(containerId, executorInfo, containerConfig)
-    .then(lambda::bind(&accumulate, prepareInfos, lambda::_1));
+    .then(lambda::bind(&accumulate, launchInfos, lambda::_1));
 }
 
 
-Future<list<Option<ContainerPrepareInfo>>> MesosContainerizerProcess::prepare(
+Future<list<Option<ContainerLaunchInfo>>> MesosContainerizerProcess::prepare(
     const ContainerID& containerId,
     const ExecutorInfo& executorInfo,
     const string& directory,
@@ -797,8 +797,8 @@ Future<list<Option<ContainerPrepareInfo>>> MesosContainerizerProcess::prepare(
   // We prepare the isolators sequentially according to their ordering
   // to permit basic dependency specification, e.g., preparing a
   // filesystem isolator before other isolators.
-  Future<list<Option<ContainerPrepareInfo>>> f =
-    list<Option<ContainerPrepareInfo>>();
+  Future<list<Option<ContainerLaunchInfo>>> f =
+    list<Option<ContainerLaunchInfo>>();
 
   foreach (const Owned<Isolator>& isolator, isolators) {
     // Chain together preparing each isolator.
@@ -810,7 +810,7 @@ Future<list<Option<ContainerPrepareInfo>>> MesosContainerizerProcess::prepare(
                             lambda::_1));
   }
 
-  containers_[containerId]->prepareInfos = f;
+  containers_[containerId]->launchInfos = f;
 
   return f;
 }
@@ -845,7 +845,7 @@ Future<bool> MesosContainerizerProcess::__launch(
     const SlaveID& slaveId,
     const PID<Slave>& slavePid,
     bool checkpoint,
-    const list<Option<ContainerPrepareInfo>>& prepareInfos)
+    const list<Option<ContainerLaunchInfo>>& launchInfos)
 {
   if (!containers_.contains(containerId)) {
     return Failure("Container has been destroyed");
@@ -858,12 +858,12 @@ Future<bool> MesosContainerizerProcess::__launch(
   // Determine the root filesystem for the container. Only one
   // isolator should return the container root filesystem.
   Option<string> rootfs;
-  foreach (const Option<ContainerPrepareInfo>& prepareInfo, prepareInfos) {
-    if (prepareInfo.isSome() && prepareInfo.get().has_rootfs()) {
+  foreach (const Option<ContainerLaunchInfo>& launchInfo, launchInfos) {
+    if (launchInfo.isSome() && launchInfo->has_rootfs()) {
       if (rootfs.isSome()) {
         return Failure("Only one isolator should return the container rootfs");
       } else {
-        rootfs = prepareInfo.get().rootfs();
+        rootfs = launchInfo->rootfs();
       }
     }
   }
@@ -890,27 +890,27 @@ Future<bool> MesosContainerizerProcess::__launch(
 
   JSON::Array commandArray;
   int namespaces = 0;
-  foreach (const Option<ContainerPrepareInfo>& prepareInfo, prepareInfos) {
-    if (!prepareInfo.isSome()) {
+  foreach (const Option<ContainerLaunchInfo>& launchInfo, launchInfos) {
+    if (!launchInfo.isSome()) {
       continue;
     }
 
     // Populate the list of additional commands to be run inside the container
     // context.
-    foreach (const CommandInfo& command, prepareInfo.get().commands()) {
+    foreach (const CommandInfo& command, launchInfo->commands()) {
       commandArray.values.emplace_back(JSON::protobuf(command));
     }
 
     // Process additional environment variables returned by isolators.
-    if (prepareInfo.get().has_environment()) {
+    if (launchInfo->has_environment()) {
       foreach (const Environment::Variable& variable,
-          prepareInfo.get().environment().variables()) {
+          launchInfo->environment().variables()) {
         environment[variable.name()] = variable.value();
       }
     }
 
-    if (prepareInfo.get().has_namespaces()) {
-      namespaces |= prepareInfo.get().namespaces();
+    if (launchInfo->has_namespaces()) {
+      namespaces |= launchInfo->namespaces();
     }
   }
 
@@ -1213,7 +1213,7 @@ void MesosContainerizerProcess::destroy(
     // We need to wait for the isolators to finish preparing to prevent
     // a race that the destroy method calls isolators' cleanup before
     // it starts preparing.
-    container->prepareInfos
+    container->launchInfos
       .onAny(defer(
           self(),
           &Self::___destroy,

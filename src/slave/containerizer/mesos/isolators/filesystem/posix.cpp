@@ -31,8 +31,8 @@ using std::list;
 using std::string;
 
 using mesos::slave::ContainerConfig;
+using mesos::slave::ContainerLaunchInfo;
 using mesos::slave::ContainerLimitation;
-using mesos::slave::ContainerPrepareInfo;
 using mesos::slave::ContainerState;
 using mesos::slave::Isolator;
 
@@ -69,7 +69,7 @@ Future<Nothing> PosixFilesystemIsolatorProcess::recover(
 }
 
 
-Future<Option<ContainerPrepareInfo>> PosixFilesystemIsolatorProcess::prepare(
+Future<Option<ContainerLaunchInfo>> PosixFilesystemIsolatorProcess::prepare(
     const ContainerID& containerId,
     const ExecutorInfo& executorInfo,
     const ContainerConfig& containerConfig)
@@ -95,7 +95,7 @@ Future<Option<ContainerPrepareInfo>> PosixFilesystemIsolatorProcess::prepare(
   infos.put(containerId, Owned<Info>(new Info(containerConfig.directory())));
 
   return update(containerId, executorInfo.resources())
-      .then([]() -> Future<Option<ContainerPrepareInfo>> { return None(); });
+      .then([]() -> Future<Option<ContainerLaunchInfo>> { return None(); });
 }
 
 

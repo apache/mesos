@@ -51,8 +51,8 @@ using std::string;
 
 using mesos::slave::ContainerConfig;
 using mesos::slave::ContainerState;
+using mesos::slave::ContainerLaunchInfo;
 using mesos::slave::ContainerLimitation;
-using mesos::slave::ContainerPrepareInfo;
 using mesos::slave::Isolator;
 
 namespace mesos {
@@ -255,7 +255,7 @@ Future<Nothing> LinuxFilesystemIsolatorProcess::recover(
 }
 
 
-Future<Option<ContainerPrepareInfo>> LinuxFilesystemIsolatorProcess::prepare(
+Future<Option<ContainerLaunchInfo>> LinuxFilesystemIsolatorProcess::prepare(
     const ContainerID& containerId,
     const ExecutorInfo& executorInfo,
     const ContainerConfig& containerConfig)
@@ -275,8 +275,8 @@ Future<Option<ContainerPrepareInfo>> LinuxFilesystemIsolatorProcess::prepare(
 
   const Owned<Info>& info = infos[containerId];
 
-  ContainerPrepareInfo prepareInfo;
-  prepareInfo.set_namespaces(CLONE_NEWNS);
+  ContainerLaunchInfo launchInfo;
+  launchInfo.set_namespaces(CLONE_NEWNS);
 
   if (containerConfig.has_rootfs()) {
     // If the container changes its root filesystem, we need to mount
@@ -345,7 +345,7 @@ Future<Option<ContainerPrepareInfo>> LinuxFilesystemIsolatorProcess::prepare(
           "' as a shared mount: " + mount.error());
     }
 
-    prepareInfo.set_rootfs(rootfs);
+    launchInfo.set_rootfs(rootfs);
   }
 
   // Prepare the commands that will be run in the container's mount
@@ -358,12 +358,12 @@ Future<Option<ContainerPrepareInfo>> LinuxFilesystemIsolatorProcess::prepare(
     return Failure("Failed to generate isolation script: " + _script.error());
   }
 
-  CommandInfo* command = prepareInfo.add_commands();
+  CommandInfo* command = launchInfo.add_commands();
   command->set_value(_script.get());
 
   return update(containerId, executorInfo.resources())
-    .then([prepareInfo]() -> Future<Option<ContainerPrepareInfo>> {
-      return prepareInfo;
+    .then([launchInfo]() -> Future<Option<ContainerLaunchInfo>> {
+      return launchInfo;
     });
 }
 

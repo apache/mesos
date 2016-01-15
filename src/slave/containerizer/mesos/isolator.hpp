@@ -45,7 +45,7 @@ public:
       const std::list<mesos::slave::ContainerState>& states,
       const hashset<ContainerID>& orphans);
 
-  virtual process::Future<Option<mesos::slave::ContainerPrepareInfo>> prepare(
+  virtual process::Future<Option<mesos::slave::ContainerLaunchInfo>> prepare(
       const ContainerID& containerId,
       const ExecutorInfo& executorInfo,
       const mesos::slave::ContainerConfig& containerConfig);
@@ -81,7 +81,7 @@ public:
       const std::list<mesos::slave::ContainerState>& states,
       const hashset<ContainerID>& orphans) = 0;
 
-  virtual process::Future<Option<mesos::slave::ContainerPrepareInfo>> prepare(
+  virtual process::Future<Option<mesos::slave::ContainerLaunchInfo>> prepare(
       const ContainerID& containerId,
       const ExecutorInfo& executorInfo,
       const mesos::slave::ContainerConfig& containerConfig) = 0;

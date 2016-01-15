@@ -46,8 +46,8 @@
 #include "slave/containerizer/mesos/isolators/cgroups/perf_event.hpp"
 
 using mesos::slave::ContainerConfig;
+using mesos::slave::ContainerLaunchInfo;
 using mesos::slave::ContainerLimitation;
-using mesos::slave::ContainerPrepareInfo;
 using mesos::slave::ContainerState;
 using mesos::slave::Isolator;
 
@@ -206,7 +206,7 @@ Future<Nothing> CgroupsPerfEventIsolatorProcess::recover(
 }
 
 
-Future<Option<ContainerPrepareInfo>> CgroupsPerfEventIsolatorProcess::prepare(
+Future<Option<ContainerLaunchInfo>> CgroupsPerfEventIsolatorProcess::prepare(
     const ContainerID& containerId,
     const ExecutorInfo& executorInfo,
     const ContainerConfig& containerConfig)

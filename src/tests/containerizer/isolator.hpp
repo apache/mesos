@@ -29,7 +29,7 @@ class TestIsolatorProcess : public slave::MesosIsolatorProcess
 {
 public:
   static Try<mesos::slave::Isolator*> create(
-      const Option<mesos::slave::ContainerPrepareInfo>& prepare)
+      const Option<mesos::slave::ContainerLaunchInfo>& prepare)
   {
     process::Owned<MesosIsolatorProcess> process(
         new TestIsolatorProcess(prepare));
@@ -43,12 +43,12 @@ public:
           const std::list<mesos::slave::ContainerState>&,
           const hashset<ContainerID>&));
 
-  virtual process::Future<Option<mesos::slave::ContainerPrepareInfo>> prepare(
+  virtual process::Future<Option<mesos::slave::ContainerLaunchInfo>> prepare(
       const ContainerID& containerId,
       const ExecutorInfo& executorInfo,
       const mesos::slave::ContainerConfig& containerConfig)
   {
-    return prepareInfo;
+    return launchInfo;
   }
 
   MOCK_METHOD2(
@@ -72,8 +72,8 @@ public:
       process::Future<Nothing>(const ContainerID&));
 
 private:
-  TestIsolatorProcess( const Option<mesos::slave::ContainerPrepareInfo>& info)
-    : prepareInfo(info)
+  TestIsolatorProcess( const Option<mesos::slave::ContainerLaunchInfo>& info)
+    : launchInfo(info)
   {
     EXPECT_CALL(*this, watch(testing::_))
       .WillRepeatedly(testing::Return(promise.future()));
@@ -85,7 +85,7 @@ private:
       .WillRepeatedly(testing::Return(Nothing()));
   }
 
-  const Option<mesos::slave::ContainerPrepareInfo> prepareInfo;
+  const Option<mesos::slave::ContainerLaunchInfo> launchInfo;
 
   process::Promise<mesos::slave::ContainerLimitation> promise;
 };
