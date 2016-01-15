@@ -150,6 +150,7 @@ protected:
 // while irrelevant fields are not present.
 
 // TODO(alexr): Tests to implement:
+//   * Implicit roles are used in the master.
 //   * Role is absent.
 //   * Role is an empty string.
 //   * Role is '*'?
@@ -157,7 +158,7 @@ protected:
 
 // Verifies that a request for a non-existent role is rejected when
 // using an explicitly configured list of role names.
-TEST_F(MasterQuotaTest, NonExistentRole)
+TEST_F(MasterQuotaTest, SetForNonExistentRole)
 {
   Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -183,7 +184,7 @@ TEST_F(MasterQuotaTest, NonExistentRole)
 
 
 // Quota requests with invalid structure should return a '400 Bad Request'.
-TEST_F(MasterQuotaTest, SetInvalidRequest)
+TEST_F(MasterQuotaTest, InvalidSetRequest)
 {
   Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -294,7 +295,7 @@ TEST_F(MasterQuotaTest, SetNonScalar)
 
 // A quota request with a role set in any of the `Resource` objects
 // should return a '400 Bad Request'.
-TEST_F(MasterQuotaTest, ResourcesSpecifyRole)
+TEST_F(MasterQuotaTest, SetWithResourcesSpecifyingRole)
 {
   Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -303,7 +304,7 @@ TEST_F(MasterQuotaTest, ResourcesSpecifyRole)
   // we start looking at available resources.
 
   // Create a quota request with the 'role' field set in resources.
-  Resources quotaResources = Resources::parse("cpus:1;mem:512;", ROLE1).get();
+  Resources quotaResources = Resources::parse("cpus:1;mem:512", ROLE1).get();
 
   Future<Response> response = process::http::post(
       master.get(),
@@ -341,7 +342,7 @@ TEST_F(MasterQuotaTest, SetExistingQuota)
   EXPECT_EQ(defaultAgentResources, agentTotalResources.get());
 
   // We request quota for a portion of resources available on the agent.
-  Resources quotaResources = Resources::parse("cpus:1;mem:512;").get();
+  Resources quotaResources = Resources::parse("cpus:1;mem:512").get();
   EXPECT_TRUE(agentTotalResources.get().contains(quotaResources));
 
   Future<Response> response = process::http::post(
@@ -421,11 +422,11 @@ TEST_F(MasterQuotaTest, SetInvalidResourceInfos)
   {
     Resources quotaResources = Resources::parse("cpus:4;mem:512").get();
 
-    Resource volume = Resources::parse("disk", "128", ROLE1).get();
-    volume.mutable_reservation()->CopyFrom(
+    Resource reserved = Resources::parse("disk", "128", ROLE1).get();
+    reserved.mutable_reservation()->CopyFrom(
         createReservationInfo(DEFAULT_CREDENTIAL.principal()));
 
-    quotaResources += volume;
+    quotaResources += reserved;
 
     Future<Response> response = process::http::post(
         master.get(),
@@ -471,7 +472,8 @@ TEST_F(MasterQuotaTest, RemoveSingleQuota)
         createBasicAuthHeaders(DEFAULT_CREDENTIAL));
   };
 
-  // Ensure that we can't remove quota for a role that is unknown to the master.
+  // Ensure that we can't remove quota for a role that is unknown to
+  // the master when using explicitly configured list of role names.
   {
     Future<Response> response = removeQuota("quota/" + UNKNOWN_ROLE);
 
@@ -584,37 +586,44 @@ TEST_F(MasterQuotaTest, StatusSingleQuota)
   EXPECT_TRUE(agentTotalResources.get().contains(quotaResources));
 
   // Send a quota request for the specified role.
-  Future<Response> response = process::http::post(
-      master.get(),
-      "quota",
-      createBasicAuthHeaders(DEFAULT_CREDENTIAL),
-      createRequestBody(ROLE1, quotaResources));
+  {
+    Future<Response> response = process::http::post(
+        master.get(),
+        "quota",
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL),
+        createRequestBody(ROLE1, quotaResources));
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response) << response.get().body;
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
+      << response.get().body;
+  }
 
   // Query the master quota endpoint.
-  response = process::http::get(
-      master.get(),
-      "quota",
-      None(),
-      createBasicAuthHeaders(DEFAULT_CREDENTIAL));
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response) << response.get().body;
+  {
+    Future<Response> response = process::http::get(
+        master.get(),
+        "quota",
+        None(),
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
-  EXPECT_SOME_EQ(
-      "application/json",
-      response.get().headers.get("Content-Type"));
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
+      << response.get().body;
 
-  const Try<JSON::Object> parse =
-    JSON::parse<JSON::Object>(response.get().body);
+    EXPECT_SOME_EQ(
+        "application/json",
+        response.get().headers.get("Content-Type"));
 
-  ASSERT_SOME(parse);
+    const Try<JSON::Object> parse =
+      JSON::parse<JSON::Object>(response.get().body);
 
-  // Convert JSON response to `QuotaStatus` protobuf.
-  const Try<QuotaStatus> status = ::protobuf::parse<QuotaStatus>(parse.get());
-  ASSERT_FALSE(status.isError());
+    ASSERT_SOME(parse);
 
-  ASSERT_EQ(1, status.get().infos().size());
-  EXPECT_EQ(quotaResources, status.get().infos(0).guarantee());
+    // Convert JSON response to `QuotaStatus` protobuf.
+    const Try<QuotaStatus> status = ::protobuf::parse<QuotaStatus>(parse.get());
+    ASSERT_FALSE(status.isError());
+
+    ASSERT_EQ(1, status.get().infos().size());
+    EXPECT_EQ(quotaResources, status.get().infos(0).guarantee());
+  }
 
   Shutdown();
 }
@@ -835,7 +844,7 @@ TEST_F(MasterQuotaTest, AvailableResourcesSingleAgent)
   AWAIT_READY(receivedQuotaRequest);
 
   EXPECT_EQ(ROLE1, receivedQuotaRequest.get().role());
-  EXPECT_EQ(quotaResources, Resources(receivedQuotaRequest.get().guarantee()));
+  EXPECT_EQ(quotaResources, receivedQuotaRequest.get().guarantee());
 
   Shutdown();
 }
@@ -904,7 +913,7 @@ TEST_F(MasterQuotaTest, AvailableResourcesMultipleAgents)
   AWAIT_READY(receivedQuotaRequest);
 
   EXPECT_EQ(ROLE1, receivedQuotaRequest.get().role());
-  EXPECT_EQ(quotaResources, Resources(receivedQuotaRequest.get().guarantee()));
+  EXPECT_EQ(quotaResources, receivedQuotaRequest.get().guarantee());
 
   Shutdown();
 }
@@ -1062,7 +1071,7 @@ TEST_F(MasterQuotaTest, AvailableResourcesAfterRescinding)
   // got lost in-between.
   AWAIT_READY(receivedQuotaRequest);
   EXPECT_EQ(ROLE2, receivedQuotaRequest.get().role());
-  EXPECT_EQ(quotaResources, Resources(receivedQuotaRequest.get().guarantee()));
+  EXPECT_EQ(quotaResources, receivedQuotaRequest.get().guarantee());
 
   Shutdown();
 }
@@ -1194,28 +1203,32 @@ TEST_F(MasterQuotaTest, UnauthenticatedQuotaRequest)
 
   // The master is configured so that only requests from `DEFAULT_CREDENTIAL`
   // are authenticated.
-  Credential credential;
-  credential.set_principal("unknown-principal");
-  credential.set_secret("test-secret");
+  {
+    Credential credential;
+    credential.set_principal("unknown-principal");
+    credential.set_secret("test-secret");
 
-  Future<Response> response1 = process::http::post(
-      master.get(),
-      "quota",
-      createBasicAuthHeaders(credential),
-      createRequestBody(ROLE1, quotaResources));
+    Future<Response> response = process::http::post(
+        master.get(),
+        "quota",
+        createBasicAuthHeaders(credential),
+        createRequestBody(ROLE1, quotaResources));
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(
-      Unauthorized(vector<string>()).status, response1) << response1.get().body;
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(
+      Unauthorized(vector<string>()).status, response) << response.get().body;
+  }
 
   // The absense of credentials leads to authentication failure as well.
-  Future<Response> response2 = process::http::post(
-      master.get(),
-      "quota",
-      None(),
-      createRequestBody(ROLE1, quotaResources));
+  {
+    Future<Response> response = process::http::post(
+        master.get(),
+        "quota",
+        None(),
+        createRequestBody(ROLE1, quotaResources));
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(
-      Unauthorized(vector<string>()).status, response2) << response2.get().body;
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(
+      Unauthorized(vector<string>()).status, response) << response.get().body;
+  }
 
   Shutdown();
 }
@@ -1261,7 +1274,7 @@ TEST_F(MasterQuotaTest, AuthorizeQuotaRequests)
     // As we don't care about the enforcement of quota but only the
     // authorization of the quota request we set the force flag in the post
     // request below to override the capacity heuristic check.
-    Resources quotaResources = Resources::parse("cpus:1;mem:512;").get();
+    Resources quotaResources = Resources::parse("cpus:1;mem:512").get();
 
     // Note that we set the force flag because we are setting a quota that
     // cannot currently be satisfied by the resources in the cluster (because
@@ -1281,7 +1294,7 @@ TEST_F(MasterQuotaTest, AuthorizeQuotaRequests)
     // As we don't care about the enforcement of quota but only the
     // authorization of the quota request we set the force flag in the post
     // request below to override the capacity heuristic check.
-    Resources quotaResources = Resources::parse("cpus:1;mem:512;").get();
+    Resources quotaResources = Resources::parse("cpus:1;mem:512").get();
 
     Future<QuotaInfo> quotaInfo;
     EXPECT_CALL(allocator, setQuota(Eq(ROLE1), _))
@@ -1297,8 +1310,8 @@ TEST_F(MasterQuotaTest, AuthorizeQuotaRequests)
         createBasicAuthHeaders(DEFAULT_CREDENTIAL),
         createRequestBody(ROLE1, quotaResources, true));
 
-    AWAIT_EXPECT_RESPONSE_STATUS_EQ(
-        OK().status, response) << response.get().body;
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
+      << response.get().body;
 
     AWAIT_READY(quotaInfo);
 
@@ -1337,8 +1350,8 @@ TEST_F(MasterQuotaTest, AuthorizeQuotaRequests)
         "quota/" + ROLE1,
         createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
-    AWAIT_EXPECT_RESPONSE_STATUS_EQ(
-        OK().status, response) << response.get().body;
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
+      << response.get().body;
 
     AWAIT_READY(receivedRemoveRequest);
   }
@@ -1380,7 +1393,7 @@ TEST_F(MasterQuotaTest, AuthorizeQuotaRequestsWithoutPrincipal)
     // As we don't care about the enforcement of quota but only the
     // authorization of the quota request we set the force flag in the post
     // request below to override the capacity heuristic check.
-    Resources quotaResources = Resources::parse("cpus:1;mem:512;").get();
+    Resources quotaResources = Resources::parse("cpus:1;mem:512").get();
 
     // Create a HTTP request without authorization headers. Note that we set the
     // force flag because we are setting a quota that cannot currently be
@@ -1391,8 +1404,8 @@ TEST_F(MasterQuotaTest, AuthorizeQuotaRequestsWithoutPrincipal)
         None(),
         createRequestBody(ROLE1, quotaResources, true));
 
-    AWAIT_EXPECT_RESPONSE_STATUS_EQ(
-        OK().status, response) << response.get().body;
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
+      << response.get().body;
   }
 
   // Remove the previously requested quota without providing authorization
@@ -1403,8 +1416,8 @@ TEST_F(MasterQuotaTest, AuthorizeQuotaRequestsWithoutPrincipal)
         "quota/" + ROLE1,
         None());
 
-    AWAIT_EXPECT_RESPONSE_STATUS_EQ(
-        OK().status, response) << response.get().body;
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
+      << response.get().body;
   }
 
   Shutdown();
