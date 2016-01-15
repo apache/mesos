@@ -94,8 +94,22 @@ if diff_stat:
   print 'Please commit staged changes before using post-reviews!'
   sys.exit(1)
 
-top_level_dir = execute(['git', 'rev-parse', '--show-toplevel']).strip()
+# Grab a reference to the repo's git directory. Usually this is simply .git in
+# the repo's top level directory. However, when submodules are used, it may
+# appear elsewhere. The most up-to-date way of finding this directory is to use
+# `git rev-parse --git-common-dir`. This is necessary to support things like
+# git worktree in addition to git submodules. However, as of January 2016,
+# support for the '--git-common-dir' flag is fairly new, forcing us to fall
+# back to the older '--git-dir' flag if '--git-common-dir' is not supported. We
+# do this by checking the output of `git rev-parse --git-common-dir` and seeing
+# if it gives us a valid directory back. If not, we set the git directory using
+# the '--git-dir' flag instead.
 git_dir = execute(['git', 'rev-parse', '--git-common-dir']).strip()
+if not os.path.isdir(git_dir):
+  git_dir = execute(['git', 'rev-parse', '--git-dir']).strip()
+
+# Grab a reference to the top level directory of this repo.
+top_level_dir = execute(['git', 'rev-parse', '--show-toplevel']).strip()
 
 # Use the tracking_branch specified by the user if exists.
 parser = argparse.ArgumentParser(add_help=False)
