@@ -294,6 +294,7 @@ Master::Master(
     contender(_contender),
     detector(_detector),
     authorizer(_authorizer),
+    frameworks(flags),
     authenticator(None()),
     metrics(new Metrics(*this)),
     electedTime(None())
@@ -1883,7 +1884,7 @@ void Master::_subscribe(
     FrameworkInfo frameworkInfo_ = frameworkInfo;
     frameworkInfo_.mutable_id()->CopyFrom(newFrameworkId());
 
-    Framework* framework = new Framework(this, frameworkInfo_, http);
+    Framework* framework = new Framework(this, flags, frameworkInfo_, http);
 
     addFramework(framework);
 
@@ -1973,7 +1974,7 @@ void Master::_subscribe(
     // elected Mesos master to which either an existing scheduler or a
     // failed-over one is connecting. Create a Framework object and add
     // any tasks it has that have been reported by reconnecting slaves.
-    Framework* framework = new Framework(this, frameworkInfo, http);
+    Framework* framework = new Framework(this, flags, frameworkInfo, http);
 
     // Add active tasks and executors to the framework.
     foreachvalue (Slave* slave, slaves.registered) {
@@ -2185,7 +2186,7 @@ void Master::_subscribe(
     FrameworkInfo frameworkInfo_ = frameworkInfo;
     frameworkInfo_.mutable_id()->CopyFrom(newFrameworkId());
 
-    Framework* framework = new Framework(this, frameworkInfo_, from);
+    Framework* framework = new Framework(this, flags, frameworkInfo_, from);
 
     addFramework(framework);
 
@@ -2274,7 +2275,7 @@ void Master::_subscribe(
     // elected Mesos master to which either an existing scheduler or a
     // failed-over one is connecting. Create a Framework object and add
     // any tasks it has that have been reported by reconnecting slaves.
-    Framework* framework = new Framework(this, frameworkInfo, from);
+    Framework* framework = new Framework(this, flags, frameworkInfo, from);
 
     // Add active tasks and executors to the framework.
     foreachvalue (Slave* slave, slaves.registered) {

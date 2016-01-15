@@ -419,6 +419,23 @@ file:///path/to/file (where file contains one of the above)</code></pre>
   </tr>
   <tr>
     <td>
+      --max_completed_frameworks=VALUE
+    </td>
+    <td>
+      Maximum number of completed frameworks to store in memory. (default: 50)
+    </td>
+  </tr>
+  <tr>
+    <td>
+      --max_completed_tasks_per_framework=VALUE
+    </td>
+    <td>
+      Maximum number of completed tasks per framework to store in memory.
+      (default: 1000)
+    </td>
+  </tr>
+  <tr>
+    <td>
       --max_slave_ping_timeouts=VALUE
     </td>
     <td>
