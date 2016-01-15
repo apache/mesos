@@ -533,7 +533,11 @@ Future<Response> Master::Http::scheduler(const Request& request) const
   if (!master->elected()) {
     // Note that this could happen if the scheduler realizes this is the
     // leading master before master itself realizes it (e.g., ZK watch delay).
-    return ServiceUnavailable("Not the leading master");
+    if (master->leader.isNone()) {
+      return ServiceUnavailable("No leader elected");
+    } else {
+      return redirect(request);
+    }
   }
 
   CHECK_SOME(master->recovered);
