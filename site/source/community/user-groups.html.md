@@ -21,6 +21,9 @@ Mesos User Groups (MUGs) are responsible for organizing local meetups, hackathon
 ### Germany
 * [Cologne](http://www.meetup.com/Mesos-User-Group-Cologne/)
 
+### Poland
+* [Warsaw](http://www.meetup.com/Warsaw-Mesos-User-Group/)
+
 ### Netherlands
 * [Amsterdam](http://www.meetup.com/Mesos-Amsterdam/)
 
