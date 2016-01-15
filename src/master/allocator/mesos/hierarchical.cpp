@@ -362,6 +362,10 @@ void HierarchicalAllocatorProcess::deactivateFramework(
   frameworks[frameworkId].offerFilters.clear();
   frameworks[frameworkId].inverseOfferFilters.clear();
 
+  // Clear the suppressed flag to make sure the framework can be offered
+  // resources immediately after getting activated.
+  frameworks[frameworkId].suppressed = false;
+
   LOG(INFO) << "Deactivated framework " << frameworkId;
 }
 

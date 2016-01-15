@@ -1841,6 +1841,66 @@ TEST_F(HierarchicalAllocatorTest, QuotaAbsentFramework)
 }
 
 
+// This test checks that if a framework suppresses offers, disconnects and
+// reconnects again, it will start receiving resource offers again.
+TEST_F(HierarchicalAllocatorTest, DeactivateAndReactivateFramework)
+{
+  // Pausing the clock is not necessary, but ensures that the test
+  // doesn't rely on the periodic allocation in the allocator, which
+  // would slow down the test.
+  Clock::pause();
+
+  initialize();
+
+  hashmap<FrameworkID, Resources> EMPTY;
+
+  // Total cluster resources will become cpus=2, mem=1024.
+  SlaveInfo agent = createSlaveInfo("cpus:2;mem:1024;disk:0");
+  allocator->addSlave(agent.id(), agent, None(), agent.resources(), EMPTY);
+
+  // Framework will be offered all of the agent's resources since it is
+  // the only framework running so far.
+  FrameworkInfo framework = createFrameworkInfo("role1");
+  allocator->addFramework(
+      framework.id(), framework, hashmap<SlaveID, Resources>());
+
+  Future<Allocation> allocation = allocations.get();
+  AWAIT_READY(allocation);
+  EXPECT_EQ(framework.id(), allocation.get().frameworkId);
+  EXPECT_EQ(agent.resources(), Resources::sum(allocation.get().resources));
+
+  allocator->recoverResources(
+      framework.id(),
+      agent.id(),
+      agent.resources(),
+      None());
+
+  // Suppress offers and disconnect framework.
+  allocator->suppressOffers(framework.id());
+  allocator->deactivateFramework(framework.id());
+
+  // Advance the clock and trigger a background allocation cycle.
+  Clock::advance(flags.allocation_interval);
+
+  // Wait for all the 'suppressOffers' and 'deactivateFramework'
+  // operations to be processed.
+  Clock::settle();
+
+  allocation = allocations.get();
+  EXPECT_TRUE(allocation.isPending());
+
+  // Reconnect the framework again.
+  allocator->activateFramework(framework.id());
+
+  // Framework will be offered all of agent1's resources again
+  // after getting activated.
+  Clock::settle();
+  AWAIT_READY(allocation);
+  EXPECT_EQ(framework.id(), allocation.get().frameworkId);
+  EXPECT_EQ(agent.resources(), Resources::sum(allocation.get().resources));
+}
+
+
 class HierarchicalAllocator_BENCHMARK_Test
   : public HierarchicalAllocatorTestBase,
     public WithParamInterface<std::tr1::tuple<size_t, size_t>> {};
