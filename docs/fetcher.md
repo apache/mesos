@@ -221,6 +221,43 @@ If multiple evictions happen concurrently, each of them is pursuing its own
 separate space goals. However, leftover freed up space from one effort is
 automatically awarded to others.
 
+## HTTP and SOCKS proxy settings
+
+Sometimes it is desirable to use a proxy to download the file. The Mesos
+fetcher uses libcurl internally for downloading content from
+HTTP/HTTPS/FTP/FTPS servers, and libcurl can use a proxy automatically if
+certain environment variables are set.
+
+The respective environment variable name is `[protocol]_proxy`, where
+`protocol` can be one of socks4, socks5, http, https.
+
+For example, the value of the `http_proxy` environment variable would be used
+as the proxy for fetching http contents, while `https_proxy` would be used for
+fetching https contents. Pay attention that the name must be in all lower
+case.
+
+The value of the proxy variable is of the format
+`[protocol://][user:password@]machine[:port]`, where `protocol` can be one of
+socks4, socks5, http, https.
+
+FTP/FTPS requests with a proxy also make use of a HTTP/HTTPS proxy. Even
+though in general this constrains the available FTP protocol operations,
+everything the fetcher uses is supported.
+
+Your proxy settings can be placed in `/etc/default/mesos-slave`. Here is an
+example:
+
+```
+export http_proxy=https://proxy.example.com:3128
+export https_proxy=https://proxy.example.com:3128
+```
+
+The fetcher will pick up these environment variable settings since the utility
+program `mesos-fetcher` which it employs is a child of mesos-slave.
+
+For more details, please check the
+[libcurl manual](http://curl.haxx.se/libcurl/c/libcurl-tutorial.html).
+
 ## Slave flags
 
 It is highly recommended to set these flags explicitly to values other than
