@@ -38,6 +38,8 @@ using process::PID;
 using process::http::OK;
 using process::http::Response;
 
+using testing::AtMost;
+
 namespace mesos {
 namespace internal {
 namespace tests {
@@ -242,6 +244,9 @@ TEST_F(RoleTest, ImplicitRoleStaticReservation)
   driver.acceptOffers({offer.id()}, {LAUNCH({taskInfo})}, filters);
 
   AWAIT_READY(launchTask);
+
+  EXPECT_CALL(exec, shutdown(_))
+    .Times(AtMost(1));
 
   driver.stop();
   driver.join();
