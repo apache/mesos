@@ -80,6 +80,8 @@ public:
   size_t max_slave_ping_timeouts;
   std::string authorizers;
   std::string http_authenticators;
+  size_t max_completed_frameworks;
+  size_t max_completed_tasks_per_framework;
 
 #ifdef WITH_NETWORK_ISOLATOR
   Option<size_t> max_executors_per_slave;
