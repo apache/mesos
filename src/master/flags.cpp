@@ -194,6 +194,7 @@ mesos::internal::master::Flags::Flags()
       "are used to indicate forms of priority.");
 
   // TODO(adam-mesos): Deprecate --authenticate for --authenticate_frameworks.
+  // See MESOS-4386 for details.
   add(&Flags::authenticate_frameworks,
       "authenticate",
       "If authenticate is 'true' only authenticated frameworks are allowed\n"
