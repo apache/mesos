@@ -83,7 +83,7 @@ Try<bool> RemoveQuota::perform(
 
 namespace validation {
 
-Try<Nothing> quotaInfo(const QuotaInfo& quotaInfo)
+Option<Error> quotaInfo(const QuotaInfo& quotaInfo)
 {
   if (!quotaInfo.has_role()) {
     return Error("QuotaInfo must specify a role");
@@ -140,7 +140,7 @@ Try<Nothing> quotaInfo(const QuotaInfo& quotaInfo)
     }
   }
 
-  return Nothing();
+  return None();
 }
 
 } // namespace validation {

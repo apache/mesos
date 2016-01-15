@@ -23,8 +23,9 @@
 
 #include <mesos/quota/quota.hpp>
 
+#include <stout/error.hpp>
 #include <stout/hashset.hpp>
-#include <stout/nothing.hpp>
+#include <stout/option.hpp>
 #include <stout/try.hpp>
 
 #include "master/registrar.hpp"
@@ -103,7 +104,7 @@ namespace validation {
 //   - Irrelevant fields in `Resources` are not set
 //     (e.g. `ReservationInfo`).
 //   - Request only contains scalar `Resources`.
-Try<Nothing> quotaInfo(const mesos::quota::QuotaInfo& quotaInfo);
+Option<Error> quotaInfo(const mesos::quota::QuotaInfo& quotaInfo);
 
 } // namespace validation {
 

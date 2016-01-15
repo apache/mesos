@@ -299,11 +299,11 @@ Future<http::Response> Master::QuotaHandler::set(
   QuotaInfo quotaInfo = create.get();
 
   // Check that the `QuotaInfo` is a valid quota request.
-  Try<Nothing> validate = quota::validation::quotaInfo(quotaInfo);
-  if (validate.isError()) {
+  Option<Error> validateError = quota::validation::quotaInfo(quotaInfo);
+  if (validateError.isSome()) {
     return BadRequest(
         "Failed to validate set quota request JSON '" + request.body + "': " +
-        validate.error());
+        validateError.get().message);
   }
 
   // Check that the role is on the role whitelist, if it exists.
