@@ -182,7 +182,7 @@ public:
 
   void setQuota(
       const std::string& role,
-      const mesos::quota::QuotaInfo& quota);
+      const Quota& quota);
 
   void removeQuota(
       const std::string& role);
@@ -378,7 +378,7 @@ protected:
   //
   // NOTE: We currently associate quota with roles, but this may
   // change in the future.
-  hashmap<std::string, mesos::quota::QuotaInfo> quotas;
+  hashmap<std::string, Quota> quotas;
 
   // Slaves to send offers for.
   Option<hashset<std::string>> whitelist;

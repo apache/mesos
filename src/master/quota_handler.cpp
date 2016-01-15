@@ -365,12 +365,14 @@ Future<http::Response> Master::QuotaHandler::_set(
     }
   }
 
+  Quota quota = Quota{quotaInfo};
+
   // Populate master's quota-related local state. We do this before updating
   // the registry in order to make sure that we are not already trying to
   // satisfy a request for this role (since this is a multi-phase event).
   // NOTE: We do not need to remove quota for the role if the registry update
   // fails because in this case the master fails as well.
-  master->quotas[quotaInfo.role()] = Quota{quotaInfo};
+  master->quotas[quotaInfo.role()] = quota;
 
   // Update the registry with the new quota and acknowledge the request.
   return master->registrar->apply(Owned<Operation>(
@@ -379,7 +381,7 @@ Future<http::Response> Master::QuotaHandler::_set(
       // See the top comment in "master/quota.hpp" for why this check is here.
       CHECK(result);
 
-      master->allocator->setQuota(quotaInfo.role(), quotaInfo);
+      master->allocator->setQuota(quotaInfo.role(), quota);
 
       // Rescind outstanding offers to facilitate satisfying the quota request.
       // NOTE: We set quota before we rescind to avoid a race. If we were to

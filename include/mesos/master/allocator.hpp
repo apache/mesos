@@ -361,7 +361,7 @@ public:
    */
   virtual void setQuota(
       const std::string& role,
-      const mesos::quota::QuotaInfo& quota) = 0;
+      const Quota& quota) = 0;
 
   /**
    * Informs the allocator to remove quota for the given role.

@@ -444,7 +444,7 @@ public:
 
   MOCK_METHOD2(setQuota, void(
       const std::string&,
-      const mesos::quota::QuotaInfo&));
+      const Quota&));
 
   MOCK_METHOD1(removeQuota, void(
       const std::string&));
