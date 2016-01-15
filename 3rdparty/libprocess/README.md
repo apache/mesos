@@ -244,6 +244,86 @@ process, thread, etc) that is _completing_ the future because it is
 synchronously executing the callbacks! Instead, we want to let the
 callback get executed asynchronously by using `defer.`
 
+Let's construct a simple example that illustrates a problem that can
+be introduced by omitting `defer` from callback registrations. We'll
+define a method for our `HttpProcess` class which accepts an input
+string and returns a future via an asyncronous method called
+`asyncStoreData`:
+
+~~~{.cpp}
+using namespace process;
+
+using std::string;
+
+class HttpProcess : public Process<HttpProcess>
+{
+public:
+  // Returns the number of bytes stored.
+  Future<int> inputHandler(const string input);
+
+protected:
+  // Returns the number of bytes stored.
+  Future<int> asyncStoreData(const string input);
+
+  int storedCount;
+}
+
+
+Future<int> HttpProcess::inputHandler(const string input)
+{
+  LOG(INFO) << "HttpProcess received input: " << input;
+
+  return asyncStoreData(input)
+    .then([this](int bytes) -> Future<int> {
+      this->storedCount += bytes;
+
+      LOG(INFO) << "Successfully stored input. "
+                << "Total bytes stored so far: " << this->storedCount;
+
+      return bytes;
+    });
+}
+~~~
+
+When the callback is registered on the `Future<int>` returned by
+`asyncStoreData`, a lambda is passed directly to `then`. This means
+that the lambda will be executed in whatever execution context
+eventually fulfills the future. If the future is fulfilled in a
+different execution context (i.e., inside a different libprocess
+process), then it's possible that the instance of `HttpProcess` that
+originally invoked `inputHandler` will have been destroyed, making
+`this` a dangling pointer. In order to avoid this possibility, the
+callback should be registered as follows:
+
+~~~{.cpp}
+  return asyncStoreData(input)
+    .then(defer(self(), [this](int bytes) -> Future<int> {
+      ...
+    }));
+~~~
+
+The lambda is then guaranteed to execute within the execution context
+of the current process, and we know that `this` will still be a valid
+pointer. We should write libprocess code that makes no assumptions
+about the execution context in which a given future is fulfilled. Even
+if we can verify that a future will be fulfilled in the current
+process, registering a callback without `defer` makes the code more
+fragile by allowing the possibility that another contributor will make
+changes without considering the impact of those changes on the
+registered callbacks' execution contexts. Thus, `defer` should always
+be used. We offer the following rule to determine which form of
+`defer` should be used in a given situation:
+
+* If the callback being registered accesses the state of a process,
+  then it should be registered using `defer(pid, callback)`, where
+  `pid` is the PID of the process whose state is being accessed.
+* If the callback doesn't access any process state, or only makes use
+  of process variables that are captured _by value_ so that the
+  context of the process is not directly accessed when the callback is
+  executed, then it can be run in an arbitrary execution context
+  chosen by libprocess, and it should be registered using
+  `defer(callback)`.
+
 
 ### `ID`
 
