@@ -367,11 +367,12 @@ private:
   // this function is `decltype(expr0, expr1, expr2, std::true_type{})` which is
   // `std::true_type`.
   template <typename U>
-  static auto test(Prefer)
-    -> decltype(std::begin(std::declval<U&>()) != std::end(std::declval<U&>()),
-                ++std::declval<decltype(std::begin(std::declval<U&>()))&>(),
-                *std::begin(std::declval<U&>()),
-                std::true_type{});
+  static auto test(Prefer) -> decltype(
+      // Cast to `void` to suppress `-Wunused-comparison` warnings.
+      void(std::begin(std::declval<U&>()) != std::end(std::declval<U&>())),
+      ++std::declval<decltype(std::begin(std::declval<U&>()))&>(),
+      *std::begin(std::declval<U&>()),
+      std::true_type{});
 
   // This overload is chosen if the preferred version is SFINAE'd out.
   template <typename U>
