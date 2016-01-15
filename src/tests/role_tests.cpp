@@ -477,8 +477,7 @@ TEST_F(RoleTest, EndpointImplicitRolesQuotas)
   Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
-  Resources quotaResources =
-    Resources::parse("cpus:1;mem:512", "non-existent-role").get();
+  Resources quotaResources = Resources::parse("cpus:1;mem:512").get();
   const RepeatedPtrField<Resource>& jsonQuotaResources =
     static_cast<const RepeatedPtrField<Resource>&>(quotaResources);
 
@@ -487,7 +486,7 @@ TEST_F(RoleTest, EndpointImplicitRolesQuotas)
   // currently be satisfied by the resources in the cluster (because
   // there are no slaves registered).
   string quotaRequestBody = strings::format(
-      "{\"resources\":%s,\"force\":true}",
+      "{\"role\":\"non-existent-role\",\"resources\":%s,\"force\":true}",
       JSON::protobuf(jsonQuotaResources)).get();
 
   Future<Response> quotaResponse = process::http::post(

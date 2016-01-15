@@ -64,35 +64,16 @@ namespace internal {
 namespace master {
 
 // Creates a `QuotaInfo` protobuf from the quota request.
-static Try<QuotaInfo> createQuotaInfo(RepeatedPtrField<Resource> resources)
+static Try<QuotaInfo> createQuotaInfo(
+    const string& role,
+    const RepeatedPtrField<Resource>& resources)
 {
-  VLOG(1) << "Constructing QuotaInfo from resources protobuf";
+  VLOG(1) << "Constructing QuotaInfo for role \"" << role
+          << "\" from resources protobuf";
 
   QuotaInfo quota;
 
-  // Set the role if we have one. Since all roles must be the same, pick
-  // any, e.g. the first one.
-  if (resources.size() > 0) {
-     quota.set_role(resources.begin()->role());
-  }
-
-  // Check that all roles are set and equal.
-  // TODO(alexr): Remove this check as per MESOS-4058.
-  foreach (const Resource& resource, resources) {
-    if (resource.role() != quota.role()) {
-      return Error(
-          "Resources with different roles: '" + quota.role() + "', '" +
-          resource.role() + "'");
-    }
-  }
-
-  // Remove the role from each resource.
-  // TODO(alexr): Remove this as per MESOS-4058. Corresponding validation
-  // is in `internal::master::quota::validation::quotaInfo()`.
-  foreach (Resource& resource, resources) {
-    resource.clear_role();
-  }
-
+  quota.set_role(role);
   quota.mutable_guarantee()->CopyFrom(resources);
 
   return quota;
@@ -258,6 +239,27 @@ Future<http::Response> Master::QuotaHandler::set(
         parse.error());
   }
 
+  // Extract role from the request JSON.
+  Result<JSON::String> roleJSON = parse.get().find<JSON::String>("role");
+
+  if (roleJSON.isError()) {
+    // An `Error` usually indicates that a search string is malformed
+    // (which is not the case here), however it may also indicate that
+    // the `role` field is not a string.
+    return BadRequest(
+        "Failed to extract 'role' from set quota request JSON '" +
+        request.body + "': " + roleJSON.error());
+  }
+
+  if (roleJSON.isNone()) {
+    return BadRequest(
+        "Failed to extract 'role' from set quota request JSON '" +
+        request.body + "': Field is missing");
+  }
+
+  string role = roleJSON.get().value;
+
+  // Extract resources from the request JSON.
   Result<JSON::Array> resourcesJSON =
     parse.get().find<JSON::Array>("resources");
 
@@ -287,7 +289,7 @@ Future<http::Response> Master::QuotaHandler::set(
   }
 
   // Create the `QuotaInfo` protobuf message from the request JSON.
-  Try<QuotaInfo> create = createQuotaInfo(resources.get());
+  Try<QuotaInfo> create = createQuotaInfo(role, resources.get());
   if (create.isError()) {
     return BadRequest(
         "Failed to create 'QuotaInfo' from set quota request JSON '" +
