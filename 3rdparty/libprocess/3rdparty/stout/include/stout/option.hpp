@@ -105,8 +105,10 @@ public:
   bool isSome() const { return state == SOME; }
   bool isNone() const { return state == NONE; }
 
-  const T& get() const { assert(isSome()); return t; }
-  T& get() { assert(isSome()); return t; }
+  const T& get() const & { assert(isSome()); return t; }
+  T& get() & { assert(isSome()); return t; }
+  T&& get() && { assert(isSome()); return std::move(t); }
+  const T&& get() const && { assert(isSome()); return std::move(t); }
 
   const T* operator->() const { return &get(); }
   T* operator->() { return &get(); }
