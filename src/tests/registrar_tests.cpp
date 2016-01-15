@@ -89,6 +89,8 @@ namespace mesos {
 namespace internal {
 namespace tests {
 
+namespace quota = mesos::internal::master::quota;
+
 using namespace mesos::maintenance;
 using namespace mesos::quota;
 
@@ -686,11 +688,17 @@ TEST_P(RegistrarTest, UpdateQuota)
 
   QuotaInfo quota1;
   quota1.set_role(role1);
-  quota1.mutable_guarantee()->CopyFrom(quotaResources1.flatten(role1));
+  quota1.mutable_guarantee()->CopyFrom(quotaResources1);
+
+  Option<Error> validateError1 = quota::validation::quotaInfo(quota1);
+  EXPECT_NONE(validateError1);
 
   QuotaInfo quota2;
   quota2.set_role(role2);
-  quota2.mutable_guarantee()->CopyFrom(quotaResources1.flatten(role2));
+  quota2.mutable_guarantee()->CopyFrom(quotaResources1);
+
+  Option<Error> validateError2 = quota::validation::quotaInfo(quota2);
+  EXPECT_NONE(validateError2);
 
   {
     // Prepare the registrar; see the comment above why we need to do this in
@@ -714,10 +722,10 @@ TEST_P(RegistrarTest, UpdateQuota)
     ASSERT_EQ(2, registry.get().quotas(0).info().guarantee().size());
 
     Resources storedResources(registry.get().quotas(0).info().guarantee());
-    EXPECT_EQ(quotaResources1, storedResources.flatten());
+    EXPECT_EQ(quotaResources1, storedResources);
 
     // Change quota for `role1`.
-    quota1.mutable_guarantee()->CopyFrom(quotaResources2.flatten(role1));
+    quota1.mutable_guarantee()->CopyFrom(quotaResources2);
 
     // Update the only stored quota.
     AWAIT_EQ(true, registrar.apply(Owned<Operation>(new UpdateQuota(quota1))));
@@ -734,7 +742,7 @@ TEST_P(RegistrarTest, UpdateQuota)
     ASSERT_EQ(1, registry.get().quotas(0).info().guarantee().size());
 
     Resources storedResources(registry.get().quotas(0).info().guarantee());
-    EXPECT_EQ(quotaResources2, storedResources.flatten());
+    EXPECT_EQ(quotaResources2, storedResources);
 
     // Store one more quota for a role without quota.
     AWAIT_EQ(true, registrar.apply(Owned<Operation>(new UpdateQuota(quota2))));
@@ -757,10 +765,10 @@ TEST_P(RegistrarTest, UpdateQuota)
     ASSERT_EQ(2, registry.get().quotas(1).info().guarantee().size());
 
     Resources storedResources(registry.get().quotas(1).info().guarantee());
-    EXPECT_EQ(quotaResources1, storedResources.flatten());
+    EXPECT_EQ(quotaResources1, storedResources);
 
     // Change quota for `role2`.
-    quota2.mutable_guarantee()->CopyFrom(quotaResources2.flatten(role2));
+    quota2.mutable_guarantee()->CopyFrom(quotaResources2);
 
     // Update quota for `role2` in presence of multiple quotas.
     AWAIT_EQ(true, registrar.apply(Owned<Operation>(new UpdateQuota(quota2))));
@@ -782,13 +790,13 @@ TEST_P(RegistrarTest, UpdateQuota)
     ASSERT_EQ(1, registry.get().quotas(0).info().guarantee().size());
 
     Resources storedResources1(registry.get().quotas(0).info().guarantee());
-    EXPECT_EQ(quotaResources2, storedResources1.flatten());
+    EXPECT_EQ(quotaResources2, storedResources1);
 
     EXPECT_EQ(role2, registry.get().quotas(1).info().role());
     ASSERT_EQ(1, registry.get().quotas(1).info().guarantee().size());
 
     Resources storedResources2(registry.get().quotas(1).info().guarantee());
-    EXPECT_EQ(quotaResources2, storedResources2.flatten());
+    EXPECT_EQ(quotaResources2, storedResources2);
   }
 }
 
@@ -814,11 +822,17 @@ TEST_P(RegistrarTest, RemoveQuota)
 
     QuotaInfo quota1;
     quota1.set_role(role1);
-    quota1.mutable_guarantee()->CopyFrom(quotaResources1.flatten(role1));
+    quota1.mutable_guarantee()->CopyFrom(quotaResources1);
+
+    Option<Error> validateError1 = quota::validation::quotaInfo(quota1);
+    EXPECT_NONE(validateError1);
 
     QuotaInfo quota2;
     quota2.set_role(role2);
-    quota2.mutable_guarantee()->CopyFrom(quotaResources2.flatten(role2));
+    quota2.mutable_guarantee()->CopyFrom(quotaResources2);
+
+    Option<Error> validateError2 = quota::validation::quotaInfo(quota2);
+    EXPECT_NONE(validateError2);
 
     AWAIT_EQ(true, registrar.apply(Owned<Operation>(new UpdateQuota(quota1))));
     AWAIT_EQ(true, registrar.apply(Owned<Operation>(new UpdateQuota(quota2))));
