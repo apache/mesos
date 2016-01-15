@@ -1135,7 +1135,8 @@ private:
 
   struct Frameworks
   {
-    Frameworks() : completed(MAX_COMPLETED_FRAMEWORKS) {}
+    Frameworks(const Flags& masterFlags)
+      : completed(masterFlags.max_completed_frameworks) {}
 
     hashmap<FrameworkID, Framework*> registered;
     boost::circular_buffer<std::shared_ptr<Framework>> completed;
@@ -1451,6 +1452,7 @@ private:
 struct Framework
 {
   Framework(Master* const _master,
+            const Flags& masterFlags,
             const FrameworkInfo& _info,
             const process::UPID& _pid,
             const process::Time& time = process::Clock::now())
@@ -1461,9 +1463,10 @@ struct Framework
       active(true),
       registeredTime(time),
       reregisteredTime(time),
-      completedTasks(MAX_COMPLETED_TASKS_PER_FRAMEWORK) {}
+      completedTasks(masterFlags.max_completed_tasks_per_framework) {}
 
   Framework(Master* const _master,
+            const Flags& masterFlags,
             const FrameworkInfo& _info,
             const HttpConnection& _http,
             const process::Time& time = process::Clock::now())
@@ -1474,7 +1477,7 @@ struct Framework
       active(true),
       registeredTime(time),
       reregisteredTime(time),
-      completedTasks(MAX_COMPLETED_TASKS_PER_FRAMEWORK) {}
+      completedTasks(masterFlags.max_completed_tasks_per_framework) {}
 
   ~Framework()
   {
