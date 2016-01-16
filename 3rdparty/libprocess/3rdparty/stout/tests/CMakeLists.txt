@@ -36,6 +36,7 @@ set(STOUT_TESTS_SRC
   none_tests.cpp
   numify_tests.cpp
   option_tests.cpp
+  os/filesystem_tests.cpp
   protobuf_tests.pb.h
   protobuf_tests.proto
   result_tests.cpp

@@ -18,8 +18,12 @@
 #include <gtest/gtest.h>
 
 #include <stout/gtest.hpp>
-#include <stout/os.hpp>
 #include <stout/try.hpp>
+
+#include <stout/os/chdir.hpp>
+#include <stout/os/getcwd.hpp>
+#include <stout/os/mkdtemp.hpp>
+#include <stout/os/rmdir.hpp>
 
 class TemporaryDirectoryTest : public ::testing::Test
 {
