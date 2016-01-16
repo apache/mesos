@@ -27,6 +27,37 @@
 #include <Winsock2.h>
 #include <Windows.h>
 
+#include <memory>
+
+
+#ifdef _UNICODE
+// Much of the core Windows API is available both in `string` and `wstring`
+// varieties. To avoid polluting the namespace with two versions of every
+// function, a common pattern in the Windows headers is to offer a single macro
+// that expands to the `string` or `wstring` version, depending on whether the
+// `_UNICODE` preprocessor symbol is set. For example, `GetMessage` will expand
+// to either `GetMessageA` (the `string` version) or `GetMessageW` (the
+// `wstring` version) depending on whether this symbol is defined.
+//
+// The downside of this is that it makes POSIX interop really hard. Hence, we
+// refuse to compile if such a symbol is passed in during compilation.
+#error "Mesos doesn't currently support the `_UNICODE` Windows header constant"
+#endif // _UNICODE
+
+// An RAII `HANDLE`.
+class SharedHandle : public std::shared_ptr<void>
+{
+  static_assert(std::is_same<HANDLE, void*>::value,
+                "Expected `HANDLE` to be of type `void*`.");
+
+public:
+  template <typename Deleter>
+  SharedHandle(HANDLE handle, Deleter deleter)
+      : std::shared_ptr<void>(handle, deleter) {}
+
+  HANDLE get_handle() const { return this->get(); }
+};
+
 
 // Definitions and constants used for Windows compat.
 //
@@ -137,14 +168,44 @@ typedef SSIZE_T ssize_t;
 // have to change any socket code.
 constexpr int SHUT_RD = SD_RECEIVE;
 
-// Macros that test whether a `stat` struct represents a directory or a file.
-#define S_ISDIR(mode)  (((mode) & S_IFMT) == S_IFDIR)  // Directory.
-#define S_ISREG(mode)  (((mode) & S_IFMT) == S_IFREG)  // File.
-#define S_ISCHR(mode)  (((mode) & S_IFMT) == S_IFCHR)  // Character device.
-#define S_ISFIFO(mode) (((mode) & S_IFMT) == _S_IFIFO) // Pipe.
-#define S_ISBLK(mode)  0                               // Block special device.
-#define S_ISSOCK(mode) 0                               // Socket.
-#define S_ISLNK(mode)  0                               // Symbolic link.
+// The following functions are usually macros on POSIX; we provide them here as
+// functions to avoid having global macros lying around. Note that these
+// operate on the `_stat` struct (a Windows version of the standard POSIX
+// `stat` struct), of which the `st_mode` field is known to be an `int`.
+inline bool S_ISDIR(const int mode)
+{
+  return (mode & S_IFMT) == S_IFDIR; // Directory.
+}
+
+inline bool S_ISREG(const int mode)
+{
+  return (mode & S_IFMT) == S_IFREG;  // File.
+}
+
+inline bool S_ISCHR(const int mode)
+{
+  return (mode & S_IFMT) == S_IFCHR;  // Character device.
+}
+
+inline bool S_ISFIFO(const int mode)
+{
+  return (mode & S_IFMT) == _S_IFIFO; // Pipe.
+}
+
+inline bool S_ISBLK(const int mode)
+{
+  return false;                       // Block special device.
+}
+
+inline bool S_ISSOCK(const int mode)
+{
+  return false;                       // Socket.
+}
+
+inline bool S_ISLNK(const int mode)
+{
+  return false;                       // Symbolic link.
+}
 
 // Permissions API. (cf. MESOS-3176 to track ongoing permissions work.)
 //

@@ -39,6 +39,8 @@ nobase_include_HEADERS =		\
   stout/internal/windows/dirent.hpp	\
   stout/internal/windows/grp.hpp	\
   stout/internal/windows/pwd.hpp	\
+  stout/internal/windows/symlink.hpp	\
+  stout/internal/windows/reparsepoint.hpp	\
   stout/interval.hpp			\
   stout/ip.hpp				\
   stout/json.hpp			\

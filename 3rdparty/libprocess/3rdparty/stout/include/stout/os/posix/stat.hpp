@@ -34,6 +34,7 @@ inline bool isdir(const std::string& path)
   if (::stat(path.c_str(), &s) < 0) {
     return false;
   }
+
   return S_ISDIR(s.st_mode);
 }
 
@@ -45,6 +46,7 @@ inline bool isfile(const std::string& path)
   if (::stat(path.c_str(), &s) < 0) {
     return false;
   }
+
   return S_ISREG(s.st_mode);
 }
 
@@ -56,6 +58,7 @@ inline bool islink(const std::string& path)
   if (::lstat(path.c_str(), &s) < 0) {
     return false;
   }
+
   return S_ISLNK(s.st_mode);
 }
 
@@ -83,21 +86,22 @@ inline Try<Bytes> size(
     case DO_NOT_FOLLOW_SYMLINK: {
       if (::lstat(path.c_str(), &s) < 0) {
         return ErrnoError("Error invoking lstat for '" + path + "'");
+      } else {
+        return Bytes(s.st_size);
       }
       break;
     }
     case FOLLOW_SYMLINK: {
       if (::stat(path.c_str(), &s) < 0) {
         return ErrnoError("Error invoking stat for '" + path + "'");
+      } else {
+        return Bytes(s.st_size);
       }
       break;
     }
-    default: {
-      UNREACHABLE();
-    }
   }
 
-  return Bytes(s.st_size);
+  UNREACHABLE();
 }
 
 

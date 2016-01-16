@@ -15,29 +15,52 @@
 
 #include <string>
 
+#include <stout/bytes.hpp>
 #include <stout/try.hpp>
+#include <stout/unreachable.hpp>
+#include <stout/windows.hpp>
+
+#include <stout/internal/windows/reparsepoint.hpp>
+#include <stout/internal/windows/symlink.hpp>
+
+#ifdef _USE_32BIT_TIME_T
+#error "Implementation of `os::stat::mtime` assumes 64-bit `time_t`."
+#endif // _USE_32BIT_TIME_T
 
 
 namespace os {
-
 namespace stat {
 
 inline bool isdir(const std::string& path)
 {
-  UNIMPLEMENTED;
+  struct _stat s;
+
+  if (::_stat(path.c_str(), &s) < 0) {
+    return false;
+  }
+
+  return S_ISDIR(s.st_mode);
 }
 
 
 inline bool isfile(const std::string& path)
 {
-  UNIMPLEMENTED;
-}
+  struct _stat s;
 
+  if (::_stat(path.c_str(), &s) < 0) {
+    return false;
+  }
+
+  return S_ISREG(s.st_mode);
+}
 
 
 inline bool islink(const std::string& path)
 {
-  UNIMPLEMENTED;
+  Try<internal::windows::SymbolicLink> symlink =
+    internal::windows::query_symbolic_link_data(path);
+
+  return symlink.isSome();
 }
 
 
@@ -58,35 +81,91 @@ inline Try<Bytes> size(
     const std::string& path,
     const FollowSymlink follow = FOLLOW_SYMLINK)
 {
-  UNIMPLEMENTED;
+  switch (follow) {
+    case DO_NOT_FOLLOW_SYMLINK: {
+      Try<internal::windows::SymbolicLink> symlink =
+        internal::windows::query_symbolic_link_data(path);
+
+      if (symlink.isError()) {
+        return Error(symlink.error());
+      } else {
+        return Bytes(symlink.get().substitute_name.length());
+      }
+      break;
+    }
+    case FOLLOW_SYMLINK: {
+      struct _stat s;
+
+      if (::_stat(path.c_str(), &s) < 0) {
+        return ErrnoError("Error invoking stat for '" + path + "'");
+      } else {
+        return Bytes(s.st_size);
+      }
+      break;
+    }
+  }
+
+  UNREACHABLE();
 }
 
 
 inline Try<long> mtime(const std::string& path)
 {
-  UNIMPLEMENTED;
+  Try<internal::windows::SymbolicLink> symlink =
+    internal::windows::query_symbolic_link_data(path);
+
+  if (symlink.isSome()) {
+    return Error(
+        "Requested mtime for '" + path +
+        "', but symbolic links don't have an mtime on Windows");
+  }
+
+  struct _stat s;
+
+  if (::_stat(path.c_str(), &s) < 0) {
+    return ErrnoError("Error invoking stat for '" + path + "'");
+  }
+
+  return s.st_mtime;
 }
 
 
 inline Try<mode_t> mode(const std::string& path)
 {
-  UNIMPLEMENTED;
+  struct _stat s;
+
+  if (::_stat(path.c_str(), &s) < 0) {
+    return ErrnoError("Error invoking stat for '" + path + "'");
+  }
+
+  return s.st_mode;
 }
 
 
-inline Try<dev_t> rdev(const std::string& path)
+inline Try<dev_t> dev(const std::string& path)
 {
-  UNIMPLEMENTED;
+  struct _stat s;
+
+  if (::_stat(path.c_str(), &s) < 0) {
+    return ErrnoError("Error invoking stat for '" + path + "'");
+  }
+
+  return s.st_dev;
 }
 
 
 inline Try<ino_t> inode(const std::string& path)
 {
-  UNIMPLEMENTED;
+  struct _stat s;
+
+  if (::_stat(path.c_str(), &s) < 0) {
+    return ErrnoError("Error invoking stat for '" + path + "'");
+  }
+
+  return s.st_ino;
 }
 
 } // namespace stat {
-
 } // namespace os {
 
 #endif // __STOUT_OS_WINDOWS_STAT_HPP__
