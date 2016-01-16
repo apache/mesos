@@ -52,10 +52,15 @@ swallow_assign const ignore = swallow_assign();
 #define foreach BOOST_FOREACH
 #define foreachpair BOOST_FOREACH_PAIR
 
+#define reverse_foreach BOOST_REVERSE_FOREACH
+
 #define foreachkey(VAR, COL)                    \
   foreachpair (VAR, __foreach__::ignore, COL)
 
 #define foreachvalue(VAR, COL)                  \
   foreachpair (__foreach__::ignore, VAR, COL)
+
+// TODO(tnachen): Add reverse_foreachkey, reverse_foreachvalue and
+// reverse_foreachpair.
 
 #endif // __STOUT_FOREACH_HPP__
