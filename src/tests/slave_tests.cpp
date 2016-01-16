@@ -321,6 +321,9 @@ TEST_F(SlaveTest, RemoveUnregisteredTerminatedExecutor)
 
 // Test that we can run the command executor and specify an "override"
 // command to use via the --override argument.
+// NOTE: CommmandExecutor::reaped() sleeps 1 second to avoid races,
+// hence this test takes more than 1 second to finish. The root cause
+// is tracked via MESOS-4111.
 TEST_F(SlaveTest, CommandExecutorWithOverride)
 {
   Try<PID<Master>> master = StartMaster();
