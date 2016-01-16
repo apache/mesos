@@ -72,10 +72,10 @@ public:
       initialized(false),
       paused(true),
       metrics(*this),
-      roleSorterFactory(_roleSorterFactory),
-      frameworkSorterFactory(_frameworkSorterFactory),
+      roleSorter(NULL),
       quotaRoleSorter(NULL),
-      roleSorter(NULL) {}
+      roleSorterFactory(_roleSorterFactory),
+      frameworkSorterFactory(_frameworkSorterFactory) {}
 
   virtual ~HierarchicalAllocatorProcess() {}
 
@@ -383,7 +383,12 @@ protected:
   // Slaves to send offers for.
   Option<hashset<std::string>> whitelist;
 
-  // There are two levels of sorting, hence "hierarchical".
+  // There are two stages of allocation. During the first stage resources
+  // are allocated only to frameworks in roles with quota set. During the
+  // second stage remaining resources that would not be required to satisfy
+  // un-allocated quota are then allocated to all frameworks.
+  //
+  // Each stage comprises two levels of sorting, hence "hierarchical".
   // Level 1 sorts across roles:
   //   Reserved resources are excluded from fairness calculation,
   //   since they are forcibly pinned to a role.
@@ -392,28 +397,44 @@ protected:
   //   in the fairness calculation. This is because reserved
   //   resources can be allocated to any framework in the role.
   //
-  // Note that the hierarchical allocator considers oversubscribed
+  // The allocator relies on `Sorter`s to employ a particular sorting
+  // algorithm. Each level has its own sorter and hence may have different
+  // fairness calculations.
+  //
+  // NOTE: The hierarchical allocator considers oversubscribed
   // resources as regular resources when doing fairness calculations.
   // TODO(vinod): Consider using a different fairness algorithm for
   // oversubscribed resources.
-  const std::function<Sorter*()> roleSorterFactory;
-  const std::function<Sorter*()> frameworkSorterFactory;
 
-  // A dedicated sorter for roles for which quota is set. Quota'ed roles
-  // belong to an extra allocation group and have resources allocated up
-  // to their alloted quota prior to non-quota'ed roles.
+  // A sorter for active roles. This sorter determines the order in which
+  // roles are allocated resources during Level 1 of the second stage.
+  Sorter* roleSorter;
+
+  // A dedicated sorter for roles for which quota is set. This sorter
+  // determines the order in which quota'ed roles are allocated resources
+  // during Level 1 of the first stage. Quota'ed roles have resources
+  // allocated up to their alloted quota (the first stage) prior to
+  // non-quota'ed roles (the second stage).
   //
-  // Note that a role appears in `quotaRoleSorter` if it has a quota
-  // (even if no frameworks are currently registered in that role). In
-  // contrast, `roleSorter` only contains entries for roles with one or
-  // more registered frameworks.
+  // NOTE: A role appears in `quotaRoleSorter` if it has a quota (even if
+  // no frameworks are currently registered in that role). In contrast,
+  // `roleSorter` only contains entries for roles with one or more
+  // registered frameworks.
   //
   // NOTE: This sorter counts only unreserved non-revocable resources.
   // TODO(alexr): Consider including dynamically reserved resources.
   Sorter* quotaRoleSorter;
 
-  Sorter* roleSorter;
+  // A collection of sorters, one per active role. Each sorter determines
+  // the order in which frameworks that belong to the same role are allocated
+  // resources inside the role's share. These sorters are used during Level 2
+  // for both the first and the second stages.
   hashmap<std::string, Sorter*> frameworkSorters;
+
+  // Factory functions for sorters.
+  // NOTE: `quotaRoleSorter` currently reuses `roleSorterFactory`.
+  const std::function<Sorter*()> roleSorterFactory;
+  const std::function<Sorter*()> frameworkSorterFactory;
 };
 
 
