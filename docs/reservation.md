@@ -55,7 +55,9 @@ see the [authorization documentation](authorization.md).
   available for __frameworks__ to send back via the `acceptOffers` API as a
   response to a resource offer.
 * `/reserve` and `/unreserve` HTTP endpoints allow __operators__ to manage
-  dynamic reservations through the master.
+  dynamic reservations through the master. NOTE: As of 0.27.0, these endpoints
+  cannot be used when HTTP authentication is disabled due to the current
+  implementation. This will change in version 0.28.0.
 
 In the following sections, we will walk through examples of each of the
 interfaces described above.
