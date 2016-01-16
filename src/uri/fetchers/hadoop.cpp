@@ -15,11 +15,13 @@
 // limitations under the License.
 
 #include <stout/path.hpp>
+#include <stout/strings.hpp>
 
 #include <stout/os/mkdir.hpp>
 
 #include "uri/fetchers/hadoop.hpp"
 
+using std::vector;
 using std::set;
 using std::string;
 
@@ -32,26 +34,36 @@ namespace uri {
 
 HadoopFetcherPlugin::Flags::Flags()
 {
-  add(&Flags::hadoop,
-      "hadoop",
+  add(&Flags::hadoop_client,
+      "hadoop_client",
       "The path to the hadoop client\n");
+
+  add(&Flags::hadoop_client_supported_schemes,
+      "hadoop_client_supported_schemes",
+      "A comma-separated list of the schemes supported by the hadoop client.\n",
+      "hdfs,hftp,s3,s3n");
 }
 
 
 Try<Owned<Fetcher::Plugin>> HadoopFetcherPlugin::create(const Flags& flags)
 {
-  Try<Owned<HDFS>> hdfs = HDFS::create(flags.hadoop);
+  Try<Owned<HDFS>> hdfs = HDFS::create(flags.hadoop_client);
   if (hdfs.isError()) {
     return Error("Failed to create HDFS client: " + hdfs.error());
   }
 
-  return Owned<Fetcher::Plugin>(new HadoopFetcherPlugin(hdfs.get()));
+  vector<string> schemes = strings::tokenize(
+      flags.hadoop_client_supported_schemes, ",");
+
+  return Owned<Fetcher::Plugin>(new HadoopFetcherPlugin(
+      hdfs.get(),
+      set<string>(schemes.begin(), schemes.end())));
 }
 
 
 set<string> HadoopFetcherPlugin::schemes()
 {
-  return {"hdfs", "hftp", "s3", "s3n"};
+  return schemes_;
 }
 
 

@@ -171,7 +171,7 @@ TEST_F(HadoopFetcherPluginTest, FetchExistingFile)
   URI uri = uri::hdfs(file);
 
   uri::fetcher::Flags flags;
-  flags.hadoop = hadoop;
+  flags.hadoop_client = hadoop;
 
   Try<Owned<uri::Fetcher>> fetcher = uri::fetcher::create(flags);
   ASSERT_SOME(fetcher);
@@ -189,7 +189,7 @@ TEST_F(HadoopFetcherPluginTest, FetchNonExistingFile)
   URI uri = uri::hdfs(path::join(os::getcwd(), "non-exist"));
 
   uri::fetcher::Flags flags;
-  flags.hadoop = hadoop;
+  flags.hadoop_client = hadoop;
 
   Try<Owned<uri::Fetcher>> fetcher = uri::fetcher::create(flags);
   ASSERT_SOME(fetcher);

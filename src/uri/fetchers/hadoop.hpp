@@ -17,13 +17,14 @@
 #ifndef __URI_FETCHERS_HADOOP_HPP__
 #define __URI_FETCHERS_HADOOP_HPP__
 
+#include <set>
+#include <string>
+
 #include <process/owned.hpp>
 
 #include <stout/flags.hpp>
 #include <stout/option.hpp>
 #include <stout/try.hpp>
-
-#include <mesos/mesos.hpp>
 
 #include <mesos/uri/fetcher.hpp>
 
@@ -40,7 +41,8 @@ public:
   public:
     Flags();
 
-    Option<std::string> hadoop;
+    Option<std::string> hadoop_client;
+    std::string hadoop_client_supported_schemes;
   };
 
   static Try<process::Owned<Fetcher::Plugin>> create(const Flags& flags);
@@ -54,9 +56,14 @@ public:
       const std::string& directory);
 
 private:
-  HadoopFetcherPlugin(process::Owned<HDFS> _hdfs) : hdfs(_hdfs) {}
+  HadoopFetcherPlugin(
+      process::Owned<HDFS> _hdfs,
+      const std::set<std::string>& _schemes)
+    : hdfs(_hdfs),
+      schemes_(_schemes) {}
 
   process::Owned<HDFS> hdfs;
+  std::set<std::string> schemes_;
 };
 
 } // namespace uri {
