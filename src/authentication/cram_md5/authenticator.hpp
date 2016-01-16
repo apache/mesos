@@ -57,4 +57,4 @@ private:
 } // namespace internal {
 } // namespace mesos {
 
-#endif //__AUTHENTICATION_CRAM_MD5_AUTHENTICATOR_HPP__
+#endif // __AUTHENTICATION_CRAM_MD5_AUTHENTICATOR_HPP__

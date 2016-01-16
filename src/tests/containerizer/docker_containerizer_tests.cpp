@@ -975,7 +975,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Update)
 
   Shutdown();
 }
-#endif //__linux__
+#endif // __linux__
 
 
 TEST_F(DockerContainerizerTest, ROOT_DOCKER_Recover)

@@ -81,4 +81,4 @@ private:
 } // namespace internal {
 } // namespace mesos {
 
-#endif //__AUTHORIZER_AUTHORIZER_HPP__
+#endif // __AUTHORIZER_AUTHORIZER_HPP__
