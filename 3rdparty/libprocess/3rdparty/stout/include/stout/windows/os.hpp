@@ -55,15 +55,6 @@ inline void unsetenv(const std::string& key)
 }
 
 
-// By default, recursively deletes a directory akin to: 'rm -r'. If the
-// programmer sets recursive to false, it deletes a directory akin to: 'rmdir'.
-// Note that this function expects an absolute path.
-inline Try<Nothing> rmdir(const std::string& directory, bool recursive = true)
-{
-  UNIMPLEMENTED;
-}
-
-
 // Executes a command by calling "/bin/sh -c <command>", and returns
 // after the command has been completed. Returns 0 if succeeds, and
 // return -1 on error (e.g., fork/exec/waitpid failed). This function
