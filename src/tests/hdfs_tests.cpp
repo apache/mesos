@@ -116,6 +116,32 @@ TEST_F(HdfsTest, Du)
 }
 
 
+// This is the same test as HdfsTest::Du except it emulates a HDFS
+// version that returns 3 fields for the du subcommand.
+TEST_F(HdfsTest, ThreeFieldDu)
+{
+  // The script emulating 'hadoop fs -du <path>'.
+  // NOTE: We emulate a version call here which is exercised when
+  // creating the HDFS client.
+  ASSERT_SOME(os::write(
+      hadoop,
+      "#!/bin/sh\n"
+      "if [ \"$1\" = \"version\" ]; then\n"
+      "  exit 0\n"
+      "fi\n"
+      "du $3 | awk '{printf \"%s  %s  %s\\n\", $1, $1, $2}' \n"));
+
+  Try<Owned<HDFS>> hdfs = HDFS::create(hadoop);
+  ASSERT_SOME(hdfs);
+
+  Future<Bytes> bytes = hdfs.get()->du(hadoop);
+  AWAIT_READY(bytes);
+
+  bytes = hdfs.get()->du(path::join(os::getcwd(), "Invalid"));
+  AWAIT_FAILED(bytes);
+}
+
+
 // This test verifies the 'HDFS::rm(path)' method. We emulate the
 // hadoop client by removing a file on the local filesystem.
 TEST_F(HdfsTest, Rm)

@@ -197,7 +197,11 @@ Future<Bytes> HDFS::du(const string& _path)
         // fields can be delimited by multiple spaces.
         vector<string> fields = strings::tokenize(line, " \t");
 
-        if (fields.size() == 2 && fields[1] == path) {
+        // There might be 2 or 3 fields, see HADOOP-6857. The 2-field
+        // version contains object size and path, the 3-field version
+        // contains object size, object storage size and path.
+        if ((fields.size() == 2 || fields.size() == 3) &&
+            fields.back() == path) {
           Result<size_t> size = numify<size_t>(fields[0]);
           if (size.isSome()) {
             return Bytes(size.get());
