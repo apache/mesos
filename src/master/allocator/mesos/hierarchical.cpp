@@ -158,7 +158,16 @@ void HierarchicalAllocatorProcess::recover(
   CHECK_EQ(0, quotaRoleSorter->count());
   CHECK(_expectedAgentCount >= 0);
 
-  // If there are no quotas, no recovery is currently necessary.
+  // If there is no quota, recovery is a no-op. Otherwise, we need
+  // to delay allocations while agents are re-registering because
+  // otherwise we perform allocations on a partial view of resources!
+  // We would consequently perform unnecessary allocations to satisfy
+  // quota constraints, which can over-allocate non-revocable resources
+  // to roles using quota. Then, frameworks in roles without quota can
+  // be unnecessarily deprived of resources. We may also be unable to
+  // satisfy all of the quota constraints. Repeated master failovers
+  // exacerbate the issue.
+
   if (quotas.empty()) {
     VLOG(1) << "Skipping recovery of hierarchical allocator: "
             << "nothing to recover";
