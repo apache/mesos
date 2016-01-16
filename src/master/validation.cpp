@@ -660,14 +660,27 @@ Option<Error> validate(
     return Error("Invalid resources: " + error.get().message);
   }
 
+  // TODO(greggomann): Remove this check once dynamic reservation is
+  // allowed without a principal in 0.28.
   if (principal.isNone()) {
-    return Error("Cannot reserve resources without a principal");
+    return Error(
+        "Currently must have a principal associated with the request in order "
+        "to reserve resources. This will change in a future version. Note "
+        "that this is distinct from the principal contained in the resources");
   }
 
   foreach (const Resource& resource, reserve.resources()) {
     if (!Resources::isDynamicallyReserved(resource)) {
       return Error(
           "Resource " + stringify(resource) + " is not dynamically reserved");
+    }
+
+    // TODO(greggomann): Remove this check once dynamic reservation is
+    // allowed without a principal in 0.28.
+    if (!resource.reservation().has_principal()) {
+      return Error(
+          "Reserved resources currently must contain a principal. "
+          "This will change in a future version");
     }
 
     if (role.isSome() && resource.role() != role.get()) {
@@ -708,7 +721,9 @@ Option<Error> validate(
   }
 
   if (!hasPrincipal) {
-    return Error("Resources cannot be unreserved without a principal");
+    return Error(
+        "Currently cannot unreserve resources without a principal. "
+        "This will change in a future version");
   }
 
   // NOTE: We don't check that 'FrameworkInfo.principal' matches

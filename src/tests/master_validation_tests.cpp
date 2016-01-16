@@ -303,6 +303,22 @@ TEST_F(ReserveOperationValidationTest, FrameworkMissingPrincipal)
 }
 
 
+// This test verifies that validation fails if the `principal`
+// in `ReservationInfo` is not set.
+TEST_F(ReserveOperationValidationTest, ReservationInfoMissingPrincipal)
+{
+  Resource::ReservationInfo reservationInfo;
+
+  Resource resource = Resources::parse("cpus", "8", "role").get();
+  resource.mutable_reservation()->CopyFrom(reservationInfo);
+
+  Offer::Operation::Reserve reserve;
+  reserve.add_resources()->CopyFrom(resource);
+
+  EXPECT_SOME(operation::validate(reserve, "role", "principal"));
+}
+
+
 // This test verifies that validation fails if there are statically
 // reserved resources specified in the RESERVE operation.
 TEST_F(ReserveOperationValidationTest, StaticReservation)
