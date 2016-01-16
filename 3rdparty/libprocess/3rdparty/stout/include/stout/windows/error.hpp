@@ -84,12 +84,12 @@ private:
     LPSTR message_buffer;
     size_t size = FormatMessage(
         allocate_message_buffer,
-        NULL,                   // Ignored.
+        NULL,                    // Ignored.
         errorCode,
         default_language,
-        (LPSTR) &message_buffer,// See comment above for note about quirky cast.
-        0,                      // Ignored.
-        NULL);                  // Ignored.
+        (LPSTR) &message_buffer, // See comment above about quirky cast.
+        0,                       // Ignored.
+        NULL);                   // Ignored.
 
     std::string message(message_buffer, size);
 

@@ -130,7 +130,7 @@ TEST(PathTest, Join)
   EXPECT_EQ("", path::join(vector<string>()));
   EXPECT_EQ("a/b/c", path::join(vector<string>({"a", "b", "c"})));
 
-  //TODO(cmaloney): This should join to ""
+  // TODO(cmaloney): This should join to ""
   EXPECT_EQ("/", path::join(vector<string>({"", "", ""})));
 
   // Interesting corner cases around being the first, middle, last.
