@@ -1584,6 +1584,8 @@ file:///path/to/file (where file contains one of the above)</code></pre>
       If the user does not exist, an error occurs and the task will fail.
       If set to <code>false</code>, tasks will be run as the same user as the
       Mesos agent process. (default: true)
+      <b>NOTE</b> This feature is not yet supported on Windows agents, and
+      therefore the flag currently does not exist on that platform.
     </td>
   </tr>
   <tr>

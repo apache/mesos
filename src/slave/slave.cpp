@@ -3561,6 +3561,7 @@ ExecutorInfo Slave::getExecutorInfo(
         executor.mutable_command()->add_arguments(
             "--sandbox_directory=" + flags.sandbox_directory);
 
+#ifndef __WINDOWS__
         // NOTE: if switch_user flag is false and the slave runs under
         // a non-root user, the task will be rejected by the Posix
         // filesystem isolator. Linux filesystem isolator requires slave
@@ -3578,6 +3579,7 @@ ExecutorInfo Slave::getExecutorInfo(
                 "--user=" + user.get());
           }
         }
+#endif // __WINDOWS__
       }
 
       executor.mutable_command()->set_value(path.get());
@@ -5168,6 +5170,7 @@ Executor* Framework::launchExecutor(
   containerId.set_value(UUID::random().toString());
 
   Option<string> user = None();
+#ifndef __WINDOWS__
   if (slave->flags.switch_user) {
     // The command (either in form of task or executor command) can
     // define a specific user to run as. If present, this precedes the
@@ -5183,6 +5186,7 @@ Executor* Framework::launchExecutor(
       user = executorInfo.command().user();
     }
   }
+#endif // __WINDOWS__
 
   // Create a directory for the executor.
   const string directory = paths::createExecutorDirectory(

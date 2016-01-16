@@ -193,6 +193,7 @@ mesos::internal::slave::Flags::Flags()
       "environment or find hadoop on PATH)",
       "");
 
+#ifndef __WINDOWS__
   add(&Flags::switch_user,
       "switch_user",
       "If set to `true`, the agent will attempt to run tasks as\n"
@@ -201,8 +202,11 @@ mesos::internal::slave::Flags::Flags()
       "exists on the agent).\n"
       "If the user does not exist, an error occurs and the task will fail.\n"
       "If set to `false`, tasks will be run as the same user as the Mesos\n"
-      "agent process.",
+      "agent process.\n"
+      "NOTE: This feature is not yet supported on Windows agents, and\n"
+      "therefore the flag currently does not exist on that platform.",
       true);
+#endif // __WINDOWS__
 
   add(&Flags::frameworks_home,
       "frameworks_home",

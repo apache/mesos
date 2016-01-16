@@ -63,7 +63,9 @@ public:
   std::string work_dir;
   std::string launcher_dir;
   std::string hadoop_home; // TODO(benh): Make an Option.
+#ifndef __WINDOWS__
   bool switch_user;
+#endif // __WINDOWS__
   std::string frameworks_home;  // TODO(benh): Make an Option.
   Duration registration_backoff_factor;
   Option<JSON::Object> executor_environment_variables;
