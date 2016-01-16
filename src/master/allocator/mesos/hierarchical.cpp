@@ -1252,7 +1252,7 @@ void HierarchicalAllocatorProcess::allocate(
   // Proceed with allocating the remaining free pool.
   foreach (const SlaveID& slaveId, slaveIds) {
     // If there are no resources available for the second stage, stop.
-    if ((remainingClusterResources - allocatedStage2).empty()) {
+    if (!allocatable(remainingClusterResources - allocatedStage2)) {
       break;
     }
 
