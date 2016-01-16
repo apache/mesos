@@ -56,6 +56,7 @@ def run_lint(source_paths):
         'whitespace/operators',
         'whitespace/semicolon',
         'whitespace/tab',
+        'whitespace/comments',
         'whitespace/todo']
 
     rules_filter = '--filter=-,+' + ',+'.join(active_rules)
