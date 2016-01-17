@@ -104,23 +104,12 @@ public:
 };
 
 
-class RootFilter : public TestFilter
+class BenchmarkFilter : public TestFilter
 {
 public:
   bool disable(const ::testing::TestInfo* test) const
   {
-    Result<string> user = os::user();
-    CHECK_SOME(user);
-
-#ifdef __linux__
-    // On Linux non-privileged users are limited to 64k of locked
-    // memory so we cannot run the MemIsolatorTest.Usage.
-    if (matches(test, "MemIsolatorTest")) {
-      return user.get() != "root";
-    }
-#endif // __linux__
-
-    return matches(test, "ROOT_") && user.get() != "root";
+    return matches(test, "BENCHMARK_") && !flags.benchmark;
   }
 };
 
@@ -236,6 +225,31 @@ private:
 };
 
 
+class CurlFilter : public TestFilter
+{
+public:
+  CurlFilter()
+  {
+    curlError = os::system("which curl") != 0;
+    if (curlError) {
+      std::cerr
+        << "-------------------------------------------------------------\n"
+        << "No 'curl' command found so no 'curl' tests will be run\n"
+        << "-------------------------------------------------------------"
+        << std::endl;
+    }
+  }
+
+  bool disable(const ::testing::TestInfo* test) const
+  {
+    return matches(test, "CURL_") && curlError;
+  }
+
+private:
+  bool curlError;
+};
+
+
 class DockerFilter : public TestFilter
 {
 public:
@@ -273,38 +287,66 @@ private:
 };
 
 
-class PerfFilter : public TestFilter
+class NetcatFilter : public TestFilter
 {
 public:
-  PerfFilter()
+  NetcatFilter()
   {
-#ifdef __linux__
-    perfError = os::system("perf help >&-") != 0;
-    if (perfError) {
+    netcatError = os::system("which nc") != 0;
+    if (netcatError) {
       std::cerr
         << "-------------------------------------------------------------\n"
-        << "No 'perf' command found so no 'perf' tests will be run\n"
+        << "No 'nc' command found so no tests depending on 'nc' will run\n"
         << "-------------------------------------------------------------"
         << std::endl;
     }
-#else
-    perfError = true;
-#endif // __linux__
   }
 
   bool disable(const ::testing::TestInfo* test) const
   {
-    // Currently all tests that require 'perf' are part of the
-    // 'PerfTest' test fixture, hence we check for 'Perf' here.
-    //
-    // TODO(ijimenez): Replace all tests which require 'perf' with
-    // the prefix 'PERF_' to be more consistent with the filter
-    // naming we've done (i.e., ROOT_, CGROUPS_, etc).
-    return matches(test, "Perf") && perfError;
+    return matches(test, "NC_") && netcatError;
   }
 
 private:
-  bool perfError;
+  bool netcatError;
+};
+
+
+class NetworkIsolatorTestFilter : public TestFilter
+{
+public:
+  NetworkIsolatorTestFilter()
+  {
+#ifdef WITH_NETWORK_ISOLATOR
+    Try<Nothing> check = routing::check();
+    if (check.isError()) {
+      std::cerr
+        << "-------------------------------------------------------------\n"
+        << "We cannot run any PortMapping tests because:\n"
+        << check.error() << "\n"
+        << "-------------------------------------------------------------\n";
+
+      portMappingError = Error(check.error());
+    }
+#endif
+  }
+
+  bool disable(const ::testing::TestInfo* test) const
+  {
+    if (matches(test, "PortMappingIsolatorTest") ||
+        matches(test, "PortMappingMesosTest")) {
+#ifdef WITH_NETWORK_ISOLATOR
+      return !portMappingError.isNone();
+#else
+      return true;
+#endif
+    }
+
+    return false;
+  }
+
+private:
+  Option<Error> portMappingError;
 };
 
 
@@ -358,101 +400,59 @@ private:
 };
 
 
-class NetcatFilter : public TestFilter
+class PerfFilter : public TestFilter
 {
 public:
-  NetcatFilter()
+  PerfFilter()
   {
-    netcatError = os::system("which nc") != 0;
-    if (netcatError) {
+#ifdef __linux__
+    perfError = os::system("perf help >&-") != 0;
+    if (perfError) {
       std::cerr
         << "-------------------------------------------------------------\n"
-        << "No 'nc' command found so no tests depending on 'nc' will run\n"
+        << "No 'perf' command found so no 'perf' tests will be run\n"
         << "-------------------------------------------------------------"
         << std::endl;
     }
-  }
-
-  bool disable(const ::testing::TestInfo* test) const
-  {
-    return matches(test, "NC_") && netcatError;
-  }
-
-private:
-  bool netcatError;
-};
-
-
-class CurlFilter : public TestFilter
-{
-public:
-  CurlFilter()
-  {
-    curlError = os::system("which curl") != 0;
-    if (curlError) {
-      std::cerr
-        << "-------------------------------------------------------------\n"
-        << "No 'curl' command found so no 'curl' tests will be run\n"
-        << "-------------------------------------------------------------"
-        << std::endl;
-    }
-  }
-
-  bool disable(const ::testing::TestInfo* test) const
-  {
-    return matches(test, "CURL_") && curlError;
-  }
-
-private:
-  bool curlError;
-};
-
-
-class BenchmarkFilter : public TestFilter
-{
-public:
-  bool disable(const ::testing::TestInfo* test) const
-  {
-    return matches(test, "BENCHMARK_") && !flags.benchmark;
-  }
-};
-
-
-class NetworkIsolatorTestFilter : public TestFilter
-{
-public:
-  NetworkIsolatorTestFilter()
-  {
-#ifdef WITH_NETWORK_ISOLATOR
-    Try<Nothing> check = routing::check();
-    if (check.isError()) {
-      std::cerr
-        << "-------------------------------------------------------------\n"
-        << "We cannot run any PortMapping tests because:\n"
-        << check.error() << "\n"
-        << "-------------------------------------------------------------\n";
-
-      portMappingError = Error(check.error());
-    }
-#endif
-  }
-
-  bool disable(const ::testing::TestInfo* test) const
-  {
-    if (matches(test, "PortMappingIsolatorTest") ||
-        matches(test, "PortMappingMesosTest")) {
-#ifdef WITH_NETWORK_ISOLATOR
-      return !portMappingError.isNone();
 #else
-      return true;
-#endif
-    }
+    perfError = true;
+#endif // __linux__
+  }
 
-    return false;
+  bool disable(const ::testing::TestInfo* test) const
+  {
+    // Currently all tests that require 'perf' are part of the
+    // 'PerfTest' test fixture, hence we check for 'Perf' here.
+    //
+    // TODO(ijimenez): Replace all tests which require 'perf' with
+    // the prefix 'PERF_' to be more consistent with the filter
+    // naming we've done (i.e., ROOT_, CGROUPS_, etc).
+    return matches(test, "Perf") && perfError;
   }
 
 private:
-  Option<Error> portMappingError;
+  bool perfError;
+};
+
+
+class RootFilter : public TestFilter
+{
+public:
+  bool disable(const ::testing::TestInfo* test) const
+  {
+    Result<string> user = os::user();
+    CHECK_SOME(user);
+
+#ifdef __linux__
+    // On Linux non-privileged users are limited to 64k of locked
+    // memory so we cannot run the MemIsolatorTest.Usage.
+    if (matches(test, "MemIsolatorTest")) {
+      return user.get() != "root";
+    }
+#endif // __linux__
+
+    return matches(test, "ROOT_") && user.get() != "root";
+  }
 };
 
 
@@ -522,16 +522,16 @@ Environment::Environment(const Flags& _flags) : flags(_flags)
 
   vector<Owned<TestFilter> > filters;
 
-  filters.push_back(Owned<TestFilter>(new RootFilter()));
+  filters.push_back(Owned<TestFilter>(new BenchmarkFilter()));
   filters.push_back(Owned<TestFilter>(new CfsFilter()));
   filters.push_back(Owned<TestFilter>(new CgroupsFilter()));
-  filters.push_back(Owned<TestFilter>(new DockerFilter()));
-  filters.push_back(Owned<TestFilter>(new BenchmarkFilter()));
-  filters.push_back(Owned<TestFilter>(new NetworkIsolatorTestFilter()));
-  filters.push_back(Owned<TestFilter>(new PerfFilter()));
-  filters.push_back(Owned<TestFilter>(new PerfCPUCyclesFilter()));
-  filters.push_back(Owned<TestFilter>(new NetcatFilter()));
   filters.push_back(Owned<TestFilter>(new CurlFilter()));
+  filters.push_back(Owned<TestFilter>(new DockerFilter()));
+  filters.push_back(Owned<TestFilter>(new NetcatFilter()));
+  filters.push_back(Owned<TestFilter>(new NetworkIsolatorTestFilter()));
+  filters.push_back(Owned<TestFilter>(new PerfCPUCyclesFilter()));
+  filters.push_back(Owned<TestFilter>(new PerfFilter()));
+  filters.push_back(Owned<TestFilter>(new RootFilter()));
 
   // Construct the filter string to handle system or platform specific tests.
   ::testing::UnitTest* unitTest = ::testing::UnitTest::GetInstance();
