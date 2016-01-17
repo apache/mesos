@@ -287,6 +287,31 @@ private:
 };
 
 
+class InternetFilter : public TestFilter
+{
+public:
+  InternetFilter()
+  {
+    error = os::system("ping -c 1 -W 1 google.com") != 0;
+    if (error) {
+      std::cerr
+        << "-------------------------------------------------------------\n"
+        << "We cannot run any INTERNET tests because no internet access\n"
+        << "-------------------------------------------------------------"
+        << std::endl;
+    }
+  }
+
+  bool disable(const ::testing::TestInfo* test) const
+  {
+    return matches(test, "INTERNET_") && error;
+  }
+
+private:
+  bool error;
+};
+
+
 class NetcatFilter : public TestFilter
 {
 public:
@@ -527,6 +552,7 @@ Environment::Environment(const Flags& _flags) : flags(_flags)
   filters.push_back(Owned<TestFilter>(new CgroupsFilter()));
   filters.push_back(Owned<TestFilter>(new CurlFilter()));
   filters.push_back(Owned<TestFilter>(new DockerFilter()));
+  filters.push_back(Owned<TestFilter>(new InternetFilter()));
   filters.push_back(Owned<TestFilter>(new NetcatFilter()));
   filters.push_back(Owned<TestFilter>(new NetworkIsolatorTestFilter()));
   filters.push_back(Owned<TestFilter>(new PerfCPUCyclesFilter()));
