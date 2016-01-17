@@ -22,6 +22,7 @@
 #include <string>
 
 #include <process/future.hpp>
+#include <process/owned.hpp>
 #include <process/subprocess.hpp>
 
 #include <stout/duration.hpp>
@@ -43,7 +44,7 @@ class Docker
 {
 public:
   // Create Docker abstraction and optionally validate docker.
-  static Try<Docker*> create(
+  static Try<process::Owned<Docker>> create(
       const std::string& path,
       const std::string& socket,
       bool validate = true);

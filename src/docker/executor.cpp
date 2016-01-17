@@ -41,6 +41,9 @@
 
 #include "messages/messages.hpp"
 
+using namespace mesos;
+using namespace process;
+
 using std::cerr;
 using std::cout;
 using std::endl;
@@ -50,9 +53,6 @@ using std::vector;
 namespace mesos {
 namespace internal {
 namespace docker {
-
-using namespace mesos;
-using namespace process;
 
 const Duration DOCKER_INSPECT_DELAY = Milliseconds(500);
 const Duration DOCKER_INSPECT_TIMEOUT = Seconds(5);
@@ -571,8 +571,10 @@ int main(int argc, char** argv)
   // The 2nd argument for docker create is set to false so we skip
   // validation when creating a docker abstraction, as the slave
   // should have already validated docker.
-  Try<Docker*> docker =
-    Docker::create(flags.docker.get(), flags.docker_socket.get(), false);
+  Try<Owned<Docker>> docker = Docker::create(
+      flags.docker.get(),
+      flags.docker_socket.get(),
+      false);
 
   if (docker.isError()) {
     cerr << "Unable to create docker abstraction: " << docker.error() << endl;
@@ -580,7 +582,7 @@ int main(int argc, char** argv)
   }
 
   mesos::internal::docker::DockerExecutor executor(
-      process::Owned<Docker>(docker.get()),
+      docker.get(),
       flags.container.get(),
       flags.sandbox_directory.get(),
       flags.mapped_directory.get(),

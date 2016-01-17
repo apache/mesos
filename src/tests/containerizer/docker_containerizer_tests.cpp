@@ -144,10 +144,13 @@ public:
 
   virtual void TearDown()
   {
-    Try<Docker*> docker =
-      Docker::create(tests::flags.docker, tests::flags.docker_socket, false);
+    Try<Owned<Docker>> docker = Docker::create(
+        tests::flags.docker,
+        tests::flags.docker_socket,
+        false);
 
     ASSERT_SOME(docker);
+
     Future<list<Docker::Container>> containers =
       docker.get()->ps(true, slave::DOCKER_NAME_PREFIX);
 
@@ -157,8 +160,6 @@ public:
     foreach (const Docker::Container& container, containers.get()) {
       AWAIT_READY_FOR(docker.get()->rm(container.id, true), Seconds(30));
     }
-
-    delete docker.get();
   }
 };
 

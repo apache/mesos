@@ -134,13 +134,16 @@ Try<DockerContainerizer*> DockerContainerizer::create(
     return Error("Failed to create container logger: " + logger.error());
   }
 
-  Try<Docker*> create = Docker::create(flags.docker, flags.docker_socket, true);
+  Try<Owned<Docker>> create = Docker::create(
+      flags.docker,
+      flags.docker_socket,
+      true);
 
   if (create.isError()) {
     return Error("Failed to create docker: " + create.error());
   }
 
-  Shared<Docker> docker(create.get());
+  Shared<Docker> docker = create->share();
 
   if (flags.docker_mesos_image.isSome()) {
     Try<Nothing> validateResult = docker->validateVersion(Version(1, 5, 0));
