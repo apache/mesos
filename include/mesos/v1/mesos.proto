@@ -631,6 +631,36 @@ message Resource {
     // task/executor terminates. Currently, if 'persistence' is set,
     // 'volume' must be set.
     optional Volume volume = 2;
+
+    // Describes where a disk originates from.
+    // TODO(jmlvanre): Add support for BLOCK devices.
+    message Source {
+      enum Type {
+        PATH = 1;
+        MOUNT = 2;
+      }
+
+      // A folder that can be located on a separate disk device. This
+      // can be shared and carved up as necessary between frameworks.
+      message Path {
+        // Path to the folder (e.g., /mnt/raid/disk0).
+        required string root = 1;
+      }
+
+      // A mounted file-system set up by the Agent administrator. This
+      // can only be used exclusively: a framework can not accept a
+      // partial amount of this disk.
+      message Mount {
+        // Path to mount point (e.g., /mnt/raid/disk0).
+        required string root = 1;
+      }
+
+      required Type type = 1;
+      optional Path path = 2;
+      optional Mount mount = 3;
+    }
+
+    optional Source source = 3;
   }
 
   optional DiskInfo disk = 7;
