@@ -334,3 +334,69 @@ The user receives one of the following HTTP responses:
 
 Note that a single `/destroy-volumes` request can destroy multiple persistent
 volumes, but all of the volumes must be on the same slave.
+
+### Programming with Persistent Volumes
+
+Some suggestions to keep in mind when building applications that use persistent
+volumes:
+
+* A single `acceptOffers` call can be used to both create a new dynamic
+  reservation (via `Offer::Operation::Reserve`) and create a new persistent
+  volume on those newly reserved resources (via `Offer::Operation::Create`).
+
+* Attempts to dynamically reserve resources or create persistent volumes might
+  fail---for example, because the network message containing the operation did
+  not reach the master or because the master rejected the operation.
+  Applications should be prepared to detect failures and correct for them (e.g.,
+  by retrying the operation).
+
+* When using HTTP endpoints to reserve resources or create persistent volumes,
+  _some_ failures can be detected by examining the HTTP response code returned
+  to the client. However, it is still possible for a `200` response code to be
+  returned to the client but for the associated operation to fail.
+
+* When using the scheduler API, detecting that a dynamic reservation has failed
+  is a little tricky: reservations do not have unique identifiers, and the Mesos
+  master does not provide explicit feedback on whether a reservation request has
+  succeeded or failed. Hence, framework schedulers typically use a combination
+  of two techniques:
+
+  1. They use timeouts to detect that a reservation request may have failed
+     (because they don't receive a resource offer containing the expected
+     resources after a given period of time).
+
+  2. To check whether a resource offer includes the effect of a dynamic
+     reservation, applications _cannot_ check for the presence of a "reservation
+     ID" or similar value (because reservations do not have IDs). Instead,
+     applications should examine the resource offer and check it contains
+     sufficient reserved resources for the application's role. If it does not,
+     the application should make additional reservation requests as necessary.
+
+* When a scheduler issues a dynamic reservation request, the reserved resources
+  might _not_ be present in the next resource offer the scheduler receives.
+  There are two reasons for this: first, the reservation request might fail or
+  be dropped by the network, as discussed above. Second, the reservation request
+  might simply be delayed, so that the next resource offer from the master will
+  be issued before the reservation request is received by the master. This is
+  why the text above suggests that applications wait for a timeout before
+  assuming that a reservation request should be retried.
+
+* A consequence of using timeouts to detect failures is that an application
+  might submit more reservation requests than intended (e.g., a timeout fires
+  and an application makes another reservation request; meanwhile, the original
+  reservation request is also processed). Recall that two reservations for the
+  same role at the same agent are "merged": for example, role `foo` makes two
+  requests to reserve 2 CPUs at a single agent and both reservation requests
+  succeed, the result will be a single reservation of 4 CPUs. To handle this
+  situation, applications should be prepared for resource offers that contain
+  more resources than expected. Some applications may also want to detect this
+  situation and unreserve an additional reserved resources that will not be
+  required.
+
+* It often makes sense to structure application logic as a "state machine",
+  where the application moves from its initial state (no reserved resources and
+  no persistent volumes) and eventually transitions toward a single terminal
+  state (necessary resources reserved and persistent volume created). As new
+  events (such as timeouts and resource offers) are received, the application
+  compares the event with its current state and decides what action to take
+  next.
