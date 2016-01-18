@@ -52,8 +52,11 @@ namespace mesos {
 bool operator==(const CommandInfo& left, const CommandInfo& right);
 bool operator==(const CommandInfo::URI& left, const CommandInfo::URI& right);
 bool operator==(const Credential& left, const Credential& right);
+bool operator==(const DiscoveryInfo& left, const DiscoveryInfo& right);
 bool operator==(const Environment& left, const Environment& right);
 bool operator==(const ExecutorInfo& left, const ExecutorInfo& right);
+bool operator==(const Label& left, const Label& right);
+bool operator==(const Labels& left, const Labels& right);
 bool operator==(const MasterInfo& left, const MasterInfo& right);
 
 bool operator==(
@@ -61,16 +64,11 @@ bool operator==(
     const ResourceStatistics& right);
 
 bool operator==(const SlaveInfo& left, const SlaveInfo& right);
+bool operator==(const TaskStatus& left, const TaskStatus& right);
+bool operator==(const URL& left, const URL& right);
 bool operator==(const Volume& left, const Volume& right);
 
-bool operator==(const Label& left, const Label& right);
-bool operator==(const Labels& left, const Labels& right);
 
-bool operator==(const DiscoveryInfo& left, const DiscoveryInfo& right);
-
-bool operator==(const URL& left, const URL& right);
-
-bool operator==(const TaskStatus& left, const TaskStatus& right);
 bool operator!=(const TaskStatus& left, const TaskStatus& right);
 
 inline bool operator==(const ContainerID& left, const ContainerID& right)

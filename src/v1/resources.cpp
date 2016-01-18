@@ -75,8 +75,76 @@ bool operator!=(
 }
 
 
+bool operator==(
+    const Resource::DiskInfo::Source::Path& left,
+    const Resource::DiskInfo::Source::Path& right)
+{
+  return left.root() == right.root();
+}
+
+
+bool operator==(
+    const Resource::DiskInfo::Source::Mount& left,
+    const Resource::DiskInfo::Source::Mount& right)
+{
+  return left.root() == right.root();
+}
+
+
+bool operator!=(
+    const Resource::DiskInfo::Source::Path& left,
+    const Resource::DiskInfo::Source::Path& right)
+{
+  return !(left == right);
+}
+
+
+bool operator!=(
+    const Resource::DiskInfo::Source::Mount& left,
+    const Resource::DiskInfo::Source::Mount& right)
+{
+  return !(left == right);
+}
+
+
+bool operator==(
+    const Resource::DiskInfo::Source& left,
+    const Resource::DiskInfo::Source& right)
+{
+  if (left.type() != right.type()) {
+    return false;
+  }
+
+  if (left.has_path() && left.path() != right.path()) {
+    return false;
+  }
+
+  if (left.has_mount() && left.mount() != right.mount()) {
+    return false;
+  }
+
+  return true;
+}
+
+
+bool operator!=(
+    const Resource::DiskInfo::Source& left,
+    const Resource::DiskInfo::Source& right)
+{
+  return !(left == right);
+}
+
+
 bool operator==(const Resource::DiskInfo& left, const Resource::DiskInfo& right)
 {
+  if (left.has_source() != right.has_source()) {
+    return false;
+  }
+
+  if (left.has_source() && left.source() != right.source()) {
+    return false;
+  }
+
   // NOTE: We ignore 'volume' inside DiskInfo when doing comparison
   // because it describes how this resource will be used which has
   // nothing to do with the Resource object itself. A framework can
@@ -172,20 +240,26 @@ static bool addable(const Resource& left, const Resource& right)
   }
 
   // Check DiskInfo.
-  if (left.has_disk() != right.has_disk()) {
-    return false;
-  }
+  if (left.has_disk() != right.has_disk()) { return false; }
 
-  if (left.has_disk() && left.disk() != right.disk()) {
-    return false;
-  }
+  if (left.has_disk()) {
+    if (left.disk() != right.disk()) { return false; }
 
-  // TODO(jieyu): Even if two Resource objects with DiskInfo have the
-  // same persistence ID, they cannot be added together. In fact, this
-  // shouldn't happen if we do not add resources from different
-  // namespaces (e.g., across slave). Consider adding a warning.
-  if (left.has_disk() && left.disk().has_persistence()) {
-    return false;
+    // Two Resources that represent exclusive 'MOUNT' disks cannot be
+    // added together; this would defeat the exclusivity.
+    if (left.disk().has_source() &&
+        left.disk().source().type() == Resource::DiskInfo::Source::MOUNT) {
+      return false;
+    }
+
+    // TODO(jieyu): Even if two Resource objects with DiskInfo have
+    // the same persistence ID, they cannot be added together. In
+    // fact, this shouldn't happen if we do not add resources from
+    // different namespaces (e.g., across slave). Consider adding a
+    // warning.
+    if (left.disk().has_persistence()) {
+      return false;
+    }
   }
 
   // Check RevocableInfo.
@@ -223,18 +297,25 @@ static bool subtractable(const Resource& left, const Resource& right)
   }
 
   // Check DiskInfo.
-  if (left.has_disk() != right.has_disk()) {
-    return false;
-  }
+  if (left.has_disk() != right.has_disk()) { return false; }
 
-  if (left.has_disk() && left.disk() != right.disk()) {
-    return false;
-  }
+  if (left.has_disk()) {
+    if (left.disk() != right.disk()) { return false; }
 
-  // NOTE: For Resource objects that have DiskInfo, we can only do
-  // subtraction if they are equal.
-  if (left.has_disk() && left.disk().has_persistence() && left != right) {
-    return false;
+    // Two Resources that represent exclusive 'MOUNT' disks cannot be
+    // subtracted from eachother if they are not the exact same mount;
+    // this would defeat the exclusivity.
+    if (left.disk().has_source() &&
+        left.disk().source().type() == Resource::DiskInfo::Source::MOUNT &&
+        left != right) {
+      return false;
+    }
+
+    // NOTE: For Resource objects that have DiskInfo, we can only do
+    // subtraction if they are equal.
+    if (left.disk().has_persistence() && left != right) {
+      return false;
+    }
   }
 
   // Check RevocableInfo.
