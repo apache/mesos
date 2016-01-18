@@ -158,6 +158,7 @@ endif
 check_PROGRAMS = stout-tests
 
 stout_tests_SOURCES =				\
+  $(STOUT)/tests/adaptor_tests.cpp		\
   $(STOUT)/tests/base64_tests.cpp		\
   $(STOUT)/tests/bits_tests.cpp			\
   $(STOUT)/tests/bytes_tests.cpp		\
