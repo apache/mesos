@@ -21,6 +21,7 @@ SUBDIRS = . include
 
 # Tests.
 EXTRA_DIST =					\
+  tests/adaptor_tests.cpp			\
   tests/base64_tests.cpp			\
   tests/bits_tests.cpp				\
   tests/bytes_tests.cpp				\

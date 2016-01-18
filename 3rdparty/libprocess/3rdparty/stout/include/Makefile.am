@@ -13,6 +13,7 @@
 # Headers.
 nobase_include_HEADERS =		\
   stout/abort.hpp			\
+  stout/adaptor.hpp			\
   stout/attributes.hpp			\
   stout/base64.hpp			\
   stout/bits.hpp			\
