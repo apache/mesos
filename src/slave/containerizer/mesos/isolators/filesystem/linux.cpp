@@ -610,10 +610,7 @@ Future<Nothing> LinuxFilesystemIsolatorProcess::update(
     }
 
     // Determine the source of the mount.
-    string source = paths::getPersistentVolumePath(
-        flags.work_dir,
-        resource.role(),
-        resource.disk().persistence().id());
+    string source = paths::getPersistentVolumePath(flags.work_dir, resource);
 
     // Set the ownership of the persistent volume to match that of the
     // sandbox directory.

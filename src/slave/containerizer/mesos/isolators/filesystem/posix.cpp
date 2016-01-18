@@ -182,10 +182,7 @@ Future<Nothing> PosixFilesystemIsolatorProcess::update(
       continue;
     }
 
-    string original = paths::getPersistentVolumePath(
-        flags.work_dir,
-        resource.role(),
-        resource.disk().persistence().id());
+    string original = paths::getPersistentVolumePath(flags.work_dir, resource);
 
     // Set the ownership of the persistent volume to match that of the
     // sandbox directory.
