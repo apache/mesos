@@ -17,7 +17,6 @@
 #include <unistd.h>
 
 #include <list>
-#include <mutex>
 #include <string>
 #include <vector>
 
@@ -31,6 +30,7 @@
 #include <process/collect.hpp>
 #include <process/future.hpp>
 #include <process/gmock.hpp>
+#include <process/latch.hpp>
 #include <process/message.hpp>
 #include <process/owned.hpp>
 #include <process/pid.hpp>
@@ -71,6 +71,7 @@ using mesos::internal::slave::FetcherProcess;
 
 using process::Future;
 using process::HttpEvent;
+using process::Latch;
 using process::Owned;
 using process::PID;
 using process::Process;
@@ -143,8 +144,9 @@ protected:
 
   Try<vector<Task>> launchTasks(const vector<CommandInfo>& commandInfos);
 
-  // Waits until FetcherProcess::run() has been called for all tasks.
-  void awaitFetchContention();
+  // Promises whose futures indicate that FetcherProcess::_fetch() has been
+  // called for a task with a given index.
+  vector<Owned<Promise<Nothing>>> fetchContentionWaypoints;
 
   string assetsDirectory;
   string commandPath;
@@ -163,10 +165,6 @@ private:
   Fetcher* fetcher;
 
   FrameworkID frameworkId;
-
-  // Promises whose futures indicate that FetcherProcess::_fetch() has been
-  // called for a task with a given index.
-  vector<Owned<Promise<Nothing>>> fetchContentionWaypoints;
 
   // If this test did not succeed as indicated by the above variable,
   // the contents of these sandboxes will be dumped during tear down.
@@ -590,16 +588,6 @@ Try<vector<FetcherCacheTest::Task>> FetcherCacheTest::launchTasks(
 }
 
 
-// Ensure that FetcherProcess::_fetch() has been called for each task,
-// which means that all tasks are competing for downloading the same URIs.
-void FetcherCacheTest::awaitFetchContention()
-{
-  foreach (const Owned<Promise<Nothing>>& waypoint, fetchContentionWaypoints) {
-    AWAIT(waypoint->future());
-  }
-}
-
-
 // Tests fetching from the local asset directory without cache. This
 // gives us a baseline for the following tests and lets us debug our
 // test infrastructure without extra complications.
@@ -807,13 +795,22 @@ public:
   class HttpServer : public Process<HttpServer>
   {
   public:
-    HttpServer(FetcherCacheHttpTest* test)
+  public:
+    HttpServer(const string& _commandPath, const string& _archivePath)
       : countRequests(0),
         countCommandRequests(0),
-        countArchiveRequests(0)
+        countArchiveRequests(0),
+        commandPath(_commandPath),
+        archivePath(_archivePath)
     {
-      provide(COMMAND_NAME, test->commandPath);
-      provide(ARCHIVE_NAME, test->archivePath);
+      CHECK(!_commandPath.empty());
+      CHECK(!_archivePath.empty());
+    }
+
+    virtual void initialize()
+    {
+      provide(COMMAND_NAME, commandPath);
+      provide(ARCHIVE_NAME, archivePath);
     }
 
     string url()
@@ -821,40 +818,40 @@ public:
       return "http://" + stringify(self().address) + "/" + self().id + "/";
     }
 
-    // Stalls the execution of HTTP requests inside visit().
+    // Stalls the execution of future HTTP requests inside visit().
     void pause()
     {
-      mutex.lock();
+      // If there is no latch or if the existing latch has already been
+      // triggered, create a new latch.
+      if (latch.get() == nullptr || latch->await(Duration::min())) {
+        latch.reset(new Latch());
+      }
     }
 
     void resume()
     {
-      mutex.unlock();
+      if (latch.get() != nullptr) {
+        latch->trigger();
+      }
     }
 
     virtual void visit(const HttpEvent& event)
     {
-      // TODO(bernd-mesos): Don't use locks here because we'll
-      // actually block libprocess threads which could cause a
-      // deadlock if we have a test with too many requests that we
-      // don't have enough threads to run other actors! Instead,
-      // consider asynchronously deferring the actual execution of
-      // this function via a Queue. This is currently non-trivial
-      // because we can't copy an HttpEvent so we're _forced_ to block
-      // the thread synchronously.
-      synchronized (mutex) {
-        countRequests++;
-
-        if (strings::contains(event.request->url.path, COMMAND_NAME)) {
-          countCommandRequests++;
-        }
-
-        if (strings::contains(event.request->url.path, ARCHIVE_NAME)) {
-          countArchiveRequests++;
-        }
-
-        ProcessBase::visit(event);
+      if (latch.get() != nullptr) {
+        latch->await();
       }
+
+      countRequests++;
+
+      if (strings::contains(event.request->url.path, COMMAND_NAME)) {
+        countCommandRequests++;
+      }
+
+      if (strings::contains(event.request->url.path, ARCHIVE_NAME)) {
+        countArchiveRequests++;
+      }
+
+      ProcessBase::visit(event);
     }
 
     void resetCounts()
@@ -869,14 +866,16 @@ public:
     size_t countArchiveRequests;
 
   private:
-    std::mutex mutex;
+    const string commandPath;
+    const string archivePath;
+    Owned<Latch> latch;
   };
 
   virtual void SetUp()
   {
     FetcherCacheTest::SetUp();
 
-    httpServer = new HttpServer(this);
+    httpServer = new HttpServer(commandPath, archivePath);
     spawn(httpServer);
   }
 
@@ -974,10 +973,12 @@ TEST_F(FetcherCacheHttpTest, HttpCachedConcurrent)
 
   CHECK_EQ(countTasks, tasks.get().size());
 
-  // Given pausing the HTTP server, this proves that fetch contention
-  // has happened. All tasks have passed the point where it occurs,
-  // but they are not running yet.
-  awaitFetchContention();
+  // Having paused the HTTP server, ensure that FetcherProcess::_fetch()
+  // has been called for each task, which means that all tasks are competing
+  // for downloading the same URIs.
+  foreach (const Owned<Promise<Nothing>>& waypoint, fetchContentionWaypoints) {
+    AWAIT(waypoint->future());
+  }
 
   // Now let the tasks run.
   httpServer->resume();
@@ -1081,10 +1082,12 @@ TEST_F(FetcherCacheHttpTest, HttpMixed)
 
   CHECK_EQ(3u, tasks.get().size());
 
-  // Given pausing the HTTP server, this proves that fetch contention
-  // has happened. All tasks have passed the point where it occurs,
-  // but they are not running yet.
-  awaitFetchContention();
+  // Having paused the HTTP server, ensure that FetcherProcess::_fetch()
+  // has been called for each task, which means that all tasks are competing
+  // for downloading the same URIs.
+  foreach (const Owned<Promise<Nothing>>& waypoint, fetchContentionWaypoints) {
+    AWAIT(waypoint->future());
+  }
 
   // Now let the tasks run.
   httpServer->resume();
