@@ -307,6 +307,56 @@ private:
 };
 
 
+class PerfCPUCyclesFilter : public TestFilter
+{
+public:
+  PerfCPUCyclesFilter()
+  {
+#ifdef __linux__
+    bool perfUnavailable = os::system("perf help >&-") != 0;
+    if (perfUnavailable) {
+      perfError = Error(
+          "The 'perf' command wasn't found so tests using it\n"
+          "to sample the 'cpu-cycles' hardware event will not be run.");
+    } else {
+      bool cyclesUnavailable =
+        os::system("perf list hw | grep cpu-cycles >/dev/null") != 0;
+      if (cyclesUnavailable) {
+        perfError = Error(
+            "The 'cpu-cycles' hardware event of 'perf' is not available on\n"
+            "this platform so tests using it will not be run.\n"
+            "One likely reason is that the tests are run in a virtual\n"
+            "machine that does not provide CPU performance counters");
+      }
+    }
+#else
+    perfError = Error("Tests using 'perf' cannot be run on non-Linux systems");
+#endif // __linux__
+
+    if (perfError.isSome()) {
+      std::cerr
+        << "-------------------------------------------------------------\n"
+        << perfError.get().message << "\n"
+        << "-------------------------------------------------------------"
+        << std::endl;
+    }
+  }
+
+  bool disable(const ::testing::TestInfo* test) const
+  {
+    // Disable all tests that try to sample 'cpu-cycles' events using 'perf'.
+    return (matches(test, "ROOT_CGROUPS_Perf") ||
+            matches(test, "ROOT_CGROUPS_Sample") ||
+            matches(test, "ROOT_CGROUPS_UserCgroup") ||
+            matches(test, "CGROUPS_ROOT_PerfRollForward") ||
+            matches(test, "ROOT_Sample")) && perfError.isSome();
+  }
+
+private:
+  Option<Error> perfError;
+};
+
+
 class NetcatFilter : public TestFilter
 {
 public:
@@ -478,6 +528,7 @@ Environment::Environment(const Flags& _flags) : flags(_flags)
   filters.push_back(Owned<TestFilter>(new BenchmarkFilter()));
   filters.push_back(Owned<TestFilter>(new NetworkIsolatorTestFilter()));
   filters.push_back(Owned<TestFilter>(new PerfFilter()));
+  filters.push_back(Owned<TestFilter>(new PerfCPUCyclesFilter()));
   filters.push_back(Owned<TestFilter>(new NetcatFilter()));
   filters.push_back(Owned<TestFilter>(new CurlFilter()));
 
