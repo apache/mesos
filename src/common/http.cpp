@@ -445,6 +445,14 @@ void json(JSON::ObjectWriter* writer, const CommandInfo& command)
 }
 
 
+void json(JSON::ObjectWriter* writer, const ContainerStatus& status)
+{
+  if (status.network_infos().size() > 0) {
+    writer->field("network_infos", status.network_infos());
+  }
+}
+
+
 void json(JSON::ObjectWriter* writer, const ExecutorInfo& executorInfo)
 {
   writer->field("executor_id", executorInfo.executor_id().value());
