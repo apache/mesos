@@ -600,6 +600,7 @@ Try<Resources> Resources::parse(
     }
   }
 
+  // TODO(jmlvanre): Move this up into `Containerizer::resources`.
   Option<Error> error = internal::validateCommandLineResources(result);
   if (error.isSome()) {
     return error.get();

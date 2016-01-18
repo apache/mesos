@@ -64,6 +64,7 @@
 
 #ifdef __linux__
 #include "linux/cgroups.hpp"
+#include "linux/fs.hpp"
 #endif // __linux__
 
 #include "authentication/cram_md5/authenticatee.hpp"
@@ -351,6 +352,76 @@ void Slave::initialize()
   Try<Resources> resources = Containerizer::resources(flags);
   if (resources.isError()) {
     EXIT(1) << "Failed to determine slave resources: " << resources.error();
+  }
+
+  // Ensure disk `source`s are accessible.
+  foreach (
+      const Resource& resource,
+      resources->filter([](const Resource& resource) {
+        return resource.has_disk() && resource.disk().has_source();
+      })) {
+    // For `PATH` sources we create them if they do not exist.
+    const Resource::DiskInfo::Source& source = resource.disk().source();
+    if (source.type() == Resource::DiskInfo::Source::PATH) {
+      CHECK(source.has_path());
+
+      Try<Nothing> mkdir =
+        os::mkdir(source.path().root(), true);
+
+      if (mkdir.isError()) {
+        EXIT(1) << "Failed to create DiskInfo path directory '"
+                << source.path().root() << "': " << mkdir.error();
+      }
+    } else if (source.type() == Resource::DiskInfo::Source::MOUNT) {
+      CHECK(source.has_mount());
+
+      // For `MOUNT` sources we fail if they don't exist.
+      // On Linux we test the mount table for existence.
+#ifdef __linux__
+      // Get the `realpath` of the `root` to verify it against the
+      // mount table entries.
+      // TODO(jmlvanre): Consider enforcing allowing only real paths
+      // as opposed to symlinks. This would prevent the ability for
+      // an operator to change the underlying data while the slave
+      // checkpointed `root` had the same value. We could also check
+      // the UUID of the underlying block device to catch this case.
+      Result<string> realpath = os::realpath(source.mount().root());
+
+      if (!realpath.isSome()) {
+        EXIT(1)
+          << "Failed to determine `realpath` for DiskInfo mount in resource '"
+          << resource << "' with path '" << source.mount().root() << "': "
+          << (realpath.isError() ? realpath.error() : "no such path");
+      }
+
+      // TODO(jmlvanre): Consider moving this out of the for loop.
+      Try<fs::MountTable> mountTable = fs::MountTable::read("/proc/mounts");
+      if (mountTable.isError()) {
+        EXIT(1) << "Failed to open mount table to verify mounts: "
+                << mountTable.error();
+      }
+
+      bool foundEntry = false;
+      foreach (const fs::MountTable::Entry& entry, mountTable.get().entries) {
+        if (entry.dir == realpath.get()) {
+          foundEntry = true;
+          break;
+        }
+      }
+
+      if (!foundEntry) {
+        EXIT(1) << "Failed to found mount '" << realpath.get()
+                << "' in /proc/mounts";
+      }
+#else // __linux__
+      // On other platforms we test whether that provided `root` exists.
+      if (!os::exists(source.mount().root())) {
+        EXIT(1) << "Failed to find mount point '" << source.mount().root();
+      }
+#endif // __linux__
+    } else {
+      EXIT(1) << "Unsupported 'DiskInfo.Source.Type' in '" << resource << "'";
+    }
   }
 
   Attributes attributes;
@@ -4218,7 +4289,7 @@ void Slave::checkDiskUsage()
   // fs::usage() into async.
   // NOTE: We calculate disk usage of the file system on which the
   // slave work directory is mounted.
-  Future<double>(fs::usage(flags.work_dir))
+  Future<double>(::fs::usage(flags.work_dir))
     .onAny(defer(self(), &Slave::_checkDiskUsage, lambda::_1));
 }
 
