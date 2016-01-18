@@ -22,6 +22,8 @@ All the subsequent (non subscribe) requests to "/scheduler" endpoint (see detail
 
 The following calls are currently accepted by the master. The canonical source of this information is [scheduler.proto](https://github.com/apache/mesos/blob/master/include/mesos/v1/scheduler/scheduler.proto) (NOTE: The protobuf definitions are subject to change before the beta API is finalized). Note that when sending JSON encoded Calls, schedulers should encode raw bytes in Base64 and strings in UTF-8.
 
+
+<a id="recordio-response-format"></a>
 ### RecordIO response format
 
 The response returned from the `SUBSCRIBE` call (see [below](#subscribe) is encoded in RecordIO format, which essentially prepends to a single record (either JSON or serialized Protobuf) its length in bytes, followed by a newline and then the data:
@@ -65,7 +67,8 @@ In pseudo-code, this could be parsed with something like the following:
 Network intermediaries e.g. proxies are free to change the chunk boundaries and this should not have any effect on the recipient application (scheduler layer). We wanted a way to delimit/encode two events for JSON/Protobuf responses consistently and RecordIO format allowed us to do that.
 
 
-### <a id="subscribe"></a>SUBSCRIBE
+<a id="subscribe"></a>
+### SUBSCRIBE
 
 This is the first step in the communication process between the scheduler and the master. This is also to be considered as subscription to the "/scheduler" events stream.
 
@@ -514,7 +517,7 @@ In the case of a network partition, the subscription connection between the sche
 
 ## Master detection
 
-Mesos has a high-availability mode that uses multiple Mesos masters; one active master (called the leader or leading master) and several standbys in case it fails. The masters elect the leader, with ZooKeeper coordinating the election. For more details please refer to the [documentation](/documentation/latest/high-availability.md).
+Mesos has a high-availability mode that uses multiple Mesos masters; one active master (called the leader or leading master) and several standbys in case it fails. The masters elect the leader, with ZooKeeper coordinating the election. For more details please refer to the [documentation](high-availability.md).
 
 Schedulers are expected to make HTTP requests to the leading master. If requests are made to a non-leading master a "HTTP 307 Temporary Redirect" will be received with the "Location" header pointing to the leading master.
 
