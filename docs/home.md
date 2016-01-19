@@ -51,6 +51,7 @@ layout: documentation
 ## Developing Mesos Frameworks
 
 * [Framework Development Guide](/documentation/latest/app-framework-development-guide/) describes how to build applications on top of Mesos.
+* [Designing Highly Available Mesos Frameworks](/documentation/latest/high-availability-framework-guide/)
 * [Reconciliation](/documentation/latest/reconciliation/) for ensuring a framework's state remains eventually consistent in the face of failures.
 * [Scheduler HTTP API](/documentation/latest/scheduler-http-api/) describes the new HTTP API for communication between schedulers and the Mesos master.
 * [Executor HTTP API](/documentation/latest/executor-http-api/) describes the new HTTP API for communication between executors and the Mesos agent.

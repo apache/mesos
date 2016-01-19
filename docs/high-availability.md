@@ -6,6 +6,8 @@ layout: documentation
 
 If the Mesos master is unavailable, existing tasks can continue to execute, but new resources cannot be allocated and new tasks cannot be launched. To reduce the chance of this situation occurring, Mesos has a high-availability mode that uses multiple Mesos masters: one active master (called the _leader_ or leading master) and several _backups_ in case it fails. The masters elect the leader, with [Apache ZooKeeper](http://zookeeper.apache.org/) both coordinating the election and handling leader detection by masters, slaves, and scheduler drivers. More information regarding [how leader election works](http://zookeeper.apache.org/doc/trunk/recipes.html#sc_leaderElection) is available on the Apache Zookeeper website.
 
+This document describes how to configure Mesos to run in high-availability mode. For more information on developing highly available frameworks, see a [companion document](high-availability-framework-guide.md).
+
 **Note**: This document assumes you know how to start, run, and work with ZooKeeper, whose client library is included in the standard Mesos build.
 
 ## Usage

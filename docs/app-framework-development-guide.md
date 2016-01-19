@@ -130,6 +130,9 @@ virtual void executorLost(SchedulerDriver* driver,
 virtual void error(SchedulerDriver* driver, const std::string& message) = 0;
 ~~~
 
+### Handling Failures
+How to build Mesos frameworks that remain available in the face of failures is discussed in a [separate document](high-availability-framework-guide.md).
+
 ## Working with Executors
 
 ### Using the Mesos Command Executor
