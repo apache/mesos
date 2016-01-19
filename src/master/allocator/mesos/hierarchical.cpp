@@ -1227,8 +1227,9 @@ void HierarchicalAllocatorProcess::allocate(
   // ensure we do not over-allocate resources during the second stage.
   //
   // NOTE: We use all active agents and not just those visible in the current
-  // `allocate()` call so that frameworks in roles without quota are not
-  // unnecessarily deprived of resources.
+  // allocation (i.e. provided as an argument to the `allocate()` call) so
+  // that frameworks in roles without quota are not unnecessarily deprived
+  // of resources.
   Resources remainingClusterResources;
   foreachkey (const SlaveID& slaveId, slaves) {
     if (isWhitelisted(slaveId) && slaves[slaveId].activated) {

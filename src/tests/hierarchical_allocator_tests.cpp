@@ -1682,7 +1682,7 @@ TEST_F(HierarchicalAllocatorTest, QuotaAgainstStarvation)
 
   initialize();
 
-  // We want to start with the following cluster setup.
+  // We start with the following cluster setup.
   // Total cluster resources (2 identical agents): cpus=2, mem=1024.
   // QUOTA_ROLE share = 0.5 (cpus=1, mem=512)
   //   framework1 share = 1
@@ -1794,10 +1794,15 @@ TEST_F(HierarchicalAllocatorTest, QuotaAgainstStarvation)
 }
 
 
-// This test checks that quota is respected even for roles that don't
-// have any frameworks currently registered.
+// This test checks that quota is respected even for roles that do not
+// have any frameworks currently registered. It also ensures an event-
+// triggered allocation does not unnecessarily deprive non-quota'ed
+// frameworks of resources.
 TEST_F(HierarchicalAllocatorTest, QuotaAbsentFramework)
 {
+  // Pausing the clock is not necessary, but ensures that the test
+  // doesn't rely on the periodic allocation in the allocator, which
+  // would slow down the test.
   Clock::pause();
 
   const string QUOTA_ROLE{"quota-role"};
@@ -1807,31 +1812,45 @@ TEST_F(HierarchicalAllocatorTest, QuotaAbsentFramework)
 
   initialize();
 
-  // We want to start with the following cluster setup.
-  // Total cluster resources: cpus=3, mem=1536.
-  // QUOTA_ROLE share = 1 (cpus=2, mem=1024) [quota: cpus=2, mem=1024]
-  //   no framework
-  // NO_QUOTA_ROLE share = 0.5 (cpus=1, mem=512)
-  //   framework1 share = 1
+  // We start with the following cluster setup.
+  // Total cluster resources (2 agents): cpus=3, mem=1536.
+  // QUOTA_ROLE share = 0 [quota: cpus=2, mem=1024]
+  //   no frameworks
+  // NO_QUOTA_ROLE share = 0
+  //   framework share = 1
 
   // Set quota for the quota'ed role. This role isn't registered with
   // the allocator yet.
   const Quota quota1 = createQuota(QUOTA_ROLE, "cpus:2;mem:1024");
   allocator->setQuota(QUOTA_ROLE, quota1);
 
-  // Add `framework1` in the non-quota'ed role.
-  FrameworkInfo framework1 = createFrameworkInfo(NO_QUOTA_ROLE);
+  // Add `framework` in the non-quota'ed role.
+  FrameworkInfo framework = createFrameworkInfo(NO_QUOTA_ROLE);
   allocator->addFramework(
-      framework1.id(), framework1, hashmap<SlaveID, Resources>());
+      framework.id(), framework, hashmap<SlaveID, Resources>());
+
+  // Process all triggered allocation events.
+  // NOTE: No allocations happen because there are no resources to allocate.
+  Clock::settle();
 
   SlaveInfo agent1 = createSlaveInfo("cpus:2;mem:1024;disk:0");
   SlaveInfo agent2 = createSlaveInfo("cpus:1;mem:512;disk:0");
 
-  // NOTE: Each `addSlave()` triggers an event-based allocation.
+  // Each `addSlave()` triggers an event-based allocation.
+  // NOTE: The second event-based allocation for `agent2` takes into account
+  // that `agent1`'s resources are laid away for `QUOTA_ROLE`'s quota and
+  // hence freely allocates for the non-quota'ed `NO_QUOTA_ROLE` role.
   allocator->addSlave(agent1.id(), agent1, None(), agent1.resources(), EMPTY);
   allocator->addSlave(agent2.id(), agent2, None(), agent2.resources(), EMPTY);
 
-  // `framework1` can only be allocated resources on `agent2`. This
+  // Total cluster resources (2 agents): cpus=3, mem=1536.
+  // QUOTA_ROLE share = 0 [quota: cpus=2, mem=1024], but
+  //                    some resources (cpus=2, mem=1024) are laid away
+  //   no frameworks
+  // NO_QUOTA_ROLE share = 0.33
+  //   framework share = 1 (cpus=1, mem=512)
+
+  // `framework` can only be allocated resources on `agent2`. This
   // is due to the coarse-grained nature of the allocations. All the
   // free resources on `agent1` would be considered to construct an
   // offer, and that would exceed the resources allowed to be offered
@@ -1843,7 +1862,7 @@ TEST_F(HierarchicalAllocatorTest, QuotaAbsentFramework)
   // framework side, so we make due with this instead.
   Future<Allocation> allocation = allocations.get();
   AWAIT_READY(allocation);
-  EXPECT_EQ(framework1.id(), allocation.get().frameworkId);
+  EXPECT_EQ(framework.id(), allocation.get().frameworkId);
   EXPECT_EQ(agent2.resources(), Resources::sum(allocation.get().resources));
 }
 
