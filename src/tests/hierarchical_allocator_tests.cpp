@@ -1868,9 +1868,18 @@ TEST_F(HierarchicalAllocatorTest, QuotaAbsentFramework)
 
 
 // This test checks that if one role with quota has no frameworks in it,
-// other roles with quota are still offered resources.
+// other roles with quota are still offered resources. Roles without
+// frameworks have zero fair share and are always considered first during
+// allocation, hence this test actually addresses several scenarios:
+//  * Quota'ed roles without frameworks do not prevent other quota'ed roles
+//    from getting resources.
+//  * Resources are not laid away for quota'ed roles without frameworks if
+//    there are other quota'ed roles with not fully satisfied quota.
 TEST_F(HierarchicalAllocatorTest, MultiQuotaAbsentFrameworks)
 {
+  // Pausing the clock is not necessary, but ensures that the test
+  // doesn't rely on the periodic allocation in the allocator, which
+  // would slow down the test.
   Clock::pause();
 
   const string QUOTA_ROLE1{"quota-role-1"};
@@ -1906,9 +1915,16 @@ TEST_F(HierarchicalAllocatorTest, MultiQuotaAbsentFrameworks)
 
 
 // This test checks that if there are multiple roles with quota, all of them
-// get enough offers given there are enough resources.
+// get enough offers given there are enough resources. Suppose one quota'ed
+// role has smaller share and is fully satisfied. Another quota'ed role has
+// greater share but its quota is not fully satisfied yet. Though the first
+// role is considered before the second because it has smaller share, this
+// should not lead to starvation of the second role.
 TEST_F(HierarchicalAllocatorTest, MultiQuotaWithFrameworks)
 {
+  // Pausing the clock is not necessary, but ensures that the test
+  // doesn't rely on the periodic allocation in the allocator, which
+  // would slow down the test.
   Clock::pause();
 
   const string QUOTA_ROLE1{"quota-role-1"};
@@ -1918,11 +1934,11 @@ TEST_F(HierarchicalAllocatorTest, MultiQuotaWithFrameworks)
 
   initialize();
 
-  // We want to start with the following cluster setup.
+  // We start with the following cluster setup.
   // Total cluster resources (2 identical agents): cpus=2, mem=2048.
-  // QUOTA_ROLE1 share = 0.5 (cpus=1, mem=1024)
+  // QUOTA_ROLE1 share = 0.5 (cpus=1, mem=1024) [quota: cpus=1, mem=200]
   //   framework1 share = 1
-  // QUOTA_ROLE2 share = 0.5 (cpus=1, mem=1024)
+  // QUOTA_ROLE2 share = 0.5 (cpus=1, mem=1024) [quota: cpus=2, mem=2000]
   //   framework2 share = 1
 
   SlaveInfo agent1 = createSlaveInfo("cpus:1;mem:1024;disk:0;");
@@ -1945,6 +1961,10 @@ TEST_F(HierarchicalAllocatorTest, MultiQuotaWithFrameworks)
   allocator->addFramework(
       framework2.id(), framework2, hashmap<SlaveID, Resources>());
 
+  // Process all triggered allocation events.
+  // NOTE: No allocations happen because there are no resources to allocate.
+  Clock::settle();
+
   allocator->addSlave(
       agent1.id(),
       agent1,
@@ -1959,6 +1979,10 @@ TEST_F(HierarchicalAllocatorTest, MultiQuotaWithFrameworks)
       agent2.resources(),
       {std::make_pair(framework2.id(), agent2.resources())});
 
+  // Quota for the `QUOTA_ROLE1` role is satisfied, while `QUOTA_ROLE2` is
+  // under quota. Hence resources of the newly added agent should be offered
+  // to the framework in `QUOTA_ROLE2`.
+
   SlaveInfo agent3 = createSlaveInfo("cpus:2;mem:2048;");
 
   allocator->addSlave(
@@ -1968,8 +1992,14 @@ TEST_F(HierarchicalAllocatorTest, MultiQuotaWithFrameworks)
       agent3.resources(),
       EMPTY);
 
-  // `framework2` will get agent3's resources as `framework1`'s quota
-  // is satisfied.
+  // Total cluster resources (3 agents): cpus=4, mem=4096.
+  // QUOTA_ROLE1 share = 0.25 (cpus=1, mem=1024) [quota: cpus=1, mem=200]
+  //   framework1 share = 1
+  // QUOTA_ROLE2 share = 0.75 (cpus=3, mem=3072) [quota: cpus=2, mem=2000]
+  //   framework2 share = 1
+
+  // `framework2` will get all agent3's resources because its role is under
+  // quota, while other roles' quotas are satisfied.
   Future<Allocation> allocation = allocations.get();
   AWAIT_READY(allocation);
   EXPECT_EQ(framework2.id(), allocation.get().frameworkId);
