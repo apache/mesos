@@ -2406,8 +2406,9 @@ void Slave::subscribe(
 
   LOG(INFO) << "Received Subscribe request for HTTP executor " << *executor;
 
-  CHECK(state == DISCONNECTED || state == RUNNING ||
-        state == TERMINATING) << state;
+  CHECK(state == RECOVERING || state == DISCONNECTED ||
+        state == RUNNING || state == TERMINATING)
+    << state;
 
   if (state == TERMINATING) {
     LOG(WARNING) << "Shutting down executor " << *executor << " as the slave "

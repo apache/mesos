@@ -218,10 +218,6 @@ Future<Response> Slave::Http::executor(const Request& request) const
 {
   // TODO(anand): Add metrics for rejected requests.
 
-  if (slave->state == Slave::RECOVERING) {
-    return ServiceUnavailable("Agent has not finished recovery");
-  }
-
   if (request.method != "POST") {
     return MethodNotAllowed(
         {"POST"}, "Expecting 'POST', received '" + request.method + "'");
@@ -261,7 +257,6 @@ Future<Response> Slave::Http::executor(const Request& request) const
 
   const executor::Call call = devolve(v1Call);
 
-
   Option<Error> error = validation::executor::call::validate(call);
 
   if (error.isSome()) {
@@ -282,6 +277,10 @@ Future<Response> Slave::Http::executor(const Request& request) const
       return NotAcceptable(
           string("Expecting 'Accept' to allow ") +
           "'" + APPLICATION_PROTOBUF + "' or '" + APPLICATION_JSON + "'");
+    }
+  } else {
+    if (slave->state == Slave::RECOVERING) {
+      return ServiceUnavailable("Agent has not finished recovery");
     }
   }
 
