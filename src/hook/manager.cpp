@@ -24,6 +24,7 @@
 
 #include <stout/check.hpp>
 #include <stout/foreach.hpp>
+#include <stout/linkedhashmap.hpp>
 #include <stout/nothing.hpp>
 #include <stout/strings.hpp>
 #include <stout/try.hpp>
@@ -41,7 +42,7 @@ namespace mesos {
 namespace internal {
 
 static std::mutex mutex;
-static hashmap<string, Hook*> availableHooks;
+static LinkedHashMap<string, Hook*> availableHooks;
 
 
 Try<Nothing> HookManager::initialize(const string& hookList)
@@ -109,7 +110,8 @@ Labels HookManager::masterLaunchTaskLabelDecorator(
     // will be the only effective hook setting the labels.
     TaskInfo taskInfo_ = taskInfo;
 
-    foreachpair (const string& name, Hook* hook, availableHooks) {
+    foreach (const string& name, availableHooks.keys()) {
+      Hook* hook = availableHooks[name];
       const Result<Labels> result =
         hook->masterLaunchTaskLabelDecorator(
             taskInfo_,
@@ -133,7 +135,8 @@ Labels HookManager::masterLaunchTaskLabelDecorator(
 
 void HookManager::masterSlaveLostHook(const SlaveInfo& slaveInfo)
 {
-  foreachpair (const string& name, Hook* hook, availableHooks) {
+  foreach (const string& name, availableHooks.keys()) {
+    Hook* hook = availableHooks[name];
     Try<Nothing> result = hook->masterSlaveLostHook(slaveInfo);
     if (result.isError()) {
       LOG(WARNING) << "Master slave-lost hook failed for module '"
@@ -152,7 +155,8 @@ Labels HookManager::slaveRunTaskLabelDecorator(
   synchronized (mutex) {
     TaskInfo taskInfo_ = taskInfo;
 
-    foreachpair (const string& name, Hook* hook, availableHooks) {
+    foreach (const string& name, availableHooks.keys()) {
+      Hook* hook = availableHooks[name];
       const Result<Labels> result = hook->slaveRunTaskLabelDecorator(
           taskInfo_, executorInfo, frameworkInfo, slaveInfo);
 
@@ -175,7 +179,8 @@ Environment HookManager::slaveExecutorEnvironmentDecorator(
     ExecutorInfo executorInfo)
 {
   synchronized (mutex) {
-    foreachpair (const string& name, Hook* hook, availableHooks) {
+    foreach (const string& name, availableHooks.keys()) {
+      Hook* hook = availableHooks[name];
       const Result<Environment> result =
         hook->slaveExecutorEnvironmentDecorator(executorInfo);
 
@@ -206,7 +211,8 @@ void HookManager::slavePreLaunchDockerHook(
     const Option<Resources>& resources,
     const Option<map<string, string>>& env)
 {
-  foreachpair (const string& name, Hook* hook, availableHooks) {
+  foreach (const string& name, availableHooks.keys()) {
+    Hook* hook = availableHooks[name];
     Try<Nothing> result =
       hook->slavePreLaunchDockerHook(
           containerInfo,
@@ -230,7 +236,8 @@ void HookManager::slaveRemoveExecutorHook(
     const FrameworkInfo& frameworkInfo,
     const ExecutorInfo& executorInfo)
 {
-  foreachpair (const string& name, Hook* hook, availableHooks) {
+  foreach (const string& name, availableHooks.keys()) {
+    Hook* hook = availableHooks[name];
     const Try<Nothing> result =
       hook->slaveRemoveExecutorHook(frameworkInfo, executorInfo);
     if (result.isError()) {
@@ -246,7 +253,8 @@ TaskStatus HookManager::slaveTaskStatusDecorator(
     TaskStatus status)
 {
   synchronized (mutex) {
-    foreachpair (const string& name, Hook* hook, availableHooks) {
+    foreach (const string& name, availableHooks.keys()) {
+      Hook* hook = availableHooks[name];
       const Result<TaskStatus> result =
         hook->slaveTaskStatusDecorator(frameworkId, status);
 
@@ -281,7 +289,8 @@ Resources HookManager::slaveResourcesDecorator(
   SlaveInfo slaveInfo_ = slaveInfo;
 
   synchronized (mutex) {
-    foreachpair (const string& name, Hook* hook, availableHooks) {
+    foreach (const string& name, availableHooks.keys()) {
+      Hook* hook = availableHooks[name];
       const Result<Resources> result =
         hook->slaveResourcesDecorator(slaveInfo_);
 
@@ -308,7 +317,8 @@ Attributes HookManager::slaveAttributesDecorator(
   SlaveInfo slaveInfo_ = slaveInfo;
 
   synchronized (mutex) {
-    foreachpair (const string& name, Hook* hook, availableHooks) {
+    foreach (const string& name, availableHooks.keys()) {
+      Hook* hook = availableHooks[name];
       const Result<Attributes> result =
         hook->slaveAttributesDecorator(slaveInfo_);
 
