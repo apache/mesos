@@ -1890,7 +1890,7 @@ TEST_F(HierarchicalAllocatorTest, DeactivateAndReactivateFramework)
   // Reconnect the framework again.
   allocator->activateFramework(framework.id());
 
-  // Framework will be offered all of agent1's resources again
+  // Framework will be offered all of agent's resources again
   // after getting activated.
   Clock::settle();
   AWAIT_READY(allocation);
