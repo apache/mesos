@@ -37,6 +37,13 @@
 
 #include "logging/logging.hpp"
 
+// Declare FLAGS_drop_log_memory flag for glog. This declaration is based on the
+// the DECLARE_XXX macros from glog/logging.h.
+namespace fLB {
+  extern GOOGLE_GLOG_DLL_DECL bool FLAGS_drop_log_memory;
+}
+using fLB::FLAGS_drop_log_memory;
+
 using process::Once;
 
 using std::string;
@@ -163,6 +170,16 @@ void initialize(
   }
 
   FLAGS_logbufsecs = flags.logbufsecs;
+
+  // Do not drop in-memory buffers of log contents. When set to true, this flag
+  // can significantly slow down the master. The slow down is attributed to
+  // several hundred `posix_fadvise(..., POSIX_FADV_DONTNEED)` calls per second
+  // to advise the kernel to drop in-memory buffers related to log contents.
+  // We set this flag to 'false' only if the corresponding environment variable
+  // is not set.
+  if (os::getenv("GLOG_drop_log_memory").isNone()) {
+    FLAGS_drop_log_memory = false;
+  }
 
   google::InitGoogleLogging(argv0.c_str());
   if (flags.log_dir.isSome()) {
