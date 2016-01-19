@@ -1889,7 +1889,7 @@ TEST_F(HierarchicalAllocatorTest, MultiQuotaAbsentFrameworks)
 
   initialize();
 
-  SlaveInfo agent = createSlaveInfo("cpus:2;mem:2048;disk:0;");
+  SlaveInfo agent = createSlaveInfo("cpus:2;mem:2048;disk:0");
 
   allocator->addSlave(agent.id(), agent, None(), agent.resources(), EMPTY);
 
@@ -1941,10 +1941,10 @@ TEST_F(HierarchicalAllocatorTest, MultiQuotaWithFrameworks)
   // QUOTA_ROLE2 share = 0.5 (cpus=1, mem=1024) [quota: cpus=2, mem=2000]
   //   framework2 share = 1
 
-  SlaveInfo agent1 = createSlaveInfo("cpus:1;mem:1024;disk:0;");
-  SlaveInfo agent2 = createSlaveInfo("cpus:1;mem:1024;disk:0;");
+  SlaveInfo agent1 = createSlaveInfo("cpus:1;mem:1024;disk:0");
+  SlaveInfo agent2 = createSlaveInfo("cpus:1;mem:1024;disk:0");
 
-  // Quota for `QUOTA_ROLE1` is 10 times smaller than for `QUOTA_ROLE2`.
+  // Mem Quota for `QUOTA_ROLE1` is 10 times smaller than for `QUOTA_ROLE2`.
   const Quota quota1 = createQuota(QUOTA_ROLE1, "cpus:1;mem:200");
   allocator->setQuota(QUOTA_ROLE1, quota1);
 
@@ -1983,7 +1983,7 @@ TEST_F(HierarchicalAllocatorTest, MultiQuotaWithFrameworks)
   // under quota. Hence resources of the newly added agent should be offered
   // to the framework in `QUOTA_ROLE2`.
 
-  SlaveInfo agent3 = createSlaveInfo("cpus:2;mem:2048;");
+  SlaveInfo agent3 = createSlaveInfo("cpus:2;mem:2048");
 
   allocator->addSlave(
       agent3.id(),
