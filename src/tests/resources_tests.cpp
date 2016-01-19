@@ -1668,17 +1668,30 @@ TEST(ReservedResourcesTest, Contains)
 }
 
 
+// Helper for creating a disk source with type `PATH`.
+static Resource::DiskInfo::Source createDiskSourcePath(const string& root)
+{
+  Resource::DiskInfo::Source source;
+
+  source.set_type(Resource::DiskInfo::Source::PATH);
+  source.mutable_path()->set_root(root);
+
+  return source;
+}
+
+
 // Helper for creating a disk resource.
 static Resource createDiskResource(
     const string& value,
     const string& role,
     const Option<string>& persistenceID,
-    const Option<string>& containerPath)
+    const Option<string>& containerPath,
+    const Option<Resource::DiskInfo::Source>& source = None())
 {
   Resource resource = Resources::parse("disk", value, role).get();
 
   resource.mutable_disk()->CopyFrom(
-      createDiskInfo(persistenceID, containerPath));
+      createDiskInfo(persistenceID, containerPath, None(), None(), source));
 
   return resource;
 }
@@ -1700,6 +1713,14 @@ TEST(DiskResourcesTest, Validation)
 
   EXPECT_NONE(
       Resources::validate(createDiskResource("10", "*", None(), "path")));
+
+  EXPECT_NONE(
+      Resources::validate(createDiskResource(
+          "10",
+          "role",
+          "1",
+          "path",
+          createDiskSourcePath("mnt"))));
 }
 
 
@@ -1719,6 +1740,36 @@ TEST(DiskResourcesTest, Equals)
 
   EXPECT_NE(r6, r7);
   EXPECT_NE(r4, r7);
+}
+
+
+TEST(DiskResourcesTest, DiskSourceEquals)
+{
+  Resource::DiskInfo::Source s1 = createDiskSourcePath("mnt");
+  Resource::DiskInfo::Source s2 = createDiskSourcePath("mnt2");
+
+  Resources r1 = createDiskResource("10", "*", None(), None(), s1);
+  Resources r2 = createDiskResource("10", "*", None(), "path1", s1);
+  Resources r3 = createDiskResource("10", "*", None(), "path2", s1);
+  Resources r4 = createDiskResource("10", "role", None(), "path2", s1);
+  Resources r5 = createDiskResource("10", "role", "1", "path1", s1);
+  Resources r6 = createDiskResource("10", "role", "1", "path2", s1);
+  Resources r7 = createDiskResource("10", "role", "2", "path2", s1);
+
+  EXPECT_EQ(r1, r2);
+  EXPECT_EQ(r2, r3);
+  EXPECT_EQ(r5, r6);
+
+  EXPECT_NE(r6, r7);
+  EXPECT_NE(r4, r7);
+
+  Resources r8 = createDiskResource("10", "*", None(), None(), s2);
+  Resources r9 = createDiskResource("10", "*", None(), "path1", s2);
+
+  EXPECT_EQ(r8, r9);
+
+  EXPECT_NE(r8, r1);
+  EXPECT_NE(r9, r2);
 }
 
 
@@ -1743,6 +1794,25 @@ TEST(DiskResourcesTest, Addition)
 }
 
 
+TEST(DiskResourcesTest, DiskSourceAddition)
+{
+  Resource::DiskInfo::Source s1 = createDiskSourcePath("mnt");
+  Resource::DiskInfo::Source s2 = createDiskSourcePath("mnt2");
+
+  Resources r1 = createDiskResource("10", "role", None(), None(), s1);
+  Resources r2 = createDiskResource("20", "role", None(), None(), s2);
+  Resources r3 = createDiskResource("10", "role", None(), None(), s2);
+  Resources r4 = createDiskResource("20", "role", None(), None(), s1);
+
+  EXPECT_NE(r2, r1 + r1);
+  EXPECT_NE(r2, r1 + r3);
+
+  EXPECT_EQ(r4, r1 + r1);
+
+  EXPECT_TRUE(r4.contains(r1));
+}
+
+
 TEST(DiskResourcesTest, Subtraction)
 {
   Resources r1 = createDiskResource("10", "role", None(), "path");
@@ -1757,6 +1827,26 @@ TEST(DiskResourcesTest, Subtraction)
   EXPECT_EQ(r3, r3 - r4);
   EXPECT_TRUE((r3 - r3).empty());
   EXPECT_TRUE((r4 - r5).empty());
+}
+
+
+TEST(DiskResourcesTest, DiskSourceSubtraction)
+{
+  Resource::DiskInfo::Source s1 = createDiskSourcePath("mnt");
+  Resource::DiskInfo::Source s2 = createDiskSourcePath("mnt2");
+
+  Resources r1 = createDiskResource("10", "role", None(), None(), s1);
+  Resources r2 = createDiskResource("20", "role", None(), None(), s2);
+  Resources r3 = createDiskResource("10", "role", None(), None(), s2);
+  Resources r4 = createDiskResource("20", "role", None(), None(), s1);
+
+  EXPECT_TRUE((r1 - r1).empty());
+  EXPECT_TRUE((r4 - r1 - r1).empty());
+
+  EXPECT_FALSE((r3 - r1).empty());
+
+  EXPECT_EQ(r3, r3 - r1);
+  EXPECT_EQ(r1, r4 - r1);
 }
 
 

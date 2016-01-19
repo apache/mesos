@@ -495,7 +495,8 @@ inline Resource::DiskInfo createDiskInfo(
     const Option<std::string>& persistenceId,
     const Option<std::string>& containerPath,
     const Option<Volume::Mode>& mode = None(),
-    const Option<std::string>& hostPath = None())
+    const Option<std::string>& hostPath = None(),
+    const Option<Resource::DiskInfo::Source>& source = None())
 {
   Resource::DiskInfo info;
 
@@ -513,6 +514,10 @@ inline Resource::DiskInfo createDiskInfo(
     }
 
     info.mutable_volume()->CopyFrom(volume);
+  }
+
+  if (source.isSome()) {
+    info.mutable_source()->CopyFrom(source.get());
   }
 
   return info;
