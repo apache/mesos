@@ -1807,13 +1807,15 @@ TEST_F(HierarchicalAllocatorTest, QuotaAbsentFramework)
 
   initialize();
 
-  SlaveInfo agent1 = createSlaveInfo("cpus:2;mem:1024;disk:0");
-  SlaveInfo agent2 = createSlaveInfo("cpus:1;mem:512;disk:0");
+  // We want to start with the following cluster setup.
+  // Total cluster resources: cpus=3, mem=1536.
+  // QUOTA_ROLE share = 1 (cpus=2, mem=1024) [quota: cpus=2, mem=1024]
+  //   no framework
+  // NO_QUOTA_ROLE share = 0.5 (cpus=1, mem=512)
+  //   framework1 share = 1
 
-  allocator->addSlave(agent1.id(), agent1, None(), agent1.resources(), EMPTY);
-  allocator->addSlave(agent2.id(), agent2, None(), agent2.resources(), EMPTY);
-
-  // Set quota for the quota'ed role.
+  // Set quota for the quota'ed role. This role isn't registered with
+  // the allocator yet.
   const Quota quota1 = createQuota(QUOTA_ROLE, "cpus:2;mem:1024");
   allocator->setQuota(QUOTA_ROLE, quota1);
 
@@ -1821,6 +1823,13 @@ TEST_F(HierarchicalAllocatorTest, QuotaAbsentFramework)
   FrameworkInfo framework1 = createFrameworkInfo(NO_QUOTA_ROLE);
   allocator->addFramework(
       framework1.id(), framework1, hashmap<SlaveID, Resources>());
+
+  SlaveInfo agent1 = createSlaveInfo("cpus:2;mem:1024;disk:0");
+  SlaveInfo agent2 = createSlaveInfo("cpus:1;mem:512;disk:0");
+
+  // NOTE: Each `addSlave()` triggers an event-based allocation.
+  allocator->addSlave(agent1.id(), agent1, None(), agent1.resources(), EMPTY);
+  allocator->addSlave(agent2.id(), agent2, None(), agent2.resources(), EMPTY);
 
   // `framework1` can only be allocated resources on `agent2`. This
   // is due to the coarse-grained nature of the allocations. All the
