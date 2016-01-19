@@ -1148,9 +1148,9 @@ void HierarchicalAllocatorProcess::allocate(
       CHECK(quotas.contains(role));
 
       // If there are no active frameworks in this role, we do not
-      // need to do any allocations.
+      // need to do any allocations for this role.
       if (!activeRoles.contains(role)) {
-        break;
+        continue;
       }
 
       // Summing up resources is fine because quota is only for scalar
@@ -1162,13 +1162,13 @@ void HierarchicalAllocatorProcess::allocate(
         Resources::sum(quotaRoleSorter->allocation(role));
 
       // If quota for the role is satisfied, we do not need to do any further
-      // allocations, at least at this stage.
+      // allocations for this role, at least at this stage.
       // TODO(alexr): Skipping satisfied roles is pessimistic. Better
       // alternatives are:
       //   * A custom sorter that is aware of quotas and sorts accordingly.
       //   * Removing satisfied roles from the sorter.
       if (roleConsumedResources.contains(quotas[role].info.guarantee())) {
-        break;
+        continue;
       }
 
       // Fetch frameworks according to their fair share.
