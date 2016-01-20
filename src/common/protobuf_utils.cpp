@@ -21,6 +21,8 @@
 #include <process/clock.hpp>
 #include <process/pid.hpp>
 
+#include <stout/adaptor.hpp>
+#include <stout/foreach.hpp>
 #include <stout/net.hpp>
 #include <stout/stringify.hpp>
 #include <stout/uuid.hpp>
@@ -204,11 +206,9 @@ Option<ContainerStatus> getTaskContainerStatus(const Task& task)
   // The statuses list only keeps the most recent TaskStatus for
   // each state, and appends later states at the end. Let's find
   // the most recent TaskStatus with a valid container_status.
-  for (auto status = task.statuses().rbegin();
-       status != task.statuses().rend();
-       ++status) {
-    if (status->has_container_status()) {
-      return status->container_status();
+  foreach (const TaskStatus& status, adaptor::reverse(task.statuses())) {
+    if (status.has_container_status()) {
+      return status.container_status();
     }
   }
   return None();

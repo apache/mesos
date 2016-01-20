@@ -26,6 +26,8 @@
 #include <process/reap.hpp>
 #include <process/subprocess.hpp>
 
+#include <stout/adaptor.hpp>
+#include <stout/foreach.hpp>
 #include <stout/fs.hpp>
 #include <stout/lambda.hpp>
 #include <stout/os.hpp>
@@ -1501,9 +1503,7 @@ Future<list<Future<Nothing>>> MesosContainerizerProcess::cleanupIsolators(
 
   // NOTE: We clean up each isolator in the reverse order they were
   // prepared (see comment in prepare()).
-  for (auto it = isolators.crbegin(); it != isolators.crend(); ++it) {
-    const Owned<Isolator>& isolator = *it;
-
+  foreach (const Owned<Isolator>& isolator, adaptor::reverse(isolators)) {
     // We'll try to clean up all isolators, waiting for each to
     // complete and continuing if one fails.
     // TODO(jieyu): Technically, we cannot bind 'isolator' here
