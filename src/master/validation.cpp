@@ -495,7 +495,7 @@ Option<Error> validate(
   // executed does matter! For example, 'validateResourceUsage'
   // assumes that ExecutorInfo is valid which is verified by
   // 'validateExecutorInfo'.
-  vector<lambda::function<Option<Error>(void)>> validators = {
+  vector<lambda::function<Option<Error>()>> validators = {
     lambda::bind(internal::validateTaskID, task),
     lambda::bind(internal::validateUniqueTaskID, task, framework),
     lambda::bind(internal::validateSlaveID, task, slave),
@@ -509,7 +509,7 @@ Option<Error> validate(
 
   // TODO(jieyu): Add a validateCommandInfo function.
 
-  foreach (const lambda::function<Option<Error>(void)>& validator, validators) {
+  foreach (const lambda::function<Option<Error>()>& validator, validators) {
     Option<Error> error = validator();
     if (error.isSome()) {
       return error;
@@ -629,13 +629,13 @@ Option<Error> validate(
   CHECK_NOTNULL(master);
   CHECK_NOTNULL(framework);
 
-  vector<lambda::function<Option<Error>(void)>> validators = {
+  vector<lambda::function<Option<Error>()>> validators = {
     lambda::bind(validateUniqueOfferID, offerIds),
     lambda::bind(validateFramework, offerIds, master, framework),
     lambda::bind(validateSlave, offerIds, master)
   };
 
-  foreach (const lambda::function<Option<Error>(void)>& validator, validators) {
+  foreach (const lambda::function<Option<Error>()>& validator, validators) {
     Option<Error> error = validator();
     if (error.isSome()) {
       return error;

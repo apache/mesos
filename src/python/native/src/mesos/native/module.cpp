@@ -71,7 +71,7 @@ PyMethodDef MODULE_METHODS[] = {
 /**
  * Entry point called by Python to initialize our module.
  */
-PyMODINIT_FUNC init_mesos(void)
+PyMODINIT_FUNC init_mesos()
 {
   // Ensure that the interpreter's threading support is enabled.
   PyEval_InitThreads();

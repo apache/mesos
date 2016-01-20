@@ -46,8 +46,8 @@ class Mesos
 public:
   Mesos(const std::string& master,
         ContentType contentType,
-        const std::function<void(void)>& connected,
-        const std::function<void(void)>& disconnected,
+        const std::function<void()>& connected,
+        const std::function<void()>& disconnected,
         const std::function<void(const std::queue<Event>&)>& received);
 
   // Delete copy constructor.

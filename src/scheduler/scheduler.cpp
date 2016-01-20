@@ -105,8 +105,8 @@ public:
   MesosProcess(
       const string& master,
       ContentType _contentType,
-      const lambda::function<void(void)>& _connected,
-      const lambda::function<void(void)>& _disconnected,
+      const lambda::function<void()>& _connected,
+      const lambda::function<void()>& _disconnected,
       lambda::function<void(const queue<Event>&)> _received)
     : ProcessBase(ID::generate("scheduler")),
       contentType(_contentType),
@@ -494,8 +494,8 @@ private:
 
   Mutex mutex; // Used to serialize the callback invocations.
 
-  lambda::function<void(void)> connected;
-  lambda::function<void(void)> disconnected;
+  lambda::function<void()> connected;
+  lambda::function<void()> disconnected;
   lambda::function<void(const queue<Event>&)> received;
 
   bool local; // Whether or not we launched a local cluster.
@@ -513,8 +513,8 @@ private:
 Mesos::Mesos(
     const string& master,
     ContentType contentType,
-    const lambda::function<void(void)>& connected,
-    const lambda::function<void(void)>& disconnected,
+    const lambda::function<void()>& connected,
+    const lambda::function<void()>& disconnected,
     const lambda::function<void(const queue<Event>&)>& received)
 {
   process = new MesosProcess(

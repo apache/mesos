@@ -84,8 +84,8 @@ protected:
   class Callbacks
   {
   public:
-    MOCK_METHOD0(connected, void(void));
-    MOCK_METHOD0(disconnected, void(void));
+    MOCK_METHOD0(connected, void());
+    MOCK_METHOD0(disconnected, void());
     MOCK_METHOD1(received, void(const std::queue<Event>&));
   };
 };

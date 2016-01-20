@@ -1155,7 +1155,7 @@ set to an older version of Python.
   # Render code that imports from the standard C++ library.
   cat <<__EOF__ >testlib.cpp [
 #include <string>
-std::string test(void)
+std::string test()
 {
   return std::string("42");
 }]
@@ -1171,8 +1171,8 @@ __EOF__
 #include <Python.h>
 #include <string>
 
-std::string test(void);
-PyMODINIT_FUNC initminimal(void);
+std::string test();
+PyMODINIT_FUNC initminimal();
 
 static PyObject *minimal_test(PyObject *self, PyObject* args)
 {
@@ -1184,7 +1184,7 @@ static PyMethodDef minimal_methods[] = {
   { NULL, NULL }
 };
 
-PyMODINIT_FUNC initminimal(void)
+PyMODINIT_FUNC initminimal()
 {
   PyImport_AddModule("minimal");
   Py_InitModule("minimal", minimal_methods);
