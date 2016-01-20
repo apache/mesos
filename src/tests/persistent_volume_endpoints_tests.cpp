@@ -55,6 +55,7 @@ using process::PID;
 
 using process::http::BadRequest;
 using process::http::Conflict;
+using process::http::Forbidden;
 using process::http::OK;
 using process::http::Response;
 using process::http::Unauthorized;
@@ -896,9 +897,7 @@ TEST_F(PersistentVolumeEndpointsTest, BadCreateAndDestroyACL)
       createBasicAuthHeaders(DEFAULT_CREDENTIAL),
       createRequestBody(slaveId.get(), "volumes", volume));
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(
-      Unauthorized("Mesos master").status,
-      createResponse);
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Forbidden().status, createResponse);
 
   // The successful creation attempt.
   createResponse = process::http::post(
@@ -941,9 +940,7 @@ TEST_F(PersistentVolumeEndpointsTest, BadCreateAndDestroyACL)
       createBasicAuthHeaders(DEFAULT_CREDENTIAL),
       createRequestBody(slaveId.get(), "volumes", volume));
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(
-      Unauthorized("Mesos master").status,
-      destroyResponse);
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Forbidden().status, destroyResponse);
 
   driver.stop();
   driver.join();

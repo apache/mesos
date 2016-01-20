@@ -47,8 +47,8 @@ using google::protobuf::RepeatedPtrField;
 using http::Accepted;
 using http::BadRequest;
 using http::Conflict;
+using http::Forbidden;
 using http::OK;
-using http::Unauthorized;
 
 using mesos::quota::QuotaInfo;
 using mesos::quota::QuotaStatus;
@@ -341,7 +341,7 @@ Future<http::Response> Master::QuotaHandler::set(
   return authorizeSetQuota(principal, quotaInfo.role())
     .then(defer(master->self(), [=](bool authorized) -> Future<http::Response> {
       if (!authorized) {
-        return Unauthorized("Mesos master");
+        return Forbidden();
       }
 
       return _set(quotaInfo, forced);
@@ -450,7 +450,7 @@ Future<http::Response> Master::QuotaHandler::remove(
   return authorizeRemoveQuota(principal, quota_principal)
     .then(defer(master->self(), [=](bool authorized) -> Future<http::Response> {
       if (!authorized) {
-        return Unauthorized("Mesos master");
+        return Forbidden();
       }
 
       return _remove(role);

@@ -53,6 +53,7 @@ using process::PID;
 
 using process::http::BadRequest;
 using process::http::Conflict;
+using process::http::Forbidden;
 using process::http::OK;
 using process::http::Response;
 using process::http::Unauthorized;
@@ -1190,7 +1191,7 @@ TEST_F(MasterQuotaTest, AuthorizeQuotaRequests)
         createRequestBody(ROLE1, quotaResources, FORCE));
 
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(
-        Unauthorized("Mesos master").status, response) << response.get().body;
+        Forbidden().status, response) << response.get().body;
   }
 
   // Request quota using the default principal.
@@ -1236,7 +1237,7 @@ TEST_F(MasterQuotaTest, AuthorizeQuotaRequests)
         createBasicAuthHeaders(DEFAULT_CREDENTIAL_2));
 
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(
-        Unauthorized("Mesos master").status, response) << response.get().body;
+        Forbidden().status, response) << response.get().body;
   }
 
   // Remove the previously requested quota using the default principal.

@@ -52,12 +52,12 @@ using process::Future;
 using process::PID;
 
 using process::http::BadRequest;
+using process::http::Forbidden;
 using process::http::MethodNotAllowed;
 using process::http::NotAcceptable;
 using process::http::OK;
 using process::http::Pipe;
 using process::http::Response;
-using process::http::Unauthorized;
 using process::http::UnsupportedMediaType;
 
 using recordio::Decoder;
@@ -135,9 +135,7 @@ TEST_F(SchedulerHttpApiTest, AuthenticationRequired)
       None(),
       None());
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(
-      Unauthorized("Mesos master").status,
-      response);
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Forbidden().status, response);
 }
 
 

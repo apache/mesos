@@ -60,7 +60,7 @@ For example, when a framework (re-)registers with the master, "register_framewor
 
 Similarly, when a framework launches a task, "run_tasks" ACLs are checked to see if the framework (`FrameworkInfo.principal`) is authorized to run the task/executor as the given user. If not authorized, the launch is rejected and the framework gets a TASK_LOST.
 
-In the same vein, when a user/principal attempts to shutdown a framework using the "/teardown" HTTP endpoint on the master, "shutdown_frameworks" ACLs are checked to see if the principal is authorized to shutdown the given framework. If not authorized, the shutdown is rejected and the user receives an `Unauthorized` HTTP response.
+In the same vein, when a user/principal attempts to shutdown a framework using the "/teardown" HTTP endpoint on the master, "shutdown_frameworks" ACLs are checked to see if the principal is authorized to shutdown the given framework. If not authorized, the shutdown is rejected and the user receives a `Forbidden` HTTP response.
 
 If no user/principal is provided in a request to an HTTP endpoint and authentication is disabled, the `ANY` subject is used in the authorization.
 

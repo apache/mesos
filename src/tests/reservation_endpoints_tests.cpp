@@ -51,6 +51,7 @@ using process::PID;
 
 using process::http::BadRequest;
 using process::http::Conflict;
+using process::http::Forbidden;
 using process::http::OK;
 using process::http::Response;
 using process::http::Unauthorized;
@@ -929,9 +930,7 @@ TEST_F(ReservationEndpointsTest, BadReserveACL)
       createRequestBody(slaveId.get(), dynamicallyReserved));
 
   // Expect a failed authorization.
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(
-      Unauthorized("Mesos master").status,
-      response);
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Forbidden().status, response);
 
   Shutdown();
 }
@@ -1000,9 +999,7 @@ TEST_F(ReservationEndpointsTest, BadUnreserveACL)
       createRequestBody(slaveId.get(), dynamicallyReserved));
 
   // Expect a failed authorization.
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(
-      Unauthorized("Mesos master").status,
-      response);
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Forbidden().status, response);
 
   Shutdown();
 }

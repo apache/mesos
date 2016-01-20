@@ -92,7 +92,6 @@ using process::http::OK;
 using process::http::Pipe;
 using process::http::ServiceUnavailable;
 using process::http::TemporaryRedirect;
-using process::http::Unauthorized;
 using process::http::UnsupportedMediaType;
 
 using process::metrics::internal::MetricsProcess;
@@ -547,8 +546,7 @@ Future<Response> Master::Http::scheduler(const Request& request) const
   }
 
   if (master->flags.authenticate_frameworks) {
-    return Unauthorized(
-        "Mesos master",
+    return Forbidden(
         "HTTP schedulers are not supported when authentication is required");
   }
 
@@ -788,7 +786,7 @@ Future<Response> Master::Http::createVolumes(
   return master->authorizeCreateVolume(operation.create(), principal)
     .then(defer(master->self(), [=](bool authorized) -> Future<Response> {
       if (!authorized) {
-        return Unauthorized("Mesos master");
+        return Forbidden();
       }
 
       // The resources required for this operation are equivalent to the
@@ -879,7 +877,7 @@ Future<Response> Master::Http::destroyVolumes(
   return master->authorizeDestroyVolume(operation.destroy(), principal)
     .then(defer(master->self(), [=](bool authorized) -> Future<Response> {
       if (!authorized) {
-        return Unauthorized("Mesos master");
+        return Forbidden();
       }
 
       return _operation(slaveId, volumes, operation);
@@ -1208,7 +1206,7 @@ Future<Response> Master::Http::reserve(
   return master->authorizeReserveResources(operation.reserve(), principal)
     .then(defer(master->self(), [=](bool authorized) -> Future<Response> {
       if (!authorized) {
-        return Unauthorized("Mesos master");
+        return Forbidden();
       }
 
       // NOTE: `flatten()` is important. To make a dynamic reservation,
@@ -1853,7 +1851,7 @@ Future<Response> Master::Http::teardown(
   return master->authorizer.get()->authorize(shutdown)
     .then(defer(master->self(), [=](bool authorized) -> Future<Response> {
       if (!authorized) {
-        return Unauthorized("Mesos master");
+        return Forbidden();
       }
       return _teardown(id);
     }));
@@ -2481,7 +2479,7 @@ Future<Response> Master::Http::unreserve(
   return master->authorizeUnreserveResources(operation.unreserve(), principal)
     .then(defer(master->self(), [=](bool authorized) -> Future<Response> {
       if (!authorized) {
-        return Unauthorized("Mesos master");
+        return Forbidden();
       }
 
       return _operation(slaveId, resources, operation);
