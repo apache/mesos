@@ -5464,7 +5464,8 @@ Executor::Executor(
     containerId(_containerId),
     directory(_directory),
     checkpoint(_checkpoint),
-    pid(UPID()),
+    http(None()),
+    pid(None()),
     resources(_info.resources()),
     completedTasks(MAX_COMPLETED_TASKS_PER_EXECUTOR)
 {
