@@ -34,6 +34,7 @@
 
 #include <stout/abort.hpp>
 #include <stout/gtest.hpp>
+#include <stout/hashset.hpp>
 #include <stout/os.hpp>
 #include <stout/path.hpp>
 
@@ -45,12 +46,14 @@
 #include "master/detector.hpp"
 
 #include "slave/flags.hpp"
+#include "slave/gc.hpp"
 #include "slave/slave.hpp"
 
 #ifdef __linux__
 #include "slave/containerizer/mesos/isolators/cgroups/constants.hpp"
 #include "slave/containerizer/mesos/isolators/cgroups/cpushare.hpp"
 #include "slave/containerizer/mesos/isolators/cgroups/mem.hpp"
+#include "slave/containerizer/mesos/isolators/cgroups/net_cls.hpp"
 #include "slave/containerizer/mesos/isolators/cgroups/perf_event.hpp"
 #include "slave/containerizer/mesos/isolators/filesystem/shared.hpp"
 #endif // __linux__
@@ -77,6 +80,7 @@ using mesos::internal::master::Master;
 #ifdef __linux__
 using mesos::internal::slave::CgroupsCpushareIsolatorProcess;
 using mesos::internal::slave::CgroupsMemIsolatorProcess;
+using mesos::internal::slave::CgroupsNetClsIsolatorProcess;
 using mesos::internal::slave::CgroupsPerfEventIsolatorProcess;
 using mesos::internal::slave::CPU_SHARES_PER_CPU_REVOCABLE;
 using mesos::internal::slave::Fetcher;
@@ -837,6 +841,120 @@ TYPED_TEST(MemIsolatorTest, MemUsage)
 
   delete isolator.get();
 }
+
+
+#ifdef __linux__
+class NetClsIsolatorTest : public MesosTest {};
+
+
+// This tests the create, prepare, isolate and cleanup methods of the
+// 'CgroupNetClsIsolatorProcess'. The test first creates a 'MesosContainerizer'
+// with net_cls cgroup isolator enabled. The net_cls cgroup isolator is
+// implemented in the 'CgroupNetClsIsolatorProcess' class. The test then
+// launches a task in a mesos container and checks to see if the container has
+// been added to the right net_cls cgroup. Finally, the test kills the task and
+// makes sure that the 'CgroupNetClsIsolatorProcess' cleans up the net_cls
+// cgroup created for the container.
+TEST_F(NetClsIsolatorTest, ROOT_CGROUPS_NetClsIsolate)
+{
+  Try<PID<Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.isolation = "cgroups/net_cls";
+
+  Fetcher fetcher;
+
+  Try<MesosContainerizer*> containerizer =
+    MesosContainerizer::create(flags, true, &fetcher);
+  ASSERT_SOME(containerizer);
+
+  Try<PID<Slave>> slave = StartSlave(containerizer.get(), flags);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  Future<Nothing> schedRegistered;
+  EXPECT_CALL(sched, registered(_, _, _))
+    .WillOnce(FutureSatisfy(&schedRegistered));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return());      // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(schedRegistered);
+
+  AWAIT_READY(offers);
+  EXPECT_EQ(1u, offers.get().size());
+
+  // Create a task to be launched in the mesos-container. We will be
+  // explicitly killing this task to perform the cleanup test.
+  TaskInfo task = createTask(offers.get()[0], "sleep 1000");
+
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(_, _))
+    .WillOnce(FutureArg<1>(&status));
+
+  driver.launchTasks(offers.get()[0].id(), {task});
+
+  // Capture the update to verify that the task has been launched.
+  AWAIT_READY(status);
+  ASSERT_EQ(TASK_RUNNING, status.get().state());
+
+  // Task is ready.  Make sure there is exactly 1 container in the hashset.
+  Future<hashset<ContainerID>> containers = containerizer.get()->containers();
+  AWAIT_READY(containers);
+  EXPECT_EQ(1u, containers.get().size());
+
+  const ContainerID& containerID = *(containers.get().begin());
+
+  // Check if the net_cls cgroup for this container exists, by checking for the
+  // processes associated with this cgroup.
+  string container_cgroup = path::join(
+      flags.cgroups_root,
+      containerID.value());
+
+  Try<set<pid_t>> pids = cgroups::processes(
+        path::join(flags.cgroups_hierarchy, "net_cls"),
+        container_cgroup);
+  ASSERT_SOME(pids);
+
+  // There should be at least one TGID associated with this cgroup.
+  EXPECT_LE(1u, pids.get().size());
+
+  // Isolator cleanup test: Killing the task should cleanup the cgroup
+  // associated with the container.
+  Future<TaskStatus> killStatus;
+  EXPECT_CALL(sched, statusUpdate(_, _))
+    .WillOnce(FutureArg<1>(&killStatus));
+
+  // Wait for the executor to exit. We are using 'gc.schedule' as a proxy event
+  // to monitor the exit of the executor.
+  Future<Nothing> gcSchedule = FUTURE_DISPATCH(
+      _, &slave::GarbageCollectorProcess::schedule);
+
+  driver.killTask(status.get().task_id());
+
+  AWAIT_READY(gcSchedule);
+
+  // If the cleanup is successful the net_cls cgroup for this container should
+  // not exist.
+  ASSERT_FALSE(os::exists(container_cgroup));
+
+  driver.stop();
+  driver.join();
+
+  Shutdown();
+
+  delete containerizer.get();
+}
+#endif
 
 
 #ifdef __linux__
