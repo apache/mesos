@@ -57,8 +57,15 @@ Try<Resources> applyCheckpointedResources(
       stripped.clear_reservation();
     }
 
+    // Strip persistence and volume from the disk info so that we can
+    // check whether it is contained in the `totalResources`.
     if (Resources::isPersistentVolume(resource)) {
-      stripped.clear_disk();
+      if (stripped.disk().has_source()) {
+        stripped.mutable_disk()->clear_persistence();
+        stripped.mutable_disk()->clear_volume();
+      } else {
+        stripped.clear_disk();
+      }
     }
 
     if (!totalResources.contains(stripped)) {

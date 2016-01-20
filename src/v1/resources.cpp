@@ -984,14 +984,20 @@ Try<Resources> Resources::apply(const Offer::Operation& operation) const
           return Error("Invalid CREATE Operation: Missing 'persistence'");
         }
 
-        // Strip the disk info so that we can subtract it from the
-        // original resources.
+        // Strip persistence and volume from the disk info so that we
+        // can subtract it from the original resources.
         // TODO(jieyu): Non-persistent volumes are not supported for
         // now. Persistent volumes can only be be created from regular
         // disk resources. Revisit this once we start to support
         // non-persistent volumes.
         Resource stripped = volume;
-        stripped.clear_disk();
+
+        if (stripped.disk().has_source()) {
+          stripped.mutable_disk()->clear_persistence();
+          stripped.mutable_disk()->clear_volume();
+        } else {
+          stripped.clear_disk();
+        }
 
         if (!result.contains(stripped)) {
           return Error("Invalid CREATE Operation: Insufficient disk resources");
@@ -1021,8 +1027,16 @@ Try<Resources> Resources::apply(const Offer::Operation& operation) const
               "Invalid DESTROY Operation: Persistent volume does not exist");
         }
 
+        // Strip persistence and volume from the disk info so that we
+        // can subtract it from the original resources.
         Resource stripped = volume;
-        stripped.clear_disk();
+
+        if (stripped.disk().has_source()) {
+          stripped.mutable_disk()->clear_persistence();
+          stripped.mutable_disk()->clear_volume();
+        } else {
+          stripped.clear_disk();
+        }
 
         result -= volume;
         result += stripped;

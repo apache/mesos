@@ -85,6 +85,24 @@ protected:
 
     return flags;
   }
+
+  Resource getDiskResource(const Megabytes& mb)
+  {
+    return createDiskResource(
+        stringify(mb.megabytes()),
+        "role1",
+        None(),
+        None());
+  }
+
+  string getSlaveResources()
+  {
+    Resources resources = Resources::parse("cpus:2;mem:2048").get() +
+      getDiskResource(Megabytes(2048));
+
+    return stringify(JSON::protobuf(
+        static_cast<const RepeatedPtrField<Resource>&>(resources)));
+  }
 };
 
 
@@ -106,7 +124,7 @@ TEST_F(PersistentVolumeTest, SendingCheckpointResourcesMessage)
   ASSERT_SOME(master);
 
   slave::Flags slaveFlags = CreateSlaveFlags();
-  slaveFlags.resources = "disk(role1):1024";
+  slaveFlags.resources = getSlaveResources();
 
   Try<PID<Slave>> slave = StartSlave(slaveFlags);
   ASSERT_SOME(slave);
@@ -216,7 +234,7 @@ TEST_F(PersistentVolumeTest, ResourcesCheckpointing)
   ASSERT_SOME(master);
 
   slave::Flags slaveFlags = CreateSlaveFlags();
-  slaveFlags.resources = "disk(role1):1024";
+  slaveFlags.resources = getSlaveResources();
 
   Try<PID<Slave>> slave = StartSlave(slaveFlags);
   ASSERT_SOME(slave);
@@ -282,7 +300,7 @@ TEST_F(PersistentVolumeTest, PreparePersistentVolume)
   ASSERT_SOME(master);
 
   slave::Flags slaveFlags = CreateSlaveFlags();
-  slaveFlags.resources = "disk(role1):1024";
+  slaveFlags.resources = getSlaveResources();
 
   Try<PID<Slave>> slave = StartSlave(slaveFlags);
   ASSERT_SOME(slave);
@@ -354,7 +372,7 @@ TEST_F(PersistentVolumeTest, MasterFailover)
   StandaloneMasterDetector detector(master.get());
 
   slave::Flags slaveFlags = CreateSlaveFlags();
-  slaveFlags.resources = "disk(role1):1024";
+  slaveFlags.resources = getSlaveResources();
 
   Try<PID<Slave>> slave = StartSlave(&detector, slaveFlags);
   ASSERT_SOME(slave);
@@ -446,7 +464,7 @@ TEST_F(PersistentVolumeTest, IncompatibleCheckpointedResources)
   ASSERT_SOME(master);
 
   slave::Flags slaveFlags = CreateSlaveFlags();
-  slaveFlags.resources = "disk(role1):1024";
+  slaveFlags.resources = getSlaveResources();
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
   TestContainerizer containerizer(&exec);
@@ -534,7 +552,7 @@ TEST_F(PersistentVolumeTest, AccessPersistentVolume)
 
   slave::Flags slaveFlags = CreateSlaveFlags();
 
-  slaveFlags.resources = "cpus:2;mem:1024;disk(role1):1024";
+  slaveFlags.resources = getSlaveResources();
 
   Try<PID<Slave>> slave = StartSlave(slaveFlags);
   ASSERT_SOME(slave);
@@ -642,7 +660,7 @@ TEST_F(PersistentVolumeTest, SlaveRecovery)
 
   slave::Flags slaveFlags = CreateSlaveFlags();
 
-  slaveFlags.resources = "cpus:2;mem:1024;disk(role1):1024";
+  slaveFlags.resources = getSlaveResources();
 
   Try<PID<Slave>> slave = StartSlave(slaveFlags);
   ASSERT_SOME(slave);
@@ -792,7 +810,7 @@ TEST_F(PersistentVolumeTest, GoodACLCreateThenDestroy)
   // Create a slave. Resources are being statically reserved because persistent
   // volume creation requires reserved resources.
   slave::Flags slaveFlags = CreateSlaveFlags();
-  slaveFlags.resources = "cpus:2;mem:1024;disk(role1):2048";
+  slaveFlags.resources = getSlaveResources();
 
   Try<PID<Slave>> slave = StartSlave(slaveFlags);
   ASSERT_SOME(slave);
@@ -942,7 +960,7 @@ TEST_F(PersistentVolumeTest, GoodACLNoPrincipal)
   // Create a slave. Resources are being statically reserved because persistent
   // volume creation requires reserved resources.
   slave::Flags slaveFlags = CreateSlaveFlags();
-  slaveFlags.resources = "cpus:2;mem:1024;disk(role1):2048";
+  slaveFlags.resources = getSlaveResources();
 
   Try<PID<Slave>> slave = StartSlave(slaveFlags);
   ASSERT_SOME(slave);
@@ -1095,7 +1113,7 @@ TEST_F(PersistentVolumeTest, BadACLNoPrincipal)
 
   // Create a slave.
   slave::Flags slaveFlags = CreateSlaveFlags();
-  slaveFlags.resources = "cpus:2;mem:1024;disk(role1):2048";
+  slaveFlags.resources = getSlaveResources();
 
   Try<PID<Slave>> slave = StartSlave(slaveFlags);
   ASSERT_SOME(slave);
@@ -1295,7 +1313,7 @@ TEST_F(PersistentVolumeTest, BadACLDropCreateAndDestroy)
 
   // Create a slave.
   slave::Flags slaveFlags = CreateSlaveFlags();
-  slaveFlags.resources = "cpus:2;mem:1024;disk(role1):2048";
+  slaveFlags.resources = getSlaveResources();
 
   Try<PID<Slave>> slave = StartSlave(slaveFlags);
   ASSERT_SOME(slave);

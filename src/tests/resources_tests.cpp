@@ -1668,47 +1668,6 @@ TEST(ReservedResourcesTest, Contains)
 }
 
 
-// Helper for creating a disk source with type `PATH`.
-static Resource::DiskInfo::Source createDiskSourcePath(const string& root)
-{
-  Resource::DiskInfo::Source source;
-
-  source.set_type(Resource::DiskInfo::Source::PATH);
-  source.mutable_path()->set_root(root);
-
-  return source;
-}
-
-
-// Helper for creating a disk source with type `MOUNT`.
-static Resource::DiskInfo::Source createDiskSourceMount(const string& root)
-{
-  Resource::DiskInfo::Source source;
-
-  source.set_type(Resource::DiskInfo::Source::MOUNT);
-  source.mutable_mount()->set_root(root);
-
-  return source;
-}
-
-
-// Helper for creating a disk resource.
-static Resource createDiskResource(
-    const string& value,
-    const string& role,
-    const Option<string>& persistenceID,
-    const Option<string>& containerPath,
-    const Option<Resource::DiskInfo::Source>& source = None())
-{
-  Resource resource = Resources::parse("disk", value, role).get();
-
-  resource.mutable_disk()->CopyFrom(
-      createDiskInfo(persistenceID, containerPath, None(), None(), source));
-
-  return resource;
-}
-
-
 TEST(DiskResourcesTest, Validation)
 {
   Resource cpus = Resources::parse("cpus", "2", "*").get();
