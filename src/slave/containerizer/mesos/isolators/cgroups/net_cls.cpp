@@ -31,21 +31,21 @@
 
 #include "slave/containerizer/mesos/isolators/cgroups/net_cls.hpp"
 
-using mesos::slave::ContainerConfig;
-using mesos::slave::ContainerLaunchInfo;
-using mesos::slave::ContainerLimitation;
-using mesos::slave::ContainerState;
-using mesos::slave::Isolator;
+using std::list;
+using std::set;
+using std::string;
+using std::vector;
 
 using process::Failure;
 using process::Future;
 using process::Owned;
 using process::PID;
 
-using std::list;
-using std::set;
-using std::string;
-using std::vector;
+using mesos::slave::ContainerConfig;
+using mesos::slave::ContainerLaunchInfo;
+using mesos::slave::ContainerLimitation;
+using mesos::slave::ContainerState;
+using mesos::slave::Isolator;
 
 namespace mesos {
 namespace internal {
