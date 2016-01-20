@@ -127,17 +127,17 @@ Future<Nothing> CopyBackendProcess::_provision(
   VLOG(1) << "Copying layer path '" << layer << "' to rootfs '" << rootfs
           << "'";
 
-#ifdef __APPLE__
+#if defined(__APPLE__) || defined(__FreeBSD__)
   if (!strings::endsWith(layer, "/")) {
     layer += "/";
   }
 
-  // OSX cp doesn't support -T flag, but supports source trailing
+  // BSD cp doesn't support -T flag, but supports source trailing
   // slash so we only copy the content but not the folder.
   vector<string> args{"cp", "-a", layer, rootfs};
 #else
   vector<string> args{"cp", "-aT", layer, rootfs};
-#endif // __APPLE__
+#endif // __APPLE__ || __FreeBSD__
 
   Try<Subprocess> s = subprocess(
       "cp",
