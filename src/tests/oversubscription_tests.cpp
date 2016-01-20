@@ -257,6 +257,9 @@ TEST_F(OversubscriptionTest, FetchResourceUsageFromMonitor)
             DEFAULT_EXECUTOR_ID);
   ASSERT_EQ(usage.get().executors(0).statistics(), statistics);
 
+  EXPECT_CALL(exec, shutdown(_))
+    .Times(AtMost(1));
+
   driver.stop();
   driver.join();
 
@@ -695,6 +698,9 @@ TEST_F(OversubscriptionTest, QoSFetchResourceUsageFromMonitor)
   EXPECT_EQ(usage.get().executors(0).executor_info().executor_id(),
             DEFAULT_EXECUTOR_ID);
   ASSERT_EQ(usage.get().executors(0).statistics(), statistics);
+
+  EXPECT_CALL(exec, shutdown(_))
+    .Times(AtMost(1));
 
   driver.stop();
   driver.join();

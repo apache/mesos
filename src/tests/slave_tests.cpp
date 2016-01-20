@@ -1576,6 +1576,9 @@ TEST_F(SlaveTest, ContainerUpdatedBeforeTaskReachesExecutor)
   AWAIT_READY(status);
   EXPECT_EQ(TASK_RUNNING, status.get().state());
 
+  EXPECT_CALL(exec, shutdown(_))
+    .Times(AtMost(1));
+
   driver.stop();
   driver.join();
 

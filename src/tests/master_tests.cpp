@@ -2592,6 +2592,9 @@ TEST_F(MasterTest, OfferNotRescindedOnceUsed)
   Clock::advance(masterFlags.offer_timeout.get());
   Clock::settle();
 
+  EXPECT_CALL(exec, shutdown(_))
+    .Times(AtMost(1));
+
   driver.stop();
   driver.join();
 
