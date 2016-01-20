@@ -272,6 +272,11 @@ std::string getPersistentVolumePath(
     const std::string& persistenceId);
 
 
+std::string getPersistentVolumePath(
+    const std::string& rootDir,
+    const Resource& resource);
+
+
 std::string createExecutorDirectory(
     const std::string& rootDir,
     const SlaveID& slaveId,

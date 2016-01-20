@@ -2253,10 +2253,7 @@ void Slave::checkpointResources(const vector<Resource>& _checkpointedResources)
     // This is validated in master.
     CHECK_NE(volume.role(), "*");
 
-    string path = paths::getPersistentVolumePath(
-        flags.work_dir,
-        volume.role(),
-        volume.disk().persistence().id());
+    string path = paths::getPersistentVolumePath(flags.work_dir, volume);
 
     if (!os::exists(path)) {
       CHECK_SOME(os::mkdir(path, true))

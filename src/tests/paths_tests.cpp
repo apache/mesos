@@ -29,6 +29,8 @@
 #include "slave/paths.hpp"
 #include "slave/state.hpp"
 
+#include "tests/mesos.hpp"
+
 namespace mesos {
 namespace internal {
 namespace slave {
@@ -54,12 +56,17 @@ public:
     CHECK_SOME(path) << "Failed to mkdtemp";
     rootDir = path.get();
 
+    path = os::mkdtemp();
+    CHECK_SOME(path) << "Failed to mkdtemp";
+    diskSourceDir = path.get();
+
     imageType = Image::APPC;
   }
 
   virtual void TearDown()
   {
      os::rmdir(rootDir);
+     os::rmdir(diskSourceDir);
   }
 
 protected:
@@ -71,6 +78,7 @@ protected:
   string role;
   string persistenceId;
   string rootDir;
+  string diskSourceDir;
   Image::Type imageType;
 };
 
@@ -221,6 +229,36 @@ TEST_F(PathsTest, PersistentVolume)
   string dir = path::join(rootDir, "volumes", "roles", role, persistenceId);
 
   EXPECT_EQ(dir, paths::getPersistentVolumePath(rootDir, role, persistenceId));
+
+  dir = path::join(diskSourceDir, "volumes", "roles", role, persistenceId);
+
+  Resource disk = tests::createPersistentVolume(
+      Megabytes(1024),
+      "role1",
+      persistenceId,
+      "path1",
+      None());
+
+  disk.mutable_disk()->mutable_source()->set_type(
+      Resource::DiskInfo::Source::PATH);
+
+  disk.mutable_disk()->mutable_source()->mutable_path()->set_root(
+      diskSourceDir);
+
+  EXPECT_EQ(
+      dir,
+      paths::getPersistentVolumePath(rootDir, disk));
+
+  disk.mutable_disk()->mutable_source()->set_type(
+      Resource::DiskInfo::Source::MOUNT);
+
+  disk.mutable_disk()->mutable_source()->clear_path();
+  disk.mutable_disk()->mutable_source()->mutable_mount()->set_root(
+      diskSourceDir);
+
+  EXPECT_EQ(
+      diskSourceDir,
+      paths::getPersistentVolumePath(rootDir, disk));
 }
 
 
