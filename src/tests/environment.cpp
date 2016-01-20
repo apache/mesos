@@ -337,6 +337,63 @@ private:
 };
 
 
+// This filter enables tests for the cgroups/net_cls isolator after
+// checking that net_cls cgroup subsystem has been enabled on the
+// system. We cannot rely on the generic cgroups test filter
+// ('CgroupsFilter') to enable the cgroups/net_cls isolator tests
+// since, although cgroups might be enabled on a linux distribution
+// the net_cls subsystem is not turned on, by default, on all
+// distributions.
+class NetClsCgroupsFilter : public TestFilter
+{
+public:
+  NetClsCgroupsFilter()
+  {
+    netClsError = true;
+#ifdef __linux__
+    Try<bool> netCls = cgroups::enabled("net_cls");
+
+    if (netCls.isError()) {
+      std::cerr
+        << "-------------------------------------------------------------\n"
+        << "Cannot enable NetClsIsolatorTest since we cannot determine \n"
+        << "the existence of the net_cls cgroup subsystem.\n"
+        << "-------------------------------------------------------------\n";
+      return;
+    }
+
+    if (netCls.isSome() && !netCls.get()) {
+      std::cerr
+        << "-------------------------------------------------------------\n"
+        << "Cannot enable NetClsIsolatorTest since net_cls cgroup \n"
+        << "subsystem is not enabled. Check instructions for your linux\n"
+        << "distrubtion to enable the net_cls cgroups on your system.\n"
+        << "-----------------------------------------------------------\n";
+      return;
+    }
+    netClsError = false;
+#else
+    std::cerr
+        << "-----------------------------------------------------------\n"
+        << "Cannot enable NetClsIsolatorTest since this platform does\n"
+        << "not support cgroups.\n"
+        << "-----------------------------------------------------------\n";
+#endif
+  }
+
+  bool disable(const ::testing::TestInfo* test) const
+  {
+    if (matches(test, "NetClsIsolatorTest")) {
+      return netClsError;
+    }
+    return false;
+  }
+
+private:
+  bool netClsError;
+};
+
+
 class NetworkIsolatorTestFilter : public TestFilter
 {
 public:
@@ -554,6 +611,7 @@ Environment::Environment(const Flags& _flags) : flags(_flags)
   filters.push_back(Owned<TestFilter>(new DockerFilter()));
   filters.push_back(Owned<TestFilter>(new InternetFilter()));
   filters.push_back(Owned<TestFilter>(new NetcatFilter()));
+  filters.push_back(Owned<TestFilter>(new NetClsCgroupsFilter()));
   filters.push_back(Owned<TestFilter>(new NetworkIsolatorTestFilter()));
   filters.push_back(Owned<TestFilter>(new PerfCPUCyclesFilter()));
   filters.push_back(Owned<TestFilter>(new PerfFilter()));
