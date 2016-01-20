@@ -36,16 +36,16 @@ private:
   // TODO(benh): Consider removing these in favor of having these
   // functions return _Deferred.
   template <typename T>
-  friend Deferred<void(void)>
-  defer(const PID<T>& pid, void (T::*method)(void));
+  friend Deferred<void()>
+  defer(const PID<T>& pid, void (T::*method)());
 
   template <typename R, typename T>
-  friend Deferred<Future<R>(void)>
-  defer(const PID<T>& pid, Future<R> (T::*method)(void));
+  friend Deferred<Future<R>()>
+  defer(const PID<T>& pid, Future<R> (T::*method)());
 
   template <typename R, typename T>
-  friend Deferred<Future<R>(void)>
-  defer(const PID<T>& pid, R (T::*method)(void));
+  friend Deferred<Future<R>()>
+  defer(const PID<T>& pid, R (T::*method)());
 
   /*implicit*/ Deferred(const std::function<F>& f) : std::function<F>(f) {}
 };

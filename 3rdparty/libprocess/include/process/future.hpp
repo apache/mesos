@@ -151,10 +151,10 @@ public:
 
   // Type of the callback functions that can get invoked when the
   // future gets set, fails, or is discarded.
-  typedef lambda::function<void(void)> DiscardCallback;
+  typedef lambda::function<void()> DiscardCallback;
   typedef lambda::function<void(const T&)> ReadyCallback;
   typedef lambda::function<void(const std::string&)> FailedCallback;
-  typedef lambda::function<void(void)> DiscardedCallback;
+  typedef lambda::function<void()> DiscardedCallback;
   typedef lambda::function<void(const Future<T>&)> AnyCallback;
 
   // Installs callbacks for the specified events and returns a const

@@ -33,8 +33,8 @@ event_base* base = NULL;
 
 
 static std::mutex* functions_mutex = new std::mutex();
-std::queue<lambda::function<void(void)>>* functions =
-  new std::queue<lambda::function<void(void)>>();
+std::queue<lambda::function<void()>>* functions =
+  new std::queue<lambda::function<void()>>();
 
 
 THREAD_LOCAL bool* _in_event_loop_ = NULL;
@@ -45,7 +45,7 @@ void async_function(int socket, short which, void* arg)
   event* ev = reinterpret_cast<event*>(arg);
   event_free(ev);
 
-  std::queue<lambda::function<void(void)>> q;
+  std::queue<lambda::function<void()>> q;
 
   synchronized (functions_mutex) {
     std::swap(q, *functions);
@@ -59,7 +59,7 @@ void async_function(int socket, short which, void* arg)
 
 
 void run_in_event_loop(
-    const lambda::function<void(void)>& f,
+    const lambda::function<void()>& f,
     EventLoopLogicFlow event_loop_logic_flow)
 {
   if (__in_event_loop__ && event_loop_logic_flow == ALLOW_SHORT_CIRCUIT) {
@@ -124,7 +124,7 @@ namespace internal {
 
 struct Delay
 {
-  lambda::function<void(void)> function;
+  lambda::function<void()> function;
   event* timer;
 };
 
@@ -141,7 +141,7 @@ void handle_delay(int, short, void* arg)
 
 void EventLoop::delay(
     const Duration& duration,
-    const lambda::function<void(void)>& function)
+    const lambda::function<void()>& function)
 {
   internal::Delay* delay = new internal::Delay();
   delay->timer = evtimer_new(base, &internal::handle_delay, delay);

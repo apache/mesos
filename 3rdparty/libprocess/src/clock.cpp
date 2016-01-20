@@ -264,7 +264,7 @@ Time Clock::now(ProcessBase* process)
 
 Timer Clock::timer(
     const Duration& duration,
-    const lambda::function<void(void)>& thunk)
+    const lambda::function<void()>& thunk)
 {
   // Start at 1 since Timer() instances use id 0.
   static std::atomic<uint64_t> id(1);

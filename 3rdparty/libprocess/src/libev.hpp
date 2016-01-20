@@ -43,7 +43,7 @@ extern std::mutex* watchers_mutex;
 
 // Queue of functions to be invoked asynchronously within the vent
 // loop (protected by 'watchers' above).
-extern std::queue<lambda::function<void(void)>>* functions;
+extern std::queue<lambda::function<void()>>* functions;
 
 // Per thread bool pointer. We use a pointer to lazily construct the
 // actual bool.
@@ -56,7 +56,7 @@ extern THREAD_LOCAL bool* _in_event_loop_;
 // Wrapper around function we want to run in the event loop.
 template <typename T>
 void _run_in_event_loop(
-    const lambda::function<Future<T>(void)>& f,
+    const lambda::function<Future<T>()>& f,
     const Owned<Promise<T>>& promise)
 {
   // Don't bother running the function if the future has been discarded.
@@ -70,7 +70,7 @@ void _run_in_event_loop(
 
 // Helper for running a function in the event loop.
 template <typename T>
-Future<T> run_in_event_loop(const lambda::function<Future<T>(void)>& f)
+Future<T> run_in_event_loop(const lambda::function<Future<T>()>& f)
 {
   // If this is already the event loop then just run the function.
   if (__in_event_loop__) {

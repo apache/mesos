@@ -77,9 +77,7 @@ void dispatch(
 // First, definitions of dispatch for methods returning void:
 
 template <typename T>
-void dispatch(
-    const PID<T>& pid,
-    void (T::*method)())
+void dispatch(const PID<T>& pid, void (T::*method)())
 {
   std::shared_ptr<std::function<void(ProcessBase*)>> f(
       new std::function<void(ProcessBase*)>(
@@ -94,17 +92,13 @@ void dispatch(
 }
 
 template <typename T>
-void dispatch(
-    const Process<T>& process,
-    void (T::*method)())
+void dispatch(const Process<T>& process, void (T::*method)())
 {
   dispatch(process.self(), method);
 }
 
 template <typename T>
-void dispatch(
-    const Process<T>* process,
-    void (T::*method)())
+void dispatch(const Process<T>* process, void (T::*method)())
 {
   dispatch(process->self(), method);
 }
@@ -162,9 +156,7 @@ void dispatch(
 // Next, definitions of methods returning a future:
 
 template <typename R, typename T>
-Future<R> dispatch(
-    const PID<T>& pid,
-    Future<R> (T::*method)())
+Future<R> dispatch(const PID<T>& pid, Future<R> (T::*method)())
 {
   std::shared_ptr<Promise<R>> promise(new Promise<R>());
 
@@ -183,17 +175,13 @@ Future<R> dispatch(
 }
 
 template <typename R, typename T>
-Future<R> dispatch(
-    const Process<T>& process,
-    Future<R> (T::*method)(void))
+Future<R> dispatch(const Process<T>& process, Future<R> (T::*method)())
 {
   return dispatch(process.self(), method);
 }
 
 template <typename R, typename T>
-Future<R> dispatch(
-    const Process<T>* process,
-    Future<R> (T::*method)(void))
+Future<R> dispatch(const Process<T>* process, Future<R> (T::*method)())
 {
   return dispatch(process->self(), method);
 }
@@ -255,9 +243,7 @@ Future<R> dispatch(
 // Next, definitions of methods returning a value.
 
 template <typename R, typename T>
-Future<R> dispatch(
-    const PID<T>& pid,
-    R (T::*method)(void))
+Future<R> dispatch(const PID<T>& pid, R (T::*method)())
 {
   std::shared_ptr<Promise<R>> promise(new Promise<R>());
 
@@ -276,17 +262,13 @@ Future<R> dispatch(
 }
 
 template <typename R, typename T>
-Future<R> dispatch(
-    const Process<T>& process,
-    R (T::*method)())
+Future<R> dispatch(const Process<T>& process, R (T::*method)())
 {
   return dispatch(process.self(), method);
 }
 
 template <typename R, typename T>
-Future<R> dispatch(
-    const Process<T>* process,
-    R (T::*method)())
+Future<R> dispatch(const Process<T>* process, R (T::*method)())
 {
   return dispatch(process->self(), method);
 }
@@ -345,9 +327,7 @@ Future<R> dispatch(
 #undef TEMPLATE
 
 
-inline void dispatch(
-    const UPID& pid,
-    const std::function<void()>& f)
+inline void dispatch(const UPID& pid, const std::function<void()>& f)
 {
   std::shared_ptr<std::function<void(ProcessBase*)>> f_(
       new std::function<void(ProcessBase*)>(
@@ -360,9 +340,7 @@ inline void dispatch(
 
 
 template <typename R>
-Future<R> dispatch(
-    const UPID& pid,
-    const std::function<Future<R>()>& f)
+Future<R> dispatch(const UPID& pid, const std::function<Future<R>()>& f)
 {
   std::shared_ptr<Promise<R>> promise(new Promise<R>());
 
@@ -379,9 +357,7 @@ Future<R> dispatch(
 
 
 template <typename R>
-Future<R> dispatch(
-    const UPID& pid,
-    const std::function<R()>& f)
+Future<R> dispatch(const UPID& pid, const std::function<R()>& f)
 {
   std::shared_ptr<Promise<R>> promise(new Promise<R>());
 

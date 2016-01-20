@@ -32,29 +32,21 @@ namespace process {
 // First, definitions of defer for methods returning void:
 
 template <typename T>
-Deferred<void(void)> defer(
-    const PID<T>& pid,
-    void (T::*method)(void))
+Deferred<void()> defer(const PID<T>& pid, void (T::*method)())
 {
-  return Deferred<void(void)>([=]() {
-    dispatch(pid, method);
-  });
+  return Deferred<void()>([=]() { dispatch(pid, method); });
 }
 
 
 template <typename T>
-Deferred<void(void)> defer(
-    const Process<T>& process,
-    void (T::*method)(void))
+Deferred<void()> defer(const Process<T>& process, void (T::*method)())
 {
   return defer(process.self(), method);
 }
 
 
 template <typename T>
-Deferred<void(void)> defer(
-    const Process<T>* process,
-    void (T::*method)(void))
+Deferred<void()> defer(const Process<T>* process, void (T::*method)())
 {
   return defer(process->self(), method);
 }
@@ -111,24 +103,19 @@ Deferred<void(void)> defer(
 // Next, definitions of defer for methods returning future:
 
 template <typename R, typename T>
-Deferred<Future<R>(void)>
-defer(const PID<T>& pid, Future<R> (T::*method)(void))
+Deferred<Future<R>()> defer(const PID<T>& pid, Future<R> (T::*method)())
 {
-  return Deferred<Future<R>(void)>([=]() {
-    return dispatch(pid, method);
-  });
+  return Deferred<Future<R>()>([=]() { return dispatch(pid, method); });
 }
 
 template <typename R, typename T>
-Deferred<Future<R>(void)>
-defer(const Process<T>& process, Future<R> (T::*method)(void))
+Deferred<Future<R>()> defer(const Process<T>& process, Future<R> (T::*method)())
 {
   return defer(process.self(), method);
 }
 
 template <typename R, typename T>
-Deferred<Future<R>(void)>
-defer(const Process<T>* process, Future<R> (T::*method)(void))
+Deferred<Future<R>()> defer(const Process<T>* process, Future<R> (T::*method)())
 {
   return defer(process->self(), method);
 }
@@ -181,24 +168,19 @@ defer(const Process<T>* process, Future<R> (T::*method)(void))
 // Finaly, definitions of defer for methods returning a value:
 
 template <typename R, typename T>
-Deferred<Future<R>(void)>
-defer(const PID<T>& pid, R (T::*method)(void))
+Deferred<Future<R>()> defer(const PID<T>& pid, R (T::*method)())
 {
-  return Deferred<Future<R>(void)>([=]() {
-    return dispatch(pid, method);
-  });
+  return Deferred<Future<R>()>([=]() { return dispatch(pid, method); });
 }
 
 template <typename R, typename T>
-Deferred<Future<R>(void)>
-defer(const Process<T>& process, R (T::*method)(void))
+Deferred<Future<R>()> defer(const Process<T>& process, R (T::*method)())
 {
   return defer(process.self(), method);
 }
 
 template <typename R, typename T>
-Deferred<Future<R>(void)>
-defer(const Process<T>* process, R (T::*method)(void))
+Deferred<Future<R>()> defer(const Process<T>* process, R (T::*method)())
 {
   return defer(process->self(), method);
 }

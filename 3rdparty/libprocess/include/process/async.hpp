@@ -34,15 +34,15 @@ namespace process {
 // brittle).
 
 template <typename F>
-Future<typename result_of<F(void)>::type> async(
+Future<typename result_of<F()>::type> async(
     const F& f,
-    typename boost::disable_if<boost::is_void<typename result_of<F(void)>::type> >::type* = NULL); // NOLINT(whitespace/line_length)
+    typename boost::disable_if<boost::is_void<typename result_of<F()>::type> >::type* = NULL); // NOLINT(whitespace/line_length)
 
 
 template <typename F>
 Future<Nothing> async(
     const F& f,
-    typename boost::enable_if<boost::is_void<typename result_of<F(void)>::type> >::type* = NULL); // NOLINT(whitespace/line_length)
+    typename boost::enable_if<boost::is_void<typename result_of<F()>::type> >::type* = NULL); // NOLINT(whitespace/line_length)
 
 
 #define TEMPLATE(Z, N, DATA)                                            \
@@ -77,9 +77,9 @@ private:
   AsyncExecutorProcess& operator=(const AsyncExecutorProcess&);
 
   template <typename F>
-  typename result_of<F(void)>::type execute(
+  typename result_of<F()>::type execute(
       const F& f,
-      typename boost::disable_if<boost::is_void<typename result_of<F(void)>::type> >::type* = NULL) // NOLINT(whitespace/line_length)
+      typename boost::disable_if<boost::is_void<typename result_of<F()>::type> >::type* = NULL) // NOLINT(whitespace/line_length)
   {
     terminate(self()); // Terminate process after function returns.
     return f();
@@ -88,7 +88,7 @@ private:
   template <typename F>
   Nothing execute(
       const F& f,
-      typename boost::enable_if<boost::is_void<typename result_of<F(void)>::type> >::type* = NULL) // NOLINT(whitespace/line_length)
+      typename boost::enable_if<boost::is_void<typename result_of<F()>::type> >::type* = NULL) // NOLINT(whitespace/line_length)
   {
     terminate(self()); // Terminate process after function returns.
     f();
@@ -128,14 +128,14 @@ class AsyncExecutor
 private:
   // Declare async functions as friends.
   template <typename F>
-  friend Future<typename result_of<F(void)>::type> async(
+  friend Future<typename result_of<F()>::type> async(
       const F& f,
-      typename boost::disable_if<boost::is_void<typename result_of<F(void)>::type> >::type*); // NOLINT(whitespace/line_length)
+      typename boost::disable_if<boost::is_void<typename result_of<F()>::type> >::type*); // NOLINT(whitespace/line_length)
 
   template <typename F>
   friend Future<Nothing> async(
       const F& f,
-      typename boost::enable_if<boost::is_void<typename result_of<F(void)>::type> >::type*); // NOLINT(whitespace/line_length)
+      typename boost::enable_if<boost::is_void<typename result_of<F()>::type> >::type*); // NOLINT(whitespace/line_length)
 
 #define TEMPLATE(Z, N, DATA)                                            \
   template <typename F, ENUM_PARAMS(N, typename A)>                     \
@@ -166,12 +166,12 @@ private:
   AsyncExecutor& operator=(const AsyncExecutor&);
 
   template <typename F>
-  Future<typename result_of<F(void)>::type> execute(
+  Future<typename result_of<F()>::type> execute(
       const F& f,
-      typename boost::disable_if<boost::is_void<typename result_of<F(void)>::type> >::type* = NULL) // NOLINT(whitespace/line_length)
+      typename boost::disable_if<boost::is_void<typename result_of<F()>::type> >::type* = NULL) // NOLINT(whitespace/line_length)
   {
     // Need to disambiguate overloaded method.
-    typename result_of<F(void)>::type(AsyncExecutorProcess::*method)(const F&, typename boost::disable_if<boost::is_void<typename result_of<F(void)>::type> >::type*) = // NOLINT(whitespace/line_length)
+    typename result_of<F()>::type(AsyncExecutorProcess::*method)(const F&, typename boost::disable_if<boost::is_void<typename result_of<F()>::type> >::type*) = // NOLINT(whitespace/line_length)
       &AsyncExecutorProcess::execute<F>;
 
     return dispatch(process, method, f, (void*) NULL);
@@ -180,10 +180,10 @@ private:
   template <typename F>
   Future<Nothing> execute(
       const F& f,
-      typename boost::enable_if<boost::is_void<typename result_of<F(void)>::type> >::type* = NULL) // NOLINT(whitespace/line_length)
+      typename boost::enable_if<boost::is_void<typename result_of<F()>::type> >::type* = NULL) // NOLINT(whitespace/line_length)
   {
     // Need to disambiguate overloaded method.
-    Nothing(AsyncExecutorProcess::*method)(const F&, typename boost::enable_if<boost::is_void<typename result_of<F(void)>::type> >::type*) = // NOLINT(whitespace/line_length)
+    Nothing(AsyncExecutorProcess::*method)(const F&, typename boost::enable_if<boost::is_void<typename result_of<F()>::type> >::type*) = // NOLINT(whitespace/line_length)
       &AsyncExecutorProcess::execute<F>;
 
     return dispatch(process, method, f, (void*) NULL);
@@ -225,9 +225,9 @@ private:
 
 // Provides an abstraction for asynchronously executing a function.
 template <typename F>
-Future<typename result_of<F(void)>::type> async(
+Future<typename result_of<F()>::type> async(
     const F& f,
-    typename boost::disable_if<boost::is_void<typename result_of<F(void)>::type> >::type*) // NOLINT(whitespace/line_length)
+    typename boost::disable_if<boost::is_void<typename result_of<F()>::type> >::type*) // NOLINT(whitespace/line_length)
 {
   return AsyncExecutor().execute(f);
 }
@@ -236,7 +236,7 @@ Future<typename result_of<F(void)>::type> async(
 template <typename F>
 Future<Nothing> async(
     const F& f,
-    typename boost::enable_if<boost::is_void<typename result_of<F(void)>::type> >::type*) // NOLINT(whitespace/line_length)
+    typename boost::enable_if<boost::is_void<typename result_of<F()>::type> >::type*) // NOLINT(whitespace/line_length)
 {
   return AsyncExecutor().execute(f);
 }

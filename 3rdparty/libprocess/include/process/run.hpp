@@ -28,7 +28,7 @@ template <typename R>
 class ThunkProcess : public Process<ThunkProcess<R>>
 {
 public:
-  ThunkProcess(std::shared_ptr<lambda::function<R(void)>> _thunk,
+  ThunkProcess(std::shared_ptr<lambda::function<R()>> _thunk,
                std::shared_ptr<Promise<R>> _promise)
     : thunk(_thunk),
       promise(_promise) {}
@@ -42,7 +42,7 @@ protected:
   }
 
 private:
-  std::shared_ptr<lambda::function<R(void)>> thunk;
+  std::shared_ptr<lambda::function<R()>> thunk;
   std::shared_ptr<Promise<R>> promise;
 };
 
@@ -50,10 +50,10 @@ private:
 
 
 template <typename R>
-Future<R> run(R (*method)(void))
+Future<R> run(R (*method)())
 {
-  std::shared_ptr<lambda::function<R(void)>> thunk(
-      new lambda::function<R(void)>(
+  std::shared_ptr<lambda::function<R()>> thunk(
+      new lambda::function<R()>(
           lambda::bind(method)));
 
   std::shared_ptr<Promise<R>> promise(new Promise<R>());
@@ -73,8 +73,8 @@ Future<R> run(R (*method)(void))
       R (*method)(ENUM_PARAMS(N, P)),                                   \
       ENUM_BINARY_PARAMS(N, A, a))                                      \
   {                                                                     \
-    std::shared_ptr<lambda::function<R(void)>> thunk(                   \
-        new lambda::function<R(void)>(                                  \
+    std::shared_ptr<lambda::function<R()>> thunk(                       \
+        new lambda::function<R()>(                                      \
             lambda::bind(method, ENUM_PARAMS(N, a))));                  \
                                                                         \
     std::shared_ptr<Promise<R>> promise(new Promise<R>());              \

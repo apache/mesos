@@ -541,8 +541,8 @@ TEST(ProcessTest, Discard3)
 class SpawnProcess : public Process<SpawnProcess>
 {
 public:
-  MOCK_METHOD0(initialize, void(void));
-  MOCK_METHOD0(finalize, void(void));
+  MOCK_METHOD0(initialize, void());
+  MOCK_METHOD0(finalize, void());
 };
 
 
@@ -572,7 +572,7 @@ TEST(ProcessTest, Spawn)
 class DispatchProcess : public Process<DispatchProcess>
 {
 public:
-  MOCK_METHOD0(func0, void(void));
+  MOCK_METHOD0(func0, void());
   MOCK_METHOD1(func1, bool(bool));
   MOCK_METHOD1(func2, Future<bool>(bool));
   MOCK_METHOD1(func3, int(int));
@@ -639,7 +639,7 @@ TEST(ProcessTest, Defer1)
   ASSERT_FALSE(!pid);
 
   {
-    Deferred<void(void)> func0 =
+    Deferred<void()> func0 =
       defer(pid, &DispatchProcess::func0);
     func0();
   }
@@ -647,21 +647,21 @@ TEST(ProcessTest, Defer1)
   Future<bool> future;
 
   {
-    Deferred<Future<bool>(void)> func1 =
+    Deferred<Future<bool>()> func1 =
       defer(pid, &DispatchProcess::func1, true);
     future = func1();
     EXPECT_TRUE(future.get());
   }
 
   {
-    Deferred<Future<bool>(void)> func2 =
+    Deferred<Future<bool>()> func2 =
       defer(pid, &DispatchProcess::func2, true);
     future = func2();
     EXPECT_TRUE(future.get());
   }
 
   {
-    Deferred<Future<bool>(void)> func4 =
+    Deferred<Future<bool>()> func4 =
       defer(pid, &DispatchProcess::func4, true, 42);
     future = func4();
     EXPECT_TRUE(future.get());
@@ -1622,7 +1622,7 @@ TEST(ProcessTest, Defers)
         std::bind(baz, std::placeholders::_1));
 
     Future<string>().then(std::function<int(string)>());
-    Future<string>().then(std::function<int(void)>());
+    Future<string>().then(std::function<int()>());
 
     Future<int> future11 = Future<string>().then(
         defer(std::bind(bam, std::placeholders::_1)));
@@ -1680,10 +1680,10 @@ TEST(ProcessTest, Defers)
 //   }
 
   {
-    std::function<Future<int>(void)> f =
+    std::function<Future<int>()> f =
       defer(std::bind(baz, "42"));
 
-    std::function<Future<int>(void)> f2 =
+    std::function<Future<int>()> f2 =
       defer([]() { return baz("42"); });
   }
 

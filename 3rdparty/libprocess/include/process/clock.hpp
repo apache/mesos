@@ -71,7 +71,7 @@ public:
 
   static Timer timer(
       const Duration& duration,
-      const lambda::function<void(void)>& thunk);
+      const lambda::function<void()>& thunk);
 
   static bool cancel(const Timer& timer);
 

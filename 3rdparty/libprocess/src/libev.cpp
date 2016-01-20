@@ -37,15 +37,15 @@ std::queue<ev_io*>* watchers = new std::queue<ev_io*>();
 
 std::mutex* watchers_mutex = new std::mutex();
 
-std::queue<lambda::function<void(void)>>* functions =
-  new std::queue<lambda::function<void(void)>>();
+std::queue<lambda::function<void()>>* functions =
+  new std::queue<lambda::function<void()>>();
 
 THREAD_LOCAL bool* _in_event_loop_ = NULL;
 
 
 void handle_async(struct ev_loop* loop, ev_async* _, int revents)
 {
-  std::queue<lambda::function<void(void)>> run_functions;
+  std::queue<lambda::function<void()>> run_functions;
   synchronized (watchers_mutex) {
     // Start all the new I/O watchers.
     while (!watchers->empty()) {
@@ -96,8 +96,8 @@ namespace internal {
 
 void handle_delay(struct ev_loop* loop, ev_timer* timer, int revents)
 {
-  lambda::function<void(void)>* function =
-    reinterpret_cast<lambda::function<void(void)>*>(timer->data);
+  lambda::function<void()>* function =
+    reinterpret_cast<lambda::function<void()>*>(timer->data);
   (*function)();
   delete function;
   ev_timer_stop(loop, timer);
@@ -107,11 +107,10 @@ void handle_delay(struct ev_loop* loop, ev_timer* timer, int revents)
 
 Future<Nothing> delay(
     const Duration& duration,
-    const lambda::function<void(void)>& function)
+    const lambda::function<void()>& function)
 {
   ev_timer* timer = new ev_timer();
-  timer->data = reinterpret_cast<void*>(
-      new lambda::function<void(void)>(function));
+  timer->data = reinterpret_cast<void*>(new lambda::function<void()>(function));
 
   // Determine the 'after' parameter to pass to libev and set it to 0
   // in the event that it's negative so that we always make sure to
@@ -136,7 +135,7 @@ Future<Nothing> delay(
 
 void EventLoop::delay(
     const Duration& duration,
-    const lambda::function<void(void)>& function)
+    const lambda::function<void()>& function)
 {
   run_in_event_loop<Nothing>(
       lambda::bind(&internal::delay, duration, function));

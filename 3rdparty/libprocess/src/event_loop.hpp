@@ -32,7 +32,7 @@ public:
   // TODO(bmahler): Update this to use rvalue references.
   static void delay(
       const Duration& duration,
-      const lambda::function<void(void)>& function);
+      const lambda::function<void()>& function);
 
   // Returns the current time w.r.t. the event loop.
   static double time();

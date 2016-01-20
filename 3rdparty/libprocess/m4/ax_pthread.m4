@@ -172,7 +172,7 @@ AC_MSG_CHECKING([if compiler needs -Werror to reject unknown flags])
 save_CFLAGS="$CFLAGS"
 ax_pthread_extra_flags="-Werror"
 CFLAGS="$CFLAGS $ax_pthread_extra_flags -Wunknown-warning-option -Wsizeof-array-argument"
-AC_COMPILE_IFELSE([AC_LANG_PROGRAM([int foo(void);],[foo()])],
+AC_COMPILE_IFELSE([AC_LANG_PROGRAM([int foo();],[foo()])],
                   [AC_MSG_RESULT([yes])],
                   [ax_pthread_extra_flags=
                    AC_MSG_RESULT([no])])

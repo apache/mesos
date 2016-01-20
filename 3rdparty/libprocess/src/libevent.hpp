@@ -41,7 +41,7 @@ enum EventLoopLogicFlow
 
 
 void run_in_event_loop(
-    const lambda::function<void(void)>& f,
+    const lambda::function<void()>& f,
     EventLoopLogicFlow event_loop_logic_flow = ALLOW_SHORT_CIRCUIT);
 
 } // namespace process {

@@ -31,10 +31,8 @@ public:
   // 'name' is the unique name for the instance of Gauge being constructed.
   // It will be the key exposed in the JSON endpoint.
   // 'f' is the deferred object called when the Metric value is requested.
-  Gauge(const std::string& name,
-        const Deferred<Future<double> (void)>& f)
-    : Metric(name, None()),
-      data(new Data(f)) {}
+  Gauge(const std::string& name, const Deferred<Future<double>()>& f)
+    : Metric(name, None()), data(new Data(f)) {}
 
   virtual ~Gauge() {}
 
@@ -43,10 +41,9 @@ public:
 private:
   struct Data
   {
-    explicit Data(const Deferred<Future<double> (void)>& _f)
-      : f(_f) {}
+    explicit Data(const Deferred<Future<double>()>& _f) : f(_f) {}
 
-    const Deferred<Future<double> (void)> f;
+    const Deferred<Future<double>()> f;
   };
 
   std::shared_ptr<Data> data;

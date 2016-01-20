@@ -48,7 +48,7 @@ public:
   // affected. The subsequent callbacks will not be invoked until the
   // future is actually DISCARDED.
   template <typename T>
-  Future<T> add(const lambda::function<Future<T>(void)>& callback);
+  Future<T> add(const lambda::function<Future<T>()>& callback);
 
 private:
   // Not copyable, not assignable.
@@ -65,7 +65,7 @@ public:
   SequenceProcess() : last(Nothing()) {}
 
   template <typename T>
-  Future<T> add(const lambda::function<Future<T>(void)>& callback)
+  Future<T> add(const lambda::function<Future<T>()>& callback)
   {
     // This is the future that is used to notify the next callback
     // (denoted by 'N' in the following graph).
@@ -147,7 +147,7 @@ private:
   template <typename T>
   static void notified(
       Owned<Promise<T> > promise,
-      const lambda::function<Future<T>(void)>& callback)
+      const lambda::function<Future<T>()>& callback)
   {
     if (promise->future().hasDiscard()) {
       // The user has shown the intention to discard this callback
@@ -179,7 +179,7 @@ inline Sequence::~Sequence()
 
 
 template <typename T>
-Future<T> Sequence::add(const lambda::function<Future<T>(void)>& callback)
+Future<T> Sequence::add(const lambda::function<Future<T>()>& callback)
 {
   return dispatch(process, &SequenceProcess::add<T>, callback);
 }

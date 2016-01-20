@@ -71,7 +71,7 @@ TEST(SequenceTest, Serialize)
 
   Future<Nothing> bar = FUTURE_DISPATCH(_, &TestProcess::bar);
 
-  lambda::function<Future<Nothing>(void)> f;
+  lambda::function<Future<Nothing>()> f;
 
   f = defer(process, &TestProcess::foo);
   sequence.add(f);
@@ -103,9 +103,9 @@ class DiscardProcess : public Process<DiscardProcess>
 public:
   Future<Nothing> func0() { return promise.future(); }
 
-  MOCK_METHOD0(func1, Nothing(void));
-  MOCK_METHOD0(func2, Nothing(void));
-  MOCK_METHOD0(func3, Nothing(void));
+  MOCK_METHOD0(func1, Nothing());
+  MOCK_METHOD0(func2, Nothing());
+  MOCK_METHOD0(func3, Nothing());
 
   Promise<Nothing> promise;
 };
@@ -119,7 +119,7 @@ TEST(SequenceTest, DiscardOne)
 
   Sequence sequence;
 
-  lambda::function<Future<Nothing>(void)> f;
+  lambda::function<Future<Nothing>()> f;
 
   f = defer(process, &DiscardProcess::func0);
   Future<Nothing> f0 = sequence.add(f);
@@ -169,7 +169,7 @@ TEST(SequenceTest, DiscardAll)
 
   Sequence* sequence = new Sequence();
 
-  lambda::function<Future<Nothing>(void)> f;
+  lambda::function<Future<Nothing>()> f;
 
   f = defer(process, &DiscardProcess::func0);
   Future<Nothing> f0 = sequence->add(f);
@@ -250,7 +250,7 @@ TEST(SequenceTest, Random)
   Sequence sequence;
 
   for (int i = 0; i < 100; i++) {
-    lambda::function<Future<Nothing>(void)> f;
+    lambda::function<Future<Nothing>()> f;
 
     // We randomly do 'pulse' and 'verify'. The idea here is that: if
     // sequence is not used, a 'verify' may see an intermediate
