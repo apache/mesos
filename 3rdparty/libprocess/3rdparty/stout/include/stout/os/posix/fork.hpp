@@ -112,7 +112,7 @@ struct Wait {};
 struct Fork
 {
   //  -+- parent.
-  Fork(const Option<void(*)(void)>& _function,
+  Fork(const Option<void(*)()>& _function,
        const Exec& _exec)
     : function(_function),
       exec(_exec) {}
@@ -121,14 +121,14 @@ struct Fork
 
   //  -+- parent
   //   \--- child.
-  Fork(const Option<void(*)(void)>& _function,
+  Fork(const Option<void(*)()>& _function,
        const Fork& fork1)
     : function(_function)
   {
     children.push_back(fork1);
   }
 
-  Fork(const Option<void(*)(void)>& _function,
+  Fork(const Option<void(*)()>& _function,
        const Fork& fork1,
        const Exec& _exec)
     : function(_function),
@@ -137,7 +137,7 @@ struct Fork
     children.push_back(fork1);
   }
 
-  Fork(const Option<void(*)(void)>& _function,
+  Fork(const Option<void(*)()>& _function,
        const Fork& fork1,
        const Wait& _wait)
     : function(_function),
@@ -150,7 +150,7 @@ struct Fork
   // -+- parent
   //   |--- child
   //   \--- child.
-  Fork(const Option<void(*)(void)>& _function,
+  Fork(const Option<void(*)()>& _function,
        const Fork& fork1,
        const Fork& fork2)
     : function(_function)
@@ -159,7 +159,7 @@ struct Fork
     children.push_back(fork2);
   }
 
-  Fork(const Option<void(*)(void)>& _function,
+  Fork(const Option<void(*)()>& _function,
        const Fork& fork1,
        const Fork& fork2,
        const Exec& _exec)
@@ -170,7 +170,7 @@ struct Fork
     children.push_back(fork2);
   }
 
-  Fork(const Option<void(*)(void)>& _function,
+  Fork(const Option<void(*)()>& _function,
        const Fork& fork1,
        const Fork& fork2,
        const Wait& _wait)
@@ -186,7 +186,7 @@ struct Fork
   //   |--- child
   //   |--- child
   //   \--- child.
-  Fork(const Option<void(*)(void)>& _function,
+  Fork(const Option<void(*)()>& _function,
        const Fork& fork1,
        const Fork& fork2,
        const Fork& fork3)
@@ -197,7 +197,7 @@ struct Fork
     children.push_back(fork3);
   }
 
-  Fork(const Option<void(*)(void)>& _function,
+  Fork(const Option<void(*)()>& _function,
        const Fork& fork1,
        const Fork& fork2,
        const Fork& fork3,
@@ -210,7 +210,7 @@ struct Fork
     children.push_back(fork3);
   }
 
-  Fork(const Option<void(*)(void)>& _function,
+  Fork(const Option<void(*)()>& _function,
        const Fork& fork1,
        const Fork& fork2,
        const Fork& fork3,
@@ -440,7 +440,7 @@ public:
   }
 
 private:
-  Option<void(*)(void)> function;
+  Option<void(*)()> function;
   Option<const Exec> exec;
   Option<const Wait> wait;
   std::vector<Fork> children;

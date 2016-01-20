@@ -564,7 +564,7 @@ TEST_F(OsTest, Processes)
 }
 
 
-void dosetsid(void)
+void dosetsid()
 {
   if (::setsid() == -1) {
     ABORT(string("Failed to setsid: ") + os::strerror(errno));
