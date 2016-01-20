@@ -127,7 +127,7 @@ class NumberWriter
 {
 public:
   NumberWriter(std::ostream* stream)
-    : stream_(stream), type_(INT64), int64_(0) {}
+    : stream_(stream), type_(INT), int_(0) {}
 
   NumberWriter(const NumberWriter&) = delete;
   NumberWriter(NumberWriter&&) = delete;
@@ -135,12 +135,12 @@ public:
   ~NumberWriter()
   {
     switch (type_) {
-      case INT64: {
-        *stream_ << int64_;
+      case INT: {
+        *stream_ << int_;
         break;
       }
-      case UINT64: {
-        *stream_ << uint64_;
+      case UINT: {
+        *stream_ << uint_;
         break;
       }
       case DOUBLE: {
@@ -156,20 +156,52 @@ public:
   NumberWriter& operator=(const NumberWriter&) = delete;
   NumberWriter& operator=(NumberWriter&&) = delete;
 
-  void set(int32_t value) { set(static_cast<int64_t>(value)); }
+  // NOTE 1: We enumerate overloads for all of the integral types here to avoid
+  // ambiguities between signed and unsigned conversions. If we were to only
+  // overload for `long long int` and `unsigned long long int`, passing an
+  // argument of `0` would be ambiguous since `0` has type `int`, and cost of
+  // conversion to `long long int` or `unsigned long long int` is equivalent.
 
-  void set(int64_t value)
+  // NOTE 2: We use the various modifiers on `int` as opposed to fixed size
+  // types such as `int32_t` and `int64_t` because these types do not cover all
+  // of the integral types. For example, `uint32_t` may map to `unsigned int`,
+  // and `uint64_t` to `unsigned long long int`. If `size_t` maps to `unsigned
+  // long int`, it is ambiguous to pass an instance of `size_t`. defining an
+  // overload for `size_t` would solve the problem on a specific platform, but
+  // we can run into issues again on another platform if `size_t` maps to
+  // `unsigned long long int`, since we would get a redefinition error.
+
+  void set(short int value) { set(static_cast<long long int>(value)); }
+
+  void set(int value) { set(static_cast<long long int>(value)); }
+
+  void set(long int value) { set(static_cast<long long int>(value)); }
+
+  void set(long long int value)
   {
-    type_ = INT64;
-    int64_ = value;
+    type_ = INT;
+    int_ = value;
   }
 
-  void set(uint32_t value) { set(static_cast<uint64_t>(value)); }
-
-  void set(uint64_t value)
+  void set(unsigned short int value)
   {
-    type_ = UINT64;
-    uint64_ = value;
+    set(static_cast<unsigned long long int>(value));
+  }
+
+  void set(unsigned int value)
+  {
+    set(static_cast<unsigned long long int>(value));
+  }
+
+  void set(unsigned long int value)
+  {
+    set(static_cast<unsigned long long int>(value));
+  }
+
+  void set(unsigned long long int value)
+  {
+    type_ = UINT;
+    uint_ = value;
   }
 
   void set(float value) { set(static_cast<double>(value)); }
@@ -183,12 +215,12 @@ public:
 private:
   std::ostream* stream_;
 
-  enum { INT64, UINT64, DOUBLE } type_;
+  enum { INT, UINT, DOUBLE } type_;
 
   union
   {
-    int64_t int64_;
-    uint64_t uint64_;
+    long long int int_;
+    unsigned long long int uint_;
     double double_;
   };
 };
@@ -322,10 +354,41 @@ inline void json(BooleanWriter* writer, bool value) { writer->set(value); }
 
 
 // `json` functions for numbers.
-inline void json(NumberWriter* writer, int32_t value) { writer->set(value); }
-inline void json(NumberWriter* writer, int64_t value) { writer->set(value); }
-inline void json(NumberWriter* writer, uint32_t value) { writer->set(value); }
-inline void json(NumberWriter* writer, uint64_t value) { writer->set(value); }
+inline void json(NumberWriter* writer, short int value) { writer->set(value); }
+inline void json(NumberWriter* writer, int value) { writer->set(value); }
+inline void json(NumberWriter* writer, long int value) { writer->set(value); }
+
+
+inline void json(NumberWriter* writer, long long int value)
+{
+  writer->set(value);
+}
+
+
+inline void json(NumberWriter* writer, unsigned short int value)
+{
+  writer->set(value);
+}
+
+
+inline void json(NumberWriter* writer, unsigned int value)
+{
+  writer->set(value);
+}
+
+
+inline void json(NumberWriter* writer, unsigned long int value)
+{
+  writer->set(value);
+}
+
+
+inline void json(NumberWriter* writer, unsigned long long int value)
+{
+  writer->set(value);
+}
+
+
 inline void json(NumberWriter* writer, float value) { writer->set(value); }
 inline void json(NumberWriter* writer, double value) { writer->set(value); }
 
