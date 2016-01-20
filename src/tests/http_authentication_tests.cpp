@@ -112,7 +112,7 @@ TYPED_TEST(HttpAuthenticationTest, BasicWithoutCredentialsTest)
   {
     AuthenticationResult unauthorized;
     unauthorized.unauthorized =
-      Unauthorized(vector<string>({"Basic realm=\"mesos\""}));
+      Unauthorized({"Basic realm=\"mesos\""});
 
     Request request;
 
@@ -128,7 +128,7 @@ TYPED_TEST(HttpAuthenticationTest, BasicWithoutCredentialsTest)
 
     AuthenticationResult unauthorized;
     unauthorized.unauthorized =
-      Unauthorized(vector<string>({"Basic realm=\"mesos\""}));
+      Unauthorized({"Basic realm=\"mesos\""});
 
     AWAIT_EXPECT_EQ(unauthorized, authenticator->authenticate(request));
   }
@@ -156,7 +156,7 @@ TYPED_TEST(HttpAuthenticationTest, BasicWithCredentialsTest)
 
     AuthenticationResult unauthorized;
     unauthorized.unauthorized =
-      Unauthorized(vector<string>({"Basic realm=\"mesos\""}));
+      Unauthorized({"Basic realm=\"mesos\""});
 
     AWAIT_EXPECT_EQ(unauthorized, authenticator->authenticate(request));
   }
@@ -171,7 +171,7 @@ TYPED_TEST(HttpAuthenticationTest, BasicWithCredentialsTest)
 
     AuthenticationResult unauthorized;
     unauthorized.unauthorized =
-      Unauthorized(vector<string>({"Basic realm=\"mesos\""}));
+      Unauthorized({"Basic realm=\"mesos\""});
 
     AWAIT_EXPECT_EQ(unauthorized, authenticator->authenticate(request));
   }

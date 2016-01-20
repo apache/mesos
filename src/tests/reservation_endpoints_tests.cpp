@@ -737,7 +737,7 @@ TEST_F(ReservationEndpointsTest, NoHeader)
       createRequestBody(slaveId.get(), dynamicallyReserved));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(
-      Unauthorized("Mesos master").status,
+      Unauthorized({}).status,
       response);
 
   response = process::http::post(
@@ -747,7 +747,7 @@ TEST_F(ReservationEndpointsTest, NoHeader)
       createRequestBody(slaveId.get(), dynamicallyReserved));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(
-      Unauthorized("Mesos master").status,
+      Unauthorized({}).status,
       response);
 
   Shutdown();
@@ -788,13 +788,13 @@ TEST_F(ReservationEndpointsTest, BadCredentials)
     process::http::post(master.get(), "reserve", headers, body);
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(
-      Unauthorized("Mesos master").status,
+      Unauthorized({}).status,
       response);
 
   response = process::http::post(master.get(), "unreserve", headers, body);
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(
-      Unauthorized("Mesos master").status,
+      Unauthorized({}).status,
       response);
 
   Shutdown();

@@ -1119,7 +1119,7 @@ TEST_F(MasterQuotaTest, UnauthenticatedQuotaRequest)
         createRequestBody(ROLE1, quotaResources));
 
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(
-      Unauthorized(vector<string>()).status, response) << response.get().body;
+      Unauthorized({}).status, response) << response.get().body;
   }
 
   // The absense of credentials leads to authentication failure as well.
@@ -1131,7 +1131,7 @@ TEST_F(MasterQuotaTest, UnauthenticatedQuotaRequest)
         createRequestBody(ROLE1, quotaResources));
 
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(
-      Unauthorized(vector<string>()).status, response) << response.get().body;
+      Unauthorized({}).status, response) << response.get().body;
   }
 
   Shutdown();
