@@ -18,13 +18,11 @@
 #error "stout/os/freebsd.hpp is only available on FreeBSD systems."
 #endif
 
-#include <sys/sysctl.h>
 #include <sys/types.h>
-#ifdef __FreeBSD__
-#include <stout/os/freebsd.hpp>
-#endif
 #include <sys/user.h>
 #include <unistd.h>
+
+#include <stout/os/sysctl.hpp>
 
 namespace os {
 
