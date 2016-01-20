@@ -54,6 +54,7 @@
 #ifdef __linux__
 #include "slave/containerizer/mesos/isolators/cgroups/cpushare.hpp"
 #include "slave/containerizer/mesos/isolators/cgroups/mem.hpp"
+#include "slave/containerizer/mesos/isolators/cgroups/net_cls.hpp"
 #include "slave/containerizer/mesos/isolators/cgroups/perf_event.hpp"
 #endif
 
@@ -203,6 +204,7 @@ Try<MesosContainerizer*> MesosContainerizer::create(
 #ifdef __linux__
     {"cgroups/cpu", &CgroupsCpushareIsolatorProcess::create},
     {"cgroups/mem", &CgroupsMemIsolatorProcess::create},
+    {"cgroups/net_cls", &CgroupsNetClsIsolatorProcess::create},
     {"cgroups/perf_event", &CgroupsPerfEventIsolatorProcess::create},
     {"namespaces/pid", &NamespacesPidIsolatorProcess::create},
 #endif
