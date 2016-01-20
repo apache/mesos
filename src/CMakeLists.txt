@@ -122,6 +122,7 @@ set(LINUX_SRC
   slave/containerizer/mesos/linux_launcher.cpp
   slave/containerizer/mesos/isolators/cgroups/cpushare.cpp
   slave/containerizer/mesos/isolators/cgroups/mem.cpp
+  slave/containerizer/mesos/isolators/cgroups/net_cls.cpp
   slave/containerizer/mesos/isolators/cgroups/perf_event.cpp
   slave/containerizer/mesos/isolators/filesystem/linux.cpp
   slave/containerizer/mesos/isolators/filesystem/posix.cpp

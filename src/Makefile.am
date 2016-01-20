@@ -813,6 +813,7 @@ MESOS_LINUX_FILES =							\
   slave/containerizer/mesos/linux_launcher.cpp				\
   slave/containerizer/mesos/isolators/cgroups/cpushare.cpp		\
   slave/containerizer/mesos/isolators/cgroups/mem.cpp			\
+  slave/containerizer/mesos/isolators/cgroups/net_cls.cpp			\
   slave/containerizer/mesos/isolators/cgroups/perf_event.cpp		\
   slave/containerizer/mesos/isolators/filesystem/linux.cpp		\
   slave/containerizer/mesos/isolators/filesystem/shared.cpp		\
@@ -830,6 +831,7 @@ MESOS_LINUX_FILES +=							\
   slave/containerizer/mesos/isolators/cgroups/constants.hpp		\
   slave/containerizer/mesos/isolators/cgroups/cpushare.hpp		\
   slave/containerizer/mesos/isolators/cgroups/mem.hpp			\
+  slave/containerizer/mesos/isolators/cgroups/net_cls.hpp			\
   slave/containerizer/mesos/isolators/cgroups/perf_event.hpp		\
   slave/containerizer/mesos/isolators/filesystem/linux.hpp		\
   slave/containerizer/mesos/isolators/filesystem/shared.hpp		\
