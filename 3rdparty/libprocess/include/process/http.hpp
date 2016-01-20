@@ -548,19 +548,6 @@ struct Unauthorized : Response
     // same header.
     headers["WWW-Authenticate"] = strings::join(", ", challenges);
   }
-
-  // TODO(arojas): Remove this in favor of the
-  // explicit challenge constructor above.
-  explicit Unauthorized(const std::string& realm)
-    : Unauthorized(
-          std::vector<std::string>{"Basic realm=\"" + realm + "\""}) {}
-
-  // TODO(arojas): Remove this in favor of the
-  // explicit challenge constructor above.
-  Unauthorized(const std::string& realm, const std::string& body)
-    : Unauthorized(
-          std::vector<std::string>{"Basic realm=\"" + realm + "\""},
-          body) {}
 };
 
 

@@ -1246,7 +1246,7 @@ TEST_F(HttpAuthenticationTest, Unauthorized)
 
   AuthenticationResult authentication;
   authentication.unauthorized =
-    http::Unauthorized(vector<string>({"Basic realm=\"realm\""}));
+    http::Unauthorized({"Basic realm=\"realm\""});
 
   EXPECT_CALL(*authenticator, authenticate(_))
     .WillOnce(Return(authentication));
@@ -1255,7 +1255,7 @@ TEST_F(HttpAuthenticationTest, Unauthorized)
     http::get(http.process->self(), "authenticated");
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(
-      http::Unauthorized(vector<string>()).status,
+      http::Unauthorized({}).status,
       response);
 
   EXPECT_EQ(
@@ -1390,7 +1390,7 @@ TEST_F(HttpAuthenticationTest, Basic)
     Future<http::Response> response = http::get(*http.process, "authenticated");
 
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(
-        http::Unauthorized(vector<string>()).status,
+        http::Unauthorized({}).status,
         response);
   }
 
@@ -1404,7 +1404,7 @@ TEST_F(HttpAuthenticationTest, Basic)
       http::get(http.process->self(), "authenticated", None(), headers);
 
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(
-        http::Unauthorized(vector<string>()).status,
+        http::Unauthorized({}).status,
         response);
   }
 
@@ -1418,7 +1418,7 @@ TEST_F(HttpAuthenticationTest, Basic)
       http::get(http.process->self(), "authenticated", None(), headers);
 
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(
-        http::Unauthorized(vector<string>()).status,
+        http::Unauthorized({}).status,
         response);
   }
 

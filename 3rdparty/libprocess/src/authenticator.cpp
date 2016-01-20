@@ -61,7 +61,7 @@ Future<AuthenticationResult> BasicAuthenticatorProcess::authenticate(
 {
   AuthenticationResult unauthorized;
   unauthorized.unauthorized =
-    Unauthorized(vector<string>({"Basic realm=\"" + realm_ + "\""}));
+    Unauthorized({"Basic realm=\"" + realm_ + "\""});
 
   Option<string> credentials = request.headers.get("Authorization");
 
