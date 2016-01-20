@@ -80,9 +80,9 @@
 #ifdef __sun
 #include <stout/os/sunos.hpp>
 #endif // __sun
-#ifdef __APPLE__
+#if defined(__APPLE__) || defined(__FreeBSD__)
 #include <stout/os/sysctl.hpp>
-#endif // __APPLE__
+#endif // __APPLE__ || __FreeBSD__
 
 #include <stout/os/raw/environment.hpp>
 
@@ -503,6 +503,8 @@ inline Try<Memory> memory()
 {
   Memory memory;
 
+// TODO(dforsyth): Refactor these implementations into seperate, platform
+// specific files.
 #ifdef __linux__
   struct sysinfo info;
   if (sysinfo(&info) != 0) {
@@ -566,6 +568,57 @@ inline Try<Memory> memory()
 
   return memory;
 
+#elif defined __FreeBSD__
+  const Try<int64_t> physicalMemory = os::sysctl(CTL_HW, HW_PHYSMEM).integer();
+  if (physicalMemory.isError()) {
+    return Error(physicalMemory.error());
+  }
+  memory.total = Bytes(physicalMemory.get());
+
+  const int pageSize = getpagesize();
+
+  unsigned int freeCount;
+  size_t length = sizeof(freeCount);
+
+  if (sysctlbyname(
+      "vm.stats.v_free_count",
+      &freeCount,
+      &length,
+      NULL,
+      0) != 0) {
+    return ErrnoError();
+  }
+  memory.free = Bytes(freeCount * pageSize);
+
+  int totalBlocks = 0;
+  int usedBlocks = 0;
+
+  int mib[3];
+  size_t mibSize = 2;
+  if (::sysctlnametomib("vm.swap_info", mib, &mibSize) != 0) {
+      return ErrnoError();
+  }
+
+  // FreeBSD supports multiple swap devices. Here we sum across all of them.
+  struct xswdev xswd;
+  size_t xswdSize = sizeof(xswd);
+  int* mibDevice = &(mib[mibSize + 1]);
+  for (*mibDevice = 0; ; (*mibDevice)++) {
+      if (::sysctl(mib, 3, &xswd, &xswdSize, NULL, 0) != 0) {
+          if (errno == ENOENT) {
+              break;
+          }
+          return ErrnoError();
+      }
+
+      totalBlocks += xswd.xsw_nblks;
+      usedBlocks += xswd.xsw_used;
+  }
+
+  memory.totalSwap = Bytes(totalBlocks * pageSize);
+  memory.freeSwap = Bytes((totalBlocks - usedBlocks) * pageSize);
+
+  return memory;
 #else
   return Error("Cannot determine the size of total and free memory");
 #endif
