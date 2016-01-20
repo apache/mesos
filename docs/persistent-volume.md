@@ -288,7 +288,8 @@ The user receives one of the following HTTP responses:
 
 * `200 OK`: Success (the persistent volumes have been created).
 * `400 BadRequest`: Invalid arguments (e.g., missing parameters).
-* `401 Unauthorized`: Unauthorized request.
+* `401 Unauthorized`: Unauthenticated request.
+* `403 Forbidden`: Unauthorized request.
 * `409 Conflict`: Insufficient resources to create the volumes.
 
 Note that a single `/create-volumes` request can create multiple persistent
@@ -329,7 +330,8 @@ The user receives one of the following HTTP responses:
 
 * `200 OK`: Success (the volumes have been destroyed).
 * `400 BadRequest`: Invalid arguments (e.g., missing parameters).
-* `401 Unauthorized`: Unauthorized request.
+* `401 Unauthorized`: Unauthenticated request.
+* `403 Forbidden`: Unauthorized request.
 * `409 Conflict`: Insufficient resources to destroy the volumes.
 
 Note that a single `/destroy-volumes` request can destroy multiple persistent

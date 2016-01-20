@@ -273,7 +273,8 @@ The user receives one of the following HTTP responses:
 
 * `200 OK`: Success (the requested resources have been reserved).
 * `400 BadRequest`: Invalid arguments (e.g., missing parameters).
-* `401 Unauthorized`: Unauthorized request.
+* `401 Unauthorized`: Unauthenticated request.
+* `403 Forbidden`: Unauthorized request.
 * `409 Conflict`: Insufficient resources to satisfy the reserve operation.
 
 #### `/unreserve` (since 0.25.0)
@@ -310,5 +311,6 @@ The user receives one of the following HTTP responses:
 
 * `200 OK`: Success (the requested resources have been unreserved).
 * `400 BadRequest`: Invalid arguments (e.g., missing parameters).
-* `401 Unauthorized`: Unauthorized request.
+* `401 Unauthorized`: Unauthenticated request.
+* `403 Forbidden`: Unauthorized request.
 * `409 Conflict`: Insufficient resources to satisfy the unreserve operation.
