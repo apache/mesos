@@ -24,6 +24,7 @@
 
 #include <process/metrics/metrics.hpp>
 
+#include <stout/adaptor.hpp>
 #include <stout/error.hpp>
 #include <stout/foreach.hpp>
 #include <stout/os.hpp>
@@ -738,7 +739,9 @@ Future<Nothing> LinuxFilesystemIsolatorProcess::cleanup(
 
   bool sandboxMountExists = false;
 
-  foreach (const fs::MountInfoTable::Entry& entry, table.get().entries) {
+  // Reverse unmount order to handle nested mount points.
+  foreach (const fs::MountInfoTable::Entry& entry,
+           adaptor::reverse(table.get().entries)) {
     // NOTE: All persistent volumes are mounted at targets under the
     // container's work directory. We unmount all the persistent
     // volumes before unmounting the sandbox/work directory mount.
