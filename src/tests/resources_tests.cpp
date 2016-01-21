@@ -1713,7 +1713,8 @@ TEST(DiskResourcesTest, Equals)
   Resources r6 = createDiskResource("10", "role", "1", "path2");
   Resources r7 = createDiskResource("10", "role", "2", "path2");
 
-  EXPECT_EQ(r1, r2);
+  EXPECT_NE(r1, r2);
+
   EXPECT_EQ(r2, r3);
   EXPECT_EQ(r5, r6);
 
@@ -1777,7 +1778,8 @@ TEST(DiskResourcesTest, Addition)
   Resources r2 = createDiskResource("10", "role", None(), None());
   Resources r3 = createDiskResource("20", "role", None(), "path");
 
-  EXPECT_EQ(r3, r1 + r2);
+  EXPECT_EQ(r3, r1 + r1);
+  EXPECT_NE(r3, r1 + r2);
 
   Resources r4 = createDiskResource("10", "role", "1", "path");
   Resources r5 = createDiskResource("10", "role", "2", "path");
@@ -1831,7 +1833,9 @@ TEST(DiskResourcesTest, Subtraction)
   Resources r1 = createDiskResource("10", "role", None(), "path");
   Resources r2 = createDiskResource("10", "role", None(), None());
 
-  EXPECT_TRUE((r1 - r2).empty());
+  EXPECT_TRUE((r1 - r1).empty());
+  EXPECT_TRUE((r2 - r2).empty());
+  EXPECT_FALSE((r1 - r2).empty());
 
   Resources r3 = createDiskResource("10", "role", "1", "path");
   Resources r4 = createDiskResource("10", "role", "2", "path");
