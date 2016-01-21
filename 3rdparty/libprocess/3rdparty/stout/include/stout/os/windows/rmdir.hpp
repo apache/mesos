@@ -93,7 +93,7 @@ Try<Nothing> recursive_remove_directory(const std::string& path)
   // Finally, remove current directory.
   if (::_rmdir(current_path.c_str()) == -1) {
     return ErrnoError(
-        "`os::internal::recursive_remove_directory` attempted to delete file " +
+        "`os::internal::recursive_remove_directory` attempted to delete file "
         "'" + current_path + "', but failed");
   }
 
