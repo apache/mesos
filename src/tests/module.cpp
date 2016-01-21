@@ -16,9 +16,11 @@
 
 #include <string>
 
+#include <stout/bytes.hpp>
 #include <stout/hashmap.hpp>
 #include <stout/os.hpp>
 #include <stout/path.hpp>
+#include <stout/stringify.hpp>
 
 #include "messages/messages.hpp"
 #include "module/manager.hpp"
@@ -101,21 +103,53 @@ static void addContainerLoggerModules(Modules* modules)
 {
   CHECK_NOTNULL(modules);
 
-  const string libraryPath = path::join(
+  const string libraryDirectory = path::join(
       tests::flags.build_dir,
       "src",
-      ".libs",
+      ".libs");
+
+  const string sandboxLoggerPath = path::join(
+      libraryDirectory,
       os::libraries::expandName("testcontainer_logger"));
 
   // Add our test container logger module.
   Modules::Library* library = modules->add_libraries();
-  library->set_file(libraryPath);
+  library->set_file(sandboxLoggerPath);
 
   // To add a new module from this library, create a new ModuleID enum
   // and tie it with a module name.
   addModule(library,
             TestSandboxContainerLogger,
             "org_apache_mesos_TestSandboxContainerLogger");
+
+  const string logrotateLoggerPath = path::join(
+      libraryDirectory,
+      os::libraries::expandName("logrotate_container_logger"));
+
+  // Add the second container logger module.
+  library = modules->add_libraries();
+  library->set_file(logrotateLoggerPath);
+
+  addModule(library,
+            LogrotateContainerLogger,
+            "org_apache_mesos_LogrotateContainerLogger");
+
+  // Pass in the directory for the binary test sources.
+  Modules::Library::Module* module = library->mutable_modules(0);
+  mesos::Parameter* moduleParameter = module->add_parameters();
+  moduleParameter->set_key("launcher_dir");
+  moduleParameter->set_value(path::join(tests::flags.build_dir, "src"));
+
+  // Set the size and number of log files to keep.
+  moduleParameter = module->add_parameters();
+  moduleParameter->set_key("max_stdout_size");
+  moduleParameter->set_value(stringify(Megabytes(2)));
+
+  // NOTE: This is a 'logrotate' configuration option.
+  // It means to "rotate" a file 4 times before removal.
+  moduleParameter = module->add_parameters();
+  moduleParameter->set_key("logrotate_stdout_options");
+  moduleParameter->set_value("rotate 4");
 }
 
 

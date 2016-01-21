@@ -1101,6 +1101,13 @@ mesos_containerizer_SOURCES = slave/containerizer/mesos/main.cpp
 mesos_containerizer_CPPFLAGS = $(MESOS_CPPFLAGS)
 mesos_containerizer_LDADD = libmesos.la $(LDADD)
 
+pkglibexec_PROGRAMS += mesos-logrotate-logger
+mesos_logrotate_logger_SOURCES =		\
+  slave/container_loggers/logrotate.hpp		\
+  slave/container_loggers/logrotate.cpp
+mesos_logrotate_logger_CPPFLAGS = $(MESOS_CPPFLAGS)
+mesos_logrotate_logger_LDADD = libmesos.la $(LDADD)
+
 if WITH_NETWORK_ISOLATOR
 pkglibexec_PROGRAMS += mesos-network-helper
 mesos_network_helper_SOURCES = slave/containerizer/mesos/isolators/network/helper.cpp
@@ -1640,6 +1647,15 @@ check_PROGRAMS += mesos-tests
 
 # LDFLAGS to be used for the module libraries.
 MESOS_MODULE_LDFLAGS = -release $(PACKAGE_VERSION) -shared
+
+# Library containing the logrotate container logger.
+lib_LTLIBRARIES += liblogrotate_container_logger.la
+liblogrotate_container_logger_la_SOURCES =			\
+  slave/container_loggers/logrotate.hpp				\
+  slave/container_loggers/lib_logrotate.hpp			\
+  slave/container_loggers/lib_logrotate.cpp
+liblogrotate_container_logger_la_CPPFLAGS = $(MESOS_CPPFLAGS)
+liblogrotate_container_logger_la_LDFLAGS = $(MESOS_MODULE_LDFLAGS)
 
 # Library containing the fixed resource estimator.
 lib_LTLIBRARIES += libfixed_resource_estimator.la
