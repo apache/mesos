@@ -38,6 +38,10 @@ using std::string;
 using std::vector;
 
 namespace process {
+
+using InputFileDescriptors = Subprocess::IO::InputFileDescriptors;
+using OutputFileDescriptors = Subprocess::IO::OutputFileDescriptors;
+
 namespace internal {
 
 // See the comment below as to why subprocess is passed to cleanup.
@@ -59,12 +63,17 @@ static void cleanup(
 }
 
 
-static void close(int stdinFd[2], int stdoutFd[2], int stderrFd[2])
+// This function will invoke `os::close` on all specified file
+// descriptors that are valid (i.e., not `None` and >= 0).
+static void close(
+    const InputFileDescriptors& stdinfds,
+    const OutputFileDescriptors& stdoutfds,
+    const OutputFileDescriptors& stderrfds)
 {
   int fds[6] = {
-    stdinFd[0], stdinFd[1],
-    stdoutFd[0], stdoutFd[1],
-    stderrFd[0], stderrFd[1]
+    stdinfds.read, stdinfds.write.getOrElse(-1),
+    stdoutfds.read.getOrElse(-1), stdoutfds.write,
+    stderrfds.read.getOrElse(-1), stderrfds.write
   };
 
   foreach (int fd, fds) {
@@ -74,14 +83,17 @@ static void close(int stdinFd[2], int stdoutFd[2], int stderrFd[2])
   }
 }
 
-// This function will invoke os::cloexec on all file descriptors in
-// these pairs that are valid (i.e., >= 0).
-static Try<Nothing> cloexec(int stdinFd[2], int stdoutFd[2], int stderrFd[2])
+// This function will invoke `os::cloexec` on all specified file
+// descriptors that are valid (i.e., not `None` and >= 0).
+static Try<Nothing> cloexec(
+    const InputFileDescriptors& stdinfds,
+    const OutputFileDescriptors& stdoutfds,
+    const OutputFileDescriptors& stderrfds)
 {
   int fds[6] = {
-    stdinFd[0], stdinFd[1],
-    stdoutFd[0], stdoutFd[1],
-    stderrFd[0], stderrFd[1]
+    stdinfds.read, stdinfds.write.getOrElse(-1),
+    stdoutfds.read.getOrElse(-1), stdoutfds.write,
+    stderrfds.read.getOrElse(-1), stderrfds.write
   };
 
   foreach (int fd, fds) {
@@ -97,6 +109,90 @@ static Try<Nothing> cloexec(int stdinFd[2], int stdoutFd[2], int stderrFd[2])
 }
 
 }  // namespace internal {
+
+
+Subprocess::IO Subprocess::PIPE()
+{
+  return Subprocess::IO(
+      []() -> Try<InputFileDescriptors> {
+        int pipefd[2];
+        if (::pipe(pipefd) == -1) {
+          return ErrnoError("Failed to create pipe");
+        }
+
+        InputFileDescriptors fds;
+        fds.read = pipefd[0];
+        fds.write = pipefd[1];
+        return fds;
+      },
+      []() -> Try<OutputFileDescriptors> {
+        int pipefd[2];
+        if (::pipe(pipefd) == -1) {
+          return ErrnoError("Failed to create pipe");
+        }
+
+        OutputFileDescriptors fds;
+        fds.read = pipefd[0];
+        fds.write = pipefd[1];
+        return fds;
+      });
+}
+
+
+Subprocess::IO Subprocess::PATH(const string& path)
+{
+  return Subprocess::IO(
+      [path]() -> Try<InputFileDescriptors> {
+        Try<int> open = os::open(path, O_RDONLY | O_CLOEXEC);
+        if (open.isError()) {
+          return Error("Failed to open '" + path + "': " + open.error());
+        }
+
+        InputFileDescriptors fds;
+        fds.read = open.get();
+        return fds;
+      },
+      [path]() -> Try<OutputFileDescriptors> {
+        Try<int> open = os::open(
+            path,
+            O_WRONLY | O_CREAT | O_APPEND | O_CLOEXEC,
+            S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+
+        if (open.isError()) {
+          return Error("Failed to open '" + path + "': " + open.error());
+        }
+
+        OutputFileDescriptors fds;
+        fds.write = open.get();
+        return fds;
+      });
+}
+
+
+Subprocess::IO Subprocess::FD(int fd)
+{
+  return Subprocess::IO(
+      [fd]() -> Try<InputFileDescriptors> {
+        int prepared_fd = ::dup(fd);
+        if (prepared_fd == -1) {
+          return ErrnoError("Failed to dup");
+        }
+
+        InputFileDescriptors fds;
+        fds.read = prepared_fd;
+        return fds;
+      },
+      [fd]() -> Try<OutputFileDescriptors> {
+        int prepared_fd = ::dup(fd);
+        if (prepared_fd == -1) {
+          return ErrnoError("Failed to dup");
+        }
+
+        OutputFileDescriptors fds;
+        fds.write = prepared_fd;
+        return fds;
+      });
+}
 
 
 static pid_t defaultClone(const lambda::function<int()>& func)
@@ -120,50 +216,47 @@ static pid_t defaultClone(const lambda::function<int()>& func)
 static int childMain(
     const string& path,
     char** argv,
-    const Subprocess::IO& in,
-    const Subprocess::IO& out,
-    const Subprocess::IO& err,
     char** envp,
     const Option<lambda::function<int()>>& setup,
-    int stdinFd[2],
-    int stdoutFd[2],
-    int stderrFd[2])
+    const InputFileDescriptors& stdinfds,
+    const OutputFileDescriptors& stdoutfds,
+    const OutputFileDescriptors& stderrfds)
 {
   // Close parent's end of the pipes.
-  if (in.isPipe()) {
-    ::close(stdinFd[1]);
+  if (stdinfds.write.isSome()) {
+    ::close(stdinfds.write.get());
   }
-  if (out.isPipe()) {
-    ::close(stdoutFd[0]);
+  if (stdoutfds.read.isSome()) {
+    ::close(stdoutfds.read.get());
   }
-  if (err.isPipe()) {
-    ::close(stderrFd[0]);
+  if (stderrfds.read.isSome()) {
+    ::close(stderrfds.read.get());
   }
 
   // Redirect I/O for stdin/stdout/stderr.
-  while (::dup2(stdinFd[0], STDIN_FILENO) == -1 && errno == EINTR);
-  while (::dup2(stdoutFd[1], STDOUT_FILENO) == -1 && errno == EINTR);
-  while (::dup2(stderrFd[1], STDERR_FILENO) == -1 && errno == EINTR);
+  while (::dup2(stdinfds.read, STDIN_FILENO) == -1 && errno == EINTR);
+  while (::dup2(stdoutfds.write, STDOUT_FILENO) == -1 && errno == EINTR);
+  while (::dup2(stderrfds.write, STDERR_FILENO) == -1 && errno == EINTR);
 
   // Close the copies. We need to make sure that we do not close the
   // file descriptor assigned to stdin/stdout/stderr in case the
   // parent has closed stdin/stdout/stderr when calling this
   // function (in that case, a dup'ed file descriptor may have the
   // same file descriptor number as stdin/stdout/stderr).
-  if (stdinFd[0] != STDIN_FILENO &&
-      stdinFd[0] != STDOUT_FILENO &&
-      stdinFd[0] != STDERR_FILENO) {
-    ::close(stdinFd[0]);
+  if (stdinfds.read != STDIN_FILENO &&
+      stdinfds.read != STDOUT_FILENO &&
+      stdinfds.read != STDERR_FILENO) {
+    ::close(stdinfds.read);
   }
-  if (stdoutFd[1] != STDIN_FILENO &&
-      stdoutFd[1] != STDOUT_FILENO &&
-      stdoutFd[1] != STDERR_FILENO) {
-    ::close(stdoutFd[1]);
+  if (stdoutfds.write != STDIN_FILENO &&
+      stdoutfds.write != STDOUT_FILENO &&
+      stdoutfds.write != STDERR_FILENO) {
+    ::close(stdoutfds.write);
   }
-  if (stderrFd[1] != STDIN_FILENO &&
-      stderrFd[1] != STDOUT_FILENO &&
-      stderrFd[1] != STDERR_FILENO) {
-    ::close(stderrFd[1]);
+  if (stderrfds.write != STDIN_FILENO &&
+      stderrfds.write != STDOUT_FILENO &&
+      stderrfds.write != STDERR_FILENO) {
+    ::close(stderrfds.write);
   }
 
   if (setup.isSome()) {
@@ -191,127 +284,44 @@ Try<Subprocess> subprocess(
     const Option<lambda::function<
         pid_t(const lambda::function<int()>&)>>& _clone)
 {
-  // File descriptors for redirecting stdin/stdout/stderr. These file
-  // descriptors are used for different purposes depending on the
-  // specified I/O modes. If the mode is PIPE, the two file
-  // descriptors represent two ends of a pipe. If the mode is PATH or
-  // FD, only one of the two file descriptors is used. Our protocol
-  // here is that index 0 is always for reading, and index 1 is always
-  // for writing (similar to the pipe semantics).
-  int stdinFd[2] = { -1, -1 };
-  int stdoutFd[2] = { -1, -1 };
-  int stderrFd[2] = { -1, -1 };
+  // File descriptors for redirecting stdin/stdout/stderr.
+  // These file descriptors are used for different purposes depending
+  // on the specified I/O modes.
+  // See `Subprocess::PIPE`, `Subprocess::PATH`, and `Subprocess::FD`.
+  InputFileDescriptors stdinfds;
+  OutputFileDescriptors stdoutfds;
+  OutputFileDescriptors stderrfds;
 
   // Prepare the file descriptor(s) for stdin.
-  switch (in.mode) {
-    case Subprocess::IO::FD: {
-      stdinFd[0] = ::dup(in.fd.get());
-      if (stdinFd[0] == -1) {
-        return ErrnoError("Failed to dup");
-      }
-      break;
-    }
-    case Subprocess::IO::PIPE: {
-      if (::pipe(stdinFd) == -1) {
-        return ErrnoError("Failed to create pipe");
-      }
-      break;
-    }
-    case Subprocess::IO::PATH: {
-      Try<int> open = os::open(in.path.get(), O_RDONLY | O_CLOEXEC);
-      if (open.isError()) {
-        return Error(
-            "Failed to open '" + in.path.get() + "': " + open.error());
-      }
-      stdinFd[0] = open.get();
-      break;
-    }
-    default:
-      UNREACHABLE();
+  Try<InputFileDescriptors> input = in.input();
+  if (input.isError()) {
+    return Error(input.error());
   }
+
+  stdinfds = input.get();
 
   // Prepare the file descriptor(s) for stdout.
-  switch (out.mode) {
-    case Subprocess::IO::FD: {
-      stdoutFd[1] = ::dup(out.fd.get());
-      if (stdoutFd[1] == -1) {
-        // Save the errno as 'close' below might overwrite it.
-        ErrnoError error("Failed to dup");
-        internal::close(stdinFd, stdoutFd, stderrFd);
-        return error;
-      }
-      break;
-    }
-    case Subprocess::IO::PIPE: {
-      if (::pipe(stdoutFd) == -1) {
-        // Save the errno as 'close' below might overwrite it.
-        ErrnoError error("Failed to create pipe");
-        internal::close(stdinFd, stdoutFd, stderrFd);
-        return error;
-      }
-      break;
-    }
-    case Subprocess::IO::PATH: {
-      Try<int> open = os::open(
-          out.path.get(),
-          O_WRONLY | O_CREAT | O_APPEND | O_CLOEXEC,
-          S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
-
-      if (open.isError()) {
-        internal::close(stdinFd, stdoutFd, stderrFd);
-        return Error(
-            "Failed to open '" + out.path.get() + "': " + open.error());
-      }
-      stdoutFd[1] = open.get();
-      break;
-    }
-    default:
-      UNREACHABLE();
+  Try<OutputFileDescriptors> output = out.output();
+  if (output.isError()) {
+    internal::close(stdinfds, stdoutfds, stderrfds);
+    return Error(output.error());
   }
+
+  stdoutfds = output.get();
 
   // Prepare the file descriptor(s) for stderr.
-  switch (err.mode) {
-    case Subprocess::IO::FD: {
-      stderrFd[1] = ::dup(err.fd.get());
-      if (stderrFd[1] == -1) {
-        // Save the errno as 'close' below might overwrite it.
-        ErrnoError error("Failed to dup");
-        internal::close(stdinFd, stdoutFd, stderrFd);
-        return error;
-      }
-      break;
-    }
-    case Subprocess::IO::PIPE: {
-      if (::pipe(stderrFd) == -1) {
-        // Save the errno as 'close' below might overwrite it.
-        ErrnoError error("Failed to create pipe");
-        internal::close(stdinFd, stdoutFd, stderrFd);
-        return error;
-      }
-      break;
-    }
-    case Subprocess::IO::PATH: {
-      Try<int> open = os::open(
-          err.path.get(),
-          O_WRONLY | O_CREAT | O_APPEND | O_CLOEXEC,
-          S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
-
-      if (open.isError()) {
-        internal::close(stdinFd, stdoutFd, stderrFd);
-        return Error(
-            "Failed to open '" + err.path.get() + "': " + open.error());
-      }
-      stderrFd[1] = open.get();
-      break;
-    }
-    default:
-      UNREACHABLE();
+  output = err.output();
+  if (output.isError()) {
+    internal::close(stdinfds, stdoutfds, stderrfds);
+    return Error(output.error());
   }
 
+  stderrfds = output.get();
+
   // TODO(jieyu): Consider using O_CLOEXEC for atomic close-on-exec.
-  Try<Nothing> cloexec = internal::cloexec(stdinFd, stdoutFd, stderrFd);
+  Try<Nothing> cloexec = internal::cloexec(stdinfds, stdoutfds, stderrfds);
   if (cloexec.isError()) {
-    internal::close(stdinFd, stdoutFd, stderrFd);
+    internal::close(stdinfds, stdoutfds, stderrfds);
     return Error("Failed to cloexec: " + cloexec.error());
   }
 
@@ -365,14 +375,11 @@ Try<Subprocess> subprocess(
       &childMain,
       path,
       _argv,
-      in,
-      out,
-      err,
       envp,
       setup,
-      stdinFd,
-      stdoutFd,
-      stderrFd));
+      stdinfds,
+      stdoutfds,
+      stderrfds));
 
   delete[] _argv;
 
@@ -386,7 +393,7 @@ Try<Subprocess> subprocess(
   if (pid == -1) {
     // Save the errno as 'close' below might overwrite it.
     ErrnoError error("Failed to clone");
-    internal::close(stdinFd, stdoutFd, stderrFd);
+    internal::close(stdinfds, stdoutfds, stderrfds);
     return error;
   }
 
@@ -394,24 +401,17 @@ Try<Subprocess> subprocess(
   Subprocess process;
   process.data->pid = pid;
 
-  // Close the file descriptors that are created by this function. For
-  // pipes, we close the child ends and store the parent ends (see the
-  // code below).
-  os::close(stdinFd[0]);
-  os::close(stdoutFd[1]);
-  os::close(stderrFd[1]);
+  // Close the child-ends of the file descriptors that are created
+  // by this function.
+  os::close(stdinfds.read);
+  os::close(stdoutfds.write);
+  os::close(stderrfds.write);
 
-  // If the mode is PIPE, store the parent side of the pipe so that
+  // For any pipes, store the parent side of the pipe so that
   // the user can communicate with the subprocess.
-  if (in.mode == Subprocess::IO::PIPE) {
-    process.data->in = stdinFd[1];
-  }
-  if (out.mode == Subprocess::IO::PIPE) {
-    process.data->out = stdoutFd[0];
-  }
-  if (err.mode == Subprocess::IO::PIPE) {
-    process.data->err = stderrFd[0];
-  }
+  process.data->in = stdinfds.write;
+  process.data->out = stdoutfds.read;
+  process.data->err = stderrfds.read;
 
   // Rather than directly exposing the future from process::reap, we
   // must use an explicit promise so that we can ensure we can receive

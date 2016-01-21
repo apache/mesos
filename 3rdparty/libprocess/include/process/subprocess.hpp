@@ -28,6 +28,7 @@
 
 #include <stout/flags.hpp>
 #include <stout/lambda.hpp>
+#include <stout/none.hpp>
 #include <stout/option.hpp>
 #include <stout/try.hpp>
 
@@ -47,19 +48,46 @@ public:
   /**
    * Describes how the I/O is redirected for stdin/stdout/stderr.
    * One of the following three modes are supported:
-   *   1. PIPE: Redirect to a pipe. The pipe will be created
-   *      automatically and the user can read/write the parent side of
-   *      the pipe from in()/out()/err().
-   *   2. PATH: Redirect to a file. The file will be created if it
-   *      does not exist. If the file exists, it will be appended.
+   *   1. PIPE: Redirect to a pipe.  The pipe will be created when
+   *      launching a subprocess and the the user can read/write the
+   *      parent side of the pipe using `Subprocess::in/out/err`.
+   *   2. PATH: Redirect to a file.  For stdout/stderr, the file will
+   *      be created if it does not exist.  If the file exists, it
+   *      will be appended.
    *   3. FD: Redirect to an open file descriptor.
    */
   class IO
   {
   public:
-    bool isPipe() const { return mode == PIPE; }
-    bool isPath() const { return mode == PATH; }
-    bool isFd() const { return mode == FD; }
+    /**
+     * For input file descriptors a child reads from the `read` file
+     * descriptor and a parent may write to the `write` file
+     * descriptor if one is present.
+     *
+     * NOTE: We initialize `read` to -1 so that we do not close an
+     * arbitrary file descriptor,in case we encounter an error
+     * while starting a subprocess (closing -1 is always a no-op).
+     */
+    struct InputFileDescriptors
+    {
+      int read = -1;
+      Option<int> write = None();
+    };
+
+    /**
+     * For output file descriptors a child write to the `write` file
+     * descriptor and a parent may read from the `read` file
+     * descriptor if one is present.
+     *
+     * NOTE: We initialize `write` to -1 so that we do not close an
+     * arbitrary file descriptor,in case we encounter an error
+     * while starting a subprocess (closing -1 is always a no-op).
+     */
+    struct OutputFileDescriptors
+    {
+      Option<int> read = None();
+      int write = -1;
+    };
 
   private:
     friend class Subprocess;
@@ -76,50 +104,26 @@ public:
         const Option<lambda::function<
             pid_t(const lambda::function<int()>&)>>& clone);
 
-    enum Mode
-    {
-      PIPE, // Redirect I/O to a pipe.
-      PATH, // Redirect I/O to a file.
-      FD,   // Redirect I/O to an open file descriptor.
-    };
+    IO(const lambda::function<Try<InputFileDescriptors>()>& _input,
+       const lambda::function<Try<OutputFileDescriptors>()>& _output)
+      : input(_input),
+        output(_output) {}
 
-    IO(Mode _mode, const Option<int>& _fd, const Option<std::string>& _path)
-      : mode(_mode), fd(_fd), path(_path) {}
+    /**
+     * Prepares a set of file descriptors for stdin of a subprocess.
+     */
+    lambda::function<Try<InputFileDescriptors>()> input;
 
-    Mode mode;
-    Option<int> fd;
-    Option<std::string> path;
+    /**
+     * Prepares a set of file descriptors for stdout/stderr of a subprocess.
+     */
+    lambda::function<Try<OutputFileDescriptors>()> output;
   };
 
-  /**
-   * Provides some syntactic sugar to create an IO::PIPE redirector.
-   *
-   * @return An IO::PIPE redirector.
-   */
-  static IO PIPE()
-  {
-    return IO(IO::PIPE, None(), None());
-  }
-
-  /**
-   * Provides some syntactic sugar to create an IO::PATH redirector.
-   *
-   * @return An IO::PATH redirector.
-   */
-  static IO PATH(const std::string& path)
-  {
-    return IO(IO::PATH, None(), path);
-  }
-
-  /**
-   * Provides some syntactic sugar to create an IO::FD redirector.
-   *
-   * @return An IO::FD redirector.
-   */
-  static IO FD(int fd)
-  {
-    return IO(IO::FD, fd, None());
-  }
+  // Some syntactic sugar to create an IO::PIPE redirector.
+  static IO PIPE();
+  static IO PATH(const std::string& path);
+  static IO FD(int fd);
 
   /**
    * @return The operating system PID for this subprocess.
@@ -186,7 +190,7 @@ private:
     pid_t pid;
 
     // The parent side of the pipe for stdin/stdout/stderr. If the
-    // mode is not PIPE, None will be stored.
+    // IO mode is not a pipe, `None` will be stored.
     // NOTE: stdin, stdout, stderr are macros on some systems, hence
     // these names instead.
     Option<int> in;
