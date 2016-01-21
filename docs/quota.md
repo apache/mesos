@@ -272,7 +272,7 @@ outstanding offers with the following rules:
 ## Enforcement by wDRF Allocator
 
 The wDRF allocator first allocates (or lays away if offers are declined)
-resources to framework in roles with quota set until. Once all quotas are
+resources to framework in roles with quota set. Once all quotas are
 satisfied, it proceeds with the standard wDRF for all frameworks.
 
 If there are multiple frameworks in a role with quota set, the standard wDRF
