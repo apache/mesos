@@ -74,7 +74,21 @@ public:
 
   Future<bool> authorize(const ACL::ShutdownFramework& request)
   {
+    // TODO(gyliu513): Remove this shutdown_frameworks acl logic at the
+    // end of the deprecation cycle on 0.27.
     foreach (const ACL::ShutdownFramework& acl, acls.shutdown_frameworks()) {
+      // ACL matches if both subjects and objects match.
+      if (matches(request.principals(), acl.principals()) &&
+          matches(request.framework_principals(),
+                  acl.framework_principals())) {
+        // ACL is allowed if both subjects and objects are allowed.
+        return allows(request.principals(), acl.principals()) &&
+               allows(request.framework_principals(),
+                      acl.framework_principals());
+      }
+    }
+
+    foreach (const ACL::TeardownFramework& acl, acls.teardown_frameworks()) {
       // ACL matches if both subjects and objects match.
       if (matches(request.principals(), acl.principals()) &&
           matches(request.framework_principals(),
