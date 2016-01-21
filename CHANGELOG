@@ -5,6 +5,7 @@ Release Notes - Mesos - Version 0.27.0 (WIP)
   * [MESOS-313]  - Report executor termination to framework schedulers.
   * [MESOS-2315] - Removed deprecated CommandInfo::ContainerInfo.
   * [MESOS-3988] - Implicit roles.
+  * [MESOS-4154] - Rename shutdown_frameworks to teardown_frameworks.
 
 
 Release Notes - Mesos - Version 0.26.0

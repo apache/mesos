@@ -16,6 +16,8 @@ This document serves as a guide for users who wish to upgrade an existing Mesos 
 
 * The isolator `prepare` interface has been changed slightly. Instead of keeping adding parameters to the `prepare` interface, we decide to use a protobuf (`ContainerConfig`). Also, we renamed `ContainerPrepareInfo` to `ContainerLaunchInfo` to better capture the purpose of this struct. See [MESOS-4240](https://issues.apache.org/jira/browse/MESOS-4240) and [MESOS-4282](https://issues.apache.org/jira/browse/MESOS-4282) for more information. If you are an isolator module writer, you will have to adjust your isolator module according to the new interface and re-compile with 0.27.
 
+* ACLs.shutdown_frameworks has been deprecated in favor of the new ACLs.teardown_frameworks. This affects the `--acls` master flag for the local authorizer.
+
 ## Upgrading from 0.25.x to 0.26.x ##
 
 **NOTE** The names of some TaskStatus::Reason enums have been changed. But the tag numbers remain unchanged, so it is backwards compatible. Frameworks using the new version might need to do some compile time adjustments:
