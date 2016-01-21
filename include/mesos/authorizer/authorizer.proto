@@ -59,7 +59,19 @@ message ACL {
 
   // Which principals are authorized to shutdown frameworks of other
   // principals.
+  // TODO(gyliu513): Remove this message at the end of the deprecation
+  // cycle on 0.27. It will be replaced by TeardownFramework then.
   message ShutdownFramework {
+    // Subjects.
+    required Entity principals = 1;
+
+    // Objects.
+    required Entity framework_principals = 2;
+  }
+
+  // Which principals are authorized to teardown frameworks of other
+  // principals.
+  message TeardownFramework {
     // Subjects.
     required Entity principals = 1;
 
@@ -151,6 +163,8 @@ message ACLs {
   optional bool permissive = 1 [default = true];
   repeated ACL.RegisterFramework register_frameworks = 2;
   repeated ACL.RunTask run_tasks = 3;
+  // TODO(gyliu513): Remove this shutdown_frameworks at the
+  // end of the deprecation cycle on 0.27.
   repeated ACL.ShutdownFramework shutdown_frameworks = 4;
   repeated ACL.ReserveResources reserve_resources = 5;
   repeated ACL.UnreserveResources unreserve_resources = 6;
@@ -158,4 +172,5 @@ message ACLs {
   repeated ACL.DestroyVolume destroy_volumes = 8;
   repeated ACL.SetQuota set_quotas = 9;
   repeated ACL.RemoveQuota remove_quotas = 10;
+  repeated ACL.TeardownFramework teardown_frameworks = 11;
 }
