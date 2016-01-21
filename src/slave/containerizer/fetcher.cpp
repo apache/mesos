@@ -763,13 +763,11 @@ Future<Nothing> FetcherProcess::run(
   Try<Subprocess> fetcherSubprocess = subprocess(
       command,
       Subprocess::PIPE(),
-      Subprocess::FD(out.get()),
-      Subprocess::FD(err.get()),
+      Subprocess::FD(out.get(), Subprocess::IO::OWNED),
+      Subprocess::FD(err.get(), Subprocess::IO::OWNED),
       environment);
 
   if (fetcherSubprocess.isError()) {
-    os::close(out.get());
-    os::close(err.get());
     return Failure("Failed to execute mesos-fetcher: " +
                    fetcherSubprocess.error());
   }
@@ -811,9 +809,6 @@ Future<Nothing> FetcherProcess::run(
     .onAny(defer(self(), [=](const Future<Nothing>&) {
       // Clear the subprocess PID remembered from running mesos-fetcher.
       subprocessPids.erase(containerId);
-
-      os::close(out.get());
-      os::close(err.get());
     }));
 }
 

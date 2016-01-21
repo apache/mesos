@@ -78,7 +78,11 @@ public:
 
       static IO FD(int fd)
       {
-        return IO(process::Subprocess::FD(fd));
+        // NOTE: The FD is not duplicated and will be closed (as seen by the
+        // agent process) when the container is spawned.  This shifts the
+        // burden of FD-lifecycle management into the Containerizer.
+        return IO(process::Subprocess::FD(
+            fd, process::Subprocess::IO::OWNED));
       }
 
       operator process::Subprocess::IO () const { return io; }
