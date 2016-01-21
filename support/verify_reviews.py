@@ -64,6 +64,9 @@ def api(url, data=None):
         urllib2.install_opener(opener)
 
         return json.loads(urllib2.urlopen(url, data=data).read())
+    except urllib2.HTTPError as e:
+        print "Error handling URL %s: %s (%s)" % (url, e.reason, e.read())
+        exit(1)
     except urllib2.URLError as e:
         print "Error handling URL %s: %s" % (url, e.reason)
         exit(1)
