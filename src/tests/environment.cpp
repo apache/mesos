@@ -312,6 +312,32 @@ private:
 };
 
 
+class LogrotateFilter : public TestFilter
+{
+public:
+  LogrotateFilter()
+  {
+    logrotateError = os::system("which logrotate") != 0;
+    if (logrotateError) {
+      std::cerr
+        << "-------------------------------------------------------------\n"
+        << "No 'logrotate' command found so no 'logrotate' tests\n"
+        << "will be run\n"
+        << "-------------------------------------------------------------"
+        << std::endl;
+    }
+  }
+
+  bool disable(const ::testing::TestInfo* test) const
+  {
+    return matches(test, "LOGROTATE_") && logrotateError;
+  }
+
+private:
+  bool logrotateError;
+};
+
+
 class NetcatFilter : public TestFilter
 {
 public:
@@ -610,6 +636,7 @@ Environment::Environment(const Flags& _flags) : flags(_flags)
   filters.push_back(Owned<TestFilter>(new CurlFilter()));
   filters.push_back(Owned<TestFilter>(new DockerFilter()));
   filters.push_back(Owned<TestFilter>(new InternetFilter()));
+  filters.push_back(Owned<TestFilter>(new LogrotateFilter()));
   filters.push_back(Owned<TestFilter>(new NetcatFilter()));
   filters.push_back(Owned<TestFilter>(new NetClsCgroupsFilter()));
   filters.push_back(Owned<TestFilter>(new NetworkIsolatorTestFilter()));
