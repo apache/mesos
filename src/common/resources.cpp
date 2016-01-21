@@ -675,9 +675,29 @@ Option<Error> Resources::validate(const Resource& resource)
   }
 
   // Checks for 'disk' resource.
-  if (resource.has_disk() && resource.name() != "disk") {
-    return Error(
-        "DiskInfo should not be set for " + resource.name() + " resource");
+  if (resource.has_disk()) {
+    if (resource.name() != "disk") {
+      return Error(
+          "DiskInfo should not be set for " + resource.name() + " resource");
+    }
+
+    const Resource::DiskInfo& disk = resource.disk();
+
+    if (disk.has_source()) {
+      const Resource::DiskInfo::Source& source = disk.source();
+
+      if (source.type() == Resource::DiskInfo::Source::PATH &&
+          !source.has_path()) {
+        return Error(
+            "DiskInfo::Source 'type' set to 'PATH' but missing 'path' data");
+      }
+
+      if (source.type() == Resource::DiskInfo::Source::MOUNT &&
+          !source.has_mount()) {
+        return Error(
+            "DiskInfo::Source 'type' set to 'MOUNT' but missing 'mount' data");
+      }
+    }
   }
 
   // Checks for the invalid state of (role, reservation) pair.

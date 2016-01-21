@@ -203,7 +203,7 @@ Option<Error> validateDiskInfo(const RepeatedPtrField<Resource>& resources)
       }
     } else if (resource.disk().has_volume()) {
       return Error("Non-persistent volume not supported");
-    } else {
+    } else if (!resource.disk().has_source()) {
       return Error("DiskInfo is set but empty");
     }
   }
