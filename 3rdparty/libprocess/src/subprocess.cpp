@@ -169,11 +169,24 @@ Subprocess::IO Subprocess::PATH(const string& path)
 }
 
 
-Subprocess::IO Subprocess::FD(int fd)
+Subprocess::IO Subprocess::FD(int fd, IO::FDType type)
 {
   return Subprocess::IO(
-      [fd]() -> Try<InputFileDescriptors> {
-        int prepared_fd = ::dup(fd);
+      [fd, type]() -> Try<InputFileDescriptors> {
+        int prepared_fd = -1;
+        switch (type) {
+          case IO::DUPLICATE:
+            prepared_fd = ::dup(fd);
+            break;
+          case IO::OWNED:
+            prepared_fd = fd;
+            break;
+
+          // NOTE: By not setting a default we leverage the compiler
+          // errors when the enumeration is augmented to find all
+          // the cases we need to provide.  Same for below.
+        }
+
         if (prepared_fd == -1) {
           return ErrnoError("Failed to dup");
         }
@@ -182,8 +195,17 @@ Subprocess::IO Subprocess::FD(int fd)
         fds.read = prepared_fd;
         return fds;
       },
-      [fd]() -> Try<OutputFileDescriptors> {
-        int prepared_fd = ::dup(fd);
+      [fd, type]() -> Try<OutputFileDescriptors> {
+        int prepared_fd = -1;
+        switch (type) {
+          case IO::DUPLICATE:
+            prepared_fd = ::dup(fd);
+            break;
+          case IO::OWNED:
+            prepared_fd = fd;
+            break;
+        }
+
         if (prepared_fd == -1) {
           return ErrnoError("Failed to dup");
         }

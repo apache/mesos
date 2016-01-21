@@ -89,6 +89,26 @@ public:
       int write = -1;
     };
 
+    /**
+     * Describes the lifecycle of a file descriptor passed into a subprocess
+     * via the `Subprocess::FD` helper.
+     */
+    enum FDType {
+      /**
+       * The file descriptor is duplicated before being passed to the
+       * subprocess.  The original file descriptor remains open.
+       */
+      DUPLICATE,
+
+      /**
+       * The file descriptor is not duplicated before being passed to the
+       * subprocess.  Upon spawning the subprocess, the original file
+       * descriptor is closed in the parent and remains open in the child.
+       */
+      OWNED
+    };
+
+
   private:
     friend class Subprocess;
 
@@ -123,7 +143,7 @@ public:
   // Some syntactic sugar to create an IO::PIPE redirector.
   static IO PIPE();
   static IO PATH(const std::string& path);
-  static IO FD(int fd);
+  static IO FD(int fd, IO::FDType type = IO::DUPLICATE);
 
   /**
    * @return The operating system PID for this subprocess.
