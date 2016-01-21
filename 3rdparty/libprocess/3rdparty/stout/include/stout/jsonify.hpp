@@ -21,6 +21,7 @@
 #include <type_traits>
 #include <utility>
 
+#include <stout/result_of.hpp>
 #include <stout/strings.hpp>
 
 // `jsonify` takes an instance of a C++ object and returns a light-weight proxy
@@ -574,7 +575,7 @@ namespace internal {
 // `std::function` instead.
 
 // Given an `F` which is a "write" function, we simply use it directly.
-template <typename F, typename = typename std::result_of<F(WriterProxy)>::type>
+template <typename F, typename = typename result_of<F(WriterProxy)>::type>
 std::function<void(std::ostream*)> jsonify(const F& write, Prefer)
 {
   return [&write](std::ostream* stream) { write(WriterProxy(stream)); };
