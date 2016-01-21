@@ -192,7 +192,7 @@ protected:
   typedef HierarchicalAllocatorProcess Self;
   typedef HierarchicalAllocatorProcess This;
 
-  // Helpers for pausing and resuming allocation.
+  // Idempotent helpers for pausing and resuming allocation.
   void pause();
   void resume();
 

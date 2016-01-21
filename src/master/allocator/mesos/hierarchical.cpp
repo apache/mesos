@@ -1045,21 +1045,21 @@ void HierarchicalAllocatorProcess::removeQuota(
 
 void HierarchicalAllocatorProcess::pause()
 {
-  CHECK(!paused);
+  if (!paused) {
+    VLOG(1) << "Allocation paused";
 
-  VLOG(1) << "Allocation paused";
-
-  paused = true;
+    paused = true;
+  }
 }
 
 
 void HierarchicalAllocatorProcess::resume()
 {
-  CHECK(paused);
+  if (paused) {
+    VLOG(1) << "Allocation resumed";
 
-  VLOG(1) << "Allocation resumed";
-
-  paused = false;
+    paused = false;
+  }
 }
 
 
