@@ -72,24 +72,22 @@ public:
 };
 
 
+SandboxContainerLogger::SandboxContainerLogger()
+  : process(new SandboxContainerLoggerProcess())
+{
+  spawn(process.get());
+}
+
+
 SandboxContainerLogger::~SandboxContainerLogger()
 {
-  if (process.get() != NULL) {
-    terminate(process.get());
-    wait(process.get());
-  }
+  terminate(process.get());
+  wait(process.get());
 }
 
 
 Try<Nothing> SandboxContainerLogger::initialize()
 {
-  if (process.get() != NULL) {
-    return Error("Sandbox container logger has already been initialized");
-  }
-
-  process.reset(new SandboxContainerLoggerProcess());
-  spawn(process.get());
-
   return Nothing();
 }
 
@@ -98,10 +96,6 @@ Future<Nothing> SandboxContainerLogger::recover(
     const ExecutorInfo& executorInfo,
     const std::string& sandboxDirectory)
 {
-  if (process.get() == NULL) {
-    return Failure("Sandbox container logger is not initialized");
-  }
-
   return dispatch(
       process.get(),
       &SandboxContainerLoggerProcess::recover,
@@ -115,10 +109,6 @@ SandboxContainerLogger::prepare(
     const ExecutorInfo& executorInfo,
     const std::string& sandboxDirectory)
 {
-  if (process.get() == NULL) {
-    return Failure("Sandbox container logger is not initialized");
-  }
-
   return dispatch(
       process.get(),
       &SandboxContainerLoggerProcess::prepare,

@@ -49,8 +49,10 @@ class SandboxContainerLoggerProcess;
 class SandboxContainerLogger : public mesos::slave::ContainerLogger
 {
 public:
+  SandboxContainerLogger();
   virtual ~SandboxContainerLogger();
 
+  // This is a noop.  The sandbox container logger has nothing to initialize.
   virtual Try<Nothing> initialize();
 
   // This is a noop.  The agent recovery process already exposes all files
