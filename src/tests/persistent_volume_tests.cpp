@@ -43,9 +43,12 @@
 #include "slave/slave.hpp"
 
 #include "tests/containerizer.hpp"
+#include "tests/environment.hpp"
 #include "tests/mesos.hpp"
 
 using namespace process;
+
+using google::protobuf::RepeatedPtrField;
 
 using mesos::internal::master::Master;
 
@@ -55,16 +58,34 @@ using std::string;
 using std::vector;
 
 using testing::_;
-using testing::Return;
 using testing::DoAll;
+using testing::Return;
+using testing::WithParamInterface;
 
 namespace mesos {
 namespace internal {
 namespace tests {
 
-class PersistentVolumeTest : public MesosTest
+enum PersistentVolumeSourceType
+{
+  NONE,
+  PATH
+};
+
+
+class PersistentVolumeTest
+  : public MesosTest,
+    public WithParamInterface<PersistentVolumeSourceType>
 {
 protected:
+  virtual void SetUp()
+  {
+    MesosTest::SetUp();
+    Try<string> path = environment->mkdtemp();
+    ASSERT_SOME(path) << "Failed to mkdtemp";
+    diskPath = path.get();
+  }
+
   master::Flags MasterFlags(const vector<FrameworkInfo>& frameworks)
   {
     master::Flags flags = CreateMasterFlags();
@@ -88,11 +109,31 @@ protected:
 
   Resource getDiskResource(const Megabytes& mb)
   {
-    return createDiskResource(
-        stringify(mb.megabytes()),
-        "role1",
-        None(),
-        None());
+    Resource diskResource;
+
+    switch (GetParam()) {
+      case NONE: {
+        diskResource = createDiskResource(
+            stringify(mb.megabytes()),
+            "role1",
+            None(),
+            None());
+
+        break;
+      }
+      case PATH: {
+        diskResource = createDiskResource(
+            stringify(mb.megabytes()),
+            "role1",
+            None(),
+            None(),
+            createDiskSourcePath(diskPath));
+
+        break;
+      }
+    }
+
+    return diskResource;
   }
 
   string getSlaveResources()
@@ -103,14 +144,25 @@ protected:
     return stringify(JSON::protobuf(
         static_cast<const RepeatedPtrField<Resource>&>(resources)));
   }
+
+  string diskPath;
 };
+
+
+// The PersistentVolumeTest tests are parameterized by the disk source.
+INSTANTIATE_TEST_CASE_P(
+    DiskResource,
+    PersistentVolumeTest,
+    ::testing::Values(
+        PersistentVolumeSourceType::NONE,
+        PersistentVolumeSourceType::PATH));
 
 
 // This test verifies that CheckpointResourcesMessages are sent to the
 // slave when the framework creates/destroys persistent volumes, and
 // the resources in the messages correctly reflect the resources that
 // need to be checkpointed on the slave.
-TEST_F(PersistentVolumeTest, SendingCheckpointResourcesMessage)
+TEST_P(PersistentVolumeTest, SendingCheckpointResourcesMessage)
 {
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_role("role1");
@@ -156,17 +208,17 @@ TEST_F(PersistentVolumeTest, SendingCheckpointResourcesMessage)
   Future<CheckpointResourcesMessage> message1 =
     FUTURE_PROTOBUF(CheckpointResourcesMessage(), _, _);
 
-  Resources volume1 = createPersistentVolume(
-      Megabytes(64),
-      "role1",
+  Resource volume1 = createPersistentVolume(
+      getDiskResource(Megabytes(64)),
       "id1",
-      "path1");
+      "path1",
+      None());
 
-  Resources volume2 = createPersistentVolume(
-      Megabytes(128),
-      "role1",
+  Resource volume2 = createPersistentVolume(
+      getDiskResource(Megabytes(128)),
       "id2",
-      "path2");
+      "path2",
+      None());
 
   // We use the filter explicitly here so that the resources will not
   // be filtered for 5 seconds (by default).
@@ -193,7 +245,8 @@ TEST_F(PersistentVolumeTest, SendingCheckpointResourcesMessage)
   // Await the `CheckpointResourcesMessage` and ensure that it contains
   // both volume1 and volume2.
   AWAIT_READY(message2);
-  EXPECT_EQ(Resources(message2.get().resources()), volume1 + volume2);
+  EXPECT_EQ(Resources(message2.get().resources()),
+            Resources(volume1) + Resources(volume2));
 
   AWAIT_READY(offers);
   EXPECT_FALSE(offers.get().empty());
@@ -225,7 +278,7 @@ TEST_F(PersistentVolumeTest, SendingCheckpointResourcesMessage)
 // This test verifies that the slave checkpoints the resources for
 // persistent volumes to the disk, recovers them upon restart, and
 // sends them to the master during re-registration.
-TEST_F(PersistentVolumeTest, ResourcesCheckpointing)
+TEST_P(PersistentVolumeTest, ResourcesCheckpointing)
 {
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_role("role1");
@@ -260,11 +313,11 @@ TEST_F(PersistentVolumeTest, ResourcesCheckpointing)
   Future<CheckpointResourcesMessage> checkpointResources =
     FUTURE_PROTOBUF(CheckpointResourcesMessage(), _, slave.get());
 
-  Resources volume = createPersistentVolume(
-      Megabytes(64),
-      "role1",
+  Resource volume = createPersistentVolume(
+      getDiskResource(Megabytes(64)),
       "id1",
-      "path1");
+      "path1",
+      None());
 
   driver.acceptOffers(
       {offer.id()},
@@ -291,7 +344,7 @@ TEST_F(PersistentVolumeTest, ResourcesCheckpointing)
 }
 
 
-TEST_F(PersistentVolumeTest, PreparePersistentVolume)
+TEST_P(PersistentVolumeTest, PreparePersistentVolume)
 {
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_role("role1");
@@ -323,11 +376,11 @@ TEST_F(PersistentVolumeTest, PreparePersistentVolume)
 
   Offer offer = offers.get()[0];
 
-  Resources volume = createPersistentVolume(
-      Megabytes(64),
-      "role1",
+  Resource volume = createPersistentVolume(
+      getDiskResource(Megabytes(64)),
       "id1",
-      "path1");
+      "path1",
+      None());
 
   Future<CheckpointResourcesMessage> checkpointResources =
     FUTURE_PROTOBUF(CheckpointResourcesMessage(), _, slave.get());
@@ -343,11 +396,9 @@ TEST_F(PersistentVolumeTest, PreparePersistentVolume)
   Clock::settle();
   Clock::resume();
 
-  EXPECT_TRUE(
-      os::exists(slave::paths::getPersistentVolumePath(
-          slaveFlags.work_dir,
-          "role1",
-          "id1")));
+  EXPECT_TRUE(os::exists(slave::paths::getPersistentVolumePath(
+      slaveFlags.work_dir,
+      volume)));
 
   driver.stop();
   driver.join();
@@ -359,7 +410,7 @@ TEST_F(PersistentVolumeTest, PreparePersistentVolume)
 // This test verifies the case where a slave that has checkpointed
 // persistent volumes reregisters with a failed over master, and the
 // persistent volumes are later correctly offered to the framework.
-TEST_F(PersistentVolumeTest, MasterFailover)
+TEST_P(PersistentVolumeTest, MasterFailover)
 {
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_role("role1");
@@ -394,11 +445,11 @@ TEST_F(PersistentVolumeTest, MasterFailover)
 
   Offer offer1 = offers1.get()[0];
 
-  Resources volume = createPersistentVolume(
-      Megabytes(64),
-      "role1",
+  Resource volume = createPersistentVolume(
+      getDiskResource(Megabytes(64)),
       "id1",
-      "path1");
+      "path1",
+      None());
 
   Future<CheckpointResourcesMessage> checkpointResources =
     FUTURE_PROTOBUF(CheckpointResourcesMessage(), _, slave.get());
@@ -455,7 +506,7 @@ TEST_F(PersistentVolumeTest, MasterFailover)
 // This test verifies that a slave will refuse to start if the
 // checkpointed resources it recovers are not compatible with the
 // slave resources specified using the '--resources' flag.
-TEST_F(PersistentVolumeTest, IncompatibleCheckpointedResources)
+TEST_P(PersistentVolumeTest, IncompatibleCheckpointedResources)
 {
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_role("role1");
@@ -491,11 +542,11 @@ TEST_F(PersistentVolumeTest, IncompatibleCheckpointedResources)
 
   Offer offer = offers.get()[0];
 
-  Resources volume = createPersistentVolume(
-      Megabytes(64),
-      "role1",
+  Resource volume = createPersistentVolume(
+      getDiskResource(Megabytes(64)),
       "id1",
-      "path1");
+      "path1",
+      None());
 
   Future<CheckpointResourcesMessage> checkpointResources =
     FUTURE_PROTOBUF(CheckpointResourcesMessage(), _, _);
@@ -542,7 +593,7 @@ TEST_F(PersistentVolumeTest, IncompatibleCheckpointedResources)
 // This test verifies that a persistent volume is correctly linked by
 // the containerizer and the task is able to access it according to
 // the container path it specifies.
-TEST_F(PersistentVolumeTest, AccessPersistentVolume)
+TEST_P(PersistentVolumeTest, AccessPersistentVolume)
 {
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_role("role1");
@@ -579,15 +630,15 @@ TEST_F(PersistentVolumeTest, AccessPersistentVolume)
 
   Offer offer = offers.get()[0];
 
-  Resources volume = createPersistentVolume(
-      Megabytes(64),
-      "role1",
+  Resource volume = createPersistentVolume(
+      getDiskResource(Megabytes(64)),
       "id1",
-      "path1");
+      "path1",
+      None());
 
   // Create a task which writes a file in the persistent volume.
-  Resources taskResources =
-    Resources::parse("cpus:1;mem:128;disk(role1):32").get() + volume;
+  Resources taskResources = Resources::parse("cpus:1;mem:128").get() +
+    getDiskResource(Megabytes(32)) + volume;
 
   TaskInfo task = createTask(
       offer.slave_id(),
@@ -632,8 +683,7 @@ TEST_F(PersistentVolumeTest, AccessPersistentVolume)
 
   const string& volumePath = slave::paths::getPersistentVolumePath(
       slaveFlags.work_dir,
-      "role1",
-      "id1");
+      volume);
 
   EXPECT_SOME_EQ("abc\n", os::read(path::join(volumePath, "file")));
 
@@ -649,7 +699,7 @@ TEST_F(PersistentVolumeTest, AccessPersistentVolume)
 // keeps testing if the persistent volume exists, and fails if it does
 // not. So the framework should not receive a TASK_FAILED after the
 // slave finishes recovery.
-TEST_F(PersistentVolumeTest, SlaveRecovery)
+TEST_P(PersistentVolumeTest, SlaveRecovery)
 {
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_role("role1");
@@ -687,15 +737,15 @@ TEST_F(PersistentVolumeTest, SlaveRecovery)
 
   Offer offer = offers.get()[0];
 
-  Resources volume = createPersistentVolume(
-      Megabytes(64),
-      "role1",
+  Resource volume = createPersistentVolume(
+      getDiskResource(Megabytes(64)),
       "id1",
-      "path1");
+      "path1",
+      None());
 
   // Create a task which writes a file in the persistent volume.
-  Resources taskResources =
-    Resources::parse("cpus:1;mem:128;disk(role1):32").get() + volume;
+  Resources taskResources = Resources::parse("cpus:1;mem:128").get() +
+    getDiskResource(Megabytes(32)) + volume;
 
   TaskInfo task = createTask(
       offer.slave_id(),
@@ -770,7 +820,7 @@ TEST_F(PersistentVolumeTest, SlaveRecovery)
 
 // This test verifies that the `create` and `destroy` operations complete
 // successfully when authorization succeeds.
-TEST_F(PersistentVolumeTest, GoodACLCreateThenDestroy)
+TEST_P(PersistentVolumeTest, GoodACLCreateThenDestroy)
 {
   // Manipulate the clock manually in order to
   // control the timing of the offer cycle.
@@ -838,11 +888,11 @@ TEST_F(PersistentVolumeTest, GoodACLCreateThenDestroy)
 
   Offer offer = offers.get()[0];
 
-  Resources volume = createPersistentVolume(
-      Megabytes(128),
-      "role1",
+  Resource volume = createPersistentVolume(
+      getDiskResource(Megabytes(128)),
       "id1",
-      "path1");
+      "path1",
+      None());
 
   Future<CheckpointResourcesMessage> checkpointResources1 =
     FUTURE_PROTOBUF(CheckpointResourcesMessage(), _, slave.get());
@@ -873,11 +923,9 @@ TEST_F(PersistentVolumeTest, GoodACLCreateThenDestroy)
 
   // Check that the persistent volume was created successfully.
   EXPECT_TRUE(Resources(offer.resources()).contains(volume));
-  EXPECT_TRUE(
-      os::exists(slave::paths::getPersistentVolumePath(
-          slaveFlags.work_dir,
-          "role1",
-          "id1")));
+  EXPECT_TRUE(os::exists(slave::paths::getPersistentVolumePath(
+      slaveFlags.work_dir,
+      volume)));
 
   Future<CheckpointResourcesMessage> checkpointResources2 =
     FUTURE_PROTOBUF(CheckpointResourcesMessage(), _, slave.get());
@@ -916,7 +964,7 @@ TEST_F(PersistentVolumeTest, GoodACLCreateThenDestroy)
 
 // This test verifies that the `create` and `destroy` operations complete
 // successfully when authorization succeeds and no principal is provided.
-TEST_F(PersistentVolumeTest, GoodACLNoPrincipal)
+TEST_P(PersistentVolumeTest, GoodACLNoPrincipal)
 {
   // Manipulate the clock manually in order to
   // control the timing of the offer cycle.
@@ -988,11 +1036,11 @@ TEST_F(PersistentVolumeTest, GoodACLNoPrincipal)
 
   Offer offer = offers.get()[0];
 
-  Resources volume = createPersistentVolume(
-      Megabytes(128),
-      "role1",
+  Resource volume = createPersistentVolume(
+      getDiskResource(Megabytes(128)),
       "id1",
-      "path1");
+      "path1",
+      None());
 
   Future<CheckpointResourcesMessage> checkpointResources1 =
     FUTURE_PROTOBUF(CheckpointResourcesMessage(), _, slave.get());
@@ -1023,11 +1071,9 @@ TEST_F(PersistentVolumeTest, GoodACLNoPrincipal)
 
   // Check that the persistent volume was successfully created.
   EXPECT_TRUE(Resources(offer.resources()).contains(volume));
-  EXPECT_TRUE(
-      os::exists(slave::paths::getPersistentVolumePath(
-          slaveFlags.work_dir,
-          "role1",
-          "id1")));
+  EXPECT_TRUE(os::exists(slave::paths::getPersistentVolumePath(
+      slaveFlags.work_dir,
+      volume)));
 
   Future<CheckpointResourcesMessage> checkpointResources2 =
     FUTURE_PROTOBUF(CheckpointResourcesMessage(), _, slave.get());
@@ -1066,7 +1112,7 @@ TEST_F(PersistentVolumeTest, GoodACLNoPrincipal)
 
 // This test verifies that `create` and `destroy` operations fail as expected
 // when authorization fails and no principal is supplied.
-TEST_F(PersistentVolumeTest, BadACLNoPrincipal)
+TEST_P(PersistentVolumeTest, BadACLNoPrincipal)
 {
   // Manipulate the clock manually in order to
   // control the timing of the offer cycle.
@@ -1140,11 +1186,11 @@ TEST_F(PersistentVolumeTest, BadACLNoPrincipal)
 
   Offer offer = offers.get()[0];
 
-  Resources volume = createPersistentVolume(
-      Megabytes(128),
-      "role1",
+  Resource volume = createPersistentVolume(
+      getDiskResource(Megabytes(128)),
       "id1",
-      "path1");
+      "path1",
+      None());
 
   // Attempt to create the persistent volume using `acceptOffers`.
   driver1.acceptOffers(
@@ -1266,7 +1312,7 @@ TEST_F(PersistentVolumeTest, BadACLNoPrincipal)
 
 // This test verifies that `create` and `destroy` operations
 // get dropped if authorization fails.
-TEST_F(PersistentVolumeTest, BadACLDropCreateAndDestroy)
+TEST_P(PersistentVolumeTest, BadACLDropCreateAndDestroy)
 {
   // Manipulate the clock manually in order to
   // control the timing of the offer cycle.
@@ -1340,11 +1386,11 @@ TEST_F(PersistentVolumeTest, BadACLDropCreateAndDestroy)
 
   Offer offer = offers.get()[0];
 
-  Resources volume = createPersistentVolume(
-      Megabytes(128),
-      "role1",
+  Resource volume = createPersistentVolume(
+      getDiskResource(Megabytes(128)),
       "id1",
-      "path1");
+      "path1",
+      None());
 
   // Attempt to create a persistent volume using `acceptOffers`.
   driver1.acceptOffers(
