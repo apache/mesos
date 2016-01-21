@@ -261,7 +261,7 @@ mesos::internal::master::Flags::Flags()
       "      \"users\": { \"values\": [\"c\"] }\n"
       "    }\n"
       "  ],\n"
-      "  \"shutdown_frameworks\": [\n"
+      "  \"teardown_frameworks\": [\n"
       "    {\n"
       "      \"principals\": { \"values\": [\"a\", \"b\"] },\n"
       "      \"framework_principals\": { \"values\": [\"c\"] }\n"

@@ -8,7 +8,7 @@ Authorization currently allows
 
  1. Frameworks to (re-)register with authorized _roles_.
  2. Frameworks to launch tasks/executors as authorized _users_.
- 3. Authorized _principals_ to shutdown frameworks through the "/teardown" HTTP endpoint.
+ 3. Authorized _principals_ to teardown frameworks through the "/teardown" HTTP endpoint.
  4. Authorized _principals_ to set and remove quotas through the "/quota" HTTP endpoint.
  5. Authorized _principals_ to reserve and unreserve resources through the "/reserve" and "/unreserve" HTTP endpoints, as well as with the `RESERVE` and `UNRESERVE` offer operations.
  6. Authorized _principals_ to create and destroy persistent volumes through the "/create-volumes" and "/destroy-volumes" HTTP endpoints, as well as with the `CREATE` and `DESTROY` offer operations.
@@ -24,7 +24,7 @@ The currently supported `Actions` are:
 
 1. "register_frameworks": Register frameworks
 2. "run_tasks": Run tasks/executors
-3. "shutdown_frameworks": Shutdown frameworks
+3. "teardown_frameworks": Teardown frameworks
 4. "set_quotas": Set quotas
 5. "remove_quotas": Remove quotas
 6. "reserve_resources": Reserve resources
@@ -36,13 +36,13 @@ The currently supported `Subjects` are:
 
 1. "principals"
 	- Framework principals (used by "register_frameworks", "run_tasks", "reserve", "unreserve", "create_volumes", and "destroy_volumes" actions)
-	- Usernames (used by "shutdown_frameworks", "set_quotas", "remove_quotas", "reserve", "unreserve", "create_volumes", and "destroy_volumes" actions)
+	- Usernames (used by "teardown_frameworks", "set_quotas", "remove_quotas", "reserve", "unreserve", "create_volumes", and "destroy_volumes" actions)
 
 The currently supported `Objects` are:
 
 1. "roles": Resource [roles](roles.md) that framework can register with (used by "register_frameworks" and "set_quotas" actions)
 2. "users": Unix user to launch the task/executor as (used by "run_tasks" actions)
-3. "framework_principals": Framework principals that can be shutdown by HTTP POST (used by "shutdown_frameworks" actions).
+3. "framework_principals": Framework principals that can be torn down by HTTP POST (used by "teardown_frameworks" actions).
 4. "resources": Resources that can be reserved. Currently the only types considered by the default authorizer are `ANY` and `NONE` (used by "reserves" action).
 5. "reserver_principals": Framework principals whose reserved resources can be unreserved (used by "unreserves" action).
 6. "volume_types": Types of volumes that can be created by a given principal. Currently the only types considered by the default authorizer are `ANY` and `NONE` (used by "create_volumes" action).
@@ -60,7 +60,7 @@ For example, when a framework (re-)registers with the master, "register_framewor
 
 Similarly, when a framework launches a task, "run_tasks" ACLs are checked to see if the framework (`FrameworkInfo.principal`) is authorized to run the task/executor as the given user. If not authorized, the launch is rejected and the framework gets a TASK_LOST.
 
-In the same vein, when a user/principal attempts to shutdown a framework using the "/teardown" HTTP endpoint on the master, "shutdown_frameworks" ACLs are checked to see if the principal is authorized to shutdown the given framework. If not authorized, the shutdown is rejected and the user receives a `Forbidden` HTTP response.
+In the same vein, when a user/principal attempts to teardown a framework using the "/teardown" HTTP endpoint on the master, "teardown_frameworks" ACLs are checked to see if the principal is authorized to teardown the given framework. If not authorized, the teardown is rejected and the user receives a `Forbidden` HTTP response.
 
 If no user/principal is provided in a request to an HTTP endpoint and authentication is disabled, the `ANY` subject is used in the authorization.
 
@@ -175,11 +175,11 @@ There are couple of important things to note:
                                  ]
         }
 
-8. The `ops` principal can shutdown any framework using the "/teardown" HTTP endpoint. No other framework can register with any roles or run tasks.
+8. The `ops` principal can teardown any framework using the "/teardown" HTTP endpoint. No other framework can register with any roles or run tasks.
 
         {
           "permissive": false,
-          "shutdown_frameworks": [
+          "teardown_frameworks": [
                                    {
                                      "principals": {
                                        "values": ["ops"]

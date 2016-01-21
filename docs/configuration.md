@@ -284,7 +284,7 @@ file:///path/to/file (where file contains one of the above)</code></pre>
       "users": { "values": ["c"] }
     }
   ],
-  "shutdown_frameworks": [
+  "teardown_frameworks": [
     {
       "principals": { "values": ["a", "b"] },
       "framework_principals": { "values": ["c"] }
