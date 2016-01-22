@@ -899,28 +899,28 @@ void HierarchicalAllocatorProcess::recoverResources(
   }
 
   // Create a refused resources filter.
-  Try<Duration> seconds = Duration::create(filters.get().refuse_seconds());
+  Try<Duration> timeout = Duration::create(filters.get().refuse_seconds());
 
-  if (seconds.isError()) {
+  if (timeout.isError()) {
     LOG(WARNING) << "Using the default value of 'refuse_seconds' to create "
                  << "the refused resources filter because the input value "
-                 << "is invalid: " << seconds.error();
+                 << "is invalid: " << timeout.error();
 
-    seconds = Duration::create(Filters().refuse_seconds());
-  } else if (seconds.get() < Duration::zero()) {
+    timeout = Duration::create(Filters().refuse_seconds());
+  } else if (timeout.get() < Duration::zero()) {
     LOG(WARNING) << "Using the default value of 'refuse_seconds' to create "
                  << "the refused resources filter because the input value "
                  << "is negative";
 
-    seconds = Duration::create(Filters().refuse_seconds());
+    timeout = Duration::create(Filters().refuse_seconds());
   }
 
-  CHECK_SOME(seconds);
+  CHECK_SOME(timeout);
 
-  if (seconds.get() != Duration::zero()) {
+  if (timeout.get() != Duration::zero()) {
     VLOG(1) << "Framework " << frameworkId
             << " filtered slave " << slaveId
-            << " for " << seconds.get();
+            << " for " << timeout.get();
 
     // Create a new filter.
     OfferFilter* offerFilter = new RefusedOfferFilter(resources);
@@ -940,9 +940,9 @@ void HierarchicalAllocatorProcess::recoverResources(
     //
     // TODO(alexr): If we allocated upon resource recovery
     // (MESOS-3078), we would not need to increase the timeout here.
-    Duration timeout = std::max(allocationInterval, seconds.get());
+    timeout = std::max(allocationInterval, timeout.get());
 
-    delay(timeout,
+    delay(timeout.get(),
           self(),
           expireOffer,
           frameworkId,
