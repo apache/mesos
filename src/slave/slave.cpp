@@ -2111,7 +2111,7 @@ void Slave::schedulerMessage(
 
   Executor* executor = framework->getExecutor(executorId);
   if (executor == NULL) {
-    LOG(WARNING) << "Dropping message for executor " << *executor
+    LOG(WARNING) << "Dropping message for executor " << executorId
                  << " because executor does not exist";
     metrics.invalid_framework_messages++;
     return;
