@@ -274,7 +274,8 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_ChangeRootFilesystem)
       false);
 
   // Wait for the launch to complete.
-  AWAIT_READY(launch);
+  // Need to wait for Rootfs copying.
+  AWAIT_READY_FOR(launch, Seconds(60));
 
   // Wait on the container.
   Future<containerizer::Termination> wait =
@@ -356,7 +357,8 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_ChangeRootFilesystemCommandExecutor)
     .WillOnce(FutureArg<1>(&statusRunning))
     .WillOnce(FutureArg<1>(&statusFinished));
 
-  AWAIT_READY(statusRunning);
+  // Need to wait for Rootfs copying.
+  AWAIT_READY_FOR(statusRunning, Seconds(60));
   EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
   AWAIT_READY(statusFinished);
   EXPECT_EQ(TASK_FINISHED, statusFinished.get().state());
@@ -401,7 +403,8 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_Metrics)
       false);
 
   // Wait for the launch to complete.
-  AWAIT_READY(launch);
+  // Need to wait for Rootfs copying.
+  AWAIT_READY_FOR(launch, Seconds(60));
 
   // Check metrics.
   JSON::Object stats = Metrics();
@@ -461,7 +464,8 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_VolumeFromSandbox)
       false);
 
   // Wait for the launch to complete.
-  AWAIT_READY(launch);
+  // Need to wait for Rootfs copying.
+  AWAIT_READY_FOR(launch, Seconds(60));
 
   // Wait on the container.
   Future<containerizer::Termination> wait =
@@ -514,7 +518,8 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_VolumeFromHost)
       false);
 
   // Wait for the launch to complete.
-  AWAIT_READY(launch);
+  // Need to wait for Rootfs copying.
+  AWAIT_READY_FOR(launch, Seconds(60));
 
   // Wait on the container.
   Future<containerizer::Termination> wait =
@@ -565,7 +570,8 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_VolumeFromHostSandboxMountPoint)
       false);
 
   // Wait for the launch to complete.
-  AWAIT_READY(launch);
+  // Need to wait for Rootfs copying.
+  AWAIT_READY_FOR(launch, Seconds(60));
 
   // Wait on the container.
   Future<containerizer::Termination> wait =
@@ -631,7 +637,8 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_PersistentVolumeWithRootFilesystem)
       false);
 
   // Wait for the launch to complete.
-  AWAIT_READY(launch);
+  // Need to wait for Rootfs copying.
+  AWAIT_READY_FOR(launch, Seconds(60));
 
   // Wait on the container.
   Future<containerizer::Termination> wait =
@@ -703,7 +710,8 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_PersistentVolumeWithoutRootFilesystem)
       false);
 
   // Wait for the launch to complete.
-  AWAIT_READY(launch);
+  // Need to wait for Rootfs copying.
+  AWAIT_READY_FOR(launch, Seconds(60));
 
   // Wait on the container.
   Future<containerizer::Termination> wait =
@@ -756,7 +764,8 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_ImageInVolumeWithoutRootFilesystem)
       false);
 
   // Wait for the launch to complete.
-  AWAIT_READY(launch);
+  // Need to wait for Rootfs copying.
+  AWAIT_READY_FOR(launch, Seconds(60));
 
   // Wait on the container.
   Future<containerizer::Termination> wait =
@@ -809,8 +818,8 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_ImageInVolumeWithRootFilesystem)
       false);
 
   // Wait for the launch to complete.
-  // Because copy rootfs spents a lot of time, we use 60s as timeout here.
-  AWAIT_READY_FOR(launch, Seconds(60));
+  // Need to wait for Rootfs copy.
+  AWAIT_READY_FOR(launch, Seconds(120));
 
   // Wait on the container.
   Future<containerizer::Termination> wait =
@@ -893,7 +902,8 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_MultipleContainers)
       false);
 
   // Wait for the launch to complete.
-  AWAIT_READY(launch1);
+  // Need to wait for Rootfs copy.
+  AWAIT_READY_FOR(launch1, Seconds(60));
 
   // Now launch container 2 which will copy the host mount table with
   // container 1's work directory mount in it.
@@ -919,7 +929,8 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_MultipleContainers)
       PID<Slave>(),
       false);
 
-  AWAIT_READY(launch2);
+  // Need to wait for Rootfs copy.
+  AWAIT_READY_FOR(launch1, Seconds(60));
 
   containerizer.get()->destroy(containerId1);
 
@@ -984,7 +995,8 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_SandboxEnvironmentVariable)
       false);
 
   // Wait for the launch to complete.
-  AWAIT_READY(launch);
+  // Need to wait for Rootfs copy.
+  AWAIT_READY_FOR(launch, Seconds(60));
 
   // Wait on the container.
   Future<containerizer::Termination> wait =
