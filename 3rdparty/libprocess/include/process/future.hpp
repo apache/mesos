@@ -226,11 +226,11 @@ private:
   // out this version of `onReady` and force the use of the preferred `onReady`
   // (which works because `std::bind` will just ignore the `const T&` argument).
   // This is necessary because Visual Studio 2015 doesn't support using the
-  // `std::bind` call operator with `std::result_of` as it's technically not a
+  // `std::bind` call operator with `result_of` as it's technically not a
   // requirement by the C++ standard.
   template <
       typename F,
-      typename = typename std::result_of<typename std::enable_if<
+      typename = typename result_of<typename std::enable_if<
           !std::is_bind_expression<typename std::decay<F>::type>::value,
           F>::type()>::type>
   const Future<T>& onReady(F&& f, LessPrefer) const
@@ -254,7 +254,7 @@ private:
   // conditions are necessary.
   template <
       typename F,
-      typename = typename std::result_of<typename std::enable_if<
+      typename = typename result_of<typename std::enable_if<
           !std::is_bind_expression<typename std::decay<F>::type>::value,
           F>::type()>::type>
   const Future<T>& onFailed(F&& f, LessPrefer) const
@@ -278,7 +278,7 @@ private:
   // conditions are necessary.
   template <
       typename F,
-      typename = typename std::result_of<typename std::enable_if<
+      typename = typename result_of<typename std::enable_if<
           !std::is_bind_expression<typename std::decay<F>::type>::value,
           F>::type()>::type>
   const Future<T>& onAny(F&& f, LessPrefer) const
@@ -364,7 +364,7 @@ private:
   template <
       typename F,
       typename X = typename internal::unwrap<
-          typename std::result_of<typename std::enable_if<
+          typename result_of<typename std::enable_if<
               !std::is_bind_expression<typename std::decay<F>::type>::value,
               F>::type()>::type>::type>
   Future<X> then(_Deferred<F>&& f, LessPrefer) const
@@ -383,7 +383,7 @@ private:
   template <
       typename F,
       typename X = typename internal::unwrap<
-          typename std::result_of<typename std::enable_if<
+          typename result_of<typename std::enable_if<
               !std::is_bind_expression<typename std::decay<F>::type>::value,
               F>::type()>::type>::type>
   Future<X> then(F&& f, LessPrefer) const
