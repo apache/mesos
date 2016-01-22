@@ -577,6 +577,7 @@ TEST_F(HierarchicalAllocatorTest, SmallOfferFilterTimeout)
       {std::make_pair(framework1.id(), agent1.resources())});
 
   // Process all triggered allocation events.
+  //
   // NOTE: No allocations happen because there are no resources to allocate.
   Clock::settle();
 
@@ -795,7 +796,7 @@ TEST_F(HierarchicalAllocatorTest, CoarseGrained)
   AWAIT_READY(allocation);
   frameworkAllocations[allocation.get().frameworkId] = allocation.get();
 
-  // Note that slave1 and slave2 have the same resources, we don't
+  // NOTE: `slave1` and `slave2` have the same resources, we don't
   // care which framework received which slave.. only that they each
   // received one.
   ASSERT_TRUE(frameworkAllocations.contains(framework1.id()));
@@ -1444,6 +1445,7 @@ TEST_F(HierarchicalAllocatorTest, QuotaProvidesQuarantee)
       framework2.id(), framework2, hashmap<SlaveID, Resources>());
 
   // Process all triggered allocation events.
+  //
   // NOTE: No allocations happen because there are no resources to allocate.
   Clock::settle();
 
@@ -1510,6 +1512,7 @@ TEST_F(HierarchicalAllocatorTest, QuotaProvidesQuarantee)
   // checking methods. Consider adding `process::Queue::empty()` or
   // refactor the test harness so that we can reason about whether the
   // Hierarchical allocator has assigned expected allocations or not.
+  //
   // NOTE: It is hard to capture the absense of an allocation in a
   // general case, because an allocator may be complex enough to postpone
   // decisions beyond its allocation cycle.
@@ -1601,6 +1604,7 @@ TEST_F(HierarchicalAllocatorTest, RemoveQuota)
   allocator->removeQuota(QUOTA_ROLE);
 
   // Process all triggered allocation events.
+  //
   // NOTE: No allocations happen because there are no resources to allocate.
   Clock::settle();
 
@@ -1659,6 +1663,7 @@ TEST_F(HierarchicalAllocatorTest, MultipleFrameworksInRoleWithQuota)
       framework2.id(), framework2, hashmap<SlaveID, Resources>());
 
   // Process all triggered allocation events.
+  //
   // NOTE: No allocations happen because there are no resources to allocate.
   Clock::settle();
 
@@ -1780,6 +1785,7 @@ TEST_F(HierarchicalAllocatorTest, QuotaAllocationGranularity)
       framework2.id(), framework2, hashmap<SlaveID, Resources>());
 
   // Process all triggered allocation events.
+  //
   // NOTE: No allocations happen because there are no resources to allocate.
   Clock::settle();
 
@@ -1846,6 +1852,7 @@ TEST_F(HierarchicalAllocatorTest, DRFWithQuota)
       hashmap<SlaveID, Resources>());
 
   // Process all triggered allocation events.
+  //
   // NOTE: No allocations happen because there are no resources to allocate.
   Clock::settle();
 
@@ -1947,6 +1954,7 @@ TEST_F(HierarchicalAllocatorTest, QuotaAgainstStarvation)
       {std::make_pair(framework1.id(), agent1.resources())});
 
   // Process all triggered allocation events.
+  //
   // NOTE: No allocations happen because all resources are already allocated.
   Clock::settle();
 
@@ -2060,6 +2068,7 @@ TEST_F(HierarchicalAllocatorTest, QuotaAbsentFramework)
       framework.id(), framework, hashmap<SlaveID, Resources>());
 
   // Process all triggered allocation events.
+  //
   // NOTE: No allocations happen because there are no resources to allocate.
   Clock::settle();
 
@@ -2067,6 +2076,7 @@ TEST_F(HierarchicalAllocatorTest, QuotaAbsentFramework)
   SlaveInfo agent2 = createSlaveInfo("cpus:1;mem:512;disk:0");
 
   // Each `addSlave()` triggers an event-based allocation.
+  //
   // NOTE: The second event-based allocation for `agent2` takes into account
   // that `agent1`'s resources are laid away for `QUOTA_ROLE`'s quota and
   // hence freely allocates for the non-quota'ed `NO_QUOTA_ROLE` role.
@@ -2192,6 +2202,7 @@ TEST_F(HierarchicalAllocatorTest, MultiQuotaWithFrameworks)
       framework2.id(), framework2, hashmap<SlaveID, Resources>());
 
   // Process all triggered allocation events.
+  //
   // NOTE: No allocations happen because there are no resources to allocate.
   Clock::settle();
 
