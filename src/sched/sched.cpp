@@ -1802,19 +1802,20 @@ Status MesosSchedulerDriver::abort()
 
 Status MesosSchedulerDriver::join()
 {
-  // Exit early if the driver is not running.
+  // We can use the process pointer to detect if the driver was ever
+  // started properly. If it wasn't, we return the current status
+  // (which should either be DRIVER_NOT_STARTED or DRIVER_ABORTED).
   synchronized (mutex) {
-    if (status != DRIVER_RUNNING) {
+    if (process == NULL) {
+      CHECK(status == DRIVER_NOT_STARTED || status == DRIVER_ABORTED);
+
       return status;
     }
   }
 
-  // If the driver was running, the latch will be triggered regardless
-  // of the current `status`. Wait for this to happen to signify
-  // termination.
+  // Otherwise, wait for stop() or abort() to trigger the latch.
   CHECK_NOTNULL(latch)->await();
 
-  // Now return the current `status` of the driver.
   synchronized (mutex) {
     CHECK(status == DRIVER_ABORTED || status == DRIVER_STOPPED);
 
