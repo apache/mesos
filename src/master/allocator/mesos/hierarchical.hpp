@@ -328,6 +328,7 @@ protected:
     // Represents a scheduled unavailability due to maintenance for a specific
     // slave, and the responses from frameworks as to whether they will be able
     // to gracefully handle this unavailability.
+    //
     // NOTE: We currently implement maintenance in the allocator to be able to
     // leverage state and features such as the FrameworkSorter and OfferFilter.
     struct Maintenance
@@ -340,6 +341,7 @@ protected:
 
       // A mapping of frameworks to the inverse offer status associated with
       // this unavailability.
+      //
       // NOTE: We currently lose this information during a master fail over
       // since it is not persisted or replicated. This is ok as the new master's
       // allocator will send out new inverse offers and re-collect the
@@ -403,6 +405,7 @@ protected:
   //
   // NOTE: The hierarchical allocator considers oversubscribed
   // resources as regular resources when doing fairness calculations.
+  //
   // TODO(vinod): Consider using a different fairness algorithm for
   // oversubscribed resources.
 
@@ -422,6 +425,7 @@ protected:
   // registered frameworks.
   //
   // NOTE: This sorter counts only unreserved non-revocable resources.
+  //
   // TODO(alexr): Consider including dynamically reserved resources.
   Sorter* quotaRoleSorter;
 
@@ -432,6 +436,7 @@ protected:
   hashmap<std::string, Sorter*> frameworkSorters;
 
   // Factory functions for sorters.
+  //
   // NOTE: `quotaRoleSorter` currently reuses `roleSorterFactory`.
   const std::function<Sorter*()> roleSorterFactory;
   const std::function<Sorter*()> frameworkSorterFactory;

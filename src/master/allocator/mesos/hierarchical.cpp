@@ -78,6 +78,7 @@ private:
 
 
 // Used to represent "filters" for inverse offers.
+//
 // NOTE: Since this specific allocator implementation only sends inverse offers
 // for maintenance primitives, and those are at the whole slave level, we only
 // need to filter based on the time-out.
@@ -135,6 +136,7 @@ void HierarchicalAllocatorProcess::initialize(
   // non-quota'ed roles, hence a dedicated sorter for quota'ed roles is
   // necessary. We create an instance of the same sorter type we use for
   // all roles.
+  //
   // TODO(alexr): Consider introducing a sorter type for quota'ed roles.
   roleSorter = roleSorterFactory();
   quotaRoleSorter = roleSorterFactory();
@@ -1137,6 +1139,7 @@ void HierarchicalAllocatorProcess::allocate(
   }
 
   // Randomize the order in which slaves' resources are allocated.
+  //
   // TODO(vinod): Implement a smarter sorting algorithm.
   std::random_shuffle(slaveIds.begin(), slaveIds.end());
 
@@ -1155,14 +1158,17 @@ void HierarchicalAllocatorProcess::allocate(
 
       // Summing up resources is fine because quota is only for scalar
       // resources.
+      //
       // NOTE: Reserved and revocable resources are excluded in
       // `quotaRoleSorter`.
+      //
       // TODO(alexr): Consider including dynamically reserved resources.
       Resources roleConsumedResources =
         Resources::sum(quotaRoleSorter->allocation(role));
 
       // If quota for the role is satisfied, we do not need to do any further
       // allocations for this role, at least at this stage.
+      //
       // TODO(alexr): Skipping satisfied roles is pessimistic. Better
       // alternatives are:
       //   * A custom sorter that is aware of quotas and sorts accordingly.
@@ -1184,6 +1190,7 @@ void HierarchicalAllocatorProcess::allocate(
 
         // Quota is satisfied from the available unreserved non-revocable
         // resources on the agent.
+        //
         // TODO(alexr): Consider adding dynamically reserved resources.
         Resources available = slaves[slaveId].total - slaves[slaveId].allocated;
         Resources resources = available.unreserved().nonRevocable();
@@ -1213,6 +1220,7 @@ void HierarchicalAllocatorProcess::allocate(
 
         // Resources allocated as part of the quota count towards the
         // role's and the framework's fair share.
+        //
         // NOTE: Reserved and revocable resources have already been excluded.
         frameworkSorters[role]->add(slaveId, resources);
         frameworkSorters[role]->allocated(frameworkId_, slaveId, resources);
@@ -1243,6 +1251,7 @@ void HierarchicalAllocatorProcess::allocate(
   Resources unallocatedQuotaResources;
   foreachpair (const string& name, const Quota& quota, quotas) {
     // Compute the amount of quota that the role does not have allocated.
+    //
     // NOTE: Reserved and revocable resources are excluded in `quotaRoleSorter`.
     Resources allocated = Resources::sum(quotaRoleSorter->allocation(name));
     const Resources required = quota.info.guarantee();
@@ -1250,6 +1259,7 @@ void HierarchicalAllocatorProcess::allocate(
   }
 
   // Determine how many resources we may allocate during the next stage.
+  //
   // NOTE: Resources for quota allocations are already accounted in
   // `remainingClusterResources`.
   remainingClusterResources -= unallocatedQuotaResources;
@@ -1310,8 +1320,7 @@ void HierarchicalAllocatorProcess::allocate(
         // stage to use more than `remainingClusterResources`, move along.
         // We do not terminate early, as offers generated further in the
         // loop may be small enough to fit within `remainingClusterResources`.
-        if (!remainingClusterResources.contains(
-                 allocatedStage2 + resources)) {
+        if (!remainingClusterResources.contains(allocatedStage2 + resources)) {
           continue;
         }
 
@@ -1320,6 +1329,7 @@ void HierarchicalAllocatorProcess::allocate(
 
         // NOTE: We perform "coarse-grained" allocation, meaning that we always
         // allocate the entire remaining slave resources to a single framework.
+        //
         // NOTE: We may have already allocated some resources on the current
         // agent as part of quota.
         offerable[frameworkId][slaveId] += resources;
@@ -1406,6 +1416,7 @@ void HierarchicalAllocatorProcess::deallocate(
             if (!maintenance.offersOutstanding.contains(frameworkId)) {
               // Ignore in case the framework filters inverse offers for this
               // slave.
+              //
               // NOTE: Since this specific allocator implementation only sends
               // inverse offers for maintenance primitives, and those are at the
               // whole slave level, we only need to filter based on the
