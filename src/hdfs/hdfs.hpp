@@ -65,10 +65,6 @@ private:
   explicit HDFS(const std::string& _hadoop)
     : hadoop(_hadoop) {}
 
-  // Normalize an HDFS path such that it is either an absolute path or
-  // a full hdfs:// URL.
-  std::string absolutePath(const std::string& hdfsPath);
-
   const std::string hadoop;
 };
 

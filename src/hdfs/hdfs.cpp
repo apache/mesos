@@ -122,11 +122,26 @@ Try<Owned<HDFS>> HDFS::create(const Option<string>& _hadoop)
 }
 
 
+// An HDFS client path must be either a full URI or an absolute path. If it is
+// a relative path, prepend "/" to make it absolute. (Note that all URI schemes
+// supported by the HDFS client contain "://" whereas file paths never do.)
+static string normalize(const string& hdfsPath)
+{
+  if (strings::contains(hdfsPath, "://") || // A URI or a malformed path.
+      strings::startsWith(hdfsPath, "/")) { // Already an absolute path.
+    return hdfsPath;
+  }
+
+  // A relative, non-URI file path. Prepend "/".
+  return path::join("", hdfsPath);
+}
+
+
 Future<bool> HDFS::exists(const string& path)
 {
   Try<Subprocess> s = subprocess(
       hadoop,
-      {"hadoop", "fs", "-test", "-e", absolutePath(path)},
+      {"hadoop", "fs", "-test", "-e", normalize(path)},
       Subprocess::PATH("/dev/null"),
       Subprocess::PIPE(),
       Subprocess::PIPE());
@@ -161,7 +176,7 @@ Future<bool> HDFS::exists(const string& path)
 
 Future<Bytes> HDFS::du(const string& _path)
 {
-  const string path = absolutePath(_path);
+  const string path = normalize(_path);
 
   Try<Subprocess> s = subprocess(
       hadoop,
@@ -218,7 +233,7 @@ Future<Nothing> HDFS::rm(const string& path)
 {
   Try<Subprocess> s = subprocess(
       hadoop,
-      {"hadoop", "fs", "-rm", absolutePath(path)},
+      {"hadoop", "fs", "-rm", normalize(path)},
       Subprocess::PATH("/dev/null"),
       Subprocess::PIPE(),
       Subprocess::PIPE());
@@ -254,7 +269,7 @@ Future<Nothing> HDFS::copyFromLocal(const string& from, const string& to)
 
   Try<Subprocess> s = subprocess(
       hadoop,
-      {"hadoop", "fs", "-copyFromLocal", from, absolutePath(to)},
+      {"hadoop", "fs", "-copyFromLocal", from, normalize(to)},
       Subprocess::PATH("/dev/null"),
       Subprocess::PIPE(),
       Subprocess::PIPE());
@@ -286,7 +301,7 @@ Future<Nothing> HDFS::copyToLocal(const string& from, const string& to)
 {
   Try<Subprocess> s = subprocess(
       hadoop,
-      {"hadoop", "fs", "-copyToLocal", absolutePath(from), to},
+      {"hadoop", "fs", "-copyToLocal", normalize(from), to},
       Subprocess::PATH("/dev/null"),
       Subprocess::PIPE(),
       Subprocess::PIPE());
@@ -311,15 +326,4 @@ Future<Nothing> HDFS::copyToLocal(const string& from, const string& to)
 
       return Nothing();
     });
-}
-
-
-string HDFS::absolutePath(const string& hdfsPath)
-{
-  if (strings::startsWith(hdfsPath, "hdfs://") ||
-      strings::startsWith(hdfsPath, "/")) {
-    return hdfsPath;
-  }
-
-  return path::join("", hdfsPath);
 }
