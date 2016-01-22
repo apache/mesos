@@ -95,7 +95,7 @@ TEST_F(DockerTest, ROOT_DOCKER_interface)
   containerInfo.set_type(ContainerInfo::DOCKER);
 
   ContainerInfo::DockerInfo dockerInfo;
-  dockerInfo.set_image("busybox");
+  dockerInfo.set_image("alpine");
   containerInfo.mutable_docker()->CopyFrom(dockerInfo);
 
   CommandInfo commandInfo;
@@ -268,7 +268,7 @@ TEST_F(DockerTest, ROOT_DOCKER_CheckCommandWithShell)
   containerInfo.set_type(ContainerInfo::DOCKER);
 
   ContainerInfo::DockerInfo dockerInfo;
-  dockerInfo.set_image("busybox");
+  dockerInfo.set_image("alpine");
   containerInfo.mutable_docker()->CopyFrom(dockerInfo);
 
   CommandInfo commandInfo;
@@ -303,7 +303,7 @@ TEST_F(DockerTest, ROOT_DOCKER_CheckPortResource)
   containerInfo.set_type(ContainerInfo::DOCKER);
 
   ContainerInfo::DockerInfo dockerInfo;
-  dockerInfo.set_image("busybox");
+  dockerInfo.set_image("alpine");
   dockerInfo.set_network(ContainerInfo::DockerInfo::BRIDGE);
 
   ContainerInfo::DockerInfo::PortMapping portMapping;
@@ -401,7 +401,7 @@ TEST_F(DockerTest, ROOT_DOCKER_MountRelative)
   volume->set_mode(Volume::RO);
 
   ContainerInfo::DockerInfo dockerInfo;
-  dockerInfo.set_image("busybox");
+  dockerInfo.set_image("alpine");
 
   containerInfo.mutable_docker()->CopyFrom(dockerInfo);
 
@@ -450,7 +450,7 @@ TEST_F(DockerTest, ROOT_DOCKER_MountAbsolute)
   volume->set_mode(Volume::RO);
 
   ContainerInfo::DockerInfo dockerInfo;
-  dockerInfo.set_image("busybox");
+  dockerInfo.set_image("alpine");
 
   containerInfo.mutable_docker()->CopyFrom(dockerInfo);
 

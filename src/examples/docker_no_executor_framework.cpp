@@ -103,7 +103,7 @@ public:
         containerInfo.set_type(ContainerInfo::DOCKER);
 
         ContainerInfo::DockerInfo dockerInfo;
-        dockerInfo.set_image("busybox");
+        dockerInfo.set_image("alpine");
 
         containerInfo.mutable_docker()->CopyFrom(dockerInfo);
         task.mutable_container()->CopyFrom(containerInfo);
