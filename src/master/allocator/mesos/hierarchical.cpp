@@ -72,6 +72,7 @@ public:
     return resources.contains(_resources); // Refused resources are superset.
   }
 
+private:
   const Resources resources;
 };
 
@@ -107,6 +108,7 @@ public:
     return timeout.remaining() > Seconds(0);
   }
 
+private:
   const Timeout timeout;
 };
 
