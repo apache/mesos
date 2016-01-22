@@ -1281,10 +1281,13 @@ TEST_F(HierarchicalAllocatorTest, QuotaProvidesQuarantee)
   // general case, because an allocator may be complex enough to postpone
   // decisions beyond its allocation cycle.
 
-  // Now advance the clock to make sure the filter is expired. The next
-  // and only allocation should be the declined resources offered to the
-  // quota'ed role.
+  // Now advance the clock to make sure the filter is expired and removed.
   Clock::advance(Duration::create(filter5s.refuse_seconds()).get());
+  Clock::settle();
+
+  // Trigger the next periodic allocation. It should offer the previously
+  // declined resources to the quota'ed role.
+  Clock::advance(flags.allocation_interval);
   Clock::settle();
 
   allocation = allocations.get();
