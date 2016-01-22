@@ -1102,9 +1102,7 @@ void HierarchicalAllocatorProcess::allocate(
   Stopwatch stopwatch;
   stopwatch.start();
 
-  // TODO(bmahler): Add initializer list constructor for hashset.
-  hashset<SlaveID> slaves;
-  slaves.insert(slaveId);
+  hashset<SlaveID> slaves({slaveId});
   allocate(slaves);
 
   VLOG(1) << "Performed allocation for slave " << slaveId << " in "
