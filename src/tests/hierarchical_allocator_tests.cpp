@@ -1413,7 +1413,7 @@ TEST_F(HierarchicalAllocatorTest, Whitelist)
 //     resources as part of quota and do not re-offer them afterwards.
 
 // In the presence of quota'ed and non-quota'ed roles, if a framework in
-// the quota'ed role declines offers, some resources are kept aside for
+// the quota'ed role declines offers, some resources are laid away for
 // the role, so that a greedy framework from a non-quota'ed role cannot
 // eat up all free resources.
 TEST_F(HierarchicalAllocatorTest, QuotaProvidesQuarantee)
