@@ -22,6 +22,7 @@
 #include <mesos/executor.hpp>
 #include <mesos/scheduler.hpp>
 
+#include <process/clock.hpp>
 #include <process/future.hpp>
 #include <process/gmock.hpp>
 #include <process/http.hpp>
@@ -46,6 +47,7 @@ using google::protobuf::RepeatedPtrField;
 using mesos::internal::master::Master;
 using mesos::internal::slave::Slave;
 
+using process::Clock;
 using process::Future;
 using process::PID;
 
@@ -1101,6 +1103,141 @@ TEST_F(ReservationEndpointsTest, NonMatchingPrincipal)
       "reserve",
       createBasicAuthHeaders(DEFAULT_CREDENTIAL),
       createRequestBody(slaveId.get(), dynamicallyReserved));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response);
+
+  Shutdown();
+}
+
+
+// This tests the situation where framework and HTTP authentication are disabled
+// and no ACLs are set in the master. Currently, the reservation endpoints do
+// not work in this case because the master invalidates reserve and unreserve
+// operations with no authenticated principal or no principal set in
+// `ReservationInfo`. In 0.28.0, these endpoints will work in this case.
+//
+// TODO(greggomann): Change this test for 0.28.0; see comments below.
+TEST_F(ReservationEndpointsTest, ReserveAndUnreserveNoAuthentication)
+{
+  // Manipulate the clock manually in order to
+  // control the timing of the offer cycle.
+  Clock::pause();
+
+  TestAllocator<> allocator;
+
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_role("role");
+
+  // Create a master.
+  master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.authenticate_frameworks = false;
+  masterFlags.authenticate_http = false;
+
+  EXPECT_CALL(allocator, initialize(_, _, _, _));
+
+  Try<PID<Master>> master = StartMaster(&allocator, masterFlags);
+  ASSERT_SOME(master);
+
+  // Create an agent.
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  slaveFlags.resources = "cpus:1;mem:512";
+
+  Future<SlaveID> slaveId;
+  EXPECT_CALL(allocator, addSlave(_, _, _, _, _))
+    .WillOnce(DoAll(InvokeAddSlave(&allocator),
+                    FutureArg<0>(&slaveId)));
+
+  Try<PID<Slave>> slave = StartSlave(slaveFlags);
+  ASSERT_SOME(slave);
+
+  Resources unreserved = Resources::parse("cpus:1;mem:512").get();
+
+  Resources dynamicallyReservedWithNoPrincipal = unreserved.flatten(
+      frameworkInfo.role(),
+      createReservationInfo());
+
+  // Try a reservation with no principal in `ReservationInfo` and no
+  // authentication headers. This will fail because currently, dynamic
+  // reservations without either an authenticated principal or a principal in
+  // `ReservationInfo` are invalidated.
+  //
+  // TODO(greggomann): Update this request for 0.28.0. This request should
+  // succeed, but since `ReservationInfo.principal` is being migrated to
+  // `optional`, the request is currently invalidated.
+  Future<Response> response = process::http::post(
+      master.get(),
+      "reserve",
+      None(),
+      createRequestBody(slaveId.get(), dynamicallyReservedWithNoPrincipal));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response);
+
+  // Create a framework that we can use to dynamically reserve some resources
+  // that we will then attempt to unreserve.
+  //
+  // TODO(greggomann): Remove this reserving framework for 0.28.0. It will no
+  // longer be needed once the HTTP reserve request succeeds.
+  MockScheduler sched;
+  MesosSchedulerDriver driver(&sched, frameworkInfo, master.get());
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  // Expect an offer from the agent.
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  EXPECT_FALSE(offers.get().empty());
+
+  Offer offer = offers.get()[0];
+
+  // We use this filter so that resources will not
+  // be filtered for 5 seconds (by default).
+  Filters filters;
+  filters.set_refuse_seconds(0);
+
+  Resources dynamicallyReservedWithDefaultPrincipal =
+    unreserved.flatten(
+        "role", createReservationInfo(frameworkInfo.principal()));
+
+  // Dynamically reserve resources using `acceptOffers`.
+  driver.acceptOffers(
+      {offer.id()},
+      {RESERVE(dynamicallyReservedWithDefaultPrincipal)},
+      filters);
+
+  // Expect another offer.
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  Clock::settle();
+  Clock::advance(masterFlags.allocation_interval);
+
+  AWAIT_READY(offers);
+  EXPECT_FALSE(offers.get().empty());
+
+  offer = offers.get()[0];
+
+  // Check that the reserved resources are contained in this offer.
+  EXPECT_TRUE(Resources(offer.resources()).contains(
+      dynamicallyReservedWithDefaultPrincipal));
+
+  // Try to unreserve with no principal in `ReservationInfo` and no
+  // authentication headers. This will fail because currently, unreserve
+  // operations without either an authenticated principal or a principal in
+  // `ReservationInfo` are invalidated.
+  //
+  // TODO(greggomann): Update this request for 0.28.0. This request should
+  // succeed, but since `ReservationInfo.principal` is being migrated to
+  // `optional`, the request is currently invalidated.
+  response = process::http::post(
+      master.get(),
+      "unreserve",
+      None(),
+      createRequestBody(slaveId.get(), dynamicallyReservedWithNoPrincipal));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response);
 
