@@ -5,6 +5,7 @@
 
 import atexit
 import json
+import os
 import subprocess
 import sys
 import urllib
@@ -13,6 +14,7 @@ import urllib2
 from datetime import datetime, timedelta
 
 REVIEWBOARD_URL = "https://reviews.apache.org"
+REVIEW_SIZE = 1000000 # 1 MB in bytes.
 
 # TODO(vinod): Use 'argparse' module.
 # Get the user and password from command line.
@@ -138,12 +140,16 @@ def verify_review(review_request):
             "Reviews applied: %s\n\n" \
             "Passed command: %s" % (applied, command))
     except subprocess.CalledProcessError as e:
+        # Truncate the output as it can be very large.
+        output = "...<truncated>...\n" + e.output[-REVIEW_SIZE:]
+        output = output + "\nFull log: " + os.path.join(os.environ['BUILD_URL'], 'console')
+
         post_review(
             review_request,
             "Bad patch!\n\n" \
             "Reviews applied: %s\n\n" \
             "Failed command: %s\n\n" \
-            "Error:\n %s" % (applied, e.cmd, e.output))
+            "Error:\n %s" % (applied, e.cmd, output))
     except ReviewError as e:
         post_review(
             review_request,
