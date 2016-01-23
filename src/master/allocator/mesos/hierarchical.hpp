@@ -431,9 +431,11 @@ protected:
   // `roleSorter` only contains entries for roles with one or more
   // registered frameworks.
   //
-  // NOTE: This sorter counts only unreserved non-revocable resources.
-  //
-  // TODO(alexr): Consider including dynamically reserved resources.
+  // NOTE: We do not include revocable resources in the quota role sorter,
+  // because the quota role sorter's job is to perform fair sharing between
+  // the quota roles as it pertains to their level of quota satisfaction.
+  // Since revocable resources do not increase a role's level of satisfaction
+  // toward its quota, we choose to exclude them from the quota role sorter.
   Sorter* quotaRoleSorter;
 
   // A collection of sorters, one per active role. Each sorter determines
