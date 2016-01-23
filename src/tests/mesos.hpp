@@ -476,10 +476,14 @@ inline TaskInfo createTask(
 
 
 inline Resource::ReservationInfo createReservationInfo(
-    const std::string& principal)
+    const Option<std::string>& principal = None())
 {
   Resource::ReservationInfo info;
-  info.set_principal(principal);
+
+  if (principal.isSome()) {
+    info.set_principal(principal.get());
+  }
+
   return info;
 }
 
