@@ -119,6 +119,8 @@ def cleanup():
 
 def verify_review(review_request):
     print "Verifying review %s" % review_request["id"]
+    build_output = "build_" + str(review_request["id"])
+
     try:
         # Recursively apply the review and its dependents.
         applied = []
@@ -131,7 +133,12 @@ def verify_review(review_request):
         configuration = "export OS=ubuntu:14.04;export CONFIGURATION=\"--verbose\";export COMPILER=gcc"
         command = "%s; ./support/docker_build.sh" % configuration
 
-        shell(command)
+
+        # `tee` the output so that the console can log the whole build output.
+        # `pipefail` ensures that the exit status of the build command is
+        # preserved even after tee'ing.
+        subprocess.check_call(['bash', '-c', 'set -o pipefail; %s 2>&1 | tee %s'
+                               % (command, build_output)])
 
         # Success!
         post_review(
@@ -140,8 +147,13 @@ def verify_review(review_request):
             "Reviews applied: %s\n\n" \
             "Passed command: %s" % (applied, command))
     except subprocess.CalledProcessError as e:
-        # Truncate the output as it can be very large.
-        output = "...<truncated>...\n" + e.output[-REVIEW_SIZE:]
+        # If we are here because the docker build command failed, read the
+        # output from `build_output` file. For all other command failures read
+        # the output from `e.output`.
+        output = open(build_output).read() if os.path.exists(build_output) else e.output
+
+        # Truncate the output when posting the review as it can be very large.
+        output = output if len(output) <= REVIEW_SIZE else "...<truncated>...\n" + output[-REVIEW_SIZE:]
         output = output + "\nFull log: " + os.path.join(os.environ['BUILD_URL'], 'console')
 
         post_review(
@@ -149,13 +161,13 @@ def verify_review(review_request):
             "Bad patch!\n\n" \
             "Reviews applied: %s\n\n" \
             "Failed command: %s\n\n" \
-            "Error:\n %s" % (applied, e.cmd, output))
+            "Error:\n%s" % (applied, e.cmd, output))
     except ReviewError as e:
         post_review(
             review_request,
             "Bad review!\n\n" \
             "Reviews applied: %s\n\n" \
-            "Error:\n %s" % (applied, e.args[0]))
+            "Error:\n%s" % (applied, e.args[0]))
 
     # Clean up.
     cleanup()
