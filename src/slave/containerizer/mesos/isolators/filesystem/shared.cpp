@@ -77,9 +77,10 @@ Future<Nothing> SharedFilesystemIsolatorProcess::recover(
 
 Future<Option<ContainerLaunchInfo>> SharedFilesystemIsolatorProcess::prepare(
     const ContainerID& containerId,
-    const ExecutorInfo& executorInfo,
     const ContainerConfig& containerConfig)
 {
+  const ExecutorInfo& executorInfo = containerConfig.executorinfo();
+
   if (executorInfo.has_container() &&
       executorInfo.container().type() != ContainerInfo::MESOS) {
     return Failure("Can only prepare filesystem for a MESOS container");

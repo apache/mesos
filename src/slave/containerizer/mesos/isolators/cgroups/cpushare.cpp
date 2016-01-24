@@ -246,7 +246,6 @@ Future<Nothing> CgroupsCpushareIsolatorProcess::recover(
 
 Future<Option<ContainerLaunchInfo>> CgroupsCpushareIsolatorProcess::prepare(
     const ContainerID& containerId,
-    const ExecutorInfo& executorInfo,
     const ContainerConfig& containerConfig)
 {
   if (infos.contains(containerId)) {
@@ -289,7 +288,7 @@ Future<Option<ContainerLaunchInfo>> CgroupsCpushareIsolatorProcess::prepare(
     }
   }
 
-  return update(containerId, executorInfo.resources())
+  return update(containerId, containerConfig.executorinfo().resources())
     .then([]() -> Future<Option<ContainerLaunchInfo>> {
       return None();
     });

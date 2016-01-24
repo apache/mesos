@@ -355,7 +355,6 @@ map<string, string> executorEnvironment(
   return environment;
 }
 
-
 } // namespace slave {
 } // namespace internal {
 } // namespace mesos {

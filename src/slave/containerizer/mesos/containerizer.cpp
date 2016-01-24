@@ -647,7 +647,7 @@ Future<bool> MesosContainerizerProcess::launch(
   containers_.put(containerId, Owned<Container>(container));
 
   if (!executorInfo.has_container()) {
-    return prepare(containerId, executorInfo, directory, user, None())
+    return prepare(containerId, taskInfo, executorInfo, directory, user, None())
       .then(defer(self(),
                   &Self::__launch,
                   containerId,
@@ -665,6 +665,7 @@ Future<bool> MesosContainerizerProcess::launch(
 
   if (!executorInfo.container().mesos().has_image()) {
     return _launch(containerId,
+                   taskInfo,
                    executorInfo,
                    directory,
                    user,
@@ -680,6 +681,7 @@ Future<bool> MesosContainerizerProcess::launch(
     .then(defer(PID<MesosContainerizerProcess>(this),
                 &MesosContainerizerProcess::_launch,
                 containerId,
+                taskInfo,
                 executorInfo,
                 directory,
                 user,
@@ -692,6 +694,7 @@ Future<bool> MesosContainerizerProcess::launch(
 
 Future<bool> MesosContainerizerProcess::_launch(
     const ContainerID& containerId,
+    const Option<TaskInfo>& taskInfo,
     const ExecutorInfo& executorInfo,
     const string& directory,
     const Option<string>& user,
@@ -737,6 +740,7 @@ Future<bool> MesosContainerizerProcess::_launch(
   return collect(futures)
     .then([=]() -> Future<bool> {
       return prepare(containerId,
+                     taskInfo,
                      *_executorInfo,
                      directory,
                      user,
@@ -767,18 +771,18 @@ static list<Option<ContainerLaunchInfo>> accumulate(
 static Future<list<Option<ContainerLaunchInfo>>> _prepare(
     const Owned<Isolator>& isolator,
     const ContainerID& containerId,
-    const ExecutorInfo& executorInfo,
     const ContainerConfig& containerConfig,
     const list<Option<ContainerLaunchInfo>> launchInfos)
 {
   // Propagate any failure.
-  return isolator->prepare(containerId, executorInfo, containerConfig)
+  return isolator->prepare(containerId, containerConfig)
     .then(lambda::bind(&accumulate, launchInfos, lambda::_1));
 }
 
 
 Future<list<Option<ContainerLaunchInfo>>> MesosContainerizerProcess::prepare(
     const ContainerID& containerId,
+    const Option<TaskInfo>& taskInfo,
     const ExecutorInfo& executorInfo,
     const string& directory,
     const Option<string>& user,
@@ -789,6 +793,11 @@ Future<list<Option<ContainerLaunchInfo>>> MesosContainerizerProcess::prepare(
   // Construct ContainerConfig.
   ContainerConfig containerConfig;
   containerConfig.set_directory(directory);
+  containerConfig.mutable_executorinfo()->CopyFrom(executorInfo);
+
+  if (taskInfo.isSome()) {
+    containerConfig.mutable_taskinfo()->CopyFrom(taskInfo.get());
+  }
 
   if (user.isSome()) {
     containerConfig.set_user(user.get());
@@ -809,7 +818,6 @@ Future<list<Option<ContainerLaunchInfo>>> MesosContainerizerProcess::prepare(
     f = f.then(lambda::bind(&_prepare,
                             isolator,
                             containerId,
-                            executorInfo,
                             containerConfig,
                             lambda::_1));
   }

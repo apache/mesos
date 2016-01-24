@@ -185,6 +185,7 @@ private:
 
   process::Future<std::list<Option<mesos::slave::ContainerLaunchInfo>>>
     prepare(const ContainerID& containerId,
+            const Option<TaskInfo>& taskInfo,
             const ExecutorInfo& executorInfo,
             const std::string& directory,
             const Option<std::string>& user,
@@ -199,6 +200,7 @@ private:
 
   process::Future<bool> _launch(
       const ContainerID& containerId,
+      const Option<TaskInfo>& taskInfo,
       const ExecutorInfo& executorInfo,
       const std::string& directory,
       const Option<std::string>& user,

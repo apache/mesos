@@ -57,7 +57,6 @@ public:
   // ignored; only the command value is used.
   virtual process::Future<Option<ContainerLaunchInfo>> prepare(
       const ContainerID& containerId,
-      const ExecutorInfo& executorInfo,
       const ContainerConfig& containerConfig) = 0;
 
   // Isolate the executor.

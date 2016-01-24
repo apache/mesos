@@ -68,21 +68,24 @@ message ContainerState
  * during `prepare`.
  */
 message ContainerConfig {
-  // The root filesystem for the container.
-  optional string rootfs = 1;
+  required ExecutorInfo executorInfo = 1;
+  optional TaskInfo taskInfo = 2;
 
   // The work directory for the container in the host filesystem.
-  required string directory = 2;
+  required string directory = 3;
 
   // The user the task will be run as.
-  optional string user = 3;
+  optional string user = 4;
+
+  // The root filesystem for the container.
+  optional string rootfs = 5;
 
   // Docker v1 image manifest.
   message Docker {
     optional docker.spec.v1.ImageManifest manifest = 1;
   }
 
-  optional Docker docker = 4;
+  optional Docker docker = 7;
 
   // TODO(gilbert): Add appc image manifest.
 }

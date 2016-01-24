@@ -457,12 +457,12 @@ TEST_F(PortMappingIsolatorTest, ROOT_NC_ContainerToContainerTCP)
   ASSERT_SOME(dir1);
 
   ContainerConfig containerConfig1;
+  containerConfig1.mutable_executorinfo()->CopyFrom(executorInfo);
   containerConfig1.set_directory(dir1.get());
 
   Future<Option<ContainerLaunchInfo>> launchInfo1 =
     isolator.get()->prepare(
         containerId1,
-        executorInfo,
         containerConfig1);
 
   AWAIT_READY(launchInfo1);
@@ -526,12 +526,12 @@ TEST_F(PortMappingIsolatorTest, ROOT_NC_ContainerToContainerTCP)
   ASSERT_SOME(dir2);
 
   ContainerConfig containerConfig2;
+  containerConfig2.mutable_executorinfo()->CopyFrom(executorInfo);
   containerConfig2.set_directory(dir2.get());
 
   Future<Option<ContainerLaunchInfo>> launchInfo2 =
     isolator.get()->prepare(
         containerId2,
-        executorInfo,
         containerConfig2);
 
   AWAIT_READY(launchInfo2);
@@ -620,12 +620,12 @@ TEST_F(PortMappingIsolatorTest, ROOT_NC_ContainerToContainerUDP)
   ASSERT_SOME(dir1);
 
   ContainerConfig containerConfig1;
+  containerConfig1.mutable_executorinfo()->CopyFrom(executorInfo);
   containerConfig1.set_directory(dir1.get());
 
   Future<Option<ContainerLaunchInfo>> launchInfo1 =
     isolator.get()->prepare(
         containerId1,
-        executorInfo,
         containerConfig1);
 
   AWAIT_READY(launchInfo1);
@@ -689,12 +689,12 @@ TEST_F(PortMappingIsolatorTest, ROOT_NC_ContainerToContainerUDP)
   ASSERT_SOME(dir2);
 
   ContainerConfig containerConfig2;
+  containerConfig2.mutable_executorinfo()->CopyFrom(executorInfo);
   containerConfig2.set_directory(dir2.get());
 
   Future<Option<ContainerLaunchInfo>> launchInfo2 =
     isolator.get()->prepare(
         containerId2,
-        executorInfo,
         containerConfig2);
 
   AWAIT_READY(launchInfo2);
@@ -785,12 +785,12 @@ TEST_F(PortMappingIsolatorTest, ROOT_NC_HostToContainerUDP)
   ASSERT_SOME(dir);
 
   ContainerConfig containerConfig;
+  containerConfig.mutable_executorinfo()->CopyFrom(executorInfo);
   containerConfig.set_directory(dir.get());
 
   Future<Option<ContainerLaunchInfo>> launchInfo =
     isolator.get()->prepare(
         containerId,
-        executorInfo,
         containerConfig);
 
   AWAIT_READY(launchInfo);
@@ -903,12 +903,12 @@ TEST_F(PortMappingIsolatorTest, ROOT_NC_HostToContainerTCP)
   ASSERT_SOME(dir);
 
   ContainerConfig containerConfig;
+  containerConfig.mutable_executorinfo()->CopyFrom(executorInfo);
   containerConfig.set_directory(dir.get());
 
   Future<Option<ContainerLaunchInfo>> launchInfo =
     isolator.get()->prepare(
         containerId,
-        executorInfo,
         containerConfig);
 
   AWAIT_READY(launchInfo);
@@ -1029,12 +1029,12 @@ TEST_F(PortMappingIsolatorTest, ROOT_ContainerICMPExternal)
   ASSERT_SOME(dir);
 
   ContainerConfig containerConfig;
+  containerConfig.mutable_executorinfo()->CopyFrom(executorInfo);
   containerConfig.set_directory(dir.get());
 
   Future<Option<ContainerLaunchInfo>> launchInfo =
     isolator.get()->prepare(
         containerId,
-        executorInfo,
         containerConfig);
 
   AWAIT_READY(launchInfo);
@@ -1116,12 +1116,12 @@ TEST_F(PortMappingIsolatorTest, ROOT_ContainerICMPInternal)
   ASSERT_SOME(dir);
 
   ContainerConfig containerConfig;
+  containerConfig.mutable_executorinfo()->CopyFrom(executorInfo);
   containerConfig.set_directory(dir.get());
 
   Future<Option<ContainerLaunchInfo>> launchInfo =
     isolator.get()->prepare(
         containerId,
-        executorInfo,
         containerConfig);
 
   AWAIT_READY(launchInfo);
@@ -1206,12 +1206,12 @@ TEST_F(PortMappingIsolatorTest, ROOT_ContainerARPExternal)
   ASSERT_SOME(dir);
 
   ContainerConfig containerConfig;
+  containerConfig.mutable_executorinfo()->CopyFrom(executorInfo);
   containerConfig.set_directory(dir.get());
 
   Future<Option<ContainerLaunchInfo>> launchInfo =
     isolator.get()->prepare(
         containerId,
-        executorInfo,
         containerConfig);
 
   AWAIT_READY(launchInfo);
@@ -1302,12 +1302,12 @@ TEST_F(PortMappingIsolatorTest, ROOT_DNS)
   ASSERT_SOME(dir);
 
   ContainerConfig containerConfig;
+  containerConfig.mutable_executorinfo()->CopyFrom(executorInfo);
   containerConfig.set_directory(dir.get());
 
   Future<Option<ContainerLaunchInfo>> launchInfo =
     isolator.get()->prepare(
         containerId,
-        executorInfo,
         containerConfig);
 
   AWAIT_READY(launchInfo);
@@ -1394,12 +1394,12 @@ TEST_F(PortMappingIsolatorTest, ROOT_TooManyContainers)
   ASSERT_SOME(dir1);
 
   ContainerConfig containerConfig1;
+  containerConfig1.mutable_executorinfo()->CopyFrom(executorInfo);
   containerConfig1.set_directory(dir1.get());
 
   Future<Option<ContainerLaunchInfo>> launchInfo1 =
     isolator.get()->prepare(
         containerId1,
-        executorInfo,
         containerConfig1);
 
   AWAIT_READY(launchInfo1);
@@ -1447,12 +1447,12 @@ TEST_F(PortMappingIsolatorTest, ROOT_TooManyContainers)
   ASSERT_SOME(dir2);
 
   ContainerConfig containerConfig2;
+  containerConfig2.mutable_executorinfo()->CopyFrom(executorInfo);
   containerConfig2.set_directory(dir2.get());
 
   Future<Option<ContainerLaunchInfo>> launchInfo2 =
     isolator.get()->prepare(
         containerId2,
-        executorInfo,
         containerConfig2);
 
   AWAIT_FAILED(launchInfo2);
@@ -1513,12 +1513,12 @@ TEST_F(PortMappingIsolatorTest, ROOT_NC_SmallEgressLimit)
   ASSERT_SOME(dir);
 
   ContainerConfig containerConfig;
+  containerConfig.mutable_executorinfo()->CopyFrom(executorInfo);
   containerConfig.set_directory(dir.get());
 
   Future<Option<ContainerLaunchInfo>> launchInfo =
     isolator.get()->prepare(
         containerId,
-        executorInfo,
         containerConfig);
 
   AWAIT_READY(launchInfo);
@@ -1668,12 +1668,12 @@ TEST_F(PortMappingIsolatorTest, ROOT_NC_PortMappingStatistics)
   ASSERT_SOME(dir);
 
   ContainerConfig containerConfig;
+  containerConfig.mutable_executorinfo()->CopyFrom(executorInfo);
   containerConfig.set_directory(dir.get());
 
   Future<Option<ContainerLaunchInfo>> launchInfo =
     isolator.get()->prepare(
         containerId,
-        executorInfo,
         containerConfig);
 
   AWAIT_READY(launchInfo);

@@ -105,7 +105,6 @@ Future<Nothing> PosixDiskIsolatorProcess::recover(
 
 Future<Option<ContainerLaunchInfo>> PosixDiskIsolatorProcess::prepare(
     const ContainerID& containerId,
-    const ExecutorInfo& executorInfo,
     const ContainerConfig& containerConfig)
 {
   if (infos.contains(containerId)) {

@@ -59,13 +59,11 @@ Future<Nothing> MesosIsolator::recover(
 
 Future<Option<ContainerLaunchInfo>> MesosIsolator::prepare(
     const ContainerID& containerId,
-    const ExecutorInfo& executorInfo,
     const ContainerConfig& containerConfig)
 {
   return dispatch(process.get(),
                   &MesosIsolatorProcess::prepare,
                   containerId,
-                  executorInfo,
                   containerConfig);
 }
 

@@ -208,7 +208,6 @@ Future<Nothing> CgroupsPerfEventIsolatorProcess::recover(
 
 Future<Option<ContainerLaunchInfo>> CgroupsPerfEventIsolatorProcess::prepare(
     const ContainerID& containerId,
-    const ExecutorInfo& executorInfo,
     const ContainerConfig& containerConfig)
 {
   if (infos.contains(containerId)) {

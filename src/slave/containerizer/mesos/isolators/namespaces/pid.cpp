@@ -154,7 +154,6 @@ Future<Nothing> NamespacesPidIsolatorProcess::recover(
 
 Future<Option<ContainerLaunchInfo>> NamespacesPidIsolatorProcess::prepare(
     const ContainerID& containerId,
-    const ExecutorInfo& executorInfo,
     const ContainerConfig& containerConfig)
 {
   ContainerLaunchInfo launchInfo;

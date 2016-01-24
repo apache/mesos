@@ -233,7 +233,6 @@ Future<Nothing> CgroupsMemIsolatorProcess::recover(
 
 Future<Option<ContainerLaunchInfo>> CgroupsMemIsolatorProcess::prepare(
     const ContainerID& containerId,
-    const ExecutorInfo& executorInfo,
     const ContainerConfig& containerConfig)
 {
   if (infos.contains(containerId)) {
@@ -279,7 +278,7 @@ Future<Option<ContainerLaunchInfo>> CgroupsMemIsolatorProcess::prepare(
   oomListen(containerId);
   pressureListen(containerId);
 
-  return update(containerId, executorInfo.resources())
+  return update(containerId, containerConfig.executorinfo().resources())
     .then([]() -> Future<Option<ContainerLaunchInfo>> {
       return None();
     });
