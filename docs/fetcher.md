@@ -233,8 +233,8 @@ The respective environment variable name is `[protocol]_proxy`, where
 
 For example, the value of the `http_proxy` environment variable would be used
 as the proxy for fetching http contents, while `https_proxy` would be used for
-fetching https contents. Pay attention that the name must be in all lower
-case.
+fetching https contents. Pay attention that these variable names must be
+entirely in lower case.
 
 The value of the proxy variable is of the format
 `[protocol://][user:password@]machine[:port]`, where `protocol` can be one of
