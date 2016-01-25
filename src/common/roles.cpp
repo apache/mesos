@@ -56,13 +56,15 @@ static const string INVALID_CHARACTERS = "\x09\x0a\x0b\x0c\x0d\x20\x2f\x7f";
 
 Option<Error> validate(const string& role)
 {
+  static const string dot = ".";
+  static const string dotdot = "..";
   if (role.empty()) {
     return Error("Empty role name is invalid.");
-  } else if (role == ".") {
+  } else if (role == dot) {
     return Error("Role name '.' is invalid.");
-  } else if (role == "..") {
+  } else if (role == dotdot) {
     return Error("Role name '..' is invalid.");
-  } else if (strings::startsWith(role, "-")) {
+  } else if (role[0] == '-') {
     return Error("Role name '" + role + "' is invalid "
                  "because it starts with a dash.");
   }
