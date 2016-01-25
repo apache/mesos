@@ -2244,6 +2244,81 @@ TEST_F(HierarchicalAllocatorTest, MultiQuotaWithFrameworks)
 }
 
 
+// This tests that reserved resources are accounted for in the role's quota.
+TEST_F(HierarchicalAllocatorTest, ReservationWithinQuota)
+{
+  // Pausing the clock is not necessary, but ensures that the test
+  // doesn't rely on the periodic allocation in the allocator, which
+  // would slow down the test.
+  Clock::pause();
+
+  const string QUOTA_ROLE{"quota-role"};
+  const string NON_QUOTA_ROLE{"non-quota-role"};
+
+  initialize();
+
+  FrameworkInfo framework1 = createFrameworkInfo(QUOTA_ROLE);
+  FrameworkInfo framework2 = createFrameworkInfo(NON_QUOTA_ROLE);
+
+  const Quota quota = createQuota(QUOTA_ROLE, "cpus:2;mem:256");
+
+  // Notify allocator of agents, frameworks, quota and current allocations.
+  allocator->setQuota(QUOTA_ROLE, quota);
+
+  allocator->addFramework(
+      framework1.id(),
+      framework1,
+      hashmap<SlaveID, Resources>());
+
+  allocator->addFramework(
+      framework2.id(),
+      framework2,
+      hashmap<SlaveID, Resources>());
+
+  // Process all triggered allocation events.
+  //
+  // NOTE: No allocations happen because there are no resources to allocate.
+  Clock::settle();
+
+  // Some resources on `agent1` are now being used by `framework1` as part
+  // of its role quota. `framework2` will be offered the rest of `agent1`'s
+  // resources since `framework1`'s quota is satisfied, and `framework2` has
+  // no resources.
+  SlaveInfo agent1 = createSlaveInfo("cpus:8;mem(" + QUOTA_ROLE + "):256");
+  allocator->addSlave(
+      agent1.id(),
+      agent1,
+      None(),
+      agent1.resources(),
+      {std::make_pair(
+          framework1.id(),
+          // The `mem` portion is used to test that reserved resources are
+          // accounted for, and the `cpus` portion is allocated to show that
+          // the result of DRF would be different if `mem` was not accounted.
+          Resources::parse("cpus:2;mem(" + QUOTA_ROLE + "):256").get())});
+
+  Future<Allocation> allocation = allocations.get();
+  AWAIT_READY(allocation);
+  EXPECT_EQ(framework2.id(), allocation.get().frameworkId);
+
+  EXPECT_EQ(Resources::parse("cpus:6").get(),
+            Resources::sum(allocation.get().resources));
+
+  // Since the reserved resources account towards the quota as well as being
+  // accounted for DRF, we expect these resources to also be allocated to
+  // `framework2`.
+  SlaveInfo agent2 = createSlaveInfo("cpus:4");
+  allocator->addSlave(agent2.id(), agent2, None(), agent2.resources(), {});
+
+  allocation = allocations.get();
+  AWAIT_READY(allocation);
+  EXPECT_EQ(framework2.id(), allocation.get().frameworkId);
+
+  EXPECT_EQ(Resources::parse("cpus:4").get(),
+            Resources::sum(allocation.get().resources));
+}
+
+
 // This test checks that if a framework suppresses offers, disconnects and
 // reconnects again, it will start receiving resource offers again.
 TEST_F(HierarchicalAllocatorTest, DeactivateAndReactivateFramework)

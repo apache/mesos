@@ -1149,6 +1149,29 @@ void HierarchicalAllocatorProcess::allocate(
   // TODO(vinod): Implement a smarter sorting algorithm.
   std::random_shuffle(slaveIds.begin(), slaveIds.end());
 
+  // Returns the __amount__ of resources allocated to a quota role. Since we
+  // account for reservations and persistent volumes toward quota, we strip
+  // reservation and persistent volume related information for comparability.
+  // The result is used to determine whether a role's quota is satisfied, and
+  // also to determine how many resources the role would need in order to meet
+  // its quota.
+  //
+  // NOTE: Revocable resources are excluded in `quotaRoleSorter`.
+  auto getQuotaRoleAllocatedResources = [this](const std::string& role) {
+    CHECK(quotas.contains(role));
+
+    Resources resources = quotaRoleSorter->allocationScalars(role);
+
+    // Strip the reservation and persistent volume info.
+    foreach (Resource& resource, resources) {
+      resource.set_role("*");
+      resource.clear_reservation();
+      resource.clear_disk();
+    }
+
+    return resources;
+  };
+
   // Quota comes first and fair share second. Here we process only those
   // roles, for which quota is set (quota'ed roles). Such roles form a
   // special allocation group with a dedicated sorter.
@@ -1162,14 +1185,8 @@ void HierarchicalAllocatorProcess::allocate(
         continue;
       }
 
-      // Summing up resources is fine because quota is only for scalar
-      // resources.
-      //
-      // NOTE: Revocable resources are excluded in `quotaRoleSorter`.
-      //
-      // TODO(alexr): Consider including dynamically reserved resources.
-      Resources roleConsumedResources =
-        Resources::sum(quotaRoleSorter->allocation(role));
+      // Get the total amount of resources allocated to a quota role.
+      Resources roleConsumedResources = getQuotaRoleAllocatedResources(role);
 
       // If quota for the role is satisfied, we do not need to do any further
       // allocations for this role, at least at this stage.
@@ -1258,7 +1275,7 @@ void HierarchicalAllocatorProcess::allocate(
     // Compute the amount of quota that the role does not have allocated.
     //
     // NOTE: Revocable resources are excluded in `quotaRoleSorter`.
-    Resources allocated = Resources::sum(quotaRoleSorter->allocation(name));
+    Resources allocated = getQuotaRoleAllocatedResources(name);
     const Resources required = quota.info.guarantee();
     unallocatedQuotaResources += (required - allocated);
   }
