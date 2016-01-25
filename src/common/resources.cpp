@@ -1407,7 +1407,12 @@ Resources& Resources::operator-=(const Resource& that)
         // to do the validation because we want to strip negative
         // scalar Resource object.
         if (validate(*resource).isSome() || isEmpty(*resource)) {
-          resources.DeleteSubrange(i, 1);
+          // As `resources` is not ordered, and erasing an element
+          // from the middle using `DeleteSubrange` is expensive, we
+          // swap with the last element and then shrink the
+          // 'RepeatedPtrField' by one.
+          resources.Mutable(i)->Swap(resources.Mutable(resources.size() - 1));
+          resources.RemoveLast();
         }
 
         break;
