@@ -33,7 +33,7 @@ task :update_docs do
       puts "working on: #{doc}"
       IO.write(doc, File.open(doc) { |f|
         f.read
-          .gsub(/\(([^(]+)(\.md)\)/, '(/documentation/latest/\1/)')
+          .gsub(/\(([^(\/]+)\.md(\#.+?)?\)/, '(/documentation/latest/\1/\2)')
           .gsub(/\(images\/(.*)\)/, '(/assets/img/documentation/\1)')
       })
     }
