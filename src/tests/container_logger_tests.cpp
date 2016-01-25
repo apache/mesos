@@ -14,6 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <list>
 #include <string>
 #include <vector>
 
@@ -30,6 +31,7 @@
 #include <stout/try.hpp>
 
 #include <stout/os/exists.hpp>
+#include <stout/os/mkdir.hpp>
 #include <stout/os/pstree.hpp>
 #include <stout/os/stat.hpp>
 
@@ -39,22 +41,39 @@
 #include "slave/paths.hpp"
 #include "slave/slave.hpp"
 
+#include "slave/containerizer/docker.hpp"
 #include "slave/containerizer/fetcher.hpp"
 
 #include "slave/containerizer/mesos/containerizer.hpp"
 
+#include "slave/containerizer/mesos/provisioner/provisioner.hpp"
+
 #include "tests/flags.hpp"
 #include "tests/mesos.hpp"
 #include "tests/utils.hpp"
+
+#include "tests/containerizer/launcher.hpp"
 
 using namespace process;
 
 using mesos::internal::master::Master;
 
 using mesos::internal::slave::Fetcher;
+using mesos::internal::slave::Launcher;
 using mesos::internal::slave::MesosContainerizer;
+using mesos::internal::slave::PosixLauncher;
+using mesos::internal::slave::Provisioner;
 using mesos::internal::slave::Slave;
 
+using mesos::internal::slave::state::ExecutorState;
+using mesos::internal::slave::state::FrameworkState;
+using mesos::internal::slave::state::RunState;
+using mesos::internal::slave::state::SlaveState;
+
+using mesos::slave::ContainerLogger;
+using mesos::slave::Isolator;
+
+using std::list;
 using std::string;
 using std::vector;
 
@@ -71,6 +90,184 @@ const char LOGROTATE_CONTAINER_LOGGER_NAME[] =
 
 
 class ContainerLoggerTest : public MesosTest {};
+
+
+// Tests that the Mesos Containerizer will pass recovered containers
+// to the container logger for its own bookkeeping.
+TEST_F(ContainerLoggerTest, MesosContainerizerRecover)
+{
+  // Prepare a MesosContainerizer with a mocked container logger.
+  slave::Flags flags = CreateSlaveFlags();
+
+  Try<Launcher*> launcher = PosixLauncher::create(flags);
+  ASSERT_SOME(launcher);
+
+  Fetcher fetcher;
+
+  MockContainerLogger* logger = new MockContainerLogger();
+
+  Try<Owned<Provisioner>> provisioner = Provisioner::create(flags);
+  ASSERT_SOME(provisioner);
+
+  // Launch a quick task so that we have a valid PID to put in our
+  // mock `SlaveState`.  This is necessary as the containerizer will
+  // try to reap the PID.
+  Try<Subprocess> s = subprocess("exit 0");
+  ASSERT_SOME(s);
+
+  // Construct a mock `SlaveState`.
+  ExecutorID executorId;
+  executorId.set_value(UUID::random().toString());
+
+  ContainerID containerId;
+  containerId.set_value(UUID::random().toString());
+
+  ExecutorInfo executorInfo;
+  executorInfo.mutable_container()->set_type(ContainerInfo::MESOS);
+
+  ExecutorState executorState;
+  executorState.id = executorId;
+  executorState.info = executorInfo;
+  executorState.latest = containerId;
+
+  RunState runState;
+  runState.id = containerId;
+  runState.forkedPid = s->pid();
+  executorState.runs.put(containerId, runState);
+
+  FrameworkState frameworkState;
+  frameworkState.executors.put(executorId, executorState);
+
+  SlaveState slaveState;
+  FrameworkID frameworkId;
+  frameworkId.set_value(UUID::random().toString());
+  slaveState.frameworks.put(frameworkId, frameworkState);
+
+  const string sandboxDirectory = slave::paths::getExecutorRunPath(
+      flags.work_dir,
+      slaveState.id,
+      frameworkState.id,
+      executorId,
+      containerId);
+
+  // This is the crux of the test.  The logger's `recover` method
+  // should be called with this specific set of arguments when
+  // we call `Containerizer::recover`.
+  EXPECT_CALL(*logger, recover(executorInfo, sandboxDirectory))
+    .WillOnce(Return(Nothing()));
+
+  MesosContainerizer containerizer(
+      flags,
+      true,
+      &fetcher,
+      Owned<ContainerLogger>(logger),
+      Owned<Launcher>(launcher.get()),
+      provisioner.get(),
+      vector<Owned<Isolator>>());
+
+  // Create the container's sandbox to get past a `CHECK` inside
+  // the MesosContainerizer's recovery validation logic.
+  ASSERT_SOME(os::mkdir(sandboxDirectory));
+
+  Future<Nothing> recover = containerizer.recover(slaveState);
+  AWAIT_READY(recover);
+}
+
+
+// Tests that the Docker Containerizer will pass recovered containers
+// to the container logger for its own bookkeeping.
+TEST_F(ContainerLoggerTest, ROOT_DOCKER_ContainerizerRecover)
+{
+  // Prepare a MockDockerContainerizer with a mocked container logger.
+  MockDocker* mockDocker =
+    new MockDocker(tests::flags.docker, tests::flags.docker_socket);
+
+  Shared<Docker> docker(mockDocker);
+
+  slave::Flags flags = CreateSlaveFlags();
+
+  Fetcher fetcher;
+
+  MockContainerLogger* logger = new MockContainerLogger();
+
+  // Launch a quick task so that we have a valid PID to put in our
+  // mock `SlaveState`.  This is necessary as the containerizer will
+  // try to reap the PID.
+  Try<Subprocess> s = subprocess("exit 0");
+  ASSERT_SOME(s);
+
+  // Construct a mock `SlaveState`.
+  ExecutorID executorId;
+  executorId.set_value(UUID::random().toString());
+
+  ContainerID containerId;
+  containerId.set_value(UUID::random().toString());
+
+  ExecutorInfo executorInfo;
+  executorInfo.mutable_container()->set_type(ContainerInfo::DOCKER);
+
+  ExecutorState executorState;
+  executorState.id = executorId;
+  executorState.info = executorInfo;
+  executorState.latest = containerId;
+
+  RunState runState;
+  runState.id = containerId;
+  runState.forkedPid = s->pid();
+  executorState.runs.put(containerId, runState);
+
+  FrameworkState frameworkState;
+  frameworkState.executors.put(executorId, executorState);
+
+  SlaveState slaveState;
+  FrameworkID frameworkId;
+  frameworkId.set_value(UUID::random().toString());
+  slaveState.frameworks.put(frameworkId, frameworkState);
+
+  const string sandboxDirectory = slave::paths::getExecutorRunPath(
+      flags.work_dir,
+      slaveState.id,
+      frameworkState.id,
+      executorId,
+      containerId);
+
+  // This is the crux of the test.  The logger's `recover` method
+  // should be called with this specific set of arguments when
+  // we call `Containerizer::recover`.
+  EXPECT_CALL(*logger, recover(executorInfo, sandboxDirectory))
+    .WillOnce(Return(Nothing()));
+
+  MockDockerContainerizer containerizer(
+      flags,
+      &fetcher,
+      Owned<ContainerLogger>(logger),
+      docker);
+
+  // Construct a mock response for `Docker::ps` that only has a meaningful
+  // ID field set.  The other fields are effectively ignored.
+  list<Docker::Container> containers;
+  Try<Docker::Container> container = Docker::Container::create(
+      "[{"
+      "  \"Id\": \"" + stringify(containerId) + "\","
+      "  \"Name\": \"mocked\","
+      "  \"State\": {"
+      "    \"Pid\": 0,"
+      "    \"StartedAt\": \"Totally not a time\""
+      "  },"
+      "  \"NetworkSettings\": { \"IPAddress\": \"Totally not an IP\" }"
+      "}]");
+
+  ASSERT_SOME(container);
+  containers.push_back(container.get());
+
+  // Intercept the `Docker::ps` call made inside `DockerContainerizer::Recover`.
+  // We will return a response, pretending that the test container exists.
+  EXPECT_CALL(*mockDocker, ps(_, _))
+    .WillOnce(Return(containers));
+
+  Future<Nothing> recover = containerizer.recover(slaveState);
+  AWAIT_READY(recover);
+}
 
 
 // Tests that the default container logger writes files into the sandbox.

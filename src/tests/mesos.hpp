@@ -32,6 +32,7 @@
 
 #include <mesos/fetcher/fetcher.hpp>
 
+#include <mesos/slave/container_logger.hpp>
 #include <mesos/slave/qos_controller.hpp>
 #include <mesos/slave/resource_estimator.hpp>
 
@@ -1034,6 +1035,26 @@ public:
 };
 
 
+// Definition of a mock ContainerLogger to be used in tests with gmock.
+class MockContainerLogger : public mesos::slave::ContainerLogger
+{
+public:
+  MockContainerLogger();
+  virtual ~MockContainerLogger();
+
+  MOCK_METHOD0(initialize, Try<Nothing>(void));
+
+  MOCK_METHOD2(
+      recover,
+      process::Future<Nothing>(const ExecutorInfo&, const std::string&));
+
+  MOCK_METHOD2(
+      prepare,
+      process::Future<mesos::slave::ContainerLogger::SubprocessInfo>(
+          const ExecutorInfo&, const std::string&));
+};
+
+
 // Definition of a mock Docker to be used in tests with gmock.
 class MockDocker : public Docker
 {
@@ -1055,6 +1076,11 @@ public:
           const Option<std::map<std::string, std::string>>&,
           const process::Subprocess::IO&,
           const process::Subprocess::IO&));
+
+  MOCK_CONST_METHOD2(
+      ps,
+      process::Future<std::list<Docker::Container>>(
+          bool, const Option<std::string>&));
 
   MOCK_CONST_METHOD3(
       pull,
@@ -1097,6 +1123,13 @@ public:
         env,
         stdout,
         stderr);
+  }
+
+  process::Future<std::list<Docker::Container>> _ps(
+      bool all,
+      const Option<std::string>& prefix) const
+  {
+    return Docker::ps(all, prefix);
   }
 
   process::Future<Docker::Image> _pull(
