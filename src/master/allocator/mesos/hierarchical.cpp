@@ -1210,12 +1210,24 @@ void HierarchicalAllocatorProcess::allocate(
           continue;
         }
 
-        // Quota is satisfied from the available unreserved non-revocable
-        // resources on the agent.
-        //
-        // TODO(alexr): Consider adding dynamically reserved resources.
+        // Calculate the currently available resources on the slave.
         Resources available = slaves[slaveId].total - slaves[slaveId].allocated;
-        Resources resources = available.unreserved().nonRevocable();
+
+        // The resources we offer are the unreserved resources as well as the
+        // reserved resources for this particular role. This is necessary to
+        // ensure that we don't offer resources that are reserved for another
+        // role.
+        //
+        // NOTE: Currently, frameworks are allowed to have '*' role.
+        // Calling reserved('*') returns an empty Resources object.
+        //
+        // Quota is satisfied from the available non-revocable resources on the
+        // agent. It's important that we include reserved resources here since
+        // reserved resources are accounted towards the quota guarantee. If we
+        // were to rely on stage 2 to offer them out, they would not be checked
+        // against the quota guarantee.
+        Resources resources =
+          (available.unreserved() + available.reserved(role)).nonRevocable();
 
         // NOTE: The resources may not be allocatable here, but they can be
         // accepted by one of the frameworks during the second allocation
