@@ -538,6 +538,17 @@ Future<Nothing> MesosContainerizerProcess::__recover(
       isolator->watch(containerId)
         .onAny(defer(self(), &Self::limited, containerId, lambda::_1));
     }
+
+    // Pass recovered containers to the container logger.
+    // NOTE: The current implementation of the container logger only
+    // outputs a warning and does not have any other consequences.
+    // See `ContainerLogger::recover` for more information.
+    logger->recover(run.executor_info(), run.directory())
+      .onFailed(defer(self(), [run](const string& message) {
+        LOG(WARNING) << "Container logger failed to recover executor '"
+                     << run.executor_info().executor_id() << "': "
+                     << message;
+      }));
   }
 
   // Destroy all the orphan containers.
