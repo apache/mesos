@@ -4,7 +4,7 @@ layout: documentation
 
 # Mesos C++ Style Guide
 
-The Mesos codebase follows the [Google C++ Style Guide](http://google-styleguide.googlecode.com/svn/trunk/cppguide.xml) with some notable differences, as described below. Note that the [clang-format](/documentation/latest/clang-format/) tool can be helpful to ensure that some of the mechanical style rules are obeyed.
+The Mesos codebase follows the [Google C++ Style Guide](http://google-styleguide.googlecode.com/svn/trunk/cppguide.xml) with some notable differences, as described below. Note that the [clang-format](clang-format.md) tool can be helpful to ensure that some of the mechanical style rules are obeyed.
 
 ## Scoping
 

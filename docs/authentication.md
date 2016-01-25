@@ -18,7 +18,7 @@ Mesos uses the [Cyrus SASL library](http://asg.web.cmu.edu/sasl/) to implement a
 
 ## Configuration
 
-The [configuration options](/documentation/latest/configuration/) that are used by the authentication mechanism are as follows:
+The [configuration options](configuration.md) that are used by the authentication mechanism are as follows:
 
 ### Masters
 

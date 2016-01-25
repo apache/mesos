@@ -4,7 +4,7 @@ layout: documentation
 
 # Mesos Fetcher Cache Internals
 
-It assumed that readers of this document are familiar with the contents of the [Mesos fetcher user guide](/documentation/latest/fetcher/). The present document makes direct references to notions defined in the former.
+It assumed that readers of this document are familiar with the contents of the [Mesos fetcher user guide](fetcher.md). The present document makes direct references to notions defined in the former.
 
 ## Design goals for the initial fetcher cache prototype:
 

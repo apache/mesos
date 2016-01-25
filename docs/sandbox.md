@@ -12,13 +12,13 @@ own sandbox and the executor's working directory is set to the sandbox.
 
 The sandbox holds:
 
-* Files [fetched by Mesos](/documentation/latest/fetcher/), prior to starting
+* Files [fetched by Mesos](fetcher.md), prior to starting
   the executor's tasks.
 * The output of the executor and tasks (as files "stdout" and "stderr").
 * Files created by the executor and tasks, with some exceptions.
 
 > **NOTE:** With the introduction of
-> [persistent volumes](/documentation/latest/persistent-volume/), executors
+> [persistent volumes](persistent-volume.md), executors
 > and tasks should never create files outside of the sandbox.  However,
 > some containerizers do not enforce this sandboxing.
 
@@ -149,7 +149,7 @@ executor and isolators :
 * Docker containerizer - As of Docker `1.9.1`, the Docker containerizer
   does not enforce nor support a disk quota.  See the
   [Docker issue](https://github.com/docker/docker/issues/3804).
-* [External containerizer](/documentation/latest/external-containerizer/).
+* [External containerizer](external-containerizer.md).
 
 ## Sandbox lifecycle
 
@@ -169,4 +169,4 @@ After the delay, the files are deleted.
 Additionally, according to the `--disk_watch_interval` agent flag, files
 scheduled for garbage collection are pruned based on the available disk and
 the `--gc_disk_headroom` agent flag.
-See [the formula here](/documentation/latest/configuration/#gc_disk_headroom).
+See [the formula here](configuration.md#gc_disk_headroom).

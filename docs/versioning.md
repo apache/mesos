@@ -67,7 +67,7 @@ The following are considered backwards incompatible changes for Scheduler API:
 * In rare cases, we might require the master and agent to go through a specific minor version for upgrades.
  * For example, we might require that a 1.1.0 master (and/or agent) be upgraded to 1.8.0 before it can be upgraded to 1.9.0 or later versions.
 
-The detailed information about upgrading to a particular Mesos version would be posted [here](/documentation/latest/upgrades/).
+The detailed information about upgrading to a particular Mesos version would be posted [here](upgrades.md).
 
 ### Implementation Details
 

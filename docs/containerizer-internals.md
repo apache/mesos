@@ -30,9 +30,9 @@ events (e.g., statistics).
 Mesos currently supports the following containerizers:
 
 * Composing
-* [Docker](/documentation/latest/docker-containerizer/)
-* [Mesos](/documentation/latest/containerizer/)
-* [External](/documentation/latest/external-containerizer/) (deprecated)
+* [Docker](docker-containerizer.md)
+* [Mesos](containerizer.md)
+* [External](external-containerizer.md) (deprecated)
 
 #### Composing Containerizer
 
