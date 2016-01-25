@@ -41,7 +41,7 @@ namespace spec {
  * This format is inherently ambiguous when dealing with repository
  * names that include forward slashes. To disambiguate, the docker
  * code looks for '.', or ':', or 'localhost' to decide if the first
- * component is a registry or a respository name. For more detail,
+ * component is a registry or a repository name. For more detail,
  * drill into the implementation of docker pull.
  *
  * See docker implementation:
