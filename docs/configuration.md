@@ -33,6 +33,7 @@ be found by running the binary with the flag `--help`, for example
 ## Master and Slave Options
 
 *These options can be supplied to both masters and slaves.*
+Also see the [common options for logging](logging.md#Internal).
 
 <table class="table table-striped">
   <thead>
@@ -69,16 +70,6 @@ be found by running the binary with the flag `--help`, for example
   </tr>
   <tr>
     <td>
-      --external_log_file=VALUE
-    </td>
-    <td>
-      Specify the externally managed log file. This file will be
-      exposed in the webui and HTTP API. This is useful when using
-      stderr logging as the log file is otherwise unknown to Mesos.
-    </td>
-  </tr>
-  <tr>
-    <td>
       --firewall_rules=VALUE
     </td>
     <td>
@@ -111,15 +102,6 @@ be found by running the binary with the flag `--help`, for example
   </tr>
   <tr>
     <td>
-      --[no-]initialize_driver_logging
-    </td>
-    <td>
-      Whether to automatically initialize Google logging of scheduler
-      and/or executor drivers. (default: true)
-    </td>
-  </tr>
-  <tr>
-    <td>
       --ip=VALUE
     </td>
     <td>
@@ -139,46 +121,10 @@ be found by running the binary with the flag `--help`, for example
   </tr>
   <tr>
     <td>
-      --log_dir=VALUE
-    </td>
-    <td>
-      Location to put log files. (no default, nothing is written to disk unless
-      specified; does not affect logging to stderr)
-    </td>
-  </tr>
-  <tr>
-    <td>
-      --logbufsecs=VALUE
-    </td>
-    <td>
-      How many seconds to buffer log messages for. (default: 0)
-    </td>
-  </tr>
-  <tr>
-    <td>
-      --logging_level=VALUE
-    </td>
-    <td>
-      Log message at or above this level. Possible values: <code>INFO</code>,
-      <code>WARNING</code>, <code>ERROR</code>; if quiet flag is used, this will
-      affect just the logs from <code>log_dir</code>, if specified.
-      (default: INFO)
-    </td>
-  </tr>
-  <tr>
-    <td>
       --port=VALUE
     </td>
     <td>
       Port to listen on. (master default: 5050; slave default: 5051)
-    </td>
-  </tr>
-  <tr>
-    <td>
-      --[no-]quiet
-    </td>
-    <td>
-      Disable logging to stderr. (default: false)
     </td>
   </tr>
   <tr>

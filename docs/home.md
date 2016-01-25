@@ -23,6 +23,7 @@ layout: documentation
 * [Framework Authentication](/documentation/latest/authentication/)
 * [Framework Authorization](/documentation/latest/authorization/)
 * [Framework Rate Limiting](/documentation/latest/framework-rate-limiting/)
+* [Logging](/documentation/latest/logging/)
 * [High Availability](/documentation/latest/high-availability/) for running multiple masters simultaneously.
 * [Operational Guide](/documentation/latest/operational-guide/)
 * [Monitoring](/documentation/latest/monitoring/)
