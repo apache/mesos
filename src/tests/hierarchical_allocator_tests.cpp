@@ -373,9 +373,7 @@ TEST_F(HierarchicalAllocatorTest, UnreservedDRF)
 }
 
 
-// This test ensures that reserved resources do not affect the sharing
-// across roles. However, reserved resources should be shared fairly
-// *within* a role.
+// This test ensures that reserved resources do affect the sharing across roles.
 TEST_F(HierarchicalAllocatorTest, ReservedDRF)
 {
   // Pausing the clock is not necessary, but ensures that the test
@@ -415,16 +413,14 @@ TEST_F(HierarchicalAllocatorTest, ReservedDRF)
   EXPECT_EQ(framework2.id(), allocation.get().frameworkId);
   EXPECT_EQ(slave2.resources(), Resources::sum(allocation.get().resources));
 
-  // Now, even though framework1 has more resources allocated to
-  // it than framework2, reserved resources are not considered for
-  // fairness across roles! We expect framework1 to receive this
-  // slave's resources, since it has fewer unreserved resources.
+  // Since `framework1` has more resources allocated to it than `framework2`,
+  // We expect `framework2` to receive this agent's resources.
   SlaveInfo slave3 = createSlaveInfo("cpus:2;mem:512;disk:0");
   allocator->addSlave(slave3.id(), slave3, None(), slave3.resources(), EMPTY);
 
   allocation = allocations.get();
   AWAIT_READY(allocation);
-  EXPECT_EQ(framework1.id(), allocation.get().frameworkId);
+  EXPECT_EQ(framework2.id(), allocation.get().frameworkId);
   EXPECT_EQ(slave3.resources(), Resources::sum(allocation.get().resources));
 
   // Now add another framework in role1. Since the reserved resources

@@ -238,7 +238,7 @@ void HierarchicalAllocatorProcess::addFramework(
 
   // Update the allocation for this framework.
   foreachpair (const SlaveID& slaveId, const Resources& allocated, used) {
-    roleSorter->allocated(role, slaveId, allocated.unreserved());
+    roleSorter->allocated(role, slaveId, allocated);
     frameworkSorters[role]->add(slaveId, allocated);
     frameworkSorters[role]->allocated(frameworkId.value(), slaveId, allocated);
 
@@ -286,7 +286,7 @@ void HierarchicalAllocatorProcess::removeFramework(
     // Update the allocation for this framework.
     foreachpair (
         const SlaveID& slaveId, const Resources& allocated, allocation) {
-      roleSorter->unallocated(role, slaveId, allocated.unreserved());
+      roleSorter->unallocated(role, slaveId, allocated);
       frameworkSorters[role]->remove(slaveId, allocated);
 
       if (quotas.contains(role)) {
@@ -410,7 +410,7 @@ void HierarchicalAllocatorProcess::addSlave(
   CHECK(!slaves.contains(slaveId));
   CHECK(!paused || expectedAgentCount.isSome());
 
-  roleSorter->add(slaveId, total.unreserved());
+  roleSorter->add(slaveId, total);
   quotaRoleSorter->add(slaveId, total.unreserved().nonRevocable());
 
   // Update the allocation for each framework.
@@ -425,7 +425,7 @@ void HierarchicalAllocatorProcess::addSlave(
       CHECK(roleSorter->contains(role));
       CHECK(frameworkSorters.contains(role));
 
-      roleSorter->allocated(role, slaveId, allocated.unreserved());
+      roleSorter->allocated(role, slaveId, allocated);
       frameworkSorters[role]->add(slaveId, allocated);
       frameworkSorters[role]->allocated(
           frameworkId.value(), slaveId, allocated);
@@ -488,7 +488,7 @@ void HierarchicalAllocatorProcess::removeSlave(
   // all the resources. Fixing this would require more information
   // than what we currently track in the allocator.
 
-  roleSorter->remove(slaveId, slaves[slaveId].total.unreserved());
+  roleSorter->remove(slaveId, slaves[slaveId].total);
   quotaRoleSorter->remove(
       slaveId, slaves[slaveId].total.unreserved().nonRevocable());
 
@@ -520,7 +520,7 @@ void HierarchicalAllocatorProcess::updateSlave(
   slaves[slaveId].total = slaves[slaveId].total.nonRevocable() + oversubscribed;
 
   // Now, update the total resources in the role sorters.
-  roleSorter->update(slaveId, slaves[slaveId].total.unreserved());
+  roleSorter->update(slaveId, slaves[slaveId].total);
   quotaRoleSorter->update(
       slaveId, slaves[slaveId].total.unreserved().nonRevocable());
 
@@ -621,8 +621,8 @@ void HierarchicalAllocatorProcess::updateAllocation(
   roleSorter->update(
       role,
       slaveId,
-      frameworkAllocation.unreserved(),
-      updatedFrameworkAllocation.get().unreserved());
+      frameworkAllocation,
+      updatedFrameworkAllocation.get());
 
   if (quotas.contains(role)) {
     quotaRoleSorter->update(
@@ -685,7 +685,7 @@ Future<Nothing> HierarchicalAllocatorProcess::updateAvailable(
   slaves[slaveId].total = updatedTotal.get();
 
   // Now, update the total resources in the role sorters.
-  roleSorter->update(slaveId, slaves[slaveId].total.unreserved());
+  roleSorter->update(slaveId, slaves[slaveId].total);
   quotaRoleSorter->update(
       slaveId, slaves[slaveId].total.unreserved().nonRevocable());
 
@@ -864,7 +864,7 @@ void HierarchicalAllocatorProcess::recoverResources(
       frameworkSorters[role]->unallocated(
           frameworkId.value(), slaveId, resources);
       frameworkSorters[role]->remove(slaveId, resources);
-      roleSorter->unallocated(role, slaveId, resources.unreserved());
+      roleSorter->unallocated(role, slaveId, resources);
 
       if (quotas.contains(role)) {
         quotaRoleSorter->unallocated(
@@ -1341,12 +1341,9 @@ void HierarchicalAllocatorProcess::allocate(
         allocatedStage2 += resources;
         slaves[slaveId].allocated += resources;
 
-        // Reserved resources are only accounted for in the framework
-        // sorter, since the reserved resources are not shared across
-        // roles.
         frameworkSorters[role]->add(slaveId, resources);
         frameworkSorters[role]->allocated(frameworkId_, slaveId, resources);
-        roleSorter->allocated(role, slaveId, resources.unreserved());
+        roleSorter->allocated(role, slaveId, resources);
 
         if (quotas.contains(role)) {
           quotaRoleSorter->allocated(
