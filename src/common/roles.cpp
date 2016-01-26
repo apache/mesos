@@ -59,19 +59,19 @@ Option<Error> validate(const string& role)
   static const string dot = ".";
   static const string dotdot = "..";
   if (role.empty()) {
-    return Error("Empty role name is invalid.");
+    return Error("Empty role name is invalid");
   } else if (role == dot) {
-    return Error("Role name '.' is invalid.");
+    return Error("Role name '.' is invalid");
   } else if (role == dotdot) {
-    return Error("Role name '..' is invalid.");
+    return Error("Role name '..' is invalid");
   } else if (role[0] == '-') {
     return Error("Role name '" + role + "' is invalid "
-                 "because it starts with a dash.");
+                 "because it starts with a dash");
   }
 
   if (role.find_first_of(INVALID_CHARACTERS) != string::npos) {
     return Error("Role name '" + role + "' is invalid "
-                 "because it contains slash, backspace or whitespace.");
+                 "because it contains slash, backspace or whitespace");
   }
 
   return None();
