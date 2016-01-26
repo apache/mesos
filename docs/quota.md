@@ -159,18 +159,19 @@ status, for example:
         {
           "infos": [
             {
-              "resources": [
+              "role": "role1",
+              "guarantee": [
                 {
                   "name": "cpus",
+                  "role": "*",
                   "type": "SCALAR",
-                  "scalar": { "value": 12 },
-                  "role": "role1",
+                  "scalar": { "value": 12 }
                 },
                 {
                   "name": "mem",
+                  "role": "*",
                   "type": "SCALAR",
-                  "scalar": { "value": 6144 },
-                  "role": "role1",
+                  "scalar": { "value": 6144 }
                 }
               ]
             }
