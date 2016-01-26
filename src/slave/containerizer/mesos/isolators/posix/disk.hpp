@@ -48,7 +48,9 @@ public:
 
   // Returns the disk usage rooted at 'path'. The user can discard the
   // returned future to cancel the check.
-  process::Future<Bytes> usage(const std::string& path);
+  process::Future<Bytes> usage(
+      const std::string& path,
+      const std::vector<std::string>& excludes);
 
 private:
   DiskUsageCollectorProcess* process;

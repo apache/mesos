@@ -81,7 +81,7 @@ TEST_F(DiskUsageCollectorTest, File)
 
   DiskUsageCollector collector(Milliseconds(1));
 
-  Future<Bytes> usage = collector.usage(path);
+  Future<Bytes> usage = collector.usage(path, {});
   AWAIT_READY(usage);
 
   // NOTE: A typical file system needs more disk space to keep meta
@@ -110,7 +110,7 @@ TEST_F(DiskUsageCollectorTest, Directory)
 
   DiskUsageCollector collector(Milliseconds(1));
 
-  Future<Bytes> usage = collector.usage(os::getcwd());
+  Future<Bytes> usage = collector.usage(os::getcwd(), {});
   AWAIT_READY(usage);
 
   EXPECT_GE(usage.get(), Kilobytes(15));
@@ -129,8 +129,8 @@ TEST_F(DiskUsageCollectorTest, SymbolicLink)
 
   DiskUsageCollector collector(Milliseconds(1));
 
-  Future<Bytes> usage1 = collector.usage(os::getcwd());
-  Future<Bytes> usage2 = collector.usage(link);
+  Future<Bytes> usage1 = collector.usage(os::getcwd(), {});
+  Future<Bytes> usage2 = collector.usage(link, {});
 
   AWAIT_READY(usage1);
   EXPECT_GE(usage1.get(), Kilobytes(64));
@@ -139,6 +139,33 @@ TEST_F(DiskUsageCollectorTest, SymbolicLink)
   AWAIT_READY(usage2);
   EXPECT_LT(usage2.get(), Kilobytes(64));
 }
+
+
+#ifdef __linux__
+// This test verifies that relative exclude paths work and that
+// absolute ones don't (in cases when the directory path itself
+// is relative).
+TEST_F(DiskUsageCollectorTest, ExcludeRelativePath)
+{
+  string file = path::join(os::getcwd(), "file");
+
+  // Create a 128k file.
+  ASSERT_SOME(os::write(file, string(Kilobytes(128).bytes(), 'x')));
+
+  DiskUsageCollector collector(Milliseconds(1));
+
+  // Exclude 'file' and make sure the usage is way below 128k.
+  Future<Bytes> usage1 = collector.usage(os::getcwd(), {"file"});
+  AWAIT_READY(usage1);
+  EXPECT_LT(usage1.get(), Kilobytes(64));
+
+  // Exclude absolute path of 'file' with the relative directory
+  // path. Pattern matching is expected to fail causing exclude
+  // to have no effect.
+  Future<Bytes> usage2 = collector.usage(".", {file});
+  EXPECT_GT(usage2.get(), Kilobytes(128));
+}
+#endif
 
 
 class DiskQuotaTest : public MesosTest {};

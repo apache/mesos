@@ -157,6 +157,9 @@ Future<Nothing> PosixDiskIsolatorProcess::update(
   // This stores the updated quotas.
   hashmap<string, Resources> quotas;
 
+  // Volume paths to exclude from sandbox disk usage calculation.
+  vector<string> excludes;
+
   foreach (const Resource& resource, resources) {
     if (resource.name() != "disk") {
       continue;
@@ -176,6 +179,8 @@ Future<Nothing> PosixDiskIsolatorProcess::update(
       // we extract the path from the protobuf.
       path = resource.disk().volume().container_path();
 
+      excludes.push_back(path);
+
       // In case the path in the protobuf is not an absolute path it is
       // relative to the working directory of the executor. We always store
       // the absolute path.
@@ -189,11 +194,13 @@ Future<Nothing> PosixDiskIsolatorProcess::update(
     quotas[path] += resource;
   }
 
-  // Update the quota for paths. For each new path, we also initiate
+  // Update the quota for paths. For each new path we also initiate
   // the disk usage collection.
   foreachpair (const string& path, const Resources& quota, quotas) {
     if (!info->paths.contains(path)) {
-      info->paths[path].usage = collector.usage(path)
+      info->paths[path].usage = collector.usage(
+          path,
+          (path == info->directory) ? excludes : vector<string>())
         .onAny(defer(
             PID<PosixDiskIsolatorProcess>(this),
             &PosixDiskIsolatorProcess::_collect,
@@ -265,13 +272,27 @@ void PosixDiskIsolatorProcess::_collect(
     }
   }
 
-  info->paths[path].usage = collector.usage(path)
-    .onAny(defer(
-        PID<PosixDiskIsolatorProcess>(this),
-        &PosixDiskIsolatorProcess::_collect,
-        containerId,
-        path,
-        lambda::_1));
+  // Build excludes array if the current path is the sandbox.
+  vector<string> excludes;
+  if (path == info->directory) {
+    foreachkey (const string& exclude, info->paths) {
+      if (exclude != path) {
+        // `du --exclude` uses pattern matching so we strip both
+        // prefix (sandbox path) and suffix ('/') from volume path.
+        string relative = strings::remove(exclude, path + "/", strings::PREFIX);
+        relative = strings::remove(relative, "/", strings::SUFFIX);
+        excludes.push_back(relative);
+      }
+    }
+  }
+
+  info->paths[path].usage = collector.usage(path, excludes)
+      .onAny(defer(
+          PID<PosixDiskIsolatorProcess>(this),
+          &PosixDiskIsolatorProcess::_collect,
+          containerId,
+          path,
+          lambda::_1));
 }
 
 
@@ -325,15 +346,21 @@ public:
   DiskUsageCollectorProcess(const Duration& _interval) : interval(_interval) {}
   virtual ~DiskUsageCollectorProcess() {}
 
-  Future<Bytes> usage(const string& path)
+  Future<Bytes> usage(
+      const string& path,
+      const vector<string>& excludes)
   {
+    // TODO(jieyu): 'excludes' is not supported on OSX. We should
+    // either return a Failure here, or does not allow 'excludes' to
+    // be specifed on OSX.
+
     foreach (const Owned<Entry>& entry, entries) {
       if (entry->path == path) {
         return entry->promise.future();
       }
     }
 
-    entries.push_back(Owned<Entry>(new Entry(path)));
+    entries.push_back(Owned<Entry>(new Entry(path, excludes)));
 
     // Install onDiscard callback.
     Future<Bytes> future = entries.back()->promise.future();
@@ -363,9 +390,12 @@ private:
   // Describe a single pending check.
   struct Entry
   {
-    explicit Entry(const string& _path) : path(_path) {}
+    explicit Entry(const string& _path, const vector<string>& _excludes)
+      : path(_path),
+        excludes(_excludes) {}
 
     string path;
+    vector<string> excludes;
     Option<Subprocess> du;
     Promise<Bytes> promise;
   };
@@ -417,9 +447,28 @@ private:
     // will be that cgroup that is charged for (a) memory to cache the
     // fs data structures, (b) disk I/O to read those structures, and
     // (c) the cpu time to traverse.
+
+    // Construct the 'du' command.
+    vector<string> command = {
+      "du",
+      "-k", // Use 1K size blocks for consistent results across platforms.
+      "-s", // Use 'silent' output mode.
+    };
+
+#ifdef __linux__
+    // Add paths that need to be excluded.
+    foreach (const string& exclude, entry->excludes) {
+      command.push_back("--exclude");
+      command.push_back(exclude);
+    }
+#endif
+
+    // Add path on which 'du' must be run.
+    command.push_back(entry->path);
+
     Try<Subprocess> s = subprocess(
         "du",
-        vector<string>({"du", "-k", "-s", entry->path}),
+        command,
         Subprocess::PATH("/dev/null"),
         Subprocess::PIPE(),
         Subprocess::PIPE(),
@@ -524,9 +573,11 @@ DiskUsageCollector::~DiskUsageCollector()
 }
 
 
-Future<Bytes> DiskUsageCollector::usage(const string& path)
+Future<Bytes> DiskUsageCollector::usage(
+    const string& path,
+    const vector<string>& excludes)
 {
-  return dispatch(process, &DiskUsageCollectorProcess::usage, path);
+  return dispatch(process, &DiskUsageCollectorProcess::usage, path, excludes);
 }
 
 } // namespace slave {

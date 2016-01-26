@@ -1070,6 +1070,95 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_WorkDirMountPreExists)
 
   delete isolator.get();
 }
+
+
+// This test verifies that the volume usage accounting for sandboxes with
+// bind-mounted volumes works correctly by creating a file within the volume
+// the size of which exceeds the sandbox quota.
+TEST_F(LinuxFilesystemIsolatorTest, ROOT_VolumeUsageExceedsSandboxQuota)
+{
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_role("role1");
+
+  Try<PID<Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.isolation = "posix/disk,filesystem/linux";
+
+  // NOTE: We can't pause the clock because we need the reaper to reap
+  // the 'du' subprocess.
+  flags.container_disk_watch_interval = Milliseconds(1);
+  flags.enforce_container_disk_quota = true;
+  flags.resources = "cpus:2;mem:128;disk(role1):128";
+
+  Try<PID<Slave>> slave = StartSlave(flags);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
+
+  Future<FrameworkID> frameworkId;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(frameworkId);
+
+  AWAIT_READY(offers);
+  ASSERT_NE(0u, offers.get().size());
+
+  // We request a sandbox (1MB) that is smaller than the persistent
+  // volume (4MB) and attempt to create a file in that volume that is
+  // twice the size of the sanbox (2MB).
+  Resources volume = createPersistentVolume(
+      Megabytes(4),
+      "role1",
+      "id1",
+      "volume_path");
+
+  Resources taskResources =
+      Resources::parse("cpus:1;mem:64;disk(role1):1").get() + volume;
+
+  // We sleep to give quota enforcement (du) a chance to kick in.
+  TaskInfo task = createTask(
+      offers.get()[0].slave_id(),
+      taskResources,
+      "dd if=/dev/zero of=volume_path/file bs=1048576 count=2 && sleep 1");
+
+  Future<TaskStatus> statusRunning;
+  Future<TaskStatus> statusFinished;
+
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusRunning))
+    .WillOnce(FutureArg<1>(&statusFinished));
+
+  driver.acceptOffers(
+      {offers.get()[0].id()},
+      {CREATE(volume),
+      LAUNCH({task})});
+
+  AWAIT_READY(statusRunning);
+  EXPECT_EQ(task.task_id(), statusRunning.get().task_id());
+  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
+
+  AWAIT_READY(statusFinished);
+  EXPECT_EQ(task.task_id(), statusFinished.get().task_id());
+  EXPECT_EQ(TASK_FINISHED, statusFinished.get().state());
+
+  driver.stop();
+  driver.join();
+
+  Shutdown();
+}
+
 #endif // __linux__
 
 } // namespace tests {
