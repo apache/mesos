@@ -22,21 +22,20 @@
 #include <map>
 #include <string>
 
-#include <gmock/gmock.h>
+#include <mesos/executor.hpp>
+#include <mesos/mesos.hpp>
+#include <mesos/resources.hpp>
+#include <mesos/type_utils.hpp>
 
 #include <process/dispatch.hpp>
 #include <process/future.hpp>
+#include <process/gmock.hpp>
 #include <process/pid.hpp>
 
 #include <stout/hashmap.hpp>
 #include <stout/os.hpp>
 #include <stout/try.hpp>
 #include <stout/uuid.hpp>
-
-#include "mesos/executor.hpp"
-#include "mesos/mesos.hpp"
-#include "mesos/resources.hpp"
-#include "mesos/type_utils.hpp"
 
 #include "slave/containerizer/containerizer.hpp"
 
