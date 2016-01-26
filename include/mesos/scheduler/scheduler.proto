@@ -124,13 +124,9 @@ message Event {
     optional int32 status = 3;
   }
 
-  // Received when an invalid framework (e.g., unauthenticated,
-  // unauthorized) attempts to subscribe with the master. Error can
-  // also be received if scheduler sends invalid Calls (e.g., not
-  // properly initialized).
-  // TODO(vinod): Remove this once the old scheduler driver is no
-  // longer supported. With HTTP API all errors will be signaled via
-  // HTTP response codes.
+  // Received when there is an unrecoverable error in the scheduler (e.g.,
+  // scheduler failed over, rate limiting, authorization errors etc.). The
+  // scheduler should abort on receiving this event.
   message Error {
     required string message = 1;
   }
