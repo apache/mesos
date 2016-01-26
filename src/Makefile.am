@@ -583,6 +583,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   docker/docker.cpp							\
   docker/spec.cpp							\
   exec/exec.cpp								\
+  executor/executor.cpp							\
   files/files.cpp							\
   hdfs/hdfs.cpp								\
   hook/manager.cpp							\
