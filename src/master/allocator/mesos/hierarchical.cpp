@@ -1296,6 +1296,11 @@ void HierarchicalAllocatorProcess::allocate(
         // Calculate the currently available resources on the slave.
         Resources available = slaves[slaveId].total - slaves[slaveId].allocated;
 
+        // The resources we offer are the unreserved resources as well as the
+        // reserved resources for this particular role. This is necessary to
+        // ensure that we don't offer resources that are reserved for another
+        // role.
+        //
         // NOTE: Currently, frameworks are allowed to have '*' role.
         // Calling reserved('*') returns an empty Resources object.
         Resources resources = available.unreserved() + available.reserved(role);
