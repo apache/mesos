@@ -327,10 +327,16 @@ map<string, string> executorEnvironment(
   environment["MESOS_DIRECTORY"] = directory;
   environment["MESOS_SLAVE_ID"] = slaveId.value();
   environment["MESOS_SLAVE_PID"] = stringify(slavePid);
+  environment["MESOS_AGENT_ENDPOINT"] = stringify(slavePid.address);
   environment["MESOS_CHECKPOINT"] = checkpoint ? "1" : "0";
 
   if (checkpoint) {
     environment["MESOS_RECOVERY_TIMEOUT"] = stringify(flags.recovery_timeout);
+
+    // The maximum backoff duration to be used by an executor between two
+    // retries when disconnected.
+    environment["MESOS_SUBSCRIPTION_BACKOFF_MAX"] =
+      stringify(EXECUTOR_REREGISTER_TIMEOUT);
   }
 
   if (HookManager::hooksAvailable()) {
