@@ -19,6 +19,8 @@
 
 #include <string>
 
+#include <google/protobuf/repeated_field.h>
+
 #include <mesos/mesos.hpp>
 
 #include <mesos/quota/quota.hpp>
@@ -95,6 +97,20 @@ protected:
 private:
   const std::string role;
 };
+
+
+/**
+ * Creates a `QuotaInfo` protobuf from the `QuotaRequest` protobuf.
+ */
+Try<mesos::quota::QuotaInfo> createQuotaInfo(
+    const mesos::quota::QuotaRequest& request);
+
+/**
+ * Creates a `QuotaInfo` protobuf from its components.
+ */
+Try<mesos::quota::QuotaInfo> createQuotaInfo(
+    const std::string& role,
+    const google::protobuf::RepeatedPtrField<Resource>& resources);
 
 
 namespace validation {

@@ -91,7 +91,7 @@ can use the following `jsonMessageBody`:
 
         {
           "role": "role1",
-          "resources": [
+          "guarantee": [
             {
               "name": "cpus",
               "type": "SCALAR",

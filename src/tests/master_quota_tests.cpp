@@ -31,6 +31,7 @@
 
 #include <stout/format.hpp>
 #include <stout/protobuf.hpp>
+#include <stout/stringify.hpp>
 #include <stout/strings.hpp>
 
 #include "master/flags.hpp"
@@ -47,7 +48,9 @@ using mesos::internal::master::Master;
 
 using mesos::internal::slave::Slave;
 
+using mesos::quota::QuotaRequest;
 using mesos::quota::QuotaStatus;
+
 using process::Future;
 using process::PID;
 
@@ -118,21 +121,17 @@ protected:
       const Resources& resources,
       bool force = false) const
   {
-    const string json =
-        "{"
-        "  %s"
-        "  \"role\":\"%s\","
-        "  \"resources\":%s"
-        "}";
+    QuotaRequest request;
 
-    const string request = strings::format(
-        json,
-        force ? "\"force\":true," : "",
-        role,
-        JSON::protobuf(
-            static_cast<const RepeatedPtrField<Resource>&>(resources))).get();
+    request.set_role(role);
+    request.mutable_guarantee()->CopyFrom(
+        static_cast<const RepeatedPtrField<Resource>&>(resources));
 
-    return request;
+    if (force) {
+      request.set_force(force);
+    }
+
+    return stringify(JSON::protobuf(request));
   }
 
 protected:

@@ -41,9 +41,25 @@ message QuotaInfo {
   // Principal which set the quota. Currently only operators can set quotas.
   optional string principal = 2;
 
-  // Resources which are guaranteed to be allocatable by role.
+  // The guarantee that these resources are allocatable for the above role.
   // NOTE: `guarantee.role` should not specify any role except '*',
   // because quota does not reserve specific resources.
+  repeated Resource guarantee = 3;
+}
+
+
+/**
+ * `QuotaRequest` provides a schema for set quota JSON requests.
+ */
+message QuotaRequest {
+  // Disables the capacity heuristic check if set to `true`.
+  optional bool force = 1 [default = false];
+
+  // The role for which to set quota.
+  optional string role = 2;
+
+  // The requested guarantee that these resources will be allocatable for
+  // the above role.
   repeated Resource guarantee = 3;
 }
 

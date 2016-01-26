@@ -51,6 +51,7 @@ using http::Forbidden;
 using http::OK;
 
 using mesos::quota::QuotaInfo;
+using mesos::quota::QuotaRequest;
 using mesos::quota::QuotaStatus;
 
 using process::Future;
@@ -62,23 +63,6 @@ using std::vector;
 namespace mesos {
 namespace internal {
 namespace master {
-
-// Creates a `QuotaInfo` protobuf from the quota request.
-static Try<QuotaInfo> createQuotaInfo(
-    const string& role,
-    const RepeatedPtrField<Resource>& resources)
-{
-  VLOG(1) << "Constructing QuotaInfo for role \"" << role
-          << "\" from resources protobuf";
-
-  QuotaInfo quota;
-
-  quota.set_role(role);
-  quota.mutable_guarantee()->CopyFrom(resources);
-
-  return quota;
-}
-
 
 Option<Error> Master::QuotaHandler::capacityHeuristic(
     const QuotaInfo& request) const
@@ -229,67 +213,26 @@ Future<http::Response> Master::QuotaHandler::set(
   // Check that the request type is POST which is guaranteed by the master.
   CHECK_EQ("POST", request.method);
 
-  // Validate request and extract JSON.
-  // TODO(alexr): Create a type (e.g. a protobuf) for the request JSON. If we
-  // move the `force` field out of the request JSON, we can reuse `QuotaInfo`.
-  Try<JSON::Object> parse = JSON::parse<JSON::Object>(request.body);
-  if (parse.isError()) {
+  // Parse the request body into JSON.
+  Try<JSON::Object> jsonRequest = JSON::parse<JSON::Object>(request.body);
+  if (jsonRequest.isError()) {
     return BadRequest(
         "Failed to parse set quota request JSON '" + request.body + "': " +
-        parse.error());
+        jsonRequest.error());
   }
 
-  // Extract role from the request JSON.
-  Result<JSON::String> roleJSON = parse.get().find<JSON::String>("role");
+  // Convert JSON request to the `QuotaRequest` protobuf.
+  Try<QuotaRequest> protoRequest =
+    ::protobuf::parse<QuotaRequest>(jsonRequest.get());
 
-  if (roleJSON.isError()) {
-    // An `Error` usually indicates that a search string is malformed
-    // (which is not the case here), however it may also indicate that
-    // the `role` field is not a string.
+  if (protoRequest.isError()) {
     return BadRequest(
-        "Failed to extract 'role' from set quota request JSON '" +
-        request.body + "': " + roleJSON.error());
-  }
-
-  if (roleJSON.isNone()) {
-    return BadRequest(
-        "Failed to extract 'role' from set quota request JSON '" +
-        request.body + "': Field is missing");
-  }
-
-  string role = roleJSON.get().value;
-
-  // Extract resources from the request JSON.
-  Result<JSON::Array> resourcesJSON =
-    parse.get().find<JSON::Array>("resources");
-
-  if (resourcesJSON.isError()) {
-    // An `Error` usually indicates that a search string is malformed
-    // (which is not the case here), however it may also indicate that
-    // the `resources` field is not an array.
-    return BadRequest(
-        "Failed to extract 'resources' from set quota request JSON '" +
-        request.body + "': " + resourcesJSON.error());
-  }
-
-  if (resourcesJSON.isNone()) {
-    return BadRequest(
-        "Failed to extract 'resources' from set quota request JSON '" +
-        request.body + "': Field is missing");
-  }
-
-  // Create protobuf representation of resources.
-  Try<RepeatedPtrField<Resource>> resources =
-    ::protobuf::parse<RepeatedPtrField<Resource>>(resourcesJSON.get());
-
-  if (resources.isError()) {
-    return BadRequest(
-        "Failed to parse 'resources' from set quota request JSON '" +
-        request.body + "': " + resources.error());
+        "Failed to validate set quota request JSON '" + request.body + "': " +
+        protoRequest.error());
   }
 
   // Create the `QuotaInfo` protobuf message from the request JSON.
-  Try<QuotaInfo> create = createQuotaInfo(role, resources.get());
+  Try<QuotaInfo> create = quota::createQuotaInfo(protoRequest.get());
   if (create.isError()) {
     return BadRequest(
         "Failed to create 'QuotaInfo' from set quota request JSON '" +
@@ -321,18 +264,8 @@ Future<http::Response> Master::QuotaHandler::set(
         "': Can not set quota for a role that already has quota");
   }
 
-  // The force flag can be used to overwrite the `capacityHeuristic` check.
-  Result<JSON::Boolean> force = parse.get().find<JSON::Boolean>("force");
-  if (force.isError()) {
-    // An `Error` usually indicates that a search string is malformed
-    // (which is not the case here), however it may also indicate that
-    // the `force` field is not a boolean.
-    return BadRequest(
-        "Failed to extract 'force' from set quota request JSON '" +
-        request.body + "': " + force.error());
-  }
-
-  const bool forced = force.isSome() ? force.get().value : false;
+  // The force flag is used to overwrite the `capacityHeuristic` check.
+  const bool forced = protoRequest.get().force();
 
   if (principal.isSome()) {
     quotaInfo.set_principal(principal.get());

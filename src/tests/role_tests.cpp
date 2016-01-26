@@ -486,7 +486,7 @@ TEST_F(RoleTest, EndpointImplicitRolesQuotas)
   // currently be satisfied by the resources in the cluster (because
   // there are no slaves registered).
   string quotaRequestBody = strings::format(
-      "{\"role\":\"non-existent-role\",\"resources\":%s,\"force\":true}",
+      "{\"role\":\"non-existent-role\",\"guarantee\":%s,\"force\":true}",
       JSON::protobuf(jsonQuotaResources)).get();
 
   Future<Response> quotaResponse = process::http::post(

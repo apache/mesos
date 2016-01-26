@@ -20,11 +20,15 @@
 
 #include <mesos/mesos.hpp>
 #include <mesos/resources.hpp>
+#include <mesos/roles.hpp>
 
 #include <stout/error.hpp>
 #include <stout/option.hpp>
 
+using google::protobuf::RepeatedPtrField;
+
 using mesos::quota::QuotaInfo;
+using mesos::quota::QuotaRequest;
 
 using std::string;
 
@@ -81,6 +85,26 @@ Try<bool> RemoveQuota::perform(
 }
 
 
+Try<QuotaInfo> createQuotaInfo(const QuotaRequest& request)
+{
+  return createQuotaInfo(request.role(), request.guarantee());
+}
+
+
+Try<QuotaInfo> createQuotaInfo(
+    const string& role,
+    const RepeatedPtrField<Resource>& resources)
+
+{
+  QuotaInfo quota;
+
+  quota.set_role(role);
+  quota.mutable_guarantee()->CopyFrom(resources);
+
+  return quota;
+}
+
+
 namespace validation {
 
 Option<Error> quotaInfo(const QuotaInfo& quotaInfo)
@@ -91,6 +115,13 @@ Option<Error> quotaInfo(const QuotaInfo& quotaInfo)
 
   if (quotaInfo.role().empty()) {
     return Error("QuotaInfo must specify a non-empty role");
+  }
+
+  // Check the provided role is valid.
+  Option<Error> roleError = roles::validate(quotaInfo.role());
+  if (roleError.isSome()) {
+    return Error(
+        "QuotaInfo with invalid role: " + roleError.get().message);
   }
 
   // Disallow quota for '*' role.
@@ -110,10 +141,10 @@ Option<Error> quotaInfo(const QuotaInfo& quotaInfo)
 
   foreach (const Resource& resource, quotaInfo.guarantee()) {
     // Check that each guarantee/resource is valid.
-    Option<Error> error = Resources::validate(resource);
-    if (error.isSome()) {
+    Option<Error> resourceError = Resources::validate(resource);
+    if (resourceError.isSome()) {
       return Error(
-          "QuotaInfo with invalid resource: " + error.get().message);
+          "QuotaInfo with invalid resource: " + resourceError.get().message);
     }
 
     // Check that `resource` does not contain non-relevant fields for quota.
