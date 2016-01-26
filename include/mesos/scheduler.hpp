@@ -17,6 +17,7 @@
 #ifndef __MESOS_SCHEDULER_HPP__
 #define __MESOS_SCHEDULER_HPP__
 
+#include <memory>
 #include <mutex>
 #include <string>
 #include <vector>
@@ -434,7 +435,7 @@ public:
 
 protected:
   // Used to detect (i.e., choose) the master.
-  internal::MasterDetector* detector;
+  std::shared_ptr<internal::MasterDetector> detector;
 
 private:
   void initialize();

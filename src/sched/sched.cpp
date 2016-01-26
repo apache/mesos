@@ -25,6 +25,8 @@
 
 #include <iostream>
 #include <map>
+#include <memory>
+#include <mutex>
 #include <string>
 #include <sstream>
 
@@ -103,8 +105,11 @@ using process::Process;
 using process::UPID;
 
 using std::map;
+using std::mutex;
+using std::shared_ptr;
 using std::string;
 using std::vector;
+using std::weak_ptr;
 
 using process::wait; // Necessary on some OS's to disambiguate.
 
@@ -112,6 +117,59 @@ using utils::copy;
 
 namespace mesos {
 namespace internal {
+
+
+// The DetectorPool is responsible for tracking single detector per url
+// to avoid having multiple detectors per url when multiple frameworks
+// are instantiated per process. See MESOS-3595.
+
+class DetectorPool
+{
+public:
+  virtual ~DetectorPool() {}
+
+  static Try<shared_ptr<MasterDetector>> get(const string& url)
+  {
+    synchronized (DetectorPool::instance()->poolMutex) {
+      // Get or create the `weak_ptr` map entry.
+      shared_ptr<MasterDetector> result =
+        DetectorPool::instance()->pool[url].lock();
+
+      if (result) {
+        // Return existing master detector.
+        return result;
+      } else {
+        // Else, create the master detector and record it in the map.
+        Try<MasterDetector*> detector = MasterDetector::create(url);
+        if (detector.isError()) {
+          return Error(detector.error());
+        }
+
+        result = shared_ptr<MasterDetector>(detector.get());
+        DetectorPool::instance()->pool[url] = result;
+        return result;
+      }
+    }
+  }
+
+private:
+  // Hide the constructors and assignment operator.
+  DetectorPool() {}
+  DetectorPool(const DetectorPool&) = delete;
+  DetectorPool& operator=(const DetectorPool&) = delete;
+
+  // Instead of having multiple detectors for multiple frameworks,
+  // keep track of one detector per url.
+  hashmap<string, weak_ptr<MasterDetector>> pool;
+  std::mutex poolMutex;
+
+  // Internal Singleton.
+  static DetectorPool* instance()
+  {
+    static DetectorPool* singleton = new DetectorPool();
+    return singleton;
+  }
+};
 
 // The scheduler process (below) is responsible for interacting with
 // the master and responding to Mesos API calls from scheduler
@@ -1755,9 +1813,7 @@ MesosSchedulerDriver::~MesosSchedulerDriver()
 
   delete latch;
 
-  if (detector != NULL) {
-    delete detector;
-  }
+  detector.reset();
 
   // Check and see if we need to shutdown a local cluster.
   if (master == "local" || master == "localquiet") {
@@ -1774,7 +1830,7 @@ Status MesosSchedulerDriver::start()
     }
 
     if (detector == NULL) {
-      Try<MasterDetector*> detector_ = MasterDetector::create(url);
+      Try<shared_ptr<MasterDetector>> detector_ = DetectorPool::get(url);
 
       if (detector_.isError()) {
         status = DRIVER_ABORTED;
@@ -1819,7 +1875,7 @@ Status MesosSchedulerDriver::start()
           None(),
           implicitAcknowlegements,
           schedulerId,
-          detector,
+          detector.get(),
           flags,
           &mutex,
           latch);
@@ -1832,7 +1888,7 @@ Status MesosSchedulerDriver::start()
           cred,
           implicitAcknowlegements,
           schedulerId,
-          detector,
+          detector.get(),
           flags,
           &mutex,
           latch);

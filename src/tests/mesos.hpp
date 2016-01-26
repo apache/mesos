@@ -817,7 +817,9 @@ public:
           true,
           DEFAULT_CREDENTIAL)
   {
-    detector = _detector;
+    // No-op destructor as _detector lives on the stack.
+    detector =
+      std::shared_ptr<MasterDetector>(_detector, [](MasterDetector*) {});
   }
 
   TestingMesosSchedulerDriver(
@@ -832,7 +834,9 @@ public:
           implicitAcknowledgements,
           DEFAULT_CREDENTIAL)
   {
-    detector = _detector;
+    // No-op destructor as _detector lives on the stack.
+    detector =
+      std::shared_ptr<MasterDetector>(_detector, [](MasterDetector*) {});
   }
 
   TestingMesosSchedulerDriver(
@@ -848,17 +852,9 @@ public:
           implicitAcknowledgements,
           credential)
   {
-    detector = _detector;
-  }
-
-  ~TestingMesosSchedulerDriver()
-  {
-    // This is necessary because in the base class the detector is
-    // internally created and deleted whereas in the testing driver
-    // it is injected and thus should not be deleted in the
-    // destructor. Setting it to null allows the detector to survive
-    // MesosSchedulerDriver::~MesosSchedulerDriver().
-    detector = NULL;
+    // No-op destructor as _detector lives on the stack.
+    detector =
+      std::shared_ptr<MasterDetector>(_detector, [](MasterDetector*) {});
   }
 };
 
