@@ -1385,6 +1385,7 @@ Try<ResourceStatistics> DockerContainerizerProcess::cgroupsStatistics(
   }
 
   ResourceStatistics result;
+  result.set_timestamp(Clock::now().secs());
   result.set_cpus_system_time_secs(cpuAcctStat.get().system.secs());
   result.set_cpus_user_time_secs(cpuAcctStat.get().user.secs());
   result.set_mem_rss_bytes(memStats.get().at("rss"));
