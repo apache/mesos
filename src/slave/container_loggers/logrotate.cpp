@@ -104,7 +104,8 @@ public:
   }
 
   // Reads from stdin and writes to the leading log file.
-  void loop() {
+  void loop()
+  {
     io::read(STDIN_FILENO, buffer, length)
       .then([&](size_t readSize) -> Future<Nothing> {
         // Check if EOF has been reached on the input stream.
