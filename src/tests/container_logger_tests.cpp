@@ -464,8 +464,8 @@ TEST_F(ContainerLoggerTest, LOGROTATE_RotateInSandbox)
   // one MB since there is also the executor's output besides the task's stdout.
   Try<Bytes> stdoutSize = os::stat::size(stdoutPath);
   ASSERT_SOME(stdoutSize);
-  EXPECT_LE(1024, stdoutSize->kilobytes());
-  EXPECT_GE(1050, stdoutSize->kilobytes());
+  EXPECT_LE(1024u, stdoutSize->kilobytes());
+  EXPECT_GE(1050u, stdoutSize->kilobytes());
 
   // We should only have files up to "stdout.4".
   stdoutPath = path::join(sandboxDirectory, "stdout.5");
@@ -479,8 +479,8 @@ TEST_F(ContainerLoggerTest, LOGROTATE_RotateInSandbox)
     // NOTE: The rotated files are written in contiguous blocks, meaning that
     // each file may be less than the maximum allowed size.
     stdoutSize = os::stat::size(stdoutPath);
-    EXPECT_LE(2040, stdoutSize->kilobytes());
-    EXPECT_GE(2048, stdoutSize->kilobytes());
+    EXPECT_LE(2040u, stdoutSize->kilobytes());
+    EXPECT_GE(2048u, stdoutSize->kilobytes());
   }
 }
 
