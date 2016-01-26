@@ -352,7 +352,7 @@ int main(int argc, char** argv)
         &scheduler, framework, flags.master.get());
   }
 
-  int status = driver->run() == DRIVER_STOPPED ? EXIT_SUCCESS : EXIT_SUCCESS;
+  int status = driver->run() == DRIVER_STOPPED ? EXIT_SUCCESS : EXIT_FAILURE;
 
   // Ensure that the driver process terminates.
   driver->stop();
