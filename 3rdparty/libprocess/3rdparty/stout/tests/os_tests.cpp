@@ -195,9 +195,7 @@ TEST_F(OsTest, Nonblock)
   int pipes[2];
   ASSERT_NE(-1, pipe(pipes));
 
-  Try<bool> isNonBlock = false;
-
-  isNonBlock = os::isNonblock(pipes[0]);
+  Try<bool> isNonBlock = os::isNonblock(pipes[0]);
   EXPECT_SOME_FALSE(isNonBlock);
 
   ASSERT_SOME(os::nonblock(pipes[0]));

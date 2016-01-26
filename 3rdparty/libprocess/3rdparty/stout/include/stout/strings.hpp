@@ -173,10 +173,9 @@ inline std::vector<std::string> split(
 {
   std::vector<std::string> tokens;
   size_t offset = 0;
-  size_t next = 0;
 
   while (n.isNone() || n.get() > 0) {
-    next = s.find_first_of(delims, offset);
+    size_t next = s.find_first_of(delims, offset);
     if (next == std::string::npos) {
       tokens.push_back(s.substr(offset));
       break;
