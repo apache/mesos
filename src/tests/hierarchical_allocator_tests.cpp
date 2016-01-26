@@ -2374,14 +2374,16 @@ TEST_P(HierarchicalAllocator_BENCHMARK_Test, AddAndUpdateSlave)
 
   watch.start();
 
+  const Resources slaveResources = Resources::parse(
+      "cpus:1;mem:128;disk:1024;"
+      "ports:[31126-31510,31512-31623,31810-31852,31854-31964]").get();
+
   // Add the slaves, use round-robin to choose which framework
   // to allocate a slice of the slave's resources to.
   for (unsigned i = 0; i < slaves.size(); ++i) {
     hashmap<FrameworkID, Resources> used;
 
-    used[frameworks[i % frameworkCount].id()] = Resources::parse(
-        "cpus:1;mem:128;disk:1024;"
-        "ports:[31126-31510,31512-31623,31810-31852,31854-31964]").get();
+    used[frameworks[i % frameworkCount].id()] = slaveResources;
 
     allocator->addSlave(
         slaves[i].id(),
