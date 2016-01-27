@@ -58,6 +58,8 @@
 #include <stout/try.hpp>
 #include <stout/uuid.hpp>
 
+#include "common/http.hpp"
+
 #include "messages/messages.hpp" // For google::protobuf::Message.
 
 #include "master/detector.hpp"
@@ -1426,6 +1428,22 @@ ACTION_P(SendFrameworkMessage, data)
   ExpectNoFutureProtobufs(message, from, to)
 
 
+#define FUTURE_HTTP_PROTOBUF(message, path, contentType)   \
+  FutureHttp(message, path, contentType)
+
+
+#define DROP_HTTP_PROTOBUF(message, path, contentType)     \
+  FutureHttp(message, path, contentType, true)
+
+
+#define DROP_HTTP_PROTOBUFS(message, path, contentType)    \
+  DropHttpProtobufs(message, path, contentType)
+
+
+#define EXPECT_NO_FUTURE_HTTP_PROTOBUFS(message, path, contentType)  \
+  ExpectNoFutureHttpProtobufs(message, path, contentType)
+
+
 // These are specialized versions of {FUTURE,DROP}_PROTOBUF that
 // capture a scheduler/executor Call protobuf of the given 'type'.
 // Note that we name methods as '*ProtobufUnion()' because these could
@@ -1458,6 +1476,22 @@ ACTION_P(SendFrameworkMessage, data)
   process::FutureUnionMessage(message, unionType, from, to, true)
 
 
+#define FUTURE_HTTP_CALL(message, unionType, path, contentType)  \
+  FutureUnionHttp(message, unionType, path, contentType)
+
+
+#define DROP_HTTP_CALL(message, unionType, path, contentType)    \
+  FutureUnionHttp(message, unionType, path, contentType, true)
+
+
+#define DROP_HTTP_CALLS(message, unionType, path, contentType)   \
+  DropUnionHttpProtobufs(message, unionType, path, contentType)
+
+
+#define EXPECT_NO_FUTURE_HTTP_CALLS(message, unionType, path, contentType)   \
+  ExpectNoFutureUnionHttpProtobufs(message, unionType, path, contentType)
+
+
 // Forward declaration.
 template <typename T>
 T _FutureProtobuf(const process::Message& message);
@@ -1483,6 +1517,48 @@ process::Future<Message> FutureUnionProtobuf(
 
   return process::FutureUnionMessage(message, unionType, from, to, drop)
     .then(lambda::bind(&_FutureProtobuf<Message>, lambda::_1));
+}
+
+
+template <typename Message, typename Path>
+process::Future<Message> FutureHttp(
+    Message message,
+    Path path,
+    ContentType contentType,
+    bool drop = false)
+{
+  // Help debugging by adding some "type constraints".
+  { google::protobuf::Message* m = &message; (void) m; }
+
+  auto deserializer =
+    lambda::bind(&deserialize<Message>, contentType, lambda::_1);
+
+  return process::FutureHttpRequest(message, path, deserializer, drop)
+    .then([deserializer](const process::http::Request& request) {
+      return deserializer(request.body).get();
+    });
+}
+
+
+template <typename Message, typename UnionType, typename Path>
+process::Future<Message> FutureUnionHttp(
+    Message message,
+    UnionType unionType,
+    Path path,
+    ContentType contentType,
+    bool drop = false)
+{
+  // Help debugging by adding some "type constraints".
+  { google::protobuf::Message* m = &message; (void) m; }
+
+  auto deserializer =
+    lambda::bind(&deserialize<Message>, contentType, lambda::_1);
+
+  return process::FutureUnionHttpRequest(
+      message, unionType, path, deserializer, drop)
+    .then([deserializer](const process::http::Request& request) {
+      return deserializer(request.body).get();
+    });
 }
 
 
@@ -1515,6 +1591,41 @@ void DropUnionProtobufs(Message message, UnionType unionType, From from, To to)
 }
 
 
+template <typename Message, typename Path>
+void DropHttpProtobufs(
+    Message message,
+    Path path,
+    ContentType contentType,
+    bool drop = false)
+{
+  // Help debugging by adding some "type constraints".
+  { google::protobuf::Message* m = &message; (void) m; }
+
+  auto deserializer =
+    lambda::bind(&deserialize<Message>, contentType, lambda::_1);
+
+  process::DropHttpRequests(message, path, deserializer);
+}
+
+
+template <typename Message, typename UnionType, typename Path>
+void DropUnionHttpProtobufs(
+    Message message,
+    UnionType unionType,
+    Path path,
+    ContentType contentType,
+    bool drop = false)
+{
+  // Help debugging by adding some "type constraints".
+  { google::protobuf::Message* m = &message; (void) m; }
+
+  auto deserializer =
+    lambda::bind(&deserialize<Message>, contentType, lambda::_1);
+
+  process::DropUnionHttpRequests(message, unionType, path, deserializer);
+}
+
+
 template <typename T, typename From, typename To>
 void ExpectNoFutureProtobufs(T t, From from, To to)
 {
@@ -1533,6 +1644,42 @@ void ExpectNoFutureUnionProtobufs(
   { google::protobuf::Message* m = &message; (void) m; }
 
   process::ExpectNoFutureUnionMessages(message, unionType, from, to);
+}
+
+
+template <typename Message, typename Path>
+void ExpectNoFutureHttpProtobufs(
+    Message message,
+    Path path,
+    ContentType contentType,
+    bool drop = false)
+{
+  // Help debugging by adding some "type constraints".
+  { google::protobuf::Message* m = &message; (void) m; }
+
+  auto deserializer =
+    lambda::bind(&deserialize<Message>, contentType, lambda::_1);
+
+  process::ExpectNoFutureHttpRequests(message, path, deserializer);
+}
+
+
+template <typename Message, typename UnionType, typename Path>
+void ExpectNoFutureUnionHttpProtobufs(
+    Message message,
+    UnionType unionType,
+    Path path,
+    ContentType contentType,
+    bool drop = false)
+{
+  // Help debugging by adding some "type constraints".
+  { google::protobuf::Message* m = &message; (void) m; }
+
+  auto deserializer =
+    lambda::bind(&deserialize<Message>, contentType, lambda::_1);
+
+  process::ExpectNoFutureUnionHttpRequests(
+      message, unionType, path, deserializer);
 }
 
 
