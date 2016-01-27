@@ -1264,20 +1264,17 @@ void HierarchicalAllocatorProcess::allocate(
     }
   }
 
-  // Calculate how many resources (including revocable and reserved) are
-  // available for allocation in the next round. We need this in order to
-  // ensure we do not over-allocate resources during the second stage.
+  // Calculate how many scalar resources (including revocable and reserved)
+  // are available for allocation in the next round. We need this in order
+  // to ensure we do not over-allocate resources during the second stage.
   //
-  // NOTE: We use all active agents and not just those visible in the current
-  // allocation (i.e. provided as an argument to the `allocate()` call) so
-  // that frameworks in roles without quota are not unnecessarily deprived
-  // of resources.
-  Resources remainingClusterResources;
-  foreachkey (const SlaveID& slaveId, slaves) {
-    if (isWhitelisted(slaveId) && slaves[slaveId].activated) {
-      remainingClusterResources +=
-        slaves[slaveId].total - slaves[slaveId].allocated;
-    }
+  // NOTE: We use total cluster resources, and not just those based on the
+  // agents participating in the current allocation (i.e. provided as an
+  // argument to the `allocate()` call) so that frameworks in roles without
+  // quota are not unnecessarily deprived of resources.
+  Resources remainingClusterResources = roleSorter->totalScalars();
+  foreachkey (const string& role, activeRoles) {
+    remainingClusterResources -= roleSorter->allocationScalars(role);
   }
 
   // Frameworks in a quota'ed role may temporarily reject resources by
@@ -1287,6 +1284,7 @@ void HierarchicalAllocatorProcess::allocate(
     // Compute the amount of quota that the role does not have allocated.
     //
     // NOTE: Revocable resources are excluded in `quotaRoleSorter`.
+    // NOTE: Only scalars are considered for quota.
     Resources allocated = getQuotaRoleAllocatedResources(name);
     const Resources required = quota.info.guarantee();
     unallocatedQuotaResources += (required - allocated);
@@ -1369,7 +1367,9 @@ void HierarchicalAllocatorProcess::allocate(
         // stage to use more than `remainingClusterResources`, move along.
         // We do not terminate early, as offers generated further in the
         // loop may be small enough to fit within `remainingClusterResources`.
-        if (!remainingClusterResources.contains(allocatedStage2 + resources)) {
+        const Resources scalarResources = resources.scalars();
+        if (!remainingClusterResources.contains(
+                allocatedStage2 + scalarResources)) {
           continue;
         }
 
@@ -1382,7 +1382,7 @@ void HierarchicalAllocatorProcess::allocate(
         // NOTE: We may have already allocated some resources on the current
         // agent as part of quota.
         offerable[frameworkId][slaveId] += resources;
-        allocatedStage2 += resources;
+        allocatedStage2 += scalarResources;
         slaves[slaveId].allocated += resources;
 
         frameworkSorters[role]->add(slaveId, resources);
