@@ -87,11 +87,18 @@ public:
       const SlaveID& slaveId,
       const Resources& resources);
 
-  virtual hashmap<SlaveID, Resources> allocation(const std::string& name);
+  virtual const hashmap<SlaveID, Resources>& allocation(
+      const std::string& name);
+
+  virtual const Resources& allocationScalars(const std::string& name);
 
   virtual hashmap<std::string, Resources> allocation(const SlaveID& slaveId);
 
   virtual Resources allocation(const std::string& name, const SlaveID& slaveId);
+
+  virtual const hashmap<SlaveID, Resources>& total() const;
+
+  virtual const Resources& totalScalars() const;
 
   virtual void add(const SlaveID& slaveId, const Resources& resources);
 
@@ -134,7 +141,7 @@ private:
     // that to speed up the calculation of shares. See MESOS-2891 for
     // the reasons why we want to do that.
     Resources scalars;
-  } total;
+  } total_;
 
   // Allocation for a client.
   struct Allocation {

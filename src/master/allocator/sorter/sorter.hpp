@@ -76,7 +76,11 @@ public:
       const Resources& resources) = 0;
 
   // Returns the resources that have been allocated to this client.
-  virtual hashmap<SlaveID, Resources> allocation(const std::string& client) = 0;
+  virtual const hashmap<SlaveID, Resources>& allocation(
+      const std::string& client) = 0;
+
+  // Returns the sum of the scalar resources that are allocated to this client.
+  virtual const Resources& allocationScalars(const std::string& client) = 0;
 
   // Returns the clients that have allocations on this slave.
   virtual hashmap<std::string, Resources> allocation(
@@ -87,6 +91,12 @@ public:
   virtual Resources allocation(
       const std::string& client,
       const SlaveID& slaveId) = 0;
+
+  // Returns the total resources that are in this sorter.
+  virtual const hashmap<SlaveID, Resources>& total() const = 0;
+
+  // Returns the sum of the total scalar resources that are in this sorter.
+  virtual const Resources& totalScalars() const = 0;
 
   // Add resources to the total pool of resources this
   // Sorter should consider.

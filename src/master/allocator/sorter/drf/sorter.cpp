@@ -129,14 +129,14 @@ void DRFSorter::update(
   // Otherwise, we need to ensure we re-calculate the shares, as
   // is being currently done, for safety.
 
-  CHECK(total.resources[slaveId].contains(oldAllocation));
-  CHECK(total.scalars.contains(oldAllocation.scalars()));
+  CHECK(total_.resources[slaveId].contains(oldAllocation));
+  CHECK(total_.scalars.contains(oldAllocation.scalars()));
 
-  total.resources[slaveId] -= oldAllocation;
-  total.resources[slaveId] += newAllocation;
+  total_.resources[slaveId] -= oldAllocation;
+  total_.resources[slaveId] += newAllocation;
 
-  total.scalars -= oldAllocation.scalars();
-  total.scalars += newAllocation.scalars();
+  total_.scalars -= oldAllocation.scalars();
+  total_.scalars += newAllocation.scalars();
 
   CHECK(allocations[name].resources[slaveId].contains(oldAllocation));
   CHECK(allocations[name].scalars.contains(oldAllocation.scalars()));
@@ -152,11 +152,19 @@ void DRFSorter::update(
 }
 
 
-hashmap<SlaveID, Resources> DRFSorter::allocation(const string& name)
+const hashmap<SlaveID, Resources>& DRFSorter::allocation(const string& name)
 {
   CHECK(contains(name));
 
   return allocations[name].resources;
+}
+
+
+const Resources& DRFSorter::allocationScalars(const string& name)
+{
+  CHECK(contains(name));
+
+  return allocations[name].scalars;
 }
 
 
@@ -192,6 +200,18 @@ Resources DRFSorter::allocation(const string& name, const SlaveID& slaveId)
 }
 
 
+const hashmap<SlaveID, Resources>& DRFSorter::total() const
+{
+  return total_.resources;
+}
+
+
+const Resources& DRFSorter::totalScalars() const
+{
+  return total_.scalars;
+}
+
+
 void DRFSorter::unallocated(
     const string& name,
     const SlaveID& slaveId,
@@ -213,8 +233,8 @@ void DRFSorter::unallocated(
 void DRFSorter::add(const SlaveID& slaveId, const Resources& resources)
 {
   if (!resources.empty()) {
-    total.resources[slaveId] += resources;
-    total.scalars += resources.scalars();
+    total_.resources[slaveId] += resources;
+    total_.scalars += resources.scalars();
 
     // We have to recalculate all shares when the total resources
     // change, but we put it off until sort is called so that if
@@ -228,13 +248,13 @@ void DRFSorter::add(const SlaveID& slaveId, const Resources& resources)
 void DRFSorter::remove(const SlaveID& slaveId, const Resources& resources)
 {
   if (!resources.empty()) {
-    CHECK(total.resources.contains(slaveId));
+    CHECK(total_.resources.contains(slaveId));
 
-    total.resources[slaveId] -= resources;
-    total.scalars -= resources.scalars();
+    total_.resources[slaveId] -= resources;
+    total_.scalars -= resources.scalars();
 
-    if (total.resources[slaveId].empty()) {
-      total.resources.erase(slaveId);
+    if (total_.resources[slaveId].empty()) {
+      total_.resources.erase(slaveId);
     }
 
     dirty = true;
@@ -244,15 +264,15 @@ void DRFSorter::remove(const SlaveID& slaveId, const Resources& resources)
 
 void DRFSorter::update(const SlaveID& slaveId, const Resources& resources)
 {
-  CHECK(total.scalars.contains(total.resources[slaveId].scalars()));
+  CHECK(total_.scalars.contains(total_.resources[slaveId].scalars()));
 
-  total.scalars -= total.resources[slaveId].scalars();
-  total.scalars += resources.scalars();
+  total_.scalars -= total_.resources[slaveId].scalars();
+  total_.scalars += resources.scalars();
 
-  total.resources[slaveId] = resources;
+  total_.resources[slaveId] = resources;
 
-  if (total.resources[slaveId].empty()) {
-    total.resources.erase(slaveId);
+  if (total_.resources[slaveId].empty()) {
+    total_.resources.erase(slaveId);
   }
 
   dirty = true;
@@ -325,12 +345,12 @@ double DRFSorter::calculateShare(const string& name)
   // currently does not take into account resources that are not
   // scalars.
 
-  foreach (const string& scalar, total.scalars.names()) {
+  foreach (const string& scalar, total_.scalars.names()) {
     double _total = 0.0;
 
     // NOTE: Scalar resources may be spread across multiple
     // 'Resource' objects. E.g. persistent volumes.
-    foreach (const Resource& resource, total.scalars.get(scalar)) {
+    foreach (const Resource& resource, total_.scalars.get(scalar)) {
       CHECK_EQ(resource.type(), Value::SCALAR);
       _total += resource.scalar().value();
     }
