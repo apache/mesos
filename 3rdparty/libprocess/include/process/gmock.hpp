@@ -354,6 +354,87 @@ MATCHER_P2(DispatchMatcher, pid, method, "")
 }
 
 
+MATCHER_P3(HttpMatcher, message, path, deserializer, "")
+{
+  const HttpEvent& event = ::std::tr1::get<0>(arg);
+
+  Try<message_type> message_ = deserializer(event.request->body);
+  if (message_.isError()) {
+    return false;
+  }
+
+  return (testing::Matcher<std::string>(path).Matches(event.request->url.path));
+}
+
+
+// See `UnionMessageMatcher` for more details on protobuf messages using the
+// "union" trick.
+MATCHER_P4(UnionHttpMatcher, message, unionType, path, deserializer, "")
+{
+  const HttpEvent& event = ::std::tr1::get<0>(arg);
+
+  Try<message_type> message_ = deserializer(event.request->body);
+  if (message_.isError()) {
+    return false;
+  }
+
+  return (testing::Matcher<unionType_type>(unionType).Matches(
+            message_.get().type()) &&
+          testing::Matcher<std::string>(path).Matches(
+            event.request->url.path));
+}
+
+
+template <typename Message, typename Path, typename Deserializer>
+Future<http::Request> FutureHttpRequest(
+    Message message,
+    Path path,
+    Deserializer deserializer,
+    bool drop = false)
+{
+  TestsFilter* filter = FilterTestEventListener::instance()->install();
+  Future<http::Request> future;
+  synchronized (filter->mutex) {
+    EXPECT_CALL(filter->mock, filter(testing::A<const HttpEvent&>()))
+      .With(HttpMatcher(message, path, deserializer))
+      .WillOnce(testing::DoAll(FutureArgField<0>(
+                                   &HttpEvent::request,
+                                   &future),
+                               testing::Return(drop)))
+      .RetiresOnSaturation(); // Don't impose any subsequent expectations.
+  }
+
+  return future;
+}
+
+
+template <typename Message,
+          typename UnionType,
+          typename Path,
+          typename Deserializer>
+Future<http::Request> FutureUnionHttpRequest(
+    Message message,
+    UnionType unionType,
+    Path path,
+    Deserializer deserializer,
+    bool drop = false)
+{
+  TestsFilter* filter = FilterTestEventListener::instance()->install();
+  Future<http::Request> future;
+  synchronized (filter->mutex) {
+    EXPECT_CALL(filter->mock, filter(testing::A<const HttpEvent&>()))
+      .With(UnionHttpMatcher(message, unionType, path, deserializer))
+      .WillOnce(testing::DoAll(FutureArgField<0>(
+                                   &HttpEvent::request,
+                                   &future),
+                               testing::Return(drop)))
+      .RetiresOnSaturation(); // Don't impose any subsequent expectations.
+  }
+
+  return future;
+}
+
+
 template <typename Name, typename From, typename To>
 Future<Message> FutureMessage(Name name, From from, To to, bool drop = false)
 {
@@ -432,6 +513,80 @@ void DropUnionMessages(Message message, UnionType unionType, From from, To to)
     EXPECT_CALL(filter->mock, filter(testing::A<const MessageEvent&>()))
       .With(UnionMessageMatcher(message, unionType, from, to))
       .WillRepeatedly(testing::Return(true));
+  }
+}
+
+
+template <typename Message, typename Path, typename Deserializer>
+void DropHttpRequests(
+    Message message,
+    Path path,
+    Deserializer deserializer,
+    bool drop = false)
+{
+  TestsFilter* filter = FilterTestEventListener::instance()->install();
+  synchronized (filter->mutex) {
+    EXPECT_CALL(filter->mock, filter(testing::A<const HttpEvent&>()))
+      .With(HttpMatcher(message, path, deserializer))
+      .WillRepeatedly(testing::Return(true));
+  }
+}
+
+
+template <typename Message,
+          typename UnionType,
+          typename Path,
+          typename Deserializer>
+void DropUnionHttpRequests(
+    Message message,
+    UnionType unionType,
+    Path path,
+    Deserializer deserializer,
+    bool drop = false)
+{
+  TestsFilter* filter = FilterTestEventListener::instance()->install();
+  Future<http::Request> future;
+  synchronized (filter->mutex) {
+    EXPECT_CALL(filter->mock, filter(testing::A<const HttpEvent&>()))
+      .With(UnionHttpMatcher(message, unionType, path, deserializer))
+      .WillRepeatedly(testing::Return(true));
+  }
+}
+
+
+template <typename Message, typename Path, typename Deserializer>
+void ExpectNoFutureHttpRequests(
+    Message message,
+    Path path,
+    Deserializer deserializer,
+    bool drop = false)
+{
+  TestsFilter* filter = FilterTestEventListener::instance()->install();
+  synchronized (filter->mutex) {
+    EXPECT_CALL(filter->mock, filter(testing::A<const HttpEvent&>()))
+      .With(HttpMatcher(message, path, deserializer))
+      .Times(0);
+  }
+}
+
+
+template <typename Message,
+          typename UnionType,
+          typename Path,
+          typename Deserializer>
+void ExpectNoFutureUnionHttpRequests(
+    Message message,
+    UnionType unionType,
+    Path path,
+    Deserializer deserializer,
+    bool drop = false)
+{
+  TestsFilter* filter = FilterTestEventListener::instance()->install();
+  Future<http::Request> future;
+  synchronized (filter->mutex) {
+    EXPECT_CALL(filter->mock, filter(testing::A<const HttpEvent&>()))
+      .With(UnionHttpMatcher(message, unionType, path, deserializer))
+      .Times(0);
   }
 }
 
