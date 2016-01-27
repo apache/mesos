@@ -191,6 +191,10 @@ Future<Nothing> PosixDiskIsolatorProcess::update(
       }
     }
 
+    // TODO(jieyu): For persistent volumes, validate that there is
+    // only one Resource object associated with it. We could have
+    // multiple Resource objects associated with the sandbox because
+    // it might be a mix of reserved and unreserved resources.
     quotas[path] += resource;
   }
 
@@ -257,7 +261,20 @@ void PosixDiskIsolatorProcess::_collect(
     // Save the last disk usage.
     info->paths[path].lastUsage = future.get();
 
-    if (flags.enforce_container_disk_quota) {
+    // We need to ignore the quota enforcement check for MOUNT type
+    // disk resources because its quota will be enforced by the
+    // underlying filesystem.
+    bool isDiskSourceMount = false;
+    foreach (const Resource& resource, info->paths[path].quota) {
+      if (resource.has_disk() &&
+          resource.disk().has_source() &&
+          resource.disk().source().type() ==
+            Resource::DiskInfo::Source::MOUNT) {
+        isDiskSourceMount = true;
+      }
+    }
+
+    if (flags.enforce_container_disk_quota && !isDiskSourceMount) {
       Option<Bytes> quota = info->paths[path].quota.disk();
       CHECK_SOME(quota);
 
