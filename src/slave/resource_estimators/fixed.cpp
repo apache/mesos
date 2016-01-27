@@ -68,11 +68,11 @@ class FixedResourceEstimator : public ResourceEstimator
 {
 public:
   FixedResourceEstimator(const Resources& _totalRevocable)
-    : totalRevocable(_totalRevocable)
   {
     // Mark all resources as revocable.
-    foreach (Resource& resource, totalRevocable) {
+    foreach (Resource resource, _totalRevocable) {
       resource.mutable_revocable();
+      totalRevocable += resource;
     }
   }
 

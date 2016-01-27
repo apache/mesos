@@ -351,7 +351,7 @@ TEST(ResourcesTest, ParsingFromJSONWithRoles)
   EXPECT_TRUE(resources.contains(Resources(*cpus)));
   EXPECT_EQ(145.54, resources.cpus().get());
 
-  foreach (Resource& resource, resources) {
+  foreach (const Resource& resource, resources) {
     if (resource.role() == "role1") {
       EXPECT_EQ(91.1, resource.scalar().value());
     } else {
@@ -396,7 +396,7 @@ TEST(ResourcesTest, ParsingFromJSONWithRoles)
 
   resources = resourcesTry.get();
 
-  foreach (Resource& resource, resources) {
+  foreach (const Resource& resource, resources) {
     if (resource.role() == "role1") {
       EXPECT_EQ(Value::RANGES, resource.type());
       EXPECT_EQ(2, resource.ranges().range_size());

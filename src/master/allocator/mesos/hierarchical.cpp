@@ -1160,13 +1160,14 @@ void HierarchicalAllocatorProcess::allocate(
   auto getQuotaRoleAllocatedResources = [this](const std::string& role) {
     CHECK(quotas.contains(role));
 
-    Resources resources = quotaRoleSorter->allocationScalars(role);
-
     // Strip the reservation and persistent volume info.
-    foreach (Resource& resource, resources) {
+    Resources resources;
+
+    foreach (Resource resource, quotaRoleSorter->allocationScalars(role)) {
       resource.set_role("*");
       resource.clear_reservation();
       resource.clear_disk();
+      resources += resource;
     }
 
     return resources;
