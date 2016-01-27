@@ -37,7 +37,7 @@ namespace internal {
 namespace master {
 namespace quota {
 
-UpdateQuota::UpdateQuota(const mesos::quota::QuotaInfo& quotaInfo)
+UpdateQuota::UpdateQuota(const QuotaInfo& quotaInfo)
   : info(quotaInfo) {}
 
 
@@ -61,7 +61,7 @@ Try<bool> UpdateQuota::perform(
 }
 
 
-RemoveQuota::RemoveQuota(const std::string& _role) : role(_role) {}
+RemoveQuota::RemoveQuota(const string& _role) : role(_role) {}
 
 
 Try<bool> RemoveQuota::perform(
