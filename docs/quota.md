@@ -279,8 +279,8 @@ satisfied, it proceeds with the standard wDRF for all frameworks.
 If there are multiple frameworks in a role with quota set, the standard wDRF
 algorithm determines framework priority inside this role.
 
-The default wDRF allocator considers only unreserved and non-revocable resources
-as applicable towards quota.
+The default wDRF allocator considers only non-revocable resources as applicable
+towards quota.
 
 <a name="failover"></a>
 ## Failover
