@@ -317,14 +317,26 @@ public:
   // which holds the ephemeral ports allocation logic.
   Option<Value::Ranges> ephemeral_ports() const;
 
-  typedef google::protobuf::RepeatedPtrField<Resource>::iterator
+  // NOTE: Non-`const` `iterator`, `begin()` and `end()` are __intentionally__
+  // defined with `const` semantics in order to prevent mutable access to the
+  // `Resource` objects within `resources`.
+  typedef google::protobuf::RepeatedPtrField<Resource>::const_iterator
   iterator;
 
   typedef google::protobuf::RepeatedPtrField<Resource>::const_iterator
   const_iterator;
 
-  iterator begin() { return resources.begin(); }
-  iterator end() { return resources.end(); }
+  const_iterator begin()
+  {
+    using google::protobuf::RepeatedPtrField;
+    return static_cast<const RepeatedPtrField<Resource>&>(resources).begin();
+  }
+
+  const_iterator end()
+  {
+    using google::protobuf::RepeatedPtrField;
+    return static_cast<const RepeatedPtrField<Resource>&>(resources).end();
+  }
 
   const_iterator begin() const { return resources.begin(); }
   const_iterator end() const { return resources.end(); }

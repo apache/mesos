@@ -708,10 +708,11 @@ string Master::Http::CREATE_VOLUMES_HELP()
 
 static Resources removeDiskInfos(const Resources& resources)
 {
-  Resources result = resources;
+  Resources result;
 
-  foreach (Resource& resource, result) {
+  foreach (Resource resource, resources) {
     resource.clear_disk();
+    result += resource;
   }
 
   return result;
