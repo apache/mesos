@@ -101,13 +101,14 @@ struct Flags : public virtual flags::FlagsBase
         "'logrotate' instead of the system's 'logrotate'.",
         "logrotate",
         [](const std::string& value) -> Option<Error> {
-          // Check if `logrotate` exists via the version command.
+          // Check if `logrotate` exists via the help command.
           // TODO(josephw): Consider a more comprehensive check.
-          Try<std::string> versionCommand = os::shell(value + " --version");
+          Try<std::string> helpCommand =
+            os::shell(value + " --help > /dev/null");
 
-          if (versionCommand.isError()) {
+          if (helpCommand.isError()) {
             return Error(
-                "Failed to check logrotate version: " + versionCommand.error());
+                "Failed to check logrotate: " + helpCommand.error());
           }
 
           return None();
