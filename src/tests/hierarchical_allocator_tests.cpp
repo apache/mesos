@@ -1806,7 +1806,8 @@ TEST_F(HierarchicalAllocatorTest, QuotaAllocationGranularity)
 
 
 // This test verifies, that the free pool (what is left after all quotas
-// are satisfied) is allocated according to the DRF algorithm.
+// are satisfied) is allocated according to the DRF algorithm across the roles
+// which do not have quota set.
 TEST_F(HierarchicalAllocatorTest, DRFWithQuota)
 {
   // Pausing the clock is not necessary, but ensures that the test
@@ -1885,12 +1886,12 @@ TEST_F(HierarchicalAllocatorTest, DRFWithQuota)
       agent2.resources(),
       hashmap<FrameworkID, Resources>());
 
-  // `framework1` will be offered all of `agent2`'s resources
-  // (coarse-grained allocation) because its share is less than
-  // `framework2`'s share.
+  // `framework2` will be offered all of `agent2`'s resources (coarse-grained
+  // allocation). `framework1` does not receive them even though it has a
+  // smaller allocation, since we have already satisfied its role's quota.
   allocation = allocations.get();
   AWAIT_READY(allocation);
-  EXPECT_EQ(framework1.id(), allocation.get().frameworkId);
+  EXPECT_EQ(framework2.id(), allocation.get().frameworkId);
   EXPECT_EQ(agent2.resources(), Resources::sum(allocation.get().resources));
 }
 

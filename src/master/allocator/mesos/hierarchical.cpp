@@ -1337,7 +1337,17 @@ void HierarchicalAllocatorProcess::allocate(
         //
         // NOTE: Currently, frameworks are allowed to have '*' role.
         // Calling reserved('*') returns an empty Resources object.
-        Resources resources = available.unreserved() + available.reserved(role);
+        //
+        // NOTE: We do not offer roles with quota any more non-revocable
+        // resources once their quota is satisfied. However, note that this is
+        // not strictly true due to the coarse-grained nature (per agent) of the
+        // allocation algorithm in stage 1.
+        //
+        // TODO(mpark): Offer unreserved resources as revocable beyond quota.
+        Resources resources = available.reserved(role);
+        if (!quotas.contains(role)) {
+          resources += available.unreserved();
+        }
 
         // Remove revocable resources if the framework has not opted
         // for them.
