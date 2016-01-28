@@ -163,7 +163,7 @@ TEST_F(DiskUsageCollectorTest, ExcludeRelativePath)
   // path. Pattern matching is expected to fail causing exclude
   // to have no effect.
   Future<Bytes> usage2 = collector.usage(".", {file});
-  EXPECT_GT(usage2.get(), Kilobytes(128));
+  EXPECT_GE(usage2.get(), Kilobytes(128));
 }
 #endif
 
