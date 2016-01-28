@@ -1545,12 +1545,33 @@ message ContainerInfo {
 
 
 /**
- * Container related information that is resolved during container setup. The
- * information is sent back to the framework as part of the TaskStatus message.
+ * Container related information that is resolved during container
+ * setup. The information is sent back to the framework as part of the
+ * TaskStatus message.
  */
 message ContainerStatus {
   // This field can be reliably used to identify the container IP address.
   repeated NetworkInfo network_infos = 1;
+
+  // Information about Linux control group (cgroup).
+  optional CgroupInfo cgroup_info = 2;
+}
+
+
+/**
+ * Linux control group (cgroup) information.
+ */
+message CgroupInfo {
+  // Configuration of a net_cls cgroup subsystem.
+  message NetCls {
+    // The 32-bit classid consists of two parts, a 16 bit major handle
+    // and a 16-bit minor handle. The major and minor handle are
+    // represented using the format 0xAAAABBBB, where 0xAAAA is the
+    // 16-bit major handle and 0xBBBB is the 16-bit minor handle.
+    optional uint32 classid = 1;
+  }
+
+  optional NetCls net_cls = 1;
 }
 
 
