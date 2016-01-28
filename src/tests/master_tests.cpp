@@ -2379,6 +2379,9 @@ TEST_F(MasterTest, OrphanTasks)
   orphanTasks = state.values["orphan_tasks"].as<JSON::Array>();
   EXPECT_EQ(0u, orphanTasks.values.size());
 
+  EXPECT_CALL(exec, shutdown(_))
+    .Times(AtMost(1));
+
   // Cleanup.
   driver.stop();
   driver.join();

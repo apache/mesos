@@ -834,6 +834,9 @@ TEST_F(StatusUpdateManagerTest, LatestTaskState)
   ASSERT_EQ(TASK_FINISHED,
             statusUpdateMessage2.get().update().latest_state());
 
+  EXPECT_CALL(exec, shutdown(_))
+    .Times(AtMost(1));
+
   driver.stop();
   driver.join();
 
