@@ -166,7 +166,7 @@ initial state and several possible terminal states:
 
 * The `TASK_STARTING` state is optional and intended primarily for use by
   custom executors. It can be used to describe the fact that a custom executor
-  has learnt about the task (and maybe started fetching its dependecies) but has
+  has learned about the task (and maybe started fetching its dependencies) but has
   not yet started to run it.
 
 * A task transitions to the `TASK_RUNNING` state after it starts running
@@ -197,7 +197,7 @@ initial state and several possible terminal states:
 
 ## Dealing with Partitioned or Failed Agents
 
-The Mesos master keeps track of the availablility and health of the registered agents
+The Mesos master keeps track of the availability and health of the registered agents
 by 2 different mechanisms.
 
  1) State of a persistent TCP connection to the agent.
@@ -236,7 +236,7 @@ that the agent has failed and takes steps to remove it from the cluster. Specifi
 
 	* `slaveLost` callback
 	* `executorLost` callback for each custom executor that was running on the agent
-	* `TASK_LOST` status updates for each task that was runniong on the agent
+	* `TASK_LOST` status updates for each task that was running on the agent
 
 	>NOTE: None of these callbacks or updates are reliably delivered by the master. For example if
 	the master or scheduler fails over or there is a network connection issue during the delivery
