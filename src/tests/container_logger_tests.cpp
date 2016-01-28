@@ -31,6 +31,7 @@
 #include <stout/try.hpp>
 
 #include <stout/os/exists.hpp>
+#include <stout/os/killtree.hpp>
 #include <stout/os/mkdir.hpp>
 #include <stout/os/pstree.hpp>
 #include <stout/os/stat.hpp>
@@ -482,6 +483,104 @@ TEST_F(ContainerLoggerTest, LOGROTATE_RotateInSandbox)
     EXPECT_LE(2040u, stdoutSize->kilobytes());
     EXPECT_GE(2048u, stdoutSize->kilobytes());
   }
+}
+
+
+// Tests that the logrotate container logger only closes FDs when it
+// is supposed to and does not interfere with other FDs on the agent.
+TEST_F(ContainerLoggerTest, LOGROTATE_ModuleFDOwnership)
+{
+  // Create a master, agent, and framework.
+  Try<PID<Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  Future<SlaveRegisteredMessage> slaveRegisteredMessage =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
+
+  // We'll need access to these flags later.
+  slave::Flags flags = CreateSlaveFlags();
+
+  // Use the non-default container logger that rotates logs.
+  flags.container_logger = LOGROTATE_CONTAINER_LOGGER_NAME;
+
+  Fetcher fetcher;
+
+  // We use an actual containerizer + executor since we want something to run.
+  Try<MesosContainerizer*> containerizer =
+    MesosContainerizer::create(flags, false, &fetcher);
+  CHECK_SOME(containerizer);
+
+  Try<PID<Slave>> slave = StartSlave(containerizer.get(), flags);
+  ASSERT_SOME(slave);
+
+  AWAIT_READY(slaveRegisteredMessage);
+  SlaveID slaveId = slaveRegisteredMessage.get().slave_id();
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  Future<FrameworkID> frameworkId;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId));
+
+  // Wait for an offer, and start a task.
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+  AWAIT_READY(frameworkId);
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
+
+  // Start a task that will keep running until the end of the test.
+  TaskInfo task = createTask(offers.get()[0], "sleep 100");
+
+  Future<TaskStatus> statusRunning;
+  Future<TaskStatus> statusKilled;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusRunning))
+    .WillOnce(FutureArg<1>(&statusKilled))
+    .WillRepeatedly(Return());       // Ignore subsequent updates.
+
+  driver.launchTasks(offers.get()[0].id(), {task});
+
+  AWAIT_READY(statusRunning);
+  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
+
+  // Open multiple files, so that we're fairly certain we've opened
+  // the same FDs (integers) opened by the container logger.
+  vector<int> fds;
+  for (int i = 0; i < 50; i++) {
+    Try<int> fd = os::open("/dev/null", O_RDONLY);
+    ASSERT_SOME(fd);
+
+    fds.push_back(fd.get());
+  }
+
+  // Kill the task, which also kills the executor.
+  driver.killTask(statusRunning.get().task_id());
+
+  AWAIT_READY(statusKilled);
+  EXPECT_EQ(TASK_KILLED, statusKilled.get().state());
+
+  Future<Nothing> executorTerminated =
+    FUTURE_DISPATCH(_, &Slave::executorTerminated);
+
+  AWAIT_READY(executorTerminated);
+
+  // Close all the FDs we opened.  Every `close` should succeed.
+  foreach (int fd, fds) {
+    ASSERT_SOME(os::close(fd));
+  }
+
+  driver.stop();
+  driver.join();
+
+  Shutdown();
 }
 
 } // namespace tests {
