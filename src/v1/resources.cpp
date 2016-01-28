@@ -25,6 +25,8 @@
 
 #include <google/protobuf/repeated_field.h>
 
+#include <mesos/roles.hpp>
+
 #include <mesos/v1/mesos.hpp>
 #include <mesos/v1/resources.hpp>
 #include <mesos/v1/values.hpp>
