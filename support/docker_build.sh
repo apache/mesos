@@ -6,9 +6,10 @@ set -xe
 # a given OS and compiler combination.
 
 # Require the following environment variables to be set.
-: ${OS:?"Environment variable 'OS' must be set"}
-: ${COMPILER:?"Environment variable 'COMPILER' must be set"}
-: ${CONFIGURATION:?"Environment variable 'CONFIGURATION' must be set"}
+: ${OS:?"Environment variable 'OS' must be set (e.g., OS=ubuntu14.04)"}
+: ${COMPILER:?"Environment variable 'COMPILER' must be set (e.g., COMPILER=gcc)"}
+: ${CONFIGURATION:?"Environment variable 'CONFIGURATION' must be set (e.g., CONFIGURATION='--enable-libevent --enable-ssl')"}
+: ${ENVIRONMENT:?"Environment variable 'ENVIRONMENT' must be set (e.g., ENVIRONMENT='GLOG_v=1 MESOS_VERBOSE=1')"}
 
 # Change to the root of Mesos repo for docker build context.
 MESOS_DIRECTORY=$( cd "$( dirname "$0" )/.." && pwd )
@@ -88,8 +89,6 @@ case $COMPILER in
     ;;
 esac
 
-# Generate xml reports to be displayed by jenkins xUnit plugin.
-append_dockerfile "ENV GTEST_OUTPUT xml:report.xml"
 
 # Set working directory.
 append_dockerfile "WORKDIR mesos"
@@ -105,8 +104,17 @@ append_dockerfile "COPY . /mesos/"
 append_dockerfile "RUN chown -R mesos /mesos"
 append_dockerfile "USER mesos"
 
+# Generate xml reports to be displayed by jenkins xUnit plugin.
+append_dockerfile "ENV GTEST_OUTPUT xml:report.xml"
+
+# Ensure `make distcheck` inherits configure flags.
+append_dockerfile "ENV DISTCHECK_CONFIGURE_FLAGS $CONFIGURATION"
+
+# Set the environment for build.
+append_dockerfile "ENV $ENVIRONMENT"
+
 # Build and check Mesos.
-append_dockerfile "CMD ./bootstrap && ./configure $CONFIGURATION && DISTCHECK_CONFIGURE_FLAGS=\"$CONFIGURATION\" GLOG_v=1 MESOS_VERBOSE=1 make -j8 distcheck"
+append_dockerfile "CMD ./bootstrap && ./configure $CONFIGURATION && make -j8 distcheck"
 
 # Generate a random image tag.
 TAG=mesos-`date +%s`-$RANDOM
