@@ -80,6 +80,11 @@ Release Notes - Mesos - Version 0.27.0
   * [MESOS-4449] - SegFault on agent during executor startup
   * [MESOS-4507] - Replace busybox image with alpine in Docker tests
   * [MESOS-4515] - ContainerLoggerTest.LOGROTATE_RotateInSandbox breaks when running on Centos6.
+  * [MESOS-4530] - NetClsIsolatorTest.ROOT_CGROUPS_NetClsIsolate is flaky
+  * [MESOS-4533] - DiskUsageCollectorTest.ExcludeRelativePath fails on Linux
+  * [MESOS-4534] - Resources object can be mutated through the public API
+  * [MESOS-4535] - Logrotate ContainerLogger may not handle FD ownership correctly
+  * [MESOS-4539] - Exclude paths in Posix disk isolator should be absolute paths.
 
 ** Documentation
   * [MESOS-3581] - License headers show up all over doxygen documentation.
