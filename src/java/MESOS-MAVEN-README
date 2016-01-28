@@ -8,11 +8,11 @@ it will be copied into Maven Central.
 
 NOTE: Publishing artifacts to Maven as described below requires the Mesos Java
 classes to be generated from the Protobuf file. The easiest way to do this is
-to run `make src/java/target/mesos-0.19.0.jar`. In addition, Maven will create
+to run `make src/java/target/mesos-0.27.0.jar`. In addition, Maven will create
 a shaded jar that includes the protobuf classes
-(src/java/target/mesos-shaded-protobuf-0.19.0.jar), a jar containing the Java
-source files (src/java/target/mesos-0.19.0-sources.jar) and the Javadoc
-(src/java/target/mesos-0.19.0-javadoc.jar), and all four of these files, as
+(src/java/target/mesos-shaded-protobuf-0.27.0.jar), a jar containing the Java
+source files (src/java/target/mesos-0.27.0-sources.jar) and the Javadoc
+(src/java/target/mesos-0.27.0-javadoc.jar), and all four of these files, as
 well as an .md5 and .sha1 for each of the jars, and finally an additional *.asc
 signature file for each of the above files (all in src/java/target).
 
