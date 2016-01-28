@@ -95,16 +95,20 @@ This guide describes the process of doing an official release of Mesos.
 
 1. Ensure that you can build and pass all the tests.
 
-        $ sudo make -j3 distcheck
+        $ sudo make -j<cores> distcheck
 
-2. First tag the required SHA locally.
+2. Run the benchmarks and compare with the previous release for any performance regressions:
+
+        $ make bench -j<cores> GTEST_FILTER="*BENCHMARK*"
+
+3. First tag the required SHA locally.
 
         $ git tag <X.Y.Z-rcR>
 
     > NOTE: `X.Y.Z` is based on [semantic versioning](http://semver.org/) scheme. `R` is release
             candidate version that starts with 1.
 
-3. Tag the release externally and deploy the corresponding JAR to the Apache maven repository.
+4. Tag the release externally and deploy the corresponding JAR to the Apache maven repository.
    It is recommended to use the `support/tag.sh` script to accomplish this.
 
         $ ./support/tag.sh X.Y.Z R
@@ -115,10 +119,10 @@ This guide describes the process of doing an official release of Mesos.
     > NOTE: gnu-sed (Linux) requires `-i''` instead of the `-i ''` (space-separated) that default OSX uses.
       You may need to modify your local copy of tag.sh for it to complete successfully.
 
-4. It is not uncommon to release multiple release candidates, with increasing release candidate
+5. It is not uncommon to release multiple release candidates, with increasing release candidate
    version, if there are bugs found.
 
-5. Update to the *next* Mesos version in `configure.ac`: change `AC_INIT([mesos], [X.Y.Z]))`, as well as in `CMakeLists.txt`: change `set(MESOS_MAJOR_VERSION X)`, `set(MESOS_MINOR_VERSION Y)`, `set(MESOS_PATCH_VERSION Z)` and then commit.
+6. Update to the *next* Mesos version in `configure.ac`: change `AC_INIT([mesos], [X.Y.Z]))`, as well as in `CMakeLists.txt`: change `set(MESOS_MAJOR_VERSION X)`, `set(MESOS_MINOR_VERSION Y)`, `set(MESOS_PATCH_VERSION Z)` and then commit.
 
 ## Voting the release candidate
 
