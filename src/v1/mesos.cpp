@@ -227,7 +227,8 @@ bool operator==(const Port& left, const Port& right)
 {
   return left.number() == right.number() &&
     left.name() == right.name() &&
-    left.protocol() == right.protocol();
+    left.protocol() == right.protocol() &&
+    left.visibility() == right.visibility();
 }
 
 

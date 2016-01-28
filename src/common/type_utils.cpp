@@ -391,7 +391,7 @@ ostream& operator<<(ostream& stream, const ExecutorInfo& executor)
 }
 
 
-ostream& operator<<(std::ostream& stream, const FrameworkID& frameworkId)
+ostream& operator<<(ostream& stream, const FrameworkID& frameworkId)
 {
   return stream << frameworkId.value();
 }
