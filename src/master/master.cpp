@@ -1178,7 +1178,7 @@ void Master::exited(const UPID& pid)
       // follows for each framework running on that slave:
       // 1) If the framework is checkpointing: No immediate action is taken.
       //    The slave is given a chance to reconnect until the slave
-      //    observer times out (75s) and removes the slave (Case 1).
+      //    observer times out (75s) and removes the slave.
       // 2) If the framework is not-checkpointing: The slave is not removed
       //    but the framework is removed from the slave's structs,
       //    its tasks transitioned to LOST and resources recovered.
