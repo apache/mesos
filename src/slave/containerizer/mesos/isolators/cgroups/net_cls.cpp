@@ -72,16 +72,26 @@ Try<Isolator*> CgroupsNetClsIsolatorProcess::create(const Flags& flags)
     return Error("Failed to create net_cls cgroup: " + hierarchy.error());
   }
 
-  // Ensure that no other subsystem is attached to the hierarchy.
+  // Ensure that no unexpected subsystem is attached to the hierarchy.
   Try<set<string>> subsystems = cgroups::subsystems(hierarchy.get());
   if (subsystems.isError()) {
     return Error(
-        "Failed to get the list of attached subsystems for hierarchy " +
-        hierarchy.get());
+        "Failed to get the list of attached subsystems for hierarchy "
+        "'" + hierarchy.get() + "'");
   } else if (subsystems.get().size() != 1) {
-    return Error(
-        "Unexpected subsystems found attached to the hierarchy " +
-        hierarchy.get());
+    // Some Linux distributions mount net_cls and net_prio subsystems
+    // to the same hierarchy.
+    // TODO(jieyu): If we ever introduce a cgroups net_prio isolator,
+    // we need to make sure it will not conflict with this isolator if
+    // two subsystems are co-mounted into the same hierarchy. For
+    // instance, we should not remove a cgroup twice.
+    foreach (const string& subsystem, subsystems.get()) {
+      if (subsystem != "net_cls" && subsystem != "net_prio") {
+        return Error(
+            "Unexpected subsystems found attached to hierarchy "
+            "'" + hierarchy.get() + "'");
+      }
+    }
   }
 
   process::Owned<MesosIsolatorProcess> process(
