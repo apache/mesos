@@ -1252,20 +1252,27 @@ TEST_F(ProvisionerDockerLocalStoreTest, PullingSameImageSimutanuously)
   Future<slave::ImageInfo> imageInfo1 = store.get()->get(mesosImage);
   AWAIT_READY(pull);
 
-  const string rootfsPath1 = path::join(os::getcwd(), "rootfs1");
-  const string rootfsPath2 = path::join(os::getcwd(), "rootfs2");
+  // TODO(gilbert): Need a helper method to create test layers
+  // which will allow us to set manifest so that we can add
+  // checks here.
+  const string layerPath = path::join(os::getcwd(), "456");
 
-  Try<Nothing> mkdir1 = os::mkdir(rootfsPath1);
-  ASSERT_SOME(mkdir1);
-  Try<Nothing> mkdir2 = os::mkdir(rootfsPath2);
-  ASSERT_SOME(mkdir2);
+  Try<Nothing> mkdir = os::mkdir(layerPath);
+  ASSERT_SOME(mkdir);
+
+  JSON::Value manifest = JSON::parse(
+        "{"
+        "  \"parent\": \"\""
+        "}").get();
+
+  ASSERT_SOME(
+      os::write(path::join(layerPath, "json"), stringify(manifest)));
 
   ASSERT_TRUE(imageInfo1.isPending());
   Future<slave::ImageInfo> imageInfo2 = store.get()->get(mesosImage);
 
   const std::list<std::pair<std::string, std::string>> result =
-      {{"123", rootfsPath1},
-       {"456", rootfsPath2}};
+    {{"456", layerPath}};
 
   ASSERT_TRUE(imageInfo2.isPending());
   promise.set(result);

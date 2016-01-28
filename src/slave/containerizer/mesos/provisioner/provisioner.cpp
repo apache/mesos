@@ -295,7 +295,7 @@ Future<ProvisionInfo> ProvisionerProcess::_provision(
 
   return backends.get(backend).get()->provision(ImageInfo.layers, rootfs)
     .then([rootfs, ImageInfo]() -> Future<ProvisionInfo> {
-      return ProvisionInfo{rootfs, ImageInfo.runtimeConfig};
+      return ProvisionInfo{rootfs, ImageInfo.dockerManifest};
     });
 }
 
