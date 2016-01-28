@@ -51,16 +51,6 @@ inline Try<double> usage(const std::string& path = "/")
 }
 
 
-inline Try<Nothing> symlink(
-    const std::string& original,
-    const std::string& link)
-{
-  if (::symlink(original.c_str(), link.c_str()) < 0) {
-    return ErrnoError();
-  }
-  return Nothing();
-}
-
 } // namespace fs {
 
 #endif // __STOUT_FS_HPP__
