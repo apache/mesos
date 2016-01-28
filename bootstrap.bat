@@ -45,7 +45,7 @@ if not exist .git\hooks\post-rewrite (
 )
 
 if not exist .gitignore (
-  mklink .gitignore .gitignore-template
+  mklink .gitignore support\gitignore
 )
 
 if not exist .reviewboardrc (

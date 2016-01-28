@@ -65,7 +65,7 @@ if test ! -e "${_hooksdir}/commit-msg"; then
 fi
 
 if test ! -e .gitignore; then
-  ln -s .gitignore-template .gitignore
+  ln -s support/gitignore .gitignore
 fi
 
 if test ! -e .reviewboardrc; then
