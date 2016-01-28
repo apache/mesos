@@ -106,6 +106,10 @@ public:
 private:
   PosixDiskIsolatorProcess(const Flags& flags);
 
+  process::Future<Bytes> collect(
+      const ContainerID& containerId,
+      const std::string& path);
+
   void _collect(
       const ContainerID& containerId,
       const std::string& path,
