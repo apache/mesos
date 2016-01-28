@@ -38,6 +38,7 @@
 #include <stout/path.hpp>
 
 #include <stout/os/environment.hpp>
+#include <stout/os/fcntl.hpp>
 #include <stout/os/killtree.hpp>
 
 #include "slave/container_loggers/logrotate.hpp"
@@ -88,6 +89,31 @@ public:
     environment.erase("LIBPROCESS_ADVERTISE_IP");
     environment.erase("LIBPROCESS_ADVERTISE_PORT");
 
+    // NOTE: We manually construct a pipe here instead of using
+    // `Subprocess::PIPE` so that the ownership of the FDs is properly
+    // represented.  The `Subprocess` spawned below owns the read-end
+    // of the pipe and will be solely responsible for closing that end.
+    // The ownership of the write-end will be passed to the caller
+    // of this function.
+    int pipefd[2];
+    if (::pipe(pipefd) == -1) {
+      return Failure(ErrnoError("Failed to create pipe").message);
+    }
+
+    Subprocess::IO::InputFileDescriptors outfds;
+    outfds.read = pipefd[0];
+    outfds.write = pipefd[1];
+
+    // NOTE: We need to `cloexec` this FD so that it will be closed when
+    // the child subprocess is spawned and so that the FD will not be
+    // inherited by the second child for stderr.
+    Try<Nothing> cloexec = os::cloexec(outfds.write.get());
+    if (cloexec.isError()) {
+      os::close(outfds.read);
+      os::close(outfds.write.get());
+      return Failure("Failed to cloexec: " + cloexec.error());
+    }
+
     // Spawn a process to handle stdout.
     mesos::internal::logger::rotate::Flags outFlags;
     outFlags.max_size = flags.max_stdout_size;
@@ -98,14 +124,38 @@ public:
     Try<Subprocess> outProcess = subprocess(
         path::join(flags.launcher_dir, mesos::internal::logger::rotate::NAME),
         {mesos::internal::logger::rotate::NAME},
-        Subprocess::PIPE(),
+        Subprocess::FD(outfds.read, Subprocess::IO::OWNED),
         Subprocess::PATH("/dev/null"),
         Subprocess::FD(STDERR_FILENO),
         outFlags,
         environment);
 
     if (outProcess.isError()) {
+      os::close(outfds.write.get());
       return Failure("Failed to create logger process: " + outProcess.error());
+    }
+
+    // NOTE: We manually construct a pipe here to properly express
+    // ownership of the FDs.  See the NOTE above.
+    if (::pipe(pipefd) == -1) {
+      os::close(outfds.write.get());
+      os::killtree(outProcess.get().pid(), SIGKILL);
+      return Failure(ErrnoError("Failed to create pipe").message);
+    }
+
+    Subprocess::IO::InputFileDescriptors errfds;
+    errfds.read = pipefd[0];
+    errfds.write = pipefd[1];
+
+    // NOTE: We need to `cloexec` this FD so that it will be closed when
+    // the child subprocess is spawned.
+    cloexec = os::cloexec(errfds.write.get());
+    if (cloexec.isError()) {
+      os::close(outfds.write.get());
+      os::close(errfds.read);
+      os::close(errfds.write.get());
+      os::killtree(outProcess.get().pid(), SIGKILL);
+      return Failure("Failed to cloexec: " + cloexec.error());
     }
 
     // Spawn a process to handle stderr.
@@ -118,20 +168,23 @@ public:
     Try<Subprocess> errProcess = subprocess(
         path::join(flags.launcher_dir, mesos::internal::logger::rotate::NAME),
         {mesos::internal::logger::rotate::NAME},
-        Subprocess::PIPE(),
+        Subprocess::FD(errfds.read, Subprocess::IO::OWNED),
         Subprocess::PATH("/dev/null"),
         Subprocess::FD(STDERR_FILENO),
         errFlags,
         environment);
 
     if (errProcess.isError()) {
+      os::close(outfds.write.get());
+      os::close(errfds.write.get());
       os::killtree(outProcess.get().pid(), SIGKILL);
       return Failure("Failed to create logger process: " + errProcess.error());
     }
 
+    // NOTE: The ownership of these FDs is given to the caller of this function.
     ContainerLogger::SubprocessInfo info;
-    info.out = SubprocessInfo::IO::FD(outProcess->in().get());
-    info.err = SubprocessInfo::IO::FD(errProcess->in().get());
+    info.out = SubprocessInfo::IO::FD(outfds.write.get());
+    info.err = SubprocessInfo::IO::FD(errfds.write.get());
     return info;
   }
 
