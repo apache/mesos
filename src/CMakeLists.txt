@@ -99,6 +99,7 @@ set(AUTHORIZER_SRC
 
 set(COMMON_SRC
   common/attributes.cpp
+  common/command_utils.cpp
   common/date_utils.cpp
   common/http.cpp
   common/protobuf_utils.cpp

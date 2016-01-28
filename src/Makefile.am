@@ -572,6 +572,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   authorizer/authorizer.cpp						\
   authorizer/local/authorizer.cpp					\
   common/attributes.cpp							\
+  common/command_utils.cpp						\
   common/date_utils.cpp							\
   common/http.cpp							\
   common/protobuf_utils.cpp						\
@@ -682,6 +683,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   authentication/cram_md5/auxprop.hpp					\
   authorizer/local/authorizer.hpp					\
   common/build.hpp							\
+  common/command_utils.hpp						\
   common/date_utils.hpp							\
   common/http.hpp							\
   common/parse.hpp							\
@@ -1825,6 +1827,7 @@ mesos_tests_SOURCES =						\
   tests/utils.cpp						\
   tests/values_tests.cpp					\
   tests/zookeeper_url_tests.cpp					\
+  tests/common/command_utils_tests.cpp				\
   tests/common/http_tests.cpp					\
   tests/common/recordio_tests.cpp				\
   tests/containerizer/composing_containerizer_tests.cpp		\
