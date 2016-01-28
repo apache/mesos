@@ -707,6 +707,12 @@ Option<Error> Resources::validate(const Resource& resource)
         "Invalid reservation: role \"*\" cannot be dynamically reserved");
   }
 
+  // Check role name.
+  Option<Error> error = roles::validate(resource.role());
+  if (error.isSome()) {
+    return error;
+  }
+
   return None();
 }
 
