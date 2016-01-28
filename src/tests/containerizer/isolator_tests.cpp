@@ -867,6 +867,7 @@ TEST_F(NetClsIsolatorTest, ROOT_CGROUPS_NetClsIsolate)
 
   Try<MesosContainerizer*> containerizer =
     MesosContainerizer::create(flags, true, &fetcher);
+
   ASSERT_SOME(containerizer);
 
   Try<PID<Slave>> slave = StartSlave(containerizer.get(), flags);
@@ -914,15 +915,16 @@ TEST_F(NetClsIsolatorTest, ROOT_CGROUPS_NetClsIsolate)
 
   const ContainerID& containerID = *(containers.get().begin());
 
-  // Check if the net_cls cgroup for this container exists, by checking for the
-  // processes associated with this cgroup.
-  string container_cgroup = path::join(
+  Result<string> hierarchy = cgroups::hierarchy("net_cls");
+  ASSERT_SOME(hierarchy);
+
+  // Check if the net_cls cgroup for this container exists, by
+  // checking for the processes associated with this cgroup.
+  string cgroup = path::join(
       flags.cgroups_root,
       containerID.value());
 
-  Try<set<pid_t>> pids = cgroups::processes(
-        path::join(flags.cgroups_hierarchy, "net_cls"),
-        container_cgroup);
+  Try<set<pid_t>> pids = cgroups::processes(hierarchy.get(), cgroup);
   ASSERT_SOME(pids);
 
   // There should be at least one TGID associated with this cgroup.
@@ -945,7 +947,7 @@ TEST_F(NetClsIsolatorTest, ROOT_CGROUPS_NetClsIsolate)
 
   // If the cleanup is successful the net_cls cgroup for this container should
   // not exist.
-  ASSERT_FALSE(os::exists(container_cgroup));
+  ASSERT_FALSE(os::exists(cgroup));
 
   driver.stop();
   driver.join();
