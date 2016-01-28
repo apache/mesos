@@ -214,8 +214,9 @@ that the agent has failed and takes steps to remove it from the cluster. Specifi
   * If the framework is [checkpointing](slave-recovery.md): No immediate action is taken. The agent is
     given a chance to reconnect until health checks time out.
 
-  * If the framework is not-checkpointing: All the framework's tasks and executors are immediately marked
-    as "failed" and resources recovered. The agent is given a chance to reconnect until health checks timeout.
+  * If the framework is not-checkpointing: All the framework's tasks and executors are considered lost. Master
+    immediately sends `TASK_LOST` status updates for the tasks. These updates are not delivered reliably to the
+    scheduler (see NOTE below). The agent is given a chance to reconnect until health checks timeout.
 
 * If the agent fails health checks it is scheduled for removal. The removals can be rate limited by the master
   (see `---slave_removal_rate_limit` master flag) to avoid removing a slew of slaves at once (e.g., during a
@@ -227,18 +228,15 @@ that the agent has failed and takes steps to remove it from the cluster. Specifi
   and the agent asked to shutdown. A shutting down agent shuts down all running tasks and executors,
   but any persistent volumes and dynamic reservations are still preserved.
 
-  * To allow the failed agent node to rejoin the cluster, a new `mesos-slave`
+  * To allow the removed agent node to rejoin the cluster, a new `mesos-slave`
     process can be started. This will ensure the agent receives a new agent ID and register with master
     possibly with previously created persistent volumes and dynamic reservations. In effect, the agent will
     be treated as a newly joined agent.
 
-* For each agent that is marked "failed" the scheduler receives
+* For each agent that is marked "removed" the scheduler receives a `slaveLost` callback and `TASK_LOST` status
+  updates for each task that was running on the agent
 
-	* `slaveLost` callback
-	* `executorLost` callback for each custom executor that was running on the agent
-	* `TASK_LOST` status updates for each task that was running on the agent
-
-	>NOTE: None of these callbacks or updates are reliably delivered by the master. For example if
+	>NOTE: Neither the callback nor the updates are reliably delivered by the master. For example if
 	the master or scheduler fails over or there is a network connection issue during the delivery
 	of these messages, they will not be resent.
 
