@@ -42,17 +42,34 @@
 
 #include <stout/os/exists.hpp>
 #include <stout/os/killtree.hpp>
+#include <stout/os/stat.hpp>
 
 #include "common/protobuf_utils.hpp"
 
 #include "slave/containerizer/mesos/isolators/posix/disk.hpp"
 
-using namespace process;
+namespace io = process::io;
 
 using std::deque;
 using std::list;
 using std::string;
 using std::vector;
+
+using process::Failure;
+using process::Future;
+using process::Owned;
+using process::PID;
+using process::Process;
+using process::Promise;
+using process::Subprocess;
+
+using process::await;
+using process::defer;
+using process::delay;
+using process::dispatch;
+using process::spawn;
+using process::subprocess;
+using process::terminate;
 
 using mesos::slave::ContainerConfig;
 using mesos::slave::ContainerLaunchInfo;
@@ -157,9 +174,6 @@ Future<Nothing> PosixDiskIsolatorProcess::update(
   // This stores the updated quotas.
   hashmap<string, Resources> quotas;
 
-  // Volume paths to exclude from sandbox disk usage calculation.
-  vector<string> excludes;
-
   foreach (const Resource& resource, resources) {
     if (resource.name() != "disk") {
       continue;
@@ -171,23 +185,20 @@ Future<Nothing> PosixDiskIsolatorProcess::update(
     // NOTE: We do not allow the case where has_disk() is true but
     // with nothing set inside DiskInfo. The master will enforce it.
     if (!resource.has_disk() || !resource.disk().has_volume()) {
-      // If either DiskInfo or DiskInfo.Volume are not set we're dealing
-      // with the working directory of the executor (aka the sanbox).
+      // If either DiskInfo or DiskInfo.Volume are not set we're
+      // dealing with the working directory of the executor (aka the
+      // sanbox).
       path = info->directory;
     } else {
-      // Otherwise it is a disk resource (such as a persistent volume) and
-      // we extract the path from the protobuf.
+      // Otherwise it is a disk resource (such as a persistent volume)
+      // and we extract the path from the protobuf.
       path = resource.disk().volume().container_path();
 
-      excludes.push_back(path);
-
-      // In case the path in the protobuf is not an absolute path it is
-      // relative to the working directory of the executor. We always store
-      // the absolute path.
+      // In case the path in the protobuf is not an absolute path it
+      // is relative to the working directory of the executor. We
+      // always store the absolute path.
       if (!path::absolute(path)) {
-        // We prepend "/" at the end to make sure that 'du' runs on actual
-        // directory pointed by the symlink (and not the symlink itself).
-        path = path::join(info->directory, path, "");
+        path = path::join(info->directory, path);
       }
     }
 
@@ -202,15 +213,7 @@ Future<Nothing> PosixDiskIsolatorProcess::update(
   // the disk usage collection.
   foreachpair (const string& path, const Resources& quota, quotas) {
     if (!info->paths.contains(path)) {
-      info->paths[path].usage = collector.usage(
-          path,
-          (path == info->directory) ? excludes : vector<string>())
-        .onAny(defer(
-            PID<PosixDiskIsolatorProcess>(this),
-            &PosixDiskIsolatorProcess::_collect,
-            containerId,
-            path,
-            lambda::_1));
+      info->paths[path].usage = collect(containerId, path);
     }
 
     info->paths[path].quota = quota;
@@ -224,6 +227,41 @@ Future<Nothing> PosixDiskIsolatorProcess::update(
   }
 
   return Nothing();
+}
+
+
+Future<Bytes> PosixDiskIsolatorProcess::collect(
+    const ContainerID& containerId,
+    const string& path)
+{
+  CHECK(infos.contains(containerId));
+
+  const Owned<Info>& info = infos[containerId];
+
+  // Volume paths to exclude from sandbox disk usage calculation.
+  vector<string> excludes;
+  if (path == info->directory) {
+    foreachkey (const string& exclude, info->paths) {
+      if (exclude != info->directory) {
+        excludes.push_back(exclude);
+      }
+    }
+  }
+
+  // We append "/" at the end to make sure that 'du' runs on actual
+  // directory pointed by the symlink (and not the symlink itself).
+  string _path = path;
+  if (path != info->directory && os::stat::islink(path)) {
+    _path = path::join(path, "");
+  }
+
+  return collector.usage(_path, excludes)
+    .onAny(defer(
+        PID<PosixDiskIsolatorProcess>(this),
+        &PosixDiskIsolatorProcess::_collect,
+        containerId,
+        path,
+        lambda::_1));
 }
 
 
@@ -289,27 +327,7 @@ void PosixDiskIsolatorProcess::_collect(
     }
   }
 
-  // Build excludes array if the current path is the sandbox.
-  vector<string> excludes;
-  if (path == info->directory) {
-    foreachkey (const string& exclude, info->paths) {
-      if (exclude != path) {
-        // `du --exclude` uses pattern matching so we strip both
-        // prefix (sandbox path) and suffix ('/') from volume path.
-        string relative = strings::remove(exclude, path + "/", strings::PREFIX);
-        relative = strings::remove(relative, "/", strings::SUFFIX);
-        excludes.push_back(relative);
-      }
-    }
-  }
-
-  info->paths[path].usage = collector.usage(path, excludes)
-      .onAny(defer(
-          PID<PosixDiskIsolatorProcess>(this),
-          &PosixDiskIsolatorProcess::_collect,
-          containerId,
-          path,
-          lambda::_1));
+  info->paths[path].usage = collect(containerId, path);
 }
 
 
