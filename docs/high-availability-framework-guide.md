@@ -83,10 +83,9 @@ availability:
   recover the lost in-memory master state.
 
 * If all the Mesos masters are unavailable (e.g., crashed or unreachable), the
-  cluster should continue to operate: existing Mesos agents will not execute,
-  and user tasks should continue running. However, new tasks cannot be
-  scheduled, and frameworks will not receive resource offers or status updates
-  about previously launched tasks.
+  cluster should continue to operate: existing Mesos agents and user tasks should
+  continue running. However, new tasks cannot be scheduled, and frameworks will
+  not receive resource offers or status updates about previously launched tasks.
 
 * Mesos does not dictate how frameworks should be implemented and does not try
   to assume responsibility for how frameworks should deal with failures.
@@ -167,7 +166,8 @@ initial state and several possible terminal states:
 
 * The `TASK_STARTING` state is optional and intended primarily for use by
   custom executors. It can be used to describe the fact that a custom executor
-  process has been launched but the user task itself has not yet started to run.
+  has learnt about the task (and maybe started fetching its dependecies) but has
+  not yet started to run it.
 
 * A task transitions to the `TASK_RUNNING` state after it starts running
   successfully (if the task fails to start, it transitions to one of the
@@ -197,26 +197,50 @@ initial state and several possible terminal states:
 
 ## Dealing with Partitioned or Failed Agents
 
-The Mesos master periodically pings each agent to verify that the agent has not
-failed or become unreachable (this behavior is controlled by the
-`--slave_ping_timeout` and `--max_slave_ping_timeouts` configuration flags). If
-an agent fails to respond to a sufficient number of consecutive pings, the
-master decides that the agent has failed and takes steps to remove it from the
-cluster. Specifically:
+The Mesos master keeps track of the availablility and health of the registered agents
+by 2 different mechanisms.
 
-* The master marks the agent as "failed" in the master's durable state (this
-  will survive master failover). If a failed agent attempts to reconnect to the
-  master, the connection attempt will be refused and the master will instruct
-  the agent to shutdown.
+ 1) State of a persistent TCP connection to the agent.
+
+ 2) Health checks via periodic ping messages to the agent which are expected to be responded with pongs
+    (this behavior is controlled by the `--slave_ping_timeout` and `--max_slave_ping_timeouts` master flags).
+
+If the persistent TCP connection to the agent breaks or the agent fails health checks, the master decides
+that the agent has failed and takes steps to remove it from the cluster. Specifically:
+
+* If the TCP connection breaks, the agent is considered disconnected. The semantics when a registered
+  agent gets disconnected are as follows for each framework running on that agent:
+
+  * If the framework is [checkpointing](slave-recovery.md): No immediate action is taken. The agent is
+    given a chance to reconnect until health checks time out.
+
+  * If the framework is not-checkpointing: All the framework's tasks and executors are immediately marked
+    as "failed" and resources recovered. The agent is given a chance to reconnect until health checks timeout.
+
+* If the agent fails health checks it is scheduled for removal. The removals can be rate limited by the master
+  (see `---slave_removal_rate_limit` master flag) to avoid removing a slew of slaves at once (e.g., during a
+  network partition event).
+
+* Once it is time to remove an agent, the master marks it as "removed" in the master's durable state (this
+  will survive master failover). If an agent marked as "removed" attempts to reconnect to the
+  master (e.g., after network partition is restored), the connection attempt will be refused
+  and the agent asked to shutdown. A shutting down agent shuts down all running tasks and executors,
+  but any persistent volumes and dynamic reservations are still preserved.
 
   * To allow the failed agent node to rejoin the cluster, a new `mesos-slave`
-    process can be started. This will ensure the agent receives a new agent ID,
-    so it will be allowed to connect to the master. In effect, the agent will be
-    treated as a newly joined agent.
+    process can be started. This will ensure the agent receives a new agent ID and register with master
+    possibly with previously created persistent volumes and dynamic reservations. In effect, the agent will
+    be treated as a newly joined agent.
 
-* The scheduler driver's `slaveLost` callback will be invoked. The scheduler
-  will also receive `TASK_LOST` status updates for all of the tasks that were
-  running on the failed agent.
+* For each agent that is marked "failed" the scheduler receives
+
+	* `slaveLost` callback
+	* `executorLost` callback for each custom executor that was running on the agent
+	* `TASK_LOST` status updates for each task that was runniong on the agent
+
+	>NOTE: None of these callbacks or updates are reliably delivered by the master. For example if
+	the master or scheduler fails over or there is a network connection issue during the delivery
+	of these messages, they will not be resent.
 
 Typically, frameworks respond to this situation by scheduling new copies of the
 tasks that were running on the lost agent. This should be done with caution,
