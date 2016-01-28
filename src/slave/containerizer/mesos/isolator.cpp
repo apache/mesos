@@ -108,6 +108,15 @@ Future<ResourceStatistics> MesosIsolator::usage(
 }
 
 
+Future<ContainerStatus> MesosIsolator::status(
+    const ContainerID& containerId)
+{
+  return dispatch(process.get(),
+                  &MesosIsolatorProcess::status,
+                  containerId);
+}
+
+
 Future<Nothing> MesosIsolator::cleanup(
     const ContainerID& containerId)
 {

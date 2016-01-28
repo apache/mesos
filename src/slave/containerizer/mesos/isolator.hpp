@@ -63,6 +63,9 @@ public:
   virtual process::Future<ResourceStatistics> usage(
       const ContainerID& containerId);
 
+  virtual process::Future<ContainerStatus> status(
+      const ContainerID& containerId);
+
   virtual process::Future<Nothing> cleanup(
       const ContainerID& containerId);
 
@@ -97,6 +100,17 @@ public:
 
   virtual process::Future<ResourceStatistics> usage(
       const ContainerID& containerId) = 0;
+
+  // A method to query the isolator processes about the run-time state
+  // of isolator specific properties associated with a container.
+  // Unlike other methods in this class we are not making this pure
+  // virtual, since isolators do not necessarily need to provide the
+  // status of isolated containers.
+  virtual process::Future<ContainerStatus> status(
+      const ContainerID& containerId)
+  {
+    return ContainerStatus();
+  };
 
   virtual process::Future<Nothing> cleanup(
       const ContainerID& containerId) = 0;

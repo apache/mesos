@@ -79,6 +79,14 @@ public:
   virtual process::Future<ResourceStatistics> usage(
       const ContainerID& containerId) = 0;
 
+  // Get the run-time status of isolator specific properties
+  // associated with the container.
+  virtual process::Future<ContainerStatus> status(
+      const ContainerID& containerId)
+  {
+    return ContainerStatus();
+  };
+
   // Clean up a terminated container. This is called after the
   // executor and all processes in the container have terminated.
   virtual process::Future<Nothing> cleanup(
