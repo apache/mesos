@@ -10,7 +10,7 @@ set -e
 . $(dirname ${0})/atexit.sh
 
 # Use colors for errors.
-#. $(dirname ${0})/colors.sh
+. $(dirname ${0})/colors.sh
 
 test ${#} -eq 2 || \
   { echo "Usage: `basename ${0}` [version] [candidate]"; exit 1; }
