@@ -19,101 +19,10 @@ Roughly, these categories are:
 
 The Mesos Master and Agent use the
 [Google's logging library](https://github.com/google/glog).
-Google logging options that are not explicitly mentioned below can be
+For information regarding the command-line options used to configure this
+library, see the [configuration documentation](configuration.md).
+Google logging options that are not explicitly mentioned there can be
 configured via environment variables.
-
-<table class="table table-striped">
-  <thead>
-    <tr>
-      <th width="30%">
-        Flag
-      </th>
-      <th>
-        Explanation
-      </th>
-    </tr>
-  </thead>
-
-  <tr>
-    <td>
-      <code>--quiet</code>
-    </td>
-    <td>
-      Disable logging to stderr.
-    </td>
-  </tr>
-
-  <tr>
-    <td>
-      <code>--logging_level=VALUE</code>
-    </td>
-    <td>
-      Log messages at or above this level.  Defaults to <code>INFO</code>.
-      Possible values:
-        <code>INFO</code>, <code>WARNING</code>, <code>ERROR</code>.
-
-      If <code>--quiet</code> is specified, this will only affect the logs
-      written to <code>--log_dir</code>, if specified.
-    </td>
-  </tr>
-
-  <tr>
-    <td>
-      <code>--log_dir=VALUE</code>
-    </td>
-    <td>
-      Location to put log files.  By default, nothing is written to disk.
-      Does not affect logging to stderr.
-
-      If specified, the log file will appear in the Mesos WebUI.
-    </td>
-  </tr>
-
-  <tr>
-    <td>
-      <code>--logbufsecs=VALUE</code>
-    </td>
-    <td>
-      Maximum number of seconds that logs may be buffered for.
-      By default, logs are flushed immediately.
-    </td>
-  </tr>
-
-  <tr>
-    <td>
-      <code>--[no-]initialize_driver_logging</code>
-    </td>
-    <td>
-      Whether the Master/Agent should initialize Google logging for the Mesos
-      scheduler and executor drivers, in same way as described here.
-      The scheduler/executor drivers have separate logs and do not get
-      written to the Master/Agent.
-
-      This option has no effect when using the HTTP scheduler/executor APIs.
-
-      By default, this option is true.
-    </td>
-  </tr>
-
-  <tr>
-    <td>
-      <code>--external_log_file=VALUE</code>
-    </td>
-    <td>
-      Location of the externally managed log file.  Mesos does not write to
-      this file directly and merely exposes it in the WebUI and HTTP API.
-
-      This is only useful when logging to stderr in combination with an external
-      logging mechanism, like syslog or journald.
-
-      This option is meaningless when specified along with <code>--quiet</code>.
-
-      This option takes precedence over <code>--log_dir</code> in the WebUI.
-      However, logs will still be written to the <code>--log_dir</code> if
-      that option is specified.
-    </td>
-  </tr>
-</table>
 
 Both Master and Agent also expose an HTTP endpoint which temporarily toggles
 verbose logging:
