@@ -28,7 +28,7 @@ We start the slave like so:
 We now have 8 CPUs and 4096 MB of RAM reserved for `ads` on this slave.
 
 __CAVEAT:__ In order to modify a static reservation, the operator must drain and
-            restart the slave with the new configuration specifed in the
+            restart the slave with the new configuration specified in the
             `--resources` flag.
 
 __NOTE:__ This feature is supported for backwards compatibility.
@@ -100,7 +100,7 @@ receive a resource offer with 12 CPUs and 6144 MB of RAM unreserved.
 
 We can reserve 8 CPUs and 4096 MB of RAM by sending the following
 `Offer::Operation` message. `Offer::Operation::Reserve` has a `resources` field
-which we specify with the resources to be reserved. We need to expicitly set
+which we specify with the resources to be reserved. We need to explicitly set
 the `role` and `principal` fields with the framework's role and principal.
 
         {

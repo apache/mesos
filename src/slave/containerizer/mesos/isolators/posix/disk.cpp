@@ -187,7 +187,7 @@ Future<Nothing> PosixDiskIsolatorProcess::update(
     if (!resource.has_disk() || !resource.disk().has_volume()) {
       // If either DiskInfo or DiskInfo.Volume are not set we're
       // dealing with the working directory of the executor (aka the
-      // sanbox).
+      // sandbox).
       path = info->directory;
     } else {
       // Otherwise it is a disk resource (such as a persistent volume)
@@ -387,7 +387,7 @@ public:
   {
     // TODO(jieyu): 'excludes' is not supported on OSX. We should
     // either return a Failure here, or does not allow 'excludes' to
-    // be specifed on OSX.
+    // be specified on OSX.
 
     foreach (const Owned<Entry>& entry, entries) {
       if (entry->path == path) {
