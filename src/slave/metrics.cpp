@@ -24,13 +24,13 @@
 #include "slave/metrics.hpp"
 #include "slave/slave.hpp"
 
-using process::metrics::Gauge;
-
 using std::string;
 
 namespace mesos {
 namespace internal {
 namespace slave {
+
+using process::metrics::Gauge;
 
 Metrics::Metrics(const Slave& slave)
   : uptime_secs(
