@@ -27,7 +27,10 @@
 
 #include <stout/duration.hpp>
 
+#ifdef __linux__
 #include "linux/cgroups.hpp"
+#include "linux/fs.hpp"
+#endif // __linux__
 
 #include "messages/messages.hpp"
 
@@ -1081,6 +1084,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Recover)
   RunState runState;
   runState.id = containerId;
   runState.forkedPid = wait.get().pid();
+
   execState.runs.put(containerId, runState);
   frameworkState.executors.put(execId, execState);
 
@@ -1164,6 +1168,482 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_SkipRecoverNonDocker)
   // DockerContainerizer.
   EXPECT_EQ(0u, containers.get().size());
 }
+
+
+#ifdef __linux__
+// This test verifies that we can launch a docker container with
+// persistent volume.
+TEST_F(DockerContainerizerTest, ROOT_DOCKER_LaunchWithPersistentVolumes)
+{
+  Try<PID<Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  MockDocker* mockDocker =
+    new MockDocker(tests::flags.docker, tests::flags.docker_socket);
+
+  Shared<Docker> docker(mockDocker);
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.resources = "cpu:2;mem:2048;disk(role1):2048";
+
+  Fetcher fetcher;
+
+  Try<ContainerLogger*> logger =
+    ContainerLogger::create(flags.container_logger);
+
+  ASSERT_SOME(logger);
+
+  MockDockerContainerizer dockerContainerizer(
+      flags,
+      &fetcher,
+      Owned<ContainerLogger>(logger.get()),
+      docker);
+
+  Try<PID<Slave>> slave = StartSlave(&dockerContainerizer, flags);
+  ASSERT_SOME(slave);
+
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_role("role1");
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
+
+  Future<FrameworkID> frameworkId;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(frameworkId);
+
+  AWAIT_READY(offers);
+  ASSERT_NE(0u, offers.get().size());
+
+  Offer offer = offers.get()[0];
+
+  SlaveID slaveId = offer.slave_id();
+
+  Resource volume = createPersistentVolume(
+    Megabytes(64),
+    "role1",
+    "id1",
+    "path1");
+
+  TaskInfo task;
+  task.set_name("");
+  task.mutable_task_id()->set_value("1");
+  task.mutable_slave_id()->CopyFrom(offer.slave_id());
+  task.mutable_resources()->CopyFrom(
+      Resources::parse("cpus:1;mem:64;").get() + volume);
+
+  CommandInfo command;
+  command.set_value("echo abc > " +
+                    path::join(flags.sandbox_directory, "path1", "file"));
+
+  ContainerInfo containerInfo;
+  containerInfo.set_type(ContainerInfo::DOCKER);
+
+  // TODO(tnachen): Use local image to test if possible.
+  ContainerInfo::DockerInfo dockerInfo;
+  dockerInfo.set_image("alpine");
+  containerInfo.mutable_docker()->CopyFrom(dockerInfo);
+
+  task.mutable_command()->CopyFrom(command);
+  task.mutable_container()->CopyFrom(containerInfo);
+
+  // We use the filter explicitly here so that the resources will not
+  // be filtered for 5 seconds (the default).
+  Filters filters;
+  filters.set_refuse_seconds(0);
+
+  Future<ContainerID> containerId;
+  Future<string> directory;
+  EXPECT_CALL(dockerContainerizer, launch(_, _, _, _, _, _, _, _))
+    .WillOnce(DoAll(FutureArg<0>(&containerId),
+                    FutureArg<3>(&directory),
+                    Invoke(&dockerContainerizer,
+                           &MockDockerContainerizer::_launch)));
+
+  Future<TaskStatus> statusRunning;
+  Future<TaskStatus> statusFinished;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusRunning))
+    .WillOnce(FutureArg<1>(&statusFinished))
+    .WillRepeatedly(DoDefault());
+
+  driver.acceptOffers(
+      {offer.id()},
+      {CREATE(volume), LAUNCH({task})},
+      filters);
+
+  AWAIT_READY_FOR(containerId, Seconds(60));
+  AWAIT_READY(directory);
+  AWAIT_READY_FOR(statusRunning, Seconds(60));
+  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
+
+  AWAIT_READY(statusFinished);
+  EXPECT_EQ(TASK_FINISHED, statusFinished.get().state());
+
+  Future<containerizer::Termination> termination =
+    dockerContainerizer.wait(containerId.get());
+
+  driver.stop();
+  driver.join();
+
+  AWAIT_READY(termination);
+
+  ASSERT_FALSE(
+    exists(docker, slaveId, containerId.get(), ContainerState::RUNNING));
+
+  const string& volumePath = getPersistentVolumePath(
+      flags.work_dir,
+      volume);
+
+  EXPECT_SOME_EQ("abc\n", os::read(path::join(volumePath, "file")));
+
+  Try<fs::MountInfoTable> table = fs::MountInfoTable::read();
+  EXPECT_SOME(table);
+
+  // Verify that the persistent volume is unmounted.
+  foreach (const fs::MountInfoTable::Entry& entry, table.get().entries) {
+    EXPECT_FALSE(
+        strings::contains(entry.target, path::join(directory.get(), "path1")));
+  }
+
+  Shutdown();
+}
+
+
+// This test checks the docker containerizer is able to recover containers
+// with persistent volumes and destroy it properly.
+TEST_F(DockerContainerizerTest, ROOT_DOCKER_RecoverPersistentVolumes)
+{
+  Try<PID<Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  MockDocker* mockDocker =
+    new MockDocker(tests::flags.docker, tests::flags.docker_socket);
+
+  Shared<Docker> docker(mockDocker);
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.resources = "cpu:2;mem:2048;disk(role1):2048";
+
+  Fetcher fetcher;
+
+  Try<ContainerLogger*> logger =
+    ContainerLogger::create(flags.container_logger);
+
+  ASSERT_SOME(logger);
+
+  MockDockerContainerizer* dockerContainerizer = new MockDockerContainerizer(
+      flags,
+      &fetcher,
+      Owned<ContainerLogger>(logger.get()),
+      docker);
+
+  Try<PID<Slave>> slave = StartSlave(dockerContainerizer, flags);
+  ASSERT_SOME(slave);
+
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_role("role1");
+  frameworkInfo.set_checkpoint(true);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
+
+  Future<FrameworkID> frameworkId;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId));
+
+  Filters filters;
+  filters.set_refuse_seconds(0);
+
+  // NOTE: We set filter explicitly here so that the resources will
+  // not be filtered for 5 seconds (the default).
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(DeclineOffers(filters));      // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(frameworkId);
+
+  AWAIT_READY(offers);
+  ASSERT_NE(0u, offers.get().size());
+
+  Offer offer = offers.get()[0];
+
+  SlaveID slaveId = offer.slave_id();
+
+  Resource volume = createPersistentVolume(
+    Megabytes(64),
+    "role1",
+    "id1",
+    "path1");
+
+  TaskInfo task;
+  task.set_name("");
+  task.mutable_task_id()->set_value("1");
+  task.mutable_slave_id()->CopyFrom(offer.slave_id());
+  task.mutable_resources()->CopyFrom(
+      Resources::parse("cpus:1;mem:64;").get() + volume);
+
+  CommandInfo command;
+  command.set_value("sleep 1000");
+
+  ContainerInfo containerInfo;
+  containerInfo.set_type(ContainerInfo::DOCKER);
+
+  // TODO(tnachen): Use local image to test if possible.
+  ContainerInfo::DockerInfo dockerInfo;
+  dockerInfo.set_image("alpine");
+  containerInfo.mutable_docker()->CopyFrom(dockerInfo);
+
+  task.mutable_command()->CopyFrom(command);
+  task.mutable_container()->CopyFrom(containerInfo);
+
+  Future<ContainerID> containerId;
+  Future<string> directory;
+  EXPECT_CALL(*dockerContainerizer, launch(_, _, _, _, _, _, _, _))
+    .WillOnce(DoAll(FutureArg<0>(&containerId),
+                    FutureArg<3>(&directory),
+                    Invoke(dockerContainerizer,
+                           &MockDockerContainerizer::_launch)));
+
+  Future<TaskStatus> statusRunning;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusRunning))
+    .WillRepeatedly(DoDefault());
+
+  driver.acceptOffers(
+      {offer.id()},
+      {CREATE(volume), LAUNCH({task})},
+      filters);
+
+  AWAIT_READY_FOR(containerId, Seconds(60));
+  AWAIT_READY(directory);
+  AWAIT_READY_FOR(statusRunning, Seconds(60));
+  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
+
+  Stop(slave.get());
+
+  // Recreate containerizer and start slave again.
+  delete dockerContainerizer;
+
+  logger = ContainerLogger::create(flags.container_logger);
+  ASSERT_SOME(logger);
+
+  dockerContainerizer = new MockDockerContainerizer(
+      flags,
+      &fetcher,
+      Owned<ContainerLogger>(logger.get()),
+      docker);
+
+  slave = StartSlave(dockerContainerizer, flags);
+  ASSERT_SOME(slave);
+
+  Future<Nothing> _recover = FUTURE_DISPATCH(_, &Slave::_recover);
+
+  // Wait until containerizer recover is complete.
+  AWAIT_READY(_recover);
+
+  Future<containerizer::Termination> termination =
+    dockerContainerizer->wait(containerId.get());
+
+  dockerContainerizer->destroy(containerId.get());
+
+  AWAIT_READY(termination);
+
+  Try<fs::MountInfoTable> table = fs::MountInfoTable::read();
+  EXPECT_SOME(table);
+
+  // Verify that the recovered container's persistent volume is
+  // unmounted.
+  foreach (const fs::MountInfoTable::Entry& entry, table.get().entries) {
+    EXPECT_FALSE(
+        strings::contains(entry.target, path::join(directory.get(), "path1")));
+  }
+
+  driver.stop();
+  driver.join();
+
+  Shutdown();
+  delete dockerContainerizer;
+}
+
+
+// This test checks the docker containerizer is able to clean up
+// orphaned containers with persistent volumes.
+TEST_F(DockerContainerizerTest, ROOT_DOCKER_RecoverOrphanedPersistentVolumes)
+{
+  Try<PID<Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  MockDocker* mockDocker =
+    new MockDocker(tests::flags.docker, tests::flags.docker_socket);
+
+  Shared<Docker> docker(mockDocker);
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.resources = "cpu:2;mem:2048;disk(role1):2048";
+
+  Fetcher fetcher;
+
+  Try<ContainerLogger*> logger =
+    ContainerLogger::create(flags.container_logger);
+
+  ASSERT_SOME(logger);
+
+  MockDockerContainerizer* dockerContainerizer = new MockDockerContainerizer(
+      flags,
+      &fetcher,
+      Owned<ContainerLogger>(logger.get()),
+      docker);
+
+  Try<PID<Slave>> slave = StartSlave(dockerContainerizer, flags);
+  ASSERT_SOME(slave);
+
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_role("role1");
+  frameworkInfo.set_checkpoint(true);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
+
+  Future<FrameworkID> frameworkId;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId));
+
+  Filters filters;
+  filters.set_refuse_seconds(0);
+
+  // NOTE: We set filter explicitly here so that the resources will
+  // not be filtered for 5 seconds (the default).
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(DeclineOffers(filters)); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(frameworkId);
+
+  AWAIT_READY(offers);
+  ASSERT_NE(0u, offers.get().size());
+
+  Offer offer = offers.get()[0];
+
+  Resource volume = createPersistentVolume(
+    Megabytes(64),
+    "role1",
+    "id1",
+    "path1");
+
+  TaskInfo task;
+  task.set_name("");
+  task.mutable_task_id()->set_value("1");
+  task.mutable_slave_id()->CopyFrom(offer.slave_id());
+  task.mutable_resources()->CopyFrom(
+      Resources::parse("cpus:1;mem:64;").get() + volume);
+
+  CommandInfo command;
+  command.set_value("sleep 1000");
+
+  ContainerInfo containerInfo;
+  containerInfo.set_type(ContainerInfo::DOCKER);
+
+  // TODO(tnachen): Use local image to test if possible.
+  ContainerInfo::DockerInfo dockerInfo;
+  dockerInfo.set_image("alpine");
+  containerInfo.mutable_docker()->CopyFrom(dockerInfo);
+
+  task.mutable_command()->CopyFrom(command);
+  task.mutable_container()->CopyFrom(containerInfo);
+
+  Future<ContainerID> containerId;
+  Future<string> directory;
+  EXPECT_CALL(*dockerContainerizer, launch(_, _, _, _, _, _, _, _))
+    .WillOnce(DoAll(FutureArg<0>(&containerId),
+                    FutureArg<3>(&directory),
+                    Invoke(dockerContainerizer,
+                           &MockDockerContainerizer::_launch)));
+
+  Future<TaskStatus> statusRunning;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusRunning))
+    .WillRepeatedly(DoDefault());
+
+  driver.acceptOffers(
+      {offer.id()},
+      {CREATE(volume), LAUNCH({task})},
+      filters);
+
+  AWAIT_READY_FOR(containerId, Seconds(60));
+  AWAIT_READY(directory);
+  AWAIT_READY_FOR(statusRunning, Seconds(60));
+  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
+
+  Stop(slave.get());
+
+  // Wipe the framework directory so that the slave will treat the
+  // above running task as an orphan. We don't want to wipe the whole
+  // meta directory since Docker Containerizer will skip recover if
+  // state is not found.
+  ASSERT_SOME(
+      os::rmdir(getFrameworkPath(
+          getMetaRootDir(flags.work_dir),
+          offer.slave_id(),
+          frameworkId.get())));
+
+  // Recreate containerizer and start slave again.
+  delete dockerContainerizer;
+
+  logger = ContainerLogger::create(flags.container_logger);
+  ASSERT_SOME(logger);
+
+  dockerContainerizer = new MockDockerContainerizer(
+      flags,
+      &fetcher,
+      Owned<ContainerLogger>(logger.get()),
+      docker);
+
+  slave = StartSlave(dockerContainerizer, flags);
+  ASSERT_SOME(slave);
+
+  Future<Nothing> _recover = FUTURE_DISPATCH(_, &Slave::_recover);
+
+  // Wait until containerizer recover is complete.
+  AWAIT_READY(_recover);
+
+  Try<fs::MountInfoTable> table = fs::MountInfoTable::read();
+  EXPECT_SOME(table);
+
+  // Verify that the orphaned container's persistent volume is
+  // unmounted.
+  foreach (const fs::MountInfoTable::Entry& entry, table.get().entries) {
+    EXPECT_FALSE(
+        strings::contains(entry.target, path::join(directory.get(), "path1")));
+  }
+
+  driver.stop();
+  driver.join();
+
+  Shutdown();
+  delete dockerContainerizer;
+
+  EXPECT_FALSE(exists(docker, offer.slave_id(), containerId.get()));
+}
+#endif // __linux__
 
 
 TEST_F(DockerContainerizerTest, ROOT_DOCKER_Logs)

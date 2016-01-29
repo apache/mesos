@@ -223,6 +223,15 @@ private:
       const Resources& resources,
       pid_t pid);
 
+  process::Future<Nothing> mountPersistentVolumes(
+      const ContainerID& containerId);
+
+  Try<Nothing> updatePersistentVolumes(
+    const ContainerID& containerId,
+    const std::string& directory,
+    const Resources& current,
+    const Resources& updated);
+
   Try<ResourceStatistics> cgroupsStatistics(pid_t pid) const;
 
   // Call back for when the executor exits. This will trigger
@@ -387,6 +396,7 @@ private:
     //
     //     FETCHING
     //     PULLING
+    //     MOUNTING
     //     RUNNING
     //     DESTROYING
     //
@@ -404,8 +414,9 @@ private:
     {
       FETCHING = 1,
       PULLING = 2,
-      RUNNING = 3,
-      DESTROYING = 4
+      MOUNTING = 3,
+      RUNNING = 4,
+      DESTROYING = 5
     } state;
 
     const ContainerID id;
@@ -417,7 +428,7 @@ private:
 
     // The sandbox directory for the container. This holds the
     // symlinked path if symlinked boolean is true.
-    const std::string directory;
+    std::string directory;
 
     const Option<std::string> user;
     SlaveID slaveId;

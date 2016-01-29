@@ -22,6 +22,7 @@
 #include <mesos/slave/container_logger.hpp>
 
 #include <process/check.hpp>
+#include <process/collect.hpp>
 #include <process/defer.hpp>
 #include <process/delay.hpp>
 #include <process/io.hpp>
@@ -29,6 +30,7 @@
 #include <process/reap.hpp>
 #include <process/subprocess.hpp>
 
+#include <stout/adaptor.hpp>
 #include <stout/fs.hpp>
 #include <stout/hashmap.hpp>
 #include <stout/hashset.hpp>
@@ -40,6 +42,7 @@
 
 #ifdef __linux__
 #include "linux/cgroups.hpp"
+#include "linux/fs.hpp"
 #include "linux/systemd.hpp"
 #endif // __linux__
 
@@ -154,6 +157,9 @@ Try<DockerContainerizer*> DockerContainerizer::create(
       return Error(message);
     }
   }
+
+  // TODO(tnachen): We should also mark the work directory as shared
+  // mount here, more details please refer to MESOS-3483.
 
   return new DockerContainerizer(
       flags,
@@ -384,6 +390,163 @@ Future<Nothing> DockerContainerizerProcess::pull(
     VLOG(1) << "Docker pull " << image << " completed";
     return Nothing();
   }));
+}
+
+
+Try<Nothing> DockerContainerizerProcess::updatePersistentVolumes(
+    const ContainerID& containerId,
+    const string& directory,
+    const Resources& current,
+    const Resources& updated)
+{
+  // Docker Containerizer currently is only expected to run on Linux.
+#ifdef __linux__
+  // Unmount all persistent volumes that are no longer present.
+  foreach (const Resource& resource, current.persistentVolumes()) {
+    // This is enforced by the master.
+    CHECK(resource.disk().has_volume());
+
+    // Ignore absolute and nested paths.
+    const string& containerPath = resource.disk().volume().container_path();
+    if (strings::contains(containerPath, "/")) {
+      LOG(WARNING) << "Skipping updating mount for persistent volume "
+                   << resource << " of container " << containerId
+                   << " because the container path '" << containerPath
+                   << "' contains slash";
+      continue;
+    }
+
+    if (updated.contains(resource)) {
+      continue;
+    }
+
+    const string target = path::join(
+        directory, resource.disk().volume().container_path());
+
+    Try<Nothing> unmount = fs::unmount(target);
+    if (unmount.isError()) {
+      return Error("Failed to unmount persistent volume at '" + target +
+                   "': " + unmount.error());
+    }
+
+    // TODO(tnachen): Remove mount point after unmounting. This requires
+    // making sure the work directory is marked as a shared mount. For
+    // more details please refer to MESOS-3483.
+  }
+
+  // Set the ownership of the persistent volume to match that of the
+  // sandbox directory.
+  //
+  // NOTE: Currently, persistent volumes in Mesos are exclusive,
+  // meaning that if a persistent volume is used by one task or
+  // executor, it cannot be concurrently used by other task or
+  // executor. But if we allow multiple executors to use same
+  // persistent volume at the same time in the future, the ownership
+  // of the persistent volume may conflict here.
+  //
+  // TODO(haosdent): Consider letting the frameworks specify the
+  // user/group of the persistent volumes.
+  struct stat s;
+  if (::stat(directory.c_str(), &s) < 0) {
+    return Error("Failed to get ownership for '" + directory + "': " +
+                 os::strerror(errno));
+  }
+
+  // Mount all new persistent volumes added.
+  foreach (const Resource& resource, updated.persistentVolumes()) {
+    // This is enforced by the master.
+    CHECK(resource.disk().has_volume());
+
+    if (current.contains(resource)) {
+      continue;
+    }
+
+    const string source =
+      paths::getPersistentVolumePath(flags.work_dir, resource);
+
+    // Ignore absolute and nested paths.
+    const string& containerPath = resource.disk().volume().container_path();
+    if (strings::contains(containerPath, "/")) {
+      LOG(WARNING) << "Skipping updating mount for persistent volume "
+                   << resource << " of container " << containerId
+                   << " because the container path '" << containerPath
+                   << "' contains slash";
+      continue;
+    }
+
+    const string target = path::join(directory, containerPath);
+
+    LOG(INFO) << "Changing the ownership of the persistent volume at '"
+              << source << "' with uid " << s.st_uid
+              << " and gid " << s.st_gid;
+
+    Try<Nothing> chown = os::chown(s.st_uid, s.st_gid, source, true);
+    if (chown.isError()) {
+      return Error(
+          "Failed to change the ownership of the persistent volume at '" +
+          source + "' with uid " + stringify(s.st_uid) +
+          " and gid " + stringify(s.st_gid) + ": " + chown.error());
+    }
+
+    // TODO(tnachen): We should check if the target already exists
+    // when we support updating persistent mounts.
+
+    Try<Nothing> mkdir = os::mkdir(target);
+    if (mkdir.isError()) {
+      return Error("Failed to create persistent mount point at '" + target
+                     + "': " + mkdir.error());
+    }
+
+    LOG(INFO) << "Mounting '" << source << "' to '" << target
+              << "' for persistent volume " << resource
+              << " of container " << containerId;
+
+    Try<Nothing> mount = fs::mount(source, target, None(), MS_BIND, NULL);
+    if (mount.isError()) {
+      return Error(
+          "Failed to mount persistent volume from '" +
+          source + "' to '" + target + "': " + mount.error());
+    }
+  }
+#else
+  if (!current.persistentVolumes().empty() ||
+      !updated.persistentVolumes().empty()) {
+    return Error("Persistent volumes are only supported on linux");
+  }
+#endif // __linux__
+
+  return Nothing();
+}
+
+
+Future<Nothing> DockerContainerizerProcess::mountPersistentVolumes(
+    const ContainerID& containerId)
+{
+  if (!containers_.contains(containerId)) {
+    return Failure("Container is already destroyed");
+  }
+
+  Container* container = containers_[containerId];
+  container->state = Container::MOUNTING;
+
+  if (container->task.isNone() &&
+      !container->resources.persistentVolumes().empty()) {
+    LOG(ERROR) << "Persistent volumes found with container '" << containerId
+               << "' but are not supported with custom executors";
+    return Nothing();
+  }
+
+  Try<Nothing> updateVolumes = updatePersistentVolumes(
+      containerId,
+      container->directory,
+      Resources(),
+      container->resources);
+
+  if (updateVolumes.isError()) {
+    return Failure(updateVolumes.error());
+  }
+
+  return Nothing();
 }
 
 
@@ -699,6 +862,7 @@ Future<Nothing> DockerContainerizerProcess::_recover(
           framework.id,
           executor.id,
           containerId);
+      container->directory = sandboxDirectory;
 
       // Pass recovered containers to the container logger.
       // NOTE: The current implementation of the container logger only
@@ -721,9 +885,44 @@ Future<Nothing> DockerContainerizerProcess::_recover(
 }
 
 
+/**
+ *  Unmount persistent volumes that is mounted for a container.
+ */
+Try<Nothing> unmountPersistentVolumes(const ContainerID& containerId)
+{
+  // We assume volumes are only supported on Linux, and also
+  // the target path contains the containerId.
+#ifdef __linux__
+  Try<fs::MountInfoTable> table = fs::MountInfoTable::read();
+  if (table.isError()) {
+    return Error("Failed to get mount table: " + table.error());
+  }
+
+  foreach (const fs::MountInfoTable::Entry& entry,
+           adaptor::reverse(table.get().entries)) {
+    // TODO(tnachen): We assume there is only one docker container
+    // running per container Id and no other mounts will have the
+    // container Id name. We might need to revisit if this is no
+    // longer true.
+    if (strings::contains(entry.target, containerId.value())) {
+      LOG(INFO) << "Unmounting volume for container '" << containerId
+                << "'";
+      Try<Nothing> unmount = fs::unmount(entry.target);
+      if (unmount.isError()) {
+        return Error("Failed to unmount volume '" + entry.target +
+                     "': " + unmount.error());
+      }
+    }
+  }
+#endif // __linux__
+  return Nothing();
+}
+
+
 Future<Nothing> DockerContainerizerProcess::__recover(
     const list<Docker::Container>& _containers)
 {
+  list<Future<ContainerID>> futures;
   foreach (const Docker::Container& container, _containers) {
     VLOG(1) << "Checking if Docker container named '"
             << container.name << "' was started by Mesos";
@@ -742,11 +941,33 @@ Future<Nothing> DockerContainerizerProcess::__recover(
     // if not, rm -f the Docker container.
     if (!containers_.contains(id.get())) {
       // TODO(tnachen): Consider using executor_shutdown_grace_period.
-      docker->stop(container.id, flags.docker_stop_timeout, true);
+      futures.push_back(
+          docker->stop(
+              container.id,
+              flags.docker_stop_timeout,
+              true)
+            .then([id]() { return id.get(); }));
     }
   }
 
-  return Nothing();
+  return collect(futures)
+    .then([](Future<list<ContainerID>> future) -> Future<Nothing> {
+      if (!future.isReady()) {
+        return Failure("Unable to stop orphaned Docker containers: " +
+                       (future.isFailed() ?
+                        future.failure() : "future discarded"));
+      }
+
+      foreach (const ContainerID& containerId, future.get()) {
+        Try<Nothing> unmount = unmountPersistentVolumes(containerId);
+        if (unmount.isError()) {
+          return Failure("Unable to unmount volumes for Docker container '" +
+                         containerId.value() + "': " + unmount.error());
+        }
+      }
+
+      return Nothing();
+    });
 }
 
 
@@ -827,6 +1048,9 @@ Future<bool> DockerContainerizerProcess::launch(
     // Launching task by forking a subprocess to run docker executor.
     return container.get()->launch = fetch(containerId, slaveId)
       .then(defer(self(), [=]() { return pull(containerId); }))
+      .then(defer(self(), [=]() {
+        return mountPersistentVolumes(containerId);
+      }))
       .then(defer(self(), [=]() { return launchExecutorProcess(containerId); }))
       .then(defer(self(), [=](pid_t pid) {
         return reapExecutor(containerId, pid);
@@ -849,6 +1073,9 @@ Future<bool> DockerContainerizerProcess::launch(
   // dies.
   return container.get()->launch = fetch(containerId, slaveId)
     .then(defer(self(), [=]() { return pull(containerId); }))
+    .then(defer(self(), [=]() {
+      return mountPersistentVolumes(containerId);
+    }))
     .then(defer(self(), [=]() {
       return launchExecutorContainer(containerId, containerName);
     }))
@@ -1080,6 +1307,8 @@ Future<Nothing> DockerContainerizerProcess::update(
     return Nothing();
   }
 
+  // TODO(tnachen): Support updating persistent volumes, which requires
+  // Docker mount propagation support.
 
   // Store the resources for usage().
   container->resources = _resources;
@@ -1468,6 +1697,9 @@ void DockerContainerizerProcess::destroy(
   // cleanup. Just as above, we'll need to deal with the race with
   // 'docker pull' returning successfully.
   //
+  // If we're MOUNTING, we want to unmount all the persistent volumes
+  // that has been mounted.
+  //
   // If we're RUNNING, we want to wait for the status to get set, then
   // do a Docker::kill, then wait for the status to complete, then
   // cleanup.
@@ -1499,6 +1731,29 @@ void DockerContainerizerProcess::destroy(
 
     containerizer::Termination termination;
     termination.set_message("Container destroyed while pulling image");
+    container->termination.set(termination);
+
+    containers_.erase(containerId);
+    delete container;
+
+    return;
+  }
+
+  if (container->state == Container::MOUNTING) {
+    LOG(INFO) << "Destroying Container '" << containerId
+              << "' in MOUNTING state";
+
+    // Persistent volumes might already been mounted, remove them
+    // if necessary.
+    Try<Nothing> unmount = unmountPersistentVolumes(containerId);
+    if (unmount.isError()) {
+      LOG(WARNING) << "Failed to remove persistent volumes on destroy for "
+                   << "container '" << containerId << "': "
+                   << unmount.error();
+    }
+
+    containerizer::Termination termination;
+    termination.set_message("Container destroyed while mounting volumes");
     container->termination.set(termination);
 
     containers_.erase(containerId);
@@ -1612,6 +1867,17 @@ void DockerContainerizerProcess::___destroy(
     const Future<Option<int>>& status)
 {
   CHECK(containers_.contains(containerId));
+
+  Try<Nothing> unmount = unmountPersistentVolumes(containerId);
+  if (unmount.isError()) {
+    // TODO(tnachen): Failing to unmount a persistent volume now
+    // leads to leaving the volume on the host, and we won't retry
+    // again since the Docker container is removed. We should consider
+    // not removing the container so we can retry.
+    LOG(WARNING) << "Failed to remove persistent volumes on destroy for "
+                 << "container '" << containerId << "': "
+                 << unmount.error();
+  }
 
   Container* container = containers_[containerId];
 
