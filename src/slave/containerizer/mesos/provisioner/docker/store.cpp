@@ -216,7 +216,7 @@ Future<Image> StoreProcess::_get(
 
 Future<ImageInfo> StoreProcess::__get(const Image& image)
 {
-  CHECK_LT(0u, image.layer_ids_size());
+  CHECK_LT(0, image.layer_ids_size());
 
   vector<string> layerDirectories;
   foreach (const string& layer, image.layer_ids()) {
