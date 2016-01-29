@@ -16,6 +16,7 @@
 #include <string>
 
 #include <stout/foreach.hpp>
+#include <stout/fs.hpp>
 #include <stout/hashset.hpp>
 #include <stout/path.hpp>
 #include <stout/try.hpp>
@@ -139,4 +140,22 @@ TEST_F(FsTest, Touch)
 
   ASSERT_SOME(os::touch(testfile));
   ASSERT_TRUE(os::exists(testfile));
+}
+
+TEST_F(FsTest, Symlink)
+{
+  const string temp_path = os::getcwd();
+  const string link = path::join(temp_path, "/sym.link");
+  const string file = path::join(temp_path, UUID::random().toString());
+
+  // Create file
+  ASSERT_SOME(os::touch(file))
+      << "Failed to create file '" << file << "'";
+  ASSERT_TRUE(os::exists(file));
+
+  // Create symlink
+  fs::symlink(file, link);
+
+  // Test symlink
+  EXPECT_TRUE(os::stat::islink(link));
 }
