@@ -53,6 +53,15 @@ if (REBUNDLED AND ENABLE_LIBEVENT)
     )
 endif (REBUNDLED AND ENABLE_LIBEVENT)
 
+if (WIN32 AND REBUNDLED)
+  message(
+    WARNING
+    "The current supported version of ZK does not compile on Windows, and does "
+    "not come rebundled in the Mesos repository. It must be downloaded from "
+    "the Internet, even though the `REBUNDLED` flag was set."
+    )
+endif (WIN32 AND REBUNDLED)
+
 if (WIN32 AND (NOT ENABLE_LIBEVENT))
   message(
     FATAL_ERROR

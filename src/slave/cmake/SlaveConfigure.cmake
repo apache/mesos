@@ -47,6 +47,7 @@ set(AGENT_INCLUDE_DIRS
   ${PICOJSON_INCLUDE_DIR}
   ${PROTOBUF_INCLUDE_DIR}
   ${ZOOKEEPER_INCLUDE_DIR}
+  ${ZOOKEEPER_INCLUDE_GENDIR}
   )
 
 # Define third-party lib install directories. Used to tell the compiler
