@@ -1076,6 +1076,72 @@ TEST_F(PersistentVolumeEndpointsTest, GoodCreateAndDestroyACLBadCredential)
 }
 
 
+// This test creates and destroys a volume without authentication headers and
+// with authorization disabled. These requests will succeed because HTTP
+// authentication is disabled, so authentication headers are not required.
+// Additionally, since authorization is not enabled, any principal, including
+// `None()`, can create and destroy volumes.
+TEST_F(PersistentVolumeEndpointsTest, NoAuthentication)
+{
+  const string TEST_ROLE = "role1";
+
+  TestAllocator<> allocator;
+
+  // Create master flags that will disable authentication.
+  master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.authenticate_http = false;
+
+  EXPECT_CALL(allocator, initialize(_, _, _, _));
+
+  Try<PID<Master>> master = StartMaster(&allocator, masterFlags);
+  ASSERT_SOME(master);
+
+  // Create an agent with statically reserved disk resources to allow the
+  // creation of a persistent volume.
+  slave::Flags agentFlags = CreateSlaveFlags();
+  agentFlags.resources = "cpus:1;mem:512;disk(" + TEST_ROLE + "):1024";
+
+  Future<SlaveID> agentId;
+  EXPECT_CALL(allocator, addSlave(_, _, _, _, _))
+    .WillOnce(DoAll(InvokeAddSlave(&allocator), FutureArg<0>(&agentId)));
+
+  Try<PID<Slave>> agent = StartSlave(agentFlags);
+  ASSERT_SOME(agent);
+
+  AWAIT_READY(agentId);
+
+  Resources volume = createPersistentVolume(
+      Megabytes(64),
+      TEST_ROLE,
+      "id1",
+      "path1");
+
+  // Make a request to create a volume with no authentication header.
+  {
+    Future<Response> response = process::http::post(
+        master.get(),
+        "create-volumes",
+        None(),
+        createRequestBody(agentId.get(), "volumes", volume));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  }
+
+  // Make a request to destroy a volume with no authentication header.
+  {
+    Future<Response> response = process::http::post(
+        master.get(),
+        "destroy-volumes",
+        None(),
+        createRequestBody(agentId.get(), "volumes", volume));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  }
+
+  Shutdown();
+}
+
+
 // This tests that an attempt to create or destroy a volume with no
 // 'slaveId' results in a 'BadRequest' HTTP error.
 TEST_F(PersistentVolumeEndpointsTest, NoSlaveId)
