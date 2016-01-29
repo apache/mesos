@@ -253,7 +253,7 @@ string RegistrarProcess::registryHelp()
       TLDR(
           "Returns the current contents of the Registry in JSON."),
       DESCRIPTION(
-          "Example:"
+          "Example:",
           "",
           "```",
           "{",
@@ -279,7 +279,7 @@ string RegistrarProcess::registryHelp()
           "          \"checkpoint\": true,",
           "          \"hostname\": \"localhost\",",
           "          \"id\":",
-          "          { ",
+          "          {",
           "            \"value\": \"20140325-234618-1740121354-5050-29065-0\"",
           "          },",
           "          \"port\": 5051,",

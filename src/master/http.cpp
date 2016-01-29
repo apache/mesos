@@ -700,9 +700,8 @@ string Master::Http::CREATE_VOLUMES_HELP()
         "Create persistent volumes on reserved resources."),
     DESCRIPTION(
         "Returns 200 OK if volume creation was successful.",
-        "Please provide \"slaveId\" and \"volumes\" values designating ",
-        "the volumes to be created."
-      ));
+        "Please provide \"slaveId\" and \"volumes\" values designating",
+        "the volumes to be created."));
 }
 
 
@@ -805,7 +804,7 @@ string Master::Http::DESTROY_VOLUMES_HELP()
         "Destroy persistent volumes."),
     DESCRIPTION(
         "Returns 200 OK if volume deletion was successful.",
-        "Please provide \"slaveId\" and \"volumes\" values designating "
+        "Please provide \"slaveId\" and \"volumes\" values designating",
         "the volumes to be destroyed."));
 }
 
@@ -994,7 +993,7 @@ string Master::Http::OBSERVE_HELP()
     TLDR(
         "Observe a monitor health state for host(s)."),
     DESCRIPTION(
-        "This endpoint receives information indicating host(s) ",
+        "This endpoint receives information indicating host(s)",
         "health."
         "",
         "The following fields should be supplied in a POST:",
@@ -1134,7 +1133,7 @@ string Master::Http::RESERVE_HELP()
         "Reserve resources dynamically on a specific slave."),
     DESCRIPTION(
         "Returns 200 OK if resource reservation was successful.",
-        "Please provide \"slaveId\" and \"resources\" values designating ",
+        "Please provide \"slaveId\" and \"resources\" values designating",
         "the resources to be reserved."));
 }
 
@@ -1790,7 +1789,7 @@ string Master::Http::TEARDOWN_HELP()
         "Tears down a running framework by shutting down all tasks/executors "
         "and removing the framework."),
     DESCRIPTION(
-        "Please provide a \"frameworkId\" value designating the running "
+        "Please provide a \"frameworkId\" value designating the running",
         "framework to tear down.",
         "Returns 200 OK if the framework was correctly teared down."));
 }
@@ -2406,7 +2405,7 @@ string Master::Http::UNRESERVE_HELP()
         "Unreserve resources dynamically on a specific slave."),
     DESCRIPTION(
         "Returns 200 OK if resource unreservation was successful.",
-        "Please provide \"slaveId\" and \"resources\" values designating ",
+        "Please provide \"slaveId\" and \"resources\" values designating",
         "the resources to be unreserved."));
 }
 
