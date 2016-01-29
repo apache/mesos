@@ -173,7 +173,7 @@ stout_tests_SOURCES =				\
   $(STOUT)/tests/interval_tests.cpp		\
   $(STOUT)/tests/ip_tests.cpp                   \
   $(STOUT)/tests/json_tests.cpp			\
-  $(STOUT)/tests/jsonify_tests.cpp			\
+  $(STOUT)/tests/jsonify_tests.cpp		\
   $(STOUT)/tests/linkedhashmap_tests.cpp	\
   $(STOUT)/tests/mac_tests.cpp                  \
   $(STOUT)/tests/main.cpp			\
@@ -182,6 +182,7 @@ stout_tests_SOURCES =				\
   $(STOUT)/tests/numify_tests.cpp		\
   $(STOUT)/tests/option_tests.cpp		\
   $(STOUT)/tests/os_tests.cpp			\
+  $(STOUT)/tests/os/filesystem_tests.cpp	\
   $(STOUT)/tests/os/sendfile_tests.cpp		\
   $(STOUT)/tests/os/signals_tests.cpp		\
   $(STOUT)/tests/os/strerror_tests.cpp		\
