@@ -35,14 +35,14 @@ mesos::internal::master::Flags::Flags()
       "The hostname the master should advertise in ZooKeeper.\n"
       "If left unset, the hostname is resolved from the IP address\n"
       "that the slave binds to; unless the user explicitly prevents\n"
-      "that, using --no-hostname_lookup, in which case the IP itself\n"
+      "that, using `--no-hostname_lookup`, in which case the IP itself\n"
       "is used.");
 
   add(&Flags::hostname_lookup,
       "hostname_lookup",
       "Whether we should execute a lookup to find out the server's hostname,\n"
       "if not explicitly set (via, e.g., `--hostname`).\n"
-      "True by default; if set to 'false' it will cause Mesos\n"
+      "True by default; if set to `false` it will cause Mesos\n"
       "to use the IP address, unless the hostname is explicitly set.",
       true);
 
@@ -54,23 +54,24 @@ mesos::internal::master::Flags::Flags()
   add(&Flags::work_dir,
       "work_dir",
       "Directory path to store the persistent information stored in the \n"
-      "Registry. (example: /var/lib/mesos/master)");
+      "Registry. (example: `/var/lib/mesos/master`)");
 
-  // TODO(bmahler): Consider removing 'in_memory' as it was only
-  // used before 'replicated_log' was implemented.
+  // TODO(bmahler): Consider removing `in_memory` as it was only
+  // used before `replicated_log` was implemented.
   add(&Flags::registry,
       "registry",
       "Persistence strategy for the registry;\n"
-      "available options are 'replicated_log', 'in_memory' (for testing).",
+      "available options are `replicated_log`, `in_memory` (for testing).",
       "replicated_log");
 
   // TODO(vinod): Instead of specifying the quorum size consider
   // specifying the number of masters or the list of masters.
   add(&Flags::quorum,
       "quorum",
-      "The size of the quorum of replicas when using 'replicated_log' based\n"
+      "The size of the quorum of replicas when using `replicated_log` based\n"
       "registry. It is imperative to set this value to be a majority of\n"
-      "masters i.e., quorum > (number of masters)/2.");
+      "masters i.e., `quorum > (number of masters)/2`.\n"
+      "NOTE: Not required if master is run in standalone mode (non-HA).");
 
   add(&Flags::zk_session_timeout,
       "zk_session_timeout",
@@ -80,10 +81,10 @@ mesos::internal::master::Flags::Flags()
   // TODO(bmahler): Set the default to true in 0.20.0.
   add(&Flags::registry_strict,
       "registry_strict",
-      "Whether the Master will take actions based on the persistent\n"
+      "Whether the master will take actions based on the persistent\n"
       "information stored in the Registry. Setting this to false means\n"
       "that the Registrar will never reject the admission, readmission,\n"
-      "or removal of a slave. Consequently, 'false' can be used to\n"
+      "or removal of a slave. Consequently, `false` can be used to\n"
       "bootstrap the persistent state on a running cluster.\n"
       "NOTE: This flag is *experimental* and should not be used in\n"
       "production yet.",
@@ -118,8 +119,8 @@ mesos::internal::master::Flags::Flags()
         stringify(MIN_SLAVE_REREGISTER_TIMEOUT) + ".",
       MIN_SLAVE_REREGISTER_TIMEOUT);
 
-  // TODO(bmahler): Add a 'Percentage' abstraction for flags.
-  // TODO(bmahler): Add a --production flag for production defaults.
+  // TODO(bmahler): Add a `Percentage` abstraction for flags.
+  // TODO(bmahler): Add a `--production` flag for production defaults.
   add(&Flags::recovery_slave_removal_limit,
       "recovery_slave_removal_limit",
       "For failovers, limit on the percentage of slaves that can be removed\n"
@@ -127,7 +128,7 @@ mesos::internal::master::Flags::Flags()
       "elapses. If the limit is exceeded, the master will fail over rather\n"
       "than remove the slaves.\n"
       "This can be used to provide safety guarantees for production\n"
-      "environments. Production environments may expect that across Master\n"
+      "environments. Production environments may expect that across master\n"
       "failovers, at most a certain percentage of slaves will fail\n"
       "permanently (e.g. due to rack-level failures).\n"
       "Setting this limit would ensure that a human needs to get\n"
@@ -136,14 +137,14 @@ mesos::internal::master::Flags::Flags()
       "Values: [0%-100%]",
       stringify(RECOVERY_SLAVE_REMOVAL_PERCENT_LIMIT * 100.0) + "%");
 
-  // TODO(vinod): Add a 'Rate' abstraction in stout and the
+  // TODO(vinod): Add a `Rate` abstraction in stout and the
   // corresponding parser for flags.
   add(&Flags::slave_removal_rate_limit,
       "slave_removal_rate_limit",
-      "The maximum rate (e.g., 1/10mins, 2/3hrs, etc) at which slaves will\n"
-      "be removed from the master when they fail health checks. By default\n"
-      "slaves will be removed as soon as they fail the health checks.\n"
-      "The value is of the form <Number of slaves>/<Duration>.");
+      "The maximum rate (e.g., `1/10mins`, `2/3hrs`, etc) at which slaves\n"
+      "will be removed from the master when they fail health checks.\n"
+      "By default, slaves will be removed as soon as they fail the health\n"
+      "checks. The value is of the form `(Number of slaves)/(Duration)`.");
 
   add(&Flags::webui_dir,
       "webui_dir",
@@ -152,9 +153,11 @@ mesos::internal::master::Flags::Flags()
 
   add(&Flags::whitelist,
       "whitelist",
-      "Path to a file with a list of slaves\n"
-      "(one per line) to advertise offers for.\n"
-      "Path could be of the form 'file:///path/to/file' or '/path/to/file'.");
+      "Path to a file which contains a list of slaves (one per line) to\n"
+      "advertise offers for. The file is watched, and periodically re-read to\n"
+      "refresh the slave whitelist. By default there is no whitelist / all\n"
+      "machines are accepted. Path could be of the form\n"
+      "`file:///path/to/file` or `/path/to/file`.\n");
 
   add(&Flags::user_sorter,
       "user_sorter",
@@ -178,8 +181,7 @@ mesos::internal::master::Flags::Flags()
 
   add(&Flags::cluster,
       "cluster",
-      "Human readable name for the cluster,\n"
-      "displayed in the webui.");
+      "Human readable name for the cluster, displayed in the webui.");
 
   add(&Flags::roles,
       "roles",
@@ -190,38 +192,37 @@ mesos::internal::master::Flags::Flags()
   add(&Flags::weights,
       "weights",
       "A comma-separated list of role/weight pairs\n"
-      "of the form 'role=weight,role=weight'. Weights\n"
+      "of the form `role=weight,role=weight`. Weights\n"
       "are used to indicate forms of priority.");
 
   // TODO(adam-mesos): Deprecate --authenticate for --authenticate_frameworks.
   // See MESOS-4386 for details.
   add(&Flags::authenticate_frameworks,
       "authenticate",
-      "If authenticate is 'true' only authenticated frameworks are allowed\n"
-      "to register. If 'false' unauthenticated frameworks are also\n"
-      "allowed to register.",
+      "If `true`, only authenticated frameworks are allowed to register. If\n"
+      "`false`, unauthenticated frameworks are also allowed to register.",
       false);
 
   add(&Flags::authenticate_slaves,
       "authenticate_slaves",
-      "If 'true' only authenticated slaves are allowed to register.\n"
-      "If 'false' unauthenticated slaves are also allowed to register.",
+      "If `true`, only authenticated slaves are allowed to register.\n"
+      "If `false`, unauthenticated slaves are also allowed to register.",
       false);
 
   add(&Flags::authenticate_http,
       "authenticate_http",
-      "If 'true' only authenticated requests for HTTP endpoints supporting\n"
+      "If `true`, only authenticated requests for HTTP endpoints supporting\n"
       "authentication are allowed.\n"
-      "If 'false' unauthenticated HTTP endpoint requests are also allowed.\n",
+      "If `false`, unauthenticated HTTP endpoint requests are also allowed.\n",
       false);
 
   add(&Flags::credentials,
       "credentials",
       "Either a path to a text file with a list of credentials,\n"
-      "each line containing 'principal' and 'secret' separated by "
+      "each line containing `principal` and `secret` separated by "
       "whitespace,\n"
       "or, a path to a JSON-formatted file containing credentials.\n"
-      "Path could be of the form 'file:///path/to/file' or '/path/to/file'."
+      "Path could be of the form `file:///path/to/file` or `/path/to/file`."
       "\n"
       "JSON file Example:\n"
       "{\n"
@@ -239,11 +240,12 @@ mesos::internal::master::Flags::Flags()
       "acls",
       "The value could be a JSON-formatted string of ACLs\n"
       "or a file path containing the JSON-formatted ACLs used\n"
-      "for authorization. Path could be of the form 'file:///path/to/file'\n"
-      "or '/path/to/file'.\n"
+      "for authorization. Path could be of the form `file:///path/to/file`\n"
+      "or `/path/to/file`.\n"
       "\n"
-      "Note that if the flag --authorizers is provided with a value different\n"
-      "than '" + DEFAULT_AUTHORIZER + "', the ACLs contents will be ignored.\n"
+      "Note that if the flag `--authorizers` is provided with a value\n"
+      "different than `" + DEFAULT_AUTHORIZER + "`, the ACLs contents will be\n"
+      "ignored.\n"
       "\n"
       "See the ACLs protobuf in authorizer.proto for the expected format.\n"
       "\n"
@@ -285,10 +287,10 @@ mesos::internal::master::Flags::Flags()
       "firewall_rules",
       "The value could be a JSON-formatted string of rules or a\n"
       "file path containing the JSON-formatted rules used in the endpoints\n"
-      "firewall. Path must be of the form 'file:///path/to/file'\n"
-      "or '/path/to/file'.\n"
+      "firewall. Path must be of the form `file:///path/to/file`\n"
+      "or `/path/to/file`.\n"
       "\n"
-      "See the Firewall message in flags.proto for the expected format.\n"
+      "See the `Firewall` message in `flags.proto` for the expected format.\n"
       "\n"
       "Example:\n"
       "{\n"
@@ -305,8 +307,8 @@ mesos::internal::master::Flags::Flags()
       "The value could be a JSON-formatted string of rate limits\n"
       "or a file path containing the JSON-formatted rate limits used\n"
       "for framework rate limiting.\n"
-      "Path could be of the form 'file:///path/to/file'\n"
-      "or '/path/to/file'.\n"
+      "Path could be of the form `file:///path/to/file`\n"
+      "or `/path/to/file`.\n"
       "\n"
       "See the RateLimits protobuf in mesos.proto for the expected format.\n"
       "\n"
@@ -351,11 +353,11 @@ mesos::internal::master::Flags::Flags()
       "List of modules to be loaded and be available to the internal\n"
       "subsystems.\n"
       "\n"
-      "Use --modules=filepath to specify the list of modules via a\n"
-      "file containing a JSON-formatted string. 'filepath' can be\n"
-      "of the form 'file:///path/to/file' or '/path/to/file'.\n"
+      "Use `--modules=filepath` to specify the list of modules via a\n"
+      "file containing a JSON-formatted string. `filepath` can be\n"
+      "of the form `file:///path/to/file` or `/path/to/file`.\n"
       "\n"
-      "Use --modules=\"{...}\" to specify the list of modules inline.\n"
+      "Use `--modules=\"{...}\"` to specify the list of modules inline.\n"
       "\n"
       "Example:\n"
       "{\n"
@@ -391,15 +393,15 @@ mesos::internal::master::Flags::Flags()
   add(&Flags::authenticators,
       "authenticators",
       "Authenticator implementation to use when authenticating frameworks\n"
-      "and/or slaves. Use the default '" + DEFAULT_AUTHENTICATOR + "', or\n"
-      "load an alternate authenticator module using --modules.",
+      "and/or slaves. Use the default `" + DEFAULT_AUTHENTICATOR + "`, or\n"
+      "load an alternate authenticator module using `--modules`.",
       DEFAULT_AUTHENTICATOR);
 
   add(&Flags::allocator,
       "allocator",
       "Allocator to use for resource allocation to frameworks.\n"
-      "Use the default '" + DEFAULT_ALLOCATOR + "' allocator, or\n"
-      "load an alternate allocator module using --modules.",
+      "Use the default `" + DEFAULT_ALLOCATOR + "` allocator, or\n"
+      "load an alternate allocator module using `--modules`.",
       DEFAULT_ALLOCATOR);
 
   add(&Flags::hooks,
@@ -412,13 +414,13 @@ mesos::internal::master::Flags::Flags()
       "The timeout within which each slave is expected to respond to a\n"
       "ping from the master. Slaves that do not respond within\n"
       "max_slave_ping_timeouts ping retries will be asked to shutdown.\n"
-      "NOTE: The total ping timeout (slave_ping_timeout multiplied by\n"
-      "max_slave_ping_timeouts) should be greater than the ZooKeeper\n"
+      "NOTE: The total ping timeout (`slave_ping_timeout` multiplied by\n"
+      "`max_slave_ping_timeouts`) should be greater than the ZooKeeper\n"
       "session timeout to prevent useless re-registration attempts.\n",
       DEFAULT_SLAVE_PING_TIMEOUT,
       [](const Duration& value) -> Option<Error> {
         if (value < Seconds(1) || value > Minutes(15)) {
-          return Error("Expected --slave_ping_timeout to be between " +
+          return Error("Expected `--slave_ping_timeout` to be between " +
                        stringify(Seconds(1)) + " and " +
                        stringify(Minutes(15)));
         }
@@ -429,25 +431,25 @@ mesos::internal::master::Flags::Flags()
       "max_slave_ping_timeouts",
       "The number of times a slave can fail to respond to a\n"
       "ping from the master. Slaves that do not respond within\n"
-      "max_slave_ping_timeouts ping retries will be asked to shutdown.\n",
+      "`max_slave_ping_timeouts` ping retries will be asked to shutdown.\n",
       DEFAULT_MAX_SLAVE_PING_TIMEOUTS,
       [](size_t value) -> Option<Error> {
         if (value < 1) {
-          return Error("Expected --max_slave_ping_timeouts to be at least 1");
+          return Error("Expected `--max_slave_ping_timeouts` to be at least 1");
         }
         return None();
       });
 
   add(&Flags::authorizers,
       "authorizers",
-      "Authorizer implementation to use when authorizating actions that\n"
-      "required it.\n"
-      "Use the default '" + DEFAULT_AUTHORIZER + "', or\n"
-      "load an alternate authorizer module using --modules.\n"
+      "Authorizer implementation to use when authorizing actions that\n"
+      "require it.\n"
+      "Use the default `" + DEFAULT_AUTHORIZER + "`, or\n"
+      "load an alternate authorizer module using `--modules`.\n"
       "\n"
-      "Note that if the flag --authorizers is provided with a value different\n"
-      "than the default '" + DEFAULT_AUTHORIZER + "', the ACLs passed\n"
-      "through the --acls flag will be ignored.\n"
+      "Note that if the flag `--authorizers` is provided with a value\n"
+      "different than the default `" + DEFAULT_AUTHORIZER + "`, the ACLs\n"
+      "passed through the `--acls` flag will be ignored.\n"
       "\n"
       "Currently there's no support for multiple authorizers.",
       DEFAULT_AUTHORIZER);
@@ -456,8 +458,8 @@ mesos::internal::master::Flags::Flags()
       "http_authenticators",
       "HTTP authenticator implementation to use when handling requests to\n"
       "authenticated endpoints. Use the default\n"
-      "'" + DEFAULT_HTTP_AUTHENTICATOR + "', or load an alternate HTTP\n"
-      "authenticator module using --modules.\n"
+      "`" + DEFAULT_HTTP_AUTHENTICATOR + "`, or load an alternate HTTP\n"
+      "authenticator module using `--modules`.\n"
       "\n"
       "Currently there is no support for multiple HTTP authenticators.",
       DEFAULT_HTTP_AUTHENTICATOR);

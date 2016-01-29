@@ -94,10 +94,16 @@ int main(int argc, char** argv)
   // have one instance of libprocess per execution, we only want to
   // advertise the IP and port option once, here).
   Option<string> ip;
-  flags.add(&ip, "ip", "IP address to listen on");
+  flags.add(&ip,
+            "ip",
+            "IP address to listen on. This cannot be used in conjunction\n"
+            "with `--ip_discovery_command`.");
 
   uint16_t port;
-  flags.add(&port, "port", "Port to listen on", SlaveInfo().port());
+  flags.add(&port,
+            "port",
+            "Port to listen on.",
+            SlaveInfo().port());
 
   Option<string> advertise_ip;
   flags.add(&advertise_ip,
@@ -109,29 +115,29 @@ int main(int argc, char** argv)
   Option<string> advertise_port;
   flags.add(&advertise_port,
             "advertise_port",
-            "Port advertised to reach mesos slave (alongwith advertise_ip).\n"
-            "Mesos slave does not bind using this port.\n"
-            "However, this port (alongwith advertise_ip) may be used to\n"
+            "Port advertised to reach mesos slave (along with\n"
+            "`advertise_ip`). Mesos slave does not bind using this port.\n"
+            "However, this port (along with `advertise_ip`) may be used to\n"
             "access Mesos slave.");
 
   Option<string> master;
   flags.add(&master,
             "master",
             "May be one of:\n"
-            "  host:port\n"
-            "  zk://host1:port1,host2:port2,.../path\n"
-            "  zk://username:password@host1:port1,host2:port2,.../path\n"
-            "  file:///path/to/file (where file contains one of the above)");
+            "  `host:port`\n"
+            "  `zk://host1:port1,host2:port2,.../path`\n"
+            "  `zk://username:password@host1:port1,host2:port2,.../path`\n"
+            "  `file:///path/to/file` (where file contains one of the above)");
 
 
   // Optional IP discover script that will set the slave's IP.
   // If set, its output is expected to be a valid parseable IP string.
   Option<string> ip_discovery_command;
   flags.add(&ip_discovery_command,
-      "ip_discovery_command",
-      "Optional IP discovery binary: if set, it is expected to emit\n"
-      "the IP address which slave will try to bind to.\n"
-      "Cannot be used in conjunction with --ip.");
+            "ip_discovery_command",
+            "Optional IP discovery binary: if set, it is expected to emit\n"
+            "the IP address which the slave will try to bind to.\n"
+            "Cannot be used in conjunction with `--ip`.");
 
   Try<Nothing> load = flags.load("MESOS_", argc, argv);
 
@@ -153,7 +159,7 @@ int main(int argc, char** argv)
   }
 
   if (master.isNone()) {
-    cerr << flags.usage("Missing required option --master") << endl;
+    cerr << flags.usage("Missing required option `--master`") << endl;
     return EXIT_FAILURE;
   }
 
@@ -177,7 +183,7 @@ int main(int argc, char** argv)
   // Initialize libprocess.
   if (ip_discovery_command.isSome() && ip.isSome()) {
     EXIT(EXIT_FAILURE) << flags.usage(
-        "Only one of --ip or --ip_discovery_command should be specified");
+        "Only one of `--ip` or `--ip_discovery_command` should be specified");
   }
 
   if (ip_discovery_command.isSome()) {
