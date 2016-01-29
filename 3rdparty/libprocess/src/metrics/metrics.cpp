@@ -67,11 +67,11 @@ string MetricsProcess::help()
   return HELP(
       TLDR("Provides a snapshot of the current metrics."),
       DESCRIPTION(
-          "This endpoint provides information regarding the current metrics ",
+          "This endpoint provides information regarding the current metrics",
           "tracked by the system.",
           "",
-          "The optional query parameter 'timeout' determines the maximum ",
-          "amount of time the endpoint will take to respond. If the timeout ",
+          "The optional query parameter 'timeout' determines the maximum",
+          "amount of time the endpoint will take to respond. If the timeout",
           "is exceeded, some metrics may not be included in the response.",
           "",
           "The key is the metric name, and the value is a double-type."));
