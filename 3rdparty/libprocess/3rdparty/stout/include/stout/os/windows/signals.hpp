@@ -14,7 +14,6 @@
 #define __STOUT_OS_WINDOWS_SIGNALS_HPP__
 
 #include <errno.h>
-#include <pthread.h>
 #include <signal.h>
 #include <string.h>
 

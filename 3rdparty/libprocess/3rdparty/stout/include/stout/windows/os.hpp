@@ -89,17 +89,6 @@ inline Try<Nothing> chown(
 }
 
 
-// Changes the specified path's user and group ownership to that of
-// the specified user.
-inline Try<Nothing> chown(
-    const std::string& user,
-    const std::string& path,
-    bool recursive = true)
-{
-  UNIMPLEMENTED;
-}
-
-
 inline Try<Nothing> chmod(const std::string& path, int mode)
 {
   UNIMPLEMENTED;

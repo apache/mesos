@@ -15,6 +15,7 @@
 
 #include <stdlib.h>
 
+#include <stout/os/windows/process.hpp>
 
 namespace os {
 
