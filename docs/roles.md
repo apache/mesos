@@ -55,6 +55,7 @@ start the framework. How to do this depends on the user interface of the
 framework you're using; for example, Marathon takes a `--mesos_role`
 command-line flag.
 
+<a id="roles-multiple-frameworks"></a>
 ### Multiple frameworks in the same role
 
 Multiple frameworks can use the same role. This can be useful: for example, one
