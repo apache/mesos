@@ -1682,4 +1682,13 @@ message AppcImageManifest {
   }
 
   repeated Annotation annotations = 5;
+
+  message Dependency {
+    required string imageName = 1;
+    optional string imageID = 2;
+    repeated Label labels = 3;
+    optional uint64 size = 4;
+  }
+
+  repeated Dependency dependencies = 6;
 }
