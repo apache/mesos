@@ -438,7 +438,7 @@ TEST_F(RegistryClientTest, BadTokenResponse)
 
 
 // Tests TokenManager for request to invalid server.
-TEST_F(RegistryClientTest, BadTokenServerAddress)
+TEST_F(RegistryClientTest, DISABLED_BadTokenServerAddress)
 {
   // Create an invalid URL with current time.
   const process::http::URL url("https", stringify(Clock::now().secs()), 0);
