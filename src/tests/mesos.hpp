@@ -674,6 +674,20 @@ ACTION_P(DeclineOffers, filters)
 }
 
 
+// For use with a MockScheduler, for example:
+// process::Queue<Offer> offers;
+// EXPECT_CALL(sched, resourceOffers(_, _))
+//   .WillRepeatedly(EnqueueOffers(&offers));
+// Enqueues all received offers into the provided queue.
+ACTION_P(EnqueueOffers, queue)
+{
+  std::vector<Offer> offers = arg1;
+  foreach (const Offer& offer, offers) {
+    queue->put(offer);
+  }
+}
+
+
 // Definition of a mock Executor to be used in tests with gmock.
 class MockExecutor : public Executor
 {
