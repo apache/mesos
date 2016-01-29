@@ -226,7 +226,7 @@ TEST_F(TarTest, GZIPChangeDirectory)
 class ShasumTest : public TemporaryDirectoryTest {};
 
 
-TEST_F(ShasumTest, SHA512SimpleFile)
+TEST_F(ShasumTest, DISABLED_SHA512SimpleFile)
 {
   const Path testFile(path::join(os::getcwd(), "test"));
 
