@@ -1,0 +1,112 @@
+diff --git a/src/c/zookeeper-vs2015.sln b/src/c/zookeeper-vs2015.sln
+new file mode 100644
+index 0000000..44d738f
+--- /dev/null
++++ b/src/c/zookeeper-vs2015.sln
+@@ -0,0 +1,37 @@
++Microsoft Visual Studio Solution File, Format Version 12.00
++# Visual Studio 14
++VisualStudioVersion = 14.0.23107.0
++MinimumVisualStudioVersion = 10.0.40219.1
++Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "zookeeper", "zookeeper.vcxproj", "{5754FB2B-5EA5-4988-851D-908CA533A626}"
++EndProject
++Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "cli", "cli.vcxproj", "{F267C55D-E02C-4BAF-A246-0AA58E8FE4A6}"
++EndProject
++Global
++	GlobalSection(SolutionConfigurationPlatforms) = preSolution
++		Debug|Win32 = Debug|Win32
++		Debug|x64 = Debug|x64
++		Release|Win32 = Release|Win32
++		Release|x64 = Release|x64
++	EndGlobalSection
++	GlobalSection(ProjectConfigurationPlatforms) = postSolution
++		{5754FB2B-5EA5-4988-851D-908CA533A626}.Debug|Win32.ActiveCfg = Debug|Win32
++		{5754FB2B-5EA5-4988-851D-908CA533A626}.Debug|Win32.Build.0 = Debug|Win32
++		{5754FB2B-5EA5-4988-851D-908CA533A626}.Debug|x64.ActiveCfg = Debug|x64
++		{5754FB2B-5EA5-4988-851D-908CA533A626}.Debug|x64.Build.0 = Debug|x64
++		{5754FB2B-5EA5-4988-851D-908CA533A626}.Release|Win32.ActiveCfg = Release|Win32
++		{5754FB2B-5EA5-4988-851D-908CA533A626}.Release|Win32.Build.0 = Release|Win32
++		{5754FB2B-5EA5-4988-851D-908CA533A626}.Release|x64.ActiveCfg = Release|x64
++		{5754FB2B-5EA5-4988-851D-908CA533A626}.Release|x64.Build.0 = Release|x64
++		{F267C55D-E02C-4BAF-A246-0AA58E8FE4A6}.Debug|Win32.ActiveCfg = Debug|Win32
++		{F267C55D-E02C-4BAF-A246-0AA58E8FE4A6}.Debug|Win32.Build.0 = Debug|Win32
++		{F267C55D-E02C-4BAF-A246-0AA58E8FE4A6}.Debug|x64.ActiveCfg = Debug|x64
++		{F267C55D-E02C-4BAF-A246-0AA58E8FE4A6}.Debug|x64.Build.0 = Debug|x64
++		{F267C55D-E02C-4BAF-A246-0AA58E8FE4A6}.Release|Win32.ActiveCfg = Release|Win32
++		{F267C55D-E02C-4BAF-A246-0AA58E8FE4A6}.Release|Win32.Build.0 = Release|Win32
++		{F267C55D-E02C-4BAF-A246-0AA58E8FE4A6}.Release|x64.ActiveCfg = Release|x64
++		{F267C55D-E02C-4BAF-A246-0AA58E8FE4A6}.Release|x64.Build.0 = Release|x64
++	EndGlobalSection
++	GlobalSection(SolutionProperties) = preSolution
++		HideSolutionNode = FALSE
++	EndGlobalSection
++EndGlobal
+diff --git a/src/c/include/winconfig.h b/src/c/include/winconfig.h
+old mode 100644
+new mode 100755
+index ccc3c18..b1f4bfe
+--- a/src/c/include/winconfig.h
++++ b/src/c/include/winconfig.h
+@@ -1,3 +1,5 @@
++#pragma once
++
+ /* Define to 1 if you have the <arpa/inet.h> header file. */
+ #undef HAVE_ARPA_INET_H
+
+@@ -171,12 +173,17 @@
+ #undef max
+
+ #include <errno.h>
++#include <stdlib.h>
+
+ #define strtok_r strtok_s
+ #define localtime_r(a,b) localtime_s(b,a)
+ #define get_errno() errno=GetLastError()
+-#define random rand
++
++inline int __cdecl random() { return rand(); }
++
++#if ((defined(_MSC_VER) && _MSC_VER < 1900) || !defined(_MSC_VER))
+ #define snprintf _snprintf
++#endif
+
+ #define ACL ZKACL  // Conflict with windows API
+
+@@ -192,5 +199,5 @@
+ #define EINPROGRESS WSAEINPROGRESS
+ #endif
+
+-typedef int pid_t;
++typedef DWORD pid_t;
+ #endif
+diff --git a/src/c/include/winstdint.h b/src/c/include/winstdint.h
+old mode 100755
+new mode 100644
+index d02608a..be60a65
+--- a/src/c/include/winstdint.h
++++ b/src/c/include/winstdint.h
+@@ -41,6 +41,7 @@
+ #endif
+
+ #include <limits.h>
++#include <stdint.h>
+
+ // For Visual Studio 6 in C++ mode and for many Visual Studio versions when
+ // compiling for ARM we should wrap <wchar.h> include with 'extern "C++" {}'
+@@ -100,16 +101,6 @@ typedef uint16_t  uint_least16_t;
+ typedef uint32_t  uint_least32_t;
+ typedef uint64_t  uint_least64_t;
+
+-// 7.18.1.3 Fastest minimum-width integer types
+-typedef int8_t    int_fast8_t;
+-typedef int16_t   int_fast16_t;
+-typedef int32_t   int_fast32_t;
+-typedef int64_t   int_fast64_t;
+-typedef uint8_t   uint_fast8_t;
+-typedef uint16_t  uint_fast16_t;
+-typedef uint32_t  uint_fast32_t;
+-typedef uint64_t  uint_fast64_t;
+-
+ // 7.18.1.4 Integer types capable of holding object pointers
+ #ifdef _WIN64 // [
+    typedef signed __int64    intptr_t;
