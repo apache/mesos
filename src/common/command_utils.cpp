@@ -165,6 +165,34 @@ Future<Nothing> untar(
     .then([] () {return Nothing();});
 }
 
+
+static Future<string> shasum(const string& algorithm, const Path& input)
+{
+  vector<string> argv = {
+    "shasum",
+    "-a", algorithm,  // Shasum type.
+    input             // Input file to compute shasum.
+  };
+
+  return launch("shasum", argv)
+    .then([](const string& output) -> Future<string> {
+      vector<string> tokens = strings::tokenize(output, " ");
+      if (tokens.size() < 2) {
+        return Failure("Failed to parse '" + output + "' from shasum command");
+      }
+
+      // TODO(jojy): Check the size of tokens[0].
+
+      return tokens[0];
+    });
+}
+
+
+Future<string> sha512(const Path& input)
+{
+  return shasum("512", input);
+}
+
 } // namespace command {
 } // namespace internal {
 } // namespace mesos {

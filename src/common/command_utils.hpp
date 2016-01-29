@@ -61,6 +61,14 @@ process::Future<Nothing> untar(
 
 // TODO(Jojy): Add more overloads/options for untar (eg., keep existing files)
 
+
+/**
+ * Computes SHA 512 checksum of a file.
+ *
+ * @param input path of the file whose SHA 512 checksum has to be computed.
+ */
+process::Future<std::string> sha512(const Path& input);
+
 } // namespace command {
 } // namespace internal {
 } // namespace mesos {

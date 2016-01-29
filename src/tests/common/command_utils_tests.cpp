@@ -222,6 +222,25 @@ TEST_F(TarTest, GZIPChangeDirectory)
   EXPECT_SOME_EQ("test", os::read(testFile));
 }
 
+
+class ShasumTest : public TemporaryDirectoryTest {};
+
+
+TEST_F(ShasumTest, SHA512SimpleFile)
+{
+  const Path testFile(path::join(os::getcwd(), "test"));
+
+  Try<Nothing> write = os::write(testFile, "hello world");
+  ASSERT_SOME(write);
+
+  Future<string> sha512 = command::sha512(testFile);
+  AWAIT_ASSERT_READY(sha512);
+
+  ASSERT_EQ(
+      sha512.get(),
+      "309ecc489c12d6eb4cc40f50c902f2b4d0ed77ee511a7c7a9bcd3ca86d4cd86f989dd35bc5ff499670da34255b45b0cfd830e81f605dcf7dc5542e93ae9cd76f"); // NOLINT(whitespace/line_length)
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {
