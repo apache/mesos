@@ -462,6 +462,8 @@ string createExecutorDirectory(
     << "Failed to symlink directory '" << directory
     << "' to '" << latest << "'";
 
+// `os::chown()` is not available on Windows.
+#ifndef __WINDOWS__
   if (user.isSome()) {
     // Per MESOS-2592, we need to set the ownership of the executor
     // directory during its creation. We should not rely on subsequent
@@ -484,6 +486,7 @@ string createExecutorDirectory(
                    << chown.error();
     }
   }
+#endif // __WINDOWS__
 
   return directory;
 }
