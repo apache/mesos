@@ -13,13 +13,13 @@
 #ifndef __STOUT_OS_WINDOWS_SHELL_HPP__
 #define __STOUT_OS_WINDOWS_SHELL_HPP__
 
+#include <process.h>
 #include <stdarg.h> // For va_list, va_start, etc.
 
 #include <ostream>
 #include <string>
 
 #include <stout/try.hpp>
-
 
 namespace os {
 
@@ -30,6 +30,26 @@ template <typename... T>
 Try<std::string> shell(const std::string& fmt, const T&... t)
 {
   UNIMPLEMENTED;
+}
+
+// Canonical constants used as platform-dependent args to `exec` calls.
+// name() is the command name, arg0() is the first argument received
+// by the callee, usualy the command name and arg1() is the second
+// command argument received by the callee.
+struct Shell
+{
+  static constexpr const char* name = "cmd.exe";
+  static constexpr const char* arg0 = "cmd.exe";
+  static constexpr const char* arg1 = "/c";
+};
+
+// Executes a command by calling "cmd /c <command>", and returns
+// after the command has been completed. Returns 0 if succeeds, and
+// return -1 on error
+inline int system(const std::string& command)
+{
+  return ::_spawnl(
+      _P_WAIT, Shell::name, Shell::arg0, Shell::arg1, command.c_str());
 }
 
 } // namespace os {

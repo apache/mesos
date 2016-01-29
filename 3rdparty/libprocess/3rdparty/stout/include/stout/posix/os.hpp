@@ -87,6 +87,8 @@
 
 #include <stout/os/raw/environment.hpp>
 
+#include <stout/os/shell.hpp>
+
 namespace os {
 
 // Forward declarations.
@@ -107,35 +109,6 @@ inline void setenv(const std::string& key,
 inline void unsetenv(const std::string& key)
 {
   ::unsetenv(key.c_str());
-}
-
-
-// Executes a command by calling "/bin/sh -c <command>", and returns
-// after the command has been completed. Returns 0 if succeeds, and
-// return -1 on error (e.g., fork/exec/waitpid failed). This function
-// is async signal safe. We return int instead of returning a Try
-// because Try involves 'new', which is not async signal safe.
-inline int system(const std::string& command)
-{
-  pid_t pid = ::fork();
-
-  if (pid == -1) {
-    return -1;
-  } else if (pid == 0) {
-    // In child process.
-    ::execlp("sh", "sh", "-c", command.c_str(), (char*) NULL);
-    ::exit(127);
-  } else {
-    // In parent process.
-    int status;
-    while (::waitpid(pid, &status, 0) == -1) {
-      if (errno != EINTR) {
-        return -1;
-      }
-    }
-
-    return status;
-  }
 }
 
 
