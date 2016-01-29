@@ -661,7 +661,7 @@ after which the operation is considered a failure. (default: 1mins)
   </td>
   <td>
 Duration of time to wait in order to store data in the registry
-after which the operation is considered a failure. (default: 5secs)
+after which the operation is considered a failure. (default: 20secs)
   </td>
 </tr>
 <tr>

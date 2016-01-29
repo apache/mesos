@@ -100,7 +100,7 @@ mesos::internal::master::Flags::Flags()
       "registry_store_timeout",
       "Duration of time to wait in order to store data in the registry\n"
       "after which the operation is considered a failure.",
-      Seconds(5));
+      Seconds(20));
 
   add(&Flags::log_auto_initialize,
       "log_auto_initialize",
