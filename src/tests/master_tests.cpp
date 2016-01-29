@@ -3928,25 +3928,23 @@ TEST_F(MasterTest, MaxCompletedTasksPerFrameworkFlag)
     EXPECT_CALL(sched, registered(_, _, _))
       .WillOnce(FutureSatisfy(&schedRegistered));
 
+    process::Queue<Offer> offers;
+    EXPECT_CALL(sched, resourceOffers(_, _))
+      .WillRepeatedly(EnqueueOffers(&offers));
+
     schedDriver.start();
 
     AWAIT_READY(schedRegistered);
 
     for (size_t i = 0; i < totalTasksPerFramework; i++) {
-      Future<vector<Offer>> offers;
-      EXPECT_CALL(sched, resourceOffers(&schedDriver, _))
-        .WillOnce(FutureArg<1>(&offers))
-        .WillRepeatedly(Return());
-
-      AWAIT_READY(offers);
-      EXPECT_NE(0u, offers->size());
-      Offer offer = offers.get()[0];
+      Future<Offer> offer = offers.get();
+      AWAIT_READY(offer);
 
       TaskInfo task;
       task.set_name("");
       task.mutable_task_id()->set_value(stringify(i));
-      task.mutable_slave_id()->MergeFrom(offer.slave_id());
-      task.mutable_resources()->MergeFrom(offer.resources());
+      task.mutable_slave_id()->MergeFrom(offer->slave_id());
+      task.mutable_resources()->MergeFrom(offer->resources());
       task.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
 
       // Make sure the task passes through its TASK_FINISHED
@@ -3958,7 +3956,7 @@ TEST_F(MasterTest, MaxCompletedTasksPerFrameworkFlag)
       EXPECT_CALL(sched, statusUpdate(_, _))
         .WillOnce(FutureArg<1>(&statusFinished));
 
-      schedDriver.launchTasks(offer.id(), {task});
+      schedDriver.launchTasks(offer->id(), {task});
 
       AWAIT_READY(statusFinished);
       EXPECT_EQ(TASK_FINISHED, statusFinished->state());
