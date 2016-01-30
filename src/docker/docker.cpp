@@ -311,7 +311,10 @@ Try<Docker::Container> Docker::Container::create(const string& output)
         ipAddressValue.error());
   }
 
-  string ipAddress = ipAddressValue.get().value;
+  Option<string> ipAddress;
+  if (!ipAddressValue->value.empty()) {
+    ipAddress = ipAddressValue->value;
+  }
 
   return Docker::Container(output, id, name, optionalPid, started, ipAddress);
 }
