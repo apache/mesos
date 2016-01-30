@@ -98,7 +98,7 @@ public:
        * The file descriptor is duplicated before being passed to the
        * subprocess.  The original file descriptor remains open.
        */
-      DUPLICATE,
+      DUPLICATED,
 
       /**
        * The file descriptor is not duplicated before being passed to the
@@ -143,7 +143,7 @@ public:
   // Some syntactic sugar to create an IO::PIPE redirector.
   static IO PIPE();
   static IO PATH(const std::string& path);
-  static IO FD(int fd, IO::FDType type = IO::DUPLICATE);
+  static IO FD(int fd, IO::FDType type = IO::DUPLICATED);
 
   /**
    * @return The operating system PID for this subprocess.

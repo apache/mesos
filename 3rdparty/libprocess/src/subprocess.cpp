@@ -175,7 +175,7 @@ Subprocess::IO Subprocess::FD(int fd, IO::FDType type)
       [fd, type]() -> Try<InputFileDescriptors> {
         int prepared_fd = -1;
         switch (type) {
-          case IO::DUPLICATE:
+          case IO::DUPLICATED:
             prepared_fd = ::dup(fd);
             break;
           case IO::OWNED:
@@ -198,7 +198,7 @@ Subprocess::IO Subprocess::FD(int fd, IO::FDType type)
       [fd, type]() -> Try<OutputFileDescriptors> {
         int prepared_fd = -1;
         switch (type) {
-          case IO::DUPLICATE:
+          case IO::DUPLICATED:
             prepared_fd = ::dup(fd);
             break;
           case IO::OWNED:
