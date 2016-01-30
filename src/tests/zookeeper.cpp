@@ -28,6 +28,7 @@
 #include <jvm/org/apache/log4j.hpp>
 
 #include <stout/check.hpp>
+#include <stout/fs.hpp>
 #include <stout/lambda.hpp>
 #include <stout/path.hpp>
 #include <stout/os.hpp>
@@ -60,7 +61,7 @@ void ZooKeeperTest::SetUpTestCase()
       path::join(zkHome, "zookeeper-" ZOOKEEPER_VERSION ".jar");
 
     // Now add all the libraries in 'lib' too.
-    Try<list<string> > jars = os::glob(path::join(zkHome, "lib", "*.jar"));
+    Try<list<string> > jars = fs::list(path::join(zkHome, "lib", "*.jar"));
 
     CHECK_SOME(jars);
 

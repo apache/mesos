@@ -19,6 +19,7 @@
 #include <iostream>
 #include <list>
 
+#include <stout/fs.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
 #include <stout/path.hpp>
@@ -41,7 +42,7 @@ void usage(const char* argv0)
 
   if (PATH.isSome()) {
     foreach (const string& path, strings::split(PATH.get(), ":")) {
-      Try<list<string> > matches = os::glob(path::join(path, "mesos-*"));
+      Try<list<string> > matches = fs::list(path::join(path, "mesos-*"));
       if (matches.isSome()) {
         foreach (const string& match, matches.get()) {
           Try<bool> access = os::access(match, X_OK);

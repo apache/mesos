@@ -111,7 +111,7 @@ Try<list<string>> getFrameworkPaths(
     const string& rootDir,
     const SlaveID& slaveId)
 {
-  return os::glob(
+  return fs::list(
       path::join(getSlavePath(rootDir, slaveId), "frameworks", "*"));
 }
 
@@ -151,7 +151,7 @@ Try<list<string>> getExecutorPaths(
     const SlaveID& slaveId,
     const FrameworkID& frameworkId)
 {
-  return os::glob(path::join(
+  return fs::list(path::join(
       getFrameworkPath(rootDir, slaveId, frameworkId),
       "executors",
       "*"));
@@ -189,7 +189,7 @@ Try<list<string>> getExecutorRunPaths(
     const FrameworkID& frameworkId,
     const ExecutorID& executorId)
 {
-  return os::glob(path::join(
+  return fs::list(path::join(
       getExecutorPath(rootDir, slaveId, frameworkId, executorId),
       "runs",
       "*"));
@@ -304,7 +304,7 @@ Try<list<string>> getTaskPaths(
     const ExecutorID& executorId,
     const ContainerID& containerId)
 {
-  return os::glob(path::join(
+  return fs::list(path::join(
       getExecutorRunPath(
           rootDir,
           slaveId,
