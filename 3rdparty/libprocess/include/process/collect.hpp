@@ -13,6 +13,7 @@
 #ifndef __PROCESS_COLLECT_HPP__
 #define __PROCESS_COLLECT_HPP__
 
+#include <functional>
 #include <list>
 #include <tuple>
 
@@ -39,11 +40,8 @@ Future<std::list<T>> collect(const std::list<Future<T>>& futures);
 
 // Waits on each future specified and returns the wrapping future
 // typed of a tuple of values.
-// TODO(jieyu): Investigate the use of variadic templates here.
-template <typename T1, typename T2>
-Future<std::tuple<T1, T2>> collect(
-    const Future<T1>& future1,
-    const Future<T2>& future2);
+template <typename... Ts>
+Future<std::tuple<Ts...>> collect(const Future<Ts>&... futures);
 
 
 // Waits on each future in the specified set and returns the list of
@@ -209,21 +207,23 @@ inline Future<std::list<T>> collect(
 }
 
 
-template <typename T1, typename T2>
-Future<std::tuple<T1, T2>> collect(
-    const Future<T1>& future1,
-    const Future<T2>& future2)
+template <typename... Ts>
+Future<std::tuple<Ts...>> collect(const Future<Ts>&... futures)
 {
-  Future<Nothing> wrapper1 = future1
-    .then([]() { return Nothing(); });
+  std::list<Future<Nothing>> wrappers = {
+    futures.then([]() { return Nothing(); })...
+  };
 
-  Future<Nothing> wrapper2 = future2
-    .then([]() { return Nothing(); });
+  // TODO(klueska): Unfortunately, we have to use a lambda followed
+  // by a bind here because of a bug in gcc 4.8 to handle variadic
+  // parameters in lambdas:
+  //     https://gcc.gnu.org/bugzilla/show_bug.cgi?id=47226
+  auto f = [](const Future<Ts>&... futures) {
+    return std::make_tuple(futures.get()...);
+  };
 
-  std::list<Future<Nothing>> futures = { wrapper1, wrapper2 };
-
-  return collect(futures)
-    .then([=]() { return std::make_tuple(future1.get(), future2.get()); });
+  return collect(wrappers)
+    .then(std::bind(f, futures...));
 }
 
 
