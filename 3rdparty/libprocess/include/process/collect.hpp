@@ -52,18 +52,8 @@ Future<std::list<Future<T>>> await(const std::list<Future<T>>& futures);
 
 // Waits on each future specified and returns the wrapping future
 // typed of a tuple of futures.
-// TODO(jieyu): Investigate the use of variadic templates here.
-template <typename T1, typename T2>
-Future<std::tuple<Future<T1>, Future<T2>>> await(
-    const Future<T1>& future1,
-    const Future<T2>& future2);
-
-
-template <typename T1, typename T2, typename T3>
-Future<std::tuple<Future<T1>, Future<T2>, Future<T3>>> await(
-    const Future<T1>& future1,
-    const Future<T2>& future2,
-    const Future<T3>& future3);
+template <typename... Ts>
+Future<std::tuple<Future<Ts>...>> await(const Future<Ts>&... futures);
 
 
 namespace internal {
@@ -243,43 +233,23 @@ inline Future<std::list<Future<T>>> await(
 }
 
 
-template <typename T1, typename T2>
-Future<std::tuple<Future<T1>, Future<T2>>> await(
-    const Future<T1>& future1,
-    const Future<T2>& future2)
+template <typename... Ts>
+Future<std::tuple<Future<Ts>...>> await(const Future<Ts>&... futures)
 {
-  Future<Nothing> wrapper1 = future1
-    .then([]() { return Nothing(); });
+  std::list<Future<Nothing>> wrappers = {
+    futures.then([]() { return Nothing(); })...
+  };
 
-  Future<Nothing> wrapper2 = future2
-    .then([]() { return Nothing(); });
+  // TODO(klueska): Unfortunately, we have to use a lambda followed
+  // by a bind here because of a bug in gcc 4.8 to handle variadic
+  // parameters in lambdas:
+  //     https://gcc.gnu.org/bugzilla/show_bug.cgi?id=47226
+  auto f = [](const Future<Ts>&... futures) {
+    return std::make_tuple(futures...);
+  };
 
-  std::list<Future<Nothing>> futures = { wrapper1, wrapper2 };
-
-  return await(futures)
-    .then([=]() { return std::make_tuple(future1, future2); });
-}
-
-
-template <typename T1, typename T2, typename T3>
-Future<std::tuple<Future<T1>, Future<T2>, Future<T3>>> await(
-    const Future<T1>& future1,
-    const Future<T2>& future2,
-    const Future<T3>& future3)
-{
-  Future<Nothing> wrapper1 = future1
-    .then([]() { return Nothing(); });
-
-  Future<Nothing> wrapper2 = future2
-    .then([]() { return Nothing(); });
-
-  Future<Nothing> wrapper3 = future3
-    .then([]() { return Nothing(); });
-
-  std::list<Future<Nothing>> futures = { wrapper1, wrapper2, wrapper3 };
-
-  return await(futures)
-    .then([=]() { return std::make_tuple(future1, future2, future3); });
+  return await(wrappers)
+    .then(std::bind(f, futures...));
 }
 
 } // namespace process {
