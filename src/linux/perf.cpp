@@ -268,9 +268,11 @@ Future<Version> version()
 
   return output
     .then([](const string& output) -> Future<Version> {
+      string trimmed = strings::trim(output);
+
       // Trim off the leading 'perf version ' text to convert.
-      return Version::parse(strings::remove(
-          output, "perf version ", strings::PREFIX));
+      return Version::parse(
+          strings::remove(trimmed, "perf version ", strings::PREFIX));
     });
 };
 
