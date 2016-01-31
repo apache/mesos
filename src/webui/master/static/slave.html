@@ -48,12 +48,16 @@
       <table class="table table-condensed">
         <tbody>
           <tr>
-            <td>Staged</td>
-            <td class="text-right">{{state.staged_tasks | number}}</td>
+            <td>Staging</td>
+            <td class="text-right">{{state.staging_tasks | number}}</td>
           </tr>
           <tr>
-            <td>Started</td>
-            <td class="text-right">{{state.started_tasks | number}}</td>
+            <td>Starting</td>
+            <td class="text-right">{{state.starting_tasks | number}}</td>
+          </tr>
+          <tr>
+            <td>Running</td>
+            <td class="text-right">{{state.running_tasks | number}}</td>
           </tr>
           <tr>
             <td>Finished</td>
