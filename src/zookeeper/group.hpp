@@ -121,13 +121,13 @@ public:
   };
 
   // Constructs this group using the specified ZooKeeper servers (list
-  // of host:port) with the given timeout at the specified znode.
+  // of host:port) with the given session timeout at the specified znode.
   Group(const std::string& servers,
-        const Duration& timeout,
+        const Duration& sessionTimeout,
         const std::string& znode,
         const Option<Authentication>& auth = None());
   Group(const URL& url,
-        const Duration& timeout);
+        const Duration& sessionTimeout);
 
   ~Group();
 
@@ -170,12 +170,12 @@ class GroupProcess : public process::Process<GroupProcess>
 {
 public:
   GroupProcess(const std::string& servers,
-               const Duration& timeout,
+               const Duration& sessionTimeout,
                const std::string& znode,
                const Option<Authentication>& auth);
 
   GroupProcess(const URL& url,
-               const Duration& timeout);
+               const Duration& sessionTimeout);
 
   virtual ~GroupProcess();
 
@@ -256,7 +256,7 @@ private:
   const std::string servers;
 
   // The session timeout requested by the client.
-  const Duration timeout;
+  const Duration sessionTimeout;
 
   const std::string znode;
 

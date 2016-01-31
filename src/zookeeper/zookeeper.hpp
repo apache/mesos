@@ -122,7 +122,7 @@ public:
    *    method will be invoked.
    */
   ZooKeeper(const std::string& servers,
-            const Duration& timeout,
+            const Duration& sessionTimeout,
             Watcher* watcher);
 
   ~ZooKeeper();
@@ -145,7 +145,9 @@ public:
    * \brief get the current session timeout.
    *
    * The session timeout requested by the client or the negotiated
-   * session timeout after the session is established with ZooKeeper.
+   * session timeout after the session is established with
+   * ZooKeeper. Note that this might differ from the initial
+   * `sessionTimeout` specified when this instance was constructed.
    */
   Duration getSessionTimeout() const;
 

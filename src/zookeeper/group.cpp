@@ -87,12 +87,12 @@ void discard(queue<T*>* queue)
 
 GroupProcess::GroupProcess(
     const string& _servers,
-    const Duration& _timeout,
+    const Duration& _sessionTimeout,
     const string& _znode,
     const Option<Authentication>& _auth)
   : ProcessBase(ID::generate("group")),
     servers(_servers),
-    timeout(_timeout),
+    sessionTimeout(_sessionTimeout),
     znode(strings::remove(_znode, "/", strings::SUFFIX)),
     auth(_auth),
     acl(_auth.isSome()
@@ -109,10 +109,10 @@ GroupProcess::GroupProcess(
 // C++ 11.
 GroupProcess::GroupProcess(
     const URL& url,
-    const Duration& _timeout)
+    const Duration& _sessionTimeout)
   : ProcessBase(ID::generate("group")),
     servers(url.servers),
-    timeout(_timeout),
+    sessionTimeout(_sessionTimeout),
     znode(strings::remove(url.path, "/", strings::SUFFIX)),
     auth(url.authentication),
     acl(url.authentication.isSome()
@@ -142,7 +142,7 @@ void GroupProcess::initialize()
   // Doing initialization here allows to avoid the race between
   // instantiating the ZooKeeper instance and being spawned ourself.
   watcher = new ProcessWatcher<GroupProcess>(self());
-  zk = new ZooKeeper(servers, timeout, watcher);
+  zk = new ZooKeeper(servers, sessionTimeout, watcher);
   state = CONNECTING;
 }
 
@@ -530,7 +530,7 @@ void GroupProcess::expired(int64_t sessionId)
   delete CHECK_NOTNULL(zk);
   delete CHECK_NOTNULL(watcher);
   watcher = new ProcessWatcher<GroupProcess>(self());
-  zk = new ZooKeeper(servers, timeout, watcher);
+  zk = new ZooKeeper(servers, sessionTimeout, watcher);
 
   state = CONNECTING;
 }
@@ -969,19 +969,19 @@ string GroupProcess::zkBasename(const Group::Membership& membership)
 
 
 Group::Group(const string& servers,
-             const Duration& timeout,
+             const Duration& sessionTimeout,
              const string& znode,
              const Option<Authentication>& auth)
 {
-  process = new GroupProcess(servers, timeout, znode, auth);
+  process = new GroupProcess(servers, sessionTimeout, znode, auth);
   spawn(process);
 }
 
 
 Group::Group(const URL& url,
-             const Duration& timeout)
+             const Duration& sessionTimeout)
 {
-  process = new GroupProcess(url, timeout);
+  process = new GroupProcess(url, sessionTimeout);
   spawn(process);
 }
 
