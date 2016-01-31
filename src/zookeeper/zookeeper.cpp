@@ -70,17 +70,40 @@ public:
 
   virtual void initialize()
   {
-    // We retry zookeeper_init until the timeout elapses because we've
-    // seen cases where temporary DNS outages cause the slave to abort
-    // here. See MESOS-1326 for more information.
-    // ZooKeeper masks EAI_AGAIN as EINVAL and a name resolution timeout
-    // may be upwards of 30 seconds. As such, a 10 second timeout is not
-    // enough. Hard code this to 10 minutes to be sure we're trying again
-    // in the face of temporary name resolution failures. See MESOS-1523
-    // for more information.
-    const Timeout timeout_ = Timeout::in(Minutes(10));
+    // There are two different timeouts here:
+    //
+    // (1) `sessionTimeout` is the client's proposed value for the
+    // ZooKeeper session timeout.
+    //
+    // (2) `initLoopTimeout` is how long we are prepared to wait,
+    // calling `zookeeper_init` in a loop, until a call succeeds.
+    //
+    // `sessionTimeout` is used to determine the liveness of our
+    // ZooKeeper session. `initLoopTimeout` determines how long to
+    // retry erroneous calls to `zookeeper_init`, because there are
+    // cases when temporary DNS outages cause `zookeeper_init` to
+    // return failure. ZooKeeper masks EAI_AGAIN as EINVAL and a name
+    // resolution timeout may be upwards of 30 seconds. As such, a 10
+    // second timeout (the default `sessionTimeout`) is not enough. We
+    // hardcode `initLoopTimeout` to 10 minutes ensure we're trying
+    // again in the face of temporary name resolution failures. See
+    // MESOS-1523 for more information.
+    //
+    // Note that there are cases where `zookeeper_init` returns
+    // success but we don't see a subsequent ZooKeeper event
+    // indicating that our connection has been established. A common
+    // cause for this situation is that the ZK hostname list resolves
+    // to unreachable IP addresses. ZooKeeper will continue looping,
+    // trying to connect to the list of IPs but never attempting to
+    // re-resolve the input hostnames. Since DNS may have changed, we
+    // close the ZK handle and create a new handle to ensure that ZK
+    // will try to re-resolve the configured list of hostnames.
+    // However, since we can't easily check if the `connected` ZK
+    // event has been fired for this session yet, we implement this
+    // timeout in `GroupProcess`. See MESOS-4546 for more information.
+    const Timeout initLoopTimeout = Timeout::in(Minutes(10));
 
-    while (!timeout_.expired()) {
+    while (!initLoopTimeout.expired()) {
       zh = zookeeper_init(
           servers.c_str(),
           event,

@@ -34,6 +34,7 @@
 using zookeeper::Group;
 using zookeeper::GroupProcess;
 
+using process::Clock;
 using process::Future;
 
 using std::string;
@@ -431,6 +432,31 @@ TEST_F(GroupTest, LabelledGroup)
 
   ASSERT_TRUE(membership.get().cancelled().isReady());
   ASSERT_TRUE(membership.get().cancelled().get());
+}
+
+
+// This test checks that the `expired` event is invoked even if we
+// have not ever established a connection to ZooKeeper (MESOS-4546).
+TEST_F(GroupTest, ConnectTimer)
+{
+  const Duration sessionTimeout = Seconds(10);
+
+  Clock::pause();
+
+  // Ensure that we won't be able to establish a connection to ZooKeeper.
+  server->shutdownNetwork();
+
+  Future<Nothing> expired = FUTURE_DISPATCH(_, &GroupProcess::expired);
+
+  Group group(server->connectString(), sessionTimeout, "/test/");
+
+  // Advance the clock to ensure that we forcibly expire the current
+  // ZooKeeper connection attempt and try to reconnect.
+  Clock::advance(sessionTimeout);
+
+  AWAIT_READY(expired);
+
+  Clock::resume();
 }
 
 } // namespace tests {

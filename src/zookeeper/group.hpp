@@ -208,6 +208,8 @@ public:
   void deleted(int64_t sessionId, const std::string& path);
 
 private:
+  void startConnection();
+
   Result<Group::Membership> doJoin(
       const std::string& data,
       const Option<std::string>& label);
@@ -339,9 +341,9 @@ private:
   // cache and 'Some' represents a valid cache.
   Option<std::set<Group::Membership> > memberships;
 
-  // The timer that determines whether we should quit waiting for the
-  // connection to be restored.
-  Option<process::Timer> timer;
+  // A timer that controls when we should give up on waiting for the
+  // current connection attempt to succeed and try to reconnect.
+  Option<process::Timer> connectTimer;
 };
 
 } // namespace zookeeper {
