@@ -682,10 +682,9 @@ TEST_F(SlaveTest, LaunchTaskInfoWithContainerInfo)
       "20141010-221431-251662764-60288-12345-0000");
   const ExecutorInfo& executor = slave.getExecutorInfo(frameworkInfo, task);
 
-  Future<bool> result;
   SlaveID slaveID;
   slaveID.set_value(UUID::random().toString());
-  result = containerizer.get()->launch(
+  Future<bool> launch = containerizer.get()->launch(
       containerId,
       task,
       executor,
@@ -694,13 +693,17 @@ TEST_F(SlaveTest, LaunchTaskInfoWithContainerInfo)
       slaveID,
       slave.self(),
       false);
-  AWAIT_READY(result);
+  AWAIT_READY(launch);
 
   // TODO(spikecurtis): With agent capabilities (MESOS-3362), the
   // Containerizer should fail this request since none of the listed
   // isolators can handle NetworkInfo, which implies
   // IP-per-container.
-  EXPECT_TRUE(result.get());
+  EXPECT_TRUE(launch.get());
+
+  // Wait for the container to terminate before shutting down.
+  AWAIT_READY(containerizer.get()->wait(containerId));
+
   Shutdown(); // Must shutdown before 'containerizer' gets deallocated.
 }
 
