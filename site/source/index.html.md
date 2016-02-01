@@ -7,7 +7,7 @@ title: Apache Mesos
     <h1>Program against your datacenter like it’s a single pool of resources</h1>
     <p class="lead">Apache Mesos abstracts CPU, memory, storage, and other compute resources away from machines (physical or virtual), enabling fault-tolerant and elastic distributed systems to easily be built and run effectively.</p>
 
-		<p> <a href="downloads/"><span class="glyphicon glyphicon-download"></span> Download Mesos 0.26.0</a> or learn how to <a href="gettingstarted/">get started</a></p>
+		<p> <a href="downloads/"><span class="glyphicon glyphicon-download"></span> Download Mesos 0.27.0</a> or learn how to <a href="gettingstarted/">get started</a></p>
 	</div>
 </div>
 
@@ -32,6 +32,7 @@ title: Apache Mesos
   <div class="col-md-5">
     <h3>News</h3>
       <ul>
+      <li><em>January 31, 2016</em> - Mesos 0.27.0 is released! See the <a href="https://git-wip-us.apache.org/repos/asf?p=mesos.git;a=blob_plain;f=CHANGELOG;hb=0.27.0">CHANGELOG</a> for details.</li>
       <li><em>December 16, 2015</em> - Mesos 0.26.0 is released! See the <a href="https://git-wip-us.apache.org/repos/asf?p=mesos.git;a=blob_plain;f=CHANGELOG;hb=0.26.0">CHANGELOG</a> and <a href="/blog/mesos-0-26-0-released/">blog post</a> for details.</li>
       <li><em>October 10, 2015</em> - Mesos 0.25.0 is released! See the <a href="https://git-wip-us.apache.org/repos/asf?p=mesos.git;a=blob_plain;f=CHANGELOG;hb=0.25.0">CHANGELOG</a> and <a href="/blog/mesos-0-25-0-released/">blog post</a> for details.</li>
 			<li><em>September 30, 2015</em> - Announcing the #MesosCon Europe Hackathon! See the <a href="/blog/announcing-mesoscon-eu-2015-hackathon/">blog post</a> for details.</li>
