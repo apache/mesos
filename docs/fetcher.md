@@ -116,8 +116,11 @@ procedure, in the sandbox directory only. It does not affect any cache file.
 ### Archive extraction
 
 If the "extract" field is "true", which is the default, then files with
-extensions that hint at packed or compressed archives (".zip", ".tar", et.al.)
-are unpacked in the sandbox directory.
+a recognized extension that hints at packed or compressed archives are unpacked
+in the sandbox directory. These file extensions are recognized:
+
+- .tar, .tar.gz, .tar.bz2, .tar.xz
+- .gz, .tgz, .tbz2, .txz, .zip
 
 In case the cache is bypassed, both the archive and the unpacked results will be
 found together in the sandbox. In case a cache file is unpacked, only the
