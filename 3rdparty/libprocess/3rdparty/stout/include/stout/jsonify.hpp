@@ -147,8 +147,8 @@ public:
         // Prints a floating point value, with the specified precision, see:
         // http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2006/n2005.pdf
         // Additionally ensures that a decimal point is in the output.
-        char buffer[50] = {}; // More than enough for the specified precision.
-        snprintf(
+        char buffer[50]; // More than enough for the specified precision.
+        const int size = snprintf(
             buffer,
             sizeof(buffer),
             "%#.*g",
@@ -157,10 +157,19 @@ public:
 
         // Get rid of excess trailing zeroes before outputting.
         // Otherwise, printing 1.0 would result in "1.00000000000000".
-        std::string trimmed = strings::trim(buffer, strings::SUFFIX, "0");
+        //
+        // NOTE: We intentionally do not use `strings::trim` here in order to
+        // avoid construction of temporary strings.
+        int back = size - 1;
+        for (; back > 0; --back) {
+          if (buffer[back] != '0') {
+            break;
+          }
+          buffer[back] = '\0';
+        }
 
         // NOTE: valid JSON numbers cannot end with a '.'.
-        *stream_ << trimmed << (trimmed.back() == '.' ? "0" : "");
+        *stream_ << buffer << (buffer[back] == '.' ? "0" : "");
         break;
       }
     }
