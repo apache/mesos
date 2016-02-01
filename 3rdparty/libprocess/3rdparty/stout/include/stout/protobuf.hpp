@@ -689,12 +689,13 @@ inline void json(ObjectWriter* writer, const google::protobuf::Message& message)
                       reflection->GetRepeatedEnum(message, field, i)->name());
                   break;
                 case FieldDescriptor::CPPTYPE_STRING:
-                  std::string s =
-                    reflection->GetRepeatedString(message, field, i);
+                  const std::string& s = reflection->GetRepeatedStringReference(
+                      message, field, i, NULL);
                   if (field->type() == FieldDescriptor::TYPE_BYTES) {
-                    s = base64::encode(s);
+                    writer->element(base64::encode(s));
+                  } else {
+                    writer->element(s);
                   }
-                  writer->element(s);
                   break;
               }
             }
@@ -730,11 +731,13 @@ inline void json(ObjectWriter* writer, const google::protobuf::Message& message)
               field->name(), reflection->GetEnum(message, field)->name());
           break;
         case FieldDescriptor::CPPTYPE_STRING:
-          std::string str = reflection->GetString(message, field);
+          const std::string& s = reflection->GetStringReference(
+              message, field, NULL);
           if (field->type() == FieldDescriptor::TYPE_BYTES) {
-            str = base64::encode(str);
+            writer->field(field->name(), base64::encode(s));
+          } else {
+            writer->field(field->name(), s);
           }
-          writer->field(field->name(), str);
           break;
       }
     }
