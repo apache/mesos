@@ -166,31 +166,35 @@ Future<Nothing> untar(
 }
 
 
-static Future<string> shasum(const string& algorithm, const Path& input)
+Future<string> sha512(const Path& input)
 {
+#ifdef __linux__
+  const string cmd = "sha512sum";
   vector<string> argv = {
-    "shasum",
-    "-a", algorithm,  // Shasum type.
+    cmd,
     input             // Input file to compute shasum.
   };
+#else
+  const string cmd = "shasum";
+  vector<string> argv = {
+    cmd,
+    "-a", "512",      // Shasum type.
+    input             // Input file to compute shasum.
+  };
+#endif // __linux__
 
-  return launch("shasum", argv)
-    .then([](const string& output) -> Future<string> {
+  return launch(cmd, argv)
+    .then([cmd](const string& output) -> Future<string> {
       vector<string> tokens = strings::tokenize(output, " ");
       if (tokens.size() < 2) {
-        return Failure("Failed to parse '" + output + "' from shasum command");
+        return Failure(
+            "Failed to parse '" + output + "' from '" + cmd +  "' command");
       }
 
       // TODO(jojy): Check the size of tokens[0].
 
       return tokens[0];
     });
-}
-
-
-Future<string> sha512(const Path& input)
-{
-  return shasum("512", input);
 }
 
 } // namespace command {
