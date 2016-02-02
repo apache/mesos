@@ -621,7 +621,7 @@ inline Try<Nothing> FlagsBase::load(
   }
 
   // Grab the program name from argv, without removing it.
-  programName_ = argc > 0 ? Path(*(argv[0])).basename() : "";
+  programName_ = *argc > 0 ? Path(*(argv[0])).basename() : "";
 
   // Keep the arguments that are not being processed as flags.
   std::vector<char*> args;
