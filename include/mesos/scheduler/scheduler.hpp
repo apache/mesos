@@ -21,21 +21,20 @@
 #include <mesos/scheduler/scheduler.pb.h>
 
 namespace mesos {
+namespace scheduler {
 
-inline std::ostream& operator<<(std::ostream& stream,
-                                const scheduler::Call::Type& type)
+inline std::ostream& operator<<(std::ostream& stream, const Call::Type& type)
 {
-  return stream << scheduler::Call_Type_Name(type);
+  return stream << Call::Type_Name(type);
 }
 
 
-inline std::ostream& operator<<(
-    std::ostream& stream,
-    const scheduler::Event::Type& type)
+inline std::ostream& operator<<(std::ostream& stream, const Event::Type& type)
 {
-  return stream << scheduler::Event_Type_Name(type);
+  return stream << Event::Type_Name(type);
 }
 
+} // namespace scheduler {
 } // namespace mesos {
 
 #endif // __SCHEDULER_PROTO_HPP__

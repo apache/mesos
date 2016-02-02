@@ -38,6 +38,8 @@
 #include <mesos/module/authenticator.hpp>
 #include <mesos/module/http_authenticator.hpp>
 
+#include <mesos/scheduler/scheduler.hpp>
+
 #include <process/check.hpp>
 #include <process/collect.hpp>
 #include <process/defer.hpp>

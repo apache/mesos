@@ -498,11 +498,7 @@ protected:
   {
     // TODO(bmahler): Increment a metric.
 
-    // NOTE: The << operator for 'event.type()' from
-    // type_utils.hpp does not resolve here.
-    LOG(WARNING) << "Dropping "
-                 << mesos::scheduler::Event_Type_Name(event.type())
-                 << ": " << message;
+    LOG(WARNING) << "Dropping " << event.type() << ": " << message;
   }
 
   void receive(const UPID& from, const Event& event)
