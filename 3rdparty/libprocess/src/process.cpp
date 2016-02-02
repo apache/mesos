@@ -457,9 +457,6 @@ private:
 };
 
 
-// Unique id that can be assigned to each process.
-static uint32_t __id__ = 0;
-
 // Server socket listen backlog.
 static const int LISTEN_BACKLOG = 500000;
 
