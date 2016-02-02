@@ -37,11 +37,11 @@ struct TerminateEvent;
 struct EventVisitor
 {
   virtual ~EventVisitor() {}
-  virtual void visit(const MessageEvent& event) {}
-  virtual void visit(const DispatchEvent& event) {}
-  virtual void visit(const HttpEvent& event) {}
-  virtual void visit(const ExitedEvent& event) {}
-  virtual void visit(const TerminateEvent& event) {}
+  virtual void visit(const MessageEvent&) {}
+  virtual void visit(const DispatchEvent&) {}
+  virtual void visit(const HttpEvent&) {}
+  virtual void visit(const ExitedEvent&) {}
+  virtual void visit(const TerminateEvent&) {}
 };
 
 
@@ -58,7 +58,7 @@ struct Event
     struct IsVisitor : EventVisitor
     {
       explicit IsVisitor(bool* _result) : result(_result) {}
-      virtual void visit(const T& t) { *result = true; }
+      virtual void visit(const T&) { *result = true; }
       bool* result;
     } visitor(&result);
     visit(&visitor);

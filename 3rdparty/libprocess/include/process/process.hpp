@@ -107,14 +107,14 @@ protected:
    *
    * @see process::ProcessBase::link
    */
-  virtual void exited(const UPID& pid) {}
+  virtual void exited(const UPID&) {}
 
   /**
    * Invoked when a linked process can no longer be monitored.
    *
    * @see process::ProcessBase::link
    */
-  virtual void lost(const UPID& pid) {}
+  virtual void lost(const UPID&) {}
 
   /**
    * Puts the message at front of this process's message queue.

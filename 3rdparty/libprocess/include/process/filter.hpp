@@ -20,10 +20,10 @@ namespace process {
 class Filter {
 public:
   virtual ~Filter() {}
-  virtual bool filter(const MessageEvent& event) { return false; }
-  virtual bool filter(const DispatchEvent& event) { return false; }
-  virtual bool filter(const HttpEvent& event) { return false; }
-  virtual bool filter(const ExitedEvent& event) { return false; }
+  virtual bool filter(const MessageEvent&) { return false; }
+  virtual bool filter(const DispatchEvent&) { return false; }
+  virtual bool filter(const HttpEvent&) { return false; }
+  virtual bool filter(const ExitedEvent&) { return false; }
 };
 
 
