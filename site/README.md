@@ -21,6 +21,17 @@ files within the source folder.
 		../support/generate-help-site.py
 		rake
 
+The doxygen and javadoc pages must be generated _after_ running `rake`.
+
+### Generating doxygen pages
+Doxygen pages can be generated using:
+
+		rake doxygen
+
+### Generating javadoc pages
+Javadoc pages can be generated using:
+
+		rake javadoc
 
 ## Development
 To live edit the site run `rake dev` and then open a browser window to
