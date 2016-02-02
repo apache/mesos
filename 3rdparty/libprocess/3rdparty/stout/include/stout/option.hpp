@@ -43,7 +43,7 @@ public:
   template <typename U>
   Option(const U& u) : state(SOME), t(u) {}
 
-  Option(const None& none) : state(NONE) {}
+  Option(const None&) : state(NONE) {}
 
   template <typename U>
   Option(const _Some<U>& some) : state(SOME), t(some.t) {}
