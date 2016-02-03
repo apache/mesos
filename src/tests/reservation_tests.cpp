@@ -164,6 +164,107 @@ TEST_F(ReservationTest, ReserveThenUnreserve)
 }
 
 
+// This tests for failures arising from floating point precision errors during
+// processing of resource reservation requests.  The test first asks a framework
+// to send a resource reservation request in response to an offer, which updates
+// the resources in the allocator and results in resources being re-offered to
+// the framework. The framework then sends back a new resource reservation
+// request which involves a floating point value for the resources being
+// reserved, which in turn triggers a problematic floating point comparison.
+TEST_F(ReservationTest, ReserveTwiceWithDoubleValue)
+{
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_role("role");
+
+  master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.allocation_interval = Milliseconds(5);
+
+  Try<PID<Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  slaveFlags.resources = "cpus:24;mem:4096";
+
+  Try<PID<Slave>> slave = StartSlave(slaveFlags);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
+
+  // We use the filter explicitly here so that the resources will not
+  // be filtered (default would be 5 seconods).
+  Filters filters;
+  filters.set_refuse_seconds(0);
+
+  Resources unreserved = Resources::parse("cpus:0.1;mem:512").get();
+  Resources dynamicallyReserved =
+    unreserved.flatten(
+        frameworkInfo.role(),
+        createReservationInfo(frameworkInfo.principal()));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+     .WillOnce(FutureArg<1>(&offers));
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  driver.start();
+
+  AWAIT_READY(offers);
+
+  ASSERT_EQ(1u, offers.get().size());
+  Offer offer = offers.get()[0];
+
+  // In the first offer, expect an offer with unreserved resources.
+  EXPECT_TRUE(Resources(offer.resources()).contains(unreserved));
+
+  // The expectation for the next offer.
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+     .WillOnce(FutureArg<1>(&offers));
+
+  // First iteration: Reserving 0.1 CPU.
+  driver.acceptOffers({offer.id()}, {RESERVE(dynamicallyReserved)}, filters);
+
+  AWAIT_READY(offers);
+
+  ASSERT_EQ(1, offers.get().size());
+  offer = offers.get()[0];
+
+  // In the second offer, expect an offer with reserved resources.
+  EXPECT_TRUE(Resources(offer.resources()).contains(dynamicallyReserved));
+
+  // The expectation for the next offer.
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+     .WillOnce(FutureArg<1>(&offers));
+
+  // Second iteration: Reserving second 0.1 CPU.
+  driver.acceptOffers({offer.id()}, {RESERVE(dynamicallyReserved)}, filters);
+
+  // The agent should be able to calculate the remaining resources
+  // correctly at this point. If the floating point comparison on the
+  // agent isn't correct it will end up failing `CHECKS` on the agent,
+  // potentially crashing the agent. See MESOS-3552.
+  AWAIT_READY(offers);
+
+  ASSERT_EQ(1u, offers.get().size());
+  offer = offers.get()[0];
+
+  Resources reserved = Resources::parse("cpus:0.2;mem:512").get();
+  Resources finalReservation =
+    reserved.flatten(
+        frameworkInfo.role(),
+        createReservationInfo(frameworkInfo.principal()));
+
+  EXPECT_TRUE(Resources(offer.resources()).contains(finalReservation));
+
+  driver.stop();
+  driver.join();
+
+  Shutdown();
+}
+
+
 // This tests that a framework can send back a Reserve followed by a
 // LaunchTasks offer operation as a response to an offer, which
 // updates the resources in the allocator then proceeds to launch the
