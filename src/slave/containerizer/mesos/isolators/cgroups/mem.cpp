@@ -278,7 +278,7 @@ Future<Option<ContainerLaunchInfo>> CgroupsMemIsolatorProcess::prepare(
   oomListen(containerId);
   pressureListen(containerId);
 
-  return update(containerId, containerConfig.executorinfo().resources())
+  return update(containerId, containerConfig.executor_info().resources())
     .then([]() -> Future<Option<ContainerLaunchInfo>> {
       return None();
     });

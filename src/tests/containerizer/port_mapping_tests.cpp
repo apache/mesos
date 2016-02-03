@@ -457,7 +457,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_NC_ContainerToContainerTCP)
   ASSERT_SOME(dir1);
 
   ContainerConfig containerConfig1;
-  containerConfig1.mutable_executorinfo()->CopyFrom(executorInfo);
+  containerConfig1.mutable_executor_info()->CopyFrom(executorInfo);
   containerConfig1.set_directory(dir1.get());
 
   Future<Option<ContainerLaunchInfo>> launchInfo1 =
@@ -526,7 +526,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_NC_ContainerToContainerTCP)
   ASSERT_SOME(dir2);
 
   ContainerConfig containerConfig2;
-  containerConfig2.mutable_executorinfo()->CopyFrom(executorInfo);
+  containerConfig2.mutable_executor_info()->CopyFrom(executorInfo);
   containerConfig2.set_directory(dir2.get());
 
   Future<Option<ContainerLaunchInfo>> launchInfo2 =
@@ -620,7 +620,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_NC_ContainerToContainerUDP)
   ASSERT_SOME(dir1);
 
   ContainerConfig containerConfig1;
-  containerConfig1.mutable_executorinfo()->CopyFrom(executorInfo);
+  containerConfig1.mutable_executor_info()->CopyFrom(executorInfo);
   containerConfig1.set_directory(dir1.get());
 
   Future<Option<ContainerLaunchInfo>> launchInfo1 =
@@ -689,7 +689,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_NC_ContainerToContainerUDP)
   ASSERT_SOME(dir2);
 
   ContainerConfig containerConfig2;
-  containerConfig2.mutable_executorinfo()->CopyFrom(executorInfo);
+  containerConfig2.mutable_executor_info()->CopyFrom(executorInfo);
   containerConfig2.set_directory(dir2.get());
 
   Future<Option<ContainerLaunchInfo>> launchInfo2 =
@@ -785,7 +785,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_NC_HostToContainerUDP)
   ASSERT_SOME(dir);
 
   ContainerConfig containerConfig;
-  containerConfig.mutable_executorinfo()->CopyFrom(executorInfo);
+  containerConfig.mutable_executor_info()->CopyFrom(executorInfo);
   containerConfig.set_directory(dir.get());
 
   Future<Option<ContainerLaunchInfo>> launchInfo =
@@ -903,7 +903,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_NC_HostToContainerTCP)
   ASSERT_SOME(dir);
 
   ContainerConfig containerConfig;
-  containerConfig.mutable_executorinfo()->CopyFrom(executorInfo);
+  containerConfig.mutable_executor_info()->CopyFrom(executorInfo);
   containerConfig.set_directory(dir.get());
 
   Future<Option<ContainerLaunchInfo>> launchInfo =
@@ -1029,7 +1029,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_ContainerICMPExternal)
   ASSERT_SOME(dir);
 
   ContainerConfig containerConfig;
-  containerConfig.mutable_executorinfo()->CopyFrom(executorInfo);
+  containerConfig.mutable_executor_info()->CopyFrom(executorInfo);
   containerConfig.set_directory(dir.get());
 
   Future<Option<ContainerLaunchInfo>> launchInfo =
@@ -1116,7 +1116,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_ContainerICMPInternal)
   ASSERT_SOME(dir);
 
   ContainerConfig containerConfig;
-  containerConfig.mutable_executorinfo()->CopyFrom(executorInfo);
+  containerConfig.mutable_executor_info()->CopyFrom(executorInfo);
   containerConfig.set_directory(dir.get());
 
   Future<Option<ContainerLaunchInfo>> launchInfo =
@@ -1206,7 +1206,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_ContainerARPExternal)
   ASSERT_SOME(dir);
 
   ContainerConfig containerConfig;
-  containerConfig.mutable_executorinfo()->CopyFrom(executorInfo);
+  containerConfig.mutable_executor_info()->CopyFrom(executorInfo);
   containerConfig.set_directory(dir.get());
 
   Future<Option<ContainerLaunchInfo>> launchInfo =
@@ -1302,7 +1302,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_DNS)
   ASSERT_SOME(dir);
 
   ContainerConfig containerConfig;
-  containerConfig.mutable_executorinfo()->CopyFrom(executorInfo);
+  containerConfig.mutable_executor_info()->CopyFrom(executorInfo);
   containerConfig.set_directory(dir.get());
 
   Future<Option<ContainerLaunchInfo>> launchInfo =
@@ -1394,7 +1394,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_TooManyContainers)
   ASSERT_SOME(dir1);
 
   ContainerConfig containerConfig1;
-  containerConfig1.mutable_executorinfo()->CopyFrom(executorInfo);
+  containerConfig1.mutable_executor_info()->CopyFrom(executorInfo);
   containerConfig1.set_directory(dir1.get());
 
   Future<Option<ContainerLaunchInfo>> launchInfo1 =
@@ -1447,7 +1447,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_TooManyContainers)
   ASSERT_SOME(dir2);
 
   ContainerConfig containerConfig2;
-  containerConfig2.mutable_executorinfo()->CopyFrom(executorInfo);
+  containerConfig2.mutable_executor_info()->CopyFrom(executorInfo);
   containerConfig2.set_directory(dir2.get());
 
   Future<Option<ContainerLaunchInfo>> launchInfo2 =
@@ -1513,7 +1513,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_NC_SmallEgressLimit)
   ASSERT_SOME(dir);
 
   ContainerConfig containerConfig;
-  containerConfig.mutable_executorinfo()->CopyFrom(executorInfo);
+  containerConfig.mutable_executor_info()->CopyFrom(executorInfo);
   containerConfig.set_directory(dir.get());
 
   Future<Option<ContainerLaunchInfo>> launchInfo =
@@ -1668,7 +1668,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_NC_PortMappingStatistics)
   ASSERT_SOME(dir);
 
   ContainerConfig containerConfig;
-  containerConfig.mutable_executorinfo()->CopyFrom(executorInfo);
+  containerConfig.mutable_executor_info()->CopyFrom(executorInfo);
   containerConfig.set_directory(dir.get());
 
   Future<Option<ContainerLaunchInfo>> launchInfo =

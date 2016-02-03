@@ -77,7 +77,7 @@ Future<Option<ContainerLaunchInfo>> PosixFilesystemIsolatorProcess::prepare(
     return Failure("Container has already been prepared");
   }
 
-  const ExecutorInfo& executorInfo = containerConfig.executorinfo();
+  const ExecutorInfo& executorInfo = containerConfig.executor_info();
 
   if (executorInfo.has_container()) {
     CHECK_EQ(executorInfo.container().type(), ContainerInfo::MESOS);

@@ -166,7 +166,7 @@ TYPED_TEST(CpuIsolatorTest, UserCpuUsage)
   ASSERT_SOME(dir);
 
   ContainerConfig containerConfig;
-  containerConfig.mutable_executorinfo()->CopyFrom(executorInfo);
+  containerConfig.mutable_executor_info()->CopyFrom(executorInfo);
   containerConfig.set_directory(dir.get());
 
   AWAIT_READY(isolator.get()->prepare(
@@ -278,7 +278,7 @@ TYPED_TEST(CpuIsolatorTest, SystemCpuUsage)
   ASSERT_SOME(dir);
 
   ContainerConfig containerConfig;
-  containerConfig.mutable_executorinfo()->CopyFrom(executorInfo);
+  containerConfig.mutable_executor_info()->CopyFrom(executorInfo);
   containerConfig.set_directory(dir.get());
 
   AWAIT_READY(isolator.get()->prepare(
@@ -392,7 +392,7 @@ TEST_F(RevocableCpuIsolatorTest, ROOT_CGROUPS_RevocableCpu)
   containerId.set_value(UUID::random().toString());
 
   ContainerConfig containerConfig;
-  containerConfig.mutable_executorinfo()->CopyFrom(executorInfo);
+  containerConfig.mutable_executor_info()->CopyFrom(executorInfo);
   containerConfig.set_directory(os::getcwd());
 
   AWAIT_READY(isolator.get()->prepare(
@@ -474,7 +474,7 @@ TEST_F(LimitedCpuIsolatorTest, ROOT_CGROUPS_CFS_Enable_Cfs)
   ASSERT_SOME(dir);
 
   ContainerConfig containerConfig;
-  containerConfig.mutable_executorinfo()->CopyFrom(executorInfo);
+  containerConfig.mutable_executor_info()->CopyFrom(executorInfo);
   containerConfig.set_directory(dir.get());
 
   Future<Option<ContainerLaunchInfo>> prepare =
@@ -590,7 +590,7 @@ TEST_F(LimitedCpuIsolatorTest, ROOT_CGROUPS_CFS_Big_Quota)
   ASSERT_SOME(dir);
 
   ContainerConfig containerConfig;
-  containerConfig.mutable_executorinfo()->CopyFrom(executorInfo);
+  containerConfig.mutable_executor_info()->CopyFrom(executorInfo);
   containerConfig.set_directory(dir.get());
 
   Future<Option<ContainerLaunchInfo>> prepare =
@@ -678,7 +678,7 @@ TEST_F(LimitedCpuIsolatorTest, ROOT_CGROUPS_Pids_and_Tids)
   ASSERT_SOME(dir);
 
   ContainerConfig containerConfig;
-  containerConfig.mutable_executorinfo()->CopyFrom(executorInfo);
+  containerConfig.mutable_executor_info()->CopyFrom(executorInfo);
   containerConfig.set_directory(dir.get());
 
   Future<Option<ContainerLaunchInfo>> prepare =
@@ -805,7 +805,7 @@ TYPED_TEST(MemIsolatorTest, MemUsage)
   ASSERT_SOME(dir);
 
   ContainerConfig containerConfig;
-  containerConfig.mutable_executorinfo()->CopyFrom(executorInfo);
+  containerConfig.mutable_executor_info()->CopyFrom(executorInfo);
   containerConfig.set_directory(dir.get());
 
   AWAIT_READY(isolator.get()->prepare(
@@ -985,7 +985,7 @@ TEST_F(PerfEventIsolatorTest, ROOT_CGROUPS_Sample)
   ASSERT_SOME(dir);
 
   ContainerConfig containerConfig;
-  containerConfig.mutable_executorinfo()->CopyFrom(executorInfo);
+  containerConfig.mutable_executor_info()->CopyFrom(executorInfo);
   containerConfig.set_directory(dir.get());
 
   AWAIT_READY(isolator.get()->prepare(
@@ -1082,7 +1082,7 @@ TEST_F(SharedFilesystemIsolatorTest, DISABLED_ROOT_RelativeVolume)
   containerId.set_value(UUID::random().toString());
 
   ContainerConfig containerConfig;
-  containerConfig.mutable_executorinfo()->CopyFrom(executorInfo);
+  containerConfig.mutable_executor_info()->CopyFrom(executorInfo);
   containerConfig.set_directory(flags.work_dir);
 
   Future<Option<ContainerLaunchInfo> > prepare =
@@ -1189,7 +1189,7 @@ TEST_F(SharedFilesystemIsolatorTest, DISABLED_ROOT_AbsoluteVolume)
   containerId.set_value(UUID::random().toString());
 
   ContainerConfig containerConfig;
-  containerConfig.mutable_executorinfo()->CopyFrom(executorInfo);
+  containerConfig.mutable_executor_info()->CopyFrom(executorInfo);
   containerConfig.set_directory(flags.work_dir);
 
   Future<Option<ContainerLaunchInfo> > prepare =
@@ -1367,7 +1367,7 @@ TYPED_TEST(UserCgroupIsolatorTest, ROOT_CGROUPS_UserCgroup)
   containerId.set_value(UUID::random().toString());
 
   ContainerConfig containerConfig;
-  containerConfig.mutable_executorinfo()->CopyFrom(executorInfo);
+  containerConfig.mutable_executor_info()->CopyFrom(executorInfo);
   containerConfig.set_directory(os::getcwd());
   containerConfig.set_user(UNPRIVILEGED_USERNAME);
 

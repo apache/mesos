@@ -348,7 +348,7 @@ Future<Option<ContainerLaunchInfo>> LinuxFilesystemIsolatorProcess::prepare(
     launchInfo.set_rootfs(rootfs);
   }
 
-  const ExecutorInfo& executorInfo = containerConfig.executorinfo();
+  const ExecutorInfo& executorInfo = containerConfig.executor_info();
 
   // Prepare the commands that will be run in the container's mount
   // namespace right after forking the executor process. We use these

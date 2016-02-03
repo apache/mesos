@@ -2119,7 +2119,7 @@ Future<Option<ContainerLaunchInfo>> PortMappingIsolatorProcess::prepare(
     return Failure("Container has already been prepared");
   }
 
-  const ExecutorInfo& executorInfo = containerConfig.executorinfo();
+  const ExecutorInfo& executorInfo = containerConfig.executor_info();
 
   Resources resources(executorInfo.resources());
 
