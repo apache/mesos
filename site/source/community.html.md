@@ -33,7 +33,7 @@ layout: community_section
 <div class="col-md-6">
 	<h2>Get In Touch</h2>
 	<h3 name="mailinglists">Mailing Lists</h3>
-	<p><b>Users</b>: <a href="mailto:user-subscribe@mesos.apache.org?subject=Subscribe&body=Subscribe">Subscribe</a> | <a href="mailto:user-unsubscribe@mesos.apache.org?subject=Unsubscribe&body=Unubscribe">Unsubscribe</a> | <a href="http://www.mail-archive.com/user@mesos.apache.org/">Archives</a><br />
+	<p><b>Users</b>: <a href="mailto:user-subscribe@mesos.apache.org?subject=Subscribe&body=Subscribe">Subscribe</a> | <a href="mailto:user-unsubscribe@mesos.apache.org?subject=Unsubscribe&body=Unsubscribe">Unsubscribe</a> | <a href="http://www.mail-archive.com/user@mesos.apache.org/">Archives</a><br />
 	<b>Developers</b>: <a href="mailto:dev-subscribe@mesos.apache.org?subject=Subscribe&body=Subscribe">Subscribe</a> | <a href="mailto:dev-unsubscribe@mesos.apache.org?subject=Unsubscribe&body=Unsubscribe">Unsubscribe</a> | <a href="http://www.mail-archive.com/dev@mesos.apache.org/">Archives</a><br />
 	<b>JIRA Updates</b>: <a href="mailto:issues-subscribe@mesos.apache.org?subject=Subscribe&body=Subscribe">Subscribe</a> | <a href="mailto:issues-unsubscribe@mesos.apache.org?subject=Unsubscribe&body=Unsubscribe">Unsubscribe</a> | <a href="http://www.mail-archive.com/issues@mesos.apache.org/">Archives</a><br />
 	<b>Reviews</b>: <a href="mailto:reviews-subscribe@mesos.apache.org?subject=Subscribe&body=Subscribe">Subscribe</a> | <a href="mailto:reviews-unsubscribe@mesos.apache.org?subject=Unsubscribe&body=Unsubscribe">Unsubscribe</a> | <a href="http://www.mail-archive.com/reviews@mesos.apache.org/">Archives</a><br />
