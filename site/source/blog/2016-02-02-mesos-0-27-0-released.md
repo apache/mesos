@@ -16,7 +16,7 @@ This release includes the following features and improvements:
 
 * [[MESOS-191]](https://issues.apache.org/jira/browse/MESOS-191): _Multiple disk_ support to allow for disk IO intensive applications to achieve reliable, high performance.
 
-* [[MESOS-4085]](https://issues.apache.org/jira/browse/MESOS-4085): Flexible roles with the introduction of _implicit roles_. It deprecates the whiltelist functionality that was implemented by specifying `--roles` during master startup to provide a static list of roles.
+* [[MESOS-4085]](https://issues.apache.org/jira/browse/MESOS-4085): Flexible roles with the introduction of _implicit roles_. It deprecates the whitelist functionality that was implemented by specifying `--roles` during master startup to provide a static list of roles.
 
 * [[MESOS-2353]](https://issues.apache.org/jira/browse/MESOS-2353): Performance improvement of the state endpoint for large clusters.
 
