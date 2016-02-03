@@ -22,4 +22,21 @@
 // See: src/messages/mesos.proto
 #include <executor/executor.pb.h>
 
+namespace mesos {
+namespace executor {
+
+inline std::ostream& operator<<(std::ostream& stream, const Call::Type& type)
+{
+  return stream << Call::Type_Name(type);
+}
+
+
+inline std::ostream& operator<<(std::ostream& stream, const Event::Type& type)
+{
+  return stream << Event::Type_Name(type);
+}
+
+} // namespace executor {
+} // namespace mesos {
+
 #endif // __EXECUTOR_PROTO_HPP__
