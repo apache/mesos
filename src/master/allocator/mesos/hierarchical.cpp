@@ -528,9 +528,15 @@ void HierarchicalAllocatorProcess::updateSlave(
   const Resources oldRevocable = slaves[slaveId].total.revocable();
 
   // Update the total resources.
-
-  // Remove the old oversubscribed resources from the total and then
-  // add the new estimate of oversubscribed resources.
+  //
+  // Reset the total resources to include the non-revocable resources,
+  // plus the new estimate of oversubscribed resources.
+  //
+  // NOTE: All modifications to revocable resources in the allocator for
+  // `slaveId` are lost.
+  //
+  // TODO(alexr): Update this math once the source of revocable resources
+  // is extended beyond oversubscription.
   slaves[slaveId].total = slaves[slaveId].total.nonRevocable() + oversubscribed;
 
   // Update the total resources in the `roleSorter` by removing the
