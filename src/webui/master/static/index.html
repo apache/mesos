@@ -7,7 +7,7 @@
     <meta name="description" content="">
     <meta name="author" content="">
 
-    <link href="/static/css/bootstrap-3.0.3.min.css" rel="stylesheet">
+    <link href="/static/css/bootstrap-3.3.6.min.css" rel="stylesheet">
     <link href="/static/css/mesos.css" rel="stylesheet">
 
     <link rel="shortcut icon" href="/static/ico/favicon.ico">
@@ -20,7 +20,7 @@
 
     <div ng-controller="MainCntl">
       <header class="navbar navbar-inverse navbar-fixed-top" role="navigation">
-        <div class="container">
+        <div class="container-fluid">
           <div class="navbar-header">
             <button type="button" class="navbar-toggle" data-toggle="collapse"
               data-ng-click="navbarExpanded = !navbarExpanded">
@@ -53,7 +53,7 @@
         </div>
       </header>
 
-      <div class="container">
+      <div class="container-fluid">
         <div class="alert" data-ng-show="state &amp;&amp; !state.leader">
           <strong>No master is currently leading ...</strong>
         </div>
