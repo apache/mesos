@@ -15,7 +15,7 @@ The scheduler interacts with Mesos via  "/api/v1/scheduler" endpoint hosted by t
 
 Note that we refer to this endpoint with its suffix "/scheduler" in the rest of this document. This endpoint accepts HTTP POST requests with data encoded as JSON (Content-Type: application/json) or binary Protobuf (Content-Type: application/x-protobuf). The first request that a scheduler sends to "/scheduler" endpoint is called SUBSCRIBE and results in a streaming response ("200 OK" status code with Transfer-Encoding: chunked). **Schedulers are expected to keep the subscription connection open as long as possible (barring errors in network, software, hardware etc.) and incrementally process the response** (NOTE: HTTP client libraries that can only parse the response after the connection is closed cannot be used). For the encoding used, please refer to **Events** section below.
 
-All the subsequent (non subscribe) requests to "/scheduler" endpoint (see details below in **Calls** section) must be sent using a different connection(s) than the one being used for subscription. Master responds to these HTTP POST requests with "202 Accepted" status codes (or, for unsuccessful requests, with 4xx or 5xx status codes; details in later sections). The "202 Accepted" response means that a request has been accepted for processing, not that the processing of the request has been completed. The request might or might not be acted upon by Mesos (e.g., master fails during the processing of the request). Any asynchronous responses from these requests will be streamed on long-lived subscription connection.
+All the subsequent (non subscribe) requests to "/scheduler" endpoint (see details below in **Calls** section) must be sent using a different connection(s) than the one being used for subscription. Master responds to these HTTP POST requests with "202 Accepted" status codes (or, for unsuccessful requests, with 4xx or 5xx status codes; details in later sections). The "202 Accepted" response means that a request has been accepted for processing, not that the processing of the request has been completed. The request might or might not be acted upon by Mesos (e.g., master fails during the processing of the request). Any asynchronous responses from these requests will be streamed on the long-lived subscription connection.
 
 
 ## Calls
@@ -26,7 +26,7 @@ The following calls are currently accepted by the master. The canonical source o
 <a id="recordio-response-format"></a>
 ### RecordIO response format
 
-The response returned from the `SUBSCRIBE` call (see [below](#subscribe) is encoded in RecordIO format, which essentially prepends to a single record (either JSON or serialized Protobuf) its length in bytes, followed by a newline and then the data:
+The response returned from the `SUBSCRIBE` call (see [below](#subscribe)) is encoded in RecordIO format, which essentially prepends to a single record (either JSON or serialized Protobuf) its length in bytes, followed by a newline and then the data:
 
 The [BNF grammar](http://www.w3.org/Protocols/rfc2616/rfc2616-sec2.html#sec2.1) for a RecordIO-encoded streaming response is:
 
