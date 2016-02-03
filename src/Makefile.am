@@ -1175,7 +1175,7 @@ nobase_dist_pkgdata_DATA +=						\
 
 # Need to distribute/install webui CSS.
 nobase_dist_pkgdata_DATA +=						\
-  webui/master/static/css/bootstrap-3.0.3.min.css			\
+  webui/master/static/css/bootstrap-3.3.6.min.css			\
   webui/master/static/css/mesos.css
 
 # Need to distribute/install webui HTML.
