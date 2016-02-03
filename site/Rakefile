@@ -77,7 +77,9 @@ end
 
 desc "Generate doxygen from the C++ source files in the codebase"
 task :doxygen do
-  system("pushd .. && doxygen && popd && rsync -avz ../docs/html/* publish/api/latest/c++")
+  FileUtils.rm_rf(Dir.glob("publish/api/latest/c++"))
+  FileUtils.mkdir_p("publish/api/latest")
+  system("doxygen ../Doxyfile && mv doxygen/html publish/api/latest/c++ && rm -rf doxygen")
 end
 
 desc "Run the site in development mode. Preview available at http://localhost:4567/"
