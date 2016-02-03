@@ -185,7 +185,7 @@ def commit_patch():
   else:
     amend = '-e'
 
-  cmd = 'git commit --author \'{author}\' {_amend} -am \'{message}\''\
+  cmd = u'git commit --author \'{author}\' {_amend} -am \'{message}\''\
         .format(author=quote(data['author']),
                 _amend=amend,
                 message=quote(data['message']))
@@ -248,8 +248,8 @@ def reviewboard_data():
   user = url_to_json(reviewboard_user_url(
     review.get('links').get('submitter').get('title'))).get('user')
 
-  author = '{author} <{email}>'.format(author=user.get('fullname'),
-                                       email=user.get('email'))
+  author = u'{author} <{email}>'.format(author=user.get('fullname'),
+                                        email=user.get('email'))
   message = '\n\n'.join(['{summary}',
                           '{description}',
                           'Review: {review_url}'])\
