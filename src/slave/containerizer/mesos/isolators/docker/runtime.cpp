@@ -15,9 +15,11 @@
 // limitations under the License.
 
 #include <list>
+#include <string>
 
 #include <glog/logging.h>
 
+#include <stout/foreach.hpp>
 #include <stout/stringify.hpp>
 
 #include "slave/flags.hpp"
@@ -90,7 +92,55 @@ Future<Option<ContainerLaunchInfo>> DockerRuntimeIsolatorProcess::prepare(
   // command, and working directory.
   ContainerLaunchInfo launchInfo;
 
+  Option<Environment> environment = getLaunchEnvironment(
+      containerId,
+      containerConfig);
+
+  if (environment.isSome()) {
+    launchInfo.mutable_environment()->CopyFrom(environment.get());
+  }
+
   return launchInfo;
+}
+
+
+Option<Environment> DockerRuntimeIsolatorProcess::getLaunchEnvironment(
+    const ContainerID& containerId,
+    const ContainerConfig& containerConfig)
+{
+  CHECK(containerConfig.docker().manifest().has_config());
+
+  if (containerConfig.docker().manifest().config().env_size() == 0) {
+    return None();
+  }
+
+  Environment environment;
+
+  foreach(const string& env,
+          containerConfig.docker().manifest().config().env()) {
+    // Use `find_first_of` to prevent to case that there are
+    // multiple '=' existing.
+    size_t position = env.find_first_of('=');
+    if (position == string::npos) {
+      VLOG(1) << "Skipping invalid environment variable: '"
+              << env << "' in docker manifest for container "
+              << containerId;
+
+      continue;
+    }
+
+    const string name = env.substr(0, position);
+    const string value = env.substr(position + 1);
+
+    // Keep all environment from runtime isolator. If there exists
+    // environment variable duplicate cases, it will be overwritten
+    // in mesos containerizer.
+    Environment::Variable* variable = environment.add_variables();
+    variable->set_name(name);
+    variable->set_value(value);
+  }
+
+  return environment;
 }
 
 

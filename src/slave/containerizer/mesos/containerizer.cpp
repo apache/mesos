@@ -912,6 +912,15 @@ Future<bool> MesosContainerizerProcess::__launch(
     return Failure("Container is currently being destroyed");
   }
 
+  // Prepare environment variables for the executor.
+  map<string, string> environment = executorEnvironment(
+      executorInfo,
+      directory,
+      slaveId,
+      slavePid,
+      checkpoint,
+      flags);
+
   // Determine the root filesystem for the container. Only one
   // isolator should return the container root filesystem.
   Option<string> rootfs;
@@ -923,16 +932,25 @@ Future<bool> MesosContainerizerProcess::__launch(
         rootfs = launchInfo->rootfs();
       }
     }
-  }
 
-  // Prepare environment variables for the executor.
-  map<string, string> environment = executorEnvironment(
-      executorInfo,
-      directory,
-      slaveId,
-      slavePid,
-      checkpoint,
-      flags);
+    if (launchInfo.isSome() && launchInfo->has_environment()) {
+      foreach (const Environment::Variable& variable,
+               launchInfo->environment().variables()) {
+        const string& name = variable.name();
+        const string& value = variable.value();
+
+        if (environment.count(name)) {
+          VLOG(1) << "Overwriting environment variable '"
+                  << name << "', original: '"
+                  << environment[name] << "', new: '"
+                  << value << "', for container "
+                  << containerId;
+        }
+
+        environment[name] = value;
+      }
+    }
+  }
 
   // TODO(jieyu): Consider moving this to 'executorEnvironment' and
   // consolidating with docker containerizer.
