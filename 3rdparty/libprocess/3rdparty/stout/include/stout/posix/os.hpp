@@ -817,6 +817,8 @@ inline std::string paths()
 
 
 // Updates the value of LD_LIBRARY_PATH environment variable.
+// Note that setPaths has an effect only for child processes
+// launched after calling it.
 inline void setPaths(const std::string& newPaths)
 {
   const char* environmentVariable =
