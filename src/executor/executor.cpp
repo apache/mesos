@@ -503,6 +503,14 @@ protected:
       return;
     }
 
+    if (response->code == process::http::Status::NOT_FOUND) {
+      // This could happen if the agent libprocess process has not yet set up
+      // HTTP routes.
+      LOG(WARNING) << "Received '" << response->status << "' ("
+                   << response->body << ") for " << call.type();
+      return;
+    }
+
     // We should not be able to get here since we already do validation
     // of calls before sending them to the agent.
     error("Received unexpected '" + response->status + "' (" +
