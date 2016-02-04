@@ -208,7 +208,9 @@ int main(int argc, char** argv)
     os::setenv("LIBPROCESS_ADVERTISE_PORT", advertise_port.get());
   }
 
-  process::initialize("slave(1)");
+  const string id = process::ID::generate("slave"); // Process ID.
+
+  process::initialize(id);
 
   logging::initialize(argv[0], flags, true); // Catch signals.
 
@@ -304,6 +306,7 @@ int main(int argc, char** argv)
   LOG(INFO) << "Starting Mesos slave";
 
   Slave* slave = new Slave(
+      id,
       flags,
       detector.get(),
       containerizer.get(),

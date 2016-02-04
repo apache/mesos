@@ -384,6 +384,7 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
     // NOTE: At this point detector is already initialized by the
     // Master.
     Slave* slave = new Slave(
+        process::ID::generate("slave"),
         flags,
         detector,
         containerizer.get(),

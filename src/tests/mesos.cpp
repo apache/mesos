@@ -555,6 +555,7 @@ MockSlave::MockSlave(const slave::Flags& flags,
                      slave::Containerizer* containerizer,
                      const Option<mesos::slave::QoSController*>& _qosController)
   : slave::Slave(
+      process::ID::generate("slave"),
       flags,
       detector,
       containerizer,
