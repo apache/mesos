@@ -28,6 +28,7 @@
 
 #include <mesos/appc/spec.hpp>
 
+#include "slave/containerizer/mesos/provisioner/appc/cache.hpp"
 #include "slave/containerizer/mesos/provisioner/appc/paths.hpp"
 #include "slave/containerizer/mesos/provisioner/appc/store.hpp"
 
@@ -43,62 +44,6 @@ namespace mesos {
 namespace internal {
 namespace slave {
 namespace appc {
-
-// Defines a locally cached image (which has passed validation).
-struct CachedImage
-{
-  static Try<CachedImage> create(const string& imagePath);
-
-  CachedImage(
-      const spec::ImageManifest& _manifest,
-      const string& _id,
-      const string& _path)
-    : manifest(_manifest), id(_id), path(_path) {}
-
-  string rootfs() const
-  {
-    return path::join(path, "rootfs");
-  }
-
-  const spec::ImageManifest manifest;
-
-  // Image ID of the format "sha512-value" where "value" is the hex
-  // encoded string of the sha512 digest of the uncompressed tar file
-  // of the image.
-  const string id;
-
-  // Absolute path to the extracted image.
-  const string path;
-};
-
-
-Try<CachedImage> CachedImage::create(const string& imagePath)
-{
-  Option<Error> error = spec::validateLayout(imagePath);
-  if (error.isSome()) {
-    return Error("Invalid image layout: " + error.get().message);
-  }
-
-  string imageId = Path(imagePath).basename();
-
-  error = spec::validateImageID(imageId);
-  if (error.isSome()) {
-    return Error("Invalid image ID: " + error.get().message);
-  }
-
-  Try<string> read = os::read(spec::getImageManifestPath(imagePath));
-  if (read.isError()) {
-    return Error("Failed to read manifest: " + read.error());
-  }
-
-  Try<spec::ImageManifest> manifest = spec::parse(read.get());
-  if (manifest.isError()) {
-    return Error("Failed to parse manifest: " + manifest.error());
-  }
-
-  return CachedImage(manifest.get(), imageId, imagePath);
-}
-
 
 // Helper that implements this:
 // https://github.com/appc/spec/blob/master/spec/aci.md#dependency-matching
