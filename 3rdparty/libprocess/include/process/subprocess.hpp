@@ -47,6 +47,9 @@ namespace process {
 class Subprocess
 {
 public:
+  // Forward declarations.
+  struct Hook;
+
   /**
    * Describes how the I/O is redirected for stdin/stdout/stderr.
    * One of the following three modes are supported:
@@ -77,7 +80,8 @@ public:
         const Option<std::map<std::string, std::string>>& environment,
         const Option<lambda::function<int()>>& setup,
         const Option<lambda::function<
-            pid_t(const lambda::function<int()>&)>>& clone);
+            pid_t(const lambda::function<int()>&)>>& clone,
+        const std::vector<Subprocess::Hook>& parent_hooks);
 
     enum Mode
     {
@@ -201,7 +205,8 @@ private:
       const Option<std::map<std::string, std::string>>& environment,
       const Option<lambda::function<int()>>& setup,
       const Option<lambda::function<
-          pid_t(const lambda::function<int()>&)>>& clone);
+          pid_t(const lambda::function<int()>&)>>& clone,
+      const std::vector<Subprocess::Hook>& parent_hooks);
 
   struct Data
   {
@@ -255,8 +260,12 @@ private:
  *     async unsafe code in the body of this function.
  * @param clone Function to be invoked in order to fork/clone the
  *     subprocess.
+ * @param parent_hooks Hooks that will be executed in the parent
+ *     before the child execs.
  * @return The subprocess or an error if one occured.
  */
+// TODO(jmlvanre): Consider removing default argument for
+// `parent_hooks` to force the caller to think about setting them.
 Try<Subprocess> subprocess(
     const std::string& path,
     std::vector<std::string> argv,
@@ -267,7 +276,9 @@ Try<Subprocess> subprocess(
     const Option<std::map<std::string, std::string>>& environment = None(),
     const Option<lambda::function<int()>>& setup = None(),
     const Option<lambda::function<
-        pid_t(const lambda::function<int()>&)>>& clone = None());
+        pid_t(const lambda::function<int()>&)>>& clone = None(),
+    const std::vector<Subprocess::Hook>& parent_hooks =
+      Subprocess::Hook::None());
 
 
 /**
@@ -289,8 +300,12 @@ Try<Subprocess> subprocess(
  *     async unsafe code in the body of this function.
  * @param clone Function to be invoked in order to fork/clone the
  *     subprocess.
+ * @param parent_hooks Hooks that will be executed in the parent
+ *     before the child execs.
  * @return The subprocess or an error if one occured.
  */
+// TODO(jmlvanre): Consider removing default argument for
+// `parent_hooks` to force the caller to think about setting them.
 inline Try<Subprocess> subprocess(
     const std::string& command,
     const Subprocess::IO& in = Subprocess::FD(STDIN_FILENO),
@@ -299,7 +314,9 @@ inline Try<Subprocess> subprocess(
     const Option<std::map<std::string, std::string>>& environment = None(),
     const Option<lambda::function<int()>>& setup = None(),
     const Option<lambda::function<
-        pid_t(const lambda::function<int()>&)>>& clone = None())
+        pid_t(const lambda::function<int()>&)>>& clone = None(),
+    const std::vector<Subprocess::Hook>& parent_hooks =
+      Subprocess::Hook::None())
 {
   std::vector<std::string> argv = {"sh", "-c", command};
 
@@ -312,7 +329,8 @@ inline Try<Subprocess> subprocess(
       None(),
       environment,
       setup,
-      clone);
+      clone,
+      parent_hooks);
 }
 
 } // namespace process {
