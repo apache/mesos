@@ -54,12 +54,13 @@ namespace mesos {
 namespace internal {
 namespace slave {
 
-string NetClsHandleManager::hexify(uint32_t handle)
+static string hexify(uint32_t handle)
 {
   stringstream stream;
   stream << std::hex << handle;
   return "0x" + stream.str();
 };
+
 
 // For each primary handle, we maintain a bitmap to keep track of
 // allocated and free secondary handles. To find a free secondary
@@ -77,7 +78,7 @@ Try<NetClsHandle> NetClsHandleManager::alloc(uint16_t primary)
 {
   if (!primaries.contains(primary)) {
     return Error(
-        "Primary handle "+ hexify(primary) +
+        "Primary handle " + hexify(primary) +
         " not present in primary handle range");
   }
 
@@ -90,14 +91,12 @@ Try<NetClsHandle> NetClsHandleManager::alloc(uint16_t primary)
         hexify(primary));
   }
 
-  // There is at least one secondary handle free for this primary handle.
+  // At least one secondary handle is free for this primary handle.
   for (size_t count = 1; count < used[primary].size(); count++) {
     if (!used[primary].test(count)) {
       used[primary].set(count);
 
-      NetClsHandle handle(primary, count);
-
-      return handle;
+      return NetClsHandle(primary, count);
     }
   }
 
@@ -135,12 +134,11 @@ Try<Nothing> NetClsHandleManager::reserve(const NetClsHandle& handle)
 }
 
 
-
 Try<Nothing> NetClsHandleManager::free(const NetClsHandle& handle)
 {
   if (!primaries.contains(handle.primary)) {
     return Error(
-        "Primary handle "+ hexify(handle.primary) +
+        "Primary handle " + hexify(handle.primary) +
         " not present in primary handle range");
   }
 
@@ -157,7 +155,8 @@ Try<Nothing> NetClsHandleManager::free(const NetClsHandle& handle)
   if (!used[handle.primary].test(handle.secondary)) {
     return Error(
         "Secondary handle " + hexify(handle.secondary) +
-        " is not allocated for primary handle " + hexify(handle.primary));
+        " is not allocated for primary handle " +
+        hexify(handle.primary));
   }
 
   used[handle.primary].reset(handle.secondary);
@@ -282,10 +281,11 @@ Future<Nothing> CgroupsNetClsIsolatorProcess::recover(
 }
 
 
-// TODO(asridharan): Currently we haven't decided on the entity who will
-// allocate the net_cls handles, or the interfaces through which the net_cls
-// handles will be exposed to network isolators and frameworks. Once the
-// management entity is decided we might need to revisit this implementation.
+// TODO(asridharan): Currently we haven't decided on the entity who
+// will allocate the net_cls handles, or the interfaces through which
+// the net_cls handles will be exposed to network isolators and
+// frameworks. Once the management entity is decided we might need to
+// revisit this implementation.
 Future<Nothing> CgroupsNetClsIsolatorProcess::update(
     const ContainerID& containerId,
     const Resources& resources)
@@ -294,9 +294,9 @@ Future<Nothing> CgroupsNetClsIsolatorProcess::update(
 }
 
 
-// The net_cls handles aren't treated as resources. Further, they have fixed
-// values and hence don't have a notion of usage. We are therefore returning an
-// empty 'ResourceStatistics' object.
+// The net_cls handles aren't treated as resources. Further, they have
+// fixed values and hence don't have a notion of usage. We are
+// therefore returning an empty 'ResourceStatistics' object.
 Future<ResourceStatistics> CgroupsNetClsIsolatorProcess::usage(
     const ContainerID& containerId)
 {
@@ -380,9 +380,9 @@ Future<Nothing> CgroupsNetClsIsolatorProcess::isolate(
 }
 
 
-// The net_cls handles are labels and hence there are no limitations associated
-// with them . This function would therefore always return a pending future
-// since the limitation is never reached.
+// The net_cls handles are labels and hence there are no limitations
+// associated with them. This function would therefore always return
+// a pending future since the limitation is never reached.
 Future<ContainerLimitation> CgroupsNetClsIsolatorProcess::watch(
     const ContainerID& containerId)
 {
