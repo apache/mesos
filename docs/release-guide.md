@@ -108,7 +108,7 @@ This guide describes the process of doing an official release of Mesos.
     > NOTE: `X.Y.Z` is based on [semantic versioning](http://semver.org/) scheme. `R` is release
             candidate version that starts with 1.
 
-4. Tag the release externally and deploy the corresponding JAR to the Apache maven repository.
+4. Tag the release externally and deploy the corresponding JAR to the [Apache maven repository](https://repository.apache.org).
    It is recommended to use the `support/tag.sh` script to accomplish this.
 
         $ ./support/tag.sh X.Y.Z R
