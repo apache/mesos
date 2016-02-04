@@ -33,7 +33,6 @@ nobase_include_HEADERS =		\
   stout/foreach.hpp			\
   stout/format.hpp			\
   stout/fs.hpp				\
-  stout/freebsd.hpp			\
   stout/gtest.hpp			\
   stout/gzip.hpp			\
   stout/hashmap.hpp			\
@@ -68,6 +67,7 @@ nobase_include_HEADERS =		\
   stout/os/fcntl.hpp			\
   stout/os/find.hpp			\
   stout/os/fork.hpp			\
+  stout/os/freebsd.hpp			\
   stout/os/ftruncate.hpp		\
   stout/os/getcwd.hpp			\
   stout/os/killtree.hpp			\
