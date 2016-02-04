@@ -247,7 +247,9 @@ static int childMain(
     const Option<lambda::function<int()>>& setup,
     const InputFileDescriptors& stdinfds,
     const OutputFileDescriptors& stdoutfds,
-    const OutputFileDescriptors& stderrfds)
+    const OutputFileDescriptors& stderrfds,
+    bool blocking,
+    int pipes[2])
 {
   // Close parent's end of the pipes.
   if (stdinfds.write.isSome()) {
@@ -258,6 +260,12 @@ static int childMain(
   }
   if (stderrfds.read.isSome()) {
     ::close(stderrfds.read.get());
+  }
+
+  // Currently we will block the child's execution of the new process
+  // until all the parent hooks (if any) have executed.
+  if (blocking) {
+    ::close(pipes[1]);
   }
 
   // Redirect I/O for stdin/stdout/stderr.
@@ -286,6 +294,22 @@ static int childMain(
     ::close(stderrfds.write);
   }
 
+  if (blocking) {
+    // Do a blocking read on the pipe until the parent signals us to
+    // continue.
+    char dummy;
+    ssize_t length;
+    while ((length = ::read(pipes[0], &dummy, sizeof(dummy))) == -1 &&
+          errno == EINTR);
+
+    if (length != sizeof(dummy)) {
+      ABORT("Failed to synchronize with parent");
+    }
+
+    // Now close the pipe as we don't need it anymore.
+    ::close(pipes[0]);
+  }
+
   if (setup.isSome()) {
     int status = setup.get()();
     if (status != 0) {
@@ -309,7 +333,8 @@ Try<Subprocess> subprocess(
     const Option<map<string, string>>& environment,
     const Option<lambda::function<int()>>& setup,
     const Option<lambda::function<
-        pid_t(const lambda::function<int()>&)>>& _clone)
+        pid_t(const lambda::function<int()>&)>>& _clone,
+    const std::vector<Subprocess::Hook>& parent_hooks)
 {
   // File descriptors for redirecting stdin/stdout/stderr.
   // These file descriptors are used for different purposes depending
@@ -397,6 +422,17 @@ Try<Subprocess> subprocess(
   lambda::function<pid_t(const lambda::function<int()>&)> clone =
     (_clone.isSome() ? _clone.get() : defaultClone);
 
+  // Currently we will block the child's execution of the new process
+  // until all the `parent_hooks` (if any) have executed.
+  int pipes[2];
+  const bool blocking = !parent_hooks.empty();
+
+  if (blocking) {
+    // We assume this should not fail under reasonable conditions so we
+    // use CHECK.
+    CHECK_EQ(0, ::pipe(pipes));
+  }
+
   // Now, clone the child process.
   pid_t pid = clone(lambda::bind(
       &childMain,
@@ -406,7 +442,9 @@ Try<Subprocess> subprocess(
       setup,
       stdinfds,
       stdoutfds,
-      stderrfds));
+      stderrfds,
+      blocking,
+      pipes));
 
   delete[] _argv;
 
@@ -421,7 +459,66 @@ Try<Subprocess> subprocess(
     // Save the errno as 'close' below might overwrite it.
     ErrnoError error("Failed to clone");
     internal::close(stdinfds, stdoutfds, stderrfds);
+
+    if (blocking) {
+      os::close(pipes[0]);
+      os::close(pipes[1]);
+    }
+
     return error;
+  }
+
+  if (blocking) {
+    os::close(pipes[0]);
+
+    // Run the parent hooks.
+    foreach (const Subprocess::Hook& hook, parent_hooks) {
+      Try<Nothing> callback = hook.parent_callback(pid);
+
+      // If the hook callback fails, we shouldn't proceed with the
+      // execution.
+      if (callback.isError()) {
+        LOG(WARNING)
+          << "Failed to execute Subprocess::Hook in parent for child '"
+          << pid << "': " << callback.error();
+
+        os::close(pipes[1]);
+
+        // Close the child-ends of the file descriptors that are created
+        // by this function.
+        os::close(stdinfds.read);
+        os::close(stdoutfds.write);
+        os::close(stderrfds.write);
+
+        // Ensure the child is killed.
+        ::kill(pid, SIGKILL);
+
+        return Error(
+            "Failed to execute Subprocess::Hook in parent for child '" +
+            stringify(pid) + "': " + callback.error());
+      }
+    }
+
+    // Now that we've executed the parent hooks, we can signal the child to
+    // continue by writing to the pipe.
+    char dummy;
+    ssize_t length;
+    while ((length = ::write(pipes[1], &dummy, sizeof(dummy))) == -1 &&
+           errno == EINTR);
+
+    os::close(pipes[1]);
+
+    if (length != sizeof(dummy)) {
+      // Ensure the child is killed.
+      ::kill(pid, SIGKILL);
+
+      // Close the child-ends of the file descriptors that are created
+      // by this function.
+      os::close(stdinfds.read);
+      os::close(stdoutfds.write);
+      os::close(stderrfds.write);
+      return Error("Failed to synchronize child process");
+    }
   }
 
   // Parent.
