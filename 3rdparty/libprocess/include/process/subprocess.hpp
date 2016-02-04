@@ -21,6 +21,7 @@
 
 #include <map>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <vector>
 
@@ -138,6 +139,32 @@ public:
      * Prepares a set of file descriptors for stdout/stderr of a subprocess.
      */
     lambda::function<Try<OutputFileDescriptors>()> output;
+  };
+
+  /**
+   * A hook can be passed to a `subprocess` call. It provides a way to
+   * inject dynamic implementation behavior between the clone and exec
+   * calls in the implementation of `subprocess`.
+   */
+  struct Hook
+  {
+    /**
+     * Returns an empty list of hooks.
+     */
+    static std::vector<Hook> None() { return std::vector<Hook>(); }
+
+    Hook(const lambda::function<Try<Nothing>(pid_t)>& _parent_callback);
+
+    /**
+     * The callback that must be sepcified for execution after the
+     * child has been cloned, but before it start executing the new
+     * process. This provides access to the child pid after its
+     * initialization to add tracking or modify execution state of
+     * the child before it executes the new process.
+     */
+    const lambda::function<Try<Nothing>(pid_t)> parent_callback;
+
+    friend class Subprocess;
   };
 
   // Some syntactic sugar to create an IO::PIPE redirector.
