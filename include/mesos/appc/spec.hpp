@@ -22,31 +22,36 @@
 #include <stout/error.hpp>
 #include <stout/option.hpp>
 
-#include <mesos/mesos.hpp>
+#include <mesos/appc/spec.pb.h>
 
-namespace mesos {
-namespace internal {
-namespace slave {
 namespace appc {
 namespace spec {
 
+// Returns the rootfs of an image, given its path as per the spec.
+std::string getImageRootfsPath(const std::string& imagePath);
+
+
+// Returns the path of an image's manifest, given its path as per the spec.
+std::string getImageManifestPath(const std::string& imagePath);
+
+
 // Validate if the specified image manifest conforms to the Appc spec.
-Option<Error> validateManifest(const AppcImageManifest& manifest);
+Option<Error> validateManifest(const ImageManifest& manifest);
+
 
 // Validate if the specified image ID conforms to the Appc spec.
 Option<Error> validateImageID(const std::string& imageId);
+
 
 // Validate if the specified image has the disk layout that conforms
 // to the Appc spec.
 Option<Error> validateLayout(const std::string& imagePath);
 
-// Parse the AppcImageManifest in the specified JSON string.
-Try<AppcImageManifest> parse(const std::string& value);
+
+// Parse the ImageManifest in the specified JSON string.
+Try<ImageManifest> parse(const std::string& value);
 
 } // namespace spec {
 } // namespace appc {
-} // namespace slave {
-} // namespace internal {
-} // namespace mesos {
 
 #endif // __PROVISIONER_APPC_SPEC_HPP__

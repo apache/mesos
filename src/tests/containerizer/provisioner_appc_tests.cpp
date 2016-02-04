@@ -29,12 +29,12 @@
 
 #include <stout/tests/utils.hpp>
 
+#include <mesos/appc/spec.hpp>
+
 #include "slave/paths.hpp"
 
 #include "slave/containerizer/mesos/provisioner/paths.hpp"
 #include "slave/containerizer/mesos/provisioner/provisioner.hpp"
-
-#include "slave/containerizer/mesos/provisioner/appc/spec.hpp"
 #include "slave/containerizer/mesos/provisioner/appc/store.hpp"
 
 using std::list;
@@ -44,6 +44,8 @@ using std::vector;
 using namespace process;
 
 using namespace mesos::internal::slave::appc;
+
+namespace spec = appc::spec;
 
 using mesos::internal::slave::Fetcher;
 using mesos::internal::slave::Provisioner;

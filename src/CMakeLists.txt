@@ -85,6 +85,10 @@ configure_file(
 
 # SOURCE FILES FOR THE MESOS LIBRARY.
 #####################################
+set(APPC_SRC
+  appc/spec.cpp
+  )
+
 set(AUTHENTICATION_SRC
   authentication/cram_md5/authenticatee.cpp
   authentication/cram_md5/authenticator.cpp
@@ -238,7 +242,6 @@ if (NOT WIN32)
     slave/containerizer/mesos/provisioner/provisioner.cpp
     slave/containerizer/mesos/provisioner/store.cpp
     slave/containerizer/mesos/provisioner/appc/paths.cpp
-    slave/containerizer/mesos/provisioner/appc/spec.cpp
     slave/containerizer/mesos/provisioner/appc/store.cpp
     slave/containerizer/mesos/provisioner/backend.cpp
     slave/containerizer/mesos/provisioner/backends/copy.cpp
@@ -303,6 +306,7 @@ set(MESOS_SRC
 if (NOT WIN32)
   set(MESOS_SRC
     ${MESOS_SRC}
+    ${APPC_SRC}
     ${AUTHENTICATION_SRC}
     ${AUTHORIZER_SRC}
     ${COMMON_SRC}

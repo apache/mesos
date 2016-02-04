@@ -57,23 +57,11 @@ string getImageRootfsPath(
 }
 
 
-string getImageRootfsPath(const string& imagePath)
-{
-  return path::join(imagePath, "rootfs");
-}
-
-
 string getImageManifestPath(
     const string& storeDir,
     const string& imageId)
 {
   return path::join(getImagePath(storeDir, imageId), "manifest");
-}
-
-
-string getImageManifestPath(const string& imagePath)
-{
-  return path::join(imagePath, "manifest");
 }
 
 } // namespace paths {

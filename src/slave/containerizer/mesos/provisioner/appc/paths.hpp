@@ -19,10 +19,10 @@
 
 #include <string>
 
-#include <mesos/mesos.hpp>
-
 #include <stout/hashmap.hpp>
 #include <stout/try.hpp>
+
+#include <mesos/appc/spec.hpp>
 
 namespace mesos {
 namespace internal {
@@ -62,15 +62,9 @@ std::string getImageRootfsPath(
     const std::string& imageId);
 
 
-std::string getImageRootfsPath(const std::string& imagePath);
-
-
 std::string getImageManifestPath(
     const std::string& storeDir,
     const std::string& imageId);
-
-
-std::string getImageManifestPath(const std::string& imagePath);
 
 } // namespace paths {
 } // namespace appc {

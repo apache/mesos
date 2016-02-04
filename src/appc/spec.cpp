@@ -14,22 +14,34 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <stout/os/stat.hpp>
+#include <stout/path.hpp>
 #include <stout/protobuf.hpp>
 #include <stout/strings.hpp>
 
+#include <stout/os/stat.hpp>
+
+#include <mesos/appc/spec.hpp>
+
 #include "slave/containerizer/mesos/provisioner/appc/paths.hpp"
-#include "slave/containerizer/mesos/provisioner/appc/spec.hpp"
 
 using std::string;
 
-namespace mesos {
-namespace internal {
-namespace slave {
 namespace appc {
 namespace spec {
 
-Option<Error> validateManifest(const AppcImageManifest& manifest)
+string getImageRootfsPath(const string& imagePath)
+{
+  return path::join(imagePath, "rootfs");
+}
+
+
+string getImageManifestPath(const string& imagePath)
+{
+  return path::join(imagePath, "manifest");
+}
+
+
+Option<Error> validateManifest(const ImageManifest& manifest)
 {
   // TODO(idownes): Validate that required fields are present when
   // this cannot be expressed in the protobuf specification, e.g.,
@@ -61,11 +73,11 @@ Option<Error> validateImageID(const string& imageId)
 
 Option<Error> validateLayout(const string& imagePath)
 {
-  if (!os::stat::isdir(paths::getImageRootfsPath(imagePath))) {
+  if (!os::stat::isdir(getImageRootfsPath(imagePath))) {
     return Error("No rootfs directory found in image layout");
   }
 
-  if (!os::stat::isfile(paths::getImageManifestPath(imagePath))) {
+  if (!os::stat::isfile(getImageManifestPath(imagePath))) {
     return Error("No manifest found in image layout");
   }
 
@@ -73,15 +85,14 @@ Option<Error> validateLayout(const string& imagePath)
 }
 
 
-Try<AppcImageManifest> parse(const string& value)
+Try<ImageManifest> parse(const string& value)
 {
   Try<JSON::Object> json = JSON::parse<JSON::Object>(value);
   if (json.isError()) {
     return Error("JSON parse failed: " + json.error());
   }
 
-  Try<AppcImageManifest> manifest =
-    protobuf::parse<AppcImageManifest>(json.get());
+  Try<ImageManifest> manifest = protobuf::parse<ImageManifest>(json.get());
 
   if (manifest.isError()) {
     return Error("Protobuf parse failed: " + manifest.error());
@@ -97,6 +108,3 @@ Try<AppcImageManifest> parse(const string& value)
 
 } // namespace spec {
 } // namespace appc {
-} // namespace slave {
-} // namespace internal {
-} // namespace mesos {

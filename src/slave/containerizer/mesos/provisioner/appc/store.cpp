@@ -26,11 +26,14 @@
 #include <stout/os.hpp>
 #include <stout/path.hpp>
 
+#include <mesos/appc/spec.hpp>
+
 #include "slave/containerizer/mesos/provisioner/appc/paths.hpp"
-#include "slave/containerizer/mesos/provisioner/appc/spec.hpp"
 #include "slave/containerizer/mesos/provisioner/appc/store.hpp"
 
 using namespace process;
+
+namespace spec = appc::spec;
 
 using std::list;
 using std::string;
@@ -47,7 +50,7 @@ struct CachedImage
   static Try<CachedImage> create(const string& imagePath);
 
   CachedImage(
-      const AppcImageManifest& _manifest,
+      const spec::ImageManifest& _manifest,
       const string& _id,
       const string& _path)
     : manifest(_manifest), id(_id), path(_path) {}
@@ -57,7 +60,7 @@ struct CachedImage
     return path::join(path, "rootfs");
   }
 
-  const AppcImageManifest manifest;
+  const spec::ImageManifest manifest;
 
   // Image ID of the format "sha512-value" where "value" is the hex
   // encoded string of the sha512 digest of the uncompressed tar file
@@ -83,12 +86,12 @@ Try<CachedImage> CachedImage::create(const string& imagePath)
     return Error("Invalid image ID: " + error.get().message);
   }
 
-  Try<string> read = os::read(paths::getImageManifestPath(imagePath));
+  Try<string> read = os::read(spec::getImageManifestPath(imagePath));
   if (read.isError()) {
     return Error("Failed to read manifest: " + read.error());
   }
 
-  Try<AppcImageManifest> manifest = spec::parse(read.get());
+  Try<spec::ImageManifest> manifest = spec::parse(read.get());
   if (manifest.isError()) {
     return Error("Failed to parse manifest: " + manifest.error());
   }
@@ -120,7 +123,7 @@ static bool matches(Image::Appc requirements, const CachedImage& candidate)
   }
 
   hashmap<string, string> candidateLabels;
-  foreach (const AppcImageManifest::Label& label,
+  foreach (const spec::ImageManifest::Label& label,
            candidate.manifest.labels()) {
     candidateLabels[label.name()] = label.value();
   }

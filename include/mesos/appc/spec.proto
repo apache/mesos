@@ -1,0 +1,58 @@
+// Licensed to the Apache Software Foundation (ASF) under one
+// or more contributor license agreements.  See the NOTICE file
+// distributed with this work for additional information
+// regarding copyright ownership.  The ASF licenses this file
+// to you under the Apache License, Version 2.0 (the
+// "License"); you may not use this file except in compliance
+// with the License.  You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package appc.spec;
+
+/**
+* Protobuf for the Appc image manifest JSON schema:
+* https://github.com/appc/spec/blob/master/spec/aci.md#image-manifest-schema
+* Where possible, any field required in the schema is required in the protobuf
+* but some cannot be expressed, e.g., a repeated string that has at least one
+* element. Further validation should be performed after parsing the JSON into
+* the protobuf.
+* This version of Appc protobuf is based on Appc spec version 0.6.1.
+* TODO(xujyan): This protobuf currently defines a subset of fields in the spec
+* that Mesos makes use of to avoid confusion. New fields are going to be added
+* when Mesos starts to support them.
+*/
+message ImageManifest {
+  required string acKind = 1;
+  required string acVersion = 2;
+  required string name = 3;
+
+  message Label {
+    required string name = 1;
+    required string value = 2;
+  }
+
+  repeated Label labels = 4;
+
+  message Annotation {
+    required string name = 1;
+    required string value = 2;
+  }
+
+  repeated Annotation annotations = 5;
+
+  message Dependency {
+    required string imageName = 1;
+    optional string imageID = 2;
+    repeated Label labels = 3;
+    optional uint64 size = 4;
+  }
+
+  repeated Dependency dependencies = 6;
+}
