@@ -924,6 +924,12 @@ Future<bool> MesosContainerizerProcess::__launch(
   // Determine the root filesystem for the container. Only one
   // isolator should return the container root filesystem.
   Option<string> rootfs;
+
+  // Determine the executor launch command for the container.
+  // At most one command can be returned from docker runtime
+  // isolator if a docker image is specifed.
+  Option<CommandInfo> executorLaunchCommand;
+
   foreach (const Option<ContainerLaunchInfo>& launchInfo, launchInfos) {
     if (launchInfo.isSome() && launchInfo->has_rootfs()) {
       if (rootfs.isSome()) {
@@ -948,6 +954,14 @@ Future<bool> MesosContainerizerProcess::__launch(
         }
 
         environment[name] = value;
+      }
+    }
+
+    if (launchInfo.isSome() && launchInfo->has_command()) {
+      if (executorLaunchCommand.isSome()) {
+        return Failure("At most one command can be returned from isolators");
+      } else {
+        executorLaunchCommand = launchInfo->command();
       }
     }
   }
@@ -1008,7 +1022,9 @@ Future<bool> MesosContainerizerProcess::__launch(
     // Prepare the flags to pass to the launch process.
     MesosContainerizerLaunch::Flags launchFlags;
 
-    launchFlags.command = JSON::protobuf(executorInfo.command());
+    launchFlags.command = executorLaunchCommand.isSome()
+      ? JSON::protobuf(executorLaunchCommand.get())
+      : JSON::protobuf(executorInfo.command());
 
     launchFlags.directory = rootfs.isSome()
       ? flags.sandbox_directory
