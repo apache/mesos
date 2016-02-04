@@ -23,7 +23,6 @@
 
 #include <stout/gtest.hpp>
 #include <stout/json.hpp>
-#include <stout/stringify.hpp>
 
 #include "common/http.hpp"
 #include "common/protobuf_utils.hpp"

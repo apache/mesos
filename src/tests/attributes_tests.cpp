@@ -15,13 +15,10 @@
 // limitations under the License.
 
 #include <sstream>
-#include <string>
 
 #include <gtest/gtest.h>
 
 #include <mesos/attributes.hpp>
-
-using std::string;
 
 namespace mesos {
 namespace internal {

@@ -122,8 +122,8 @@ Try<bool> remove(const string& link, const Handle& parent)
 }
 
 
-Result<hashmap<std::string, uint64_t>> statistics(
-    const std::string& link,
+Result<hashmap<string, uint64_t>> statistics(
+    const string& link,
     const Handle& parent)
 {
   return internal::statistics(link, parent, KIND);

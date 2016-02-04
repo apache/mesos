@@ -110,7 +110,7 @@ Future<Nothing> CurlFetcherPlugin::fetch(
       s.get().status(),
       io::read(s.get().out().get()),
       io::read(s.get().err().get()))
-    .then([](const std::tuple<
+    .then([](const tuple<
         Future<Option<int>>,
         Future<string>,
         Future<string>>& t) -> Future<Nothing> {

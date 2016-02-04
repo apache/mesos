@@ -148,7 +148,7 @@ public:
   virtual void frameworkMessage(SchedulerDriver* driver,
                                 const ExecutorID& executorId,
                                 const SlaveID& slaveId,
-                                const std::string& data)
+                                const string& data)
   {
     std::cout << "Framework message: " << data << std::endl;
   }
@@ -166,7 +166,7 @@ public:
     std::cout << "Executor lost" << std::endl;
   }
 
-  virtual void error(SchedulerDriver* driver, const std::string& message)
+  virtual void error(SchedulerDriver* driver, const string& message)
   {
     std::cout << "Error message: " << message << std::endl;
   }

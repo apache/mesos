@@ -25,7 +25,6 @@
 #include <stout/ip.hpp>
 #include <stout/nothing.hpp>
 #include <stout/stringify.hpp>
-#include <stout/strings.hpp>
 
 #include "master/maintenance.hpp"
 

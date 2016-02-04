@@ -307,7 +307,7 @@ TEST_F(GarbageCollectorIntegrationTest, Restart)
   // status update for a task because the directory won't get created
   // until the task is launched. We get the slave ID from the
   // SlaveRegisteredMessage.
-  const std::string& slaveDir = slave::paths::getSlavePath(
+  const string& slaveDir = slave::paths::getSlavePath(
       flags.work_dir,
       slaveRegisteredMessage.get().slave_id());
 
@@ -529,7 +529,7 @@ TEST_F(GarbageCollectorIntegrationTest, ExitedExecutor)
   AWAIT_READY(status);
   EXPECT_EQ(TASK_RUNNING, status.get().state());
 
-  const std::string& executorDir = slave::paths::getExecutorPath(
+  const string& executorDir = slave::paths::getExecutorPath(
       flags.work_dir, slaveId, frameworkId.get(), DEFAULT_EXECUTOR_ID);
 
   ASSERT_TRUE(os::exists(executorDir));
@@ -630,7 +630,7 @@ TEST_F(GarbageCollectorIntegrationTest, DiskUsage)
   AWAIT_READY(status);
   EXPECT_EQ(TASK_RUNNING, status.get().state());
 
-  const std::string& executorDir = slave::paths::getExecutorPath(
+  const string& executorDir = slave::paths::getExecutorPath(
       flags.work_dir, slaveId, frameworkId.get(), DEFAULT_EXECUTOR_ID);
 
   ASSERT_TRUE(os::exists(executorDir));

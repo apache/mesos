@@ -63,6 +63,7 @@ using cgroups::memory::pressure::Counter;
 
 using std::set;
 using std::string;
+using std::vector;
 
 namespace mesos {
 namespace internal {
@@ -97,7 +98,7 @@ public:
   {
     CgroupsTest::SetUpTestCase();
 
-    Try<set<string> > hierarchies = cgroups::hierarchies();
+    Try<set<string>> hierarchies = cgroups::hierarchies();
     ASSERT_SOME(hierarchies);
     ASSERT_TRUE(hierarchies->empty())
       << "-------------------------------------------------------------\n"
@@ -162,7 +163,7 @@ protected:
           << "-------------------------------------------------------------";
       }
 
-      Try<std::vector<string> > cgroups = cgroups::get(hierarchy);
+      Try<vector<string>> cgroups = cgroups::get(hierarchy);
       CHECK_SOME(cgroups);
 
       foreach (const string& cgroup, cgroups.get()) {
@@ -180,7 +181,7 @@ protected:
     foreach (const string& subsystem, strings::tokenize(subsystems, ",")) {
       string hierarchy = path::join(baseHierarchy, subsystem);
 
-      Try<std::vector<string> > cgroups = cgroups::get(hierarchy);
+      Try<vector<string>> cgroups = cgroups::get(hierarchy);
       CHECK_SOME(cgroups);
 
       foreach (const string& cgroup, cgroups.get()) {
@@ -245,7 +246,7 @@ TEST_F(CgroupsAnyHierarchyWithCpuMemoryTest, ROOT_CGROUPS_Busy)
 
 TEST_F(CgroupsAnyHierarchyTest, ROOT_CGROUPS_Subsystems)
 {
-  Try<set<string> > names = cgroups::subsystems();
+  Try<set<string>> names = cgroups::subsystems();
   ASSERT_SOME(names);
 
   Option<string> cpu;
@@ -267,7 +268,7 @@ TEST_F(CgroupsAnyHierarchyWithCpuMemoryTest, ROOT_CGROUPS_SubsystemsHierarchy)
 {
   string cpuHierarchy = path::join(baseHierarchy, "cpu");
 
-  Try<set<string> > names = cgroups::subsystems(cpuHierarchy);
+  Try<set<string>> names = cgroups::subsystems(cpuHierarchy);
   ASSERT_SOME(names);
 
   Option<string> cpu;
@@ -371,7 +372,7 @@ TEST_F(CgroupsAnyHierarchyTest, ROOT_CGROUPS_Get)
   ASSERT_SOME(cgroups::create(hierarchy, "mesos_test1"));
   ASSERT_SOME(cgroups::create(hierarchy, "mesos_test2"));
 
-  Try<std::vector<string>> cgroups = cgroups::get(hierarchy);
+  Try<vector<string>> cgroups = cgroups::get(hierarchy);
   ASSERT_SOME(cgroups);
 
   EXPECT_NE(cgroups->end(),
@@ -401,7 +402,7 @@ TEST_F(CgroupsAnyHierarchyTest, ROOT_CGROUPS_NestedCgroups)
 
   ASSERT_SOME(cgroups::create(hierarchy, cgroup2));
 
-  Try<std::vector<string>> cgroups =
+  Try<vector<string>> cgroups =
     cgroups::get(hierarchy, TEST_CGROUPS_ROOT);
   ASSERT_SOME(cgroups);
 
@@ -481,7 +482,7 @@ TEST_F(CgroupsAnyHierarchyTest, ROOT_CGROUPS_Write)
                      "cgroup.procs",
                      stringify(pid)));
 
-  Try<set<pid_t> > pids = cgroups::processes(hierarchy, TEST_CGROUPS_ROOT);
+  Try<set<pid_t>> pids = cgroups::processes(hierarchy, TEST_CGROUPS_ROOT);
   ASSERT_SOME(pids);
 
   EXPECT_NE(0u, pids->count(pid));
@@ -525,7 +526,7 @@ TEST_F(CgroupsAnyHierarchyWithCpuAcctMemoryTest, ROOT_CGROUPS_Stat)
 {
   EXPECT_ERROR(cgroups::stat(baseHierarchy, TEST_CGROUPS_ROOT, "invalid"));
 
-  Try<hashmap<string, uint64_t> > result =
+  Try<hashmap<string, uint64_t>> result =
     cgroups::stat(
         path::join(baseHierarchy, "cpuacct"), "/", "cpuacct.stat");
   ASSERT_SOME(result);
@@ -830,7 +831,7 @@ TEST_F(CgroupsAnyHierarchyWithFreezerTest, ROOT_CGROUPS_AssignThreads)
   ASSERT_SOME(cgroups::create(hierarchy, TEST_CGROUPS_ROOT));
 
   // Check the test cgroup is initially empty.
-  Try<set<pid_t> > cgroupThreads =
+  Try<set<pid_t>> cgroupThreads =
     cgroups::threads(hierarchy, TEST_CGROUPS_ROOT);
   EXPECT_SOME(cgroupThreads);
   EXPECT_EQ(0u, cgroupThreads->size());
@@ -840,7 +841,7 @@ TEST_F(CgroupsAnyHierarchyWithFreezerTest, ROOT_CGROUPS_AssignThreads)
 
   // Get our threads (may be more than the numThreads we created if
   // other threads are running).
-  Try<set<pid_t> > threads = proc::threads(::getpid());
+  Try<set<pid_t>> threads = proc::threads(::getpid());
   ASSERT_SOME(threads);
 
   // Check the test cgroup now only contains all child threads.
@@ -1061,7 +1062,7 @@ protected:
 
   void listen()
   {
-    const std::vector<Level> levels = {
+    const vector<Level> levels = {
       Level::LOW,
       Level::MEDIUM,
       Level::CRITICAL

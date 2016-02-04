@@ -14,8 +14,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <string>
-
 #include <mesos/authentication/http/basic_authenticator_factory.hpp>
 
 #include <mesos/mesos.hpp>

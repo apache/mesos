@@ -1388,7 +1388,7 @@ TEST_F(FetcherCacheTest, FallbackFromEviction)
   // extra characters so the cache will fill up to the last byte.
   ASSERT_SOME(os::write(
       commandPath,
-      COMMAND_SCRIPT + std::string(growth, '\n')));
+      COMMAND_SCRIPT + string(growth, '\n')));
 
   CommandInfo::URI uri1;
   uri1.set_value(commandPath);
@@ -1436,7 +1436,7 @@ TEST_F(FetcherCacheTest, FallbackFromEviction)
   // fit into the cache any more.
   ASSERT_SOME(os::write(
       commandPath,
-      COMMAND_SCRIPT + std::string(2 * growth, '\n')));
+      COMMAND_SCRIPT + string(2 * growth, '\n')));
 
   CommandInfo::URI uri2;
   uri2.set_value(commandPath);

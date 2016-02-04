@@ -15,7 +15,6 @@
 // limitations under the License
 
 #include <set>
-#include <string>
 
 #include <process/defer.hpp>
 #include <process/dispatch.hpp>
@@ -33,7 +32,6 @@
 using namespace process;
 
 using std::set;
-using std::string;
 
 namespace zookeeper {
 

@@ -79,8 +79,8 @@ public:
           const ContainerID&,
           const TaskInfo&,
           const ExecutorInfo&,
-          const std::string&,
-          const Option<std::string>&,
+          const string&,
+          const Option<string>&,
           const SlaveID&,
           const process::PID<slave::Slave>&,
           bool checkpoint));
@@ -170,7 +170,7 @@ TEST_F(ExternalContainerizerTest, DISABLED_Launch)
   Option<double> cpus = resources.cpus();
   ASSERT_SOME(cpus);
 
-  const std::string& file = path::join(flags.work_dir, "ready");
+  const string& file = path::join(flags.work_dir, "ready");
 
   // This task induces user/system load in a child process by
   // running top in a child process for ten seconds.

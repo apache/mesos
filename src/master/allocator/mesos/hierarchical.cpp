@@ -1157,7 +1157,7 @@ void HierarchicalAllocatorProcess::allocate(
   // its quota.
   //
   // NOTE: Revocable resources are excluded in `quotaRoleSorter`.
-  auto getQuotaRoleAllocatedResources = [this](const std::string& role) {
+  auto getQuotaRoleAllocatedResources = [this](const string& role) {
     CHECK(quotas.contains(role));
 
     // Strip the reservation and persistent volume info.

@@ -382,8 +382,8 @@ Try<Docker::Image> Docker::Image::create(const JSON::Object& json)
           return Error("Expecting environment value to be type string");
         }
 
-        const std::vector<std::string> tokens =
-            strings::tokenize(value.as<JSON::String>().value, "=");
+        const vector<string> tokens =
+          strings::tokenize(value.as<JSON::String>().value, "=");
 
         if (tokens.size() != 2) {
           return Error("Unexpected Env format for 'ContainerConfig.Env'");

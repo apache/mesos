@@ -92,7 +92,7 @@ Result<State> recover(const string& rootDir, bool strict)
     }
   }
 
-  const std::string& latest = paths::getLatestSlavePath(rootDir);
+  const string& latest = paths::getLatestSlavePath(rootDir);
 
   // Check if the "latest" symlink to a slave directory exists.
   if (!os::exists(latest)) {
@@ -688,7 +688,7 @@ Try<TaskState> TaskState::recover(
 
 
 Try<ResourcesState> ResourcesState::recover(
-    const std::string& rootDir,
+    const string& rootDir,
     bool strict)
 {
   ResourcesState state;

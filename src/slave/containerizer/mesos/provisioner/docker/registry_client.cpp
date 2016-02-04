@@ -109,9 +109,9 @@ private:
       int fd,
       Pipe::Reader reader);
 
-  std::string getRepositoryPath(const Image::Name& imageName) const;
+  string getRepositoryPath(const Image::Name& imageName) const;
 
-  std::string getAPIVersion() const;
+  string getAPIVersion() const;
 
   const http::URL registryServer_;
   Owned<TokenManager> tokenManager_;

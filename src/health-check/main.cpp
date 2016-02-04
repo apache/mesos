@@ -287,9 +287,9 @@ public:
         "Task ID that this health check process is checking");
   }
 
-  Option<std::string> health_check_json;
+  Option<string> health_check_json;
   Option<UPID> executor;
-  Option<std::string> task_id;
+  Option<string> task_id;
 };
 
 

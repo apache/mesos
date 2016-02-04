@@ -2521,7 +2521,7 @@ TEST_F(HierarchicalAllocator_BENCHMARK_Test, DeclineOffers)
     Resources     resources;
   };
 
-  std::vector<OfferedResources> offers;
+  vector<OfferedResources> offers;
 
   auto offerCallback = [&offerCount, &offers](
       const FrameworkID& frameworkId,

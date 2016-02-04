@@ -519,12 +519,12 @@ void json(JSON::ObjectWriter* writer, const NetworkInfo& info)
 
 void json(JSON::ObjectWriter* writer, const Resources& resources)
 {
-  hashmap<std::string, double> scalars = {{"cpus", 0}, {"mem", 0}, {"disk", 0}};
-  hashmap<std::string, Value::Ranges> ranges;
-  hashmap<std::string, Value::Set> sets;
+  hashmap<string, double> scalars = {{"cpus", 0}, {"mem", 0}, {"disk", 0}};
+  hashmap<string, Value::Ranges> ranges;
+  hashmap<string, Value::Set> sets;
 
   foreach (const Resource& resource, resources) {
-    std::string name =
+    string name =
       resource.name() + (Resources::isRevocable(resource) ? "_revocable" : "");
     switch (resource.type()) {
       case Value::SCALAR:

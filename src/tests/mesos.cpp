@@ -519,7 +519,7 @@ MockQoSController::MockQoSController()
 
   ON_CALL(*this, corrections())
     .WillByDefault(
-        Return(process::Future<std::list<mesos::slave::QoSCorrection>>()));
+        Return(process::Future<list<mesos::slave::QoSCorrection>>()));
   EXPECT_CALL(*this, corrections())
     .WillRepeatedly(DoDefault());
 }
@@ -643,8 +643,8 @@ MockContainerLogger::~MockContainerLogger() {}
 
 
 MockDocker::MockDocker(
-    const std::string& path,
-    const std::string &socket)
+    const string& path,
+    const string &socket)
   : Docker(path, socket)
 {
   EXPECT_CALL(*this, ps(_, _))

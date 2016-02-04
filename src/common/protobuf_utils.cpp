@@ -261,7 +261,7 @@ MasterInfo createMasterInfo(const UPID& pid)
 }
 
 
-Label createLabel(const std::string& key, const std::string& value)
+Label createLabel(const string& key, const string& value)
 {
   Label label;
   label.set_key(key);
@@ -281,7 +281,7 @@ namespace slave {
 
 ContainerLimitation createContainerLimitation(
     const Resources& resources,
-    const std::string& message,
+    const string& message,
     const TaskStatus::Reason& reason)
 {
   ContainerLimitation limitation;
@@ -298,7 +298,7 @@ ContainerState createContainerState(
     const ExecutorInfo& executorInfo,
     const ContainerID& container_id,
     pid_t pid,
-    const std::string& directory)
+    const string& directory)
 {
   ContainerState state;
   state.mutable_executor_info()->CopyFrom(executorInfo);

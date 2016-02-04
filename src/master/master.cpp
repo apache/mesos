@@ -638,7 +638,7 @@ void Master::initialize()
     }
 
     roleWhitelist = hashset<string>();
-    foreach (const std::string& role, roles.get()) {
+    foreach (const string& role, roles.get()) {
       roleWhitelist.get().insert(role);
     }
 
@@ -654,7 +654,7 @@ void Master::initialize()
   if (flags.weights.isSome()) {
     vector<string> tokens = strings::tokenize(flags.weights.get(), ",");
 
-    foreach (const std::string& token, tokens) {
+    foreach (const string& token, tokens) {
       vector<string> pair = strings::tokenize(token, "=");
       if (pair.size() != 2) {
         EXIT(1) << "Invalid weight: '" << token << "'. --weights should"
@@ -1384,7 +1384,7 @@ void Master::visit(const ExitedEvent& event)
 
 void Master::throttled(
     const MessageEvent& event,
-    const Option<std::string>& principal)
+    const Option<string>& principal)
 {
   // We already know a RateLimiter is used to throttle this event so
   // here we only need to determine which.
@@ -4992,7 +4992,7 @@ void Master::reconcile(
 void Master::reconcileTasks(
     const UPID& from,
     const FrameworkID& frameworkId,
-    const std::vector<TaskStatus>& statuses)
+    const vector<TaskStatus>& statuses)
 {
   Framework* framework = getFramework(frameworkId);
   if (framework == NULL) {

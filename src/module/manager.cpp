@@ -224,7 +224,7 @@ Try<Nothing> ModuleManager::load(const Modules& modules)
         }
 
         // Check for possible duplicate module names.
-        const std::string moduleName = module.name();
+        const string moduleName = module.name();
         if (moduleBases.contains(moduleName)) {
           return Error("Error loading duplicate module '" + moduleName + "'");
         }

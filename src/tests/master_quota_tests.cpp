@@ -135,9 +135,9 @@ protected:
   }
 
 protected:
-  const std::string ROLE1{"role1"};
-  const std::string ROLE2{"role2"};
-  const std::string UNKNOWN_ROLE{"unknown"};
+  const string ROLE1{"role1"};
+  const string ROLE2{"role2"};
+  const string UNKNOWN_ROLE{"unknown"};
 
   Resources defaultAgentResources;
 };

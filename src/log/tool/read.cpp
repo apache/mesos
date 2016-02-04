@@ -22,7 +22,6 @@
 #include <process/timeout.hpp>
 
 #include <stout/error.hpp>
-#include <stout/stringify.hpp>
 
 #include "log/replica.hpp"
 #include "log/tool/read.hpp"
@@ -34,7 +33,6 @@ using namespace process;
 using std::cout;
 using std::endl;
 using std::list;
-using std::string;
 
 namespace mesos {
 namespace internal {
@@ -144,7 +142,7 @@ Try<Nothing> Read::execute(int argc, char** argv)
   LOG(INFO) << "Attempting to read the log from "
             << from.get() << " to " << to.get() << endl;
 
-  Future<list<Action> > actions = replica.read(from.get(), to.get());
+  Future<list<Action>> actions = replica.read(from.get(), to.get());
   if (timeout.isSome()) {
     actions.await(timeout.get().remaining());
   } else {

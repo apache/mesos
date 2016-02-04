@@ -19,15 +19,9 @@
 
 #include <gtest/gtest.h>
 
-#include <stout/foreach.hpp>
-#include <stout/proc.hpp>
-#include <stout/stringify.hpp>
-
 #include "slave/containerizer/mesos/containerizer.hpp"
 
 #include "tests/script.hpp"
-
-using std::map;
 
 namespace mesos {
 namespace internal {

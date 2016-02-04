@@ -51,8 +51,6 @@
 #include "tests/flags.hpp"
 #include "tests/mesos.hpp"
 
-using std::string;
-
 using namespace mesos::modules;
 
 using mesos::internal::master::Master;

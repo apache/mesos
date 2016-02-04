@@ -26,8 +26,6 @@
 
 using namespace process;
 
-using std::string;
-
 namespace mesos {
 namespace internal {
 namespace log {

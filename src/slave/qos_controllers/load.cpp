@@ -15,7 +15,6 @@
 // limitations under the License.
 
 #include <list>
-#include <string>
 
 #include <mesos/module/qos_controller.hpp>
 
@@ -39,7 +38,6 @@ using namespace mesos;
 using namespace process;
 
 using std::list;
-using std::string;
 
 using mesos::modules::Module;
 
@@ -64,17 +62,17 @@ public:
       loadThreshold5Min(_loadThreshold5Min),
       loadThreshold15Min(_loadThreshold15Min) {}
 
-  Future<std::list<QoSCorrection>> corrections()
+  Future<list<QoSCorrection>> corrections()
   {
     return usage().then(defer(self(), &Self::_corrections, lambda::_1));
   }
 
-  Future<std::list<QoSCorrection>> _corrections(const ResourceUsage& usage)
+  Future<list<QoSCorrection>> _corrections(const ResourceUsage& usage)
   {
     Try<os::Load> load = loadAverage();
     if (load.isError()) {
       LOG(ERROR) << "Failed to fetch system load: " + load.error();
-      return std::list<QoSCorrection>();
+      return list<QoSCorrection>();
     }
 
     bool overloaded = false;
@@ -96,7 +94,7 @@ public:
     }
 
     if (overloaded) {
-      std::list<QoSCorrection> corrections;
+      list<QoSCorrection> corrections;
 
       for (const ResourceUsage::Executor& executor : usage.executors()) {
         // Set kill correction for all revocable executors.
@@ -116,7 +114,7 @@ public:
       return corrections;
     }
 
-    return std::list<QoSCorrection>();
+    return list<QoSCorrection>();
   }
 
 private:
@@ -156,7 +154,7 @@ Try<Nothing> LoadQoSController::initialize(
 }
 
 
-process::Future<std::list<QoSCorrection>> LoadQoSController::corrections()
+process::Future<list<QoSCorrection>> LoadQoSController::corrections()
 {
   if (process.get() == NULL) {
     return Failure("Load QoS Controller is not initialized");

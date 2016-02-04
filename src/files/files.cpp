@@ -116,10 +116,10 @@ private:
   // Returns the internal virtual path mapping.
   Future<Response> debug(const Request& request);
 
-  const static std::string BROWSE_HELP;
-  const static std::string READ_HELP;
-  const static std::string DOWNLOAD_HELP;
-  const static std::string DEBUG_HELP;
+  const static string BROWSE_HELP;
+  const static string READ_HELP;
+  const static string DOWNLOAD_HELP;
+  const static string DEBUG_HELP;
 
   hashmap<string, string> paths;
 };

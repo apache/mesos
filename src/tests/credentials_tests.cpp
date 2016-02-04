@@ -80,7 +80,7 @@ TEST_F(CredentialsTest, AuthenticatedSlaveText)
 
   CHECK_SOME(fd);
 
-  std::string credentials =
+  string credentials =
     DEFAULT_CREDENTIAL.principal() + " " + DEFAULT_CREDENTIAL.secret();
 
   CHECK_SOME(os::write(fd.get(), credentials))

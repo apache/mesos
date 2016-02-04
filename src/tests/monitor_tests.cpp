@@ -46,7 +46,6 @@ using mesos::internal::slave::ResourceMonitor;
 using mesos::internal::slave::Slave;
 
 using std::numeric_limits;
-using std::string;
 using std::vector;
 
 namespace mesos {

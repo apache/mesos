@@ -15,7 +15,6 @@
 // limitations under the License.
 
 #include <sstream>
-#include <string>
 
 #include <gtest/gtest.h>
 
@@ -27,8 +26,6 @@
 #include "master/master.hpp"
 
 using namespace mesos::internal::values;
-
-using std::string;
 
 namespace mesos {
   extern void coalesce(Value::Ranges* ranges);

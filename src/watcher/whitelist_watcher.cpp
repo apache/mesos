@@ -45,7 +45,7 @@ WhitelistWatcher::WhitelistWatcher(
     const Option<Path>& path,
     const Duration& watchInterval,
     const function<void(const Option<hashset<string>>& whitelist)>& subscriber,
-    const Option<hashset<std::string>>& initialWhitelist)
+    const Option<hashset<string>>& initialWhitelist)
   : ProcessBase(process::ID::generate("whitelist")),
     path(path),
     watchInterval(watchInterval),

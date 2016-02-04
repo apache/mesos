@@ -75,7 +75,7 @@ Try<Nothing> HookManager::initialize(const string& hookList)
 }
 
 
-Try<Nothing> HookManager::unload(const std::string& hookName)
+Try<Nothing> HookManager::unload(const string& hookName)
 {
   synchronized (mutex) {
     if (!availableHooks.contains(hookName)) {

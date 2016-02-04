@@ -172,7 +172,7 @@ Try<Launcher*> LinuxLauncher::create(const Flags& flags)
       freezerHierarchy.get(),
       systemd::exists() ?
         Some(systemd::hierarchy()) :
-        Option<std::string>::none());
+        Option<string>::none());
 }
 
 
@@ -190,7 +190,7 @@ bool LinuxLauncher::available()
 
 
 Future<hashset<ContainerID>> LinuxLauncher::recover(
-    const std::list<ContainerState>& states)
+    const list<ContainerState>& states)
 {
   hashset<string> recovered;
 

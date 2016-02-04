@@ -107,7 +107,7 @@ Try<bool> remove(const string& link)
 }
 
 
-Result<hashmap<std::string, uint64_t>> statistics(const std::string& link)
+Result<hashmap<string, uint64_t>> statistics(const string& link)
 {
   return internal::statistics(link, INGRESS_ROOT, KIND);
 }

@@ -71,11 +71,11 @@ private:
   Future<ImageInfo> __get(const Image& image);
 
   Future<vector<string>> moveLayers(
-      const std::list<pair<string, string>>& layerPaths);
+      const list<pair<string, string>>& layerPaths);
 
   Future<Image> storeImage(
       const Image::Name& name,
-      const std::vector<std::string>& layerIds);
+      const vector<string>& layerIds);
 
   Future<Nothing> moveLayer(
       const pair<string, string>& layerPath);
@@ -83,7 +83,7 @@ private:
   const Flags flags;
   Owned<MetadataManager> metadataManager;
   Owned<Puller> puller;
-  hashmap<std::string, Owned<Promise<Image>>> pulling;
+  hashmap<string, Owned<Promise<Image>>> pulling;
 };
 
 

@@ -219,7 +219,7 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
     if (authorizerNames.size() > 1) {
       EXIT(EXIT_FAILURE) << "Multiple authorizers not supported";
     }
-    std::string authorizerName = authorizerNames[0];
+    string authorizerName = authorizerNames[0];
 
     // NOTE: The flag --authorizers overrides the flag --acls, i.e. if
     // a non default authorizer is requested, it will be used and

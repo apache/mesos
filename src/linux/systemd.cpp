@@ -160,7 +160,7 @@ Path hierarchy()
 
 Try<Nothing> daemonReload()
 {
-  Try<std::string> daemonReload = os::shell("systemctl daemon-reload");
+  Try<string> daemonReload = os::shell("systemctl daemon-reload");
   if (daemonReload.isError()) {
     return Error("Failed to reload systemd daemon: " + daemonReload.error());
   }
@@ -196,9 +196,9 @@ Try<Nothing> create(const Path& path, const string& data)
 }
 
 
-Try<Nothing> start(const std::string& name)
+Try<Nothing> start(const string& name)
 {
-  Try<std::string> start = os::shell("systemctl start " + name);
+  Try<string> start = os::shell("systemctl start " + name);
 
   if (start.isError()) {
     return Error(

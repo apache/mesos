@@ -198,7 +198,7 @@ Result<string> Fetcher::uriToLocalPath(
 }
 
 
-bool Fetcher::isNetUri(const std::string& uri)
+bool Fetcher::isNetUri(const string& uri)
 {
   return strings::startsWith(uri, "http://")  ||
          strings::startsWith(uri, "https://") ||

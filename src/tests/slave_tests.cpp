@@ -395,7 +395,7 @@ TEST_F(SlaveTest, CommandExecutorWithOverride)
   // succesfully replaced, this file will end up containing the string
   // 'Hello World\n'. Otherwise, the original task command i.e.
   // 'sleep' will be called and the test will fail.
-  Try<std::string> file = os::mktemp();
+  Try<string> file = os::mktemp();
   ASSERT_SOME(file);
 
   string executorCommand =
@@ -443,7 +443,7 @@ TEST_F(SlaveTest, CommandExecutorWithOverride)
   AWAIT_READY(executor.get().status());
 
   // Verify file contents.
-  Try<std::string> validate = os::read(file.get());
+  Try<string> validate = os::read(file.get());
   ASSERT_SOME(validate);
 
   EXPECT_EQ(validate.get(), "hello world\n");

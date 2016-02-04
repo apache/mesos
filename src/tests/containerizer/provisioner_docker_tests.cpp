@@ -1271,8 +1271,7 @@ TEST_F(ProvisionerDockerLocalStoreTest, PullingSameImageSimutanuously)
   ASSERT_TRUE(imageInfo1.isPending());
   Future<slave::ImageInfo> imageInfo2 = store.get()->get(mesosImage);
 
-  const std::list<std::pair<std::string, std::string>> result =
-    {{"456", layerPath}};
+  const list<pair<string, string>> result = {{"456", layerPath}};
 
   ASSERT_TRUE(imageInfo2.isPending());
   promise.set(result);

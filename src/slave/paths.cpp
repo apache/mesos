@@ -393,7 +393,7 @@ string getPersistentVolumePath(
 
 
 string getPersistentVolumePath(
-    const std::string& rootDir,
+    const string& rootDir,
     const Resource& volume)
 {
   CHECK(volume.has_role());

@@ -272,7 +272,7 @@ DockerContainerizerProcess::Container::create(
 
   Option<ContainerInfo> containerInfo = None();
   Option<CommandInfo> commandInfo = None();
-  Option<std::map<string, string>> environment = None();
+  Option<map<string, string>> environment = None();
   bool launchesExecutorContainer = false;
   if (taskInfo.isSome() && flags.docker_mesos_image.isSome()) {
     // Override the container and command to launch an executor
@@ -1505,7 +1505,7 @@ void DockerContainerizerProcess::destroy(
     // received run task due to a failed containerizer update.
     // We also kill the executor first since container->status below
     // is waiting for the executor to finish.
-    Try<std::list<os::ProcessTree>> kill =
+    Try<list<os::ProcessTree>> kill =
       os::killtree(container->executorPid.get(), SIGTERM);
 
     if (kill.isError()) {

@@ -61,7 +61,7 @@ Try<Authenticator*> BasicAuthenticatorFactory::create(
 
 
 Try<Authenticator*> BasicAuthenticatorFactory::create(
-    const hashmap<std::string, std::string>& credentials)
+    const hashmap<string, string>& credentials)
 {
   Authenticator* authenticator = new BasicAuthenticator("mesos", credentials);
 

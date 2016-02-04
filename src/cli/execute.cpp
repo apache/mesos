@@ -198,9 +198,8 @@ public:
         commandInfo->set_value(command);
         if (environment.isSome()) {
           Environment* environment_ = commandInfo->mutable_environment();
-          foreachpair (const std::string& name,
-                       const std::string& value,
-                       environment.get()) {
+          foreachpair (
+              const string& name, const string& value, environment.get()) {
             Environment_Variable* environmentVariable =
               environment_->add_variables();
             environmentVariable->set_name(name);

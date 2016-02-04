@@ -16,7 +16,6 @@
 
 #include <gtest/gtest.h>
 
-#include <string>
 #include <vector>
 
 #include <mesos/authentication/http/basic_authenticator_factory.hpp>
@@ -36,7 +35,6 @@
 
 using namespace process;
 
-using std::string;
 using std::vector;
 
 namespace process {

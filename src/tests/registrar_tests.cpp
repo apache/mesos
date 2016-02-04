@@ -677,8 +677,8 @@ TEST_P(RegistrarTest, StopMaintenance)
 // Tests that adding and updating quotas in the registry works properly.
 TEST_P(RegistrarTest, UpdateQuota)
 {
-  const std::string ROLE1 = "role1";
-  const std::string ROLE2 = "role2";
+  const string ROLE1 = "role1";
+  const string ROLE2 = "role2";
 
   // NOTE: `quotaResources1` yields a collection with two `Resource`
   // objects once converted to `RepeatedPtrField`.
@@ -804,8 +804,8 @@ TEST_P(RegistrarTest, UpdateQuota)
 // Tests removing quotas from the registry.
 TEST_P(RegistrarTest, RemoveQuota)
 {
-  const std::string ROLE1 = "role1";
-  const std::string ROLE2 = "role2";
+  const string ROLE1 = "role1";
+  const string ROLE2 = "role2";
 
   {
     // Prepare the registrar; see the comment above why we need to do this in
@@ -1041,7 +1041,7 @@ TEST_P(Registrar_BENCHMARK_Test, Performance)
     SlaveInfo info;
     info.set_hostname("localhost");
     info.mutable_id()->set_value(
-        std::string("201310101658-2280333834-5050-48574-") + stringify(i));
+        string("201310101658-2280333834-5050-48574-") + stringify(i));
     info.mutable_resources()->MergeFrom(resources);
     info.mutable_attributes()->MergeFrom(attributes);
     infos.push_back(info);

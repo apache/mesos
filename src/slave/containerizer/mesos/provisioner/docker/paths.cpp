@@ -94,8 +94,8 @@ string getImageLayerPath(
 
 
 string getImageLayerManifestPath(
-    const std::string& storeDir,
-    const std::string& layerId)
+    const string& storeDir,
+    const string& layerId)
 {
   return path::join(getImageLayerPath(storeDir, layerId), "json");
 }
