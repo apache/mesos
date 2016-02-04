@@ -22,9 +22,11 @@
 #include <process/collect.hpp>
 #include <process/defer.hpp>
 #include <process/io.hpp>
-#include <process/metrics/metrics.hpp>
+#include <process/owned.hpp>
 #include <process/reap.hpp>
 #include <process/subprocess.hpp>
+
+#include <process/metrics/metrics.hpp>
 
 #include <stout/adaptor.hpp>
 #include <stout/foreach.hpp>
@@ -722,6 +724,14 @@ Future<bool> MesosContainerizerProcess::_launch(
   // paths to the provisioned root filesystems (by setting the
   // 'host_path') if the volume specifies an image as the source.
   Owned<ExecutorInfo> _executorInfo(new ExecutorInfo(executorInfo));
+
+  // NOTE: For the command task (i.e., taskInfo.isSome()), the
+  // filesystem image for the task is specified in a volume
+  // (COMMAND_EXECUTOR_ROOTFS_CONTAINER_PATH). We need to pass the
+  // provisionInfo from that image to isolators through 'prepare'.
+  Owned<Option<ProvisionInfo>> _provisionInfo(
+      new Option<ProvisionInfo>(provisionInfo));
+
   list<Future<Nothing>> futures;
 
   for (int i = 0; i < _executorInfo->container().volumes_size(); i++) {
@@ -733,12 +743,18 @@ Future<bool> MesosContainerizerProcess::_launch(
 
     const Image& image = volume->image();
 
-    futures.push_back(
-        provisioner->provision(containerId, image)
-          .then([volume](const ProvisionInfo& info) -> Future<Nothing> {
-            volume->set_host_path(info.rootfs);
-            return Nothing();
-          }));
+    futures.push_back(provisioner->provision(containerId, image)
+      .then([=](const ProvisionInfo& info) mutable -> Future<Nothing> {
+        volume->set_host_path(info.rootfs);
+
+        if (taskInfo.isSome() &&
+            volume->container_path() ==
+              COMMAND_EXECUTOR_ROOTFS_CONTAINER_PATH) {
+          _provisionInfo.reset(new Option<ProvisionInfo>(info));
+        }
+
+        return Nothing();
+      }));
   }
 
   // TODO(gilbert): For command executors, we modify the executorInfo
@@ -755,7 +771,7 @@ Future<bool> MesosContainerizerProcess::_launch(
                      *_executorInfo,
                      directory,
                      user,
-                     provisionInfo)
+                     *_provisionInfo)
         .then(defer(self(),
                     &Self::__launch,
                     containerId,
