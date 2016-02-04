@@ -44,7 +44,7 @@ namespace validation {
 
 // A helper function which returns true if the given character is not
 // suitable for an ID.
-static bool invalid(char c)
+static bool invalidCharacter(char c)
 {
   return iscntrl(c) || c == '/' || c == '\\';
 }
@@ -198,7 +198,7 @@ Option<Error> validateDiskInfo(const RepeatedPtrField<Resource>& resources)
 
       // Ensure persistence ID does not have invalid characters.
       string id = resource.disk().persistence().id();
-      if (std::count_if(id.begin(), id.end(), invalid) > 0) {
+      if (std::any_of(id.begin(), id.end(), invalidCharacter)) {
         return Error("Persistence ID '" + id + "' contains invalid characters");
       }
     } else if (resource.disk().has_volume()) {
@@ -287,7 +287,7 @@ Option<Error> validateTaskID(const TaskInfo& task)
 {
   const string& id = task.task_id().value();
 
-  if (std::count_if(id.begin(), id.end(), invalid) > 0) {
+  if (std::any_of(id.begin(), id.end(), invalidCharacter)) {
     return Error("TaskID '" + id + "' contains invalid characters");
   }
 
