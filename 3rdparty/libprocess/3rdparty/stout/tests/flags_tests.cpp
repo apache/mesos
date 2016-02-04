@@ -711,7 +711,7 @@ TEST_F(FlagsFileTest, FilePrefix)
 {
   Flags<TestFlags> flags;
 
-  Option<std::string> something;
+  Option<string> something;
 
   flags.add(&something,
             "something",

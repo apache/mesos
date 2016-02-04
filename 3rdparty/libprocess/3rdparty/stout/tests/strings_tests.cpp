@@ -31,7 +31,7 @@ using std::vector;
 
 TEST(StringsTest, Format)
 {
-  Try<std::string> result = strings::format("%s %s", "hello", "world");
+  Try<string> result = strings::format("%s %s", "hello", "world");
   EXPECT_SOME_EQ("hello world", result);
 
   result = strings::format("hello %d", 42);
@@ -384,7 +384,7 @@ TEST(StringsTest, Join)
   EXPECT_EQ("a\nb\nc\nd", strings::join("\n", "a", "b", "c", "d"));
   std::stringstream ss;
   EXPECT_EQ("a, b, c", strings::join(ss, ", ", "a", "b", "c").str());
-  const std::string gnarly("gnarly");
+  const string gnarly("gnarly");
   EXPECT_EQ("a/gnarly/c", strings::join("/", "a", gnarly, "c"));
   const bool is_true = true;
   const std::set<int32_t> my_set {1, 2, 3};

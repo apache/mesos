@@ -72,7 +72,7 @@ TEST(LinkedHashmapTest, Keys)
 {
   LinkedHashMap<string, int> map;
 
-  std::list<string> keys;
+  list<string> keys;
   keys.push_back("foo");
   keys.push_back("bar");
   keys.push_back("food");

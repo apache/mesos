@@ -64,7 +64,7 @@ using std::vector;
 static hashset<string> listfiles(const string& directory)
 {
   hashset<string> fileset;
-  Try<std::list<std::string> > entries = os::ls(directory);
+  Try<list<string> > entries = os::ls(directory);
   if (entries.isSome()) {
     foreach (const string& entry, entries.get()) {
       fileset.insert(entry);
@@ -102,9 +102,9 @@ TEST_F(OsTest, Environment)
   hashmap<string, string> environment = os::environment();
 
   for (size_t index = 0; environ[index] != NULL; index++) {
-    std::string entry(environ[index]);
+    string entry(environ[index]);
     size_t position = entry.find_first_of('=');
-    if (position == std::string::npos) {
+    if (position == string::npos) {
       continue; // Skip malformed environment entries.
     }
     const string key = entry.substr(0, position);
@@ -281,7 +281,7 @@ TEST_F(OsTest, Find)
   ASSERT_SOME(os::touch(file3));
 
   // Find "*.txt" files.
-  Try<std::list<string> > result = os::find(testdir, ".txt");
+  Try<list<string> > result = os::find(testdir, ".txt");
   ASSERT_SOME(result);
 
   hashset<string> files;
@@ -632,7 +632,7 @@ TEST_F(OsTest, Killtree)
 
   // Kill the process tree and follow sessions and groups to make sure
   // we cross the broken link due to the grandchild.
-  Try<std::list<ProcessTree> > trees =
+  Try<list<ProcessTree> > trees =
     os::killtree(child, SIGKILL, true, true);
 
   ASSERT_SOME(trees);
@@ -784,7 +784,7 @@ TEST_F(OsTest, KilltreeNoRoot)
   // Kill the process tree. Even though the root process has exited,
   // we specify to follow sessions and groups which should kill the
   // grandchild and greatgrandchild.
-  Try<std::list<ProcessTree>> trees = os::killtree(child, SIGKILL, true, true);
+  Try<list<ProcessTree>> trees = os::killtree(child, SIGKILL, true, true);
 
   ASSERT_SOME(trees);
   EXPECT_FALSE(trees.get().empty());
@@ -945,10 +945,10 @@ TEST_F(OsTest, User)
 // variable (DYLD_LIBRARY_PATH on OS X).
 TEST_F(OsTest, Libraries)
 {
-  const std::string path1 = "/tmp/path1";
-  const std::string path2 = "/tmp/path1";
-  std::string ldLibraryPath;
-  const std::string originalLibraryPath = os::libraries::paths();
+  const string path1 = "/tmp/path1";
+  const string path2 = "/tmp/path1";
+  string ldLibraryPath;
+  const string originalLibraryPath = os::libraries::paths();
 
   // Test setPaths.
   os::libraries::setPaths(path1);
@@ -1041,13 +1041,13 @@ TEST_F(OsTest, Mknod)
 TEST_F(OsTest, Realpath)
 {
   // Create a file.
-  const Try<std::string> _testFile = os::mktemp();
+  const Try<string> _testFile = os::mktemp();
   ASSERT_SOME(_testFile);
   ASSERT_SOME(os::touch(_testFile.get()));
-  const std::string testFile = _testFile.get();
+  const string testFile = _testFile.get();
 
   // Create a symlink pointing to a file.
-  const std::string testLink = UUID::random().toString();
+  const string testLink = UUID::random().toString();
   ASSERT_SOME(fs::symlink(testFile, testLink));
 
   // Validate the symlink.
@@ -1058,7 +1058,7 @@ TEST_F(OsTest, Realpath)
   ASSERT_EQ(fileInode.get(), linkInode.get());
 
   // Verify that the symlink resolves correctly.
-  Result<std::string> resolved = os::realpath(testLink);
+  Result<string> resolved = os::realpath(testLink);
   ASSERT_SOME(resolved);
   EXPECT_TRUE(strings::contains(resolved.get(), testFile));
 
