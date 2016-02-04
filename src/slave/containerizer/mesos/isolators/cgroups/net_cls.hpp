@@ -21,7 +21,6 @@
 
 #include <bitset>
 #include <iostream>
-#include <sstream>
 #include <string>
 
 #include <stout/hashmap.hpp>
@@ -70,6 +69,8 @@ struct NetClsHandle
 class NetClsHandleManager
 {
 public:
+  static std::string hexify(uint32_t handle);
+
   NetClsHandleManager(const IntervalSet<uint16_t>& _primaries)
     : primaries(_primaries) {};
 
