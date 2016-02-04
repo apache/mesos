@@ -49,33 +49,21 @@ const char* DEFAULT_MODULE_NAME = "org_apache_mesos_TestModule";
 class ModuleTest : public MesosTest
 {
 protected:
-  // During the one-time setup of the test cases, we do the
-  // following:
-  // 1. set LD_LIBRARY_PATH to also point to the src/.libs directory.
-  //    The original LD_LIBRARY_PATH is restored at the end of all
-  //    tests.
-  // 2. dlopen() examplemodule library and retrieve the pointer to
-  //    ModuleBase for the test module. This pointer is later used to
-  //    reset the Mesos and module API versions during per-test
-  //    teardown.
+  // During the one-time setup of the test cases, we dlopen() the examplemodule
+  // library and retrieve the pointer to ModuleBase for the test module. This
+  // pointer is later used to reset the Mesos and module API versions during
+  // per-test teardown.
   static void SetUpTestCase()
   {
     libraryDirectory = path::join(tests::flags.build_dir, "src", ".libs");
 
-    // Get the current value of LD_LIBRARY_PATH.
-    originalLdLibraryPath = os::libraries::paths();
-
-    // Append our library path to LD_LIBRARY_PATH so that dlopen can
-    // search the library directory for module libraries.
-    os::libraries::appendPaths(libraryDirectory);
-
-    EXPECT_SOME(dynamicLibrary.open(
-        os::libraries::expandName(DEFAULT_MODULE_LIBRARY_NAME)));
+    EXPECT_SOME(dynamicLibrary.open(path::join(libraryDirectory,
+        os::libraries::expandName(DEFAULT_MODULE_LIBRARY_NAME))));
 
     Try<void*> symbol = dynamicLibrary.loadSymbol(DEFAULT_MODULE_NAME);
     EXPECT_SOME(symbol);
 
-    moduleBase = (ModuleBase*) symbol.get();
+    moduleBase = static_cast<ModuleBase*>(symbol.get());
   }
 
   static void TearDownTestCase()
@@ -84,9 +72,6 @@ protected:
 
     // Close the module library.
     dynamicLibrary.close();
-
-    // Restore LD_LIBRARY_PATH environment variable.
-    os::libraries::setPaths(originalLdLibraryPath);
   }
 
   ModuleTest()
@@ -124,35 +109,38 @@ protected:
 
   static DynamicLibrary dynamicLibrary;
   static ModuleBase* moduleBase;
-  static string originalLdLibraryPath;
   static string libraryDirectory;
 };
 
 
 DynamicLibrary ModuleTest::dynamicLibrary;
 ModuleBase* ModuleTest::moduleBase = NULL;
-string ModuleTest::originalLdLibraryPath;
 string ModuleTest::libraryDirectory;
 
 
-static Modules getModules(const string& libraryName, const string& moduleName)
+Modules getModules(
+    const string& libraryDirectory,
+    const string& libraryName,
+    const string& moduleName)
 {
   Modules modules;
   Modules::Library* library = modules.add_libraries();
-  library->set_file(os::libraries::expandName(libraryName));
+  library->set_file(
+      path::join(libraryDirectory, os::libraries::expandName(libraryName)));
   Modules::Library::Module* module = library->add_modules();
   module->set_name(moduleName);
   return modules;
 }
 
 
-static Modules getModules(
+Modules getModules(
+    const string& libraryDirectory,
     const string& libraryName,
     const string& moduleName,
     const string& parameterKey,
     const string& parameterValue)
 {
-  Modules modules = getModules(libraryName, moduleName);
+  Modules modules = getModules(libraryDirectory, libraryName, moduleName);
   Modules::Library* library = modules.mutable_libraries(0);
   Modules::Library::Module* module = library->mutable_modules(0);
   Parameter* parameter = module->add_parameters();
@@ -162,17 +150,21 @@ static Modules getModules(
 }
 
 
-static Try<Modules> getModulesFromJson(
+Try<Modules> getModulesFromJson(
+    const string& libraryDirectory,
     const string& libraryName,
     const string& moduleName,
     const string& parameterKey,
     const string& parameterValue)
 {
+  string libraryFile =
+    path::join(libraryDirectory, os::libraries::expandName(libraryName));
+
   string jsonString =
     "{\n"
     "  \"libraries\": [\n"
     "    {\n"
-    "      \"file\": \"" + os::libraries::expandName(libraryName) + "\",\n"
+    "      \"file\": \"" + libraryFile + "\",\n"
     "      \"modules\": [\n"
     "        {\n"
     "          \"name\": \"" + moduleName + "\",\n"
@@ -217,6 +209,7 @@ TEST_F(ModuleTest, ExampleModuleLoadTest)
 TEST_F(ModuleTest, ParameterWithoutValue)
 {
   Modules modules = getModules(
+      libraryDirectory,
       DEFAULT_MODULE_LIBRARY_NAME,
       DEFAULT_MODULE_NAME,
       "operation",
@@ -232,6 +225,7 @@ TEST_F(ModuleTest, ParameterWithoutValue)
 TEST_F(ModuleTest, ParameterWithInvalidValue)
 {
   Modules modules = getModules(
+      libraryDirectory,
       DEFAULT_MODULE_LIBRARY_NAME,
       DEFAULT_MODULE_NAME,
       "operation",
@@ -246,8 +240,12 @@ TEST_F(ModuleTest, ParameterWithInvalidValue)
 // Test passing parameter without key.
 TEST_F(ModuleTest, ParameterWithoutKey)
 {
-  Modules modules =
-    getModules(DEFAULT_MODULE_LIBRARY_NAME, DEFAULT_MODULE_NAME, "", "sum");
+  Modules modules = getModules(
+      libraryDirectory,
+      DEFAULT_MODULE_LIBRARY_NAME,
+      DEFAULT_MODULE_NAME,
+      "",
+      "sum");
 
   EXPECT_SOME(ModuleManager::load(modules));
   module = ModuleManager::create<TestModule>(DEFAULT_MODULE_NAME);
@@ -261,8 +259,12 @@ TEST_F(ModuleTest, ParameterWithoutKey)
 // Test passing parameter with invalid key.
 TEST_F(ModuleTest, ParameterWithInvalidKey)
 {
-  Modules modules =
-    getModules(DEFAULT_MODULE_LIBRARY_NAME, DEFAULT_MODULE_NAME, "X", "sum");
+  Modules modules = getModules(
+      libraryDirectory,
+      DEFAULT_MODULE_LIBRARY_NAME,
+      DEFAULT_MODULE_NAME,
+      "X",
+      "sum");
 
   EXPECT_SOME(ModuleManager::load(modules));
   module = ModuleManager::create<TestModule>(DEFAULT_MODULE_NAME);
@@ -277,6 +279,7 @@ TEST_F(ModuleTest, ParameterWithInvalidKey)
 TEST_F(ModuleTest, ValidParameters)
 {
   Modules modules = getModules(
+      libraryDirectory,
       DEFAULT_MODULE_LIBRARY_NAME,
       DEFAULT_MODULE_NAME,
       "operation",
@@ -294,6 +297,7 @@ TEST_F(ModuleTest, ValidParameters)
 TEST_F(ModuleTest, OverrideJson)
 {
   Modules modules = getModules(
+      libraryDirectory,
       DEFAULT_MODULE_LIBRARY_NAME,
       DEFAULT_MODULE_NAME,
       "operation",
@@ -321,6 +325,7 @@ TEST_F(ModuleTest, OverrideJson)
 TEST_F(ModuleTest, JsonParseTest)
 {
   Try<Modules> modules = getModulesFromJson(
+      libraryDirectory,
       DEFAULT_MODULE_LIBRARY_NAME,
       DEFAULT_MODULE_NAME,
       "operation",
@@ -393,20 +398,8 @@ TEST_F(ModuleTest, LibraryNameWithoutExtension)
   Modules modules;
   Modules::Library* library = modules.add_libraries();
   library->set_name(DEFAULT_MODULE_LIBRARY_NAME);
-  Modules::Library::Module* module = library->add_modules();
-  module->set_name(DEFAULT_MODULE_NAME);
-
-  EXPECT_SOME(ModuleManager::load(modules));
-}
-
-
-// Test that a module library gets loaded with just library name if
-// found in LD_LIBRARY_PATH.
-TEST_F(ModuleTest, LibraryNameWithExtension)
-{
-  Modules modules;
-  Modules::Library* library = modules.add_libraries();
-  library->set_file(os::libraries::expandName(DEFAULT_MODULE_LIBRARY_NAME));
+  library->set_file(path::join(libraryDirectory,
+      os::libraries::expandName(DEFAULT_MODULE_LIBRARY_NAME)));
   Modules::Library::Module* module = library->add_modules();
   module->set_name(DEFAULT_MODULE_NAME);
 
@@ -417,7 +410,10 @@ TEST_F(ModuleTest, LibraryNameWithExtension)
 // Test that module library loading fails when filename is empty.
 TEST_F(ModuleTest, EmptyLibraryFilename)
 {
-  Modules modules = getModules("", "org_apache_mesos_TestModule");
+  Modules modules = getModules(
+      libraryDirectory,
+      "",
+      "org_apache_mesos_TestModule");
   EXPECT_ERROR(ModuleManager::load(modules));
 }
 
@@ -425,7 +421,7 @@ TEST_F(ModuleTest, EmptyLibraryFilename)
 // Test that module library loading fails when module name is empty.
 TEST_F(ModuleTest, EmptyModuleName)
 {
-  Modules modules = getModules("examplemodule", "");
+  Modules modules = getModules(libraryDirectory, "examplemodule", "");
   EXPECT_ERROR(ModuleManager::load(modules));
 }
 
@@ -433,7 +429,10 @@ TEST_F(ModuleTest, EmptyModuleName)
 // Test that module library loading fails when given an unknown path.
 TEST_F(ModuleTest, UnknownLibraryTest)
 {
-  Modules modules = getModules("unknown", "org_apache_mesos_TestModule");
+  Modules modules = getModules(
+      libraryDirectory,
+      "unknown",
+      "org_apache_mesos_TestModule");
   EXPECT_ERROR(ModuleManager::load(modules));
 }
 
@@ -442,7 +441,7 @@ TEST_F(ModuleTest, UnknownLibraryTest)
 // the commandline.
 TEST_F(ModuleTest, UnknownModuleTest)
 {
-  Modules modules = getModules("examplemodule", "unknown");
+  Modules modules = getModules(libraryDirectory, "examplemodule", "unknown");
   EXPECT_ERROR(ModuleManager::load(modules));
 }
 
@@ -461,7 +460,7 @@ TEST_F(ModuleTest, NonModuleLibrary)
 {
   // Trying to load libmesos.so (libmesos.dylib on OS X) as a module
   // library should fail.
-  Modules modules = getModules("mesos", DEFAULT_MODULE_NAME);
+  Modules modules = getModules(libraryDirectory, "mesos", DEFAULT_MODULE_NAME);
   EXPECT_ERROR(ModuleManager::load(modules));
 }
 
