@@ -80,7 +80,7 @@ Future<Option<ContainerLaunchInfo>> DockerRuntimeIsolatorProcess::prepare(
   }
 
   if (executorInfo.container().type() != ContainerInfo::MESOS) {
-    return Failure("Can only prepare docker runtime for a MESOS contaienr");
+    return Failure("Can only prepare docker runtime for a MESOS container");
   }
 
   if (!containerConfig.has_docker()) {
