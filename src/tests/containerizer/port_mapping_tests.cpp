@@ -309,7 +309,7 @@ protected:
     MesosContainerizerLaunch::Flags launchFlags;
 
     launchFlags.command = JSON::protobuf(commandInfo);
-    launchFlags.directory = os::getcwd();
+    launchFlags.sandbox = os::getcwd();
 
     CHECK_SOME(os::user());
     launchFlags.user = os::user().get();

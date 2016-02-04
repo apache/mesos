@@ -51,16 +51,15 @@ MesosContainerizerLaunch::Flags::Flags()
       "command",
       "The command to execute.");
 
-  // TODO(jieyu): Consider renaming it to 'sandbox'.
-  add(&directory,
-      "directory",
-      "The directory to chdir to. If rootfs is specified this must\n"
+  add(&sandbox,
+      "sandbox",
+      "The sandbox to chdir to. If rootfs is specified this must\n"
       "be relative to the new root.");
 
   add(&rootfs,
       "rootfs",
       "Absolute path to the container root filesystem.\n"
-      "The command and directory flags are interpreted relative\n"
+      "The command and sandbox flags are interpreted relative\n"
       "to rootfs\n"
       "Different platforms may implement 'chroot' differently.");
 
@@ -91,8 +90,8 @@ int MesosContainerizerLaunch::execute()
     return 1;
   }
 
-  if (flags.directory.isNone()) {
-    cerr << "Flag --directory is not specified" << endl;
+  if (flags.sandbox.isNone()) {
+    cerr << "Flag --sandbox is not specified" << endl;
     return 1;
   }
 
@@ -250,11 +249,11 @@ int MesosContainerizerLaunch::execute()
     }
   }
 
-  // Enter working directory, relative to the new root.
-  Try<Nothing> chdir = os::chdir(flags.directory.get());
+  // Enter sandbox directory, relative to the new root.
+  Try<Nothing> chdir = os::chdir(flags.sandbox.get());
   if (chdir.isError()) {
-    cerr << "Failed to chdir into work directory '"
-         << flags.directory.get() << "': " << chdir.error() << endl;
+    cerr << "Failed to chdir into sandbox directory '"
+         << flags.sandbox.get() << "': " << chdir.error() << endl;
     return 1;
   }
 

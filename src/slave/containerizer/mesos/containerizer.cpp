@@ -1026,7 +1026,7 @@ Future<bool> MesosContainerizerProcess::__launch(
       ? JSON::protobuf(executorLaunchCommand.get())
       : JSON::protobuf(executorInfo.command());
 
-    launchFlags.directory = rootfs.isSome()
+    launchFlags.sandbox = rootfs.isSome()
       ? flags.sandbox_directory
       : directory;
     launchFlags.rootfs = rootfs;
