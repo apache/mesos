@@ -228,7 +228,7 @@ TEST_F(ReservationTest, ReserveTwiceWithDoubleValue)
 
   AWAIT_READY(offers);
 
-  ASSERT_EQ(1, offers.get().size());
+  ASSERT_EQ(1u, offers.get().size());
   offer = offers.get()[0];
 
   // In the second offer, expect an offer with reserved resources.
