@@ -115,4 +115,13 @@ message ContainerLaunchInfo
   // (Linux only) The namespaces required for the container.
   // The namespaces are created while launching the executor.
   optional uint32 namespaces = 4 [default = 0];
+
+  // If specified, it'll become the launch command for the custom
+  // executor, or the launch command for the user task in the case of
+  // a command task.
+  optional CommandInfo command = 5;
+
+  // The working directory for the container.
+  // NOTE: This is different than Mesos sandbox.
+  optional string working_directory = 6;
 }
