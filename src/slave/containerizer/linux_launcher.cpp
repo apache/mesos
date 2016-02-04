@@ -110,65 +110,6 @@ Try<Launcher*> LinuxLauncher::create(const Flags& flags)
   // slice. It then migrates executor pids into this slice before it "unpauses"
   // the executor. This is the same pattern as the freezer.
 
-  // If this is a systemd environment, ensure that the
-  // `SYSTEMD_MESOS_EXECUTORS_SLICE` exists and is running.
-  // TODO(jmlvanre): Prevent racing between multiple agents for this creation
-  // logic.
-  if (systemd::exists()) {
-    systemd::Flags systemdFlags;
-    systemdFlags.runtime_directory = flags.systemd_runtime_directory;
-    systemdFlags.cgroups_hierarchy = flags.cgroups_hierarchy;
-    Try<Nothing> initialize = systemd::initialize(systemdFlags);
-    if (initialize.isError()) {
-      return Error("Failed to initialize systemd: " + initialize.error());
-    }
-
-    // Check whether the `SYSTEMD_MESOS_EXECUTORS_SLICE` already exists. Create
-    // it if it does not exist.
-    // We explicitly don't modify the file if it exists in case operators want
-    // to over-ride the settings for the slice that we provide when we create
-    // the `Unit` below.
-    const Path path(path::join(
-        systemd::runtimeDirectory(),
-        SYSTEMD_MESOS_EXECUTORS_SLICE));
-
-    if (!systemd::slices::exists(path)) {
-      // A simple systemd file to allow us to start a new slice.
-      string unit = "[Unit]\nDescription=Mesos Executors Slice\n";
-
-      Try<Nothing> create = systemd::slices::create(path, unit);
-
-      if (create.isError()) {
-        return Error("Failed to create systemd slice '" +
-                     stringify(SYSTEMD_MESOS_EXECUTORS_SLICE) + "': " +
-                     create.error());
-      }
-    }
-
-    // Regardless of whether we created the file or it existed already, we
-    // `start` the executor slice. It is safe (a no-op) to `start` an already
-    // running slice.
-    Try<Nothing> start = systemd::slices::start(SYSTEMD_MESOS_EXECUTORS_SLICE);
-
-    if (start.isError()) {
-      return Error("Failed to start '" +
-                   stringify(SYSTEMD_MESOS_EXECUTORS_SLICE) +
-                   "': " + start.error());
-    }
-
-    // Now the `SYSTEMD_MESOS_EXECUTORS_SLICE` is ready for us to assign any
-    // executors. We can verify that our cgroups assignments will work by
-    // testing the hierarchy.
-    Try<bool> exists = cgroups::exists(
-        systemd::hierarchy(),
-        SYSTEMD_MESOS_EXECUTORS_SLICE);
-
-    if (exists.isError() || !exists.get()) {
-      return Error("Failed to locate systemd cgroups hierarchy: " +
-                   (exists.isError() ? exists.error() : "does not exist"));
-    }
-  }
-
   return new LinuxLauncher(
       flags,
       freezerHierarchy.get(),
@@ -184,18 +125,19 @@ Future<hashset<ContainerID>> LinuxLauncher::recover(
   hashset<string> recovered;
 
   // On systemd environments, capture the pids under the
-  // `SYSTEMD_MESOS_EXECUTORS_SLICE` for validation during recovery.
+  // `MESOS_EXECUTORS_SLICE` for validation during recovery.
   Result<std::set<pid_t>> mesosExecutorSlicePids = None();
   if (systemdHierarchy.isSome()) {
-    mesosExecutorSlicePids =
-      cgroups::processes(systemdHierarchy.get(), SYSTEMD_MESOS_EXECUTORS_SLICE);
+    mesosExecutorSlicePids = cgroups::processes(
+        systemdHierarchy.get(),
+        systemd::mesos::MESOS_EXECUTORS_SLICE);
 
-    // If we error out trying to read the pids from the
-    // `SYSTEMD_MESOS_EXECUTORS_SLICE` we fail. This is a programmer error as we
-    // did not set up the slice correctly.
+    // If we error out trying to read the pids from the `MESOS_EXECUTORS_SLICE`
+    // we fail. This is a programmer error as we did not set up the slice
+    // correctly.
     if (mesosExecutorSlicePids.isError()) {
       return Failure("Failed to read pids from systemd '" +
-                     stringify(SYSTEMD_MESOS_EXECUTORS_SLICE) + "'");
+                     stringify(systemd::mesos::MESOS_EXECUTORS_SLICE) + "'");
     }
   }
 
@@ -234,18 +176,17 @@ Future<hashset<ContainerID>> LinuxLauncher::recover(
     }
 
     // If we are on a systemd environment, check that the pid is still in the
-    // `SYSTEMD_MESOS_EXECUTORS_SLICE`. If it is not, warn the operator that
-    // resource isolation may be invalidated.
+    // `MESOS_EXECUTORS_SLICE`. If it is not, warn the operator that resource
+    // isolation may be invalidated.
     // TODO(jmlvanre): Add a flag that enforces this matching (i.e. exits if a
     // pid was found in the freezer but not in the
-    // `SYSTEMD_MESOS_EXECUTORS_SLICE`. We need to flag to support the upgrade
-    // path.
+    // `MESOS_EXECUTORS_SLICE`. We need to flag to support the upgrade path.
     if (systemdHierarchy.isSome() && mesosExecutorSlicePids.isSome()) {
       if (mesosExecutorSlicePids.get().count(pid) <= 0) {
         LOG(WARNING)
           << "Couldn't find pid '" << pid << "' in '"
-          << SYSTEMD_MESOS_EXECUTORS_SLICE << "'. This can lead to lack of"
-          << " proper resource isolation";
+          << systemd::mesos::MESOS_EXECUTORS_SLICE << "'. This can lead to"
+          << " lack of proper resource isolation";
       }
     }
 
@@ -362,6 +303,7 @@ Try<pid_t> LinuxLauncher::fork(
       environment,
       lambda::bind(&childSetup, pipes, setup),
       lambda::bind(&os::clone, lambda::_1, cloneFlags),
+      // TODO(jmlvanre): Use systemd hook.
       Subprocess::Hook::None());
 
   if (child.isError()) {
@@ -390,12 +332,12 @@ Try<pid_t> LinuxLauncher::fork(
   }
 
   // If we are on systemd, then move the child into the
-  // `SYSTEMD_MESOS_EXECUTORS_SLICE`. As with the freezer, any grandchildren
-  // will also be contained in the slice.
+  // `MESOS_EXECUTORS_SLICE`. As with the freezer, any grandchildren will also
+  // be contained in the slice.
   if (systemdHierarchy.isSome()) {
     Try<Nothing> assign = cgroups::assign(
         systemdHierarchy.get(),
-        SYSTEMD_MESOS_EXECUTORS_SLICE,
+        systemd::mesos::MESOS_EXECUTORS_SLICE,
         child.get().pid());
 
     if (assign.isError()) {
@@ -408,7 +350,7 @@ Try<pid_t> LinuxLauncher::fork(
     }
 
     LOG(INFO) << "Assigned child process '" << child.get().pid() << "' to '"
-              << SYSTEMD_MESOS_EXECUTORS_SLICE << "'";
+              << systemd::mesos::MESOS_EXECUTORS_SLICE << "'";
   }
 
   // Now that we've contained the child we can signal it to continue

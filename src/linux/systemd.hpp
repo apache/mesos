@@ -19,12 +19,39 @@
 #ifndef __SYSTEMD_HPP__
 #define __SYSTEMD_HPP__
 
+#include <process/subprocess.hpp>
+
 #include <stout/flags.hpp>
 #include <stout/nothing.hpp>
 #include <stout/path.hpp>
 #include <stout/try.hpp>
 
 namespace systemd {
+
+// TODO(jmlvanre): Consider moving the generic systemd behaviour into
+// stout, and leaving the mesos specific behavior here.
+namespace mesos {
+
+/**
+ * The systemd slice which we use to extend the life of any process
+ * which we want to live together with the executor it is associated
+ * with, rather than the agent. This allows us to clean up the agent
+ * cgroup when the agent terminates without killing any critical
+ * components of the executor.
+ */
+// TODO(jmlvanre): We may want to allow this to be configured.
+static const char MESOS_EXECUTORS_SLICE[] = "mesos_executors.slice";
+
+
+/**
+ * A hook that is executed in the parent process. It migrates the pid
+ * of the child process into a the `MESOS_EXECUTORS_SLICE` in order to
+ * extend its life beyond that of the agent.
+ */
+Try<Nothing> extendLifetime(pid_t child);
+
+} // namespace mesos {
+
 
 /**
  * Flags to initialize systemd state.
@@ -38,7 +65,9 @@ public:
   std::string cgroups_hierarchy;
 };
 
+
 const Flags& flags();
+
 
 /**
  * Initialized state for support of systemd functions in this file.
@@ -61,6 +90,12 @@ Try<Nothing> initialize(const Flags& flags);
  * @return Whether running on a systemd environment.
  */
 bool exists();
+
+
+/**
+ * Check if systemd exists, and whether we have initialized it.
+ */
+bool enabled();
 
 
 /**

@@ -27,6 +27,8 @@
 #include <stout/strings.hpp>
 #include <stout/try.hpp>
 
+#include "linux/cgroups.hpp"
+
 using process::Once;
 
 using std::string;
@@ -60,6 +62,16 @@ const Flags& flags()
 }
 
 
+namespace mesos {
+
+Try<Nothing> extendLifetime(pid_t child)
+{
+  // TODO(jmlvanre): Implement pid migration into systemd slice.
+}
+
+} // namespace mesos {
+
+
 Try<Nothing> initialize(const Flags& flags)
 {
   static Once* initialized = new Once();
@@ -68,12 +80,73 @@ Try<Nothing> initialize(const Flags& flags)
     return Nothing();
   }
 
+  if (!systemd::exists()) {
+    return Error("systemd does not exist on this system");
+  }
+
   systemd_flags = new Flags(flags);
 
   // If flags->runtime_directory doesn't exist, then we can't proceed.
   if (!os::exists(CHECK_NOTNULL(systemd_flags)->runtime_directory)) {
     return Error("Failed to locate systemd runtime directory: " +
                  CHECK_NOTNULL(systemd_flags)->runtime_directory);
+  }
+
+  // On systemd environments we currently migrate executor pids and processes
+  // that need to live alongside the executor into a separate executor slice.
+  // This allows the life-time of the process to be extended past the life-time
+  // of the slave. See MESOS-3352.
+  // This function takes responsibility for creating and starting this slice.
+  // We inject a `Subprocess::Hook` into the `subprocess` function that migrates
+  // pids into this slice if the `EXTEND_LIFETIME` option is set on the
+  // `subprocess` call.
+
+  // Ensure that the `MESOS_EXECUTORS_SLICE` exists and is running.
+  // TODO(jmlvanre): Prevent racing between multiple agents for this creation
+  // logic.
+
+  // Check whether the `MESOS_EXECUTORS_SLICE` already exists. Create it if
+  // it does not exist.
+  // We explicitly don't modify the file if it exists in case operators want
+  // to over-ride the settings for the slice that we provide when we create
+  // the `Unit` below.
+  const Path path(path::join(
+      systemd::runtimeDirectory(),
+      mesos::MESOS_EXECUTORS_SLICE));
+
+  if (!systemd::slices::exists(path)) {
+    // A simple systemd file to allow us to start a new slice.
+    string unit = "[Unit]\nDescription=Mesos Executors Slice\n";
+
+    Try<Nothing> create = systemd::slices::create(path, unit);
+
+    if (create.isError()) {
+      return Error("Failed to create systemd slice '" +
+                   stringify(mesos::MESOS_EXECUTORS_SLICE) +
+                   "': " + create.error());
+    }
+  }
+
+  // Regardless of whether we created the file or it existed already, we
+  // `start` the executor slice. It is safe (a no-op) to `start` an already
+  // running slice.
+  Try<Nothing> start = systemd::slices::start(mesos::MESOS_EXECUTORS_SLICE);
+
+  if (start.isError()) {
+    return Error("Failed to start '" +
+                 stringify(mesos::MESOS_EXECUTORS_SLICE) +
+                 "': " + start.error());
+  }
+
+  // Now the `MESOS_EXECUTORS_SLICE` is ready for us to assign any pids. We can
+  // verify that our cgroups assignments will work by testing the hierarchy.
+  Try<bool> exists = cgroups::exists(
+      systemd::hierarchy(),
+      mesos::MESOS_EXECUTORS_SLICE);
+
+  if (exists.isError() || !exists.get()) {
+    return Error("Failed to locate systemd cgroups hierarchy: " +
+                  (exists.isError() ? exists.error() : "does not exist"));
   }
 
   initialized->done();
@@ -145,6 +218,12 @@ bool exists()
   }();
 
   return exists;
+}
+
+
+bool enabled()
+{
+  return exists() && systemd_flags != NULL;
 }
 
 
