@@ -16,6 +16,10 @@
 
 #include <list>
 
+#include <glog/logging.h>
+
+#include <stout/stringify.hpp>
+
 #include "slave/flags.hpp"
 
 #include "slave/containerizer/mesos/isolators/docker/runtime.hpp"
@@ -48,7 +52,10 @@ DockerRuntimeIsolatorProcess::~DockerRuntimeIsolatorProcess() {}
 
 Try<Isolator*> DockerRuntimeIsolatorProcess::create(const Flags& flags)
 {
-  return nullptr;
+  process::Owned<MesosIsolatorProcess> process(
+      new DockerRuntimeIsolatorProcess(flags));
+
+  return new MesosIsolator(process);
 }
 
 
@@ -64,7 +71,26 @@ Future<Option<ContainerLaunchInfo>> DockerRuntimeIsolatorProcess::prepare(
     const ContainerID& containerId,
     const ContainerConfig& containerConfig)
 {
-  return None();
+  const ExecutorInfo& executorInfo = containerConfig.executor_info();
+
+  if (!executorInfo.has_container()) {
+    return None();
+  }
+
+  if (executorInfo.container().type() != ContainerInfo::MESOS) {
+    return Failure("Can only prepare docker runtime for a MESOS contaienr");
+  }
+
+  if (!containerConfig.has_docker()) {
+    // No docker image default config available.
+    return None();
+  }
+
+  // Contains docker image default environment variables, merged
+  // command, and working directory.
+  ContainerLaunchInfo launchInfo;
+
+  return launchInfo;
 }
 
 

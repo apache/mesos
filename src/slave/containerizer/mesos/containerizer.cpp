@@ -63,6 +63,10 @@
 #endif
 
 #ifdef __linux__
+#include "slave/containerizer/mesos/isolators/docker/runtime.hpp"
+#endif
+
+#ifdef __linux__
 #include "slave/containerizer/mesos/isolators/filesystem/linux.hpp"
 #endif
 #include "slave/containerizer/mesos/isolators/filesystem/posix.hpp"
@@ -210,6 +214,7 @@ Try<MesosContainerizer*> MesosContainerizer::create(
     {"cgroups/mem", &CgroupsMemIsolatorProcess::create},
     {"cgroups/net_cls", &CgroupsNetClsIsolatorProcess::create},
     {"cgroups/perf_event", &CgroupsPerfEventIsolatorProcess::create},
+    {"docker/runtime", &DockerRuntimeIsolatorProcess::create},
     {"namespaces/pid", &NamespacesPidIsolatorProcess::create},
 #endif
 #ifdef WITH_NETWORK_ISOLATOR
@@ -839,7 +844,12 @@ Future<list<Option<ContainerLaunchInfo>>> MesosContainerizerProcess::prepare(
   }
 
   if (provisionInfo.isSome()) {
-    containerConfig.set_rootfs(provisionInfo.get().rootfs);
+    containerConfig.set_rootfs(provisionInfo->rootfs);
+
+    if (provisionInfo->dockerManifest.isSome()) {
+      ContainerConfig::Docker* docker = containerConfig.mutable_docker();
+      docker->mutable_manifest()->CopyFrom(provisionInfo->dockerManifest.get());
+    }
   }
 
   // We prepare the isolators sequentially according to their ordering
