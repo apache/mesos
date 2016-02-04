@@ -17,15 +17,78 @@
 #ifndef __CGROUPS_NET_CLS_ISOLATOR_HPP__
 #define __CGROUPS_NET_CLS_ISOLATOR_HPP__
 
+#include <stdint.h>
+
+#include <bitset>
+#include <iostream>
+#include <sstream>
 #include <string>
 
 #include <stout/hashmap.hpp>
+#include <stout/interval.hpp>
+#include <stout/nothing.hpp>
+#include <stout/result.hpp>
+#include <stout/try.hpp>
 
 #include "slave/containerizer/mesos/isolator.hpp"
 
 namespace mesos {
 namespace internal {
 namespace slave {
+
+// This defines the net_cls handle. The handle is composed of two parts, a
+// 16-bit primary handle and a 16-bit secondary handle.
+//
+// TODO(asridharan): Currently we need to define the net_cls handle here, since
+// we cannot use the definitions in `src/linux/routing/handle.hpp` due to its
+// dependency on `libnl`, which is under GPL. Once we have been able to resolve
+// these issues we should remove this definition and use the definition
+// presented in `src/linux/routing/handle.hpp`.
+struct NetClsHandle
+{
+  NetClsHandle(uint16_t _primary, uint16_t _secondary)
+    : primary(_primary), secondary(_secondary) {};
+
+  explicit NetClsHandle(uint32_t handle)
+  {
+    primary = handle >> 16;
+    secondary = handle & 0xFFFF;
+  };
+
+  uint16_t primary;
+  uint16_t secondary;
+};
+
+
+// This manages the net_cls handles for the `cgroup/net_cls` isolator.  The
+// isolator can use this with a range of primary handles, which will be managed
+// by this class.  For each primary handle there are 64K possible secondary
+// handles.  For a given primary handle the isolator can get a secondary handle
+// by calling `alloc` and release an allocated handle by calling `free` on the
+// secondary handle. For a given primary handle, the isolator can also
+// explicitly reserve a secondary handle by calling `reserve`.
+class NetClsHandleManager
+{
+public:
+  NetClsHandleManager(const IntervalSet<uint16_t>& _primaries)
+    : primaries(_primaries) {};
+
+  ~NetClsHandleManager() {};
+
+  // Allocates a primary handle from the given interval set.
+  Try<uint16_t> allocPrimary() { return Error("Not Implemented");};
+  Try<NetClsHandle> alloc(uint16_t primary);
+
+  Try<Nothing> reserve(const NetClsHandle& handle);
+  Try<Nothing> free(const NetClsHandle& handle);
+
+private:
+  // The key to this hashmap is the 16-bit primary handle.
+  hashmap<uint16_t, std::bitset<0x10000>> used;
+
+  IntervalSet<uint16_t> primaries;
+};
+
 
 // Uses the Linux net_cls subsystem for allocating network handles to
 // containers. The network handles of a net_cls cgroup will be used for tagging

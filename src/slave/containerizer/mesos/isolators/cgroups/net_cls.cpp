@@ -51,6 +51,24 @@ namespace mesos {
 namespace internal {
 namespace slave {
 
+Try<NetClsHandle> NetClsHandleManager::alloc(uint16_t primary)
+{
+  return Error("Not Implemented");
+}
+
+
+Try<Nothing> NetClsHandleManager::reserve(const NetClsHandle& handle)
+{
+  return Error("Not Implemented");
+}
+
+
+Try<Nothing> NetClsHandleManager::free(const NetClsHandle& handle)
+{
+  return Error("Not Implemented");
+}
+
+
 CgroupsNetClsIsolatorProcess::CgroupsNetClsIsolatorProcess(
     const Flags& _flags,
     const string& _hierarchy)
