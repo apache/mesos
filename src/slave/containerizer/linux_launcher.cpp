@@ -374,7 +374,8 @@ Try<pid_t> LinuxLauncher::fork(
       flags,
       environment,
       lambda::bind(&childSetup, pipes, setup),
-      lambda::bind(&os::clone, lambda::_1, cloneFlags));
+      lambda::bind(&os::clone, lambda::_1, cloneFlags),
+      Subprocess::Hook::None());
 
   if (child.isError()) {
     return Error("Failed to clone child process: " + child.error());
