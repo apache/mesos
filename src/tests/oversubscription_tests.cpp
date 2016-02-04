@@ -85,14 +85,6 @@ protected:
   virtual void SetUp()
   {
     MesosTest::SetUp();
-
-    // Get the current value of LD_LIBRARY_PATH.
-    originalLDLibraryPath = os::libraries::paths();
-
-    // Append our library path to LD_LIBRARY_PATH so that dlopen can
-    // search the library directory for module libraries.
-    os::libraries::appendPaths(
-        path::join(tests::flags.build_dir, "src", ".libs"));
   }
 
   virtual void TearDown()
@@ -106,16 +98,17 @@ protected:
       }
     }
 
-    // Restore LD_LIBRARY_PATH environment variable.
-    os::libraries::setPaths(originalLDLibraryPath);
-
     MesosTest::TearDown();
   }
 
   void loadFixedResourceEstimatorModule(const string& resources)
   {
+    string libraryPath = path::join(tests::flags.build_dir, "src", ".libs",
+        os::libraries::expandName("fixed_resource_estimator"));
+
     Modules::Library* library = modules.add_libraries();
     library->set_name("fixed_resource_estimator");
+    library->set_file(libraryPath);
 
     Modules::Library::Module* module = library->add_modules();
     module->set_name(FIXED_RESOURCE_ESTIMATOR_NAME);
@@ -176,7 +169,6 @@ protected:
   }
 
 private:
-  string originalLDLibraryPath;
   Modules modules;
 };
 
