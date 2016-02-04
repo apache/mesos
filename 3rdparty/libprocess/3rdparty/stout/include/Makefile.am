@@ -33,6 +33,7 @@ nobase_include_HEADERS =		\
   stout/foreach.hpp			\
   stout/format.hpp			\
   stout/fs.hpp				\
+  stout/freebsd.hpp			\
   stout/gtest.hpp			\
   stout/gzip.hpp			\
   stout/hashmap.hpp			\
@@ -40,8 +41,8 @@ nobase_include_HEADERS =		\
   stout/internal/windows/dirent.hpp	\
   stout/internal/windows/grp.hpp	\
   stout/internal/windows/pwd.hpp	\
-  stout/internal/windows/symlink.hpp	\
   stout/internal/windows/reparsepoint.hpp	\
+  stout/internal/windows/symlink.hpp	\
   stout/interval.hpp			\
   stout/ip.hpp				\
   stout/json.hpp			\
