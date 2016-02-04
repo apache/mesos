@@ -164,6 +164,11 @@ protected:
       slave::Containerizer* containerizer,
       const Option<slave::Flags>& flags = None());
 
+  virtual Try<process::PID<slave::Slave> > StartSlave(
+      slave::Containerizer* containerizer,
+      const std::string& id,
+      const Option<slave::Flags>& flags = None());
+
   // Starts a slave with the specified containerizer, detector and flags.
   virtual Try<process::PID<slave::Slave> > StartSlave(
       slave::Containerizer* containerizer,

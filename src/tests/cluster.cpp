@@ -20,6 +20,7 @@
 #include <process/future.hpp>
 #include <process/gmock.hpp>
 #include <process/gtest.hpp>
+#include <process/id.hpp>
 #include <process/limiter.hpp>
 #include <process/owned.hpp>
 #include <process/pid.hpp>
@@ -346,6 +347,7 @@ void Cluster::Slaves::shutdown()
 
 Try<process::PID<slave::Slave>> Cluster::Slaves::start(
     const slave::Flags& flags,
+    const Option<std::string>& id,
     const Option<slave::Containerizer*>& containerizer,
     const Option<MasterDetector*>& detector,
     const Option<slave::GarbageCollector*>& gc,
@@ -406,6 +408,7 @@ Try<process::PID<slave::Slave>> Cluster::Slaves::start(
   slave.flags = flags;
 
   slave.slave = new slave::Slave(
+      id.isSome() ? id.get() : process::ID::generate("slave"),
       flags,
       detector.getOrElse(slave.detector.get()),
       slave.containerizer,

@@ -99,7 +99,8 @@ struct HttpConnection;
 class Slave : public ProtobufProcess<Slave>
 {
 public:
-  Slave(const Flags& flags,
+  Slave(const std::string& id,
+        const Flags& flags,
         MasterDetector* detector,
         Containerizer* containerizer,
         Files* files,

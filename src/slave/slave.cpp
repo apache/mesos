@@ -116,7 +116,8 @@ namespace slave {
 using namespace state;
 
 
-Slave::Slave(const slave::Flags& _flags,
+Slave::Slave(const std::string& id,
+             const slave::Flags& _flags,
              MasterDetector* _detector,
              Containerizer* _containerizer,
              Files* _files,
@@ -124,7 +125,7 @@ Slave::Slave(const slave::Flags& _flags,
              StatusUpdateManager* _statusUpdateManager,
              ResourceEstimator* _resourceEstimator,
              QoSController* _qosController)
-  : ProcessBase(process::ID::generate("slave")),
+  : ProcessBase(id),
     state(RECOVERING),
     flags(_flags),
     completedFrameworks(MAX_COMPLETED_FRAMEWORKS),

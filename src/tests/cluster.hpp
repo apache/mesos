@@ -171,6 +171,7 @@ public:
     // Start a new slave with the provided flags and injections.
     Try<process::PID<slave::Slave>> start(
         const slave::Flags& flags = slave::Flags(),
+        const Option<std::string>& id = None(),
         const Option<slave::Containerizer*>& containerizer = None(),
         const Option<MasterDetector*>& detector = None(),
         const Option<slave::GarbageCollector*>& gc = None(),
