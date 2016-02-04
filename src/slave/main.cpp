@@ -41,6 +41,10 @@
 
 #include "hook/manager.hpp"
 
+#ifdef __linux__
+#include "linux/systemd.hpp"
+#endif // __linux__
+
 #include "logging/logging.hpp"
 
 #include "master/detector.hpp"
@@ -200,6 +204,23 @@ int main(int argc, char** argv)
   }
 
   Fetcher fetcher;
+
+#ifdef __linux__
+  // Initialize systemd if it exists.
+  if (systemd::exists()) {
+    LOG(INFO) << "Inializing systemd state";
+
+    systemd::Flags systemdFlags;
+    systemdFlags.runtime_directory = flags.systemd_runtime_directory;
+    systemdFlags.cgroups_hierarchy = flags.cgroups_hierarchy;
+
+    Try<Nothing> initialize = systemd::initialize(systemdFlags);
+    if (initialize.isError()) {
+      EXIT(EXIT_FAILURE)
+        << "Failed to initialize systemd: " + initialize.error();
+    }
+  }
+#endif // __linux__
 
   Try<Containerizer*> containerizer =
     Containerizer::create(flags, false, &fetcher);
