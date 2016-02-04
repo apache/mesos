@@ -1835,7 +1835,7 @@ TEST(ProcessTest, PercentEncodedURLs)
 class HTTPEndpointProcess : public Process<HTTPEndpointProcess>
 {
 public:
-  explicit HTTPEndpointProcess(const std::string& id)
+  explicit HTTPEndpointProcess(const string& id)
     : ProcessBase(id) {}
 
   virtual void initialize()

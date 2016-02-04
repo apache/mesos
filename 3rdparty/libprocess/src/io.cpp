@@ -425,7 +425,7 @@ Future<string> read(int fd)
 }
 
 
-Future<Nothing> write(int fd, const std::string& data)
+Future<Nothing> write(int fd, const string& data)
 {
   process::initialize();
 

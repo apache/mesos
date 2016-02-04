@@ -63,7 +63,7 @@ UPID::UPID(const ProcessBase& process)
 }
 
 
-UPID::operator std::string() const
+UPID::operator string() const
 {
   ostringstream out;
   out << *this;

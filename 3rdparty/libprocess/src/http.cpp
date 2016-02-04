@@ -567,7 +567,7 @@ OK::OK(const JSON::Value& value, const Option<string>& jsonp)
 }
 
 
-OK::OK(JSON::Proxy&& value, const Option<std::string>& jsonp)
+OK::OK(JSON::Proxy&& value, const Option<string>& jsonp)
   : Response(Status::OK)
 {
   type = BODY;
@@ -749,24 +749,24 @@ Try<vector<Response>> decodeResponses(const string& s)
 
 namespace query {
 
-Try<hashmap<std::string, std::string>> decode(const std::string& query)
+Try<hashmap<string, string>> decode(const string& query)
 {
-  hashmap<std::string, std::string> result;
+  hashmap<string, string> result;
 
-  const std::vector<std::string> tokens = strings::tokenize(query, ";&");
-  foreach (const std::string& token, tokens) {
-    const std::vector<std::string> pairs = strings::split(token, "=", 2);
+  const vector<string> tokens = strings::tokenize(query, ";&");
+  foreach (const string& token, tokens) {
+    const vector<string> pairs = strings::split(token, "=", 2);
     if (pairs.size() == 0) {
       continue;
     }
 
-    Try<std::string> key = http::decode(pairs[0]);
+    Try<string> key = http::decode(pairs[0]);
     if (key.isError()) {
       return Error(key.error());
     }
 
     if (pairs.size() == 2) {
-      Try<std::string> value = http::decode(pairs[1]);
+      Try<string> value = http::decode(pairs[1]);
       if (value.isError()) {
         return Error(value.error());
       }
@@ -781,11 +781,11 @@ Try<hashmap<std::string, std::string>> decode(const std::string& query)
 }
 
 
-std::string encode(const hashmap<std::string, std::string>& query)
+string encode(const hashmap<string, string>& query)
 {
-  std::string output;
+  string output;
 
-  foreachpair (const std::string& key, const std::string& value, query) {
+  foreachpair (const string& key, const string& value, query) {
     output += http::encode(key);
     if (!value.empty()) {
       output += "=" + http::encode(value);
@@ -999,7 +999,7 @@ public:
     return response;
   }
 
-  Future<Nothing> disconnect(const Option<std::string>& message = None())
+  Future<Nothing> disconnect(const Option<string>& message = None())
   {
     Try<Nothing> shutdown = socket.shutdown();
 

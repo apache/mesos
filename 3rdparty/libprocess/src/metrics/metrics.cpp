@@ -89,7 +89,7 @@ Future<Nothing> MetricsProcess::add(Owned<Metric> metric)
 }
 
 
-Future<Nothing> MetricsProcess::remove(const std::string& name)
+Future<Nothing> MetricsProcess::remove(const string& name)
 {
   if (!metrics.contains(name)) {
     return Failure("Metric '" + name + "' not found.");

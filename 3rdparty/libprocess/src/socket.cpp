@@ -235,7 +235,7 @@ static Future<Nothing> _send(
 }
 
 
-Future<Nothing> Socket::Impl::send(const std::string& _data)
+Future<Nothing> Socket::Impl::send(const string& _data)
 {
   Owned<string> data(new string(_data));
 

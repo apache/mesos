@@ -38,15 +38,15 @@ class BasicAuthenticatorProcess : public Process<BasicAuthenticatorProcess>
 {
 public:
   BasicAuthenticatorProcess(
-      const std::string& realm,
-      const hashmap<std::string, std::string>& credentials);
+      const string& realm,
+      const hashmap<string, string>& credentials);
 
   virtual Future<AuthenticationResult> authenticate(
       const http::Request& request);
 
 private:
-  const std::string realm_;
-  const hashmap<std::string, std::string> credentials_;
+  const string realm_;
+  const hashmap<string, string> credentials_;
 };
 
 

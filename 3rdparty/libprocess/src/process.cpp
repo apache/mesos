@@ -501,7 +501,7 @@ namespace http {
 namespace authentication {
 
 Future<Nothing> setAuthenticator(
-    const std::string& realm,
+    const string& realm,
     Owned<Authenticator> authenticator)
 {
   process::initialize();
@@ -3313,7 +3313,7 @@ void ProcessBase::route(
 
 void ProcessBase::route(
     const string& name,
-    const std::string& realm,
+    const string& realm,
     const Option<string>& help_,
     const AuthenticatedHttpRequestHandler& handler)
 {
