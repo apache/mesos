@@ -14,6 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <algorithm>
 #include <set>
 #include <sstream>
 #include <string>
@@ -177,11 +178,10 @@ TEST(ResourcesTest, ParsingFromJSON)
   Resources cpuResources(resourcesTry.get());
   auto cpus = cpuResources.begin();
 
-  EXPECT_EQ(Value::SCALAR, cpus->type());
+  ASSERT_EQ(Value::SCALAR, cpus->type());
   EXPECT_EQ(45.55, cpus->scalar().value());
 
-  // Make sure there is only one Resource in cpuResources.
-  EXPECT_EQ(cpus + 1, cpuResources.end());
+  EXPECT_EQ(1, cpuResources.size());
 
   jsonString =
     "["
@@ -323,6 +323,8 @@ TEST(ResourcesTest, ParsingFromJSONWithRoles)
   Resources cpuResources(resourcesTry.get());
   auto cpus = cpuResources.begin();
 
+  ASSERT_EQ(Value::SCALAR, cpus->type());
+  EXPECT_EQ(45.55, cpus->scalar().value());
   EXPECT_EQ("role1", cpus->role());
 
   jsonString =
@@ -951,6 +953,7 @@ TEST(ResourcesTest, ScalarAddition)
   Resources sum = r1 + r2;
 
   EXPECT_FALSE(sum.empty());
+  EXPECT_EQ(2, sum.size());
   EXPECT_EQ(3, sum.get<Value::Scalar>("cpus").get().value());
   EXPECT_EQ(15, sum.get<Value::Scalar>("mem").get().value());
 
@@ -958,6 +961,7 @@ TEST(ResourcesTest, ScalarAddition)
   r += r2;
 
   EXPECT_FALSE(r.empty());
+  EXPECT_EQ(2, r.size());
   EXPECT_EQ(3, r.get<Value::Scalar>("cpus").get().value());
   EXPECT_EQ(15, r.get<Value::Scalar>("mem").get().value());
 }
@@ -979,6 +983,7 @@ TEST(ResourcesTest, ScalarAddition2)
   Resources sum = r1 + r2;
 
   EXPECT_FALSE(sum.empty());
+  EXPECT_EQ(2, sum.size());
   EXPECT_EQ(9, sum.cpus().get());
   EXPECT_EQ(sum, Resources::parse("cpus(role1):6;cpus(role2):3").get());
 }
@@ -1035,6 +1040,7 @@ TEST(ResourcesTest, ScalarSubtraction2)
   Resources diff = r1 - r2;
 
   EXPECT_FALSE(diff.empty());
+  EXPECT_EQ(2, diff.size());
   EXPECT_EQ(7, diff.cpus().get());
   EXPECT_EQ(diff, Resources::parse("cpus(role1):4;cpus(role2):3").get());
 }
@@ -1137,7 +1143,7 @@ TEST(ResourcesTest, RangesAddition2)
 }
 
 
-TEST(ResourcesTest, RangesAdditon3)
+TEST(ResourcesTest, RangesAddition3)
 {
   Resource ports1 = Resources::parse("ports", "[1-2]", "*").get();
   Resource ports2 = Resources::parse("ports", "[3-4]", "*").get();
@@ -1593,6 +1599,10 @@ TEST(ReservedResourcesTest, Equals)
     createReservedResource(
         "cpus", "8", "role1", createReservationInfo("principal1")),
     createReservedResource(
+        "cpus", "8", "role1", createReservationInfo("principal2")),
+    createReservedResource(
+        "cpus", "8", "role2", createReservationInfo("principal1")),
+    createReservedResource(
         "cpus", "8", "role2", createReservationInfo("principal2"))
   };
 
@@ -1662,8 +1672,16 @@ TEST(ReservedResourcesTest, Contains)
   Resources r2 = createReservedResource(
       "cpus", "12", "role", createReservationInfo("principal"));
 
+  EXPECT_TRUE(r1.contains(r1));
+  EXPECT_TRUE(r2.contains(r2));
+
+  EXPECT_FALSE(r1.contains(r2));
+  EXPECT_FALSE(r2.contains(r1));
+
   EXPECT_FALSE(r1.contains(r1 + r2));
   EXPECT_FALSE(r2.contains(r1 + r2));
+  EXPECT_TRUE((r1 + r2).contains(r1));
+  EXPECT_TRUE((r1 + r2).contains(r2));
   EXPECT_TRUE((r1 + r2).contains(r1 + r2));
 }
 
