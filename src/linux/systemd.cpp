@@ -66,7 +66,31 @@ namespace mesos {
 
 Try<Nothing> extendLifetime(pid_t child)
 {
-  // TODO(jmlvanre): Implement pid migration into systemd slice.
+  if (!systemd::exists()) {
+    return Error("systemd does not exist on this system");
+  }
+
+  if (!systemd::enabled()) {
+    return Error("systemd is not enabled on this system");
+  }
+
+  Try<Nothing> assign = cgroups::assign(
+      hierarchy(),
+      systemd::mesos::MESOS_EXECUTORS_SLICE,
+      child);
+
+  if (assign.isError()) {
+    LOG(ERROR) << "Failed to assign process " << child
+                << " to its systemd executor slice: " << assign.error();
+
+    ::kill(child, SIGKILL);
+    return Error("Failed to contain process on systemd");
+  }
+
+  LOG(INFO) << "Assigned child process '" << child << "' to '"
+            << systemd::mesos::MESOS_EXECUTORS_SLICE << "'";
+
+  return Nothing();
 }
 
 } // namespace mesos {
