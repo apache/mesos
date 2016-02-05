@@ -209,6 +209,8 @@ public:
 
   bool empty() const { return resources.size() == 0; }
 
+  size_t size() const { return resources.size(); }
+
   // Checks if this Resources is a superset of the given Resources.
   bool contains(const Resources& that) const;
 
