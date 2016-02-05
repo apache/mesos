@@ -25,6 +25,7 @@
 
 #include <stout/hashmap.hpp>
 #include <stout/interval.hpp>
+#include <stout/none.hpp>
 #include <stout/nothing.hpp>
 #include <stout/result.hpp>
 #include <stout/try.hpp>
@@ -55,6 +56,19 @@ struct NetClsHandle
     secondary = handle & 0xffff;
   };
 
+  // Get the 32-bit representation of the handle in the form of
+  // 0xAAAABBBB. Where 0xAAAA is the primary handle and 0xBBBB is the
+  // secondary handle.
+  uint32_t get() const
+  {
+    uint32_t handle = primary;
+
+    handle <<= 16;
+    handle |= secondary;
+
+    return handle;
+  };
+
   uint16_t primary;
   uint16_t secondary;
 };
@@ -78,7 +92,7 @@ public:
 
   // Allocates a primary handle from the given interval set.
   Try<uint16_t> allocPrimary() { return Error("Not Implemented"); }
-  Try<NetClsHandle> alloc(uint16_t primary);
+  Try<NetClsHandle> alloc(const Option<uint16_t>& primary = None());
 
   Try<Nothing> reserve(const NetClsHandle& handle);
   Try<Nothing> free(const NetClsHandle& handle);
@@ -135,22 +149,35 @@ public:
       const ContainerID& containerId);
 
 private:
-  CgroupsNetClsIsolatorProcess(
-      const Flags& flags,
-      const std::string& hierarchy);
-
   struct Info
   {
     Info(const std::string& _cgroup)
       : cgroup(_cgroup) {}
 
+    Info(const std::string& _cgroup, const NetClsHandle &_handle)
+      : cgroup(_cgroup), handle(_handle) {}
+
     const std::string cgroup;
+    const Option<NetClsHandle> handle;
   };
+
+  CgroupsNetClsIsolatorProcess(
+      const Flags& _flags,
+      const std::string& _hierarchy,
+      const IntervalSet<uint16_t>& primaries);
+
+  process::Future<Nothing> _cleanup(
+      const ContainerID& containerId);
+
+  Result<NetClsHandle> recoverHandle(
+      const std::string& hierarchy,
+      const std::string& cgroup);
 
   const Flags flags;
   const std::string hierarchy;
 
   hashmap<ContainerID, Info> infos;
+  Option<NetClsHandleManager> handleManager;
 };
 
 } // namespace slave {
