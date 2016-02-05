@@ -25,21 +25,42 @@ task :update_docs do
 
   puts "Updating docs to the latest version"
   FileUtils.mkdir_p("source/documentation/latest/")
-  FileUtils.rm_f(Dir.glob("source/documentation/latest/*.md"))
-  FileUtils.cp_r(Dir.glob("../docs/*.md"), File.expand_path("source/documentation/latest/"))
+  FileUtils.rm_rf(Dir.glob("source/documentation/latest/*"))
+  FileUtils.cp_r(FileList['../docs/**'].exclude("../docs/images"), File.expand_path("source/documentation/latest/"))
+
+  # Due to a limitation in middleman, it doesn't support .md files
+  # named (e.g.  state.json.md). Middlman would generate an *html* file
+  # called state.json from this instead of generating the standard
+  # state.json/index.html like it does for other .md files.
+  puts "Migrating markdown files with paths matching **/*.json.md to **/*.json/index.md"
+  Dir.chdir("#{docs_dir}/latest/") {
+    Dir.glob('**/*.json.md').each { |doc|
+      docdir = doc.chomp(".md")
+      FileUtils.mkdir(docdir)
+      FileUtils.mv(doc, docdir + "/index.md")
+    }
+  }
+
   puts "Parse documentation files to removing md extension in any links"
   Dir.chdir("#{docs_dir}/latest/") {
-    Dir.glob('*.md').each { |doc|
+    Dir.glob('**/*.md').each { |doc|
       puts "working on: #{doc}"
+
+      # TODO(klueska): we really need to get rid of this complicated
+      # regular expression and add in some logic that is more easily
+      # understood.
+      docdir = File.dirname(doc)
       IO.write(doc, File.open(doc) { |f|
         f.read
-          .gsub(/\(([^(\/]+)\.md(\#.+?)?\)/, '(/documentation/latest/\1/\2)')
+          .gsub(/\(([^(]+?)(?:\/index)?\.md(\#.+?)?\)/, "(/documentation/latest/#{docdir}/" + '\1/\2)')
           .gsub(/\(images\/(.*)\)/, '(/assets/img/documentation/\1)')
       })
     }
   }
+
   puts "Moving documentation index to its own 'latest' directory"
   FileUtils.mv("source/documentation/latest/home.md", "source/documentation/latest.html.md")
+
   puts "Documentation updated"
 
   # Copy the images from the docs
