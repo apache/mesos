@@ -39,6 +39,7 @@
 
 #ifdef __linux__
 #include "linux/cgroups.hpp"
+#include "linux/systemd.hpp"
 #endif // __linux__
 
 #include "slave/paths.hpp"
@@ -903,6 +904,16 @@ Future<pid_t> DockerContainerizerProcess::launchExecutorProcess(
   vector<string> argv;
   argv.push_back("mesos-docker-executor");
 
+    // If we are on systemd, then extend the life of the executor. Any
+    // grandchildren's lives will also be extended.
+    std::vector<Subprocess::Hook> parentHooks;
+#ifdef __linux__
+    if (systemd::enabled()) {
+      parentHooks.emplace_back(Subprocess::Hook(
+          &systemd::mesos::extendLifetime));
+    }
+#endif // __linux__
+
   // Construct the mesos-docker-executor using the "name" we gave the
   // container (to distinguish it from Docker containers not created
   // by Mesos).
@@ -914,7 +925,9 @@ Future<pid_t> DockerContainerizerProcess::launchExecutorProcess(
       Subprocess::PATH(path::join(container->directory, "stderr")),
       dockerFlags(flags, container->name(), container->directory),
       environment,
-      lambda::bind(&setup, container->directory));
+      lambda::bind(&setup, container->directory),
+      None(),
+      parentHooks);
 
   if (s.isError()) {
     return Failure("Failed to fork executor: " + s.error());
