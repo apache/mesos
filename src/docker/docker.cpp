@@ -383,7 +383,7 @@ Try<Docker::Image> Docker::Image::create(const JSON::Object& json)
         }
 
         const vector<string> tokens =
-          strings::tokenize(value.as<JSON::String>().value, "=");
+          strings::split(value.as<JSON::String>().value, "=", 2);
 
         if (tokens.size() != 2) {
           return Error("Unexpected Env format for 'ContainerConfig.Env'");

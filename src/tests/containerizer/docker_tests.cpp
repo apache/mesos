@@ -504,6 +504,7 @@ TEST_F(DockerImageTest, ParseInspectonImage)
     "            \"LANG=C.UTF-8\","
     "            \"JAVA_VERSION=8u66\","
     "            \"JAVA_DEBIAN_VERSION=8u66-b01-1~bpo8+1\","
+    "            \"SPARK_OPTS=--driver-java-options=-Xms1024M --driver-java-options=-Xmx4096M --driver-java-options=-Dlog4j.logLevel=info\"," // NOLINT(whitespace/line_length)
     "            \"CA_CERTIFICATES_JAVA_VERSION=20140324\""
     "        ],"
     "        \"Cmd\": ["
@@ -544,6 +545,7 @@ TEST_F(DockerImageTest, ParseInspectonImage)
     "            \"LANG=C.UTF-8\","
     "            \"JAVA_VERSION=8u66\","
     "            \"JAVA_DEBIAN_VERSION=8u66-b01-1~bpo8+1\","
+    "            \"SPARK_OPTS=--driver-java-options=-Xms1024M --driver-java-options=-Xmx4096M --driver-java-options=-Dlog4j.logLevel=info\"," // NOLINT(whitespace/line_length)
     "            \"CA_CERTIFICATES_JAVA_VERSION=20140324\""
     "        ],"
     "        \"Cmd\": null,"
@@ -577,6 +579,10 @@ TEST_F(DockerImageTest, ParseInspectonImage)
   EXPECT_EQ("8u66", image.get().environment.get().at("JAVA_VERSION"));
   EXPECT_EQ("8u66-b01-1~bpo8+1",
             image.get().environment.get().at("JAVA_DEBIAN_VERSION"));
+  EXPECT_EQ("--driver-java-options=-Xms1024M "
+            "--driver-java-options=-Xmx4096M "
+            "--driver-java-options=-Dlog4j.logLevel=info",
+            image.get().environment.get().at("SPARK_OPTS"));
   EXPECT_EQ("20140324",
             image.get().environment.get().at("CA_CERTIFICATES_JAVA_VERSION"));
 }
