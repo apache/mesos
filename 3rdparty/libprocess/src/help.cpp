@@ -16,6 +16,7 @@
 
 #include <process/help.hpp>
 
+#include <map>
 #include <string>
 #include <vector>
 
@@ -30,6 +31,7 @@
 #include <stout/stringify.hpp>
 #include <stout/strings.hpp>
 
+using std::map;
 using std::string;
 using std::vector;
 
@@ -125,6 +127,43 @@ bool Help::remove(const string& id)
 void Help::initialize()
 {
   route("/", None(), &Help::help);
+}
+
+
+// Write the help strings contained in the help process to JSON.
+// The schema looks as follows:
+// {
+//   "processes":
+//   [
+//     {
+//       "id": id,
+//       "endpoints": [ { "name" : name, "text" : text }, ... ]
+//     },
+//     ...
+//   ]
+// }
+void json(JSON::ObjectWriter* writer, const Help& help)
+{
+  // We must declare this temporary typedef in order to make the
+  // foreachpair macro happy. Otherwise it interprets the ',' in the
+  // map definition to denote a new parameter in the macro invocation.
+  typedef map<string, string> StringStringMap;
+
+  writer->field("processes", [&help](JSON::ArrayWriter* writer) {
+    foreachpair (const string& id, const StringStringMap& names, help.helps) {
+      writer->element([&id, &names](JSON::ObjectWriter* writer) {
+        writer->field("id", id);
+        writer->field("endpoints", [&names](JSON::ArrayWriter* writer) {
+          foreachpair (const string& name, const string& text, names) {
+            writer->element([&name, &text](JSON::ObjectWriter* writer) {
+              writer->field("name", name);
+              writer->field("text", text);
+            });
+          }
+        });
+      });
+    }
+  });
 }
 
 
