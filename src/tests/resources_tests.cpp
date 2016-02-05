@@ -2053,7 +2053,7 @@ static Resource createRevocableResource(
 }
 
 
-// This test verfies that revocable and non-revocable resources are
+// This test verifies that revocable and non-revocable resources are
 // not considered equal.
 TEST(RevocableResourceTest, Equals)
 {

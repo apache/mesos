@@ -2113,8 +2113,8 @@ TEST_F(PortMappingMesosTest, CGROUPS_ROOT_CleanUpOrphan)
 }
 
 
-// This test verfies the creation and destroy of the network namespace
-// handle symlink. The symlink was introduced in 0.23.0.
+// This test verifies the creation and destruction of the network
+// namespace handle symlink. The symlink was introduced in 0.23.0.
 TEST_F(PortMappingMesosTest, ROOT_NetworkNamespaceHandleSymlink)
 {
   Try<PID<Master> > master = StartMaster();
@@ -2198,8 +2198,8 @@ TEST_F(PortMappingMesosTest, ROOT_NetworkNamespaceHandleSymlink)
 }
 
 
-// This test verfies that the isolator is able to recover a mix of
-// known and unkonwn orphans. This is used to capture the regression
+// This test verifies that the isolator is able to recover a mix of
+// known and unknown orphans. This is used to capture the regression
 // described in MESOS-2914.
 TEST_F(PortMappingMesosTest, CGROUPS_ROOT_RecoverMixedKnownAndUnKnownOrphans)
 {

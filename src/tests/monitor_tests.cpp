@@ -172,9 +172,9 @@ TEST(MonitorTest, MissingStatistics)
 class MonitorIntegrationTest : public MesosTest {};
 
 
-// This is an end-to-end test that verfies that the slave returns the
+// This is an end-to-end test that verifies that the slave returns the
 // correct ResourceUsage based on the currently running executors, and
-// the values get from the statistics endpoint are as expected.
+// the values returned by the statistics endpoint are as expected.
 TEST_F(MonitorIntegrationTest, RunningExecutor)
 {
   Try<PID<Master>> master = StartMaster();
