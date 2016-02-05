@@ -180,6 +180,108 @@ TEST(HTTPTest, Endpoints)
 }
 
 
+TEST(HTTPTest, EndpointsHelp)
+{
+  Http http;
+  PID<HttpProcess> pid = http.process->self();
+
+  // Wait until the HttpProcess initialization has run so
+  // that the route calls have completed.
+  std::function<Nothing()> f = []() { return Nothing(); };
+
+  Future<Nothing> initialized = dispatch(pid, f);
+  AWAIT_READY(initialized);
+
+  // Hit '/help' and wait for a 200 OK response.
+  http::URL url = http::URL(
+      "http",
+      http.process->self().address.ip,
+      http.process->self().address.port,
+      "/help");
+
+  Future<http::Response> response = http::get(url);
+
+  AWAIT_READY(response);
+  EXPECT_EQ(http::Status::OK, response->code);
+  EXPECT_EQ(http::Status::string(http::Status::OK), response->status);
+
+  // Hit '/help?format=json' and wait for a 200 OK response.
+  url = http::URL(
+      "http",
+      http.process->self().address.ip,
+      http.process->self().address.port,
+      "/help",
+      {{"format", "json"}});
+
+  response = http::get(url);
+
+  AWAIT_READY(response);
+  EXPECT_EQ(http::Status::OK, response->code);
+  EXPECT_EQ(http::Status::string(http::Status::OK), response->status);
+
+  // Assert that it is valid JSON
+  EXPECT_SOME(JSON::parse(response->body));
+
+  // Hit '/help/<id>/body' and wait for a 200 OK response.
+  url = http::URL(
+      "http",
+      http.process->self().address.ip,
+      http.process->self().address.port,
+      "/help/" + pid.id + "/body");
+
+  response = http::get(url);
+
+  AWAIT_READY(response);
+  EXPECT_EQ(http::Status::OK, response->code);
+  EXPECT_EQ(http::Status::string(http::Status::OK), response->status);
+}
+
+
+TEST(HTTPTest, EndpointsHelpRemoval)
+{
+  // Start up a new HttpProcess;
+  Owned<Http> http(new Http());
+  PID<HttpProcess> pid = http->process->self();
+
+  // Wait until the HttpProcess initialization has run so
+  // that the route calls have completed.
+  std::function<Nothing()> f = []() { return Nothing(); };
+
+  Future<Nothing> initialized = dispatch(pid, f);
+  AWAIT_READY(initialized);
+
+  // Hit '/help/<id>/body' and wait for a 200 OK response.
+  http::URL url = http::URL(
+      "http",
+      http->process->self().address.ip,
+      http->process->self().address.port,
+      "/help/" + pid.id + "/body");
+
+  Future<http::Response> response = http::get(url);
+
+  AWAIT_READY(response);
+  EXPECT_EQ(http::Status::OK, response->code);
+  EXPECT_EQ(http::Status::string(http::Status::OK), response->status);
+
+  // Delete the HttpProcess. This should remove all help endpoints
+  // for the process, in addition to its own endpoints.
+  http.reset();
+
+  // Hit '/help/<id>/bogus' and wait for a 400 BAD REQUEST response.
+  url = http::URL(
+      "http",
+      process::address().ip,
+      process::address().port,
+      "/help/" + pid.id + "/bogus");
+
+  response = http::get(url);
+
+  AWAIT_READY(response);
+  ASSERT_EQ(http::Status::BAD_REQUEST, response->code);
+  ASSERT_EQ(http::Status::string(http::Status::BAD_REQUEST), response->status);
+}
+
+
 TEST(HTTPTest, PipeEOF)
 {
   http::Pipe pipe;
