@@ -41,6 +41,10 @@
 #include <stout/os/fcntl.hpp>
 #include <stout/os/killtree.hpp>
 
+#ifdef __linux__
+#include "linux/systemd.hpp"
+#endif // __linux__
+
 #include "slave/container_loggers/logrotate.hpp"
 #include "slave/container_loggers/lib_logrotate.hpp"
 
@@ -119,6 +123,17 @@ public:
     outFlags.log_filename = path::join(sandboxDirectory, "stdout");
     outFlags.logrotate_path = flags.logrotate_path;
 
+    // If we are on systemd, then extend the life of the process as we
+    // do with the executor. Any grandchildren's lives will also be
+    // extended.
+    std::vector<Subprocess::Hook> parentHooks;
+#ifdef __linux__
+    if (systemd::enabled()) {
+      parentHooks.emplace_back(Subprocess::Hook(
+          &systemd::mesos::extendLifetime));
+    }
+#endif // __linux__
+
     Try<Subprocess> outProcess = subprocess(
         path::join(flags.launcher_dir, mesos::internal::logger::rotate::NAME),
         {mesos::internal::logger::rotate::NAME},
@@ -126,7 +141,10 @@ public:
         Subprocess::PATH("/dev/null"),
         Subprocess::FD(STDERR_FILENO),
         outFlags,
-        environment);
+        environment,
+        None(),
+        None(),
+        parentHooks);
 
     if (outProcess.isError()) {
       os::close(outfds.write.get());
@@ -170,7 +188,10 @@ public:
         Subprocess::PATH("/dev/null"),
         Subprocess::FD(STDERR_FILENO),
         errFlags,
-        environment);
+        environment,
+        None(),
+        None(),
+        parentHooks);
 
     if (errProcess.isError()) {
       os::close(outfds.write.get());
