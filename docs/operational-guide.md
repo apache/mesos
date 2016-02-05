@@ -6,7 +6,7 @@ Mesos uses a "[fail-fast](https://en.wikipedia.org/wiki/Fail-fast)" approach to 
 To ensure that such failures are handled appropriately, production deployments of Mesos typically use a _process supervisor_ (such as systemd or supervisord) to detect when Mesos processes exit. The supervisor can be configured to restart the failed process automatically and/or to notify the cluster operator to investigate the situation.
 
 ## Changing the master quorum
-The master leverages a Paxos-based replicated log as its storage backend (`--registry=replicated_log` is the only storage backend currently supported). Each master participates in the ensemble as a log replica. The `--quorum` flag determines a majority of the masters.
+The master leverages a [Paxos-based replicated log](replicated-log-internals.md) as its storage backend (`--registry=replicated_log` is the only storage backend currently supported). Each master participates in the ensemble as a log replica. The `--quorum` flag determines a majority of the masters.
 
 The following table shows the tolerance to master failures for each quorum size:
 

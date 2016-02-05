@@ -547,8 +547,8 @@ Currently there is no support for multiple HTTP authenticators. (default: basic)
     --[no-]log_auto_initialize
   </td>
   <td>
-Whether to automatically initialize the replicated log used for the
-registry. If this is set to false, the log has to be manually
+Whether to automatically initialize the [replicated log](replicated-log-internals.md)
+used for the registry. If this is set to false, the log has to be manually
 initialized when used for the very first time. (default: true)
   </td>
 </tr>

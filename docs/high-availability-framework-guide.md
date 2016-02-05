@@ -57,9 +57,9 @@ availability:
     accordingly.
 
   * Mesos actually provides ordered (but unreliable) message delivery between
-    any two pair of processes: for example, if a framework sends messages M1 and
-    M2 to the master, the master might receive no messages, just M1, just M2, or
-    M1 followed by M2 -- it will _not_ receive M2 followed by M1.
+    any pair of processes: for example, if a framework sends messages M1 and M2
+    to the master, the master might receive no messages, just M1, just M2, or M1
+    followed by M2 -- it will _not_ receive M2 followed by M1.
 
   * As a convenience for framework authors, Mesos provides reliable delivery of
     task status updates. The agent persists task status updates to disk and then
@@ -136,7 +136,7 @@ Highly available framework designs typically follow a few common patterns:
    and pending tasks. In fact, the same coordination service that is used for
    leader election (such as ZooKeeper or etcd) can often be used for this
    purpose. Some Mesos frameworks (such as Apache Aurora) use the Mesos
-   replicated log for this purpose.
+   [replicated log](replicated-log-internals.md) for this purpose.
 
    * The data store should be used to record the actions that the scheduler
      _intends_ to take, before it takes them. For example, if a scheduler
@@ -262,7 +262,7 @@ it from the cluster. Specifically:
   task that was running on a removed agent.
 
     >NOTE: Neither the callback nor the updates are reliably delivered by the
-    master. For example if the master or scheduler fails over or there is a
+    master. For example, if the master or scheduler fails over or there is a
     network connectivity issue during the delivery of these messages, they will
     not be resent.
 

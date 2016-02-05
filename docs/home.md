@@ -45,6 +45,7 @@ layout: documentation
 * [Multiple Disks](multiple-disk.md) for how to to allow tasks to use multiple isolated disk resources.
 * [Quota](quota.md) for how to configure Mesos to provide guaranteed resource allocations for use by a role.
 * [Reservation](reservation.md) for how operators and frameworks can reserve resources on individual agents for use by a role.
+* [Replicated Log](replicated-log-internals.md) for information on the Mesos replicated log.
 
 ## Running Mesos Frameworks
 
