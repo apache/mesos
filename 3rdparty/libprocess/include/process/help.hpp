@@ -97,6 +97,12 @@ public:
            const std::string& name,
            const Option<std::string>& help);
 
+  // Remove a previously installed 'help' string for '/id/name'.
+  bool remove(const std::string& id, const std::string& name);
+
+  // Remove all previously installed 'help' strings for '/id/*'.
+  bool remove(const std::string& id);
+
 protected:
   virtual void initialize();
 

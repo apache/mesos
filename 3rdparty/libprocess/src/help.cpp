@@ -16,7 +16,6 @@
 
 #include <process/help.hpp>
 
-#include <map>
 #include <string>
 #include <vector>
 
@@ -98,6 +97,28 @@ void Help::add(
 
     route("/" + id, "Help for " + id, &Help::help);
   }
+}
+
+
+bool Help::remove(const string& id, const string& name)
+{
+  if (helps.count(id) == 0 || helps[id].count(name) == 0) {
+    return false;
+  }
+
+  helps[id].erase(name);
+
+  if (helps[id].empty()) {
+    helps.erase(id);
+  }
+
+  return true;
+}
+
+
+bool Help::remove(const string& id)
+{
+  return helps.erase(id) == 1;
 }
 
 
