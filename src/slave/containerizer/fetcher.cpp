@@ -752,6 +752,11 @@ Future<Nothing> FetcherProcess::run(
   // environment variable.
   map<string, string> environment = os::environment();
 
+  // The libprocess port is explicitly removed because this will conflict
+  // with the already-running agent.
+  environment.erase("LIBPROCESS_PORT");
+  environment.erase("LIBPROCESS_ADVERTISE_PORT");
+
   environment["MESOS_FETCHER_INFO"] = stringify(JSON::protobuf(info));
 
   if (!flags.hadoop_home.empty()) {
