@@ -261,11 +261,13 @@ MasterInfo createMasterInfo(const UPID& pid)
 }
 
 
-Label createLabel(const string& key, const string& value)
+Label createLabel(const string& key, const Option<string>& value)
 {
   Label label;
   label.set_key(key);
-  label.set_value(value);
+  if (value.isSome()) {
+    label.set_value(value.get());
+  }
   return label;
 }
 

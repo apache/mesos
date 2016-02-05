@@ -90,7 +90,9 @@ Option<ContainerStatus> getTaskContainerStatus(const Task& task);
 MasterInfo createMasterInfo(const process::UPID& pid);
 
 
-Label createLabel(const std::string& key, const std::string& value);
+Label createLabel(
+    const std::string& key,
+    const Option<std::string>& value = None());
 
 
 // Helper function that fills in a TimeInfo from the current time.
