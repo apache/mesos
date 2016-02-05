@@ -1,3 +1,12 @@
+
+Release Notes - Mesos - Version 0.28.0 (WIP)
+--------------------------------------------
+
+** API Changes:
+  * [MESOS-4066] - Agent should not return partial state when a request is made
+                   to /state endpoint during recovery.
+
+
 Release Notes - Mesos - Version 0.27.0
 --------------------------------------------
 

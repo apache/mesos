@@ -399,6 +399,10 @@ string Slave::Http::STATE_HELP() {
 
 Future<Response> Slave::Http::state(const Request& request) const
 {
+  if (slave->state == Slave::RECOVERING) {
+    return ServiceUnavailable("Agent has not finished recovery");
+  }
+
   JSON::Object object;
   object.values["version"] = MESOS_VERSION;
 

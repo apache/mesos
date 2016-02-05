@@ -75,6 +75,7 @@ using process::UPID;
 
 using process::http::OK;
 using process::http::Response;
+using process::http::ServiceUnavailable;
 
 using std::map;
 using std::shared_ptr;
@@ -1184,8 +1185,14 @@ TEST_F(SlaveTest, StateEndpoint)
   // Capture the start time deterministically.
   Clock::pause();
 
+  Future<Nothing> __recover = FUTURE_DISPATCH(_, &Slave::__recover);
+
   Try<PID<Slave>> slave = StartSlave(&containerizer, flags);
   ASSERT_SOME(slave);
+
+  // Ensure slave has finished recovery.
+  AWAIT_READY(__recover);
+  Clock::settle();
 
   Future<Response> response = process::http::get(slave.get(), "state");
 
@@ -1312,6 +1319,88 @@ TEST_F(SlaveTest, StateEndpoint)
 
   EXPECT_CALL(exec, shutdown(_))
     .Times(AtMost(1));
+
+  driver.stop();
+  driver.join();
+
+  Shutdown();
+}
+
+
+// This test checks that when a slave is in RECOVERING state it responds
+// to HTTP requests for "/state" endpoint with ServiceUnavailable.
+TEST_F(SlaveTest, StateEndpointUnavailableDuringRecovery)
+{
+  Try<PID<Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+
+  TestContainerizer* containerizer1 = new TestContainerizer(&exec);
+
+  slave::Flags flags = CreateSlaveFlags();
+
+  Try<PID<Slave>> slave = StartSlave(containerizer1, flags);
+  ASSERT_SOME(slave);
+
+  // Launch a task so that slave has something to recover after restart.
+  MockScheduler sched;
+
+  // Enable checkpointing for the framework.
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_checkpoint(true);
+
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .Times(1);
+
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(LaunchTasks(DEFAULT_EXECUTOR_INFO, 1, 1, 512, "*"))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  EXPECT_CALL(exec, registered(_, _, _, _));
+
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
+
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status))
+    .WillRepeatedly(Return()); // Ignore subsequent updates.
+
+  driver.start();
+
+  AWAIT_READY(status);
+  EXPECT_EQ(TASK_RUNNING, status.get().state());
+
+  // Need this expectation here because `TestContainerizer` doesn't do recovery
+  // and hence sets `MESOS_RECOVERY_TIMEOUT` as '0s' causing the executor driver
+  // to exit immediately after slave exit.
+  EXPECT_CALL(exec, shutdown(_))
+    .Times(AtMost(1));
+
+  // Restart the slave.
+  Stop(slave.get());
+  delete containerizer1;
+
+  // Pause the clock to keep slave in RECOVERING state.
+  Clock::pause();
+
+  Future<Nothing> _recover = FUTURE_DISPATCH(_, &Slave::_recover);
+
+  TestContainerizer containerizer2;
+
+  slave = StartSlave(&containerizer2, flags);
+  ASSERT_SOME(slave);
+
+  // Ensure slave has setup the route for "/state".
+  AWAIT_READY(_recover);
+
+  Future<Response> response = process::http::get(slave.get(), "state");
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(ServiceUnavailable().status, response);
 
   driver.stop();
   driver.join();
