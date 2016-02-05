@@ -293,6 +293,13 @@ Try<pid_t> LinuxLauncher::fork(
   LOG(INFO) << "Cloning child process with flags = "
             << ns::stringify(cloneFlags);
 
+  // If we are on systemd, then extend the life of the child. As with the
+  // freezer, any grandchildren will also be contained in the slice.
+  std::vector<Subprocess::Hook> parentHooks;
+  if (systemdHierarchy.isSome()) {
+    parentHooks.emplace_back(Subprocess::Hook(&systemd::mesos::extendLifetime));
+  }
+
   Try<Subprocess> child = subprocess(
       path,
       argv,
@@ -303,8 +310,7 @@ Try<pid_t> LinuxLauncher::fork(
       environment,
       lambda::bind(&childSetup, pipes, setup),
       lambda::bind(&os::clone, lambda::_1, cloneFlags),
-      // TODO(jmlvanre): Use systemd hook.
-      Subprocess::Hook::None());
+      parentHooks);
 
   if (child.isError()) {
     return Error("Failed to clone child process: " + child.error());
@@ -329,28 +335,6 @@ Try<pid_t> LinuxLauncher::fork(
 
     ::kill(child.get().pid(), SIGKILL);
     return Error("Failed to contain process");
-  }
-
-  // If we are on systemd, then move the child into the
-  // `MESOS_EXECUTORS_SLICE`. As with the freezer, any grandchildren will also
-  // be contained in the slice.
-  if (systemdHierarchy.isSome()) {
-    Try<Nothing> assign = cgroups::assign(
-        systemdHierarchy.get(),
-        systemd::mesos::MESOS_EXECUTORS_SLICE,
-        child.get().pid());
-
-    if (assign.isError()) {
-      LOG(ERROR) << "Failed to assign process " << child.get().pid()
-                  << " of container '" << containerId << "'"
-                  << " to its systemd executor slice: " << assign.error();
-
-      ::kill(child.get().pid(), SIGKILL);
-      return Error("Failed to contain process on systemd");
-    }
-
-    LOG(INFO) << "Assigned child process '" << child.get().pid() << "' to '"
-              << systemd::mesos::MESOS_EXECUTORS_SLICE << "'";
   }
 
   // Now that we've contained the child we can signal it to continue
