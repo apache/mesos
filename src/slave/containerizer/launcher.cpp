@@ -27,6 +27,10 @@
 
 #include <stout/os/killtree.hpp>
 
+#ifdef __linux__
+#include "linux/systemd.hpp"
+#endif // __linux__
+
 #include "mesos/resources.hpp"
 
 #include "slave/containerizer/launcher.hpp"
@@ -117,6 +121,15 @@ Try<pid_t> PosixLauncher::fork(
                  stringify(containerId));
   }
 
+  // If we are on systemd, then extend the life of the child. Any
+  // grandchildren's lives will also be extended.
+  std::vector<Subprocess::Hook> parentHooks;
+#ifdef __linux__
+  if (systemd::enabled()) {
+    parentHooks.emplace_back(Subprocess::Hook(&systemd::mesos::extendLifetime));
+  }
+#endif // __linux__
+
   Try<Subprocess> child = subprocess(
       path,
       argv,
@@ -125,7 +138,9 @@ Try<pid_t> PosixLauncher::fork(
       err,
       flags,
       environment,
-      lambda::bind(&childSetup, setup));
+      lambda::bind(&childSetup, setup),
+      None(),
+      parentHooks);
 
   if (child.isError()) {
     return Error("Failed to fork a child process: " + child.error());
