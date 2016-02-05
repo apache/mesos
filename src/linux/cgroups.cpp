@@ -2457,4 +2457,45 @@ Future<Nothing> thaw(
 
 } // namespace freezer {
 
+
+namespace net_cls {
+
+Try<uint32_t> classid(
+    const string& hierarchy,
+    const string& cgroup)
+{
+  Try<string> read = cgroups::read(hierarchy, cgroup, "net_cls.classid");
+  if (read.isError()) {
+    return Error("Unable to read the `net_cls.classid`: " + read.error());
+  }
+
+  Try<uint32_t> handle = numify<uint32_t>(strings::trim(read.get()));
+  if (handle.isError()) {
+    return Error("Not a valid number");
+  }
+
+  return handle.get();
+}
+
+
+Try<Nothing> classid(
+    const string& hierarchy,
+    const string& cgroup,
+    uint32_t handle)
+{
+  Try<Nothing> write = cgroups::write(
+      hierarchy,
+      cgroup,
+      "net_cls.classid",
+      stringify(handle));
+
+  if (write.isError()) {
+    return Error("Failed to write to 'net_cls.classid': " + write.error());
+  }
+
+  return Nothing();
+}
+
+} // namespace net_cls {
+
 } // namespace cgroups {

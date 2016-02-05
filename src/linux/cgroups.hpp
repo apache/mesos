@@ -647,6 +647,24 @@ process::Future<Nothing> thaw(
 
 } // namespace freezer {
 
+
+// Net_cls subsystem.
+namespace net_cls {
+
+// Read the uint32_t handle set in `net_cls.classid`.
+Try<uint32_t> classid(
+    const std::string& hierarchy,
+    const std::string& cgroup);
+
+
+// Write the uint32_t handle to the `net_cls.classid`.
+Try<Nothing> classid(
+    const std::string& hierarchy,
+    const std::string& cgroup,
+    const uint32_t handle);
+
+} // namespace net_cls {
+
 } // namespace cgroups {
 
 namespace std {
