@@ -81,12 +81,10 @@ public:
     // Inherit most, but not all of the agent's environment.
     // Since the subprocess links to libmesos, it will need some of the
     // same environment used to launch the agent (also uses libmesos).
-    // The libprocess IP and port are explicitly removed because these
+    // The libprocess port is explicitly removed because this
     // will conflict with the already-running agent.
     std::map<std::string, std::string> environment = os::environment();
-    environment.erase("LIBPROCESS_IP");
     environment.erase("LIBPROCESS_PORT");
-    environment.erase("LIBPROCESS_ADVERTISE_IP");
     environment.erase("LIBPROCESS_ADVERTISE_PORT");
 
     // NOTE: We manually construct a pipe here instead of using
