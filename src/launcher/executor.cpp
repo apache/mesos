@@ -82,6 +82,7 @@ public:
       const Option<char**>& override,
       const string& _healthCheckDir,
       const Option<string>& _sandboxDirectory,
+      const Option<string>& _workingDirectory,
       const Option<string>& _user,
       const Option<string>& _taskCommand)
     : state(REGISTERING),
@@ -95,6 +96,7 @@ public:
       healthCheckDir(_healthCheckDir),
       override(override),
       sandboxDirectory(_sandboxDirectory),
+      workingDirectory(_workingDirectory),
       user(_user),
       taskCommand(_taskCommand) {}
 
@@ -213,9 +215,12 @@ public:
       // If 'sandbox_diretory' is specified, that means the user
       // task specifies a root filesystem, and that root filesystem has
       // already been prepared at COMMAND_EXECUTOR_ROOTFS_CONTAINER_PATH.
-      // The command executor is reponsible for mounting the sandbox
+      // The command executor is responsible for mounting the sandbox
       // into the root filesystem, chrooting into it and changing the
       // user before exec-ing the user process.
+      //
+      // TODO(gilbert): Consider a better way to detect if a root
+      // filesystem is specified for the command task.
 #ifdef __linux__
       Result<string> user = os::user();
       if (user.isError()) {
@@ -345,10 +350,19 @@ public:
           abort();
         }
 
-        Try<Nothing> chdir = os::chdir(sandboxDirectory.get());
+        // Determine the current working directory for the executor.
+        string cwd;
+        if (workingDirectory.isSome()) {
+          cwd = workingDirectory.get();
+        } else {
+          CHECK_SOME(sandboxDirectory);
+          cwd = sandboxDirectory.get();
+        }
+
+        Try<Nothing> chdir = os::chdir(cwd);
         if (chdir.isError()) {
-          cerr << "Failed to change directory to sandbox dir '"
-               << sandboxDirectory.get() << "': " << chdir.error();
+          cerr << "Failed to chdir into current working directory '"
+               << cwd << "': " << chdir.error() << endl;
           abort();
         }
 
@@ -646,6 +660,7 @@ private:
   string healthCheckDir;
   Option<char**> override;
   Option<string> sandboxDirectory;
+  Option<string> workingDirectory;
   Option<string> user;
   Option<string> taskCommand;
 };
@@ -658,11 +673,17 @@ public:
       const Option<char**>& override,
       const string& healthCheckDir,
       const Option<string>& sandboxDirectory,
+      const Option<string>& workingDirectory,
       const Option<string>& user,
       const Option<string>& taskCommand)
   {
-    process = new CommandExecutorProcess(
-        override, healthCheckDir, sandboxDirectory, user, taskCommand);
+    process = new CommandExecutorProcess(override,
+                                         healthCheckDir,
+                                         sandboxDirectory,
+                                         workingDirectory,
+                                         user,
+                                         taskCommand);
+
     spawn(process);
   }
 
@@ -750,12 +771,16 @@ public:
         "subsequent 'argv' to be used with 'execvp'",
         false);
 
-    // The following flags are only applicable when a rootfs is provisioned
-    // for this command.
+    // The following flags are only applicable when a rootfs is
+    // provisioned for this command.
     add(&sandbox_directory,
         "sandbox_directory",
         "The absolute path for the directory in the container where the\n"
         "sandbox is mapped to");
+
+    add(&working_directory,
+        "working_directory",
+        "The working directory for the task in the container.");
 
     add(&user,
         "user",
@@ -772,6 +797,7 @@ public:
 
   bool override;
   Option<string> sandbox_directory;
+  Option<string> working_directory;
   Option<string> user;
   Option<string> task_command;
 };
@@ -816,6 +842,7 @@ int main(int argc, char** argv)
       override,
       path,
       flags.sandbox_directory,
+      flags.working_directory,
       flags.user,
       flags.task_command);
 
