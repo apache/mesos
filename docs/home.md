@@ -14,6 +14,7 @@ layout: documentation
 * [Getting Started](getting-started.md) for basic instructions on compiling and installing Mesos.
 * [Upgrades](upgrades.md) for upgrading a Mesos cluster.
 * [Configuration](configuration.md) for command-line arguments.
+* [HTTP Endpoints](endpoints/) for available HTTP endpoints.
 * [Containerizer](containerizer.md) for containerizer overview and use cases.
   * [Containerizer Internals](containerizer-internals.md) for implementation details of containerizers.
   * [Mesos Containerizer](mesos-containerizer.md) default containerizer, supports both Linux and POSIX systems.
