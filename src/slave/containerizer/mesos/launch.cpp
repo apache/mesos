@@ -53,8 +53,13 @@ MesosContainerizerLaunch::Flags::Flags()
 
   add(&sandbox,
       "sandbox",
-      "The sandbox to chdir to. If rootfs is specified this must\n"
+      "The sandbox for the executor. If rootfs is specified this must\n"
       "be relative to the new root.");
+
+  add(&working_directory,
+      "working_directory",
+      "The working directory for the executor. It will be ignored if\n"
+      "container root filesystem is not specified.");
 
   add(&rootfs,
       "rootfs",
@@ -249,11 +254,18 @@ int MesosContainerizerLaunch::execute()
     }
   }
 
-  // Enter sandbox directory, relative to the new root.
-  Try<Nothing> chdir = os::chdir(flags.sandbox.get());
+  // Determine the current working directory for the executor.
+  string cwd;
+  if (flags.rootfs.isSome() && flags.working_directory.isSome()) {
+    cwd = flags.working_directory.get();
+  } else {
+    cwd = flags.sandbox.get();
+  }
+
+  Try<Nothing> chdir = os::chdir(cwd);
   if (chdir.isError()) {
-    cerr << "Failed to chdir into sandbox directory '"
-         << flags.sandbox.get() << "': " << chdir.error() << endl;
+    cerr << "Failed to chdir into current working directory '"
+         << cwd << "': " << chdir.error() << endl;
     return 1;
   }
 
