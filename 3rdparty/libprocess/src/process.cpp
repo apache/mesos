@@ -2628,6 +2628,9 @@ void ProcessManager::cleanup(ProcessBase* process)
     delete event;
   }
 
+  // Remove help strings for all installed routes for this process.
+  dispatch(help, &Help::remove, process->pid.id);
+
   // Possible gate non-libprocess threads are waiting at.
   Gate* gate = NULL;
 
