@@ -206,7 +206,7 @@ Try<Nothing> Benchmark::execute(int argc, char** argv)
   vector<string> data;
   for (size_t i = 0; i < sizes.size(); i++) {
     if (flags.type == "one") {
-      data.push_back(string(sizes[i].bytes(), 255));
+      data.push_back(string(sizes[i].bytes(), static_cast<char>(0xff)));
     } else if (flags.type == "random") {
       data.push_back(string(sizes[i].bytes(), ::random() % 256));
     } else {
