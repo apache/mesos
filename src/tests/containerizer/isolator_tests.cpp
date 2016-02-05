@@ -85,6 +85,8 @@ using mesos::internal::slave::CgroupsPerfEventIsolatorProcess;
 using mesos::internal::slave::CPU_SHARES_PER_CPU_REVOCABLE;
 using mesos::internal::slave::Fetcher;
 using mesos::internal::slave::LinuxLauncher;
+using mesos::internal::slave::NetClsHandle;
+using mesos::internal::slave::NetClsHandleManager;
 using mesos::internal::slave::SharedFilesystemIsolatorProcess;
 #endif // __linux__
 using mesos::internal::slave::Launcher;
@@ -366,6 +368,58 @@ TYPED_TEST(CpuIsolatorTest, SystemCpuUsage)
   delete isolator.get();
   delete launcher.get();
 }
+
+
+#ifdef __linux__
+class NetClsHandleManagerTest : public testing::Test {};
+
+
+// Tests the ability of the `NetClsHandleManager` class to allocate
+// and free secondary handles from a range of primary handles.
+TEST_F(NetClsHandleManagerTest, AllocateFreeHandles)
+{
+  NetClsHandleManager manager(IntervalSet<uint16_t>(
+      (Bound<uint16_t>::closed(0x0002),
+       Bound<uint16_t>::closed(0x0003))));
+
+  Try<NetClsHandle> handle = manager.alloc(0x0003);
+  ASSERT_SOME(handle);
+
+  EXPECT_SOME_TRUE(manager.isUsed(handle.get()));
+
+  ASSERT_SOME(manager.free(handle.get()));
+
+  EXPECT_SOME_FALSE(manager.isUsed(handle.get()));
+}
+
+
+// Make sure allocation of secondary handles for invalid primary
+// handles results in an error.
+TEST_F(NetClsHandleManagerTest, AllocateInvalidPrimary)
+{
+  NetClsHandleManager manager(IntervalSet<uint16_t>(
+      (Bound<uint16_t>::closed(0x0002),
+       Bound<uint16_t>::closed(0x0003))));
+
+  ASSERT_ERROR(manager.alloc(0x0001));
+}
+
+
+// Tests that we can reserve secondary handles for a given primary
+// handle so that they won't be allocated out later.
+TEST_F(NetClsHandleManagerTest, ReserveHandles)
+{
+  NetClsHandleManager manager(IntervalSet<uint16_t>(
+      (Bound<uint16_t>::closed(0x0002),
+       Bound<uint16_t>::closed(0x0003))));
+
+  NetClsHandle handle(0x0003, 0xffff);
+
+  ASSERT_SOME(manager.reserve(handle));
+
+  EXPECT_SOME_TRUE(manager.isUsed(handle));
+}
+#endif // __linux__
 
 
 #ifdef __linux__

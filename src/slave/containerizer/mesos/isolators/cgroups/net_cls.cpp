@@ -165,6 +165,26 @@ Try<Nothing> NetClsHandleManager::free(const NetClsHandle& handle)
 }
 
 
+Try<bool> NetClsHandleManager::isUsed(const NetClsHandle& handle)
+{
+  if (!primaries.contains(handle.primary)) {
+    return Error(
+        "Primary handle: " + hexify(handle.primary) +
+        " is not within the primary's range");
+  }
+
+  if (handle.secondary == 0) {
+    return Error("Secondary handle is 0");
+  }
+
+  if (!used.contains(handle.primary)) {
+    return false;
+  }
+
+  return used[handle.primary].test(handle.secondary);
+}
+
+
 CgroupsNetClsIsolatorProcess::CgroupsNetClsIsolatorProcess(
     const Flags& _flags,
     const string& _hierarchy)

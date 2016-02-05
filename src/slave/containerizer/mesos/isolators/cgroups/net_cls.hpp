@@ -83,6 +83,9 @@ public:
   Try<Nothing> reserve(const NetClsHandle& handle);
   Try<Nothing> free(const NetClsHandle& handle);
 
+  // Check if a handle is used.
+  Try<bool> isUsed(const NetClsHandle& handle);
+
 private:
   // The key to this hashmap is the 16-bit primary handle.
   hashmap<uint16_t, std::bitset<0x10000>> used;
