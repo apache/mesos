@@ -233,11 +233,29 @@ Try<Isolator*> CgroupsNetClsIsolatorProcess::create(const Flags& flags)
     }
   }
 
-  Owned<MesosIsolatorProcess> process(
+  IntervalSet<uint16_t> primaries;
+
+  if (flags.cgroups_net_cls_primary_handle.isSome()) {
+    Try<uint16_t> primary = numify<uint16_t>(
+        flags.cgroups_net_cls_primary_handle.get());
+
+    if (primary.isError()) {
+      return Error(
+          "Failed to parse the primary handle '" +
+          flags.cgroups_net_cls_primary_handle.get() +
+          "' set in flag --cgroups_net_cls_primary_handle");
+    }
+
+    primaries +=
+      (Bound<uint16_t>::closed(primary.get()),
+       Bound<uint16_t>::closed(primary.get()));
+  }
+
+  process::Owned<MesosIsolatorProcess> process(
       new CgroupsNetClsIsolatorProcess(
           flags,
           hierarchy.get(),
-          IntervalSet<uint16_t>()));
+          primaries));
 
   return new MesosIsolator(process);
 }
