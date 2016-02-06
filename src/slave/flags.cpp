@@ -345,6 +345,11 @@ mesos::internal::slave::Flags::Flags()
       "inside a container.\n",
       false);
 
+  add(&Flags::cgroups_net_cls_primary_handle,
+      "cgroups_net_cls_primary_handle",
+      "A non-zero, 16-bit handle of the form `0xAAAA`. This will be \n"
+      "used as the primary handle for the net_cls cgroup.");
+
   add(&Flags::slave_subsystems,
       "slave_subsystems",
       "List of comma-separated cgroup subsystems to run the slave binary\n"
