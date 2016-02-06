@@ -181,7 +181,7 @@ TEST(ResourcesTest, ParsingFromJSON)
   ASSERT_EQ(Value::SCALAR, cpus->type());
   EXPECT_EQ(45.55, cpus->scalar().value());
 
-  EXPECT_EQ(1, cpuResources.size());
+  EXPECT_EQ(1u, cpuResources.size());
 
   jsonString =
     "["
@@ -953,7 +953,7 @@ TEST(ResourcesTest, ScalarAddition)
   Resources sum = r1 + r2;
 
   EXPECT_FALSE(sum.empty());
-  EXPECT_EQ(2, sum.size());
+  EXPECT_EQ(2u, sum.size());
   EXPECT_EQ(3, sum.get<Value::Scalar>("cpus").get().value());
   EXPECT_EQ(15, sum.get<Value::Scalar>("mem").get().value());
 
@@ -961,7 +961,7 @@ TEST(ResourcesTest, ScalarAddition)
   r += r2;
 
   EXPECT_FALSE(r.empty());
-  EXPECT_EQ(2, r.size());
+  EXPECT_EQ(2u, r.size());
   EXPECT_EQ(3, r.get<Value::Scalar>("cpus").get().value());
   EXPECT_EQ(15, r.get<Value::Scalar>("mem").get().value());
 }
@@ -983,7 +983,7 @@ TEST(ResourcesTest, ScalarAddition2)
   Resources sum = r1 + r2;
 
   EXPECT_FALSE(sum.empty());
-  EXPECT_EQ(2, sum.size());
+  EXPECT_EQ(2u, sum.size());
   EXPECT_EQ(9, sum.cpus().get());
   EXPECT_EQ(sum, Resources::parse("cpus(role1):6;cpus(role2):3").get());
 }
@@ -1040,7 +1040,7 @@ TEST(ResourcesTest, ScalarSubtraction2)
   Resources diff = r1 - r2;
 
   EXPECT_FALSE(diff.empty());
-  EXPECT_EQ(2, diff.size());
+  EXPECT_EQ(2u, diff.size());
   EXPECT_EQ(7, diff.cpus().get());
   EXPECT_EQ(diff, Resources::parse("cpus(role1):4;cpus(role2):3").get());
 }
