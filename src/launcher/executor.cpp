@@ -248,18 +248,32 @@ public:
       }
 
       // Mount the sandbox into the container rootfs.
-      // NOTE: We don't use MS_REC here because the rootfs is already
-      // under the sandbox.
+      // We need to perform a recursive mount because we want all the
+      // volume mounts in the sandbox to be also mounted in the container
+      // root filesystem. However, since the container root filesystem
+      // is also mounted in the sandbox, after the recursive mount we
+      // also need to unmount the root filesystem in the mounted sandbox.
       Try<Nothing> mount = fs::mount(
           os::getcwd(),
           sandbox,
           None(),
-          MS_BIND,
+          MS_BIND | MS_REC,
           NULL);
 
       if (mount.isError()) {
         cerr << "Unable to mount the work directory into container "
              << "rootfs: " << mount.error() << endl;;
+        abort();
+      }
+
+      // Umount the root filesystem path in the mounted sandbox after
+      // the recursive mount.
+      Try<Nothing> unmountAll = fs::unmountAll(path::join(
+          sandbox,
+          COMMAND_EXECUTOR_ROOTFS_CONTAINER_PATH));
+      if (unmountAll.isError()) {
+        cerr << "Unable to unmount rootfs under mounted sandbox: "
+             << unmountAll.error() << endl;
         abort();
       }
 #else

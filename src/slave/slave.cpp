@@ -3550,11 +3550,34 @@ ExecutorInfo Slave::getExecutorInfo(
       // `executor.container.mesos`.
       container->mutable_mesos()->clear_image();
 
+      // As we will chroot in the command executor into a new rootfs,
+      // we need to modify the volume mount points to be under the new rootfs
+      // so the container path that the task sees is correct.
+      // NOTE: We only need to modify volumes with absolute path since
+      // relative paths are mounted in the sandbox and will automatically be
+      // mounted into the rootfs.
+      for (int i = 0; i < container->volumes_size(); ++i) {
+        Volume* volume = container->mutable_volumes(i);
+        if (path::absolute(volume->container_path())) {
+          volume->set_container_path(path::join(
+              COMMAND_EXECUTOR_ROOTFS_CONTAINER_PATH,
+              volume->container_path()));
+        }
+      }
+
       container->set_type(ContainerInfo::MESOS);
       Volume* volume = container->add_volumes();
       volume->mutable_image()->CopyFrom(task.container().mesos().image());
       volume->set_container_path(COMMAND_EXECUTOR_ROOTFS_CONTAINER_PATH);
       volume->set_mode(Volume::RW);
+
+      size_t volumesSize = container->volumes_size();
+      if (volumesSize > 1) {
+        // Move the rootfs volume to the front as the other volumes
+        // will be mounting under the rootfs directory that's added last.
+        container->mutable_volumes()->SwapElements(0, volumesSize - 1);
+      }
+
       // We need to set the executor user as root as it needs to
       // perform chroot (even when switch_user is set to false).
       executor.mutable_command()->set_user("root");
