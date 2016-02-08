@@ -437,12 +437,11 @@ int main(int argc, char** argv)
 
   framework.set_principal(value.get());
 
-  EventCallScheduler* scheduler;
-  scheduler = new EventCallScheduler(framework, executor, master.get());
+  process::Owned<EventCallScheduler> scheduler(
+      new EventCallScheduler(framework, executor, master.get()));
 
-  process::spawn(scheduler);
-  process::wait(scheduler);
-  delete scheduler;
+  process::spawn(scheduler.get());
+  process::wait(scheduler.get());
 
   return EXIT_SUCCESS;
 }
