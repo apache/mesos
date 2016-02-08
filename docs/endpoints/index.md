@@ -3,20 +3,21 @@
 # HTTP Endpoints #
 
 Below is a list of HTTP endpoints available for a given Mesos process.
-The documentation for these endpoints is auto-generated from strings
-stored in the Mesos source code.
 
 Depending on your configuration, some subset of these endpoints will
-be available on your Mesos master or agent. Additionally, a '/help'
+be available on your Mesos master or agent. Additionally, a `/help`
 endpoint will be available that displays help similar to what you see
 below.
+
+** NOTE: ** The documentation for these endpoints is auto-generated
+from strings stored in the Mesos source code.
 
 ## Master Endpoints ##
 
 Below is a set of endpoints available on a Mesos master. These
 endpoints are reachable at the address http://ip:port/endpoint.
 
-For example, http://master.mesosphere.com:5050/files/browse
+For example, http://master.com:5050/files/browse
 
 ### files ###
 * [/files/browse](files/browse.md)
@@ -78,7 +79,7 @@ For example, http://master.mesosphere.com:5050/files/browse
 Below is a set of endpoints available on a Mesos agent. These
 endpoints are reachable at the address http://ip:port/endpoint.
 
-For example, http://agent.mesosphere.com:5051/files/browse
+For example, http://agent.com:5051/files/browse
 
 ### files ###
 * [/files/browse](files/browse.md)
