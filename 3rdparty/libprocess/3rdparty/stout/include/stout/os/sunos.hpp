@@ -109,6 +109,13 @@ inline Try<std::set<pid_t> > pids()
   return Error("Failed to determine pids from /proc");
 }
 
+
+// Returns the total size of main and free memory.
+inline Try<Memory> memory()
+{
+  return Error("Cannot determine the size of total and free memory");
+}
+
 } // namespace os {
 
 #endif // __STOUT_OS_SUNOS_HPP__

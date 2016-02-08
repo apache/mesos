@@ -139,6 +139,32 @@ inline Try<std::set<pid_t>> pids()
   return proc::pids();
 }
 
+
+// Returns the total size of main and free memory.
+inline Try<Memory> memory()
+{
+  Memory memory;
+
+  struct sysinfo info;
+  if (sysinfo(&info) != 0) {
+    return ErrnoError();
+  }
+
+# if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 3, 23)
+  memory.total = Bytes(info.totalram * info.mem_unit);
+  memory.free = Bytes(info.freeram * info.mem_unit);
+  memory.totalSwap = Bytes(info.totalswap * info.mem_unit);
+  memory.freeSwap = Bytes(info.freeswap * info.mem_unit);
+# else
+  memory.total = Bytes(info.totalram);
+  memory.free = Bytes(info.freeram);
+  memory.totalSwap = Bytes(info.totalswap);
+  memory.freeSwap = Bytes(info.freeswap);
+# endif
+
+  return memory;
+}
+
 } // namespace os {
 
 #endif // __STOUT_OS_POSIX_HPP__

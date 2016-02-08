@@ -187,6 +187,55 @@ inline Try<std::set<pid_t> > pids()
   return result;
 }
 
+
+// Returns the total size of main and free memory.
+inline Try<Memory> memory()
+{
+  Memory memory;
+
+  const Try<int64_t> totalMemory = os::sysctl(CTL_HW, HW_MEMSIZE).integer();
+
+  if (totalMemory.isError()) {
+    return Error(totalMemory.error());
+  }
+  memory.total = Bytes(totalMemory.get());
+
+  // Size of free memory is available in terms of number of
+  // free pages on Mac OS X.
+  const long pageSize = sysconf(_SC_PAGESIZE);
+  if (pageSize < 0) {
+    return ErrnoError();
+  }
+
+  unsigned int freeCount;
+  size_t length = sizeof(freeCount);
+
+  if (sysctlbyname(
+      "vm.page_free_count",
+      &freeCount,
+      &length,
+      NULL,
+      0) != 0) {
+    return ErrnoError();
+  }
+  memory.free = Bytes(freeCount * pageSize);
+
+  struct xsw_usage usage;
+  length = sizeof(struct xsw_usage);
+  if (sysctlbyname(
+        "vm.swapusage",
+        &usage,
+        &length,
+        NULL,
+        0) != 0) {
+    return ErrnoError();
+  }
+  memory.totalSwap = Bytes(usage.xsu_total * pageSize);
+  memory.freeSwap = Bytes(usage.xsu_avail * pageSize);
+
+  return memory;
+}
+
 } // namespace os {
 
 #endif // __STOUT_OS_OSX_HPP__
