@@ -914,8 +914,11 @@ TEST_F(NetClsIsolatorTest, ROOT_CGROUPS_NetClsIsolate)
   Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
+  uint16_t primary = 0x0012;
+
   slave::Flags flags = CreateSlaveFlags();
   flags.isolation = "cgroups/net_cls";
+  flags.cgroups_net_cls_primary_handle = stringify(primary);
 
   Fetcher fetcher;
 
@@ -983,6 +986,19 @@ TEST_F(NetClsIsolatorTest, ROOT_CGROUPS_NetClsIsolate)
 
   // There should be at least one TGID associated with this cgroup.
   EXPECT_LE(1u, pids.get().size());
+
+  // Read the `net_cls.classid` to verify that the handle has been set.
+  Try<uint32_t> classid = cgroups::net_cls::classid(hierarchy.get(), cgroup);
+  EXPECT_SOME(classid);
+
+  if (classid.isSome()) {
+    // Make sure the primary handle is the same as the one set in
+    // `--cgroup_net_cls_primary_handle`.
+    EXPECT_EQ(primary, (classid.get() & 0xffff0000) >> 16);
+
+    // Make sure the secondary handle is non-zero.
+    EXPECT_NE(0, classid.get() & 0xffff);
+  }
 
   // Isolator cleanup test: Killing the task should cleanup the cgroup
   // associated with the container.
