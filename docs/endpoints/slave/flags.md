@@ -1,4 +1,5 @@
 <!--- This is an automatically generated file. DO NOT EDIT! --->
+
 ### USAGE ###
 >        /slave(1)/flags
 

@@ -1,4 +1,5 @@
 <!--- This is an automatically generated file. DO NOT EDIT! --->
+
 ### USAGE ###
 >        /logging/toggle
 
@@ -8,7 +9,7 @@ Sets the logging verbosity level for a specified duration.
 ### DESCRIPTION ###
 The libprocess library uses [glog][glog] for logging. The library
 only uses verbose logging which means nothing will be output unless
-the verbosity level is set (by default it's 0, libprocess useslevels 1, 2, and 3).
+the verbosity level is set (by default it's 0, libprocess uses levels 1, 2, and 3).
 
 **NOTE:** If your application uses glog this will also affect
 your verbose logging.

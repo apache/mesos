@@ -1,5 +1,6 @@
 <!--- This is an automatically generated file. DO NOT EDIT! --->
 
+
 # HTTP Endpoints #
 
 Below is a list of HTTP endpoints available for a given Mesos process.
@@ -10,7 +11,8 @@ endpoint will be available that displays help similar to what you see
 below.
 
 ** NOTE: ** The documentation for these endpoints is auto-generated
-from strings stored in the Mesos source code.
+from strings stored in the Mesos source code. See
+support/generate-endpoint-help.py.
 
 ## Master Endpoints ##
 
