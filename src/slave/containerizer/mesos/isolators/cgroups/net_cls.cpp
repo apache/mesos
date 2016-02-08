@@ -537,7 +537,7 @@ Future<Nothing> CgroupsNetClsIsolatorProcess::_cleanup(
 
   const Info& info = infos.at(containerId);
 
-  if (info.handle.isSome()) {
+  if (info.handle.isSome() && handleManager.isSome()) {
     Try<Nothing> free = handleManager->free(info.handle.get());
     if (free.isError()) {
       return Failure("Could not free the net_cls handle: " + free.error());
