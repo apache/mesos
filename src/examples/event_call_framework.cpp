@@ -25,6 +25,7 @@
 #include <mesos/v1/scheduler.hpp>
 
 #include <process/delay.hpp>
+#include <process/owned.hpp>
 #include <process/process.hpp>
 #include <process/protobuf.hpp>
 
@@ -69,14 +70,10 @@ class EventCallScheduler : public process::Process<EventCallScheduler>
 public:
   EventCallScheduler(const FrameworkInfo& _framework,
                      const ExecutorInfo& _executor,
-                     const string& master)
+                     const string& _master)
     : framework(_framework),
       executor(_executor),
-      mesos(master,
-            mesos::ContentType::PROTOBUF,
-            process::defer(self(), &Self::connected),
-            process::defer(self(), &Self::disconnected),
-            process::defer(self(), &Self::received, lambda::_1)),
+      master(_master),
       state(INITIALIZING),
       tasksLaunched(0),
       tasksFinished(0),
@@ -84,15 +81,11 @@ public:
 
   EventCallScheduler(const FrameworkInfo& _framework,
                      const ExecutorInfo& _executor,
-                     const string& master,
+                     const string& _master,
                      const Credential& credential)
     : framework(_framework),
       executor(_executor),
-      mesos(master,
-            mesos::ContentType::PROTOBUF,
-            process::defer(self(), &Self::connected),
-            process::defer(self(), &Self::disconnected),
-            process::defer(self(), &Self::received, lambda::_1)),
+      master(_master),
       state(INITIALIZING),
       tasksLaunched(0),
       tasksFinished(0),
@@ -196,6 +189,19 @@ public:
     }
   }
 
+protected:
+virtual void initialize()
+{
+  // We initialize the library here to ensure that callbacks are only invoked
+  // after the process has spawned.
+  mesos.reset(new scheduler::Mesos(
+      master,
+      mesos::ContentType::PROTOBUF,
+      process::defer(self(), &Self::connected),
+      process::defer(self(), &Self::disconnected),
+      process::defer(self(), &Self::received, lambda::_1)));
+}
+
 private:
   void resourceOffers(const vector<Offer>& offers)
   {
@@ -252,7 +258,7 @@ private:
         operation->mutable_launch()->add_task_infos()->CopyFrom(taskInfo);
       }
 
-      mesos.send(call);
+      mesos->send(call);
     }
   }
 
@@ -276,7 +282,7 @@ private:
       ack->mutable_task_id ()->CopyFrom(status.task_id ());
       ack->set_uuid(status.uuid());
 
-      mesos.send(call);
+      mesos->send(call);
     }
 
     if (status.state() == TASK_FINISHED) {
@@ -317,7 +323,7 @@ private:
       subscribe->set_force(true);
     }
 
-    mesos.send(call);
+    mesos->send(call);
 
     process::delay(Seconds(1),
                    self(),
@@ -331,12 +337,13 @@ private:
     call.mutable_framework_id()->CopyFrom(framework.id());
     call.set_type(Call::TEARDOWN);
 
-    mesos.send(call);
+    mesos->send(call);
   }
 
   FrameworkInfo framework;
   const ExecutorInfo executor;
-  scheduler::Mesos mesos;
+  const string master;
+  process::Owned<scheduler::Mesos> mesos;
 
   enum State
   {
