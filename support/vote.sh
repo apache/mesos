@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # This script should be used for calling a vote for a release candidate.
 # In addition to publishing the source tarball to svn repo this script

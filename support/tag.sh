@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # This script should be used to publish a local tag of the release
 # candidate to the Apache mesos repo. In addition this script also

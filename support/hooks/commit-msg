@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # A hook script to verify commit message format. Called by "git commit"
 # with one argument, the name of the file that has the commit message.

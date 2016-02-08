@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Provides an "atexit" mechanism for scripts.
 

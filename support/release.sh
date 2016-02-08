@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # This script should be used *after* a successful vote to publish a
 # release. In addition to publishing the source tarball to svn repo
