@@ -60,10 +60,6 @@ public:
   TestExecutor(const FrameworkID& _frameworkId, const ExecutorID& _executorId)
     : frameworkId(_frameworkId),
       executorId(_executorId),
-      mesos(mesos::ContentType::PROTOBUF,
-            process::defer(self(), &Self::connected),
-            process::defer(self(), &Self::disconnected),
-            process::defer(self(), &Self::received, lambda::_1)),
       state(DISCONNECTED) {}
 
   void connected()
@@ -97,7 +93,7 @@ public:
       subscribe->add_unacknowledged_tasks()->MergeFrom(task);
     }
 
-    mesos.send(call);
+    mesos->send(call);
 
     process::delay(Seconds(1), self(), &Self::doReliableRegistration);
   }
@@ -129,7 +125,7 @@ public:
     // Capture the status update.
     updates[uuid] = call.update();
 
-    mesos.send(call);
+    mesos->send(call);
   }
 
   void received(queue<Event> events)
@@ -196,10 +192,22 @@ public:
     }
   }
 
+protected:
+  virtual void initialize()
+  {
+    // We initialize the library here to ensure that callbacks are only invoked
+    // after the process has spawned.
+    mesos.reset(new Mesos(
+        mesos::ContentType::PROTOBUF,
+        process::defer(self(), &Self::connected),
+        process::defer(self(), &Self::disconnected),
+        process::defer(self(), &Self::received, lambda::_1)));
+  }
+
 private:
   const FrameworkID frameworkId;
   const ExecutorID executorId;
-  Mesos mesos;
+  process::Owned<Mesos> mesos;
   enum State
   {
     CONNECTED,
