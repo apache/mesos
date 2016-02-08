@@ -22,6 +22,7 @@
 #include <process/process.hpp>
 
 #include <stout/check.hpp>
+#include <stout/duration.hpp>
 #include <stout/gtest.hpp>
 #include <stout/os.hpp>
 #include <stout/path.hpp>
@@ -225,7 +226,7 @@ TEST_F(DockerFetcherPluginTest, INTERNET_CURL_FetchManifest)
 
   string dir = path::join(os::getcwd(), "dir");
 
-  AWAIT_READY(fetcher.get()->fetch(uri, dir));
+  AWAIT_READY_FOR(fetcher.get()->fetch(uri, dir), Seconds(60));
 
   Try<string> _manifest = os::read(path::join(dir, "manifest"));
   ASSERT_SOME(_manifest);
@@ -254,7 +255,7 @@ TEST_F(DockerFetcherPluginTest, INTERNET_CURL_FetchBlob)
 
   string dir = path::join(os::getcwd(), "dir");
 
-  AWAIT_READY(fetcher.get()->fetch(uri, dir));
+  AWAIT_READY_FOR(fetcher.get()->fetch(uri, dir), Seconds(60));
 
   EXPECT_TRUE(os::exists(path::join(dir, digest)));
 }
@@ -273,7 +274,7 @@ TEST_F(DockerFetcherPluginTest, INTERNET_CURL_FetchImage)
 
   string dir = path::join(os::getcwd(), "dir");
 
-  AWAIT_READY(fetcher.get()->fetch(uri, dir));
+  AWAIT_READY_FOR(fetcher.get()->fetch(uri, dir), Seconds(60));
 
   Try<string> _manifest = os::read(path::join(dir, "manifest"));
   ASSERT_SOME(_manifest);
