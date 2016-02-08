@@ -24,8 +24,7 @@ TEST_SCRIPT(ExamplesTest, TestFramework, "test_framework_test.sh")
 TEST_SCRIPT(ExamplesTest, NoExecutorFramework, "no_executor_framework_test.sh")
 
 
-// Temporarily disabled this test due to MESOS-3273.
-TEST_SCRIPT(DISABLED_ExamplesTest, EventCallFramework,
+TEST_SCRIPT(ExamplesTest, EventCallFramework,
             "event_call_framework_test.sh")
 
 
