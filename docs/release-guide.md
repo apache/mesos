@@ -172,15 +172,18 @@ This guide describes the process of doing an official release of Mesos.
 ## Updating the website
 
 1. After a successful release, please update the website pointing to the new release.
-   See our [website README](http://svn.apache.org/repos/asf/mesos/site/) and
+   See our [website README](https://github.com/apache/mesos/blob/master/site/README.md/) and
    the general [Apache project website guide](https://www.apache.org/dev/project-site.html)
    for details on how to build and publish the website.
 
         $ svn co https://svn.apache.org/repos/asf/mesos/site mesos-site
 
-2. Write a blog post announcing the new release and its features and major bug fixes.
+2. Update doxygen and javadoc pages for the website. For more information, see
+   [website README](https://github.com/apache/mesos/blob/master/site/README.md/).
 
-3. Update the Getting Started guide to use the latest release link.
+3. Write a blog post announcing the new release and its features and major bug fixes.
+
+4. Update the Getting Started guide to use the latest release link.
 
 ## Remove old releases from svn
 
