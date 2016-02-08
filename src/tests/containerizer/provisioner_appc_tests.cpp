@@ -35,6 +35,8 @@
 
 #include "slave/containerizer/mesos/provisioner/paths.hpp"
 #include "slave/containerizer/mesos/provisioner/provisioner.hpp"
+
+#include "slave/containerizer/mesos/provisioner/appc/paths.hpp"
 #include "slave/containerizer/mesos/provisioner/appc/store.hpp"
 
 using std::list;
@@ -54,6 +56,7 @@ namespace mesos {
 namespace internal {
 namespace tests {
 
+// TODO(jojy): Move AppcSpecTest to its own test file.
 class AppcSpecTest : public TemporaryDirectoryTest {};
 
 
@@ -123,7 +126,98 @@ TEST_F(AppcSpecTest, ValidateLayout)
 }
 
 
-class AppcStoreTest : public TemporaryDirectoryTest {};
+class AppcStoreTest : public TemporaryDirectoryTest
+{
+protected:
+  // Reusable method to create a simple test image directory inside the store
+  // directory. The directory structure reflects the Appc image spec.
+  //
+  // @param storeDir Path to the store directory where all images are stored.
+  // @return  Path to the test image directory.
+  Try<string> createTestImage(const string& storeDir)
+  {
+    Try<Nothing> mkdir = os::mkdir(storeDir, true);
+    if (mkdir.isError()) {
+      return mkdir.error();
+    }
+
+    // Create a simple image in the store:
+    // <store>
+    // |--images
+    //    |--<id>
+    //       |--manifest
+    //       |--rootfs/tmp/test
+    JSON::Value manifest = JSON::parse(
+        "{"
+        "  \"acKind\": \"ImageManifest\","
+        "  \"acVersion\": \"0.6.1\","
+        "  \"name\": \"foo.com/bar\","
+        "  \"labels\": ["
+        "    {"
+        "      \"name\": \"version\","
+        "      \"value\": \"1.0.0\""
+        "    },"
+        "    {"
+        "      \"name\": \"arch\","
+        "      \"value\": \"amd64\""
+        "    },"
+        "    {"
+        "      \"name\": \"os\","
+        "      \"value\": \"linux\""
+        "    }"
+        "  ],"
+        "  \"annotations\": ["
+        "    {"
+        "      \"name\": \"created\","
+        "      \"value\": \"1438983392\""
+        "    }"
+        "  ]"
+        "}").get();
+
+    // The 'imageId' below has the correct format but it's not computed
+    // by hashing the tarball of the image. It's OK here as we assume
+    // the images under 'images' have passed such check when they are
+    // downloaded and validated.
+    const string imageId =
+      "sha512-e77d96aa0240eedf134b8c90baeaf76dca8e78691836301d7498c84020446042e"
+      "797b296d6ab296e0954c2626bfb264322ebeb8f447dac4fac6511ea06bc61f0";
+
+    // Create rootfs inside the store directory.
+    const string rootfsPath = paths::getImageRootfsPath(storeDir, imageId);
+
+    Try<Nothing> mkRootfsDir = os::mkdir(rootfsPath);
+    if (mkRootfsDir.isError()) {
+      return mkRootfsDir.error();
+    }
+
+    // Create tmp directory inside rootfs.
+    const string tmpDirPath = path::join(rootfsPath, "tmp");
+
+    Try<Nothing> mkTmpDir = os::mkdir(tmpDirPath);
+    if (mkTmpDir.isError()) {
+      return mkTmpDir.error();
+    }
+
+    // Create test file in the tmp directory.
+    Try<Nothing> testFileWrite =
+      os::write(path::join(tmpDirPath, "test"), "test");
+
+    if (testFileWrite.isError()) {
+      return testFileWrite.error();
+    }
+
+    // Create manifest in the image directory.
+    Try<Nothing> manifestWrite = os::write(
+        paths::getImageManifestPath(storeDir, imageId),
+        stringify(manifest));
+
+    if (manifestWrite.isError()) {
+      return manifestWrite.error();
+    }
+
+    return paths::getImagePath(storeDir, imageId);
+  }
+};
 
 
 TEST_F(AppcStoreTest, Recover)
@@ -134,54 +228,11 @@ TEST_F(AppcStoreTest, Recover)
   Try<Owned<slave::Store>> store = Store::create(flags);
   ASSERT_SOME(store);
 
-  // Create a simple image in the store:
-  // <store>
-  // |--images
-  //    |--<id>
-  //       |--manifest
-  //       |--rootfs/tmp/test
-  JSON::Value manifest = JSON::parse(
-      "{"
-      "  \"acKind\": \"ImageManifest\","
-      "  \"acVersion\": \"0.6.1\","
-      "  \"name\": \"foo.com/bar\","
-      "  \"labels\": ["
-      "    {"
-      "      \"name\": \"version\","
-      "      \"value\": \"1.0.0\""
-      "    },"
-      "    {"
-      "      \"name\": \"arch\","
-      "      \"value\": \"amd64\""
-      "    },"
-      "    {"
-      "      \"name\": \"os\","
-      "      \"value\": \"linux\""
-      "    }"
-      "  ],"
-      "  \"annotations\": ["
-      "    {"
-      "      \"name\": \"created\","
-      "      \"value\": \"1438983392\""
-      "    }"
-      "  ]"
-      "}").get();
+  Try<string> createImage = createTestImage(flags.appc_store_dir);
 
-  // The 'imageId' below has the correct format but it's not computed
-  // by hashing the tarball of the image. It's OK here as we assume
-  // the images under 'images' have passed such check when they are
-  // downloaded and validated.
-  string imageId =
-    "sha512-e77d96aa0240eedf134b8c90baeaf76dca8e78691836301d7498c84020446042e"
-    "797b296d6ab296e0954c2626bfb264322ebeb8f447dac4fac6511ea06bc61f0";
+  ASSERT_SOME(createImage);
 
-  string imagePath = path::join(flags.appc_store_dir, "images", imageId);
-
-  ASSERT_SOME(os::mkdir(path::join(imagePath, "rootfs", "tmp")));
-  ASSERT_SOME(
-      os::write(path::join(imagePath, "rootfs", "tmp", "test"), "test"));
-  ASSERT_SOME(
-      os::write(path::join(imagePath, "manifest"), stringify(manifest)));
+  const string imagePath = createImage.get();
 
   // Recover the image from disk.
   AWAIT_READY(store.get()->recover());
