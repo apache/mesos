@@ -14,7 +14,10 @@ test $? != 0 && \
   echo "Failed to find MESOS_BUILD_DIR in environment" && \
   exit 1
 
+source ${MESOS_SOURCE_DIR}/support/colors.sh
 source ${MESOS_SOURCE_DIR}/support/atexit.sh
+source ${MESOS_HELPER_DIR}/colors.sh
+source ${MESOS_HELPER_DIR}/atexit.sh
 
 MESOS_WORK_DIR=`mktemp -d -t mesos-XXXXXX`
 
@@ -37,4 +40,4 @@ export MESOS_LAUNCHER="posix"
 export MESOS_AUTHENTICATE=false
 
 # Check that the C++ low level scheduler executes without crashing (returns 0).
-exec ${MESOS_BUILD_DIR}/src/event-call-framework --master=local
+exec ${MESOS_HELPER_DIR}/event-call-framework --master=local

@@ -36,6 +36,7 @@
 
 #include <stout/option.hpp>
 #include <stout/os.hpp>
+#include <stout/path.hpp>
 #include <stout/try.hpp>
 
 #include "common/build.hpp"
@@ -58,6 +59,7 @@
 #include "tests/flags.hpp"
 #include "tests/limiter.hpp"
 #include "tests/mesos.hpp"
+#include "tests/utils.hpp"
 
 using namespace mesos::internal::slave;
 
@@ -399,7 +401,7 @@ TEST_F(SlaveTest, CommandExecutorWithOverride)
   ASSERT_SOME(file);
 
   string executorCommand =
-    path::join(tests::flags.build_dir, "src", "mesos-executor") +
+    path::join(getLauncherDir(), "mesos-executor") +
     " --override -- /bin/sh -c 'echo hello world >" + file.get() + "'";
 
   // Expect two status updates, one for once the mesos-executor says
@@ -757,8 +759,7 @@ TEST_F(SlaveTest, ROOT_RunTaskWithCommandInfoWithoutUser)
   CHECK_SOME(user) << "Failed to get current user name"
                    << (user.isError() ? ": " + user.error() : "");
 
-  const string helper =
-      path::join(tests::flags.build_dir, "src", "active-user-test-helper");
+  const string helper = getTestHelperPath("active-user-test-helper");
 
   // Command executor will run as user running test.
   CommandInfo command;
@@ -835,8 +836,7 @@ TEST_F(SlaveTest, DISABLED_ROOT_RunTaskWithCommandInfoWithUser)
 
   Future<TaskStatus> statusRunning;
   Future<TaskStatus> statusFinished;
-  const string helper =
-      path::join(tests::flags.build_dir, "src", "active-user-test-helper");
+  const string helper = getTestHelperPath("active-user-test-helper");
 
   Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))

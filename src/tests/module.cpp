@@ -55,15 +55,9 @@ static void addIsolatorModules(Modules* modules)
 {
   CHECK_NOTNULL(modules);
 
-  const string libraryPath = path::join(
-      tests::flags.build_dir,
-      "src",
-      ".libs",
-      os::libraries::expandName("testisolator"));
-
   // Now add our test CPU and Memory isolator modules.
   Modules::Library* library = modules->add_libraries();
-  library->set_file(libraryPath);
+  library->set_file(getModulePath("testisolator"));
 
   // To add a new module from this library, create a new ModuleID enum
   // and tie it with a module name.
@@ -77,15 +71,9 @@ static void addAuthenticationModules(Modules* modules)
 {
   CHECK_NOTNULL(modules);
 
-  const string libraryPath = path::join(
-      tests::flags.build_dir,
-      "src",
-      ".libs",
-      os::libraries::expandName("testauthentication"));
-
   // Now add our test authentication modules.
   Modules::Library* library = modules->add_libraries();
-  library->set_file(libraryPath);
+  library->set_file(getModulePath("testauthentication"));
 
   // To add a new module from this library, create a new ModuleID enum
   // and tie it with a module name.
@@ -103,18 +91,9 @@ static void addContainerLoggerModules(Modules* modules)
 {
   CHECK_NOTNULL(modules);
 
-  const string libraryDirectory = path::join(
-      tests::flags.build_dir,
-      "src",
-      ".libs");
-
-  const string sandboxLoggerPath = path::join(
-      libraryDirectory,
-      os::libraries::expandName("testcontainer_logger"));
-
   // Add our test container logger module.
   Modules::Library* library = modules->add_libraries();
-  library->set_file(sandboxLoggerPath);
+  library->set_file(getModulePath("testcontainer_logger"));
 
   // To add a new module from this library, create a new ModuleID enum
   // and tie it with a module name.
@@ -122,13 +101,9 @@ static void addContainerLoggerModules(Modules* modules)
             TestSandboxContainerLogger,
             "org_apache_mesos_TestSandboxContainerLogger");
 
-  const string logrotateLoggerPath = path::join(
-      libraryDirectory,
-      os::libraries::expandName("logrotate_container_logger"));
-
   // Add the second container logger module.
   library = modules->add_libraries();
-  library->set_file(logrotateLoggerPath);
+  library->set_file(getModulePath("logrotate_container_logger"));
 
   addModule(library,
             LogrotateContainerLogger,
@@ -138,7 +113,7 @@ static void addContainerLoggerModules(Modules* modules)
   Modules::Library::Module* module = library->mutable_modules(0);
   mesos::Parameter* moduleParameter = module->add_parameters();
   moduleParameter->set_key("launcher_dir");
-  moduleParameter->set_value(path::join(tests::flags.build_dir, "src"));
+  moduleParameter->set_value(getLauncherDir());
 
   // Set the size and number of log files to keep.
   moduleParameter = module->add_parameters();
@@ -157,15 +132,9 @@ static void addHookModules(Modules* modules)
 {
   CHECK_NOTNULL(modules);
 
-  const string libraryPath = path::join(
-      tests::flags.build_dir,
-      "src",
-      ".libs",
-      os::libraries::expandName("testhook"));
-
   // Now add our test hook module.
   Modules::Library* library = modules->add_libraries();
-  library->set_file(libraryPath);
+  library->set_file(getModulePath("testhook"));
 
   // To add a new module from this library, create a new ModuleID enum
   // and tie it with a module name.
@@ -177,15 +146,9 @@ static void addAnonymousModules(Modules* modules)
 {
   CHECK_NOTNULL(modules);
 
-  const string libraryPath = path::join(
-      tests::flags.build_dir,
-      "src",
-      ".libs",
-      os::libraries::expandName("testanonymous"));
-
   // Now add our test anonymous module.
   Modules::Library* library = modules->add_libraries();
-  library->set_file(libraryPath);
+  library->set_file(getModulePath("testanonymous"));
 
   // To add a new module from this library, create a new ModuleID enum
   // and tie it with a module name.
@@ -199,15 +162,9 @@ static void addAllocatorModules(Modules* modules)
 {
   CHECK_NOTNULL(modules);
 
-  const string libraryPath = path::join(
-      tests::flags.build_dir,
-      "src",
-      ".libs",
-      os::libraries::expandName("testallocator"));
-
   // Now add our allocator module.
   Modules::Library* library = modules->add_libraries();
-  library->set_file(libraryPath);
+  library->set_file(getModulePath("testallocator"));
 
   // To add a new module from this library, create a new ModuleID enum
   // and tie it with a module name.
@@ -220,15 +177,9 @@ static void addResourceEstimatorModules(Modules* modules)
 {
   CHECK_NOTNULL(modules);
 
-  const string libraryPath = path::join(
-      tests::flags.build_dir,
-      "src",
-      ".libs",
-      os::libraries::expandName("testresource_estimator"));
-
   // Now add our resource_estimator module.
   Modules::Library* library = modules->add_libraries();
-  library->set_file(libraryPath);
+  library->set_file(getModulePath("testresource_estimator"));
 
   // To add a new module from this library, create a new ModuleID enum
   // and tie it with a module name.
@@ -243,15 +194,9 @@ static void addAuthorizerModules(Modules* modules)
 {
   CHECK_NOTNULL(modules);
 
-  const string libraryPath = path::join(
-      tests::flags.build_dir,
-      "src",
-      ".libs",
-      os::libraries::expandName("testauthorizer"));
-
   // Now add our test authorizer module.
   Modules::Library* library = modules->add_libraries();
-  library->set_file(libraryPath);
+  library->set_file(getModulePath("testauthorizer"));
 
   // To add a new module from this library, create a new ModuleID enum
   // and tie it with a module name.
@@ -264,15 +209,9 @@ static void addHttpAuthenticatorModules(Modules* modules)
 {
   CHECK_NOTNULL(modules);
 
-  const string libraryPath = path::join(
-      tests::flags.build_dir,
-      "src",
-      ".libs",
-      os::libraries::expandName("testhttpauthenticator"));
-
   // Now add our test HTTP authenticator module.
   Modules::Library* library = modules->add_libraries();
-  library->set_file(libraryPath);
+  library->set_file(getModulePath("testhttpauthenticator"));
 
   // To add a new module from this library, create a new ModuleID enum
   // and tie it with a module name.

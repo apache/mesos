@@ -29,9 +29,17 @@
 #include "tests/flags.hpp"
 #include "tests/utils.hpp"
 
+using std::string;
+
 namespace mesos {
 namespace internal {
 namespace tests {
+
+#if MESOS_INSTALL_TESTS
+const bool searchInstallationDirectory = true;
+#else
+const bool searchInstallationDirectory = false;
+#endif
 
 JSON::Object Metrics()
 {
@@ -47,6 +55,125 @@ JSON::Object Metrics()
   CHECK_SOME(parse);
 
   return parse.get();
+}
+
+string getModulePath(const string& name)
+{
+  string path = path::join(
+      tests::flags.build_dir,
+      "src",
+      ".libs");
+
+  if (!os::exists(path) && searchInstallationDirectory) {
+    path = PKGMODULEDIR;
+  }
+
+  return path::join(path, os::libraries::expandName(name));
+}
+
+string getLibMesosPath()
+{
+  string path = path::join(
+      tests::flags.build_dir,
+      "src",
+      ".libs",
+      os::libraries::expandName("mesos-" VERSION));
+
+  if (!os::exists(path) && searchInstallationDirectory) {
+    path = path::join(
+        LIBDIR,
+        os::libraries::expandName("mesos-" VERSION));
+  }
+
+  return path;
+}
+
+string getLauncherDir()
+{
+  string path = path::join(
+      tests::flags.build_dir,
+      "src");
+
+  if (!os::exists(path) && searchInstallationDirectory) {
+    path = PKGLIBEXECDIR;
+  }
+
+  return path;
+}
+
+string getTestHelperPath(const string& name)
+{
+  string path = path::join(
+      tests::flags.build_dir,
+      "src",
+      name);
+
+  if (!os::exists(path) && searchInstallationDirectory) {
+    path = path::join(
+        TESTLIBEXECDIR,
+        name);
+  }
+
+  return path;
+}
+
+string getTestHelperDir()
+{
+  string path = path::join(
+      tests::flags.build_dir,
+      "src");
+
+  if (!os::exists(path) && searchInstallationDirectory) {
+      return TESTLIBEXECDIR;
+  }
+
+  return path;
+}
+
+string getTestScriptPath(const string& script)
+{
+  string path = path::join(
+      flags.source_dir,
+      "src",
+      "tests",
+      script);
+
+  if (!os::exists(path) && searchInstallationDirectory) {
+    path = path::join(
+        TESTLIBEXECDIR,
+        script);
+  }
+
+  return path;
+}
+
+string getSbinDir()
+{
+  string path = path::join(
+      tests::flags.build_dir,
+      "src");
+
+  if (!os::exists(path) && searchInstallationDirectory) {
+      return SBINDIR;
+  }
+
+  return path;
+}
+
+string getWebUIDir()
+{
+  string path = path::join(
+      flags.source_dir,
+      "src",
+      "webui");
+
+  if (!os::exists(path) && searchInstallationDirectory) {
+    path = path::join(
+        PKGDATADIR,
+        "webui");
+  }
+
+  return path;
 }
 
 } // namespace tests {

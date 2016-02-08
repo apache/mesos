@@ -108,7 +108,7 @@ public:
     }
 
     slave::Flags flags;
-    flags.launcher_dir = path::join(tests::flags.build_dir, "src");
+    flags.launcher_dir = getLauncherDir();
 
     Try<Launcher*> launcher = PosixLauncher::create(flags);
     if (launcher.isError()) {
@@ -401,7 +401,7 @@ TEST_F(MesosContainerizerExecuteTest, IoRedirection)
   string directory = os::getcwd(); // We're inside a temporary sandbox.
 
   slave::Flags flags;
-  flags.launcher_dir = path::join(tests::flags.build_dir, "src");
+  flags.launcher_dir = getLauncherDir();
 
   Fetcher fetcher;
 

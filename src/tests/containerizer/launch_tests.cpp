@@ -34,6 +34,7 @@
 #include "slave/containerizer/mesos/launch.hpp"
 
 #include "tests/flags.hpp"
+#include "tests/utils.hpp"
 
 #include "tests/containerizer/rootfs.hpp"
 
@@ -72,7 +73,7 @@ public:
     argv[1] = slave::MesosContainerizerLaunch::NAME;
 
     Try<Subprocess> s = subprocess(
-        path::join(tests::flags.build_dir, "src", "mesos-containerizer"),
+        path::join(getLauncherDir(), "mesos-containerizer"),
         argv,
         Subprocess::PATH("/dev/null"),
         Subprocess::FD(STDOUT_FILENO),

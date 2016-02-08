@@ -153,7 +153,7 @@ slave::Flags MesosTest::CreateSlaveFlags()
   flags.work_dir = directory.get();
   flags.fetcher_cache_dir = path::join(directory.get(), "fetch");
 
-  flags.launcher_dir = path::join(tests::flags.build_dir, "src");
+  flags.launcher_dir = getLauncherDir();
 
   // Create a default credential file.
   const string& path = path::join(directory.get(), "credential");

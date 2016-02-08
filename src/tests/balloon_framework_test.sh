@@ -5,6 +5,8 @@
 
 source ${MESOS_SOURCE_DIR}/support/colors.sh
 source ${MESOS_SOURCE_DIR}/support/atexit.sh
+source ${MESOS_HELPER_DIR}/colors.sh
+source ${MESOS_HELPER_DIR}/atexit.sh
 
 EXISTING_MEMORY_HIERARCHY=$(cat /proc/mounts | grep memory | cut -f 2 -d ' ')
 if [[ -n ${EXISTING_MEMORY_HIERARCHY} ]]; then
@@ -60,14 +62,15 @@ function cleanup() {
 atexit cleanup
 
 export LD_LIBRARY_PATH=${MESOS_BUILD_DIR}/src/.libs
-MASTER=${MESOS_BUILD_DIR}/src/mesos-master
-SLAVE=${MESOS_BUILD_DIR}/src/mesos-slave
-BALLOON_FRAMEWORK=${MESOS_BUILD_DIR}/src/balloon-framework
+MASTER=${MESOS_SBIN_DIR}/mesos-master
+SLAVE=${MESOS_SBIN_DIR}/mesos-slave
+BALLOON_FRAMEWORK=${MESOS_HELPER_DIR}/balloon-framework
 
 # The mesos binaries expect MESOS_ prefixed environment variables
 # to correspond to flags, so we unset these here.
 unset MESOS_BUILD_DIR
 unset MESOS_SOURCE_DIR
+unset MESOS_HELPER_DIR
 #unset MESOS_LAUNCHER_DIR # leave this so we can find mesos-fetcher.
 unset MESOS_VERBOSE
 

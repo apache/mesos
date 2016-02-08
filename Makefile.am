@@ -27,6 +27,9 @@ PHONY_TARGETS =
 pkgconfigdir = $(libdir)/pkgconfig
 pkgconfig_DATA = mesos.pc
 
+# Directories to optionally install test binaries and libraries.
+testlibexecdir = $(pkglibexecdir)/tests
+
 # Since we generate several files in src/ with config.status, make
 # sure they're regenerated before we recurse into the src directory.
 all-recursive: src/python/setup.py			\
@@ -92,5 +95,10 @@ distclean-local:
 	-rm -f ./3rdparty/libprocess/report.xml
 	-rm -f ./src/report.xml
 
+if INSTALL_TESTS
+dist_testlibexec_SCRIPTS = 				\
+  support/atexit.sh 					\
+  support/colors.sh
+endif
 
 .PHONY: $(PHONY_TARGETS)

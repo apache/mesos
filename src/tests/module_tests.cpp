@@ -55,10 +55,8 @@ protected:
   // per-test teardown.
   static void SetUpTestCase()
   {
-    libraryDirectory = path::join(tests::flags.build_dir, "src", ".libs");
-
-    EXPECT_SOME(dynamicLibrary.open(path::join(libraryDirectory,
-        os::libraries::expandName(DEFAULT_MODULE_LIBRARY_NAME))));
+    EXPECT_SOME(dynamicLibrary.open(
+        getModulePath(DEFAULT_MODULE_LIBRARY_NAME)));
 
     Try<void*> symbol = dynamicLibrary.loadSymbol(DEFAULT_MODULE_NAME);
     EXPECT_SOME(symbol);
@@ -78,9 +76,7 @@ protected:
     : module(None())
   {
     Modules::Library* library = defaultModules.add_libraries();
-    library->set_file(path::join(
-        libraryDirectory,
-        os::libraries::expandName(DEFAULT_MODULE_LIBRARY_NAME)));
+    library->set_file(getModulePath(DEFAULT_MODULE_LIBRARY_NAME));
     library->add_modules()->set_name(DEFAULT_MODULE_NAME);
   }
 
@@ -109,24 +105,20 @@ protected:
 
   static DynamicLibrary dynamicLibrary;
   static ModuleBase* moduleBase;
-  static string libraryDirectory;
 };
 
 
 DynamicLibrary ModuleTest::dynamicLibrary;
 ModuleBase* ModuleTest::moduleBase = NULL;
-string ModuleTest::libraryDirectory;
 
 
 Modules getModules(
-    const string& libraryDirectory,
     const string& libraryName,
     const string& moduleName)
 {
   Modules modules;
   Modules::Library* library = modules.add_libraries();
-  library->set_file(
-      path::join(libraryDirectory, os::libraries::expandName(libraryName)));
+  library->set_file(getModulePath(libraryName));
   Modules::Library::Module* module = library->add_modules();
   module->set_name(moduleName);
   return modules;
@@ -134,13 +126,12 @@ Modules getModules(
 
 
 Modules getModules(
-    const string& libraryDirectory,
     const string& libraryName,
     const string& moduleName,
     const string& parameterKey,
     const string& parameterValue)
 {
-  Modules modules = getModules(libraryDirectory, libraryName, moduleName);
+  Modules modules = getModules(libraryName, moduleName);
   Modules::Library* library = modules.mutable_libraries(0);
   Modules::Library::Module* module = library->mutable_modules(0);
   Parameter* parameter = module->add_parameters();
@@ -151,14 +142,12 @@ Modules getModules(
 
 
 Try<Modules> getModulesFromJson(
-    const string& libraryDirectory,
     const string& libraryName,
     const string& moduleName,
     const string& parameterKey,
     const string& parameterValue)
 {
-  string libraryFile =
-    path::join(libraryDirectory, os::libraries::expandName(libraryName));
+  string libraryFile = getModulePath(libraryName);
 
   string jsonString =
     "{\n"
@@ -209,7 +198,6 @@ TEST_F(ModuleTest, ExampleModuleLoadTest)
 TEST_F(ModuleTest, ParameterWithoutValue)
 {
   Modules modules = getModules(
-      libraryDirectory,
       DEFAULT_MODULE_LIBRARY_NAME,
       DEFAULT_MODULE_NAME,
       "operation",
@@ -225,7 +213,6 @@ TEST_F(ModuleTest, ParameterWithoutValue)
 TEST_F(ModuleTest, ParameterWithInvalidValue)
 {
   Modules modules = getModules(
-      libraryDirectory,
       DEFAULT_MODULE_LIBRARY_NAME,
       DEFAULT_MODULE_NAME,
       "operation",
@@ -241,7 +228,6 @@ TEST_F(ModuleTest, ParameterWithInvalidValue)
 TEST_F(ModuleTest, ParameterWithoutKey)
 {
   Modules modules = getModules(
-      libraryDirectory,
       DEFAULT_MODULE_LIBRARY_NAME,
       DEFAULT_MODULE_NAME,
       "",
@@ -260,7 +246,6 @@ TEST_F(ModuleTest, ParameterWithoutKey)
 TEST_F(ModuleTest, ParameterWithInvalidKey)
 {
   Modules modules = getModules(
-      libraryDirectory,
       DEFAULT_MODULE_LIBRARY_NAME,
       DEFAULT_MODULE_NAME,
       "X",
@@ -279,7 +264,6 @@ TEST_F(ModuleTest, ParameterWithInvalidKey)
 TEST_F(ModuleTest, ValidParameters)
 {
   Modules modules = getModules(
-      libraryDirectory,
       DEFAULT_MODULE_LIBRARY_NAME,
       DEFAULT_MODULE_NAME,
       "operation",
@@ -297,7 +281,6 @@ TEST_F(ModuleTest, ValidParameters)
 TEST_F(ModuleTest, OverrideJson)
 {
   Modules modules = getModules(
-      libraryDirectory,
       DEFAULT_MODULE_LIBRARY_NAME,
       DEFAULT_MODULE_NAME,
       "operation",
@@ -325,7 +308,6 @@ TEST_F(ModuleTest, OverrideJson)
 TEST_F(ModuleTest, JsonParseTest)
 {
   Try<Modules> modules = getModulesFromJson(
-      libraryDirectory,
       DEFAULT_MODULE_LIBRARY_NAME,
       DEFAULT_MODULE_NAME,
       "operation",
@@ -398,8 +380,7 @@ TEST_F(ModuleTest, LibraryNameWithoutExtension)
   Modules modules;
   Modules::Library* library = modules.add_libraries();
   library->set_name(DEFAULT_MODULE_LIBRARY_NAME);
-  library->set_file(path::join(libraryDirectory,
-      os::libraries::expandName(DEFAULT_MODULE_LIBRARY_NAME)));
+  library->set_file(getModulePath(DEFAULT_MODULE_LIBRARY_NAME));
   Modules::Library::Module* module = library->add_modules();
   module->set_name(DEFAULT_MODULE_NAME);
 
@@ -411,7 +392,6 @@ TEST_F(ModuleTest, LibraryNameWithoutExtension)
 TEST_F(ModuleTest, EmptyLibraryFilename)
 {
   Modules modules = getModules(
-      libraryDirectory,
       "",
       "org_apache_mesos_TestModule");
   EXPECT_ERROR(ModuleManager::load(modules));
@@ -421,7 +401,7 @@ TEST_F(ModuleTest, EmptyLibraryFilename)
 // Test that module library loading fails when module name is empty.
 TEST_F(ModuleTest, EmptyModuleName)
 {
-  Modules modules = getModules(libraryDirectory, "examplemodule", "");
+  Modules modules = getModules("examplemodule", "");
   EXPECT_ERROR(ModuleManager::load(modules));
 }
 
@@ -430,7 +410,6 @@ TEST_F(ModuleTest, EmptyModuleName)
 TEST_F(ModuleTest, UnknownLibraryTest)
 {
   Modules modules = getModules(
-      libraryDirectory,
       "unknown",
       "org_apache_mesos_TestModule");
   EXPECT_ERROR(ModuleManager::load(modules));
@@ -441,7 +420,7 @@ TEST_F(ModuleTest, UnknownLibraryTest)
 // the commandline.
 TEST_F(ModuleTest, UnknownModuleTest)
 {
-  Modules modules = getModules(libraryDirectory, "examplemodule", "unknown");
+  Modules modules = getModules("examplemodule", "unknown");
   EXPECT_ERROR(ModuleManager::load(modules));
 }
 
@@ -460,7 +439,7 @@ TEST_F(ModuleTest, NonModuleLibrary)
 {
   // Trying to load libmesos.so (libmesos.dylib on OS X) as a module
   // library should fail.
-  Modules modules = getModules(libraryDirectory, "mesos", DEFAULT_MODULE_NAME);
+  Modules modules = getModules("mesos", DEFAULT_MODULE_NAME);
   EXPECT_ERROR(ModuleManager::load(modules));
 }
 

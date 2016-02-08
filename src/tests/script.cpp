@@ -36,6 +36,7 @@
 #include "tests/flags.hpp"
 #include "tests/mesos.hpp"
 #include "tests/script.hpp"
+#include "tests/utils.hpp"
 
 using std::string;
 
@@ -56,11 +57,11 @@ void execute(const string& script)
   }
 
   // Determine the path for the script.
-  Result<string> path =
-    os::realpath(path::join(flags.source_dir, "src", "tests", script));
+  Result<string> path = os::realpath(getTestScriptPath(script));
 
   if (!path.isSome()) {
-    FAIL() << "Failed to locate script: "
+    FAIL() << "Failed to locate script "
+           << script << ": "
            << (path.isError() ? path.error() : "No such file or directory");
   }
 
@@ -100,11 +101,18 @@ void execute(const string& script)
       }
     }
 
-    // Set up the environment for executing the script.
-    os::setenv("MESOS_SOURCE_DIR", flags.source_dir);
+    // Set up the environment for executing the script. We might be running from
+    // the Mesos source tree or from an installed version of the tests. In the
+    // latter case, all of the variables below are swizzled to point to the
+    // installed locations, except MESOS_SOURCE_DIR. Scripts that make use of
+    // MESOS_SOURCE_DIR are expected to gracefully degrade if the Mesos source
+    // is no longer present.
     os::setenv("MESOS_BUILD_DIR", flags.build_dir);
-    os::setenv("MESOS_WEBUI_DIR", path::join(flags.source_dir, "src", "webui"));
-    os::setenv("MESOS_LAUNCHER_DIR", path::join(flags.build_dir, "src"));
+    os::setenv("MESOS_HELPER_DIR", getTestHelperDir());
+    os::setenv("MESOS_LAUNCHER_DIR", getLauncherDir());
+    os::setenv("MESOS_SBIN_DIR", getSbinDir());
+    os::setenv("MESOS_SOURCE_DIR", flags.source_dir);
+    os::setenv("MESOS_WEBUI_DIR", getWebUIDir());
 
     // Enable replicated log based registry.
     os::setenv("MESOS_REGISTRY", "replicated_log");

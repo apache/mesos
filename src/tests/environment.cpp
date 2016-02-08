@@ -58,6 +58,7 @@
 
 #include "tests/environment.hpp"
 #include "tests/flags.hpp"
+#include "tests/utils.hpp"
 
 #ifdef WITH_NETWORK_ISOLATOR
 using namespace routing;
@@ -681,12 +682,7 @@ void Environment::SetUp()
   // TODO(tillt): Adapt library towards JNI specific name once libmesos
   // has been split.
   if (os::getenv("MESOS_NATIVE_JAVA_LIBRARY").isNone()) {
-    string path = path::join(tests::flags.build_dir, "src", ".libs");
-#ifdef __APPLE__
-    path = path::join(path, "libmesos-" VERSION ".dylib");
-#else
-    path = path::join(path, "libmesos-" VERSION ".so");
-#endif
+    string path = getLibMesosPath();
     os::setenv("MESOS_NATIVE_JAVA_LIBRARY", path);
   }
 

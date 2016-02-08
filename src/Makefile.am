@@ -47,6 +47,12 @@ PICOJSON = $(LIBPROCESS)/3rdparty/picojson-$(PICOJSON_VERSION)
 pkglibexecdir = $(libexecdir)/$(PACKAGE)
 pkgsysconfdir = $(sysconfdir)/$(PACKAGE)
 
+# Directories to optionally install test binaries and libraries.
+testlibexecdir = $(pkglibexecdir)/tests
+
+# Directory where Mesos modules are installed.
+pkgmoduledir = $(pkglibdir)/modules
+
 if WITH_BUNDLED_PROTOBUF
 # Protocol buffer compiler.
 PROTOC = ../$(PROTOBUF)/src/protoc
@@ -58,6 +64,7 @@ PROTOCFLAGS = -I$(top_srcdir)/include -I$(srcdir)
 
 # Initialize variables here so we can use += operator everywhere else.
 lib_LTLIBRARIES =
+pkgmodule_LTLIBRARIES =
 noinst_LTLIBRARIES =
 sbin_PROGRAMS =
 bin_PROGRAMS =
@@ -94,6 +101,7 @@ MESOS_CPPFLAGS += -Wall -Werror
 MESOS_CPPFLAGS += -DLIBDIR=\"$(libdir)\"
 MESOS_CPPFLAGS += -DPKGLIBEXECDIR=\"$(pkglibexecdir)\"
 MESOS_CPPFLAGS += -DPKGDATADIR=\"$(pkgdatadir)\"
+MESOS_CPPFLAGS += -DPKGMODULEDIR=\"$(pkgmoduledir)\"
 MESOS_CPPFLAGS += -I$(top_srcdir)/include
 MESOS_CPPFLAGS += -I$(top_srcdir)/$(LIBPROCESS)/include
 MESOS_CPPFLAGS += -I$(top_srcdir)/$(STOUT)/include
@@ -1658,10 +1666,11 @@ endif
 check_PROGRAMS += memory-test-helper
 memory_test_helper_SOURCES =					\
   tests/flags.cpp						\
+  tests/utils.cpp						\
   tests/containerizer/memory_test_helper_main.cpp		\
   tests/containerizer/memory_test_helper.cpp
 memory_test_helper_CPPFLAGS = $(mesos_tests_CPPFLAGS)
-memory_test_helper_LDADD = libmesos.la $(LDADD)
+memory_test_helper_LDADD = $(mesos_tests_LDADD)
 
 check_PROGRAMS += active-user-test-helper
 active_user_test_helper_SOURCES = tests/active_user_test_helper.cpp
@@ -1674,7 +1683,7 @@ check_PROGRAMS += mesos-tests
 MESOS_MODULE_LDFLAGS = -release $(PACKAGE_VERSION) -shared
 
 # Library containing the logrotate container logger.
-lib_LTLIBRARIES += liblogrotate_container_logger.la
+pkgmodule_LTLIBRARIES += liblogrotate_container_logger.la
 liblogrotate_container_logger_la_SOURCES =			\
   slave/container_loggers/logrotate.hpp				\
   slave/container_loggers/lib_logrotate.hpp			\
@@ -1683,33 +1692,48 @@ liblogrotate_container_logger_la_CPPFLAGS = $(MESOS_CPPFLAGS)
 liblogrotate_container_logger_la_LDFLAGS = $(MESOS_MODULE_LDFLAGS)
 
 # Library containing the fixed resource estimator.
-lib_LTLIBRARIES += libfixed_resource_estimator.la
+pkgmodule_LTLIBRARIES += libfixed_resource_estimator.la
 libfixed_resource_estimator_la_SOURCES = slave/resource_estimators/fixed.cpp
 libfixed_resource_estimator_la_CPPFLAGS = $(MESOS_CPPFLAGS)
 libfixed_resource_estimator_la_LDFLAGS = $(MESOS_MODULE_LDFLAGS)
 
 # Library containing the load qos controller.
-lib_LTLIBRARIES += libload_qos_controller.la
+pkgmodule_LTLIBRARIES += libload_qos_controller.la
 libload_qos_controller_la_SOURCES = slave/qos_controllers/load.hpp
 libload_qos_controller_la_SOURCES += slave/qos_controllers/load.cpp
 libload_qos_controller_la_CPPFLAGS = $(MESOS_CPPFLAGS)
 libload_qos_controller_la_LDFLAGS = $(MESOS_MODULE_LDFLAGS)
 
-# We need to build the test module libraries for running the test suite but
-# don't need to install them.  The 'noinst_' prefix ensures that these libraries
-# will not be installed.  However, it also skips building the shared libraries.
-# The workaround is to use '-rpath /nowhere' to force libtool to build the
-# shared library.
-MESOS_TEST_MODULE_LDFLAGS = $(MESOS_MODULE_LDFLAGS) -rpath /nowhere
+MESOS_TEST_MODULE_LDFLAGS = $(MESOS_MODULE_LDFLAGS)
+
+# Even if we are not installing the test suite, we still need to build
+# the test module libraries as shared libraries for running the test suite.
+# When we use the 'noinst_' prefix to ensure these libraries are not
+# installed, automake skips building the shared libraries. The workaround is
+# to use '-rpath /nowhere' to force libtool to always build shared libraries.
+if !INSTALL_TESTS
+MESOS_TEST_MODULE_LDFLAGS += -rpath /nowhere
+endif
+
+MESOS_TEST_MODULES =		\
+  libexamplemodule.la		\
+  libtestallocator.la		\
+  libtestanonymous.la		\
+  libtestauthentication.la	\
+  libtestauthorizer.la		\
+  libtestcontainer_logger.la	\
+  libtesthook.la		\
+  libtesthttpauthenticator.la	\
+  libtestisolator.la		\
+  libtestqos_controller.la	\
+  libtestresource_estimator.la
 
 # Library containing an example module.
-noinst_LTLIBRARIES += libexamplemodule.la
 libexamplemodule_la_SOURCES = examples/example_module_impl.cpp
 libexamplemodule_la_CPPFLAGS = $(MESOS_CPPFLAGS)
 libexamplemodule_la_LDFLAGS = $(MESOS_TEST_MODULE_LDFLAGS)
 
 # Library containing the test anonymous modules.
-noinst_LTLIBRARIES += libtestanonymous.la
 libtestanonymous_la_SOURCES = examples/test_anonymous_module.cpp
 libtestanonymous_la_CPPFLAGS = $(MESOS_CPPFLAGS)
 libtestanonymous_la_LDFLAGS = $(MESOS_TEST_MODULE_LDFLAGS)
@@ -1717,62 +1741,58 @@ libtestanonymous_la_LDFLAGS = $(MESOS_TEST_MODULE_LDFLAGS)
 # Library containing the test CRAM-MD5 authentication modules.
 # TODO(tillt): Add cyrus-sasl2 dependency while removing it from libmesos.
 # TODO(tillt): Enable optional building of this module library.
-# TODO(tillt): Make this module library installable. See MESOS-1940.
-noinst_LTLIBRARIES += libtestauthentication.la
 libtestauthentication_la_SOURCES = examples/test_authentication_modules.cpp
 libtestauthentication_la_CPPFLAGS = $(MESOS_CPPFLAGS)
 libtestauthentication_la_LDFLAGS = $(MESOS_TEST_MODULE_LDFLAGS)
 
 # Library containing the test authorizer module.
-noinst_LTLIBRARIES += libtestauthorizer.la
 libtestauthorizer_la_SOURCES = examples/test_authorizer_module.cpp
 libtestauthorizer_la_CPPFLAGS = $(MESOS_CPPFLAGS)
 libtestauthorizer_la_LDFLAGS = $(MESOS_TEST_MODULE_LDFLAGS)
 
 # Library containing the test http authenticator module.
-noinst_LTLIBRARIES += libtesthttpauthenticator.la
 libtesthttpauthenticator_la_SOURCES = examples/test_http_authenticator_module.cpp
 libtesthttpauthenticator_la_CPPFLAGS = $(MESOS_CPPFLAGS)
 libtesthttpauthenticator_la_LDFLAGS = $(MESOS_TEST_MODULE_LDFLAGS)
 
 # Library containing the test DRF allocator module.
-noinst_LTLIBRARIES += libtestallocator.la
 libtestallocator_la_SOURCES = examples/test_allocator_module.cpp
 libtestallocator_la_CPPFLAGS = $(MESOS_CPPFLAGS)
 libtestallocator_la_LDFLAGS = $(MESOS_TEST_MODULE_LDFLAGS)
 
 # Library containing example test sandbox container logger module.
-noinst_LTLIBRARIES += libtestcontainer_logger.la
 libtestcontainer_logger_la_SOURCES =		\
   examples/test_container_logger_module.cpp
 libtestcontainer_logger_la_CPPFLAGS = $(MESOS_CPPFLAGS)
 libtestcontainer_logger_la_LDFLAGS = $(MESOS_TEST_MODULE_LDFLAGS)
 
 # Library containing test Hook module.
-noinst_LTLIBRARIES += libtesthook.la
 libtesthook_la_SOURCES = examples/test_hook_module.cpp
 libtesthook_la_CPPFLAGS = $(MESOS_CPPFLAGS)
 libtesthook_la_LDFLAGS = $(MESOS_TEST_MODULE_LDFLAGS)
 
 # Library containing test CPU and memory isolator modules.
-noinst_LTLIBRARIES += libtestisolator.la
 libtestisolator_la_SOURCES = examples/test_isolator_module.cpp
 libtestisolator_la_CPPFLAGS = $(MESOS_CPPFLAGS)
 libtestisolator_la_LDFLAGS = $(MESOS_TEST_MODULE_LDFLAGS)
 
 # Library containing example test noop resource estimator module.
-noinst_LTLIBRARIES += libtestresource_estimator.la
 libtestresource_estimator_la_SOURCES =		\
   examples/test_resource_estimator_module.cpp
 libtestresource_estimator_la_CPPFLAGS = $(MESOS_CPPFLAGS)
 libtestresource_estimator_la_LDFLAGS = $(MESOS_TEST_MODULE_LDFLAGS)
 
 # Library containing example test noop qos controller module.
-noinst_LTLIBRARIES += libtestqos_controller.la
 libtestqos_controller_la_SOURCES =		\
   examples/test_qos_controller_module.cpp
 libtestqos_controller_la_CPPFLAGS = $(MESOS_CPPFLAGS)
 libtestqos_controller_la_LDFLAGS = $(MESOS_TEST_MODULE_LDFLAGS)
+
+if INSTALL_TESTS
+pkgmodule_LTLIBRARIES += $(MESOS_TEST_MODULES)
+else
+noinst_LTLIBRARIES += $(MESOS_TEST_MODULES)
+endif
 
 mesos_tests_SOURCES =						\
   slave/qos_controllers/load.cpp				\
@@ -1869,6 +1889,8 @@ mesos_tests_CPPFLAGS += -DSOURCE_DIR=\"$(abs_top_srcdir)\"
 mesos_tests_CPPFLAGS += -DBUILD_DIR=\"$(abs_top_builddir)\"
 mesos_tests_CPPFLAGS += -I../$(GTEST)/include
 mesos_tests_CPPFLAGS += -I../$(GMOCK)/include
+mesos_tests_CPPFLAGS += -DTESTLIBEXECDIR=\"$(testlibexecdir)\"
+mesos_tests_CPPFLAGS += -DSBINDIR=\"$(sbindir)\"
 
 mesos_tests_LDADD = ../$(LIBPROCESS)/3rdparty/libgmock.la libmesos.la $(LDADD)
 
@@ -1876,7 +1898,10 @@ if !OS_FREEBSD
   mesos_tests_LDADD += -ldl # FreeBSD includes dynamic lib utils in libc.
 endif
 
-mesos_tests_DEPENDENCIES = # Initialized to allow += below.
+mesos_tests_DEPENDENCIES = 					\
+  ../$(LIBPROCESS)/3rdparty/libgmock.la 			\
+  libmesos.la 							\
+  $(MESOS_TEST_MODULES)
 
 if OS_LINUX
 mesos_tests_SOURCES +=						\
@@ -1954,12 +1979,52 @@ dist_check_SCRIPTS +=						\
   tests/python_framework_test.sh				\
   tests/test_framework_test.sh
 
+../$(LIBPROCESS)/3rdparty/libgmock.la:
+	@cd ../$(LIBPROCESS)/3rdparty && $(MAKE) $(AM_MAKEFLAGS) libgmock.la
+
+if INSTALL_TESTS
+testlibexec_PROGRAMS = $(check_PROGRAMS)
+dist_testlibexec_SCRIPTS =			\
+  tests/balloon_framework_test.sh		\
+  tests/event_call_framework_test.sh		\
+  tests/java_exception_test.sh			\
+  tests/java_framework_test.sh			\
+  tests/java_log_test.sh			\
+  tests/no_executor_framework_test.sh		\
+  tests/persistent_volume_framework_test.sh	\
+  tests/python_framework_test.sh		\
+  tests/test_framework_test.sh
+
+endif
+
+# Install compatibility symlinks for modules that used to be in $(LIBDIR)
+# but are now in $(PKGMODULEDIR). We use install-data-hook because it
+# runs late in the install process after the target directories have
+# been created.
+install-data-hook:
+	cd $(DESTDIR)/$(libdir) && 				\
+	for name in libfixed_resource_estimator 		\
+	    libload_qos_controller 				\
+	    liblogrotate_container_logger; do 			\
+		for lib in `cd $(DESTDIR)/$(pkgmoduledir) && ls $${name}*`; do \
+		  rm -f $$lib; 					\
+		  $(LN_S) $(pkgmoduledir)/$$lib $$lib; 		\
+		done;						\
+	done
+
 # We use a check-local target for now to avoid the parallel test
 # runner that ships with newer versions of autotools.
 # See the following discussion for the workaround:
 # http://lists.gnu.org/archive/html/automake/2013-01/msg00051.html
 check-local: tests
 	./mesos-tests
+
+if INSTALL_TESTS
+# If we enabled test installation, we can run the tests from the
+# installation tree.
+installcheck-local:
+	$(testlibexecdir)/mesos-tests --build_dir=/nowhere --source_dir=/nowhere
+endif
 
 clean-local: clean-java clean-python
 

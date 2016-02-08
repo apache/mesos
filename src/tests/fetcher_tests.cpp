@@ -81,7 +81,7 @@ TEST_F(FetcherTest, FileURI)
   EXPECT_FALSE(os::exists(localFile));
 
   slave::Flags flags;
-  flags.launcher_dir = path::join(tests::flags.build_dir, "src");
+  flags.launcher_dir = getLauncherDir();
 
   ContainerID containerId;
   containerId.set_value(UUID::random().toString());
@@ -115,7 +115,7 @@ TEST_F(FetcherTest, InvalidUser)
   EXPECT_FALSE(os::exists(localFile));
 
   slave::Flags flags;
-  flags.launcher_dir = path::join(tests::flags.build_dir, "src");
+  flags.launcher_dir = getLauncherDir();
   flags.frameworks_home = "/tmp/frameworks";
 
   ContainerID containerId;
@@ -151,7 +151,7 @@ TEST_F(FetcherTest, NonExistingFile)
   string testFile = path::join(fromDir, "nonExistingFile");
 
   slave::Flags flags;
-  flags.launcher_dir = path::join(tests::flags.build_dir, "src");
+  flags.launcher_dir = getLauncherDir();
   flags.frameworks_home = "/tmp/frameworks";
 
   ContainerID containerId;
@@ -177,7 +177,7 @@ TEST_F(FetcherTest, NonExistingFile)
 TEST_F(FetcherTest, MalformedURI)
 {
   slave::Flags flags;
-  flags.launcher_dir = path::join(tests::flags.build_dir, "src");
+  flags.launcher_dir = getLauncherDir();
   flags.frameworks_home = "/tmp/frameworks";
 
   ContainerID containerId;
@@ -210,7 +210,7 @@ TEST_F(FetcherTest, AbsoluteFilePath)
   EXPECT_FALSE(os::exists(localFile));
 
   slave::Flags flags;
-  flags.launcher_dir = path::join(tests::flags.build_dir, "src");
+  flags.launcher_dir = getLauncherDir();
 
   ContainerID containerId;
   containerId.set_value(UUID::random().toString());
@@ -241,7 +241,7 @@ TEST_F(FetcherTest, RelativeFilePath)
   EXPECT_FALSE(os::exists(localFile));
 
   slave::Flags flags;
-  flags.launcher_dir = path::join(tests::flags.build_dir, "src");
+  flags.launcher_dir = getLauncherDir();
 
   ContainerID containerId;
   containerId.set_value(UUID::random().toString());
@@ -321,7 +321,7 @@ TEST_F(FetcherTest, OSNetUriTest)
   EXPECT_FALSE(os::exists(localFile));
 
   slave::Flags flags;
-  flags.launcher_dir = path::join(tests::flags.build_dir, "src");
+  flags.launcher_dir = getLauncherDir();
   flags.frameworks_home = "/tmp/frameworks";
 
   ContainerID containerId;
@@ -366,7 +366,7 @@ TEST_F(FetcherTest, OSNetUriSpaceTest)
   EXPECT_FALSE(os::exists(localFile));
 
   slave::Flags flags;
-  flags.launcher_dir = path::join(tests::flags.build_dir, "src");
+  flags.launcher_dir = getLauncherDir();
   flags.frameworks_home = "/tmp/frameworks";
 
   ContainerID containerId;
@@ -405,7 +405,7 @@ TEST_F(FetcherTest, FileLocalhostURI)
   EXPECT_FALSE(os::exists(localFile));
 
   slave::Flags flags;
-  flags.launcher_dir = path::join(tests::flags.build_dir, "src");
+  flags.launcher_dir = getLauncherDir();
 
   ContainerID containerId;
   containerId.set_value(UUID::random().toString());
@@ -442,7 +442,7 @@ TEST_F(FetcherTest, NoExtractNotExecutable)
   uri->set_extract(false);
 
   slave::Flags flags;
-  flags.launcher_dir = path::join(tests::flags.build_dir, "src");
+  flags.launcher_dir = getLauncherDir();
 
   Fetcher fetcher;
   SlaveID slaveId;
@@ -481,7 +481,7 @@ TEST_F(FetcherTest, NoExtractExecutable)
   uri->set_extract(false);
 
   slave::Flags flags;
-  flags.launcher_dir = path::join(tests::flags.build_dir, "src");
+  flags.launcher_dir = getLauncherDir();
 
   Fetcher fetcher;
   SlaveID slaveId;
@@ -532,7 +532,7 @@ TEST_F(FetcherTest, ExtractNotExecutable)
   uri->set_extract(true);
 
   slave::Flags flags;
-  flags.launcher_dir = path::join(tests::flags.build_dir, "src");
+  flags.launcher_dir = getLauncherDir();
 
   Fetcher fetcher;
   SlaveID slaveId;
@@ -583,7 +583,7 @@ TEST_F(FetcherTest, ExtractTar)
   uri->set_extract(true);
 
   slave::Flags flags;
-  flags.launcher_dir = path::join(tests::flags.build_dir, "src");
+  flags.launcher_dir = getLauncherDir();
 
   Fetcher fetcher;
   SlaveID slaveId;
@@ -621,7 +621,7 @@ TEST_F(FetcherTest, ExtractGzipFile)
   uri->set_extract(true);
 
   slave::Flags flags;
-  flags.launcher_dir = path::join(tests::flags.build_dir, "src");
+  flags.launcher_dir = getLauncherDir();
 
   Fetcher fetcher;
   SlaveID slaveId;
@@ -704,7 +704,7 @@ TEST_F(FetcherTest, HdfsURI)
   EXPECT_FALSE(os::exists(localFile));
 
   slave::Flags flags;
-  flags.launcher_dir = path::join(tests::flags.build_dir, "src");
+  flags.launcher_dir = getLauncherDir();
   flags.hadoop_home = hadoopPath;
 
   ContainerID containerId;

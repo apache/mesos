@@ -39,6 +39,7 @@
 #include "linux/ns.hpp"
 
 #include "tests/flags.hpp"
+#include "tests/utils.hpp"
 
 #include "tests/containerizer/setns_test_helper.hpp"
 
@@ -85,7 +86,7 @@ TEST(NsTest, ROOT_setns)
   argv.push_back(SetnsTestHelper::NAME);
 
   Try<Subprocess> s = subprocess(
-      path::join(tests::flags.build_dir, "src", "setns-test-helper"),
+      getTestHelperPath("setns-test-helper"),
       argv,
       Subprocess::FD(STDIN_FILENO),
       Subprocess::FD(STDOUT_FILENO),

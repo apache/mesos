@@ -241,6 +241,12 @@ AC_ARG_ENABLE([python-dependency-install],
                               downloaded or installed]),
               [without_python_deps=yes], [])
 
+AC_ARG_ENABLE([tests-install],
+              AS_HELP_STRING([--enable-tests-install],
+                             [build and install tests and their helper tools
+                              default: no]),
+              [], [enable_tests_install=no])
+
 AC_ARG_WITH([network-isolator],
             AS_HELP_STRING([--with-network-isolator],
                            [builds the network isolator]),
@@ -316,6 +322,8 @@ AM_CONDITIONAL([OS_FREEBSD], [test "x$OS_NAME" = "xfreebsd"])
 AC_PROG_CXX([g++])
 AC_PROG_CC([gcc])
 
+AC_PROG_LN_S
+
 AX_COMPILER_VERSION
 AX_COMPILER_VENDOR
 
@@ -324,6 +332,9 @@ AX_COMPILER_VENDOR
 AM_CONDITIONAL([DEBUG], [test x"$enable_debug" = "xyes"])
 AM_CONDITIONAL([OPTIMIZE], [test x"$enable_optimize" = "xyes"])
 
+AM_CONDITIONAL([INSTALL_TESTS], [test x"$enable_tests_install" = "xyes"])
+AS_IF([test x"$enable_tests_install" = "xyes"],
+      [AC_DEFINE([MESOS_INSTALL_TESTS], [1])])
 
 debug_flags="-g1"
 if test "x$enable_debug" = "xyes"; then

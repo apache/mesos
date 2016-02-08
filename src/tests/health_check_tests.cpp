@@ -120,7 +120,7 @@ public:
     // We need to set the correct directory to launch health check process
     // instead of the default for tests.
     variable->set_name("MESOS_LAUNCHER_DIR");
-    variable->set_value(path::join(tests::flags.build_dir, "src"));
+    variable->set_value(getLauncherDir());
 
     task.mutable_command()->CopyFrom(command);
 

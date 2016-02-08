@@ -103,8 +103,7 @@ protected:
 
   void loadFixedResourceEstimatorModule(const string& resources)
   {
-    string libraryPath = path::join(tests::flags.build_dir, "src", ".libs",
-        os::libraries::expandName("fixed_resource_estimator"));
+    string libraryPath = getModulePath("fixed_resource_estimator");
 
     Modules::Library* library = modules.add_libraries();
     library->set_name("fixed_resource_estimator");

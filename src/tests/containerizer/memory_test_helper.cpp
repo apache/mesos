@@ -36,6 +36,7 @@
 #include <stout/try.hpp>
 
 #include "tests/flags.hpp"
+#include "tests/utils.hpp"
 
 #include "tests/containerizer/memory_test_helper.hpp"
 
@@ -196,9 +197,7 @@ Try<Nothing> MemoryTestHelper::spawn()
   argv.push_back(MemoryTestHelperMain::NAME);
 
   Try<Subprocess> process = subprocess(
-      path::join(flags.build_dir,
-                 "src",
-                 "memory-test-helper"),
+      getTestHelperPath("memory-test-helper"),
       argv,
       Subprocess::PIPE(),
       Subprocess::PIPE(),

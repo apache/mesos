@@ -278,7 +278,7 @@ protected:
   {
     slave::Flags flags;
 
-    flags.launcher_dir = path::join(tests::flags.build_dir, "src");
+    flags.launcher_dir = getLauncherDir();
 
     flags.resources = strings::join(";", vector<string>({
         containerCPU,
