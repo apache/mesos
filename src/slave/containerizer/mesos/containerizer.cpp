@@ -369,6 +369,16 @@ Future<ResourceStatistics> MesosContainerizer::usage(
 }
 
 
+Future<ContainerStatus> MesosContainerizer::status(
+    const ContainerID& containerId)
+{
+  return dispatch(
+      process.get(),
+      &MesosContainerizerProcess::status,
+      containerId);
+}
+
+
 Future<containerizer::Termination> MesosContainerizer::wait(
     const ContainerID& containerId)
 {
@@ -1297,6 +1307,47 @@ Future<ResourceStatistics> MesosContainerizerProcess::usage(
           containerId,
           containers_[containerId]->resources,
           lambda::_1));
+}
+
+
+Future<ContainerStatus> _status(
+    const ContainerID& containerId,
+    const list<Future<ContainerStatus>>& statuses)
+{
+  ContainerStatus result;
+
+  foreach (const Future<ContainerStatus>& status, statuses) {
+    if (status.isReady()) {
+      result.MergeFrom(status.get());
+    } else {
+      LOG(WARNING) << "Skipping status for container "
+                   << containerId << " because: "
+                   << (status.isFailed() ? status.failure()
+                                            : "discarded");
+    }
+  }
+
+  VLOG(2) << "Aggregating status for container: " << containerId;
+
+  return result;
+}
+
+
+Future<ContainerStatus> MesosContainerizerProcess::status(
+    const ContainerID& containerId)
+{
+  if (!containers_.contains(containerId)) {
+    return Failure("Unknown container: " + stringify(containerId));
+  }
+
+  list<Future<ContainerStatus>> futures;
+  foreach (const Owned<Isolator>& isolator, isolators) {
+    futures.push_back(isolator->status(containerId));
+  }
+
+  // Using `await()` here so we can return partial status.
+  return await(futures).then(
+      lambda::bind(_status, containerId, lambda::_1));
 }
 
 
