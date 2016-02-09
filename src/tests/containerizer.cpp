@@ -23,6 +23,7 @@
 #include "tests/mesos.hpp"
 
 using std::map;
+using std::shared_ptr;
 using std::string;
 
 using testing::_;
@@ -31,9 +32,20 @@ using testing::Return;
 
 using namespace process;
 
+using mesos::v1::executor::Mesos;
+
 namespace mesos {
 namespace internal {
 namespace tests {
+
+
+TestContainerizer::TestContainerizer(
+    const ExecutorID& executorId,
+    const shared_ptr<MockV1HTTPExecutor>& executor)
+{
+  v1Executors[executorId] = executor;
+  setup();
+}
 
 
 TestContainerizer::TestContainerizer(
@@ -90,7 +102,8 @@ Future<bool> TestContainerizer::_launch(
     << "' of framework " << executorInfo.framework_id()
     << " because it is already launched";
 
-  CHECK(executors.contains(executorInfo.executor_id()))
+  CHECK(executors.contains(executorInfo.executor_id()) ||
+        v1Executors.contains(executorInfo.executor_id()))
     << "Failed to launch executor '" << executorInfo.executor_id()
     << "' of framework " << executorInfo.framework_id()
     << " because it is unknown to the containerizer";
@@ -100,8 +113,6 @@ Future<bool> TestContainerizer::_launch(
   std::pair<FrameworkID, ExecutorID> key(executorInfo.framework_id(),
                                          executorInfo.executor_id());
   containers_[key] = containerId;
-
-  Executor* executor = executors[executorInfo.executor_id()];
 
   // We need to synchronize all reads and writes to the environment as this is
   // global state.
@@ -115,9 +126,6 @@ Future<bool> TestContainerizer::_launch(
     // Since the constructor for `MesosExecutorDriver` reads environment
     // variables to load flags, even it needs to be within this synchronization
     // section.
-    Owned<MesosExecutorDriver> driver(new MesosExecutorDriver(executor));
-    drivers[containerId] = driver;
-
     // Prepare additional environment variables for the executor.
     // TODO(benh): Need to get flags passed into the TestContainerizer
     // in order to properly use here.
@@ -145,13 +153,28 @@ Future<bool> TestContainerizer::_launch(
     // code where we do this as well and it's likely we can do this once
     // in 'executorEnvironment()'.
     foreach (const Environment::Variable& variable,
-            executorInfo.command().environment().variables()) {
+             executorInfo.command().environment().variables()) {
       os::setenv(variable.name(), variable.value());
     }
 
     os::setenv("MESOS_LOCAL", "1");
 
-    driver->start();
+    if (executors.contains(executorInfo.executor_id())) {
+      Executor* executor = executors[executorInfo.executor_id()];
+
+      Owned<MesosExecutorDriver> driver(new MesosExecutorDriver(executor));
+      drivers[containerId] = driver;
+
+      driver->start();
+    } else {
+      shared_ptr<MockV1HTTPExecutor> executor =
+        v1Executors[executorInfo.executor_id()];
+
+      Owned<executor::TestV1Mesos> mesos(
+          new executor::TestV1Mesos(ContentType::PROTOBUF, executor));
+
+      v1Libraries[containerId] = mesos;
+    }
 
     os::unsetenv("MESOS_LOCAL");
 
@@ -232,6 +255,10 @@ void TestContainerizer::destroy(const ContainerID& containerId)
     driver->stop();
     driver->join();
     drivers.erase(containerId);
+  }
+
+  if (v1Libraries.contains(containerId)) {
+    v1Libraries.erase(containerId);
   }
 
   if (promises.contains(containerId)) {

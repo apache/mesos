@@ -20,12 +20,15 @@
 #include <unistd.h>
 
 #include <map>
+#include <memory>
 #include <string>
 
 #include <mesos/executor.hpp>
 #include <mesos/mesos.hpp>
 #include <mesos/resources.hpp>
 #include <mesos/type_utils.hpp>
+
+#include <mesos/v1/executor.hpp>
 
 #include <process/dispatch.hpp>
 #include <process/future.hpp>
@@ -42,6 +45,8 @@
 #include "slave/slave.hpp"
 #include "slave/state.hpp"
 
+#include "tests/mesos.hpp"
+
 namespace mesos {
 namespace internal {
 namespace tests {
@@ -52,6 +57,10 @@ class MockExecutor;
 class TestContainerizer : public slave::Containerizer
 {
 public:
+  TestContainerizer(
+      const ExecutorID& executorId,
+      const std::shared_ptr<MockV1HTTPExecutor>& executor);
+
   TestContainerizer(const hashmap<ExecutorID, Executor*>& executors);
 
   TestContainerizer(const ExecutorID& executorId, Executor* executor);
@@ -124,9 +133,11 @@ private:
       const ContainerID& containerId);
 
   hashmap<ExecutorID, Executor*> executors;
+  hashmap<ExecutorID, std::shared_ptr<MockV1HTTPExecutor>> v1Executors;
 
   hashmap<std::pair<FrameworkID, ExecutorID>, ContainerID> containers_;
   hashmap<ContainerID, process::Owned<MesosExecutorDriver> > drivers;
+  hashmap<ContainerID, process::Owned<executor::TestV1Mesos> > v1Libraries;
   hashmap<ContainerID,
       process::Owned<process::Promise<containerizer::Termination> > > promises;
 };
