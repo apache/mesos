@@ -410,11 +410,11 @@ protected:
   // algorithm. Each level has its own sorter and hence may have different
   // fairness calculations.
   //
-  // NOTE: The hierarchical allocator considers oversubscribed
-  // resources as regular resources when doing fairness calculations.
+  // NOTE: The hierarchical allocator considers revocable resources as
+  // regular resources when doing fairness calculations.
   //
   // TODO(vinod): Consider using a different fairness algorithm for
-  // oversubscribed resources.
+  // revocable resources.
 
   // A sorter for active roles. This sorter determines the order in which
   // roles are allocated resources during Level 1 of the second stage.
