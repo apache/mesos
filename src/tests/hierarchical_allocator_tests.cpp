@@ -1413,7 +1413,7 @@ TEST_F(HierarchicalAllocatorTest, Whitelist)
 // the quota'ed role declines offers, some resources are laid away for
 // the role, so that a greedy framework from a non-quota'ed role cannot
 // eat up all free resources.
-TEST_F(HierarchicalAllocatorTest, QuotaProvidesQuarantee)
+TEST_F(HierarchicalAllocatorTest, QuotaProvidesGuarantee)
 {
   // Pausing the clock is not necessary, but ensures that the test
   // doesn't rely on the batch allocation in the allocator, which
