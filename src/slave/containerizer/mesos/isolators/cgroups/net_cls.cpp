@@ -397,6 +397,28 @@ Future<ResourceStatistics> CgroupsNetClsIsolatorProcess::usage(
 }
 
 
+Future<ContainerStatus> CgroupsNetClsIsolatorProcess::status(
+    const ContainerID& containerId)
+{
+  if (!infos.contains(containerId)) {
+    return Failure("Unknown container");
+  }
+
+  const Info& info = infos.at(containerId);
+
+  ContainerStatus status;
+
+  if (info.handle.isSome()) {
+    CgroupInfo* cgroupInfo = status.mutable_cgroup_info();
+    CgroupInfo::NetCls* netCls = cgroupInfo->mutable_net_cls();
+
+    netCls->set_classid(info.handle->get());
+  }
+
+  return status;
+}
+
+
 Future<Option<ContainerLaunchInfo>> CgroupsNetClsIsolatorProcess::prepare(
     const ContainerID& containerId,
     const ContainerConfig& containerConfig)
