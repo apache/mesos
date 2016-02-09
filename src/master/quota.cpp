@@ -94,7 +94,6 @@ Try<QuotaInfo> createQuotaInfo(const QuotaRequest& request)
 Try<QuotaInfo> createQuotaInfo(
     const string& role,
     const RepeatedPtrField<Resource>& resources)
-
 {
   QuotaInfo quota;
 
