@@ -971,6 +971,63 @@ private:
 using TestV1Mesos =
   TestMesos<mesos::v1::executor::Mesos, mesos::v1::executor::Event>;
 
+
+// TODO(anand): Move these actions to the `v1::executor` namespace.
+ACTION_P2(SendSubscribe, frameworkId, executorId)
+{
+  v1::executor::Call call;
+  call.mutable_framework_id()->CopyFrom(frameworkId);
+  call.mutable_executor_id()->CopyFrom(executorId);
+
+  call.set_type(v1::executor::Call::SUBSCRIBE);
+
+  call.mutable_subscribe();
+
+  arg0->send(call);
+}
+
+
+ACTION_P3(SendUpdateFromTask, frameworkId, executorId, state)
+{
+  v1::TaskStatus status;
+  status.mutable_task_id()->CopyFrom(arg1.task().task_id());
+  status.mutable_executor_id()->CopyFrom(executorId);
+  status.set_state(state);
+  status.set_source(v1::TaskStatus::SOURCE_EXECUTOR);
+  status.set_uuid(UUID::random().toBytes());
+
+  v1::executor::Call call;
+  call.mutable_framework_id()->CopyFrom(frameworkId);
+  call.mutable_executor_id()->CopyFrom(executorId);
+
+  call.set_type(v1::executor::Call::UPDATE);
+
+  call.mutable_update()->mutable_status()->CopyFrom(status);
+
+  arg0->send(call);
+}
+
+
+ACTION_P3(SendUpdateFromTaskID, frameworkId, executorId, state)
+{
+  v1::TaskStatus status;
+  status.mutable_task_id()->CopyFrom(arg1.task_id());
+  status.mutable_executor_id()->CopyFrom(executorId);
+  status.set_state(state);
+  status.set_source(v1::TaskStatus::SOURCE_EXECUTOR);
+  status.set_uuid(UUID::random().toBytes());
+
+  v1::executor::Call call;
+  call.mutable_framework_id()->CopyFrom(frameworkId);
+  call.mutable_executor_id()->CopyFrom(executorId);
+
+  call.set_type(v1::executor::Call::UPDATE);
+
+  call.mutable_update()->mutable_status()->CopyFrom(status);
+
+  arg0->send(call);
+}
+
 } // namespace executor {
 
 
