@@ -195,9 +195,10 @@ TEST_P(SchedulerTest, TaskRunning)
   Try<PID<Master>> master = StartMaster(flags);
   ASSERT_SOME(master);
 
-  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+  ExecutorID executorId = DEFAULT_EXECUTOR_ID;
 
-  TestContainerizer containerizer(&exec);
+  auto executor = std::make_shared<MockV1HTTPExecutor>();
+  TestContainerizer containerizer(executorId, executor);
 
   Try<PID<Slave>> slave = StartSlave(&containerizer);
   ASSERT_SOME(slave);
@@ -243,11 +244,18 @@ TEST_P(SchedulerTest, TaskRunning)
   EXPECT_EQ(Event::OFFERS, event.get().type());
   EXPECT_NE(0, event.get().offers().offers().size());
 
-  EXPECT_CALL(exec, registered(_, _, _, _))
-    .Times(1);
+  EXPECT_CALL(*executor, connected(_))
+    .WillOnce(executor::SendSubscribe(id, evolve(executorId)));
 
-  EXPECT_CALL(exec, launchTask(_, _))
-    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
+  EXPECT_CALL(*executor, subscribed(_, _));
+
+  EXPECT_CALL(*executor, launch(_, _))
+    .WillOnce(executor::SendUpdateFromTask(
+        id, evolve(executorId), v1::TASK_RUNNING));
+
+  Future<Nothing> acknowledged;
+  EXPECT_CALL(*executor, acknowledged(_, _))
+    .WillOnce(FutureSatisfy(&acknowledged));
 
   Future<Nothing> update;
   EXPECT_CALL(containerizer, update(_, _))
@@ -282,16 +290,21 @@ TEST_P(SchedulerTest, TaskRunning)
     mesos.send(call);
   }
 
+  AWAIT_READY(acknowledged);
+
   event = events.get();
   AWAIT_READY(event);
   EXPECT_EQ(Event::UPDATE, event.get().type());
   EXPECT_EQ(v1::TASK_RUNNING, event.get().update().status().state());
   EXPECT_TRUE(event.get().update().status().has_executor_id());
-  EXPECT_EQ(exec.id, devolve(event.get().update().status().executor_id()));
+  EXPECT_EQ(executorId, devolve(event.get().update().status().executor_id()));
 
   AWAIT_READY(update);
 
-  EXPECT_CALL(exec, shutdown(_))
+  EXPECT_CALL(*executor, shutdown(_, _))
+    .Times(AtMost(1));
+
+  EXPECT_CALL(*executor, disconnected(_))
     .Times(AtMost(1));
 
   Shutdown(); // Must shutdown before 'containerizer' gets deallocated.
@@ -306,9 +319,10 @@ TEST_P(SchedulerTest, ReconcileTask)
   Try<PID<Master>> master = StartMaster(flags);
   ASSERT_SOME(master);
 
-  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+  ExecutorID executorId = DEFAULT_EXECUTOR_ID;
 
-  TestContainerizer containerizer(&exec);
+  auto executor = std::make_shared<MockV1HTTPExecutor>();
+  TestContainerizer containerizer(executorId, executor);
 
   Try<PID<Slave>> slave = StartSlave(&containerizer);
   ASSERT_SOME(slave);
@@ -354,11 +368,18 @@ TEST_P(SchedulerTest, ReconcileTask)
   EXPECT_EQ(Event::OFFERS, event.get().type());
   EXPECT_NE(0, event.get().offers().offers().size());
 
-  EXPECT_CALL(exec, registered(_, _, _, _))
-    .Times(1);
+  EXPECT_CALL(*executor, connected(_))
+    .WillOnce(executor::SendSubscribe(id, evolve(executorId)));
 
-  EXPECT_CALL(exec, launchTask(_, _))
-    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
+  EXPECT_CALL(*executor, subscribed(_, _));
+
+  EXPECT_CALL(*executor, launch(_, _))
+    .WillOnce(executor::SendUpdateFromTask(
+        id, evolve(executorId), v1::TASK_RUNNING));
+
+  Future<Nothing> acknowledged;
+  EXPECT_CALL(*executor, acknowledged(_, _))
+    .WillOnce(FutureSatisfy(&acknowledged));
 
   v1::Offer offer = event.get().offers().offers(0);
 
@@ -379,6 +400,8 @@ TEST_P(SchedulerTest, ReconcileTask)
 
     mesos.send(call);
   }
+
+  AWAIT_READY(acknowledged);
 
   event = events.get();
   AWAIT_READY(event);
@@ -404,7 +427,10 @@ TEST_P(SchedulerTest, ReconcileTask)
   EXPECT_EQ(v1::TaskStatus::REASON_RECONCILIATION,
             event.get().update().status().reason());
 
-  EXPECT_CALL(exec, shutdown(_))
+  EXPECT_CALL(*executor, shutdown(_, _))
+    .Times(AtMost(1));
+
+  EXPECT_CALL(*executor, disconnected(_))
     .Times(AtMost(1));
 
   Shutdown(); // Must shutdown before 'containerizer' gets deallocated.
@@ -419,9 +445,10 @@ TEST_P(SchedulerTest, KillTask)
   Try<PID<Master>> master = StartMaster(flags);
   ASSERT_SOME(master);
 
-  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+  ExecutorID executorId = DEFAULT_EXECUTOR_ID;
 
-  TestContainerizer containerizer(&exec);
+  auto executor = std::make_shared<MockV1HTTPExecutor>();
+  TestContainerizer containerizer(executorId, executor);
 
   Try<PID<Slave>> slave = StartSlave(&containerizer);
   ASSERT_SOME(slave);
@@ -467,11 +494,19 @@ TEST_P(SchedulerTest, KillTask)
   EXPECT_EQ(Event::OFFERS, event.get().type());
   EXPECT_NE(0, event.get().offers().offers().size());
 
-  EXPECT_CALL(exec, registered(_, _, _, _))
-    .Times(1);
+  EXPECT_CALL(*executor, connected(_))
+    .WillOnce(executor::SendSubscribe(id, evolve(executorId)));
 
-  EXPECT_CALL(exec, launchTask(_, _))
-    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
+  EXPECT_CALL(*executor, subscribed(_, _));
+
+  EXPECT_CALL(*executor, launch(_, _))
+    .WillOnce(executor::SendUpdateFromTask(
+        id, evolve(executorId), v1::TASK_RUNNING));
+
+  Future<Nothing> acknowledged;
+  EXPECT_CALL(*executor, acknowledged(_, _))
+    .WillOnce(FutureSatisfy(&acknowledged))
+    .WillRepeatedly(Return());
 
   v1::Offer offer = event.get().offers().offers(0);
 
@@ -492,6 +527,8 @@ TEST_P(SchedulerTest, KillTask)
 
     mesos.send(call);
   }
+
+  AWAIT_READY(acknowledged);
 
   event = events.get();
   AWAIT_READY(event);
@@ -512,8 +549,9 @@ TEST_P(SchedulerTest, KillTask)
     mesos.send(call);
   }
 
-  EXPECT_CALL(exec, killTask(_, _))
-    .WillOnce(SendStatusUpdateFromTaskID(TASK_KILLED));
+  EXPECT_CALL(*executor, kill(_, _))
+    .WillOnce(executor::SendUpdateFromTaskID(
+        id, evolve(executorId), v1::TASK_KILLED));
 
   {
     Call call;
@@ -532,7 +570,10 @@ TEST_P(SchedulerTest, KillTask)
   EXPECT_EQ(Event::UPDATE, event.get().type());
   EXPECT_EQ(v1::TASK_KILLED, event.get().update().status().state());
 
-  EXPECT_CALL(exec, shutdown(_))
+  EXPECT_CALL(*executor, shutdown(_, _))
+    .Times(AtMost(1));
+
+  EXPECT_CALL(*executor, disconnected(_))
     .Times(AtMost(1));
 
   Shutdown(); // Must shutdown before 'containerizer' gets deallocated.
@@ -547,9 +588,10 @@ TEST_P(SchedulerTest, ShutdownExecutor)
   Try<PID<Master>> master = StartMaster(flags);
   ASSERT_SOME(master);
 
-  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+  ExecutorID executorId = DEFAULT_EXECUTOR_ID;
 
-  TestContainerizer containerizer(&exec);
+  auto executor = std::make_shared<MockV1HTTPExecutor>();
+  TestContainerizer containerizer(executorId, executor);
 
   Try<PID<Slave>> slave = StartSlave(&containerizer);
   ASSERT_SOME(slave);
@@ -595,11 +637,18 @@ TEST_P(SchedulerTest, ShutdownExecutor)
   EXPECT_EQ(Event::OFFERS, event.get().type());
   EXPECT_NE(0, event.get().offers().offers().size());
 
-  EXPECT_CALL(exec, registered(_, _, _, _))
-    .Times(1);
+  EXPECT_CALL(*executor, connected(_))
+    .WillOnce(executor::SendSubscribe(id, evolve(executorId)));
 
-  EXPECT_CALL(exec, launchTask(_, _))
-    .WillOnce(SendStatusUpdateFromTask(TASK_FINISHED));
+  EXPECT_CALL(*executor, subscribed(_, _));
+
+  EXPECT_CALL(*executor, launch(_, _))
+    .WillOnce(executor::SendUpdateFromTask(
+        id, evolve(executorId), v1::TASK_FINISHED));
+
+  Future<Nothing> acknowledged;
+  EXPECT_CALL(*executor, acknowledged(_, _))
+    .WillOnce(FutureSatisfy(&acknowledged));
 
   v1::Offer offer = event.get().offers().offers(0);
 
@@ -621,13 +670,15 @@ TEST_P(SchedulerTest, ShutdownExecutor)
     mesos.send(call);
   }
 
+  AWAIT_READY(acknowledged);
+
   event = events.get();
   AWAIT_READY(event);
   EXPECT_EQ(Event::UPDATE, event.get().type());
   EXPECT_EQ(v1::TASK_FINISHED, event.get().update().status().state());
 
   Future<Nothing> shutdown;
-  EXPECT_CALL(exec, shutdown(_))
+  EXPECT_CALL(*executor, shutdown(_, _))
     .WillOnce(FutureSatisfy(&shutdown));
 
   {
@@ -643,14 +694,13 @@ TEST_P(SchedulerTest, ShutdownExecutor)
   }
 
   AWAIT_READY(shutdown);
-  containerizer.destroy(devolve(id), DEFAULT_EXECUTOR_ID);
+  containerizer.destroy(devolve(id), executorId);
 
   // Executor termination results in a 'FAILURE' event.
   event = events.get();
   AWAIT_READY(event);
   EXPECT_EQ(Event::FAILURE, event.get().type());
-  v1::ExecutorID executorId(DEFAULT_V1_EXECUTOR_ID);
-  EXPECT_EQ(executorId, event.get().failure().executor_id());
+  EXPECT_EQ(evolve(executorId), event.get().failure().executor_id());
 
   Shutdown(); // Must shutdown before 'containerizer' gets deallocated.
 }
@@ -664,9 +714,10 @@ TEST_P(SchedulerTest, Teardown)
   Try<PID<Master>> master = StartMaster(flags);
   ASSERT_SOME(master);
 
-  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+  ExecutorID executorId = DEFAULT_EXECUTOR_ID;
 
-  TestContainerizer containerizer(&exec);
+  auto executor = std::make_shared<MockV1HTTPExecutor>();
+  TestContainerizer containerizer(executorId, executor);
 
   Try<PID<Slave>> slave = StartSlave(&containerizer);
   ASSERT_SOME(slave);
@@ -712,11 +763,18 @@ TEST_P(SchedulerTest, Teardown)
   EXPECT_EQ(Event::OFFERS, event.get().type());
   EXPECT_NE(0, event.get().offers().offers().size());
 
-  EXPECT_CALL(exec, registered(_, _, _, _))
-    .Times(1);
+  EXPECT_CALL(*executor, connected(_))
+    .WillOnce(executor::SendSubscribe(id, evolve(executorId)));
 
-  EXPECT_CALL(exec, launchTask(_, _))
-    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
+  EXPECT_CALL(*executor, subscribed(_, _));
+
+  EXPECT_CALL(*executor, launch(_, _))
+    .WillOnce(executor::SendUpdateFromTask(
+        id, evolve(executorId), v1::TASK_RUNNING));
+
+  Future<Nothing> acknowledged;
+  EXPECT_CALL(*executor, acknowledged(_, _))
+    .WillOnce(FutureSatisfy(&acknowledged));
 
   v1::Offer offer = event.get().offers().offers(0);
 
@@ -738,13 +796,15 @@ TEST_P(SchedulerTest, Teardown)
     mesos.send(call);
   }
 
+  AWAIT_READY(acknowledged);
+
   event = events.get();
   AWAIT_READY(event);
   EXPECT_EQ(Event::UPDATE, event.get().type());
   EXPECT_EQ(v1::TASK_RUNNING, event.get().update().status().state());
 
   Future<Nothing> shutdown;
-  EXPECT_CALL(exec, shutdown(_))
+  EXPECT_CALL(*executor, shutdown(_, _))
     .WillOnce(FutureSatisfy(&shutdown));
 
   {
@@ -1060,9 +1120,10 @@ TEST_P(SchedulerTest, Message)
   Try<PID<Master>> master = StartMaster(flags);
   ASSERT_SOME(master);
 
-  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+  ExecutorID executorId = DEFAULT_EXECUTOR_ID;
 
-  TestContainerizer containerizer(&exec);
+  auto executor = std::make_shared<MockV1HTTPExecutor>();
+  TestContainerizer containerizer(executorId, executor);
 
   Try<PID<Slave>> slave = StartSlave(&containerizer);
   ASSERT_SOME(slave);
@@ -1108,11 +1169,18 @@ TEST_P(SchedulerTest, Message)
   EXPECT_EQ(Event::OFFERS, event.get().type());
   EXPECT_NE(0, event.get().offers().offers().size());
 
-  EXPECT_CALL(exec, registered(_, _, _, _))
-    .Times(1);
+  EXPECT_CALL(*executor, connected(_))
+    .WillOnce(executor::SendSubscribe(id, evolve(executorId)));
 
-  EXPECT_CALL(exec, launchTask(_, _))
-    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
+  EXPECT_CALL(*executor, subscribed(_, _));
+
+  EXPECT_CALL(*executor, launch(_, _))
+    .WillOnce(executor::SendUpdateFromTask(
+        id, evolve(executorId), v1::TASK_RUNNING));
+
+  Future<Nothing> acknowledged;
+  EXPECT_CALL(*executor, acknowledged(_, _))
+    .WillOnce(FutureSatisfy(&acknowledged));
 
   v1::Offer offer = event.get().offers().offers(0);
 
@@ -1134,14 +1202,16 @@ TEST_P(SchedulerTest, Message)
     mesos.send(call);
   }
 
+  AWAIT_READY(acknowledged);
+
   event = events.get();
   AWAIT_READY(event);
   EXPECT_EQ(Event::UPDATE, event.get().type());
   EXPECT_EQ(v1::TASK_RUNNING, event.get().update().status().state());
 
-  Future<string> data;
-  EXPECT_CALL(exec, frameworkMessage(_, _))
-    .WillOnce(FutureArg<1>(&data));
+  Future<v1::executor::Event::Message> message;
+  EXPECT_CALL(*executor, message(_, _))
+    .WillOnce(FutureArg<1>(&message));
 
   {
     Call call;
@@ -1156,7 +1226,14 @@ TEST_P(SchedulerTest, Message)
     mesos.send(call);
   }
 
-  AWAIT_ASSERT_EQ("hello world", data);
+  AWAIT_READY(message);
+  ASSERT_EQ("hello world", message->data());
+
+  EXPECT_CALL(*executor, shutdown(_, _))
+    .Times(AtMost(1));
+
+  EXPECT_CALL(*executor, disconnected(_))
+    .Times(AtMost(1));
 
   Shutdown(); // Must shutdown before 'containerizer' gets deallocated.
 }
