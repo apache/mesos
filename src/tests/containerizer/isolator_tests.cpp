@@ -997,7 +997,7 @@ TEST_F(NetClsIsolatorTest, ROOT_CGROUPS_NetClsIsolate)
     EXPECT_EQ(primary, (classid.get() & 0xffff0000) >> 16);
 
     // Make sure the secondary handle is non-zero.
-    EXPECT_NE(0, classid.get() & 0xffff);
+    EXPECT_NE(0u, classid.get() & 0xffff);
   }
 
   // Isolator cleanup test: Killing the task should cleanup the cgroup
