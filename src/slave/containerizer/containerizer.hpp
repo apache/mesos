@@ -48,29 +48,32 @@ namespace state {
 struct SlaveState;
 } // namespace state {
 
-// An abstraction of a Containerizer that will contain an executor and its
-// tasks.
+
+// An abstraction of a Containerizer that will contain an executor and
+// its tasks.
 class Containerizer
 {
 public:
-  // Attempts to create a containerizer as specified by 'isolation' in flags.
+  // Attempts to create a containerizer as specified by 'isolation' in
+  // flags.
   static Try<Containerizer*> create(
       const Flags& flags,
       bool local,
       Fetcher* fetcher);
 
-  // Determine slave resources from flags, probing the system or querying a
-  // delegate.
-  // TODO(idownes): Consider making this non-static and moving to containerizer
-  // implementations to enable a containerizer to best determine the resources,
-  // particularly if containerizeration is delegated.
+  // Determine slave resources from flags, probing the system or
+  // querying a delegate.
+  // TODO(idownes): Consider making this non-static and moving to
+  // containerizer implementations to enable a containerizer to best
+  // determine the resources, particularly if containerizeration is
+  // delegated.
   static Try<Resources> resources(const Flags& flags);
 
   virtual ~Containerizer() {}
 
-  // Recover all containerized executors specified in state. Any containerized
-  // executors present on the system but not included in state (or state is
-  // None) will be terminated and cleaned up.
+  // Recover all containerized executors specified in state. Any
+  // containerized executors present on the system but not included in
+  // state (or state is None) will be terminated and cleaned up.
   virtual process::Future<Nothing> recover(
       const Option<state::SlaveState>& state) = 0;
 
@@ -110,17 +113,28 @@ public:
   virtual process::Future<ResourceStatistics> usage(
       const ContainerID& containerId) = 0;
 
-  // Wait on the container's 'Termination'. If the executor terminates, the
-  // containerizer should also destroy the containerized context. The future
-  // may be failed if an error occurs during termination of the executor or
-  // destruction of the container.
+  // Retrieve the run-time state of various isolator properties
+  // associated with the container. Unlike other methods in this class
+  // we are not making this pure virtual, since a `Containerizer`
+  // doesn't necessarily need to return the status of a container.
+  virtual process::Future<ContainerStatus> status(
+      const ContainerID &containerId)
+  {
+    return ContainerStatus();
+  }
+
+  // Wait on the container's 'Termination'. If the executor
+  // terminates, the containerizer should also destroy the
+  // containerized context. The future may be failed if an error
+  // occurs during termination of the executor or destruction of the
+  // container.
   virtual process::Future<containerizer::Termination> wait(
       const ContainerID& containerId) = 0;
 
-  // Destroy a running container, killing all processes and releasing all
-  // resources.
-  // NOTE: You cannot wait() on containers that have been destroyed, so you
-  // should always call wait() before destroy().
+  // Destroy a running container, killing all processes and releasing
+  // all resources.
+  // NOTE: You cannot wait() on containers that have been destroyed,
+  // so you should always call wait() before destroy().
   virtual void destroy(const ContainerID& containerId) = 0;
 
   virtual process::Future<hashset<ContainerID>> containers() = 0;
