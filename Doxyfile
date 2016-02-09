@@ -114,7 +114,13 @@ FULL_PATH_NAMES        = YES
 # If left blank the directory from which doxygen is run is used as the
 # path to strip.
 
-STRIP_FROM_PATH        =
+# Since we are setting FULL_PATH_NAMES, we should strip out '/path/to/mesos/'.
+# Otherwise, the html links also contain '/path/to/mesos/' and aren't relative.
+# We use '../' here because this file is invoked from within the 'site/'
+# directory as `doxygen -f ../Doxyfile` and thus the value '../' is equivalent
+# to specifying '/path/to/mesos/'.
+
+STRIP_FROM_PATH        = ../
 
 # The STRIP_FROM_INC_PATH tag can be used to strip a user-defined part of
 # the path mentioned in the documentation of a class, which tells
