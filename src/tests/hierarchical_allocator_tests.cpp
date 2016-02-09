@@ -1477,17 +1477,19 @@ TEST_F(HierarchicalAllocatorTest, QuotaProvidesGuarantee)
   // NO_QUOTA_ROLE share = 0
   //   framework2 share = 0
 
-  // Now `framework1` declines the second offer and sets a filter for 5
-  // seconds. The declined resources should not be offered to `framework2`
-  // because by doing so they may not be available to `framework1` when
-  // the filter expires.
-  Filters filter5s;
-  filter5s.set_refuse_seconds(5.);
+  // Now `framework1` declines the second offer and sets a filter for twice
+  // the allocation interval. The declined resources should not be offered
+  // to `framework2` because by doing so they may not be available to
+  // `framework1` when the filter expires.
+  Duration filterTimeout = flags.allocation_interval * 2;
+  Filters offerFilter;
+  offerFilter.set_refuse_seconds(filterTimeout.secs());
+
   allocator->recoverResources(
       framework1.id(),
       agent2.id(),
       allocation.get().resources.get(agent2.id()).get(),
-      filter5s);
+      offerFilter);
 
   // Total cluster resources: cpus=1, mem=512.
   // QUOTA_ROLE share = 0.5 (cpus=1, mem=512) [quota: cpus=2, mem=1024]
@@ -1495,33 +1497,23 @@ TEST_F(HierarchicalAllocatorTest, QuotaProvidesGuarantee)
   // NO_QUOTA_ROLE share = 0
   //   framework2 share = 0
 
-  // Assuming the default batch allocation interval is less than 5 seconds,
-  // all batch allocations that happen while the refuse filter is active
-  // should yield no new allocations.
-  ASSERT_LT(flags.allocation_interval.secs(), filter5s.refuse_seconds());
+  // Ensure the offer filter timeout is set before advancing the clock.
+  Clock::settle();
+
+  // Trigger a batch allocation.
   Clock::advance(flags.allocation_interval);
   Clock::settle();
 
-  // TODO(alexr): There is currently no way to check the absence of
-  // allocations. The `process::Queue` class does not support any size
-  // checking methods. Consider adding `process::Queue::empty()` or
-  // refactor the test harness so that we can reason about whether the
-  // Hierarchical allocator has assigned expected allocations or not.
-  //
-  // NOTE: It is hard to capture the absense of an allocation in a
-  // general case, because an allocator may be complex enough to postpone
-  // decisions beyond its allocation cycle.
-
-  // Now advance the clock to make sure the filter is expired and removed.
-  Clock::advance(Duration::create(filter5s.refuse_seconds()).get());
-  Clock::settle();
-
-  // Trigger the next batch allocation. It should offer the previously
-  // declined resources to the quota'ed role.
-  Clock::advance(flags.allocation_interval);
-  Clock::settle();
-
+  // There should be no allocation due to the offer filter.
   allocation = allocations.get();
+  ASSERT_TRUE(allocation.isPending());
+
+  // Ensure the offer filter times out (2x the allocation interval)
+  // and the next batch allocation occurs.
+  Clock::advance(flags.allocation_interval);
+  Clock::settle();
+
+  // Previously declined resources should be offered to the quota'ed role.
   AWAIT_READY(allocation);
   EXPECT_EQ(framework1.id(), allocation.get().frameworkId);
   EXPECT_EQ(agent2.resources(), Resources::sum(allocation.get().resources));
