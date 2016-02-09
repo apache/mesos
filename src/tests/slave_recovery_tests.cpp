@@ -377,9 +377,9 @@ TYPED_TEST(SlaveRecoveryTest, RecoverStatusUpdateManager)
   Future<Message> registerExecutor =
     FUTURE_MESSAGE(Eq(RegisterExecutorMessage().GetTypeName()), _, _);
 
-  // Drop the first update from the executor.
+  // Drop the status update from the slave to the master.
   Future<StatusUpdateMessage> update =
-    DROP_PROTOBUF(StatusUpdateMessage(), _, _);
+    DROP_PROTOBUF(StatusUpdateMessage(), slave.get(), master.get());
 
   driver.launchTasks(offers.get()[0].id(), {task});
 
