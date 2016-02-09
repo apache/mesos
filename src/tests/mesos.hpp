@@ -28,6 +28,10 @@
 #include <mesos/executor.hpp>
 #include <mesos/scheduler.hpp>
 
+#include <mesos/v1/executor.hpp>
+
+#include <mesos/v1/executor/executor.hpp>
+
 #include <mesos/authorizer/authorizer.hpp>
 
 #include <mesos/fetcher/fetcher.hpp>
@@ -878,6 +882,101 @@ public:
       std::shared_ptr<MasterDetector>(_detector, [](MasterDetector*) {});
   }
 };
+
+
+namespace executor {
+
+// A generic mock HTTP executor to be used in tests with gmock.
+template <typename Mesos, typename Event>
+class MockHTTPExecutor
+{
+public:
+  MOCK_METHOD1_T(connected, void(Mesos*));
+  MOCK_METHOD1_T(disconnected, void(Mesos*));
+  MOCK_METHOD2_T(subscribed, void(Mesos*, const typename Event::Subscribed&));
+  MOCK_METHOD2_T(launch, void(Mesos*, const typename Event::Launch&));
+  MOCK_METHOD2_T(kill, void(Mesos*, const typename Event::Kill&));
+  MOCK_METHOD2_T(message, void(Mesos*, const typename Event::Message&));
+  MOCK_METHOD2_T(shutdown, void(Mesos*, const typename Event::Shutdown&));
+  MOCK_METHOD2_T(error, void(Mesos*, const typename Event::Error&));
+  MOCK_METHOD2_T(acknowledged,
+                 void(Mesos*, const typename Event::Acknowledged&));
+
+  void event(Mesos* mesos, const Event& event)
+  {
+    switch(event.type()) {
+      case Event::SUBSCRIBED:
+        subscribed(mesos, event.subscribed());
+        break;
+      case Event::LAUNCH:
+        launch(mesos, event.launch());
+        break;
+      case Event::KILL:
+        kill(mesos, event.kill());
+        break;
+      case Event::ACKNOWLEDGED:
+        acknowledged(mesos, event.acknowledged());
+        break;
+      case Event::MESSAGE:
+        message(mesos, event.message());
+        break;
+      case Event::SHUTDOWN:
+        shutdown(mesos, event.shutdown());
+        break;
+      case Event::ERROR:
+        error(mesos, event.error());
+        break;
+    }
+  }
+};
+
+
+// A generic testing interface for the executor library that can be used to
+// test the library across various versions.
+template <typename Mesos, typename Event>
+class TestMesos : public Mesos
+{
+public:
+  TestMesos(
+      ContentType contentType,
+      const std::shared_ptr<MockHTTPExecutor<Mesos, Event>>& _executor)
+    : Mesos(
+        contentType,
+        lambda::bind(&MockHTTPExecutor<Mesos, Event>::connected,
+                     _executor,
+                     this),
+        lambda::bind(&MockHTTPExecutor<Mesos, Event>::disconnected,
+                     _executor,
+                     this),
+        lambda::bind(&TestMesos<Mesos, Event>::events,
+                     this,
+                     lambda::_1)),
+      executor(_executor) {}
+
+protected:
+  void events(std::queue<Event> events)
+  {
+    while(!events.empty()) {
+      Event event = std::move(events.front());
+      events.pop();
+      executor->event(this, event);
+    }
+  }
+
+private:
+  std::shared_ptr<MockHTTPExecutor<Mesos, Event>> executor;
+};
+
+
+using TestV1Mesos =
+  TestMesos<mesos::v1::executor::Mesos, mesos::v1::executor::Event>;
+
+} // namespace executor {
+
+
+using MockV1HTTPExecutor =
+  executor::MockHTTPExecutor<
+    mesos::v1::executor::Mesos, mesos::v1::executor::Event>;
 
 
 class MockGarbageCollector : public slave::GarbageCollector
