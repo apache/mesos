@@ -3,7 +3,7 @@
 # A hook script to verify what is about to be committed.
 # Called by "git commit" with no arguments.  The hook exits with
 # non-zero status if the files being committed do not conform to
-# to the Mesos style.
+# the Mesos style.
 #
 # To enable this hook, do this from the root of the repo:
 #
