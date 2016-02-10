@@ -1244,6 +1244,85 @@ TEST_F(ReservationEndpointsTest, ReserveAndUnreserveNoAuthentication)
   Shutdown();
 }
 
+
+// This test checks that two resource reservations for the same role
+// at the same agent that use different principals are not "merged"
+// into a single reserved resource.
+TEST_F(ReservationEndpointsTest, DifferentPrincipalsSameRole)
+{
+  TestAllocator<> allocator;
+
+  EXPECT_CALL(allocator, initialize(_, _, _, _));
+
+  Try<PID<Master>> master = StartMaster(&allocator);
+  ASSERT_SOME(master);
+
+  Future<SlaveID> slaveId;
+  EXPECT_CALL(allocator, addSlave(_, _, _, _, _))
+    .WillOnce(DoAll(InvokeAddSlave(&allocator),
+                    FutureArg<0>(&slaveId)));
+
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  slaveFlags.resources = "cpus:2;mem:1024";
+
+  Try<PID<Slave>> slave = StartSlave(slaveFlags);
+  ASSERT_SOME(slave);
+
+  FrameworkInfo frameworkInfo = createFrameworkInfo();
+
+  Resources unreserved = Resources::parse("cpus:1;mem:512").get();
+  Resources dynamicallyReserved1 = unreserved.flatten(
+      frameworkInfo.role(),
+      createReservationInfo(DEFAULT_CREDENTIAL.principal()));
+
+  Resources dynamicallyReserved2 = unreserved.flatten(
+      frameworkInfo.role(),
+      createReservationInfo(DEFAULT_CREDENTIAL_2.principal()));
+
+  Future<Response> response = process::http::post(
+      master.get(),
+      "reserve",
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL),
+      createRequestBody(slaveId.get(), dynamicallyReserved1));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+
+  response = process::http::post(
+      master.get(),
+      "reserve",
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL_2),
+      createRequestBody(slaveId.get(), dynamicallyReserved2));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
+
+  Future<vector<Offer>> offers;
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  driver.start();
+
+  AWAIT_READY(offers);
+
+  ASSERT_EQ(1u, offers.get().size());
+  Offer offer = offers.get()[0];
+  Resources resources = Resources(offer.resources());
+
+  EXPECT_TRUE(resources.contains(dynamicallyReserved1));
+  EXPECT_TRUE(resources.contains(dynamicallyReserved2));
+
+  driver.stop();
+  driver.join();
+
+  Shutdown();
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {
