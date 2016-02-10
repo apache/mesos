@@ -220,6 +220,10 @@ JSON::Object model(const ContainerStatus& status)
     object.values["network_infos"] = std::move(array);
   }
 
+  if (status.has_cgroup_info()) {
+    object.values["cgroup_info"] = JSON::protobuf(status.cgroup_info());
+  }
+
   return object;
 }
 
@@ -477,6 +481,10 @@ void json(JSON::ObjectWriter* writer, const ContainerStatus& status)
 {
   if (status.network_infos().size() > 0) {
     writer->field("network_infos", status.network_infos());
+  }
+
+  if (status.has_cgroup_info()) {
+    writer->field("cgroup_info", status.cgroup_info());
   }
 }
 
