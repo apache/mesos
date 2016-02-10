@@ -986,6 +986,15 @@ TEST_F(MasterQuotaTest, AvailableResourcesAfterRescinding)
   EXPECT_EQ(ROLE2, receivedQuotaRequest.get().info.role());
   EXPECT_EQ(quotaResources, receivedQuotaRequest.get().info.guarantee());
 
+  framework1.stop();
+  framework1.join();
+
+  framework2.stop();
+  framework2.join();
+
+  framework3.stop();
+  framework3.join();
+
   Shutdown();
 }
 
