@@ -31,6 +31,9 @@
 #include <stout/try.hpp>
 #include <stout/windows.hpp>
 
+#include <stout/os/os.hpp>
+#include <stout/os/read.hpp>
+
 #include <stout/os/raw/environment.hpp>
 
 namespace os {
