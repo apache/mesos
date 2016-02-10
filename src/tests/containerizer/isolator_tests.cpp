@@ -100,6 +100,9 @@ using mesos::slave::ContainerConfig;
 using mesos::slave::ContainerLaunchInfo;
 using mesos::slave::Isolator;
 
+using process::http::OK;
+using process::http::Response;
+
 using std::ostringstream;
 using std::set;
 using std::string;
@@ -1018,6 +1021,90 @@ TEST_F(NetClsIsolatorTest, ROOT_CGROUPS_NetClsIsolate)
   // If the cleanup is successful the net_cls cgroup for this container should
   // not exist.
   ASSERT_FALSE(os::exists(cgroup));
+
+  driver.stop();
+  driver.join();
+
+  Shutdown();
+
+  delete containerizer.get();
+}
+
+
+// This test verifies that are able to retrieve the `net_cls` handle
+// from `state.json`.
+TEST_F(NetClsIsolatorTest, ROOT_CGROUPS_ContainerStatus)
+{
+  Try<PID<Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.isolation = "cgroups/net_cls";
+  flags.cgroups_net_cls_primary_handle = stringify(0x0012);
+
+  Fetcher fetcher;
+
+  Try<MesosContainerizer*> containerizer =
+    MesosContainerizer::create(flags, true, &fetcher);
+
+  ASSERT_SOME(containerizer);
+
+  Try<PID<Slave>> slave = StartSlave(containerizer.get(), flags);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  Future<Nothing> schedRegistered;
+  EXPECT_CALL(sched, registered(_, _, _))
+    .WillOnce(FutureSatisfy(&schedRegistered));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return());      // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(schedRegistered);
+
+  AWAIT_READY(offers);
+  EXPECT_EQ(1u, offers.get().size());
+
+  // Create a task to be launched in the mesos-container.
+  TaskInfo task = createTask(offers.get()[0], "sleep 1000");
+
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(_, _))
+    .WillOnce(FutureArg<1>(&status));
+
+  driver.launchTasks(offers.get()[0].id(), {task});
+
+  AWAIT_READY(status);
+  ASSERT_EQ(TASK_RUNNING, status.get().state());
+
+  // Task is ready. Verify `ContainerStatus` is present in slave state.json.
+  Future<Response> response = http::get(slave.get(), "state.json");
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
+
+  Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+  ASSERT_SOME(parse);
+
+  Result<JSON::Object> netCls = parse->find<JSON::Object>(
+      "frameworks[0].executors[0].tasks[0].statuses[0]."
+      "container_status.cgroup_info.net_cls");
+  ASSERT_SOME(netCls);
+
+  uint32_t classid =
+    netCls->values["classid"].as<JSON::Number>().as<uint32_t>();
+
+  // Check the primary and the secondary handle.
+  EXPECT_EQ(0x0012u, classid >> 16);
+  EXPECT_NE(0u, classid & 0xffff);
 
   driver.stop();
   driver.join();
