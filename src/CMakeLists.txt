@@ -21,6 +21,7 @@ include(MesosProtobuf)
 # Build the protobuf structs.
 PROTOC_TO_INCLUDE_DIR(MESOS            mesos/mesos)
 PROTOC_TO_INCLUDE_DIR(V1_MESOS         mesos/v1/mesos)
+PROTOC_TO_INCLUDE_DIR(APPC_SPEC        mesos/appc/spec)
 PROTOC_TO_INCLUDE_DIR(AUTHENTICATION   mesos/authentication/authentication)
 PROTOC_TO_INCLUDE_DIR(AUTHORIZATION    mesos/authorizer/authorizer)
 PROTOC_TO_INCLUDE_DIR(CONTAINERIZER    mesos/containerizer/containerizer)
@@ -51,6 +52,7 @@ PROTOC_TO_SRC_DIR(MESSAGE slave/containerizer/mesos/provisioner/docker/message)
 set(MESOS_PROTOBUF_SRC
   ${MESOS_PROTO_CC}
   ${V1_MESOS_PROTO_CC}
+  ${APPC_SPEC_PROTO_CC}
   ${AUTHENTICATION_PROTO_CC}
   ${AUTHORIZATION_PROTO_CC}
   ${CONTAINERIZER_PROTO_CC}
