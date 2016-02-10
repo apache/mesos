@@ -916,6 +916,15 @@ swap instead of just memory. (default: false)
 </tr>
 <tr>
   <td>
+    --cgroups_net_cls_primary_handle
+  </td>
+  <td>
+A non-zero, 16-bit handle of the form `0xAAAA`. This will be used as
+the primary handle for the net_cls cgroup.
+  </td>
+</tr>
+<tr>
+  <td>
     --cgroups_root=VALUE
   </td>
   <td>
