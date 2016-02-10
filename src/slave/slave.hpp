@@ -215,9 +215,18 @@ public:
   // to ensure source field is set.
   void statusUpdate(StatusUpdate update, const Option<process::UPID>& pid);
 
+  // Called when the slave receives a `StatusUpdate` from an executor
+  // and the slave needs to retrieve the container status for the
+  // container associated with the executor.
+  void _statusUpdate(
+      StatusUpdate update,
+      const Option<process::UPID>& pid,
+      const ExecutorID& executorId,
+      const Future<ContainerStatus>& containerStatus);
+
   // Continue handling the status update after optionally updating the
   // container's resources.
-  void _statusUpdate(
+  void __statusUpdate(
       const Option<Future<Nothing>>& future,
       const StatusUpdate& update,
       const Option<process::UPID>& pid,
@@ -228,7 +237,7 @@ public:
   // This is called when the status update manager finishes
   // handling the update. If the handling is successful, an
   // acknowledgment is sent to the executor.
-  void __statusUpdate(
+  void ___statusUpdate(
       const process::Future<Nothing>& future,
       const StatusUpdate& update,
       const Option<process::UPID>& pid);

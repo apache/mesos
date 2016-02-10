@@ -2117,7 +2117,7 @@ TEST_F(SlaveTest, ReregisterWithStatusUpdateTaskState)
   Future<StatusUpdateMessage> statusUpdateMessage =
     DROP_PROTOBUF(StatusUpdateMessage(), _, master.get());
 
-  Future<Nothing> __statusUpdate = FUTURE_DISPATCH(_, &Slave::__statusUpdate);
+  Future<Nothing> ___statusUpdate = FUTURE_DISPATCH(_, &Slave::___statusUpdate);
 
   driver.start();
 
@@ -2128,9 +2128,10 @@ TEST_F(SlaveTest, ReregisterWithStatusUpdateTaskState)
   AWAIT_READY(statusUpdateMessage);
 
   // Ensure status update manager handles TASK_RUNNING update.
-  AWAIT_READY(__statusUpdate);
+  AWAIT_READY(___statusUpdate);
 
-  Future<Nothing> __statusUpdate2 = FUTURE_DISPATCH(_, &Slave::__statusUpdate);
+  Future<Nothing> ___statusUpdate2 =
+    FUTURE_DISPATCH(_, &Slave::___statusUpdate);
 
   // Now send TASK_FINISHED update.
   TaskStatus finishedStatus;
@@ -2139,7 +2140,7 @@ TEST_F(SlaveTest, ReregisterWithStatusUpdateTaskState)
   execDriver->sendStatusUpdate(finishedStatus);
 
   // Ensure status update manager handles TASK_FINISHED update.
-  AWAIT_READY(__statusUpdate2);
+  AWAIT_READY(___statusUpdate2);
 
   Future<ReregisterSlaveMessage> reregisterSlaveMessage =
     FUTURE_PROTOBUF(ReregisterSlaveMessage(), _, _);

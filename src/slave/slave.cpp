@@ -1162,7 +1162,7 @@ void Slave::reregistered(
         // updates for unknown frameworks.
         statusUpdateManager->update(update, info.id())
           .onAny(defer(self(),
-                       &Slave::__statusUpdate,
+                       &Slave::___statusUpdate,
                        lambda::_1,
                        update,
                        UPID()));
@@ -2990,7 +2990,7 @@ void Slave::reregisterExecutorTimeout()
 // This can be called in two ways:
 // 1) When a status update from the executor is received.
 // 2) When slave generates task updates (e.g LOST/KILLED/FAILED).
-// NOTE: We set the pid in 'Slave::__statusUpdate()' to 'pid' so that
+// NOTE: We set the pid in 'Slave::___statusUpdate()' to 'pid' so that
 // whoever sent this update will get an ACK. This is important because
 // we allow executors to send updates for tasks that belong to other
 // executors. Currently we allow this because we cannot guarantee
@@ -3075,22 +3075,6 @@ void Slave::statusUpdate(StatusUpdate update, const Option<UPID>& pid)
     }
   }
 
-  // Fill in the container IP address with the IP from the agent PID, if not
-  // already filled in.
-  // TODO(karya): Fill in the IP address by looking up the executor PID.
-  ContainerStatus* containerStatus =
-    update.mutable_status()->mutable_container_status();
-  if (containerStatus->network_infos().size() == 0) {
-    NetworkInfo* networkInfo = containerStatus->add_network_infos();
-
-    // TODO(CD): Deprecated -- Remove after 0.27.0.
-    networkInfo->set_ip_address(stringify(self().address.ip));
-
-    NetworkInfo::IPAddress* ipAddress =
-      networkInfo->add_ip_addresses();
-    ipAddress->set_ip_address(stringify(self().address.ip));
-  }
-
   const TaskStatus& status = update.status();
 
   Executor* executor = framework->getExecutor(status.task_id());
@@ -3111,8 +3095,14 @@ void Slave::statusUpdate(StatusUpdate update, const Option<UPID>& pid)
     // re-registered. In this case, the slave cannot find the executor
     // corresponding to this task because the task has been moved to
     // 'Executor::completedTasks'.
+    //
+    // NOTE: We do not set the `ContainerStatus` (including the
+    // `NetworkInfo` within the `ContainerStatus)  for this case,
+    // because the container is unknown. We cannot use the slave IP
+    // address here (for the `NetworkInfo`) since we do not know the
+    // type of network isolation used for this container.
     statusUpdateManager->update(update, info.id())
-      .onAny(defer(self(), &Slave::__statusUpdate, lambda::_1, update, pid));
+      .onAny(defer(self(), &Slave::___statusUpdate, lambda::_1, update, pid));
 
     return;
   }
@@ -3151,6 +3141,62 @@ void Slave::statusUpdate(StatusUpdate update, const Option<UPID>& pid)
 
   metrics.valid_status_updates++;
 
+  // Before sending update, we need to retrieve the container status.
+  containerizer->status(executor->containerId)
+    .onAny(defer(self(),
+                 &Slave::_statusUpdate,
+                 update,
+                 pid,
+                 executor->id,
+                 lambda::_1));
+}
+
+
+void Slave::_statusUpdate(
+    StatusUpdate update,
+    const Option<process::UPID>& pid,
+    const ExecutorID& executorId,
+    const Future<ContainerStatus>& future)
+{
+  ContainerStatus* containerStatus =
+    update.mutable_status()->mutable_container_status();
+
+  // There can be cases where a container is already removed from the
+  // containerizer before the `status` call is dispatched to the
+  // containerizer, leading to the failure of the returned `Future`.
+  // In such a case we should simply not update the `ContainerStatus`
+  // with the return `Future` but continue processing the
+  // `StatusUpdate`.
+  if (future.isReady()) {
+    containerStatus->MergeFrom(future.get());
+
+    // Fill in the container IP address with the IP from the agent
+    // PID, if not already filled in.
+    //
+    // TODO(karya): Fill in the IP address by looking up the executor PID.
+    if (containerStatus->network_infos().size() == 0) {
+      NetworkInfo* networkInfo = containerStatus->add_network_infos();
+
+      // TODO(CD): Deprecated -- Remove after 0.27.0.
+      networkInfo->set_ip_address(stringify(self().address.ip));
+
+      NetworkInfo::IPAddress* ipAddress =
+        networkInfo->add_ip_addresses();
+      ipAddress->set_ip_address(stringify(self().address.ip));
+    }
+  }
+
+
+  const TaskStatus& status = update.status();
+
+  Executor* executor = getExecutor(update.framework_id(), executorId);
+  if (executor == NULL) {
+    LOG(WARNING) << "Ignoring container status update for framework "
+                 << update.framework_id()
+                 << "for a non-existent executor";
+    return;
+  }
+
   // We set the latest state of the task here so that the slave can
   // inform the master about the latest state (via status update or
   // ReregisterSlaveMessage message) as soon as possible. Master can
@@ -3175,7 +3221,7 @@ void Slave::statusUpdate(StatusUpdate update, const Option<UPID>& pid)
     // sending the status update.
     containerizer->update(executor->containerId, executor->resources)
       .onAny(defer(self(),
-                   &Slave::_statusUpdate,
+                   &Slave::__statusUpdate,
                    lambda::_1,
                    update,
                    pid,
@@ -3184,7 +3230,7 @@ void Slave::statusUpdate(StatusUpdate update, const Option<UPID>& pid)
                    executor->checkpoint));
   } else {
     // Immediately send the status update.
-    _statusUpdate(None(),
+    __statusUpdate(None(),
                   update,
                   pid,
                   executor->id,
@@ -3194,7 +3240,7 @@ void Slave::statusUpdate(StatusUpdate update, const Option<UPID>& pid)
 }
 
 
-void Slave::_statusUpdate(
+void Slave::__statusUpdate(
     const Option<Future<Nothing>>& future,
     const StatusUpdate& update,
     const Option<UPID>& pid,
@@ -3229,16 +3275,16 @@ void Slave::_statusUpdate(
   if (checkpoint) {
     // Ask the status update manager to checkpoint and reliably send the update.
     statusUpdateManager->update(update, info.id(), executorId, containerId)
-      .onAny(defer(self(), &Slave::__statusUpdate, lambda::_1, update, pid));
+      .onAny(defer(self(), &Slave::___statusUpdate, lambda::_1, update, pid));
   } else {
     // Ask the status update manager to just retry the update.
     statusUpdateManager->update(update, info.id())
-      .onAny(defer(self(), &Slave::__statusUpdate, lambda::_1, update, pid));
+      .onAny(defer(self(), &Slave::___statusUpdate, lambda::_1, update, pid));
   }
 }
 
 
-void Slave::__statusUpdate(
+void Slave::___statusUpdate(
     const Future<Nothing>& future,
     const StatusUpdate& update,
     const Option<UPID>& pid)

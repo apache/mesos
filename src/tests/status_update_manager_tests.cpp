@@ -505,8 +505,8 @@ TEST_F(StatusUpdateManagerTest, DuplicateTerminalUpdateBeforeAck)
   Future<StatusUpdateAcknowledgementMessage> statusUpdateAckMessage =
     DROP_PROTOBUF(StatusUpdateAcknowledgementMessage(), _, slave.get());
 
-  Future<Nothing> __statusUpdate =
-    FUTURE_DISPATCH(slave.get(), &Slave::__statusUpdate);
+  Future<Nothing> ___statusUpdate =
+    FUTURE_DISPATCH(slave.get(), &Slave::___statusUpdate);
 
   Clock::pause();
 
@@ -520,10 +520,10 @@ TEST_F(StatusUpdateManagerTest, DuplicateTerminalUpdateBeforeAck)
 
   // At this point the status update manager has enqueued
   // TASK_FINISHED update.
-  AWAIT_READY(__statusUpdate);
+  AWAIT_READY(___statusUpdate);
 
-  Future<Nothing> __statusUpdate2 =
-    FUTURE_DISPATCH(slave.get(), &Slave::__statusUpdate);
+  Future<Nothing> ___statusUpdate2 =
+    FUTURE_DISPATCH(slave.get(), &Slave::___statusUpdate);
 
   // Now send a TASK_KILLED update for the same task.
   TaskStatus status2 = status.get();
@@ -532,7 +532,7 @@ TEST_F(StatusUpdateManagerTest, DuplicateTerminalUpdateBeforeAck)
 
   // At this point the status update manager has enqueued
   // TASK_FINISHED and TASK_KILLED updates.
-  AWAIT_READY(__statusUpdate2);
+  AWAIT_READY(___statusUpdate2);
 
   // After we advance the clock, the scheduler should receive
   // the retried TASK_FINISHED update and acknowledge it. The
@@ -725,15 +725,15 @@ TEST_F(StatusUpdateManagerTest, DuplicateUpdateBeforeAck)
 
   AWAIT_READY(statusUpdateAckMessage);
 
-  Future<Nothing> __statusUpdate =
-    FUTURE_DISPATCH(slave.get(), &Slave::__statusUpdate);
+  Future<Nothing> ___statusUpdate =
+    FUTURE_DISPATCH(slave.get(), &Slave::___statusUpdate);
 
   // Now resend the TASK_RUNNING update.
   process::post(slave.get(), statusUpdateMessage.get());
 
   // At this point the status update manager has handled
   // the duplicate status update.
-  AWAIT_READY(__statusUpdate);
+  AWAIT_READY(___statusUpdate);
 
   // After we advance the clock, the status update manager should
   // retry the TASK_RUNNING update and the scheduler should receive
@@ -794,7 +794,7 @@ TEST_F(StatusUpdateManagerTest, LatestTaskState)
   Future<StatusUpdateMessage> statusUpdateMessage =
     DROP_PROTOBUF(StatusUpdateMessage(), _, master.get());
 
-  Future<Nothing> __statusUpdate = FUTURE_DISPATCH(_, &Slave::__statusUpdate);
+  Future<Nothing> ___statusUpdate = FUTURE_DISPATCH(_, &Slave::___statusUpdate);
 
   driver.start();
 
@@ -802,12 +802,13 @@ TEST_F(StatusUpdateManagerTest, LatestTaskState)
   AWAIT_READY(statusUpdateMessage);
 
   // Ensure the status update manager handles the TASK_RUNNING update.
-  AWAIT_READY(__statusUpdate);
+  AWAIT_READY(___statusUpdate);
 
   // Pause the clock to avoid status update manager from retrying.
   Clock::pause();
 
-  Future<Nothing> __statusUpdate2 = FUTURE_DISPATCH(_, &Slave::__statusUpdate);
+  Future<Nothing> ___statusUpdate2 =
+    FUTURE_DISPATCH(_, &Slave::___statusUpdate);
 
   // Now send TASK_FINISHED update.
   TaskStatus finishedStatus;
@@ -816,7 +817,7 @@ TEST_F(StatusUpdateManagerTest, LatestTaskState)
   execDriver->sendStatusUpdate(finishedStatus);
 
   // Ensure the status update manager handles the TASK_FINISHED update.
-  AWAIT_READY(__statusUpdate2);
+  AWAIT_READY(___statusUpdate2);
 
   // Signal when the second update is dropped.
   Future<StatusUpdateMessage> statusUpdateMessage2 =
