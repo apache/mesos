@@ -783,8 +783,39 @@ private:
 Future<Connection> connect(const URL& url);
 
 
-// TODO(bmahler): Consolidate these functions into a single
-// http::request function that takes a 'Request' object.
+// Create a http Request from the specified parameters.
+Request createRequest(
+  const UPID& upid,
+  const std::string& method,
+  bool enableSSL = false,
+  const Option<std::string>& path = None(),
+  const Option<Headers>& headers = None(),
+  const Option<std::string>& body = None(),
+  const Option<std::string>& contentType = None());
+
+
+Request createRequest(
+    const URL& url,
+    const std::string& method,
+    const Option<Headers>& headers = None(),
+    const Option<std::string>& body = None(),
+    const Option<std::string>& contentType = None());
+
+/**
+ * Asynchronously sends an HTTP request to the process and
+ * returns the HTTP response once the entire response is received.
+ *
+ * @param streamedResponse Being true indicates the HTTP response will
+ *     be 'PIPE' type, and caller must read the response body from the
+ *     Pipe::Reader, otherwise, the HTTP response will be 'BODY' type.
+ */
+Future<Response> request(
+    const Request& request,
+    bool streamedResponse = false);
+
+
+// TODO(Yongqiao Wang): Refactor other functions
+// (such as post/get/requestDelete) to use the 'request' function.
 
 // TODO(bmahler): Support discarding the future responses;
 // discarding should disconnect from the server.

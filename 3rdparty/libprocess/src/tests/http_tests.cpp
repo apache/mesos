@@ -76,6 +76,7 @@ public:
 
   MOCK_METHOD1(body, Future<http::Response>(const http::Request&));
   MOCK_METHOD1(pipe, Future<http::Response>(const http::Request&));
+  MOCK_METHOD1(request, Future<http::Response>(const http::Request&));
   MOCK_METHOD1(get, Future<http::Response>(const http::Request&));
   MOCK_METHOD1(post, Future<http::Response>(const http::Request&));
   MOCK_METHOD1(requestDelete, Future<http::Response>(const http::Request&));
@@ -91,6 +92,7 @@ protected:
   {
     route("/body", None(), &HttpProcess::body);
     route("/pipe", None(), &HttpProcess::pipe);
+    route("/request", None(), &HttpProcess::request);
     route("/get", None(), &HttpProcess::get);
     route("/post", None(), &HttpProcess::post);
     route("/delete", None(), &HttpProcess::requestDelete);
@@ -723,6 +725,34 @@ TEST(HTTPTest, Delete)
 
   Future<http::Response> future =
     http::requestDelete(http.process->self(), "delete", None());
+
+  AWAIT_READY(future);
+  ASSERT_EQ(http::Status::OK, future->code);
+  ASSERT_EQ(http::Status::string(http::Status::OK), future->status);
+}
+
+
+http::Response validateDeleteHttpRequest(const http::Request& request)
+{
+  EXPECT_EQ("DELETE", request.method);
+  EXPECT_THAT(request.url.path, EndsWith("request"));
+  EXPECT_TRUE(request.body.empty());
+  EXPECT_TRUE(request.url.query.empty());
+
+  return http::OK();
+}
+
+
+TEST(HTTPTest, Request)
+{
+  Http http;
+
+  EXPECT_CALL(*http.process, request(_))
+    .WillOnce(Invoke(validateDeleteHttpRequest));
+
+  Future<http::Response> future =
+    http::request(http::createRequest(
+        http.process->self(), "DELETE", false, "request"));
 
   AWAIT_READY(future);
   ASSERT_EQ(http::Status::OK, future->code);

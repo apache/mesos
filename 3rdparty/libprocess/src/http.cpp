@@ -1266,7 +1266,53 @@ Future<Connection> connect(const URL& url)
 }
 
 
-namespace internal {
+Request createRequest(
+    const URL& url,
+    const string& method,
+    const Option<Headers>& headers,
+    const Option<string>& body,
+    const Option<string>& contentType)
+{
+  Request request;
+  request.method = method;
+  request.url = url;
+  request.keepAlive = false;
+
+  if (headers.isSome()) {
+    request.headers = headers.get();
+  }
+
+  if (body.isSome()) {
+    request.body = body.get();
+  }
+
+  if (contentType.isSome()) {
+    request.headers["Content-Type"] = contentType.get();
+  }
+
+  return request;
+}
+
+
+Request createRequest(
+  const UPID& upid,
+  const string& method,
+  bool enableSSL,
+  const Option<string>& path,
+  const Option<Headers>& headers,
+  const Option<string>& body,
+  const Option<string>& contentType)
+{
+  string scheme = enableSSL ? "https" : "http";
+  URL url(scheme, net::IP(upid.address.ip), upid.address.port, upid.id);
+
+  if (path.isSome()) {
+    url.path = strings::join("/", url.path, path.get());
+  }
+
+  return createRequest(url, method, headers, body, contentType);
+}
+
 
 Future<Response> request(const Request& request, bool streamedResponse)
 {
@@ -1292,23 +1338,21 @@ Future<Response> request(const Request& request, bool streamedResponse)
     });
 }
 
-} // namespace internal {
-
 
 Future<Response> get(
     const URL& url,
     const Option<Headers>& headers)
 {
-  Request request;
-  request.method = "GET";
-  request.url = url;
-  request.keepAlive = false;
+  Request _request;
+  _request.method = "GET";
+  _request.url = url;
+  _request.keepAlive = false;
 
   if (headers.isSome()) {
-    request.headers = headers.get();
+    _request.headers = headers.get();
   }
 
-  return internal::request(request, false);
+  return request(_request, false);
 }
 
 
@@ -1350,24 +1394,24 @@ Future<Response> post(
     return Failure("Attempted to do a POST with a Content-Type but no body");
   }
 
-  Request request;
-  request.method = "POST";
-  request.url = url;
-  request.keepAlive = false;
+  Request _request;
+  _request.method = "POST";
+  _request.url = url;
+  _request.keepAlive = false;
 
   if (headers.isSome()) {
-    request.headers = headers.get();
+    _request.headers = headers.get();
   }
 
   if (body.isSome()) {
-    request.body = body.get();
+    _request.body = body.get();
   }
 
   if (contentType.isSome()) {
-    request.headers["Content-Type"] = contentType.get();
+    _request.headers["Content-Type"] = contentType.get();
   }
 
-  return internal::request(request, false);
+  return request(_request, false);
 }
 
 
@@ -1393,16 +1437,16 @@ Future<Response> requestDelete(
     const URL& url,
     const Option<Headers>& headers)
 {
-  Request request;
-  request.method = "DELETE";
-  request.url = url;
-  request.keepAlive = false;
+  Request _request;
+  _request.method = "DELETE";
+  _request.url = url;
+  _request.keepAlive = false;
 
   if (headers.isSome()) {
-    request.headers = headers.get();
+    _request.headers = headers.get();
   }
 
-  return internal::request(request, false);
+  return request(_request, false);
 }
 
 
@@ -1430,16 +1474,16 @@ Future<Response> get(
     const URL& url,
     const Option<Headers>& headers)
 {
-  Request request;
-  request.method = "GET";
-  request.url = url;
-  request.keepAlive = false;
+  Request _request;
+  _request.method = "GET";
+  _request.url = url;
+  _request.keepAlive = false;
 
   if (headers.isSome()) {
-    request.headers = headers.get();
+    _request.headers = headers.get();
   }
 
-  return internal::request(request, true);
+  return request(_request, true);
 }
 
 
@@ -1481,24 +1525,24 @@ Future<Response> post(
     return Failure("Attempted to do a POST with a Content-Type but no body");
   }
 
-  Request request;
-  request.method = "POST";
-  request.url = url;
-  request.keepAlive = false;
+  Request _request;
+  _request.method = "POST";
+  _request.url = url;
+  _request.keepAlive = false;
 
   if (body.isSome()) {
-    request.body = body.get();
+    _request.body = body.get();
   }
 
   if (headers.isSome()) {
-    request.headers = headers.get();
+    _request.headers = headers.get();
   }
 
   if (contentType.isSome()) {
-    request.headers["Content-Type"] = contentType.get();
+    _request.headers["Content-Type"] = contentType.get();
   }
 
-  return internal::request(request, true);
+  return request(_request, true);
 }
 
 
