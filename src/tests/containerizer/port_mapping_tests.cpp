@@ -201,7 +201,7 @@ public:
     ASSERT_SOME(os::shell("which arping"))
       << "-------------------------------------------------------------\n"
       << "We cannot run some PortMappingIsolatorTests because 'arping'\n"
-      << "could not be found. You can either isntall 'arping', or\n"
+      << "could not be found. You can either install 'arping', or\n"
       << "disable this test case\n"
       << "-------------------------------------------------------------";
   }
