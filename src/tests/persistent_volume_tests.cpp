@@ -221,7 +221,7 @@ TEST_P(PersistentVolumeTest, SendingCheckpointResourcesMessage)
       None());
 
   // We use the filter explicitly here so that the resources will not
-  // be filtered for 5 seconds (by default).
+  // be filtered for 5 seconds (the default).
   Filters filters;
   filters.set_refuse_seconds(0);
 
@@ -842,7 +842,7 @@ TEST_P(PersistentVolumeTest, GoodACLCreateThenDestroy)
       DEFAULT_CREDENTIAL.principal());
 
   // We use the filter explicitly here so that the resources will not
-  // be filtered for 5 seconds (by default).
+  // be filtered for 5 seconds (the default).
   Filters filters;
   filters.set_refuse_seconds(0);
 
@@ -985,7 +985,7 @@ TEST_P(PersistentVolumeTest, GoodACLNoPrincipal)
   destroy->mutable_creator_principals()->set_type(mesos::ACL::Entity::ANY);
 
   // We use the filter explicitly here so that the resources will not be
-  // filtered for 5 seconds (by default).
+  // filtered for 5 seconds (the default).
   Filters filters;
   filters.set_refuse_seconds(0);
 
@@ -1133,7 +1133,7 @@ TEST_P(PersistentVolumeTest, BadACLNoPrincipal)
   create2->mutable_volume_types()->set_type(mesos::ACL::Entity::NONE);
 
   // We use this filter so that resources will not
-  // be filtered for 5 seconds (by default).
+  // be filtered for 5 seconds (the default).
   Filters filters;
   filters.set_refuse_seconds(0);
 
@@ -1333,7 +1333,7 @@ TEST_P(PersistentVolumeTest, BadACLDropCreateAndDestroy)
   create->mutable_volume_types()->set_type(mesos::ACL::Entity::NONE);
 
   // We use the filter explicitly here so that the resources will not
-  // be filtered for 5 seconds (by default).
+  // be filtered for 5 seconds (the default).
   Filters filters;
   filters.set_refuse_seconds(0);
 

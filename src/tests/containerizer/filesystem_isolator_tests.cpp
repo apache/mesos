@@ -538,7 +538,7 @@ TEST_F(LinuxFilesystemIsolatorTest,
       "path1");
 
   // We use the filter explicitly here so that the resources will not
-  // be filtered for 5 seconds (by default).
+  // be filtered for 5 seconds (the default).
   Filters filters;
   filters.set_refuse_seconds(0);
 

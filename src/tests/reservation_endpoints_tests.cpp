@@ -1195,7 +1195,7 @@ TEST_F(ReservationEndpointsTest, ReserveAndUnreserveNoAuthentication)
   Offer offer = offers.get()[0];
 
   // We use this filter so that resources will not
-  // be filtered for 5 seconds (by default).
+  // be filtered for 5 seconds (the default).
   Filters filters;
   filters.set_refuse_seconds(0);
 
