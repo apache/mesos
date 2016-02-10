@@ -895,9 +895,12 @@ TEST_F(MasterQuotaTest, AvailableResourcesAfterRescinding)
   Future<vector<Offer>> offers;
 
   // Set expectations for the first offer and launch the framework.
+  // In this test we care about rescinded resources and not about
+  // following allocations, hence ignore any subsequent offers.
   EXPECT_CALL(sched1, registered(&framework1, _, _));
   EXPECT_CALL(sched1, resourceOffers(&framework1, _))
-    .WillOnce(FutureArg<1>(&offers));
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return());
 
   framework1.start();
 
@@ -954,6 +957,14 @@ TEST_F(MasterQuotaTest, AvailableResourcesAfterRescinding)
   // because there are two frameworks in the quota'ed role `ROLE2`.
   EXPECT_CALL(sched1, offerRescinded(&framework1, _))
     .Times(2);
+
+  // In this test we are not interested in which frameworks will be offered
+  // the rescinded resources.
+  EXPECT_CALL(sched2, resourceOffers(&framework2, _))
+    .WillRepeatedly(Return());
+
+  EXPECT_CALL(sched3, resourceOffers(&framework3, _))
+    .WillRepeatedly(Return());
 
   // Send a quota request for the specified role.
   Future<Quota> receivedQuotaRequest;
