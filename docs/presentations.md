@@ -5,6 +5,12 @@ layout: documentation
 # Video and Slides of Mesos Presentations
 _(Listed in date descending order)_
 
+## MesosCon Europe 2015
+ [Video playlist](https://www.youtube.com/watch?v=K-x7yOy8Ymk&list=PLGeM09tlguZS6MhlSZDbf-gANWdKgje0I)
+
+## MesosCon Seattle 2015
+ [Video playlist](https://www.youtube.com/watch?v=aV6pdWveN7s&list=PLVjgeV_avap2arug3vIz8c6l72rvh9poV)
+
 ## Building and Deploying Applications to Apache Mesos
 ([Slides](https://www.slideshare.net/charmalloc/buildingdeployingapplicationsmesos))
 Joe Stein
