@@ -41,7 +41,7 @@ __NOTE:__ This feature is supported for backwards compatibility.
 
 As mentioned in [Static Reservation](#static-reservation-since-0140), specifying
 the reserved resources via the `--resources` flag makes the reservation static.
-This is, statically reserved resources cannot be reserved for another role nor
+That is, statically reserved resources cannot be reserved for another role nor
 be unreserved. Dynamic Reservation enables operators and authorized frameworks
 to reserve and unreserve resources post slave-startup.
 
@@ -53,11 +53,14 @@ see the [authorization documentation](authorization.md).
 
 * `Offer::Operation::Reserve` and `Offer::Operation::Unreserve` messages are
   available for __frameworks__ to send back via the `acceptOffers` API as a
-  response to a resource offer.
+  response to a resource offer. Each framework may only reserve resources for
+  its own role.
 * `/reserve` and `/unreserve` HTTP endpoints allow __operators__ to manage
-  dynamic reservations through the master. NOTE: As of 0.27.0, these endpoints
-  cannot be used when HTTP authentication is disabled due to the current
-  implementation. This will change in version 0.28.0.
+  dynamic reservations through the master. Operators may currently reserve
+  resources for any role, although this
+  [will change](https://issues.apache.org/jira/browse/MESOS-4591). NOTE: As of
+  0.27.0, these endpoints cannot be used when HTTP authentication is disabled
+  due to the current implementation. This will change in version 0.28.0.
 
 In the following sections, we will walk through examples of each of the
 interfaces described above.
@@ -241,8 +244,10 @@ operators and administrative tools.
 Suppose we want to reserve 8 CPUs and 4096 MB of RAM for the `ads` role on a
 slave with id=`<slave_id>` (note that it is up to the user to find the ID of the
 slave that hosts the desired resources; the request will fail if sufficient
-unreserved resources cannot be found on the slave). We send an HTTP POST request
-to the `/reserve` HTTP endpoint like so:
+unreserved resources cannot be found on the slave). In this case, the principal
+included in the request will be the principal of an authorized operator rather
+than the principal of a framework registered under the `ads` role. We send an
+HTTP POST request to the `/reserve` HTTP endpoint like so:
 
         $ curl -i \
           -u <operator_principal>:<password> \
