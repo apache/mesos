@@ -759,13 +759,13 @@ Future<bool> MesosContainerizerProcess::_launch(
     const Image& image = volume->image();
 
     futures.push_back(provisioner->provision(containerId, image)
-      .then([=](const ProvisionInfo& info) mutable -> Future<Nothing> {
+      .then([=](const ProvisionInfo& info) -> Future<Nothing> {
         volume->set_host_path(info.rootfs);
 
         if (taskInfo.isSome() &&
             volume->container_path() ==
               COMMAND_EXECUTOR_ROOTFS_CONTAINER_PATH) {
-          _provisionInfo.reset(new Option<ProvisionInfo>(info));
+          *_provisionInfo = info;
         }
 
         return Nothing();
