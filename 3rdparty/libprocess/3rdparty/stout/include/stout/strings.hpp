@@ -169,12 +169,12 @@ inline std::vector<std::string> tokenize(
 inline std::vector<std::string> split(
     const std::string& s,
     const std::string& delims,
-    const Option<size_t>& n = None())
+    const Option<size_t>& maxTokens = None())
 {
   std::vector<std::string> tokens;
   size_t offset = 0;
 
-  while (n.isNone() || n.get() > 0) {
+  while (maxTokens.isNone() || maxTokens.get() > 0) {
     size_t next = s.find_first_of(delims, offset);
     if (next == std::string::npos) {
       tokens.push_back(s.substr(offset));
@@ -185,11 +185,12 @@ inline std::vector<std::string> split(
     offset = next + 1;
 
     // Finish splitting if we've found enough tokens.
-    if (n.isSome() && tokens.size() == n.get() - 1) {
+    if (maxTokens.isSome() && tokens.size() == maxTokens.get() - 1) {
       tokens.push_back(s.substr(offset));
       break;
     }
   }
+
   return tokens;
 }
 
