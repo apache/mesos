@@ -71,11 +71,25 @@ There are couple of important things to note:
 2. If no ACLs match a request, whether the request is authorized or not is determined by the `ACLs.permissive` field. This is "true" by default -- i.e., non-matching requests are authorized.
 
 
+## Role vs. Principal
+
+A principal identifies an entity (i.e., a framework or an operator) that interacts with Mesos. A role, on the other hand, is used to associate resources with frameworks in various ways. A useful, if not entirely precise, analogy can be made with user management in the Unix world: principals correspond to usernames, while roles approximately correspond to groups. For more information about roles, see the [role documentation](roles.md).
+
+In a real-world organization, principals and roles might be used to represent various individuals or groups; for example, principals could correspond to people responsible for particular frameworks, while roles could correspond to departments within the organization which run frameworks on the cluster. To illustrate this point, consider a company that wants to allocate datacenter resources amongst multiple departments, one of which is the accounting department. Here is a possible scenario in which the accounting department launches a Mesos framework and then attempts to destroy a persistent volume:
+
+* An accountant launches their framework, which authenticates with the Mesos master using its `principal` and `secret`. Here, let the framework principal be `payroll-framework`; this principal represents the trusted identity of the framework.
+* The framework now sends a registration message to the master. This message includes a `FrameworkInfo` object containing a `principal` and a `role`; in this case, it will use the role `accounting`. The principal in this message must be `payroll-framework`, to match the one used by the framework for authentication.
+* The master looks through its ACLs to see if it has a `RegisterFramework` ACL which authorizes the principal `payroll-framework` to register with the `accounting` role. It does find such an ACL, so the framework registers successfully. Now that the framework belongs to the `accounting` role, any [weights](roles.md), [reservations](reservation.md), [persistent volumes](persistent-volume.md), or [quota](quota.md) associated with the accounting department's role will apply. This allows operators to control the resource consumption of this department.
+* Suppose the framework has created a persistent volume on a slave which it now wishes to destroy. The framework sends an `ACCEPT` call containing an offer operation which will `DESTROY` the persistent volume.
+* However, datacenter operators have decided that they don't want the accounting frameworks to delete volumes. Rather, the operators will manually remove the accounting department's persistent volumes to ensure that no important financial data is deleted accidentally. To accomplish this, they have set a `DestroyVolume` ACL which asserts that the principal `payroll-framework` can destroy volumes created by a `creator_principal` of `NONE`; in other words, this framework cannot destroy persistent volumes, so the operation will be refused.
+
+
 ## Examples
 
-1. Frameworks `foo` and `bar` can run tasks as user `alice`.
+1. Principals `foo` and `bar` can run tasks as the agent operating system user `alice` and no other user. No other principals can run tasks.
 
         {
+          "permissive": false,
           "run_tasks": [
                          {
                            "principals": { "values": ["foo", "bar"] },
@@ -84,29 +98,7 @@ There are couple of important things to note:
                        ]
         }
 
-2. Any framework can run tasks as user `guest`.
-
-        {
-          "run_tasks": [
-                         {
-                           "principals": { "type": "ANY" },
-                           "users": { "values": ["guest"] }
-                         }
-                       ]
-        }
-
-3. No framework can run tasks as `root`.
-
-        {
-          "run_tasks": [
-                         {
-                           "principals": { "type": "NONE" },
-                           "users": { "values": ["root"] }
-                         }
-                       ]
-        }
-
-4. Framework `foo` can run tasks only as user `guest` and no other user.
+2. Principal `foo` can run tasks only as the agent operating system user `guest` and no other user. Any other principal (or framework without a principal) can run tasks as any user.
 
         {
           "run_tasks": [
@@ -121,7 +113,30 @@ There are couple of important things to note:
                        ]
         }
 
-5. Framework `foo` can register with the `analytics` and `ads` roles.
+3. Any principal can run tasks as the agent operating system user `guest`. Tasks cannot be run as any other user.
+
+        {
+          "permissive": false,
+          "run_tasks": [
+                         {
+                           "principals": { "type": "ANY" },
+                           "users": { "values": ["guest"] }
+                         }
+                       ]
+        }
+
+4. No principal can run tasks as the agent operating system user `root`. Any principal (or framework without a principal) can run tasks as any other user.
+
+        {
+          "run_tasks": [
+                         {
+                           "principals": { "type": "NONE" },
+                           "users": { "values": ["root"] }
+                         }
+                       ]
+        }
+
+5. Principal `foo` can register frameworks with the `analytics` and `ads` roles and no other role. Any other principal (or framework without a principal) can register frameworks with any role.
 
         {
           "register_frameworks": [
@@ -132,11 +147,19 @@ There are couple of important things to note:
                                      "roles": {
                                        "values": ["analytics", "ads"]
                                      }
+                                   },
+                                   {
+                                     "principals": {
+                                       "values": ["foo"]
+                                     },
+                                     "roles": {
+                                       "type": "NONE"
+                                     }
                                    }
                                  ]
         }
 
-6. Only framework `foo` and no one else can register with the `analytics` role.
+6. Only principal `foo` and no one else can register frameworks with the `analytics` role. Any other principal (or framework without a principal) can register frameworks with any other role.
 
         {
           "register_frameworks": [
@@ -159,7 +182,7 @@ There are couple of important things to note:
                                  ]
         }
 
-7. Framework `foo` can only register with the `analytics` role but no other roles. Also, no other framework can register with any roles or run tasks.
+7. Principal `foo` can register frameworks with the `analytics` role and no other role. No other principal can register frameworks with any role, including `*`.
 
         {
           "permissive": false,
@@ -175,7 +198,7 @@ There are couple of important things to note:
                                  ]
         }
 
-8. The `ops` principal can teardown any framework using the "/teardown" HTTP endpoint. No other framework can register with any roles or run tasks.
+8. The `ops` principal can teardown any framework using the "/teardown" HTTP endpoint. No other principal can teardown any frameworks.
 
         {
           "permissive": false,
@@ -189,6 +212,149 @@ There are couple of important things to note:
                                      }
                                    }
                                  ]
+        }
+
+9. The principal `foo` can reserve any resources, and no other principal can reserve resources.
+
+        {
+          "permissive": false,
+          "reserve_resources": [
+                                 {
+                                   "principals": {
+                                     "values": ["foo"]
+                                   },
+                                   "resources": {
+                                     "type": "ANY"
+                                   }
+                                 }
+                               ]
+        }
+
+10. The principal `foo` cannot reserve any resources, and any other principal (or framework without a principal) can reserve resources.
+
+        {
+          "reserve_resources": [
+                                 {
+                                   "principals": {
+                                     "values": ["foo"]
+                                   },
+                                   "resources": {
+                                     "type": "NONE"
+                                   }
+                                 }
+                               ]
+        }
+
+11. The principal `foo` can unreserve resources reserved by itself and by the principal `bar`. The principal `bar`, however, can only unreserve its own resources. No other principals can unreserve resources.
+
+        {
+          "permissive": false,
+          "unreserve_resources": [
+                                   {
+                                     "principals": {
+                                       "values": ["foo"]
+                                     },
+                                     "reserver_principals": {
+                                       "values": ["foo", "bar"]
+                                     }
+                                   },
+                                   {
+                                     "principals": {
+                                       "values": ["bar"]
+                                     },
+                                     "reserver_principals": {
+                                       "values": ["bar"]
+                                     }
+                                   }
+                                 ]
+        }
+
+12. The principal `foo` can create persistent volumes, and no other principal can create persistent volumes.
+
+        {
+          "permissive": false,
+          "create_volumes": [
+                              {
+                                "principals": {
+                                  "values": ["foo"]
+                                },
+                                "volume_types": {
+                                  "type": "ANY"
+                                }
+                              }
+                            ]
+        }
+
+13. The principal `foo` can destroy volumes created by itself and by the principal `bar`. The principal `bar`, however, can only destroy its own volumes. No other principals can destroy volumes.
+
+        {
+          "permissive": false,
+          "destroy_volumes": [
+                               {
+                                 "principals": {
+                                   "values": ["foo"]
+                                 },
+                                 "creator_principals": {
+                                   "values": ["foo", "bar"]
+                                 }
+                               },
+                               {
+                                 "principals": {
+                                   "values": ["bar"]
+                                 },
+                                 "creator_principals": {
+                                   "values": ["bar"]
+                                 }
+                               }
+                             ]
+        }
+
+14. The principal `ops` can set quota for any role. The principal `foo`, however, can only set quota for `foo-role`. No other principals can set quota.
+
+        {
+          "permissive": false,
+          "set_quotas": [
+                          {
+                            "principals": {
+                              "values": ["ops"]
+                            },
+                            "roles": {
+                              "type": "ANY"
+                            }
+                          },
+                          {
+                            "principals": {
+                              "values": ["foo"]
+                            },
+                            "roles": {
+                              "values": ["foo-role"]
+                            }
+                          }
+                        ]
+        }
+
+15. The principal `ops` can remove quota which was set by any principal. The principal `foo`, however, can only remove quota which was set by itself. No other principals can remove quota.
+
+        {
+          "permissive": false,
+          "remove_quotas": [
+                             {
+                               "principals": {
+                                 "values": ["ops"]
+                               },
+                               "quota_principals": {
+                                 "type": "ANY"
+                               }
+                             },
+                             {
+                               "principals": {
+                                 "values": ["foo"]
+                               },
+                               "quota_principals": {
+                                 "values": ["foo"]
+                               }
+                             }
+                           ]
         }
 
 
