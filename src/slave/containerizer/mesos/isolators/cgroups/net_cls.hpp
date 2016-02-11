@@ -74,6 +74,9 @@ struct NetClsHandle
 };
 
 
+std::ostream& operator<<(std::ostream& stream, const NetClsHandle& obj);
+
+
 // This manages the net_cls handles for the `cgroup/net_cls` isolator.
 // The isolator can use this with a range of primary handles, which
 // will be managed by this class. For each primary handle there are

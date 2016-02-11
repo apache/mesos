@@ -35,6 +35,7 @@
 
 using std::bitset;
 using std::list;
+using std::ostream;
 using std::set;
 using std::string;
 using std::stringstream;
@@ -61,6 +62,12 @@ static string hexify(uint32_t handle)
   stream << std::hex << handle;
   return "0x" + stream.str();
 };
+
+
+ostream& operator<<(ostream& stream, const NetClsHandle& obj)
+{
+  return stream << hexify(obj.get());
+}
 
 
 // For each primary handle, we maintain a bitmap to keep track of
@@ -409,6 +416,9 @@ Future<ContainerStatus> CgroupsNetClsIsolatorProcess::status(
   ContainerStatus status;
 
   if (info.handle.isSome()) {
+    VLOG(1) << "Updating container status with net_cls classid: "
+            << info.handle.get();
+
     CgroupInfo* cgroupInfo = status.mutable_cgroup_info();
     CgroupInfo::NetCls* netCls = cgroupInfo->mutable_net_cls();
 
@@ -467,6 +477,9 @@ Future<Option<ContainerLaunchInfo>> CgroupsNetClsIsolatorProcess::prepare(
           "Failed to allocate a net_cls handle: " +
           handle.error());
     }
+
+    LOG(INFO) << "Allocated handle: " << handle.get()
+              << " to container " << containerId;
 
     infos.emplace(containerId, Info(cgroup, handle.get()));
   } else {
