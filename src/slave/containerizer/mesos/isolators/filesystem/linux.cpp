@@ -278,7 +278,7 @@ Future<Option<ContainerLaunchInfo>> LinuxFilesystemIsolatorProcess::prepare(
   ContainerLaunchInfo launchInfo;
   launchInfo.set_namespaces(CLONE_NEWNS);
 
-  if (containerConfig.has_rootfs()) {
+  if (!containerConfig.has_task_info() && containerConfig.has_rootfs()) {
     // If the container changes its root filesystem, we need to mount
     // the container's work directory into its root filesystem
     // (creating it if needed) so that the executor and the task can
@@ -462,7 +462,7 @@ Try<string> LinuxFilesystemIsolatorProcess::script(
     string target;
 
     if (strings::startsWith(volume.container_path(), "/")) {
-      if (containerConfig.has_rootfs()) {
+      if (!containerConfig.has_task_info() && containerConfig.has_rootfs()) {
         target = path::join(
             containerConfig.rootfs(),
             volume.container_path());
@@ -481,7 +481,7 @@ Try<string> LinuxFilesystemIsolatorProcess::script(
       // 'rootfs' because a user can potentially use a container path
       // like '/../../abc'.
     } else {
-      if (containerConfig.has_rootfs()) {
+      if (!containerConfig.has_task_info() && containerConfig.has_rootfs()) {
         target = path::join(containerConfig.rootfs(),
                             flags.sandbox_directory,
                             volume.container_path());

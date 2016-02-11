@@ -77,6 +77,9 @@ message ContainerConfig {
   // The user the task will be run as.
   optional string user = 4;
 
+  // NOTE: 'rootfs' and 'docker' below are for the executor in custom
+  // executor case, and they are for the task in command task case.
+
   // The root filesystem for the container.
   optional string rootfs = 5;
 
