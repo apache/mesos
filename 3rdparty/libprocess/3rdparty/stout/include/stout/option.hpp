@@ -40,7 +40,10 @@ public:
 
   Option(T&& _t) : state(SOME), t(std::move(_t)) {}
 
-  template <typename U>
+  template <
+    typename U,
+    typename = typename std::enable_if<
+        std::is_constructible<T, const U&>::value>::type>
   Option(const U& u) : state(SOME), t(u) {}
 
   Option(const None&) : state(NONE) {}
