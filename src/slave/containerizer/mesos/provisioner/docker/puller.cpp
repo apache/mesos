@@ -51,7 +51,7 @@ namespace docker {
 Try<Owned<Puller>> Puller::create(const Flags& flags)
 {
   // TODO(tnachen): Support multiple registries in the puller.
-  if (strings::startsWith(flags.docker_registry, "file://")) {
+  if (strings::startsWith(flags.docker_registry, "/")) {
     Try<Owned<Puller>> puller = LocalPuller::create(flags);
     if (puller.isError()) {
       return Error("Failed to create local puller: " + puller.error());

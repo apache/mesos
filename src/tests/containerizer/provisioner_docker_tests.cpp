@@ -1143,7 +1143,7 @@ TEST_F(ProvisionerDockerLocalStoreTest, LocalStoreTestWithTar)
   ASSERT_SOME(os::mkdir(image));
 
   slave::Flags flags;
-  flags.docker_registry = "file://" + archivesDir;
+  flags.docker_registry = archivesDir;
   flags.docker_store_dir = path::join(os::getcwd(), "store");
 
   Try<Owned<slave::Store>> store = slave::docker::Store::create(flags);
@@ -1165,7 +1165,7 @@ TEST_F(ProvisionerDockerLocalStoreTest, LocalStoreTestWithTar)
 TEST_F(ProvisionerDockerLocalStoreTest, MetadataManagerInitialization)
 {
   slave::Flags flags;
-  flags.docker_registry = "file://" + path::join(os::getcwd(), "images");
+  flags.docker_registry = path::join(os::getcwd(), "images");
   flags.docker_store_dir = path::join(os::getcwd(), "store");
 
   Try<Owned<slave::Store>> store = slave::docker::Store::create(flags);

@@ -1103,7 +1103,7 @@ Timeout in seconds for pulling images from the Docker registry (default: 60secs)
   <td>
 The default url for pulling Docker images. It could either be a Docker
 registry server url (i.e: <code>https://registry.docker.io</code>), or a local
-path (i.e: <code>file:///tmp/docker/images</code>) in which Docker image archives
+path (i.e: <code>/tmp/docker/images</code>) in which Docker image archives
 (result of <code>docker save</code>) are stored. (default: https://registry-1.docker.io)
   </td>
 </tr>

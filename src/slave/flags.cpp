@@ -132,7 +132,7 @@ mesos::internal::slave::Flags::Flags()
       "docker_registry",
       "The default url for pulling Docker images. It could either be a Docker\n"
       "registry server url (i.e: `https://registry.docker.io`), or a local\n"
-      "path (i.e: `file:///tmp/docker/images`) in which Docker image archives\n"
+      "path (i.e: `/tmp/docker/images`) in which Docker image archives\n"
       "(result of `docker save`) are stored.",
       "https://registry-1.docker.io");
 
