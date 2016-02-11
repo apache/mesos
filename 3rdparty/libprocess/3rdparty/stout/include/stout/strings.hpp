@@ -169,7 +169,7 @@ inline std::vector<std::string> tokenize(
 inline std::vector<std::string> split(
     const std::string& s,
     const std::string& delims,
-    const Option<unsigned int>& n = None())
+    const Option<size_t>& n = None())
 {
   std::vector<std::string> tokens;
   size_t offset = 0;
