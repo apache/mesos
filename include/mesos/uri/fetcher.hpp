@@ -86,7 +86,7 @@ public:
   // TODO(jieyu): Consider using 'Path' for 'directory' here.
   process::Future<Nothing> fetch(
       const URI& uri,
-      const std::string& directory);
+      const std::string& directory) const;
 
 private:
   Fetcher(const Fetcher&) = delete; // Not copyable.

@@ -78,13 +78,13 @@ Try<Owned<Fetcher>> create(const Option<Flags>& _flags)
 
 Future<Nothing> Fetcher::fetch(
     const URI& uri,
-    const string& directory)
+    const string& directory) const
 {
   if (!plugins.contains(uri.scheme())) {
     return Failure("Scheme '" + uri.scheme() + "' is not supported");
   }
 
-  return plugins[uri.scheme()]->fetch(uri, directory);
+  return plugins.at(uri.scheme())->fetch(uri, directory);
 }
 
 } // namespace uri {
