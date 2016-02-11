@@ -27,12 +27,20 @@
 namespace appc {
 namespace spec {
 
+// Parse the ImageManifest in the specified JSON string.
+Try<ImageManifest> parse(const std::string& value);
+
+
 // Returns the rootfs of an image, given its path as per the spec.
 std::string getImageRootfsPath(const std::string& imagePath);
 
 
 // Returns the path of an image's manifest, given its path as per the spec.
 std::string getImageManifestPath(const std::string& imagePath);
+
+
+// Returns ImageManifest object for an image at given path.
+Try<ImageManifest> getManifest(const std::string& imagePath);
 
 
 // Validate if the specified image manifest conforms to the Appc spec.
@@ -48,8 +56,8 @@ Option<Error> validateImageID(const std::string& imageId);
 Option<Error> validateLayout(const std::string& imagePath);
 
 
-// Parse the ImageManifest in the specified JSON string.
-Try<ImageManifest> parse(const std::string& value);
+// Validates the image path if it conforms to the Appc image spec.
+Option<Error> validate(const std::string& imageDir);
 
 } // namespace spec {
 } // namespace appc {

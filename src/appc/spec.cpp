@@ -14,11 +14,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <stout/os.hpp>
 #include <stout/path.hpp>
 #include <stout/protobuf.hpp>
 #include <stout/strings.hpp>
-
-#include <stout/os/stat.hpp>
 
 #include <mesos/appc/spec.hpp>
 
@@ -29,6 +28,28 @@ using std::string;
 namespace appc {
 namespace spec {
 
+Try<ImageManifest> parse(const string& value)
+{
+  Try<JSON::Object> json = JSON::parse<JSON::Object>(value);
+  if (json.isError()) {
+    return Error("JSON parse failed: " + json.error());
+  }
+
+  Try<ImageManifest> manifest = protobuf::parse<ImageManifest>(json.get());
+
+  if (manifest.isError()) {
+    return Error("Protobuf parse failed: " + manifest.error());
+  }
+
+  Option<Error> error = validateManifest(manifest.get());
+  if (error.isSome()) {
+    return Error("Schema validation failed: " + error.get().message);
+  }
+
+  return manifest.get();
+}
+
+
 string getImageRootfsPath(const string& imagePath)
 {
   return path::join(imagePath, "rootfs");
@@ -38,6 +59,22 @@ string getImageRootfsPath(const string& imagePath)
 string getImageManifestPath(const string& imagePath)
 {
   return path::join(imagePath, "manifest");
+}
+
+
+Try<ImageManifest> getManifest(const string& imagePath)
+{
+  Try<string> read = os::read(getImageManifestPath(imagePath));
+  if (read.isError()) {
+    return Error("Failed to read manifest file: " + read.error());
+  }
+
+  Try<ImageManifest> parseManifest = parse(read.get());
+  if (parseManifest.isError()) {
+    return Error("Failed to parse manifest: " + parseManifest.error());
+  }
+
+  return parseManifest.get();
 }
 
 
@@ -85,25 +122,37 @@ Option<Error> validateLayout(const string& imagePath)
 }
 
 
-Try<ImageManifest> parse(const string& value)
+Option<Error> validate(const string& imagePath)
 {
-  Try<JSON::Object> json = JSON::parse<JSON::Object>(value);
-  if (json.isError()) {
-    return Error("JSON parse failed: " + json.error());
+  Option<Error> validate = validateLayout(imagePath);
+  if (validate.isSome()) {
+    return Error(
+        "Image validation failed for image at '" + imagePath + "': " +
+        validate->message);
   }
 
-  Try<ImageManifest> manifest = protobuf::parse<ImageManifest>(json.get());
-
+  Try<ImageManifest> manifest = getManifest(imagePath);
   if (manifest.isError()) {
-    return Error("Protobuf parse failed: " + manifest.error());
+    return Error(
+        "Image validation failed for image at '" + imagePath + "': " +
+        manifest.error());
   }
 
-  Option<Error> error = validateManifest(manifest.get());
-  if (error.isSome()) {
-    return Error("Schema validation failed: " + error.get().message);
+  validate = validateManifest(manifest.get());
+  if (validate.isSome()) {
+    return Error(
+        "Image validation failed for image at '" + imagePath + "': " +
+        validate->message);
   }
 
-  return manifest.get();
+  validate = validateImageID(Path(imagePath).basename());
+  if (validate.isSome()) {
+    return Error(
+        "Image validation failed for image at '" + imagePath + "': " +
+         validate->message);
+  }
+
+  return None();
 }
 
 } // namespace spec {
