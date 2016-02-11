@@ -14,12 +14,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <list>
+
+#include <boost/functional/hash.hpp>
+
 #include <stout/os.hpp>
 
 #include <mesos/appc/spec.hpp>
 
 #include "slave/containerizer/mesos/provisioner/appc/cache.hpp"
+#include "slave/containerizer/mesos/provisioner/appc/paths.hpp"
 
+using std::list;
+using std::map;
+using std::pair;
 using std::string;
 
 namespace spec = appc::spec;
@@ -29,21 +37,52 @@ namespace internal {
 namespace slave {
 namespace appc {
 
-Try<CachedImage> CachedImage::create(const string& imagePath)
+Try<process::Owned<Cache>> Cache::create(const Path& storeDir)
 {
-  Option<Error> error = spec::validateLayout(imagePath);
-  if (error.isSome()) {
-    return Error("Invalid image layout: " + error.get().message);
+  // TODO(jojy): Should we create a directory if it does not exist ?
+  if (!os::exists(storeDir)) {
+    return Error(
+        "Failed to find store directory '" + stringify(storeDir) + "'");
   }
 
-  string imageId = Path(imagePath).basename();
+  return new Cache(storeDir);
+}
 
-  error = spec::validateImageID(imageId);
-  if (error.isSome()) {
-    return Error("Invalid image ID: " + error.get().message);
+
+Cache::Cache(const Path& _storeDir)
+  : storeDir(_storeDir) {}
+
+
+Try<Nothing> Cache::recover()
+{
+  Try<list<string>> imageDirs = os::ls(paths::getImagesDir(storeDir));
+  if (imageDirs.isError()) {
+    return Error(
+        "Failed to list images under '" +
+        paths::getImagesDir(storeDir) + "': " +
+        imageDirs.error());
   }
 
-  Try<string> read = os::read(spec::getImageManifestPath(imagePath));
+  foreach (const string& imageId, imageDirs.get()) {
+    Try<Nothing> adding = add(imageId);
+    if (adding.isError()) {
+      LOG(WARNING) << "Failed to add image with id '" << imageId
+                   << "' to cache: " << adding.error();
+      continue;
+    }
+
+    LOG(INFO) << "Restored image with id '" << imageId << "'";
+  }
+
+  return Nothing();
+}
+
+
+Try<Nothing> Cache::add(const string& imageId)
+{
+  const Path imageDir(paths::getImagePath(storeDir, imageId));
+
+  Try<string> read = os::read(spec::getImageManifestPath(imageDir));
   if (read.isError()) {
     return Error("Failed to read manifest: " + read.error());
   }
@@ -53,13 +92,90 @@ Try<CachedImage> CachedImage::create(const string& imagePath)
     return Error("Failed to parse manifest: " + manifest.error());
   }
 
-  return CachedImage(manifest.get(), imageId, imagePath);
+  map<string, string> labels;
+  foreach (const spec::ImageManifest::Label& label, manifest.get().labels()) {
+    labels.insert({label.name(), label.value()});
+  }
+
+  imageIds.put(Key(manifest.get().name(), labels), imageId);
+
+  VLOG(1) << "Added image with id '" << imageId << "' to cache";
+
+  return Nothing();
 }
 
 
-string CachedImage::rootfs() const
+Option<string> Cache::find(const Image::Appc& image) const
 {
-  return path::join(path, "rootfs");
+  // Create a cache key from image.
+  Cache::Key key(image);
+
+  if (imageIds.contains(key)) {
+    return None();
+  }
+
+  return imageIds.at(key);
+}
+
+
+Cache::Key::Key(const Image::Appc& image)
+  : name(image.name())
+{
+  // Extract labels for easier comparison, this also weeds out duplicates.
+  // TODO(xujyan): Detect duplicate labels in image manifest validation
+  // and Image::Appc validation.
+
+  // TODO(jojy): Do we need to normalize the labels by adding default labels
+  // like os, version and arch if they are missing?
+  foreach (const Label& label, image.labels().labels()) {
+    labels.insert({label.key(), label.value()});
+  }
+}
+
+
+Cache::Key::Key(
+    const string& _name,
+    const map<string, std::string> _labels)
+  : name(_name),
+    labels(_labels) {}
+
+
+bool Cache::Key::operator==(const Cache::Key& other) const
+{
+  if (name != other.name) {
+    return false;
+  }
+
+  foreachpair (const string& name, const string& value, other.labels) {
+    map<string, string>::const_iterator itr = labels.find(name);
+    if ((itr == labels.end()) || (labels.at(name) != value)) {
+      return false;
+    }
+  }
+
+  foreachpair (const string& name, const string& value, labels) {
+    map<string, string>::const_iterator itr = other.labels.find(name);
+    if ((itr == other.labels.end()) || (other.labels.at(name) != value)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+
+size_t Cache::KeyHasher::operator()(const Cache::Key& key) const
+{
+  size_t seed = 0;
+
+  boost::hash_combine(seed, key.name);
+
+  foreachpair (const string& name, const string& value, key.labels) {
+    boost::hash_combine(seed, name);
+    boost::hash_combine(seed, value);
+  }
+
+  return seed;
 }
 
 } // namespace appc {

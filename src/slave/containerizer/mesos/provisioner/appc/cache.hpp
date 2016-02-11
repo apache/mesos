@@ -17,38 +17,95 @@
 #ifndef __APPC_PROVISIONER_CACHE_HPP__
 #define __APPC_PROVISIONER_CACHE_HPP__
 
+#include <map>
 #include <string>
 
+#include <process/owned.hpp>
+
+#include <stout/hashmap.hpp>
+
+#include <mesos/mesos.hpp>
 #include <mesos/appc/spec.hpp>
-#include <mesos/mesos.pb.h>
 
 namespace mesos {
 namespace internal {
 namespace slave {
 namespace appc {
 
-// Defines a locally cached image (which has passed validation).
-struct CachedImage
+/**
+ * Encapsulates Appc image cache.
+ * Note: We only keep 1 level image information  and do not bother to keep
+ * dependency information. This is because dependency graph will be resolved at
+ * runtime (say when store->get is called).
+ */
+class Cache
 {
-  static Try<CachedImage> create(const std::string& imagePath);
+public:
+  /**
+   * Factory method for creating cache.
+   *
+   * @param storeDir Path to the image store.
+   * @returns Owned Cache pointer on success.
+   *          Error on failure.
+   */
+  static Try<process::Owned<Cache>> create(const Path& storeDir);
 
-  CachedImage(
-      const ::appc::spec::ImageManifest& _manifest,
-      const std::string& _id,
-      const std::string& _path)
-    : manifest(_manifest), id(_id), path(_path) {}
 
-  std::string rootfs() const;
+  /**
+   * Recovers/rebuilds the cache from its image store directory.
+   */
+  Try<Nothing> recover();
 
-  const ::appc::spec::ImageManifest manifest;
 
-  // Image ID of the format "sha512-value" where "value" is the hex
-  // encoded string of the sha512 digest of the uncompressed tar file
-  // of the image.
-  const std::string id;
+  /**
+   * Adds an image to the cache by the image's id.
+   *
+   * Add is done in two steps:
+   *  1.  A cache entry is created using the path constructed from store
+   *      directory and the imageId parameter.
+   *  2.  The cache entry is inserted into the cache.
+   *
+   * @param imageId Image id for the image that has to be added to the cache.
+   * @returns Nothing on success.
+   *          Error on failure to add.
+   */
+  Try<Nothing> add(const std::string& imageId);
 
-  // Absolute path to the extracted image.
-  const std::string path;
+
+  /**
+   * Finds image id of an image if it is present in the cache/store.
+   *
+   * @param appc Appc image data.
+   * @returns Image id of the image if its found in the cache.
+   *          Error otherwise.
+   */
+  Option<std::string> find(const Image::Appc& image) const;
+
+private:
+  struct Key
+  {
+    Key(const Image::Appc& image);
+
+    Key(const std::string& name,
+        const std::map<std::string, std::string> labels);
+
+    bool operator==(const Key& other) const;
+
+    std::string name;
+    std::map<std::string, std::string> labels;
+  };
+
+  struct KeyHasher
+  {
+    size_t operator()(const Key& key) const;
+  };
+
+  Cache(const Path& imagesDir);
+
+  const Path storeDir;
+
+  // Mappings: Key -> image id.
+  hashmap<Cache::Key, std::string, KeyHasher> imageIds;
 };
 
 } // namespace appc {

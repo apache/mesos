@@ -40,57 +40,17 @@ using std::list;
 using std::string;
 using std::vector;
 
+using process::Owned;
+
 namespace mesos {
 namespace internal {
 namespace slave {
 namespace appc {
 
-// Helper that implements this:
-// https://github.com/appc/spec/blob/master/spec/aci.md#dependency-matching
-static bool matches(Image::Appc requirements, const CachedImage& candidate)
-{
-  // The name must match.
-  if (candidate.manifest.name() != requirements.name()) {
-    return false;
-  }
-
-  // If an id is specified the candidate must match.
-  if (requirements.has_id() && (candidate.id != requirements.id())) {
-    return false;
-  }
-
-  // Extract labels for easier comparison, this also weeds out duplicates.
-  // TODO(xujyan): Detect duplicate labels in image manifest validation
-  // and Image::Appc validation.
-  hashmap<string, string> requiredLabels;
-  foreach (const Label& label, requirements.labels().labels()) {
-    requiredLabels[label.key()] = label.value();
-  }
-
-  hashmap<string, string> candidateLabels;
-  foreach (const spec::ImageManifest::Label& label,
-           candidate.manifest.labels()) {
-    candidateLabels[label.name()] = label.value();
-  }
-
-  // Any label specified must be present and match in the candidate.
-  foreachpair (const string& name,
-               const string& value,
-               requiredLabels) {
-    if (!candidateLabels.contains(name) ||
-        candidateLabels.get(name).get() != value) {
-      return false;
-    }
-  }
-
-  return true;
-}
-
-
 class StoreProcess : public Process<StoreProcess>
 {
 public:
-  StoreProcess(const string& rootDir);
+  StoreProcess(const string& rootDir, Owned<Cache> cache);
 
   ~StoreProcess() {}
 
@@ -103,8 +63,7 @@ private:
   // --appc_store_dir.
   const string rootDir;
 
-  // Mappings: name -> id -> image.
-  hashmap<string, hashmap<string, CachedImage>> images;
+  Owned<Cache> cache;
 };
 
 
@@ -128,8 +87,13 @@ Try<Owned<slave::Store>> Store::create(const Flags& flags)
         rootDir.error());
   }
 
+  Try<Owned<Cache>> cache = Cache::create(Path(rootDir.get()));
+  if (cache.isError()) {
+    return Error("Failed to create image cache: " + cache.error());
+  }
+
   return Owned<slave::Store>(new Store(
-      Owned<StoreProcess>(new StoreProcess(rootDir.get()))));
+      Owned<StoreProcess>(new StoreProcess(rootDir.get(), cache.get()))));
 }
 
 
@@ -159,36 +123,16 @@ Future<ImageInfo> Store::get(const Image& image)
 }
 
 
-StoreProcess::StoreProcess(const string& _rootDir) : rootDir(_rootDir) {}
+StoreProcess::StoreProcess(const string& _rootDir, Owned<Cache> _cache)
+  : rootDir(_rootDir),
+    cache(_cache) {}
 
 
 Future<Nothing> StoreProcess::recover()
 {
-  // Recover everything in the store.
-  Try<list<string>> imageIds = os::ls(paths::getImagesDir(rootDir));
-  if (imageIds.isError()) {
-    return Failure(
-        "Failed to list images under '" +
-        paths::getImagesDir(rootDir) + "': " +
-        imageIds.error());
-  }
-
-  foreach (const string& imageId, imageIds.get()) {
-    string path = paths::getImagePath(rootDir, imageId);
-    if (!os::stat::isdir(path)) {
-      LOG(WARNING) << "Unexpected entry in storage: " << imageId;
-      continue;
-    }
-
-    Try<CachedImage> image = CachedImage::create(path);
-    if (image.isError()) {
-      LOG(WARNING) << "Unexpected entry in storage: " << image.error();
-      continue;
-    }
-
-    LOG(INFO) << "Restored image '" << image.get().manifest.name() << "'";
-
-    images[image.get().manifest.name()].put(image.get().id, image.get());
+  Try<Nothing> recover = cache->recover();
+  if (recover.isError()) {
+    return Failure("Failed to recover cache: " + recover.error());
   }
 
   return Nothing();
@@ -203,33 +147,39 @@ Future<ImageInfo> StoreProcess::get(const Image& image)
 
   const Image::Appc& appc = image.appc();
 
-  if (!images.contains(appc.name())) {
-    return Failure("No Appc image named '" + appc.name() + "' can be found");
+  Option<string> imageId = None();
+
+  // If the image specifies an id, use that. If not, then find the image in the
+  // cache by its name and labels. Note that if store has the image, it has to
+  // be in the cache. It is possible that an image could be found in cache but
+  // not in the store due to eviction of the image from the store in between
+  // cache restoration and now.
+
+  if (appc.has_id()) {
+    imageId = appc.id();
+  } else {
+    imageId = cache->find(appc);
   }
 
-  // Get local candidates.
-  vector<CachedImage> candidates;
-  foreach (const CachedImage& candidate, images[appc.name()].values()) {
-    // The first match is returned.
-    // TODO(xujyan): Some tie-breaking rules are necessary.
-    if (matches(appc, candidate)) {
-      LOG(INFO) << "Found match for Appc image '" << appc.name()
-                << "' in the store";
-
-      // TODO(gilbert): Get Appc runtime config from manifest.
-
-      // The Appc store current doesn't support dependencies and this
-      // is enforced by manifest validation: if the image's manifest
-      // contains dependencies it would fail the validation and
-      // wouldn't be stored in the store.
-      return ImageInfo{
-          vector<string>({candidate.rootfs()}),
-          None()};
-    }
+  if (imageId.isNone()) {
+    return Failure("Failed to find image '" + appc.name() + "' in cache");
   }
 
-  return Failure("No Appc image named '" + appc.name() +
-                 "' can match the requirements");
+  // Now validate the image path for the image. This will also check for the
+  // existence of the directory.
+  Option<Error> error =
+    spec::validateLayout(paths::getImagePath(rootDir, imageId.get()));
+
+  if (error.isSome()) {
+    return Failure(
+        "Failed to validate directory for image '" + appc.name() + "': " +
+        error.get().message);
+  }
+
+  return ImageInfo{
+      vector<string>({paths::getImageRootfsPath(rootDir, imageId.get())}),
+      None()
+  };
 }
 
 } // namespace appc {

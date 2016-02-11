@@ -217,6 +217,36 @@ protected:
 
     return paths::getImagePath(storeDir, imageId);
   }
+
+  Image::Appc getTestImage() const
+  {
+    Image::Appc appc;
+    appc.set_name("foo.com/bar");
+    appc.set_id(
+        "sha512-e77d96aa0240eedf134b8c90baeaf76dca8e78691836301d7498c8402044604"
+        "2e797b296d6ab296e0954c2626bfb264322ebeb8f447dac4fac6511ea06bc61f0");
+
+    Label version;
+    version.set_key("version");
+    version.set_value("1.0.0");
+
+    Label arch;
+    arch.set_key("arch");
+    arch.set_value("amd64");
+
+    Label os;
+    os.set_key("os");
+    os.set_value("linux");
+
+    Labels labels;
+    labels.add_labels()->CopyFrom(version);
+    labels.add_labels()->CopyFrom(arch);
+    labels.add_labels()->CopyFrom(os);
+
+    appc.mutable_labels()->CopyFrom(labels);
+
+    return appc;
+  }
 };
 
 
@@ -238,7 +268,8 @@ TEST_F(AppcStoreTest, Recover)
   AWAIT_READY(store.get()->recover());
 
   Image image;
-  image.mutable_appc()->set_name("foo.com/bar");
+  image.mutable_appc()->CopyFrom(getTestImage());
+
   Future<slave::ImageInfo> ImageInfo = store.get()->get(image);
   AWAIT_READY(ImageInfo);
 
@@ -279,7 +310,7 @@ TEST_F(ProvisionerAppcTest, ROOT_Provision)
 
   // Simulate a task that requires an image.
   Image image;
-  image.mutable_appc()->set_name("foo.com/bar");
+  image.mutable_appc()->CopyFrom(getTestImage());
 
   ContainerID containerId;
   containerId.set_value("12345");
@@ -344,7 +375,7 @@ TEST_F(ProvisionerAppcTest, Recover)
   AWAIT_READY(provisioner1.get()->recover({}, {}));
 
   Image image;
-  image.mutable_appc()->set_name("foo.com/bar");
+  image.mutable_appc()->CopyFrom(getTestImage());
 
   ContainerID containerId;
   containerId.set_value(UUID::random().toString());
