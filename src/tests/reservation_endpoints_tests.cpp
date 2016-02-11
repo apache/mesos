@@ -45,6 +45,7 @@ using std::vector;
 using google::protobuf::RepeatedPtrField;
 
 using mesos::internal::master::Master;
+using mesos::internal::protobuf::createLabel;
 using mesos::internal::slave::Slave;
 
 using process::Clock;
@@ -326,7 +327,7 @@ TEST_F(ReservationEndpointsTest, UnreserveOfferedResources)
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillOnce(FutureArg<1>(&offers));
 
-  // Expect an offer to be rescinded!
+  // Expect an offer to be rescinded.
   EXPECT_CALL(sched, offerRescinded(_, _));
 
   response = process::http::post(
@@ -651,6 +652,159 @@ TEST_F(ReservationEndpointsTest, UnreserveAvailableAndOfferedResources)
   offer = offers.get()[0];
 
   EXPECT_TRUE(Resources(offer.resources()).contains(unreserved));
+
+  // Ignore subsequent `recoverResources` calls triggered from recovering the
+  // resources that this framework is currently holding onto.
+  EXPECT_CALL(allocator, recoverResources(_, _, _, _))
+    .WillRepeatedly(DoDefault());
+
+  driver.stop();
+  driver.join();
+
+  Shutdown();
+}
+
+
+// This tests that attempts to reserve/unreserve labeled resources
+// behave as expected.
+TEST_F(ReservationEndpointsTest, LabeledResources)
+{
+  TestAllocator<> allocator;
+
+  EXPECT_CALL(allocator, initialize(_, _, _, _));
+
+  Try<PID<Master>> master = StartMaster(&allocator);
+  ASSERT_SOME(master);
+
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  slaveFlags.resources = "cpus:2;mem:1024";
+  Resources totalSlaveResources =
+    Resources::parse(slaveFlags.resources.get()).get();
+
+  Future<SlaveID> slaveId;
+  EXPECT_CALL(allocator, addSlave(_, _, _, _, _))
+    .WillOnce(DoAll(InvokeAddSlave(&allocator),
+                    FutureArg<0>(&slaveId)));
+
+  Try<PID<Slave>> slave = StartSlave(slaveFlags);
+  ASSERT_SOME(slave);
+
+  FrameworkInfo frameworkInfo = createFrameworkInfo();
+
+  Labels labels1;
+  labels1.add_labels()->CopyFrom(createLabel("foo", "bar"));
+
+  Labels labels2;
+  labels2.add_labels()->CopyFrom(createLabel("foo", "baz"));
+
+  Resources unreserved = Resources::parse("cpus:1;mem:512").get();
+  Resources labeledResources1 = unreserved.flatten(
+      frameworkInfo.role(),
+      createReservationInfo(DEFAULT_CREDENTIAL.principal(), labels1));
+  Resources labeledResources2 = unreserved.flatten(
+      frameworkInfo.role(),
+      createReservationInfo(DEFAULT_CREDENTIAL.principal(), labels2));
+
+  // Make two resource reservations with different labels.
+  Future<Response> response = process::http::post(
+      master.get(),
+      "reserve",
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL),
+      createRequestBody(slaveId.get(), labeledResources1));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+
+  response = process::http::post(
+      master.get(),
+      "reserve",
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL),
+      createRequestBody(slaveId.get(), labeledResources2));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
+
+  Future<vector<Offer>> offers;
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  driver.start();
+
+  AWAIT_READY(offers);
+
+  ASSERT_EQ(1u, offers.get().size());
+  Offer offer = offers.get()[0];
+
+  Resources offeredResources = Resources(offer.resources());
+  EXPECT_TRUE(offeredResources.contains(labeledResources1));
+  EXPECT_TRUE(offeredResources.contains(labeledResources2));
+
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  // Expect an offer to be rescinded.
+  EXPECT_CALL(sched, offerRescinded(_, _));
+
+  // Unreserve one of the labeled reservations.
+  response = process::http::post(
+      master.get(),
+      "unreserve",
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL),
+      createRequestBody(slaveId.get(), labeledResources1));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+
+  AWAIT_READY(offers);
+
+  ASSERT_EQ(1u, offers.get().size());
+  offer = offers.get()[0];
+
+  offeredResources = Resources(offer.resources());
+  EXPECT_FALSE(offeredResources.contains(totalSlaveResources));
+  EXPECT_TRUE(offeredResources.contains(unreserved));
+  EXPECT_FALSE(offeredResources.contains(labeledResources1));
+  EXPECT_TRUE(offeredResources.contains(labeledResources2));
+
+  // Now that the first labeled reservation has been unreserved,
+  // attempting to unreserve it again should fail.
+  response = process::http::post(
+      master.get(),
+      "unreserve",
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL),
+      createRequestBody(slaveId.get(), labeledResources1));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Conflict().status, response);
+
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  // Expect an offer to be rescinded.
+  EXPECT_CALL(sched, offerRescinded(_, _));
+
+  // Unreserve the other labeled reservation.
+  response = process::http::post(
+      master.get(),
+      "unreserve",
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL),
+      createRequestBody(slaveId.get(), labeledResources2));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+
+  AWAIT_READY(offers);
+
+  ASSERT_EQ(1u, offers.get().size());
+  offer = offers.get()[0];
+
+  offeredResources = Resources(offer.resources());
+
+  EXPECT_TRUE(offeredResources.contains(totalSlaveResources));
+  EXPECT_FALSE(offeredResources.contains(labeledResources1));
+  EXPECT_FALSE(offeredResources.contains(labeledResources2));
 
   // Ignore subsequent `recoverResources` calls triggered from recovering the
   // resources that this framework is currently holding onto.

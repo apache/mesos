@@ -584,6 +584,13 @@ message Resource {
     // resources, so the master disallows any reserve operations
     // without a principal. This constraint will be removed in 0.28.
     optional string principal = 1;
+
+    // Labels are free-form key value pairs that can be used to
+    // associate arbitrary metadata with a reserved resource.  For
+    // example, frameworks can use labels to identify the intended
+    // purpose for a portion of the resources the framework has
+    // reserved at a given agent.
+    optional Labels labels = 2;
   }
 
   // If this is set, this resource was dynamically reserved by an

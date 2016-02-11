@@ -40,6 +40,8 @@ using std::string;
 
 using google::protobuf::RepeatedPtrField;
 
+using mesos::internal::protobuf::createLabel;
+
 namespace mesos {
 namespace internal {
 namespace tests {
@@ -793,7 +795,7 @@ TEST(ResourcesTest, PrintingExtendedAttributes)
   stream << disk;
   EXPECT_EQ(stream.str(), "disk(*):1");
 
-  // Standard resource with role.
+  // Standard resource with role (statically reserved).
   stream.str("");
   disk.set_role("alice");
   stream << disk;
@@ -827,12 +829,20 @@ TEST(ResourcesTest, PrintingExtendedAttributes)
   stream << disk;
   EXPECT_EQ(stream.str(), "disk(alice)[hadoop:/hdfs:/data:rw]:1");
 
-  // Disk resource with host path and reservation.
+  // Disk resource with host path and dynamic reservation without labels.
   stream.str("");
-  disk.mutable_reservation()->set_principal("hdfs-1234-4321");
+  disk.mutable_reservation()->set_principal("hdfs-p");
+  stream << disk;
+  EXPECT_EQ(stream.str(), "disk(alice, hdfs-p)[hadoop:/hdfs:/data:rw]:1");
+
+  // Disk resource with host path and dynamic reservation with labels.
+  stream.str("");
+  Labels* labels = disk.mutable_reservation()->mutable_labels();
+  labels->add_labels()->CopyFrom(createLabel("foo", "bar"));
+  labels->add_labels()->CopyFrom(createLabel("foo"));
   stream << disk;
   EXPECT_EQ(stream.str(),
-            "disk(alice, hdfs-1234-4321)[hadoop:/hdfs:/data:rw]:1");
+            "disk(alice, hdfs-p, {foo: bar, foo})[hadoop:/hdfs:/data:rw]:1");
 }
 
 
@@ -1578,14 +1588,26 @@ TEST(ReservedResourcesTest, Validation)
   EXPECT_SOME(Resources::validate(createReservedResource(
       "cpus", "8", ".", createReservationInfo("principal1"))));
 
-  // Dynamically role reserved.
+  // Dynamically reserved without labels.
   EXPECT_NONE(Resources::validate(createReservedResource(
       "cpus", "8", "role", createReservationInfo("principal2"))));
+
+  // Dynamically reserved with labels.
+  Labels labels;
+  labels.add_labels()->CopyFrom(createLabel("foo", "bar"));
+  EXPECT_NONE(Resources::validate(createReservedResource(
+      "cpus", "8", "role", createReservationInfo("principal2", labels))));
 }
 
 
 TEST(ReservedResourcesTest, Equals)
 {
+  Labels labels1;
+  labels1.add_labels()->CopyFrom(createLabel("foo", "bar"));
+
+  Labels labels2;
+  labels2.add_labels()->CopyFrom(createLabel("foo", "baz"));
+
   std::vector<Resources> unique = {
     // Unreserved.
     createReservedResource(
@@ -1603,7 +1625,12 @@ TEST(ReservedResourcesTest, Equals)
     createReservedResource(
         "cpus", "8", "role2", createReservationInfo("principal1")),
     createReservedResource(
-        "cpus", "8", "role2", createReservationInfo("principal2"))
+        "cpus", "8", "role2", createReservationInfo("principal2")),
+    // Dynamically reserved with labels.
+    createReservedResource(
+        "cpus", "8", "role1", createReservationInfo("principal2", labels1)),
+    createReservedResource(
+        "cpus", "8", "role1", createReservationInfo("principal2", labels2))
   };
 
   // Test that all resources in 'unique' are considered different.
@@ -1628,7 +1655,7 @@ TEST(ReservedResourcesTest, AdditionStaticallyReserved)
 }
 
 
-TEST(ReservedResourcesTest, AdditionDynamicallyReserved)
+TEST(ReservedResourcesTest, AdditionDynamicallyReservedWithoutLabels)
 {
   Resource::ReservationInfo reservationInfo =
     createReservationInfo("principal");
@@ -1644,25 +1671,91 @@ TEST(ReservedResourcesTest, AdditionDynamicallyReserved)
 }
 
 
+TEST(ReservedResourcesTest, AdditionDynamicallyReservedWithSameLabels)
+{
+  Labels labels;
+  labels.add_labels()->CopyFrom(createLabel("foo", "bar"));
+
+  Resource::ReservationInfo reservationInfo =
+    createReservationInfo("principal", labels);
+
+  Resources left =
+    createReservedResource("cpus", "8", "role", reservationInfo);
+  Resources right =
+    createReservedResource("cpus", "4", "role", reservationInfo);
+  Resources expected =
+    createReservedResource("cpus", "12", "role", reservationInfo);
+
+  EXPECT_EQ(expected, left + right);
+}
+
+
+TEST(ReservedResourcesTest, AdditionDynamicallyReservedWithDistinctLabels)
+{
+  Labels labels1;
+  Labels labels2;
+
+  labels1.add_labels()->CopyFrom(createLabel("foo", "bar"));
+  labels2.add_labels()->CopyFrom(createLabel("foo", "baz"));
+
+  Resource::ReservationInfo reservationInfo1 =
+    createReservationInfo("principal", labels1);
+  Resource::ReservationInfo reservationInfo2 =
+    createReservationInfo("principal", labels2);
+
+  Resources r1 = createReservedResource("cpus", "6", "role", reservationInfo1);
+  Resources r2 = createReservedResource("cpus", "6", "role", reservationInfo2);
+  Resources sum = r1 + r2;
+
+  EXPECT_EQ(2, sum.size());
+  EXPECT_FALSE(sum == r1 + r1);
+  EXPECT_FALSE(sum == r2 + r2);
+}
+
+
 TEST(ReservedResourcesTest, Subtraction)
 {
-  Resource::ReservationInfo reservationInfo =
-    createReservationInfo("principal");
+  Labels labels1;
+  Labels labels2;
+
+  labels1.add_labels()->CopyFrom(createLabel("foo", "bar"));
+  labels2.add_labels()->CopyFrom(createLabel("foo", "baz"));
+
+  Resource::ReservationInfo reservationInfo1 =
+    createReservationInfo("principal", labels1);
+  Resource::ReservationInfo reservationInfo2 =
+    createReservationInfo("principal", labels2);
 
   Resources r1 = createReservedResource("cpus", "8", "role", None());
-  Resources r2 = createReservedResource("cpus", "8", "role", reservationInfo);
+  Resources r2 = createReservedResource("cpus", "8", "role", reservationInfo1);
+
+  EXPECT_TRUE((r1 - r1).empty());
+  EXPECT_TRUE((r2 - r2).empty());
+  EXPECT_FALSE((r2 - r1).empty());
+  EXPECT_FALSE((r1 - r2).empty());
+  EXPECT_EQ(r1, r1 - r2);
+  EXPECT_EQ(r2, r2 - r1);
 
   Resources total = r1 + r2;
 
-  Resources r4 = createReservedResource("cpus", "6", "role", None());
-  Resources r5 = createReservedResource("cpus", "4", "role", reservationInfo);
+  Resources r3 = createReservedResource("cpus", "6", "role", None());
+  Resources r4 = createReservedResource("cpus", "4", "role", reservationInfo1);
 
-  Resources expected = r4 + r5;
+  Resources expected = r3 + r4;
 
-  Resources r7 = createReservedResource("cpus", "2", "role", None());
-  Resources r8 = createReservedResource("cpus", "4", "role", reservationInfo);
+  Resources r5 = createReservedResource("cpus", "2", "role", None());
+  Resources r6 = createReservedResource("cpus", "4", "role", reservationInfo1);
 
-  EXPECT_EQ(expected, total - r7 - r8);
+  EXPECT_EQ(expected, total - r5 - r6);
+
+  // Distinct labels
+  Resources r7 = createReservedResource("cpus", "8", "role", reservationInfo1);
+  Resources r8 = createReservedResource("cpus", "8", "role", reservationInfo2);
+
+  EXPECT_FALSE((r2 - r1).empty());
+  EXPECT_FALSE((r1 - r2).empty());
+  EXPECT_EQ(r1, r1 - r2);
+  EXPECT_EQ(r2, r2 - r1);
 }
 
 

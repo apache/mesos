@@ -65,7 +65,19 @@ bool operator==(
     const Resource::ReservationInfo& left,
     const Resource::ReservationInfo& right)
 {
-  return left.principal() == right.principal();
+  if (left.principal() != right.principal()) {
+    return false;
+  }
+
+  if (left.has_labels() != right.has_labels()) {
+    return false;
+  }
+
+  if (left.has_labels() && left.labels() != right.labels()) {
+    return false;
+  }
+
+  return true;
 }
 
 
@@ -1475,6 +1487,30 @@ ostream& operator<<(ostream& stream, const Resource::DiskInfo& disk)
 }
 
 
+ostream& operator<<(ostream& stream, const Labels& labels)
+{
+  stream << "{";
+
+  for (int i = 0; i < labels.labels().size(); i++) {
+    const Label& label = labels.labels().Get(i);
+
+    stream << label.key();
+
+    if (label.has_value()) {
+      stream << ": " << label.value();
+    }
+
+    if (i + 1 < labels.labels().size()) {
+      stream << ", ";
+    }
+  }
+
+  stream << "}";
+
+  return stream;
+}
+
+
 ostream& operator<<(ostream& stream, const Resource& resource)
 {
   stream << resource.name();
@@ -1482,7 +1518,13 @@ ostream& operator<<(ostream& stream, const Resource& resource)
   stream << "(" << resource.role();
 
   if (resource.has_reservation()) {
-    stream << ", " << resource.reservation().principal();
+    const Resource::ReservationInfo& reservation = resource.reservation();
+
+    stream << ", " << reservation.principal();
+
+    if (reservation.has_labels()) {
+      stream << ", " << reservation.labels();
+    }
   }
 
   stream << ")";

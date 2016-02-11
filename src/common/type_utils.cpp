@@ -288,6 +288,12 @@ bool operator==(const Labels& left, const Labels& right)
 }
 
 
+bool operator!=(const Labels& left, const Labels& right)
+{
+  return !(left == right);
+}
+
+
 bool operator==(const DiscoveryInfo& left, const DiscoveryInfo& right)
 {
   return left.visibility() == right.visibility() &&

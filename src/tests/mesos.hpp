@@ -488,12 +488,17 @@ inline TaskInfo createTask(
 
 
 inline Resource::ReservationInfo createReservationInfo(
-    const Option<std::string>& principal = None())
+    const Option<std::string>& principal = None(),
+    const Option<Labels>& labels = None())
 {
   Resource::ReservationInfo info;
 
   if (principal.isSome()) {
     info.set_principal(principal.get());
+  }
+
+  if (labels.isSome()) {
+    info.mutable_labels()->CopyFrom(labels.get());
   }
 
   return info;

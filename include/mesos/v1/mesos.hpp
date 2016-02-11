@@ -62,7 +62,9 @@ bool operator==(const TaskStatus& left, const TaskStatus& right);
 bool operator==(const URL& left, const URL& right);
 bool operator==(const Volume& left, const Volume& right);
 
+bool operator!=(const Labels& left, const Labels& right);
 bool operator!=(const TaskStatus& left, const TaskStatus& right);
+
 
 inline bool operator==(const ContainerID& left, const ContainerID& right)
 {
