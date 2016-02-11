@@ -65,6 +65,12 @@ public:
         "name",
         "Name for the command");
 
+    add(&shell,
+        "shell",
+        "Determine the command is a shell or not. If not, 'command' will be\n"
+        "treated as executable value and arguments (TODO).",
+        true);
+
     add(&command,
         "command",
         "Shell command to launch");
@@ -121,6 +127,7 @@ public:
 
   Option<string> master;
   Option<string> name;
+  bool shell;
   Option<string> command;
   Option<hashmap<string, string>> environment;
   string resources;
@@ -139,13 +146,15 @@ class CommandScheduler : public Scheduler
 public:
   CommandScheduler(
       const string& _name,
-      const string& _command,
+      const bool& _shell,
+      const Option<string>& _command,
       const Option<hashmap<string, string>>& _environment,
       const string& _resources,
       const Option<string>& _uri,
       const Option<string>& _dockerImage,
       const string& _containerizer)
     : name(_name),
+      shell(_shell),
       command(_command),
       environment(_environment),
       resources(_resources),
@@ -195,7 +204,17 @@ public:
         task.mutable_resources()->CopyFrom(TASK_RESOURCES.get());
 
         CommandInfo* commandInfo = task.mutable_command();
-        commandInfo->set_value(command);
+
+        if (shell) {
+          CHECK_SOME(command);
+
+          commandInfo->set_shell(true);
+          commandInfo->set_value(command.get());
+        } else {
+          // TODO(gilbert): Treat 'command' as executable value and arguments.
+          commandInfo->set_shell(false);
+        }
+
         if (environment.isSome()) {
           Environment* environment_ = commandInfo->mutable_environment();
           foreachpair (
@@ -295,7 +314,8 @@ public:
 
 private:
   const string name;
-  const string command;
+  bool shell;
+  const Option<string> command;
   const Option<hashmap<string, string>> environment;
   const string resources;
   const Option<string> uri;
@@ -343,7 +363,7 @@ int main(int argc, char** argv)
     return EXIT_FAILURE;
   }
 
-  if (flags.command.isNone()) {
+  if (flags.shell && flags.command.isNone()) {
     cerr << flags.usage("Missing required option --command") << endl;
     return EXIT_FAILURE;
   }
@@ -428,7 +448,8 @@ int main(int argc, char** argv)
 
   CommandScheduler scheduler(
       flags.name.get(),
-      flags.command.get(),
+      flags.shell,
+      flags.command,
       environment,
       flags.resources,
       uri,
