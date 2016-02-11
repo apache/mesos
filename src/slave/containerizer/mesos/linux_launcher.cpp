@@ -111,7 +111,7 @@ Try<Launcher*> LinuxLauncher::create(const Flags& flags)
   return new LinuxLauncher(
       flags,
       freezerHierarchy.get(),
-      systemd::exists() ?
+      systemd::enabled() ?
         Some(systemd::hierarchy()) :
         Option<string>::none());
 }
