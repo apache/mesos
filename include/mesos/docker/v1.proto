@@ -46,7 +46,6 @@ message ImageManifest {
     optional string User = 4;
     repeated string Cmd = 5;
     optional string WorkingDir = 6;
-    optional string Volumes = 7;
 
     // Name of the image as it was passed by the operator.
     optional string Image = 8;
