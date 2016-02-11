@@ -300,6 +300,7 @@ Result<CommandInfo> DockerRuntimeIsolatorProcess::getExecutorLaunchCommand(
     // Put user defined argv after default entrypoint argv
     // in sequence.
     command.clear_arguments();
+    command.add_arguments(config.entrypoint(0));
 
     for (int i = 1; i < config.entrypoint_size(); i++) {
       command.add_arguments(config.entrypoint(i));
@@ -319,17 +320,18 @@ Result<CommandInfo> DockerRuntimeIsolatorProcess::getExecutorLaunchCommand(
     // Overwrite default cmd arguments if CommandInfo arguments are
     // set by user. The logic below is the case that no argument is
     // set by user.
-    if (command.arguments_size() == config.entrypoint_size() - 1) {
+    if (command.arguments_size() == config.entrypoint_size()) {
       foreach (const string& cmd, config.cmd()) {
         command.add_arguments(cmd);
       }
     }
   } else if (config.cmd_size() > 0) {
     command.set_value(config.cmd(0));
+    command.add_arguments(config.cmd(0));
 
     // Overwrite default cmd arguments if CommandInfo arguments
     // are set by user.
-    if (command.arguments_size() == 0) {
+    if (command.arguments_size() == 1) {
       for (int i = 1; i < config.cmd_size(); i++) {
         command.add_arguments(config.cmd(i));
       }
