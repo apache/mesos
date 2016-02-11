@@ -198,6 +198,77 @@ TEST(StringsTest, TokenizeNullByteDelim)
 }
 
 
+TEST(StringsTest, TokenizeNZero)
+{
+  vector<string> tokens = strings::tokenize("foo,bar,,,", ",", 0);
+  ASSERT_EQ(0u, tokens.size());
+}
+
+
+TEST(StringsTest, TokenizeNOne)
+{
+  vector<string> tokens = strings::tokenize("foo,bar,,,", ",", 1);
+  ASSERT_EQ(1u, tokens.size());
+  EXPECT_EQ("foo,bar,,,", tokens[0]);
+}
+
+
+TEST(StringsTest, TokenizeNDelimOnlyString)
+{
+  vector<string> tokens = strings::tokenize(",,,", ",", 2);
+  ASSERT_EQ(0u, tokens.size());
+}
+
+
+TEST(StringsTest, TokenizeN)
+{
+  vector<string> tokens = strings::tokenize("foo,bar,,baz", ",", 2);
+  ASSERT_EQ(2u, tokens.size());
+  EXPECT_EQ("foo",      tokens[0]);
+  EXPECT_EQ("bar,,baz", tokens[1]);
+}
+
+
+TEST(StringsTest, TokenizeNStringWithDelimsAtStart)
+{
+  vector<string> tokens = strings::tokenize(",,foo,bar,,baz", ",", 5);
+  ASSERT_EQ(3u, tokens.size());
+  EXPECT_EQ("foo", tokens[0]);
+  EXPECT_EQ("bar", tokens[1]);
+  EXPECT_EQ("baz", tokens[2]);
+}
+
+
+TEST(StringsTest, TokenizeNStringWithDelimsAtEnd)
+{
+  vector<string> tokens = strings::tokenize("foo,bar,,baz,,", ",", 4);
+  ASSERT_EQ(3u, tokens.size());
+  EXPECT_EQ("foo", tokens[0]);
+  EXPECT_EQ("bar", tokens[1]);
+  EXPECT_EQ("baz", tokens[2]);
+}
+
+
+TEST(StringsTest, TokenizeNStringWithDelimsAtStartAndEnd)
+{
+  vector<string> tokens = strings::tokenize(",,foo,bar,,", ",", 6);
+  ASSERT_EQ(2u, tokens.size());
+  EXPECT_EQ("foo", tokens[0]);
+  EXPECT_EQ("bar", tokens[1]);
+}
+
+
+TEST(StringsTest, TokenizeNWithMultipleDelims)
+{
+  vector<string> tokens = strings::tokenize("foo.bar,.,.baz.", ",.", 6);
+  ASSERT_EQ(3u, tokens.size());
+  EXPECT_EQ("foo", tokens[0]);
+  EXPECT_EQ("bar", tokens[1]);
+  EXPECT_EQ("baz", tokens[2]);
+}
+
+
+
 TEST(StringsTest, SplitEmptyString)
 {
   vector<string> tokens = strings::split("", ",");

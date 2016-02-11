@@ -131,31 +131,37 @@ inline std::string replace(
 
 // Tokenizes the string using the delimiters.
 // Empty tokens will not be included in the result.
-// TODO(ijimenez): Support maximum number of tokens
-// to be returned.
+// Optionally, maximum number of tokens to be returned
+// can be specified.
 inline std::vector<std::string> tokenize(
     const std::string& s,
-    const std::string& delims)
+    const std::string& delims,
+    const Option<size_t>& maxTokens = None())
 {
   size_t offset = 0;
   std::vector<std::string> tokens;
 
-  while (true) {
-    size_t i = s.find_first_not_of(delims, offset);
-    if (std::string::npos == i) {
+  while (maxTokens.isNone() || maxTokens.get() > 0) {
+    size_t nonDelim = s.find_first_not_of(delims, offset);
+
+    if (nonDelim == std::string::npos) {
+      break; // Nothing left
+    }
+
+    size_t delim = s.find_first_of(delims, nonDelim);
+
+    // Finish tokenizing if this is the last token,
+    // or we've found enough tokens.
+    if (delim == std::string::npos ||
+        (maxTokens.isSome() && tokens.size() == maxTokens.get() - 1)) {
+      tokens.push_back(s.substr(nonDelim));
       break;
     }
 
-    size_t j = s.find_first_of(delims, i);
-    if (std::string::npos == j) {
-      tokens.push_back(s.substr(i));
-      offset = s.length();
-      continue;
-    }
-
-    tokens.push_back(s.substr(i, j - i));
-    offset = j;
+    tokens.push_back(s.substr(nonDelim, delim - nonDelim));
+    offset = delim;
   }
+
   return tokens;
 }
 
