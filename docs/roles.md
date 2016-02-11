@@ -11,13 +11,17 @@ resources are offered to frameworks. Some use-cases for roles include:
 
 * arranging for all the resources on a particular agent to only be offered to a
   particular framework.
-* dividing a cluster between two organizations: resources assigned for use by
+* dividing a cluster between two organizations: resources reserved for use by
   organization _A_ will only be offered to frameworks that have registered
-  using organization _A_'s role.
+  using organization _A_'s role (see the
+  [reservation documentation](reservation.md)).
 * ensuring that [persistent volumes](persistent-volume.md) created by one
   framework are not offered to frameworks registered with a different role.
 * expressing that one group of frameworks should be considered "higher priority"
   (and offered more resources) than another group of frameworks.
+* setting a guaranteed resource allocation for one or more frameworks belonging
+  to a role (see the [quota documentation](quota.md)).
+
 
 ## Roles and access control
 
@@ -118,3 +122,18 @@ The resource allocation process can be customized by assigning _weights_ to
 roles: a role with a weight of 2 will be allocated twice the fair share of a
 role with a weight of 1. Weights are optional, and can be specified via the
 `--weights` command-line flag when starting the Mesos master.
+
+
+## Role vs. Principal
+
+A principal identifies an entity that interacts with Mesos; principals are
+similar to user names. For example, frameworks supply a principal when they
+register with the Mesos master, and operators provide a principal when using the
+operator HTTP endpoints. An entity may be required to
+[authenticate](authentication.md) with its principal in order to prove its
+identity, and the principal may be used to [authorize](authorization.md) actions
+performed by an entity, such as [resource reservation](reservation.md) and
+[persistent volume](persistent-volume.md) creation/destruction.
+
+Roles, on the other hand, are used exclusively to associate resources with
+frameworks in various ways, as covered above.
