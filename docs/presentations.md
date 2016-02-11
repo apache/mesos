@@ -7,11 +7,11 @@ _(Listed in date descending order)_
 
 ## MesosCon Europe 2015
  [Video playlist](https://www.youtube.com/watch?v=K-x7yOy8Ymk&list=PLGeM09tlguZS6MhlSZDbf-gANWdKgje0I)
- [Slides](http://events.linuxfoundation.org/events/archive/2015/mesoscon/program/slides)
+ [Slides](http://events.linuxfoundation.org/events/archive/2015/mesoscon-europe/program/slides)
 
 ## MesosCon Seattle 2015
  [Video playlist](https://www.youtube.com/watch?v=aV6pdWveN7s&list=PLVjgeV_avap2arug3vIz8c6l72rvh9poV)
- [Slides](http://events.linuxfoundation.org/events/archive/2015/mesoscon-europe/program/slides)
+ [Slides](http://events.linuxfoundation.org/events/archive/2015/mesoscon/program/slides)
 
 ## Building and Deploying Applications to Apache Mesos
 ([Slides](https://www.slideshare.net/charmalloc/buildingdeployingapplicationsmesos))
