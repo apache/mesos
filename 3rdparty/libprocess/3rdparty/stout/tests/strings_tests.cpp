@@ -288,6 +288,14 @@ TEST(StringsTest, SplitNZero)
 }
 
 
+TEST(StringsTest, SplitNOne)
+{
+  vector<string> tokens = strings::split("foo,bar,,,", ",", 1);
+  ASSERT_EQ(1u, tokens.size());
+  EXPECT_EQ("foo,bar,,,", tokens[0]);
+}
+
+
 TEST(StringsTest, SplitNDelimOnlyString)
 {
   vector<string> tokens = strings::split(",,,", ",", 2);

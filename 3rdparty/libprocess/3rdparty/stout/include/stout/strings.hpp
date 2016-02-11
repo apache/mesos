@@ -171,24 +171,22 @@ inline std::vector<std::string> split(
     const std::string& delims,
     const Option<size_t>& maxTokens = None())
 {
-  std::vector<std::string> tokens;
   size_t offset = 0;
+  std::vector<std::string> tokens;
 
   while (maxTokens.isNone() || maxTokens.get() > 0) {
     size_t next = s.find_first_of(delims, offset);
-    if (next == std::string::npos) {
+
+    // Finish splitting if this is the last token,
+    // or we've found enough tokens.
+    if (next == std::string::npos ||
+        (maxTokens.isSome() && tokens.size() == maxTokens.get() - 1)) {
       tokens.push_back(s.substr(offset));
       break;
     }
 
     tokens.push_back(s.substr(offset, next - offset));
     offset = next + 1;
-
-    // Finish splitting if we've found enough tokens.
-    if (maxTokens.isSome() && tokens.size() == maxTokens.get() - 1) {
-      tokens.push_back(s.substr(offset));
-      break;
-    }
   }
 
   return tokens;
