@@ -1707,7 +1707,7 @@ TEST(ReservedResourcesTest, AdditionDynamicallyReservedWithDistinctLabels)
   Resources r2 = createReservedResource("cpus", "6", "role", reservationInfo2);
   Resources sum = r1 + r2;
 
-  EXPECT_EQ(2, sum.size());
+  EXPECT_EQ(2u, sum.size());
   EXPECT_FALSE(sum == r1 + r1);
   EXPECT_FALSE(sum == r2 + r2);
 }
