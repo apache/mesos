@@ -31,8 +31,6 @@
 
 #include <mesos/docker/spec.hpp>
 
-#include "slave/containerizer/mesos/provisioner/docker/message.hpp"
-
 namespace mesos {
 namespace internal {
 namespace slave {
@@ -77,25 +75,25 @@ public:
   /**
    * Fetches manifest for a repository from the client's remote registry server.
    *
-   * @param imageName Image information(Name, tag).
+   * @param reference Image information(Name, tag).
    * @return Manifest on success.
    *         Failure on process failure.
    */
   process::Future<::docker::spec::v2::ImageManifest> getManifest(
-      const Image::Name& imageName);
+      const ::docker::spec::ImageReference& reference);
 
 
   /**
    * Fetches blob for a repository from the client's remote registry server.
    *
-   * @param imageName the Docker image to download.
+   * @param reference the Docker image to download.
    * @param digest digest of the blob (from manifest).
    * @param filePath file path to store the fetched blob.
    * @return size of downloaded blob on success.
    *         Failure in case of any errors.
    */
   process::Future<size_t> getBlob(
-      const Image::Name& imageName,
+      const ::docker::spec::ImageReference& reference,
       const Option<std::string>& digest,
       const Path& filePath);
 

@@ -70,7 +70,6 @@ using process::Subprocess;
 
 using process::network::Socket;
 
-using slave::docker::parseImageName;
 using slave::docker::Puller;
 using slave::docker::RegistryPuller;
 
@@ -83,66 +82,6 @@ using slave::docker::registry::TokenManager;
 namespace mesos {
 namespace internal {
 namespace tests {
-
-// TODO(jieyu): Remove this test in favor of using
-// DockerSpecTest.ParseImageReference.
-TEST(DockerUtilsTest, ParseImageName)
-{
-  slave::docker::Image::Name name;
-
-  name = parseImageName("library/busybox");
-  EXPECT_FALSE(name.has_registry());
-  EXPECT_EQ("library/busybox", name.repository());
-  EXPECT_EQ("latest", name.tag());
-
-  name = parseImageName("busybox");
-  EXPECT_FALSE(name.has_registry());
-  EXPECT_EQ("busybox", name.repository());
-  EXPECT_EQ("latest", name.tag());
-
-  name = parseImageName("library/busybox:tag");
-  EXPECT_FALSE(name.has_registry());
-  EXPECT_EQ("library/busybox", name.repository());
-  EXPECT_EQ("tag", name.tag());
-
-  // Note that the digest is stored as a tag.
-  name = parseImageName(
-      "library/busybox"
-      "@sha256:bc8813ea7b3603864987522f02a7"
-      "6101c17ad122e1c46d790efc0fca78ca7bfb");
-  EXPECT_FALSE(name.has_registry());
-  EXPECT_EQ("library/busybox", name.repository());
-  EXPECT_EQ("sha256:bc8813ea7b3603864987522f02a7"
-            "6101c17ad122e1c46d790efc0fca78ca7bfb",
-            name.tag());
-
-  name = parseImageName("registry.io/library/busybox");
-  EXPECT_EQ("registry.io", name.registry());
-  EXPECT_EQ("library/busybox", name.repository());
-  EXPECT_EQ("latest", name.tag());
-
-  name = parseImageName("registry.io/library/busybox:tag");
-  EXPECT_EQ("registry.io", name.registry());
-  EXPECT_EQ("library/busybox", name.repository());
-  EXPECT_EQ("tag", name.tag());
-
-  name = parseImageName("registry.io:80/library/busybox:tag");
-  EXPECT_EQ("registry.io:80", name.registry());
-  EXPECT_EQ("library/busybox", name.repository());
-  EXPECT_EQ("tag", name.tag());
-
-  // Note that the digest is stored as a tag.
-  name = parseImageName(
-      "registry.io:80/library/busybox"
-      "@sha256:bc8813ea7b3603864987522f02a7"
-      "6101c17ad122e1c46d790efc0fca78ca7bfb");
-  EXPECT_EQ("registry.io:80", name.registry());
-  EXPECT_EQ("library/busybox", name.repository());
-  EXPECT_EQ("sha256:bc8813ea7b3603864987522f02a7"
-            "6101c17ad122e1c46d790efc0fca78ca7bfb",
-            name.tag());
-}
-
 
 /**
  * Provides token operations and defaults.
@@ -477,8 +416,12 @@ TEST_F(RegistryClientTest, SimpleGetManifest)
 
   ASSERT_SOME(registryClient);
 
+  Try<spec::ImageReference> reference =
+    spec::parseImageReference("library/busybox");
+  ASSERT_SOME(reference);
+
   Future<spec::v2::ImageManifest> manifestResponse =
-    registryClient.get()->getManifest(parseImageName("library/busybox"));
+    registryClient.get()->getManifest(reference.get());
 
   const string unauthResponseHeaders = "Www-Authenticate: Bearer"
     " realm=\"https://auth.docker.io/token\","
@@ -652,9 +595,12 @@ TEST_F(RegistryClientTest, SimpleGetBlob)
 
   const Path blobPath(path::join(os::getcwd(), "blob"));
 
+  Try<spec::ImageReference> reference = spec::parseImageReference("blob");
+  ASSERT_SOME(reference);
+
   Future<size_t> result =
     registryClient.get()->getBlob(
-        parseImageName("blob"),
+        reference.get(),
         "digest",
         blobPath);
 
@@ -758,9 +704,12 @@ TEST_F(RegistryClientTest, BadRequest)
 
   const Path blobPath(path::join(os::getcwd(), "blob"));
 
+  Try<spec::ImageReference> reference = spec::parseImageReference("blob");
+  ASSERT_SOME(reference);
+
   Future<size_t> result =
     registryClient.get()->getBlob(
-        parseImageName("blob"),
+        reference.get(),
         "digest",
         blobPath);
 
@@ -819,11 +768,11 @@ TEST_F(RegistryClientTest, SimpleRegistryPuller)
 
   const Path registryPullerPath(os::getcwd());
 
-  Try<slave::docker::Image::Name> imageName = parseImageName("busybox");
-  ASSERT_SOME(imageName);
+  Try<spec::ImageReference> reference = spec::parseImageReference("busybox");
+  ASSERT_SOME(reference);
 
   Future<list<pair<string, string>>> registryPullerFuture =
-    registryPuller.get()->pull(imageName.get(), registryPullerPath);
+    registryPuller.get()->pull(reference.get(), registryPullerPath);
 
   const string unauthResponseHeaders = "WWW-Authenticate: Bearer"
     " realm=\"https://auth.docker.io/token\","
@@ -1077,7 +1026,7 @@ protected:
     TemporaryDirectoryTest::SetUp();
 
     const string archivesDir = path::join(os::getcwd(), "images");
-    const string image = path::join(archivesDir, "abc:latest");
+    const string image = path::join(archivesDir, "abc");
     ASSERT_SOME(os::mkdir(archivesDir));
     ASSERT_SOME(os::mkdir(image));
 
@@ -1125,7 +1074,7 @@ protected:
     ASSERT_SOME(os::rmdir(path::join(image, "456", "layer")));
 
     ASSERT_SOME(os::chdir(image));
-    ASSERT_SOME(os::tar(".", "../abc:latest.tar"));
+    ASSERT_SOME(os::tar(".", "../abc.tar"));
     ASSERT_SOME(os::chdir(cwd));
     ASSERT_SOME(os::rmdir(image));
   }
@@ -1138,7 +1087,7 @@ protected:
 TEST_F(ProvisionerDockerLocalStoreTest, LocalStoreTestWithTar)
 {
   const string archivesDir = path::join(os::getcwd(), "images");
-  const string image = path::join(archivesDir, "abc:latest");
+  const string image = path::join(archivesDir, "abc");
   ASSERT_SOME(os::mkdir(archivesDir));
   ASSERT_SOME(os::mkdir(image));
 
@@ -1206,11 +1155,11 @@ public:
   MOCK_METHOD2(
       pull,
       Future<list<pair<string, string>>>(
-          const slave::docker::Image::Name&,
+          const spec::ImageReference&,
           const Path&));
 
   Future<list<pair<string, string>>> unmocked_pull(
-      const slave::docker::Image::Name& name,
+      const spec::ImageReference& name,
       const Path& directory)
   {
     // TODO(gilbert): Allow return list to be overridden.

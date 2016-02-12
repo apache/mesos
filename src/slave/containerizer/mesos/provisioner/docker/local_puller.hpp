@@ -17,9 +17,10 @@
 #ifndef __PROVISIONER_DOCKER_LOCAL_PULLER_HPP__
 #define __PROVISIONER_DOCKER_LOCAL_PULLER_HPP__
 
+#include <mesos/docker/spec.hpp>
+
 #include "slave/containerizer/mesos/provisioner/store.hpp"
 
-#include "slave/containerizer/mesos/provisioner/docker/message.hpp"
 #include "slave/containerizer/mesos/provisioner/docker/puller.hpp"
 
 #include "slave/flags.hpp"
@@ -46,7 +47,7 @@ public:
   ~LocalPuller();
 
   process::Future<std::list<std::pair<std::string, std::string>>> pull(
-      const Image::Name& name,
+      const ::docker::spec::ImageReference& reference,
       const Path& directory);
 
 private:

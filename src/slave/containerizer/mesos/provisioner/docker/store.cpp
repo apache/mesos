@@ -39,6 +39,8 @@
 
 using namespace process;
 
+namespace spec = docker::spec;
+
 using std::list;
 using std::pair;
 using std::string;
@@ -67,14 +69,17 @@ public:
   Future<ImageInfo> get(const mesos::Image& image);
 
 private:
-  Future<Image> _get(const Image::Name& name, const Option<Image>& image);
+  Future<Image> _get(
+      const spec::ImageReference& reference,
+      const Option<Image>& image);
+
   Future<ImageInfo> __get(const Image& image);
 
   Future<vector<string>> moveLayers(
       const list<pair<string, string>>& layerPaths);
 
   Future<Image> storeImage(
-      const Image::Name& name,
+      const spec::ImageReference& reference,
       const vector<string>& layerIds);
 
   Future<Nothing> moveLayer(
@@ -162,16 +167,21 @@ Future<ImageInfo> StoreProcess::get(const mesos::Image& image)
     return Failure("Docker provisioner store only supports Docker images");
   }
 
-  Image::Name imageName = parseImageName(image.docker().name());
+  Try<spec::ImageReference> reference =
+    spec::parseImageReference(image.docker().name());
+  if (reference.isError()) {
+    return Failure("Failed to parse docker image '" + image.docker().name() +
+                   "' as 'reference': " + reference.error());
+  }
 
-  return metadataManager->get(imageName)
-    .then(defer(self(), &Self::_get, imageName, lambda::_1))
+  return metadataManager->get(reference.get())
+    .then(defer(self(), &Self::_get, reference.get(), lambda::_1))
     .then(defer(self(), &Self::__get, lambda::_1));
 }
 
 
 Future<Image> StoreProcess::_get(
-    const Image::Name& name,
+    const spec::ImageReference& reference,
     const Option<Image>& image)
 {
   if (image.isSome()) {
@@ -185,18 +195,18 @@ Future<Image> StoreProcess::_get(
     return Failure("Failed to create a staging directory");
   }
 
-  const string imageName = stringify(name);
+  const string imageReference = stringify(reference);
 
-  if (!pulling.contains(imageName)) {
+  if (!pulling.contains(imageReference)) {
     Owned<Promise<Image>> promise(new Promise<Image>());
 
-    Future<Image> future = puller->pull(name, Path(staging.get()))
+    Future<Image> future = puller->pull(reference, Path(staging.get()))
       .then(defer(self(), &Self::moveLayers, lambda::_1))
-      .then(defer(self(), &Self::storeImage, name, lambda::_1))
-      .onAny(defer(self(), [this, imageName](const Future<Image>&) {
-        pulling.erase(imageName);
+      .then(defer(self(), &Self::storeImage, reference, lambda::_1))
+      .onAny(defer(self(), [this, imageReference](const Future<Image>&) {
+        pulling.erase(imageReference);
       }))
-      .onAny([staging, imageName]() {
+      .onAny([staging, imageReference]() {
         Try<Nothing> rmdir = os::rmdir(staging.get());
         if (rmdir.isError()) {
           LOG(WARNING) << "Failed to remove staging directory: "
@@ -205,12 +215,12 @@ Future<Image> StoreProcess::_get(
       });
 
     promise->associate(future);
-    pulling[imageName] = promise;
+    pulling[imageReference] = promise;
 
     return promise->future();
   }
 
-  return pulling[imageName]->future();
+  return pulling[imageReference]->future();
 }
 
 
@@ -274,10 +284,10 @@ Future<vector<string>> StoreProcess::moveLayers(
 
 
 Future<Image> StoreProcess::storeImage(
-    const Image::Name& name,
+    const spec::ImageReference& reference,
     const vector<string>& layerIds)
 {
-  return metadataManager->put(name, layerIds);
+  return metadataManager->put(reference, layerIds);
 }
 
 

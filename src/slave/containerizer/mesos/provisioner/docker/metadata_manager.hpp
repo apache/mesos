@@ -30,6 +30,8 @@
 #include <process/owned.hpp>
 #include <process/process.hpp>
 
+#include <mesos/docker/spec.hpp>
+
 #include "slave/containerizer/mesos/provisioner/provisioner.hpp"
 
 #include "slave/containerizer/mesos/provisioner/docker/message.hpp"
@@ -68,23 +70,24 @@ public:
    * Create an Image, put it in metadata manager and persist the reference
    * store state to disk.
    *
-   * @param name     the name of the Docker image to place in the reference
-   *                 store.
+   * @param reference the reference of the Docker image to place in the
+   *                  reference store.
    * @param layerIds the list of layer ids that comprise the Docker image in
    *                 order where the root layer's id (no parent layer) is first
    *                 and the leaf layer's id is last.
    */
   process::Future<Image> put(
-      const Image::Name& name,
+      const ::docker::spec::ImageReference& reference,
       const std::vector<std::string>& layerIds);
 
   /**
-   * Retrieve Image based on image name if it is among the Images
+   * Retrieve Image based on image reference if it is among the Images
    * stored in memory.
    *
-   * @param name  the name of the Docker image to retrieve
+   * @param reference  the reference of the Docker image to retrieve
    */
-  process::Future<Option<Image>> get(const Image::Name& name);
+  process::Future<Option<Image>> get(
+      const ::docker::spec::ImageReference& reference);
 
 private:
   explicit MetadataManager(process::Owned<MetadataManagerProcess> process);

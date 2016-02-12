@@ -38,6 +38,8 @@
 
 using namespace process;
 
+namespace spec = docker::spec;
+
 using std::list;
 using std::string;
 using std::vector;
@@ -57,10 +59,10 @@ public:
   Future<Nothing> recover();
 
   Future<Image> put(
-      const Image::Name& name,
+      const spec::ImageReference& reference,
       const vector<string>& layerIds);
 
-  Future<Option<Image>> get(const Image::Name& name);
+  Future<Option<Image>> get(const spec::ImageReference& reference);
 
   // TODO(chenlily): Implement removal of unreferenced images.
 
@@ -106,36 +108,37 @@ Future<Nothing> MetadataManager::recover()
 
 
 Future<Image> MetadataManager::put(
-    const Image::Name& name,
+    const spec::ImageReference& reference,
     const vector<string>& layerIds)
 {
   return dispatch(
       process.get(),
       &MetadataManagerProcess::put,
-      name,
+      reference,
       layerIds);
 }
 
 
-Future<Option<Image>> MetadataManager::get(const Image::Name& name)
+Future<Option<Image>> MetadataManager::get(
+    const spec::ImageReference& reference)
 {
-  return dispatch(process.get(), &MetadataManagerProcess::get, name);
+  return dispatch(process.get(), &MetadataManagerProcess::get, reference);
 }
 
 
 Future<Image> MetadataManagerProcess::put(
-    const Image::Name& name,
+    const spec::ImageReference& reference,
     const vector<string>& layerIds)
 {
-  const string imageName = stringify(name);
+  const string imageReference = stringify(reference);
 
   Image dockerImage;
-  dockerImage.mutable_name()->CopyFrom(name);
+  dockerImage.mutable_reference()->CopyFrom(reference);
   foreach (const string& layerId, layerIds) {
     dockerImage.add_layer_ids(layerId);
   }
 
-  storedImages[imageName] = dockerImage;
+  storedImages[imageReference] = dockerImage;
 
   Try<Nothing> status = persist();
   if (status.isError()) {
@@ -147,15 +150,15 @@ Future<Image> MetadataManagerProcess::put(
 
 
 Future<Option<Image>> MetadataManagerProcess::get(
-    const Image::Name& name)
+    const spec::ImageReference& reference)
 {
-  const string imageName = stringify(name);
+  const string imageReference = stringify(reference);
 
-  if (!storedImages.contains(imageName)) {
+  if (!storedImages.contains(imageReference)) {
     return None();
   }
 
-  return storedImages[imageName];
+  return storedImages[imageReference];
 }
 
 
@@ -211,18 +214,18 @@ Future<Nothing> MetadataManagerProcess::recover()
       }
     }
 
-    const string imageName = stringify(image.name());
+    const string imageReference = stringify(image.reference());
 
     if (!missingLayerIds.empty()) {
-      LOG(WARNING) << "Skipped loading image '" << imageName << "'";
+      LOG(WARNING) << "Skipped loading image '" << imageReference << "'";
       continue;
     }
 
-    if (storedImages.contains(imageName)) {
-      LOG(WARNING) << "Found duplicate image in recovery for image name '"
-                   << imageName << "'";
+    if (storedImages.contains(imageReference)) {
+      LOG(WARNING) << "Found duplicate image in recovery for image reference '"
+                   << imageReference << "'";
     } else {
-      storedImages[imageName] = image;
+      storedImages[imageReference] = image;
     }
   }
 

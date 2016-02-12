@@ -14,26 +14,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import "mesos/mesos.proto";
+import "mesos/docker/spec.proto";
 
 package mesos.internal.slave.docker;
 
 /**
- * A Docker Image name and the layer ids of the layers that comprise the image.
- * The layerIds are ordered, with the root layer id (no parent layer id) first
- * and the leaf layer id last.
+ * A Docker Image reference and the layer ids of the layers that comprise the
+ * image. The layerIds are ordered, with the root layer id (no parent layer id)
+ * first and the leaf layer id last.
  */
 message Image {
-  // TODO(jieyu): Remove this in favor of using spec::ImageReference.
-  message Name {
-    optional string registry = 1;
-    required string repository = 2;
-
-    // TODO(bmahler): This may hold a tag or a digest, split these?
-    required string tag = 3;
-  }
-
-  required Name name = 1;
+  required .docker.spec.ImageReference reference = 1;
 
   // The order of the layers represents the dependency between layers.
   repeated string layer_ids = 2;

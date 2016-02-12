@@ -39,6 +39,9 @@
 #include "slave/containerizer/mesos/provisioner/docker/registry_client.hpp"
 #include "slave/containerizer/mesos/provisioner/docker/token_manager.hpp"
 
+namespace http = process::http;
+namespace spec = docker::spec;
+
 using std::string;
 using std::vector;
 
@@ -46,9 +49,6 @@ using process::Failure;
 using process::Future;
 using process::Owned;
 using process::Process;
-
-namespace http = process::http;
-namespace spec = docker::spec;
 
 using http::Pipe;
 
@@ -68,10 +68,10 @@ public:
       const Option<Credentials>& credentials);
 
   Future<spec::v2::ImageManifest> getManifest(
-      const Image::Name& imageName);
+      const spec::ImageReference& reference);
 
   Future<size_t> getBlob(
-      const Image::Name& imageName,
+      const spec::ImageReference& reference,
       const Option<string>& digest,
       const Path& filePath);
 
@@ -109,7 +109,7 @@ private:
       int fd,
       Pipe::Reader reader);
 
-  string getRepositoryPath(const Image::Name& imageName) const;
+  string getRepositoryPath(const spec::ImageReference& reference) const;
 
   string getAPIVersion() const;
 
@@ -168,24 +168,24 @@ RegistryClient::~RegistryClient()
 
 
 Future<spec::v2::ImageManifest> RegistryClient::getManifest(
-    const Image::Name& imageName)
+    const spec::ImageReference& reference)
 {
   return dispatch(
       process_.get(),
       &RegistryClientProcess::getManifest,
-      imageName);
+      reference);
 }
 
 
 Future<size_t> RegistryClient::getBlob(
-    const Image::Name& imageName,
+    const spec::ImageReference& reference,
     const Option<string>& digest,
     const Path& filePath)
 {
   return dispatch(
         process_.get(),
         &RegistryClientProcess::getBlob,
-        imageName,
+        reference,
         digest,
         filePath);
 }
@@ -528,18 +528,18 @@ string RegistryClientProcess::getAPIVersion() const
 // TODO(tnachen): Support unoffical repositories and loading in repository
 // information.
 string RegistryClientProcess::getRepositoryPath(
-    const Image::Name& imageName) const
+    const spec::ImageReference& reference) const
 {
-  return getAPIVersion() + "/library/" + imageName.repository();
+  return getAPIVersion() + "/library/" + reference.repository();
 }
 
 
 Future<spec::v2::ImageManifest> RegistryClientProcess::getManifest(
-    const Image::Name& imageName)
+    const spec::ImageReference& reference)
 {
   http::URL manifestURL(registryServer_);
   manifestURL.path =
-    getRepositoryPath(imageName) + "/manifests/" + imageName.tag();
+    getRepositoryPath(reference) + "/manifests/" + reference.tag();
 
   return doHttpGet(manifestURL, None(), false, true, None())
     .then(defer(self(), [this] (
@@ -604,7 +604,7 @@ Future<size_t> RegistryClientProcess::saveBlob(
 
 
 Future<size_t> RegistryClientProcess::getBlob(
-    const Image::Name& imageName,
+    const spec::ImageReference& reference,
     const Option<string>& digest,
     const Path& filePath)
 {
@@ -614,7 +614,7 @@ Future<size_t> RegistryClientProcess::getBlob(
         "Failed to create directory to download blob: " + mkdir.error());
   }
 
-  const string blobURLPath = getRepositoryPath(imageName) + "/blobs/" +
+  const string blobURLPath = getRepositoryPath(reference) + "/blobs/" +
                              digest.getOrElse("");
 
   http::URL blobURL(registryServer_);

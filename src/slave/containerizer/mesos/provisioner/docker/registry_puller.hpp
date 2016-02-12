@@ -28,7 +28,8 @@
 #include <process/http.hpp>
 #include <process/process.hpp>
 
-#include "slave/containerizer/mesos/provisioner/docker/message.hpp"
+#include <mesos/docker/spec.hpp>
+
 #include "slave/containerizer/mesos/provisioner/docker/puller.hpp"
 
 namespace mesos {
@@ -56,11 +57,11 @@ public:
    * Pulls an image into a download directory. This image could consist
    * multiple layers of blobs.
    *
-   * @param imageName local name of the image.
+   * @param reference local name of the image.
    * @param downloadDir path to which the layers should be downloaded.
    */
   process::Future<std::list<std::pair<std::string, std::string>>> pull(
-      const Image::Name& imageName,
+      const ::docker::spec::ImageReference& reference,
       const Path& downloadDir);
 
 private:

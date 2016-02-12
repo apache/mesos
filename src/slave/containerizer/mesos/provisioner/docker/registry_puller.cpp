@@ -57,7 +57,7 @@ public:
   static Try<Owned<RegistryPullerProcess>> create(const Flags& flags);
 
   process::Future<list<pair<string, string>>> pull(
-      const Image::Name& imageName,
+      const spec::ImageReference& reference,
       const Path& directory);
 
 private:
@@ -66,18 +66,18 @@ private:
       const Duration& timeout);
 
   Future<pair<string, string>> downloadLayer(
-      const Image::Name& imageName,
+      const spec::ImageReference& reference,
       const Path& directory,
       const string& blobSum,
       const string& id);
 
   Future<list<pair<string, string>>> downloadLayers(
       const spec::v2::ImageManifest& manifest,
-      const Image::Name& imageName,
+      const spec::ImageReference& reference,
       const Path& downloadDir);
 
   process::Future<list<pair<string, string>>> _pull(
-      const Image::Name& imageName,
+      const spec::ImageReference& reference,
       const Path& downloadDir);
 
   Future<list<pair<string, string>>> untarLayers(
@@ -121,13 +121,13 @@ RegistryPuller::~RegistryPuller()
 
 
 Future<list<pair<string, string>>> RegistryPuller::pull(
-    const Image::Name& imageName,
+    const spec::ImageReference& reference,
     const Path& downloadDir)
 {
   return dispatch(
       process_.get(),
       &RegistryPullerProcess::pull,
-      imageName,
+      reference,
       downloadDir);
 }
 
@@ -174,17 +174,17 @@ RegistryPullerProcess::RegistryPullerProcess(
 
 
 Future<pair<string, string>> RegistryPullerProcess::downloadLayer(
-    const Image::Name& imageName,
+    const spec::ImageReference& reference,
     const Path& directory,
     const string& blobSum,
     const string& layerId)
 {
   VLOG(1) << "Downloading layer '"  << layerId
-          << "' for image '" << stringify(imageName) << "'";
+          << "' for image '" << stringify(reference) << "'";
 
   if (downloadTracker_.contains(layerId)) {
     VLOG(1) << "Download already in progress for image '"
-            << stringify(imageName) << "', layer '" << layerId << "'";
+            << stringify(reference) << "', layer '" << layerId << "'";
 
     return downloadTracker_.at(layerId)->future();
   }
@@ -197,7 +197,7 @@ Future<pair<string, string>> RegistryPullerProcess::downloadLayer(
   const Path downloadFile(path::join(directory, layerId + ".tar"));
 
   registryClient_->getBlob(
-      imageName,
+      reference,
       blobSum,
       downloadFile)
     .onAny(process::defer(
@@ -225,21 +225,21 @@ Future<pair<string, string>> RegistryPullerProcess::downloadLayer(
 
 
 Future<list<pair<string, string>>> RegistryPullerProcess::pull(
-    const Image::Name& imageName,
+    const spec::ImageReference& reference,
     const Path& directory)
 {
   // TODO(jojy): Have one outgoing manifest request per image.
-  return registryClient_->getManifest(imageName)
-    .then(process::defer(self(), [this, directory, imageName](
+  return registryClient_->getManifest(reference)
+    .then(process::defer(self(), [this, directory, reference](
         const spec::v2::ImageManifest& manifest) {
-      return downloadLayers(manifest, imageName, directory);
+      return downloadLayers(manifest, reference, directory);
     }))
     .then(process::defer(self(), [this, directory](
         const Future<list<pair<string, string>>>& layerFutures)
         -> Future<list<pair<string, string>>> {
       return untarLayers(layerFutures, directory);
     }))
-    .after(pullTimeout_, [imageName](
+    .after(pullTimeout_, [reference](
         Future<list<pair<string, string>>> future) {
       future.discard();
 
@@ -250,7 +250,7 @@ Future<list<pair<string, string>>> RegistryPullerProcess::pull(
 
 Future<list<pair<string, string>>> RegistryPullerProcess::downloadLayers(
     const spec::v2::ImageManifest& manifest,
-    const Image::Name& imageName,
+    const spec::ImageReference& reference,
     const Path& directory)
 {
   list<Future<pair<string, string>>> downloadFutures;
@@ -261,7 +261,7 @@ Future<list<pair<string, string>>> RegistryPullerProcess::downloadLayers(
     CHECK(manifest.history(i).has_v1());
 
     downloadFutures.push_back(
-        downloadLayer(imageName,
+        downloadLayer(reference,
                       directory,
                       manifest.fslayers(i).blobsum(),
                       manifest.history(i).v1().id()));

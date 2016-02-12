@@ -22,6 +22,7 @@
 
 #include <mesos/docker/spec.hpp>
 
+using std::ostream;
 using std::string;
 using std::vector;
 
@@ -78,6 +79,22 @@ Try<ImageReference> parseImageReference(const string& _s)
   }
 
   return reference;
+}
+
+
+ostream& operator<<(ostream& stream, const ImageReference& reference)
+{
+  if (reference.has_registry()) {
+    stream << reference.registry() << "/" << reference.repository();
+  } else {
+    stream << reference.repository();
+  }
+
+  if (reference.has_tag()) {
+    stream << ":" << reference.tag();
+  }
+
+  return stream;
 }
 
 

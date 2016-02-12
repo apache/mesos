@@ -38,6 +38,8 @@
 
 using namespace process;
 
+namespace spec = docker::spec;
+
 using std::list;
 using std::map;
 using std::pair;
@@ -57,12 +59,12 @@ public:
   ~LocalPullerProcess() {}
 
   Future<list<pair<string, string>>> pull(
-      const Image::Name& name,
+      const spec::ImageReference& reference,
       const string& directory);
 
 private:
   Future<list<pair<string, string>>> putImage(
-      const Image::Name& name,
+      const spec::ImageReference& reference,
       const string& directory);
 
   Future<list<pair<string, string>>> putLayers(
@@ -102,23 +104,24 @@ LocalPuller::~LocalPuller()
 
 
 Future<list<pair<string, string>>> LocalPuller::pull(
-    const Image::Name& name,
+    const spec::ImageReference& reference,
     const Path& directory)
 {
-  return dispatch(process.get(), &LocalPullerProcess::pull, name, directory);
+  return dispatch(
+      process.get(), &LocalPullerProcess::pull, reference, directory);
 }
 
 
 Future<list<pair<string, string>>> LocalPullerProcess::pull(
-    const Image::Name& name,
+    const spec::ImageReference& reference,
     const string& directory)
 {
   const string tarPath = paths::getImageArchiveTarPath(
       archivesDir,
-      stringify(name));
+      stringify(reference));
 
   if (!os::exists(tarPath)) {
-    return Failure("Failed to find archive for image '" + stringify(name) +
+    return Failure("Failed to find archive for image '" + stringify(reference) +
                    "' at '" + tarPath + "'");
   }
 
@@ -126,7 +129,7 @@ Future<list<pair<string, string>>> LocalPullerProcess::pull(
           << "' to '" << directory << "'";
 
   return untar(tarPath, directory)
-    .then(defer(self(), &Self::putImage, name, directory));
+    .then(defer(self(), &Self::putImage, reference, directory));
 }
 
 
@@ -158,7 +161,7 @@ static Result<string> getParentId(
 
 
 Future<list<pair<string, string>>> LocalPullerProcess::putImage(
-    const Image::Name& name,
+    const spec::ImageReference& reference,
     const string& directory)
 {
   Try<string> value =
@@ -174,22 +177,26 @@ Future<list<pair<string, string>>> LocalPullerProcess::putImage(
   }
 
   Result<JSON::Object> repositoryValue =
-    json.get().find<JSON::Object>(name.repository());
+    json.get().find<JSON::Object>(reference.repository());
 
   if (repositoryValue.isError()) {
     return Failure("Failed to find repository: " + repositoryValue.error());
   } else if (repositoryValue.isNone()) {
-    return Failure("Repository '" + name.repository() + "' is not found");
+    return Failure("Repository '" + reference.repository() + "' is not found");
   }
 
   const JSON::Object repositoryJson = repositoryValue.get();
 
+  const string tag = reference.has_tag()
+    ? reference.tag()
+    : "latest";
+
   // We don't use JSON find here because a tag might contain a '.'.
   map<string, JSON::Value>::const_iterator entry =
-    repositoryJson.values.find(name.tag());
+    repositoryJson.values.find(tag);
 
   if (entry == repositoryJson.values.end()) {
-    return Failure("Tag '" + name.tag() + "' is not found");
+    return Failure("Tag '" + tag + "' is not found");
   } else if (!entry->second.is<JSON::String>()) {
     return Failure("Tag JSON value expected to be JSON::String");
   }

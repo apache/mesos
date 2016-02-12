@@ -28,7 +28,7 @@
 #include <process/future.hpp>
 #include <process/owned.hpp>
 
-#include "slave/containerizer/mesos/provisioner/docker/message.hpp"
+#include <mesos/docker/spec.hpp>
 
 #include "slave/flags.hpp"
 
@@ -56,7 +56,7 @@ public:
    *         dependency.
    */
   virtual process::Future<std::list<std::pair<std::string, std::string>>> pull(
-      const docker::Image::Name& name,
+      const ::docker::spec::ImageReference& reference,
       const Path& directory) = 0;
 };
 

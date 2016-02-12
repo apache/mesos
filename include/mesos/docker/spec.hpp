@@ -17,6 +17,7 @@
 #ifndef __MESOS_DOCKER_SPEC_HPP__
 #define __MESOS_DOCKER_SPEC_HPP__
 
+#include <iostream>
 #include <string>
 
 #include <stout/error.hpp>
@@ -48,6 +49,9 @@ namespace spec {
  * https://github.com/docker/distribution/blob/master/reference/reference.go
  */
 Try<ImageReference> parseImageReference(const std::string& s);
+
+
+std::ostream& operator<<(std::ostream& stream, const ImageReference& reference);
 
 
 namespace v1 {
