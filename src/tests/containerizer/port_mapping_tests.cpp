@@ -255,7 +255,7 @@ protected:
       }
 
       vector<string> tokens = strings::split(line, " ");
-      ASSERT_EQ(2u, tokens.size()) << "Unexpected format in '/etc/resolv.conf'";
+      ASSERT_LE(2u, tokens.size()) << "Unexpected format in '/etc/resolv.conf'";
       if (tokens[1] != "127.0.0.1") {
         nameServers.push_back(tokens[1]);
       }
