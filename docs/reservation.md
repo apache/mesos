@@ -65,13 +65,26 @@ see the [authorization documentation](authorization.md).
 In the following sections, we will walk through examples of each of the
 interfaces described above.
 
-Note that if two dynamic reservations are made for resources at a single slave,
-the reservations will be combined by adding together the resources reserved by
-each request. Similarly, "partial" unreserve operations are allowed: an
-unreserve operation can release only some of the resources at a slave that have
-been reserved for a given role. In this case, the unreserved resources will be
-subtracted from the previous reservation, and any remaining resources will still
-be reserved.
+If two dynamic reservations are made for the same role at a single slave (using
+the same labels, if any; see below), the reservations will be combined by adding
+together the resources reserved by each request. This will result in a single
+reserved resource at the slave. Similarly, "partial" unreserve operations are
+allowed: an unreserve operation can release some but not all of the resources at
+a slave that have been reserved for a role. In this case, the unreserved
+resources will be subtracted from the previous reservation and any remaining
+resources will still be reserved.
+
+
+### Labeled Reservations
+
+Dynamic reservations can optionally include a list of _labels_, which are
+arbitrary key-value pairs. Labels can be used to associate arbitrary metadata
+with a resource reservation. For example, frameworks can use labels to identify
+the intended purpose for a portion of the resources that have been reserved at a
+given slave. Note that two reservations with different labels will not be
+combined together into a single reservation, even if the reservations are at the
+same slave and use the same role.
+
 
 ### Framework Scheduler API
 
