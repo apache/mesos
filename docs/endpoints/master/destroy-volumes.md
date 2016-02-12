@@ -7,6 +7,9 @@
 Destroy persistent volumes.
 
 ### DESCRIPTION ###
-Returns 200 OK if volume deletion was successful.
+Returns 200 OK if the request was accepted. This does not
+imply that the volume was destroyed successfully: volume
+destruction is done asynchronously and may fail.
+
 Please provide "slaveId" and "volumes" values designating
 the volumes to be destroyed.

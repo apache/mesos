@@ -699,7 +699,10 @@ string Master::Http::CREATE_VOLUMES_HELP()
     TLDR(
         "Create persistent volumes on reserved resources."),
     DESCRIPTION(
-        "Returns 200 OK if volume creation was successful.",
+        "Returns 200 OK if the request was accepted. This does not",
+        "imply that the volume was created successfully: volume",
+        "creation is done asynchronously and may fail.",
+        "",
         "Please provide \"slaveId\" and \"volumes\" values designating",
         "the volumes to be created."));
 }
@@ -803,7 +806,10 @@ string Master::Http::DESTROY_VOLUMES_HELP()
     TLDR(
         "Destroy persistent volumes."),
     DESCRIPTION(
-        "Returns 200 OK if volume deletion was successful.",
+        "Returns 200 OK if the request was accepted. This does not",
+        "imply that the volume was destroyed successfully: volume",
+        "destruction is done asynchronously and may fail.",
+        "",
         "Please provide \"slaveId\" and \"volumes\" values designating",
         "the volumes to be destroyed."));
 }
@@ -1132,7 +1138,10 @@ string Master::Http::RESERVE_HELP()
     TLDR(
         "Reserve resources dynamically on a specific slave."),
     DESCRIPTION(
-        "Returns 200 OK if resource reservation was successful.",
+        "Returns 200 OK if the request was accepted. This does not",
+        "imply that the requested resources have been reserved successfully:",
+        "resource reservation is done asynchronously and may fail.",
+        "",
         "Please provide \"slaveId\" and \"resources\" values designating",
         "the resources to be reserved."));
 }
@@ -2400,7 +2409,10 @@ string Master::Http::UNRESERVE_HELP()
     TLDR(
         "Unreserve resources dynamically on a specific slave."),
     DESCRIPTION(
-        "Returns 200 OK if resource unreservation was successful.",
+        "Returns 200 OK if the request was accepted. This does not",
+        "imply that the requested resources have been unreserved successfully:",
+        "resource unreservation is done asynchronously and may fail.",
+        "",
         "Please provide \"slaveId\" and \"resources\" values designating",
         "the resources to be unreserved."));
 }

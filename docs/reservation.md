@@ -13,7 +13,7 @@ and authorized __frameworks__ to dynamically reserve resources in the cluster.
 In both types of reservations, resources are reserved for a [__role__](roles.md).
 
 
-## Static Reservation (since 0.14.0)
+## Static Reservation
 
 An operator can configure a slave with resources reserved for a role.
 The reserved resources are specified via the `--resources` flag.
@@ -37,13 +37,13 @@ __NOTE:__ This feature is supported for backwards compatibility.
           reservations dynamically via the master HTTP endpoints.
 
 
-## Dynamic Reservation (since 0.23.0)
+## Dynamic Reservation
 
 As mentioned in [Static Reservation](#static-reservation-since-0140), specifying
 the reserved resources via the `--resources` flag makes the reservation static.
 That is, statically reserved resources cannot be reserved for another role nor
-be unreserved. Dynamic Reservation enables operators and authorized frameworks
-to reserve and unreserve resources post slave-startup.
+be unreserved. Dynamic reservation enables operators and authorized frameworks
+to reserve and unreserve resources after slave-startup.
 
 We require a `principal` from the operator or framework in order to
 authenticate/authorize the operations. Permissions are specified via the
@@ -289,11 +289,20 @@ HTTP POST request to the `/reserve` HTTP endpoint like so:
 
 The user receives one of the following HTTP responses:
 
-* `200 OK`: Success (the requested resources have been reserved).
+* `200 OK`: Request accepted (see below).
 * `400 BadRequest`: Invalid arguments (e.g., missing parameters).
 * `401 Unauthorized`: Unauthenticated request.
 * `403 Forbidden`: Unauthorized request.
 * `409 Conflict`: Insufficient resources to satisfy the reserve operation.
+
+Note that when `200 OK` is returned by this endpoint, it does __not__ mean that
+the requested resources have been reserved. Instead, this return code indicates
+that the reservation request has been validated successfully by the master. The
+reservation request is then forwarded asynchronously to the Mesos slave where
+the resources are located. That asynchronous message may not be delivered, in
+which case no resources will be reserved. To determine if a reserve operation
+has succeeded, the user can examine the state of the appropriate Mesos slave
+(e.g., via the slave's `/state` HTTP endpoint).
 
 #### `/unreserve` (since 0.25.0)
 
@@ -310,7 +319,7 @@ We can send an HTTP POST request to the `/unreserve` HTTP endpoint like so:
               "scalar": { "value": 8 },
               "role": "ads",
               "reservation": {
-                "principal": <operator_principal>
+                "principal": <reserver_principal>
               }
             },
             {
@@ -319,16 +328,31 @@ We can send an HTTP POST request to the `/unreserve` HTTP endpoint like so:
               "scalar": { "value": 4096 },
               "role": "ads",
               "reservation": {
-                "principal": <operator_principal>
+                "principal": <reserver_principal>
               }
             }
           ]' \
           -X POST http://<ip>:<port>/master/unreserve
 
+Note that `reserver_principal` is the principal that was used to make the
+reservation, while `operator_principal` is the principal that is attempting to
+perform the unreserve operation---in some cases, these principals might be the
+same. The `operator_principal` must be [authorized](authorization.md) to
+unreserve reservations made by `reserver_principal`.
+
 The user receives one of the following HTTP responses:
 
-* `200 OK`: Success (the requested resources have been unreserved).
+* `200 OK`: Request accepted (see below).
 * `400 BadRequest`: Invalid arguments (e.g., missing parameters).
 * `401 Unauthorized`: Unauthenticated request.
 * `403 Forbidden`: Unauthorized request.
 * `409 Conflict`: Insufficient resources to satisfy the unreserve operation.
+
+Note that when `200 OK` is returned by this endpoint, it does __not__ mean that
+the requested resources have been unreserved. Instead, this return code
+indicates that the unreserve request has been validated successfully by the
+master. The request is then forwarded asynchronously to the Mesos slave where
+the resources are located. That asynchronous message may not be delivered, in
+which case no resources will be unreserved. To determine if an unreserve
+operation has succeeded, the user can examine the state of the appropriate Mesos
+slave (e.g., via the slave's `/state` HTTP endpoint).
