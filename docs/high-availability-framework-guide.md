@@ -111,8 +111,23 @@ Highly available framework designs typically follow a few common patterns:
    coordination system you are using for more information on how to correctly
    implement leader election.
 
-3. After electing a new leading scheduler, the new leader needs to ensure that
-   its local state is consistent with the current state of the cluster. For
+3. After electing a new leading scheduler, the new leader should reconnect to
+   the Mesos master. When registering with the master, the framework should set
+   the `id` field in its `FrameworkInfo` to the ID that was assigned to the
+   failed scheduler instance. This ensures that the master will recognize that
+   the connection does not start a new session, but rather continues (and
+   replaces) the session used by the failed scheduler instance.
+
+    >NOTE: When the old scheduler leader disconnects from the master, by default
+    the master will immediately kill all the tasks and executors associated with
+    the failed framework. For a typical production framework, this default
+    behavior is very undesirable! To avoid this, highly available frameworks
+    should set the `failover_timeout` field in their `FrameworkInfo` to a
+    generous value. To avoid accidental destruction of tasks in production
+    environments, many frameworks use a `failover_timeout` of 1 week or more.
+
+4. After connecting to the Mesos master, the new leading scheduler should ensure
+   that its local state is consistent with the current state of the cluster. For
    example, suppose that the previous leading scheduler attempted to launch a
    new task and then immediately failed. The task might have launched
    successfully, at which point the newly elected leader will begin to receive
@@ -197,58 +212,69 @@ initial state and several possible terminal states:
 
 ## Dealing with Partitioned or Failed Agents
 
-The Mesos master keeps track of the availability and health of the registered agents
-by 2 different mechanisms.
+The Mesos master tracks the availability and health of the registered agents
+using two different mechanisms:
 
- 1) State of a persistent TCP connection to the agent.
+1. The state of a persistent TCP connection between the master and the agent.
 
- 2) Health checks via periodic ping messages to the agent which are expected to be responded with pongs
-    (this behavior is controlled by the `--slave_ping_timeout` and `--max_slave_ping_timeouts` master flags).
+2. Health checks via periodic ping messages to the agent which are expected to
+   be responded with pongs (this behavior is controlled by the
+   `--slave_ping_timeout` and `--max_slave_ping_timeouts` master flags).
 
-If the persistent TCP connection to the agent breaks or the agent fails health checks, the master decides
-that the agent has failed and takes steps to remove it from the cluster. Specifically:
+If the persistent TCP connection to the agent breaks or the agent fails health
+checks, the master decides that the agent has failed and takes steps to remove
+it from the cluster. Specifically:
 
-* If the TCP connection breaks, the agent is considered disconnected. The semantics when a registered
-  agent gets disconnected are as follows for each framework running on that agent:
+* If the TCP connection breaks, the agent is considered disconnected. The
+  semantics when a registered agent gets disconnected are as follows for each
+  framework running on that agent:
 
-  * If the framework is [checkpointing](slave-recovery.md): No immediate action is taken. The agent is
-    given a chance to reconnect until health checks time out.
+  * If the framework is [checkpointing](slave-recovery.md): no immediate action
+    is taken. The agent is given a chance to reconnect until health checks time
+    out.
 
-  * If the framework is not-checkpointing: All the framework's tasks and executors are considered lost. Master
-    immediately sends `TASK_LOST` status updates for the tasks. These updates are not delivered reliably to the
-    scheduler (see NOTE below). The agent is given a chance to reconnect until health checks timeout.
+  * If the framework is not checkpointing: all the framework's tasks and
+    executors are considered lost. The master immediately sends `TASK_LOST`
+    status updates for the tasks. These updates are not delivered reliably to
+    the scheduler (see NOTE below). The agent is given a chance to reconnect
+    until health checks timeout.
 
-* If the agent fails health checks it is scheduled for removal. The removals can be rate limited by the master
-  (see `---slave_removal_rate_limit` master flag) to avoid removing a slew of slaves at once (e.g., during a
-  network partition event).
+* If the agent fails health checks it is scheduled for removal. The removals can
+  be rate limited by the master (see `---slave_removal_rate_limit` master flag)
+  to avoid removing a slew of slaves at once (e.g., during a network partition).
 
-* Once it is time to remove an agent, the master marks it as "removed" in the master's durable state (this
-  will survive master failover). If an agent marked as "removed" attempts to reconnect to the
-  master (e.g., after network partition is restored), the connection attempt will be refused
-  and the agent asked to shutdown. A shutting down agent shuts down all running tasks and executors,
-  but any persistent volumes and dynamic reservations are still preserved.
+* Once it is time to remove an agent, the master marks it as "removed" in the
+  master's durable state (this will survive master failover). If an agent marked
+  as "removed" attempts to reconnect to the master (e.g., after a network
+  partition is healed), the connection attempt will be refused and the agent
+  will be asked to shutdown. The agent will then shutdown all running tasks and
+  executors, but any persistent volumes and dynamic reservations will be
+  preserved.
 
   * To allow the removed agent node to rejoin the cluster, a new `mesos-slave`
-    process can be started. This will ensure the agent receives a new agent ID and register with master
-    possibly with previously created persistent volumes and dynamic reservations. In effect, the agent will
-    be treated as a newly joined agent.
+    process can be started. This will ensure the agent will receive a new agent
+    ID. The agent can then register with the master, and can also retain any
+    previously created persistent volumes and dynamic reservations. In effect,
+    the agent will be treated as a newly joined agent.
 
-* For each agent that is marked "removed" the scheduler receives a `slaveLost` callback and `TASK_LOST` status
-  updates for each task that was running on the agent
+* For each agent that is marked "removed", the scheduler receives a `slaveLost`
+  callback. The scheduler will also receive `TASK_LOST` status updates for each
+  task that was running on a removed agent.
 
-	>NOTE: Neither the callback nor the updates are reliably delivered by the master. For example if
-	the master or scheduler fails over or there is a network connection issue during the delivery
-	of these messages, they will not be resent.
+    >NOTE: Neither the callback nor the updates are reliably delivered by the
+    master. For example if the master or scheduler fails over or there is a
+    network connectivity issue during the delivery of these messages, they will
+    not be resent.
 
-Typically, frameworks respond to this situation by scheduling new copies of the
-tasks that were running on the lost agent. This should be done with caution,
-however: it is possible that the lost agent is still alive, but is partitioned
-from the master and is unable to communicate with it. Depending on the nature of
-the network partition, tasks on the agent might still be able to communicate
-with external clients or other hosts in the cluster. Frameworks can take steps
-to prevent this (e.g., by having tasks connect to ZooKeeper and cease operation
-if their ZooKeeper session expires), but Mesos leaves such details to framework
-authors.
+Typically, frameworks respond to failed or partitioned agents by scheduling new
+copies of the tasks that were running on the lost agent. This should be done
+with caution, however: it is possible that the lost agent is still alive, but is
+partitioned from the master and is unable to communicate with it. Depending on
+the nature of the network partition, tasks on the agent might still be able to
+communicate with external clients or other hosts in the cluster. Frameworks can
+take steps to prevent this (e.g., by having tasks connect to ZooKeeper and cease
+operation if their ZooKeeper session expires), but Mesos leaves such details to
+framework authors.
 
 ## Dealing with Partitioned or Failed Masters
 
@@ -266,14 +292,6 @@ leading master should reconnect to the new leading master. The
 previous leading master has failed and connecting to the new leader; when the
 framework has successfully reregistered with the new leading master, the
 `reregistered` scheduler callback will be invoked.
-
-When a highly available framework scheduler initially connects to the master, it
-should set the `failover_timeout` field in its `FrameworkInfo`. This specifies
-how long the master will wait for a framework to reconnect after a failover
-before the framework's state is garbage-collected and any running tasks
-associated with the framework are killed. It is recommended that frameworks set
-a generous `failover_timeout` (e.g., 1 week) to avoid their tasks being killed
-unintentionally.
 
 ### Agent Reregistration
 During the period after a new master has been elected but before a given agent
