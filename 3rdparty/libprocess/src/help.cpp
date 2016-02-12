@@ -169,19 +169,19 @@ void json(JSON::ObjectWriter* writer, const Help& help)
 
 Future<http::Response> Help::help(const http::Request& request)
 {
-  // Split the path by '/'.
-  vector<string> tokens = strings::tokenize(request.url.path, "/");
+  // Path format of the url: /help/<id>[/<name>].
+  // Note that <name> may contain slashes.
+  vector<string> tokens = strings::tokenize(request.url.path, "/", 3);
 
   Option<string> id = None();
   Option<string> name = None();
 
-  if (tokens.size() > 3) {
-    return http::BadRequest("Malformed URL, expecting '/help/id/name/'\n");
-  } else if (tokens.size() == 3) {
+  if (tokens.size() > 1) {
     id = tokens[1];
+  }
+
+  if (tokens.size() > 2) {
     name = tokens[2];
-  } else if (tokens.size() > 1) {
-    id = tokens[1];
   }
 
   string document;

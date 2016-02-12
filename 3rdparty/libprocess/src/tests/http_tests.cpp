@@ -236,6 +236,19 @@ TEST(HTTPTest, EndpointsHelp)
   AWAIT_READY(response);
   EXPECT_EQ(http::Status::OK, response->code);
   EXPECT_EQ(http::Status::string(http::Status::OK), response->status);
+
+  // Hit '/help/<id>/a/b/c' and wait for a 200 OK response.
+  url = http::URL(
+      "http",
+      http.process->self().address.ip,
+      http.process->self().address.port,
+      "/help/" + pid.id + "/a/b/c");
+
+  response = http::get(url);
+
+  AWAIT_READY(response);
+  EXPECT_EQ(http::Status::OK, response->code);
+  EXPECT_EQ(http::Status::string(http::Status::OK), response->status);
 }
 
 
