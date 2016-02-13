@@ -279,8 +279,6 @@ struct Slave
     usedResources[frameworkId] -=
       executors[frameworkId][executorId].resources();
 
-    // XXX Remove.
-
     executors[frameworkId].erase(executorId);
     if (executors[frameworkId].empty()) {
       executors.erase(frameworkId);
