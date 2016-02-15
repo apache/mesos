@@ -389,6 +389,14 @@ mesos::internal::slave::Flags::Flags()
       "supported by the cgroups/cpu isolator.",
       true);
 
+  add(&Flags::systemd_enable_support,
+      "systemd_enable_support",
+      "Top level control of systemd support. When enabled, features such as\n"
+      "executor life-time extension are enabled unless there is an explicit\n"
+      "flag to disable these (see other flags). This should be enabled when\n"
+      "the agent is launched as a systemd unit.",
+      true);
+
   add(&Flags::systemd_runtime_directory,
       "systemd_runtime_directory",
       "The path to the systemd system run time directory\n",

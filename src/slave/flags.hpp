@@ -93,6 +93,7 @@ public:
   Duration perf_interval;
   Duration perf_duration;
   bool revocable_cpu_low_priority;
+  bool systemd_enable_support;
   std::string systemd_runtime_directory;
 #endif
   Option<Firewall> firewall_rules;

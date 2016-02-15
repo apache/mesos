@@ -236,10 +236,11 @@ int main(int argc, char** argv)
 
 #ifdef __linux__
   // Initialize systemd if it exists.
-  if (systemd::exists()) {
+  if (systemd::exists() && flags.systemd_enable_support) {
     LOG(INFO) << "Inializing systemd state";
 
     systemd::Flags systemdFlags;
+    systemdFlags.enabled = flags.systemd_enable_support;
     systemdFlags.runtime_directory = flags.systemd_runtime_directory;
     systemdFlags.cgroups_hierarchy = flags.cgroups_hierarchy;
 

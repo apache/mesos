@@ -59,6 +59,7 @@ class Flags : public virtual flags::FlagsBase
 public:
   Flags();
 
+  bool enabled;
   std::string runtime_directory;
   std::string cgroups_hierarchy;
 };
