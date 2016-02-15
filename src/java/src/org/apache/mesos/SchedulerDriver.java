@@ -141,6 +141,10 @@ public interface SchedulerDriver {
 
   /**
    * Launches the given set of tasks. See above for details.
+   * Note that this may add a default filter (see mesos.proto)
+   * for the remaining resources. Notably the MesosSchedulerDriver
+   * does so.
+   *
    *
    * @param offerIds    The collection of offer IDs.
    * @param tasks       The collection of tasks to be launched.
@@ -164,6 +168,9 @@ public interface SchedulerDriver {
 
   /**
    * @deprecated Use {@link #launchTasks(Collection, Collection)} instead.
+   * Note that this may add a default filter (see mesos.proto)
+   * for the remaining resources. Notably the MesosSchedulerDriver
+   * does so.
    *
    * @param offerId The offer ID.
    * @param tasks   The collection of tasks to be launched.
