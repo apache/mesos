@@ -39,6 +39,13 @@ int DELEGATE_MINIMUM_VERSION = 218;
 
 Flags::Flags()
 {
+  add(&Flags::enabled,
+      "enabled",
+      "Top level control of systemd support. When enabled, features such as\n"
+      "processes life-time extension are enabled unless there is an explicit\n"
+      "flag to disable these (see other flags).",
+      true);
+
   add(&Flags::runtime_directory,
       "runtime_directory",
       "The path to the systemd system run time directory\n",
@@ -107,6 +114,12 @@ Try<Nothing> initialize(const Flags& flags)
   }
 
   systemd_flags = new Flags(flags);
+
+  // Do not initialize any state if we do not have systemd support enabled.
+  if (!systemd_flags->enabled) {
+    initialized->done();
+    return Nothing();
+  }
 
   // If flags->runtime_directory doesn't exist, then we can't proceed.
   if (!os::exists(CHECK_NOTNULL(systemd_flags)->runtime_directory)) {
@@ -245,7 +258,7 @@ bool exists()
 
 bool enabled()
 {
-  return exists() && systemd_flags != NULL;
+  return systemd_flags != NULL && flags().enabled && exists();
 }
 
 

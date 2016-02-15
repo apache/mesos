@@ -866,6 +866,18 @@ file:///path/to/file (where file contains one of the above)</code></pre>
   </tr>
   <tr>
     <td>
+      --[no-]systemd_enable_support
+    </td>
+    <td>
+      Top level control of systemd support. When enabled, features such as
+      executor life-time extension are enabled unless there is an explicit
+      flag to disable these (see other flags). This should be enabled when
+      the agent is launched as a systemd unit.
+      (default: true)
+    </td>
+  </tr>
+  <tr>
+    <td>
       --systemd_runtime_directory=VALUE
     </td>
     <td>
