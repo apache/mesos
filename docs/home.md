@@ -42,6 +42,7 @@ layout: documentation
 * [Networking for Mesos-managed Containers](networking-for-mesos-managed-containers.md)
 * [Oversubscription](oversubscription.md) for how to configure Mesos to take advantage of unused resources to launch "best-effort" tasks.
 * [Persistent Volume](persistent-volume.md) for how to allow tasks to access persistent storage resources.
+* [Multiple Disks](multiple-disk.md) for how to to allow tasks to use multiple isolated disk resources.
 * [Quota](quota.md) for how to configure Mesos to provide guaranteed resource allocations for use by a role.
 * [Reservation](reservation.md) for how operators and frameworks can reserve resources on individual agents for use by a role.
 

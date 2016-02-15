@@ -25,6 +25,9 @@ cluster.
 Please refer to the [Reservation](reservation.md) documentation for details
 regarding reservation mechanisms available in Mesos.
 
+Persistent volumes can also be created on isolated and auxiliary disks by
+reserving [Multiple Disk resources](multiple-disk.md).
+
 Persistent volumes can be created by __operators__ and authorized
 __frameworks__. We require a `principal` from the operator or framework in order
 to authenticate/authorize the operations. Permissions are specified via the
