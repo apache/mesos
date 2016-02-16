@@ -136,6 +136,7 @@ Release Notes - Mesos - Version 0.27.0
   * [MESOS-4351] - Remove logic around checkpointing in the slave
   * [MESOS-4410] - Introduce protobuf for quota set request.
   * [MESOS-4505] - Hierarchical allocator performance is slow due to Quota
+  * [MESOS-4578] - docker run -c is deprecated
 
 ** Task
   * [MESOS-2079] - IO.Write test is flaky on OS X 10.10.
