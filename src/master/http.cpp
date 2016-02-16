@@ -218,7 +218,6 @@ void json(JSON::ObjectWriter* writer, const Full<Framework>& full)
   writer->field("role", framework.info.role());
   writer->field("registered_time", framework.registeredTime.secs());
   writer->field("unregistered_time", framework.unregisteredTime.secs());
-  writer->field("active", framework.active);
 
   // TODO(bmahler): Consider deprecating this in favor of the split
   // used and offered resources added in 'summarize'.
@@ -357,7 +356,6 @@ JSON::Object model(const Framework& framework)
   object.values["role"] = framework.info.role();
   object.values["registered_time"] = framework.registeredTime.secs();
   object.values["unregistered_time"] = framework.unregisteredTime.secs();
-  object.values["active"] = framework.active;
 
   // TODO(bmahler): Consider deprecating this in favor of the split
   // used and offered resources added in 'summarize'.
