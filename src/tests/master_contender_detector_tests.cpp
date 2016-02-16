@@ -217,7 +217,7 @@ TEST_F(ZooKeeperMasterContenderDetectorTest, MasterContender)
   Owned<zookeeper::Group> group(
       new Group(url.get(), MASTER_CONTENDER_ZK_SESSION_TIMEOUT));
 
-  ZooKeeperMasterContender* contender = new ZooKeeperMasterContender(group);
+  ZooKeeperMasterContender contender(group);
 
   PID<Master> pid;
   pid.address.ip = net::IP(10000000);
@@ -225,8 +225,8 @@ TEST_F(ZooKeeperMasterContenderDetectorTest, MasterContender)
 
   MasterInfo master = internal::protobuf::createMasterInfo(pid);
 
-  contender->initialize(master);
-  Future<Future<Nothing> > contended = contender->contend();
+  contender.initialize(master);
+  Future<Future<Nothing> > contended = contender.contend();
   AWAIT_READY(contended);
 
   ZooKeeperMasterDetector detector(url.get());
