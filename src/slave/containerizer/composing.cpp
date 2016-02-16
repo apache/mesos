@@ -81,6 +81,9 @@ public:
   Future<ResourceStatistics> usage(
       const ContainerID& containerId);
 
+  Future<ContainerStatus> status(
+      const ContainerID& containerId);
+
   Future<containerizer::Termination> wait(
       const ContainerID& containerId);
 
@@ -218,6 +221,13 @@ Future<ResourceStatistics> ComposingContainerizer::usage(
     const ContainerID& containerId)
 {
   return dispatch(process, &ComposingContainerizerProcess::usage, containerId);
+}
+
+
+Future<ContainerStatus> ComposingContainerizer::status(
+    const ContainerID& containerId)
+{
+  return dispatch(process, &ComposingContainerizerProcess::status, containerId);
 }
 
 
@@ -493,6 +503,17 @@ Future<ResourceStatistics> ComposingContainerizerProcess::usage(
   }
 
   return containers_[containerId]->containerizer->usage(containerId);
+}
+
+
+Future<ContainerStatus> ComposingContainerizerProcess::status(
+    const ContainerID& containerId)
+{
+  if (!containers_.contains(containerId)) {
+    return Failure("Container " + containerId.value() + " not found");
+  }
+
+  return containers_[containerId]->containerizer->status(containerId);
 }
 
 
