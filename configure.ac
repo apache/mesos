@@ -866,7 +866,7 @@ Network isolator is only supported on Linux!
 We need libnl-3 for building network isolator!
 
 Please install libnl3 (version 3.2.26 or higher):
-http://www.infradead.org/~tgr/libnl/
+https://github.com/thom311/libnl/releases
 -------------------------------------------------------------------
   ])])
 
@@ -877,7 +877,7 @@ http://www.infradead.org/~tgr/libnl/
 We need libnl-3 headers for building network isolator!
 
 Please install libnl3 (version 3.2.26 or higher):
-http://www.infradead.org/~tgr/libnl/
+https://github.com/thom311/libnl/releases
 -------------------------------------------------------------------
   ])])
 
@@ -888,7 +888,7 @@ http://www.infradead.org/~tgr/libnl/
 We need libnl-route-3 for building network isolator!
 
 Please install libnl3 (version 3.2.26 or higher):
-http://www.infradead.org/~tgr/libnl/
+https://github.com/thom311/libnl/releases
 -------------------------------------------------------------------
   ])])
 
@@ -899,7 +899,7 @@ http://www.infradead.org/~tgr/libnl/
 We need libnl-route-3 headers for building network isolator!
 
 Please install libnl3 (version 3.2.26 or higher):
-http://www.infradead.org/~tgr/libnl/
+https://github.com/thom311/libnl/releases
 -------------------------------------------------------------------
   ])])
 
@@ -910,7 +910,7 @@ http://www.infradead.org/~tgr/libnl/
 We need libnl-idiag-3 for building network isolator!
 
 Please install libnl3 (version 3.2.26 or higher):
-http://www.infradead.org/~tgr/libnl/
+https://github.com/thom311/libnl/releases
 -------------------------------------------------------------------
   ])])
 

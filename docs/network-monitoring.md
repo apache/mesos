@@ -32,13 +32,13 @@ versions 3.6 and above. Additionally, the kernel must include these patches
 
 The following packages are required on the slave:
 
-* [libnl3](http://www.infradead.org/~tgr/libnl/) >= 3.2.26
+* [libnl3](https://github.com/thom311/libnl/releases) >= 3.2.26
 * [iproute](http://www.linuxfoundation.org/collaborate/workgroups/networking/iproute2) >= 2.6.39 is advised for debugging purpose but not required.
 
 Additionally, if you are building from source, you need will also need the
 libnl3 development package to compile Mesos:
 
-* [libnl3-devel / libnl3-dev](http://www.infradead.org/~tgr/libnl/) >= 3.2.26
+* [libnl3-devel / libnl3-dev](https://github.com/thom311/libnl/releases) >= 3.2.26
 
 ### Build
 
