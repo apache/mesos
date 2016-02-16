@@ -414,13 +414,15 @@ message ExecutorInfo {
   repeated Resource resources = 5;
   optional string name = 9;
 
-  // Source is an identifier style string used by frameworks to track
-  // the source of an executor. This is useful when it's possible for
-  // different executor ids to be related semantically.
-  // NOTE: Source is exposed alongside the resource usage of the
-  // executor via JSON on the slave. This allows users to import
-  // usage information into a time series database for monitoring.
+  // 'source' is an identifier style string used by frameworks to
+  // track the source of an executor. This is useful when it's
+  // possible for different executor ids to be related semantically.
+  //
+  // NOTE: 'source' is exposed alongside the resource usage of the
+  // executor via JSON on the slave. This allows users to import usage
+  // information into a time series database for monitoring.
   optional string source = 10;
+
   optional bytes data = 4;
 
   // Service discovery information for the executor. It is not
@@ -594,7 +596,7 @@ message Resource {
     // associate arbitrary metadata with a reserved resource.  For
     // example, frameworks can use labels to identify the intended
     // purpose for a portion of the resources the framework has
-    // reserved at a given agent.
+    // reserved at a given slave.
     optional Labels labels = 2;
   }
 
@@ -1411,7 +1413,7 @@ message Volume {
  * Describes a network request from a framework as well as network resolution
  * provided by Mesos.
  *
- * A Framework may request the network isolator on the Agent to isolate the
+ * A framework may request the network isolator on the Agent to isolate the
  * container in a network namespace and create a virtual network interface.
  * The `NetworkInfo` message describes the properties of that virtual
  * interface, including the IP addresses and network isolation policy
@@ -1578,6 +1580,7 @@ message ContainerStatus {
  * Linux control group (cgroup) information.
  */
 message CgroupInfo {
+  // Configuration of a net_cls cgroup subsystem.
   message NetCls {
     // The 32-bit classid consists of two parts, a 16 bit major handle
     // and a 16-bit minor handle. The major and minor handle are

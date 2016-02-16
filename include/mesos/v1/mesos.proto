@@ -185,7 +185,7 @@ message MachineInfo {
     DRAINING = 2;
 
     // In this mode, a machine is not running any tasks and will not offer
-    // any of its resources.  agents on the machine will not be allowed to
+    // any of its resources.  Agents on the machine will not be allowed to
     // register with the master.
     DOWN = 3;
   }
@@ -1048,7 +1048,7 @@ message InverseOffer {
   // For reserved resources, the resources are expected to be returned to the
   // framework after the unavailability interval.  This is an expectation,
   // not a guarantee.  For example, if the unavailability duration is not set,
-  // the resources may be removed permenantly.
+  // the resources may be removed permanently.
   //
   // For other resources, there is no guarantee that requested resources will
   // be returned after the unavailability interval.  The allocator has no
@@ -1407,8 +1407,8 @@ message Volume {
 
 
 /**
- * Describes a network request by framework as well as network resolution
- * provided by the executor or Agent.
+ * Describes a network request from a framework as well as network resolution
+ * provided by Mesos.
  *
  * A framework may request the network isolator on the Agent to isolate the
  * container in a network namespace and create a virtual network interface.
@@ -1417,10 +1417,10 @@ message Volume {
  * (network group membership).
  *
  * The NetworkInfo message is not interpreted by the Master or Agent and is
- * intended to be used by Agent modules implementing network isolation. If the
- * modules are missing, the message is simply ignored. In future, the task
- * launch will fail if there is no module providing the network isolation
- * capabilities (MESOS-3390).
+ * intended to be used by Agent and Master modules implementing network
+ * isolation. If the modules are missing, the message is simply ignored. In
+ * future, the task launch will fail if there is no module providing the
+ * network isolation capabilities (MESOS-3390).
  *
  * An executor, Agent, or an Agent module may append NetworkInfos inside
  * TaskStatus::container_status to provide information such as the container IP
@@ -1432,7 +1432,7 @@ message NetworkInfo {
     IPv6 = 2;
   }
 
-  // Specifies either a request for an IP address, or the actual assigned
+  // Specifies a request for an IP address, or reports the assigned container
   // IP address.
   //
   // Users can request an automatically assigned IP (for example, via an

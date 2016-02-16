@@ -90,6 +90,7 @@ Value::Scalar& operator-=(Value::Scalar& left, const Value::Scalar& right)
   return left;
 }
 
+
 namespace internal {
 
 struct Range
