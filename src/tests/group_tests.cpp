@@ -37,6 +37,7 @@ using zookeeper::GroupProcess;
 using process::Clock;
 using process::Future;
 
+using std::set;
 using std::string;
 
 using testing::_;
@@ -56,13 +57,13 @@ TEST_F(GroupTest, Group)
 
   AWAIT_READY(membership);
 
-  Future<std::set<Group::Membership> > memberships = group.watch();
+  Future<set<Group::Membership>> memberships = group.watch();
 
   AWAIT_READY(memberships);
   EXPECT_EQ(1u, memberships.get().size());
   EXPECT_EQ(1u, memberships.get().count(membership.get()));
 
-  Future<Option<string> > data = group.data(membership.get());
+  Future<Option<string>> data = group.data(membership.get());
 
   AWAIT_READY(data);
   EXPECT_SOME_EQ("hello world", data.get());
@@ -95,7 +96,7 @@ TEST_F(GroupTest, GroupJoinWithDisconnect)
 
   AWAIT_READY(membership);
 
-  Future<std::set<Group::Membership> > memberships = group.watch();
+  Future<set<Group::Membership>> memberships = group.watch();
 
   AWAIT_READY(memberships);
   EXPECT_EQ(1u, memberships.get().size());
@@ -111,7 +112,7 @@ TEST_F(GroupTest, GroupDataWithDisconnect)
 
   AWAIT_READY(membership);
 
-  Future<std::set<Group::Membership> > memberships = group.watch();
+  Future<set<Group::Membership>> memberships = group.watch();
 
   AWAIT_READY(memberships);
   EXPECT_EQ(1u, memberships.get().size());
@@ -119,7 +120,7 @@ TEST_F(GroupTest, GroupDataWithDisconnect)
 
   server->shutdownNetwork();
 
-  Future<Option<string> > data = group.data(membership.get());
+  Future<Option<string>> data = group.data(membership.get());
 
   EXPECT_TRUE(data.isPending());
 
@@ -138,7 +139,7 @@ TEST_F(GroupTest, GroupDataWithRemovedMembership)
 
   AWAIT_READY(membership);
 
-  Future<std::set<Group::Membership> > memberships = group.watch();
+  Future<set<Group::Membership>> memberships = group.watch();
 
   AWAIT_READY(memberships);
   EXPECT_EQ(1u, memberships.get().size());
@@ -146,7 +147,7 @@ TEST_F(GroupTest, GroupDataWithRemovedMembership)
 
   AWAIT_EXPECT_TRUE(group.cancel(membership.get()));
 
-  Future<Option<string> > data = group.data(membership.get());
+  Future<Option<string>> data = group.data(membership.get());
 
   AWAIT_READY(data);
   EXPECT_NONE(data.get());
@@ -161,13 +162,13 @@ TEST_F(GroupTest, GroupCancelWithDisconnect)
 
   AWAIT_READY(membership);
 
-  Future<std::set<Group::Membership> > memberships = group.watch();
+  Future<set<Group::Membership>> memberships = group.watch();
 
   AWAIT_READY(memberships);
   EXPECT_EQ(1u, memberships.get().size());
   EXPECT_EQ(1u, memberships.get().count(membership.get()));
 
-  Future<Option<string> > data = group.data(membership.get());
+  Future<Option<string>> data = group.data(membership.get());
 
   AWAIT_READY(data);
   EXPECT_SOME_EQ("hello world", data.get());
@@ -200,13 +201,13 @@ TEST_F(GroupTest, GroupWatchWithSessionExpiration)
 
   AWAIT_READY(membership);
 
-  Future<std::set<Group::Membership> > memberships = group.watch();
+  Future<set<Group::Membership>> memberships = group.watch();
 
   AWAIT_READY(memberships);
   EXPECT_EQ(1u, memberships.get().size());
   EXPECT_EQ(1u, memberships.get().count(membership.get()));
 
-  Future<Option<int64_t> > session = group.session();
+  Future<Option<int64_t>> session = group.session();
 
   AWAIT_READY(session);
   ASSERT_SOME(session.get());
@@ -236,7 +237,7 @@ TEST_F(GroupTest, MultipleGroups)
 
   AWAIT_READY(membership2);
 
-  Future<std::set<Group::Membership> > memberships1 = group1.watch();
+  Future<set<Group::Membership>> memberships1 = group1.watch();
 
   AWAIT_READY(memberships1);
 
@@ -252,7 +253,7 @@ TEST_F(GroupTest, MultipleGroups)
   EXPECT_EQ(1u, memberships1.get().count(membership1.get()));
   EXPECT_EQ(1u, memberships1.get().count(membership2.get()));
 
-  Future<std::set<Group::Membership> > memberships2 = group2.watch();
+  Future<set<Group::Membership>> memberships2 = group2.watch();
 
   AWAIT_READY(memberships2);
 
@@ -276,7 +277,7 @@ TEST_F(GroupTest, MultipleGroups)
     }
   }
 
-  Future<Option<int64_t> > session1 = group1.session();
+  Future<Option<int64_t>> session1 = group1.session();
 
   AWAIT_READY(session1);
   ASSERT_SOME(session1.get());
@@ -355,7 +356,7 @@ TEST_F(GroupTest, RetryableErrors)
 
   // Wait for Group to connect to get hold of the session.
   AWAIT_READY(connected);
-  Future<Option<int64_t> > session = group.session();
+  Future<Option<int64_t>> session = group.session();
   AWAIT_READY(session);
   ASSERT_SOME(session.get());
 
@@ -410,13 +411,13 @@ TEST_F(GroupTest, LabelledGroup)
 
   AWAIT_READY(membership);
 
-  Future<std::set<Group::Membership> > memberships = group.watch();
+  Future<set<Group::Membership>> memberships = group.watch();
 
   AWAIT_READY(memberships);
   EXPECT_EQ(1u, memberships.get().size());
   EXPECT_EQ(1u, memberships.get().count(membership.get()));
 
-  Future<Option<string> > data = group.data(membership.get());
+  Future<Option<string>> data = group.data(membership.get());
 
   AWAIT_READY(data);
   EXPECT_SOME_EQ("hello world", data.get());
@@ -436,7 +437,7 @@ TEST_F(GroupTest, LabelledGroup)
 
 
 // This test checks that the `expired` event is invoked even if we
-// have not ever established a connection to ZooKeeper (MESOS-4546).
+// have never established a connection to ZooKeeper (MESOS-4546).
 TEST_F(GroupTest, ConnectTimer)
 {
   const Duration sessionTimeout = Seconds(10);
@@ -451,7 +452,7 @@ TEST_F(GroupTest, ConnectTimer)
   Group group(server->connectString(), sessionTimeout, "/test/");
 
   // Advance the clock to ensure that we forcibly expire the current
-  // ZooKeeper connection attempt and try to reconnect.
+  // ZooKeeper connection attempt.
   Clock::advance(sessionTimeout);
 
   AWAIT_READY(expired);

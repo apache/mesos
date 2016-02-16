@@ -81,14 +81,14 @@ TEST_F(ZooKeeperTest, SessionTimeoutNegotiation)
   watcher.awaitSessionEvent(ZOO_CONNECTED_STATE);
 
   // The requested timeout is less than server's min value so the
-  // negotiated result is the sever's min value.
+  // negotiated result is the server's min value.
   EXPECT_EQ(Seconds(8), zk1.getSessionTimeout());
 
   ZooKeeper zk2(server->connectString(), Seconds(22), &watcher);
   watcher.awaitSessionEvent(ZOO_CONNECTED_STATE);
 
   // The requested timeout is greater than server's max value so the
-  // negotiated result is the sever's max value.
+  // negotiated result is the server's max value.
   EXPECT_EQ(Seconds(20), zk2.getSessionTimeout());
 }
 
@@ -146,18 +146,16 @@ TEST_F(ZooKeeperTest, LeaderDetector)
   Group group(server->connectString(), NO_TIMEOUT, "/test/");
 
   // Initialize two members.
-  Future<Group::Membership> membership1 =
-    group.join("member 1");
+  Future<Group::Membership> membership1 = group.join("member 1");
   AWAIT_READY(membership1);
-  Future<Group::Membership> membership2 =
-    group.join("member 2");
+
+  Future<Group::Membership> membership2 = group.join("member 2");
   AWAIT_READY(membership2);
 
   LeaderDetector detector(&group);
 
   // Detect the leader.
-  Future<Option<Group::Membership> > leader =
-    detector.detect(None());
+  Future<Option<Group::Membership>> leader = detector.detect(None());
   AWAIT_READY(leader);
   ASSERT_SOME_EQ(membership1.get(), leader.get());
 
@@ -204,7 +202,7 @@ TEST_F(ZooKeeperTest, LeaderDetectorTimeoutHandling)
 
   AWAIT_READY(group.join("member 1"));
 
-  Future<Option<Group::Membership> > leader = detector.detect();
+  Future<Option<Group::Membership>> leader = detector.detect();
 
   AWAIT_READY(leader);
   EXPECT_SOME(leader.get());
@@ -241,7 +239,7 @@ TEST_F(ZooKeeperTest, LeaderDetectorCancellationHandling)
 
   AWAIT_READY(group.join("member 1"));
 
-  Future<Option<Group::Membership> > leader = detector.detect();
+  Future<Option<Group::Membership>> leader = detector.detect();
 
   AWAIT_READY(leader);
   EXPECT_SOME(leader.get());
@@ -290,7 +288,7 @@ TEST_F(ZooKeeperTest, LeaderContender)
   contender = Owned<LeaderContender>(
       new LeaderContender(&group, "candidate 1", master::MASTER_INFO_LABEL));
 
-  Future<Future<Nothing> > candidated = contender->contend();
+  Future<Future<Nothing>> candidated = contender->contend();
   AWAIT_READY(candidated);
 
   Future<Nothing> lostCandidacy = candidated.get();
@@ -298,7 +296,7 @@ TEST_F(ZooKeeperTest, LeaderContender)
 
   // Expire the Group session while we are watching for updates from
   // the contender and the candidacy will be lost.
-  Future<Option<int64_t> > session = group.session();
+  Future<Option<int64_t>> session = group.session();
   AWAIT_READY(session);
   ASSERT_SOME(session.get());
 

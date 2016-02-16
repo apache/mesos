@@ -246,7 +246,7 @@ Future<bool> GroupProcess::cancel(const Group::Membership& membership)
 }
 
 
-Future<Option<string> > GroupProcess::data(const Group::Membership& membership)
+Future<Option<string>> GroupProcess::data(const Group::Membership& membership)
 {
   if (error.isSome()) {
     return Failure(error.get());
@@ -260,7 +260,7 @@ Future<Option<string> > GroupProcess::data(const Group::Membership& membership)
   // client can assume a happens-before ordering of operations (i.e.,
   // the first request will happen before the second, etc).
 
-  Result<Option<string> > result = doData(membership);
+  Result<Option<string>> result = doData(membership);
 
   if (result.isNone()) { // Try again later.
     Data* data = new Data(membership);
@@ -274,7 +274,7 @@ Future<Option<string> > GroupProcess::data(const Group::Membership& membership)
 }
 
 
-Future<set<Group::Membership> > GroupProcess::watch(
+Future<set<Group::Membership>> GroupProcess::watch(
     const set<Group::Membership>& expected)
 {
   if (error.isSome()) {
@@ -328,7 +328,7 @@ Future<set<Group::Membership> > GroupProcess::watch(
 }
 
 
-Future<Option<int64_t> > GroupProcess::session()
+Future<Option<int64_t>> GroupProcess::session()
 {
   if (error.isSome()) {
     return Failure(error.get());
@@ -690,7 +690,7 @@ Result<bool> GroupProcess::doCancel(const Group::Membership& membership)
 }
 
 
-Result<Option<string> > GroupProcess::doData(
+Result<Option<string>> GroupProcess::doData(
     const Group::Membership& membership)
 {
   CHECK_EQ(state, READY);
@@ -738,7 +738,7 @@ Try<bool> GroupProcess::cache()
   }
 
   // Convert results to sequence numbers and (optionally) labels.
-  hashmap<int32_t, Option<string> > sequences;
+  hashmap<int32_t, Option<string>> sequences;
 
   foreach (const string& result, results) {
     vector<string> tokens = strings::tokenize(result, "_");
@@ -888,7 +888,7 @@ Try<bool> GroupProcess::sync()
   while (!pending.datas.empty()) {
     Data* data = pending.datas.front();
     // TODO(benh): Ignore if future has been discarded?
-    Result<Option<string> > result = doData(data->membership);
+    Result<Option<string>> result = doData(data->membership);
     if (result.isNone()) {
       return false; // Try again later.
     } else if (result.isError()) {
@@ -1036,20 +1036,20 @@ Future<bool> Group::cancel(const Group::Membership& membership)
 }
 
 
-Future<Option<string> > Group::data(const Group::Membership& membership)
+Future<Option<string>> Group::data(const Group::Membership& membership)
 {
   return dispatch(process, &GroupProcess::data, membership);
 }
 
 
-Future<set<Group::Membership> > Group::watch(
+Future<set<Group::Membership>> Group::watch(
     const set<Group::Membership>& expected)
 {
   return dispatch(process, &GroupProcess::watch, expected);
 }
 
 
-Future<Option<int64_t> > Group::session()
+Future<Option<int64_t>> Group::session()
 {
   return dispatch(process, &GroupProcess::session);
 }

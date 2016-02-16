@@ -41,7 +41,7 @@ class ZooKeeperProcess;
 /**
  * This interface specifies the public interface an event handler
  * class must implement. A ZooKeeper client will get various events
- * from the ZooKeepr server it connects to. An application using such
+ * from the ZooKeeper server it connects to. An application using such
  * a client handles these events by registering a callback object with
  * the client. The callback object is expected to be an instance of a
  * class that implements Watcher interface.
@@ -181,7 +181,7 @@ public:
    *   znodes as required; note that 'flags' and 'data' will only be
    *   applied to the creation of 'basename(path)'.
    * \return  one of the following codes are returned:
-   * ZOK operation completed succesfully
+   * ZOK operation completed successfully
    * ZNONODE the parent node does not exist.
    * ZNODEEXISTS the node already exists
    * ZNOAUTH the client does not have permission.
@@ -208,7 +208,7 @@ public:
    *    expected version. If -1 is used the version check will not take
    *    place.
    * \return one of the following values is returned.
-   * ZOK operation completed succesfully
+   * ZOK operation completed successfully
    * ZNONODE the node does not exist.
    * ZNOAUTH the client does not have permission.
    * ZBADVERSION expected version does not match actual version.
@@ -230,7 +230,7 @@ public:
    *    nodes to appear.
    * \param stat the return stat value of the node.
    * \return return code of the function call.
-   * ZOK operation completed succesfully
+   * ZOK operation completed successfully
    * ZNONODE the node does not exist.
    * ZNOAUTH the client does not have permission.
    * ZBADARGUMENTS - invalid input parameters
@@ -250,7 +250,7 @@ public:
    * \param stat if not NULL, will hold the value of stat for the path
    *    on return.
    * \return return value of the function call.
-   * ZOK operation completed succesfully
+   * ZOK operation completed successfully
    * ZNONODE the node does not exist.
    * ZNOAUTH the client does not have permission.
    * ZBADARGUMENTS - invalid input parameters
@@ -294,7 +294,7 @@ public:
    * the actual version of the node does not match the expected version. If -1 is
    * used the version check will not take place.
    * \return the return code for the function call.
-   * ZOK operation completed succesfully
+   * ZOK operation completed successfully
    * ZNONODE the node does not exist.
    * ZNOAUTH the client does not have permission.
    * ZBADVERSION expected version does not match actual version.
