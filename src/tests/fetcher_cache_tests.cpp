@@ -1248,7 +1248,7 @@ TEST_F(FetcherCacheHttpTest, DISABLED_HttpCachedRecovery)
 // observe how the number of cache files rises and then stays constant.
 TEST_F(FetcherCacheTest, SimpleEviction)
 {
-  const size_t countCacheEntries = 3;
+  const size_t countCacheEntries = 2;
 
   // Let only the first 'countCacheEntries' downloads fit in the cache.
   flags.fetcher_cache_size = COMMAND_SCRIPT.size() * countCacheEntries;
