@@ -140,7 +140,7 @@ Future<Nothing> tar(
   argv.emplace_back(input);
 
   return launch("tar", argv)
-    .then([] () {return Nothing();});
+    .then([]() { return Nothing(); });
 }
 
 
@@ -162,7 +162,7 @@ Future<Nothing> untar(
   }
 
   return launch("tar", argv)
-    .then([] () {return Nothing();});
+    .then([]() { return Nothing(); });
 }
 
 
