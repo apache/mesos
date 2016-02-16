@@ -384,6 +384,7 @@ public:
     Option<pid_t> pid;
     bool enable_socket_statistics_summary;
     bool enable_socket_statistics_details;
+    bool enable_snmp_statistics;
   };
 
   PortMappingStatistics() : Subcommand(NAME) {}

@@ -350,7 +350,8 @@ protected:
   Result<ResourceStatistics> statisticsHelper(
       pid_t pid,
       bool enable_summary,
-      bool enable_details)
+      bool enable_details,
+      bool enable_snmp)
   {
     // Retrieve the socket information from inside the container.
     PortMappingStatistics statistics;
@@ -358,6 +359,7 @@ protected:
     statistics.flags.eth0_name = eth0;
     statistics.flags.enable_socket_statistics_summary = enable_summary;
     statistics.flags.enable_socket_statistics_details = enable_details;
+    statistics.flags.enable_snmp_statistics = enable_snmp;
 
     vector<string> argv(2);
     argv[0] = "mesos-network-helper";
@@ -1624,6 +1626,14 @@ bool HasTCPSocketsRTT(const ResourceStatistics& statistics)
 }
 
 
+bool HasTCPRetransSegs(const ResourceStatistics& statistics)
+{
+  return statistics.has_net_snmp_statistics() &&
+         statistics.net_snmp_statistics().has_tcp_stats() &&
+         statistics.net_snmp_statistics().tcp_stats().has_retranssegs();
+}
+
+
 // Test that RTT can be returned properly from usage(). This test is
 // very similar to SmallEgressLimitTest in its setup.
 TEST_F(PortMappingIsolatorTest, ROOT_NC_PortMappingStatistics)
@@ -1637,6 +1647,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_NC_PortMappingStatistics)
   flags.egress_rate_limit_per_container = rate;
   flags.network_enable_socket_statistics_summary = true;
   flags.network_enable_socket_statistics_details = true;
+  flags.network_enable_snmp_statistics = true;
 
   Try<Isolator*> isolator = PortMappingIsolatorProcess::create(flags);
   CHECK_SOME(isolator);
@@ -1747,25 +1758,29 @@ TEST_F(PortMappingIsolatorTest, ROOT_NC_PortMappingStatistics)
   // While the connection is still active, try out different flag
   // combinations.
   Result<ResourceStatistics> statistics =
-      statisticsHelper(pid.get(), true, true);
+      statisticsHelper(pid.get(), true, true, true);
   ASSERT_SOME(statistics);
   EXPECT_TRUE(HasTCPSocketsCount(statistics.get()));
   EXPECT_TRUE(HasTCPSocketsRTT(statistics.get()));
+  EXPECT_TRUE(HasTCPRetransSegs(statistics.get()));
 
-  statistics = statisticsHelper(pid.get(), true, false);
+  statistics = statisticsHelper(pid.get(), true, false, false);
   ASSERT_SOME(statistics);
   EXPECT_TRUE(HasTCPSocketsCount(statistics.get()));
   EXPECT_FALSE(HasTCPSocketsRTT(statistics.get()));
+  EXPECT_FALSE(HasTCPRetransSegs(statistics.get()));
 
-  statistics = statisticsHelper(pid.get(), false, true);
+  statistics = statisticsHelper(pid.get(), false, true, true);
   ASSERT_SOME(statistics);
   EXPECT_FALSE(HasTCPSocketsCount(statistics.get()));
   EXPECT_TRUE(HasTCPSocketsRTT(statistics.get()));
+  EXPECT_TRUE(HasTCPRetransSegs(statistics.get()));
 
-  statistics = statisticsHelper(pid.get(), false, false);
+  statistics = statisticsHelper(pid.get(), false, false, false);
   ASSERT_SOME(statistics);
   EXPECT_FALSE(HasTCPSocketsCount(statistics.get()));
   EXPECT_FALSE(HasTCPSocketsRTT(statistics.get()));
+  EXPECT_FALSE(HasTCPRetransSegs(statistics.get()));
 
   // Wait for the command to finish.
   ASSERT_TRUE(waitForFileCreation(container1Ready));

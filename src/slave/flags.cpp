@@ -587,6 +587,13 @@ mesos::internal::slave::Flags::Flags()
       "isolator.",
       false);
 
+  add(&Flags::network_enable_snmp_statistics,
+      "network_enable_snmp_statistics",
+      "Whether to collect SNMP statistics details (e.g., TCPRetransSegs) for\n"
+      "each container. This flag is used for the 'network/port_mapping'\n"
+      "isolator.",
+      false);
+
 #endif // WITH_NETWORK_ISOLATOR
 
   add(&Flags::container_disk_watch_interval,

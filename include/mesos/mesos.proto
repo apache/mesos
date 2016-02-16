@@ -733,6 +733,99 @@ message TrafficControlStatistics {
 }
 
 
+message IpStatistics {
+  optional int64 Forwarding =  1;
+  optional int64 DefaultTTL =  2;
+  optional int64 InReceives =  3;
+  optional int64 InHdrErrors =  4;
+  optional int64 InAddrErrors =  5;
+  optional int64 ForwDatagrams =  6;
+  optional int64 InUnknownProtos = 7;
+  optional int64 InDiscards =  8;
+  optional int64 InDelivers  = 9;
+  optional int64 OutRequests = 10;
+  optional int64 OutDiscards = 11;
+  optional int64 OutNoRoutes = 12;
+  optional int64 ReasmTimeout = 13;
+  optional int64 ReasmReqds = 14;
+  optional int64 ReasmOKs = 15;
+  optional int64 ReasmFails = 16;
+  optional int64 FragOKs = 17;
+  optional int64 FragFails = 18;
+  optional int64 FragCreates = 19;
+}
+
+
+message IcmpStatistics {
+  optional int64 InMsgs = 1;
+  optional int64 InErrors =  2;
+  optional int64 InCsumErrors = 3;
+  optional int64 InDestUnreachs =  4;
+  optional int64 InTimeExcds = 5;
+  optional int64 InParmProbs =  6;
+  optional int64 InSrcQuenchs = 7;
+  optional int64 InRedirects = 8;
+  optional int64 InEchos = 9;
+  optional int64 InEchoReps = 10;
+  optional int64 InTimestamps = 11;
+  optional int64 InTimestampReps = 12;
+  optional int64 InAddrMasks = 13;
+  optional int64 InAddrMaskReps = 14;
+  optional int64 OutMsgs = 15;
+  optional int64 OutErrors = 16;
+  optional int64 OutDestUnreachs = 17;
+  optional int64 OutTimeExcds = 18;
+  optional int64 OutParmProbs = 19;
+  optional int64 OutSrcQuenchs = 20;
+  optional int64 OutRedirects = 21;
+  optional int64 OutEchos = 22;
+  optional int64 OutEchoReps = 23;
+  optional int64 OutTimestamps = 24;
+  optional int64 OutTimestampReps = 25;
+  optional int64 OutAddrMasks = 26;
+  optional int64 OutAddrMaskReps = 27;
+}
+
+
+message TcpStatistics {
+  optional int64 RtoAlgorithm = 1;
+  optional int64 RtoMin = 2;
+  optional int64 RtoMax = 3;
+  optional int64 MaxConn = 4;
+  optional int64 ActiveOpens = 5;
+  optional int64 PassiveOpens = 6;
+  optional int64 AttemptFails = 7;
+  optional int64 EstabResets = 8;
+  optional int64 CurrEstab = 9;
+  optional int64 InSegs = 10;
+  optional int64 OutSegs = 11;
+  optional int64 RetransSegs = 12;
+  optional int64 InErrs = 13;
+  optional int64 OutRsts = 14;
+  optional int64 InCsumErrors = 15;
+}
+
+
+message UdpStatistics {
+  optional int64 InDatagrams = 1;
+  optional int64 NoPorts = 2;
+  optional int64 InErrors = 3;
+  optional int64 OutDatagrams = 4;
+  optional int64 RcvbufErrors = 5;
+  optional int64 SndbufErrors = 6;
+  optional int64 InCsumErrors = 7;
+  optional int64 IgnoredMulti = 8;
+}
+
+
+message SNMPStatistics {
+  optional IpStatistics ip_stats = 1;
+  optional IcmpStatistics icmp_stats = 2;
+  optional TcpStatistics tcp_stats = 3;
+  optional UdpStatistics udp_stats = 4;
+}
+
+
 /**
  * A snapshot of resource usage statistics.
  */
@@ -834,6 +927,9 @@ message ResourceStatistics {
   // or dropped due to congestion or policy inside and outside the
   // container.
   repeated TrafficControlStatistics net_traffic_control_statistics = 35;
+
+  // Network SNMP statistics for each container.
+  optional SNMPStatistics net_snmp_statistics = 42;
 }
 
 

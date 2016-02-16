@@ -676,6 +676,12 @@ PortMappingStatistics::Flags::Flags()
       "Whether to collect socket statistics details (e.g., TCP RTT)\n"
       "for this container.",
       false);
+
+  add(&enable_snmp_statistics,
+      "enable_snmp_statistics",
+      "Whether to collect SNMP statistics details (e.g., TCPRetransSegs)\n"
+      "for this container.",
+      false);
 }
 
 
@@ -717,6 +723,257 @@ static void addTrafficControlStatistics(
   }
   if (statistics.contains(REQUEUES)) {
     tc->set_requeues(statistics.at(REQUEUES));
+  }
+}
+
+
+static void addIPStatistics(
+    const hashmap<string, int64_t>& statistics,
+    ResourceStatistics* result)
+{
+  SNMPStatistics *snmp = result->mutable_net_snmp_statistics();
+  IpStatistics *ip = snmp->mutable_ip_stats();
+
+  // TODO(cwang): Use protobuf reflection here.
+  if (statistics.contains("Forwarding")) {
+    ip->set_forwarding(statistics.at("Forwarding"));
+  }
+  if (statistics.contains("DefaultTTL")) {
+    ip->set_defaultttl(statistics.at("DefaultTTL"));
+  }
+  if (statistics.contains("InReceives")) {
+    ip->set_inreceives(statistics.at("InReceives"));
+  }
+  if (statistics.contains("InHdrErrors")) {
+    ip->set_inhdrerrors(statistics.at("InHdrErrors"));
+  }
+  if (statistics.contains("InAddrErrors")) {
+    ip->set_inaddrerrors(statistics.at("InAddrErrors"));
+  }
+  if (statistics.contains("ForwDatagrams")) {
+    ip->set_forwdatagrams(statistics.at("ForwDatagrams"));
+  }
+  if (statistics.contains("InUnknownProtos")) {
+    ip->set_inunknownprotos(statistics.at("InUnknownProtos"));
+  }
+  if (statistics.contains("InDiscards")) {
+    ip->set_indiscards(statistics.at("InDiscards"));
+  }
+  if (statistics.contains("InDelivers")) {
+    ip->set_indelivers(statistics.at("InDelivers"));
+  }
+  if (statistics.contains("OutRequests")) {
+    ip->set_outrequests(statistics.at("OutRequests"));
+  }
+  if (statistics.contains("OutDiscards")) {
+    ip->set_outdiscards(statistics.at("OutDiscards"));
+  }
+  if (statistics.contains("OutNoRoutes")) {
+    ip->set_outnoroutes(statistics.at("OutNoRoutes"));
+  }
+  if (statistics.contains("ReasmTimeout")) {
+    ip->set_reasmtimeout(statistics.at("ReasmTimeout"));
+  }
+  if (statistics.contains("ReasmReqds")) {
+    ip->set_reasmreqds(statistics.at("ReasmReqds"));
+  }
+  if (statistics.contains("ReasmOKs")) {
+    ip->set_reasmoks(statistics.at("ReasmOKs"));
+  }
+  if (statistics.contains("ReasmFails")) {
+    ip->set_reasmfails(statistics.at("ReasmFails"));
+  }
+  if (statistics.contains("FragOKs")) {
+    ip->set_fragoks(statistics.at("FragOKs"));
+  }
+  if (statistics.contains("FragFails")) {
+    ip->set_fragfails(statistics.at("FragFails"));
+  }
+  if (statistics.contains("FragCreates")) {
+    ip->set_fragcreates(statistics.at("FragCreates"));
+  }
+}
+
+
+static void addICMPStatistics(
+    const hashmap<string, int64_t>& statistics,
+    ResourceStatistics* result)
+{
+  SNMPStatistics *snmp = result->mutable_net_snmp_statistics();
+  IcmpStatistics *icmp = snmp->mutable_icmp_stats();
+
+  // TODO(cwang): Use protobuf reflection here.
+  if (statistics.contains("InMsgs")) {
+    icmp->set_inmsgs(statistics.at("InMsgs"));
+  }
+  if (statistics.contains("InErrors")) {
+    icmp->set_inerrors(statistics.at("InErrors"));
+  }
+  if (statistics.contains("InCsumErrors")) {
+    icmp->set_incsumerrors(statistics.at("InCsumErrors"));
+  }
+  if (statistics.contains("InDestUnreachs")) {
+    icmp->set_indestunreachs(statistics.at("InDestUnreachs"));
+  }
+  if (statistics.contains("InTimeExcds")) {
+    icmp->set_intimeexcds(statistics.at("InTimeExcds"));
+  }
+  if (statistics.contains("InParmProbs")) {
+    icmp->set_inparmprobs(statistics.at("InParmProbs"));
+  }
+  if (statistics.contains("InSrcQuenchs")) {
+    icmp->set_insrcquenchs(statistics.at("InSrcQuenchs"));
+  }
+  if (statistics.contains("InRedirects")) {
+    icmp->set_inredirects(statistics.at("InRedirects"));
+  }
+  if (statistics.contains("InEchos")) {
+    icmp->set_inechos(statistics.at("InEchos"));
+  }
+  if (statistics.contains("InEchoReps")) {
+    icmp->set_inechoreps(statistics.at("InEchoReps"));
+  }
+  if (statistics.contains("InTimestamps")) {
+    icmp->set_intimestamps(statistics.at("InTimestamps"));
+  }
+  if (statistics.contains("InTimestampReps")) {
+    icmp->set_intimestampreps(statistics.at("InTimestampReps"));
+  }
+  if (statistics.contains("InAddrMasks")) {
+    icmp->set_inaddrmasks(statistics.at("InAddrMasks"));
+  }
+  if (statistics.contains("InAddrMaskReps")) {
+    icmp->set_inaddrmaskreps(statistics.at("InAddrMaskReps"));
+  }
+  if (statistics.contains("OutMsgs")) {
+    icmp->set_outmsgs(statistics.at("OutMsgs"));
+  }
+  if (statistics.contains("OutErrors")) {
+    icmp->set_outerrors(statistics.at("OutErrors"));
+  }
+  if (statistics.contains("OutDestUnreachs")) {
+    icmp->set_outdestunreachs(statistics.at("OutDestUnreachs"));
+  }
+  if (statistics.contains("OutTimeExcds")) {
+    icmp->set_outtimeexcds(statistics.at("OutTimeExcds"));
+  }
+  if (statistics.contains("OutParmProbs")) {
+    icmp->set_outparmprobs(statistics.at("OutParmProbs"));
+  }
+  if (statistics.contains("OutSrcQuenchs")) {
+    icmp->set_outsrcquenchs(statistics.at("OutSrcQuenchs"));
+  }
+  if (statistics.contains("OutRedirects")) {
+    icmp->set_outredirects(statistics.at("OutRedirects"));
+  }
+  if (statistics.contains("OutEchos")) {
+    icmp->set_outechos(statistics.at("OutEchos"));
+  }
+  if (statistics.contains("OutEchoReps")) {
+    icmp->set_outechoreps(statistics.at("OutEchoReps"));
+  }
+  if (statistics.contains("OutTimestamps")) {
+    icmp->set_outtimestamps(statistics.at("OutTimestamps"));
+  }
+  if (statistics.contains("OutTimestampReps")) {
+    icmp->set_outtimestampreps(statistics.at("OutTimestampReps"));
+  }
+  if (statistics.contains("OutAddrMasks")) {
+    icmp->set_outaddrmasks(statistics.at("OutAddrMasks"));
+  }
+  if (statistics.contains("OutAddrMaskReps")) {
+    icmp->set_outaddrmaskreps(statistics.at("OutAddrMaskReps"));
+  }
+}
+
+
+static void addTCPStatistics(
+    const hashmap<string, int64_t>& statistics,
+    ResourceStatistics* result)
+{
+  SNMPStatistics *snmp = result->mutable_net_snmp_statistics();
+  TcpStatistics *tcp = snmp->mutable_tcp_stats();
+
+  // TODO(cwang): Use protobuf reflection here.
+  if (statistics.contains("RtoAlgorithm")) {
+    tcp->set_rtoalgorithm(statistics.at("RtoAlgorithm"));
+  }
+  if (statistics.contains("RtoMin")) {
+    tcp->set_rtomin(statistics.at("RtoMin"));
+  }
+  if (statistics.contains("RtoMax")) {
+    tcp->set_rtomax(statistics.at("RtoMax"));
+  }
+  if (statistics.contains("MaxConn")) {
+    tcp->set_maxconn(statistics.at("MaxConn"));
+  }
+  if (statistics.contains("ActiveOpens")) {
+    tcp->set_activeopens(statistics.at("ActiveOpens"));
+  }
+  if (statistics.contains("PassiveOpens")) {
+    tcp->set_passiveopens(statistics.at("PassiveOpens"));
+  }
+  if (statistics.contains("AttemptFails")) {
+    tcp->set_attemptfails(statistics.at("AttemptFails"));
+  }
+  if (statistics.contains("EstabResets")) {
+    tcp->set_estabresets(statistics.at("EstabResets"));
+  }
+  if (statistics.contains("CurrEstab")) {
+    tcp->set_currestab(statistics.at("CurrEstab"));
+  }
+  if (statistics.contains("InSegs")) {
+    tcp->set_insegs(statistics.at("InSegs"));
+  }
+  if (statistics.contains("OutSegs")) {
+    tcp->set_outsegs(statistics.at("OutSegs"));
+  }
+  if (statistics.contains("RetransSegs")) {
+    tcp->set_retranssegs(statistics.at("RetransSegs"));
+  }
+  if (statistics.contains("InErrs")) {
+    tcp->set_inerrs(statistics.at("InErrs"));
+  }
+  if (statistics.contains("OutRsts")) {
+    tcp->set_outrsts(statistics.at("OutRsts"));
+  }
+  if (statistics.contains("InCsumErrors")) {
+    tcp->set_incsumerrors(statistics.at("InCsumErrors"));
+  }
+}
+
+
+static void addUDPStatistics(
+    const hashmap<string, int64_t>& statistics,
+    ResourceStatistics* result)
+{
+  SNMPStatistics *snmp = result->mutable_net_snmp_statistics();
+  UdpStatistics *udp = snmp->mutable_udp_stats();
+
+  // TODO(cwang): Use protobuf reflection here.
+  if (statistics.contains("InDatagrams")) {
+    udp->set_indatagrams(statistics.at("InDatagrams"));
+  }
+  if (statistics.contains("NoPorts")) {
+    udp->set_noports(statistics.at("NoPorts"));
+  }
+  if (statistics.contains("InErrors")) {
+    udp->set_inerrors(statistics.at("InErrors"));
+  }
+  if (statistics.contains("OutDatagrams")) {
+    udp->set_outdatagrams(statistics.at("OutDatagrams"));
+  }
+  if (statistics.contains("RcvbufErrors")) {
+    udp->set_rcvbuferrors(statistics.at("RcvbufErrors"));
+  }
+  if (statistics.contains("SndbufErrors")) {
+    udp->set_sndbuferrors(statistics.at("SndbufErrors"));
+  }
+  if (statistics.contains("InCsumErrors")) {
+    udp->set_incsumerrors(statistics.at("InCsumErrors"));
+  }
+  if (statistics.contains("IgnoredMulti")) {
+    udp->set_ignoredmulti(statistics.at("IgnoredMulti"));
   }
 }
 
@@ -869,6 +1126,52 @@ int PortMappingStatistics::execute()
       result.set_net_tcp_rtt_microsecs_p95(RTTs[p95]);
       result.set_net_tcp_rtt_microsecs_p99(RTTs[p99]);
     }
+  }
+
+  if (flags.enable_snmp_statistics) {
+    Try<string> value = os::read("/proc/net/snmp");
+    if (value.isError()) {
+      cerr << "Failed to read /proc/net/snmp: " << value.error() << endl;
+      return 1;
+    }
+
+    hashmap<string, hashmap<string, int64_t>> SNMPStats;
+    vector<string> keys;
+    bool isKeyLine = true;
+    foreach (const string& line, strings::tokenize(value.get(), "\n")) {
+      vector<string> fields = strings::tokenize(line, ":");
+      if (fields.size() != 2) {
+        cerr << "Failed to tokenize line '" << line << "' "
+             << " in /proc/net/snmp" << endl;
+        return 1;
+      }
+      vector<string> tokens = strings::tokenize(fields[1], " ");
+      if (isKeyLine) {
+        for (size_t i = 0; i < tokens.size(); i++) {
+          keys.push_back(tokens[i]);
+        }
+      } else {
+        hashmap<string, int64_t> stats;
+        for (size_t i = 0; i < tokens.size(); i++) {
+          Try<int64_t> val = numify<int64_t>(tokens[i]);
+
+          if (val.isError()) {
+            cerr << "Failed to parse the statistics in " <<  fields[0]
+                 << val.error() << endl;
+            return 1;
+          }
+          stats[keys[i]] = val.get();
+        }
+        SNMPStats[fields[0]] = stats;
+        keys.clear();
+      }
+      isKeyLine = !isKeyLine;
+    }
+
+    addIPStatistics(SNMPStats["Ip"], &result);
+    addICMPStatistics(SNMPStats["Icmp"], &result);
+    addTCPStatistics(SNMPStats["Tcp"], &result);
+    addUDPStatistics(SNMPStats["Udp"], &result);
   }
 
   // Collect traffic statistics for the container from the container
@@ -2842,6 +3145,8 @@ Future<ResourceStatistics> PortMappingIsolatorProcess::usage(
     flags.network_enable_socket_statistics_summary;
   statistics.flags.enable_socket_statistics_details =
     flags.network_enable_socket_statistics_details;
+  statistics.flags.enable_snmp_statistics =
+    flags.network_enable_snmp_statistics;
 
   vector<string> argv(2);
   argv[0] = "mesos-network-helper";

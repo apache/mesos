@@ -120,6 +120,7 @@ public:
   std::string egress_flow_classifier_parent;
   bool network_enable_socket_statistics_summary;
   bool network_enable_socket_statistics_details;
+  bool network_enable_snmp_statistics;
 #endif
   Duration container_disk_watch_interval;
   bool enforce_container_disk_quota;

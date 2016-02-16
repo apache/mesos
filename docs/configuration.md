@@ -1634,6 +1634,16 @@ each container. This flag is used for the <code>network/port_mapping</code>
 isolator. (default: false)
   </td>
 </tr>
+<tr>
+  <td>
+    --[no-]network_enable_snmp_statistics
+  </td>
+  <td>
+Whether to collect SNMP statistics details (e.g., TCPRetransSegs) for
+each container. This flag is used for the 'network/port_mapping'
+isolator. (default: false)
+  </td>
+</tr>
 </table>
 
 
