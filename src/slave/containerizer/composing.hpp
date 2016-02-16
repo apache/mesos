@@ -80,6 +80,9 @@ public:
   virtual process::Future<ResourceStatistics> usage(
       const ContainerID& containerId);
 
+  virtual process::Future<ContainerStatus> status(
+      const ContainerID& containerId);
+
   virtual process::Future<containerizer::Termination> wait(
       const ContainerID& containerId);
 
