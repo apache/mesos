@@ -62,6 +62,8 @@
 #define DROP_DISPATCHES(pid, method)            \
   process::DropDispatches(pid, method)
 
+#define EXPECT_NO_FUTURE_DISPATCHES(pid, method)        \
+  process::ExpectNoFutureDispatches(pid, method)
 
 ACTION_TEMPLATE(PromiseArg,
                 HAS_1_TEMPLATE_PARAMS(int, k),
@@ -624,6 +626,18 @@ void DropDispatches(PID pid, Method method)
     EXPECT_CALL(filter->mock, filter(testing::A<const DispatchEvent&>()))
       .With(DispatchMatcher(pid, method))
       .WillRepeatedly(testing::Return(true));
+  }
+}
+
+
+template <typename PID, typename Method>
+void ExpectNoFutureDispatches(PID pid, Method method)
+{
+  TestsFilter* filter = FilterTestEventListener::instance()->install();
+  synchronized (filter->mutex) {
+    EXPECT_CALL(filter->mock, filter(testing::A<const DispatchEvent&>()))
+      .With(DispatchMatcher(pid, method))
+      .Times(0);
   }
 }
 
