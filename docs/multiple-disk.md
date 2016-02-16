@@ -28,18 +28,16 @@ A `Root` disk is the basic disk resource in Mesos. It usually maps to the
 storage on the main operating system drive that the operator has presented to
 the agent. Data is mapped into the `work_dir` of the agent.
 
-```
-{
-  "resources" : [
-    {
-      "name" : "disk",
-      "type" : "SCALAR",
-      "scalar" : { "value" : 2048 },
-      "role" : <framework_role>
-    }
-  ]
-}
-```
+        {
+          "resources" : [
+            {
+              "name" : "disk",
+              "type" : "SCALAR",
+              "scalar" : { "value" : 2048 },
+              "role" : <framework_role>
+            }
+          ]
+        }
 
 #### `Path` disks
 
@@ -51,28 +49,26 @@ Operators can present extra disks on their agents as `Path` disks simply by
 creating a directory and making that the `root` of the `Path` in `DiskInfo`'s
 `source`.
 
-`Path` disks are also useful for mocking up a multiple-disk environment by
+`Path` disks are also useful for mocking up a multiple disk environment by
 creating some directories on the operating system drive. This should only be
 done in a testing or staging environment.
 
-```
-{
-  "resources" : [
-    {
-      "name" : "disk",
-      "type" : "SCALAR",
-      "scalar" : { "value" : 2048 },
-      "role" : <framework_role>,
-      "disk" : {
-        "source" : {
-          "type" : "PATH",
-          "path" : { "root" : "/mnt/data" }
+        {
+          "resources" : [
+            {
+              "name" : "disk",
+              "type" : "SCALAR",
+              "scalar" : { "value" : 2048 },
+              "role" : <framework_role>,
+              "disk" : {
+                "source" : {
+                  "type" : "PATH",
+                  "path" : { "root" : "/mnt/data" }
+                }
+              }
+            }
+          ]
         }
-      }
-    }
-  ]
-}
-```
 
 #### `Mount` disks
 
@@ -92,26 +88,24 @@ Aside from the performance advantages of `Mount` disks, applications running on
 them should be able to rely on disk errors when they attempt to exceed the
 capacity of the volume. This holds true as long as the file system in use
 correctly propagates these errors. Due to this expectation, the `posix/disk`
-quota enforcement is disabled for `Mount` disks.
+isolation is disabled for `Mount` disks.
 
-```
-{
-  "resources" : [
-    {
-      "name" : "disk",
-      "type" : "SCALAR",
-      "scalar" : { "value" : 2048 },
-      "role" : <framework_role>,
-      "disk" : {
-        "source" : {
-          "type" : "MOUNT",
-          "mount" : { "root" : "/mnt/data" }
+        {
+          "resources" : [
+            {
+              "name" : "disk",
+              "type" : "SCALAR",
+              "scalar" : { "value" : 2048 },
+              "role" : <framework_role>,
+              "disk" : {
+                "source" : {
+                  "type" : "MOUNT",
+                  "mount" : { "root" : "/mnt/data" }
+                }
+              }
+            }
+          ]
         }
-      }
-    }
-  ]
-}
-```
 
 #### `Block` disks
 
@@ -126,7 +120,7 @@ destroyed. It may do so in the future; however, the expectation is currently
 upon the framework, executor, and application to delete their data before
 destroying their persistent volumes. This is strongly encouraged for both
 security and ensuring that future users of the underlying disk resource are not
-penalized for prior consumption of the disk capacity.
+penalized due to prior consumption of the disk capacity.
 
 ### Implementation
 
@@ -134,8 +128,10 @@ A `Path` disk will have sub-directories created within the `root` which will be
 used to differentiate the different volumes that are created on it.
 
 A `Mount` disk will __not__ have sub-directories created, allowing applications
-to use the full file system mounted on the device. This provides operators a
-construct through which to enable data ingestion.
+to use the full file system mounted on the device. This construct allows Mesos
+tasks to access volumes that contain pre-existing directory structures. This can
+be useful to simplify ingesting data such as a pre-existing Postgres database or
+HDFS data directory.
 
 Operators should be aware of these distinctions when inspecting or cleaning up
 remnant data.
