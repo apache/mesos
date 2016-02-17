@@ -1345,9 +1345,18 @@ Future<ContainerStatus> MesosContainerizerProcess::status(
     futures.push_back(isolator->status(containerId));
   }
 
-  // Using `await()` here so we can return partial status.
-  return await(futures).then(
-      lambda::bind(_status, containerId, lambda::_1));
+  // We are using `await` here since we are interested in partial
+  // results from calls to `isolator->status`. We also need to
+  // serialize the invocation to `await` in order to maintain the
+  // order of requests for `ContainerStatus` by the agent.  See
+  // MESOS-4671 for more details.
+  VLOG(2) << "Serializing status request for container: " << containerId;
+
+  return containers_[containerId]->sequence.add<ContainerStatus>(
+      [=]() -> Future<ContainerStatus> {
+        return await(futures)
+          .then(lambda::bind(_status, containerId, lambda::_1));
+      });
 }
 
 
