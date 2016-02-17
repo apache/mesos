@@ -320,15 +320,25 @@ TEST_F(ContainerLoggerTest, DefaultToSandbox)
   // We'll start a task that outputs to stdout.
   TaskInfo task = createTask(offers.get()[0], "echo 'Hello World!'");
 
-  Future<TaskStatus> status;
+  Future<TaskStatus> statusRunning;
+  Future<TaskStatus> statusFinished;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
-    .WillOnce(FutureArg<1>(&status))
+    .WillOnce(FutureArg<1>(&statusRunning))
+    .WillOnce(FutureArg<1>(&statusFinished))
     .WillRepeatedly(Return());       // Ignore subsequent updates.
 
   driver.launchTasks(offers.get()[0].id(), {task});
 
-  AWAIT_READY(status);
-  EXPECT_EQ(TASK_RUNNING, status.get().state());
+  AWAIT_READY(statusRunning);
+  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
+
+  AWAIT_READY(statusFinished);
+  EXPECT_EQ(TASK_FINISHED, statusFinished.get().state());
+
+  driver.stop();
+  driver.join();
+
+  Shutdown();
 
   // Check that the sandbox was written to.
   string sandboxDirectory = path::join(
@@ -336,7 +346,7 @@ TEST_F(ContainerLoggerTest, DefaultToSandbox)
           flags.work_dir,
           slaveId,
           frameworkId.get(),
-          status->executor_id()),
+          statusRunning->executor_id()),
       "runs",
       "latest");
 
@@ -348,11 +358,6 @@ TEST_F(ContainerLoggerTest, DefaultToSandbox)
   Result<string> stdout = os::read(stdoutPath);
   ASSERT_SOME(stdout);
   EXPECT_TRUE(strings::contains(stdout.get(), "Hello World!"));
-
-  driver.stop();
-  driver.join();
-
-  Shutdown();
 }
 
 
