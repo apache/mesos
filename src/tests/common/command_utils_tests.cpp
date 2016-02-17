@@ -241,6 +241,51 @@ TEST_F(ShasumTest, SHA512SimpleFile)
       "309ecc489c12d6eb4cc40f50c902f2b4d0ed77ee511a7c7a9bcd3ca86d4cd86f989dd35bc5ff499670da34255b45b0cfd830e81f605dcf7dc5542e93ae9cd76f"); // NOLINT(whitespace/line_length)
 }
 
+
+class CompressionTest : public TemporaryDirectoryTest {};
+
+
+// Tests command::decompress API for a tar + gzip file.
+TEST_F(CompressionTest, GZIPDecompressTarFile)
+{
+  // Create a test file.
+  const Path testFile("testfile");
+
+  Try<Nothing> write = os::write(testFile, "test");
+  ASSERT_SOME(write);
+
+  // Archive the test file.
+  const Path outputTarFile("test.tar");
+
+  AWAIT_ASSERT_READY(command::tar(
+      testFile,
+      outputTarFile,
+      None(),
+      command::Compression::GZIP));
+
+  ASSERT_TRUE(os::exists(outputTarFile));
+
+  // Remove the test file.
+  ASSERT_SOME(os::rm(testFile));
+  ASSERT_FALSE(os::exists(testFile));
+
+  // Append ".gz" as gzip expects it.
+  const Path gzipFile(outputTarFile.value + ".gz");
+  ASSERT_SOME(os::rename(outputTarFile, gzipFile));
+
+  AWAIT_ASSERT_READY(command::decompress(gzipFile));
+
+  // Tar file should exist now.
+  ASSERT_TRUE(os::exists(outputTarFile));
+
+  // Untar the tarball and verify that the original file is created.
+  AWAIT_ASSERT_READY(command::untar(outputTarFile));
+  ASSERT_TRUE(os::exists(testFile));
+
+  // Verify that the content is same as original file.
+  EXPECT_SOME_EQ("test", os::read(testFile));
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {

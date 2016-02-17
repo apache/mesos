@@ -197,6 +197,31 @@ Future<string> sha512(const Path& input)
     });
 }
 
+
+Future<Nothing> gzip(const Path& input)
+{
+  vector<string> argv = {
+    "gzip",
+    input
+  };
+
+  return launch("gzip", argv)
+    .then([]() { return Nothing(); });
+}
+
+
+Future<Nothing> decompress(const Path& input)
+{
+  vector<string> argv = {
+    "gzip",
+    "-d",  // Decompress.
+    input
+  };
+
+  return launch("gzip", argv)
+    .then([]() { return Nothing(); });
+}
+
 } // namespace command {
 } // namespace internal {
 } // namespace mesos {

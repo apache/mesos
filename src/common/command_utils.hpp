@@ -69,6 +69,24 @@ process::Future<Nothing> untar(
  */
 process::Future<std::string> sha512(const Path& input);
 
+
+/**
+ * Compresses the given input file in GZIP format.
+ *
+ * @param input path of the file to be compressed.
+ */
+process::Future<Nothing> gzip(const Path& input);
+
+// TODO(jojy): Add support for other compression algorithms.
+
+/**
+ * Decompresses given input file based on its compression format.
+ * TODO(jojy): Add support for other compression algorithms.
+ *
+ * @param input path of the compressed file.
+ */
+process::Future<Nothing> decompress(const Path& input);
+
 } // namespace command {
 } // namespace internal {
 } // namespace mesos {
