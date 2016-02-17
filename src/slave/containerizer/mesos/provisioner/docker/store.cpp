@@ -169,9 +169,10 @@ Future<ImageInfo> StoreProcess::get(const mesos::Image& image)
 
   Try<spec::ImageReference> reference =
     spec::parseImageReference(image.docker().name());
+
   if (reference.isError()) {
     return Failure("Failed to parse docker image '" + image.docker().name() +
-                   "' as 'reference': " + reference.error());
+                   "': " + reference.error());
   }
 
   return metadataManager->get(reference.get())
