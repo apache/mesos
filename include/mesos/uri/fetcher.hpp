@@ -25,8 +25,14 @@
 
 #include <stout/hashmap.hpp>
 #include <stout/nothing.hpp>
+#include <stout/none.hpp>
+#include <stout/option.hpp>
+#include <stout/try.hpp>
 
 #include <mesos/uri/uri.hpp>
+#include "uri/fetchers/curl.hpp"
+#include "uri/fetchers/docker.hpp"
+#include "uri/fetchers/hadoop.hpp"
 
 namespace mesos {
 namespace uri {
@@ -95,6 +101,23 @@ private:
   hashmap<std::string, process::Owned<Plugin>> plugins;
 };
 
+namespace fetcher {
+
+/**
+ * The combined flags for all built-in plugins.
+ */
+class Flags :
+  public CurlFetcherPlugin::Flags,
+  public HadoopFetcherPlugin::Flags,
+  public DockerFetcherPlugin::Flags {};
+
+
+/**
+ * Factory method for creating a Fetcher instance.
+ */
+Try<process::Owned<Fetcher>> create(const Option<Flags>& flags = None());
+
+} // namespace fetcher {
 } // namespace uri {
 } // namespace mesos {
 
