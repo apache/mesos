@@ -596,28 +596,27 @@ TEST_F(FetcherCacheTest, LocalUncached)
   startSlave();
   driver->start();
 
-  for (size_t i = 0; i < 3; i++) {
-    CommandInfo::URI uri;
-    uri.set_value(commandPath);
-    uri.set_executable(true);
+  const int index = 0;
+  CommandInfo::URI uri;
+  uri.set_value(commandPath);
+  uri.set_executable(true);
 
-    CommandInfo commandInfo;
-    commandInfo.set_value("./" + COMMAND_NAME + " " + taskName(i));
-    commandInfo.add_uris()->CopyFrom(uri);
+  CommandInfo commandInfo;
+  commandInfo.set_value("./" + COMMAND_NAME + " " + taskName(index));
+  commandInfo.add_uris()->CopyFrom(uri);
 
-    const Try<Task> task = launchTask(commandInfo, i);
-    ASSERT_SOME(task);
+  const Try<Task> task = launchTask(commandInfo, index);
+  ASSERT_SOME(task);
 
-    AWAIT_READY(awaitFinished(task.get()));
+  AWAIT_READY(awaitFinished(task.get()));
 
-    EXPECT_EQ(0u, fetcherProcess->cacheSize());
-    ASSERT_SOME(fetcherProcess->cacheFiles(slaveId, flags));
-    EXPECT_EQ(0u, fetcherProcess->cacheFiles(slaveId, flags).get().size());
+  EXPECT_EQ(0u, fetcherProcess->cacheSize());
+  ASSERT_SOME(fetcherProcess->cacheFiles(slaveId, flags));
+  EXPECT_EQ(0u, fetcherProcess->cacheFiles(slaveId, flags).get().size());
 
-    const string path = path::join(task.get().runDirectory.value, COMMAND_NAME);
-    EXPECT_TRUE(isExecutable(path));
-    EXPECT_TRUE(os::exists(path + taskName(i)));
-  }
+  const string path = path::join(task.get().runDirectory.value, COMMAND_NAME);
+  EXPECT_TRUE(isExecutable(path));
+  EXPECT_TRUE(os::exists(path + taskName(index)));
 }
 
 
@@ -629,7 +628,7 @@ TEST_F(FetcherCacheTest, LocalCached)
   startSlave();
   driver->start();
 
-  for (size_t i = 0; i < 3; i++) {
+  for (size_t i = 0; i < 2; i++) {
     CommandInfo::URI uri;
     uri.set_value(commandPath);
     uri.set_executable(true);
@@ -711,34 +710,33 @@ TEST_F(FetcherCacheTest, LocalUncachedExtract)
   startSlave();
   driver->start();
 
-  for (size_t i = 0; i < 3; i++) {
-    CommandInfo::URI uri;
-    uri.set_value(archivePath);
-    uri.set_extract(true);
+  const int index = 0;
+  CommandInfo::URI uri;
+  uri.set_value(archivePath);
+  uri.set_extract(true);
 
-    CommandInfo commandInfo;
-    commandInfo.set_value("./" + ARCHIVED_COMMAND_NAME + " " + taskName(i));
-    commandInfo.add_uris()->CopyFrom(uri);
+  CommandInfo commandInfo;
+  commandInfo.set_value("./" + ARCHIVED_COMMAND_NAME + " " + taskName(index));
+  commandInfo.add_uris()->CopyFrom(uri);
 
-    const Try<Task> task = launchTask(commandInfo, i);
-    ASSERT_SOME(task);
+  const Try<Task> task = launchTask(commandInfo, index);
+  ASSERT_SOME(task);
 
-    AWAIT_READY(awaitFinished(task.get()));
+  AWAIT_READY(awaitFinished(task.get()));
 
-    EXPECT_TRUE(os::exists(
-        path::join(task.get().runDirectory.value, ARCHIVE_NAME)));
-    EXPECT_FALSE(isExecutable(
-        path::join(task.get().runDirectory.value, ARCHIVE_NAME)));
+  EXPECT_TRUE(os::exists(
+      path::join(task.get().runDirectory.value, ARCHIVE_NAME)));
+  EXPECT_FALSE(isExecutable(
+      path::join(task.get().runDirectory.value, ARCHIVE_NAME)));
 
-    const string path =
-      path::join(task.get().runDirectory.value, ARCHIVED_COMMAND_NAME);
-    EXPECT_TRUE(isExecutable(path));
-    EXPECT_TRUE(os::exists(path + taskName(i)));
+  const string path =
+    path::join(task.get().runDirectory.value, ARCHIVED_COMMAND_NAME);
+  EXPECT_TRUE(isExecutable(path));
+  EXPECT_TRUE(os::exists(path + taskName(index)));
 
-    EXPECT_EQ(0u, fetcherProcess->cacheSize());
-    ASSERT_SOME(fetcherProcess->cacheFiles(slaveId, flags));
-    EXPECT_EQ(0u, fetcherProcess->cacheFiles(slaveId, flags).get().size());
-  }
+  EXPECT_EQ(0u, fetcherProcess->cacheSize());
+  ASSERT_SOME(fetcherProcess->cacheFiles(slaveId, flags));
+  EXPECT_EQ(0u, fetcherProcess->cacheFiles(slaveId, flags).get().size());
 }
 
 
@@ -748,7 +746,7 @@ TEST_F(FetcherCacheTest, LocalCachedExtract)
   startSlave();
   driver->start();
 
-  for (size_t i = 0; i < 3; i++) {
+  for (size_t i = 0; i < 2; i++) {
     CommandInfo::URI uri;
     uri.set_value(archivePath);
     uri.set_extract(true);
