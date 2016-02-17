@@ -668,6 +668,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   slave/containerizer/mesos/provisioner/provisioner.cpp			\
   slave/containerizer/mesos/provisioner/store.cpp			\
   slave/containerizer/mesos/provisioner/appc/cache.cpp			\
+  slave/containerizer/mesos/provisioner/appc/fetcher.cpp		\
   slave/containerizer/mesos/provisioner/appc/paths.cpp			\
   slave/containerizer/mesos/provisioner/appc/store.cpp			\
   slave/containerizer/mesos/provisioner/backends/copy.cpp		\
@@ -778,6 +779,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   slave/containerizer/mesos/provisioner/provisioner.hpp			\
   slave/containerizer/mesos/provisioner/store.hpp			\
   slave/containerizer/mesos/provisioner/appc/cache.hpp			\
+  slave/containerizer/mesos/provisioner/appc/fetcher.hpp		\
   slave/containerizer/mesos/provisioner/appc/paths.hpp			\
   slave/containerizer/mesos/provisioner/appc/store.hpp			\
   slave/containerizer/mesos/provisioner/backends/copy.hpp		\

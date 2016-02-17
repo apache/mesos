@@ -244,6 +244,7 @@ if (NOT WIN32)
     slave/containerizer/mesos/provisioner/provisioner.cpp
     slave/containerizer/mesos/provisioner/store.cpp
     slave/containerizer/mesos/provisioner/appc/cache.cpp
+    slave/containerizer/mesos/provisioner/appc/fetcher.cpp
     slave/containerizer/mesos/provisioner/appc/paths.cpp
     slave/containerizer/mesos/provisioner/appc/store.cpp
     slave/containerizer/mesos/provisioner/backend.cpp

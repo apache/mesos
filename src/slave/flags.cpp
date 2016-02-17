@@ -113,6 +113,12 @@ mesos::internal::slave::Flags::Flags()
       "e.g., `bind`, `copy`.",
       "copy");
 
+  add(&Flags::appc_simple_discovery_uri_prefix,
+      "appc_simple_discovery_uri_prefix",
+      "URI prefix to be used for simple discovery of appc images,\n"
+      "e.g., 'http://', 'https://', 'hdfs://<hostname>:9000/user/abc/cde'.",
+      "http://");
+
   add(&Flags::appc_store_dir,
       "appc_store_dir",
       "Directory the appc provisioner will store images in.\n",
