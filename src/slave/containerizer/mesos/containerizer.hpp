@@ -20,13 +20,15 @@
 #include <list>
 #include <vector>
 
-#include <mesos/slave/container_logger.hpp>
-#include <mesos/slave/isolator.hpp>
+#include <process/sequence.hpp>
 
 #include <process/metrics/counter.hpp>
 
 #include <stout/hashmap.hpp>
 #include <stout/multihashmap.hpp>
+
+#include <mesos/slave/container_logger.hpp>
+#include <mesos/slave/isolator.hpp>
 
 #include "slave/state.hpp"
 
@@ -323,6 +325,11 @@ private:
     std::string directory;
 
     State state;
+
+    // Used when `status` needs to be collected from isolators
+    // associated with this container. `Sequence` allows us to
+    // maintain the order of `status` requests for a given container.
+    process::Sequence sequence;
   };
 
   hashmap<ContainerID, process::Owned<Container>> containers_;
