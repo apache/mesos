@@ -1,3 +1,29 @@
+Release Notes - Mesos - Version 0.27.1
+--------------------------------------
+* This is a bug fix release.
+
+** Bug
+  * [MESOS-4546] - Mesos Agents needs to re-resolve hosts in zk string on leader change / failure to connect.
+  * [MESOS-4563] - Docker::Container::Create should handle NetworkSettings.IPAddress being an empty string.
+  * [MESOS-4582] - state.json serving duplicate "active" fields.
+  * [MESOS-4585] - mesos-fetcher LIBPROCESS_PORT set to 5051 URI fetch failure.
+  * [MESOS-4587] - Docker environment variables must be able to contain the equal sign.
+  * [MESOS-4597] - `freebsd.hpp` is missing from the release tarball.
+  * [MESOS-4598] - Logrotate ContainerLogger should not remove IP from environment.
+  * [MESOS-4637] - Docker process executor can die with agent unit on systemd.
+  * [MESOS-4639] - Posix process executor can die with agent unit on systemd.
+  * [MESOS-4640] - Logrotate container logger can die with agent unit on systemd.
+  * [MESOS-4675] - Can not disable systemd support.
+
+** Improvement
+  * [MESOS-4566] - Avoid unnecessary temporary `std::string` constructions and copies in `jsonify`.
+  * [MESOS-4636] - Add parent hook to subprocess.
+
+** Task
+  * [MESOS-4435] - Update `Master::Http::stateSummary` to use `jsonify`.
+  * [MESOS-4531] - Document multi-disk support.
+
+
 Release Notes - Mesos - Version 0.27.0
 --------------------------------------------
 
