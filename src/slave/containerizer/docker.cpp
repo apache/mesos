@@ -922,7 +922,8 @@ Try<Nothing> unmountPersistentVolumes(const ContainerID& containerId)
 Future<Nothing> DockerContainerizerProcess::__recover(
     const list<Docker::Container>& _containers)
 {
-  list<Future<ContainerID>> futures;
+  list<ContainerID> containerIds;
+  list<Future<Nothing>> futures;
   foreach (const Docker::Container& container, _containers) {
     VLOG(1) << "Checking if Docker container named '"
             << container.name << "' was started by Mesos";
@@ -945,20 +946,14 @@ Future<Nothing> DockerContainerizerProcess::__recover(
           docker->stop(
               container.id,
               flags.docker_stop_timeout,
-              true)
-            .then([id]() { return id.get(); }));
+              true));
+      containerIds.push_back(id.get());
     }
   }
 
   return collect(futures)
-    .then([](Future<list<ContainerID>> future) -> Future<Nothing> {
-      if (!future.isReady()) {
-        return Failure("Unable to stop orphaned Docker containers: " +
-                       (future.isFailed() ?
-                        future.failure() : "future discarded"));
-      }
-
-      foreach (const ContainerID& containerId, future.get()) {
+    .then([containerIds]() -> Future<Nothing> {
+      foreach (const ContainerID& containerId, containerIds) {
         Try<Nothing> unmount = unmountPersistentVolumes(containerId);
         if (unmount.isError()) {
           return Failure("Unable to unmount volumes for Docker container '" +
