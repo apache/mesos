@@ -2010,7 +2010,7 @@ install-data-hook:
 	    liblogrotate_container_logger; do 			\
 		for lib in `cd $(DESTDIR)/$(pkgmoduledir) && ls $${name}*`; do \
 		  rm -f $$lib; 					\
-		  $(LN_S) $(pkgmoduledir)/$$lib $$lib; 		\
+		  $(LN_S) $(DESTDIR)/$(pkgmoduledir)/$$lib $$lib; \
 		done;						\
 	done
 
