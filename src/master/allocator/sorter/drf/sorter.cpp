@@ -49,6 +49,13 @@ void DRFSorter::add(const string& name, double weight)
 }
 
 
+void DRFSorter::update(const string& name, double weight)
+{
+  CHECK(weights.contains(name));
+  weights[name] = weight;
+}
+
+
 void DRFSorter::remove(const string& name)
 {
   set<Client, DRFComparator>::iterator it = find(name);

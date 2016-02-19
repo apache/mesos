@@ -65,6 +65,8 @@ public:
 
   virtual void add(const std::string& name, double weight = 1);
 
+  virtual void update(const std::string& name, double weight);
+
   virtual void remove(const std::string& name);
 
   virtual void activate(const std::string& name);

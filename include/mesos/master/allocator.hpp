@@ -379,6 +379,13 @@ public:
    */
   virtual void removeQuota(
       const std::string& role) = 0;
+
+  /**
+   * Updates the weight of each provided role.
+   * Subsequent allocation calculations will use these updated weights.
+   */
+  virtual void updateWeights(
+      const std::vector<WeightInfo>& weightInfos) = 0;
 };
 
 } // namespace allocator {

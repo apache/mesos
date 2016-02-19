@@ -1053,6 +1053,37 @@ void HierarchicalAllocatorProcess::removeQuota(
 }
 
 
+void HierarchicalAllocatorProcess::updateWeights(
+    const vector<WeightInfo>& weightInfos)
+{
+  CHECK(initialized);
+
+  bool rebalance = false;
+
+  // Update the weight for each specified role.
+  foreach (const WeightInfo& weightInfo, weightInfos) {
+    CHECK(weightInfo.has_role());
+    weights[weightInfo.role()] = weightInfo.weight();
+
+    if (quotas.contains(weightInfo.role())) {
+      quotaRoleSorter->update(weightInfo.role(), weightInfo.weight());
+    }
+
+    if (roleSorter->contains(weightInfo.role())) {
+      rebalance = true;
+      roleSorter->update(weightInfo.role(), weightInfo.weight());
+    }
+  }
+
+  // If at least one of the updated roles has registered frameworks,
+  // then trigger the allocation explicitly in order to promptly
+  // react to the operator's request.
+  if (rebalance) {
+    allocate();
+  }
+}
+
+
 void HierarchicalAllocatorProcess::pause()
 {
   if (!paused) {

@@ -187,6 +187,9 @@ public:
   void removeQuota(
       const std::string& role);
 
+  void updateWeights(
+      const std::vector<WeightInfo>& weightInfos);
+
 protected:
   // Useful typedefs for dispatch/delay/defer to self()/this.
   typedef HierarchicalAllocatorProcess Self;

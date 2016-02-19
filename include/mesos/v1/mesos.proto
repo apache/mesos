@@ -1665,3 +1665,15 @@ message DiscoveryInfo {
   optional Ports ports = 6;
   optional Labels labels = 7;
 }
+
+
+/**
+ * Named WeightInfo to indicate resource allocation
+ * priority between the different roles.
+ */
+message WeightInfo {
+  required double weight = 1;
+
+  // Related role name.
+  optional string role = 2;
+}

@@ -44,6 +44,9 @@ public:
   // may be a user or a framework.
   virtual void add(const std::string& client, double weight = 1) = 0;
 
+  // Update weight of a client.
+  virtual void update(const std::string& client, double weight) = 0;
+
   // Removes a client.
   virtual void remove(const std::string& client) = 0;
 
