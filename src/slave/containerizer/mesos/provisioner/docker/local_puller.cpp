@@ -31,6 +31,7 @@
 #include <process/subprocess.hpp>
 
 #include "common/status_utils.hpp"
+#include "common/command_utils.hpp"
 
 #include "slave/containerizer/mesos/provisioner/docker/local_puller.hpp"
 #include "slave/containerizer/mesos/provisioner/docker/paths.hpp"
@@ -131,7 +132,7 @@ Future<list<pair<string, string>>> LocalPullerProcess::pull(
   VLOG(1) << "Untarring image from '" << tarPath
           << "' to '" << directory << "'";
 
-  return untar(tarPath, directory)
+  return command::untar(Path(tarPath), Path(directory))
     .then(defer(self(), &Self::putImage, reference, directory));
 }
 
