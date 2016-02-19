@@ -196,7 +196,7 @@ unspecified. Do not use any cache feature with any URI for which you have any
 doubts!
 
 To mitigate this problem, cache files that have been found to be larger than
-expected are deleted immediately after downloading and and delivering the
+expected are deleted immediately after downloading and delivering the
 requested content to the sandbox. Thus exceeding total capacity at least
 does not accumulate over subsequent fetcher runs.
 
