@@ -210,16 +210,15 @@ Future<Image> StoreProcess::_get(
     Future<Image> future = puller->pull(reference, Path(staging.get()))
       .then(defer(self(), &Self::moveLayers, lambda::_1))
       .then(defer(self(), &Self::storeImage, reference, lambda::_1))
-      .onAny(defer(self(), [this, imageReference](const Future<Image>&) {
+      .onAny(defer(self(), [=](const Future<Image>&) {
         pulling.erase(imageReference);
-      }))
-      .onAny([staging, imageReference]() {
+
         Try<Nothing> rmdir = os::rmdir(staging.get());
         if (rmdir.isError()) {
           LOG(WARNING) << "Failed to remove staging directory: "
                        << rmdir.error();
         }
-      });
+      }));
 
     promise->associate(future);
     pulling[imageReference] = promise;
