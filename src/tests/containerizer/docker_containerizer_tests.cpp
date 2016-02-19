@@ -1012,9 +1012,9 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Recover)
   SlaveID slaveId;
   slaveId.set_value("s1");
   ContainerID containerId;
-  containerId.set_value("c1");
+  containerId.set_value(UUID::random().toString());
   ContainerID reapedContainerId;
-  reapedContainerId.set_value("c2");
+  reapedContainerId.set_value(UUID::random().toString());
 
   string container1 = containerName(slaveId, containerId);
   string container2 = containerName(slaveId, reapedContainerId);
@@ -1132,9 +1132,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_SkipRecoverNonDocker)
       docker);
 
   ContainerID containerId;
-  containerId.set_value("c1");
-  ContainerID reapedContainerId;
-  reapedContainerId.set_value("c2");
+  containerId.set_value(UUID::random().toString());
 
   ExecutorID executorId;
   executorId.set_value(UUID::random().toString());
