@@ -185,6 +185,12 @@ Future<Image> StoreProcess::_get(
     const spec::ImageReference& reference,
     const Option<Image>& image)
 {
+  // NOTE: Here, we assume that image layers are not removed without
+  // first removing the metadata in the metadata manager first.
+  // Otherwise, the image we return here might miss some layers. At
+  // the time we introduce cache eviction, we also want to avoid the
+  // situation where a layer was returned to the provisioner but is
+  // later evicted.
   if (image.isSome()) {
     return image.get();
   }
