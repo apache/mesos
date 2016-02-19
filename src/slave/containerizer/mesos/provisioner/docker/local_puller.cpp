@@ -116,13 +116,16 @@ Future<list<pair<string, string>>> LocalPullerProcess::pull(
     const spec::ImageReference& reference,
     const string& directory)
 {
+  // TODO(jieyu): We need to handle the case where the image reference
+  // contains a slash '/'.
   const string tarPath = paths::getImageArchiveTarPath(
       archivesDir,
       stringify(reference));
 
   if (!os::exists(tarPath)) {
-    return Failure("Failed to find archive for image '" + stringify(reference) +
-                   "' at '" + tarPath + "'");
+    return Failure(
+        "Failed to find archive for image '" +
+        stringify(reference) + "' at '" + tarPath + "'");
   }
 
   VLOG(1) << "Untarring image from '" << tarPath
