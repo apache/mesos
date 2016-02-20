@@ -6918,6 +6918,25 @@ double Master::_tasks_running()
 }
 
 
+double Master::_tasks_killing()
+{
+  double count = 0.0;
+
+  foreachvalue (Slave* slave, slaves.registered) {
+    typedef hashmap<TaskID, Task*> TaskMap;
+    foreachvalue (const TaskMap& tasks, slave->tasks) {
+      foreachvalue (const Task* task, tasks) {
+        if (task->state() == TASK_KILLING) {
+          count++;
+        }
+      }
+    }
+  }
+
+  return count;
+}
+
+
 double Master::_resources_total(const string& name)
 {
   double total = 0.0;

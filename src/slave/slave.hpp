@@ -478,6 +478,7 @@ private:
   double _tasks_staging();
   double _tasks_starting();
   double _tasks_running();
+  double _tasks_killing();
 
   double _executors_registering();
   double _executors_running();

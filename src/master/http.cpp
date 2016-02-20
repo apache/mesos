@@ -1548,6 +1548,7 @@ struct TaskStateSummary
     : staging(0),
       starting(0),
       running(0),
+      killing(0),
       finished(0),
       killed(0),
       failed(0),
@@ -1561,6 +1562,7 @@ struct TaskStateSummary
       case TASK_STAGING: { ++staging; break; }
       case TASK_STARTING: { ++starting; break; }
       case TASK_RUNNING: { ++running; break; }
+      case TASK_KILLING: { ++killing; break; }
       case TASK_FINISHED: { ++finished; break; }
       case TASK_KILLED: { ++killed; break; }
       case TASK_FAILED: { ++failed; break; }
@@ -1574,6 +1576,7 @@ struct TaskStateSummary
   size_t staging;
   size_t starting;
   size_t running;
+  size_t killing;
   size_t finished;
   size_t killed;
   size_t failed;
@@ -1683,6 +1686,7 @@ Future<Response> Master::Http::stateSummary(const Request& request) const
           writer->field("TASK_STAGING", summary.staging);
           writer->field("TASK_STARTING", summary.starting);
           writer->field("TASK_RUNNING", summary.running);
+          writer->field("TASK_KILLING", summary.killing);
           writer->field("TASK_FINISHED", summary.finished);
           writer->field("TASK_KILLED", summary.killed);
           writer->field("TASK_FAILED", summary.failed);
@@ -1724,6 +1728,7 @@ Future<Response> Master::Http::stateSummary(const Request& request) const
           writer->field("TASK_STAGING", summary.staging);
           writer->field("TASK_STARTING", summary.starting);
           writer->field("TASK_RUNNING", summary.running);
+          writer->field("TASK_KILLING", summary.killing);
           writer->field("TASK_FINISHED", summary.finished);
           writer->field("TASK_KILLED", summary.killed);
           writer->field("TASK_FAILED", summary.failed);

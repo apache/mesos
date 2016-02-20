@@ -73,6 +73,7 @@ TEST_F(MetricsTest, Master)
   EXPECT_EQ(1u, stats.values.count("master/tasks_staging"));
   EXPECT_EQ(1u, stats.values.count("master/tasks_starting"));
   EXPECT_EQ(1u, stats.values.count("master/tasks_running"));
+  EXPECT_EQ(1u, stats.values.count("master/tasks_killing"));
   EXPECT_EQ(1u, stats.values.count("master/tasks_finished"));
   EXPECT_EQ(1u, stats.values.count("master/tasks_failed"));
   EXPECT_EQ(1u, stats.values.count("master/tasks_killed"));
@@ -180,6 +181,7 @@ TEST_F(MetricsTest, Slave)
   EXPECT_EQ(1u, stats.values.count("slave/tasks_staging"));
   EXPECT_EQ(1u, stats.values.count("slave/tasks_starting"));
   EXPECT_EQ(1u, stats.values.count("slave/tasks_running"));
+  EXPECT_EQ(1u, stats.values.count("slave/tasks_killing"));
   EXPECT_EQ(1u, stats.values.count("slave/tasks_finished"));
   EXPECT_EQ(1u, stats.values.count("slave/tasks_failed"));
   EXPECT_EQ(1u, stats.values.count("slave/tasks_killed"));

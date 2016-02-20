@@ -5046,6 +5046,22 @@ double Slave::_tasks_running()
 }
 
 
+double Slave::_tasks_killing()
+{
+  double count = 0.0;
+  foreachvalue (Framework* framework, frameworks) {
+    foreachvalue (Executor* executor, framework->executors) {
+      foreach (Task* task, executor->launchedTasks.values()) {
+        if (task->state() == TASK_KILLING) {
+          count++;
+        }
+      }
+    }
+  }
+  return count;
+}
+
+
 double Slave::_executors_registering()
 {
   double count = 0.0;

@@ -53,6 +53,9 @@ Metrics::Metrics(const Slave& slave)
     tasks_running(
         "slave/tasks_running",
         defer(slave, &Slave::_tasks_running)),
+    tasks_killing(
+        "slave/tasks_killing",
+        defer(slave, &Slave::_tasks_killing)),
     tasks_finished(
         "slave/tasks_finished"),
     tasks_failed(
@@ -99,6 +102,7 @@ Metrics::Metrics(const Slave& slave)
   process::metrics::add(tasks_staging);
   process::metrics::add(tasks_starting);
   process::metrics::add(tasks_running);
+  process::metrics::add(tasks_killing);
   process::metrics::add(tasks_finished);
   process::metrics::add(tasks_failed);
   process::metrics::add(tasks_killed);
@@ -184,6 +188,7 @@ Metrics::~Metrics()
   process::metrics::remove(tasks_staging);
   process::metrics::remove(tasks_starting);
   process::metrics::remove(tasks_running);
+  process::metrics::remove(tasks_killing);
   process::metrics::remove(tasks_finished);
   process::metrics::remove(tasks_failed);
   process::metrics::remove(tasks_killed);

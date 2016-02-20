@@ -45,6 +45,7 @@ struct Metrics
   process::metrics::Gauge tasks_staging;
   process::metrics::Gauge tasks_starting;
   process::metrics::Gauge tasks_running;
+  process::metrics::Gauge tasks_killing;
   process::metrics::Counter tasks_finished;
   process::metrics::Counter tasks_failed;
   process::metrics::Counter tasks_killed;
