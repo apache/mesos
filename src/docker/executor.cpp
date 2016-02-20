@@ -195,10 +195,6 @@ public:
     // Since the docker executor manages a single task, we
     // shutdown completely when we receive a killTask.
     shutdown(driver);
-    if (healthPid != -1) {
-      // Cleanup health check process.
-      os::killtree(healthPid, SIGKILL);
-    }
   }
 
   void frameworkMessage(ExecutorDriver* driver, const string& data) {}
@@ -229,6 +225,16 @@ public:
       run->discard();
       stop = docker->stop(containerName, stopTimeout);
       killed = true;
+    }
+
+    // Cleanup health check process.
+    //
+    // TODO(bmahler): Consider doing this after the task has been
+    // reaped, since a framework may be interested in health
+    // information while the task is being killed (consider a
+    // task that takes 30 minutes to be cleanly killed).
+    if (healthPid != -1) {
+      os::killtree(healthPid, SIGKILL);
     }
   }
 
