@@ -2948,13 +2948,14 @@ TEST_F(MasterTest, StateEndpointFrameworkInfo)
   JSON::Array frameworks = object->values["frameworks"].as<JSON::Array>();
 
   EXPECT_EQ(1u, frameworks.values.size());
+  ASSERT_TRUE(frameworks.values.front().is<JSON::Object>());
+
   JSON::Object framework = frameworks.values.front().as<JSON::Object>();
 
   EXPECT_EQ(1u, framework.values.count("webui_url"));
-  JSON::String webui_url =
-    framework.values["webui_url"].as<JSON::String>();
-
-  EXPECT_EQ("http://localhost:8080/", webui_url.value);
+  ASSERT_TRUE(framework.values["webui_url"].is<JSON::String>());
+  EXPECT_EQ("http://localhost:8080/",
+            framework.values["webui_url"].as<JSON::String>().value);
 
   EXPECT_EQ(1u, framework.values.count("capabilities"));
   ASSERT_TRUE(framework.values["capabilities"].is<JSON::Array>());
