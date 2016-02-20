@@ -1116,7 +1116,7 @@ message TaskInfo {
  * another task).
  */
 enum TaskState {
-  TASK_STAGING = 6; // Initial state. Framework status updates should not use.
+  TASK_STAGING = 6;  // Initial state. Framework status updates should not use.
   TASK_STARTING = 0; // The task is being launched by the executor.
   TASK_RUNNING = 1;
 
@@ -1124,11 +1124,11 @@ enum TaskState {
   // the TASK_KILLING_STATE capability.
   TASK_KILLING = 8;  // The task is being killed by the executor.
 
-  TASK_FINISHED = 2; // TERMINAL. The task finished successfully.
-  TASK_FAILED = 3; // TERMINAL. The task failed to finish successfully.
-  TASK_KILLED = 4; // TERMINAL. The task was killed by the executor.
-  TASK_LOST = 5; // TERMINAL. The task failed but can be rescheduled.
-  TASK_ERROR = 7; // TERMINAL. The task description contains an error.
+  TASK_FINISHED = 2; // TERMINAL: The task finished successfully.
+  TASK_FAILED = 3;   // TERMINAL: The task failed to finish successfully.
+  TASK_KILLED = 4;   // TERMINAL: The task was killed by the executor.
+  TASK_LOST = 5;     // TERMINAL: The task failed but can be rescheduled.
+  TASK_ERROR = 7;    // TERMINAL: The task description contains an error.
 }
 
 
