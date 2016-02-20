@@ -1216,7 +1216,7 @@ message TaskInfo {
  */
 enum TaskState {
   TASK_STAGING = 6; // Initial state. Framework status updates should not use.
-  TASK_STARTING = 0;
+  TASK_STARTING = 0; // The task is being launched by the executor.
   TASK_RUNNING = 1;
 
   // NOTE: This should only be sent when the framework has
