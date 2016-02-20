@@ -55,11 +55,13 @@ bool operator==(const Task& left, const Task& right)
 
 ostream& operator<<(ostream& stream, const StatusUpdate& update)
 {
-  stream << update.status().state()
-         << (update.has_uuid()
-             ? " (UUID: " + stringify(UUID::fromBytes(update.uuid()))
-             : "")
-         << ") for task " << update.status().task_id();
+  stream << update.status().state();
+
+  if (update.has_uuid()) {
+    stream << " (UUID: " << stringify(UUID::fromBytes(update.uuid())) << ")";
+  }
+
+  stream << " for task " << update.status().task_id();
 
   if (update.status().has_healthy()) {
     stream << " in health state "
