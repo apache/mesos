@@ -4,6 +4,7 @@ Release Notes - Mesos - Version 0.28.0 (WIP)
 ** API Changes:
   * [MESOS-4066] - Agent should not return partial state when a request is made to /state endpoint during recovery.
   * [MESOS-4479] - Implement reservation labels.
+  * [MESOS-4547] - Introduce TASK_KILLING state.
 
 
 Release Notes - Mesos - Version 0.27.1
