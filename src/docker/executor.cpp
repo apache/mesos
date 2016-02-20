@@ -91,11 +91,12 @@ public:
   void registered(
       ExecutorDriver* _driver,
       const ExecutorInfo& executorInfo,
-      const FrameworkInfo& frameworkInfo,
+      const FrameworkInfo& _frameworkInfo,
       const SlaveInfo& slaveInfo)
   {
     cout << "Registered docker executor on " << slaveInfo.hostname() << endl;
     driver = _driver;
+    frameworkInfo = _frameworkInfo;
   }
 
   void reregistered(
@@ -123,9 +124,10 @@ public:
       return;
     }
 
-    TaskID taskId = task.task_id();
+    // Capture the TaskID.
+    taskId = task.task_id();
 
-    cout << "Starting task " << taskId.value() << endl;
+    cout << "Starting task " << taskId.get() << endl;
 
     CHECK(task.has_container());
     CHECK(task.has_command());
@@ -147,13 +149,9 @@ public:
         task.resources() + task.executor().resources(),
         None(),
         Subprocess::FD(STDOUT_FILENO),
-        Subprocess::FD(STDERR_FILENO))
-      .onAny(defer(
-        self(),
-        &Self::reaped,
-        driver,
-        taskId,
-        lambda::_1));
+        Subprocess::FD(STDERR_FILENO));
+
+    run->onAny(defer(self(), &Self::reaped, driver, lambda::_1));
 
     // Delay sending TASK_RUNNING status update until we receive
     // inspect output.
@@ -161,7 +159,7 @@ public:
       .then(defer(self(), [=](const Docker::Container& container) {
         if (!killed) {
           TaskStatus status;
-          status.mutable_task_id()->CopyFrom(taskId);
+          status.mutable_task_id()->CopyFrom(taskId.get());
           status.set_state(TASK_RUNNING);
           status.set_data(container.output);
           if (container.ipAddress.isSome()) {
@@ -192,7 +190,10 @@ public:
 
   void killTask(ExecutorDriver* driver, const TaskID& taskId)
   {
-    cout << "Killing docker task" << endl;
+    cout << "Received killTask" << endl;
+
+    // Since the docker executor manages a single task, we
+    // shutdown completely when we receive a killTask.
     shutdown(driver);
     if (healthPid != -1) {
       // Cleanup health check process.
@@ -207,12 +208,25 @@ public:
     cout << "Shutting down" << endl;
 
     if (run.isSome() && !killed) {
+      // Send TASK_KILLING if the framework can handle it.
+      CHECK_SOME(frameworkInfo);
+      CHECK_SOME(taskId);
+
+      foreach (const FrameworkInfo::Capability& c,
+               frameworkInfo->capabilities()) {
+        if (c.type() == FrameworkInfo::Capability::TASK_KILLING_STATE) {
+          TaskStatus status;
+          status.mutable_task_id()->CopyFrom(taskId.get());
+          status.set_state(TASK_KILLING);
+          driver->sendStatusUpdate(status);
+          break;
+        }
+      }
+
       // The docker daemon might still be in progress starting the
       // container, therefore we kill both the docker run process
       // and also ask the daemon to stop the container.
-
-      // Making a mutable copy of the future so we can call discard.
-      Future<Nothing>(run.get()).discard();
+      run->discard();
       stop = docker->stop(containerName, stopTimeout);
       killed = true;
     }
@@ -257,7 +271,6 @@ protected:
 private:
   void reaped(
       ExecutorDriver* _driver,
-      const TaskID& taskId,
       const Future<Nothing>& run)
   {
     // Wait for docker->stop to finish, and best effort wait for the
@@ -287,8 +300,10 @@ private:
             state = TASK_FINISHED;
           }
 
+          CHECK_SOME(taskId);
+
           TaskStatus taskStatus;
-          taskStatus.mutable_task_id()->CopyFrom(taskId);
+          taskStatus.mutable_task_id()->CopyFrom(taskId.get());
           taskStatus.set_state(state);
           taskStatus.set_message(message);
           if (killed && killedByHealthCheck) {
@@ -415,6 +430,8 @@ private:
   Future<Nothing> stop;
   Future<Nothing> inspect;
   Option<ExecutorDriver*> driver;
+  Option<FrameworkInfo> frameworkInfo;
+  Option<TaskID> taskId;
 };
 
 

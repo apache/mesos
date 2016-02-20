@@ -93,6 +93,8 @@ public:
       healthPid(-1),
       escalationTimeout(slave::EXECUTOR_SIGNAL_ESCALATION_TIMEOUT),
       driver(None()),
+      frameworkInfo(None()),
+      taskId(None()),
       healthCheckDir(_healthCheckDir),
       override(override),
       sandboxDirectory(_sandboxDirectory),
@@ -105,13 +107,16 @@ public:
   void registered(
       ExecutorDriver* _driver,
       const ExecutorInfo& _executorInfo,
-      const FrameworkInfo& frameworkInfo,
+      const FrameworkInfo& _frameworkInfo,
       const SlaveInfo& slaveInfo)
   {
     CHECK_EQ(REGISTERING, state);
 
     cout << "Registered executor on " << slaveInfo.hostname() << endl;
+
     driver = _driver;
+    frameworkInfo = _frameworkInfo;
+
     state = REGISTERED;
   }
 
@@ -122,6 +127,7 @@ public:
     CHECK(state == REGISTERED || state == REGISTERING) << state;
 
     cout << "Re-registered executor on " << slaveInfo.hostname() << endl;
+
     state = REGISTERED;
   }
 
@@ -141,6 +147,9 @@ public:
       driver->sendStatusUpdate(status);
       return;
     }
+
+    // Capture the TaskID.
+    taskId = task.task_id();
 
     // Determine the command to launch the task.
     CommandInfo command;
@@ -438,12 +447,7 @@ public:
 
     // Monitor this process.
     process::reap(pid)
-      .onAny(defer(self(),
-                   &Self::reaped,
-                   driver,
-                   task.task_id(),
-                   pid,
-                   lambda::_1));
+      .onAny(defer(self(), &Self::reaped, driver, pid, lambda::_1));
 
     TaskStatus status;
     status.mutable_task_id()->MergeFrom(task.task_id());
@@ -455,6 +459,10 @@ public:
 
   void killTask(ExecutorDriver* driver, const TaskID& taskId)
   {
+    cout << "Received killTask" << endl;
+
+    // Since the command executor manages a single task, we
+    // shutdown completely when we receive a killTask.
     shutdown(driver);
     if (healthPid != -1) {
       // Cleanup health check process.
@@ -468,22 +476,39 @@ public:
   {
     cout << "Shutting down" << endl;
 
-    if (pid > 0 && !killed) {
-      cout << "Sending SIGTERM to process tree at pid "
-           << pid << endl;
+    if (launched && !killed) {
+      // Send TASK_KILLING if the framework can handle it.
+      CHECK_SOME(frameworkInfo);
+      CHECK_SOME(taskId);
+
+      foreach (const FrameworkInfo::Capability& c,
+               frameworkInfo->capabilities()) {
+        if (c.type() == FrameworkInfo::Capability::TASK_KILLING_STATE) {
+          TaskStatus status;
+          status.mutable_task_id()->CopyFrom(taskId.get());
+          status.set_state(TASK_KILLING);
+          driver->sendStatusUpdate(status);
+          break;
+        }
+      }
+
+      // Now perform signal escalation to begin killing the task.
+      CHECK_GT(pid, 0);
+
+      cout << "Sending SIGTERM to process tree at pid " << pid << endl;
 
       Try<std::list<os::ProcessTree> > trees =
         os::killtree(pid, SIGTERM, true, true);
 
       if (trees.isError()) {
-        cerr << "Failed to kill the process tree rooted at pid "
-             << pid << ": " << trees.error() << endl;
+        cerr << "Failed to kill the process tree rooted at pid " << pid
+             << ": " << trees.error() << endl;
 
         // Send SIGTERM directly to process 'pid' as it may not have
         // received signal before os::killtree() failed.
         ::kill(pid, SIGTERM);
       } else {
-        cout << "Killing the following process trees:\n"
+        cout << "Sent SIGTERM to the following process trees:\n"
              << stringify(trees.get()) << endl;
       }
 
@@ -538,7 +563,6 @@ protected:
 private:
   void reaped(
       ExecutorDriver* driver,
-      const TaskID& taskId,
       pid_t pid,
       const Future<Option<int> >& status_)
   {
@@ -574,8 +598,10 @@ private:
 
     cout << message << " (pid: " << pid << ")" << endl;
 
+    CHECK_SOME(taskId);
+
     TaskStatus taskStatus;
-    taskStatus.mutable_task_id()->MergeFrom(taskId);
+    taskStatus.mutable_task_id()->MergeFrom(taskId.get());
     taskStatus.set_state(taskState);
     taskStatus.set_message(message);
     if (killed && killedByHealthCheck) {
@@ -671,6 +697,8 @@ private:
   Duration escalationTimeout;
   Timer escalationTimer;
   Option<ExecutorDriver*> driver;
+  Option<FrameworkInfo> frameworkInfo;
+  Option<TaskID> taskId;
   string healthCheckDir;
   Option<char**> override;
   Option<string> sandboxDirectory;
