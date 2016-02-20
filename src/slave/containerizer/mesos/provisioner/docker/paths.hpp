@@ -17,10 +17,7 @@
 #ifndef __PROVISIONER_DOCKER_PATHS_HPP__
 #define __PROVISIONER_DOCKER_PATHS_HPP__
 
-#include <list>
 #include <string>
-
-#include <mesos/mesos.hpp>
 
 namespace mesos {
 namespace internal {
@@ -32,8 +29,7 @@ namespace paths {
  * The Docker store file system layout is as follows:
  * Image store dir ('--docker_store_dir' slave flag)
  *    |--staging
- *       |-- repositories(containing all images info as JSON)
- *       |-- <temp_dir_archive>
+ *       |-- <staging_tmp_dir_XXXXXX>
  *           |-- <layer_id>
  *               |-- rootfs
  *               |-- json(manifest)
@@ -53,37 +49,13 @@ std::string getStagingDir(const std::string& storeDir);
 std::string getStagingTempDir(const std::string& storeDir);
 
 
-std::string getImageArchiveTarPath(
-    const std::string& discoveryDir,
-    const std::string& name);
-
-
-std::string getImageArchiveRepositoriesPath(const std::string& archivePath);
-
-
-std::string getImageArchiveLayerPath(
-    const std::string& archivePath,
-    const std::string& layerId);
-
-
-std::string getImageArchiveLayerManifestPath(
-    const std::string& archivePath,
-    const std::string& layerId);
-
-
-std::string getImageArchiveLayerTarPath(
-  const std::string& archivePath,
-  const std::string& layerId);
-
-
-std::string getImageArchiveLayerRootfsPath(
-  const std::string& archivePath,
-  const std::string& layerId);
-
-
 std::string getImageLayerPath(
     const std::string& storeDir,
     const std::string& layerId);
+
+
+std::string getImageLayerManifestPath(
+    const std::string& layerPath);
 
 
 std::string getImageLayerManifestPath(
@@ -92,8 +64,26 @@ std::string getImageLayerManifestPath(
 
 
 std::string getImageLayerRootfsPath(
+    const std::string& layerPath);
+
+
+std::string getImageLayerRootfsPath(
     const std::string& storeDir,
     const std::string& layerId);
+
+
+std::string getImageLayerTarPath(
+    const std::string& layerPath);
+
+
+std::string getImageLayerTarPath(
+    const std::string& storeDir,
+    const std::string& layerId);
+
+
+std::string getImageArchiveTarPath(
+    const std::string& discoveryDir,
+    const std::string& name);
 
 
 std::string getStoredImagesPath(const std::string& storeDir);

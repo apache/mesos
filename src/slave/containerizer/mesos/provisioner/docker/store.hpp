@@ -53,7 +53,7 @@ public:
   virtual process::Future<ImageInfo> get(const mesos::Image& image);
 
 private:
-  explicit Store(const process::Owned<StoreProcess>& process);
+  explicit Store(process::Owned<StoreProcess> process);
 
   Store& operator=(const Store&) = delete; // Not assignable.
   Store(const Store&) = delete; // Not copyable.

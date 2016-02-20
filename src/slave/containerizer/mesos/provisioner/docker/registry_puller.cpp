@@ -14,25 +14,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "slave/containerizer/mesos/provisioner/docker/registry_puller.hpp"
-
-#include <list>
-
 #include <process/collect.hpp>
 #include <process/defer.hpp>
 #include <process/dispatch.hpp>
-#include <process/subprocess.hpp>
 
-#include "common/status_utils.hpp"
+#include <stout/os/mkdir.hpp>
+#include <stout/os/rm.hpp>
+
+#include "common/command_utils.hpp"
 
 #include "slave/containerizer/mesos/provisioner/docker/paths.hpp"
 #include "slave/containerizer/mesos/provisioner/docker/registry_client.hpp"
+#include "slave/containerizer/mesos/provisioner/docker/registry_puller.hpp"
 
 namespace http = process::http;
 namespace spec = docker::spec;
 
 using std::list;
-using std::pair;
 using std::string;
 using std::vector;
 
@@ -41,7 +39,6 @@ using process::Future;
 using process::Owned;
 using process::Process;
 using process::Promise;
-using process::Subprocess;
 
 namespace mesos {
 namespace internal {
@@ -56,37 +53,37 @@ class RegistryPullerProcess : public Process<RegistryPullerProcess>
 public:
   static Try<Owned<RegistryPullerProcess>> create(const Flags& flags);
 
-  process::Future<list<pair<string, string>>> pull(
+  process::Future<vector<string>> pull(
       const spec::ImageReference& reference,
-      const Path& directory);
+      const string& directory);
 
 private:
-  explicit RegistryPullerProcess(
+  RegistryPullerProcess(
       const Owned<RegistryClient>& registry,
       const Duration& timeout);
 
-  Future<pair<string, string>> downloadLayer(
-      const spec::ImageReference& reference,
-      const Path& directory,
-      const string& blobSum,
-      const string& id);
-
-  Future<list<pair<string, string>>> downloadLayers(
+  Future<vector<string>> downloadLayers(
       const spec::v2::ImageManifest& manifest,
       const spec::ImageReference& reference,
-      const Path& downloadDir);
+      const string& directory);
 
-  process::Future<list<pair<string, string>>> _pull(
+  Future<Nothing> downloadLayer(
       const spec::ImageReference& reference,
-      const Path& downloadDir);
+      const string& directory,
+      const string& blobSum,
+      const string& layerId);
 
-  Future<list<pair<string, string>>> untarLayers(
-    const Future<list<pair<string, string>>>& layerFutures,
-    const Path& downloadDir);
+  Future<vector<string>> untarLayers(
+      const string& directory,
+      const vector<string>& layerIds);
+
+  Future<Nothing> untarLayer(
+      const string& directory,
+      const string& layerId);
 
   Owned<RegistryClient> registryClient_;
   const Duration pullTimeout_;
-  hashmap<string, Owned<Promise<pair<string, string>>>> downloadTracker_;
+  hashmap<string, Owned<Promise<Nothing>>> downloadTracker_;
 
   RegistryPullerProcess(const RegistryPullerProcess&) = delete;
   RegistryPullerProcess& operator=(const RegistryPullerProcess&) = delete;
@@ -106,29 +103,29 @@ Try<Owned<Puller>> RegistryPuller::create(const Flags& flags)
 }
 
 
-RegistryPuller::RegistryPuller(const Owned<RegistryPullerProcess>& process)
-  : process_(process)
+RegistryPuller::RegistryPuller(Owned<RegistryPullerProcess> _process)
+  : process(_process)
 {
-  spawn(CHECK_NOTNULL(process_.get()));
+  spawn(CHECK_NOTNULL(process.get()));
 }
 
 
 RegistryPuller::~RegistryPuller()
 {
-  terminate(process_.get());
-  process::wait(process_.get());
+  terminate(process.get());
+  process::wait(process.get());
 }
 
 
-Future<list<pair<string, string>>> RegistryPuller::pull(
+Future<vector<string>> RegistryPuller::pull(
     const spec::ImageReference& reference,
-    const Path& downloadDir)
+    const string& directory)
 {
   return dispatch(
-      process_.get(),
+      process.get(),
       &RegistryPullerProcess::pull,
       reference,
-      downloadDir);
+      directory);
 }
 
 
@@ -173,9 +170,58 @@ RegistryPullerProcess::RegistryPullerProcess(
     pullTimeout_(timeout) {}
 
 
-Future<pair<string, string>> RegistryPullerProcess::downloadLayer(
+Future<vector<string>> RegistryPullerProcess::pull(
     const spec::ImageReference& reference,
-    const Path& directory,
+    const string& directory)
+{
+  // TODO(jojy): Have one outgoing manifest request per image.
+  return registryClient_->getManifest(reference)
+    .then(process::defer(self(), [=](const spec::v2::ImageManifest& manifest) {
+      return downloadLayers(manifest, reference, directory);
+    }))
+    .then(process::defer(self(), [=](const vector<string>& layerIds) {
+      return untarLayers(directory, layerIds);
+    }))
+    .after(pullTimeout_, [reference](Future<vector<string>> future) {
+      future.discard();
+      return Failure("Timed out");
+    });
+}
+
+
+Future<vector<string>> RegistryPullerProcess::downloadLayers(
+    const spec::v2::ImageManifest& manifest,
+    const spec::ImageReference& reference,
+    const string& directory)
+{
+  list<Future<Nothing>> futures;
+  vector<string> layerIds;
+
+  CHECK_EQ(manifest.fslayers_size(), manifest.history_size());
+
+  for (int i = 0; i < manifest.fslayers_size(); i++) {
+    CHECK(manifest.history(i).has_v1());
+
+    layerIds.push_back(manifest.history(i).v1().id());
+
+    futures.push_back(downloadLayer(
+        reference,
+        directory,
+        manifest.fslayers(i).blobsum(),
+        manifest.history(i).v1().id()));
+  }
+
+  // TODO(jojy): Delete downloaded files in the directory on discard and
+  // failure?
+  // TODO(jojy): Iterate through the futures and log the failed future.
+  return collect(futures)
+    .then([layerIds]() { return layerIds; });
+}
+
+
+Future<Nothing> RegistryPullerProcess::downloadLayer(
+    const spec::ImageReference& reference,
+    const string& directory,
     const string& blobSum,
     const string& layerId)
 {
@@ -189,8 +235,7 @@ Future<pair<string, string>> RegistryPullerProcess::downloadLayer(
     return downloadTracker_.at(layerId)->future();
   }
 
-  Owned<Promise<pair<string, string>>> downloadPromise(
-      new Promise<pair<string, string>>());
+  Owned<Promise<Nothing>> downloadPromise(new Promise<Nothing>());
 
   downloadTracker_.insert({layerId, downloadPromise});
 
@@ -216,7 +261,7 @@ Future<pair<string, string>> RegistryPullerProcess::downloadLayer(
             downloadPromise->fail(
                 "Failed to download layer '" + layerId + "': no content");
           } else {
-            downloadPromise->set({layerId, downloadFile});
+            downloadPromise->set(Nothing());
           }
         }));
 
@@ -224,71 +269,51 @@ Future<pair<string, string>> RegistryPullerProcess::downloadLayer(
 }
 
 
-Future<list<pair<string, string>>> RegistryPullerProcess::pull(
-    const spec::ImageReference& reference,
-    const Path& directory)
+Future<vector<string>> RegistryPullerProcess::untarLayers(
+    const string& directory,
+    const vector<string>& layerIds)
 {
-  // TODO(jojy): Have one outgoing manifest request per image.
-  return registryClient_->getManifest(reference)
-    .then(process::defer(self(), [this, directory, reference](
-        const spec::v2::ImageManifest& manifest) {
-      return downloadLayers(manifest, reference, directory);
-    }))
-    .then(process::defer(self(), [this, directory](
-        const Future<list<pair<string, string>>>& layerFutures)
-        -> Future<list<pair<string, string>>> {
-      return untarLayers(layerFutures, directory);
-    }))
-    .after(pullTimeout_, [reference](
-        Future<list<pair<string, string>>> future) {
-      future.discard();
+  list<Future<Nothing>> futures;
+  foreach (const string& layerId, layerIds) {
+    VLOG(1) << "Untarring layer '" << layerId
+            << "' downloaded from registry to directory '"
+            << directory << "'";
 
-      return Failure("Timed out");
+    futures.emplace_back(untarLayer(directory, layerId));
+  }
+
+  return collect(futures)
+    .then([layerIds]() { return layerIds; });
+}
+
+
+Future<Nothing> RegistryPullerProcess::untarLayer(
+    const string& directory,
+    const string& layerId)
+{
+  const string layerPath = path::join(directory, layerId);
+  const string tar = path::join(directory, layerId + ".tar");
+  const string rootfs = paths::getImageLayerRootfsPath(layerPath);
+
+  Try<Nothing> mkdir = os::mkdir(rootfs);
+  if (mkdir.isError()) {
+    return Failure(
+        "Failed to create directory '" + rootfs + "'"
+        ": " + mkdir.error());
+  }
+
+  return command::untar(Path(tar), Path(rootfs))
+    .then([tar]() -> Future<Nothing> {
+      // Remove the tar after the extraction.
+      Try<Nothing> rm = os::rm(tar);
+      if (rm.isError()) {
+        return Failure(
+          "Failed to remove '" + tar + "' "
+          "after extraction: " + rm.error());
+      }
+
+      return Nothing();
     });
-}
-
-
-Future<list<pair<string, string>>> RegistryPullerProcess::downloadLayers(
-    const spec::v2::ImageManifest& manifest,
-    const spec::ImageReference& reference,
-    const Path& directory)
-{
-  list<Future<pair<string, string>>> downloadFutures;
-
-  CHECK_EQ(manifest.fslayers_size(), manifest.history_size());
-
-  for (int i = 0; i < manifest.fslayers_size(); i++) {
-    CHECK(manifest.history(i).has_v1());
-
-    downloadFutures.push_back(
-        downloadLayer(reference,
-                      directory,
-                      manifest.fslayers(i).blobsum(),
-                      manifest.history(i).v1().id()));
-  }
-
-  // TODO(jojy): Delete downloaded files in the directory on discard and
-  // failure?
-  // TODO(jojy): Iterate through the futures and log the failed future.
-  return collect(downloadFutures);
-}
-
-
-Future<list<pair<string, string>>> RegistryPullerProcess::untarLayers(
-    const Future<list<pair<string, string>>>& layerFutures,
-    const Path& directory)
-{
-  list<Future<pair<string, string>>> untarFutures;
-
-  pair<string, string> layerInfo;
-  foreach (layerInfo, layerFutures.get()) {
-    VLOG(1) << "Untarring layer '" << layerInfo.first
-            << "' downloaded from registry to directory '" << directory << "'";
-    untarFutures.emplace_back(
-        untarLayer(layerInfo.second, directory, layerInfo.first));
-  }
-
-  return collect(untarFutures);
 }
 
 } // namespace docker {

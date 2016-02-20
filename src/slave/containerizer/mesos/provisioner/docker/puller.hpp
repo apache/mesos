@@ -17,12 +17,9 @@
 #ifndef __PROVISIONER_DOCKER_PULLER_HPP__
 #define __PROVISIONER_DOCKER_PULLER_HPP__
 
-#include <list>
-#include <utility>
+#include <string>
+#include <vector>
 
-#include <stout/duration.hpp>
-#include <stout/option.hpp>
-#include <stout/path.hpp>
 #include <stout/try.hpp>
 
 #include <process/future.hpp>
@@ -47,46 +44,16 @@ public:
   /**
    * Pull a Docker image layers into the specified directory, and
    * return the list of layer ids in that image in the right
-   * dependency order, and also return the directory where
-   * the puller puts its changeset.
+   * dependency order (i.e., base images are at the front).
    *
-   * @param name The name of the image.
+   * @param reference The docker image reference.
    * @param directory The target directory to store the layers.
-   * @return list of layers maped to its local directory ordered by its
-   *         dependency.
+   * @return an ordered list of layer ids.
    */
-  virtual process::Future<std::list<std::pair<std::string, std::string>>> pull(
+  virtual process::Future<std::vector<std::string>> pull(
       const ::docker::spec::ImageReference& reference,
-      const Path& directory) = 0;
+      const std::string& directory) = 0;
 };
-
-
-/**
- * Untars(extracts) the tar file(input param) to the given output directory.
- *
- * @param file tar file to be extracted.
- * @param directory target directory for extracting the tar file.
- */
-process::Future<Nothing> untar(
-    const std::string& file,
-    const std::string& directory);
-
-
-/**
- * Untars a tarred layer changeset into staging directory with the
- * directory structure:
- *    |--staging directory
- *        |-- <layer_id>
- *            |-- rootfs
- *
- * @param file path to the tar file holding the Docker layer.
- * @param directory staging directory.
- * @return layer Id mapping to the rootfs path of the layer.
- */
-process::Future<std::pair<std::string, std::string>> untarLayer(
-    const std::string& file,
-    const std::string& directory,
-    const std::string& layerId);
 
 } // namespace docker {
 } // namespace slave {

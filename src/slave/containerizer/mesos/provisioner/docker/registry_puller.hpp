@@ -17,20 +17,13 @@
 #ifndef __PROVISIONER_DOCKER_REGISTRY_PULLER_HPP__
 #define __PROVISIONER_DOCKER_REGISTRY_PULLER_HPP__
 
-#include <list>
-#include <string>
-#include <utility>
+#include <process/owned.hpp>
 
-#include <stout/duration.hpp>
-#include <stout/path.hpp>
-
-#include <process/future.hpp>
-#include <process/http.hpp>
-#include <process/process.hpp>
-
-#include <mesos/docker/spec.hpp>
+#include <stout/try.hpp>
 
 #include "slave/containerizer/mesos/provisioner/docker/puller.hpp"
+
+#include "slave/flags.hpp"
 
 namespace mesos {
 namespace internal {
@@ -41,36 +34,33 @@ namespace docker {
 class RegistryPullerProcess;
 
 /*
- * Pulls an image from registry.
+ * Pulls an image from docker registry.
  */
 class RegistryPuller : public Puller
 {
 public:
-  /**
-   * Factory method for creating RegistryPuller.
-   */
   static Try<process::Owned<Puller>> create(const Flags& flags);
 
   ~RegistryPuller();
 
   /**
-   * Pulls an image into a download directory. This image could consist
-   * multiple layers of blobs.
+   * Pulls an image into a download directory. This image could
+   * consist multiple layers of blobs.
    *
    * @param reference local name of the image.
-   * @param downloadDir path to which the layers should be downloaded.
+   * @param directory path to which the layers will be downloaded.
    */
-  process::Future<std::list<std::pair<std::string, std::string>>> pull(
+  process::Future<std::vector<std::string>> pull(
       const ::docker::spec::ImageReference& reference,
-      const Path& downloadDir);
+      const std::string& directory);
 
 private:
-  RegistryPuller(const process::Owned<RegistryPullerProcess>& process);
-
-  process::Owned<RegistryPullerProcess> process_;
+  RegistryPuller(process::Owned<RegistryPullerProcess> _process);
 
   RegistryPuller(const RegistryPuller&) = delete;
   RegistryPuller& operator=(const RegistryPuller&) = delete;
+
+  process::Owned<RegistryPullerProcess> process;
 };
 
 } // namespace docker {

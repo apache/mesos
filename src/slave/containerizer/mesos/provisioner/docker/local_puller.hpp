@@ -17,9 +17,9 @@
 #ifndef __PROVISIONER_DOCKER_LOCAL_PULLER_HPP__
 #define __PROVISIONER_DOCKER_LOCAL_PULLER_HPP__
 
-#include <mesos/docker/spec.hpp>
+#include <process/owned.hpp>
 
-#include "slave/containerizer/mesos/provisioner/store.hpp"
+#include <mesos/docker/spec.hpp>
 
 #include "slave/containerizer/mesos/provisioner/docker/puller.hpp"
 
@@ -46,15 +46,14 @@ public:
 
   ~LocalPuller();
 
-  process::Future<std::list<std::pair<std::string, std::string>>> pull(
+  process::Future<std::vector<std::string>> pull(
       const ::docker::spec::ImageReference& reference,
-      const Path& directory);
+      const std::string& directory);
 
 private:
-  explicit LocalPuller(process::Owned<LocalPullerProcess>& _process);
+  explicit LocalPuller(process::Owned<LocalPullerProcess> _process);
 
   LocalPuller(const LocalPuller&) = delete; // Not copyable.
-
   LocalPuller& operator=(const LocalPuller&) = delete; // Not assignable.
 
   process::Owned<LocalPullerProcess> process;

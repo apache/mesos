@@ -766,12 +766,12 @@ TEST_F(RegistryClientTest, SimpleRegistryPuller)
   Try<Owned<Puller>> registryPuller = RegistryPuller::create(flags);
   ASSERT_SOME(registryPuller);
 
-  const Path registryPullerPath(os::getcwd());
+  const string registryPullerPath = os::getcwd();
 
   Try<spec::ImageReference> reference = spec::parseImageReference("busybox");
   ASSERT_SOME(reference);
 
-  Future<list<pair<string, string>>> registryPullerFuture =
+  Future<vector<string>> registryPullerFuture =
     registryPuller.get()->pull(reference.get(), registryPullerPath);
 
   const string unauthResponseHeaders = "WWW-Authenticate: Bearer"
@@ -974,13 +974,17 @@ TEST_F(RegistryClientTest, SimpleRegistryPuller)
       blobResponseSize));
 
   AWAIT_ASSERT_READY(registryPullerFuture);
-  list<pair<string, string>> layers = registryPullerFuture.get();
+  vector<string> layers = registryPullerFuture.get();
   ASSERT_EQ(1u, layers.size());
-  ASSERT_EQ(layers.front().first,
+  ASSERT_EQ(layers.front(),
             "1ce2e90b0bc7224de3db1f0d646fe8e2c4dd37f1793928287f6074bc451a57ea");
 
-  Try<string> blob = os::read(
-      path::join(layers.front().second, "rootfs", blobFile));
+  Try<string> blob = os::read(path::join(
+      registryPullerPath,
+      layers.front(),
+      "rootfs",
+      blobFile));
+
   ASSERT_SOME(blob);
   ASSERT_EQ(blob.get(), blobResponse);
 }
@@ -1154,16 +1158,16 @@ public:
 
   MOCK_METHOD2(
       pull,
-      Future<list<pair<string, string>>>(
+      Future<vector<string>>(
           const spec::ImageReference&,
-          const Path&));
+          const string&));
 
-  Future<list<pair<string, string>>> unmocked_pull(
-      const spec::ImageReference& name,
-      const Path& directory)
+  Future<vector<string>> unmocked_pull(
+      const spec::ImageReference& reference,
+      const string& directory)
   {
     // TODO(gilbert): Allow return list to be overridden.
-    return list<pair<string, string>>();
+    return vector<string>();
   }
 };
 
@@ -1184,10 +1188,12 @@ TEST_F(ProvisionerDockerLocalStoreTest, PullingSameImageSimutanuously)
 
   MockPuller* puller = new MockPuller();
   Future<Nothing> pull;
-  Promise<list<pair<string, string>>> promise;
+  Future<string> directory;
+  Promise<vector<string>> promise;
 
   EXPECT_CALL(*puller, pull(_, _))
     .WillOnce(testing::DoAll(FutureSatisfy(&pull),
+                             FutureArg<1>(&directory),
                              Return(promise.future())));
 
   Try<Owned<slave::Store>> store =
@@ -1200,11 +1206,12 @@ TEST_F(ProvisionerDockerLocalStoreTest, PullingSameImageSimutanuously)
 
   Future<slave::ImageInfo> imageInfo1 = store.get()->get(mesosImage);
   AWAIT_READY(pull);
+  AWAIT_READY(directory);
 
   // TODO(gilbert): Need a helper method to create test layers
   // which will allow us to set manifest so that we can add
   // checks here.
-  const string layerPath = path::join(os::getcwd(), "456");
+  const string layerPath = path::join(directory.get(), "456");
 
   Try<Nothing> mkdir = os::mkdir(layerPath);
   ASSERT_SOME(mkdir);
@@ -1220,7 +1227,7 @@ TEST_F(ProvisionerDockerLocalStoreTest, PullingSameImageSimutanuously)
   ASSERT_TRUE(imageInfo1.isPending());
   Future<slave::ImageInfo> imageInfo2 = store.get()->get(mesosImage);
 
-  const list<pair<string, string>> result = {{"456", layerPath}};
+  const vector<string> result = {"456"};
 
   ASSERT_TRUE(imageInfo2.isPending());
   promise.set(result);

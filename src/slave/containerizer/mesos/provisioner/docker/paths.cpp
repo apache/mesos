@@ -38,74 +38,51 @@ string getStagingTempDir(const string& storeDir)
 }
 
 
-string getImageArchiveTarPath(
-    const string& discoveryDir,
-    const string& name)
-{
-  return path::join(discoveryDir, name + ".tar");
-}
-
-
-string getImageArchiveRepositoriesPath(const string& archivePath)
-{
-  return path::join(archivePath, "repositories");
-}
-
-
-string getImageArchiveLayerPath(
-    const string& archivePath,
-    const string& layerId)
-{
-  return path::join(archivePath, layerId);
-}
-
-
-string getImageArchiveLayerManifestPath(
-    const string& archivePath,
-    const string& layerId)
-{
-  return path::join(getImageArchiveLayerPath(archivePath, layerId), "json");
-}
-
-
-string getImageArchiveLayerTarPath(
-    const string& archivePath,
-    const string& layerId)
-{
-  return path::join(
-      getImageArchiveLayerPath(archivePath, layerId), "layer.tar");
-}
-
-
-string getImageArchiveLayerRootfsPath(
-    const string& archivePath,
-    const string& layerId)
-{
-  return path::join(getImageArchiveLayerPath(archivePath, layerId), "rootfs");
-}
-
-
-string getImageLayerPath(
-    const string& storeDir,
-    const string& layerId)
+string getImageLayerPath(const string& storeDir, const string& layerId)
 {
   return path::join(storeDir, "layers", layerId);
 }
 
 
-string getImageLayerManifestPath(
-    const string& storeDir,
-    const string& layerId)
+string getImageLayerManifestPath(const string& layerPath)
 {
-  return path::join(getImageLayerPath(storeDir, layerId), "json");
+  return path::join(layerPath, "json");
 }
 
 
-string getImageLayerRootfsPath(
-    const string& storeDir,
-    const string& layerId)
+string getImageLayerManifestPath(const string& storeDir, const string& layerId)
 {
-  return path::join(getImageLayerPath(storeDir, layerId), "rootfs");
+  return getImageLayerManifestPath(getImageLayerPath(storeDir, layerId));
+}
+
+
+string getImageLayerRootfsPath(const string& layerPath)
+{
+  return path::join(layerPath, "rootfs");
+}
+
+
+string getImageLayerRootfsPath(const string& storeDir, const string& layerId)
+{
+  return getImageLayerRootfsPath(getImageLayerPath(storeDir, layerId));
+}
+
+
+string getImageLayerTarPath(const string& layerPath)
+{
+  return path::join(layerPath, "layer.tar");
+}
+
+
+string getImageLayerTarPath(const string& storeDir, const string& layerId)
+{
+  return getImageLayerTarPath(getImageLayerPath(storeDir, layerId));
+}
+
+
+string getImageArchiveTarPath(const string& discoveryDir, const string& name)
+{
+  return path::join(discoveryDir, name + ".tar");
 }
 
 
