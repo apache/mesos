@@ -110,7 +110,7 @@ Option<string> Cache::find(const Image::Appc& image) const
   // Create a cache key from image.
   Cache::Key key(image);
 
-  if (imageIds.contains(key)) {
+  if (!imageIds.contains(key)) {
     return None();
   }
 
