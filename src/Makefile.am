@@ -1803,6 +1803,7 @@ mesos_tests_SOURCES =						\
   tests/authentication_tests.cpp				\
   tests/authorization_tests.cpp					\
   tests/cluster.cpp						\
+  tests/command_executor_tests.cpp				\
   tests/container_logger_tests.cpp				\
   tests/containerizer.cpp					\
   tests/cram_md5_authentication_tests.cpp			\
