@@ -1051,7 +1051,7 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_ImageInVolumeWithRootFilesystem)
 
   // Wait for the launch to complete.
   // Need to wait for Rootfs copy.
-  AWAIT_READY_FOR(launch, Seconds(120));
+  AWAIT_READY_FOR(launch, Seconds(240));
 
   // Wait on the container.
   Future<containerizer::Termination> wait =
@@ -1135,7 +1135,7 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_MultipleContainers)
 
   // Wait for the launch to complete.
   // Need to wait for Rootfs copy.
-  AWAIT_READY_FOR(launch1, Seconds(60));
+  AWAIT_READY_FOR(launch1, Seconds(120));
 
   // Now launch container 2 which will copy the host mount table with
   // container 1's work directory mount in it.
