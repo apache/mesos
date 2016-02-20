@@ -2904,6 +2904,85 @@ TEST_F(MasterTest, StateEndpoint)
 }
 
 
+// This test ensures that the framework's information is included in
+// the master's state endpoint.
+//
+// TODO(bmahler): This only looks at capabilities and the webui URL
+// currently; add more to this test.
+TEST_F(MasterTest, StateEndpointFrameworkInfo)
+{
+  Try<PID<Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_webui_url("http://localhost:8080/");
+
+  vector<FrameworkInfo::Capability::Type> capabilities = {
+    FrameworkInfo::Capability::REVOCABLE_RESOURCES,
+    FrameworkInfo::Capability::TASK_KILLING_STATE
+  };
+
+  foreach (FrameworkInfo::Capability::Type capability, capabilities) {
+    frameworkInfo.add_capabilities()->set_type(capability);
+  }
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
+
+  Future<Nothing> registered;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureSatisfy(&registered));
+
+  driver.start();
+
+  AWAIT_READY(registered);
+
+  Future<Response> response = process::http::get(master.get(), "state");
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+
+  Try<JSON::Object> object = JSON::parse<JSON::Object>(response->body);
+  ASSERT_SOME(object);
+
+  EXPECT_EQ(1u, object->values.count("frameworks"));
+  JSON::Array frameworks = object->values["frameworks"].as<JSON::Array>();
+
+  EXPECT_EQ(1u, frameworks.values.size());
+  JSON::Object framework = frameworks.values.front().as<JSON::Object>();
+
+  EXPECT_EQ(1u, framework.values.count("webui_url"));
+  JSON::String webui_url =
+    framework.values["webui_url"].as<JSON::String>();
+
+  EXPECT_EQ("http://localhost:8080/", webui_url.value);
+
+  EXPECT_EQ(1u, framework.values.count("capabilities"));
+  ASSERT_TRUE(framework.values["capabilities"].is<JSON::Array>());
+
+  vector<FrameworkInfo::Capability::Type> actual;
+
+  foreach (const JSON::Value& capability,
+           framework.values["capabilities"].as<JSON::Array>().values) {
+    FrameworkInfo::Capability::Type type;
+
+    ASSERT_TRUE(capability.is<JSON::String>());
+    ASSERT_TRUE(
+        FrameworkInfo::Capability::Type_Parse(
+            capability.as<JSON::String>().value,
+            &type));
+
+    actual.push_back(type);
+  }
+
+  EXPECT_EQ(capabilities, actual);
+
+  driver.stop();
+  driver.join();
+
+  Shutdown();
+}
+
+
 TEST_F(MasterTest, StateSummaryEndpoint)
 {
   master::Flags flags = CreateMasterFlags();
@@ -2998,87 +3077,6 @@ TEST_F(MasterTest, StateSummaryEndpoint)
   ASSERT_EQ(1u, state.values["frameworks"].as<JSON::Array>().values.size());
   ASSERT_SOME_EQ(0u, state.find<JSON::Number>("frameworks[0].TASK_RUNNING"));
   ASSERT_SOME_EQ(1u, state.find<JSON::Number>("frameworks[0].TASK_KILLED"));
-
-  driver.stop();
-  driver.join();
-
-  Shutdown();
-}
-
-
-// This test ensures that the web UI and capabilities of a framework
-// are included in the master's state endpoint, if provided by the
-// framework.
-TEST_F(MasterTest, FrameworkWebUIUrlandCapabilities)
-{
-  Try<PID<Master>> master = StartMaster();
-  ASSERT_SOME(master);
-
-  FrameworkInfo framework = DEFAULT_FRAMEWORK_INFO;
-  framework.set_webui_url("http://localhost:8080/");
-
-  vector<FrameworkInfo::Capability::Type> capabilities = {
-    FrameworkInfo::Capability::REVOCABLE_RESOURCES,
-    FrameworkInfo::Capability::TASK_KILLING_STATE
-  };
-
-  foreach (FrameworkInfo::Capability::Type capability, capabilities) {
-    framework.add_capabilities()->set_type(capability);
-  }
-
-  MockScheduler sched;
-  MesosSchedulerDriver driver(
-      &sched, framework, master.get(), DEFAULT_CREDENTIAL);
-
-  Future<Nothing> registered;
-  EXPECT_CALL(sched, registered(&driver, _, _))
-    .WillOnce(FutureSatisfy(&registered));
-
-  driver.start();
-
-  AWAIT_READY(registered);
-
-  Future<Response> masterState = process::http::get(master.get(), "state");
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, masterState);
-
-  Try<JSON::Object> parse = JSON::parse<JSON::Object>(masterState.get().body);
-  ASSERT_SOME(parse);
-
-  // We need a mutable copy of parse to use [].
-  JSON::Object masterStateObject = parse.get();
-
-  EXPECT_EQ(1u, masterStateObject.values.count("frameworks"));
-  JSON::Array frameworks =
-    masterStateObject.values["frameworks"].as<JSON::Array>();
-
-  EXPECT_EQ(1u, frameworks.values.size());
-  JSON::Object framework_ = frameworks.values.front().as<JSON::Object>();
-
-  EXPECT_EQ(1u, framework_.values.count("webui_url"));
-  JSON::String webui_url =
-    framework_.values["webui_url"].as<JSON::String>();
-
-  EXPECT_EQ("http://localhost:8080/", webui_url.value);
-
-  EXPECT_EQ(1u, framework_.values.count("capabilities"));
-  ASSERT_TRUE(framework_.values["capabilities"].is<JSON::Array>());
-
-  vector<FrameworkInfo::Capability::Type> actual;
-
-  foreach (const JSON::Value& capability,
-           framework_.values["capabilities"].as<JSON::Array>().values) {
-    FrameworkInfo::Capability::Type type;
-
-    ASSERT_TRUE(capability.is<JSON::String>());
-    ASSERT_TRUE(
-        FrameworkInfo::Capability::Type_Parse(
-            capability.as<JSON::String>().value,
-            &type));
-
-    actual.push_back(type);
-  }
-
-  EXPECT_EQ(capabilities, actual);
 
   driver.stop();
   driver.join();
