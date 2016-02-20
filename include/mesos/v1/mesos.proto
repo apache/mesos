@@ -262,6 +262,11 @@ message FrameworkInfo {
       // message for details.
       // TODO(vinod): This is currently a no-op.
       REVOCABLE_RESOURCES = 1;
+
+      // Receive the TASK_KILLING TaskState when a task is being
+      // killed by an executor. The executor will examine this
+      // capability to determine whether it can send TASK_KILLING.
+      TASK_KILLING_STATE = 2;
     }
 
     required Type type = 1;

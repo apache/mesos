@@ -3016,8 +3016,15 @@ TEST_F(MasterTest, FrameworkWebUIUrlandCapabilities)
 
   FrameworkInfo framework = DEFAULT_FRAMEWORK_INFO;
   framework.set_webui_url("http://localhost:8080/");
-  auto capabilityType = FrameworkInfo::Capability::REVOCABLE_RESOURCES;
-  framework.add_capabilities()->set_type(capabilityType);
+
+  vector<FrameworkInfo::Capability::Type> capabilities = {
+    FrameworkInfo::Capability::REVOCABLE_RESOURCES,
+    FrameworkInfo::Capability::TASK_KILLING_STATE
+  };
+
+  foreach (FrameworkInfo::Capability::Type capability, capabilities) {
+    framework.add_capabilities()->set_type(capability);
+  }
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
@@ -3054,12 +3061,24 @@ TEST_F(MasterTest, FrameworkWebUIUrlandCapabilities)
   EXPECT_EQ("http://localhost:8080/", webui_url.value);
 
   EXPECT_EQ(1u, framework_.values.count("capabilities"));
-  JSON::Array capabilities =
-    framework_.values["capabilities"].as<JSON::Array>();
-  JSON::String capability = capabilities.values.front().as<JSON::String>();
+  ASSERT_TRUE(framework_.values["capabilities"].is<JSON::Array>());
 
-  EXPECT_EQ(FrameworkInfo::Capability::Type_Name(capabilityType),
-            capability.value);
+  vector<FrameworkInfo::Capability::Type> actual;
+
+  foreach (const JSON::Value& capability,
+           framework_.values["capabilities"].as<JSON::Array>().values) {
+    FrameworkInfo::Capability::Type type;
+
+    ASSERT_TRUE(capability.is<JSON::String>());
+    ASSERT_TRUE(
+        FrameworkInfo::Capability::Type_Parse(
+            capability.as<JSON::String>().value,
+            &type));
+
+    actual.push_back(type);
+  }
+
+  EXPECT_EQ(capabilities, actual);
 
   driver.stop();
   driver.join();
