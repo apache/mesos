@@ -72,6 +72,13 @@ using process::wait; // Necessary on some OS's to disambiguate.
 namespace mesos {
 namespace internal {
 
+// The ShutdownProcess is a relic of the pre-cgroup process isolation
+// days. It ensures that the executor process tree is killed after a
+// shutdown has been sent.
+//
+// TODO(bmahler): Update 'delay' to handle deferred callbacks without
+// needing a Process. This would eliminate the need for an explicit
+// Process here, see: MESOS-4729.
 class ShutdownProcess : public Process<ShutdownProcess>
 {
 protected:
