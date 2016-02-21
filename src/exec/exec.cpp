@@ -646,7 +646,8 @@ Status MesosExecutorDriver::start()
     // Get slave PID from environment.
     value = os::getenv("MESOS_SLAVE_PID");
     if (value.isNone()) {
-      EXIT(1) << "Expecting 'MESOS_SLAVE_PID' to be set in the environment";
+      EXIT(EXIT_FAILURE)
+        << "Expecting 'MESOS_SLAVE_PID' to be set in the environment";
     }
 
     slave = UPID(value.get());
@@ -655,28 +656,32 @@ Status MesosExecutorDriver::start()
     // Get slave ID from environment.
     value = os::getenv("MESOS_SLAVE_ID");
     if (value.isNone()) {
-      EXIT(1) << "Expecting 'MESOS_SLAVE_ID' to be set in the environment";
+      EXIT(EXIT_FAILURE)
+        << "Expecting 'MESOS_SLAVE_ID' to be set in the environment";
     }
     slaveId.set_value(value.get());
 
     // Get framework ID from environment.
     value = os::getenv("MESOS_FRAMEWORK_ID");
     if (value.isNone()) {
-      EXIT(1) << "Expecting 'MESOS_FRAMEWORK_ID' to be set in the environment";
+      EXIT(EXIT_FAILURE)
+        << "Expecting 'MESOS_FRAMEWORK_ID' to be set in the environment";
     }
     frameworkId.set_value(value.get());
 
     // Get executor ID from environment.
     value = os::getenv("MESOS_EXECUTOR_ID");
     if (value.isNone()) {
-      EXIT(1) << "Expecting 'MESOS_EXECUTOR_ID' to be set in the environment";
+      EXIT(EXIT_FAILURE)
+        << "Expecting 'MESOS_EXECUTOR_ID' to be set in the environment";
     }
     executorId.set_value(value.get());
 
     // Get working directory from environment.
     value = os::getenv("MESOS_DIRECTORY");
     if (value.isNone()) {
-      EXIT(1) << "Expecting 'MESOS_DIRECTORY' to be set in the environment";
+      EXIT(EXIT_FAILURE)
+        << "Expecting 'MESOS_DIRECTORY' to be set in the environment";
     }
     workDirectory = value.get();
 
