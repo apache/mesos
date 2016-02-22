@@ -199,6 +199,12 @@ initial state and several possible terminal states:
     * Note that the correctness of this technique depends on the fact that
       messaging between the scheduler and the master is ordered.
 
+* The `TASK_KILLING` state is optional and is intended to indicate that the
+  request to kill the task has been received by the executor, but the task has
+  not yet been killed. This is useful for tasks that require some time to
+  terminate gracefully. Executors must not generate this state unless the
+  framework has the `TASK_KILLING_STATE` framework capability.
+
 * There are several terminal states:
 
   * `TASK_FINISHED` is used when a task completes successfully.
