@@ -708,9 +708,7 @@ Option<Error> validate(
 }
 
 
-Option<Error> validate(
-    const Offer::Operation::Unreserve& unreserve,
-    bool hasPrincipal)
+Option<Error> validate(const Offer::Operation::Unreserve& unreserve)
 {
   Option<Error> error = resource::validate(unreserve.resources());
   if (error.isSome()) {

@@ -3398,7 +3398,7 @@ void Master::_accept(
 
         // Make sure this unreserve operation is valid.
         Option<Error> error = validation::operation::validate(
-            operation.unreserve(), framework->info.has_principal());
+            operation.unreserve());
 
         if (error.isSome()) {
           drop(framework, operation, error.get().message);

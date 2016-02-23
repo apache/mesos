@@ -2549,8 +2549,7 @@ Future<Response> Master::Http::unreserve(
   operation.set_type(Offer::Operation::UNRESERVE);
   operation.mutable_unreserve()->mutable_resources()->CopyFrom(resources);
 
-  Option<Error> error = validation::operation::validate(
-      operation.unreserve(), principal.isSome());
+  Option<Error> error = validation::operation::validate(operation.unreserve());
 
   if (error.isSome()) {
     return BadRequest(

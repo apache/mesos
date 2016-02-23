@@ -110,9 +110,7 @@ Option<Error> validate(
 
 
 // Validates the UNRESERVE operation.
-Option<Error> validate(
-    const Offer::Operation::Unreserve& unreserve,
-    bool hasPrincipal);
+Option<Error> validate(const Offer::Operation::Unreserve& unreserve);
 
 
 // Validates the CREATE operation. We need slave's checkpointed
