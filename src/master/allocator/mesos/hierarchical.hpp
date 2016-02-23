@@ -370,7 +370,7 @@ protected:
   // Number of registered frameworks for each role. When a role's active
   // count drops to zero, it is removed from this map; the role is also
   // removed from `roleSorter` and its `frameworkSorter` is deleted.
-  hashmap<std::string, int> activeRoles;
+  hashmap<std::string, size_t> activeRoles;
 
   // Configured weight for each role, if any; if a role does not
   // appear here, it has the default weight of 1.
