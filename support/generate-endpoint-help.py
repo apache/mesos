@@ -313,10 +313,15 @@ def start_agent():
   return agent
 
 
+def cleanup_on_exit():
+  if current_subprocess:
+    current_subprocess.kill()
+
+
 if __name__ == '__main__':
   parse_options()
 
-  atexit.register(lambda: current_subprocess.kill())
+  atexit.register(cleanup_on_exit)
 
   current_subprocess = start_master()
   master_help = get_help(HOST_IP, MASTER_PORT)
