@@ -253,10 +253,8 @@ if (NOT WIN32)
     slave/containerizer/mesos/provisioner/docker/metadata_manager.cpp
     slave/containerizer/mesos/provisioner/docker/paths.cpp
     slave/containerizer/mesos/provisioner/docker/puller.cpp
-    slave/containerizer/mesos/provisioner/docker/registry_client.cpp
     slave/containerizer/mesos/provisioner/docker/registry_puller.cpp
     slave/containerizer/mesos/provisioner/docker/store.cpp
-    slave/containerizer/mesos/provisioner/docker/token_manager.cpp
     slave/resource_estimators/noop.cpp
     )
 endif (NOT WIN32)

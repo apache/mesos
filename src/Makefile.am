@@ -676,10 +676,8 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   slave/containerizer/mesos/provisioner/docker/metadata_manager.cpp	\
   slave/containerizer/mesos/provisioner/docker/paths.cpp		\
   slave/containerizer/mesos/provisioner/docker/puller.cpp		\
-  slave/containerizer/mesos/provisioner/docker/registry_client.cpp	\
   slave/containerizer/mesos/provisioner/docker/registry_puller.cpp	\
   slave/containerizer/mesos/provisioner/docker/store.cpp		\
-  slave/containerizer/mesos/provisioner/docker/token_manager.cpp	\
   slave/resource_estimators/noop.cpp					\
   uri/fetcher.cpp							\
   uri/utils.cpp								\
@@ -788,10 +786,8 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   slave/containerizer/mesos/provisioner/docker/metadata_manager.hpp	\
   slave/containerizer/mesos/provisioner/docker/paths.hpp		\
   slave/containerizer/mesos/provisioner/docker/puller.hpp		\
-  slave/containerizer/mesos/provisioner/docker/registry_client.hpp	\
   slave/containerizer/mesos/provisioner/docker/registry_puller.hpp	\
   slave/containerizer/mesos/provisioner/docker/store.hpp		\
-  slave/containerizer/mesos/provisioner/docker/token_manager.hpp	\
   slave/qos_controllers/noop.hpp					\
   slave/resource_estimators/noop.hpp					\
   tests/allocator.hpp							\
