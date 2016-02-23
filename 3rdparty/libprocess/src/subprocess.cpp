@@ -189,7 +189,7 @@ Subprocess::IO Subprocess::FD(int fd, IO::FDType type)
 
           // NOTE: By not setting a default we leverage the compiler
           // errors when the enumeration is augmented to find all
-          // the cases we need to provide.  Same for below.
+          // the cases we need to provide. Same for below.
         }
 
         if (prepared_fd == -1) {
@@ -239,7 +239,7 @@ static pid_t defaultClone(const lambda::function<int()>& func)
 
 
 // The main entry of the child process. Note that this function has to
-// be async singal safe.
+// be async signal safe.
 static int childMain(
     const string& path,
     char** argv,
