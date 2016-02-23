@@ -229,6 +229,9 @@ protected:
   }
 
 protected:
+  const hashmap<FrameworkID, Resources> NO_ALLOCATION;
+  const hashmap<SlaveID, Resources> NO_USED_RESOURCES;
+
   master::Flags flags;
 
   Allocator* allocator;
@@ -268,17 +271,15 @@ TEST_F(HierarchicalAllocatorTest, UnreservedDRF)
 
   initialize();
 
-  hashmap<FrameworkID, Resources> EMPTY;
-
   // Total cluster resources will become cpus=2, mem=1024.
   SlaveInfo slave1 = createSlaveInfo("cpus:2;mem:1024;disk:0");
-  allocator->addSlave(slave1.id(), slave1, None(), slave1.resources(), EMPTY);
+  allocator->addSlave(
+      slave1.id(), slave1, None(), slave1.resources(), NO_ALLOCATION);
 
   // framework1 will be offered all of slave1's resources since it is
   // the only framework running so far.
   FrameworkInfo framework1 = createFrameworkInfo("role1");
-  allocator->addFramework(
-      framework1.id(), framework1, hashmap<SlaveID, Resources>());
+  allocator->addFramework(framework1.id(), framework1, NO_USED_RESOURCES);
 
   Future<Allocation> allocation = allocations.get();
   AWAIT_READY(allocation);
@@ -289,8 +290,7 @@ TEST_F(HierarchicalAllocatorTest, UnreservedDRF)
   //   framework1 share = 1
 
   FrameworkInfo framework2 = createFrameworkInfo("role2");
-  allocator->addFramework(
-      framework2.id(), framework2, hashmap<SlaveID, Resources>());
+  allocator->addFramework(framework2.id(), framework2, NO_USED_RESOURCES);
 
   // Total cluster resources will become cpus=3, mem=1536:
   // role1 share = 0.66 (cpus=2, mem=1024)
@@ -298,7 +298,8 @@ TEST_F(HierarchicalAllocatorTest, UnreservedDRF)
   // role2 share = 0
   //   framework2 share = 0
   SlaveInfo slave2 = createSlaveInfo("cpus:1;mem:512;disk:0");
-  allocator->addSlave(slave2.id(), slave2, None(), slave2.resources(), EMPTY);
+  allocator->addSlave(
+      slave2.id(), slave2, None(), slave2.resources(), NO_ALLOCATION);
 
   // framework2 will be offered all of slave2's resources since role2
   // has the lowest user share, and framework2 is its only framework.
@@ -318,7 +319,8 @@ TEST_F(HierarchicalAllocatorTest, UnreservedDRF)
   // role2 share = 0.16 (cpus=1, mem=512)
   //   framework2 share = 1
   SlaveInfo slave3 = createSlaveInfo("cpus:3;mem:2048;disk:0");
-  allocator->addSlave(slave3.id(), slave3, None(), slave3.resources(), EMPTY);
+  allocator->addSlave(
+      slave3.id(), slave3, None(), slave3.resources(), NO_ALLOCATION);
 
   // framework2 will be offered all of slave3's resources since role2
   // has the lowest share.
@@ -333,8 +335,7 @@ TEST_F(HierarchicalAllocatorTest, UnreservedDRF)
   //   framework2 share = 1
 
   FrameworkInfo framework3 = createFrameworkInfo("role1");
-  allocator->addFramework(
-      framework3.id(), framework3, hashmap<SlaveID, Resources>());
+  allocator->addFramework(framework3.id(), framework3, NO_USED_RESOURCES);
 
   // Total cluster resources will become cpus=10, mem=7680:
   // role1 share = 0.2 (cpus=2, mem=1024)
@@ -343,7 +344,8 @@ TEST_F(HierarchicalAllocatorTest, UnreservedDRF)
   // role2 share = 0.4 (cpus=4, mem=2560)
   //   framework2 share = 1
   SlaveInfo slave4 = createSlaveInfo("cpus:4;mem:4096;disk:0");
-  allocator->addSlave(slave4.id(), slave4, None(), slave4.resources(), EMPTY);
+  allocator->addSlave(
+      slave4.id(), slave4, None(), slave4.resources(), NO_ALLOCATION);
 
   // framework3 will be offered all of slave4's resources since role1
   // has the lowest user share, and framework3 has the lowest share of
@@ -360,8 +362,7 @@ TEST_F(HierarchicalAllocatorTest, UnreservedDRF)
   //   framework2 share = 1
 
   FrameworkInfo framework4 = createFrameworkInfo("role1");
-  allocator->addFramework(
-      framework4.id(), framework4, hashmap<SlaveID, Resources>());
+  allocator->addFramework(framework4.id(), framework4, NO_USED_RESOURCES);
 
   // Total cluster resources will become cpus=11, mem=8192
   // role1 share = 0.63 (cpus=6, mem=5120)
@@ -371,7 +372,8 @@ TEST_F(HierarchicalAllocatorTest, UnreservedDRF)
   // role2 share = 0.36 (cpus=4, mem=2560)
   //   framework2 share = 1
   SlaveInfo slave5 = createSlaveInfo("cpus:1;mem:512;disk:0");
-  allocator->addSlave(slave5.id(), slave5, None(), slave5.resources(), EMPTY);
+  allocator->addSlave(
+      slave5.id(), slave5, None(), slave5.resources(), NO_ALLOCATION);
 
   // Even though framework4 doesn't have any resources, role2 has a
   // lower share than role1, so framework2 receives slave5's resources.
@@ -392,17 +394,16 @@ TEST_F(HierarchicalAllocatorTest, ReservedDRF)
 
   initialize();
 
-  hashmap<FrameworkID, Resources> EMPTY;
-
   SlaveInfo slave1 = createSlaveInfo(
       "cpus:1;mem:512;disk:0;"
       "cpus(role1):100;mem(role1):1024;disk(role1):0");
-  allocator->addSlave(slave1.id(), slave1, None(), slave1.resources(), EMPTY);
+
+  allocator->addSlave(
+      slave1.id(), slave1, None(), slave1.resources(), NO_ALLOCATION);
 
   // framework1 will be offered all of the resources.
   FrameworkInfo framework1 = createFrameworkInfo("role1");
-  allocator->addFramework(
-      framework1.id(), framework1, hashmap<SlaveID, Resources>());
+  allocator->addFramework(framework1.id(), framework1, NO_USED_RESOURCES);
 
   Future<Allocation> allocation = allocations.get();
   AWAIT_READY(allocation);
@@ -410,12 +411,12 @@ TEST_F(HierarchicalAllocatorTest, ReservedDRF)
   EXPECT_EQ(slave1.resources(), Resources::sum(allocation.get().resources));
 
   FrameworkInfo framework2 = createFrameworkInfo("role2");
-  allocator->addFramework(
-      framework2.id(), framework2, hashmap<SlaveID, Resources>());
+  allocator->addFramework(framework2.id(), framework2, NO_USED_RESOURCES);
 
   // framework2 will be allocated the new resoures.
   SlaveInfo slave2 = createSlaveInfo("cpus:2;mem:512;disk:0");
-  allocator->addSlave(slave2.id(), slave2, None(), slave2.resources(), EMPTY);
+  allocator->addSlave(
+      slave2.id(), slave2, None(), slave2.resources(), NO_ALLOCATION);
 
   allocation = allocations.get();
   AWAIT_READY(allocation);
@@ -425,7 +426,8 @@ TEST_F(HierarchicalAllocatorTest, ReservedDRF)
   // Since `framework1` has more resources allocated to it than `framework2`,
   // We expect `framework2` to receive this agent's resources.
   SlaveInfo slave3 = createSlaveInfo("cpus:2;mem:512;disk:0");
-  allocator->addSlave(slave3.id(), slave3, None(), slave3.resources(), EMPTY);
+  allocator->addSlave(
+      slave3.id(), slave3, None(), slave3.resources(), NO_ALLOCATION);
 
   allocation = allocations.get();
   AWAIT_READY(allocation);
@@ -437,12 +439,13 @@ TEST_F(HierarchicalAllocatorTest, ReservedDRF)
   // expect framework3 to receive the next allocation of role1
   // resources.
   FrameworkInfo framework3 = createFrameworkInfo("role1");
-  allocator->addFramework(
-      framework3.id(), framework3, hashmap<SlaveID, Resources>());
+  allocator->addFramework(framework3.id(), framework3, NO_USED_RESOURCES);
 
   SlaveInfo slave4 = createSlaveInfo(
       "cpus(role1):2;mem(role1):1024;disk(role1):0");
-  allocator->addSlave(slave4.id(), slave4, None(), slave4.resources(), EMPTY);
+
+  allocator->addSlave(
+      slave4.id(), slave4, None(), slave4.resources(), NO_ALLOCATION);
 
   allocation = allocations.get();
   AWAIT_READY(allocation);
@@ -464,32 +467,21 @@ TEST_F(HierarchicalAllocatorTest, OfferFilter)
   // have had separate roles; this should not influence the test.
   const string ROLE{"role"};
 
-  hashmap<FrameworkID, Resources> EMPTY;
-
   initialize();
 
-  FrameworkInfo framework1 = createFrameworkInfo(ROLE);
+  FrameworkInfo framework = createFrameworkInfo(ROLE);
+  allocator->addFramework(framework.id(), framework, NO_USED_RESOURCES);
 
-  SlaveInfo agent1 = createSlaveInfo("cpus:1;mem:512;disk:0");
-
-  allocator->addFramework(
-      framework1.id(),
-      framework1,
-      hashmap<SlaveID, Resources>());
-
+  SlaveInfo agent = createSlaveInfo("cpus:1;mem:512;disk:0");
   allocator->addSlave(
-      agent1.id(),
-      agent1,
-      None(),
-      agent1.resources(),
-      EMPTY);
+      agent.id(), agent, None(), agent.resources(), NO_ALLOCATION);
 
   // `framework1` will be offered all of `agent1` resources
   // because it is the only framework in the cluster.
   Future<Allocation> allocation = allocations.get();
   AWAIT_READY(allocation);
-  EXPECT_EQ(framework1.id(), allocation.get().frameworkId);
-  EXPECT_EQ(agent1.resources(), Resources::sum(allocation.get().resources));
+  EXPECT_EQ(framework.id(), allocation.get().frameworkId);
+  EXPECT_EQ(agent.resources(), Resources::sum(allocation.get().resources));
 
   // Now `framework1` declines the offer and sets a filter
   // with the duration greater than the allocation interval.
@@ -498,9 +490,9 @@ TEST_F(HierarchicalAllocatorTest, OfferFilter)
   offerFilter.set_refuse_seconds(filterTimeout.secs());
 
   allocator->recoverResources(
-      framework1.id(),
-      agent1.id(),
-      allocation.get().resources.get(agent1.id()).get(),
+      framework.id(),
+      agent.id(),
+      allocation.get().resources.get(agent.id()).get(),
       offerFilter);
 
   // Ensure the offer filter timeout is set before advancing the clock.
@@ -521,8 +513,8 @@ TEST_F(HierarchicalAllocatorTest, OfferFilter)
 
   // The next batch allocation should offer resources to `framework1`.
   AWAIT_READY(allocation);
-  EXPECT_EQ(framework1.id(), allocation.get().frameworkId);
-  EXPECT_EQ(agent1.resources(), Resources::sum(allocation.get().resources));
+  EXPECT_EQ(framework.id(), allocation.get().frameworkId);
+  EXPECT_EQ(agent.resources(), Resources::sum(allocation.get().resources));
 }
 
 
@@ -544,8 +536,6 @@ TEST_F(HierarchicalAllocatorTest, SmallOfferFilterTimeout)
   // have had separate roles; this should not influence the test.
   const string ROLE{"role"};
 
-  hashmap<FrameworkID, Resources> EMPTY;
-
   // Explicitly set the allocation interval to make sure
   // it is greater than the offer filter timeout.
   master::Flags flags_;
@@ -554,20 +544,12 @@ TEST_F(HierarchicalAllocatorTest, SmallOfferFilterTimeout)
   initialize(flags_);
 
   FrameworkInfo framework1 = createFrameworkInfo(ROLE);
+  allocator->addFramework(framework1.id(), framework1, NO_USED_RESOURCES);
+
   FrameworkInfo framework2 = createFrameworkInfo(ROLE);
+  allocator->addFramework(framework2.id(), framework2, NO_USED_RESOURCES);
 
   SlaveInfo agent1 = createSlaveInfo("cpus:1;mem:512;disk:0");
-
-  allocator->addFramework(
-      framework1.id(),
-      framework1,
-      hashmap<SlaveID, Resources>());
-
-  allocator->addFramework(
-      framework2.id(),
-      framework2,
-      hashmap<SlaveID, Resources>());
-
   allocator->addSlave(
       agent1.id(),
       agent1,
@@ -588,11 +570,7 @@ TEST_F(HierarchicalAllocatorTest, SmallOfferFilterTimeout)
   // Add one more agent with some free resources.
   SlaveInfo agent2 = createSlaveInfo("cpus:1;mem:512;disk:0");
   allocator->addSlave(
-      agent2.id(),
-      agent2,
-      None(),
-      agent2.resources(),
-      EMPTY);
+      agent2.id(), agent2, None(), agent2.resources(), NO_ALLOCATION);
 
   // Process the allocation triggered by the agent addition.
   Clock::settle();
@@ -695,22 +673,19 @@ TEST_F(HierarchicalAllocatorTest, MaintenanceInverseOffers)
 
   initialize();
 
-  // No initial resources.
-  hashmap<FrameworkID, Resources> EMPTY;
-
   // Create an agent.
   SlaveInfo agent = createSlaveInfo("cpus:2;mem:1024;disk:0");
-  allocator->addSlave(agent.id(), agent, None(), agent.resources(), EMPTY);
+  allocator->addSlave(
+      agent.id(), agent, None(), agent.resources(), NO_ALLOCATION);
 
   // This framework will be offered all of the resources.
-  FrameworkInfo framework1 = createFrameworkInfo("*");
-  allocator->addFramework(
-      framework1.id(), framework1, hashmap<SlaveID, Resources>());
+  FrameworkInfo framework = createFrameworkInfo("*");
+  allocator->addFramework(framework.id(), framework, NO_USED_RESOURCES);
 
   // Check that the resources go to the framework.
   Future<Allocation> allocation = allocations.get();
   AWAIT_READY(allocation);
-  EXPECT_EQ(framework1.id(), allocation.get().frameworkId);
+  EXPECT_EQ(framework.id(), allocation.get().frameworkId);
   EXPECT_EQ(agent.resources(), Resources::sum(allocation.get().resources));
 
   const process::Time start = Clock::now() + Seconds(60);
@@ -724,7 +699,7 @@ TEST_F(HierarchicalAllocatorTest, MaintenanceInverseOffers)
   // Check the resources get inverse offered.
   Future<Deallocation> deallocation = deallocations.get();
   AWAIT_READY(deallocation);
-  EXPECT_EQ(framework1.id(), deallocation.get().frameworkId);
+  EXPECT_EQ(framework.id(), deallocation.get().frameworkId);
   EXPECT_TRUE(deallocation.get().resources.contains(agent.id()));
 
   foreachvalue (
@@ -752,20 +727,19 @@ TEST_F(HierarchicalAllocatorTest, CoarseGrained)
 
   initialize();
 
-  hashmap<FrameworkID, Resources> EMPTY;
-
   SlaveInfo slave1 = createSlaveInfo("cpus:2;mem:1024;disk:0");
-  allocator->addSlave(slave1.id(), slave1, None(), slave1.resources(), EMPTY);
+  allocator->addSlave(
+      slave1.id(), slave1, None(), slave1.resources(), NO_ALLOCATION);
 
   SlaveInfo slave2 = createSlaveInfo("cpus:2;mem:1024;disk:0");
-  allocator->addSlave(slave2.id(), slave2, None(), slave2.resources(), EMPTY);
+  allocator->addSlave(
+      slave2.id(), slave2, None(), slave2.resources(), NO_ALLOCATION);
 
   // Once framework1 is added, an allocation will occur. Return the
   // resources so that we can test what happens when there are 2
   // frameworks and 2 slaves to consider during allocation.
   FrameworkInfo framework1 = createFrameworkInfo("role1");
-  allocator->addFramework(
-      framework1.id(), framework1, hashmap<SlaveID, Resources>());
+  allocator->addFramework(framework1.id(), framework1, NO_USED_RESOURCES);
 
   Future<Allocation> allocation = allocations.get();
   AWAIT_READY(allocation);
@@ -778,6 +752,7 @@ TEST_F(HierarchicalAllocatorTest, CoarseGrained)
       slave1.id(),
       allocation.get().resources.get(slave1.id()).get(),
       None());
+
   allocator->recoverResources(
       framework1.id(),
       slave2.id(),
@@ -787,8 +762,7 @@ TEST_F(HierarchicalAllocatorTest, CoarseGrained)
   // Now add the second framework, we expect there to be 2 subsequent
   // allocations, each framework being allocated a full slave.
   FrameworkInfo framework2 = createFrameworkInfo("role2");
-  allocator->addFramework(
-      framework2.id(), framework2, hashmap<SlaveID, Resources>());
+  allocator->addFramework(framework2.id(), framework2, NO_USED_RESOURCES);
 
   hashmap<FrameworkID, Allocation> frameworkAllocations;
 
@@ -825,18 +799,15 @@ TEST_F(HierarchicalAllocatorTest, SameShareFairness)
 
   initialize();
 
-  hashmap<FrameworkID, Resources> EMPTY;
-
   FrameworkInfo framework1 = createFrameworkInfo("*");
-  allocator->addFramework(
-      framework1.id(), framework1, hashmap<SlaveID, Resources>());
+  allocator->addFramework(framework1.id(), framework1, NO_USED_RESOURCES);
 
   FrameworkInfo framework2 = createFrameworkInfo("*");
-  allocator->addFramework(
-      framework2.id(), framework2, hashmap<SlaveID, Resources>());
+  allocator->addFramework(framework2.id(), framework2, NO_USED_RESOURCES);
 
   SlaveInfo slave = createSlaveInfo("cpus:2;mem:1024;disk:0");
-  allocator->addSlave(slave.id(), slave, None(), slave.resources(), EMPTY);
+  allocator->addSlave(
+      slave.id(), slave, None(), slave.resources(), NO_ALLOCATION);
 
   // Ensure that the slave's resources are alternated between both
   // frameworks.
@@ -872,27 +843,30 @@ TEST_F(HierarchicalAllocatorTest, Reservations)
 
   initialize();
 
-  hashmap<FrameworkID, Resources> EMPTY;
-
   SlaveInfo slave1 = createSlaveInfo(
       "cpus(role1):2;mem(role1):1024;disk(role1):0");
-  allocator->addSlave(slave1.id(), slave1, None(), slave1.resources(), EMPTY);
+
+  allocator->addSlave(
+      slave1.id(), slave1, None(), slave1.resources(), NO_ALLOCATION);
 
   SlaveInfo slave2 = createSlaveInfo(
       "cpus(role2):2;mem(role2):1024;cpus:1;mem:1024;disk:0");
-  allocator->addSlave(slave2.id(), slave2, None(), slave2.resources(), EMPTY);
+
+  allocator->addSlave(
+      slave2.id(), slave2, None(), slave2.resources(), NO_ALLOCATION);
 
   // This slave's resources should never be allocated, since there
   // is no framework for role3.
   SlaveInfo slave3 = createSlaveInfo(
       "cpus(role3):1;mem(role3):1024;disk(role3):0");
-  allocator->addSlave(slave3.id(), slave3, None(), slave3.resources(), EMPTY);
+
+  allocator->addSlave(
+      slave3.id(), slave3, None(), slave3.resources(), NO_ALLOCATION);
 
   // framework1 should get all the resources from slave1, and the
   // unreserved resources from slave2.
   FrameworkInfo framework1 = createFrameworkInfo("role1");
-  allocator->addFramework(
-      framework1.id(), framework1, hashmap<SlaveID, Resources>());
+  allocator->addFramework(framework1.id(), framework1, NO_USED_RESOURCES);
 
   Future<Allocation> allocation = allocations.get();
   AWAIT_READY(allocation);
@@ -905,8 +879,7 @@ TEST_F(HierarchicalAllocatorTest, Reservations)
 
   // framework2 should get all of its reserved resources on slave2.
   FrameworkInfo framework2 = createFrameworkInfo("role2");
-  allocator->addFramework(
-      framework2.id(), framework2, hashmap<SlaveID, Resources>());
+  allocator->addFramework(framework2.id(), framework2, NO_USED_RESOURCES);
 
   allocation = allocations.get();
   AWAIT_READY(allocation);
@@ -925,21 +898,20 @@ TEST_F(HierarchicalAllocatorTest, RecoverResources)
 
   initialize();
 
-  hashmap<FrameworkID, Resources> EMPTY;
-
   SlaveInfo slave = createSlaveInfo(
       "cpus(role1):1;mem(role1):200;"
       "cpus:1;mem:200;disk:0");
-  allocator->addSlave(slave.id(), slave, None(), slave.resources(), EMPTY);
+
+  allocator->addSlave(
+      slave.id(), slave, None(), slave.resources(), NO_ALLOCATION);
 
   // Initially, all the resources are allocated.
-  FrameworkInfo framework1 = createFrameworkInfo("role1");
-  allocator->addFramework(
-      framework1.id(), framework1, hashmap<SlaveID, Resources>());
+  FrameworkInfo framework = createFrameworkInfo("role1");
+  allocator->addFramework(framework.id(), framework, NO_USED_RESOURCES);
 
   Future<Allocation> allocation = allocations.get();
   AWAIT_READY(allocation);
-  EXPECT_EQ(framework1.id(), allocation.get().frameworkId);
+  EXPECT_EQ(framework.id(), allocation.get().frameworkId);
   EXPECT_EQ(1u, allocation.get().resources.size());
   EXPECT_TRUE(allocation.get().resources.contains(slave.id()));
   EXPECT_EQ(slave.resources(), Resources::sum(allocation.get().resources));
@@ -957,7 +929,7 @@ TEST_F(HierarchicalAllocatorTest, RecoverResources)
 
   allocation = allocations.get();
   AWAIT_READY(allocation);
-  EXPECT_EQ(framework1.id(), allocation.get().frameworkId);
+  EXPECT_EQ(framework.id(), allocation.get().frameworkId);
   EXPECT_EQ(1u, allocation.get().resources.size());
   EXPECT_TRUE(allocation.get().resources.contains(slave.id()));
   EXPECT_EQ(reserved, Resources::sum(allocation.get().resources));
@@ -975,7 +947,7 @@ TEST_F(HierarchicalAllocatorTest, RecoverResources)
 
   allocation = allocations.get();
   AWAIT_READY(allocation);
-  EXPECT_EQ(framework1.id(), allocation.get().frameworkId);
+  EXPECT_EQ(framework.id(), allocation.get().frameworkId);
   EXPECT_EQ(1u, allocation.get().resources.size());
   EXPECT_TRUE(allocation.get().resources.contains(slave.id()));
   EXPECT_EQ(unreserved, Resources::sum(allocation.get().resources));
@@ -992,24 +964,25 @@ TEST_F(HierarchicalAllocatorTest, Allocatable)
   initialize();
 
   FrameworkInfo framework = createFrameworkInfo("role1");
-  allocator->addFramework(
-      framework.id(), framework, hashmap<SlaveID, Resources>());
-
-  hashmap<FrameworkID, Resources> EMPTY;
+  allocator->addFramework(framework.id(), framework, NO_USED_RESOURCES);
 
   // Not enough memory or cpu to be considered allocatable.
   SlaveInfo slave1 = createSlaveInfo(
       "cpus:" + stringify(MIN_CPUS / 2) + ";"
       "mem:" + stringify((MIN_MEM / 2).megabytes()) + ";"
       "disk:128");
-  allocator->addSlave(slave1.id(), slave1, None(), slave1.resources(), EMPTY);
+
+  allocator->addSlave(
+      slave1.id(), slave1, None(), slave1.resources(), NO_ALLOCATION);
 
   // Enough cpus to be considered allocatable.
   SlaveInfo slave2 = createSlaveInfo(
       "cpus:" + stringify(MIN_CPUS) + ";"
       "mem:" + stringify((MIN_MEM / 2).megabytes()) + ";"
       "disk:128");
-  allocator->addSlave(slave2.id(), slave2, None(), slave2.resources(), EMPTY);
+
+  allocator->addSlave(
+      slave2.id(), slave2, None(), slave2.resources(), NO_ALLOCATION);
 
   Future<Allocation> allocation = allocations.get();
   AWAIT_READY(allocation);
@@ -1023,7 +996,9 @@ TEST_F(HierarchicalAllocatorTest, Allocatable)
       "cpus:" + stringify(MIN_CPUS / 2) + ";"
       "mem:" + stringify((MIN_MEM).megabytes()) + ";"
       "disk:128");
-  allocator->addSlave(slave3.id(), slave3, None(), slave3.resources(), EMPTY);
+
+  allocator->addSlave(
+      slave3.id(), slave3, None(), slave3.resources(), NO_ALLOCATION);
 
   allocation = allocations.get();
   AWAIT_READY(allocation);
@@ -1040,7 +1015,9 @@ TEST_F(HierarchicalAllocatorTest, Allocatable)
       "cpus(role1):" + stringify(MIN_CPUS / 1.5) + ";"
       "mem(role1):" + stringify((MIN_MEM / 2).megabytes()) + ";"
       "disk:128");
-  allocator->addSlave(slave4.id(), slave4, None(), slave4.resources(), EMPTY);
+
+  allocator->addSlave(
+      slave4.id(), slave4, None(), slave4.resources(), NO_ALLOCATION);
 
   allocation = allocations.get();
   AWAIT_READY(allocation);
@@ -1059,15 +1036,13 @@ TEST_F(HierarchicalAllocatorTest, UpdateAllocation)
 
   initialize();
 
-  hashmap<FrameworkID, Resources> EMPTY;
-
   SlaveInfo slave = createSlaveInfo("cpus:100;mem:100;disk:100");
-  allocator->addSlave(slave.id(), slave, None(), slave.resources(), EMPTY);
+  allocator->addSlave(
+      slave.id(), slave, None(), slave.resources(), NO_ALLOCATION);
 
   // Initially, all the resources are allocated.
   FrameworkInfo framework = createFrameworkInfo("role1");
-  allocator->addFramework(
-      framework.id(), framework, hashmap<SlaveID, Resources>());
+  allocator->addFramework(framework.id(), framework, NO_USED_RESOURCES);
 
   Future<Allocation> allocation = allocations.get();
   AWAIT_READY(allocation);
@@ -1131,10 +1106,9 @@ TEST_F(HierarchicalAllocatorTest, UpdateAvailableSuccess)
 {
   initialize();
 
-  hashmap<FrameworkID, Resources> EMPTY;
-
   SlaveInfo slave = createSlaveInfo("cpus:100;mem:100;disk:100");
-  allocator->addSlave(slave.id(), slave, None(), slave.resources(), EMPTY);
+  allocator->addSlave(
+      slave.id(), slave, None(), slave.resources(), NO_ALLOCATION);
 
   // Construct an offer operation for the framework's allocation.
   Resources unreserved = Resources::parse("cpus:25;mem:50").get();
@@ -1149,8 +1123,7 @@ TEST_F(HierarchicalAllocatorTest, UpdateAvailableSuccess)
 
   // Expect to receive the updated available resources.
   FrameworkInfo framework = createFrameworkInfo("role1");
-  allocator->addFramework(
-      framework.id(), framework, hashmap<SlaveID, Resources>());
+  allocator->addFramework(framework.id(), framework, NO_USED_RESOURCES);
 
   Future<Allocation> allocation = allocations.get();
   AWAIT_READY(allocation);
@@ -1176,15 +1149,13 @@ TEST_F(HierarchicalAllocatorTest, UpdateAvailableFail)
 {
   initialize();
 
-  hashmap<FrameworkID, Resources> EMPTY;
-
   SlaveInfo slave = createSlaveInfo("cpus:100;mem:100;disk:100");
-  allocator->addSlave(slave.id(), slave, None(), slave.resources(), EMPTY);
+  allocator->addSlave(
+      slave.id(), slave, None(), slave.resources(), NO_ALLOCATION);
 
   // Expect to receive the all of the available resources.
   FrameworkInfo framework = createFrameworkInfo("role1");
-  allocator->addFramework(
-      framework.id(), framework, hashmap<SlaveID, Resources>());
+  allocator->addFramework(framework.id(), framework, NO_USED_RESOURCES);
 
   Future<Allocation> allocation = allocations.get();
   AWAIT_READY(allocation);
@@ -1214,18 +1185,16 @@ TEST_F(HierarchicalAllocatorTest, UpdateSlave)
 
   initialize();
 
-  hashmap<FrameworkID, Resources> EMPTY;
-
   SlaveInfo slave = createSlaveInfo("cpus:100;mem:100;disk:100");
-  allocator->addSlave(slave.id(), slave, None(), slave.resources(), EMPTY);
+  allocator->addSlave(
+      slave.id(), slave, None(), slave.resources(), NO_ALLOCATION);
 
   // Add a framework that can accept revocable resources.
   FrameworkInfo framework = createFrameworkInfo("role1");
   framework.add_capabilities()->set_type(
       FrameworkInfo::Capability::REVOCABLE_RESOURCES);
 
-  allocator->addFramework(
-      framework.id(), framework, hashmap<SlaveID, Resources>());
+  allocator->addFramework(framework.id(), framework, NO_USED_RESOURCES);
 
   // Initially, all the resources are allocated.
   Future<Allocation> allocation = allocations.get();
@@ -1272,15 +1241,13 @@ TEST_F(HierarchicalAllocatorTest, OversubscribedNotAllocated)
 
   initialize();
 
-  hashmap<FrameworkID, Resources> EMPTY;
-
   SlaveInfo slave = createSlaveInfo("cpus:100;mem:100;disk:100");
-  allocator->addSlave(slave.id(), slave, None(), slave.resources(), EMPTY);
+  allocator->addSlave(
+      slave.id(), slave, None(), slave.resources(), NO_ALLOCATION);
 
   // Add a framework that does *not* accept revocable resources.
   FrameworkInfo framework = createFrameworkInfo("role1");
-  allocator->addFramework(
-      framework.id(), framework, hashmap<SlaveID, Resources>());
+  allocator->addFramework(framework.id(), framework, NO_USED_RESOURCES);
 
   // Initially, all the resources are allocated.
   Future<Allocation> allocation = allocations.get();
@@ -1308,18 +1275,16 @@ TEST_F(HierarchicalAllocatorTest, RecoverOversubscribedResources)
 
   initialize();
 
-  hashmap<FrameworkID, Resources> EMPTY;
-
   SlaveInfo slave = createSlaveInfo("cpus:100;mem:100;disk:100");
-  allocator->addSlave(slave.id(), slave, None(), slave.resources(), EMPTY);
+  allocator->addSlave(
+      slave.id(), slave, None(), slave.resources(), NO_ALLOCATION);
 
   // Add a framework that can accept revocable resources.
   FrameworkInfo framework = createFrameworkInfo("role1");
   framework.add_capabilities()->set_type(
       FrameworkInfo::Capability::REVOCABLE_RESOURCES);
 
-  allocator->addFramework(
-      framework.id(), framework, hashmap<SlaveID, Resources>());
+  allocator->addFramework(framework.id(), framework, NO_USED_RESOURCES);
 
   // Initially, all the resources are allocated.
   Future<Allocation> allocation = allocations.get();
@@ -1365,14 +1330,12 @@ TEST_F(HierarchicalAllocatorTest, Whitelist)
 
   allocator->updateWhitelist(whitelist);
 
-  hashmap<FrameworkID, Resources> EMPTY;
-
   SlaveInfo slave = createSlaveInfo("cpus:2;mem:1024");
-  allocator->addSlave(slave.id(), slave, None(), slave.resources(), EMPTY);
+  allocator->addSlave(
+      slave.id(), slave, None(), slave.resources(), NO_ALLOCATION);
 
   FrameworkInfo framework = createFrameworkInfo("*");
-  allocator->addFramework(
-      framework.id(), framework, hashmap<SlaveID, Resources>());
+  allocator->addFramework(framework.id(), framework, NO_USED_RESOURCES);
 
   Future<Allocation> allocation = allocations.get();
 
@@ -1431,22 +1394,17 @@ TEST_F(HierarchicalAllocatorTest, QuotaProvidesGuarantee)
   const string QUOTA_ROLE{"quota-role"};
   const string NO_QUOTA_ROLE{"no-quota-role"};
 
-  hashmap<FrameworkID, Resources> EMPTY;
-
   initialize();
 
-  // Create `framework1` and set quota for its role.
+  // Set up frameworks and quota.
   FrameworkInfo framework1 = createFrameworkInfo(QUOTA_ROLE);
-  allocator->addFramework(
-      framework1.id(), framework1, hashmap<SlaveID, Resources>());
+  allocator->addFramework(framework1.id(), framework1, NO_USED_RESOURCES);
 
-  const Quota quota1 = createQuota(QUOTA_ROLE, "cpus:2;mem:1024");
-  allocator->setQuota(QUOTA_ROLE, quota1);
+  const Quota quota = createQuota(QUOTA_ROLE, "cpus:2;mem:1024");
+  allocator->setQuota(QUOTA_ROLE, quota);
 
-  // Create `framework2` in a non-quota'ed role.
   FrameworkInfo framework2 = createFrameworkInfo(NO_QUOTA_ROLE);
-  allocator->addFramework(
-      framework2.id(), framework2, hashmap<SlaveID, Resources>());
+  allocator->addFramework(framework2.id(), framework2, NO_USED_RESOURCES);
 
   // Process all triggered allocation events.
   //
@@ -1454,7 +1412,8 @@ TEST_F(HierarchicalAllocatorTest, QuotaProvidesGuarantee)
   Clock::settle();
 
   SlaveInfo agent1 = createSlaveInfo("cpus:1;mem:512;disk:0");
-  allocator->addSlave(agent1.id(), agent1, None(), agent1.resources(), EMPTY);
+  allocator->addSlave(
+      agent1.id(), agent1, None(), agent1.resources(), NO_ALLOCATION);
 
   // `framework1` will be offered all of `agent1`'s resources because it is
   // the only framework in the only role with unsatisfied quota.
@@ -1470,7 +1429,8 @@ TEST_F(HierarchicalAllocatorTest, QuotaProvidesGuarantee)
   //   framework2 share = 0
 
   SlaveInfo agent2 = createSlaveInfo("cpus:1;mem:512;disk:0");
-  allocator->addSlave(agent2.id(), agent2, None(), agent2.resources(), EMPTY);
+  allocator->addSlave(
+      agent2.id(), agent2, None(), agent2.resources(), NO_ALLOCATION);
 
   // `framework1` will again be offered all of `agent2`'s resources
   // because it is the only framework in the only role with unsatisfied
@@ -1549,28 +1509,17 @@ TEST_F(HierarchicalAllocatorTest, RemoveQuota)
 
   initialize();
 
-  // Create framework and agent descriptions.
+  // Set up agents, frameworks, quota and current allocations.
+  const Quota quota = createQuota(QUOTA_ROLE, "cpus:2;mem:1024");
+  allocator->setQuota(QUOTA_ROLE, quota);
+
   FrameworkInfo framework1 = createFrameworkInfo(QUOTA_ROLE);
+  allocator->addFramework(framework1.id(), framework1, NO_USED_RESOURCES);
+
   FrameworkInfo framework2 = createFrameworkInfo(NO_QUOTA_ROLE);
+  allocator->addFramework(framework2.id(), framework2, NO_USED_RESOURCES);
 
   SlaveInfo agent1 = createSlaveInfo("cpus:1;mem:512;disk:0");
-  SlaveInfo agent2 = createSlaveInfo("cpus:1;mem:512;disk:0");
-
-  const Quota quota1 = createQuota(QUOTA_ROLE, "cpus:2;mem:1024");
-
-  // Notify allocator of agents, frameworks, quota and current allocations.
-  allocator->setQuota(QUOTA_ROLE, quota1);
-
-  allocator->addFramework(
-      framework1.id(),
-      framework1,
-      hashmap<SlaveID, Resources>());
-
-  allocator->addFramework(
-      framework2.id(),
-      framework2,
-      hashmap<SlaveID, Resources>());
-
   allocator->addSlave(
       agent1.id(),
       agent1,
@@ -1578,6 +1527,7 @@ TEST_F(HierarchicalAllocatorTest, RemoveQuota)
       agent1.resources(),
       {std::make_pair(framework1.id(), agent1.resources())});
 
+  SlaveInfo agent2 = createSlaveInfo("cpus:1;mem:512;disk:0");
   allocator->addSlave(
       agent2.id(),
       agent2,
@@ -1640,22 +1590,18 @@ TEST_F(HierarchicalAllocatorTest, MultipleFrameworksInRoleWithQuota)
   const string QUOTA_ROLE{"quota-role"};
   const string NO_QUOTA_ROLE{"no-quota-role"};
 
-  hashmap<FrameworkID, Resources> EMPTY;
-
   initialize();
 
   // Create `framework1a` and set quota for its role.
   FrameworkInfo framework1a = createFrameworkInfo(QUOTA_ROLE);
-  allocator->addFramework(
-      framework1a.id(), framework1a, hashmap<SlaveID, Resources>());
+  allocator->addFramework(framework1a.id(), framework1a, NO_USED_RESOURCES);
 
-  const Quota quota1 = createQuota(QUOTA_ROLE, "cpus:4;mem:2048");
-  allocator->setQuota(QUOTA_ROLE, quota1);
+  const Quota quota = createQuota(QUOTA_ROLE, "cpus:4;mem:2048");
+  allocator->setQuota(QUOTA_ROLE, quota);
 
   // Create `framework2` in a non-quota'ed role.
   FrameworkInfo framework2 = createFrameworkInfo(NO_QUOTA_ROLE);
-  allocator->addFramework(
-      framework2.id(), framework2, hashmap<SlaveID, Resources>());
+  allocator->addFramework(framework2.id(), framework2, NO_USED_RESOURCES);
 
   // Process all triggered allocation events.
   //
@@ -1663,7 +1609,8 @@ TEST_F(HierarchicalAllocatorTest, MultipleFrameworksInRoleWithQuota)
   Clock::settle();
 
   SlaveInfo agent1 = createSlaveInfo("cpus:1;mem:512;disk:0");
-  allocator->addSlave(agent1.id(), agent1, None(), agent1.resources(), EMPTY);
+  allocator->addSlave(
+      agent1.id(), agent1, None(), agent1.resources(), NO_ALLOCATION);
 
   // `framework1a` will be offered all of `agent1`'s resources because
   // it is the only framework in the only role with unsatisfied quota.
@@ -1680,11 +1627,11 @@ TEST_F(HierarchicalAllocatorTest, MultipleFrameworksInRoleWithQuota)
 
   // Create `framework1b` in the quota'ed role.
   FrameworkInfo framework1b = createFrameworkInfo(QUOTA_ROLE);
-  allocator->addFramework(
-      framework1b.id(), framework1b, hashmap<SlaveID, Resources>());
+  allocator->addFramework(framework1b.id(), framework1b, NO_USED_RESOURCES);
 
   SlaveInfo agent2 = createSlaveInfo("cpus:2;mem:1024;disk:0");
-  allocator->addSlave(agent2.id(), agent2, None(), agent2.resources(), EMPTY);
+  allocator->addSlave(
+      agent2.id(), agent2, None(), agent2.resources(), NO_ALLOCATION);
 
   // `framework1b` will be offered all of `agent2`'s resources
   // (coarse-grained allocation) because its share is 0 and it belongs
@@ -1702,7 +1649,8 @@ TEST_F(HierarchicalAllocatorTest, MultipleFrameworksInRoleWithQuota)
   //   framework2 share = 0
 
   SlaveInfo agent3 = createSlaveInfo("cpus:1;mem:512;disk:0");
-  allocator->addSlave(agent3.id(), agent3, None(), agent3.resources(), EMPTY);
+  allocator->addSlave(
+      agent3.id(), agent3, None(), agent3.resources(), NO_ALLOCATION);
 
   // `framework1a` will be offered all of `agent3`'s resources because
   // its share is less than `framework1b`'s and `QUOTA_ROLE` still
@@ -1761,31 +1709,28 @@ TEST_F(HierarchicalAllocatorTest, QuotaAllocationGranularity)
   const string QUOTA_ROLE{"quota-role"};
   const string NO_QUOTA_ROLE{"no-quota-role"};
 
-  hashmap<FrameworkID, Resources> EMPTY;
-
   initialize();
 
   // Create `framework1` and set quota for its role.
   FrameworkInfo framework1 = createFrameworkInfo(QUOTA_ROLE);
-  allocator->addFramework(
-      framework1.id(), framework1, hashmap<SlaveID, Resources>());
+  allocator->addFramework(framework1.id(), framework1, NO_USED_RESOURCES);
 
   // Set quota to be less than the agent resources.
-  const Quota quota1 = createQuota(QUOTA_ROLE, "cpus:0.5;mem:200");
-  allocator->setQuota(QUOTA_ROLE, quota1);
+  const Quota quota = createQuota(QUOTA_ROLE, "cpus:0.5;mem:200");
+  allocator->setQuota(QUOTA_ROLE, quota);
 
   // Create `framework2` in a non-quota'ed role.
   FrameworkInfo framework2 = createFrameworkInfo(NO_QUOTA_ROLE);
-  allocator->addFramework(
-      framework2.id(), framework2, hashmap<SlaveID, Resources>());
+  allocator->addFramework(framework2.id(), framework2, NO_USED_RESOURCES);
 
   // Process all triggered allocation events.
   //
   // NOTE: No allocations happen because there are no resources to allocate.
   Clock::settle();
 
-  SlaveInfo agent1 = createSlaveInfo("cpus:1;mem:512;disk:0");
-  allocator->addSlave(agent1.id(), agent1, None(), agent1.resources(), EMPTY);
+  SlaveInfo agent = createSlaveInfo("cpus:1;mem:512;disk:0");
+  allocator->addSlave(
+      agent.id(), agent, None(), agent.resources(), NO_ALLOCATION);
 
   // `framework1` will be offered all of `agent1`'s resources because
   // it is the only framework in the only role with unsatisfied quota
@@ -1793,8 +1738,8 @@ TEST_F(HierarchicalAllocatorTest, QuotaAllocationGranularity)
   Future<Allocation> allocation = allocations.get();
   AWAIT_READY(allocation);
   EXPECT_EQ(framework1.id(), allocation.get().frameworkId);
-  EXPECT_EQ(agent1.resources(), Resources::sum(allocation.get().resources));
-  EXPECT_TRUE(Resources(agent1.resources()).contains(quota1.info.guarantee()));
+  EXPECT_EQ(agent.resources(), Resources::sum(allocation.get().resources));
+  EXPECT_TRUE(Resources(agent.resources()).contains(quota.info.guarantee()));
 
   // Total cluster resources: cpus=1, mem=512.
   // QUOTA_ROLE share = 1 (cpus=1, mem=512) [quota: cpus=0.5, mem=200]
@@ -1819,38 +1764,28 @@ TEST_F(HierarchicalAllocatorTest, DRFWithQuota)
 
   initialize();
 
-  // Create framework and agent descriptions.
+  // Set up agents, frameworks, quota and current allocations.
+  const Quota quota = createQuota(QUOTA_ROLE, "cpus:0.25;mem:128");
+  allocator->setQuota(QUOTA_ROLE, quota);
+
   FrameworkInfo framework1 = createFrameworkInfo(QUOTA_ROLE);
+  allocator->addFramework(framework1.id(), framework1, NO_USED_RESOURCES);
+
   FrameworkInfo framework2 = createFrameworkInfo(NO_QUOTA_ROLE);
-
-  SlaveInfo agent1 = createSlaveInfo("cpus:1;mem:512;disk:0");
-
-  const Quota quota1 = createQuota(QUOTA_ROLE, "cpus:0.25;mem:128");
-
-  // Notify allocator of agents, frameworks, quota and current allocations.
-  allocator->setQuota(QUOTA_ROLE, quota1);
-
-  allocator->addFramework(
-      framework1.id(),
-      framework1,
-      hashmap<SlaveID, Resources>());
-
-  allocator->addFramework(
-      framework2.id(),
-      framework2,
-      hashmap<SlaveID, Resources>());
+  allocator->addFramework(framework2.id(), framework2, NO_USED_RESOURCES);
 
   // Process all triggered allocation events.
   //
   // NOTE: No allocations happen because there are no resources to allocate.
   Clock::settle();
 
+  SlaveInfo agent1 = createSlaveInfo("cpus:1;mem:512;disk:0");
   allocator->addSlave(
       agent1.id(),
       agent1,
       None(),
       agent1.resources(),
-      {std::make_pair(framework1.id(), Resources(quota1.info.guarantee()))});
+      {std::make_pair(framework1.id(), Resources(quota.info.guarantee()))});
 
   // Total cluster resources (1 agent): cpus=1, mem=512.
   // QUOTA_ROLE share = 0.25 (cpus=0.25, mem=128) [quota: cpus=0.25, mem=128]
@@ -1867,7 +1802,7 @@ TEST_F(HierarchicalAllocatorTest, DRFWithQuota)
   Future<Allocation> allocation = allocations.get();
   AWAIT_READY(allocation);
   EXPECT_EQ(framework2.id(), allocation.get().frameworkId);
-  EXPECT_EQ(agent1.resources() - Resources(quota1.info.guarantee()),
+  EXPECT_EQ(agent1.resources() - Resources(quota.info.guarantee()),
             Resources::sum(allocation.get().resources));
 
   // Total cluster resources (1 agent): cpus=1, mem=512.
@@ -1878,11 +1813,7 @@ TEST_F(HierarchicalAllocatorTest, DRFWithQuota)
 
   SlaveInfo agent2 = createSlaveInfo("cpus:1;mem:512;disk:0");
   allocator->addSlave(
-      agent2.id(),
-      agent2,
-      None(),
-      agent2.resources(),
-      hashmap<FrameworkID, Resources>());
+      agent2.id(), agent2, None(), agent2.resources(), NO_ALLOCATION);
 
   // `framework2` will be offered all of `agent2`'s resources (coarse-grained
   // allocation). `framework1` does not receive them even though it has a
@@ -1916,24 +1847,14 @@ TEST_F(HierarchicalAllocatorTest, QuotaAgainstStarvation)
 
   initialize();
 
-  // Create framework and agent descriptions.
+  // Set up agents, frameworks and current allocations.
   FrameworkInfo framework1 = createFrameworkInfo(QUOTA_ROLE);
+  allocator->addFramework(framework1.id(), framework1, NO_USED_RESOURCES);
+
   FrameworkInfo framework2 = createFrameworkInfo(NO_QUOTA_ROLE);
+  allocator->addFramework(framework2.id(), framework2, NO_USED_RESOURCES);
 
   SlaveInfo agent1 = createSlaveInfo("cpus:1;mem:512;disk:0");
-  SlaveInfo agent2 = createSlaveInfo("cpus:1;mem:512;disk:0");
-
-  // Notify allocator of agents, frameworks, and current allocations.
-  allocator->addFramework(
-      framework1.id(),
-      framework1,
-      hashmap<SlaveID, Resources>());
-
-  allocator->addFramework(
-      framework2.id(),
-      framework2,
-      hashmap<SlaveID, Resources>());
-
   allocator->addSlave(
       agent1.id(),
       agent1,
@@ -1952,12 +1873,9 @@ TEST_F(HierarchicalAllocatorTest, QuotaAgainstStarvation)
   // NO_QUOTA_ROLE share = 0
   //   framework2 share = 0
 
+  SlaveInfo agent2 = createSlaveInfo("cpus:1;mem:512;disk:0");
   allocator->addSlave(
-      agent2.id(),
-      agent2,
-      None(),
-      agent2.resources(),
-      hashmap<FrameworkID, Resources>());
+      agent2.id(), agent2, None(), agent2.resources(), NO_ALLOCATION);
 
   // Free cluster resources on `agent2` will be allocated to `framework2`
   // because its share is 0.
@@ -2007,8 +1925,8 @@ TEST_F(HierarchicalAllocatorTest, QuotaAgainstStarvation)
       filter0s);
 
   // We set quota for the "starving" `QUOTA_ROLE` role.
-  Quota quota1 = createQuota(QUOTA_ROLE, "cpus:2;mem:1024");
-  allocator->setQuota(QUOTA_ROLE, quota1);
+  const Quota quota = createQuota(QUOTA_ROLE, "cpus:2;mem:1024");
+  allocator->setQuota(QUOTA_ROLE, quota);
 
   // Since `QUOTA_ROLE` is under quota, `agent2`'s resources will
   // be allocated to `framework1`.
@@ -2040,8 +1958,6 @@ TEST_F(HierarchicalAllocatorTest, QuotaAbsentFramework)
   const string QUOTA_ROLE{"quota-role"};
   const string NO_QUOTA_ROLE{"no-quota-role"};
 
-  hashmap<FrameworkID, Resources> EMPTY;
-
   initialize();
 
   // Set quota for the quota'ed role. This role isn't registered with
@@ -2051,16 +1967,12 @@ TEST_F(HierarchicalAllocatorTest, QuotaAbsentFramework)
 
   // Add `framework` in the non-quota'ed role.
   FrameworkInfo framework = createFrameworkInfo(NO_QUOTA_ROLE);
-  allocator->addFramework(
-      framework.id(), framework, hashmap<SlaveID, Resources>());
+  allocator->addFramework(framework.id(), framework, NO_USED_RESOURCES);
 
   // Process all triggered allocation events.
   //
   // NOTE: No allocations happen because there are no resources to allocate.
   Clock::settle();
-
-  SlaveInfo agent1 = createSlaveInfo("cpus:2;mem:1024;disk:0");
-  SlaveInfo agent2 = createSlaveInfo("cpus:1;mem:512;disk:0");
 
   // Total cluster resources (0 agents): 0.
   // QUOTA_ROLE share = 0 [quota: cpus=2, mem=1024]
@@ -2073,8 +1985,13 @@ TEST_F(HierarchicalAllocatorTest, QuotaAbsentFramework)
   // NOTE: The second event-based allocation for `agent2` takes into account
   // that `agent1`'s resources are laid away for `QUOTA_ROLE`'s quota and
   // hence freely allocates for the non-quota'ed `NO_QUOTA_ROLE` role.
-  allocator->addSlave(agent1.id(), agent1, None(), agent1.resources(), EMPTY);
-  allocator->addSlave(agent2.id(), agent2, None(), agent2.resources(), EMPTY);
+  SlaveInfo agent1 = createSlaveInfo("cpus:2;mem:1024;disk:0");
+  allocator->addSlave(
+      agent1.id(), agent1, None(), agent1.resources(), NO_ALLOCATION);
+
+  SlaveInfo agent2 = createSlaveInfo("cpus:1;mem:512;disk:0");
+  allocator->addSlave(
+      agent2.id(), agent2, None(), agent2.resources(), NO_ALLOCATION);
 
   // `framework` can only be allocated resources on `agent2`. This
   // is due to the coarse-grained nature of the allocations. All the
@@ -2118,13 +2035,11 @@ TEST_F(HierarchicalAllocatorTest, MultiQuotaAbsentFrameworks)
   const string QUOTA_ROLE1{"quota-role-1"};
   const string QUOTA_ROLE2{"quota-role-2"};
 
-  hashmap<FrameworkID, Resources> EMPTY;
-
   initialize();
 
   SlaveInfo agent = createSlaveInfo("cpus:2;mem:2048;disk:0");
-
-  allocator->addSlave(agent.id(), agent, None(), agent.resources(), EMPTY);
+  allocator->addSlave(
+      agent.id(), agent, None(), agent.resources(), NO_ALLOCATION);
 
   // Set quota for both roles.
   const Quota quota1 = createQuota(QUOTA_ROLE1, "cpus:1;mem:1024");
@@ -2135,8 +2050,7 @@ TEST_F(HierarchicalAllocatorTest, MultiQuotaAbsentFrameworks)
 
   // Add a framework in the `QUOTA_ROLE2` role.
   FrameworkInfo framework = createFrameworkInfo(QUOTA_ROLE2);
-  allocator->addFramework(
-      framework.id(), framework, hashmap<SlaveID, Resources>());
+  allocator->addFramework(framework.id(), framework, NO_USED_RESOURCES);
 
   // Due to the coarse-grained nature of the allocations, `framework` will
   // get all `agent`'s resources.
@@ -2163,12 +2077,7 @@ TEST_F(HierarchicalAllocatorTest, MultiQuotaWithFrameworks)
   const string QUOTA_ROLE1{"quota-role-1"};
   const string QUOTA_ROLE2{"quota-role-2"};
 
-  hashmap<FrameworkID, Resources> EMPTY;
-
   initialize();
-
-  SlaveInfo agent1 = createSlaveInfo("cpus:1;mem:1024;disk:0");
-  SlaveInfo agent2 = createSlaveInfo("cpus:1;mem:1024;disk:0");
 
   // Mem Quota for `QUOTA_ROLE1` is 10 times smaller than for `QUOTA_ROLE2`.
   const Quota quota1 = createQuota(QUOTA_ROLE1, "cpus:1;mem:200");
@@ -2179,19 +2088,18 @@ TEST_F(HierarchicalAllocatorTest, MultiQuotaWithFrameworks)
 
   // Add `framework1` in the `QUOTA_ROLE1` role.
   FrameworkInfo framework1 = createFrameworkInfo(QUOTA_ROLE1);
-  allocator->addFramework(
-      framework1.id(), framework1, hashmap<SlaveID, Resources>());
+  allocator->addFramework(framework1.id(), framework1, NO_USED_RESOURCES);
 
   // Add `framework2` in the `QUOTA_ROLE2` role.
   FrameworkInfo framework2 = createFrameworkInfo(QUOTA_ROLE2);
-  allocator->addFramework(
-      framework2.id(), framework2, hashmap<SlaveID, Resources>());
+  allocator->addFramework(framework2.id(), framework2, NO_USED_RESOURCES);
 
   // Process all triggered allocation events.
   //
   // NOTE: No allocations happen because there are no resources to allocate.
   Clock::settle();
 
+  SlaveInfo agent1 = createSlaveInfo("cpus:1;mem:1024;disk:0");
   allocator->addSlave(
       agent1.id(),
       agent1,
@@ -2199,6 +2107,7 @@ TEST_F(HierarchicalAllocatorTest, MultiQuotaWithFrameworks)
       agent1.resources(),
       {std::make_pair(framework1.id(), agent1.resources())});
 
+  SlaveInfo agent2 = createSlaveInfo("cpus:1;mem:1024;disk:0");
   allocator->addSlave(
       agent2.id(),
       agent2,
@@ -2217,13 +2126,8 @@ TEST_F(HierarchicalAllocatorTest, MultiQuotaWithFrameworks)
   // to the framework in `QUOTA_ROLE2`.
 
   SlaveInfo agent3 = createSlaveInfo("cpus:2;mem:2048");
-
   allocator->addSlave(
-      agent3.id(),
-      agent3,
-      None(),
-      agent3.resources(),
-      EMPTY);
+      agent3.id(), agent3, None(), agent3.resources(), NO_ALLOCATION);
 
   // `framework2` will get all agent3's resources because its role is under
   // quota, while other roles' quotas are satisfied.
@@ -2253,23 +2157,15 @@ TEST_F(HierarchicalAllocatorTest, ReservationWithinQuota)
 
   initialize();
 
-  FrameworkInfo framework1 = createFrameworkInfo(QUOTA_ROLE);
-  FrameworkInfo framework2 = createFrameworkInfo(NON_QUOTA_ROLE);
-
+  // Notify allocator of frameworks and quota.
   const Quota quota = createQuota(QUOTA_ROLE, "cpus:2;mem:256");
-
-  // Notify allocator of agents, frameworks, quota and current allocations.
   allocator->setQuota(QUOTA_ROLE, quota);
 
-  allocator->addFramework(
-      framework1.id(),
-      framework1,
-      hashmap<SlaveID, Resources>());
+  FrameworkInfo framework1 = createFrameworkInfo(QUOTA_ROLE);
+  allocator->addFramework(framework1.id(), framework1, NO_USED_RESOURCES);
 
-  allocator->addFramework(
-      framework2.id(),
-      framework2,
-      hashmap<SlaveID, Resources>());
+  FrameworkInfo framework2 = createFrameworkInfo(NON_QUOTA_ROLE);
+  allocator->addFramework(framework2.id(), framework2, NO_USED_RESOURCES);
 
   // Process all triggered allocation events.
   //
@@ -2304,7 +2200,8 @@ TEST_F(HierarchicalAllocatorTest, ReservationWithinQuota)
   // accounted for DRF, we expect these resources to also be allocated to
   // `framework2`.
   SlaveInfo agent2 = createSlaveInfo("cpus:4");
-  allocator->addSlave(agent2.id(), agent2, None(), agent2.resources(), {});
+  allocator->addSlave(
+      agent2.id(), agent2, None(), agent2.resources(), NO_ALLOCATION);
 
   allocation = allocations.get();
   AWAIT_READY(allocation);
@@ -2326,17 +2223,15 @@ TEST_F(HierarchicalAllocatorTest, DeactivateAndReactivateFramework)
 
   initialize();
 
-  hashmap<FrameworkID, Resources> EMPTY;
-
   // Total cluster resources will become cpus=2, mem=1024.
   SlaveInfo agent = createSlaveInfo("cpus:2;mem:1024;disk:0");
-  allocator->addSlave(agent.id(), agent, None(), agent.resources(), EMPTY);
+  allocator->addSlave(
+      agent.id(), agent, None(), agent.resources(), NO_ALLOCATION);
 
   // Framework will be offered all of the agent's resources since it is
   // the only framework running so far.
   FrameworkInfo framework = createFrameworkInfo("role1");
-  allocator->addFramework(
-      framework.id(), framework, hashmap<SlaveID, Resources>());
+  allocator->addFramework(framework.id(), framework, NO_USED_RESOURCES);
 
   Future<Allocation> allocation = allocations.get();
   AWAIT_READY(allocation);
@@ -2433,7 +2328,7 @@ TEST_P(HierarchicalAllocator_BENCHMARK_Test, AddAndUpdateSlave)
   watch.start();
 
   foreach (const FrameworkInfo& framework, frameworks) {
-    allocator->addFramework(framework.id(), framework, {});
+    allocator->addFramework(framework.id(), framework, NO_USED_RESOURCES);
   }
 
   cout << "Added " << frameworkCount << " frameworks"
@@ -2543,7 +2438,8 @@ TEST_F(HierarchicalAllocator_BENCHMARK_Test, DeclineOffers)
 
   for (unsigned i = 0; i < frameworkCount; ++i) {
     frameworks.push_back(createFrameworkInfo("*"));
-    allocator->addFramework(frameworks[i].id(), frameworks[i], {});
+    allocator->addFramework(
+        frameworks[i].id(), frameworks[i], NO_USED_RESOURCES);
   }
 
   Resources resources = Resources::parse(
