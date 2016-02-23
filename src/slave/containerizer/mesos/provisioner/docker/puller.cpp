@@ -22,13 +22,16 @@
 #include "slave/containerizer/mesos/provisioner/docker/registry_puller.hpp"
 
 using process::Owned;
+using process::Shared;
 
 namespace mesos {
 namespace internal {
 namespace slave {
 namespace docker {
 
-Try<Owned<Puller>> Puller::create(const Flags& flags)
+Try<Owned<Puller>> Puller::create(
+    const Flags& flags,
+    const Shared<uri::Fetcher>& fetcher)
 {
   // TODO(tnachen): Support multiple registries in the puller.
   if (strings::startsWith(flags.docker_registry, "/")) {
@@ -40,7 +43,7 @@ Try<Owned<Puller>> Puller::create(const Flags& flags)
     return puller.get();
   }
 
-  Try<Owned<Puller>> puller = RegistryPuller::create(flags);
+  Try<Owned<Puller>> puller = RegistryPuller::create(flags, fetcher);
   if (puller.isError()) {
     return Error("Failed to create registry puller: " + puller.error());
   }

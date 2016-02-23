@@ -124,16 +124,6 @@ mesos::internal::slave::Flags::Flags()
       "Directory the appc provisioner will store images in.\n",
       "/tmp/mesos/store/appc");
 
-  add(&Flags::docker_auth_server,
-      "docker_auth_server",
-      "Docker authentication server used to authenticate with Docker registry",
-      "https://auth.docker.io");
-
-  add(&Flags::docker_puller_timeout_secs,
-      "docker_puller_timeout",
-      "Timeout in seconds for pulling images from the Docker registry",
-      "60");
-
   add(&Flags::docker_registry,
       "docker_registry",
       "The default url for pulling Docker images. It could either be a Docker\n"

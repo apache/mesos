@@ -24,8 +24,11 @@
 
 #include <process/future.hpp>
 #include <process/owned.hpp>
+#include <process/shared.hpp>
 
 #include <mesos/docker/spec.hpp>
+
+#include <mesos/uri/fetcher.hpp>
 
 #include "slave/flags.hpp"
 
@@ -37,7 +40,9 @@ namespace docker {
 class Puller
 {
 public:
-  static Try<process::Owned<Puller>> create(const Flags& flags);
+  static Try<process::Owned<Puller>> create(
+      const Flags& flags,
+      const process::Shared<uri::Fetcher>& fetcher);
 
   virtual ~Puller() {}
 

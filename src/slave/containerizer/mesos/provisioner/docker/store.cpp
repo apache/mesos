@@ -34,6 +34,8 @@
 #include "slave/containerizer/mesos/provisioner/docker/paths.hpp"
 #include "slave/containerizer/mesos/provisioner/docker/puller.hpp"
 
+#include "uri/fetcher.hpp"
+
 using namespace process;
 
 namespace spec = docker::spec;
@@ -89,7 +91,14 @@ private:
 
 Try<Owned<slave::Store>> Store::create(const Flags& flags)
 {
-  Try<Owned<Puller>> puller = Puller::create(flags);
+  // TODO(jieyu): We should inject URI fetcher from top level, instead
+  // of creating it here.
+  Try<Owned<uri::Fetcher>> fetcher = uri::fetcher::create();
+  if (fetcher.isError()) {
+    return Error("Failed to create the URI fetcher: " + fetcher.error());
+  }
+
+  Try<Owned<Puller>> puller = Puller::create(flags, fetcher->share());
   if (puller.isError()) {
     return Error("Failed to create Docker puller: " + puller.error());
   }

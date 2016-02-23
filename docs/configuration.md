@@ -1057,15 +1057,6 @@ containerizer.
 </tr>
 <tr>
   <td>
-    --docker_auth_server=VALUE
-  </td>
-  <td>
-Docker authentication server used to authenticate with Docker registry
-(default: https://auth.docker.io)
-  </td>
-</tr>
-<tr>
-  <td>
     --[no-]docker_kill_orphans
   </td>
   <td>
@@ -1086,14 +1077,6 @@ If an image is specified, the docker containerizer assumes the slave
 is running in a docker container, and launches executors with
 docker containers in order to recover them when the slave restarts and
 recovers.
-  </td>
-</tr>
-<tr>
-  <td>
-    --docker_puller_timeout=VALUE
-  </td>
-  <td>
-Timeout in seconds for pulling images from the Docker registry (default: 60secs)
   </td>
 </tr>
 <tr>

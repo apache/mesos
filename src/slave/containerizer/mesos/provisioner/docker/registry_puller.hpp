@@ -18,8 +18,11 @@
 #define __PROVISIONER_DOCKER_REGISTRY_PULLER_HPP__
 
 #include <process/owned.hpp>
+#include <process/shared.hpp>
 
 #include <stout/try.hpp>
+
+#include <mesos/uri/fetcher.hpp>
 
 #include "slave/containerizer/mesos/provisioner/docker/puller.hpp"
 
@@ -39,7 +42,9 @@ class RegistryPullerProcess;
 class RegistryPuller : public Puller
 {
 public:
-  static Try<process::Owned<Puller>> create(const Flags& flags);
+  static Try<process::Owned<Puller>> create(
+      const Flags& flags,
+      const process::Shared<uri::Fetcher>& fetcher);
 
   ~RegistryPuller();
 
