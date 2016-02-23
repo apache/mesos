@@ -586,16 +586,12 @@ message Resource {
     // NOTE: We currently do not allow frameworks with role "*" to
     // make dynamic reservations.
 
-    // This field indicates the principal of the framework or operator
+    // Indicates the principal, if any, of the framework or operator
     // that reserved this resource. If reserved by a framework, the
     // field should match the `FrameworkInfo.principal`. It is used in
     // conjunction with the `UnreserveResources` ACL to determine
     // whether the entity attempting to unreserve this resource is
     // permitted to do so.
-    //
-    // NOTE: Currently, a principal is required in order to reserve
-    // resources, so the master disallows any reserve operations
-    // without a principal. This constraint will be removed in 0.28.
     optional string principal = 1;
 
     // Labels are free-form key value pairs that can be used to

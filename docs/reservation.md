@@ -58,9 +58,7 @@ see the [authorization documentation](authorization.md).
 * `/reserve` and `/unreserve` HTTP endpoints allow __operators__ to manage
   dynamic reservations through the master. Operators may currently reserve
   resources for any role, although this
-  [will change](https://issues.apache.org/jira/browse/MESOS-4591). NOTE: As of
-  0.27.0, these endpoints cannot be used when HTTP authentication is disabled
-  due to the current implementation. This will change in version 0.28.0.
+  [will change](https://issues.apache.org/jira/browse/MESOS-4591).
 
 In the following sections, we will walk through examples of each of the
 interfaces described above.
