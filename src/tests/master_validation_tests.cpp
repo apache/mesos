@@ -381,17 +381,17 @@ TEST_F(UnreserveOperationValidationTest, WithoutACL)
 }
 
 
-// This test verifies that validation fails if the framework's
-// 'principal' is not set.
+// This test verifies that validation succeeds if the framework's
+// `principal` is not set.
 TEST_F(UnreserveOperationValidationTest, FrameworkMissingPrincipal)
 {
   Resource resource = Resources::parse("cpus", "8", "role").get();
-  resource.mutable_reservation()->CopyFrom(createReservationInfo("principal"));
+  resource.mutable_reservation()->CopyFrom(createReservationInfo());
 
   Offer::Operation::Unreserve unreserve;
   unreserve.add_resources()->CopyFrom(resource);
 
-  EXPECT_SOME(operation::validate(unreserve, false));
+  EXPECT_NONE(operation::validate(unreserve, false));
 }
 
 

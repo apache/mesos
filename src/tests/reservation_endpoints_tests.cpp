@@ -1264,13 +1264,8 @@ TEST_F(ReservationEndpointsTest, NonMatchingPrincipal)
 }
 
 
-// This tests the situation where framework and HTTP authentication are disabled
-// and no ACLs are set in the master. Currently, the reservation endpoints do
-// not work in this case because the master invalidates reserve and unreserve
-// operations with no authenticated principal or no principal set in
-// `ReservationInfo`. In 0.28.0, these endpoints will work in this case.
-//
-// TODO(greggomann): Change this test for 0.28.0; see comments below.
+// Tests the situation where framework and HTTP authentication are disabled
+// and no ACLs are set in the master.
 TEST_F(ReservationEndpointsTest, ReserveAndUnreserveNoAuthentication)
 {
   // Manipulate the clock manually in order to
@@ -1311,89 +1306,24 @@ TEST_F(ReservationEndpointsTest, ReserveAndUnreserveNoAuthentication)
       createReservationInfo());
 
   // Try a reservation with no principal in `ReservationInfo` and no
-  // authentication headers. This will fail because currently, dynamic
-  // reservations without either an authenticated principal or a principal in
-  // `ReservationInfo` are invalidated.
-  //
-  // TODO(greggomann): Update this request for 0.28.0. This request should
-  // succeed, but since `ReservationInfo.principal` is being migrated to
-  // `optional`, the request is currently invalidated.
+  // authentication headers.
   Future<Response> response = process::http::post(
       master.get(),
       "reserve",
       None(),
       createRequestBody(slaveId.get(), dynamicallyReservedWithNoPrincipal));
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response);
-
-  // Create a framework that we can use to dynamically reserve some resources
-  // that we will then attempt to unreserve.
-  //
-  // TODO(greggomann): Remove this reserving framework for 0.28.0. It will no
-  // longer be needed once the HTTP reserve request succeeds.
-  MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, frameworkInfo, master.get());
-
-  EXPECT_CALL(sched, registered(&driver, _, _));
-
-  // Expect an offer from the agent.
-  Future<vector<Offer>> offers;
-  EXPECT_CALL(sched, resourceOffers(&driver, _))
-    .WillOnce(FutureArg<1>(&offers));
-
-  driver.start();
-
-  AWAIT_READY(offers);
-  EXPECT_FALSE(offers.get().empty());
-
-  Offer offer = offers.get()[0];
-
-  // We use this filter so that resources will not
-  // be filtered for 5 seconds (the default).
-  Filters filters;
-  filters.set_refuse_seconds(0);
-
-  Resources dynamicallyReservedWithDefaultPrincipal =
-    unreserved.flatten(
-        "role", createReservationInfo(frameworkInfo.principal()));
-
-  // Dynamically reserve resources using `acceptOffers`.
-  driver.acceptOffers(
-      {offer.id()},
-      {RESERVE(dynamicallyReservedWithDefaultPrincipal)},
-      filters);
-
-  // Expect another offer.
-  EXPECT_CALL(sched, resourceOffers(&driver, _))
-    .WillOnce(FutureArg<1>(&offers));
-
-  Clock::settle();
-  Clock::advance(masterFlags.allocation_interval);
-
-  AWAIT_READY(offers);
-  EXPECT_FALSE(offers.get().empty());
-
-  offer = offers.get()[0];
-
-  // Check that the reserved resources are contained in this offer.
-  EXPECT_TRUE(Resources(offer.resources()).contains(
-      dynamicallyReservedWithDefaultPrincipal));
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 
   // Try to unreserve with no principal in `ReservationInfo` and no
-  // authentication headers. This will fail because currently, unreserve
-  // operations without either an authenticated principal or a principal in
-  // `ReservationInfo` are invalidated.
-  //
-  // TODO(greggomann): Update this request for 0.28.0. This request should
-  // succeed, but since `ReservationInfo.principal` is being migrated to
-  // `optional`, the request is currently invalidated.
+  // authentication headers.
   response = process::http::post(
       master.get(),
       "unreserve",
       None(),
       createRequestBody(slaveId.get(), dynamicallyReservedWithNoPrincipal));
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response);
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 
   Shutdown();
 }
