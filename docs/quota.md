@@ -26,6 +26,7 @@ For the purpose of this document, an “Operator” is a person, tool, or script
 that manages the Mesos cluster.
 
 In computer science, a “quota” usually refers to one of the following:
+
 * A minimal guarantee.
 * A maximal limit.
 * A pair of both.
