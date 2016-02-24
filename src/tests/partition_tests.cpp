@@ -80,7 +80,7 @@ TEST_F(PartitionTest, PartitionedSlave)
       Eq(PingSlaveMessage().GetTypeName()), _, _);
 
   // Drop all the PONGs to simulate slave partition.
-  DROP_MESSAGES(Eq(PongSlaveMessage().GetTypeName()), _, _);
+  DROP_PROTOBUFS(PongSlaveMessage(), _, _);
 
   Try<PID<Slave>> slave = StartSlave();
   ASSERT_SOME(slave);
@@ -164,7 +164,7 @@ TEST_F(PartitionTest, PartitionedSlaveReregistration)
   Future<Message> ping = FUTURE_MESSAGE(
       Eq(PingSlaveMessage().GetTypeName()), _, _);
 
-  DROP_MESSAGES(Eq(PongSlaveMessage().GetTypeName()), _, _);
+  DROP_PROTOBUFS(PongSlaveMessage(), _, _);
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
 
@@ -315,7 +315,7 @@ TEST_F(PartitionTest, PartitionedSlaveStatusUpdates)
   Future<Message> ping = FUTURE_MESSAGE(
       Eq(PingSlaveMessage().GetTypeName()), _, _);
 
-  DROP_MESSAGES(Eq(PongSlaveMessage().GetTypeName()), _, _);
+  DROP_PROTOBUFS(PongSlaveMessage(), _, _);
 
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
     FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
@@ -435,7 +435,7 @@ TEST_F(PartitionTest, PartitionedSlaveExitedExecutor)
   Future<Message> ping = FUTURE_MESSAGE(
       Eq(PingSlaveMessage().GetTypeName()), _, _);
 
-  DROP_MESSAGES(Eq(PongSlaveMessage().GetTypeName()), _, _);
+  DROP_PROTOBUFS(PongSlaveMessage(), _, _);
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
   TestContainerizer containerizer(&exec);

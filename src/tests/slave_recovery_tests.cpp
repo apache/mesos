@@ -2704,7 +2704,7 @@ TYPED_TEST(SlaveRecoveryTest, PartitionedSlave)
       Eq(PingSlaveMessage().GetTypeName()), _, _);
 
   // Drop all the PONGs to simulate slave partition.
-  DROP_MESSAGES(Eq(PongSlaveMessage().GetTypeName()), _, _);
+  DROP_PROTOBUFS(PongSlaveMessage(), _, _);
 
   slave::Flags flags = this->CreateSlaveFlags();
 

@@ -1749,7 +1749,7 @@ TEST_F(SlaveTest, PingTimeoutNoPings)
   ASSERT_SOME(master);
 
   // Block all pings to the slave.
-  DROP_MESSAGES(Eq(PingSlaveMessage().GetTypeName()), _, _);
+  DROP_PROTOBUFS(PingSlaveMessage(), _, _);
 
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
     FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
@@ -1813,7 +1813,7 @@ TEST_F(SlaveTest, PingTimeoutSomePings)
   // Now block further pings from the master and advance
   // the clock to trigger a re-detection and re-registration on
   // the slave.
-  DROP_MESSAGES(Eq(PingSlaveMessage().GetTypeName()), _, _);
+  DROP_PROTOBUFS(PingSlaveMessage(), _, _);
 
   Future<Nothing> detected = FUTURE_DISPATCH(_, &Slave::detected);
 
@@ -1844,7 +1844,7 @@ TEST_F(SlaveTest, RateLimitSlaveShutdown)
       Eq(PingSlaveMessage().GetTypeName()), _, _);
 
   // Drop all the PONGs to simulate health check timeout.
-  DROP_MESSAGES(Eq(PongSlaveMessage().GetTypeName()), _, _);
+  DROP_PROTOBUFS(PongSlaveMessage(), _, _);
 
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
     FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
@@ -1909,7 +1909,7 @@ TEST_F(SlaveTest, CancelSlaveShutdown)
       Eq(PingSlaveMessage().GetTypeName()), _, _);
 
   // Drop all the PONGs to simulate health check timeout.
-  DROP_MESSAGES(Eq(PongSlaveMessage().GetTypeName()), _, _);
+  DROP_PROTOBUFS(PongSlaveMessage(), _, _);
 
   // No shutdown should occur during the test!
   EXPECT_NO_FUTURE_PROTOBUFS(ShutdownMessage(), _, _);

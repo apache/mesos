@@ -53,6 +53,7 @@
 #include "log/tool/initialize.hpp"
 
 #include "tests/environment.hpp"
+#include "tests/mesos.hpp"
 
 #ifdef MESOS_HAS_JAVA
 #include "tests/zookeeper.hpp"
@@ -1086,7 +1087,7 @@ TEST_F(CoordinatorTest, NotLearnedFill)
 
   // Drop messages here in order to obtain the pid of replica2. We
   // only want to drop learned message sent to replica2.
-  DROP_MESSAGES(Eq(LearnedMessage().GetTypeName()), _, Eq(replica2->pid()));
+  DROP_PROTOBUFS(LearnedMessage(), _, Eq(replica2->pid()));
 
   set<UPID> pids;
   pids.insert(replica1->pid());
@@ -1212,7 +1213,7 @@ TEST_F(CoordinatorTest, MultipleAppendsNotLearnedFill)
 
   // Drop messages here in order to obtain the pid of replica2. We
   // only want to drop learned message sent to replica2.
-  DROP_MESSAGES(Eq(LearnedMessage().GetTypeName()), _, Eq(replica2->pid()));
+  DROP_PROTOBUFS(LearnedMessage(), _, Eq(replica2->pid()));
 
   set<UPID> pids;
   pids.insert(replica1->pid());
@@ -1347,7 +1348,7 @@ TEST_F(CoordinatorTest, TruncateNotLearnedFill)
 
   // Drop messages here in order to obtain the pid of replica2. We
   // only want to drop learned message sent to replica2.
-  DROP_MESSAGES(Eq(LearnedMessage().GetTypeName()), _, Eq(replica2->pid()));
+  DROP_PROTOBUFS(LearnedMessage(), _, Eq(replica2->pid()));
 
   set<UPID> pids;
   pids.insert(replica1->pid());
@@ -1767,7 +1768,7 @@ TEST_F(RecoverTest, CatchupRetry)
   Shared<Replica> replica2(new Replica(path2));
 
   // Make sure replica2 does not receive learned messages.
-  DROP_MESSAGES(Eq(LearnedMessage().GetTypeName()), _, Eq(replica2->pid()));
+  DROP_PROTOBUFS(LearnedMessage(), _, Eq(replica2->pid()));
 
   set<UPID> pids;
   pids.insert(replica1->pid());
@@ -1804,7 +1805,7 @@ TEST_F(RecoverTest, CatchupRetry)
   // catch-up process has to wait for a quorum of explicit promises.
   // If we don't allow retry, the catch-up process will get stuck at
   // promise phase even if replica1 reemerges later.
-  DROP_MESSAGE(Eq(PromiseRequest().GetTypeName()), _, Eq(replica1->pid()));
+  DROP_PROTOBUF(PromiseRequest(), _, Eq(replica1->pid()));
 
   Future<Nothing> catching =
     catchup(2, replica3, network2, None(), positions, Seconds(10));
@@ -1915,8 +1916,8 @@ TEST_F(RecoverTest, AutoInitializationRetry)
   Shared<Network> network(new Network(pids));
 
   // Simulate the case where replica3 is temporarily removed.
-  DROP_MESSAGE(Eq(RecoverRequest().GetTypeName()), _, Eq(replica3->pid()));
-  DROP_MESSAGE(Eq(RecoverRequest().GetTypeName()), _, Eq(replica3->pid()));
+  DROP_PROTOBUF(RecoverRequest(), _, Eq(replica3->pid()));
+  DROP_PROTOBUF(RecoverRequest(), _, Eq(replica3->pid()));
 
   Clock::pause();
 

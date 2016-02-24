@@ -228,7 +228,7 @@ TEST_F(HookTest, MasterSlaveLostHookTest)
 {
   Future<HookExecuted> hookFuture = FUTURE_PROTOBUF(HookExecuted(), _, _);
 
-  DROP_MESSAGES(Eq(PingSlaveMessage().GetTypeName()), _, _);
+  DROP_PROTOBUFS(PingSlaveMessage(), _, _);
 
   master::Flags masterFlags = CreateMasterFlags();
 
