@@ -1506,7 +1506,6 @@ TEST_F(SlaveTest, DISABLED_TerminatingSlaveDoesNotReregister)
 
   AWAIT_READY(executorLost);
 
-  // Clean up.
   driver.stop();
   driver.join();
 
@@ -2879,6 +2878,12 @@ TEST_F(SlaveTest, HTTPScheduler)
 
   AWAIT_READY(frameworkMessage);
 
+  EXPECT_CALL(exec, shutdown(_))
+    .Times(AtMost(1));
+
+  driver.stop();
+  driver.join();
+
   // Must call shutdown before the mock executor gets deallocated.
   Shutdown();
 }
@@ -2948,6 +2953,12 @@ TEST_F(SlaveTest, HTTPSchedulerLiveUpgrade)
   AWAIT_READY(executorToFrameworkMessage2);
 
   AWAIT_READY(frameworkMessage);
+
+  EXPECT_CALL(exec, shutdown(_))
+    .Times(AtMost(1));
+
+  driver.stop();
+  driver.join();
 
   // Must call shutdown before the mock executor gets deallocated.
   Shutdown();

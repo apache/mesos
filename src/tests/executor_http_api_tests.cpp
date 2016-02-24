@@ -393,6 +393,9 @@ TEST_P(ExecutorHttpApiTest, DefaultAccept)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
   AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
 
+  driver.stop();
+  driver.join();
+
   Shutdown();
 }
 
@@ -472,6 +475,9 @@ TEST_P(ExecutorHttpApiTest, NoAcceptHeader)
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
   AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
+
+  driver.stop();
+  driver.join();
 
   Shutdown();
 }
@@ -797,6 +803,10 @@ TEST_P(ExecutorHttpApiTest, Subscribe)
             call.executor_id());
 
   reader.get().close();
+
+  driver.stop();
+  driver.join();
+
   Shutdown();
 }
 

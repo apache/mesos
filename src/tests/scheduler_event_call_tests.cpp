@@ -110,6 +110,9 @@ TEST_F(SchedulerDriverEventTest, Subscribed)
   process::post(master.get(), frameworkPid, event);
 
   AWAIT_READY(registered);
+
+  driver.stop();
+  driver.join();
 }
 
 
@@ -176,6 +179,9 @@ TEST_F(SchedulerDriverEventTest, SubscribedDisconnection)
   process::post(master.get(), frameworkPid, event);
 
   AWAIT_READY(reregistered);
+
+  driver.stop();
+  driver.join();
 }
 
 
@@ -248,6 +254,9 @@ TEST_F(SchedulerDriverEventTest, SubscribedMasterFailover)
   process::post(master.get(), frameworkPid, event);
 
   AWAIT_READY(reregistered);
+
+  driver.stop();
+  driver.join();
 }
 
 
@@ -319,6 +328,9 @@ TEST_F(SchedulerDriverEventTest, SubscribedSchedulerFailover)
   process::post(master.get(), frameworkPid2, event);
 
   AWAIT_READY(registered2);
+
+  driver.stop();
+  driver.join();
 }
 
 
@@ -449,6 +461,9 @@ TEST_F(SchedulerDriverEventTest, Rescind)
   process::post(master.get(), frameworkPid, event);
 
   AWAIT_READY(offerRescinded);
+
+  driver.stop();
+  driver.join();
 }
 
 
@@ -521,6 +536,9 @@ TEST_F(SchedulerDriverEventTest, Update)
 
   AWAIT_READY(statusUpdate2);
   AWAIT_READY(acknowledgement);
+
+  driver.stop();
+  driver.join();
 }
 
 
@@ -561,6 +579,9 @@ TEST_F(SchedulerDriverEventTest, Message)
   process::post(master.get(), frameworkPid, event);
 
   AWAIT_READY(frameworkMessage);
+
+  driver.stop();
+  driver.join();
 }
 
 
@@ -616,6 +637,9 @@ TEST_F(SchedulerDriverEventTest, Failure)
   process::post(master.get(), frameworkPid, event);
 
   AWAIT_READY(slaveLost);
+
+  driver.stop();
+  driver.join();
 }
 
 
@@ -650,6 +674,9 @@ TEST_F(SchedulerDriverEventTest, Error)
   process::post(master.get(), frameworkPid, event);
 
   AWAIT_READY(error);
+
+  driver.stop();
+  driver.join();
 }
 
 } // namespace tests {

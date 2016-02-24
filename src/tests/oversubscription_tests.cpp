@@ -1118,6 +1118,9 @@ TEST_F(OversubscriptionTest, RemoveCapabilitiesOnSchedulerFailover)
   driver1.stop();
   driver1.join();
 
+  driver2.stop();
+  driver2.join();
+
   Shutdown();
 }
 

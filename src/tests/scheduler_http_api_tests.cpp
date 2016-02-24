@@ -585,6 +585,9 @@ TEST_P(SchedulerHttpApiTest, UpdateHttpToPidScheduler)
   AWAIT_READY(frameworkId);
   ASSERT_EQ(evolve(frameworkId.get()), frameworkInfo.id());
 
+  driver.stop();
+  driver.join();
+
   Shutdown();
 }
 
