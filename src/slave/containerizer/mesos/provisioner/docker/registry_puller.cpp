@@ -207,6 +207,9 @@ Future<vector<string>> RegistryPullerProcess::_pull(
     return Failure("Failed to parse the manifest: " + manifest.error());
   }
 
+  VLOG(1) << "The manifest for image '" << reference << "' is '"
+          << _manifest.get() << "'";
+
   list<Future<Nothing>> futures;
   vector<string> layerIds;
 
