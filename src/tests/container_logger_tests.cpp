@@ -115,6 +115,7 @@ TEST_F(ContainerLoggerTest, MesosContainerizerRecover)
   // try to reap the PID.
   Try<Subprocess> s = subprocess("exit 0");
   ASSERT_SOME(s);
+  AWAIT(s->status());
 
   // Construct a mock `SlaveState`.
   ExecutorID executorId;
@@ -196,6 +197,7 @@ TEST_F(ContainerLoggerTest, ROOT_DOCKER_ContainerizerRecover)
   // try to reap the PID.
   Try<Subprocess> s = subprocess("exit 0");
   ASSERT_SOME(s);
+  AWAIT(s->status());
 
   // Construct a mock `SlaveState`.
   ExecutorID executorId;
