@@ -590,7 +590,8 @@ TEST_F(MasterMaintenanceTest, EnterMaintenanceMode)
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
 
-  Try<PID<Slave>> slave = StartSlave(&exec);
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  Try<PID<Slave>> slave = StartSlave(&exec, slaveFlags);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -685,6 +686,11 @@ TEST_F(MasterMaintenanceTest, EnterMaintenanceMode)
 
   // Verify that the framework received the slave lost message.
   AWAIT_READY(slaveLost);
+
+  Clock::pause();
+  Clock::settle();
+  Clock::advance(slaveFlags.executor_shutdown_grace_period);
+  Clock::resume();
 
   // Wait on the agent to terminate so that it wipes out it's latest symlink.
   // This way when we launch a new agent it will register with a new agent id.
