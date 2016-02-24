@@ -349,7 +349,10 @@ Option<string> DockerRuntimeIsolatorProcess::getWorkingDirectory(
 {
   CHECK(containerConfig.docker().manifest().has_config());
 
-  if (!containerConfig.docker().manifest().config().has_workingdir()) {
+  // NOTE: In docker manifest, if an image working directory is none,
+  // it will be set as `"WorkingDir": ""`.
+  if (!containerConfig.docker().manifest().config().has_workingdir() ||
+      containerConfig.docker().manifest().config().workingdir() == "") {
     return None();
   }
 
