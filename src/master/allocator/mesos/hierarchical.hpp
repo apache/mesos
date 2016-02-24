@@ -379,10 +379,7 @@ public:
 class RefusedOfferFilter: public OfferFilter
 {
 public:
-  RefusedOfferFilter(
-      const Resources& _resources,
-      const process::Timeout& _timeout)
-    : resources(_resources), timeout(_timeout) {}
+  RefusedOfferFilter(const Resources& _resources) : resources(_resources) {}
 
   virtual bool filter(const Resources& _resources)
   {
@@ -391,12 +388,10 @@ public:
     // more revocable resources only or non-revocable resources only,
     // but currently the filter only expires if there is more of both
     // revocable and non-revocable resources.
-    return resources.contains(_resources) && // Refused resources are superset.
-           timeout.remaining() > Seconds(0);
+    return resources.contains(_resources); // Refused resources are superset.
   }
 
   const Resources resources;
-  const process::Timeout timeout;
 };
 
 
@@ -1141,11 +1136,8 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::recoverResources(
             << " filtered slave " << slaveId
             << " for " << seconds.get();
 
-    // Create a new filter and delay its expiration.
-    OfferFilter* offerFilter = new RefusedOfferFilter(
-        resources,
-        process::Timeout::in(seconds.get()));
-
+    // Create a new filter.
+    OfferFilter* offerFilter = new RefusedOfferFilter(resources);
     frameworks[frameworkId].offerFilters[slaveId].insert(offerFilter);
 
     // We need to disambiguate the function call to pick the correct
@@ -1155,13 +1147,21 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::recoverResources(
               const SlaveID&,
               OfferFilter*) = &Self::expire;
 
-    delay(
-        seconds.get(),
-        self(),
-        expireOffer,
-        frameworkId,
-        slaveId,
-        offerFilter);
+    // Expire the filter after both an `allocationInterval` and the
+    // `timeout` have elapsed. This ensures that the filter does not
+    // expire before we perform the next allocation for this agent,
+    // see MESOS-4302 for more information.
+    //
+    // TODO(alexr): If we allocated upon resource recovery
+    // (MESOS-3078), we would not need to increase the timeout here.
+    Duration timeout = std::max(allocationInterval, seconds.get());
+
+    delay(timeout,
+          self(),
+          expireOffer,
+          frameworkId,
+          slaveId,
+          offerFilter);
   }
 }
 
