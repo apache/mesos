@@ -319,6 +319,10 @@ DockerContainerizerProcess::Container::create(
 
     newCommandInfo.set_shell(true);
 
+    if (taskInfo->has_command()) {
+      newCommandInfo.mutable_uris()->CopyFrom(taskInfo->command().uris());
+    }
+
     containerInfo = newContainerInfo;
     commandInfo = newCommandInfo;
     environment = executorEnvironment(
