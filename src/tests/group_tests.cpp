@@ -447,7 +447,8 @@ TEST_F(GroupTest, ConnectTimer)
   // Ensure that we won't be able to establish a connection to ZooKeeper.
   server->shutdownNetwork();
 
-  Future<Nothing> expired = FUTURE_DISPATCH(_, &GroupProcess::expired);
+  Future<Nothing> expired = FUTURE_DISPATCH(group.process->self(),
+                                            &GroupProcess::expired);
 
   Group group(server->connectString(), sessionTimeout, "/test/");
 
@@ -456,6 +457,38 @@ TEST_F(GroupTest, ConnectTimer)
   Clock::advance(sessionTimeout);
 
   AWAIT_READY(expired);
+
+  Clock::resume();
+}
+
+
+// This test checks that if a `Group` is destroyed before the
+// connection retry timer fires, we don't attempt to dispatch a
+// message to a reclaimed process.
+TEST_F(GroupTest, TimerCleanup)
+{
+  const Duration sessionTimeout = Seconds(10);
+
+  Clock::pause();
+
+  // Ensure that we won't be able to establish a Zk connection.
+  server->shutdownNetwork();
+
+  Group* group = new Group(server->connectString(), sessionTimeout, "/test/");
+
+  // We arrange for `sessionTimeout` to expire but we expect that the
+  // associated event will not be dispatched. Note that we could
+  // specify that we expect which particular PID we expect to not
+  // receive any dispatches, but it is a stronger assertion to check
+  // that no `GroupProcess` receives an `expired` event.
+  EXPECT_NO_FUTURE_DISPATCHES(_, &GroupProcess::expired);
+
+  delete group;
+
+  Clock::advance(sessionTimeout);
+
+  // Ensure that if there are any pending messages, they are delivered.
+  Clock::settle();
 
   Clock::resume();
 }
