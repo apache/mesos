@@ -1040,7 +1040,8 @@ TEST_F(MasterMaintenanceTest, MachineStatus)
 TEST_F(MasterMaintenanceTest, InverseOffers)
 {
   // Set up a master.
-  Try<PID<Master>> master = StartMaster();
+  master::Flags masterFlags = CreateMasterFlags();
+  Try<PID<Master>> master = StartMaster(masterFlags);
   ASSERT_SOME(master);
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
@@ -1212,10 +1213,16 @@ TEST_F(MasterMaintenanceTest, InverseOffers)
     mesos.send(call);
   }
 
+  Clock::pause();
+  Clock::settle();
+  Clock::advance(masterFlags.allocation_interval);
+
   // Expect another inverse offer.
   event = events.get();
   AWAIT_READY(event);
   EXPECT_EQ(Event::OFFERS, event.get().type());
+  Clock::resume();
+
   EXPECT_EQ(0, event.get().offers().offers().size());
   EXPECT_EQ(1, event.get().offers().inverse_offers().size());
   inverseOffer = event.get().offers().inverse_offers(0);
@@ -1261,10 +1268,16 @@ TEST_F(MasterMaintenanceTest, InverseOffers)
     mesos.send(call);
   }
 
+  Clock::pause();
+  Clock::settle();
+  Clock::advance(masterFlags.allocation_interval);
+
   // Expect yet another inverse offer.
   event = events.get();
   AWAIT_READY(event);
   EXPECT_EQ(Event::OFFERS, event.get().type());
+  Clock::resume();
+
   EXPECT_EQ(0, event.get().offers().offers().size());
   EXPECT_EQ(1, event.get().offers().inverse_offers().size());
 
