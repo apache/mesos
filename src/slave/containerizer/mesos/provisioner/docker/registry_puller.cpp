@@ -73,16 +73,16 @@ private:
       const spec::ImageReference& reference,
       const string& directory);
 
-  Future<Nothing> fetchLayer(
-      const spec::ImageReference& reference,
-      const string& directory,
-      const string& blobSum,
-      const spec::v1::ImageManifest& v1);
+  Future<vector<string>> __pull(
+    const spec::ImageReference& reference,
+    const string& directory,
+    const spec::v2::ImageManifest& manifest,
+    const hashset<string>& blobSums);
 
-  Future<Nothing> _fetchLayer(
-      const string& directory,
-      const string& blobSum,
-      const spec::v1::ImageManifest& v1);
+  Future<hashset<string>> fetchBlobs(
+    const spec::ImageReference& reference,
+    const string& directory,
+    const spec::v2::ImageManifest& manifest);
 
   RegistryPullerProcess(const RegistryPullerProcess&) = delete;
   RegistryPullerProcess& operator=(const RegistryPullerProcess&) = delete;
@@ -210,110 +210,151 @@ Future<vector<string>> RegistryPullerProcess::_pull(
   VLOG(1) << "The manifest for image '" << reference << "' is '"
           << _manifest.get() << "'";
 
-  list<Future<Nothing>> futures;
+  // NOTE: This can be a CHECK (i.e., shouldn't happen). However, in
+  // case docker has bugs, we return a Failure instead.
+  if (manifest->fslayers_size() != manifest->history_size()) {
+    return Failure("'fsLayers' and 'history' have different size in manifest");
+  }
+
+  return fetchBlobs(reference, directory, manifest.get())
+    .then(defer(self(),
+                &Self::__pull,
+                reference,
+                directory,
+                manifest.get(),
+                lambda::_1));
+}
+
+
+Future<vector<string>> RegistryPullerProcess::__pull(
+    const spec::ImageReference& reference,
+    const string& directory,
+    const spec::v2::ImageManifest& manifest,
+    const hashset<string>& blobSums)
+{
   vector<string> layerIds;
+  list<Future<Nothing>> futures;
 
-  CHECK_EQ(manifest->fslayers_size(), manifest->history_size());
+  for (int i = 0; i < manifest.fslayers_size(); i++) {
+    CHECK(manifest.history(i).has_v1());
+    const spec::v1::ImageManifest& v1 = manifest.history(i).v1();
+    const string& blobSum = manifest.fslayers(i).blobsum();
 
-  for (int i = 0; i < manifest->fslayers_size(); i++) {
-    CHECK(manifest->history(i).has_v1());
+    // NOTE: We put parent layer ids in front because that's what the
+    // provisioner backends assume.
+    layerIds.insert(layerIds.begin(), v1.id());
 
-    layerIds.push_back(manifest->history(i).v1().id());
+    // Skip if the layer is already in the store.
+    if (os::exists(paths::getImageLayerPath(storeDir, v1.id()))) {
+      continue;
+    }
 
-    futures.push_back(fetchLayer(
-        reference,
-        directory,
-        manifest->fslayers(i).blobsum(),
-        manifest->history(i).v1()));
+    const string layerPath = path::join(directory, v1.id());
+    const string tar = path::join(directory, blobSum);
+    const string rootfs = paths::getImageLayerRootfsPath(layerPath);
+    const string json = paths::getImageLayerManifestPath(layerPath);
+
+    // NOTE: This will create 'layerPath' as well.
+    Try<Nothing> mkdir = os::mkdir(rootfs, true);
+    if (mkdir.isError()) {
+      return Failure(
+          "Failed to create rootfs directory '" + rootfs + "' "
+          "for layer '" + v1.id() + "': " + mkdir.error());
+    }
+
+    Try<Nothing> write = os::write(json, stringify(JSON::protobuf(v1)));
+    if (write.isError()) {
+      return Failure(
+          "Failed to save the layer manifest for layer '" +
+          v1.id() + "': " + write.error());
+    }
+
+    futures.push_back(command::untar(Path(tar), Path(rootfs)));
   }
 
   return collect(futures)
-    .then([layerIds]() { return layerIds; });
-}
+    .then([=]() -> Future<vector<string>> {
+      // Remove the tarballs after the extraction.
+      foreach (const string& blobSum, blobSums) {
+        const string tar = path::join(directory, blobSum);
 
-
-Future<Nothing> RegistryPullerProcess::fetchLayer(
-    const spec::ImageReference& reference,
-    const string& directory,
-    const string& blobSum,
-    const spec::v1::ImageManifest& v1)
-{
-  // Check if the layer is in the store or not. If yes, skip the
-  // unnecessary fetching.
-  if (os::exists(paths::getImageLayerPath(storeDir, v1.id()))) {
-    return Nothing();
-  }
-
-  VLOG(1) << "Fetching layer '" << v1.id() << "' for image '"
-          << reference << "'";
-
-  URI blobUri;
-  if (reference.has_registry()) {
-    // TODO(jieyu): The user specified registry might contain port. We
-    // need to parse it and set the 'scheme' and 'port' accordingly.
-    blobUri = uri::docker::blob(
-        reference.repository(),
-        blobSum,
-        reference.registry());
-  } else {
-    const string registry = defaultRegistryUrl.domain.isSome()
-      ? defaultRegistryUrl.domain.get()
-      : stringify(defaultRegistryUrl.ip.get());
-
-    const Option<int> port = defaultRegistryUrl.port.isSome()
-      ? static_cast<int>(defaultRegistryUrl.port.get())
-      : Option<int>();
-
-    blobUri = uri::docker::blob(
-        reference.repository(),
-        blobSum,
-        registry,
-        defaultRegistryUrl.scheme,
-        port);
-  }
-
-  return fetcher->fetch(blobUri, directory)
-    .then(defer(self(), &Self::_fetchLayer, directory, blobSum, v1));
-}
-
-
-Future<Nothing> RegistryPullerProcess::_fetchLayer(
-    const string& directory,
-    const string& blobSum,
-    const spec::v1::ImageManifest& v1)
-{
-  const string layerPath = path::join(directory, v1.id());
-  const string tar = path::join(directory, blobSum);
-  const string rootfs = paths::getImageLayerRootfsPath(layerPath);
-  const string manifest = paths::getImageLayerManifestPath(layerPath);
-
-  // NOTE: This will create 'layerPath' as well.
-  Try<Nothing> mkdir = os::mkdir(rootfs, true);
-  if (mkdir.isError()) {
-    return Failure(
-        "Failed to create rootfs directory '" + rootfs + "' "
-        "for layer '" + v1.id() + "': " + mkdir.error());
-  }
-
-  Try<Nothing> write = os::write(manifest, stringify(JSON::protobuf(v1)));
-  if (write.isError()) {
-    return Failure(
-        "Failed to save the layer manifest for layer '" +
-        v1.id() + "': " + write.error());
-  }
-
-  return command::untar(Path(tar), Path(rootfs))
-    .then([tar]() -> Future<Nothing> {
-      // Remove the tar after the extraction.
-      Try<Nothing> rm = os::rm(tar);
-      if (rm.isError()) {
-        return Failure(
-            "Failed to remove '" + tar + "' "
-            "after extraction: " + rm.error());
+        Try<Nothing> rm = os::rm(tar);
+        if (rm.isError()) {
+          return Failure(
+              "Failed to remove '" + tar + "' "
+              "after extraction: " + rm.error());
+        }
       }
 
-      return Nothing();
+      return layerIds;
     });
+}
+
+
+Future<hashset<string>> RegistryPullerProcess::fetchBlobs(
+    const spec::ImageReference& reference,
+    const string& directory,
+    const spec::v2::ImageManifest& manifest)
+{
+  // First, find all the blobs that need to be fetched.
+  //
+  // NOTE: There might exist duplicated blob sums in 'fsLayers'. We
+  // just need to fetch one of them.
+  hashset<string> blobSums;
+
+  for (int i = 0; i < manifest.fslayers_size(); i++) {
+    CHECK(manifest.history(i).has_v1());
+    const spec::v1::ImageManifest& v1 = manifest.history(i).v1();
+
+    // Check if the layer is in the store or not. If yes, skip the
+    // unnecessary fetching.
+    if (os::exists(paths::getImageLayerPath(storeDir, v1.id()))) {
+      continue;
+    }
+
+    const string& blobSum = manifest.fslayers(i).blobsum();
+
+    VLOG(1) << "Fetching blob '" << blobSum << "' for layer '"
+            << v1.id() << "' of image '" << reference << "'";
+
+    blobSums.insert(blobSum);
+  }
+
+  // Now, actually fetch the blobs.
+  list<Future<Nothing>> futures;
+
+  foreach (const string& blobSum, blobSums) {
+    URI blobUri;
+
+    if (reference.has_registry()) {
+      // TODO(jieyu): The user specified registry might contain port. We
+      // need to parse it and set the 'scheme' and 'port' accordingly.
+      blobUri = uri::docker::blob(
+          reference.repository(),
+          blobSum,
+          reference.registry());
+    } else {
+      const string registry = defaultRegistryUrl.domain.isSome()
+        ? defaultRegistryUrl.domain.get()
+        : stringify(defaultRegistryUrl.ip.get());
+
+      const Option<int> port = defaultRegistryUrl.port.isSome()
+        ? static_cast<int>(defaultRegistryUrl.port.get())
+        : Option<int>();
+
+      blobUri = uri::docker::blob(
+          reference.repository(),
+          blobSum,
+          registry,
+          defaultRegistryUrl.scheme,
+          port);
+    }
+
+    futures.push_back(fetcher->fetch(blobUri, directory));
+  }
+
+  return collect(futures)
+    .then([blobSums]() { return blobSums; });
 }
 
 } // namespace docker {
