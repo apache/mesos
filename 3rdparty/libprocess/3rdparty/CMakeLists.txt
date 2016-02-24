@@ -119,9 +119,24 @@ elseif (WIN32)
   set(LIBEVENT_INSTALL_CMD ${CMAKE_NOOP})
 
   set(LIBAPR_INSTALL_CMD ${CMAKE_NOOP})
+
+  set(LIBEVENT_C_FLAGS "/MTd /Zi")
+  set(LIBEVENT_CMAKE_ARGS
+    ${LIBEVENT_CMAKE_ARGS}
+    -DCMAKE_C_FLAGS_DEBUG=${LIBEVENT_C_FLAGS}
+    -DCMAKE_C_FLAGS_RELEASE=${LIBEVENT_C_FLAGS}
+    -DEVENT__DISABLE_OPENSSL=TRUE
+    )
 endif (NOT WIN32)
 
 set(RY_UPDATE_CMD ${CMAKE_COMMAND} -E copy ${PROCESS_3RD_SRC}/http-parser/CMakeLists.txt.template ${HTTP_PARSER_ROOT}/CMakeLists.txt)
+
+set(LIBEVENT_CMAKE_ARGS
+  ${LIBEVENT_CMAKE_ARGS}
+  -LH
+  -DEVENT__HAVE_SYS_STAT_H=1
+  -DBUILD_SHARED_LIBS=${BUILD_SHARED_LIBS}
+  )
 
 # Third-party libraries. Tell the build system how to pull in and build third-
 # party libraries at compile time, using the ExternalProject_Add macro.
@@ -177,7 +192,7 @@ elseif (ENABLE_LIBEVENT)
   ExternalProject_Add(
     ${LIBEVENT_TARGET}
     PREFIX          ${LIBEVENT_CMAKE_ROOT}
-    CMAKE_ARGS      -LH -DEVENT__DISABLE_OPENSSL=TRUE
+    CMAKE_ARGS      ${LIBEVENT_CMAKE_ARGS}
     INSTALL_COMMAND ${LIBEVENT_INSTALL_CMD}
     URL             ${LIBEVENT_URL}
     )
@@ -259,6 +274,7 @@ endif (NOT WIN32)
 ExternalProject_Add(
   ${GMOCK_TARGET}
   PREFIX            ${GMOCK_CMAKE_ROOT}
+  CMAKE_ARGS        -DBUILD_SHARED_LIBS=FALSE
   CONFIGURE_COMMAND ${GMOCK_CONFIG_CMD}
   BUILD_COMMAND     ${GMOCK_BUILD_CMD}
   INSTALL_COMMAND   ${GMOCK_INSTALL_CMD}

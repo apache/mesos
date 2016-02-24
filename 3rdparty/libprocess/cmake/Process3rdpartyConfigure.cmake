@@ -55,16 +55,19 @@ set(BOOST_INCLUDE_DIR       ${BOOST_ROOT})
 set(GPERFTOOLS_INCLUDE_DIR  ${GPERFTOOLS}/src)
 set(HTTP_PARSER_INCLUDE_DIR ${HTTP_PARSER_ROOT})
 set(LIBEV_INCLUDE_DIR       ${LIBEV_ROOT})
-set(LIBEVENT_INCLUDE_DIR    ${LIBEVENT_LIB_ROOT}/include)
 set(PICOJSON_INCLUDE_DIR    ${PICOJSON_ROOT})
 
 if (WIN32)
   set(CURL_INCLUDE_DIR     ${CURL_ROOT}/include)
   set(GLOG_INCLUDE_DIR     ${GLOG_ROOT}/src/windows)
   set(PROTOBUF_INCLUDE_DIR ${PROTOBUF_ROOT}/src)
+  set(LIBEVENT_INCLUDE_DIR
+    ${LIBEVENT_ROOT}/include
+    ${LIBEVENT_ROOT}-build/include)
 else (WIN32)
   set(GLOG_INCLUDE_DIR     ${GLOG_LIB_ROOT}/include)
   set(PROTOBUF_INCLUDE_DIR ${PROTOBUF_LIB_ROOT}/include)
+  set(LIBEVENT_INCLUDE_DIR ${LIBEVENT_LIB_ROOT}/include)
 endif (WIN32)
 
 # Convenience variables for `lib` directories of built third-party dependencies.
