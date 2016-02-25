@@ -1836,15 +1836,23 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Logs)
 
   string uuid = UUID::random().toString();
 
+  // NOTE: We prefix `echo` with `unbuffer` so that we can immediately
+  // flush the output of `echo`.  This mitigates a race in Docker where
+  // it mangles reads from stdout/stderr and commits suicide.
+  // See MESOS-4676 for more information.
   CommandInfo command;
-  command.set_value("echo out" + uuid + " ; echo err" + uuid + " 1>&2");
+  command.set_value(
+      "unbuffer echo out" + uuid + " ; "
+      "unbuffer echo err" + uuid + " 1>&2");
 
   ContainerInfo containerInfo;
   containerInfo.set_type(ContainerInfo::DOCKER);
 
   // TODO(tnachen): Use local image to test if possible.
+  // NOTE: This is an image that is exactly
+  // `docker run -t -i alpine /bin/sh -c "apk add --update expect"`.
   ContainerInfo::DockerInfo dockerInfo;
-  dockerInfo.set_image("alpine");
+  dockerInfo.set_image("mesosphere/alpine-expect");
   containerInfo.mutable_docker()->CopyFrom(dockerInfo);
 
   task.mutable_command()->CopyFrom(command);
