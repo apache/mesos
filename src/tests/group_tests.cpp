@@ -447,10 +447,10 @@ TEST_F(GroupTest, ConnectTimer)
   // Ensure that we won't be able to establish a connection to ZooKeeper.
   server->shutdownNetwork();
 
+  Group group(server->connectString(), sessionTimeout, "/test/");
+
   Future<Nothing> expired = FUTURE_DISPATCH(group.process->self(),
                                             &GroupProcess::expired);
-
-  Group group(server->connectString(), sessionTimeout, "/test/");
 
   // Advance the clock to ensure that we forcibly expire the current
   // ZooKeeper connection attempt.
