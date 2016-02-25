@@ -788,13 +788,12 @@ Future<Future<T>> select(const std::set<Future<T>>& futures)
   promise->future().onDiscard(
       lambda::bind(&internal::discarded<Future<T>>, promise->future()));
 
-  typename std::set<Future<T>>::iterator iterator;
-  for (iterator = futures.begin(); iterator != futures.end(); ++iterator) {
+  foreach (const Future<T>& future, futures) {
     // NOTE: We can't use std::bind with a std::function with Clang
     // like we do below (see
     // http://stackoverflow.com/questions/20097616/stdbind-to-a-stdfunction-crashes-with-clang).
-    (*iterator).onAny([=](const Future<T>& future) {
-      internal::select(future, promise);
+    future.onAny([=](const Future<T>& f) {
+      internal::select(f, promise);
     });
   }
 
@@ -805,9 +804,7 @@ Future<Future<T>> select(const std::set<Future<T>>& futures)
 template <typename T>
 void discard(const std::set<Future<T>>& futures)
 {
-  typename std::set<Future<T>>::const_iterator iterator;
-  for (iterator = futures.begin(); iterator != futures.end(); ++iterator) {
-    Future<T> future = *iterator; // Need a non-const copy to discard.
+  foreach (Future<T> future, futures) { // Need a non-const copy to discard.
     future.discard();
   }
 }
@@ -816,9 +813,7 @@ void discard(const std::set<Future<T>>& futures)
 template <typename T>
 void discard(const std::list<Future<T>>& futures)
 {
-  typename std::list<Future<T>>::const_iterator iterator;
-  for (iterator = futures.begin(); iterator != futures.end(); ++iterator) {
-    Future<T> future = *iterator; // Need a non-const copy to discard.
+  foreach (Future<T> future, futures) { // Need a non-const copy to discard.
     future.discard();
   }
 }
