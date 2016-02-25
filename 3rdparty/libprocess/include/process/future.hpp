@@ -789,9 +789,6 @@ Future<Future<T>> select(const std::set<Future<T>>& futures)
       lambda::bind(&internal::discarded<Future<T>>, promise->future()));
 
   foreach (const Future<T>& future, futures) {
-    // NOTE: We can't use std::bind with a std::function with Clang
-    // like we do below (see
-    // http://stackoverflow.com/questions/20097616/stdbind-to-a-stdfunction-crashes-with-clang).
     future.onAny([=](const Future<T>& f) {
       internal::select(f, promise);
     });
