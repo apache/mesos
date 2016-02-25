@@ -98,6 +98,7 @@ void json(JSON::ObjectWriter* writer, const Task& task);
 } // namespace internal {
 
 void json(JSON::ObjectWriter* writer, const Attributes& attributes);
+void json(JSON::ObjectWriter* writer, const ExecutorInfo& executorInfo);
 void json(JSON::ArrayWriter* writer, const Labels& labels);
 void json(JSON::ObjectWriter* writer, const Resources& resources);
 void json(JSON::ObjectWriter* writer, const TaskStatus& status);
