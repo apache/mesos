@@ -1196,6 +1196,12 @@ TEST_F(MasterMaintenanceTest, InverseOffers)
     mesos.send(call);
   }
 
+  // To ensure that the decline call has reached the allocator before
+  // we advance the clock for the next batch allocation, we block on
+  // the appropriate allocator interface method being dispatched.
+  Future<Nothing> updateInverseOffer =
+    FUTURE_DISPATCH(_, &MesosAllocatorProcess::updateInverseOffer);
+
   {
     // Decline an inverse offer, with a filter.
     Call call;
@@ -1212,6 +1218,8 @@ TEST_F(MasterMaintenanceTest, InverseOffers)
 
     mesos.send(call);
   }
+
+  AWAIT_READY(updateInverseOffer);
 
   Clock::pause();
   Clock::settle();
@@ -1251,6 +1259,9 @@ TEST_F(MasterMaintenanceTest, InverseOffers)
       id,
       evolve(statuses.get().draining_machines(0).statuses(0).framework_id()));
 
+  updateInverseOffer =
+    FUTURE_DISPATCH(_, &MesosAllocatorProcess::updateInverseOffer);
+
   {
     // Accept an inverse offer, with filter.
     Call call;
@@ -1267,6 +1278,8 @@ TEST_F(MasterMaintenanceTest, InverseOffers)
 
     mesos.send(call);
   }
+
+  AWAIT_READY(updateInverseOffer);
 
   Clock::pause();
   Clock::settle();
