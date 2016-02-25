@@ -29,6 +29,7 @@
 #include <mesos/slave/isolator.hpp>
 
 #include <process/future.hpp>
+#include <process/io.hpp>
 #include <process/owned.hpp>
 #include <process/reap.hpp>
 
@@ -755,6 +756,14 @@ TEST_F(LimitedCpuIsolatorTest, ROOT_CGROUPS_Pids_and_Tids)
   int pipes[2];
   ASSERT_NE(-1, ::pipe(pipes));
 
+  // Use these to communicate with the test process after it has
+  // exec'd to make sure it is running.
+  int inputPipes[2];
+  ASSERT_NE(-1, ::pipe(inputPipes));
+
+  int outputPipes[2];
+  ASSERT_NE(-1, ::pipe(outputPipes));
+
   vector<string> argv(1);
   argv[0] = "cat";
 
@@ -762,8 +771,8 @@ TEST_F(LimitedCpuIsolatorTest, ROOT_CGROUPS_Pids_and_Tids)
       containerId,
       "cat",
       argv,
-      Subprocess::FD(STDIN_FILENO),
-      Subprocess::FD(STDOUT_FILENO),
+      Subprocess::FD(inputPipes[0], Subprocess::IO::OWNED),
+      Subprocess::FD(outputPipes[1], Subprocess::IO::OWNED),
       Subprocess::FD(STDERR_FILENO),
       None(),
       None(),
@@ -800,7 +809,16 @@ TEST_F(LimitedCpuIsolatorTest, ROOT_CGROUPS_Pids_and_Tids)
 
   ASSERT_SOME(os::close(pipes[1]));
 
-  // Process count should be 1 since 'sleep' is still sleeping.
+  // Write to the test process and wait for an echoed result.
+  // This observation ensures that the "cat" process has
+  // completed its part of the exec() procedure and is now
+  // executing normally.
+  AWAIT_READY(io::write(inputPipes[1], "foo")
+    .then([outputPipes]() -> Future<short> {
+      return io::poll(outputPipes[0], io::READ);
+    }));
+
+  // Process count should be 1 since 'cat' is still idling.
   usage = isolator.get()->usage(containerId);
   AWAIT_READY(usage);
   EXPECT_EQ(1U, usage.get().processes());
@@ -808,6 +826,10 @@ TEST_F(LimitedCpuIsolatorTest, ROOT_CGROUPS_Pids_and_Tids)
 
   // Ensure all processes are killed.
   AWAIT_READY(launcher.get()->destroy(containerId));
+
+  // Clean up the extra pipes created for synchronization.
+  EXPECT_SOME(os::close(inputPipes[1]));
+  EXPECT_SOME(os::close(outputPipes[0]));
 
   // Wait for the command to complete.
   AWAIT_READY(status);
