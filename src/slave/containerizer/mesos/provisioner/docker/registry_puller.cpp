@@ -354,7 +354,7 @@ Future<hashset<string>> RegistryPullerProcess::fetchBlobs(
   }
 
   return collect(futures)
-    .then([blobSums]() { return blobSums; });
+    .then([blobSums]() -> hashset<string> { return blobSums; });
 }
 
 } // namespace docker {

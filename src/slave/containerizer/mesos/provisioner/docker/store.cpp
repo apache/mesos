@@ -286,7 +286,7 @@ Future<vector<string>> StoreProcess::moveLayers(
   }
 
   return collect(futures)
-    .then([layerIds]() { return layerIds; });
+    .then([layerIds]() -> vector<string> { return layerIds; });
 }
 
 

@@ -210,7 +210,7 @@ Future<vector<string>> LocalPullerProcess::_pull(
   }
 
   return extractLayers(directory, layerIds)
-    .then([layerIds]() { return layerIds; });
+    .then([layerIds]() -> vector<string> { return layerIds; });
 }
 
 
