@@ -29,7 +29,7 @@ namespace internal {
 
 // Recursive version of `RemoveDirectory`. NOTE: unlike `rmdir`, this requires
 // Windows-formatted paths, and therefore should be in the `internal` namespace.
-Try<Nothing> recursive_remove_directory(const std::string& path)
+inline Try<Nothing> recursive_remove_directory(const std::string& path)
 {
   // Appending a slash here if the path doesn't already have one simplifies
   // path join logic later, because (unlike Unix) Windows doesn't like double

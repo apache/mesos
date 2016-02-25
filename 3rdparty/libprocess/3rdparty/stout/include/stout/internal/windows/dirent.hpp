@@ -152,7 +152,10 @@ inline struct dirent* readdir(DIR* directory)
 // to point at `NULL`.
 //
 // [1] https://www.gnu.org/software/libc/manual/html_node/Reading_002fClosing-Directory.html
-int readdir_r(DIR* directory, struct dirent* entry, struct dirent** result)
+inline int readdir_r(
+    DIR* directory,
+    struct dirent* entry,
+    struct dirent** result)
 {
   if (directory == NULL) {
     errno = EBADF;
