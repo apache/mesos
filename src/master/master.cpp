@@ -2926,9 +2926,16 @@ Future<bool> Master::authorizeCreateVolume(
     request.mutable_principals()->set_type(ACL::Entity::ANY);
   }
 
-  // TODO(greggomann): Determine what `volume_types` we may want to
-  // allow/prevent creation of. Currently, we simply use ANY.
-  request.mutable_volume_types()->set_type(ACL::Entity::ANY);
+  // The operation will be authorized if the principal is allowed to create
+  // volumes for all roles included in `create.volumes`.
+  // Add an element to `request.roles` for each unique role in the volumes.
+  hashset<string> roles;
+  foreach (const Resource& volume, create.volumes()) {
+    if (!roles.contains(volume.role())) {
+      request.mutable_roles()->add_values(volume.role());
+      roles.insert(volume.role());
+    }
+  }
 
   LOG(INFO)
     << "Authorizing principal '"

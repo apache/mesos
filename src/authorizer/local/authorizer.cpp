@@ -138,10 +138,10 @@ public:
     foreach (const ACL::CreateVolume& acl, acls.create_volumes()) {
       // ACL matches if both subjects and objects match.
       if (matches(request.principals(), acl.principals()) &&
-          matches(request.volume_types(), acl.volume_types())) {
+          matches(request.roles(), acl.roles())) {
         // ACL is allowed if both subjects and objects are allowed.
         return allows(request.principals(), acl.principals()) &&
-               allows(request.volume_types(), acl.volume_types());
+               allows(request.roles(), acl.roles());
       }
     }
 

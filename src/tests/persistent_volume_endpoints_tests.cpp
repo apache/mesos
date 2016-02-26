@@ -720,10 +720,10 @@ TEST_F(PersistentVolumeEndpointsTest, GoodCreateAndDestroyACL)
   ACLs acls;
 
   // This ACL asserts that the principal of `DEFAULT_CREDENTIAL`
-  // can create ANY volumes.
+  // can create volumes for any role.
   mesos::ACL::CreateVolume* create = acls.add_create_volumes();
   create->mutable_principals()->add_values(DEFAULT_CREDENTIAL.principal());
-  create->mutable_volume_types()->set_type(mesos::ACL::Entity::ANY);
+  create->mutable_roles()->set_type(mesos::ACL::Entity::ANY);
 
   // This ACL asserts that the principal of `DEFAULT_CREDENTIAL`
   // can destroy volumes that it created.
@@ -846,13 +846,13 @@ TEST_F(PersistentVolumeEndpointsTest, BadCreateAndDestroyACL)
   mesos::ACL::CreateVolume* cannotCreate = acls.add_create_volumes();
   cannotCreate->mutable_principals()->add_values(
       DEFAULT_CREDENTIAL.principal());
-  cannotCreate->mutable_volume_types()->set_type(mesos::ACL::Entity::NONE);
+  cannotCreate->mutable_roles()->set_type(mesos::ACL::Entity::NONE);
 
   // This ACL asserts that the principal of `DEFAULT_CREDENTIAL_2`
-  // can create persistent volumes.
+  // can create persistent volumes for any role.
   mesos::ACL::CreateVolume* canCreate = acls.add_create_volumes();
   canCreate->mutable_principals()->add_values(DEFAULT_CREDENTIAL_2.principal());
-  canCreate->mutable_volume_types()->set_type(mesos::ACL::Entity::ANY);
+  canCreate->mutable_roles()->set_type(mesos::ACL::Entity::ANY);
 
   // This ACL asserts that the principal of `DEFAULT_CREDENTIAL`
   // cannot destroy persistent volumes.
@@ -967,10 +967,10 @@ TEST_F(PersistentVolumeEndpointsTest, GoodCreateAndDestroyACLBadCredential)
   ACLs acls;
 
   // This ACL asserts that the principal of `failedCredential`
-  // can create persistent volumes.
+  // can create persistent volumes for any role.
   mesos::ACL::CreateVolume* failedCreate = acls.add_create_volumes();
   failedCreate->mutable_principals()->add_values(failedCredential.principal());
-  failedCreate->mutable_volume_types()->set_type(mesos::ACL::Entity::ANY);
+  failedCreate->mutable_roles()->set_type(mesos::ACL::Entity::ANY);
 
   // This ACL asserts that the principal of `failedCredential`
   // can destroy persistent volumes.
@@ -980,10 +980,10 @@ TEST_F(PersistentVolumeEndpointsTest, GoodCreateAndDestroyACLBadCredential)
       mesos::ACL::Entity::ANY);
 
   // This ACL asserts that the principal of `DEFAULT_CREDENTIAL`
-  // can create persistent volumes.
+  // can create persistent volumes for any role.
   mesos::ACL::CreateVolume* canCreate = acls.add_create_volumes();
   canCreate->mutable_principals()->add_values(DEFAULT_CREDENTIAL.principal());
-  canCreate->mutable_volume_types()->set_type(mesos::ACL::Entity::ANY);
+  canCreate->mutable_roles()->set_type(mesos::ACL::Entity::ANY);
 
   // Create a master.
   master::Flags masterFlags = CreateMasterFlags();

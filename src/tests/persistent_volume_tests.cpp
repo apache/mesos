@@ -829,10 +829,10 @@ TEST_P(PersistentVolumeTest, GoodACLCreateThenDestroy)
   ACLs acls;
 
   // This ACL declares that the principal of `DEFAULT_CREDENTIAL`
-  // can create any persistent volumes.
+  // can create persistent volumes for any role.
   mesos::ACL::CreateVolume* create = acls.add_create_volumes();
   create->mutable_principals()->add_values(DEFAULT_CREDENTIAL.principal());
-  create->mutable_volume_types()->set_type(mesos::ACL::Entity::ANY);
+  create->mutable_roles()->set_type(mesos::ACL::Entity::ANY);
 
   // This ACL declares that the principal of `DEFAULT_CREDENTIAL`
   // can destroy its own persistent volumes.
@@ -973,10 +973,10 @@ TEST_P(PersistentVolumeTest, GoodACLNoPrincipal)
   ACLs acls;
 
   // This ACL declares that any principal (and also frameworks without a
-  // principal) can create persistent volumes.
+  // principal) can create persistent volumes for any role.
   mesos::ACL::CreateVolume* create = acls.add_create_volumes();
   create->mutable_principals()->set_type(mesos::ACL::Entity::ANY);
-  create->mutable_volume_types()->set_type(mesos::ACL::Entity::ANY);
+  create->mutable_roles()->set_type(mesos::ACL::Entity::ANY);
 
   // This ACL declares that any principal (and also frameworks without a
   // principal) can destroy persistent volumes.
@@ -1121,16 +1121,16 @@ TEST_P(PersistentVolumeTest, BadACLNoPrincipal)
   ACLs acls;
 
   // This ACL declares that the principal of `DEFAULT_FRAMEWORK_INFO`
-  // can create persistent volumes.
+  // can create persistent volumes for any role.
   mesos::ACL::CreateVolume* create1 = acls.add_create_volumes();
   create1->mutable_principals()->add_values(DEFAULT_FRAMEWORK_INFO.principal());
-  create1->mutable_volume_types()->set_type(mesos::ACL::Entity::ANY);
+  create1->mutable_roles()->set_type(mesos::ACL::Entity::ANY);
 
   // This ACL declares that any other principals
   // cannot create persistent volumes.
   mesos::ACL::CreateVolume* create2 = acls.add_create_volumes();
   create2->mutable_principals()->set_type(mesos::ACL::Entity::ANY);
-  create2->mutable_volume_types()->set_type(mesos::ACL::Entity::NONE);
+  create2->mutable_roles()->set_type(mesos::ACL::Entity::NONE);
 
   // We use this filter so that resources will not
   // be filtered for 5 seconds (the default).
@@ -1321,16 +1321,16 @@ TEST_P(PersistentVolumeTest, BadACLDropCreateAndDestroy)
   ACLs acls;
 
   // This ACL declares that the principal 'creator-principal'
-  // can create persistent volumes.
+  // can create persistent volumes for any role.
   mesos::ACL::CreateVolume* create1 = acls.add_create_volumes();
   create1->mutable_principals()->add_values("creator-principal");
-  create1->mutable_volume_types()->set_type(mesos::ACL::Entity::ANY);
+  create1->mutable_roles()->set_type(mesos::ACL::Entity::ANY);
 
   // This ACL declares that all other principals
   // cannot create any persistent volumes.
   mesos::ACL::CreateVolume* create = acls.add_create_volumes();
   create->mutable_principals()->set_type(mesos::ACL::Entity::ANY);
-  create->mutable_volume_types()->set_type(mesos::ACL::Entity::NONE);
+  create->mutable_roles()->set_type(mesos::ACL::Entity::NONE);
 
   // We use the filter explicitly here so that the resources will not
   // be filtered for 5 seconds (the default).

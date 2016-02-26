@@ -98,15 +98,13 @@ message ACL {
     required Entity reserver_principals = 2;
   }
 
-  // Specifies what types of volumes, if any, a principal can create.
+  // Specifies which roles a principal can create volumes for.
   message CreateVolume {
     // Subjects: Framework principal or Operator username.
     required Entity principals = 1;
 
-    // Objects: The principal(s) can create volumes of these types.
-    // NOTE: Currently, the only valid values in the default authorizer
-    // implementation are ANY and NONE.
-    required Entity volume_types = 2;
+    // Objects: The principal(s) can create volumes for these roles.
+    required Entity roles = 2;
   }
 
   // Specifies which principals can destroy volumes
