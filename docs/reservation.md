@@ -258,7 +258,8 @@ slave that hosts the desired resources; the request will fail if sufficient
 unreserved resources cannot be found on the slave). In this case, the principal
 included in the request will be the principal of an authorized operator rather
 than the principal of a framework registered under the `ads` role. We send an
-HTTP POST request to the `/reserve` HTTP endpoint like so:
+HTTP POST request to the master's [/reserve](endpoints/master/reserve.md)
+endpoint like so:
 
         $ curl -i \
           -u <operator_principal>:<password> \
@@ -300,12 +301,13 @@ reservation request is then forwarded asynchronously to the Mesos slave where
 the resources are located. That asynchronous message may not be delivered, in
 which case no resources will be reserved. To determine if a reserve operation
 has succeeded, the user can examine the state of the appropriate Mesos slave
-(e.g., via the slave's `/state` HTTP endpoint).
+(e.g., via the slave's [/state](endpoints/slave/state.md) HTTP endpoint).
 
 #### `/unreserve` (since 0.25.0)
 
 Suppose we want to unreserve the resources that we dynamically reserved above.
-We can send an HTTP POST request to the `/unreserve` HTTP endpoint like so:
+We can send an HTTP POST request to the master's
+[/unreserve](endpoints/master/unreserve.md) endpoint like so:
 
         $ curl -i \
           -u <operator_principal>:<password> \
@@ -353,4 +355,4 @@ master. The request is then forwarded asynchronously to the Mesos slave where
 the resources are located. That asynchronous message may not be delivered, in
 which case no resources will be unreserved. To determine if an unreserve
 operation has succeeded, the user can examine the state of the appropriate Mesos
-slave (e.g., via the slave's `/state` HTTP endpoint).
+slave (e.g., via the slave's [/state](endpoints/slave/state.md) HTTP endpoint).

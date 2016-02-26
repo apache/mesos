@@ -76,7 +76,7 @@ specify `--enforce_container_disk_quota` when starting the slave.
 
 The Posix Disk isolator reports disk usage for each sandbox by
 periodically running the `du` command. The disk usage can be retrieved
-from the resource statistics endpoint (`/monitor/statistics.json`).
+from the resource statistics endpoint ([/monitor/statistics](endpoints/monitor/statistics.md)).
 
 The interval between two `du`s can be controlled by the slave flag
 `--container_disk_watch_interval`. For example,

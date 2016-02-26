@@ -139,7 +139,7 @@ endpoint running on the agent.
 ## Sandbox size
 
 The maximum size of the sandbox is dependent on the containerization of the
-executor and isolators :
+executor and isolators:
 
 * Mesos containerizer - For backwards compatibility, the Mesos containerizer
   does not enforce a container's disk quota by default.  However, if the

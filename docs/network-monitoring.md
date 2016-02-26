@@ -8,7 +8,7 @@ Mesos on Linux provides support for per-container network monitoring and
 isolation. The network isolation prevents a single container from exhausting the
 available network ports, consuming an unfair share of the network bandwidth or
 significantly delaying packet transmission for others. Network statistics for
-each active container are published through the `/monitor/statistics.json`
+each active container are published through the [/monitor/statistics](endpoints/monitor/statistics.md)
 endpoint on the slave. The network isolation is transparent for the majority of
 tasks running on a slave (those that bind to port 0 and let the kernel allocate
 their port).
@@ -176,7 +176,7 @@ enabled would thus be:
 ## Monitoring container network statistics
 
 Mesos exposes statistics from the Linux network stack for each container network
-on the `/monitor/statistics.json` slave endpoint.
+on the [/monitor/statistics](endpoints/monitor/statistics.md) slave endpoint.
 
 From the network interface inside the container, we report the following
 counters (since container creation) under the `statistics` key:
@@ -284,9 +284,9 @@ for each of these elements includes:
 </tr>
 </table>
 
-[1] `backlog` is only reported on the bloat_reduction interface
+[1] `backlog` is only reported on the bloat_reduction interface.
 
-[2] `overlimits` are only reported on the bw_limit interface
+[2] `overlimits` are only reported on the bw_limit interface.
 
 [3] Currently always reported as 0 by the underlying Traffic Control element.
 

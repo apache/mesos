@@ -98,9 +98,9 @@ agent node are initially assigned to the `*` role (this can be changed via the
 The `*` role behaves differently from non-default roles. For example, dynamic
 reservations can be used to reassign resources from the `*` role to a specific
 role, but not from one specific role to another specific role (without first
-unreserving the resource, e.g., using the `/unreserve` operator HTTP
-endpoint). Similarly, persistent volumes cannot be created on unreserved
-resources.
+unreserving the resource, e.g., using the [/unreserve](endpoints/master/unreserve.md)
+operator HTTP endpoint). Similarly, persistent volumes cannot be created on
+unreserved resources.
 
 ## Invalid role
 

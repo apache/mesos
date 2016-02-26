@@ -61,9 +61,9 @@ introducing preemption for running tasks.
 
 # Operator HTTP Endpoint
 
-The master `/quota` HTTP endpoint enables operators to configure quotas. The
-endpoint currently offers a REST-like interface and supports the
-following operations:
+The master [/quota](endpoints/master/quota.md) HTTP endpoint enables operators
+to configure quotas. The endpoint currently offers a REST-like interface and
+supports the following operations:
 
 * [Setting](#setRequest) a new quota with POST.
 * [Removing](#removeRequest) an existing quota with DELETE.
