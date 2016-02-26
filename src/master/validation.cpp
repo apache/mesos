@@ -652,7 +652,6 @@ namespace operation {
 
 Option<Error> validate(
     const Offer::Operation::Reserve& reserve,
-    const Option<string>& role,
     const Option<string>& principal)
 {
   Option<Error> error = resource::validate(reserve.resources());

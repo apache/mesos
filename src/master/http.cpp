@@ -1204,7 +1204,7 @@ Future<Response> Master::Http::reserve(
   operation.mutable_reserve()->mutable_resources()->CopyFrom(resources);
 
   Option<Error> error = validation::operation::validate(
-      operation.reserve(), None(), principal);
+      operation.reserve(), principal);
 
   if (error.isSome()) {
     return BadRequest("Invalid RESERVE operation: " + error.get().message);
