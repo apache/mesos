@@ -23,6 +23,7 @@ set(STOUT_TESTS_SRC
   bytes_tests.cpp
   cache_tests.cpp
   duration_tests.cpp
+  dynamiclibrary_tests.cpp
   error_tests.cpp
   hashmap_tests.cpp
   hashset_tests.cpp
@@ -50,7 +51,6 @@ set(STOUT_TESTS_SRC
 if (NOT WIN32)
   set(STOUT_TESTS_SRC
     ${STOUT_TESTS_SRC}
-    dynamiclibrary_tests.cpp
     flags_tests.cpp
     gzip_tests.cpp
     mac_tests.cpp

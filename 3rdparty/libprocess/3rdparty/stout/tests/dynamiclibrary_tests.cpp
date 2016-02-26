@@ -16,25 +16,154 @@
 #include <stout/gtest.hpp>
 #include <stout/some.hpp>
 
-// Test that we can dynamically load the library, that loads libraries.
+using std::string;
+
+#ifdef __linux__
+static const string valid_library_path = "libdl.so";
+#elif defined(__FreeBSD__)
+static const string valid_library_path = "libc.so.7";
+#elif defined(__WINDOWS__)
+static const string valid_library_path = "ntdll.dll";
+#else
+static const string valid_library_path = "libdl.dylib";
+#endif
+
+#ifdef __WINDOWS__
+static const string valid_symbol = "NtOpenProcess";
+#else
+static const string valid_symbol = "dlopen";
+#endif
+
+static const string invalid_symbol = "InvalidSymbol";
+static const string invalid_library_path = "InvalidLibraryPath";
+
+
+// Successful `open`, load symbol, `close`.
 TEST(DynamicLibraryTest, LoadKnownSymbol)
 {
   DynamicLibrary dltest;
 
-#ifdef __linux__
-  Try<Nothing> result = dltest.open("libdl.so");
-#elif defined(__FreeBSD__)
-  Try<Nothing> result = dltest.open("libc.so.7");
-#else
-  Try<Nothing> result = dltest.open("libdl.dylib");
-#endif
+  EXPECT_SOME(dltest.open(valid_library_path));
+  EXPECT_SOME(dltest.loadSymbol(valid_symbol));
+  EXPECT_SOME(dltest.close());
+}
 
-  EXPECT_SOME(result);
 
-  Try<void*> symbol = dltest.loadSymbol("dlopen");
+// Successful `open`, fail to load nonsense symbol, `close`.
+TEST(DynamicLibraryTest, FailToLoadInvalidSymbol)
+{
+  DynamicLibrary dltest;
 
-  EXPECT_SOME(symbol);
+  EXPECT_SOME(dltest.open(valid_library_path));
+  EXPECT_ERROR(dltest.loadSymbol(invalid_symbol));
+  EXPECT_SOME(dltest.close());
+}
 
-  result = dltest.close();
-  EXPECT_SOME(result);
+
+// Verify that `loadSymbol` and `close` fail if we don't call `open` first.
+TEST(DynamicLibraryTest, CloseAndLoadSymbolFailWithoutOpeningLib)
+{
+  DynamicLibrary dltest;
+
+  EXPECT_ERROR(dltest.loadSymbol(invalid_symbol));
+  EXPECT_ERROR(dltest.close());
+}
+
+
+// Verify we can open a library and load a symbol. Then close, verify that we
+// can't load the symbol. Then open and verify we can load symbol again, just
+// to be safe.
+TEST(DynamicLibraryTest, VerifyClose)
+{
+  DynamicLibrary dltest;
+
+  EXPECT_SOME(dltest.open(valid_library_path));
+  EXPECT_SOME(dltest.loadSymbol(valid_symbol));
+  EXPECT_SOME(dltest.close());
+
+  EXPECT_ERROR(dltest.loadSymbol(valid_symbol));
+
+  EXPECT_SOME(dltest.open(valid_library_path));
+  EXPECT_SOME(dltest.loadSymbol(valid_symbol));
+  EXPECT_SOME(dltest.close());
+}
+
+
+// Attempt to load invalid lib path, verify failure, as well as failures when
+// we try to call `loadSymbol` and `close`.
+TEST(DynamicLibraryTest, FailToLoadInvalidLibPath)
+{
+  DynamicLibrary dltest;
+
+  EXPECT_ERROR(dltest.open(invalid_library_path));
+  EXPECT_ERROR(dltest.loadSymbol(invalid_symbol));
+  EXPECT_ERROR(dltest.close());
+}
+
+
+// Attempt to `open` invalid lib path _twice_, verify failure, then verify
+// failure when we call `loadSymbol` and `close`.
+TEST(DynamicLibraryTest, DoubleFailOpen)
+{
+  DynamicLibrary dltest;
+
+  EXPECT_ERROR(dltest.open(invalid_library_path));
+  EXPECT_ERROR(dltest.open(invalid_library_path));
+  EXPECT_ERROR(dltest.loadSymbol(invalid_symbol));
+  EXPECT_ERROR(dltest.close());
+}
+
+
+// `open` valid library, load symbol, then verify we fail when we try to open
+// the library again; verify we can still load symbols from, and `close`, the
+// original library.
+TEST(DynamicLibraryTest, OpenSuccessThenOpenFail)
+{
+  DynamicLibrary dltest;
+
+  // `open`, successfully load symbol.
+  EXPECT_SOME(dltest.open(valid_library_path));
+  EXPECT_SOME(dltest.loadSymbol(valid_symbol));
+
+  // `open` same path again, fail, but successfully load known symbol; fail to
+  // load nonsense symbol.
+  EXPECT_ERROR(dltest.open(valid_library_path));
+  EXPECT_SOME(dltest.loadSymbol(valid_symbol));
+  EXPECT_ERROR(dltest.loadSymbol(invalid_symbol));
+
+  // `open` different (invalid) path, fail, but successfully load known symbol;
+  // fail to load nonsense symbol.
+  EXPECT_ERROR(dltest.open(invalid_library_path));
+  EXPECT_SOME(dltest.loadSymbol(valid_symbol));
+  EXPECT_ERROR(dltest.loadSymbol(invalid_symbol));
+
+  // Finally, successfully `close`.
+  EXPECT_SOME(dltest.close());
+}
+
+
+// Attempt to `open` invalid lib, verify we can't load symbols from it, then
+// open valid lib, and verify we can load symbols from, and `close` it.
+TEST(DynamicLibraryTest, OpenFailThenOpenSuccess)
+{
+  DynamicLibrary dltest;
+
+  // Fail to `open`, then fail load nonsense symbols.
+  EXPECT_ERROR(dltest.open(invalid_library_path));
+  EXPECT_ERROR(dltest.loadSymbol(invalid_symbol));
+
+  // `open` valid path, succeed, then successfully load known symbol; fail to
+  // load nonsense symbol.
+  EXPECT_SOME(dltest.open(valid_library_path));
+  EXPECT_SOME(dltest.loadSymbol(valid_symbol));
+  EXPECT_ERROR(dltest.loadSymbol(invalid_symbol));
+
+  // `open` different (invalid) path, fail, but successfully load known symbol;
+  // fail to load nonsense symbol.
+  EXPECT_ERROR(dltest.open(invalid_library_path));
+  EXPECT_SOME(dltest.loadSymbol(valid_symbol));
+  EXPECT_ERROR(dltest.loadSymbol(invalid_symbol));
+
+  // Finally, successfully `close`.
+  EXPECT_SOME(dltest.close());
 }
