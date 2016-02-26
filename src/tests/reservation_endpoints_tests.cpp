@@ -1032,6 +1032,63 @@ TEST_F(ReservationEndpointsTest, GoodReserveAndUnreserveACL)
 }
 
 
+// This tests that correct setup of `ReserveResources` ACLs allows the operator
+// to perform reserve operations for multiple roles successfully.
+TEST_F(ReservationEndpointsTest, GoodReserveACLMultipleRoles)
+{
+  TestAllocator<> allocator;
+  ACLs acls;
+
+  // This ACL asserts that the principal of `DEFAULT_CREDENTIAL`
+  // can reserve resources for any role.
+  mesos::ACL::ReserveResources* reserve = acls.add_reserve_resources();
+  reserve->mutable_principals()->add_values(DEFAULT_CREDENTIAL.principal());
+  reserve->mutable_roles()->set_type(mesos::ACL::Entity::ANY);
+
+  // Create a master.
+  master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.acls = acls;
+
+  EXPECT_CALL(allocator, initialize(_, _, _, _));
+
+  Try<PID<Master>> master = StartMaster(&allocator, masterFlags);
+  ASSERT_SOME(master);
+
+  // Create a slave.
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  slaveFlags.resources = "cpus:2;mem:1024";
+
+  Future<SlaveID> slaveId;
+  EXPECT_CALL(allocator, addSlave(_, _, _, _, _))
+    .WillOnce(DoAll(InvokeAddSlave(&allocator),
+                    FutureArg<0>(&slaveId)));
+
+  Try<PID<Slave>> slave = StartSlave(slaveFlags);
+  ASSERT_SOME(slave);
+
+  Resources unreserved = Resources::parse("cpus:1;mem:512").get();
+  Resources dynamicallyReserved1 = unreserved.flatten(
+      "jedi_master",
+      createReservationInfo(DEFAULT_CREDENTIAL.principal()));
+  Resources dynamicallyReserved2 = unreserved.flatten(
+      "sith_lord",
+      createReservationInfo(DEFAULT_CREDENTIAL.principal()));
+  Resources dynamicallyReservedMultipleRoles =
+    dynamicallyReserved1 + dynamicallyReserved2;
+
+  // Reserve the resources.
+  Future<Response> response = process::http::post(
+      master.get(),
+      "reserve",
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL),
+      createRequestBody(slaveId.get(), dynamicallyReservedMultipleRoles));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+
+  Shutdown();
+}
+
+
 // This tests that an incorrect set-up of Reserve ACL disallows the
 // operator from performing reserve operations.
 TEST_F(ReservationEndpointsTest, BadReserveACL)
@@ -1155,6 +1212,73 @@ TEST_F(ReservationEndpointsTest, BadUnreserveACL)
       createRequestBody(slaveId.get(), dynamicallyReserved));
 
   // Expect a failed authorization.
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Forbidden().status, response);
+
+  Shutdown();
+}
+
+
+// Tests that reserve operations will fail if multiple roles are included in a
+// request, while the principal attempting the reservation is not authorized to
+// reserve for one of them.
+TEST_F(ReservationEndpointsTest, BadReserveACLMultipleRoles)
+{
+  const string AUTHORIZED_ROLE = "panda";
+  const string UNAUTHORIZED_ROLE = "giraffe";
+
+  TestAllocator<> allocator;
+  ACLs acls;
+
+  // This ACL asserts that the principal of `DEFAULT_CREDENTIAL`
+  // can reserve resources for `AUTHORIZED_ROLE`.
+  mesos::ACL::ReserveResources* reserve1 = acls.add_reserve_resources();
+  reserve1->mutable_principals()->add_values(DEFAULT_CREDENTIAL.principal());
+  reserve1->mutable_roles()->add_values(AUTHORIZED_ROLE);
+
+  // This ACL asserts that the principal of `DEFAULT_CREDENTIAL`
+  // cannot reserve resources for any other role.
+  mesos::ACL::ReserveResources* reserve2 = acls.add_reserve_resources();
+  reserve2->mutable_principals()->add_values(DEFAULT_CREDENTIAL.principal());
+  reserve2->mutable_roles()->set_type(mesos::ACL::Entity::NONE);
+
+  // Create a master.
+  master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.acls = acls;
+
+  EXPECT_CALL(allocator, initialize(_, _, _, _));
+
+  Try<PID<Master>> master = StartMaster(&allocator, masterFlags);
+  ASSERT_SOME(master);
+
+  // Create a slave.
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  slaveFlags.resources = "cpus:2;mem:1024";
+
+  Future<SlaveID> slaveId;
+  EXPECT_CALL(allocator, addSlave(_, _, _, _, _))
+    .WillOnce(DoAll(InvokeAddSlave(&allocator),
+                    FutureArg<0>(&slaveId)));
+
+  Try<PID<Slave>> slave = StartSlave(slaveFlags);
+  ASSERT_SOME(slave);
+
+  Resources unreserved = Resources::parse("cpus:1;mem:512").get();
+  Resources dynamicallyReserved1 = unreserved.flatten(
+      AUTHORIZED_ROLE,
+      createReservationInfo(DEFAULT_CREDENTIAL.principal()));
+  Resources dynamicallyReserved2 = unreserved.flatten(
+      UNAUTHORIZED_ROLE,
+      createReservationInfo(DEFAULT_CREDENTIAL.principal()));
+  Resources dynamicallyReservedMultipleRoles =
+    dynamicallyReserved1 + dynamicallyReserved2;
+
+  // Reserve the resources.
+  Future<Response> response = process::http::post(
+      master.get(),
+      "reserve",
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL),
+      createRequestBody(slaveId.get(), dynamicallyReservedMultipleRoles));
+
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(Forbidden().status, response);
 
   Shutdown();
