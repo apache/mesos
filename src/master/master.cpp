@@ -2895,7 +2895,8 @@ Future<bool> Master::authorizeUnreserveResources(
     // authorization, we must check here that this resource is
     // dynamically reserved. If it isn't, the error will be caught
     // during validation.
-    if (Resources::isDynamicallyReserved(resource)) {
+    if (Resources::isDynamicallyReserved(resource) &&
+        resource.reservation().has_principal()) {
       request.mutable_reserver_principals()->add_values(
           resource.reservation().principal());
     }

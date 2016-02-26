@@ -63,7 +63,11 @@ bool operator==(
     const Resource::ReservationInfo& left,
     const Resource::ReservationInfo& right)
 {
-  if (left.principal() != right.principal()) {
+  if (left.has_principal() != right.has_principal()) {
+    return false;
+  }
+
+  if (left.has_principal() && left.principal() != right.principal()) {
     return false;
   }
 
@@ -1517,7 +1521,9 @@ ostream& operator<<(ostream& stream, const Resource& resource)
   if (resource.has_reservation()) {
     const Resource::ReservationInfo& reservation = resource.reservation();
 
-    stream << ", " << reservation.principal();
+    if (reservation.has_principal()) {
+      stream << ", " << reservation.principal();
+    }
 
     if (reservation.has_labels()) {
       stream << ", " << reservation.labels();
