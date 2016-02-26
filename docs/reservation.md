@@ -45,20 +45,20 @@ That is, statically reserved resources cannot be reserved for another role nor
 be unreserved. Dynamic reservation enables operators and authorized frameworks
 to reserve and unreserve resources after slave-startup.
 
-We require a `principal` from the operator or framework in order to
-authenticate/authorize the operations. Permissions are specified via the
-existing ACL mechanism. To use authorization with reserve/unreserve operations,
-the Mesos master must be configured with the desired ACLs. For more information,
-see the [authorization documentation](authorization.md).
+By default, frameworks and operators can reserve resources for any role, and can
+unreserve any dynamically reserved resources. [Authorization](authorization.md)
+allows this behavior to be limited so that only particular roles can be reserved
+for, and only particular resources can be unreserved. For these operations to be
+authorized, the framework or operator should provide a `principal` to identify
+itself. To use authorization with reserve/unreserve operations, the Mesos master
+must be configured with the appropriate ACLs. For more information, see the
+[authorization documentation](authorization.md).
 
 * `Offer::Operation::Reserve` and `Offer::Operation::Unreserve` messages are
   available for __frameworks__ to send back via the `acceptOffers` API as a
-  response to a resource offer. Each framework may only reserve resources for
-  its own role.
+  response to a resource offer.
 * `/reserve` and `/unreserve` HTTP endpoints allow __operators__ to manage
-  dynamic reservations through the master. Operators may currently reserve
-  resources for any role, although this
-  [will change](https://issues.apache.org/jira/browse/MESOS-4591).
+  dynamic reservations through the master.
 
 In the following sections, we will walk through examples of each of the
 interfaces described above.

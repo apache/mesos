@@ -36,18 +36,16 @@ The currently supported `Subjects` are:
 
 1. "principals"
 	- Framework principals (used by "register_frameworks", "run_tasks", "reserve", "unreserve", "create_volumes", and "destroy_volumes" actions)
-	- Usernames (used by "teardown_frameworks", "set_quotas", "remove_quotas", "reserve", "unreserve", "create_volumes", and "destroy_volumes" actions)
+	- Operator usernames (used by "teardown_frameworks", "set_quotas", "remove_quotas", "reserve", "unreserve", "create_volumes", and "destroy_volumes" actions)
 
 The currently supported `Objects` are:
 
-1. "roles": Resource [roles](roles.md) that framework can register with (used by "register_frameworks" and "set_quotas" actions)
-2. "users": Unix user to launch the task/executor as (used by "run_tasks" actions)
+1. "roles": Resource [roles](roles.md) that frameworks can register with, [reserve resources](reservation.md) for, or create [persistent volumes](persistent-volume.md) for (used by "register_frameworks", "set_quotas", "reserve_resources", and "create_volumes" actions).
+2. "users": Unix user to launch the task/executor as (used by "run_tasks" actions).
 3. "framework_principals": Framework principals that can be torn down by HTTP POST (used by "teardown_frameworks" actions).
-4. "resources": Resources that can be reserved. Currently the only types considered by the default authorizer are `ANY` and `NONE` (used by "reserves" action).
-5. "reserver_principals": Framework principals whose reserved resources can be unreserved (used by "unreserves" action).
-6. "volume_types": Types of volumes that can be created by a given principal. Currently the only types considered by the default authorizer are `ANY` and `NONE` (used by "create_volumes" action).
-7. "creator_principals": Principals whose persistent volumes can be destroyed (used by "destroy_volumes" action).
-8. "quota_principals": Principals that set the quota to be removed (used by "remove_quotas" action)
+4. "reserver_principals": Framework principals whose reserved resources can be unreserved (used by "unreserves" action).
+5. "creator_principals": Principals whose persistent volumes can be destroyed (used by "destroy_volumes" action).
+6. "quota_principals": Principals that set the quota to be removed (used by "remove_quotas" action).
 
 > NOTE: Both `Subjects` and `Objects` can be either an array of strings or one of the special values `ANY` or `NONE`.
 
@@ -214,7 +212,7 @@ In a real-world organization, principals and roles might be used to represent va
                                  ]
         }
 
-9. The principal `foo` can reserve any resources, and no other principal can reserve resources.
+9. The principal `foo` can reserve resources for any role, and no other principal can reserve resources.
 
         {
           "permissive": false,
@@ -223,14 +221,14 @@ In a real-world organization, principals and roles might be used to represent va
                                    "principals": {
                                      "values": ["foo"]
                                    },
-                                   "resources": {
+                                   "roles": {
                                      "type": "ANY"
                                    }
                                  }
                                ]
         }
 
-10. The principal `foo` cannot reserve any resources, and any other principal (or framework without a principal) can reserve resources.
+10. The principal `foo` cannot reserve resources, and any other principal (or framework without a principal) can reserve resources for any role.
 
         {
           "reserve_resources": [
@@ -238,14 +236,30 @@ In a real-world organization, principals and roles might be used to represent va
                                    "principals": {
                                      "values": ["foo"]
                                    },
-                                   "resources": {
+                                   "roles": {
                                      "type": "NONE"
                                    }
                                  }
                                ]
         }
 
-11. The principal `foo` can unreserve resources reserved by itself and by the principal `bar`. The principal `bar`, however, can only unreserve its own resources. No other principals can unreserve resources.
+11. The principal `foo` can reserve resources only for roles `prod` and `dev`, and no other principal (or framework without a principal) can reserve resources for any role.
+
+        {
+          "permissive": false,
+          "reserve_resources": [
+                                 {
+                                   "principals": {
+                                     "values": ["foo"]
+                                   },
+                                   "roles": {
+                                     "values": ["prod", "dev"]
+                                   }
+                                 }
+                               ]
+        }
+
+12. The principal `foo` can unreserve resources reserved by itself and by the principal `bar`. The principal `bar`, however, can only unreserve its own resources. No other principals can unreserve resources.
 
         {
           "permissive": false,
@@ -269,7 +283,7 @@ In a real-world organization, principals and roles might be used to represent va
                                  ]
         }
 
-12. The principal `foo` can create persistent volumes, and no other principal can create persistent volumes.
+13. The principal `foo` can create persistent volumes for any role, and no other principal can create persistent volumes.
 
         {
           "permissive": false,
@@ -278,14 +292,45 @@ In a real-world organization, principals and roles might be used to represent va
                                 "principals": {
                                   "values": ["foo"]
                                 },
-                                "volume_types": {
+                                "roles": {
                                   "type": "ANY"
                                 }
                               }
                             ]
         }
 
-13. The principal `foo` can destroy volumes created by itself and by the principal `bar`. The principal `bar`, however, can only destroy its own volumes. No other principals can destroy volumes.
+14. The principal `foo` cannot create persistent volumes for any role, and any other principal can create persistent volumes for any role.
+
+        {
+          "create_volumes": [
+                              {
+                                "principals": {
+                                  "values": ["foo"]
+                                },
+                                "roles": {
+                                  "type": "NONE"
+                                }
+                              }
+                            ]
+        }
+
+15. The principal `foo` can create persistent volumes only for roles `prod` and `dev`, and no other principal can create persistent volumes for any role.
+
+        {
+          "permissive": false,
+          "create_volumes": [
+                              {
+                                "principals": {
+                                  "values": ["foo"]
+                                },
+                                "roles": {
+                                  "values": ["prod", "dev"]
+                                }
+                              }
+                            ]
+        }
+
+16. The principal `foo` can destroy volumes created by itself and by the principal `bar`. The principal `bar`, however, can only destroy its own volumes. No other principals can destroy volumes.
 
         {
           "permissive": false,
@@ -309,7 +354,7 @@ In a real-world organization, principals and roles might be used to represent va
                              ]
         }
 
-14. The principal `ops` can set quota for any role. The principal `foo`, however, can only set quota for `foo-role`. No other principals can set quota.
+17. The principal `ops` can set quota for any role. The principal `foo`, however, can only set quota for `foo-role`. No other principals can set quota.
 
         {
           "permissive": false,
@@ -333,7 +378,7 @@ In a real-world organization, principals and roles might be used to represent va
                         ]
         }
 
-15. The principal `ops` can remove quota which was set by any principal. The principal `foo`, however, can only remove quota which was set by itself. No other principals can remove quota.
+18. The principal `ops` can remove quota which was set by any principal. The principal `foo`, however, can only remove quota which was set by itself. No other principals can remove quota.
 
         {
           "permissive": false,

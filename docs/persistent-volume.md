@@ -29,11 +29,14 @@ Persistent volumes can also be created on isolated and auxiliary disks by
 reserving [multiple disk resources](multiple-disk.md).
 
 Persistent volumes can be created by __operators__ and authorized
-__frameworks__. We require a `principal` from the operator or framework in order
-to authenticate/authorize the operations. Permissions are specified via the
-existing ACL mechanism. To use authorization with reserve, unreserve, create,
-and destroy operations, the Mesos master must be configured with the desired
-ACLs. For more information, see the
+__frameworks__. By default, frameworks and operators can create volumes for any
+role and destroy any persistent volumes. [Authorization](authorization.md)
+allows this behavior to be limited so that volumes can only be created for
+particular roles and only particular volumes can be destroyed. For these
+operations to be authorized, the framework or operator should provide a
+`principal` to identify itself. To use authorization with reserve, unreserve,
+create, and destroy operations, the Mesos master must be configured with the
+appropriate ACLs. For more information, see the
 [authorization documentation](authorization.md).
 
 * `Offer::Operation::Create` and `Offer::Operation::Destroy` messages are
