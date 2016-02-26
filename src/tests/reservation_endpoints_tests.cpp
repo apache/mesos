@@ -964,14 +964,14 @@ TEST_F(ReservationEndpointsTest, GoodReserveAndUnreserveACL)
   TestAllocator<> allocator;
   ACLs acls;
 
-  // This ACL asserts that the DEFAULT_CREDENTIAL's
-  // principal can reserve ANY resources.
+  // This ACL asserts that the principal of `DEFAULT_CREDENTIAL`
+  // can reserve resources for any role.
   mesos::ACL::ReserveResources* reserve = acls.add_reserve_resources();
   reserve->mutable_principals()->add_values(DEFAULT_CREDENTIAL.principal());
-  reserve->mutable_resources()->set_type(mesos::ACL::Entity::ANY);
+  reserve->mutable_roles()->set_type(mesos::ACL::Entity::ANY);
 
-  // This ACL asserts that the DEFAULT_CREDENTIAL's
-  // principal can unreserve its own resources.
+  // This ACL asserts that the principal of `DEFAULT_CREDENTIAL`
+  // can unreserve its own resources.
   mesos::ACL::UnreserveResources* unreserve = acls.add_unreserve_resources();
   unreserve->mutable_principals()->add_values(DEFAULT_CREDENTIAL.principal());
   unreserve->mutable_reserver_principals()->add_values(
@@ -1040,10 +1040,10 @@ TEST_F(ReservationEndpointsTest, BadReserveACL)
   ACLs acls;
 
   // This ACL asserts that ANY principal can reserve NONE,
-  // i.e. no principals can reserve anything.
+  // i.e. no principal can reserve resources.
   mesos::ACL::ReserveResources* reserve = acls.add_reserve_resources();
   reserve->mutable_principals()->set_type(mesos::ACL::Entity::ANY);
-  reserve->mutable_resources()->set_type(mesos::ACL::Entity::NONE);
+  reserve->mutable_roles()->set_type(mesos::ACL::Entity::NONE);
 
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_role("role");

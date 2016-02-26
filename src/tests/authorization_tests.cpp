@@ -405,31 +405,26 @@ TYPED_TEST(AuthorizationTest, PrincipalNotOfferedAnyRoleRestrictive)
 }
 
 
-// This tests the authorization of ACLs used for the dynamic reservation
-// of resources.
-//
-// NOTE: at this time, principals can only be authorized to reserve
-// ANY or NONE.  However, this test exercises the full capabilities of
-// ACL authorization, so specific resource types are tested as well.
+// Tests the authorization of ACLs used for dynamic reservation of resources.
 TYPED_TEST(AuthorizationTest, Reserve)
 {
   ACLs acls;
 
-  // "foo" and "bar" principals can reserve any resources.
+  // Principals "foo" and "bar" can reserve resources for any role.
   mesos::ACL::ReserveResources* acl1 = acls.add_reserve_resources();
   acl1->mutable_principals()->add_values("foo");
   acl1->mutable_principals()->add_values("bar");
-  acl1->mutable_resources()->set_type(mesos::ACL::Entity::ANY);
+  acl1->mutable_roles()->set_type(mesos::ACL::Entity::ANY);
 
-  // "baz" principal can reserve memory.
+  // Principal "baz" can only reserve resources for the "ads" role.
   mesos::ACL::ReserveResources* acl2 = acls.add_reserve_resources();
   acl2->mutable_principals()->add_values("baz");
-  acl2->mutable_resources()->add_values("mem");
+  acl2->mutable_roles()->add_values("ads");
 
   // No other principals can reserve resources.
   mesos::ACL::ReserveResources* acl3 = acls.add_reserve_resources();
   acl3->mutable_principals()->set_type(mesos::ACL::Entity::ANY);
-  acl3->mutable_resources()->set_type(mesos::ACL::Entity::NONE);
+  acl3->mutable_roles()->set_type(mesos::ACL::Entity::NONE);
 
   // Create an `Authorizer` with the ACLs.
   Try<Authorizer*> create = TypeParam::create();
@@ -439,43 +434,43 @@ TYPED_TEST(AuthorizationTest, Reserve)
   Try<Nothing> initialized = authorizer.get()->initialize(acls);
   ASSERT_SOME(initialized);
 
-  // Principals "foo" and "bar" can reserve any resources,
+  // Principals "foo" and "bar" can reserve resources for any role,
   // so requests 1 and 2 will pass.
   mesos::ACL::ReserveResources request1;
   request1.mutable_principals()->add_values("foo");
   request1.mutable_principals()->add_values("bar");
-  request1.mutable_resources()->set_type(mesos::ACL::Entity::ANY);
+  request1.mutable_roles()->set_type(mesos::ACL::Entity::ANY);
   AWAIT_EXPECT_TRUE(authorizer.get()->authorize(request1));
 
   mesos::ACL::ReserveResources request2;
   request2.mutable_principals()->add_values("foo");
   request2.mutable_principals()->add_values("bar");
-  request2.mutable_resources()->add_values("disk");
+  request2.mutable_roles()->add_values("awesome_role");
   AWAIT_EXPECT_TRUE(authorizer.get()->authorize(request2));
 
-  // Principal "baz" can reserve memory, so this will pass.
+  // Principal "baz" can only reserve resources for the "ads" role, so request 3
+  // will pass, but requests 4 and 5 will fail.
   mesos::ACL::ReserveResources request3;
   request3.mutable_principals()->add_values("baz");
-  request3.mutable_resources()->add_values("mem");
+  request3.mutable_roles()->add_values("ads");
   AWAIT_EXPECT_TRUE(authorizer.get()->authorize(request3));
 
-  // Principal "baz" can only reserve memory, so requests 4 and 5 will fail.
   mesos::ACL::ReserveResources request4;
   request4.mutable_principals()->add_values("baz");
-  request4.mutable_resources()->add_values("disk");
+  request4.mutable_roles()->add_values("awesome_role");
   AWAIT_EXPECT_FALSE(authorizer.get()->authorize(request4));
 
   mesos::ACL::ReserveResources request5;
   request5.mutable_principals()->add_values("baz");
-  request5.mutable_resources()->set_type(mesos::ACL::Entity::ANY);
+  request5.mutable_roles()->set_type(mesos::ACL::Entity::ANY);
   AWAIT_EXPECT_FALSE(authorizer.get()->authorize(request5));
 
   // Principal "zelda" is not mentioned in the ACLs of the Authorizer, so it
   // will be caught by the final ACL, which provides a default case that denies
-  // access for all other principals. This case will fail.
+  // access for all other principals. This request will fail.
   mesos::ACL::ReserveResources request6;
   request6.mutable_principals()->add_values("zelda");
-  request6.mutable_resources()->set_type(mesos::ACL::Entity::ANY);
+  request6.mutable_roles()->add_values("ads");
   AWAIT_EXPECT_FALSE(authorizer.get()->authorize(request6));
 }
 

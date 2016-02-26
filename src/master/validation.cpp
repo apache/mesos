@@ -666,12 +666,6 @@ Option<Error> validate(
           "Resource " + stringify(resource) + " is not dynamically reserved");
     }
 
-    if (role.isSome() && resource.role() != role.get()) {
-      return Error(
-          "The reserved resource's role '" + resource.role() +
-          "' does not match the framework's role '" + role.get() + "'");
-    }
-
     if (principal.isSome()) {
       if (!resource.reservation().has_principal()) {
         return Error(

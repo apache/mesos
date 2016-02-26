@@ -217,23 +217,27 @@ TEST_F(ReserveOperationValidationTest, DisallowStarRoleFrameworks)
 }
 
 
-// This test verifies that validation fails if the 'role'
+// This test verifies that validation fails if the framework attempts
+// to reserve for the "*" role.
+TEST_F(ReserveOperationValidationTest, DisallowReserveForStarRole)
+{
+  // Principal "principal" reserving for "*".
+  Resource resource = Resources::parse("cpus", "8", "*").get();
+  resource.mutable_reservation()->CopyFrom(
+      createReservationInfo("principal"));
+
+  Offer::Operation::Reserve reserve;
+  reserve.add_resources()->CopyFrom(resource);
+
+  EXPECT_SOME(operation::validate(reserve, "role", "principal"));
+}
+
+
+// This test verifies that validation succeeds even if the 'role'
 // specified in the resources of the RESERVE operation does not
 // match the framework's 'role'.
 TEST_F(ReserveOperationValidationTest, NonMatchingRole)
 {
-  {
-    // Non-matching role, "role" reserving for "*".
-    Resource resource = Resources::parse("cpus", "8", "*").get();
-    resource.mutable_reservation()->CopyFrom(
-        createReservationInfo("principal"));
-
-    Offer::Operation::Reserve reserve;
-    reserve.add_resources()->CopyFrom(resource);
-
-    EXPECT_SOME(operation::validate(reserve, "role", "principal"));
-  }
-
   {
     // Non-matching role, "*" reserving for "role".
     Resource resource = Resources::parse("cpus", "8", "role").get();
@@ -243,7 +247,7 @@ TEST_F(ReserveOperationValidationTest, NonMatchingRole)
     Offer::Operation::Reserve reserve;
     reserve.add_resources()->CopyFrom(resource);
 
-    EXPECT_SOME(operation::validate(reserve, "*", "principal"));
+    EXPECT_NONE(operation::validate(reserve, "*", "principal"));
   }
 
   {
@@ -255,7 +259,7 @@ TEST_F(ReserveOperationValidationTest, NonMatchingRole)
     Offer::Operation::Reserve reserve;
     reserve.add_resources()->CopyFrom(resource);
 
-    EXPECT_SOME(operation::validate(reserve, "role1", "principal"));
+    EXPECT_NONE(operation::validate(reserve, "role1", "principal"));
   }
 }
 

@@ -1336,12 +1336,13 @@ TEST_F(ReservationTest, GoodACLReserveThenUnreserve)
 {
   ACLs acls;
 
-  // This principal can reserve any resources.
+  // The principal of `DEFAULT_CREDENTIAL` can reserve resources for any role.
   mesos::ACL::ReserveResources* reserve = acls.add_reserve_resources();
   reserve->mutable_principals()->add_values(DEFAULT_CREDENTIAL.principal());
-  reserve->mutable_resources()->set_type(mesos::ACL::Entity::ANY);
+  reserve->mutable_roles()->set_type(mesos::ACL::Entity::ANY);
 
-  // This principal can unreserve its own reserved resources.
+  // The principal of `DEFAULT_CREDENTIAL` can unreserve
+  // its own reserved resources.
   mesos::ACL::UnreserveResources* unreserve = acls.add_unreserve_resources();
   unreserve->mutable_principals()->add_values(DEFAULT_CREDENTIAL.principal());
   unreserve->mutable_reserver_principals()->add_values(
@@ -1445,7 +1446,7 @@ TEST_F(ReservationTest, BadACLDropReserve)
   // No entity can reserve any resources.
   mesos::ACL::ReserveResources* reserve = acls.add_reserve_resources();
   reserve->mutable_principals()->set_type(mesos::ACL::Entity::NONE);
-  reserve->mutable_resources()->set_type(mesos::ACL::Entity::ANY);
+  reserve->mutable_roles()->set_type(mesos::ACL::Entity::ANY);
 
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_role("role");
@@ -1528,10 +1529,10 @@ TEST_F(ReservationTest, BadACLDropUnreserve)
 {
   ACLs acls;
 
-  // This principal can reserve any resources.
+  // This principal can reserve resources for any role.
   mesos::ACL::ReserveResources* reserve = acls.add_reserve_resources();
   reserve->mutable_principals()->add_values(DEFAULT_CREDENTIAL.principal());
-  reserve->mutable_resources()->set_type(mesos::ACL::Entity::ANY);
+  reserve->mutable_roles()->set_type(mesos::ACL::Entity::ANY);
 
   // This principal cannot unreserve any resources.
   mesos::ACL::UnreserveResources* unreserve = acls.add_unreserve_resources();
@@ -1655,10 +1656,10 @@ TEST_F(ReservationTest, ACLMultipleOperations)
 
   ACLs acls;
 
-  // This principal can reserve any resources.
+  // This principal can reserve resources for any role.
   mesos::ACL::ReserveResources* reserve = acls.add_reserve_resources();
   reserve->mutable_principals()->add_values(DEFAULT_CREDENTIAL.principal());
-  reserve->mutable_resources()->set_type(mesos::ACL::Entity::ANY);
+  reserve->mutable_roles()->set_type(mesos::ACL::Entity::ANY);
 
   // This principal cannot unreserve any resources.
   mesos::ACL::UnreserveResources* unreserve = acls.add_unreserve_resources();

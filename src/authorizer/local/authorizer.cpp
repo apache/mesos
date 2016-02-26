@@ -108,10 +108,10 @@ public:
     foreach (const ACL::ReserveResources& acl, acls.reserve_resources()) {
       // ACL matches if both subjects and objects match.
       if (matches(request.principals(), acl.principals()) &&
-          matches(request.resources(), acl.resources())) {
+          matches(request.roles(), acl.roles())) {
         // ACL is allowed if both subjects and objects are allowed.
         return allows(request.principals(), acl.principals()) &&
-               allows(request.resources(), acl.resources());
+               allows(request.roles(), acl.roles());
       }
     }
 

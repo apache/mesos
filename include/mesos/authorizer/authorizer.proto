@@ -79,14 +79,13 @@ message ACL {
     required Entity framework_principals = 2;
   }
 
-  // Specifies which Resources a principal can reserve.
+  // Specifies which roles a principal can reserve resources for.
   message ReserveResources {
     // Subjects: Framework principal or Operator username.
     required Entity principals = 1;
 
-    // Objects: The kind of Resources that can be reserved.
-    // NOTE: Currently the only valid values are ANY and NONE.
-    required Entity resources = 2;
+    // Objects: The principal(s) can reserve resources for these roles.
+    required Entity roles = 2;
   }
 
   // Specifies which principals can unreserve which principals'

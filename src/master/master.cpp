@@ -2855,9 +2855,16 @@ Future<bool> Master::authorizeReserveResources(
     request.mutable_principals()->set_type(ACL::Entity::ANY);
   }
 
-  // TODO(mpark): Determine what kinds of constraints we may want to
-  // enforce on resources. Currently, we simply use ANY.
-  request.mutable_resources()->set_type(ACL::Entity::ANY);
+  // The operation will be authorized if the principal is allowed to make
+  // reservations for all roles included in `reserve.resources`.
+  // Add an element to `request.roles` for each unique role in the resources.
+  hashset<string> roles;
+  foreach (const Resource& resource, reserve.resources()) {
+    if (!roles.contains(resource.role())) {
+      request.mutable_roles()->add_values(resource.role());
+      roles.insert(resource.role());
+    }
+  }
 
   LOG(INFO) << "Authorizing principal '"
             << (principal.isSome() ? principal.get() : "ANY")
