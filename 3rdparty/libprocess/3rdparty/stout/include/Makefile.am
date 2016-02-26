@@ -130,6 +130,7 @@ nobase_include_HEADERS =		\
   stout/preprocessor.hpp		\
   stout/proc.hpp			\
   stout/protobuf.hpp			\
+  stout/posix/dynamiclibrary.hpp	\
   stout/posix/fs.hpp			\
   stout/posix/gzip.hpp			\
   stout/posix/os.hpp			\
@@ -154,6 +155,7 @@ nobase_include_HEADERS =		\
   stout/uuid.hpp			\
   stout/version.hpp			\
   stout/windows.hpp			\
+  stout/windows/dynamiclibrary.hpp	\
   stout/windows/error.hpp		\
   stout/windows/format.hpp		\
   stout/windows/fs.hpp			\
