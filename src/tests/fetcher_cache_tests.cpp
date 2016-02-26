@@ -185,14 +185,7 @@ void FetcherCacheTest::SetUp()
   setupCommandFileAsset();
   setupArchiveAsset();
 
-  master::Flags masterFlags = CreateMasterFlags();
-  // In some fetcher cache tests, we want to find out if concurrent execution of
-  // launching tasks works and settling the clock would serialize task
-  // execution, thus we prefer to reduce `allocation_interval` to speed up test
-  // cases here.
-  masterFlags.allocation_interval = Milliseconds(200);
-
-  Try<PID<Master>> master = StartMaster(masterFlags);
+  Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   fetcherProcess = new MockFetcherProcess();
