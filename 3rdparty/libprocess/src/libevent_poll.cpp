@@ -14,6 +14,8 @@
 
 #include <event2/event.h>
 
+#include <memory>
+
 #include <process/future.hpp>
 #include <process/io.hpp>
 #include <process/process.hpp> // For process::initialize.
@@ -28,7 +30,7 @@ namespace internal {
 struct Poll
 {
   Promise<short> promise;
-  event* ev;
+  std::shared_ptr<event> ev;
 };
 
 
@@ -47,14 +49,26 @@ void pollCallback(evutil_socket_t, short what, void* arg)
     poll->promise.set(events);
   }
 
-  event_free(poll->ev);
+  // Deleting the `poll` also destructs `ev` and hence triggers `event_free`,
+  // which makes the event non-pending.
   delete poll;
 }
 
 
-void pollDiscard(event* ev)
+void pollDiscard(const std::weak_ptr<event>& ev, short events)
 {
-  event_active(ev, EV_READ, 0);
+  // Discarding inside the event loop prevents `pollCallback()` from being
+  // called twice if the future is discarded.
+  run_in_event_loop([=]() {
+    std::shared_ptr<event> shared = ev.lock();
+    // If `ev` cannot be locked `pollCallback` already ran. If it was locked
+    // but not pending, `pollCallback` is scheduled to be executed.
+    if (static_cast<bool>(shared) &&
+        event_pending(shared.get(), events, NULL)) {
+      // `event_active` will trigger the `pollCallback` to be executed.
+      event_active(shared.get(), EV_READ, 0);
+    }
+  });
 }
 
 } // namespace internal {
@@ -73,15 +87,27 @@ Future<short> poll(int fd, short events)
   short what =
     ((events & io::READ) ? EV_READ : 0) | ((events & io::WRITE) ? EV_WRITE : 0);
 
-  poll->ev = event_new(base, fd, what, &internal::pollCallback, poll);
+  // Bind `event_free` to the destructor of the `ev` shared pointer
+  // guaranteeing that the event will be freed only once.
+  poll->ev.reset(
+      event_new(base, fd, what, &internal::pollCallback, poll),
+      event_free);
+
   if (poll->ev == NULL) {
     LOG(FATAL) << "Failed to poll, event_new";
   }
 
-  event_add(poll->ev, NULL);
+  // Using a `weak_ptr` prevents `ev` to become a dangling pointer if
+  // the returned future is discarded after the event is triggered.
+  // The `weak_ptr` needs to be created before `event_add` in case
+  // the event is ready and the callback is executed before creating
+  // `ev`.
+  std::weak_ptr<event> ev(poll->ev);
+
+  event_add(poll->ev.get(), NULL);
 
   return future
-    .onDiscard(lambda::bind(&internal::pollDiscard, poll->ev));
+    .onDiscard(lambda::bind(&internal::pollDiscard, ev, what));
 }
 
 } // namespace io {
