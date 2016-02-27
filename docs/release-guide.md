@@ -168,6 +168,9 @@ This guide describes the process of doing an official release of Mesos.
 
     > NOTE: Make sure you fill the email template with the names of binding voters.
 
+## Updating the wiki
+
+Update the wiki entry, [Mesos Release Planning](https://cwiki.apache.org/confluence/display/MESOS/Mesos+Release+Planning).
 
 ## Updating the website
 
