@@ -801,9 +801,7 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::recoverResources(
   // which it might not in the event that we dispatched Master::offer
   // before we received Allocator::removeSlave).
   if (slaves.contains(slaveId)) {
-    // NOTE: We cannot add the following CHECK due to the double
-    // precision errors. See MESOS-1187 for details.
-    // CHECK(slaves[slaveId].allocated.contains(resources));
+    CHECK(slaves[slaveId].allocated.contains(resources));
 
     slaves[slaveId].allocated -= resources;
 
