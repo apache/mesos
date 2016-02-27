@@ -1,4 +1,5 @@
 ---
+title: Apache Mesos - Designing Highly Available Mesos Frameworks
 layout: documentation
 ---
 

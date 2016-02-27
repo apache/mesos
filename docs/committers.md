@@ -1,4 +1,5 @@
 ---
+title: Apache Mesos - Committers
 layout: documentation
 ---
 

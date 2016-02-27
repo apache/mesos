@@ -1,4 +1,5 @@
 ---
+title: Apache Mesos - Getting Started
 layout: documentation
 ---
 

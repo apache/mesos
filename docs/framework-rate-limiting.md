@@ -1,4 +1,5 @@
 ---
+title: Apache Mesos - Framework Rate Limiting
 layout: documentation
 ---
 

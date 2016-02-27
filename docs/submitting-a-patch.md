@@ -1,8 +1,9 @@
 ---
+title: Apache Mesos - Submitting a Patch
 layout: documentation
 ---
 
-# Submitting a patch
+# Submitting a Patch
 
 * You've fixed a bug or added a feature and want to contribute it. AWESOME!
 * We use [Apache Review Board](https://reviews.apache.org) for code reviews. If you don't already have an account, you'll need to create one (it's separate from your Apache JIRA account).

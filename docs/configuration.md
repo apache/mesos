@@ -1,4 +1,5 @@
 ---
+title: Apache Mesos - Configuration
 layout: documentation
 ---
 

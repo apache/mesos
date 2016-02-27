@@ -1,8 +1,9 @@
 ---
+title: Apache Mesos - Networking for Mesos-Managed Containers
 layout: documentation
 ---
 
-# Networking for Mesos-managed containers
+# Networking for Mesos-Managed Containers
 
 While networking plays a key role in data center infrastructure, it is -- for
 now -- beyond the scope of Mesos to try to address the concerns of networking

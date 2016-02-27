@@ -1,3 +1,8 @@
+---
+title: Apache Mesos - Image Provisioner
+layout: documentation
+---
+
 # Mesos Image Provisioner
 
 ## Motivation

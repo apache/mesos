@@ -1,4 +1,5 @@
 ---
+title: Apache Mesos - Upgrading Mesos
 layout: documentation
 ---
 

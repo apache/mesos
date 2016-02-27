@@ -1,4 +1,5 @@
 ---
+title: Apache Mesos - Slave Recovery
 layout: documentation
 ---
 

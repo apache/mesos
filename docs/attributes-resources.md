@@ -1,4 +1,5 @@
 ---
+title: Apache Mesos - Attributes and Resources
 layout: documentation
 ---
 

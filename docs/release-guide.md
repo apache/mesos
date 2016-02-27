@@ -1,4 +1,5 @@
 ---
+title: Apache Mesos - Release Guide
 layout: documentation
 ---
 

@@ -1,4 +1,5 @@
 ---
+title: Apache Mesos - Committer Candidate Checklist
 layout: documentation
 ---
 

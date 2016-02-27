@@ -1,7 +1,8 @@
 ---
+title: Apache Mesos - Software Projects Built on Mesos
 layout: documentation
 ---
-# Software projects built on Mesos
+# Software Projects Built on Mesos
 
 ## Long Running Services
 

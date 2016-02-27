@@ -1,4 +1,9 @@
-# Mesos Documentation  Guide
+---
+title: Apache Mesos - Documentation Guide
+layout: documentation
+---
+
+# Mesos Documentation Guide
 
 Documentation is an integral part of every good feature. It describes the intended usage and enables new users to start using and understanding the feature.
 

@@ -1,4 +1,5 @@
 ---
+title: Apache Mesos - High-Availability Mode
 layout: documentation
 ---
 

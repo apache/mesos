@@ -1,4 +1,5 @@
 ---
+title: Apache Mesos - Allocation Modules
 layout: documentation
 ---
 

@@ -1,4 +1,5 @@
 ---
+title: Apache Mesos - Engineering Principles And Practices
 layout: documentation
 ---
 

@@ -1,4 +1,5 @@
 ---
+title: Apache Mesos - Scheduler HTTP API
 layout: documentation
 ---
 

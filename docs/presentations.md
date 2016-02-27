@@ -1,4 +1,5 @@
 ---
+title: Apache Mesos - Video and Slides of Mesos Presentations
 layout: documentation
 ---
 

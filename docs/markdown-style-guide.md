@@ -1,3 +1,8 @@
+---
+title: Apache Mesos - Markdown Style Guide
+layout: documentation
+---
+
 # Mesos Markdown Style Guide
 
 This guide introduces a consistent documentation style to be used across the entire non-code documentation.

@@ -1,4 +1,5 @@
 ---
+title: Apache Mesos - The Mesos Replicated Log
 layout: documentation
 ---
 

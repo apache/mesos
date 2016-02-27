@@ -1,8 +1,9 @@
 ---
+title: Apache Mesos - Reporting An Issue
 layout: documentation
 ---
 
-# Reporting an issue
+# Reporting an Issue
 
 When reporting an issue (e.g. bug, improvement, feature request), please provide as much context as possible.
 

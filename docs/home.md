@@ -1,4 +1,5 @@
 ---
+title: Apache Mesos - Documentation Home
 layout: documentation
 ---
 
