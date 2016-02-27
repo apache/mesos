@@ -19,6 +19,7 @@
 #include <stdint.h>
 
 #include <algorithm>
+#include <cmath>
 #include <initializer_list>
 #include <ostream>
 #include <string>
@@ -46,50 +47,82 @@ using std::vector;
 namespace mesos {
 namespace v1 {
 
+// We manipulate scalar values by converting them from floating point to a
+// fixed point representation, doing a calculation, and then converting
+// the result back to floating point. We deliberately only preserve three
+// decimal digits of precision in the fixed point representation. This
+// ensures that client applications see predictable numerical behavior, at
+// the expense of sacrificing some precision.
+
+static long long convertToFixed(double floatValue)
+{
+  return std::llround(floatValue * 1000);
+}
+
+
+static double convertToFloating(long long fixedValue)
+{
+  // NOTE: We do the conversion from fixed point via integer division
+  // and then modulus, rather than a single floating point division.
+  // This ensures that we only apply floating point division to inputs
+  // in the range [0,999], which is easier to check for correctness.
+  double quotient = static_cast<double>(fixedValue / 1000);
+  double remainder = static_cast<double>(fixedValue % 1000) / 1000.0;
+
+  return quotient + remainder;
+}
+
+
 ostream& operator<<(ostream& stream, const Value::Scalar& scalar)
 {
-  return stream << scalar.value();
+  // We discard any additional precision from scalar resources before
+  // writing them to an ostream. This is redundant when the scalar is
+  // obtained from one of the operators below, but user-specified
+  // resource values might contain additional precision.
+  return stream << convertToFloating(convertToFixed(scalar.value()));
 }
 
 
 bool operator==(const Value::Scalar& left, const Value::Scalar& right)
 {
-  return left.value() == right.value();
+  return convertToFixed(left.value()) == convertToFixed(right.value());
 }
 
 
 bool operator<=(const Value::Scalar& left, const Value::Scalar& right)
 {
-  return left.value() <= right.value();
+  return convertToFixed(left.value()) <= convertToFixed(right.value());
 }
 
 
 Value::Scalar operator+(const Value::Scalar& left, const Value::Scalar& right)
 {
-  Value::Scalar result;
-  result.set_value(left.value() + right.value());
+  Value::Scalar result = left;
+  result += right;
   return result;
 }
 
 
 Value::Scalar operator-(const Value::Scalar& left, const Value::Scalar& right)
 {
-  Value::Scalar result;
-  result.set_value(left.value() - right.value());
+  Value::Scalar result = left;
+  result -= right;
   return result;
 }
 
 
 Value::Scalar& operator+=(Value::Scalar& left, const Value::Scalar& right)
 {
-  left.set_value(left.value() + right.value());
+  long long sum = convertToFixed(left.value()) + convertToFixed(right.value());
+  left.set_value(convertToFloating(sum));
   return left;
 }
 
 
 Value::Scalar& operator-=(Value::Scalar& left, const Value::Scalar& right)
 {
-  left.set_value(left.value() - right.value());
+  long long diff = convertToFixed(left.value()) - convertToFixed(right.value());
+  left.set_value(convertToFloating(diff));
   return left;
 }
 

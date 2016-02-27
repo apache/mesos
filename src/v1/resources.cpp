@@ -43,7 +43,6 @@ using std::vector;
 
 using google::protobuf::RepeatedPtrField;
 
-
 namespace mesos {
 namespace v1 {
 
@@ -945,10 +944,10 @@ Try<Resources> Resources::apply(const Offer::Operation& operation) const
   // resource does not change.
   // TODO(jieyu): Currently, we only check known resource types like
   // cpus, mem, disk, ports, etc. We should generalize this.
-  CHECK(result.cpus() == cpus() &&
-        result.mem() == mem() &&
-        result.disk() == disk() &&
-        result.ports() == ports());
+  CHECK(result.cpus() == cpus());
+  CHECK(result.mem() == mem());
+  CHECK(result.disk() == disk());
+  CHECK(result.ports() == ports());
 
   return result;
 }

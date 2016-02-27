@@ -520,6 +520,14 @@ message Value {
   }
 
   message Scalar {
+    // Scalar values are represented using floating point. To reduce
+    // the chance of unpredictable floating point behavior due to
+    // roundoff error, Mesos only supports three decimal digits of
+    // precision for scalar resource values. That is, floating point
+    // values are converted to a fixed point format that supports
+    // three decimal digits of precision, and then converted back to
+    // floating point on output. Any additional precision in scalar
+    // resource values is discarded (via rounding).
     required double value = 1;
   }
 
