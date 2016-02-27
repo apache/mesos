@@ -5,7 +5,7 @@ layout: documentation
 
 # Mesos Attributes & Resources
 
-The Mesos system has two basic methods to describe the slaves that comprise a cluster.  One of these is managed by the Mesos master, the other is simply passed onwards to the frameworks using the cluster.
+Mesos has two basic methods to describe the slaves that comprise a cluster.  One of these is managed by the Mesos master, the other is simply passed onwards to the frameworks using the cluster.
 
 ## Types
 
@@ -29,7 +29,7 @@ The following are the definitions of these types:
 
 ## Attributes
 
-Attributes are key-value pairs (where value is optional) that Mesos passes along when it sends offers to frameworks. An attribute value supports 3 different *types*: scalar, range or text.
+Attributes are key-value pairs (where value is optional) that Mesos passes along when it sends offers to frameworks. An attribute value supports three different *types*: scalar, range or text.
 
     attributes : attribute ( ";" attribute )*
 
@@ -78,7 +78,7 @@ As JSON:
       ...
     ]
 
-As a list of key:value pairs:
+As a list of key-value pairs:
 
     resources : resource ( ";" resource )*
 
