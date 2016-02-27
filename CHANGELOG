@@ -1,3 +1,41 @@
+Release Notes - Mesos - Version 0.25.1
+--------------------------------------------
+
+** Bug
+  * [MESOS-3307] - Configurable size of completed task / framework history.
+  * [MESOS-3411] - ReservationEndpointsTest.AvailableResources appears to be faulty.
+  * [MESOS-3602] - hdfs du fails due to prepended / on path.
+  * [MESOS-3605] - hdfs.du() fails on os x due to lack of native-hadoop library.
+  * [MESOS-3773] - RegistryClientTest.SimpleGetBlob is flaky.
+  * [MESOS-3834] - slave upgrade framework checkpoint incompatibility.
+  * [MESOS-4031] - slave crashed in cgroupstatistics().
+  * [MESOS-4069] - libevent_ssl_socket assertion fails.
+  * [MESOS-4106] - The health checker may fail to inform the executor to kill an unhealthy task after max_consecutive_failures.
+  * [MESOS-4283] - Accept 3-field version of HDFS du output.
+  * [MESOS-4311] - Protobuf parse should pass error messages when parsing nested JSON.
+  * [MESOS-4409] - MasterTest.MaxCompletedFrameworksFlag is flaky.
+  * [MESOS-4518] - MasterTest.MaxCompletedTasksPerFrameworkFlag is flaky.
+  * [MESOS-4582] - state.json serving duplicate "active" fields.
+  * [MESOS-4637] - Docker process executor can die with agent unit on systemd.
+  * [MESOS-4639] - Posix process executor can die with agent unit on systemd.
+  * [MESOS-4711] - Race condition in libevent poll implementation causes crash.
+  * [MESOS-4754] - The "executors" field is exposed under a backwards incompatible schema.
+
+** Improvement
+  * [MESOS-920]  - Set GLOG_drop_log_memory=false in environment prior to logging initialization.
+  * [MESOS-2353] - Improve performance of the state.json endpoint for large clusters.
+  * [MESOS-4302] - Offer filter timeouts are ignored if the allocator is slow or backlogged.
+  * [MESOS-4566] - Avoid unnecessary temporary `std::string` constructions and copies in `jsonify`.
+  * [MESOS-4636] - Add parent hook to subprocess.
+  * [MESOS-4687] - Implement reliable floating point for scalar resources.
+
+** Task
+  * [MESOS-4237] - Introduce `jsonify` to stout.
+  * [MESOS-4238] - Update `Master::Http::state` to use the `jsonify` facility.
+  * [MESOS-4239] - Update relevant libprocess components to support the `jsonify` facility.
+  * [MESOS-4435] - Update `Master::Http::stateSummary` to use `jsonify`.
+
+
 Release Notes - Mesos - Version 0.25.0
 --------------------------------------------
 This release contains:
