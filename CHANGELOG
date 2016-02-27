@@ -815,6 +815,42 @@ All Issues:
   * Functionality for endpoint 'api/v1/executor' introduced on 'Agent' is incomplete.
 
 
+Release Notes - Mesos - Version 0.24.2
+--------------------------------------
+* This is a bug fix release.
+
+** Bug
+  * [MESOS-3046] - Stout's UUID re-seeds a new random generator during each call to UUID::random.
+  * [MESOS-3051] - performance issues with port ranges comparison.
+  * [MESOS-3052] - Allocator performance issue when using a large number of filters.
+  * [MESOS-3307] - Configurable size of completed task / framework history.
+  * [MESOS-3602] - hdfs du fails due to prepended / on path.
+  * [MESOS-3605] - hdfs.du() fails on os x due to lack of native-hadoop library.
+  * [MESOS-3773] - RegistryClientTest.SimpleGetBlob is flaky.
+  * [MESOS-3834] - slave upgrade framework checkpoint incompatibility.
+  * [MESOS-4031] - slave crashed in cgroupstatistics().
+  * [MESOS-4069] - libevent_ssl_socket assertion fails.
+  * [MESOS-4106] - The health checker may fail to inform the executor to kill an unhealthy task after max_consecutive_failures.
+  * [MESOS-4283] - Accept 3-field version of HDFS du output.
+  * [MESOS-4311] - Protobuf parse should pass error messages when parsing nested JSON.
+  * [MESOS-4409] - MasterTest.MaxCompletedFrameworksFlag is flaky.
+  * [MESOS-4518] - MasterTest.MaxCompletedTasksPerFrameworkFlag is flaky.
+  * [MESOS-4582] - state.json serving duplicate "active" fields.
+  * [MESOS-4711] - Race condition in libevent poll implementation causes crash.
+  * [MESOS-4754] - The "executors" field is exposed under a backwards incompatible schema.
+
+** Improvement
+  * [MESOS-920]  - Set GLOG_drop_log_memory=false in environment prior to logging initialization.
+  * [MESOS-2353] - Improve performance of the state.json endpoint for large clusters.
+  * [MESOS-4302] - Offer filter timeouts are ignored if the allocator is slow or backlogged.
+  * [MESOS-4566] - Avoid unnecessary temporary `std::string` constructions and copies in `jsonify`.
+  * [MESOS-4687] - Implement reliable floating point for scalar resources Task.
+  * [MESOS-4237] - Introduce `jsonify` to stout.
+  * [MESOS-4238] - Update `Master::Http::state` to use the `jsonify` facility.
+  * [MESOS-4239] - Update relevant libprocess components to support the `jsonify` facility.
+  * [MESOS-4435] - Update `Master::Http::stateSummary` to use `jsonify`.
+
+
 Release Notes - Mesos - Version 0.24.1
 --------------------------------------
 * This is a bug fix release.
