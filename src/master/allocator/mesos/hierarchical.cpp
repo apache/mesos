@@ -1063,6 +1063,11 @@ void HierarchicalAllocatorProcess::updateWeights(
     CHECK(weightInfo.has_role());
     weights[weightInfo.role()] = weightInfo.weight();
 
+    // The allocator only needs to rebalance if there is a framework
+    // registered with this role. The roleSorter contains only roles
+    // for registered frameworks, but quotaRoleSorter contains any role
+    // with quota set, regardless of whether any frameworks are registered
+    // with that role.
     if (quotas.contains(weightInfo.role())) {
       quotaRoleSorter->update(weightInfo.role(), weightInfo.weight());
     }
