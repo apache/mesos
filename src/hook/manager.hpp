@@ -59,7 +59,7 @@ public:
       const CommandInfo& commandInfo,
       const Option<TaskInfo>& taskInfo,
       const ExecutorInfo& executorInfo,
-      const std::string& name,
+      const std::string& containerName,
       const std::string& sandboxDirectory,
       const std::string& mappedDirectory,
       const Option<Resources>& resources,
