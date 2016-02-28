@@ -341,7 +341,7 @@ protected:
       Owned<Reader<Event>> decoder(
           new Reader<Event>(Decoder<Event>(deserializer), reader));
 
-      connection = Connection {reader, decoder};
+      subscribed = SubscribedResponse {reader, decoder};
 
       read();
 
@@ -370,10 +370,10 @@ protected:
 
   void read()
   {
-    connection.get().decoder->read()
+    subscribed->decoder->read()
       .onAny(defer(self(),
                    &Self::_read,
-                   connection.get().reader,
+                   subscribed->reader,
                    lambda::_1));
   }
 
@@ -382,7 +382,7 @@ protected:
     CHECK(!event.isDiscarded());
 
     // Ignore enqueued events from the previous Subscribe call reader.
-    if (!connection.isSome() || connection.get().reader != reader) {
+    if (!subscribed.isSome() || subscribed->reader != reader) {
       VLOG(1) << "Ignoring event from old stale connection";
       return;
     }
@@ -443,23 +443,21 @@ protected:
 
   void disconnect()
   {
-    if (connection.isSome()) {
-      if (!connection.get().reader.close()) {
-        LOG(WARNING) << "HTTP connection was already closed";
-      }
+    if (subscribed.isSome()) {
+      subscribed->reader.close();
     }
 
-    connection = None();
+    subscribed = None();
   }
 
 private:
-  struct Connection
+  struct SubscribedResponse
   {
     Pipe::Reader reader;
     process::Owned<Reader<Event>> decoder;
   };
 
-  Option<Connection> connection;
+  Option<SubscribedResponse> subscribed;
 
   ContentType contentType;
 
