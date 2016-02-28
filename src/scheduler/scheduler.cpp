@@ -37,6 +37,7 @@
 #include <process/delay.hpp>
 #include <process/dispatch.hpp>
 #include <process/future.hpp>
+#include <process/http.hpp>
 #include <process/id.hpp>
 #include <process/mutex.hpp>
 #include <process/pid.hpp>
@@ -54,6 +55,7 @@
 #include <stout/option.hpp>
 #include <stout/os.hpp>
 #include <stout/recordio.hpp>
+#include <stout/unreachable.hpp>
 #include <stout/uuid.hpp>
 
 #include "common/http.hpp"
@@ -78,6 +80,7 @@ using namespace mesos::internal::master;
 
 using namespace process;
 
+using std::ostream;
 using std::queue;
 using std::shared_ptr;
 using std::string;
@@ -88,9 +91,12 @@ using mesos::internal::recordio::Reader;
 using process::Owned;
 using process::wait; // Necessary on some OS's to disambiguate.
 
+using process::http::Connection;
 using process::http::Pipe;
 using process::http::post;
+using process::http::Request;
 using process::http::Response;
+using process::http::URL;
 
 using ::recordio::Decoder;
 
@@ -98,23 +104,33 @@ namespace mesos {
 namespace v1 {
 namespace scheduler {
 
-// The process (below) is responsible for receiving messages
-// (eventually events) from the master and sending messages (via
-// calls) to the master.
+struct Connections
+{
+  bool operator==(const Connections& that) const
+  {
+    return subscribe == that.subscribe && nonSubscribe == that.nonSubscribe;
+  }
+
+  Connection subscribe; // Used for subscribe call/response.
+  Connection nonSubscribe; // Used for all other calls/responses.
+};
+
+
+// The process (below) is responsible for sending/receiving HTTP messages
+// to/from the master.
 class MesosProcess : public ProtobufProcess<MesosProcess>
 {
 public:
   MesosProcess(
       const string& master,
       ContentType _contentType,
-      const lambda::function<void()>& _connected,
-      const lambda::function<void()>& _disconnected,
-      const lambda::function<void(const queue<Event>&)>& _received)
+      const lambda::function<void()>& connected,
+      const lambda::function<void()>& disconnected,
+      const lambda::function<void(const queue<Event>&)>& received)
     : ProcessBase(ID::generate("scheduler")),
+      state(DISCONNECTED),
       contentType(_contentType),
-      connected(_connected),
-      disconnected(_disconnected),
-      received(_received),
+      callbacks {connected, disconnected, received},
       local(false)
   {
     GOOGLE_PROTOBUF_VERIFY_VERSION;
@@ -184,20 +200,26 @@ public:
     // Note that we ignore any callbacks that are enqueued.
   }
 
-  // TODO(benh): Move this to 'protected'.
-  using ProtobufProcess<MesosProcess>::send;
-
   void send(const Call& call)
   {
-    if (master.isNone()) {
-      drop(call, "Disconnected");
-      return;
-    }
-
     Option<Error> error = validation::scheduler::call::validate(devolve(call));
 
     if (error.isSome()) {
       drop(call, error.get().message);
+      return;
+    }
+
+    if (call.type() == Call::SUBSCRIBE && state != CONNECTED) {
+      // It might be possible that the scheduler is retrying. We drop the
+      // request if we have an ongoing subscribe request in flight or if the
+      // scheduler is already subscribed.
+      drop(call, "Scheduler is in state " + stringify(state));
+      return;
+    }
+
+    if (call.type() != Call::SUBSCRIBE && state != SUBSCRIBED) {
+      // We drop all non-subscribe calls if we are not currently subscribed.
+      drop(call, "Scheduler is in state " + stringify(state));
       return;
     }
 
@@ -207,94 +229,215 @@ public:
     // to the slave, instead of relaying it through the master, as
     // the scheduler driver does.
 
-    const string body = serialize(contentType, call);
-    const http::Headers headers{{"Accept", stringify(contentType)}};
+    ::Request request;
+    request.method = "POST";
+    request.url = master.get();
+    request.body = serialize(contentType, call);
+    request.keepAlive = true;
+    request.headers = {{"Accept", stringify(contentType)},
+                       {"Content-Type", stringify(contentType)}};
+
+    CHECK_SOME(connections);
 
     Future<Response> response;
-
     if (call.type() == Call::SUBSCRIBE) {
-      // It might be possible that the scheduler is retrying when it already
-      // has an active subscribe response stream.
-      if (subscribed.isSome()) {
-        drop(call, "Scheduler is already subscribed");
-        return;
-      }
+      state = SUBSCRIBING;
 
       // Send a streaming request for Subscribe call.
-      response = process::http::streaming::post(
-          master.get(),
-          "api/v1/scheduler",
-          headers,
-          body,
-          stringify(contentType));
+      response = connections->subscribe.send(request, true);
     } else {
-      response = post(
-          master.get(),
-          "api/v1/scheduler",
-          headers,
-          body,
-          stringify(contentType));
+      response = connections->nonSubscribe.send(request);
     }
 
-    response.onAny(defer(self(), &Self::_send, call, lambda::_1));
+    CHECK_SOME(connectionId);
+    response.onAny(defer(self(),
+                         &Self::_send,
+                         connectionId.get(),
+                         call,
+                         lambda::_1));
   }
 
 protected:
   virtual void initialize()
   {
     // Start detecting masters.
-    detector->detect()
+    detection = detector->detect()
       .onAny(defer(self(), &MesosProcess::detected, lambda::_1));
+  }
+
+  void connect()
+  {
+    CHECK_EQ(DISCONNECTED, state);
+    CHECK_SOME(master);
+
+    connectionId = UUID::random();
+
+    state = CONNECTING;
+
+    // These automatic variables are needed for lambda capture. We need to
+    // create a copy here because `master` or `connectionId` values might change
+    // by the time the second `http::connect` gets called.
+    ::URL master_ = master.get();
+    UUID connectionId_ = connectionId.get();
+
+    // We create two persistent connections here, one for subscribe
+    // call/streaming response and another for non-subscribe calls/responses.
+    process::http::connect(master_)
+      .onAny(defer(self(), [this, master_, connectionId_](
+                               const Future<Connection>& connection) {
+        process::http::connect(master_)
+          .onAny(defer(self(),
+                       &Self::connected,
+                       connectionId_,
+                       connection,
+                       lambda::_1));
+      }));
+  }
+
+  void connected(
+      const UUID& _connectionId,
+      const Future<Connection>& connection1,
+      const Future<Connection>& connection2)
+  {
+    // It is possible that a new master was detected while we had an ongoing
+    // (re-)connection attempt with the old master.
+    if (connectionId != _connectionId) {
+      VLOG(1) << "Ignoring connection attempt from stale connection";
+      return;
+    }
+
+    CHECK_EQ(CONNECTING, state);
+    CHECK_SOME(connectionId);
+
+    if (!connection1.isReady()) {
+      disconnected(connectionId.get(),
+                   connection1.isFailed()
+                     ? connection1.failure()
+                     : "Subscribe future discarded");
+      return;
+    }
+
+    if (!connection2.isReady()) {
+      disconnected(connectionId.get(),
+                   connection2.isFailed()
+                     ? connection2.failure()
+                     : "Non-subscribe future discarded");
+      return;
+    }
+
+    VLOG(1) << "Connected with the master at " << master.get();
+
+    state = CONNECTED;
+
+    connections = Connections {connection1.get(), connection2.get()};
+
+    connections->subscribe.disconnected()
+      .onAny(defer(self(),
+                   &Self::disconnected,
+                   connectionId.get(),
+                   "Subscribe connection interrupted"));
+
+    connections->nonSubscribe.disconnected()
+      .onAny(defer(self(),
+                   &Self::disconnected,
+                   connectionId.get(),
+                   "Non-subscribe connection interrupted"));
+
+    // Invoke the connected callback once we have established both subscribe
+    // and non-subscribe connections with the master.
+    mutex.lock()
+      .then(defer(self(), [this]() {
+        return async(callbacks.connected);
+      }))
+      .onAny(lambda::bind(&Mutex::unlock, mutex));
+  }
+
+  void disconnected(
+      const UUID& _connectionId,
+      const string& failure)
+  {
+    // Ignore if the disconnection happened from an old stale connection.
+    if (connectionId != _connectionId) {
+      VLOG(1) << "Ignoring disconnection attempt from stale connection";
+      return;
+    }
+
+    // We can reach here if we noticed a disconnection for either of
+    // subscribe/non-subscribe connections. We discard the future here to
+    // trigger a master re-detection.
+    detection.discard();
+  }
+
+  void disconnect()
+  {
+    if (connections.isSome()) {
+      connections->subscribe.disconnect();
+      connections->nonSubscribe.disconnect();
+    }
+
+    if (subscribed.isSome()) {
+      subscribed->reader.close();
+    }
+
+    state = DISCONNECTED;
+
+    connections = None();
+    connectionId = None();
+    subscribed = None();
   }
 
   void detected(const Future<Option<mesos::MasterInfo>>& future)
   {
-    CHECK(!future.isDiscarded());
-
     if (future.isFailed()) {
       error("Failed to detect a master: " + future.failure());
       return;
     }
 
-    // Disconnect the reader upon a master detection callback.
+    if (state == CONNECTED || state == SUBSCRIBING || state == SUBSCRIBED) {
+      // Invoke the disconnected callback if we were previously connected.
+      mutex.lock()
+        .then(defer(self(), [this]() {
+          return async(callbacks.disconnected);
+        }))
+      .onAny(lambda::bind(&Mutex::unlock, mutex));
+    }
+
+    // Disconnect any active connections.
     disconnect();
 
-    if (future.get().isNone()) {
+    Option<mesos::MasterInfo> latest;
+    if (future.isDiscarded()) {
+      VLOG(1) << "Re-detecting master";
       master = None();
-
-      VLOG(1) << "No master detected";
-
-      mutex.lock()
-        .then(defer(self(), &Self::_detected))
-        .onAny(lambda::bind(&Mutex::unlock, mutex));
+      latest = None();
+    } else if (future.get().isNone()) {
+      VLOG(1) << "Lost leading master";
+      master = None();
+      latest = None();
     } else {
-      master = UPID(future.get().get().pid());
+      const UPID& upid = future.get().get().pid();
+      latest = future.get();
 
-      VLOG(1) << "New master detected at " << master.get();
+      master = ::URL(
+        "http",
+        upid.address.ip,
+        upid.address.port,
+        upid.id +
+        "/api/v1/scheduler");
 
-      mutex.lock()
-        .then(defer(self(), &Self::__detected))
-        .onAny(lambda::bind(&Mutex::unlock, mutex));
+      VLOG(1) << "New master detected at " << upid;
+
+      connect();
     }
 
     // Keep detecting masters.
-    detector->detect(future.get())
+    detection = detector->detect(latest)
       .onAny(defer(self(), &MesosProcess::detected, lambda::_1));
-  }
-
-  Future<Nothing> _detected()
-  {
-    return async(disconnected);
-  }
-
-  Future<Nothing> __detected()
-  {
-    return async(connected);
   }
 
   Future<Nothing> _receive()
   {
-    Future<Nothing> future = async(received, events);
+    Future<Nothing> future = async(callbacks.received, events);
     events = queue<Event>();
     return future;
   }
@@ -318,9 +461,19 @@ protected:
     LOG(WARNING) << "Dropping " << call.type() << ": " << message;
   }
 
-  void _send(const Call& call, const Future<Response>& response)
+  void _send(
+      const UUID& _connectionId,
+      const Call& call,
+      const Future<Response>& response)
   {
+    // It is possible that we detected a new master before a response could
+    // be received.
+    if (connectionId != _connectionId) {
+      return;
+    }
+
     CHECK(!response.isDiscarded());
+    CHECK(state == SUBSCRIBING || state == SUBSCRIBED);
 
     // This can happen during a master failover or a network blip
     // causing the socket to timeout. Eventually, the scheduler would
@@ -336,6 +489,8 @@ protected:
       CHECK_EQ(Call::SUBSCRIBE, call.type());
       CHECK_EQ(response.get().type, http::Response::PIPE);
       CHECK_SOME(response.get().reader);
+
+      state = SUBSCRIBED;
 
       Pipe::Reader reader = response.get().reader.get();
 
@@ -356,6 +511,13 @@ protected:
       // Only non SUBSCRIBE calls should get a "202 Accepted" response.
       CHECK_NE(Call::SUBSCRIBE, call.type());
       return;
+    }
+
+    // We reset the state to connected if the subscribe call did not
+    // succceed (e.g., the master was still recovering). The scheduler can
+    // then retry the subscribe call.
+    if (call.type() == Call::SUBSCRIBE) {
+      state = CONNECTED;
     }
 
     if (response->code == process::http::Status::SERVICE_UNAVAILABLE) {
@@ -391,20 +553,24 @@ protected:
       return;
     }
 
-    // This could happen if the master failed over while sending a response.
-    // It's fine to drop this as the scheduler would detect the
-    // disconnection via ZK(disconnect) or lack of heartbeats.
+    CHECK_EQ(SUBSCRIBED, state);
+    CHECK_SOME(connectionId);
+
+    // This could happen if the master failed over while sending a event.
     if (event.isFailed()) {
       LOG(ERROR) << "Failed to decode the stream of events: "
                  << event.failure();
+      disconnected(connectionId.get(), event.failure());
       return;
     }
 
+    // This could happen if the master failed over after sending an event.
     if (!event.get().isSome()) {
-      // It's fine to drop this as the scheduler would detect the
-      // disconnection via ZK(disconnect) or lack of heartbeats.
-      LOG(ERROR) << "End-Of-File received from master."
-                 << " The master closed the event stream";
+      const string error = "End-Of-File received from master. The master "
+                           "closed the event stream";
+      LOG(ERROR) << error;
+
+      disconnected(connectionId.get(), error);
       return;
     }
 
@@ -419,10 +585,10 @@ protected:
 
   void receive(const Event& event, bool isLocallyInjected)
   {
-    // Check if we're disconnected but received an event.
-    if (!isLocallyInjected && master.isNone()) {
+    // Check if we're are no longer subscribed but received an event.
+    if (!isLocallyInjected && state != SUBSCRIBED) {
       LOG(WARNING) << "Ignoring " << stringify(event.type())
-                   << " event because we're disconnected";
+                   << " event because we're no longer subscribed";
       return;
     }
 
@@ -445,39 +611,60 @@ protected:
     }
   }
 
-  void disconnect()
-  {
-    if (subscribed.isSome()) {
-      subscribed->reader.close();
-    }
-
-    subscribed = None();
-  }
-
 private:
+  struct Callbacks
+  {
+    lambda::function<void(void)> connected;
+    lambda::function<void(void)> disconnected;
+    lambda::function<void(const queue<Event>&)> received;
+  };
+
   struct SubscribedResponse
   {
     Pipe::Reader reader;
     process::Owned<Reader<Event>> decoder;
   };
 
+  enum State
+  {
+    DISCONNECTED, // Either of subscribe/non-subscribe connection is broken.
+    CONNECTING, // Trying to establish subscribe and non-subscribe connections.
+    CONNECTED, // Established subscribe and non-subscribe connections.
+    SUBSCRIBING, // Trying to subscribe with the master.
+    SUBSCRIBED // Subscribed with the master.
+  } state;
+
+  friend ostream& operator<<(ostream& stream, State state)
+  {
+    switch (state) {
+      case DISCONNECTED: return stream << "DISCONNECTED";
+      case CONNECTING:   return stream << "CONNECTING";
+      case CONNECTED:    return stream << "CONNECTED";
+      case SUBSCRIBING:  return stream << "SUBSCRIBING";
+      case SUBSCRIBED:   return stream << "SUBSCRIBED";
+    }
+
+    UNREACHABLE();
+  }
+
+  // There can be multiple simulataneous ongoing (re-)connection attempts with
+  // the master (e.g., the master failed over while an attempt was in progress).
+  // This helps us in uniquely identifying the current connection instance and
+  // ignoring the stale instance.
+  Option<UUID> connectionId; // UUID to identify the connection instance.
+
+  Option<Connections> connections;
   Option<SubscribedResponse> subscribed;
-
   ContentType contentType;
-
+  Callbacks callbacks;
   Mutex mutex; // Used to serialize the callback invocations.
-
-  lambda::function<void()> connected;
-  lambda::function<void()> disconnected;
-  lambda::function<void(const queue<Event>&)> received;
-
   bool local; // Whether or not we launched a local cluster.
-
   shared_ptr<MasterDetector> detector;
-
   queue<Event> events;
+  Option<::URL> master;
 
-  Option<UPID> master;
+  // Master detection future.
+  process::Future<Option<mesos::MasterInfo>> detection;
 };
 
 
