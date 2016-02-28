@@ -950,7 +950,8 @@ public:
   TestMesos(
       const std::string& master,
       ContentType contentType,
-      const std::shared_ptr<MockHTTPScheduler<Mesos, Event>>& _scheduler)
+      const std::shared_ptr<MockHTTPScheduler<Mesos, Event>>& _scheduler,
+      const Option<std::shared_ptr<MasterDetector>>& detector = None())
     : Mesos(
         master,
         contentType,
@@ -962,7 +963,8 @@ public:
                      this),
         lambda::bind(&TestMesos<Mesos, Event>::events,
                      this,
-                     lambda::_1)),
+                     lambda::_1),
+        detector),
       scheduler(_scheduler) {}
 
 protected:

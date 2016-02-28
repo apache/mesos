@@ -126,7 +126,8 @@ public:
       ContentType _contentType,
       const lambda::function<void()>& connected,
       const lambda::function<void()>& disconnected,
-      const lambda::function<void(const queue<Event>&)>& received)
+      const lambda::function<void(const queue<Event>&)>& received,
+      const Option<shared_ptr<MasterDetector>>& _detector)
     : ProcessBase(ID::generate("scheduler")),
       state(DISCONNECTED),
       contentType(_contentType),
@@ -177,15 +178,18 @@ public:
       local = true;
     }
 
-    Try<MasterDetector*> create =
-      MasterDetector::create(pid.isSome() ? string(pid.get()) : master);
+    if (_detector.isNone()) {
+      Try<MasterDetector*> create =
+        MasterDetector::create(pid.isSome() ? string(pid.get()) : master);
 
-    if (create.isError()) {
-      EXIT(1) << "Failed to create a master detector: " << create.error();
+      if (create.isError()) {
+        EXIT(1) << "Failed to create a master detector: " << create.error();
+      }
+
+      detector.reset(create.get());
+    } else {
+      detector = _detector.get();
     }
-
-    // Save the detector.
-    detector.reset(create.get());
   }
 
   virtual ~MesosProcess()
@@ -673,17 +677,28 @@ Mesos::Mesos(
     ContentType contentType,
     const lambda::function<void()>& connected,
     const lambda::function<void()>& disconnected,
-    const lambda::function<void(const queue<Event>&)>& received)
+    const lambda::function<void(const queue<Event>&)>& received,
+    const Option<shared_ptr<MasterDetector>>& detector)
 {
   process = new MesosProcess(
       master,
       contentType,
       connected,
       disconnected,
-      received);
+      received,
+      detector);
 
   spawn(process);
 }
+
+
+Mesos::Mesos(
+    const string& master,
+    ContentType contentType,
+    const lambda::function<void()>& connected,
+    const lambda::function<void()>& disconnected,
+    const lambda::function<void(const queue<Event>&)>& received)
+  : Mesos(master, contentType, connected, disconnected, received, None()) {}
 
 
 Mesos::~Mesos()
