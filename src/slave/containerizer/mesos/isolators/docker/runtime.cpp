@@ -99,10 +99,10 @@ Future<Option<ContainerLaunchInfo>> DockerRuntimeIsolatorProcess::prepare(
     getWorkingDirectory(containerConfig);
 
   Result<CommandInfo> command =
-    getExecutorLaunchCommand(containerId, containerConfig);
+    getLaunchCommand(containerId, containerConfig);
 
   if (command.isError()) {
-    return Failure("Failed to determine the executor launch command: " +
+    return Failure("Failed to determine the launch command: " +
                    command.error());
   }
 
@@ -196,9 +196,9 @@ Option<Environment> DockerRuntimeIsolatorProcess::getLaunchEnvironment(
 // This method reads the CommandInfo form ExecutorInfo and optional
 // TaskInfo, and merge them with docker image default Entrypoint and
 // Cmd. It returns a merged CommandInfo which will be used to launch
-// the executor. If no need to modify the command, this method will
-// return none.
-Result<CommandInfo> DockerRuntimeIsolatorProcess::getExecutorLaunchCommand(
+// the docker container. If no need to modify the command, this method
+// will return none.
+Result<CommandInfo> DockerRuntimeIsolatorProcess::getLaunchCommand(
     const ContainerID& containerId,
     const ContainerConfig& containerConfig)
 {
