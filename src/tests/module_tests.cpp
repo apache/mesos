@@ -188,9 +188,9 @@ TEST_F(ModuleTest, ExampleModuleLoadTest)
   // the sum of the passed arguments, whereas bar() returns the
   // product. baz() returns '-1' if "sum" is not specified as the
   // "operation" in the command line parameters.
-  EXPECT_EQ(module.get()->foo('A', 1024), 1089);
-  EXPECT_EQ(module.get()->bar(0.5, 10.8), 5);
-  EXPECT_EQ(module.get()->baz(5, 10), -1);
+  EXPECT_EQ(1089, module.get()->foo('A', 1024));
+  EXPECT_EQ(5, module.get()->bar(0.5, 10.8));
+  EXPECT_EQ(-1, module.get()->baz(5, 10));
 }
 
 
@@ -238,7 +238,7 @@ TEST_F(ModuleTest, ParameterWithoutKey)
   EXPECT_SOME(module);
 
   // Since there was no valid key, baz() should return -1.
-  EXPECT_EQ(module.get()->baz(5, 10), -1);
+  EXPECT_EQ(-1, module.get()->baz(5, 10));
 }
 
 
@@ -256,7 +256,7 @@ TEST_F(ModuleTest, ParameterWithInvalidKey)
   EXPECT_SOME(module);
 
   // Since there was no valid key, baz() should return -1.
-  EXPECT_EQ(module.get()->baz(5, 10), -1);
+  EXPECT_EQ(-1, module.get()->baz(5, 10));
 }
 
 
@@ -273,7 +273,7 @@ TEST_F(ModuleTest, ValidParameters)
   module = ModuleManager::create<TestModule>(DEFAULT_MODULE_NAME);
   EXPECT_SOME(module);
 
-  EXPECT_EQ(module.get()->baz(5, 10), 15);
+  EXPECT_EQ(15, module.get()->baz(5, 10));
 }
 
 
@@ -318,7 +318,7 @@ TEST_F(ModuleTest, JsonParseTest)
   module = ModuleManager::create<TestModule>(DEFAULT_MODULE_NAME);
   EXPECT_SOME(module);
 
-  EXPECT_EQ(module.get()->baz(5, 10), 15);
+  EXPECT_EQ(15, module.get()->baz(5, 10));
 }
 
 
@@ -367,9 +367,9 @@ TEST_F(ModuleTest, ModuleKindMismatch)
 // Test for correct author name, author email and library description.
 TEST_F(ModuleTest, AuthorInfoTest)
 {
-  EXPECT_STREQ(moduleBase->authorName, "Apache Mesos");
-  EXPECT_STREQ(moduleBase->authorEmail, "modules@mesos.apache.org");
-  EXPECT_STREQ(moduleBase->description, "This is a test module.");
+  EXPECT_STREQ("Apache Mesos", moduleBase->authorName);
+  EXPECT_STREQ("modules@mesos.apache.org", moduleBase->authorEmail);
+  EXPECT_STREQ("This is a test module.", moduleBase->description);
 }
 
 

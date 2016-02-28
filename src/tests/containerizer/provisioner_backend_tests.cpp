@@ -128,19 +128,19 @@ TEST_F(CopyBackendTest, ROOT_CopyBackend)
   EXPECT_TRUE(os::exists(path::join(rootfs, "dir1", "1")));
   Try<string> read = os::read(path::join(rootfs, "dir1", "1"));
   ASSERT_SOME(read);
-  EXPECT_EQ(read.get(), "1");
+  EXPECT_EQ("1", read.get());
 
   EXPECT_TRUE(os::exists(path::join(rootfs, "dir2", "2")));
   read = os::read(path::join(rootfs, "dir2", "2"));
   ASSERT_SOME(read);
-  EXPECT_EQ(read.get(), "2");
+  EXPECT_EQ("2", read.get());
 
   EXPECT_TRUE(os::exists(path::join(rootfs, "file")));
   read = os::read(path::join(rootfs, "file"));
   ASSERT_SOME(read);
 
   // Last layer should overwrite existing file.
-  EXPECT_EQ(read.get(), "test2");
+  EXPECT_EQ("test2", read.get());
 
   AWAIT_READY(backends["copy"]->destroy(rootfs));
 

@@ -793,19 +793,19 @@ TEST(ResourcesTest, PrintingExtendedAttributes)
   // Standard resource.
   ostringstream stream;
   stream << disk;
-  EXPECT_EQ(stream.str(), "disk(*):1");
+  EXPECT_EQ("disk(*):1", stream.str());
 
   // Standard resource with role (statically reserved).
   stream.str("");
   disk.set_role("alice");
   stream << disk;
-  EXPECT_EQ(stream.str(), "disk(alice):1");
+  EXPECT_EQ("disk(alice):1", stream.str());
 
   // Standard revocable resource.
   stream.str("");
   disk.mutable_revocable();
   stream << disk;
-  EXPECT_EQ(stream.str(), "disk(alice){REV}:1");
+  EXPECT_EQ("disk(alice){REV}:1", stream.str());
   disk.clear_revocable();
 
   // Disk resource with persistent volume.
@@ -813,13 +813,13 @@ TEST(ResourcesTest, PrintingExtendedAttributes)
   disk.mutable_disk()->mutable_persistence()->set_id("hadoop");
   disk.mutable_disk()->mutable_volume()->set_container_path("/data");
   stream << disk;
-  EXPECT_EQ(stream.str(), "disk(alice)[hadoop:/data]:1");
+  EXPECT_EQ("disk(alice)[hadoop:/data]:1", stream.str());
 
   // Ensure {REV} comes after [disk].
   stream.str("");
   disk.mutable_revocable();
   stream << disk;
-  EXPECT_EQ(stream.str(), "disk(alice)[hadoop:/data]{REV}:1");
+  EXPECT_EQ("disk(alice)[hadoop:/data]{REV}:1", stream.str());
   disk.clear_revocable();
 
   // Disk resource with host path.
@@ -827,13 +827,13 @@ TEST(ResourcesTest, PrintingExtendedAttributes)
   disk.mutable_disk()->mutable_volume()->set_host_path("/hdfs");
   disk.mutable_disk()->mutable_volume()->set_mode(Volume::RW);
   stream << disk;
-  EXPECT_EQ(stream.str(), "disk(alice)[hadoop:/hdfs:/data:rw]:1");
+  EXPECT_EQ("disk(alice)[hadoop:/hdfs:/data:rw]:1", stream.str());
 
   // Disk resource with host path and dynamic reservation without labels.
   stream.str("");
   disk.mutable_reservation()->set_principal("hdfs-p");
   stream << disk;
-  EXPECT_EQ(stream.str(), "disk(alice, hdfs-p)[hadoop:/hdfs:/data:rw]:1");
+  EXPECT_EQ("disk(alice, hdfs-p)[hadoop:/hdfs:/data:rw]:1", stream.str());
 
   // Disk resource with host path and dynamic reservation with labels.
   stream.str("");
@@ -841,8 +841,8 @@ TEST(ResourcesTest, PrintingExtendedAttributes)
   labels->add_labels()->CopyFrom(createLabel("foo", "bar"));
   labels->add_labels()->CopyFrom(createLabel("foo"));
   stream << disk;
-  EXPECT_EQ(stream.str(),
-            "disk(alice, hdfs-p, {foo: bar, foo})[hadoop:/hdfs:/data:rw]:1");
+  EXPECT_EQ("disk(alice, hdfs-p, {foo: bar, foo})[hadoop:/hdfs:/data:rw]:1",
+            stream.str());
 }
 
 

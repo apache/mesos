@@ -235,7 +235,7 @@ TEST_F(DockerTest, ROOT_DOCKER_parsing_version)
 
   Future<Version> version1 = docker1->version();
   AWAIT_READY(version1);
-  EXPECT_EQ(version1.get(), Version::parse("1.7.1").get());
+  EXPECT_EQ(Version::parse("1.7.1").get(), version1.get());
 
   Owned<Docker> docker2 = Docker::create(
       "echo Docker version 1.7.1.fc22, build",
@@ -244,7 +244,7 @@ TEST_F(DockerTest, ROOT_DOCKER_parsing_version)
 
   Future<Version> version2 = docker2->version();
   AWAIT_READY(version2);
-  EXPECT_EQ(version2.get(), Version::parse("1.7.1").get());
+  EXPECT_EQ(Version::parse("1.7.1").get(), version2.get());
 
   Owned<Docker> docker3 = Docker::create(
       "echo Docker version 1.7.1-fc22, build",
@@ -253,7 +253,7 @@ TEST_F(DockerTest, ROOT_DOCKER_parsing_version)
 
   Future<Version> version3 = docker3->version();
   AWAIT_READY(version3);
-  EXPECT_EQ(version3.get(), Version::parse("1.7.1").get());
+  EXPECT_EQ(Version::parse("1.7.1").get(), version3.get());
 }
 
 

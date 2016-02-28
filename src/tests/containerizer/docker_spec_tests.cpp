@@ -272,41 +272,43 @@ TEST_F(DockerSpecTest, ParseV2ImageManifest)
   Try<spec::v2::ImageManifest> manifest = spec::v2::parse(json.get());
   ASSERT_SOME(manifest);
 
-  EXPECT_EQ(manifest.get().name(), "dmcgowan/test-image");
-  EXPECT_EQ(manifest.get().tag(), "latest");
-  EXPECT_EQ(manifest.get().architecture(), "amd64");
+  EXPECT_EQ("dmcgowan/test-image", manifest.get().name());
+  EXPECT_EQ("latest", manifest.get().tag());
+  EXPECT_EQ("amd64", manifest.get().architecture());
 
   EXPECT_EQ(
-      manifest.get().fslayers(0).blobsum(),
-      "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"); // NOLINT(whitespace/line_length)
+      "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", // NOLINT(whitespace/line_length)
+      manifest.get().fslayers(0).blobsum());
 
   EXPECT_EQ(
-      manifest.get().fslayers(1).blobsum(),
-      "sha256:cea0d2071b01b0a79aa4a05ea56ab6fdf3fafa03369d9f4eea8d46ea33c43e5f"); // NOLINT(whitespace/line_length)
+      "sha256:cea0d2071b01b0a79aa4a05ea56ab6fdf3fafa03369d9f4eea8d46ea33c43e5f", // NOLINT(whitespace/line_length)
+      manifest.get().fslayers(1).blobsum());
 
   EXPECT_EQ(
-      manifest.get().fslayers(2).blobsum(),
-      "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"); // NOLINT(whitespace/line_length)
+      "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", // NOLINT(whitespace/line_length)
+      manifest.get().fslayers(2).blobsum());
 
   EXPECT_EQ(
-      manifest.get().fslayers(3).blobsum(),
-      "sha256:2a7812e636235448785062100bb9103096aa6655a8f6bb9ac9b13fe8290f66df"); // NOLINT(whitespace/line_length)
-
-  EXPECT_EQ(manifest.get().history(1).v1().id(),
-          "2ce2e90b0bc7224de3db1f0d646fe8e2c4dd37f1793928287f6074bc451a57ea");
-
-  EXPECT_EQ(manifest.get().history(2).v1().parent(),
-            "cf2616975b4a3cba083ca99bc3f0bf25f5f528c3c52be1596b30f60b0b1c37ff");
-
-  EXPECT_EQ(manifest.get().schemaversion(), 1u);
+      "sha256:2a7812e636235448785062100bb9103096aa6655a8f6bb9ac9b13fe8290f66df", // NOLINT(whitespace/line_length)
+      manifest.get().fslayers(3).blobsum());
 
   EXPECT_EQ(
-      manifest.get().signatures(0).header().jwk().kid(),
-      "LYRA:YAG2:QQKS:376F:QQXY:3UNK:SXH7:K6ES:Y5AU:XUN5:ZLVY:KBYL");
+      "2ce2e90b0bc7224de3db1f0d646fe8e2c4dd37f1793928287f6074bc451a57ea",
+      manifest.get().history(1).v1().id());
 
   EXPECT_EQ(
-      manifest.get().signatures(0).signature(),
-      "m3bgdBXZYRQ4ssAbrgj8Kjl7GNgrKQvmCSY-00yzQosKi-8UBrIRrn3Iu5alj82B6u_jNrkGCjEx3TxrfT1rig"); // NOLINT(whitespace/line_length)
+      "cf2616975b4a3cba083ca99bc3f0bf25f5f528c3c52be1596b30f60b0b1c37ff",
+      manifest.get().history(2).v1().parent());
+
+  EXPECT_EQ(1u, manifest.get().schemaversion());
+
+  EXPECT_EQ(
+      "LYRA:YAG2:QQKS:376F:QQXY:3UNK:SXH7:K6ES:Y5AU:XUN5:ZLVY:KBYL",
+      manifest.get().signatures(0).header().jwk().kid());
+
+  EXPECT_EQ(
+      "m3bgdBXZYRQ4ssAbrgj8Kjl7GNgrKQvmCSY-00yzQosKi-8UBrIRrn3Iu5alj82B6u_jNrkGCjEx3TxrfT1rig", // NOLINT(whitespace/line_length)
+      manifest.get().signatures(0).signature());
 }
 
 

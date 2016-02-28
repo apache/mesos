@@ -108,7 +108,7 @@ TEST(SorterTest, DRFSorter)
 
   EXPECT_FALSE(sorter.contains("a"));
 
-  EXPECT_EQ(sorter.count(), 5);
+  EXPECT_EQ(5, sorter.count());
 
   sorter.deactivate("d");
 
@@ -116,7 +116,7 @@ TEST(SorterTest, DRFSorter)
 
   EXPECT_EQ(list<string>({"e", "b", "c", "f"}), sorter.sort());
 
-  EXPECT_EQ(sorter.count(), 5);
+  EXPECT_EQ(5, sorter.count());
 
   sorter.activate("d");
 

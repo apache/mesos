@@ -60,7 +60,7 @@ TEST_F(FsTest, MountTableRead)
 
   EXPECT_SOME(root);
   ASSERT_SOME(proc);
-  EXPECT_EQ(proc.get().type, "proc");
+  EXPECT_EQ("proc", proc.get().type);
 }
 
 
