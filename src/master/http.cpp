@@ -897,52 +897,37 @@ string Master::Http::FRAMEWORKS()
 
 Future<Response> Master::Http::frameworks(const Request& request) const
 {
-  JSON::Object object;
+  auto frameworks = [this](JSON::ObjectWriter* writer) {
+    // Model all of the frameworks.
+    writer->field("frameworks", [this](JSON::ArrayWriter* writer) {
+      foreachvalue (Framework* framework, master->frameworks.registered) {
+        writer->element(Full<Framework>(*framework));
+      }
+    });
 
-  // Model all of the frameworks.
-  {
-    JSON::Array array;
-    array.values.reserve(master->frameworks.registered.size()); // MESOS-2353.
+    // Model all of the completed frameworks.
+    writer->field("completed_frameworks", [this](JSON::ArrayWriter* writer) {
+      foreach (const std::shared_ptr<Framework>& framework,
+               master->frameworks.completed) {
+        writer->element(Full<Framework>(*framework));
+      }
+    });
 
-    foreachvalue (Framework* framework, master->frameworks.registered) {
-      array.values.push_back(model(*framework));
-    }
-
-    object.values["frameworks"] = std::move(array);
-  }
-
-  // Model all of the completed frameworks.
-  {
-    JSON::Array array;
-    array.values.reserve(master->frameworks.completed.size()); // MESOS-2353.
-
-    foreach (const std::shared_ptr<Framework>& framework,
-             master->frameworks.completed) {
-      array.values.push_back(model(*framework));
-    }
-
-    object.values["completed_frameworks"] = std::move(array);
-  }
-
-  // Model all currently unregistered frameworks.
-  // This could happen when the framework has yet to re-register
-  // after master failover.
-  {
-    JSON::Array array;
-
-    // Find unregistered frameworks.
-    foreachvalue (const Slave* slave, master->slaves.registered) {
-      foreachkey (const FrameworkID& frameworkId, slave->tasks) {
-        if (!master->frameworks.registered.contains(frameworkId)) {
-          array.values.push_back(frameworkId.value());
+    // Model all currently unregistered frameworks. This can happen
+    // when a framework has yet to re-register after master failover.
+    writer->field("unregistered_frameworks", [this](JSON::ArrayWriter* writer) {
+      // Find unregistered frameworks.
+      foreachvalue (const Slave* slave, master->slaves.registered) {
+        foreachkey (const FrameworkID& frameworkId, slave->tasks) {
+          if (!master->frameworks.registered.contains(frameworkId)) {
+            writer->element(frameworkId.value());
+          }
         }
       }
-    }
+    });
+  };
 
-    object.values["unregistered_frameworks"] = std::move(array);
-  }
-
-  return OK(object, request.url.query.get("jsonp"));
+  return OK(jsonify(frameworks), request.url.query.get("jsonp"));
 }
 
 
@@ -1468,9 +1453,8 @@ Future<Response> Master::Http::state(const Request& request) const
       }
     });
 
-    // Model all currently unregistered frameworks.
-    // This could happen when the framework has yet to re-register
-    // after master failover.
+    // Model all currently unregistered frameworks. This can happen
+    // when a framework has yet to re-register after master failover.
     writer->field("unregistered_frameworks", [this](JSON::ArrayWriter* writer) {
       // Find unregistered frameworks.
       foreachvalue (const Slave* slave, master->slaves.registered) {
