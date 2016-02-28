@@ -29,8 +29,11 @@
 #include <mesos/scheduler.hpp>
 
 #include <mesos/v1/executor.hpp>
+#include <mesos/v1/scheduler.hpp>
 
 #include <mesos/v1/executor/executor.hpp>
+
+#include <mesos/v1/scheduler/scheduler.hpp>
 
 #include <mesos/authorizer/authorizer.hpp>
 
@@ -887,6 +890,105 @@ public:
       std::shared_ptr<MasterDetector>(_detector, [](MasterDetector*) {});
   }
 };
+
+namespace scheduler {
+
+// A generic mock HTTP scheduler to be used in tests with gmock.
+template <typename Mesos, typename Event>
+class MockHTTPScheduler
+{
+public:
+  MOCK_METHOD1_T(connected, void(Mesos*));
+  MOCK_METHOD1_T(disconnected, void(Mesos*));
+  MOCK_METHOD1_T(heartbeat, void(Mesos*));
+  MOCK_METHOD2_T(subscribed, void(Mesos*, const typename Event::Subscribed&));
+  MOCK_METHOD2_T(offers, void(Mesos*, const typename Event::Offers&));
+  MOCK_METHOD2_T(rescind, void(Mesos*, const typename Event::Rescind&));
+  MOCK_METHOD2_T(update, void(Mesos*, const typename Event::Update&));
+  MOCK_METHOD2_T(message, void(Mesos*, const typename Event::Message&));
+  MOCK_METHOD2_T(failure, void(Mesos*, const typename Event::Failure&));
+  MOCK_METHOD2_T(error, void(Mesos*, const typename Event::Error&));
+
+  void event(Mesos* mesos, const Event& event)
+  {
+    switch(event.type()) {
+      case Event::SUBSCRIBED:
+        subscribed(mesos, event.subscribed());
+        break;
+      case Event::OFFERS:
+        offers(mesos, event.offers());
+        break;
+      case Event::RESCIND:
+        rescind(mesos, event.rescind());
+        break;
+      case Event::UPDATE:
+        update(mesos, event.update());
+        break;
+      case Event::MESSAGE:
+        message(mesos, event.message());
+        break;
+      case Event::FAILURE:
+        failure(mesos, event.failure());
+        break;
+      case Event::ERROR:
+        error(mesos, event.error());
+        break;
+      case Event::HEARTBEAT:
+        heartbeat(mesos);
+        break;
+    }
+  }
+};
+
+
+// A generic testing interface for the scheduler library that can be used to
+// test the library across various versions.
+template <typename Mesos, typename Event>
+class TestMesos : public Mesos
+{
+public:
+  TestMesos(
+      const std::string& master,
+      ContentType contentType,
+      const std::shared_ptr<MockHTTPScheduler<Mesos, Event>>& _scheduler)
+    : Mesos(
+        master,
+        contentType,
+        lambda::bind(&MockHTTPScheduler<Mesos, Event>::connected,
+                     _scheduler,
+                     this),
+        lambda::bind(&MockHTTPScheduler<Mesos, Event>::disconnected,
+                     _scheduler,
+                     this),
+        lambda::bind(&TestMesos<Mesos, Event>::events,
+                     this,
+                     lambda::_1)),
+      scheduler(_scheduler) {}
+
+protected:
+  void events(std::queue<Event> events)
+  {
+    while(!events.empty()) {
+      Event event = std::move(events.front());
+      events.pop();
+      scheduler->event(this, event);
+    }
+  }
+
+private:
+  std::shared_ptr<MockHTTPScheduler<Mesos, Event>> scheduler;
+};
+
+
+using TestV1Mesos =
+  TestMesos<mesos::v1::scheduler::Mesos, mesos::v1::scheduler::Event>;
+
+} // namespace scheduler {
+
+
+using MockV1HTTPScheduler =
+  scheduler::MockHTTPScheduler<
+    mesos::v1::scheduler::Mesos, mesos::v1::scheduler::Event>;
 
 
 namespace executor {
