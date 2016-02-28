@@ -116,8 +116,6 @@ ACTION_P(Enqueue, queue)
   }
 }
 
-// TODO(anand): Add a test for scheduler failover after MESOS-3339 is resolved.
-
 
 // This test verifies that a scheduler can subscribe with the master.
 TEST_P(SchedulerTest, Subscribe)
@@ -162,6 +160,193 @@ TEST_P(SchedulerTest, Subscribe)
 
   EXPECT_CALL(callbacks, disconnected())
     .Times(AtMost(1));
+
+  Shutdown();
+}
+
+
+// This test verifies that a scheduler can subscribe with the master after
+// failing over to another instance.
+TEST_P(SchedulerTest, SchedulerFailover)
+{
+  master::Flags flags = CreateMasterFlags();
+  flags.authenticate_frameworks = false;
+
+  Try<PID<Master>> master = StartMaster(flags);
+  ASSERT_SOME(master);
+
+  auto scheduler = std::make_shared<MockV1HTTPScheduler>();
+
+  EXPECT_CALL(*scheduler, heartbeat(_))
+    .WillRepeatedly(Return()); // Ignore heartbeats.
+
+  Future<Nothing> connected;
+  EXPECT_CALL(*scheduler, connected(_))
+    .WillOnce(FutureSatisfy(&connected))
+    .WillRepeatedly(Return()); // Ignore future invocations.
+
+  ContentType contentType = GetParam();
+
+  scheduler::TestV1Mesos mesos(master.get(), contentType, scheduler);
+
+  AWAIT_READY(connected);
+
+  Future<Event::Subscribed> subscribed;
+  EXPECT_CALL(*scheduler, subscribed(_, _))
+    .WillOnce(FutureArg<1>(&subscribed));
+
+  {
+    Call call;
+    call.set_type(Call::SUBSCRIBE);
+
+    Call::Subscribe* subscribe = call.mutable_subscribe();
+    subscribe->mutable_framework_info()->CopyFrom(DEFAULT_V1_FRAMEWORK_INFO);
+
+    mesos.send(call);
+  }
+
+  AWAIT_READY(subscribed);
+
+  v1::FrameworkID frameworkId = subscribed.get().framework_id();
+
+  auto scheduler2 = std::make_shared<MockV1HTTPScheduler>();
+
+  EXPECT_CALL(*scheduler2, heartbeat(_))
+    .WillRepeatedly(Return()); // Ignore heartbeats.
+
+  EXPECT_CALL(*scheduler2, connected(_))
+    .WillOnce(FutureSatisfy(&connected))
+    .WillRepeatedly(Return()); // Ignore future invocations.
+
+  // Failover to another scheduler instance.
+  scheduler::TestV1Mesos mesos2(master.get(), contentType, scheduler2);
+
+  AWAIT_READY(connected);
+
+  // The previously connected scheduler instance should receive an
+  // error/disconnected event.
+  Future<Nothing> error;
+  EXPECT_CALL(*scheduler, error(_, _))
+    .WillOnce(FutureSatisfy(&error));
+
+  Future<Nothing> disconnected;
+  EXPECT_CALL(*scheduler, disconnected(_))
+    .WillOnce(FutureSatisfy(&disconnected));
+
+  EXPECT_CALL(*scheduler2, subscribed(_, _))
+    .WillOnce(FutureArg<1>(&subscribed));
+
+  {
+    Call call;
+    call.mutable_framework_id()->CopyFrom(frameworkId);
+    call.set_type(Call::SUBSCRIBE);
+
+    Call::Subscribe* subscribe = call.mutable_subscribe();
+    subscribe->mutable_framework_info()->CopyFrom(DEFAULT_V1_FRAMEWORK_INFO);
+    subscribe->mutable_framework_info()->mutable_id()->CopyFrom(frameworkId);
+    subscribe->set_force(true);
+
+    mesos2.send(call);
+  }
+
+  AWAIT_READY(error);
+  AWAIT_READY(disconnected);
+  AWAIT_READY(subscribed);
+
+  EXPECT_EQ(frameworkId, subscribed.get().framework_id());
+
+  EXPECT_CALL(*scheduler, disconnected(_))
+    .Times(AtMost(1));
+
+  EXPECT_CALL(*scheduler2, disconnected(_))
+    .Times(AtMost(1));
+
+  Shutdown();
+}
+
+
+// This test verifies that the scheduler can subscribe after a master failover.
+TEST_P(SchedulerTest, MasterFailover)
+{
+  master::Flags flags = CreateMasterFlags();
+  flags.authenticate_frameworks = false;
+
+  Try<PID<Master>> master = StartMaster(flags);
+  ASSERT_SOME(master);
+
+  auto scheduler = std::make_shared<MockV1HTTPScheduler>();
+  auto detector = std::make_shared<StandaloneMasterDetector>(master.get());
+
+  EXPECT_CALL(*scheduler, heartbeat(_))
+    .WillRepeatedly(Return()); // Ignore heartbeats.
+
+  Future<Nothing> connected;
+  EXPECT_CALL(*scheduler, connected(_))
+    .WillOnce(FutureSatisfy(&connected))
+    .WillRepeatedly(Return()); // Ignore future invocations.
+
+  ContentType contentType = GetParam();
+
+  scheduler::TestV1Mesos mesos(master.get(), contentType, scheduler, detector);
+
+  AWAIT_READY(connected);
+
+  Future<Event::Subscribed> subscribed;
+  EXPECT_CALL(*scheduler, subscribed(_, _))
+    .WillOnce(FutureArg<1>(&subscribed));
+
+  {
+    Call call;
+    call.set_type(Call::SUBSCRIBE);
+
+    Call::Subscribe* subscribe = call.mutable_subscribe();
+    subscribe->mutable_framework_info()->CopyFrom(DEFAULT_V1_FRAMEWORK_INFO);
+
+    mesos.send(call);
+  }
+
+  AWAIT_READY(subscribed);
+
+  v1::FrameworkID frameworkId = subscribed.get().framework_id();
+
+  Future<Nothing> disconnected;
+  EXPECT_CALL(*scheduler, disconnected(_))
+    .WillOnce(FutureSatisfy(&disconnected))
+    .WillRepeatedly(Return()); // Ignore future invocations.
+
+  // Failover the master.
+  Stop(master.get());
+  master = StartMaster(flags);
+  ASSERT_SOME(master);
+
+  AWAIT_READY(disconnected);
+
+  EXPECT_CALL(*scheduler, connected(_))
+    .WillOnce(FutureSatisfy(&connected))
+    .WillRepeatedly(Return()); // Ignore future invocations.
+
+  detector->appoint(master.get());
+
+  AWAIT_READY(connected);
+
+  EXPECT_CALL(*scheduler, subscribed(_, _))
+    .WillOnce(FutureArg<1>(&subscribed));
+
+  {
+    Call call;
+    call.mutable_framework_id()->CopyFrom(frameworkId);
+    call.set_type(Call::SUBSCRIBE);
+
+    Call::Subscribe* subscribe = call.mutable_subscribe();
+    subscribe->mutable_framework_info()->CopyFrom(DEFAULT_V1_FRAMEWORK_INFO);
+    subscribe->mutable_framework_info()->mutable_id()->CopyFrom(frameworkId);
+
+    mesos.send(call);
+  }
+
+  AWAIT_READY(subscribed);
+
+  EXPECT_EQ(frameworkId, subscribed.get().framework_id());
 
   Shutdown();
 }
