@@ -24,7 +24,6 @@
 #include <process/http.hpp>
 #include <process/pid.hpp>
 
-#include <stout/base64.hpp>
 #include <stout/hashmap.hpp>
 #include <stout/option.hpp>
 
@@ -56,13 +55,13 @@ namespace tests {
 class TeardownTest : public MesosTest {};
 
 
-// Testing /master/teardown so this endopoint  shuts down
-// designated framework or return adequate error.
+// Testing /master/teardown to validate that this endpoint shuts down
+// the designated framework or returns an appropriate error.
 
 // Testing route with authorization header and good credentials.
 TEST_F(TeardownTest, TeardownEndpoint)
 {
-  Try<PID<Master> > master = StartMaster();
+  Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   MockScheduler sched;
@@ -77,15 +76,10 @@ TEST_F(TeardownTest, TeardownEndpoint)
 
   AWAIT_READY(frameworkId);
 
-  process::http::Headers headers;
-  headers["Authorization"] = "Basic " +
-    base64::encode(DEFAULT_CREDENTIAL.principal() +
-                   ":" + DEFAULT_CREDENTIAL.secret());
-
   Future<Response> response = process::http::post(
       master.get(),
       "teardown",
-      headers,
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL),
       "frameworkId=" + frameworkId.get().value());
 
   AWAIT_READY(response);
@@ -101,7 +95,7 @@ TEST_F(TeardownTest, TeardownEndpoint)
 // Testing route with bad credentials.
 TEST_F(TeardownTest, TeardownEndpointBadCredentials)
 {
-  Try<PID<Master> > master = StartMaster();
+  Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   MockScheduler sched;
@@ -116,14 +110,14 @@ TEST_F(TeardownTest, TeardownEndpointBadCredentials)
 
   AWAIT_READY(frameworkId);
 
-  process::http::Headers headers;
-  headers["Authorization"] = "Basic " +
-    base64::encode("badPrincipal:badSecret");
+  Credential badCredential;
+  badCredential.set_principal("badPrincipal");
+  badCredential.set_secret("badSecret");
 
   Future<Response> response = process::http::post(
       master.get(),
       "teardown",
-      headers,
+      createBasicAuthHeaders(badCredential),
       "frameworkId=" + frameworkId.get().value());
 
   AWAIT_READY(response);
@@ -149,7 +143,7 @@ TEST_F(TeardownTest, TeardownEndpointGoodACLs)
 
   master::Flags flags = CreateMasterFlags();
   flags.acls = acls;
-  Try<PID<Master> > master = StartMaster(flags);
+  Try<PID<Master>> master = StartMaster(flags);
   ASSERT_SOME(master);
 
   MockScheduler sched;
@@ -164,15 +158,10 @@ TEST_F(TeardownTest, TeardownEndpointGoodACLs)
 
   AWAIT_READY(frameworkId);
 
-  process::http::Headers headers;
-  headers["Authorization"] = "Basic " +
-    base64::encode(DEFAULT_CREDENTIAL.principal() +
-                   ":" + DEFAULT_CREDENTIAL.secret());
-
   Future<Response> response = process::http::post(
       master.get(),
       "teardown",
-      headers,
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL),
       "frameworkId=" + frameworkId.get().value());
 
   AWAIT_READY(response);
@@ -199,7 +188,7 @@ TEST_F(TeardownTest, TeardownEndpointGoodDeprecatedACLs)
 
   master::Flags flags = CreateMasterFlags();
   flags.acls = acls;
-  Try<PID<Master> > master = StartMaster(flags);
+  Try<PID<Master>> master = StartMaster(flags);
   ASSERT_SOME(master);
 
   MockScheduler sched;
@@ -214,15 +203,10 @@ TEST_F(TeardownTest, TeardownEndpointGoodDeprecatedACLs)
 
   AWAIT_READY(frameworkId);
 
-  process::http::Headers headers;
-  headers["Authorization"] = "Basic " +
-    base64::encode(DEFAULT_CREDENTIAL.principal() +
-                   ":" + DEFAULT_CREDENTIAL.secret());
-
   Future<Response> response = process::http::post(
       master.get(),
       "teardown",
-      headers,
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL),
       "frameworkId=" + frameworkId.get().value());
 
   AWAIT_READY(response);
@@ -247,7 +231,7 @@ TEST_F(TeardownTest, TeardownEndpointBadACLs)
 
   master::Flags flags = CreateMasterFlags();
   flags.acls = acls;
-  Try<PID<Master> > master = StartMaster(flags);
+  Try<PID<Master>> master = StartMaster(flags);
   ASSERT_SOME(master);
 
   MockScheduler sched;
@@ -262,15 +246,10 @@ TEST_F(TeardownTest, TeardownEndpointBadACLs)
 
   AWAIT_READY(frameworkId);
 
-  process::http::Headers headers;
-  headers["Authorization"] = "Basic " +
-    base64::encode(DEFAULT_CREDENTIAL.principal() +
-                   ":" + DEFAULT_CREDENTIAL.secret());
-
   Future<Response> response = process::http::post(
       master.get(),
       "teardown",
-      headers,
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL),
       "frameworkId=" + frameworkId.get().value());
 
   AWAIT_READY(response);
@@ -286,7 +265,7 @@ TEST_F(TeardownTest, TeardownEndpointBadACLs)
 // Testing route without frameworkId value.
 TEST_F(TeardownTest, TeardownEndpointNoFrameworkId)
 {
-  Try<PID<Master> > master = StartMaster();
+  Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   MockScheduler sched;
@@ -300,13 +279,13 @@ TEST_F(TeardownTest, TeardownEndpointNoFrameworkId)
   ASSERT_EQ(DRIVER_RUNNING, driver.start());
 
   AWAIT_READY(frameworkId);
-  process::http::Headers headers;
-  headers["Authorization"] = "Basic " +
-    base64::encode(DEFAULT_CREDENTIAL.principal() +
-                   ":" + DEFAULT_CREDENTIAL.secret());
 
-  Future<Response> response =
-    process::http::post(master.get(), "teardown", headers, "");
+  Future<Response> response = process::http::post(
+      master.get(),
+      "teardown",
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL),
+      "");
+
   AWAIT_READY(response);
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response);
 
@@ -320,7 +299,7 @@ TEST_F(TeardownTest, TeardownEndpointNoFrameworkId)
 // Testing route without authorization header.
 TEST_F(TeardownTest, TeardownEndpointNoHeader)
 {
-  Try<PID<Master> > master = StartMaster();
+  Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   MockScheduler sched;
