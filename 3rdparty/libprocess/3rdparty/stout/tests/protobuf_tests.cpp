@@ -498,7 +498,7 @@ TEST(ProtobufTest, Jsonify)
       "}",
       " ");
 
-  EXPECT_EQ(expected, string(jsonify(message)));
+  EXPECT_EQ(expected, string(jsonify(JSON::Protobuf(message))));
 }
 
 
@@ -533,7 +533,13 @@ TEST(ProtobufTest, JsonifyArray)
   arrayMessage.add_values()->CopyFrom(message1);
   arrayMessage.add_values()->CopyFrom(message2);
 
-  EXPECT_EQ(expected, string(jsonify(arrayMessage.values())));
+  string actual = jsonify([&arrayMessage](JSON::ArrayWriter* writer) {
+    foreach (const tests::SimpleMessage& message, arrayMessage.values()) {
+      writer->element(JSON::Protobuf(message));
+    }
+  });
+
+  EXPECT_EQ(expected, actual);
 }
 
 
@@ -592,5 +598,5 @@ TEST(ProtobufTest, JsonifyLargeIntegers)
       " ");
 
   // Check JSON -> String.
-  EXPECT_EQ(expected, string(jsonify(message)));
+  EXPECT_EQ(expected, string(jsonify(JSON::Protobuf(message))));
 }

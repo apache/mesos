@@ -39,6 +39,7 @@
 #include <stout/jsonify.hpp>
 #include <stout/none.hpp>
 #include <stout/nothing.hpp>
+#include <stout/representation.hpp>
 #include <stout/result.hpp>
 #include <stout/stringify.hpp>
 #include <stout/try.hpp>
@@ -620,12 +621,22 @@ Try<T> parse(const JSON::Value& value)
 
 namespace JSON {
 
+// The representation of generic protobuf => JSON,
+// e.g., `jsonify(JSON::Protobuf(message))`.
+struct Protobuf : Representation<google::protobuf::Message>
+{
+  using Representation<google::protobuf::Message>::Representation;
+};
+
+
 // `json` function for protobuf messages. Refer to `jsonify.hpp` for details.
 // TODO(mpark): This currently uses the default value for optional fields with
 // a default that are not set, but we may want to revisit this decision.
-inline void json(ObjectWriter* writer, const google::protobuf::Message& message)
+inline void json(ObjectWriter* writer, const Protobuf& protobuf)
 {
   using google::protobuf::FieldDescriptor;
+
+  const google::protobuf::Message& message = protobuf;
 
   const google::protobuf::Descriptor* descriptor = message.GetDescriptor();
   const google::protobuf::Reflection* reflection = message.GetReflection();
@@ -688,8 +699,8 @@ inline void json(ObjectWriter* writer, const google::protobuf::Message& message)
                       reflection->GetRepeatedDouble(message, field, i));
                   break;
                 case FieldDescriptor::CPPTYPE_MESSAGE:
-                  writer->element(
-                      reflection->GetRepeatedMessage(message, field, i));
+                  writer->element(Protobuf(
+                      reflection->GetRepeatedMessage(message, field, i)));
                   break;
                 case FieldDescriptor::CPPTYPE_ENUM:
                   writer->element(
@@ -731,7 +742,8 @@ inline void json(ObjectWriter* writer, const google::protobuf::Message& message)
           writer->field(field->name(), reflection->GetDouble(message, field));
           break;
         case FieldDescriptor::CPPTYPE_MESSAGE:
-          writer->field(field->name(), reflection->GetMessage(message, field));
+          writer->field(
+              field->name(), Protobuf(reflection->GetMessage(message, field)));
           break;
         case FieldDescriptor::CPPTYPE_ENUM:
           writer->field(

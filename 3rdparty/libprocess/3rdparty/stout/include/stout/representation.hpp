@@ -75,6 +75,8 @@ struct Representation : std::reference_wrapper<const T>
   // not inherit the base class' constructors.
   using std::reference_wrapper<const T>::reference_wrapper;
 
+  explicit Representation(const T& t) : std::reference_wrapper<const T>(t) {}
+
   // Disallow rebinding.
   Representation& operator=(const Representation&) = delete;
   Representation& operator=(Representation&&) = delete;
