@@ -109,7 +109,7 @@ public:
       ContentType _contentType,
       const lambda::function<void()>& _connected,
       const lambda::function<void()>& _disconnected,
-      lambda::function<void(const queue<Event>&)> _received)
+      const lambda::function<void(const queue<Event>&)>& _received)
     : ProcessBase(ID::generate("scheduler")),
       contentType(_contentType),
       connected(_connected),
