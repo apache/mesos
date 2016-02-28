@@ -213,8 +213,12 @@ public:
     Future<Response> response;
 
     if (call.type() == Call::SUBSCRIBE) {
-      // Each subscription requires a new connection.
-      disconnect();
+      // It might be possible that the scheduler is retrying when it already
+      // has an active subscribe response stream.
+      if (subscribed.isSome()) {
+        drop(call, "Scheduler is already subscribed");
+        return;
+      }
 
       // Send a streaming request for Subscribe call.
       response = process::http::streaming::post(
