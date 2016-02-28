@@ -17,7 +17,7 @@ Authorization currently allows
 
 ## ACLs
 
-Authorization is implemented via Access Control Lists (ACLs). For each of the above cases, ACLs can be used to restrict access. Operators can setup ACLs in JSON format. See [authorizer.proto](https://github.com/apache/mesos/blob/master/include/mesos/authorizer/authorizer.proto) for details.
+Authorization is implemented via Access Control Lists (ACLs). For each of the above cases, ACLs can be used to restrict access. Operators can setup ACLs in JSON format when starting the master (see [Configuring Authorization](#aclsConfiguration) for details).
 
 Each ACL specifies a set of `Subjects` that can perform an `Action` on a set of `Objects`.
 
@@ -403,8 +403,8 @@ In a real-world organization, principals and roles might be used to represent va
                            ]
         }
 
-
-## Configuring authorization
+<a name="aclsConfiguration"></a>
+## Configuring Authorization
 
 Authorization is configured by specifying the `--acls` flag when starting the master:
 
@@ -412,7 +412,7 @@ Authorization is configured by specifying the `--acls` flag when starting the ma
            or a file path containing the JSON-formatted ACLs used
            for authorization. Path could be of the form 'file:///path/to/file'
            or '/path/to/file'.
-           See the ACLs protobuf in authorizer.proto for the expected format.
+           See the ACLs protobuf in [authorizer.proto](https://github.com/apache/mesos/blob/master/include/mesos/authorizer/authorizer.proto) for the expected format.
 
 For more information on master command-line flags, see the
 [configuration](configuration.md) page.
