@@ -417,11 +417,11 @@ void json(JSON::ObjectWriter* writer, const Task& task)
   }
 
   if (task.has_discovery()) {
-    writer->field("discovery", task.discovery());
+    writer->field("discovery", JSON::Protobuf(task.discovery()));
   }
 
   if (task.has_container()) {
-    writer->field("container", task.container());
+    writer->field("container", JSON::Protobuf(task.container()));
   }
 }
 
@@ -463,7 +463,7 @@ void json(JSON::ObjectWriter* writer, const CommandInfo& command)
   writer->field("argv", command.arguments());
 
   if (command.has_environment()) {
-    writer->field("environment", command.environment());
+    writer->field("environment", JSON::Protobuf(command.environment()));
   }
 
   writer->field("uris", [&command](JSON::ArrayWriter* writer) {
@@ -484,7 +484,7 @@ void json(JSON::ObjectWriter* writer, const ContainerStatus& status)
   }
 
   if (status.has_cgroup_info()) {
-    writer->field("cgroup_info", status.cgroup_info());
+    writer->field("cgroup_info", JSON::Protobuf(status.cgroup_info()));
   }
 }
 
@@ -501,7 +501,9 @@ void json(JSON::ObjectWriter* writer, const ExecutorInfo& executorInfo)
 
 void json(JSON::ArrayWriter* writer, const Labels& labels)
 {
-  json(writer, labels.labels());
+  foreach (const Label& label, labels.labels()) {
+    writer->element(JSON::Protobuf(label));
+  }
 }
 
 
@@ -520,7 +522,11 @@ void json(JSON::ObjectWriter* writer, const NetworkInfo& info)
   }
 
   if (info.ip_addresses().size() > 0) {
-    writer->field("ip_addresses", info.ip_addresses());
+    writer->field("ip_addresses", [&info](JSON::ArrayWriter* writer) {
+      foreach (const NetworkInfo::IPAddress& ipAddress, info.ip_addresses()) {
+        writer->element(JSON::Protobuf(ipAddress));
+      }
+    });
   }
 }
 

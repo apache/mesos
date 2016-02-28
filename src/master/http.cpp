@@ -255,11 +255,11 @@ void json(JSON::ObjectWriter* writer, const Full<Framework>& full)
         }
 
         if (taskInfo.has_discovery()) {
-          writer->field("discovery", taskInfo.discovery());
+          writer->field("discovery", JSON::Protobuf(taskInfo.discovery()));
         }
 
         if (taskInfo.has_container()) {
-          writer->field("container", taskInfo.container());
+          writer->field("container", JSON::Protobuf(taskInfo.container()));
         }
       });
     }
