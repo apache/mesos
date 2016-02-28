@@ -1223,20 +1223,15 @@ string Master::Http::SLAVES_HELP()
 
 Future<Response> Master::Http::slaves(const Request& request) const
 {
-  JSON::Object object;
+  auto slaves = [this](JSON::ObjectWriter* writer) {
+    writer->field("slaves", [this](JSON::ArrayWriter* writer) {
+      foreachvalue (const Slave* slave, master->slaves.registered) {
+        writer->element(Full<Slave>(*slave));
+      }
+    });
+  };
 
-  {
-    JSON::Array array;
-    array.values.reserve(master->slaves.registered.size()); // MESOS-2353.
-
-    foreachvalue (const Slave* slave, master->slaves.registered) {
-      array.values.push_back(model(*slave));
-    }
-
-    object.values["slaves"] = std::move(array);
-  }
-
-  return OK(object, request.url.query.get("jsonp"));
+  return OK(jsonify(slaves), request.url.query.get("jsonp"));
 }
 
 
