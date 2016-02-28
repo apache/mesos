@@ -385,7 +385,8 @@ TEST_F(MasterMaintenanceTest, PendingUnavailabilityTest)
 
   Future<Nothing> connected;
   EXPECT_CALL(callbacks, connected())
-    .WillOnce(FutureSatisfy(&connected));
+    .WillOnce(FutureSatisfy(&connected))
+    .WillRepeatedly(Return()); // Ignore future invocations.
 
   Mesos mesos(
       master.get(),
@@ -487,6 +488,9 @@ TEST_F(MasterMaintenanceTest, PendingUnavailabilityTest)
   EXPECT_NE(0, event.get().offers().inverse_offers().size());
 
   EXPECT_CALL(exec, shutdown(_))
+    .Times(AtMost(1));
+
+  EXPECT_CALL(callbacks, disconnected())
     .Times(AtMost(1));
 
   Shutdown(); // Must shutdown before 'containerizer' gets deallocated.
@@ -1092,7 +1096,8 @@ TEST_F(MasterMaintenanceTest, InverseOffers)
 
   Future<Nothing> connected;
   EXPECT_CALL(callbacks, connected())
-    .WillOnce(FutureSatisfy(&connected));
+    .WillOnce(FutureSatisfy(&connected))
+    .WillRepeatedly(Return()); // Ignore future invocations.
 
   Mesos mesos(
       master.get(),
@@ -1321,6 +1326,9 @@ TEST_F(MasterMaintenanceTest, InverseOffers)
   EXPECT_CALL(exec, shutdown(_))
     .Times(AtMost(1));
 
+  EXPECT_CALL(callbacks, disconnected())
+    .Times(AtMost(1));
+
   Shutdown(); // Must shutdown before 'containerizer' gets deallocated.
 }
 
@@ -1418,7 +1426,8 @@ TEST_F(MasterMaintenanceTest, InverseOffersFilters)
 
   Future<Nothing> connected;
   EXPECT_CALL(callbacks, connected())
-    .WillOnce(FutureSatisfy(&connected));
+    .WillOnce(FutureSatisfy(&connected))
+    .WillRepeatedly(Return()); // Ignore future invocations.
 
   Mesos mesos(
       master.get(),
@@ -1676,6 +1685,9 @@ TEST_F(MasterMaintenanceTest, InverseOffersFilters)
     .Times(AtMost(1));
 
   EXPECT_CALL(exec2, shutdown(_))
+    .Times(AtMost(1));
+
+  EXPECT_CALL(callbacks, disconnected())
     .Times(AtMost(1));
 
   Shutdown(); // Must shutdown before 'containerizer' gets deallocated.
