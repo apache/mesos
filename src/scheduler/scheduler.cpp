@@ -24,6 +24,7 @@
 #include <arpa/inet.h>
 
 #include <iostream>
+#include <memory>
 #include <queue>
 #include <string>
 #include <sstream>
@@ -78,6 +79,7 @@ using namespace mesos::internal::master;
 using namespace process;
 
 using std::queue;
+using std::shared_ptr;
 using std::string;
 using std::vector;
 
@@ -113,8 +115,7 @@ public:
       connected(_connected),
       disconnected(_disconnected),
       received(_received),
-      local(false),
-      detector(NULL)
+      local(false)
   {
     GOOGLE_PROTOBUF_VERIFY_VERSION;
 
@@ -167,8 +168,8 @@ public:
       EXIT(1) << "Failed to create a master detector: " << create.error();
     }
 
-    // Save the detector so we can delete it later.
-    detector = create.get();
+    // Save the detector.
+    detector.reset(create.get());
   }
 
   virtual ~MesosProcess()
@@ -500,7 +501,7 @@ private:
 
   bool local; // Whether or not we launched a local cluster.
 
-  MasterDetector* detector;
+  shared_ptr<MasterDetector> detector;
 
   queue<Event> events;
 
