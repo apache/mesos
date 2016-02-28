@@ -189,18 +189,50 @@ public:
 
   void send(const Call& call)
   {
-    // NOTE: We enqueue the calls to guarantee that a call is sent only after
-    // a response has been received for the previous call.
-    // TODO(vinod): Use HTTP pipelining instead.
-    calls.push(call);
-
-    if (calls.size() > 1) {
+    if (master.isNone()) {
+      drop(call, "Disconnected");
       return;
     }
 
-    // If this is the first in the queue send the call.
-    _send(call)
-      .onAny(defer(self(), &Self::___send));
+    Option<Error> error = validation::scheduler::call::validate(devolve(call));
+
+    if (error.isSome()) {
+      drop(call, error.get().message);
+      return;
+    }
+
+    VLOG(1) << "Sending " << call.type() << " call to " << master.get();
+
+    // TODO(vinod): Add support for sending MESSAGE calls directly
+    // to the slave, instead of relaying it through the master, as
+    // the scheduler driver does.
+
+    const string body = serialize(contentType, call);
+    const http::Headers headers{{"Accept", stringify(contentType)}};
+
+    Future<Response> response;
+
+    if (call.type() == Call::SUBSCRIBE) {
+      // Each subscription requires a new connection.
+      disconnect();
+
+      // Send a streaming request for Subscribe call.
+      response = process::http::streaming::post(
+          master.get(),
+          "api/v1/scheduler",
+          headers,
+          body,
+          stringify(contentType));
+    } else {
+      response = post(
+          master.get(),
+          "api/v1/scheduler",
+          headers,
+          body,
+          stringify(contentType));
+    }
+
+    response.onAny(defer(self(), &Self::_send, call, lambda::_1));
   }
 
 protected:
@@ -282,57 +314,7 @@ protected:
     LOG(WARNING) << "Dropping " << call.type() << ": " << message;
   }
 
-  Future<Nothing> _send(const Call& call)
-  {
-    if (master.isNone()) {
-      drop(call, "Disconnected");
-      return Nothing();
-    }
-
-    Option<Error> error = validation::scheduler::call::validate(devolve(call));
-
-    if (error.isSome()) {
-      drop(call, error.get().message);
-      return Nothing();
-    }
-
-    VLOG(1) << "Sending " << call.type() << " call to " << master.get();
-
-    // TODO(vinod): Add support for sending MESSAGE calls directly
-    // to the slave, instead of relaying it through the master, as
-    // the scheduler driver does.
-
-    const string body = serialize(contentType, call);
-    const http::Headers headers{{"Accept", stringify(contentType)}};
-
-    Future<Response> response;
-
-    if (call.type() == Call::SUBSCRIBE) {
-      // Each subscription requires a new connection.
-      disconnect();
-
-      // Send a streaming request for Subscribe call.
-      response = process::http::streaming::post(
-          master.get(),
-          "api/v1/scheduler",
-          headers,
-          body,
-          stringify(contentType));
-    } else {
-      response = post(
-          master.get(),
-          "api/v1/scheduler",
-          headers,
-          body,
-          stringify(contentType));
-    }
-
-    return response
-      .onAny(defer(self(), &Self::__send, call, lambda::_1))
-      .then([]() { return Nothing(); });
-  }
-
-  void __send(const Call& call, const Future<Response>& response)
+  void _send(const Call& call, const Future<Response>& response)
   {
     CHECK(!response.isDiscarded());
 
@@ -384,18 +366,6 @@ protected:
     // yet supported for HTTP frameworks.
     error("Received unexpected '" + response.get().status + "' (" +
           response.get().body + ") for " + stringify(call.type()));
-  }
-
-  void ___send()
-  {
-    CHECK_LT(0u, calls.size());
-    calls.pop();
-
-    // Execute the next event in the queue.
-    if (!calls.empty()) {
-      _send(calls.front())
-        .onAny(defer(self(), &Self::___send));
-    }
   }
 
   void read()
@@ -504,8 +474,6 @@ private:
   shared_ptr<MasterDetector> detector;
 
   queue<Event> events;
-
-  queue<Call> calls;
 
   Option<UPID> master;
 };
