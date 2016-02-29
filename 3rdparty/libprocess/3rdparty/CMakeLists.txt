@@ -260,6 +260,7 @@ elseif (WIN32)
       PROTOBUF
       ${PROTOBUF_ROOT}/vsprojects/protobuf.sln
       ${CMAKE_BUILD_TYPE}
+      ${PROTOBUF_ROOT}/vsprojects
       "libprotobuf libprotoc protoc")
 endif (NOT WIN32)
 

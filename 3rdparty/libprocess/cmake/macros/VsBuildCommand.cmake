@@ -19,7 +19,13 @@
 # Solution File(.sln). For example, when we want to build GLOG through Visual
 # Studio in command line, we would run this command. It would define
 # ${LIB_NAME_UPPER}_BUILD_CMD with build command finally.
-function(VS_BUILD_CMD LIB_NAME SOLUTION_FILE BUILD_CONFIGURATION PROJECTS)
+function(
+    VS_BUILD_CMD
+    LIB_NAME
+    SOLUTION_FILE
+    BUILD_CONFIGURATION
+    PROJECT_ROOT
+    PROJECT_NAMES)
 
   string(TOUPPER ${LIB_NAME} LIB_NAME_UPPER)
 
@@ -31,7 +37,7 @@ function(VS_BUILD_CMD LIB_NAME SOLUTION_FILE BUILD_CONFIGURATION PROJECTS)
   ## 1. Convert the path to Windows style.
   file(
     TO_NATIVE_PATH
-    "${VS_BUILD_SCRIPT} ${SOLUTION_FILE} ${BUILD_CONFIGURATION} ${PROJECTS}"
+    "${VS_BUILD_SCRIPT} ${SOLUTION_FILE} ${BUILD_CONFIGURATION} ${PROJECT_ROOT} ${PROJECT_NAMES}"
     BUILD_CMD_STRING)
   ## 2. Convert the command to list so that CMake could handle it correctly.
   string(REPLACE " " ";" BUILD_CMD ${BUILD_CMD_STRING})
