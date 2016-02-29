@@ -115,6 +115,14 @@ endif (NOT WIN32)
 
 set(RY_UPDATE_CMD ${CMAKE_COMMAND} -E copy ${PROCESS_3RD_SRC}/http-parser/CMakeLists.txt.template ${HTTP_PARSER_ROOT}/CMakeLists.txt)
 
+if (NOT WIN32)
+  set(HTTP_PARSER_PATCH_CMD  ${CMAKE_NOOP})
+elseif (WIN32)
+  # Set the patch command which will utilize patch.exe under
+  # `\Users\<user>\AppData\Local\Temp with no elevation prompt`
+  set(HTTP_PARSER_PATCH_CMD ${PATCHEXE_LOCATION} --binary -p1 < ${PROCESS_3RD_SRC}/ry-http-parser-${HTTP_PARSER_VERSION}.patch)
+endif (NOT WIN32)
+
 set(LIBEVENT_CMAKE_ARGS
   ${LIBEVENT_CMAKE_ARGS}
   -LH
@@ -163,6 +171,7 @@ ExternalProject_Add(
   ${HTTP_PARSER_TARGET}
   PREFIX            ${HTTP_PARSER_CMAKE_ROOT}
   UPDATE_COMMAND    ${RY_UPDATE_CMD}
+  PATCH_COMMAND     ${HTTP_PARSER_PATCH_CMD}
   INSTALL_COMMAND   ${CMAKE_NOOP}
   URL               ${HTTP_PARSER_URL}
   )
