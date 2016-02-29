@@ -127,8 +127,8 @@ Try<Duration> failoverTimeout =
 
 ~~~{.cpp}
 Try<very_very_long_type> long_name =
-    ::protobuf::parse<very_very_long_type>(
-        request);
+  ::protobuf::parse<very_very_long_type>(
+      request);
 
 for (int i = 0; i < very_very_long_expression();
      i++) {
