@@ -76,7 +76,7 @@ set(LIBEV_LIB_DIR       ${LIBEV_ROOT}-build/.libs)
 
 if (WIN32)
   set(CURL_LIB_DIR     ${CURL_ROOT}/lib)
-  set(GLOG_LIB_DIR     ${GLOG_ROOT}/${CMAKE_BUILD_TYPE})
+  set(GLOG_LIB_DIR     ${GLOG_ROOT}-build/${CMAKE_BUILD_TYPE})
   set(LIBEVENT_LIB_DIR ${LIBEVENT_ROOT}-build/lib)
   set(PROTOBUF_LIB_DIR ${PROTOBUF_ROOT}/vsprojects/${CMAKE_BUILD_TYPE})
 else (WIN32)
@@ -90,20 +90,19 @@ endif (WIN32)
 set(HTTP_PARSER_LFLAG http_parser)
 set(LIBEV_LFLAG       ev)
 set(LIBEVENT_LFLAG    event)
+set(GLOG_LFLAG        glog)
 
 if (WIN32)
-  # Necessary because the lib names for (e.g.) glog are generated incorrectly
-  # on Windows. That is, on *nix, the glog binary should be (e.g.) libglog.so,
-  # and on Windows it should be glog.lib. But on Windows, it's actually
-  # libglog.lib. Hence, we have to special case it here because CMake assumes
+  # Necessary because the lib names for (e.g.) curl are generated incorrectly
+  # on Windows. That is, on *nix, the curl binary should be (e.g.) libcurl.so,
+  # and on Windows it should be curl.lib. But on Windows, it's actually
+  # libcurl.lib. Hence, we have to special case it here because CMake assumes
   # the library names are generated correctly.
   set(CURL_LFLAG     libcurl_a)
-  set(GLOG_LFLAG     libglog)
   set(PROTOBUF_LFLAG libprotobuf)
 else (WIN32)
   set(CURL_LFLAG     curl)
   set(DL_LFLAG       dl)
-  set(GLOG_LFLAG     glog)
   set(PROTOBUF_LFLAG protobuf)
   set(SASL_LFLAG     sasl2)
 endif (WIN32)
