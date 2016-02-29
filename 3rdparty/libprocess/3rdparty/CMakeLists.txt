@@ -292,5 +292,6 @@ list(
   APPEND CMAKE_MODULE_PATH
   ${CMAKE_SOURCE_DIR}/3rdparty/libprocess/3rdparty/stout/cmake
   )
+include(StoutConfigure)
 include(StoutTestsConfigure)
 add_subdirectory(stout/tests)

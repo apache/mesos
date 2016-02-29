@@ -49,11 +49,8 @@ set(PROCESS_TARGET process-${PROCESS_PACKAGE_VERSION})
 ################################################################################
 set(PROCESS_DEPENDENCIES
   ${PROCESS_DEPENDENCIES}
-  ${BOOST_TARGET}
-  ${GLOG_TARGET}
-  ${PICOJSON_TARGET}
+  ${STOUT_DEPENDENCIES}
   ${HTTP_PARSER_TARGET}
-  ${PROTOBUF_TARGET}
   )
 
 if (NOT ENABLE_LIBEVENT)
@@ -62,20 +59,13 @@ elseif (ENABLE_LIBEVENT)
   set(PROCESS_DEPENDENCIES ${PROCESS_DEPENDENCIES} ${LIBEVENT_TARGET})
 endif (NOT ENABLE_LIBEVENT)
 
-if (WIN32)
-  set(PROCESS_DEPENDENCIES ${PROCESS_DEPENDENCIES} ${CURL_TARGET})
-endif (WIN32)
-
 # Define third-party include directories. Tells compiler toolchain where to get
 # headers for our third party libs (e.g., -I/path/to/glog on Linux).
 ###############################################################################
 set(PROCESS_INCLUDE_DIRS
   ${PROCESS_INCLUDE_DIRS}
+  ${STOUT_INCLUDE_DIRS}
   ${PROCESS_INCLUDE_DIR}
-  ${STOUT_INCLUDE_DIR}
-  ${BOOST_INCLUDE_DIR}
-  ${PICOJSON_INCLUDE_DIR}
-  ${GLOG_INCLUDE_DIR}
   ${HTTP_PARSER_INCLUDE_DIR}
   )
 
@@ -89,17 +79,13 @@ if (HAS_GPERFTOOLS)
   set(PROCESS_INCLUDE_DIRS ${PROCESS_INCLUDE_DIRS} ${GPERFTOOLS_INCLUDE_DIR})
 endif (HAS_GPERFTOOLS)
 
-if (WIN32)
-  set(PROCESS_INCLUDE_DIRS ${PROCESS_INCLUDE_DIRS} ${CURL_INCLUDE_DIR})
-endif (WIN32)
-
 # Define third-party lib install directories. Used to tell the compiler
 # toolchain where to find our third party libs (e.g., -L/path/to/glog on
 # Linux).
 ########################################################################
 set(PROCESS_LIB_DIRS
   ${PROCESS_LIB_DIRS}
-  ${GLOG_LIB_DIR}
+  ${STOUT_LIB_DIRS}
   ${HTTP_PARSER_LIB_DIR}
   )
 
@@ -109,11 +95,6 @@ elseif (ENABLE_LIBEVENT)
   set(PROCESS_LIB_DIRS ${PROCESS_LIB_DIRS} ${LIBEVENT_LIB_DIR})
 endif (NOT ENABLE_LIBEVENT)
 
-if (WIN32)
-  set(PROCESS_LIB_DIRS ${PROCESS_LIB_DIRS} ${CURL_LIB_DIR})
-endif (WIN32)
-
-
 # Define third-party libs. Used to generate flags that the linker uses to
 # include our third-party libs (e.g., -lglog on Linux).
 #########################################################################
@@ -121,9 +102,8 @@ find_package(Threads REQUIRED)
 
 set(PROCESS_LIBS
   ${PROCESS_LIBS}
-  ${GLOG_LFLAG}
+  ${STOUT_LIBS}
   ${HTTP_PARSER_LFLAG}
-  ${CMAKE_THREAD_LIBS_INIT}
   )
 
 if (NOT ENABLE_LIBEVENT)
@@ -132,14 +112,7 @@ elseif (ENABLE_LIBEVENT)
   set(PROCESS_LIBS ${PROCESS_LIBS} ${LIBEVENT_LFLAG})
 endif (NOT ENABLE_LIBEVENT)
 
-if (WIN32)
-  set(PROCESS_LIBS
-    ${PROCESS_LIBS}
-    ${CURL_LFLAG}
-    ws2_32
-    Mswsock
-    )
-elseif (NOT WIN32)
+if (NOT WIN32)
   find_package(ZLIB REQUIRED)
 
   # TODO(hausdorff): (MESOS-3396) The `LINUX` flag comes from MesosConfigure;
@@ -155,4 +128,4 @@ elseif (NOT WIN32)
     ${ZLIB_LIBRARIES}
     pthread
     )
-endif (WIN32)
+endif (NOT WIN32)

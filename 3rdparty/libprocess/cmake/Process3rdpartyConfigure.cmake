@@ -118,6 +118,7 @@ endif (NOT WIN32)
 
 # Configure the process library, the last of our third-party libraries.
 #######################################################################
+include(StoutConfigure)
 include(ProcessConfigure)
 
 # Define target for AGENT.
