@@ -22,7 +22,8 @@ add_subdirectory(libprocess)
 
 # Define sources of third-party dependencies.
 #############################################
-set(UPSTREAM_URL https://github.com/3rdparty/mesos-3rdparty/raw/master)
+set(UPSTREAM_URL ${3RDPARTY_DEPENDENCIES})
+
 set(REBUNDLED_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 
 if (REBUNDLED)
@@ -30,6 +31,14 @@ if (REBUNDLED)
 else (REBUNDLED)
   set(ZOOKEEPER_URL ${UPSTREAM_URL}/zookeeper-${ZOOKEEPER_VERSION}.tar.gz)
 endif (REBUNDLED)
+
+if (WIN32)
+  # Similar to glog, on Windows, we use a different version of ZK. We'll
+  # eventually want to upgrade the Mesos project but for now this version of ZK
+  # does not come rebundled in the Mesos repository, so we need to get it from
+  # our canonical package mirror.
+  set(ZOOKEEPER_URL ${UPSTREAM_URL}/zookeeper-${ZOOKEEPER_VERSION}.tar.gz)
+endif (WIN32)
 
 # Define build/patch/configure commands for third-party libs.
 #############################################################

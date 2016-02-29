@@ -43,6 +43,10 @@ option(
   FALSE
   )
 set(CMAKE_VERBOSE_MAKEFILE ${VERBOSE})
+set(
+  3RDPARTY_DEPENDENCIES "https://github.com/3rdparty/mesos-3rdparty/raw/master"
+  CACHE STRING "Pass in a URL or filesystem path that points at a mirror of the canonical third-party dependency repository (https://github.com/3rdparty/mesos-3rdparty); this will cause Mesos to build against the third-party tarballs we find in the mirror, instead of going to the Internet or building against the rebundled tarballs in the Mesos repository.\n\nThis is especially useful for Windows builds, because building on MSVC 1900 requires newer versions of ZK, glog, and libevent, than the ones rebundled in the Mesos repository, and so in that case we normally would have to go to the Internet to get them. Using this flag, however, means we can avoid this.\nNOTE: If you use this in conjunction with the `REBUNDLED` flag, then we will only go to this repository when we would go to the Internet normally; on most Unix builds, this will mean you never go to the Internet, but on Windows, it means you will in the case of glog, ZK, and libevent. To build purely against the mirror, do not use the `REBUNDLED` flag."
+  )
 
 if (REBUNDLED AND ENABLE_LIBEVENT)
   message(
