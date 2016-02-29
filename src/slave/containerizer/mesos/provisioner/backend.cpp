@@ -18,13 +18,19 @@
 
 #include <stout/os.hpp>
 
+#ifdef __linux__
 #include "linux/fs.hpp"
+#endif
 
 #include "slave/containerizer/mesos/provisioner/backend.hpp"
 
+#ifdef __linux__
 #include "slave/containerizer/mesos/provisioner/backends/bind.hpp"
+#endif
 #include "slave/containerizer/mesos/provisioner/backends/copy.hpp"
+#ifdef __linux__
 #include "slave/containerizer/mesos/provisioner/backends/overlay.hpp"
+#endif
 
 using namespace process;
 
