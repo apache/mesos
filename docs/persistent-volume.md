@@ -367,6 +367,12 @@ volumes will be destroyed. To determine if a destroy operation has succeeded,
 the user can examine the state of the appropriate Mesos slave (e.g., via the
 slave's [/state](endpoints/slave/state.md) HTTP endpoint).
 
+### Listing Persistent Volumes
+
+Information about the persistent volumes at each slave in the cluster can be
+found by querying the [/slaves](endpoints/master/slaves.md) master endpoint
+(under the `reserved_resources_full` key).
+
 ### Programming with Persistent Volumes
 
 Some suggestions to keep in mind when building applications that use persistent

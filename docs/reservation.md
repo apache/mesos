@@ -357,3 +357,9 @@ the resources are located. That asynchronous message may not be delivered, in
 which case no resources will be unreserved. To determine if an unreserve
 operation has succeeded, the user can examine the state of the appropriate Mesos
 slave (e.g., via the slave's [/state](endpoints/slave/state.md) HTTP endpoint).
+
+### Listing Reservations
+
+Information about the reserved resources at each slave in the cluster can be
+found by querying the [/slaves](endpoints/master/slaves.md) master endpoint
+(under the `reserved_resources_full` key).

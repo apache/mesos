@@ -1036,8 +1036,54 @@ Future<Response> Master::Http::slaves(const Request& request) const
   auto slaves = [this](JSON::ObjectWriter* writer) {
     writer->field("slaves", [this](JSON::ArrayWriter* writer) {
       foreachvalue (const Slave* slave, master->slaves.registered) {
-        writer->element(Full<Slave>(*slave));
-      }
+        writer->element([&slave](JSON::ObjectWriter* writer) {
+          json(writer, Full<Slave>(*slave));
+
+          // Add the complete protobuf->JSON for all used, reserved,
+          // and offered resources. The other endpoints summarize
+          // resource information, which omits the details of
+          // reservations and persistent volumes. Full resource
+          // information is necessary so that operators can use the
+          // `/unreserve` and `/destroy-volumes` endpoints.
+
+          hashmap<string, Resources> reserved =
+            slave->totalResources.reserved();
+
+          writer->field(
+              "reserved_resources_full",
+              [&reserved](JSON::ObjectWriter* writer) {
+                foreachpair (const string& role,
+                             const Resources& resources,
+                             reserved) {
+                  writer->field(role, [&resources](JSON::ArrayWriter* writer) {
+                    foreach (const Resource& resource, resources) {
+                      writer->element(JSON::Protobuf(resource));
+                    }
+                  });
+                }
+              });
+
+          Resources usedResources = Resources::sum(slave->usedResources);
+
+          writer->field(
+              "used_resources_full",
+              [&usedResources](JSON::ArrayWriter* writer) {
+                foreach (const Resource& resource, usedResources) {
+                  writer->element(JSON::Protobuf(resource));
+                }
+              });
+
+          const Resources& offeredResources = slave->offeredResources;
+
+          writer->field(
+              "offered_resources_full",
+              [&offeredResources](JSON::ArrayWriter* writer) {
+                foreach (const Resource& resource, offeredResources) {
+                  writer->element(JSON::Protobuf(resource));
+                }
+              });
+        });
+      };
     });
   };
 
