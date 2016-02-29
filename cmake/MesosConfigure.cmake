@@ -57,6 +57,7 @@ if (WIN32)
       MESOS
       ${CMAKE_BINARY_DIR}/${PROJECT_NAME}.sln
       ${CMAKE_BUILD_TYPE}
+      ""
       "")
 
   string(REPLACE ";" " " MESOS_BUILD_CMD "${MESOS_BUILD_CMD}")

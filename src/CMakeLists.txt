@@ -338,6 +338,8 @@ if (LINUX)
   set(MESOS_SRC ${MESOS_SRC} ${LINUX_SRC})
 endif (LINUX)
 
+add_definitions(-DUSE_STATIC_LIB)
+
 # INCLUDE DIRECTIVES FOR MESOS LIBRARY (generates, e.g., -I/path/to/thing
 # on Linux).
 #########################################################################
@@ -350,7 +352,7 @@ link_directories(${AGENT_LIB_DIRS})
 
 # THE MESOS LIBRARY (generates, e.g., libmesos.so, etc., on Linux).
 ###################################################################
-add_library(${MESOS_TARGET} ${MESOS_SRC})
+add_library(${MESOS_TARGET} STATIC ${MESOS_SRC})
 set_target_properties(
   ${MESOS_TARGET} PROPERTIES
   VERSION ${MESOS_PACKAGE_VERSION}
