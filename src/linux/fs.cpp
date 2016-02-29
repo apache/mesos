@@ -44,6 +44,30 @@ namespace internal {
 namespace fs {
 
 
+Try<bool> supported(const std::string& fsname)
+{
+  Try<string> lines = os::read("/proc/filesystems");
+  if (lines.isError()) {
+    return Error("Failed to read /proc/filesystems: " + lines.error());
+  }
+
+  // Each line of /proc/filesystems is "nodev" + "\t" + "fsname", and the
+  // field "nodev" is optional. For the details, check the kernel src code:
+  // https://github.com/torvalds/linux/blob/2101ae42899a14fe7caa73114e2161e778328661/fs/filesystems.c#L222-L237 NOLINT(whitespace/line_length)
+  foreach (const string& line, strings::tokenize(lines.get(), "\n")) {
+    vector<string> tokens = strings::tokenize(line, "\t");
+    if (tokens.size() != 1 && tokens.size() != 2) {
+      return Error("Failed to parse /proc/filesystems: '" + line + "'");
+    }
+    if (fsname == tokens.back()) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+
 Try<MountInfoTable> MountInfoTable::read(const Option<pid_t>& pid)
 {
   MountInfoTable table;

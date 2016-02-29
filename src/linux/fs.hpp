@@ -152,6 +152,10 @@ namespace mesos {
 namespace internal {
 namespace fs {
 
+// Detect whether the given file system is supported by the kernel.
+Try<bool> supported(const std::string& fsname);
+
+
 // TODO(idownes): These three variations on mount information should
 // be consolidated and moved to stout, along with mount and umount.
 
