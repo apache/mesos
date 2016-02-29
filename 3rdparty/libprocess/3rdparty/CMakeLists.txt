@@ -21,7 +21,7 @@ include(ExternalProject)
 
 # Define sources of third-party dependencies.
 #############################################
-set(UPSTREAM_URL https://github.com/3rdparty/mesos-3rdparty/raw/master)
+set(UPSTREAM_URL ${3RDPARTY_DEPENDENCIES})
 set(REBUNDLED_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 if (REBUNDLED)
   set(BOOST_URL       ${REBUNDLED_DIR}/boost-${BOOST_VERSION}.tar.gz)
@@ -227,7 +227,7 @@ if (WIN32)
   # library that compiles on Windows. We need to either send this as a PR back
   # to the protobuf project, or we need to apply these changes to our existing
   # protobuf tarball in the patch step.
-  set(PROTOBUF_URL https://github.com/haosdent/3rdparty-packages/raw/master/protobuf-${PROTOBUF_VERSION}.tar.gz)
+  set(PROTOBUF_URL ${UPSTREAM_URL}/protobuf-${PROTOBUF_VERSION}-msvc1900.tar.gz)
 endif (WIN32)
 
 # NOTE: `gmock` is "installed" into a lib directory, see "NOTE: (fix for
