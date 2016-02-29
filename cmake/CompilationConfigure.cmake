@@ -16,7 +16,23 @@
 
 # CONFIGURE COMPILATION.
 ########################
+option(BUILD_SHARED_LIBS "Build shared libraries (DLLs)." FALSE)
+
 string(COMPARE EQUAL ${CMAKE_SYSTEM_NAME} "Linux" LINUX)
+
+# Check that we are targeting a 64-bit architecture.
+if (NOT (CMAKE_SIZEOF_VOID_P EQUAL 8))
+  message(
+    FATAL_ERROR
+    "Mesos requires that we compile to a 64-bit target. Following are some "
+    "examples of how to accomplish this on some well-used platforms:\n"
+    "  * Linux: (on gcc) set `CMAKE_CXX_FLAGS` to include `-m64`:\n"
+    "    `cmake -DCMAKE_CXX_FLAGS=-m64 `.\n"
+    "  * Windows: use the VS win64 CMake generator:\n"
+    "    `cmake -G \"Visual Studio 10 Win64\"`.\n"
+    "  * OS X: add `x86_64` to the `CMAKE_OSX_ARCHITECTURES`:\n"
+    "    `cmake -DCMAKE_OSX_ARCHITECTURES=x86_64`.\n")
+endif (NOT (CMAKE_SIZEOF_VOID_P EQUAL 8))
 
 if (_DEBUG)
   set(CMAKE_BUILD_TYPE Debug)
@@ -51,6 +67,10 @@ if (WIN32)
       "Mesos does not support compiling on MSVC versions earlier than 1900. "
       "Please use MSVC 1900 (included with Visual Studio 2015 or later).")
   endif (${MSVC_VERSION} LESS 1900)
+
+  # COFF/PE and friends are somewhat limited in the number of sections they
+  # allow for an object file. We use this to avoid those problems.
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /bigobj -DGOOGLE_GLOG_DLL_DECL= -DCURL_STATICLIB -D_SCL_SECURE_NO_WARNINGS /MP")
 
   set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /MTd")
   set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /MT")
