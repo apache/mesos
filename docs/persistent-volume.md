@@ -56,25 +56,23 @@ interfaces described above.
 A framework can create volumes through the resource offer cycle.  Suppose we
 receive a resource offer with 2048 MB of dynamically reserved disk.
 
-```
-{
-  "id" : <offer_id>,
-  "framework_id" : <framework_id>,
-  "slave_id" : <slave_id>,
-  "hostname" : <hostname>,
-  "resources" : [
     {
-      "name" : "disk",
-      "type" : "SCALAR",
-      "scalar" : { "value" : 2048 },
-      "role" : <framework_role>,
-      "reservation" : {
-        "principal" : <framework_principal>
-      }
+      "id" : <offer_id>,
+      "framework_id" : <framework_id>,
+      "slave_id" : <slave_id>,
+      "hostname" : <hostname>,
+      "resources" : [
+        {
+          "name" : "disk",
+          "type" : "SCALAR",
+          "scalar" : { "value" : 2048 },
+          "role" : <framework_role>,
+          "reservation" : {
+            "principal" : <framework_principal>
+          }
+        }
+      ]
     }
-  ]
-}
-```
 
 We can create a persistent volume from the 2048 MB of disk resources by sending
 an `Offer::Operation` message via the `acceptOffers` API.
@@ -85,66 +83,61 @@ volume information. We need to specify the following:
 1. The non-nested relative path within the container to mount the volume.
 1. The permissions for the volume. Currently, `"RW"` is the only possible value.
 
-```
-{
-  "type" : Offer::Operation::CREATE,
-  "create": {
-    "volumes" : [
-      {
-        "name" : "disk",
-        "type" : "SCALAR",
-        "scalar" : { "value" : 2048 },
-        "role" : <framework_role>,
-        "reservation" : {
-          "principal" : <framework_principal>
-        },
-        "disk": {
-          "persistence": {
-            "id" : <persistent_volume_id>
-          },
-          "volume" : {
-            "container_path" : <container_path>,
-            "mode" : <mode>
+        {
+          "type" : Offer::Operation::CREATE,
+          "create": {
+            "volumes" : [
+              {
+                "name" : "disk",
+                "type" : "SCALAR",
+                "scalar" : { "value" : 2048 },
+                "role" : <framework_role>,
+                "reservation" : {
+                  "principal" : <framework_principal>
+                },
+                "disk": {
+                  "persistence": {
+                    "id" : <persistent_volume_id>
+                  },
+                  "volume" : {
+                    "container_path" : <container_path>,
+                    "mode" : <mode>
+                  }
+                }
+              }
+            ]
           }
         }
-      }
-    ]
-  }
-}
-```
 
 If this succeeds, a subsequent resource offer will contain the following
 persistent volume:
 
-```
-{
-  "id" : <offer_id>,
-  "framework_id" : <framework_id>,
-  "slave_id" : <slave_id>,
-  "hostname" : <hostname>,
-  "resources" : [
     {
-      "name" : "disk",
-      "type" : "SCALAR",
-      "scalar" : { "value" : 2048 },
-      "role" : <framework_role>,
-      "reservation" : {
-        "principal" : <framework_principal>
-      },
-      "disk": {
-        "persistence": {
-          "id" : <persistent_volume_id>
-        },
-        "volume" : {
-          "container_path" : <container_path>,
-          "mode" : <mode>
+      "id" : <offer_id>,
+      "framework_id" : <framework_id>,
+      "slave_id" : <slave_id>,
+      "hostname" : <hostname>,
+      "resources" : [
+        {
+          "name" : "disk",
+          "type" : "SCALAR",
+          "scalar" : { "value" : 2048 },
+          "role" : <framework_role>,
+          "reservation" : {
+            "principal" : <framework_principal>
+          },
+          "disk": {
+            "persistence": {
+              "id" : <persistent_volume_id>
+            },
+            "volume" : {
+              "container_path" : <container_path>,
+              "mode" : <mode>
+            }
+          }
         }
-      }
+      ]
     }
-  ]
-}
-```
-
 
 #### `Offer::Operation::Destroy`
 
@@ -154,90 +147,84 @@ volume from 2048 MB of disk resources. Mesos will not garbage-collect this
 volume until we explicitly destroy it. Suppose we would like to destroy the
 volume we created. First, we receive a resource offer (copy/pasted from above):
 
-```
-{
-  "id" : <offer_id>,
-  "framework_id" : <framework_id>,
-  "slave_id" : <slave_id>,
-  "hostname" : <hostname>,
-  "resources" : [
     {
-      "name" : "disk",
-      "type" : "SCALAR",
-      "scalar" : { "value" : 2048 },
-      "role" : <framework_role>,
-      "reservation" : {
-        "principal" : <framework_principal>
-      },
-      "disk": {
-        "persistence": {
-          "id" : <persistent_volume_id>
-        },
-        "volume" : {
-          "container_path" : <container_path>,
-          "mode" : <mode>
+      "id" : <offer_id>,
+      "framework_id" : <framework_id>,
+      "slave_id" : <slave_id>,
+      "hostname" : <hostname>,
+      "resources" : [
+        {
+          "name" : "disk",
+          "type" : "SCALAR",
+          "scalar" : { "value" : 2048 },
+          "role" : <framework_role>,
+          "reservation" : {
+            "principal" : <framework_principal>
+          },
+          "disk": {
+            "persistence": {
+              "id" : <persistent_volume_id>
+            },
+            "volume" : {
+              "container_path" : <container_path>,
+              "mode" : <mode>
+            }
+          }
         }
-      }
+      ]
     }
-  ]
-}
-```
 
 We destroy the persistent volume by sending the `Offer::Operation` message via
 the `acceptOffers` API. `Offer::Operation::Destroy` has a `volumes` field which
 specifies the persistent volumes to be destroyed.
 
-```
-{
-  "type" : Offer::Operation::DESTROY,
-  "destroy" : {
-    "volumes" : [
-      {
-        "name" : "disk",
-        "type" : "SCALAR",
-        "scalar" : { "value" : 2048 },
-        "role" : <framework_role>,
-        "reservation" : {
-          "principal" : <framework_principal>
-        },
-        "disk": {
-          "persistence": {
-            "id" : <persistent_volume_id>
-          },
-          "volume" : {
-            "container_path" : <container_path>,
-            "mode" : <mode>
+    {
+      "type" : Offer::Operation::DESTROY,
+      "destroy" : {
+        "volumes" : [
+          {
+            "name" : "disk",
+            "type" : "SCALAR",
+            "scalar" : { "value" : 2048 },
+            "role" : <framework_role>,
+            "reservation" : {
+              "principal" : <framework_principal>
+            },
+            "disk": {
+              "persistence": {
+                "id" : <persistent_volume_id>
+              },
+              "volume" : {
+                "container_path" : <container_path>,
+                "mode" : <mode>
+              }
+            }
           }
-        }
+        ]
       }
-    ]
-  }
-}
-```
+    }
 
 If this request succeeds, the persistent volume will be destroyed but the disk
 resources will still be reserved. As such, a subsequent resource offer will
 contain the following reserved disk resources:
 
-```
-{
-  "id" : <offer_id>,
-  "framework_id" : <framework_id>,
-  "slave_id" : <slave_id>,
-  "hostname" : <hostname>,
-  "resources" : [
     {
-      "name" : "disk",
-      "type" : "SCALAR",
-      "scalar" : { "value" : 2048 },
-      "role" : <framework_role>,
-      "reservation" : {
-        "principal" : <framework_principal>
-      }
+      "id" : <offer_id>,
+      "framework_id" : <framework_id>,
+      "slave_id" : <slave_id>,
+      "hostname" : <hostname>,
+      "resources" : [
+        {
+          "name" : "disk",
+          "type" : "SCALAR",
+          "scalar" : { "value" : 2048 },
+          "role" : <framework_role>,
+          "reservation" : {
+            "principal" : <framework_principal>
+          }
+        }
+      ]
     }
-  ]
-}
-```
 
 Those reserved resources can then be used as normal: e.g., they can be used to
 create another persistent volume or can be unreserved.
@@ -266,32 +253,30 @@ To create a 512MB persistent volume for the `ads` role on a dynamically reserved
 disk resource, we can send an HTTP POST request to the master's
 [/create-volumes](endpoints/master/create-volumes.md) endpoint like so:
 
-```
-curl -i \
-     -u <operator_principal>:<password> \
-     -d slaveId=<slave_id> \
-     -d volumes='[
-       {
-         "name": "disk",
-         "type": "SCALAR",
-         "scalar": { "value": 512 },
-         "role": "ads",
-         "reservation": {
-           "principal": <operator_principal>
-         },
-         "disk": {
-           "persistence": {
-             "id" : <persistence_id>
-           },
-           "volume": {
-             "mode": "RW",
-             "container_path": <path>
+    curl -i \
+         -u <operator_principal>:<password> \
+         -d slaveId=<slave_id> \
+         -d volumes='[
+           {
+             "name": "disk",
+             "type": "SCALAR",
+             "scalar": { "value": 512 },
+             "role": "ads",
+             "reservation": {
+               "principal": <operator_principal>
+             },
+             "disk": {
+               "persistence": {
+                 "id" : <persistence_id>
+               },
+               "volume": {
+                 "mode": "RW",
+                 "container_path": <path>
+               }
+             }
            }
-         }
-       }
-     ]' \
-     -X POST http://<ip>:<port>/master/create-volumes
-```
+         ]' \
+         -X POST http://<ip>:<port>/master/create-volumes
 
 The user receives one of the following HTTP responses:
 
@@ -319,32 +304,30 @@ user can examine the state of the appropriate Mesos slave (e.g., via the slave's
 To destroy the volume created above, we can send an HTTP POST to the master's
 [/destroy-volumes](endpoints/master/destroy-volumes.md) endpoint like so:
 
-```
-curl -i \
-     -u <operator_principal>:<password> \
-     -d slaveId=<slave_id> \
-     -d volumes='[
-       {
-         "name": "disk",
-         "type": "SCALAR",
-         "scalar": { "value": 512 },
-         "role": "ads",
-         "reservation": {
-           "principal": <operator_principal>
-         },
-         "disk": {
-           "persistence": {
-             "id" : <persistence_id>
-           },
-           "volume": {
-             "mode": "RW",
-             "container_path": <path>
+    curl -i \
+         -u <operator_principal>:<password> \
+         -d slaveId=<slave_id> \
+         -d volumes='[
+           {
+             "name": "disk",
+             "type": "SCALAR",
+             "scalar": { "value": 512 },
+             "role": "ads",
+             "reservation": {
+               "principal": <operator_principal>
+             },
+             "disk": {
+               "persistence": {
+                 "id" : <persistence_id>
+               },
+               "volume": {
+                 "mode": "RW",
+                 "container_path": <path>
+               }
+             }
            }
-         }
-       }
-     ]' \
-     -X POST http://<ip>:<port>/master/destroy-volumes
-```
+         ]' \
+         -X POST http://<ip>:<port>/master/destroy-volumes
 
 The user receives one of the following HTTP responses:
 
