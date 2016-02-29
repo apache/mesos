@@ -35,6 +35,11 @@
 # CONFIGURE OUR SEARCH. Specify what we're looking for, and which directories
 # we're going to look through to find them.
 #############################################################################
+unset(SVN_LIB)
+unset(SVN_INCLUDE_DIR)
+unset(SVN_LIBS)
+unset(SVN_FOUND)
+
 set(POSSIBLE_SVN_INCLUDE_DIRECTORIES
   ${POSSIBLE_SVN_INCLUDE_DIRECTORIES}
   /usr/local/include/subversion-1

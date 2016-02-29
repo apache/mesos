@@ -39,6 +39,13 @@
 # CONFIGURE THE APR SEARCH. Specify what we're looking for, and which directories
 # we're going to look through to find them.
 #############################################################################
+unset(APRUTIL_LIB)
+unset(APRUTIL_INCLUDE_DIR)
+unset(APR_LIB)
+unset(APR_INCLUDE_DIR)
+unset(APR_LIBS)
+unset(APR_FOUND)
+
 set(POSSIBLE_APR_INCLUDE_DIRS
   ${POSSIBLE_APR_INCLUDE_DIRS}
   /opt/homebrew/opt/apr/include/apr-1
