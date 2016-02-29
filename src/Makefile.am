@@ -594,7 +594,6 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   authorizer/local/authorizer.cpp					\
   common/attributes.cpp							\
   common/command_utils.cpp						\
-  common/date_utils.cpp							\
   common/http.cpp							\
   common/protobuf_utils.cpp						\
   common/resources.cpp							\
@@ -704,7 +703,6 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   authorizer/local/authorizer.hpp					\
   common/build.hpp							\
   common/command_utils.hpp						\
-  common/date_utils.hpp							\
   common/http.hpp							\
   common/parse.hpp							\
   common/protobuf_utils.hpp						\

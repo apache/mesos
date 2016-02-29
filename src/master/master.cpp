@@ -71,7 +71,6 @@
 #include "authentication/cram_md5/authenticator.hpp"
 
 #include "common/build.hpp"
-#include "common/date_utils.hpp"
 #include "common/protobuf_utils.hpp"
 #include "common/status_utils.hpp"
 
