@@ -31,6 +31,7 @@
 
 #include "slave/containerizer/mesos/provisioner/backends/bind.hpp"
 #include "slave/containerizer/mesos/provisioner/backends/copy.hpp"
+#include "slave/containerizer/mesos/provisioner/backends/overlay.hpp"
 
 #include "tests/flags.hpp"
 
@@ -46,12 +47,11 @@ namespace internal {
 namespace tests {
 
 #ifdef __linux__
-class BindBackendTest : public TemporaryDirectoryTest
+class MountBackendTest : public TemporaryDirectoryTest
 {
 protected:
-  void TearDown()
+  virtual void TearDown()
   {
-    // Clean up by unmounting any leftover mounts in 'sandbox'.
     Try<fs::MountInfoTable> mountTable = fs::MountInfoTable::read();
     ASSERT_SOME(mountTable);
 
@@ -66,6 +66,53 @@ protected:
     TemporaryDirectoryTest::TearDown();
   }
 };
+
+
+class OverlayBackendTest : public MountBackendTest {};
+
+
+// Provision a rootfs using multiple layers with the overlay backend.
+TEST_F(OverlayBackendTest, ROOT_OVERLAYFS_OverlayFSBackend)
+{
+  string layer1 = path::join(os::getcwd(), "source1");
+  ASSERT_SOME(os::mkdir(layer1));
+  ASSERT_SOME(os::mkdir(path::join(layer1, "dir1")));
+  ASSERT_SOME(os::write(path::join(layer1, "dir1", "1"), "1"));
+  ASSERT_SOME(os::write(path::join(layer1, "file"), "test1"));
+
+  string layer2 = path::join(os::getcwd(), "source2");
+  ASSERT_SOME(os::mkdir(layer2));
+  ASSERT_SOME(os::mkdir(path::join(layer2, "dir2")));
+  ASSERT_SOME(os::write(path::join(layer2, "dir2", "2"), "2"));
+  ASSERT_SOME(os::write(path::join(layer2, "file"), "test2"));
+
+  string rootfs = path::join(os::getcwd(), "rootfs");
+
+  hashmap<string, Owned<Backend>> backends = Backend::create(slave::Flags());
+  ASSERT_TRUE(backends.contains("overlay"));
+
+  AWAIT_READY(backends["overlay"]->provision({layer1, layer2}, rootfs));
+
+  EXPECT_TRUE(os::exists(path::join(rootfs, "dir1", "1")));
+  Try<string> read = os::read(path::join(rootfs, "dir1", "1"));
+  EXPECT_SOME_EQ("1", read);
+
+  EXPECT_TRUE(os::exists(path::join(rootfs, "dir2", "2")));
+  read = os::read(path::join(rootfs, "dir2", "2"));
+  EXPECT_SOME_EQ("2", read);
+
+  EXPECT_TRUE(os::exists(path::join(rootfs, "file")));
+  read = os::read(path::join(rootfs, "file"));
+  // Last layer should overwrite existing file of earlier layers.
+  EXPECT_SOME_EQ("test2", read);
+
+  AWAIT_READY(backends["overlay"]->destroy(rootfs));
+
+  EXPECT_FALSE(os::exists(rootfs));
+}
+
+
+class BindBackendTest : public MountBackendTest {};
 
 
 // Provision a rootfs using a BindBackend to another directory and

@@ -18,10 +18,13 @@
 
 #include <stout/os.hpp>
 
+#include "linux/fs.hpp"
+
 #include "slave/containerizer/mesos/provisioner/backend.hpp"
 
 #include "slave/containerizer/mesos/provisioner/backends/bind.hpp"
 #include "slave/containerizer/mesos/provisioner/backends/copy.hpp"
+#include "slave/containerizer/mesos/provisioner/backends/overlay.hpp"
 
 using namespace process;
 
@@ -37,7 +40,16 @@ hashmap<string, Owned<Backend>> Backend::create(const Flags& flags)
 
 #ifdef __linux__
   creators.put("bind", &BindBackend::create);
+
+  Try<bool> overlayfsSupported = fs::supported("overlayfs");
+  if (overlayfsSupported.isError()) {
+    LOG(WARNING) << "Failed to check overlayfs availability: '"
+                 << overlayfsSupported.error();
+  } else if (overlayfsSupported.get()) {
+    creators.put("overlay", &OverlayBackend::create);
+  }
 #endif // __linux__
+
   creators.put("copy", &CopyBackend::create);
 
   hashmap<string, Owned<Backend>> backends;

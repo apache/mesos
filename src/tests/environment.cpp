@@ -459,6 +459,41 @@ private:
 };
 
 
+class OverlayFSTestFilter : public TestFilter
+{
+public:
+  OverlayFSTestFilter()
+  {
+#ifdef __linux__
+    Try<bool> check = fs::supported("overlayfs");
+    if (check.isError()) {
+      overlayfsError = check.error();
+    } else if (!check.get()) {
+      overlayfsError = Error("Overlayfs is not supported on your systems");
+    }
+#else
+    overlayfsError =
+      Error("Overlayfs tests not supported on non-Linux systems");
+#endif // __linux__
+    if (overlayfsError.isSome()) {
+      std::cerr
+        << "-------------------------------------------------------------\n"
+        << "We cannot run any overlayfs tests because:\n"
+        << overlayfsError.get().message << "\n"
+        << "-------------------------------------------------------------\n";
+    }
+  }
+
+  bool disable(const ::testing::TestInfo* test) const
+  {
+    return overlayfsError.isSome() && matches(test, "OVERLAYFS_");
+  }
+
+private:
+  Option<Error> overlayfsError;
+};
+
+
 class PerfCPUCyclesFilter : public TestFilter
 {
 public:
@@ -641,6 +676,7 @@ Environment::Environment(const Flags& _flags) : flags(_flags)
   filters.push_back(Owned<TestFilter>(new NetcatFilter()));
   filters.push_back(Owned<TestFilter>(new NetClsCgroupsFilter()));
   filters.push_back(Owned<TestFilter>(new NetworkIsolatorTestFilter()));
+  filters.push_back(Owned<TestFilter>(new OverlayFSTestFilter()));
   filters.push_back(Owned<TestFilter>(new PerfCPUCyclesFilter()));
   filters.push_back(Owned<TestFilter>(new PerfFilter()));
   filters.push_back(Owned<TestFilter>(new RootFilter()));

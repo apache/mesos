@@ -110,7 +110,7 @@ mesos::internal::slave::Flags::Flags()
   add(&Flags::image_provisioner_backend,
       "image_provisioner_backend",
       "Strategy for provisioning container rootfs from images,\n"
-      "e.g., `bind`, `copy`.",
+      "e.g., `bind`, `copy`, `overlay`.",
       "copy");
 
   add(&Flags::appc_simple_discovery_uri_prefix,
