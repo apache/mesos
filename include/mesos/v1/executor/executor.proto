@@ -37,8 +37,17 @@ message Event {
     KILL = 3;         // See 'Kill' below.
     ACKNOWLEDGED = 4; // See 'Acknowledged' below.
     MESSAGE = 5;      // See 'Message' below.
-    SHUTDOWN = 6;     // See 'Shutdown' below.
-    ERROR = 7;        // See 'Error' below.
+    ERROR = 6;        // See 'Error' below.
+
+    // Received when the agent asks the executor to shutdown/kill itself. The
+    // executor is then required to kill all its active tasks, send
+    // 'TASK_KILLED' status updates and gracefully exit. If an
+    // executor does not terminate within a certain period
+    // `MESOS_EXECUTOR_SHUTDOWN_GRACE_PERIOD` (an environment variable set by
+    // the agent upon executor startup), the agent  will forcefully destroy the
+    // container where the executor is running. The agent would then send
+    // 'TASK_LOST' updates for any remaining active tasks of this executor.
+    SHUTDOWN = 7;
   }
 
   // First event received when the executor subscribes.
@@ -84,16 +93,6 @@ message Event {
     required bytes data = 1;
   }
 
-  // Received when the agent asks the executor to shutdown/kill itself. The
-  // executor is then required to kill all its active tasks, send 'TASK_KILLED'
-  // status updates and gracefully exit. If an executor does not terminate
-  // within a certain period ('grace_period_seconds'), the agent will forcefully
-  // destroy the container where the executor is running. The agent would then
-  // send 'TASK_LOST' updates for any remaining active tasks of this executor.
-  message Shutdown {
-    optional double grace_period_seconds = 1 [default = 5.0];
-  }
-
   // Received in case the executor sends invalid calls (e.g.,
   // required values not set).
   // TODO(arojas): Remove this once the old executor driver is no
@@ -112,8 +111,7 @@ message Event {
   optional Launch launch = 4;
   optional Kill kill = 5;
   optional Message message = 6;
-  optional Shutdown shutdown = 7;
-  optional Error error = 8;
+  optional Error error = 7;
 }
 
 
