@@ -87,19 +87,16 @@ namespace executor {
 class ShutdownProcess : public process::Process<ShutdownProcess>
 {
 public:
-  ShutdownProcess(double _gracePeriod)
+  explicit ShutdownProcess(const Duration& _gracePeriod)
     : gracePeriod(_gracePeriod) {}
 
 protected:
   virtual void initialize()
   {
-    Try<Duration> gracePeriod_ = Duration::create(gracePeriod);
-    CHECK_SOME(gracePeriod_);
-
     VLOG(1) << "Scheduling shutdown of the executor with grace period: "
-            << gracePeriod_.get();
+            << gracePeriod;
 
-    delay(gracePeriod_.get(), self(), &Self::kill);
+    delay(gracePeriod, self(), &Self::kill);
   }
 
   void kill()
@@ -117,7 +114,7 @@ protected:
   }
 
 private:
-  const double gracePeriod;
+  const Duration gracePeriod;
 };
 
 
@@ -228,6 +225,21 @@ public:
         EXIT(1) << "Expecting 'MESOS_SUBSCRIPTION_BACKOFF_MAX' to be set "
                 << "in the environment";
       }
+    }
+
+    // Get shutdown grace period from environment.
+    value = os::getenv("MESOS_EXECUTOR_SHUTDOWN_GRACE_PERIOD");
+    if (value.isSome()) {
+      Try<Duration> _shutdownGracePeriod = Duration::parse(value.get());
+
+      CHECK_SOME(_shutdownGracePeriod)
+          << "Failed to parse MESOS_EXECUTOR_SHUTDOWN_GRACE_PERIOD '"
+          << value.get() << "': " << _shutdownGracePeriod.error();
+
+      shutdownGracePeriod = _shutdownGracePeriod.get();
+    } else {
+      EXIT(1) << "Expecting 'MESOS_EXECUTOR_SHUTDOWN_GRACE_PERIOD' to be set "
+              << "in the environment";
     }
   }
 
@@ -601,23 +613,14 @@ protected:
     }
 
     if (event.type() == Event::SHUTDOWN) {
-      shutdown(event.shutdown().grace_period_seconds());
+      shutdown();
     }
   }
 
   void shutdown()
   {
-    Event event;
-    event.set_type(Event::SHUTDOWN);
-    event.mutable_shutdown();
-
-    receive(event, true);
-  }
-
-  void shutdown(double gracePeriod)
-  {
     if (!local) {
-      spawn(new ShutdownProcess(gracePeriod), true);
+      spawn(new ShutdownProcess(shutdownGracePeriod), true);
     } else {
       // Process any pending received events from agent and then terminate.
       terminate(this, false);
@@ -660,6 +663,7 @@ private:
   bool checkpoint;
   Option<Duration> recoveryTimeout;
   Option<Duration> maxBackoff;
+  Duration shutdownGracePeriod;
 };
 
 
