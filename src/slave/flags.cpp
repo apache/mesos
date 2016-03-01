@@ -346,6 +346,12 @@ mesos::internal::slave::Flags::Flags()
       "A non-zero, 16-bit handle of the form `0xAAAA`. This will be \n"
       "used as the primary handle for the net_cls cgroup.");
 
+  add(&Flags::cgroups_net_cls_secondary_handles,
+      "cgroups_net_cls_secondary_handles",
+      "A range of the form 0xAAAA,0xBBBB, specifying the valid secondary\n"
+      "handles that can be used with the primary handle. This will take\n"
+      "effect only when the `--cgroups_net_cls_primary_handle is set.");
+
   add(&Flags::slave_subsystems,
       "slave_subsystems",
       "List of comma-separated cgroup subsystems to run the slave binary\n"

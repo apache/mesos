@@ -88,6 +88,7 @@ public:
   bool cgroups_limit_swap;
   bool cgroups_cpu_enable_pids_and_tids_count;
   Option<std::string> cgroups_net_cls_primary_handle;
+  Option<std::string> cgroups_net_cls_secondary_handles;
   Option<std::string> slave_subsystems;
   Option<std::string> perf_events;
   Duration perf_interval;

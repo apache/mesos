@@ -276,6 +276,7 @@ Try<Isolator*> CgroupsNetClsIsolatorProcess::create(const Flags& flags)
   IntervalSet<uint32_t> primaries;
   IntervalSet<uint32_t> secondaries;
 
+  // Primary handle.
   if (flags.cgroups_net_cls_primary_handle.isSome()) {
     Try<uint16_t> primary = numify<uint16_t>(
         flags.cgroups_net_cls_primary_handle.get());
@@ -290,6 +291,50 @@ Try<Isolator*> CgroupsNetClsIsolatorProcess::create(const Flags& flags)
     primaries +=
       (Bound<uint32_t>::closed(primary.get()),
        Bound<uint32_t>::closed(primary.get()));
+
+    // Range of valid secondary handles.
+    if (flags.cgroups_net_cls_secondary_handles.isSome()) {
+      vector<string> range =
+        strings::tokenize(flags.cgroups_net_cls_secondary_handles.get(), ",");
+
+      if (range.size() != 2) {
+        return Error(
+            "Failed to parse the range of secondary handles " +
+            flags.cgroups_net_cls_secondary_handles.get() +
+            " set in flag --cgroups_net_cls_secondary_handles");
+      }
+
+      Try<uint16_t> lower = numify<uint16_t>(range[0]);
+      if (lower.isError()) {
+        return Error(
+            "Failed to parse the lower bound of range of secondary handles" +
+            flags.cgroups_net_cls_secondary_handles.get() +
+            " set in flag --cgroups_net_cls_secondary_handles");
+      }
+
+      if (lower.get() == 0) {
+        return Error("The secondary handle has to be a non-zero value.");
+      }
+
+      Try<uint16_t> upper =  numify<uint16_t>(range[1]);
+      if (upper.isError()) {
+        return Error(
+            "Failed to parse the upper bound of range of secondary handles" +
+            flags.cgroups_net_cls_secondary_handles.get() +
+            " set in flag --cgroups_net_cls_secondary_handles");
+      }
+
+      secondaries +=
+        (Bound<uint32_t>::closed(lower.get()),
+         Bound<uint32_t>::closed(upper.get()));
+
+      if (secondaries.empty()) {
+        return Error(
+            "Secondary handle range specified " +
+            flags.cgroups_net_cls_secondary_handles.get() +
+            ", in flag --cgroups_net_cls_secondary_handles, is an empty set");
+      }
+    }
   }
 
   process::Owned<MesosIsolatorProcess> process(
