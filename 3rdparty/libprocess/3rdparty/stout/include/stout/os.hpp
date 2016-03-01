@@ -55,6 +55,7 @@
 #include <stout/os/rmdir.hpp>
 #include <stout/os/shell.hpp>
 #include <stout/os/stat.hpp>
+#include <stout/os/su.hpp>
 
 // For readability, we minimize the number of #ifdef blocks in the code by
 // splitting platform specifc system calls into separate directories.
