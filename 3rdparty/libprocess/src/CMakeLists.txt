@@ -67,12 +67,21 @@ endif (ENABLE_LIBEVENT)
 ###########################################################################
 include_directories(${PROCESS_INCLUDE_DIRS})
 
+# LINKING LIBRARIES BY DIRECTORY (might generate, e.g., -L/path/to/thing on
+# Linux).
+###########################################################################
+link_directories(${PROCESS_LIB_DIRS})
+
 # THE PROCESS LIBRARY (generates, e.g., libprocess.so, etc., on Linux).
 #######################################################################
-add_library(${PROCESS_TARGET} ${PROCESS_SRC})
+add_library(${PROCESS_TARGET} STATIC ${PROCESS_SRC})
 set_target_properties(
   ${PROCESS_TARGET} PROPERTIES
   VERSION ${PROCESS_PACKAGE_VERSION}
   SOVERSION ${PROCESS_PACKAGE_SOVERSION}
   )
 add_dependencies(${PROCESS_TARGET} ${PROCESS_DEPENDENCIES})
+
+# ADD LINKER FLAGS (generates, e.g., -lglog on Linux).
+######################################################
+target_link_libraries(${PROCESS_TARGET} ${PROCESS_LIBS})

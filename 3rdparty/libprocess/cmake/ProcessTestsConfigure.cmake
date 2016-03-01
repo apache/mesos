@@ -75,6 +75,7 @@ endif (APPLE)
 set(PROCESS_TEST_DEPENDENCIES
   ${PROCESS_TEST_DEPENDENCIES}
   ${PROCESS_DEPENDENCIES}
+  ${PROCESS_TARGET}
   ${GMOCK_TARGET}
   )
 
@@ -97,6 +98,8 @@ set(PROCESS_TEST_INCLUDE_DIRS
 set(PROCESS_TEST_LIB_DIRS
   ${PROCESS_TEST_LIB_DIRS}
   ${PROCESS_LIB_DIRS}
+  ${CMAKE_CURRENT_BINARY_DIR}/.. # libprocess directory.
+
   ${GMOCK_LIB_DIR}
   ${GTEST_LIB_DIR}
   )
@@ -106,6 +109,7 @@ set(PROCESS_TEST_LIB_DIRS
 #########################################################################
 set(PROCESS_TEST_LIBS
   ${PROCESS_TEST_LIBS}
+  ${PROCESS_TARGET}
   ${PROCESS_LIBS}
   ${GMOCK_LFLAG}
   ${GTEST_LFLAG}

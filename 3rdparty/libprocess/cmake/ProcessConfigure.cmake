@@ -121,7 +121,6 @@ find_package(Threads REQUIRED)
 
 set(PROCESS_LIBS
   ${PROCESS_LIBS}
-  ${PROCESS_TARGET}
   ${GLOG_LFLAG}
   ${HTTP_PARSER_LFLAG}
   ${CMAKE_THREAD_LIBS_INIT}
@@ -134,7 +133,12 @@ elseif (ENABLE_LIBEVENT)
 endif (NOT ENABLE_LIBEVENT)
 
 if (WIN32)
-  set(PROCESS_LIBS ${PROCESS_LIBS} ${CURL_LFLAG})
+  set(PROCESS_LIBS
+    ${PROCESS_LIBS}
+    ${CURL_LFLAG}
+    ws2_32
+    Mswsock
+    )
 elseif (NOT WIN32)
   find_package(ZLIB REQUIRED)
 
@@ -149,5 +153,6 @@ elseif (NOT WIN32)
   set(PROCESS_LIBS
     ${PROCESS_LIBS}
     ${ZLIB_LIBRARIES}
+    pthread
     )
 endif (WIN32)

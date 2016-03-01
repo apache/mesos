@@ -31,4 +31,4 @@ set(HTTP_PARSER_SRC
   http_parser.h
   )
 
-add_library(http_parser ${HTTP_PARSER_SRC})
+add_library(http_parser STATIC ${HTTP_PARSER_SRC})

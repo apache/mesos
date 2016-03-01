@@ -54,7 +54,7 @@ if (WIN32)
   #
   # [1] https://github.com/google/glog/pull/43
   set(GLOG_URL   ${UPSTREAM_URL}/glog-v0.3.4-g4d391fe.tar.gz)
-  set(CURL_URL   ${UPSTREAM_URL}/curl-static-${CURL_VERSION}.tar.gz)
+  set(CURL_URL   ${UPSTREAM_URL}/curl-${CURL_VERSION}.tar.gz)
   set(LIBAPR_URL ${UPSTREAM_URL}/libapr-${LIBAPR_VERSION}.tar.gz)
 endif (WIN32)
 
@@ -200,6 +200,7 @@ if (WIN32)
   ExternalProject_Add(
     ${LIBAPR_TARGET}
     PREFIX          ${LIBAPR_CMAKE_ROOT}
+    CMAKE_ARGS      -DBUILD_SHARED_LIBS=OFF
     INSTALL_COMMAND ${LIBAPR_INSTALL_CMD}
     URL             ${LIBAPR_URL}
     )
@@ -213,9 +214,9 @@ if (WIN32)
   ExternalProject_Add(
     ${CURL_TARGET}
     PREFIX            ${CURL_CMAKE_ROOT}
+    CMAKE_ARGS        -DBUILD_CURL_TESTS=OFF -DCURL_STATICLIB=ON -DCMAKE_C_FLAGS_DEBUG="/MTd"
     PATCH_COMMAND     ${CMAKE_NOOP}
-    CONFIGURE_COMMAND ${CMAKE_NOOP}
-    BUILD_COMMAND     ${CMAKE_NOOP}
+    BUILD_COMMAND     msbuild /p:RuntimeLibrary=MT_StaticDebug lib/libcurl.vcxproj
     INSTALL_COMMAND   ${CMAKE_NOOP}
     URL               ${CURL_URL}
   )
@@ -236,7 +237,7 @@ if (WIN32)
   # library that compiles on Windows. We need to either send this as a PR back
   # to the protobuf project, or we need to apply these changes to our existing
   # protobuf tarball in the patch step.
-  set(PROTOBUF_URL ${UPSTREAM_URL}/protobuf-${PROTOBUF_VERSION}-msvc1900.tar.gz)
+  set(PROTOBUF_URL ${UPSTREAM_URL}/protobuf-3.0.0-beta-2.tar.gz)
 endif (WIN32)
 
 # NOTE: `gmock` is "installed" into a lib directory, see "NOTE: (fix for
@@ -253,15 +254,9 @@ if (NOT WIN32)
   set(PROTOBUF_BUILD_CMD   make)
   set(PROTOBUF_INSTALL_CMD make install)
 elseif (WIN32)
-  set(PROTOBUF_PATCH_CMD   ${CMAKE_NOOP})
-  set(PROTOBUF_CONFIG_CMD  ${CMAKE_NOOP})
+  set(PROTOBUF_CONFIG_CMD  cmake -G "Visual Studio 14 2015 Win64" ../protobuf-${PROTOBUF_VERSION}/cmake -DBUILD_SHARED_LIBS=OFF -Dprotobuf_MSVC_STATIC_RUNTIME=ON -Dprotobuf_BUILD_TESTS=OFF)
+  set(PROTOBUF_BUILD_CMD   msbuild protobuf.sln)
   set(PROTOBUF_INSTALL_CMD ${CMAKE_NOOP})
-  VS_BUILD_CMD(
-      PROTOBUF
-      ${PROTOBUF_ROOT}/vsprojects/protobuf.sln
-      ${CMAKE_BUILD_TYPE}
-      ${PROTOBUF_ROOT}/vsprojects
-      "libprotobuf libprotoc protoc")
 endif (NOT WIN32)
 
 # NOTE: An implicit consequence of the following code is that on non-Windows
@@ -283,6 +278,7 @@ ExternalProject_Add(
 ExternalProject_Add(
   ${PROTOBUF_TARGET}
   PREFIX            ${PROTOBUF_CMAKE_ROOT}
+  CMAKE_ARGS        -DBUILD_SHARED_LIBS=${BUILD_SHARED_LIBS} -DCMAKE_CXX_FLAGS_DEBUG="/MTd"
   PATCH_COMMAND     ${PROTOBUF_PATCH_CMD}
   CONFIGURE_COMMAND ${PROTOBUF_CONFIG_CMD}
   BUILD_COMMAND     ${PROTOBUF_BUILD_CMD}
