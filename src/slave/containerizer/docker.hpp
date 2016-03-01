@@ -226,6 +226,9 @@ private:
   process::Future<Nothing> mountPersistentVolumes(
       const ContainerID& containerId);
 
+  Try<Nothing> unmountPersistentVolumes(
+      const ContainerID& containerId);
+
   Try<Nothing> updatePersistentVolumes(
     const ContainerID& containerId,
     const std::string& directory,

@@ -554,6 +554,53 @@ Future<Nothing> DockerContainerizerProcess::mountPersistentVolumes(
 }
 
 
+/**
+ *  Unmount persistent volumes that is mounted for a container.
+ */
+Try<Nothing> DockerContainerizerProcess::unmountPersistentVolumes(
+    const ContainerID& containerId)
+{
+  // We assume volumes are only supported on Linux, and also
+  // the target path contains the containerId.
+#ifdef __linux__
+  Try<fs::MountInfoTable> table = fs::MountInfoTable::read();
+  if (table.isError()) {
+    return Error("Failed to get mount table: " + table.error());
+  }
+
+  foreach (const fs::MountInfoTable::Entry& entry,
+           adaptor::reverse(table.get().entries)) {
+    // TODO(tnachen): We assume there is only one docker container
+    // running per container Id and no other mounts will have the
+    // container Id name. We might need to revisit if this is no
+    // longer true.
+    //
+    // TODO(jieyu): Currently, we don't enforce that slave's work_dir
+    // is a slave+shared mount (similar to what we did in the Linux
+    // filesystem isolator). Therefore, it's likely that the
+    // persistent volume mounts are propagate to other mount points in
+    // the system (MESOS-4832). That's the reason we need the
+    // 'startsWith' check below. Consider making sure slave's work_dir
+    // is a slave_shared mount. In that way, we can lift that check.
+    //
+    // TODO(jieyu): Consider checking if 'entry.root' is under volume
+    // root directory or not as well.
+    if (strings::startsWith(entry.target, flags.work_dir) &&
+        strings::contains(entry.target, containerId.value())) {
+      LOG(INFO) << "Unmounting volume for container '" << containerId << "'";
+
+      Try<Nothing> unmount = fs::unmount(entry.target);
+      if (unmount.isError()) {
+        return Error("Failed to unmount volume '" + entry.target +
+                     "': " + unmount.error());
+      }
+    }
+  }
+#endif // __linux__
+  return Nothing();
+}
+
+
 Try<Nothing> DockerContainerizerProcess::checkpoint(
     const ContainerID& containerId,
     pid_t pid)
@@ -889,40 +936,6 @@ Future<Nothing> DockerContainerizerProcess::_recover(
 }
 
 
-/**
- *  Unmount persistent volumes that is mounted for a container.
- */
-Try<Nothing> unmountPersistentVolumes(const ContainerID& containerId)
-{
-  // We assume volumes are only supported on Linux, and also
-  // the target path contains the containerId.
-#ifdef __linux__
-  Try<fs::MountInfoTable> table = fs::MountInfoTable::read();
-  if (table.isError()) {
-    return Error("Failed to get mount table: " + table.error());
-  }
-
-  foreach (const fs::MountInfoTable::Entry& entry,
-           adaptor::reverse(table.get().entries)) {
-    // TODO(tnachen): We assume there is only one docker container
-    // running per container Id and no other mounts will have the
-    // container Id name. We might need to revisit if this is no
-    // longer true.
-    if (strings::contains(entry.target, containerId.value())) {
-      LOG(INFO) << "Unmounting volume for container '" << containerId
-                << "'";
-      Try<Nothing> unmount = fs::unmount(entry.target);
-      if (unmount.isError()) {
-        return Error("Failed to unmount volume '" + entry.target +
-                     "': " + unmount.error());
-      }
-    }
-  }
-#endif // __linux__
-  return Nothing();
-}
-
-
 Future<Nothing> DockerContainerizerProcess::__recover(
     const list<Docker::Container>& _containers)
 {
@@ -956,7 +969,7 @@ Future<Nothing> DockerContainerizerProcess::__recover(
   }
 
   return collect(futures)
-    .then([containerIds]() -> Future<Nothing> {
+    .then(defer(self(), [=]() -> Future<Nothing> {
       foreach (const ContainerID& containerId, containerIds) {
         Try<Nothing> unmount = unmountPersistentVolumes(containerId);
         if (unmount.isError()) {
@@ -966,7 +979,7 @@ Future<Nothing> DockerContainerizerProcess::__recover(
       }
 
       return Nothing();
-    });
+    }));
 }
 
 
