@@ -9,7 +9,7 @@
 # > git checkout master
 # > git pull origin
 # > ./support/apply-reviews.py -c -r 1234
-# > ./support/push-reviews.py
+# > ./support/push-commits.py
 #
 # TODO(vinod): Also post the commit message to the corresponding ASF JIRA
 # tickets and resolve them if necessary.
