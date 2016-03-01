@@ -5,7 +5,7 @@ layout: documentation
 
 # Executor HTTP API
 
-Mesos 0.27.0 added **experimental** support for V1 Executor HTTP API.
+Mesos 0.28.0 added **experimental** support for V1 Executor HTTP API.
 
 
 ## Overview
@@ -292,16 +292,13 @@ MESSAGE Event (JSON)
 
 ### SHUTDOWN
 
-Sent by the agent in order to shutdown the executor. Once an executor gets a `SHUTDOWN` event it is required to kill all its tasks, send `TASK_KILLED` updates and gracefully exit. If an executor doesn't terminate within a certain period after the event was emitted (`grace_period_seconds`), the agent will forcefully destroy the container where the executor is running. The agent would then send `TASK_LOST` updates for any remaining active tasks of this executor.
+Sent by the agent in order to shutdown the executor. Once an executor gets a `SHUTDOWN` event it is required to kill all its tasks, send `TASK_KILLED` updates and gracefully exit. If an executor doesn't terminate within a certain period `MESOS_EXECUTOR_SHUTDOWN_GRACE_PERIOD` (an environment variable set by the agent upon executor startup), the agent will forcefully destroy the container where the executor is running. The agent would then send `TASK_LOST` updates for any remaining active tasks of this executor.
 
 ```
 SHUTDOWN Event (JSON)
 <event-length>
 {
-  "type" : "SHUTDOWN",
-  "shutdown" : {
-    "grace_period_seconds" : 5
-  }
+  "type" : "SHUTDOWN"
 }
 ```
 
@@ -329,6 +326,7 @@ The following environment variables are set by the agent that can be used by the
 * `MESOS_DIRECTORY`: Path to the working directory for the executor.
 * `MESOS_AGENT_ENDPOINT`: Agent endpoint i.e. ip:port to be used by the executor to connect to the agent.
 * `MESOS_CHECKPOINT`: If set to true, denotes that framework has checkpointing enabled.
+* `MESOS_EXECUTOR_SHUTDOWN_GRACE_PERIOD`: Amount of time the agent would wait for an executor to shut down (e.g., 60 secs, 3mins etc.) after sending a `SHUTDOWN` event.
 
 If `MESOS_CHECKPOINT` is set i.e. when framework checkpointing is enabled, the following additional variables are also set that can be used by the executor for retrying upon a disconnection with the agent:
 
