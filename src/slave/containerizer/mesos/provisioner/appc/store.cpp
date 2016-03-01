@@ -281,7 +281,8 @@ Future<string> StoreProcess::_fetchImage(const Image::Appc& appc)
       if (rmdir.isError()) {
         return Failure(
             "Failed to remove temporary fetch directory '" +
-            tmpFetchDir + "' for image '" + appc.name() + "'");
+            tmpFetchDir + "' for image '" + appc.name() + "': " +
+            rmdir.error());
       }
 
       return imageId;
