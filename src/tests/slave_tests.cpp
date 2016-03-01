@@ -2327,8 +2327,8 @@ TEST_F(SlaveTest, DiscoveryInfoAndPorts)
 
   AWAIT_READY(launchTask);
 
-  // Verify label key and value in slave state.json.
-  Future<Response> response = process::http::get(slave.get(), "state.json");
+  // Verify label key and value in slave state endpoint.
+  Future<Response> response = process::http::get(slave.get(), "state");
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
   AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
@@ -2352,7 +2352,8 @@ TEST_F(SlaveTest, DiscoveryInfoAndPorts)
   EXPECT_SOME(portResult1);
   EXPECT_SOME(portResult2);
 
-  // Verify that the ports retrieved from state.json are the ones that were set.
+  // Verify that the ports retrieved from state endpoint are the ones
+  // that were set.
   EXPECT_EQ(JSON::Object(JSON::protobuf(*port1)), portResult1.get());
   EXPECT_EQ(JSON::Object(JSON::protobuf(*port2)), portResult2.get());
 
@@ -2533,8 +2534,8 @@ TEST_F(SlaveTest, TaskStatusLabels)
 
   AWAIT_READY(status);
 
-  // Verify label key and value in master state.json.
-  Future<Response> response = process::http::get(slave.get(), "state.json");
+  // Verify label key and value in master state endpoint.
+  Future<Response> response = process::http::get(slave.get(), "state");
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
   AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
@@ -2628,7 +2629,7 @@ TEST_F(SlaveTest, TaskStatusContainerStatus)
       status.get().container_status().network_infos(0).ip_address());
 
   // Now do the same validation with state endpoint.
-  Future<Response> response = process::http::get(slave.get(), "state.json");
+  Future<Response> response = process::http::get(slave.get(), "state");
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
   AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);

@@ -3253,8 +3253,8 @@ TEST_F(MasterTest, TaskStatusLabels)
 
   AWAIT_READY(status);
 
-  // Verify label key and value in master state.json.
-  Future<Response> response = process::http::get(master.get(), "state.json");
+  // Verify label key and value in master state endpoint.
+  Future<Response> response = process::http::get(master.get(), "state");
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
   AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
@@ -3346,7 +3346,7 @@ TEST_F(MasterTest, TaskStatusContainerStatus)
   EXPECT_EQ(slaveIPAddress, containerStatus.network_infos(0).ip_address());
 
   // Now do the same validation with state endpoint.
-  Future<Response> response = process::http::get(master.get(), "state.json");
+  Future<Response> response = process::http::get(master.get(), "state");
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
   AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
@@ -3832,7 +3832,7 @@ TEST_F(MasterTest, FrameworkInfoLabels)
 
   AWAIT_READY(registered);
 
-  Future<Response> response = process::http::get(master.get(), "state.json");
+  Future<Response> response = process::http::get(master.get(), "state");
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
   AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);

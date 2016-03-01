@@ -1904,7 +1904,7 @@ TEST_F(FaultToleranceTest, UpdateFrameworkInfoOnSchedulerFailover)
 
   AWAIT_READY(sched1Error);
 
-  Future<Response> response = process::http::get(master.get(), "state.json");
+  Future<Response> response = process::http::get(master.get(), "state");
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 
   Try<JSON::Object> parse =
