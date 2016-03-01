@@ -84,7 +84,7 @@ Example:
   "disabled_endpoints" : {
     "paths" : [
       "/files/browse",
-      "/slave(0)/stats.json"
+      "/metrics/snapshot"
     ]
   }
 }</code></pre>
