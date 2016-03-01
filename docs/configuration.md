@@ -927,6 +927,16 @@ the primary handle for the net_cls cgroup.
 </tr>
 <tr>
   <td>
+    --cgroups_net_cls_secondary_handles
+  </td>
+  <td>
+A range of the form 0xAAAA,0xBBBB, specifying the valid secondary
+handles that can be used with the primary handle. This will take
+effect only when the <code>--cgroups_net_cls_primary_handle</code> is set.
+  </td>
+</tr>
+<tr>
+  <td>
     --cgroups_root=VALUE
   </td>
   <td>
