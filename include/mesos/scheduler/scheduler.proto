@@ -185,19 +185,13 @@ message Call {
     // 'framework_info.id'.
     required FrameworkInfo framework_info = 1;
 
-    // 'force' field is only relevant when 'framework_info.id' is set.
-    // It tells the master what to do in case an instance of the
-    // scheduler attempts to subscribe when another instance of it is
-    // already connected (e.g., split brain due to network partition).
-    // If 'force' is true, this scheduler instance is allowed and the
-    // old connected scheduler instance is disconnected. If false,
-    // this scheduler instance is disallowed subscription in favor of
-    // the already connected scheduler instance.
-    //
-    // It is recommended to set this to true only when a newly elected
-    // scheduler instance is attempting to subscribe but not when a
-    // scheduler is retrying subscription (e.g., disconnection or
-    // master failover; see sched/sched.cpp for an example).
+    // NOTE: 'force' field is not present in v1/scheduler.proto because it is
+    // only used by the scheduler driver. The driver sets it to true when the
+    // scheduler re-registers for the first time after a failover. Once
+    // re-registered all subsequent re-registration attempts (e.g., due to ZK
+    // blip) will have 'force' set to false. This is important because master
+    // uses this field to know when it needs to send FrameworkRegisteredMessage
+    // vs FrameworkReregisteredMessage.
     optional bool force = 2;
   }
 

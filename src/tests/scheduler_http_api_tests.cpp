@@ -326,7 +326,7 @@ TEST_P(SchedulerHttpApiTest, Subscribe)
 
 // This test verifies if the scheduler can subscribe on retrying,
 // e.g. after a ZK blip.
-TEST_P(SchedulerHttpApiTest, SubscribedOnRetryWithForce)
+TEST_P(SchedulerHttpApiTest, SubscribedOnRetry)
 {
   // HTTP schedulers cannot yet authenticate.
   master::Flags flags = CreateMasterFlags();
@@ -379,9 +379,6 @@ TEST_P(SchedulerHttpApiTest, SubscribedOnRetryWithForce)
   }
 
   {
-    // Now subscribe again with force set.
-    subscribe->set_force(true);
-
     call.mutable_framework_id()->CopyFrom(frameworkId);
     subscribe->mutable_framework_info()->mutable_id()->CopyFrom(frameworkId);
 
@@ -419,7 +416,7 @@ TEST_P(SchedulerHttpApiTest, SubscribedOnRetryWithForce)
 
 
 // This test verifies if we are able to upgrade from a PID based
-// framework to HTTP when force is set.
+// scheduler to HTTP scheduler.
 TEST_P(SchedulerHttpApiTest, UpdatePidToHttpScheduler)
 {
   // HTTP schedulers cannot yet authenticate.
@@ -463,8 +460,6 @@ TEST_P(SchedulerHttpApiTest, UpdatePidToHttpScheduler)
   subscribe->mutable_framework_info()->CopyFrom(frameworkInfo);
   subscribe->mutable_framework_info()->mutable_id()->
     CopyFrom(evolve(frameworkId.get()));
-
-  subscribe->set_force(true);
 
   // Retrieve the parameter passed as content type to this test.
   const string contentType = GetParam();
@@ -584,95 +579,6 @@ TEST_P(SchedulerHttpApiTest, UpdateHttpToPidScheduler)
 
   AWAIT_READY(frameworkId);
   ASSERT_EQ(evolve(frameworkId.get()), frameworkInfo.id());
-
-  driver.stop();
-  driver.join();
-
-  Shutdown();
-}
-
-
-// This test verifies that updating a PID based framework to HTTP
-// framework fails when force is not set and the PID based
-// framework is already connected.
-TEST_P(SchedulerHttpApiTest, UpdatePidToHttpSchedulerWithoutForce)
-{
-  // HTTP schedulers cannot yet authenticate.
-  master::Flags flags = CreateMasterFlags();
-  flags.authenticate_frameworks = false;
-
-  Try<PID<Master>> master = StartMaster(flags);
-  ASSERT_SOME(master);
-
-  v1::FrameworkInfo frameworkInfo = DEFAULT_V1_FRAMEWORK_INFO;
-  frameworkInfo.set_failover_timeout(Weeks(2).secs());
-
-  // Start the scheduler without credentials.
-  MockScheduler sched;
-  StandaloneMasterDetector detector(master.get());
-  TestingMesosSchedulerDriver driver(&sched, &detector, devolve(frameworkInfo));
-
-  Future<FrameworkID> frameworkId;
-  EXPECT_CALL(sched, registered(&driver, _, _))
-    .WillOnce(FutureArg<1>(&frameworkId));
-
-  driver.start();
-
-  AWAIT_READY(frameworkId);
-  EXPECT_NE("", frameworkId.get().value());
-
-  // Now try to subscribe using a HTTP framework without setting the
-  // 'force' field.
-  Call call;
-  call.set_type(Call::SUBSCRIBE);
-  call.mutable_framework_id()->CopyFrom(evolve(frameworkId.get()));
-
-  Call::Subscribe* subscribe = call.mutable_subscribe();
-  subscribe->mutable_framework_info()->CopyFrom(frameworkInfo);
-  subscribe->mutable_framework_info()->mutable_id()->
-    CopyFrom(evolve(frameworkId.get()));
-
-  // Retrieve the parameter passed as content type to this test.
-  const string contentType = GetParam();
-  process::http::Headers headers;
-  headers["Accept"] = contentType;
-
-  Future<Response> response = process::http::streaming::post(
-      master.get(),
-      "api/v1/scheduler",
-      headers,
-      serialize(call, contentType),
-      contentType);
-
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
-  AWAIT_EXPECT_RESPONSE_HEADER_EQ("chunked", "Transfer-Encoding", response);
-  ASSERT_EQ(Response::PIPE, response.get().type);
-
-  Option<Pipe::Reader> reader = response.get().reader;
-  ASSERT_SOME(reader);
-
-  auto deserializer = lambda::bind(
-      &SchedulerHttpApiTest::deserialize, this, contentType, lambda::_1);
-
-  Reader<Event> responseDecoder(Decoder<Event>(deserializer), reader.get());
-
-  Future<Result<Event>> event = responseDecoder.read();
-  AWAIT_READY(event);
-  ASSERT_SOME(event.get());
-
-  // We should be receiving an error event since the PID framework
-  // was already connected.
-  ASSERT_EQ(Event::ERROR, event.get().get().type());
-
-  // Unsubscribed HTTP framework should not get any heartbeats.
-  Clock::pause();
-  Clock::advance(DEFAULT_HEARTBEAT_INTERVAL);
-  Clock::settle();
-
-  // The next read should be EOF.
-  event = responseDecoder.read();
-  AWAIT_READY(event);
-  EXPECT_NONE(event.get());
 
   driver.stop();
   driver.join();

@@ -244,7 +244,6 @@ TEST_P(SchedulerTest, SchedulerFailover)
     Call::Subscribe* subscribe = call.mutable_subscribe();
     subscribe->mutable_framework_info()->CopyFrom(DEFAULT_V1_FRAMEWORK_INFO);
     subscribe->mutable_framework_info()->mutable_id()->CopyFrom(frameworkId);
-    subscribe->set_force(true);
 
     mesos2.send(call);
   }
