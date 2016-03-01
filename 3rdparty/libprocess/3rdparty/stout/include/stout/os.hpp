@@ -44,6 +44,7 @@
 
 #include <stout/os/bootid.hpp>
 #include <stout/os/chdir.hpp>
+#include <stout/os/chroot.hpp>
 #include <stout/os/exists.hpp>
 #include <stout/os/ls.hpp>
 #include <stout/os/mkdir.hpp>
