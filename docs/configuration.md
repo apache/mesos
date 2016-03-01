@@ -589,6 +589,7 @@ ping from the master. Slaves that do not respond within
 Duration of time before an offer is rescinded from a framework.
 This helps fairness when running frameworks that hold on to offers,
 or frameworks that accidentally drop offers.
+If not set, offers do not timeout.
   </td>
 </tr>
 <tr>

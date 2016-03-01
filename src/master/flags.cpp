@@ -341,7 +341,8 @@ mesos::internal::master::Flags::Flags()
       "offer_timeout",
       "Duration of time before an offer is rescinded from a framework.\n"
       "This helps fairness when running frameworks that hold on to offers,\n"
-      "or frameworks that accidentally drop offers.");
+      "or frameworks that accidentally drop offers.\n"
+      "If not set, offers do not timeout.");
 
   // This help message for --modules flag is the same for
   // {master,slave,tests}/flags.hpp and should always be kept in
