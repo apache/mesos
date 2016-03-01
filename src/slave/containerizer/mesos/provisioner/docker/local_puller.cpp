@@ -87,6 +87,9 @@ Try<Owned<Puller>> LocalPuller::create(const Flags& flags)
     return Error("Expecting registry url starting with '/'");
   }
 
+  VLOG(1) << "Creating local puller with docker registry '"
+          << flags.docker_registry << "'";
+
   Owned<LocalPullerProcess> process(
       new LocalPullerProcess(flags.docker_registry));
 
@@ -136,7 +139,8 @@ Future<vector<string>> LocalPullerProcess::pull(
         stringify(reference) + "' at '" + tarPath + "'");
   }
 
-  VLOG(1) << "Untarring image from '" << tarPath
+  VLOG(1) << "Untarring image '" << reference
+          << "' from '" << tarPath
           << "' to '" << directory << "'";
 
   return command::untar(Path(tarPath), Path(directory))
@@ -154,6 +158,9 @@ Future<vector<string>> LocalPullerProcess::_pull(
   if (_repositories.isError()) {
     return Failure("Failed to read 'repositories': " + _repositories.error());
   }
+
+  VLOG(1) << "The repositories JSON file for image '" << reference
+          << "' is '" << _repositories.get() << "'";
 
   Try<JSON::Object> repositories =
     JSON::parse<JSON::Object>(_repositories.get());
@@ -271,6 +278,9 @@ Future<Nothing> LocalPullerProcess::extractLayer(
   const string layerPath = path::join(directory, layerId);
   const string tar = paths::getImageLayerTarPath(layerPath);
   const string rootfs = paths::getImageLayerRootfsPath(layerPath);
+
+  VLOG(1) << "Extracting layer tar ball '" << tar
+          << " to rootfs '" << rootfs << "'";
 
   Try<Nothing> mkdir = os::mkdir(rootfs);
   if (mkdir.isError()) {

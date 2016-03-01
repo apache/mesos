@@ -108,6 +108,9 @@ Try<Owned<Puller>> RegistryPuller::create(
         defaultRegistryUrl.error());
   }
 
+  VLOG(1) << "Creating registry puller with docker registry '"
+          << flags.docker_registry << "'";
+
   Owned<RegistryPullerProcess> process(
       new RegistryPullerProcess(
           flags.docker_store_dir,
@@ -188,6 +191,10 @@ Future<vector<string>> RegistryPullerProcess::pull(
         port);
   }
 
+  VLOG(1) << "Pulling image '" << reference
+          << "' from '" << manifestUri
+          << "' to '" << directory << "'";
+
   return fetcher->fetch(manifestUri, directory)
     .then(defer(self(), &Self::_pull, reference, directory));
 }
@@ -253,6 +260,9 @@ Future<vector<string>> RegistryPullerProcess::__pull(
     const string tar = path::join(directory, blobSum);
     const string rootfs = paths::getImageLayerRootfsPath(layerPath);
     const string json = paths::getImageLayerManifestPath(layerPath);
+
+    VLOG(1) << "Extracting layer tar ball '" << tar
+            << " to rootfs '" << rootfs << "'";
 
     // NOTE: This will create 'layerPath' as well.
     Try<Nothing> mkdir = os::mkdir(rootfs, true);

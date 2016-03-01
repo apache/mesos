@@ -145,6 +145,8 @@ Future<Image> MetadataManagerProcess::put(
     return Failure("Failed to save state of Docker images: " + status.error());
   }
 
+  VLOG(1) << "Successfully cached image '" << imageReference << "'";
+
   return dockerImage;
 }
 
@@ -153,6 +155,8 @@ Future<Option<Image>> MetadataManagerProcess::get(
     const spec::ImageReference& reference)
 {
   const string imageReference = stringify(reference);
+
+  VLOG(1) << "Looking for image '" << imageReference << "'";
 
   if (!storedImages.contains(imageReference)) {
     return None();
@@ -227,9 +231,12 @@ Future<Nothing> MetadataManagerProcess::recover()
     } else {
       storedImages[imageReference] = image;
     }
+
+    VLOG(1) << "Successfully loaded image '" << imageReference << "'";
   }
 
-  LOG(INFO) << "Loaded " << storedImages.size() << " Docker images";
+  LOG(INFO) << "Successfully loaded " << storedImages.size()
+            << " Docker images";
 
   return Nothing();
 }
