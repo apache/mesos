@@ -1062,7 +1062,15 @@ Future<bool> MesosContainerizerProcess::__launch(
       launchFlags.working_directory = workingDirectory;
     }
 
+#ifdef __WINDOWS__
+    if (!rootfs.isNone()) {
+      return Failure(
+          "`chroot` is not supported on Windows, but the `ContainerLaunchInfo` "
+          "provided a `rootfs` flag to the launcher");
+    }
+#else
     launchFlags.rootfs = rootfs;
+#endif // __WINDOWS__
     launchFlags.user = user;
     launchFlags.pipe_read = pipes[0];
     launchFlags.pipe_write = pipes[1];

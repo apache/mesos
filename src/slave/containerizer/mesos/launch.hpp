@@ -37,7 +37,9 @@ public:
     Option<JSON::Object> command;
     Option<std::string> sandbox;
     Option<std::string> working_directory;
+#ifndef __WINDOWS__
     Option<std::string> rootfs;
+#endif // __WINDOWS__
     Option<std::string> user;
     Option<int> pipe_read;
     Option<int> pipe_write;
