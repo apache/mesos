@@ -88,8 +88,9 @@ std::ostream& operator<<(std::ostream& stream, const NetClsHandle& obj);
 class NetClsHandleManager
 {
 public:
-  NetClsHandleManager(const IntervalSet<uint16_t>& _primaries)
-    : primaries(_primaries) {};
+  NetClsHandleManager(
+      const IntervalSet<uint32_t>& _primaries,
+      const IntervalSet<uint32_t>& _secondaries = IntervalSet<uint32_t>());
 
   ~NetClsHandleManager() {};
 
@@ -107,7 +108,14 @@ private:
   // The key to this hashmap is the 16-bit primary handle.
   hashmap<uint16_t, std::bitset<0x10000>> used;
 
-  IntervalSet<uint16_t> primaries;
+  // NOTE: Though the primary and secondary handles are 16 bit, we
+  // cannot use an `IntervalSet` specialization of type `uint16_t`
+  // since the intervals are stored in right openf format -- [x,y) --
+  // and setting the type to `uint16_t` would lead to overflow errors.
+  // For e.g., we would not be able to store the range [0xffff,0xffff]
+  // in `IntervalSet<uint16_t>` due to overflow error.
+  IntervalSet<uint32_t> primaries;
+  IntervalSet<uint32_t> secondaries;
 };
 
 
@@ -170,7 +178,8 @@ private:
   CgroupsNetClsIsolatorProcess(
       const Flags& _flags,
       const std::string& _hierarchy,
-      const IntervalSet<uint16_t>& primaries);
+      const IntervalSet<uint32_t>& primaries,
+      const IntervalSet<uint32_t>& secondaries);
 
   process::Future<Nothing> _cleanup(
       const ContainerID& containerId);

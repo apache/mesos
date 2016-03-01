@@ -70,6 +70,21 @@ ostream& operator<<(ostream& stream, const NetClsHandle& obj)
 }
 
 
+NetClsHandleManager::NetClsHandleManager(
+    const IntervalSet<uint32_t>& _primaries,
+    const IntervalSet<uint32_t>& _secondaries)
+    : primaries(_primaries),
+      secondaries(_secondaries)
+{
+  if (secondaries.empty()) {
+    // Default range [1,0xffff].
+    secondaries +=
+        (Bound<uint32_t>::closed(1),
+         Bound<uint32_t>::closed(0xffff));
+  }
+};
+
+
 // For each primary handle, we maintain a bitmap to keep track of
 // allocated and free secondary handles. To find a free secondary
 // handle we scan the bitmap from the first element till we find a
@@ -105,8 +120,14 @@ Try<NetClsHandle> NetClsHandleManager::alloc(
   }
 
   if (!used.contains(primary)) {
-    // NOTE: We never use 0 as a secondary handle, so mark it used.
-    used[primary].set(0);
+    used[primary].set(); // Set all handles.
+
+    foreach (const Interval<uint32_t>& handles, secondaries) {
+      for (size_t secondary = handles.lower();
+           secondary < handles.upper(); secondary++) {
+        used[primary].reset(secondary);
+      }
+    }
   } else if (used[primary].all()) {
     return Error(
         "No free handles remaining for primary handle " +
@@ -114,11 +135,11 @@ Try<NetClsHandle> NetClsHandleManager::alloc(
   }
 
   // At least one secondary handle is free for this primary handle.
-  for (size_t count = 1; count < used[primary].size(); count++) {
-    if (!used[primary].test(count)) {
-      used[primary].set(count);
+  for (size_t secondary = 1; secondary < used[primary].size(); secondary++) {
+    if (!used[primary].test(secondary)) {
+      used[primary].set(secondary);
 
-      return NetClsHandle(primary, count);
+      return NetClsHandle(primary, secondary);
     }
   }
 
@@ -134,13 +155,21 @@ Try<Nothing> NetClsHandleManager::reserve(const NetClsHandle& handle)
         " not present in primary handle range");
   }
 
-  if (handle.secondary == 0) {
-    return Error("0 is an invalid secondary handle");
+  if (!secondaries.contains(handle.secondary)) {
+    return Error(
+        "Secondary handle " + hexify(handle.secondary) +
+        " not present in secondary handle range ");
   }
 
   if (!used.contains(handle.primary)) {
-    // NOTE: We never use 0 as a secondary handle, so mark it used.
-    used[handle.primary].set(0);
+    used[handle.primary].set(); // Set all handles.
+
+    foreach (const Interval<uint32_t>& handles, secondaries) {
+      for (size_t secondary = handles.lower();
+           secondary < handles.upper(); secondary++) {
+        used[handle.primary].reset(secondary);
+      }
+    }
   }
 
   if (used[handle.primary].test(handle.secondary)) {
@@ -164,8 +193,10 @@ Try<Nothing> NetClsHandleManager::free(const NetClsHandle& handle)
         " not present in primary handle range");
   }
 
-  if (handle.secondary == 0) {
-    return Error("0 is an invalid secondary handle");
+  if (!secondaries.contains(handle.secondary)) {
+    return Error(
+        "Secondary handle " + hexify(handle.secondary) +
+        " not present in secondary handle range ");
   }
 
   if (!used.contains(handle.primary)) {
@@ -195,8 +226,10 @@ Try<bool> NetClsHandleManager::isUsed(const NetClsHandle& handle)
         " is not within the primary's range");
   }
 
-  if (handle.secondary == 0) {
-    return Error("Secondary handle is 0");
+  if (!secondaries.contains(handle.secondary)) {
+    return Error(
+        "Secondary handle " + hexify(handle.secondary) +
+        " not present in secondary handle range");
   }
 
   if (!used.contains(handle.primary)) {
@@ -240,7 +273,8 @@ Try<Isolator*> CgroupsNetClsIsolatorProcess::create(const Flags& flags)
     }
   }
 
-  IntervalSet<uint16_t> primaries;
+  IntervalSet<uint32_t> primaries;
+  IntervalSet<uint32_t> secondaries;
 
   if (flags.cgroups_net_cls_primary_handle.isSome()) {
     Try<uint16_t> primary = numify<uint16_t>(
@@ -254,15 +288,16 @@ Try<Isolator*> CgroupsNetClsIsolatorProcess::create(const Flags& flags)
     }
 
     primaries +=
-      (Bound<uint16_t>::closed(primary.get()),
-       Bound<uint16_t>::closed(primary.get()));
+      (Bound<uint32_t>::closed(primary.get()),
+       Bound<uint32_t>::closed(primary.get()));
   }
 
   process::Owned<MesosIsolatorProcess> process(
       new CgroupsNetClsIsolatorProcess(
           flags,
           hierarchy.get(),
-          primaries));
+          primaries,
+          secondaries));
 
   return new MesosIsolator(process);
 }
@@ -271,12 +306,13 @@ Try<Isolator*> CgroupsNetClsIsolatorProcess::create(const Flags& flags)
 CgroupsNetClsIsolatorProcess::CgroupsNetClsIsolatorProcess(
     const Flags& _flags,
     const string& _hierarchy,
-    const IntervalSet<uint16_t>& primaries)
+    const IntervalSet<uint32_t>& primaries,
+    const IntervalSet<uint32_t>& secondaries)
   : flags(_flags),
     hierarchy(_hierarchy)
 {
   if (!primaries.empty()) {
-    handleManager = NetClsHandleManager(primaries);
+    handleManager = NetClsHandleManager(primaries, secondaries);
   }
 }
 
