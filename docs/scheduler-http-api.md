@@ -92,9 +92,7 @@ Connection: close
       "framework_info"	: {
         "user" :  "foo",
         "name" :  "Example HTTP Framework"
-      },
-
-      "force" : true
+      }
   }
 }
 
@@ -115,7 +113,8 @@ Transfer-Encoding: chunked
 <more events>
 ```
 
-Alternatively, if "subscribe.framework_info.id" is set, master considers this a request from an already subscribed scheduler reconnecting after a disconnection (e.g., due to failover or network disconnection) and responds with `SUBSCRIBED` event containing the same FrameworkID. The "subscribe.force" field describes how the master reacts when multiple scheduler instances (with the same framework id) attempt to subscribe with the master at the same time (e.g., due to network partition). See the semantics in **Disconnections** section below.
+Alternatively, if "subscribe.framework_info.id" is set, master considers this a request from an already subscribed scheduler reconnecting after a disconnection (e.g., due to master/scheduler failover or network disconnection) and responds
+with a `SUBSCRIBED` event. For further details, see the **Disconnections** section below.
 
 NOTE: In the old version of the API, (re-)registered callbacks also included MasterInfo, which contained information about the master the driver currently connected to. With the new API, since schedulers explicitly subscribe with the leading master (see details below in **Master Detection** section), it's not relevant anymore.
 
@@ -506,15 +505,14 @@ If master realizes that the subscription connection is broken, it marks the sche
 
 NOTE: To force shutdown a framework before the framework timeout elapses (e.g., during framework development and testing), either the framework can send `TEARDOWN` call (part of Scheduler API) or an operator can use the "/master/teardown" endpoint (part of Operator API).
 
-If the scheduler realizes that its subscription connection to "/scheduler" is broken, it should attempt to open a new persistent connection to the
-"/scheduler" (on possibly new master based on the result of master detection) and resubscribe. It should not send new non-subscribe HTTP requests to "/scheduler" unless it gets a `SUBSCRIBED` event; such requests will result in "403 Forbidden".
+If the scheduler realizes that its subscription connection to "/scheduler" is broken or the master has changed (e.g., via ZooKeeper) it should resubscribe (using a backoff strategy). This is done by sending a `SUBSCRIBE` request (with framework ID set) on a **new** persistent connection to the "/scheduler" endpoint on the (possibly new) master. It should not send new non-subscribe HTTP requests to "/scheduler" unless it receives a `SUBSCRIBED` event; such requests will result in "403 Forbidden".
 
 If the master does not realize that the subscription connection is broken, but the scheduler realizes it, the scheduler might open a new persistent connection to
-"/scheduler" via `SUBSCRIBE`. In this case, the semantics depend on the value of `subscribe.force`. If set to true, master closes the existing subscription connection and allows subscription on the new connection. If set to false, the new connection attempt is disallowed in favor of the existing connection. The invariant here is that, only one persistent subscription connection for a given FrameworkID is allowed on the master. For HA schedulers, it is recommended that a scheduler instance set `subscribe.force` to true only when it just got elected and set it to false for all subsequent reconnection attempts (e.g, due to disconnection or master failover).
+"/scheduler" via `SUBSCRIBE`. In this case, the master closes the existing subscription connection and allows subscription on the new connection. The invariant here is that only one persistent subscription connection for a given framework ID is allowed on the master.
 
 ### Network partitions
 
-In the case of a network partition, the subscription connection between the scheduler and master might not necessarily break. To be able to detect this scenario, master periodically (e.g., 15s) sends `HEARTBEAT` events (similar in vein to Twitter's Streaming API). If a scheduler doesn't receive a bunch (e.g., 5) of these heartbeats within a time window, it should immediately disconnect and try to re-subscribe. It is highly recommended for schedulers to use an exponential backoff strategy (e.g., upto a maximum of 15s) to avoid overwhelming the master while reconnecting. Schedulers can use a similar timeout (e.g., 75s) for receiving responses to any HTTP requests.
+In the case of a network partition, the subscription connection between the scheduler and master might not necessarily break. To be able to detect this scenario, master periodically (e.g., 15s) sends `HEARTBEAT` events (similar to Twitter's Streaming API). If a scheduler doesn't receive a bunch (e.g., 5) of these heartbeats within a time window, it should immediately disconnect and try to resubscribe. It is highly recommended for schedulers to use an exponential backoff strategy (e.g., up to a maximum of 15s) to avoid overwhelming the master while reconnecting. Schedulers can use a similar timeout (e.g., 75s) for receiving responses to any HTTP requests.
 
 ## Master detection
 

@@ -5,6 +5,7 @@ Release Notes - Mesos - Version 0.28.0 (WIP)
   * [MESOS-4066] - Agent should not return partial state when a request is made to /state endpoint during recovery.
   * [MESOS-4479] - Implement reservation labels.
   * [MESOS-4547] - Introduce TASK_KILLING state.
+  * [MESOS-4712] - Remove 'force' field from the Subscribe Call in v1 Scheduler API.
 
 
 Release Notes - Mesos - Version 0.27.1
