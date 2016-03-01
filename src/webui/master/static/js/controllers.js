@@ -359,7 +359,7 @@
     };
 
     var pollState = function() {
-      $http.get('master/state.json',
+      $http.get('master/state',
                 {transformResponse: function(data) { return data; }})
         .success(function(data) {
           if (updateState($scope, $timeout, data)) {
