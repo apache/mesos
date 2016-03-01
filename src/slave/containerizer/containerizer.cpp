@@ -329,6 +329,8 @@ map<string, string> executorEnvironment(
   environment["MESOS_SLAVE_PID"] = stringify(slavePid);
   environment["MESOS_AGENT_ENDPOINT"] = stringify(slavePid.address);
   environment["MESOS_CHECKPOINT"] = checkpoint ? "1" : "0";
+  environment["MESOS_EXECUTOR_SHUTDOWN_GRACE_PERIOD"] =
+    stringify(flags.executor_shutdown_grace_period);
 
   if (checkpoint) {
     environment["MESOS_RECOVERY_TIMEOUT"] = stringify(flags.recovery_timeout);
