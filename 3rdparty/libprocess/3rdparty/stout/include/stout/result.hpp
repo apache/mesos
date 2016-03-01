@@ -85,6 +85,11 @@ public:
   Result(const ErrnoError& error)
     : data(error) {}
 
+#ifdef __WINDOWS__
+  Result(const WindowsError& error)
+    : data(error) {}
+#endif // __WINDOWS__
+
   // We don't need to implement these because we are leveraging
   // Try<Option<T>>.
   Result(const Result<T>& that) = default;
