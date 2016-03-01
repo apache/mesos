@@ -68,11 +68,11 @@ MesosContainerizerLaunch::Flags::Flags()
       "The command and sandbox flags are interpreted relative\n"
       "to rootfs\n"
       "Different platforms may implement 'chroot' differently.");
-#endif // __WINDOWS__
 
   add(&user,
       "user",
       "The user to change to.");
+#endif // __WINDOWS__
 
   add(&pipe_read,
       "pipe_read",
@@ -256,6 +256,7 @@ int MesosContainerizerLaunch::execute()
   // same privilege as the mesos-slave.
   // NOTE: The requisite user/group information must be present if
   // a container root filesystem is used.
+#ifndef __WINDOWS__
   if (flags.user.isSome()) {
     Try<Nothing> su = os::su(flags.user.get());
     if (su.isError()) {
@@ -264,6 +265,7 @@ int MesosContainerizerLaunch::execute()
       return 1;
     }
   }
+#endif // __WINDOWS__
 
   // Determine the current working directory for the executor.
   string cwd;
