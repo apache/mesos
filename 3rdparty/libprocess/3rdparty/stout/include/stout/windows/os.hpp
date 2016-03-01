@@ -113,30 +113,6 @@ inline Try<Nothing> mknod(
 }
 
 
-inline Result<uid_t> getuid(const Option<std::string>& user = None())
-{
-  UNIMPLEMENTED;
-}
-
-
-inline Result<gid_t> getgid(const Option<std::string>& user = None())
-{
-  UNIMPLEMENTED;
-}
-
-
-inline Try<Nothing> su(const std::string& user)
-{
-  UNIMPLEMENTED;
-}
-
-
-inline Result<std::string> user(Option<uid_t> uid = None())
-{
-  UNIMPLEMENTED;
-}
-
-
 // Suspends execution for the given duration.
 inline Try<Nothing> sleep(const Duration& duration)
 {
