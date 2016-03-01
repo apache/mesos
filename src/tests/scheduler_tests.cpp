@@ -467,7 +467,7 @@ TEST_P(SchedulerTest, TaskRunning)
 
   AWAIT_READY(update);
 
-  EXPECT_CALL(*executor, shutdown(_, _))
+  EXPECT_CALL(*executor, shutdown(_))
     .Times(AtMost(1));
 
   EXPECT_CALL(*executor, disconnected(_))
@@ -597,7 +597,7 @@ TEST_P(SchedulerTest, ReconcileTask)
   EXPECT_EQ(v1::TaskStatus::REASON_RECONCILIATION,
             event.get().update().status().reason());
 
-  EXPECT_CALL(*executor, shutdown(_, _))
+  EXPECT_CALL(*executor, shutdown(_))
     .Times(AtMost(1));
 
   EXPECT_CALL(*executor, disconnected(_))
@@ -744,7 +744,7 @@ TEST_P(SchedulerTest, KillTask)
   EXPECT_EQ(Event::UPDATE, event.get().type());
   EXPECT_EQ(v1::TASK_KILLED, event.get().update().status().state());
 
-  EXPECT_CALL(*executor, shutdown(_, _))
+  EXPECT_CALL(*executor, shutdown(_))
     .Times(AtMost(1));
 
   EXPECT_CALL(*executor, disconnected(_))
@@ -856,7 +856,7 @@ TEST_P(SchedulerTest, ShutdownExecutor)
   EXPECT_EQ(v1::TASK_FINISHED, event.get().update().status().state());
 
   Future<Nothing> shutdown;
-  EXPECT_CALL(*executor, shutdown(_, _))
+  EXPECT_CALL(*executor, shutdown(_))
     .WillOnce(FutureSatisfy(&shutdown));
 
   {
@@ -986,7 +986,7 @@ TEST_P(SchedulerTest, Teardown)
   EXPECT_EQ(v1::TASK_RUNNING, event.get().update().status().state());
 
   Future<Nothing> shutdown;
-  EXPECT_CALL(*executor, shutdown(_, _))
+  EXPECT_CALL(*executor, shutdown(_))
     .WillOnce(FutureSatisfy(&shutdown));
 
   {
@@ -1427,7 +1427,7 @@ TEST_P(SchedulerTest, Message)
   AWAIT_READY(message);
   ASSERT_EQ("hello world", message->data());
 
-  EXPECT_CALL(*executor, shutdown(_, _))
+  EXPECT_CALL(*executor, shutdown(_))
     .Times(AtMost(1));
 
   EXPECT_CALL(*executor, disconnected(_))
