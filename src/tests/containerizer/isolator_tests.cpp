@@ -382,9 +382,9 @@ class NetClsHandleManagerTest : public testing::Test {};
 // and free secondary handles from a range of primary handles.
 TEST_F(NetClsHandleManagerTest, AllocateFreeHandles)
 {
-  NetClsHandleManager manager(IntervalSet<uint16_t>(
-      (Bound<uint16_t>::closed(0x0002),
-       Bound<uint16_t>::closed(0x0003))));
+  NetClsHandleManager manager(IntervalSet<uint32_t>(
+      (Bound<uint32_t>::closed(0x0002),
+       Bound<uint32_t>::closed(0x0003))));
 
   Try<NetClsHandle> handle = manager.alloc(0x0003);
   ASSERT_SOME(handle);
@@ -401,9 +401,9 @@ TEST_F(NetClsHandleManagerTest, AllocateFreeHandles)
 // handles results in an error.
 TEST_F(NetClsHandleManagerTest, AllocateInvalidPrimary)
 {
-  NetClsHandleManager manager(IntervalSet<uint16_t>(
-      (Bound<uint16_t>::closed(0x0002),
-       Bound<uint16_t>::closed(0x0003))));
+  NetClsHandleManager manager(IntervalSet<uint32_t>(
+      (Bound<uint32_t>::closed(0x0002),
+       Bound<uint32_t>::closed(0x0003))));
 
   ASSERT_ERROR(manager.alloc(0x0001));
 }
@@ -413,15 +413,48 @@ TEST_F(NetClsHandleManagerTest, AllocateInvalidPrimary)
 // handle so that they won't be allocated out later.
 TEST_F(NetClsHandleManagerTest, ReserveHandles)
 {
-  NetClsHandleManager manager(IntervalSet<uint16_t>(
-      (Bound<uint16_t>::closed(0x0002),
-       Bound<uint16_t>::closed(0x0003))));
+  NetClsHandleManager manager(IntervalSet<uint32_t>(
+      (Bound<uint32_t>::closed(0x0002),
+       Bound<uint32_t>::closed(0x0003))));
 
   NetClsHandle handle(0x0003, 0xffff);
 
   ASSERT_SOME(manager.reserve(handle));
 
   EXPECT_SOME_TRUE(manager.isUsed(handle));
+}
+
+
+// Tests that secondary handles are allocated only from a given range,
+// when the range is specified.
+TEST_F(NetClsHandleManagerTest, SecondaryHandleRange)
+{
+  NetClsHandleManager manager(
+      IntervalSet<uint32_t>(
+        (Bound<uint32_t>::closed(0x0002),
+         Bound<uint32_t>::closed(0x0003))),
+      IntervalSet<uint32_t>(
+        (Bound<uint32_t>::closed(0xffff),
+         Bound<uint32_t>::closed(0xffff))));
+
+  Try<NetClsHandle> handle = manager.alloc(0x0003);
+  ASSERT_SOME(handle);
+
+  EXPECT_SOME_TRUE(manager.isUsed(handle.get()));
+
+  // Try allocating another handle. This should fail, since we don't
+  // have any more secondary handles left.
+  EXPECT_ERROR(manager.alloc(0x0003));
+
+  ASSERT_SOME(manager.free(handle.get()));
+
+  ASSERT_SOME(manager.reserve(handle.get()));
+
+  EXPECT_SOME_TRUE(manager.isUsed(handle.get()));
+
+  // Make sure you cannot reserve a secondary handle that is out of
+  // range.
+  EXPECT_ERROR(manager.reserve(NetClsHandle(0x0003, 0x0001)));
 }
 #endif // __linux__
 
@@ -944,6 +977,7 @@ TEST_F(NetClsIsolatorTest, ROOT_CGROUPS_NetClsIsolate)
   slave::Flags flags = CreateSlaveFlags();
   flags.isolation = "cgroups/net_cls";
   flags.cgroups_net_cls_primary_handle = stringify(primary);
+  flags.cgroups_net_cls_secondary_handles = "0xffff,0xffff";
 
   Fetcher fetcher;
 
@@ -1021,8 +1055,8 @@ TEST_F(NetClsIsolatorTest, ROOT_CGROUPS_NetClsIsolate)
     // `--cgroup_net_cls_primary_handle`.
     EXPECT_EQ(primary, (classid.get() & 0xffff0000) >> 16);
 
-    // Make sure the secondary handle is non-zero.
-    EXPECT_NE(0u, classid.get() & 0xffff);
+    // Make sure the secondary handle is 0xffff.
+    EXPECT_EQ(0xffffu, classid.get() & 0xffff);
   }
 
   // Isolator cleanup test: Killing the task should cleanup the cgroup
@@ -1063,6 +1097,7 @@ TEST_F(NetClsIsolatorTest, ROOT_CGROUPS_ContainerStatus)
   slave::Flags flags = CreateSlaveFlags();
   flags.isolation = "cgroups/net_cls";
   flags.cgroups_net_cls_primary_handle = stringify(0x0012);
+  flags.cgroups_net_cls_secondary_handles = "0x0011,0x0012";
 
   Fetcher fetcher;
 
@@ -1126,7 +1161,7 @@ TEST_F(NetClsIsolatorTest, ROOT_CGROUPS_ContainerStatus)
 
   // Check the primary and the secondary handle.
   EXPECT_EQ(0x0012u, classid >> 16);
-  EXPECT_NE(0u, classid & 0xffff);
+  EXPECT_EQ(0x0011u, classid & 0xffff);
 
   driver.stop();
   driver.join();
