@@ -16,6 +16,7 @@
 
 #include <list>
 #include <string>
+#include <vector>
 
 #include <mesos/mesos.hpp>
 #include <mesos/type_utils.hpp>
@@ -26,6 +27,7 @@
 #include <stout/nothing.hpp>
 #include <stout/os.hpp>
 #include <stout/path.hpp>
+#include <stout/strings.hpp>
 #include <stout/try.hpp>
 
 #include "messages/messages.hpp"
@@ -34,6 +36,7 @@
 
 using std::list;
 using std::string;
+using std::vector;
 
 namespace mesos {
 namespace internal {
@@ -55,6 +58,57 @@ const char TASK_UPDATES_FILE[] = "task.updates";
 const char RESOURCES_INFO_FILE[] = "resources.info";
 
 
+const char SLAVES_DIR[] = "slaves";
+const char FRAMEWORKS_DIR[] = "frameworks";
+const char EXECUTORS_DIR[] = "executors";
+const char CONTAINERS_DIR[] = "runs";
+
+
+Try<ExecutorRunPath> parseExecutorRunPath(
+    const string& _rootDir,
+    const string& dir)
+{
+  // TODO(josephw): Consider using `<regex>` here, which requires GCC 4.9+.
+
+  // Make sure there's a separator at the end of the `rootdir` so that
+  // we don't accidentally slice off part of a directory.
+  const string rootDir = path::join(_rootDir, "");
+
+  if (!strings::startsWith(dir, rootDir)) {
+    return Error(
+        "Directory '" + dir + "' does not fall under "
+        "the root directory: " + rootDir);
+  }
+
+  vector<string> tokens = strings::tokenize(dir.substr(rootDir.size()), "/");
+
+  // A complete executor run path consists of at least 8 tokens, which
+  // includes the four named directories and the four IDs.
+  if (tokens.size() < 8) {
+    return Error(
+        "Path after root directory is not long enough to be an "
+        "executor run path: " + path::join(tokens));
+  }
+
+  // All four named directories much match.
+  if (tokens[0] == SLAVES_DIR &&
+      tokens[2] == FRAMEWORKS_DIR &&
+      tokens[4] == EXECUTORS_DIR &&
+      tokens[6] == CONTAINERS_DIR) {
+    ExecutorRunPath path;
+
+    path.slaveId.set_value(tokens[1]);
+    path.frameworkId.set_value(tokens[3]);
+    path.executorId.set_value(tokens[5]);
+    path.containerId.set_value(tokens[7]);
+
+    return path;
+  }
+
+  return Error("Could not parse executor run path from directory: " + dir);
+}
+
+
 string getMetaRootDir(const string& rootDir)
 {
   return path::join(rootDir, "meta");
@@ -63,7 +117,7 @@ string getMetaRootDir(const string& rootDir)
 
 string getSandboxRootDir(const string& rootDir)
 {
-  return path::join(rootDir, "slaves");
+  return path::join(rootDir, SLAVES_DIR);
 }
 
 
@@ -87,7 +141,7 @@ string getBootIdPath(const string& rootDir)
 
 string getLatestSlavePath(const string& rootDir)
 {
-  return path::join(rootDir, "slaves", LATEST_SYMLINK);
+  return path::join(rootDir, SLAVES_DIR, LATEST_SYMLINK);
 }
 
 
@@ -95,7 +149,7 @@ string getSlavePath(
     const string& rootDir,
     const SlaveID& slaveId)
 {
-  return path::join(rootDir, "slaves", stringify(slaveId));
+  return path::join(rootDir, SLAVES_DIR, stringify(slaveId));
 }
 
 
@@ -112,7 +166,7 @@ Try<list<string>> getFrameworkPaths(
     const SlaveID& slaveId)
 {
   return fs::list(
-      path::join(getSlavePath(rootDir, slaveId), "frameworks", "*"));
+      path::join(getSlavePath(rootDir, slaveId), FRAMEWORKS_DIR, "*"));
 }
 
 
@@ -122,7 +176,7 @@ string getFrameworkPath(
     const FrameworkID& frameworkId)
 {
   return path::join(
-      getSlavePath(rootDir, slaveId), "frameworks", stringify(frameworkId));
+      getSlavePath(rootDir, slaveId), FRAMEWORKS_DIR, stringify(frameworkId));
 }
 
 
@@ -153,7 +207,7 @@ Try<list<string>> getExecutorPaths(
 {
   return fs::list(path::join(
       getFrameworkPath(rootDir, slaveId, frameworkId),
-      "executors",
+      EXECUTORS_DIR,
       "*"));
 }
 
@@ -166,7 +220,7 @@ string getExecutorPath(
 {
   return path::join(
         getFrameworkPath(rootDir, slaveId, frameworkId),
-        "executors",
+        EXECUTORS_DIR,
         stringify(executorId));
 }
 
@@ -191,7 +245,7 @@ Try<list<string>> getExecutorRunPaths(
 {
   return fs::list(path::join(
       getExecutorPath(rootDir, slaveId, frameworkId, executorId),
-      "runs",
+      CONTAINERS_DIR,
       "*"));
 }
 
@@ -205,7 +259,7 @@ string getExecutorRunPath(
 {
   return path::join(
       getExecutorPath(rootDir, slaveId, frameworkId, executorId),
-      "runs",
+      CONTAINERS_DIR,
       stringify(containerId));
 }
 
@@ -254,7 +308,7 @@ string getExecutorLatestRunPath(
 {
   return path::join(
       getExecutorPath(rootDir, slaveId, frameworkId, executorId),
-      "runs",
+      CONTAINERS_DIR,
       LATEST_SYMLINK);
 }
 

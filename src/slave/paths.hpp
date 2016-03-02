@@ -22,6 +22,8 @@
 
 #include <mesos/mesos.hpp>
 
+#include <stout/try.hpp>
+
 namespace mesos {
 namespace internal {
 namespace slave {
@@ -89,6 +91,21 @@ namespace paths {
 //   |       |-- <role>
 //   |           |-- <persistence_id> (persistent volume)
 //   |-- provisioner
+
+
+struct ExecutorRunPath
+{
+  SlaveID slaveId;
+  FrameworkID frameworkId;
+  ExecutorID executorId;
+  ContainerID containerId;
+};
+
+
+Try<ExecutorRunPath> parseExecutorRunPath(
+    const std::string& rootDir,
+    const std::string& dir);
+
 
 const char LATEST_SYMLINK[] = "latest";
 

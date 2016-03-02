@@ -104,6 +104,57 @@ TEST_F(PathsTest, CreateExecutorDirectory)
 }
 
 
+TEST_F(PathsTest, ParseExecutorRunPath)
+{
+  string goodDir = paths::getExecutorRunPath(
+      rootDir,
+      slaveId,
+      frameworkId,
+      executorId,
+      containerId);
+
+  string badDir1 = paths::getExecutorPath(
+      "/some/other/root",
+      slaveId,
+      frameworkId,
+      executorId);
+
+  string badDir2 = paths::getExecutorPath(
+      rootDir,
+      slaveId,
+      frameworkId,
+      executorId);
+
+  string badDir3 = path::join(
+      rootDir,
+      "notslaves",
+      slaveId.value(),
+      "notframeworks",
+      frameworkId.value(),
+      "notexecutors",
+      executorId.value(),
+      "notruns",
+      containerId.value());
+
+  Try<ExecutorRunPath> path = paths::parseExecutorRunPath(rootDir, goodDir);
+  ASSERT_SOME(path);
+
+  EXPECT_EQ(slaveId, path->slaveId);
+  EXPECT_EQ(frameworkId, path->frameworkId);
+  EXPECT_EQ(executorId, path->executorId);
+  EXPECT_EQ(containerId, path->containerId);
+
+  path = paths::parseExecutorRunPath(rootDir, badDir1);
+  ASSERT_ERROR(path);
+
+  path = paths::parseExecutorRunPath(rootDir, badDir2);
+  ASSERT_ERROR(path);
+
+  path = paths::parseExecutorRunPath(rootDir, badDir3);
+  ASSERT_ERROR(path);
+}
+
+
 TEST_F(PathsTest, Meta)
 {
   EXPECT_EQ(path::join(rootDir, "meta"), paths::getMetaRootDir(rootDir));

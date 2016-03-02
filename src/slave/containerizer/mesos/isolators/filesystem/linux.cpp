@@ -211,37 +211,86 @@ Future<Nothing> LinuxFilesystemIsolatorProcess::recover(
   // directory mounts. Mounts from unknown orphans will be cleaned up
   // immediately. Mounts from known orphans will be cleaned up when
   // those known orphan containers are being destroyed by the slave.
+  //
+  // TODO(josephw): This does not deal with orphaned persistent
+  // volumes that are not included in a rootfs. There is no guarantee
+  // that an orphaned container without a rootfs was created by this
+  // isolator.  It may have been created by the `DockerContainerizer`.
   hashset<ContainerID> unknownOrphans;
 
   string sandboxRootDir = paths::getSandboxRootDir(flags.work_dir);
 
+  // NOTE: Mount table entries for rootfs are always created before
+  // entries for persistent volumes. We read the mount table in
+  // forward order and unmount in reverse order.
   foreach (const fs::MountInfoTable::Entry& entry, table.get().entries) {
-    if (!strings::startsWith(entry.root, sandboxRootDir)) {
-      continue;
-    }
+    if (strings::startsWith(entry.root, sandboxRootDir)) {
+      // These are containers that specify a new root filesystem.
+      // Mesos will provision a rootfs and bind-mount the container's
+      // sandbox into the provisioned rootfs.
+      //
+      // TODO(jieyu): Here, we retrieve the container ID by taking the
+      // basename of 'entry.root'. This assumes that the slave's
+      // sandbox root directory are organized according to the
+      // comments in the beginning of slave/paths.hpp.
+      ContainerID containerId;
+      containerId.set_value(Path(entry.root).basename());
 
-    // TODO(jieyu): Here, we retrieve the container ID by taking the
-    // basename of 'entry.root'. This assumes that the slave's sandbox
-    // root directory are organized according to the comments in the
-    // beginning of slave/paths.hpp.
-    ContainerID containerId;
-    containerId.set_value(Path(entry.root).basename());
+      if (infos.contains(containerId)) {
+        continue;
+      }
 
-    if (infos.contains(containerId)) {
-      continue;
-    }
+      Owned<Info> info(new Info(entry.root));
 
-    Owned<Info> info(new Info(entry.root));
+      if (entry.root != entry.target) {
+        info->sandbox = entry.target;
+      }
 
-    if (entry.root != entry.target) {
-      info->sandbox = entry.target;
-    }
+      infos.put(containerId, info);
 
-    infos.put(containerId, info);
+      // Remember all the unknown orphan containers.
+      if (!orphans.contains(containerId)) {
+        unknownOrphans.insert(containerId);
+      }
+    } else {
+      // Check for mounts inside an executor's run path. These are
+      // persistent volumes that do not have a changed root
+      // filesystem. The combination of changed rootfs + persistent
+      // volumes is managed above in the 'if' branch.
+      Try<paths::ExecutorRunPath> runPath =
+        paths::parseExecutorRunPath(flags.work_dir, entry.target);
 
-    // Remember all the unknown orphan containers.
-    if (!orphans.contains(containerId)) {
-      unknownOrphans.insert(containerId);
+      if (runPath.isSome()) {
+        // If there is already an `Info` about this `ContainerID`,
+        // this means this container is either a recoverable
+        // container, or a container with a changed rootfs (which was
+        // populated above).
+        if (infos.contains(runPath->containerId)) {
+          continue;
+        }
+
+        // TODO(josephw): We only track persistent volumes for known
+        // orphans as these orphans were presumably created by an
+        // earlier `MesosContainerizer`. Other persistent volumes may
+        // have been created by other actors, such as the
+        // `DockerContainerizer`.
+        if (!orphans.contains(runPath->containerId)) {
+          continue;
+        }
+
+        // NOTE: We do not need to set the `info->sandbox` because
+        // this mount corresponds to an orphan that only has a
+        // persistent volume and should not have a rootfs (otherwise,
+        // we should see a mount table entry for the rootfs earlier)..
+        Owned<Info> info(new Info(paths::getExecutorRunPath(
+            flags.work_dir,
+            runPath->slaveId,
+            runPath->frameworkId,
+            runPath->executorId,
+            runPath->containerId)));
+
+        infos.put(runPath->containerId, info);
+      }
     }
   }
 
