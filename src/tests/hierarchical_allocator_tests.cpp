@@ -50,6 +50,8 @@ using mesos::internal::master::MIN_MEM;
 
 using mesos::internal::master::allocator::HierarchicalDRFAllocator;
 
+using mesos::internal::protobuf::createLabel;
+
 using mesos::master::allocator::Allocator;
 
 using process::Clock;
@@ -2565,7 +2567,167 @@ TEST_F(HierarchicalAllocator_BENCHMARK_Test, DeclineOffers)
         slaves[i].id(), slaves[i], None(), slaves[i].resources(), used);
   }
 
-  // Wait for all the 'addSlave' operations to be processed.
+  // Wait for all the `addSlave` operations to be processed.
+  Clock::settle();
+
+  // Loop enough times for all the frameworks to get offered all the resources.
+  for (unsigned count = 0; count < frameworkCount * 2; count++) {
+    // Permanently decline any offered resources.
+    for (auto offer : offers) {
+      Filters filters;
+
+      filters.set_refuse_seconds(INT_MAX);
+      allocator->recoverResources(
+          offer.frameworkId, offer.slaveId, offer.resources, filters);
+    }
+
+    // Wait for the declined offers.
+    Clock::settle();
+    offers.clear();
+    offerCount = 0;
+
+    {
+      Stopwatch watch;
+
+      watch.start();
+
+      // Advance the clock and trigger a background allocation cycle.
+      Clock::advance(flags.allocation_interval);
+      Clock::settle();
+
+      cout << "round " << count
+           << " allocate took " << watch.elapsed()
+           << " to make " << offerCount.load() << " offers"
+           << endl;
+    }
+  }
+
+  Clock::resume();
+}
+
+
+// This returns a `Labels` that has 12 key-value pairs, which should
+// be more than we expect most frameworks to use in practice. We
+// ensure that the first 11 key-value pairs are equal, which results
+// in pessimal performance for the equality operator between
+// Labels. Finally, we add `labelId` to allow the caller to ensure
+// that all labels in the cluster are distinct, which can trigger
+// allocator performance bottlenecks.
+static Labels makeLabels(bool first, size_t labelId)
+{
+  Labels labels;
+
+  for (int i = 1; i <= 11; i++) {
+    string index = stringify(i);
+    labels.add_labels()->CopyFrom(createLabel("foo" + index, "bar" + index));
+  }
+
+  string suffix = stringify(labelId);
+
+  if (first) {
+    labels.add_labels()->CopyFrom(createLabel("bar1", suffix));
+  } else {
+    labels.add_labels()->CopyFrom(createLabel("baz1", suffix));
+  }
+
+  return labels;
+}
+
+
+// TODO(neilc): Refactor to reduce code duplication with `DeclineOffers` test.
+TEST_F(HierarchicalAllocator_BENCHMARK_Test, ResourceLabels)
+{
+  unsigned frameworkCount = 200;
+  unsigned slaveCount = 2000;
+  master::Flags flags;
+
+  // Choose an interval longer than the time we expect a single cycle to take so
+  // that we don't back up the process queue.
+  flags.allocation_interval = Hours(1);
+
+  // Pause the clock because we want to manually drive the allocations.
+  Clock::pause();
+
+  // Number of allocations. This is used to determine the termination
+  // condition.
+  atomic<size_t> offerCount(0);
+
+  struct OfferedResources {
+    FrameworkID   frameworkId;
+    SlaveID       slaveId;
+    Resources     resources;
+  };
+
+  vector<OfferedResources> offers;
+
+  auto offerCallback = [&offerCount, &offers](
+      const FrameworkID& frameworkId,
+      const hashmap<SlaveID, Resources>& resources_)
+  {
+    for (auto resources : resources_) {
+      offers.push_back(
+          OfferedResources{frameworkId, resources.first, resources.second});
+    }
+
+    offerCount++;
+  };
+
+  vector<SlaveInfo> slaves;
+  vector<FrameworkInfo> frameworks;
+
+  cout << "Using " << slaveCount << " slaves and "
+       << frameworkCount << " frameworks" << endl;
+
+  slaves.reserve(slaveCount);
+  frameworks.reserve(frameworkCount);
+
+  initialize(flags, offerCallback);
+
+  for (unsigned i = 0; i < frameworkCount; i++) {
+    frameworks.push_back(createFrameworkInfo("role1"));
+    allocator->addFramework(frameworks[i].id(), frameworks[i], {});
+  }
+
+  // Create the used resources at each slave. We use three blocks of
+  // resources: unreserved mem/disk/ports, and two different labeled
+  // reservations with distinct labels. We choose the labels so that
+  // the last label (in storage order) is different, which is the
+  // worst-case for the equality operator. We also ensure that the
+  // labels at any two nodes are distinct, which means they can't be
+  // aggregated easily by the master/allocator.
+  Resources resources = Resources::parse("mem:2014;disk:1024;").get();
+
+  Resources ports = makePortRanges(makeRange(31000, 32000), 16);
+  resources += ports;
+
+  for (unsigned i = 0; i < slaveCount; i++) {
+    slaves.push_back(createSlaveInfo(
+        "cpus:24;mem:4096;disk:4096;ports:[31000-32000]"));
+
+    Resources agentResources = resources;
+
+    Labels labels1 = makeLabels(true, i);
+    Labels labels2 = makeLabels(false, i);
+
+    Resources reserved1 =
+      createReservedResource("cpus", "8", "role1",
+                             createReservationInfo("principal1", labels1));
+    Resources reserved2 =
+      createReservedResource("cpus", "8", "role1",
+                             createReservationInfo("principal1", labels2));
+
+    agentResources += reserved1;
+    agentResources += reserved2;
+
+    // Add some used resources on each slave. Let's say there are 16 tasks, each
+    // is allocated 1 cpu and a random port from the port range.
+    hashmap<FrameworkID, Resources> used;
+    used[frameworks[i % frameworkCount].id()] = agentResources;
+    allocator->addSlave(
+        slaves[i].id(), slaves[i], None(), slaves[i].resources(), used);
+  }
+
+  // Wait for all the `addSlave` operations to be processed.
   Clock::settle();
 
   // Loop enough times for all the frameworks to get offered all the resources.
