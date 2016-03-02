@@ -511,10 +511,8 @@ TEST_F(LinuxFilesystemIsolatorTest,
     .WillOnce(FutureArg<1>(&frameworkId));
 
   Future<vector<Offer>> offers;
-  Future<vector<Offer>> offers2;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillOnce(FutureArg<1>(&offers))
-    .WillOnce(FutureArg<1>(&offers2))
     .WillRepeatedly(Return()); // Ignore subsequent offers.
 
   driver.start();
@@ -525,8 +523,6 @@ TEST_F(LinuxFilesystemIsolatorTest,
   ASSERT_NE(0u, offers.get().size());
 
   Offer offer = offers.get()[0];
-
-  SlaveID slaveId = offer.slave_id();
 
   const string dir1 = path::join(os::getcwd(), "dir1");
   ASSERT_SOME(os::mkdir(dir1));
