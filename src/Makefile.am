@@ -52,6 +52,7 @@ testlibexecdir = $(pkglibexecdir)/tests
 
 # Directory where Mesos modules are installed.
 pkgmoduledir = $(pkglibdir)/modules
+relative_pkgmoduledir = $(PACKAGE)/modules
 
 if WITH_BUNDLED_PROTOBUF
 # Protocol buffer compiler.
@@ -2007,7 +2008,7 @@ install-data-hook:
 	    liblogrotate_container_logger; do 			\
 		for lib in `cd $(DESTDIR)/$(pkgmoduledir) && ls $${name}*`; do \
 		  rm -f $$lib; 					\
-		  $(LN_S) $(DESTDIR)/$(pkgmoduledir)/$$lib $$lib; \
+		  $(LN_S) $(relative_pkgmoduledir)/$$lib $$lib; \
 		done;						\
 	done
 
