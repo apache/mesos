@@ -1221,6 +1221,7 @@ the available disk usage. (default: 1weeks)
 </tr>
 <tr>
   <td>
+    <a name="gc_disk_headroom"></a>
     --gc_disk_headroom=VALUE
   </td>
   <td>
