@@ -1,3 +1,7 @@
+---
+title: Apache Mesos - HTTP Endpoints - /profiler/stop
+layout: documentation
+---
 <!--- This is an automatically generated file. DO NOT EDIT! --->
 
 ### USAGE ###

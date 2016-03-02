@@ -1,5 +1,8 @@
+---
+title: Apache Mesos - HTTP Endpoints
+layout: documentation
+---
 <!--- This is an automatically generated file. DO NOT EDIT! --->
-
 
 # HTTP Endpoints #
 
