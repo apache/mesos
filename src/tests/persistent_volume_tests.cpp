@@ -34,10 +34,6 @@
 
 #include <stout/os/exists.hpp>
 
-#ifdef __linux__
-#include "linux/fs.hpp"
-#endif // __linux__
-
 #include "master/constants.hpp"
 #include "master/flags.hpp"
 #include "master/master.hpp"
@@ -45,10 +41,6 @@
 #include "slave/flags.hpp"
 #include "slave/paths.hpp"
 #include "slave/slave.hpp"
-
-#include "slave/containerizer/fetcher.hpp"
-
-#include "slave/containerizer/mesos/containerizer.hpp"
 
 #include "tests/containerizer.hpp"
 #include "tests/environment.hpp"
@@ -60,9 +52,6 @@ using google::protobuf::RepeatedPtrField;
 
 using mesos::internal::master::Master;
 
-using mesos::internal::slave::Fetcher;
-using mesos::internal::slave::MesosContainerizer;
-using mesos::internal::slave::MesosContainerizerProcess;
 using mesos::internal::slave::Slave;
 
 using std::string;
@@ -827,141 +816,6 @@ TEST_P(PersistentVolumeTest, SlaveRecovery)
 
   Shutdown();
 }
-
-
-#ifdef __linux__
-// This test verifies that persistent volumes are unmounted properly
-// after a checkpointed framework disappears and the slave restarts.
-TEST_P(PersistentVolumeTest, ROOT_MesosContainerizerRecoverOrphanedVolumes)
-{
-  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo.set_role("role1");
-  frameworkInfo.set_checkpoint(true);
-
-  Try<PID<Master>> master = StartMaster(MasterFlags({frameworkInfo}));
-  ASSERT_SOME(master);
-
-  slave::Flags slaveFlags = CreateSlaveFlags();
-  slaveFlags.resources = getSlaveResources();
-  slaveFlags.isolation = "posix/disk,filesystem/linux";
-
-  Fetcher fetcher;
-
-  Try<MesosContainerizer*> _containerizer =
-    MesosContainerizer::create(slaveFlags, true, &fetcher);
-
-  ASSERT_SOME(_containerizer);
-  Owned<MesosContainerizer> containerizer(_containerizer.get());
-
-  Try<PID<Slave>> slave = StartSlave(containerizer.get(), slaveFlags);
-  ASSERT_SOME(slave);
-
-  MockScheduler sched;
-  MesosSchedulerDriver driver(
-      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
-
-  Future<FrameworkID> frameworkId;
-  EXPECT_CALL(sched, registered(&driver, _, _))
-    .WillOnce(FutureArg<1>(&frameworkId));
-
-  Future<vector<Offer>> offers;
-  EXPECT_CALL(sched, resourceOffers(&driver, _))
-    .WillOnce(FutureArg<1>(&offers))
-    .WillRepeatedly(Return());        // Ignore subsequent offers.
-
-  driver.start();
-
-  AWAIT_READY(frameworkId);
-
-  AWAIT_READY(offers);
-  EXPECT_FALSE(offers.get().empty());
-
-  Offer offer = offers.get()[0];
-
-  Resource volume = createPersistentVolume(
-      getDiskResource(Megabytes(64)),
-      "id1",
-      "path1",
-      None());
-
-  // Create a task that does nothing.
-  Resources taskResources = Resources::parse("cpus:1;mem:128").get() +
-    getDiskResource(Megabytes(32)) + volume;
-
-  TaskInfo task = createTask(
-      offer.slave_id(),
-      taskResources,
-      "sleep 1000");
-
-  Future<TaskStatus> status;
-  EXPECT_CALL(sched, statusUpdate(&driver, _))
-    .WillOnce(FutureArg<1>(&status))
-    .WillRepeatedly(DoDefault());
-
-  Future<Nothing> ack =
-    FUTURE_DISPATCH(_, &Slave::_statusUpdateAcknowledgement);
-
-  driver.acceptOffers(
-      {offer.id()},
-      {CREATE(volume), LAUNCH({task})});
-
-  AWAIT_READY(status);
-  EXPECT_EQ(task.task_id(), status.get().task_id());
-  EXPECT_EQ(TASK_RUNNING, status.get().state());
-
-  // Wait for the ACK to be checkpointed.
-  AWAIT_READY(ack);
-
-  // Restart the slave.
-  Stop(slave.get());
-
-  // Wipe the slave meta directory so that the slave will treat the
-  // above running task as an orphan.
-  ASSERT_SOME(os::rmdir(slave::paths::getMetaRootDir(slaveFlags.work_dir)));
-
-  _containerizer = MesosContainerizer::create(slaveFlags, true, &fetcher);
-  ASSERT_SOME(_containerizer);
-  containerizer.reset(_containerizer.get());
-
-  slave = StartSlave(containerizer.get(), slaveFlags);
-  ASSERT_SOME(slave);
-
-  // Wait until slave recovery is complete.
-  Future<Nothing> _recover = FUTURE_DISPATCH(_, &Slave::_recover);
-  AWAIT_READY(_recover);
-
-  // Wait until the containerizer's recovery is done too.
-  // This is called once orphans are cleaned up.  But this future is not
-  // directly tied to the `Slave::_recover` future above.
-  _recover = FUTURE_DISPATCH(_, &MesosContainerizerProcess::___recover);
-  AWAIT_READY(_recover);
-
-  Try<fs::MountInfoTable> table = fs::MountInfoTable::read();
-  ASSERT_SOME(table);
-
-  // Executor ID == task ID for command tasks.
-  ExecutorID executorId;
-  executorId.set_value(task.task_id().value());
-
-  const string directory = slave::paths::getExecutorPath(
-      slaveFlags.work_dir,
-      offer.slave_id(),
-      frameworkId.get(),
-      executorId);
-
-  // Verify that the orphaned container's persistent volume is
-  // unmounted.
-  foreach (const fs::MountInfoTable::Entry& entry, table.get().entries) {
-    EXPECT_FALSE(strings::contains(entry.target, directory))
-      << "Target was not unmounted: " << entry.target;
-  }
-
-  driver.stop();
-  driver.join();
-
-  Shutdown();
-}
-#endif // __linux__
 
 
 // This test verifies that the `create` and `destroy` operations complete

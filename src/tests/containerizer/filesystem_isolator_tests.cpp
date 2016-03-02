@@ -599,10 +599,14 @@ TEST_F(LinuxFilesystemIsolatorTest,
 }
 
 
-// This test verifies that orphan-ing a command task with a new root
-// filesystem and persistent volumes gets cleaned up correctly.
-TEST_F(LinuxFilesystemIsolatorTest,
-       ROOT_ChangeRootFilesystemOrphanedPersistentVolume)
+// This test verifies that persistent volumes are unmounted properly
+// after a checkpointed framework disappears and the slave restarts.
+//
+// TODO(jieyu): Even though the command task specifies a new
+// filesystem root, the executor (command executor) itself does not
+// change filesystem root (uses the host filesystem). We need to add a
+// test to test the scenario that the executor itself changes rootfs.
+TEST_F(LinuxFilesystemIsolatorTest, ROOT_RecoverOrphanedPersistentVolume)
 {
   Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
