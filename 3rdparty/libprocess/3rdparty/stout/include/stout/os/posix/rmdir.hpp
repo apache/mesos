@@ -21,6 +21,8 @@
 #include <stout/nothing.hpp>
 #include <stout/try.hpp>
 
+#include <stout/os/exists.hpp>
+
 
 namespace os {
 
@@ -35,6 +37,14 @@ inline Try<Nothing> rmdir(const std::string& directory, bool recursive = true)
       return ErrnoError();
     }
   } else {
+    // NOTE: `fts_open` will not always return `NULL` if the path does not
+    // exist. We manually induce an error here to indicate that we can't remove
+    // a directory that does not exist.
+    if (!os::exists(directory)) {
+      errno = ENOENT;
+      return ErrnoError();
+    }
+
     char* paths[] = {const_cast<char*>(directory.c_str()), NULL};
 
     FTS* tree = fts_open(paths, FTS_NOCHDIR, NULL);
