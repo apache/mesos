@@ -391,18 +391,21 @@ TEST_F(InMemoryStateTest, Names)
 }
 
 
-class LevelDBStateTest : public ::testing::Test
+class LevelDBStateTest : public TemporaryDirectoryTest
 {
 public:
   LevelDBStateTest()
     : storage(NULL),
-      state(NULL),
-      path(os::getcwd() + "/.state") {}
+      state(NULL) {}
 
 protected:
   virtual void SetUp()
   {
-    os::rmdir(path);
+    TemporaryDirectoryTest::SetUp();
+
+    ASSERT_SOME(sandbox);
+    path = sandbox.get() + "/.state";
+
     storage = new state::LevelDBStorage(path);
     state = new State(storage);
   }
@@ -411,14 +414,15 @@ protected:
   {
     delete state;
     delete storage;
-    os::rmdir(path);
+
+    TemporaryDirectoryTest::TearDown();
   }
 
   state::Storage* storage;
   State* state;
 
 private:
-  const string path;
+  string path;
 };
 
 
