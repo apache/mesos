@@ -45,6 +45,7 @@ PROTOC_TO_SRC_DIR(REGISTRY master/registry)
 
 PROTOC_TO_SRC_DIR(MESSAGES messages/messages)
 PROTOC_TO_SRC_DIR(FLAGS    messages/flags)
+PROTOC_TO_SRC_DIR(LOG      messages/log)
 PROTOC_TO_SRC_DIR(STATE    messages/state)
 
 PROTOC_TO_SRC_DIR(MESSAGE slave/containerizer/mesos/provisioner/docker/message)
@@ -71,6 +72,7 @@ set(MESOS_PROTOBUF_SRC
   ${OVERSUBSCRIPTION_PROTO_CC}
   ${MESSAGES_PROTO_CC}
   ${FLAGS_PROTO_CC}
+  ${LOG_PROTO_CC}
   ${STATE_PROTO_CC}
   ${ISOLATOR_PROTO_CC}
   ${REGISTRY_PROTO_CC}
@@ -105,11 +107,13 @@ set(AUTHORIZER_SRC
 
 set(COMMON_SRC
   common/attributes.cpp
+  common/build.cpp
   common/command_utils.cpp
   common/http.cpp
   common/protobuf_utils.cpp
   common/resources.cpp
   common/resources_utils.cpp
+  common/roles.cpp
   common/type_utils.cpp
   common/values.cpp
   )
@@ -167,6 +171,22 @@ set(LOCAL_SRC
   local/local.cpp
   )
 
+set(LOG_SRC
+  ${LOG_SRC}
+  log/catchup.cpp
+  log/consensus.cpp
+  log/coordinator.cpp
+  log/leveldb.cpp
+  log/log.cpp
+  log/main.cpp
+  log/recover.cpp
+  log/replica.cpp
+  log/tool/benchmark.cpp
+  log/tool/initialize.cpp
+  log/tool/read.cpp
+  log/tool/replica.cpp
+  )
+
 set(LOGGING_SRC
   logging/flags.cpp
   logging/logging.cpp
@@ -206,6 +226,12 @@ set(SCHEDULER_SRC
   scheduler/scheduler.cpp
   )
 
+set(STATE_SRC
+  ${STATE_SRC}
+  state/in_memory.cpp
+  state/log.cpp
+  )
+
 set(AGENT_SRC
   ${AGENT_SRC}
   slave/constants.cpp
@@ -223,9 +249,12 @@ set(AGENT_SRC
 if (NOT WIN32)
   set(AGENT_SRC
     ${AGENT_SRC}
-    slave/gc.cpp
+    slave/container_logger.cpp
+    slave/container_loggers/sandbox.cpp
     slave/flags.cpp
+    slave/gc.cpp
     slave/monitor.cpp
+    slave/resource_estimator.cpp
     slave/slave.cpp
     slave/containerizer/composing.cpp
     slave/containerizer/composing.hpp
@@ -239,7 +268,9 @@ if (NOT WIN32)
     slave/containerizer/mesos/launch.cpp
     slave/containerizer/mesos/launcher.cpp
     slave/containerizer/mesos/mount.cpp
+    slave/containerizer/mesos/isolators/filesystem/posix.cpp
     slave/containerizer/mesos/isolators/posix/disk.cpp
+    slave/containerizer/mesos/provisioner/docker/local_puller.cpp
     slave/containerizer/mesos/provisioner/paths.cpp
     slave/containerizer/mesos/provisioner/provisioner.cpp
     slave/containerizer/mesos/provisioner/store.cpp
@@ -318,12 +349,14 @@ if (NOT WIN32)
     ${HOOK_SRC}
     ${INTERNAL_SRC}
     ${LOCAL_SRC}
+    ${LOG_SRC}
     ${LOGGING_SRC}
     ${MESSAGES_SRC}
     ${MASTER_SRC}
     ${MODULE_SRC}
     ${SCHED_SRC}
     ${SCHEDULER_SRC}
+    ${STATE_SRC}
     ${URI_SRC}
     ${USAGE_SRC}
     ${V1_SRC}
@@ -338,7 +371,7 @@ if (LINUX)
   set(MESOS_SRC ${MESOS_SRC} ${LINUX_SRC})
 endif (LINUX)
 
-add_definitions(-DUSE_STATIC_LIB)
+add_definitions(-DUSE_STATIC_LIB -DBUILD_DATE=0 -DBUILD_TIME=0 -DBUILD_USER="frank" -DBUILD_FLAGS="" -DBUILD_JAVA_JVM_LIBRARY="")
 
 # INCLUDE DIRECTIVES FOR MESOS LIBRARY (generates, e.g., -I/path/to/thing
 # on Linux).
