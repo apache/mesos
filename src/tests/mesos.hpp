@@ -508,6 +508,22 @@ inline Resource::ReservationInfo createReservationInfo(
 }
 
 
+inline Resource createReservedResource(
+    const std::string& name,
+    const std::string& value,
+    const std::string& role,
+    const Option<Resource::ReservationInfo>& reservation)
+{
+  Resource resource = Resources::parse(name, value, role).get();
+
+  if (reservation.isSome()) {
+    resource.mutable_reservation()->CopyFrom(reservation.get());
+  }
+
+  return resource;
+}
+
+
 // NOTE: We only set the volume in DiskInfo if 'containerPath' is set.
 // If volume mode is not specified, Volume::RW will be used (assuming
 // 'containerPath' is set).

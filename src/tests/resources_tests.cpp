@@ -1648,23 +1648,6 @@ TEST(ResourcesTest, PrecisionRounding)
 }
 
 
-// Helper for creating a reserved resource.
-static Resource createReservedResource(
-    const string& name,
-    const string& value,
-    const string& role,
-    const Option<Resource::ReservationInfo>& reservation)
-{
-  Resource resource = Resources::parse(name, value, role).get();
-
-  if (reservation.isSome()) {
-    resource.mutable_reservation()->CopyFrom(reservation.get());
-  }
-
-  return resource;
-}
-
-
 TEST(ReservedResourcesTest, Validation)
 {
   // Unreserved.
