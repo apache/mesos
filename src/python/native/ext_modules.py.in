@@ -27,7 +27,7 @@ abs_top_builddir = '@abs_top_builddir@'
 src_python_native = os.path.join(
     'src', 'python', 'native', 'src', 'mesos', 'native')
 
-leveldb = os.path.join('3rdparty', 'leveldb')
+leveldb = os.path.join('3rdparty', 'leveldb-1.4')
 zookeeper = os.path.join('3rdparty', 'zookeeper-3.4.5', 'src', 'c')
 libprocess = os.path.join('3rdparty', 'libprocess')
 

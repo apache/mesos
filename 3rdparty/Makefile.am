@@ -33,7 +33,7 @@ CONFIGURE_ARGS = @CONFIGURE_ARGS@ --enable-shared=no --with-pic --srcdir=.
 include versions.am
 
 DISTRIBUTE = distribute-$(DISTRIBUTE_VERSION)
-LEVELDB = leveldb
+LEVELDB = leveldb-$(LEVELDB_VERSION)
 PIP = pip-$(PIP_VERSION)
 WHEEL = wheel-$(WHEEL_VERSION)
 ZOOKEEPER = zookeeper-$(ZOOKEEPER_VERSION)

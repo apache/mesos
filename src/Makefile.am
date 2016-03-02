@@ -28,7 +28,7 @@ include ../3rdparty/libprocess/3rdparty/versions.am
 DISTRIBUTE = 3rdparty/distribute-$(DISTRIBUTE_VERSION)
 PIP = 3rdparty/pip-$(PIP_VERSION)
 WHEEL = 3rdparty/wheel-$(WHEEL_VERSION)
-LEVELDB = 3rdparty/leveldb
+LEVELDB = 3rdparty/leveldb-$(LEVELDB_VERSION)
 ZOOKEEPER = 3rdparty/zookeeper-$(ZOOKEEPER_VERSION)/src/c
 ZOOKEEPER_JAR = 3rdparty/zookeeper-$(ZOOKEEPER_VERSION)/zookeeper-$(ZOOKEEPER_VERSION).jar
 LIBPROCESS = 3rdparty/libprocess
