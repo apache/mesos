@@ -45,9 +45,16 @@ AGENT_COMMAND = [
 
 # A header to add onto all generated markdown files.
 MARKDOWN_HEADER = (
-'<!--- This is an automatically generated file. DO NOT EDIT! --->\n'
+"""---
+title: %s
+layout: documentation
+---
+<!--- This is an automatically generated file. DO NOT EDIT! --->
+"""
 )
 
+# A template of the title to add onto all generated markdown files.
+MARKDOWN_TITLE = "Apache Mesos - HTTP Endpoints%s"
 
 # A global timeout as well as a retry interval when hitting any http
 # endpoints on the master or agent (in seconds).
@@ -169,7 +176,7 @@ def get_relative_md_path(id, name):
     return os.path.join(new_id + '.md')
 
 
-def write_markdown(path, output):
+def write_markdown(path, output, title):
   """Writes 'output' to the file at 'path'."""
   print 'generating: %s' % (path)
 
@@ -181,7 +188,7 @@ def write_markdown(path, output):
 
   # Add our header and remove all '\n's at the end of the output if
   # there are any.
-  output = MARKDOWN_HEADER + '\n' + output.rstrip()
+  output = (MARKDOWN_HEADER % title) + '\n' + output.rstrip()
 
   outfile.write(output)
   outfile.close()
@@ -199,8 +206,7 @@ def dump_index_markdown(master_help, agent_help):
   # strings contained in the "Master Endpoints" and "Agent Endpoints"
   # sections of this template.
   output = (
-"""
-# HTTP Endpoints #
+"""# HTTP Endpoints #
 
 Below is a list of HTTP endpoints available for a given Mesos process.
 
@@ -265,7 +271,7 @@ For example, http://agent.com:5051/files/browse
                      generate_links(agent_help))
 
   path = os.path.join(options['output_path'], 'index.md')
-  write_markdown(path, output)
+  write_markdown(path, output, MARKDOWN_TITLE % "")
 
 
 def dump_markdown(help):
@@ -279,10 +285,11 @@ def dump_markdown(help):
     for endpoint in process['endpoints']:
       name = endpoint['name']
       text = endpoint['text']
+      title = get_endpoint_path(id, name)
 
       relative_path = get_relative_md_path(id, name)
       path = os.path.join(options['output_path'], relative_path)
-      write_markdown(path, text)
+      write_markdown(path, text, MARKDOWN_TITLE % (" - " + title))
 
 
 def start_master():
