@@ -238,6 +238,7 @@ set(AGENT_SRC
   slave/gc.cpp
   slave/http.cpp
   slave/metrics.cpp
+  slave/monitor.cpp
   slave/paths.cpp
   slave/qos_controller.cpp
   slave/qos_controllers/noop.cpp
@@ -253,7 +254,6 @@ if (NOT WIN32)
     slave/container_logger.cpp
     slave/container_loggers/sandbox.cpp
     slave/flags.cpp
-    slave/monitor.cpp
     slave/resource_estimator.cpp
     slave/slave.cpp
     slave/containerizer/composing.cpp
