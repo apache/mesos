@@ -20,7 +20,8 @@
 #include <process/dispatch.hpp>
 
 #include <stout/foreach.hpp>
-#include <stout/os.hpp>
+
+#include <stout/os/rmdir.hpp>
 
 #include "logging/logging.hpp"
 
