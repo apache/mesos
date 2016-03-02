@@ -413,7 +413,7 @@ TEST_F(HierarchicalAllocatorTest, ReservedDRF)
   allocator->addFramework(
       framework2.id(), framework2, hashmap<SlaveID, Resources>());
 
-  // framework2 will be allocated the new resoures.
+  // framework2 will be allocated the new resources.
   SlaveInfo slave2 = createSlaveInfo("cpus:2;mem:512;disk:0");
   allocator->addSlave(slave2.id(), slave2, None(), slave2.resources(), EMPTY);
 
@@ -2356,7 +2356,7 @@ TEST_F(HierarchicalAllocatorTest, DeactivateAndReactivateFramework)
   // Advance the clock and trigger a background allocation cycle.
   Clock::advance(flags.allocation_interval);
 
-  // Wait for all the 'suppressOffers' and 'deactivateFramework'
+  // Wait for all the `suppressOffers` and `deactivateFramework`
   // operations to be processed.
   Clock::settle();
 
@@ -2406,7 +2406,7 @@ TEST_P(HierarchicalAllocator_BENCHMARK_Test, AddAndUpdateSlave)
         "cpus:2;mem:1024;disk:4096;ports:[31000-32000]"));
   }
 
-  for (unsigned i = 0; i < frameworkCount; ++i) {
+  for (unsigned i = 0; i < frameworkCount; i++) {
     frameworks.push_back(createFrameworkInfo("*"));
     frameworks.back().add_capabilities()->set_type(
         FrameworkInfo::Capability::REVOCABLE_RESOURCES);
@@ -2447,7 +2447,7 @@ TEST_P(HierarchicalAllocator_BENCHMARK_Test, AddAndUpdateSlave)
 
   // Add the slaves, use round-robin to choose which framework
   // to allocate a slice of the slave's resources to.
-  for (unsigned i = 0; i < slaves.size(); ++i) {
+  for (unsigned i = 0; i < slaves.size(); i++) {
     hashmap<FrameworkID, Resources> used;
 
     used[frameworks[i % frameworkCount].id()] = slaveResources;
@@ -2460,7 +2460,7 @@ TEST_P(HierarchicalAllocator_BENCHMARK_Test, AddAndUpdateSlave)
         used);
   }
 
-  // Wait for all the 'addSlave' operations to be processed.
+  // Wait for all the `addSlave` operations to be processed.
   while (finished.load() != slaveCount) {
     os::sleep(Milliseconds(10));
   }
@@ -2478,7 +2478,7 @@ TEST_P(HierarchicalAllocator_BENCHMARK_Test, AddAndUpdateSlave)
     allocator->updateSlave(slave.id(), oversubscribed);
   }
 
-  // Wait for all the 'updateSlave' operations to be processed.
+  // Wait for all the `updateSlave` operations to be processed.
   while (finished.load() != 2 * slaveCount) {
     os::sleep(Milliseconds(10));
   }
@@ -2541,7 +2541,7 @@ TEST_F(HierarchicalAllocator_BENCHMARK_Test, DeclineOffers)
 
   initialize(flags, offerCallback);
 
-  for (unsigned i = 0; i < frameworkCount; ++i) {
+  for (unsigned i = 0; i < frameworkCount; i++) {
     frameworks.push_back(createFrameworkInfo("*"));
     allocator->addFramework(frameworks[i].id(), frameworks[i], {});
   }
@@ -2553,7 +2553,7 @@ TEST_F(HierarchicalAllocator_BENCHMARK_Test, DeclineOffers)
 
   resources += ports;
 
-  for (unsigned i = 0; i < slaveCount; ++i) {
+  for (unsigned i = 0; i < slaveCount; i++) {
     slaves.push_back(createSlaveInfo(
         "cpus:24;mem:4096;disk:4096;ports:[31000-32000]"));
 
@@ -2568,8 +2568,8 @@ TEST_F(HierarchicalAllocator_BENCHMARK_Test, DeclineOffers)
   // Wait for all the 'addSlave' operations to be processed.
   Clock::settle();
 
-  // Loop enough times for all the frameworks to get offerred all the resources.
-  for (unsigned count = 0; count < frameworkCount * 2; ++count) {
+  // Loop enough times for all the frameworks to get offered all the resources.
+  for (unsigned count = 0; count < frameworkCount * 2; count++) {
     // Permanently decline any offered resources.
     for (auto offer : offers) {
       Filters filters;
