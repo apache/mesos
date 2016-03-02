@@ -2091,35 +2091,12 @@ void Master::_subscribe(
   CHECK(!frameworkInfo.id().value().empty());
 
   if (frameworks.registered.contains(frameworkInfo.id())) {
-    // Using the "force" field of the scheduler allows us to keep a
-    // scheduler that got partitioned but didn't die (in ZooKeeper
-    // speak this means didn't lose their session) and then
-    // eventually tried to connect to this master even though
-    // another instance of their scheduler has reconnected.
-
     Framework* framework =
       CHECK_NOTNULL(frameworks.registered[frameworkInfo.id()]);
 
-    // Note that if the scheduler is retrying we expect it
-    // to close its old connection. But, the master may not
-    // realize that the connection is closed before the retry
-    // occurs so we may kick off a scheduler unnecessarily.
-    if (framework->connected && !subscribe.force()) {
-      LOG(ERROR) << "Disallowing subscription attempt"
-                 << " of framework " << *framework
-                 << " because it is already connected";
-
-      FrameworkErrorMessage message;
-      message.set_message("Framework is already connected");
-
-      http.send(message);
-      http.close();
-      return;
-    }
-
     // It is now safe to update the framework fields since the request is now
     // guaranteed to be successful. We use the fields passed in during
-    // re-registration.
+    // subscription.
     LOG(INFO) << "Updating info for framework " << framework->id();
 
     framework->updateFrameworkInfo(frameworkInfo);
@@ -2127,33 +2104,8 @@ void Master::_subscribe(
 
     framework->reregisteredTime = Clock::now();
 
-    if (subscribe.force()) {
-      LOG(INFO) << "Framework " << *framework << " failed over";
-      failoverFramework(framework, http);
-    } else {
-      LOG(INFO) << "Allowing framework " << *framework
-                << " to subscribe with an already used id";
-
-      framework->connected = true;
-      framework->updateConnection(http);
-
-      http.closed()
-        .onAny(defer(self(), &Self::exited, framework->id(), http));
-
-      // Reactivate the framework.
-      if (!framework->active) {
-        framework->active = true;
-        allocator->activateFramework(framework->id());
-      }
-
-      FrameworkReregisteredMessage message;
-      message.mutable_framework_id()->MergeFrom(framework->id());
-      message.mutable_master_info()->MergeFrom(info_);
-      framework->send(message);
-
-      // Start the heartbeat after sending SUBSCRIBED event.
-      framework->heartbeat();
-    }
+    // Always failover the old framework connection. See MESOS-4712 for details.
+    failoverFramework(framework, http);
   } else {
     // We don't have a framework with this ID, so we must be a newly
     // elected Mesos master to which either an existing scheduler or a
@@ -5814,8 +5766,9 @@ void Master::addFramework(Framework* framework)
 void Master::failoverFramework(Framework* framework, const HttpConnection& http)
 {
   // Notify the old connected framework that it has failed over.
-  // Note that this may be a retry in which case we'll shut down
-  // the scheduler unnecessarily.
+  // This is safe to do even if it is a retry because the framework is expected
+  // to close the old connection (and hence not receive any more responses)
+  // before sending subscription request on a new connection.
   if (framework->connected) {
     FrameworkErrorMessage message;
     message.set_message("Framework failed over");
@@ -5841,6 +5794,7 @@ void Master::failoverFramework(Framework* framework, const HttpConnection& http)
   }
 
   framework->updateConnection(http);
+
   http.closed()
     .onAny(defer(self(), &Self::exited, framework->id(), http));
 
