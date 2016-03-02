@@ -61,19 +61,6 @@ using std::string;
 using std::vector;
 
 
-static hashset<string> listfiles(const string& directory)
-{
-  hashset<string> fileset;
-  Try<list<string> > entries = os::ls(directory);
-  if (entries.isSome()) {
-    foreach (const string& entry, entries.get()) {
-      fileset.insert(entry);
-    }
-  }
-  return fileset;
-}
-
-
 #ifdef __FreeBSD__
 static bool isJailed() {
   int mib[4];
@@ -112,44 +99,6 @@ TEST_F(OsTest, Environment)
     EXPECT_TRUE(environment.contains(key));
     EXPECT_EQ(value, environment[key]);
   }
-}
-
-
-TEST_F(OsTest, Rmdir)
-{
-  const hashset<string> EMPTY;
-  const string tmpdir = os::getcwd();
-
-  hashset<string> expectedListing = EMPTY;
-  EXPECT_EQ(expectedListing, listfiles(tmpdir));
-
-  os::mkdir(tmpdir + "/a/b/c");
-  os::mkdir(tmpdir + "/a/b/d");
-  os::mkdir(tmpdir + "/e/f");
-
-  expectedListing = EMPTY;
-  expectedListing.insert("a");
-  expectedListing.insert("e");
-  EXPECT_EQ(expectedListing, listfiles(tmpdir));
-
-  expectedListing = EMPTY;
-  expectedListing.insert("b");
-  EXPECT_EQ(expectedListing, listfiles(tmpdir + "/a"));
-
-  expectedListing = EMPTY;
-  expectedListing.insert("c");
-  expectedListing.insert("d");
-  EXPECT_EQ(expectedListing, listfiles(tmpdir + "/a/b"));
-
-  expectedListing = EMPTY;
-  EXPECT_EQ(expectedListing, listfiles(tmpdir + "/a/b/c"));
-  EXPECT_EQ(expectedListing, listfiles(tmpdir + "/a/b/d"));
-
-  expectedListing.insert("f");
-  EXPECT_EQ(expectedListing, listfiles(tmpdir + "/e"));
-
-  expectedListing = EMPTY;
-  EXPECT_EQ(expectedListing, listfiles(tmpdir + "/e/f"));
 }
 
 
@@ -211,28 +160,6 @@ TEST_F(OsTest, Nonblock)
 }
 
 
-TEST_F(OsTest, Touch)
-{
-  const string testfile  = path::join(os::getcwd(), UUID::random().toString());
-
-  ASSERT_SOME(os::touch(testfile));
-  ASSERT_TRUE(os::exists(testfile));
-}
-
-
-TEST_F(OsTest, ReadWriteString)
-{
-  const string testfile  = path::join(os::getcwd(), UUID::random().toString());
-  const string teststr = "line1\nline2";
-
-  ASSERT_SOME(os::write(testfile, teststr));
-
-  Try<string> readstr = os::read(testfile);
-
-  EXPECT_SOME_EQ(teststr, readstr);
-}
-
-
 // Tests whether a file's size is reported by os::stat::size as expected.
 // Tests all four combinations of following a link or not and of a file
 // or a link as argument. Also tests that an error is returned for a
@@ -262,36 +189,6 @@ TEST_F(OsTest, Size)
   // Not following links, we expect the string length of the linked path.
   EXPECT_SOME_EQ(Bytes(file.size()),
                  os::stat::size(link, os::stat::DO_NOT_FOLLOW_SYMLINK));
-}
-
-
-TEST_F(OsTest, Find)
-{
-  const string testdir = path::join(os::getcwd(), UUID::random().toString());
-  const string subdir = testdir + "/test1";
-  ASSERT_SOME(os::mkdir(subdir)); // Create the directories.
-
-  // Now write some files.
-  const string file1 = testdir + "/file1.txt";
-  const string file2 = subdir + "/file2.txt";
-  const string file3 = subdir + "/file3.jpg";
-
-  ASSERT_SOME(os::touch(file1));
-  ASSERT_SOME(os::touch(file2));
-  ASSERT_SOME(os::touch(file3));
-
-  // Find "*.txt" files.
-  Try<list<string> > result = os::find(testdir, ".txt");
-  ASSERT_SOME(result);
-
-  hashset<string> files;
-  foreach (const string& file, result.get()) {
-    files.insert(file);
-  }
-
-  ASSERT_EQ(2u, files.size());
-  ASSERT_TRUE(files.contains(file1));
-  ASSERT_TRUE(files.contains(file2));
 }
 
 

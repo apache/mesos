@@ -96,7 +96,7 @@ TEST_F(FsTest, ReadWriteString)
 }
 
 
-TEST_F(FsTest, Rmdir)
+TEST_F(FsTest, Mkdir)
 {
   const hashset<string> EMPTY;
   const string tmpdir = os::getcwd();
