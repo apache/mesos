@@ -39,6 +39,7 @@
 #include "uri/fetcher.hpp"
 
 #include "uri/schemes/docker.hpp"
+#include "uri/schemes/file.hpp"
 #include "uri/schemes/hdfs.hpp"
 #include "uri/schemes/http.hpp"
 
@@ -289,6 +290,48 @@ TEST_F(DockerFetcherPluginTest, INTERNET_CURL_FetchImage)
   for (int i = 0; i < manifest->fslayers_size(); i++) {
     EXPECT_TRUE(os::exists(path::join(dir, manifest->fslayers(i).blobsum())));
   }
+}
+
+
+class CopyFetcherPluginTest : public TemporaryDirectoryTest {};
+
+
+// Tests CopyFetcher plugin for fetching a valid file.
+TEST_F(CopyFetcherPluginTest, FetchExistingFile)
+{
+  const string file = path::join(os::getcwd(), "file");
+
+  ASSERT_SOME(os::write(file, "abc"));
+
+  // Create a URI for the test file.
+  const URI uri = uri::file(file);
+
+  // Use the file fetcher to fetch the URI.
+  Try<Owned<uri::Fetcher>> fetcher = uri::fetcher::create();
+  ASSERT_SOME(fetcher);
+
+  const string dir = path::join(os::getcwd(), "dir");
+
+  AWAIT_READY(fetcher.get()->fetch(uri, dir));
+
+  // Validate the fetched file's content.
+  EXPECT_SOME_EQ("abc", os::read(path::join(dir, "file")));
+}
+
+
+// Negative test case that tests CopyFetcher plugin for a non-exiting file.
+TEST_F(CopyFetcherPluginTest, FetchNonExistingFile)
+{
+  const URI uri = uri::file(path::join(os::getcwd(), "non-exist"));
+
+  // Use the file fetcher to fetch the URI.
+  Try<Owned<uri::Fetcher>> fetcher = uri::fetcher::create();
+  ASSERT_SOME(fetcher);
+
+  const string dir = path::join(os::getcwd(), "dir");
+
+  // Validate that the fetch failed.
+  AWAIT_FAILED(fetcher.get()->fetch(uri, dir));
 }
 
 

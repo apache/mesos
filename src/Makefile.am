@@ -681,6 +681,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   slave/resource_estimators/noop.cpp					\
   uri/fetcher.cpp							\
   uri/utils.cpp								\
+  uri/fetchers/copy.cpp							\
   uri/fetchers/curl.cpp							\
   uri/fetchers/docker.cpp						\
   uri/fetchers/hadoop.cpp						\
@@ -809,6 +810,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   tests/containerizer/store.hpp						\
   uri/fetcher.hpp							\
   uri/utils.hpp								\
+  uri/fetchers/copy.hpp							\
   uri/fetchers/curl.hpp							\
   uri/fetchers/docker.hpp						\
   uri/fetchers/hadoop.hpp						\
