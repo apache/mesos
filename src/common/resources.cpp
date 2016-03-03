@@ -924,6 +924,23 @@ Resources Resources::flatten(
 }
 
 
+Resources Resources::createStrippedScalarQuantity() const
+{
+  Resources stripped;
+
+  foreach (const Resource& resource, resources) {
+    if (resource.type() == Value::SCALAR) {
+      Resource scalar = resource;
+      scalar.clear_reservation();
+      scalar.clear_disk();
+      stripped += scalar;
+    }
+  }
+
+  return stripped;
+}
+
+
 Option<Resources> Resources::find(const Resources& targets) const
 {
   Resources total;

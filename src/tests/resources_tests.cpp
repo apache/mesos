@@ -2207,6 +2207,63 @@ TEST(ResourcesOperationTest, CreatePersistentVolume)
 }
 
 
+TEST(ResourcesOperationTest, StrippedResourcesVolume)
+{
+  Resources volume = createDiskResource("200", "role", "1", "path");
+  Resources stripped = volume.createStrippedScalarQuantity();
+
+  EXPECT_TRUE(stripped.persistentVolumes().empty());
+  EXPECT_EQ(Megabytes(200), stripped.disk().get());
+
+  // `createStrippedScalarQuantity` doesn't remove the `role` from a
+  // reserved resource.
+  EXPECT_FALSE(stripped.reserved("role").empty());
+
+  Resource strippedVolume = *(stripped.begin());
+
+  ASSERT_EQ(Value::SCALAR, strippedVolume.type());
+  EXPECT_FLOAT_EQ(200, strippedVolume.scalar().value());
+  EXPECT_EQ("role", strippedVolume.role());
+  EXPECT_EQ("disk", strippedVolume.name());
+  EXPECT_FALSE(strippedVolume.has_reservation());
+  EXPECT_FALSE(strippedVolume.has_disk());
+  EXPECT_FALSE(Resources::isPersistentVolume(strippedVolume));
+}
+
+
+TEST(ResourcesOperationTest, StrippedResourcesReserved)
+{
+  Resources unreserved = Resources::parse("cpus:1;mem:512").get();
+  Resources dynamicallyReserved = unreserved.flatten(
+      "role", createReservationInfo("principal"));
+
+  Resources stripped = dynamicallyReserved.createStrippedScalarQuantity();
+
+  // After being stripped, a dynamically reserved resource
+  // effectively becomes statically reserved.
+  EXPECT_FALSE(stripped.reserved("role").empty());
+
+  foreach (const Resource& resource, stripped) {
+    EXPECT_EQ("role", resource.role());
+    EXPECT_FALSE(resource.has_reservation());
+    EXPECT_FALSE(Resources::isDynamicallyReserved(resource));
+    EXPECT_FALSE(Resources::isUnreserved(resource));
+  }
+}
+
+
+TEST(ResourcesOperationTest, StrippedResourcesNonScalar)
+{
+  Resources ports = Resources::parse("ports:[10000-20000, 30000-50000]").get();
+
+  EXPECT_TRUE(ports.createStrippedScalarQuantity().empty());
+
+  Resources names = Resources::parse("names:{foo,bar}").get();
+
+  EXPECT_TRUE(names.createStrippedScalarQuantity().empty());
+}
+
+
 // Helper for creating a revocable resource.
 static Resource createRevocableResource(
     const string& name,
