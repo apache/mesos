@@ -22,6 +22,7 @@
 #include "slave/containerizer/mesos/provisioner/appc/fetcher.hpp"
 #include "slave/containerizer/mesos/provisioner/appc/paths.hpp"
 
+#include "uri/schemes/file.hpp"
 #include "uri/schemes/http.hpp"
 
 namespace http = process::http;
@@ -84,6 +85,13 @@ static Try<URI> getUri(const string& prefix, const string& path)
   const string rawUrl = prefix + path;
 
   // TODO(jojy): Add parse URI function in URI namespace.
+
+  // TODO(jojy): Add `Path::seperator` which abstracts the file
+  // separator character.
+  if (strings::startsWith(rawUrl, "/")) {
+    return uri::file(rawUrl);
+  }
+
   Try<http::URL> _url = http::URL::parse(rawUrl);
   if (_url.isError()) {
     return Error(
@@ -132,7 +140,8 @@ Try<Owned<Fetcher>> Fetcher::create(
 
   // TODO(jojy): Add support for hdfs.
   if (!strings::startsWith(prefix, "http") &&
-      !strings::startsWith(prefix, "https")) {
+      !strings::startsWith(prefix, "https") &&
+      !strings::startsWith(prefix, "/")) {
     return Error("Invalid simple discovery uri prefix: " + prefix);
   }
 
