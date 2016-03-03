@@ -1,19 +1,30 @@
 Release Notes - Mesos - Version 0.28.0 (WIP)
 --------------------------------------------
 This release contains:
-  * [MESOS-4343] - We have introduced a new cgroups isolator for enabling the net_cls
-                   subsystem in linux. The cgroups/net_cls isolator allows operators
-                   to provide network performance isolation and network segmentation
-                   for containers within a Mesos cluster. To enable the cgroups/net_cls
-                   isolator, append `cgroups/net_cls` to the `--isolation` flag when
-                   starting the slave. You can find more details about the isolator in
-                   the Apache Mesos documentation page for `Mesos containerizer`.
-  * [MESOS-2840] - Experimental support for container images in Mesos containerizer
-                   (a.k.a. Unified Containerizer). This allows frameworks to launch
-                   Docker/Appc containers using Mesos containerizer without relying on
-                   docker daemon (engine). The isolation of the containers is done
-                   using isolators. Please refer to container-image.md for currently
-                   supported features and limitations.
+  * [MESOS-4343] - We have introduced a new cgroups isolator for enabling the
+    net_cls subsystem in Linux. The cgroups/net_cls isolator allows operators to
+    provide network performance isolation and network segmentation for
+    containers within a Mesos cluster. To enable the cgroups/net_cls isolator,
+    append `cgroups/net_cls` to the `--isolation` flag when starting the
+    slave. You can find more details about the isolator in the Apache Mesos
+    documentation page for `Mesos containerizer`.
+
+  * [MESOS-2840] - Experimental support for container images in Mesos
+    containerizer (a.k.a. Unified Containerizer). This allows frameworks to
+    launch Docker/Appc containers using Mesos containerizer without relying on
+    docker daemon (engine). The isolation of the containers is done using
+    isolators. Please refer to container-image.md for currently supported
+    features and limitations.
+
+  * [MESOS-4687] - The implementation of scalar resource values (e.g., "2.5
+    CPUs") has changed. Mesos now reliably supports resources with up to three
+    decimal digits of precision (e.g., "2.501 CPUs"); resources with more than
+    three decimal digits of precision will be rounded. Internally, resource math
+    is now done using a fixed-point format that supports three decimal digits of
+    precision, and then converted to/from floating point for input and output,
+    respectively. Frameworks that do their own resource math and manipulate
+    fractional resources may observe differences in roundoff error and numerical
+    precision.
 
 ** API Changes:
   * [MESOS-4066] - Agent should not return partial state when a request is made to /state endpoint during recovery.
