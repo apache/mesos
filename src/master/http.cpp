@@ -54,6 +54,7 @@
 #include <stout/strings.hpp>
 #include <stout/try.hpp>
 #include <stout/utils.hpp>
+#include <stout/uuid.hpp>
 
 #include "common/build.hpp"
 #include "common/http.hpp"
@@ -422,6 +423,12 @@ Future<Response> Master::Http::scheduler(const Request& request) const
           "'" + APPLICATION_PROTOBUF + "' or '" + APPLICATION_JSON + "'");
     }
 
+    // Make sure that a stream ID was not included in the request headers.
+    if (request.headers.contains("Mesos-Stream-Id")) {
+      return BadRequest(
+          "Subscribe calls should not include the 'Mesos-Stream-Id' header");
+    }
+
     Pipe pipe;
     OK ok;
     ok.headers["Content-Type"] = stringify(responseContentType);
@@ -429,7 +436,11 @@ Future<Response> Master::Http::scheduler(const Request& request) const
     ok.type = Response::PIPE;
     ok.reader = pipe.reader();
 
-    HttpConnection http {pipe.writer(), responseContentType};
+    // Generate a stream ID and return it in the response.
+    UUID streamId = UUID::random();
+    ok.headers["Mesos-Stream-Id"] = streamId.toString();
+
+    HttpConnection http {pipe.writer(), responseContentType, streamId};
     master->subscribe(http, call.subscribe());
 
     return ok;
@@ -445,6 +456,24 @@ Future<Response> Master::Http::scheduler(const Request& request) const
 
   if (!framework->connected) {
     return Forbidden("Framework is not subscribed");
+  }
+
+  if (framework->http.isNone()) {
+    return Forbidden("Framework is not connected via HTTP");
+  }
+
+  // This isn't a `SUBSCRIBE` call, so the request should include a stream ID.
+  if (!request.headers.contains("Mesos-Stream-Id")) {
+    return BadRequest(
+        "All non-subscribe calls should include the 'Mesos-Stream-Id' header");
+  }
+
+  if (request.headers.at("Mesos-Stream-Id") !=
+      framework->http.get().streamId.toString()) {
+    return BadRequest(
+        "The stream ID included in this request didn't match the stream ID "
+        "currently associated with framework ID '"
+        + framework->id().value() + "'");
   }
 
   switch (call.type()) {

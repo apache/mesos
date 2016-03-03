@@ -56,6 +56,7 @@
 #include <stout/multihashmap.hpp>
 #include <stout/option.hpp>
 #include <stout/recordio.hpp>
+#include <stout/uuid.hpp>
 
 #include "common/http.hpp"
 #include "common/protobuf_utils.hpp"
@@ -1600,9 +1601,11 @@ inline std::ostream& operator<<(
 struct HttpConnection
 {
   HttpConnection(const process::http::Pipe::Writer& _writer,
-                 ContentType _contentType)
+                 ContentType _contentType,
+                 UUID _streamId)
     : writer(_writer),
       contentType(_contentType),
+      streamId(_streamId),
       encoder(lambda::bind(serialize, contentType, lambda::_1)) {}
 
   // Converts the message to an Event before sending.
@@ -1626,6 +1629,7 @@ struct HttpConnection
 
   process::http::Pipe::Writer writer;
   ContentType contentType;
+  UUID streamId;
   ::recordio::Encoder<v1::scheduler::Event> encoder;
 };
 
