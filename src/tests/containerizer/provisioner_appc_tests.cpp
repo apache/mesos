@@ -575,7 +575,7 @@ protected:
 // Tests simple fetch functionality of the appc::Fetcher component.
 // The test fetches a test Appc image from the http server and
 // verifies its content. The image is served in 'tar + gzip' format.
-TEST_F(AppcImageFetcherTest, SimpleFetch)
+TEST_F(AppcImageFetcherTest, CURL_SimpleFetch)
 {
   // Setup the image on the image server.
   prepareServerImage(
