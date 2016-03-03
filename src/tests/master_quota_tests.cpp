@@ -955,8 +955,10 @@ TEST_F(MasterQuotaTest, AvailableResourcesAfterRescinding)
   // of rescinds. Even though quota request resources can be satisfied with
   // resources from a single agent, offers from two agents must be rescinded,
   // because there are two frameworks in the quota'ed role `ROLE2`.
+  Future<Nothing> offerRescinded1, offerRescinded2;
   EXPECT_CALL(sched1, offerRescinded(&framework1, _))
-    .Times(2);
+    .WillOnce(FutureSatisfy(&offerRescinded1))
+    .WillOnce(FutureSatisfy(&offerRescinded2));
 
   // In this test we are not interested in which frameworks will be offered
   // the rescinded resources.
@@ -996,6 +998,10 @@ TEST_F(MasterQuotaTest, AvailableResourcesAfterRescinding)
   AWAIT_READY(receivedQuotaRequest);
   EXPECT_EQ(ROLE2, receivedQuotaRequest.get().info.role());
   EXPECT_EQ(quotaResources, receivedQuotaRequest.get().info.guarantee());
+
+  // Ensure `RescindResourceOfferMessage`s are processed by `sched1`.
+  AWAIT_READY(offerRescinded1);
+  AWAIT_READY(offerRescinded2);
 
   framework1.stop();
   framework1.join();
