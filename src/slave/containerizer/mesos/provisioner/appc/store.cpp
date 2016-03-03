@@ -317,7 +317,9 @@ Future<vector<string>> StoreProcess::fetchDependencies(const string& imageId)
            manifest->dependencies()) {
     Image::Appc appc;
     appc.set_name(dependency.imagename());
-    appc.set_id(dependency.imageid());
+    if (dependency.has_imageid()) {
+      appc.set_id(dependency.imageid());
+    }
 
     // TODO(jojy): Make Image::Appc use appc::spec::Label instead of
     // mesos::Label so that we can avoid this loop here.
