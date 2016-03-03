@@ -145,7 +145,7 @@ string MetricsProcess::help()
 Future<Nothing> MetricsProcess::add(Owned<Metric> metric)
 {
   if (metrics.contains(metric->name())) {
-    return Failure("Metric '" + metric->name() + "' was already added.");
+    return Failure("Metric '" + metric->name() + "' was already added");
   }
 
   metrics[metric->name()] = metric;
@@ -156,7 +156,7 @@ Future<Nothing> MetricsProcess::add(Owned<Metric> metric)
 Future<Nothing> MetricsProcess::remove(const string& name)
 {
   if (!metrics.contains(name)) {
-    return Failure("Metric '" + name + "' not found.");
+    return Failure("Metric '" + name + "' not found");
   }
 
   metrics.erase(name);
@@ -189,7 +189,7 @@ Future<http::Response> MetricsProcess::_snapshot(const http::Request& request)
 
     if (duration.isError()) {
       return http::BadRequest(
-          "Invalid timeout '" + parameter + "':" + duration.error() + ".\n");
+          "Invalid timeout '" + parameter + "': " + duration.error() + ".\n");
     }
 
     timeout = duration.get();
