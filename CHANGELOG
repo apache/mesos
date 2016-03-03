@@ -12,7 +12,7 @@ This release contains:
   * [MESOS-2840] - Experimental support for container images in Mesos
     containerizer (a.k.a. Unified Containerizer). This allows frameworks to
     launch Docker/Appc containers using Mesos containerizer without relying on
-    docker daemon (engine). The isolation of the containers is done using
+    docker daemon (engine) or rkt. The isolation of the containers is done using
     isolators. Please refer to container-image.md for currently supported
     features and limitations.
 
