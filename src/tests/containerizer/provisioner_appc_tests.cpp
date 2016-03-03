@@ -458,10 +458,10 @@ public:
 
   void addRoute(const string& imageName)
   {
-    route("/" + imageName, None(), &TestAppcImageServer::serve);
+    route("/" + imageName, None(), &TestAppcImageServer::serveRequest);
   }
 
-  MOCK_METHOD1(serve, Future<http::Response>(const http::Request&));
+  MOCK_METHOD1(serveRequest, Future<http::Response>(const http::Request&));
 };
 
 
@@ -584,7 +584,7 @@ TEST_F(AppcImageFetcherTest, SimpleFetch)
       "2e797b296d6ab296e0954c2626bfb264322ebeb8f447dac4fac6511ea06bc61f0");
 
   // Setup server.
-  EXPECT_CALL(server, serve(_))
+  EXPECT_CALL(server, serveRequest(_))
     .WillOnce(Return(serveImage()));
 
   // Appc Image to be fetched.
