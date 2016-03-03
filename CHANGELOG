@@ -1,6 +1,6 @@
 Release Notes - Mesos - Version 0.28.0 (WIP)
 --------------------------------------------
-This release contains:
+This release contains several new features:
   * [MESOS-4343] - We have introduced a new cgroups isolator for enabling the
     net_cls subsystem in Linux. The cgroups/net_cls isolator allows operators to
     provide network performance isolation and network segmentation for
@@ -34,8 +34,9 @@ This release contains:
   * [MESOS-4591] - Change the object of ReserveResources and CreateVolume ACLs to `roles`.
 
  ** Deprecations:
-  * All Mesos HTTP endpoints  with ".json" suffix (e.g., /master/state.json) are deprecated
-    in favor of endpoints without the suffix (e.g., /master/state).
+  * All Mesos HTTP endpoints  with ".json" suffix (e.g., /master/state.json) are
+    deprecated in favor of endpoints without the suffix (e.g., /master/state).
+
 
 Release Notes - Mesos - Version 0.27.1
 --------------------------------------
