@@ -27,7 +27,7 @@ This guide describes the process of doing an official release of Mesos.
 
 3. Submit your GPG public key to a keyserver, e.g., [MIT PGP Public Key Server](https://pgp.mit.edu).
 
-4. Add your GPG fingerprint to your [Apache account](https://id.apache.org/).
+4. Add your GPG fingerprint (`gpg --fingerprint <your name>`) to your [Apache account](https://id.apache.org/).
 
 5. Create a Maven settings file (`~/.m2/settings.xml`) for the Apache
    servers where you must copy your encrypted Apache password which
@@ -197,9 +197,10 @@ Per the guidelines [when to archive](http://www.apache.org/dev/release.html#when
 
 2. Remove all minor versions that are no longer under development and commit the change.
 
-## Set the release date
+## Release the version on JIRA
 
-1. Find the released Mesos version on https://issues.apache.org/jira/plugins/servlet/project-config/MESOS/versions, and "release" it with the correct release date.
+1. Find the released Mesos version on https://issues.apache.org/jira/plugins/servlet/project-config/MESOS/versions, and "release" it (click on "settings" --> "Release") with the correct release date.
+
 
 ## Update external tooling
 
