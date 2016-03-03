@@ -1595,10 +1595,10 @@ clean-python:
 PHONY_TARGETS += clean-python
 
 # Test (make check) binaries.
-check_PROGRAMS += event-call-framework
-event_call_framework_SOURCES = examples/event_call_framework.cpp
-event_call_framework_CPPFLAGS = $(MESOS_CPPFLAGS)
-event_call_framework_LDADD = libmesos.la $(LDADD)
+check_PROGRAMS += test-http-framework
+test_http_framework_SOURCES = examples/test_http_framework.cpp
+test_http_framework_CPPFLAGS = $(MESOS_CPPFLAGS)
+test_http_framework_LDADD = libmesos.la $(LDADD)
 
 check_PROGRAMS += test-framework
 test_framework_SOURCES = examples/test_framework.cpp
@@ -1972,7 +1972,7 @@ EXTRA_DIST +=							\
 
 dist_check_SCRIPTS +=						\
   tests/balloon_framework_test.sh				\
-  tests/event_call_framework_test.sh				\
+  tests/test_http_framework_test.sh				\
   tests/java_exception_test.sh					\
   tests/java_framework_test.sh					\
   tests/java_log_test.sh					\
@@ -1988,7 +1988,7 @@ if INSTALL_TESTS
 testlibexec_PROGRAMS = $(check_PROGRAMS)
 dist_testlibexec_SCRIPTS =			\
   tests/balloon_framework_test.sh		\
-  tests/event_call_framework_test.sh		\
+  tests/test_http_framework_test.sh		\
   tests/java_exception_test.sh			\
   tests/java_framework_test.sh			\
   tests/java_log_test.sh			\

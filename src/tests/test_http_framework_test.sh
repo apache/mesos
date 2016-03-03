@@ -39,5 +39,5 @@ export MESOS_LAUNCHER="posix"
 # Disable authentication as the scheduler library does not support it.
 export MESOS_AUTHENTICATE=false
 
-# Check that the C++ low level scheduler executes without crashing (returns 0).
-exec ${MESOS_HELPER_DIR}/event-call-framework --master=local
+# Check that the C++ HTTP scheduler executes without crashing (returns 0).
+exec ${MESOS_HELPER_DIR}/test-http-framework --master=local

@@ -24,8 +24,8 @@ TEST_SCRIPT(ExamplesTest, TestFramework, "test_framework_test.sh")
 TEST_SCRIPT(ExamplesTest, NoExecutorFramework, "no_executor_framework_test.sh")
 
 
-TEST_SCRIPT(ExamplesTest, EventCallFramework,
-            "event_call_framework_test.sh")
+TEST_SCRIPT(ExamplesTest, TestHTTPFramework,
+            "test_http_framework_test.sh")
 
 
 TEST_SCRIPT(ExamplesTest, PersistentVolumeFramework,

@@ -65,10 +65,10 @@ using mesos::v1::scheduler::Event;
 const int32_t CPUS_PER_TASK = 1;
 const int32_t MEM_PER_TASK = 128;
 
-class EventCallScheduler : public process::Process<EventCallScheduler>
+class HTTPScheduler : public process::Process<HTTPScheduler>
 {
 public:
-  EventCallScheduler(const FrameworkInfo& _framework,
+  HTTPScheduler(const FrameworkInfo& _framework,
                      const ExecutorInfo& _executor,
                      const string& _master)
     : framework(_framework),
@@ -79,7 +79,7 @@ public:
       tasksFinished(0),
       totalTasks(5) {}
 
-  EventCallScheduler(const FrameworkInfo& _framework,
+  HTTPScheduler(const FrameworkInfo& _framework,
                      const ExecutorInfo& _executor,
                      const string& _master,
                      const Credential& credential)
@@ -91,7 +91,7 @@ public:
       tasksFinished(0),
       totalTasks(5) {}
 
-  ~EventCallScheduler() {}
+  ~HTTPScheduler() {}
 
   void connected()
   {
@@ -433,8 +433,8 @@ int main(int argc, char** argv)
 
   framework.set_principal(value.get());
 
-  process::Owned<EventCallScheduler> scheduler(
-      new EventCallScheduler(framework, executor, master.get()));
+  process::Owned<HTTPScheduler> scheduler(
+      new HTTPScheduler(framework, executor, master.get()));
 
   process::spawn(scheduler.get());
   process::wait(scheduler.get());
