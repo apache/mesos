@@ -70,6 +70,10 @@ int main(int argc, char** argv)
     return EXIT_FAILURE;
   }
 
+  // Disable /metrics/snapshot rate limiting, but do not
+  // overwrite whatever the user set.
+  os::setenv("LIBPROCESS_METRICS_SNAPSHOT_ENDPOINT_RATE_LIMIT", "", false);
+
   // Initialize libprocess.
   process::initialize();
 
