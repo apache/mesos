@@ -112,7 +112,8 @@ void DRFSorter::allocated(
   }
 
   allocations[name].resources[slaveId] += resources;
-  allocations[name].scalars += resources.scalars();
+  allocations[name].scalarQuantities +=
+    resources.createStrippedScalarQuantity();
 
   // If the total resources have changed, we're going to
   // recalculate all the shares, so don't bother just
@@ -136,23 +137,28 @@ void DRFSorter::update(
   // Otherwise, we need to ensure we re-calculate the shares, as
   // is being currently done, for safety.
 
+  const Resources oldAllocationQuantity =
+    oldAllocation.createStrippedScalarQuantity();
+  const Resources newAllocationQuantity =
+    newAllocation.createStrippedScalarQuantity();
+
   CHECK(total_.resources[slaveId].contains(oldAllocation));
-  CHECK(total_.scalars.contains(oldAllocation.scalars()));
+  CHECK(total_.scalarQuantities.contains(oldAllocationQuantity));
 
   total_.resources[slaveId] -= oldAllocation;
   total_.resources[slaveId] += newAllocation;
 
-  total_.scalars -= oldAllocation.scalars();
-  total_.scalars += newAllocation.scalars();
+  total_.scalarQuantities -= oldAllocationQuantity;
+  total_.scalarQuantities += newAllocationQuantity;
 
   CHECK(allocations[name].resources[slaveId].contains(oldAllocation));
-  CHECK(allocations[name].scalars.contains(oldAllocation.scalars()));
+  CHECK(allocations[name].scalarQuantities.contains(oldAllocationQuantity));
 
   allocations[name].resources[slaveId] -= oldAllocation;
   allocations[name].resources[slaveId] += newAllocation;
 
-  allocations[name].scalars -= oldAllocation.scalars();
-  allocations[name].scalars += newAllocation.scalars();
+  allocations[name].scalarQuantities -= oldAllocationQuantity;
+  allocations[name].scalarQuantities += newAllocationQuantity;
 
   // Just assume the total has changed, per the TODO above.
   dirty = true;
@@ -167,11 +173,11 @@ const hashmap<SlaveID, Resources>& DRFSorter::allocation(const string& name)
 }
 
 
-const Resources& DRFSorter::allocationScalars(const string& name)
+const Resources& DRFSorter::allocationScalarQuantities(const string& name)
 {
   CHECK(contains(name));
 
-  return allocations[name].scalars;
+  return allocations[name].scalarQuantities;
 }
 
 
@@ -213,9 +219,9 @@ const hashmap<SlaveID, Resources>& DRFSorter::total() const
 }
 
 
-const Resources& DRFSorter::totalScalars() const
+const Resources& DRFSorter::totalScalarQuantities() const
 {
-  return total_.scalars;
+  return total_.scalarQuantities;
 }
 
 
@@ -225,7 +231,8 @@ void DRFSorter::unallocated(
     const Resources& resources)
 {
   allocations[name].resources[slaveId] -= resources;
-  allocations[name].scalars -= resources.scalars();
+  allocations[name].scalarQuantities -=
+    resources.createStrippedScalarQuantity();
 
   if (allocations[name].resources[slaveId].empty()) {
     allocations[name].resources.erase(slaveId);
@@ -241,7 +248,7 @@ void DRFSorter::add(const SlaveID& slaveId, const Resources& resources)
 {
   if (!resources.empty()) {
     total_.resources[slaveId] += resources;
-    total_.scalars += resources.scalars();
+    total_.scalarQuantities += resources.createStrippedScalarQuantity();
 
     // We have to recalculate all shares when the total resources
     // change, but we put it off until sort is called so that if
@@ -258,7 +265,7 @@ void DRFSorter::remove(const SlaveID& slaveId, const Resources& resources)
     CHECK(total_.resources.contains(slaveId));
 
     total_.resources[slaveId] -= resources;
-    total_.scalars -= resources.scalars();
+    total_.scalarQuantities -= resources.createStrippedScalarQuantity();
 
     if (total_.resources[slaveId].empty()) {
       total_.resources.erase(slaveId);
@@ -271,10 +278,13 @@ void DRFSorter::remove(const SlaveID& slaveId, const Resources& resources)
 
 void DRFSorter::update(const SlaveID& slaveId, const Resources& resources)
 {
-  CHECK(total_.scalars.contains(total_.resources[slaveId].scalars()));
+  const Resources oldSlaveQuantity =
+    total_.resources[slaveId].createStrippedScalarQuantity();
 
-  total_.scalars -= total_.resources[slaveId].scalars();
-  total_.scalars += resources.scalars();
+  CHECK(total_.scalarQuantities.contains(oldSlaveQuantity));
+
+  total_.scalarQuantities -= oldSlaveQuantity;
+  total_.scalarQuantities += resources.createStrippedScalarQuantity();
 
   total_.resources[slaveId] = resources;
 
@@ -352,13 +362,17 @@ double DRFSorter::calculateShare(const string& name)
   // currently does not take into account resources that are not
   // scalars.
 
-  foreach (const string& scalar, total_.scalars.names()) {
+  foreach (const string& scalar, total_.scalarQuantities.names()) {
     // We collect the scalar accumulated total value from the
     // `Resources` object.
     //
-    // NOTE: Scalar resources may be spread across multiple
-    // 'Resource' objects. E.g. persistent volumes.
-    Option<Value::Scalar> __total = total_.scalars.get<Value::Scalar>(scalar);
+    // NOTE: Although in principle scalar resources may be spread
+    // across multiple `Resource` objects (e.g., persistent volumes),
+    // we currently strip persistence and reservation metadata from
+    // the resources in `scalarQuantities`.
+    Option<Value::Scalar> __total =
+      total_.scalarQuantities.get<Value::Scalar>(scalar);
+
     CHECK_SOME(__total);
     const double _total = __total.get().value();
 
@@ -368,10 +382,12 @@ double DRFSorter::calculateShare(const string& name)
       // We collect the scalar accumulated allocation value from the
       // `Resources` object.
       //
-      // NOTE: Scalar resources may be spread across multiple
-      // 'Resource' objects. E.g. persistent volumes.
+      // NOTE: Although in principle scalar resources may be spread
+      // across multiple `Resource` objects (e.g., persistent volumes),
+      // we currently strip persistence and reservation metadata from
+      // the resources in `scalarQuantities`.
       Option<Value::Scalar> _allocation =
-        allocations[name].scalars.get<Value::Scalar>(scalar);
+        allocations[name].scalarQuantities.get<Value::Scalar>(scalar);
 
       if (_allocation.isSome()) {
         allocation = _allocation.get().value();

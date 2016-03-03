@@ -92,7 +92,7 @@ public:
   virtual const hashmap<SlaveID, Resources>& allocation(
       const std::string& name);
 
-  virtual const Resources& allocationScalars(const std::string& name);
+  virtual const Resources& allocationScalarQuantities(const std::string& name);
 
   virtual hashmap<std::string, Resources> allocation(const SlaveID& slaveId);
 
@@ -100,7 +100,7 @@ public:
 
   virtual const hashmap<SlaveID, Resources>& total() const;
 
-  virtual const Resources& totalScalars() const;
+  virtual const Resources& totalScalarQuantities() const;
 
   virtual void add(const SlaveID& slaveId, const Resources& resources);
 
@@ -142,15 +142,20 @@ private:
     // NOTE: Scalars can be safely aggregated across slaves. We keep
     // that to speed up the calculation of shares. See MESOS-2891 for
     // the reasons why we want to do that.
-    Resources scalars;
+    //
+    // NOTE: We omit information about dynamic reservations and persistent
+    // volumes here to enable resources to be aggregated across slaves
+    // more effectively. See MESOS-4833 for more information.
+    Resources scalarQuantities;
   } total_;
 
   // Allocation for a client.
   struct Allocation {
     hashmap<SlaveID, Resources> resources;
 
-    // Similarly, we aggregated scalars across slaves. See note above.
-    Resources scalars;
+    // Similarly, we aggregate scalars across slaves and omit information
+    // about dynamic reservations and persistent volumes. See notes above.
+    Resources scalarQuantities;
   };
 
   // Maps client names to the resources they have been allocated.
