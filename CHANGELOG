@@ -21,6 +21,9 @@ This release contains:
   * [MESOS-4547] - Introduce TASK_KILLING state.
   * [MESOS-4712] - Remove 'force' field from the Subscribe Call in v1 Scheduler API.
 
+ ** Deprecations:
+  * All Mesos HTTP endpoints  with ".json" suffix (e.g., /master/state.json) are deprecated
+    in favor of endpoints without the suffix (e.g., /master/state).
 
 Release Notes - Mesos - Version 0.27.1
 --------------------------------------
