@@ -971,13 +971,8 @@ void initialize(const string& delegate)
   // Create the global HTTP authentication router.
   authenticator_manager = new AuthenticatorManager();
 
-  // Ensure metrics process is running.
-  // TODO(bmahler): Consider initializing this consistently with
-  // the other global Processes.
-  metrics::internal::MetricsProcess* metricsProcess =
-    metrics::internal::MetricsProcess::instance();
-
-  CHECK_NOTNULL(metricsProcess);
+  // Initialize the metrics process.
+  metrics::initialize();
 
   // Initialize the mime types.
   mime::initialize();

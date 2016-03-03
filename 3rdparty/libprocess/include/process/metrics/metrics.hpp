@@ -30,6 +30,9 @@
 namespace process {
 namespace metrics {
 
+// Initializes the metrics library.
+void initialize();
+
 namespace internal {
 
 class MetricsProcess : public Process<MetricsProcess>
@@ -47,9 +50,9 @@ protected:
 private:
   static std::string help();
 
-  MetricsProcess()
+  MetricsProcess(const Option<Owned<RateLimiter>>& _limiter)
     : ProcessBase("metrics"),
-      limiter(2, Seconds(1))
+      limiter(_limiter)
   {}
 
   // Non-copyable, non-assignable.
@@ -69,8 +72,11 @@ private:
   // The Owned<Metric> is an explicit copy of the Metric passed to 'add'.
   hashmap<std::string, Owned<Metric> > metrics;
 
-  // Used to rate limit the endpoint.
-  RateLimiter limiter;
+  // Used to rate limit the snapshot endpoint.
+  Option<Owned<RateLimiter>> limiter;
+
+  // Needed for access to the private constructor.
+  friend void process::metrics::initialize();
 };
 
 }  // namespace internal {

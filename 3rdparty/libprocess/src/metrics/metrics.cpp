@@ -14,26 +14,37 @@
 
 #include <list>
 #include <string>
+#include <vector>
 
 #include <process/collect.hpp>
 #include <process/dispatch.hpp>
 #include <process/help.hpp>
 #include <process/once.hpp>
+#include <process/owned.hpp>
 #include <process/process.hpp>
 
 #include <process/metrics/metrics.hpp>
 
+#include <stout/duration.hpp>
+#include <stout/error.hpp>
 #include <stout/foreach.hpp>
 #include <stout/hashmap.hpp>
+#include <stout/numify.hpp>
+#include <stout/option.hpp>
+#include <stout/os.hpp>
 
 using std::list;
 using std::string;
+using std::vector;
 
 namespace process {
 namespace metrics {
-namespace internal {
 
-MetricsProcess* MetricsProcess::instance()
+
+static internal::MetricsProcess* metrics_process = NULL;
+
+
+void initialize()
 {
   // To prevent a deadlock, we must ensure libprocess is
   // initialized. Otherwise, libprocess will be implicitly
@@ -43,16 +54,69 @@ MetricsProcess* MetricsProcess::instance()
   // 'done()' to ever be called.
   process::initialize();
 
-  static MetricsProcess* singleton = NULL;
   static Once* initialized = new Once();
-
   if (!initialized->once()) {
-    singleton = new MetricsProcess();
-    spawn(singleton);
+    Option<string> limit =
+      os::getenv("LIBPROCESS_METRICS_SNAPSHOT_ENDPOINT_RATE_LIMIT");
+
+    Option<Owned<RateLimiter>> limiter;
+
+    // By default, we apply a rate limit of 2 requests
+    // per second to the metrics snapshot endpoint in
+    // order to maintain backwards compatibility (before
+    // this was made configurable, we hard-coded a limit
+    // of 2 requests per second).
+    if (limit.isNone()) {
+      limiter = Owned<RateLimiter>(new RateLimiter(2, Seconds(1)));
+    } else if (limit->empty()) {
+      limiter = None();
+    } else {
+      // TODO(vinod): Move this parsing logic to flags
+      // once we have a 'Rate' abstraction in stout.
+      Option<Error> reason;
+      vector<string> tokens = strings::tokenize(limit.get(), "/");
+
+      if (tokens.size() == 2) {
+        Try<int> requests = numify<int>(tokens[0]);
+        Try<Duration> interval = Duration::parse(tokens[1]);
+
+        if (requests.isError()) {
+          reason = Error(
+              "Failed to parse the number of requests: " + requests.error());
+        } else if (interval.isError()) {
+          reason = Error(
+              "Failed to parse the interval: " + interval.error());
+        } else {
+          limiter = Owned<RateLimiter>(
+              new RateLimiter(requests.get(), interval.get()));
+        }
+      }
+
+      if (limiter.isNone()) {
+        EXIT(EXIT_FAILURE)
+          << "Failed to parse LIBPROCESS_METRICS_SNAPSHOT_ENDPOINT_RATE_LIMIT "
+          << "'" << limit.get() << "'"
+          << " (format is <number of requests>/<interval duration>)"
+          << (reason.isSome() ? ": " + reason.get().message : "");
+      }
+    }
+
+    metrics_process = new internal::MetricsProcess(limiter);
+    spawn(metrics_process);
+
     initialized->done();
   }
+}
 
-  return singleton;
+
+namespace internal {
+
+
+MetricsProcess* MetricsProcess::instance()
+{
+  metrics::initialize();
+
+  return metrics_process;
 }
 
 
@@ -103,8 +167,13 @@ Future<Nothing> MetricsProcess::remove(const string& name)
 
 Future<http::Response> MetricsProcess::snapshot(const http::Request& request)
 {
-  return limiter.acquire()
-    .then(defer(self(), &Self::_snapshot, request));
+  Future<Nothing> acquire = Nothing();
+
+  if (limiter.isSome()) {
+    acquire = limiter.get()->acquire();
+  }
+
+  return acquire.then(defer(self(), &Self::_snapshot, request));
 }
 
 
@@ -194,5 +263,6 @@ Future<http::Response> MetricsProcess::__snapshot(
 }
 
 }  // namespace internal {
+
 }  // namespace metrics {
 }  // namespace process {
