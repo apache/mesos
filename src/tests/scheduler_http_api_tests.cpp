@@ -29,6 +29,7 @@
 #include <stout/json.hpp>
 #include <stout/lambda.hpp>
 #include <stout/recordio.hpp>
+#include <stout/uuid.hpp>
 
 #include "common/http.hpp"
 #include "common/recordio.hpp"
@@ -286,6 +287,8 @@ TEST_P(SchedulerHttpApiTest, Subscribe)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
   AWAIT_EXPECT_RESPONSE_HEADER_EQ("chunked", "Transfer-Encoding", response);
   ASSERT_EQ(Response::PIPE, response.get().type);
+  ASSERT_TRUE(response.get().headers.contains("Mesos-Stream-Id"));
+  EXPECT_NE("", response.get().headers.at("Mesos-Stream-Id"));
 
   Option<Pipe::Reader> reader = response.get().reader;
   ASSERT_SOME(reader);
@@ -319,6 +322,42 @@ TEST_P(SchedulerHttpApiTest, Subscribe)
   ASSERT_SOME(event.get());
 
   ASSERT_EQ(Event::HEARTBEAT, event.get().get().type());
+
+  Shutdown();
+}
+
+
+// This test verifies that the client will receive a `BadRequest` response if it
+// includes a stream ID header with a subscribe call.
+TEST_P(SchedulerHttpApiTest, SubscribeWithStreamId)
+{
+  // HTTP schedulers cannot yet authenticate.
+  master::Flags flags = CreateMasterFlags();
+  flags.authenticate_frameworks = false;
+
+  Try<PID<Master>> master = StartMaster(flags);
+  ASSERT_SOME(master);
+
+  Call call;
+  call.set_type(Call::SUBSCRIBE);
+
+  Call::Subscribe* subscribe = call.mutable_subscribe();
+  subscribe->mutable_framework_info()->CopyFrom(DEFAULT_V1_FRAMEWORK_INFO);
+
+  // Retrieve the parameter passed as content type to this test.
+  const string contentType = GetParam();
+  process::http::Headers headers;
+  headers["Accept"] = contentType;
+  headers["Mesos-Stream-Id"] = UUID::random().toString();
+
+  Future<Response> response = process::http::streaming::post(
+      master.get(),
+      "api/v1/scheduler",
+      headers,
+      serialize(call, contentType),
+      contentType);
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response);
 
   Shutdown();
 }
@@ -703,6 +742,207 @@ TEST_F(SchedulerHttpApiTest, GetRequest)
 
   AWAIT_READY(response);
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(MethodNotAllowed({"POST"}).status, response);
+}
+
+
+// This test verifies that the scheduler will receive a `BadRequest` response
+// when a teardown call is made without including a stream ID header.
+TEST_P(SchedulerHttpApiTest, TeardownWithoutStreamId)
+{
+  // HTTP schedulers cannot yet authenticate.
+  master::Flags flags = CreateMasterFlags();
+  flags.authenticate_frameworks = false;
+
+  Try<PID<Master>> master = StartMaster(flags);
+  ASSERT_SOME(master);
+
+  // Retrieve the parameter passed as content type to this test.
+  const string contentType = GetParam();
+  process::http::Headers headers;
+  headers["Accept"] = contentType;
+
+  v1::FrameworkID frameworkId;
+
+  {
+    Call call;
+    call.set_type(Call::SUBSCRIBE);
+
+    Call::Subscribe* subscribe = call.mutable_subscribe();
+    subscribe->mutable_framework_info()->CopyFrom(DEFAULT_V1_FRAMEWORK_INFO);
+
+    Future<Response> response = process::http::streaming::post(
+        master.get(),
+        "api/v1/scheduler",
+        headers,
+        serialize(call, contentType),
+        contentType);
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+    AWAIT_EXPECT_RESPONSE_HEADER_EQ("chunked", "Transfer-Encoding", response);
+    ASSERT_EQ(Response::PIPE, response.get().type);
+    ASSERT_TRUE(response.get().headers.contains("Mesos-Stream-Id"));
+
+    Option<Pipe::Reader> reader = response.get().reader;
+    ASSERT_SOME(reader);
+
+    auto deserializer = lambda::bind(
+        &SchedulerHttpApiTest::deserialize, this, contentType, lambda::_1);
+
+    Reader<Event> responseDecoder(Decoder<Event>(deserializer), reader.get());
+
+    Future<Result<Event>> event = responseDecoder.read();
+    AWAIT_READY(event);
+    ASSERT_SOME(event.get());
+
+    // Check event type is subscribed and the framework ID is set.
+    ASSERT_EQ(Event::SUBSCRIBED, event.get().get().type());
+    EXPECT_NE("", event.get().get().subscribed().framework_id().value());
+
+    frameworkId = event.get().get().subscribed().framework_id();
+  }
+
+  {
+    // Send a TEARDOWN call without a stream ID.
+    Call call;
+    call.set_type(Call::TEARDOWN);
+    call.mutable_framework_id()->CopyFrom(frameworkId);
+
+    Future<Response> response = process::http::streaming::post(
+        master.get(),
+        "api/v1/scheduler",
+        headers,
+        serialize(call, contentType),
+        contentType);
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response);
+  }
+
+  Shutdown();
+}
+
+
+// This test verifies that the scheduler will receive a `BadRequest` response
+// when a teardown call is made with an incorrect stream ID header.
+TEST_P(SchedulerHttpApiTest, TeardownWrongStreamId)
+{
+  // HTTP schedulers cannot yet authenticate.
+  master::Flags flags = CreateMasterFlags();
+  flags.authenticate_frameworks = false;
+
+  Try<PID<Master>> master = StartMaster(flags);
+  ASSERT_SOME(master);
+
+  // Retrieve the parameter passed as content type to this test.
+  const string contentType = GetParam();
+  process::http::Headers headers;
+  headers["Accept"] = contentType;
+
+  v1::FrameworkID frameworkId;
+  string streamId;
+
+  // Subscribe once to get a valid stream ID.
+  {
+    Call call;
+    call.set_type(Call::SUBSCRIBE);
+
+    Call::Subscribe* subscribe = call.mutable_subscribe();
+    subscribe->mutable_framework_info()->CopyFrom(DEFAULT_V1_FRAMEWORK_INFO);
+
+    Future<Response> response = process::http::streaming::post(
+        master.get(),
+        "api/v1/scheduler",
+        headers,
+        serialize(call, contentType),
+        contentType);
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+    AWAIT_EXPECT_RESPONSE_HEADER_EQ("chunked", "Transfer-Encoding", response);
+    ASSERT_EQ(Response::PIPE, response.get().type);
+    ASSERT_TRUE(response.get().headers.contains("Mesos-Stream-Id"));
+
+    streamId = response.get().headers.at("Mesos-Stream-Id");
+
+    Option<Pipe::Reader> reader = response.get().reader;
+    ASSERT_SOME(reader);
+
+    auto deserializer = lambda::bind(
+        &SchedulerHttpApiTest::deserialize, this, contentType, lambda::_1);
+
+    Reader<Event> responseDecoder(Decoder<Event>(deserializer), reader.get());
+
+    Future<Result<Event>> event = responseDecoder.read();
+    AWAIT_READY(event);
+    ASSERT_SOME(event.get());
+
+    // Check that the event type is subscribed and the framework ID is set.
+    ASSERT_EQ(Event::SUBSCRIBED, event.get().get().type());
+    EXPECT_NE("", event.get().get().subscribed().framework_id().value());
+
+    frameworkId = event.get().get().subscribed().framework_id();
+  }
+
+  // Subscribe again to invalidate the first stream ID and acquire another one.
+  {
+    Call call;
+    call.set_type(Call::SUBSCRIBE);
+
+    Call::Subscribe* subscribe = call.mutable_subscribe();
+    subscribe->mutable_framework_info()->CopyFrom(DEFAULT_V1_FRAMEWORK_INFO);
+
+    // Set the framework ID in the subscribe call.
+    call.mutable_framework_id()->CopyFrom(frameworkId);
+    subscribe->mutable_framework_info()->mutable_id()->CopyFrom(frameworkId);
+
+    Future<Response> response = process::http::streaming::post(
+        master.get(),
+        "api/v1/scheduler",
+        headers,
+        serialize(call, contentType),
+        contentType);
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+    AWAIT_EXPECT_RESPONSE_HEADER_EQ("chunked", "Transfer-Encoding", response);
+    ASSERT_EQ(Response::PIPE, response.get().type);
+    ASSERT_TRUE(response.get().headers.contains("Mesos-Stream-Id"));
+
+    // Make sure that the new stream ID is different.
+    ASSERT_NE(streamId, response.get().headers.at("Mesos-Stream-Id"));
+
+    Option<Pipe::Reader> reader = response.get().reader;
+    ASSERT_SOME(reader);
+
+    auto deserializer = lambda::bind(
+        &SchedulerHttpApiTest::deserialize, this, contentType, lambda::_1);
+
+    Reader<Event> responseDecoder(Decoder<Event>(deserializer), reader.get());
+
+    Future<Result<Event>> event = responseDecoder.read();
+    AWAIT_READY(event);
+    ASSERT_SOME(event.get());
+
+    ASSERT_EQ(Event::SUBSCRIBED, event.get().get().type());
+    EXPECT_NE("", event.get().get().subscribed().framework_id().value());
+  }
+
+  {
+    Call call;
+    call.set_type(Call::TEARDOWN);
+    call.mutable_framework_id()->CopyFrom(frameworkId);
+
+    // Send the first (now incorrect) stream ID with the teardown call.
+    headers["Mesos-Stream-Id"] = streamId;
+
+    Future<Response> response = process::http::streaming::post(
+        master.get(),
+        "api/v1/scheduler",
+        headers,
+        serialize(call, contentType),
+        contentType);
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response);
+  }
+
+  Shutdown();
 }
 
 } // namespace tests {
