@@ -8,6 +8,12 @@ This release contains:
                    isolator, append `cgroups/net_cls` to the `--isolation` flag when
                    starting the slave. You can find more details about the isolator in
                    the Apache Mesos documentation page for `Mesos containerizer`.
+  * [MESOS-2840] - Experimental support for container images in Mesos containerizer
+                   (a.k.a. Unified Containerizer). This allows frameworks to launch
+                   Docker/Appc containers using Mesos containerizer without relying on
+                   docker daemon (engine). The isolation of the containers is done
+                   using isolators. Please refer to container-image.md for currently
+                   supported features and limitations.
 
 ** API Changes:
   * [MESOS-4066] - Agent should not return partial state when a request is made to /state endpoint during recovery.
