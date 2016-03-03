@@ -101,12 +101,6 @@ TEST_F(RateLimitingTest, NoRateLimiting)
   // '_recover()' completes.
   Clock::settle();
 
-  // Advance before the test so that the 1st call to Metrics endpoint
-  // is not throttled. MetricsProcess which hosts the endpoint
-  // throttles requests at 2qps and its singleton instance is shared
-  // across tests.
-  Clock::advance(Milliseconds(501));
-
   // Message counters not present before the framework registers.
   {
     JSON::Object metrics = Metrics();
@@ -144,9 +138,6 @@ TEST_F(RateLimitingTest, NoRateLimiting)
   AWAIT_READY(frameworkRegisteredMessage);
 
   const process::UPID schedulerPid = frameworkRegisteredMessage.get().to;
-
-  // For metrics endpoint.
-  Clock::advance(Milliseconds(501));
 
   // Send a duplicate subscribe call. Master sends
   // FrameworkRegisteredMessage back after processing it.
@@ -191,9 +182,6 @@ TEST_F(RateLimitingTest, NoRateLimiting)
   // unlimited rate.
   AWAIT_READY(removeFramework);
 
-  // For metrics endpoint.
-  Clock::advance(Milliseconds(501));
-
   // Message counters removed after the framework is unregistered.
   {
     JSON::Object metrics = Metrics();
@@ -225,12 +213,6 @@ TEST_F(RateLimitingTest, RateLimitingEnabled)
   // Settle to make sure master is ready for incoming requests, i.e.,
   // '_recover()' completes.
   Clock::settle();
-
-  // Advance before the test so that the 1st call to Metrics endpoint
-  // is not throttled. MetricsProcess which hosts the endpoint
-  // throttles requests at 2qps and its singleton instance is shared
-  // across tests.
-  Clock::advance(Milliseconds(501));
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
@@ -294,10 +276,6 @@ TEST_F(RateLimitingTest, RateLimitingEnabled)
 
   process::post(schedulerPid, master.get(), subscribeCall.get());
 
-  // Advance for half a second and verify that the message is still
-  // not processed.
-  Clock::advance(Milliseconds(501));
-
   // Settle to make sure all events not delayed are processed.
   Clock::settle();
 
@@ -322,8 +300,8 @@ TEST_F(RateLimitingTest, RateLimitingEnabled)
     EXPECT_TRUE(duplicateFrameworkRegisteredMessage.isPending());
   }
 
-  // After another half a second the message should be processed.
-  Clock::advance(Milliseconds(501));
+  // After a second the message should be processed.
+  Clock::advance(Seconds(1));
   AWAIT_READY(duplicateFrameworkRegisteredMessage);
 
   // Verify counters after processing of the message.
@@ -375,12 +353,6 @@ TEST_F(RateLimitingTest, DifferentPrincipalFrameworks)
   // Settle to make sure master is ready for incoming requests, i.e.,
   // '_recover()' completes.
   Clock::settle();
-
-  // Advance before the test so that the 1st call to Metrics endpoint
-  // is not throttled. MetricsProcess which hosts the endpoint
-  // throttles requests at 2qps and its singleton instance is shared
-  // across tests.
-  Clock::advance(Milliseconds(501));
 
   // 1. Register two frameworks.
 
@@ -582,9 +554,6 @@ TEST_F(RateLimitingTest, DifferentPrincipalFrameworks)
   // the metrics endpoint query.
   Clock::settle();
 
-  // Advance for Metrics rate limiting.
-  Clock::advance(Milliseconds(501));
-
   JSON::Object metrics = Metrics();
 
   EXPECT_EQ(
@@ -616,12 +585,6 @@ TEST_F(RateLimitingTest, SamePrincipalFrameworks)
   // Settle to make sure master is ready for incoming requests, i.e.,
   // '_recover()' completes.
   Clock::settle();
-
-  // Advance before the test so that the 1st call to Metrics endpoint
-  // is not throttled. MetricsProcess which hosts the endpoint
-  // throttles requests at 2qps and its singleton instance is shared
-  // across tests.
-  Clock::advance(Milliseconds(501));
 
   // 1. Register two frameworks.
 
@@ -709,9 +672,6 @@ TEST_F(RateLimitingTest, SamePrincipalFrameworks)
   Clock::settle();
   EXPECT_TRUE(duplicateFrameworkRegisteredMessage2.isPending());
 
-  // For metrics endpoint.
-  Clock::advance(Milliseconds(501));
-
   {
     JSON::Object metrics = Metrics();
 
@@ -731,9 +691,8 @@ TEST_F(RateLimitingTest, SamePrincipalFrameworks)
         metrics.values[messages_processed].as<JSON::Number>().as<int64_t>());
   }
 
-  // Advance for another half a second to make sure throttled
-  // message is processed.
-  Clock::advance(Milliseconds(501));
+  // Advance for a second to make sure throttled message is processed.
+  Clock::advance(Seconds(1));
 
   AWAIT_READY(duplicateFrameworkRegisteredMessage2);
 
@@ -752,9 +711,6 @@ TEST_F(RateLimitingTest, SamePrincipalFrameworks)
 
   // Message counters are not removed after the first framework is
   // unregistered.
-
-  // For metrics endpoint.
-  Clock::advance(Milliseconds(501));
 
   {
     JSON::Object metrics = Metrics();
@@ -788,12 +744,6 @@ TEST_F(RateLimitingTest, SchedulerFailover)
   // Settle to make sure master is ready for incoming requests, i.e.,
   // '_recover()' completes.
   Clock::settle();
-
-  // Advance before the test so that the 1st call to Metrics endpoint
-  // is not throttled. MetricsProcess which hosts the endpoint
-  // throttles requests at 2qps and its singleton instance is shared
-  // across tests.
-  Clock::advance(Milliseconds(501));
 
   // 1. Launch the first (i.e., failing) scheduler and verify its
   // counters.
@@ -909,9 +859,6 @@ TEST_F(RateLimitingTest, SchedulerFailover)
   // throttling the new scheduler instance.
   EXPECT_TRUE(duplicateFrameworkRegisteredMessage.isPending());
 
-  // Advance for metrics.
-  Clock::advance(Milliseconds(501));
-
   {
     JSON::Object metrics = Metrics();
 
@@ -932,13 +879,10 @@ TEST_F(RateLimitingTest, SchedulerFailover)
         metrics.values[messages_processed].as<JSON::Number>().as<int64_t>());
   }
 
-  // Need another half a second to have it processed.
-  Clock::advance(Milliseconds(501));
+  // Need a second to have it processed.
+  Clock::advance(Seconds(1));
 
   AWAIT_READY(duplicateFrameworkRegisteredMessage);
-
-  // Advance for metrics.
-  Clock::advance(Milliseconds(501));
 
   {
     JSON::Object metrics = Metrics();
@@ -984,12 +928,6 @@ TEST_F(RateLimitingTest, CapacityReached)
   ASSERT_SOME(master);
 
   Clock::pause();
-
-  // Advance before the test so that the 1st call to Metrics endpoint
-  // is not throttled. MetricsProcess which hosts the endpoint
-  // throttles requests at 2qps and its singleton instance is shared
-  // across tests.
-  Clock::advance(Milliseconds(501));
 
   MockScheduler sched;
 
@@ -1088,9 +1026,6 @@ TEST_F(RateLimitingTest, CapacityReached)
   EXPECT_EQ(DRIVER_ABORTED, driver->stop(true));
   EXPECT_EQ(DRIVER_STOPPED, driver->join());
   delete driver;
-
-  // Wait for half a second for metrics endpoint.
-  Clock::advance(Milliseconds(501));
 
   {
     JSON::Object metrics = Metrics();
