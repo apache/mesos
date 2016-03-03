@@ -302,7 +302,7 @@ struct Slave
   process::UPID pid;
 
   // TODO(bmahler): Use stout's Version when it can parse labels, etc.
-  const std::string version;
+  std::string version;
 
   process::Time registeredTime;
   Option<process::Time> reregisteredTime;

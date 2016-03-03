@@ -4442,6 +4442,9 @@ void Master::reregisterSlave(
     slave->pid = from;
     link(slave->pid);
 
+    // Update slave's version after re-registering successfully.
+    slave->version = version;
+
     // Reconcile tasks between master and the slave.
     // NOTE: This sends the re-registered message, including tasks
     // that need to be reconciled by the slave.
