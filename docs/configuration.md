@@ -1698,6 +1698,17 @@ isolator. (default: false)
       provided separately.
     </td>
   </tr>
+  <tr>
+    <td>
+      LIBPROCESS_METRICS_SNAPSHOT_ENDPOINT_RATE_LIMIT
+    </td>
+    <td>
+      If set, this variable can be used to configure the rate limit
+      applied to the /metrics/snapshot endpoint. The format is
+      `<number of requests>/<interval duration>`.
+      Examples: `10/1secs`, `100/10secs`, etc.
+    </td>
+  </tr>
 </table>
 
 
