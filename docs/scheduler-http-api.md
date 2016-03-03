@@ -21,7 +21,7 @@ All the subsequent (non subscribe) requests to "/scheduler" endpoint (see detail
 
 ## Calls
 
-The following calls are currently accepted by the master. The canonical source of this information is [scheduler.proto](https://github.com/apache/mesos/blob/master/include/mesos/v1/scheduler/scheduler.proto) (NOTE: The protobuf definitions are subject to change before the beta API is finalized). Note that when sending JSON encoded Calls, schedulers should encode raw bytes in Base64 and strings in UTF-8.
+The following calls are currently accepted by the master. The canonical source of this information is [scheduler.proto](https://github.com/apache/mesos/blob/master/include/mesos/v1/scheduler/scheduler.proto) (NOTE: The protobuf definitions are subject to change before the beta API is finalized). Note that when sending JSON encoded Calls, schedulers should encode raw bytes in Base64 and strings in UTF-8. All non-`SUBSCRIBE` calls should include the `Mesos-Stream-Id` header, explained in the [`SUBSCRIBE`](#subscribe) section. `SUBSCRIBE` calls should never include the `Mesos-Stream-Id` header.
 
 
 <a id="recordio-response-format"></a>
@@ -73,7 +73,7 @@ Network intermediaries e.g. proxies are free to change the chunk boundaries and 
 
 This is the first step in the communication process between the scheduler and the master. This is also to be considered as subscription to the "/scheduler" events stream.
 
-To subscribe with the master, the scheduler sends a HTTP POST request with encoded  `SUBSCRIBE` message with the required FrameworkInfo. Note that if "subscribe.framework_info.id" is not set, master considers the scheduler as a new one and subscribes it by assigning it a FrameworkID. The HTTP response is a stream with RecordIO encoding, with the first event being `SUBSCRIBED` event (see details in **Events** section).
+To subscribe with the master, the scheduler sends a HTTP POST request with encoded  `SUBSCRIBE` message with the required FrameworkInfo. Note that if "subscribe.framework_info.id" is not set, master considers the scheduler as a new one and subscribes it by assigning it a FrameworkID. The HTTP response is a stream with RecordIO encoding, with the first event being `SUBSCRIBED` event (see details in **Events** section). The response also includes the `Mesos-Stream-Id` header, which is used by the master to uniquely identify the subscribed scheduler instance. This stream ID header should be included in all subsequent non-`SUBSCRIBE` calls sent over this subscription connection to the master. The value of `Mesos-Stream-Id` is guaranteed to be equal to or less than 128 bytes in length.
 
 ```
 SUBSCRIBE Request (JSON):
@@ -101,6 +101,7 @@ HTTP/1.1 200 OK
 
 Content-Type: application/json
 Transfer-Encoding: chunked
+Mesos-Stream-Id: 130ae4e3-6b13-4ef4-baa9-9f2e85c3e9af
 
 <event length>
 {
@@ -122,6 +123,8 @@ If subscription fails for whatever reason (e.g., invalid request), a HTTP 4xx re
 
 Scheduler must make additional HTTP requests to the "/scheduler" endpoint only after it has opened a persistent connection to it by sending a `SUBSCRIBE` request and received a `SUBSCRIBED` response. Calls made without subscription will result in a "403 Forbidden" instead of a "202 Accepted" response. A scheduler might also receive a "400 Bad Request" response if the HTTP request is malformed (e.g., malformed HTTP headers).
 
+Note that the `Mesos-Stream-Id` header should **never** be included with a `SUBSCRIBE` call; the master will always provide a new unique stream ID for each subscription.
+
 ### TEARDOWN
 Sent by the scheduler when it wants to tear itself down. When Mesos receives this request it will shut down all executors (and consequently kill tasks) and remove persistent volumes (if requested). It then removes the framework and closes all open connections from this scheduler to the Master.
 
@@ -131,6 +134,7 @@ POST /api/v1/scheduler  HTTP/1.1
 
 Host: masterhost:5050
 Content-Type: application/json
+Mesos-Stream-Id: 130ae4e3-6b13-4ef4-baa9-9f2e85c3e9af
 
 {
   "framework_id"	: {"value" : "12220-3440-12532-2345"},
@@ -150,6 +154,7 @@ POST /api/v1/scheduler  HTTP/1.1
 
 Host: masterhost:5050
 Content-Type: application/json
+Mesos-Stream-Id: 130ae4e3-6b13-4ef4-baa9-9f2e85c3e9af
 
 {
   "framework_id"	: {"value" : "12220-3440-12532-2345"},
@@ -178,6 +183,7 @@ POST /api/v1/scheduler  HTTP/1.1
 
 Host: masterhost:5050
 Content-Type: application/json
+Mesos-Stream-Id: 130ae4e3-6b13-4ef4-baa9-9f2e85c3e9af
 
 {
   "framework_id"	: {"value" : "12220-3440-12532-2345"},
@@ -205,6 +211,7 @@ POST /api/v1/scheduler  HTTP/1.1
 
 Host: masterhost:5050
 Content-Type: application/json
+Mesos-Stream-Id: 130ae4e3-6b13-4ef4-baa9-9f2e85c3e9af
 
 {
   "framework_id"	: {"value" : "12220-3440-12532-2345"},
@@ -225,6 +232,7 @@ POST /api/v1/scheduler  HTTP/1.1
 
 Host: masterhost:5050
 Content-Type: application/json
+Mesos-Stream-Id: 130ae4e3-6b13-4ef4-baa9-9f2e85c3e9af
 
 {
   "framework_id"	: {"value" : "12220-3440-12532-2345"},
@@ -249,6 +257,7 @@ POST /api/v1/scheduler  HTTP/1.1
 
 Host: masterhost:5050
 Content-Type: application/json
+Mesos-Stream-Id: 130ae4e3-6b13-4ef4-baa9-9f2e85c3e9af
 
 {
   "framework_id"	: {"value" : "12220-3440-12532-2345"},
@@ -273,6 +282,7 @@ POST /api/v1/scheduler  HTTP/1.1
 
 Host: masterhost:5050
 Content-Type: application/json
+Mesos-Stream-Id: 130ae4e3-6b13-4ef4-baa9-9f2e85c3e9af
 
 {
   "framework_id"	: {"value" : "12220-3440-12532-2345"},
@@ -298,6 +308,7 @@ POST /api/v1/scheduler   HTTP/1.1
 
 Host: masterhost:5050
 Content-Type: application/json
+Mesos-Stream-Id: 130ae4e3-6b13-4ef4-baa9-9f2e85c3e9af
 
 {
   "framework_id"	: {"value" : "12220-3440-12532-2345"},
@@ -325,6 +336,7 @@ POST /api/v1/scheduler   HTTP/1.1
 
 Host: masterhost:5050
 Content-Type: application/json
+Mesos-Stream-Id: 130ae4e3-6b13-4ef4-baa9-9f2e85c3e9af
 
 {
   "framework_id"	: {"value" : "12220-3440-12532-2345"},
@@ -350,6 +362,7 @@ POST /api/v1/scheduler   HTTP/1.1
 
 Host: masterhost:5050
 Content-Type: application/json
+Mesos-Stream-Id: 130ae4e3-6b13-4ef4-baa9-9f2e85c3e9af
 
 {
   "framework_id"	: {"value" : "12220-3440-12532-2345"},
@@ -509,6 +522,8 @@ If the scheduler realizes that its subscription connection to "/scheduler" is br
 
 If the master does not realize that the subscription connection is broken, but the scheduler realizes it, the scheduler might open a new persistent connection to
 "/scheduler" via `SUBSCRIBE`. In this case, the master closes the existing subscription connection and allows subscription on the new connection. The invariant here is that only one persistent subscription connection for a given framework ID is allowed on the master.
+
+The master uses the `Mesos-Stream-Id` header to distinguish scheduler instances from one another. In the case of highly-available schedulers with multiple instances, this can prevent unwanted behavior in certain failure scenarios. Each unique `Mesos-Stream-Id` is valid only for the life of a single subscription connection. Each response to a `SUBSCRIBE` request contains a `Mesos-Stream-Id`, and this ID must be included with all subsequent non-subscribe calls sent over that subscription connection. Whenever a new subscription connection is established, a new stream ID is generated and should be used for the life of that connection.
 
 ### Network partitions
 

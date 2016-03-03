@@ -37,6 +37,7 @@ This release contains several new features:
   * [MESOS-4547] - Introduce TASK_KILLING state.
   * [MESOS-4712] - Remove 'force' field from the Subscribe Call in v1 Scheduler API.
   * [MESOS-4591] - Change the object of ReserveResources and CreateVolume ACLs to `roles`.
+  * [MESOS-3583] - Add stream IDs for HTTP schedulers.
 
  ** Deprecations:
   * All Mesos HTTP endpoints  with ".json" suffix (e.g., /master/state.json) are
