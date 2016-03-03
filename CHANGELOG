@@ -26,6 +26,11 @@ This release contains several new features:
     fractional resources may observe differences in roundoff error and numerical
     precision.
 
+  * [MESOS-4793] - Experimental support for v1 Executor HTTP API. This allows
+    executors to send HTTP requests to agent endpoint ('/api/v1/executor')
+    without the need for a driver. Please refer to executor-http-api.md for more
+    details.
+
 ** API Changes:
   * [MESOS-4066] - Agent should not return partial state when a request is made to /state endpoint during recovery.
   * [MESOS-4479] - Implement reservation labels.
