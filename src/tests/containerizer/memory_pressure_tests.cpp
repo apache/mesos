@@ -87,13 +87,8 @@ TEST_F(MemoryPressureMesosTest, CGROUPS_ROOT_Statistics)
 
   ASSERT_SOME(containerizer);
 
-  Future<SlaveRegisteredMessage> registered =
-      FUTURE_PROTOBUF(SlaveRegisteredMessage(), master.get(), _);
-
   Try<PID<Slave>> slave = StartSlave(containerizer.get(), flags);
   ASSERT_SOME(slave);
-
-  AWAIT_READY(registered);
 
   MockScheduler sched;
 
@@ -159,6 +154,11 @@ TEST_F(MemoryPressureMesosTest, CGROUPS_ROOT_Statistics)
 
   EXPECT_LE(waited, Seconds(5));
 
+  // Pause the clock to ensure that the reaper doesn't reap the exited
+  // command executor and inform the containerizer/slave.
+  Clock::pause();
+  Clock::settle();
+
   // Stop the memory-hammering task.
   driver.killTask(task.task_id());
 
@@ -174,6 +174,8 @@ TEST_F(MemoryPressureMesosTest, CGROUPS_ROOT_Statistics)
             usage.get().mem_medium_pressure_counter());
   EXPECT_GE(usage.get().mem_medium_pressure_counter(),
             usage.get().mem_critical_pressure_counter());
+
+  Clock::resume();
 
   driver.stop();
   driver.join();
@@ -202,13 +204,8 @@ TEST_F(MemoryPressureMesosTest, CGROUPS_ROOT_SlaveRecovery)
 
   ASSERT_SOME(containerizer1);
 
-  Future<SlaveRegisteredMessage> registered =
-      FUTURE_PROTOBUF(SlaveRegisteredMessage(), master.get(), _);
-
   Try<PID<Slave>> slave = StartSlave(containerizer1.get(), flags);
   ASSERT_SOME(slave);
-
-  AWAIT_READY(registered);
 
   MockScheduler sched;
 
@@ -241,24 +238,21 @@ TEST_F(MemoryPressureMesosTest, CGROUPS_ROOT_SlaveRecovery)
       "while true; do dd count=512 bs=1M if=/dev/zero of=./temp; done");
 
   Future<TaskStatus> running;
-  Promise<TaskStatus> killed;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
-    .WillOnce(FutureArg<1>(&running))
-    .WillRepeatedly(DoAll(
-        Invoke([&killed](Unused, const TaskStatus& status) {
-          // More than one TASK_RUNNING status can arrive
-          // before the TASK_KILLED does.
-          if (status.state() == TASK_KILLED) {
-            killed.set(status);
-          }
-        }),
-        Return()));
+    .WillOnce(FutureArg<1>(&running));
+
+
+  Future<Nothing> _statusUpdateAcknowledgement =
+    FUTURE_DISPATCH(_, &Slave::_statusUpdateAcknowledgement);
 
   driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY(running);
   EXPECT_EQ(task.task_id(), running.get().task_id());
   EXPECT_EQ(TASK_RUNNING, running.get().state());
+
+  // Wait for the ACK to be checkpointed.
+  AWAIT_READY(_statusUpdateAcknowledgement);
 
   // We restart the slave to let it recover.
   Stop(slave.get());
@@ -310,12 +304,21 @@ TEST_F(MemoryPressureMesosTest, CGROUPS_ROOT_SlaveRecovery)
 
   EXPECT_LE(waited, Seconds(5));
 
+  // Pause the clock to ensure that the reaper doesn't reap the exited
+  // command executor and inform the containerizer/slave.
+  Clock::pause();
+  Clock::settle();
+
+  Future<TaskStatus> killed;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&killed));
+
   // Stop the memory-hammering task.
   driver.killTask(task.task_id());
 
-  AWAIT_READY(killed.future());
-  EXPECT_EQ(task.task_id(), killed.future()->task_id());
-  EXPECT_EQ(TASK_KILLED, killed.future()->state());
+  AWAIT_READY(killed);
+  EXPECT_EQ(task.task_id(), killed->task_id());
+  EXPECT_EQ(TASK_KILLED, killed->state());
 
   // Now check the correctness of the memory pressure counters.
   Future<ResourceStatistics> usage = containerizer2.get()->usage(containerId);
@@ -325,6 +328,8 @@ TEST_F(MemoryPressureMesosTest, CGROUPS_ROOT_SlaveRecovery)
             usage.get().mem_medium_pressure_counter());
   EXPECT_GE(usage.get().mem_medium_pressure_counter(),
             usage.get().mem_critical_pressure_counter());
+
+  Clock::resume();
 
   driver.stop();
   driver.join();
