@@ -971,17 +971,41 @@ public:
     : Mesos(
         master,
         contentType,
+        // We don't pass the `_scheduler` shared pointer as the library
+        // interface expects a `std::function` object.
         lambda::bind(&MockHTTPScheduler<Mesos, Event>::connected,
-                     _scheduler,
+                     _scheduler.get(),
                      this),
         lambda::bind(&MockHTTPScheduler<Mesos, Event>::disconnected,
-                     _scheduler,
+                     _scheduler.get(),
                      this),
         lambda::bind(&TestMesos<Mesos, Event>::events,
                      this,
                      lambda::_1),
         detector),
       scheduler(_scheduler) {}
+
+  virtual ~TestMesos()
+  {
+    // Since the destructor for `TestMesos` is invoked first, the library can
+    // make more callbacks to the `scheduler` object before the `Mesos` (base
+    // class) destructor is invoked. To prevent this, we invoke `stop()` here
+    // to explicitly stop the library.
+    this->stop();
+
+    bool paused = process::Clock::paused();
+
+    // Need to settle the Clock to ensure that all the pending async callbacks
+    // with references to `this` and `scheduler` queued on libprocess are
+    // executed before the object is destructed.
+    process::Clock::pause();
+    process::Clock::settle();
+
+    // Return the Clock to its original state.
+    if (!paused) {
+      process::Clock::resume();
+    }
+  }
 
 protected:
   void events(std::queue<Event> events)
