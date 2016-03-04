@@ -1228,7 +1228,7 @@ void Master::_exited(Framework* framework)
   if (failoverTimeout_.isSome()) {
     failoverTimeout = failoverTimeout_.get();
   } else {
-    LOG(WARNING) << "Using the default value for 'failover_timeout' because"
+    LOG(WARNING) << "Using the default value for 'failover_timeout' because "
                  << "the input value is invalid: "
                  << failoverTimeout_.error();
   }
