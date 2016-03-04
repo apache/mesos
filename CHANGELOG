@@ -18,6 +18,12 @@ This release contains the following new features:
     fractional resources may observe differences in roundoff error and numerical
     precision.
 
+  * [MESOS-4479] - Reserved resources can now optionally include "labels".
+    Labels are a set of key-value pairs that can be used to associate metadata
+    with a reserved resource. For example, frameworks can use this feature to
+    distinguish between two reservations for the same role at the same agent
+    that are intended for different purposes.
+
   * [MESOS-2840] - **Experimental** support for container images in Mesos
     containerizer (a.k.a. Unified Containerizer). This allows frameworks to
     launch Docker/Appc containers using Mesos containerizer without relying on
@@ -25,22 +31,19 @@ This release contains the following new features:
     isolators. Please refer to docs/container-image.md for currently supported
     features and limitations.
 
-  * [MESOS-4793] - **Experimental** support for v1 Executor HTTP API. This allows
-    executors to send HTTP requests to agent endpoint ('/api/v1/executor')
-    without the need for a driver. Please refer to docs/executor-http-api.md
-    for more details.
+  * [MESOS-4793] - **Experimental** support for v1 Executor HTTP API. This
+    allows executors to send HTTP requests to the /api/v1/executor agent
+    endpoint without the need for an executor driver. Please refer to
+    docs/executor-http-api.md for more details.
 
-** API Changes:
+Additional API Changes:
   * [MESOS-4066] - Agent should not return partial state when a request is made to /state endpoint during recovery.
-  * [MESOS-4479] - Implement reservation labels.
   * [MESOS-4547] - Introduce TASK_KILLING state.
   * [MESOS-4712] - Remove 'force' field from the Subscribe Call in v1 Scheduler API.
   * [MESOS-4591] - Change the object of ReserveResources and CreateVolume ACLs to `roles`.
   * [MESOS-3583] - Add stream IDs for HTTP schedulers.
 
- ** Deprecations:
-  * All Mesos HTTP endpoints  with ".json" suffix (e.g., /master/state.json) are
-    deprecated in favor of endpoints without the suffix (e.g., /master/state).
+All Issues:
 
 ** Bug
     * [MESOS-1187] - precision errors with allocation calculations
