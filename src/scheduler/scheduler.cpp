@@ -714,15 +714,27 @@ Mesos::Mesos(
 
 Mesos::~Mesos()
 {
-  terminate(process);
-  wait(process);
-  delete process;
+  if (process != NULL) {
+    stop();
+  }
 }
 
 
 void Mesos::send(const Call& call)
 {
   dispatch(process, &MesosProcess::send, call);
+}
+
+
+void Mesos::stop()
+{
+  if (process != NULL) {
+    terminate(process);
+    wait(process);
+
+    delete process;
+    process = NULL;
+  }
 }
 
 } // namespace scheduler {

@@ -83,6 +83,15 @@ protected:
       const std::function<void(const std::queue<Event>&)>& received,
       const Option<std::shared_ptr<mesos::internal::MasterDetector>>& detector);
 
+  // Stops the library so that:
+  //   - No more calls can be sent to the master.
+  //   - No more callbacks can be made to the scheduler. In some cases, there
+  //     may be one additional callback if the library was in the middle of
+  //     processing an event.
+  //
+  // NOTE: This is used for testing.
+  virtual void stop();
+
 private:
   MesosProcess* process;
 };
