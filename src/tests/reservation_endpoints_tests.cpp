@@ -459,6 +459,7 @@ TEST_F(ReservationEndpointsTest, ReserveAvailableAndOfferedResources)
   // Send a KillTask message to the master.
   driver.killTask(taskInfo.task_id());
 
+  AWAIT_READY(availableResources);
   EXPECT_TRUE(availableResources.get().contains(available));
 
   // At this point, we have 'available' resources in the allocator, and
@@ -622,6 +623,7 @@ TEST_F(ReservationEndpointsTest, UnreserveAvailableAndOfferedResources)
   // Send a KillTask message to the master.
   driver.killTask(taskInfo.task_id());
 
+  AWAIT_READY(availableResources);
   EXPECT_TRUE(availableResources.get().contains(available));
 
   // At this point, we have 'available' resources in the allocator, and
