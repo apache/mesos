@@ -88,7 +88,7 @@ def check_license_header(source_paths):
             if not re.match(r'^\/\/ [Licensed|Copyright]', head):
                 sys.stderr.write(
                     "{path}:1:  A license header should appear on the file's "
-                    " first line starting with '// Licensed'.: {head}".\
+                    "first line starting with '// Licensed'.: {head}".\
                         format(path=path, head=head))
                 error_count += 1
 
