@@ -515,7 +515,7 @@ void Master::initialize()
     EXIT(1) << "Multiple HTTP authenticators not supported";
   }
   if (httpAuthenticatorNames[0] != DEFAULT_HTTP_AUTHENTICATOR &&
-      !modules::ModuleManager::contains<Authenticator>(
+      !modules::ModuleManager::contains<authentication::Authenticator>(
           httpAuthenticatorNames[0])) {
     EXIT(1) << "HTTP authenticator '" << httpAuthenticatorNames[0] << "' not "
             << "found. Check the spelling (compare to '"
