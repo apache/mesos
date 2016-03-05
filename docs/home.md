@@ -34,7 +34,7 @@ layout: documentation
 * [Maintenance](maintenance.md) for performing maintenance on a Mesos cluster.
 * [Tools](tools.md) for setting up and running a Mesos cluster.
 * [SSL](ssl.md) for enabling and enforcing SSL communication.
-* [Mesos Image Provisioner](mesos-provisioner.md) for provisioning container filesystems from different image formats.
+* [Container Image](container-image.md) for supporting container images in Mesos containerizer.
 
 ## Advanced Features
 
