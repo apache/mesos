@@ -629,6 +629,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   master/validation.cpp							\
   master/allocator/allocator.cpp					\
   master/allocator/mesos/hierarchical.cpp				\
+  master/allocator/mesos/metrics.cpp					\
   master/allocator/sorter/drf/sorter.cpp				\
   messages/messages.cpp							\
   module/manager.cpp							\
@@ -741,6 +742,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   master/validation.hpp							\
   master/allocator/mesos/allocator.hpp					\
   master/allocator/mesos/hierarchical.hpp				\
+  master/allocator/mesos/metrics.hpp					\
   master/allocator/sorter/sorter.hpp					\
   master/allocator/sorter/drf/sorter.hpp				\
   messages/flags.hpp							\

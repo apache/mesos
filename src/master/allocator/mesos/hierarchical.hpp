@@ -23,8 +23,6 @@
 
 #include <process/future.hpp>
 #include <process/id.hpp>
-#include <process/metrics/gauge.hpp>
-#include <process/metrics/metrics.hpp>
 
 #include <stout/duration.hpp>
 #include <stout/hashmap.hpp>
@@ -32,6 +30,8 @@
 #include <stout/option.hpp>
 
 #include "master/allocator/mesos/allocator.hpp"
+#include "master/allocator/mesos/metrics.hpp"
+
 #include "master/allocator/sorter/drf/sorter.hpp"
 
 #include "master/constants.hpp"
@@ -263,23 +263,8 @@ protected:
       void(const FrameworkID&,
            const hashmap<SlaveID, UnavailableResources>&)> inverseOfferCallback;
 
-  struct Metrics
-  {
-    explicit Metrics(const Self& process)
-      : event_queue_dispatches(
-            "allocator/event_queue_dispatches",
-            process::defer(process.self(), &Self::_event_queue_dispatches))
-    {
-      process::metrics::add(event_queue_dispatches);
-    }
-
-    ~Metrics()
-    {
-      process::metrics::remove(event_queue_dispatches);
-    }
-
-    process::metrics::Gauge event_queue_dispatches;
-  } metrics;
+  friend Metrics;
+  Metrics metrics;
 
   struct Framework
   {

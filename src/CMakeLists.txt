@@ -210,6 +210,7 @@ set(MASTER_SRC
   master/validation.cpp
   master/allocator/allocator.cpp
   master/allocator/mesos/hierarchical.cpp
+  master/allocator/mesos/metrics.cpp
   master/allocator/sorter/drf/sorter.cpp
   )
 
