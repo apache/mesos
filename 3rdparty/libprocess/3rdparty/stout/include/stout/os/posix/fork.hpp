@@ -369,8 +369,8 @@ private:
       // Execute the command (via '/bin/sh -c command').
       const char* command = exec.get().command.c_str();
       execlp("sh", "sh", "-c", command, (char*) NULL);
-      EXIT(1) << "Failed to execute '" << command
-              << "': " << os::strerror(errno);
+      EXIT(EXIT_FAILURE)
+        << "Failed to execute '" << command << "': " << os::strerror(errno);
     } else if (wait.isSome()) {
       foreach (pid_t pid, pids) {
         // TODO(benh): Check for signal interruption or other errors.

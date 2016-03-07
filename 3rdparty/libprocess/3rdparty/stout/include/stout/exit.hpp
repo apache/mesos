@@ -27,7 +27,7 @@
 // exiting. This is like glog's LOG(FATAL) or CHECK, except that it
 // does _not_ print a stack trace.
 //
-// Ex: EXIT(1) << "Cgroups are not present in this system.";
+// Ex: EXIT(EXIT_FAILURE) << "Cgroups are not present in this system.";
 #define EXIT(status) __Exit(status).stream()
 
 

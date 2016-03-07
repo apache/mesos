@@ -503,10 +503,12 @@ void FlagsBase::add(
 inline void FlagsBase::add(const Flag& flag)
 {
   if (flags_.count(flag.name) > 0) {
-    EXIT(1) << "Attempted to add duplicate flag '" << flag.name << "'";
+    EXIT(EXIT_FAILURE)
+      << "Attempted to add duplicate flag '" << flag.name << "'";
   } else if (flag.name.find("no-") == 0) {
-    EXIT(1) << "Attempted to add flag '" << flag.name
-            << "' that starts with the reserved 'no-' prefix";
+    EXIT(EXIT_FAILURE)
+      << "Attempted to add flag '" << flag.name
+      << "' that starts with the reserved 'no-' prefix";
   }
 
   flags_[flag.name] = flag;
