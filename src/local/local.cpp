@@ -141,8 +141,9 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
     // Create a default allocator.
     Try<Allocator*> defaultAllocator = HierarchicalDRFAllocator::create();
     if (defaultAllocator.isError()) {
-      EXIT(1) << "Failed to create an instance of HierarchicalDRFAllocator: "
-              << defaultAllocator.error();
+      EXIT(EXIT_FAILURE)
+        << "Failed to create an instance of HierarchicalDRFAllocator: "
+        << defaultAllocator.error();
     }
 
     // Update caller's instance.
@@ -162,8 +163,9 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
     master::Flags flags;
     Try<Nothing> load = flags.load("MESOS_");
     if (load.isError()) {
-      EXIT(1) << "Failed to start a local cluster while loading "
-              << "master flags from the environment: " << load.error();
+      EXIT(EXIT_FAILURE)
+        << "Failed to start a local cluster while loading"
+        << " master flags from the environment: " << load.error();
     }
 
     // Load modules. Note that this covers both, master and slave
@@ -171,14 +173,15 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
     if (flags.modules.isSome()) {
       Try<Nothing> result = ModuleManager::load(flags.modules.get());
       if (result.isError()) {
-        EXIT(1) << "Error loading modules: " << result.error();
+        EXIT(EXIT_FAILURE) << "Error loading modules: " << result.error();
       }
     }
 
     if (flags.registry == "in_memory") {
       if (flags.registry_strict) {
-        EXIT(1) << "Cannot use '--registry_strict' when using in-memory storage"
-                << " based registry";
+        EXIT(EXIT_FAILURE)
+          << "Cannot use '--registry_strict' when using in-memory storage"
+          << " based registry";
       }
       storage = new state::InMemoryStorage();
     } else if (flags.registry == "replicated_log") {
@@ -199,8 +202,9 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
           flags.log_auto_initialize);
       storage = new state::LogStorage(log);
     } else {
-      EXIT(1) << "'" << flags.registry << "' is not a supported"
-              << " option for registry persistence";
+      EXIT(EXIT_FAILURE)
+        << "'" << flags.registry << "' is not a supported"
+        << " option for registry persistence";
     }
 
     CHECK_NOTNULL(storage);
@@ -255,25 +259,28 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
         strings::tokenize(flags.slave_removal_rate_limit.get(), "/");
 
       if (tokens.size() != 2) {
-        EXIT(1) << "Invalid slave_removal_rate_limit: "
-                << flags.slave_removal_rate_limit.get()
-                << ". Format is <Number of slaves>/<Duration>";
+        EXIT(EXIT_FAILURE)
+          << "Invalid slave_removal_rate_limit: "
+          << flags.slave_removal_rate_limit.get()
+          << ". Format is <Number of slaves>/<Duration>";
       }
 
       Try<int> permits = numify<int>(tokens[0]);
       if (permits.isError()) {
-        EXIT(1) << "Invalid slave_removal_rate_limit: "
-                << flags.slave_removal_rate_limit.get()
-                << ". Format is <Number of slaves>/<Duration>"
-                << ": " << permits.error();
+        EXIT(EXIT_FAILURE)
+          << "Invalid slave_removal_rate_limit: "
+          << flags.slave_removal_rate_limit.get()
+          << ". Format is <Number of slaves>/<Duration>"
+          << ": " << permits.error();
       }
 
       Try<Duration> duration = Duration::parse(tokens[1]);
       if (duration.isError()) {
-        EXIT(1) << "Invalid slave_removal_rate_limit: "
-                << flags.slave_removal_rate_limit.get()
-                << ". Format is <Number of slaves>/<Duration>"
-                << ": " << duration.error();
+        EXIT(EXIT_FAILURE)
+          << "Invalid slave_removal_rate_limit: "
+          << flags.slave_removal_rate_limit.get()
+          << ". Format is <Number of slaves>/<Duration>"
+          << ": " << duration.error();
       }
 
       slaveRemovalLimiter = new RateLimiter(permits.get(), duration.get());
@@ -283,7 +290,8 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
     foreach (const string& name, ModuleManager::find<Anonymous>()) {
       Try<Anonymous*> create = ModuleManager::create<Anonymous>(name);
       if (create.isError()) {
-        EXIT(1) << "Failed to create anonymous module named '" << name << "'";
+        EXIT(EXIT_FAILURE)
+          << "Failed to create anonymous module named '" << name << "'";
       }
 
       // We don't bother keeping around the pointer to this anonymous
@@ -324,8 +332,9 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
     Try<Nothing> load = flags.load("MESOS_");
 
     if (load.isError()) {
-      EXIT(1) << "Failed to start a local cluster while loading "
-              << "slave flags from the environment: " << load.error();
+      EXIT(EXIT_FAILURE)
+        << "Failed to start a local cluster while loading"
+        << " slave flags from the environment: " << load.error();
     }
 
     // Use a different work directory for each slave.
@@ -339,8 +348,8 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
       ResourceEstimator::create(flags.resource_estimator);
 
     if (resourceEstimator.isError()) {
-      EXIT(1) << "Failed to create resource estimator: "
-              << resourceEstimator.error();
+      EXIT(EXIT_FAILURE)
+        << "Failed to create resource estimator: " << resourceEstimator.error();
     }
 
     resourceEstimators->push_back(resourceEstimator.get());
@@ -349,8 +358,8 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
       QoSController::create(flags.qos_controller);
 
     if (qosController.isError()) {
-      EXIT(1) << "Failed to create QoS Controller: "
-              << qosController.error();
+      EXIT(EXIT_FAILURE)
+        << "Failed to create QoS Controller: " << qosController.error();
     }
 
     qosControllers->push_back(qosController.get());
@@ -364,7 +373,8 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
       Containerizer::create(flags, true, fetchers->back());
 
     if (containerizer.isError()) {
-      EXIT(1) << "Failed to create a containerizer: " << containerizer.error();
+      EXIT(EXIT_FAILURE)
+        << "Failed to create a containerizer: " << containerizer.error();
     }
 
     // NOTE: At this point detector is already initialized by the

@@ -146,7 +146,7 @@ public:
     Try<Nothing> load = flags.load("MESOS_");
 
     if (load.isError()) {
-      EXIT(1) << "Failed to load flags: " << load.error();
+      EXIT(EXIT_FAILURE) << "Failed to load flags: " << load.error();
     }
 
     // Initialize libprocess (done here since at some point we might
@@ -183,7 +183,8 @@ public:
         MasterDetector::create(pid.isSome() ? string(pid.get()) : master);
 
       if (create.isError()) {
-        EXIT(1) << "Failed to create a master detector: " << create.error();
+        EXIT(EXIT_FAILURE)
+          << "Failed to create a master detector: " << create.error();
       }
 
       detector.reset(create.get());

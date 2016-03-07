@@ -229,13 +229,15 @@ int main()
 
   value = os::getenv("MESOS_FRAMEWORK_ID");
   if (value.isNone()) {
-    EXIT(1) << "Expecting 'MESOS_FRAMEWORK_ID' to be set in the environment";
+    EXIT(EXIT_FAILURE)
+      << "Expecting 'MESOS_FRAMEWORK_ID' to be set in the environment";
   }
   frameworkId.set_value(value.get());
 
   value = os::getenv("MESOS_EXECUTOR_ID");
   if (value.isNone()) {
-    EXIT(1) << "Expecting 'MESOS_EXECUTOR_ID' to be set in the environment";
+    EXIT(EXIT_FAILURE)
+      << "Expecting 'MESOS_EXECUTOR_ID' to be set in the environment";
   }
   executorId.set_value(value.get());
 

@@ -71,10 +71,10 @@ Try<hashmap<Image::Type, Owned<Store>>> Store::create(const Flags& flags)
 
   if (stores.contains(Image::DOCKER) &&
       !strings::contains(flags.isolation, "docker/runtime")) {
-    EXIT(1)
-      << "Docker runtime isolator has to be specified if 'DOCKER' is included "
-      << "in 'image_providers'. Please add 'docker/runtime' to '--isolation' "
-      << "flags";
+    EXIT(EXIT_FAILURE)
+      << "Docker runtime isolator has to be specified if 'DOCKER' is included"
+      << " in 'image_providers'. Please add 'docker/runtime' to '--isolation'"
+      << " flags";
   }
 
   return stores;

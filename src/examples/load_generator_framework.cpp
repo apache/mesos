@@ -214,7 +214,7 @@ public:
   {
     // Terminating process with EXIT here because we cannot interrupt
     // LoadGenerator's long-running loop.
-    EXIT(1) << "Error received: " << error;
+    EXIT(EXIT_FAILURE) << "Error received: " << error;
   }
 
 private:

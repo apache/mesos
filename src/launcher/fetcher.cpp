@@ -456,8 +456,8 @@ int main(int argc, char* argv[])
     Try<string> fetched =
       fetch(item, cacheDirectory, sandboxDirectory, frameworksHome);
     if (fetched.isError()) {
-      EXIT(1) << "Failed to fetch '" << item.uri().value()
-              << "': " + fetched.error();
+      EXIT(EXIT_FAILURE)
+        << "Failed to fetch '" << item.uri().value() << "': " + fetched.error();
     } else {
       LOG(INFO) << "Fetched '" << item.uri().value()
                 << "' to '" << fetched.get() << "'";
@@ -470,8 +470,8 @@ int main(int argc, char* argv[])
         fetcherInfo.get().user(),
         sandboxDirectory);
     if (chowned.isError()) {
-      EXIT(1) << "Failed to chown " << sandboxDirectory
-              << ": " << chowned.error();
+      EXIT(EXIT_FAILURE)
+        << "Failed to chown " << sandboxDirectory << ": " << chowned.error();
     }
   }
 

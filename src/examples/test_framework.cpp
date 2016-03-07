@@ -221,11 +221,11 @@ int main(int argc, char** argv)
   if (load.isError()) {
     cerr << load.error() << endl;
     usage(argv[0], flags);
-    exit(1);
+    exit(EXIT_FAILURE);
   } else if (master.isNone()) {
     cerr << "Missing --master" << endl;
     usage(argv[0], flags);
-    exit(1);
+    exit(EXIT_FAILURE);
   }
 
   internal::logging::initialize(argv[0], flags, true); // Catch signals.
@@ -262,7 +262,8 @@ int main(int argc, char** argv)
 
     value = os::getenv("DEFAULT_PRINCIPAL");
     if (value.isNone()) {
-      EXIT(1) << "Expecting authentication principal in the environment";
+      EXIT(EXIT_FAILURE)
+        << "Expecting authentication principal in the environment";
     }
 
     Credential credential;
@@ -272,7 +273,8 @@ int main(int argc, char** argv)
 
     value = os::getenv("DEFAULT_SECRET");
     if (value.isNone()) {
-      EXIT(1) << "Expecting authentication secret in the environment";
+      EXIT(EXIT_FAILURE)
+        << "Expecting authentication secret in the environment";
     }
 
     credential.set_secret(value.get());

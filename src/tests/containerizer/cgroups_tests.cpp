@@ -472,7 +472,7 @@ TEST_F(CgroupsAnyHierarchyTest, ROOT_CGROUPS_Write)
     while (write(STDERR_FILENO, message, strlen(message)) == -1 &&
            errno == EINTR);
 
-    _exit(1);
+    _exit(EXIT_FAILURE);
   }
 
   // In parent process.

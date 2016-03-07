@@ -158,7 +158,7 @@ public:
     Try<Nothing> load = flags.load("MESOS_");
 
     if (load.isError()) {
-      EXIT(1) << "Failed to load flags: " << load.error();
+      EXIT(EXIT_FAILURE) << "Failed to load flags: " << load.error();
     }
 
     // Initialize libprocess.
@@ -183,7 +183,8 @@ public:
     // Get agent PID from environment.
     value = os::getenv("MESOS_SLAVE_PID");
     if (value.isNone()) {
-      EXIT(1) << "Expecting 'MESOS_SLAVE_PID' to be set in the environment";
+      EXIT(EXIT_FAILURE)
+        << "Expecting 'MESOS_SLAVE_PID' to be set in the environment";
     }
 
     UPID upid(value.get());
@@ -212,8 +213,8 @@ public:
 
         recoveryTimeout = _recoveryTimeout.get();
       } else {
-        EXIT(1) << "Expecting 'MESOS_RECOVERY_TIMEOUT' to be set in the "
-                << "environment";
+        EXIT(EXIT_FAILURE)
+          << "Expecting 'MESOS_RECOVERY_TIMEOUT' to be set in the environment";
       }
 
       // Get maximum backoff factor from environment.
@@ -227,8 +228,9 @@ public:
 
         maxBackoff = _maxBackoff.get();
       } else {
-        EXIT(1) << "Expecting 'MESOS_SUBSCRIPTION_BACKOFF_MAX' to be set "
-                << "in the environment";
+        EXIT(EXIT_FAILURE)
+          << "Expecting 'MESOS_SUBSCRIPTION_BACKOFF_MAX' to be set"
+          << " in the environment";
       }
     }
 
@@ -243,8 +245,9 @@ public:
 
       shutdownGracePeriod = _shutdownGracePeriod.get();
     } else {
-      EXIT(1) << "Expecting 'MESOS_EXECUTOR_SHUTDOWN_GRACE_PERIOD' to be set "
-              << "in the environment";
+      EXIT(EXIT_FAILURE)
+        << "Expecting 'MESOS_EXECUTOR_SHUTDOWN_GRACE_PERIOD' to be set"
+        << " in the environment";
     }
   }
 

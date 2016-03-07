@@ -498,19 +498,21 @@ void Slave::wait()
 
       Try<bool> exists = cgroups::exists(hierarchy, cgroup);
       if (exists.isError() || !exists.get()) {
-        EXIT(1) << "Failed to find cgroup " << cgroup
-                << " for subsystem " << subsystem
-                << " under hierarchy " << hierarchy
-                << " for slave: " + exists.error();
+        EXIT(EXIT_FAILURE)
+          << "Failed to find cgroup " << cgroup
+          << " for subsystem " << subsystem
+          << " under hierarchy " << hierarchy
+          << " for slave: " + exists.error();
       }
 
       // Move all of our threads into the root cgroup.
       Try<Nothing> assign = cgroups::assign(hierarchy, "", getpid());
       if (assign.isError()) {
-        EXIT(1) << "Failed to move slave threads into cgroup " << cgroup
-                << " for subsystem " << subsystem
-                << " under hierarchy " << hierarchy
-                << " for slave: " + assign.error();
+        EXIT(EXIT_FAILURE)
+          << "Failed to move slave threads into cgroup " << cgroup
+          << " for subsystem " << subsystem
+          << " under hierarchy " << hierarchy
+          << " for slave: " + assign.error();
       }
     }
   }

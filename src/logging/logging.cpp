@@ -131,9 +131,10 @@ void initialize(
   if (flags.logging_level != "INFO" &&
       flags.logging_level != "WARNING" &&
       flags.logging_level != "ERROR") {
-    EXIT(1) << "'" << flags.logging_level << "' is not a valid logging level."
-               " Possible values for 'logging_level' flag are: "
-               " 'INFO', 'WARNING', 'ERROR'.";
+    EXIT(EXIT_FAILURE)
+      << "'" << flags.logging_level
+      << "' is not a valid logging level. Possible values for"
+      << " 'logging_level' flag are: 'INFO', 'WARNING', 'ERROR'.";
   }
 
   FLAGS_minloglevel = getLogSeverity(flags.logging_level);
@@ -141,8 +142,9 @@ void initialize(
   if (flags.log_dir.isSome()) {
     Try<Nothing> mkdir = os::mkdir(flags.log_dir.get());
     if (mkdir.isError()) {
-      EXIT(1) << "Could not initialize logging: Failed to create directory "
-              << flags.log_dir.get() << ": " << mkdir.error();
+      EXIT(EXIT_FAILURE)
+        << "Could not initialize logging: Failed to create directory "
+        << flags.log_dir.get() << ": " << mkdir.error();
     }
     FLAGS_log_dir = flags.log_dir.get();
     // Do not log to stderr instead of log files.

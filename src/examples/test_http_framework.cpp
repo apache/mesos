@@ -183,7 +183,7 @@ public:
         }
 
         default: {
-          EXIT(1) << "Received an UNKNOWN event";
+          EXIT(EXIT_FAILURE) << "Received an UNKNOWN event";
         }
       }
     }
@@ -292,11 +292,12 @@ private:
     if (status.state() == TASK_LOST ||
         status.state() == TASK_KILLED ||
         status.state() == TASK_FAILED) {
-      EXIT(1) << "Exiting because task " << status.task_id()
-              << " is in unexpected state " << status.state()
-              << " with reason " << status.reason()
-              << " from source " << status.source()
-              << " with message '" << status.message() << "'";
+      EXIT(EXIT_FAILURE)
+        << "Exiting because task " << status.task_id()
+        << " is in unexpected state " << status.state()
+        << " with reason " << status.reason()
+        << " from source " << status.source()
+        << " with message '" << status.message() << "'";
     }
 
     if (tasksFinished == totalTasks) {
@@ -395,11 +396,11 @@ int main(int argc, char** argv)
   if (load.isError()) {
     cerr << load.error() << endl;
     usage(argv[0], flags);
-    EXIT(1);
+    EXIT(EXIT_FAILURE);
   } else if (master.isNone()) {
     cerr << "Missing --master" << endl;
     usage(argv[0], flags);
-    EXIT(1);
+    EXIT(EXIT_FAILURE);
   }
 
   process::initialize();
@@ -428,7 +429,8 @@ int main(int argc, char** argv)
 
   value = os::getenv("DEFAULT_PRINCIPAL");
   if (value.isNone()) {
-    EXIT(1) << "Expecting authentication principal in the environment";
+    EXIT(EXIT_FAILURE)
+      << "Expecting authentication principal in the environment";
   }
 
   framework.set_principal(value.get());

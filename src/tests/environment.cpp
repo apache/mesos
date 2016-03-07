@@ -749,7 +749,7 @@ void Environment::SetUp()
   }
 
   if (!GTEST_IS_THREADSAFE) {
-    EXIT(1) << "Testing environment is not thread safe, bailing!";
+    EXIT(EXIT_FAILURE) << "Testing environment is not thread safe, bailing!";
   }
 }
 

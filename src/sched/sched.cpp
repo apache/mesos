@@ -294,7 +294,7 @@ protected:
     CHECK(!_master.isDiscarded());
 
     if (_master.isFailed()) {
-      EXIT(1) << "Failed to detect a master: " << _master.failure();
+      EXIT(EXIT_FAILURE) << "Failed to detect a master: " << _master.failure();
     }
 
     if (_master.get().isSome()) {
@@ -392,8 +392,9 @@ protected:
       Try<Authenticatee*> module =
         modules::ModuleManager::create<Authenticatee>(flags.authenticatee);
       if (module.isError()) {
-        EXIT(1) << "Could not create authenticatee module '"
-                << flags.authenticatee << "': " << module.error();
+        EXIT(EXIT_FAILURE)
+          << "Could not create authenticatee module '"
+          << flags.authenticatee << "': " << module.error();
       }
       LOG(INFO) << "Using '" << flags.authenticatee << "' authenticatee";
       authenticatee = module.get();

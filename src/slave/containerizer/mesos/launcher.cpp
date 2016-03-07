@@ -91,7 +91,7 @@ static int childSetup(const Option<lambda::function<int()>>& setup)
   // mesos-containerizer launch).
   if (::setsid() == -1) {
     perror("Failed to put child in a new session");
-    _exit(1);
+    _exit(EXIT_FAILURE);
   }
 
   if (setup.isSome()) {

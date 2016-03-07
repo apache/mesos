@@ -389,16 +389,18 @@ void Master::initialize()
   // NOTE: We enforce a minimum slave re-register timeout because the
   // slave bounds its (re-)registration retries based on the minimum.
   if (flags.slave_reregister_timeout < MIN_SLAVE_REREGISTER_TIMEOUT) {
-    EXIT(1) << "Invalid value '" << flags.slave_reregister_timeout << "' "
-            << "for --slave_reregister_timeout: "
-            << "Must be at least " << MIN_SLAVE_REREGISTER_TIMEOUT;
+    EXIT(EXIT_FAILURE)
+      << "Invalid value '" << flags.slave_reregister_timeout << "'"
+      << " for --slave_reregister_timeout:"
+      << " Must be at least " << MIN_SLAVE_REREGISTER_TIMEOUT;
   }
 
   // Parse the percentage for the slave removal limit.
   // TODO(bmahler): Add a 'Percentage' abstraction.
   if (!strings::endsWith(flags.recovery_slave_removal_limit, "%")) {
-    EXIT(1) << "Invalid value '" << flags.recovery_slave_removal_limit << "' "
-            << "for --recovery_slave_removal_percent_limit: " << "missing '%'";
+    EXIT(EXIT_FAILURE)
+      << "Invalid value '" << flags.recovery_slave_removal_limit << "'"
+      << " for --recovery_slave_removal_percent_limit: " << "missing '%'";
   }
 
   Try<double> limit = numify<double>(
@@ -408,14 +410,16 @@ void Master::initialize()
           strings::SUFFIX));
 
   if (limit.isError()) {
-    EXIT(1) << "Invalid value '" << flags.recovery_slave_removal_limit << "' "
-            << "for --recovery_slave_removal_percent_limit: " << limit.error();
+    EXIT(EXIT_FAILURE)
+      << "Invalid value '" << flags.recovery_slave_removal_limit << "'"
+      << " for --recovery_slave_removal_percent_limit: " << limit.error();
   }
 
   if (limit.get() < 0.0 || limit.get() > 100.0) {
-    EXIT(1) << "Invalid value '" << flags.recovery_slave_removal_limit << "' "
-            << "for --recovery_slave_removal_percent_limit: "
-            << "Must be within [0%-100%]";
+    EXIT(EXIT_FAILURE)
+      << "Invalid value '" << flags.recovery_slave_removal_limit << "'"
+      << " for --recovery_slave_removal_percent_limit:"
+      << " Must be within [0%-100%]";
   }
 
   // Log authentication state.
@@ -436,10 +440,11 @@ void Master::initialize()
     Result<Credentials> _credentials =
       credentials::read(flags.credentials.get());
     if (_credentials.isError()) {
-      EXIT(1) << _credentials.error() << " (see --credentials flag)";
+      EXIT(EXIT_FAILURE) << _credentials.error() << " (see --credentials flag)";
     } else if (_credentials.isNone()) {
-      EXIT(1) << "Credentials file must contain at least one credential"
-              << " (see --credentials flag)";
+      EXIT(EXIT_FAILURE)
+        << "Credentials file must contain at least one credential"
+        << " (see --credentials flag)";
     }
     // Store credentials in master to use them in routes.
     credentials = _credentials.get();
@@ -448,18 +453,19 @@ void Master::initialize()
   // Extract authenticator names and validate them.
   authenticatorNames = strings::split(flags.authenticators, ",");
   if (authenticatorNames.empty()) {
-    EXIT(1) << "No authenticator specified";
+    EXIT(EXIT_FAILURE) << "No authenticator specified";
   }
   if (authenticatorNames.size() > 1) {
-    EXIT(1) << "Multiple authenticators not supported";
+    EXIT(EXIT_FAILURE) << "Multiple authenticators not supported";
   }
   if (authenticatorNames[0] != DEFAULT_AUTHENTICATOR &&
       !modules::ModuleManager::contains<Authenticator>(
           authenticatorNames[0])) {
-    EXIT(1) << "Authenticator '" << authenticatorNames[0] << "' not found. "
-            << "Check the spelling (compare to '" << DEFAULT_AUTHENTICATOR
-            << "'') or verify that the authenticator was loaded successfully "
-            << "(see --modules)";
+    EXIT(EXIT_FAILURE)
+      << "Authenticator '" << authenticatorNames[0] << "' not found."
+      << " Check the spelling (compare to '" << DEFAULT_AUTHENTICATOR << "')"
+      << " or verify that the authenticator was loaded successfully"
+      << " (see --modules)";
   }
 
   // TODO(tillt): Allow multiple authenticators to be loaded and enable
@@ -472,8 +478,9 @@ void Master::initialize()
     Try<Authenticator*> module =
       modules::ModuleManager::create<Authenticator>(authenticatorNames[0]);
     if (module.isError()) {
-      EXIT(1) << "Could not create authenticator module '"
-              << authenticatorNames[0] << "': " << module.error();
+      EXIT(EXIT_FAILURE)
+        << "Could not create authenticator module '"
+        << authenticatorNames[0] << "': " << module.error();
     }
     LOG(INFO) << "Using '" << authenticatorNames[0] << "' authenticator";
     authenticator = module.get();
@@ -487,8 +494,8 @@ void Master::initialize()
       "Failed to initialize authenticator '" + authenticatorNames[0] +
       "': " + initialize.error();
     if (flags.authenticate_frameworks || flags.authenticate_slaves) {
-      EXIT(1) << "Failed to start master with authentication enabled: "
-              << error;
+      EXIT(EXIT_FAILURE)
+        << "Failed to start master with authentication enabled: " << error;
     } else {
       // A failure to initialize the authenticator does lead to
       // unusable authentication but still allows non authenticating
@@ -510,18 +517,19 @@ void Master::initialize()
   // Passing an empty string into the `http_authenticators`
   // flag is considered an error.
   if (httpAuthenticatorNames.empty()) {
-    EXIT(1) << "No HTTP authenticator specified";
+    EXIT(EXIT_FAILURE) << "No HTTP authenticator specified";
   }
   if (httpAuthenticatorNames.size() > 1) {
-    EXIT(1) << "Multiple HTTP authenticators not supported";
+    EXIT(EXIT_FAILURE) << "Multiple HTTP authenticators not supported";
   }
   if (httpAuthenticatorNames[0] != DEFAULT_HTTP_AUTHENTICATOR &&
       !modules::ModuleManager::contains<authentication::Authenticator>(
           httpAuthenticatorNames[0])) {
-    EXIT(1) << "HTTP authenticator '" << httpAuthenticatorNames[0] << "' not "
-            << "found. Check the spelling (compare to '"
-            << DEFAULT_HTTP_AUTHENTICATOR << "'') or verify that the "
-            << "authenticator was loaded successfully (see --modules)";
+    EXIT(EXIT_FAILURE)
+      << "HTTP authenticator '" << httpAuthenticatorNames[0] << "' not"
+      << " found. Check the spelling (compare to '"
+      << DEFAULT_HTTP_AUTHENTICATOR << "') or verify that the"
+      << " authenticator was loaded successfully (see --modules)";
   }
 
   Option<authentication::Authenticator*> httpAuthenticator;
@@ -529,9 +537,9 @@ void Master::initialize()
   if (flags.authenticate_http) {
     if (httpAuthenticatorNames[0] == DEFAULT_HTTP_AUTHENTICATOR) {
       if (credentials.isNone()) {
-        EXIT(1) << "No credentials provided for the default '"
-                << DEFAULT_HTTP_AUTHENTICATOR
-                << "' HTTP authenticator";
+        EXIT(EXIT_FAILURE)
+          << "No credentials provided for the default '"
+          << DEFAULT_HTTP_AUTHENTICATOR << "' HTTP authenticator";
       }
 
       LOG(INFO) << "Using default '" << DEFAULT_HTTP_AUTHENTICATOR
@@ -542,8 +550,9 @@ void Master::initialize()
             DEFAULT_HTTP_AUTHENTICATION_REALM,
             credentials.get());
       if (authenticator.isError()) {
-        EXIT(1) << "Could not create HTTP authenticator module '"
-                << httpAuthenticatorNames[0] << "': " << authenticator.error();
+        EXIT(EXIT_FAILURE)
+          << "Could not create HTTP authenticator module '"
+          << httpAuthenticatorNames[0] << "': " << authenticator.error();
       }
 
       httpAuthenticator = authenticator.get();
@@ -552,8 +561,9 @@ void Master::initialize()
         modules::ModuleManager::create<authentication::Authenticator>(
             httpAuthenticatorNames[0]);
       if (module.isError()) {
-        EXIT(1) << "Could not create HTTP authenticator module '"
-                << httpAuthenticatorNames[0] << "': " << module.error();
+        EXIT(EXIT_FAILURE)
+          << "Could not create HTTP authenticator module '"
+          << httpAuthenticatorNames[0] << "': " << module.error();
       }
       LOG(INFO) << "Using '" << httpAuthenticatorNames[0]
                 << "' HTTP authenticator";
@@ -577,13 +587,15 @@ void Master::initialize()
     // Add framework rate limiters.
     foreach (const RateLimit& limit_, flags.rate_limits.get().limits()) {
       if (frameworks.limiters.contains(limit_.principal())) {
-        EXIT(1) << "Duplicate principal " << limit_.principal()
-                << " found in RateLimits configuration";
+        EXIT(EXIT_FAILURE)
+          << "Duplicate principal " << limit_.principal()
+          << " found in RateLimits configuration";
       }
 
       if (limit_.has_qps() && limit_.qps() <= 0) {
-        EXIT(1) << "Invalid qps: " << limit_.qps()
-                << ". It must be a positive number";
+        EXIT(EXIT_FAILURE)
+          << "Invalid qps: " << limit_.qps()
+          << ". It must be a positive number";
       }
 
       if (limit_.has_qps()) {
@@ -602,9 +614,10 @@ void Master::initialize()
 
     if (flags.rate_limits.get().has_aggregate_default_qps() &&
         flags.rate_limits.get().aggregate_default_qps() <= 0) {
-      EXIT(1) << "Invalid aggregate_default_qps: "
-              << flags.rate_limits.get().aggregate_default_qps()
-              << ". It must be a positive number";
+      EXIT(EXIT_FAILURE)
+        << "Invalid aggregate_default_qps: "
+        << flags.rate_limits.get().aggregate_default_qps()
+        << ". It must be a positive number";
     }
 
     if (flags.rate_limits.get().has_aggregate_default_qps()) {
@@ -636,7 +649,7 @@ void Master::initialize()
 
     Try<vector<string>> roles = roles::parse(flags.roles.get());
     if (roles.isError()) {
-      EXIT(1) << "Failed to parse roles: " << roles.error();
+      EXIT(EXIT_FAILURE) << "Failed to parse roles: " << roles.error();
     }
 
     roleWhitelist = hashset<string>();
@@ -659,17 +672,19 @@ void Master::initialize()
     foreach (const string& token, tokens) {
       vector<string> pair = strings::tokenize(token, "=");
       if (pair.size() != 2) {
-        EXIT(1) << "Invalid weight: '" << token << "'. --weights should"
-          "be of the form 'role=weight,role=weight'\n";
+        EXIT(EXIT_FAILURE)
+          << "Invalid weight: '" << token << "'. --weights should"
+          << " be of the form 'role=weight,role=weight'";
       } else if (!isWhitelistedRole(pair[0])) {
-        EXIT(1) << "Invalid weight: '" << token << "'. " << pair[0]
-                << " is not a valid role.";
+        EXIT(EXIT_FAILURE)
+          << "Invalid weight: '" << token << "'. " << pair[0]
+          << " is not a valid role";
       }
 
       double weight = atof(pair[1].c_str());
       if (weight <= 0) {
-        EXIT(1) << "Invalid weight: '" << token
-                << "'. Weights must be positive.";
+        EXIT(EXIT_FAILURE)
+          << "Invalid weight: '" << token << "'. Weights must be positive";
       }
 
       weights[pair[0]] = weight;
@@ -679,8 +694,9 @@ void Master::initialize()
   // Verify the timeout is greater than zero.
   if (flags.offer_timeout.isSome() &&
       flags.offer_timeout.get() <= Duration::zero()) {
-    EXIT(1) << "Invalid value '" << flags.offer_timeout.get() << "' "
-            << "for --offer_timeout: Must be greater than zero.";
+    EXIT(EXIT_FAILURE)
+      << "Invalid value '" << flags.offer_timeout.get() << "'"
+      << " for --offer_timeout: Must be greater than zero";
   }
 
   // Initialize the allocator.
@@ -1646,14 +1662,15 @@ void Master::recoveredSlavesTimeout(const Registry& registry)
     (1.0 * registry.slaves().slaves().size());
 
   if (removalPercentage > limit) {
-    EXIT(1) << "Post-recovery slave removal limit exceeded! After "
-            << flags.slave_reregister_timeout
-            << " there were " << slaves.recovered.size()
-            << " (" << removalPercentage * 100 << "%) slaves recovered from the"
-            << " registry that did not re-register: \n"
-            << stringify(slaves.recovered) << "\n "
-            << " The configured removal limit is " << limit * 100 << "%. Please"
-            << " investigate or increase this limit to proceed further";
+    EXIT(EXIT_FAILURE)
+      << "Post-recovery slave removal limit exceeded! After "
+      << flags.slave_reregister_timeout
+      << " there were " << slaves.recovered.size()
+      << " (" << removalPercentage * 100 << "%) slaves recovered from the"
+      << " registry that did not re-register: \n"
+      << stringify(slaves.recovered) << "\n "
+      << " The configured removal limit is " << limit * 100 << "%. Please"
+      << " investigate or increase this limit to proceed further";
   }
 
   // Remove the slaves in a rate limited manner, similar to how the
@@ -1766,7 +1783,7 @@ void Master::contended(const Future<Future<Nothing>>& candidacy)
   CHECK(!candidacy.isDiscarded());
 
   if (candidacy.isFailed()) {
-    EXIT(1) << "Failed to contend: " << candidacy.failure();
+    EXIT(EXIT_FAILURE) << "Failed to contend: " << candidacy.failure();
   }
 
   // Watch for candidacy change.
@@ -1780,11 +1797,11 @@ void Master::lostCandidacy(const Future<Nothing>& lost)
   CHECK(!lost.isDiscarded());
 
   if (lost.isFailed()) {
-    EXIT(1) << "Failed to watch for candidacy: " << lost.failure();
+    EXIT(EXIT_FAILURE) << "Failed to watch for candidacy: " << lost.failure();
   }
 
   if (elected()) {
-    EXIT(1) << "Lost leadership... committing suicide!";
+    EXIT(EXIT_FAILURE) << "Lost leadership... committing suicide!";
   }
 
   LOG(INFO) << "Lost candidacy as a follower... Contend again";
@@ -1798,8 +1815,9 @@ void Master::detected(const Future<Option<MasterInfo>>& _leader)
   CHECK(!_leader.isDiscarded());
 
   if (_leader.isFailed()) {
-    EXIT(1) << "Failed to detect the leading master: " << _leader.failure()
-            << "; committing suicide!";
+    EXIT(EXIT_FAILURE)
+      << "Failed to detect the leading master: " << _leader.failure()
+      << "; committing suicide!";
   }
 
   bool wasElected = elected();
@@ -1811,7 +1829,7 @@ void Master::detected(const Future<Option<MasterInfo>>& _leader)
                 : "None");
 
   if (wasElected && !elected()) {
-    EXIT(1) << "Lost leadership... committing suicide!";
+    EXIT(EXIT_FAILURE) << "Lost leadership... committing suicide!";
   }
 
   if (elected()) {
