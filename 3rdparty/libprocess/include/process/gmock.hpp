@@ -275,7 +275,7 @@ public:
   TestsFilter* install()
   {
     if (!started) {
-      EXIT(1)
+      EXIT(EXIT_FAILURE)
         << "To use FUTURE/DROP_MESSAGE/DISPATCH, etc. you need to do the "
         << "following before you invoke RUN_ALL_TESTS():\n\n"
         << "\t::testing::TestEventListeners& listeners =\n"
