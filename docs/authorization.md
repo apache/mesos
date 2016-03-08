@@ -57,7 +57,7 @@ The Mesos master checks the ACLs to verify whether a request is authorized or no
 
 For example, when a framework (re-)registers with the master, "register_frameworks" ACLs are checked to see if the framework (`FrameworkInfo.principal`) is authorized to receive offers for the given resource role (`FrameworkInfo.role`). If not authorized, the framework is not allowed to (re-)register and gets an `Error` message back (which aborts the scheduler driver).
 
-Similarly, when a framework launches a task, "run_tasks" ACLs are checked to see if the framework (`FrameworkInfo.principal`) is authorized to run the task/executor as the given user. If not authorized, the launch is rejected and the framework gets a TASK_LOST.
+Similarly, when a framework launches a task, "run_tasks" ACLs are checked to see if the framework (`FrameworkInfo.principal`) is authorized to run the task/executor as the given user. If not authorized, the launch is rejected and the framework gets a `TASK_LOST`.
 
 In the same vein, when a user/principal attempts to teardown a framework using the "/teardown" HTTP endpoint on the master, "teardown_frameworks" ACLs are checked to see if the principal is authorized to teardown the given framework. If not authorized, the teardown is rejected and the user receives a `Forbidden` HTTP response.
 
