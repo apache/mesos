@@ -22,6 +22,8 @@
 #include <stout/stringify.hpp>
 #include <stout/strings.hpp>
 
+#include "master/weights.hpp"
+
 namespace http = process::http;
 
 using google::protobuf::RepeatedPtrField;
@@ -112,7 +114,7 @@ Future<http::Response> Master::WeightsHandler::_update(
 {
   // Update the registry and acknowledge the request.
   return master->registrar->apply(Owned<Operation>(
-      new UpdateWeights(weightInfos)))
+      new weights::UpdateWeights(weightInfos)))
     .then(defer(master->self(), [=](bool result) -> Future<http::Response> {
       CHECK(result);
 

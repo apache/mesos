@@ -1529,56 +1529,6 @@ private:
 };
 
 
-// Implementation of weights update Registrar operation.
-class UpdateWeights : public Operation
-{
-public:
-  explicit UpdateWeights(const std::vector<WeightInfo>& _weightInfos)
-    : weightInfos(_weightInfos) {}
-
-protected:
-  virtual Try<bool> perform(Registry* registry, hashset<SlaveID>*, bool)
-  {
-    bool mutated = false;
-    if (weightInfos.empty()) {
-      return false; // No mutation.
-    }
-
-    foreach (const WeightInfo& weightInfo, weightInfos) {
-      bool hasStored = false;
-      for (int i = 0; i < registry->weights().size(); ++i) {
-        Registry::Weight* weight = registry->mutable_weights(i);
-
-        if (weight->info().role() != weightInfo.role()) {
-          continue;
-        }
-
-        hasStored = true;
-
-        // If there is already weight stored for the specified role
-        // and also its value is changed, update the entry.
-        if (weight->info().weight() != weightInfo.weight()) {
-          weight->mutable_info()->CopyFrom(weightInfo);
-          mutated = true;
-        }
-        break;
-      }
-
-      // If there is no weight yet for this role in registry,
-      // create a new entry.
-      if (!hasStored) {
-        registry->add_weights()->mutable_info()->CopyFrom(weightInfo);
-        mutated = true;
-      }
-    }
-    return mutated;
-  }
-
-private:
-  const std::vector<WeightInfo> weightInfos;
-};
-
-
 // Implementation of slave admission Registrar operation.
 class AdmitSlave : public Operation
 {

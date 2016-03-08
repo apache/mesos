@@ -83,6 +83,7 @@
 
 #include "master/flags.hpp"
 #include "master/master.hpp"
+#include "master/weights.hpp"
 
 #include "module/manager.hpp"
 
@@ -1578,7 +1579,7 @@ Future<Nothing> Master::_recover(const Registry& registry)
       weightInfo.set_weight(weight);
       weightInfos.push_back(weightInfo);
     }
-    registrar->apply(Owned<Operation>(new UpdateWeights(weightInfos)));
+    registrar->apply(Owned<Operation>(new weights::UpdateWeights(weightInfos)));
   }
 
   // Recovery is now complete!

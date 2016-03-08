@@ -208,6 +208,7 @@ set(MASTER_SRC
   master/registrar.cpp
   master/repairer.cpp
   master/validation.cpp
+  master/weights.cpp
   master/weights_handler.cpp
   master/allocator/allocator.cpp
   master/allocator/mesos/hierarchical.cpp
