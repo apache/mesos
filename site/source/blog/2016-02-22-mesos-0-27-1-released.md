@@ -6,7 +6,7 @@ published: true
 post_author:
   display_name: Michael Park
   gravatar: 2ab9cab3a7cf782261c583c1f48a81b0
-  twitter: mcypark`
+  twitter: mcypark
 tags: Release
 ---
 
