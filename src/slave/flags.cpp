@@ -210,7 +210,7 @@ mesos::internal::slave::Flags::Flags()
 
   add(&Flags::registration_backoff_factor,
       "registration_backoff_factor",
-      "slave initially picks a random amount of time between `[0, b]`, where\n"
+      "Slave initially picks a random amount of time between `[0, b]`, where\n"
       "`b = registration_backoff_factor`, to (re-)register with a new master.\n"
       "Subsequent retries are exponentially backed off based on this\n"
       "interval (e.g., 1st retry uses a random value between `[0, b * 2^1]`,\n"
