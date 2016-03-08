@@ -22,6 +22,7 @@ layout: documentation
   * [Docker Containerizer](docker-containerizer.md) for launching a Docker image as a Task, or as an Executor.
   * [External Containerizer](external-containerizer.md) for custom containerization implementations (deprecated).
 * [Roles](roles.md)
+* [Weights](weights.md)
 * [Framework Authentication](authentication.md)
 * [Framework Authorization](authorization.md)
 * [Framework Rate Limiting](framework-rate-limiting.md)
