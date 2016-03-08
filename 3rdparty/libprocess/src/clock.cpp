@@ -165,9 +165,7 @@ void tick(const Time& time)
         clock::settling = true;
       }
 
-      foreach (const Timer& timer, (*timers)[timeout]) {
-        timedout.push_back(timer);
-      }
+      timedout.splice(timedout.end(), (*timers)[timeout]);
     }
 
     // Now erase the range of timers that timed out.
