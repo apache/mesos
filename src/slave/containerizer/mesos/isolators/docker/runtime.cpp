@@ -327,7 +327,21 @@ Result<CommandInfo> DockerRuntimeIsolatorProcess::getLaunchCommand(
     }
   } else if (config.cmd_size() > 0) {
     command.set_value(config.cmd(0));
+
+    // Put user defined argv after default cmd[0].
+    command.clear_arguments();
     command.add_arguments(config.cmd(0));
+
+    // Append all possible user argv after cmd[0].
+    if (!containerConfig.has_task_info()) {
+      // Custom executor case.
+      command.mutable_arguments()->MergeFrom(
+          containerConfig.executor_info().command().arguments());
+    } else {
+      // Command task case.
+      command.mutable_arguments()->MergeFrom(
+          containerConfig.task_info().command().arguments());
+    }
 
     // Overwrite default cmd arguments if CommandInfo arguments
     // are set by user.
