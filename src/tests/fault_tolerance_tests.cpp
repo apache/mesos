@@ -227,6 +227,8 @@ TEST_F(FaultToleranceTest, ReregisterCompletedFrameworks)
   // Verify master and slave recognize the running task/framework.
   masterState = process::http::get(master.get(), "state");
 
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, masterState);
+
   parse = JSON::parse<JSON::Object>(masterState.get().body);
   ASSERT_SOME(parse);
   masterJSON = parse.get();
@@ -237,6 +239,8 @@ TEST_F(FaultToleranceTest, ReregisterCompletedFrameworks)
     masterJSON.values["frameworks"].as<JSON::Array>().values.size());
 
   Future<Response> slaveState = process::http::get(slave.get(), "state");
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, slaveState);
 
   parse = JSON::parse<JSON::Object>(slaveState.get().body);
   ASSERT_SOME(parse);
@@ -264,6 +268,9 @@ TEST_F(FaultToleranceTest, ReregisterCompletedFrameworks)
   // running.  This is because the executor has to time-out before
   // it exits.
   masterState = process::http::get(master.get(), "state");
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, masterState);
+
   parse = JSON::parse<JSON::Object>(masterState.get().body);
   ASSERT_SOME(parse);
   masterJSON = parse.get();
@@ -274,6 +281,9 @@ TEST_F(FaultToleranceTest, ReregisterCompletedFrameworks)
     masterJSON.values["frameworks"].as<JSON::Array>().values.size());
 
   slaveState = process::http::get(slave.get(), "state");
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, slaveState);
+
   parse = JSON::parse<JSON::Object>(slaveState.get().body);
   ASSERT_SOME(parse);
   slaveJSON = parse.get();
@@ -300,6 +310,9 @@ TEST_F(FaultToleranceTest, ReregisterCompletedFrameworks)
 
   // Verify slave sees completed framework.
   slaveState = process::http::get(slave.get(), "state");
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, slaveState);
+
   parse = JSON::parse<JSON::Object>(slaveState.get().body);
   ASSERT_SOME(parse);
   slaveJSON = parse.get();
@@ -341,6 +354,9 @@ TEST_F(FaultToleranceTest, ReregisterCompletedFrameworks)
   Clock::resume();
 
   masterState = process::http::get(master.get(), "state");
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, masterState);
+
   parse = JSON::parse<JSON::Object>(masterState.get().body);
   ASSERT_SOME(parse);
   masterJSON = parse.get();

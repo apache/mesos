@@ -257,7 +257,8 @@ TEST_F(HealthCheckTest, HealthyTask)
   // Verify that task health is exposed in the master's state endpoint.
   {
     Future<http::Response> response = http::get(master.get(), "state");
-    AWAIT_READY(response);
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(process::http::OK().status, response);
 
     Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
     ASSERT_SOME(parse);
@@ -270,7 +271,8 @@ TEST_F(HealthCheckTest, HealthyTask)
   // Verify that task health is exposed in the slave's state endpoint.
   {
     Future<http::Response> response = http::get(slave.get(), "state");
-    AWAIT_READY(response);
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(process::http::OK().status, response);
 
     Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
     ASSERT_SOME(parse);
@@ -544,7 +546,8 @@ TEST_F(HealthCheckTest, HealthStatusChange)
   // Verify that task health is exposed in the master's state endpoint.
   {
     Future<http::Response> response = http::get(master.get(), "state");
-    AWAIT_READY(response);
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(process::http::OK().status, response);
 
     Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
     ASSERT_SOME(parse);
@@ -557,7 +560,8 @@ TEST_F(HealthCheckTest, HealthStatusChange)
   // Verify that task health is exposed in the slave's state endpoint.
   {
     Future<http::Response> response = http::get(slave.get(), "state");
-    AWAIT_READY(response);
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(process::http::OK().status, response);
 
     Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
     ASSERT_SOME(parse);
@@ -575,7 +579,8 @@ TEST_F(HealthCheckTest, HealthStatusChange)
   // state endpoint.
   {
     Future<http::Response> response = http::get(master.get(), "state");
-    AWAIT_READY(response);
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(process::http::OK().status, response);
 
     Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
     ASSERT_SOME(parse);
@@ -589,7 +594,8 @@ TEST_F(HealthCheckTest, HealthStatusChange)
   // state endpoint.
   {
     Future<http::Response> response = http::get(slave.get(), "state");
-    AWAIT_READY(response);
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(process::http::OK().status, response);
 
     Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
     ASSERT_SOME(parse);
@@ -607,7 +613,8 @@ TEST_F(HealthCheckTest, HealthStatusChange)
   // healthy state.
   {
     Future<http::Response> response = http::get(master.get(), "state");
-    AWAIT_READY(response);
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(process::http::OK().status, response);
 
     Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
     ASSERT_SOME(parse);
@@ -621,7 +628,8 @@ TEST_F(HealthCheckTest, HealthStatusChange)
   // healthy state.
   {
     Future<http::Response> response = http::get(slave.get(), "state");
-    AWAIT_READY(response);
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(process::http::OK().status, response);
 
     Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
     ASSERT_SOME(parse);

@@ -3453,7 +3453,8 @@ TEST_F(MasterTest, SlaveActiveEndpoint)
 
   // Verify slave is inactive.
   response = process::http::get(master.get(), "state");
-  AWAIT_READY(response);
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 
   parse = JSON::parse<JSON::Object>(response.get().body);
   ASSERT_SOME(parse);
@@ -3988,7 +3989,8 @@ TEST_F(MasterTest, MaxCompletedFrameworksFlag)
 
     Future<process::http::Response> response =
       process::http::get(master.get(), "state");
-    AWAIT_READY(response);
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 
     Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
     ASSERT_SOME(parse);
@@ -4082,7 +4084,8 @@ TEST_F(MasterTest, MaxCompletedTasksPerFrameworkFlag)
 
     Future<process::http::Response> response =
       process::http::get(master.get(), "state");
-    AWAIT_READY(response);
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 
     Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
     ASSERT_SOME(parse);
