@@ -1157,6 +1157,36 @@ Future<Response> Master::Http::quota(
 }
 
 
+string Master::Http::WEIGHTS_HELP()
+{
+  return HELP(
+    TLDR(
+        "Updates weights for the specified roles."),
+    DESCRIPTION(
+        "PUT: Validates the request body as JSON",
+        " and updates the weights for the specified roles."));
+}
+
+
+Future<Response> Master::Http::weights(
+    const Request& request,
+    const Option<string>& principal) const
+{
+  // Dispatch based on HTTP method to separate `WeightsHandler`.
+  if (request.method == "PUT") {
+    return weightsHandler.update(request, principal);
+  }
+
+  // TODO(Yongqiao Wang): Like /quota, we should also add query logic
+  // for /weights to keep consistent. Then /roles no longer needs to
+  // show weight information.
+
+  return MethodNotAllowed(
+      {"PUT"},
+      "Expecting 'PUT', received '" + request.method + "'");
+}
+
+
 string Master::Http::STATE_HELP()
 {
   return HELP(

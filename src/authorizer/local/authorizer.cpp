@@ -206,6 +206,21 @@ public:
     return acls.permissive(); // None of the ACLs match.
   }
 
+  Future<bool> authorize(const ACL::UpdateWeights& request)
+  {
+    foreach (const ACL::UpdateWeights& acl, acls.update_weights()) {
+      // ACL matches if both subjects and objects match.
+      if (matches(request.principals(), acl.principals()) &&
+          matches(request.roles(), acl.roles())) {
+        // ACL is allowed if both subjects and objects are allowed.
+        return allows(request.principals(), acl.principals()) &&
+               allows(request.roles(), acl.roles());
+      }
+    }
+
+    return acls.permissive(); // None of the ACLs match.
+  }
+
 private:
   // Match matrix:
   //
@@ -489,6 +504,20 @@ Future<bool> LocalAuthorizer::authorize(const ACL::RemoveQuota& request)
 
   // Necessary to disambiguate.
   typedef Future<bool>(LocalAuthorizerProcess::*F)(const ACL::RemoveQuota&);
+
+  return dispatch(
+      process, static_cast<F>(&LocalAuthorizerProcess::authorize), request);
+}
+
+
+Future<bool> LocalAuthorizer::authorize(const ACL::UpdateWeights& request)
+{
+  if (process == NULL) {
+    return Failure("Authorizer not initialized");
+  }
+
+  // Necessary to disambiguate.
+  typedef Future<bool>(LocalAuthorizerProcess::*F)(const ACL::UpdateWeights&);
 
   return dispatch(
       process, static_cast<F>(&LocalAuthorizerProcess::authorize), request);

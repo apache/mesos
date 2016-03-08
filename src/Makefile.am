@@ -627,6 +627,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   master/registrar.cpp							\
   master/repairer.cpp							\
   master/validation.cpp							\
+  master/weights_handler.cpp						\
   master/allocator/allocator.cpp					\
   master/allocator/mesos/hierarchical.cpp				\
   master/allocator/mesos/metrics.cpp					\

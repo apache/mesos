@@ -981,6 +981,14 @@ void Master::initialize()
           Http::log(request);
           return http.quota(request, principal);
         });
+  route("/weights",
+        DEFAULT_HTTP_AUTHENTICATION_REALM,
+        Http::WEIGHTS_HELP(),
+        [this](const process::http::Request& request,
+               const Option<string>& principal) {
+          Http::log(request);
+          return http.weights(request, principal);
+        });
 
   // Provide HTTP assets from a "webui" directory. This is either
   // specified via flags (which is necessary for running out of the
@@ -1516,6 +1524,62 @@ Future<Nothing> Master::_recover(const Registry& registry)
   // TODO(alexr): Consider adding a sanity check: whether quotas are
   // satisfiable given all recovering agents reregister. We may want
   // to notify operators early if total quota cannot be met.
+
+  if (registry.weights_size() != 0) {
+    vector<WeightInfo> weightInfos;
+    hashmap<std::string, double> registry_weights;
+
+    // Save the weights.
+    foreach (const Registry::Weight& weight, registry.weights()) {
+      registry_weights[weight.info().role()] = weight.info().weight();
+      WeightInfo weightInfo;
+      weightInfo.set_role(weight.info().role());
+      weightInfo.set_weight(weight.info().weight());
+      weightInfos.push_back(weightInfo);
+    }
+
+    // TODO(Yongqiao Wang): After the Mesos master quorum is achieved,
+    // operator can send an update weights request to do a batch configuration
+    // for weights, so the `--weights` flag can be deprecated and this check
+    // can eventually be removed.
+    if (!weights.empty()) {
+      LOG(WARNING) << "Ignoring the --weights flag '" << flags.weights.get()
+                   << "', and recovering the weights from registry.";
+
+      // Before recovering weights from the registry, the allocator was already
+      // initialized with `--weights`, so here we need to reset (to 1.0)
+      // weights in the allocator that are not overridden by the registry.
+      foreachkey (const std::string& role, weights) {
+        if (!registry_weights.contains(role)) {
+          WeightInfo weightInfo;
+          weightInfo.set_role(role);
+          weightInfo.set_weight(1.0);
+          weightInfos.push_back(weightInfo);
+        }
+      }
+      // Clear weights specified by `--weights` flag.
+      weights.clear();
+    }
+
+    // Recover `weights` with `registry_weights`.
+    weights = registry_weights;
+
+    // Update allocator.
+    allocator->updateWeights(weightInfos);
+  } else if (!weights.empty()) {
+    // The allocator was already updated with the `--weights` flag values
+    // on startup.
+    // Initialize the registry with `--weights` flag when bootstrapping
+    // the cluster.
+    vector<WeightInfo> weightInfos;
+    foreachpair (const std::string& role, double weight, weights) {
+      WeightInfo weightInfo;
+      weightInfo.set_role(role);
+      weightInfo.set_weight(weight);
+      weightInfos.push_back(weightInfo);
+    }
+    registrar->apply(Owned<Operation>(new UpdateWeights(weightInfos)));
+  }
 
   // Recovery is now complete!
   LOG(INFO) << "Recovered " << registry.slaves().slaves().size() << " slaves"

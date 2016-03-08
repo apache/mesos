@@ -69,6 +69,8 @@ public:
       const ACL::SetQuota& request);
   virtual process::Future<bool> authorize(
       const ACL::RemoveQuota& request);
+  virtual process::Future<bool> authorize(
+      const ACL::UpdateWeights& request);
 
 private:
   LocalAuthorizer();

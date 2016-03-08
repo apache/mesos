@@ -1017,12 +1017,44 @@ private:
     Master* master;
   };
 
+  /**
+   * Inner class used to namespace the handling of /weights requests.
+   *
+   * It operates inside the Master actor. It is responsible for validating
+   * and persisting /weights requests.
+   * @see master/weights_handler.cpp for implementations.
+   */
+  class WeightsHandler
+  {
+  public:
+    explicit WeightsHandler(Master* _master) : master(_master)
+    {
+      CHECK_NOTNULL(master);
+    }
+
+    process::Future<process::http::Response> update(
+        const process::http::Request& request,
+        const Option<std::string>& principal) const;
+
+  private:
+    process::Future<bool> authorize(
+        const Option<std::string>& principal,
+        const std::vector<std::string>& roles) const;
+
+    process::Future<process::http::Response> _update(
+        const std::vector<WeightInfo>& updateWeightInfos) const;
+
+    Master* master;
+  };
+
   // Inner class used to namespace HTTP route handlers (see
   // master/http.cpp for implementations).
   class Http
   {
   public:
-    explicit Http(Master* _master) : master(_master), quotaHandler(_master) {}
+    explicit Http(Master* _master) : master(_master),
+                                     quotaHandler(_master),
+                                     weightsHandler(_master) {}
 
     // Logs the request, route handlers can compose this with the
     // desired request handler to get consistent request logging.
@@ -1118,6 +1150,11 @@ private:
         const process::http::Request& request,
         const Option<std::string>& principal) const;
 
+    // /master/weights
+    process::Future<process::http::Response> weights(
+        const process::http::Request& request,
+        const Option<std::string>& principal) const;
+
     static std::string SCHEDULER_HELP();
     static std::string FLAGS_HELP();
     static std::string FRAMEWORKS();
@@ -1139,6 +1176,7 @@ private:
     static std::string RESERVE_HELP();
     static std::string UNRESERVE_HELP();
     static std::string QUOTA_HELP();
+    static std::string WEIGHTS_HELP();
 
   private:
     // Continuations.
@@ -1174,6 +1212,10 @@ private:
     // NOTE: The quota specific pieces of the Operator API are factored
     // out into this separate class.
     QuotaHandler quotaHandler;
+
+    // NOTE: The weights specific pieces of the Operator API are factored
+    // out into this separate class.
+    WeightsHandler weightsHandler;
   };
 
   Master(const Master&);              // No copying.
@@ -1484,6 +1526,56 @@ private:
   process::Future<Option<Error>> validate(
       const FrameworkInfo& frameworkInfo,
       const process::UPID& from);
+};
+
+
+// Implementation of weights update Registrar operation.
+class UpdateWeights : public Operation
+{
+public:
+  explicit UpdateWeights(const std::vector<WeightInfo>& _weightInfos)
+    : weightInfos(_weightInfos) {}
+
+protected:
+  virtual Try<bool> perform(Registry* registry, hashset<SlaveID>*, bool)
+  {
+    bool mutated = false;
+    if (weightInfos.empty()) {
+      return false; // No mutation.
+    }
+
+    foreach (const WeightInfo& weightInfo, weightInfos) {
+      bool hasStored = false;
+      for (int i = 0; i < registry->weights().size(); ++i) {
+        Registry::Weight* weight = registry->mutable_weights(i);
+
+        if (weight->info().role() != weightInfo.role()) {
+          continue;
+        }
+
+        hasStored = true;
+
+        // If there is already weight stored for the specified role
+        // and also its value is changed, update the entry.
+        if (weight->info().weight() != weightInfo.weight()) {
+          weight->mutable_info()->CopyFrom(weightInfo);
+          mutated = true;
+        }
+        break;
+      }
+
+      // If there is no weight yet for this role in registry,
+      // create a new entry.
+      if (!hasStored) {
+        registry->add_weights()->mutable_info()->CopyFrom(weightInfo);
+        mutated = true;
+      }
+    }
+    return mutated;
+  }
+
+private:
+  const std::vector<WeightInfo> weightInfos;
 };
 
 

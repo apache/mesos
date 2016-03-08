@@ -1,0 +1,160 @@
+// Licensed to the Apache Software Foundation (ASF) under one
+// or more contributor license agreements.  See the NOTICE file
+// distributed with this work for additional information
+// regarding copyright ownership.  The ASF licenses this file
+// to you under the Apache License, Version 2.0 (the
+// "License"); you may not use this file except in compliance
+// with the License.  You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License
+
+#include "master/master.hpp"
+
+#include <process/future.hpp>
+#include <process/http.hpp>
+
+#include <stout/stringify.hpp>
+#include <stout/strings.hpp>
+
+namespace http = process::http;
+
+using google::protobuf::RepeatedPtrField;
+
+using std::string;
+using std::vector;
+
+using http::Accepted;
+using http::BadRequest;
+using http::Conflict;
+using http::Forbidden;
+using http::OK;
+
+using process::Future;
+using process::Owned;
+
+namespace mesos {
+namespace internal {
+namespace master {
+
+Future<http::Response> Master::WeightsHandler::update(
+    const http::Request& request,
+    const Option<std::string>& principal) const
+{
+  VLOG(1) << "Updating weights from request: '" << request.body << "'";
+
+  // Check that the request type is PUT which is guaranteed by the master.
+  CHECK_EQ("PUT", request.method);
+
+  Try<JSON::Array> parse = JSON::parse<JSON::Array>(request.body);
+  if (parse.isError()) {
+    return BadRequest(
+        "Failed to parse update request JSON ('" + request.body + "': " +
+        parse.error());
+  }
+
+  // Create Protobuf representation of weights.
+  Try<RepeatedPtrField<WeightInfo>> weightInfos =
+    ::protobuf::parse<RepeatedPtrField<WeightInfo>>(parse.get());
+
+  if (weightInfos.isError()) {
+    return BadRequest(
+        "Failed to convert weights JSON array to protobuf ('" +
+        request.body + "'): " + weightInfos.error());
+  }
+
+  vector<WeightInfo> validatedWeightInfos;
+  vector<string> roles;
+  for (WeightInfo& weightInfo : weightInfos.get()) {
+    string role = strings::trim(weightInfo.role());
+
+    if (role.empty()) {
+      return BadRequest(
+          "Role cannot be empty for weight '" +
+          stringify(weightInfo.weight()) + "'");
+    }
+
+    if (weightInfo.weight() <= 0) {
+      return BadRequest(
+          "Invalid weight '" + stringify(weightInfo.weight()) +
+          "' for role '" + role + "'. Weights must be positive.");
+    }
+
+    if (!master->isWhitelistedRole(role)) {
+      return BadRequest(
+          "Invalid role: '" + role + "', which must exist in the static " +
+          "list of roles, specified when the master is started" +
+          " (via the --roles flag).");
+    }
+    weightInfo.set_role(role);
+    validatedWeightInfos.push_back(weightInfo);
+    roles.push_back(role);
+  }
+
+  return authorize(principal, roles)
+    .then(defer(master->self(), [=](bool authorized) -> Future<http::Response> {
+      if (!authorized) {
+        return Forbidden();
+      }
+
+      return _update(validatedWeightInfos);
+    }));
+}
+
+
+Future<http::Response> Master::WeightsHandler::_update(
+    const vector<WeightInfo>& weightInfos) const
+{
+  // Update the registry and acknowledge the request.
+  return master->registrar->apply(Owned<Operation>(
+      new UpdateWeights(weightInfos)))
+    .then(defer(master->self(), [=](bool result) -> Future<http::Response> {
+      CHECK(result);
+
+      // Update weights.
+      foreach (const WeightInfo& weightInfo, weightInfos) {
+        master->weights[weightInfo.role()] = weightInfo.weight();
+      }
+
+      // Notify allocator for updating weights.
+      master->allocator->updateWeights(weightInfos);
+      return OK();
+    }));
+}
+
+
+Future<bool> Master::WeightsHandler::authorize(
+    const Option<string>& principal,
+    const vector<string>& roles) const
+{
+  if (master->authorizer.isNone()) {
+    return true;
+  }
+
+  LOG(INFO) << "Authorizing principal '"
+            << (principal.isSome() ? principal.get() : "ANY")
+            << "' to update weights for roles '" << stringify(roles) << "'";
+
+  mesos::ACL::UpdateWeights request;
+
+  if (principal.isSome()) {
+    request.mutable_principals()->add_values(principal.get());
+  } else {
+    request.mutable_principals()->set_type(mesos::ACL::Entity::ANY);
+  }
+
+  foreach (const string& role, roles) {
+    request.mutable_roles()->add_values(role);
+  }
+
+  return master->authorizer.get()->authorize(request);
+}
+
+} // namespace master {
+} // namespace internal {
+} // namespace mesos {

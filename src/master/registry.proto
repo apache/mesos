@@ -53,6 +53,10 @@ message Registry {
     required quota.QuotaInfo info = 1;
   }
 
+  message Weight {
+    required WeightInfo info = 1;
+  }
+
   // Most recent leading master.
   optional Master master = 1;
 
@@ -73,4 +77,8 @@ message Registry {
   // assignment of resources, a newly elected master shall reconstruct it
   // from the cluster.
   repeated Quota quotas = 5;
+
+  // A list of recorded weights in the cluster, a newly elected master shall
+  // reconstruct it from the registry.
+  repeated Weight weights = 6;
 }

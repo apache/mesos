@@ -201,6 +201,20 @@ public:
   virtual process::Future<bool> authorize(
       const ACL::RemoveQuota& request) = 0;
 
+  /**
+   * Verifies whether a principal can update the weight for the specific roles.
+   *
+   * @param request `ACL::UpdateWeights` packing all the parameters needed to
+   *     verify if the given principal is allowed to update the weight of the
+   *     specified roles.
+   *
+   * @return true if the principal is allowed to update the weight for every
+   *     specified role, false otherwise. A failed future indicates a problem
+   *     processing the request; the request can be retried.
+   */
+  virtual process::Future<bool> authorize(
+      const ACL::UpdateWeights& request) = 0;
+
 protected:
   Authorizer() {}
 };

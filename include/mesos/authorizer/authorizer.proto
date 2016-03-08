@@ -135,6 +135,15 @@ message ACL {
     // Objects: Principal of the entity that set the quota.
     required Entity quota_principals = 2;
   }
+
+  // Which principals are authorized to update weights for the given roles.
+  message UpdateWeights {
+    // Subjects: Operator username.
+    required Entity principals = 1;
+
+    // Objects: The list of roles whose weights can be updated.
+    optional Entity roles = 2;
+  }
 }
 
 
@@ -171,4 +180,5 @@ message ACLs {
   repeated ACL.SetQuota set_quotas = 9;
   repeated ACL.RemoveQuota remove_quotas = 10;
   repeated ACL.TeardownFramework teardown_frameworks = 11;
+  repeated ACL.UpdateWeights update_weights = 12;
 }
