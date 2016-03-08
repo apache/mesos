@@ -7,7 +7,7 @@ title: Apache Mesos
     <h1>Program against your datacenter like it’s a single pool of resources</h1>
     <p class="lead">Apache Mesos abstracts CPU, memory, storage, and other compute resources away from machines (physical or virtual), enabling fault-tolerant and elastic distributed systems to easily be built and run effectively.</p>
 
-		<p> <a href="downloads/"><span class="glyphicon glyphicon-download"></span> Download Mesos 0.27.1</a> or learn how to <a href="gettingstarted/">get started</a></p>
+		<p> <a href="downloads/"><span class="glyphicon glyphicon-download"></span> Download Mesos 0.27.2</a> or learn how to <a href="gettingstarted/">get started</a></p>
 	</div>
 </div>
 
@@ -32,6 +32,7 @@ title: Apache Mesos
   <div class="col-md-5">
     <h3>News</h3>
       <ul>
+      <li><em>March 7, 2016</em> - Mesos 0.27.2 is released! See the <a href="https://git-wip-us.apache.org/repos/asf?p=mesos.git;a=blob_plain;f=CHANGELOG;hb=0.27.2">CHANGELOG</a> and <a href="/blog/mesos-0-27-2-released/">blog post</a> for details.</li>
       <li><em>February 22, 2016</em> - Mesos 0.27.1 is released! See the <a href="https://git-wip-us.apache.org/repos/asf?p=mesos.git;a=blob_plain;f=CHANGELOG;hb=0.27.1">CHANGELOG</a> and <a href="/blog/mesos-0-27-1-released/">blog post</a> for details.</li>
       <li><em>February 12, 2016</em> - MesosCon 2016 CFP is now open!  See the <a href="/blog/mesoscon-2016-cfp-is-now-open/">blog post</a> for details.</li>
       <li><em>January 31, 2016</em> - Mesos 0.27.0 is released! See the <a href="https://git-wip-us.apache.org/repos/asf?p=mesos.git;a=blob_plain;f=CHANGELOG;hb=0.27.0">CHANGELOG</a> and <a href="/blog/mesos-0-27-0-released/">blog post</a> for details.</li>

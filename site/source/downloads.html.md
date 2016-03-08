@@ -8,6 +8,8 @@ breadcrumb: Downloads
     <h4>Previous Releases</h4>
 
     <ul>
+      <li><a href="http://archive.apache.org/dist/mesos/0.27.1/">0.27.1</a>
+           (<a href="https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12311242&version=12334748">Release Notes</a>)</li>
       <li><a href="http://archive.apache.org/dist/mesos/0.27.0/">0.27.0</a>
            (<a href="https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12311242&version=12334043">Release Notes</a>)</li>
       <li><a href="http://archive.apache.org/dist/mesos/0.26.0/">0.26.0</a>
@@ -76,8 +78,8 @@ breadcrumb: Downloads
   <div class="col-md-8">
     <h1>Download Mesos</h1>
       <p>Download the most recent stable release:
-	      <a href="http://www.apache.org/dyn/mirrors/mirrors.cgi/mesos/0.27.1/">0.27.1</a>
-        (<a href="https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12311242&version=12334748">Release Notes</a>)
+	      <a href="http://www.apache.org/dyn/mirrors/mirrors.cgi/mesos/0.27.2/">0.27.2</a>
+        (<a href="https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12311242&version=12334913">Release Notes</a>)
       </p>
 
       <h4>Getting the code via source control</h4>
