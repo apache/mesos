@@ -60,6 +60,10 @@ Mesos master and slave processes. For more information, refer to the
   is `crammd5`, but additional modules can be added using the `--modules`
   option.
 
+* `--http_authenticators` - Specifies which HTTP authenticator module to use.
+  The default is `basic` (basic HTTP authentication), but additional modules can
+  be added using the `--modules` option.
+
 * `--credentials` - The path to a text file which contains a list (in plaintext
   or JSON format) of accepted credentials.  This may be optional depending on
   the authenticator being used.
