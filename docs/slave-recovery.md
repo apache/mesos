@@ -5,61 +5,60 @@ layout: documentation
 
 # Slave Recovery
 
-Slave recovery is a feature of Mesos that allows:
+If the `mesos-slave` process on a host exits (perhaps due to a Mesos bug or
+because the operator kills the process while [upgrading Mesos](upgrades.md)),
+any executors/tasks that were being managed by the `mesos-slave` process will
+continue to run. When `mesos-slave` is restarted, the operator can control how
+those old executors/tasks are handled:
 
- 1. Executors/tasks to keep running when the slave process is down and
- 2. Allows a restarted slave process to reconnect with running executors/tasks on the slave.
+ 1. By default, all the executors/tasks that were being managed by the old
+    `mesos-slave` process are killed.
+ 2. If a framework enabled _checkpointing_ when it registered with the master,
+    any executors belonging to that framework can reconnect to the new
+    `mesos-slave` process and continue running uninterrupted.
 
-Mesos slave could be restarted for an upgrade or due to a crash. This feature is introduced in ***0.14.0*** release.
+Hence, enabling framework checkpointing enables tasks to tolerate Mesos slave
+upgrades and unexpected `mesos-slave` crashes without experiencing any
+downtime.
 
-## How does it work?
+Slave recovery works by having the slave _checkpoint_ information (e.g., Task
+Info, Executor Info, Status Updates) about the tasks and executors it is
+managing to local disk. If a framework enables checkpointing, any subsequent
+slave restarts will recover the checkpointed information and reconnect with any
+executors that are still running.
 
-Slave recovery works by having the slave checkpoint enough information (e.g., Task Info, Executor Info, Status Updates) about the running tasks and executors to local disk. Once a framework enables checkpointing, any subsequent slave restarts would recover the checkpointed information and reconnect with the executors. Note that if the host running the slave process is rebooted all the executors/tasks are killed.
+Note that if the operating system on the slave is rebooted, all executors and
+tasks running on the host are killed and are not automatically restarted when
+the host comes back up.
 
-> NOTE: To enable recovery the framework should explicitly request checkpointing.
-> Alternatively, a framework that doesn't want the disk i/o overhead of checkpointing can opt out of checkpointing.
+## Framework Configuration
 
+A framework can control whether its executors will be recovered by setting the `checkpoint` flag in its `FrameworkInfo` when registering with the master. Enabling this feature results in increased I/O overhead at each slave that runs tasks launched by the framework. By default, frameworks do **not** checkpoint their state.
 
-## Enabling slave checkpointing
-> NOTE: From Mesos 0.22.0 slave checkpointing will be automatically enabled for all slaves.
+## Slave Configuration
 
-As part of this feature, 4 new flags were added to the slave.
+Three [configuration flags](configuration.md) control the recovery behavior of a Mesos slave:
 
-* `checkpoint` :  Whether to checkpoint slave and frameworks information
-                  to disk [Default: true].
-    - This enables a restarted slave to recover status updates and reconnect
-      with (--recover=reconnect) or kill (--recover=cleanup) old executors.
-    > NOTE: From Mesos 0.22.0 this flag will be removed as it will be enabled for all slaves.
-
-* `strict` : Whether to do recovery in strict mode [Default: true].
-    - If strict=true, any and all recovery errors are considered fatal.
+* `strict`: Whether to do slave recovery in strict mode [Default: true].
+    - If strict=true, all recovery errors are considered fatal.
     - If strict=false, any errors (e.g., corruption in checkpointed data) during recovery are
       ignored and as much state as possible is recovered.
 
-* `recover` : Whether to recover status updates and reconnect with old executors [Default: reconnect].
-    - If recover=reconnect, Reconnect with any old live executors.
-    - If recover=cleanup, Kill any old live executors and exit.
-      Use this option when doing an incompatible slave or executor upgrade!).
+* `recover`: Whether to recover status updates and reconnect with old executors [Default: reconnect].
+    - If recover=reconnect, reconnect with any old live executors, provided the executor's framework enabled checkpointing.
+    - If recover=cleanup, kill any old live executors and exit. Use this option when doing an incompatible slave or executor upgrade!
     > NOTE: If no checkpointing information exists, no recovery is performed
     > and the slave registers with the master as a new slave.
 
-* `recovery_timeout` : Amount of time allotted for the slave to recover [Default: 15 mins].
+* `recovery_timeout`: Amount of time allotted for the slave to recover [Default: 15 mins].
     - If the slave takes longer than `recovery_timeout` to recover, any executors that are waiting to
       reconnect to the slave will self-terminate.
-    > NOTE: This flag is only applicable when `--checkpoint` is enabled.
 
 > NOTE: If none of the frameworks have enabled checkpointing,
-> executors/tasks of frameworks die when the slave dies and are not recovered.
+> the executors and tasks running at a slave die when the slave dies
+> and are not recovered.
 
-A restarted slave should re-register with master within a timeout (currently, 75s). If the slave takes longer
-than this timeout to re-register, the master shuts down the slave, which in turn shuts down any live executors/tasks.
-Therefore, it is highly recommended to automate the process of restarting a slave (e.g, using [monit](http://mmonit.com/monit/)).
-
-**For the complete list of slave options: ./mesos-slave.sh --help**
-
-## Enabling framework checkpointing
-
-As part of this feature, `FrameworkInfo` has been updated to include an optional `checkpoint` field. A framework that would like to opt in to checkpointing should set `FrameworkInfo.checkpoint=True` before registering with the master.
+A restarted slave should re-register with master within a timeout (75 seconds by default: see the `--max_slave_ping_timeouts` and `--slave_ping_timeout` [configuration flags](configuration.md)). If the slave takes longer than this timeout to re-register, the master shuts down the slave, which in turn will shutdown any live executors/tasks.  Therefore, it is highly recommended to automate the process of restarting a slave (e.g., using a process supervisor such as [monit](http://mmonit.com/monit/) or `systemd`).
 
 ## Known issues with `systemd` and POSIX isolation
 
@@ -74,8 +73,3 @@ KillMode=process
 ```
 
 > NOTE: There are also known issues with using `systemd` and raw `cgroups` based isolation, for now the suggested non-Posix isolation mechanism is to use Docker containerization.
-
-
-## Upgrading to 0.14.0
-
-If you want to upgrade a running Mesos cluster to 0.14.0 to take advantage of slave recovery please follow the [upgrade instructions](upgrades.md).
