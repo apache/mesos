@@ -741,7 +741,7 @@ MockAuthorizer::MockAuthorizer()
   EXPECT_CALL(*this, authorize(An<const mesos::ACL::RunTask&>()))
     .WillRepeatedly(Return(true));
 
-  EXPECT_CALL(*this, authorize(An<const mesos::ACL::ShutdownFramework&>()))
+  EXPECT_CALL(*this, authorize(An<const mesos::ACL::TeardownFramework&>()))
     .WillRepeatedly(Return(true));
 
   EXPECT_CALL(*this, authorize(An<const mesos::ACL::ReserveResources&>()))

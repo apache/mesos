@@ -222,9 +222,9 @@ TEST_F(TeardownTest, TeardownEndpointGoodDeprecatedACLs)
 // Testing route with bad ACLs.
 TEST_F(TeardownTest, TeardownEndpointBadACLs)
 {
-  // Setup ACLs so that no principal can do teardown the framework.
+  // Setup ACLs so that no principal can teardown the framework.
   ACLs acls;
-  mesos::ACL::ShutdownFramework* acl = acls.add_shutdown_frameworks();
+  mesos::ACL::TeardownFramework* acl = acls.add_teardown_frameworks();
   acl->mutable_principals()->set_type(mesos::ACL::Entity::NONE);
   acl->mutable_framework_principals()->add_values(
       DEFAULT_CREDENTIAL.principal());

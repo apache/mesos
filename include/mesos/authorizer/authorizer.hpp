@@ -104,19 +104,19 @@ public:
       const ACL::RunTask& request) = 0;
 
   /**
-   * Verifies whether a principal can shutdown a framework launched by another
+   * Verifies whether a principal can teardown a framework launched by another
    * principal.
    *
-   * @param request `ACL::ShutdownFramework` packing all the parameters needed
-   *     to verify the given principal can shutdown a framework originally
+   * @param request `ACL::TeardownFramework` packing all the parameters needed
+   *     to verify the given principal can teardown a framework originally
    *     registered by a (potentially different) framework principal.
    *
-   * @return true if the principal can shutdown a framework registered by the
+   * @return true if the principal can teardown a framework registered by the
    *     framework principal, false otherwise. A failed future indicates a
    *     problem processing the request; the request can be retried.
    */
   virtual process::Future<bool> authorize(
-      const ACL::ShutdownFramework& request) = 0;
+      const ACL::TeardownFramework& request) = 0;
 
   /**
    * Verifies whether a principal can reserve particular resources.

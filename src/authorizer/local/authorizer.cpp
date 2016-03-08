@@ -42,6 +42,33 @@ public:
   LocalAuthorizerProcess(const ACLs& _acls)
     : ProcessBase(process::ID::generate("authorizer")), acls(_acls) {}
 
+  virtual void initialize()
+  {
+    // TODO(arojas): Remove the following two if blocks once
+    // ShutdownFramework reaches the end of deprecation cycle
+    // which started with 0.27.0.
+    if (acls.shutdown_frameworks_size() > 0 &&
+        acls.teardown_frameworks_size() > 0) {
+      LOG(WARNING) << "ACLs defined for both ShutdownFramework and "
+                   << "TeardownFramework; only the latter will be used";
+      return;
+    }
+
+    // Move contents of `acls.shutdown_frameworks` to
+    // `acls.teardown_frameworks`
+    if (acls.shutdown_frameworks_size() > 0) {
+      LOG(WARNING) << "ShutdownFramework ACL is deprecated; please use "
+                   << "TeardownFramework";
+      foreach (const ACL::ShutdownFramework& acl, acls.shutdown_frameworks()) {
+        ACL::TeardownFramework* teardown = acls.add_teardown_frameworks();
+        teardown->mutable_principals()->CopyFrom(acl.principals());
+        teardown->mutable_framework_principals()->CopyFrom(
+            acl.framework_principals());
+      }
+    }
+    acls.clear_shutdown_frameworks();
+  }
+
   Future<bool> authorize(const ACL::RegisterFramework& request)
   {
     foreach (const ACL::RegisterFramework& acl, acls.register_frameworks()) {
@@ -72,22 +99,8 @@ public:
     return acls.permissive(); // None of the ACLs match.
   }
 
-  Future<bool> authorize(const ACL::ShutdownFramework& request)
+  Future<bool> authorize(const ACL::TeardownFramework& request)
   {
-    // TODO(gyliu513): Remove this shutdown_frameworks acl logic at the
-    // end of the deprecation cycle on 0.27.
-    foreach (const ACL::ShutdownFramework& acl, acls.shutdown_frameworks()) {
-      // ACL matches if both subjects and objects match.
-      if (matches(request.principals(), acl.principals()) &&
-          matches(request.framework_principals(),
-                  acl.framework_principals())) {
-        // ACL is allowed if both subjects and objects are allowed.
-        return allows(request.principals(), acl.principals()) &&
-               allows(request.framework_principals(),
-                      acl.framework_principals());
-      }
-    }
-
     foreach (const ACL::TeardownFramework& acl, acls.teardown_frameworks()) {
       // ACL matches if both subjects and objects match.
       if (matches(request.principals(), acl.principals()) &&
@@ -381,7 +394,7 @@ Future<bool> LocalAuthorizer::authorize(const ACL::RunTask& request)
 }
 
 
-Future<bool> LocalAuthorizer::authorize(const ACL::ShutdownFramework& request)
+Future<bool> LocalAuthorizer::authorize(const ACL::TeardownFramework& request)
 {
   if (process == NULL) {
     return Failure("Authorizer not initialized");
@@ -389,7 +402,7 @@ Future<bool> LocalAuthorizer::authorize(const ACL::ShutdownFramework& request)
 
   // Necessary to disambiguate.
   typedef Future<bool>(LocalAuthorizerProcess::*F)(
-      const ACL::ShutdownFramework&);
+      const ACL::TeardownFramework&);
 
   return dispatch(
       process, static_cast<F>(&LocalAuthorizerProcess::authorize), request);
