@@ -301,34 +301,29 @@ Try<Docker::Container> Docker::Container::create(const string& output)
 
   bool started = startedAtValue.get().value != "0001-01-01T00:00:00Z";
 
+  string addressLocation;
+
   Result<JSON::String> networkModeValue =
     json.find<JSON::String>("HostConfig.NetworkMode");
-  if (networkModeValue.isNone()) {
-    return Error("Unable to detect network mode.");
-  } else if (networkModeValue.isError()) {
-     return Error(
-        "Error detecting network mode: " +
-        networkModeValue.error());
+  if (networkModeValue.isNone() || networkModeValue.isError()) {
+    VLOG(1) << "Unable to determine IPAddress at " <<
+               addressLocation + ". Attempting Deprecated API.";
+    addressLocation = "NetworkSettings.IPAddress"
+  } else {
+    addressLocation = "NetworkSettings.Networks." +
+                      networkModeValue.get().value + ".IPAddress";
   }
 
-  string addressLocation = "NetworkSettings.Networks." +
-      networkModeValue.get().value + ".IPAddress";
-
   Result<JSON::String> ipAddressValue =
-    json.find<JSON::String>(addressLocation);
-
+      json.find<JSON::String>(addressLocation);
   if (ipAddressValue.isNone() || ipAddressValue.isError()) {
-    VLOG(1) << "Unable to determine IPAddress at " +
-      addressLocation + ". Attempting Deprecated API.";
-
     Result<JSON::String> ipAddressValue =
       json.find<JSON::String>("NetworkSettings.IPAddress");
-
     if(ipAddressValue.isNone()) {
-      return Error("Unable to find NetworkSettings.IPAddress in container");
+      return Error("Unable to find " + addressLocation + " in container");
     } else if (ipAddressValue.isError()) {
       return Error(
-        "Error finding NetworkSettings.IPAddress in container: " +
+        "Error finding " + addressLocation + " in container: " +
         ipAddressValue.error());
     }
   }
