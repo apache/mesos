@@ -301,13 +301,25 @@ Try<Docker::Container> Docker::Container::create(const string& output)
 
   bool started = startedAtValue.get().value != "0001-01-01T00:00:00Z";
 
+  string addressLocation;
+
+  Result<JSON::String> networkModeValue =
+    json.find<JSON::String>("HostConfig.NetworkMode");
+  if (networkModeValue.isNone() || networkModeValue.isError()) {
+    VLOG(1) << "Unable to detect networkMode. Using Deprecated API.";
+    addressLocation = "NetworkSettings.IPAddress"
+  } else {
+    addressLocation = "NetworkSettings.Networks." +
+                      networkModeValue.get().value + ".IPAddress";
+  }
+
   Result<JSON::String> ipAddressValue =
-    json.find<JSON::String>("NetworkSettings.IPAddress");
-  if (ipAddressValue.isNone()) {
-    return Error("Unable to find NetworkSettings.IPAddress in container");
+      json.find<JSON::String>(addressLocation);
+  if(ipAddressValue.isNone()) {
+    return Error("Unable to find " + addressLocation + " in container");
   } else if (ipAddressValue.isError()) {
     return Error(
-        "Error finding NetworkSettings.Name in container: " +
+        "Error finding " + addressLocation + " in container: " +
         ipAddressValue.error());
   }
 
