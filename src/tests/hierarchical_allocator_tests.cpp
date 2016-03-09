@@ -230,6 +230,35 @@ protected:
     return weightInfo;
   }
 
+  void handleAllocationsAndRecoverResources(
+      Resources& totalAllocatedResources,
+      hashmap<FrameworkID, Allocation>& frameworkAllocations,
+      int allocationsCount,
+      bool recoverResources)
+  {
+    for (unsigned i = 0; i < allocationsCount; i++) {
+      Future<Allocation> allocation = allocations.get();
+      AWAIT_READY(allocation);
+
+      frameworkAllocations[allocation.get().frameworkId] = allocation.get();
+      totalAllocatedResources += Resources::sum(allocation.get().resources);
+
+      if (recoverResources) {
+        // Recover the allocated resources so they can be offered again
+        // next time.
+        foreachpair (const SlaveID& slaveId,
+                     const Resources& resources,
+                     allocation.get().resources) {
+          allocator->recoverResources(
+              allocation.get().frameworkId,
+              slaveId,
+              resources,
+              None());
+        }
+      }
+    }
+  }
+
 protected:
   master::Flags flags;
 
@@ -2377,6 +2406,201 @@ TEST_F(HierarchicalAllocatorTest, DeactivateAndReactivateFramework)
 }
 
 
+// This test ensures that resource allocation is done according to each role's
+// weight. This is done by having six agents and three frameworks and making
+// sure each framework gets the appropriate number of resources.
+TEST_F(HierarchicalAllocatorTest, UpdateWeight)
+{
+  // Pausing the clock is not necessary, but ensures that the test
+  // doesn't rely on the batch allocation in the allocator, which
+  // would slow down the test.
+  Clock::pause();
+
+  initialize();
+
+  // Define some constants to make the code read easily.
+  const string SINGLE_RESOURCE = "cpus:2;mem:1024";
+  const string DOUBLE_RESOURCES = "cpus:4;mem:2048";
+  const string TRIPLE_RESOURCES = "cpus:6;mem:3072";
+  const string FOURFOLD_RESOURCES = "cpus:8;mem:4096";
+  const string TOTAL_RESOURCES = "cpus:12;mem:6144";
+
+  // Register six agents with the same resources (cpus:2;mem:1024).
+  vector<SlaveInfo> agents;
+  for (unsigned i = 0; i < 6; i++) {
+    SlaveInfo agent = createSlaveInfo(SINGLE_RESOURCE);
+    agents.push_back(agent);
+    allocator->addSlave(agent.id(), agent, None(), agent.resources(), {});
+  }
+
+  // Total cluster resources (6 agents): cpus=12, mem=6144.
+
+  // Framework1 registers with 'role1' which uses the default weight (1.0),
+  // and all resources will be offered to this framework since it is the only
+  // framework running so far.
+  FrameworkInfo framework1 = createFrameworkInfo("role1");
+  allocator->addFramework(framework1.id(), framework1, {});
+
+  // Framework2 registers with 'role2' which also uses the default weight.
+  // It will not get any offers due to all resources having outstanding offers
+  // to framework1 when it registered.
+  FrameworkInfo framework2 = createFrameworkInfo("role2");
+  allocator->addFramework(framework2.id(), framework2, {});
+
+  Future<Allocation> allocation = allocations.get();
+  AWAIT_READY(allocation);
+
+  // role1 share = 1 (cpus=12, mem=6144)
+  //   framework1 share = 1
+  // role2 share = 0
+  //   framework2 share = 0
+
+  ASSERT_EQ(allocation.get().frameworkId, framework1.id());
+  ASSERT_EQ(6u, allocation.get().resources.size());
+  EXPECT_EQ(Resources::parse(TOTAL_RESOURCES).get(),
+            Resources::sum(allocation.get().resources));
+
+  // Recover all resources so they can be offered again next time.
+  foreachpair (const SlaveID& slaveId,
+               const Resources& resources,
+               allocation.get().resources) {
+    allocator->recoverResources(
+        allocation.get().frameworkId,
+        slaveId,
+        resources,
+        None());
+  }
+
+  // Tests whether `framework1` and `framework2` each get half of the resources
+  // when their roles' weights are 1:1.
+  {
+    // Advance the clock and trigger a batch allocation.
+    Clock::advance(flags.allocation_interval);
+    Clock::settle();
+
+    // role1 share = 0.5 (cpus=6, mem=3072)
+    //   framework1 share = 1
+    // role2 share = 0.5 (cpus=6, mem=3072)
+    //   framework2 share = 1
+
+    // Ensure that all resources are offered equally between both frameworks,
+    // since each framework's role has a weight of 1.0 by default.
+    hashmap<FrameworkID, Allocation> frameworkAllocations;
+    Resources totalAllocatedResources;
+    handleAllocationsAndRecoverResources(totalAllocatedResources,
+        frameworkAllocations, 2, true);
+
+    // Framework1 should get one allocation with three agents.
+    ASSERT_EQ(3u, frameworkAllocations[framework1.id()].resources.size());
+    EXPECT_EQ(Resources::parse(TRIPLE_RESOURCES).get(),
+        Resources::sum(frameworkAllocations[framework1.id()].resources));
+
+    // Framework2 should also get one allocation with three agents.
+    ASSERT_EQ(3u, frameworkAllocations[framework2.id()].resources.size());
+    EXPECT_EQ(Resources::parse(TRIPLE_RESOURCES).get(),
+        Resources::sum(frameworkAllocations[framework2.id()].resources));
+
+    // Check to ensure that these two allocations sum to the total resources;
+    // this check can ensure there are only two allocations in this case.
+    EXPECT_EQ(Resources::parse(TOTAL_RESOURCES).get(), totalAllocatedResources);
+  }
+
+  // Tests whether `framework1` gets 1/3 of the resources and `framework2` gets
+  // 2/3 of the resources when their roles' weights are 1:2.
+  {
+    // Update the weight of framework2's role to 2.0.
+    vector<WeightInfo> weightInfos;
+    weightInfos.push_back(createWeightInfo(framework2.role(), 2.0));
+    allocator->updateWeights(weightInfos);
+
+    // 'updateWeights' will trigger the allocation immediately, so it does not
+    // need to manually advance the clock here.
+    Clock::settle();
+
+    // role1 share = 0.33 (cpus=4, mem=2048)
+    //   framework1 share = 1
+    // role2 share = 0.66 (cpus=8, mem=4096)
+    //   framework2 share = 1
+
+    // Now that the frameworks's weights are 1:2, ensure that all
+    // resources are offered with a ratio of 1:2 between both frameworks.
+    hashmap<FrameworkID, Allocation> frameworkAllocations;
+    Resources totalAllocatedResources;
+    handleAllocationsAndRecoverResources(totalAllocatedResources,
+        frameworkAllocations, 2, true);
+
+    // Framework1 should get one allocation with two agents.
+    ASSERT_EQ(2u, frameworkAllocations[framework1.id()].resources.size());
+    EXPECT_EQ(Resources::parse(DOUBLE_RESOURCES).get(),
+        Resources::sum(frameworkAllocations[framework1.id()].resources));
+
+    // Framework2 should get one allocation with four agents.
+    ASSERT_EQ(4u, frameworkAllocations[framework2.id()].resources.size());
+    EXPECT_EQ(Resources::parse(FOURFOLD_RESOURCES).get(),
+        Resources::sum(frameworkAllocations[framework2.id()].resources));
+
+    // Check to ensure that these two allocations sum to the total resources;
+    // this check can ensure there are only two allocations in this case.
+    EXPECT_EQ(Resources::parse(TOTAL_RESOURCES).get(), totalAllocatedResources);
+  }
+
+  // Tests whether `framework1` gets 1/6 of the resources, `framework2` gets
+  // 2/6 of the resources and `framework3` gets 3/6 of the resources when their
+  // roles' weights are 1:2:3.
+  {
+    // Add a new role with a weight of 3.0.
+    vector<WeightInfo> weightInfos;
+    weightInfos.push_back(createWeightInfo("role3", 3.0));
+    allocator->updateWeights(weightInfos);
+
+    // 'updateWeights' will not trigger the allocation immediately because no
+    // framework exists in 'role3' yet.
+
+    // Framework3 registers with 'role3'.
+    FrameworkInfo framework3 = createFrameworkInfo("role3");
+    allocator->addFramework(framework3.id(), framework3, {});
+
+    // 'addFramework' will trigger the allocation immediately, so it does not
+    // need to manually advance the clock here.
+    Clock::settle();
+
+    // role1 share = 0.166 (cpus=2, mem=1024)
+    //   framework1 share = 1
+    // role2 share = 0.333 (cpus=4, mem=2048)
+    //   framework2 share = 1
+    // role3 share = 0.50 (cpus=6, mem=3072)
+    //   framework3 share = 1
+
+    // Currently, there are three frameworks and six agents in this cluster,
+    // and the weight ratio of these frameworks is 1:2:3, therefore frameworks
+    // will get the proper resource ratio of 1:2:3.
+    hashmap<FrameworkID, Allocation> frameworkAllocations;
+    Resources totalAllocatedResources;
+    handleAllocationsAndRecoverResources(totalAllocatedResources,
+        frameworkAllocations, 3, false);
+
+    // Framework1 should get one allocation with one agent.
+    ASSERT_EQ(1u, frameworkAllocations[framework1.id()].resources.size());
+    EXPECT_EQ(Resources::parse(SINGLE_RESOURCE).get(),
+        Resources::sum(frameworkAllocations[framework1.id()].resources));
+
+    // Framework2 should get one allocation with two agents.
+    ASSERT_EQ(2u, frameworkAllocations[framework2.id()].resources.size());
+    EXPECT_EQ(Resources::parse(DOUBLE_RESOURCES).get(),
+        Resources::sum(frameworkAllocations[framework2.id()].resources));
+
+    // Framework3 should get one allocation with three agents.
+    ASSERT_EQ(3u, frameworkAllocations[framework3.id()].resources.size());
+    EXPECT_EQ(Resources::parse(TRIPLE_RESOURCES).get(),
+        Resources::sum(frameworkAllocations[framework3.id()].resources));
+
+    // Check to ensure that these three allocations sum to the total resources;
+    // this check can ensure there are only three allocations in this case.
+    EXPECT_EQ(Resources::parse(TOTAL_RESOURCES).get(), totalAllocatedResources);
+  }
+}
+
+
 class HierarchicalAllocator_BENCHMARK_Test
   : public HierarchicalAllocatorTestBase,
     public WithParamInterface<std::tr1::tuple<size_t, size_t>> {};
@@ -2761,203 +2985,6 @@ TEST_F(HierarchicalAllocator_BENCHMARK_Test, ResourceLabels)
            << endl;
     }
   }
-
-  Clock::resume();
-}
-
-
-// This test ensures that resource allocation is done per role's weight.
-// This is done by having six slaves and three frameworks and making sure each
-// framework gets the number of resources by their role's weight.
-TEST_F(HierarchicalAllocatorTest, UpdateWeight)
-{
-  // Pausing the clock is not necessary, but ensures that the test
-  // doesn't rely on the periodic allocation in the allocator, which
-  // would slow down the test.
-  Clock::pause();
-
-  initialize();
-
-  // Register six slaves with the same resources (cpus:2;mem:1024).
-  vector<SlaveInfo> slaves;
-  const string SINGLE_RESOURCE = "cpus:2;mem:1024";
-  const string DOUBLE_RESOURCES = "cpus:4;mem:2048";
-  const string TRIPLE_RESOURCES = "cpus:6;mem:3072";
-  const string FOURFOLD_RESOURCES = "cpus:8;mem:4096";
-  const string TOTAL_RESOURCES = "cpus:12;mem:6144";
-  for (unsigned i = 0; i < 6; i++) {
-    slaves.push_back(createSlaveInfo(SINGLE_RESOURCE));
-  }
-
-  foreach (const SlaveInfo& slave, slaves) {
-    allocator->addSlave(
-        slave.id(),
-        slave,
-        None(),
-        slave.resources(),
-        hashmap<FrameworkID, Resources>());
-  }
-
-  // Framework1 registers with 'role1' which uses the default
-  // weight (1.0), and all resources will be offered to this framework.
-  FrameworkInfo framework1 = createFrameworkInfo("role1");
-  allocator->addFramework(
-      framework1.id(), framework1, hashmap<SlaveID, Resources>());
-
-  // Framework2 registers with 'role2' which also uses the
-  // default weight (1.0).
-  FrameworkInfo framework2 = createFrameworkInfo("role2");
-  allocator->addFramework(
-      framework2.id(), framework2, hashmap<SlaveID, Resources>());
-
-  // Framework1 gets one allocation with all resources, and Framework2
-  // does not get any offers due to all resources having outstanding
-  // offers to framework1 when it registered.
-  // Recover all resources owned by framework1 so they can be offered
-  // again next time.
-  Future<Allocation> allocation = allocations.get();
-  AWAIT_READY(allocation);
-  ASSERT_EQ(allocation.get().frameworkId, framework1.id());
-  ASSERT_EQ(6u, allocation.get().resources.size());
-  EXPECT_EQ(Resources::parse(TOTAL_RESOURCES).get(),
-            Resources::sum(allocation.get().resources));
-  foreachpair (const SlaveID& slaveId,
-               const Resources& resources,
-               allocation.get().resources) {
-    allocator->recoverResources(
-        allocation.get().frameworkId,
-        slaveId,
-        resources,
-        None());
-  }
-
-  // Because each framework's role has a weight of 1.0 by default, test to
-  // ensure that all resources are offered equally between both frameworks.
-  hashmap<FrameworkID, size_t> counts;
-  Clock::advance(flags.allocation_interval);
-  Resources totalAllocatedResources1;
-  for (unsigned i = 0; i < 2; i++) {
-    Future<Allocation> allocation = allocations.get();
-    AWAIT_READY(allocation);
-    counts[allocation.get().frameworkId]++;
-    totalAllocatedResources1 += Resources::sum(allocation.get().resources);
-
-    // Each framework will get one allocation with three slaves.
-    ASSERT_EQ(3u, allocation.get().resources.size());
-    EXPECT_EQ(Resources::parse(TRIPLE_RESOURCES).get(),
-              Resources::sum(allocation.get().resources));
-
-    // Recover the offered resources so they can be offered again next time.
-    foreachpair (const SlaveID& slaveId,
-                 const Resources& resources,
-                 allocation.get().resources) {
-      allocator->recoverResources(
-          allocation.get().frameworkId,
-          slaveId,
-          resources,
-          None());
-    }
-  }
-
-  // Check to ensure that these two allocations sum to the total resources,
-  // this check can ensure there are only two allocations in this case.
-  EXPECT_EQ(Resources::parse(TOTAL_RESOURCES).get(), totalAllocatedResources1);
-  EXPECT_EQ(1u, counts[framework1.id()]);
-  EXPECT_EQ(1u, counts[framework2.id()]);
-
-  // Update the weight of framework2's role to 2.0, then their
-  // weights should be 1:2.
-  vector<WeightInfo> weightInfos1;
-  weightInfos1.push_back(createWeightInfo(framework2.role(), 2.0));
-  allocator->updateWeights(weightInfos1);
-
-  // Now that the frameworks's weights are 1:2, test to ensure that all
-  // resources are offered with a ratio of 1:2 between both frameworks.
-  counts.clear();
-  Resources totalAllocatedResources2;
-  Clock::advance(flags.allocation_interval);
-  for (unsigned i = 0; i < 2; i++) {
-    Future<Allocation> allocation = allocations.get();
-    AWAIT_READY(allocation);
-    counts[allocation.get().frameworkId]++;
-    totalAllocatedResources2 += Resources::sum(allocation.get().resources);
-
-    // Framework1 should get one allocation with two slaves.
-    if (allocation.get().frameworkId == framework1.id()) {
-      ASSERT_EQ(2u, allocation.get().resources.size());
-      EXPECT_EQ(Resources::parse(DOUBLE_RESOURCES).get(),
-                Resources::sum(allocation.get().resources));
-    } else {
-      // Framework2 should get one allocation with four slaves.
-      ASSERT_EQ(allocation.get().frameworkId, framework2.id());
-      ASSERT_EQ(4u, allocation.get().resources.size());
-      EXPECT_EQ(Resources::parse(FOURFOLD_RESOURCES).get(),
-                Resources::sum(allocation.get().resources));
-    }
-
-    // Recover the allocated resources so they can be offered again next time.
-    foreachpair (const SlaveID& slaveId,
-                 const Resources& resources,
-                 allocation.get().resources) {
-      allocator->recoverResources(
-          allocation.get().frameworkId,
-          slaveId,
-          resources,
-          None());
-    }
-  }
-  // Check to ensure that these two allocations sum to the total resources,
-  // this check can ensure there are only two allocations in this case.
-  EXPECT_EQ(Resources::parse(TOTAL_RESOURCES).get(), totalAllocatedResources2);
-  EXPECT_EQ(1u, counts[framework1.id()]);
-  EXPECT_EQ(1u, counts[framework2.id()]);
-
-  // Add a new role with a weight of 3.0.
-  vector<WeightInfo> weightInfos2;
-  weightInfos2.push_back(createWeightInfo("role3", 3.0));
-  allocator->updateWeights(weightInfos2);
-
-  // Framework3 registers with 'role3'.
-  FrameworkInfo framework3 = createFrameworkInfo("role3");
-  allocator->addFramework(
-      framework3.id(), framework3, hashmap<SlaveID, Resources>());
-
-  // Currently, there are three frameworks and six slaves in this cluster,
-  // and the weight ratio of these frameworks is 1:2:3, therefore frameworks
-  // will get the proper resource ratio of 1:2:3.
-  counts.clear();
-  Resources totalAllocatedResources3;
-  for (unsigned i = 0; i < 3; i++) {
-    Future<Allocation> allocation = allocations.get();
-    AWAIT_READY(allocation);
-    counts[allocation.get().frameworkId]++;
-    totalAllocatedResources3 += Resources::sum(allocation.get().resources);
-
-    // Framework1 should get one allocation with one slave.
-    if (allocation.get().frameworkId == framework1.id()) {
-      ASSERT_EQ(1u, allocation.get().resources.size());
-      EXPECT_EQ(Resources::parse(SINGLE_RESOURCE).get(),
-                Resources::sum(allocation.get().resources));
-    } else if (allocation.get().frameworkId == framework2.id()) {
-      // Framework2 should get one allocation with two slaves.
-      ASSERT_EQ(2u, allocation.get().resources.size());
-      EXPECT_EQ(Resources::parse(DOUBLE_RESOURCES).get(),
-                Resources::sum(allocation.get().resources));
-    } else {
-      // Framework3 should get one allocation with three slaves.
-      ASSERT_EQ(allocation.get().frameworkId, framework3.id());
-      ASSERT_EQ(3u, allocation.get().resources.size());
-      EXPECT_EQ(Resources::parse(TRIPLE_RESOURCES).get(),
-                Resources::sum(allocation.get().resources));
-    }
-  }
-
-  // Check to ensure that these three allocations sum to the total resources,
-  // this check can ensure there are only three allocations in this case.
-  EXPECT_EQ(Resources::parse(TOTAL_RESOURCES).get(), totalAllocatedResources3);
-  EXPECT_EQ(1u, counts[framework1.id()]);
-  EXPECT_EQ(1u, counts[framework2.id()]);
-  EXPECT_EQ(1u, counts[framework3.id()]);
 
   Clock::resume();
 }
