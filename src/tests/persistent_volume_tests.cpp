@@ -86,27 +86,6 @@ protected:
     diskPath = path.get();
   }
 
-  master::Flags MasterFlags(const vector<FrameworkInfo>& frameworks)
-  {
-    master::Flags flags = CreateMasterFlags();
-
-    ACLs acls;
-    hashset<string> roles;
-
-    foreach (const FrameworkInfo& framework, frameworks) {
-      mesos::ACL::RegisterFramework* acl = acls.add_register_frameworks();
-      acl->mutable_principals()->add_values(framework.principal());
-      acl->mutable_roles()->add_values(framework.role());
-
-      roles.insert(framework.role());
-    }
-
-    flags.acls = acls;
-    flags.roles = strings::join(",", roles);
-
-    return flags;
-  }
-
   Resource getDiskResource(const Megabytes& mb)
   {
     Resource diskResource;
@@ -280,10 +259,7 @@ TEST_P(PersistentVolumeTest, SendingCheckpointResourcesMessage)
 // sends them to the master during re-registration.
 TEST_P(PersistentVolumeTest, ResourcesCheckpointing)
 {
-  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo.set_role("role1");
-
-  Try<PID<Master>> master = StartMaster(MasterFlags({frameworkInfo}));
+  Try<PID<Master>> master = StartMaster(CreateMasterFlags());
   ASSERT_SOME(master);
 
   slave::Flags slaveFlags = CreateSlaveFlags();
@@ -291,6 +267,9 @@ TEST_P(PersistentVolumeTest, ResourcesCheckpointing)
 
   Try<PID<Slave>> slave = StartSlave(slaveFlags);
   ASSERT_SOME(slave);
+
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_role("role1");
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
@@ -346,10 +325,7 @@ TEST_P(PersistentVolumeTest, ResourcesCheckpointing)
 
 TEST_P(PersistentVolumeTest, PreparePersistentVolume)
 {
-  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo.set_role("role1");
-
-  Try<PID<Master>> master = StartMaster(MasterFlags({frameworkInfo}));
+  Try<PID<Master>> master = StartMaster(CreateMasterFlags());
   ASSERT_SOME(master);
 
   slave::Flags slaveFlags = CreateSlaveFlags();
@@ -357,6 +333,9 @@ TEST_P(PersistentVolumeTest, PreparePersistentVolume)
 
   Try<PID<Slave>> slave = StartSlave(slaveFlags);
   ASSERT_SOME(slave);
+
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_role("role1");
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
@@ -412,10 +391,7 @@ TEST_P(PersistentVolumeTest, PreparePersistentVolume)
 // persistent volumes are later correctly offered to the framework.
 TEST_P(PersistentVolumeTest, MasterFailover)
 {
-  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo.set_role("role1");
-
-  master::Flags masterFlags = MasterFlags({frameworkInfo});
+  master::Flags masterFlags = CreateMasterFlags();
 
   Try<PID<Master>> master = StartMaster(masterFlags);
   ASSERT_SOME(master);
@@ -427,6 +403,9 @@ TEST_P(PersistentVolumeTest, MasterFailover)
 
   Try<PID<Slave>> slave = StartSlave(&detector, slaveFlags);
   ASSERT_SOME(slave);
+
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_role("role1");
 
   MockScheduler sched;
   TestingMesosSchedulerDriver driver(&sched, &detector, frameworkInfo);
@@ -508,10 +487,7 @@ TEST_P(PersistentVolumeTest, MasterFailover)
 // slave resources specified using the '--resources' flag.
 TEST_P(PersistentVolumeTest, IncompatibleCheckpointedResources)
 {
-  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo.set_role("role1");
-
-  Try<PID<Master>> master = StartMaster(MasterFlags({frameworkInfo}));
+  Try<PID<Master>> master = StartMaster(CreateMasterFlags());
   ASSERT_SOME(master);
 
   slave::Flags slaveFlags = CreateSlaveFlags();
@@ -523,6 +499,9 @@ TEST_P(PersistentVolumeTest, IncompatibleCheckpointedResources)
 
   MockSlave slave1(slaveFlags, &detector, &containerizer);
   spawn(slave1);
+
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_role("role1");
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
@@ -595,10 +574,7 @@ TEST_P(PersistentVolumeTest, IncompatibleCheckpointedResources)
 // the container path it specifies.
 TEST_P(PersistentVolumeTest, AccessPersistentVolume)
 {
-  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo.set_role("role1");
-
-  Try<PID<Master>> master = StartMaster(MasterFlags({frameworkInfo}));
+  Try<PID<Master>> master = StartMaster(CreateMasterFlags());
   ASSERT_SOME(master);
 
   slave::Flags slaveFlags = CreateSlaveFlags();
@@ -607,6 +583,9 @@ TEST_P(PersistentVolumeTest, AccessPersistentVolume)
 
   Try<PID<Slave>> slave = StartSlave(slaveFlags);
   ASSERT_SOME(slave);
+
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_role("role1");
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
@@ -701,11 +680,7 @@ TEST_P(PersistentVolumeTest, AccessPersistentVolume)
 // slave finishes recovery.
 TEST_P(PersistentVolumeTest, SlaveRecovery)
 {
-  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo.set_role("role1");
-  frameworkInfo.set_checkpoint(true);
-
-  Try<PID<Master>> master = StartMaster(MasterFlags({frameworkInfo}));
+  Try<PID<Master>> master = StartMaster(CreateMasterFlags());
   ASSERT_SOME(master);
 
   slave::Flags slaveFlags = CreateSlaveFlags();
@@ -714,6 +689,10 @@ TEST_P(PersistentVolumeTest, SlaveRecovery)
 
   Try<PID<Slave>> slave = StartSlave(slaveFlags);
   ASSERT_SOME(slave);
+
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_role("role1");
+  frameworkInfo.set_checkpoint(true);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
