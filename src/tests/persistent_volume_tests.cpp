@@ -259,7 +259,7 @@ TEST_P(PersistentVolumeTest, SendingCheckpointResourcesMessage)
 // sends them to the master during re-registration.
 TEST_P(PersistentVolumeTest, ResourcesCheckpointing)
 {
-  Try<PID<Master>> master = StartMaster(CreateMasterFlags());
+  Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   slave::Flags slaveFlags = CreateSlaveFlags();
@@ -325,7 +325,7 @@ TEST_P(PersistentVolumeTest, ResourcesCheckpointing)
 
 TEST_P(PersistentVolumeTest, PreparePersistentVolume)
 {
-  Try<PID<Master>> master = StartMaster(CreateMasterFlags());
+  Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   slave::Flags slaveFlags = CreateSlaveFlags();
@@ -487,7 +487,7 @@ TEST_P(PersistentVolumeTest, MasterFailover)
 // slave resources specified using the '--resources' flag.
 TEST_P(PersistentVolumeTest, IncompatibleCheckpointedResources)
 {
-  Try<PID<Master>> master = StartMaster(CreateMasterFlags());
+  Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   slave::Flags slaveFlags = CreateSlaveFlags();
@@ -574,7 +574,7 @@ TEST_P(PersistentVolumeTest, IncompatibleCheckpointedResources)
 // the container path it specifies.
 TEST_P(PersistentVolumeTest, AccessPersistentVolume)
 {
-  Try<PID<Master>> master = StartMaster(CreateMasterFlags());
+  Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   slave::Flags slaveFlags = CreateSlaveFlags();
@@ -680,7 +680,7 @@ TEST_P(PersistentVolumeTest, AccessPersistentVolume)
 // slave finishes recovery.
 TEST_P(PersistentVolumeTest, SlaveRecovery)
 {
-  Try<PID<Master>> master = StartMaster(CreateMasterFlags());
+  Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   slave::Flags slaveFlags = CreateSlaveFlags();

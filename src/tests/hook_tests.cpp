@@ -142,7 +142,7 @@ TEST_F(HookTest, HookLoading)
 // taskinfo message during master launch task.
 TEST_F(HookTest, VerifyMasterLaunchTaskHook)
 {
-  Try<PID<Master>> master = StartMaster(CreateMasterFlags());
+  Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
@@ -739,7 +739,7 @@ TEST_F(HookTest, ROOT_DOCKER_VerifySlavePreLaunchDockerHook)
 // propagated to the resource offer.
 TEST_F(HookTest, VerifySlaveResourcesAndAttributesDecorator)
 {
-  Try<PID<Master>> master = StartMaster(CreateMasterFlags());
+  Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);

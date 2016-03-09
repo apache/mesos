@@ -2218,7 +2218,7 @@ TEST_F(PortMappingMesosTest, ROOT_NetworkNamespaceHandleSymlink)
 // described in MESOS-2914.
 TEST_F(PortMappingMesosTest, CGROUPS_ROOT_RecoverMixedKnownAndUnKnownOrphans)
 {
-  Try<PID<Master>> master = StartMaster(CreateMasterFlags());
+  Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   slave::Flags flags = CreateSlaveFlags();
