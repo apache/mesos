@@ -13,6 +13,7 @@ Authorization currently allows
  4. Authorized _principals_ to set and remove quotas through the "/quota" HTTP endpoint.
  5. Authorized _principals_ to reserve and unreserve resources through the "/reserve" and "/unreserve" HTTP endpoints, as well as with the `RESERVE` and `UNRESERVE` offer operations.
  6. Authorized _principals_ to create and destroy persistent volumes through the "/create-volumes" and "/destroy-volumes" HTTP endpoints, as well as with the `CREATE` and `DESTROY` offer operations.
+ 7. Authorized _principals_ to update weights through the "/weights" HTTP endpoint.
 
 
 ## ACLs
@@ -32,12 +33,13 @@ The currently supported `Actions` are:
 7. "unreserve_resources": Unreserve resources
 8. "create_volumes": Create persistent volumes
 9. "destroy_volumes": Destroy persistent volumes
+10. "update_weights": Update weights
 
 The currently supported `Subjects` are:
 
 1. "principals"
 	- Framework principals (used by "register_frameworks", "run_tasks", "reserve", "unreserve", "create_volumes", and "destroy_volumes" actions)
-	- Operator usernames (used by "teardown_frameworks", "set_quotas", "remove_quotas", "reserve", "unreserve", "create_volumes", and "destroy_volumes" actions)
+	- Operator usernames (used by "teardown_frameworks", "set_quotas", "remove_quotas", "reserve", "unreserve", "create_volumes", "destroy_volumes", and "update_weights" actions)
 
 The currently supported `Objects` are:
 

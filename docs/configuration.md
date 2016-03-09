@@ -760,7 +760,9 @@ Directory path of the webui files/assets (default: /usr/local/share/mesos/webui)
   <td>
 A comma-separated list of role/weight pairs
 of the form <code>role=weight,role=weight</code>. Weights
-are used to indicate forms of priority.
+are used to indicate forms of priority. This flag is deprecated,
+and instead, after the Mesos master quorum is achieved, an operator
+can send an update weights request to do a batch configuration for weights.
   </td>
 </tr>
 <tr>

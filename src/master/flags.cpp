@@ -193,7 +193,10 @@ mesos::internal::master::Flags::Flags()
       "weights",
       "A comma-separated list of role/weight pairs\n"
       "of the form `role=weight,role=weight`. Weights\n"
-      "are used to indicate forms of priority.");
+      "are used to indicate forms of priority. This flag is deprecated;\n"
+      "if it is not specified, after the Mesos master quorum is achieved,\n"
+      "an operator can send an update weights request to do a batch\n"
+      "configuration for weights.");
 
   // TODO(adam-mesos): Deprecate --authenticate for --authenticate_frameworks.
   // See MESOS-4386 for details.

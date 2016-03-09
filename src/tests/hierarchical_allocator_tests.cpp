@@ -236,7 +236,7 @@ protected:
       int allocationsCount,
       bool recoverResources)
   {
-    for (unsigned i = 0; i < allocationsCount; i++) {
+    for (int i = 0; i < allocationsCount; i++) {
       Future<Allocation> allocation = allocations.get();
       AWAIT_READY(allocation);
 
