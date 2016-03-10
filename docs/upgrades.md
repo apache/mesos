@@ -7,9 +7,140 @@ layout: documentation
 
 This document serves as a guide for users who wish to upgrade an existing Mesos cluster. Some versions require particular upgrade techniques when upgrading a running cluster. Some upgrades will have incompatible changes.
 
+## Overview
+
+This section provides an overview of the changes for each version (in particular when upgrading from the next lower version). For more details please check the respective sections below.
+
+We categorize the changes as follows:
+
+    A New feature/behavior
+    C Changed feature/behavior
+    D Deprecated feature/behavior
+    R Removed feature/behavior
+
+<table class="table table-bordered" style="table-layout: fixed;">
+  <thead>
+    <tr>
+      <th width="10%">
+        Version
+      </th>
+      <th width="18%">
+        Mesos Core
+      </th>
+      <th width="18%">
+        Flags
+      </th>
+      <th width="18%">
+        Framework API
+      </th>
+      <th width="18%">
+        Module API
+      </th>
+      <th width="18%">
+        Endpoints
+      </th>
+    </tr>
+  </thead>
+<tr>
+  <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Version-->
+  0.28.x
+  </td>
+  <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Mesos Core-->
+    <ul style="padding-left:10px;">
+      <li>C <a href="#0-28-x-resource-precision">Resource Precision</a></li>
+    </ul>
+  </td>
+  <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Flags-->
+    <ul style="padding-left:10px;">
+      <li>C <a href="#0-28-x-autherization-acls">Authentication ACLs</a></li>
+    </ul>
+  </td>
+  <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Framework API-->
+  </td>
+  <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Module API-->
+  </td>
+  <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Endpoints-->
+  </td>
+</tr>
+<tr>
+  <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Version-->
+  0.27.x
+  </td>
+  <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Mesos Core-->
+  </td>
+  <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Flags-->
+    <ul style="padding-left:10px;">
+      <li>D <a href="#0-27-x-implicit-roles">--roles</a></li>
+      <li>D <a href="#0-27-x-acl-shutdown-flag">--acls (shutdown_frameworks)</a></li>
+    </ul>
+  </td>
+  <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Framework API-->
+    <ul style="padding-left:10px;">
+      <li>C <a href="#0-27-x-executor-lost-callback">executorLost callback</a></li>
+    </ul>
+  </td>
+  <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Module API-->
+    <ul style="padding-left:10px;">
+      <li>C <a href="#0-27-x-allocator-api">Allocator API</a></li>
+      <li>C <a href="#0-27-x-isolator-api">Isolator API</a></li>
+    </ul>
+  </td>
+  <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Endpoints-->
+  </td>
+</tr>
+<tr>
+  <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Version-->
+  0.26.x
+  </td>
+  <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Mesos Core-->
+  </td>
+  <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Flags-->
+  </td>
+  <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Framework API-->
+    <ul style="padding-left:10px;">
+      <li>C <a href="#0-26-x-taskstatus-reason">TaskStatus::Reason Enum</a></li>
+      <li>C <a href="#0-26-x-credential-protobuf">Credential Protobuf</a></li>
+      <li>C <a href="#0-26-x-network-info-protobuf">NetworkInfo Protobuf</a></li>
+    </ul>
+  </td>
+  <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Module API-->
+  </td>
+  <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Endpoints-->
+    <ul style="padding-left:10px;">
+      <li>C <a href="#0-26-x-state-endpoint">State Endpoint</a></li>
+    </ul>
+  </td>
+</tr>
+<tr>
+  <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Version-->
+  0.25.x
+  </td>
+  <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Mesos Core-->
+  </td>
+  <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Flags-->
+  </td>
+  <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Framework API-->
+    <ul style="padding-left:10px;">
+      <li>C <a href="#0-25-x-scheduler-bindings">C++/Java/Python Scheduler Bindings</a></li?
+    </ul>
+  </td>
+  <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Module API-->
+  </td>
+  <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Endpoints-->
+    <ul style="padding-left:10px;">
+      <li>D <a href="#0-25-x-json-endpoints">*.json Endpoints</a></li>
+    </ul>
+  </td>
+</tr>
+</table>
+
 ## Upgrading from 0.27.x to 0.28.x ##
 
+<a name="0-28-x-resource-precision"></a>
+
 * Mesos 0.28 only supports three decimal digits of precision for scalar resource values. For example, frameworks can reserve "0.001" CPUs but more fine-grained reservations (e.g., "0.0001" CPUs) are no longer supported (although they did not work reliably in prior versions of Mesos anyway). Internally, resource math is now done using a fixed-point format that supports three decimal digits of precision, and then converted to/from floating point for input and output, respectively. Frameworks that do their own resource math and manipulate fractional resources may observe differences in roundoff error and numerical precision.
+
+<a name="0-28-x-autherization-acls"></a>
 
 * Mesos 0.28 changes the definitions of two ACLs used for authorization. The objects of the `ReserveResources` and `CreateVolume` ACLs have been changed to `roles`. In both cases, principals can now be authorized to perform these operations for particular roles. This means that by default, a framework or operator can reserve resources/create volumes for any role. To restrict this behavior, [ACLs can be added](authorization.md) to the master which authorize principals to reserve resources/create volumes for specified roles only. Previously, frameworks could only reserve resources for their own role; this behavior can be preserved by configuring the `ReserveResources` ACLs such that the framework's principal is only authorized to reserve for the framework's role. **NOTE** This renders existing `ReserveResources` and `CreateVolume` ACL definitions obsolete; if you are authorizing these operations, your ACL definitions should be updated.
 
@@ -24,13 +155,23 @@ In order to upgrade a running cluster:
 
 ## Upgrading from 0.26.x to 0.27.x ##
 
+<a name="0-27-x-implicit-roles"></a>
+
 * Mesos 0.27 introduces the concept of _implicit roles_. In previous releases, configuring roles required specifying a static whitelist of valid role names on master startup (via the `--roles` flag). In Mesos 0.27, if `--roles` is omitted, _any_ role name can be used; controlling which principals are allowed to register as which roles should be done using [ACLs](authorization.md). The role whitelist functionality is still supported but is deprecated.
+
+<a name="0-27-x-allocator-api"></a>
 
 * The Allocator API has changed due to the introduction of implicit roles. Custom allocator implementations will need to be updated. See [MESOS-4000](https://issues.apache.org/jira/browse/MESOS-4000) for more information.
 
+<a name="0-27-x-executor-lost-callback"></a>
+
 * The `executorLost` callback in the Scheduler interface will now be called whenever the slave detects termination of a custom executor. This callback was never called in previous versions, so please make sure any framework schedulers can now safely handle this callback. Note that this callback may not be reliably delivered.
 
+<a name="0-27-x-isolator-api"></a>
+
 * The isolator `prepare` interface has been changed slightly. Instead of keeping adding parameters to the `prepare` interface, we decide to use a protobuf (`ContainerConfig`). Also, we renamed `ContainerPrepareInfo` to `ContainerLaunchInfo` to better capture the purpose of this struct. See [MESOS-4240](https://issues.apache.org/jira/browse/MESOS-4240) and [MESOS-4282](https://issues.apache.org/jira/browse/MESOS-4282) for more information. If you are an isolator module writer, you will have to adjust your isolator module according to the new interface and re-compile with 0.27.
+
+<a name="0-27-x-acl-shutdown-flag"></a>
 
 * ACLs.shutdown_frameworks has been deprecated in favor of the new ACLs.teardown_frameworks. This affects the `--acls` master flag for the local authorizer.
 
@@ -47,16 +188,24 @@ In order to upgrade a running cluster:
 
 ## Upgrading from 0.25.x to 0.26.x ##
 
+<a name="0-26-x-taskstatus-reason"></a>
+
 * The names of some TaskStatus::Reason enums have been changed. But the tag numbers remain unchanged, so it is backwards compatible. Frameworks using the new version might need to do some compile time adjustments:
 
   * REASON_MEM_LIMIT -> REASON_CONTAINER_LIMITATION_MEMORY
   * REASON_EXECUTOR_PREEMPTED -> REASON_CONTAINER_PREEMPTED
 
+<a name="0-26-x-credential-protobuf"></a>
+
 * The `Credential` protobuf has been changed. `Credential` field `secret` is now a string, it used to be bytes. This will affect framework developers and language bindings ought to update their generated protobuf with the new version. This fixes JSON based credentials file support.
+
+<a name="0-26-x-state-endpoint"></a>
 
 * The `/state` endpoints on master and slave will no longer include `data` fields as part of the JSON models for `ExecutorInfo` and `TaskInfo` out of consideration for memory scalability (see [MESOS-3794](https://issues.apache.org/jira/browse/MESOS-3794) and [this email thread](http://www.mail-archive.com/dev@mesos.apache.org/msg33536.html)).
   * On master, the affected `data` field was originally found via `frameworks[*].executors[*].data`.
   * On slaves, the affected `data` field was originally found via `executors[*].tasks[*].data`.
+
+<a name="0-26-x-network-info-protobuf"></a>
 
 * The `NetworkInfo` protobuf has been changed. The fields `protocol` and `ip_address` are now deprecated. The new field `ip_addresses` subsumes the information provided by them.
 
@@ -70,6 +219,8 @@ In order to upgrade a running cluster:
 6. Upgrade the executors by linking the latest native library / jar / egg (if necessary).
 
 ## Upgrading from 0.24.x to 0.25.x
+
+<a name="0-25-x-json-endpoints"></a>
 
 * The following endpoints will be deprecated in favor of new endpoints. Both versions will be available in 0.25 but the deprecated endpoints will be removed in a subsequent release.
 
@@ -89,6 +240,8 @@ In order to upgrade a running cluster:
   * /files/debug.json becomes /files/debug
   * /files/download.json becomes /files/download
   * /files/read.json becomes /files/read
+
+<a name="0-25-x-scheduler-bindings"></a>
 
 * The C++/Java/Python scheduler bindings have been updated. In particular, the driver can make a suppressOffers() call to stop receiving offers (until reviveOffers() is called).
 
