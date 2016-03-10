@@ -107,7 +107,10 @@ public:
   Duration docker_remove_delay;
   std::string sandbox_directory;
   Option<ContainerInfo> default_container_info;
+
+  // TODO(alexr): Remove this after the deprecation cycle (started in 0.29).
   Duration docker_stop_timeout;
+
   bool docker_kill_orphans;
   std::string docker_socket;
 #ifdef ENABLE_NVIDIA_GPU_SUPPORT

@@ -209,9 +209,12 @@ docker::Flags dockerFlags(
   dockerFlags.docker = flags.docker;
   dockerFlags.sandbox_directory = directory;
   dockerFlags.mapped_directory = flags.sandbox_directory;
-  dockerFlags.stop_timeout = flags.docker_stop_timeout;
   dockerFlags.docker_socket = flags.docker_socket;
   dockerFlags.launcher_dir = flags.launcher_dir;
+
+  // TODO(alexr): Remove this after the deprecation cycle (started in 0.29).
+  dockerFlags.stop_timeout = flags.docker_stop_timeout;
+
   return dockerFlags;
 }
 
@@ -925,7 +928,11 @@ Future<Nothing> DockerContainerizerProcess::__recover(
     // Check if we're watching an executor for this container ID and
     // if not, rm -f the Docker container.
     if (!containers_.contains(id.get())) {
-      // TODO(tnachen): Consider using executor_shutdown_grace_period.
+      // TODO(alexr): After the deprecation cycle (started in 0.29.0), update
+      // this to omit the timeout. Graceful shutdown of the container is not
+      // a containerizer responsibility; it is the responsibility of the agent
+      // in co-operation with the executor. Once `destroy()` is called, the
+      // container should be destroyed forcefully.
       futures.push_back(
           docker->stop(
               container.id,
@@ -1837,6 +1844,11 @@ void DockerContainerizerProcess::_destroy(
   LOG(INFO) << "Running docker stop on container '" << containerId << "'";
 
   if (killed) {
+    // TODO(alexr): After the deprecation cycle (started in 0.29.0), update
+    // this to omit the timeout. Graceful shutdown of the container is not
+    // a containerizer responsibility; it is the responsibility of the agent
+    // in co-operation with the executor. Once `destroy()` is called, the
+    // container should be destroyed forcefully.
     docker->stop(container->name(), flags.docker_stop_timeout)
       .onAny(defer(self(), &Self::__destroy, containerId, killed, lambda::_1));
   } else {

@@ -52,10 +52,12 @@ struct Flags : public mesos::internal::logging::Flags
         "mapped_directory",
         "The sandbox directory path that is mapped in the docker container.\n");
 
+    // TODO(alexr): Remove this after the deprecation cycle (started in 0.29).
     add(&stop_timeout,
         "stop_timeout",
         "The duration for docker to wait after stopping a running container\n"
-        "before it kills that container.");
+        "before it kills that container. This flag is deprecated; use task's\n"
+        "kill policy instead.");
 
     add(&launcher_dir,
         "launcher_dir",
@@ -69,7 +71,10 @@ struct Flags : public mesos::internal::logging::Flags
   Option<std::string> docker_socket;
   Option<std::string> sandbox_directory;
   Option<std::string> mapped_directory;
+
+  // TODO(alexr): Remove this after the deprecation cycle (started in 0.29).
   Option<Duration> stop_timeout;
+
   Option<std::string> launcher_dir;
 };
 

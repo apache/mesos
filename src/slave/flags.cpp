@@ -524,10 +524,12 @@ mesos::internal::slave::Flags::Flags()
       "  ]\n"
       "}");
 
+  // TODO(alexr): Remove this after the deprecation cycle (started in 0.29).
   add(&Flags::docker_stop_timeout,
       "docker_stop_timeout",
-      "The time as a duration for docker to wait after stopping an instance\n"
-      "before it kills that instance.",
+      "The time docker daemon waits after stopping a container before\n"
+      "killing that container. This flag is deprecated; use task's kill\n"
+      "policy instead.",
       Seconds(0));
 
 #ifdef ENABLE_NVIDIA_GPU_SUPPORT

@@ -1124,8 +1124,9 @@ path used by the slave's docker image.
     --docker_stop_timeout=VALUE
   </td>
   <td>
-The time as a duration for docker to wait after stopping an instance
-before it kills that instance. (default: 0ns)
+The time docker daemon waits after stopping a container before killing
+that container. This flag is deprecated; use task's kill policy instead.
+(default: 0ns)
   </td>
 </tr>
 <tr>
