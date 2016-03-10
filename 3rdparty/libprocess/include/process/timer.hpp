@@ -16,6 +16,7 @@
 #include <stdint.h>
 #include <stdlib.h> // For abort.
 
+#include <process/pid.hpp>
 #include <process/timeout.hpp>
 
 #include <stout/duration.hpp>
