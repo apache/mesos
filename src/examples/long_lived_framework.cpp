@@ -127,7 +127,8 @@ public:
   virtual void statusUpdate(SchedulerDriver* driver, const TaskStatus& status)
   {
     int taskId = lexical_cast<int>(status.task_id().value());
-    cout << "Task " << taskId << " is in state " << status.state() << endl;
+    cout << "Task " << taskId << " is in state "
+         << TaskState_Name(status.state()) << endl;
   }
 
   virtual void frameworkMessage(SchedulerDriver* driver,
