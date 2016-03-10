@@ -2722,9 +2722,6 @@ TEST_F(HierarchicalAllocator_BENCHMARK_Test, DeclineOffers)
   unsigned slaveCount = 2000;
   master::Flags flags;
 
-  FLAGS_v = 5;
-  __sync_synchronize(); // Ensure 'FLAGS_v' visible in other threads.
-
   // Choose an interval longer than the time we expect a single cycle to take so
   // that we don't back up the process queue.
   flags.allocation_interval = Hours(1);
