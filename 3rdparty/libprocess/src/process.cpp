@@ -174,10 +174,10 @@ map<string, string> types;
 // response, or ask the proxy to handle a future response. The process
 // is responsible for making sure the responses are sent in the same
 // order as the requests. Note that we use a 'Socket' in order to keep
-// the underyling file descriptor from getting closed while there
+// the underlying file descriptor from getting closed while there
 // might still be outstanding responses even though the client might
 // have closed the connection (see more discussion in
-// SocketManger::close and SocketManager::proxy).
+// SocketManager::close and SocketManager::proxy).
 class HttpProxy : public Process<HttpProxy>
 {
 public:
@@ -333,7 +333,7 @@ private:
   } links;
 
   // Switch the underlying socket that a remote end is talking to.
-  // This manipulates the datastructures below by swapping all data
+  // This manipulates the data structures below by swapping all data
   // mapped to 'from' to being mapped to 'to'. This is useful for
   // downgrading a socket from SSL to POLL based.
   void swap_implementing_socket(const Socket& from, Socket* to);
@@ -350,7 +350,7 @@ private:
       Socket* socket,
       Message* message);
 
-  // Collection of all actice sockets.
+  // Collection of all active sockets.
   map<int, Socket*> sockets;
 
   // Collection of sockets that should be disposed when they are
@@ -368,7 +368,7 @@ private:
   // Maps from socket address (ip, port) to persistent sockets (i.e., they will
   // remain open even if there is no more data to send on them).  We
   // distinguish these from the 'temps' collection so we can tell when
-  // a persistant socket has been lost (and thus generate
+  // a persistent socket has been lost (and thus generate
   // ExitedEvents).
   map<Address, int> persists;
 
@@ -780,7 +780,7 @@ void initialize(const string& delegate)
   // declaration by invoking `initialize` prior to use. This is done
   // frequently throughout the code base. Therefore we chose to use
   // atomics rather than `Once`, as the overhead of a mutex and
-  // condition variable is exessive here.
+  // condition variable is excessive here.
   static std::atomic_bool initialize_started(false);
   static std::atomic_bool initialize_complete(false);
 
@@ -1353,7 +1353,7 @@ void SocketManager::link_connect(
 
         poll_socket = create.get();
 
-        // Update all the datastructures that are mapped to the socket
+        // Update all the data structures that are mapped to the socket
         // that just failed to connect. They will now point to the new
         // POLL socket we are about to try to connect. Even if the
         // process has exited, persistent links will stay around, and
@@ -1432,7 +1432,7 @@ void SocketManager::link(
   bool connect = false;
 
   synchronized (mutex) {
-    // Check if the socket address is remote and there isn't a persistant link.
+    // Check if the socket address is remote and there isn't a persistent link.
     if (to.address != __address__  && persists.count(to.address) == 0) {
       // Okay, no link, let's create a socket.
       // The kind of socket we create is passed in as an argument.
@@ -1677,7 +1677,7 @@ void SocketManager::send_connect(
 
         poll_socket = create.get();
 
-        // Update all the datastructures that are mapped to the socket
+        // Update all the data structures that are mapped to the socket
         // that just failed to connect. They will now point to the new
         // POLL socket we are about to try to connect. Even if the
         // process has exited, persistent links will stay around, and
@@ -1821,7 +1821,7 @@ Encoder* SocketManager::next(int s)
     // send_data or send_file) can "succeed" (because the socket is
     // not "closed" yet because there are still some Socket
     // references, namely the reference being used in send_data or
-    // send_file!). However, when SocketManger::next is actually
+    // send_file!). However, when SocketManager::next is actually
     // invoked we find out there there is no more data and thus stop
     // sending.
     // TODO(benh): Should we actually finish sending the data!?
@@ -1917,7 +1917,7 @@ void SocketManager::close(int s)
       if (addresses.count(s) > 0) {
         const Address& address = addresses[s];
 
-        // Don't bother invoking exited unless socket was persistant.
+        // Don't bother invoking `exited` unless socket was persistent.
         if (persists.count(address) > 0 && persists[address] == s) {
           persists.erase(address);
           exited(address); // Generate ExitedEvent(s)!
@@ -2109,7 +2109,7 @@ void SocketManager::swap_implementing_socket(const Socket& from, Socket* to)
 
     // Update the fd that this address is associated with. Once we've
     // done this we can update the 'temps' and 'persists'
-    // datastructures using this updated address.
+    // data structures using this updated address.
     addresses[to_fd] = addresses[from_fd];
     addresses.erase(from_fd);
 
@@ -2599,7 +2599,7 @@ void ProcessManager::cleanup(ProcessBase* process)
   VLOG(2) << "Cleaning up " << process->pid;
 
   // First, set the terminating state so no more events will get
-  // enqueued and delete al the pending events. We want to delete the
+  // enqueued and delete all the pending events. We want to delete the
   // events before we hold the processes lock because deleting an
   // event could cause code outside libprocess to get executed which
   // might cause a deadlock with the processes lock. Likewise,
@@ -2667,7 +2667,7 @@ void ProcessManager::cleanup(ProcessBase* process)
     // that it can create exited events for linked processes. We
     // _must_ do this while synchronized on processes because
     // otherwise another process could attempt to link this process
-    // and SocketManger::link would see that the processes doesn't
+    // and SocketManager::link would see that the processes doesn't
     // exist when it attempts to get a ProcessReference (since we
     // removed the process above) thus causing an exited event, which
     // could cause the process to get deleted (e.g., the garbage
