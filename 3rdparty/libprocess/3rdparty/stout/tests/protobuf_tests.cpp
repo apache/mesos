@@ -87,20 +87,21 @@ TEST(ProtobufTest, JSON)
 
   // TODO(bmahler): To dynamically generate a protobuf message,
   // see the commented-out code below.
-//  DescriptorProto proto;
-//
-//  proto.set_name("Message");
-//
-//  FieldDescriptorProto* field = proto.add_field();
-//  field->set_name("str");
-//  field->set_type(FieldDescriptorProto::TYPE_STRING);
-//
-//  const Descriptor* descriptor = proto.descriptor();
-//
-//  DynamicMessageFactory factory;
-//  Message* message = factory.GetPrototype(descriptor);
-//
-//  Reflection* message.getReflection();
+  //
+  //  DescriptorProto proto;
+  //
+  //  proto.set_name("Message");
+  //
+  //  FieldDescriptorProto* field = proto.add_field();
+  //  field->set_name("str");
+  //  field->set_type(FieldDescriptorProto::TYPE_STRING);
+  //
+  //  const Descriptor* descriptor = proto.descriptor();
+  //
+  //  DynamicMessageFactory factory;
+  //  Message* message = factory.GetPrototype(descriptor);
+  //
+  //  Reflection* message.getReflection();
 
   // The keys are in alphabetical order.
   string expected = strings::remove(
