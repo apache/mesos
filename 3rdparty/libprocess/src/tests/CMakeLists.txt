@@ -21,6 +21,7 @@ set(PROCESS_TESTS_SRC
   collect_tests.cpp
   decoder_tests.cpp
   encoder_tests.cpp
+  future_tests.cpp
   http_tests.cpp
   io_tests.cpp
   limiter_tests.cpp
