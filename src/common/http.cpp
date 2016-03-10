@@ -203,6 +203,10 @@ JSON::Object model(const NetworkInfo& info)
     object.values["ip_addresses"] = std::move(array);
   }
 
+  if (info.has_name()) {
+    object.values["name"] = info.name();
+  }
+
   return object;
 }
 
@@ -527,6 +531,10 @@ void json(JSON::ObjectWriter* writer, const NetworkInfo& info)
         writer->element(JSON::Protobuf(ipAddress));
       }
     });
+  }
+
+  if (info.has_name()) {
+    writer->field("name", info.name());
   }
 }
 

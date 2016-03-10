@@ -1581,6 +1581,11 @@ message NetworkInfo {
   // this field is filled in automatically with the Agent IP address.
   repeated IPAddress ip_addresses = 5;
 
+  // Name of the network which will be used by network isolator to determine
+  // the network that the container joins. It's up to the network isolator
+  // to decide how to interpret this field.
+  optional string name = 6;
+
   // Specify IP address requirement. Set protocol to the desired value to
   // request the network isolator on the Agent to assign an IP address to the
   // container being launched. If a specific IP address is specified in
