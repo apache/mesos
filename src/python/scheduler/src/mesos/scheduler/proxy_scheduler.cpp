@@ -20,17 +20,17 @@
 
 #include <iostream>
 
-#include "proxy_scheduler.hpp"
-#include "module.hpp"
+#include "common.hpp"
 #include "mesos_scheduler_driver_impl.hpp"
+#include "proxy_scheduler.hpp"
 
 using namespace mesos;
 
 using std::cerr;
 using std::endl;
+using std::map;
 using std::string;
 using std::vector;
-using std::map;
 
 namespace mesos {
 namespace python {

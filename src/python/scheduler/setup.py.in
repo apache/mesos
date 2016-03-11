@@ -16,21 +16,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import ext_modules
+
 config = {
-    'name': 'mesos.native',
+    'name': 'mesos.scheduler',
     'version': '@PACKAGE_VERSION@',
-    'description': 'Mesos native driver implementation',
+    'description': 'Mesos native scheduler driver implementation',
     'author': 'Apache Mesos',
     'author_email': 'dev@mesos.apache.org',
-    'url': 'http://pypi.python.org/pypi/mesos.native',
+    'url': 'http://pypi.python.org/pypi/mesos.scheduler',
     'namespace_packages': [ 'mesos' ],
-    'packages': [ 'mesos', 'mesos.native' ],
+    'packages': [ 'mesos', 'mesos.scheduler' ],
     'package_dir': { '': 'src' },
-    'install_requires': [ 'mesos.executor == @PACKAGE_VERSION@',
-                          'mesos.scheduler == @PACKAGE_VERSION@'],
+    'install_requires': [ 'mesos.interface == @PACKAGE_VERSION@' ],
     'license': 'Apache 2.0',
     'keywords': 'mesos',
-    'classifiers': [ ]
+    'classifiers': [ ],
+    'ext_modules': [ ext_modules.scheduler_module ]
 }
 
 from setuptools import setup

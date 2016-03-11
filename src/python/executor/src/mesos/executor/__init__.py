@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -16,22 +14,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-config = {
-    'name': 'mesos.native',
-    'version': '@PACKAGE_VERSION@',
-    'description': 'Mesos native driver implementation',
-    'author': 'Apache Mesos',
-    'author_email': 'dev@mesos.apache.org',
-    'url': 'http://pypi.python.org/pypi/mesos.native',
-    'namespace_packages': [ 'mesos' ],
-    'packages': [ 'mesos', 'mesos.native' ],
-    'package_dir': { '': 'src' },
-    'install_requires': [ 'mesos.executor == @PACKAGE_VERSION@',
-                          'mesos.scheduler == @PACKAGE_VERSION@'],
-    'license': 'Apache 2.0',
-    'keywords': 'mesos',
-    'classifiers': [ ]
-}
-
-from setuptools import setup
-setup(**config)
+from ._executor import MesosExecutorDriverImpl as MesosExecutorDriver

@@ -20,8 +20,8 @@
 
 #include <string>
 
+#include "common.hpp"
 #include "mesos_executor_driver_impl.hpp"
-#include "module.hpp"
 #include "proxy_executor.hpp"
 
 using namespace mesos;

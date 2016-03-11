@@ -1467,18 +1467,23 @@ PYTHON_SOURCE =								\
   python/interface/src/mesos/interface/__init__.py			\
   python/interface/src/mesos/v1/__init__.py				\
   python/interface/src/mesos/v1/interface/__init__.py			\
+  python/native_common/common.hpp					\
   python/native/src/mesos/__init__.py					\
   python/native/src/mesos/native/__init__.py				\
-  python/native/src/mesos/native/mesos_executor_driver_impl.cpp		\
-  python/native/src/mesos/native/mesos_executor_driver_impl.hpp		\
-  python/native/src/mesos/native/mesos_scheduler_driver_impl.cpp	\
-  python/native/src/mesos/native/mesos_scheduler_driver_impl.hpp	\
-  python/native/src/mesos/native/module.cpp				\
-  python/native/src/mesos/native/module.hpp				\
-  python/native/src/mesos/native/proxy_executor.cpp			\
-  python/native/src/mesos/native/proxy_executor.hpp			\
-  python/native/src/mesos/native/proxy_scheduler.cpp			\
-  python/native/src/mesos/native/proxy_scheduler.hpp			\
+  python/executor/src/mesos/__init__.py					\
+  python/executor/src/mesos/executor/__init__.py			\
+  python/executor/src/mesos/executor/mesos_executor_driver_impl.cpp	\
+  python/executor/src/mesos/executor/mesos_executor_driver_impl.hpp	\
+  python/executor/src/mesos/executor/module.cpp				\
+  python/executor/src/mesos/executor/proxy_executor.cpp			\
+  python/executor/src/mesos/executor/proxy_executor.hpp			\
+  python/scheduler/src/mesos/__init__.py				\
+  python/scheduler/src/mesos/scheduler/__init__.py			\
+  python/scheduler/src/mesos/scheduler/mesos_scheduler_driver_impl.cpp	\
+  python/scheduler/src/mesos/scheduler/mesos_scheduler_driver_impl.hpp	\
+  python/scheduler/src/mesos/scheduler/module.cpp			\
+  python/scheduler/src/mesos/scheduler/proxy_scheduler.cpp		\
+  python/scheduler/src/mesos/scheduler/proxy_scheduler.hpp		\
   python/src/mesos/__init__.py
 
 EXTRA_DIST += $(PYTHON_SOURCE)
@@ -1530,14 +1535,18 @@ $(PYTHON_SOURCE):
 MESOS_EGGS =										\
   python/dist/mesos-$(PACKAGE_VERSION)$(PYTHON_EGG_PUREPY_POSTFIX).egg			\
   python/dist/mesos.cli-$(PACKAGE_VERSION)$(PYTHON_EGG_PUREPY_POSTFIX).egg		\
+  python/dist/mesos.executor-$(PACKAGE_VERSION)$(PYTHON_EGG_POSTFIX).egg		\
   python/dist/mesos.interface-$(PACKAGE_VERSION)$(PYTHON_EGG_PUREPY_POSTFIX).egg	\
-  python/dist/mesos.native-$(PACKAGE_VERSION)$(PYTHON_EGG_POSTFIX).egg
+  python/dist/mesos.native-$(PACKAGE_VERSION)$(PYTHON_EGG_POSTFIX).egg			\
+  python/dist/mesos.scheduler-$(PACKAGE_VERSION)$(PYTHON_EGG_POSTFIX).egg
 
 MESOS_WHLS =										\
   python/dist/mesos-$(PACKAGE_VERSION)$(PYTHON_WHL_PUREPY_POSTFIX).whl			\
   python/dist/mesos.cli-$(PACKAGE_VERSION)$(PYTHON_WHL_PUREPY_POSTFIX).whl		\
+  python/dist/mesos.executor-$(PACKAGE_VERSION)$(PYTHON_WHL_POSTFIX).whl		\
   python/dist/mesos.interface-$(PACKAGE_VERSION)$(PYTHON_WHL_PUREPY_POSTFIX).whl	\
-  python/dist/mesos.native-$(PACKAGE_VERSION)$(PYTHON_WHL_POSTFIX).whl
+  python/dist/mesos.native-$(PACKAGE_VERSION)$(PYTHON_WHL_POSTFIX).whl			\
+  python/dist/mesos.scheduler-$(PACKAGE_VERSION)$(PYTHON_WHL_POSTFIX).whl
 
 # The python source is in directories of the form: python/interface. The make
 # target is of the form: python/dist/mesos.interface-0.20.0-py2.7.egg. To build

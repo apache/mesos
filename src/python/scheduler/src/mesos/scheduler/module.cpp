@@ -32,21 +32,18 @@
 
 #include <iostream>
 
-#include <mesos/executor.hpp>
 #include <mesos/scheduler.hpp>
 
-#include "module.hpp"
-#include "proxy_scheduler.hpp"
+#include "common.hpp"
 #include "mesos_scheduler_driver_impl.hpp"
-#include "proxy_executor.hpp"
-#include "mesos_executor_driver_impl.hpp"
+#include "proxy_scheduler.hpp"
 
 using namespace mesos;
 using namespace mesos::python;
 
+using std::map;
 using std::string;
 using std::vector;
-using std::map;
 
 
 /**
@@ -71,7 +68,7 @@ PyMethodDef MODULE_METHODS[] = {
 /**
  * Entry point called by Python to initialize our module.
  */
-PyMODINIT_FUNC init_mesos()
+PyMODINIT_FUNC init_scheduler()
 {
   // Ensure that the interpreter's threading support is enabled.
   PyEval_InitThreads();
@@ -84,17 +81,11 @@ PyMODINIT_FUNC init_mesos()
   // Initialize our Python types.
   if (PyType_Ready(&MesosSchedulerDriverImplType) < 0)
     return;
-  if (PyType_Ready(&MesosExecutorDriverImplType) < 0)
-    return;
 
   // Create the _mesos module and add our types to it.
-  PyObject* module = Py_InitModule("_mesos", MODULE_METHODS);
+  PyObject* module = Py_InitModule("_scheduler", MODULE_METHODS);
   Py_INCREF(&MesosSchedulerDriverImplType);
   PyModule_AddObject(module,
                      "MesosSchedulerDriverImpl",
                      (PyObject*) &MesosSchedulerDriverImplType);
-  Py_INCREF(&MesosExecutorDriverImplType);
-  PyModule_AddObject(module,
-                     "MesosExecutorDriverImpl",
-                     (PyObject*) &MesosExecutorDriverImplType);
 }

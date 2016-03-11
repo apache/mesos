@@ -1315,8 +1315,13 @@ There are two possible workarounds for this issue:
   AC_CONFIG_FILES([src/python/setup.py])
   AC_CONFIG_FILES([src/python/cli/setup.py])
   AC_CONFIG_FILES([src/python/interface/setup.py])
-  AC_CONFIG_FILES([src/python/native/ext_modules.py])
+  AC_CONFIG_FILES([src/python/native_common/ext_modules.py])
+  AC_CONFIG_FILES([src/python/executor/setup.py])
   AC_CONFIG_FILES([src/python/native/setup.py])
+  AC_CONFIG_FILES([src/python/scheduler/setup.py])
+
+  AC_CONFIG_LINKS([src/python/executor/ext_modules.py:src/python/native_common/ext_modules.py])
+  AC_CONFIG_LINKS([src/python/scheduler/ext_modules.py:src/python/native_common/ext_modules.py])
 
   # When clang is being used, make sure that the distutils python-
   # config cflags extraction does not cause build errors (MESOS-1079).

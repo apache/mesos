@@ -14,8 +14,5 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from ._mesos import MesosExecutorDriverImpl
-from ._mesos import MesosSchedulerDriverImpl
-
-MesosExecutorDriver = MesosExecutorDriverImpl
-MesosSchedulerDriver = MesosSchedulerDriverImpl
+from mesos.executor import MesosExecutorDriver
+from mesos.scheduler import MesosSchedulerDriver

@@ -20,8 +20,8 @@
 
 #include <string>
 
+#include "common.hpp"
 #include "mesos_scheduler_driver_impl.hpp"
-#include "module.hpp"
 #include "proxy_scheduler.hpp"
 
 using namespace mesos;

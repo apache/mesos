@@ -14,8 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef MODULE_HPP
-#define MODULE_HPP
+#ifndef MESOS_NATIVE_COMMON_HPP
+#define MESOS_NATIVE_COMMON_HPP
 
 // Python.h must be included before standard headers.
 // See: http://docs.python.org/2/c-api/intro.html#include-files
@@ -133,4 +133,4 @@ PyObject* createPythonProtobuf(const T& t, const char* typeName)
 } // namespace python {
 } // namespace mesos {
 
-#endif /* MODULE_HPP */
+#endif /* MESOS_NATIVE_COMMON_HPP */
