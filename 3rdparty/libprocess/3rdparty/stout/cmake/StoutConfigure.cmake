@@ -42,6 +42,7 @@ if (WIN32)
   set(STOUT_DEPENDENCIES
     ${STOUT_DEPENDENCIES}
     ${CURL_TARGET}
+    ${ZLIB_TARGET}
     )
 endif (WIN32)
 
@@ -64,6 +65,7 @@ if (WIN32)
   set(STOUT_INCLUDE_DIRS
     ${STOUT_INCLUDE_DIRS}
     ${CURL_INCLUDE_DIR}
+    ${ZLIB_INCLUDE_DIR}
     )
 endif (WIN32)
 
@@ -83,6 +85,7 @@ if (WIN32)
   set(STOUT_LIB_DIRS
     ${STOUT_LIB_DIRS}
     ${CURL_LIB_DIR}
+    ${ZLIB_LIB_DIR}
     )
 endif (WIN32)
 
@@ -101,6 +104,7 @@ set(STOUT_LIBS
 if (WIN32)
   set(STOUT_LIBS
     ${STOUT_LIBS}
+    ${ZLIB_LFLAG}
     ws2_32
     Mswsock
     )

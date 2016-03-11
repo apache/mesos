@@ -25,6 +25,7 @@ set(STOUT_TESTS_SRC
   duration_tests.cpp
   dynamiclibrary_tests.cpp
   error_tests.cpp
+  gzip_tests.cpp
   hashmap_tests.cpp
   hashset_tests.cpp
   interval_tests.cpp
@@ -53,7 +54,6 @@ if (NOT WIN32)
   set(STOUT_TESTS_SRC
     ${STOUT_TESTS_SRC}
     flags_tests.cpp
-    gzip_tests.cpp
     mac_tests.cpp
     os_tests.cpp
     path_tests.cpp
