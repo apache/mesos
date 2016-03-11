@@ -207,9 +207,6 @@ protected:
   {
     Image::Appc appc;
     appc.set_name("foo.com/bar");
-    appc.set_id(
-        "sha512-e77d96aa0240eedf134b8c90baeaf76dca8e78691836301d7498c8402044604"
-        "2e797b296d6ab296e0954c2626bfb264322ebeb8f447dac4fac6511ea06bc61f0");
 
     Label version;
     version.set_key("version");
