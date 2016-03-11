@@ -373,7 +373,11 @@ TEST_F(MasterMaintenanceTest, FailToUnscheduleDeactivatedMachines)
 // slave is scheduled to go down for maintenance.
 TEST_F(MasterMaintenanceTest, PendingUnavailabilityTest)
 {
-  Try<PID<Master>> master = StartMaster();
+  // Set up a master.
+  // NOTE: We don't use `StartMaster()` because we need to access these flags.
+  master::Flags flags = CreateMasterFlags();
+
+  Try<PID<Master>> master = StartMaster(flags);
   ASSERT_SOME(master);
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
@@ -381,26 +385,27 @@ TEST_F(MasterMaintenanceTest, PendingUnavailabilityTest)
   Try<PID<Slave>> slave = StartSlave(&exec);
   ASSERT_SOME(slave);
 
-  Callbacks callbacks;
+  auto scheduler = std::make_shared<MockV1HTTPScheduler>();
 
   Future<Nothing> connected;
-  EXPECT_CALL(callbacks, connected())
+  EXPECT_CALL(*scheduler, connected(_))
     .WillOnce(FutureSatisfy(&connected))
     .WillRepeatedly(Return()); // Ignore future invocations.
 
-  Mesos mesos(
-      master.get(),
-      ContentType::PROTOBUF,
-      lambda::bind(&Callbacks::connected, lambda::ref(callbacks)),
-      lambda::bind(&Callbacks::disconnected, lambda::ref(callbacks)),
-      lambda::bind(&Callbacks::received, lambda::ref(callbacks), lambda::_1));
+  scheduler::TestV1Mesos mesos(master.get(), ContentType::PROTOBUF, scheduler);
 
   AWAIT_READY(connected);
 
-  Queue<Event> events;
+  Future<Event::Subscribed> subscribed;
+  EXPECT_CALL(*scheduler, subscribed(_, _))
+    .WillOnce(FutureArg<1>(&subscribed));
 
-  EXPECT_CALL(callbacks, received(_))
-    .WillRepeatedly(Enqueue(&events));
+  EXPECT_CALL(*scheduler, heartbeat(_))
+    .WillRepeatedly(Return()); // Ignore heartbeats.
+
+  Future<Event::Offers> normalOffers;
+  EXPECT_CALL(*scheduler, offers(_, _))
+    .WillOnce(FutureArg<1>(&normalOffers));
 
   {
     Call call;
@@ -412,19 +417,26 @@ TEST_F(MasterMaintenanceTest, PendingUnavailabilityTest)
     mesos.send(call);
   }
 
-  Future<Event> event = events.get();
-  AWAIT_READY(event);
-  EXPECT_EQ(Event::SUBSCRIBED, event.get().type());
+  AWAIT_READY(subscribed);
 
-  v1::FrameworkID id(event.get().subscribed().framework_id());
+  v1::FrameworkID frameworkId(subscribed->framework_id());
 
-  event = events.get();
-  AWAIT_READY(event);
-  EXPECT_EQ(Event::OFFERS, event.get().type());
-  EXPECT_EQ(1, event.get().offers().offers().size());
+  AWAIT_READY(normalOffers);
+  EXPECT_EQ(1, normalOffers->offers().size());
 
   // Regular offers shouldn't have unavailability.
-  EXPECT_FALSE(event.get().offers().offers(0).has_unavailability());
+  EXPECT_FALSE(normalOffers->offers(0).has_unavailability());
+
+  // The original offers should be rescinded when the unavailability is changed.
+  Future<Nothing> offerRescinded;
+  EXPECT_CALL(*scheduler, rescind(_, _))
+    .WillOnce(FutureSatisfy(&offerRescinded));
+
+  Future<Event::Offers> unavailabilityOffers;
+  Future<Event::Offers> inverseOffers;
+  EXPECT_CALL(*scheduler, offers(_, _))
+    .WillOnce(FutureArg<1>(&unavailabilityOffers))
+    .WillOnce(FutureArg<1>(&inverseOffers));
 
   // Schedule this slave for maintenance.
   MachineID machine;
@@ -452,18 +464,14 @@ TEST_F(MasterMaintenanceTest, PendingUnavailabilityTest)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 
   // The original offers should be rescinded when the unavailability
-  // is changed. We expect as many rescind events as we received
-  // original offers.
-  event = events.get();
-  AWAIT_READY(event);
-  EXPECT_EQ(Event::RESCIND, event.get().type());
+  // is changed.
+  AWAIT_READY(offerRescinded);
 
-  event = events.get();
-  AWAIT_READY(event);
-  EXPECT_EQ(Event::OFFERS, event.get().type());
-  EXPECT_EQ(1, event.get().offers().offers().size());
+  AWAIT_READY(unavailabilityOffers);
+  EXPECT_EQ(1, unavailabilityOffers->offers().size());
 
-  v1::Offer offer = event.get().offers().offers(0);
+  // Make sure the new offers have the unavailability set.
+  const v1::Offer& offer = unavailabilityOffers->offers(0);
   EXPECT_TRUE(offer.has_unavailability());
   EXPECT_EQ(
       unavailability.start().nanoseconds(),
@@ -475,15 +483,20 @@ TEST_F(MasterMaintenanceTest, PendingUnavailabilityTest)
 
   // We also expect an inverse offer for the slave to go under
   // maintenance.
-  event = events.get();
-  AWAIT_READY(event);
-  EXPECT_EQ(Event::OFFERS, event.get().type());
-  EXPECT_EQ(1, event.get().offers().inverse_offers().size());
+  AWAIT_READY(inverseOffers);
+  EXPECT_EQ(1, inverseOffers->inverse_offers().size());
+
+  // Flush any possible remaining events from the master.
+  // The mocked scheduler will fail if any additional offers are sent.
+  Clock::pause();
+  Clock::settle();
+  Clock::advance(flags.allocation_interval);
+  Clock::resume();
 
   EXPECT_CALL(exec, shutdown(_))
     .Times(AtMost(1));
 
-  EXPECT_CALL(callbacks, disconnected())
+  EXPECT_CALL(*scheduler, disconnected(_))
     .Times(AtMost(1));
 
   Shutdown(); // Must shutdown before 'containerizer' gets deallocated.
