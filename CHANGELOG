@@ -36,15 +36,18 @@ This release contains the following new features:
     endpoint without the need for an executor driver. Please refer to
     docs/executor-http-api.md for more details.
 
+  * [MESOS-4370] Added support for service discovery of Docker containers that
+    use Docker Remote API v1.21.
+
 Additional API Changes:
   * [MESOS-4066] - Agent should not return partial state when a request is made to /state endpoint during recovery.
   * [MESOS-4547] - Introduce TASK_KILLING state.
   * [MESOS-4712] - Remove 'force' field from the Subscribe Call in v1 Scheduler API.
   * [MESOS-4591] - Change the object of ReserveResources and CreateVolume ACLs to `roles`.
   * [MESOS-3583] - Add stream IDs for HTTP schedulers.
+  * [MESOS-4427] - Ensure ip_address in state.json (from NetworkInfo) is valid
 
 All Issues:
-
 ** Bug
     * [MESOS-1187] - precision errors with allocation calculations
     * [MESOS-1469] - No output from review bot on timeout
@@ -67,9 +70,11 @@ All Issues:
     * [MESOS-4291] - fs::enter(rootfs) does not work if 'rootfs' is read only.
     * [MESOS-4298] - Sync up configuration.md and flags.cpp
     * [MESOS-4338] - Create utilities for common shell commands used.
+    * [MESOS-4370] - NetworkSettings.IPAddress field is deprecated in Docker
     * [MESOS-4383] - Support docker runtime configuration env var from image.
     * [MESOS-4395] - Add persistent volume endpoint tests with no principal
     * [MESOS-4416] - Get the perf version function return fail
+    * [MESOS-4427] - Ensure ip_address in state.json (from NetworkInfo) is valid
     * [MESOS-4454] - Create common sha512 compute utility function.
     * [MESOS-4478] - ReviewBot seemed to be crashing ReviewBoard server when posting large reviews
     * [MESOS-4484] - GMock warning in MasterTest.OrphanTasks
@@ -123,9 +128,13 @@ All Issues:
     * [MESOS-4824] - "filesystem/linux" isolator does not unmount orphaned persistent volumes
     * [MESOS-4825] - Master's slave reregister logic does not update version field
     * [MESOS-4830] - Bind docker runtime isolator with docker image provider.
+    * [MESOS-4831] - Master sometimes sends two inverse offers after the agent goes into maintenance.
     * [MESOS-4832] - DockerContainerizerTest.ROOT_DOCKER_RecoverOrphanedPersistentVolumes exits when the /tmp directory is bind-mounted
     * [MESOS-4833] - Poor allocator performance with labeled resources and/or persistent volumes
     * [MESOS-4836] - Fix rmdir for windows
+    * [MESOS-4866] - Added document for overlayfs backend.
+    * [MESOS-4888] - Default cmd is executed as an incorrect command.
+    * [MESOS-4903] - Allow multiple loads of module manifests
 
 ** Documentation
     * [MESOS-1471] - Document replicated log design/internals
@@ -137,6 +146,7 @@ All Issues:
     * [MESOS-4702] - Document default value of "offer_timeout"
     * [MESOS-4786] - Example in C++ style guide uses wrong indention for wrapped line
     * [MESOS-4854] - Update CHANGELOG with net_cls isolator
+    * [MESOS-4873] - Add documentation about container image support.
 
 ** Epic
     * [MESOS-4343] - Introduce the ability to assign network handles to mesos containers
