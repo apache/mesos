@@ -27,6 +27,10 @@
 #include <stout/try.hpp>
 
 namespace mesos {
+
+// Forward declaration.
+class Parameters;
+
 namespace internal {
 
 // Forward declaration.
@@ -39,16 +43,22 @@ public:
   // Creates a LocalAuthorizer.
   // Never returns a nullptr, instead sets the Try to error.
   //
-  // This factory needs to return a raw pointer so its signature matches that
-  // of tests::Module<T,N>::create() so typed tests can be performed.
-  static Try<Authorizer*> create();
+  // This factory needs to return a raw pointer so it can be
+  // used in typed tests.
+  static Try<Authorizer*> create(const ACLs& acls);
+
+  // Creates a LocalAuthorizer.
+  // Never returns a nullptr, instead sets the Try to error.
+  //
+  // This factory needs to return a raw pointer so it can be
+  // used in typed tests.
+  //
+  // It extracts its ACLs from a parameter with key 'acls'.
+  // If such key does not exists or its contents cannot be
+  // parse, an error is returned.
+  static Try<Authorizer*> create(const Parameters& parameters);
 
   virtual ~LocalAuthorizer();
-
-  // Initialization is needed since this class is required to be default
-  // constructible, however the ACLs still need to be provided. MESOS-3072
-  // tries to address this requirement.
-  virtual Try<Nothing> initialize(const Option<ACLs>& acls);
 
   // Implementation of Authorizer interface.
   virtual process::Future<bool> authorize(
@@ -73,11 +83,9 @@ public:
       const ACL::UpdateWeights& request);
 
 private:
-  LocalAuthorizer();
+  LocalAuthorizer(const ACLs& acls);
 
   LocalAuthorizerProcess* process;
-
-  process::Once initialized;
 };
 
 } // namespace internal {

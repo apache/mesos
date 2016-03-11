@@ -81,6 +81,8 @@ using namespace zookeeper;
 
 using mesos::Authorizer;
 using mesos::MasterInfo;
+using mesos::Parameter;
+using mesos::Parameters;
 
 using mesos::master::allocator::Allocator;
 
@@ -346,7 +348,7 @@ int main(int argc, char** argv)
   }
   detector = detector_.get();
 
-  Option<Authorizer*> authorizer = None();
+  Option<Authorizer*> authorizer_ = None();
 
   auto authorizerNames = strings::split(flags.authorizers, ",");
   if (authorizerNames.empty()) {
@@ -360,41 +362,26 @@ int main(int argc, char** argv)
   // NOTE: The flag --authorizers overrides the flag --acls, i.e. if
   // a non default authorizer is requested, it will be used and
   // the contents of --acls will be ignored.
-  // TODO(arojas): Add support for multiple authorizers.
-  if (authorizerName != master::DEFAULT_AUTHORIZER ||
-      flags.acls.isSome()) {
-    Try<Authorizer*> create = Authorizer::create(authorizerName);
+  // TODO(arojas): Consider adding support for multiple authorizers.
+  Result<Authorizer*> authorizer((None()));
+  if (authorizerName != master::DEFAULT_AUTHORIZER) {
+    LOG(INFO) << "Creating '" << authorizerName << "' authorizer";
 
-    if (create.isError()) {
-      EXIT(EXIT_FAILURE) << "Could not create '" << authorizerName
-                         << "' authorizer: " << create.error();
+    authorizer = Authorizer::create(authorizerName);
+  } else {
+    // `authorizerName` is `DEFAULT_AUTHORIZER` at this point.
+    if (flags.acls.isSome()) {
+      LOG(INFO) << "Creating default '" << authorizerName << "' authorizer";
+
+      authorizer = Authorizer::create(flags.acls.get());
     }
+  }
 
-    authorizer = create.get();
-
-    LOG(INFO) << "Using '" << authorizerName << "' authorizer";
-
-    // Only default authorizer requires initialization, see the comment
-    // for `initialize()` in "mesos/authorizer/authorizer.hpp".
-    if (authorizerName == master::DEFAULT_AUTHORIZER) {
-      Try<Nothing> initialize = authorizer.get()->initialize(flags.acls.get());
-
-      if (initialize.isError()) {
-        // Failing to initialize the authorizer leads to undefined
-        // behavior, therefore we default to skip authorization
-        // altogether.
-        LOG(WARNING) << "Authorization disabled: Failed to initialize '"
-                     << authorizerName << "' authorizer: "
-                     << initialize.error();
-
-        delete authorizer.get();
-        authorizer = None();
-      }
-    } else if (flags.acls.isSome()) {
-      LOG(WARNING) << "Ignoring contents of --acls flag, because '"
-                   << authorizerName << "' authorizer will be used instead "
-                   << " of the default.";
-    }
+  if (authorizer.isError()) {
+    EXIT(EXIT_FAILURE) << "Could not create '" << authorizerName
+                       << "' authorizer: " << authorizer.error();
+  } else if (authorizer.isSome()) {
+    authorizer_ = authorizer.get();
   }
 
   Option<shared_ptr<RateLimiter>> slaveRemovalLimiter = None();
@@ -478,7 +465,7 @@ int main(int argc, char** argv)
       &files,
       contender,
       detector,
-      authorizer,
+      authorizer_,
       slaveRemovalLimiter,
       flags);
 
@@ -503,8 +490,8 @@ int main(int argc, char** argv)
   delete contender;
   delete detector;
 
-  if (authorizer.isSome()) {
-    delete authorizer.get();
+  if (authorizer_.isSome()) {
+    delete authorizer_.get();
   }
 
   return EXIT_SUCCESS;

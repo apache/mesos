@@ -18,14 +18,21 @@
 
 #include <string>
 
+#include <mesos/mesos.hpp>
+
 #include <process/dispatch.hpp>
 #include <process/future.hpp>
 #include <process/id.hpp>
 #include <process/process.hpp>
 #include <process/protobuf.hpp>
 
+#include <stout/foreach.hpp>
+#include <stout/option.hpp>
+#include <stout/path.hpp>
 #include <stout/protobuf.hpp>
 #include <stout/try.hpp>
+
+#include "common/parse.hpp"
 
 using process::Failure;
 using process::Future;
@@ -333,16 +340,41 @@ private:
 };
 
 
-Try<Authorizer*> LocalAuthorizer::create()
+Try<Authorizer*> LocalAuthorizer::create(const ACLs& acls)
 {
-  Authorizer* local = new LocalAuthorizer;
+  Authorizer* local = new LocalAuthorizer(acls);
 
   return local;
 }
 
 
-LocalAuthorizer::LocalAuthorizer() : process(NULL)
+Try<Authorizer*> LocalAuthorizer::create(const Parameters& parameters)
 {
+  Option<string> acls;
+  foreach (const Parameter& parameter, parameters.parameter()) {
+    if (parameter.key() == "acls") {
+      acls = parameter.value();
+    }
+  }
+
+  if (acls.isNone()) {
+    return Error("No ACLs for default authorizer provided");
+  }
+
+  Try<ACLs> acls_ = flags::parse<ACLs>(acls.get());
+  if (acls_.isError()) {
+    return Error("Contents of 'acls' parameter could not be parsed into a "
+                 "valid ACLs object");
+  }
+
+  return LocalAuthorizer::create(acls_.get());
+}
+
+
+LocalAuthorizer::LocalAuthorizer(const ACLs& acls)
+    : process(new LocalAuthorizerProcess(acls))
+{
+  spawn(process);
 }
 
 
@@ -353,30 +385,6 @@ LocalAuthorizer::~LocalAuthorizer()
     wait(process);
     delete process;
   }
-}
-
-
-Try<Nothing> LocalAuthorizer::initialize(const Option<ACLs>& acls)
-{
-  if (!acls.isSome()) {
-    return Error("ACLs need to be specified for local authorizer");
-  }
-
-  if (!initialized.once()) {
-    if (process != NULL) {
-      return Error("Authorizer already initialized");
-    }
-
-    // Process initialization needs to be done here because default
-    // implementations of modules need to be default constructible. So
-    // actual construction is delayed until initialization.
-    process = new LocalAuthorizerProcess(acls.get());
-    spawn(process);
-
-    initialized.done();
-  }
-
-  return Nothing();
 }
 
 

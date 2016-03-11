@@ -14,11 +14,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <string>
+
 #include <gtest/gtest.h>
+
+#include <mesos/mesos.hpp>
 
 #include <mesos/authorizer/authorizer.hpp>
 
 #include <mesos/module/authorizer.hpp>
+
+#include <stout/try.hpp>
 
 #include "authorizer/local/authorizer.hpp"
 
@@ -30,6 +36,20 @@ using namespace process;
 namespace mesos {
 namespace internal {
 namespace tests {
+
+using std::string;
+
+
+static Parameters parameterize(const ACLs& acls)
+{
+  Parameters parameters;
+  Parameter *parameter = parameters.add_parameter();
+  parameter->set_key("acls");
+  parameter->set_value(string(jsonify(JSON::Protobuf(acls))));
+
+  return parameters;
+}
+
 
 template <typename T>
 class AuthorizationTest : public MesosTest {};
@@ -52,12 +72,9 @@ TYPED_TEST(AuthorizationTest, AnyPrincipalRunAsUser)
   acl->mutable_users()->add_values("guest");
 
   // Create an `Authorizer` with the ACLs.
-  Try<Authorizer*> create = TypeParam::create();
+  Try<Authorizer*> create = TypeParam::create(parameterize(acls));
   ASSERT_SOME(create);
   Owned<Authorizer> authorizer(create.get());
-
-  Try<Nothing> initialized = authorizer.get()->initialize(acls);
-  ASSERT_SOME(initialized);
 
   // Principals "foo" and "bar" can run as "guest".
   mesos::ACL::RunTask request;
@@ -83,12 +100,9 @@ TYPED_TEST(AuthorizationTest, NoPrincipalRunAsUser)
   acl->mutable_users()->add_values("root");
 
   // Create an `Authorizer` with the ACLs.
-  Try<Authorizer*> create = TypeParam::create();
+  Try<Authorizer*> create = TypeParam::create(parameterize(acls));
   ASSERT_SOME(create);
   Owned<Authorizer> authorizer(create.get());
-
-  Try<Nothing> initialized = authorizer.get()->initialize(acls);
-  ASSERT_SOME(initialized);
 
   // Principal "foo" cannot run as "root".
   mesos::ACL::RunTask request;
@@ -107,12 +121,9 @@ TYPED_TEST(AuthorizationTest, PrincipalRunAsAnyUser)
   acl->mutable_users()->set_type(mesos::ACL::Entity::ANY);
 
   // Create an `Authorizer` with the ACLs.
-  Try<Authorizer*> create = TypeParam::create();
+  Try<Authorizer*> create = TypeParam::create(parameterize(acls));
   ASSERT_SOME(create);
   Owned<Authorizer> authorizer(create.get());
-
-  Try<Nothing> initialized = authorizer.get()->initialize(acls);
-  ASSERT_SOME(initialized);
 
   // Principal "foo" can run as "user1" and "user2".
   mesos::ACL::RunTask request;
@@ -132,12 +143,9 @@ TYPED_TEST(AuthorizationTest, AnyPrincipalRunAsAnyUser)
   acl->mutable_users()->set_type(mesos::ACL::Entity::ANY);
 
   // Create an `Authorizer` with the ACLs.
-  Try<Authorizer*> create = TypeParam::create();
+  Try<Authorizer*> create = TypeParam::create(parameterize(acls));
   ASSERT_SOME(create);
   Owned<Authorizer> authorizer(create.get());
-
-  Try<Nothing> initialized = authorizer.get()->initialize(acls);
-  ASSERT_SOME(initialized);
 
   // Principals "foo" and "bar" can run as "user1" and "user2".
   mesos::ACL::RunTask request;
@@ -168,12 +176,9 @@ TYPED_TEST(AuthorizationTest, OnlySomePrincipalsRunAsSomeUsers)
   acl2->mutable_users()->add_values("user2");
 
   // Create an `Authorizer` with the ACLs.
-  Try<Authorizer*> create = TypeParam::create();
+  Try<Authorizer*> create = TypeParam::create(parameterize(acls));
   ASSERT_SOME(create);
   Owned<Authorizer> authorizer(create.get());
-
-  Try<Nothing> initialized = authorizer.get()->initialize(acls);
-  ASSERT_SOME(initialized);
 
   // Principals "foo" and "bar" can run as "user1" and "user2".
   mesos::ACL::RunTask request;
@@ -213,12 +218,9 @@ TYPED_TEST(AuthorizationTest, SomePrincipalOnlySomeUser)
   acl2->mutable_users()->set_type(mesos::ACL::Entity::NONE);
 
   // Create an `Authorizer` with the ACLs.
-  Try<Authorizer*> create = TypeParam::create();
+  Try<Authorizer*> create = TypeParam::create(parameterize(acls));
   ASSERT_SOME(create);
   Owned<Authorizer> authorizer(create.get());
-
-  Try<Nothing> initialized = authorizer.get()->initialize(acls);
-  ASSERT_SOME(initialized);
 
   // Principal "foo" can run as "user1".
   mesos::ACL::RunTask request;
@@ -251,12 +253,9 @@ TYPED_TEST(AuthorizationTest, PrincipalRunAsSomeUserRestrictive)
   acl->mutable_users()->add_values("user1");
 
   // Create an `Authorizer` with the ACLs.
-  Try<Authorizer*> create = TypeParam::create();
+  Try<Authorizer*> create = TypeParam::create(parameterize(acls));
   ASSERT_SOME(create);
   Owned<Authorizer> authorizer(create.get());
-
-  Try<Nothing> initialized = authorizer.get()->initialize(acls);
-  ASSERT_SOME(initialized);
 
   // Principal "foo" can run as "user1".
   mesos::ACL::RunTask request;
@@ -287,12 +286,9 @@ TYPED_TEST(AuthorizationTest, AnyPrincipalOfferedRole)
   acl->mutable_roles()->add_values("*");
 
   // Create an `Authorizer` with the ACLs.
-  Try<Authorizer*> create = TypeParam::create();
+  Try<Authorizer*> create = TypeParam::create(parameterize(acls));
   ASSERT_SOME(create);
   Owned<Authorizer> authorizer(create.get());
-
-  Try<Nothing> initialized = authorizer.get()->initialize(acls);
-  ASSERT_SOME(initialized);
 
   // Principals "foo" and "bar" can be offered "*" role's resources.
   mesos::ACL::RegisterFramework request;
@@ -313,12 +309,9 @@ TYPED_TEST(AuthorizationTest, SomePrincipalsOfferedRole)
   acl->mutable_roles()->add_values("ads");
 
   // Create an `Authorizer` with the ACLs.
-  Try<Authorizer*> create = TypeParam::create();
+  Try<Authorizer*> create = TypeParam::create(parameterize(acls));
   ASSERT_SOME(create);
   Owned<Authorizer> authorizer(create.get());
-
-  Try<Nothing> initialized = authorizer.get()->initialize(acls);
-  ASSERT_SOME(initialized);
 
   // Principals "foo", "bar" and "baz" (no ACL) can be offered "ads"
   // role's resources.
@@ -347,12 +340,9 @@ TYPED_TEST(AuthorizationTest, PrincipalOfferedRole)
   acl2->mutable_roles()->add_values("analytics");
 
   // Create an `Authorizer` with the ACLs.
-  Try<Authorizer*> create = TypeParam::create();
+  Try<Authorizer*> create = TypeParam::create(parameterize(acls));
   ASSERT_SOME(create);
   Owned<Authorizer> authorizer(create.get());
-
-  Try<Nothing> initialized = authorizer.get()->initialize(acls);
-  ASSERT_SOME(initialized);
 
   // Principal "foo" can be offered "analytics" role's resources.
   mesos::ACL::RegisterFramework request;
@@ -378,12 +368,9 @@ TYPED_TEST(AuthorizationTest, PrincipalNotOfferedAnyRoleRestrictive)
   acl->mutable_roles()->add_values("analytics");
 
   // Create an `Authorizer` with the ACLs.
-  Try<Authorizer*> create = TypeParam::create();
+  Try<Authorizer*> create = TypeParam::create(parameterize(acls));
   ASSERT_SOME(create);
   Owned<Authorizer> authorizer(create.get());
-
-  Try<Nothing> initialized = authorizer.get()->initialize(acls);
-  ASSERT_SOME(initialized);
 
   // Principal "foo" can be offered "analytics" role's resources.
   mesos::ACL::RegisterFramework request;
@@ -427,12 +414,9 @@ TYPED_TEST(AuthorizationTest, Reserve)
   acl3->mutable_roles()->set_type(mesos::ACL::Entity::NONE);
 
   // Create an `Authorizer` with the ACLs.
-  Try<Authorizer*> create = TypeParam::create();
+  Try<Authorizer*> create = TypeParam::create(parameterize(acls));
   ASSERT_SOME(create);
   Owned<Authorizer> authorizer(create.get());
-
-  Try<Nothing> initialized = authorizer.get()->initialize(acls);
-  ASSERT_SOME(initialized);
 
   // Principals "foo" and "bar" can reserve resources for any role,
   // so requests 1 and 2 will pass.
@@ -502,12 +486,9 @@ TYPED_TEST(AuthorizationTest, Unreserve)
   acl4->mutable_reserver_principals()->set_type(mesos::ACL::Entity::NONE);
 
   // Create an `Authorizer` with the ACLs.
-  Try<Authorizer*> create = TypeParam::create();
+  Try<Authorizer*> create = TypeParam::create(parameterize(acls));
   ASSERT_SOME(create);
   Owned<Authorizer> authorizer(create.get());
-
-  Try<Nothing> initialized = authorizer.get()->initialize(acls);
-  ASSERT_SOME(initialized);
 
   // Principal "foo" can unreserve its own resources.
   mesos::ACL::UnreserveResources request1;
@@ -576,13 +557,10 @@ TYPED_TEST(AuthorizationTest, CreateVolume)
   acl4->mutable_principals()->set_type(mesos::ACL::Entity::ANY);
   acl4->mutable_roles()->set_type(mesos::ACL::Entity::NONE);
 
-  // Create an Authorizer with the ACLs.
-  Try<Authorizer*> create = TypeParam::create();
+  // Create an `Authorizer` with the ACLs.
+  Try<Authorizer*> create = TypeParam::create(parameterize(acls));
   ASSERT_SOME(create);
   Owned<Authorizer> authorizer(create.get());
-
-  Try<Nothing> initialized = authorizer.get()->initialize(acls);
-  ASSERT_SOME(initialized);
 
   // Principal "foo" can create volumes for any role, so this request will pass.
   mesos::ACL::CreateVolume request1;
@@ -647,13 +625,10 @@ TYPED_TEST(AuthorizationTest, DestroyVolume)
   acl4->mutable_principals()->set_type(mesos::ACL::Entity::ANY);
   acl4->mutable_creator_principals()->set_type(mesos::ACL::Entity::NONE);
 
-  // Create an Authorizer with the ACLs.
-  Try<Authorizer*> create = TypeParam::create();
+  // Create an `Authorizer` with the ACLs.
+  Try<Authorizer*> create = TypeParam::create(parameterize(acls));
   ASSERT_SOME(create);
   Owned<Authorizer> authorizer(create.get());
-
-  Try<Nothing> initialized = authorizer.get()->initialize(acls);
-  ASSERT_SOME(initialized);
 
   // Principal "foo" can destroy its own volumes, so this will pass.
   mesos::ACL::DestroyVolume request1;
@@ -722,12 +697,9 @@ TYPED_TEST(AuthorizationTest, SetQuota)
   acl4->mutable_roles()->set_type(mesos::ACL::Entity::NONE);
 
   // Create an `Authorizer` with the ACLs.
-  Try<Authorizer*> create = TypeParam::create();
+  Try<Authorizer*> create = TypeParam::create(parameterize(acls));
   ASSERT_SOME(create);
   Owned<Authorizer> authorizer(create.get());
-
-  Try<Nothing> initialized = authorizer.get()->initialize(acls);
-  ASSERT_SOME(initialized);
 
   // Principal "foo" can set quota for all roles, so requests 1 and 2 will pass.
   mesos::ACL::SetQuota request1;
@@ -800,12 +772,9 @@ TYPED_TEST(AuthorizationTest, RemoveQuota)
   acl4->mutable_quota_principals()->set_type(mesos::ACL::Entity::NONE);
 
   // Create an `Authorizer` with the ACLs.
-  Try<Authorizer*> create = TypeParam::create();
+  Try<Authorizer*> create = TypeParam::create(parameterize(acls));
   ASSERT_SOME(create);
   Owned<Authorizer> authorizer(create.get());
-
-  Try<Nothing> initialized = authorizer.get()->initialize(acls);
-  ASSERT_SOME(initialized);
 
   // Principal "foo" can remove its own quotas, so request 1 will pass.
   mesos::ACL::RemoveQuota request1;

@@ -20,7 +20,11 @@
 
 #include <mesos/module/authorizer.hpp>
 
+#include <stout/path.hpp>
+
 #include "authorizer/local/authorizer.hpp"
+
+#include "common/parse.hpp"
 
 #include "master/constants.hpp"
 
@@ -33,17 +37,14 @@ using mesos::internal::LocalAuthorizer;
 
 namespace mesos {
 
-Try<Authorizer*> Authorizer::create(const string& name)
-{
-  // Create an instance of the default authorizer. If other than the
-  // default authorizer is requested, search for it in loaded modules.
-  // NOTE: We do not need an extra not-null check, because both
-  // ModuleManager and built-in authorizer factory do that already.
-  if (name == mesos::internal::master::DEFAULT_AUTHORIZER) {
-    return LocalAuthorizer::create();
-  }
-
+Try<Authorizer*> Authorizer::create(const string &name) {
   return modules::ModuleManager::create<Authorizer>(name);
+}
+
+
+Try<Authorizer*> Authorizer::create(const ACLs& acls)
+{
+  return LocalAuthorizer::create(acls);
 }
 
 

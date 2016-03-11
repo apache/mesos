@@ -14,6 +14,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <string>
+#include <vector>
+
 #include "tests/cluster.hpp"
 
 #include <process/clock.hpp>
@@ -41,6 +44,9 @@
 namespace mesos {
 namespace internal {
 namespace tests {
+
+using std::string;
+using std::vector;
 
 Cluster::Masters::Masters(
     Cluster* _cluster,
@@ -154,23 +160,38 @@ Try<process::PID<master::Master>> Cluster::Masters::start(
 
   if (authorizer.isSome()) {
     CHECK_NOTNULL(authorizer.get());
-  } else if (flags.acls.isSome()) {
-    Try<Authorizer*> local = Authorizer::create(master::DEFAULT_AUTHORIZER);
-
-    if (local.isError()) {
-      EXIT(EXIT_FAILURE)
-        << "Failed to instantiate the local authorizer: "
-        << local.error();
+  } else {
+    vector<string> authorizerNames = strings::split(flags.authorizers, ",");
+    if (authorizerNames.empty()) {
+      return Error("No authorizer specified");
     }
 
-    Try<Nothing> initialized = local.get()->initialize(flags.acls.get());
-
-    if (initialized.isError()) {
-      return Error("Failed to initialize the authorizer: " +
-                   initialized.error() + " (see --acls flag)");
+    if (authorizerNames.size() > 1) {
+      return Error("Multiple authorizers not supported");
     }
 
-    master.authorizer.reset(local.get());
+    string authorizerName = authorizerNames[0];
+
+    Result<Authorizer*> authorizer((None()));
+    if (authorizerName != master::DEFAULT_AUTHORIZER) {
+      LOG(INFO) << "Creating '" << authorizerName << "' authorizer";
+
+      authorizer = Authorizer::create(authorizerName);
+    } else {
+      // `authorizerName` is `DEFAULT_AUTHORIZER` at this point.
+      if (flags.acls.isSome()) {
+        LOG(INFO) << "Creating default '" << authorizerName << "' authorizer";
+
+        authorizer = Authorizer::create(flags.acls.get());
+      }
+    }
+
+    if (authorizer.isError()) {
+      return Error("Could not create '" + authorizerName +
+                   "' authorizer: " + authorizer.error());
+    } else if (authorizer.isSome()) {
+      master.authorizer.reset(authorizer.get());
+    }
   }
 
   if (slaveRemovalLimiter.isNone() &&

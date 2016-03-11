@@ -20,6 +20,8 @@
 #include <iosfwd>
 #include <string>
 
+#include <mesos/mesos.hpp>
+
 // ONLY USEFUL AFTER RUNNING PROTOC.
 #include <mesos/authorizer/authorizer.pb.h>
 
@@ -53,28 +55,30 @@ namespace mesos {
 class Authorizer
 {
 public:
-  static Try<Authorizer*> create(const std::string& name);
-
-  virtual ~Authorizer() {}
+  /**
+   * Factory method used to create instances of authorizer which are loaded from
+   * the `ModuleManager`. The parameters necessary to instantiate the authorizer
+   * are taken from the contents of the `--modules` flag.
+   *
+   * @param name The name of the module to be loaded as registered in the
+   *     `--modules` flag.
+   *
+   * @return An instance of `Authorizer*` if the module with the given name
+   *     could be constructed. An error otherwise.
+   */
+  static Try<Authorizer*> create(const std::string &name);
 
   /**
-   * Sets the Access Control Lists for the current instance of the interface.
-   * The contents of the `acls` parameter are used to define the rules which
-   * apply to the authorization actions.
+   * Factory method used to create instances of the default 'local'  authorizer.
    *
-   * @param acls The access control lists used to initialize the authorizer
-   *     instance. See "authorizer.proto" for a description of their format.
+   * @param acls The access control lists used to initialize the 'local'
+   *     authorizer.
    *
-   * @return `Nothing` if the instance of the authorizer was successfully
-   *     initialized, an `Error` otherwise.
-   *
-   * TODO(arojas): This function is relevant for the default implementation
-   * of the `Authorizer` class only (see MESOS-3072) and it will not be
-   * called for any other implementation. Remove it once we have a module-only
-   * initialization which relies on module-specific parameters supplied via
-   * the modules JSON blob.
+   * @return An instance of the default 'local'  authorizer.
    */
-  virtual Try<Nothing> initialize(const Option<ACLs>& acls) = 0;
+  static Try<Authorizer*> create(const ACLs& acls);
+
+  virtual ~Authorizer() {}
 
   /**
    * Verifies whether a principal can register a framework with a specific role.

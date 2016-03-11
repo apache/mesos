@@ -14,6 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <string>
+
 #include <mesos/mesos.hpp>
 #include <mesos/module.hpp>
 
@@ -21,13 +23,22 @@
 
 #include <mesos/module/authorizer.hpp>
 
+#include <stout/foreach.hpp>
+#include <stout/option.hpp>
+#include <stout/path.hpp>
+#include <stout/try.hpp>
+
 #include "authorizer/local/authorizer.hpp"
+
+#include "common/parse.hpp"
+
+using std::string;
 
 using namespace mesos;
 
-static Authorizer* createAuthorizer(const Parameters& parameters)
+static Authorizer* createLocalAuthorizer(const Parameters& parameters)
 {
-  Try<Authorizer*> local = mesos::internal::LocalAuthorizer::create();
+  Try<Authorizer*> local = mesos::internal::LocalAuthorizer::create(parameters);
   if (local.isError()) {
     return NULL;
   }
@@ -45,4 +56,4 @@ mesos::modules::Module<Authorizer> org_apache_mesos_TestLocalAuthorizer(
     "modules@mesos.apache.org",
     "Test Authorizer module.",
     NULL,
-    createAuthorizer);
+    createLocalAuthorizer);
