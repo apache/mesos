@@ -144,6 +144,14 @@ private:
       const std::string& moduleName,
       const ModuleBase* moduleBase);
 
+  // Allow multiple calls to `load()` by verifying that the modules with same
+  // name are indeed identical. Thus, multiple loadings of a module manifest
+  // are harmless.
+  static Try<Nothing> verifyIdenticalModule(
+      const std::string& libraryName,
+      const Modules::Library::Module& module,
+      const ModuleBase* base);
+
   static std::mutex mutex;
 
   static hashmap<std::string, std::string> kindToVersion;
@@ -160,6 +168,9 @@ private:
   // destructed. Destroying the DynamicLibrary object could result in
   // unloading the library from the process memory.
   static hashmap<std::string, process::Owned<DynamicLibrary>> dynamicLibraries;
+
+  // Module to library name mapping.
+  static hashmap<std::string, std::string> moduleLibraries;
 };
 
 } // namespace modules {

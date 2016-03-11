@@ -44,10 +44,15 @@ using namespace mesos::internal;
 using namespace mesos::modules;
 
 std::mutex ModuleManager::mutex;
+
+// TODO(karya): MESOS-4917: Replace the following non-pod static variables with
+// pod equivalents. Cleanup further by introducing additional data structures to
+// avoid keeping multiple mappings from module names.
 hashmap<string, string> ModuleManager::kindToVersion;
 hashmap<string, ModuleBase*> ModuleManager::moduleBases;
-hashmap<string, Owned<DynamicLibrary>> ModuleManager::dynamicLibraries;
 hashmap<string, Parameters> ModuleManager::moduleParameters;
+hashmap<string, string> ModuleManager::moduleLibraries;
+hashmap<string, Owned<DynamicLibrary>> ModuleManager::dynamicLibraries;
 
 
 void ModuleManager::initialize()
@@ -188,6 +193,74 @@ Try<Nothing> ModuleManager::verifyModule(
 }
 
 
+// This check is to ensure that the two modules, with the same module name, are
+// indeed identical. We verify that they belong to the same module library and
+// have identical attributes such as parameters, kind, version, etc.
+//
+// Notice that this check doesn't prevent one from having multiple instances of
+// the same module. In the current implementation, it is up to the module
+// developer to return an error if the module in question doesn't support
+// multiple instances.
+//
+// TODO(karya): MESOS-4960: Enhance the module API to allow module developers to
+// express whether the modules are multi-instantiable and thread-safe.
+Try<Nothing> ModuleManager::verifyIdenticalModule(
+    const string& libraryName,
+    const Modules::Library::Module& module,
+    const ModuleBase* base)
+{
+  const string moduleName = module.name();
+
+  // Verify that the two modules come from the same module library.
+  CHECK(moduleLibraries.contains(moduleName));
+  if (libraryName != moduleLibraries[moduleName]) {
+    return Error(
+        "The same module appears in two different module libraries - "
+        "'" + libraryName + "' and '" + moduleLibraries[moduleName] + "'");
+  }
+
+  // Verify that the two modules contain the same set of parameters that appear
+  // in the same order.
+  CHECK(moduleParameters.contains(moduleName));
+  const Parameters& parameters = moduleParameters[moduleName];
+  bool parameterError =
+    module.parameters().size() != parameters.parameter().size();
+
+  for (int i = 0; i < module.parameters().size() && !parameterError; i++) {
+    const Parameter& lhs = parameters.parameter().Get(i);
+    const Parameter& rhs = module.parameters().Get(i);
+    if (lhs.key() != rhs.key() || lhs.value() != rhs.value()) {
+      parameterError = true;
+    }
+  }
+
+  if (parameterError) {
+    return Error(
+        "A module with same name but different parameters already exists");
+  }
+
+  // Verify that the two `ModuleBase` definitions match.
+  CHECK_NOTNULL(base);
+  CHECK(moduleBases.contains(moduleName));
+  ModuleBase* duplicateBase = moduleBases[moduleName];
+
+  // TODO(karya): MESOS-4918: Cache module manifests to avoid potential
+  // overwrite of `ModuleBase` fields by the module itself.
+  if (strcmp(base->moduleApiVersion, duplicateBase->moduleApiVersion) != 0 ||
+      strcmp(base->mesosVersion, duplicateBase->mesosVersion) != 0 ||
+      strcmp(base->kind, duplicateBase->kind) != 0 ||
+      strcmp(base->authorName, duplicateBase->authorName) != 0 ||
+      strcmp(base->authorEmail, duplicateBase->authorEmail) != 0 ||
+      strcmp(base->description, duplicateBase->description) != 0 ||
+      base->compatible != duplicateBase->compatible) {
+    return Error(
+        "A module with same name but different module manifest already exists");
+  }
+
+  return Nothing();
+}
+
+
 Try<Nothing> ModuleManager::load(const Modules& modules)
 {
   synchronized (mutex) {
@@ -223,11 +296,7 @@ Try<Nothing> ModuleManager::load(const Modules& modules)
               "'");
         }
 
-        // Check for possible duplicate module names.
         const string moduleName = module.name();
-        if (moduleBases.contains(moduleName)) {
-          return Error("Error loading duplicate module '" + moduleName + "'");
-        }
 
         // Load ModuleBase.
         Try<void*> symbol =
@@ -236,6 +305,7 @@ Try<Nothing> ModuleManager::load(const Modules& modules)
           return Error(
               "Error loading module '" + moduleName + "': " + symbol.error());
         }
+
         ModuleBase* moduleBase = (ModuleBase*) symbol.get();
 
         // Verify module compatibility including version, etc.
@@ -245,7 +315,26 @@ Try<Nothing> ModuleManager::load(const Modules& modules)
               "Error verifying module '" + moduleName + "': " + result.error());
         }
 
-        moduleBases[moduleName] = (ModuleBase*) symbol.get();
+        // We verify module compatibilty before checking for identical modules
+        // to ensure that all the fields in the module manifest are valid before
+        // we start comparing them with an already loaded manifest with the same
+        // module name.
+        if (moduleBases.contains(moduleName)) {
+          Try<Nothing> result =
+            verifyIdenticalModule(libraryName, module, moduleBase);
+
+          if (result.isError()) {
+            return Error(
+                "Error loading module '" + moduleName + "'; this is "
+                " potenatially due to duplicate module names; " +
+                result.error());
+          }
+
+          continue;
+        }
+
+        moduleBases[moduleName] = moduleBase;
+        moduleLibraries[moduleName] = libraryName;
 
         // Now copy the supplied module-specific parameters.
         moduleParameters[moduleName].mutable_parameter()->CopyFrom(
