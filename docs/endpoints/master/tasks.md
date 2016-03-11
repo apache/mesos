@@ -1,10 +1,11 @@
 ---
-title: Apache Mesos - HTTP Endpoints - /master/tasks
+title: Apache Mesos - HTTP Endpoints - /tasks
 layout: documentation
 ---
 <!--- This is an automatically generated file. DO NOT EDIT! --->
 
 ### USAGE ###
+>        /tasks
 >        /master/tasks
 
 ### TL;DR; ###

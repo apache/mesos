@@ -1,10 +1,11 @@
 ---
-title: Apache Mesos - HTTP Endpoints - /slave(id)/health
+title: Apache Mesos - HTTP Endpoints - /health
 layout: documentation
 ---
 <!--- This is an automatically generated file. DO NOT EDIT! --->
 
 ### USAGE ###
+>        /health
 >        /slave(1)/health
 
 ### TL;DR; ###

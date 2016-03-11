@@ -1,10 +1,11 @@
 ---
-title: Apache Mesos - HTTP Endpoints - /master/state-summary
+title: Apache Mesos - HTTP Endpoints - /state-summary
 layout: documentation
 ---
 <!--- This is an automatically generated file. DO NOT EDIT! --->
 
 ### USAGE ###
+>        /state-summary
 >        /master/state-summary
 
 ### TL;DR; ###

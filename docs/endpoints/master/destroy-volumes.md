@@ -1,10 +1,11 @@
 ---
-title: Apache Mesos - HTTP Endpoints - /master/destroy-volumes
+title: Apache Mesos - HTTP Endpoints - /destroy-volumes
 layout: documentation
 ---
 <!--- This is an automatically generated file. DO NOT EDIT! --->
 
 ### USAGE ###
+>        /destroy-volumes
 >        /master/destroy-volumes
 
 ### TL;DR; ###

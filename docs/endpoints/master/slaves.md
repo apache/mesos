@@ -1,10 +1,11 @@
 ---
-title: Apache Mesos - HTTP Endpoints - /master/slaves
+title: Apache Mesos - HTTP Endpoints - /slaves
 layout: documentation
 ---
 <!--- This is an automatically generated file. DO NOT EDIT! --->
 
 ### USAGE ###
+>        /slaves
 >        /master/slaves
 
 ### TL;DR; ###

@@ -1,10 +1,11 @@
 ---
-title: Apache Mesos - HTTP Endpoints - /master/redirect
+title: Apache Mesos - HTTP Endpoints - /redirect
 layout: documentation
 ---
 <!--- This is an automatically generated file. DO NOT EDIT! --->
 
 ### USAGE ###
+>        /redirect
 >        /master/redirect
 
 ### TL;DR; ###

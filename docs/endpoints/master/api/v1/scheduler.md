@@ -1,10 +1,11 @@
 ---
-title: Apache Mesos - HTTP Endpoints - /master/api/v1/scheduler
+title: Apache Mesos - HTTP Endpoints - /api/v1/scheduler
 layout: documentation
 ---
 <!--- This is an automatically generated file. DO NOT EDIT! --->
 
 ### USAGE ###
+>        /api/v1/scheduler
 >        /master/api/v1/scheduler
 
 ### TL;DR; ###

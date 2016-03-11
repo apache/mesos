@@ -1,10 +1,11 @@
 ---
-title: Apache Mesos - HTTP Endpoints - /master/roles
+title: Apache Mesos - HTTP Endpoints - /roles
 layout: documentation
 ---
 <!--- This is an automatically generated file. DO NOT EDIT! --->
 
 ### USAGE ###
+>        /roles
 >        /master/roles
 
 ### TL;DR; ###

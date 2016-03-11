@@ -1,10 +1,11 @@
 ---
-title: Apache Mesos - HTTP Endpoints - /master/observe
+title: Apache Mesos - HTTP Endpoints - /observe
 layout: documentation
 ---
 <!--- This is an automatically generated file. DO NOT EDIT! --->
 
 ### USAGE ###
+>        /observe
 >        /master/observe
 
 ### TL;DR; ###

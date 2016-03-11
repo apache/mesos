@@ -1,10 +1,11 @@
 ---
-title: Apache Mesos - HTTP Endpoints - /slave(id)/api/v1/executor
+title: Apache Mesos - HTTP Endpoints - /api/v1/executor
 layout: documentation
 ---
 <!--- This is an automatically generated file. DO NOT EDIT! --->
 
 ### USAGE ###
+>        /api/v1/executor
 >        /slave(1)/api/v1/executor
 
 ### TL;DR; ###

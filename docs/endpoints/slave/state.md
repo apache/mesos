@@ -1,10 +1,11 @@
 ---
-title: Apache Mesos - HTTP Endpoints - /slave(id)/state
+title: Apache Mesos - HTTP Endpoints - /state
 layout: documentation
 ---
 <!--- This is an automatically generated file. DO NOT EDIT! --->
 
 ### USAGE ###
+>        /state
 >        /slave(1)/state
 
 ### TL;DR; ###

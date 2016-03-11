@@ -1,10 +1,11 @@
 ---
-title: Apache Mesos - HTTP Endpoints - /master/state.json
+title: Apache Mesos - HTTP Endpoints - /state.json
 layout: documentation
 ---
 <!--- This is an automatically generated file. DO NOT EDIT! --->
 
 ### USAGE ###
+>        /state.json
 >        /master/state.json
 
 ### TL;DR; ###

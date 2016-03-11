@@ -1,10 +1,11 @@
 ---
-title: Apache Mesos - HTTP Endpoints - /master/quota
+title: Apache Mesos - HTTP Endpoints - /quota
 layout: documentation
 ---
 <!--- This is an automatically generated file. DO NOT EDIT! --->
 
 ### USAGE ###
+>        /quota
 >        /master/quota
 
 ### TL;DR; ###

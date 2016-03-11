@@ -1,10 +1,11 @@
 ---
-title: Apache Mesos - HTTP Endpoints - /master/machine/down
+title: Apache Mesos - HTTP Endpoints - /machine/down
 layout: documentation
 ---
 <!--- This is an automatically generated file. DO NOT EDIT! --->
 
 ### USAGE ###
+>        /machine/down
 >        /master/machine/down
 
 ### TL;DR; ###

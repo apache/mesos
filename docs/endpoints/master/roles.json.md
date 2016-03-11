@@ -1,10 +1,11 @@
 ---
-title: Apache Mesos - HTTP Endpoints - /master/roles.json
+title: Apache Mesos - HTTP Endpoints - /roles.json
 layout: documentation
 ---
 <!--- This is an automatically generated file. DO NOT EDIT! --->
 
 ### USAGE ###
+>        /roles.json
 >        /master/roles.json
 
 ### TL;DR; ###

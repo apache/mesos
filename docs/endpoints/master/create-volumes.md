@@ -1,10 +1,11 @@
 ---
-title: Apache Mesos - HTTP Endpoints - /master/create-volumes
+title: Apache Mesos - HTTP Endpoints - /create-volumes
 layout: documentation
 ---
 <!--- This is an automatically generated file. DO NOT EDIT! --->
 
 ### USAGE ###
+>        /create-volumes
 >        /master/create-volumes
 
 ### TL;DR; ###

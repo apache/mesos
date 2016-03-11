@@ -1,10 +1,11 @@
 ---
-title: Apache Mesos - HTTP Endpoints - /master/reserve
+title: Apache Mesos - HTTP Endpoints - /reserve
 layout: documentation
 ---
 <!--- This is an automatically generated file. DO NOT EDIT! --->
 
 ### USAGE ###
+>        /reserve
 >        /master/reserve
 
 ### TL;DR; ###

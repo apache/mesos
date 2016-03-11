@@ -1,10 +1,11 @@
 ---
-title: Apache Mesos - HTTP Endpoints - /master/maintenance/schedule
+title: Apache Mesos - HTTP Endpoints - /maintenance/schedule
 layout: documentation
 ---
 <!--- This is an automatically generated file. DO NOT EDIT! --->
 
 ### USAGE ###
+>        /maintenance/schedule
 >        /master/maintenance/schedule
 
 ### TL;DR; ###

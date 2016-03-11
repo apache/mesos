@@ -1,10 +1,11 @@
 ---
-title: Apache Mesos - HTTP Endpoints - /master/teardown
+title: Apache Mesos - HTTP Endpoints - /teardown
 layout: documentation
 ---
 <!--- This is an automatically generated file. DO NOT EDIT! --->
 
 ### USAGE ###
+>        /teardown
 >        /master/teardown
 
 ### TL;DR; ###

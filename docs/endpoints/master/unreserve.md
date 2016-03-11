@@ -1,10 +1,11 @@
 ---
-title: Apache Mesos - HTTP Endpoints - /master/unreserve
+title: Apache Mesos - HTTP Endpoints - /unreserve
 layout: documentation
 ---
 <!--- This is an automatically generated file. DO NOT EDIT! --->
 
 ### USAGE ###
+>        /unreserve
 >        /master/unreserve
 
 ### TL;DR; ###
