@@ -56,6 +56,7 @@ if (WIN32)
   set(GLOG_URL   ${UPSTREAM_URL}/glog-v0.3.4-g4d391fe.tar.gz)
   set(CURL_URL   ${UPSTREAM_URL}/curl-${CURL_VERSION}.tar.gz)
   set(LIBAPR_URL ${UPSTREAM_URL}/libapr-${LIBAPR_VERSION}.tar.gz)
+  set(ZLIB_URL   ${UPSTREAM_URL}/zlib-${ZLIB_VERSION}.tar.gz)
 endif (WIN32)
 
 # Define build/patch/configure commands for third-party libs.
@@ -219,6 +220,15 @@ if (WIN32)
     BUILD_COMMAND     msbuild /p:RuntimeLibrary=MT_StaticDebug lib/libcurl.vcxproj
     INSTALL_COMMAND   ${CMAKE_NOOP}
     URL               ${CURL_URL}
+  )
+
+  ExternalProject_Add(
+    ${ZLIB_TARGET}
+    PREFIX          ${ZLIB_CMAKE_ROOT}
+    CMAKE_ARGS      -DBUILD_SHARED_LIBS=OFF
+    BUILD_COMMAND   ${GLOG_BUILD_CMD}
+    INSTALL_COMMAND ${CMAKE_NOOP}
+    URL             ${ZLIB_URL}
   )
 endif (WIN32)
 

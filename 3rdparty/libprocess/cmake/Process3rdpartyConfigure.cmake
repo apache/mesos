@@ -40,6 +40,8 @@ elseif (WIN32)
   # package manager), but Windows has no package manager, so we have to go
   # get it.
   EXTERNAL("curl" ${CURL_VERSION} "${PROCESS_3RD_BIN}")
+
+  EXTERNAL("zlib" ${ZLIB_VERSION} "${PROCESS_3RD_BIN}")
 endif (NOT WIN32)
 
 # Intermediate convenience variables for oddly-structured directories.
@@ -65,6 +67,7 @@ if (WIN32)
   set(LIBEVENT_INCLUDE_DIR
     ${LIBEVENT_ROOT}/include
     ${LIBEVENT_ROOT}-build/include)
+  set(ZLIB_INCLUDE_DIR     ${ZLIB_ROOT} ${ZLIB_ROOT}-build)
 else (WIN32)
   set(GLOG_INCLUDE_DIR     ${GLOG_LIB_ROOT}/include)
   set(PROTOBUF_INCLUDE_DIR ${PROTOBUF_LIB_ROOT}/include)
@@ -80,6 +83,7 @@ if (WIN32)
   set(GLOG_LIB_DIR        ${GLOG_ROOT}-build/${CMAKE_BUILD_TYPE})
   set(LIBEVENT_LIB_DIR    ${LIBEVENT_ROOT}-build/lib)
   set(PROTOBUF_LIB_DIR    ${PROTOBUF_ROOT}-build/${CMAKE_BUILD_TYPE})
+  set(ZLIB_LIB_DIR        ${ZLIB_ROOT}-build/${CMAKE_BUILD_TYPE})
 else (WIN32)
   set(HTTP_PARSER_LIB_DIR ${HTTP_PARSER_ROOT}-build)
   set(GLOG_LIB_DIR        ${GLOG_LIB_ROOT}/lib)
@@ -102,6 +106,9 @@ if (WIN32)
   # the library names are generated correctly.
   set(CURL_LFLAG     libcurl)
   set(PROTOBUF_LFLAG libprotobufd)
+
+  # Windows requires a static build of zlib.
+  set(ZLIB_LFLAG     zlibstaticd)
 else (WIN32)
   set(CURL_LFLAG     curl)
   set(DL_LFLAG       dl)
