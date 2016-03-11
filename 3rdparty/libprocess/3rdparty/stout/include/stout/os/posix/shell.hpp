@@ -30,6 +30,17 @@
 
 namespace os {
 
+namespace Shell {
+// Canonical constants used as platform-dependent args to `exec` calls.
+// name() is the command name, arg0() is the first argument received
+// by the callee, usualy the command name and arg1() is the second
+// command argument received by the callee.
+
+  constexpr const char* name = "sh";
+  constexpr const char* arg0 = "sh";
+  constexpr const char* arg1 = "-c";
+} // namespace Shell {
+
 /**
  * Runs a shell command with optional arguments.
  *
@@ -101,19 +112,6 @@ Try<std::string> shell(const std::string& fmt, const T&... t)
   return stdout.str();
 }
 
-
-// Canonical constants used as platform-dependent args to `exec` calls.
-// name() is the command name, arg0() is the first argument received
-// by the callee, usualy the command name and arg1() is the second
-// command argument received by the callee.
-struct Shell
-{
-  static constexpr const char* name = "sh";
-  static constexpr const char* arg0 = "sh";
-  static constexpr const char* arg1 = "-c";
-};
-
-
 // Executes a command by calling "/bin/sh -c <command>", and returns
 // after the command has been completed. Returns 0 if succeeds, and
 // return -1 on error (e.g., fork/exec/waitpid failed). This function
@@ -141,6 +139,12 @@ inline int system(const std::string& command)
 
     return status;
   }
+}
+
+template<typename... T>
+inline int execlp(const char* file, T... t)
+{
+  return ::execlp(file, t...);
 }
 
 } // namespace os {

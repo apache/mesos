@@ -23,25 +23,25 @@
 
 namespace os {
 
-// Runs a shell command formatted with varargs and return the return value
-// of the command. Optionally, the output is returned via an argument.
-// TODO(vinod): Pass an istream object that can provide input to the command.
-template <typename... T>
-Try<std::string> shell(const std::string& fmt, const T&... t)
-{
-  UNIMPLEMENTED;
-}
-
+namespace Shell {
 // Canonical constants used as platform-dependent args to `exec` calls.
 // name() is the command name, arg0() is the first argument received
 // by the callee, usualy the command name and arg1() is the second
 // command argument received by the callee.
-struct Shell
+
+  constexpr const char* name = "sh";
+  constexpr const char* arg0 = "sh";
+  constexpr const char* arg1 = "-c";
+} // namespace Shell {
+
+// Runs a shell command formatted with varargs and return the return value
+// of the command. Optionally, the output is returned via an argument.
+// TODO(vinod): Pass an istream object that can provide input to the command.
+template <typename... T>
+Try<std::string> shell(const std::string& fmt, const T... t)
 {
-  static constexpr const char* name = "cmd.exe";
-  static constexpr const char* arg0 = "cmd.exe";
-  static constexpr const char* arg1 = "/c";
-};
+  UNIMPLEMENTED;
+}
 
 // Executes a command by calling "cmd /c <command>", and returns
 // after the command has been completed. Returns 0 if succeeds, and
@@ -50,6 +50,12 @@ inline int system(const std::string& command)
 {
   return ::_spawnl(
       _P_WAIT, Shell::name, Shell::arg0, Shell::arg1, command.c_str());
+}
+
+template<typename... T>
+inline int execlp(const char* file, T... t)
+{
+  exit(::_spawnlp(_P_WAIT, file, t...));
 }
 
 } // namespace os {
