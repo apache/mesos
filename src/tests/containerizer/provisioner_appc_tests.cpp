@@ -572,11 +572,6 @@ protected:
     spawn(server);
   }
 
-  virtual void SetUp()
-  {
-    TemporaryDirectoryTest::SetUp();
-  }
-
   virtual void TearDown()
   {
     terminate(server);
