@@ -510,16 +510,16 @@ protected:
         stringify(server.self().address.ip),
         server.self().address.port).get();
 
-    return JSON::parse(
+    const string manifest = strings::format(
         R"~(
         {
           "acKind": "ImageManifest",
-          "acVersion": "0.6.1",
-          "name": " + imageName + ",
-          "labels": [
+            "acVersion": "0.6.1",
+            "name": "%s",
+            "labels": [
             {
               "name": "version",
-              "value": "1.0.0"
+              "value": "latest"
             },
             {
               "name": "arch",
@@ -530,13 +530,16 @@ protected:
               "value": "linux"
             }
           ],
-          "annotations": [
+            "annotations": [
             {
               "name": "created",
               "value": "1438983392"
             }
           ]
-        })~").get();
+        })~",
+        imageName).get();
+
+    return JSON::parse(manifest).get();
   }
 
   void prepareImage(
