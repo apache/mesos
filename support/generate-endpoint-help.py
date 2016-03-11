@@ -134,7 +134,7 @@ def get_help(ip, port):
 
 
 def generalize_endpoint_id(id):
-  """Generalizes the id of the form e.g. process(id) to slave(id)."""
+  """Generalizes the id of the form e.g. process(1) to process(id)."""
   return re.sub('\([0-9]+\)', '(id)', id)
 
 
