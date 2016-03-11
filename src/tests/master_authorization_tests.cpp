@@ -244,7 +244,7 @@ TEST_F(MasterAuthorizationTest, KillTask)
   // Return a pending future from authorizer.
   Future<Nothing> authorize;
   Promise<bool> promise;
-  EXPECT_CALL(authorizer, authorize(An<const mesos::ACL::RunTask&>()))
+  EXPECT_CALL(authorizer, authorized(_))
     .WillOnce(DoAll(FutureSatisfy(&authorize),
                     Return(promise.future())));
 
@@ -316,7 +316,7 @@ TEST_F(MasterAuthorizationTest, SlaveRemoved)
   // Return a pending future from authorizer.
   Future<Nothing> authorize;
   Promise<bool> promise;
-  EXPECT_CALL(authorizer, authorize(An<const mesos::ACL::RunTask&>()))
+  EXPECT_CALL(authorizer, authorized(_))
     .WillOnce(DoAll(FutureSatisfy(&authorize),
                     Return(promise.future())));
 
@@ -404,7 +404,7 @@ TEST_F(MasterAuthorizationTest, SlaveDisconnected)
   // Return a pending future from authorizer.
   Future<Nothing> authorize;
   Promise<bool> promise;
-  EXPECT_CALL(authorizer, authorize(An<const mesos::ACL::RunTask&>()))
+  EXPECT_CALL(authorizer, authorized(_))
     .WillOnce(DoAll(FutureSatisfy(&authorize),
                     Return(promise.future())));
 
@@ -496,7 +496,7 @@ TEST_F(MasterAuthorizationTest, FrameworkRemoved)
   // Return a pending future from authorizer.
   Future<Nothing> authorize;
   Promise<bool> promise;
-  EXPECT_CALL(authorizer, authorize(An<const mesos::ACL::RunTask&>()))
+  EXPECT_CALL(authorizer, authorized(_))
     .WillOnce(DoAll(FutureSatisfy(&authorize),
                     Return(promise.future())));
 
@@ -573,7 +573,7 @@ TEST_F(MasterAuthorizationTest, PendingExecutorInfoDiffersOnDifferentSlaves)
   // Return a pending future from authorizer.
   Future<Nothing> authorize;
   Promise<bool> promise;
-  EXPECT_CALL(authorizer, authorize(An<const mesos::ACL::RunTask&>()))
+  EXPECT_CALL(authorizer, authorized(_))
     .WillOnce(DoAll(FutureSatisfy(&authorize),
                     Return(promise.future())));
 
@@ -615,7 +615,7 @@ TEST_F(MasterAuthorizationTest, PendingExecutorInfoDiffersOnDifferentSlaves)
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillOnce(FutureArg<1>(&status2));
 
-  EXPECT_CALL(authorizer, authorize(An<const mesos::ACL::RunTask&>()))
+  EXPECT_CALL(authorizer, authorized(_))
     .WillOnce(Return(true));
 
   driver.launchTasks(offers2.get()[0].id(), {task2});
@@ -759,7 +759,7 @@ TEST_F(MasterAuthorizationTest, DuplicateRegistration)
   Promise<bool> promise1;
   Future<Nothing> authorize2;
   Promise<bool> promise2;
-  EXPECT_CALL(authorizer, authorize(An<const mesos::ACL::RegisterFramework&>()))
+  EXPECT_CALL(authorizer, authorized(_))
     .WillOnce(DoAll(FutureSatisfy(&authorize1),
                     Return(promise1.future())))
     .WillOnce(DoAll(FutureSatisfy(&authorize2),
@@ -829,7 +829,7 @@ TEST_F(MasterAuthorizationTest, DuplicateReregistration)
   Promise<bool> promise2;
   Future<Nothing> authorize3;
   Promise<bool> promise3;
-  EXPECT_CALL(authorizer, authorize(An<const mesos::ACL::RegisterFramework&>()))
+  EXPECT_CALL(authorizer, authorized(_))
     .WillOnce(Return(true))
     .WillOnce(DoAll(FutureSatisfy(&authorize2),
                     Return(promise2.future())))
@@ -901,7 +901,7 @@ TEST_F(MasterAuthorizationTest, FrameworkRemovedBeforeRegistration)
   // Return a pending future from authorizer.
   Future<Nothing> authorize;
   Promise<bool> promise;
-  EXPECT_CALL(authorizer, authorize(An<const mesos::ACL::RegisterFramework&>()))
+  EXPECT_CALL(authorizer, authorized(_))
     .WillOnce(DoAll(FutureSatisfy(&authorize),
                     Return(promise.future())))
     .WillRepeatedly(Return(true)); // Authorize subsequent registration retries.
@@ -962,7 +962,7 @@ TEST_F(MasterAuthorizationTest, FrameworkRemovedBeforeReregistration)
   // Return a pending future from authorizer after first attempt.
   Future<Nothing> authorize2;
   Promise<bool> promise2;
-  EXPECT_CALL(authorizer, authorize(An<const mesos::ACL::RegisterFramework&>()))
+  EXPECT_CALL(authorizer, authorized(_))
     .WillOnce(Return(true))
     .WillOnce(DoAll(FutureSatisfy(&authorize2),
                     Return(promise2.future())));

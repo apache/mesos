@@ -1,0 +1,64 @@
+// Licensed to the Apache Software Foundation (ASF) under one
+// or more contributor license agreements.  See the NOTICE file
+// distributed with this work for additional information
+// regarding copyright ownership.  The ASF licenses this file
+// to you under the Apache License, Version 2.0 (the
+// "License"); you may not use this file except in compliance
+// with the License.  You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+import "mesos/mesos.proto";
+
+package mesos.authorization;
+
+option java_package = "org.apache.mesos.authorization";
+option java_outer_classname = "Protos";
+
+
+// A `Subject` is the entity which desires to execute an `Action` on
+// an `Object`. The `Subject` is described by its `value`. When
+// `value` is not set the subject is unknown.
+message Subject {
+  optional string value = 1;
+}
+
+
+// An `Object` is the entity on which a `Subject` wishes to execute an
+// `Action`. An `Object` is described by its value and the action in
+// the request, e.g. when registering frameworks, the value represents
+// a role, while when running a task it is the user name the task will
+// be run as. If the value is not set, the object is unknown.
+message Object {
+  optional string value = 1;
+}
+
+
+// List of authorizable actions supported in Mesos.
+enum Action {
+  REGISTER_FRAMEWORK_WITH_ROLE = 1;
+  RUN_TASK_WITH_USER = 2;
+  TEARDOWN_FRAMEWORK_WITH_PRINCIPAL = 3;
+  RESERVE_RESOURCES_WITH_ROLE = 4;
+  UNRESERVE_RESOURCES_WITH_PRINCIPAL = 5;
+  CREATE_VOLUME_WITH_ROLE = 6;
+  DESTROY_VOLUME_WITH_PRINCIPAL = 7;
+  SET_QUOTA_WITH_ROLE = 8;
+  DESTROY_QUOTA_WITH_PRINCIPAL = 9;
+  UPDATE_WEIGHTS_WITH_ROLE = 10;
+}
+
+
+// A `Request` is a <subject, action, object> tuple which can be read
+// as "Can `subject` perform `action` with `object`?".
+message Request {
+  required Subject subject = 1;
+  required Action action = 2;
+  required Object object = 3;
+}

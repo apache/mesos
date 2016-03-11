@@ -24,6 +24,7 @@ PROTOC_TO_INCLUDE_DIR(V1_MESOS         mesos/v1/mesos)
 PROTOC_TO_INCLUDE_DIR(ACLS             mesos/authorizer/acls)
 PROTOC_TO_INCLUDE_DIR(APPC_SPEC        mesos/appc/spec)
 PROTOC_TO_INCLUDE_DIR(AUTHENTICATION   mesos/authentication/authentication)
+PROTOC_TO_INCLUDE_DIR(AUTHORIZATION    mesos/authorizer/authorization)
 PROTOC_TO_INCLUDE_DIR(CONTAINERIZER    mesos/containerizer/containerizer)
 PROTOC_TO_INCLUDE_DIR(DOCKER_SPEC      mesos/docker/spec)
 PROTOC_TO_INCLUDE_DIR(DOCKER_V1        mesos/docker/v1)
@@ -56,6 +57,7 @@ set(MESOS_PROTOBUF_SRC
   ${ACLS_PROTO_CC}
   ${APPC_SPEC_PROTO_CC}
   ${AUTHENTICATION_PROTO_CC}
+  ${AUTHORIZATION_PROTO_CC}
   ${CONTAINERIZER_PROTO_CC}
   ${DOCKER_SPEC_PROTO_CC}
   ${DOCKER_V1_PROTO_CC}

@@ -30,6 +30,7 @@ namespace mesos {
 
 // Forward declaration.
 class Parameters;
+class ACLs;
 
 namespace internal {
 
@@ -60,27 +61,8 @@ public:
 
   virtual ~LocalAuthorizer();
 
-  // Implementation of Authorizer interface.
-  virtual process::Future<bool> authorize(
-      const ACL::RegisterFramework& request);
-  virtual process::Future<bool> authorize(
-      const ACL::RunTask& request);
-  virtual process::Future<bool> authorize(
-      const ACL::TeardownFramework& request);
-  virtual process::Future<bool> authorize(
-      const ACL::ReserveResources& request);
-  virtual process::Future<bool> authorize(
-      const ACL::UnreserveResources& request);
-  virtual process::Future<bool> authorize(
-      const ACL::CreateVolume& request);
-  virtual process::Future<bool> authorize(
-      const ACL::DestroyVolume& request);
-  virtual process::Future<bool> authorize(
-      const ACL::SetQuota& request);
-  virtual process::Future<bool> authorize(
-      const ACL::RemoveQuota& request);
-  virtual process::Future<bool> authorize(
-      const ACL::UpdateWeights& request);
+  virtual process::Future<bool> authorized(
+      const authorization::Request& request);
 
 private:
   LocalAuthorizer(const ACLs& acls);

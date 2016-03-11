@@ -652,7 +652,7 @@ TEST_F(ReconciliationTest, PendingTask)
   // Return a pending future from authorizer.
   Future<Nothing> authorize;
   Promise<bool> promise;
-  EXPECT_CALL(authorizer, authorize(An<const mesos::ACL::RunTask&>()))
+  EXPECT_CALL(authorizer, authorized(_))
     .WillOnce(DoAll(FutureSatisfy(&authorize),
                     Return(promise.future())));
 

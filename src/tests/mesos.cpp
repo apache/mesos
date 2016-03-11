@@ -735,38 +735,8 @@ MockAuthorizer::MockAuthorizer()
   // NOTE: We use 'EXPECT_CALL' and 'WillRepeatedly' here instead of
   // 'ON_CALL' and 'WillByDefault'. See 'TestContainerizer::SetUp()'
   // for more details.
-  EXPECT_CALL(*this, authorize(An<const mesos::ACL::RegisterFramework&>()))
+  EXPECT_CALL(*this, authorized(_))
     .WillRepeatedly(Return(true));
-
-  EXPECT_CALL(*this, authorize(An<const mesos::ACL::RunTask&>()))
-    .WillRepeatedly(Return(true));
-
-  EXPECT_CALL(*this, authorize(An<const mesos::ACL::TeardownFramework&>()))
-    .WillRepeatedly(Return(true));
-
-  EXPECT_CALL(*this, authorize(An<const mesos::ACL::ReserveResources&>()))
-    .WillRepeatedly(Return(true));
-
-  EXPECT_CALL(*this, authorize(An<const mesos::ACL::UnreserveResources&>()))
-    .WillRepeatedly(Return(true));
-
-  EXPECT_CALL(*this, authorize(An<const mesos::ACL::CreateVolume&>()))
-    .WillRepeatedly(Return(true));
-
-  EXPECT_CALL(*this, authorize(An<const mesos::ACL::DestroyVolume&>()))
-    .WillRepeatedly(Return(true));
-
-  EXPECT_CALL(*this, authorize(An<const mesos::ACL::SetQuota&>()))
-    .WillRepeatedly(Return(true));
-
-  EXPECT_CALL(*this, authorize(An<const mesos::ACL::RemoveQuota&>()))
-    .WillRepeatedly(Return(true));
-
-  EXPECT_CALL(*this, authorize(An<const mesos::ACL::UpdateWeights&>()))
-    .WillRepeatedly(Return(true));
-
-  EXPECT_CALL(*this, initialize(An<const Option<ACLs>&>()))
-    .WillRepeatedly(Return(Nothing()));
 }
 
 

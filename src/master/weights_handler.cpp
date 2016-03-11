@@ -16,6 +16,11 @@
 
 #include "master/master.hpp"
 
+#include <list>
+
+#include <mesos/authorizer/authorizer.hpp>
+
+#include <process/collect.hpp>
 #include <process/future.hpp>
 #include <process/http.hpp>
 
@@ -28,6 +33,7 @@ namespace http = process::http;
 
 using google::protobuf::RepeatedPtrField;
 
+using std::list;
 using std::string;
 using std::vector;
 
@@ -142,19 +148,34 @@ Future<bool> Master::WeightsHandler::authorize(
             << (principal.isSome() ? principal.get() : "ANY")
             << "' to update weights for roles '" << stringify(roles) << "'";
 
-  mesos::ACL::UpdateWeights request;
+  authorization::Request request;
+  request.set_action(authorization::UPDATE_WEIGHTS_WITH_ROLE);
 
   if (principal.isSome()) {
-    request.mutable_principals()->add_values(principal.get());
-  } else {
-    request.mutable_principals()->set_type(mesos::ACL::Entity::ANY);
+    request.mutable_subject()->set_value(principal.get());
   }
 
+  list<Future<bool>> authorizations;
   foreach (const string& role, roles) {
-    request.mutable_roles()->add_values(role);
+    request.mutable_object()->set_value(role);
+    authorizations.push_back(master->authorizer.get()->authorized(request));
   }
 
-  return master->authorizer.get()->authorize(request);
+  if (authorizations.empty()) {
+    return master->authorizer.get()->authorized(request);
+  }
+
+  return await(authorizations)
+      .then([](const std::list<Future<bool>>& authorizations)
+            -> Future<bool> {
+        // Compute a disjunction.
+        for (const Future<bool>& authorization : authorizations) {
+          if (!authorization.get()) {
+            return false;
+          }
+        }
+        return true;
+      });
 }
 
 } // namespace master {

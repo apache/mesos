@@ -1635,27 +1635,7 @@ public:
   virtual ~MockAuthorizer();
 
   MOCK_METHOD1(
-      initialize, Try<Nothing>(const Option<ACLs>& acls));
-  MOCK_METHOD1(
-      authorize, process::Future<bool>(const ACL::RegisterFramework& request));
-  MOCK_METHOD1(
-      authorize, process::Future<bool>(const ACL::RunTask& request));
-  MOCK_METHOD1(
-      authorize, process::Future<bool>(const ACL::TeardownFramework& request));
-  MOCK_METHOD1(
-      authorize, process::Future<bool>(const ACL::ReserveResources& request));
-  MOCK_METHOD1(
-      authorize, process::Future<bool>(const ACL::UnreserveResources& request));
-  MOCK_METHOD1(
-      authorize, process::Future<bool>(const ACL::CreateVolume& request));
-  MOCK_METHOD1(
-      authorize, process::Future<bool>(const ACL::DestroyVolume& request));
-  MOCK_METHOD1(
-      authorize, process::Future<bool>(const ACL::SetQuota& request));
-  MOCK_METHOD1(
-      authorize, process::Future<bool>(const ACL::RemoveQuota& request));
-  MOCK_METHOD1(
-      authorize, process::Future<bool>(const ACL::UpdateWeights& request));
+      authorized, process::Future<bool>(const authorization::Request& request));
 };
 
 

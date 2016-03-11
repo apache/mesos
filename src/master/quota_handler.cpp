@@ -449,17 +449,16 @@ Future<bool> Master::QuotaHandler::authorizeSetQuota(
             << (principal.isSome() ? principal.get() : "ANY")
             << "' to request quota for role '" << role << "'";
 
-  mesos::ACL::SetQuota request;
+  authorization::Request request;
+  request.set_action(authorization::SET_QUOTA_WITH_ROLE);
 
   if (principal.isSome()) {
-    request.mutable_principals()->add_values(principal.get());
-  } else {
-    request.mutable_principals()->set_type(mesos::ACL::Entity::ANY);
+    request.mutable_subject()->set_value(principal.get());
   }
 
-  request.mutable_roles()->add_values(role);
+  request.mutable_object()->set_value(role);
 
-  return master->authorizer.get()->authorize(request);
+  return master->authorizer.get()->authorized(request);
 }
 
 
@@ -477,21 +476,18 @@ Future<bool> Master::QuotaHandler::authorizeRemoveQuota(
             << (quotaPrincipal.isSome() ? quotaPrincipal.get() : "ANY")
             << "'";
 
-  mesos::ACL::RemoveQuota request;
+  authorization::Request request;
+  request.set_action(authorization::DESTROY_QUOTA_WITH_PRINCIPAL);
 
   if (requestPrincipal.isSome()) {
-    request.mutable_principals()->add_values(requestPrincipal.get());
-  } else {
-    request.mutable_principals()->set_type(mesos::ACL::Entity::ANY);
+    request.mutable_subject()->set_value(requestPrincipal.get());
   }
 
   if (quotaPrincipal.isSome()) {
-    request.mutable_quota_principals()->add_values(quotaPrincipal.get());
-  } else {
-    request.mutable_quota_principals()->set_type(mesos::ACL::Entity::ANY);
+    request.mutable_object()->set_value(quotaPrincipal.get());
   }
 
-  return master->authorizer.get()->authorize(request);
+  return master->authorizer.get()->authorized(request);
 }
 
 } // namespace master {

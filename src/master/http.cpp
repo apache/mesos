@@ -1805,22 +1805,18 @@ Future<Response> Master::Http::teardown(
     return _teardown(id);
   }
 
-  mesos::ACL::TeardownFramework teardown;
+  authorization::Request teardown;
+  teardown.set_action(authorization::TEARDOWN_FRAMEWORK_WITH_PRINCIPAL);
 
   if (principal.isSome()) {
-    teardown.mutable_principals()->add_values(principal.get());
-  } else {
-    teardown.mutable_principals()->set_type(ACL::Entity::ANY);
+    teardown.mutable_subject()->set_value(principal.get());
   }
 
   if (framework->info.has_principal()) {
-    teardown.mutable_framework_principals()->add_values(
-        framework->info.principal());
-  } else {
-    teardown.mutable_framework_principals()->set_type(ACL::Entity::ANY);
+    teardown.mutable_object()->set_value(framework->info.principal());
   }
 
-  return master->authorizer.get()->authorize(teardown)
+  return master->authorizer.get()->authorized(teardown)
     .then(defer(master->self(), [=](bool authorized) -> Future<Response> {
       if (!authorized) {
         return Forbidden();
