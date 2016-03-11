@@ -138,6 +138,8 @@ message NetworkInfo {
 
   repeated IPAddress ip_addresses = 5;
 
+  optional string name = 6;
+
   optional Protocol protocol = 1 [deprecated = true]; // Since 0.26.0
 
   optional string ip_address = 2 [deprecated = true]; // Since 0.26.0
@@ -153,6 +155,11 @@ field to `IPv4` or `IPv6`. Setting `ip_address` to a valid IP address allows the
 framework to specify a static IP address for the container (if supported by the
 NIM). This is helpful in situations where a task must be bound to a particular
 IP address even as it is killed and restarted on a different node.
+
+Setting `name` to a valid network name allows the framework to specify a network
+for the container to join, it is up to the network isolator to decide how to
+interpret this field, e.g., `network/cni` isolator will interpret it as the name
+of a CNI network.
 
 
 ### Examples of specifying network requirements
@@ -270,6 +277,22 @@ message in TaskInfo. Here are a few examples:
            }
          ]
        }
+     }
+   }
+   ```
+
+5. A request for joining a specific network using the default command executor
+
+   ```
+   TaskInfo {
+     ...
+     command: ...,
+     container: ContainerInfo {
+       network_infos: [
+         NetworkInfo {
+           name: "network1";
+         }
+       ]
      }
    }
    ```
