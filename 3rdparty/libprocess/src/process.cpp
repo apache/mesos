@@ -957,7 +957,7 @@ void initialize(const Option<string>& delegate)
   gc = spawn(new GarbageCollector());
 
   // Create global help process.
-  help = spawn(new Help(), true);
+  help = spawn(new Help(delegate), true);
 
   // Create the global logging process.
   spawn(new Logging(), true);

@@ -83,7 +83,7 @@ inline std::string REFERENCES(T&&... args)
 class Help : public Process<Help>
 {
 public:
-  Help();
+  Help(const Option<std::string>& delegate);
 
   // Adds 'help' for the route 'name' of the process with the
   // specified 'id' (i.e., 'http://ip:port/id/name'). It's expected
@@ -127,6 +127,9 @@ private:
 
   // Helper function to get usage path by process id and endpoint name.
   std::string getUsagePath(const std::string& id, const std::string& name);
+
+  // Delegate process name to receive root HTTP requests.
+  const Option<std::string> delegate;
 
   std::map<std::string, std::map<std::string, std::string>> helps;
 };
