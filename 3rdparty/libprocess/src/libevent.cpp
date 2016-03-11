@@ -40,7 +40,7 @@ std::queue<lambda::function<void()>>* functions =
 THREAD_LOCAL bool* _in_event_loop_ = NULL;
 
 
-void async_function(int socket, short which, void* arg)
+void async_function(evutil_socket_t socket, short which, void* arg)
 {
   event* ev = reinterpret_cast<event*>(arg);
   event_free(ev);
@@ -128,7 +128,7 @@ struct Delay
   event* timer;
 };
 
-void handle_delay(int, short, void* arg)
+void handle_delay(evutil_socket_t, short, void* arg)
 {
   Delay* delay = reinterpret_cast<Delay*>(arg);
   delay->function();
