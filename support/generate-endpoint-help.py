@@ -150,12 +150,22 @@ def get_endpoint_path(id, name):
                ('process(id)', '/')     -> '/process(id)'
                ('process', '/endpoint') -> '/process/endpoint'
   """
-  new_id = generalize_endpoint_id(id)
-  new_name = name[1:] # Strip the leading slash
-  if new_name:
-    return posixpath.join('/', new_id, new_name)
-  else:
-    return posixpath.join('/', new_id)
+  # Tokenize the endpoint by '/' (filtering out any empty strings between '/'s)
+  path_parts = filter(None, name.split('/'))
+
+  # Conditionally prepend the 'id' to the list of path parts.
+  # Following the notion of a 'delegate' in Mesos, we want our
+  # preferred endpoint paths for the delegate process to be
+  # '/endpoint' instead of '/process/endpoint'. Since this script only
+  # starts 1 master and 1 slave, our only delegate processes are
+  # "master" and "slave(id)". If the id matches one of these, we don't
+  # prepend it, otherwise we do.
+  id = generalize_endpoint_id(id)
+  delegates = ["master", "slave(id)"]
+  if id not in delegates:
+    path_parts = [id] + path_parts
+
+  return posixpath.join('/', *path_parts)
 
 
 def get_relative_md_path(id, name):
