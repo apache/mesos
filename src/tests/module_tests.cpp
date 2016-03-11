@@ -444,16 +444,50 @@ TEST_F(ModuleTest, NonModuleLibrary)
 }
 
 
-// Test that loading a duplicate module fails.
-TEST_F(ModuleTest, DuplicateModule)
+// Test that loading the same module twice works.
+TEST_F(ModuleTest, LoadSameModuleTwice)
 {
-  // Add duplicate module.
-  Modules::Library* library = defaultModules.add_libraries();
-  library->set_name(DEFAULT_MODULE_LIBRARY_NAME);
-  Modules::Library::Module* module = library->add_modules();
-  module->set_name(DEFAULT_MODULE_NAME);
+  // First load the default modules.
+  EXPECT_SOME(ModuleManager::load(defaultModules));
 
-  EXPECT_ERROR(ModuleManager::load(defaultModules));
+  // Try to load the same module once again.
+  EXPECT_SOME(ModuleManager::load(defaultModules));
+}
+
+
+// Test that loading the same module twice with different parameters fails.
+TEST_F(ModuleTest, DuplicateModulesWithDifferentParameters)
+{
+  // First load the default modules.
+  EXPECT_SOME(ModuleManager::load(defaultModules));
+
+  // Create a duplicate modules object with some parameters.
+  Modules duplicateModules = getModules(
+      DEFAULT_MODULE_LIBRARY_NAME,
+      DEFAULT_MODULE_NAME,
+      "operation",
+      "X");
+
+  EXPECT_ERROR(ModuleManager::load(duplicateModules));
+}
+
+
+// Test that loading a duplicate module fails.
+TEST_F(ModuleTest, DuplicateModuleInDifferentLibraries)
+{
+  // First load the default modules.
+  EXPECT_SOME(ModuleManager::load(defaultModules));
+
+  // Create a duplicate modules object with different library name.
+  // We use the full name for library (i.e., examplemodule-X.Y.Z) to simulate
+  // the case of two libraries with the same module.
+  string library =
+    string(DEFAULT_MODULE_LIBRARY_NAME).append("-").append(MESOS_VERSION);
+
+  // Create a duplicate modules object with some parameters.
+  Modules duplicateModules = getModules(library, DEFAULT_MODULE_NAME);
+
+  EXPECT_ERROR(ModuleManager::load(duplicateModules));
 }
 
 
