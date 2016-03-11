@@ -2054,6 +2054,7 @@ TEST_F(ReservationTest, WithoutAuthenticationWithPrincipal)
 
   Shutdown();
 }
+
 }  // namespace tests {
 }  // namespace internal {
 }  // namespace mesos {
