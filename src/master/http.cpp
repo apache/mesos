@@ -2043,19 +2043,29 @@ Future<Response> Master::Http::maintenanceSchedule(const Request& request) const
 
       // Put the machines in the updated schedule into a set.
       // Save the unavailability, to help with updating some machines.
-      hashmap<MachineID, Unavailability> updated;
+      hashmap<MachineID, Unavailability> unavailabilities;
       foreach (const mesos::maintenance::Window& window, schedule.windows()) {
         foreach (const MachineID& id, window.machine_ids()) {
-          updated[id] = window.unavailability();
+          unavailabilities[id] = window.unavailability();
         }
       }
 
       // NOTE: Copies are needed because `updateUnavailability()` in this loop
       // modifies the container.
       foreachkey (const MachineID& id, utils::copy(master->machines)) {
-        // Update the entry for each updated machine.
-        if (updated.contains(id)) {
-          master->updateUnavailability(id, updated[id]);
+        // Update the `unavailability` for each existing machine, except for
+        // machines going from `UP` to `DRAINING` (handled in the next loop).
+        // Each machine will only be touched by 1 of the 2 loops here to
+        // avoid sending inverse offer twice for a single machine since
+        // `updateUnavailability` will trigger an inverse offer.
+        // TODO(gyliu513): Merge this logic with `Master::updateUnavailability`,
+        // having it in two places results in more conditionals to handle.
+        if (unavailabilities.contains(id)) {
+          if (master->machines[id].info.mode() == MachineInfo::UP) {
+            continue;
+          }
+
+          master->updateUnavailability(id, unavailabilities[id]);
           continue;
         }
 
@@ -2069,6 +2079,11 @@ Future<Response> Master::Http::maintenanceSchedule(const Request& request) const
       // and starting in `DRAINING` mode.
       foreach (const mesos::maintenance::Window& window, schedule.windows()) {
         foreach (const MachineID& id, window.machine_ids()) {
+          if (master->machines.contains(id) &&
+              master->machines[id].info.mode() != MachineInfo::UP) {
+            continue;
+          }
+
           MachineInfo info;
           info.mutable_id()->CopyFrom(id);
           info.set_mode(MachineInfo::DRAINING);

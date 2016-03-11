@@ -421,13 +421,10 @@ TEST_F(MasterMaintenanceTest, PendingUnavailabilityTest)
   event = events.get();
   AWAIT_READY(event);
   EXPECT_EQ(Event::OFFERS, event.get().type());
-  EXPECT_NE(0, event.get().offers().offers().size());
-  const size_t numberOfOffers = event.get().offers().offers().size();
+  EXPECT_EQ(1, event.get().offers().offers().size());
 
   // Regular offers shouldn't have unavailability.
-  foreach (const v1::Offer& offer, event.get().offers().offers()) {
-    EXPECT_FALSE(offer.has_unavailability());
-  }
+  EXPECT_FALSE(event.get().offers().offers(0).has_unavailability());
 
   // Schedule this slave for maintenance.
   MachineID machine;
@@ -457,35 +454,31 @@ TEST_F(MasterMaintenanceTest, PendingUnavailabilityTest)
   // The original offers should be rescinded when the unavailability
   // is changed. We expect as many rescind events as we received
   // original offers.
-  for (size_t offerNumber = 0; offerNumber < numberOfOffers; ++offerNumber) {
-    event = events.get();
-    AWAIT_READY(event);
-    EXPECT_EQ(Event::RESCIND, event.get().type());
-  }
+  event = events.get();
+  AWAIT_READY(event);
+  EXPECT_EQ(Event::RESCIND, event.get().type());
 
   event = events.get();
   AWAIT_READY(event);
   EXPECT_EQ(Event::OFFERS, event.get().type());
-  EXPECT_NE(0, event.get().offers().offers().size());
+  EXPECT_EQ(1, event.get().offers().offers().size());
 
-  // Make sure the new offers have the unavailability set.
-  foreach (const v1::Offer& offer, event.get().offers().offers()) {
-    EXPECT_TRUE(offer.has_unavailability());
-    EXPECT_EQ(
-        unavailability.start().nanoseconds(),
-        offer.unavailability().start().nanoseconds());
+  v1::Offer offer = event.get().offers().offers(0);
+  EXPECT_TRUE(offer.has_unavailability());
+  EXPECT_EQ(
+      unavailability.start().nanoseconds(),
+      offer.unavailability().start().nanoseconds());
 
-    EXPECT_EQ(
-        unavailability.duration().nanoseconds(),
-        offer.unavailability().duration().nanoseconds());
-  }
+  EXPECT_EQ(
+      unavailability.duration().nanoseconds(),
+      offer.unavailability().duration().nanoseconds());
 
   // We also expect an inverse offer for the slave to go under
   // maintenance.
   event = events.get();
   AWAIT_READY(event);
   EXPECT_EQ(Event::OFFERS, event.get().type());
-  EXPECT_NE(0, event.get().offers().inverse_offers().size());
+  EXPECT_EQ(1, event.get().offers().inverse_offers().size());
 
   EXPECT_CALL(exec, shutdown(_))
     .Times(AtMost(1));
