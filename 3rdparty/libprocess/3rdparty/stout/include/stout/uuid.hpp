@@ -24,6 +24,10 @@
 
 #include <stout/thread_local.hpp>
 
+#ifdef __WINDOWS__
+#include <stout/windows.hpp>
+#endif // __WINDOWS__
+
 // NOTE: This namespace is necessary because the standard Windows headers
 // define a UUID struct in the global namespace for the DCE RPC API. We put
 // this in the `id::` namespace to avoid collisions. Note also that we include

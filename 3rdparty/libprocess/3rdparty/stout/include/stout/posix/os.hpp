@@ -64,8 +64,6 @@
 #include <stout/os/sendfile.hpp>
 #include <stout/os/signals.hpp>
 #include <stout/os/strerror.hpp>
-#include <stout/os/touch.hpp>
-#include <stout/os/utime.hpp>
 #include <stout/os/write.hpp>
 
 #ifdef __FreeBSD__
