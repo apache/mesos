@@ -386,7 +386,7 @@ private:
 class ProcessManager
 {
 public:
-  explicit ProcessManager(const string& delegate);
+  explicit ProcessManager(const Option<string>& delegate);
   ~ProcessManager();
 
   // Initializes the processing threads and the event loop thread,
@@ -429,7 +429,7 @@ public:
 
 private:
   // Delegate process name to receive root HTTP requests.
-  const string delegate;
+  const Option<string> delegate;
 
   // Map of all local spawned and running processes.
   map<string, ProcessBase*> processes;
@@ -770,7 +770,7 @@ void install(vector<Owned<FirewallRule>>&& rules)
 
 } // namespace firewall {
 
-void initialize(const string& delegate)
+void initialize(const Option<string>& delegate)
 {
   // TODO(benh): Return an error if attempting to initialize again
   // with a different delegate than originally specified.
@@ -2138,7 +2138,7 @@ void SocketManager::swap_implementing_socket(const Socket& from, Socket* to)
 }
 
 
-ProcessManager::ProcessManager(const string& _delegate)
+ProcessManager::ProcessManager(const Option<string>& _delegate)
   : delegate(_delegate)
 {
   running.store(0);
@@ -2333,9 +2333,9 @@ void ProcessManager::handle(
   // Try and determine a receiver, otherwise try and delegate.
   UPID receiver;
 
-  if (tokens.size() == 0 && delegate != "") {
-    request->url.path = "/" + delegate;
-    receiver = UPID(delegate, __address__);
+  if (tokens.size() == 0 && delegate.isSome()) {
+    request->url.path = "/" + delegate.get();
+    receiver = UPID(delegate.get(), __address__);
   } else if (tokens.size() > 0) {
     // Decode possible percent-encoded path.
     Try<string> decode = http::decode(tokens[0]);
@@ -2346,10 +2346,10 @@ void ProcessManager::handle(
     }
   }
 
-  if (!use(receiver) && delegate != "") {
+  if (!use(receiver) && delegate.isSome()) {
     // Try and delegate the request.
-    request->url.path = "/" + delegate + request->url.path;
-    receiver = UPID(delegate, __address__);
+    request->url.path = "/" + delegate.get() + request->url.path;
+    receiver = UPID(delegate.get(), __address__);
   }
 
   synchronized (firewall_mutex) {
@@ -2828,7 +2828,7 @@ void ProcessManager::installFirewall(
 string ProcessManager::absolutePath(const string& path)
 {
   // Return directly when delegate is empty.
-  if (delegate.empty()) {
+  if (delegate.isNone()) {
     return path;
   }
 
@@ -2836,7 +2836,7 @@ string ProcessManager::absolutePath(const string& path)
 
   // Return delegate when path is root.
   if (tokens.size() == 0) {
-    return "/" + delegate;
+    return "/" + delegate.get();
   }
 
   Try<string> decode = http::decode(tokens[0]);
@@ -2851,7 +2851,7 @@ string ProcessManager::absolutePath(const string& path)
     // Return path when the first token is a process id.
     return path;
   } else {
-    return "/" + delegate + path;
+    return "/" + delegate.get() + path;
   }
 }
 

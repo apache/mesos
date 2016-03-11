@@ -456,7 +456,7 @@ protected:
  *
  * @see [glog](https://google-glog.googlecode.com/svn/trunk/doc/glog.html)
  */
-void initialize(const std::string& delegate = "");
+void initialize(const Option<std::string>& delegate = None());
 
 
 /**
