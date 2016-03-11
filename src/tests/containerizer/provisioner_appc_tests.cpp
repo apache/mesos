@@ -564,12 +564,14 @@ protected:
     AWAIT_READY(future);
   }
 
+  void startServer()
+  {
+    spawn(server);
+  }
+
   virtual void SetUp()
   {
     TemporaryDirectoryTest::SetUp();
-
-    // Now spawn the image server.
-    spawn(server);
   }
 
   virtual void TearDown()
@@ -584,10 +586,10 @@ protected:
 };
 
 
-// Tests simple fetch functionality of the appc::Fetcher component.
+// Tests simple http fetch functionality of the appc::Fetcher component.
 // The test fetches a test Appc image from the http server and
 // verifies its content. The image is served in 'tar + gzip' format.
-TEST_F(AppcImageFetcherTest, CURL_SimpleFetch)
+TEST_F(AppcImageFetcherTest, CURL_SimpleHttpFetch)
 {
   const string imageName = "image";
 
@@ -602,6 +604,8 @@ TEST_F(AppcImageFetcherTest, CURL_SimpleFetch)
 
   // Setup http server to serve the image prepared above.
   server.load();
+
+  startServer();
 
   // Appc Image to be fetched.
   const string discoverableImageName = strings::format(
@@ -631,6 +635,81 @@ TEST_F(AppcImageFetcherTest, CURL_SimpleFetch)
   ASSERT_SOME(uriFetcher);
 
   slave::Flags flags;
+
+  Try<Owned<slave::appc::Fetcher>> fetcher =
+    slave::appc::Fetcher::create(flags, uriFetcher.get().share());
+
+  ASSERT_SOME(fetcher);
+
+  // Prepare fetch directory.
+  const Path imageFetchDir(path::join(os::getcwd(), "fetched-images"));
+
+  Try<Nothing> mkdir = os::mkdir(imageFetchDir);
+  ASSERT_SOME(mkdir);
+
+  // Now fetch the image.
+  AWAIT_READY(fetcher.get()->fetch(imageInfo, imageFetchDir));
+
+  // Verify that there is an image directory.
+  Try<list<string>> imageDirs = os::ls(imageFetchDir);
+  ASSERT_SOME(imageDirs);
+
+  // Verify that there is only ONE image directory.
+  ASSERT_EQ(1u, imageDirs.get().size());
+
+  // Verify that there is a roofs.
+  const Path imageRootfs(path::join(
+      imageFetchDir,
+      imageDirs.get().front(),
+      "rootfs"));
+
+  ASSERT_TRUE(os::exists(imageRootfs));
+
+  // Verify that the image fetched is the same as on the server.
+  ASSERT_SOME_EQ("test", os::read(path::join(imageRootfs, "tmp", "test")));
+}
+
+
+// Tests simple file fetch functionality of the appc::Fetcher component.
+TEST_F(AppcImageFetcherTest, SimpleFileFetch)
+{
+  const string imageName = "image";
+
+  const string imageBundleName = imageName + "-latest-linux-amd64.aci";
+
+  // This represents the directory where images volume could be mounted.
+  const string imageDirMountPath(path::join(os::getcwd(), "mnt"));
+
+  const string imageBundlePath = path::join(imageDirMountPath, imageBundleName);
+
+  // Setup the image bundle.
+  prepareImage(imageDirMountPath, imageBundlePath, getManifest());
+
+  Image::Appc imageInfo;
+  imageInfo.set_name("image");
+
+  Label archLabel;
+  archLabel.set_key("arch");
+  archLabel.set_value("amd64");
+
+  Label osLabel;
+  osLabel.set_key("os");
+  osLabel.set_value("linux");
+
+  Labels labels;
+  labels.add_labels()->CopyFrom(archLabel);
+  labels.add_labels()->CopyFrom(osLabel);
+
+  imageInfo.mutable_labels()->CopyFrom(labels);
+
+  // Create image fetcher.
+  Try<Owned<uri::Fetcher>> uriFetcher = uri::fetcher::create();
+  ASSERT_SOME(uriFetcher);
+
+  slave::Flags flags;
+
+  // Set file path prefix for simple image discovery.
+  flags.appc_simple_discovery_uri_prefix = imageDirMountPath + "/";
 
   Try<Owned<slave::appc::Fetcher>> fetcher =
     slave::appc::Fetcher::create(flags, uriFetcher.get().share());
