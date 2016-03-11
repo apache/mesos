@@ -22,6 +22,8 @@
 
 #include <mesos/resources.hpp>
 
+#include <mesos/authorizer/authorizer.hpp>
+
 #include <mesos/quota/quota.hpp>
 
 #include <process/defer.hpp>

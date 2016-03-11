@@ -15,7 +15,7 @@
 
 #include <mesos/mesos.hpp>
 
-#include <mesos/authorizer/authorizer.hpp>
+#include <mesos/authorizer/acls.hpp>
 
 #include <mesos/module/module.hpp>
 

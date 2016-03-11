@@ -155,10 +155,10 @@ endif
 
 # First, let's define necessary protocol buffer files.
 
+ACLS_PROTO = $(top_srcdir)/include/mesos/authorizer/acls.proto
 ALLOCATOR_PROTO = $(top_srcdir)/include/mesos/master/allocator.proto
 APPC_SPEC_PROTO = $(top_srcdir)/include/mesos/appc/spec.proto
 AUTHENTICATION_PROTO = $(top_srcdir)/include/mesos/authentication/authentication.proto
-AUTHORIZATION_PROTO = $(top_srcdir)/include/mesos/authorizer/authorizer.proto
 CONTAINERIZER_PROTO = $(top_srcdir)/include/mesos/containerizer/containerizer.proto
 DOCKER_SPEC_PROTO = $(top_srcdir)/include/mesos/docker/spec.proto
 DOCKER_V1_PROTO = $(top_srcdir)/include/mesos/docker/v1.proto
@@ -185,8 +185,8 @@ CXX_PROTOS =								\
   ../include/mesos/appc/spec.pb.h					\
   ../include/mesos/authentication/authentication.pb.cc			\
   ../include/mesos/authentication/authentication.pb.h			\
-  ../include/mesos/authorizer/authorizer.pb.cc				\
-  ../include/mesos/authorizer/authorizer.pb.h				\
+  ../include/mesos/authorizer/acls.pb.cc				\
+  ../include/mesos/authorizer/acls.pb.h					\
   ../include/mesos/containerizer/containerizer.pb.cc			\
   ../include/mesos/containerizer/containerizer.pb.h			\
   ../include/mesos/docker/spec.pb.cc					\
@@ -406,11 +406,12 @@ nodist_authentication_HEADERS =						\
 authorizerdir = $(pkgincludedir)/authorizer
 
 authorizer_HEADERS =							\
-  $(top_srcdir)/include/mesos/authorizer/authorizer.hpp			\
-  $(top_srcdir)/include/mesos/authorizer/authorizer.proto
+  $(top_srcdir)/include/mesos/authorizer/acls.hpp			\
+  $(top_srcdir)/include/mesos/authorizer/acls.proto			\
+  $(top_srcdir)/include/mesos/authorizer/authorizer.hpp
 
 nodist_authorizer_HEADERS =						\
-  ../include/mesos/authorizer/authorizer.pb.h
+  ../include/mesos/authorizer/acls.pb.h
 
 containerizerdir = $(pkgincludedir)/containerizer
 
@@ -591,6 +592,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   authentication/cram_md5/authenticator.cpp				\
   authentication/cram_md5/auxprop.cpp					\
   authentication/http/basic_authenticator_factory.cpp			\
+  authorizer/acls.cpp							\
   authorizer/authorizer.cpp						\
   authorizer/local/authorizer.cpp					\
   common/attributes.cpp							\
@@ -1031,10 +1033,10 @@ lib_LTLIBRARIES += libmesos.la
 
 # Include as part of the distribution.
 libmesos_la_SOURCES =							\
+  $(ACLS_PROTO)								\
   $(ALLOCATOR_PROTO)							\
   $(APPC_SPEC_PROTO)							\
   $(AUTHENTICATION_PROTO)						\
-  $(AUTHORIZATION_PROTO)						\
   $(CONTAINERIZER_PROTO)						\
   $(EXECUTOR_PROTO)							\
   $(DOCKER_SPEC_PROTO)							\

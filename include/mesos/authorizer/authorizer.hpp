@@ -17,13 +17,9 @@
 #ifndef __MESOS_AUTHORIZER_AUTHORIZER_HPP__
 #define __MESOS_AUTHORIZER_AUTHORIZER_HPP__
 
-#include <iosfwd>
-#include <string>
-
 #include <mesos/mesos.hpp>
 
-// ONLY USEFUL AFTER RUNNING PROTOC.
-#include <mesos/authorizer/authorizer.pb.h>
+#include <mesos/authorizer/acls.hpp>
 
 #include <process/future.hpp>
 
@@ -222,9 +218,6 @@ public:
 protected:
   Authorizer() {}
 };
-
-
-std::ostream& operator<<(std::ostream& stream, const ACLs& acls);
 
 } // namespace mesos {
 

@@ -14,35 +14,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <mesos/authorizer/authorizer.hpp>
+#ifndef __MESOS_AUTHORIZER_ACLS_HPP__
+#define __MESOS_AUTHORIZER_ACLS_HPP__
 
-#include <mesos/module/authorizer.hpp>
+// TODO(arojas): Consider removing this file from the public interface.
 
-#include <stout/path.hpp>
+#include <iosfwd>
+#include <string>
 
-#include "authorizer/local/authorizer.hpp"
-
-#include "common/parse.hpp"
-
-#include "master/constants.hpp"
-
-#include "module/manager.hpp"
-
-using std::ostream;
-using std::string;
-
-using mesos::internal::LocalAuthorizer;
+// ONLY USEFUL AFTER RUNNING PROTOC.
+#include <mesos/authorizer/acls.pb.h>
 
 namespace mesos {
 
-Try<Authorizer*> Authorizer::create(const string &name) {
-  return modules::ModuleManager::create<Authorizer>(name);
-}
-
-
-Try<Authorizer*> Authorizer::create(const ACLs& acls)
-{
-  return LocalAuthorizer::create(acls);
-}
+std::ostream& operator<<(std::ostream& stream, const ACLs& acls);
 
 } // namespace mesos {
+
+#endif //  __MESOS_AUTHORIZER_ACLS_HPP__

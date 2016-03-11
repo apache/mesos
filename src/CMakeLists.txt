@@ -21,9 +21,9 @@ include(MesosProtobuf)
 # Build the protobuf structs.
 PROTOC_TO_INCLUDE_DIR(MESOS            mesos/mesos)
 PROTOC_TO_INCLUDE_DIR(V1_MESOS         mesos/v1/mesos)
+PROTOC_TO_INCLUDE_DIR(ACLS             mesos/authorizer/acls)
 PROTOC_TO_INCLUDE_DIR(APPC_SPEC        mesos/appc/spec)
 PROTOC_TO_INCLUDE_DIR(AUTHENTICATION   mesos/authentication/authentication)
-PROTOC_TO_INCLUDE_DIR(AUTHORIZATION    mesos/authorizer/authorizer)
 PROTOC_TO_INCLUDE_DIR(CONTAINERIZER    mesos/containerizer/containerizer)
 PROTOC_TO_INCLUDE_DIR(DOCKER_SPEC      mesos/docker/spec)
 PROTOC_TO_INCLUDE_DIR(DOCKER_V1        mesos/docker/v1)
@@ -53,9 +53,9 @@ PROTOC_TO_SRC_DIR(MESSAGE slave/containerizer/mesos/provisioner/docker/message)
 set(MESOS_PROTOBUF_SRC
   ${MESOS_PROTO_CC}
   ${V1_MESOS_PROTO_CC}
+  ${ACLS_PROTO_CC}
   ${APPC_SPEC_PROTO_CC}
   ${AUTHENTICATION_PROTO_CC}
-  ${AUTHORIZATION_PROTO_CC}
   ${CONTAINERIZER_PROTO_CC}
   ${DOCKER_SPEC_PROTO_CC}
   ${DOCKER_V1_PROTO_CC}
@@ -101,6 +101,7 @@ set(AUTHENTICATION_SRC
   )
 
 set(AUTHORIZER_SRC
+  authorizer/acls.cpp
   authorizer/authorizer.cpp
   authorizer/local/authorizer.cpp
   )
