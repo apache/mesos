@@ -67,8 +67,8 @@ public:
     return Error("Invalid bytes '" + s + "'");
   }
 
-  Bytes(uint64_t bytes = 0) : value(bytes) {}
-  Bytes(uint64_t _value, uint64_t _unit) : value(_value * _unit) {}
+  constexpr Bytes(uint64_t bytes = 0) : value(bytes) {}
+  constexpr Bytes(uint64_t _value, uint64_t _unit) : value(_value * _unit) {}
 
   // TODO(bmahler): Consider killing kilobytes to terabyte helpers, given
   // they implicitly lose precision if not careful.
@@ -120,11 +120,11 @@ public:
   }
 
 protected:
-  static const uint64_t BYTES = 1;
-  static const uint64_t KILOBYTES = 1024 * BYTES;
-  static const uint64_t MEGABYTES = 1024 * KILOBYTES;
-  static const uint64_t GIGABYTES = 1024 * MEGABYTES;
-  static const uint64_t TERABYTES = 1024 * GIGABYTES;
+  static constexpr uint64_t BYTES = 1;
+  static constexpr uint64_t KILOBYTES = 1024 * BYTES;
+  static constexpr uint64_t MEGABYTES = 1024 * KILOBYTES;
+  static constexpr uint64_t GIGABYTES = 1024 * MEGABYTES;
+  static constexpr uint64_t TERABYTES = 1024 * GIGABYTES;
 
 private:
   uint64_t value;
@@ -134,28 +134,28 @@ private:
 class Kilobytes : public Bytes
 {
 public:
-  explicit Kilobytes(uint64_t value) : Bytes(value, KILOBYTES) {}
+  explicit constexpr Kilobytes(uint64_t value) : Bytes(value, KILOBYTES) {}
 };
 
 
 class Megabytes : public Bytes
 {
 public:
-  explicit Megabytes(uint64_t value) : Bytes(value, MEGABYTES) {}
+  explicit constexpr Megabytes(uint64_t value) : Bytes(value, MEGABYTES) {}
 };
 
 
 class Gigabytes : public Bytes
 {
 public:
-  explicit Gigabytes(uint64_t value) : Bytes(value, GIGABYTES) {}
+  explicit constexpr Gigabytes(uint64_t value) : Bytes(value, GIGABYTES) {}
 };
 
 
 class Terabytes : public Bytes
 {
 public:
-  explicit Terabytes(uint64_t value) : Bytes(value, TERABYTES) {}
+  explicit constexpr Terabytes(uint64_t value) : Bytes(value, TERABYTES) {}
 };
 
 
