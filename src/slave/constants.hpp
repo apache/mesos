@@ -26,98 +26,93 @@ namespace mesos {
 namespace internal {
 namespace slave {
 
-// TODO(bmahler): It appears there may be a bug with gcc-4.1.2 in which these
-// duration constants were not being initialized when having static linkage.
-// This issue did not manifest in newer gcc's. Specifically, 4.2.1 was ok.
-// So we've moved these to have external linkage but perhaps in the future
-// we can revert this.
-
 // TODO(jieyu): Use static functions for all the constants. See more
 // details in MESOS-1023.
 
-extern const Duration EXECUTOR_REGISTRATION_TIMEOUT;
-extern const Duration EXECUTOR_SHUTDOWN_GRACE_PERIOD;
-extern const Duration EXECUTOR_REREGISTER_TIMEOUT;
-extern const Duration EXECUTOR_SIGNAL_ESCALATION_TIMEOUT;
-extern const Duration RECOVERY_TIMEOUT;
-extern const Duration STATUS_UPDATE_RETRY_INTERVAL_MIN;
-extern const Duration STATUS_UPDATE_RETRY_INTERVAL_MAX;
-extern const Duration GC_DELAY;
-extern const Duration DISK_WATCH_INTERVAL;
+constexpr Duration EXECUTOR_REGISTRATION_TIMEOUT = Minutes(1);
+constexpr Duration EXECUTOR_SHUTDOWN_GRACE_PERIOD = Seconds(5);
+constexpr Duration EXECUTOR_REREGISTER_TIMEOUT = Seconds(2);
+constexpr Duration EXECUTOR_SIGNAL_ESCALATION_TIMEOUT = Seconds(3);
+constexpr Duration RECOVERY_TIMEOUT = Minutes(15);
+constexpr Duration STATUS_UPDATE_RETRY_INTERVAL_MIN = Seconds(10);
+constexpr Duration STATUS_UPDATE_RETRY_INTERVAL_MAX = Minutes(10);;
+constexpr Duration GC_DELAY = Weeks(1);
+constexpr Duration DISK_WATCH_INTERVAL = Minutes(1);
 
 // Default backoff interval used by the slave to wait before registration.
-extern const Duration DEFAULT_REGISTRATION_BACKOFF_FACTOR;
+constexpr Duration DEFAULT_REGISTRATION_BACKOFF_FACTOR = Seconds(1);
 
 // The maximum interval the slave waits before retrying registration.
 // Note that this value has to be << 'MIN_SLAVE_REREGISTER_TIMEOUT'
 // declared in 'master/constants.hpp'. This helps the slave to retry
 // (re-)registration multiple times between when the master finishes
 // recovery and when it times out slave re-registration.
-extern const Duration REGISTER_RETRY_INTERVAL_MAX;
+constexpr Duration REGISTER_RETRY_INTERVAL_MAX = Minutes(1);
 
 // Minimum free disk capacity enforced by the garbage collector.
-extern const double GC_DISK_HEADROOM;
+constexpr double GC_DISK_HEADROOM = 0.1;
 
 // Maximum number of completed frameworks to store in memory.
-extern const uint32_t MAX_COMPLETED_FRAMEWORKS;
+constexpr uint32_t MAX_COMPLETED_FRAMEWORKS = 50;
 
 // Maximum number of completed executors per framework to store in memory.
-extern const uint32_t MAX_COMPLETED_EXECUTORS_PER_FRAMEWORK;
+constexpr uint32_t MAX_COMPLETED_EXECUTORS_PER_FRAMEWORK = 150;
 
 // Maximum number of completed tasks per executor to store in memory.
-extern const uint32_t MAX_COMPLETED_TASKS_PER_EXECUTOR;
+constexpr uint32_t MAX_COMPLETED_TASKS_PER_EXECUTOR = 200;
 
 // Default cpus offered by the slave.
-extern const double DEFAULT_CPUS;
+constexpr double DEFAULT_CPUS = 1;
 
 // Default memory offered by the slave.
-extern const Bytes DEFAULT_MEM;
+constexpr Bytes DEFAULT_MEM = Gigabytes(1);
 
 // Default disk space offered by the slave.
-extern const Bytes DEFAULT_DISK;
+constexpr Bytes DEFAULT_DISK = Gigabytes(10);
 
 // Default ports range offered by the slave.
-extern const std::string DEFAULT_PORTS;
+const std::string DEFAULT_PORTS = "[31000-32000]";
 
 // Default cpu resource given to a command executor.
-const double DEFAULT_EXECUTOR_CPUS = 0.1;
+constexpr double DEFAULT_EXECUTOR_CPUS = 0.1;
 
 // Default memory resource given to a command executor.
-const Bytes DEFAULT_EXECUTOR_MEM = Megabytes(32);
+constexpr Bytes DEFAULT_EXECUTOR_MEM = Megabytes(32);
 
 #ifdef WITH_NETWORK_ISOLATOR
 // Default number of ephemeral ports allocated to a container by the
 // network isolator.
-extern const uint16_t DEFAULT_EPHEMERAL_PORTS_PER_CONTAINER;
+constexpr uint16_t DEFAULT_EPHEMERAL_PORTS_PER_CONTAINER = 1024;
 #endif
 
 // Default duration that docker containers will be removed after exit.
-extern const Duration DOCKER_REMOVE_DELAY;
+constexpr Duration DOCKER_REMOVE_DELAY = Hours(6);
 
 // Default duration to wait before retry inspecting a docker
 // container.
-extern const Duration DOCKER_INSPECT_DELAY;
+constexpr Duration DOCKER_INSPECT_DELAY = Seconds(1);
 
 // Default duration that docker containerizer will wait to check
 // docker version.
-extern const Duration DOCKER_VERSION_WAIT_TIMEOUT;
+// TODO(tnachen): Make this a flag.
+constexpr Duration DOCKER_VERSION_WAIT_TIMEOUT = Seconds(5);
 
 // Name of the default, CRAM-MD5 authenticatee.
-extern const std::string DEFAULT_AUTHENTICATEE;
+const std::string DEFAULT_AUTHENTICATEE = "crammd5";
 
 // Default maximum storage space to be used by the fetcher cache.
-const Bytes DEFAULT_FETCHER_CACHE_SIZE = Gigabytes(2);
+constexpr Bytes DEFAULT_FETCHER_CACHE_SIZE = Gigabytes(2);
 
 // Default maximum number of docker inspect calls docker ps will invoke
 // in parallel to prevent hitting system's open file descriptor limit.
-const int DOCKER_PS_MAX_INSPECT_CALLS = 100;
+constexpr int DOCKER_PS_MAX_INSPECT_CALLS = 100;
 
 // If no pings received within this timeout, then the slave will
 // trigger a re-detection of the master to cause a re-registration.
 Duration DEFAULT_MASTER_PING_TIMEOUT();
 
 // Container path that the slave sets to mount the command executor rootfs to.
-extern const std::string COMMAND_EXECUTOR_ROOTFS_CONTAINER_PATH;
+const std::string COMMAND_EXECUTOR_ROOTFS_CONTAINER_PATH = ".rootfs";
 
 } // namespace slave {
 } // namespace internal {
