@@ -25,14 +25,21 @@ namespace scheduler {
 
 // Default backoff interval used by the scheduler driver to wait
 // before registration.
-extern const Duration DEFAULT_REGISTRATION_BACKOFF_FACTOR;
+//
+// NOTE: The default backoff factor for the scheduler (2s) is
+// different from the slave (1s) because the scheduler driver doesn't
+// do an initial backoff for the very first attempt unlike the slave.
+//
+// TODO(vinod): Once we fix the scheduler driver to do initial backoff
+// we can change the default to 1s.
+constexpr Duration DEFAULT_REGISTRATION_BACKOFF_FACTOR = Seconds(2);
 
 // The maximum interval the scheduler driver waits before retrying
 // registration.
-extern const Duration REGISTRATION_RETRY_INTERVAL_MAX;
+constexpr Duration REGISTRATION_RETRY_INTERVAL_MAX = Minutes(1);
 
 // Name of the default, CRAM-MD5 authenticatee.
-extern const std::string DEFAULT_AUTHENTICATEE;
+constexpr char DEFAULT_AUTHENTICATEE[] = "crammd5";
 
 } // namespace scheduler {
 } // namespace internal {

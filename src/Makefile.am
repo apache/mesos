@@ -641,7 +641,6 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   master/allocator/sorter/drf/sorter.cpp				\
   messages/messages.cpp							\
   module/manager.cpp							\
-  sched/constants.cpp							\
   sched/sched.cpp							\
   scheduler/scheduler.cpp						\
   slave/constants.cpp							\

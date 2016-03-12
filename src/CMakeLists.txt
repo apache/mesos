@@ -223,7 +223,6 @@ set(MODULE_SRC
   )
 
 set(SCHED_SRC
-  sched/constants.cpp
   sched/sched.cpp
   )
 

@@ -96,8 +96,8 @@ public:
     add(&Flags::authenticatee,
         "authenticatee",
         "Authenticatee implementation to use when authenticating against the\n"
-        "master. Use the default '" + DEFAULT_AUTHENTICATEE + "', or\n"
-        "load an alternate authenticatee module using MESOS_MODULES.",
+        "master. Use the default '" + std::string(DEFAULT_AUTHENTICATEE) + "'\n"
+        "or load an alternate authenticatee module using MESOS_MODULES.",
         DEFAULT_AUTHENTICATEE);
   }
 
