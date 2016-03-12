@@ -167,14 +167,14 @@ public:
   static constexpr Duration zero() { return Duration(); }
 
 protected:
-  static const int64_t NANOSECONDS  = 1;
-  static const int64_t MICROSECONDS = 1000 * NANOSECONDS;
-  static const int64_t MILLISECONDS = 1000 * MICROSECONDS;
-  static const int64_t SECONDS      = 1000 * MILLISECONDS;
-  static const int64_t MINUTES      = 60 * SECONDS;
-  static const int64_t HOURS        = 60 * MINUTES;
-  static const int64_t DAYS         = 24 * HOURS;
-  static const int64_t WEEKS        = 7 * DAYS;
+  static constexpr int64_t NANOSECONDS  = 1;
+  static constexpr int64_t MICROSECONDS = 1000 * NANOSECONDS;
+  static constexpr int64_t MILLISECONDS = 1000 * MICROSECONDS;
+  static constexpr int64_t SECONDS      = 1000 * MILLISECONDS;
+  static constexpr int64_t MINUTES      = 60 * SECONDS;
+  static constexpr int64_t HOURS        = 60 * MINUTES;
+  static constexpr int64_t DAYS         = 24 * HOURS;
+  static constexpr int64_t WEEKS        = 7 * DAYS;
 
   // Construct from a (value, unit) pair.
   constexpr Duration(int64_t value, int64_t unit)
