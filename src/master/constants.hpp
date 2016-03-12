@@ -31,12 +31,6 @@ namespace master {
 // TODO(benh): Add units after constants.
 // TODO(benh): Also make configuration options be constants.
 
-// TODO(bmahler): It appears there may be a bug with gcc-4.1.2 in which the
-// duration constants were not being initialized when having static linkage.
-// This issue did not manifest in newer gcc's. Specifically, 4.2.1 was ok.
-// So we've moved these to have external linkage but perhaps in the future
-// we can revert this.
-
 // TODO(vinod): Move constants that are only used in flags to
 // 'master/flags.hpp'.
 
@@ -44,18 +38,17 @@ namespace master {
 // details in MESOS-1023.
 
 // Maximum number of slot offers to have outstanding for each framework.
-extern const int MAX_OFFERS_PER_FRAMEWORK;
+constexpr int MAX_OFFERS_PER_FRAMEWORK = 50;
 
 // Minimum number of cpus per offer.
-extern const double MIN_CPUS;
+constexpr double MIN_CPUS = 0.01;
 
 // Minimum amount of memory per offer.
-extern const Bytes MIN_MEM;
-
+constexpr Bytes MIN_MEM = Megabytes(32);
 
 // Default interval the master uses to send heartbeats to an HTTP
 // scheduler.
-extern const Duration DEFAULT_HEARTBEAT_INTERVAL;
+constexpr Duration DEFAULT_HEARTBEAT_INTERVAL = Seconds(15);
 
 // Amount of time within which a slave PING should be received.
 // NOTE: The slave uses these PING constants to determine when
@@ -63,15 +56,15 @@ extern const Duration DEFAULT_HEARTBEAT_INTERVAL;
 // configurable, then we'll need to rely on upper/lower bounds
 // to ensure that the slave is not unnecessarily triggering
 // re-registrations.
-extern const Duration DEFAULT_SLAVE_PING_TIMEOUT;
+constexpr Duration DEFAULT_SLAVE_PING_TIMEOUT = Seconds(15);
 
 // Maximum number of ping timeouts until slave is considered failed.
-extern const size_t DEFAULT_MAX_SLAVE_PING_TIMEOUTS;
+constexpr size_t DEFAULT_MAX_SLAVE_PING_TIMEOUTS = 5;
 
 // The minimum timeout that can be used by a newly elected leader to
 // allow re-registration of slaves. Any slaves that do not re-register
 // within this timeout will be shutdown.
-extern const Duration MIN_SLAVE_REREGISTER_TIMEOUT;
+constexpr Duration MIN_SLAVE_REREGISTER_TIMEOUT = Minutes(10);
 
 // Default limit on the percentage of slaves that will be removed
 // after recovering if no re-registration attempts were made.
@@ -82,59 +75,59 @@ extern const Duration MIN_SLAVE_REREGISTER_TIMEOUT;
 // production clusters. This TODO is to provide a --production flag
 // which would allow flag defaults that are more appropriate for
 // production use-cases.
-extern const double RECOVERY_SLAVE_REMOVAL_PERCENT_LIMIT;
+constexpr double RECOVERY_SLAVE_REMOVAL_PERCENT_LIMIT = 1.0; // 100%.
 
 // Maximum number of removed slaves to store in the cache.
-extern const size_t MAX_REMOVED_SLAVES;
+constexpr size_t MAX_REMOVED_SLAVES = 100000;
 
 // Default maximum number of completed frameworks to store in the cache.
-extern const size_t DEFAULT_MAX_COMPLETED_FRAMEWORKS;
+constexpr size_t DEFAULT_MAX_COMPLETED_FRAMEWORKS = 50;
 
 // Default maximum number of completed tasks per framework
 // to store in the cache.
-extern const size_t DEFAULT_MAX_COMPLETED_TASKS_PER_FRAMEWORK;
+constexpr size_t DEFAULT_MAX_COMPLETED_TASKS_PER_FRAMEWORK = 1000;
 
 // Time interval to check for updated watchers list.
-extern const Duration WHITELIST_WATCH_INTERVAL;
+constexpr Duration WHITELIST_WATCH_INTERVAL = Seconds(5);
 
 // Default number of tasks (limit) for /master/tasks endpoint.
-extern const uint32_t TASK_LIMIT;
+constexpr uint32_t TASK_LIMIT = 100;
 
 /**
  * Label used by the Leader Contender and Detector.
  *
  * \deprecated Will be deprecated as of Mesos 0.24: see MESOS-2340.
  */
-extern const std::string MASTER_INFO_LABEL;
+const std::string MASTER_INFO_LABEL = "info";
 
 /**
  * Label used by the Leader Contender and Detector, for JSON content.
  *
  * \since Mesos 0.23 (see MESOS-2340).
  */
-extern const std::string MASTER_INFO_JSON_LABEL;
+const std::string MASTER_INFO_JSON_LABEL = "json.info";
 
 // Timeout used for ZooKeeper related operations.
 // TODO(vinod): Master detector/contender should use this timeout.
-extern const Duration ZOOKEEPER_SESSION_TIMEOUT;
+constexpr Duration ZOOKEEPER_SESSION_TIMEOUT = Seconds(10);
 
 // Name of the default, CRAM-MD5 authenticator.
-extern const std::string DEFAULT_AUTHENTICATOR;
+const std::string DEFAULT_AUTHENTICATOR = "crammd5";
 
 // Name of the default, HierarchicalDRF authenticator.
-extern const std::string DEFAULT_ALLOCATOR;
+const std::string DEFAULT_ALLOCATOR = "HierarchicalDRF";
 
 // The default interval between allocations.
-extern const Duration DEFAULT_ALLOCATION_INTERVAL;
+constexpr Duration DEFAULT_ALLOCATION_INTERVAL = Seconds(1);
 
 // Name of the default, local authorizer.
-extern const std::string DEFAULT_AUTHORIZER;
+const std::string DEFAULT_AUTHORIZER = "local";
 
 // Name of the default, basic authenticator.
-extern const std::string DEFAULT_HTTP_AUTHENTICATOR;
+const std::string DEFAULT_HTTP_AUTHENTICATOR = "basic";
 
 // Name of the default, "mesos" HTTP authentication realm.
-extern const std::string DEFAULT_HTTP_AUTHENTICATION_REALM;
+const std::string DEFAULT_HTTP_AUTHENTICATION_REALM = "mesos";
 
 } // namespace master {
 } // namespace internal {

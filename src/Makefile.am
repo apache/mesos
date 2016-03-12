@@ -621,7 +621,6 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   local/local.cpp							\
   logging/flags.cpp							\
   logging/logging.cpp							\
-  master/constants.cpp							\
   master/contender.cpp							\
   master/detector.cpp							\
   master/flags.cpp							\
