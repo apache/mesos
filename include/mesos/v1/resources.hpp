@@ -222,11 +222,12 @@ public:
       const lambda::function<bool(const Resource&)>& predicate) const;
 
   // Returns the reserved resources, by role.
-  hashmap<std::string, Resources> reserved() const;
+  hashmap<std::string, Resources> reservations() const;
 
-  // Returns the reserved resources for the role. Note that the "*"
-  // role represents unreserved resources, and will be ignored.
-  Resources reserved(const std::string& role) const;
+  // Returns the reserved resources for the role, if specified.
+  // Note that the "*" role represents unreserved resources,
+  // and will be ignored.
+  Resources reserved(const Option<std::string>& role = None()) const;
 
   // Returns the unreserved resources.
   Resources unreserved() const;

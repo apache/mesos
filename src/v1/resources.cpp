@@ -862,7 +862,7 @@ Resources Resources::filter(
 }
 
 
-hashmap<string, Resources> Resources::reserved() const
+hashmap<string, Resources> Resources::reservations() const
 {
   hashmap<string, Resources> result;
 
@@ -876,7 +876,7 @@ hashmap<string, Resources> Resources::reserved() const
 }
 
 
-Resources Resources::reserved(const string& role) const
+Resources Resources::reserved(const Option<string>& role) const
 {
   return filter(lambda::bind(isReserved, lambda::_1, role));
 }

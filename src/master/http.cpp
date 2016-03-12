@@ -168,7 +168,7 @@ void json(JSON::ObjectWriter* writer, const Summary<Slave>& summary)
   writer->field("resources", totalResources);
   writer->field("used_resources", Resources::sum(slave.usedResources));
   writer->field("offered_resources", slave.offeredResources);
-  writer->field("reserved_resources", totalResources.reserved());
+  writer->field("reserved_resources", totalResources.reservations());
   writer->field("unreserved_resources", totalResources.unreserved());
 
   writer->field("attributes", Attributes(slave.info.attributes()));
@@ -1076,7 +1076,7 @@ Future<Response> Master::Http::slaves(const Request& request) const
           // `/unreserve` and `/destroy-volumes` endpoints.
 
           hashmap<string, Resources> reserved =
-            slave->totalResources.reserved();
+            slave->totalResources.reservations();
 
           writer->field(
               "reserved_resources_full",

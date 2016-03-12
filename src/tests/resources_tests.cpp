@@ -1460,7 +1460,7 @@ TEST(ResourcesTest, Reservations)
 
   Resources resources = unreserved + role1 + role2;
 
-  hashmap<string, Resources> reserved = resources.reserved();
+  hashmap<string, Resources> reserved = resources.reservations();
 
   EXPECT_EQ(2u, reserved.size());
   EXPECT_EQ(role1, reserved["role1"]);
@@ -1473,6 +1473,8 @@ TEST(ResourcesTest, Reservations)
   EXPECT_EQ(Resources(), resources.reserved("*"));
 
   EXPECT_EQ(unreserved, resources.unreserved());
+
+  EXPECT_EQ(role1 + role2, resources.reserved());
 }
 
 
