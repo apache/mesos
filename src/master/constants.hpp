@@ -19,8 +19,6 @@
 
 #include <stdint.h>
 
-#include <string>
-
 #include <stout/bytes.hpp>
 #include <stout/duration.hpp>
 
@@ -98,36 +96,36 @@ constexpr uint32_t TASK_LIMIT = 100;
  *
  * \deprecated Will be deprecated as of Mesos 0.24: see MESOS-2340.
  */
-const std::string MASTER_INFO_LABEL = "info";
+constexpr char MASTER_INFO_LABEL[] = "info";
 
 /**
  * Label used by the Leader Contender and Detector, for JSON content.
  *
  * \since Mesos 0.23 (see MESOS-2340).
  */
-const std::string MASTER_INFO_JSON_LABEL = "json.info";
+constexpr char MASTER_INFO_JSON_LABEL[] = "json.info";
 
 // Timeout used for ZooKeeper related operations.
 // TODO(vinod): Master detector/contender should use this timeout.
 constexpr Duration ZOOKEEPER_SESSION_TIMEOUT = Seconds(10);
 
 // Name of the default, CRAM-MD5 authenticator.
-const std::string DEFAULT_AUTHENTICATOR = "crammd5";
+constexpr char DEFAULT_AUTHENTICATOR[] = "crammd5";
 
 // Name of the default, HierarchicalDRF authenticator.
-const std::string DEFAULT_ALLOCATOR = "HierarchicalDRF";
+constexpr char DEFAULT_ALLOCATOR[] = "HierarchicalDRF";
 
 // The default interval between allocations.
 constexpr Duration DEFAULT_ALLOCATION_INTERVAL = Seconds(1);
 
 // Name of the default, local authorizer.
-const std::string DEFAULT_AUTHORIZER = "local";
+constexpr char DEFAULT_AUTHORIZER[] = "local";
 
 // Name of the default, basic authenticator.
-const std::string DEFAULT_HTTP_AUTHENTICATOR = "basic";
+constexpr char DEFAULT_HTTP_AUTHENTICATOR[] = "basic";
 
 // Name of the default, "mesos" HTTP authentication realm.
-const std::string DEFAULT_HTTP_AUTHENTICATION_REALM = "mesos";
+constexpr char DEFAULT_HTTP_AUTHENTICATION_REALM[] = "mesos";
 
 } // namespace master {
 } // namespace internal {

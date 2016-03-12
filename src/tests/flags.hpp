@@ -145,8 +145,8 @@ public:
     add(&Flags::authenticators,
         "authenticators",
         "Authenticator implementation to use when authenticating frameworks\n"
-        "and/or slaves. "
-        "Use the default '" + master::DEFAULT_AUTHENTICATOR + "', or\n"
+        "and/or slaves. Use the default '" +
+        std::string(master::DEFAULT_AUTHENTICATOR) + "', or\n"
         "load an alternate authenticator module using --modules.",
         master::DEFAULT_AUTHENTICATOR);
   }
