@@ -34,8 +34,11 @@
 #include "slave/containerizer/mesos/provisioner/docker/registry_puller.hpp"
 #include "slave/containerizer/mesos/provisioner/docker/store.hpp"
 
+#include "tests/environment.hpp"
 #include "tests/mesos.hpp"
 #include "tests/utils.hpp"
+
+#include "tests/containerizer/docker_archive.hpp"
 
 namespace master = mesos::internal::master;
 namespace paths = mesos::internal::slave::docker::paths;
@@ -313,12 +316,92 @@ TEST_F(ProvisionerDockerLocalStoreTest, PullingSameImageSimutanuously)
 
 
 #ifdef __linux__
-class ProvisionerDockerRegistryPullerTest : public MesosTest {};
+class ProvisionerDockerPullerTest : public MesosTest {};
+
+
+// This test verifies that local docker image can be pulled and
+// provisioned correctly, and shell command should be executed.
+TEST_F(ProvisionerDockerPullerTest, ROOT_LocalPullerShellCommand)
+{
+  Try<PID<Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  Try<string> mkdtemp = environment->mkdtemp();
+  ASSERT_SOME(mkdtemp);
+
+  const string directory = path::join(mkdtemp.get(), "archives");
+
+  Future<Nothing> testImage = DockerArchive::create(directory, "alpine");
+  AWAIT_READY(testImage);
+
+  ASSERT_TRUE(os::exists(path::join(directory, "alpine.tar")));
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.isolation = "docker/runtime,filesystem/linux";
+  flags.image_providers = "docker";
+  flags.docker_registry = directory;
+  flags.docker_store_dir = path::join(flags.work_dir, "docker");
+
+  Try<PID<Slave>> slave = StartSlave(flags);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  ASSERT_EQ(1u, offers->size());
+
+  const Offer& offer = offers.get()[0];
+
+  TaskInfo task = createTask(
+      offer.slave_id(),
+      Resources::parse("cpus:1;mem:128").get(),
+      "ls -al /");
+
+  Image image;
+  image.set_type(Image::DOCKER);
+  image.mutable_docker()->set_name("alpine");
+
+  ContainerInfo* container = task.mutable_container();
+  container->set_type(ContainerInfo::MESOS);
+  container->mutable_mesos()->mutable_image()->CopyFrom(image);
+
+  Future<TaskStatus> statusRunning;
+  Future<TaskStatus> statusFinished;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusRunning))
+    .WillOnce(FutureArg<1>(&statusFinished));
+
+  driver.launchTasks(offer.id(), {task});
+
+  AWAIT_READY_FOR(statusRunning, Seconds(60));
+  EXPECT_EQ(task.task_id(), statusRunning->task_id());
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
+
+  AWAIT_READY(statusFinished);
+  EXPECT_EQ(task.task_id(), statusFinished->task_id());
+  EXPECT_EQ(TASK_FINISHED, statusFinished->state());
+
+  driver.stop();
+  driver.join();
+
+  Shutdown();
+}
 
 
 // TODO(jieyu): This is a ROOT test because of MESOS-4757. Remove the
 // ROOT restriction after MESOS-4757 is resolved.
-TEST_F(ProvisionerDockerRegistryPullerTest, ROOT_INTERNET_CURL_ShellCommand)
+TEST_F(ProvisionerDockerPullerTest, ROOT_INTERNET_CURL_ShellCommand)
 {
   Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -383,6 +466,7 @@ TEST_F(ProvisionerDockerRegistryPullerTest, ROOT_INTERNET_CURL_ShellCommand)
 
   Shutdown();
 }
+
 #endif
 
 } // namespace tests {
