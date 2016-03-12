@@ -27,6 +27,7 @@
 
 #include "slave/constants.hpp"
 
+using std::string;
 
 mesos::internal::slave::Flags::Flags()
 {
@@ -656,10 +657,8 @@ mesos::internal::slave::Flags::Flags()
   add(&Flags::authenticatee,
       "authenticatee",
       "Authenticatee implementation to use when authenticating against the\n"
-      "master. Use the default `" +
-        DEFAULT_AUTHENTICATEE +
-        "`, or\n"
-        "load an alternate authenticatee module using `--modules`.",
+      "master. Use the default `" + string(DEFAULT_AUTHENTICATEE) + "`, or\n"
+      "load an alternate authenticatee module using `--modules`.",
       DEFAULT_AUTHENTICATEE);
 
   add(&Flags::hooks,

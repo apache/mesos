@@ -71,7 +71,7 @@ constexpr Bytes DEFAULT_MEM = Gigabytes(1);
 constexpr Bytes DEFAULT_DISK = Gigabytes(10);
 
 // Default ports range offered by the slave.
-const std::string DEFAULT_PORTS = "[31000-32000]";
+constexpr char DEFAULT_PORTS[] = "[31000-32000]";
 
 // Default cpu resource given to a command executor.
 constexpr double DEFAULT_EXECUTOR_CPUS = 0.1;
@@ -98,7 +98,7 @@ constexpr Duration DOCKER_INSPECT_DELAY = Seconds(1);
 constexpr Duration DOCKER_VERSION_WAIT_TIMEOUT = Seconds(5);
 
 // Name of the default, CRAM-MD5 authenticatee.
-const std::string DEFAULT_AUTHENTICATEE = "crammd5";
+constexpr char DEFAULT_AUTHENTICATEE[] = "crammd5";
 
 // Default maximum storage space to be used by the fetcher cache.
 constexpr Bytes DEFAULT_FETCHER_CACHE_SIZE = Gigabytes(2);
@@ -112,7 +112,7 @@ constexpr int DOCKER_PS_MAX_INSPECT_CALLS = 100;
 Duration DEFAULT_MASTER_PING_TIMEOUT();
 
 // Container path that the slave sets to mount the command executor rootfs to.
-const std::string COMMAND_EXECUTOR_ROOTFS_CONTAINER_PATH = ".rootfs";
+constexpr char COMMAND_EXECUTOR_ROOTFS_CONTAINER_PATH[] = ".rootfs";
 
 } // namespace slave {
 } // namespace internal {
