@@ -256,7 +256,11 @@ TEST_F(HealthCheckTest, HealthyTask)
 
   // Verify that task health is exposed in the master's state endpoint.
   {
-    Future<http::Response> response = http::get(master.get(), "state");
+    Future<http::Response> response = http::get(
+        master.get(),
+        "state",
+        None(),
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(process::http::OK().status, response);
 
@@ -545,7 +549,11 @@ TEST_F(HealthCheckTest, HealthStatusChange)
 
   // Verify that task health is exposed in the master's state endpoint.
   {
-    Future<http::Response> response = http::get(master.get(), "state");
+    Future<http::Response> response = http::get(
+        master.get(),
+        "state",
+        None(),
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(process::http::OK().status, response);
 
@@ -578,7 +586,11 @@ TEST_F(HealthCheckTest, HealthStatusChange)
   // Verify that the task health change is reflected in the master's
   // state endpoint.
   {
-    Future<http::Response> response = http::get(master.get(), "state");
+    Future<http::Response> response = http::get(
+        master.get(),
+        "state",
+        None(),
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(process::http::OK().status, response);
 
@@ -612,7 +624,11 @@ TEST_F(HealthCheckTest, HealthStatusChange)
   // Verify through master's state endpoint that the task is back to a
   // healthy state.
   {
-    Future<http::Response> response = http::get(master.get(), "state");
+    Future<http::Response> response = http::get(
+        master.get(),
+        "state",
+        None(),
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(process::http::OK().status, response);
 

@@ -734,7 +734,9 @@ string Master::Http::FRAMEWORKS()
 }
 
 
-Future<Response> Master::Http::frameworks(const Request& request) const
+Future<Response> Master::Http::frameworks(
+    const Request& request,
+    const Option<string>& /*principal*/) const
 {
   auto frameworks = [this](JSON::ObjectWriter* writer) {
     // Model all of the frameworks.
@@ -776,7 +778,9 @@ string Master::Http::FLAGS_HELP()
 }
 
 
-Future<Response> Master::Http::flags(const Request& request) const
+Future<Response> Master::Http::flags(
+    const Request& request,
+    const Option<string>& /*principal*/) const
 {
   JSON::Object object;
 
@@ -855,7 +859,9 @@ Try<string> getFormValue(
 }
 
 
-Future<Response> Master::Http::observe(const Request& request) const
+Future<Response> Master::Http::observe(
+    const Request& request,
+    const Option<string>& /*principal*/) const
 {
   Try<hashmap<string, string>> decode =
     process::http::query::decode(request.body);
@@ -1060,7 +1066,9 @@ string Master::Http::SLAVES_HELP()
 }
 
 
-Future<Response> Master::Http::slaves(const Request& request) const
+Future<Response> Master::Http::slaves(
+    const Request& request,
+    const Option<string>& /*principal*/) const
 {
   auto slaves = [this](JSON::ObjectWriter* writer) {
     writer->field("slaves", [this](JSON::ArrayWriter* writer) {
@@ -1268,7 +1276,9 @@ string Master::Http::STATE_HELP()
 }
 
 
-Future<Response> Master::Http::state(const Request& request) const
+Future<Response> Master::Http::state(
+    const Request& request,
+    const Option<string>& /*principal*/) const
 {
   auto state = [this](JSON::ObjectWriter* writer) {
     writer->field("version", MESOS_VERSION);
@@ -1541,7 +1551,9 @@ string Master::Http::STATESUMMARY_HELP()
 }
 
 
-Future<Response> Master::Http::stateSummary(const Request& request) const
+Future<Response> Master::Http::stateSummary(
+    const Request& request,
+    const Option<string>& /*principal*/) const
 {
   auto stateSummary = [this](JSON::ObjectWriter* writer) {
     writer->field("hostname", master->info().hostname());
@@ -1699,7 +1711,9 @@ JSON::Object model(
 }
 
 
-Future<Response> Master::Http::roles(const Request& request) const
+Future<Response> Master::Http::roles(
+    const Request& request,
+    const Option<string>& /*principal*/) const
 {
   JSON::Object object;
 
@@ -1904,7 +1918,9 @@ struct TaskComparator
 };
 
 
-Future<Response> Master::Http::tasks(const Request& request) const
+Future<Response> Master::Http::tasks(
+    const Request& request,
+    const Option<string>& /*principal*/) const
 {
   // Get list options (limit and offset).
   Result<int> result = numify<int>(request.url.query.get("limit"));
@@ -1978,7 +1994,9 @@ string Master::Http::MAINTENANCE_SCHEDULE_HELP()
 
 
 // /master/maintenance/schedule endpoint handler.
-Future<Response> Master::Http::maintenanceSchedule(const Request& request) const
+Future<Response> Master::Http::maintenanceSchedule(
+    const Request& request,
+    const Option<string>& /*principal*/) const
 {
   if (request.method != "GET" && request.method != "POST") {
     return MethodNotAllowed(
@@ -2113,7 +2131,9 @@ string Master::Http::MACHINE_DOWN_HELP()
 
 
 // /master/machine/down endpoint handler.
-Future<Response> Master::Http::machineDown(const Request& request) const
+Future<Response> Master::Http::machineDown(
+    const Request& request,
+    const Option<string>& /*principal*/) const
 {
   if (request.method != "POST") {
     return MethodNotAllowed(
@@ -2216,7 +2236,9 @@ string Master::Http::MACHINE_UP_HELP()
 
 
 // /master/machine/up endpoint handler.
-Future<Response> Master::Http::machineUp(const Request& request) const
+Future<Response> Master::Http::machineUp(
+    const Request& request,
+    const Option<string>& /*principal*/) const
 {
   if (request.method != "POST") {
     return MethodNotAllowed(
@@ -2320,7 +2342,9 @@ string Master::Http::MAINTENANCE_STATUS_HELP()
 
 
 // /master/maintenance/status endpoint handler.
-Future<Response> Master::Http::maintenanceStatus(const Request& request) const
+Future<Response> Master::Http::maintenanceStatus(
+    const Request& request,
+    const Option<string>& /*principal*/) const
 {
   if (request.method != "GET") {
     return MethodNotAllowed(

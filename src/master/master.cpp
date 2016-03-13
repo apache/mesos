@@ -845,16 +845,20 @@ void Master::initialize()
           return http.destroyVolumes(request, principal);
         });
   route("/frameworks",
+        DEFAULT_HTTP_AUTHENTICATION_REALM,
         Http::FRAMEWORKS(),
-        [this](const process::http::Request& request) {
+        [this](const process::http::Request& request,
+               const Option<string>& principal) {
           Http::log(request);
-          return http.frameworks(request);
+          return http.frameworks(request, principal);
         });
   route("/flags",
+        DEFAULT_HTTP_AUTHENTICATION_REALM,
         Http::FLAGS_HELP(),
-        [this](const process::http::Request& request) {
+        [this](const process::http::Request& request,
+               const Option<string>& principal) {
           Http::log(request);
-          return http.flags(request);
+          return http.flags(request, principal);
         });
   route("/health",
         Http::HEALTH_HELP(),
@@ -862,10 +866,12 @@ void Master::initialize()
           return http.health(request);
         });
   route("/observe",
+        DEFAULT_HTTP_AUTHENTICATION_REALM,
         Http::OBSERVE_HELP(),
-        [this](const process::http::Request& request) {
+        [this](const process::http::Request& request,
+               const Option<string>& principal) {
           Http::log(request);
-          return http.observe(request);
+          return http.observe(request, principal);
         });
   route("/redirect",
         Http::REDIRECT_HELP(),
@@ -883,16 +889,20 @@ void Master::initialize()
   // TODO(ijimenez): Remove this endpoint at the end of the
   // deprecation cycle on 0.26.
   route("/roles.json",
+        DEFAULT_HTTP_AUTHENTICATION_REALM,
         Http::ROLES_HELP(),
-        [this](const process::http::Request& request) {
+        [this](const process::http::Request& request,
+               const Option<string>& principal) {
           Http::log(request);
-          return http.roles(request);
+          return http.roles(request, principal);
         });
   route("/roles",
+        DEFAULT_HTTP_AUTHENTICATION_REALM,
         Http::ROLES_HELP(),
-        [this](const process::http::Request& request) {
+        [this](const process::http::Request& request,
+               const Option<string>& principal) {
           Http::log(request);
-          return http.roles(request);
+          return http.roles(request, principal);
         });
   route("/teardown",
         DEFAULT_HTTP_AUTHENTICATION_REALM,
@@ -903,68 +913,88 @@ void Master::initialize()
           return http.teardown(request, principal);
         });
   route("/slaves",
+        DEFAULT_HTTP_AUTHENTICATION_REALM,
         Http::SLAVES_HELP(),
-        [this](const process::http::Request& request) {
+        [this](const process::http::Request& request,
+               const Option<string>& principal) {
           Http::log(request);
-          return http.slaves(request);
+          return http.slaves(request, principal);
         });
   // TODO(ijimenez): Remove this endpoint at the end of the
   // deprecation cycle on 0.26.
   route("/state.json",
+        DEFAULT_HTTP_AUTHENTICATION_REALM,
         Http::STATE_HELP(),
-        [this](const process::http::Request& request) {
+        [this](const process::http::Request& request,
+               const Option<string>& principal) {
           Http::log(request);
-          return http.state(request);
+          return http.state(request, principal);
         });
   route("/state",
+        DEFAULT_HTTP_AUTHENTICATION_REALM,
         Http::STATE_HELP(),
-        [this](const process::http::Request& request) {
+        [this](const process::http::Request& request,
+               const Option<string>& principal) {
           Http::log(request);
-          return http.state(request);
+          return http.state(request, principal);
         });
   route("/state-summary",
+        DEFAULT_HTTP_AUTHENTICATION_REALM,
         Http::STATESUMMARY_HELP(),
-        [this](const process::http::Request& request) {
+        [this](const process::http::Request& request,
+               const Option<string>& principal) {
           Http::log(request);
-          return http.stateSummary(request);
+          return http.stateSummary(request, principal);
         });
   // TODO(ijimenez): Remove this endpoint at the end of the
   // deprecation cycle.
   route("/tasks.json",
+        DEFAULT_HTTP_AUTHENTICATION_REALM,
         Http::TASKS_HELP(),
-        [this](const process::http::Request& request) {
+        [this](const process::http::Request& request,
+               const Option<string>& principal) {
           Http::log(request);
-          return http.tasks(request);
+          return http.tasks(request, principal);
         });
   route("/tasks",
+        DEFAULT_HTTP_AUTHENTICATION_REALM,
         Http::TASKS_HELP(),
-        [this](const process::http::Request& request) {
+        [this](const process::http::Request& request,
+               const Option<string>& principal) {
           Http::log(request);
-          return http.tasks(request);
+          return http.tasks(request, principal);
         });
   route("/maintenance/schedule",
+        DEFAULT_HTTP_AUTHENTICATION_REALM,
         Http::MAINTENANCE_SCHEDULE_HELP(),
-        [this](const process::http::Request& request) {
+        [this](const process::http::Request& request,
+               const Option<string>& principal) {
           Http::log(request);
-          return http.maintenanceSchedule(request);
+          return http.maintenanceSchedule(request, principal);
         });
   route("/maintenance/status",
+        DEFAULT_HTTP_AUTHENTICATION_REALM,
         Http::MAINTENANCE_STATUS_HELP(),
-        [this](const process::http::Request& request) {
+        [this](const process::http::Request& request,
+               const Option<string>& principal) {
           Http::log(request);
-          return http.maintenanceStatus(request);
+          return http.maintenanceStatus(request, principal);
         });
   route("/machine/down",
+        DEFAULT_HTTP_AUTHENTICATION_REALM,
         Http::MACHINE_DOWN_HELP(),
-        [this](const process::http::Request& request) {
+        [this](const process::http::Request& request,
+               const Option<string>& principal) {
           Http::log(request);
-          return http.machineDown(request);
+          return http.machineDown(request, principal);
         });
   route("/machine/up",
+        DEFAULT_HTTP_AUTHENTICATION_REALM,
         Http::MACHINE_UP_HELP(),
-        [this](const process::http::Request& request) {
+        [this](const process::http::Request& request,
+               const Option<string>& principal) {
           Http::log(request);
-          return http.machineUp(request);
+          return http.machineUp(request, principal);
         });
   route("/unreserve",
         DEFAULT_HTTP_AUTHENTICATION_REALM,

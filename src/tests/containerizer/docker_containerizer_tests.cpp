@@ -509,7 +509,12 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Launch)
   ASSERT_SOME(array);
 
   // Check if container information is exposed through master's state endpoint.
-  Future<http::Response> response = http::get(master.get(), "state");
+  Future<http::Response> response = http::get(
+      master.get(),
+      "state",
+      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(process::http::OK().status, response);
 
   Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);

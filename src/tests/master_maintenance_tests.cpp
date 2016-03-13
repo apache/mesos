@@ -110,6 +110,7 @@ public:
     MesosTest::SetUp();
 
     // Initialize the default POST header.
+    headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
     headers["Content-Type"] = "application/json";
 
     // Initialize some `MachineID`s.
@@ -209,7 +210,9 @@ TEST_F(MasterMaintenanceTest, UpdateSchedule)
   // Get the maintenance schedule.
   response = process::http::get(
       master.get(),
-      "maintenance/schedule");
+      "maintenance/schedule",
+      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 
@@ -903,7 +906,9 @@ TEST_F(MasterMaintenanceTest, BringUpMachines)
   // Get the maintenance schedule.
   response = process::http::get(
       master.get(),
-      "maintenance/schedule");
+      "maintenance/schedule",
+      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 
@@ -941,7 +946,9 @@ TEST_F(MasterMaintenanceTest, BringUpMachines)
   // Get the maintenance schedule again.
   response = process::http::get(
       master.get(),
-      "maintenance/schedule");
+      "maintenance/schedule",
+      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 
@@ -977,7 +984,12 @@ TEST_F(MasterMaintenanceTest, MachineStatus)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 
   // Get the maintenance statuses.
-  response = process::http::get(master.get(), "maintenance/status");
+  response = process::http::get(
+      master.get(),
+      "maintenance/status",
+      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 
   // Check that both machines are draining.
@@ -1003,7 +1015,12 @@ TEST_F(MasterMaintenanceTest, MachineStatus)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 
   // Get the maintenance statuses.
-  response = process::http::get(master.get(), "maintenance/status");
+  response = process::http::get(
+      master.get(),
+      "maintenance/status",
+      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 
   // Check one machine is deactivated.
@@ -1028,7 +1045,12 @@ TEST_F(MasterMaintenanceTest, MachineStatus)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 
   // Get the maintenance statuses.
-  response = process::http::get(master.get(), "maintenance/status");
+  response = process::http::get(
+      master.get(),
+      "maintenance/status",
+      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 
   // Check that only one machine remains.
@@ -1081,7 +1103,12 @@ TEST_F(MasterMaintenanceTest, InverseOffers)
 
   // Sanity check that this machine shows up in the status endpoint
   // and there should be no inverse offer status.
-  response = process::http::get(master.get(), "maintenance/status");
+  response = process::http::get(
+      master.get(),
+      "maintenance/status",
+      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 
   Try<JSON::Object> statuses_ = JSON::parse<JSON::Object>(response.get().body);
@@ -1247,7 +1274,12 @@ TEST_F(MasterMaintenanceTest, InverseOffers)
   inverseOffer = event.get().offers().inverse_offers(0);
 
   // Check that the status endpoint shows the inverse offer as declined.
-  response = process::http::get(master.get(), "maintenance/status");
+  response = process::http::get(
+      master.get(),
+      "maintenance/status",
+      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 
   statuses_ = JSON::parse<JSON::Object>(response.get().body);
@@ -1306,7 +1338,12 @@ TEST_F(MasterMaintenanceTest, InverseOffers)
   EXPECT_EQ(1, event.get().offers().inverse_offers().size());
 
   // Check that the status endpoint shows the inverse offer as accepted.
-  response = process::http::get(master.get(), "maintenance/status");
+  response = process::http::get(
+      master.get(),
+      "maintenance/status",
+      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 
   statuses_ = JSON::parse<JSON::Object>(response.get().body);

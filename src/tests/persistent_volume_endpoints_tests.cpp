@@ -1492,7 +1492,11 @@ TEST_F(PersistentVolumeEndpointsTest, SlavesEndpointFullResources)
   // Wait for TASK_RUNNING update ack.
   AWAIT_READY(_statusUpdateAcknowledgement);
 
-  response = process::http::get(master.get(), "slaves");
+  response = process::http::get(
+      master.get(),
+      "slaves",
+      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
   AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);

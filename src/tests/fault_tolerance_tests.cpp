@@ -168,7 +168,11 @@ TEST_F(FaultToleranceTest, ReregisterCompletedFrameworks)
   ASSERT_SOME(slave);
 
   // Verify master/slave have 0 completed/running frameworks.
-  Future<Response> masterState = process::http::get(master.get(), "state");
+  Future<Response> masterState = process::http::get(
+      master.get(),
+      "state",
+      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, masterState);
   AWAIT_EXPECT_RESPONSE_HEADER_EQ(
@@ -225,7 +229,11 @@ TEST_F(FaultToleranceTest, ReregisterCompletedFrameworks)
   EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
 
   // Verify master and slave recognize the running task/framework.
-  masterState = process::http::get(master.get(), "state");
+  masterState = process::http::get(
+      master.get(),
+      "state",
+      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, masterState);
 
@@ -267,7 +275,11 @@ TEST_F(FaultToleranceTest, ReregisterCompletedFrameworks)
   // At this point, the task is killed, but the framework is still
   // running.  This is because the executor has to time-out before
   // it exits.
-  masterState = process::http::get(master.get(), "state");
+  masterState = process::http::get(
+      master.get(),
+      "state",
+      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, masterState);
 
@@ -353,7 +365,11 @@ TEST_F(FaultToleranceTest, ReregisterCompletedFrameworks)
   Clock::settle();
   Clock::resume();
 
-  masterState = process::http::get(master.get(), "state");
+  masterState = process::http::get(
+      master.get(),
+      "state",
+      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, masterState);
 
@@ -1920,7 +1936,12 @@ TEST_F(FaultToleranceTest, UpdateFrameworkInfoOnSchedulerFailover)
 
   AWAIT_READY(sched1Error);
 
-  Future<Response> response = process::http::get(master.get(), "state");
+  Future<Response> response = process::http::get(
+      master.get(),
+      "state",
+      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 
   Try<JSON::Object> parse =

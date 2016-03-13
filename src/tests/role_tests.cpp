@@ -262,7 +262,11 @@ TEST_F(RoleTest, EndpointEmpty)
   Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
-  Future<Response> response = process::http::get(master.get(), "roles");
+  Future<Response> response = process::http::get(
+      master.get(),
+      "roles",
+      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
     << response.get().body;
@@ -307,7 +311,11 @@ TEST_F(RoleTest, EndpointNoFrameworks)
   Try<PID<Master>> master = StartMaster(masterFlags);
   ASSERT_SOME(master);
 
-  Future<Response> response = process::http::get(master.get(), "roles");
+  Future<Response> response = process::http::get(
+      master.get(),
+      "roles",
+      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
     << response.get().body;
@@ -400,7 +408,11 @@ TEST_F(RoleTest, EndpointImplicitRolesWeights)
   AWAIT_READY(frameworkId1);
   AWAIT_READY(frameworkId2);
 
-  Future<Response> response = process::http::get(master.get(), "roles");
+  Future<Response> response = process::http::get(
+      master.get(),
+      "roles",
+      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
     << response.get().body;
@@ -498,7 +510,11 @@ TEST_F(RoleTest, EndpointImplicitRolesQuotas)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, quotaResponse)
     << quotaResponse.get().body;
 
-  Future<Response> rolesResponse = process::http::get(master.get(), "roles");
+  Future<Response> rolesResponse = process::http::get(
+      master.get(),
+      "roles",
+      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, rolesResponse)
     << rolesResponse.get().body;
@@ -548,7 +564,11 @@ TEST_F(RoleTest, EndpointImplicitRolesQuotas)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, deleteResponse)
     << deleteResponse.get().body;
 
-  rolesResponse = process::http::get(master.get(), "roles");
+  rolesResponse = process::http::get(
+      master.get(),
+      "roles",
+      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, rolesResponse)
     << rolesResponse.get().body;

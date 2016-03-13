@@ -95,23 +95,37 @@ TEST_F(HealthTest, ObserveEndpoint)
   ASSERT_SOME(master);
 
   // Empty get to the observe endpoint.
-  Future<Response> response = process::http::get(master.get(), "observe");
+  Future<Response> response = process::http::get(
+      master.get(),
+      "observe",
+      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
   VALIDATE_BAD_RESPONSE(response, "Missing value for 'monitor'");
 
   // Empty post to the observe endpoint.
-  response = process::http::post(master.get(), "observe");
+  response = process::http::post(
+      master.get(),
+      "observe",
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
   VALIDATE_BAD_RESPONSE(response, "Missing value for 'monitor'");
 
   // Query string is ignored.
-  response = process::http::post(master.get(), "observe?monitor=foo");
+  response = process::http::post(
+      master.get(),
+      "observe?monitor=foo",
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
   VALIDATE_BAD_RESPONSE(response, "Missing value for 'monitor'");
 
   // Malformed value causes error.
   response = process::http::post(
       master.get(),
       "observe",
-      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL),
       "monitor=foo%");
+
   VALIDATE_BAD_RESPONSE(
       response,
       "Unable to decode query string: Malformed % escape in 'foo%': '%'");
@@ -120,24 +134,27 @@ TEST_F(HealthTest, ObserveEndpoint)
   response = process::http::post(
       master.get(),
       "observe",
-      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL),
       "monitor=");
+
   VALIDATE_BAD_RESPONSE(response, "Empty string for 'monitor'");
 
   // Missing hosts.
   response = process::http::post(
       master.get(),
       "observe",
-      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL),
       "monitor=a");
+
   VALIDATE_BAD_RESPONSE(response, "Missing value for 'hosts'");
 
   // Missing level.
   response = process::http::post(
       master.get(),
       "observe",
-      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL),
       "monitor=a&hosts=b");
+
   VALIDATE_BAD_RESPONSE(response, "Missing value for 'level'");
 
   // Good request is successful.
@@ -149,30 +166,34 @@ TEST_F(HealthTest, ObserveEndpoint)
   response = process::http::post(
       master.get(),
       "observe",
-      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL),
       "monitor=a&hosts=b&level=ok");
+
   VALIDATE_GOOD_RESPONSE(response, stringify(expected));
 
   // ok is case-insensitive.
   response = process::http::post(
       master.get(),
       "observe",
-      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL),
       "monitor=a&hosts=b&level=Ok");
+
   VALIDATE_GOOD_RESPONSE(response, stringify(expected));
 
   response = process::http::post(
       master.get(),
       "observe",
-      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL),
       "monitor=a&hosts=b&level=oK");
+
   VALIDATE_GOOD_RESPONSE(response, stringify(expected));
 
   response = process::http::post(
       master.get(),
       "observe",
-      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL),
       "monitor=a&hosts=b&level=OK");
+
   VALIDATE_GOOD_RESPONSE(response, stringify(expected));
 
   // level != OK  is unhealthy.
@@ -181,8 +202,9 @@ TEST_F(HealthTest, ObserveEndpoint)
     process::http::post(
       master.get(),
       "observe",
-      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL),
       "monitor=a&hosts=b&level=true");
+
   VALIDATE_GOOD_RESPONSE(response, stringify(expected));
 
   // Comma-separated hosts are parsed into an array.
@@ -190,8 +212,9 @@ TEST_F(HealthTest, ObserveEndpoint)
   response = process::http::post(
       master.get(),
       "observe",
-      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL),
       "monitor=a&hosts=b,e&level=true");
+
   VALIDATE_GOOD_RESPONSE(response, stringify(expected));
 
   Shutdown();

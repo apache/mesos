@@ -282,7 +282,11 @@ TEST_F(MasterTest, ShutdownFrameworkWhileTaskRunning)
   Clock::resume();
 
   // Request master state.
-  Future<Response> response = process::http::get(master.get(), "state");
+  Future<Response> response = process::http::get(
+      master.get(),
+      "state",
+      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
   AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
@@ -1633,7 +1637,11 @@ TEST_F(MasterTest, SlavesEndpointWithoutSlaves)
   ASSERT_SOME(master);
 
   // Query the master.
-  Future<Response> response = process::http::get(master.get(), "slaves");
+  Future<Response> response = process::http::get(
+      master.get(),
+      "slaves",
+      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
   AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
@@ -1677,7 +1685,11 @@ TEST_F(MasterTest, SlavesEndpointTwoSlaves)
   AWAIT_READY(slave2RegisteredMessage);
 
   // Query the master.
-  Future<Response> response = process::http::get(master.get(), "slaves");
+  Future<Response> response = process::http::get(
+      master.get(),
+      "slaves",
+      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
   AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
@@ -2265,7 +2277,11 @@ TEST_F(MasterTest, OrphanTasks)
   EXPECT_EQ(TASK_RUNNING, status.get().state());
 
   // Get the master's state.
-  Future<Response> response = process::http::get(master.get(), "state");
+  Future<Response> response = process::http::get(
+      master.get(),
+      "state",
+      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
   AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
@@ -2329,7 +2345,11 @@ TEST_F(MasterTest, OrphanTasks)
   AWAIT_READY(subscribeCall);
 
   // Get the master's state.
-  response = process::http::get(master.get(), "state");
+  response = process::http::get(
+      master.get(),
+      "state",
+      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
   AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
@@ -2362,7 +2382,11 @@ TEST_F(MasterTest, OrphanTasks)
   AWAIT_READY(frameworkRegisteredMessage);
 
   // Get the master's state.
-  response = process::http::get(master.get(), "state");
+  response = process::http::get(
+      master.get(),
+      "state",
+      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
   AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
@@ -2833,7 +2857,11 @@ TEST_F(MasterTest, StateEndpoint)
   Try<PID<Master>> master = StartMaster(flags);
   ASSERT_SOME(master);
 
-  Future<Response> response = process::http::get(master.get(), "state");
+  Future<Response> response = process::http::get(
+      master.get(),
+      "state",
+      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
   AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
@@ -2938,7 +2966,12 @@ TEST_F(MasterTest, StateEndpointFrameworkInfo)
 
   AWAIT_READY(registered);
 
-  Future<Response> response = process::http::get(master.get(), "state");
+  Future<Response> response = process::http::get(
+      master.get(),
+      "state",
+      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 
   Try<JSON::Object> object = JSON::parse<JSON::Object>(response->body);
@@ -3055,7 +3088,11 @@ TEST_F(MasterTest, StateSummaryEndpoint)
   EXPECT_CALL(exec, shutdown(_))
     .Times(AtMost(1));
 
-  Future<Response> response = process::http::get(master.get(), "state-summary");
+  Future<Response> response = process::http::get(
+      master.get(),
+      "state-summary",
+      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
   AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
@@ -3155,7 +3192,11 @@ TEST_F(MasterTest, TaskLabels)
   AWAIT_READY(update);
 
   // Verify label key and value in the master's state endpoint.
-  Future<Response> response = process::http::get(master.get(), "state");
+  Future<Response> response = process::http::get(
+      master.get(),
+      "state",
+      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
   AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
@@ -3254,7 +3295,11 @@ TEST_F(MasterTest, TaskStatusLabels)
   AWAIT_READY(status);
 
   // Verify label key and value in master state endpoint.
-  Future<Response> response = process::http::get(master.get(), "state");
+  Future<Response> response = process::http::get(
+      master.get(),
+      "state",
+      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
   AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
@@ -3346,7 +3391,11 @@ TEST_F(MasterTest, TaskStatusContainerStatus)
   EXPECT_EQ(slaveIPAddress, containerStatus.network_infos(0).ip_address());
 
   // Now do the same validation with state endpoint.
-  Future<Response> response = process::http::get(master.get(), "state");
+  Future<Response> response = process::http::get(
+      master.get(),
+      "state",
+      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
   AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
@@ -3428,7 +3477,11 @@ TEST_F(MasterTest, SlaveActiveEndpoint)
   AWAIT_READY(slaveRegisteredMessage);
 
   // Verify slave is active.
-  Future<Response> response = process::http::get(master.get(), "state");
+  Future<Response> response = process::http::get(
+      master.get(),
+      "state",
+      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
   AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
@@ -3452,7 +3505,11 @@ TEST_F(MasterTest, SlaveActiveEndpoint)
   AWAIT_READY(deactivateSlave);
 
   // Verify slave is inactive.
-  response = process::http::get(master.get(), "state");
+  response = process::http::get(
+      master.get(),
+      "state",
+      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 
@@ -3552,7 +3609,11 @@ TEST_F(MasterTest, TaskDiscoveryInfo)
   AWAIT_READY(update);
 
   // Verify label key and value in the master's state endpoint.
-  Future<Response> response = process::http::get(master.get(), "state");
+  Future<Response> response = process::http::get(
+      master.get(),
+      "state",
+      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
   AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
@@ -3833,7 +3894,11 @@ TEST_F(MasterTest, FrameworkInfoLabels)
 
   AWAIT_READY(registered);
 
-  Future<Response> response = process::http::get(master.get(), "state");
+  Future<Response> response = process::http::get(
+      master.get(),
+      "state",
+      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
   AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
@@ -3879,7 +3944,11 @@ TEST_F(MasterTest, FrameworksEndpointWithoutFrameworks)
   Try<PID<Master>> master = StartMaster(flags);
   ASSERT_SOME(master);
 
-  Future<Response> response = process::http::get(master.get(), "frameworks");
+  Future<Response> response = process::http::get(
+      master.get(),
+      "frameworks",
+      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
   AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
@@ -3925,7 +3994,11 @@ TEST_F(MasterTest, FrameworksEndpointOneFramework)
 
   AWAIT_READY(registered);
 
-  Future<Response> response = process::http::get(master.get(), "frameworks");
+  Future<Response> response = process::http::get(
+      master.get(),
+      "frameworks",
+      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
   AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
@@ -3987,8 +4060,11 @@ TEST_F(MasterTest, MaxCompletedFrameworksFlag)
       schedDriver.join();
     }
 
-    Future<process::http::Response> response =
-      process::http::get(master.get(), "state");
+    Future<Response> response = process::http::get(
+        master.get(),
+        "state",
+        None(),
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 
@@ -4082,8 +4158,11 @@ TEST_F(MasterTest, MaxCompletedTasksPerFrameworkFlag)
     schedDriver.stop();
     schedDriver.join();
 
-    Future<process::http::Response> response =
-      process::http::get(master.get(), "state");
+    Future<Response> response = process::http::get(
+        master.get(),
+        "state",
+        None(),
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 

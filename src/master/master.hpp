@@ -1076,11 +1076,13 @@ private:
 
     // /master/flags
     process::Future<process::http::Response> flags(
-        const process::http::Request& request) const;
+        const process::http::Request& request,
+        const Option<std::string>& principal) const;
 
     // /master/frameworks
     process::Future<process::http::Response> frameworks(
-        const process::http::Request& request) const;
+        const process::http::Request& request,
+        const Option<std::string>& principal) const;
 
     // /master/health
     process::Future<process::http::Response> health(
@@ -1088,7 +1090,8 @@ private:
 
     // /master/observe
     process::Future<process::http::Response> observe(
-        const process::http::Request& request) const;
+        const process::http::Request& request,
+        const Option<std::string>& principal) const;
 
     // /master/redirect
     process::Future<process::http::Response> redirect(
@@ -1101,7 +1104,8 @@ private:
 
     // /master/roles
     process::Future<process::http::Response> roles(
-        const process::http::Request& request) const;
+        const process::http::Request& request,
+        const Option<std::string>& principal) const;
 
     // /master/teardown
     process::Future<process::http::Response> teardown(
@@ -1110,35 +1114,43 @@ private:
 
     // /master/slaves
     process::Future<process::http::Response> slaves(
-        const process::http::Request& request) const;
+        const process::http::Request& request,
+        const Option<std::string>& principal) const;
 
     // /master/state
     process::Future<process::http::Response> state(
-        const process::http::Request& request) const;
+        const process::http::Request& request,
+        const Option<std::string>& principal) const;
 
     // /master/state-summary
     process::Future<process::http::Response> stateSummary(
-        const process::http::Request& request) const;
+        const process::http::Request& request,
+        const Option<std::string>& principal) const;
 
     // /master/tasks
     process::Future<process::http::Response> tasks(
-        const process::http::Request& request) const;
+        const process::http::Request& request,
+        const Option<std::string>& principal) const;
 
     // /master/maintenance/schedule
     process::Future<process::http::Response> maintenanceSchedule(
-        const process::http::Request& request) const;
+        const process::http::Request& request,
+        const Option<std::string>& principal) const;
 
     // /master/maintenance/status
     process::Future<process::http::Response> maintenanceStatus(
-        const process::http::Request& request) const;
+        const process::http::Request& request,
+        const Option<std::string>& principal) const;
 
     // /master/machine/down
     process::Future<process::http::Response> machineDown(
-        const process::http::Request& request) const;
+        const process::http::Request& request,
+        const Option<std::string>& principal) const;
 
     // /master/machine/up
     process::Future<process::http::Response> machineUp(
-        const process::http::Request& request) const;
+        const process::http::Request& request,
+        const Option<std::string>& principal) const;
 
     // /master/unreserve
     process::Future<process::http::Response> unreserve(
