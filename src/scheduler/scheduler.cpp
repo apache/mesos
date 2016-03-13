@@ -482,7 +482,7 @@ protected:
     }
 
     CHECK(!response.isDiscarded());
-    CHECK(state == SUBSCRIBING || state == SUBSCRIBED);
+    CHECK(state == SUBSCRIBING || state == SUBSCRIBED) << state;
 
     // This can happen during a master failover or a network blip
     // causing the socket to timeout. Eventually, the scheduler would
