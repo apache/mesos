@@ -139,7 +139,7 @@ public:
       ContentType _contentType,
       const lambda::function<void(void)>& connected,
       const lambda::function<void(void)>& disconnected,
-      lambda::function<void(const queue<Event>&)> received)
+      const lambda::function<void(const queue<Event>&)>& received)
     : ProcessBase(generate("executor")),
       state(DISCONNECTED),
       contentType(_contentType),
