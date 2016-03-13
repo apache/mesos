@@ -98,7 +98,7 @@ SSL_ENABLED=true SSL_SUPPORT_DOWNGRADE=true SSL_KEY_FILE=<path-to-your-private-k
 // Restart each component WITHOUT downgrade support (master, slave, framework):
 SSL_ENABLED=true SSL_SUPPORT_DOWNGRADE=false SSL_KEY_FILE=<path-to-your-private-key> SSL_CERT_FILE=<path-to-your-certificate> <Any other SSL_* environment variables you may choose> <your-component (e.g. bin/master.sh)> <your-flags>
 ~~~
-You need to make sure that executors are able to access the SSL environment variables and the files these variables are referring to. Executors can be provided with the environment variables by specifying them in `CommandInfo.environment` or by using the slave's `--executor_environment_variables` command line flag. If the slave and the executors are running in separate containers, `ContainerInfo.volumes` can be used to provide SSL files from the host to the executor's container.
+Executors must be able to access the SSL environment variables and the files referred to by those variables. Environment variables can be provided to an executor by specifying `CommandInfo.environment` or by using the slave's `--executor_environment_variables` command line flag. If the slave and the executor are running in separate containers, `ContainerInfo.volumes` can be used to mount SSL files from the host into the executor's container.
 
 The end state is a cluster that is only communicating with SSL.
 

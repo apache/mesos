@@ -758,11 +758,11 @@ Directory path of the webui files/assets (default: /usr/local/share/mesos/webui)
     --weights=VALUE
   </td>
   <td>
-A comma-separated list of role/weight pairs
-of the form <code>role=weight,role=weight</code>. Weights
-are used to indicate forms of priority. This flag is deprecated,
-and instead, after the Mesos master quorum is achieved, an operator
-can send an update weights request to do a batch configuration for weights.
+A comma-separated list of role/weight pairs of the form
+<code>role=weight,role=weight</code>. Weights can be used to control the
+relative share of cluster resources that is offered to different roles. This
+flag is deprecated. Instead, operators should configure weights dynamically
+using the <code>/weights</code> HTTP endpoint.
   </td>
 </tr>
 <tr>
