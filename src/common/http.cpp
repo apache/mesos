@@ -454,7 +454,7 @@ void json(JSON::ObjectWriter* writer, const Attributes& attributes)
 }
 
 
-void json(JSON::ObjectWriter* writer, const CommandInfo& command)
+static void json(JSON::ObjectWriter* writer, const CommandInfo& command)
 {
   if (command.has_shell()) {
     writer->field("shell", command.shell());
@@ -481,7 +481,7 @@ void json(JSON::ObjectWriter* writer, const CommandInfo& command)
 }
 
 
-void json(JSON::ObjectWriter* writer, const ContainerStatus& status)
+static void json(JSON::ObjectWriter* writer, const ContainerStatus& status)
 {
   if (status.network_infos().size() > 0) {
     writer->field("network_infos", status.network_infos());
@@ -511,7 +511,7 @@ void json(JSON::ArrayWriter* writer, const Labels& labels)
 }
 
 
-void json(JSON::ObjectWriter* writer, const NetworkInfo& info)
+static void json(JSON::ObjectWriter* writer, const NetworkInfo& info)
 {
   if (info.has_ip_address()) {
     writer->field("ip_address", info.ip_address());
@@ -588,25 +588,25 @@ void json(JSON::ObjectWriter* writer, const TaskStatus& status)
 }
 
 
-void json(JSON::NumberWriter* writer, const Value::Scalar& scalar)
+static void json(JSON::NumberWriter* writer, const Value::Scalar& scalar)
 {
   writer->set(scalar.value());
 }
 
 
-void json(JSON::StringWriter* writer, const Value::Ranges& ranges)
+static void json(JSON::StringWriter* writer, const Value::Ranges& ranges)
 {
   writer->append(stringify(ranges));
 }
 
 
-void json(JSON::StringWriter* writer, const Value::Set& set)
+static void json(JSON::StringWriter* writer, const Value::Set& set)
 {
   writer->append(stringify(set));
 }
 
 
-void json(JSON::StringWriter* writer, const Value::Text& text)
+static void json(JSON::StringWriter* writer, const Value::Text& text)
 {
   writer->append(text.value());
 }
