@@ -1829,6 +1829,7 @@ mesos_tests_SOURCES =						\
   tests/cram_md5_authentication_tests.cpp			\
   tests/credentials_tests.cpp					\
   tests/disk_quota_tests.cpp					\
+  tests/dynamic_weights_tests.cpp				\
   tests/environment.cpp						\
   tests/examples_tests.cpp					\
   tests/exception_tests.cpp					\
