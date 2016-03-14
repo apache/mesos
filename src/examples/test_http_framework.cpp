@@ -69,8 +69,8 @@ class HTTPScheduler : public process::Process<HTTPScheduler>
 {
 public:
   HTTPScheduler(const FrameworkInfo& _framework,
-                     const ExecutorInfo& _executor,
-                     const string& _master)
+                const ExecutorInfo& _executor,
+                const string& _master)
     : framework(_framework),
       executor(_executor),
       master(_master),
@@ -80,9 +80,9 @@ public:
       totalTasks(5) {}
 
   HTTPScheduler(const FrameworkInfo& _framework,
-                     const ExecutorInfo& _executor,
-                     const string& _master,
-                     const Credential& credential)
+                const ExecutorInfo& _executor,
+                const string& _master,
+                const Credential& credential)
     : framework(_framework),
       executor(_executor),
       master(_master),

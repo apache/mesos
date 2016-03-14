@@ -1013,7 +1013,7 @@ Future<bool> MesosContainerizerProcess::__launch(
     // Process additional environment variables returned by isolators.
     if (launchInfo->has_environment()) {
       foreach (const Environment::Variable& variable,
-          launchInfo->environment().variables()) {
+               launchInfo->environment().variables()) {
         environment[variable.name()] = variable.value();
       }
     }

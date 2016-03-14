@@ -184,10 +184,13 @@ TEST_F(FaultToleranceTest, ReregisterCompletedFrameworks)
   ASSERT_SOME(parse);
   JSON::Object masterJSON = parse.get();
 
-  EXPECT_EQ(0u,
-    masterJSON.values["completed_frameworks"].as<JSON::Array>().values.size());
-  EXPECT_EQ(0u,
-    masterJSON.values["frameworks"].as<JSON::Array>().values.size());
+  EXPECT_EQ(
+      0u,
+      masterJSON.values["completed_frameworks"]
+        .as<JSON::Array>().values.size());
+  EXPECT_EQ(
+      0u,
+      masterJSON.values["frameworks"].as<JSON::Array>().values.size());
 
   // Step 2. Create/start framework.
   StandaloneMasterDetector schedDetector(master.get());
@@ -241,10 +244,13 @@ TEST_F(FaultToleranceTest, ReregisterCompletedFrameworks)
   ASSERT_SOME(parse);
   masterJSON = parse.get();
 
-  EXPECT_EQ(0u,
-    masterJSON.values["completed_frameworks"].as<JSON::Array>().values.size());
-  EXPECT_EQ(1u,
-    masterJSON.values["frameworks"].as<JSON::Array>().values.size());
+  EXPECT_EQ(
+      0u,
+      masterJSON.values["completed_frameworks"]
+        .as<JSON::Array>().values.size());
+  EXPECT_EQ(
+      1u,
+      masterJSON.values["frameworks"].as<JSON::Array>().values.size());
 
   Future<Response> slaveState = process::http::get(slave.get(), "state");
 
@@ -254,10 +260,12 @@ TEST_F(FaultToleranceTest, ReregisterCompletedFrameworks)
   ASSERT_SOME(parse);
   JSON::Object slaveJSON = parse.get();
 
-  EXPECT_EQ(0u,
-    slaveJSON.values["completed_frameworks"].as<JSON::Array>().values.size());
-  EXPECT_EQ(1u,
-    slaveJSON.values["frameworks"].as<JSON::Array>().values.size());
+  EXPECT_EQ(
+      0u,
+      slaveJSON.values["completed_frameworks"].as<JSON::Array>().values.size());
+  EXPECT_EQ(
+      1u,
+      slaveJSON.values["frameworks"].as<JSON::Array>().values.size());
 
   // Step 4. Kill task.
   EXPECT_CALL(executor, killTask(_, _))
@@ -287,10 +295,13 @@ TEST_F(FaultToleranceTest, ReregisterCompletedFrameworks)
   ASSERT_SOME(parse);
   masterJSON = parse.get();
 
-  EXPECT_EQ(0u,
-    masterJSON.values["completed_frameworks"].as<JSON::Array>().values.size());
-  EXPECT_EQ(1u,
-    masterJSON.values["frameworks"].as<JSON::Array>().values.size());
+  EXPECT_EQ(
+      0u,
+      masterJSON.values["completed_frameworks"]
+        .as<JSON::Array>().values.size());
+  EXPECT_EQ(
+      1u,
+      masterJSON.values["frameworks"].as<JSON::Array>().values.size());
 
   slaveState = process::http::get(slave.get(), "state");
 
@@ -300,10 +311,12 @@ TEST_F(FaultToleranceTest, ReregisterCompletedFrameworks)
   ASSERT_SOME(parse);
   slaveJSON = parse.get();
 
-  EXPECT_EQ(0u,
-    slaveJSON.values["completed_frameworks"].as<JSON::Array>().values.size());
-  EXPECT_EQ(1u,
-    slaveJSON.values["frameworks"].as<JSON::Array>().values.size());
+  EXPECT_EQ(
+      0u,
+      slaveJSON.values["completed_frameworks"].as<JSON::Array>().values.size());
+  EXPECT_EQ(
+      1u,
+      slaveJSON.values["frameworks"].as<JSON::Array>().values.size());
 
   // Step 5. Kill the executor.
   Future<Nothing> executorTerminated =
@@ -329,10 +342,12 @@ TEST_F(FaultToleranceTest, ReregisterCompletedFrameworks)
   ASSERT_SOME(parse);
   slaveJSON = parse.get();
 
-  EXPECT_EQ(1u,
-    slaveJSON.values["completed_frameworks"].as<JSON::Array>().values.size());
-  EXPECT_EQ(0u,
-    slaveJSON.values["frameworks"].as<JSON::Array>().values.size());
+  EXPECT_EQ(
+      1u,
+      slaveJSON.values["completed_frameworks"].as<JSON::Array>().values.size());
+  EXPECT_EQ(
+      0u,
+      slaveJSON.values["frameworks"].as<JSON::Array>().values.size());
 
   // Step 6. Simulate failed over master by restarting the master.
   Stop(master.get());
@@ -377,10 +392,13 @@ TEST_F(FaultToleranceTest, ReregisterCompletedFrameworks)
   ASSERT_SOME(parse);
   masterJSON = parse.get();
 
-  EXPECT_EQ(0u,
-    masterJSON.values["completed_frameworks"].as<JSON::Array>().values.size());
-  EXPECT_EQ(1u,
-    masterJSON.values["frameworks"].as<JSON::Array>().values.size());
+  EXPECT_EQ(
+      0u,
+      masterJSON.values["completed_frameworks"]
+        .as<JSON::Array>().values.size());
+  EXPECT_EQ(
+      1u,
+      masterJSON.values["frameworks"].as<JSON::Array>().values.size());
 
   driver.stop();
   driver.join();

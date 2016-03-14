@@ -432,7 +432,7 @@ PyObject* MesosSchedulerDriverImpl_requestResources(
 
 
 PyObject* MesosSchedulerDriverImpl_launchTasks(MesosSchedulerDriverImpl* self,
-                                                PyObject* args)
+                                               PyObject* args)
 {
   if (self->driver == NULL) {
     PyErr_Format(PyExc_Exception, "MesosSchedulerDriverImpl.driver is NULL");
@@ -753,7 +753,7 @@ PyObject* MesosSchedulerDriverImpl_reconcileTasks(
 
   if (!PyList_Check(statusesObj)) {
     PyErr_Format(PyExc_Exception,
-      "Parameter 1 to reconcileTasks is not a list");
+                 "Parameter 1 to reconcileTasks is not a list");
 
     return NULL;
   }

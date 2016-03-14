@@ -334,8 +334,10 @@ Future<Response> FilesProcess::read(const Request& request)
   Try<int> fd = os::open(resolvedPath.get(), O_RDONLY | O_CLOEXEC);
 
   if (fd.isError()) {
-    string error = strings::format("Failed to open file at '%s': %s",
-        resolvedPath.get(), fd.error()).get();
+    string error = strings::format(
+        "Failed to open file at '%s': %s",
+        resolvedPath.get(),
+        fd.error()).get();
     LOG(WARNING) << error;
     return InternalServerError(error + ".\n");
   }

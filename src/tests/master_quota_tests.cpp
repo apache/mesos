@@ -608,7 +608,8 @@ TEST_F(MasterQuotaTest, InsufficientResourcesSingleAgent)
   // Since there are not enough resources in the cluster, `capacityHeuristic`
   // check fails rendering the request unsuccessful.
   {
-    Future<Response> response = process::http::post(master.get(),
+    Future<Response> response = process::http::post(
+        master.get(),
         "quota",
         createBasicAuthHeaders(DEFAULT_CREDENTIAL),
         createRequestBody(ROLE1, quotaResources));

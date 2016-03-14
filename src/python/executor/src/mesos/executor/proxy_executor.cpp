@@ -232,9 +232,9 @@ void ProxyExecutor::shutdown(ExecutorDriver* driver)
 {
   InterpreterLock lock;
   PyObject* res = PyObject_CallMethod(impl->pythonExecutor,
-                            (char*) "shutdown",
-                            (char*) "O",
-                            impl);
+                                      (char*) "shutdown",
+                                      (char*) "O",
+                                      impl);
   if (res == NULL) {
     cerr << "Failed to call executor's shutdown" << endl;
     goto cleanup;

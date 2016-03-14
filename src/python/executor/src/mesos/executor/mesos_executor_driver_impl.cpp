@@ -130,8 +130,8 @@ PyMethodDef MesosExecutorDriverImpl_methods[] = {
  * (called by Python before init method).
  */
 PyObject* MesosExecutorDriverImpl_new(PyTypeObject *type,
-                                       PyObject *args,
-                                       PyObject *kwds)
+                                      PyObject *args,
+                                      PyObject *kwds)
 {
   MesosExecutorDriverImpl *self;
   self = (MesosExecutorDriverImpl *) type->tp_alloc(type, 0);
@@ -148,8 +148,8 @@ PyObject* MesosExecutorDriverImpl_new(PyTypeObject *type,
  * Initialize a MesosExecutorDriverImpl with constructor arguments.
  */
 int MesosExecutorDriverImpl_init(MesosExecutorDriverImpl *self,
-                                  PyObject *args,
-                                  PyObject *kwds)
+                                 PyObject *args,
+                                 PyObject *kwds)
 {
   PyObject *pythonExecutor = NULL;
 
@@ -214,8 +214,8 @@ void MesosExecutorDriverImpl_dealloc(MesosExecutorDriverImpl* self)
  * See http://docs.python.org/extending/newtypes.html.
  */
 int MesosExecutorDriverImpl_traverse(MesosExecutorDriverImpl* self,
-                                      visitproc visit,
-                                      void* arg)
+                                     visitproc visit,
+                                     void* arg)
 {
   Py_VISIT(self->pythonExecutor);
   return 0;
