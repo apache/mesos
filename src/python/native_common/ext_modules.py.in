@@ -18,6 +18,7 @@ import errno
 import glob
 import os
 import shutil
+import sys
 
 from setuptools import Extension
 
@@ -123,7 +124,10 @@ def _create_module(module_name):
     if os.path.exists(libprofiler):
         EXTRA_OBJECTS.append(libprofiler)
 
-    EXTRA_LINK_ARGS = ['-Wl,--as-needed']
+    # OSX uses a different linker (llvm-ld) and doesn't support --as-needed
+    # TODO(SteveNiemitz): Feature detect --as-needed instead of looking at
+    # sys.platform.
+    EXTRA_LINK_ARGS = ['-Wl,--as-needed'] if sys.platform != 'darwin' else []
 
     # Add any flags from LDFLAGS.
     if 'LDFLAGS' in os.environ:
