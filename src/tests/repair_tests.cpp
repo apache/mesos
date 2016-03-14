@@ -35,6 +35,7 @@ using process::PID;
 using process::http::BadRequest;
 using process::http::OK;
 using process::http::Response;
+using process::http::Unauthorized;
 
 using std::string;
 using std::vector;
@@ -216,6 +217,64 @@ TEST_F(HealthTest, ObserveEndpoint)
       "monitor=a&hosts=b,e&level=true");
 
   VALIDATE_GOOD_RESPONSE(response, stringify(expected));
+
+  Shutdown();
+}
+
+
+// Testing get without authentication and with bad credentials.
+TEST_F(HealthTest, ObserveEndpointBadAuthentication)
+{
+  // Set up a master with authentication required.
+  // Note that the default master test flags enable HTTP authentication.
+  Try<PID<Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  // Headers for POSTs to maintenance endpoints without authentication.
+  process::http::Headers unauthenticatedHeaders;
+  unauthenticatedHeaders["Content-Type"] = "application/json";
+
+  // Bad credentials which should fail authentication.
+  Credential badCredential;
+  badCredential.set_principal("badPrincipal");
+  badCredential.set_secret("badSecret");
+
+  // Headers for POSTs to maintenance endpoints with bad authentication.
+  process::http::Headers badAuthenticationHeaders;
+  badAuthenticationHeaders = createBasicAuthHeaders(badCredential);
+  badAuthenticationHeaders["Content-Type"] = "application/json";
+
+  // Post to observe without authentication.
+  Future<Response> response = process::http::post(
+      master.get(),
+      "observe",
+      unauthenticatedHeaders,
+      "monitor=a&hosts=b&level=Ok");
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Unauthorized({}).status, response);
+
+  // Get request without authentication.
+  response = process::http::get(master.get(), "observe");
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Unauthorized({}).status, response);
+
+  // Post to observe with bad authentication.
+  response = process::http::post(
+      master.get(),
+      "observe",
+      badAuthenticationHeaders,
+      "monitor=a&hosts=b&level=Ok");
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Unauthorized({}).status, response);
+
+  // Get request with bad authentication.
+  response = process::http::get(
+    master.get(),
+    "observe",
+    None(),
+    createBasicAuthHeaders(badCredential));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Unauthorized({}).status, response);
 
   Shutdown();
 }

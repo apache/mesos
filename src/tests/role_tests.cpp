@@ -37,6 +37,7 @@ using process::PID;
 
 using process::http::OK;
 using process::http::Response;
+using process::http::Unauthorized;
 
 using testing::AtMost;
 
@@ -649,6 +650,39 @@ TEST(RolesTest, Validate)
   EXPECT_NONE(roles::validate({"foo", "bar", "*"}));
 
   EXPECT_SOME(roles::validate({"foo", ".", "*"}));
+}
+
+
+// Testing get without authentication and with bad credentials.
+TEST_F(RoleTest, EndpointBadAuthentication)
+{
+  // Set up a master with authentication required.
+  // Note that the default master test flags enable HTTP authentication.
+  Try<PID<Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  // Get request without authentication.
+  Future<Response> response = process::http::get(
+      master.get(),
+      "roles");
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Unauthorized({}).status, response);
+
+  // Bad credentials which should fail authentication.
+  Credential badCredential;
+  badCredential.set_principal("badPrincipal");
+  badCredential.set_secret("badSecret");
+
+  // Get request with bad authentication.
+  response = process::http::get(
+    master.get(),
+    "roles",
+    None(),
+    createBasicAuthHeaders(badCredential));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Unauthorized({}).status, response);
+
+  Shutdown();
 }
 
 }  // namespace tests {

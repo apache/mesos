@@ -77,6 +77,7 @@ using process::Time;
 using process::http::BadRequest;
 using process::http::OK;
 using process::http::Response;
+using process::http::Unauthorized;
 
 using mesos::internal::protobuf::maintenance::createSchedule;
 using mesos::internal::protobuf::maintenance::createUnavailability;
@@ -1734,6 +1735,132 @@ TEST_F(MasterMaintenanceTest, InverseOffersFilters)
     .Times(AtMost(1));
 
   Shutdown(); // Must shutdown before 'containerizer' gets deallocated.
+}
+
+
+// Testing post and get without authentication and with bad credentials.
+TEST_F(MasterMaintenanceTest, EndpointsBadAuthentication)
+{
+  // Set up a master with authentication required.
+  // Note that the default master test flags enable HTTP authentication.
+  Try<PID<Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  // Headers for POSTs to maintenance endpoints without authentication.
+  process::http::Headers unauthenticatedHeaders;
+  unauthenticatedHeaders["Content-Type"] = "application/json";
+
+  // A valid schedule with one machine.
+  maintenance::Schedule schedule = createSchedule(
+      {createWindow({machine1}, unavailability)});
+
+  // Bad credentials which should fail authentication.
+  Credential badCredential;
+  badCredential.set_principal("badPrincipal");
+  badCredential.set_secret("badSecret");
+
+  // Headers for POSTs to maintenance endpoints with bad authentication.
+  process::http::Headers badAuthenticationHeaders;
+  badAuthenticationHeaders = createBasicAuthHeaders(badCredential);
+  badAuthenticationHeaders["Content-Type"] = "application/json";
+
+  // maintenance/schedule endpoint.
+  {
+    // Post the maintenance schedule without authentication.
+    Future<Response> response = process::http::post(
+        master.get(),
+        "maintenance/schedule",
+        unauthenticatedHeaders,
+        stringify(JSON::protobuf(schedule)));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(Unauthorized({}).status, response);
+
+    // Get the maintenance schedule without authentication.
+    response = process::http::get(master.get(), "maintenance/schedule");
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(Unauthorized({}).status, response);
+
+    // Post the maintenance schedule with bad authentication.
+    response = process::http::post(
+        master.get(),
+        "maintenance/schedule",
+        badAuthenticationHeaders,
+        stringify(JSON::protobuf(schedule)));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(Unauthorized({}).status, response);
+
+    // Get the maintenance schedule with bad authentication.
+    response = process::http::get(
+        master.get(),
+        "maintenance/schedule",
+        None(),
+        createBasicAuthHeaders(badCredential));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(Unauthorized({}).status, response);
+  }
+
+  // machine/up endpoint.
+  {
+    // Post to machine/up without authentication.
+    Future<Response> response = process::http::post(
+        master.get(),
+        "machine/up",
+        unauthenticatedHeaders,
+        stringify(JSON::protobuf(schedule)));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(Unauthorized({}).status, response);
+
+    // Post to machine/up with bad authentication.
+    response = process::http::post(
+        master.get(),
+        "machine/up",
+        badAuthenticationHeaders,
+        stringify(JSON::protobuf(schedule)));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(Unauthorized({}).status, response);
+  }
+
+  // machine/down endpoint.
+  {
+    // Post to machine/down without authentication.
+    Future<Response> response = process::http::post(
+        master.get(),
+        "machine/down",
+        unauthenticatedHeaders,
+        stringify(JSON::protobuf(schedule)));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(Unauthorized({}).status, response);
+
+    // Post to machine/down with bad authentication.
+    response = process::http::post(
+        master.get(),
+        "machine/down",
+        badAuthenticationHeaders,
+        stringify(JSON::protobuf(schedule)));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(Unauthorized({}).status, response);
+  }
+
+  // maintenance/status endpoint.
+  {
+    // Get the maintenance status without authentication.
+    Future<Response> response = process::http::get(
+        master.get(),
+        "maintenance/status");
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(Unauthorized({}).status, response);
+
+    // Get the maintenance status with bad authentication.
+    response = process::http::get(
+        master.get(),
+        "maintenance/status",
+        None(),
+        createBasicAuthHeaders(badCredential));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(Unauthorized({}).status, response);
+  }
+
+  Shutdown();
 }
 
 } // namespace tests {

@@ -83,6 +83,7 @@ using process::Promise;
 
 using process::http::OK;
 using process::http::Response;
+using process::http::Unauthorized;
 
 using std::shared_ptr;
 using std::string;
@@ -4188,6 +4189,131 @@ TEST_F(MasterTest, MaxCompletedTasksPerFrameworkFlag)
     Stop(slave.get());
     Stop(master.get());
   }
+}
+
+
+// Test get requests on various endpoints without authentication and
+// with bad credentials.
+// Note that we have similar checks for the maintenance, roles, quota, teardown,
+// reserve, unreserve, create-volumes, destroy-volumes, observe endpoints in the
+// respective test files.
+TEST_F(MasterTest, EndpointsBadAuthentication)
+{
+  // Set up a master with authentication required.
+  // Note that the default master test flags enable HTTP authentication.
+  Try<PID<Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  // Bad credentials which should fail authentication.
+  Credential badCredential;
+  badCredential.set_principal("badPrincipal");
+  badCredential.set_secret("badSecret");
+
+  // frameworks endpoint.
+  {
+    // Get request without authentication.
+    Future<Response> response = process::http::get(master.get(), "frameworks");
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(Unauthorized({}).status, response);
+
+    // Get request with bad authentication.
+    response = process::http::get(
+      master.get(),
+      "frameworks",
+      None(),
+      createBasicAuthHeaders(badCredential));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(Unauthorized({}).status, response);
+  }
+
+  // flags endpoint.
+  {
+    // Get request without authentication.
+    Future<Response> response = process::http::get(master.get(), "flags");
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(Unauthorized({}).status, response);
+
+    // Get request with bad authentication.
+    response = process::http::get(
+      master.get(),
+      "flags",
+      None(),
+      createBasicAuthHeaders(badCredential));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(Unauthorized({}).status, response);
+  }
+
+  // slaves endpoint.
+  {
+    // Get request without authentication.
+    Future<Response> response = process::http::get(master.get(), "slaves");
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(Unauthorized({}).status, response);
+
+    // Get request with bad authentication.
+    response = process::http::get(
+      master.get(),
+      "slaves",
+      None(),
+      createBasicAuthHeaders(badCredential));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(Unauthorized({}).status, response);
+  }
+
+  // state endpoint.
+  {
+    // Get request without authentication.
+    Future<Response> response = process::http::get(master.get(), "state");
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(Unauthorized({}).status, response);
+
+    // Get request with bad authentication.
+    response = process::http::get(
+      master.get(),
+      "state",
+      None(),
+      createBasicAuthHeaders(badCredential));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(Unauthorized({}).status, response);
+  }
+
+  // stateSummary endpoint.
+  {
+    // Get request without authentication.
+    Future<Response> response = process::http::get(
+        master.get(),
+        "state-summary");
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(Unauthorized({}).status, response);
+
+    // Get request with bad authentication.
+    response = process::http::get(
+      master.get(),
+      "state-summary",
+      None(),
+      createBasicAuthHeaders(badCredential));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(Unauthorized({}).status, response);
+  }
+
+  // tasks endpoint.
+  {
+    // Get request without authentication.
+    Future<Response> response = process::http::get(master.get(), "tasks");
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(Unauthorized({}).status, response);
+
+    // Get request with bad authentication.
+    response = process::http::get(
+      master.get(),
+      "tasks",
+      None(),
+      createBasicAuthHeaders(badCredential));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(Unauthorized({}).status, response);
+  }
+
+  Shutdown();
 }
 
 } // namespace tests {
