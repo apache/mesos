@@ -1169,7 +1169,7 @@ private:
 
     static std::string SCHEDULER_HELP();
     static std::string FLAGS_HELP();
-    static std::string FRAMEWORKS();
+    static std::string FRAMEWORKS_HELP();
     static std::string HEALTH_HELP();
     static std::string OBSERVE_HELP();
     static std::string REDIRECT_HELP();

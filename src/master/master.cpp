@@ -846,7 +846,7 @@ void Master::initialize()
         });
   route("/frameworks",
         DEFAULT_HTTP_AUTHENTICATION_REALM,
-        Http::FRAMEWORKS(),
+        Http::FRAMEWORKS_HELP(),
         [this](const process::http::Request& request,
                const Option<string>& principal) {
           Http::log(request);

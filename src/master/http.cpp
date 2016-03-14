@@ -728,7 +728,7 @@ Future<Response> Master::Http::destroyVolumes(
 }
 
 
-string Master::Http::FRAMEWORKS()
+string Master::Http::FRAMEWORKS_HELP()
 {
   return HELP(TLDR("Exposes the frameworks info."));
 }
