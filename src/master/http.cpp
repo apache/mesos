@@ -1963,20 +1963,17 @@ Future<Response> Master::Http::tasks(
     sort(tasks.begin(), tasks.end(), TaskComparator::descending);
   }
 
-  JSON::Object object;
+  auto tasksWriter = [&tasks, limit, offset](JSON::ObjectWriter* writer) {
+    writer->field("tasks", [&tasks, limit, offset](JSON::ArrayWriter* writer) {
+      size_t end = std::min(offset + limit, tasks.size());
+      for (size_t i = offset; i < end; i++) {
+        const Task* task = tasks[i];
+        writer->element(*task);
+      }
+    });
+  };
 
-  {
-    JSON::Array array;
-    size_t end = std::min(offset + limit, tasks.size());
-    for (size_t i = offset; i < end; i++) {
-      const Task* task = tasks[i];
-      array.values.push_back(model(*task));
-    }
-
-    object.values["tasks"] = std::move(array);
-  }
-
-  return OK(object, request.url.query.get("jsonp"));
+  return OK(jsonify(tasksWriter), request.url.query.get("jsonp"));
 }
 
 
