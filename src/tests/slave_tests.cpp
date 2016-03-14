@@ -1316,11 +1316,38 @@ TEST_F(SlaveTest, StateEndpoint)
   parse = JSON::parse<JSON::Object>(response.get().body);
   ASSERT_SOME(parse);
 
-  // Check that executor_id is in the right format.
-  ASSERT_SOME_EQ(
-      "default",
-      parse.get().find<JSON::String>(
-          "frameworks[0].executors[0].tasks[0].executor_id"));
+  state = parse.get();
+  ASSERT_TRUE(state.values["frameworks"].is<JSON::Array>());
+  JSON::Array frameworks = state.values["frameworks"].as<JSON::Array>();
+  EXPECT_EQ(1u, frameworks.values.size());
+
+  ASSERT_TRUE(frameworks.values[0].is<JSON::Object>());
+  JSON::Object framework = frameworks.values[0].as<JSON::Object>();
+
+  EXPECT_EQ("*", framework.values["role"]);
+  EXPECT_EQ("default", framework.values["name"]);
+  EXPECT_EQ(model(resources.get()), state.values["resources"]);
+
+  ASSERT_TRUE(framework.values["executors"].is<JSON::Array>());
+  JSON::Array executors = framework.values["executors"].as<JSON::Array>();
+  EXPECT_EQ(1u, executors.values.size());
+
+  ASSERT_TRUE(executors.values[0].is<JSON::Object>());
+  JSON::Object executor = executors.values[0].as<JSON::Object>();
+
+  EXPECT_EQ("default", executor.values["id"]);
+  EXPECT_EQ("", executor.values["source"]);
+
+  Result<JSON::Array> tasks = executor.find<JSON::Array>("tasks");
+  ASSERT_SOME(tasks);
+  EXPECT_EQ(1u, tasks.get().values.size());
+
+  JSON::Object taskJSON = tasks.get().values[0].as<JSON::Object>();
+  EXPECT_EQ("default", taskJSON.values["executor_id"]);
+  EXPECT_EQ("", taskJSON.values["name"]);
+  EXPECT_EQ(taskId.value(), taskJSON.values["id"]);
+  EXPECT_EQ("TASK_RUNNING", taskJSON.values["state"]);
+  EXPECT_EQ(model(resources.get()), taskJSON.values["resources"]);
 
   EXPECT_CALL(exec, shutdown(_))
     .Times(AtMost(1));
@@ -2344,10 +2371,10 @@ TEST_F(SlaveTest, DiscoveryInfoAndPorts)
   EXPECT_EQ(JSON::Object(JSON::protobuf(discovery)), discoveryObject);
 
   // Check the ports are set in the `DiscoveryInfo` object.
-  Result<JSON::Object> portResult1 = parse.get().find<JSON::Object>(
-      "frameworks[0].executors[0].tasks[0].discovery.ports.ports[0]");
-  Result<JSON::Object> portResult2 = parse.get().find<JSON::Object>(
-      "frameworks[0].executors[0].tasks[0].discovery.ports.ports[1]");
+  Result<JSON::Object> portResult1 = discoveryObject.find<JSON::Object>(
+      "ports.ports[0]");
+  Result<JSON::Object> portResult2 = discoveryObject.find<JSON::Object>(
+      "ports.ports[1]");
 
   EXPECT_SOME(portResult1);
   EXPECT_SOME(portResult2);
