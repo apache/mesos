@@ -5,11 +5,11 @@ layout: documentation
 
 # Authentication
 
-Authentication permits only trusted entities to interact with a Mesos cluster. Authentication is used by Mesos in three ways:
+Authentication permits only trusted entities to interact with a Mesos cluster. Authentication can be used by Mesos in three ways:
 
 1. To require that frameworks be authenticated in order to register with the master.
 2. To require that slaves be authenticated in order to register with the master.
-3. To require that operators be authenticated to use certain [HTTP endpoints](endpoints/index.md), such as `/teardown`.
+3. To require that operators be authenticated to use many [HTTP endpoints](endpoints/index.md).
 
 Authentication is disabled by default. When authentication is enabled, operators
 can configure Mesos to either use the default authentication module or to use a
