@@ -30,14 +30,15 @@ namespace slave {
 // details in MESOS-1023.
 
 constexpr Duration EXECUTOR_REGISTRATION_TIMEOUT = Minutes(1);
-constexpr Duration EXECUTOR_SHUTDOWN_GRACE_PERIOD = Seconds(5);
 constexpr Duration EXECUTOR_REREGISTER_TIMEOUT = Seconds(2);
+
+constexpr Duration EXECUTOR_SHUTDOWN_GRACE_PERIOD = Seconds(5);
 constexpr Duration EXECUTOR_SIGNAL_ESCALATION_TIMEOUT = Seconds(3);
+
 constexpr Duration RECOVERY_TIMEOUT = Minutes(15);
+
 constexpr Duration STATUS_UPDATE_RETRY_INTERVAL_MIN = Seconds(10);
-constexpr Duration STATUS_UPDATE_RETRY_INTERVAL_MAX = Minutes(10);;
-constexpr Duration GC_DELAY = Weeks(1);
-constexpr Duration DISK_WATCH_INTERVAL = Minutes(1);
+constexpr Duration STATUS_UPDATE_RETRY_INTERVAL_MAX = Minutes(10);
 
 // Default backoff interval used by the slave to wait before registration.
 constexpr Duration DEFAULT_REGISTRATION_BACKOFF_FACTOR = Seconds(1);
@@ -48,6 +49,9 @@ constexpr Duration DEFAULT_REGISTRATION_BACKOFF_FACTOR = Seconds(1);
 // (re-)registration multiple times between when the master finishes
 // recovery and when it times out slave re-registration.
 constexpr Duration REGISTER_RETRY_INTERVAL_MAX = Minutes(1);
+
+constexpr Duration GC_DELAY = Weeks(1);
+constexpr Duration DISK_WATCH_INTERVAL = Minutes(1);
 
 // Minimum free disk capacity enforced by the garbage collector.
 constexpr double GC_DISK_HEADROOM = 0.1;
@@ -92,6 +96,10 @@ constexpr Duration DOCKER_REMOVE_DELAY = Hours(6);
 // container.
 constexpr Duration DOCKER_INSPECT_DELAY = Seconds(1);
 
+// Default maximum number of docker inspect calls docker ps will invoke
+// in parallel to prevent hitting system's open file descriptor limit.
+constexpr int DOCKER_PS_MAX_INSPECT_CALLS = 100;
+
 // Default duration that docker containerizer will wait to check
 // docker version.
 // TODO(tnachen): Make this a flag.
@@ -102,10 +110,6 @@ constexpr char DEFAULT_AUTHENTICATEE[] = "crammd5";
 
 // Default maximum storage space to be used by the fetcher cache.
 constexpr Bytes DEFAULT_FETCHER_CACHE_SIZE = Gigabytes(2);
-
-// Default maximum number of docker inspect calls docker ps will invoke
-// in parallel to prevent hitting system's open file descriptor limit.
-constexpr int DOCKER_PS_MAX_INSPECT_CALLS = 100;
 
 // If no pings received within this timeout, then the slave will
 // trigger a re-detection of the master to cause a re-registration.
