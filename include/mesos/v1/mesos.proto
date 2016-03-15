@@ -413,10 +413,12 @@ message ExecutorInfo {
   required ExecutorID executor_id = 1;
   optional FrameworkID framework_id = 8; // TODO(benh): Make this required.
   required CommandInfo command = 7;
+
   // Executor provided with a container will launch the container
   // with the executor's CommandInfo and we expect the container to
   // act as a Mesos executor.
   optional ContainerInfo container = 11;
+
   repeated Resource resources = 5;
   optional string name = 9;
 
@@ -1189,10 +1191,13 @@ message TaskInfo {
   repeated Resource resources = 4;
   optional ExecutorInfo executor = 5;
   optional CommandInfo command = 7;
+
   // Task provided with a container will launch the container as part
   // of this task paired with the task's CommandInfo.
   optional ContainerInfo container = 9;
+
   optional bytes data = 6;
+
   // A health check for the task (currently in *alpha* and initial
   // support will only be for TaskInfo's that have a CommandInfo).
   optional HealthCheck health_check = 8;
@@ -1732,15 +1737,19 @@ message Label {
 message Port {
   // Port number on which the framework exposes a service.
   required uint32 number = 1;
+
   // Name of the service hosted on this port.
   optional string name = 2;
+
   // Layer 4-7 protocol on which the framework exposes its services.
   optional string protocol = 3;
+
   // This field restricts discovery within a framework (FRAMEWORK),
   // within a Mesos cluster (CLUSTER), or places no restrictions (EXTERNAL).
   // The visibility setting for a Port overrides the general visibility setting
   // in the DiscoveryInfo.
   optional DiscoveryInfo.Visibility visibility = 4;
+
   // This can be used to decorate the message with metadata to be
   // interpreted by external applications such as firewalls.
   optional Labels labels = 5;
