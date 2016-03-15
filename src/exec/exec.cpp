@@ -120,7 +120,7 @@ public:
                   bool _local,
                   const string& _directory,
                   bool _checkpoint,
-                  Duration _recoveryTimeout,
+                  const Duration& _recoveryTimeout,
                   std::recursive_mutex* _mutex,
                   Latch* _latch)
     : ProcessBase(ID::generate("executor")),
