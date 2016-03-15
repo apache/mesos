@@ -483,9 +483,7 @@ message MasterInfo {
 /**
  * Describes an agent. Note that the 'id' field is only available
  * after an agent is registered with the master, and is made available
- * here to facilitate re-registration.  If checkpoint is set, the
- * agent is checkpointing its own information and potentially
- * frameworks' information (if a framework has checkpointing enabled).
+ * here to facilitate re-registration.
  */
 message AgentInfo {
   required string hostname = 1;
