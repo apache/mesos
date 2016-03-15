@@ -89,7 +89,7 @@ constexpr size_t DEFAULT_MAX_COMPLETED_TASKS_PER_FRAMEWORK = 1000;
 constexpr Duration WHITELIST_WATCH_INTERVAL = Seconds(5);
 
 // Default number of tasks (limit) for /master/tasks endpoint.
-constexpr uint32_t TASK_LIMIT = 100;
+constexpr size_t TASK_LIMIT = 100;
 
 /**
  * Label used by the Leader Contender and Detector.
