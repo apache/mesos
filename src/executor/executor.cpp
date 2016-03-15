@@ -99,8 +99,7 @@ public:
 protected:
   virtual void initialize()
   {
-    VLOG(1) << "Scheduling shutdown of the executor with grace period: "
-            << gracePeriod;
+    VLOG(1) << "Scheduling shutdown of the executor in " << gracePeriod;
 
     delay(gracePeriod, self(), &Self::kill);
   }
