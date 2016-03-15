@@ -32,7 +32,10 @@ namespace slave {
 constexpr Duration EXECUTOR_REGISTRATION_TIMEOUT = Minutes(1);
 constexpr Duration EXECUTOR_REREGISTER_TIMEOUT = Seconds(2);
 
-constexpr Duration EXECUTOR_SHUTDOWN_GRACE_PERIOD = Seconds(5);
+// The default amount of time to wait for the executor to
+// shut down before destroying the container.
+constexpr Duration DEFAULT_EXECUTOR_SHUTDOWN_GRACE_PERIOD = Seconds(5);
+
 constexpr Duration EXECUTOR_SIGNAL_ESCALATION_TIMEOUT = Seconds(3);
 
 constexpr Duration RECOVERY_TIMEOUT = Minutes(15);

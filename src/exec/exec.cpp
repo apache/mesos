@@ -85,11 +85,11 @@ protected:
   virtual void initialize()
   {
     VLOG(1) << "Scheduling shutdown of the executor in "
-            << slave::EXECUTOR_SHUTDOWN_GRACE_PERIOD;
+            << slave::DEFAULT_EXECUTOR_SHUTDOWN_GRACE_PERIOD;
 
     // TODO(benh): Pass the shutdown timeout with ExecutorRegistered
     // since it might have gotten configured on the command line.
-    delay(slave::EXECUTOR_SHUTDOWN_GRACE_PERIOD, self(), &Self::kill);
+    delay(slave::DEFAULT_EXECUTOR_SHUTDOWN_GRACE_PERIOD, self(), &Self::kill);
   }
 
   void kill()

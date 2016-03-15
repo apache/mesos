@@ -253,7 +253,7 @@ mesos::internal::slave::Flags::Flags()
       "executor_shutdown_grace_period",
       "Amount of time to wait for an executor\n"
       "to shut down (e.g., 60secs, 3mins, etc)",
-      EXECUTOR_SHUTDOWN_GRACE_PERIOD);
+      DEFAULT_EXECUTOR_SHUTDOWN_GRACE_PERIOD);
 
   add(&Flags::gc_delay,
       "gc_delay",
