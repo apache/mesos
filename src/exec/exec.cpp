@@ -705,15 +705,15 @@ Status MesosExecutorDriver::start()
       value = os::getenv("MESOS_RECOVERY_TIMEOUT");
 
       if (value.isSome()) {
-        Try<Duration> _recoveryTimeout = Duration::parse(value.get());
+        Try<Duration> parse = Duration::parse(value.get());
 
-        if (_recoveryTimeout.isError()) {
+        if (parse.isError()) {
           EXIT(EXIT_FAILURE)
-            << "Cannot parse MESOS_RECOVERY_TIMEOUT '" << value.get() << "': "
-            << _recoveryTimeout.error();
+            << "Failed to parse value '" << value.get() << "'"
+            << " of 'MESOS_RECOVERY_TIMEOUT': " << parse.error();
         }
 
-        recoveryTimeout = _recoveryTimeout.get();
+        recoveryTimeout = parse.get();
       }
     }
 
