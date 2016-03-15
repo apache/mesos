@@ -101,7 +101,7 @@ constexpr Duration DOCKER_INSPECT_DELAY = Seconds(1);
 
 // Default maximum number of docker inspect calls docker ps will invoke
 // in parallel to prevent hitting system's open file descriptor limit.
-constexpr int DOCKER_PS_MAX_INSPECT_CALLS = 100;
+constexpr size_t DOCKER_PS_MAX_INSPECT_CALLS = 100;
 
 // Default duration that docker containerizer will wait to check
 // docker version.
