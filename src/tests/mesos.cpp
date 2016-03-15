@@ -73,16 +73,8 @@ ZooKeeperTestServer* MesosZooKeeperTest::server = NULL;
 Option<zookeeper::URL> MesosZooKeeperTest::url;
 #endif // MESOS_HAS_JAVA
 
-MesosTest::MesosTest(const Option<zookeeper::URL>& url) : cluster(url) {}
-
-
-void MesosTest::TearDown()
-{
-  TemporaryDirectoryTest::TearDown();
-
-  // TODO(benh): Fail the test if shutdown hasn't been called?
-  Shutdown();
-}
+MesosTest::MesosTest(const Option<zookeeper::URL>& _zookeeperUrl)
+  : zookeeperUrl(_zookeeperUrl) {}
 
 
 master::Flags MesosTest::CreateMasterFlags()
@@ -191,167 +183,110 @@ slave::Flags MesosTest::CreateSlaveFlags()
 }
 
 
-Try<PID<master::Master>> MesosTest::StartMaster(
+Try<Owned<cluster::Master>> MesosTest::StartMaster(
     const Option<master::Flags>& flags)
 {
-  return cluster.masters.start(
-      flags.isNone() ? CreateMasterFlags() : flags.get());
+  return cluster::Master::start(
+      flags.isNone() ? CreateMasterFlags() : flags.get(),
+      zookeeperUrl);
 }
 
 
-Try<PID<master::Master>> MesosTest::StartMaster(
+Try<Owned<cluster::Master>> MesosTest::StartMaster(
     mesos::master::allocator::Allocator* allocator,
     const Option<master::Flags>& flags)
 {
-  return cluster.masters.start(
+  return cluster::Master::start(
       flags.isNone() ? CreateMasterFlags() : flags.get(),
+      zookeeperUrl,
       allocator);
 }
 
 
-Try<PID<master::Master>> MesosTest::StartMaster(
+Try<Owned<cluster::Master>> MesosTest::StartMaster(
     Authorizer* authorizer,
     const Option<master::Flags>& flags)
 {
-  return cluster.masters.start(
+  return cluster::Master::start(
       flags.isNone() ? CreateMasterFlags() : flags.get(),
+      zookeeperUrl,
       None(),
       authorizer);
 }
 
 
-Try<PID<master::Master>> MesosTest::StartMaster(
+Try<Owned<cluster::Master>> MesosTest::StartMaster(
     const shared_ptr<MockRateLimiter>& slaveRemovalLimiter,
     const Option<master::Flags>& flags)
 {
-  return cluster.masters.start(
+  return cluster::Master::start(
       flags.isNone() ? CreateMasterFlags() : flags.get(),
+      zookeeperUrl,
       None(),
       None(),
       slaveRemovalLimiter);
 }
 
 
-Try<PID<slave::Slave>> MesosTest::StartSlave(
+Try<Owned<cluster::Slave>> MesosTest::StartSlave(
+    MasterDetector* detector,
     const Option<slave::Flags>& flags)
 {
-  return cluster.slaves.start(
+  return cluster::Slave::start(
+      detector,
       flags.isNone() ? CreateSlaveFlags() : flags.get());
 }
 
 
-Try<PID<slave::Slave>> MesosTest::StartSlave(
-    MockExecutor* executor,
-    const Option<slave::Flags>& flags)
-{
-  slave::Containerizer* containerizer = new TestContainerizer(executor);
-
-  Try<PID<slave::Slave>> pid = StartSlave(containerizer, flags);
-
-  if (pid.isError()) {
-    delete containerizer;
-    return pid;
-  }
-
-  containerizers[pid.get()] = containerizer;
-
-  return pid;
-}
-
-
-Try<PID<slave::Slave>> MesosTest::StartSlave(
+Try<Owned<cluster::Slave>> MesosTest::StartSlave(
+    MasterDetector* detector,
     slave::Containerizer* containerizer,
     const Option<slave::Flags>& flags)
 {
-  return cluster.slaves.start(
+  return cluster::Slave::start(
+      detector,
       flags.isNone() ? CreateSlaveFlags() : flags.get(),
       None(),
       containerizer);
 }
 
 
-Try<PID<slave::Slave>> MesosTest::StartSlave(
+Try<Owned<cluster::Slave>> MesosTest::StartSlave(
+    MasterDetector* detector,
     slave::Containerizer* containerizer,
     const std::string& id,
     const Option<slave::Flags>& flags)
 {
-  return cluster.slaves.start(
+  return cluster::Slave::start(
+      detector,
       flags.isNone() ? CreateSlaveFlags() : flags.get(),
       id,
       containerizer);
 }
 
 
-Try<PID<slave::Slave>> MesosTest::StartSlave(
-    slave::Containerizer* containerizer,
-    MasterDetector* detector,
-    const Option<slave::Flags>& flags)
-{
-  return cluster.slaves.start(
-      flags.isNone() ? CreateSlaveFlags() : flags.get(),
-      None(),
-      containerizer,
-      detector);
-}
-
-
-Try<PID<slave::Slave>> MesosTest::StartSlave(
-    MasterDetector* detector,
-    const Option<slave::Flags>& flags)
-{
-  return cluster.slaves.start(
-      flags.isNone() ? CreateSlaveFlags() : flags.get(),
-      None(),
-      None(),
-      detector);
-}
-
-
-Try<PID<slave::Slave>> MesosTest::StartSlave(
+Try<Owned<cluster::Slave>> MesosTest::StartSlave(
     MasterDetector* detector,
     slave::GarbageCollector* gc,
     const Option<slave::Flags>& flags)
 {
-  return cluster.slaves.start(
+  return cluster::Slave::start(
+      detector,
       flags.isNone() ? CreateSlaveFlags() : flags.get(),
       None(),
       None(),
-      detector,
       gc);
 }
 
 
-Try<PID<slave::Slave>> MesosTest::StartSlave(
-    MockExecutor* executor,
+Try<Owned<cluster::Slave>> MesosTest::StartSlave(
     MasterDetector* detector,
-    const Option<slave::Flags>& flags)
-{
-  slave::Containerizer* containerizer = new TestContainerizer(executor);
-
-  Try<PID<slave::Slave>> pid = cluster.slaves.start(
-      flags.isNone() ? CreateSlaveFlags() : flags.get(),
-      None(),
-      containerizer,
-      detector);
-
-  if (pid.isError()) {
-    delete containerizer;
-    return pid;
-  }
-
-  containerizers[pid.get()] = containerizer;
-
-  return pid;
-}
-
-
-Try<PID<slave::Slave>> MesosTest::StartSlave(
     mesos::slave::ResourceEstimator* resourceEstimator,
     const Option<slave::Flags>& flags)
 {
-  return cluster.slaves.start(
+  return cluster::Slave::start(
+      detector,
       flags.isNone() ? CreateSlaveFlags() : flags.get(),
-      None(),
       None(),
       None(),
       None(),
@@ -360,56 +295,31 @@ Try<PID<slave::Slave>> MesosTest::StartSlave(
 }
 
 
-Try<PID<slave::Slave>> MesosTest::StartSlave(
-    MockExecutor* executor,
+Try<Owned<cluster::Slave>> MesosTest::StartSlave(
+    MasterDetector* detector,
+    slave::Containerizer* containerizer,
     mesos::slave::ResourceEstimator* resourceEstimator,
     const Option<slave::Flags>& flags)
 {
-  slave::Containerizer* containerizer = new TestContainerizer(executor);
-
-  Try<PID<slave::Slave>> pid = cluster.slaves.start(
+  return cluster::Slave::start(
+      detector,
       flags.isNone() ? CreateSlaveFlags() : flags.get(),
       None(),
       containerizer,
-      None(),
-      None(),
-      None(),
-      resourceEstimator);
-
-  if (pid.isError()) {
-    delete containerizer;
-    return pid;
-  }
-
-  containerizers[pid.get()] = containerizer;
-
-  return pid;
-}
-
-
-Try<PID<slave::Slave>> MesosTest::StartSlave(
-  slave::Containerizer* containerizer,
-  mesos::slave::ResourceEstimator* resourceEstimator,
-  const Option<slave::Flags>& flags)
-{
-  return cluster.slaves.start(
-      flags.isNone() ? CreateSlaveFlags() : flags.get(),
-      None(),
-      containerizer,
-      None(),
       None(),
       None(),
       resourceEstimator);
 }
 
 
-Try<PID<slave::Slave>> MesosTest::StartSlave(
+Try<Owned<cluster::Slave>> MesosTest::StartSlave(
+    MasterDetector* detector,
     mesos::slave::QoSController* qoSController,
     const Option<slave::Flags>& flags)
 {
-  return cluster.slaves.start(
+  return cluster::Slave::start(
+      detector,
       flags.isNone() ? CreateSlaveFlags() : flags.get(),
-      None(),
       None(),
       None(),
       None(),
@@ -419,66 +329,21 @@ Try<PID<slave::Slave>> MesosTest::StartSlave(
 }
 
 
-Try<PID<slave::Slave>> MesosTest::StartSlave(
+Try<Owned<cluster::Slave>> MesosTest::StartSlave(
+    MasterDetector* detector,
     slave::Containerizer* containerizer,
     mesos::slave::QoSController* qoSController,
     const Option<slave::Flags>& flags)
 {
-  return cluster.slaves.start(
+  return cluster::Slave::start(
+      detector,
       flags.isNone() ? CreateSlaveFlags() : flags.get(),
       None(),
       containerizer,
       None(),
       None(),
       None(),
-      None(),
       qoSController);
-}
-
-
-void MesosTest::Stop(const PID<master::Master>& pid)
-{
-  cluster.masters.stop(pid);
-}
-
-
-void MesosTest::Stop(const PID<slave::Slave>& pid, bool shutdown)
-{
-  cluster.slaves.stop(pid, shutdown);
-  if (containerizers.count(pid) > 0) {
-    slave::Containerizer* containerizer = containerizers[pid];
-    containerizers.erase(pid);
-    delete containerizer;
-  }
-}
-
-
-void MesosTest::Shutdown()
-{
-  // TODO(arojas): Authenticators' lifetimes are tied to libprocess's lifetime.
-  // Consider unsetting the authenticator in the master shutdown.
-  // NOTE: This means that multiple masters in tests are not supported.
-  process::http::authentication::unsetAuthenticator(
-      master::DEFAULT_HTTP_AUTHENTICATION_REALM);
-  ShutdownMasters();
-  ShutdownSlaves();
-}
-
-
-void MesosTest::ShutdownMasters()
-{
-  cluster.masters.shutdown();
-}
-
-
-void MesosTest::ShutdownSlaves()
-{
-  cluster.slaves.shutdown();
-
-  foreachvalue (slave::Containerizer* containerizer, containerizers) {
-    delete containerizer;
-  }
-  containerizers.clear();
 }
 
 // Although the constructors and destructors for mock classes are

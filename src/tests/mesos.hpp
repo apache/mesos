@@ -109,8 +109,6 @@ class MesosTest : public SSLTemporaryDirectoryTest
 protected:
   MesosTest(const Option<zookeeper::URL>& url = None());
 
-  virtual void TearDown();
-
   // Returns the flags used to create masters.
   virtual master::Flags CreateMasterFlags();
 
@@ -118,23 +116,23 @@ protected:
   virtual slave::Flags CreateSlaveFlags();
 
   // Starts a master with the specified flags.
-  virtual Try<process::PID<master::Master> > StartMaster(
+  virtual Try<process::Owned<cluster::Master>> StartMaster(
       const Option<master::Flags>& flags = None());
 
   // Starts a master with the specified allocator process and flags.
-  virtual Try<process::PID<master::Master> > StartMaster(
+  virtual Try<process::Owned<cluster::Master>> StartMaster(
       mesos::master::allocator::Allocator* allocator,
       const Option<master::Flags>& flags = None());
 
   // Starts a master with the specified authorizer and flags.
-  // Waits for the master to detect a leader (could be itself) before
-  // returning if 'wait' is set to true.
-  virtual Try<process::PID<master::Master> > StartMaster(
+  virtual Try<process::Owned<cluster::Master>> StartMaster(
       Authorizer* authorizer,
       const Option<master::Flags>& flags = None());
 
   // Starts a master with a slave removal rate limiter and flags.
-  virtual Try<process::PID<master::Master> > StartMaster(
+  // NOTE: The `slaveRemovalLimiter` is a `shared_ptr` because the
+  // underlying `Master` process requires the pointer in this form.
+  virtual Try<process::Owned<cluster::Master>> StartMaster(
       const std::shared_ptr<MockRateLimiter>& slaveRemovalLimiter,
       const Option<master::Flags>& flags = None());
 
@@ -157,102 +155,59 @@ protected:
   // injections.gc = gc;
   // Try<PID<Slave> > slave = StartSlave(injections);
 
-  // Starts a slave with the specified flags.
-  virtual Try<process::PID<slave::Slave> > StartSlave(
+  // Starts a slave with the specified detector and flags.
+  virtual Try<process::Owned<cluster::Slave>> StartSlave(
+      MasterDetector* detector,
       const Option<slave::Flags>& flags = None());
 
-  // Starts a slave with the specified mock executor and flags.
-  virtual Try<process::PID<slave::Slave> > StartSlave(
-      MockExecutor* executor,
-      const Option<slave::Flags>& flags = None());
-
-  // Starts a slave with the specified containerizer and flags.
-  virtual Try<process::PID<slave::Slave> > StartSlave(
+  // Starts a slave with the specified detector, containerizer, and flags.
+  virtual Try<process::Owned<cluster::Slave>> StartSlave(
+      MasterDetector* detector,
       slave::Containerizer* containerizer,
       const Option<slave::Flags>& flags = None());
 
-  virtual Try<process::PID<slave::Slave> > StartSlave(
+  // Starts a slave with the specified detector, containerizer, id, and flags.
+  virtual Try<process::Owned<cluster::Slave>> StartSlave(
+      MasterDetector* detector,
       slave::Containerizer* containerizer,
       const std::string& id,
       const Option<slave::Flags>& flags = None());
 
-  // Starts a slave with the specified containerizer, detector and flags.
-  virtual Try<process::PID<slave::Slave> > StartSlave(
-      slave::Containerizer* containerizer,
-      MasterDetector* detector,
-      const Option<slave::Flags>& flags = None());
-
-  // Starts a slave with the specified MasterDetector and flags.
-  virtual Try<process::PID<slave::Slave> > StartSlave(
-      MasterDetector* detector,
-      const Option<slave::Flags>& flags = None());
-
-  // Starts a slave with the specified MasterDetector, GC, and flags.
-  virtual Try<process::PID<slave::Slave> > StartSlave(
+  // Starts a slave with the specified detector, GC, and flags.
+  virtual Try<process::Owned<cluster::Slave>> StartSlave(
       MasterDetector* detector,
       slave::GarbageCollector* gc,
       const Option<slave::Flags>& flags = None());
 
-  // Starts a slave with the specified mock executor, MasterDetector
-  // and flags.
-  virtual Try<process::PID<slave::Slave> > StartSlave(
-      MockExecutor* executor,
+  // Starts a slave with the specified detector, resource estimator, and flags.
+  virtual Try<process::Owned<cluster::Slave>> StartSlave(
       MasterDetector* detector,
-      const Option<slave::Flags>& flags = None());
-
-  // Starts a slave with the specified resource estimator and flags.
-  virtual Try<process::PID<slave::Slave>> StartSlave(
       mesos::slave::ResourceEstimator* resourceEstimator,
       const Option<slave::Flags>& flags = None());
 
-  // Starts a slave with the specified mock executor, resource
-  // estimator and flags.
-  virtual Try<process::PID<slave::Slave>> StartSlave(
-      MockExecutor* executor,
-      mesos::slave::ResourceEstimator* resourceEstimator,
-      const Option<slave::Flags>& flags = None());
-
-  // Starts a slave with the specified resource estimator,
-  // containerizer and flags.
-  virtual Try<process::PID<slave::Slave>> StartSlave(
+  // Starts a slave with the specified detector, containerizer,
+  // resource estimator, and flags.
+  virtual Try<process::Owned<cluster::Slave>> StartSlave(
+      MasterDetector* detector,
       slave::Containerizer* containerizer,
       mesos::slave::ResourceEstimator* resourceEstimator,
       const Option<slave::Flags>& flags = None());
 
-  // Starts a slave with the specified QoS Controller and flags.
-  virtual Try<process::PID<slave::Slave>> StartSlave(
+  // Starts a slave with the specified detector, QoS Controller, and flags.
+  virtual Try<process::Owned<cluster::Slave>> StartSlave(
+      MasterDetector* detector,
       mesos::slave::QoSController* qosController,
       const Option<slave::Flags>& flags = None());
 
-  // Starts a slave with the specified QoS Controller,
-  // containerizer and flags.
-  virtual Try<process::PID<slave::Slave>> StartSlave(
+  // Starts a slave with the specified detector, containerizer,
+  // QoS Controller, and flags.
+  virtual Try<process::Owned<cluster::Slave>> StartSlave(
+      MasterDetector* detector,
       slave::Containerizer* containerizer,
       mesos::slave::QoSController* qosController,
       const Option<slave::Flags>& flags = None());
 
-  // Stop the specified master.
-  virtual void Stop(
-      const process::PID<master::Master>& pid);
-
-  // Stop the specified slave.
-  virtual void Stop(
-      const process::PID<slave::Slave>& pid,
-      bool shutdown = false);
-
-  // Stop all masters and slaves.
-  virtual void Shutdown();
-
-  // Stop all masters.
-  virtual void ShutdownMasters();
-
-  // Stop all slaves.
-  virtual void ShutdownSlaves();
-
-  Cluster cluster;
-
-  // Containerizer(s) created during test that we need to cleanup.
-  std::map<process::PID<slave::Slave>, slave::Containerizer*> containerizers;
+  Option<zookeeper::URL> zookeeperUrl;
 
   const std::string defaultAgentResourcesString{
     "cpus:2;mem:1024;disk:1024;ports:[31000-32000]"};
