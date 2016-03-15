@@ -57,13 +57,11 @@ namespace docker {
 const Duration DOCKER_INSPECT_DELAY = Milliseconds(500);
 const Duration DOCKER_INSPECT_TIMEOUT = Seconds(5);
 
-// Executor that is responsible to execute a docker container, and
-// redirect log output to configured stdout and stderr files.
-// Similar to the CommandExecutor, it is only responsible to launch
-// one container and exits afterwards.
-// The executor assumes that it is launched from the
-// DockerContainerizer, which already sets up when launching the
-// executor that ensures its kept running if the slave exits.
+// Executor that is responsible to execute a docker container and
+// redirect log output to configured stdout and stderr files. Similar
+// to `CommandExecutor`, it launches a single task (a docker container)
+// and exits after the task finishes or is killed. The executor assumes
+// that it is launched from the `DockerContainerizer`.
 class DockerExecutorProcess : public ProtobufProcess<DockerExecutorProcess>
 {
 public:
