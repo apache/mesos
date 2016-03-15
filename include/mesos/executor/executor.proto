@@ -39,14 +39,14 @@ message Event {
     MESSAGE = 5;      // See 'Message' below.
     ERROR = 6;        // See 'Error' below.
 
-    // Received when the agent asks the executor to shutdown/kill itself. The
-    // executor is then required to kill all its active tasks, send
-    // 'TASK_KILLED' status updates and gracefully exit. If an
-    // executor does not terminate within a certain period
-    // `MESOS_EXECUTOR_SHUTDOWN_GRACE_PERIOD` (an environment variable set by
-    // the agent upon executor startup), the agent  will forcefully destroy the
-    // container where the executor is running. The agent would then send
-    // 'TASK_LOST' updates for any remaining active tasks of this executor.
+    // Received when the agent asks the executor to shutdown/kill itself.
+    // The executor is then required to kill all its active tasks, send
+    // `TASK_KILLED` status updates and gracefully exit. If an executor
+    // does not terminate within a `MESOS_EXECUTOR_SHUTDOWN_GRACE_PERIOD`
+    // period (an environment variable set by the agent upon executor
+    // startup), the agent will forcefully destroy the container where the
+    // executor is running. The agent would then send `TASK_LOST` updates
+    // for any remaining active tasks of this executor.
     SHUTDOWN = 7;
   }
 
