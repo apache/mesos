@@ -575,12 +575,12 @@ Try<vector<FetcherCacheTest::Task>> FetcherCacheTest::launchTasks(
 
     result.push_back(Task {sandboxPath, taskStatusQueue});
 
-    EXPECT_CALL(scheduler, statusUpdate(driver, _))
-      .WillRepeatedly(PushIndexedTaskStatus<1>(result));
-
     auto waypoint = Owned<Promise<Nothing>>(new Promise<Nothing>());
     fetchContentionWaypoints.push_back(waypoint);
   }
+
+  EXPECT_CALL(scheduler, statusUpdate(driver, _))
+    .WillRepeatedly(PushIndexedTaskStatus<1>(result));
 
   driver->launchTasks(offer.id(), tasks);
 
