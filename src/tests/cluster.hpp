@@ -17,10 +17,8 @@
 #ifndef __TESTS_CLUSTER_HPP__
 #define __TESTS_CLUSTER_HPP__
 
-#include <map>
 #include <memory>
 #include <string>
-#include <vector>
 
 #include <mesos/mesos.hpp>
 
@@ -40,10 +38,6 @@
 #include "authorizer/local/authorizer.hpp"
 
 #include "files/files.hpp"
-
-#ifdef __linux__
-#include "linux/cgroups.hpp"
-#endif // __linux__
 
 #include "log/log.hpp"
 
@@ -70,189 +64,147 @@
 
 #include "zookeeper/url.hpp"
 
+
 namespace mesos {
 namespace internal {
 namespace tests {
+namespace cluster {
 
-class Cluster
+class Master
 {
 public:
-  Cluster(const Option<zookeeper::URL>& url = None())
-    : masters(this, url),
-      slaves(this, &masters) {}
+  // Factory method that starts a new master with the provided flags and
+  // injections. The destructor of this object will cleanup some, but not
+  // all of its state by calling the injections. Cleanup includes:
+  //   * All destructors of each master dependency created in this factory.
+  //   * Unsetting the libprocess authenticator.
+  //   * Terminating the master process.
+  static Try<process::Owned<Master>> start(
+      const master::Flags& flags = master::Flags(),
+      const Option<zookeeper::URL>& zookeeperUrl = None(),
+      const Option<mesos::master::allocator::Allocator*>& allocator = None(),
+      const Option<Authorizer*>& authorizer = None(),
+      const Option<std::shared_ptr<process::RateLimiter>>&
+        slaveRemovalLimiter = None());
 
-  // Abstracts the masters of a cluster.
-  class Masters
-  {
-  public:
-    Masters(Cluster* _cluster, const Option<zookeeper::URL>& _url);
-    ~Masters();
+  ~Master();
 
-    void shutdown();
+  // Returns a new master detector for this instance of master.
+  process::Owned<MasterDetector> createDetector();
 
-    // Start a new master with the provided flags and injections.
-    Try<process::PID<master::Master>> start(
-        const master::Flags& flags = master::Flags(),
-        const Option<mesos::master::allocator::Allocator*>& allocator = None(),
-        const Option<Authorizer*>& authorizer = None(),
-        const Option<std::shared_ptr<process::RateLimiter>>&
-          slaveRemovalLimiter = None());
+  // Returns the `MasterInfo` associated with the underlying master process.
+  MasterInfo getMasterInfo();
 
-    // Stops and cleans up a master at the specified PID.
-    Try<Nothing> stop(const process::PID<master::Master>& pid);
-
-    // Returns a new master detector for this instance of masters.
-    process::Owned<MasterDetector> detector();
-
-    /**
-     * The internal map from UPID to Master processes is not available
-     * externally to test methods; this lookup method helps to expose this to
-     * `MesosTest` classes.
-     *
-     * @param pid the PID for the Master process being looked up.
-     * @return a pointer to the `master::Master` process, whose UPID corresponds
-     *     to the given value, if any.
-     */
-    Option<master::Master*> find(const process::PID<master::Master>& pid)
-    {
-      if (masters.count(pid) != 0) {
-        return masters[pid].master;
-      }
-
-      return None();
-    }
-
-  private:
-    // Not copyable, not assignable.
-    Masters(const Masters&);
-    Masters& operator=(const Masters&);
-
-    Cluster* cluster; // Enclosing class.
-    Option<zookeeper::URL> url;
-
-    // Encapsulates a single master's dependencies.
-    struct Master
-    {
-      Master() : allocator(NULL), createdAllocator(false), master(NULL) {}
-
-      mesos::master::allocator::Allocator* allocator;
-      bool createdAllocator; // Whether we own the allocator.
-
-      process::Owned<log::Log> log;
-      process::Owned<state::Storage> storage;
-      process::Owned<state::protobuf::State> state;
-      process::Owned<master::Registrar> registrar;
-
-      process::Owned<master::Repairer> repairer;
-
-      process::Owned<MasterContender> contender;
-      process::Owned<MasterDetector> detector;
-
-      process::Owned<Authorizer> authorizer;
-
-      Option<std::shared_ptr<process::RateLimiter>> slaveRemovalLimiter;
-
-      master::Master* master;
-    };
-
-    std::map<process::PID<master::Master>, Master> masters;
-  };
-
-  // Abstracts the slaves of a cluster.
-  class Slaves
-  {
-  public:
-    Slaves(Cluster* _cluster, Masters* _masters);
-    ~Slaves();
-
-    // Stop and clean up all slaves.
-    void shutdown();
-
-    // Start a new slave with the provided flags and injections.
-    Try<process::PID<slave::Slave>> start(
-        const slave::Flags& flags = slave::Flags(),
-        const Option<std::string>& id = None(),
-        const Option<slave::Containerizer*>& containerizer = None(),
-        const Option<MasterDetector*>& detector = None(),
-        const Option<slave::GarbageCollector*>& gc = None(),
-        const Option<slave::StatusUpdateManager*>& statusUpdateManager = None(),
-        const Option<mesos::slave::ResourceEstimator*>& resourceEstimator =
-          None(),
-        const Option<mesos::slave::QoSController*>& qosController =
-          None());
-
-    // Stops and cleans up a slave at the specified PID. If 'shutdown'
-    // is true than the slave is sent a shutdown message instead of
-    // being terminated.
-    Try<Nothing> stop(
-        const process::PID<slave::Slave>& pid,
-        bool shutdown = false);
-
-  private:
-    // Not copyable, not assignable.
-    Slaves(const Slaves&);
-    Slaves& operator=(const Slaves&);
-
-    Cluster* cluster; // Enclosing class.
-    Masters* masters; // Used to create MasterDetector instances.
-
-    // Encapsulates a single slave's dependencies.
-    struct Slave
-    {
-      Slave()
-        : containerizer(NULL),
-          createdContainerizer(false),
-          slave(NULL) {}
-
-      slave::Containerizer* containerizer;
-      bool createdContainerizer; // Whether we own the containerizer.
-
-      process::Owned<mesos::slave::ResourceEstimator> resourceEstimator;
-      process::Owned<mesos::slave::QoSController> qosController;
-      process::Owned<slave::Fetcher> fetcher;
-      process::Owned<slave::StatusUpdateManager> statusUpdateManager;
-      process::Owned<slave::GarbageCollector> gc;
-      process::Owned<MasterDetector> detector;
-      slave::Flags flags;
-      slave::Slave* slave;
-    };
-
-    std::map<process::PID<slave::Slave>, Slave> slaves;
-  };
-
-  // Shuts down all masters and slaves.
-  void shutdown()
-  {
-    masters.shutdown();
-    slaves.shutdown();
-  }
-
-  /**
-   * Thin wrapper around the internal `Masters::find()` lookup method, which is
-   * otherwise inaccessible from test methods.
-   *
-   * @param pid the PID for the Master process being looked up.
-   * @return a pointer to the `master::Master` process, whose PID corresponds
-   *     to the given value, if any.
-   */
-  Option<master::Master*> find(const process::PID<master::Master>& pid)
-  {
-    return masters.find(pid);
-  }
-
-
-  // Cluster wide shared abstractions.
-  Files files;
-
-  Masters masters;
-  Slaves slaves;
+  // The underlying master process.
+  process::PID<master::Master> pid;
 
 private:
+  Master() = default;
+
   // Not copyable, not assignable.
-  Cluster(const Cluster&);
-  Cluster& operator=(const Cluster&);
+  Master(const Master&) = delete;
+  Master& operator=(const Master&) = delete;
+
+  Option<zookeeper::URL> zookeeperUrl;
+  Files files;
+
+  // Dependencies that are created by the factory method.
+  process::Owned<mesos::master::allocator::Allocator> allocator;
+  process::Owned<Authorizer> authorizer;
+  process::Owned<MasterContender> contender;
+  process::Owned<MasterDetector> detector;
+  process::Owned<log::Log> log;
+  process::Owned<master::Registrar> registrar;
+  process::Owned<master::Repairer> repairer;
+  process::Owned<state::protobuf::State> state;
+  process::Owned<state::Storage> storage;
+
+  Option<std::shared_ptr<process::RateLimiter>> slaveRemovalLimiter;
+
+  // The underlying master object.
+  process::Owned<master::Master> master;
 };
 
+
+class Slave
+{
+public:
+  // Factory method that starts a new slave with the provided flags and
+  // injections. The destructor of this object will cleanup some, but not
+  // all of its state by calling the injections. Cleanup includes:
+  //   * All destructors of each slave dependency created in this factory.
+  //   * If neither `terminate` nor `shutdown` are called, all containers
+  //     will be destroyed before termination.
+  //   * Terminating the slave process.
+  //   * On Linux, we will simulate an OS process exiting.
+  static Try<process::Owned<Slave>> start(
+      MasterDetector* detector,
+      const slave::Flags& flags = slave::Flags(),
+      const Option<std::string>& id = None(),
+      const Option<slave::Containerizer*>& containerizer = None(),
+      const Option<slave::GarbageCollector*>& gc = None(),
+      const Option<slave::StatusUpdateManager*>& statusUpdateManager = None(),
+      const Option<mesos::slave::ResourceEstimator*>& resourceEstimator =
+        None(),
+      const Option<mesos::slave::QoSController*>& qosController = None());
+
+  ~Slave();
+
+  // Stops this slave by either dispatching a shutdown call to the underlying
+  // slave process or terminating it. If either of these methods are called,
+  // this wrapper object will not clean up containers during its destruction.
+  // NOTE: Destroying the containerizer does not clean up containers.
+  //
+  // These methods are useful if the test wants to emulate the slave's
+  // shutdown/termination logic. For example, the slave-recovery tests do
+  // not want to destroy all containers when restarting the agent.
+  void shutdown();
+  void terminate();
+
+  // The underlying slave process.
+  process::PID<slave::Slave> pid;
+
+private:
+  Slave() = default;
+
+  // Not copyable, not assignable.
+  Slave(const Slave&) = delete;
+  Slave& operator=(const Slave&) = delete;
+
+  // Helper for `shutdown` and `terminate`.
+  // Waits for the underlying slave process to finish and then
+  // (Linux-only) simulates an OS process exiting.
+  void wait();
+
+  slave::Flags flags;
+  Files files;
+
+  // This is set to `false` if either `shutdown()` or `terminate()` are called.
+  // If false, the destructor of this `Slave` will not clean up containers.
+  bool cleanUpContainersInDestructor = true;
+
+  // Master detector that is not managed by this object.
+  MasterDetector* detector;
+
+  // Containerizer that is either owned outside of this `Slave` object
+  // or by `ownedContainerizer`.  We keep a copy of this pointer
+  // because the cleanup logic acts upon the containerizer (regardless
+  // of who created it).
+  slave::Containerizer* containerizer;
+
+  // Dependencies that are created by the factory method.
+  process::Owned<slave::Containerizer> ownedContainerizer;
+  process::Owned<slave::Fetcher> fetcher;
+  process::Owned<slave::GarbageCollector> gc;
+  process::Owned<mesos::slave::QoSController> qosController;
+  process::Owned<mesos::slave::ResourceEstimator> resourceEstimator;
+  process::Owned<slave::StatusUpdateManager> statusUpdateManager;
+
+  // The underlying slave object.
+  process::Owned<slave::Slave> slave;
+};
+
+} // namespace cluster {
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {

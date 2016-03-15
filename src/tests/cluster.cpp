@@ -14,10 +14,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
 #include <string>
 #include <vector>
 
-#include "tests/cluster.hpp"
+#include <mesos/mesos.hpp>
+
+#include <mesos/authorizer/authorizer.hpp>
+
+#include <mesos/master/allocator.hpp>
+
+#include <mesos/slave/resource_estimator.hpp>
 
 #include <process/clock.hpp>
 #include <process/future.hpp>
@@ -31,7 +38,7 @@
 
 #include <stout/duration.hpp>
 #include <stout/error.hpp>
-#include <stout/foreach.hpp>
+#include <stout/gtest.hpp>
 #include <stout/none.hpp>
 #include <stout/nothing.hpp>
 #include <stout/option.hpp>
@@ -39,129 +46,78 @@
 #include <stout/strings.hpp>
 #include <stout/try.hpp>
 
+#ifdef __linux__
+#include "linux/cgroups.hpp"
+#endif
+
+#include "authorizer/local/authorizer.hpp"
+
+#include "files/files.hpp"
+
+#include "log/log.hpp"
+
+#include "master/constants.hpp"
+#include "master/contender.hpp"
+#include "master/detector.hpp"
+#include "master/flags.hpp"
+#include "master/master.hpp"
+#include "master/registrar.hpp"
+#include "master/repairer.hpp"
+
 #include "master/allocator/mesos/hierarchical.hpp"
+
+#include "slave/flags.hpp"
+#include "slave/gc.hpp"
+#include "slave/slave.hpp"
+#include "slave/status_update_manager.hpp"
+
+#include "slave/containerizer/containerizer.hpp"
+#include "slave/containerizer/fetcher.hpp"
+
+#include "state/in_memory.hpp"
+#include "state/log.hpp"
+#include "state/protobuf.hpp"
+#include "state/storage.hpp"
+
+#include "zookeeper/url.hpp"
+
+#include "tests/cluster.hpp"
+
 
 namespace mesos {
 namespace internal {
 namespace tests {
+namespace cluster {
 
-using std::string;
-using std::vector;
-
-Cluster::Masters::Masters(
-    Cluster* _cluster,
-    const Option<zookeeper::URL>& _url)
-  : cluster(_cluster),
-    url(_url) {}
-
-
-Cluster::Masters::~Masters()
-{
-  shutdown();
-}
-
-
-void Cluster::Masters::shutdown()
-{
-  // TODO(benh): Use utils::copy from stout once namespaced.
-  std::map<process::PID<master::Master>, Master> copy(masters);
-  foreachkey (const process::PID<master::Master>& pid, copy) {
-    stop(pid);
-  }
-  masters.clear();
-}
-
-
-Try<process::PID<master::Master>> Cluster::Masters::start(
+Try<process::Owned<Master>> Master::start(
     const master::Flags& flags,
+    const Option<zookeeper::URL>& zookeeperUrl,
     const Option<mesos::master::allocator::Allocator*>& allocator,
     const Option<Authorizer*>& authorizer,
     const Option<std::shared_ptr<process::RateLimiter>>& slaveRemovalLimiter)
 {
-  // Disallow multiple masters when not using ZooKeeper.
-  if (!masters.empty() && url.isNone()) {
-    return Error("Can not start multiple masters when not using ZooKeeper");
-  }
+  process::Owned<Master> master(new Master());
+  master->zookeeperUrl = zookeeperUrl;
 
-  Master master;
-
-  if (allocator.isSome()) {
-    master.allocator = allocator.get();
-  } else {
-    // If allocator is not provided, fall back to the default one,
-    // managed by Cluster::Masters.
-    Try<mesos::master::allocator::Allocator*> allocator_ =
+  // If the allocator is not provided, create a default one.
+  if (allocator.isNone()) {
+    Try<mesos::master::allocator::Allocator*> _allocator =
       master::allocator::HierarchicalDRFAllocator::create();
-    if (allocator_.isError()) {
+
+    if (_allocator.isError()) {
       return Error(
           "Failed to create an instance of HierarchicalDRFAllocator: " +
-          allocator_.error());
+          _allocator.error());
     }
 
-    master.allocator = allocator_.get();
-    master.createdAllocator = true;
+    master->allocator.reset(_allocator.get());
   }
 
-  if (flags.registry == "in_memory") {
-    if (flags.registry_strict) {
-      return Error(
-          "Cannot use '--registry_strict' when using in-memory storage based"
-          " registry");
-    }
-    master.storage.reset(new state::InMemoryStorage());
-  } else if (flags.registry == "replicated_log") {
-    if (flags.work_dir.isNone()) {
-      return Error(
-          "Need to specify --work_dir for replicated log based registry");
-    }
+  // If the authorizer is not provided, create a default one.
+  if (authorizer.isNone()) {
+    std::vector<std::string> authorizerNames =
+      strings::split(flags.authorizers, ",");
 
-    if (url.isSome()) {
-      // Use ZooKeeper based replicated log.
-      if (flags.quorum.isNone()) {
-        return Error(
-            "Need to specify --quorum for replicated log based registry"
-            " when using ZooKeeper");
-      }
-      master.log.reset(new log::Log(
-          flags.quorum.get(),
-          path::join(flags.work_dir.get(), "replicated_log"),
-          url.get().servers,
-          flags.zk_session_timeout,
-          path::join(url.get().path, "log_replicas"),
-          url.get().authentication,
-          flags.log_auto_initialize));
-    } else {
-      master.log.reset(new log::Log(
-          1,
-          path::join(flags.work_dir.get(), "replicated_log"),
-          std::set<process::UPID>(),
-          flags.log_auto_initialize));
-    }
-
-    master.storage.reset(new state::LogStorage(master.log.get()));
-  } else {
-    return Error("'" + flags.registry + "' is not a supported option for"
-                 " registry persistence");
-  }
-
-  CHECK_NOTNULL(master.storage.get());
-
-  master.state.reset(new state::protobuf::State(master.storage.get()));
-  master.registrar.reset(new master::Registrar(flags, master.state.get()));
-  master.repairer.reset(new master::Repairer());
-
-  if (url.isSome()) {
-    master.contender.reset(new ZooKeeperMasterContender(url.get()));
-    master.detector.reset(new ZooKeeperMasterDetector(url.get()));
-  } else {
-    master.contender.reset(new StandaloneMasterContender());
-    master.detector.reset(new StandaloneMasterDetector());
-  }
-
-  if (authorizer.isSome()) {
-    CHECK_NOTNULL(authorizer.get());
-  } else {
-    vector<string> authorizerNames = strings::split(flags.authorizers, ",");
     if (authorizerNames.empty()) {
       return Error("No authorizer specified");
     }
@@ -170,7 +126,7 @@ Try<process::PID<master::Master>> Cluster::Masters::start(
       return Error("Multiple authorizers not supported");
     }
 
-    string authorizerName = authorizerNames[0];
+    std::string authorizerName = authorizerNames[0];
 
     Result<Authorizer*> authorizer((None()));
     if (authorizerName != master::DEFAULT_AUTHORIZER) {
@@ -187,15 +143,80 @@ Try<process::PID<master::Master>> Cluster::Masters::start(
     }
 
     if (authorizer.isError()) {
-      return Error("Could not create '" + authorizerName +
-                   "' authorizer: " + authorizer.error());
+      return Error(
+          "Could not create '" + authorizerName + "' authorizer: " +
+          authorizer.error());
     } else if (authorizer.isSome()) {
-      master.authorizer.reset(authorizer.get());
+      master->authorizer.reset(authorizer.get());
     }
   }
 
-  if (slaveRemovalLimiter.isNone() &&
-      flags.slave_removal_rate_limit.isSome()) {
+  // Create the appropriate master contender/detector.
+  if (zookeeperUrl.isSome()) {
+    master->contender.reset(new ZooKeeperMasterContender(zookeeperUrl.get()));
+    master->detector.reset(new ZooKeeperMasterDetector(zookeeperUrl.get()));
+  } else {
+    master->contender.reset(new StandaloneMasterContender());
+    master->detector.reset(new StandaloneMasterDetector());
+  }
+
+  // Check for some invalid flag combinations.
+  if (flags.registry == "in_memory" && flags.registry_strict) {
+    return Error(
+        "Cannot use '--registry_strict' when using in-memory storage based"
+        " registry");
+  }
+
+  if (flags.registry == "replicated_log" && flags.work_dir.isNone()) {
+    return Error(
+        "Need to specify --work_dir for replicated log based registry");
+  }
+
+  if (flags.registry == "replicated_log" &&
+      zookeeperUrl.isSome() &&
+      flags.quorum.isNone()) {
+    return Error(
+        "Need to specify --quorum for replicated log based registry"
+        " when using ZooKeeper");
+  }
+
+  // Create the replicated-log-based registry, if specified in the flags.
+  if (flags.registry == "replicated_log") {
+    if (zookeeperUrl.isSome()) {
+      // Use ZooKeeper-based replicated log.
+      master->log.reset(new log::Log(
+          flags.quorum.get(),
+          path::join(flags.work_dir.get(), "replicated_log"),
+          zookeeperUrl.get().servers,
+          flags.zk_session_timeout,
+          path::join(zookeeperUrl.get().path, "log_replicas"),
+          zookeeperUrl.get().authentication,
+          flags.log_auto_initialize));
+    } else {
+      master->log.reset(new log::Log(
+          1,
+          path::join(flags.work_dir.get(), "replicated_log"),
+          std::set<process::UPID>(),
+          flags.log_auto_initialize));
+    }
+  }
+
+  // Create the registry's storage backend.
+  if (flags.registry == "in_memory") {
+    master->storage.reset(new state::InMemoryStorage());
+  } else if (flags.registry == "replicated_log") {
+    master->storage.reset(new state::LogStorage(master->log.get()));
+  } else {
+    return Error(
+        "Unsupported option for registry persistence: " + flags.registry);
+  }
+
+  // Instantiate some other master dependencies.
+  master->state.reset(new state::protobuf::State(master->storage.get()));
+  master->registrar.reset(new master::Registrar(flags, master->state.get()));
+  master->repairer.reset(new master::Repairer());
+
+  if (slaveRemovalLimiter.isNone() && flags.slave_removal_rate_limit.isSome()) {
     // Parse the flag value.
     // TODO(vinod): Move this parsing logic to flags once we have a
     // 'Rate' abstraction in stout.
@@ -203,58 +224,58 @@ Try<process::PID<master::Master>> Cluster::Masters::start(
       strings::tokenize(flags.slave_removal_rate_limit.get(), "/");
 
     if (tokens.size() != 2) {
-      EXIT(1) << "Invalid slave_removal_rate_limit: "
-              << flags.slave_removal_rate_limit.get()
-              << ". Format is <Number of slaves>/<Duration>";
+      return Error(
+          "Invalid slave_removal_rate_limit: " +
+          flags.slave_removal_rate_limit.get() +
+          ". Format is <Number of slaves>/<Duration>");
     }
 
     Try<int> permits = numify<int>(tokens[0]);
     if (permits.isError()) {
-      EXIT(1) << "Invalid slave_removal_rate_limit: "
-              << flags.slave_removal_rate_limit.get()
-              << ". Format is <Number of slaves>/<Duration>"
-              << ": " << permits.error();
+      return Error(
+          "Invalid slave_removal_rate_limit: " +
+          flags.slave_removal_rate_limit.get() +
+          ". Format is <Number of slaves>/<Duration>: " + permits.error());
     }
 
     Try<Duration> duration = Duration::parse(tokens[1]);
     if (duration.isError()) {
-      EXIT(1) << "Invalid slave_removal_rate_limit: "
-              << flags.slave_removal_rate_limit.get()
-              << ". Format is <Number of slaves>/<Duration>"
-              << ": " << duration.error();
+      return Error(
+          "Invalid slave_removal_rate_limit: " +
+          flags.slave_removal_rate_limit.get() +
+          ". Format is <Number of slaves>/<Duration>: " + duration.error());
     }
 
-    master.slaveRemovalLimiter = std::shared_ptr<process::RateLimiter>(
-        new process::RateLimiter(permits.get(), duration.get()));
+    master->slaveRemovalLimiter =
+      std::make_shared<process::RateLimiter>(permits.get(), duration.get());
   }
 
-  master.master = new master::Master(
-      master.allocator,
-      master.registrar.get(),
-      master.repairer.get(),
-      &cluster->files,
-      master.contender.get(),
-      master.detector.get(),
-      authorizer.isSome()
-          ? authorizer : master.authorizer.get(),
-      slaveRemovalLimiter.isSome()
-          ? slaveRemovalLimiter : master.slaveRemovalLimiter,
-      flags);
+  // Inject all the dependencies.
+  master->master.reset(new master::Master(
+      allocator.getOrElse(master->allocator.get()),
+      master->registrar.get(),
+      master->repairer.get(),
+      &master->files,
+      master->contender.get(),
+      master->detector.get(),
+      authorizer.getOrElse(master->authorizer.get()),
+      slaveRemovalLimiter.isSome() ? slaveRemovalLimiter
+                                   : master->slaveRemovalLimiter,
+      flags));
 
-  if (url.isNone()) {
-    // This means we are using the StandaloneMasterDetector.
-    StandaloneMasterDetector* detector_ = CHECK_NOTNULL(
-        dynamic_cast<StandaloneMasterDetector*>(master.detector.get()));
+  // If we are using the `StandaloneMasterDetector`, appoint the only
+  // master as the leading master.
+  if (zookeeperUrl.isNone()) {
+    StandaloneMasterDetector* _detector = CHECK_NOTNULL(
+        dynamic_cast<StandaloneMasterDetector*>(master->detector.get()));
 
-    detector_->appoint(master.master->info());
+    _detector->appoint(master->master->info());
   }
 
   process::Future<Nothing> _recover =
-    FUTURE_DISPATCH(master.master->self(), &master::Master::_recover);
+    FUTURE_DISPATCH(master->master->self(), &master::Master::_recover);
 
-  process::PID<master::Master> pid = process::spawn(master.master);
-
-  masters[pid] = master;
+  master->pid = process::spawn(master->master.get());
 
   // Speed up the tests by ensuring that the Master is recovered
   // before the test proceeds. Otherwise, authentication and
@@ -264,7 +285,7 @@ Try<process::PID<master::Master>> Cluster::Masters::start(
   if (!process::internal::await(
           _recover,
           flags.registry_fetch_timeout + flags.registry_store_timeout)) {
-    LOG(FATAL) << "Failed to wait for _recover";
+    return Error("Failed to wait for Master::_recover");
   }
 
   bool paused = process::Clock::paused();
@@ -279,210 +300,201 @@ Try<process::PID<master::Master>> Cluster::Masters::start(
     process::Clock::resume();
   }
 
-  return pid;
+  return master;
 }
 
 
-Try<Nothing> Cluster::Masters::stop(
-    const process::PID<master::Master>& pid)
+Master::~Master()
 {
-  if (masters.count(pid) == 0) {
-    return Error("No master found to stop");
-  }
+  // NOTE: Authenticators' lifetimes are tied to libprocess's lifetime.
+  // This means that multiple masters in tests are not supported.
+  process::http::authentication::unsetAuthenticator(
+      master::DEFAULT_HTTP_AUTHENTICATION_REALM);
 
-  Master master = masters[pid];
-
-  process::terminate(master.master);
-  process::wait(master.master);
-  delete master.master;
-
-  if (master.createdAllocator) {
-    delete master.allocator;
-  }
-
-  masters.erase(pid);
-
-  return Nothing();
+  process::terminate(pid);
+  process::wait(pid);
 }
 
 
-process::Owned<MasterDetector> Cluster::Masters::detector()
+process::Owned<MasterDetector> Master::createDetector()
 {
-  if (url.isSome()) {
+  if (zookeeperUrl.isSome()) {
     return process::Owned<MasterDetector>(
-        new ZooKeeperMasterDetector(url.get()));
+        new ZooKeeperMasterDetector(zookeeperUrl.get()));
   }
 
-  CHECK(masters.size() == 1);
-
-  return process::Owned<MasterDetector>(
-      new StandaloneMasterDetector(masters.begin()->first));
+  return process::Owned<MasterDetector>(new StandaloneMasterDetector(pid));
 }
 
 
-Cluster::Slaves::Slaves(Cluster* _cluster, Masters* _masters)
-  : cluster(_cluster), masters(_masters) {}
-
-
-Cluster::Slaves::~Slaves()
+MasterInfo Master::getMasterInfo()
 {
-  shutdown();
+  return master->info();
 }
 
 
-void Cluster::Slaves::shutdown()
-{
-  // TODO(benh): Use utils::copy from stout once namespaced.
-  std::map<process::PID<slave::Slave>, Slave> copy(slaves);
-  foreachpair (const process::PID<slave::Slave>& pid,
-               const Slave& slave,
-               copy) {
-    // Destroy the existing containers on the slave. Note that some
-    // containers may terminate while we are doing this, so we ignore
-    // any 'wait' failures and ensure that there are no containers
-    // when we're done destroying.
-    process::Future<hashset<ContainerID>> containers =
-      slave.containerizer->containers();
-    AWAIT_READY(containers);
-
-    foreach (const ContainerID& containerId, containers.get()) {
-      process::Future<containerizer::Termination> wait =
-        slave.containerizer->wait(containerId);
-
-      slave.containerizer->destroy(containerId);
-
-      AWAIT(wait);
-    }
-
-    containers = slave.containerizer->containers();
-    AWAIT_READY(containers);
-
-    ASSERT_TRUE(containers.get().empty())
-      << "Failed to destroy containers: " << stringify(containers.get());
-
-    stop(pid);
-  }
-  slaves.clear();
-}
-
-
-Try<process::PID<slave::Slave>> Cluster::Slaves::start(
+Try<process::Owned<Slave>> Slave::start(
+    MasterDetector* detector,
     const slave::Flags& flags,
     const Option<std::string>& id,
     const Option<slave::Containerizer*>& containerizer,
-    const Option<MasterDetector*>& detector,
     const Option<slave::GarbageCollector*>& gc,
     const Option<slave::StatusUpdateManager*>& statusUpdateManager,
     const Option<mesos::slave::ResourceEstimator*>& resourceEstimator,
     const Option<mesos::slave::QoSController*>& qosController)
 {
+  process::Owned<Slave> slave(new Slave());
+
   // TODO(benh): Create a work directory if using the default.
 
-  Slave slave;
+  slave->flags = flags;
+  slave->detector = detector;
 
+  // If the containerizer is not provided, create a default one.
   if (containerizer.isSome()) {
-    slave.containerizer = containerizer.get();
+    slave->containerizer = containerizer.get();
   } else {
     // Create a new fetcher.
-    slave.fetcher.reset(new slave::Fetcher());
+    slave->fetcher.reset(new slave::Fetcher());
 
-    Try<slave::Containerizer*> containerizer =
-      slave::Containerizer::create(flags, true, slave.fetcher.get());
+    Try<slave::Containerizer*> _containerizer =
+      slave::Containerizer::create(flags, true, slave->fetcher.get());
 
-    CHECK_SOME(containerizer);
+    if (_containerizer.isError()) {
+      return Error("Failed to create containerizer: " + _containerizer.error());
+    }
 
-    slave.containerizer = containerizer.get();
-    slave.createdContainerizer = true;
+    slave->ownedContainerizer.reset(_containerizer.get());
+    slave->containerizer = _containerizer.get();
   }
 
+  // If the garbage collector is not provided, create a default one.
+  if (gc.isNone()) {
+    slave->gc.reset(new slave::GarbageCollector());
+  }
+
+  // If the resource estimator is not provided, create a default one.
   if (resourceEstimator.isNone()) {
     Try<mesos::slave::ResourceEstimator*> _resourceEstimator =
       mesos::slave::ResourceEstimator::create(flags.resource_estimator);
 
-    CHECK_SOME(_resourceEstimator);
-    slave.resourceEstimator.reset(_resourceEstimator.get());
+    if (_resourceEstimator.isError()) {
+      return Error(
+          "Failed to create resource estimator: " + _resourceEstimator.error());
+    }
+
+    slave->resourceEstimator.reset(_resourceEstimator.get());
   }
 
+  // If the QoS controller is not provided, create a default one.
   if (qosController.isNone()) {
     Try<mesos::slave::QoSController*> _qosController =
       mesos::slave::QoSController::create(flags.qos_controller);
 
-    CHECK_SOME(_qosController);
-    slave.qosController.reset(_qosController.get());
+    if (_qosController.isError()) {
+      return Error(
+          "Failed to create QoS controller: " + _qosController.error());
+    }
+
+    slave->qosController.reset(_qosController.get());
   }
 
-  // Get a detector for the master(s) if one wasn't provided.
-  if (detector.isNone()) {
-    slave.detector = masters->detector();
-  }
-
-  // Create a garbage collector if one wasn't provided.
-  if (gc.isNone()) {
-    slave.gc.reset(new slave::GarbageCollector());
-  }
-
-  // Create a status update manager if one wasn't provided.
+  // If the status update manager is not provided, create a default one.
   if (statusUpdateManager.isNone()) {
-    slave.statusUpdateManager.reset(new slave::StatusUpdateManager(flags));
+    slave->statusUpdateManager.reset(new slave::StatusUpdateManager(flags));
   }
 
-  slave.flags = flags;
-
-  slave.slave = new slave::Slave(
+  // Inject all the dependencies.
+  slave->slave.reset(new slave::Slave(
       id.isSome() ? id.get() : process::ID::generate("slave"),
       flags,
-      detector.getOrElse(slave.detector.get()),
-      slave.containerizer,
-      &cluster->files,
-      gc.getOrElse(slave.gc.get()),
-      statusUpdateManager.getOrElse(slave.statusUpdateManager.get()),
-      resourceEstimator.getOrElse(slave.resourceEstimator.get()),
-      qosController.getOrElse(slave.qosController.get()));
+      detector,
+      slave->containerizer,
+      &slave->files,
+      gc.getOrElse(slave->gc.get()),
+      statusUpdateManager.getOrElse(slave->statusUpdateManager.get()),
+      resourceEstimator.getOrElse(slave->resourceEstimator.get()),
+      qosController.getOrElse(slave->qosController.get())));
 
-  process::PID<slave::Slave> pid = process::spawn(slave.slave);
+  slave->pid = process::spawn(slave->slave.get());
 
-  slaves[pid] = slave;
-
-  return pid;
+  return slave;
 }
 
 
-Try<Nothing> Cluster::Slaves::stop(
-    const process::PID<slave::Slave>& pid,
-    bool shutdown)
+Slave::~Slave()
 {
-  if (slaves.count(pid) == 0) {
-    return Error("No slave found to stop");
+  // If either `shutdown()` or `terminate()` were called already,
+  // skip the below container cleanup logic.  Additionally, we can skip
+  // termination, as the shutdown/terminate will do this too.
+  if (!cleanUpContainersInDestructor) {
+    return;
   }
 
-  Slave slave = slaves[pid];
+  // This extra closure is necessary in order to use `AWAIT` and `ASSERT_*`,
+  // as these macros require a void return type.
+  [this]() {
+    // Destroy the existing containers on the slave. Note that some
+    // containers may terminate while we are doing this, so we ignore
+    // any 'wait' failures and ensure that there are no containers
+    // when we're done destroying.
+    process::Future<hashset<ContainerID>> containers =
+      containerizer->containers();
 
-  if (shutdown) {
-    process::dispatch(slave.slave,
-                      &slave::Slave::shutdown,
-                      process::UPID(),
-                      "");
-  } else {
-    process::terminate(slave.slave);
-  }
-  process::wait(slave.slave);
-  delete slave.slave;
+    AWAIT_READY(containers);
 
-  if (slave.createdContainerizer) {
-    delete slave.containerizer;
-  }
+    foreach (const ContainerID& containerId, containers.get()) {
+      process::Future<containerizer::Termination> wait =
+        containerizer->wait(containerId);
+
+      containerizer->destroy(containerId);
+
+      AWAIT(wait);
+    }
+
+    containers = containerizer->containers();
+    AWAIT_READY(containers);
+
+    ASSERT_TRUE(containers.get().empty())
+      << "Failed to destroy containers: " << stringify(containers.get());
+  }();
+
+  terminate();
+}
+
+
+void Slave::shutdown()
+{
+  cleanUpContainersInDestructor = false;
+
+  process::dispatch(slave.get(), &slave::Slave::shutdown, process::UPID(), "");
+  wait();
+}
+
+
+void Slave::terminate()
+{
+  cleanUpContainersInDestructor = false;
+
+  process::terminate(pid);
+  wait();
+}
+
+
+void Slave::wait()
+{
+  process::wait(pid);
 
 #ifdef __linux__
   // Remove all of this processes threads into the root cgroups - this
   // simulates the slave process terminating and permits a new slave to start
   // when the --slave_subsystems flag is used.
-  if (slave.flags.slave_subsystems.isSome()) {
+  if (flags.slave_subsystems.isSome()) {
     foreach (const std::string& subsystem,
-             strings::tokenize(slave.flags.slave_subsystems.get(), ",")) {
-      std::string hierarchy = path::join(
-          slave.flags.cgroups_hierarchy, subsystem);
+             strings::tokenize(flags.slave_subsystems.get(), ",")) {
+      std::string hierarchy = path::join(flags.cgroups_hierarchy, subsystem);
 
-      std::string cgroup = path::join(slave.flags.cgroups_root, "slave");
+      std::string cgroup = path::join(flags.cgroups_root, "slave");
 
       Try<bool> exists = cgroups::exists(hierarchy, cgroup);
       if (exists.isError() || !exists.get()) {
@@ -503,12 +515,9 @@ Try<Nothing> Cluster::Slaves::stop(
     }
   }
 #endif // __linux__
-
-  slaves.erase(pid);
-
-  return Nothing();
 }
 
+} // namespace cluster {
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {
