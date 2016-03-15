@@ -1194,11 +1194,11 @@ message TaskInfo {
   // of this task paired with the task's CommandInfo.
   optional ContainerInfo container = 9;
 
-  optional bytes data = 6;
-
-  // A health check for the task (currently in *alpha* and initial
-  // support will only be for TaskInfo's that have a CommandInfo).
+  // A health check for the task, currently only supported for
+  // command tasks (i.e. `CommandInfo` is set).
   optional HealthCheck health_check = 8;
+
+  optional bytes data = 6;
 
   // Labels are free-form key value pairs which are exposed through
   // master and agent endpoints. Labels will not be interpreted or
