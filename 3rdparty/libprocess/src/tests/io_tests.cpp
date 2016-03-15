@@ -21,6 +21,8 @@
 #include <stout/gtest.hpp>
 #include <stout/os.hpp>
 
+#include <stout/tests/utils.hpp>
+
 #include "encoder.hpp"
 
 namespace io = process::io;
@@ -28,6 +30,8 @@ namespace io = process::io;
 using process::Future;
 
 using std::string;
+
+class IOWriteTest : public TemporaryDirectoryTest {};
 
 TEST(IOTest, Poll)
 {
@@ -121,7 +125,7 @@ TEST(IOTest, Read)
 }
 
 
-TEST(IOTest, BufferedRead)
+TEST_F(IOWriteTest, BufferedRead)
 {
   // 128 Bytes.
   string data =
@@ -290,7 +294,7 @@ TEST(IOTest, DISABLED_BlockingWrite)
 }
 
 
-TEST(IOTest, Redirect)
+TEST_F(IOWriteTest, Redirect)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
