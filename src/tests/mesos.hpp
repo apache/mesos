@@ -882,7 +882,7 @@ public:
 
   void event(Mesos* mesos, const Event& event)
   {
-    switch(event.type()) {
+    switch (event.type()) {
       case Event::SUBSCRIBED:
         subscribed(mesos, event.subscribed());
         break;
@@ -924,20 +924,20 @@ public:
       const std::shared_ptr<MockHTTPScheduler<Mesos, Event>>& _scheduler,
       const Option<std::shared_ptr<MasterDetector>>& detector = None())
     : Mesos(
-        master,
-        contentType,
-        // We don't pass the `_scheduler` shared pointer as the library
-        // interface expects a `std::function` object.
-        lambda::bind(&MockHTTPScheduler<Mesos, Event>::connected,
-                     _scheduler.get(),
-                     this),
-        lambda::bind(&MockHTTPScheduler<Mesos, Event>::disconnected,
-                     _scheduler.get(),
-                     this),
-        lambda::bind(&TestMesos<Mesos, Event>::events,
-                     this,
-                     lambda::_1),
-        detector),
+          master,
+          contentType,
+          // We don't pass the `_scheduler` shared pointer as the library
+          // interface expects a `std::function` object.
+          lambda::bind(&MockHTTPScheduler<Mesos, Event>::connected,
+                       _scheduler.get(),
+                       this),
+          lambda::bind(&MockHTTPScheduler<Mesos, Event>::disconnected,
+                       _scheduler.get(),
+                       this),
+          lambda::bind(&TestMesos<Mesos, Event>::events,
+                       this,
+                       lambda::_1),
+          detector),
       scheduler(_scheduler) {}
 
   virtual ~TestMesos()
@@ -965,7 +965,7 @@ public:
 protected:
   void events(std::queue<Event> events)
   {
-    while(!events.empty()) {
+    while (!events.empty()) {
       Event event = std::move(events.front());
       events.pop();
       scheduler->event(this, event);
@@ -1008,7 +1008,7 @@ public:
 
   void event(Mesos* mesos, const Event& event)
   {
-    switch(event.type()) {
+    switch (event.type()) {
       case Event::SUBSCRIBED:
         subscribed(mesos, event.subscribed());
         break;
@@ -1045,22 +1045,22 @@ public:
       ContentType contentType,
       const std::shared_ptr<MockHTTPExecutor<Mesos, Event>>& _executor)
     : Mesos(
-        contentType,
-        lambda::bind(&MockHTTPExecutor<Mesos, Event>::connected,
-                     _executor,
-                     this),
-        lambda::bind(&MockHTTPExecutor<Mesos, Event>::disconnected,
-                     _executor,
-                     this),
-        lambda::bind(&TestMesos<Mesos, Event>::events,
-                     this,
-                     lambda::_1)),
+          contentType,
+          lambda::bind(&MockHTTPExecutor<Mesos, Event>::connected,
+                       _executor,
+                       this),
+          lambda::bind(&MockHTTPExecutor<Mesos, Event>::disconnected,
+                       _executor,
+                       this),
+          lambda::bind(&TestMesos<Mesos, Event>::events,
+                       this,
+                       lambda::_1)),
       executor(_executor) {}
 
 protected:
   void events(std::queue<Event> events)
   {
-    while(!events.empty()) {
+    while (!events.empty()) {
       Event event = std::move(events.front());
       events.pop();
       executor->event(this, event);
@@ -1595,14 +1595,15 @@ public:
 
 
 class OfferEqMatcher
-  : public ::testing::MatcherInterface<const std::vector<Offer>& >
+  : public ::testing::MatcherInterface<const std::vector<Offer>&>
 {
 public:
   OfferEqMatcher(int _cpus, int _mem)
     : cpus(_cpus), mem(_mem) {}
 
-  virtual bool MatchAndExplain(const std::vector<Offer>& offers,
-                               ::testing::MatchResultListener* listener) const
+  virtual bool MatchAndExplain(
+      const std::vector<Offer>& offers,
+      ::testing::MatchResultListener* listener) const
   {
     double totalCpus = 0;
     double totalMem = 0;
@@ -1642,8 +1643,8 @@ private:
 };
 
 
-inline
-const ::testing::Matcher<const std::vector<Offer>& > OfferEq(int cpus, int mem)
+inline const ::testing::Matcher<const std::vector<Offer>&> OfferEq(
+    int cpus, int mem)
 {
   return MakeMatcher(new OfferEqMatcher(cpus, mem));
 }

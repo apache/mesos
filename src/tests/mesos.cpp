@@ -92,7 +92,7 @@ master::Flags MesosTest::CreateMasterFlags()
   flags.authenticate_slaves = true;
 
   // Create a default credentials file.
-  const string& path =  path::join(os::getcwd(), "credentials");
+  const string& path = path::join(os::getcwd(), "credentials");
 
   Try<int> fd = os::open(
       path,
@@ -113,7 +113,7 @@ master::Flags MesosTest::CreateMasterFlags()
   credential->set_secret(DEFAULT_CREDENTIAL_2.secret());
 
   CHECK_SOME(os::write(fd.get(), stringify(JSON::protobuf(credentials))))
-     << "Failed to write credentials to '" << path << "'";
+    << "Failed to write credentials to '" << path << "'";
   CHECK_SOME(os::close(fd.get()));
 
   flags.credentials = path;
@@ -162,7 +162,7 @@ slave::Flags MesosTest::CreateSlaveFlags()
   credential.set_secret(DEFAULT_CREDENTIAL.secret());
 
   CHECK_SOME(os::write(fd.get(), stringify(JSON::protobuf(credential))))
-     << "Failed to write slave credential to '" << path << "'";
+    << "Failed to write slave credential to '" << path << "'";
 
   CHECK_SOME(os::close(fd.get()));
 
@@ -415,20 +415,21 @@ MockQoSController::MockQoSController()
 MockQoSController::~MockQoSController() {}
 
 
-MockSlave::MockSlave(const slave::Flags& flags,
-                     MasterDetector* detector,
-                     slave::Containerizer* containerizer,
-                     const Option<mesos::slave::QoSController*>& _qosController)
+MockSlave::MockSlave(
+    const slave::Flags& flags,
+    MasterDetector* detector,
+    slave::Containerizer* containerizer,
+    const Option<mesos::slave::QoSController*>& _qosController)
   : slave::Slave(
-      process::ID::generate("slave"),
-      flags,
-      detector,
-      containerizer,
-      &files,
-      &gc,
-      statusUpdateManager = new slave::StatusUpdateManager(flags),
-      &resourceEstimator,
-      _qosController.isSome() ? _qosController.get() : &qosController)
+        process::ID::generate("slave"),
+        flags,
+        detector,
+        containerizer,
+        &files,
+        &gc,
+        statusUpdateManager = new slave::StatusUpdateManager(flags),
+        &resourceEstimator,
+        _qosController.isSome() ? _qosController.get() : &qosController)
 {
   // Set up default behaviors, calling the original methods.
   EXPECT_CALL(*this, runTask(_, _, _, _, _))
@@ -464,18 +465,18 @@ void MockSlave::unmocked_runTask(
 
 
 void MockSlave::unmocked__runTask(
-      const Future<bool>& future,
-      const FrameworkInfo& frameworkInfo,
-      const TaskInfo& task)
+    const Future<bool>& future,
+    const FrameworkInfo& frameworkInfo,
+    const TaskInfo& task)
 {
   slave::Slave::_runTask(future, frameworkInfo, task);
 }
 
 
 void MockSlave::unmocked_killTask(
-      const UPID& from,
-      const FrameworkID& frameworkId,
-      const TaskID& taskId)
+    const UPID& from,
+    const FrameworkID& frameworkId,
+    const TaskID& taskId)
 {
   slave::Slave::killTask(from, frameworkId, taskId);
 }
@@ -502,11 +503,10 @@ void MockSlave::unmocked_qosCorrections()
 MockFetcherProcess::MockFetcherProcess()
 {
   // Set up default behaviors, calling the original methods.
-  EXPECT_CALL(*this, _fetch(_, _, _, _, _, _)).
-    WillRepeatedly(
-        Invoke(this, &MockFetcherProcess::unmocked__fetch));
-  EXPECT_CALL(*this, run(_, _, _, _, _)).
-    WillRepeatedly(Invoke(this, &MockFetcherProcess::unmocked_run));
+  EXPECT_CALL(*this, _fetch(_, _, _, _, _, _))
+    .WillRepeatedly(Invoke(this, &MockFetcherProcess::unmocked__fetch));
+  EXPECT_CALL(*this, run(_, _, _, _, _))
+    .WillRepeatedly(Invoke(this, &MockFetcherProcess::unmocked_run));
 }
 
 
@@ -532,7 +532,7 @@ MockContainerLogger::~MockContainerLogger() {}
 
 MockDocker::MockDocker(
     const string& path,
-    const string &socket)
+    const string& socket)
   : Docker(path, socket)
 {
   EXPECT_CALL(*this, ps(_, _))
@@ -609,13 +609,13 @@ MockAuthorizer::~MockAuthorizer() {}
 
 
 process::Future<Nothing> MockFetcherProcess::unmocked__fetch(
-  const hashmap<CommandInfo::URI, Option<Future<shared_ptr<Cache::Entry>>>>&
-    entries,
-  const ContainerID& containerId,
-  const string& sandboxDirectory,
-  const string& cacheDirectory,
-  const Option<string>& user,
-  const slave::Flags& flags)
+    const hashmap<CommandInfo::URI, Option<Future<shared_ptr<Cache::Entry>>>>&
+      entries,
+    const ContainerID& containerId,
+    const string& sandboxDirectory,
+    const string& cacheDirectory,
+    const Option<string>& user,
+    const slave::Flags& flags)
 {
   return slave::FetcherProcess::_fetch(
       entries,
@@ -798,8 +798,8 @@ void ContainerizerTest<slave::MesosContainerizer>::SetUp()
           << "hierarchies, or disable this test case\n"
           << "(i.e., --gtest_filter=-"
           << ::testing::UnitTest::GetInstance()
-              ->current_test_info()
-              ->test_case_name() << ".*).\n"
+               ->current_test_info()
+               ->test_case_name() << ".*).\n"
           << "-------------------------------------------------------------";
       } else {
         // If the subsystem is already mounted in the hierarchy make
