@@ -64,10 +64,12 @@ inline Try<Nothing> rmdir(const std::string& directory, bool recursive = true)
           break;
         // `FTS_DEFAULT` would include any file type which is not
         // explicitly described by any of the other `fts_info` values.
-        // TODO(jojy): Consider adding the case for `FTS_SLNONE`.
         case FTS_DEFAULT:
         case FTS_F:
         case FTS_SL:
+        // `FTS_SLNONE` should never be the case as we dont set
+        // FTS_COMFOLLOW. Adding here for completion.
+        case FTS_SLNONE:
           if (::unlink(node->fts_path) < 0 && errno != ENOENT) {
             Error error = ErrnoError();
             fts_close(tree);

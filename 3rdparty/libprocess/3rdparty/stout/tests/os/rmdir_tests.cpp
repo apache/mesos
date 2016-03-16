@@ -15,6 +15,8 @@
 #include <set>
 #include <string>
 
+#include <stout/fs.hpp>
+
 #include <stout/path.hpp>
 
 #include <stout/os.hpp>
@@ -175,7 +177,8 @@ TEST_F(RmdirTest, FailTRemoveNestedInvalidPath)
 }
 
 
-// This test verifies that `rmdir` can remove a directory with a device file.
+// This test verifies that `rmdir` can remove a directory with a
+// device file.
 TEST_F(RmdirTest, RemoveDirectoryWithDeviceFile)
 {
   // mknod requires root permission.
@@ -186,8 +189,10 @@ TEST_F(RmdirTest, RemoveDirectoryWithDeviceFile)
     return;
   }
 
-  // Create a 'char' device file with major number same as that of `/dev/null`.
-  const string deviceDirectory = path::join(os::getcwd(), "deviceDirectory");
+  // Create a 'char' device file with major number same as that of
+  // `/dev/null`.
+  const string deviceDirectory = path::join(os::getcwd(),
+      "deviceDirectory");
   ASSERT_SOME(os::mkdir(deviceDirectory));
 
   const string device = "null";
@@ -207,4 +212,20 @@ TEST_F(RmdirTest, RemoveDirectoryWithDeviceFile)
   EXPECT_SOME(os::mknod(another, mode.get(), rdev.get()));
 
   EXPECT_SOME(os::rmdir(deviceDirectory));
+}
+
+
+// This test verifies that `rmdir` can remove a directory with a
+// symlink that has no target.
+TEST_F(RmdirTest, RemoveDirectoryWithNoTargetSymbolicLink)
+{
+  const string newDirectory = path::join(os::getcwd(), "newDirectory");
+  ASSERT_SOME(os::mkdir(newDirectory));
+
+  const string& link = path::join(newDirectory, "link");
+
+  // Create a symlink to non-existent file 'tmp'.
+  ASSERT_SOME(fs::symlink("tmp", link));
+
+  EXPECT_SOME(os::rmdir(newDirectory));
 }
