@@ -137,17 +137,17 @@ int main(int argc, char** argv)
   Option<string> advertise_ip;
   flags.add(&advertise_ip,
             "advertise_ip",
-            "IP address advertised to reach mesos master.\n"
-            "Mesos master does not bind using this IP address.\n"
-            "However, this IP address may be used to access Mesos master.");
+            "IP address advertised to reach this Mesos master.\n"
+            "The master does not bind using this IP address.\n"
+            "However, this IP address may be used to access this master.");
 
   Option<string> advertise_port;
   flags.add(&advertise_port,
             "advertise_port",
-            "Port advertised to reach mesos master (along with\n"
-            "`advertise_ip`). Mesos master does not bind using this port.\n"
+            "Port advertised to reach Mesos master (along with\n"
+            "`advertise_ip`). The master does not bind to this port.\n"
             "However, this port (along with `advertise_ip`) may be used to\n"
-            "access Mesos master.");
+            "access this master.");
 
   Option<string> zk;
   flags.add(&zk,

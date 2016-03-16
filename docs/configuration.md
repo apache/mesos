@@ -51,9 +51,9 @@ be found by running the binary with the flag `--help`, for example
     --advertise_ip=VALUE
   </td>
   <td>
-IP address advertised to reach mesos master/slave.
-Mesos master/slave does not bind using this IP address.
-However, this IP address may be used to access Mesos master/slave.
+IP address advertised to reach this Mesos master/slave.
+The master/slave does not bind to this IP address.
+However, this IP address may be used to access this master/slave.
   </td>
 </tr>
 <tr>
@@ -61,8 +61,8 @@ However, this IP address may be used to access Mesos master/slave.
     --advertise_port=VALUE
   </td>
   <td>
-Port advertised to reach mesos master/slave (along with
-<code>advertise_ip</code>). Mesos master/slave does not bind using this port.
+Port advertised to reach this Mesos master/slave (along with
+<code>advertise_ip</code>). The master/slave does not bind using this port.
 However, this port (along with <code>advertise_ip</code>) may be used to
 access Mesos master/slave.
   </td>
@@ -1086,7 +1086,7 @@ removing docker tasks launched by other slaves.
     --docker_mesos_image=VALUE
   </td>
   <td>
-The docker image used to launch this mesos slave instance.
+The Docker image used to launch this Mesos slave instance.
 If an image is specified, the docker containerizer assumes the slave
 is running in a docker container, and launches executors with
 docker containers in order to recover them when the slave restarts and
@@ -1293,8 +1293,8 @@ launcher if it's running as root on Linux.
     --launcher_dir=VALUE
   </td>
   <td>
-Directory path of Mesos binaries. Mesos would find health-check,
-fetcher, containerizer and executor binary files under this
+Directory path of Mesos binaries. Mesos looks for the health-check,
+fetcher, containerizer, and executor binary files under this
 directory. (default: /usr/local/libexec/mesos)
   </td>
 </tr>

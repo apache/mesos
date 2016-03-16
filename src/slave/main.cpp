@@ -112,17 +112,17 @@ int main(int argc, char** argv)
   Option<string> advertise_ip;
   flags.add(&advertise_ip,
             "advertise_ip",
-            "IP address advertised to reach mesos slave.\n"
-            "Mesos slave does not bind using this IP address.\n"
-            "However, this IP address may be used to access Mesos slave.");
+            "IP address advertised to reach this Mesos slave.\n"
+            "The slave does not bind to this IP address.\n"
+            "However, this IP address may be used to access this slave.");
 
   Option<string> advertise_port;
   flags.add(&advertise_port,
             "advertise_port",
-            "Port advertised to reach mesos slave (along with\n"
-            "`advertise_ip`). Mesos slave does not bind using this port.\n"
+            "Port advertised to reach this Mesos slave (along with\n"
+            "`advertise_ip`). The slave does not bind to this port.\n"
             "However, this port (along with `advertise_ip`) may be used to\n"
-            "access Mesos slave.");
+            "access this slave.");
 
   Option<string> master;
   flags.add(&master,

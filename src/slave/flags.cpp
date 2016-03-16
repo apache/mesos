@@ -177,8 +177,8 @@ mesos::internal::slave::Flags::Flags()
 
   add(&Flags::launcher_dir, // TODO(benh): This needs a better name.
       "launcher_dir",
-      "Directory path of Mesos binaries. Mesos would find health-check,\n"
-      "fetcher, containerizer and executor binary files under this\n"
+      "Directory path of Mesos binaries. Mesos looks for the health-check,\n"
+      "fetcher, containerizer, and executor binary files under this\n"
       "directory.",
       PKGLIBEXECDIR);
 
@@ -482,7 +482,7 @@ mesos::internal::slave::Flags::Flags()
 
   add(&Flags::docker_mesos_image,
       "docker_mesos_image",
-      "The docker image used to launch this mesos slave instance.\n"
+      "The Docker image used to launch this Mesos slave instance.\n"
       "If an image is specified, the docker containerizer assumes the slave\n"
       "is running in a docker container, and launches executors with\n"
       "docker containers in order to recover them when the slave restarts and\n"
