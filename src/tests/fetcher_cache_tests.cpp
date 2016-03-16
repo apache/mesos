@@ -151,18 +151,26 @@ protected:
   string assetsDirectory;
   string commandPath;
   string archivePath;
+  string cacheDirectory;
+
+  Owned<cluster::Master> master;
+  Owned<cluster::Slave> slave;
 
   slave::Flags flags;
-  MesosContainerizer* containerizer;
-  PID<Slave> slavePid;
   SlaveID slaveId;
-  string cacheDirectory;
+
+  Owned<MasterDetector> detector;
+  Owned<MesosContainerizer> containerizer;
+
+  // NOTE: This is technically owned by the `fetcher`, but we violate
+  // this ownership in the tests.
   MockFetcherProcess* fetcherProcess;
+
   MockScheduler scheduler;
-  MesosSchedulerDriver* driver;
+  Owned<MesosSchedulerDriver> driver;
 
 private:
-  Fetcher* fetcher;
+  Owned<Fetcher> fetcher;
 
   FrameworkID frameworkId;
 
@@ -185,27 +193,28 @@ void FetcherCacheTest::SetUp()
   setupCommandFileAsset();
   setupArchiveAsset();
 
-  Try<PID<Master>> master = StartMaster();
-  ASSERT_SOME(master);
+  Try<Owned<cluster::Master>> _master = StartMaster();
+  ASSERT_SOME(_master);
+  master = _master.get();
 
   fetcherProcess = new MockFetcherProcess();
-  fetcher = new Fetcher(Owned<FetcherProcess>(fetcherProcess));
+  fetcher.reset(new Fetcher(Owned<FetcherProcess>(fetcherProcess)));
 
   FrameworkInfo frameworkInfo;
   frameworkInfo.set_name("default");
   frameworkInfo.set_checkpoint(true);
 
-  driver = new MesosSchedulerDriver(
-    &scheduler, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
+  driver.reset(new MesosSchedulerDriver(
+    &scheduler, frameworkInfo, master->pid, DEFAULT_CREDENTIAL));
 
-  EXPECT_CALL(scheduler, registered(driver, _, _))
+  EXPECT_CALL(scheduler, registered(driver.get(), _, _))
     .Times(1);
 
   // This installs a temporary reaction to resourceOffers calls, which
   // must be in place BEFORE starting the scheduler driver. This
   // "cover" is necessary, because we only add relevant mock actions
   // in launchTask() and launchTasks() AFTER starting the driver.
-  EXPECT_CALL(scheduler, resourceOffers(driver, _))
+  EXPECT_CALL(scheduler, resourceOffers(driver.get(), _))
     .WillRepeatedly(DeclineOffers());
 }
 
@@ -260,9 +269,9 @@ void FetcherCacheTest::TearDown()
 
   driver->stop();
   driver->join();
-  delete driver;
 
-  delete fetcher;
+  master.reset();
+  slave.reset();
 
   MesosTest::TearDown();
 }
@@ -273,29 +282,26 @@ void FetcherCacheTest::TearDown()
 void FetcherCacheTest::startSlave()
 {
   Try<MesosContainerizer*> create = MesosContainerizer::create(
-      flags, true, fetcher);
+      flags, true, fetcher.get());
+
   ASSERT_SOME(create);
-  containerizer = create.get();
+  containerizer.reset(create.get());
 
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
     FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
 
-  Try<PID<Slave>> pid = StartSlave(containerizer, flags);
-  ASSERT_SOME(pid);
-  slavePid = pid.get();
+  detector = master->createDetector();
+
+  Try<Owned<cluster::Slave>> _slave =
+    StartSlave(detector.get(), containerizer.get(), flags);
+  ASSERT_SOME(_slave);
+  slave = _slave.get();
 
   AWAIT_READY(slaveRegisteredMessage);
   slaveId = slaveRegisteredMessage.get().slave_id();
 
   cacheDirectory =
     slave::paths::getSlavePath(flags.fetcher_cache_dir, slaveId);
-}
-
-
-void FetcherCacheTest::stopSlave()
-{
-  Stop(slavePid);
-  delete containerizer;
 }
 
 
@@ -403,7 +409,7 @@ Try<FetcherCacheTest::Task> FetcherCacheTest::launchTask(
     const size_t taskIndex)
 {
   Future<vector<Offer>> offers;
-  EXPECT_CALL(scheduler, resourceOffers(driver, _))
+  EXPECT_CALL(scheduler, resourceOffers(driver.get(), _))
     .WillOnce(FutureArg<1>(&offers))
     .WillRepeatedly(DeclineOffers());
 
@@ -442,7 +448,7 @@ Try<FetcherCacheTest::Task> FetcherCacheTest::launchTask(
 
   Queue<TaskStatus> taskStatusQueue;
 
-  EXPECT_CALL(scheduler, statusUpdate(driver, _))
+  EXPECT_CALL(scheduler, statusUpdate(driver.get(), _))
     .WillRepeatedly(PushTaskStatus(taskStatusQueue));
 
   driver->launchTasks(offer.id(), tasks);
@@ -514,7 +520,7 @@ Try<vector<FetcherCacheTest::Task>> FetcherCacheTest::launchTasks(
               Invoke(fetcherProcess, &MockFetcherProcess::unmocked__fetch)));
 
   Future<vector<Offer>> offers;
-  EXPECT_CALL(scheduler, resourceOffers(driver, _))
+  EXPECT_CALL(scheduler, resourceOffers(driver.get(), _))
     .WillOnce(FutureArg<1>(&offers))
     .WillRepeatedly(DeclineOffers());
 
@@ -579,7 +585,7 @@ Try<vector<FetcherCacheTest::Task>> FetcherCacheTest::launchTasks(
     fetchContentionWaypoints.push_back(waypoint);
   }
 
-  EXPECT_CALL(scheduler, statusUpdate(driver, _))
+  EXPECT_CALL(scheduler, statusUpdate(driver.get(), _))
     .WillRepeatedly(PushIndexedTaskStatus<1>(result));
 
   driver->launchTasks(offer.id(), tasks);
@@ -1180,7 +1186,8 @@ TEST_F(FetcherCacheHttpTest, DISABLED_HttpCachedRecovery)
     EXPECT_EQ(2u, httpServer->countCommandRequests);
   }
 
-  stopSlave();
+  // Stop and destroy the current slave.
+  slave->terminate();
 
   // Start over.
   httpServer->resetCounts();
@@ -1189,19 +1196,21 @@ TEST_F(FetcherCacheHttpTest, DISABLED_HttpCachedRecovery)
   // stopping the slave.
   Fetcher fetcher2;
 
-  Try<MesosContainerizer*> c =
+  Try<MesosContainerizer*> _containerizer =
     MesosContainerizer::create(flags, true, &fetcher2);
-  CHECK_SOME(c);
-  containerizer = c.get();
+
+  ASSERT_SOME(_containerizer);
+  containerizer.reset(_containerizer.get());
 
   // Set up so we can wait until the new slave updates the container's
   // resources (this occurs after the executor has re-registered).
   Future<Nothing> update =
     FUTURE_DISPATCH(_, &MesosContainerizerProcess::update);
 
-  Try<PID<Slave>> pid = StartSlave(containerizer, flags);
-  CHECK_SOME(pid);
-  slavePid = pid.get();
+  Try<Owned<cluster::Slave>> _slave =
+    StartSlave(detector.get(), containerizer.get(), flags);
+  ASSERT_SOME(_slave);
+  slave = _slave.get();
 
   // Wait until the containerizer is updated.
   AWAIT_READY(update);

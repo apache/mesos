@@ -157,17 +157,21 @@ TYPED_TEST_CASE(SlaveRecoveryTest, ContainerizerTypes);
 // Ensure slave recovery works.
 TYPED_TEST(SlaveRecoveryTest, RecoverSlaveState)
 {
-  Try<PID<Master> > master = this->StartMaster();
+  Try<Owned<cluster::Master>> master = this->StartMaster();
   ASSERT_SOME(master);
 
   slave::Flags flags = this->CreateSlaveFlags();
 
   Fetcher fetcher;
 
-  Try<TypeParam*> containerizer = TypeParam::create(flags, true, &fetcher);
-  ASSERT_SOME(containerizer);
+  Try<TypeParam*> _containerizer = TypeParam::create(flags, true, &fetcher);
+  ASSERT_SOME(_containerizer);
+  Owned<slave::Containerizer> containerizer(_containerizer.get());
 
-  Try<PID<Slave> > slave = this->StartSlave(containerizer.get(), flags);
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave =
+    this->StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -177,7 +181,7 @@ TYPED_TEST(SlaveRecoveryTest, RecoverSlaveState)
   frameworkInfo.set_checkpoint(true);
 
   MesosSchedulerDriver driver(
-      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
 
   FrameworkID frameworkId;
   EXPECT_CALL(sched, registered(_, _, _))
@@ -213,7 +217,7 @@ TYPED_TEST(SlaveRecoveryTest, RecoverSlaveState)
     FUTURE_MESSAGE(Eq(RegisterExecutorMessage().GetTypeName()), _, _);
 
   Future<StatusUpdateMessage> update =
-    FUTURE_PROTOBUF(StatusUpdateMessage(), Eq(master.get()), _);
+    FUTURE_PROTOBUF(StatusUpdateMessage(), Eq(master.get()->pid), _);
 
   Future<mesos::scheduler::Call> ack = FUTURE_CALL(
       mesos::scheduler::Call(), mesos::scheduler::Call::ACKNOWLEDGE, _, _);
@@ -326,10 +330,6 @@ TYPED_TEST(SlaveRecoveryTest, RecoverSlaveState)
 
   driver.stop();
   driver.join();
-
-  this->Shutdown();
-
-  delete containerizer.get();
 }
 
 
@@ -337,17 +337,21 @@ TYPED_TEST(SlaveRecoveryTest, RecoverSlaveState)
 // When the slave comes back up it resends the unacknowledged update.
 TYPED_TEST(SlaveRecoveryTest, RecoverStatusUpdateManager)
 {
-  Try<PID<Master> > master = this->StartMaster();
+  Try<Owned<cluster::Master>> master = this->StartMaster();
   ASSERT_SOME(master);
 
   slave::Flags flags = this->CreateSlaveFlags();
 
   Fetcher fetcher;
 
-  Try<TypeParam*> containerizer1 = TypeParam::create(flags, true, &fetcher);
-  ASSERT_SOME(containerizer1);
+  Try<TypeParam*> _containerizer = TypeParam::create(flags, true, &fetcher);
+  ASSERT_SOME(_containerizer);
+  Owned<slave::Containerizer> containerizer(_containerizer.get());
 
-  Try<PID<Slave> > slave = this->StartSlave(containerizer1.get(), flags);
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave =
+    this->StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -357,7 +361,7 @@ TYPED_TEST(SlaveRecoveryTest, RecoverStatusUpdateManager)
   frameworkInfo.set_checkpoint(true);
 
   MesosSchedulerDriver driver(
-      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(_, _, _));
 
@@ -379,7 +383,7 @@ TYPED_TEST(SlaveRecoveryTest, RecoverStatusUpdateManager)
 
   // Drop the status update from the slave to the master.
   Future<StatusUpdateMessage> update =
-    DROP_PROTOBUF(StatusUpdateMessage(), slave.get(), master.get());
+    DROP_PROTOBUF(StatusUpdateMessage(), slave.get()->pid, master.get()->pid);
 
   driver.launchTasks(offers.get()[0].id(), {task});
 
@@ -390,8 +394,7 @@ TYPED_TEST(SlaveRecoveryTest, RecoverStatusUpdateManager)
   // Wait for the status update drop.
   AWAIT_READY(update);
 
-  this->Stop(slave.get());
-  delete containerizer1.get();
+  slave.get()->terminate();
 
   Future<TaskStatus> status;
   EXPECT_CALL(sched, statusUpdate(_, _))
@@ -399,10 +402,11 @@ TYPED_TEST(SlaveRecoveryTest, RecoverStatusUpdateManager)
     .WillRepeatedly(Return());       // Ignore subsequent updates.
 
   // Restart the slave (use same flags) with a new containerizer.
-  Try<TypeParam*> containerizer2 = TypeParam::create(flags, true, &fetcher);
-  ASSERT_SOME(containerizer2);
+  _containerizer = TypeParam::create(flags, true, &fetcher);
+  ASSERT_SOME(_containerizer);
+  containerizer.reset(_containerizer.get());
 
-  slave = this->StartSlave(containerizer2.get(), flags);
+  slave = this->StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
 
   AWAIT_READY(status);
@@ -410,9 +414,6 @@ TYPED_TEST(SlaveRecoveryTest, RecoverStatusUpdateManager)
 
   driver.stop();
   driver.join();
-
-  this->Shutdown();
-  delete containerizer2.get();
 }
 
 
@@ -421,21 +422,25 @@ TYPED_TEST(SlaveRecoveryTest, RecoverStatusUpdateManager)
 // make sure the executor subscribes and the slave properly sends the update.
 TYPED_TEST(SlaveRecoveryTest, ReconnectHTTPExecutor)
 {
-  Try<PID<Master> > master = this->StartMaster();
+  Try<Owned<cluster::Master>> master = this->StartMaster();
   ASSERT_SOME(master);
 
   slave::Flags flags = this->CreateSlaveFlags();
 
   Fetcher fetcher;
 
-  Try<TypeParam*> containerizer1 = TypeParam::create(flags, true, &fetcher);
-  ASSERT_SOME(containerizer1);
+  Try<TypeParam*> _containerizer = TypeParam::create(flags, true, &fetcher);
+  ASSERT_SOME(_containerizer);
+  Owned<slave::Containerizer> containerizer(_containerizer.get());
 
   // Start the slave with a static process ID. This allows the executor to
   // reconnect with the slave upon a process restart.
   const std::string id("slave");
 
-  Try<PID<Slave> > slave = this->StartSlave(containerizer1.get(), id, flags);
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave =
+    this->StartSlave(detector.get(), containerizer.get(), id, flags);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -445,7 +450,7 @@ TYPED_TEST(SlaveRecoveryTest, ReconnectHTTPExecutor)
   frameworkInfo.set_checkpoint(true);
 
   MesosSchedulerDriver driver(
-      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(_, _, _));
 
@@ -485,8 +490,7 @@ TYPED_TEST(SlaveRecoveryTest, ReconnectHTTPExecutor)
   AWAIT_READY(updateCall1);
   AWAIT_READY(updateCall2);
 
-  this->Stop(slave.get());
-  delete containerizer1.get();
+  slave.get()->terminate();
 
   Future<v1::executor::Call> subscribeCall =
     FUTURE_HTTP_CALL(Call(), Call::SUBSCRIBE, _, ContentType::PROTOBUF);
@@ -497,10 +501,11 @@ TYPED_TEST(SlaveRecoveryTest, ReconnectHTTPExecutor)
     .WillRepeatedly(Return()); // Ignore subsequent updates.
 
   // Restart the slave (use same flags) with a new containerizer.
-  Try<TypeParam*> containerizer2 = TypeParam::create(flags, true, &fetcher);
-  ASSERT_SOME(containerizer2);
+  _containerizer = TypeParam::create(flags, true, &fetcher);
+  ASSERT_SOME(_containerizer);
+  containerizer.reset(_containerizer.get());
 
-  slave = this->StartSlave(containerizer2.get(), id, flags);
+  slave = this->StartSlave(detector.get(), containerizer.get(), id, flags);
   ASSERT_SOME(slave);
 
   // Ensure that the executor subscribes again.
@@ -515,9 +520,6 @@ TYPED_TEST(SlaveRecoveryTest, ReconnectHTTPExecutor)
 
   driver.stop();
   driver.join();
-
-  this->Shutdown();
-  delete containerizer2.get();
 }
 
 
@@ -526,17 +528,21 @@ TYPED_TEST(SlaveRecoveryTest, ReconnectHTTPExecutor)
 // sure the executor re-registers and the slave properly sends the update.
 TYPED_TEST(SlaveRecoveryTest, ReconnectExecutor)
 {
-  Try<PID<Master> > master = this->StartMaster();
+  Try<Owned<cluster::Master>> master = this->StartMaster();
   ASSERT_SOME(master);
 
   slave::Flags flags = this->CreateSlaveFlags();
 
   Fetcher fetcher;
 
-  Try<TypeParam*> containerizer1 = TypeParam::create(flags, true, &fetcher);
-  ASSERT_SOME(containerizer1);
+  Try<TypeParam*> _containerizer = TypeParam::create(flags, true, &fetcher);
+  ASSERT_SOME(_containerizer);
+  Owned<slave::Containerizer> containerizer(_containerizer.get());
 
-  Try<PID<Slave> > slave = this->StartSlave(containerizer1.get(), flags);
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave =
+    this->StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -546,7 +552,7 @@ TYPED_TEST(SlaveRecoveryTest, ReconnectExecutor)
   frameworkInfo.set_checkpoint(true);
 
   MesosSchedulerDriver driver(
-      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(_, _, _));
 
@@ -571,8 +577,7 @@ TYPED_TEST(SlaveRecoveryTest, ReconnectExecutor)
   // Stop the slave before the status update is received.
   AWAIT_READY(statusUpdate);
 
-  this->Stop(slave.get());
-  delete containerizer1.get();
+  slave.get()->terminate();
 
   Future<Message> reregisterExecutorMessage =
     FUTURE_MESSAGE(Eq(ReregisterExecutorMessage().GetTypeName()), _, _);
@@ -583,10 +588,11 @@ TYPED_TEST(SlaveRecoveryTest, ReconnectExecutor)
     .WillRepeatedly(Return());       // Ignore subsequent updates.
 
   // Restart the slave (use same flags) with a new containerizer.
-  Try<TypeParam*> containerizer2 = TypeParam::create(flags, true, &fetcher);
-  ASSERT_SOME(containerizer2);
+  _containerizer = TypeParam::create(flags, true, &fetcher);
+  ASSERT_SOME(_containerizer);
+  containerizer.reset(_containerizer.get());
 
-  slave = this->StartSlave(containerizer2.get(), flags);
+  slave = this->StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
 
   // Ensure the executor re-registers.
@@ -608,9 +614,6 @@ TYPED_TEST(SlaveRecoveryTest, ReconnectExecutor)
 
   driver.stop();
   driver.join();
-
-  this->Shutdown();
-  delete containerizer2.get();
 }
 
 
@@ -619,17 +622,21 @@ TYPED_TEST(SlaveRecoveryTest, ReconnectExecutor)
 // executor is killed and the task is transitioned to LOST.
 TYPED_TEST(SlaveRecoveryTest, RecoverUnregisteredExecutor)
 {
-  Try<PID<Master> > master = this->StartMaster();
+  Try<Owned<cluster::Master>> master = this->StartMaster();
   ASSERT_SOME(master);
 
   slave::Flags flags = this->CreateSlaveFlags();
 
   Fetcher fetcher;
 
-  Try<TypeParam*> containerizer1 = TypeParam::create(flags, true, &fetcher);
-  ASSERT_SOME(containerizer1);
+  Try<TypeParam*> _containerizer = TypeParam::create(flags, true, &fetcher);
+  ASSERT_SOME(_containerizer);
+  Owned<slave::Containerizer> containerizer(_containerizer.get());
 
-  Try<PID<Slave> > slave = this->StartSlave(containerizer1.get(), flags);
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave =
+    this->StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -639,7 +646,7 @@ TYPED_TEST(SlaveRecoveryTest, RecoverUnregisteredExecutor)
   frameworkInfo.set_checkpoint(true);
 
   MesosSchedulerDriver driver(
-      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(_, _, _));
 
@@ -664,8 +671,7 @@ TYPED_TEST(SlaveRecoveryTest, RecoverUnregisteredExecutor)
   AWAIT_READY(registerExecutor);
   UPID executorPid = registerExecutor.get().from;
 
-  this->Stop(slave.get());
-  delete containerizer1.get();
+  slave.get()->terminate();
 
   Future<TaskStatus> status;
   EXPECT_CALL(sched, statusUpdate(_, _))
@@ -675,15 +681,16 @@ TYPED_TEST(SlaveRecoveryTest, RecoverUnregisteredExecutor)
   Future<Nothing> _recover = FUTURE_DISPATCH(_, &Slave::_recover);
 
   // Restart the slave (use same flags) with a new containerizer.
-  Try<TypeParam*> containerizer2 = TypeParam::create(flags, true, &fetcher);
-  ASSERT_SOME(containerizer2);
+  _containerizer = TypeParam::create(flags, true, &fetcher);
+  ASSERT_SOME(_containerizer);
+  containerizer.reset(_containerizer.get());
 
   Future<vector<Offer> > offers2;
   EXPECT_CALL(sched, resourceOffers(_, _))
     .WillOnce(FutureArg<1>(&offers2))
     .WillRepeatedly(Return());        // Ignore subsequent offers.
 
-  slave = this->StartSlave(containerizer2.get(), flags);
+  slave = this->StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
 
   Clock::pause();
@@ -720,9 +727,6 @@ TYPED_TEST(SlaveRecoveryTest, RecoverUnregisteredExecutor)
 
   driver.stop();
   driver.join();
-
-  this->Shutdown();
-  delete containerizer2.get();
 }
 
 
@@ -732,17 +736,21 @@ TYPED_TEST(SlaveRecoveryTest, RecoverUnregisteredExecutor)
 // sure the task is properly transitioned to LOST.
 TYPED_TEST(SlaveRecoveryTest, RecoverTerminatedExecutor)
 {
-  Try<PID<Master> > master = this->StartMaster();
+  Try<Owned<cluster::Master>> master = this->StartMaster();
   ASSERT_SOME(master);
 
   slave::Flags flags = this->CreateSlaveFlags();
 
   Fetcher fetcher;
 
-  Try<TypeParam*> containerizer1 = TypeParam::create(flags, true, &fetcher);
-  ASSERT_SOME(containerizer1);
+  Try<TypeParam*> _containerizer = TypeParam::create(flags, true, &fetcher);
+  ASSERT_SOME(_containerizer);
+  Owned<slave::Containerizer> containerizer(_containerizer.get());
 
-  Try<PID<Slave> > slave = this->StartSlave(containerizer1.get(), flags);
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave =
+    this->StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -752,7 +760,7 @@ TYPED_TEST(SlaveRecoveryTest, RecoverTerminatedExecutor)
   frameworkInfo.set_checkpoint(true);
 
   MesosSchedulerDriver driver(
-      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(_, _, _));
 
@@ -784,8 +792,7 @@ TYPED_TEST(SlaveRecoveryTest, RecoverTerminatedExecutor)
   // Wait for the ACK to be checkpointed.
   AWAIT_READY(ack);
 
-  this->Stop(slave.get());
-  delete containerizer1.get();
+  slave.get()->terminate();
 
   Future<TaskStatus> status;
   EXPECT_CALL(sched, statusUpdate(_, _))
@@ -797,15 +804,16 @@ TYPED_TEST(SlaveRecoveryTest, RecoverTerminatedExecutor)
   Future<Nothing> _recover = FUTURE_DISPATCH(_, &Slave::_recover);
 
   // Restart the slave (use same flags) with a new containerizer.
-  Try<TypeParam*> containerizer2 = TypeParam::create(flags, true, &fetcher);
-  ASSERT_SOME(containerizer2);
+  _containerizer = TypeParam::create(flags, true, &fetcher);
+  ASSERT_SOME(_containerizer);
+  containerizer.reset(_containerizer.get());
 
   Future<vector<Offer> > offers2;
   EXPECT_CALL(sched, resourceOffers(_, _))
     .WillOnce(FutureArg<1>(&offers2))
     .WillRepeatedly(Return());        // Ignore subsequent offers.
 
-  slave = this->StartSlave(containerizer2.get(), flags);
+  slave = this->StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
 
   Clock::pause();
@@ -842,9 +850,6 @@ TYPED_TEST(SlaveRecoveryTest, RecoverTerminatedExecutor)
 
   driver.stop();
   driver.join();
-
-  this->Shutdown();
-  delete containerizer2.get();
 }
 
 
@@ -857,7 +862,7 @@ TYPED_TEST(SlaveRecoveryTest, RecoverTerminatedExecutor)
 // slave will not be delivered to the executor driver.
 TYPED_TEST(SlaveRecoveryTest, DISABLED_RecoveryTimeout)
 {
-  Try<PID<Master> > master = this->StartMaster();
+  Try<Owned<cluster::Master>> master = this->StartMaster();
   ASSERT_SOME(master);
 
   // Set a short recovery timeout, as we can't control the executor
@@ -867,10 +872,14 @@ TYPED_TEST(SlaveRecoveryTest, DISABLED_RecoveryTimeout)
 
   Fetcher fetcher;
 
-  Try<TypeParam*> containerizer1 = TypeParam::create(flags, true, &fetcher);
-  ASSERT_SOME(containerizer1);
+  Try<TypeParam*> _containerizer = TypeParam::create(flags, true, &fetcher);
+  ASSERT_SOME(_containerizer);
+  Owned<slave::Containerizer> containerizer(_containerizer.get());
 
-  Try<PID<Slave> > slave = this->StartSlave(containerizer1.get(), flags);
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave =
+    this->StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -880,7 +889,7 @@ TYPED_TEST(SlaveRecoveryTest, DISABLED_RecoveryTimeout)
   frameworkInfo.set_checkpoint(true);
 
   MesosSchedulerDriver driver(
-      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(_, _, _));
 
@@ -906,8 +915,7 @@ TYPED_TEST(SlaveRecoveryTest, DISABLED_RecoveryTimeout)
   // Wait for the ACK to be checkpointed.
   AWAIT_READY(_statusUpdateAcknowledgement);
 
-  this->Stop(slave.get());
-  delete containerizer1.get();
+  slave.get()->terminate();
 
   Future<TaskStatus> status;
   EXPECT_CALL(sched, statusUpdate(_, _))
@@ -920,10 +928,11 @@ TYPED_TEST(SlaveRecoveryTest, DISABLED_RecoveryTimeout)
   Future<Nothing> _recover = FUTURE_DISPATCH(_, &Slave::_recover);
 
   // Restart the slave (use same flags) with a new containerizer.
-  Try<TypeParam*> containerizer2 = TypeParam::create(flags, true, &fetcher);
-  ASSERT_SOME(containerizer2);
+  _containerizer = TypeParam::create(flags, true, &fetcher);
+  ASSERT_SOME(_containerizer);
+  containerizer.reset(_containerizer.get());
 
-  slave = this->StartSlave(containerizer2.get(), flags);
+  slave = this->StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
 
   Clock::pause();
@@ -940,9 +949,6 @@ TYPED_TEST(SlaveRecoveryTest, DISABLED_RecoveryTimeout)
 
   driver.stop();
   driver.join();
-
-  this->Shutdown();
-  delete containerizer2.get();
 }
 
 
@@ -952,17 +958,21 @@ TYPED_TEST(SlaveRecoveryTest, DISABLED_RecoveryTimeout)
 // sure the recovery successfully completes.
 TYPED_TEST(SlaveRecoveryTest, RecoverCompletedExecutor)
 {
-  Try<PID<Master> > master = this->StartMaster();
+  Try<Owned<cluster::Master>> master = this->StartMaster();
   ASSERT_SOME(master);
 
   slave::Flags flags = this->CreateSlaveFlags();
 
   Fetcher fetcher;
 
-  Try<TypeParam*> containerizer1 = TypeParam::create(flags, true, &fetcher);
-  ASSERT_SOME(containerizer1);
+  Try<TypeParam*> _containerizer = TypeParam::create(flags, true, &fetcher);
+  ASSERT_SOME(_containerizer);
+  Owned<slave::Containerizer> containerizer(_containerizer.get());
 
-  Try<PID<Slave> > slave = this->StartSlave(containerizer1.get(), flags);
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave =
+    this->StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -972,7 +982,7 @@ TYPED_TEST(SlaveRecoveryTest, RecoverCompletedExecutor)
   frameworkInfo.set_checkpoint(true);
 
   MesosSchedulerDriver driver(
-      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(_, _, _));
 
@@ -1002,22 +1012,22 @@ TYPED_TEST(SlaveRecoveryTest, RecoverCompletedExecutor)
   // We use 'gc.schedule' as a proxy for the cleanup of the executor.
   AWAIT_READY(schedule);
 
-  this->Stop(slave.get());
-  delete containerizer1.get();
+  slave.get()->terminate();
 
   Future<Nothing> schedule2 = FUTURE_DISPATCH(
       _, &GarbageCollectorProcess::schedule);
 
   // Restart the slave (use same flags) with a new containerizer.
-  Try<TypeParam*> containerizer2 = TypeParam::create(flags, true, &fetcher);
-  ASSERT_SOME(containerizer2);
+  _containerizer = TypeParam::create(flags, true, &fetcher);
+  ASSERT_SOME(_containerizer);
+  containerizer.reset(_containerizer.get());
 
   Future<vector<Offer> > offers2;
   EXPECT_CALL(sched, resourceOffers(_, _))
     .WillOnce(FutureArg<1>(&offers2))
     .WillRepeatedly(Return());        // Ignore subsequent offers.
 
-  slave = this->StartSlave(containerizer2.get(), flags);
+  slave = this->StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
 
   // We use 'gc.schedule' as a proxy for the cleanup of the executor.
@@ -1030,9 +1040,6 @@ TYPED_TEST(SlaveRecoveryTest, RecoverCompletedExecutor)
 
   driver.stop();
   driver.join();
-
-  this->Shutdown();
-  delete containerizer2.get();
 }
 
 
@@ -1041,21 +1048,25 @@ TYPED_TEST(SlaveRecoveryTest, RecoverCompletedExecutor)
 // It kills the executor, and terminates. Master should then send TASK_LOST.
 TYPED_TEST(SlaveRecoveryTest, CleanupHTTPExecutor)
 {
-  Try<PID<Master> > master = this->StartMaster();
+  Try<Owned<cluster::Master>> master = this->StartMaster();
   ASSERT_SOME(master);
 
   slave::Flags flags = this->CreateSlaveFlags();
 
   Fetcher fetcher;
 
-  Try<TypeParam*> containerizer1 = TypeParam::create(flags, true, &fetcher);
-  ASSERT_SOME(containerizer1);
+  Try<TypeParam*> _containerizer = TypeParam::create(flags, true, &fetcher);
+  ASSERT_SOME(_containerizer);
+  Owned<slave::Containerizer> containerizer(_containerizer.get());
 
   // Start the slave with a static process ID. This allows the executor to
   // reconnect with the slave upon a process restart.
   const std::string id("slave");
 
-  Try<PID<Slave> > slave = this->StartSlave(containerizer1.get(), id, flags);
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave =
+    this->StartSlave(detector.get(), containerizer.get(), id, flags);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -1065,7 +1076,7 @@ TYPED_TEST(SlaveRecoveryTest, CleanupHTTPExecutor)
   frameworkInfo.set_checkpoint(true);
 
   MesosSchedulerDriver driver(
-      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(_, _, _));
 
@@ -1105,8 +1116,7 @@ TYPED_TEST(SlaveRecoveryTest, CleanupHTTPExecutor)
   AWAIT_READY(updateCall1);
   AWAIT_READY(updateCall2);
 
-  this->Stop(slave.get());
-  delete containerizer1.get();
+  slave.get()->terminate();
 
   // Slave in cleanup mode shouldn't re-register with the master and
   // hence no offers should be made by the master.
@@ -1123,11 +1133,12 @@ TYPED_TEST(SlaveRecoveryTest, CleanupHTTPExecutor)
     .Times(AtMost(1));
 
   // Restart the slave in 'cleanup' recovery mode with a new isolator.
-  Try<TypeParam*> containerizer2 = TypeParam::create(flags, true, &fetcher);
-  ASSERT_SOME(containerizer2);
+  _containerizer = TypeParam::create(flags, true, &fetcher);
+  ASSERT_SOME(_containerizer);
+  containerizer.reset(_containerizer.get());
 
   flags.recover = "cleanup";
-  slave = this->StartSlave(containerizer2.get(), id, flags);
+  slave = this->StartSlave(detector.get(), containerizer.get(), id, flags);
   ASSERT_SOME(slave);
 
   Clock::pause();
@@ -1147,9 +1158,6 @@ TYPED_TEST(SlaveRecoveryTest, CleanupHTTPExecutor)
 
   driver.stop();
   driver.join();
-
-  this->Shutdown();
-  delete containerizer2.get();
 }
 
 
@@ -1158,17 +1166,21 @@ TYPED_TEST(SlaveRecoveryTest, CleanupHTTPExecutor)
 // executor, and terminates. Master should then send TASK_LOST.
 TYPED_TEST(SlaveRecoveryTest, CleanupExecutor)
 {
-  Try<PID<Master> > master = this->StartMaster();
+  Try<Owned<cluster::Master>> master = this->StartMaster();
   ASSERT_SOME(master);
 
   slave::Flags flags = this->CreateSlaveFlags();
 
   Fetcher fetcher;
 
-  Try<TypeParam*> containerizer1 = TypeParam::create(flags, true, &fetcher);
-  ASSERT_SOME(containerizer1);
+  Try<TypeParam*> _containerizer = TypeParam::create(flags, true, &fetcher);
+  ASSERT_SOME(_containerizer);
+  Owned<slave::Containerizer> containerizer(_containerizer.get());
 
-  Try<PID<Slave> > slave = this->StartSlave(containerizer1.get(), flags);
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave =
+    this->StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -1178,7 +1190,7 @@ TYPED_TEST(SlaveRecoveryTest, CleanupExecutor)
   frameworkInfo.set_checkpoint(true);
 
   MesosSchedulerDriver driver(
-      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(_, _, _));
 
@@ -1204,8 +1216,7 @@ TYPED_TEST(SlaveRecoveryTest, CleanupExecutor)
   // Wait for the ACK to be checkpointed.
   AWAIT_READY(ack);
 
-  this->Stop(slave.get());
-  delete containerizer1.get();
+  slave.get()->terminate();
 
   // Slave in cleanup mode shouldn't re-register with the master and
   // hence no offers should be made by the master.
@@ -1222,11 +1233,12 @@ TYPED_TEST(SlaveRecoveryTest, CleanupExecutor)
     .Times(AtMost(1));
 
   // Restart the slave in 'cleanup' recovery mode with a new isolator.
-  Try<TypeParam*> containerizer2 = TypeParam::create(flags, true, &fetcher);
-  ASSERT_SOME(containerizer2);
+  _containerizer = TypeParam::create(flags, true, &fetcher);
+  ASSERT_SOME(_containerizer);
+  containerizer.reset(_containerizer.get());
 
   flags.recover = "cleanup";
-  slave = this->StartSlave(containerizer2.get(), flags);
+  slave = this->StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
 
   Clock::pause();
@@ -1246,9 +1258,6 @@ TYPED_TEST(SlaveRecoveryTest, CleanupExecutor)
 
   driver.stop();
   driver.join();
-
-  this->Shutdown();
-  delete containerizer2.get();
 }
 
 
@@ -1256,17 +1265,21 @@ TYPED_TEST(SlaveRecoveryTest, CleanupExecutor)
 // properly removed, when a slave is disconnected.
 TYPED_TEST(SlaveRecoveryTest, RemoveNonCheckpointingFramework)
 {
-  Try<PID<Master> > master = this->StartMaster();
+  Try<Owned<cluster::Master>> master = this->StartMaster();
   ASSERT_SOME(master);
 
   slave::Flags flags = this->CreateSlaveFlags();
 
   Fetcher fetcher;
 
-  Try<TypeParam*> containerizer = TypeParam::create(flags, true, &fetcher);
-  ASSERT_SOME(containerizer);
+  Try<TypeParam*> _containerizer = TypeParam::create(flags, true, &fetcher);
+  ASSERT_SOME(_containerizer);
+  Owned<slave::Containerizer> containerizer(_containerizer.get());
 
-  Try<PID<Slave> > slave = this->StartSlave(containerizer.get(), flags);
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave =
+    this->StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -1276,7 +1289,7 @@ TYPED_TEST(SlaveRecoveryTest, RemoveNonCheckpointingFramework)
   frameworkInfo.set_checkpoint(false);
 
   MesosSchedulerDriver driver(
-      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(_, _, _));
 
@@ -1327,7 +1340,7 @@ TYPED_TEST(SlaveRecoveryTest, RemoveNonCheckpointingFramework)
     .WillOnce(FutureArg<1>(&status1))
     .WillOnce(FutureArg<1>(&status2));
 
-  this->Stop(slave.get());
+  slave.get()->terminate();
 
   // Scheduler should receive the TASK_LOST updates.
   AWAIT_READY(status1);
@@ -1351,10 +1364,6 @@ TYPED_TEST(SlaveRecoveryTest, RemoveNonCheckpointingFramework)
     containerizer.get()->destroy(containerId);
     AWAIT_READY(wait);
   }
-
-  delete containerizer.get();
-
-  this->Shutdown();
 }
 
 
@@ -1362,17 +1371,21 @@ TYPED_TEST(SlaveRecoveryTest, RemoveNonCheckpointingFramework)
 // framework that has disabled checkpointing.
 TYPED_TEST(SlaveRecoveryTest, NonCheckpointingFramework)
 {
-  Try<PID<Master> > master = this->StartMaster();
+  Try<Owned<cluster::Master>> master = this->StartMaster();
   ASSERT_SOME(master);
 
   slave::Flags flags = this->CreateSlaveFlags();
 
   Fetcher fetcher;
 
-  Try<TypeParam*> containerizer = TypeParam::create(flags, true, &fetcher);
-  ASSERT_SOME(containerizer);
+  Try<TypeParam*> _containerizer = TypeParam::create(flags, true, &fetcher);
+  ASSERT_SOME(_containerizer);
+  Owned<slave::Containerizer> containerizer(_containerizer.get());
 
-  Try<PID<Slave> > slave = this->StartSlave(containerizer.get(), flags);
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave =
+    this->StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -1382,7 +1395,7 @@ TYPED_TEST(SlaveRecoveryTest, NonCheckpointingFramework)
   frameworkInfo.set_checkpoint(false);
 
   MesosSchedulerDriver driver(
-      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
 
   FrameworkID frameworkId;
   EXPECT_CALL(sched, registered(_, _, _))
@@ -1416,7 +1429,7 @@ TYPED_TEST(SlaveRecoveryTest, NonCheckpointingFramework)
 
   // Simulate a 'UpdateFrameworkMessage' to ensure framework pid is
   // not being checkpointed.
-  process::dispatch(slave.get(), &Slave::updateFramework, frameworkId, "");
+  process::dispatch(slave.get()->pid, &Slave::updateFramework, frameworkId, "");
 
   AWAIT_READY(updateFramework);
 
@@ -1434,9 +1447,6 @@ TYPED_TEST(SlaveRecoveryTest, NonCheckpointingFramework)
 
   driver.stop();
   driver.join();
-
-  this->Shutdown();
-  delete containerizer.get();
 }
 
 
@@ -1446,17 +1456,21 @@ TYPED_TEST(SlaveRecoveryTest, NonCheckpointingFramework)
 // (scheduler, master, executor).
 TYPED_TEST(SlaveRecoveryTest, KillTask)
 {
-  Try<PID<Master> > master = this->StartMaster();
+  Try<Owned<cluster::Master>> master = this->StartMaster();
   ASSERT_SOME(master);
 
   slave::Flags flags = this->CreateSlaveFlags();
 
   Fetcher fetcher;
 
-  Try<TypeParam*> containerizer1 = TypeParam::create(flags, true, &fetcher);
-  ASSERT_SOME(containerizer1);
+  Try<TypeParam*> _containerizer = TypeParam::create(flags, true, &fetcher);
+  ASSERT_SOME(_containerizer);
+  Owned<slave::Containerizer> containerizer(_containerizer.get());
 
-  Try<PID<Slave> > slave = this->StartSlave(containerizer1.get(), flags);
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave =
+    this->StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -1466,7 +1480,7 @@ TYPED_TEST(SlaveRecoveryTest, KillTask)
   frameworkInfo.set_checkpoint(true);
 
   MesosSchedulerDriver driver(
-      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(_, _, _));
 
@@ -1492,8 +1506,7 @@ TYPED_TEST(SlaveRecoveryTest, KillTask)
   // Wait for the ACK to be checkpointed.
   AWAIT_READY(ack);
 
-  this->Stop(slave.get());
-  delete containerizer1.get();
+  slave.get()->terminate();
 
   Future<ReregisterExecutorMessage> reregisterExecutorMessage =
     FUTURE_PROTOBUF(ReregisterExecutorMessage(), _, _);
@@ -1502,10 +1515,11 @@ TYPED_TEST(SlaveRecoveryTest, KillTask)
     FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
 
   // Restart the slave (use same flags) with a new isolator.
-  Try<TypeParam*> containerizer2 = TypeParam::create(flags, true, &fetcher);
-  ASSERT_SOME(containerizer2);
+  _containerizer = TypeParam::create(flags, true, &fetcher);
+  ASSERT_SOME(_containerizer);
+  containerizer.reset(_containerizer.get());
 
-  slave = this->StartSlave(containerizer2.get(), flags);
+  slave = this->StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
 
   Clock::pause();
@@ -1555,9 +1569,6 @@ TYPED_TEST(SlaveRecoveryTest, KillTask)
 
   driver.stop();
   driver.join();
-
-  this->Shutdown();
-  delete containerizer2.get();
 }
 
 
@@ -1565,7 +1576,7 @@ TYPED_TEST(SlaveRecoveryTest, KillTask)
 // reboot. The subsequent run of the slave should not recover.
 TYPED_TEST(SlaveRecoveryTest, Reboot)
 {
-  Try<PID<Master> > master = this->StartMaster();
+  Try<Owned<cluster::Master>> master = this->StartMaster();
   ASSERT_SOME(master);
 
   slave::Flags flags = this->CreateSlaveFlags();
@@ -1573,10 +1584,14 @@ TYPED_TEST(SlaveRecoveryTest, Reboot)
 
   Fetcher fetcher;
 
-  Try<TypeParam*> containerizer1 = TypeParam::create(flags, true, &fetcher);
-  ASSERT_SOME(containerizer1);
+  Try<TypeParam*> _containerizer = TypeParam::create(flags, true, &fetcher);
+  ASSERT_SOME(_containerizer);
+  Owned<slave::Containerizer> containerizer(_containerizer.get());
 
-  Try<PID<Slave> > slave = this->StartSlave(containerizer1.get(), flags);
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave =
+    this->StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -1586,7 +1601,7 @@ TYPED_TEST(SlaveRecoveryTest, Reboot)
   frameworkInfo.set_checkpoint(true);
 
   MesosSchedulerDriver driver(
-      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(_, _, _));
 
@@ -1626,16 +1641,14 @@ TYPED_TEST(SlaveRecoveryTest, Reboot)
   AWAIT_READY(status);
 
   // Capture the container ID.
-  Future<hashset<ContainerID> > containers =
-    containerizer1.get()->containers();
+  Future<hashset<ContainerID> > containers = containerizer->containers();
 
   AWAIT_READY(containers);
   ASSERT_EQ(1u, containers.get().size());
 
   ContainerID containerId = *containers.get().begin();
 
-  this->Stop(slave.get());
-  delete containerizer1.get();
+  slave.get()->terminate();
 
   // Get the executor's pid so we can reap it to properly simulate a
   // reboot.
@@ -1668,15 +1681,16 @@ TYPED_TEST(SlaveRecoveryTest, Reboot)
     FUTURE_PROTOBUF(RegisterSlaveMessage(), _, _);
 
   // Restart the slave (use same flags) with a new containerizer.
-  Try<TypeParam*> containerizer2 = TypeParam::create(flags, true, &fetcher);
-  ASSERT_SOME(containerizer2);
+  _containerizer = TypeParam::create(flags, true, &fetcher);
+  ASSERT_SOME(_containerizer);
+  containerizer.reset(_containerizer.get());
 
   Future<vector<Offer> > offers2;
   EXPECT_CALL(sched, resourceOffers(_, _))
     .WillOnce(FutureArg<1>(&offers2))
     .WillRepeatedly(Return());        // Ignore subsequent offers.
 
-  slave = this->StartSlave(containerizer2.get(), flags);
+  slave = this->StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
 
   AWAIT_READY(registerSlave);
@@ -1688,9 +1702,6 @@ TYPED_TEST(SlaveRecoveryTest, Reboot)
 
   driver.stop();
   driver.join();
-
-  this->Shutdown();
-  delete containerizer2.get();
 }
 
 
@@ -1700,7 +1711,7 @@ TYPED_TEST(SlaveRecoveryTest, Reboot)
 // hence schedules it for gc.
 TYPED_TEST(SlaveRecoveryTest, GCExecutor)
 {
-  Try<PID<Master> > master = this->StartMaster();
+  Try<Owned<cluster::Master>> master = this->StartMaster();
   ASSERT_SOME(master);
 
   slave::Flags flags = this->CreateSlaveFlags();
@@ -1708,10 +1719,14 @@ TYPED_TEST(SlaveRecoveryTest, GCExecutor)
 
   Fetcher fetcher;
 
-  Try<TypeParam*> containerizer1 = TypeParam::create(flags, true, &fetcher);
-  ASSERT_SOME(containerizer1);
+  Try<TypeParam*> _containerizer = TypeParam::create(flags, true, &fetcher);
+  ASSERT_SOME(_containerizer);
+  Owned<slave::Containerizer> containerizer(_containerizer.get());
 
-  Try<PID<Slave> > slave = this->StartSlave(containerizer1.get(), flags);
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave =
+    this->StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -1721,7 +1736,7 @@ TYPED_TEST(SlaveRecoveryTest, GCExecutor)
   frameworkInfo.set_checkpoint(true);
 
   MesosSchedulerDriver driver(
-      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(_, _, _));
 
@@ -1760,21 +1775,8 @@ TYPED_TEST(SlaveRecoveryTest, GCExecutor)
   // Wait for TASK_RUNNING update.
   AWAIT_READY(status);
 
-  this->Stop(slave.get());
-
-  // Destroy all the containers before we destroy the containerizer.
-  Future<hashset<ContainerID> > containers = containerizer1.get()->containers();
-  AWAIT_READY(containers);
-
-  foreach (const ContainerID& containerId, containers.get()) {
-    Future<containerizer::Termination> wait =
-      containerizer1.get()->wait(containerId);
-
-    containerizer1.get()->destroy(containerId);
-    AWAIT_READY(wait);
-  }
-
-  delete containerizer1.get();
+  // NOTE: We want to destroy all running containers.
+  slave->reset();
 
   // Remove the symlink "latest" in the executor directory
   // to simulate a non-recoverable executor.
@@ -1790,15 +1792,16 @@ TYPED_TEST(SlaveRecoveryTest, GCExecutor)
     FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
 
   // Restart the slave (use same flags) with a new isolator.
-  Try<TypeParam*> containerizer2 = TypeParam::create(flags, true, &fetcher);
-  ASSERT_SOME(containerizer2);
+  _containerizer = TypeParam::create(flags, true, &fetcher);
+  ASSERT_SOME(_containerizer);
+  containerizer.reset(_containerizer.get());
 
   Future<vector<Offer> > offers2;
   EXPECT_CALL(sched, resourceOffers(_, _))
     .WillOnce(FutureArg<1>(&offers2))
     .WillRepeatedly(Return());        // Ignore subsequent offers.
 
-  slave = this->StartSlave(containerizer2.get(), flags);
+  slave = this->StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
 
   Clock::pause();
@@ -1840,9 +1843,6 @@ TYPED_TEST(SlaveRecoveryTest, GCExecutor)
 
   driver.stop();
   driver.join();
-
-  this->Shutdown();
-  delete containerizer2.get();
 }
 
 
@@ -1850,17 +1850,21 @@ TYPED_TEST(SlaveRecoveryTest, GCExecutor)
 // register as a new slave.
 TYPED_TEST(SlaveRecoveryTest, ShutdownSlave)
 {
-  Try<PID<Master> > master = this->StartMaster();
+  Try<Owned<cluster::Master>> master = this->StartMaster();
   ASSERT_SOME(master);
 
   slave::Flags flags = this->CreateSlaveFlags();
 
   Fetcher fetcher;
 
-  Try<TypeParam*> containerizer1 = TypeParam::create(flags, true, &fetcher);
-  ASSERT_SOME(containerizer1);
+  Try<TypeParam*> _containerizer = TypeParam::create(flags, true, &fetcher);
+  ASSERT_SOME(_containerizer);
+  Owned<slave::Containerizer> containerizer(_containerizer.get());
 
-  Try<PID<Slave> > slave = this->StartSlave(containerizer1.get(), flags);
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave =
+    this->StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -1870,7 +1874,7 @@ TYPED_TEST(SlaveRecoveryTest, ShutdownSlave)
   frameworkInfo.set_checkpoint(true);
 
   MesosSchedulerDriver driver(
-      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(_, _, _));
 
@@ -1930,8 +1934,9 @@ TYPED_TEST(SlaveRecoveryTest, ShutdownSlave)
   EXPECT_CALL(sched, slaveLost(_, _))
     .Times(AtMost(1));
 
-  this->Stop(slave.get(), true); // Send a "shut down".
-  delete containerizer1.get();
+  // Explicitly shutdown the slave.
+  slave.get()->shutdown();
+  slave->reset();
 
   Future<vector<Offer> > offers3;
   EXPECT_CALL(sched, resourceOffers(_, _))
@@ -1942,7 +1947,7 @@ TYPED_TEST(SlaveRecoveryTest, ShutdownSlave)
   Try<TypeParam*> containerizer2 = TypeParam::create(flags, true, &fetcher);
   ASSERT_SOME(containerizer2);
 
-  slave = this->StartSlave(containerizer2.get(), flags);
+  slave = this->StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
 
   // Ensure that the slave registered with a new id.
@@ -1959,26 +1964,27 @@ TYPED_TEST(SlaveRecoveryTest, ShutdownSlave)
 
   driver.stop();
   driver.join();
-
-  this->Shutdown();
-  delete containerizer2.get();
 }
 
 
 // The slave should shutdown when it receives a SIGUSR1 signal.
 TYPED_TEST(SlaveRecoveryTest, ShutdownSlaveSIGUSR1)
 {
-  Try<PID<Master> > master = this->StartMaster();
+  Try<Owned<cluster::Master>> master = this->StartMaster();
   ASSERT_SOME(master);
 
   slave::Flags flags = this->CreateSlaveFlags();
 
   Fetcher fetcher;
 
-  Try<TypeParam*> containerizer = TypeParam::create(flags, true, &fetcher);
-  ASSERT_SOME(containerizer);
+  Try<TypeParam*> _containerizer = TypeParam::create(flags, true, &fetcher);
+  ASSERT_SOME(_containerizer);
+  Owned<slave::Containerizer> containerizer(_containerizer.get());
 
-  Try<PID<Slave> > slave = this->StartSlave(containerizer.get(), flags);
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave =
+    this->StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -1988,7 +1994,7 @@ TYPED_TEST(SlaveRecoveryTest, ShutdownSlaveSIGUSR1)
   frameworkInfo.set_checkpoint(true);
 
   MesosSchedulerDriver driver(
-      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(_, _, _));
 
@@ -2029,7 +2035,10 @@ TYPED_TEST(SlaveRecoveryTest, ShutdownSlaveSIGUSR1)
     FUTURE_DISPATCH(_, &Slave::signaled);
 
   Future<UnregisterSlaveMessage> unregisterSlaveMessage =
-    FUTURE_PROTOBUF(UnregisterSlaveMessage(), slave.get(), master.get());
+    FUTURE_PROTOBUF(
+        UnregisterSlaveMessage(),
+        slave.get()->pid,
+        master.get()->pid);
 
   // Send SIGUSR1 signal to the slave.
   kill(getpid(), SIGUSR1);
@@ -2044,13 +2053,10 @@ TYPED_TEST(SlaveRecoveryTest, ShutdownSlaveSIGUSR1)
   AWAIT_READY(slaveLost);
 
   // Make sure the slave terminates.
-  ASSERT_TRUE(process::wait(slave.get(), Seconds(10)));
+  ASSERT_TRUE(process::wait(slave.get()->pid, Seconds(10)));
 
   driver.stop();
   driver.join();
-
-  this->Shutdown();
-  delete containerizer.get();
 }
 
 
@@ -2064,7 +2070,7 @@ TYPED_TEST(SlaveRecoveryTest, RegisterDisconnectedSlave)
   // Disable authentication so the spoofed re-registration below works.
   masterFlags.authenticate_slaves = false;
 
-  Try<PID<Master> > master = this->StartMaster(masterFlags);
+  Try<Owned<cluster::Master>> master = this->StartMaster(masterFlags);
   ASSERT_SOME(master);
 
   Future<RegisterSlaveMessage> registerSlaveMessage =
@@ -2074,10 +2080,14 @@ TYPED_TEST(SlaveRecoveryTest, RegisterDisconnectedSlave)
 
   Fetcher fetcher;
 
-  Try<TypeParam*> containerizer = TypeParam::create(flags, true, &fetcher);
-  ASSERT_SOME(containerizer);
+  Try<TypeParam*> _containerizer = TypeParam::create(flags, true, &fetcher);
+  ASSERT_SOME(_containerizer);
+  Owned<slave::Containerizer> containerizer(_containerizer.get());
 
-  Try<PID<Slave> > slave = this->StartSlave(containerizer.get(), flags);
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave =
+    this->StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
 
   AWAIT_READY(registerSlaveMessage);
@@ -2089,7 +2099,7 @@ TYPED_TEST(SlaveRecoveryTest, RegisterDisconnectedSlave)
   frameworkInfo.set_checkpoint(true);
 
   MesosSchedulerDriver driver(
-      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(_, _, _));
 
@@ -2130,7 +2140,7 @@ TYPED_TEST(SlaveRecoveryTest, RegisterDisconnectedSlave)
   EXPECT_CALL(sched, slaveLost(_, _))
     .Times(AtMost(1));
 
-  this->Stop(slave.get());
+  slave.get()->terminate();
 
   Future<TaskStatus> status2;
   EXPECT_CALL(sched, statusUpdate(_, _))
@@ -2139,7 +2149,7 @@ TYPED_TEST(SlaveRecoveryTest, RegisterDisconnectedSlave)
   // Spoof the registration attempt of a slave that failed recovery.
   // We do this because simply restarting the slave will result in a slave
   // with a different pid than the previous one.
-  post(slave.get(), master.get(), registerSlaveMessage.get());
+  post(slave.get()->pid, master.get()->pid, registerSlaveMessage.get());
 
   // Scheduler should get a TASK_LOST message.
   AWAIT_READY(status2);
@@ -2160,10 +2170,6 @@ TYPED_TEST(SlaveRecoveryTest, RegisterDisconnectedSlave)
     containerizer.get()->destroy(containerId);
     AWAIT_READY(wait);
   }
-
-  delete containerizer.get();
-
-  this->Shutdown();
 }
 
 
@@ -2171,7 +2177,7 @@ TYPED_TEST(SlaveRecoveryTest, RegisterDisconnectedSlave)
 // slave is disconnected is properly reconciled when the slave reregisters.
 TYPED_TEST(SlaveRecoveryTest, ReconcileKillTask)
 {
-  Try<PID<Master> > master = this->StartMaster();
+  Try<Owned<cluster::Master>> master = this->StartMaster();
   ASSERT_SOME(master);
 
   Future<RegisterSlaveMessage> registerSlaveMessage =
@@ -2181,10 +2187,14 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileKillTask)
 
   Fetcher fetcher;
 
-  Try<TypeParam*> containerizer1 = TypeParam::create(flags, true, &fetcher);
-  ASSERT_SOME(containerizer1);
+  Try<TypeParam*> _containerizer = TypeParam::create(flags, true, &fetcher);
+  ASSERT_SOME(_containerizer);
+  Owned<slave::Containerizer> containerizer(_containerizer.get());
 
-  Try<PID<Slave> > slave = this->StartSlave(containerizer1.get(), flags);
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave =
+    this->StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
 
   AWAIT_READY(registerSlaveMessage);
@@ -2196,7 +2206,7 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileKillTask)
   frameworkInfo.set_checkpoint(true);
 
   MesosSchedulerDriver driver(
-      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(_, _, _));
 
@@ -2226,8 +2236,7 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileKillTask)
   // Wait for TASK_RUNNING update to be acknowledged.
   AWAIT_READY(_statusUpdateAcknowledgement);
 
-  this->Stop(slave.get());
-  delete containerizer1.get();
+  slave.get()->terminate();
 
   // Now send a KillTask message to the master. This will not be
   // received by the slave because it is down.
@@ -2238,15 +2247,16 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileKillTask)
     .WillOnce(FutureArg<1>(&status));
 
   // Now restart the slave (use same flags) with a new containerizer.
-  Try<TypeParam*> containerizer2 = TypeParam::create(flags, true, &fetcher);
-  ASSERT_SOME(containerizer2);
+  _containerizer = TypeParam::create(flags, true, &fetcher);
+  ASSERT_SOME(_containerizer);
+  containerizer.reset(_containerizer.get());
 
   Future<vector<Offer> > offers2;
   EXPECT_CALL(sched, resourceOffers(_, _))
     .WillOnce(FutureArg<1>(&offers2))
     .WillRepeatedly(Return());        // Ignore subsequent offers.
 
-  slave = this->StartSlave(containerizer2.get(), flags);
+  slave = this->StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
 
   // Scheduler should get a TASK_KILLED message.
@@ -2260,9 +2270,6 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileKillTask)
 
   driver.stop();
   driver.join();
-
-  this->Shutdown();
-  delete containerizer2.get();
 }
 
 
@@ -2271,7 +2278,7 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileKillTask)
 // a ShutdownFramework message.
 TYPED_TEST(SlaveRecoveryTest, ReconcileShutdownFramework)
 {
-  Try<PID<Master> > master = this->StartMaster();
+  Try<Owned<cluster::Master>> master = this->StartMaster();
   ASSERT_SOME(master);
 
   Future<RegisterSlaveMessage> registerSlaveMessage =
@@ -2281,10 +2288,14 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileShutdownFramework)
 
   Fetcher fetcher;
 
-  Try<TypeParam*> containerizer1 = TypeParam::create(flags, true, &fetcher);
-  ASSERT_SOME(containerizer1);
+  Try<TypeParam*> _containerizer = TypeParam::create(flags, true, &fetcher);
+  ASSERT_SOME(_containerizer);
+  Owned<slave::Containerizer> containerizer(_containerizer.get());
 
-  Try<PID<Slave> > slave = this->StartSlave(containerizer1.get(), flags);
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave =
+    this->StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
 
   AWAIT_READY(registerSlaveMessage);
@@ -2296,7 +2307,7 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileShutdownFramework)
   frameworkInfo.set_checkpoint(true);
 
   MesosSchedulerDriver driver(
-      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(_, _, _));
 
@@ -2327,8 +2338,7 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileShutdownFramework)
   // Wait for TASK_RUNNING update to be acknowledged.
   AWAIT_READY(_statusUpdateAcknowledgement);
 
-  this->Stop(slave.get());
-  delete containerizer1.get();
+  slave.get()->terminate();
 
   Future<mesos::scheduler::Call> teardownCall = FUTURE_CALL(
       mesos::scheduler::Call(), mesos::scheduler::Call::TEARDOWN, _, _);
@@ -2347,10 +2357,11 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileShutdownFramework)
     FUTURE_DISPATCH(_, &Slave::executorTerminated);
 
   // Now restart the slave (use same flags) with a new containerizer.
-  Try<TypeParam*> containerizer2 = TypeParam::create(flags, true, &fetcher);
-  ASSERT_SOME(containerizer2);
+  _containerizer = TypeParam::create(flags, true, &fetcher);
+  ASSERT_SOME(_containerizer);
+  containerizer.reset(_containerizer.get());
 
-  slave = this->StartSlave(containerizer2.get(), flags);
+  slave = this->StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
 
   // Slave should get a ShutdownFrameworkMessage.
@@ -2358,9 +2369,6 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileShutdownFramework)
 
   // Ensure that the executor is terminated.
   AWAIT_READY(executorTerminated);
-
-  this->Shutdown();
-  delete containerizer2.get();
 }
 
 
@@ -2376,7 +2384,7 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileTasksMissingFromSlave)
 
   EXPECT_CALL(allocator, initialize(_, _, _, _));
 
-  Try<PID<Master> > master = this->StartMaster(&allocator);
+  Try<Owned<cluster::Master>> master = this->StartMaster(&allocator);
   ASSERT_SOME(master);
 
   slave::Flags flags = this->CreateSlaveFlags();
@@ -2385,10 +2393,14 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileTasksMissingFromSlave)
 
   Fetcher fetcher;
 
-  Try<TypeParam*> containerizer1 = TypeParam::create(flags, true, &fetcher);
-  ASSERT_SOME(containerizer1);
+  Try<TypeParam*> _containerizer = TypeParam::create(flags, true, &fetcher);
+  ASSERT_SOME(_containerizer);
+  Owned<slave::Containerizer> containerizer(_containerizer.get());
 
-  Try<PID<Slave> > slave = this->StartSlave(containerizer1.get(), flags);
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave =
+    this->StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -2398,7 +2410,7 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileTasksMissingFromSlave)
   frameworkInfo.set_checkpoint(true);
 
   MesosSchedulerDriver driver(
-      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(allocator, addFramework(_, _, _));
 
@@ -2433,8 +2445,7 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileTasksMissingFromSlave)
 
   EXPECT_CALL(allocator, deactivateSlave(_));
 
-  this->Stop(slave.get());
-  delete containerizer1.get();
+  slave.get()->terminate();
 
   // Construct the framework meta directory that needs wiping.
   string frameworkPath = paths::getFrameworkPath(
@@ -2491,10 +2502,11 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileTasksMissingFromSlave)
     .WillRepeatedly(Return());        // Ignore subsequent offers.
 
   // Restart the slave (use same flags) with a new containerizer.
-  Try<TypeParam*> containerizer2 = TypeParam::create(flags, true, &fetcher);
-  ASSERT_SOME(containerizer2);
+  _containerizer = TypeParam::create(flags, true, &fetcher);
+  ASSERT_SOME(_containerizer);
+  containerizer.reset(_containerizer.get());
 
-  slave = this->StartSlave(containerizer2.get(), flags);
+  slave = this->StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
 
   AWAIT_READY(_recover);
@@ -2529,9 +2541,6 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileTasksMissingFromSlave)
 
   driver.stop();
   driver.join();
-
-  this->Shutdown();
-  delete containerizer2.get();
 }
 
 
@@ -2541,17 +2550,21 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileTasksMissingFromSlave)
 // failover will not affect the slave recovery process.
 TYPED_TEST(SlaveRecoveryTest, SchedulerFailover)
 {
-  Try<PID<Master> > master = this->StartMaster();
+  Try<Owned<cluster::Master>> master = this->StartMaster();
   ASSERT_SOME(master);
 
   slave::Flags flags = this->CreateSlaveFlags();
 
   Fetcher fetcher;
 
-  Try<TypeParam*> containerizer1 = TypeParam::create(flags, true, &fetcher);
-  ASSERT_SOME(containerizer1);
+  Try<TypeParam*> _containerizer = TypeParam::create(flags, true, &fetcher);
+  ASSERT_SOME(_containerizer);
+  Owned<slave::Containerizer> containerizer(_containerizer.get());
 
-  Try<PID<Slave> > slave = this->StartSlave(containerizer1.get(), flags);
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave =
+    this->StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
 
   // Launch the first (i.e., failing) scheduler.
@@ -2561,7 +2574,7 @@ TYPED_TEST(SlaveRecoveryTest, SchedulerFailover)
   framework1.set_checkpoint(true);
 
   MesosSchedulerDriver driver1(
-      &sched1, framework1, master.get(), DEFAULT_CREDENTIAL);
+      &sched1, framework1, master.get()->pid, DEFAULT_CREDENTIAL);
 
   Future<FrameworkID> frameworkId;
   EXPECT_CALL(sched1, registered(&driver1, _, _))
@@ -2590,8 +2603,7 @@ TYPED_TEST(SlaveRecoveryTest, SchedulerFailover)
   // Wait for the ACK to be checkpointed.
   AWAIT_READY(_statusUpdateAcknowledgement);
 
-  this->Stop(slave.get());
-  delete containerizer1.get();
+  slave.get()->terminate();
 
   // Now launch the second (i.e., failover) scheduler using the
   // framework id recorded from the first scheduler.
@@ -2602,7 +2614,7 @@ TYPED_TEST(SlaveRecoveryTest, SchedulerFailover)
   framework2.set_checkpoint(true);
 
   MesosSchedulerDriver driver2(
-      &sched2, framework2, master.get(), DEFAULT_CREDENTIAL);
+      &sched2, framework2, master.get()->pid, DEFAULT_CREDENTIAL);
 
   Future<Nothing> sched2Registered;
   EXPECT_CALL(sched2, registered(&driver2, frameworkId.get(), _))
@@ -2624,10 +2636,11 @@ TYPED_TEST(SlaveRecoveryTest, SchedulerFailover)
     FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
 
   // Restart the slave (use same flags) with a new containerizer.
-  Try<TypeParam*> containerizer2 = TypeParam::create(flags, true, &fetcher);
-  ASSERT_SOME(containerizer2);
+  _containerizer = TypeParam::create(flags, true, &fetcher);
+  ASSERT_SOME(_containerizer);
+  containerizer.reset(_containerizer.get());
 
-  slave = this->StartSlave(containerizer2.get(), flags);
+  slave = this->StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
 
   Clock::pause();
@@ -2680,9 +2693,6 @@ TYPED_TEST(SlaveRecoveryTest, SchedulerFailover)
 
   driver1.stop();
   driver1.join();
-
-  this->Shutdown();
-  delete containerizer2.get();
 }
 
 
@@ -2695,7 +2705,7 @@ TYPED_TEST(SlaveRecoveryTest, SchedulerFailover)
 TYPED_TEST(SlaveRecoveryTest, PartitionedSlave)
 {
   master::Flags masterFlags = this->CreateMasterFlags();
-  Try<PID<Master>> master = this->StartMaster(masterFlags);
+  Try<Owned<cluster::Master>> master = this->StartMaster(masterFlags);
   ASSERT_SOME(master);
 
   // Set these expectations up before we spawn the slave so that we
@@ -2710,10 +2720,14 @@ TYPED_TEST(SlaveRecoveryTest, PartitionedSlave)
 
   Fetcher fetcher;
 
-  Try<TypeParam*> containerizer1 = TypeParam::create(flags, true, &fetcher);
-  ASSERT_SOME(containerizer1);
+  Try<TypeParam*> _containerizer = TypeParam::create(flags, true, &fetcher);
+  ASSERT_SOME(_containerizer);
+  Owned<slave::Containerizer> containerizer(_containerizer.get());
 
-  Try<PID<Slave> > slave = this->StartSlave(containerizer1.get(), flags);
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave =
+    this->StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
 
   // Enable checkpointing for the framework.
@@ -2722,7 +2736,7 @@ TYPED_TEST(SlaveRecoveryTest, PartitionedSlave)
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
-      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(_, _, _));
 
@@ -2750,7 +2764,7 @@ TYPED_TEST(SlaveRecoveryTest, PartitionedSlave)
   AWAIT_READY(_statusUpdateAcknowledgement);
 
   Future<ShutdownMessage> shutdownMessage =
-    FUTURE_PROTOBUF(ShutdownMessage(), _, slave.get());
+    FUTURE_PROTOBUF(ShutdownMessage(), _, slave.get()->pid);
 
   Future<Nothing> slaveLost;
   EXPECT_CALL(sched, slaveLost(&driver, _))
@@ -2803,26 +2817,23 @@ TYPED_TEST(SlaveRecoveryTest, PartitionedSlave)
 
   Clock::resume();
 
-  this->Stop(slave.get());
-  delete containerizer1.get();
+  slave.get()->terminate();
 
   Future<RegisterSlaveMessage> registerSlaveMessage =
     FUTURE_PROTOBUF(RegisterSlaveMessage(), _, _);
 
   // Restart the slave (use same flags) with a new isolator.
-  Try<TypeParam*> containerizer2 = TypeParam::create(flags, true, &fetcher);
-  ASSERT_SOME(containerizer2);
+  _containerizer = TypeParam::create(flags, true, &fetcher);
+  ASSERT_SOME(_containerizer);
+  containerizer.reset(_containerizer.get());
 
-  slave = this->StartSlave(containerizer2.get(), flags);
+  slave = this->StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
 
   AWAIT_READY(registerSlaveMessage);
 
   driver.stop();
   driver.join();
-
-  this->Shutdown();
-  delete containerizer2.get();
 }
 
 
@@ -2832,17 +2843,22 @@ TYPED_TEST(SlaveRecoveryTest, PartitionedSlave)
 TYPED_TEST(SlaveRecoveryTest, MasterFailover)
 {
   // Step 1. Run a task.
-  Try<PID<Master> > master = this->StartMaster();
+  Try<Owned<cluster::Master>> master = this->StartMaster();
   ASSERT_SOME(master);
 
   slave::Flags flags = this->CreateSlaveFlags();
 
   Fetcher fetcher;
 
-  Try<TypeParam*> containerizer1 = TypeParam::create(flags, true, &fetcher);
-  ASSERT_SOME(containerizer1);
+  Try<TypeParam*> _containerizer = TypeParam::create(flags, true, &fetcher);
+  ASSERT_SOME(_containerizer);
+  Owned<slave::Containerizer> containerizer(_containerizer.get());
 
-  Try<PID<Slave> > slave = this->StartSlave(containerizer1.get(), flags);
+  Owned<StandaloneMasterDetector> detector(
+      new StandaloneMasterDetector(master.get()->pid));
+
+  Try<Owned<cluster::Slave>> slave =
+    this->StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -2851,8 +2867,6 @@ TYPED_TEST(SlaveRecoveryTest, MasterFailover)
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_checkpoint(true);
 
-  Owned<StandaloneMasterDetector> detector(
-      new StandaloneMasterDetector(master.get()));
   TestingMesosSchedulerDriver driver(
       &sched, detector.get(), frameworkInfo);
 
@@ -2883,11 +2897,10 @@ TYPED_TEST(SlaveRecoveryTest, MasterFailover)
   // Wait for the ACK to be checkpointed.
   AWAIT_READY(_statusUpdateAcknowledgement);
 
-  this->Stop(slave.get());
-  delete containerizer1.get();
+  slave.get()->terminate();
 
   // Step 2. Simulate failed over master by restarting the master.
-  this->Stop(master.get());
+  master->reset();
   master = this->StartMaster();
   ASSERT_SOME(master);
 
@@ -2898,7 +2911,7 @@ TYPED_TEST(SlaveRecoveryTest, MasterFailover)
     .WillOnce(FutureSatisfy(&registered));
 
   // Simulate a new master detected event to the scheduler.
-  detector->appoint(master.get());
+  detector->appoint(master.get()->pid);
 
   // Framework should get a registered callback.
   AWAIT_READY(registered);
@@ -2911,10 +2924,11 @@ TYPED_TEST(SlaveRecoveryTest, MasterFailover)
     FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
 
   // Restart the slave (use same flags) with a new isolator.
-  Try<TypeParam*> containerizer2 = TypeParam::create(flags, true, &fetcher);
-  ASSERT_SOME(containerizer2);
+  _containerizer = TypeParam::create(flags, true, &fetcher);
+  ASSERT_SOME(_containerizer);
+  containerizer.reset(_containerizer.get());
 
-  slave = this->StartSlave(containerizer2.get(), flags);
+  slave = this->StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
 
   Clock::pause();
@@ -2960,9 +2974,6 @@ TYPED_TEST(SlaveRecoveryTest, MasterFailover)
 
   driver.stop();
   driver.join();
-
-  this->Shutdown();
-  delete containerizer2.get();
 }
 
 
@@ -2972,17 +2983,21 @@ TYPED_TEST(SlaveRecoveryTest, MasterFailover)
 // slave restarts.
 TYPED_TEST(SlaveRecoveryTest, MultipleFrameworks)
 {
-  Try<PID<Master> > master = this->StartMaster();
+  Try<Owned<cluster::Master>> master = this->StartMaster();
   ASSERT_SOME(master);
 
   slave::Flags flags = this->CreateSlaveFlags();
 
   Fetcher fetcher;
 
-  Try<TypeParam*> containerizer1 = TypeParam::create(flags, true, &fetcher);
-  ASSERT_SOME(containerizer1);
+  Try<TypeParam*> _containerizer = TypeParam::create(flags, true, &fetcher);
+  ASSERT_SOME(_containerizer);
+  Owned<slave::Containerizer> containerizer(_containerizer.get());
 
-  Try<PID<Slave> > slave = this->StartSlave(containerizer1.get(), flags);
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave =
+    this->StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
 
   // Framework 1.
@@ -2993,7 +3008,7 @@ TYPED_TEST(SlaveRecoveryTest, MultipleFrameworks)
   frameworkInfo1.set_checkpoint(true);
 
   MesosSchedulerDriver driver1(
-      &sched1, frameworkInfo1, master.get(), DEFAULT_CREDENTIAL);
+      &sched1, frameworkInfo1, master.get()->pid, DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched1, registered(_, _, _));
 
@@ -3034,7 +3049,7 @@ TYPED_TEST(SlaveRecoveryTest, MultipleFrameworks)
   frameworkInfo2.set_checkpoint(true);
 
   MesosSchedulerDriver driver2(
-      &sched2, frameworkInfo2, master.get(), DEFAULT_CREDENTIAL);
+      &sched2, frameworkInfo2, master.get()->pid, DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched2, registered(_, _, _));
 
@@ -3060,8 +3075,7 @@ TYPED_TEST(SlaveRecoveryTest, MultipleFrameworks)
   // Wait for the ACK to be checkpointed.
   AWAIT_READY(_statusUpdateAcknowledgement2);
 
-  this->Stop(slave.get());
-  delete containerizer1.get();
+  slave.get()->terminate();
 
   Future<ReregisterExecutorMessage> reregisterExecutorMessage2 =
     FUTURE_PROTOBUF(ReregisterExecutorMessage(), _, _);
@@ -3072,10 +3086,11 @@ TYPED_TEST(SlaveRecoveryTest, MultipleFrameworks)
     FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
 
   // Restart the slave (use same flags) with a new containerizer.
-  Try<TypeParam*> containerizer2 = TypeParam::create(flags, true, &fetcher);
-  ASSERT_SOME(containerizer2);
+  _containerizer = TypeParam::create(flags, true, &fetcher);
+  ASSERT_SOME(_containerizer);
+  containerizer.reset(_containerizer.get());
 
-  slave = this->StartSlave(containerizer2.get(), flags);
+  slave = this->StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
 
   Clock::pause();
@@ -3131,9 +3146,6 @@ TYPED_TEST(SlaveRecoveryTest, MultipleFrameworks)
   driver1.join();
   driver2.stop();
   driver2.join();
-
-  this->Shutdown();
-  delete containerizer2.get();
 }
 
 
@@ -3141,7 +3153,7 @@ TYPED_TEST(SlaveRecoveryTest, MultipleFrameworks)
 // multiple slaves are co-located on the same host.
 TYPED_TEST(SlaveRecoveryTest, MultipleSlaves)
 {
-  Try<PID<Master> > master = this->StartMaster();
+  Try<Owned<cluster::Master>> master = this->StartMaster();
   ASSERT_SOME(master);
 
   // Enable checkpointing for the framework.
@@ -3150,7 +3162,7 @@ TYPED_TEST(SlaveRecoveryTest, MultipleSlaves)
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
-      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(_, _, _));
 
@@ -3174,10 +3186,14 @@ TYPED_TEST(SlaveRecoveryTest, MultipleSlaves)
 
   Fetcher fetcher;
 
-  Try<TypeParam*> containerizer1 = TypeParam::create(flags1, true, &fetcher);
-  ASSERT_SOME(containerizer1);
+  Owned<MasterDetector> detector = master.get()->createDetector();
 
-  Try<PID<Slave> > slave1 = this->StartSlave(containerizer1.get(), flags1);
+  Try<TypeParam*> _containerizer1 = TypeParam::create(flags1, true, &fetcher);
+  ASSERT_SOME(_containerizer1);
+  Owned<slave::Containerizer> containerizer1(_containerizer1.get());
+
+  Try<Owned<cluster::Slave>> slave1 =
+    this->StartSlave(detector.get(), containerizer1.get(), flags1);
   ASSERT_SOME(slave1);
 
   AWAIT_READY(offers1);
@@ -3190,7 +3206,7 @@ TYPED_TEST(SlaveRecoveryTest, MultipleSlaves)
     .Times(1);
 
   Future<Nothing> _statusUpdateAcknowledgement1 =
-    FUTURE_DISPATCH(slave1.get(), &Slave::_statusUpdateAcknowledgement);
+    FUTURE_DISPATCH(slave1.get()->pid, &Slave::_statusUpdateAcknowledgement);
 
   driver.launchTasks(offers1.get()[0].id(), {task1});
 
@@ -3213,10 +3229,12 @@ TYPED_TEST(SlaveRecoveryTest, MultipleSlaves)
   flags2.slave_subsystems = None();
 #endif
 
-  Try<TypeParam*> containerizer2 = TypeParam::create(flags2, true, &fetcher);
-  ASSERT_SOME(containerizer2);
+  Try<TypeParam*> _containerizer2 = TypeParam::create(flags2, true, &fetcher);
+  ASSERT_SOME(_containerizer2);
+  Owned<slave::Containerizer> containerizer2(_containerizer2.get());
 
-  Try<PID<Slave> > slave2 = this->StartSlave(containerizer2.get(), flags2);
+  Try<Owned<cluster::Slave>> slave2 =
+    this->StartSlave(detector.get(), containerizer2.get(), flags2);
   ASSERT_SOME(slave2);
 
   AWAIT_READY(offers2);
@@ -3229,17 +3247,15 @@ TYPED_TEST(SlaveRecoveryTest, MultipleSlaves)
     .Times(1);
 
   Future<Nothing> _statusUpdateAcknowledgement2 =
-    FUTURE_DISPATCH(slave2.get(), &Slave::_statusUpdateAcknowledgement);
+    FUTURE_DISPATCH(slave2.get()->pid, &Slave::_statusUpdateAcknowledgement);
 
   driver.launchTasks(offers2.get()[0].id(), {task2});
 
   // Wait for the ACKs to be checkpointed.
   AWAIT_READY(_statusUpdateAcknowledgement2);
 
-  this->Stop(slave1.get());
-  delete containerizer1.get();
-  this->Stop(slave2.get());
-  delete containerizer2.get();
+  slave1.get()->terminate();
+  slave2.get()->terminate();
 
   Future<ReregisterExecutorMessage> reregisterExecutorMessage2 =
     FUTURE_PROTOBUF(ReregisterExecutorMessage(), _, _);
@@ -3252,18 +3268,20 @@ TYPED_TEST(SlaveRecoveryTest, MultipleSlaves)
     FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
 
   // Restart both slaves using the same flags with new containerizers.
-  Try<TypeParam*> containerizer3 = TypeParam::create(flags1, true, &fetcher);
-  ASSERT_SOME(containerizer3);
+  _containerizer1 = TypeParam::create(flags1, true, &fetcher);
+  ASSERT_SOME(_containerizer1);
+  containerizer1.reset(_containerizer1.get());
 
   Clock::pause();
 
-  slave1 = this->StartSlave(containerizer3.get(), flags1);
+  slave1 = this->StartSlave(detector.get(), containerizer1.get(), flags1);
   ASSERT_SOME(slave1);
 
-  Try<TypeParam*> containerizer4 = TypeParam::create(flags2, true, &fetcher);
-  ASSERT_SOME(containerizer4);
+  _containerizer2 = TypeParam::create(flags2, true, &fetcher);
+  ASSERT_SOME(_containerizer2);
+  containerizer2.reset(_containerizer2.get());
 
-  slave2 = this->StartSlave(containerizer4.get(), flags2);
+  slave2 = this->StartSlave(detector.get(), containerizer2.get(), flags2);
   ASSERT_SOME(slave2);
 
   AWAIT_READY(reregisterExecutorMessage1);
@@ -3308,10 +3326,6 @@ TYPED_TEST(SlaveRecoveryTest, MultipleSlaves)
 
   driver.stop();
   driver.join();
-
-  this->Shutdown();
-  delete containerizer3.get();
-  delete containerizer4.get();
 }
 
 
@@ -3321,14 +3335,18 @@ TYPED_TEST(SlaveRecoveryTest, MultipleSlaves)
 // NOTE: This is a 'TYPED_TEST' but we don't use 'TypeParam'.
 TYPED_TEST(SlaveRecoveryTest, RestartBeforeContainerizerLaunch)
 {
-  Try<PID<Master> > master = this->StartMaster();
+  Try<Owned<cluster::Master>> master = this->StartMaster();
   ASSERT_SOME(master);
 
   slave::Flags flags = this->CreateSlaveFlags();
 
-  TestContainerizer* containerizer1 = new TestContainerizer();
+  TestContainerizer containerizer1;
+  TestContainerizer containerizer2;
 
-  Try<PID<Slave> > slave = this->StartSlave(containerizer1, flags);
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave =
+    this->StartSlave(detector.get(), &containerizer1, flags);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -3338,7 +3356,7 @@ TYPED_TEST(SlaveRecoveryTest, RestartBeforeContainerizerLaunch)
   frameworkInfo.set_checkpoint(true);
 
   MesosSchedulerDriver driver(
-      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(_, _, _));
 
@@ -3356,7 +3374,7 @@ TYPED_TEST(SlaveRecoveryTest, RestartBeforeContainerizerLaunch)
 
   // Expect the launch but don't do anything.
   Future<Nothing> launch;
-  EXPECT_CALL(*containerizer1, launch(_, _, _, _, _, _, _))
+  EXPECT_CALL(containerizer1, launch(_, _, _, _, _, _, _))
     .WillOnce(DoAll(FutureSatisfy(&launch),
                     Return(Future<bool>())));
 
@@ -3369,8 +3387,7 @@ TYPED_TEST(SlaveRecoveryTest, RestartBeforeContainerizerLaunch)
   // Once we see the call to launch, restart the slave.
   AWAIT_READY(launch);
 
-  this->Stop(slave.get());
-  delete containerizer1;
+  slave.get()->terminate();
 
   Future<TaskStatus> status;
   // There is a race here where the Slave may reregister before we
@@ -3383,11 +3400,9 @@ TYPED_TEST(SlaveRecoveryTest, RestartBeforeContainerizerLaunch)
 
   Future<Nothing> _recover = FUTURE_DISPATCH(_, &Slave::_recover);
 
-  TestContainerizer containerizer2;
-
   Clock::pause();
 
-  slave = this->StartSlave(&containerizer2, flags);
+  slave = this->StartSlave(detector.get(), &containerizer2, flags);
   ASSERT_SOME(slave);
 
   AWAIT_READY(_recover);
@@ -3407,8 +3422,6 @@ TYPED_TEST(SlaveRecoveryTest, RestartBeforeContainerizerLaunch)
 
   driver.stop();
   driver.join();
-
-  this->Shutdown();
 }
 
 
@@ -3420,18 +3433,23 @@ class MesosContainerizerSlaveRecoveryTest
 
 TEST_F(MesosContainerizerSlaveRecoveryTest, ResourceStatistics)
 {
-  Try<PID<Master> > master = this->StartMaster();
+  Try<Owned<cluster::Master>> master = this->StartMaster();
   ASSERT_SOME(master);
 
   slave::Flags flags = this->CreateSlaveFlags();
 
   Fetcher fetcher;
 
-  Try<MesosContainerizer*> containerizer1 =
+  Try<MesosContainerizer*> _containerizer =
     MesosContainerizer::create(flags, true, &fetcher);
-  ASSERT_SOME(containerizer1);
+  ASSERT_SOME(_containerizer);
 
-  Try<PID<Slave> > slave = this->StartSlave(containerizer1.get(), flags);
+  Owned<slave::Containerizer> containerizer(_containerizer.get());
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave =
+    this->StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -3441,7 +3459,7 @@ TEST_F(MesosContainerizerSlaveRecoveryTest, ResourceStatistics)
   frameworkInfo.set_checkpoint(true);
 
   MesosSchedulerDriver driver(
-      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(_, _, _));
 
@@ -3465,8 +3483,7 @@ TEST_F(MesosContainerizerSlaveRecoveryTest, ResourceStatistics)
 
   AWAIT_READY(registerExecutor);
 
-  this->Stop(slave.get());
-  delete containerizer1.get();
+  slave.get()->terminate();
 
   // Set up so we can wait until the new slave updates the container's
   // resources (this occurs after the executor has re-registered).
@@ -3474,42 +3491,37 @@ TEST_F(MesosContainerizerSlaveRecoveryTest, ResourceStatistics)
     FUTURE_DISPATCH(_, &MesosContainerizerProcess::update);
 
   // Restart the slave (use same flags) with a new containerizer.
-  Try<MesosContainerizer*> containerizer2 =
-    MesosContainerizer::create(flags, true, &fetcher);
-  ASSERT_SOME(containerizer2);
+  _containerizer = MesosContainerizer::create(flags, true, &fetcher);
+  ASSERT_SOME(_containerizer);
+  containerizer.reset(_containerizer.get());
 
-  slave = this->StartSlave(containerizer2.get(), flags);
+  slave = this->StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
 
   // Wait until the containerizer is updated.
   AWAIT_READY(update);
 
-  Future<hashset<ContainerID> > containers = containerizer2.get()->containers();
+  Future<hashset<ContainerID> > containers = containerizer->containers();
   AWAIT_READY(containers);
   ASSERT_EQ(1u, containers.get().size());
 
   ContainerID containerId = *(containers.get().begin());
 
-  Future<ResourceStatistics> usage = containerizer2.get()->usage(containerId);
+  Future<ResourceStatistics> usage = containerizer->usage(containerId);
   AWAIT_READY(usage);
 
   // Check the resource limits are set.
   EXPECT_TRUE(usage.get().has_cpus_limit());
   EXPECT_TRUE(usage.get().has_mem_limit_bytes());
 
-  Future<containerizer::Termination> wait =
-    containerizer2.get()->wait(containerId);
+  Future<containerizer::Termination> wait = containerizer->wait(containerId);
 
-  containerizer2.get()->destroy(containerId);
+  containerizer->destroy(containerId);
 
   AWAIT_READY(wait);
 
   driver.stop();
   driver.join();
-
-  this->Shutdown();
-
-  delete containerizer2.get();
 }
 
 
@@ -3519,7 +3531,7 @@ TEST_F(MesosContainerizerSlaveRecoveryTest, ResourceStatistics)
 // newly created containers will.
 TEST_F(MesosContainerizerSlaveRecoveryTest, CGROUPS_ROOT_PerfRollForward)
 {
-  Try<PID<Master> > master = this->StartMaster();
+  Try<Owned<cluster::Master>> master = this->StartMaster();
   ASSERT_SOME(master);
 
   // Start a slave using a containerizer without a perf event
@@ -3530,11 +3542,16 @@ TEST_F(MesosContainerizerSlaveRecoveryTest, CGROUPS_ROOT_PerfRollForward)
 
   Fetcher fetcher;
 
-  Try<MesosContainerizer*> containerizer1 =
+  Try<MesosContainerizer*> _containerizer =
     MesosContainerizer::create(flags, true, &fetcher);
-  ASSERT_SOME(containerizer1);
+  ASSERT_SOME(_containerizer);
 
-  Try<PID<Slave> > slave = this->StartSlave(containerizer1.get(), flags);
+  Owned<slave::Containerizer> containerizer(_containerizer.get());
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave =
+    this->StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -3548,7 +3565,7 @@ TEST_F(MesosContainerizerSlaveRecoveryTest, CGROUPS_ROOT_PerfRollForward)
   frameworkInfo.set_checkpoint(true);
 
   MesosSchedulerDriver driver(
-      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(_, _, _));
 
@@ -3575,20 +3592,19 @@ TEST_F(MesosContainerizerSlaveRecoveryTest, CGROUPS_ROOT_PerfRollForward)
 
   AWAIT_READY(registerExecutor);
 
-  Future<hashset<ContainerID> > containers = containerizer1.get()->containers();
+  Future<hashset<ContainerID>> containers = containerizer->containers();
   AWAIT_READY(containers);
   ASSERT_EQ(1u, containers.get().size());
 
   ContainerID containerId1 = *(containers.get().begin());
 
-  Future<ResourceStatistics> usage = containerizer1.get()->usage(containerId1);
+  Future<ResourceStatistics> usage = containerizer->usage(containerId1);
   AWAIT_READY(usage);
 
   // There should not be any perf statistics.
   EXPECT_FALSE(usage.get().has_perf());
 
-  this->Stop(slave.get());
-  delete containerizer1.get();
+  slave.get()->terminate();
 
   // Set up so we can wait until the new slave updates the container's
   // resources (this occurs after the executor has re-registered).
@@ -3601,16 +3617,16 @@ TEST_F(MesosContainerizerSlaveRecoveryTest, CGROUPS_ROOT_PerfRollForward)
   flags.perf_duration = Milliseconds(250);
   flags.perf_interval = Milliseconds(500);
 
-  Try<MesosContainerizer*> containerizer2 =
-    MesosContainerizer::create(flags, true, &fetcher);
-  ASSERT_SOME(containerizer2);
+  _containerizer = MesosContainerizer::create(flags, true, &fetcher);
+  ASSERT_SOME(_containerizer);
+  containerizer.reset(_containerizer.get());
 
   Future<vector<Offer> > offers2;
   EXPECT_CALL(sched, resourceOffers(_, _))
     .WillOnce(FutureArg<1>(&offers2))
     .WillRepeatedly(Return());        // Ignore subsequent offers.
 
-  slave = this->StartSlave(containerizer2.get(), flags);
+  slave = this->StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
 
   AWAIT_READY(offers2);
@@ -3620,7 +3636,7 @@ TEST_F(MesosContainerizerSlaveRecoveryTest, CGROUPS_ROOT_PerfRollForward)
   AWAIT_READY(update);
 
   // The first container should not report perf statistics.
-  usage = containerizer2.get()->usage(containerId1);
+  usage = containerizer->usage(containerId1);
   AWAIT_READY(usage);
 
   EXPECT_FALSE(usage.get().has_perf());
@@ -3636,7 +3652,7 @@ TEST_F(MesosContainerizerSlaveRecoveryTest, CGROUPS_ROOT_PerfRollForward)
 
   AWAIT_READY(registerExecutor);
 
-  containers = containerizer2.get()->containers();
+  containers = containerizer->containers();
   AWAIT_READY(containers);
   ASSERT_EQ(2u, containers.get().size());
   EXPECT_TRUE(containers.get().contains(containerId1));
@@ -3648,16 +3664,13 @@ TEST_F(MesosContainerizerSlaveRecoveryTest, CGROUPS_ROOT_PerfRollForward)
     }
   }
 
-  usage = containerizer2.get()->usage(containerId2);
+  usage = containerizer->usage(containerId2);
   AWAIT_READY(usage);
 
   EXPECT_TRUE(usage.get().has_perf());
 
   driver.stop();
   driver.join();
-
-  this->Shutdown();
-  delete containerizer2.get();
 }
 
 
@@ -3665,7 +3678,7 @@ TEST_F(MesosContainerizerSlaveRecoveryTest, CGROUPS_ROOT_PerfRollForward)
 // be destroyed correctly with namespace/pid isolation enabled.
 TEST_F(MesosContainerizerSlaveRecoveryTest, CGROUPS_ROOT_PidNamespaceForward)
 {
-  Try<PID<Master> > master = this->StartMaster();
+  Try<Owned<cluster::Master>> master = this->StartMaster();
   ASSERT_SOME(master);
 
   // Start a slave using a containerizer without pid namespace
@@ -3676,11 +3689,16 @@ TEST_F(MesosContainerizerSlaveRecoveryTest, CGROUPS_ROOT_PidNamespaceForward)
 
   Fetcher fetcher;
 
-  Try<MesosContainerizer*> containerizer1 =
+  Try<MesosContainerizer*> _containerizer =
     MesosContainerizer::create(flags, true, &fetcher);
-  ASSERT_SOME(containerizer1);
+  ASSERT_SOME(_containerizer);
 
-  Try<PID<Slave> > slave = this->StartSlave(containerizer1.get(), flags);
+  Owned<slave::Containerizer> containerizer(_containerizer.get());
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave =
+    this->StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -3694,7 +3712,7 @@ TEST_F(MesosContainerizerSlaveRecoveryTest, CGROUPS_ROOT_PidNamespaceForward)
   frameworkInfo.set_checkpoint(true);
 
   MesosSchedulerDriver driver(
-      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(_, _, _));
 
@@ -3721,29 +3739,28 @@ TEST_F(MesosContainerizerSlaveRecoveryTest, CGROUPS_ROOT_PidNamespaceForward)
 
   AWAIT_READY(registerExecutorMessage);
 
-  Future<hashset<ContainerID> > containers = containerizer1.get()->containers();
+  Future<hashset<ContainerID> > containers = containerizer->containers();
   AWAIT_READY(containers);
   ASSERT_EQ(1u, containers.get().size());
 
   ContainerID containerId = *(containers.get().begin());
 
   // Stop the slave.
-  this->Stop(slave.get());
-  delete containerizer1.get();
+  slave.get()->terminate();
 
   // Start a slave using a containerizer with pid namespace isolation.
   flags.isolation = "cgroups/cpu,cgroups/mem,namespaces/pid";
 
-  Try<MesosContainerizer*> containerizer2 =
-    MesosContainerizer::create(flags, true, &fetcher);
-  ASSERT_SOME(containerizer2);
+  _containerizer = MesosContainerizer::create(flags, true, &fetcher);
+  ASSERT_SOME(_containerizer);
+  containerizer.reset(_containerizer.get());
 
   Future<vector<Offer> > offers2;
   EXPECT_CALL(sched, resourceOffers(_, _))
     .WillOnce(FutureArg<1>(&offers2))
     .WillRepeatedly(Return());        // Ignore subsequent offers.
 
-  slave = this->StartSlave(containerizer2.get(), flags);
+  slave = this->StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
 
   AWAIT_READY(offers2);
@@ -3751,18 +3768,15 @@ TEST_F(MesosContainerizerSlaveRecoveryTest, CGROUPS_ROOT_PidNamespaceForward)
 
   // Set up to wait on the container's termination.
   Future<containerizer::Termination> termination =
-    containerizer2.get()->wait(containerId);
+    containerizer->wait(containerId);
 
   // Destroy the container.
-  containerizer2.get()->destroy(containerId);
+  containerizer->destroy(containerId);
 
   AWAIT_READY(termination);
 
   driver.stop();
   driver.join();
-
-  this->Shutdown();
-  delete containerizer2.get();
 }
 
 
@@ -3770,7 +3784,7 @@ TEST_F(MesosContainerizerSlaveRecoveryTest, CGROUPS_ROOT_PidNamespaceForward)
 // be destroyed correctly without namespace/pid isolation enabled.
 TEST_F(MesosContainerizerSlaveRecoveryTest, CGROUPS_ROOT_PidNamespaceBackward)
 {
-  Try<PID<Master> > master = this->StartMaster();
+  Try<Owned<cluster::Master>> master = this->StartMaster();
   ASSERT_SOME(master);
 
   // Start a slave using a containerizer with pid namespace isolation.
@@ -3780,11 +3794,16 @@ TEST_F(MesosContainerizerSlaveRecoveryTest, CGROUPS_ROOT_PidNamespaceBackward)
 
   Fetcher fetcher;
 
-  Try<MesosContainerizer*> containerizer1 =
+  Try<MesosContainerizer*> _containerizer =
     MesosContainerizer::create(flags, true, &fetcher);
-  ASSERT_SOME(containerizer1);
+  ASSERT_SOME(_containerizer);
 
-  Try<PID<Slave> > slave = this->StartSlave(containerizer1.get(), flags);
+  Owned<slave::Containerizer> containerizer(_containerizer.get());
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave =
+    this->StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -3798,7 +3817,7 @@ TEST_F(MesosContainerizerSlaveRecoveryTest, CGROUPS_ROOT_PidNamespaceBackward)
   frameworkInfo.set_checkpoint(true);
 
   MesosSchedulerDriver driver(
-      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(_, _, _));
 
@@ -3825,30 +3844,29 @@ TEST_F(MesosContainerizerSlaveRecoveryTest, CGROUPS_ROOT_PidNamespaceBackward)
 
   AWAIT_READY(registerExecutorMessage);
 
-  Future<hashset<ContainerID> > containers = containerizer1.get()->containers();
+  Future<hashset<ContainerID> > containers = containerizer->containers();
   AWAIT_READY(containers);
   ASSERT_EQ(1u, containers.get().size());
 
   ContainerID containerId = *(containers.get().begin());
 
   // Stop the slave.
-  this->Stop(slave.get());
-  delete containerizer1.get();
+  slave.get()->terminate();
 
   // Start a slave using a containerizer without pid namespace
   // isolation.
   flags.isolation = "cgroups/cpu,cgroups/mem";
 
-  Try<MesosContainerizer*> containerizer2 =
-    MesosContainerizer::create(flags, true, &fetcher);
-  ASSERT_SOME(containerizer2);
+  _containerizer = MesosContainerizer::create(flags, true, &fetcher);
+  ASSERT_SOME(_containerizer);
+  containerizer.reset(_containerizer.get());
 
   Future<vector<Offer> > offers2;
   EXPECT_CALL(sched, resourceOffers(_, _))
     .WillOnce(FutureArg<1>(&offers2))
     .WillRepeatedly(Return());        // Ignore subsequent offers.
 
-  slave = this->StartSlave(containerizer2.get(), flags);
+  slave = this->StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
 
   AWAIT_READY(offers2);
@@ -3856,18 +3874,15 @@ TEST_F(MesosContainerizerSlaveRecoveryTest, CGROUPS_ROOT_PidNamespaceBackward)
 
   // Set up to wait on the container's termination.
   Future<containerizer::Termination> termination =
-    containerizer2.get()->wait(containerId);
+    containerizer->wait(containerId);
 
   // Destroy the container.
-  containerizer2.get()->destroy(containerId);
+  containerizer->destroy(containerId);
 
   AWAIT_READY(termination);
 
   driver.stop();
   driver.join();
-
-  this->Shutdown();
-  delete containerizer2.get();
 }
 #endif // __linux__
 

@@ -25,6 +25,7 @@
 #include <process/http.hpp>
 #include <process/id.hpp>
 #include <process/pid.hpp>
+#include <process/owned.hpp>
 
 #include <stout/format.hpp>
 #include <stout/protobuf.hpp>
@@ -46,6 +47,7 @@ using mesos::internal::slave::Slave;
 
 using process::Future;
 using process::PID;
+using process::Owned;
 using process::UPID;
 
 using process::http::BadRequest;
@@ -110,12 +112,12 @@ protected:
   }
 
   void checkWithRolesEndpoint(
-      const Try<PID<Master>>& master,
+      const PID<Master>& master,
       const Option<string>& weights = None())
   {
     Future<Response> response = process::http::request(
         process::http::createRequest(
-            master.get(),
+            master,
             "GET",
             false,
             "roles",
@@ -239,7 +241,7 @@ protected:
 // should return a '400 Bad Request'.
 TEST_F(DynamicWeightsTest, PutInvalidRequest)
 {
-  Try<PID<Master>> master = StartMaster();
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   // Tests whether an update weights request with invalid JSON fails.
@@ -251,7 +253,7 @@ TEST_F(DynamicWeightsTest, PutInvalidRequest)
 
   Future<Response> response = process::http::request(
       process::http::createRequest(
-          master.get(),
+          master.get()->pid,
           "PUT",
           false,
           "weights",
@@ -261,7 +263,7 @@ TEST_F(DynamicWeightsTest, PutInvalidRequest)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response)
     << response.get().body;
 
-  checkWithRolesEndpoint(master);
+  checkWithRolesEndpoint(master.get()->pid);
 
   // Tests whether an update weights request with an invalid field fails.
   // In this case, the correct field name should be 'role'.
@@ -273,7 +275,7 @@ TEST_F(DynamicWeightsTest, PutInvalidRequest)
 
   response = process::http::request(
       process::http::createRequest(
-          master.get(),
+          master.get()->pid,
           "PUT",
           false,
           "weights",
@@ -283,9 +285,7 @@ TEST_F(DynamicWeightsTest, PutInvalidRequest)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response)
     << response.get().body;
 
-  checkWithRolesEndpoint(master);
-
-  ShutdownMasters();
+  checkWithRolesEndpoint(master.get()->pid);
 }
 
 
@@ -293,13 +293,13 @@ TEST_F(DynamicWeightsTest, PutInvalidRequest)
 // should return a '400 Bad Request'.
 TEST_F(DynamicWeightsTest, ZeroWeight)
 {
-  Try<PID<Master>> master = StartMaster();
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   // Send a weight update request to update the weight of 'role1' to 0.
   Future<Response> response = process::http::request(
       process::http::createRequest(
-          master.get(),
+          master.get()->pid,
           "PUT",
           false,
           "weights",
@@ -309,9 +309,7 @@ TEST_F(DynamicWeightsTest, ZeroWeight)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response)
     << response.get().body;
 
-  checkWithRolesEndpoint(master);
-
-  ShutdownMasters();
+  checkWithRolesEndpoint(master.get()->pid);
 }
 
 
@@ -319,13 +317,13 @@ TEST_F(DynamicWeightsTest, ZeroWeight)
 // should return a '400 Bad Request'.
 TEST_F(DynamicWeightsTest, NegativeWeight)
 {
-  Try<PID<Master>> master = StartMaster();
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   // Send a weight update request to update the weight of 'role1' to -2.0.
   Future<Response> response = process::http::request(
       process::http::createRequest(
-          master.get(),
+          master.get()->pid,
           "PUT",
           false,
           "weights",
@@ -335,9 +333,7 @@ TEST_F(DynamicWeightsTest, NegativeWeight)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response)
     << response.get().body;
 
-  checkWithRolesEndpoint(master);
-
-  ShutdownMasters();
+  checkWithRolesEndpoint(master.get()->pid);
 }
 
 
@@ -345,13 +341,13 @@ TEST_F(DynamicWeightsTest, NegativeWeight)
 // should return a '400 Bad Request'.
 TEST_F(DynamicWeightsTest, NonNumericWeight)
 {
-  Try<PID<Master>> master = StartMaster();
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   // Send a weight update request to update the weight of 'role1' to 'two'
   Future<Response> response = process::http::request(
       process::http::createRequest(
-          master.get(),
+          master.get()->pid,
           "PUT",
           false,
           "weights",
@@ -361,9 +357,7 @@ TEST_F(DynamicWeightsTest, NonNumericWeight)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response)
     << response.get().body;
 
-  checkWithRolesEndpoint(master);
-
-  ShutdownMasters();
+  checkWithRolesEndpoint(master.get()->pid);
 }
 
 
@@ -371,13 +365,13 @@ TEST_F(DynamicWeightsTest, NonNumericWeight)
 // and a missing role request should return a '400 Bad Request'.
 TEST_F(DynamicWeightsTest, MissingRole)
 {
-  Try<PID<Master>> master = StartMaster();
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   // Send a missing role update request.
   Future<Response> response1 = process::http::request(
       process::http::createRequest(
-          master.get(),
+          master.get()->pid,
           "PUT",
           false,
           "weights",
@@ -387,12 +381,12 @@ TEST_F(DynamicWeightsTest, MissingRole)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response1)
     << response1.get().body;
 
-  checkWithRolesEndpoint(master);
+  checkWithRolesEndpoint(master.get()->pid);
 
   // Send an empty role (only a space) update request.
   Future<Response> response2 = process::http::request(
       process::http::createRequest(
-          master.get(),
+          master.get()->pid,
           "PUT",
           false,
           "weights",
@@ -402,9 +396,7 @@ TEST_F(DynamicWeightsTest, MissingRole)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response2)
     << response2.get().body;
 
-  checkWithRolesEndpoint(master);
-
-  ShutdownMasters();
+  checkWithRolesEndpoint(master.get()->pid);
 }
 
 
@@ -416,13 +408,13 @@ TEST_F(DynamicWeightsTest, UnknownRole)
   // Specify --roles whitelist when starting master.
   master::Flags flags = MesosTest::CreateMasterFlags();
   flags.roles = strings::join(",", ROLE1, ROLE2);
-  Try<PID<Master>> master = StartMaster(flags);
+  Try<Owned<cluster::Master>> master = StartMaster(flags);
   ASSERT_SOME(master);
 
   // Send a weight update request for 'unknown' role.
   Future<Response> response = process::http::request(
       process::http::createRequest(
-          master.get(),
+          master.get()->pid,
           "PUT",
           false,
           "weights",
@@ -432,9 +424,7 @@ TEST_F(DynamicWeightsTest, UnknownRole)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response)
     << response.get().body;
 
-  checkWithRolesEndpoint(master, DEFAULT_WEIGHTS);
-
-  ShutdownMasters();
+  checkWithRolesEndpoint(master.get()->pid, DEFAULT_WEIGHTS);
 }
 
 
@@ -446,15 +436,15 @@ TEST_F(DynamicWeightsTest, UpdateWeightsWithExplictRoles)
   // Specify --roles whitelist when starting master.
   master::Flags flags = MesosTest::CreateMasterFlags();
   flags.roles = strings::join(",", ROLE1, ROLE2);
-  Try<PID<Master>> master = StartMaster(flags);
+  Try<Owned<cluster::Master>> master = StartMaster(flags);
   ASSERT_SOME(master);
 
-  checkWithRolesEndpoint(master, DEFAULT_WEIGHTS);
+  checkWithRolesEndpoint(master.get()->pid, DEFAULT_WEIGHTS);
 
   // Send a weight update request for the specified roles in UPDATED_WEIGHTS.
   Future<Response> response = process::http::request(
       process::http::createRequest(
-          master.get(),
+          master.get()->pid,
           "PUT",
           false,
           "weights",
@@ -464,9 +454,7 @@ TEST_F(DynamicWeightsTest, UpdateWeightsWithExplictRoles)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
     << response.get().body;
 
-  checkWithRolesEndpoint(master, UPDATED_WEIGHTS);
-
-  ShutdownMasters();
+  checkWithRolesEndpoint(master.get()->pid, UPDATED_WEIGHTS);
 }
 
 
@@ -476,7 +464,7 @@ TEST_F(DynamicWeightsTest, UnauthenticatedUpdateWeightRequest)
 {
   // The master is configured so that only requests from `DEFAULT_CREDENTIAL`
   // are authenticated.
-  Try<PID<Master>> master = StartMaster();
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   Credential credential;
@@ -486,7 +474,7 @@ TEST_F(DynamicWeightsTest, UnauthenticatedUpdateWeightRequest)
   // Send a weight update request for the specified roles in UPDATED_WEIGHTS.
   Future<Response> response1 = process::http::request(
       process::http::createRequest(
-          master.get(),
+          master.get()->pid,
           "PUT",
           false,
           "weights",
@@ -496,12 +484,12 @@ TEST_F(DynamicWeightsTest, UnauthenticatedUpdateWeightRequest)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(Unauthorized({}).status, response1)
     << response1.get().body;
 
-  checkWithRolesEndpoint(master);
+  checkWithRolesEndpoint(master.get()->pid);
 
   // The absence of credentials leads to authentication failure as well.
   Future<Response> response2 = process::http::request(
       process::http::createRequest(
-          master.get(),
+          master.get()->pid,
           "PUT",
           false,
           "weights",
@@ -511,9 +499,7 @@ TEST_F(DynamicWeightsTest, UnauthenticatedUpdateWeightRequest)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(Unauthorized({}).status, response2)
     << response2.get().body;
 
-  checkWithRolesEndpoint(master);
-
-  ShutdownMasters();
+  checkWithRolesEndpoint(master.get()->pid);
 }
 
 
@@ -532,13 +518,13 @@ TEST_F(DynamicWeightsTest, AuthorizedWeightUpdateRequest)
   master::Flags masterFlags = CreateMasterFlags();
   masterFlags.acls = acls;
 
-  Try<PID<Master>> master = StartMaster(masterFlags);
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
   ASSERT_SOME(master);
 
   // Send a weight update request for the specified roles in UPDATED_WEIGHTS.
   Future<Response> response = process::http::request(
       process::http::createRequest(
-          master.get(),
+          master.get()->pid,
           "PUT",
           false,
           "weights",
@@ -548,9 +534,7 @@ TEST_F(DynamicWeightsTest, AuthorizedWeightUpdateRequest)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
     << response.get().body;
 
-  checkWithRolesEndpoint(master, UPDATED_WEIGHTS);
-
-  ShutdownMasters();
+  checkWithRolesEndpoint(master.get()->pid, UPDATED_WEIGHTS);
 }
 
 
@@ -573,13 +557,13 @@ TEST_F(DynamicWeightsTest, AuthorizedUpdateWeightRequestWithoutPrincipal)
   masterFlags.authenticate_http = false;
   masterFlags.acls = acls;
 
-  Try<PID<Master>> master = StartMaster(masterFlags);
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
   ASSERT_SOME(master);
 
   // Send a weight update request for the specified roles in UPDATED_WEIGHTS.
   Future<Response> response = process::http::request(
       process::http::createRequest(
-          master.get(),
+          master.get()->pid,
           "PUT",
           false,
           "weights",
@@ -589,9 +573,7 @@ TEST_F(DynamicWeightsTest, AuthorizedUpdateWeightRequestWithoutPrincipal)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
     << response.get().body;
 
-  checkWithRolesEndpoint(master, UPDATED_WEIGHTS);
-
-  ShutdownMasters();
+  checkWithRolesEndpoint(master.get()->pid, UPDATED_WEIGHTS);
 }
 
 
@@ -606,13 +588,13 @@ TEST_F(DynamicWeightsTest, UnauthorizedWeightUpdateRequest)
   master::Flags masterFlags = CreateMasterFlags();
   masterFlags.acls = acls;
 
-  Try<PID<Master>> master = StartMaster(masterFlags);
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
   ASSERT_SOME(master);
 
   // Send a weight update request for the specified roles in UPDATED_WEIGHTS.
   Future<Response> response = process::http::request(
       process::http::createRequest(
-          master.get(),
+          master.get()->pid,
           "PUT",
           false,
           "weights",
@@ -622,9 +604,7 @@ TEST_F(DynamicWeightsTest, UnauthorizedWeightUpdateRequest)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(Forbidden().status, response)
     << response.get().body;
 
-  checkWithRolesEndpoint(master);
-
-  ShutdownMasters();
+  checkWithRolesEndpoint(master.get()->pid);
 }
 
 } // namespace tests {
