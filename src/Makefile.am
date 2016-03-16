@@ -1845,6 +1845,7 @@ mesos_tests_SOURCES =						\
   tests/hierarchical_allocator_tests.cpp			\
   tests/hook_tests.cpp						\
   tests/http_authentication_tests.cpp				\
+  tests/http_fault_tolerance_tests.cpp				\
   tests/log_tests.cpp						\
   tests/logging_tests.cpp					\
   tests/main.cpp						\
