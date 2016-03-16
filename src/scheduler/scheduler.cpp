@@ -209,7 +209,7 @@ public:
     Option<Error> error = validation::scheduler::call::validate(devolve(call));
 
     if (error.isSome()) {
-      drop(call, error.get().message);
+      drop(call, error->message);
       return;
     }
 
@@ -253,7 +253,7 @@ public:
       CHECK_SOME(streamId);
 
       // Set the stream ID associated with this connection.
-      request.headers["Mesos-Stream-Id"] = streamId.get().toString();
+      request.headers["Mesos-Stream-Id"] = streamId->toString();
 
       response = connections->nonSubscribe.send(request);
     }
@@ -419,7 +419,7 @@ protected:
       VLOG(1) << "Re-detecting master";
       master = None();
       latest = None();
-    } else if (future.get().isNone()) {
+    } else if (future->isNone()) {
       VLOG(1) << "Lost leading master";
       master = None();
       latest = None();
@@ -496,12 +496,12 @@ protected:
     if (response->code == process::http::Status::OK) {
       // Only SUBSCRIBE call should get a "200 OK" response.
       CHECK_EQ(Call::SUBSCRIBE, call.type());
-      CHECK_EQ(response.get().type, http::Response::PIPE);
-      CHECK_SOME(response.get().reader);
+      CHECK_EQ(response->type, http::Response::PIPE);
+      CHECK_SOME(response->reader);
 
       state = SUBSCRIBED;
 
-      Pipe::Reader reader = response.get().reader.get();
+      Pipe::Reader reader = response->reader.get();
 
       auto deserializer =
         lambda::bind(deserialize<Event>, contentType, lambda::_1);
@@ -512,9 +512,9 @@ protected:
       subscribed = SubscribedResponse {reader, decoder};
 
       // Responses to SUBSCRIBE calls should always include a stream ID.
-      CHECK(response.get().headers.contains("Mesos-Stream-Id"));
+      CHECK(response->headers.contains("Mesos-Stream-Id"));
 
-      streamId = UUID::fromString(response.get().headers.at("Mesos-Stream-Id"));
+      streamId = UUID::fromString(response->headers.at("Mesos-Stream-Id"));
 
       read();
 
@@ -537,15 +537,15 @@ protected:
     if (response->code == process::http::Status::SERVICE_UNAVAILABLE) {
       // This could happen if the master hasn't realized it is the leader yet
       // or is still in the process of recovery.
-      LOG(WARNING) << "Received '" << response.get().status << "' ("
-                   << response.get().body << ") for " << call.type();
+      LOG(WARNING) << "Received '" << response->status << "' ("
+                   << response->body << ") for " << call.type();
       return;
     }
 
     // We should be able to get here only for AuthN errors which is not
     // yet supported for HTTP frameworks.
-    error("Received unexpected '" + response.get().status + "' (" +
-          response.get().body + ") for " + stringify(call.type()));
+    error("Received unexpected '" + response->status + "' (" +
+          response->body + ") for " + stringify(call.type()));
   }
 
   void read()
@@ -579,7 +579,7 @@ protected:
     }
 
     // This could happen if the master failed over after sending an event.
-    if (!event.get().isSome()) {
+    if (!event->isSome()) {
       const string error = "End-Of-File received from master. The master "
                            "closed the event stream";
       LOG(ERROR) << error;
@@ -588,8 +588,8 @@ protected:
       return;
     }
 
-    if (event.get().isError()) {
-      error("Failed to de-serialize event: " + event.get().error());
+    if (event->isError()) {
+      error("Failed to de-serialize event: " + event->error());
     } else {
       receive(event.get().get(), false);
     }
