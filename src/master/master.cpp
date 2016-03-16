@@ -6166,7 +6166,10 @@ void Master::removeFramework(Framework* framework)
 
   // TODO(benh): unlink(framework->pid);
 
-  // TODO(anand): For http frameworks, close the connection.
+  // For http frameworks, close the connection.
+  if (framework->http.isSome()) {
+    framework->http->close();
+  }
 
   framework->unregisteredTime = Clock::now();
 
