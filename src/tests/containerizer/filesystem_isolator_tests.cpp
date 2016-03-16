@@ -1315,8 +1315,8 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_MultipleContainers)
   Future<containerizer::Termination> wait2 =
     containerizer.get()->wait(containerId2);
 
-  AWAIT_READY(wait1);
-  AWAIT_READY(wait2);
+  AWAIT_READY_FOR(wait1, Seconds(60));
+  AWAIT_READY_FOR(wait2, Seconds(60));
 
   // Executor 1 was forcefully killed.
   EXPECT_TRUE(wait1.get().has_status());
