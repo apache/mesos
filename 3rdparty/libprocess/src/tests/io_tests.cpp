@@ -31,9 +31,9 @@ using process::Future;
 
 using std::string;
 
-class IOWriteTest : public TemporaryDirectoryTest {};
+class IOTest: public TemporaryDirectoryTest {};
 
-TEST(IOTest, Poll)
+TEST_F(IOTest, Poll)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
@@ -57,7 +57,7 @@ TEST(IOTest, Poll)
 }
 
 
-TEST(IOTest, Read)
+TEST_F(IOTest, Read)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
@@ -125,7 +125,7 @@ TEST(IOTest, Read)
 }
 
 
-TEST_F(IOWriteTest, BufferedRead)
+TEST_F(IOTest, BufferedRead)
 {
   // 128 Bytes.
   string data =
@@ -178,7 +178,7 @@ TEST_F(IOWriteTest, BufferedRead)
 }
 
 
-TEST(IOTest, Write)
+TEST_F(IOTest, Write)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
@@ -219,7 +219,7 @@ TEST(IOTest, Write)
 }
 
 
-TEST(IOTest, DISABLED_BlockingWrite)
+TEST_F(IOTest, DISABLED_BlockingWrite)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
@@ -294,7 +294,7 @@ TEST(IOTest, DISABLED_BlockingWrite)
 }
 
 
-TEST_F(IOWriteTest, Redirect)
+TEST_F(IOTest, Redirect)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
@@ -365,7 +365,7 @@ TEST_F(IOWriteTest, Redirect)
 }
 
 
-TEST(IOTest, Peek)
+TEST_F(IOTest, Peek)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
