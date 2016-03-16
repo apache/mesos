@@ -369,12 +369,12 @@ int main(int argc, char** argv)
   string uri;
   Option<string> value = os::getenv("MESOS_BUILD_DIR");
   if (value.isSome()) {
-    uri = path::join(value.get(), "src", "test-executor");
+    uri = path::join(value.get(), "src", "test-http-executor");
   } else {
     uri = path::join(
         os::realpath(Path(argv[0]).dirname()).get(),
         "src",
-        "test-executor");
+        "test-http-executor");
   }
 
   mesos::internal::logging::Flags flags;
