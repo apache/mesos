@@ -1580,11 +1580,16 @@ TEST_F(FaultToleranceTest, SchedulerExit)
   AWAIT_READY(status);
   EXPECT_EQ(TASK_RUNNING, status.get().state());
 
+  Future<Nothing> shutdown;
   EXPECT_CALL(exec, shutdown(_))
-    .Times(AtMost(1));
+    .WillOnce(FutureSatisfy(&shutdown));
 
   driver.stop();
   driver.join();
+
+  // Ensure that the executor receives a shutdown message after the
+  // scheduler exit.
+  AWAIT_READY(shutdown);
 
   Shutdown();
 }
