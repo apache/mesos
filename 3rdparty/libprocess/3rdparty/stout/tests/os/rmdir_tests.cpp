@@ -17,6 +17,8 @@
 
 #include <stout/path.hpp>
 
+#include <stout/os.hpp>
+
 #include <stout/os/getcwd.hpp>
 #include <stout/os/ls.hpp>
 #include <stout/os/mkdir.hpp>
@@ -170,4 +172,39 @@ TEST_F(RmdirTest, FailTRemoveNestedInvalidPath)
   EXPECT_ERROR(os::rmdir(fakeAbsolutePath, true));
   EXPECT_EQ(expectedRootListing, listfiles(tmpdir));
   EXPECT_EQ(EMPTY, listfiles(newDirectoryAbsolutePath));
+}
+
+
+// This test verifies that `rmdir` can remove a directory with a device file.
+TEST_F(RmdirTest, RemoveDirectoryWithDeviceFile)
+{
+  // mknod requires root permission.
+  Result<string> user = os::user();
+  ASSERT_SOME(user);
+
+  if (user.get() != "root") {
+    return;
+  }
+
+  // Create a 'char' device file with major number same as that of `/dev/null`.
+  const string deviceDirectory = path::join(os::getcwd(), "deviceDirectory");
+  ASSERT_SOME(os::mkdir(deviceDirectory));
+
+  const string device = "null";
+
+  const string existing = path::join("/dev", device);
+  ASSERT_TRUE(os::exists(existing));
+
+  Try<mode_t> mode = os::stat::mode(existing);
+  ASSERT_SOME(mode);
+
+  Try<dev_t> rdev = os::stat::rdev(existing);
+  ASSERT_SOME(rdev);
+
+  const string another = path::join(deviceDirectory, device);
+  ASSERT_FALSE(os::exists(another));
+
+  EXPECT_SOME(os::mknod(another, mode.get(), rdev.get()));
+
+  EXPECT_SOME(os::rmdir(deviceDirectory));
 }
