@@ -28,6 +28,7 @@
 
 #include <process/clock.hpp>
 #include <process/future.hpp>
+#include <process/owned.hpp>
 #include <process/pid.hpp>
 #include <process/process.hpp>
 
@@ -49,6 +50,7 @@ using mesos::internal::slave::Slave;
 
 using process::Clock;
 using process::Future;
+using process::Owned;
 using process::PID;
 using process::Promise;
 
@@ -73,19 +75,19 @@ class ReconciliationTest : public MesosTest {};
 // and the master.
 TEST_F(ReconciliationTest, TaskStateMismatch)
 {
-  Try<PID<Master> > master = StartMaster();
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
-
   TestContainerizer containerizer(&exec);
 
-  Try<PID<Slave> > slave = StartSlave(&containerizer);
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), &containerizer);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
-    &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+    &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
   Future<FrameworkID> frameworkId;
   EXPECT_CALL(sched, registered(&driver, _, _))
@@ -141,8 +143,6 @@ TEST_F(ReconciliationTest, TaskStateMismatch)
 
   driver.stop();
   driver.join();
-
-  Shutdown(); // Must shutdown before 'containerizer' gets deallocated.
 }
 
 
@@ -154,19 +154,19 @@ TEST_F(ReconciliationTest, TaskStateMismatch)
 // task state difference between the master and the framework.
 TEST_F(ReconciliationTest, TaskStateMatch)
 {
-  Try<PID<Master> > master = StartMaster();
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
-
   TestContainerizer containerizer(&exec);
 
-  Try<PID<Slave> > slave = StartSlave(&containerizer);
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), &containerizer);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
-    &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+    &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
   Future<FrameworkID> frameworkId;
   EXPECT_CALL(sched, registered(&driver, _, _))
@@ -225,8 +225,6 @@ TEST_F(ReconciliationTest, TaskStateMatch)
 
   driver.stop();
   driver.join();
-
-  Shutdown(); // Must shutdown before 'containerizer' gets deallocated.
 }
 
 
@@ -234,12 +232,12 @@ TEST_F(ReconciliationTest, TaskStateMatch)
 // unknown slave results in TASK_LOST.
 TEST_F(ReconciliationTest, UnknownSlave)
 {
-  Try<PID<Master> > master = StartMaster();
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
-    &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+    &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
   Future<FrameworkID> frameworkId;
   EXPECT_CALL(sched, registered(&driver, _, _))
@@ -279,13 +277,14 @@ TEST_F(ReconciliationTest, UnknownSlave)
 // belongs to a known slave results in TASK_LOST.
 TEST_F(ReconciliationTest, UnknownTask)
 {
-  Try<PID<Master> > master = StartMaster();
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
     FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
 
-  Try<PID<Slave> > slave = StartSlave();
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
   ASSERT_SOME(slave);
 
   // Wait for the slave to register and get the slave id.
@@ -294,7 +293,7 @@ TEST_F(ReconciliationTest, UnknownTask)
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
-    &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+    &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
   Future<FrameworkID> frameworkId;
   EXPECT_CALL(sched, registered(&driver, _, _))
@@ -338,12 +337,12 @@ TEST_F(ReconciliationTest, UnknownTask)
 // and there are no transitional slaves.
 TEST_F(ReconciliationTest, UnknownKillTask)
 {
-  Try<PID<Master> > master = StartMaster();
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
-    &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+    &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
   Future<FrameworkID> frameworkId;
   EXPECT_CALL(sched, registered(&driver, _, _))
@@ -380,7 +379,7 @@ TEST_F(ReconciliationTest, UnknownKillTask)
 TEST_F(ReconciliationTest, SlaveInTransition)
 {
   master::Flags masterFlags = CreateMasterFlags();
-  Try<PID<Master> > master = StartMaster();
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   // Reuse slaveFlags so both StartSlave() use the same work_dir.
@@ -389,20 +388,22 @@ TEST_F(ReconciliationTest, SlaveInTransition)
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
     FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
 
-  Try<PID<Slave> > slave = StartSlave(slaveFlags);
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
   ASSERT_SOME(slave);
 
   // Wait for the slave to register and get the slave id.
   AWAIT_READY(slaveRegisteredMessage);
   const SlaveID slaveId = slaveRegisteredMessage.get().slave_id();
 
-  // Stop the master and slave.
-  Stop(master.get());
-  Stop(slave.get());
-
   MockScheduler sched;
   MesosSchedulerDriver driver(
-      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  // Stop the slave and master (a bit later).
+  master->reset();
+  slave.get()->terminate();
+  slave->reset();
 
   Future<FrameworkID> frameworkId;
   EXPECT_CALL(sched, registered(&driver, _, _))
@@ -430,7 +431,8 @@ TEST_F(ReconciliationTest, SlaveInTransition)
   AWAIT_READY(frameworkId);
 
   // Restart the slave.
-  slave = StartSlave(slaveFlags);
+  detector = master.get()->createDetector();
+  slave = StartSlave(detector.get(), slaveFlags);
   ASSERT_SOME(slave);
 
   // Slave will be in 'reregistering' state here.
@@ -470,20 +472,20 @@ TEST_F(ReconciliationTest, SlaveInTransition)
 // in updates for all non-terminal tasks known to the master.
 TEST_F(ReconciliationTest, ImplicitNonTerminalTask)
 {
-  Try<PID<Master> > master = StartMaster();
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
-
   TestContainerizer containerizer(&exec);
 
-  Try<PID<Slave> > slave = StartSlave(&containerizer);
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), &containerizer);
   ASSERT_SOME(slave);
 
   // Launch a framework and get a task running.
   MockScheduler sched;
   MesosSchedulerDriver driver(
-    &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+    &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
   Future<FrameworkID> frameworkId;
   EXPECT_CALL(sched, registered(&driver, _, _))
@@ -528,8 +530,6 @@ TEST_F(ReconciliationTest, ImplicitNonTerminalTask)
 
   driver.stop();
   driver.join();
-
-  Shutdown(); // Must shutdown before 'containerizer' gets deallocated.
 }
 
 
@@ -539,20 +539,20 @@ TEST_F(ReconciliationTest, ImplicitNonTerminalTask)
 // tasks, and this test may break.
 TEST_F(ReconciliationTest, ImplicitTerminalTask)
 {
-  Try<PID<Master> > master = StartMaster();
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
-
   TestContainerizer containerizer(&exec);
 
-  Try<PID<Slave> > slave = StartSlave(&containerizer);
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), &containerizer);
   ASSERT_SOME(slave);
 
   // Launch a framework and get a task terminal.
   MockScheduler sched;
   MesosSchedulerDriver driver(
-    &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+    &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
   Future<FrameworkID> frameworkId;
   EXPECT_CALL(sched, registered(&driver, _, _))
@@ -607,8 +607,6 @@ TEST_F(ReconciliationTest, ImplicitTerminalTask)
 
   driver.stop();
   driver.join();
-
-  Shutdown(); // Must shutdown before 'containerizer' gets deallocated.
 }
 
 
@@ -617,15 +615,17 @@ TEST_F(ReconciliationTest, ImplicitTerminalTask)
 TEST_F(ReconciliationTest, PendingTask)
 {
   MockAuthorizer authorizer;
-  Try<PID<Master> > master = StartMaster(&authorizer);
+  Try<Owned<cluster::Master>> master = StartMaster(&authorizer);
   ASSERT_SOME(master);
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
+  TestContainerizer containerizer(&exec);
 
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
     FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
 
-  Try<PID<Slave> > slave = StartSlave();
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
   ASSERT_SOME(slave);
 
   // Wait for the slave to register and get the slave id.
@@ -634,7 +634,7 @@ TEST_F(ReconciliationTest, PendingTask)
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
-      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(&driver, _, _))
     .Times(1);
@@ -702,20 +702,20 @@ TEST_F(ReconciliationTest, PendingTask)
 // acknowledged by the framework. See MESOS-1389.
 TEST_F(ReconciliationTest, UnacknowledgedTerminalTask)
 {
-  Try<PID<Master> > master = StartMaster();
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
-
   TestContainerizer containerizer(&exec);
 
-  Try<PID<Slave> > slave = StartSlave(&containerizer);
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), &containerizer);
   ASSERT_SOME(slave);
 
   // Launch a framework and get a task into a terminal state.
   MockScheduler sched;
   MesosSchedulerDriver driver(
-      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
   Future<FrameworkID> frameworkId;
   EXPECT_CALL(sched, registered(&driver, _, _))
@@ -736,15 +736,15 @@ TEST_F(ReconciliationTest, UnacknowledgedTerminalTask)
 
   // Prevent the slave from retrying the status update by
   // only allowing a single update through to the master.
-  DROP_PROTOBUFS(StatusUpdateMessage(), _, master.get());
-  FUTURE_PROTOBUF(StatusUpdateMessage(), _, master.get());
+  DROP_PROTOBUFS(StatusUpdateMessage(), _, master.get()->pid);
+  FUTURE_PROTOBUF(StatusUpdateMessage(), _, master.get()->pid);
 
   // Drop the status update acknowledgements to ensure that the
   // task remains terminal and unacknowledged in the master.
   DROP_CALLS(mesos::scheduler::Call(),
              mesos::scheduler::Call::ACKNOWLEDGE,
              _,
-             master.get());
+             master.get()->pid);
 
   driver.start();
 
@@ -773,8 +773,6 @@ TEST_F(ReconciliationTest, UnacknowledgedTerminalTask)
 
   driver.stop();
   driver.join();
-
-  Shutdown(); // Must shutdown before 'containerizer' gets deallocated.
 }
 
 
@@ -784,18 +782,19 @@ TEST_F(ReconciliationTest, UnacknowledgedTerminalTask)
 TEST_F(ReconciliationTest, ReconcileStatusUpdateTaskState)
 {
   // Start a master.
-  Try<PID<Master> > master = StartMaster();
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   // Start a slave.
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
-  StandaloneMasterDetector slaveDetector(master.get());
-  Try<PID<Slave> > slave = StartSlave(&exec, &slaveDetector);
+  TestContainerizer containerizer(&exec);
+  StandaloneMasterDetector slaveDetector(master.get()->pid);
+  Try<Owned<cluster::Slave>> slave = StartSlave(&slaveDetector, &containerizer);
   ASSERT_SOME(slave);
 
   // Start a scheduler.
   MockScheduler sched;
-  StandaloneMasterDetector schedulerDetector(master.get());
+  StandaloneMasterDetector schedulerDetector(master.get()->pid);
   TestingMesosSchedulerDriver driver(&sched, &schedulerDetector);
 
   EXPECT_CALL(sched, registered(&driver, _, _));
@@ -813,7 +812,7 @@ TEST_F(ReconciliationTest, ReconcileStatusUpdateTaskState)
 
   // Signal when the first update is dropped.
   Future<StatusUpdateMessage> statusUpdateMessage =
-    DROP_PROTOBUF(StatusUpdateMessage(), _, master.get());
+    DROP_PROTOBUF(StatusUpdateMessage(), _, master.get()->pid);
 
   Future<Nothing> ___statusUpdate = FUTURE_DISPATCH(_, &Slave::___statusUpdate);
 
@@ -844,8 +843,9 @@ TEST_F(ReconciliationTest, ReconcileStatusUpdateTaskState)
     .WillOnce(Return());
 
   // Simulate master failover by restarting the master.
-  this->Stop(master.get());
+  master->reset();
   master = StartMaster();
+  ASSERT_SOME(master);
 
   Clock::resume();
 
@@ -854,18 +854,21 @@ TEST_F(ReconciliationTest, ReconcileStatusUpdateTaskState)
     .WillOnce(FutureSatisfy(&registered));
 
   // Re-register the framework.
-  schedulerDetector.appoint(master.get());
+  schedulerDetector.appoint(master.get()->pid);
 
   AWAIT_READY(registered);
 
   Future<SlaveReregisteredMessage> slaveReregisteredMessage =
-    FUTURE_PROTOBUF(SlaveReregisteredMessage(), master.get(), slave.get());
+    FUTURE_PROTOBUF(
+        SlaveReregisteredMessage(),
+        master.get()->pid,
+        slave.get()->pid);
 
   // Drop all updates to the second master.
-  DROP_PROTOBUFS(StatusUpdateMessage(), _, master.get());
+  DROP_PROTOBUFS(StatusUpdateMessage(), _, master.get()->pid);
 
   // Re-register the slave.
-  slaveDetector.appoint(master.get());
+  slaveDetector.appoint(master.get()->pid);
 
   AWAIT_READY(slaveReregisteredMessage);
 
@@ -887,8 +890,6 @@ TEST_F(ReconciliationTest, ReconcileStatusUpdateTaskState)
 
   driver.stop();
   driver.join();
-
-  Shutdown(); // Must shutdown before the detector gets de-allocated.
 }
 
 } // namespace tests {

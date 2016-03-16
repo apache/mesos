@@ -52,11 +52,12 @@ class AuthenticationTest : public MesosTest {};
 // denied registration by the master.
 TEST_F(AuthenticationTest, UnauthenticatedFramework)
 {
-  Try<PID<Master>> master = StartMaster();
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master.get());
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid);
 
   Future<Nothing> error;
   EXPECT_CALL(sched, error(&driver, _))
@@ -69,8 +70,6 @@ TEST_F(AuthenticationTest, UnauthenticatedFramework)
 
   driver.stop();
   driver.join();
-
-  Shutdown();
 }
 
 
@@ -78,7 +77,7 @@ TEST_F(AuthenticationTest, UnauthenticatedFramework)
 // denied registration by the master.
 TEST_F(AuthenticationTest, UnauthenticatedSlave)
 {
-  Try<PID<Master>> master = StartMaster();
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   Future<ShutdownMessage> shutdownMessage =
@@ -88,14 +87,13 @@ TEST_F(AuthenticationTest, UnauthenticatedSlave)
   slave::Flags flags = CreateSlaveFlags();
   flags.credential = None();
 
-  Try<PID<Slave>> slave = StartSlave(flags);
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
   ASSERT_SOME(slave);
 
   // Slave should get error message from the master.
   AWAIT_READY(shutdownMessage);
   ASSERT_NE("", shutdownMessage.get().message());
-
-  Shutdown();
 }
 
 
@@ -106,12 +104,13 @@ TEST_F(AuthenticationTest, DisableFrameworkAuthentication)
   master::Flags flags = CreateMasterFlags();
   flags.authenticate_frameworks = false; // Disable authentication.
 
-  Try<PID<Master>> master = StartMaster(flags);
+  Try<Owned<cluster::Master>> master = StartMaster(flags);
   ASSERT_SOME(master);
 
   // Start the scheduler without credentials.
   MockScheduler sched;
-  MesosSchedulerDriver driver(&sched, DEFAULT_FRAMEWORK_INFO, master.get());
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid);
 
   Future<Nothing> registered;
   EXPECT_CALL(sched, registered(&driver, _, _))
@@ -124,8 +123,6 @@ TEST_F(AuthenticationTest, DisableFrameworkAuthentication)
 
   driver.stop();
   driver.join();
-
-  Shutdown();
 }
 
 
@@ -136,7 +133,7 @@ TEST_F(AuthenticationTest, DisableSlaveAuthentication)
   master::Flags flags = CreateMasterFlags();
   flags.authenticate_slaves = false; // Disable authentication.
 
-  Try<PID<Master>> master = StartMaster(flags);
+  Try<Owned<cluster::Master>> master = StartMaster(flags);
   ASSERT_SOME(master);
 
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
@@ -146,14 +143,13 @@ TEST_F(AuthenticationTest, DisableSlaveAuthentication)
   slave::Flags slaveFlags = CreateSlaveFlags();
   slaveFlags.credential = None();
 
-  Try<PID<Slave>> slave = StartSlave(slaveFlags);
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
   ASSERT_SOME(slave);
 
   // Slave should be able to get registered.
   AWAIT_READY(slaveRegisteredMessage);
   ASSERT_NE("", slaveRegisteredMessage.get().slave_id().value());
-
-  Shutdown();
 }
 
 
@@ -162,7 +158,7 @@ TEST_F(AuthenticationTest, DisableSlaveAuthentication)
 // FrameworkInfo.principal than Credential.principal.
 TEST_F(AuthenticationTest, MismatchedFrameworkInfoPrincipal)
 {
-  Try<PID<Master>> master = StartMaster();
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   MockScheduler sched;
@@ -170,10 +166,7 @@ TEST_F(AuthenticationTest, MismatchedFrameworkInfoPrincipal)
   frameworkInfo.set_principal("mismatched-principal");
 
   MesosSchedulerDriver driver(
-      &sched,
-      frameworkInfo,
-      master.get(),
-      DEFAULT_CREDENTIAL);
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
 
   Future<Nothing> error;
   EXPECT_CALL(sched, error(&driver, _))
@@ -186,8 +179,6 @@ TEST_F(AuthenticationTest, MismatchedFrameworkInfoPrincipal)
 
   driver.stop();
   driver.join();
-
-  Shutdown();
 }
 
 
@@ -200,7 +191,7 @@ TEST_F(AuthenticationTest, DisabledFrameworkAuthenticationPrincipalMismatch)
   master::Flags flags = CreateMasterFlags();
   flags.authenticate_frameworks = false; // Authentication not required.
 
-  Try<PID<Master>> master = StartMaster(flags);
+  Try<Owned<cluster::Master>> master = StartMaster(flags);
   ASSERT_SOME(master);
 
   MockScheduler sched;
@@ -208,10 +199,7 @@ TEST_F(AuthenticationTest, DisabledFrameworkAuthenticationPrincipalMismatch)
   frameworkInfo.set_principal("mismatched-principal");
 
   MesosSchedulerDriver driver(
-      &sched,
-      frameworkInfo,
-      master.get(),
-      DEFAULT_CREDENTIAL);
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
 
   Future<Nothing> error;
   EXPECT_CALL(sched, error(&driver, _))
@@ -224,8 +212,6 @@ TEST_F(AuthenticationTest, DisabledFrameworkAuthenticationPrincipalMismatch)
 
   driver.stop();
   driver.join();
-
-  Shutdown();
 }
 
 
@@ -234,7 +220,7 @@ TEST_F(AuthenticationTest, DisabledFrameworkAuthenticationPrincipalMismatch)
 // register.
 TEST_F(AuthenticationTest, UnspecifiedFrameworkInfoPrincipal)
 {
-  Try<PID<Master>> master = StartMaster();
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   MockScheduler sched;
@@ -242,10 +228,7 @@ TEST_F(AuthenticationTest, UnspecifiedFrameworkInfoPrincipal)
   frameworkInfo.clear_principal();
 
   MesosSchedulerDriver driver(
-      &sched,
-      frameworkInfo,
-      master.get(),
-      DEFAULT_CREDENTIAL);
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
 
   Future<Nothing> registered;
   EXPECT_CALL(sched, registered(&driver, _, _))
@@ -258,8 +241,6 @@ TEST_F(AuthenticationTest, UnspecifiedFrameworkInfoPrincipal)
 
   driver.stop();
   driver.join();
-
-  Shutdown();
 }
 
 
@@ -270,13 +251,13 @@ TEST_F(AuthenticationTest, AuthenticatedFramework)
   master::Flags flags = CreateMasterFlags();
   flags.authenticate_frameworks = false; // Disable authentication.
 
-  Try<PID<Master>> master = StartMaster(flags);
+  Try<Owned<cluster::Master>> master = StartMaster(flags);
   ASSERT_SOME(master);
 
   // Start the scheduler with credentials.
   MockScheduler sched;
   MesosSchedulerDriver driver(
-      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
   Future<Nothing> registered;
   EXPECT_CALL(sched, registered(&driver, _, _))
@@ -289,8 +270,6 @@ TEST_F(AuthenticationTest, AuthenticatedFramework)
 
   driver.stop();
   driver.join();
-
-  Shutdown();
 }
 
 
@@ -301,21 +280,21 @@ TEST_F(AuthenticationTest, AuthenticatedSlave)
   master::Flags flags = CreateMasterFlags();
   flags.authenticate_slaves = false; // Disable authentication.
 
-  Try<PID<Master>> master = StartMaster(flags);
+  Try<Owned<cluster::Master>> master = StartMaster(flags);
   ASSERT_SOME(master);
 
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
     FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
 
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
   // Start the slave with credentials.
-  Try<PID<Slave>> slave = StartSlave();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
   ASSERT_SOME(slave);
 
   // Slave should be able to get registered.
   AWAIT_READY(slaveRegisteredMessage);
   ASSERT_NE("", slaveRegisteredMessage.get().slave_id().value());
-
-  Shutdown();
 }
 
 
@@ -323,12 +302,12 @@ TEST_F(AuthenticationTest, AuthenticatedSlave)
 // authentication when authenticate message is lost.
 TEST_F(AuthenticationTest, RetryFrameworkAuthentication)
 {
-  Try<PID<Master>> master = StartMaster();
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
-      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
   // Drop the first authenticate message from the scheduler.
   Future<AuthenticateMessage> authenticateMessage =
@@ -353,8 +332,6 @@ TEST_F(AuthenticationTest, RetryFrameworkAuthentication)
 
   driver.stop();
   driver.join();
-
-  Shutdown();
 }
 
 
@@ -362,14 +339,15 @@ TEST_F(AuthenticationTest, RetryFrameworkAuthentication)
 // authentication when authenticate message is lost.
 TEST_F(AuthenticationTest, RetrySlaveAuthentication)
 {
-  Try<PID<Master>> master = StartMaster();
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   // Drop the first authenticate message from the slave.
   Future<AuthenticateMessage> authenticateMessage =
     DROP_PROTOBUF(AuthenticateMessage(), _, _);
 
-  Try<PID<Slave>> slave = StartSlave();
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
   ASSERT_SOME(slave);
 
   AWAIT_READY(authenticateMessage);
@@ -386,8 +364,6 @@ TEST_F(AuthenticationTest, RetrySlaveAuthentication)
   // Slave should be able to get registered.
   AWAIT_READY(slaveRegisteredMessage);
   ASSERT_NE("", slaveRegisteredMessage.get().slave_id().value());
-
-  Shutdown();
 }
 
 
@@ -396,12 +372,12 @@ TEST_F(AuthenticationTest, RetrySlaveAuthentication)
 // is lost.
 TEST_F(AuthenticationTest, DropIntermediateSASLMessage)
 {
-  Try<PID<Master>> master = StartMaster();
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
-      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
   // Drop the AuthenticationStepMessage from authenticator.
   Future<AuthenticationStepMessage> authenticationStepMessage =
@@ -432,8 +408,6 @@ TEST_F(AuthenticationTest, DropIntermediateSASLMessage)
 
   driver.stop();
   driver.join();
-
-  Shutdown();
 }
 
 
@@ -442,14 +416,15 @@ TEST_F(AuthenticationTest, DropIntermediateSASLMessage)
 // is lost.
 TEST_F(AuthenticationTest, DropIntermediateSASLMessageForSlave)
 {
-  Try<PID<Master>> master = StartMaster();
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   // Drop the AuthenticationStepMessage from authenticator.
   Future<AuthenticationStepMessage> authenticationStepMessage =
     DROP_PROTOBUF(AuthenticationStepMessage(), _, _);
 
-  Try<PID<Slave>> slave = StartSlave();
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
   ASSERT_SOME(slave);
 
   AWAIT_READY(authenticationStepMessage);
@@ -472,8 +447,6 @@ TEST_F(AuthenticationTest, DropIntermediateSASLMessageForSlave)
   // Slave should be able to get registered.
   AWAIT_READY(slaveRegisteredMessage);
   ASSERT_NE("", slaveRegisteredMessage.get().slave_id().value());
-
-  Shutdown();
 }
 
 
@@ -485,12 +458,12 @@ TEST_F(AuthenticationTest, DropIntermediateSASLMessageForSlave)
 // eventually register.
 TEST_F(AuthenticationTest, DropFinalSASLMessage)
 {
-  Try<PID<Master>> master = StartMaster();
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
-      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
   // Drop the AuthenticationCompletedMessage from authenticator.
   Future<AuthenticationCompletedMessage> authenticationCompletedMessage =
@@ -521,8 +494,6 @@ TEST_F(AuthenticationTest, DropFinalSASLMessage)
 
   driver.stop();
   driver.join();
-
-  Shutdown();
 }
 
 
@@ -534,14 +505,15 @@ TEST_F(AuthenticationTest, DropFinalSASLMessage)
 // eventually register.
 TEST_F(AuthenticationTest, DropFinalSASLMessageForSlave)
 {
-  Try<PID<Master>> master = StartMaster();
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   // Drop the AuthenticationCompletedMessage from authenticator.
   Future<AuthenticationCompletedMessage> authenticationCompletedMessage =
     DROP_PROTOBUF(AuthenticationCompletedMessage(), _, _);
 
-  Try<PID<Slave>> slave = StartSlave();
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
   ASSERT_SOME(slave);
 
   AWAIT_READY(authenticationCompletedMessage);
@@ -564,8 +536,6 @@ TEST_F(AuthenticationTest, DropFinalSASLMessageForSlave)
   // Slave should be able to get registered.
   AWAIT_READY(slaveRegisteredMessage);
   ASSERT_NE("", slaveRegisteredMessage.get().slave_id().value());
-
-  Shutdown();
 }
 
 
@@ -574,12 +544,12 @@ TEST_F(AuthenticationTest, DropFinalSASLMessageForSlave)
 // authenticates.
 TEST_F(AuthenticationTest, MasterFailover)
 {
-  Try<PID<Master>> master = StartMaster();
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   MockScheduler sched;
   Owned<StandaloneMasterDetector> detector(
-      new StandaloneMasterDetector(master.get()));
+      new StandaloneMasterDetector(master.get()->pid));
   TestingMesosSchedulerDriver driver(&sched, detector.get());
 
   // Drop the authenticate message from the scheduler.
@@ -592,7 +562,7 @@ TEST_F(AuthenticationTest, MasterFailover)
 
   // While the authentication is in progress simulate a failed over
   // master by restarting the master.
-  Stop(master.get());
+  master->reset();
   master = StartMaster();
   ASSERT_SOME(master);
 
@@ -601,15 +571,13 @@ TEST_F(AuthenticationTest, MasterFailover)
     .WillOnce(FutureSatisfy(&registered));
 
   // Appoint a new master and inform the scheduler about it.
-  detector->appoint(master.get());
+  detector->appoint(master.get()->pid);
 
   // Scheduler should successfully register with the new master.
   AWAIT_READY(registered);
 
   driver.stop();
   driver.join();
-
-  Shutdown();
 }
 
 
@@ -618,23 +586,23 @@ TEST_F(AuthenticationTest, MasterFailover)
 // authenticates.
 TEST_F(AuthenticationTest, MasterFailoverDuringSlaveAuthentication)
 {
-  Try<PID<Master>> master = StartMaster();
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   // Drop the authenticate message from the slave.
   Future<AuthenticateMessage> authenticateMessage =
     DROP_PROTOBUF(AuthenticateMessage(), _, _);
 
-  StandaloneMasterDetector detector(master.get());
+  StandaloneMasterDetector detector(master.get()->pid);
   slave::Flags slaveFlags = CreateSlaveFlags();
-  Try<PID<Slave>> slave = StartSlave(&detector, slaveFlags);
+  Try<Owned<cluster::Slave>> slave = StartSlave(&detector, slaveFlags);
   ASSERT_SOME(slave);
 
   AWAIT_READY(authenticateMessage);
 
   // While the authentication is in progress simulate a failed over
   // master by restarting the master.
-  Stop(master.get());
+  master->reset();
   master = StartMaster();
   ASSERT_SOME(master);
 
@@ -642,13 +610,11 @@ TEST_F(AuthenticationTest, MasterFailoverDuringSlaveAuthentication)
     FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
 
   // Appoint a new master and inform the slave about it.
-  detector.appoint(master.get());
+  detector.appoint(master.get()->pid);
 
   // Slave should be able to get registered.
   AWAIT_READY(slaveRegisteredMessage);
   ASSERT_NE("", slaveRegisteredMessage.get().slave_id().value());
-
-  Shutdown();
 }
 
 
@@ -657,12 +623,12 @@ TEST_F(AuthenticationTest, MasterFailoverDuringSlaveAuthentication)
 // detected due to leader election), it is handled properly.
 TEST_F(AuthenticationTest, LeaderElection)
 {
-  Try<PID<Master>> master = StartMaster();
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   MockScheduler sched;
   Owned<StandaloneMasterDetector> detector(
-      new StandaloneMasterDetector(master.get()));
+      new StandaloneMasterDetector(master.get()->pid));
   TestingMesosSchedulerDriver driver(&sched, detector.get());
 
   // Drop the AuthenticationStepMessage from authenticator.
@@ -679,15 +645,13 @@ TEST_F(AuthenticationTest, LeaderElection)
     .WillOnce(FutureSatisfy(&registered));
 
   // Appoint a new master and inform the scheduler about it.
-  detector->appoint(master.get());
+  detector->appoint(master.get()->pid);
 
   // Scheduler should successfully register with the new master.
   AWAIT_READY(registered);
 
   driver.stop();
   driver.join();
-
-  Shutdown();
 }
 
 
@@ -696,16 +660,16 @@ TEST_F(AuthenticationTest, LeaderElection)
 // detected due to leader election), it is handled properly.
 TEST_F(AuthenticationTest, LeaderElectionDuringSlaveAuthentication)
 {
-  Try<PID<Master>> master = StartMaster();
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   // Drop the AuthenticationStepMessage from authenticator.
   Future<AuthenticationStepMessage> authenticationStepMessage =
     DROP_PROTOBUF(AuthenticationStepMessage(), _, _);
 
-  StandaloneMasterDetector detector(master.get());
+  StandaloneMasterDetector detector(master.get()->pid);
   slave::Flags slaveFlags = CreateSlaveFlags();
-  Try<PID<Slave>> slave = StartSlave(&detector, slaveFlags);
+  Try<Owned<cluster::Slave>> slave = StartSlave(&detector, slaveFlags);
   ASSERT_SOME(slave);
 
   // Drop the intermediate SASL message so that authentication fails.
@@ -715,13 +679,11 @@ TEST_F(AuthenticationTest, LeaderElectionDuringSlaveAuthentication)
     FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
 
   // Appoint a new master and inform the slave about it.
-  detector.appoint(master.get());
+  detector.appoint(master.get()->pid);
 
   // Slave should be able to get registered.
   AWAIT_READY(slaveRegisteredMessage);
   ASSERT_NE("", slaveRegisteredMessage.get().slave_id().value());
-
-  Shutdown();
 }
 
 
@@ -730,13 +692,13 @@ TEST_F(AuthenticationTest, LeaderElectionDuringSlaveAuthentication)
 // with the master when it comes back up.
 TEST_F(AuthenticationTest, SchedulerFailover)
 {
-  Try<PID<Master>> master = StartMaster();
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   // Launch the first (i.e., failing) scheduler.
   MockScheduler sched1;
   Owned<StandaloneMasterDetector> detector(
-      new StandaloneMasterDetector(master.get()));
+      new StandaloneMasterDetector(master.get()->pid));
   TestingMesosSchedulerDriver driver1(&sched1, detector.get());
 
   Future<FrameworkID> frameworkId;
@@ -755,7 +717,7 @@ TEST_F(AuthenticationTest, SchedulerFailover)
   EXPECT_CALL(sched1, disconnected(&driver1));
 
   // Appoint a new master and inform the scheduler about it.
-  detector->appoint(master.get());
+  detector->appoint(master.get()->pid);
 
   AWAIT_READY(authenticationStepMessage);
 
@@ -769,7 +731,7 @@ TEST_F(AuthenticationTest, SchedulerFailover)
   framework2.mutable_id()->MergeFrom(frameworkId.get());
 
   MesosSchedulerDriver driver2(
-      &sched2, framework2, master.get(), DEFAULT_CREDENTIAL);
+      &sched2, framework2, master.get()->pid, DEFAULT_CREDENTIAL);
 
   Future<Nothing> sched2Registered;
   EXPECT_CALL(sched2, registered(&driver2, frameworkId.get(), _))
@@ -789,8 +751,6 @@ TEST_F(AuthenticationTest, SchedulerFailover)
 
   driver1.stop();
   driver1.join();
-
-  Shutdown();
 }
 
 
@@ -799,13 +759,13 @@ TEST_F(AuthenticationTest, SchedulerFailover)
 // authentication.
 TEST_F(AuthenticationTest, RejectedSchedulerFailover)
 {
-  Try<PID<Master>> master = StartMaster();
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   // Launch the first scheduler.
   MockScheduler sched1;
   Owned<StandaloneMasterDetector> detector(
-      new StandaloneMasterDetector(master.get()));
+      new StandaloneMasterDetector(master.get()->pid));
   TestingMesosSchedulerDriver driver1(&sched1, detector.get());
 
   Future<FrameworkID> frameworkId;
@@ -824,7 +784,7 @@ TEST_F(AuthenticationTest, RejectedSchedulerFailover)
   EXPECT_CALL(sched1, disconnected(&driver1));
 
   // Appoint a new master and inform the scheduler about it.
-  detector->appoint(master.get());
+  detector->appoint(master.get()->pid);
 
   AWAIT_READY(authenticationStepMessage);
 
@@ -839,7 +799,7 @@ TEST_F(AuthenticationTest, RejectedSchedulerFailover)
   framework2.set_principal("mismatched-principal");
 
   MesosSchedulerDriver driver2(
-      &sched2, framework2, master.get(), DEFAULT_CREDENTIAL);
+      &sched2, framework2, master.get()->pid, DEFAULT_CREDENTIAL);
 
   Future<Nothing> sched1Error;
   EXPECT_CALL(sched1, error(&driver1, _))
@@ -859,8 +819,6 @@ TEST_F(AuthenticationTest, RejectedSchedulerFailover)
 
   driver1.stop();
   driver1.join();
-
-  Shutdown();
 }
 
 } // namespace tests {

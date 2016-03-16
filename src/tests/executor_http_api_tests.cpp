@@ -26,6 +26,7 @@
 #include <process/gtest.hpp>
 #include <process/http.hpp>
 #include <process/message.hpp>
+#include <process/owned.hpp>
 #include <process/pid.hpp>
 
 #include "common/http.hpp"
@@ -48,6 +49,7 @@ using mesos::v1::executor::Event;
 using process::Clock;
 using process::Future;
 using process::Message;
+using process::Owned;
 using process::PID;
 
 using process::http::BadRequest;
@@ -95,12 +97,13 @@ INSTANTIATE_TEST_CASE_P(
 // This test expects a BadRequest when 'Content-Type' is omitted.
 TEST_F(ExecutorHttpApiTest, NoContentType)
 {
-  Try<PID<Master>> master = StartMaster();
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   Future<Nothing> __recover = FUTURE_DISPATCH(_, &Slave::__recover);
 
-  Try<PID<Slave>> slave = StartSlave();
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
   ASSERT_SOME(slave);
 
   AWAIT_READY(__recover);
@@ -117,15 +120,13 @@ TEST_F(ExecutorHttpApiTest, NoContentType)
   call.mutable_message()->set_data("hello world");
 
   Future<Response> response = process::http::post(
-      slave.get(),
+      slave.get()->pid,
       "api/v1/executor",
       None(),
       serialize(ContentType::JSON, call),
       None());
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response);
-
-  Shutdown();
 }
 
 
@@ -133,12 +134,13 @@ TEST_F(ExecutorHttpApiTest, NoContentType)
 // into a valid protobuf resulting in a BadRequest.
 TEST_F(ExecutorHttpApiTest, ValidJsonButInvalidProtobuf)
 {
-  Try<PID<Master>> master = StartMaster();
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   Future<Nothing> __recover = FUTURE_DISPATCH(_, &Slave::__recover);
 
-  Try<PID<Slave>> slave = StartSlave();
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
   ASSERT_SOME(slave);
 
   AWAIT_READY(__recover);
@@ -154,15 +156,13 @@ TEST_F(ExecutorHttpApiTest, ValidJsonButInvalidProtobuf)
   headers["Accept"] = APPLICATION_JSON;
 
   Future<Response> response = process::http::post(
-      slave.get(),
+      slave.get()->pid,
       "api/v1/executor",
       headers,
       stringify(object),
       APPLICATION_JSON);
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response);
-
-  Shutdown();
 }
 
 
@@ -170,12 +170,13 @@ TEST_F(ExecutorHttpApiTest, ValidJsonButInvalidProtobuf)
 // into a valid protobuf resulting in a BadRequest.
 TEST_P(ExecutorHttpApiTest, MalformedContent)
 {
-  Try<PID<Master>> master = StartMaster();
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   Future<Nothing> __recover = FUTURE_DISPATCH(_, &Slave::__recover);
 
-  Try<PID<Slave>> slave = StartSlave();
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
   ASSERT_SOME(slave);
 
   AWAIT_READY(__recover);
@@ -191,15 +192,13 @@ TEST_P(ExecutorHttpApiTest, MalformedContent)
   headers["Accept"] = stringify(contentType);
 
   Future<Response> response = process::http::post(
-      slave.get(),
+      slave.get()->pid,
       "api/v1/executor",
       headers,
       body,
       stringify(contentType));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response);
-
-  Shutdown();
 }
 
 
@@ -207,12 +206,13 @@ TEST_P(ExecutorHttpApiTest, MalformedContent)
 // should result in a 415 (UnsupportedMediaType) response.
 TEST_P(ExecutorHttpApiTest, UnsupportedContentMediaType)
 {
-  Try<PID<Master>> master = StartMaster();
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   Future<Nothing> __recover = FUTURE_DISPATCH(_, &Slave::__recover);
 
-  Try<PID<Slave>> slave = StartSlave();
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
   ASSERT_SOME(slave);
 
   AWAIT_READY(__recover);
@@ -235,15 +235,13 @@ TEST_P(ExecutorHttpApiTest, UnsupportedContentMediaType)
   const string unknownMediaType = "application/unknown-media-type";
 
   Future<Response> response = process::http::post(
-      slave.get(),
+      slave.get()->pid,
       "api/v1/executor",
       headers,
       serialize(contentType, call),
       unknownMediaType);
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(UnsupportedMediaType().status, response);
-
-  Shutdown();
 }
 
 
@@ -251,12 +249,13 @@ TEST_P(ExecutorHttpApiTest, UnsupportedContentMediaType)
 // should return a BadRequest.
 TEST_P(ExecutorHttpApiTest, MessageFromUnknownFramework)
 {
-  Try<PID<Master>> master = StartMaster();
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   Future<Nothing> __recover = FUTURE_DISPATCH(_, &Slave::__recover);
 
-  Try<PID<Slave>> slave = StartSlave();
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
   ASSERT_SOME(slave);
 
   AWAIT_READY(__recover);
@@ -277,15 +276,13 @@ TEST_P(ExecutorHttpApiTest, MessageFromUnknownFramework)
   call.mutable_message()->set_data("hello world");
 
   Future<Response> response = process::http::post(
-      slave.get(),
+      slave.get()->pid,
       "api/v1/executor",
       headers,
       serialize(contentType, call),
       stringify(contentType));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response);
-
-  Shutdown();
 }
 
 
@@ -293,12 +290,13 @@ TEST_P(ExecutorHttpApiTest, MessageFromUnknownFramework)
 // of a POST. The call should return a MethodNotAllowed response.
 TEST_F(ExecutorHttpApiTest, GetRequest)
 {
-  Try<PID<Master>> master = StartMaster();
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   Future<Nothing> __recover = FUTURE_DISPATCH(_, &Slave::__recover);
 
-  Try<PID<Slave>> slave = StartSlave();
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
   ASSERT_SOME(slave);
 
   AWAIT_READY(__recover);
@@ -308,13 +306,11 @@ TEST_F(ExecutorHttpApiTest, GetRequest)
   Clock::settle();
 
   Future<Response> response = process::http::get(
-      slave.get(),
+      slave.get()->pid,
       "api/v1/executor");
 
   AWAIT_READY(response);
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(MethodNotAllowed({"POST"}).status, response);
-
-  Shutdown();
 }
 
 
@@ -323,18 +319,20 @@ TEST_F(ExecutorHttpApiTest, GetRequest)
 // default "application/json" media type.
 TEST_P(ExecutorHttpApiTest, DefaultAccept)
 {
-  Try<PID<Master>> master = StartMaster();
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   ExecutorID executorId = DEFAULT_EXECUTOR_ID;
   MockExecutor exec(executorId);
+  TestContainerizer containerizer(&exec);
 
-  Try<PID<Slave>> slave = StartSlave(&exec);
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), &containerizer);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
-      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
   Future<FrameworkID> frameworkId;
   EXPECT_CALL(sched, registered(&driver, _, _))
@@ -384,7 +382,7 @@ TEST_P(ExecutorHttpApiTest, DefaultAccept)
   headers["Accept"] = "*/*";
 
   Future<Response> response = process::http::streaming::post(
-      slave.get(),
+      slave.get()->pid,
       "api/v1/executor",
       headers,
       serialize(contentType, call),
@@ -395,8 +393,6 @@ TEST_P(ExecutorHttpApiTest, DefaultAccept)
 
   driver.stop();
   driver.join();
-
-  Shutdown();
 }
 
 
@@ -405,18 +401,20 @@ TEST_P(ExecutorHttpApiTest, DefaultAccept)
 // this case.
 TEST_P(ExecutorHttpApiTest, NoAcceptHeader)
 {
-  Try<PID<Master>> master = StartMaster();
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   ExecutorID executorId = DEFAULT_EXECUTOR_ID;
   MockExecutor exec(executorId);
+  TestContainerizer containerizer(&exec);
 
-  Try<PID<Slave>> slave = StartSlave(&exec);
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), &containerizer);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
-      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
   Future<FrameworkID> frameworkId;
   EXPECT_CALL(sched, registered(&driver, _, _))
@@ -467,7 +465,7 @@ TEST_P(ExecutorHttpApiTest, NoAcceptHeader)
   process::http::Headers headers;
 
   Future<Response> response = process::http::streaming::post(
-      slave.get(),
+      slave.get()->pid,
       "api/v1/executor",
       headers,
       serialize(contentType, call),
@@ -478,8 +476,6 @@ TEST_P(ExecutorHttpApiTest, NoAcceptHeader)
 
   driver.stop();
   driver.join();
-
-  Shutdown();
 }
 
 
@@ -487,12 +483,13 @@ TEST_P(ExecutorHttpApiTest, NoAcceptHeader)
 // header. The response should be NotAcceptable in this case.
 TEST_P(ExecutorHttpApiTest, NotAcceptable)
 {
-  Try<PID<Master>> master = StartMaster();
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   Future<Nothing> __recover = FUTURE_DISPATCH(_, &Slave::__recover);
 
-  Try<PID<Slave>> slave = StartSlave();
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
   ASSERT_SOME(slave);
 
   AWAIT_READY(__recover);
@@ -517,26 +514,25 @@ TEST_P(ExecutorHttpApiTest, NotAcceptable)
   call.mutable_subscribe();
 
   Future<Response> response = process::http::streaming::post(
-      slave.get(),
+      slave.get()->pid,
       "api/v1/executor",
       headers,
       serialize(contentType, call),
       stringify(contentType));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(NotAcceptable().status, response);
-
-  Shutdown();
 }
 
 
 TEST_P(ExecutorHttpApiTest, ValidProtobufInvalidCall)
 {
-  Try<PID<Master>> master = StartMaster();
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   Future<Nothing> __recover = FUTURE_DISPATCH(_, &Slave::__recover);
 
-  Try<PID<Slave>> slave = StartSlave();
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
   ASSERT_SOME(slave);
 
   AWAIT_READY(__recover);
@@ -557,7 +553,7 @@ TEST_P(ExecutorHttpApiTest, ValidProtobufInvalidCall)
     headers["Accept"] = APPLICATION_JSON;
 
     Future<Response> response = process::http::post(
-        slave.get(),
+        slave.get()->pid,
         "api/v1/executor",
         headers,
         serialize(ContentType::PROTOBUF, call),
@@ -576,7 +572,7 @@ TEST_P(ExecutorHttpApiTest, ValidProtobufInvalidCall)
     headers["Accept"] = APPLICATION_JSON;
 
     Future<Response> response = process::http::post(
-        slave.get(),
+        slave.get()->pid,
         "api/v1/executor",
         headers,
         serialize(ContentType::PROTOBUF, call),
@@ -595,7 +591,7 @@ TEST_P(ExecutorHttpApiTest, ValidProtobufInvalidCall)
     headers["Accept"] = APPLICATION_JSON;
 
     Future<Response> response = process::http::post(
-        slave.get(),
+        slave.get()->pid,
         "api/v1/executor",
         headers,
         serialize(ContentType::PROTOBUF, call),
@@ -603,19 +599,18 @@ TEST_P(ExecutorHttpApiTest, ValidProtobufInvalidCall)
 
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response);
   }
-
-  Shutdown();
 }
 
 
 TEST_P(ExecutorHttpApiTest, StatusUpdateCallFailedValidation)
 {
-  Try<PID<Master>> master = StartMaster();
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   Future<Nothing> __recover = FUTURE_DISPATCH(_, &Slave::__recover);
 
-  Try<PID<Slave>> slave = StartSlave();
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
   ASSERT_SOME(slave);
 
   AWAIT_READY(__recover);
@@ -643,7 +638,7 @@ TEST_P(ExecutorHttpApiTest, StatusUpdateCallFailedValidation)
     headers["Accept"] = APPLICATION_JSON;
 
     Future<Response> response = process::http::post(
-        slave.get(),
+        slave.get()->pid,
         "api/v1/executor",
         headers,
         serialize(ContentType::PROTOBUF, call),
@@ -670,7 +665,7 @@ TEST_P(ExecutorHttpApiTest, StatusUpdateCallFailedValidation)
     headers["Accept"] = APPLICATION_JSON;
 
     Future<Response> responseStatusUpdate = process::http::post(
-        slave.get(),
+        slave.get()->pid,
         "api/v1/executor",
         headers,
         serialize(ContentType::PROTOBUF, call),
@@ -698,7 +693,7 @@ TEST_P(ExecutorHttpApiTest, StatusUpdateCallFailedValidation)
     headers["Accept"] = APPLICATION_JSON;
 
     Future<Response> responseStatusUpdate = process::http::post(
-        slave.get(),
+        slave.get()->pid,
         "api/v1/executor",
         headers,
         serialize(ContentType::PROTOBUF, call),
@@ -706,8 +701,6 @@ TEST_P(ExecutorHttpApiTest, StatusUpdateCallFailedValidation)
 
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, responseStatusUpdate);
   }
-
-  Shutdown();
 }
 
 
@@ -715,20 +708,20 @@ TEST_P(ExecutorHttpApiTest, StatusUpdateCallFailedValidation)
 // event in response to a Subscribe call request.
 TEST_P(ExecutorHttpApiTest, Subscribe)
 {
-  Try<PID<Master>> master = StartMaster();
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   ExecutorID executorId = DEFAULT_EXECUTOR_ID;
   MockExecutor exec(executorId);
-
   TestContainerizer containerizer(&exec);
 
-  Try<PID<Slave>> slave = StartSlave(&containerizer);
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), &containerizer);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
-      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
   Future<FrameworkID> frameworkId;
   EXPECT_CALL(sched, registered(&driver, _, _))
@@ -771,7 +764,7 @@ TEST_P(ExecutorHttpApiTest, Subscribe)
   headers["Accept"] = contentTypeString;
 
   Future<Response> response = process::http::streaming::post(
-      slave.get(),
+      slave.get()->pid,
       "api/v1/executor",
       headers,
       serialize(contentType, call),
@@ -806,8 +799,6 @@ TEST_P(ExecutorHttpApiTest, Subscribe)
 
   driver.stop();
   driver.join();
-
-  Shutdown();
 }
 
 } // namespace tests {

@@ -19,6 +19,7 @@
 #include <gmock/gmock.h>
 
 #include <process/gmock.hpp>
+#include <process/owned.hpp>
 #include <process/pid.hpp>
 
 #include "master/flags.hpp"
@@ -50,19 +51,18 @@ class CredentialsTest : public MesosTest {};
 // granted registration by the master.
 TEST_F(CredentialsTest, AuthenticatedSlave)
 {
-  Try<PID<Master>> master = StartMaster();
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
     FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
 
-  Try<PID<Slave>> slave = StartSlave();
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
   ASSERT_SOME(slave);
 
   AWAIT_READY(slaveRegisteredMessage);
   ASSERT_NE("", slaveRegisteredMessage.get().slave_id().value());
-
-  Shutdown();
 }
 
 
@@ -93,7 +93,7 @@ TEST_F(CredentialsTest, AuthenticatedSlaveText)
   master::Flags masterFlags = CreateMasterFlags();
   masterFlags.load(values, true);
 
-  Try<PID<Master>> master = StartMaster(masterFlags);
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
   ASSERT_SOME(master);
 
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
@@ -102,13 +102,12 @@ TEST_F(CredentialsTest, AuthenticatedSlaveText)
   slave::Flags slaveFlags = CreateSlaveFlags();
   slaveFlags.load(values, true);
 
-  Try<PID<Slave>> slave = StartSlave(slaveFlags);
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
   ASSERT_SOME(slave);
 
   AWAIT_READY(slaveRegisteredMessage);
   ASSERT_NE("", slaveRegisteredMessage.get().slave_id().value());
-
-  Shutdown();
 }
 
 
@@ -147,7 +146,7 @@ TEST_F(CredentialsTest, AuthenticatedSlaveJSON)
   master::Flags masterFlags = CreateMasterFlags();
   masterFlags.load(values, true);
 
-  Try<PID<Master>> master = StartMaster(masterFlags);
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
   ASSERT_SOME(master);
 
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
@@ -156,13 +155,12 @@ TEST_F(CredentialsTest, AuthenticatedSlaveJSON)
   slave::Flags slaveFlags = CreateSlaveFlags();
   slaveFlags.load(values, true);
 
-  Try<PID<Slave>> slave = StartSlave(slaveFlags);
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
   ASSERT_SOME(slave);
 
   AWAIT_READY(slaveRegisteredMessage);
   ASSERT_NE("", slaveRegisteredMessage.get().slave_id().value());
-
-  Shutdown();
 }
 
 } // namespace tests {

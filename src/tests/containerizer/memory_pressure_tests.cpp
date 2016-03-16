@@ -21,6 +21,7 @@
 
 #include <process/clock.hpp>
 #include <process/gtest.hpp>
+#include <process/owned.hpp>
 
 #include <stout/gtest.hpp>
 #include <stout/os.hpp>
@@ -71,7 +72,7 @@ public:
 
 TEST_F(MemoryPressureMesosTest, CGROUPS_ROOT_Statistics)
 {
-  Try<PID<Master>> master = StartMaster();
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   slave::Flags flags = CreateSlaveFlags();
@@ -82,18 +83,22 @@ TEST_F(MemoryPressureMesosTest, CGROUPS_ROOT_Statistics)
 
   Fetcher fetcher;
 
-  Try<MesosContainerizer*> containerizer =
+  Try<MesosContainerizer*> _containerizer =
     MesosContainerizer::create(flags, true, &fetcher);
 
-  ASSERT_SOME(containerizer);
+  ASSERT_SOME(_containerizer);
+  Owned<MesosContainerizer> containerizer(_containerizer.get());
 
-  Try<PID<Slave>> slave = StartSlave(containerizer.get(), flags);
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave =
+    StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
 
   MesosSchedulerDriver driver(
-      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(_, _, _));
 
@@ -129,7 +134,7 @@ TEST_F(MemoryPressureMesosTest, CGROUPS_ROOT_Statistics)
   EXPECT_EQ(task.task_id(), running.get().task_id());
   EXPECT_EQ(TASK_RUNNING, running.get().state());
 
-  Future<hashset<ContainerID>> containers = containerizer.get()->containers();
+  Future<hashset<ContainerID>> containers = containerizer->containers();
   AWAIT_READY(containers);
   ASSERT_EQ(1u, containers.get().size());
 
@@ -138,7 +143,7 @@ TEST_F(MemoryPressureMesosTest, CGROUPS_ROOT_Statistics)
   // Wait a while for some memory pressure events to occur.
   Duration waited = Duration::zero();
   do {
-    Future<ResourceStatistics> usage = containerizer.get()->usage(containerId);
+    Future<ResourceStatistics> usage = containerizer->usage(containerId);
     AWAIT_READY(usage);
 
     if (usage.get().mem_low_pressure_counter() > 0) {
@@ -167,7 +172,7 @@ TEST_F(MemoryPressureMesosTest, CGROUPS_ROOT_Statistics)
   EXPECT_EQ(TASK_KILLED, killed->state());
 
   // Now check the correctness of the memory pressure counters.
-  Future<ResourceStatistics> usage = containerizer.get()->usage(containerId);
+  Future<ResourceStatistics> usage = containerizer->usage(containerId);
   AWAIT_READY(usage);
 
   EXPECT_GE(usage.get().mem_low_pressure_counter(),
@@ -179,16 +184,13 @@ TEST_F(MemoryPressureMesosTest, CGROUPS_ROOT_Statistics)
 
   driver.stop();
   driver.join();
-
-  Shutdown();
-  delete containerizer.get();
 }
 
 
 // Test that memory pressure listening is restarted after recovery.
 TEST_F(MemoryPressureMesosTest, CGROUPS_ROOT_SlaveRecovery)
 {
-  Try<PID<Master>> master = StartMaster();
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   slave::Flags flags = CreateSlaveFlags();
@@ -199,12 +201,16 @@ TEST_F(MemoryPressureMesosTest, CGROUPS_ROOT_SlaveRecovery)
 
   Fetcher fetcher;
 
-  Try<MesosContainerizer*> containerizer1 =
+  Try<MesosContainerizer*> _containerizer =
     MesosContainerizer::create(flags, true, &fetcher);
 
-  ASSERT_SOME(containerizer1);
+  ASSERT_SOME(_containerizer);
+  Owned<MesosContainerizer> containerizer(_containerizer.get());
 
-  Try<PID<Slave>> slave = StartSlave(containerizer1.get(), flags);
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave =
+    StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -214,7 +220,7 @@ TEST_F(MemoryPressureMesosTest, CGROUPS_ROOT_SlaveRecovery)
   frameworkInfo.set_checkpoint(true);
 
   MesosSchedulerDriver driver(
-      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(_, _, _));
 
@@ -255,8 +261,7 @@ TEST_F(MemoryPressureMesosTest, CGROUPS_ROOT_SlaveRecovery)
   AWAIT_READY(_statusUpdateAcknowledgement);
 
   // We restart the slave to let it recover.
-  Stop(slave.get());
-  delete containerizer1.get();
+  slave.get()->terminate();
 
   // Set up so we can wait until the new slave updates the container's
   // resources (this occurs after the executor has re-registered).
@@ -264,14 +269,14 @@ TEST_F(MemoryPressureMesosTest, CGROUPS_ROOT_SlaveRecovery)
     FUTURE_DISPATCH(_, &MesosContainerizerProcess::update);
 
   // Use the same flags.
-  Try<MesosContainerizer*> containerizer2 =
-    MesosContainerizer::create(flags, true, &fetcher);
-  ASSERT_SOME(containerizer2);
+  _containerizer = MesosContainerizer::create(flags, true, &fetcher);
+  ASSERT_SOME(_containerizer);
+  containerizer.reset(_containerizer.get());
 
   Future<SlaveReregisteredMessage> reregistered =
-      FUTURE_PROTOBUF(SlaveReregisteredMessage(), master.get(), _);
+      FUTURE_PROTOBUF(SlaveReregisteredMessage(), master.get()->pid, _);
 
-  slave = StartSlave(containerizer2.get(), flags);
+  slave = StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
 
   AWAIT_READY(reregistered);
@@ -279,7 +284,7 @@ TEST_F(MemoryPressureMesosTest, CGROUPS_ROOT_SlaveRecovery)
   // Wait until the containerizer is updated.
   AWAIT_READY(update);
 
-  Future<hashset<ContainerID>> containers = containerizer2.get()->containers();
+  Future<hashset<ContainerID>> containers = containerizer->containers();
   AWAIT_READY(containers);
   ASSERT_EQ(1u, containers.get().size());
 
@@ -288,7 +293,7 @@ TEST_F(MemoryPressureMesosTest, CGROUPS_ROOT_SlaveRecovery)
   // Wait a while for some memory pressure events to occur.
   Duration waited = Duration::zero();
   do {
-    Future<ResourceStatistics> usage = containerizer2.get()->usage(containerId);
+    Future<ResourceStatistics> usage = containerizer->usage(containerId);
     AWAIT_READY(usage);
 
     if (usage.get().mem_low_pressure_counter() > 0) {
@@ -321,7 +326,7 @@ TEST_F(MemoryPressureMesosTest, CGROUPS_ROOT_SlaveRecovery)
   EXPECT_EQ(TASK_KILLED, killed->state());
 
   // Now check the correctness of the memory pressure counters.
-  Future<ResourceStatistics> usage = containerizer2.get()->usage(containerId);
+  Future<ResourceStatistics> usage = containerizer->usage(containerId);
   AWAIT_READY(usage);
 
   EXPECT_GE(usage.get().mem_low_pressure_counter(),
@@ -333,9 +338,6 @@ TEST_F(MemoryPressureMesosTest, CGROUPS_ROOT_SlaveRecovery)
 
   driver.stop();
   driver.join();
-
-  Shutdown();
-  delete containerizer2.get();
 }
 
 } // namespace tests {

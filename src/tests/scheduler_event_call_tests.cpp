@@ -28,6 +28,7 @@
 #include <process/gmock.hpp>
 #include <process/gtest.hpp>
 #include <process/message.hpp>
+#include <process/owned.hpp>
 #include <process/pid.hpp>
 
 #include <stout/nothing.hpp>
@@ -46,6 +47,7 @@ using mesos::scheduler::Event;
 using process::Clock;
 using process::Future;
 using process::Message;
+using process::Owned;
 using process::PID;
 using process::UPID;
 
@@ -69,7 +71,7 @@ class SchedulerDriverEventTest : public MesosTest {};
 // Ensures that the driver can handle the SUBSCRIBED event.
 TEST_F(SchedulerDriverEventTest, Subscribed)
 {
-  Try<PID<Master>> master = StartMaster();
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
@@ -78,7 +80,7 @@ TEST_F(SchedulerDriverEventTest, Subscribed)
   // Make sure the initial registration calls 'registered'.
   MockScheduler sched;
   MesosSchedulerDriver driver(
-      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
 
   // Intercept the registration message, send a SUBSCRIBED instead.
   Future<Message> frameworkRegisteredMessage =
@@ -107,7 +109,7 @@ TEST_F(SchedulerDriverEventTest, Subscribed)
   EXPECT_CALL(sched, registered(&driver, frameworkId, _))
     .WillOnce(FutureSatisfy(&registered));
 
-  process::post(master.get(), frameworkPid, event);
+  process::post(master.get()->pid, frameworkPid, event);
 
   AWAIT_READY(registered);
 
@@ -120,7 +122,7 @@ TEST_F(SchedulerDriverEventTest, Subscribed)
 // after a disconnection with the master.
 TEST_F(SchedulerDriverEventTest, SubscribedDisconnection)
 {
-  Try<PID<Master>> master = StartMaster();
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
@@ -128,7 +130,7 @@ TEST_F(SchedulerDriverEventTest, SubscribedDisconnection)
 
   // Make sure the initial registration calls 'registered'.
   MockScheduler sched;
-  StandaloneMasterDetector detector(master.get());
+  StandaloneMasterDetector detector(master.get()->pid);
   TestingMesosSchedulerDriver driver(&sched, &detector, frameworkInfo);
 
   // Intercept the registration message, send a SUBSCRIBED instead.
@@ -158,7 +160,7 @@ TEST_F(SchedulerDriverEventTest, SubscribedDisconnection)
   EXPECT_CALL(sched, registered(&driver, frameworkId, _))
     .WillOnce(FutureSatisfy(&registered));
 
-  process::post(master.get(), frameworkPid, event);
+  process::post(master.get()->pid, frameworkPid, event);
 
   AWAIT_READY(registered);
 
@@ -168,7 +170,7 @@ TEST_F(SchedulerDriverEventTest, SubscribedDisconnection)
   Future<Message> frameworkReregisteredMessage =
     DROP_MESSAGE(Eq(FrameworkReregisteredMessage().GetTypeName()), _, _);
 
-  detector.appoint(master.get());
+  detector.appoint(master.get()->pid);
 
   AWAIT_READY(frameworkReregisteredMessage);
 
@@ -176,7 +178,7 @@ TEST_F(SchedulerDriverEventTest, SubscribedDisconnection)
   EXPECT_CALL(sched, reregistered(&driver, _))
     .WillOnce(FutureSatisfy(&reregistered));
 
-  process::post(master.get(), frameworkPid, event);
+  process::post(master.get()->pid, frameworkPid, event);
 
   AWAIT_READY(reregistered);
 
@@ -189,7 +191,7 @@ TEST_F(SchedulerDriverEventTest, SubscribedDisconnection)
 // after a master failover.
 TEST_F(SchedulerDriverEventTest, SubscribedMasterFailover)
 {
-  Try<PID<Master>> master = StartMaster();
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
@@ -197,7 +199,7 @@ TEST_F(SchedulerDriverEventTest, SubscribedMasterFailover)
 
   // Make sure the initial registration calls 'registered'.
   MockScheduler sched;
-  StandaloneMasterDetector detector(master.get());
+  StandaloneMasterDetector detector(master.get()->pid);
   TestingMesosSchedulerDriver driver(&sched, &detector, frameworkInfo);
 
   // Intercept the registration message, send a SUBSCRIBED instead.
@@ -227,14 +229,14 @@ TEST_F(SchedulerDriverEventTest, SubscribedMasterFailover)
   EXPECT_CALL(sched, registered(&driver, frameworkId, _))
     .WillOnce(FutureSatisfy(&registered));
 
-  process::post(master.get(), frameworkPid, event);
+  process::post(master.get()->pid, frameworkPid, event);
 
   AWAIT_READY(registered);
 
   // Fail over the master and expect a 'reregistered' call.
   // Note that the master sends a registered message for
   // this case (see MESOS-786).
-  Stop(master.get());
+  master->reset();
   master = StartMaster();
   ASSERT_SOME(master);
 
@@ -243,7 +245,7 @@ TEST_F(SchedulerDriverEventTest, SubscribedMasterFailover)
   frameworkRegisteredMessage =
     DROP_MESSAGE(Eq(FrameworkRegisteredMessage().GetTypeName()), _, _);
 
-  detector.appoint(master.get());
+  detector.appoint(master.get()->pid);
 
   AWAIT_READY(frameworkRegisteredMessage);
 
@@ -251,7 +253,7 @@ TEST_F(SchedulerDriverEventTest, SubscribedMasterFailover)
   EXPECT_CALL(sched, reregistered(&driver, _))
     .WillOnce(FutureSatisfy(&reregistered));
 
-  process::post(master.get(), frameworkPid, event);
+  process::post(master.get()->pid, frameworkPid, event);
 
   AWAIT_READY(reregistered);
 
@@ -264,7 +266,7 @@ TEST_F(SchedulerDriverEventTest, SubscribedMasterFailover)
 // after a scheduler failover.
 TEST_F(SchedulerDriverEventTest, SubscribedSchedulerFailover)
 {
-  Try<PID<Master>> master = StartMaster();
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
@@ -273,7 +275,7 @@ TEST_F(SchedulerDriverEventTest, SubscribedSchedulerFailover)
   // Make sure the initial registration calls 'registered'.
   MockScheduler sched;
   MesosSchedulerDriver driver(
-      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
 
   // Intercept the registration message, send a SUBSCRIBED instead.
   Future<Message> frameworkRegisteredMessage =
@@ -302,7 +304,7 @@ TEST_F(SchedulerDriverEventTest, SubscribedSchedulerFailover)
   EXPECT_CALL(sched, registered(&driver, frameworkId, _))
     .WillOnce(FutureSatisfy(&registered));
 
-  process::post(master.get(), frameworkPid, event);
+  process::post(master.get()->pid, frameworkPid, event);
 
   AWAIT_READY(registered);
 
@@ -311,7 +313,7 @@ TEST_F(SchedulerDriverEventTest, SubscribedSchedulerFailover)
 
   MockScheduler sched2;
   MesosSchedulerDriver driver2(
-      &sched2, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
+      &sched2, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
 
   frameworkRegisteredMessage =
     DROP_MESSAGE(Eq(FrameworkRegisteredMessage().GetTypeName()), _, _);
@@ -325,7 +327,7 @@ TEST_F(SchedulerDriverEventTest, SubscribedSchedulerFailover)
   EXPECT_CALL(sched2, registered(&driver2, frameworkId, _))
     .WillOnce(FutureSatisfy(&registered2));
 
-  process::post(master.get(), frameworkPid2, event);
+  process::post(master.get()->pid, frameworkPid2, event);
 
   AWAIT_READY(registered2);
 
@@ -339,12 +341,12 @@ TEST_F(SchedulerDriverEventTest, SubscribedSchedulerFailover)
 // master when sending framework messages.
 TEST_F(SchedulerDriverEventTest, Offers)
 {
-  Try<PID<Master>> master = StartMaster();
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   MockScheduler sched;
   MesosSchedulerDriver schedDriver(
-      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(&schedDriver, _, _));
 
@@ -361,7 +363,11 @@ TEST_F(SchedulerDriverEventTest, Offers)
     DROP_PROTOBUF(ResourceOffersMessage(), _, _);
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
-  Try<PID<Slave>> slave = StartSlave(&exec);
+  TestContainerizer containerizer(&exec);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), &containerizer);
   ASSERT_SOME(slave);
 
   AWAIT_READY(resourceOffersMessage);
@@ -383,7 +389,7 @@ TEST_F(SchedulerDriverEventTest, Offers)
   EXPECT_CALL(sched, resourceOffers(&schedDriver, _))
     .WillOnce(FutureSatisfy(&resourceOffers));
 
-  process::post(master.get(), frameworkPid, event);
+  process::post(master.get()->pid, frameworkPid, event);
 
   AWAIT_READY(resourceOffers);
 
@@ -408,7 +414,10 @@ TEST_F(SchedulerDriverEventTest, Offers)
 
   // This message should skip the master!
   Future<FrameworkToExecutorMessage> frameworkToExecutorMessage =
-    FUTURE_PROTOBUF(FrameworkToExecutorMessage(), frameworkPid, slave.get());
+    FUTURE_PROTOBUF(
+        FrameworkToExecutorMessage(),
+        frameworkPid,
+        slave.get()->pid);
 
   Future<string> data;
   EXPECT_CALL(exec, frameworkMessage(_, _))
@@ -425,20 +434,18 @@ TEST_F(SchedulerDriverEventTest, Offers)
 
   schedDriver.stop();
   schedDriver.join();
-
-  Shutdown();
 }
 
 
 // Ensures that the driver can handle the RESCIND event.
 TEST_F(SchedulerDriverEventTest, Rescind)
 {
-  Try<PID<Master>> master = StartMaster();
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
-      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(&driver, _, _));
 
@@ -458,7 +465,7 @@ TEST_F(SchedulerDriverEventTest, Rescind)
   EXPECT_CALL(sched, offerRescinded(&driver, event.rescind().offer_id()))
     .WillOnce(FutureSatisfy(&offerRescinded));
 
-  process::post(master.get(), frameworkPid, event);
+  process::post(master.get()->pid, frameworkPid, event);
 
   AWAIT_READY(offerRescinded);
 
@@ -470,12 +477,12 @@ TEST_F(SchedulerDriverEventTest, Rescind)
 // Ensures the scheduler driver can handle the UPDATE event.
 TEST_F(SchedulerDriverEventTest, Update)
 {
-  Try<PID<Master>> master = StartMaster();
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
-      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(&driver, _, _));
 
@@ -522,7 +529,7 @@ TEST_F(SchedulerDriverEventTest, Update)
     .WillOnce(FutureSatisfy(&statusUpdate))
     .WillOnce(FutureSatisfy(&statusUpdate2));
 
-  process::post(master.get(), frameworkPid, event);
+  process::post(master.get()->pid, frameworkPid, event);
 
   AWAIT_READY(statusUpdate);
 
@@ -532,7 +539,7 @@ TEST_F(SchedulerDriverEventTest, Update)
   Future<mesos::scheduler::Call> acknowledgement = DROP_CALL(
       mesos::scheduler::Call(), mesos::scheduler::Call::ACKNOWLEDGE, _, _);
 
-  process::post(master.get(), frameworkPid, event);
+  process::post(master.get()->pid, frameworkPid, event);
 
   AWAIT_READY(statusUpdate2);
   AWAIT_READY(acknowledgement);
@@ -545,12 +552,12 @@ TEST_F(SchedulerDriverEventTest, Update)
 // Ensures that the driver can handle the MESSAGE event.
 TEST_F(SchedulerDriverEventTest, Message)
 {
-  Try<PID<Master>> master = StartMaster();
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
-      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(&driver, _, _));
 
@@ -576,7 +583,7 @@ TEST_F(SchedulerDriverEventTest, Message)
       event.message().data()))
     .WillOnce(FutureSatisfy(&frameworkMessage));
 
-  process::post(master.get(), frameworkPid, event);
+  process::post(master.get()->pid, frameworkPid, event);
 
   AWAIT_READY(frameworkMessage);
 
@@ -588,12 +595,12 @@ TEST_F(SchedulerDriverEventTest, Message)
 // Ensures that the driver can handle the FAILURE event.
 TEST_F(SchedulerDriverEventTest, Failure)
 {
-  Try<PID<Master>> master = StartMaster();
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
-      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(&driver, _, _));
 
@@ -623,7 +630,7 @@ TEST_F(SchedulerDriverEventTest, Failure)
   EXPECT_CALL(sched, executorLost(&driver, executorId, slaveId, status))
     .WillOnce(FutureSatisfy(&executorLost));
 
-  process::post(master.get(), frameworkPid, event);
+  process::post(master.get()->pid, frameworkPid, event);
 
   AWAIT_READY(executorLost);
 
@@ -634,7 +641,7 @@ TEST_F(SchedulerDriverEventTest, Failure)
   EXPECT_CALL(sched, slaveLost(&driver, slaveId))
     .WillOnce(FutureSatisfy(&slaveLost));
 
-  process::post(master.get(), frameworkPid, event);
+  process::post(master.get()->pid, frameworkPid, event);
 
   AWAIT_READY(slaveLost);
 
@@ -646,12 +653,12 @@ TEST_F(SchedulerDriverEventTest, Failure)
 // Ensures that the driver can handle the ERROR event.
 TEST_F(SchedulerDriverEventTest, Error)
 {
-  Try<PID<Master>> master = StartMaster();
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
-      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(&driver, _, _));
 
@@ -671,7 +678,7 @@ TEST_F(SchedulerDriverEventTest, Error)
   EXPECT_CALL(sched, error(&driver, event.error().message()))
     .WillOnce(FutureSatisfy(&error));
 
-  process::post(master.get(), frameworkPid, event);
+  process::post(master.get()->pid, frameworkPid, event);
 
   AWAIT_READY(error);
 

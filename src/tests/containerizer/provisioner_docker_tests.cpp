@@ -323,7 +323,7 @@ class ProvisionerDockerPullerTest : public MesosTest {};
 // provisioned correctly, and shell command should be executed.
 TEST_F(ProvisionerDockerPullerTest, ROOT_LocalPullerShellCommand)
 {
-  Try<PID<Master>> master = StartMaster();
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   const string directory = path::join(os::getcwd(), "archives");
@@ -339,12 +339,14 @@ TEST_F(ProvisionerDockerPullerTest, ROOT_LocalPullerShellCommand)
   flags.docker_registry = directory;
   flags.docker_store_dir = path::join(os::getcwd(), "store");
 
-  Try<PID<Slave>> slave = StartSlave(flags);
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
-      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(&driver, _, _));
 
@@ -391,8 +393,6 @@ TEST_F(ProvisionerDockerPullerTest, ROOT_LocalPullerShellCommand)
 
   driver.stop();
   driver.join();
-
-  Shutdown();
 }
 
 
@@ -400,7 +400,7 @@ TEST_F(ProvisionerDockerPullerTest, ROOT_LocalPullerShellCommand)
 // ROOT restriction after MESOS-4757 is resolved.
 TEST_F(ProvisionerDockerPullerTest, ROOT_INTERNET_CURL_ShellCommand)
 {
-  Try<PID<Master>> master = StartMaster();
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   slave::Flags flags = CreateSlaveFlags();
@@ -408,12 +408,13 @@ TEST_F(ProvisionerDockerPullerTest, ROOT_INTERNET_CURL_ShellCommand)
   flags.image_providers = "docker";
   flags.docker_registry = "https://registry-1.docker.io";
 
-  Try<PID<Slave>> slave = StartSlave(flags);
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
-      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(&driver, _, _));
 
@@ -460,8 +461,6 @@ TEST_F(ProvisionerDockerPullerTest, ROOT_INTERNET_CURL_ShellCommand)
 
   driver.stop();
   driver.join();
-
-  Shutdown();
 }
 
 #endif

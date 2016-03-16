@@ -26,6 +26,7 @@
 
 #include <process/future.hpp>
 #include <process/gmock.hpp>
+#include <process/owned.hpp>
 #include <process/pid.hpp>
 #include <process/process.hpp>
 #include <process/protobuf.hpp>
@@ -49,6 +50,7 @@ using mesos::internal::slave::Slave;
 using process::Clock;
 using process::Future;
 using process::Message;
+using process::Owned;
 using process::PID;
 
 using std::vector;
@@ -73,20 +75,20 @@ class MasterSlaveReconciliationTest : public MesosTest {};
 // and then forces the slave to re-register.
 TEST_F(MasterSlaveReconciliationTest, SlaveReregisterTerminatedExecutor)
 {
-  Try<PID<Master> > master = StartMaster();
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
   TestContainerizer containerizer(&exec);
 
-  StandaloneMasterDetector detector(master.get());
+  StandaloneMasterDetector detector(master.get()->pid);
 
-  Try<PID<Slave> > slave = StartSlave(&containerizer, &detector);
+  Try<Owned<cluster::Slave>> slave = StartSlave(&detector, &containerizer);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
-      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
   Future<FrameworkID> frameworkId;
   EXPECT_CALL(sched, registered(&driver, _, _))
@@ -109,7 +111,9 @@ TEST_F(MasterSlaveReconciliationTest, SlaveReregisterTerminatedExecutor)
 
   Future<StatusUpdateAcknowledgementMessage> statusUpdateAcknowledgementMessage
     = FUTURE_PROTOBUF(
-        StatusUpdateAcknowledgementMessage(), master.get(), slave.get());
+        StatusUpdateAcknowledgementMessage(),
+        master.get()->pid,
+        slave.get()->pid);
 
   driver.start();
 
@@ -121,7 +125,7 @@ TEST_F(MasterSlaveReconciliationTest, SlaveReregisterTerminatedExecutor)
 
   // Drop the TASK_FINISHED status update sent to the master.
   Future<StatusUpdateMessage> statusUpdateMessage =
-    DROP_PROTOBUF(StatusUpdateMessage(), _, master.get());
+    DROP_PROTOBUF(StatusUpdateMessage(), _, master.get()->pid);
 
   Future<ExitedExecutorMessage> executorExitedMessage =
     FUTURE_PROTOBUF(ExitedExecutorMessage(), _, _);
@@ -148,15 +152,13 @@ TEST_F(MasterSlaveReconciliationTest, SlaveReregisterTerminatedExecutor)
   // already sent due to the new master detection.
   DROP_PROTOBUFS(UpdateFrameworkMessage(), _, _);
 
-  detector.appoint(master.get());
+  detector.appoint(master.get()->pid);
 
   AWAIT_READY(status2);
   EXPECT_EQ(TASK_FINISHED, status2.get().state());
 
   driver.stop();
   driver.join();
-
-  Shutdown();
 }
 
 
@@ -165,17 +167,17 @@ TEST_F(MasterSlaveReconciliationTest, SlaveReregisterTerminatedExecutor)
 // RunTaskMessage so the slave should send TASK_LOST.
 TEST_F(MasterSlaveReconciliationTest, ReconcileLostTask)
 {
-  Try<PID<Master> > master = StartMaster();
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
-  StandaloneMasterDetector detector(master.get());
+  StandaloneMasterDetector detector(master.get()->pid);
 
-  Try<PID<Slave> > slave = StartSlave(&detector);
+  Try<Owned<cluster::Slave>> slave = StartSlave(&detector);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
-      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(&driver, _, _));
 
@@ -210,7 +212,7 @@ TEST_F(MasterSlaveReconciliationTest, ReconcileLostTask)
     FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
 
   Future<StatusUpdateMessage> statusUpdateMessage =
-    FUTURE_PROTOBUF(StatusUpdateMessage(), _, master.get());
+    FUTURE_PROTOBUF(StatusUpdateMessage(), _, master.get()->pid);
 
   Future<TaskStatus> status;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
@@ -218,7 +220,7 @@ TEST_F(MasterSlaveReconciliationTest, ReconcileLostTask)
 
   // Simulate a spurious master change event (e.g., due to ZooKeeper
   // expiration) at the slave to force re-registration.
-  detector.appoint(master.get());
+  detector.appoint(master.get()->pid);
 
   AWAIT_READY(slaveReregisteredMessage);
 
@@ -250,8 +252,6 @@ TEST_F(MasterSlaveReconciliationTest, ReconcileLostTask)
 
   driver.stop();
   driver.join();
-
-  Shutdown();
 }
 
 
@@ -262,24 +262,25 @@ TEST_F(MasterSlaveReconciliationTest, ReconcileLostTask)
 // This was motivated by MESOS-1696.
 TEST_F(MasterSlaveReconciliationTest, ReconcileRace)
 {
-  Try<PID<Master> > master = StartMaster();
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
+  TestContainerizer containerizer(&exec);
 
-  StandaloneMasterDetector detector(master.get());
+  StandaloneMasterDetector detector(master.get()->pid);
 
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
-    FUTURE_PROTOBUF(SlaveRegisteredMessage(), master.get(), _);
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), master.get()->pid, _);
 
-  Try<PID<Slave> > slave = StartSlave(&exec, &detector);
+  Try<Owned<cluster::Slave>> slave = StartSlave(&detector, &containerizer);
   ASSERT_SOME(slave);
 
   AWAIT_READY(slaveRegisteredMessage);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
-      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(&driver, _, _));
 
@@ -292,12 +293,15 @@ TEST_F(MasterSlaveReconciliationTest, ReconcileRace)
 
   // Trigger a re-registration of the slave and capture the message
   // so that we can spoof a race with a launch task message.
-  DROP_PROTOBUFS(ReregisterSlaveMessage(), slave.get(), master.get());
+  DROP_PROTOBUFS(ReregisterSlaveMessage(), slave.get()->pid, master.get()->pid);
 
   Future<ReregisterSlaveMessage> reregisterSlaveMessage =
-    DROP_PROTOBUF(ReregisterSlaveMessage(), slave.get(), master.get());
+    DROP_PROTOBUF(
+        ReregisterSlaveMessage(),
+        slave.get()->pid,
+        master.get()->pid);
 
-  detector.appoint(master.get());
+  detector.appoint(master.get()->pid);
 
   AWAIT_READY(reregisterSlaveMessage);
 
@@ -334,9 +338,15 @@ TEST_F(MasterSlaveReconciliationTest, ReconcileRace)
     FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
 
   // Prevent this from being dropped per the DROP_PROTOBUFS above.
-  FUTURE_PROTOBUF(ReregisterSlaveMessage(), slave.get(), master.get());
+  FUTURE_PROTOBUF(
+      ReregisterSlaveMessage(),
+      slave.get()->pid,
+      master.get()->pid);
 
-  process::post(slave.get(), master.get(), reregisterSlaveMessage.get());
+  process::post(
+      slave.get()->pid,
+      master.get()->pid,
+      reregisterSlaveMessage.get());
 
   AWAIT_READY(slaveReregisteredMessage);
 
@@ -366,8 +376,6 @@ TEST_F(MasterSlaveReconciliationTest, ReconcileRace)
 
   driver.stop();
   driver.join();
-
-  Shutdown();
 }
 
 
@@ -376,17 +384,17 @@ TEST_F(MasterSlaveReconciliationTest, ReconcileRace)
 // lost.
 TEST_F(MasterSlaveReconciliationTest, SlaveReregisterPendingTask)
 {
-  Try<PID<Master> > master = StartMaster();
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
-  StandaloneMasterDetector detector(master.get());
+  StandaloneMasterDetector detector(master.get()->pid);
 
-  Try<PID<Slave> > slave = StartSlave(&detector);
+  Try<Owned<cluster::Slave>> slave = StartSlave(&detector);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
-      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(&driver, _, _));
 
@@ -406,7 +414,7 @@ TEST_F(MasterSlaveReconciliationTest, SlaveReregisterPendingTask)
 
   // We drop the _runTask dispatch to ensure the task remains
   // pending in the slave.
-  Future<Nothing> _runTask = DROP_DISPATCH(slave.get(), &Slave::_runTask);
+  Future<Nothing> _runTask = DROP_DISPATCH(slave.get()->pid, &Slave::_runTask);
 
   TaskInfo task1;
   task1.set_name("test task");
@@ -424,7 +432,7 @@ TEST_F(MasterSlaveReconciliationTest, SlaveReregisterPendingTask)
 
   // Simulate a spurious master change event (e.g., due to ZooKeeper
   // expiration) at the slave to force re-registration.
-  detector.appoint(master.get());
+  detector.appoint(master.get()->pid);
 
   AWAIT_READY(slaveReregisteredMessage);
 
@@ -434,8 +442,6 @@ TEST_F(MasterSlaveReconciliationTest, SlaveReregisterPendingTask)
 
   driver.stop();
   driver.join();
-
-  Shutdown();
 }
 
 
@@ -444,19 +450,20 @@ TEST_F(MasterSlaveReconciliationTest, SlaveReregisterPendingTask)
 // state but is waiting for an acknowledgement.
 TEST_F(MasterSlaveReconciliationTest, SlaveReregisterTerminalTask)
 {
-  Try<PID<Master> > master = StartMaster();
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
+  TestContainerizer containerizer(&exec);
 
-  StandaloneMasterDetector detector(master.get());
+  StandaloneMasterDetector detector(master.get()->pid);
 
-  Try<PID<Slave> > slave = StartSlave(&exec, &detector);
+  Try<Owned<cluster::Slave>> slave = StartSlave(&detector, &containerizer);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
-      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(&driver, _, _));
 
@@ -485,7 +492,7 @@ TEST_F(MasterSlaveReconciliationTest, SlaveReregisterTerminalTask)
 
   // Drop the status update from slave to the master, so that
   // the slave has a pending terminal update when it re-registers.
-  DROP_PROTOBUF(StatusUpdateMessage(), _, master.get());
+  DROP_PROTOBUF(StatusUpdateMessage(), _, master.get()->pid);
 
   Future<Nothing> _statusUpdate = FUTURE_DISPATCH(_, &Slave::_statusUpdate);
 
@@ -503,7 +510,7 @@ TEST_F(MasterSlaveReconciliationTest, SlaveReregisterTerminalTask)
 
   // Simulate a spurious master change event (e.g., due to ZooKeeper
   // expiration) at the slave to force re-registration.
-  detector.appoint(master.get());
+  detector.appoint(master.get()->pid);
 
   AWAIT_READY(slaveReregisteredMessage);
 
@@ -524,8 +531,6 @@ TEST_F(MasterSlaveReconciliationTest, SlaveReregisterTerminalTask)
 
   driver.stop();
   driver.join();
-
-  Shutdown();
 }
 
 } // namespace tests {

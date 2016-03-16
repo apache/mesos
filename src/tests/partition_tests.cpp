@@ -21,6 +21,7 @@
 #include <process/clock.hpp>
 #include <process/future.hpp>
 #include <process/gmock.hpp>
+#include <process/owned.hpp>
 #include <process/pid.hpp>
 
 #include <stout/try.hpp>
@@ -49,6 +50,7 @@ using mesos::internal::slave::Slave;
 using process::Clock;
 using process::Future;
 using process::Message;
+using process::Owned;
 using process::PID;
 
 using std::vector;
@@ -71,7 +73,7 @@ class PartitionTest : public MesosTest {};
 TEST_F(PartitionTest, PartitionedSlave)
 {
   master::Flags masterFlags = CreateMasterFlags();
-  Try<PID<Master>> master = StartMaster(masterFlags);
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
   ASSERT_SOME(master);
 
   // Set these expectations up before we spawn the slave so that we
@@ -82,12 +84,13 @@ TEST_F(PartitionTest, PartitionedSlave)
   // Drop all the PONGs to simulate slave partition.
   DROP_PROTOBUFS(PongSlaveMessage(), _, _);
 
-  Try<PID<Slave>> slave = StartSlave();
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
   ASSERT_SOME(slave);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
-      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(&driver, _, _));
 
@@ -127,7 +130,8 @@ TEST_F(PartitionTest, PartitionedSlave)
 
   AWAIT_READY(slaveLost);
 
-  this->Stop(slave.get());
+  slave.get()->terminate();
+  slave->reset();
 
   JSON::Object stats = Metrics();
   EXPECT_EQ(1, stats.values["master/slave_removals"]);
@@ -135,8 +139,6 @@ TEST_F(PartitionTest, PartitionedSlave)
 
   driver.stop();
   driver.join();
-
-  Shutdown();
 
   Clock::resume();
 }
@@ -154,7 +156,7 @@ TEST_F(PartitionTest, PartitionedSlave)
 TEST_F(PartitionTest, PartitionedSlaveReregistration)
 {
   master::Flags masterFlags = CreateMasterFlags();
-  Try<PID<Master>> master = StartMaster(masterFlags);
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
   ASSERT_SOME(master);
 
   // Allow the master to PING the slave, but drop all PONG messages
@@ -167,15 +169,16 @@ TEST_F(PartitionTest, PartitionedSlaveReregistration)
   DROP_PROTOBUFS(PongSlaveMessage(), _, _);
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
+  TestContainerizer containerizer(&exec);
 
-  StandaloneMasterDetector detector(master.get());
+  StandaloneMasterDetector detector(master.get()->pid);
 
-  Try<PID<Slave>> slave = StartSlave(&exec, &detector);
+  Try<Owned<cluster::Slave>> slave = StartSlave(&detector, &containerizer);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
-      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(&driver, _, _));
 
@@ -212,7 +215,7 @@ TEST_F(PartitionTest, PartitionedSlaveReregistration)
     .WillOnce(FutureArg<1>(&runningStatus));
 
   Future<Nothing> statusUpdateAck = FUTURE_DISPATCH(
-      slave.get(), &Slave::_statusUpdateAcknowledgement);
+      slave.get()->pid, &Slave::_statusUpdateAcknowledgement);
 
   driver.launchTasks(offers.get()[0].id(), {task});
 
@@ -227,7 +230,7 @@ TEST_F(PartitionTest, PartitionedSlaveReregistration)
   // partition), allow the second shutdown message to pass when
   // the slave re-registers.
   Future<ShutdownMessage> shutdownMessage =
-    DROP_PROTOBUF(ShutdownMessage(), _, slave.get());
+    DROP_PROTOBUF(ShutdownMessage(), _, slave.get()->pid);
 
   Future<TaskStatus> lostStatus;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
@@ -277,10 +280,10 @@ TEST_F(PartitionTest, PartitionedSlaveReregistration)
   EXPECT_CALL(exec, shutdown(_))
     .WillOnce(FutureSatisfy(&shutdown));
 
-  shutdownMessage = FUTURE_PROTOBUF(ShutdownMessage(), _, slave.get());
+  shutdownMessage = FUTURE_PROTOBUF(ShutdownMessage(), _, slave.get()->pid);
 
   // Have the slave re-register with the master.
-  detector.appoint(master.get());
+  detector.appoint(master.get()->pid);
 
   // Upon re-registration, the master will shutdown the slave.
   // The slave will then shut down the executor.
@@ -289,8 +292,6 @@ TEST_F(PartitionTest, PartitionedSlaveReregistration)
 
   driver.stop();
   driver.join();
-
-  Shutdown();
 }
 
 
@@ -305,7 +306,7 @@ TEST_F(PartitionTest, PartitionedSlaveReregistration)
 TEST_F(PartitionTest, PartitionedSlaveStatusUpdates)
 {
   master::Flags masterFlags = CreateMasterFlags();
-  Try<PID<Master>> master = StartMaster(masterFlags);
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
   ASSERT_SOME(master);
 
   // Allow the master to PING the slave, but drop all PONG messages
@@ -321,8 +322,10 @@ TEST_F(PartitionTest, PartitionedSlaveStatusUpdates)
     FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
+  TestContainerizer containerizer(&exec);
 
-  Try<PID<Slave>> slave = StartSlave(&exec);
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), &containerizer);
   ASSERT_SOME(slave);
 
   AWAIT_READY(slaveRegisteredMessage);
@@ -330,7 +333,7 @@ TEST_F(PartitionTest, PartitionedSlaveStatusUpdates)
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
-      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
   Future<FrameworkID> frameworkId;
   EXPECT_CALL(sched, registered(&driver, _, _))
@@ -347,7 +350,7 @@ TEST_F(PartitionTest, PartitionedSlaveStatusUpdates)
   // partition), allow the second shutdown message to pass when
   // the slave sends an update.
   Future<ShutdownMessage> shutdownMessage =
-    DROP_PROTOBUF(ShutdownMessage(), _, slave.get());
+    DROP_PROTOBUF(ShutdownMessage(), _, slave.get()->pid);
 
   EXPECT_CALL(sched, offerRescinded(&driver, _))
     .WillRepeatedly(Return());
@@ -381,7 +384,7 @@ TEST_F(PartitionTest, PartitionedSlaveStatusUpdates)
   // The master will notify the framework that the slave was lost.
   AWAIT_READY(slaveLost);
 
-  shutdownMessage = FUTURE_PROTOBUF(ShutdownMessage(), _, slave.get());
+  shutdownMessage = FUTURE_PROTOBUF(ShutdownMessage(), _, slave.get()->pid);
 
   // At this point, the slave still thinks it's registered, so we
   // simulate a status update coming from the slave.
@@ -397,9 +400,9 @@ TEST_F(PartitionTest, PartitionedSlaveStatusUpdates)
 
   StatusUpdateMessage message;
   message.mutable_update()->CopyFrom(update);
-  message.set_pid(stringify(slave.get()));
+  message.set_pid(stringify(slave.get()->pid));
 
-  process::post(master.get(), message);
+  process::post(master.get()->pid, message);
 
   // The master should shutdown the slave upon receiving the update.
   AWAIT_READY(shutdownMessage);
@@ -408,8 +411,6 @@ TEST_F(PartitionTest, PartitionedSlaveStatusUpdates)
 
   driver.stop();
   driver.join();
-
-  Shutdown();
 }
 
 
@@ -425,7 +426,7 @@ TEST_F(PartitionTest, PartitionedSlaveStatusUpdates)
 TEST_F(PartitionTest, PartitionedSlaveExitedExecutor)
 {
   master::Flags masterFlags = CreateMasterFlags();
-  Try<PID<Master>> master = StartMaster(masterFlags);
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
   ASSERT_SOME(master);
 
   // Allow the master to PING the slave, but drop all PONG messages
@@ -440,12 +441,13 @@ TEST_F(PartitionTest, PartitionedSlaveExitedExecutor)
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
   TestContainerizer containerizer(&exec);
 
-  Try<PID<Slave>> slave = StartSlave(&containerizer);
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), &containerizer);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
-      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
   Future<FrameworkID> frameworkId;
   EXPECT_CALL(sched, registered(&driver, _, _))
@@ -484,7 +486,7 @@ TEST_F(PartitionTest, PartitionedSlaveExitedExecutor)
   // Drop all the status updates from the slave, so that we can
   // ensure the ExitedExecutorMessage is what triggers the slave
   // shutdown.
-  DROP_PROTOBUFS(StatusUpdateMessage(), _, master.get());
+  DROP_PROTOBUFS(StatusUpdateMessage(), _, master.get()->pid);
 
   driver.launchTasks(offers.get()[0].id(), {task});
 
@@ -492,7 +494,7 @@ TEST_F(PartitionTest, PartitionedSlaveExitedExecutor)
   // partition) and allow the second shutdown message to pass when
   // triggered by the ExitedExecutorMessage.
   Future<ShutdownMessage> shutdownMessage =
-    DROP_PROTOBUF(ShutdownMessage(), _, slave.get());
+    DROP_PROTOBUF(ShutdownMessage(), _, slave.get()->pid);
 
   Future<TaskStatus> lostStatus;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
@@ -531,7 +533,7 @@ TEST_F(PartitionTest, PartitionedSlaveExitedExecutor)
   // The master will notify the framework that the slave was lost.
   AWAIT_READY(slaveLost);
 
-  shutdownMessage = FUTURE_PROTOBUF(ShutdownMessage(), _, slave.get());
+  shutdownMessage = FUTURE_PROTOBUF(ShutdownMessage(), _, slave.get()->pid);
 
   // Induce an ExitedExecutorMessage from the slave.
   containerizer.destroy(
@@ -544,8 +546,6 @@ TEST_F(PartitionTest, PartitionedSlaveExitedExecutor)
 
   driver.stop();
   driver.join();
-
-  Shutdown();
 }
 
 
@@ -556,7 +556,7 @@ TEST_F(PartitionTest, OneWayPartitionMasterToSlave)
 {
   // Start a master.
   master::Flags masterFlags = CreateMasterFlags();
-  Try<PID<Master>> master = StartMaster(masterFlags);
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
   ASSERT_SOME(master);
 
   Future<Message> slaveRegisteredMessage =
@@ -566,7 +566,8 @@ TEST_F(PartitionTest, OneWayPartitionMasterToSlave)
   Future<Message> ping = FUTURE_MESSAGE(
       Eq(PingSlaveMessage().GetTypeName()), _, _);
 
-  Try<PID<Slave>> slave = StartSlave();
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
   ASSERT_SOME(slave);
 
   AWAIT_READY(slaveRegisteredMessage);
@@ -579,7 +580,7 @@ TEST_F(PartitionTest, OneWayPartitionMasterToSlave)
   // Inject a slave exited event at the master causing the master
   // to mark the slave as disconnected. The slave should not notice
   // it until the next ping is received.
-  process::inject::exited(slaveRegisteredMessage.get().to, master.get());
+  process::inject::exited(slaveRegisteredMessage.get().to, master.get()->pid);
 
   // Wait until master deactivates the slave.
   AWAIT_READY(deactivateSlave);
@@ -596,8 +597,6 @@ TEST_F(PartitionTest, OneWayPartitionMasterToSlave)
 
   // Slave should re-register.
   AWAIT_READY(slaveReregisteredMessage);
-
-  Shutdown();
 }
 
 } // namespace tests {

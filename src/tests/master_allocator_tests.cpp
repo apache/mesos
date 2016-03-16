@@ -32,6 +32,7 @@
 #include <process/clock.hpp>
 #include <process/future.hpp>
 #include <process/gmock.hpp>
+#include <process/owned.hpp>
 #include <process/pid.hpp>
 
 #include <stout/some.hpp>
@@ -57,6 +58,7 @@ using mesos::internal::slave::Slave;
 
 using process::Clock;
 using process::Future;
+using process::Owned;
 using process::PID;
 
 using std::map;
@@ -96,7 +98,7 @@ TYPED_TEST(MasterAllocatorTest, SingleFramework)
 
   EXPECT_CALL(allocator, initialize(_, _, _, _));
 
-  Try<PID<Master>> master = this->StartMaster(&allocator);
+  Try<Owned<cluster::Master>> master = this->StartMaster(&allocator);
   ASSERT_SOME(master);
 
   slave::Flags flags = this->CreateSlaveFlags();
@@ -104,12 +106,13 @@ TYPED_TEST(MasterAllocatorTest, SingleFramework)
 
   EXPECT_CALL(allocator, addSlave(_, _, _, _, _));
 
-  Try<PID<Slave>> slave = this->StartSlave(flags);
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = this->StartSlave(detector.get(), flags);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
-      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(allocator, addFramework(_, _, _));
 
@@ -128,8 +131,6 @@ TYPED_TEST(MasterAllocatorTest, SingleFramework)
   // Shut everything down.
   driver.stop();
   driver.join();
-
-  this->Shutdown();
 }
 
 
@@ -142,22 +143,26 @@ TYPED_TEST(MasterAllocatorTest, ResourcesUnused)
 
   EXPECT_CALL(allocator, initialize(_, _, _, _));
 
-  Try<PID<Master>> master = this->StartMaster(&allocator);
+  Try<Owned<cluster::Master>> master = this->StartMaster(&allocator);
   ASSERT_SOME(master);
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
+  TestContainerizer containerizer(&exec);
 
   slave::Flags flags1 = this->CreateSlaveFlags();
   flags1.resources = Some("cpus:2;mem:1024");
 
   EXPECT_CALL(allocator, addSlave(_, _, _, _, _));
 
-  Try<PID<Slave> > slave1 = this->StartSlave(&exec, flags1);
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave1 =
+    this->StartSlave(detector.get(), &containerizer, flags1);
   ASSERT_SOME(slave1);
 
   MockScheduler sched1;
   MesosSchedulerDriver driver1(
-      &sched1, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+      &sched1, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(allocator, addFramework(_, _, _));
 
@@ -202,7 +207,7 @@ TYPED_TEST(MasterAllocatorTest, ResourcesUnused)
 
   MockScheduler sched2;
   MesosSchedulerDriver driver2(
-      &sched2, frameworkInfo2, master.get(), DEFAULT_CREDENTIAL);
+      &sched2, frameworkInfo2, master.get()->pid, DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(allocator, addFramework(_, _, _));
 
@@ -233,8 +238,6 @@ TYPED_TEST(MasterAllocatorTest, ResourcesUnused)
   driver2.join();
 
   AWAIT_READY(shutdown); // Ensures MockExecutor can be deallocated.
-
-  this->Shutdown();
 }
 
 
@@ -247,7 +250,7 @@ TYPED_TEST(MasterAllocatorTest, OutOfOrderDispatch)
 
   EXPECT_CALL(allocator, initialize(_, _, _, _));
 
-  Try<PID<Master>> master = this->StartMaster(&allocator);
+  Try<Owned<cluster::Master>> master = this->StartMaster(&allocator);
   ASSERT_SOME(master);
 
   slave::Flags flags1 = this->CreateSlaveFlags();
@@ -255,7 +258,9 @@ TYPED_TEST(MasterAllocatorTest, OutOfOrderDispatch)
 
   EXPECT_CALL(allocator, addSlave(_, _, _, _, _));
 
-  Try<PID<Slave> > slave1 = this->StartSlave(flags1);
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave1 = this->StartSlave(detector.get(), flags1);
   ASSERT_SOME(slave1);
 
   FrameworkInfo frameworkInfo1 = DEFAULT_FRAMEWORK_INFO;
@@ -264,7 +269,7 @@ TYPED_TEST(MasterAllocatorTest, OutOfOrderDispatch)
 
   MockScheduler sched1;
   MesosSchedulerDriver driver1(
-      &sched1, frameworkInfo1, master.get(), DEFAULT_CREDENTIAL);
+      &sched1, frameworkInfo1, master.get()->pid, DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(allocator, addFramework(_, Eq(frameworkInfo1), _))
     .WillOnce(InvokeAddFramework(&allocator));
@@ -332,7 +337,7 @@ TYPED_TEST(MasterAllocatorTest, OutOfOrderDispatch)
 
   MockScheduler sched2;
   MesosSchedulerDriver driver2(
-      &sched2, frameworkInfo2, master.get(), DEFAULT_CREDENTIAL);
+      &sched2, frameworkInfo2, master.get()->pid, DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(allocator, addFramework(_, Eq(frameworkInfo2), _))
     .WillOnce(InvokeAddFramework(&allocator));
@@ -361,8 +366,6 @@ TYPED_TEST(MasterAllocatorTest, OutOfOrderDispatch)
   // Shut everything down.
   driver2.stop();
   driver2.join();
-
-  this->Shutdown();
 }
 
 
@@ -375,17 +378,21 @@ TYPED_TEST(MasterAllocatorTest, SchedulerFailover)
 
   EXPECT_CALL(allocator, initialize(_, _, _, _));
 
-  Try<PID<Master>> master = this->StartMaster(&allocator);
+  Try<Owned<cluster::Master>> master = this->StartMaster(&allocator);
   ASSERT_SOME(master);
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
+  TestContainerizer containerizer(&exec);
 
   slave::Flags flags = this->CreateSlaveFlags();
   flags.resources = Some("cpus:3;mem:1024");
 
   EXPECT_CALL(allocator, addSlave(_, _, _, _, _));
 
-  Try<PID<Slave> > slave = this->StartSlave(&exec, flags);
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave =
+    this->StartSlave(detector.get(), &containerizer, flags);
   ASSERT_SOME(slave);
 
   FrameworkInfo frameworkInfo1 = DEFAULT_FRAMEWORK_INFO;
@@ -396,7 +403,7 @@ TYPED_TEST(MasterAllocatorTest, SchedulerFailover)
   // Launch the first (i.e., failing) scheduler.
   MockScheduler sched1;
   MesosSchedulerDriver driver1(
-      &sched1, frameworkInfo1, master.get(), DEFAULT_CREDENTIAL);
+      &sched1, frameworkInfo1, master.get()->pid, DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(allocator, addFramework(_, _, _));
 
@@ -455,7 +462,7 @@ TYPED_TEST(MasterAllocatorTest, SchedulerFailover)
   // framework id recorded from the first scheduler.
   MockScheduler sched2;
   MesosSchedulerDriver driver2(
-      &sched2, frameworkInfo2, master.get(), DEFAULT_CREDENTIAL);
+      &sched2, frameworkInfo2, master.get()->pid, DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(allocator, activateFramework(_));
 
@@ -484,8 +491,6 @@ TYPED_TEST(MasterAllocatorTest, SchedulerFailover)
 
   driver2.stop();
   driver2.join();
-
-  this->Shutdown();
 }
 
 
@@ -499,7 +504,8 @@ TYPED_TEST(MasterAllocatorTest, FrameworkExited)
 
   master::Flags masterFlags = this->CreateMasterFlags();
   masterFlags.allocation_interval = Milliseconds(50);
-  Try<PID<Master>> master = this->StartMaster(&allocator, masterFlags);
+  Try<Owned<cluster::Master>> master =
+    this->StartMaster(&allocator, masterFlags);
   ASSERT_SOME(master);
 
   ExecutorInfo executor1 = CREATE_EXECUTOR_INFO("executor-1", "exit 1");
@@ -519,12 +525,15 @@ TYPED_TEST(MasterAllocatorTest, FrameworkExited)
 
   EXPECT_CALL(allocator, addSlave(_, _, _, _, _));
 
-  Try<PID<Slave> > slave = this->StartSlave(&containerizer, flags);
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave =
+    this->StartSlave(detector.get(), &containerizer, flags);
   ASSERT_SOME(slave);
 
   MockScheduler sched1;
   MesosSchedulerDriver driver1(
-      &sched1, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+      &sched1, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(allocator, addFramework(_, _, _));
 
@@ -568,7 +577,7 @@ TYPED_TEST(MasterAllocatorTest, FrameworkExited)
 
   MockScheduler sched2;
   MesosSchedulerDriver driver2(
-      &sched2, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+      &sched2, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(allocator, addFramework(_, _, _));
 
@@ -628,8 +637,6 @@ TYPED_TEST(MasterAllocatorTest, FrameworkExited)
 
   driver2.stop();
   driver2.join();
-
-  this->Shutdown();
 }
 
 
@@ -643,22 +650,26 @@ TYPED_TEST(MasterAllocatorTest, SlaveLost)
 
   EXPECT_CALL(allocator, initialize(_, _, _, _));
 
-  Try<PID<Master>> master = this->StartMaster(&allocator);
+  Try<Owned<cluster::Master>> master = this->StartMaster(&allocator);
   ASSERT_SOME(master);
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
+  TestContainerizer containerizer(&exec);
 
   slave::Flags flags1 = this->CreateSlaveFlags();
   flags1.resources = Some("cpus:2;mem:1024");
 
   EXPECT_CALL(allocator, addSlave(_, _, _, _, _));
 
-  Try<PID<Slave> > slave1 = this->StartSlave(&exec, flags1);
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave1 =
+    this->StartSlave(detector.get(), &containerizer, flags1);
   ASSERT_SOME(slave1);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
-      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(allocator, addFramework(_, _, _));
 
@@ -711,7 +722,7 @@ TYPED_TEST(MasterAllocatorTest, SlaveLost)
 
   // Stop the checkpointing slave with explicit shutdown message
   // so that the master does not wait for it to reconnect.
-  this->Stop(slave1.get(), true);
+  slave1.get()->shutdown();
 
   AWAIT_READY(removeSlave);
 
@@ -727,7 +738,7 @@ TYPED_TEST(MasterAllocatorTest, SlaveLost)
   EXPECT_CALL(sched, resourceOffers(_, OfferEq(3, 256)))
     .WillOnce(FutureArg<1>(&resourceOffers));
 
-  Try<PID<Slave> > slave2 = this->StartSlave(flags2);
+  Try<Owned<cluster::Slave>> slave2 = this->StartSlave(detector.get(), flags2);
   ASSERT_SOME(slave2);
 
   AWAIT_READY(resourceOffers);
@@ -744,8 +755,6 @@ TYPED_TEST(MasterAllocatorTest, SlaveLost)
 
   EXPECT_CALL(allocator, removeSlave(_))
     .Times(AtMost(1));
-
-  this->Shutdown();
 }
 
 
@@ -760,22 +769,26 @@ TYPED_TEST(MasterAllocatorTest, SlaveAdded)
 
   master::Flags masterFlags = this->CreateMasterFlags();
   masterFlags.allocation_interval = Milliseconds(50);
-  Try<PID<Master>> master = this->StartMaster(&allocator, masterFlags);
+  Try<Owned<cluster::Master>> master =
+    this->StartMaster(&allocator, masterFlags);
   ASSERT_SOME(master);
-
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
+  TestContainerizer containerizer(&exec);
 
   slave::Flags flags1 = this->CreateSlaveFlags();
   flags1.resources = Some("cpus:3;mem:1024");
 
   EXPECT_CALL(allocator, addSlave(_, _, _, _, _));
 
-  Try<PID<Slave> > slave1 = this->StartSlave(&exec, flags1);
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave1 =
+    this->StartSlave(detector.get(), &containerizer, flags1);
   ASSERT_SOME(slave1);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
-      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(allocator, addFramework(_, _, _));
 
@@ -825,7 +838,7 @@ TYPED_TEST(MasterAllocatorTest, SlaveAdded)
   EXPECT_CALL(sched, resourceOffers(_, OfferEq(5, 2560)))
     .WillOnce(FutureSatisfy(&resourceOffers));
 
-  Try<PID<Slave> > slave2 = this->StartSlave(flags2);
+  Try<Owned<cluster::Slave>> slave2 = this->StartSlave(detector.get(), flags2);
   ASSERT_SOME(slave2);
 
   AWAIT_READY(resourceOffers);
@@ -839,8 +852,6 @@ TYPED_TEST(MasterAllocatorTest, SlaveAdded)
 
   driver.stop();
   driver.join();
-
-  this->Shutdown();
 }
 
 
@@ -854,22 +865,27 @@ TYPED_TEST(MasterAllocatorTest, TaskFinished)
 
   master::Flags masterFlags = this->CreateMasterFlags();
   masterFlags.allocation_interval = Milliseconds(50);
-  Try<PID<Master>> master = this->StartMaster(&allocator, masterFlags);
+  Try<Owned<cluster::Master>> master =
+    this->StartMaster(&allocator, masterFlags);
   ASSERT_SOME(master);
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
+  TestContainerizer containerizer(&exec);
 
   slave::Flags flags = this->CreateSlaveFlags();
   flags.resources = Some("cpus:3;mem:1024");
 
   EXPECT_CALL(allocator, addSlave(_, _, _, _, _));
 
-  Try<PID<Slave> > slave = this->StartSlave(&exec, flags);
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave =
+    this->StartSlave(detector.get(), &containerizer, flags);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
-      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(allocator, addFramework(_, _, _));
 
@@ -940,8 +956,6 @@ TYPED_TEST(MasterAllocatorTest, TaskFinished)
 
   driver.stop();
   driver.join();
-
-  this->Shutdown();
 }
 
 
@@ -955,10 +969,12 @@ TYPED_TEST(MasterAllocatorTest, CpusOnlyOfferedAndTaskLaunched)
 
   master::Flags masterFlags = this->CreateMasterFlags();
   masterFlags.allocation_interval = Milliseconds(50);
-  Try<PID<Master>> master = this->StartMaster(&allocator, masterFlags);
+  Try<Owned<cluster::Master>> master =
+    this->StartMaster(&allocator, masterFlags);
   ASSERT_SOME(master);
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
+  TestContainerizer containerizer(&exec);
 
   // Start a slave with cpus only resources.
   slave::Flags flags = this->CreateSlaveFlags();
@@ -966,12 +982,15 @@ TYPED_TEST(MasterAllocatorTest, CpusOnlyOfferedAndTaskLaunched)
 
   EXPECT_CALL(allocator, addSlave(_, _, _, _, _));
 
-  Try<PID<Slave> > slave = this->StartSlave(&exec, flags);
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave =
+    this->StartSlave(detector.get(), &containerizer, flags);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
-      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(allocator, addFramework(_, _, _));
 
@@ -1018,8 +1037,6 @@ TYPED_TEST(MasterAllocatorTest, CpusOnlyOfferedAndTaskLaunched)
   // Shut everything down.
   driver.stop();
   driver.join();
-
-  this->Shutdown();
 }
 
 
@@ -1033,10 +1050,12 @@ TYPED_TEST(MasterAllocatorTest, MemoryOnlyOfferedAndTaskLaunched)
 
   master::Flags masterFlags = this->CreateMasterFlags();
   masterFlags.allocation_interval = Milliseconds(50);
-  Try<PID<Master>> master = this->StartMaster(&allocator, masterFlags);
+  Try<Owned<cluster::Master>> master =
+    this->StartMaster(&allocator, masterFlags);
   ASSERT_SOME(master);
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
+  TestContainerizer containerizer(&exec);
 
   // Start a slave with memory only resources.
   slave::Flags flags = this->CreateSlaveFlags();
@@ -1044,12 +1063,15 @@ TYPED_TEST(MasterAllocatorTest, MemoryOnlyOfferedAndTaskLaunched)
 
   EXPECT_CALL(allocator, addSlave(_, _, _, _, _));
 
-  Try<PID<Slave> > slave = this->StartSlave(&exec, flags);
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave =
+    this->StartSlave(detector.get(), &containerizer, flags);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
-      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(allocator, addFramework(_, _, _));
 
@@ -1096,8 +1118,6 @@ TYPED_TEST(MasterAllocatorTest, MemoryOnlyOfferedAndTaskLaunched)
   // Shut everything down.
   driver.stop();
   driver.join();
-
-  this->Shutdown();
 }
 
 
@@ -1127,7 +1147,8 @@ TYPED_TEST(MasterAllocatorTest, Whitelist)
     .WillOnce(DoAll(InvokeUpdateWhitelist(&allocator),
                     FutureSatisfy(&updateWhitelist1)));
 
-  Try<PID<Master>> master = this->StartMaster(&allocator, masterFlags);
+  Try<Owned<cluster::Master>> master =
+    this->StartMaster(&allocator, masterFlags);
   ASSERT_SOME(master);
 
   // Make sure the allocator has been given the initial whitelist.
@@ -1148,8 +1169,6 @@ TYPED_TEST(MasterAllocatorTest, Whitelist)
 
   // Make sure the allocator has been given the updated whitelist.
   AWAIT_READY(updateWhitelist2);
-
-  this->Shutdown();
 }
 
 
@@ -1164,7 +1183,8 @@ TYPED_TEST(MasterAllocatorTest, RoleTest)
 
   master::Flags masterFlags = this->CreateMasterFlags();
   masterFlags.roles = Some("role2");
-  Try<PID<Master>> master = this->StartMaster(&allocator, masterFlags);
+  Try<Owned<cluster::Master>> master =
+    this->StartMaster(&allocator, masterFlags);
   ASSERT_SOME(master);
 
   // Launch a framework with a role that doesn't exist to see that it
@@ -1176,7 +1196,7 @@ TYPED_TEST(MasterAllocatorTest, RoleTest)
 
   MockScheduler sched1;
   MesosSchedulerDriver driver1(
-      &sched1, frameworkInfo1, master.get(), DEFAULT_CREDENTIAL);
+      &sched1, frameworkInfo1, master.get()->pid, DEFAULT_CREDENTIAL);
 
   Future<FrameworkErrorMessage> errorMessage =
     FUTURE_PROTOBUF(FrameworkErrorMessage(), _, _);
@@ -1195,7 +1215,7 @@ TYPED_TEST(MasterAllocatorTest, RoleTest)
 
   MockScheduler sched2;
   MesosSchedulerDriver driver2(
-      &sched2, frameworkInfo2, master.get(), DEFAULT_CREDENTIAL);
+      &sched2, frameworkInfo2, master.get()->pid, DEFAULT_CREDENTIAL);
 
   Future<Nothing> registered2;
   EXPECT_CALL(sched2, registered(_, _, _))
@@ -1227,8 +1247,6 @@ TYPED_TEST(MasterAllocatorTest, RoleTest)
 
   driver1.stop();
   driver1.join();
-
-  this->Shutdown();
 }
 
 
@@ -1243,7 +1261,9 @@ TYPED_TEST(MasterAllocatorTest, FrameworkReregistersFirst)
   StandaloneMasterDetector schedulerDetector;
   MockScheduler sched;
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
+  TestContainerizer containerizer(&exec);
   TestingMesosSchedulerDriver driver(&sched, &schedulerDetector);
+  Try<Owned<cluster::Slave>> slave = nullptr;
 
   // Explicit scope is to ensure all object associated with the
   // leading master (e.g. allocator) are destroyed once the master
@@ -1254,17 +1274,18 @@ TYPED_TEST(MasterAllocatorTest, FrameworkReregistersFirst)
 
     EXPECT_CALL(allocator, initialize(_, _, _, _));
 
-    Try<PID<Master>> master = this->StartMaster(&allocator);
+    Try<Owned<cluster::Master>> master = this->StartMaster(&allocator);
     ASSERT_SOME(master);
-    slaveDetector.appoint(master.get());
-    schedulerDetector.appoint(master.get());
+
+    slaveDetector.appoint(master.get()->pid);
+    schedulerDetector.appoint(master.get()->pid);
 
     EXPECT_CALL(allocator, addSlave(_, _, _, _, _));
 
     slave::Flags flags = this->CreateSlaveFlags();
     flags.resources = Some("cpus:2;mem:1024");
 
-    Try<PID<Slave>> slave = this->StartSlave(&exec, &slaveDetector, flags);
+    slave = this->StartSlave(&slaveDetector, &containerizer, flags);
     ASSERT_SOME(slave);
 
     EXPECT_CALL(allocator, addFramework(_, _, _));
@@ -1303,8 +1324,6 @@ TYPED_TEST(MasterAllocatorTest, FrameworkReregistersFirst)
 
     EXPECT_CALL(allocator, recoverResources(_, _, _, _))
       .WillRepeatedly(DoDefault());
-
-    this->ShutdownMasters();
   }
 
   {
@@ -1319,13 +1338,13 @@ TYPED_TEST(MasterAllocatorTest, FrameworkReregistersFirst)
 
     EXPECT_CALL(sched, registered(&driver, _, _));
 
-    Try<PID<Master>> master2 = this->StartMaster(&allocator2);
+    Try<Owned<cluster::Master>> master2 = this->StartMaster(&allocator2);
     ASSERT_SOME(master2);
 
     EXPECT_CALL(sched, disconnected(_));
 
     // Inform the scheduler about the new master.
-    schedulerDetector.appoint(master2.get());
+    schedulerDetector.appoint(master2.get()->pid);
 
     AWAIT_READY(addFramework);
 
@@ -1336,7 +1355,7 @@ TYPED_TEST(MasterAllocatorTest, FrameworkReregistersFirst)
       .WillOnce(FutureArg<1>(&resourceOffers2));
 
     // Inform the slave about the new master.
-    slaveDetector.appoint(master2.get());
+    slaveDetector.appoint(master2.get()->pid);
 
     AWAIT_READY(resourceOffers2);
 
@@ -1351,8 +1370,6 @@ TYPED_TEST(MasterAllocatorTest, FrameworkReregistersFirst)
     // Shut everything down.
     driver.stop();
     driver.join();
-
-    this->Shutdown();
   }
 }
 
@@ -1368,7 +1385,9 @@ TYPED_TEST(MasterAllocatorTest, SlaveReregistersFirst)
   StandaloneMasterDetector schedulerDetector;
   MockScheduler sched;
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
+  TestContainerizer containerizer(&exec);
   TestingMesosSchedulerDriver driver(&sched, &schedulerDetector);
+  Try<Owned<cluster::Slave>> slave = nullptr;
 
   // Explicit scope is to ensure all object associated with the
   // leading master (e.g. allocator) are destroyed once the master
@@ -1379,17 +1398,18 @@ TYPED_TEST(MasterAllocatorTest, SlaveReregistersFirst)
 
     EXPECT_CALL(allocator, initialize(_, _, _, _));
 
-    Try<PID<Master>> master = this->StartMaster(&allocator);
+    Try<Owned<cluster::Master>> master = this->StartMaster(&allocator);
     ASSERT_SOME(master);
-    slaveDetector.appoint(master.get());
-    schedulerDetector.appoint(master.get());
+
+    slaveDetector.appoint(master.get()->pid);
+    schedulerDetector.appoint(master.get()->pid);
 
     EXPECT_CALL(allocator, addSlave(_, _, _, _, _));
 
     slave::Flags flags = this->CreateSlaveFlags();
     flags.resources = Some("cpus:2;mem:1024");
 
-    Try<PID<Slave>> slave = this->StartSlave(&exec, &slaveDetector, flags);
+    slave = this->StartSlave(&slaveDetector, &containerizer, flags);
     ASSERT_SOME(slave);
 
     EXPECT_CALL(allocator, addFramework(_, _, _));
@@ -1427,8 +1447,6 @@ TYPED_TEST(MasterAllocatorTest, SlaveReregistersFirst)
 
     EXPECT_CALL(allocator, recoverResources(_, _, _, _))
       .WillRepeatedly(DoDefault());
-
-    this->ShutdownMasters();
   }
 
   {
@@ -1441,11 +1459,11 @@ TYPED_TEST(MasterAllocatorTest, SlaveReregistersFirst)
       .WillOnce(DoAll(InvokeAddSlave(&allocator2),
                       FutureSatisfy(&addSlave)));
 
-    Try<PID<Master>> master2 = this->StartMaster(&allocator2);
+    Try<Owned<cluster::Master>> master2 = this->StartMaster(&allocator2);
     ASSERT_SOME(master2);
 
     // Inform the slave about the new master.
-    slaveDetector.appoint(master2.get());
+    slaveDetector.appoint(master2.get()->pid);
 
     AWAIT_READY(addSlave);
 
@@ -1460,7 +1478,7 @@ TYPED_TEST(MasterAllocatorTest, SlaveReregistersFirst)
       .WillOnce(FutureArg<1>(&resourceOffers2));
 
     // Inform the scheduler about the new master.
-    schedulerDetector.appoint(master2.get());
+    schedulerDetector.appoint(master2.get()->pid);
 
     AWAIT_READY(resourceOffers2);
 
@@ -1475,8 +1493,6 @@ TYPED_TEST(MasterAllocatorTest, SlaveReregistersFirst)
     // Shut everything down.
     driver.stop();
     driver.join();
-
-    this->Shutdown();
   }
 }
 

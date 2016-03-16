@@ -31,6 +31,7 @@
 #include <process/gmock.hpp>
 #include <process/gtest.hpp>
 #include <process/pid.hpp>
+#include <process/owned.hpp>
 
 #include <stout/lambda.hpp>
 #include <stout/try.hpp>
@@ -59,6 +60,7 @@ using mesos::v1::scheduler::Mesos;
 using process::Clock;
 using process::Future;
 using process::PID;
+using process::Owned;
 
 using std::string;
 
@@ -88,7 +90,7 @@ TEST_F(HttpFaultToleranceTest, SchedulerSubscribeAfterFailoverTimeout)
   v1::FrameworkInfo frameworkInfo = DEFAULT_V1_FRAMEWORK_INFO;
   frameworkInfo.set_failover_timeout(Weeks(2).secs());
 
-  Try<PID<Master>> master = StartMaster(flags);
+  Try<Owned<cluster::Master>> master = StartMaster(flags);
   ASSERT_SOME(master);
 
   Future<Nothing> deactivateFramework = FUTURE_DISPATCH(
@@ -109,7 +111,7 @@ TEST_F(HttpFaultToleranceTest, SchedulerSubscribeAfterFailoverTimeout)
       .WillRepeatedly(Return()); // Ignore future invocations.
 
     scheduler::TestV1Mesos schedulerLibrary(
-        master.get(), contentType, scheduler);
+        master.get()->pid, contentType, scheduler);
 
     AWAIT_READY(connected);
 
@@ -165,7 +167,7 @@ TEST_F(HttpFaultToleranceTest, SchedulerSubscribeAfterFailoverTimeout)
       .WillRepeatedly(Return()); // Ignore future invocations.
 
     scheduler::TestV1Mesos schedulerLibrary(
-        master.get(), contentType, scheduler);
+        master.get()->pid, contentType, scheduler);
 
     AWAIT_READY(connected);
 
@@ -192,8 +194,6 @@ TEST_F(HttpFaultToleranceTest, SchedulerSubscribeAfterFailoverTimeout)
 
     AWAIT_READY(error);
   }
-
-  Shutdown();
 }
 
 
@@ -204,7 +204,7 @@ TEST_F(HttpFaultToleranceTest, SchedulerSubscribeAfterTeardown)
   master::Flags flags = CreateMasterFlags();
   flags.authenticate_frameworks = false;
 
-  Try<PID<Master>> master = StartMaster(flags);
+  Try<Owned<cluster::Master>> master = StartMaster(flags);
   ASSERT_SOME(master);
 
   v1::FrameworkID frameworkId;
@@ -222,7 +222,7 @@ TEST_F(HttpFaultToleranceTest, SchedulerSubscribeAfterTeardown)
       .WillRepeatedly(Return()); // Ignore future invocations.
 
     scheduler::TestV1Mesos schedulerLibrary(
-        master.get(), contentType, scheduler);
+        master.get()->pid, contentType, scheduler);
 
     AWAIT_READY(connected);
 
@@ -285,7 +285,7 @@ TEST_F(HttpFaultToleranceTest, SchedulerSubscribeAfterTeardown)
       .WillRepeatedly(Return()); // Ignore future invocations.
 
     scheduler::TestV1Mesos schedulerLibrary(
-        master.get(), contentType, scheduler);
+        master.get()->pid, contentType, scheduler);
 
     AWAIT_READY(connected);
 
@@ -312,8 +312,6 @@ TEST_F(HttpFaultToleranceTest, SchedulerSubscribeAfterTeardown)
 
     AWAIT_READY(error);
   }
-
-  Shutdown();
 }
 
 
@@ -324,7 +322,7 @@ TEST_F(HttpFaultToleranceTest, SchedulerFailoverStatusUpdate)
   master::Flags flags = CreateMasterFlags();
   flags.authenticate_frameworks = false;
 
-  Try<PID<Master>> master = StartMaster(flags);
+  Try<Owned<cluster::Master>> master = StartMaster(flags);
   ASSERT_SOME(master);
 
   auto scheduler = std::make_shared<MockV1HTTPScheduler>();
@@ -333,7 +331,9 @@ TEST_F(HttpFaultToleranceTest, SchedulerFailoverStatusUpdate)
   ExecutorID executorId = DEFAULT_EXECUTOR_ID;
   TestContainerizer containerizer(executorId, executor);
 
-  Try<PID<Slave>> slave = StartSlave(&containerizer);
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), &containerizer);
   ASSERT_SOME(slave);
 
   Future<Nothing> connected;
@@ -343,7 +343,8 @@ TEST_F(HttpFaultToleranceTest, SchedulerFailoverStatusUpdate)
 
   ContentType contentType = ContentType::PROTOBUF;
 
-  scheduler::TestV1Mesos schedulerLibrary(master.get(), contentType, scheduler);
+  scheduler::TestV1Mesos schedulerLibrary(
+      master.get()->pid, contentType, scheduler);
 
   AWAIT_READY(connected);
 
@@ -431,7 +432,7 @@ TEST_F(HttpFaultToleranceTest, SchedulerFailoverStatusUpdate)
 
   // Failover to another scheduler instance.
   scheduler::TestV1Mesos schedulerLibrary2(
-      master.get(), contentType, scheduler2);
+      master.get()->pid, contentType, scheduler2);
 
   AWAIT_READY(connected);
 
@@ -494,8 +495,6 @@ TEST_F(HttpFaultToleranceTest, SchedulerFailoverStatusUpdate)
 
   EXPECT_CALL(*scheduler2, disconnected(_))
     .Times(AtMost(1));
-
-  Shutdown();
 }
 
 
@@ -506,7 +505,7 @@ TEST_F(HttpFaultToleranceTest, SchedulerFailoverExecutorToFrameworkMessage)
   master::Flags flags = CreateMasterFlags();
   flags.authenticate_frameworks = false;
 
-  Try<PID<Master>> master = StartMaster(flags);
+  Try<Owned<cluster::Master>> master = StartMaster(flags);
   ASSERT_SOME(master);
 
   auto scheduler = std::make_shared<MockV1HTTPScheduler>();
@@ -515,7 +514,9 @@ TEST_F(HttpFaultToleranceTest, SchedulerFailoverExecutorToFrameworkMessage)
   ExecutorID executorId = DEFAULT_EXECUTOR_ID;
   TestContainerizer containerizer(executorId, executor);
 
-  Try<PID<Slave>> slave = StartSlave(&containerizer);
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), &containerizer);
   ASSERT_SOME(slave);
 
   Future<Nothing> connected;
@@ -525,7 +526,8 @@ TEST_F(HttpFaultToleranceTest, SchedulerFailoverExecutorToFrameworkMessage)
 
   ContentType contentType = ContentType::PROTOBUF;
 
-  scheduler::TestV1Mesos schedulerLibrary(master.get(), contentType, scheduler);
+  scheduler::TestV1Mesos schedulerLibrary(
+      master.get()->pid, contentType, scheduler);
 
   AWAIT_READY(connected);
 
@@ -598,7 +600,7 @@ TEST_F(HttpFaultToleranceTest, SchedulerFailoverExecutorToFrameworkMessage)
 
   // Failover to another scheduler instance.
   scheduler::TestV1Mesos schedulerLibrary2(
-      master.get(), contentType, scheduler2);
+      master.get()->pid, contentType, scheduler2);
 
   AWAIT_READY(connected);
 
@@ -667,8 +669,6 @@ TEST_F(HttpFaultToleranceTest, SchedulerFailoverExecutorToFrameworkMessage)
 
   EXPECT_CALL(*scheduler2, disconnected(_))
     .Times(AtMost(1));
-
-  Shutdown();
 }
 
 
@@ -679,7 +679,7 @@ TEST_F(HttpFaultToleranceTest, SchedulerFailoverFrameworkToExecutorMessage)
   master::Flags flags = CreateMasterFlags();
   flags.authenticate_frameworks = false;
 
-  Try<PID<Master>> master = StartMaster(flags);
+  Try<Owned<cluster::Master>> master = StartMaster(flags);
   ASSERT_SOME(master);
 
   auto scheduler = std::make_shared<MockV1HTTPScheduler>();
@@ -688,7 +688,9 @@ TEST_F(HttpFaultToleranceTest, SchedulerFailoverFrameworkToExecutorMessage)
   ExecutorID executorId = DEFAULT_EXECUTOR_ID;
   TestContainerizer containerizer(executorId, executor);
 
-  Try<PID<Slave>> slave = StartSlave(&containerizer);
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), &containerizer);
   ASSERT_SOME(slave);
 
   Future<Nothing> connected;
@@ -698,7 +700,8 @@ TEST_F(HttpFaultToleranceTest, SchedulerFailoverFrameworkToExecutorMessage)
 
   ContentType contentType = ContentType::PROTOBUF;
 
-  scheduler::TestV1Mesos schedulerLibrary(master.get(), contentType, scheduler);
+  scheduler::TestV1Mesos schedulerLibrary(
+      master.get()->pid, contentType, scheduler);
 
   AWAIT_READY(connected);
 
@@ -769,7 +772,7 @@ TEST_F(HttpFaultToleranceTest, SchedulerFailoverFrameworkToExecutorMessage)
 
   // Failover to another scheduler instance.
   scheduler::TestV1Mesos schedulerLibrary2(
-      master.get(), contentType, scheduler2);
+      master.get()->pid, contentType, scheduler2);
 
   AWAIT_READY(connected);
 
@@ -838,8 +841,6 @@ TEST_F(HttpFaultToleranceTest, SchedulerFailoverFrameworkToExecutorMessage)
 
   EXPECT_CALL(*scheduler2, disconnected(_))
     .Times(AtMost(1));
-
-  Shutdown();
 }
 
 
@@ -849,7 +850,7 @@ TEST_F(HttpFaultToleranceTest, SchedulerExit)
   master::Flags flags = CreateMasterFlags();
   flags.authenticate_frameworks = false;
 
-  Try<PID<Master>> master = StartMaster(flags);
+  Try<Owned<cluster::Master>> master = StartMaster(flags);
   ASSERT_SOME(master);
 
   auto scheduler = std::make_shared<MockV1HTTPScheduler>();
@@ -858,7 +859,9 @@ TEST_F(HttpFaultToleranceTest, SchedulerExit)
   ExecutorID executorId = DEFAULT_EXECUTOR_ID;
   TestContainerizer containerizer(executorId, executor);
 
-  Try<PID<Slave>> slave = StartSlave(&containerizer);
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), &containerizer);
   ASSERT_SOME(slave);
 
   Future<Nothing> connected;
@@ -868,7 +871,8 @@ TEST_F(HttpFaultToleranceTest, SchedulerExit)
 
   ContentType contentType = ContentType::PROTOBUF;
 
-  scheduler::TestV1Mesos schedulerLibrary(master.get(), contentType, scheduler);
+  scheduler::TestV1Mesos schedulerLibrary(
+      master.get()->pid, contentType, scheduler);
 
   AWAIT_READY(connected);
 
@@ -949,8 +953,6 @@ TEST_F(HttpFaultToleranceTest, SchedulerExit)
   // Ensure that the executor receives a `Event::Shutdown` after the
   // scheduler exit.
   AWAIT_READY(shutdown);
-
-  Shutdown();
 }
 
 } // namespace tests {

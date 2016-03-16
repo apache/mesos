@@ -153,11 +153,14 @@ TYPED_TEST(CpuIsolatorTest, UserCpuUsage)
 {
   slave::Flags flags;
 
-  Try<Isolator*> isolator = TypeParam::create(flags);
-  CHECK_SOME(isolator);
+  Try<Isolator*> _isolator = TypeParam::create(flags);
+  ASSERT_SOME(_isolator);
+  Owned<Isolator> isolator(_isolator.get());
 
   // A PosixLauncher is sufficient even when testing a cgroups isolator.
-  Try<Launcher*> launcher = PosixLauncher::create(flags);
+  Try<Launcher*> _launcher = PosixLauncher::create(flags);
+  ASSERT_SOME(_launcher);
+  Owned<Launcher> launcher(_launcher.get());
 
   ExecutorInfo executorInfo;
   executorInfo.mutable_resources()->CopyFrom(
@@ -175,7 +178,7 @@ TYPED_TEST(CpuIsolatorTest, UserCpuUsage)
   containerConfig.mutable_executor_info()->CopyFrom(executorInfo);
   containerConfig.set_directory(dir.get());
 
-  AWAIT_READY(isolator.get()->prepare(
+  AWAIT_READY(isolator->prepare(
       containerId,
       containerConfig));
 
@@ -194,7 +197,7 @@ TYPED_TEST(CpuIsolatorTest, UserCpuUsage)
   argv[1] = "-c";
   argv[2] = command;
 
-  Try<pid_t> pid = launcher.get()->fork(
+  Try<pid_t> pid = launcher->fork(
       containerId,
       "sh",
       argv,
@@ -215,7 +218,7 @@ TYPED_TEST(CpuIsolatorTest, UserCpuUsage)
   ASSERT_SOME(os::close(pipes[0]));
 
   // Isolate the forked child.
-  AWAIT_READY(isolator.get()->isolate(containerId, pid.get()));
+  AWAIT_READY(isolator->isolate(containerId, pid.get()));
 
   // Now signal the child to continue.
   char dummy;
@@ -231,7 +234,7 @@ TYPED_TEST(CpuIsolatorTest, UserCpuUsage)
   ResourceStatistics statistics;
   Duration waited = Duration::zero();
   do {
-    Future<ResourceStatistics> usage = isolator.get()->usage(containerId);
+    Future<ResourceStatistics> usage = isolator->usage(containerId);
     AWAIT_READY(usage);
 
     statistics = usage.get();
@@ -254,10 +257,7 @@ TYPED_TEST(CpuIsolatorTest, UserCpuUsage)
   AWAIT_READY(status);
 
   // Let the isolator clean up.
-  AWAIT_READY(isolator.get()->cleanup(containerId));
-
-  delete isolator.get();
-  delete launcher.get();
+  AWAIT_READY(isolator->cleanup(containerId));
 }
 
 
@@ -265,11 +265,14 @@ TYPED_TEST(CpuIsolatorTest, SystemCpuUsage)
 {
   slave::Flags flags;
 
-  Try<Isolator*> isolator = TypeParam::create(flags);
-  CHECK_SOME(isolator);
+  Try<Isolator*> _isolator = TypeParam::create(flags);
+  ASSERT_SOME(_isolator);
+  Owned<Isolator> isolator(_isolator.get());
 
   // A PosixLauncher is sufficient even when testing a cgroups isolator.
-  Try<Launcher*> launcher = PosixLauncher::create(flags);
+  Try<Launcher*> _launcher = PosixLauncher::create(flags);
+  ASSERT_SOME(_launcher);
+  Owned<Launcher> launcher(_launcher.get());
 
   ExecutorInfo executorInfo;
   executorInfo.mutable_resources()->CopyFrom(
@@ -287,7 +290,7 @@ TYPED_TEST(CpuIsolatorTest, SystemCpuUsage)
   containerConfig.mutable_executor_info()->CopyFrom(executorInfo);
   containerConfig.set_directory(dir.get());
 
-  AWAIT_READY(isolator.get()->prepare(
+  AWAIT_READY(isolator->prepare(
       containerId,
       containerConfig));
 
@@ -307,7 +310,7 @@ TYPED_TEST(CpuIsolatorTest, SystemCpuUsage)
   argv[1] = "-c";
   argv[2] = command;
 
-  Try<pid_t> pid = launcher.get()->fork(
+  Try<pid_t> pid = launcher->fork(
       containerId,
       "sh",
       argv,
@@ -328,7 +331,7 @@ TYPED_TEST(CpuIsolatorTest, SystemCpuUsage)
   ASSERT_SOME(os::close(pipes[0]));
 
   // Isolate the forked child.
-  AWAIT_READY(isolator.get()->isolate(containerId, pid.get()));
+  AWAIT_READY(isolator->isolate(containerId, pid.get()));
 
   // Now signal the child to continue.
   char dummy;
@@ -344,7 +347,7 @@ TYPED_TEST(CpuIsolatorTest, SystemCpuUsage)
   ResourceStatistics statistics;
   Duration waited = Duration::zero();
   do {
-    Future<ResourceStatistics> usage = isolator.get()->usage(containerId);
+    Future<ResourceStatistics> usage = isolator->usage(containerId);
     AWAIT_READY(usage);
 
     statistics = usage.get();
@@ -367,10 +370,7 @@ TYPED_TEST(CpuIsolatorTest, SystemCpuUsage)
   AWAIT_READY(status);
 
   // Let the isolator clean up.
-  AWAIT_READY(isolator.get()->cleanup(containerId));
-
-  delete isolator.get();
-  delete launcher.get();
+  AWAIT_READY(isolator->cleanup(containerId));
 }
 
 
@@ -467,10 +467,13 @@ TEST_F(RevocableCpuIsolatorTest, ROOT_CGROUPS_RevocableCpu)
 {
   slave::Flags flags;
 
-  Try<Isolator*> isolator = CgroupsCpushareIsolatorProcess::create(flags);
-  CHECK_SOME(isolator);
+  Try<Isolator*> _isolator = CgroupsCpushareIsolatorProcess::create(flags);
+  ASSERT_SOME(_isolator);
+  Owned<Isolator> isolator(_isolator.get());
 
-  Try<Launcher*> launcher = PosixLauncher::create(flags);
+  Try<Launcher*> _launcher = PosixLauncher::create(flags);
+  ASSERT_SOME(_launcher);
+  Owned<Launcher> launcher(_launcher.get());
 
   // Include revocable CPU in the executor's resources.
   Resource cpu = Resources::parse("cpus", "1", "*").get();
@@ -486,13 +489,13 @@ TEST_F(RevocableCpuIsolatorTest, ROOT_CGROUPS_RevocableCpu)
   containerConfig.mutable_executor_info()->CopyFrom(executorInfo);
   containerConfig.set_directory(os::getcwd());
 
-  AWAIT_READY(isolator.get()->prepare(
+  AWAIT_READY(isolator->prepare(
         containerId,
         containerConfig));
 
   vector<string> argv{"sleep", "100"};
 
-  Try<pid_t> pid = launcher.get()->fork(
+  Try<pid_t> pid = launcher->fork(
       containerId,
       "/bin/sleep",
       argv,
@@ -506,7 +509,7 @@ TEST_F(RevocableCpuIsolatorTest, ROOT_CGROUPS_RevocableCpu)
 
   ASSERT_SOME(pid);
 
-  AWAIT_READY(isolator.get()->isolate(containerId, pid.get()));
+  AWAIT_READY(isolator->isolate(containerId, pid.get()));
 
   // Executor should have proper cpu.shares for revocable containers.
   Result<string> cpuHierarchy = cgroups::hierarchy("cpu");
@@ -526,10 +529,7 @@ TEST_F(RevocableCpuIsolatorTest, ROOT_CGROUPS_RevocableCpu)
 
   AWAIT_READY(status);
 
-  AWAIT_READY(isolator.get()->cleanup(containerId));
-
-  delete isolator.get();
-  delete launcher.get();
+  AWAIT_READY(isolator->cleanup(containerId));
 }
 #endif // __linux__
 
@@ -545,11 +545,13 @@ TEST_F(LimitedCpuIsolatorTest, ROOT_CGROUPS_CFS_Enable_Cfs)
   // Enable CFS to cap CPU utilization.
   flags.cgroups_enable_cfs = true;
 
-  Try<Isolator*> isolator = CgroupsCpushareIsolatorProcess::create(flags);
-  CHECK_SOME(isolator);
+  Try<Isolator*> _isolator = CgroupsCpushareIsolatorProcess::create(flags);
+  ASSERT_SOME(_isolator);
+  Owned<Isolator> isolator(_isolator.get());
 
-  Try<Launcher*> launcher = LinuxLauncher::create(flags);
-  CHECK_SOME(launcher);
+  Try<Launcher*> _launcher = LinuxLauncher::create(flags);
+  ASSERT_SOME(_launcher);
+  Owned<Launcher> launcher(_launcher.get());
 
   // Set the executor's resources to 0.5 cpu.
   ExecutorInfo executorInfo;
@@ -569,7 +571,7 @@ TEST_F(LimitedCpuIsolatorTest, ROOT_CGROUPS_CFS_Enable_Cfs)
   containerConfig.set_directory(dir.get());
 
   Future<Option<ContainerLaunchInfo>> prepare =
-    isolator.get()->prepare(
+    isolator->prepare(
         containerId,
         containerConfig);
 
@@ -592,7 +594,7 @@ TEST_F(LimitedCpuIsolatorTest, ROOT_CGROUPS_CFS_Enable_Cfs)
   argv[1] = "-c";
   argv[2] = command;
 
-  Try<pid_t> pid = launcher.get()->fork(
+  Try<pid_t> pid = launcher->fork(
       containerId,
       "sh",
       argv,
@@ -613,7 +615,7 @@ TEST_F(LimitedCpuIsolatorTest, ROOT_CGROUPS_CFS_Enable_Cfs)
   ASSERT_SOME(os::close(pipes[0]));
 
   // Isolate the forked child.
-  AWAIT_READY(isolator.get()->isolate(containerId, pid.get()));
+  AWAIT_READY(isolator->isolate(containerId, pid.get()));
 
   // Now signal the child to continue.
   char dummy;
@@ -624,7 +626,7 @@ TEST_F(LimitedCpuIsolatorTest, ROOT_CGROUPS_CFS_Enable_Cfs)
   // Wait for the command to complete.
   AWAIT_READY(status);
 
-  Future<ResourceStatistics> usage = isolator.get()->usage(containerId);
+  Future<ResourceStatistics> usage = isolator->usage(containerId);
   AWAIT_READY(usage);
 
   // Expect that no more than 300 ms of cpu time has been consumed. We also
@@ -642,10 +644,7 @@ TEST_F(LimitedCpuIsolatorTest, ROOT_CGROUPS_CFS_Enable_Cfs)
   AWAIT_READY(launcher.get()->destroy(containerId));
 
   // Let the isolator clean up.
-  AWAIT_READY(isolator.get()->cleanup(containerId));
-
-  delete isolator.get();
-  delete launcher.get();
+  AWAIT_READY(isolator->cleanup(containerId));
 }
 
 
@@ -661,11 +660,13 @@ TEST_F(LimitedCpuIsolatorTest, ROOT_CGROUPS_CFS_Big_Quota)
   // Enable CFS to cap CPU utilization.
   flags.cgroups_enable_cfs = true;
 
-  Try<Isolator*> isolator = CgroupsCpushareIsolatorProcess::create(flags);
-  CHECK_SOME(isolator);
+  Try<Isolator*> _isolator = CgroupsCpushareIsolatorProcess::create(flags);
+  ASSERT_SOME(_isolator);
+  Owned<Isolator> isolator(_isolator.get());
 
-  Try<Launcher*> launcher = LinuxLauncher::create(flags);
-  CHECK_SOME(launcher);
+  Try<Launcher*> _launcher = LinuxLauncher::create(flags);
+  ASSERT_SOME(_launcher);
+  Owned<Launcher> launcher(_launcher.get());
 
   // Set the executor's resources to 100.5 cpu.
   ExecutorInfo executorInfo;
@@ -685,7 +686,7 @@ TEST_F(LimitedCpuIsolatorTest, ROOT_CGROUPS_CFS_Big_Quota)
   containerConfig.set_directory(dir.get());
 
   Future<Option<ContainerLaunchInfo>> prepare =
-    isolator.get()->prepare(
+    isolator->prepare(
         containerId,
         containerConfig);
 
@@ -699,7 +700,7 @@ TEST_F(LimitedCpuIsolatorTest, ROOT_CGROUPS_CFS_Big_Quota)
   argv[1] = "-c";
   argv[2] = "exit 0";
 
-  Try<pid_t> pid = launcher.get()->fork(
+  Try<pid_t> pid = launcher->fork(
       containerId,
       "sh",
       argv,
@@ -720,7 +721,7 @@ TEST_F(LimitedCpuIsolatorTest, ROOT_CGROUPS_CFS_Big_Quota)
   ASSERT_SOME(os::close(pipes[0]));
 
   // Isolate the forked child.
-  AWAIT_READY(isolator.get()->isolate(containerId, pid.get()));
+  AWAIT_READY(isolator->isolate(containerId, pid.get()));
 
   // Now signal the child to continue.
   char dummy;
@@ -736,10 +737,7 @@ TEST_F(LimitedCpuIsolatorTest, ROOT_CGROUPS_CFS_Big_Quota)
   AWAIT_READY(launcher.get()->destroy(containerId));
 
   // Let the isolator clean up.
-  AWAIT_READY(isolator.get()->cleanup(containerId));
-
-  delete isolator.get();
-  delete launcher.get();
+  AWAIT_READY(isolator->cleanup(containerId));
 }
 
 
@@ -750,11 +748,13 @@ TEST_F(LimitedCpuIsolatorTest, ROOT_CGROUPS_Pids_and_Tids)
   slave::Flags flags;
   flags.cgroups_cpu_enable_pids_and_tids_count = true;
 
-  Try<Isolator*> isolator = CgroupsCpushareIsolatorProcess::create(flags);
-  CHECK_SOME(isolator);
+  Try<Isolator*> _isolator = CgroupsCpushareIsolatorProcess::create(flags);
+  ASSERT_SOME(_isolator);
+  Owned<Isolator> isolator(_isolator.get());
 
-  Try<Launcher*> launcher = LinuxLauncher::create(flags);
-  CHECK_SOME(launcher);
+  Try<Launcher*> _launcher = LinuxLauncher::create(flags);
+  ASSERT_SOME(_launcher);
+  Owned<Launcher> launcher(_launcher.get());
 
   ExecutorInfo executorInfo;
   executorInfo.mutable_resources()->CopyFrom(
@@ -773,7 +773,7 @@ TEST_F(LimitedCpuIsolatorTest, ROOT_CGROUPS_Pids_and_Tids)
   containerConfig.set_directory(dir.get());
 
   Future<Option<ContainerLaunchInfo>> prepare =
-    isolator.get()->prepare(
+    isolator->prepare(
         containerId,
         containerConfig);
 
@@ -781,7 +781,7 @@ TEST_F(LimitedCpuIsolatorTest, ROOT_CGROUPS_Pids_and_Tids)
 
   // Right after the creation of the cgroup, which happens in
   // 'prepare', we check that it is empty.
-  Future<ResourceStatistics> usage = isolator.get()->usage(containerId);
+  Future<ResourceStatistics> usage = isolator->usage(containerId);
   AWAIT_READY(usage);
   EXPECT_EQ(0U, usage.get().processes());
   EXPECT_EQ(0U, usage.get().threads());
@@ -800,7 +800,7 @@ TEST_F(LimitedCpuIsolatorTest, ROOT_CGROUPS_Pids_and_Tids)
   vector<string> argv(1);
   argv[0] = "cat";
 
-  Try<pid_t> pid = launcher.get()->fork(
+  Try<pid_t> pid = launcher->fork(
       containerId,
       "cat",
       argv,
@@ -821,17 +821,17 @@ TEST_F(LimitedCpuIsolatorTest, ROOT_CGROUPS_Pids_and_Tids)
   ASSERT_SOME(os::close(pipes[0]));
 
   // Before isolation, the cgroup is empty.
-  usage = isolator.get()->usage(containerId);
+  usage = isolator->usage(containerId);
   AWAIT_READY(usage);
   EXPECT_EQ(0U, usage.get().processes());
   EXPECT_EQ(0U, usage.get().threads());
 
   // Isolate the forked child.
-  AWAIT_READY(isolator.get()->isolate(containerId, pid.get()));
+  AWAIT_READY(isolator->isolate(containerId, pid.get()));
 
   // After the isolation, the cgroup is not empty, even though the
   // process hasn't exec'd yet.
-  usage = isolator.get()->usage(containerId);
+  usage = isolator->usage(containerId);
   AWAIT_READY(usage);
   EXPECT_EQ(1U, usage.get().processes());
   EXPECT_EQ(1U, usage.get().threads());
@@ -852,7 +852,7 @@ TEST_F(LimitedCpuIsolatorTest, ROOT_CGROUPS_Pids_and_Tids)
     }));
 
   // Process count should be 1 since 'cat' is still idling.
-  usage = isolator.get()->usage(containerId);
+  usage = isolator->usage(containerId);
   AWAIT_READY(usage);
   EXPECT_EQ(1U, usage.get().processes());
   EXPECT_EQ(1U, usage.get().threads());
@@ -868,16 +868,13 @@ TEST_F(LimitedCpuIsolatorTest, ROOT_CGROUPS_Pids_and_Tids)
   AWAIT_READY(status);
 
   // After the process is killed, the cgroup should be empty again.
-  usage = isolator.get()->usage(containerId);
+  usage = isolator->usage(containerId);
   AWAIT_READY(usage);
   EXPECT_EQ(0U, usage.get().processes());
   EXPECT_EQ(0U, usage.get().threads());
 
   // Let the isolator clean up.
-  AWAIT_READY(isolator.get()->cleanup(containerId));
-
-  delete isolator.get();
-  delete launcher.get();
+  AWAIT_READY(isolator->cleanup(containerId));
 }
 #endif // __linux__
 
@@ -901,8 +898,9 @@ TYPED_TEST(MemIsolatorTest, MemUsage)
 {
   slave::Flags flags;
 
-  Try<Isolator*> isolator = TypeParam::create(flags);
-  CHECK_SOME(isolator);
+  Try<Isolator*> _isolator = TypeParam::create(flags);
+  ASSERT_SOME(_isolator);
+  Owned<Isolator> isolator(_isolator.get());
 
   ExecutorInfo executorInfo;
   executorInfo.mutable_resources()->CopyFrom(
@@ -920,7 +918,7 @@ TYPED_TEST(MemIsolatorTest, MemUsage)
   containerConfig.mutable_executor_info()->CopyFrom(executorInfo);
   containerConfig.set_directory(dir.get());
 
-  AWAIT_READY(isolator.get()->prepare(
+  AWAIT_READY(isolator->prepare(
       containerId,
       containerConfig));
 
@@ -932,12 +930,12 @@ TYPED_TEST(MemIsolatorTest, MemUsage)
   Future<Option<int>> status = process::reap(helper.pid().get());
 
   // Isolate the subprocess.
-  AWAIT_READY(isolator.get()->isolate(containerId, helper.pid().get()));
+  AWAIT_READY(isolator->isolate(containerId, helper.pid().get()));
 
   const Bytes allocation = Megabytes(128);
   EXPECT_SOME(helper.increaseRSS(allocation));
 
-  Future<ResourceStatistics> usage = isolator.get()->usage(containerId);
+  Future<ResourceStatistics> usage = isolator->usage(containerId);
   AWAIT_READY(usage);
 
   EXPECT_GE(usage.get().mem_rss_bytes(), allocation.bytes());
@@ -949,9 +947,7 @@ TYPED_TEST(MemIsolatorTest, MemUsage)
   AWAIT_READY(status);
 
   // Let the isolator clean up.
-  AWAIT_READY(isolator.get()->cleanup(containerId));
-
-  delete isolator.get();
+  AWAIT_READY(isolator->cleanup(containerId));
 }
 
 
@@ -969,7 +965,7 @@ class NetClsIsolatorTest : public MesosTest {};
 // cgroup created for the container.
 TEST_F(NetClsIsolatorTest, ROOT_CGROUPS_NetClsIsolate)
 {
-  Try<PID<Master>> master = StartMaster();
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   uint16_t primary = 0x0012;
@@ -981,18 +977,22 @@ TEST_F(NetClsIsolatorTest, ROOT_CGROUPS_NetClsIsolate)
 
   Fetcher fetcher;
 
-  Try<MesosContainerizer*> containerizer =
+  Try<MesosContainerizer*> _containerizer =
     MesosContainerizer::create(flags, true, &fetcher);
 
-  ASSERT_SOME(containerizer);
+  ASSERT_SOME(_containerizer);
+  Owned<MesosContainerizer> containerizer(_containerizer.get());
 
-  Try<PID<Slave>> slave = StartSlave(containerizer.get(), flags);
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave =
+    StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
 
   MesosSchedulerDriver driver(
-      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
   Future<Nothing> schedRegistered;
   EXPECT_CALL(sched, registered(_, _, _))
@@ -1025,7 +1025,7 @@ TEST_F(NetClsIsolatorTest, ROOT_CGROUPS_NetClsIsolate)
   ASSERT_EQ(TASK_RUNNING, status.get().state());
 
   // Task is ready.  Make sure there is exactly 1 container in the hashset.
-  Future<hashset<ContainerID>> containers = containerizer.get()->containers();
+  Future<hashset<ContainerID>> containers = containerizer->containers();
   AWAIT_READY(containers);
   EXPECT_EQ(1u, containers.get().size());
 
@@ -1080,10 +1080,6 @@ TEST_F(NetClsIsolatorTest, ROOT_CGROUPS_NetClsIsolate)
 
   driver.stop();
   driver.join();
-
-  Shutdown();
-
-  delete containerizer.get();
 }
 
 
@@ -1091,7 +1087,7 @@ TEST_F(NetClsIsolatorTest, ROOT_CGROUPS_NetClsIsolate)
 // from `state.json`.
 TEST_F(NetClsIsolatorTest, ROOT_CGROUPS_ContainerStatus)
 {
-  Try<PID<Master>> master = StartMaster();
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   slave::Flags flags = CreateSlaveFlags();
@@ -1101,18 +1097,22 @@ TEST_F(NetClsIsolatorTest, ROOT_CGROUPS_ContainerStatus)
 
   Fetcher fetcher;
 
-  Try<MesosContainerizer*> containerizer =
+  Try<MesosContainerizer*> _containerizer =
     MesosContainerizer::create(flags, true, &fetcher);
 
-  ASSERT_SOME(containerizer);
+  ASSERT_SOME(_containerizer);
+  Owned<MesosContainerizer> containerizer(_containerizer.get());
 
-  Try<PID<Slave>> slave = StartSlave(containerizer.get(), flags);
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave =
+    StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
 
   MesosSchedulerDriver driver(
-      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
   Future<Nothing> schedRegistered;
   EXPECT_CALL(sched, registered(_, _, _))
@@ -1143,7 +1143,7 @@ TEST_F(NetClsIsolatorTest, ROOT_CGROUPS_ContainerStatus)
   ASSERT_EQ(TASK_RUNNING, status.get().state());
 
   // Task is ready. Verify `ContainerStatus` is present in slave state.json.
-  Future<Response> response = http::get(slave.get(), "state.json");
+  Future<Response> response = http::get(slave.get()->pid, "state.json");
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
   AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
@@ -1165,10 +1165,6 @@ TEST_F(NetClsIsolatorTest, ROOT_CGROUPS_ContainerStatus)
 
   driver.stop();
   driver.join();
-
-  Shutdown();
-
-  delete containerizer.get();
 }
 #endif
 
@@ -1185,8 +1181,9 @@ TEST_F(PerfEventIsolatorTest, ROOT_CGROUPS_Sample)
   flags.perf_duration = Milliseconds(250);
   flags.perf_interval = Milliseconds(500);
 
-  Try<Isolator*> isolator = CgroupsPerfEventIsolatorProcess::create(flags);
-  ASSERT_SOME(isolator);
+  Try<Isolator*> _isolator = CgroupsPerfEventIsolatorProcess::create(flags);
+  ASSERT_SOME(_isolator);
+  Owned<Isolator> isolator(_isolator.get());
 
   ExecutorInfo executorInfo;
 
@@ -1202,13 +1199,13 @@ TEST_F(PerfEventIsolatorTest, ROOT_CGROUPS_Sample)
   containerConfig.mutable_executor_info()->CopyFrom(executorInfo);
   containerConfig.set_directory(dir.get());
 
-  AWAIT_READY(isolator.get()->prepare(
+  AWAIT_READY(isolator->prepare(
       containerId,
       containerConfig));
 
   // This first sample is likely to be empty because perf hasn't
   // completed yet but we should still have the required fields.
-  Future<ResourceStatistics> statistics1 = isolator.get()->usage(containerId);
+  Future<ResourceStatistics> statistics1 = isolator->usage(containerId);
   AWAIT_READY(statistics1);
   ASSERT_TRUE(statistics1.get().has_perf());
   EXPECT_TRUE(statistics1.get().perf().has_timestamp());
@@ -1221,7 +1218,7 @@ TEST_F(PerfEventIsolatorTest, ROOT_CGROUPS_Sample)
   ResourceStatistics statistics2;
   Duration waited = Duration::zero();
   do {
-    Future<ResourceStatistics> statistics = isolator.get()->usage(containerId);
+    Future<ResourceStatistics> statistics = isolator->usage(containerId);
     AWAIT_READY(statistics);
 
     statistics2 = statistics.get();
@@ -1248,9 +1245,7 @@ TEST_F(PerfEventIsolatorTest, ROOT_CGROUPS_Sample)
   EXPECT_TRUE(statistics2.perf().has_task_clock());
   EXPECT_LE(0.0, statistics2.perf().task_clock());
 
-  AWAIT_READY(isolator.get()->cleanup(containerId));
-
-  delete isolator.get();
+  AWAIT_READY(isolator->cleanup(containerId));
 }
 
 
@@ -1271,11 +1266,13 @@ TEST_F(SharedFilesystemIsolatorTest, DISABLED_ROOT_RelativeVolume)
   slave::Flags flags = CreateSlaveFlags();
   flags.isolation = "filesystem/shared";
 
-  Try<Isolator*> isolator = SharedFilesystemIsolatorProcess::create(flags);
-  CHECK_SOME(isolator);
+  Try<Isolator*> _isolator = SharedFilesystemIsolatorProcess::create(flags);
+  ASSERT_SOME(_isolator);
+  Owned<Isolator> isolator(_isolator.get());
 
-  Try<Launcher*> launcher = LinuxLauncher::create(flags);
-  CHECK_SOME(launcher);
+  Try<Launcher*> _launcher = LinuxLauncher::create(flags);
+  ASSERT_SOME(_launcher);
+  Owned<Launcher> launcher(_launcher.get());
 
   // Use /var/tmp so we don't mask the work directory (under /tmp).
   const string containerPath = "/var/tmp";
@@ -1300,7 +1297,7 @@ TEST_F(SharedFilesystemIsolatorTest, DISABLED_ROOT_RelativeVolume)
   containerConfig.set_directory(flags.work_dir);
 
   Future<Option<ContainerLaunchInfo> > prepare =
-    isolator.get()->prepare(
+    isolator->prepare(
         containerId,
         containerConfig);
 
@@ -1321,7 +1318,7 @@ TEST_F(SharedFilesystemIsolatorTest, DISABLED_ROOT_RelativeVolume)
   args.push_back("-c");
   args.push_back(prepare.get().get().commands(0).value() + " && touch " + file);
 
-  Try<pid_t> pid = launcher.get()->fork(
+  Try<pid_t> pid = launcher->fork(
       containerId,
       "sh",
       args,
@@ -1364,9 +1361,6 @@ TEST_F(SharedFilesystemIsolatorTest, DISABLED_ROOT_RelativeVolume)
   // Check it did create the file under the container's work directory
   // on the host.
   EXPECT_TRUE(os::exists(path::join(flags.work_dir, file)));
-
-  delete launcher.get();
-  delete isolator.get();
 }
 
 
@@ -1380,11 +1374,13 @@ TEST_F(SharedFilesystemIsolatorTest, DISABLED_ROOT_AbsoluteVolume)
   slave::Flags flags = CreateSlaveFlags();
   flags.isolation = "filesystem/shared";
 
-  Try<Isolator*> isolator = SharedFilesystemIsolatorProcess::create(flags);
-  CHECK_SOME(isolator);
+  Try<Isolator*> _isolator = SharedFilesystemIsolatorProcess::create(flags);
+  ASSERT_SOME(_isolator);
+  Owned<Isolator> isolator(_isolator.get());
 
-  Try<Launcher*> launcher = LinuxLauncher::create(flags);
-  CHECK_SOME(launcher);
+  Try<Launcher*> _launcher = LinuxLauncher::create(flags);
+  ASSERT_SOME(_launcher);
+  Owned<Launcher> launcher(_launcher.get());
 
   // We'll mount the absolute test work directory as /var/tmp in the
   // container.
@@ -1407,7 +1403,7 @@ TEST_F(SharedFilesystemIsolatorTest, DISABLED_ROOT_AbsoluteVolume)
   containerConfig.set_directory(flags.work_dir);
 
   Future<Option<ContainerLaunchInfo> > prepare =
-    isolator.get()->prepare(
+    isolator->prepare(
         containerId,
         containerConfig);
 
@@ -1429,7 +1425,7 @@ TEST_F(SharedFilesystemIsolatorTest, DISABLED_ROOT_AbsoluteVolume)
                  " && touch " +
                  path::join(containerPath, filename));
 
-  Try<pid_t> pid = launcher.get()->fork(
+  Try<pid_t> pid = launcher->fork(
       containerId,
       "sh",
       args,
@@ -1453,9 +1449,6 @@ TEST_F(SharedFilesystemIsolatorTest, DISABLED_ROOT_AbsoluteVolume)
 
   // Check it didn't get created in the host's view of containerPath.
   EXPECT_FALSE(os::exists(path::join(containerPath, filename)));
-
-  delete launcher.get();
-  delete isolator.get();
 }
 
 
@@ -1471,9 +1464,11 @@ TEST_F(NamespacesPidIsolatorTest, ROOT_PidNamespace)
 
   Fetcher fetcher;
 
-  Try<MesosContainerizer*> containerizer =
+  Try<MesosContainerizer*> _containerizer =
     MesosContainerizer::create(flags, false, &fetcher);
-  ASSERT_SOME(containerizer);
+
+  ASSERT_SOME(_containerizer);
+  Owned<MesosContainerizer> containerizer(_containerizer.get());
 
   ContainerID containerId;
   containerId.set_value(UUID::random().toString());
@@ -1482,7 +1477,7 @@ TEST_F(NamespacesPidIsolatorTest, ROOT_PidNamespace)
   const string command =
     "stat -c %i /proc/self/ns/pid > ns && (cat /proc/1/comm > init)";
 
-  process::Future<bool> launch = containerizer.get()->launch(
+  process::Future<bool> launch = containerizer->launch(
       containerId,
       CREATE_EXECUTOR_INFO("executor", command),
       directory,
@@ -1495,7 +1490,7 @@ TEST_F(NamespacesPidIsolatorTest, ROOT_PidNamespace)
 
   // Wait on the container.
   process::Future<containerizer::Termination> wait =
-    containerizer.get()->wait(containerId);
+    containerizer->wait(containerId);
   AWAIT_READY(wait);
 
   // Check the executor exited correctly.
@@ -1518,8 +1513,6 @@ TEST_F(NamespacesPidIsolatorTest, ROOT_PidNamespace)
   ASSERT_SOME(init);
 
   EXPECT_EQ("sh", strings::trim(init.get()));
-
-  delete containerizer.get();
 }
 
 
@@ -1570,8 +1563,9 @@ TYPED_TEST(UserCgroupIsolatorTest, ROOT_CGROUPS_UserCgroup)
   slave::Flags flags = UserCgroupIsolatorTest<TypeParam>::CreateSlaveFlags();
   flags.perf_events = "cpu-cycles"; // Needed for CgroupsPerfEventIsolator.
 
-  Try<Isolator*> isolator = TypeParam::create(flags);
-  ASSERT_SOME(isolator);
+  Try<Isolator*> _isolator = TypeParam::create(flags);
+  ASSERT_SOME(_isolator);
+  Owned<Isolator> isolator(_isolator.get());
 
   ExecutorInfo executorInfo;
   executorInfo.mutable_resources()->CopyFrom(
@@ -1585,7 +1579,7 @@ TYPED_TEST(UserCgroupIsolatorTest, ROOT_CGROUPS_UserCgroup)
   containerConfig.set_directory(os::getcwd());
   containerConfig.set_user(UNPRIVILEGED_USERNAME);
 
-  AWAIT_READY(isolator.get()->prepare(
+  AWAIT_READY(isolator->prepare(
       containerId,
       containerConfig));
 
@@ -1600,7 +1594,7 @@ TYPED_TEST(UserCgroupIsolatorTest, ROOT_CGROUPS_UserCgroup)
   }
   ASSERT_GT(pid, 0);
 
-  AWAIT_READY(isolator.get()->isolate(containerId, pid));
+  AWAIT_READY(isolator->isolate(containerId, pid));
 
   // Get the container's cgroups from /proc/$PID/cgroup. We're only
   // interested in the cgroups that this isolator has created which we
@@ -1672,9 +1666,7 @@ TYPED_TEST(UserCgroupIsolatorTest, ROOT_CGROUPS_UserCgroup)
   }
 
   // Clean up the container. This will also remove the nested cgroups.
-  AWAIT_READY(isolator.get()->cleanup(containerId));
-
-  delete isolator.get();
+  AWAIT_READY(isolator->cleanup(containerId));
 }
 #endif // __linux__
 

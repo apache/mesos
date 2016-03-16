@@ -24,6 +24,7 @@
 #include <process/future.hpp>
 #include <process/gmock.hpp>
 #include <process/gtest.hpp>
+#include <process/owned.hpp>
 #include <process/pid.hpp>
 
 #include <stout/gtest.hpp>
@@ -39,6 +40,7 @@ using mesos::internal::master::Master;
 using mesos::internal::slave::Slave;
 
 using process::Future;
+using process::Owned;
 using process::PID;
 
 using std::vector;
@@ -57,16 +59,17 @@ class CommandExecutorTest : public MesosTest {};
 // TASK_KILLING to frameworks that do not support the capability.
 TEST_F(CommandExecutorTest, NoTaskKillingCapability)
 {
-  Try<PID<Master>> master = StartMaster();
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
-  Try<PID<Slave>> slave = StartSlave();
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
   ASSERT_SOME(slave);
 
   // Start the framework without the task killing capability.
   MockScheduler sched;
   MesosSchedulerDriver driver(
-      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(&driver, _, _));
 
@@ -114,10 +117,11 @@ TEST_F(CommandExecutorTest, NoTaskKillingCapability)
 // to frameworks that support the capability.
 TEST_F(CommandExecutorTest, TaskKillingCapability)
 {
-  Try<PID<Master>> master = StartMaster();
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
-  Try<PID<Slave>> slave = StartSlave();
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
   ASSERT_SOME(slave);
 
   // Start the framework with the task killing capability.
@@ -129,7 +133,7 @@ TEST_F(CommandExecutorTest, TaskKillingCapability)
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
-      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(&driver, _, _));
 

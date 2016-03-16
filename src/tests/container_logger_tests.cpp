@@ -22,6 +22,7 @@
 
 #include <process/future.hpp>
 #include <process/gtest.hpp>
+#include <process/owned.hpp>
 
 #include <stout/bytes.hpp>
 #include <stout/gtest.hpp>
@@ -277,7 +278,7 @@ TEST_F(ContainerLoggerTest, ROOT_DOCKER_ContainerizerRecover)
 TEST_F(ContainerLoggerTest, DefaultToSandbox)
 {
   // Create a master, agent, and framework.
-  Try<PID<Master>> master = StartMaster();
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
@@ -289,11 +290,16 @@ TEST_F(ContainerLoggerTest, DefaultToSandbox)
   Fetcher fetcher;
 
   // We use an actual containerizer + executor since we want something to run.
-  Try<MesosContainerizer*> containerizer =
+  Try<MesosContainerizer*> _containerizer =
     MesosContainerizer::create(flags, false, &fetcher);
-  CHECK_SOME(containerizer);
 
-  Try<PID<Slave>> slave = StartSlave(containerizer.get(), flags);
+  CHECK_SOME(_containerizer);
+  Owned<MesosContainerizer> containerizer(_containerizer.get());
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave =
+    StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
 
   AWAIT_READY(slaveRegisteredMessage);
@@ -301,7 +307,7 @@ TEST_F(ContainerLoggerTest, DefaultToSandbox)
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
-      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
   Future<FrameworkID> frameworkId;
   EXPECT_CALL(sched, registered(&driver, _, _))
@@ -340,7 +346,7 @@ TEST_F(ContainerLoggerTest, DefaultToSandbox)
   driver.stop();
   driver.join();
 
-  Shutdown();
+  slave->reset();
 
   // Check that the sandbox was written to.
   string sandboxDirectory = path::join(
@@ -368,7 +374,7 @@ TEST_F(ContainerLoggerTest, DefaultToSandbox)
 TEST_F(ContainerLoggerTest, LOGROTATE_RotateInSandbox)
 {
   // Create a master, agent, and framework.
-  Try<PID<Master>> master = StartMaster();
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
@@ -383,11 +389,16 @@ TEST_F(ContainerLoggerTest, LOGROTATE_RotateInSandbox)
   Fetcher fetcher;
 
   // We use an actual containerizer + executor since we want something to run.
-  Try<MesosContainerizer*> containerizer =
+  Try<MesosContainerizer*> _containerizer =
     MesosContainerizer::create(flags, false, &fetcher);
-  CHECK_SOME(containerizer);
 
-  Try<PID<Slave>> slave = StartSlave(containerizer.get(), flags);
+  CHECK_SOME(_containerizer);
+  Owned<MesosContainerizer> containerizer(_containerizer.get());
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave =
+    StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
 
   AWAIT_READY(slaveRegisteredMessage);
@@ -395,7 +406,7 @@ TEST_F(ContainerLoggerTest, LOGROTATE_RotateInSandbox)
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
-      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
   Future<FrameworkID> frameworkId;
   EXPECT_CALL(sched, registered(&driver, _, _))
@@ -440,8 +451,6 @@ TEST_F(ContainerLoggerTest, LOGROTATE_RotateInSandbox)
 
   driver.stop();
   driver.join();
-
-  Shutdown();
 
   // The `LogrotateContainerLogger` spawns some `mesos-logrotate-logger`
   // processes above, which continue running briefly after the container exits.
@@ -498,7 +507,7 @@ TEST_F(ContainerLoggerTest, LOGROTATE_RotateInSandbox)
 TEST_F(ContainerLoggerTest, LOGROTATE_ModuleFDOwnership)
 {
   // Create a master, agent, and framework.
-  Try<PID<Master>> master = StartMaster();
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
@@ -513,11 +522,16 @@ TEST_F(ContainerLoggerTest, LOGROTATE_ModuleFDOwnership)
   Fetcher fetcher;
 
   // We use an actual containerizer + executor since we want something to run.
-  Try<MesosContainerizer*> containerizer =
+  Try<MesosContainerizer*> _containerizer =
     MesosContainerizer::create(flags, false, &fetcher);
-  CHECK_SOME(containerizer);
 
-  Try<PID<Slave>> slave = StartSlave(containerizer.get(), flags);
+  CHECK_SOME(_containerizer);
+  Owned<MesosContainerizer> containerizer(_containerizer.get());
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave =
+    StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
 
   AWAIT_READY(slaveRegisteredMessage);
@@ -525,7 +539,7 @@ TEST_F(ContainerLoggerTest, LOGROTATE_ModuleFDOwnership)
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
-      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
   Future<FrameworkID> frameworkId;
   EXPECT_CALL(sched, registered(&driver, _, _))
@@ -586,8 +600,6 @@ TEST_F(ContainerLoggerTest, LOGROTATE_ModuleFDOwnership)
 
   driver.stop();
   driver.join();
-
-  Shutdown();
 }
 
 } // namespace tests {

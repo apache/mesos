@@ -26,6 +26,7 @@
 #include <process/future.hpp>
 #include <process/gmock.hpp>
 #include <process/http.hpp>
+#include <process/owned.hpp>
 #include <process/pid.hpp>
 
 #include <stout/base64.hpp>
@@ -50,6 +51,7 @@ using mesos::internal::slave::Slave;
 
 using process::Clock;
 using process::Future;
+using process::Owned;
 using process::PID;
 
 using process::http::BadRequest;
@@ -106,7 +108,7 @@ TEST_F(ReservationEndpointsTest, AvailableResources)
 
   EXPECT_CALL(allocator, initialize(_, _, _, _));
 
-  Try<PID<Master>> master = StartMaster(&allocator);
+  Try<Owned<cluster::Master>> master = StartMaster(&allocator);
   ASSERT_SOME(master);
 
   Future<SlaveID> slaveId;
@@ -114,7 +116,8 @@ TEST_F(ReservationEndpointsTest, AvailableResources)
     .WillOnce(DoAll(InvokeAddSlave(&allocator),
                     FutureArg<0>(&slaveId)));
 
-  Try<PID<Slave>> slave = StartSlave();
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
   ASSERT_SOME(slave);
 
   FrameworkInfo frameworkInfo = createFrameworkInfo();
@@ -125,7 +128,7 @@ TEST_F(ReservationEndpointsTest, AvailableResources)
       createReservationInfo(DEFAULT_CREDENTIAL.principal()));
 
   Future<Response> response = process::http::post(
-      master.get(),
+      master.get()->pid,
       "reserve",
       createBasicAuthHeaders(DEFAULT_CREDENTIAL),
       createRequestBody(slaveId.get(), dynamicallyReserved));
@@ -134,7 +137,7 @@ TEST_F(ReservationEndpointsTest, AvailableResources)
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
-      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
 
   Future<vector<Offer>> offers;
 
@@ -170,7 +173,7 @@ TEST_F(ReservationEndpointsTest, AvailableResources)
     .WillOnce(FutureArg<1>(&offers));
 
   response = process::http::post(
-      master.get(),
+      master.get()->pid,
       "unreserve",
       createBasicAuthHeaders(DEFAULT_CREDENTIAL),
       createRequestBody(slaveId.get(), dynamicallyReserved));
@@ -191,8 +194,6 @@ TEST_F(ReservationEndpointsTest, AvailableResources)
 
   driver.stop();
   driver.join();
-
-  Shutdown();
 }
 
 
@@ -204,7 +205,7 @@ TEST_F(ReservationEndpointsTest, ReserveOfferedResources)
 
   EXPECT_CALL(allocator, initialize(_, _, _, _));
 
-  Try<PID<Master>> master = StartMaster(&allocator);
+  Try<Owned<cluster::Master>> master = StartMaster(&allocator);
   ASSERT_SOME(master);
 
   Future<SlaveID> slaveId;
@@ -212,7 +213,8 @@ TEST_F(ReservationEndpointsTest, ReserveOfferedResources)
     .WillOnce(DoAll(InvokeAddSlave(&allocator),
                     FutureArg<0>(&slaveId)));
 
-  Try<PID<Slave>> slave = StartSlave();
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
   ASSERT_SOME(slave);
 
   FrameworkInfo frameworkInfo = createFrameworkInfo();
@@ -224,7 +226,7 @@ TEST_F(ReservationEndpointsTest, ReserveOfferedResources)
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
-      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
 
   Future<vector<Offer>> offers;
 
@@ -249,7 +251,7 @@ TEST_F(ReservationEndpointsTest, ReserveOfferedResources)
   EXPECT_CALL(sched, offerRescinded(_, _));
 
   Future<Response> response = process::http::post(
-      master.get(),
+      master.get()->pid,
       "reserve",
       createBasicAuthHeaders(DEFAULT_CREDENTIAL),
       createRequestBody(slaveId.get(), dynamicallyReserved));
@@ -265,8 +267,6 @@ TEST_F(ReservationEndpointsTest, ReserveOfferedResources)
 
   driver.stop();
   driver.join();
-
-  Shutdown();
 }
 
 
@@ -278,7 +278,7 @@ TEST_F(ReservationEndpointsTest, UnreserveOfferedResources)
 
   EXPECT_CALL(allocator, initialize(_, _, _, _));
 
-  Try<PID<Master>> master = StartMaster(&allocator);
+  Try<Owned<cluster::Master>> master = StartMaster(&allocator);
   ASSERT_SOME(master);
 
   Future<SlaveID> slaveId;
@@ -286,7 +286,8 @@ TEST_F(ReservationEndpointsTest, UnreserveOfferedResources)
     .WillOnce(DoAll(InvokeAddSlave(&allocator),
                     FutureArg<0>(&slaveId)));
 
-  Try<PID<Slave>> slave = StartSlave();
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
   ASSERT_SOME(slave);
 
   FrameworkInfo frameworkInfo = createFrameworkInfo();
@@ -297,7 +298,7 @@ TEST_F(ReservationEndpointsTest, UnreserveOfferedResources)
       createReservationInfo(DEFAULT_CREDENTIAL.principal()));
 
   Future<Response> response = process::http::post(
-      master.get(),
+      master.get()->pid,
       "reserve",
       createBasicAuthHeaders(DEFAULT_CREDENTIAL),
       createRequestBody(slaveId.get(), dynamicallyReserved));
@@ -306,7 +307,7 @@ TEST_F(ReservationEndpointsTest, UnreserveOfferedResources)
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
-      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
 
   Future<vector<Offer>> offers;
 
@@ -331,7 +332,7 @@ TEST_F(ReservationEndpointsTest, UnreserveOfferedResources)
   EXPECT_CALL(sched, offerRescinded(_, _));
 
   response = process::http::post(
-      master.get(),
+      master.get()->pid,
       "unreserve",
       createBasicAuthHeaders(DEFAULT_CREDENTIAL),
       createRequestBody(slaveId.get(), dynamicallyReserved));
@@ -347,8 +348,6 @@ TEST_F(ReservationEndpointsTest, UnreserveOfferedResources)
 
   driver.stop();
   driver.join();
-
-  Shutdown();
 }
 
 
@@ -364,7 +363,7 @@ TEST_F(ReservationEndpointsTest, ReserveAvailableAndOfferedResources)
   // Turn off allocation. We're doing it manually.
   masterFlags.allocation_interval = Seconds(1000);
 
-  Try<PID<Master>> master = StartMaster(&allocator, masterFlags);
+  Try<Owned<cluster::Master>> master = StartMaster(&allocator, masterFlags);
   ASSERT_SOME(master);
 
   Future<SlaveID> slaveId;
@@ -372,7 +371,8 @@ TEST_F(ReservationEndpointsTest, ReserveAvailableAndOfferedResources)
     .WillOnce(DoAll(InvokeAddSlave(&allocator),
                     FutureArg<0>(&slaveId)));
 
-  Try<PID<Slave>> slave = StartSlave();
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
   ASSERT_SOME(slave);
 
   FrameworkInfo frameworkInfo = createFrameworkInfo();
@@ -387,7 +387,7 @@ TEST_F(ReservationEndpointsTest, ReserveAvailableAndOfferedResources)
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
-      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(&driver, _, _));
 
@@ -471,7 +471,7 @@ TEST_F(ReservationEndpointsTest, ReserveAvailableAndOfferedResources)
     .WillOnce(DoDefault());
 
   Future<Response> response = process::http::post(
-      master.get(),
+      master.get()->pid,
       "reserve",
       createBasicAuthHeaders(DEFAULT_CREDENTIAL),
       createRequestBody(slaveId.get(), dynamicallyReserved));
@@ -498,8 +498,6 @@ TEST_F(ReservationEndpointsTest, ReserveAvailableAndOfferedResources)
 
   driver.stop();
   driver.join();
-
-  Shutdown();
 }
 
 
@@ -515,7 +513,7 @@ TEST_F(ReservationEndpointsTest, UnreserveAvailableAndOfferedResources)
 
   EXPECT_CALL(allocator, initialize(_, _, _, _));
 
-  Try<PID<Master>> master = StartMaster(&allocator, masterFlags);
+  Try<Owned<cluster::Master>> master = StartMaster(&allocator, masterFlags);
   ASSERT_SOME(master);
 
   Future<SlaveID> slaveId;
@@ -523,7 +521,8 @@ TEST_F(ReservationEndpointsTest, UnreserveAvailableAndOfferedResources)
     .WillOnce(DoAll(InvokeAddSlave(&allocator),
                     FutureArg<0>(&slaveId)));
 
-  Try<PID<Slave>> slave = StartSlave();
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
   ASSERT_SOME(slave);
 
   FrameworkInfo frameworkInfo = createFrameworkInfo();
@@ -542,7 +541,7 @@ TEST_F(ReservationEndpointsTest, UnreserveAvailableAndOfferedResources)
   Resources unreserved = total.flatten();
 
   Future<Response> response = process::http::post(
-      master.get(),
+      master.get()->pid,
       "reserve",
       createBasicAuthHeaders(DEFAULT_CREDENTIAL),
       createRequestBody(slaveId.get(), total));
@@ -551,7 +550,7 @@ TEST_F(ReservationEndpointsTest, UnreserveAvailableAndOfferedResources)
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
-      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(&driver, _, _));
 
@@ -635,7 +634,7 @@ TEST_F(ReservationEndpointsTest, UnreserveAvailableAndOfferedResources)
     .WillOnce(DoDefault());
 
   response = process::http::post(
-      master.get(),
+      master.get()->pid,
       "unreserve",
       createBasicAuthHeaders(DEFAULT_CREDENTIAL),
       createRequestBody(slaveId.get(), total));
@@ -662,8 +661,6 @@ TEST_F(ReservationEndpointsTest, UnreserveAvailableAndOfferedResources)
 
   driver.stop();
   driver.join();
-
-  Shutdown();
 }
 
 
@@ -675,7 +672,7 @@ TEST_F(ReservationEndpointsTest, LabeledResources)
 
   EXPECT_CALL(allocator, initialize(_, _, _, _));
 
-  Try<PID<Master>> master = StartMaster(&allocator);
+  Try<Owned<cluster::Master>> master = StartMaster(&allocator);
   ASSERT_SOME(master);
 
   slave::Flags slaveFlags = CreateSlaveFlags();
@@ -688,7 +685,8 @@ TEST_F(ReservationEndpointsTest, LabeledResources)
     .WillOnce(DoAll(InvokeAddSlave(&allocator),
                     FutureArg<0>(&slaveId)));
 
-  Try<PID<Slave>> slave = StartSlave(slaveFlags);
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
   ASSERT_SOME(slave);
 
   FrameworkInfo frameworkInfo = createFrameworkInfo();
@@ -709,7 +707,7 @@ TEST_F(ReservationEndpointsTest, LabeledResources)
 
   // Make two resource reservations with different labels.
   Future<Response> response = process::http::post(
-      master.get(),
+      master.get()->pid,
       "reserve",
       createBasicAuthHeaders(DEFAULT_CREDENTIAL),
       createRequestBody(slaveId.get(), labeledResources1));
@@ -717,7 +715,7 @@ TEST_F(ReservationEndpointsTest, LabeledResources)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 
   response = process::http::post(
-      master.get(),
+      master.get()->pid,
       "reserve",
       createBasicAuthHeaders(DEFAULT_CREDENTIAL),
       createRequestBody(slaveId.get(), labeledResources2));
@@ -726,7 +724,7 @@ TEST_F(ReservationEndpointsTest, LabeledResources)
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
-      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
 
   Future<vector<Offer>> offers;
 
@@ -754,7 +752,7 @@ TEST_F(ReservationEndpointsTest, LabeledResources)
 
   // Unreserve one of the labeled reservations.
   response = process::http::post(
-      master.get(),
+      master.get()->pid,
       "unreserve",
       createBasicAuthHeaders(DEFAULT_CREDENTIAL),
       createRequestBody(slaveId.get(), labeledResources1));
@@ -775,7 +773,7 @@ TEST_F(ReservationEndpointsTest, LabeledResources)
   // Now that the first labeled reservation has been unreserved,
   // attempting to unreserve it again should fail.
   response = process::http::post(
-      master.get(),
+      master.get()->pid,
       "unreserve",
       createBasicAuthHeaders(DEFAULT_CREDENTIAL),
       createRequestBody(slaveId.get(), labeledResources1));
@@ -790,7 +788,7 @@ TEST_F(ReservationEndpointsTest, LabeledResources)
 
   // Unreserve the other labeled reservation.
   response = process::http::post(
-      master.get(),
+      master.get()->pid,
       "unreserve",
       createBasicAuthHeaders(DEFAULT_CREDENTIAL),
       createRequestBody(slaveId.get(), labeledResources2));
@@ -815,8 +813,6 @@ TEST_F(ReservationEndpointsTest, LabeledResources)
 
   driver.stop();
   driver.join();
-
-  Shutdown();
 }
 
 
@@ -828,7 +824,7 @@ TEST_F(ReservationEndpointsTest, InsufficientResources)
 
   EXPECT_CALL(allocator, initialize(_, _, _, _));
 
-  Try<PID<Master>> master = StartMaster(&allocator);
+  Try<Owned<cluster::Master>> master = StartMaster(&allocator);
   ASSERT_SOME(master);
 
   Future<SlaveID> slaveId;
@@ -836,7 +832,8 @@ TEST_F(ReservationEndpointsTest, InsufficientResources)
     .WillOnce(DoAll(InvokeAddSlave(&allocator),
                     FutureArg<0>(&slaveId)));
 
-  Try<PID<Slave>> slave = StartSlave();
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
   ASSERT_SOME(slave);
 
   FrameworkInfo frameworkInfo = createFrameworkInfo();
@@ -850,15 +847,13 @@ TEST_F(ReservationEndpointsTest, InsufficientResources)
   string body = createRequestBody(slaveId.get(), dynamicallyReserved);
 
   Future<Response> response =
-    process::http::post(master.get(), "reserve", headers, body);
+    process::http::post(master.get()->pid, "reserve", headers, body);
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(Conflict().status, response);
 
-  response = process::http::post(master.get(), "unreserve", headers, body);
+  response = process::http::post(master.get()->pid, "unreserve", headers, body);
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(Conflict().status, response);
-
-  Shutdown();
 }
 
 
@@ -870,7 +865,7 @@ TEST_F(ReservationEndpointsTest, NoHeader)
 
   EXPECT_CALL(allocator, initialize(_, _, _, _));
 
-  Try<PID<Master>> master = StartMaster(&allocator);
+  Try<Owned<cluster::Master>> master = StartMaster(&allocator);
   ASSERT_SOME(master);
 
   Future<SlaveID> slaveId;
@@ -878,7 +873,8 @@ TEST_F(ReservationEndpointsTest, NoHeader)
     .WillOnce(DoAll(InvokeAddSlave(&allocator),
                     FutureArg<0>(&slaveId)));
 
-  Try<PID<Slave>> slave = StartSlave();
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
   ASSERT_SOME(slave);
 
   FrameworkInfo frameworkInfo = createFrameworkInfo();
@@ -889,7 +885,7 @@ TEST_F(ReservationEndpointsTest, NoHeader)
       createReservationInfo(DEFAULT_CREDENTIAL.principal()));
 
   Future<Response> response = process::http::post(
-      master.get(),
+      master.get()->pid,
       "reserve",
       None(),
       createRequestBody(slaveId.get(), dynamicallyReserved));
@@ -899,7 +895,7 @@ TEST_F(ReservationEndpointsTest, NoHeader)
       response);
 
   response = process::http::post(
-      master.get(),
+      master.get()->pid,
       "unreserve",
       None(),
       createRequestBody(slaveId.get(), dynamicallyReserved));
@@ -907,8 +903,6 @@ TEST_F(ReservationEndpointsTest, NoHeader)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(
       Unauthorized({}).status,
       response);
-
-  Shutdown();
 }
 
 
@@ -920,7 +914,7 @@ TEST_F(ReservationEndpointsTest, BadCredentials)
 
   EXPECT_CALL(allocator, initialize(_, _, _, _));
 
-  Try<PID<Master>> master = StartMaster(&allocator);
+  Try<Owned<cluster::Master>> master = StartMaster(&allocator);
   ASSERT_SOME(master);
 
   Future<SlaveID> slaveId;
@@ -928,7 +922,8 @@ TEST_F(ReservationEndpointsTest, BadCredentials)
     .WillOnce(DoAll(InvokeAddSlave(&allocator),
                     FutureArg<0>(&slaveId)));
 
-  Try<PID<Slave>> slave = StartSlave();
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
   ASSERT_SOME(slave);
 
   Credential credential;
@@ -943,19 +938,17 @@ TEST_F(ReservationEndpointsTest, BadCredentials)
   string body = createRequestBody(slaveId.get(), dynamicallyReserved);
 
   Future<Response> response =
-    process::http::post(master.get(), "reserve", headers, body);
+    process::http::post(master.get()->pid, "reserve", headers, body);
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(
       Unauthorized({}).status,
       response);
 
-  response = process::http::post(master.get(), "unreserve", headers, body);
+  response = process::http::post(master.get()->pid, "unreserve", headers, body);
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(
       Unauthorized({}).status,
       response);
-
-  Shutdown();
 }
 
 
@@ -990,7 +983,7 @@ TEST_F(ReservationEndpointsTest, GoodReserveAndUnreserveACL)
 
   EXPECT_CALL(allocator, initialize(_, _, _, _));
 
-  Try<PID<Master>> master = StartMaster(&allocator, masterFlags);
+  Try<Owned<cluster::Master>> master = StartMaster(&allocator, masterFlags);
   ASSERT_SOME(master);
 
   // Create a slave.
@@ -1002,7 +995,8 @@ TEST_F(ReservationEndpointsTest, GoodReserveAndUnreserveACL)
     .WillOnce(DoAll(InvokeAddSlave(&allocator),
                     FutureArg<0>(&slaveId)));
 
-  Try<PID<Slave>> slave = StartSlave(slaveFlags);
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
   ASSERT_SOME(slave);
 
   process::http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
@@ -1014,7 +1008,7 @@ TEST_F(ReservationEndpointsTest, GoodReserveAndUnreserveACL)
 
   // Reserve the resources.
   Future<Response> response = process::http::post(
-      master.get(),
+      master.get()->pid,
       "reserve",
       headers,
       createRequestBody(slaveId.get(), dynamicallyReserved));
@@ -1023,14 +1017,12 @@ TEST_F(ReservationEndpointsTest, GoodReserveAndUnreserveACL)
 
   // Unreserve the resources.
   response = process::http::post(
-      master.get(),
+      master.get()->pid,
       "unreserve",
       headers,
       createRequestBody(slaveId.get(), dynamicallyReserved));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
-
-  Shutdown();
 }
 
 
@@ -1053,7 +1045,7 @@ TEST_F(ReservationEndpointsTest, GoodReserveACLMultipleRoles)
 
   EXPECT_CALL(allocator, initialize(_, _, _, _));
 
-  Try<PID<Master>> master = StartMaster(&allocator, masterFlags);
+  Try<Owned<cluster::Master>> master = StartMaster(&allocator, masterFlags);
   ASSERT_SOME(master);
 
   // Create a slave.
@@ -1065,7 +1057,8 @@ TEST_F(ReservationEndpointsTest, GoodReserveACLMultipleRoles)
     .WillOnce(DoAll(InvokeAddSlave(&allocator),
                     FutureArg<0>(&slaveId)));
 
-  Try<PID<Slave>> slave = StartSlave(slaveFlags);
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
   ASSERT_SOME(slave);
 
   Resources unreserved = Resources::parse("cpus:1;mem:512").get();
@@ -1080,14 +1073,12 @@ TEST_F(ReservationEndpointsTest, GoodReserveACLMultipleRoles)
 
   // Reserve the resources.
   Future<Response> response = process::http::post(
-      master.get(),
+      master.get()->pid,
       "reserve",
       createBasicAuthHeaders(DEFAULT_CREDENTIAL),
       createRequestBody(slaveId.get(), dynamicallyReservedMultipleRoles));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
-
-  Shutdown();
 }
 
 
@@ -1115,7 +1106,7 @@ TEST_F(ReservationEndpointsTest, BadReserveACL)
 
   EXPECT_CALL(allocator, initialize(_, _, _, _));
 
-  Try<PID<Master>> master = StartMaster(&allocator, masterFlags);
+  Try<Owned<cluster::Master>> master = StartMaster(&allocator, masterFlags);
   ASSERT_SOME(master);
 
   // Create a slave.
@@ -1127,7 +1118,8 @@ TEST_F(ReservationEndpointsTest, BadReserveACL)
     .WillOnce(DoAll(InvokeAddSlave(&allocator),
                     FutureArg<0>(&slaveId)));
 
-  Try<PID<Slave>> slave = StartSlave(slaveFlags);
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
   ASSERT_SOME(slave);
 
   process::http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
@@ -1139,15 +1131,13 @@ TEST_F(ReservationEndpointsTest, BadReserveACL)
 
   // Attempt to reserve the resources.
   Future<Response> response = process::http::post(
-      master.get(),
+      master.get()->pid,
       "reserve",
       headers,
       createRequestBody(slaveId.get(), dynamicallyReserved));
 
   // Expect a failed authorization.
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(Forbidden().status, response);
-
-  Shutdown();
 }
 
 
@@ -1175,7 +1165,7 @@ TEST_F(ReservationEndpointsTest, BadUnreserveACL)
 
   EXPECT_CALL(allocator, initialize(_, _, _, _));
 
-  Try<PID<Master>> master = StartMaster(&allocator, masterFlags);
+  Try<Owned<cluster::Master>> master = StartMaster(&allocator, masterFlags);
   ASSERT_SOME(master);
 
   // Create a slave.
@@ -1187,7 +1177,8 @@ TEST_F(ReservationEndpointsTest, BadUnreserveACL)
     .WillOnce(DoAll(InvokeAddSlave(&allocator),
                     FutureArg<0>(&slaveId)));
 
-  Try<PID<Slave>> slave = StartSlave(slaveFlags);
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
   ASSERT_SOME(slave);
 
   process::http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
@@ -1199,7 +1190,7 @@ TEST_F(ReservationEndpointsTest, BadUnreserveACL)
 
   // Reserve the resources.
   Future<Response> response = process::http::post(
-      master.get(),
+      master.get()->pid,
       "reserve",
       headers,
       createRequestBody(slaveId.get(), dynamicallyReserved));
@@ -1208,15 +1199,13 @@ TEST_F(ReservationEndpointsTest, BadUnreserveACL)
 
   // Attempt to unreserve the resources.
   response = process::http::post(
-      master.get(),
+      master.get()->pid,
       "unreserve",
       headers,
       createRequestBody(slaveId.get(), dynamicallyReserved));
 
   // Expect a failed authorization.
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(Forbidden().status, response);
-
-  Shutdown();
 }
 
 
@@ -1249,7 +1238,7 @@ TEST_F(ReservationEndpointsTest, BadReserveACLMultipleRoles)
 
   EXPECT_CALL(allocator, initialize(_, _, _, _));
 
-  Try<PID<Master>> master = StartMaster(&allocator, masterFlags);
+  Try<Owned<cluster::Master>> master = StartMaster(&allocator, masterFlags);
   ASSERT_SOME(master);
 
   // Create a slave.
@@ -1261,7 +1250,8 @@ TEST_F(ReservationEndpointsTest, BadReserveACLMultipleRoles)
     .WillOnce(DoAll(InvokeAddSlave(&allocator),
                     FutureArg<0>(&slaveId)));
 
-  Try<PID<Slave>> slave = StartSlave(slaveFlags);
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
   ASSERT_SOME(slave);
 
   Resources unreserved = Resources::parse("cpus:1;mem:512").get();
@@ -1276,14 +1266,12 @@ TEST_F(ReservationEndpointsTest, BadReserveACLMultipleRoles)
 
   // Reserve the resources.
   Future<Response> response = process::http::post(
-      master.get(),
+      master.get()->pid,
       "reserve",
       createBasicAuthHeaders(DEFAULT_CREDENTIAL),
       createRequestBody(slaveId.get(), dynamicallyReservedMultipleRoles));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(Forbidden().status, response);
-
-  Shutdown();
 }
 
 
@@ -1291,10 +1279,11 @@ TEST_F(ReservationEndpointsTest, BadReserveACLMultipleRoles)
 // 'BadRequest' HTTP error.
 TEST_F(ReservationEndpointsTest, NoSlaveId)
 {
-  Try<PID<Master>> master = StartMaster();
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
-  Try<PID<Slave>> slave = StartSlave();
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
   ASSERT_SOME(slave);
 
   Resources unreserved = Resources::parse("cpus:1;mem:512").get();
@@ -1308,15 +1297,13 @@ TEST_F(ReservationEndpointsTest, NoSlaveId)
         static_cast<const RepeatedPtrField<Resource>&>(dynamicallyReserved)));
 
   Future<Response> response =
-    process::http::post(master.get(), "reserve", headers, body);
+    process::http::post(master.get()->pid, "reserve", headers, body);
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response);
 
-  response = process::http::post(master.get(), "unreserve", headers, body);
+  response = process::http::post(master.get()->pid, "unreserve", headers, body);
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response);
-
-  Shutdown();
 }
 
 
@@ -1328,7 +1315,7 @@ TEST_F(ReservationEndpointsTest, NoResources)
 
   EXPECT_CALL(allocator, initialize(_, _, _, _));
 
-  Try<PID<Master>> master = StartMaster(&allocator);
+  Try<Owned<cluster::Master>> master = StartMaster(&allocator);
   ASSERT_SOME(master);
 
   Future<SlaveID> slaveId;
@@ -1336,22 +1323,21 @@ TEST_F(ReservationEndpointsTest, NoResources)
     .WillOnce(DoAll(InvokeAddSlave(&allocator),
                     FutureArg<0>(&slaveId)));
 
-  Try<PID<Slave>> slave = StartSlave();
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
   ASSERT_SOME(slave);
 
   process::http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
   string body = "slaveId=" + slaveId.get().value();
 
   Future<Response> response =
-    process::http::post(master.get(), "reserve", headers, body);
+    process::http::post(master.get()->pid, "reserve", headers, body);
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response);
 
-  response = process::http::post(master.get(), "unreserve", headers, body);
+  response = process::http::post(master.get()->pid, "unreserve", headers, body);
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response);
-
-  Shutdown();
 }
 
 
@@ -1363,7 +1349,7 @@ TEST_F(ReservationEndpointsTest, NonMatchingPrincipal)
 
   EXPECT_CALL(allocator, initialize(_, _, _, _));
 
-  Try<PID<Master>> master = StartMaster(&allocator);
+  Try<Owned<cluster::Master>> master = StartMaster(&allocator);
   ASSERT_SOME(master);
 
   Future<SlaveID> slaveId;
@@ -1371,7 +1357,8 @@ TEST_F(ReservationEndpointsTest, NonMatchingPrincipal)
     .WillOnce(DoAll(InvokeAddSlave(&allocator),
                     FutureArg<0>(&slaveId)));
 
-  Try<PID<Slave>> slave = StartSlave();
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
   ASSERT_SOME(slave);
 
   Resources unreserved = Resources::parse("cpus:1;mem:512").get();
@@ -1379,14 +1366,12 @@ TEST_F(ReservationEndpointsTest, NonMatchingPrincipal)
     unreserved.flatten("role", createReservationInfo("badPrincipal"));
 
   Future<Response> response = process::http::post(
-      master.get(),
+      master.get()->pid,
       "reserve",
       createBasicAuthHeaders(DEFAULT_CREDENTIAL),
       createRequestBody(slaveId.get(), dynamicallyReserved));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response);
-
-  Shutdown();
 }
 
 
@@ -1410,7 +1395,7 @@ TEST_F(ReservationEndpointsTest, ReserveAndUnreserveNoAuthentication)
 
   EXPECT_CALL(allocator, initialize(_, _, _, _));
 
-  Try<PID<Master>> master = StartMaster(&allocator, masterFlags);
+  Try<Owned<cluster::Master>> master = StartMaster(&allocator, masterFlags);
   ASSERT_SOME(master);
 
   // Create an agent.
@@ -1422,7 +1407,8 @@ TEST_F(ReservationEndpointsTest, ReserveAndUnreserveNoAuthentication)
     .WillOnce(DoAll(InvokeAddSlave(&allocator),
                     FutureArg<0>(&slaveId)));
 
-  Try<PID<Slave>> slave = StartSlave(slaveFlags);
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
   ASSERT_SOME(slave);
 
   Resources unreserved = Resources::parse("cpus:1;mem:512").get();
@@ -1434,7 +1420,7 @@ TEST_F(ReservationEndpointsTest, ReserveAndUnreserveNoAuthentication)
   // Try a reservation with no principal in `ReservationInfo` and no
   // authentication headers.
   Future<Response> response = process::http::post(
-      master.get(),
+      master.get()->pid,
       "reserve",
       None(),
       createRequestBody(slaveId.get(), dynamicallyReservedWithNoPrincipal));
@@ -1444,14 +1430,12 @@ TEST_F(ReservationEndpointsTest, ReserveAndUnreserveNoAuthentication)
   // Try to unreserve with no principal in `ReservationInfo` and no
   // authentication headers.
   response = process::http::post(
-      master.get(),
+      master.get()->pid,
       "unreserve",
       None(),
       createRequestBody(slaveId.get(), dynamicallyReservedWithNoPrincipal));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
-
-  Shutdown();
 }
 
 
@@ -1464,7 +1448,7 @@ TEST_F(ReservationEndpointsTest, DifferentPrincipalsSameRole)
 
   EXPECT_CALL(allocator, initialize(_, _, _, _));
 
-  Try<PID<Master>> master = StartMaster(&allocator);
+  Try<Owned<cluster::Master>> master = StartMaster(&allocator);
   ASSERT_SOME(master);
 
   Future<SlaveID> slaveId;
@@ -1475,7 +1459,8 @@ TEST_F(ReservationEndpointsTest, DifferentPrincipalsSameRole)
   slave::Flags slaveFlags = CreateSlaveFlags();
   slaveFlags.resources = "cpus:2;mem:1024";
 
-  Try<PID<Slave>> slave = StartSlave(slaveFlags);
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
   ASSERT_SOME(slave);
 
   FrameworkInfo frameworkInfo = createFrameworkInfo();
@@ -1490,7 +1475,7 @@ TEST_F(ReservationEndpointsTest, DifferentPrincipalsSameRole)
       createReservationInfo(DEFAULT_CREDENTIAL_2.principal()));
 
   Future<Response> response = process::http::post(
-      master.get(),
+      master.get()->pid,
       "reserve",
       createBasicAuthHeaders(DEFAULT_CREDENTIAL),
       createRequestBody(slaveId.get(), dynamicallyReserved1));
@@ -1498,7 +1483,7 @@ TEST_F(ReservationEndpointsTest, DifferentPrincipalsSameRole)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 
   response = process::http::post(
-      master.get(),
+      master.get()->pid,
       "reserve",
       createBasicAuthHeaders(DEFAULT_CREDENTIAL_2),
       createRequestBody(slaveId.get(), dynamicallyReserved2));
@@ -1507,7 +1492,7 @@ TEST_F(ReservationEndpointsTest, DifferentPrincipalsSameRole)
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
-      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
 
   Future<vector<Offer>> offers;
 
@@ -1529,8 +1514,6 @@ TEST_F(ReservationEndpointsTest, DifferentPrincipalsSameRole)
 
   driver.stop();
   driver.join();
-
-  Shutdown();
 }
 
 } // namespace tests {

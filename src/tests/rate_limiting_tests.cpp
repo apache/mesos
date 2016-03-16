@@ -23,6 +23,7 @@
 #include <process/clock.hpp>
 #include <process/future.hpp>
 #include <process/gmock.hpp>
+#include <process/owned.hpp>
 #include <process/pid.hpp>
 
 #include <process/metrics/metrics.hpp>
@@ -43,6 +44,7 @@ using process::metrics::internal::MetricsProcess;
 
 using process::Clock;
 using process::Future;
+using process::Owned;
 using process::PID;
 
 using std::string;
@@ -92,7 +94,7 @@ TEST_F(RateLimitingTest, NoRateLimiting)
   limit->set_principal(DEFAULT_CREDENTIAL.principal());
   flags.rate_limits = limits;
 
-  Try<PID<Master> > master = StartMaster(flags);
+  Try<Owned<cluster::Master>> master = StartMaster(flags);
   ASSERT_SOME(master);
 
   Clock::pause();
@@ -120,7 +122,7 @@ TEST_F(RateLimitingTest, NoRateLimiting)
   // Create MesosSchedulerDriver on the heap because of the need to
   // destroy it during the test due to MESOS-1456.
   MesosSchedulerDriver* driver = new MesosSchedulerDriver(
-      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(driver, _, _))
     .Times(1);
@@ -130,7 +132,7 @@ TEST_F(RateLimitingTest, NoRateLimiting)
       mesos::scheduler::Call(), mesos::scheduler::Call::SUBSCRIBE, _, _);
 
   Future<process::Message> frameworkRegisteredMessage = FUTURE_MESSAGE(
-      Eq(FrameworkRegisteredMessage().GetTypeName()), master.get(), _);
+      Eq(FrameworkRegisteredMessage().GetTypeName()), master.get()->pid, _);
 
   ASSERT_EQ(DRIVER_RUNNING, driver->start());
 
@@ -144,10 +146,10 @@ TEST_F(RateLimitingTest, NoRateLimiting)
   {
     Future<process::Message> duplicateFrameworkRegisteredMessage =
       FUTURE_MESSAGE(Eq(FrameworkRegisteredMessage().GetTypeName()),
-                     master.get(),
+                     master.get()->pid,
                      _);
 
-    process::post(schedulerPid, master.get(), subscribeCall.get());
+    process::post(schedulerPid, master.get()->pid, subscribeCall.get());
     AWAIT_READY(duplicateFrameworkRegisteredMessage);
 
     // Verify that one message is received and processed (after
@@ -196,8 +198,6 @@ TEST_F(RateLimitingTest, NoRateLimiting)
         metrics.values.count("frameworks/" + DEFAULT_CREDENTIAL.principal() +
                              "/messages_processed"));
   }
-
-  Shutdown();
 }
 
 
@@ -205,7 +205,7 @@ TEST_F(RateLimitingTest, NoRateLimiting)
 // configured rate.
 TEST_F(RateLimitingTest, RateLimitingEnabled)
 {
-  Try<PID<Master> > master = StartMaster();
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   Clock::pause();
@@ -216,7 +216,7 @@ TEST_F(RateLimitingTest, RateLimitingEnabled)
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
-      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(&driver, _, _))
     .Times(1);
@@ -226,7 +226,7 @@ TEST_F(RateLimitingTest, RateLimitingEnabled)
       mesos::scheduler::Call(), mesos::scheduler::Call::SUBSCRIBE, _, _);
 
   Future<process::Message> frameworkRegisteredMessage = FUTURE_MESSAGE(
-      Eq(FrameworkRegisteredMessage().GetTypeName()), master.get(), _);
+      Eq(FrameworkRegisteredMessage().GetTypeName()), master.get()->pid, _);
 
   ASSERT_EQ(DRIVER_RUNNING, driver.start());
 
@@ -240,10 +240,10 @@ TEST_F(RateLimitingTest, RateLimitingEnabled)
   {
     Future<process::Message> duplicateFrameworkRegisteredMessage =
       FUTURE_MESSAGE(Eq(FrameworkRegisteredMessage().GetTypeName()),
-                     master.get(),
+                     master.get()->pid,
                      _);
 
-    process::post(schedulerPid, master.get(), subscribeCall.get());
+    process::post(schedulerPid, master.get()->pid, subscribeCall.get());
 
     // The first message is not throttled because it's at the head of
     // the queue.
@@ -271,10 +271,10 @@ TEST_F(RateLimitingTest, RateLimitingEnabled)
   // The 2nd message is throttled for a second.
   Future<process::Message> duplicateFrameworkRegisteredMessage =
     FUTURE_MESSAGE(Eq(FrameworkRegisteredMessage().GetTypeName()),
-                   master.get(),
+                   master.get()->pid,
                    _);
 
-  process::post(schedulerPid, master.get(), subscribeCall.get());
+  process::post(schedulerPid, master.get()->pid, subscribeCall.get());
 
   // Settle to make sure all events not delayed are processed.
   Clock::settle();
@@ -321,8 +321,6 @@ TEST_F(RateLimitingTest, RateLimitingEnabled)
 
   EXPECT_EQ(DRIVER_STOPPED, driver.stop());
   EXPECT_EQ(DRIVER_STOPPED, driver.join());
-
-  Shutdown();
 }
 
 
@@ -345,7 +343,7 @@ TEST_F(RateLimitingTest, DifferentPrincipalFrameworks)
 
   flags.authenticate_frameworks = false;
 
-  Try<PID<Master> > master = StartMaster(flags);
+  Try<Owned<cluster::Master>> master = StartMaster(flags);
   ASSERT_SOME(master);
 
   Clock::pause();
@@ -364,7 +362,7 @@ TEST_F(RateLimitingTest, DifferentPrincipalFrameworks)
   // Create MesosSchedulerDriver on the heap because of the need to
   // destroy it during the test due to MESOS-1456.
   MesosSchedulerDriver* driver1 =
-    new MesosSchedulerDriver(&sched1, frameworkInfo1, master.get());
+    new MesosSchedulerDriver(&sched1, frameworkInfo1, master.get()->pid);
 
   EXPECT_CALL(sched1, registered(driver1, _, _))
     .Times(1);
@@ -374,7 +372,7 @@ TEST_F(RateLimitingTest, DifferentPrincipalFrameworks)
       mesos::scheduler::Call(), mesos::scheduler::Call::SUBSCRIBE, _, _);
 
   Future<process::Message> frameworkRegisteredMessage1 = FUTURE_MESSAGE(
-      Eq(FrameworkRegisteredMessage().GetTypeName()), master.get(), _);
+      Eq(FrameworkRegisteredMessage().GetTypeName()), master.get()->pid, _);
 
   ASSERT_EQ(DRIVER_RUNNING, driver1->start());
 
@@ -388,7 +386,7 @@ TEST_F(RateLimitingTest, DifferentPrincipalFrameworks)
   frameworkInfo2.set_principal("framework2");
 
   MockScheduler sched2;
-  MesosSchedulerDriver driver2(&sched2, frameworkInfo2, master.get());
+  MesosSchedulerDriver driver2(&sched2, frameworkInfo2, master.get()->pid);
 
   EXPECT_CALL(sched2, registered(&driver2, _, _))
     .Times(1);
@@ -398,7 +396,7 @@ TEST_F(RateLimitingTest, DifferentPrincipalFrameworks)
       mesos::scheduler::Call(), mesos::scheduler::Call::SUBSCRIBE, _, _);
 
   Future<process::Message> frameworkRegisteredMessage2 = FUTURE_MESSAGE(
-      Eq(FrameworkRegisteredMessage().GetTypeName()), master.get(), _);
+      Eq(FrameworkRegisteredMessage().GetTypeName()), master.get()->pid, _);
 
   ASSERT_EQ(DRIVER_RUNNING, driver2.start());
 
@@ -415,15 +413,15 @@ TEST_F(RateLimitingTest, DifferentPrincipalFrameworks)
   {
     Future<process::Message> duplicateFrameworkRegisteredMessage1 =
       FUTURE_MESSAGE(Eq(FrameworkRegisteredMessage().GetTypeName()),
-                     master.get(),
+                     master.get()->pid,
                      sched1Pid);
     Future<process::Message> duplicateFrameworkRegisteredMessage2 =
       FUTURE_MESSAGE(Eq(FrameworkRegisteredMessage().GetTypeName()),
-                     master.get(),
+                     master.get()->pid,
                      sched2Pid);
 
-    process::post(sched1Pid, master.get(), subscribeCall1.get());
-    process::post(sched2Pid, master.get(), subscribeCall2.get());
+    process::post(sched1Pid, master.get()->pid, subscribeCall1.get());
+    process::post(sched2Pid, master.get()->pid, subscribeCall2.get());
 
     AWAIT_READY(duplicateFrameworkRegisteredMessage1);
     AWAIT_READY(duplicateFrameworkRegisteredMessage2);
@@ -433,15 +431,15 @@ TEST_F(RateLimitingTest, DifferentPrincipalFrameworks)
   {
     Future<process::Message> duplicateFrameworkRegisteredMessage1 =
       FUTURE_MESSAGE(Eq(FrameworkRegisteredMessage().GetTypeName()),
-                     master.get(),
+                     master.get()->pid,
                      sched1Pid);
     Future<process::Message> duplicateFrameworkRegisteredMessage2 =
       FUTURE_MESSAGE(Eq(FrameworkRegisteredMessage().GetTypeName()),
-                     master.get(),
+                     master.get()->pid,
                      sched2Pid);
 
-    process::post(sched1Pid, master.get(), subscribeCall1.get());
-    process::post(sched2Pid, master.get(), subscribeCall2.get());
+    process::post(sched1Pid, master.get()->pid, subscribeCall1.get());
+    process::post(sched2Pid, master.get()->pid, subscribeCall2.get());
 
     // Settle to make sure the pending futures below are indeed due
     // to throttling.
@@ -567,8 +565,6 @@ TEST_F(RateLimitingTest, DifferentPrincipalFrameworks)
 
   driver2.stop();
   driver2.join();
-
-  Shutdown();
 }
 
 
@@ -577,7 +573,7 @@ TEST_F(RateLimitingTest, DifferentPrincipalFrameworks)
 // removing one framework doesn't remove the counters.
 TEST_F(RateLimitingTest, SamePrincipalFrameworks)
 {
-  Try<PID<Master> > master = StartMaster();
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   Clock::pause();
@@ -593,7 +589,7 @@ TEST_F(RateLimitingTest, SamePrincipalFrameworks)
   // Create MesosSchedulerDriver on the heap because of the need to
   // destroy it during the test due to MESOS-1456.
   MesosSchedulerDriver* driver1 = new MesosSchedulerDriver(
-      &sched1, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+      &sched1, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched1, registered(driver1, _, _))
     .Times(1);
@@ -603,7 +599,7 @@ TEST_F(RateLimitingTest, SamePrincipalFrameworks)
       mesos::scheduler::Call(), mesos::scheduler::Call::SUBSCRIBE, _, _);
 
   Future<process::Message> frameworkRegisteredMessage1 = FUTURE_MESSAGE(
-      Eq(FrameworkRegisteredMessage().GetTypeName()), master.get(), _);
+      Eq(FrameworkRegisteredMessage().GetTypeName()), master.get()->pid, _);
 
   ASSERT_EQ(DRIVER_RUNNING, driver1->start());
 
@@ -617,7 +613,7 @@ TEST_F(RateLimitingTest, SamePrincipalFrameworks)
   // 'sched2' uses the same principal "test-principal".
   MockScheduler sched2;
   MesosSchedulerDriver driver2(
-      &sched2, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+      &sched2, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched2, registered(&driver2, _, _))
     .Times(1);
@@ -627,7 +623,7 @@ TEST_F(RateLimitingTest, SamePrincipalFrameworks)
       mesos::scheduler::Call(), mesos::scheduler::Call::SUBSCRIBE, _, _);
 
   Future<process::Message> frameworkRegisteredMessage2 = FUTURE_MESSAGE(
-      Eq(FrameworkRegisteredMessage().GetTypeName()), master.get(), _);
+      Eq(FrameworkRegisteredMessage().GetTypeName()), master.get()->pid, _);
 
   ASSERT_EQ(DRIVER_RUNNING, driver2.start());
 
@@ -655,15 +651,15 @@ TEST_F(RateLimitingTest, SamePrincipalFrameworks)
   // throttled by the same RateLimiter.
   Future<process::Message> duplicateFrameworkRegisteredMessage1 =
     FUTURE_MESSAGE(Eq(FrameworkRegisteredMessage().GetTypeName()),
-                   master.get(),
+                   master.get()->pid,
                    sched1Pid);
   Future<process::Message> duplicateFrameworkRegisteredMessage2 =
     FUTURE_MESSAGE(Eq(FrameworkRegisteredMessage().GetTypeName()),
-                   master.get(),
+                   master.get()->pid,
                    sched2Pid);
 
-  process::post(sched1Pid, master.get(), subscribeCall1.get());
-  process::post(sched2Pid, master.get(), subscribeCall2.get());
+  process::post(sched1Pid, master.get()->pid, subscribeCall1.get());
+  process::post(sched2Pid, master.get()->pid, subscribeCall2.get());
 
   AWAIT_READY(duplicateFrameworkRegisteredMessage1);
 
@@ -727,8 +723,6 @@ TEST_F(RateLimitingTest, SamePrincipalFrameworks)
 
   driver2.stop();
   driver2.join();
-
-  Shutdown();
 }
 
 
@@ -736,7 +730,7 @@ TEST_F(RateLimitingTest, SamePrincipalFrameworks)
 // instance continues to use the same counters and RateLimiter.
 TEST_F(RateLimitingTest, SchedulerFailover)
 {
-  Try<PID<Master> > master = StartMaster();
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   Clock::pause();
@@ -750,7 +744,7 @@ TEST_F(RateLimitingTest, SchedulerFailover)
 
   MockScheduler sched1;
   MesosSchedulerDriver driver1(
-      &sched1, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+      &sched1, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
   Future<FrameworkID> frameworkId;
   EXPECT_CALL(sched1, registered(&driver1, _, _))
@@ -762,7 +756,7 @@ TEST_F(RateLimitingTest, SchedulerFailover)
         mesos::scheduler::Call(), mesos::scheduler::Call::SUBSCRIBE, _, _);
 
     Future<process::Message> frameworkRegisteredMessage = FUTURE_MESSAGE(
-        Eq(FrameworkRegisteredMessage().GetTypeName()), master.get(), _);
+        Eq(FrameworkRegisteredMessage().GetTypeName()), master.get()->pid, _);
 
     driver1.start();
 
@@ -776,10 +770,10 @@ TEST_F(RateLimitingTest, SchedulerFailover)
     // duplicate FrameworkRegisteredMessage.
     Future<process::Message> duplicateFrameworkRegisteredMessage =
       FUTURE_MESSAGE(Eq(FrameworkRegisteredMessage().GetTypeName()),
-                     master.get(),
+                     master.get()->pid,
                      _);
 
-    process::post(schedulerPid, master.get(), subscribeCall.get());
+    process::post(schedulerPid, master.get()->pid, subscribeCall.get());
 
     // Now one message has been received and processed by Master in
     // addition to the subscribe call.
@@ -818,7 +812,7 @@ TEST_F(RateLimitingTest, SchedulerFailover)
   framework2.mutable_id()->MergeFrom(frameworkId.get());
 
   MesosSchedulerDriver driver2(
-      &sched2, framework2, master.get(), DEFAULT_CREDENTIAL);
+      &sched2, framework2, master.get()->pid, DEFAULT_CREDENTIAL);
 
   // Scheduler driver ignores duplicate FrameworkRegisteredMessages.
   EXPECT_CALL(sched2, registered(&driver2, frameworkId.get(), _))
@@ -830,7 +824,7 @@ TEST_F(RateLimitingTest, SchedulerFailover)
 
   // Grab the stuff we need to replay the subscribe call.
   Future<process::Message> frameworkRegisteredMessage = FUTURE_MESSAGE(
-      Eq(FrameworkRegisteredMessage().GetTypeName()), master.get(), _);
+      Eq(FrameworkRegisteredMessage().GetTypeName()), master.get()->pid, _);
 
   Future<mesos::scheduler::Call> subscribeCall2 = FUTURE_CALL(
       mesos::scheduler::Call(), mesos::scheduler::Call::SUBSCRIBE, _, _);
@@ -845,12 +839,12 @@ TEST_F(RateLimitingTest, SchedulerFailover)
 
   Future<process::Message> duplicateFrameworkRegisteredMessage =
     FUTURE_MESSAGE(Eq(FrameworkRegisteredMessage().GetTypeName()),
-                   master.get(),
+                   master.get()->pid,
                    _);
 
   // Sending a duplicate subscribe call to test the message counters
   // with the new scheduler instance.
-  process::post(schedulerPid, master.get(), subscribeCall2.get());
+  process::post(schedulerPid, master.get()->pid, subscribeCall2.get());
 
   // Settle to make sure everything not delayed is processed.
   Clock::settle();
@@ -909,8 +903,6 @@ TEST_F(RateLimitingTest, SchedulerFailover)
 
   EXPECT_EQ(DRIVER_ABORTED, driver1.stop());
   EXPECT_EQ(DRIVER_STOPPED, driver1.join());
-
-  Shutdown();
 }
 
 
@@ -924,7 +916,7 @@ TEST_F(RateLimitingTest, CapacityReached)
   limit->set_capacity(2);
   flags.rate_limits = limits;
 
-  Try<PID<Master> > master = StartMaster(flags);
+  Try<Owned<cluster::Master>> master = StartMaster(flags);
   ASSERT_SOME(master);
 
   Clock::pause();
@@ -940,7 +932,7 @@ TEST_F(RateLimitingTest, CapacityReached)
   // Create MesosSchedulerDriver on the heap because of the need to
   // destroy it during the test due to MESOS-1456.
   MesosSchedulerDriver* driver = new MesosSchedulerDriver(
-      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(driver, _, _))
     .Times(1);
@@ -950,7 +942,7 @@ TEST_F(RateLimitingTest, CapacityReached)
       mesos::scheduler::Call(), mesos::scheduler::Call::SUBSCRIBE, _, _);
 
   Future<process::Message> frameworkRegisteredMessage = FUTURE_MESSAGE(
-      Eq(FrameworkRegisteredMessage().GetTypeName()), master.get(), _);
+      Eq(FrameworkRegisteredMessage().GetTypeName()), master.get()->pid, _);
 
   ASSERT_EQ(DRIVER_RUNNING, driver->start());
 
@@ -964,10 +956,10 @@ TEST_F(RateLimitingTest, CapacityReached)
   {
     Future<process::Message> duplicateFrameworkRegisteredMessage =
       FUTURE_MESSAGE(Eq(FrameworkRegisteredMessage().GetTypeName()),
-                     master.get(),
+                     master.get()->pid,
                      _);
 
-    process::post(schedulerPid, master.get(), subscribeCall.get());
+    process::post(schedulerPid, master.get()->pid, subscribeCall.get());
 
     // The first message is not throttled because it's at the head of
     // the queue.
@@ -995,13 +987,13 @@ TEST_F(RateLimitingTest, CapacityReached)
   // The subsequent messages are going to be throttled.
   Future<process::Message> frameworkErrorMessage =
     FUTURE_MESSAGE(Eq(FrameworkErrorMessage().GetTypeName()),
-                   master.get(),
+                   master.get()->pid,
                    _);
 
   // Send two messages which will be queued up. This will reach but not
   // exceed the capacity.
   for (int i = 0; i < 2; i++) {
-    process::post(schedulerPid, master.get(), subscribeCall.get());
+    process::post(schedulerPid, master.get()->pid, subscribeCall.get());
   }
 
   // Settle to make sure no error is sent just yet.
@@ -1013,7 +1005,7 @@ TEST_F(RateLimitingTest, CapacityReached)
   EXPECT_CALL(sched, error(driver, _))
     .WillOnce(FutureSatisfy(&error));
 
-  process::post(schedulerPid, master.get(), subscribeCall.get());
+  process::post(schedulerPid, master.get()->pid, subscribeCall.get());
   AWAIT_READY(frameworkErrorMessage);
 
   // Settle to make sure scheduler aborts and its
@@ -1069,8 +1061,6 @@ TEST_F(RateLimitingTest, CapacityReached)
   EXPECT_EQ(
       3,
       metrics.values[messages_processed].as<JSON::Number>().as<int64_t>());
-
-  Shutdown();
 }
 
 } // namespace tests {

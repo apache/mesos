@@ -22,6 +22,7 @@
 #include <mesos/scheduler/scheduler.hpp>
 
 #include <process/gmock.hpp>
+#include <process/owned.hpp>
 #include <process/pid.hpp>
 #include <process/process.hpp>
 
@@ -39,6 +40,7 @@ using mesos::internal::master::Master;
 using mesos::internal::slave::Slave;
 
 using process::Future;
+using process::Owned;
 using process::PID;
 
 using std::string;
@@ -60,15 +62,16 @@ class ExceptionTest : public MesosTest {};
 
 TEST_F(ExceptionTest, DeactivateFrameworkOnAbort)
 {
-  Try<PID<Master> > master = StartMaster();
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
-  Try<PID<Slave> > slave = StartSlave();
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
   ASSERT_SOME(slave);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
-      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
   Future<Nothing> registered;
   EXPECT_CALL(sched, registered(&driver, _, _))
@@ -92,22 +95,21 @@ TEST_F(ExceptionTest, DeactivateFrameworkOnAbort)
   AWAIT_READY(deactivateFrameworkMessage);
 
   driver.stop();
-
-  Shutdown();
 }
 
 
 TEST_F(ExceptionTest, DisallowSchedulerActionsOnAbort)
 {
-  Try<PID<Master> > master = StartMaster();
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
-  Try<PID<Slave> > slave = StartSlave();
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
   ASSERT_SOME(slave);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
-      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
   Future<Nothing> registered;
   EXPECT_CALL(sched, registered(&driver, _, _))
@@ -128,22 +130,21 @@ TEST_F(ExceptionTest, DisallowSchedulerActionsOnAbort)
   ASSERT_EQ(DRIVER_ABORTED, driver.reviveOffers());
 
   driver.stop();
-
-  Shutdown();
 }
 
 
 TEST_F(ExceptionTest, DisallowSchedulerCallbacksOnAbort)
 {
-  Try<PID<Master> > master = StartMaster();
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
-  Try<PID<Slave> > slave = StartSlave();
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
   ASSERT_SOME(slave);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
-      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(&driver, _, _))
     .Times(1);
@@ -197,8 +198,6 @@ TEST_F(ExceptionTest, DisallowSchedulerCallbacksOnAbort)
 
   // Ensures reception of RescindResourceOfferMessage.
   AWAIT_READY(teardownCall);
-
-  Shutdown();
 }
 
 } // namespace tests {

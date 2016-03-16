@@ -73,7 +73,7 @@ class DockerRuntimeIsolatorTest : public MesosTest {};
 // value=0, argv=1, entrypoint=0, cmd=1.
 TEST_F(DockerRuntimeIsolatorTest, ROOT_DockerDefaultCmdLocalPuller)
 {
-  Try<PID<Master>> master = StartMaster();
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   const string directory = path::join(os::getcwd(), "archives");
@@ -95,12 +95,14 @@ TEST_F(DockerRuntimeIsolatorTest, ROOT_DockerDefaultCmdLocalPuller)
   // previous tests should never be used.
   flags.docker_store_dir = path::join(os::getcwd(), "store");
 
-  Try<PID<Slave>> slave = StartSlave(flags);
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
-      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(&driver, _, _));
 
@@ -151,8 +153,6 @@ TEST_F(DockerRuntimeIsolatorTest, ROOT_DockerDefaultCmdLocalPuller)
 
   driver.stop();
   driver.join();
-
-  Shutdown();
 }
 
 
@@ -161,7 +161,7 @@ TEST_F(DockerRuntimeIsolatorTest, ROOT_DockerDefaultCmdLocalPuller)
 // isolator logic table: sh=0, value=0, argv=1, entrypoint=1, cmd=0.
 TEST_F(DockerRuntimeIsolatorTest, ROOT_DockerDefaultEntryptLocalPuller)
 {
-  Try<PID<Master>> master = StartMaster();
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   const string directory = path::join(os::getcwd(), "archives");
@@ -179,12 +179,14 @@ TEST_F(DockerRuntimeIsolatorTest, ROOT_DockerDefaultEntryptLocalPuller)
   flags.docker_registry = directory;
   flags.docker_store_dir = path::join(os::getcwd(), "store");
 
-  Try<PID<Slave>> slave = StartSlave(flags);
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
-      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(&driver, _, _));
 
@@ -234,8 +236,6 @@ TEST_F(DockerRuntimeIsolatorTest, ROOT_DockerDefaultEntryptLocalPuller)
 
   driver.stop();
   driver.join();
-
-  Shutdown();
 }
 
 
@@ -245,7 +245,7 @@ TEST_F(DockerRuntimeIsolatorTest, ROOT_DockerDefaultEntryptLocalPuller)
 TEST_F(DockerRuntimeIsolatorTest,
        ROOT_CURL_INTERNET_DockerDefaultEntryptRegistryPuller)
 {
-  Try<PID<Master>> master = StartMaster();
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   slave::Flags flags = CreateSlaveFlags();
@@ -254,12 +254,14 @@ TEST_F(DockerRuntimeIsolatorTest,
   flags.docker_registry = "https://registry-1.docker.io";
   flags.docker_store_dir = path::join(os::getcwd(), "store");
 
-  Try<PID<Slave>> slave = StartSlave(flags);
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
-      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(&driver, _, _));
 
@@ -312,8 +314,6 @@ TEST_F(DockerRuntimeIsolatorTest,
 
   driver.stop();
   driver.join();
-
-  Shutdown();
 }
 
 
