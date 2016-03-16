@@ -10,6 +10,8 @@ creating [persistent volumes](persistent-volume.md) frameworks can decide
 whether to use specific disks by examining the `source` field on the disk
 resources offered.
 
+## Types of Disk Resources
+
 `Disk` resources come in three forms:
 
 * A `Root` disk is presented by not having the `source` set in `DiskInfo`.
@@ -21,38 +23,54 @@ resources offered.
   mount point used to store data.
 
 Operators can use the JSON-formated `--resources` option on the agent to provide
-these different kind of disk resources on agent start-up.
+these different kind of disk resources on agent start-up. Example resource
+values in JSON format can be found below. By default (if `--resources` is not
+specified), the Mesos agent will only make the root disk available to the
+cluster.
 
-#### `Root` disk
+### `Root` disk
 
 A `Root` disk is the basic disk resource in Mesos. It usually maps to the
 storage on the main operating system drive that the operator has presented to
 the agent. Data is mapped into the `work_dir` of the agent.
 
+An example resources value for a root disk is shown below. Note that the
+operator could optionally specify a `role` for the disk, which would result in
+[statically reserving](reservations.md) the disk for a single [role](roles.md).
+
         {
           "resources" : [
             {
               "name" : "disk",
               "type" : "SCALAR",
-              "scalar" : { "value" : 2048 },
-              "role" : <framework_role>
+              "scalar" : { "value" : 2048 }
             }
           ]
         }
 
-#### `Path` disks
+### `Path` disks
 
 A `Path` disk is an auxiliary disk resource provided by the operator. This can
-can be carved up into smaller chunks by accepting less than the total amount as
-frameworks see fit. Common uses for this kind of disk are extra logging space,
-file archives or caches, or other non performance-critical applications.
-Operators can present extra disks on their agents as `Path` disks simply by
-creating a directory and making that the `root` of the `Path` in `DiskInfo`'s
-`source`.
+can be carved up into smaller chunks by creating persistent volumes that use
+less than the total available space on the disk. Common uses for this kind of
+disk are extra logging space, file archives or caches, or other non
+performance-critical applications.  Operators can present extra disks on their
+agents as `Path` disks simply by creating a directory and making that the `root`
+of the `Path` in `DiskInfo`'s `source`.
 
 `Path` disks are also useful for mocking up a multiple disk environment by
 creating some directories on the operating system drive. This should only be
-done in a testing or staging environment.
+done in a testing or staging environment. Note that creating multiple `Path`
+disks on the same filesystem requires statically partitioning the available disk
+space. For example, suppose a 10GB storage device is mounted to `/foo` and the
+Mesos agent is configured with two `Path` disks at `/foo/disk1` and
+`/foo/disk2`. To avoid the risk of running out of space on the device, `disk1`
+and `disk2` should be configured (when the Mesos agent is started) to use at
+most 10GB of disk space in total.
+
+An example resources value for a `Path` disk is shown below. Note that the
+operator could optionally specify a `role` for the disk, which would result in
+[statically reserving](reservations.md) the disk for a single [role](roles.md).
 
         {
           "resources" : [
@@ -60,7 +78,6 @@ done in a testing or staging environment.
               "name" : "disk",
               "type" : "SCALAR",
               "scalar" : { "value" : 2048 },
-              "role" : <framework_role>,
               "disk" : {
                 "source" : {
                   "type" : "PATH",
@@ -71,7 +88,7 @@ done in a testing or staging environment.
           ]
         }
 
-#### `Mount` disks
+### `Mount` disks
 
 A `Mount` disk is an auxiliary disk resource provided by the operator. This
 __cannot__ be carved up into smaller chunks by frameworks. This lack of
@@ -80,10 +97,10 @@ have exclusive access to the disk device. Common uses for this kind of disk
 include database storage, write-ahead logs, or other performance-critical
 applications.
 
-Another requirement of `Mount` disks is that (on Linux) they map to a `mount`
-point in the `/proc/mounts` table. Operators should mount a physical disk with
-their preferred file system and provide the mount point as the `root` of the
-`Mount` in `DiskInfo`'s `source`.
+On Linux, `Mount` disks must map to a `mount` point in the `/proc/mounts`
+table. Operators should mount a physical disk with their preferred file system
+and provide the mount point as the `root` of the `Mount` in `DiskInfo`'s
+`source`.
 
 Aside from the performance advantages of `Mount` disks, applications running on
 them should be able to rely on disk errors when they attempt to exceed the
@@ -91,13 +108,16 @@ capacity of the volume. This holds true as long as the file system in use
 correctly propagates these errors. Due to this expectation, the `posix/disk`
 isolation is disabled for `Mount` disks.
 
+An example resources value for a `Mount` disk is shown below. Note that the
+operator could optionally specify a `role` for the disk, which would result in
+[statically reserving](reservations.md) the disk for a single [role](roles.md).
+
         {
           "resources" : [
             {
               "name" : "disk",
               "type" : "SCALAR",
               "scalar" : { "value" : 2048 },
-              "role" : <framework_role>,
               "disk" : {
                 "source" : {
                   "type" : "MOUNT",
