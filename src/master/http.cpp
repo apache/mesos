@@ -1172,7 +1172,7 @@ string Master::Http::WEIGHTS_HELP()
         "Updates weights for the specified roles."),
     DESCRIPTION(
         "PUT: Validates the request body as JSON",
-        " and updates the weights for the specified roles."));
+        "and updates the weights for the specified roles."));
 }
 
 

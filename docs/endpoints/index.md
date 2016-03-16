@@ -62,6 +62,7 @@ For example, http://master.com:5050/files/browse
 * [/tasks.json](master/tasks.json.md)
 * [/teardown](master/teardown.md)
 * [/unreserve](master/unreserve.md)
+* [/weights](master/weights.md)
 
 ### metrics ###
 * [/metrics/snapshot](metrics/snapshot.md)
